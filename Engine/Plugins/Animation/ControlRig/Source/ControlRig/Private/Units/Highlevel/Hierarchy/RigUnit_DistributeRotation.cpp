@@ -2,6 +2,7 @@
 
 #include "Units/Highlevel/Hierarchy/RigUnit_DistributeRotation.h"
 #include "Units/RigUnitContext.h"
+#include "AnimationCoreLibrary.h"
 
 FRigUnit_DistributeRotation_Execute()
 {
@@ -273,7 +274,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 	Rotation.Rotation = FQuat::Identity;
 	Rotation.Ratio = 1.f;
 	Unit.Rotations.Add(Rotation);
-	Rotation.Rotation = FControlRigMathLibrary::QuatFromEuler(FVector(0.f, 90.f, 0.f), EControlRigRotationOrder::XYZ);
+	Rotation.Rotation = AnimationCore::QuatFromEuler(FVector(0.f, 90.f, 0.f), EEulerRotationOrder::XYZ);
 	Rotation.Ratio = 0.5f;
 	Unit.Rotations.Add(Rotation);
 
@@ -297,15 +298,15 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.ItemRotationT[4], 0.0f, 0.001f), TEXT("unexpected bone t"));
 
 	FVector Euler = FVector::ZeroVector;
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(0).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = AnimationCore::EulerFromQuat(Hierarchy->GetLocalTransform(0).GetRotation(), EEulerRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 0.0, 0.1), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(1).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = AnimationCore::EulerFromQuat(Hierarchy->GetLocalTransform(1).GetRotation(), EEulerRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 45.0, 0.1), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(2).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = AnimationCore::EulerFromQuat(Hierarchy->GetLocalTransform(2).GetRotation(), EEulerRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 90.0, 0.1), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(3).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = AnimationCore::EulerFromQuat(Hierarchy->GetLocalTransform(3).GetRotation(), EEulerRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 45.0, 0.1), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(4).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = AnimationCore::EulerFromQuat(Hierarchy->GetLocalTransform(4).GetRotation(), EEulerRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual((double)Euler.Y, 0.0, 0.1), TEXT("unexpected rotation Y"));
 
 	return true;

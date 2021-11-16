@@ -5,6 +5,17 @@
 #include "CoreMinimal.h"
 #include "EulerTransform.generated.h"
 
+UENUM()
+enum class EEulerRotationOrder : uint8
+{
+	XYZ,
+	XZY,
+	YXZ,
+	YZX,
+	ZXY,
+	ZYX
+};
+
 USTRUCT(BlueprintType)
 struct ANIMATIONCORE_API FEulerTransform
 {

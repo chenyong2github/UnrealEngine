@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EulerTransform.h"
 
 struct FTransformConstraint;
 struct FConstraintData;
@@ -51,4 +52,15 @@ namespace AnimationCore
 	 * @return  Delta Rotation to turn
 	 */
 	ANIMATIONCORE_API FQuat SolveAim(const FTransform& CurrentTransform, const FVector& TargetPosition, const FVector& AimVector, bool bUseUpVector = false, const FVector& UpVector = FVector::UpVector, float AimClampInDegree = 0.f);
+
+	/**
+	 * Converts a euler rotation represented by a vector of rotations in degrees and a rotation order to a quaternion
+	 */
+	ANIMATIONCORE_API FQuat QuatFromEuler(const FVector& XYZAnglesInDegrees, EEulerRotationOrder RotationOrderr = EEulerRotationOrder::ZYX);
+
+	/**
+	 * Converts a quaternion to a euler rotation represented by a vector of rotations in degrees and a rotation order
+	 */
+	ANIMATIONCORE_API FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder = EEulerRotationOrder::ZYX);
+
 }

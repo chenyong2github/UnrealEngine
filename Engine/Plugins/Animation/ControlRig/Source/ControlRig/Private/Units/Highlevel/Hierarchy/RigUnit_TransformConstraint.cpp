@@ -287,7 +287,7 @@ FRigUnit_ParentConstraint_Execute()
 			MixedLocalTransform.NormalizeRotation();
 			FVector MixedTranslation = MixedLocalTransform.GetTranslation();
 			FQuat MixedRotation = MixedLocalTransform.GetRotation();
-			FVector MixedEulerRotation = FControlRigMathLibrary::EulerFromQuat(MixedRotation, AdvancedSettings.RotationOrderForFilter);
+			FVector MixedEulerRotation = AnimationCore::EulerFromQuat(MixedRotation, AdvancedSettings.RotationOrderForFilter);
 			FVector MixedScale = MixedLocalTransform.GetScale3D();
 
 			FTransform ChildCurrentLocalTransform = Hierarchy->GetLocalTransform(Child, false);
@@ -307,7 +307,7 @@ FRigUnit_ParentConstraint_Execute()
 			
 			FVector ChildTranslation = ChildCurrentLocalTransform.GetTranslation();
 			FQuat ChildRotation = ChildCurrentLocalTransform.GetRotation();
-			FVector ChildEulerRotation = FControlRigMathLibrary::EulerFromQuat(ChildRotation, AdvancedSettings.RotationOrderForFilter);
+			FVector ChildEulerRotation = AnimationCore::EulerFromQuat(ChildRotation, AdvancedSettings.RotationOrderForFilter);
 			FVector ChildScale = ChildCurrentLocalTransform.GetScale3D();
 
 			FVector FilteredTranslation;
@@ -325,7 +325,7 @@ FRigUnit_ParentConstraint_Execute()
 			FilteredScale.Y = Filter.ScaleFilter.bY ? MixedScale.Y : ChildScale.Y;
 			FilteredScale.Z = Filter.ScaleFilter.bZ ? MixedScale.Z : ChildScale.Z;
 
-			FTransform FilteredMixedLocalTransform(FControlRigMathLibrary::QuatFromEuler(FilteredEulerRotation, AdvancedSettings.RotationOrderForFilter), FilteredTranslation, FilteredScale);
+			FTransform FilteredMixedLocalTransform(AnimationCore::QuatFromEuler(FilteredEulerRotation, AdvancedSettings.RotationOrderForFilter), FilteredTranslation, FilteredScale);
 
 			FTransform FinalLocalTransform = FilteredMixedLocalTransform;
 
@@ -352,12 +352,12 @@ FRigUnit_ParentConstraint_Execute()
  IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ParentConstraint)
  {
 	// use euler rotation here to match other software's rotation representation more easily
-	EControlRigRotationOrder Order = EControlRigRotationOrder::XZY;
-	const FRigElementKey Child = Controller->AddBone(TEXT("Child"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(-10, -10, -10), Order), FVector(0.f, 0.f, 0.f)), true, ERigBoneType::User);
-	const FRigElementKey Parent1 = Controller->AddBone(TEXT("Parent1"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(30, -30, -30), Order), FVector(20.f, 20.f, 20.f)), true, ERigBoneType::User);
-	const FRigElementKey Parent2 = Controller->AddBone(TEXT("Parent2"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(-40, -40, 40), Order), FVector(40.f, 40.f, 40.f)), true, ERigBoneType::User);
-	const FRigElementKey Parent3 = Controller->AddBone(TEXT("Parent3"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(-50, 50, -50), Order), FVector(60.f, 60.f, 60.f)), true, ERigBoneType::User);
-	const FRigElementKey Parent4 = Controller->AddBone(TEXT("Parent4"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(60, 60, 60), Order), FVector(80.f, 80.f, 80.f)), true, ERigBoneType::User);
+	EEulerRotationOrder Order = EEulerRotationOrder::XZY;
+	const FRigElementKey Child = Controller->AddBone(TEXT("Child"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(-10, -10, -10), Order), FVector(0.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey Parent1 = Controller->AddBone(TEXT("Parent1"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(30, -30, -30), Order), FVector(20.f, 20.f, 20.f)), true, ERigBoneType::User);
+	const FRigElementKey Parent2 = Controller->AddBone(TEXT("Parent2"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(-40, -40, 40), Order), FVector(40.f, 40.f, 40.f)), true, ERigBoneType::User);
+	const FRigElementKey Parent3 = Controller->AddBone(TEXT("Parent3"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(-50, 50, -50), Order), FVector(60.f, 60.f, 60.f)), true, ERigBoneType::User);
+	const FRigElementKey Parent4 = Controller->AddBone(TEXT("Parent4"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(60, 60, 60), Order), FVector(80.f, 80.f, 80.f)), true, ERigBoneType::User);
 	
 	Unit.ExecuteContext.Hierarchy = Hierarchy;
 	Unit.Child = Child;
@@ -375,7 +375,7 @@ FRigUnit_ParentConstraint_Execute()
 	AddErrorIfFalse(Hierarchy->GetGlobalTransform(0).GetTranslation().Equals(FVector(50.f, 50.f, 50.f)), TEXT("unexpected translation for average interpolation type"));
 
 	FQuat Result = Hierarchy->GetGlobalTransform(0).GetRotation();
-	FQuat Expected = FControlRigMathLibrary::QuatFromEuler( FVector(-0.852f, 15.189f, -0.572f), Order);
+	FQuat Expected = AnimationCore::QuatFromEuler( FVector(-0.852f, 15.189f, -0.572f), Order);
 	AddErrorIfFalse(Result.Equals(Expected, 0.001f), TEXT("unexpected rotation for average interpolation type"));
 	
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
@@ -384,12 +384,12 @@ FRigUnit_ParentConstraint_Execute()
 	Execute();
 	
 	Result = Hierarchy->GetGlobalTransform(0).GetRotation();
-	Expected = FControlRigMathLibrary::QuatFromEuler( FVector(16.74f, 8.865f, -5.562f), Order);
+	Expected = AnimationCore::QuatFromEuler( FVector(16.74f, 8.865f, -5.562f), Order);
 	AddErrorIfFalse(Result.Equals(Expected, 0.001f), TEXT("unexpected rotation for shortest interpolation type"));
 
 	
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
-	Hierarchy->SetGlobalTransform(2, FTransform(FControlRigMathLibrary::QuatFromEuler( FVector(100, 100, -100), Order), FVector(-40.f, -40.f, -40.f)));
+	Hierarchy->SetGlobalTransform(2, FTransform(AnimationCore::QuatFromEuler( FVector(100, 100, -100), Order), FVector(-40.f, -40.f, -40.f)));
 	Unit.bMaintainOffset = true;
 	Unit.AdvancedSettings.InterpolationType = EConstraintInterpType::Average;
 	
@@ -398,18 +398,18 @@ FRigUnit_ParentConstraint_Execute()
                     TEXT("unexpected translation for maintain offset and average interpolation type"));
 	
 	Result = Hierarchy->GetGlobalTransform(0).GetRotation();
-	Expected = FControlRigMathLibrary::QuatFromEuler( FVector(5.408f, -5.679f, -34.44f), Order);
+	Expected = AnimationCore::QuatFromEuler( FVector(5.408f, -5.679f, -34.44f), Order);
 	AddErrorIfFalse(Result.Equals(Expected, 0.001f), TEXT("unexpected rotation for maintain offset and average interpolation type"));
 
 	
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
-	Hierarchy->SetGlobalTransform(2, FTransform(FControlRigMathLibrary::QuatFromEuler( FVector(100.0f, 100.0f, -100.0f), Order), FVector(-40.f, -40.f, -40.f)));
+	Hierarchy->SetGlobalTransform(2, FTransform(AnimationCore::QuatFromEuler( FVector(100.0f, 100.0f, -100.0f), Order), FVector(-40.f, -40.f, -40.f)));
 	Unit.bMaintainOffset = true;
 	Unit.AdvancedSettings.InterpolationType = EConstraintInterpType::Shortest;
 	
 	Execute();
 	Result = Hierarchy->GetGlobalTransform(0).GetRotation();
-	Expected = FControlRigMathLibrary::QuatFromEuler( FVector(-1.209f, -8.332f, -25.022f), Order);
+	Expected = AnimationCore::QuatFromEuler( FVector(-1.209f, -8.332f, -25.022f), Order);
 	AddErrorIfFalse(Result.Equals(Expected, 0.001f), TEXT("unexpected rotation for maintain offset and shortest interpolation type"));
 	
 	return true;
@@ -543,7 +543,7 @@ FRigUnit_PositionConstraint_Execute()
  IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_PositionConstraint)
  {
 	// use euler rotation here to match other software's rotation representation more easily
-	EControlRigRotationOrder Order = EControlRigRotationOrder::XZY;
+	EEulerRotationOrder Order = EEulerRotationOrder::XZY;
 	const FRigElementKey Child = Controller->AddBone(TEXT("Child"), FRigElementKey(), FTransform(FVector(0.f, 0.f, 0.f)), true, ERigBoneType::User);
 	const FRigElementKey Parent1 = Controller->AddBone(TEXT("Parent1"), FRigElementKey(), FTransform(FVector(20.f, 20.f, 20.f)), true, ERigBoneType::User);
 	const FRigElementKey Parent2 = Controller->AddBone(TEXT("Parent2"), FRigElementKey(), FTransform(FVector(40.f, 40.f, 40.f)), true, ERigBoneType::User);
@@ -687,7 +687,7 @@ FRigUnit_RotationConstraint_Execute()
 			// handle filtering, performed in local space
 			FTransform ChildParentGlobalTransform = Hierarchy->GetParentTransform(Child, false);
 			FQuat MixedLocalRotation = ChildParentGlobalTransform.GetRotation().Inverse() * MixedGlobalRotation;
-			FVector MixedEulerRotation = FControlRigMathLibrary::EulerFromQuat(MixedLocalRotation, AdvancedSettings.RotationOrderForFilter);
+			FVector MixedEulerRotation = AnimationCore::EulerFromQuat(MixedLocalRotation, AdvancedSettings.RotationOrderForFilter);
 			
 			FTransform ChildCurrentLocalTransform = Hierarchy->GetLocalTransform(Child, false);
 			
@@ -706,7 +706,7 @@ FRigUnit_RotationConstraint_Execute()
 
 			FQuat ChildRotation = ChildCurrentLocalTransform.GetRotation();
 			
-			FVector ChildEulerRotation = FControlRigMathLibrary::EulerFromQuat(ChildRotation, AdvancedSettings.RotationOrderForFilter);	
+			FVector ChildEulerRotation = AnimationCore::EulerFromQuat(ChildRotation, AdvancedSettings.RotationOrderForFilter);	
 			
 			FVector FilteredEulerRotation;
 			FilteredEulerRotation.X = Filter.bX ? MixedEulerRotation.X : ChildEulerRotation.X;
@@ -715,7 +715,7 @@ FRigUnit_RotationConstraint_Execute()
 
 			FTransform FilteredMixedLocalTransform = ChildCurrentLocalTransform;
 
-			FilteredMixedLocalTransform.SetRotation(FControlRigMathLibrary::QuatFromEuler(FilteredEulerRotation, AdvancedSettings.RotationOrderForFilter));
+			FilteredMixedLocalTransform.SetRotation(AnimationCore::QuatFromEuler(FilteredEulerRotation, AdvancedSettings.RotationOrderForFilter));
 
 			FTransform FinalLocalTransform = FilteredMixedLocalTransform;
 
@@ -744,12 +744,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RotationConstraint)
 	// the rotation constraint is expected to behave similarly to parent constraint with translation filter turned off.
 
 	// use euler rotation here to match other software's rotation representation more easily
-	EControlRigRotationOrder Order = EControlRigRotationOrder::XZY;
-	const FRigElementKey Child = Controller->AddBone(TEXT("Child"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(-10, -10, -10), Order), FVector(0.f, 0.f, 0.f)), true, ERigBoneType::User);
-	const FRigElementKey Parent1 = Controller->AddBone(TEXT("Parent1"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(30, -30, -30), Order), FVector(20.f, 20.f, 20.f)), true, ERigBoneType::User);
-	const FRigElementKey Parent2 = Controller->AddBone(TEXT("Parent2"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(-40, -40, 40), Order), FVector(40.f, 40.f, 40.f)), true, ERigBoneType::User);
-	const FRigElementKey Parent3 = Controller->AddBone(TEXT("Parent3"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(-50, 50, -50), Order), FVector(60.f, 60.f, 60.f)), true, ERigBoneType::User);
-	const FRigElementKey Parent4 = Controller->AddBone(TEXT("Parent4"), FRigElementKey(), FTransform( FControlRigMathLibrary::QuatFromEuler( FVector(60, 60, 60), Order), FVector(80.f, 80.f, 80.f)), true, ERigBoneType::User);
+	EEulerRotationOrder Order = EEulerRotationOrder::XZY;
+	const FRigElementKey Child = Controller->AddBone(TEXT("Child"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(-10, -10, -10), Order), FVector(0.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey Parent1 = Controller->AddBone(TEXT("Parent1"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(30, -30, -30), Order), FVector(20.f, 20.f, 20.f)), true, ERigBoneType::User);
+	const FRigElementKey Parent2 = Controller->AddBone(TEXT("Parent2"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(-40, -40, 40), Order), FVector(40.f, 40.f, 40.f)), true, ERigBoneType::User);
+	const FRigElementKey Parent3 = Controller->AddBone(TEXT("Parent3"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(-50, 50, -50), Order), FVector(60.f, 60.f, 60.f)), true, ERigBoneType::User);
+	const FRigElementKey Parent4 = Controller->AddBone(TEXT("Parent4"), FRigElementKey(), FTransform( AnimationCore::QuatFromEuler( FVector(60, 60, 60), Order), FVector(80.f, 80.f, 80.f)), true, ERigBoneType::User);
 	
 	Unit.ExecuteContext.Hierarchy = Hierarchy;
 	Unit.Child = Child;
@@ -766,7 +766,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RotationConstraint)
 	Execute();
 
 	FQuat Result = Hierarchy->GetGlobalTransform(0).GetRotation();
-	FQuat Expected = FControlRigMathLibrary::QuatFromEuler( FVector(-0.853f, 15.189f, -0.572f), Order);
+	FQuat Expected = AnimationCore::QuatFromEuler( FVector(-0.853f, 15.189f, -0.572f), Order);
 	AddErrorIfFalse(Result.Equals(Expected, 0.001f), TEXT("unexpected rotation for average interpolation type"));
 	
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
@@ -776,31 +776,31 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RotationConstraint)
 	Execute();
 	
 	Result = Hierarchy->GetGlobalTransform(0).GetRotation();
-	Expected = FControlRigMathLibrary::QuatFromEuler( FVector(16.74f, 8.865f, -5.562f), Order);
+	Expected = AnimationCore::QuatFromEuler( FVector(16.74f, 8.865f, -5.562f), Order);
 	AddErrorIfFalse(Result.Equals(Expected, 0.001f), TEXT("unexpected rotation for shortest interpolation type"));
 
 	
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
-	Hierarchy->SetGlobalTransform(2, FTransform(FControlRigMathLibrary::QuatFromEuler( FVector(100, 100, -100), Order), FVector(-40.f, -40.f, -40.f)));
+	Hierarchy->SetGlobalTransform(2, FTransform(AnimationCore::QuatFromEuler( FVector(100, 100, -100), Order), FVector(-40.f, -40.f, -40.f)));
 	Unit.bMaintainOffset = true;
 	Unit.AdvancedSettings.InterpolationType = EConstraintInterpType::Average;
 	
 	Execute();
 	
 	Result = Hierarchy->GetGlobalTransform(0).GetRotation();
-	Expected = FControlRigMathLibrary::QuatFromEuler( FVector(5.408f, -5.679f, -34.44f), Order);
+	Expected = AnimationCore::QuatFromEuler( FVector(5.408f, -5.679f, -34.44f), Order);
 	AddErrorIfFalse(Result.Equals(Expected, 0.001f), TEXT("unexpected rotation for maintain offset and average interpolation type"));
 
 	
 	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
-	Hierarchy->SetGlobalTransform(2, FTransform(FControlRigMathLibrary::QuatFromEuler( FVector(100.0f, 100.0f, -100.0f), Order), FVector(-40.f, -40.f, -40.f)));
+	Hierarchy->SetGlobalTransform(2, FTransform(AnimationCore::QuatFromEuler( FVector(100.0f, 100.0f, -100.0f), Order), FVector(-40.f, -40.f, -40.f)));
 	Unit.bMaintainOffset = true;
 	Unit.AdvancedSettings.InterpolationType = EConstraintInterpType::Shortest;
 	
 	Execute();
 	
 	Result = Hierarchy->GetGlobalTransform(0).GetRotation();
-	Expected = FControlRigMathLibrary::QuatFromEuler( FVector(-1.209f, -8.332f, -25.022f), Order);
+	Expected = AnimationCore::QuatFromEuler( FVector(-1.209f, -8.332f, -25.022f), Order);
 	AddErrorIfFalse(Result.Equals(Expected, 0.001f), TEXT("unexpected rotation for maintain offset and shortest interpolation type"));
 	
 	return true;
@@ -971,7 +971,7 @@ FRigUnit_ScaleConstraint_Execute()
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ScaleConstraint)
 {
 	// use euler rotation here to match other software's rotation representation more easily
-	EControlRigRotationOrder Order = EControlRigRotationOrder::XZY;
+	EEulerRotationOrder Order = EEulerRotationOrder::XZY;
 	const FRigElementKey Child = Controller->AddBone(TEXT("Child"), FRigElementKey(), FTransform(FQuat::Identity, FVector::ZeroVector, FVector::OneVector), true, ERigBoneType::User);
 	const FRigElementKey Parent1 = Controller->AddBone(TEXT("Parent1"), FRigElementKey(), FTransform(FQuat::Identity, FVector::ZeroVector, FVector(4,4,4)), true, ERigBoneType::User);
 	const FRigElementKey Parent2 = Controller->AddBone(TEXT("Parent2"), FRigElementKey(), FTransform(FQuat::Identity, FVector::ZeroVector, FVector(1,1,1)), true, ERigBoneType::User);

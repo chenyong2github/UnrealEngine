@@ -346,7 +346,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransf
 	{
 		Location = FVector::ZeroVector;
 		Rotation = FVector::ZeroVector;
-		RotationOrder = EControlRigRotationOrder::XYZ;
+		RotationOrder = EEulerRotationOrder::XYZ;
 		Scale = FVector::OneVector;
 		Transform = FTransform::Identity;
 		EulerTransform = FEulerTransform::Identity;
@@ -362,7 +362,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransf
 	FVector Rotation;
 
 	UPROPERTY(meta=(Input))
-	EControlRigRotationOrder RotationOrder;
+	EEulerRotationOrder RotationOrder;
 
 	UPROPERTY(meta=(Input))
 	FVector Scale;

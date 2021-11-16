@@ -220,7 +220,7 @@ struct FRigUnit_ParentConstraint_AdvancedSettings
 
 	FRigUnit_ParentConstraint_AdvancedSettings()
 		: InterpolationType(EConstraintInterpType::Average)
-		, RotationOrderForFilter(EControlRigRotationOrder::XZY)
+		, RotationOrderForFilter(EEulerRotationOrder::XZY)
 	{}
 	
 	/**
@@ -233,7 +233,7 @@ struct FRigUnit_ParentConstraint_AdvancedSettings
 	*	Rotation is converted to euler angles using the specified order such that individual axes can be filtered.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
-	EControlRigRotationOrder RotationOrderForFilter;
+	EEulerRotationOrder RotationOrderForFilter;
 };
 
 /**
@@ -316,7 +316,7 @@ struct FRigUnit_RotationConstraint_AdvancedSettings
 
 	FRigUnit_RotationConstraint_AdvancedSettings()
         : InterpolationType(EConstraintInterpType::Average)
-        , RotationOrderForFilter(EControlRigRotationOrder::XZY)
+        , RotationOrderForFilter(EEulerRotationOrder::XZY)
 	{}
 	
 	/**
@@ -329,7 +329,7 @@ struct FRigUnit_RotationConstraint_AdvancedSettings
 	*	Rotation is converted to euler angles using the specified order such that individual axes can be filtered.
 	*/
 	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
-	EControlRigRotationOrder RotationOrderForFilter;
+	EEulerRotationOrder RotationOrderForFilter;
 };
 
 /**

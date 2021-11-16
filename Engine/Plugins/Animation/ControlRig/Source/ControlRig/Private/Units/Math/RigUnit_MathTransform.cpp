@@ -4,6 +4,7 @@
 #include "Units/Math/RigUnit_MathVector.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "Units/RigUnitContext.h"
+#include "AnimationCoreLibrary.h"
 
 FRigUnit_MathTransformFromEulerTransform_Execute()
 {
@@ -127,7 +128,7 @@ FRigUnit_MathTransformFromSRT_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Transform.SetLocation(Location);
-	Transform.SetRotation(FControlRigMathLibrary::QuatFromEuler(Rotation, RotationOrder));
+	Transform.SetRotation(AnimationCore::QuatFromEuler(Rotation, RotationOrder));
 	Transform.SetScale3D(Scale);
 	EulerTransform.FromFTransform(Transform);
 }

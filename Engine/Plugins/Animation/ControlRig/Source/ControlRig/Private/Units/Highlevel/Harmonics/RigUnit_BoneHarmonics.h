@@ -91,7 +91,7 @@ struct CONTROLRIG_API FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMuta
 		WaveEase = EControlRigAnimEasingType::Linear;
 		WaveMinimum = 0.5f;
 		WaveMaximum = 1.f;
-		RotationOrder = EControlRigRotationOrder::YZX;
+		RotationOrder = EEulerRotationOrder::YZX;
 		bPropagateToChildren = true;
 	}
 
@@ -128,7 +128,7 @@ struct CONTROLRIG_API FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMuta
 	float WaveMaximum;
 
 	UPROPERTY(meta = (Input))
-	EControlRigRotationOrder RotationOrder;
+	EEulerRotationOrder RotationOrder;
 
 	/**
 	 * If set to true all of the global transforms of the children
@@ -160,7 +160,7 @@ struct CONTROLRIG_API FRigUnit_ItemHarmonics : public FRigUnit_HighlevelBaseMuta
 		WaveEase = EControlRigAnimEasingType::Linear;
 		WaveMinimum = 0.5f;
 		WaveMaximum = 1.f;
-		RotationOrder = EControlRigRotationOrder::YZX;
+		RotationOrder = EEulerRotationOrder::YZX;
 	}
 
 	RIGVM_METHOD()
@@ -196,7 +196,7 @@ struct CONTROLRIG_API FRigUnit_ItemHarmonics : public FRigUnit_HighlevelBaseMuta
 	float WaveMaximum;
 
 	UPROPERTY(meta = (Input))
-	EControlRigRotationOrder RotationOrder;
+	EEulerRotationOrder RotationOrder;
 
 	UPROPERTY(transient)
 	FRigUnit_BoneHarmonics_WorkData WorkData;
