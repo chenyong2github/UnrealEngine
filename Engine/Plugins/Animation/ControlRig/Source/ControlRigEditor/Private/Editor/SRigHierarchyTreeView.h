@@ -141,12 +141,28 @@ struct CONTROLRIGEDITOR_API FRigTreeDelegates
 	bool bIsChangingRigHierarchy;
 };
 
+/** 
+ * Order is important here! 
+ * This enum is used internally to the filtering logic and represents an ordering of most filtered (hidden) to 
+ * least filtered (highlighted).
+ */
+enum class ERigTreeFilterResult : int32
+{
+	/** Hide the item */
+	Hidden,
+
+	/** Show the item because child items were shown */
+	ShownDescendant,
+
+	/** Show the item */
+	Shown,
+};
 
 /** An item in the tree */
 class FRigTreeElement : public TSharedFromThis<FRigTreeElement>
 {
 public:
-	FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchyTreeView> InTreeView, bool InSupportsRename);
+	FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchyTreeView> InTreeView, bool InSupportsRename, ERigTreeFilterResult InFilterResult);
 public:
 	/** Element Data to display */
 	FRigElementKey Key;
@@ -161,6 +177,9 @@ public:
 	/** Delegate for when the context menu requests a rename */
 	DECLARE_DELEGATE(FOnRenameRequested);
 	FOnRenameRequested OnRenameRequested;
+
+	/** The current filter result */
+	ERigTreeFilterResult FilterResult;
 };
 
 class SRigHierarchyItem : public STableRow<TSharedPtr<FRigTreeElement>>

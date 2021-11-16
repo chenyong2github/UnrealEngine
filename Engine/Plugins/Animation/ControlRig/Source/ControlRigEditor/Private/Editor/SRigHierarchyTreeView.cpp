@@ -25,11 +25,12 @@ FRigTreeDisplaySettings FRigTreeDelegates::DefaultDisplaySettings;
 //////////////////////////////////////////////////////////////
 /// FRigTreeElement
 ///////////////////////////////////////////////////////////
-FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchyTreeView> InTreeView, bool InSupportsRename)
+FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchyTreeView> InTreeView, bool InSupportsRename, ERigTreeFilterResult InFilterResult)
 {
 	Key = InKey;
 	bIsTransient = false;
 	bSupportsRename = InSupportsRename;
+	FilterResult = InFilterResult;
 
 	if(InTreeView.IsValid())
 	{
@@ -87,6 +88,7 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 	TSharedPtr< SInlineEditableTextBlock > InlineWidget;
 
 	const FSlateBrush* Brush = GetBrushForElementType(Delegates.GetHierarchy(), InRigTreeElement->Key);
+	FSlateColor Color = InRigTreeElement->FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f); 
 
 	STableRow<TSharedPtr<FRigTreeElement>>::Construct(
 		STableRow<TSharedPtr<FRigTreeElement>>::FArguments()
@@ -105,6 +107,7 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 			[
 				SNew(SImage)
 				.Image(Brush)
+				.ColorAndOpacity(Color)
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -115,6 +118,7 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.OnVerifyTextChanged(this, &SRigHierarchyItem::OnVerifyNameChanged)
 				.OnTextCommitted(this, &SRigHierarchyItem::OnNameCommitted)
 				.MultiLine(false)
+				.ColorAndOpacity(Color)
 			]
 		], OwnerTable);
 
@@ -187,7 +191,7 @@ bool SRigHierarchyTreeView::AddElement(FRigElementKey InKey, FRigElementKey InPa
 	const FString FilteredString = Settings.FilterText.ToString();
 	if (FilteredString.IsEmpty() || !InKey.IsValid())
 	{
-		TSharedPtr<FRigTreeElement> NewItem = MakeShared<FRigTreeElement>(InKey, SharedThis(this), bSupportsRename);
+		TSharedPtr<FRigTreeElement> NewItem = MakeShared<FRigTreeElement>(InKey, SharedThis(this), bSupportsRename, ERigTreeFilterResult::Shown);
 
 		if (InKey.IsValid())
 		{
@@ -218,9 +222,37 @@ bool SRigHierarchyTreeView::AddElement(FRigElementKey InKey, FRigElementKey InPa
 		FString FilteredStringUnderScores = FilteredString.Replace(TEXT(" "), TEXT("_"));
 		if (InKey.Name.ToString().Contains(FilteredString) || InKey.Name.ToString().Contains(FilteredStringUnderScores))	
 		{
-			TSharedPtr<FRigTreeElement> NewItem = MakeShared<FRigTreeElement>(InKey, SharedThis(this), bSupportsRename);
+			TSharedPtr<FRigTreeElement> NewItem = MakeShared<FRigTreeElement>(InKey, SharedThis(this), bSupportsRename, ERigTreeFilterResult::Shown);
 			ElementMap.Add(InKey, NewItem);
 			RootElements.Add(NewItem);
+
+			if (!Settings.bFlattenHierarchyOnFilter && !Settings.bHideParentsOnFilter)
+			{
+				if(const URigHierarchy* Hierarchy = Delegates.GetHierarchy())
+				{
+					TSharedPtr<FRigTreeElement> ChildItem = NewItem;
+					FRigElementKey ParentKey = Hierarchy->GetFirstParent(InKey);
+					while (ParentKey.IsValid())
+					{
+						if (!ElementMap.Contains(ParentKey))
+						{
+							TSharedPtr<FRigTreeElement> ParentItem = MakeShared<FRigTreeElement>(ParentKey, SharedThis(this), bSupportsRename, ERigTreeFilterResult::ShownDescendant);							
+							ElementMap.Add(ParentKey, ParentItem);
+							RootElements.Add(ParentItem);
+
+							ReparentElement(ChildItem->Key, ParentKey);
+
+							ChildItem = ParentItem;
+							ParentKey = Hierarchy->GetFirstParent(ParentKey);
+						}
+						else
+						{
+							ReparentElement(ChildItem->Key, ParentKey);
+							break;
+						}						
+					}
+				}
+			}
 		}
 	}
 
@@ -452,6 +484,16 @@ void SRigHierarchyTreeView::RefreshTreeView(bool bRebuildContent)
 				for (TSharedPtr<FRigTreeElement> RootElement : RootElements)
 				{
 					SetExpansionRecursive(RootElement, false, true);
+				}
+			}
+			else if (ExpansionState.Num() < ElementMap.Num())
+			{
+				for (const TPair<FRigElementKey, TSharedPtr<FRigTreeElement>>& Element : ElementMap)
+				{
+					if (!ExpansionState.Contains(Element.Key))
+					{
+						SetItemExpansion(Element.Value, true);
+					}
 				}
 			}
 
