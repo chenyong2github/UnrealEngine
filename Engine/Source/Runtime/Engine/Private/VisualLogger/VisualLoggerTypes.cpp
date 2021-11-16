@@ -133,6 +133,7 @@ void FVisualLogEntry::Reset()
 	ElementsToDraw.Reset();
 	HistogramSamples.Reset();
 	DataBlocks.Reset();
+	bIsInitialized = false;
 }
 
 void FVisualLogEntry::UpdateAllowedToLog()
