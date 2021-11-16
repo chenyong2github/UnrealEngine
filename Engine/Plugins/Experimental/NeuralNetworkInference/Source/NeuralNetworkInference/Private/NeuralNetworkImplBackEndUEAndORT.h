@@ -21,6 +21,8 @@
 #pragma pop_macro("NOMINMAX")
 #endif
 
+#include "NeuralNetworkAsyncTask.h"
+
 #include "ThirdPartyWarningDisabler.h"
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
@@ -79,7 +81,7 @@ private:
 	TArray<Ort::Value> OutputOrtTensors; /* Actual ONNXRuntime tensors */
 	TArray<const char*> OutputTensorNames; /* Tensor names */
 
-	TUniquePtr<FAsyncTask<class FNeuralNetworkAsyncTask>> NeuralNetworkAsyncTask;
+	TUniquePtr<FAsyncTask<FNeuralNetworkAsyncTask>> NeuralNetworkAsyncTask;
 
 	void IsAsyncTaskDone() const;
 

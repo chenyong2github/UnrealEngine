@@ -2,7 +2,6 @@
 
 #include "NeuralNetworkImplBackEndUEAndORT.h"
 
-#include "NeuralNetworkAsyncTask.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceUtilsGPU.h"
 #include "RedirectCoutAndCerrToUeLog.h"
