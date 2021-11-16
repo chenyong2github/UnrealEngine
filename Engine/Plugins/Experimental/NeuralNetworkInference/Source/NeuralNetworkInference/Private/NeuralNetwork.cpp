@@ -1,15 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetwork.h"
-#include "NeuralNetworkImplBackEndUEAndORT.h"
-#include "NeuralNetworkImplBackEndUEOnly.h"
-#include "NeuralNetworkInferenceUtils.h"
-#include "NeuralNetworkAsyncTask.h"
 #include "EditorFramework/AssetImportData.h"
 #include "NeuralTimer.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "NeuralNetworkImplBackEndUEAndORT.h"
+#include "NeuralNetworkImplBackEndUEOnly.h"
+#include "NeuralNetworkInferenceUtils.h"
 #include "RenderGraphBuilder.h"
 #include "RenderingThread.h"
 #include "RHI.h"
@@ -533,18 +532,17 @@ void UNeuralNetwork::Run()
 float UNeuralNetwork::GetLastInferenceTime() const
 {
 	return ComputeStatsModule.GetLastSample();
-};
+}
 
 FNeuralStatsData UNeuralNetwork::GetInferenceStats() const
 {
 	return ComputeStatsModule.GetStats();
-};
-
+}
 
 FNeuralStatsData UNeuralNetwork::GetInputMemoryTransferStats() const
 {
 	return InputMemoryTransferStatsModule.GetStats();
-};
+}
 
 
 /* UNeuralNetwork private functions
@@ -563,8 +561,8 @@ bool UNeuralNetwork::Load()
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
 		UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType);
-		FNeuralNetworkAsyncSyncData SyncData(OnAsyncRunCompletedDelegate, bIsBackgroundThreadRunning, ResoucesCriticalSection);
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, SyncData, AreInputTensorSizesVariable, ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, OnAsyncRunCompletedDelegate, bIsBackgroundThreadRunning, ResoucesCriticalSection, AreInputTensorSizesVariable,
+			ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
 	}
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)

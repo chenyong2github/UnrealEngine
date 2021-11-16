@@ -5,7 +5,7 @@
 #include "NeuralNetwork.h"
 #include "Async/AsyncWork.h"
 
-// RHI includes must happen before onnxruntime_cxx_api.h (both include Windows.h)
+// RHI includes must happen before onnxruntime_cxx_api.h (both files include Windows.h)
 #include "HAL/CriticalSection.h"
 #include "RHI.h"
 #include "DynamicRHI.h"
@@ -20,8 +20,6 @@
 #pragma pop_macro("WIN32_LEAN_AND_MEAN")
 #pragma pop_macro("NOMINMAX")
 #endif
-
-#include "NeuralNetworkAsyncTask.h"
 
 #include "ThirdPartyWarningDisabler.h"
 NNI_THIRD_PARTY_INCLUDES_START
@@ -50,7 +48,20 @@ public:
 	 */
 	TArray<FNeuralTensor> InputTensors;
 	TArray<FNeuralTensor> OutputTensors;
+
+	static void WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType);
+
+	static bool IsGPUConfigCompatible();
+
+	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInOutIsBackgroundThreadRunning,
+		FCriticalSection& InOutResoucesCriticalSection, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath,
+		const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
+	
+	void Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning , FCriticalSection& InResoucesCriticalSection,
+		const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
+
 #ifdef WITH_UE_AND_ORT_SUPPORT
+private:
 	/** Network-related variables */
 	TUniquePtr<Ort::Env> Environment;
 	TUniquePtr<Ort::Session> Session;
@@ -67,23 +78,8 @@ public:
 	TArray<const char*> InputTensorNames; /* Tensor names */
 	TArray<Ort::Value> OutputOrtTensors; /* Actual ONNXRuntime tensors */
 	TArray<const char*> OutputTensorNames; /* Tensor names */
-#endif //WITH_UE_AND_ORT_SUPPORT
 
-	static void WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType);
-
-	static bool IsGPUConfigCompatible();
-
-	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, const FNeuralNetworkAsyncSyncData& InSyncData, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
-	
-	void Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning , FCriticalSection& InResoucesCriticalSection,
-		const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
-
-#ifdef WITH_UE_AND_ORT_SUPPORT
-private:
-
-	FNeuralNetworkAsyncSyncData SyncData;
-	FNeuralNetworkAsyncOrtVariables OrtData;
-	TUniquePtr<FAsyncTask<FNeuralNetworkAsyncTask>> NeuralNetworkAsyncTask;
+	TUniquePtr<FAsyncTask<class FNeuralNetworkAsyncTask>> NeuralNetworkAsyncTask;
 
 	void IsAsyncTaskDone() const;
 
