@@ -17,11 +17,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Line number in a source file that this task was declared. Optional; used for log messages.
 		/// </summary>
-		public Tuple<string, int> SourceLocation
-		{
-			get;
-			set;
-		}
+		public BgScriptLocation Location { get; }
 
 		/// <summary>
 		/// Name of the task
@@ -36,9 +32,9 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgTask(Tuple<string, int> SourceLocation, string Name)
+		public BgTask(BgScriptLocation Location, string Name)
 		{
-			this.SourceLocation = SourceLocation;
+			this.Location = Location;
 			this.Name = Name;
 		}
 
