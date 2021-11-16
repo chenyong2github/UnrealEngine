@@ -30,6 +30,7 @@ class FPreshaderData;
 namespace HLSLTree
 {
 
+class FNode;
 class FScope;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
@@ -49,6 +50,14 @@ public:
 
 	bool AddError(const FNode* InNode, FStringView InError);
 
+	template<typename FormatType, typename... Types>
+	bool AddErrorf(const FNode* InNode, const FormatType& Format, Types... Args)
+	{
+		TStringBuilder<2048> String;
+		String.Appendf(Format, Forward<Types>(Args)...);
+		return AddError(InNode, FStringView(String.GetData(), String.Len()));
+	}
+
 private:
 	FMemStackBase* Allocator = nullptr;
 	const FError* FirstError = nullptr;
@@ -62,6 +71,17 @@ public:
 	FErrors& Errors;
 };
 
+enum class ECastFlags : uint32
+{
+	None = 0u,
+	ReplicateScalar = (1u << 0),
+	AllowTruncate = (1u << 1),
+	AllowAppendZeroes = (1u << 2),
+
+	ValidCast = ReplicateScalar | AllowTruncate,
+};
+ENUM_CLASS_FLAGS(ECastFlags);
+
 /** Tracks shared state while emitting HLSL code */
 class FEmitContext
 {
@@ -73,6 +93,8 @@ public:
 
 	/** Get a unique local variable name */
 	const TCHAR* AcquireLocalDeclarationCode();
+
+	const TCHAR* CastShaderValue(const FNode* Node, const TCHAR* Code, Shader::EValueType SourceType, Shader::EValueType DestType, ECastFlags Flags);
 
 	void AddPreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader, FStringBuilderBase& OutCode);
 
@@ -158,6 +180,7 @@ public:
 	friend EExpressionEvaluationType PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression);
 
 	const TCHAR* GetValueShader(FEmitContext& Context);
+	const TCHAR* GetValueShader(FEmitContext& Context, Shader::EValueType Type);
 	void GetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader);
 	Shader::FValue GetValueConstant(FEmitContext& Context);
 

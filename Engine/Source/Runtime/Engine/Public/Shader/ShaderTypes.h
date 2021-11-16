@@ -93,6 +93,10 @@ struct FMemoryImageValue
 union FValueComponent
 {
 	FValueComponent() : Packed(0u) {}
+	FValueComponent(float v) : Packed(0u) { Float = v; }
+	FValueComponent(double v) : Packed(0u) { Double = v; }
+	FValueComponent(int32 v) : Packed(0u) { Int = v; }
+	FValueComponent(bool v) : Packed(0u) { Bool = v ? 1 : 0; }
 
 	// 'Bool' is stored as uint8 to avoid changing on different compilers
 	bool AsBool() const { return Bool != 0u; }
@@ -120,124 +124,122 @@ struct FValue
 
 	inline FValue(float v) : ComponentType(EValueComponentType::Float), NumComponents(1)
 	{
-		Component[0].Float = v;
+		Component[0] = v;
 	}
 
 	inline FValue(float X, float Y) : ComponentType(EValueComponentType::Float), NumComponents(2)
 	{
-		Component[0].Float = X;
-		Component[1].Float = Y;
+		Component[0] = X;
+		Component[1] = Y;
 	}
 
 	inline FValue(float X, float Y, float Z) : ComponentType(EValueComponentType::Float), NumComponents(3)
 	{
-		Component[0].Float = X;
-		Component[1].Float = Y;
-		Component[2].Float = Z;
+		Component[0] = X;
+		Component[1] = Y;
+		Component[2] = Z;
 	}
 
 	inline FValue(float X, float Y, float Z, float W) : ComponentType(EValueComponentType::Float), NumComponents(4)
 	{
-		Component[0].Float = X;
-		Component[1].Float = Y;
-		Component[2].Float = Z;
-		Component[3].Float = W;
+		Component[0] = X;
+		Component[1] = Y;
+		Component[2] = Z;
+		Component[3] = W;
 	}
 
 	inline FValue(double v) : ComponentType(EValueComponentType::Double), NumComponents(1)
 	{
-		Component[0].Double = v;
+		Component[0] = v;
 	}
 
 	inline FValue(double X, double Y) : ComponentType(EValueComponentType::Double), NumComponents(2)
 	{
-		Component[0].Double = X;
-		Component[1].Double = Y;
+		Component[0] = X;
+		Component[1] = Y;
 	}
 
 	inline FValue(double X, double Y, double Z) : ComponentType(EValueComponentType::Double), NumComponents(3)
 	{
-		Component[0].Double = X;
-		Component[1].Double = Y;
-		Component[2].Double = Z;
+		Component[0] = X;
+		Component[1] = Y;
+		Component[2] = Z;
 	}
 
 	inline FValue(double X, double Y, double Z, double W) : ComponentType(EValueComponentType::Double), NumComponents(4)
 	{
-		Component[0].Double = X;
-		Component[1].Double = Y;
-		Component[2].Double = Z;
-		Component[3].Double = W;
+		Component[0] = X;
+		Component[1] = Y;
+		Component[2] = Z;
+		Component[3] = W;
 	}
 
 	inline FValue(const FLinearColor& Value) : ComponentType(EValueComponentType::Float), NumComponents(4)
 	{
-		Component[0].Float = Value.R;
-		Component[1].Float = Value.G;
-		Component[2].Float = Value.B;
-		Component[3].Float = Value.A;
+		Component[0] = Value.R;
+		Component[1] = Value.G;
+		Component[2] = Value.B;
+		Component[3] = Value.A;
 	}
 
 	inline FValue(const FVector2D& Value) : ComponentType(EValueComponentType::Float), NumComponents(2)
 	{
-		Component[0].Float = Value.X;
-		Component[1].Float = Value.Y;
+		Component[0] = Value.X;
+		Component[1] = Value.Y;
 	}
 
 	inline FValue(const FVector3f& Value) : ComponentType(EValueComponentType::Float), NumComponents(3)
 	{
-		Component[0].Float = Value.X;
-		Component[1].Float = Value.Y;
-		Component[2].Float = Value.Z;
+		Component[0] = Value.X;
+		Component[1] = Value.Y;
+		Component[2] = Value.Z;
 	}
 
 	inline FValue(const FVector3d& Value) : ComponentType(EValueComponentType::Double), NumComponents(3)
 	{
-		Component[0].Double = Value.X;
-		Component[1].Double = Value.Y;
-		Component[2].Double = Value.Z;
+		Component[0] = Value.X;
+		Component[1] = Value.Y;
+		Component[2] = Value.Z;
 	}
 
 	inline FValue(const FVector4f& Value) : ComponentType(EValueComponentType::Float), NumComponents(4)
 	{
-		Component[0].Float = Value.X;
-		Component[1].Float = Value.Y;
-		Component[2].Float = Value.Z;
-		Component[3].Float = Value.W;
+		Component[0] = Value.X;
+		Component[1] = Value.Y;
+		Component[2] = Value.Z;
+		Component[3] = Value.W;
 	}
 
 	inline FValue(const FVector4d& Value) : ComponentType(EValueComponentType::Double), NumComponents(4)
 	{
-		Component[0].Double = Value.X;
-		Component[1].Double = Value.Y;
-		Component[2].Double = Value.Z;
-		Component[3].Double = Value.W;
+		Component[0] = Value.X;
+		Component[1] = Value.Y;
+		Component[2] = Value.Z;
+		Component[3] = Value.W;
 	}
 
 	inline FValue(bool v) : ComponentType(EValueComponentType::Bool), NumComponents(1)
 	{
-		Component[0].Bool = v;
+		Component[0] = v;
 	}
 
 	inline FValue(bool X, bool Y, bool Z, bool W) : ComponentType(EValueComponentType::Bool), NumComponents(4)
 	{
-		Component[0].Bool = X;
-		Component[1].Bool = Y;
-		Component[2].Bool = Z;
-		Component[3].Bool = W;
+		Component[0] = X;
+		Component[1] = Y;
+		Component[2] = Z;
+		Component[3] = W;
 	}
 
 	inline FValue(int32 v) : ComponentType(EValueComponentType::Int), NumComponents(1)
 	{
-		Component[0].Int = v;
+		Component[0] = v;
 	}
 
 	inline EValueType GetType() const { return MakeValueType(ComponentType, NumComponents); }
-
 	inline const FValueComponent& GetComponent(int32 i) const { check(i >= 0 && i < NumComponents); return Component[i]; }
 
 	static FValue FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes = nullptr);
-
 	FMemoryImageValue AsMemoryImage() const;
 
 	FFloatValue AsFloat() const;
@@ -250,7 +252,7 @@ struct FValue
 	float AsFloatScalar() const;
 	bool AsBoolScalar() const;
 
-	FString ToString(EValueStringFormat Format = EValueStringFormat::Description) const;
+	const TCHAR* ToString(EValueStringFormat Format, FStringBuilderBase& OutString) const;
 
 	FValueComponent Component[4];
 	EValueComponentType ComponentType;
@@ -293,6 +295,8 @@ ENGINE_API FValue Atan2(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Dot(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Cross(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Append(const FValue& Lhs, const FValue& Rhs);
+
+ENGINE_API FValue Cast(const FValue& Value, EValueType Type);
 }
 }
 

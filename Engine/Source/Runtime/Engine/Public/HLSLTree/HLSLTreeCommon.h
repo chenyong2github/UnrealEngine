@@ -277,33 +277,6 @@ public:
 	virtual bool PrepareValue(FEmitContext& Context) override;
 };
 
-class FExpressionCast : public FExpression
-{
-public:
-	FExpressionCast(Shader::EValueType InType, FExpression* InInput, ECastFlags InFlags = ECastFlags::None)
-		: Type(InType)
-		, Input(InInput)
-		, Flags(InFlags)
-	{}
-
-	Shader::EValueType Type;
-	FExpression* Input;
-	ECastFlags Flags;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Input);
-		}
-		return Result;
-	}
-
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
-	virtual bool PrepareValue(FEmitContext& Context) override;
-};
-
 class FExpressionReflectionVector : public FExpression
 {
 public:

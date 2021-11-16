@@ -4263,7 +4263,9 @@ int32 UMaterialExpressionGenericConstant::Compile(class FMaterialCompiler* Compi
 
 void UMaterialExpressionGenericConstant::GetCaption(TArray<FString>& OutCaptions) const
 {
-	OutCaptions.Add(GetConstantValue().ToString(UE::Shader::EValueStringFormat::Description));
+	TStringBuilder<1024> String;
+	GetConstantValue().ToString(UE::Shader::EValueStringFormat::Description, String);
+	OutCaptions.Add(FString(String.ToView()));
 }
 
 FString UMaterialExpressionGenericConstant::GetDescription() const
