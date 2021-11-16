@@ -250,7 +250,7 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 		}
 	}
 
-	if (CurrentEntry->bIsAllowedToLog)
+	if (CurrentEntry != nullptr && CurrentEntry->bIsAllowedToLog)
 	{
 		bIsFlushRequired = true;
 	}
