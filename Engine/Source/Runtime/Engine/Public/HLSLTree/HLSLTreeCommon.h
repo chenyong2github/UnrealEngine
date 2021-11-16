@@ -287,6 +287,7 @@ public:
 class FStatementReturn : public FStatement
 {
 public:
+	static constexpr bool MarkScopeLiveRecursive = true;
 	FExpression* Expression;
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
@@ -306,6 +307,8 @@ public:
 class FStatementBreak : public FStatement
 {
 public:
+	static constexpr bool MarkScopeLive = true;
+
 	virtual void RequestTypes(FUpdateTypeContext& Context) const override {}
 	virtual void EmitHLSL(FEmitContext& Context) const override;
 };

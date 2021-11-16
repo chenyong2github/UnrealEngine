@@ -40,13 +40,15 @@ struct FError
 	const FError* Next;
 	const FNode* Node;
 	int32 MessageLength;
-	const TCHAR Message[1];
+	TCHAR Message[1];
 };
 
 class FErrors
 {
 public:
 	explicit FErrors(FMemStackBase& InAllocator);
+
+	int32 Num() const { return NumErrors; }
 
 	bool AddError(const FNode* InNode, FStringView InError);
 
@@ -61,6 +63,7 @@ public:
 private:
 	FMemStackBase* Allocator = nullptr;
 	const FError* FirstError = nullptr;
+	int32 NumErrors = 0;
 };
 
 class FUpdateTypeContext
@@ -154,12 +157,16 @@ public:
 class FStatement : public FNode
 {
 public:
+	static constexpr bool MarkScopeLive = false;
+	static constexpr bool MarkScopeLiveRecursive = false;
+
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
 	virtual void RequestTypes(FUpdateTypeContext& Context) const = 0;
 	virtual void EmitHLSL(FEmitContext& Context) const = 0;
 
 	FScope* ParentScope = nullptr;
+	bool bEmitHLSL = false;
 };
 
 /**
@@ -271,6 +278,7 @@ public:
 	static FScope* FindSharedParent(FScope* Lhs, FScope* Rhs);
 
 	inline FScope* GetParentScope() const { return ParentScope; }
+	inline bool IsLive() const { return bLive; }
 
 	inline TArrayView<FScope*> GetPreviousScopes() const
 	{
@@ -310,6 +318,9 @@ public:
 	{
 		InternalEmitCodef(Context, Statements, NestedScope, Format, Forward<Types>(Args)...);
 	}
+
+	void MarkLive();
+	void MarkLiveRecursive();
 
 	void WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const;
 
@@ -351,6 +362,7 @@ private:
 	FCodeList Statements;
 	int32 NumPreviousScopes = 0;
 	int32 NestedLevel = 0;
+	bool bLive = false;
 };
 
 /**
@@ -381,11 +393,21 @@ public:
 	{
 		T* Statement = NewNode<T>(Forward<ArgTypes>(Args)...);
 		RegisterStatement(Scope, Statement);
+		if constexpr (T::MarkScopeLiveRecursive)
+		{
+			Scope.MarkLiveRecursive();
+		}
+		else if constexpr (T::MarkScopeLive)
+		{
+			Scope.MarkLive();
+		}
+
 		return Statement;
 	}
 
 	FScope* NewScope(FScope& Scope);
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
+	void SetResult(FStatement& InResult);
 
 private:
 	template<typename T, typename... ArgTypes>
@@ -400,9 +422,10 @@ private:
 	void RegisterExpression(FScope& Scope, FExpression* Expression);
 	void RegisterStatement(FScope& Scope, FStatement* Statement);
 
-	FMemStackBase* Allocator;
-	FNode* Nodes;
-	FScope* RootScope;
+	FMemStackBase* Allocator = nullptr;
+	FNode* Nodes = nullptr;
+	FScope* RootScope = nullptr;
+	FStatement* ResultStatement = nullptr;
 };
 
 } // namespace HLSLTree

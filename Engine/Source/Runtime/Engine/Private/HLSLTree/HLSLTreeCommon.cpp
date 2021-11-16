@@ -589,6 +589,7 @@ bool UE::HLSLTree::FExpressionReflectionVector::PrepareValue(FEmitContext& Conte
 
 void UE::HLSLTree::FStatementBreak::EmitHLSL(FEmitContext& Context) const
 {
+	ParentScope->MarkLive();
 	ParentScope->EmitStatementf(Context, TEXT("break;"));
 }
 
@@ -604,6 +605,7 @@ void UE::HLSLTree::FStatementReturn::EmitHLSL(FEmitContext& Context) const
 		return;
 	}
 
+	ParentScope->MarkLiveRecursive();
 	ParentScope->EmitStatementf(Context, TEXT("return %s;"), Expression->GetValueShader(Context));
 }
 
@@ -617,18 +619,26 @@ void UE::HLSLTree::FStatementIf::RequestTypes(FUpdateTypeContext& Context) const
 
 void UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context) const
 {
-	if (PrepareExpressionValue(Context, ConditionExpression) == EExpressionEvaluationType::None)
+	bool bIfLive = ThenScope->IsLive();
+	if (ElseScope && ElseScope->IsLive())
 	{
-		return;
+		bIfLive = true;
 	}
 
-	ParentScope->EmitNestedScopef(Context, ThenScope, TEXT("if (%s)"),
-		ConditionExpression->GetValueShader(Context, Shader::EValueType::Bool1));
-	if (ElseScope)
+	if (bIfLive)
 	{
-		ParentScope->EmitNestedScopef(Context, ElseScope, TEXT("else"));
-	}
+		if (PrepareExpressionValue(Context, ConditionExpression) == EExpressionEvaluationType::None)
+		{
+			return;
+		}
 
+		ParentScope->EmitNestedScopef(Context, ThenScope, TEXT("if (%s)"),
+			ConditionExpression->GetValueShader(Context, Shader::EValueType::Bool1));
+		if (ElseScope && ElseScope->IsLive())
+		{
+			ParentScope->EmitNestedScopef(Context, ElseScope, TEXT("else"));
+		}
+	}
 	ParentScope->EmitNestedScope(Context, NextScope);
 }
 
@@ -640,6 +650,9 @@ void UE::HLSLTree::FStatementLoop::RequestTypes(FUpdateTypeContext& Context) con
 
 void UE::HLSLTree::FStatementLoop::EmitHLSL(FEmitContext& Context) const
 {
-	ParentScope->EmitNestedScopef(Context, LoopScope, TEXT("while (true)"));
+	if (LoopScope->IsLive())
+	{
+		ParentScope->EmitNestedScopef(Context, LoopScope, TEXT("while (true)"));
+	}
 	ParentScope->EmitNestedScope(Context, NextScope);
 }

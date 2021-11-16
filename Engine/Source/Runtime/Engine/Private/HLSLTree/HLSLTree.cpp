@@ -65,7 +65,17 @@ UE::HLSLTree::FErrors::FErrors(FMemStackBase& InAllocator)
 
 bool UE::HLSLTree::FErrors::AddError(const FNode* InNode, FStringView InError)
 {
-	int a = 0;
+	const int32 SizeofString = InError.Len() * sizeof(TCHAR);
+	void* Memory = Allocator->Alloc(sizeof(FError) + SizeofString, alignof(FError));
+	FError* Error = new(Memory) FError();
+	FMemory::Memcpy(Error->Message, InError.GetData(), SizeofString);
+	Error->Message[InError.Len()] = 0;
+	Error->MessageLength = InError.Len();
+	Error->Node = InNode;
+	Error->Next = FirstError;
+	FirstError = Error;
+	NumErrors++;
+
 	return false;
 }
 
@@ -407,6 +417,7 @@ bool UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 	{
 		FScope* ValueScope = Scopes[i];
 		const TCHAR* ValueCode = Values[i]->GetValueShader(Context, Type);
+		ValueScope->MarkLiveRecursive();
 		if (ValueScope == DeclarationScope)
 		{
 			ValueScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%d = %s;"),
@@ -425,6 +436,7 @@ bool UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 
 	if (bNeedToAddDeclaration)
 	{
+		check(DeclarationScope->IsLive());
 		DeclarationScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%d;"),
 			TypeDesc.Name,
 			LocalPHIIndex);
@@ -500,9 +512,14 @@ UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::PrepareExpressionValue(FEm
 		return EExpressionEvaluationType::None;
 	}
 
+	if (InExpression->ValueType == Shader::EValueType::Void)
+	{
+		// Can't prepare value if we didn't successfully prepare a type
+		return EExpressionEvaluationType::None;
+	}
+
 	if (InExpression->EvaluationType == EExpressionEvaluationType::None)
 	{
-		check(InExpression->GetValueType() != Shader::EValueType::Void);
 		check(!InExpression->bReentryFlag); // Re-entry is not supported
 
 		InExpression->bReentryFlag = true;
@@ -556,6 +573,7 @@ bool UE::HLSLTree::FExpression::InternalSetValueShader(FEmitContext& Context, co
 			Declaration = Context.AcquireLocalDeclarationCode();
 			ParentScope->ExpressionCodeMap.Add(Hash, Declaration);
 			const Shader::FValueTypeDescription& TypeDesc = Shader::GetValueTypeDescription(ValueType);
+			ParentScope->MarkLiveRecursive();
 			ParentScope->EmitStatementf(Context, TEXT("const %s %s = %s;"),
 				TypeDesc.Name,
 				Declaration,
@@ -589,6 +607,7 @@ bool UE::HLSLTree::FExpression::SetValueConstant(FEmitContext& Context, const Sh
 bool UE::HLSLTree::FExpression::SetValueForward(FEmitContext& Context, FExpression* Source)
 {
 	check(EvaluationType == EExpressionEvaluationType::None);
+	check(Source);
 
 	EvaluationType = PrepareExpressionValue(Context, Source);
 	switch (EvaluationType)
@@ -738,8 +757,9 @@ void UE::HLSLTree::FScope::UseExpression(FExpression* Expression)
 
 void UE::HLSLTree::FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, FScope* NestedScope, const TCHAR* String, int32 Length)
 {
-	if (NestedScope && NestedScope->Statement)
+	if (NestedScope && NestedScope->Statement && !NestedScope->Statement->bEmitHLSL)
 	{
+		NestedScope->Statement->bEmitHLSL = true;
 		NestedScope->Statement->EmitHLSL(Context);
 	}
 
@@ -800,9 +820,26 @@ void UE::HLSLTree::FTree::Destroy(FTree* Tree)
 //
 static void WriteIndent(int32 IndentLevel, FStringBuilderBase& InOutString)
 {
+	const int32 Offset = InOutString.AddUninitialized(IndentLevel);
+	TCHAR* Result = InOutString.GetData() + Offset;
 	for (int32 i = 0; i < IndentLevel; ++i)
 	{
-		InOutString.Append(TCHAR('\t'));
+		*Result++ = TCHAR('\t');
+	}
+}
+
+void UE::HLSLTree::FScope::MarkLive()
+{
+	bLive = true;
+}
+
+void UE::HLSLTree::FScope::MarkLiveRecursive()
+{
+	FScope* Scope = this;
+	while (Scope)
+	{
+		Scope->bLive = true;
+		Scope = Scope->ParentScope;
 	}
 }
 
@@ -843,11 +880,23 @@ void UE::HLSLTree::FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString
 	}
 }
 
-bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FStringBuilderBase& Writer) const
+bool UE::HLSLTree::FTree::EmitHLSL(FEmitContext& Context, FStringBuilderBase& Writer) const
 {
+	if (!ResultStatement)
+	{
+		return false;
+	}
+
 	{
 		FUpdateTypeContext UpdateTypeContext(Context.Errors);
 		RequestScopeTypes(UpdateTypeContext, RootScope);
+	}
+
+	ResultStatement->bEmitHLSL = true;
+	ResultStatement->EmitHLSL(Context);
+	if (!RootScope->IsLive())
+	{
+		return false;
 	}
 
 	if (RootScope->Statement)
@@ -857,7 +906,7 @@ bool UE::HLSLTree::FTree::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FStringB
 
 	Context.Finalize();
 
-	RootScope->WriteHLSL(0, Writer);
+	RootScope->WriteHLSL(1, Writer);
 	return true;
 }
 
@@ -888,5 +937,11 @@ UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParam
 {
 	FTextureParameterDeclaration* Declaration = NewNode<FTextureParameterDeclaration>(Name, DefaultValue);
 	return Declaration;
+}
+
+void UE::HLSLTree::FTree::SetResult(FStatement& InResult)
+{
+	check(!ResultStatement);
+	ResultStatement = &InResult;
 }
 
