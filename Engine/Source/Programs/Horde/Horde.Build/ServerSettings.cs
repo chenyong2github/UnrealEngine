@@ -354,6 +354,12 @@ namespace HordeServer
 		public bool DisableSchedules { get; set; }
 
 		/// <summary>
+		/// Whether to run background services
+		///
+		/// </summary>
+		public bool EnableBackgroundServices { get; set; } = true;
+
+		/// <summary>
 		/// Timezone for evaluating schedules
 		/// </summary>
 		public string? ScheduleTimeZone { get; set; }
