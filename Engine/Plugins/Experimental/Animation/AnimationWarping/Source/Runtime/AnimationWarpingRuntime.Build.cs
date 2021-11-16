@@ -9,17 +9,11 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AnimationCore",
                 "AnimGraphRuntime",
-                "AnimationCore",
                 "Core",
                 "CoreUObject",
                 "Engine",
-            });
-
-			PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-                "SlateCore",
             });
 		}
 	}

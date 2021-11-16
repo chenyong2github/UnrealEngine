@@ -9,12 +9,13 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AnimationCore",
+				"AnimationWarpingRuntime",
                 "AnimGraph",
-                "AnimationCore",
+				"AnimGraphRuntime",
                 "Core",
                 "CoreUObject",
                 "Engine",
-				"AnimationWarpingRuntime",
             });
 
 			PrivateDependencyModuleNames.AddRange(
@@ -28,12 +29,10 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.AddRange(
                     new string[]
                     {
+						"BlueprintGraph",
 						"EditorFramework",
+						"Kismet",
                         "UnrealEd",
-                        "Kismet",
-                        "AnimGraph",
-						"AnimGraphRuntime",
-                        "BlueprintGraph",
                     }
                 );
             }

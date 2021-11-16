@@ -492,7 +492,7 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 			{
 				Output.AnimInstanceProxy->RecordNodeAttribute(*Output.AnimInstanceProxy, SourceID, LinkID, UE::Anim::FAttributes::Attributes);
 
-				TArray<FName, FAnimStackAllocator> AttributeKeyNames;
+				TArray<FName, TInlineAllocator<8>> AttributeKeyNames;
 				if (Output.CustomAttributes.GetAllKeyNames(AttributeKeyNames))
 				{
 					for (const FName& AttributeKeyName : AttributeKeyNames)

@@ -72,9 +72,6 @@ struct ANIMATIONWARPINGRUNTIME_API FAnimNode_SlopeWarping : public FAnimNode_Ske
 	UCharacterMovementComponent* MyMovementComponent;
 	FAnimInstanceProxy* MyAnimInstanceProxy;
 
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = Evaluation, meta = (PinHiddenByDefault))
-	EWarpingEvaluationMode Mode;
-
 	/** IKFoot Root Bone. **/
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FBoneReference IKFootRootBone;

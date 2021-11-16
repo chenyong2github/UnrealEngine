@@ -6,13 +6,16 @@
 #include "Animation/AnimTypes.h"
 
 #if ENABLE_ANIM_DEBUG
-constexpr int32 DebugTrajectorySampleDisable = 0;
-constexpr int32 DebugTrajectorySampleCount = 1;
-constexpr int32 DebugTrajectorySampleTime = 2;
-constexpr int32 DebugTrajectorySampleDistance = 3;
-constexpr int32 DebugTrajectorySamplePosition = 4;
-constexpr int32 DebugTrajectorySampleVelocity = 5;
-constexpr int32 DebugTrajectorySampleAccel = 6;
+static constexpr int32 DebugTrajectorySampleDisable = 0;
+static constexpr int32 DebugTrajectorySampleCount = 1;
+static constexpr int32 DebugTrajectorySampleTime = 2;
+static constexpr int32 DebugTrajectorySampleDistance = 3;
+static constexpr int32 DebugTrajectorySamplePosition = 4;
+static constexpr int32 DebugTrajectorySampleVelocity = 5;
+static constexpr int32 DebugTrajectorySampleAccel = 6;
+static const FVector DebugSampleTypeOffset(0.f, 0.f, 50.f);
+static const FVector DebugSampleOffset(0.f, 0.f, 10.f);
+
 TAutoConsoleVariable<int32> CVarMotionTrajectoryDebug(TEXT("a.MotionTrajectory.Debug"), 0, TEXT("Turn on debug drawing for motion trajectory"));
 TAutoConsoleVariable<int32> CVarMotionTrajectoryDebugStride(TEXT("a.MotionTrajectory.Stride"), 1, TEXT("Configure the sample stride when displaying information"));
 TAutoConsoleVariable<int32> CVarMotionTrajectoryDebugOptions(TEXT("a.MotionTrajectory.Options"), 0,
@@ -235,27 +238,27 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 				FString DebugSampleString;
 				switch (DebugSampleOptions)
 				{
-				case 1: // Sample Index
+				case DebugTrajectorySampleCount: // Sample Index
 					DebugString = "Sample Index:";
 					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Idx });
 ;					break;
-				case 2: // Sample Accumulated Time
+				case DebugTrajectorySampleTime: // Sample Accumulated Time
 					DebugString = "Sample Time:";
 					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].AccumulatedSeconds });
 					break;
-				case 3: // Sample Accumulated Distance
+				case DebugTrajectorySampleDistance: // Sample Accumulated Distance
 					DebugString = "Sample Distance:";
 					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].AccumulatedDistance });
 					break;
-				case 4: // Sample Position
+				case DebugTrajectorySamplePosition: // Sample Position
 					DebugString = "Sample Position:";
 					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].Transform.GetLocation().ToCompactString() });
 					break;
-				case 5: // Sample Velocity
+				case DebugTrajectorySampleVelocity: // Sample Velocity
 					DebugString = "Sample Velocity:";
 					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LinearVelocity.ToCompactString() });
 					break;
-				case 6: // Sample Acceleration
+				case DebugTrajectorySampleAccel: // Sample Acceleration
 					DebugString = "Sample Acceleration:";
 					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LinearAcceleration.ToCompactString() });
 					break;
@@ -269,10 +272,10 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 					// One time debug drawing of the per-sample type description
 					if (!DebugString.IsEmpty() && Idx == 0)
 					{
-						DrawDebugString(World, WorldTransform.GetLocation() + FVector(0.f, 0.f, 50.f), DebugString, nullptr, FColor::White, 0.f, false, 1.f);
+						DrawDebugString(World, WorldTransform.GetLocation() + DebugSampleTypeOffset, DebugString, nullptr, FColor::White, 0.f, false, 1.f);
 					}
 
-					DrawDebugString(World, WorldForward + FVector(0.f, 0.f, 10.f), DebugSampleString, nullptr, FColor::White, 0.f, false, 1.f);
+					DrawDebugString(World, WorldForward + DebugSampleOffset, DebugSampleString, nullptr, FColor::White, 0.f, false, 1.f);
 				}
 #endif
 			}

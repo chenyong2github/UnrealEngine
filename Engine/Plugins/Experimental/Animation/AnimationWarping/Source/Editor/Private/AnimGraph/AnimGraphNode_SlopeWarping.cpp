@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "AnimGraph/AnimGraphNode_SlopeWarping.h"
-#include "Animation/AnimRootMotionProvider.h"
 
-#define LOCTEXT_NAMESPACE "MomentumNodes"
+#define LOCTEXT_NAMESPACE "AnimationWarping"
 
 UAnimGraphNode_SlopeWarping::UAnimGraphNode_SlopeWarping(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
@@ -17,7 +15,7 @@ FText UAnimGraphNode_SlopeWarping::GetControllerDescription() const
 
 FText UAnimGraphNode_SlopeWarping::GetTooltipText() const
 {
-	return LOCTEXT("SlopeWarpingTooltip", "Adjust Feet IK to Match Floor Normal");
+	return LOCTEXT("SlopeWarpingTooltip", "Warps the feet to match the floor normal.");
 }
 
 FText UAnimGraphNode_SlopeWarping::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -25,20 +23,9 @@ FText UAnimGraphNode_SlopeWarping::GetNodeTitle(ENodeTitleType::Type TitleType) 
 	return GetControllerDescription();
 }
 
-void UAnimGraphNode_SlopeWarping::GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const
+FLinearColor UAnimGraphNode_SlopeWarping::GetNodeTitleColor() const
 {
-	if (Node.Mode == EWarpingEvaluationMode::Graph)
-	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
-	}
-}
-
-void UAnimGraphNode_SlopeWarping::GetOutputLinkAttributes(FNodeAttributeArray& OutAttributes) const
-{
-	if (Node.Mode == EWarpingEvaluationMode::Graph)
-	{
-		OutAttributes.Add(UE::Anim::IAnimRootMotionProvider::AttributeName);
-	}
+	return FLinearColor(FColor(153.f, 0.f, 0.f));
 }
 
 #undef LOCTEXT_NAMESPACE
