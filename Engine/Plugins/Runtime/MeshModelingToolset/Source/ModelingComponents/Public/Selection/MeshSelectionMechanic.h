@@ -19,6 +19,7 @@ class UTriangleSetComponent;
 class ULineSetComponent;
 class UPointSetComponent;
 class APreviewGeometryActor;
+class UMaterialInstanceDynamic;
 struct FCameraRectangle;
 
 enum class EMeshSelectionMechanicMode
