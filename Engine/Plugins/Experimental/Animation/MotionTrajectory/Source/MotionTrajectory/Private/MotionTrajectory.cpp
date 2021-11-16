@@ -9,6 +9,8 @@
 
 #define LOCTEXT_NAMESPACE "MotionTrajectory"
 
+DEFINE_LOG_CATEGORY(LogMotionTrajectory);
+
 void FMotionTrajectoryModule::StartupModule()
 {
 }
@@ -24,18 +26,34 @@ UMotionTrajectoryComponent::UMotionTrajectoryComponent(const FObjectInitializer&
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
-FTrajectorySample UMotionTrajectoryComponent::GetPresentTrajectory() const
+FTrajectorySample UMotionTrajectoryComponent::CalcWorldSpacePresentTrajectorySample(float DeltaTime) const
 {
 	const APawn* Pawn = TryGetOwnerPawn();
 	checkf(false, TEXT("UMotionTrajectoryComponent::GetPresentTrajectory for Pawn: %s requires implementation."), Pawn ? *(Pawn->GetHumanReadableName()) : TEXT("NULL"));
 	return FTrajectorySample();
 }
 
-FTransform UMotionTrajectoryComponent::GetPresentWorldTransform() const
+bool UMotionTrajectoryComponent::HasTrajectoryTickedThisFrame() const
 {
-	const APawn* Pawn = TryGetOwnerPawn();
-	checkf(false, TEXT("UMotionTrajectoryComponent::GetPresentWorldTransform for Pawn: %s requires implementation."), Pawn ? *(Pawn->GetHumanReadableName()) : TEXT("NULL"));
-	return FTransform::Identity;
+	return GFrameCounter == LastTrajectoryTickFrame;
+}
+
+void UMotionTrajectoryComponent::TickTrajectory(float DeltaTime)
+{
+	LastTrajectoryTickFrame = static_cast<uint32>(GFrameCounter);
+
+	// Compute the instantaneous/present trajectory sample and guarantee that is zeroed on all accumulated domains
+	PresentTrajectorySampleWS = CalcWorldSpacePresentTrajectorySample(DeltaTime);
+	PresentTrajectorySampleWS.AccumulatedDistance = 0.f;
+	PresentTrajectorySampleWS.AccumulatedSeconds = 0.f;
+
+	// convert to local space
+	PresentTrajectorySampleLS = PresentTrajectorySampleWS;
+	PresentTrajectorySampleLS.PrependOffset(PresentTrajectorySampleWS.Transform.Inverse(), 0.0f);
+
+
+	// Tick the historical sample retention/decay algorithm by one iteration
+	TickHistoryEvictionPolicy();
 }
 
 const APawn* UMotionTrajectoryComponent::TryGetOwnerPawn() const
@@ -60,7 +78,7 @@ FTrajectorySampleRange UMotionTrajectoryComponent::CombineHistoryPresentPredicti
 	// Ex: [Past + Present + Future], with negative values representing the past, a zeroed present, and positive values representing the future
 	Trajectory.Samples.Reserve(TotalSampleCount);
 	Trajectory.Samples.Append(History.Samples);
-	Trajectory.Samples.Add(PresentTrajectory);
+	Trajectory.Samples.Add(PresentTrajectorySampleLS);
 	Trajectory.Samples.Append(Prediction.Samples);
 	Trajectory.SampleRate = SampleRate;
 #if WITH_EDITORONLY_DATA
@@ -73,7 +91,7 @@ void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 {
 	// World space transform and time are used for determining local-relative historical samples
 	const UWorld* World = GetWorld();
-	const FTransform WorldTransform = GetPresentWorldTransform();
+	const FTransform WorldTransform = PresentTrajectorySampleWS.Transform;
 	const float WorldGameTime = UKismetSystemLibrary::GetGameTimeInSeconds(World);
 
 	// Skip on the very first sample
@@ -86,9 +104,7 @@ void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 
 		for (auto& Sample : SampleHistory)
 		{
-			Sample.AccumulatedSeconds -= DeltaSeconds;
-			Sample.AccumulatedDistance -= DeltaDistance;
-			Sample.Position = DeltaTransform.TransformPosition(Sample.Position);
+			Sample.PrependOffset(DeltaTransform, -DeltaSeconds);
 		}
 
 		const FTrajectorySample FirstSample = SampleHistory.First();
@@ -120,7 +136,7 @@ void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 		SampleHistory.RemoveAll([&](const FTrajectorySample& Sample)
 			{
 				// Remove superfluous zero motion samples
-				if (Sample.IsZeroSample() && PresentTrajectory.IsZeroSample())
+				if (Sample.IsZeroSample() && PresentTrajectorySampleLS.IsZeroSample())
 				{
 					return true;
 				}
@@ -151,7 +167,7 @@ void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 	// An opportunity to insert more samples will arise as history decays
 	if (SampleHistory.Num() < MaxSamples)
 	{
-		SampleHistory.Emplace(PresentTrajectory);
+		SampleHistory.Emplace(PresentTrajectorySampleLS);
 	}
 	
 	// Cache the present world space sample as the next frame's reference point for delta computation
@@ -174,17 +190,33 @@ void UMotionTrajectoryComponent::OnComponentCreated()
 	Super::OnComponentCreated();
 }
 
+void UMotionTrajectoryComponent::BeginPlay() 
+{
+	Super::BeginPlay();
+
+	FTransform PresentTransform = FTransform::Identity;
+
+	if (const APawn* Pawn = TryGetOwnerPawn())
+	{
+		PresentTransform = Pawn->GetActorTransform();
+	}
+
+	PresentTrajectorySampleWS = FTrajectorySample();
+	PresentTrajectorySampleWS.Transform = PresentTransform;
+
+	PresentTrajectorySampleLS = FTrajectorySample();
+
+	LastTrajectoryTickFrame = 0u;
+}
+
 void UMotionTrajectoryComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	// Compute the instantaneous/present trajectory sample and guarantee that is zeroed on all accumulated domains
-	PresentTrajectory = GetPresentTrajectory();
-	PresentTrajectory.AccumulatedDistance = 0.f;
-	PresentTrajectory.AccumulatedSeconds = 0.f;
-
-	// Tick the historical sample retention/decay algorithm by one iteration
-	TickHistoryEvictionPolicy();
-
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (!HasTrajectoryTickedThisFrame())
+	{
+		TickTrajectory(DeltaTime);
+	}
 }
 
 FTrajectorySampleRange UMotionTrajectoryComponent::GetTrajectory() const

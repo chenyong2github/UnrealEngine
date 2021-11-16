@@ -1,34 +1,50 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MotionTrajectoryLibrary.h"
+#include "MotionTrajectory.h"
 #include "GameFramework/Actor.h"
+#include "Components/SceneComponent.h"
 #include "Algo/Find.h"
 #include "GameFramework/Actor.h"
 
-static void FlattenTrajectoryPosition(FTrajectorySample& Sample, float& AccumulatedDeltaDistance, bool PreserveSpeed)
+static void FlattenTrajectoryPosition(
+	FTrajectorySample& Sample, 
+	const FTrajectorySample& PrevSample, 
+	const FTrajectorySample& FlattenedPrevSample, 
+	bool PreserveSpeed)
 {
-	if (!Sample.Position.IsZero())
+	if (!Sample.Transform.GetTranslation().IsZero())
 	{
+		const FVector Translation = Sample.Transform.GetLocation() - PrevSample.Transform.GetLocation();
+		const FVector FlattenedTranslation = FVector(Translation.X, Translation.Y, 0.0f);
+
 		if (PreserveSpeed)
 		{
+			const float TargetDistance = 
+				FMath::Abs(Sample.AccumulatedDistance - PrevSample.AccumulatedDistance);
+			const FVector FlattenedTranslationDir = Translation.GetSafeNormal2D();
+
 			// Take the full displacement, effectively meaning that the Z axis never existed
-			Sample.Position = Sample.Position.Size() * Sample.Position.GetSafeNormal2D();
+			Sample.Transform.SetLocation(
+				FlattenedPrevSample.Transform.GetLocation() + (FlattenedTranslationDir * TargetDistance));
 		}
 		else
 		{
 			// Accumulate the delta displacement difference as a result of Z axis being removed
-			const float DeltaDistance = Sample.Position.Size() - Sample.Position.Size2D();
-			AccumulatedDeltaDistance += DeltaDistance;
+			const float DeltaSeconds = Sample.AccumulatedSeconds - PrevSample.AccumulatedSeconds;
+			const float DeltaDistance = DeltaSeconds >= 0.0f ?
+				FlattenedTranslation.Size() :
+				-FlattenedTranslation.Size();
 
-			// Remove the accumulated delta displacement from each sample on the timeline, and recompute the new projected position
-			Sample.AccumulatedDistance -= AccumulatedDeltaDistance;
-			Sample.Position = FMath::Abs(Sample.AccumulatedDistance) * Sample.Position.GetSafeNormal2D();
+			Sample.AccumulatedDistance = FlattenedPrevSample.AccumulatedDistance + DeltaDistance;
+			Sample.Transform.SetTranslation(FlattenedPrevSample.Transform.GetLocation() + FlattenedTranslation);
 		}
 	}
 }
 
-FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FTrajectorySampleRange Trajectory, bool PreserveSpeed)
+FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FTrajectorySampleRange Trajectory, bool bPreserveSpeed)
 {
+
 	if (!Trajectory.HasSamples())
 	{
 		return Trajectory;
@@ -45,17 +61,17 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FT
 		// Note: As as a consequence of magnitude preservation, AccumulatedDistance alongside AccumulatedTime should not need modification
 
 		// Linear velocity Z-axis component removal
-		if (!Sample.LocalLinearVelocity.IsZero())
+		if (!Sample.LinearVelocity.IsZero())
 		{
-			const float VelMagnitude = PreserveSpeed ? Sample.LocalLinearVelocity.Size() : Sample.LocalLinearVelocity.Size2D();
-			Sample.LocalLinearVelocity = VelMagnitude * Sample.LocalLinearVelocity.GetSafeNormal2D();
+			const float VelMagnitude = bPreserveSpeed ? Sample.LinearVelocity.Size() : Sample.LinearVelocity.Size2D();
+			Sample.LinearVelocity = VelMagnitude * Sample.LinearVelocity.GetSafeNormal2D();
 		}
 
 		// Align linear acceleration via projection onto velocity
-		if (!Sample.LocalLinearVelocity.IsZero() && !Sample.LocalLinearAcceleration.IsZero())
+		if (!Sample.LinearVelocity.IsZero() && !Sample.LinearAcceleration.IsZero())
 		{
-			const float AccelMagnitude = PreserveSpeed ? Sample.LocalLinearAcceleration.Size() : Sample.LocalLinearAcceleration.Size2D();
-			Sample.LocalLinearAcceleration = AccelMagnitude * Sample.LocalLinearAcceleration.ProjectOnTo(Sample.LocalLinearVelocity).GetSafeNormal();
+			const float AccelMagnitude = bPreserveSpeed ? Sample.LinearAcceleration.Size() : Sample.LinearAcceleration.Size2D();
+			Sample.LinearAcceleration = AccelMagnitude * Sample.LinearAcceleration.ProjectOnTo(Sample.LinearVelocity).GetSafeNormal();
 		}
 	}
 
@@ -66,11 +82,18 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FT
 
 	check(PresentSampleIdx != INDEX_NONE);
 
+	// the present location should be zero but let's, for sanity, assume it might not be
+	FTrajectorySample& PresentSample = Trajectory.Samples[PresentSampleIdx];
+	const FVector PresentSampleLocation = PresentSample.Transform.GetLocation();
+	PresentSample.Transform.SetLocation(FVector(PresentSampleLocation.X, PresentSampleLocation.Y, 0.0f));
+
 	// Walk all samples into the future, conditionally removing contribution of Z axis motion
-	float AccumulatedDeltaDistance = 0.f;
-	for (int32 Idx = PresentSampleIdx, Num = Trajectory.Samples.Num(); Idx < Num; ++Idx)
+	FTrajectorySample PrevSample = PresentSample;
+	for (int32 Idx = PresentSampleIdx + 1, Num = Trajectory.Samples.Num(); Idx < Num; ++Idx)
 	{
-		FlattenTrajectoryPosition(Trajectory.Samples[Idx], AccumulatedDeltaDistance, PreserveSpeed);
+		FTrajectorySample CurrentSample = Trajectory.Samples[Idx];
+		FlattenTrajectoryPosition(Trajectory.Samples[Idx], PrevSample, Trajectory.Samples[Idx - 1], bPreserveSpeed);
+		PrevSample = CurrentSample;
 	}
 
 	// There is a possibility history has not been computed yet
@@ -80,10 +103,12 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::FlattenTrajectory2D(FT
 	}
 
 	// Walk all samples in the past, conditionally removing the contribution of Z axis motion
-	AccumulatedDeltaDistance = 0.f;
+	PrevSample = PresentSample;
 	for (int32 Idx = PresentSampleIdx - 1, Begin = 0; Idx >= Begin; --Idx)
 	{
-		FlattenTrajectoryPosition(Trajectory.Samples[Idx], AccumulatedDeltaDistance, PreserveSpeed);
+		FTrajectorySample CurrentSample = Trajectory.Samples[Idx];
+		FlattenTrajectoryPosition(Trajectory.Samples[Idx], PrevSample, Trajectory.Samples[Idx + 1], bPreserveSpeed);
+		PrevSample = CurrentSample;
 	}
 
 	return Trajectory;
@@ -120,7 +145,7 @@ static FVector ClampDirection(const FVector InputVector, const TArray<FTrajector
 	return Output;
 }
 
-FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::ClampTrajectoryDirection(FTrajectorySampleRange Trajectory, const TArray<FTrajectoryDirectionClamp>& Directions)
+FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::ClampTrajectoryDirection(FTrajectorySampleRange Trajectory, const TArray<FTrajectoryDirectionClamp>& Directions, bool bPreserveRotation)
 {
 	if (Directions.IsEmpty())
 	{
@@ -145,33 +170,67 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::ClampTrajectoryDirecti
 
 	check(PresentSample)
 
-	if (!PresentSample->LocalLinearVelocity.IsZero())
+	if (!PresentSample->LinearVelocity.IsZero())
 	{
-		const FVector VelocityBasis = ClampDirection(PresentSample->LocalLinearVelocity, Directions).GetSafeNormal();
+		const FVector VelocityBasis = ClampDirection(PresentSample->LinearVelocity, Directions).GetSafeNormal();
 
 		for (auto& Sample : Trajectory.Samples)
 		{
 			// Align linear velocity onto the velocity basis to maintain the present intended direction, while retaining per-sample magnitude
-			if (!Sample.LocalLinearVelocity.IsZero())
+			if (!Sample.LinearVelocity.IsZero())
 			{
-				Sample.LocalLinearVelocity = Sample.LocalLinearVelocity.Size() * Sample.LocalLinearVelocity.ProjectOnTo(VelocityBasis).GetSafeNormal();
+				Sample.LinearVelocity = Sample.LinearVelocity.Size() * Sample.LinearVelocity.ProjectOnTo(VelocityBasis).GetSafeNormal();
 			}
 
 			// Align linear acceleration through projection onto the modified velocity
-			if (!Sample.LocalLinearVelocity.IsZero() && !Sample.LocalLinearAcceleration.IsZero())
+			if (!Sample.LinearVelocity.IsZero() && !Sample.LinearAcceleration.IsZero())
 			{
-				Sample.LocalLinearAcceleration = Sample.LocalLinearAcceleration.Size() * Sample.LocalLinearAcceleration.ProjectOnTo(Sample.LocalLinearVelocity).GetSafeNormal();
+				Sample.LinearAcceleration = Sample.LinearAcceleration.Size() * Sample.LinearAcceleration.ProjectOnTo(Sample.LinearVelocity).GetSafeNormal();
 			}
 
 			// Align the position path through projection onto the modified velocity
-			if (!Sample.LocalLinearVelocity.IsZero() && !Sample.Position.IsZero())
+			if (!Sample.LinearVelocity.IsZero() && !Sample.Transform.GetLocation().IsZero())
 			{
-				Sample.Position = FMath::Abs(Sample.AccumulatedDistance) * Sample.Position.ProjectOnTo(Sample.LocalLinearVelocity).GetSafeNormal();
+				Sample.Transform.SetLocation(
+					FMath::Abs(Sample.AccumulatedDistance) * 
+					Sample.Transform.GetLocation().ProjectOnTo(Sample.LinearVelocity).GetSafeNormal());
+			}
+
+			if (bPreserveRotation)
+			{
+				Sample.Transform.SetRotation(PresentSample->Transform.GetRotation());
 			}
 		}
 	}
 
 	return Trajectory;
+}
+
+FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::RotateTrajectory(
+	FTrajectorySampleRange Trajectory, 
+	const FQuat& Rotation)
+{
+	Trajectory.Rotate(Rotation);
+	return Trajectory;
+}
+
+FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::MakeTrajectoryRelativeToComponent(
+	FTrajectorySampleRange ActorTrajectory, 
+	const USceneComponent* Component)
+{
+	if (!IsValid(Component))
+	{
+		UE_LOG(LogMotionTrajectory, Error, TEXT("Invalid component!"));
+		return ActorTrajectory;
+	}
+
+	const AActor* Owner = Component->GetOwner();
+	const FTransform OwnerTransformWS = Owner->GetActorTransform();
+	const FTransform ComponentTransformWS = Component->GetComponentTransform();
+	const FQuat Rotation = ComponentTransformWS.GetRotation().Inverse() * OwnerTransformWS.GetRotation();
+
+	ActorTrajectory.Rotate(Rotation);
+	return ActorTrajectory;
 }
 
 void UMotionTrajectoryBlueprintLibrary::DebugDrawTrajectory(const AActor* Actor

@@ -93,7 +93,7 @@ float DynamicPlayRateAdjustment(const FAnimationUpdateContext& Context
 	// Approximate zeroed values may indicate the synchronization point for a stop or pivot
 	const FTrajectorySample* MinimaSample = Algo::MinElementBy(Trajectory.Samples, [](const FTrajectorySample& Sample)
 		{
-			return Sample.LocalLinearVelocity.SizeSquared();
+			return Sample.LinearVelocity.SizeSquared();
 		});
 
 	// Given a high-resolution time step, walk the current animation sequence to find a corresponding minima root motion delta
@@ -170,7 +170,7 @@ float DynamicPlayRateAdjustment(const FAnimationUpdateContext& Context
 		// Minima driven play rate scaling synchronizes using the remaining displacement to near zero with: animation / locomotion
 		// Locomotion driven play rate scaling synchronizes using the per-frame instantaneous displacement with: locomotion / animation
 		const float SequenceDelta = bRootMotionDrivenPlayRate ? MinimaSampleTime - AccumulatedTime : DeltaTime;
-		const float TrajectoryDisplacement = bRootMotionDrivenPlayRate ? MinimaSample->AccumulatedDistance : Trajectory.Samples[0].LocalLinearVelocity.Size() * DeltaTime;
+		const float TrajectoryDisplacement = bRootMotionDrivenPlayRate ? MinimaSample->AccumulatedDistance : Trajectory.Samples[0].LinearVelocity.Size() * DeltaTime;
 
 		RootMotionDelta = InternalSequence->ExtractRootMotion(AccumulatedTime, SequenceDelta, bLooping).GetTranslation();
 		const float RootMotionDeltaDisplacement = RootMotionDelta.Size();
@@ -224,7 +224,9 @@ float DynamicPlayRateAdjustment(const FAnimationUpdateContext& Context
 
 		if (bRootMotionDrivenPlayRate)
 		{
-			Context.AnimInstanceProxy->AnimDrawDebugSphere(Context.AnimInstanceProxy->GetComponentTransform().TransformPosition(MinimaSample->Position), 8.f, 16, FColor::Yellow);
+			Context.AnimInstanceProxy->AnimDrawDebugSphere(
+				Context.AnimInstanceProxy->GetComponentTransform().TransformPosition(MinimaSample->Transform.GetLocation()),
+				8.f, 16, FColor::Yellow);
 		}
 	}
 #endif

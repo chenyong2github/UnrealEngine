@@ -53,10 +53,12 @@ namespace
 bool FTrajectorySample::IsZeroSample() const
 {
 	// AccumulatedTime is specifically omitted here to allow for the zero sample semantic across an entire trajectory range
-	return LocalLinearVelocity.IsNearlyZero()
-		&& LocalLinearAcceleration.IsNearlyZero()
-		&& Position.IsNearlyZero()
-		&& FMath::IsNearlyZero(AccumulatedDistance);
+	return LinearVelocity.IsNearlyZero()
+		&& LinearAcceleration.IsNearlyZero()
+		&& Transform.GetTranslation().IsNearlyZero()
+		&& FMath::IsNearlyZero(AccumulatedDistance)
+		&& FMath::IsNearlyZero(AngularSpeed)
+		&& Transform.GetRotation().IsIdentity();
 }
 
 FTrajectorySample FTrajectorySample::Lerp(const FTrajectorySample& Sample, float Alpha) const
@@ -64,13 +66,31 @@ FTrajectorySample FTrajectorySample::Lerp(const FTrajectorySample& Sample, float
 	FTrajectorySample Interp;
 	Interp.AccumulatedSeconds = FMath::Lerp(AccumulatedSeconds, Sample.AccumulatedSeconds, Alpha);
 	Interp.AccumulatedDistance = FMath::Lerp(AccumulatedDistance, Sample.AccumulatedDistance, Alpha);
-	Interp.Position = FMath::Lerp(Position, Sample.Position, Alpha);
-	Interp.LocalLinearVelocity = FMath::Lerp(LocalLinearVelocity, Sample.LocalLinearVelocity, Alpha);
-	Interp.LocalLinearAcceleration = FMath::Lerp(LocalLinearAcceleration, Sample.LocalLinearAcceleration, Alpha);
+	Interp.LinearVelocity = FMath::Lerp(LinearVelocity, Sample.LinearVelocity, Alpha);
+	Interp.LinearAcceleration = FMath::Lerp(LinearAcceleration, Sample.LinearAcceleration, Alpha);
+
+	Interp.Transform.Blend(Transform, Sample.Transform, Alpha);
+	
+	// TODO: this is very simple, more like Lerp than Slerp, can we do better?
+	const FVector AngularVelocity = AngularVelocityAxis * AngularSpeed;
+	const FVector SampleAngularVelocity = Sample.AngularVelocityAxis * Sample.AngularSpeed;
+	const FVector LerpedAngularVelocity = FMath::Lerp(AngularVelocity, SampleAngularVelocity, Alpha);
+	const float LerpedAngularSpeed = LerpedAngularVelocity.Size();
+	if (LerpedAngularSpeed > SMALL_NUMBER)
+	{
+		Interp.AngularVelocityAxis = LerpedAngularVelocity / LerpedAngularSpeed;
+		Interp.AngularSpeed = LerpedAngularSpeed;
+	}
+	else
+	{
+		Interp.AngularVelocityAxis = FVector::ZeroVector;
+		Interp.AngularSpeed = 0.0f;
+	}
+
 	return Interp;
 }
 
-FTrajectorySample FTrajectorySample::CubicCRSplineInterp(const FTrajectorySample& PrevSample
+FTrajectorySample FTrajectorySample::SmoothInterp(const FTrajectorySample& PrevSample
 	, const FTrajectorySample& Sample
 	, const FTrajectorySample& NextSample
 	, float Alpha) const
@@ -78,10 +98,73 @@ FTrajectorySample FTrajectorySample::CubicCRSplineInterp(const FTrajectorySample
 	FTrajectorySample Interp;
 	Interp.AccumulatedDistance = CubicCRSplineInterpSafe(PrevSample.AccumulatedDistance, AccumulatedDistance, Sample.AccumulatedDistance, NextSample.AccumulatedDistance, Alpha);
 	Interp.AccumulatedSeconds = CubicCRSplineInterpSafe(PrevSample.AccumulatedSeconds, AccumulatedSeconds, Sample.AccumulatedSeconds, NextSample.AccumulatedSeconds, Alpha);
-	Interp.Position = CubicCRSplineInterpSafe(PrevSample.Position, Position, Sample.Position, NextSample.Position, Alpha);
-	Interp.LocalLinearVelocity = CubicCRSplineInterpSafe(PrevSample.LocalLinearVelocity, LocalLinearVelocity, Sample.LocalLinearVelocity, NextSample.LocalLinearVelocity, Alpha);
-	Interp.LocalLinearAcceleration = CubicCRSplineInterpSafe(PrevSample.LocalLinearAcceleration, LocalLinearAcceleration, Sample.LocalLinearAcceleration, NextSample.LocalLinearAcceleration, Alpha);
+	Interp.LinearVelocity = CubicCRSplineInterpSafe(PrevSample.LinearVelocity, LinearVelocity, Sample.LinearVelocity, NextSample.LinearVelocity, Alpha);
+	Interp.LinearAcceleration = CubicCRSplineInterpSafe(PrevSample.LinearAcceleration, LinearAcceleration, Sample.LinearAcceleration, NextSample.LinearAcceleration, Alpha);
+
+	Interp.Transform.SetLocation(CubicCRSplineInterpSafe(
+		PrevSample.Transform.GetLocation(),
+		Transform.GetLocation(),
+		Sample.Transform.GetLocation(),
+		NextSample.Transform.GetLocation(),
+		Alpha));
+	FQuat Q0 = PrevSample.Transform.GetRotation().W >= 0.0f ? 
+		PrevSample.Transform.GetRotation() : -PrevSample.Transform.GetRotation();
+	FQuat Q1 = Transform.GetRotation().W >= 0.0f ? 
+		Transform.GetRotation() : -Transform.GetRotation();
+	FQuat Q2 = Sample.Transform.GetRotation().W >= 0.0f ? 
+		Sample.Transform.GetRotation() : -Sample.Transform.GetRotation();
+	FQuat Q3 = NextSample.Transform.GetRotation().W >= 0.0f ? 
+		NextSample.Transform.GetRotation() : -NextSample.Transform.GetRotation();
+
+	FQuat T0, T1;
+	FQuat::CalcTangents(Q0, Q1, Q2, 0.0f, T0);
+	FQuat::CalcTangents(Q1, Q2, Q3, 0.0f, T1);
+
+	Interp.Transform.SetRotation(FQuat::Squad(Q1, T0, Q2, T1, Alpha));
+
+	const FVector V0 = PrevSample.AngularVelocityAxis * PrevSample.AngularSpeed;
+	const FVector V1 = AngularVelocityAxis * AngularSpeed;
+	const FVector V2 = Sample.AngularVelocityAxis * Sample.AngularSpeed;
+	const FVector V3 = NextSample.AngularVelocityAxis * NextSample.AngularSpeed;
+
+	const FVector LerpedAngularVelocity = CubicCRSplineInterpSafe(V0, V1, V2, V3, Alpha);
+	const float LerpedAngularSpeed = LerpedAngularVelocity.Size();
+	if (LerpedAngularSpeed > SMALL_NUMBER)
+	{
+		Interp.AngularVelocityAxis = LerpedAngularVelocity / LerpedAngularSpeed;
+		Interp.AngularSpeed = LerpedAngularSpeed;
+	}
+	else
+	{
+		Interp.AngularVelocityAxis = FVector::ZeroVector;
+		Interp.AngularSpeed = 0.0f;
+	}
+
 	return Interp;
+}
+
+void FTrajectorySample::PrependOffset(const FTransform DeltaTransform, float DeltaSeconds)
+{
+	AccumulatedSeconds += DeltaSeconds;
+
+	if (FMath::IsNearlyZero(AccumulatedSeconds))
+	{
+		AccumulatedDistance = 0.0f;
+	}
+	else
+	{
+		const float DistanceOffset = DeltaSeconds >= 0.0f ?
+			DeltaTransform.GetTranslation().Size() :
+			-DeltaTransform.GetTranslation().Size();
+
+		AccumulatedDistance += DistanceOffset;
+	}
+
+	Transform *= DeltaTransform;
+
+	LinearVelocity = DeltaTransform.TransformVectorNoScale(LinearVelocity);
+	LinearAcceleration = DeltaTransform.TransformVectorNoScale(LinearAcceleration);
+	AngularVelocityAxis = DeltaTransform.TransformVectorNoScale(AngularVelocityAxis);
 }
 
 bool FTrajectorySampleRange::HasSamples() const
@@ -103,6 +186,14 @@ void FTrajectorySampleRange::RemoveHistory()
 		{
 			return Sample.AccumulatedSeconds < 0.f;
 		});
+}
+
+void FTrajectorySampleRange::Rotate(const FQuat& Rotation)
+{
+	for (auto& Sample : Samples)
+	{
+		Sample.PrependOffset(FTransform(Rotation), 0.0f);
+	}
 }
 
 void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
@@ -128,14 +219,17 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 #endif
 			for (int32 Idx = 0, Num = Samples.Num(); Idx < Num; Idx++)
 			{
-				const FVector WorldPosition = WorldTransform.TransformPosition(Samples[Idx].Position);
-				const FVector WorldVelocity = (WorldTransform.TransformVector(Samples[Idx].LocalLinearVelocity) * ArrowScale) + WorldPosition;
+				const FVector WorldPosition = WorldTransform.TransformPosition(Samples[Idx].Transform.GetTranslation());
+				const FVector WorldForward = 
+					(WorldTransform.TransformVectorNoScale(Samples[Idx].Transform.GetRotation().GetAxisX()) *
+					 ArrowScale) 
+					+ WorldPosition;
 
 				// Interpolate the history and prediction color over the entire trajectory range
 				const float ColorLerp = static_cast<float>(Idx) / static_cast<float>(Num);
 				const FLinearColor Color = FLinearColor::LerpUsingHSV(PredictionColor, HistoryColor, ColorLerp);
 
-				DrawDebugDirectionalArrow(World, WorldPosition, WorldVelocity, ArrowSize, Color.ToFColor(true), false, 0.f, 0, ArrowThickness);
+				DrawDebugDirectionalArrow(World, WorldPosition, WorldForward, ArrowSize, Color.ToFColor(true), false, 0.f, 0, ArrowThickness);
 #if ENABLE_ANIM_DEBUG
 				FString DebugString;
 				FString DebugSampleString;
@@ -155,15 +249,15 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 					break;
 				case 4: // Sample Position
 					DebugString = "Sample Position:";
-					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].Position.ToCompactString() });
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].Transform.GetLocation().ToCompactString() });
 					break;
 				case 5: // Sample Velocity
 					DebugString = "Sample Velocity:";
-					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LocalLinearVelocity.ToCompactString() });
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LinearVelocity.ToCompactString() });
 					break;
 				case 6: // Sample Acceleration
 					DebugString = "Sample Acceleration:";
-					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LocalLinearAcceleration.ToCompactString() });
+					DebugSampleString = DebugSampleString.Format(TEXT("{0}"), { Samples[Idx].LinearAcceleration.ToCompactString() });
 					break;
 				default:
 					break;
@@ -178,7 +272,7 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 						DrawDebugString(World, WorldTransform.GetLocation() + FVector(0.f, 0.f, 50.f), DebugString, nullptr, FColor::White, 0.f, false, 1.f);
 					}
 
-					DrawDebugString(World, WorldVelocity + FVector(0.f, 0.f, 10.f), DebugSampleString, nullptr, FColor::White, 0.f, false, 1.f);
+					DrawDebugString(World, WorldForward + FVector(0.f, 0.f, 10.f), DebugSampleString, nullptr, FColor::White, 0.f, false, 1.f);
 				}
 #endif
 			}

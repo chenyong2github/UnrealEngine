@@ -1275,10 +1275,10 @@ void FPoseSearchFeatureVectorBuilder::BuildFromTrajectoryTimeBased(const FTrajec
 		Feature.SubsampleIdx = Idx;
 
 		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-		SetVector(Feature, Sample.LocalLinearVelocity);
+		SetVector(Feature, Sample.LinearVelocity);
 
 		Feature.Type = EPoseSearchFeatureType::Position;
-		SetVector(Feature, Sample.Position);
+		SetVector(Feature, Sample.Transform.GetLocation());
 	}
 }
 
@@ -1298,10 +1298,10 @@ void FPoseSearchFeatureVectorBuilder::BuildFromTrajectoryDistanceBased(const FTr
 		Feature.SubsampleIdx = Idx;
 
 		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-		SetVector(Feature, Sample.LocalLinearVelocity);
+		SetVector(Feature, Sample.LinearVelocity);
 
 		Feature.Type = EPoseSearchFeatureType::Position;
-		SetVector(Feature, Sample.Position);
+		SetVector(Feature, Sample.Transform.GetLocation());
 	} 
 }
 
