@@ -85,7 +85,7 @@ private:
 		return this;
 	}
 
-	virtual void Tick()
+	virtual void Tick() override
 	{
 		SingleThreadTickFunction();
 	}
