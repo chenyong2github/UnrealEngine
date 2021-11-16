@@ -11,7 +11,7 @@ class UGameplayBehaviorConfig;
  * Abstract class that can be extended to bind a new type of behavior framework
  * to the smart objects by defining the required configuration.
  */
-UCLASS(Abstract, NotBlueprintable, EditInlineNew)
+UCLASS(Abstract, NotBlueprintable, EditInlineNew, CollapseCategories, HideDropdown)
 class SMARTOBJECTSMODULE_API USmartObjectBehaviorConfigBase : public UObject
 {
 	GENERATED_BODY()

@@ -15,14 +15,26 @@ bool FSmartObjectConfig::Validate() const
 		return false;
 	}
 
+	// Detect null entries in default configurations
 	int32 NullEntryIndex;
-	const bool bNullEntryFound = DefaultBehaviorConfigurations.Find(nullptr, NullEntryIndex);
-	if (bNullEntryFound)
+	if (DefaultBehaviorConfigurations.Find(nullptr, NullEntryIndex))
 	{
 		UE_LOG(LogSmartObject, Error, TEXT("Null config entry found at index %d in default behavior list"), NullEntryIndex);
 		return false;
 	}
 
+	// Detect null entries in slot configurations
+	for (int i = 0; i < Slots.Num(); ++i)
+	{
+		const FSmartObjectSlot& Slot = Slots[i];
+		if (Slot.BehaviorConfigurations.Find(nullptr, NullEntryIndex))
+		{
+			UE_LOG(LogSmartObject, Error, TEXT("Null config entry found at index %d in behavior list of slot %d"), i, NullEntryIndex);
+			return false;
+		}
+	}
+
+	// Detect missing configurations in slots if no default one are provided
 	if (DefaultBehaviorConfigurations.Num() == 0)
 	{
 		for (int i = 0; i < Slots.Num(); ++i)
@@ -31,14 +43,6 @@ bool FSmartObjectConfig::Validate() const
 			if (Slot.BehaviorConfigurations.Num() == 0)
 			{
 				UE_LOG(LogSmartObject, Error, TEXT("Slot at index %d needs to provide a behavior since there is no default behavior in the config"), i);
-				return false;
-			}
-
-			int32 NullSlotEntryIndex;
-			const bool bNullSlotEntryFound = DefaultBehaviorConfigurations.Find(nullptr, NullSlotEntryIndex);
-			if (bNullSlotEntryFound)
-			{
-				UE_LOG(LogSmartObject, Error, TEXT("Null config entry found at index %d in behavior list of slot %d"), i, NullSlotEntryIndex);
 				return false;
 			}
 		}
