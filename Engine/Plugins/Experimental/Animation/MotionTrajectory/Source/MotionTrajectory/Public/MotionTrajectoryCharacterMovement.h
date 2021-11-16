@@ -15,9 +15,11 @@ class MOTIONTRAJECTORY_API UCharacterMovementTrajectoryComponent : public UMotio
 protected:
 
 	// Begin UMotionTrajectoryComponent Interface
-	virtual FTrajectorySample GetPresentTrajectory() const override;
-	virtual FTransform GetPresentWorldTransform() const override;
+	virtual FTrajectorySample CalcWorldSpacePresentTrajectorySample(float DeltaTime) const override;
 	// End UMotionTrajectoryComponent Interface
+
+	UFUNCTION()
+	void OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
 
 public:
 

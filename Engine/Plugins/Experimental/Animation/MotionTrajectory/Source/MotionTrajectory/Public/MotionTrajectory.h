@@ -10,6 +10,8 @@
 
 #include "MotionTrajectory.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogMotionTrajectory, Log, All);
+
 class APawn;
 
 class FMotionTrajectoryModule : public IModuleInterface
@@ -66,19 +68,27 @@ protected:
 	TRingBuffer<FTrajectorySample> SampleHistory = {};
 
 	// Retained instantaneous/present trajectory
-	FTrajectorySample PresentTrajectory = {};
+	FTrajectorySample PresentTrajectorySampleWS = {};
+
+	FTrajectorySample PresentTrajectorySampleLS = {};
+
+	// if anything makes the trajectory tick before ::TickComponent, skip it.
+	uint32 LastTrajectoryTickFrame = 0u;
 
 	// Gets the instantaneous/present trajectory sample of the current frame
-	virtual FTrajectorySample GetPresentTrajectory() const;
-	
-	// Gets the instantaneous/present world-space transform of the current frame
-	virtual FTransform GetPresentWorldTransform() const;
+	virtual FTrajectorySample CalcWorldSpacePresentTrajectorySample(float DeltaTime) const;
+
+	// Ticks the trajectory. Call this to tick before ::TickComponent when necessary
+	virtual void TickTrajectory(float DeltaTime);
 
 	// Gets the Pawn from the owning Actor of this component
 	const APawn* TryGetOwnerPawn() const;
 
 	// Combines all trajectory samples in the past, present, and future into a unifed trajectory range
 	FTrajectorySampleRange CombineHistoryPresentPrediction(bool bIncludeHistory, const FTrajectorySampleRange& Prediction) const;
+
+	// Checks the component internal frame counter to say if the component has already ticked this frame or not
+	bool HasTrajectoryTickedThisFrame() const;
 
 	// Forcefully evicts all trajectory history and resets internal history tracking state
 	void FlushHistory();
@@ -89,6 +99,7 @@ public:
 
 	// Begin UActorComponent Interface
 	virtual void OnComponentCreated() override;
+	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime
 		, enum ELevelTick TickType
 		, FActorComponentTickFunction* ThisTickFunction) override;

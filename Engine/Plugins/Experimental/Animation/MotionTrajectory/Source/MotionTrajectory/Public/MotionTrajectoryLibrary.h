@@ -45,11 +45,39 @@ public:
 	*
 	* @param Trajectory			Input trajectory range
 	* @param Directions			Input direction clamping, containing angle thresholds for determining source to target direction
+	* @param bPreserveRotation	If true, sample rotations will be replaced with the present sample rotation
 	*
 	* @return					Direction clamped, modified trajectory range
 	*/
 	UFUNCTION(BlueprintPure, Category="Motion Trajectory", meta=(BlueprintThreadSafe, AutoCreateRefTerm="Directions"))
-	static FTrajectorySampleRange ClampTrajectoryDirection(FTrajectorySampleRange Trajectory, const TArray<FTrajectoryDirectionClamp>& Directions);
+	static FTrajectorySampleRange ClampTrajectoryDirection(
+		FTrajectorySampleRange Trajectory, 
+		const TArray<FTrajectoryDirectionClamp>& Directions, 
+		bool bPreserveRotation = true);
+
+	/**
+	* Rotates the trajectory
+	*
+	* @param Trajectory			Input trajectory range
+	* @param Rotation			Rotation to be applied to all trajectory samples
+	*
+	* @return					Rotated trajectory
+	*/
+	UFUNCTION(BlueprintPure, Category="Motion Trajectory", meta=(BlueprintThreadSafe))
+	static FTrajectorySampleRange RotateTrajectory(FTrajectorySampleRange Trajectory, const FQuat& Rotation);
+
+	/**
+	* Rotates the trajectory to make it relative to the component specified as a parameter
+	*
+	* @param Trajectory			Input trajectory range
+	* @param Component			Component whose transform will be the new trajectory reference frame
+	*
+	* @return					Trajectory relative to Component
+	*/
+	UFUNCTION(BlueprintPure, Category="Motion Trajectory", meta=(BlueprintThreadSafe))
+	static FTrajectorySampleRange MakeTrajectoryRelativeToComponent(
+		FTrajectorySampleRange ActorTrajectory, 
+		const class USceneComponent* Component);
 
 	/**
 	* Projects trajectory samples onto a defined set of allowed directions
@@ -63,13 +91,13 @@ public:
 	* @param ArrowThickness		Input sample arrow draw thickness
 	* @param bDrawText			Input include drawing of per-sample trajectory information
 	*/
-	UFUNCTION(BlueprintPure, Category="Motion Trajectory", meta=(BlueprintThreadSafe, AutoCreateRefTerm="WorldTransform"))
+	UFUNCTION(BlueprintCallable, Category="Motion Trajectory", meta=(BlueprintThreadSafe, AutoCreateRefTerm="WorldTransform"))
 	static void DebugDrawTrajectory(const AActor* Actor
 		, const FTransform& WorldTransform
 		, const FTrajectorySampleRange& Trajectory
 		, const FLinearColor PredictionColor = FLinearColor(0.f, 1.f, 0.f)
 		, const FLinearColor HistoryColor = FLinearColor(0.f, 0.f, 1.f)
-		, float ArrowScale = 0.025f
+		, float ArrowScale = 10.f
 		, float ArrowSize = 40.f
 		, float ArrowThickness = 2.f
 	);
