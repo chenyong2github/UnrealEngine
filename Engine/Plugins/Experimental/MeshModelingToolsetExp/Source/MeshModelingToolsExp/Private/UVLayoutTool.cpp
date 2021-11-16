@@ -146,24 +146,26 @@ void UUVLayoutTool::UpdateNumPreviews()
 		}
 		Previews.SetNum(TargetNumPreview);
 		OriginalDynamicMeshes.SetNum(TargetNumPreview);
+		Factories.SetNum(TargetNumPreview);
 	}
 	else
 	{
 		OriginalDynamicMeshes.SetNum(TargetNumPreview);
+		Factories.SetNum(TargetNumPreview);
 		for (int32 PreviewIdx = CurrentNumPreview; PreviewIdx < TargetNumPreview; PreviewIdx++)
 		{
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 			FMeshDescriptionToDynamicMesh Converter;
 			Converter.Convert(TargetMeshProviderInterface(PreviewIdx)->GetMeshDescription(), *OriginalDynamicMeshes[PreviewIdx]);
 
-			UUVLayoutOperatorFactory* OpFactory = NewObject<UUVLayoutOperatorFactory>();
-			OpFactory->OriginalMesh = OriginalDynamicMeshes[PreviewIdx];
-			OpFactory->Settings = BasicProperties;
-			OpFactory->TargetTransform = TargetComponentInterface(PreviewIdx)->GetWorldTransform();
-			OpFactory->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
+			Factories[PreviewIdx]= NewObject<UUVLayoutOperatorFactory>();
+			Factories[PreviewIdx]->OriginalMesh = OriginalDynamicMeshes[PreviewIdx];
+			Factories[PreviewIdx]->Settings = BasicProperties;
+			Factories[PreviewIdx]->TargetTransform = TargetComponentInterface(PreviewIdx)->GetWorldTransform();
+			Factories[PreviewIdx]->GetSelectedUVChannel = [this]() { return GetSelectedUVChannel(); };
 
-			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
-			Preview->Setup(this->TargetWorld, OpFactory);
+			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(Factories[PreviewIdx], "Preview"));
+			Preview->Setup(this->TargetWorld, Factories[PreviewIdx]);
 			ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Targets[PreviewIdx]); 
 
 			FComponentMaterialSet MaterialSet;
@@ -210,6 +212,10 @@ void UUVLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GenerateAsset(Results);
+	}
+	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
+	{
+		Factories[TargetIndex] = nullptr;
 	}
 }
 

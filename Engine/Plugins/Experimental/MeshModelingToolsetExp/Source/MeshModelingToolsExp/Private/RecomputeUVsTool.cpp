@@ -42,23 +42,21 @@ void URecomputeUVsTool::Setup()
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	FTransform TargetTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
 
-	UE::ToolTarget::HideSourceObject(Target);
-
 	// initialize our properties
+
+	Settings = NewObject<URecomputeUVsToolProperties>(this);
+	Settings->RestoreProperties(this);
+	AddToolPropertySource(Settings);
 
 	UVChannelProperties = NewObject<UMeshUVChannelProperties>(this);
 	UVChannelProperties->RestoreProperties(this);
 	UVChannelProperties->Initialize(InputMesh.Get(), false);
 	UVChannelProperties->ValidateSelection(true);
-	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue) 
-	{
-		MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
-	});
+	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue)
+		{
+			MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+		});
 	AddToolPropertySource(UVChannelProperties);
-
-	Settings = NewObject<URecomputeUVsToolProperties>(this);
-	Settings->RestoreProperties(this);
-	AddToolPropertySource(Settings);
 
 	PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
 	PolygroupLayerProperties->RestoreProperties(this, TEXT("RecomputeUVsTool"));
@@ -71,6 +69,9 @@ void URecomputeUVsTool::Setup()
 	MaterialSettings->MaterialMode = ESetMeshMaterialMode::Checkerboard;
 	MaterialSettings->RestoreProperties(this, TEXT("ModelingUVTools"));
 	AddToolPropertySource(MaterialSettings);
+
+	UE::ToolTarget::HideSourceObject(Target);
+
 	// force update
 	MaterialSettings->UpdateMaterials();
 

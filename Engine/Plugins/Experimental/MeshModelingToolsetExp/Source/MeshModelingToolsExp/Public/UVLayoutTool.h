@@ -22,6 +22,7 @@
 struct FMeshDescription;
 class UDynamicMeshComponent;
 class UUVLayoutProperties;
+class UUVLayoutOperatorFactory;
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 /**
@@ -85,6 +86,9 @@ protected:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UMeshOpPreviewWithBackgroundCompute>> Previews;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UUVLayoutOperatorFactory>> Factories;
 
 protected:
 	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;

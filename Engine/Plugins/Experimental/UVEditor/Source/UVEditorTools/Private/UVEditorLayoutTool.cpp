@@ -49,15 +49,17 @@ void UUVEditorLayoutTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
-	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+	Factories.SetNum(Targets.Num());
+	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
 	{
-		UUVLayoutOperatorFactory* OpFactory = NewObject<UUVLayoutOperatorFactory>();
-		OpFactory->TargetTransform = Target->AppliedPreview->PreviewMesh->GetTransform();
-		OpFactory->Settings = Settings;
-		OpFactory->OriginalMesh = Target->AppliedCanonical;
-		OpFactory->GetSelectedUVChannel = [Target]() { return Target->UVLayerIndex; };
+		TObjectPtr<UUVEditorToolMeshInput> Target = Targets[TargetIndex];
+		Factories[TargetIndex] = NewObject<UUVLayoutOperatorFactory>();
+		Factories[TargetIndex]->TargetTransform = Target->AppliedPreview->PreviewMesh->GetTransform();
+		Factories[TargetIndex]->Settings = Settings;
+		Factories[TargetIndex]->OriginalMesh = Target->AppliedCanonical;
+		Factories[TargetIndex]->GetSelectedUVChannel = [Target]() { return Target->UVLayerIndex; };
 
-		Target->AppliedPreview->ChangeOpFactory(OpFactory);
+		Target->AppliedPreview->ChangeOpFactory(Factories[TargetIndex]);
 		Target->AppliedPreview->OnMeshUpdated.AddWeakLambda(this, [Target](UMeshOpPreviewWithBackgroundCompute* Preview) {
 			Target->UpdateUnwrapPreviewFromAppliedPreview();
 		});
@@ -73,16 +75,16 @@ void UUVEditorLayoutTool::Setup()
 void UUVEditorLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
-
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
 		Target->AppliedPreview->OnMeshUpdated.RemoveAll(this);
-		Target->AppliedPreview->ClearOpFactory();
 	}
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		UUVToolEmitChangeAPI* ChangeAPI = GetToolManager()->GetContextObjectStore()->FindContext<UUVToolEmitChangeAPI>();
+		const FText TransactionName(LOCTEXT("LayoutTransactionName", "Layout Tool"));
+		ChangeAPI->BeginUndoTransaction(TransactionName);
 
 		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 		{
@@ -103,6 +105,8 @@ void UUVEditorLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 
 			ChangeAPI->EmitToolIndependentUnwrapCanonicalChange(Target, ChangeTracker.EndChange(), LOCTEXT("ApplyLayoutTool", "Layout Tool"));
 		}
+
+		ChangeAPI->EndUndoTransaction();
 	}
 	else
 	{
@@ -111,6 +115,17 @@ void UUVEditorLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 		{
 			Target->UpdatePreviewsFromCanonical();
 		}
+	}
+
+
+	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+	{
+		Target->AppliedPreview->ClearOpFactory();
+	}
+
+	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
+	{
+		Factories[TargetIndex] = nullptr;
 	}
 
 	Settings = nullptr;
