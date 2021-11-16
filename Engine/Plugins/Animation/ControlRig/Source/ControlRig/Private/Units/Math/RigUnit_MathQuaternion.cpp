@@ -2,6 +2,7 @@
 
 #include "Units/Math/RigUnit_MathQuaternion.h"
 #include "Units/RigUnitContext.h"
+#include "AnimationCoreLibrary.h"
 
 FRigUnit_MathQuaternionFromAxisAndAngle_Execute()
 {
@@ -18,7 +19,7 @@ FRigUnit_MathQuaternionFromAxisAndAngle_Execute()
 FRigUnit_MathQuaternionFromEuler_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	Result = FControlRigMathLibrary::QuatFromEuler(Euler, RotationOrder);
+	Result = AnimationCore::QuatFromEuler(Euler, RotationOrder);
 }
 
 FRigUnit_MathQuaternionFromRotator_Execute()
@@ -77,7 +78,7 @@ FRigUnit_MathQuaternionScale_Execute()
 FRigUnit_MathQuaternionToEuler_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	Result = FControlRigMathLibrary::EulerFromQuat(Value, RotationOrder);
+	Result = AnimationCore::EulerFromQuat(Value, RotationOrder);
 }
 
 FRigUnit_MathQuaternionToRotator_Execute()

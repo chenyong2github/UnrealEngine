@@ -2,6 +2,7 @@
 
 #include "Units/Highlevel/Harmonics/RigUnit_BoneHarmonics.h"
 #include "Units/RigUnitContext.h"
+#include "AnimationCoreLibrary.h"
 
 FRigUnit_BoneHarmonics_Execute()
 {
@@ -85,7 +86,7 @@ FRigUnit_ItemHarmonics_Execute()
 			Angles.Z = FMath::Sin(U.Z + WaveOffset.Z);
 			Angles = Angles * WaveAmplitude * Ease;
 
-			FQuat Rotation = FControlRigMathLibrary::QuatFromEuler(Angles, RotationOrder);
+			FQuat Rotation = AnimationCore::QuatFromEuler(Angles, RotationOrder);
 
 			FTransform Transform = Hierarchy->GetGlobalTransform(CachedItems[ItemIndex]);
 			Transform.SetRotation(Transform.GetRotation() * Rotation);

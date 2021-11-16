@@ -88,7 +88,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQua
 	FRigUnit_MathQuaternionFromEuler()
 	{
 		Euler = FVector::ZeroVector;
-		RotationOrder = EControlRigRotationOrder::ZYX;
+		RotationOrder = EEulerRotationOrder::ZYX;
 		Result = FQuat::Identity;
 	}
 
@@ -99,7 +99,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionFromEuler : public FRigUnit_MathQua
 	FVector Euler;
 
 	UPROPERTY(meta = (Input))
-	EControlRigRotationOrder RotationOrder;
+	EEulerRotationOrder RotationOrder;
 
 	UPROPERTY(meta=(Output))
 	FQuat Result;
@@ -219,7 +219,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuate
 	FRigUnit_MathQuaternionToEuler()
 	{
 		Value = FQuat::Identity;
-		RotationOrder = EControlRigRotationOrder::ZYX;
+		RotationOrder = EEulerRotationOrder::ZYX;
 		Result = FVector::ZeroVector;
 	}
 
@@ -230,7 +230,7 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionToEuler : public FRigUnit_MathQuate
 	FQuat Value;
 
 	UPROPERTY(meta = (Input))
-	EControlRigRotationOrder RotationOrder;
+	EEulerRotationOrder RotationOrder;
 
 	UPROPERTY(meta=(Output))
 	FVector Result;
@@ -530,11 +530,11 @@ struct CONTROLRIG_API FRigUnit_MathQuaternionRotationOrder : public FRigUnit_Mat
 
 	FRigUnit_MathQuaternionRotationOrder()
 	{
-		RotationOrder = EControlRigRotationOrder::ZYX;
+		RotationOrder = EEulerRotationOrder::ZYX;
 	}
 
 	UPROPERTY(meta = (Input, Output))
-	EControlRigRotationOrder RotationOrder;
+	EEulerRotationOrder RotationOrder;
 
 
 	RIGVM_METHOD()

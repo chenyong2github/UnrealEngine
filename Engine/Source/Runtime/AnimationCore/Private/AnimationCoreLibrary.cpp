@@ -189,4 +189,201 @@ FTransform SolveConstraints(const FTransform& CurrentTransform, const FTransform
 
 	return BlendedLocalTransform * CurrentParentTransform;
 }
+
+FQuat QuatFromEuler(const FVector& XYZAnglesInDegrees, EEulerRotationOrder RotationOrder)
+{
+	float X = FMath::DegreesToRadians(XYZAnglesInDegrees.X);
+	float Y = FMath::DegreesToRadians(XYZAnglesInDegrees.Y);
+	float Z = FMath::DegreesToRadians(XYZAnglesInDegrees.Z);
+
+	float CosX = FMath::Cos( X * 0.5f );
+	float CosY = FMath::Cos( Y * 0.5f );
+	float CosZ = FMath::Cos( Z * 0.5f );
+
+	float SinX = FMath::Sin( X * 0.5f );
+	float SinY = FMath::Sin( Y * 0.5f );
+	float SinZ = FMath::Sin( Z * 0.5f );
+
+	if ( RotationOrder == EEulerRotationOrder::XYZ )
+	{
+		return FQuat(SinX * CosY * CosZ - CosX * SinY * SinZ, 
+					 CosX * SinY * CosZ + SinX * CosY * SinZ,
+					 CosX * CosY * SinZ - SinX * SinY * CosZ,
+					 CosX * CosY * CosZ + SinX * SinY * SinZ);
+
+	}
+	else if ( RotationOrder == EEulerRotationOrder::XZY )
+	{
+		return FQuat(SinX * CosY * CosZ + CosX * SinY * SinZ, 
+					 CosX * SinY * CosZ + SinX * CosY * SinZ,
+					 CosX * CosY * SinZ - SinX * SinY * CosZ,
+					 CosX * CosY * CosZ - SinX * SinY * SinZ);
+
+	}
+	else if ( RotationOrder == EEulerRotationOrder::YXZ )
+	{
+		return FQuat(SinX * CosY * CosZ - CosX * SinY * SinZ, 
+					 CosX * SinY * CosZ + SinX * CosY * SinZ,
+					 CosX * CosY * SinZ + SinX * SinY * CosZ,
+					 CosX * CosY * CosZ - SinX * SinY * SinZ);
+
+	}
+	else if ( RotationOrder == EEulerRotationOrder::YZX )
+	{
+		return FQuat(SinX * CosY * CosZ - CosX * SinY * SinZ, 
+					 CosX * SinY * CosZ - SinX * CosY * SinZ,
+					 CosX * CosY * SinZ + SinX * SinY * CosZ,
+					 CosX * CosY * CosZ + SinX * SinY * SinZ);
+	}
+	else if ( RotationOrder == EEulerRotationOrder::ZXY )
+	{
+		return FQuat(SinX * CosY * CosZ + CosX * SinY * SinZ, 
+					 CosX * SinY * CosZ - SinX * CosY * SinZ,
+					 CosX * CosY * SinZ - SinX * SinY * CosZ,
+					 CosX * CosY * CosZ + SinX * SinY * SinZ);
+
+	}
+	else if ( RotationOrder == EEulerRotationOrder::ZYX )
+	{
+		return FQuat(SinX * CosY * CosZ + CosX * SinY * SinZ, 
+					 CosX * SinY * CosZ - SinX * CosY * SinZ,
+					 CosX * CosY * SinZ + SinX * SinY * CosZ,
+					 CosX * CosY * CosZ - SinX * SinY * SinZ);
+
+	}
+
+	// should not happen
+	return FQuat::Identity;
+}
+
+FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder)
+{
+	float X = Rotation.X;
+	float Y = Rotation.Y;
+	float Z = Rotation.Z;
+	float W = Rotation.W;
+	float X2 = X * 2.f;
+	float Y2 = Y * 2.f;
+	float Z2 = Z * 2.f;
+	float XX2 = X * X2;
+	float XY2 = X * Y2;
+	float XZ2 = X * Z2;
+	float YX2 = Y * X2;
+	float YY2 = Y * Y2;
+	float YZ2 = Y * Z2;
+	float ZX2 = Z * X2;
+	float ZY2 = Z * Y2;
+	float ZZ2 = Z * Z2;
+	float WX2 = W * X2;
+	float WY2 = W * Y2;
+	float WZ2 = W * Z2;
+
+	FVector AxisX, AxisY, AxisZ;
+	AxisX.X = (1.f - (YY2 + ZZ2));
+	AxisY.X = (XY2 + WZ2);
+	AxisZ.X = (XZ2 - WY2);
+	AxisX.Y = (XY2 - WZ2);
+	AxisY.Y = (1.f - (XX2 + ZZ2));
+	AxisZ.Y = (YZ2 + WX2);
+	AxisX.Z = (XZ2 + WY2);
+	AxisY.Z = (YZ2 - WX2);
+	AxisZ.Z = (1.f - (XX2 + YY2));
+
+	FVector Result = FVector::ZeroVector;
+
+	if ( RotationOrder == EEulerRotationOrder::XYZ )
+	{
+		Result.Y = FMath::Asin( - FMath::Clamp<float>( AxisZ.X, -1.f, 1.f ) );
+
+		if ( FMath::Abs( AxisZ.X ) < 1.f - SMALL_NUMBER )
+		{
+			Result.X = FMath::Atan2( AxisZ.Y, AxisZ.Z );
+			Result.Z = FMath::Atan2( AxisY.X, AxisX.X );
+		}
+		else
+		{
+			Result.X = 0.f;
+			Result.Z = FMath::Atan2( -AxisX.Y, AxisY.Y );
+		}
+	}
+	else if ( RotationOrder == EEulerRotationOrder::XZY )
+	{
+
+		Result.Z = FMath::Asin( FMath::Clamp<float>( AxisY.X, -1.f, 1.f ) );
+
+		if ( FMath::Abs( AxisY.X ) < 1.f - SMALL_NUMBER )
+		{
+			Result.X = FMath::Atan2( -AxisY.Z, AxisY.Y );
+			Result.Y = FMath::Atan2( -AxisZ.X, AxisX.X );
+		}
+		else
+		{
+			Result.X = 0.f;
+			Result.Y = FMath::Atan2( AxisX.Z, AxisZ.Z );
+		}
+	}
+	else if ( RotationOrder == EEulerRotationOrder::YXZ )
+	{
+		Result.X = FMath::Asin( FMath::Clamp<float>( AxisZ.Y, -1.f, 1.f ) );
+
+		if ( FMath::Abs( AxisZ.Y ) < 1.f - SMALL_NUMBER )
+		{
+			Result.Y = FMath::Atan2( -AxisZ.X, AxisZ.Z );
+			Result.Z = FMath::Atan2( -AxisX.Y, AxisY.Y );
+		}
+		else
+		{
+			Result.Y = 0.f;
+			Result.Z = FMath::Atan2( AxisY.X, AxisX.X );
+		}
+	}
+	else if ( RotationOrder == EEulerRotationOrder::YZX )
+	{
+		Result.Z = FMath::Asin( - FMath::Clamp<float>( AxisX.Y, -1.f, 1.f ) );
+
+		if ( FMath::Abs( AxisX.Y ) < 1.f - SMALL_NUMBER )
+		{
+			Result.X = FMath::Atan2( AxisZ.Y, AxisY.Y );
+			Result.Y = FMath::Atan2( AxisX.Z, AxisX.X );
+		}
+		else
+		{
+			Result.X = FMath::Atan2( -AxisY.Z, AxisZ.Z );
+			Result.Y = 0.f;
+		}
+	}
+	else if ( RotationOrder == EEulerRotationOrder::ZXY )
+	{
+		Result.X = FMath::Asin( - FMath::Clamp<float>( AxisY.Z, -1.f, 1.f ) );
+
+		if ( FMath::Abs( AxisY.Z ) < 1.f - SMALL_NUMBER )
+		{
+			Result.Y = FMath::Atan2( AxisX.Z, AxisZ.Z );
+			Result.Z = FMath::Atan2( AxisY.X, AxisY.Y );
+		}
+		else
+		{
+			Result.Y = FMath::Atan2( -AxisZ.X, AxisX.X );
+			Result.Z = 0.f;
+		}
+	}
+	else if ( RotationOrder == EEulerRotationOrder::ZYX )
+	{
+		Result.Y = FMath::Asin( FMath::Clamp<float>( AxisX.Z, -1.f, 1.f ) );
+
+		if ( FMath::Abs( AxisX.Z ) < 1.f - SMALL_NUMBER )
+		{
+			Result.X = FMath::Atan2( -AxisY.Z, AxisZ.Z );
+			Result.Z = FMath::Atan2( -AxisX.Y, AxisX.X );
+		}
+		else
+		{
+			Result.X = FMath::Atan2( AxisZ.Y, AxisY.Y );
+			Result.Z = 0.f;
+		}
+	}
+
+	return Result * 180.f / PI;
+}
+
 }
