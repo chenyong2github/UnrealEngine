@@ -1505,7 +1505,7 @@ void FEditorFileUtils::Export(bool bExportSelectedActorsOnly)
 
 static bool IsCheckOutSelectedDisabled()
 {
-	return !(ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable());
+	return !(ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable()) || !ISourceControlModule::Get().GetProvider().UsesCheckout();
 }
 
 bool FEditorFileUtils::AddCheckoutPackageItems(bool bCheckDirty, TArray<UPackage*> PackagesToCheckOut, TArray<UPackage*>* OutPackagesNotNeedingCheckout, bool* bOutHavePackageToCheckOut)
