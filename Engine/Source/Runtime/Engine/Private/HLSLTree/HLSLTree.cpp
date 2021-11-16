@@ -20,18 +20,6 @@ UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::CombineEvaluationTypes(EEx
 	return EExpressionEvaluationType::Preshader;
 }
 
-template <typename FormatType, typename... ArgTypes>
-const TCHAR* AllocateStringf(FMemStackBase& Allocator, const FormatType& Format, ArgTypes... Args)
-{
-	TCHAR Buffer[1024];
-	const int32 Length = FCString::Snprintf(Buffer, 1024, Format, Forward<ArgTypes>(Args)...);
-	check(Length > 0);
-	TCHAR* Result = New<TCHAR>(Allocator, Length + 1);
-	FMemory::Memcpy(Result, Buffer, Length * sizeof(TCHAR));
-	Result[Length] = 0;
-	return Result;
-}
-
 const TCHAR* AllocateString(FMemStackBase& Allocator, const TCHAR* String, int32 Length)
 {
 	TCHAR* Result = New<TCHAR>(Allocator, Length + 1);
@@ -40,9 +28,22 @@ const TCHAR* AllocateString(FMemStackBase& Allocator, const TCHAR* String, int32
 	return Result;
 }
 
+const TCHAR* AllocateString(FMemStackBase& Allocator, FStringView String)
+{
+	return AllocateString(Allocator, String.GetData(), String.Len());
+}
+
 const TCHAR* AllocateString(FMemStackBase& Allocator, const FStringBuilderBase& StringBuilder)
 {
 	return AllocateString(Allocator, StringBuilder.GetData(), StringBuilder.Len());
+}
+
+template <typename FormatType, typename... ArgTypes>
+const TCHAR* AllocateStringf(FMemStackBase& Allocator, const FormatType& Format, ArgTypes... Args)
+{
+	TStringBuilder<1024> String;
+	String.Appendf(Format, Forward<ArgTypes>(Args)...);
+	return AllocateString(Allocator, String);
 }
 
 FSHAHash HashString(const TCHAR* String, int32 Length)
@@ -81,6 +82,138 @@ UE::HLSLTree::FEmitContext::~FEmitContext()
 const TCHAR* UE::HLSLTree::FEmitContext::AcquireLocalDeclarationCode()
 {
 	return AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
+}
+
+const TCHAR* UE::HLSLTree::FEmitContext::CastShaderValue(const FNode* Node, const TCHAR* Code, Shader::EValueType SourceType, Shader::EValueType DestType, ECastFlags Flags)
+{
+	if (SourceType == DestType)
+	{
+		return Code;
+	}
+
+	const bool bAllowTruncate = EnumHasAnyFlags(Flags, ECastFlags::AllowTruncate);
+	const bool bAllowAppendZeroes = EnumHasAnyFlags(Flags, ECastFlags::AllowAppendZeroes);
+	bool bReplicateScalar = EnumHasAnyFlags(Flags, ECastFlags::ReplicateScalar);
+
+	const Shader::FValueTypeDescription SourceTypeDesc = Shader::GetValueTypeDescription(SourceType);
+	const Shader::FValueTypeDescription DestTypeDesc = Shader::GetValueTypeDescription(DestType);
+
+	if (SourceTypeDesc.NumComponents > 0 && DestTypeDesc.NumComponents > 0)
+	{
+		if (SourceTypeDesc.NumComponents != 1)
+		{
+			bReplicateScalar = false;
+		}
+		if (!bReplicateScalar && !bAllowAppendZeroes && DestTypeDesc.NumComponents > SourceTypeDesc.NumComponents)
+		{
+			Errors.AddErrorf(Node, TEXT("Cannot cast from smaller type %s to larger type %s."), SourceTypeDesc.Name, DestTypeDesc.Name);
+			return TEXT("");
+		}
+		if (!bReplicateScalar && !bAllowTruncate && DestTypeDesc.NumComponents < SourceTypeDesc.NumComponents)
+		{
+			Errors.AddErrorf(Node, TEXT("Cannot cast from larger type %s to smaller type %s."), SourceTypeDesc.Name, DestTypeDesc.Name);
+			return TEXT("");
+		}
+
+		const bool bIsSourceLWC = SourceTypeDesc.ComponentType == Shader::EValueComponentType::Double;
+		const bool bIsLWC = DestTypeDesc.ComponentType == Shader::EValueComponentType::Double;
+		if (bIsLWC != bIsSourceLWC)
+		{
+			if (bIsLWC)
+			{
+				// float->LWC
+				const TCHAR* CodeAsFloat = CastShaderValue(Node, Code, SourceType, Shader::MakeValueType(Shader::EValueComponentType::Float, DestTypeDesc.NumComponents), Flags);
+				return AllocateStringf(*Allocator, TEXT("LWCPromote(%s)"), CodeAsFloat);
+			}
+			else
+			{
+				//LWC->float
+				const TCHAR* CodeAsFloat = AllocateStringf(*Allocator, TEXT("LWCToFloat(%s)"), Code);
+				return CastShaderValue(Node, CodeAsFloat, Shader::MakeValueType(Shader::EValueComponentType::Float, SourceTypeDesc.NumComponents), DestType, Flags);
+			}
+		}
+
+		TStringBuilder<1024> Result;
+		int32 NumComponents = 0;
+		bool bNeedClosingParen = false;
+		if (bIsLWC)
+		{
+			Result.Append(TEXT("MakeLWCVector("));
+			bNeedClosingParen = true;
+		}
+		else
+		{
+			if (bReplicateScalar || SourceTypeDesc.NumComponents == DestTypeDesc.NumComponents)
+			{
+				NumComponents = DestTypeDesc.NumComponents;
+				// Cast the scalar to the correct type, HLSL language will replicate the scalar if needed when performing this cast
+				Result.Appendf(TEXT("((%s)%s)"), DestTypeDesc.Name, Code);
+			}
+			else
+			{
+				NumComponents = FMath::Min(SourceTypeDesc.NumComponents, DestTypeDesc.NumComponents);
+				if (NumComponents < DestTypeDesc.NumComponents)
+				{
+					Result.Appendf(TEXT("%s("), DestTypeDesc.Name);
+					bNeedClosingParen = true;
+				}
+				if (NumComponents == SourceTypeDesc.NumComponents && SourceTypeDesc.ComponentType == DestTypeDesc.ComponentType)
+				{
+					// If we're taking all the components from the source, can avoid adding a swizzle
+					Result.Append(Code);
+				}
+				else
+				{
+					// Use a cast to truncate the source to the correct number of types
+					const Shader::EValueType IntermediateType = Shader::MakeValueType(DestTypeDesc.ComponentType, NumComponents);
+					const Shader::FValueTypeDescription IntermediateTypeDesc = Shader::GetValueTypeDescription(IntermediateType);
+					Result.Appendf(TEXT("((%s)%s)"), IntermediateTypeDesc.Name, Code);
+				}
+			}
+		}
+
+		if (bNeedClosingParen)
+		{
+			const Shader::FValue ZeroValue(DestTypeDesc.ComponentType, 1);
+			for (int32 ComponentIndex = NumComponents; ComponentIndex < DestTypeDesc.NumComponents; ++ComponentIndex)
+			{
+				if (ComponentIndex > 0u)
+				{
+					Result.Append(TEXT(","));
+				}
+				if (bIsLWC)
+				{
+					if (!bReplicateScalar && ComponentIndex >= SourceTypeDesc.NumComponents)
+					{
+						check(bAllowAppendZeroes);
+						Result.Append(TEXT("LWCPromote(0.0f)"));
+					}
+					else
+					{
+						Result.Appendf(TEXT("LWCGetComponent(%s, %d)"), Code, bReplicateScalar ? 0 : ComponentIndex);
+					}
+				}
+				else
+				{
+					// Non-LWC case should only be zero-filling here, other cases should have already been handled
+					check(bAllowAppendZeroes);
+					check(!bReplicateScalar);
+					check(ComponentIndex >= SourceTypeDesc.NumComponents);
+					ZeroValue.ToString(Shader::EValueStringFormat::HLSL, Result);
+				}
+			}
+			NumComponents = DestTypeDesc.NumComponents;
+			Result.Append(TEXT(")"));
+		}
+
+		check(NumComponents == DestTypeDesc.NumComponents);
+		return AllocateString(*Allocator, Result);
+	}
+	else
+	{
+		Errors.AddErrorf(Node, TEXT("Cannot cast between non-numeric types %s to %s."), SourceTypeDesc.Name, DestTypeDesc.Name);
+		return TEXT("");
+	}
 }
 
 // From MaterialUniformExpressions.cpp
@@ -257,7 +390,7 @@ bool UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 	for (int32 i = 0; i < NumValues; ++i)
 	{
 		FScope* ValueScope = Scopes[i];
-		const TCHAR* ValueCode = Values[i]->GetValueShader(Context);
+		const TCHAR* ValueCode = Values[i]->GetValueShader(Context, Type);
 		if (ValueScope == DeclarationScope)
 		{
 			ValueScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%d = %s;"),
@@ -403,6 +536,7 @@ bool UE::HLSLTree::FExpression::InternalSetValueShader(FEmitContext& Context, co
 
 		if (!Declaration)
 		{
+			check(ParentScope);
 			Declaration = Context.AcquireLocalDeclarationCode();
 			ParentScope->ExpressionCodeMap.Add(Hash, Declaration);
 			const Shader::FValueTypeDescription& TypeDesc = Shader::GetValueTypeDescription(ValueType);
@@ -477,18 +611,36 @@ const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context)
 		TStringBuilder<1024> FormattedCode;
 		if (EvaluationType == EExpressionEvaluationType::Constant)
 		{
-			FormattedCode.Append(ConstantValue.ToString(Shader::EValueStringFormat::HLSL));
+			ConstantValue.ToString(Shader::EValueStringFormat::HLSL, FormattedCode);
 		}
 		else
 		{
 			check(EvaluationType == EExpressionEvaluationType::Preshader);
 			check(Preshader);
-			Context.AddPreshader(GetValueType(), *Preshader, FormattedCode);
+			Context.AddPreshader(ValueType, *Preshader, FormattedCode);
 		}
 		Code = AllocateString(*Context.Allocator, FormattedCode);
 	}
 
 	return Code;
+}
+
+const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context, Shader::EValueType Type)
+{
+	check(EvaluationType != EExpressionEvaluationType::None);
+
+	if (EvaluationType == EExpressionEvaluationType::Constant && Type != ValueType)
+	{
+		// If we need to cast a constant value, perform the cast first, then convert the result to HLSL
+		const Shader::FValue CastConstantValue = Shader::Cast(ConstantValue, Type);
+
+		TStringBuilder<1024> FormattedCode;
+		CastConstantValue.ToString(Shader::EValueStringFormat::HLSL, FormattedCode);
+		return AllocateString(*Context.Allocator, FormattedCode);
+	}
+
+	const ECastFlags CastFlags = ECastFlags::ReplicateScalar | ECastFlags::AllowAppendZeroes | ECastFlags::AllowTruncate;
+	return Context.CastShaderValue(this, GetValueShader(Context), ValueType, Type, CastFlags);
 }
 
 void UE::HLSLTree::FExpression::GetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader)

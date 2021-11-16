@@ -64,12 +64,5 @@ inline uint32 GetTypeHash(const FTextureDescription& Ref)
 	return HashCombine(GetTypeHash(Ref.Texture), GetTypeHash(Ref.SamplerType));
 }
 
-enum class ECastFlags : uint32
-{
-	None = 0u,
-	ReplicateScalar = (1u << 0),
-};
-ENUM_CLASS_FLAGS(ECastFlags);
-
 } // namespace HLSLTree
 } // namespace UE

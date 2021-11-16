@@ -4137,8 +4137,9 @@ int32 FHLSLMaterialTranslator::Constant4(float X,float Y,float Z,float W)
 
 int32 FHLSLMaterialTranslator::GenericConstant(const UE::Shader::FValue& Value)
 {
-	const FString Code = Value.ToString(UE::Shader::EValueStringFormat::HLSL);
-	return AddUniformExpression(new FMaterialUniformExpressionGenericConstant(Value), GetMaterialValueType(Value.GetType()), *Code);
+	TStringBuilder<1024> String;
+	Value.ToString(UE::Shader::EValueStringFormat::HLSL, String);
+	return AddUniformExpression(new FMaterialUniformExpressionGenericConstant(Value), GetMaterialValueType(Value.GetType()), String.ToString());
 }
 	
 int32 FHLSLMaterialTranslator::ViewProperty(EMaterialExposedViewProperty Property, bool InvProperty)
