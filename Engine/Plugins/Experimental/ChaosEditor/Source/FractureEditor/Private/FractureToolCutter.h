@@ -147,6 +147,12 @@ public:
 
 	FBox GetCombinedBounds(const TArray<FFractureToolContext>& Contexts) const;
 
+
+	virtual void UpdateUseGizmo(bool bUseGizmo)
+	{
+		SetMandateGroupFracture(bUseGizmo);
+	}
+
 	void SetMandateGroupFracture(bool bMandateGroupFracture)
 	{
 		CutterSettings->bGroupFractureToggleEnabled = !bMandateGroupFracture;

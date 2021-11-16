@@ -30,10 +30,6 @@ void UFractureTransformGizmoSettings::ResetGizmo(bool bResetRotation)
 	{
 		return;
 	}
-	if (AttachedCutter)
-	{
-		AttachedCutter->SetMandateGroupFracture(bUseGizmo);
-	}
 	if (!bUseGizmo || !AttachedCutter)
 	{
 		TransformGizmo->SetVisibility(false);
@@ -62,6 +58,7 @@ void UFractureTransformGizmoSettings::PostEditChangeProperty(FPropertyChangedEve
 	{
 		if (AttachedCutter)
 		{
+			AttachedCutter->UpdateUseGizmo(bUseGizmo);
 			ResetGizmo();
 		}
 	}
@@ -97,6 +94,7 @@ void UFractureTransformGizmoSettings::Setup(UFractureToolCutterBase* Cutter, ETr
 		}
 		TransformGizmo->SetActiveTarget(TransformProxy);
 		TransformProxy->OnTransformChanged.AddUObject(this, &UFractureTransformGizmoSettings::TransformChanged);
+		AttachedCutter->UpdateUseGizmo(bUseGizmo);
 		ResetGizmo();
 	}
 }
