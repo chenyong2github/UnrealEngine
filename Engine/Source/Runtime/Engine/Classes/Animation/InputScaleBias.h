@@ -11,7 +11,7 @@
 
 struct FAnimationUpdateContext;
 
-// Input scaling struct
+// Input modifier with scaling and biasing
 USTRUCT(BlueprintType)
 struct ENGINE_API FInputScaleBias
 {
@@ -30,10 +30,10 @@ public:
 	{
 	}
 
-	// Apply scale and bias to value
 	float ApplyTo(float Value) const;
-
+#if WITH_EDITOR
 	FText GetFriendlyName(FText InFriendlyName) const;
+#endif
 };
 
 USTRUCT(BlueprintType)
@@ -69,6 +69,7 @@ public:
 	}
 };
 
+// Input modifier with remapping, scaling, biasing, clamping, and interpolation
 USTRUCT(BlueprintType)
 struct ENGINE_API FInputScaleBiasClamp
 {
@@ -127,13 +128,60 @@ public:
 	{
 	}
 
-	// Apply scale, bias, and clamp to value
 	float ApplyTo(float Value, float InDeltaTime) const;
-	void Reinitialize() { bInitialized = false; }
 
+	void Reinitialize() { bInitialized = false; }
 #if WITH_EDITOR
 	FText GetFriendlyName(FText InFriendlyName) const;
 #endif
+};
+
+// Input modifier with clamping and interpolation
+USTRUCT(BlueprintType)
+struct ENGINE_API FInputClampConstants
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bClampResult = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bInterpResult = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bClampResult"))
+	float ClampMin = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bClampResult"))
+	float ClampMax = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bInterpResult"))
+	float InterpSpeedIncreasing = 10.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bInterpResult"))
+	float InterpSpeedDecreasing = 10.f;
+
+#if WITH_EDITOR
+	// Get a friendly name to display on a pin
+	FText GetFriendlyName(FText InFriendlyName) const;
+#endif
+};
+
+// Mutable state struct to be used with FInputClampConstants
+USTRUCT(BlueprintType)
+struct ENGINE_API FInputClampState
+{
+	GENERATED_BODY()
+
+	// The interpolated result
+	float InterpolatedResult = 0.f;
+
+	// Whether this state is initialized
+	bool bInitialized = false;
+
+	// Apply scale, bias, and clamp to value
+	float ApplyTo(const FInputClampConstants& InConstants, float InValue, float InDeltaTime);
+
+	void Reinitialize() { bInitialized = false; }
 };
 
 USTRUCT(BlueprintType)
@@ -266,6 +314,7 @@ struct ENGINE_API FInputAlphaBoolBlend
 	{}
 
 	float ApplyTo(bool bEnabled, float InDeltaTime);
+
 	void Reinitialize() { bInitialized = false; }
 };
 

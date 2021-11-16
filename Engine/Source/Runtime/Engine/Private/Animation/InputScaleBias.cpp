@@ -12,6 +12,7 @@ float FInputScaleBias::ApplyTo(float Value) const
 	return FMath::Clamp<float>( Value * Scale + Bias, 0.0f, 1.0f );
 }
 
+#if WITH_EDITOR
 FText FInputScaleBias::GetFriendlyName(FText InFriendlyName) const
 {
 	FText OutFriendlyName = InFriendlyName;
@@ -50,6 +51,63 @@ FText FInputScaleBias::GetFriendlyName(FText InFriendlyName) const
 	}
 
 	return OutFriendlyName;
+}
+#endif
+
+/////////////////////////////////////////////////////
+// FInputClamp
+
+#if WITH_EDITOR
+FText FInputClampConstants::GetFriendlyName(FText InFriendlyName) const
+{
+	FText OutFriendlyName = InFriendlyName;
+
+	// Clamp
+	if (bClampResult)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("PinFriendlyName"), OutFriendlyName);
+		Args.Add(TEXT("ClampMin"), ClampMin);
+		Args.Add(TEXT("ClampMax"), ClampMax);
+		OutFriendlyName = FText::Format(LOCTEXT("FInputScaleBias_Clamp", "Clamp({PinFriendlyName}, {ClampMin}, {ClampMax})"), Args);
+	}
+
+	// Interp
+	if (bInterpResult)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("PinFriendlyName"), OutFriendlyName);
+		Args.Add(TEXT("InterpSpeedIncreasing"), InterpSpeedIncreasing);
+		Args.Add(TEXT("InterpSpeedDecreasing"), InterpSpeedDecreasing);
+		OutFriendlyName = FText::Format(LOCTEXT("FInputScaleBias_Interp", "FInterp({PinFriendlyName}, ({InterpSpeedIncreasing}:{InterpSpeedDecreasing}))"), Args);
+	}
+
+	return OutFriendlyName;
+}
+#endif
+
+float FInputClampState::ApplyTo(const FInputClampConstants& InConstants, float InValue, float InDeltaTime)
+{
+	float Result = InValue;
+
+	if (InConstants.bClampResult)
+	{
+		Result = FMath::Clamp<float>(Result, InConstants.ClampMin, InConstants.ClampMax);
+	}
+
+	if (InConstants.bInterpResult)
+	{
+		if (bInitialized)
+		{
+			const float InterpSpeed = (Result >= InterpolatedResult) ? InConstants.InterpSpeedIncreasing : InConstants.InterpSpeedDecreasing;
+			Result = FMath::FInterpTo(InterpolatedResult, Result, InDeltaTime, InterpSpeed);
+		}
+
+		InterpolatedResult = Result;
+	}
+
+	bInitialized = true;
+	return Result;
 }
 
 /////////////////////////////////////////////////////
