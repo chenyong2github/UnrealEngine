@@ -12,6 +12,7 @@
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfType.h"
 #include "UObject/ObjectKey.h"
+#include "Containers/Ticker.h"
 
 #if ENABLE_VISUAL_LOG
 
@@ -43,8 +44,8 @@
 #define UE_VLOG_OBOX(LogOwner, CategoryName, Verbosity, Box, Matrix, Color, Format, ...) if(FVisualLogger::IsRecording()) FVisualLogger::GeometryBoxLogf(LogOwner, CategoryName, ELogVerbosity::Verbosity, Box, Matrix, Color, Format, ##__VA_ARGS__)
 #define UE_CVLOG_OBOX(Condition, LogOwner, CategoryName, Verbosity, Box, Matrix, Color, Format, ...)  if(FVisualLogger::IsRecording() && Condition) {UE_VLOG_OBOX(LogOwner, CategoryName, Verbosity, Box, Matrix, Color, Format, ##__VA_ARGS__);} 
 // Cone shape
-#define UE_VLOG_CONE(LogOwner, CategoryName, Verbosity, Orgin, Direction, Length, Angle, Color, Format, ...) if(FVisualLogger::IsRecording()) FVisualLogger::GeometryShapeLogf(LogOwner, CategoryName, ELogVerbosity::Verbosity, Orgin, Direction, Length, Angle, Color, Format, ##__VA_ARGS__)
-#define UE_CVLOG_CONE(Condition, LogOwner, CategoryName, Verbosity, Orgin, Direction, Length, Angle, Color, Format, ...)  if(FVisualLogger::IsRecording() && Condition) {UE_VLOG_CONE(LogOwner, CategoryName, Verbosity, Orgin, Direction, Length, Angle, Color, Format, ##__VA_ARGS__);} 
+#define UE_VLOG_CONE(LogOwner, CategoryName, Verbosity, Origin, Direction, Length, Angle, Color, Format, ...) if(FVisualLogger::IsRecording()) FVisualLogger::GeometryShapeLogf(LogOwner, CategoryName, ELogVerbosity::Verbosity, Orgin, Direction, Length, Angle, Color, Format, ##__VA_ARGS__)
+#define UE_CVLOG_CONE(Condition, LogOwner, CategoryName, Verbosity, Origin, Direction, Length, Angle, Color, Format, ...)  if(FVisualLogger::IsRecording() && Condition) {UE_VLOG_CONE(LogOwner, CategoryName, Verbosity, Orgin, Direction, Length, Angle, Color, Format, ##__VA_ARGS__);} 
 // Cylinder shape
 #define UE_VLOG_CYLINDER(LogOwner, CategoryName, Verbosity, Start, End, Radius, Color, Format, ...) if(FVisualLogger::IsRecording()) FVisualLogger::GeometryShapeLogf(LogOwner, CategoryName, ELogVerbosity::Verbosity, Start, End, Radius, Color, Format, ##__VA_ARGS__)
 #define UE_CVLOG_CYLINDER(Condition, LogOwner, CategoryName, Verbosity, Start, End, Radius, Color, Format, ...)  if(FVisualLogger::IsRecording() && Condition) {UE_VLOG_CYLINDER(LogOwner, CategoryName, Verbosity, Start, End, Radius, Color, Format, ##__VA_ARGS__);} 
@@ -455,7 +456,7 @@ public:
 	static UObject* FindRedirection(const UObject* Object);
 
 	/** blocks all categories from logging. It can be bypassed with the category allow list */
-	void BlockAllCategories(bool InBlock) { bBlockedAllCategories = InBlock; }
+	void BlockAllCategories(const bool bInBlock) { bBlockedAllCategories = bInBlock; }
 
 	/** checks if all categories are blocked */
 	bool IsBlockedForAllCategories() const { return !!bBlockedAllCategories; }
@@ -473,7 +474,7 @@ public:
 	int32 GetUniqueId(float Timestamp);
 
 	/** Starts visual log collecting and recording */
-	void SetIsRecording(bool InIsRecording);
+	void SetIsRecording(const bool bInIsRecording);
 	/** return information is vlog recording is enabled or not */
 	FORCEINLINE static bool IsRecording() { return !!bIsRecording; }
 
@@ -485,13 +486,13 @@ public:
 	void DiscardRecordingToFile();
 
 	/** Starts visual log collecting and recording to insights traces (for Rewind Debugger)*/
-	void SetIsRecordingToTrace(bool InIsRecording);
+	void SetIsRecordingToTrace(const bool bInIsRecording);
 
-	void SetIsRecordingOnServer(bool IsRecording) { bIsRecordingOnServer = IsRecording; }
+	void SetIsRecordingOnServer(const bool bInIsRecording) { bIsRecordingOnServer = bInIsRecording; }
 	bool IsRecordingOnServer() const { return !!bIsRecordingOnServer; }
 
-	/** COnfigure whether VisLog should be using decorated, unique names */
-	void SetUseUniqueNames(bool bEnable) { bForceUniqueLogNames = bEnable; }
+	/** Configure whether VisLog should be using decorated, unique names */
+	void SetUseUniqueNames(const bool bEnable) { bForceUniqueLogNames = bEnable; }
 
 	/** Add visual logger output device */
 	void AddDevice(FVisualLogDevice* InDevice) { OutputDevices.AddUnique(InDevice); }
@@ -501,7 +502,7 @@ public:
 	const TArray<FVisualLogDevice*>& GetDevices() const { return OutputDevices; }
 	/** Check if log category can be recorded, verify before using GetEntryToWrite! */
 	bool IsCategoryLogged(const FLogCategoryBase& Category) const;
-	/** Returns  current entry for given TimeStap or creates another one  but first it serialize previous 
+	/** Returns  current entry for given TimeStamp or creates another one  but first it serialize previous 
 	 *	entry as completed to vislog devices. Use VisualLogger::DontCreate to get current entry without serialization
 	 *	@note this function can return null */
 	FVisualLogEntry* GetEntryToWrite(const UObject* Object, float TimeStamp, ECreateIfNeeded ShouldCreate = ECreateIfNeeded::Create);
@@ -511,7 +512,7 @@ public:
 	/** flush and serialize data if timestamp allows it */
 	virtual void Flush() override;
 
-	/** FileName getter to set project specific file name for vlogs - highly encouradged to use FVisualLogFilenameGetterDelegate::CreateUObject with this */
+	/** FileName getter to set project specific file name for vlogs - highly encouraged to use FVisualLogFilenameGetterDelegate::CreateUObject with this */
 	void SetLogFileNameGetter(const FVisualLogFilenameGetterDelegate& InLogFileNameGetter) { LogFileNameGetter = InLogFileNameGetter; }
 
 	/** Register extension to use by LogVisualizer  */
@@ -565,6 +566,18 @@ private:
 	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override { ensureMsgf(0, TEXT("Regular serialize is forbiden for visual logs")); }
 
 protected:
+	/** Flushes entries recorded in the frame */
+	void Tick(float DeltaTime);
+
+	/**
+	 * Serializes a single entry and resets it.
+	 * Method expects an initialized entry and will ensure otherwise. 
+	 */
+	void FlushEntry(FVisualLogEntry& Entry, const FObjectKey& ObjectKey);
+
+	/** Handle to the registered ticker to flush entries */
+	FTSTicker::FDelegateHandle TickerHandle;
+	
 	/** Array of output devices to redirect to */
 	TArray<FVisualLogDevice*> OutputDevices;
 	// Map for inter-objects redirections
@@ -595,7 +608,7 @@ protected:
 	// Cached map to world information because it's just raw pointer and not real object
 	FObjectToWorldMapType ObjectToWorldMap;
 	// for any object that has requested redirection this map holds where we should
-	// redirect the trafic to
+	// redirect the traffic to
 	FChildToOwnerRedirectionMap ChildToOwnerMap;
 	// if set all categories are blocked from logging
 	bool bBlockedAllCategories : 1;
@@ -608,6 +621,8 @@ protected:
 	// controls how we generate log names. When set to TRUE there's a lower 
 	// chance of name conflict, but it's more expensive
 	bool bForceUniqueLogNames : 1;
+	/** Indicates that entries were added/updated and that a flush is required */
+	bool bIsFlushRequired : 1;
 	// start recording time
 	float StartRecordingToFileTime;
 	/** Delegate to set project specific file name for vlogs */

@@ -106,9 +106,9 @@ void FVisualLoggerBinaryFileDevice::Serialize(const UObject* LogOwner, FName Own
 	{
 		FVisualLoggerHelpers::Serialize(*FileArchive, FrameCache);
 		FrameCache.Reset();
+		LastLogTimeStamp = LogEntry.TimeStamp;
 	}
 
-	LastLogTimeStamp = LogEntry.TimeStamp;
 	FrameCache.Add(FVisualLogEntryItem(OwnerName, OwnerClassName, LogEntry));
 }
 #endif
