@@ -40,7 +40,6 @@ int32			Encode(const void*, int32, void*, int32);
 void			Writer_SendData(uint32, uint8* __restrict, uint32);
 void			Writer_InitializeTail(int32);
 void			Writer_ShutdownTail();
-void			Writer_TailAppend(uint32, uint8* __restrict, uint32, bool=false);
 void			Writer_TailOnConnect();
 void			Writer_InitializeSharedBuffers();
 void			Writer_ShutdownSharedBuffers();
@@ -137,7 +136,7 @@ void Writer_MemorySetHooks(decltype(AllocHook) Alloc, decltype(FreeHook) Free)
 ////////////////////////////////////////////////////////////////////////////////
 void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 {
-	TWriteBufferRedirect<6 << 10> TraceData;
+	TWriteBufferRedirect<1 << 10> TraceData;
 
 	void* Ret = nullptr;
 
@@ -176,12 +175,6 @@ void* Writer_MemoryAllocate(SIZE_T Size, uint32 Alignment)
 	}
 #endif // TRACE_PRIVATE_STOMP
 
-	if (TraceData.GetSize())
-	{
-		uint32 ThreadId = Writer_GetThreadId();
-		Writer_TailAppend(ThreadId, TraceData.GetData(), TraceData.GetSize());
-	}
-
 #if TRACE_PRIVATE_STATISTICS
 	AtomicAddRelaxed(&GTraceStatistics.MemoryUsed, uint64(Size));
 #endif
@@ -206,7 +199,7 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 	DWORD Unused;
 	VirtualProtect(MemInfo.BaseAddress, MemInfo.RegionSize, PAGE_READONLY, &Unused);
 #else // TRACE_PRIVATE_STOMP
-	TWriteBufferRedirect<6 << 10> TraceData;
+	TWriteBufferRedirect<1 << 10> TraceData;
 
 	if (FreeHook != nullptr)
 	{
@@ -219,12 +212,6 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 #else
 		free(Address);
 #endif
-	}
-
-	if (TraceData.GetSize())
-	{
-		uint32 ThreadId = Writer_GetThreadId();
-		Writer_TailAppend(ThreadId, TraceData.GetData(), TraceData.GetSize());
 	}
 #endif // TRACE_PRIVATE_STOMP
 
