@@ -600,7 +600,7 @@ bool UE::HLSLTree::FExpression::SetValueConstant(FEmitContext& Context, const Sh
 	check(EvaluationType == EExpressionEvaluationType::None);
 
 	EvaluationType = EExpressionEvaluationType::Constant;
-	ConstantValue = InValue;
+	ConstantValue = Shader::Cast(InValue, ValueType);
 	return true;
 }
 
