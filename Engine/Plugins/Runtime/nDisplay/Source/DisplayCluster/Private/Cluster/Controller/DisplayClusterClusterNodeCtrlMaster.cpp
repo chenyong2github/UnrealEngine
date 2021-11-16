@@ -127,6 +127,11 @@ void FDisplayClusterClusterNodeCtrlMaster::GetEventsData(TArray<TSharedPtr<FDisp
 
 	if (IsInGameThread())
 	{
+		// Events are synchronized on PreTick which is performed after FrameStartBarrier.
+		// This means all the nodes have synchronized TimeData already. So we can reset
+		// TimeData cache availability event safely here before next TimeData sync.
+		CachedTimeDataEvent->Reset();
+
 		// Cache data so it will be the same for all requests within current frame
 		ClusterMgr->ExportEventsData(CachedJsonEvents, CachedBinaryEvents);
 
