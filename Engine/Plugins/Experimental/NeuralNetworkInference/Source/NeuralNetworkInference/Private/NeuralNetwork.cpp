@@ -661,7 +661,7 @@ void UNeuralNetwork::PostLoad()
 	if (ModelReadFromFileInBytes.Num() > 0)
 	{
 		// If GPU selected but not compatible, set to CPU
-		if (!IsGPUConfigCompatibleForCurrentBackEnd())
+		if (DeviceType == ENeuralDeviceType::GPU && !IsGPUConfigCompatibleForCurrentBackEnd())
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::PostLoad(): IsGPUConfigCompatibleForCurrentBackEnd() returned false, setting DeviceType to CPU."));
 			DeviceType = ENeuralDeviceType::CPU;
