@@ -2134,6 +2134,12 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 			WaveInstance->SpatializationMethod = ParseParams.SpatializationMethod;
 		}
 
+		//If this is using binaural audio, update whether its an external send
+		if (WaveInstance->SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF)
+		{
+			WaveInstance->SetSpatializationIsExternalSend(ParseParams.bSpatializationIsExternalSend);
+		}
+
 		// Apply stereo normalization to wave instances if enabled
 		if (ParseParams.bApplyNormalizationToStereoSounds && NumChannels == 2)
 		{
@@ -2166,7 +2172,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		WaveInstance->bEnableBusSends = ParseParams.bEnableBusSends;
 		
 		// HRTF rendering doesn't render their output on the base submix
-		if (WaveInstance->SpatializationMethod != SPATIALIZATION_HRTF)
+		if (!((WaveInstance->SpatializationMethod == SPATIALIZATION_HRTF) && (WaveInstance->bSpatializationIsExternalSend)))
 		{
 			if (ActiveSound.bHasActiveMainSubmixOutputOverride)
 			{

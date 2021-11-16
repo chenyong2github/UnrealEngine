@@ -1869,6 +1869,8 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		{
 			ParseParams.SpatializationMethod = Settings->SpatializationAlgorithm;
 		}
+
+		ParseParams.bSpatializationIsExternalSend = AudioDevice->bSpatializationIsExternalSend;
 	}
 
 	// If not overriding from a node, set focus data

@@ -258,6 +258,9 @@ public:
 	/** Whether the notify finished hook has been called since the last update/parsenodes */
 	uint32 bAlreadyNotifiedHook:1;
 
+	/** Whether the spatialization method is an external send */
+	uint32 bSpatializationIsExternalSend : 1;
+
 private:
 	/** Whether to use spatialization */
 	uint32 bUseSpatialization:1;
@@ -458,6 +461,12 @@ public:
 
 	/** Whether this wave will be spatialized, which controls 3D effects like panning */
 	bool GetUseSpatialization() const;
+
+	/** Whether spatialization is an external send */
+	void SetSpatializationIsExternalSend(const bool InSpatializationIsExternalSend) { bSpatializationIsExternalSend = InSpatializationIsExternalSend; }
+
+	/** Whether spatialization is an external send */
+	bool GetSpatializationIsExternalSend() const {	return bSpatializationIsExternalSend;}
 };
 
 inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }

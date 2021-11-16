@@ -151,6 +151,9 @@ struct FSoundParseParameters
 	// Which spatialization algorithm to use
 	ESoundSpatializationAlgorithm SpatializationMethod;
 
+	// Whether the spatialization plugin is an external send
+	bool bSpatializationIsExternalSend;
+
 	// What occlusion plugin source settings to use
 	USpatializationPluginSourceSettingsBase* SpatializationPluginSettings;
 
@@ -231,6 +234,7 @@ struct FSoundParseParameters
 		, ManualReverbSendLevel(0.0f)
 		, StereoSpread(0.0f)
 		, SpatializationMethod(ESoundSpatializationAlgorithm::SPATIALIZATION_Default)
+		, bSpatializationIsExternalSend(false)
 		, SpatializationPluginSettings(nullptr)
 		, OcclusionPluginSettings(nullptr)
 		, ReverbPluginSettings(nullptr)
