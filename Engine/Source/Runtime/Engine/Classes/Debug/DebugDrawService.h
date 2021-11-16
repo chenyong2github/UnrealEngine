@@ -45,7 +45,7 @@ private:
 	 */
 	static FCriticalSection DelegatesLock;
 #if ENABLE_MT_DETECTOR
-	static FRWAccessDetector DelegatesDetector;
+	static FRWRecursiveAccessDetector DelegatesDetector;
 #endif
 	static TArray<TArray<FDebugDrawDelegate> > Delegates;
 	static FEngineShowFlags ObservedFlags;
