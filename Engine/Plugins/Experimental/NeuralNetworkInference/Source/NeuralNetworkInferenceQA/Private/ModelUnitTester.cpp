@@ -10,7 +10,7 @@
 /* FModelUnitTester axuiliary functions
  *****************************************************************************/
 
-struct FNNIUnitTesterTimeData 
+struct FNNIUnitTesterTimeData
 {
 	FNeuralStatsData ComputeTimeData;
 	FNeuralStatsData InputCopyTimeData;
@@ -23,38 +23,38 @@ struct FNNIUnitTesterTimeData
 	{}
 };
 
-FNNIUnitTesterTimeData FModelUnitTester_GetTimeInformation(UNeuralNetwork* InOutNetwork, TArray<float>& OutCPUGPUCPUOutput, const TArray<float>& InInputArray, const int32 InRepetitions) 
+FNNIUnitTesterTimeData FModelUnitTester_GetTimeInformation(UNeuralNetwork* InOutNetwork, TArray<float>& OutCPUGPUCPUOutput, const TArray<float>& InInputArray, const int32 InRepetitions)
 {
-	/* Input/output copy speed */ 
+	/* Input/output copy speed */
 	FNeuralStats OutCopyingStats;
 	FNeuralTimer Timer;
-	for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
-	{ 
-		InOutNetwork->SetInputFromArrayCopy(InInputArray); 
+	for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex)
+	{
+		InOutNetwork->SetInputFromArrayCopy(InInputArray);
 		Timer.Tic();
 		OutCPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>();
 		const float CurrentCopyingTime = Timer.Toc();
 		OutCopyingStats.StoreSample(CurrentCopyingTime);
 
-	} 
+	}
 
-	/* Forward() speed */ 
+	/* Forward() speed */
 	if (InRepetitions > 1)
-	{ 
-		for (int32 TimerIndex = 0; TimerIndex < 5; ++TimerIndex) 
-		{ 
-			InOutNetwork->Run(); 
-		} 
-	} 
+	{
+		for (int32 TimerIndex = 0; TimerIndex < 5; ++TimerIndex)
+		{
+			InOutNetwork->Run();
+		}
+	}
 
-	if (InRepetitions > 0) 
-	{ 
-		for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex) 
-		{ 
+	if (InRepetitions > 0)
+	{
+		for (int32 TimerIndex = 0; TimerIndex < InRepetitions; ++TimerIndex)
+		{
 			InOutNetwork->SetInputFromArrayCopy(InInputArray);
 			InOutNetwork->Run();
-			OutCPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>(); 
-		} 
+			OutCPUGPUCPUOutput = InOutNetwork->GetOutputTensor().GetArrayCopy<float>();
+		}
 	}
 	// Return NetworkTimeData
 	return FNNIUnitTesterTimeData(InOutNetwork->GetInferenceStats(), InOutNetwork->GetInputMemoryTransferStats(), OutCopyingStats.GetStats());
@@ -70,41 +70,37 @@ bool FModelUnitTester::GlobalTest(const FString& InProjectContentDir, const FStr
 	// NOTE: models are separated into multiple lines to enable/disable particular network for faster testing
 
 	// Model names, input values, and number of repetitions for profiling
-	const TArray<FString> ModelNames(
-	{ 
-		TEXT("MLRigDeformer"), 
-		TEXT("cloth_network"), 
-		TEXT("HS"), 
-		TEXT("RL") 
+	const TArray<FString> ModelNames({
+		TEXT("MLRigDeformer"),
+		TEXT("cloth_network"),
+		TEXT("HS"),
+		TEXT("RL")
 	});
 
 	// Ground truths
-	const TArray<TArray<double>> CPUGroundTruths(
-	{ 
-		{3.728547, 0.008774, 4.595651, 212.193216, 742.434561, 4.250668, 4.717748}, 
+	const TArray<TArray<double>> CPUGroundTruths({
+		{3.728547, 0.008774, 4.595651, 212.193216, 742.434561, 4.250668, 4.717748},
 		{0.042571, 0.023693, 0.015783, 13.100505, 8.050994, 0.028807, 0.016387},
-		{138.372906, 126.753839, 127.287254, 130.316062, 127.303424, 124.800896, 126.546051}, 
-		{0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821} 
+		{138.372906, 126.753839, 127.287254, 130.316062, 127.303424, 124.800896, 126.546051},
+		{0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821}
 	});
 	
-	const TArray<TArray<double>> GPUGroundTruths(
-	{ 
-		{3.728547, 0.008774, 4.595651, 212.193208, 742.434578, 4.250668, 4.717748}, 
+	const TArray<TArray<double>> GPUGroundTruths({
+		{3.728547, 0.008774, 4.595651, 212.193208, 742.434578, 4.250668, 4.717748},
 		{0.042571, 0.023693, 0.015783, 13.100504, 8.050994, 0.028807, 0.016387},
-		{138.373184, 126.754100, 127.287398, 130.316194, 127.303495, 124.801134, 126.5462530}, 
-		{0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821} 
+		{138.373184, 126.754100, 127.287398, 130.316194, 127.303495, 124.801134, 126.5462530},
+		{0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821}
 	});
 
-	const TArray<float> InputArrayValues( // This one can be shorter than CPU/GPUGroundTruths
-	{ 
-		1.f, 
-		0.f, 
-		-1.f, 
-		100.f, 
-		-100.f, 
-		0.5f, 
-		-0.5f 
-	}); 
+	const TArray<float> InputArrayValues({ // This one can be shorter than CPU/GPUGroundTruths
+		1.f,
+		0.f,
+		-1.f,
+		100.f,
+		-100.f,
+		0.5f,
+		-0.5f
+	});
 	
 	// Speed profiling test - 0 repetitions means that test will not be run
 #ifdef WITH_UE_AND_ORT_SUPPORT
