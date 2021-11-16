@@ -148,6 +148,8 @@ public:
 
 	FORCEINLINE FString GetName() const;
 
+	FORCEINLINE const TCHAR* GetNameData() const;
+
 	FORCEINLINE ENeuralDataType GetDataType() const;
 
 	/**
@@ -396,6 +398,11 @@ const T* const FNeuralTensor::GetDataCasted() const
 FString FNeuralTensor::GetName() const
 {
 	return Name;
+}
+
+const TCHAR* FNeuralTensor::GetNameData() const
+{
+	return Name.GetCharArray().GetData();
 }
 
 ENeuralDataType FNeuralTensor::GetDataType() const

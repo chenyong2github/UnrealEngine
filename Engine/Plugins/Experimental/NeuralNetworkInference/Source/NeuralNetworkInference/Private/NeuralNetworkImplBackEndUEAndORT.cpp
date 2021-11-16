@@ -8,6 +8,26 @@
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
 #endif //WITH_EDITOR
+#include "RedirectCoutAndCerrToUeLog.h"
+
+#if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
+	#include "HAL/CriticalSection.h"
+	#include "RHI.h"
+	#include "DynamicRHI.h"
+
+	// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
+	#pragma push_macro("NOMINMAX")
+	#pragma push_macro("WIN32_LEAN_AND_MEAN")
+	#pragma push_macro("UE_MINIMAL_WINDOWS_INCLUDE")
+	#undef NOMINMAX
+	#undef WIN32_LEAN_AND_MEAN
+	#define UE_MINIMAL_WINDOWS_INCLUDE // Avoids Win64 Clang warning
+	#include "D3D12RHIPrivate.h"
+	#pragma pop_macro("UE_MINIMAL_WINDOWS_INCLUDE")
+	#pragma pop_macro("WIN32_LEAN_AND_MEAN")
+	#pragma pop_macro("NOMINMAX")
+
+#endif
 
 //#define WITH_NNI_CPU_NOT_RECOMMENDED // Only for debugging purposes
 
@@ -24,9 +44,104 @@ NNI_THIRD_PARTY_INCLUDES_START
 #endif //WITH_UE_AND_ORT_SUPPORT
 NNI_THIRD_PARTY_INCLUDES_END
 
+#include "ShaderParameterUtils.h"
+#include "ShaderParameterStruct.h"
+
+#ifdef WITH_UE_AND_ORT_SUPPORT
+
+#if defined(PLATFORM_WIN64)
+
+#if WITH_EDITOR && !UE_BUILD_SHIPPING
+	#include "pix3.h"
+	#define NNIGPUProfileMarker(Name) FNNIGPUProfiler::Instance()->Marker(Name)
+#else
+	#define NNIGPUProfileMarker(Name)
+#endif
+
+#endif // PLATFORM_WIN64
+
+// Helper class to utilize the PIX CPU/GPU debugger on Windows
+class FNNIGPUProfiler
+{
+public:
+
+	static FNNIGPUProfiler* Instance()
+	{
+		static FNNIGPUProfiler	Inst;
+
+		return &Inst;
+	}
+
+	class FScopedEvent
+	{
+	public:
+
+		FScopedEvent(const FString& Name, FColor Color = FColor::Yellow)
+		{
+			FNNIGPUProfiler::Instance()->EventBegin(Name, Color);
+		}
+
+		~FScopedEvent()
+		{
+			FNNIGPUProfiler::Instance()->EventEnd();
+		}
+	};
+
+private:
+
+	FNNIGPUProfiler()
+	{
+#if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
+		bIsEnabled = FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled();
+#else
+		bIsEnabled = false;
+#endif
+	}
+
+public:
+
+	~FNNIGPUProfiler()
+	{
+	}
+
+	void Marker(const FString& Name, FColor Color = FColor::Yellow)
+	{
+#if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
+		if (bIsEnabled)
+		{
+			PIXSetMarker(PIX_COLOR(Color.R, Color.G, Color.B), Name.GetCharArray().GetData());
+		}
+#endif
+	}
+
+	void EventBegin(const FString& Name, FColor Color = FColor::Yellow)
+	{
+#if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
+		if (bIsEnabled)
+		{
+			PIXBeginEvent(PIX_COLOR(Color.R, Color.G, Color.B), Name.GetCharArray().GetData());
+		}
+#endif
+	}
+
+	void EventEnd()
+	{
+#if defined(PLATFORM_WIN64) && defined(USE_PIX) && !defined(UE_BUILD_SHIPPING)
+		if (bIsEnabled)
+		{
+			PIXEndEvent();
+		}
+#endif
+	}
+
+private:
+
+	bool	bIsEnabled;
+
+};
 
 
-#if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
+#if defined(PLATFORM_WIN64)
 
 /* FPrivateImplBackEndUEAndORT auxiliary class
  *****************************************************************************/
@@ -114,9 +229,8 @@ IDMLDevice* FPrivateImplBackEndUEAndORT::FDMLDeviceList::Add(ID3D12Device* Devic
 	return DmlDevice;
 }
 
-#endif
-
-
+#endif // PLATFORM_WIN64
+#endif // WITH_UE_AND_ORT_SUPPORT
 
 /* UNeuralNetwork public functions
  *****************************************************************************/
@@ -227,9 +341,17 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUConfigCompatible()
 //	return false;
 //}
 
-bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInOutIsBackgroundThreadRunning,
-	FCriticalSection& InOutResoucesCriticalSection, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath,
-	const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+bool UNeuralNetwork::FImplBackEndUEAndORT::Load(
+			TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, 
+			FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, 
+			std::atomic<bool>& bInOutIsBackgroundThreadRunning,
+			FCriticalSection& InOutResoucesCriticalSection, 
+			TArray<bool>& OutAreInputTensorSizesVariable, 
+			const TArray<uint8>& InModelReadFromFileInBytes, 
+			const FString& InModelFullFilePath,
+			const ENeuralDeviceType InDeviceType, 
+			const ENeuralDeviceType InInputDeviceType, 
+			const ENeuralDeviceType InOutputDeviceType)
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
 #if WITH_EDITOR
@@ -238,13 +360,20 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 	{
 		// Avoid multi-threaded crashes
 		const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
-		if (InOutImplBackEndUEAndORT)
+		
+		if (InOutImplBackEndUEAndORT.IsValid())
 		{
 			InOutImplBackEndUEAndORT->IsAsyncTaskDone();
 		}
 
 		// Initialize and configure InOutImplBackEndUEAndORT
-		if (!UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(InOutImplBackEndUEAndORT, InModelFullFilePath, InDeviceType))
+		if (!UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(
+					InOutImplBackEndUEAndORT, 
+					InOutOnAsyncRunCompletedDelegate, 
+					bInOutIsBackgroundThreadRunning, 
+					InOutResoucesCriticalSection, 
+					InModelFullFilePath, 
+					InDeviceType))
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Load(): InitializedAndConfigureMembers failed."));
 			return false;
@@ -282,21 +411,20 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 			OutputDeviceType = ENeuralDeviceType::CPU;
 		}
 
-		if (!InOutImplBackEndUEAndORT->ConfigureTensors(InOutImplBackEndUEAndORT->InputTensors, &OutAreInputTensorSizesVariable, InputDeviceType, OutputDeviceType))
+		if (!InOutImplBackEndUEAndORT->ConfigureTensors(InOutImplBackEndUEAndORT->InputTensors, &OutAreInputTensorSizesVariable, InDeviceType, InputDeviceType, OutputDeviceType))
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Load(): Failed to configure input tensors."));
 			return false;
 		}
 
-		if (!InOutImplBackEndUEAndORT->ConfigureTensors(InOutImplBackEndUEAndORT->OutputTensors, nullptr, InputDeviceType, OutputDeviceType))
+		if (!InOutImplBackEndUEAndORT->ConfigureTensors(InOutImplBackEndUEAndORT->OutputTensors, nullptr, InDeviceType, InputDeviceType, OutputDeviceType))
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Load(): Failed to configure output tensors."));
 			return false;
 		}
 
 		// Initializing AsyncTask 
-		InOutImplBackEndUEAndORT->NeuralNetworkAsyncTask = MakeUnique<FAsyncTask<FNeuralNetworkAsyncTask>>(InOutOnAsyncRunCompletedDelegate, bInOutIsBackgroundThreadRunning, InOutResoucesCriticalSection,
-			*InOutImplBackEndUEAndORT->Session, InOutImplBackEndUEAndORT->OutputOrtTensors, InOutImplBackEndUEAndORT->InputOrtTensors, InOutImplBackEndUEAndORT->InputTensorNames, InOutImplBackEndUEAndORT->OutputTensorNames);
+		InOutImplBackEndUEAndORT->NeuralNetworkAsyncTask = MakeUnique<FAsyncTask<FNeuralNetworkAsyncTask>>(InOutImplBackEndUEAndORT.Get());
 		
 		return true;
 	}
@@ -341,10 +469,17 @@ void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
 	}
 #endif //PLATFORM_WIN64
 }
+
+UNeuralNetwork::FImplBackEndUEAndORT::FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning, FCriticalSection& InResoucesCriticalSection)
+	: OnAsyncRunCompletedDelegate(InOutOnAsyncRunCompletedDelegate)
+	, bIsBackgroundThreadRunning(bInIsBackgroundThreadRunning)
+	, ResoucesCriticalSection(InResoucesCriticalSection)
+{
+}
+
 #endif //WITH_UE_AND_ORT_SUPPORT
 
-void UNeuralNetwork::FImplBackEndUEAndORT::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning, FCriticalSection& InResoucesCriticalSection, 
-	const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
 #if WITH_EDITOR
@@ -353,15 +488,8 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(FOnAsyncRunCompleted& InOutOnAsyn
 	{
 		const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
 
-		// @todo: Temporarily disabled until we connect GPU input/output between UE and ORT
-		if (InInputDeviceType == ENeuralDeviceType::GPU)
-		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Run(): InputDeviceType must be set to CPU for now."));
-			return;
-		}
-		
 		IsAsyncTaskDone();
-		NeuralNetworkAsyncTask->GetTask().SetSynchronousMode(InSynchronousMode);
+		NeuralNetworkAsyncTask->GetTask().SetRunSessionArgs(InSynchronousMode, InDeviceType, InInputDeviceType, InOutputDeviceType);
 
 		// Run UNeuralNetwork
 		if (InSynchronousMode == ENeuralNetworkSynchronousMode::Synchronous)
@@ -370,7 +498,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(FOnAsyncRunCompleted& InOutOnAsyn
 		}
 		else if (InSynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
 		{
-			bInIsBackgroundThreadRunning = true;
+			bIsBackgroundThreadRunning = true;
 			NeuralNetworkAsyncTask->StartBackgroundTask();
 		}
 		else
@@ -390,19 +518,121 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(FOnAsyncRunCompleted& InOutOnAsyn
 #endif //WITH_UE_AND_ORT_SUPPORT
 }
 
-
-
 /* UNeuralNetwork private functions
  *****************************************************************************/
 
 #ifdef WITH_UE_AND_ORT_SUPPORT
 
-bool UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
+void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionAsync(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+{
+	const FScopeLock ResourcesLock(&ResoucesCriticalSection);
+
+	RunSessionImpl(InDeviceType, InInputDeviceType, InOutputDeviceType);
+
+	OnAsyncRunCompletedDelegate.ExecuteIfBound();
+	bIsBackgroundThreadRunning = false;
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionSync(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+{
+	RunSessionImpl(InDeviceType, InInputDeviceType, InOutputDeviceType);
+}
+
+// Used when uploading tensors to GPU
+// NOTE: Upload parameter is not yet used, we plan to use it in the future
+BEGIN_SHADER_PARAMETER_STRUCT(FUploadTensorParameters, )
+	RDG_BUFFER_ACCESS(Upload, ERHIAccess::CopySrc)
+	RDG_BUFFER_ACCESS(Input, ERHIAccess::CopyDest)
+END_SHADER_PARAMETER_STRUCT()
+
+void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionImpl(const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+{
+	if (InDeviceType == ENeuralDeviceType::GPU)
+	{
+		// Copy data to GPU (if required)
+		bool bNeedsGPUCopy = false;
+
+		for (auto& InputTensor : InputTensors)
+		{
+			if (InputTensor.GetTensorTypeGPU() != ENeuralTensorTypeGPU::Input)
+				continue;
+
+			bNeedsGPUCopy = true;
+
+			ENQUEUE_RENDER_COMMAND(UploadTensorToGPU)([this, InputTensor] (FRHICommandListImmediate& RHICmdList)
+			{
+				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("UploadTensorToGPU"));
+
+				// Set parameters
+				TRefCountPtr< FRDGPooledBuffer >&	PooledBuffer = InputTensor.GetPooledBuffer();
+				FRDGBufferRef						InputBufferRef = GraphBuilder.RegisterExternalBuffer(PooledBuffer);
+
+				FUploadTensorParameters*			UploadParameters = GraphBuilder.AllocParameters<FUploadTensorParameters>();
+
+				UploadParameters->Input = InputBufferRef;
+
+				GraphBuilder.AddPass(
+					RDG_EVENT_NAME("NNI:UploadTensor:%s", InputTensor.GetNameData()),
+					FUploadTensorParameters::FTypeInfo::GetStructMetadata(),
+					UploadParameters,
+					ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
+					[this, UploadParameters](FRHICommandListImmediate& RHICmdList)
+					{
+						FRHIBuffer* InputBuffer = UploadParameters->Input->GetRHI();
+
+						// NOTE: We're using UAVMask to trigger the UAV barrier in RDG
+						RHICmdList.Transition(FRHITransitionInfo(InputBuffer, ERHIAccess::CopyDest, ERHIAccess::UAVMask));
+					}
+				);
+
+				GraphBuilder.Execute();
+			});
+		}
+
+		if (bNeedsGPUCopy)
+		{
+			ENQUEUE_RENDER_COMMAND(FlushUploadTensorToGPU)([this] (FRHICommandListImmediate& RHICmdList)
+			{
+				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("NNI:FlushUploadTensorsToGPU"));
+
+				RHICmdList.SubmitCommandsHint();
+				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
+				GraphBuilder.Execute();
+			});
+
+			// TODO: Remove this sync point and move session run to render thread
+			FNeuralNetworkInferenceUtils::WaitUntilRHIFinished();
+		}
+	}
+
+	if (InDeviceType == ENeuralDeviceType::GPU)
+	{
+		FNNIGPUProfiler::Instance()->EventBegin("NNI:SessionRun");
+	}
+
+	Session->Run(Ort::RunOptions{ nullptr },
+		InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
+		OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
+
+	if (InDeviceType == ENeuralDeviceType::GPU)
+	{
+		FNNIGPUProfiler::Instance()->EventEnd();
+	}
+}
+
+bool UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(
+			TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, 
+			FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate,
+			std::atomic<bool>& bInOutIsBackgroundThreadRunning,
+			FCriticalSection& InOutResoucesCriticalSection, 
+			const FString& InModelFullFilePath, 
+			const ENeuralDeviceType InDeviceType)
 {
 	// Initialize InOutImplBackEndUEAndORT
 	if (!InOutImplBackEndUEAndORT.IsValid())
 	{
-		InOutImplBackEndUEAndORT = MakeShared<FImplBackEndUEAndORT>();
+		InOutImplBackEndUEAndORT = MakeShared<FImplBackEndUEAndORT>(InOutOnAsyncRunCompletedDelegate, bInOutIsBackgroundThreadRunning, InOutResoucesCriticalSection);
 
 		// Set up ORT and create an environment
 		const char* const ModelFullFilePathCharPtr = TCHAR_TO_ANSI(*InModelFullFilePath);
@@ -521,7 +751,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 	return true;
 }
 
-bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(TArray<FNeuralTensor>& OutTensors, TArray<bool>* OutAreInputTensorSizesVariable, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(TArray<FNeuralTensor>& OutTensors, TArray<bool>* OutAreInputTensorSizesVariable, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 	const bool bIsInput = (OutAreInputTensorSizesVariable != nullptr);
 	TArray<const char*> TensorNames;
@@ -605,19 +835,26 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(TArray<FNeuralTensor
 		TensorSizes.Push(CurrentTensorSizes);
 
 		// @todo: Should caller specify tensor GPU type?
-		// Input tensor GPU type is set to Generic
-		// Output tensor GPU type is set to Output (i.e. data should not be copied from CPU)
+		// Input/Output tensor GPU type means that data should not be copied from CPU
+		// Generic means that data is on the CPU and it will be copied to GPU
 		ENeuralTensorTypeGPU	TensorGPUType;
 
-		if (bIsInput)
+		if (InDeviceType == ENeuralDeviceType::GPU)
 		{
-			TensorGPUType = ENeuralTensorTypeGPU::Generic;
+			if (bIsInput)
+			{
+				TensorGPUType = InInputDeviceType == ENeuralDeviceType::GPU ? ENeuralTensorTypeGPU::Input : ENeuralTensorTypeGPU::Generic;
+			}
+			else
+			{
+				TensorGPUType = InOutputDeviceType == ENeuralDeviceType::GPU ? ENeuralTensorTypeGPU::Output : ENeuralTensorTypeGPU::Generic;
+			}
 		}
 		else
 		{
-			TensorGPUType = InOutputDeviceType == ENeuralDeviceType::GPU ? ENeuralTensorTypeGPU::Output : ENeuralTensorTypeGPU::Generic;
+			TensorGPUType = ENeuralTensorTypeGPU::Generic;
 		}
-
+		
 		TensorGPUTypes.Push(TensorGPUType);
 
 		CurrentTypeInfo.release();
@@ -669,6 +906,14 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 			OutTensors.Emplace(FNeuralTensor(ANSI_TO_TCHAR(TensorName), InTensorGPUTypes[TensorIndex]));
 		}
 	}
+	else
+	{
+		for (int32 TensorIndex = 0; TensorIndex < TensorNumber; ++TensorIndex)
+		{
+			OutTensors[TensorIndex].SetTensorTypeGPU(InTensorGPUTypes[TensorIndex]);
+		}
+	}
+
 	ensureMsgf(OutTensors.Num() == TensorNumber, TEXT("OutTensors.Num() == TensorNumber failed, %d != %d."), OutTensors.Num(), TensorNumber);
 
 	// Config each TensorIndex
@@ -688,7 +933,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 			// Link tensor with ORT blob
 			LinkTensorToONNXRuntime(OutTensors, OrtTensors, *AllocatorInfo, TensorIndex);
 		}
-		else if (InTensorGPUTypes[TensorIndex] == ENeuralTensorTypeGPU::Output)
+		else if (InTensorGPUTypes[TensorIndex] == ENeuralTensorTypeGPU::Input || InTensorGPUTypes[TensorIndex] == ENeuralTensorTypeGPU::Output)
 		{
 			// @todo: should we remove this? It's currently used to read memory from GPU to CPU
 			OutTensors[TensorIndex].SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex]);

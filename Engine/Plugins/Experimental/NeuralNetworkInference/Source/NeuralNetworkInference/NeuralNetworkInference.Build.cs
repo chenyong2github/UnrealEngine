@@ -80,6 +80,11 @@ public class NeuralNetworkInference : ModuleRules
 				);
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+
+				if (Target.bBuildEditor == true)
+				{
+					PublicDependencyModuleNames.Add("WinPixEventRuntime");
+				}
 			}
 		}
 

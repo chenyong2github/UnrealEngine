@@ -261,10 +261,11 @@ void FNeuralTensor::SetTensorTypeGPU(const ENeuralTensorTypeGPU InTensorTypeGPU)
 	// Sanity check
 	if (PooledBuffer.IsValid() || BufferSRVRef.IsValid() || BufferUAVRef.IsValid())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::SetTensorTypeGPU(): TensorTypeGPU cannot be modified from %d to %d because the GPU memory has been already initialized."
-			" Modify the GPU type before allocating the GPU memory (e.g., on the FNeuralTensor constructor)."), *Name, TensorTypeGPU, InTensorTypeGPU);
-		return;
+		PooledBuffer.Reset();
+		BufferSRVRef.Reset();
+		BufferUAVRef.Reset();
 	}
+
 	// Update TensorTypeGPU
 	TensorTypeGPU = InTensorTypeGPU;
 }
@@ -327,14 +328,33 @@ void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBu
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor-%s::ToGPU_RenderThread(): bInShouldCopyFromCPU must be true for SRVs (because they cannot be edited). Assumed true."), *Name);
 	}
+
 	// Create BufferRef
-	FRDGBufferDesc BufferDesc;
-	BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetSize(DataType);
-	BufferDesc.NumElements = Num();
-	BufferDesc.Usage = InEBufferUsageFlags;
-	BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
-	FRDGBufferRef BufferRef = (bInShouldCopyFromCPU ? CreateVertexBuffer(*InOutGraphBuilder, *Name, BufferDesc, ArrayCPU.GetData(), NumInBytes(), ERDGInitialDataFlags::NoCopy)
-		: InOutGraphBuilder->CreateBuffer(BufferDesc, *Name));
+	FRDGBufferRef BufferRef;
+
+	if (!PooledBuffer)
+	{
+		FRDGBufferDesc BufferDesc;
+		BufferDesc.BytesPerElement = FNeuralDataTypeUtils::GetSize(DataType);
+		BufferDesc.NumElements = Num();
+		BufferDesc.Usage = InEBufferUsageFlags;
+		BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
+		
+		BufferRef = bInShouldCopyFromCPU 
+			? CreateVertexBuffer(*InOutGraphBuilder, *Name, BufferDesc, ArrayCPU.GetData(), NumInBytes(), ERDGInitialDataFlags::NoCopy)
+			: InOutGraphBuilder->CreateBuffer(BufferDesc, *Name);
+
+		// Recreate PooledBuffer for future runs
+		PooledBuffer = MakeShared<TRefCountPtr<FRDGPooledBuffer>>();
+		*PooledBuffer = InOutGraphBuilder->ConvertToExternalBuffer(BufferRef);
+	}
+	else
+	{
+		BufferRef = InOutGraphBuilder->RegisterExternalBuffer(*PooledBuffer);
+
+		InOutGraphBuilder->QueueBufferUpload(BufferRef, ArrayCPU.GetData(), NumInBytes(), ERDGInitialDataFlags::None);
+	}
+
 	// Recreate BufferSRVRef
 	if (EnumHasAnyFlags(InEBufferUsageFlags, BUF_ShaderResource))
 	{
@@ -353,9 +373,6 @@ void FNeuralTensor::ToGPU_RenderThread(FRDGBuilder* InOutGraphBuilder, const EBu
 	{
 		BufferUAVRef.Reset();
 	}
-	// Recreate PooledBuffer for future runs
-	PooledBuffer = MakeShared<TRefCountPtr<FRDGPooledBuffer>>();
-	*PooledBuffer = InOutGraphBuilder->ConvertToExternalBuffer(BufferRef);
 }
 
 void FNeuralTensor::UpdateSRVAndOrUAV_RenderThread(FRDGBuilder* InOutGraphBuilder)
@@ -429,15 +446,15 @@ bool FNeuralTensor::InitPooledBuffer(void** NativeResource)
 			BufferDesc.Usage = BUF_UnorderedAccess | BUF_ShaderResource;
 			BufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::VertexBuffer;
 
-			FRDGBufferRef BufferRef = Builder.CreateBuffer(BufferDesc, *GetName());
-			
+			FRDGBufferRef BufferRef = Builder.CreateBuffer(BufferDesc, GetNameData());
+
 			// Recreate PooledBuffer for future runs
 			PooledBuffer = MakeShared<TRefCountPtr<FRDGPooledBuffer>>();
 			*PooledBuffer = Builder.ConvertToExternalBuffer(BufferRef);
 
-			// SRV and UAV can be used by callers (for example MLDeformer), look at the GetPooledBuffer()
-			BufferSRVRef = MakeShared<FRDGBufferSRVRef>(Builder.CreateSRV(BufferRef, FNeuralDataTypeUtils::GetPixelFormat(DataType)));
-			BufferUAVRef = MakeShared<FRDGBufferUAVRef>(Builder.CreateUAV(BufferRef, FNeuralDataTypeUtils::GetPixelFormat(DataType)));
+			// NOTE: SRV and UAV can be used by callers (for example MLDeformer), look at the GetPooledBuffer()
+			BufferSRVRef.Reset();
+			BufferUAVRef.Reset();
 
 			Builder.Execute();
 
@@ -467,7 +484,7 @@ TRefCountPtr<class FRDGPooledBuffer>& FNeuralTensor::GetPooledBuffer() const
 	// Sanity checks
 	checkf(bEnableGPU, TEXT("FNeuralTensor-%s::GetPooledBuffer(): bEnableGPU must be true."), *Name);
 	checkf(IsInRenderingThread(), TEXT("FNeuralTensor-%s::GetPooledBuffer(): IsInRenderingThread() must be true."), *Name);
-	checkf(BufferUAVRef.IsValid(), TEXT("FNeuralTensor-%s::GetPooledBuffer(): PooledBuffer cannot be nullptr."), *Name);
+	checkf(PooledBuffer.IsValid(), TEXT("FNeuralTensor-%s::GetPooledBuffer(): PooledBuffer cannot be nullptr."), *Name);
 	// Return PooledBuffer
 	return *PooledBuffer;
 }
