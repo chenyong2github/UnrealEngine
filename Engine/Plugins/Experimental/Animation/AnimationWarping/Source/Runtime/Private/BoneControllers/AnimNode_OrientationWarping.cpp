@@ -1,47 +1,69 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BoneControllers/AnimNode_OrientationWarping.h"
-#include "Animation/AnimRootMotionProvider.h"
-#include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 DECLARE_CYCLE_STAT(TEXT("OrientationWarping Eval"), STAT_OrientationWarping_Eval, STATGROUP_Anim);
 
 #if ENABLE_ANIM_DEBUG
-TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingDebug(TEXT("a.AnimNode.OrientationWarping.Debug"), 0, TEXT("Turn on debug for AnimNode_OrientationWarping"));
+TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingDebug(TEXT("a.AnimNode.OrientationWarping.Debug"), 0, TEXT("Turn on visualization debugging for Orientation Warping"));
+TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingVerbose(TEXT("a.AnimNode.OrientationWarping.Verbose"), 0, TEXT("Turn on verbose graph debugging for Orientation Warping"));
 TAutoConsoleVariable<int32> CVarAnimNodeOrientationWarpingEnable(TEXT("a.AnimNode.OrientationWarping.Enable"), 1, TEXT("Toggle Orientation Warping"));
 #endif
 
-FAnimNode_OrientationWarping::FAnimNode_OrientationWarping()
-	: Mode(EWarpingEvaluationMode::Manual)
-	, LocomotionAngle(0.f)
-	, IKFootRootBoneIndex(INDEX_NONE)
+namespace UE::Anim
 {
-}
-
-static inline FVector GetAxisVector(const EAxis::Type& InAxis)
-{
-	switch (InAxis)
+	static inline FVector GetAxisVector(const EAxis::Type& InAxis)
 	{
-	case EAxis::X: return FVector::ForwardVector;
-	case EAxis::Y: return FVector::RightVector;
-	default:
-	case EAxis::Z: return FVector::UpVector;
-	};
-}
+		switch (InAxis)
+		{
+		case EAxis::X:
+			return FVector::ForwardVector;
+		case EAxis::Y:
+			return FVector::RightVector;
+		default:
+			return FVector::UpVector;
+		};
+	}
 
-static inline bool IsInvalidWarpingAngle(float Angle, float Tolerance)
-{
-	return FMath::IsNearlyZero(Angle, Tolerance) || FMath::IsNearlyEqual(FMath::Abs(Angle), PI, Tolerance);
+	static inline bool IsInvalidWarpingAngle(float Angle, float Tolerance)
+	{
+		return FMath::IsNearlyZero(Angle, Tolerance) || FMath::IsNearlyEqual(FMath::Abs(Angle), PI, Tolerance);
+	}
 }
 
 void FAnimNode_OrientationWarping::GatherDebugData(FNodeDebugData& DebugData)
 {
 	FString DebugLine = DebugData.GetNodeName(this);
- 	DebugLine += FString::Printf(TEXT("Angle(%.1fd)"), LocomotionAngle);
-
+#if ENABLE_ANIM_DEBUG
+	if (CVarAnimNodeOrientationWarpingVerbose.GetValueOnAnyThread() == 1)
+	{
+		if (Mode == EWarpingEvaluationMode::Manual)
+		{
+			DebugLine += TEXT("\n - Evaluation Mode: (Manual)");
+			DebugLine += FString::Printf(TEXT("\n - Orientation Angle: (%.3fd)"), FMath::RadiansToDegrees(OrientationAngle));
+		}
+		else
+		{
+			DebugLine += TEXT("\n - Evaluation Mode: (Graph)");
+			DebugLine += FString::Printf(TEXT("\n - Orientation Angle: (%.3fd)"), FMath::RadiansToDegrees(OrientationAngle));
+			DebugLine += FString::Printf(TEXT("\n - Locomotion Angle: (%.3fd)"), LocomotionAngle);
+			DebugLine += FString::Printf(TEXT("\n - Locomotion Delta Angle Threshold: (%.3fd)"), LocomotionAngleDeltaThreshold);
+		}
+		DebugLine += FString::Printf(TEXT("\n - Distributed Bone Orientation Alpha: (%.3fd)"), DistributedBoneOrientationAlpha);
+		if (const UEnum* TypeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EAxis")))
+		{
+			DebugLine += FString::Printf(TEXT("\n - Rotation Axis: (%s)"), *(TypeEnum->GetNameStringByIndex(static_cast<int32>(RotationAxis))));
+		}
+		DebugLine += FString::Printf(TEXT("\n - Rotation Interpolation Speed: (%.3fd)"), RotationInterpSpeed);
+	}
+	else
+#endif
+	{
+		DebugLine += FString::Printf(TEXT("(Orientation Angle: %.3fd)"), FMath::RadiansToDegrees(OrientationAngle));
+	}
 	DebugData.AddDebugItem(DebugLine);
-
 	ComponentPose.GatherDebugData(DebugData);
 }
 
@@ -58,8 +80,10 @@ void FAnimNode_OrientationWarping::UpdateInternal(const FAnimationUpdateContext&
 void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
 	SCOPE_CYCLE_COUNTER(STAT_OrientationWarping_Eval);
-
 	check(OutBoneTransforms.Num() == 0);
+
+	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
+	const bool bGraphDrivenWarping = RootMotionProvider && Mode == EWarpingEvaluationMode::Graph;
 
 	// We will likely need to revisit LocomotionAngle participating as an input to orientation warping.
 	// Without velocity information from the motion model (such as the capsule), LocomotionAngle isn't enough
@@ -74,11 +98,8 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 	// The solution may be instead to pass velocity with the actor base rotation, allowing us to retain
 	// speed information about the motion. It may also allow us to do more complex orienting behavior 
 	// when multiple degrees of freedom can be considered.
-	float LocomotionRotationAngle = FMath::DegreesToRadians(FRotator::NormalizeAxis(LocomotionAngle));
-
-	const FVector LocomotionRotationAxis = GetAxisVector(Settings.YawRotationAxis);
-	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
-	const bool bGraphDrivenWarping = RootMotionProvider && Mode == EWarpingEvaluationMode::Graph;
+	OrientationAngle = FMath::DegreesToRadians(FRotator::NormalizeAxis(bGraphDrivenWarping ? LocomotionAngle : OrientationAngle));
+	const FVector RotationAxisVector = UE::Anim::GetAxisVector(RotationAxis);
 
 	// Graph driven orientation warping will modify the incoming root motion to orient towards the intended locomotion angle
 	if (bGraphDrivenWarping)
@@ -88,7 +109,7 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 
 		if (ensure(bRootMotionDeltaPresent))
 		{
-			// In UE, forward is defined as +x; consequently this is also true when sampling an actor's velocity. Sometimes the skeletal 
+			// In UE, forward is defined as +x; consequently this is also true when sampling an actor's velocity. Historically the skeletal 
 			// mesh component forward will not match the actor, requiring us to correct the rotation before sampling the LocomotionForward.
 			// In order to make orientation warping 'pure' in the future we will need to provide more context about the intent of
 			// the actor vs the intent of the animation in their respective spaces. Specifically, we will need some form the following information:
@@ -98,22 +119,22 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 			// 3. Skeletal Mesh Relative Rotation
 			const FTransform SkeletalMeshRelativeTransform = Output.AnimInstanceProxy->GetComponentRelativeTransform();
 			const FQuat SkeletalMeshRelativeRotation = SkeletalMeshRelativeTransform.GetRotation();
-			const FQuat LocomotionRotation = FQuat(LocomotionRotationAxis, LocomotionRotationAngle);
+			const FQuat LocomotionRotation = FQuat(RotationAxisVector, OrientationAngle);
 			const FVector LocomotionForwardDir = SkeletalMeshRelativeRotation.UnrotateVector(LocomotionRotation.GetForwardVector());
 			const FVector RootMotionDeltaDir = RootMotionTransformDelta.GetTranslation();
 
 			// Capture the delta rotation from the axis of motion we care about
 			FQuat WarpedRotation = FQuat::FindBetween(RootMotionDeltaDir, LocomotionForwardDir);
-			LocomotionRotationAngle = WarpedRotation.GetTwistAngle(LocomotionRotationAxis);
+			OrientationAngle = WarpedRotation.GetTwistAngle(RotationAxisVector);
 
 			// Motion Matching may return an animation that deviates a lot from the movement direction (e.g movement direction going bwd and motion matching could return the fwd animation for a few frames)
 			// When that happens, since we use the delta between root motion and movement direction, we would be over-rotating the lower body and breaking the pose during those frames
 			// So, when that happens we use the inverse of the movement direction to calculate our target rotation. 
 			// This feels a bit 'hacky' but its the only option I've found so far to mitigate the problem
-			if (LocomotionInversionThresholdAngle > 0.f && FMath::Abs(FMath::RadiansToDegrees(LocomotionRotationAngle)) > LocomotionInversionThresholdAngle)
+			if (LocomotionAngleDeltaThreshold > 0.f && FMath::Abs(FMath::RadiansToDegrees(OrientationAngle)) > LocomotionAngleDeltaThreshold)
 			{
 				WarpedRotation = FQuat::FindBetween(RootMotionDeltaDir, -LocomotionForwardDir);
-				LocomotionRotationAngle = WarpedRotation.GetTwistAngle(LocomotionRotationAxis);
+				OrientationAngle = WarpedRotation.GetTwistAngle(RotationAxisVector);
 			}
 
 			// Rotate the root motion delta fully by the warped angle
@@ -124,48 +145,49 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 			// Forward the side effects of orientation warping on the root motion contribution for this sub-graph
 			const bool bRootMotionOverridden = RootMotionProvider->OverrideRootMotion(RootMotionTransformDelta, Output.CustomAttributes);
 			ensure(bRootMotionOverridden);
-
 #if ENABLE_ANIM_DEBUG
-			const bool bShowDebug = (CVarAnimNodeOrientationWarpingDebug.GetValueOnAnyThread() == 1);
-			if (bShowDebug)
+			bool bDebugging = false;
+#if WITH_EDITORONLY_DATA
+			bDebugging = bDebugging || bEnableDebugDraw;
+#endif
+			bDebugging = bDebugging || CVarAnimNodeOrientationWarpingDebug.GetValueOnAnyThread() == 1;
+
+			if (bDebugging)
 			{
-				const FVector LocomotionDirWS = Output.AnimInstanceProxy->GetActorTransform().TransformVectorNoScale(LocomotionRotation.GetForwardVector()).GetSafeNormal();
-				const FVector RootMotionDirWS = Output.AnimInstanceProxy->GetActorTransform().TransformVectorNoScale(SkeletalMeshRelativeRotation.RotateVector(RootMotionDeltaDir)).GetSafeNormal();
+				const FVector LocomotionDir = Output.AnimInstanceProxy->GetActorTransform().TransformVectorNoScale(LocomotionRotation.GetForwardVector()).GetSafeNormal();
+				const FVector RootMotionDir = Output.AnimInstanceProxy->GetActorTransform().TransformVectorNoScale(SkeletalMeshRelativeRotation.RotateVector(RootMotionDeltaDir)).GetSafeNormal();
 
-				const float DrawDebugArrowScale = 100.f;
-				Output.AnimInstanceProxy->AnimDrawDebugLine(
+				Output.AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
 					Output.AnimInstanceProxy->GetComponentTransform().GetLocation(),
-					Output.AnimInstanceProxy->GetComponentTransform().GetLocation() + LocomotionDirWS * DrawDebugArrowScale,
-					FColor::Red, false, 0.f, 1.f);
+					Output.AnimInstanceProxy->GetComponentTransform().GetLocation() + LocomotionDir * 100.f,
+					40.f, FColor::Red, false, 0.f, 2.f);
 
-				Output.AnimInstanceProxy->AnimDrawDebugLine(
+				Output.AnimInstanceProxy->AnimDrawDebugDirectionalArrow(
 					Output.AnimInstanceProxy->GetComponentTransform().GetLocation(),
-					Output.AnimInstanceProxy->GetComponentTransform().GetLocation() + RootMotionDirWS * DrawDebugArrowScale,
-					FColor::Blue, false, 0.f, 1.f);
+					Output.AnimInstanceProxy->GetComponentTransform().GetLocation() + RootMotionDir * 100.f,
+					40.f, FColor::Blue, false, 0.f, 2.f);
 			}
 #endif
 		}
 	} 
-	else if (IsInvalidWarpingAngle(LocomotionRotationAngle, KINDA_SMALL_NUMBER))
+	else if (UE::Anim::IsInvalidWarpingAngle(OrientationAngle, KINDA_SMALL_NUMBER))
 	{
 		return;
 	}
 
-	if (InterpSpeed > 0.f)
+	if (RotationInterpSpeed > 0.f)
 	{
-		LocomotionRotationAngle = FMath::FInterpTo(LastRotationAngle, LocomotionRotationAngle, Output.AnimInstanceProxy->GetDeltaSeconds(), InterpSpeed);
-		LastRotationAngle = LocomotionRotationAngle;
+		OrientationAngle = FMath::FInterpTo(PreviousWarpedRotation, OrientationAngle, Output.AnimInstanceProxy->GetDeltaSeconds(), RotationInterpSpeed);
+		PreviousWarpedRotation = OrientationAngle;
 	}
 
 	// Allow the alpha value of the node to affect the final rotation
-	LocomotionRotationAngle *= ActualAlpha;
-
-	const float BodyOrientationAlpha = FMath::Clamp(Settings.BodyOrientationAlpha, 0.f, 1.f);
+	OrientationAngle *= ActualAlpha;
 
 	// Rotate Root Bone first, as that cheaply rotates the whole pose with one transformation.
-	if (!FMath::IsNearlyZero(BodyOrientationAlpha, KINDA_SMALL_NUMBER))
+	if (!FMath::IsNearlyZero(DistributedBoneOrientationAlpha, KINDA_SMALL_NUMBER))
 	{
-		const FQuat RootRotation = FQuat(LocomotionRotationAxis, LocomotionRotationAngle * BodyOrientationAlpha);
+		const FQuat RootRotation = FQuat(RotationAxisVector, OrientationAngle * DistributedBoneOrientationAlpha);
 		const FCompactPoseBoneIndex RootBoneIndex(0);
 
 		FTransform RootBoneTransform(Output.Pose.GetComponentSpaceTransform(RootBoneIndex));
@@ -175,8 +197,8 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 	}
 		
 	const int32 NumSpineBones = SpineBoneDataArray.Num();
-	const bool bBodyOrientationAlpha = !FMath::IsNearlyZero(BodyOrientationAlpha, KINDA_SMALL_NUMBER);
-	const bool bUpdateSpineBones = (NumSpineBones > 0) && bBodyOrientationAlpha;
+	const bool bSpineOrientationAlpha = !FMath::IsNearlyZero(DistributedBoneOrientationAlpha, KINDA_SMALL_NUMBER);
+	const bool bUpdateSpineBones = (NumSpineBones > 0) && bSpineOrientationAlpha;
 
 	if (bUpdateSpineBones)
 	{
@@ -184,7 +206,7 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 		for (int32 ArrayIndex = 0; ArrayIndex < NumSpineBones; ArrayIndex++)
 		{
 			const FOrientationWarpingSpineBoneData& BoneData = SpineBoneDataArray[ArrayIndex];
-			const FQuat SpineBoneCounterRotation = FQuat(LocomotionRotationAxis, -LocomotionRotationAngle * BodyOrientationAlpha * BoneData.Weight);
+			const FQuat SpineBoneCounterRotation = FQuat(RotationAxisVector, -OrientationAngle * DistributedBoneOrientationAlpha * BoneData.Weight);
 			check(BoneData.Weight > 0.f);
 
 			FTransform SpineBoneTransform(Output.Pose.GetComponentSpaceTransform(BoneData.BoneIndex));
@@ -194,32 +216,32 @@ void FAnimNode_OrientationWarping::EvaluateSkeletalControl_AnyThread(FComponentS
 		}
 	}
 
-	const float IKFootRootOrientationAlpha = 1.f - BodyOrientationAlpha;
-	const bool bUpdateIKFootRoot = (IKFootRootBoneIndex != FCompactPoseBoneIndex(INDEX_NONE)) && !FMath::IsNearlyZero(IKFootRootOrientationAlpha, KINDA_SMALL_NUMBER);
+	const float IKFootRootOrientationAlpha = 1.f - DistributedBoneOrientationAlpha;
+	const bool bUpdateIKFootRoot = (IKFootData.IKFootRootBoneIndex != FCompactPoseBoneIndex(INDEX_NONE)) && !FMath::IsNearlyZero(IKFootRootOrientationAlpha, KINDA_SMALL_NUMBER);
 
 	// Rotate IK Foot Root
 	if (bUpdateIKFootRoot)
 	{
-		const FQuat BoneRotation = FQuat(LocomotionRotationAxis, LocomotionRotationAngle * IKFootRootOrientationAlpha);
+		const FQuat BoneRotation = FQuat(RotationAxisVector, OrientationAngle * IKFootRootOrientationAlpha);
 
-		FTransform IKFootRootTransform(Output.Pose.GetComponentSpaceTransform(IKFootRootBoneIndex));
+		FTransform IKFootRootTransform(Output.Pose.GetComponentSpaceTransform(IKFootData.IKFootRootBoneIndex));
 		IKFootRootTransform.SetRotation(BoneRotation * IKFootRootTransform.GetRotation());
 		IKFootRootTransform.NormalizeRotation();
-		Output.Pose.SetComponentSpaceTransform(IKFootRootBoneIndex, IKFootRootTransform);
+		Output.Pose.SetComponentSpaceTransform(IKFootData.IKFootRootBoneIndex, IKFootRootTransform);
 
 		// IK Feet 
 		// These match the root orientation, so don't rotate them. Just preserve root rotation. 
 		// We need to update their translation though, since we rotated their parent (the IK Foot Root bone).
-		const int32 NumIKFootBones = IKFootBoneIndexArray.Num();
+		const int32 NumIKFootBones = IKFootData.IKFootBoneIndexArray.Num();
 		const bool bUpdateIKFootBones = bUpdateIKFootRoot && (NumIKFootBones > 0);
 
 		if (bUpdateIKFootBones)
 		{
-			const FQuat IKFootRotation = FQuat(LocomotionRotationAxis, -LocomotionRotationAngle * IKFootRootOrientationAlpha);
+			const FQuat IKFootRotation = FQuat(RotationAxisVector, -OrientationAngle * IKFootRootOrientationAlpha);
 
 			for (int32 ArrayIndex = 0; ArrayIndex < NumIKFootBones; ArrayIndex++)
 			{
-				const FCompactPoseBoneIndex& IKFootBoneIndex = IKFootBoneIndexArray[ArrayIndex];
+				const FCompactPoseBoneIndex& IKFootBoneIndex = IKFootData.IKFootBoneIndexArray[ArrayIndex];
 
 				FTransform IKFootBoneTransform(Output.Pose.GetComponentSpaceTransform(IKFootBoneIndex));
 				IKFootBoneTransform.SetRotation(IKFootRotation * IKFootBoneTransform.GetRotation());
@@ -240,90 +262,109 @@ bool FAnimNode_OrientationWarping::IsValidToEvaluate(const USkeleton* Skeleton, 
 		return false;
 	}
 #endif
-
-	bool bIKFootRootIsValid = IKFootRootBoneIndex != INDEX_NONE;
-	bool bIKFeetAreValid = IKFootBoneIndexArray.Num() > 0;
-	for (const auto& IKFootBoneIndex : IKFootBoneIndexArray)
+	if (RotationAxis == EAxis::None)
 	{
-		bIKFeetAreValid = bIKFeetAreValid && IKFootBoneIndex != INDEX_NONE;
+		return false;
 	}
 
-	bool bSpineIsValid = SpineBoneDataArray.Num() > 0;
-	for (const auto& Spine : SpineBoneDataArray)
+	if (SpineBoneDataArray.IsEmpty())
 	{
-		bSpineIsValid = bSpineIsValid && Spine.BoneIndex != INDEX_NONE;
+		return false;
+	}
+	else
+	{
+		for (const auto& Spine : SpineBoneDataArray)
+		{
+			if (Spine.BoneIndex == INDEX_NONE)
+			{
+				return false;
+			}
+		}
 	}
 
-	return bIKFootRootIsValid && bIKFeetAreValid && bSpineIsValid;
+	if (IKFootData.IKFootRootBoneIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (IKFootData.IKFootBoneIndexArray.IsEmpty())
+	{
+		return false;
+	}
+	else
+	{
+		for (const auto& IKFootBoneIndex : IKFootData.IKFootBoneIndexArray)
+		{
+			if (IKFootBoneIndex == INDEX_NONE)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 void FAnimNode_OrientationWarping::InitializeBoneReferences(const FBoneContainer& RequiredBones)
 {
-	Settings.IKFootRootBone.Initialize(RequiredBones);
-	IKFootRootBoneIndex = Settings.IKFootRootBone.GetCompactPoseIndex(RequiredBones);
+	IKFootRootBone.Initialize(RequiredBones);
+	IKFootData.IKFootRootBoneIndex = IKFootRootBone.GetCompactPoseIndex(RequiredBones);
 
+	IKFootData.IKFootBoneIndexArray.Reset();
+	for (auto& Bone : IKFootBones)
 	{
-		IKFootBoneIndexArray.Reset();
-		for (auto& BoneSettings : Settings.IKFootBones)
-		{
-			BoneSettings.Initialize(RequiredBones);
-			IKFootBoneIndexArray.Add(BoneSettings.GetCompactPoseIndex(RequiredBones));
-		}
+		Bone.Initialize(RequiredBones);
+		IKFootData.IKFootBoneIndexArray.Add(Bone.GetCompactPoseIndex(RequiredBones));
 	}
 
+	SpineBoneDataArray.Reset();
+	for (auto& Bone : SpineBones)
 	{
-		SpineBoneDataArray.Reset();
-		for (auto& BoneSettings : Settings.SpineBones)
-		{
-			BoneSettings.Bone.Initialize(RequiredBones);
-			SpineBoneDataArray.Add(FOrientationWarpingSpineBoneData(BoneSettings.Bone.GetCompactPoseIndex(RequiredBones)));
-		}
+		Bone.Initialize(RequiredBones);
+		SpineBoneDataArray.Add(FOrientationWarpingSpineBoneData(Bone.GetCompactPoseIndex(RequiredBones)));
+	}
 
-		if (SpineBoneDataArray.Num() > 0)
-		{
-			// Sort bones indices so we can transform parent before child
-			SpineBoneDataArray.Sort(FOrientationWarpingSpineBoneData::FCompareBoneIndex());
+	if (SpineBoneDataArray.Num() > 0)
+	{
+		// Sort bones indices so we can transform parent before child
+		SpineBoneDataArray.Sort(FOrientationWarpingSpineBoneData::FCompareBoneIndex());
 
-			// Assign Weights.
+		// Assign Weights.
+		TArray<int32, TInlineAllocator<20>> IndicesToUpdate;
+
+		for (int32 Index = SpineBoneDataArray.Num() - 1; Index >= 0; Index--)
+		{
+			// If this bone's weight hasn't been updated, scan his parents.
+			// If parents have weight, we add it to 'ExistingWeight'.
+			// split (1.f - 'ExistingWeight') between all members of the chain that have no weight yet.
+			if (SpineBoneDataArray[Index].Weight == 0.f)
 			{
-				TArray<int32> IndicesToUpdate;
+				IndicesToUpdate.Reset(SpineBoneDataArray.Num());
+				float ExistingWeight = 0.f;
+				IndicesToUpdate.Add(Index);
 
-				for (int32 Index = SpineBoneDataArray.Num() - 1; Index >= 0; Index--)
+				const FCompactPoseBoneIndex CompactBoneIndex = SpineBoneDataArray[Index].BoneIndex;
+				for (int32 ParentIndex = Index - 1; ParentIndex >= 0; ParentIndex--)
 				{
-					// If this bone's weight hasn't been updated, scan his parents.
-					// If parents have weight, we add it to 'ExistingWeight'.
-					// split (1.f - 'ExistingWeight') between all members of the chain that have no weight yet.
-					if (SpineBoneDataArray[Index].Weight == 0.f)
+					if (RequiredBones.BoneIsChildOf(CompactBoneIndex, SpineBoneDataArray[ParentIndex].BoneIndex))
 					{
-						IndicesToUpdate.Reset(SpineBoneDataArray.Num());
-						float ExistingWeight = 0.f;
-						IndicesToUpdate.Add(Index);
-
-						const FCompactPoseBoneIndex CompactBoneIndex = SpineBoneDataArray[Index].BoneIndex;
-						for (int32 ParentIndex = Index - 1; ParentIndex >= 0; ParentIndex--)
+						if (SpineBoneDataArray[ParentIndex].Weight > 0.f)
 						{
-							if (RequiredBones.BoneIsChildOf(CompactBoneIndex, SpineBoneDataArray[ParentIndex].BoneIndex))
-							{
-								if (SpineBoneDataArray[ParentIndex].Weight > 0.f)
-								{
-									ExistingWeight += SpineBoneDataArray[ParentIndex].Weight;
-								}
-								else
-								{
-									IndicesToUpdate.Add(ParentIndex);
-								}
-							}
+							ExistingWeight += SpineBoneDataArray[ParentIndex].Weight;
 						}
-
-						check(IndicesToUpdate.Num() > 0);
-						const float WeightToShare = 1.f - ExistingWeight;
-						const float IndividualWeight = WeightToShare / float(IndicesToUpdate.Num());
-
-						for (int32 UpdateListIndex = 0; UpdateListIndex < IndicesToUpdate.Num(); UpdateListIndex++)
+						else
 						{
-							SpineBoneDataArray[IndicesToUpdate[UpdateListIndex]].Weight = IndividualWeight;
+							IndicesToUpdate.Add(ParentIndex);
 						}
 					}
+				}
+
+				check(IndicesToUpdate.Num() > 0);
+				const float WeightToShare = 1.f - ExistingWeight;
+				const float IndividualWeight = WeightToShare / float(IndicesToUpdate.Num());
+
+				for (int32 UpdateListIndex = 0; UpdateListIndex < IndicesToUpdate.Num(); UpdateListIndex++)
+				{
+					SpineBoneDataArray[IndicesToUpdate[UpdateListIndex]].Weight = IndividualWeight;
 				}
 			}
 		}

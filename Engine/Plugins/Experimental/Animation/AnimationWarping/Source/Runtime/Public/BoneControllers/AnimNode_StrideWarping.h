@@ -3,141 +3,128 @@
 #pragma once
 
 #include "BoneControllers/BoneControllerTypes.h"
+#include "BoneControllers/BoneControllerSolvers.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
-#include "Engine/SpringInterpolator.h"
 #include "AnimNode_StrideWarping.generated.h"
 
-struct FInputScaleBiasClamp;
-
-UENUM(BlueprintType)
-enum class EStrideWarpingAxisMode : uint8
+// Foot definition specifying the IK/FK foot bones and Thigh bone
+USTRUCT(BlueprintInternalUseOnly)
+struct ANIMATIONWARPINGRUNTIME_API FStrideWarpingFootDefinition
 {
-	IKFootRootLocalX,
-	IKFootRootLocalY,
-	IKFootRootLocalZ,
-	WorldSpaceVectorInput,
-	ComponentSpaceVectorInput,
-	ActorSpaceVectorInput,
-};
+	GENERATED_BODY()
 
-/** Per foot definitions */
-USTRUCT()
-struct FStrideWarpingFootDefinition
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	// IK driven foot bone
+	UPROPERTY(EditAnywhere, Category=Settings, meta=(DisplayName="IK Foot Bone"))
 	FBoneReference IKFootBone;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	// FK driven foot bone
+	UPROPERTY(EditAnywhere, Category=Settings, meta=(DisplayName="FK Foot Bone"))
 	FBoneReference FKFootBone;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	int32 NumBonesInLimb;
-
-	FStrideWarpingFootDefinition()
-		: NumBonesInLimb(2)
-	{}
+	// Thigh bone, representing the end of the leg chain prior to reaching the Pelvis Bone 
+	UPROPERTY(EditAnywhere, Category=Settings)
+	FBoneReference ThighBone;
 };
 
-/** Runtime foot data after validation, we guarantee these bones to exist */
-USTRUCT()
-struct FStrideWarpingFootData
-{
-	GENERATED_USTRUCT_BODY()
-
-	FCompactPoseBoneIndex IKFootBoneIndex;
-	FCompactPoseBoneIndex FKFootBoneIndex;
-	FCompactPoseBoneIndex HipBoneIndex;
-	FTransform IKBoneTransform;
-
-	FStrideWarpingFootData()
-		: IKFootBoneIndex(INDEX_NONE)
-		, FKFootBoneIndex(INDEX_NONE)
-		, HipBoneIndex(INDEX_NONE)
-	{}
-};
-
-USTRUCT()
+USTRUCT(BlueprintInternalUseOnly)
 struct ANIMATIONWARPINGRUNTIME_API FAnimNode_StrideWarping : public FAnimNode_SkeletalControlBase
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-	FAnimNode_StrideWarping();
+	// Stride warping evaluation mode (Graph or Manual)
+	UPROPERTY(EditAnywhere, Category=Evaluation)
+	EWarpingEvaluationMode Mode = EWarpingEvaluationMode::Manual;
 
-	FAnimInstanceProxy* MyAnimInstanceProxy;
+	// Component-space stride direction
+	// Example: A value of <1,0,0> will warp the leg stride along the Forward Vector
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(PinShownByDefault))
+	FVector StrideDirection = FVector::ForwardVector;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
-	EWarpingEvaluationMode Mode;
+	// Stride scale, specifying the amount of warping applied to the IK foot definitions
+	// Example: A value of 0.5 will decrease the effective leg stride by half, while a value of 2.0 will double it
+	UPROPERTY(EditAnywhere, Category=Evaluation, meta=(ClampMin="0.0", PinShownByDefault))
+	float StrideScale = 1.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
-	FVector ManualStrideWarpingDir;
+	// Locomotion speed, specifying the current speed of the character
+	// This will be used in the following equation for computing the stride scale: [StrideScale = (LocomotionSpeed / RootMotionSpeed)]
+	// 
+	// Stride scale is a value specifying the amount of warping applied to the IK foot definitions
+	// Example: A value of 0.5 will decrease the effective leg stride by half, while a value of 2.0 will double it
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(ClampMin="0.0", PinShownByDefault))
+	float LocomotionSpeed = 0.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
-	float ManualStrideScaling;
+	// Minimum locomotion speed required to apply stride warping
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Evaluation, meta=(ClampMin="0.0", PinHiddenByDefault))
+	float MinLocomotionSpeedThreshold = 10.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
-	float LocomotionSpeed;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Evaluation, meta = (PinHiddenByDefault))
-	float MinSpeedTolerance;
-
-	UPROPERTY(EditAnywhere, Category = Settings)
-	FBoneReference IKFootRootBone;
-
-	UPROPERTY(EditAnywhere, Category = Settings)
-	TArray<FStrideWarpingFootDefinition> FeetDefinitions;
-
-	UPROPERTY(Transient)
-	TArray<FStrideWarpingFootData> FeetData;
-
-	UPROPERTY(EditAnywhere, Category = Settings)
+	// Pevlis Bone definition
+	UPROPERTY(EditAnywhere, Category=Settings)
 	FBoneReference PelvisBone;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	EStrideWarpingAxisMode StrideWarpingAxisMode;
+	// IK Foot Root Bone definition
+	UPROPERTY(EditAnywhere, Category=Settings, meta=(DisplayName="IK Foot Root Bone"))
+	FBoneReference IKFootRootBone;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	EStrideWarpingAxisMode FloorNormalAxisMode;
+	// Foot definitions specifying the IK, FK, and Thigh bone
+	UPROPERTY(EditAnywhere, Category=Settings)
+	TArray<FStrideWarpingFootDefinition> FootDefinitions;
 
-	/** Direction vector for adjusting hips up and down. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	EStrideWarpingAxisMode GravityDirAxisMode;
+	// Modifies the final stride scale value by optionally clamping and/or interpolating
+	UPROPERTY(EditAnywhere, Category=Settings)
+	FInputClampConstants StrideScaleModifier;
 
-	// Additional scaling, offsetting and clamping of PlayRate input.
-	// Performed after PlayRateBasis.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	FInputScaleBiasClamp StrideScalingScaleBiasClamp;
+	// Floor normal direction, this value will internally convert into a corresponding Component-space representation prior to warping
+	// Default: World Space, Up Vector: <0,0,1>
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Advanced, meta=(PinHiddenByDefault))
+	FWarpingVectorValue FloorNormalDirection = { EWarpingVectorMode::WorldSpaceVector, FVector::UpVector };
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	FVector ManualFloorNormalInput;
+	// Gravity direction, this value will internally convert into a corresponding Component-space representation prior to warping
+	// Default: World Space, Down Vector: <0,0,-1>
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Advanced, meta=(PinHiddenByDefault))
+	FWarpingVectorValue GravityDirection = { EWarpingVectorMode::WorldSpaceVector, FVector::DownVector };
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	FVector ManualGravityDirInput;
+	// Solver for controlling how much the pelvis is "pulled down" towards the IK/FK foot definitions during leg limb extension
+	UPROPERTY(EditAnywhere, Category=Advanced, meta=(DisplayName="Pelvis IK Foot Solver"))
+	FIKFootPelvisPullDownSolver PelvisIKFootSolver;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	float PelvisPostAdjustmentAlpha;
+	// Orients the specified (Manual) or computed (Graph) stride direction by the floor normal
+	UPROPERTY(EditAnywhere, Category=Advanced)
+	bool bOrientStrideDirectionUsingFloorNormal = true;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
-	int32 PelvisAdjustmentMaxIter;
+	// Include warping adjustment to the FK thigh bones alongside the IK/FK foot definitions
+	// This is used to help preserve the original overall leg shape
+	UPROPERTY(EditAnywhere, Category=Advanced, meta=(DisplayName="Compensate IK Using FK Thigh Rotation"))
+	bool bCompensateIKUsingFKThighRotation = true;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
-	FVectorRK4SpringInterpolator PelvisAdjustmentInterp;
+	// Clamps the IK foot warping to prevent over-extension relative to the overall FK leg
+	UPROPERTY(EditAnywhere, Category=Advanced, meta=(DisplayName="Clamp IK Using FK Limits", EditCondition="bCompensateIKUsingFKThighRotation"))
+	bool bClampIKUsingFKLimits = true;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
-	uint32 bAdjustThighBonesRotation : 1;
+#if WITH_EDITORONLY_DATA
+	// Enable/Disable stride warping debug drawing
+	UPROPERTY(EditAnywhere, Category=Debug)
+	bool bEnableDebugDraw = false;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
-	uint32 bClampIKUsingFKLeg : 1;
+	// Enable/Disable IK foot location debug drawing prior to warping
+	UPROPERTY(EditAnywhere, Category=Debug)
+	bool bDebugDrawIKFootOrigin = false;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
-	uint32 bOrientStrideWarpingAxisBasedOnFloorNormal : 1;
+	// Enable/Disable IK foot location debug drawing following initial foot adjustment
+	UPROPERTY(EditAnywhere, Category=Debug)
+	bool bDebugDrawIKFootAdjustment = false;
 
-	UPROPERTY(Transient)
-	float CachedDeltaTime;
+	// Enable/Disable pelvis debug drawing following adjustment
+	UPROPERTY(EditAnywhere, Category=Debug)
+	bool bDebugDrawPelvisAdjustment = false;
 
-	FVector GetAxisModeValue(const EStrideWarpingAxisMode& AxisMode, const FTransform& IKFootRootCSTransform, const FVector& UserSuppliedVector) const;
-	FCompactPoseBoneIndex FindHipBoneIndex(const FCompactPoseBoneIndex& InFootBoneIndex, const int32& NumBonesInLimb, const FBoneContainer& RequiredBones) const;
+	// Enable/Disable thigh debug drawing following adjustment
+	UPROPERTY(EditAnywhere, Category=Debug)
+	bool bDebugDrawThighAdjustment = false;
+
+	// Enable/Disable IK foot location debug drawing following all adsjustments (Final warped result)
+	UPROPERTY(EditAnywhere, Category=Debug)
+	bool bDebugDrawIKFootFinal = false;
+#endif
 
 public:
 	// FAnimNode_Base interface
@@ -155,4 +142,32 @@ private:
 	// FAnimNode_SkeletalControlBase interface
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
+
+	struct FStrideWarpingFootData
+	{
+		FCompactPoseBoneIndex IKFootBoneIndex;
+		FCompactPoseBoneIndex FKFootBoneIndex;
+		FCompactPoseBoneIndex ThighBoneIndex;
+		FTransform IKFootBoneTransform;
+
+		FStrideWarpingFootData()
+			: IKFootBoneIndex(INDEX_NONE)
+			, FKFootBoneIndex(INDEX_NONE)
+			, ThighBoneIndex(INDEX_NONE)
+			, IKFootBoneTransform(FTransform::Identity)
+		{
+		}
+	};
+
+	// Internal cached anim instance proxy
+	FAnimInstanceProxy* AnimInstanceProxy = nullptr;
+
+	// Computed IK, FK, Thigh bone indices for the specified foot definitions
+	TArray<FStrideWarpingFootData> FootData;
+
+	// Internal cached delta time used for interpolators
+	float CachedDeltaTime = 0.f;
+
+	// Internal cached stride scale modifier state
+	FInputClampState StrideScaleModifierState;
 };
