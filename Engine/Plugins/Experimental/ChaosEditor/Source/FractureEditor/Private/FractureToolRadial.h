@@ -26,13 +26,16 @@ public:
 		, Variability(0.0f)
 	{}
 
-	/** Center of generated pattern */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
+	/** Center of generated pattern.  Only used when "Use Gizmo" is disabled. */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (EditCondition = "!bPositionedByGizmo", HideEditConditionToggle))
 	FVector Center;
 
-	/** Normal to plane in which sites are generated */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
+	/** Normal to plane in which sites are generated.  Only used when "Use Gizmo" is disabled. */
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (EditCondition = "!bPositionedByGizmo", HideEditConditionToggle))
 	FVector Normal;
+
+	UPROPERTY()
+	bool bPositionedByGizmo = true;
 
 	/** Pattern radius */
 	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radius", UIMin = "0.0", ClampMin = "0.0"))
@@ -82,6 +85,13 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown() override;
+
+	virtual void UpdateUseGizmo(bool bUseGizmo) override
+	{
+		Super::UpdateUseGizmo(bUseGizmo);
+		RadialSettings->bPositionedByGizmo = bUseGizmo;
+		NotifyOfPropertyChangeByTool(RadialSettings);
+	}
 
 protected:
 	void GenerateVoronoiSites(const FFractureToolContext& Context, TArray<FVector>& Sites) override;
