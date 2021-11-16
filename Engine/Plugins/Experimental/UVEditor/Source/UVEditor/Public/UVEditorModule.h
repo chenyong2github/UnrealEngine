@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
+#include "Modules/ModuleInterface.h"
+
+class FLayoutExtender;
 
 /**
  * Besides the normal module things, the module class is also responsible for hooking the 
