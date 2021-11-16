@@ -23,6 +23,7 @@ class UParameterizeMeshToolProperties;
 class UParameterizeMeshToolUVAtlasProperties;
 class UParameterizeMeshToolXAtlasProperties;
 class UParameterizeMeshToolPatchBuilderProperties;
+class UParameterizeMeshOperatorFactory;
 
 UCLASS()
 class UVEDITORTOOLSEDITORONLY_API UUVEditorParameterizeMeshToolBuilder : public UInteractiveToolBuilder
@@ -89,6 +90,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UParameterizeMeshOperatorFactory>> Factories;
 
 	void OnMethodTypeChanged();
 };

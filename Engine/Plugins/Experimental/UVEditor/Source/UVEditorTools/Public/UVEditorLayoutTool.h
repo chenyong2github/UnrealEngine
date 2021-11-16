@@ -11,6 +11,7 @@
 
 class UUVEditorToolMeshInput;
 class UUVLayoutProperties;
+class UUVLayoutOperatorFactory;
 
 UCLASS()
 class UVEDITORTOOLS_API UUVEditorLayoutToolBuilder : public UInteractiveToolBuilder
@@ -64,4 +65,7 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UUVLayoutProperties> Settings = nullptr;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UUVLayoutOperatorFactory>> Factories;
 };
