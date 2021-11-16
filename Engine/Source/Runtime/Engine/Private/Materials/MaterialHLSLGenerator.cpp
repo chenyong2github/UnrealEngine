@@ -68,6 +68,11 @@ bool FMaterialHLSLGenerator::Finalize()
 		for (int32 i = 0; i < Expression->NumValues; ++i)
 		{
 			Expression->Values[i] = InternalAcquireLocalValue(*Expression->Scopes[i], Expression->LocalName);
+			if (!Expression->Values[i])
+			{
+				Errorf(TEXT("Local %s is not assigned on all control paths"), *Expression->LocalName.ToString());
+				return false;
+			}
 		}
 	}
 
@@ -204,6 +209,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 			{
 				UE::HLSLTree::FStatementReturn* ReturnStatement = HLSLTree->NewStatement<UE::HLSLTree::FStatementReturn>(Scope);
 				ReturnStatement->Expression = AttributesExpression;
+				HLSLTree->SetResult(*ReturnStatement);
 				bResult = true;
 			}
 		}
