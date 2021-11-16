@@ -46,7 +46,7 @@ void UCutMeshWithMeshTool::SetupProperties()
 
 	SetToolDisplayName(LOCTEXT("CutMeshWithMeshToolName", "Cut With Mesh"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "Cut first mesh with second. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
+		LOCTEXT("OnStartTool", "Cut the first input mesh with the second input mesh. Use the transform gizmos to modify the position and orientation of the input objects."),
 		EToolMessageLevel::UserNotification);
 
 
@@ -55,8 +55,6 @@ void UCutMeshWithMeshTool::SetupProperties()
 	IntersectPreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(IntersectPreviewMesh, nullptr); 
 	IntersectPreviewMesh->SetVisible(true);
-	//IntersectPreviewMesh->SetMaterial(MaterialProperties->Material.Get());
-	//IntersectPreviewMesh->SetMaterial(ToolSetupUtil::GetDefaultMaterial(nullptr));
 	IntersectPreviewMesh->SetMaterial(ToolSetupUtil::GetDefaultBrushVolumeMaterial(GetToolManager()));
 }
 
@@ -77,11 +75,12 @@ void UCutMeshWithMeshTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 
 
 	FComponentMaterialSet AllMaterialSet;
-	TMap<UMaterialInterface*, int> KnownMaterials;
 	TArray<TArray<int>> MaterialRemap; MaterialRemap.SetNum(Targets.Num());
 
-	if (!CutProperties->bOnlyUseFirstMeshMaterials)
+	if (!CutProperties->bUseFirstMeshMaterials)
 	{
+		
+		TMap<UMaterialInterface*, int> KnownMaterials;
 		for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
 			FComponentMaterialSet ComponentMaterialSet;
@@ -146,7 +145,7 @@ void UCutMeshWithMeshTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	if (Cast<IAssetBackedTarget>(Targets[0]) != nullptr && Cast<IAssetBackedTarget>(Targets[0])->HasSameSourceData(Targets[1]))
 	{
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("SameSourceError", "WARNING: Target Mesh has same Asset as Cutting Mesh, both inputs will be affected"),
+			LOCTEXT("SameSourceError", "WARNING: Both input meshes have the same Asset; both inputs will be affected."),
 			EToolMessageLevel::UserWarning);
 	}
 }
@@ -168,7 +167,7 @@ public:
 	bool bCollapseExtraEdges = true;
 	double WindingThreshold = 0.5;
 
-	virtual void CalculateResult(FProgressCancel* Progress)
+	virtual void CalculateResult(FProgressCancel* Progress) override
 	{
 		TUniquePtr<FBooleanMeshesOp> SubtractOp = MakeUnique<FBooleanMeshesOp>();
 		SubtractOp->CSGOperation = ECSGOperation::DifferenceAB;
@@ -250,12 +249,12 @@ void UCutMeshWithMeshTool::SetPreviewCallbacks()
 
 void UCutMeshWithMeshTool::UpdateVisualization()
 {
-	FColor BoundaryEdgeColor(240, 15, 15);
-	float BoundaryEdgeThickness = 2.0;
-	float BoundaryEdgeDepthBias = 2.0f;
+	constexpr FColor BoundaryEdgeColor(240, 15, 15);
+	constexpr float BoundaryEdgeThickness = 2.0;
+	constexpr float BoundaryEdgeDepthBias = 2.0f;
 
 	DrawnLineSet->Clear();
-	if (CutProperties->bShowNewBoundaryEdges)
+	if (CutProperties->bShowNewBoundaries)
 	{
 		const FDynamicMesh3* TargetMesh = Preview->PreviewMesh->GetPreviewDynamicMesh();
 		FVector3d A, B;
@@ -285,8 +284,8 @@ TUniquePtr<FDynamicMeshOperator> UCutMeshWithMeshTool::MakeNewOperator()
 	CuttingOp->CuttingMesh = OriginalCuttingMesh;
 	CuttingOp->CuttingMeshTransform = TransformProxies[1]->GetTransform();
 
-	CuttingOp->bAttemptToFixHoles = CutProperties->bAttemptFixHoles;
-	CuttingOp->bCollapseExtraEdges = CutProperties->bCollapseExtraEdges;
+	CuttingOp->bAttemptToFixHoles = CutProperties->bTryFixHoles;
+	CuttingOp->bCollapseExtraEdges = CutProperties->bTryCollapseEdges;
 	CuttingOp->WindingThreshold = CutProperties->WindingThreshold;
 
 	return CuttingOp;
@@ -296,17 +295,17 @@ TUniquePtr<FDynamicMeshOperator> UCutMeshWithMeshTool::MakeNewOperator()
 
 void UCutMeshWithMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCutMeshWithMeshToolProperties, bOnlyUseFirstMeshMaterials)))
+	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCutMeshWithMeshToolProperties, bUseFirstMeshMaterials)))
 	{
 		if (!AreAllTargetsValid())
 		{
-			GetToolManager()->DisplayMessage(LOCTEXT("InvalidTargets", "Target meshes are no longer valid"), EToolMessageLevel::UserWarning);
+			GetToolManager()->DisplayMessage(LOCTEXT("InvalidTargets", "Input meshes are no longer valid"), EToolMessageLevel::UserWarning);
 			return;
 		}
 		ConvertInputsAndSetPreviewMaterials(false);
 		Preview->InvalidateResult();
 	}
-	else if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCutMeshWithMeshToolProperties, bShowNewBoundaryEdges)))
+	else if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCutMeshWithMeshToolProperties, bShowNewBoundaries)))
 	{
 		GetToolManager()->PostInvalidation();
 		UpdateVisualization();
@@ -326,7 +325,7 @@ FString UCutMeshWithMeshTool::GetCreatedAssetName() const
 
 FText UCutMeshWithMeshTool::GetActionName() const
 {
-	return LOCTEXT("CutMeshWithMeshActionName", "Boolean Meshes");
+	return LOCTEXT("CutMeshWithMeshActionName", "Cut Mesh");
 }
 
 

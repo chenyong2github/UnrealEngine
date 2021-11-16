@@ -10,7 +10,7 @@
 
 #include "CutMeshWithMeshTool.generated.h"
 
-// predeclarations
+// Forward declarations
 class UPreviewMesh;
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
@@ -23,25 +23,25 @@ class MESHMODELINGTOOLS_API UCutMeshWithMeshToolProperties : public UInteractive
 {
 	GENERATED_BODY()
 public:
-	/** Automatically attempt to fill any holes left by Booleans (e.g. due to numerical errors) */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "1"))
-	float WindingThreshold = 0.5;
-
-	/** Show boundary edges created by the Boolean operations (often due to numerical error) */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bShowNewBoundaryEdges = true;
-
-	/** Automatically attempt to fill any holes left by Booleans (e.g. due to numerical errors) */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bAttemptFixHoles = false;
+	/** Try to fill holes created by the Boolean operation, e.g. due to numerical errors */
+	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay)
+	bool bTryFixHoles = false;
 
 	/** Try to collapse extra edges created by the Boolean operation */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bCollapseExtraEdges = true;
+	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay)
+	bool bTryCollapseEdges = true;
 
-	/** If true, only the first mesh will keep its materials assignments; all other triangles will be assigned material 0 */
+	/** Threshold to determine whether a triangle in one mesh is inside or outside of the other */
+	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
+	float WindingThreshold = 0.5;
+
+	/** Show boundary edges created by the Boolean operation, which might happen due to numerical errors */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowNewBoundaries = true;
+
+	/** If true, only the first mesh will keep its material assignments, and all other faces will have the first material assigned */
 	UPROPERTY(EditAnywhere, Category = Materials)
-	bool bOnlyUseFirstMeshMaterials = false;
+	bool bUseFirstMeshMaterials = false;
 };
 
 
@@ -70,15 +70,14 @@ protected:
 	virtual void SaveProperties() override;
 	virtual void SetPreviewCallbacks() override;
 
-	virtual FString GetCreatedAssetName() const;
-	virtual FText GetActionName() const;
+	virtual FString GetCreatedAssetName() const override;
+	virtual FText GetActionName() const override;
 
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-protected:
 	void UpdateVisualization();
 
 	UPROPERTY()
