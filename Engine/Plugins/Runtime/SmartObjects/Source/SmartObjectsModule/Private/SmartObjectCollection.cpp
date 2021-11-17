@@ -181,7 +181,8 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 		return false;
 	}
 
-	const TSubclassOf<AActor> OwnerClass = SOComponent.GetOwner()->GetClass();
+	const AActor* ComponentOwner = SOComponent.GetOwner();
+	const TSubclassOf<UObject> OwnerClass = ComponentOwner != nullptr ? ComponentOwner->GetClass() : SOComponent.GetClass();
 
 	uint32 ConfigIndex = INDEX_NONE;
 	if (const uint32* const ExistingConfigIndex = ConfigLookup.Find(OwnerClass))
