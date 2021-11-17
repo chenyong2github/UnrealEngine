@@ -37,6 +37,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = RecomputeSettings)
 	bool bOnlyTangents = false;
 
+	/** If true, update where edges are 'sharp' by comparing adjacent triangle face normals vs the Sharp Edge Angle Threshold. */
+	UPROPERTY(EditAnywhere, Category = RecomputeSettings, meta = (EditCondition = "!bOnlyTangents"))
+	bool bRecomputeSharpEdges = false;
+
+	/** Threshold on angle of change in face normals across an edge, above which we create a sharp edge if bRecomputeSharpEdges is true */
+	UPROPERTY(EditAnywhere, Category = RecomputeSettings, meta = (UIMin = "0.0", UIMax = "180.0", ClampMin = "0.0", ClampMax = "180.0", EditCondition = "bRecomputeSharpEdges && !bOnlyTangents"))
+	float SharpEdgeAngleThreshold = 60.0f;
+
 	/** Whether to only change internal surface normals / tangents */
 	UPROPERTY(EditAnywhere, Category = RecomputeSettings, AdvancedDisplay)
 	bool bOnlyInternalSurfaces = true;

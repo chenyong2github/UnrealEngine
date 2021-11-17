@@ -281,12 +281,14 @@ int32 PLANARCUT_API MergeBones(
  * Recompute normals and tangents of selected geometry, optionally restricted to faces with odd or given material IDs (i.e. to target internal faces)
  *
  * @param bOnlyTangents		If true, leave normals unchanged and only recompute tangent&bitangent vectors
+ * @param bMakeSharpEdges	If true, recompute the normal topology to split normals at 'sharp' edges
+ * @param SharpAngleDegrees	If bMakeSharpEdges, edges w/ adjacent triangle normals deviating by more than this threshold will be sharp edges (w/ split normals)
  * @param Collection		The Geometry Collection to be updated
  * @param TransformIndices	Which transform groups on the Geometry Collection to be updated.  If empty, all groups are updated.
  * @param bOnlyOddMaterials	If true, restrict recomputation to odd-numbered material IDs
  * @param WhichMaterials	If non-empty, restrict recomputation to only the listed material IDs
  */
-void PLANARCUT_API RecomputeNormalsAndTangents(bool bOnlyTangents, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices = TArrayView<const int32>(),
+void PLANARCUT_API RecomputeNormalsAndTangents(bool bOnlyTangents, bool bMakeSharpEdges, float SharpAngleDegrees, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices = TArrayView<const int32>(),
 	bool bOnlyOddMaterials = true, const TArrayView<const int32>& WhichMaterials = TArrayView<const int32>());
 /**
  * Scatter additional vertices (w/ no associated triangle) as needed to satisfy minimum point spacing

@@ -442,19 +442,90 @@ namespace AugmentedDynamicMesh
 		}
 	}
 
-	void ComputeTangents(FDynamicMesh3& Mesh, bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials, bool bRecomputeNormals)
+	void ComputeTangents(FDynamicMesh3& Mesh, bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials,
+		bool bRecomputeNormals, bool bMakeSharpEdges, float SharpAngleDegrees)
 	{
+		bMakeSharpEdges = bMakeSharpEdges && bRecomputeNormals; // cannot make sharp edges if normals aren't supposed to change
+
 		FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
-		FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, !bRecomputeNormals);
-		if (bRecomputeNormals)
-		{
-			FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
-		}
+		FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, !bRecomputeNormals || bMakeSharpEdges);
 
 		// Copy per-vertex UVs to a UV overlay, because that's what the tangents code uses
 		// (TODO: consider making a tangent computation path that uses vertex normals / UVs)
 		InitializeOverlayToPerVertexUVs(Mesh, 1); // tangents only use the first layer
 		FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->PrimaryUV();
+		FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
+
+		auto ShouldUpdateMID = [bOnlyOddMaterials, &WhichMaterials](int MaterialID)
+		{
+			bool bSkipEvenMaterial = bOnlyOddMaterials && ((MaterialID % 2) == 0);
+			return !bSkipEvenMaterial && (WhichMaterials.IsEmpty() || WhichMaterials.Contains(MaterialID));
+		};
+
+		// To update the normals topology, we need to weld and re-split the whole mesh
+		if (bMakeSharpEdges)
+		{
+			FDynamicMeshNormalOverlay NormalsOverlayCopy(&Mesh);
+
+			// Apply coincident edge merge so that sharp normals can be smoothed where the edge angle is below the threshold
+			AugmentedDynamicMesh::InitializeOverlayToPerVertexTangents(Mesh);
+			FMergeCoincidentMeshEdges EdgeWelder(&Mesh);
+			EdgeWelder.Apply();
+
+			NormalsOverlayCopy.Copy(*Normals);
+			// need to re-topo where the materials match WhichMaterials
+			double NormalDotProdThreshold = FMathd::Cos(SharpAngleDegrees * FMathd::DegToRad);
+
+			FMeshNormals FaceNormals(&Mesh);
+			FaceNormals.ComputeTriangleNormals();
+			Normals->CreateFromPredicate([&](int VID, int TA, int TB) {
+				int MA = MaterialIDs->GetValue(TA), MB = MaterialIDs->GetValue(TB);
+				if ((MA % 2) != (MB % 2))
+				{
+					return false; // always split at an internal/external face boundary
+				}
+				bool bShouldUpdateTopo = ShouldUpdateMID(MA) && ShouldUpdateMID(MB);
+				if (bShouldUpdateTopo) // in the region we're updating, don't split above dot threshold
+				{
+					return FaceNormals[TA].Dot(FaceNormals[TB]) > NormalDotProdThreshold;
+				}
+				else // in the region we're not updating, keep the original connectivity
+				{
+					return NormalsOverlayCopy.AreTrianglesConnected(TA, TB);
+				}
+			}, 0);
+
+			// copy back recomputed normals to the triangles that need updating, original normals to the triangles we don't want to change
+			FMeshNormals RecomputedNormals(&Mesh);
+			RecomputedNormals.RecomputeOverlayNormals(Normals);
+			for (int TID : Mesh.TriangleIndicesItr())
+			{
+				FIndex3i OverlayTri = Normals->GetTriangle(TID);
+				if (ShouldUpdateMID(MaterialIDs->GetValue(TID)))
+				{
+					for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+					{
+						int ElementID = OverlayTri[SubIdx];
+						Normals->SetElement(ElementID, RecomputedNormals[ElementID]);
+					}
+				}
+				else
+				{
+					FIndex3i OldOverlayTri = NormalsOverlayCopy.GetTriangle(TID);
+					for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+					{
+						int NewElementID = OverlayTri[SubIdx];
+						int OldElementID = OldOverlayTri[SubIdx];
+						Normals->SetElement(NewElementID, NormalsOverlayCopy.GetElement(OldElementID));
+					}
+				}
+			}
+
+			Mesh.CompactInPlace();
+
+			// Re-split vertices with different UVs/normals/tangents and transfer attributes back (required because we weld edges above)
+			AugmentedDynamicMesh::SplitOverlayAttributesToPerVertex(Mesh, true, true);
+		}
 
 		FComputeTangentsOptions Options;
 		Options.bAngleWeighted = true;
@@ -464,26 +535,31 @@ namespace AugmentedDynamicMesh
 
 		const TArray<FVector3f>& TanU = Tangents.GetTangents();
 		const TArray<FVector3f>& TanV = Tangents.GetBitangents();
-		FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
 		for (int TID : Mesh.TriangleIndicesItr())
 		{
-			int MaterialID = MaterialIDs->GetValue(TID);
-			if (bOnlyOddMaterials && (MaterialID % 2) == 0)
-			{
-				continue;
-			}
-			else if (WhichMaterials.Contains(MaterialID))
+			if (!ShouldUpdateMID(MaterialIDs->GetValue(TID)))
 			{
 				continue;
 			}
 					
 			int TanIdxBase = TID * 3;
 			FIndex3i Tri = Mesh.GetTriangle(TID);
+			
+			FIndex3i NormalElTri;
+			if (!bMakeSharpEdges) // if sharp edges, normals were already copied to the vertices, above
+			{
+				NormalElTri = Normals->GetTriangle(TID);
+			}
 			for (int Idx = 0; Idx < 3; Idx++)
 			{
 				int VID = Tri[Idx];
 				int TanIdx = TanIdxBase + Idx;
-				SetTangent(Mesh, VID, Mesh.GetVertexNormal(VID), TanU[TanIdx], TanV[TanIdx]);
+				FVector3f VertexNormal = bMakeSharpEdges ? Mesh.GetVertexNormal(VID) : Normals->GetElement(NormalElTri[Idx]);
+				if (!bMakeSharpEdges && bRecomputeNormals)
+				{
+					Mesh.SetVertexNormal(VID, VertexNormal);
+				}
+				SetTangent(Mesh, VID, VertexNormal, TanU[TanIdx], TanV[TanIdx]);
 			}
 		}
 	}
