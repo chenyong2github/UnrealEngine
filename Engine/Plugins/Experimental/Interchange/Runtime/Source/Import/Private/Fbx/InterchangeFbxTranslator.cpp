@@ -220,16 +220,15 @@ TFuture<TOptional<UE::Interchange::FStaticMeshPayloadData>> UInterchangeFbxTrans
 		FLargeMemoryReader Ar(FileData, FileDataSize);
 		StaticMeshPayload.MeshDescription.Serialize(Ar);
 
-		// This is a static mesh and the payload should never contain skinned data
+		// This is a static mesh payload can contain skinned data if we need to convert skeletalmesh to staticmesh
 		bool bFetchSkinnedData = false;
 		Ar << bFetchSkinnedData;
 		if (bFetchSkinnedData)
 		{
-			// TODO log an error saying the payload file is the wrong type for a static mesh
-			Promise->SetValue(TOptional<UE::Interchange::FStaticMeshPayloadData>());
-			return;
+			TArray<FString> JointNames;
+			//Read into a dummy structure, we will not use the influence channel of this skinned meshdescription
+			Ar << JointNames;
 		}
-
 		Promise->SetValue(MoveTemp(StaticMeshPayload));
 	}));
 

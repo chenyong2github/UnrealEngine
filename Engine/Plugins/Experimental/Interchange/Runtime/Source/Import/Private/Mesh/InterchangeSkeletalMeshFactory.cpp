@@ -58,7 +58,7 @@ namespace UE
 			void RecursiveAddBones(const UInterchangeBaseNodeContainer* NodeContainer, const FString& JointNodeId, TArray <FJointInfo>& JointInfos, int32 ParentIndex, TArray<SkeletalMeshImportData::FBone>& RefBonesBinary)
 			{
 				const UInterchangeSceneNode* JointNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(JointNodeId));
-				if (!JointNode || !JointNode->IsSpecializedTypeContains(FSceneNodeStaticData::GetJointSpecializeTypeString()))
+				if (!JointNode)
 				{
 					UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid Skeleton Joint"));
 					return;
@@ -386,11 +386,12 @@ namespace UE
 					SkeletalMeshAppendSettings.SourceVertexIDOffset = VertexOffset;
 					FElementIDRemappings ElementIDRemappings;
 					LodMeshPayload->LodMeshDescription.Compact(ElementIDRemappings);
+					const int32 RefBoneCount = RefBonesBinary.Num();
 					//Remap the influence vertex index to point on the correct index
 					if (LodMeshPayload->JointNames.Num() > 0)
 					{
 						const int32 LocalJointCount = LodMeshPayload->JointNames.Num();
-						const int32 RefBoneCount = RefBonesBinary.Num();
+						
 						SkeletalMeshAppendSettings.SourceRemapBoneIndex.AddZeroed(LocalJointCount);
 						for (int32 LocalJointIndex = 0; LocalJointIndex < LocalJointCount; ++LocalJointIndex)
 						{
@@ -418,7 +419,10 @@ namespace UE
 						AppendSettings.MeshTransform.Reset();
 					}
 					FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->LodMeshDescription, LodMeshDescription, AppendSettings);
-					FSkeletalMeshOperations::AppendSkinWeight(LodMeshPayload->LodMeshDescription, LodMeshDescription, SkeletalMeshAppendSettings);
+					if (MeshNodeContext.MeshNode->IsSkinnedMesh())
+					{
+						FSkeletalMeshOperations::AppendSkinWeight(LodMeshPayload->LodMeshDescription, LodMeshDescription, SkeletalMeshAppendSettings);
+					}
 					if (bImportMorphTarget)
 					{
 						FillBlendShapeMeshDescriptionsPerBlendShapeName(MeshNodeContext
