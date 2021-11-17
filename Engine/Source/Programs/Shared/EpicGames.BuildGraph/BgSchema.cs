@@ -755,7 +755,8 @@ namespace EpicGames.BuildGraph
 		{
 			XmlSchemaComplexType PropertyType = new XmlSchemaComplexType();
 			PropertyType.Name = GetTypeName(ScriptSchemaStandardType.Include);
-			PropertyType.Attributes.Add(CreateSchemaAttribute("Script", ScriptSchemaStandardType.Path, XmlSchemaUse.Required));
+			PropertyType.Attributes.Add(CreateSchemaAttribute("Script", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Required));
+			PropertyType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			return PropertyType;
 		}
 
