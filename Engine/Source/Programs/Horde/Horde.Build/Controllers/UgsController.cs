@@ -426,7 +426,7 @@ namespace HordeServer.Controllers
 		public ActionResult<object> PostNetCoreInfo(string? User = null, string? Machine = null, bool NetCore = false)
 		{
 			Logger.LogInformation("NetCore: User={User}, Machine={Machine}, NetCore={NetCore}", User, Machine, NetCore);
-			return new object();
+			return new { };
 		}
 	}
 }
