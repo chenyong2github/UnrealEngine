@@ -87,35 +87,54 @@ void AddSubsurfaceTiledScreenPass(
 	TShaderMapRef<FSubsurfacePassVS>& VertexShader,
 	TShaderMapRef<FSubsurfacePassPS>& PixelShader,
 	FRHIBlendState* BlendState,
+	FRHIDepthStencilState* DepthStencilState,
 	const FScreenPassTextureViewport SceneViewport,
-	FSubsurfaceTiles::ETileType TileType)
+	FSubsurfaceTiles::ETileType TileType,
+	const bool bShouldFallbackToFullScreenPass = false)
 {
-	GraphBuilder.AddPass(
-		Forward<FRDGEventName>(Name),
-		PassParameters,
-		ERDGPassFlags::Raster,
-		[PassParameters, VertexShader, PixelShader, BlendState, Viewport = SceneViewport, TileType](FRHICommandList& RHICmdList)
-		{
-			typename FSubsurfacePassVS::FParameters ParametersVS = PassParameters->TileParameters;
+	if (bShouldFallbackToFullScreenPass)
+	{
+		TShaderMapRef<FScreenPassVS> FallBackVertexShader(View.ShaderMap);
+		AddDrawScreenPass(GraphBuilder,
+			Forward<FRDGEventName>(Name),
+			View,
+			SceneViewport,
+			SceneViewport,
+			FallBackVertexShader,
+			PixelShader,
+			BlendState,
+			DepthStencilState,
+			PassParameters);
+	}
+	else
+	{
+		GraphBuilder.AddPass(
+			Forward<FRDGEventName>(Name),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[PassParameters, VertexShader, PixelShader, DepthStencilState, BlendState, Viewport = SceneViewport, TileType](FRHICommandList& RHICmdList)
+			{
+				typename FSubsurfacePassVS::FParameters ParametersVS = PassParameters->TileParameters;
 
-			FGraphicsPipelineStateInitializer GraphicsPSOInit;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			GraphicsPSOInit.BlendState = BlendState;
-			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Never>::GetRHI();
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				GraphicsPSOInit.BlendState = BlendState;
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = DepthStencilState;
 
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			GraphicsPSOInit.PrimitiveType = PassParameters->TileParameters.bRectPrimitive > 0 ? PT_RectList : PT_TriangleList;
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
-			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
-			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.PrimitiveType = PassParameters->TileParameters.bRectPrimitive > 0 ? PT_RectList : PT_TriangleList;
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
-			RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, Viewport.Extent.X, Viewport.Extent.Y, 1.0f);
-			RHICmdList.SetStreamSource(0, nullptr, 0);
-			RHICmdList.DrawPrimitiveIndirect(PassParameters->TileParameters.TileIndirectBuffer->GetRHI(), FSubsurfaceTiles::GetIndirectDrawArgOffset(TileType));
-		});
+				RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, Viewport.Extent.X, Viewport.Extent.Y, 1.0f);
+				RHICmdList.SetStreamSource(0, nullptr, 0);
+				RHICmdList.DrawPrimitiveIndirect(PassParameters->TileParameters.TileIndirectBuffer->GetRHI(), FSubsurfaceTiles::GetIndirectDrawArgOffset(TileType));
+			});
+	}
 }
 
 /** Clear the UAV texture to black only when ConditionBuffer[Offset] > 0 */

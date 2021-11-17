@@ -1289,27 +1289,36 @@ void AddSubsurfaceViewPass(
 		}
 	}
 
-	// Recombines scattering result with scene color, and updates only SSS region using specialized vertex shader
-	if (SubsurfaceMode != ESubsurfaceMode::Bypass)
+	// Recombines scattering result with scene color, and updates only SSS region using specialized vertex shader.
 	{
 		FRDGTextureRef SubsurfaceIntermediateTexture = GraphBuilder.CreateTexture(SceneColorTextureDesc, TEXT("Subsurface.Recombines"));
 
-		// recombine into intermediate textures before copying back.
+		// When bypassing subsurface scattering, we use the directly full screen pass instead of building the tile
+		// and apply the tile based copy
+		const bool bShouldFallbackToFullScreenPass = SubsurfaceMode == ESubsurfaceMode::Bypass;
+		FRHIDepthStencilState* DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+		// Recombine into intermediate textures before copying back.
 		{
 			FSubsurfaceTiles::ETileType TileType = FSubsurfaceTiles::ETileType::All;
 
 			FSubsurfaceRecombinePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceRecombinePS::FParameters>();
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
-			PassParameters->TileParameters = GetSubsurfaceTileParameters(View, Tiles, TileType, SubsurfaceViewport.Extent);
+			if (SubsurfaceMode != ESubsurfaceMode::Bypass)
+			{
+				PassParameters->TileParameters = GetSubsurfaceTileParameters(View, Tiles, TileType, SubsurfaceViewport.Extent);
+			}
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SubsurfaceIntermediateTexture, SceneColorTextureLoadAction);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SceneColorTexture, SceneViewportParameters);
 			PassParameters->SubsurfaceSampler0 = BilinearBorderSampler;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 			// Scattering output target is only used when scattering is enabled.
-			PassParameters->SubsurfaceInput1 = GetSubsurfaceInput(SubsurfaceSubpassTwoTex, SubsurfaceViewportParameters);
-			PassParameters->SubsurfaceSampler1 = BilinearBorderSampler;
-
+			if (SubsurfaceMode != ESubsurfaceMode::Bypass)
+			{
+				PassParameters->SubsurfaceInput1 = GetSubsurfaceInput(SubsurfaceSubpassTwoTex, SubsurfaceViewportParameters);
+				PassParameters->SubsurfaceSampler1 = BilinearBorderSampler;
+			}
 
 			const FSubsurfaceRecombinePS::EQuality RecombineQuality = FSubsurfaceRecombinePS::GetQuality(View);
 
@@ -1322,27 +1331,32 @@ void AddSubsurfaceViewPass(
 
 			TShaderMapRef<FSubsurfaceRecombinePS> PixelShader(View.ShaderMap, PixelShaderPermutationVector);
 			TShaderMapRef<FSubsurfaceTilePassVS> VertexShader(View.ShaderMap);
+			
+			FRHIBlendState* BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
 			/**
-			 * See the related comment above in the prepare pass. The scene viewport is used as both the target and
-			 * texture viewport in order to ensure that the correct pixel is sampled for checkerboard rendering.
-			 */
+				* See the related comment above in the prepare pass. The scene viewport is used as both the target and
+				* texture viewport in order to ensure that the correct pixel is sampled for checkerboard rendering.
+				*/
 			AddSubsurfaceTiledScreenPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("SubsurfaceRecombine(%s %s%s%s%s) %dx%d",
+				RDG_EVENT_NAME("SubsurfaceRecombine(%s %s%s%s%s%s) %dx%d",
 					GetEventName(PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionMode>()),
 					FSubsurfaceRecombinePS::GetEventName(PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionQuality>()),
 					PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionCheckerboard>() ? TEXT(" Checkerboard") : TEXT(""),
 					PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FDimensionHalfRes>() ? TEXT(" HalfRes") : TEXT(""),
 					PixelShaderPermutationVector.Get<FSubsurfaceRecombinePS::FRunningInSeparable>() ? TEXT(" RunningInSeparable") : TEXT(""),
+					!bShouldFallbackToFullScreenPass ? TEXT(" Tiled") : TEXT(""),
 					View.ViewRect.Width(),
 					View.ViewRect.Height()),
 				View,
 				PassParameters,
 				VertexShader,
 				PixelShader,
-				TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI(),
+				BlendState,
+				DepthStencilState,
 				SceneViewport,
-				TileType);
+				TileType,
+				bShouldFallbackToFullScreenPass);
 		}
 
 		//Write back to the SceneColor texture 
@@ -1351,27 +1365,35 @@ void AddSubsurfaceViewPass(
 
 			FSubsurfaceRecombineCopyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSubsurfaceRecombineCopyPS::FParameters>();
 			PassParameters->Subsurface = SubsurfaceCommonParameters;
-			PassParameters->TileParameters = GetSubsurfaceTileParameters(View, Tiles, TileType, SubsurfaceViewport.Extent);
+			if (SubsurfaceMode != ESubsurfaceMode::Bypass)
+			{
+				PassParameters->TileParameters = GetSubsurfaceTileParameters(View, Tiles, TileType, SubsurfaceViewport.Extent);
+			}
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, SceneColorTextureLoadAction);
 			PassParameters->SubsurfaceInput0 = GetSubsurfaceInput(SubsurfaceIntermediateTexture, SceneViewportParameters);
 			PassParameters->SubsurfaceSampler0 = PointClampSampler;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
-			TShaderMapRef<FSubsurfaceRecombineCopyPS> PixelShader(View.ShaderMap);
+			TShaderMapRef<FSubsurfaceRecombineCopyPS> PixelShader(View.ShaderMap);			
 			TShaderMapRef<FSubsurfaceTilePassVS> VertexShader(View.ShaderMap);
+			
+			FRHIBlendState* BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_Zero>::GetRHI();
 			
 			AddSubsurfaceTiledScreenPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("SubsurfaceCopyToSceneColor %dx%d",
+				RDG_EVENT_NAME("SubsurfaceCopyToSceneColor%s %dx%d",
+					!bShouldFallbackToFullScreenPass ? TEXT("( Tiled)") : TEXT(""),
 					View.ViewRect.Width(),
 					View.ViewRect.Height()),
-				View, 
-				PassParameters, 
-				VertexShader, 
+				View,
+				PassParameters,
+				VertexShader,
 				PixelShader,
-				TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_Zero>::GetRHI(),
-				SceneViewport, 
-				TileType);
+				BlendState,
+				DepthStencilState,
+				SceneViewport,
+				TileType,
+				bShouldFallbackToFullScreenPass);
 		}
 	}
 
