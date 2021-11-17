@@ -165,14 +165,14 @@ struct SLATE_API FInputChord
 	 *
 	 * @return A localized string.
 	 */
-	FText GetInputText() const;
+	FText GetInputText(const bool bLongDisplayName = true) const;
 	
 	/**
 	 * Gets the key represented as a localized string.
 	 *
 	 * @return A localized string.
 	 */
-	FText GetKeyText() const;
+	FText GetKeyText(const bool bLongDisplayName = true) const;
 
 	/**
 	 * Gets the localized string for the modifier portion of the coord. 

@@ -10,23 +10,23 @@
 /**
  * Returns the friendly, localized string name of this key binding
  */
-FText FInputChord::GetInputText( ) const
+FText FInputChord::GetInputText(const bool bLongDisplayName) const
 {
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("Modifiers"), GetModifierText());
-	Args.Add(TEXT("Key"), GetKeyText());
+	Args.Add(TEXT("Key"), GetKeyText(bLongDisplayName));
 
 	return FText::Format(LOCTEXT("InputText", "{Modifiers}{Key}"), Args);
 }
 
 
-FText FInputChord::GetKeyText() const
+FText FInputChord::GetKeyText(const bool bLongDisplayName) const
 {
 	FText OutString;
 
 	if (Key.IsValid() && !Key.IsModifierKey())
 	{
-		OutString = Key.GetDisplayName();
+		OutString = Key.GetDisplayName(bLongDisplayName);
 	}
 
 	return OutString;

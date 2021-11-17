@@ -114,6 +114,9 @@ public:
 
 	FMenuEntryBlock( const FName& InExtensionHook, const FUIAction& UIAction, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FOnGetContent& InMenuBuilder, TSharedPtr<FExtender> InExtender, bool bInSubMenu, bool bInSubMenuOnClick, bool bInCloseSelfOnly, const FSlateIcon& InIcon = FSlateIcon(), bool bInShouldCloseWindowAfterMenuSelection = true);
 
+	/** Construct a menu entry given param struct */
+	FMenuEntryBlock(const FMenuEntryParams& InMenuEntryParams);
+
 	/** FMultiBlock interface */
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
 	virtual bool HasIcon() const override;
@@ -143,6 +146,9 @@ private:
 
 	/** Optional overridden tool tip for this menu entry.  If not set, then the action's tool tip will be used instead. */
 	TAttribute<FText> ToolTipOverride;
+
+	/** Optional overridden input binding text for this menu entry.  If not set, then the UI action's binding will be used if available. */
+	TAttribute<FText> InputBindingOverride;
 
 	/** Optional overridden icon for this tool bar button.  IF not set, then the action's icon will be used instead. */
 	FSlateIcon IconOverride;
@@ -233,6 +239,8 @@ protected:
 		TAttribute<FText> Label;
 		/** The tooltip to display */
 		TAttribute<FText> ToolTip;
+		/** The input binding to display */
+		TAttribute<FText> InputBinding;
 		/** The style set to use */
 		const ISlateStyle* StyleSet;
 		/** The style name to use */

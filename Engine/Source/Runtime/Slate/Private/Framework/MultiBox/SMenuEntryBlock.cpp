@@ -172,6 +172,25 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const FUIAction&
 {
 }
 
+FMenuEntryBlock::FMenuEntryBlock(const FMenuEntryParams& InMenuEntryParams)
+	: FMultiBlock(InMenuEntryParams)
+	, LabelOverride(InMenuEntryParams.LabelOverride)
+	, ToolTipOverride(InMenuEntryParams.ToolTipOverride)
+	, InputBindingOverride(InMenuEntryParams.InputBindingOverride)
+	, IconOverride(InMenuEntryParams.IconOverride)
+	, EntryBuilder(InMenuEntryParams.EntryBuilder)
+	, MenuBuilder(InMenuEntryParams.MenuBuilder)
+	, EntryWidget(InMenuEntryParams.EntryWidget)
+	, bIsSubMenu(InMenuEntryParams.bIsSubMenu)
+	, bIsRecursivelySearchable(InMenuEntryParams.bIsRecursivelySearchable)
+	, bOpenSubMenuOnClick(InMenuEntryParams.bOpenSubMenuOnClick)
+	, UserInterfaceActionType(InMenuEntryParams.UserInterfaceActionType)
+	, bCloseSelfOnly(InMenuEntryParams.bCloseSelfOnly)
+	, Extender(InMenuEntryParams.Extender)
+	, bShouldCloseWindowAfterMenuSelection(InMenuEntryParams.bShouldCloseWindowAfterMenuSelection)
+{
+}
+
 void FMenuEntryBlock::CreateMenuEntry(FMenuBuilder& InMenuBuilder) const
 {
 	InMenuBuilder.AddSubMenu(LabelOverride.Get(), ToolTipOverride.Get(), EntryBuilder, false, IconOverride);	
@@ -434,6 +453,7 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 {
 	const TAttribute<FText>& Label = InBuildParams.Label;
 	const TAttribute<FText>& EntryToolTip = InBuildParams.ToolTip;
+	const TAttribute<FText>& InputBinding = InBuildParams.InputBinding;
 	const TSharedPtr< const FMenuEntryBlock > MenuEntryBlock = InBuildParams.MenuEntryBlock;
 	const TSharedPtr< const FMultiBox > MultiBox = InBuildParams.MultiBox;
 	const TSharedPtr< const FUICommandInfo >& UICommand = InBuildParams.UICommand;
@@ -448,9 +468,6 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 
 	const ISlateStyle* const StyleSet = InBuildParams.StyleSet;
 	const FName& StyleName = InBuildParams.StyleName;
-
-	// Grab the friendly text name for this action's input binding
-	FText InputBindingText = UICommand.IsValid() ? UICommand->GetInputText().ToUpper() : FText::GetEmpty();
 
 	// Allow menu item buttons to be triggered on mouse-up events if the menu is configured to be
 	// dismissed automatically after clicking.  This preserves the behavior people expect for context
@@ -575,13 +592,13 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 		.HAlign( HAlign_Right )
 		[
 			SNew( SBox )
-			.Visibility(InputBindingText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible)
+			.Visibility(InputBinding.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible)
 			.Padding(FMargin(16,0,4,0))
 			[
 				SNew( STextBlock )
 				.TextStyle( StyleSet, ISlateStyle::Join( StyleName, ".Keybinding" ) )
 				.ColorAndOpacity( FSlateColor::UseSubduedForeground() )
-				.Text( InputBindingText )
+				.Text( InputBinding )
 			]
 		];
 	}
@@ -979,7 +996,17 @@ void SMenuEntryBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 	else
 	{
 		BuildParams.ToolTip = BuildParams.UICommand.IsValid() ? BuildParams.UICommand->GetDescription() : FText::GetEmpty();
-	}	
+	}
+
+	// Input bindings are optional so if the binding override is empty and there is no UI command just use the empty tool tip.
+	if (MenuEntryBlock->InputBindingOverride.IsSet())
+	{
+		BuildParams.InputBinding = MenuEntryBlock->InputBindingOverride.Get().ToUpper();
+	}
+	else
+	{
+		BuildParams.InputBinding = BuildParams.UICommand.IsValid() ? BuildParams.UICommand->GetInputText().ToUpper() : FText::GetEmpty();
+	}
 
 	if (bIsEditing)
 	{
