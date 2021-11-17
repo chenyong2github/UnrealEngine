@@ -604,6 +604,10 @@ namespace PropertyEditorHelpers
 		{
 			PropertyHandle = MakeShareable( new FPropertyHandleRotator( PropertyNode, NotifyHook, PropertyUtilities ) );
 		}
+		else if (FPropertyHandleColor::Supports(PropertyNode))
+		{
+			PropertyHandle = MakeShareable(new FPropertyHandleColor(PropertyNode, NotifyHook, PropertyUtilities));
+		}
 		else if (FPropertyHandleSet::Supports(PropertyNode))
 		{
 			PropertyHandle = MakeShareable( new FPropertyHandleSet( PropertyNode, NotifyHook, PropertyUtilities ) );
