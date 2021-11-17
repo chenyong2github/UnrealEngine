@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+using System;
 using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
