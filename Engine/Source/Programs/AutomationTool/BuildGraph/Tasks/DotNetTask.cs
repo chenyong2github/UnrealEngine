@@ -44,6 +44,12 @@ namespace BuildGraph.Tasks
 		/// </summary>
 		[TaskParameter(Optional = true)]
 		public int ErrorLevel = 1;
+
+		/// <summary>
+		/// Override path to dotnet executable
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public FileReference DotNetPath;
 	}
 
 	/// <summary>
@@ -74,7 +80,7 @@ namespace BuildGraph.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			FileReference DotNetFile = HostPlatform.Current.GetDotnetExe();
+			FileReference DotNetFile = Parameters.DotNetPath == null ? HostPlatform.Current.GetDotnetExe() : Parameters.DotNetPath;
 			if(!FileReference.Exists(DotNetFile))
 			{
 				throw new AutomationException("DotNet is missing from {0}", DotNetFile);
