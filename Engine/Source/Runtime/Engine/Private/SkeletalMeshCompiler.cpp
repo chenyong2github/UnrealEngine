@@ -99,7 +99,7 @@ EQueuedWorkPriority FSkeletalMeshCompilingManager::GetBasePriority(USkeletalMesh
 FQueuedThreadPool* FSkeletalMeshCompilingManager::GetThreadPool() const
 {
 	static FQueuedThreadPoolDynamicWrapper* GSkeletalMeshThreadPool = nullptr;
-	if (GSkeletalMeshThreadPool == nullptr)
+	if (GSkeletalMeshThreadPool == nullptr && FAssetCompilingManager::Get().GetThreadPool() != nullptr)
 	{
 		SkeletalMeshCompilingManagerImpl::EnsureInitializedCVars();
 
