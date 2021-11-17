@@ -32,7 +32,7 @@ namespace HordeServer.Collections
 		/// </summary>
 		/// <param name="Id">Id of the user</param>
 		/// <returns>The user information</returns>
-		Task<IUser?> GetCachedUserAsync(UserId Id);
+		ValueTask<IUser?> GetCachedUserAsync(UserId? Id);
 
 		/// <summary>
 		/// Gets a user by unique id

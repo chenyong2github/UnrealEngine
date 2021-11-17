@@ -209,16 +209,20 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<IUser?> GetCachedUserAsync(UserId Id)
+		public async ValueTask<IUser?> GetCachedUserAsync(UserId? Id)
 		{
 			IUser? User;
-			if (UserCache.TryGetValue(Id, out User))
+			if(Id == null)
 			{
-				return Task.FromResult(User);
+				return null;
+			}
+			else if (UserCache.TryGetValue(Id.Value, out User))
+			{
+				return User;
 			}
 			else
 			{
-				return GetUserAsync(Id);
+				return await GetUserAsync(Id.Value);
 			}
 		}
 
