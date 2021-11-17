@@ -144,6 +144,12 @@ public:
 	*/
 	virtual void RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode) = 0;
 
+	/** Mark node as animating, useful if animating during behaviors that trigger widget reconstruction */
+	virtual void MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration) = 0;
+
+	/** Returns true if node is animating, currently we only keep track of the last animated node */
+	virtual bool IsNodeAnimating(TSharedPtr<FPropertyNode> InNode) = 0;
+
 	/** Column width accessibility */
 	virtual class FDetailColumnSizeData& GetColumnSizeData() = 0;
 
