@@ -147,9 +147,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
 	bool bImportMorphTargets = true;
 
+	/** Enable this option to update Skeleton (of the mesh)'s reference pose. Mesh's reference pose is always updated.  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
+	bool bUpdateSkeletonReferencePose = false;
+
 	/** If checked, create new PhysicsAsset if it doesn't have it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY)
-	uint32 bCreatePhysicsAsset : 1;
+	bool bCreatePhysicsAsset;
 
 	/** If this is set, use this specified PhysicsAsset. If its not set and bCreatePhysicsAsset is false, the importer will not generate or set any physic asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SKELETAL_MESHES_CATEGORY, meta = (editcondition = "!bCreatePhysicsAsset"))
@@ -266,6 +270,11 @@ private:
 	 * This function will create any skeletalmesh we need to create according to the pipeline options
 	 */
 	bool ExecutePreImportPipelineSkeletalMesh();
+
+	/**
+	 * This function will finish creating the skeletalmesh asset
+	 */
+	void PostImportSkeletalMesh(UObject* CreatedAsset, UInterchangeBaseNode* Node);
 
 	/**
 	 * This function will finish creating the physics asset with the skeletalmesh render data
