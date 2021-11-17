@@ -557,8 +557,7 @@ namespace HordeServer.Collections.Impl
 			List<JobDocument> Results;
 			using (IScope Scope = GlobalTracer.Instance.BuildSpan("Jobs.Find").StartActive())
 			{
-				BsonString IndexHint = new (nameof(JobDocument.CreateTimeUtc) + "_-1");
-				IFindFluent<JobDocument, JobDocument> Query = Jobs.Find<JobDocument>(Filter, new FindOptions { Hint = IndexHint }).SortByDescending(x => x.CreateTimeUtc!);
+				IFindFluent<JobDocument, JobDocument> Query = Jobs.Find<JobDocument>(Filter).SortByDescending(x => x.CreateTimeUtc!);
 				if (Index != null)
 				{
 					Query = Query.Skip(Index.Value);
