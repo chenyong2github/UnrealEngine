@@ -90,8 +90,9 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 	//Create skeletalmesh factory nodes
 	ExecutePreImportPipelineSkeletalMesh();
 
-	if (bImportStaticMeshes)
+	if (bImportStaticMeshes && (ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_None || ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_StaticMesh))
 	{
+		const bool bConvertSkeletalMeshToStaticMesh = (ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_StaticMesh);
 		if (bCombineStaticMeshes)
 		{
 			// Combine all the static meshes
@@ -101,7 +102,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 			{
 				// If baking transforms, get all the static mesh instance nodes, and group them by LOD
 				TArray<FString> MeshUids;
-				PipelineMeshesUtilities->GetAllStaticMeshInstance(MeshUids);
+				PipelineMeshesUtilities->GetAllStaticMeshInstance(MeshUids, bConvertSkeletalMeshToStaticMesh);
 
 				TMap<int32, TArray<FString>> MeshUidsPerLodIndex;
 
@@ -134,7 +135,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 			{
 				// If we haven't yet managed to build a factory node, look at static mesh geometry directly.
 				TArray<FString> MeshUids;
-				PipelineMeshesUtilities->GetAllStaticMeshGeometry(MeshUids);
+				PipelineMeshesUtilities->GetAllStaticMeshGeometry(MeshUids, bConvertSkeletalMeshToStaticMesh);
 
 				TMap<int32, TArray<FString>> MeshUidsPerLodIndex;
 
@@ -163,7 +164,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 			if (bBakeMeshes)
 			{
 				TArray<FString> MeshUids;
-				PipelineMeshesUtilities->GetAllStaticMeshInstance(MeshUids);
+				PipelineMeshesUtilities->GetAllStaticMeshInstance(MeshUids, bConvertSkeletalMeshToStaticMesh);
 				
 				for (const FString& MeshUid : MeshUids)
 				{
@@ -195,7 +196,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 			if (!bFoundMeshes)
 			{
 				TArray<FString> MeshUids;
-				PipelineMeshesUtilities->GetAllStaticMeshGeometry(MeshUids);
+				PipelineMeshesUtilities->GetAllStaticMeshGeometry(MeshUids, bConvertSkeletalMeshToStaticMesh);
 
 				for (const FString& MeshUid : MeshUids)
 				{

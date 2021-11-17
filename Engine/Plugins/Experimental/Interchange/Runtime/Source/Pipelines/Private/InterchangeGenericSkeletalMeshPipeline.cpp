@@ -211,146 +211,51 @@ namespace UE::Interchange::SkeletalMeshGenericPipeline
 
 bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
 {
-	
-	//PipelineMeshesUtilities;
-	TArray<UInterchangeMeshNode*> SkinnedMeshNodes;
-	TArray<UInterchangeMeshNode*> StaticMeshNodes;
+	if (!bImportSkeletalMeshes)
+	{
+		//Nothing to import
+		return true;
+	}
+
+	if (ForceAllMeshHasType != EInterchangeForceMeshType::IFMT_None && ForceAllMeshHasType != EInterchangeForceMeshType::IFMT_SkeletalMesh)
+	{
+		//Nothing to import
+		return true;
+	}
+	const bool bConvertStaticMeshToSkeletalMesh = (ForceAllMeshHasType == EInterchangeForceMeshType::IFMT_SkeletalMesh);
 	TMap<FString, TArray<FString>> SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid;
-	
-	//Find all translated node we need for this pipeline
-	BaseNodeContainer->IterateNodes([this, &SkinnedMeshNodes, &StaticMeshNodes](const FString& NodeUid, UInterchangeBaseNode* Node)
+
+	auto SetSkeletalMeshDependencies = [&SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid](const FString& JointNodeUid, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode)
 	{
-		switch(Node->GetNodeContainerType())
+		TArray<FString>& SkeletalMeshFactoryDependencyOrder = SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid.FindOrAdd(JointNodeUid);
+		//Updating the skeleton is not multi thread safe, so we add dependency between skeletalmesh altering the same skeleton
+		//TODO make the skeletalMesh ReferenceSkeleton thread safe to allow multiple parallel skeletalmesh factory on the same skeleton asset.
+		int32 DependencyIndex = SkeletalMeshFactoryDependencyOrder.AddUnique(SkeletalMeshFactoryNode->GetUniqueID());
+		if (DependencyIndex > 0)
 		{
-			case EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset:
-			{
-				if (UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(Node))
-				{
-					if (MeshNode->IsSkinnedMesh())
-					{
-						SkinnedMeshNodes.Add(MeshNode);
-					}
-					else
-					{
-						StaticMeshNodes.Add(MeshNode);
-					}
-
-				}
-			}
-			break;
+			const FString SkeletalMeshFactoryNodeDependencyUid = SkeletalMeshFactoryDependencyOrder[DependencyIndex - 1];
+			SkeletalMeshFactoryNode->AddFactoryDependencyUid(SkeletalMeshFactoryNodeDependencyUid);
 		}
-	});
+	};
 
-	if (bImportSkeletalMeshes && SkinnedMeshNodes.Num() > 0)
+	if (bCombineSkeletalMeshes)
 	{
-		auto SetSkeletalMeshDependencies = [&SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid](const FString& JointNodeUid, UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode)
+		//////////////////////////////////////////////////////////////////////////
+		//Combined everything we can
+		TMap<FString, TArray<FString>> MeshUidsPerSkeletonRootUid;
+		auto CreatePerSkeletonRootUidCombinedSkinnedMesh = [this, &MeshUidsPerSkeletonRootUid, &SetSkeletalMeshDependencies](const bool bUseInstanceMesh)
 		{
-			TArray<FString>& SkeletalMeshFactoryDependencyOrder = SkeletalMeshFactoryDependencyOrderPerSkeletonRootNodeUid.FindOrAdd(JointNodeUid);
-			//Updating the skeleton is not multi thread safe, so we add dependency between skeletalmesh altering the same skeleton
-			//TODO make the skeletalMesh ReferenceSkeleton thread safe to allow multiple parallel skeletalmesh factory on the same skeleton asset.
-			int32 DependencyIndex = SkeletalMeshFactoryDependencyOrder.AddUnique(SkeletalMeshFactoryNode->GetUniqueID());
-			if (DependencyIndex > 0)
+			bool bFoundInstances = false;
+			for (const TPair<FString, TArray<FString>>& SkeletonRootUidAndMeshUids : MeshUidsPerSkeletonRootUid)
 			{
-				const FString SkeletalMeshFactoryNodeDependencyUid = SkeletalMeshFactoryDependencyOrder[DependencyIndex - 1];
-				SkeletalMeshFactoryNode->AddFactoryDependencyUid(SkeletalMeshFactoryNodeDependencyUid);
-			}
-		};
-
-		if (bCombineSkeletalMeshes)
-		{
-			//////////////////////////////////////////////////////////////////////////
-			//Combined everything we can
-			TMap<FString, TArray<FString>> MeshUidsPerSkeletonRootUid;
-			auto CreatePerSkeletonRootUidCombinedSkinnedMesh = [this, &MeshUidsPerSkeletonRootUid, &SetSkeletalMeshDependencies](const bool bUseInstanceMesh)
-			{
-				bool bFoundInstances = false;
-				for (const TPair<FString, TArray<FString>>& SkeletonRootUidAndMeshUids : MeshUidsPerSkeletonRootUid)
-				{
-					const FString& SkeletonRootUid = SkeletonRootUidAndMeshUids.Key;
-					//Every iteration is a skeletalmesh asset that combine all MeshInstances sharing the same skeleton root node
-					UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = CreateSkeletonFactoryNode(SkeletonRootUid);
-					//The MeshUids can represent a SceneNode pointing on a MeshNode or directly a MeshNode;
-					TMap<int32, TArray<FString>> MeshUidsPerLodIndex;
-					const TArray<FString>& MeshUids = SkeletonRootUidAndMeshUids.Value;
-					for (const FString& MeshUid : MeshUids)
-					{
-						if (bUseInstanceMesh)
-						{
-							const FInterchangeMeshInstance& MeshInstance = PipelineMeshesUtilities->GetMeshInstanceByUid(MeshUid);
-							for (const TPair<int32, FInterchangeLodSceneNodeContainer>& LodIndexAndSceneNodeContainer : MeshInstance.SceneNodePerLodIndex)
-							{
-								const int32 LodIndex = LodIndexAndSceneNodeContainer.Key;
-								const FInterchangeLodSceneNodeContainer& SceneNodeContainer = LodIndexAndSceneNodeContainer.Value;
-								TArray<FString>& TranslatedNodes = MeshUidsPerLodIndex.FindOrAdd(LodIndex);
-								for (const UInterchangeSceneNode* SceneNode : SceneNodeContainer.SceneNodes)
-								{
-									TranslatedNodes.Add(SceneNode->GetUniqueID());
-								}
-							}
-						}
-						else
-						{
-							//MeshGeometry cannot have Lod since LODs are define in the scene node
-							const FInterchangeMeshGeometry& MeshGeometry = PipelineMeshesUtilities->GetMeshGeometryByUid(MeshUid);
-							const int32 LodIndex = 0;
-							TArray<FString>& TranslatedNodes = MeshUidsPerLodIndex.FindOrAdd(LodIndex);
-							TranslatedNodes.Add(MeshGeometry.MeshUid);
-						}
-					}
-
-					if (MeshUidsPerLodIndex.Num() > 0)
-					{
-						UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = CreateSkeletalMeshFactoryNode(SkeletonRootUid, MeshUidsPerLodIndex);
-						SetSkeletalMeshDependencies(SkeletonRootUid, SkeletalMeshFactoryNode);
-						SkeletonFactoryNodes.Add(SkeletonFactoryNode);
-						SkeletalMeshFactoryNodes.Add(SkeletalMeshFactoryNode);
-						bFoundInstances = true;
-					}
-				}
-				return bFoundInstances;
-			};
-
-			bool bFoundMeshes = false;
-			if (bBakeMeshes)
-			{
-				PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(MeshUidsPerSkeletonRootUid);
-				const bool bUseMeshInstance = true;
-				bFoundMeshes = CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
-			}
-
-			if (!bFoundMeshes)
-			{
-				MeshUidsPerSkeletonRootUid.Empty();
-				PipelineMeshesUtilities->GetCombinedSkinnedMeshGeometries(MeshUidsPerSkeletonRootUid);
-				const bool bUseMeshInstance = false;
-				CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
-			}
-		}
-		else
-		{
-			//////////////////////////////////////////////////////////////////////////
-			//Do not combined meshes
-			TArray<FString> MeshUids;
-			auto CreatePerSkeletonRootUidSkinnedMesh = [this, &MeshUids, &SetSkeletalMeshDependencies](const bool bUseInstanceMesh)
-			{
-				bool bFoundInstances = false;
+				const FString& SkeletonRootUid = SkeletonRootUidAndMeshUids.Key;
+				//Every iteration is a skeletalmesh asset that combine all MeshInstances sharing the same skeleton root node
+				UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = CreateSkeletonFactoryNode(SkeletonRootUid);
+				//The MeshUids can represent a SceneNode pointing on a MeshNode or directly a MeshNode;
+				TMap<int32, TArray<FString>> MeshUidsPerLodIndex;
+				const TArray<FString>& MeshUids = SkeletonRootUidAndMeshUids.Value;
 				for (const FString& MeshUid : MeshUids)
 				{
-					//Every iteration is a skeletalmesh asset that combine all MeshInstances sharing the same skeleton root node
-					//The MeshUids can represent a SceneNode pointing on a MeshNode or directly a MeshNode;
-					TMap<int32, TArray<FString>> MeshUidsPerLodIndex;
-					FString SkeletonRootUid;
-					if (!(bUseInstanceMesh ? PipelineMeshesUtilities->IsValidMeshInstanceUid(MeshUid) : PipelineMeshesUtilities->IsValidMeshGeometryUid(MeshUid)))
-					{
-						continue;
-					}
-					SkeletonRootUid = (bUseInstanceMesh ? PipelineMeshesUtilities->GetMeshInstanceSkeletonRootUid(MeshUid) : PipelineMeshesUtilities->GetMeshGeometrySkeletonRootUid(MeshUid));
-					if (SkeletonRootUid.IsEmpty())
-					{
-						//Log an error
-						continue;
-					}
-					UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = CreateSkeletonFactoryNode(SkeletonRootUid);
 					if (bUseInstanceMesh)
 					{
 						const FInterchangeMeshInstance& MeshInstance = PipelineMeshesUtilities->GetMeshInstanceByUid(MeshUid);
@@ -367,58 +272,116 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
 					}
 					else
 					{
+						//MeshGeometry cannot have Lod since LODs are define in the scene node
 						const FInterchangeMeshGeometry& MeshGeometry = PipelineMeshesUtilities->GetMeshGeometryByUid(MeshUid);
 						const int32 LodIndex = 0;
 						TArray<FString>& TranslatedNodes = MeshUidsPerLodIndex.FindOrAdd(LodIndex);
 						TranslatedNodes.Add(MeshGeometry.MeshUid);
 					}
-					if (MeshUidsPerLodIndex.Num() > 0)
+				}
+
+				if (MeshUidsPerLodIndex.Num() > 0)
+				{
+					UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = CreateSkeletalMeshFactoryNode(SkeletonRootUid, MeshUidsPerLodIndex);
+					SetSkeletalMeshDependencies(SkeletonRootUid, SkeletalMeshFactoryNode);
+					SkeletonFactoryNodes.Add(SkeletonFactoryNode);
+					SkeletalMeshFactoryNodes.Add(SkeletalMeshFactoryNode);
+					bFoundInstances = true;
+				}
+			}
+			return bFoundInstances;
+		};
+
+		bool bFoundMeshes = false;
+		if (bBakeMeshes)
+		{
+			PipelineMeshesUtilities->GetCombinedSkinnedMeshInstances(MeshUidsPerSkeletonRootUid, bConvertStaticMeshToSkeletalMesh);
+			const bool bUseMeshInstance = true;
+			bFoundMeshes = CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
+		}
+
+		if (!bFoundMeshes)
+		{
+			MeshUidsPerSkeletonRootUid.Empty();
+			PipelineMeshesUtilities->GetCombinedSkinnedMeshGeometries(MeshUidsPerSkeletonRootUid);
+			const bool bUseMeshInstance = false;
+			CreatePerSkeletonRootUidCombinedSkinnedMesh(bUseMeshInstance);
+		}
+	}
+	else
+	{
+		//////////////////////////////////////////////////////////////////////////
+		//Do not combined meshes
+		TArray<FString> MeshUids;
+		auto CreatePerSkeletonRootUidSkinnedMesh = [this, &MeshUids, &SetSkeletalMeshDependencies](const bool bUseInstanceMesh)
+		{
+			bool bFoundInstances = false;
+			for (const FString& MeshUid : MeshUids)
+			{
+				//Every iteration is a skeletalmesh asset that combine all MeshInstances sharing the same skeleton root node
+				//The MeshUids can represent a SceneNode pointing on a MeshNode or directly a MeshNode;
+				TMap<int32, TArray<FString>> MeshUidsPerLodIndex;
+				FString SkeletonRootUid;
+				if (!(bUseInstanceMesh ? PipelineMeshesUtilities->IsValidMeshInstanceUid(MeshUid) : PipelineMeshesUtilities->IsValidMeshGeometryUid(MeshUid)))
+				{
+					continue;
+				}
+				SkeletonRootUid = (bUseInstanceMesh ? PipelineMeshesUtilities->GetMeshInstanceSkeletonRootUid(MeshUid) : PipelineMeshesUtilities->GetMeshGeometrySkeletonRootUid(MeshUid));
+				if (SkeletonRootUid.IsEmpty())
+				{
+					//Log an error
+					continue;
+				}
+				UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = CreateSkeletonFactoryNode(SkeletonRootUid);
+				if (bUseInstanceMesh)
+				{
+					const FInterchangeMeshInstance& MeshInstance = PipelineMeshesUtilities->GetMeshInstanceByUid(MeshUid);
+					for (const TPair<int32, FInterchangeLodSceneNodeContainer>& LodIndexAndSceneNodeContainer : MeshInstance.SceneNodePerLodIndex)
 					{
-						UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = CreateSkeletalMeshFactoryNode(SkeletonRootUid, MeshUidsPerLodIndex);
-						SetSkeletalMeshDependencies(SkeletonRootUid, SkeletalMeshFactoryNode);
-						SkeletonFactoryNodes.Add(SkeletonFactoryNode);
-						SkeletalMeshFactoryNodes.Add(SkeletalMeshFactoryNode);
-						bFoundInstances = true;
+						const int32 LodIndex = LodIndexAndSceneNodeContainer.Key;
+						const FInterchangeLodSceneNodeContainer& SceneNodeContainer = LodIndexAndSceneNodeContainer.Value;
+						TArray<FString>& TranslatedNodes = MeshUidsPerLodIndex.FindOrAdd(LodIndex);
+						for (const UInterchangeSceneNode* SceneNode : SceneNodeContainer.SceneNodes)
+						{
+							TranslatedNodes.Add(SceneNode->GetUniqueID());
+						}
 					}
 				}
-				return bFoundInstances;
-			};
+				else
+				{
+					const FInterchangeMeshGeometry& MeshGeometry = PipelineMeshesUtilities->GetMeshGeometryByUid(MeshUid);
+					const int32 LodIndex = 0;
+					TArray<FString>& TranslatedNodes = MeshUidsPerLodIndex.FindOrAdd(LodIndex);
+					TranslatedNodes.Add(MeshGeometry.MeshUid);
+				}
+				if (MeshUidsPerLodIndex.Num() > 0)
+				{
+					UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = CreateSkeletalMeshFactoryNode(SkeletonRootUid, MeshUidsPerLodIndex);
+					SetSkeletalMeshDependencies(SkeletonRootUid, SkeletalMeshFactoryNode);
+					SkeletonFactoryNodes.Add(SkeletonFactoryNode);
+					SkeletalMeshFactoryNodes.Add(SkeletalMeshFactoryNode);
+					bFoundInstances = true;
+				}
+			}
+			return bFoundInstances;
+		};
 			
-			bool bFoundMeshes = false;
-			if (bBakeMeshes)
-			{
-				PipelineMeshesUtilities->GetAllSkinnedMeshInstance(MeshUids);
-				const bool bUseMeshInstance = true;
-				bFoundMeshes = CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
-			}
-
-			if (!bFoundMeshes)
-			{
-				MeshUids.Empty();
-				PipelineMeshesUtilities->GetAllSkinnedMeshGeometry(MeshUids);
-				const bool bUseMeshInstance = false;
-				CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
-			}
-		}
-	}
-
-
-	const UClass* SkeletalMeshFactoryNodeClass = UInterchangeSkeletalMeshFactoryNode::StaticClass();
-	TArray<FString> SkeletalMeshNodeUids;
-	BaseNodeContainer->GetNodes(SkeletalMeshFactoryNodeClass, SkeletalMeshNodeUids);
-
-	//If we import only one asset, and bUseSourceNameForAsset is true, we want to rename the asset using the file name.
-	const int32 MeshesAndAnimsImportedNodeCount = SkeletalMeshNodeUids.Num(); // + StaticMeshNodeUids.Num();
-	if (bUseSourceNameForAsset && MeshesAndAnimsImportedNodeCount == 1)
-	{
-		if (SkeletalMeshNodeUids.Num() > 0)
+		bool bFoundMeshes = false;
+		if (bBakeMeshes)
 		{
-			UInterchangeSkeletalMeshFactoryNode* SkeletalMeshNode = Cast<UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetNode(SkeletalMeshNodeUids[0]));
-			const FString DisplayLabelName = FPaths::GetBaseFilename(SourceDatas[0]->GetFilename());
-			SkeletalMeshNode->SetDisplayLabel(DisplayLabelName);
+			PipelineMeshesUtilities->GetAllSkinnedMeshInstance(MeshUids, bConvertStaticMeshToSkeletalMesh);
+			const bool bUseMeshInstance = true;
+			bFoundMeshes = CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
+		}
+
+		if (!bFoundMeshes)
+		{
+			MeshUids.Empty();
+			PipelineMeshesUtilities->GetAllSkinnedMeshGeometry(MeshUids);
+			const bool bUseMeshInstance = false;
+			CreatePerSkeletonRootUidSkinnedMesh(bUseMeshInstance);
 		}
 	}
-
 	return true;
 }
 
