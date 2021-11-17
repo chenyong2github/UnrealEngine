@@ -89,7 +89,10 @@ bool FSkeinCheckInWorker::Execute(FSkeinSourceControlCommand& InCommand)
 	TArray<FString> ProjectRoots;
 	ProjectRoots.Add(InCommand.SkeinProjectRoot);
 
-	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, ProjectRoots, InCommand.ErrorMessages, States);
+	TArray<FString> StatusParameters;
+	StatusParameters.Add("--all");
+
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, StatusParameters, ProjectRoots, InCommand.ErrorMessages, States);
 
 	// Export properties for each of them (metadata + thumbnail)
 	ParallelFor(States.Num(),
@@ -116,7 +119,7 @@ bool FSkeinCheckInWorker::Execute(FSkeinSourceControlCommand& InCommand)
 	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("projects snapshots create"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, Parameters, TArray<FString>() /* InCommand.Files */, InCommand.InfoMessages, InCommand.ErrorMessages);
 
 	// Cache the new file states
-	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, ProjectRoots, InCommand.ErrorMessages, States);
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, StatusParameters, ProjectRoots, InCommand.ErrorMessages, States);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -141,7 +144,7 @@ bool FSkeinMarkForAddWorker::Execute(FSkeinSourceControlCommand& InCommand)
 
 	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets track"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 
-	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.ErrorMessages, States);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -164,9 +167,9 @@ bool FSkeinDeleteWorker::Execute(FSkeinSourceControlCommand& InCommand)
 {
 	check(InCommand.Operation->GetName() == GetName());
 
-	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets untrack"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
+	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets delete"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 
-	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.ErrorMessages, States);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -191,7 +194,7 @@ bool FSkeinRevertWorker::Execute(FSkeinSourceControlCommand& InCommand)
 
 	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("assets revert"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.InfoMessages, InCommand.ErrorMessages);
 
-	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.ErrorMessages, States);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -214,7 +217,7 @@ bool FSkeinSyncWorker::Execute(FSkeinSourceControlCommand& InCommand)
 
 	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunCommand(TEXT("projects snapshots get"), InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), TArray<FString>(), InCommand.InfoMessages, InCommand.ErrorMessages);
 
-	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
+	SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.ErrorMessages, States);
 
 	return InCommand.bCommandSuccessful;
 }
@@ -237,7 +240,7 @@ bool FSkeinUpdateStatusWorker::Execute(FSkeinSourceControlCommand& InCommand)
 {
 	check(InCommand.Operation->GetName() == GetName());
 
-	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, InCommand.Files, InCommand.ErrorMessages, States);
+	InCommand.bCommandSuccessful = SkeinSourceControlUtils::RunUpdateStatus(InCommand.SkeinBinaryPath, InCommand.SkeinProjectRoot, TArray<FString>(), InCommand.Files, InCommand.ErrorMessages, States);
 
 	return InCommand.bCommandSuccessful;
 }

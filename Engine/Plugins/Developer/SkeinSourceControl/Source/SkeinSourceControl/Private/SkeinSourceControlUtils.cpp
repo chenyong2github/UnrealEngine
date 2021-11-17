@@ -447,7 +447,7 @@ bool RunCommand(const FString& InCommand, const FString& InSkeinBinaryPath, cons
 	return RunCommandBatched(InCommand, InSkeinBinaryPath, InSkeinProjectRoot, InParameters, InFiles, Callback);
 }
 	
-bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InFiles, TArray<FString>& OutErrors, TArray<FSkeinSourceControlState>& OutStates)
+bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, TArray<FString>& OutErrors, TArray<FSkeinSourceControlState>& OutStates)
 {
 	auto Callback = 
 		[&] (bool bBatchResult, const TArray<FString>& BatchFiles, const FString& BatchMessage, const TSharedPtr<FJsonObject>& BatchData)
@@ -483,7 +483,7 @@ bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinPro
 		TArray<FString> Paths;
 		Paths.Add(UniquePath);
 
-		if (!RunCommandBatched(TEXT("projects status"), InSkeinBinaryPath, InSkeinProjectRoot, TArray<FString>(), Paths, Callback))
+		if (!RunCommandBatched(TEXT("projects status"), InSkeinBinaryPath, InSkeinProjectRoot, InParameters, Paths, Callback))
 		{
 			NumErrors++;
 		}

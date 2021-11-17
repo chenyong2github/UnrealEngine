@@ -76,10 +76,11 @@ bool RunCommand(const FString& InCommand, const FString& InSkeinBinaryPath, cons
  *
  * @param	InSkeinBinaryPath	The path to the Skein binary
  * @param	InSkeinProjectRoot	The Skein project root from where to run the command
+ * @param	InParameters		The parameters to the Skein command
  * @param	InFiles				The files to be operated on
  * @param	OutErrors			Any errors as an array per-line
  * @param   OutStates           The state of each of the input files
  * @returns true if the command succeeded and returned no errors
  */
-bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InFiles, TArray<FString>& OutErrors, TArray<FSkeinSourceControlState>& OutStates);
+bool RunUpdateStatus(const FString& InSkeinBinaryPath, const FString& InSkeinProjectRoot, const TArray<FString>& InParameters, const TArray<FString>& InFiles, TArray<FString>& OutErrors, TArray<FSkeinSourceControlState>& OutStates);
 }
