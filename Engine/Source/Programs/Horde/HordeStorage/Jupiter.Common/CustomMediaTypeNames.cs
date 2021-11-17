@@ -1,4 +1,6 @@
-﻿namespace Jupiter
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+namespace Jupiter
 {
     public class CustomMediaTypeNames
     {
