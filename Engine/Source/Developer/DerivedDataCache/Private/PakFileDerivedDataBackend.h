@@ -2,21 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "HAL/FileManager.h"
-#include "Misc/Paths.h"
+#include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 #include "DerivedDataBackendInterface.h"
-#include "ProfilingDebugging/CookStats.h"
 #include "DerivedDataCacheUsageStats.h"
-#include "Misc/ScopeLock.h"
-#include "Misc/FileHelper.h"
-#include "Serialization/MemoryReader.h"
-#include "Serialization/MemoryWriter.h"
+#include "HAL/CriticalSection.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "Templates/UniquePtr.h"
 
-class Error;
+class FCompressedBuffer;
+class IFileHandle;
 
-namespace UE::DerivedData::Backends
+namespace UE::DerivedData { class FOptionalCacheRecord; }
+namespace UE::DerivedData { class FPayload; }
+
+namespace UE::DerivedData::CacheStore::PakFile
 {
 
 /** 
@@ -91,7 +91,7 @@ public:
 	
 	const FString& GetFilename() const
 	{
-		return Filename;
+		return CachePath;
 	}
 
 	static bool SortAndCopy(const FString &InputFilename, const FString &OutputFilename);
@@ -128,6 +128,34 @@ public:
 		FOnCacheGetChunkComplete&& OnComplete) override;
 
 private:
+	uint64 MeasureCompressedCacheRecord(const FCacheRecord& Record) const;
+	uint64 MeasureRawCacheRecord(const FCacheRecord& Record) const;
+
+	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy);
+	bool PutCacheContent(const FCompressedBuffer& Content, const FStringView Context);
+
+	FOptionalCacheRecord GetCacheRecordOnly(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FCacheRecordPolicy& Policy);
+	FOptionalCacheRecord GetCacheRecord(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const FCacheRecordPolicy& Policy,
+		EStatus& OutStatus);
+	void GetCacheContent(
+		const FCacheKey& Key,
+		const FStringView Context,
+		const ECachePolicy Policy,
+		const ECachePolicy SkipFlag,
+		FPayload& InOutPayload,
+		EStatus& InOutStatus);
+
+	bool SaveFile(FStringView Path, FStringView Context, TFunctionRef<void (FArchive&)> WriteFunction);
+	FSharedBuffer LoadFile(FStringView Path, FStringView Context);
+	bool FileExists(FStringView Path);
+
+private:
 	FDerivedDataCacheUsageStats UsageStats;
 
 	struct FCacheValue
@@ -135,7 +163,7 @@ private:
 		int64 Offset;
 		int64 Size;
 		uint32 Crc;
-		FCacheValue(int64 InOffset, uint32 InSize, uint32 InCrc)
+		FCacheValue(int64 InOffset, int64 InSize, uint32 InCrc)
 			: Offset(InOffset)
 			, Size(InSize)
 			, Crc(InCrc)
@@ -147,14 +175,20 @@ private:
 	bool bWriting;
 	/** When set to true, we are a pak writer and we saved, so we shouldn't be used anymore. Also, a read cache that failed to open. */
 	bool bClosed;
-	/** Object used for synchronization via a scoped lock						*/
-	FCriticalSection	SynchronizationObject;
+	/** Object used for synchronization via scoped read or write locks. */
+	FRWLock SynchronizationObject;
 	/** Set of files that are being written to disk asynchronously. */
 	TMap<FString, FCacheValue> CacheItems;
 	/** File handle of pak. */
-	TUniquePtr<FArchive> FileHandle;
+	TUniquePtr<IFileHandle> FileHandle;
 	/** File name of pak. */
-	FString Filename;
+	FString CachePath;
+
+	/** Maximum total size of compressed data stored within a record package with multiple attachments. */
+	uint64 MaxRecordSizeKB = 256;
+	/** Maximum total size of compressed data stored within a value package, or a record package with one attachment. */
+	uint64 MaxValueSizeKB = 1024;
+
 	enum 
 	{
 		/** Magic number to use in header */
@@ -181,4 +215,4 @@ private:
 	static const ECompressionFlags CompressionFlags = COMPRESS_BiasMemory;
 };
 
-} // UE::DerivedData::Backends
+} // UE::DerivedData::CacheStore::PakFile

@@ -17,7 +17,7 @@ public:
 	void Serialize(void* V, int64 Length) override
 	{
 		FArchiveProxy::Serialize(V, Length);
-		HashBuilder.Update(V, Length);
+		HashBuilder.Update(V, uint64(Length));
 	}
 
 	void Seek(int64 InPos) override
@@ -26,7 +26,7 @@ public:
 		FArchiveProxy::Seek(InPos);
 	}
 
-	auto GetHash() const -> decltype(DeclVal<HashBuilderType>().Finalize())
+	auto GetHash() -> decltype(DeclVal<HashBuilderType>().Finalize())
 	{
 		return HashBuilder.Finalize();
 	}
