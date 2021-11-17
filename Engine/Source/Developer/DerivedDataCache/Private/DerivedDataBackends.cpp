@@ -295,6 +295,8 @@ public:
 	 */
 	FDerivedDataBackendInterface* ParsePak( const TCHAR* NodeName, const TCHAR* Entry, const bool bWriting )
 	{
+		using namespace CacheStore::PakFile;
+
 		FDerivedDataBackendInterface* PakNode = NULL;
 		FString PakFilename;
 		FParse::Value( Entry, TEXT("Filename="), PakFilename );
@@ -1074,7 +1076,7 @@ public:
 
 				for(const FString& MergePakName : MergePakList)
 				{
-					FPakFileDerivedDataBackend ReadPak(*FPaths::Combine(*FPaths::GetPath(WritePakFilename), *MergePakName), false);
+					CacheStore::PakFile::FPakFileDerivedDataBackend ReadPak(*FPaths::Combine(*FPaths::GetPath(WritePakFilename), *MergePakName), false);
 					WritePakCache->MergeCache(&ReadPak);
 				}
 			}
@@ -1099,7 +1101,7 @@ public:
 							UE_LOG(LogDerivedDataCache, Error, TEXT("Could not delete the pak file %s to overwrite it with a new one."), *ReadPakFilename);
 						}
 					}
-					if (!FPakFileDerivedDataBackend::SortAndCopy(WritePakFilename, ReadPakFilename))
+					if (!CacheStore::PakFile::FPakFileDerivedDataBackend::SortAndCopy(WritePakFilename, ReadPakFilename))
 					{
 						UE_LOG(LogDerivedDataCache, Error, TEXT("Couldn't sort pak file (%s)"), *WritePakFilename);
 					}
@@ -1163,10 +1165,10 @@ public:
 	{
 		// Assumptions: there's at least one read-only pak backend in the hierarchy
 		// and its parent is a hierarchical backend.
-		FPakFileDerivedDataBackend* ReadPak = NULL;
+		CacheStore::PakFile::FPakFileDerivedDataBackend* ReadPak = NULL;
 		if (HierarchicalWrapper && FPlatformFileManager::Get().GetPlatformFile().FileExists(PakFilename))
 		{
-			ReadPak = new FPakFileDerivedDataBackend(PakFilename, false);
+			ReadPak = new CacheStore::PakFile::FPakFileDerivedDataBackend(PakFilename, false);
 
 			HierarchicalWrapper->AddInnerBackend(ReadPak);
 			CreatedBackends.Add(ReadPak);
@@ -1184,7 +1186,7 @@ public:
 	{
 		for (int PakIndex = 0; PakIndex < ReadPakCache.Num(); ++PakIndex)
 		{
-			FPakFileDerivedDataBackend* ReadPak = ReadPakCache[PakIndex];
+			CacheStore::PakFile::FPakFileDerivedDataBackend* ReadPak = ReadPakCache[PakIndex];
 			if (ReadPak->GetFilename() == PakFilename)
 			{
 				check(HierarchicalWrapper);
@@ -1261,12 +1263,12 @@ private:
 
 	/** Instances of backend interfaces which exist in only one copy */
 	FFileBackedDerivedDataBackend*	BootCache;
-	FPakFileDerivedDataBackend*		WritePakCache;
+	CacheStore::PakFile::FPakFileDerivedDataBackend* WritePakCache;
 	FDerivedDataBackendInterface*	AsyncPutWrapper;
 	FDerivedDataBackendInterface*	KeyLengthWrapper;
 	FHierarchicalDerivedDataBackend* HierarchicalWrapper;
 	/** Support for multiple read only pak files. */
-	TArray<FPakFileDerivedDataBackend*>		ReadPakCache;
+	TArray<CacheStore::PakFile::FPakFileDerivedDataBackend*> ReadPakCache;
 
 	/** List of directories used by the DDC */
 	TArray<FString> Directories;
