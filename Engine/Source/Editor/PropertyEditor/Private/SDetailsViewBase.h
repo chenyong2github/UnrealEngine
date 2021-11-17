@@ -131,6 +131,8 @@ public:
 	virtual const FCustomPropertyTypeLayoutMap& GetCustomPropertyTypeLayoutMap() const { return InstancedTypeToLayoutMap; }
 	virtual void SaveExpandedItems( TSharedRef<FPropertyNode> StartNode ) override;
 	virtual void RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode) override;
+	virtual void MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration) override;
+	virtual bool IsNodeAnimating(TSharedPtr<FPropertyNode> InNode) override;
 	virtual FDetailColumnSizeData& GetColumnSizeData() override { return ColumnSizeData; }
 	virtual bool IsFavoritingEnabled() const override { return DetailsViewArgs.bAllowFavoriteSystem; }
 	virtual bool IsConnected() const = 0;
@@ -176,6 +178,9 @@ protected:
 	 * Called when a color property is changed from a color picker
 	 */
 	void SetColorPropertyFromColorPicker(FLinearColor NewColor);
+
+	/** Called when node animation completes */
+	void HandleNodeAnimationComplete();
 
 	/** Updates the property map for access when customizing the details view.  Generates default layout for properties */
 	void UpdatePropertyMaps();
@@ -403,8 +408,12 @@ protected:
 	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler;
 	/** Property extension handler returns additional UI to apply after the customization is applied to the property. */
 	TSharedPtr<IDetailPropertyExtensionHandler> ExtensionHandler;
-	/** The tree node that is currently highlighted, may be none: */
+	/** The tree node that is currently highlighted, may be none. */
 	TWeakPtr<FDetailTreeNode> CurrentlyHighlightedNode;
+	/** The property node whose widget-equivalent should be animating, may be none. */
+	TSharedPtr<FPropertyPath> CurrentlyAnimatingNodePath;
+	/** Timer for that current node's widget animation duration. */
+	FTimerHandle AnimateNodeTimer;
 
 	TSet<FString> PreSearchExpandedItems;
 	TSet<FString> PreSearchExpandedCategories;

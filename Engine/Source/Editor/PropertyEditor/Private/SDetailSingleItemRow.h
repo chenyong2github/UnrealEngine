@@ -60,6 +60,10 @@ public:
 	 */
 	void Construct( const FArguments& InArgs, FDetailLayoutCustomization* InCustomization, bool bHasMultipleColumns, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView );
 
+	// ~Begin SWidget Interface
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	// ~Begin End Interface
+
 	TSharedPtr<FDragDropOperation> CreateDragDropOperation();
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
@@ -117,6 +121,11 @@ private:
 	TSharedPtr<FPropertyNode> SwappablePropertyNode;
 	TSharedPtr<SButton> ExpanderArrow;
 	TWeakPtr<FDragDropOperation> DragOperation; // last drag initiated by this widget
+	FUIAction CopyAction;
+	FUIAction PasteAction;
+
+	/** Animation curve for displaying pulse */
+	FCurveSequence PulseAnimation;
 };
 
 class FArrayRowDragDropOp : public FDecoratedDragDropOp

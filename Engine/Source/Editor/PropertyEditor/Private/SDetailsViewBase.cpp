@@ -1315,6 +1315,32 @@ void SDetailsViewBase::RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode)
 	}
 }
 
+void SDetailsViewBase::MarkNodeAnimating(TSharedPtr<FPropertyNode> InNode, float InAnimationDuration)
+{
+	if (InNode.IsValid() && InAnimationDuration > 0.0f)
+	{
+		CurrentlyAnimatingNodePath = FPropertyNode::CreatePropertyPath(InNode.ToSharedRef());
+		GEditor->GetTimerManager()->ClearTimer(AnimateNodeTimer);
+		GEditor->GetTimerManager()->SetTimer(AnimateNodeTimer, FTimerDelegate::CreateSP(this, &SDetailsViewBase::HandleNodeAnimationComplete), InAnimationDuration, false);
+	}
+}
+
+bool SDetailsViewBase::IsNodeAnimating(TSharedPtr<FPropertyNode> InNode)
+{
+	if (CurrentlyAnimatingNodePath.IsValid() && InNode.IsValid())
+	{
+		TSharedRef<FPropertyPath> InNodePath = FPropertyNode::CreatePropertyPath(InNode.ToSharedRef());
+		return FPropertyPath::AreEqual(CurrentlyAnimatingNodePath.ToSharedRef(), InNodePath);
+	}
+
+	return false;
+}
+
+void SDetailsViewBase::HandleNodeAnimationComplete()
+{
+	CurrentlyAnimatingNodePath = nullptr;
+}
+
 void SDetailsViewBase::UpdateFilteredDetails()
 {
 	RootTreeNodes.Reset();
