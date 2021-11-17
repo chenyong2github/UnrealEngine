@@ -81,7 +81,7 @@ void UDebugDrawService::Draw(const FEngineShowFlags Flags, FViewport* Viewport, 
 
 void UDebugDrawService::Draw(const FEngineShowFlags Flags, UCanvas* Canvas)
 {
-	if (Canvas == nullptr)
+	if (Canvas == nullptr || Canvas->Canvas == nullptr)
 	{
 		return;
 	}
