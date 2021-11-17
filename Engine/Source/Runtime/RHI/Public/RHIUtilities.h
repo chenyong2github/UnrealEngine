@@ -106,6 +106,36 @@ static bool IsFloatFormat(EPixelFormat Format)
 	return false;
 }
 
+static bool IsUnormFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_R5G6B5_UNORM:
+	case PF_R16G16B16A16_UNORM:
+	case PF_B5G5R5A1_UNORM:
+		return true;
+
+	default:
+		break;
+	}
+	return false;
+}
+
+static bool IsSnormFormat(EPixelFormat Format)
+{
+	switch (Format)
+	{
+	case PF_R8G8B8A8_SNORM:
+	case PF_R16G16B16A16_SNORM:
+	case PF_G16R16_SNORM:
+		return true;
+
+	default:
+		break;
+	}
+	return false;
+}
+
 /** Get the best default resource state for the given texture creation flags */
 extern RHI_API ERHIAccess RHIGetDefaultResourceState(ETextureCreateFlags InUsage, bool bInHasInitialData);
 
