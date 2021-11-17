@@ -1238,7 +1238,7 @@ int32 MergeBones(
 }
 
 
-void RecomputeNormalsAndTangents(bool bOnlyTangents, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices,
+void RecomputeNormalsAndTangents(bool bOnlyTangents, bool bMakeSharpEdges, float SharpAngleDegrees, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices,
 								 bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials)
 {
 	FTransform CellsToWorld = FTransform::Identity;
@@ -1248,7 +1248,7 @@ void RecomputeNormalsAndTangents(bool bOnlyTangents, FGeometryCollection& Collec
 	for (int MeshIdx = 0; MeshIdx < MeshCollection.Meshes.Num(); MeshIdx++)
 	{
 		FDynamicMesh3& Mesh = MeshCollection.Meshes[MeshIdx].AugMesh;
-		AugmentedDynamicMesh::ComputeTangents(Mesh, bOnlyOddMaterials, WhichMaterials, !bOnlyTangents);
+		AugmentedDynamicMesh::ComputeTangents(Mesh, bOnlyOddMaterials, WhichMaterials, !bOnlyTangents, bMakeSharpEdges, SharpAngleDegrees);
 	}
 
 	MeshCollection.UpdateAllCollections(Collection);

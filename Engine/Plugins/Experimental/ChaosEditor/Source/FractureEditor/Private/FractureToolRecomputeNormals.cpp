@@ -135,7 +135,7 @@ int32 UFractureToolRecomputeNormals::ExecuteFracture(const FFractureToolContext&
 		const UFractureCollisionSettings* LocalCutSettings = CollisionSettings;
 
 		bool bOnlyInternalFaces = true;
-		RecomputeNormalsAndTangents(NormalsSettings->bOnlyTangents, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), NormalsSettings->bOnlyInternalSurfaces);
+		RecomputeNormalsAndTangents(NormalsSettings->bOnlyTangents, NormalsSettings->bRecomputeSharpEdges, NormalsSettings->SharpEdgeAngleThreshold, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), NormalsSettings->bOnlyInternalSurfaces);
 	}
 
 	return INDEX_NONE;
