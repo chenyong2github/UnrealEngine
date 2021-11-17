@@ -196,6 +196,7 @@ public:
 	FUICommandInfo( const FName InBindingContext )
 		: BindingContext( InBindingContext )
 		, UserInterfaceType( EUserInterfaceActionType::Button )
+		, bUseLongDisplayName( true )
 	{
 		ActiveChords.Empty(2);
 		ActiveChords.Add(TSharedRef<FInputChord>(new FInputChord));
@@ -268,6 +269,12 @@ public:
 	/** @return The name of the bundle this command is assigned to */
 	FName GetBundle() const { return Bundle; }
 
+	/** @return True if should we use long names for when getting text for input chords */
+	bool GetUseLongDisplayName() const { return bUseLongDisplayName; }
+
+	/** Sets if we should use a long display name or not */
+	void SetUseLongDisplayName(const bool bInUseLongDisplayName) { bUseLongDisplayName = bInUseLongDisplayName; }
+
 	/** Sets the new active chord for this command */
 	void SetActiveChord( const FInputChord& NewChord, const EMultipleKeyBindingIndex InChordIndex );
 
@@ -312,4 +319,7 @@ private:
 
 	/** The type of user interface to associated with this action */
 	EUserInterfaceActionType UserInterfaceType;
+
+	/** True if should we use long names for when getting text for input chords */
+	bool bUseLongDisplayName;
 };

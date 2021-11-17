@@ -154,7 +154,55 @@ protected:
 	bool bExtendersEnabled;
 };
 
+/** Helper struct that holds FMenuEntry params for construction */
+struct FMenuEntryParams : public FMultiBlock::FMultiBlockParams
+{
+	/** Optional overridden text label for this menu entry.  If not set, then the action's label will be used instead. */
+	TAttribute<FText> LabelOverride;
 
+	/** Optional overridden tool tip for this menu entry.  If not set, then the action's tool tip will be used instead. */
+	TAttribute<FText> ToolTipOverride;
+
+	/** Optional overridden input binding text for this menu entry.  If not set, then the UI action's binding will be used if available. */
+	TAttribute<FText> InputBindingOverride;
+
+	/** Optional overridden icon for this tool bar button.  IF not set, then the action's icon will be used instead. */
+	FSlateIcon IconOverride;
+
+	/** Optional menu entry builder associated with this entry for building sub-menus and pull down menus */
+	FNewMenuDelegate EntryBuilder;
+
+	/** Delegate that returns an entire menu */
+	FOnGetContent MenuBuilder;
+
+	/** Widget to be added to the menu */
+	TSharedPtr<SWidget> EntryWidget;
+
+	/** True if this menu entry opens a sub-menu */
+	bool bIsSubMenu = false;
+
+	/** True if the search algorithm should walk down this menu sub menus. Usually true, unless the menu has circular/infinite expansion (happens in some menus generated on the fly by reflection). */
+	bool bIsRecursivelySearchable = true;;
+
+	/** True if this menu entry opens a sub-menu by clicking on it only */
+	bool bOpenSubMenuOnClick = false;
+
+	/** In the case where a command is not bound, the user interface action type to use.  If a command is bound, we
+		simply use the action type associated with that command. */
+	EUserInterfaceActionType UserInterfaceActionType;
+
+	/** True if the menu should close itself and all its children or the entire open menu stack */
+	bool bCloseSelfOnly = false;
+
+	/** An extender that this menu entry should pass down to its children, so they get extended properly */
+	TSharedPtr<FExtender> Extender;
+
+	/** For submenus, whether the menu should be closed after something is selected */
+	bool bShouldCloseWindowAfterMenuSelection = true;
+
+	/** Display name for tutorials */
+	FName TutorialHighlightName;
+};
 
 /**
  * Base menu builder
@@ -199,8 +247,21 @@ public:
 	 * @param	InTutorialHighlightName	Optional name to identify this widget and highlight during tutorials
 	 */
 	void AddMenuEntry( const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FSlateIcon& InIcon, const FUIAction& UIAction, FName InExtensionHook = NAME_None, const EUserInterfaceActionType UserInterfaceActionType = EUserInterfaceActionType::Button, FName InTutorialHighlightName = NAME_None );
-
+	
+	/**
+	 * Adds a menu entry with a custom widget
+	 *
+	 * @param	UIAction				Actions to execute on this menu item.
+	 * @param	Contents				Custom widget to display
+	 * @param	InExtensionHook			The section hook. Can be NAME_None
+	 * @param	InToolTip				Tool tip used when hovering over the menu entry
+	 * @param	UserInterfaceActionType	Type of interface action
+	 * @param	InTutorialHighlightName	Optional name to identify this widget and highlight during tutorials
+	 */
 	void AddMenuEntry( const FUIAction& UIAction, const TSharedRef< SWidget > Contents, const FName& InExtensionHook = NAME_None, const TAttribute<FText>& InToolTip = TAttribute<FText>(), const EUserInterfaceActionType UserInterfaceActionType = EUserInterfaceActionType::Button, FName InTutorialHighlightName = NAME_None );
+
+	/** Adds a menu entry with given param struct */
+	void AddMenuEntry( const FMenuEntryParams& InMenuEntryParams );
 
 protected:
 	/** True if clicking on a menu entry closes itself only and its children and not the entire stack */

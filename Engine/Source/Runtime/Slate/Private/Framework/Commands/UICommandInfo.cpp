@@ -100,7 +100,7 @@ FUICommandInfoDecl::operator TSharedRef<FUICommandInfo>() const
 const FText FUICommandInfo::GetInputText() const
 {	
 	// Just get the text from the first valid chord, there isn't enough room for all of them
-	return GetFirstValidChord()->GetInputText();
+	return GetFirstValidChord()->GetInputText(bUseLongDisplayName);
 }
 
 

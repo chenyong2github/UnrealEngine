@@ -60,6 +60,27 @@ class SLATE_API FMultiBlock
 
 public:
 
+	struct FMultiBlockParams
+	{
+		/** Direct processing of actions. Will use these actions if there is not UICommand associated with this block that handles actions*/
+		FUIAction DirectActions;
+
+		/** The action associated with this block (can be null for some actions) */
+		const TSharedPtr< const FUICommandInfo > Action;
+
+		/** The list of mappings from command info to delegates that should be called. This is here for quick access. Can be null for some widgets*/
+		const TSharedPtr< const FUICommandList > ActionList;
+
+		/** Optional extension hook which is used for debug display purposes, so users can see what hooks are where */
+		FName ExtensionHook;
+
+		/** Type of MultiBlock */
+		EMultiBlockType Type = EMultiBlockType::None;
+
+		/** Whether this block is part of the heading blocks for a section */
+		bool bIsPartOfHeading = false;
+	};
+
 	/**
 	 * Constructor
  	 *
@@ -80,7 +101,7 @@ public:
 	/**
 	 * Constructor
 	 *
-	 * @InAction UI action delegates that should be used in place of UI commands (dynamic menu items)
+	 * @param InAction	UI action delegates that should be used in place of UI commands (dynamic menu items)
 	 */
 	FMultiBlock( const FUIAction& InAction,  FName InExtensionHook = NAME_None, EMultiBlockType InType = EMultiBlockType::None, bool bInIsPartOfHeading = false, TSharedPtr< const FUICommandList > InCommandList = nullptr )
 		: DirectActions( InAction )
@@ -91,6 +112,24 @@ public:
 		, bSearchable(true)
 		, bIsPartOfHeading(bInIsPartOfHeading)
 	{
+	}
+
+	/**
+	 * Constructor
+	 *
+	 * @param InMultiBlockParams	Bundle of params for construction
+	 */
+	FMultiBlock(const FMultiBlockParams& InMultiBlockParams)
+		: DirectActions(InMultiBlockParams.DirectActions)
+		, Action(InMultiBlockParams.Action)
+		, ActionList(InMultiBlockParams.ActionList)
+		, ExtensionHook(InMultiBlockParams.ExtensionHook)
+		, Type(InMultiBlockParams.Type)
+		, TutorialHighlightName(NAME_None)
+		, bSearchable(true)
+		, bIsPartOfHeading(InMultiBlockParams.bIsPartOfHeading)
+	{
+		check(Action.IsValid() || DirectActions.IsBound());
 	}
 
 	virtual ~FMultiBlock()
