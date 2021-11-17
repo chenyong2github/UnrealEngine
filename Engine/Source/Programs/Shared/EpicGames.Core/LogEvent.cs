@@ -491,8 +491,6 @@ namespace EpicGames.Core
 			{
 				Write(Writer);
 			}
-			Buffer.GetSpan(1)[0] = (byte)'\n';
-			Buffer.Advance(1);
 			return Buffer.WrittenSpan.ToArray();
 		}
 
