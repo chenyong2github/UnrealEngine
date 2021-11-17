@@ -110,7 +110,7 @@ protected:
 	TMap<FSmartObjectID, FSoftObjectPath> RegisteredIdToObjectMap;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
-	TMap<TSubclassOf<AActor>, uint32> ConfigLookup;
+	TMap<TSubclassOf<UObject>, uint32> ConfigLookup;
 
 	UPROPERTY(VisibleAnywhere, Category = SmartObject)
 	TArray<TObjectPtr<USmartObjectComponent>> Configurations;
