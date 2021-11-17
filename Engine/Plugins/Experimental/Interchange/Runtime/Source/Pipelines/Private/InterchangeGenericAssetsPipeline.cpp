@@ -237,6 +237,8 @@ bool UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterch
 		return false;
 	}
 
+	PostImportSkeletalMesh(CreatedAsset, Node);
+
 	//Finish the physics asset import, it need the skeletal mesh render data to create the physics collision geometry
 	PostImportPhysicsAssetImport(CreatedAsset, Node);
 

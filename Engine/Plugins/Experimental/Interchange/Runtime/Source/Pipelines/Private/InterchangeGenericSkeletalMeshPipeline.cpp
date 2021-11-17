@@ -678,6 +678,26 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToSkeletalMesh(const UIntercha
 	}
 }
 
+void UInterchangeGenericAssetsPipeline::PostImportSkeletalMesh(UObject* CreatedAsset, UInterchangeBaseNode* Node)
+{
+	if (!BaseNodeContainer)
+	{
+		return;
+	}
+
+	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(CreatedAsset);
+	if (!SkeletalMesh)
+	{
+		return;
+	}
+
+	if (bUpdateSkeletonReferencePose && !Skeleton.IsNull() && SkeletalMesh->GetSkeleton() == Skeleton.Get())
+	{
+		SkeletalMesh->GetSkeleton()->UpdateReferencePoseFromMesh(SkeletalMesh);
+		//TODO: notify editor the skeleton has change
+	}
+}
+
 void UInterchangeGenericAssetsPipeline::PostImportPhysicsAssetImport(UObject* CreatedAsset, UInterchangeBaseNode* Node)
 {
 #if WITH_EDITOR
