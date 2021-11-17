@@ -4496,6 +4496,60 @@ FPropertyAccess::Result FPropertyHandleRotator::SetYaw( float InYaw, EPropertyVa
 	return Res;
 }
 
+FPropertyHandleColor::FPropertyHandleColor(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities)\
+	: FPropertyHandleBase(PropertyNode, NotifyHook, PropertyUtilities)
+{
+}
+
+bool FPropertyHandleColor::Supports(TSharedRef<FPropertyNode> PropertyNode)
+{
+	FProperty* Property = PropertyNode->GetProperty();
+
+	if ( FStructProperty* StructProperty = CastField<FStructProperty>(Property) )
+	{
+		return StructProperty->Struct == FSlateColor::StaticStruct() 
+			|| StructProperty->Struct == TBaseStructure<FLinearColor>::Get();
+	}
+
+	return false;
+}
+
+FPropertyAccess::Result FPropertyHandleColor::SetValueFromFormattedString(const FString& InValue, EPropertyValueSetFlags::Type Flags)
+{
+	FProperty* Property = Implementation->GetPropertyNode()->GetProperty();
+
+	if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+	{
+		FString OutValue;
+		FLinearColor LinearColor;
+
+		if (LinearColor.InitFromString(InValue))
+		{
+			if (StructProperty->Struct == FSlateColor::StaticStruct())
+			{
+				if (InValue.Contains("ColorUseRule"))
+				{
+					return Implementation->SetValueAsString(InValue, Flags);
+				}
+				else
+				{
+					LinearColor.InitFromString(InValue);
+					FSlateColor SlateColor(LinearColor);
+					Implementation->GetPropertyNode()->GetProperty()->ExportText_Direct(OutValue, &SlateColor, &SlateColor, nullptr, 0);
+					return Implementation->SetValueAsString(OutValue, Flags);
+				}
+			}
+			else if (StructProperty->Struct == TBaseStructure<FLinearColor>::Get())
+			{
+				Implementation->GetPropertyNode()->GetProperty()->ExportText_Direct(OutValue, &LinearColor, &LinearColor, nullptr, 0);
+				return Implementation->SetValueAsString(OutValue, Flags);
+			}
+		}
+	}
+
+	return FPropertyAccess::Result::Fail;
+}
+
 
 bool FPropertyHandleArray::Supports( TSharedRef<FPropertyNode> PropertyNode )
 {
