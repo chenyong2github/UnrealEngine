@@ -794,9 +794,10 @@ void SubsurfaceRecombinePS(noperspective float2 UV : TEXCOORD0, float4 SvPositio
 
 	if (!bUseSSSProfile)
 	{
-		OutColor = Texture2DSample(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV);
+		// Ingore the copy of non-scattering pixels with zero alpha.  
+		OutColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 		return;
-	} 
+	}
 
 #if STRATA_ENABLED
 	const uint ProfileId = SSSData.ProfileId;
