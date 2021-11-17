@@ -47,11 +47,11 @@ namespace Horde.Storage.Controllers
 
             string srcControlIdentifier = "Unknown";
             AssemblyMetadataAttribute? gitHashAttribute = attrs.FirstOrDefault(attr => attr.Key == "GitHash");
-            if (gitHashAttribute?.Value != null)
+            if (gitHashAttribute?.Value != null && !string.IsNullOrEmpty(gitHashAttribute.Value))
                 srcControlIdentifier = gitHashAttribute.Value;
 
             AssemblyMetadataAttribute? p4ChangeAttribute = attrs.FirstOrDefault(attr => attr.Key == "PerforceChangelist");
-            if (p4ChangeAttribute?.Value != null)
+            if (p4ChangeAttribute?.Value != null && !string.IsNullOrEmpty(p4ChangeAttribute.Value))
                 srcControlIdentifier = p4ChangeAttribute.Value;
             return Ok(new StatusResponse(_versionFile.VersionString ?? "Unknown", srcControlIdentifier, GetCapabilities(), _replicationSettings.CurrentValue.CurrentSite));
         }

@@ -13,6 +13,7 @@
     <ItemGroup>
       <AssemblyAttributes Include="AssemblyMetadata">
         <_Parameter1>GitHash</_Parameter1>
+        <!-- Make sure to enable the Github source link to make msbuild automatically populate this -->
         <_Parameter2>$(SourceRevisionId)</_Parameter2>
       </AssemblyAttributes>
 
@@ -79,10 +80,12 @@
 
     <PackageReference Include="CassandraCSharpDriver" Version="3.16.3" />
 
-    <!-- Embeds git information into the build process -->
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
+    <!-- Embeds git information into the build process 
+        Enable this if you are on git to embedd the git hash into the build 
+        Produces warnings while source is in perforce -->
+    <!--<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
       <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
+    </PackageReference>-->
   </ItemGroup>
 
   <ItemGroup>
