@@ -84,6 +84,10 @@ void FSkeletalMeshMerge::MergeSkeleton(const TArray<FRefPoseOverride>* RefPoseOv
 	// Build the reference skeleton & sockets.
 
 	BuildReferenceSkeleton(SrcMeshList, NewRefSkeleton, MergeMesh->GetSkeleton());
+
+	// Assign new referencer skeleton.
+	MergeMesh->RefSkeleton = NewRefSkeleton;
+
 	BuildSockets(SrcMeshList);
 
 	// Override the reference bone poses & sockets, if specified.
@@ -93,10 +97,6 @@ void FSkeletalMeshMerge::MergeSkeleton(const TArray<FRefPoseOverride>* RefPoseOv
 		OverrideReferenceSkeletonPose(*RefPoseOverrides, NewRefSkeleton, MergeMesh->GetSkeleton());
 		OverrideMergedSockets(*RefPoseOverrides);
 	}
-
-	// Assign new referencer skeleton.
-
-	MergeMesh->SetRefSkeleton(NewRefSkeleton);
 
 	// Rebuild inverse ref pose matrices here as some access patterns 
 	// may need to access these matrices before FinalizeMesh is called
