@@ -2484,6 +2484,18 @@ public:
 		ObjectRef = Object;
 	}
 
+	virtual TSharedRef<SWidget> GenerateNameWidget(TSharedPtr<FString> InSearchString) override
+	{
+		return SNew(PropertyInfoViewStyle::STextHighlightOverlay)
+			.FullText(this, &FParentLineItem::GetDisplayName)
+			.HighlightText(this, &FParentLineItem::GetHighlightText, InSearchString)
+			[
+				SNew(STextBlock)
+					.ToolTipText(this, &FParentLineItem::GetTooltipText)
+					.Text(this, &FParentLineItem::GetDisplayName)
+			];
+	}
+
 	virtual UObject* GetParentObject() override
 	{
 		return ObjectRef.Get();
@@ -2645,6 +2657,51 @@ private:
 		{
 			FKismetDebugUtilities::ClearPinWatches(Blueprint);
 		}
+	}
+
+	FText GetTooltipText() const
+	{
+		if (const UObject* Object = ObjectRef.Get())
+		{
+			if (UWorld* World = Object->GetTypedOuter<UWorld>())
+			{
+				ENetMode NetMode = World->GetNetMode();
+
+				FText WorldName;
+
+				switch (NetMode)
+				{
+				case NM_Standalone:
+					WorldName = LOCTEXT("DebugWorldStandalone", "Standalone");
+					break;
+
+				case NM_ListenServer:
+					WorldName = LOCTEXT("DebugWorldListenServer", "Listen Server");
+					break;
+
+				case NM_DedicatedServer:
+					WorldName = LOCTEXT("DebugWorldDedicatedServer", "Dedicated Server");
+					break;
+
+				case NM_Client:
+					if (FWorldContext* PieContext = GEngine->GetWorldContextFromWorld(World))
+					{
+						WorldName = FText::Format(LOCTEXT("DebugWorldClient", "Client {0}"), PieContext->PIEInstance - 1);
+						break;
+					}
+					[[fallthrough]];
+				default:
+					WorldName = LOCTEXT("UnknownWorldMode", "[Unknown]");
+				};
+
+				return FText::FormatNamed(LOCTEXT("ParentLineTooltip", "{ObjectFullPath}\nWorld: {WorldFullPath}\nWorld Type: {WorldType}"),
+					TEXT("ObjectFullPath"), FText::FromString(Object->GetPathName()),
+					TEXT("WorldFullPath"), FText::FromString(World->GetPathName()),
+					TEXT("WorldType"), WorldName);
+			}
+		}
+
+		return GetDisplayName();
 	}
 };
 
