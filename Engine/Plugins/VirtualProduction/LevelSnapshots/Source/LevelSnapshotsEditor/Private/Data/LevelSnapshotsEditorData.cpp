@@ -36,6 +36,7 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 		ULevelSnapshotsFilterPreset* OldFilter = UserDefinedFilters;
 		UserDefinedFilters = NewFilterToEdit;
 		UserDefinedFilters->MarkTransactional();
+		UserDefinedFilters->OnFilterModified.AddUObject(this, &ULevelSnapshotsEditorData::HandleFilterChange);
 
 		FilterResults->Modify();
 		FilterResults->SetUserFilters(UserDefinedFilters);
