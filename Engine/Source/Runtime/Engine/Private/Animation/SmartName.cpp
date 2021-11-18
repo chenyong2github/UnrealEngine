@@ -4,6 +4,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "Animation/Skeleton.h"
 #include "UObject/AnimPhysObjectVersion.h"
+#include "Misc/ScopeRWLock.h"
 
 ////////////////////////////////////////////////////////////////////////
 //
@@ -11,10 +12,28 @@
 //
 ///////////////////////////////////////////////////////////////////////
 FSmartNameMapping::FSmartNameMapping()
-{}
+{
+}
+
+FSmartNameMapping::FSmartNameMapping(FRWLock* Lock)
+	: RWLock(Lock)
+{
+}
+
+void FSmartNameMapping::Iterate(TFunction<void(const FSmartNameMapping* Mapping, SmartName::UID_Type ID)> Callback) const
+{
+	FReadScopeLock Lock(*RWLock);
+
+	for (int32 NameIndex = 0; NameIndex < CurveNameList.Num(); ++NameIndex)
+	{
+		Callback(this, NameIndex);	
+	}
+}
 
 FSmartName FSmartNameMapping::AddName(FName Name)
 {
+	FWriteScopeLock Lock(*RWLock);
+	
 	// Make sure we are not trying to do an invalid add
 	check(Name.IsValid() && !CurveNameList.Contains(Name));
 
@@ -29,8 +48,32 @@ FSmartName FSmartNameMapping::AddName(FName Name)
 	return NewSmartName;
 }
 
+FCurveMetaData* FSmartNameMapping::GetCurveMetaData(FName CurveName)
+{
+	FWriteScopeLock Lock(*RWLock);
+	checkSlow(Exists(CurveName));
+	return &CurveMetaDataMap.FindOrAdd(CurveName);
+}
+
+const FCurveMetaData* FSmartNameMapping::GetCurveMetaData(FName CurveName) const
+{
+	FReadScopeLock Lock(*RWLock);
+	checkSlow(Exists(CurveName));
+	return CurveMetaDataMap.Find(CurveName);
+}
+
+#if !WITH_EDITOR
+const FCurveMetaData& FSmartNameMapping::GetCurveMetaData(SmartName::UID_Type CurveUID) const
+{
+	FReadScopeLock Lock(*RWLock);
+	return CurveMetaDataList[CurveUID];
+}
+#endif
+
 bool FSmartNameMapping::GetName(const SmartName::UID_Type& Uid, FName& OutName) const
 {
+	FReadScopeLock Lock(*RWLock);
+	
 	if (CurveNameList.IsValidIndex(Uid))
 	{
 		OutName = CurveNameList[Uid];
@@ -42,6 +85,8 @@ bool FSmartNameMapping::GetName(const SmartName::UID_Type& Uid, FName& OutName) 
 #if WITH_EDITOR
 bool FSmartNameMapping::Rename(const SmartName::UID_Type& Uid, FName NewName)
 {
+	FWriteScopeLock Lock(*RWLock);
+	
 	FName ExistingName;
 	if(GetName(Uid, ExistingName))
 	{
@@ -64,6 +109,8 @@ bool FSmartNameMapping::Rename(const SmartName::UID_Type& Uid, FName NewName)
 
 bool FSmartNameMapping::Remove(const SmartName::UID_Type& Uid)
 {
+	FWriteScopeLock Lock(*RWLock);
+	
 	FName ExistingName;
 	if (GetName(Uid, ExistingName))
 	{
@@ -77,6 +124,8 @@ bool FSmartNameMapping::Remove(const SmartName::UID_Type& Uid)
 
 bool FSmartNameMapping::Remove(const FName& Name)
 {
+	FWriteScopeLock Lock(*RWLock);
+	
 	const SmartName::UID_Type Uid = FindUID(Name);
 	if (Uid != SmartName::MaxUID)
 	{
@@ -125,6 +174,8 @@ void FSmartNameMapping::Serialize(FArchive& Ar)
 
 void FSmartNameMapping::FillUidArray(TArray<SmartName::UID_Type>& Array) const
 {
+	FReadScopeLock Lock(*RWLock);
+	
 	Array.Reset(CurveNameList.Num());
 	
 	for (int32 NameIndex = 0; NameIndex < CurveNameList.Num(); ++NameIndex)
@@ -143,6 +194,8 @@ void FSmartNameMapping::FillUidArray(TArray<SmartName::UID_Type>& Array) const
 
 void FSmartNameMapping::FillNameArray(TArray<FName>& Array) const
 {
+	FReadScopeLock Lock(*RWLock);
+	
 	//In editor names can be removed and so have to deal with empty slots
 #if WITH_EDITOR
 	Array.Reset(CurveNameList.Num());
@@ -165,6 +218,7 @@ void FSmartNameMapping::FillUIDToNameArray(TArray<FName>& Array) const
 
 void FSmartNameMapping::FillCurveTypeArray(TArray<FAnimCurveType>& Array) const
 {
+	FReadScopeLock Lock(*RWLock);
 	Array.Reset(CurveNameList.Num());
 
 	for (const FName& Name : CurveNameList)
@@ -186,6 +240,8 @@ void FSmartNameMapping::FillCurveTypeArray(TArray<FAnimCurveType>& Array) const
 
 void FSmartNameMapping::FillUIDToCurveTypeArray(TArray<FAnimCurveType>& Array) const
 {
+	FReadScopeLock Lock(*RWLock);
+	
 	Array.Reset(CurveNameList.Num());
 
 	for (const FName& Name : CurveNameList)
@@ -212,16 +268,19 @@ void FSmartNameMapping::FillUIDToCurveTypeArray(TArray<FAnimCurveType>& Array) c
 
 bool FSmartNameMapping::Exists(const SmartName::UID_Type& Uid) const
 {
+	FReadScopeLock Lock(*RWLock);
 	return CurveNameList.IsValidIndex(Uid) && CurveNameList[Uid] != NAME_None;
 }
 
 bool FSmartNameMapping::Exists(const FName& Name) const
 {
+	FReadScopeLock Lock(*RWLock);
 	return CurveNameList.Contains(Name);
 }
 
 SmartName::UID_Type FSmartNameMapping::FindUID(const FName& Name) const
 {
+	FReadScopeLock Lock(*RWLock);
 	return CurveNameList.IndexOfByKey(Name);
 }
 
@@ -234,6 +293,7 @@ FArchive& operator<<(FArchive& Ar, FSmartNameMapping& Elem)
 
 bool FSmartNameMapping::FindSmartName(FName Name, FSmartName& OutName) const
 {
+	FReadScopeLock Lock(*RWLock);
 	SmartName::UID_Type ExistingUID = FindUID(Name);
 	if (ExistingUID != SmartName::MaxUID)
 	{
@@ -246,6 +306,7 @@ bool FSmartNameMapping::FindSmartName(FName Name, FSmartName& OutName) const
 
 bool FSmartNameMapping::FindSmartNameByUID(SmartName::UID_Type UID, FSmartName& OutName) const
 {
+	FReadScopeLock Lock(*RWLock);
 	FName ExistingName;
 	if (GetName(UID, ExistingName))
 	{
@@ -260,6 +321,8 @@ bool FSmartNameMapping::FindSmartNameByUID(SmartName::UID_Type UID, FSmartName& 
 /* initialize curve meta data for the container */
 void FSmartNameMapping::InitializeCurveMetaData(class USkeleton* Skeleton)
 {
+	FWriteScopeLock Lock(*RWLock);
+	
 	// initialize bone indices for skeleton
 	for (TPair<FName, FCurveMetaData>& Iter : CurveMetaDataMap)
 	{
@@ -274,13 +337,15 @@ void FSmartNameMapping::InitializeCurveMetaData(class USkeleton* Skeleton)
 //
 // FSmartNameContainer
 //
-///////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 FSmartNameMapping* FSmartNameContainer::AddContainer(FName NewContainerName)
 {
+	FWriteScopeLock Lock(RWLock);
+	
 	FSmartNameMapping* ExistingMapping = NameMappings.Find(NewContainerName);
 	if(ExistingMapping == nullptr)
 	{
-		return &NameMappings.Add(NewContainerName);
+		return &NameMappings.Add(NewContainerName, {&RWLock});
 	}
 
 	return ExistingMapping;
@@ -303,6 +368,7 @@ void FSmartNameContainer::Serialize(FArchive& Ar, bool bIsTemplate)
 	{
 		Ar << NameMappings;
 	}
+
 }
 
 void FSmartNameContainer::PostLoad()
@@ -311,6 +377,11 @@ void FSmartNameContainer::PostLoad()
 	// Preserve Load state for deterministic cooking
 	LoadedNameMappings = NameMappings;
 #endif
+	
+	for(auto Mapping : NameMappings)
+	{
+		Mapping.Value.SetLock(&RWLock);
+	}
 }
 
 FSmartNameMapping* FSmartNameContainer::GetContainerInternal(const FName& ContainerName)
