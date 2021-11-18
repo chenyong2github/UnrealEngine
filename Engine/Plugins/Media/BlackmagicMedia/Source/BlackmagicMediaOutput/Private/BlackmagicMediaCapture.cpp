@@ -237,6 +237,34 @@ namespace BlackmagicMediaCaptureHelpers
 			return BlackmagicDesign::EAudioBitDepth::Signed_32Bits;
 		}
 	}
+
+	void EncodeTimecodeInTexel(EBlackmagicMediaOutputPixelFormat BlackmagicMediaOutputPixelFormat, EMediaCaptureConversionOperation ConversionOperation, BlackmagicDesign::FTimecode Timecode, void* Buffer, int32 Width, int32 Height)
+	{
+		switch (BlackmagicMediaOutputPixelFormat)
+		{
+			case EBlackmagicMediaOutputPixelFormat::PF_8BIT_YUV:
+			{
+				if (ConversionOperation == EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT)
+				{
+					FMediaIOCoreEncodeTime EncodeTime(EMediaIOCoreEncodePixelFormat::CharUYVY, Buffer, Width * 4, Width * 2, Height);
+					EncodeTime.Render(Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
+					break;
+				}
+				else
+				{
+					FMediaIOCoreEncodeTime EncodeTime(EMediaIOCoreEncodePixelFormat::CharBGRA, Buffer, Width * 4, Width, Height);
+					EncodeTime.Render(Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
+					break;
+				}
+			}
+			case EBlackmagicMediaOutputPixelFormat::PF_10BIT_YUV:
+			{
+				FMediaIOCoreEncodeTime EncodeTime(EMediaIOCoreEncodePixelFormat::YUVv210, Buffer, Width * 16, Width * 6, Height);
+				EncodeTime.Render(Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
+				break;
+			}
+		}
+	}
 }
 
 /* namespace BlackmagicMediaCaptureDevice
@@ -462,6 +490,7 @@ bool UBlackmagicMediaCapture::InitBlackmagic(UBlackmagicMediaOutput* InBlackmagi
 
 	AudioBitDepth = InBlackmagicMediaOutput->AudioBitDepth;
 	bOutputAudio = InBlackmagicMediaOutput->bOutputAudio;
+	NumOutputChannels = static_cast<uint8>(InBlackmagicMediaOutput->OutputChannelCount);
 
 	if (GEngine && bOutputAudio)
 	{
@@ -513,26 +542,7 @@ void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBase
 
 		if (bEncodeTimecodeInTexel)
 		{
-			switch (BlackmagicMediaOutputPixelFormat)
-			{
-			case EBlackmagicMediaOutputPixelFormat::PF_8BIT_YUV:
-				if (GetConversionOperation() == EMediaCaptureConversionOperation::RGBA8_TO_YUV_8BIT)
-				{
-					FMediaIOCoreEncodeTime EncodeTime(EMediaIOCoreEncodePixelFormat::CharUYVY, InBuffer, Width * 4, Width * 2, Height);
-					EncodeTime.Render(Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
-					break;
-				}
-				else
-				{
-					FMediaIOCoreEncodeTime EncodeTime(EMediaIOCoreEncodePixelFormat::CharBGRA, InBuffer, Width * 4, Width, Height);
-					EncodeTime.Render(Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
-					break;
-				}
-			case EBlackmagicMediaOutputPixelFormat::PF_10BIT_YUV:
-				FMediaIOCoreEncodeTime EncodeTime(EMediaIOCoreEncodePixelFormat::YUVv210, InBuffer, Width * 16, Width * 6, Height);
-				EncodeTime.Render(Timecode.Hours, Timecode.Minutes, Timecode.Seconds, Timecode.Frames);
-				break;
-			}
+			BlackmagicMediaCaptureHelpers::EncodeTimecodeInTexel(BlackmagicMediaOutputPixelFormat, GetConversionOperation(), Timecode, InBuffer, Width, Height);
 		}
 
 		BlackmagicDesign::FFrameDescriptor Frame;
@@ -554,14 +564,15 @@ void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBase
 			BlackmagicDesign::FAudioSamplesDescriptor AudioSamples;
 			AudioSamples.Timecode = Timecode;
 			AudioSamples.FrameIdentifier = InBaseData.SourceFrameNumber;
-			
+			check(NumOutputChannels != 0);
+
 			if (AudioOutput)
 			{
 				if (AudioBitDepth == EBlackmagicMediaOutputAudioBitDepth::Signed_32Bits)
 				{
 					TArray<int32> AudioBuffer = AudioOutput->GetAudioSamples<int32>();
 					AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
-					AudioSamples.NumAudioSamples = AudioBuffer.Num();
+					AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
 					AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int32);
 					EventCallback->SendAudioSamples(AudioSamples);
 				}
@@ -569,7 +580,7 @@ void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBase
 				{
 					TArray<int16> AudioBuffer = AudioOutput->GetAudioSamples<int16>();
 					AudioSamples.AudioBuffer = reinterpret_cast<uint8_t*>(AudioBuffer.GetData());
-					AudioSamples.NumAudioSamples = AudioBuffer.Num();
+					AudioSamples.NumAudioSamples = AudioBuffer.Num() / NumOutputChannels;
 					AudioSamples.AudioBufferLength = AudioBuffer.Num() * sizeof(int16);
 					EventCallback->SendAudioSamples(AudioSamples);
 				}
