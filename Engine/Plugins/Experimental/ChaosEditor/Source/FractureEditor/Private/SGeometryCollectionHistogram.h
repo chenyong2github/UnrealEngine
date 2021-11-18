@@ -15,7 +15,6 @@
 
 
 struct FLinearColor;
-struct FVector2D;
 class FGeometryCollectionHistogramItem;
 class ITableRow;
 class STableViewBase;

@@ -15,7 +15,7 @@ public:
 
 public:
 	// Connects to a server
-	virtual bool Connect(const FString& Address, const int32 Port, const int32 ConnectTriesAmount, const float ConnectRetryDelay) = 0;
+	virtual bool Connect(const FString& Address, const uint16 Port, const uint32 ConnectRetriesAmount, const uint32 ConnectRetryDelay) = 0;
 	// Terminates current connection
 	virtual void Disconnect() = 0;
 	// Returns connection status

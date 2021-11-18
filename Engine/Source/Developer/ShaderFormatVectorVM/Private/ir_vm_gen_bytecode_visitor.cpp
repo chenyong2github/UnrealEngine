@@ -1944,7 +1944,7 @@ class ir_gen_vvm_visitor : public ir_hierarchical_visitor
 			}
 		}
 
-		FString ExprString = FString::Printf(TEXT("%s %s"), ANSI_TO_TCHAR(expression->type->name), ir_expression::operator_string(expression->operation));
+		FString ExprString = FString::Printf(TEXT("%s %s"), ANSI_TO_TCHAR(expression->type->name), ANSI_TO_TCHAR(ir_expression::operator_string(expression->operation)));
 		ExprString += TEXT("(");
 		for (unsigned i = 0; i < expression->get_num_operands(); ++i)
 		{

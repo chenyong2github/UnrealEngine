@@ -65,6 +65,8 @@ public:
 		}
 		GConfig->GetDouble(TEXT("Insights.TimingProfiler"), TEXT("AutoScrollViewportOffsetPercent"), AutoScrollViewportOffsetPercent, SettingsIni);
 		GConfig->GetDouble(TEXT("Insights.TimingProfiler"), TEXT("AutoScrollMinDelay"), AutoScrollMinDelay, SettingsIni);
+
+		GConfig->GetArray(TEXT("Insights.MemoryProfiler"), TEXT("SymbolSearchPaths"), SymbolSearchPaths, SettingsIni);
 	}
 
 	void SaveToConfig()
@@ -78,6 +80,8 @@ public:
 		GConfig->SetString(TEXT("Insights.TimingProfiler"), TEXT("AutoScrollFrameAlignment"), FrameAlignment, SettingsIni);
 		GConfig->SetDouble(TEXT("Insights.TimingProfiler"), TEXT("AutoScrollViewportOffsetPercent"), AutoScrollViewportOffsetPercent, SettingsIni);
 		GConfig->SetDouble(TEXT("Insights.TimingProfiler"), TEXT("AutoScrollMinDelay"), AutoScrollMinDelay, SettingsIni);
+
+		GConfig->SetArray(TEXT("Insights.MemoryProfiler"), TEXT("SymbolSearchPaths"), SymbolSearchPaths, SettingsIni);
 
 		GConfig->Flush(false, SettingsIni);
 	}
@@ -138,6 +142,10 @@ public:
 	void SetAutoScrollMinDelay(double Delay) { AutoScrollMinDelay = Delay; }
 	void SetAndSaveAutoScrollMinDelay(double Delay) { SET_AND_SAVE(AutoScrollMinDelay, Delay); }
 
+	const TArray<FString>& GetSymbolSearchPaths() const { return SymbolSearchPaths; }
+	void SetSymbolSearchPaths(const TArray<FString>& SearchPaths) { SymbolSearchPaths = SearchPaths; }
+	void SetAndSaveSymbolSearchPaths(const TArray<FString>& SearchPaths) { SET_AND_SAVE(SymbolSearchPaths, SearchPaths); }
+
 	#undef SET_AND_SAVE
 
 private:
@@ -167,6 +175,9 @@ private:
 
 	/** -1 to disable frame alignment or the type of frame to align with (0 = Game or 1 = Rendering). */
 	int32 AutoScrollFrameAlignment;
+
+	/** List of search paths to look for symbol files */
+	TArray<FString> SymbolSearchPaths;
 
 	/**
 	 * Viewport offset while auto-scrolling, as percent of viewport width.

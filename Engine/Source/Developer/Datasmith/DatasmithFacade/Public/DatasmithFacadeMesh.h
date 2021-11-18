@@ -280,8 +280,8 @@ public:
 	) const 
 	{ 
 		FVector2D UV(GetDatasmithMesh().GetUV(Channel, Index));
-		OutU = UV.X;
-		OutV = UV.Y;
+		OutU = (float)UV.X;			// LWC_TODO: Precision loss
+		OutV = (float)UV.Y;
 	}
 
 	/**

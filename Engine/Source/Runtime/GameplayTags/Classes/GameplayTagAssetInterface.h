@@ -10,7 +10,7 @@
 #include "GameplayTagAssetInterface.generated.h"
 
 /** Interface for assets which contain gameplay tags */
-UINTERFACE(Blueprintable, MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))
+UINTERFACE(BlueprintType, MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))
 class UGameplayTagAssetInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()

@@ -185,7 +185,7 @@ namespace CADLibrary
 				FVertexID VertexID = MeshDescription.CreateVertex();
 				Body.SymmetricVertexIds.Add(VertexID);
 				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.GetModelCoordSys(), VertexDataSet[VertexIndex].Coordinates);
-				VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
+				VertexPositions[VertexID] = FVector4f(SymmetricMatrix.TransformPosition(VertexPositions[VertexID]));
 
 				VertexDataSet[VertexIndex].SymVertexID = VertexID;
 			}
@@ -262,7 +262,7 @@ namespace CADLibrary
 
 				FVertexID VertexID = MeshDescription.CreateVertex();
 				VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem) ImportParams.GetModelCoordSys(), Vertex);
-				VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
+				VertexPositions[VertexID] = FVector4f(SymmetricMatrix.TransformPosition(VertexPositions[VertexID]));
 				SymmetricVertexIds[VertexIndex++] = VertexID;
 			}
 		}
@@ -357,7 +357,7 @@ namespace CADLibrary
 		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 
 		if (!VertexInstanceNormals.IsValid() || !VertexInstanceTangents.IsValid() || !VertexInstanceBinormalSigns.IsValid() || !VertexInstanceColors.IsValid() || !VertexInstanceUVs.IsValid() || !PolygonGroupImportedMaterialSlotNames.IsValid())
@@ -525,7 +525,7 @@ namespace CADLibrary
 					SymmetricMatrix = FDatasmithUtils::GetSymmetricMatrix(MeshParameters.SymmetricOrigin, MeshParameters.SymmetricNormal);
 					for (const FVertexInstanceID& VertexInstanceID : MeshVertexInstanceIDs)
 					{
-						VertexInstanceNormals[VertexInstanceID] = SymmetricMatrix.TransformVector(VertexInstanceNormals[VertexInstanceID]);;
+						VertexInstanceNormals[VertexInstanceID] = FVector4f(SymmetricMatrix.TransformVector(VertexInstanceNormals[VertexInstanceID]));
 					}
 				}
 

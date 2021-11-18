@@ -246,17 +246,6 @@ TSharedRef<SWidget> SDerivedDataResourceUsageDialog::GetGridPanel()
 		DDCResourceStatsTotal += Stat;
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TSharedRef<FDerivedDataCacheStatsNode> RootUsage = GetDerivedDataCache()->GatherUsageStats();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		TArray<TSharedRef<const FDerivedDataCacheStatsNode>> LeafUsageStats;
-	RootUsage->ForEachDescendant([&LeafUsageStats](TSharedRef<const FDerivedDataCacheStatsNode> Node) {
-		if (Node->Children.Num() == 0)
-		{
-			LeafUsageStats.Add(Node);
-		}
-		});
-
 	TSharedRef<SGridPanel> Panel =
 		SNew(SGridPanel);
 

@@ -22,6 +22,7 @@ public class UEOpenExrRTTI : ModuleRules
 			
             PublicDependencyModuleNames.AddRange(
 			new string[] {
+				"Imath",
 				"UEOpenExr"
 			}
 			);

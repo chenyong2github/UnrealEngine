@@ -24,7 +24,7 @@ FRayTracingScene::~FRayTracingScene()
 	WaitForTasks();
 }
 
-void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
+void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FRayTracingScene_BeginCreate);
 
@@ -65,7 +65,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 	}
 
 	{
-		const uint64 ScratchAlignment = GRHIRayTracingAccelerationStructureAlignment;
+		const uint64 ScratchAlignment = GRHIRayTracingScratchBufferAlignment;
 		FRDGBufferDesc ScratchBufferDesc;
 		ScratchBufferDesc.UnderlyingType = FRDGBufferDesc::EUnderlyingType::StructuredBuffer;
 		ScratchBufferDesc.Usage = BUF_UnorderedAccess;
@@ -136,6 +136,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 		FillInstanceUploadBufferTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
 			[InstanceUploadData = MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances),
 			TransformUploadData = MakeArrayView(TransformUploadData, SceneWithGeometryInstances.NumNativeCPUInstances * 3),
+			NumNativeGPUSceneInstances = SceneWithGeometryInstances.NumNativeGPUSceneInstances,
 			NumNativeCPUInstances = SceneWithGeometryInstances.NumNativeCPUInstances,
 			Instances = MakeArrayView(Instances),
 			InstanceGeometryIndices = MoveTemp(SceneWithGeometryInstances.InstanceGeometryIndices),
@@ -148,6 +149,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 				Instances,
 				InstanceGeometryIndices,
 				BaseUploadBufferOffsets,
+				NumNativeGPUSceneInstances,
 				NumNativeCPUInstances,
 				InstanceUploadData,
 				TransformUploadData);
@@ -162,7 +164,9 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 			ERDGPassFlags::Compute,
 			[PassParams,
 			this,
+			GPUScene = &GPUScene,
 			&SceneInitializer,
+			NumNativeGPUSceneInstances = SceneWithGeometryInstances.NumNativeGPUSceneInstances,
 			NumNativeCPUInstances = SceneWithGeometryInstances.NumNativeCPUInstances,
 			GPUInstances = MoveTemp(SceneWithGeometryInstances.GPUInstances)
 			](FRHICommandListImmediate& RHICmdList)
@@ -191,10 +195,12 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder)
 
 				BuildRayTracingInstanceBuffer(
 					RHICmdList,
+					GPUScene,
 					PassParams->InstanceBuffer->GetRHI(),
 					InstanceUploadSRV,
 					AccelerationStructureAddressesBuffer.SRV,
 					TransformUploadSRV,
+					NumNativeGPUSceneInstances,
 					NumNativeCPUInstances,
 					GPUInstances);
 			});

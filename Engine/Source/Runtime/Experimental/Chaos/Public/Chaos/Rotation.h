@@ -115,6 +115,14 @@ namespace Chaos
 		}
 
 		/**
+		 * @brief Return the dot product of two quaternions
+		*/
+		static FReal DotProduct(const TRotation<FReal, 3>& L, const TRotation<FReal, 3>& R)
+		{
+			return (L | R);
+		}
+
+		/**
 		 * Return the complex conjugate of the rotation
 		 */
 		static TRotation<FReal, 3> Conjugate(const ::Chaos::TRotation<FReal, 3>& InR)

@@ -254,12 +254,18 @@
 #ifndef PLATFORM_TCHAR_IS_CHAR16
 	#define PLATFORM_TCHAR_IS_CHAR16			0
 #endif
+#ifndef PLATFORM_TCHAR_IS_UTF8CHAR
+	#define PLATFORM_TCHAR_IS_UTF8CHAR			0
+#endif
 #ifndef PLATFORM_UCS2CHAR_IS_UTF16CHAR
 	// Currently true, but we don't want it to be true
 	#define PLATFORM_UCS2CHAR_IS_UTF16CHAR		1
 #endif
 #ifndef PLATFORM_HAS_BSD_TIME
 	#define PLATFORM_HAS_BSD_TIME				1
+#endif
+#ifndef PLATFORM_HAS_BSD_THREAD_CPUTIME
+	#define PLATFORM_HAS_BSD_THREAD_CPUTIME		0
 #endif
 #ifndef PLATFORM_HAS_BSD_SOCKETS
 	#define PLATFORM_HAS_BSD_SOCKETS			1
@@ -624,6 +630,10 @@
 
 #ifndef PLATFORM_USE_FALLBACK_PSO
 	#define PLATFORM_USE_FALLBACK_PSO 0
+#endif
+
+#ifndef PLATFORM_USES_UNFAIR_LOCKS
+	#define PLATFORM_USES_UNFAIR_LOCKS 0
 #endif
 
 // deprecated, do not use
@@ -1029,8 +1039,13 @@ namespace TypeTests
 		static constexpr bool Value = true;
 	};
 
-	static_assert(!PLATFORM_TCHAR_IS_4_BYTES || sizeof(TCHAR) == 4, "TCHAR size must be 4 bytes.");
-	static_assert(PLATFORM_TCHAR_IS_4_BYTES || sizeof(TCHAR) == 2, "TCHAR size must be 2 bytes.");
+#if PLATFORM_TCHAR_IS_4_BYTES
+	static_assert(sizeof(TCHAR) == 4, "TCHAR size must be 4 bytes.");
+#elif PLATFORM_TCHAR_IS_UTF8CHAR
+	static_assert(sizeof(TCHAR) == 1, "TCHAR size must be 1 byte.");
+#else
+	static_assert(sizeof(TCHAR) == 2, "TCHAR size must be 2 bytes.");
+#endif
 
 	static_assert(!PLATFORM_WCHAR_IS_4_BYTES || sizeof(wchar_t) == 4, "wchar_t size must be 4 bytes.");
 	static_assert(PLATFORM_WCHAR_IS_4_BYTES || sizeof(wchar_t) == 2, "wchar_t size must be 2 bytes.");
@@ -1054,7 +1069,7 @@ namespace TypeTests
 #endif
 	static_assert((!TAreTypesEqual<ANSICHAR, UCS2CHAR>::Value),  "ANSICHAR and UCS2CHAR should be different types.");
 	static_assert((!TAreTypesEqual<WIDECHAR, UCS2CHAR>::Value),  "WIDECHAR and UCS2CHAR should be different types.");
-	static_assert((TAreTypesEqual<TCHAR, ANSICHAR>::Value == true || TAreTypesEqual<TCHAR, WIDECHAR>::Value == true), "TCHAR should either be ANSICHAR or WIDECHAR.");
+	static_assert(TAreTypesEqual<TCHAR, ANSICHAR>::Value || TAreTypesEqual<TCHAR, WIDECHAR>::Value || TAreTypesEqual<TCHAR, UTF8CHAR>::Value, "TCHAR should either be ANSICHAR, WIDECHAR or UTF8CHAR.");
 
 	static_assert(sizeof(uint8) == 1, "uint8 type size test failed.");
 	static_assert(int32(uint8(-1)) == 0xFF, "uint8 type sign test failed.");
@@ -1113,31 +1128,38 @@ namespace TypeTests
 #if !defined(TEXT) && !UE_BUILD_DOCS
 	#if PLATFORM_TCHAR_IS_CHAR16
 		#define TEXT_PASTE(x) UTF16TEXT_PASTE(x)
+	#elif PLATFORM_TCHAR_IS_UTF8CHAR
+		#define TEXT_PASTE(x) UTF8TEXT(x)
 	#else
 		#define TEXT_PASTE(x) WIDETEXT_PASTE(x)
 	#endif
 	#define TEXT(x) TEXT_PASTE(x)
 #endif
 
-#if defined(__cpp_char8_t)
-	#define UTF8TEXT(x) UTF8TEXT_PASTE(x)
-#else
-	namespace UE::Core::Private
+namespace UE::Core::Private
+{
+	// Can't be constexpr because it involves casts
+	template <SIZE_T N>
+	FORCEINLINE auto ToUTF8Literal(const char(&Array)[N]) -> const UTF8CHAR(&)[N]
 	{
-		// Can't be constexpr because it involves casts
-		template <SIZE_T N>
-		FORCEINLINE auto ToUTF8Literal(const char(&Array)[N]) -> const UTF8CHAR(&)[N]
-		{
-			return (const UTF8CHAR(&)[N])Array;
-		}
-
-		FORCEINLINE constexpr UTF8CHAR ToUTF8Literal(unsigned long long Ch)
-		{
-			return (UTF8CHAR)Ch;
-		}
+		return (const UTF8CHAR(&)[N])Array;
 	}
 
-	#define UTF8TEXT(x) (UE::Core::Private::ToUTF8Literal(UTF8TEXT_PASTE(x)))
+#if defined(__cpp_char8_t)
+	// Can't be constexpr because it involves casts
+	template <SIZE_T N>
+	FORCEINLINE auto ToUTF8Literal(const char8_t (&Array)[N]) -> const UTF8CHAR(&)[N]
+	{
+		return (const UTF8CHAR (&)[N])Array;
+	}
 #endif
+
+	FORCEINLINE constexpr UTF8CHAR ToUTF8Literal(unsigned long long Ch)
+	{
+		return (UTF8CHAR)Ch;
+	}
+}
+
+#define UTF8TEXT(x) (UE::Core::Private::ToUTF8Literal(UTF8TEXT_PASTE(x)))
 
 #define WIDETEXT(str) WIDETEXT_PASTE(str)

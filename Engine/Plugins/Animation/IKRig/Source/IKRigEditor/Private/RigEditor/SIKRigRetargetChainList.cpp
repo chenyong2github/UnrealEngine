@@ -18,8 +18,8 @@
 #define LOCTEXT_NAMESPACE "SIKRigRetargetChains"
 
 static const FName ColumnId_ChainNameLabel( "Chain Name" );
-static const FName ColumnId_ChainRootLabel( "Root Bone" );
-static const FName ColumnId_ChainTipLabel( "Tip Bone" );
+static const FName ColumnId_ChainStartLabel( "Start Bone" );
+static const FName ColumnId_ChainEndLabel( "End Bone" );
 static const FName ColumnId_IKGoalLabel( "IK Goal" );
 
 TSharedRef<ITableRow> FRetargetChainElement::MakeListRowWidget(
@@ -72,9 +72,9 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 		return ChainWidget;
 	}
 
-	if (ColumnName == ColumnId_ChainRootLabel)
+	if (ColumnName == ColumnId_ChainStartLabel)
 	{
-		TSharedRef<SWidget> RootWidget =
+		TSharedRef<SWidget> StartWidget =
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -91,12 +91,12 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 				.Text(this, &SIKRigRetargetChainRow::GetStartBoneName)
 			]
 		];
-		return RootWidget;
+		return StartWidget;
 	}
 
-	if (ColumnName == ColumnId_ChainTipLabel)
+	if (ColumnName == ColumnId_ChainEndLabel)
 	{
-		TSharedRef<SWidget> TipWidget =
+		TSharedRef<SWidget> EndWidget =
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -113,7 +113,7 @@ TSharedRef<SWidget> SIKRigRetargetChainRow::GenerateWidgetForColumn(const FName&
 				.Text(this, &SIKRigRetargetChainRow::GetEndBoneName)
 			]
 		];
-		return TipWidget;
+		return EndWidget;
 	}
 	else
 	{
@@ -290,11 +290,11 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 				+ SHeaderRow::Column( ColumnId_ChainNameLabel )
 				.DefaultLabel( LOCTEXT( "ChainNameColumnLabel", "Chain Name" ) )
 
-				+ SHeaderRow::Column( ColumnId_ChainRootLabel )
-				.DefaultLabel( LOCTEXT( "ChainRootColumnLabel", "Root Bone" ) )
+				+ SHeaderRow::Column( ColumnId_ChainStartLabel )
+				.DefaultLabel( LOCTEXT( "ChainStartColumnLabel", "Start Bone" ) )
 
-				+ SHeaderRow::Column( ColumnId_ChainTipLabel )
-				.DefaultLabel( LOCTEXT( "ChainTipColumnLabel", "Tip Bone" ) )
+				+ SHeaderRow::Column( ColumnId_ChainEndLabel )
+				.DefaultLabel( LOCTEXT( "ChainEndColumnLabel", "End Bone" ) )
 
 				+ SHeaderRow::Column( ColumnId_IKGoalLabel )
 				.DefaultLabel( LOCTEXT( "IKGoalColumnLabel", "IK Goal" ) )

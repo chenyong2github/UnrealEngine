@@ -21,7 +21,7 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FCalibratedMapDerivedDataCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector2D, TexelSize)
+		SHADER_PARAMETER(FVector2f, TexelSize)
 		SHADER_PARAMETER(FIntPoint, TextureSize)
 		
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DistortionSTMap)

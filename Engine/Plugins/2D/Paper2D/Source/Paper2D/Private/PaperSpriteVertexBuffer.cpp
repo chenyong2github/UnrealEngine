@@ -51,14 +51,14 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 		}
 	}
 
-	uint32 TexCoordSize = NumAllocatedVertices * sizeof(FVector2D);
+	uint32 TexCoordSize = NumAllocatedVertices * sizeof(FVector2f);
 	// create vertex buffer
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteTexCoordBuffer"));
 		TexCoordBuffer.VertexBufferRHI = RHICreateVertexBuffer(TexCoordSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
-			TexCoordBufferSRV = RHICreateShaderResourceView(TexCoordBuffer.VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
+			TexCoordBufferSRV = RHICreateShaderResourceView(TexCoordBuffer.VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
 		}
 	}
 
@@ -121,11 +121,11 @@ void FPaperSpriteVertexBuffer::CommitVertexData()
 			TangentBufferData = static_cast<FPackedNormal*>(Data);
 		}
 
-		FVector2D* TexCoordBufferData = nullptr;
-		uint32 TexCoordSize = Vertices.Num() * sizeof(FVector2D);
+		FVector2f* TexCoordBufferData = nullptr;
+		uint32 TexCoordSize = Vertices.Num() * sizeof(FVector2f);
 		{
 			void* Data = RHILockBuffer(TexCoordBuffer.VertexBufferRHI, 0, TexCoordSize, RLM_WriteOnly);
-			TexCoordBufferData = static_cast<FVector2D*>(Data);
+			TexCoordBufferData = static_cast<FVector2f*>(Data);
 		}
 
 		FColor* ColorBufferData = nullptr;
@@ -232,7 +232,7 @@ void FPaperSpriteVertexFactory::Init(const FPaperSpriteVertexBuffer* InVertexBuf
 		VertexData.TangentBasisComponents[0] = FVertexStreamComponent(&InVertexBuffer->TangentBuffer, 0, 2 * sizeof(FPackedNormal), VET_PackedNormal, EVertexStreamUsage::ManualFetch);
 		VertexData.TangentBasisComponents[1] = FVertexStreamComponent(&InVertexBuffer->TangentBuffer, sizeof(FPackedNormal), 2 * sizeof(FPackedNormal), VET_PackedNormal, EVertexStreamUsage::ManualFetch);
 		VertexData.ColorComponent = FVertexStreamComponent(&InVertexBuffer->ColorBuffer, 0, sizeof(FColor), VET_Color, EVertexStreamUsage::ManualFetch);
-		VertexData.TextureCoordinates.Add(FVertexStreamComponent(&InVertexBuffer->TexCoordBuffer, 0, sizeof(FVector2D), VET_Float2, EVertexStreamUsage::ManualFetch));
+		VertexData.TextureCoordinates.Add(FVertexStreamComponent(&InVertexBuffer->TexCoordBuffer, 0, sizeof(FVector2f), VET_Float2, EVertexStreamUsage::ManualFetch));
 
 		SetData(VertexData);
 		VertexBuffer = InVertexBuffer;

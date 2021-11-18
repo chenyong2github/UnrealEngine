@@ -7,8 +7,6 @@
 #include "Math/VectorRegister.h"
 #include "Math/Matrix.h"
 
-// LWC_TODO: FRotator -> TRotator<T>
-
 namespace UE {
 namespace Math {
 
@@ -26,10 +24,10 @@ public:
 	 * @param Rot rotation
 	 * @param Origin translation to apply
 	 */
-	TRotationTranslationMatrix(const FRotator& Rot, const TVector<T>& Origin);
+	TRotationTranslationMatrix(const TRotator<T>& Rot, const TVector<T>& Origin);
 
 	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
-	static TMatrix<T> Make(const FRotator& Rot, const TVector<T>& Origin)
+	static TMatrix<T> Make(const TRotator<T>& Rot, const TVector<T>& Origin)
 	{
 		return TRotationTranslationMatrix(Rot, Origin);
 	}
@@ -37,7 +35,7 @@ public:
 
 
 template<typename T>
-FORCEINLINE TRotationTranslationMatrix<T>::TRotationTranslationMatrix(const FRotator& Rot, const TVector<T>& Origin)
+FORCEINLINE TRotationTranslationMatrix<T>::TRotationTranslationMatrix(const TRotator<T>& Rot, const TVector<T>& Origin)
 {
 #if PLATFORM_ENABLE_VECTORINTRINSICS && (!PLATFORM_HOLOLENS || !PLATFORM_CPU_ARM_FAMILY)
 

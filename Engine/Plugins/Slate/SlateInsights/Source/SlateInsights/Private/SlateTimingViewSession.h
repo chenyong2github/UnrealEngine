@@ -9,6 +9,7 @@ namespace TraceServices { class IAnalysisSession; }
 namespace Insights { class ITimingViewSession; }
 namespace Insights { enum class ETimeChangedFlags : int32; }
 namespace UE { namespace SlateInsights { class FSlateFrameGraphTrack; } }
+namespace UE { namespace SlateInsights { class FSlateWidgetUpdateStepsTimingTrack; } }
 class FMenuBuilder;
 class SDockTab;
 
@@ -28,16 +29,31 @@ public:
 	void ExtendFilterMenu(FMenuBuilder& InMenuBuilder);
 
 	/** Get the last cached analysis session */
-	const TraceServices::IAnalysisSession& GetAnalysisSession() const { return *AnalysisSession; }
+	const TraceServices::IAnalysisSession& GetAnalysisSession() const
+	{
+		return *AnalysisSession;
+	}
 
 	/** Check whether the analysis session is valid */
-	bool IsAnalysisSessionValid() const { return AnalysisSession != nullptr; }
+	bool IsAnalysisSessionValid() const
+	{
+		return AnalysisSession != nullptr;
+	}
 
 	/** Show/Hide the slate track */
 	void ToggleSlateTrack();
+	
+	/** Show/Hide the Update track */
+	void ToggleWidgetUpdateTrack();
 
 	/** Open a resume of the frame */
 	void OpenSlateFrameTab() const;
+
+	/** The timing view for the session */
+	Insights::ITimingViewSession* GetTimingView() const
+	{
+		return TimingViewSession;
+	}
 
 private:
 	// Cached analysis session, set in Tick()
@@ -49,8 +65,13 @@ private:
 	// All the tracks we manage
 	TSharedPtr<FSlateFrameGraphTrack> SlateFrameGraphTrack;
 
-	// Flags controlling whether check type of our animation tracks are enabled
+	// The widget timing track
+	TSharedPtr<FSlateWidgetUpdateStepsTimingTrack> WidgetUpdateStepsGraphTrack;
+
+	// Flags controlling whether the Application Tick tracks is enabled
 	bool bApplicationTracksEnabled;
+	// Flags controlling whether the Layout/Paint tracks is enabled
+	bool bWidgetUpdateStepsTracksEnabled;
 };
 
 } //namespace SlateInsights

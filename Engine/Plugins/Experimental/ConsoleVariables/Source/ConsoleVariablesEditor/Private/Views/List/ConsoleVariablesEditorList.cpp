@@ -19,11 +19,11 @@ TSharedRef<SWidget> FConsoleVariablesEditorList::GetOrCreateWidget()
 	return ListWidget.ToSharedRef();
 }
 
-void FConsoleVariablesEditorList::RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo) const
+void FConsoleVariablesEditorList::RefreshList(const FString& InConsoleCommandToScrollTo) const
 {
 	if (ListWidget.IsValid())
 	{
-		ListWidget->RefreshList(InAsset, InConsoleCommandToScrollTo);
+		ListWidget->RefreshList(InConsoleCommandToScrollTo);
 	}
 }
 

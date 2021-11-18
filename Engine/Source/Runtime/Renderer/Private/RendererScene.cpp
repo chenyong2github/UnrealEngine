@@ -165,6 +165,31 @@ struct FSpeedTreeWindComputation
 	int32 ReferenceCount;
 };
 
+FPersistentSkyAtmosphereData::FPersistentSkyAtmosphereData()
+	: bInitialised(false)
+	, CameraAerialPerspectiveVolumeIndex(0)
+{
+}
+void FPersistentSkyAtmosphereData::InitialiseOrNextFrame(ERHIFeatureLevel::Type FeatureLevel, FPooledRenderTargetDesc& AerialPerspectiveDesc, FRHICommandListImmediate& RHICmdList)
+{
+	if (!bInitialised)
+	{
+		CameraAerialPerspectiveVolumeCount = FeatureLevel == ERHIFeatureLevel::ES3_1 ? 2 : 1;
+		for (int i = 0; i < CameraAerialPerspectiveVolumeCount; ++i)
+		{
+			GRenderTargetPool.FindFreeElement(RHICmdList, AerialPerspectiveDesc, CameraAerialPerspectiveVolumes[i], 
+				i==0 ? TEXT("SkyAtmosphere.CameraAPVolume0") : TEXT("SkyAtmosphere.CameraAPVolume1"), ERenderTargetTransience::NonTransient);
+		}
+		bInitialised = true;
+	}
+
+	CameraAerialPerspectiveVolumeIndex = (CameraAerialPerspectiveVolumeIndex + 1) % CameraAerialPerspectiveVolumeCount;
+}
+TRefCountPtr<IPooledRenderTarget> FPersistentSkyAtmosphereData::GetCurrentCameraAerialPerspectiveVolume()
+{
+	check(CameraAerialPerspectiveVolumes[CameraAerialPerspectiveVolumeIndex].IsValid());
+	return CameraAerialPerspectiveVolumes[CameraAerialPerspectiveVolumeIndex];
+}
 
 /** Default constructor. */
 FSceneViewState::FSceneViewState()

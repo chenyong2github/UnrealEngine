@@ -23,7 +23,7 @@ int32 UVGenerationUtils::GetNextOpenUVChannel(UStaticMesh* StaticMesh, int32 LOD
 
 	for (; FirstEmptyUVs < NumberOfUVs; ++FirstEmptyUVs)
 	{
-		const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = Mesh->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		const TVertexInstanceAttributesConstRef<FVector2f> UVChannels = Mesh->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 		const FVector2D DefValue = UVChannels.GetDefaultValue();
 		bool bHasNonDefaultValue = false;
 

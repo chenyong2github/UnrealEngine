@@ -77,6 +77,7 @@ void FMeshMultiResampleImageEvaluator::Setup(const FMeshBaseBaker& Baker, FEvalu
 
 	// Cache data from baker
 	DetailSampler = Baker.GetDetailSampler();
+	NumMultiTextures = MultiTextures.Num();
 }
 
 void FMeshMultiResampleImageEvaluator::EvaluateSampleMulti(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
@@ -92,13 +93,16 @@ FVector4f FMeshMultiResampleImageEvaluator::ImageSampleFunction(const FCorrespon
 	const void* DetailMesh = Sample.DetailMesh;
 	const int32 DetailTriID = Sample.DetailTriID;
 	const int32 MaterialID = DetailSampler->GetMaterialID(DetailMesh, DetailTriID);
-	// TODO: Decompose the Map into a sparse array lookup.
-	const TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> TextureImage = MultiTextures.FindRef(MaterialID);
-	if (TextureImage)
+
+	// TODO: Can we assume that the MaterialIDs are always valid?
+	if (MaterialID >= 0 && MaterialID < NumMultiTextures)
 	{
-		FVector2f DetailUV;
-		DetailSampler->TriBaryInterpolateUV(DetailMesh, DetailTriID, Sample.DetailBaryCoords, DetailUVLayer, DetailUV);
-		Color = TextureImage->BilinearSampleUV<float>(FVector2d(DetailUV), FVector4f(0, 0, 0, 1));
+		if (const TImageBuilder<FVector4f>* TextureImage = MultiTextures[MaterialID].Get())
+		{
+			FVector2f DetailUV;
+			DetailSampler->TriBaryInterpolateUV(DetailMesh, DetailTriID, Sample.DetailBaryCoords, DetailUVLayer, DetailUV);
+			Color = TextureImage->BilinearSampleUV<float>(FVector2d(DetailUV), FVector4f(0, 0, 0, 1));
+		}
 	}
 	return Color;
 }

@@ -54,7 +54,7 @@ void FGeometryCollection::Construct()
 	// Vertices Group
 	AddExternalAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup, Vertex);
 	AddExternalAttribute<FVector3f>("Normal", FGeometryCollection::VerticesGroup, Normal);
-	AddExternalAttribute<TArray<FVector2D>>("UVs", FGeometryCollection::VerticesGroup, UVs);
+	AddExternalAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup, UVs);
 	AddExternalAttribute<FLinearColor>("Color", FGeometryCollection::VerticesGroup, Color);
 	AddExternalAttribute<FVector3f>("TangentU", FGeometryCollection::VerticesGroup, TangentU);
 	AddExternalAttribute<FVector3f>("TangentV", FGeometryCollection::VerticesGroup, TangentV);
@@ -118,7 +118,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 	int NumNewVertices = Element.NumElements(FGeometryCollection::VerticesGroup);
 	const TManagedArray<FVector3f>& ElementVertices = Element.Vertex;
 	const TManagedArray<FVector3f>& ElementNormals = Element.Normal;
-	const TManagedArray<TArray<FVector2D>>& ElementUVs = Element.UVs;
+	const TManagedArray<TArray<FVector2f>>& ElementUVs = Element.UVs;
 	const TManagedArray<FLinearColor>& ElementColors = Element.Color;
 	const TManagedArray<FVector3f>& ElementTangentUs = Element.TangentU;
 	const TManagedArray<FVector3f>& ElementTangentVs = Element.TangentV;
@@ -162,7 +162,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 	int VerticesIndex = AddElements(NumNewVertices, FGeometryCollection::VerticesGroup);
 	TManagedArray<FVector3f>& Vertices = Vertex;
 	TManagedArray<FVector3f>& Normals = Normal;
-	TManagedArray<TArray<FVector2D>>& AllUVs = UVs;
+	TManagedArray<TArray<FVector2f>>& AllUVs = UVs;
 	TManagedArray<FLinearColor>& Colors = Color;
 	TManagedArray<FVector3f>& TangentUs = TangentU;
 	TManagedArray<FVector3f>& TangentVs = TangentV;
@@ -1043,10 +1043,10 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			if (!HasAttribute("UVs", FGeometryCollection::VerticesGroup))
 			{
 				UE_LOG(FGeometryCollectionLogging, Warning, TEXT("GeometryCollection updated to multiple UV sets."));
-				AddAttribute<TArray<FVector2D>>("UVs", FGeometryCollection::VerticesGroup);				
+				AddAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);				
 			}
 
-			TManagedArray<TArray<FVector2D>>* MultipleUVs = FindAttribute<TArray<FVector2D>>("UVs", FGeometryCollection::VerticesGroup);
+			TManagedArray<TArray<FVector2f>>* MultipleUVs = FindAttribute<TArray<FVector2f>>("UVs", FGeometryCollection::VerticesGroup);
 			if (NumUVLayers() < 1)
 			{
 				for (int32 VertIdx = 0; VertIdx < MultipleUVs->Num(); ++VertIdx)
@@ -1055,7 +1055,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 				}
 			}
 
-			if (TManagedArray<FVector2D>* SingleUV = FindAttribute<FVector2D>("UV", FGeometryCollection::VerticesGroup))
+			if (TManagedArray<FVector2f>* SingleUV = FindAttribute<FVector2f>("UV", FGeometryCollection::VerticesGroup))
 			{
 				for (int32 VertIdx = 0; VertIdx < MultipleUVs->Num(); ++VertIdx)
 				{
@@ -1362,7 +1362,7 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	TManagedArray<FVector3f>&  Normals = RestCollection->Normal;
 	TManagedArray<FVector3f>&  TangentU = RestCollection->TangentU;
 	TManagedArray<FVector3f>&  TangentV = RestCollection->TangentV;
-	TManagedArray<TArray<FVector2D>>& UVs = RestCollection->UVs;
+	TManagedArray<TArray<FVector2f>>& UVs = RestCollection->UVs;
 	TManagedArray<FLinearColor>&  Colors = RestCollection->Color;
 	TManagedArray<FIntVector>&  Indices = RestCollection->Indices;
 	TManagedArray<bool>&  Visible = RestCollection->Visible;
@@ -1676,7 +1676,7 @@ FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<flo
 	TManagedArray<FVector3f>&  Normals = RestCollection->Normal;
 	TManagedArray<FVector3f>&  TangentU = RestCollection->TangentU;
 	TManagedArray<FVector3f>&  TangentV = RestCollection->TangentV;
-	TManagedArray<TArray<FVector2D>>& UVs = RestCollection->UVs;
+	TManagedArray<TArray<FVector2f>>& UVs = RestCollection->UVs;
 	TManagedArray<FLinearColor>&  Colors = RestCollection->Color;
 	TManagedArray<int32>& BoneMap = RestCollection->BoneMap;
 	TManagedArray<FIntVector>&  Indices = RestCollection->Indices;

@@ -496,7 +496,6 @@ private:
 		if (bCellsLeft)
 		{
 			CellIdx = MGrid.Cell(NextStart);
-			CellIdx = MGrid.ClampIndex(CellIdx);	//raycast may have ended slightly outside of grid
 			FGridSet CellsVisited(MGrid.Counts());
 
 			do
@@ -667,14 +666,14 @@ private:
 			T TOI;
 		};
 
-		const TVector<int32, d> StartMinIndex = MGrid.ClampIndex(MGrid.Cell(Start - QueryHalfExtents));
-		const TVector<int32, d> StartMaxIndex = MGrid.ClampIndex(MGrid.Cell(Start + QueryHalfExtents));
+		const TVector<int32, d> StartMinIndex = MGrid.Cell(Start - QueryHalfExtents);
+		const TVector<int32, d> StartMaxIndex = MGrid.Cell(Start + QueryHalfExtents);
 
 		if (StartMinIndex == StartMaxIndex)
 		{
 			const TVector<T, d> End = Start + CurData.CurrentLength * Dir;
-			const TVector<int32, d> EndMinIndex = MGrid.ClampIndex(MGrid.Cell(End  - QueryHalfExtents));
-			const TVector<int32, d> EndMaxIndex = MGrid.ClampIndex(MGrid.Cell(End + QueryHalfExtents));
+			const TVector<int32, d> EndMinIndex = MGrid.Cell(End  - QueryHalfExtents);
+			const TVector<int32, d> EndMaxIndex = MGrid.Cell(End + QueryHalfExtents);
 			if (StartMinIndex == EndMinIndex && StartMinIndex == EndMaxIndex)
 			{
 				//sweep is fully contained within one cell, this is a common special case - just test all elements
@@ -723,7 +722,6 @@ private:
 		{
 			//Flood fill from inflated cell so that we get all cells along the ray
 			TVector<int32, d> HitCellIdx = MGrid.Cell(HitPoint);
-			HitCellIdx = MGrid.ClampIndex(HitCellIdx);	//inflation means we likely are outside grid, just get closest cell
 
 			if (!IdxsSeen.Contains(HitCellIdx))
 			{
@@ -891,8 +889,8 @@ private:
 
 		TAABB<T, d> GlobalBounds(MGrid.MinCorner(), MGrid.MaxCorner());
 
-		const TVector<int32, d> StartIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Min()));
-		const TVector<int32, d> EndIndex = MGrid.ClampIndex(MGrid.Cell(QueryBounds.Max()));
+		const TVector<int32, d> StartIndex = MGrid.Cell(QueryBounds.Min());
+		const TVector<int32, d> EndIndex = MGrid.Cell(QueryBounds.Max());
 		TSet<FUniqueIdx> InstancesSeen;
 
 		for (int32 X = StartIndex[0]; X <= EndIndex[0]; ++X)
@@ -1085,8 +1083,8 @@ private:
 				{
 					const TAABB<T, d>& ObjectBox = AllBounds[Idx];
 					NumObjectsWithBounds += 1;
-					const auto StartIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Min()));
-					const auto EndIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Max()));
+					const auto StartIndex = MGrid.Cell(ObjectBox.Min());
+					const auto EndIndex = MGrid.Cell(ObjectBox.Max());
 					
 					auto Payload = Particle.template GetPayload<TPayloadType>(Idx);
 					MPayloadInfo.Add(Payload, FPayloadInfo{ INDEX_NONE, INDEX_NONE, StartIndex, EndIndex });
@@ -1170,8 +1168,8 @@ private:
 			if (bIsEmpty == false)
 			{
 				//add payload to appropriate cells
-				StartIndex = MGrid.Cell(NewBounds.Min());
-				EndIndex = MGrid.Cell(NewBounds.Max());
+				StartIndex = MGrid.CellUnsafe(NewBounds.Min());
+				EndIndex = MGrid.CellUnsafe(NewBounds.Max());
 
 				for (int Axis = 0; Axis < d; ++Axis)
 				{
@@ -1218,8 +1216,8 @@ private:
 	TArray<TPayloadType> FindAllIntersectionsHelper(const TAABB<T, d>& ObjectBox) const
 	{
 		TArray<TPayloadType> Intersections;
-		const auto StartIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Min()));
-		const auto EndIndex = MGrid.ClampIndex(MGrid.Cell(ObjectBox.Max()));
+		const auto StartIndex = MGrid.Cell(ObjectBox.Min());
+		const auto EndIndex = MGrid.Cell(ObjectBox.Max());
 		for (int32 x = StartIndex[0]; x <= EndIndex[0]; ++x)
 		{
 			for (int32 y = StartIndex[1]; y <= EndIndex[1]; ++y)

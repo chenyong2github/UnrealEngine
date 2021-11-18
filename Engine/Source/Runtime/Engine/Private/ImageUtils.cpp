@@ -453,7 +453,7 @@ UTexture2D* FImageUtils::CreateCheckerboardTexture(FColor ColorOne, FColor Color
 	UTexture2D* CheckerboardTexture = UTexture2D::CreateTransient(CheckerSize, CheckerSize, PF_B8G8R8A8);
 
 	// Lock the checkerboard texture so it can be modified
-	FColor* MipData = reinterpret_cast<FColor*>( CheckerboardTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE) );
+	FColor* MipData = reinterpret_cast<FColor*>( CheckerboardTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE) );
 
 	// Fill in the colors in a checkerboard pattern
 	for ( int32 RowNum = 0; RowNum < CheckerSize; ++RowNum )
@@ -474,7 +474,7 @@ UTexture2D* FImageUtils::CreateCheckerboardTexture(FColor ColorOne, FColor Color
 	}
 
 	// Unlock the texture
-	CheckerboardTexture->PlatformData->Mips[0].BulkData.Unlock();
+	CheckerboardTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
 	CheckerboardTexture->UpdateResource();
 
 	return CheckerboardTexture;
@@ -586,7 +586,7 @@ public:
 		Texture->GetMipData(0, (void**)RawData2.GetData());
 		const EPixelFormat NewFormat = Texture->GetPixelFormat();
 
-		if (Texture->PlatformData->Mips.Num() == 0)
+		if (Texture->GetPlatformData()->Mips.Num() == 0)
 		{
 			bReadSuccess = false;
 			FMessageLog("ImageUtils").Warning(FText::Format(LOCTEXT("ExportHDRFailedToReadMipData", "Failed to read Mip Data in: '{0}'"), FText::FromString(Texture->GetName())));
@@ -609,7 +609,7 @@ public:
 		//Put first mip data into usable array
 		if (bReadSuccess)
 		{
-			const uint32 TotalSize = Texture->PlatformData->Mips[0].BulkData.GetBulkDataSize();
+			const uint32 TotalSize = Texture->GetPlatformData()->Mips[0].BulkData.GetBulkDataSize();
 			RawData.AddZeroed(TotalSize);
 			FMemory::Memcpy(RawData.GetData(), RawData2[0], TotalSize);
 		}
@@ -905,12 +905,12 @@ UTexture2D* FImageUtils::ImportFileAsTexture2D(const FString& Filename)
 					NewTexture = UTexture2D::CreateTransient(Width, Height, PixelFormat);
 					if (NewTexture)
 					{
-						uint8* MipData = static_cast<uint8*>(NewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
+						uint8* MipData = static_cast<uint8*>(NewTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
 
 						TArrayView64<FColor> SourceColors(reinterpret_cast<FColor*>(BGREImage.GetData()), BGREImage.Num() / sizeof(FColor));
 
 						// Bulk data was already allocated for the correct size when we called CreateTransient above
-						TArrayView64<FFloat16> Destination(reinterpret_cast<FFloat16*>(MipData), NewTexture->PlatformData->Mips[0].BulkData.GetBulkDataSize() / sizeof(FFloat16));
+						TArrayView64<FFloat16> Destination(reinterpret_cast<FFloat16*>(MipData), NewTexture->GetPlatformData()->Mips[0].BulkData.GetBulkDataSize() / sizeof(FFloat16));
 
 						int64 DestinationIndex = 0;
 						for (const FColor& Color: SourceColors)
@@ -922,7 +922,7 @@ UTexture2D* FImageUtils::ImportFileAsTexture2D(const FString& Filename)
 							Destination[DestinationIndex++].Set(LinearColor.A);
 						}
 
-						NewTexture->PlatformData->Mips[0].BulkData.Unlock();
+						NewTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
 
 						NewTexture->UpdateResource();
 					}
@@ -998,12 +998,12 @@ UTexture2D* FImageUtils::ImportBufferAsTexture2D(TArrayView64<const uint8> Buffe
 			if (NewTexture)
 			{
 				NewTexture->bNotOfflineProcessed = true;
-				uint8* MipData = static_cast<uint8*>(NewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
+				uint8* MipData = static_cast<uint8*>(NewTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE));
 				
 				// Bulk data was already allocated for the correct size when we called CreateTransient above
-				FMemory::Memcpy(MipData, UncompressedData.GetData(), NewTexture->PlatformData->Mips[0].BulkData.GetBulkDataSize());
+				FMemory::Memcpy(MipData, UncompressedData.GetData(), NewTexture->GetPlatformData()->Mips[0].BulkData.GetBulkDataSize());
 				
-				NewTexture->PlatformData->Mips[0].BulkData.Unlock();
+				NewTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
 
 				NewTexture->UpdateResource();
 			}

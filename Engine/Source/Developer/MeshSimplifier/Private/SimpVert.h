@@ -13,8 +13,8 @@ public:
 	FVector3f			Position;
 	FVector3f			Normal;
 	FVector3f			Tangents[2];
-	FLinearColor	Color;
-	FVector2D		TexCoords[ NumTexCoords ];
+	FLinearColor		Color;
+	FVector2f			TexCoords[ NumTexCoords ];
 
 	FVector3f&		GetPos()					{ return Position; }
 	const FVector3f&	GetPos() const				{ return Position; }

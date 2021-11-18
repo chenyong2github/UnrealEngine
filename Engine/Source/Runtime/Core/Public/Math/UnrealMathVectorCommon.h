@@ -47,9 +47,10 @@ FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TVector<T>* Ptr)
 	return VectorLoad((const T*)(Ptr));
 }
 
-FORCEINLINE VectorRegister4Float VectorLoad(const FVector2D* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TVector2<T>* Ptr)
 {
-	return VectorLoad((const float*)(Ptr));
+	return VectorLoad((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Float VectorLoad(const VectorRegister4Float* Ptr)
@@ -151,9 +152,10 @@ FORCEINLINE TVectorRegisterType<T> VectorLoadFloat3_W0(const UE::Math::TVector<T
 	return VectorLoadFloat3_W0((const T*)(Ptr));
 }
 
-FORCEINLINE VectorRegister4Float VectorLoadFloat3_W0(const FRotator* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoadFloat3_W0(const UE::Math::TRotator<T>* Ptr)
 {
-	return VectorLoadFloat3_W0((const float*)(Ptr));
+	return VectorLoadFloat3_W0((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Double VectorLoadDouble3_W0(const double* Ptr)
@@ -342,9 +344,16 @@ FORCEINLINE void VectorStoreFloat3(const VectorRegister4Double& Vec, UE::Math::T
 	VectorStoreFloat3(Vec, (T*)Dst);
 }
 
-FORCEINLINE void VectorStoreFloat3(const VectorRegister4Float& Vec, FRotator* Dst)
+template<typename T>
+FORCEINLINE void VectorStoreFloat3(const VectorRegister4Float& Vec, UE::Math::TRotator<T>* Dst)
 {
-	VectorStoreFloat3(Vec, (float*)Dst);
+	VectorStoreFloat3(Vec, (T*)Dst);
+}
+
+template<typename T>
+FORCEINLINE void VectorStoreFloat3(const VectorRegister4Double& Vec, UE::Math::TRotator<T>* Dst)
+{
+	VectorStoreFloat3(Vec, (T*)Dst);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -494,7 +503,7 @@ template<> FORCEINLINE VectorRegister4Double FGenericPlatformMath::Max(const Vec
 template<>
 struct TCustomLerp<VectorRegister4Float>
 {
-	enum { IsRequired = true };
+	enum { Value = true };
 	
 	// Specialization of Lerp function that works with vector registers
 	static FORCEINLINE VectorRegister4Float Lerp(const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& Alpha)
@@ -508,7 +517,7 @@ struct TCustomLerp<VectorRegister4Float>
 template<>
 struct TCustomLerp<VectorRegister4Double>
 {
-	enum { IsRequired = true };
+	enum { Value = true };
 
 	// Specialization of Lerp function that works with vector registers
 	static FORCEINLINE VectorRegister4Double Lerp(const VectorRegister4Double& A, const VectorRegister4Double& B, const VectorRegister4Double& Alpha)

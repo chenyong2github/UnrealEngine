@@ -129,8 +129,14 @@ namespace ImmediatePhysics_Chaos
 
 		UBodySetup* BodySetup = BodyInstance->GetBodySetup();
 
+		// Set the filter to collide with everything (we use a broad phase that only contains particle pairs that are explicitly set to collide)
 		FBodyCollisionData BodyCollisionData;
-		BodyInstance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
+		// @todo(chaos): we need an API for setting up filters
+		BodyCollisionData.CollisionFilterData.SimFilter.Word1 = 0xFFFF;
+		BodyCollisionData.CollisionFilterData.SimFilter.Word3 = 0xFFFF;
+		BodyCollisionData.CollisionFlags.bEnableSimCollisionSimple = true;
+
+		//BodyInstance->BuildBodyFilterData(BodyCollisionData.CollisionFilterData);
 		BodyInstance->BuildBodyCollisionFlags(BodyCollisionData.CollisionFlags, BodyInstance->GetCollisionEnabled(), BodyInstance->BodySetup->GetCollisionTraceFlag() == CTF_UseComplexAsSimple);
 
 		FGeometryAddParams AddParams;
@@ -255,6 +261,18 @@ namespace ImmediatePhysics_Chaos
 				SetWorldTransform(Transform);
 
 				ParticleHandle->SetGeometry(MakeSerializable(Geometry));
+
+				// Set the collision filter data for the shapes to collide with everything.
+				// Even though we already tried to do this when we created the original shapes array, 
+				// that gets thrown away and we need to do it here. This is not a good API
+				FCollisionData CollisionData;
+				CollisionData.SimData.Word1 = 0xFFFFF;
+				CollisionData.SimData.Word3 = 0xFFFFF;
+				CollisionData.bSimCollision = 1;
+				for (const auto& Shape : ParticleHandle->ShapesArray())
+				{
+					Shape->SetCollisionData(CollisionData);
+				}
 
 				if (Geometry && Geometry->HasBoundingBox())
 				{

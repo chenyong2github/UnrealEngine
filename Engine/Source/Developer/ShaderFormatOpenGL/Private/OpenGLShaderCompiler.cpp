@@ -2788,7 +2788,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 		HSF_InvalidFrequency,
 		HSF_PixelShader,
 		HSF_GeometryShader,
-		RHISupportsComputeShaders(Input.Target.GetPlatform()) ? HSF_ComputeShader : HSF_InvalidFrequency
+		HSF_ComputeShader
 	};
 	static_assert(SF_NumStandardFrequencies == UE_ARRAY_COUNT(FrequencyTable), "NumFrequencies changed. Please update tables.");
 

@@ -158,10 +158,11 @@ void UMoviePipelinePanoramicPass::SetupImpl(const MoviePipeline::FMoviePipelineR
 	int32 NumPanoramicPanes = NumPanes * StereoMultiplier;
 	if (bAllocateHistoryPerPane)
 	{
-		for (int32 Index = 0; Index < NumPanoramicPanes; Index++)
+		OptionalPaneViewStates.SetNum(NumPanoramicPanes);
+
+		for (int32 Index = 0; Index < OptionalPaneViewStates.Num(); Index++)
 		{
-			FSceneViewStateReference& PaneViewState = OptionalPaneViewStates.AddDefaulted_GetRef();
-			PaneViewState.Allocate();
+			OptionalPaneViewStates[Index].Allocate();
 		}
 	}
 

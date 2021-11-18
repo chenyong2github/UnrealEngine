@@ -727,7 +727,7 @@ public:
 		FUObjectItem* ObjectItem = IndexToObject(Index);
 		if (ObjectItem && ObjectItem->Object)
 		{
-			if (!bEvenIfPendingKill && ObjectItem->IsPendingKill())
+			if (!bEvenIfPendingKill && ObjectItem->HasAnyFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage))
 			{
 				ObjectItem = nullptr;;
 			}
@@ -745,7 +745,7 @@ public:
 	{
 		if (ObjectItem)
 		{
-			return bEvenIfPendingKill ? !ObjectItem->IsUnreachable() : !(ObjectItem->IsUnreachable() || ObjectItem->IsPendingKill());
+			return bEvenIfPendingKill ? !ObjectItem->IsUnreachable() : !(ObjectItem->HasAnyFlags(EInternalObjectFlags::Unreachable | EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage));
 		}
 		return false;
 	}
@@ -766,7 +766,7 @@ public:
 	FORCEINLINE bool IsStale(FUObjectItem* ObjectItem, bool bEvenIfPendingKill)
 	{
 		// This method assumes ObjectItem is valid.
-		return bEvenIfPendingKill ? (ObjectItem->IsPendingKill() || ObjectItem->IsUnreachable()) : (ObjectItem->IsUnreachable());
+		return bEvenIfPendingKill ? (ObjectItem->HasAnyFlags(EInternalObjectFlags::Unreachable | EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage)) : (ObjectItem->IsUnreachable());
 	}
 
 	FORCEINLINE bool IsStale(int32 Index, bool bEvenIfPendingKill)

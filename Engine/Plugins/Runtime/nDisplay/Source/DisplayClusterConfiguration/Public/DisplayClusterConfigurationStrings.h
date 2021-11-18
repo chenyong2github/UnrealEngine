@@ -56,7 +56,6 @@ namespace DisplayClusterConfigurationStrings
 			namespace ports
 			{
 				static constexpr auto PortClusterSync         = TEXT("ClusterSync");
-				static constexpr auto PortRenderSync          = TEXT("RenderSync");
 				static constexpr auto PortClusterEventsJson   = TEXT("ClusterEventsJson");
 				static constexpr auto PortClusterEventsBinary = TEXT("ClusterEventsBinary");
 			}

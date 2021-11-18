@@ -160,7 +160,7 @@ namespace PackageRestore
 			Item = InArgs._Item;
 
 			SMultiColumnTableRow< FPackageRestoreItemPtr >::Construct(
-				FSuperRowType::FArguments()
+				FSuperRowType::FArguments().Padding(FMargin(0, 3))
 				, InOwnerTableView);
 		}
 
@@ -170,14 +170,15 @@ namespace PackageRestore
 			check(Item.IsValid());
 
 			const FSlateBrush* FolderOpenBrush = FAppStyle::Get().GetBrush("PackageRestore.FolderOpen");
-			TSharedPtr<SWidget> ItemContentWidget;;
+			TSharedPtr<SWidget> ItemContentWidget;
 
 			if (ColumnName == ColumnID_CheckBoxLabel)
 			{
 				ItemContentWidget = SNew(SHorizontalBox)
 					.ToolTipText(Item->GetToolTip())
 					+ SHorizontalBox::Slot()
-					.Padding(7, 4, 2, 0)
+					.Padding(7, 0, 2, 0)
+					.VAlign(VAlign_Center)
 					[
 						SNew(SCheckBox)
 						.IsChecked(Item.Get(), &FPackageRestoreItem::GetState)
@@ -192,6 +193,7 @@ namespace PackageRestore
 					+ SHorizontalBox::Slot()
 					.Padding(FMargin(2, 0, 4, 0))
 					.AutoWidth()
+					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
 						.Image(FAppStyle::Get().GetBrush("Icons.WarningWithColor"))
@@ -200,7 +202,7 @@ namespace PackageRestore
 						.Visibility(Item.Get(), &FPackageRestoreItem::GetRestoreOverMoreRecentPackageWarningVisibility)
 					]
 					+ SHorizontalBox::Slot()
-					.Padding(FMargin(6, 4, 20, 0))
+					.Padding(FMargin(6, 0, 20, 0))
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Left)
 					.FillWidth(1)
@@ -214,7 +216,7 @@ namespace PackageRestore
 				ItemContentWidget = SNew(SHorizontalBox)
 					.ToolTipText(Item->GetToolTip())
 					+ SHorizontalBox::Slot()
-					.Padding(FMargin(4, 4, 0, 0))
+					.Padding(FMargin(4, 0, 0, 0))
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Left)
 					.FillWidth(1)
@@ -242,7 +244,7 @@ namespace PackageRestore
 				ItemContentWidget = SNew(SHorizontalBox)
 					.ToolTipText(Item->GetToolTip())
 					+ SHorizontalBox::Slot()
-					.Padding(FMargin(4, 4, 0, 0))
+					.Padding(FMargin(4, 0, 0, 0))
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Left)
 					.FillWidth(1)

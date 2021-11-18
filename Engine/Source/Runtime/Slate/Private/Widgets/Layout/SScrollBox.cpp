@@ -87,8 +87,8 @@ FVector2D SScrollPanel::ComputeDesiredSize(float) const
 		}
 	}
 
-	float ScrollPadding = Orientation == Orient_Vertical ? GetTickSpaceGeometry().GetLocalSize().Y : GetTickSpaceGeometry().GetLocalSize().X;
-	float& SizeSideToPad = Orientation == Orient_Vertical ? ThisDesiredSize.Y : ThisDesiredSize.X;
+	FVector2D::FReal ScrollPadding = Orientation == Orient_Vertical ? GetTickSpaceGeometry().GetLocalSize().Y : GetTickSpaceGeometry().GetLocalSize().X;
+	FVector2D::FReal& SizeSideToPad = Orientation == Orient_Vertical ? ThisDesiredSize.Y : ThisDesiredSize.X;
 	SizeSideToPad += BackPadScrolling ? ScrollPadding : 0;
 	SizeSideToPad += FrontPadScrolling ? ScrollPadding : 0;
 

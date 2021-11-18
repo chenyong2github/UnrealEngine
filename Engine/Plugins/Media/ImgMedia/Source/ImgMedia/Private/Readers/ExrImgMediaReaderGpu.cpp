@@ -189,6 +189,17 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgM
 
 				if (!bResult)
 				{
+					// Check if we have a compressed file.
+					FRgbaInputFile InputFileMip(ImagePath);
+					FImgMediaFrameInfo Info;
+					if (GetInfo(InputFileMip, Info))
+					{
+						if (Info.CompressionName != "Uncompressed")
+						{
+							UE_LOG(LogImgMedia, Error, TEXT("GPU Reader cannot read compressed file %s."), *ImagePath);
+							UE_LOG(LogImgMedia, Error, TEXT("Compressed and uncompressed files should not be mixed in a single sequence."));
+						}
+					}
 					return false;
 				}
 			}

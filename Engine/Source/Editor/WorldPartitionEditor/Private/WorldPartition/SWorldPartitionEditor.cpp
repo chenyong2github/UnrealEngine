@@ -36,7 +36,7 @@ SWorldPartitionEditor::~SWorldPartitionEditor()
 	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
 	WorldPartitionEditorModule.OnWorldPartitionCreated().RemoveAll(this);
 
-	if (World)
+	if (World.IsValid())
 	{
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
@@ -64,7 +64,7 @@ void SWorldPartitionEditor::OnBrowseWorld(UWorld* InWorld)
 TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()
 {
 	FName EditorName = NAME_None;	
-	if (World)
+	if (World.IsValid())
 	{
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
@@ -87,7 +87,7 @@ TSharedRef<SWidget> SWorldPartitionEditor::ConstructContentWidget()
 			// Grid view
 			+SOverlay::Slot()
 			[
-				PartitionEditorGridCreateInstanceFunc(GridView, World)
+				PartitionEditorGridCreateInstanceFunc(GridView, World.Get())
 			]
 
 			// Grid view top status bar

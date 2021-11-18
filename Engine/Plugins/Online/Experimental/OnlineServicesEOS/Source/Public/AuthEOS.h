@@ -9,6 +9,7 @@
 #include EOS_PLATFORM_BASE_FILE_NAME
 #endif
 #include "eos_auth_types.h"
+#include "eos_connect_types.h"
 
 namespace UE::Online {
 
@@ -34,6 +35,8 @@ protected:
 	void OnEOSLoginStatusChanged(FAccountId LocalUserId, ELoginStatus PreviousStatus, ELoginStatus CurrentStatus);
 	TResult<FAccountId, FOnlineError> GetAccountIdByLocalUserNum(int32 LocalUserNum) const;
 
+	void ProcessSuccessfulLogin(TOnlineAsyncOp<FAuthLogin>& InAsyncOp);
+
 	class FAccountInfoEOS : public FAccountInfo
 	{
 	public:
@@ -43,6 +46,7 @@ protected:
 	TMap<FAccountId, TSharedRef<FAccountInfoEOS>> AccountInfos;
 
 	EOS_HAuth AuthHandle;
+	EOS_HConnect ConnectHandle;
 	EOS_NotificationId NotifyLoginStatusChangedNotificationId = 0;
 };
 

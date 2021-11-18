@@ -1559,7 +1559,8 @@ void FAnimationBlueprintEditor::Tick(float DeltaTime)
 bool FAnimationBlueprintEditor::IsEditable(UEdGraph* InGraph) const
 {
 	bool bEditable = FBlueprintEditor::IsEditable(InGraph);
-	bEditable &= IsGraphInCurrentBlueprint(InGraph);
+
+	bEditable &= (InGraph->GetTypedOuter<UBlueprint>() == GetBlueprintObj());
 
 	return bEditable;
 }
@@ -1730,10 +1731,19 @@ FAnimNode_Base* FAnimationBlueprintEditor::FindAnimNode(UAnimGraphNode_Base* Ani
 	FAnimNode_Base* AnimNode = nullptr;
 	if (AnimGraphNode)
 	{
-		UDebugSkelMeshComponent* PreviewMeshComponent = GetPreviewScene()->GetPreviewMeshComponent();
-		if (PreviewMeshComponent != nullptr && PreviewMeshComponent->GetAnimInstance() != nullptr)
+		USkeletalMeshComponent* SkeletalMeshComponentToUse = nullptr;
+		if(UAnimInstance* AnimInstance = Cast<UAnimInstance>(GetAnimBlueprint()->GetObjectBeingDebugged()))
 		{
-			AnimNode = AnimGraphNode->FindDebugAnimNode(PreviewMeshComponent);
+			SkeletalMeshComponentToUse = AnimInstance->GetSkelMeshComponent();
+		}
+		else
+		{
+			SkeletalMeshComponentToUse = GetPreviewScene()->GetPreviewMeshComponent();
+		}
+
+		if (SkeletalMeshComponentToUse != nullptr && SkeletalMeshComponentToUse->GetAnimInstance() != nullptr)
+		{
+			AnimNode = AnimGraphNode->FindDebugAnimNode(SkeletalMeshComponentToUse);
 		}
 	}
 
@@ -1907,6 +1917,13 @@ void FAnimationBlueprintEditor::HandlePinDefaultValueChanged(UEdGraphPin* InPinT
 void FAnimationBlueprintEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 {
 	FBlueprintEditor::HandleSetObjectBeingDebugged(InObject);
+
+	// act as if we have re-selected, so internal pointers are updated
+	if (CurrentUISelection == FBlueprintEditor::SelectionState_Graph)
+	{
+		FGraphPanelSelectionSet SelectionSet = GetSelectedNodes();
+		OnSelectedNodesChangedImpl(SelectionSet);
+	}
 	
 	if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(InObject))
 	{

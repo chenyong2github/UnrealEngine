@@ -15,6 +15,11 @@
 
 #define LOCTEXT_NAMESPACE "SDMXFixtureTypeMatrixFunctionsEditor"
 
+const FName FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Status = "Status";
+const FName FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Channel = "Channel";
+const FName FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Attribute = "Attribute";
+const FName FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::DeleteAttribute = "DeleteAttribute";
+
 void SDMXFixtureTypeMatrixFunctionsEditor::Construct(const FArguments& InArgs, const TSharedRef<FDMXEditor>& InDMXEditor, TWeakObjectPtr<UDMXEntityFixtureType> InFixtureType, int32 InModeIndex)
 {
 	WeakDMXEditor = InDMXEditor;
@@ -69,23 +74,30 @@ TSharedRef<SHeaderRow> SDMXFixtureTypeMatrixFunctionsEditor::GenerateHeaderRow()
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId("Status")
+		.ColumnId(FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Status)
 		.DefaultLabel(LOCTEXT("StatusColumnLabel", ""))
 		.FixedWidth(StatusColumnWidth)
 	);
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId("Channel")
+		.ColumnId(FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Channel)
 		.DefaultLabel(LOCTEXT("ChannelColumnLabel", "Rel. Ch."))
 		.FixedWidth(56.f)
 	);
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId("Attribute")
+		.ColumnId(FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Attribute)
 		.DefaultLabel(LOCTEXT("AttributeColumnLabel", "Attribute"))
 		.FillWidth(1.f)
+	);
+
+	HeaderRow->AddColumn(
+		SHeaderRow::FColumn::FArguments()
+		.ColumnId(FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::DeleteAttribute)
+		.DefaultLabel(LOCTEXT("DeleteAttributeColumnLabel", ""))
+		.FixedWidth(42.f)
 	);
 
 	return HeaderRow;
@@ -93,9 +105,18 @@ TSharedRef<SHeaderRow> SDMXFixtureTypeMatrixFunctionsEditor::GenerateHeaderRow()
 
 TSharedRef<ITableRow> SDMXFixtureTypeMatrixFunctionsEditor::OnGenerateCellAttributeRow(TSharedPtr<FDMXFixtureTypeMatrixFunctionsEditorItem> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	TSharedRef<SDMXFixtureTypeMatrixFunctionsEditorMatrixRow> CellAttributeRow = SNew(SDMXFixtureTypeMatrixFunctionsEditorMatrixRow, OwnerTable, InItem.ToSharedRef());
+	TSharedRef<SDMXFixtureTypeMatrixFunctionsEditorMatrixRow> CellAttributeRow = 
+		SNew(SDMXFixtureTypeMatrixFunctionsEditorMatrixRow, OwnerTable, InItem.ToSharedRef())
+		.OnRequestDelete(this, &SDMXFixtureTypeMatrixFunctionsEditor::OnCellAttributeRowRequestDelete, InItem);
 
 	return CellAttributeRow;
+}
+
+void SDMXFixtureTypeMatrixFunctionsEditor::OnCellAttributeRowRequestDelete(TSharedPtr<FDMXFixtureTypeMatrixFunctionsEditorItem> RowItem)
+{
+	RowItem->RemoveFromFixtureType();
+		
+	RefreshList();
 }
 
 void SDMXFixtureTypeMatrixFunctionsEditor::OnFixtureTypeChanged(const UDMXEntityFixtureType* ChangedFixtureType)

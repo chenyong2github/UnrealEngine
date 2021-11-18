@@ -7,8 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -21,7 +19,7 @@ namespace UnrealBuildTool
 		/// If we are just running the deployment step, specifies the path to the given deployment settings
 		/// </summary>
 		[CommandLine("-Receipt", Required=true)]
-		public FileReference ReceiptFile = null;
+		public FileReference? ReceiptFile = null;
 
 		/// <summary>
 		/// Execute the tool mode
@@ -35,7 +33,7 @@ namespace UnrealBuildTool
 			Arguments.CheckAllArgumentsUsed();
 
 			// Execute the deploy
-			TargetReceipt Receipt = TargetReceipt.Read(ReceiptFile);
+			TargetReceipt Receipt = TargetReceipt.Read(ReceiptFile!);
 			Log.WriteLine(LogEventType.Console, "Deploying {0} {1} {2}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
 			UEBuildPlatform.GetBuildPlatform(Receipt.Platform).Deploy(Receipt);
 

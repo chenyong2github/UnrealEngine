@@ -5,7 +5,7 @@
 
 
 
-static TAutoConsoleVariable<int> CVarDisplayClusterRenderOverscanEnable(
+static TAutoConsoleVariable<int32> CVarDisplayClusterRenderOverscanEnable(
 	TEXT("nDisplay.render.overscan.enable"),
 	1,
 	TEXT("Enable overscan feature.\n")

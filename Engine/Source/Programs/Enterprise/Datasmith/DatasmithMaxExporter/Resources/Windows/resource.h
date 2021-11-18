@@ -12,6 +12,17 @@
 #define IDI_ICON1                       107
 #define IDI_ICONUE                      107
 #define IDR_ACCELERATOR1                108
+#define IDS_SYNC_NAME                   109
+#define IDS_SYNC_DESC                   110
+#define IDS_CONNECTIONS_NAME            111
+#define IDS_CONNECTIONS_DESC            112
+#define IDS_AUTOSYNC_NAME               113
+#define IDS_AUTOSYNC_DESC               114
+#define IDS_EXPORT_NAME                 115
+#define IDS_EXPORT_DESC                 116
+#define IDS_SHOWLOG_NAME                117
+#define IDS_SHOWLOG_DESC                118
+#define IDS_DATASMITH_CATEGORY          119
 #define IDD_ERROR_MSGS                  181
 #define IDC_BYOBJECT                    1016
 #define IDC_BYMATERIAL                  1017
@@ -47,7 +58,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        109
+#define _APS_NEXT_RESOURCE_VALUE        120
 #define _APS_NEXT_COMMAND_VALUE         40002
 #define _APS_NEXT_CONTROL_VALUE         1036
 #define _APS_NEXT_SYMED_VALUE           101

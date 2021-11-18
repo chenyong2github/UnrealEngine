@@ -82,6 +82,11 @@ void URevolveBoundaryTool::Setup()
 	ClickBehavior->Modifiers.RegisterModifier(AlignAxisModifier, FInputDeviceState::IsCtrlKeyDown);
 	AddInputBehavior(ClickBehavior);
 	
+	OutputTypeProperties = NewObject<UCreateMeshObjectTypeProperties>(this);
+	OutputTypeProperties->RestoreProperties(this);
+	OutputTypeProperties->InitializeDefault();
+	OutputTypeProperties->WatchProperty(OutputTypeProperties->OutputType, [this](FString) { OutputTypeProperties->UpdatePropertyVisibility(); });
+	AddToolPropertySource(OutputTypeProperties);
 
 	Settings = NewObject<URevolveBoundaryToolProperties>(this);
 	Settings->RestoreProperties(this);
@@ -250,6 +255,8 @@ void URevolveBoundaryTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	UMeshBoundaryToolBase::Shutdown(ShutdownType);
 
+	OutputTypeProperties->SaveProperties(this);
+
 	Settings->SaveProperties(this);
 	MaterialProperties->SaveProperties(this);
 
@@ -285,6 +292,7 @@ void URevolveBoundaryTool::GenerateAsset(const FDynamicMeshOpResult& OpResult)
 	NewMeshObjectParams.BaseName = TEXT("Revolve");
 	NewMeshObjectParams.Materials.Add(MaterialProperties->Material.Get());
 	NewMeshObjectParams.SetMesh(OpResult.Mesh.Get());
+	OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
 	FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 	if (Result.IsOK() && Result.NewActor != nullptr)
 	{

@@ -7,13 +7,18 @@
 #include "Cluster/IDisplayClusterClusterSyncObject.h"
 #include "Cluster/IDisplayClusterClusterEventListener.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlMaster.h"
+#include "Cluster/Controller/DisplayClusterClusterNodeCtrlNull.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlEditor.h"
+#include "Cluster/Failover/DisplayClusterFailoverNodeCtrlNull.h"
+#include "Cluster/Failover/DisplayClusterFailoverNodeCtrlPrimary.h"
+#include "Cluster/Failover/DisplayClusterFailoverNodeCtrlSecondary.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "Dom/JsonObject.h"
+#include "HAL/Event.h"
 
 #include "Misc/DisplayClusterTypesConverter.h"
 #include "Misc/DisplayClusterGlobals.h"
@@ -21,22 +26,55 @@
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterStrings.h"
 
+#include "Misc/App.h"
+#include "Misc/QualifiedFrameTime.h"
+
 #include "UObject/Interface.h"
 
 
 FDisplayClusterClusterManager::FDisplayClusterClusterManager()
 {
+	// Sync objects
 	ObjectsToSync.Emplace(EDisplayClusterSyncGroup::PreTick).Reserve(64);
 	ObjectsToSync.Emplace(EDisplayClusterSyncGroup::Tick).Reserve(64);
 	ObjectsToSync.Emplace(EDisplayClusterSyncGroup::PostTick).Reserve(64);
 
+	// Sync objects - replication
+	ObjectsToSyncCache.Emplace(EDisplayClusterSyncGroup::PreTick);
+	ObjectsToSyncCache.Emplace(EDisplayClusterSyncGroup::Tick);
+	ObjectsToSyncCache.Emplace(EDisplayClusterSyncGroup::PostTick);
+
+	ObjectsToSyncCacheReadySignals.Emplace(EDisplayClusterSyncGroup::PreTick,  FPlatformProcess::GetSynchEventFromPool(true));
+	ObjectsToSyncCacheReadySignals.Emplace(EDisplayClusterSyncGroup::Tick,     FPlatformProcess::GetSynchEventFromPool(true));
+	ObjectsToSyncCacheReadySignals.Emplace(EDisplayClusterSyncGroup::PostTick, FPlatformProcess::GetSynchEventFromPool(true));
+
 	// Set cluster event handlers. These are the entry points for any incoming cluster events.
-	OnClusterEventJson.AddRaw(this, &FDisplayClusterClusterManager::OnClusterEventJsonHandler);
+	OnClusterEventJson.AddRaw(this,   &FDisplayClusterClusterManager::OnClusterEventJsonHandler);
 	OnClusterEventBinary.AddRaw(this, &FDisplayClusterClusterManager::OnClusterEventBinaryHandler);
 
 	// Set internal system events handler
 	OnClusterEventJson.Add(FDisplayClusterClusterEventHandler::Get().GetJsonListenerDelegate());
 }
+
+FDisplayClusterClusterManager::~FDisplayClusterClusterManager()
+{
+	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Releasing cluster manager..."));
+
+	// Trigger all data cache availability events to prevent client session threads to be deadlocked.
+	SetInternalSyncObjectsReleaseState(true);
+
+	// Also stop clients/servers
+	if (ClusterNodeCtrl)
+	{
+		ClusterNodeCtrl->Shutdown();
+	}
+
+	for (TPair<EDisplayClusterSyncGroup, FEvent*>& GroupEventIt : ObjectsToSyncCacheReadySignals)
+	{
+		FPlatformProcess::ReturnSynchEventToPool(GroupEventIt.Value);
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IPDisplayClusterManager
@@ -81,40 +119,57 @@ bool FDisplayClusterClusterManager::StartSession(UDisplayClusterConfigurationDat
 	// Save node IDs
 	ConfigData->Cluster->Nodes.GenerateKeyArray(ClusterNodeIds);
 
-	// Instantiate node controller
-	Controller = CreateController();
-	if (!Controller)
-	{
-		UE_LOG(LogDisplayClusterCluster, Error, TEXT("Couldn't create a controller."));
-		return false;
-	}
+	// Reset all internal sync objects
+	SetInternalSyncObjectsReleaseState(false);
+
+	// Instantiate cluster node controller
+	ClusterNodeCtrl = CreateClusterNodeController();
 
 	// Initialize the controller
 	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Initializing the controller..."));
-	if (!Controller->Initialize())
+	if (!ClusterNodeCtrl->Initialize())
 	{
 		UE_LOG(LogDisplayClusterCluster, Error, TEXT("Couldn't initialize a controller."));
-		Controller.Reset();
+		ClusterNodeCtrl = MakeUnique<FDisplayClusterClusterNodeCtrlNull>(FString("[CTRL-NULL]"), ClusterNodeId);
 		return false;
 	}
+
+	// Instantiate failover node controller
+	FailoverNodeCtrl = CreateFailoverNodeController();
 
 	return true;
 }
 
+void FDisplayClusterClusterManager::PreAppExit()
+{
+	// Trigger all data cache availability events to prevent
+	// client session threads to be deadlocked.
+	SetInternalSyncObjectsReleaseState(true);
+
+	// Also stop clients/servers
+	if (ClusterNodeCtrl)
+	{
+		ClusterNodeCtrl->Shutdown();
+	}
+}
+
 void FDisplayClusterClusterManager::EndSession()
 {
-	{
-		FScopeLock Lock(&InternalsSyncScope);
+	// Trigger all data cache availability events to prevent
+	// client session threads to be deadlocked.
+	SetInternalSyncObjectsReleaseState(true);
 
-		if (Controller)
-		{
-			Controller->Release();
-			Controller.Reset();
-		}
+	if (ClusterNodeCtrl)
+	{
+		ClusterNodeCtrl->Shutdown();
 	}
 
-	ClusterNodeIds.Reset();
-	ClusterNodeId.Empty();
+	{
+		FScopeLock Lock(&InternalsCS);
+
+		ClusterNodeIds.Reset();
+		ClusterNodeId.Empty();
+	}
 }
 
 bool FDisplayClusterClusterManager::StartScene(UWorld* InWorld)
@@ -128,7 +183,7 @@ bool FDisplayClusterClusterManager::StartScene(UWorld* InWorld)
 void FDisplayClusterClusterManager::EndScene()
 {
 	{
-		FScopeLock Lock(&ObjectsToSyncCritSec);
+		FScopeLock Lock(&ObjectsToSyncCS);
 		for (auto& SyncGroupPair : ObjectsToSync)
 		{
 			SyncGroupPair.Value.Reset();
@@ -136,55 +191,47 @@ void FDisplayClusterClusterManager::EndScene()
 	}
 
 	{
-		FScopeLock Lock(&ClusterEventListenersCritSec);
+		FScopeLock Lock(&ClusterEventListenersCS);
 		ClusterEventListeners.Reset();
 	}
 
-	NativeInputDataCache.Reset();
+	NativeInputCache.Reset();
 	CurrentWorld = nullptr;
+}
+
+void FDisplayClusterClusterManager::StartFrame(uint64 FrameNum)
+{
+	// Even though this signal gets reset on EndFrame, it's still possible a client
+	// will try to synchronize time data before the primary node finishes EndFrame
+	// processing. Since time data replication step and EndFrame call don't have
+	// any barriers between each other, it's theoretically possible a client will
+	// get outdated time information which will break determinism. As a simple
+	// solution that requires minimum resources, we do safe signal reset right
+	// after WaitForFrameStart barrier, which is called after time data
+	// synchronization. As a result, we're 100% sure the clients will always get
+	// actual time data.
+	TimeDataCacheReadySignal->Reset();
 }
 
 void FDisplayClusterClusterManager::EndFrame(uint64 FrameNum)
 {
-	if (Controller)
-	{
-		Controller->ClearCache();
-	}
+	// Reset all the synchronization objects
+	SetInternalSyncObjectsReleaseState(false);
 
-	NativeInputDataAvailableEvent->Reset();
+	// Reset cache containers
+	JsonEventsCache.Reset();
+	BinaryEventsCache.Reset();
+	NativeInputCache.Reset();
+
+	// Reset objects sync cache for all sync groups
+	for (TPair<EDisplayClusterSyncGroup, TMap<FString, FString>>& It : ObjectsToSyncCache)
+	{
+		It.Value.Reset();
+	}
 }
 
 void FDisplayClusterClusterManager::PreTick(float DeltaSeconds)
 {
-	// Move cluster events from the primary pool to the output pool.
-	// They will be replicated on the current frame.
-
-	// Json events
-	{
-		FScopeLock Lock(&ClusterEventsJsonCritSec);
-
-		ClusterEventsJsonPoolOut.Reset();
-		ClusterEventsJsonPoolOut = ClusterEventsJsonPoolMain;
-		ClusterEventsJsonPoolMain.Reset();
-
-		ClusterEventsJsonNonDiscardedPoolOut.Reset();
-		ClusterEventsJsonNonDiscardedPoolOut = ClusterEventsJsonNonDiscardedPoolMain;
-		ClusterEventsJsonNonDiscardedPoolMain.Reset();
-	}
-
-	// Binary events
-	{
-		FScopeLock Lock(&ClusterEventsBinaryCritSec);
-
-		ClusterEventsBinaryPoolOut.Reset();
-		ClusterEventsBinaryPoolOut = ClusterEventsBinaryPoolMain;
-		ClusterEventsBinaryPoolMain.Reset();
-
-		ClusterEventsBinaryNonDiscardedPoolOut.Reset();
-		ClusterEventsBinaryNonDiscardedPoolOut = ClusterEventsBinaryNonDiscardedPoolMain;
-		ClusterEventsBinaryNonDiscardedPoolMain.Reset();
-	}
-
 	// Sync cluster objects (PreTick)
 	SyncObjects(EDisplayClusterSyncGroup::PreTick);
 
@@ -208,48 +255,49 @@ void FDisplayClusterClusterManager::PostTick(float DeltaSeconds)
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterClusterManager
 //////////////////////////////////////////////////////////////////////////////////////////////
-IDisplayClusterNodeController* FDisplayClusterClusterManager::GetController() const
-{
-	FScopeLock Lock(&InternalsSyncScope);
-	return Controller ? Controller.Get() : nullptr;
-}
-
 bool FDisplayClusterClusterManager::IsMaster() const
 {
-	FScopeLock Lock(&InternalsSyncScope);
-	return Controller ? Controller->GetClusterRole() == EDisplayClusterNodeRole::Master : false;
+	FScopeLock Lock(&InternalsCS);
+	return ClusterNodeCtrl ? ClusterNodeCtrl->GetClusterRole() == EDisplayClusterNodeRole::Master : false;
 }
 
 bool FDisplayClusterClusterManager::IsSlave() const
 {
-	FScopeLock Lock(&InternalsSyncScope);
-	return Controller ? Controller->GetClusterRole() == EDisplayClusterNodeRole::Slave : false;
+	FScopeLock Lock(&InternalsCS);
+	return ClusterNodeCtrl ? ClusterNodeCtrl->GetClusterRole() == EDisplayClusterNodeRole::Slave : false;
 }
 
 bool FDisplayClusterClusterManager::IsBackup() const
 {
-	FScopeLock Lock(&InternalsSyncScope);
-	return Controller ? Controller->GetClusterRole() == EDisplayClusterNodeRole::Backup : false;
+	FScopeLock Lock(&InternalsCS);
+	return ClusterNodeCtrl ? ClusterNodeCtrl->GetClusterRole() == EDisplayClusterNodeRole::Backup : false;
 }
 
 EDisplayClusterNodeRole FDisplayClusterClusterManager::GetClusterRole() const
 {
-	FScopeLock Lock(&InternalsSyncScope);
-	return Controller ? Controller->GetClusterRole() : EDisplayClusterNodeRole::None;
+	FScopeLock Lock(&InternalsCS);
+	return ClusterNodeCtrl ? ClusterNodeCtrl->GetClusterRole() : EDisplayClusterNodeRole::None;
 }
 
 void FDisplayClusterClusterManager::GetNodeIds(TArray<FString>& OutNodeIds) const
 {
-	FScopeLock Lock(&InternalsSyncScope);
+	FScopeLock Lock(&InternalsCS);
 	OutNodeIds = ClusterNodeIds;
+}
+
+bool FDisplayClusterClusterManager::DropClusterNode(const FString& NodeId)
+{
+	FScopeLock Lock(&InternalsCS);
+
+	// Pass request to the cluster controller
+	return ClusterNodeCtrl ? ClusterNodeCtrl->DropClusterNode(NodeId) : false;
 }
 
 void FDisplayClusterClusterManager::RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj, EDisplayClusterSyncGroup SyncGroup)
 {
-	FScopeLock Lock(&ObjectsToSyncCritSec);
-
 	if (SyncObj)
 	{
+		FScopeLock Lock(&ObjectsToSyncCS);
 		ObjectsToSync[SyncGroup].Add(SyncObj);
 		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Registered sync object: %s"), *SyncObj->GetSyncId());
 	}
@@ -259,7 +307,7 @@ void FDisplayClusterClusterManager::UnregisterSyncObject(IDisplayClusterClusterS
 {
 	if (SyncObj)
 	{
-		FScopeLock Lock(&ObjectsToSyncCritSec);
+		FScopeLock Lock(&ObjectsToSyncCS);
 
 		for (auto& GroupPair : ObjectsToSync)
 		{
@@ -272,8 +320,8 @@ void FDisplayClusterClusterManager::UnregisterSyncObject(IDisplayClusterClusterS
 
 void FDisplayClusterClusterManager::AddClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener)
 {
-	FScopeLock Lock(&ClusterEventListenersCritSec);
-	if (Listener.GetObject() && !Listener.GetObject()->IsPendingKillOrUnreachable())
+	FScopeLock Lock(&ClusterEventListenersCS);
+	if (Listener.GetObject() && IsValidChecked(Listener.GetObject()) && !Listener.GetObject()->IsUnreachable())
 	{
 	ClusterEventListeners.Add(Listener);
 }
@@ -281,7 +329,7 @@ void FDisplayClusterClusterManager::AddClusterEventListener(TScriptInterface<IDi
 
 void FDisplayClusterClusterManager::RemoveClusterEventListener(TScriptInterface<IDisplayClusterClusterEventListener> Listener)
 {
-	FScopeLock Lock(&ClusterEventListenersCritSec);
+	FScopeLock Lock(&ClusterEventListenersCS);
 	if (ClusterEventListeners.Contains(Listener))
 	{
 		ClusterEventListeners.Remove(Listener);
@@ -291,31 +339,33 @@ void FDisplayClusterClusterManager::RemoveClusterEventListener(TScriptInterface<
 
 void FDisplayClusterClusterManager::AddClusterEventJsonListener(const FOnClusterEventJsonListener& Listener)
 {
-	FScopeLock Lock(&ClusterEventListenersCritSec);
+	FScopeLock Lock(&ClusterEventListenersCS);
 	OnClusterEventJson.Add(Listener);
 }
 
 void FDisplayClusterClusterManager::RemoveClusterEventJsonListener(const FOnClusterEventJsonListener& Listener)
 {
-	FScopeLock Lock(&ClusterEventListenersCritSec);
+	FScopeLock Lock(&ClusterEventListenersCS);
 	OnClusterEventJson.Remove(Listener.GetHandle());
 }
 
 void FDisplayClusterClusterManager::AddClusterEventBinaryListener(const FOnClusterEventBinaryListener& Listener)
 {
-	FScopeLock Lock(&ClusterEventListenersCritSec);
+	FScopeLock Lock(&ClusterEventListenersCS);
 	OnClusterEventBinary.Add(Listener);
 }
 
 void FDisplayClusterClusterManager::RemoveClusterEventBinaryListener(const FOnClusterEventBinaryListener& Listener)
 {
-	FScopeLock Lock(&ClusterEventListenersCritSec);
+	FScopeLock Lock(&ClusterEventListenersCS);
 	OnClusterEventBinary.Remove(Listener.GetHandle());
 }
 
 void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
 {
-	FScopeLock Lock(&ClusterEventsJsonCritSec);
+	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("JSON event emission request: %s:%s:%s"), *Event.Category, *Event.Type, *Event.Name);
+
+	FScopeLock Lock(&ClusterEventsJsonCS);
 
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
@@ -329,20 +379,20 @@ void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterCl
 			// Store event object
 			if (EventPtr->bShouldDiscardOnRepeat)
 			{
-				ClusterEventsJsonPoolMain.FindOrAdd(EventPtr->bIsSystemEvent).Emplace(EventId, EventPtr);
+				ClusterEventsJson.FindOrAdd(EventPtr->bIsSystemEvent).Emplace(EventId, EventPtr);
 			}
 			else
 			{
-				ClusterEventsJsonNonDiscardedPoolMain.Add(EventPtr);
+				ClusterEventsJsonNonDiscarded.Add(EventPtr);
 			}
 		}
 		// [Slave] Send event to the master
 		else
 		{
 			// An event will be emitted from a slave node if it's explicitly specified by MasterOnly=false
-			if (!bMasterOnly && Controller)
+			if (!bMasterOnly && ClusterNodeCtrl)
 			{
-				Controller->EmitClusterEventJson(Event);
+				ClusterNodeCtrl->EmitClusterEventJson(Event);
 			}
 		}
 	}
@@ -350,7 +400,9 @@ void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterCl
 
 void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
 {
-	FScopeLock Lock(&ClusterEventsBinaryCritSec);
+	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("BIN event emission request: %d"), Event.EventId);
+
+	FScopeLock Lock(&ClusterEventsBinaryCS);
 
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
@@ -362,102 +414,228 @@ void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayCluster
 
 			if (EventPtr->bShouldDiscardOnRepeat)
 			{
-				ClusterEventsBinaryPoolMain.FindOrAdd(EventPtr->bIsSystemEvent).Emplace(EventPtr->EventId, EventPtr);
+				ClusterEventsBinary.FindOrAdd(EventPtr->bIsSystemEvent).Emplace(EventPtr->EventId, EventPtr);
 			}
 			else
 			{
-				ClusterEventsBinaryNonDiscardedPoolMain.Add(EventPtr);
+				ClusterEventsBinaryNonDiscarded.Add(EventPtr);
 			}
 		}
 		// [Slave] Send event to the master
 		else
 		{
 			// An event will be emitted from a slave node if it's explicitly specified by MasterOnly=false
-			if (!bMasterOnly && Controller)
+			if (!bMasterOnly && ClusterNodeCtrl)
 			{
-				Controller->EmitClusterEventBinary(Event);
+				ClusterNodeCtrl->EmitClusterEventBinary(Event);
 			}
 		}
 	}
 }
 
-void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
+void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
 {
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
-		if (Controller)
+		if (ClusterNodeCtrl)
 		{
 			if (IsMaster() || !bMasterOnly)
 			{
-				Controller->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+				UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("JSON event emission request: recipient=%s:%u, event=%s:%s:%s"), *Address, Port, *Event.Category, *Event.Type, *Event.Name);
+				ClusterNodeCtrl->SendClusterEventTo(Address, Port, Event, bMasterOnly);
 			}
 		}
 	}
 }
 
-void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
+void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const uint16 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
 {
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
-		if (Controller)
+		if (ClusterNodeCtrl)
 		{
 			if (IsMaster() || !bMasterOnly)
 			{
-				Controller->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+				UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("BIN event emission request: recipient=%s:%u, event=%d"), *Address, Port, Event.EventId);
+				ClusterNodeCtrl->SendClusterEventTo(Address, Port, Event, bMasterOnly);
 			}
 		}
 	}
 }
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IPDisplayClusterClusterManager
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterManager::ExportSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) const
+IDisplayClusterClusterNodeController* FDisplayClusterClusterManager::GetClusterNodeController() const
 {
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Exporting sync data for sync group: %d, items to sync: %d"), (int)SyncGroup, ObjectsToSync[SyncGroup].Num());
+	FScopeLock Lock(&InternalsCS);
+	return ClusterNodeCtrl.Get();
+}
 
+IDisplayClusterFailoverNodeController* FDisplayClusterClusterManager::GetFailoverNodeController() const
+{
+	FScopeLock Lock(&InternalsCS);
+	return FailoverNodeCtrl.Get();
+}
+
+
+void FDisplayClusterClusterManager::SyncTimeData()
+{
+	if (ClusterNodeCtrl)
 	{
-		FScopeLock Lock(&ObjectsToSyncCritSec);
+		double DeltaTime = 0.0f;
+		double GameTime = 0.0f;
+		TOptional<FQualifiedFrameTime> FrameTime;
 
-		SyncData.Reset();
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (time)..."));
+		ClusterNodeCtrl->GetTimeData(DeltaTime, GameTime, FrameTime);
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Delta=%lf, Game=%lf, Frame=%lf"), DeltaTime, GameTime, FrameTime.IsSet() ? FrameTime.GetValue().AsSeconds() : 0.f);
 
-		for (IDisplayClusterClusterSyncObject* SyncObj : ObjectsToSync[SyncGroup])
+		// Apply new time data (including primary node)
+		ImportTimeData(DeltaTime, GameTime, FrameTime);
+	}
+}
+
+void FDisplayClusterClusterManager::ExportTimeData(double& OutDeltaTime, double& OutGameTime, TOptional<FQualifiedFrameTime>& OutFrameTime)
+{
+	if (IsInGameThread())
+	{
+		// Cache data so it will be the same for all requests within current frame
+		DeltaTimeCache = FApp::GetDeltaTime();
+		GameTimeCache  = FApp::GetGameTime();
+		FrameTimeCache = FApp::GetCurrentFrameTime();
+
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Time data cache: Delta=%lf, Game=%lf, Frame=%lf"), DeltaTimeCache, GameTimeCache, FrameTimeCache.IsSet() ? FrameTimeCache.GetValue().AsSeconds() : 0.f);
+
+		TimeDataCacheReadySignal->Trigger();
+	}
+
+	// Wait until data is available
+	TimeDataCacheReadySignal->Wait();
+
+	// Return cached values
+	OutDeltaTime = DeltaTimeCache;
+	OutGameTime  = GameTimeCache;
+	OutFrameTime = FrameTimeCache;
+}
+
+void FDisplayClusterClusterManager::ImportTimeData(const double& InDeltaTime, const double& InGameTime, const TOptional<FQualifiedFrameTime>& InFrameTime)
+{
+	// Compute new 'current' and 'last' time on the local platform timeline
+	const double NewCurrentTime = FPlatformTime::Seconds();
+	const double NewLastTime = NewCurrentTime - InDeltaTime;
+
+	// Store new data
+	FApp::SetCurrentTime(NewLastTime);
+	FApp::UpdateLastTime();
+	FApp::SetCurrentTime(NewCurrentTime);
+	FApp::SetDeltaTime(InDeltaTime);
+	FApp::SetGameTime(InGameTime);
+	FApp::SetIdleTime(0);
+	FApp::SetIdleTimeOvershoot(0);
+
+	if (InFrameTime.IsSet())
+	{
+		FApp::SetCurrentFrameTime(InFrameTime.GetValue());
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("DisplayCluster timecode: %s | %s"), *FTimecode::FromFrameNumber(InFrameTime->Time.GetFrame(), InFrameTime->Rate).ToString(), *InFrameTime->Rate.ToPrettyText().ToString());
+	}
+	else
+	{
+		FApp::InvalidateCurrentFrameTime();
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("DisplayCluster timecode: Invalid"));
+	}
+}
+
+void FDisplayClusterClusterManager::SyncObjects(EDisplayClusterSyncGroup InSyncGroup)
+{
+	if (ClusterNodeCtrl)
+	{
+		TMap<FString, FString> ObjectsData;
+
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (objects)..."));
+		ClusterNodeCtrl->GetObjectsData(InSyncGroup, ObjectsData);
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (objects)."), ObjectsData.Num());
+
+		// No need to import data on the primary node
+		if (!IsMaster())
 		{
-			if (SyncObj && SyncObj->IsActive())
-			{
-				if (SyncObj->IsDirty())
-				{
-					UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Adding object to sync: %s"), *SyncObj->GetSyncId());
-					SyncData.Add(SyncObj->GetSyncId(), SyncObj->SerializeToString());
-					SyncObj->ClearDirty();
-				}
-			}
+			// Perform data load (objects state update)
+			ImportObjectsData(InSyncGroup, ObjectsData);
 		}
 	}
 }
 
-void FDisplayClusterClusterManager::ImportSyncData(const TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup)
+void FDisplayClusterClusterManager::ExportObjectsData(const EDisplayClusterSyncGroup InSyncGroup, TMap<FString, FString>& OutObjectsData)
 {
-	if (SyncData.Num() > 0)
+	// Clean output buffer just in case
+	OutObjectsData.Reset();
+
+	if(IsInGameThread())
 	{
-		for (auto it = SyncData.CreateConstIterator(); it; ++it)
+		FScopeLock Lock(&ObjectsToSyncCS);
+
+		// Cache data for requested sync group
+		if (TMap<FString, FString>* GroupCache = ObjectsToSyncCache.Find(InSyncGroup))
 		{
-			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("sync-data: %s=%s"), *it->Key, *it->Value);
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Exporting sync data for sync group: %u, items to sync: %d"), (uint8)InSyncGroup, GroupCache->Num());
+
+			for (IDisplayClusterClusterSyncObject* SyncObj : ObjectsToSync[InSyncGroup])
+			{
+				if (SyncObj && SyncObj->IsActive() && SyncObj->IsDirty())
+				{
+					UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Adding object to sync: %s"), *SyncObj->GetSyncId());
+
+					const FString SyncId   = SyncObj->GetSyncId();
+					const FString SyncData = SyncObj->SerializeToString();
+
+					UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("Sync object: %s - %s"), *SyncId, *SyncData);
+
+					// Cache the object
+					GroupCache->Emplace(SyncId, SyncData);
+
+					SyncObj->ClearDirty();
+				}
+			}
 		}
 
-		for (auto SyncObj : ObjectsToSync[SyncGroup])
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Objects data cache contains %d records"), ObjectsToSyncCache[InSyncGroup].Num());
+
+		// Notify data is available
+		ObjectsToSyncCacheReadySignals[InSyncGroup]->Trigger();
+	}
+
+	// Wait until primary node provides data
+	ObjectsToSyncCacheReadySignals[InSyncGroup]->Wait();
+	// Return cached value
+	OutObjectsData = ObjectsToSyncCache[InSyncGroup];
+}
+
+void FDisplayClusterClusterManager::ImportObjectsData(const EDisplayClusterSyncGroup InSyncGroup, const TMap<FString, FString>& InObjectsData)
+{
+	if (InObjectsData.Num() > 0)
+	{
+		for (auto It = InObjectsData.CreateConstIterator(); It; ++It)
+		{
+			UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("sync-data: %s=%s"), *It->Key, *It->Value);
+		}
+
+		for (IDisplayClusterClusterSyncObject* SyncObj : ObjectsToSync[InSyncGroup])
 		{
 			if (SyncObj && SyncObj->IsActive())
 			{
 				const FString SyncId = SyncObj->GetSyncId();
-				if (!SyncData.Contains(SyncId))
+				if (!InObjectsData.Contains(SyncId))
 				{
-					UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("%s has nothing to update"), *SyncId);
+					UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("%s has nothing to update"), *SyncId);
 					continue;
 				}
 
-				UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Found %s in sync data. Applying..."), *SyncId);
-				if (!SyncObj->DeserializeFromString(SyncData[SyncId]))
+				if (SyncObj->DeserializeFromString(InObjectsData[SyncId]))
+				{
+					UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("Synchronized object: %s"), *SyncId);
+				}
+				else
 				{
 					UE_LOG(LogDisplayClusterCluster, Error, TEXT("Couldn't apply sync data for sync object %s"), *SyncId);
 				}
@@ -466,105 +644,16 @@ void FDisplayClusterClusterManager::ImportSyncData(const TMap<FString, FString>&
 	}
 }
 
-void FDisplayClusterClusterManager::ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)
-{
-	// Clear output containers
-	JsonEvents.Reset();
-	BinaryEvents.Reset();
-
-	// Export JSON events
-	{
-		FScopeLock Lock(&ClusterEventsJsonCritSec);
-
-		// Export all system and non-system json events that have 'discard on repeat' flag
-		for (const auto& it : ClusterEventsJsonPoolOut)
-		{
-			TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>> JsonEventsToExport;
-			it.Value.GenerateValueArray(JsonEventsToExport);
-			JsonEvents.Append(JsonEventsToExport);
-		}
-
-		// Export all json events that don't have 'discard on repeat' flag
-		JsonEvents.Append(ClusterEventsJsonNonDiscardedPoolOut);
-	}
-
-	// Export binary events
-	{
-		FScopeLock Lock(&ClusterEventsBinaryCritSec);
-
-		// Export all binary events that have 'discard on repeat' flag
-		for (const auto& it : ClusterEventsBinaryPoolOut)
-		{
-			TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> BinaryEventsToExport;
-			it.Value.GenerateValueArray(BinaryEventsToExport);
-			BinaryEvents.Append(BinaryEventsToExport);
-		}
-
-		// Export all binary events that don't have 'discard on repeat' flag
-		BinaryEvents.Append(ClusterEventsBinaryNonDiscardedPoolOut);
-	}
-}
-
-void FDisplayClusterClusterManager::ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)
-{
-	// Process and fire all JSON events
-	if (JsonEvents.Num() > 0)
-	{
-		FScopeLock LockEvents(&ClusterEventsJsonCritSec);
-		FScopeLock LockListeners(&ClusterEventListenersCritSec);
-
-		for (const auto& it : JsonEvents)
-		{
-			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Processing json event %s|%s|%s|s%d|d%d..."), *it->Category, *it->Type, *it->Name, it->bIsSystemEvent ? 1 : 0, it->bShouldDiscardOnRepeat ? 1 : 0);
-			// Fire event
-			OnClusterEventJson.Broadcast(*it);
-		}
-	}
-
-	// Process and fire all binary events
-	if (BinaryEvents.Num() > 0)
-	{
-		FScopeLock LockEvents(&ClusterEventsBinaryCritSec);
-		FScopeLock LockListeners(&ClusterEventListenersCritSec);
-
-		for (const auto& it : BinaryEvents)
-		{
-			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Processing binary event %d..."), it->EventId);
-			// Fire event
-			OnClusterEventBinary.Broadcast(*it);
-		}
-	}
-}
-
-void FDisplayClusterClusterManager::SyncObjects(EDisplayClusterSyncGroup SyncGroup)
-{
-	if (Controller)
-	{
-		TMap<FString, FString> SyncData;
-
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (objects)..."));
-		Controller->GetSyncData(SyncData, SyncGroup);
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (objects)."), SyncData.Num());
-
-		// We don't have to import data here unless sync data provider is located on master node
-		if (IsSlave())
-		{
-			// Perform data load (objects state update)
-			ImportSyncData(SyncData, SyncGroup);
-		}
-	}
-}
-
 void FDisplayClusterClusterManager::SyncEvents()
 {
-	if (Controller)
+	if (ClusterNodeCtrl)
 	{
 		TArray<TSharedPtr<FDisplayClusterClusterEventJson,   ESPMode::ThreadSafe>> JsonEvents;
 		TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> BinaryEvents;
 
 		// Get events data from a provider
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (events)..."));
-		Controller->GetEventsData(JsonEvents, BinaryEvents);
+		ClusterNodeCtrl->GetEventsData(JsonEvents, BinaryEvents);
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available events: json=%d binary=%d"), JsonEvents.Num(), BinaryEvents.Num());
 
 		// Import and process them
@@ -572,30 +661,137 @@ void FDisplayClusterClusterManager::SyncEvents()
 	}
 }
 
-void FDisplayClusterClusterManager::ProvideNativeInputData(const TMap<FString, FString>& NativeInputData)
+void FDisplayClusterClusterManager::ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& OutJsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& OutBinaryEvents)
 {
-	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("SyncNativeInput - data available trigger. NativeInput records amount %d"), NativeInputData.Num());
+	// Clear output containers just in case
+	OutJsonEvents.Reset();
+	OutBinaryEvents.Reset();
 
-	NativeInputDataCache = NativeInputData;
-	NativeInputDataAvailableEvent->Trigger();
+	if (IsInGameThread())
+	{
+		// Export JSON events
+		{
+			FScopeLock Lock(&ClusterEventsJsonCS);
+
+			// Export all system and non-system json events that have 'discard on repeat' flag
+			for (const TPair<bool, TMap<FString, TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>>& It : ClusterEventsJson)
+			{
+				TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>> JsonEventsToExport;
+				It.Value.GenerateValueArray(JsonEventsToExport);
+				JsonEventsCache.Append(MoveTemp(JsonEventsToExport));
+			}
+
+			// Clear original containers
+			ClusterEventsJson.Reset();
+
+			// Export all json events that don't have 'discard on repeat' flag
+			JsonEventsCache.Append(MoveTemp(ClusterEventsJsonNonDiscarded));
+		}
+
+		// Export binary events
+		{
+			FScopeLock Lock(&ClusterEventsBinaryCS);
+
+			// Export all binary events that have 'discard on repeat' flag
+			for (const TPair<bool, TMap<int32, TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>>& It : ClusterEventsBinary)
+			{
+				TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> BinaryEventsToExport;
+				It.Value.GenerateValueArray(BinaryEventsToExport);
+				BinaryEventsCache.Append(MoveTemp(BinaryEventsToExport));
+			}
+
+			// Clear original containers
+			ClusterEventsBinary.Reset();
+
+			// Export all binary events that don't have 'discard on repeat' flag
+			BinaryEventsCache.Append(MoveTemp(ClusterEventsBinaryNonDiscarded));
+		}
+
+		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Cluster events data cache contains: json=%d, binary=%d"), JsonEventsCache.Num(), BinaryEventsCache.Num());
+
+		// Notify data is available
+		CachedEventsDataSignal->Trigger();
+	}
+
+	// Wait until data is available
+	CachedEventsDataSignal->Wait();
+
+	// Return cached value
+	OutJsonEvents   = JsonEventsCache;
+	OutBinaryEvents = BinaryEventsCache;
 }
 
-void FDisplayClusterClusterManager::SyncNativeInput(TMap<FString, FString>& NativeInputData)
+void FDisplayClusterClusterManager::ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& InJsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& InBinaryEvents)
 {
+	// Process and fire all JSON events
+	if (InJsonEvents.Num() > 0)
+	{
+		FScopeLock LockListeners(&ClusterEventListenersCS);
+
+		for (const TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>& Event : InJsonEvents)
+		{
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Processing json event %s|%s|%s|s%d|d%d..."), *Event->Category, *Event->Type, *Event->Name, Event->bIsSystemEvent ? 1 : 0, Event->bShouldDiscardOnRepeat ? 1 : 0);
+			// Fire event
+			OnClusterEventJson.Broadcast(*Event);
+		}
+	}
+
+	// Process and fire all binary events
+	if (InBinaryEvents.Num() > 0)
+	{
+		FScopeLock LockListeners(&ClusterEventListenersCS);
+
+		for (const TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>& Event : InBinaryEvents)
+		{
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Processing binary event %d..."), Event->EventId);
+			// Fire event
+			OnClusterEventBinary.Broadcast(*Event);
+		}
+	}
+}
+
+void FDisplayClusterClusterManager::ImportNativeInputData(TMap<FString, FString>&& InNativeInputData)
+{
+	UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Caching native input data, %d records available"), InNativeInputData.Num());
+
+	// Cache input data
+	NativeInputCache = InNativeInputData;
+
+	UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("Native input data cache:"));
+	int32 Idx = 0;
+	for (auto It = NativeInputCache.CreateConstIterator(); It; ++It)
+	{
+		UE_LOG(LogDisplayClusterCluster, VeryVerbose, TEXT("Native input data cache: %d - %s - %s"), Idx++, *It->Key, *It->Value);
+	}
+
+	// Notify the data is available
+	NativeInputCacheReadySignal->Trigger();
+}
+
+void FDisplayClusterClusterManager::ExportNativeInputData(TMap<FString, FString>& OutNativeInputData)
+{
+	// If we are on the primary node, that means we got network request for input data.
+	// So, provide with data once it's cached.
 	if (IsMaster())
 	{
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Returning native input data, records amount %d"), NativeInputDataCache.Num());
+		// Wait for data cache to be ready
+		NativeInputCacheReadySignal->Wait();
+		// Export data from cache
+		OutNativeInputData = NativeInputCache;
 
-		NativeInputDataAvailableEvent->Wait();
-
-		NativeInputData = NativeInputDataCache;
+		for (auto It = OutNativeInputData.CreateConstIterator(); It; ++It)
+		{
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading native input data..."));
+		}
 	}
+	// Otherwise we need to send network request to download input data
 	else
 	{
-		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading native input data..."));
-		if (Controller)
+		if (ClusterNodeCtrl)
 		{
-			Controller->GetNativeInputData(NativeInputData);
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading native input data..."));
+			ClusterNodeCtrl->GetNativeInputData(OutNativeInputData);
+			UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading finished. Available %d records (native input)."), OutNativeInputData.Num());
 		}
 	}
 }
@@ -604,55 +800,61 @@ void FDisplayClusterClusterManager::SyncNativeInput(TMap<FString, FString>& Nati
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterClusterManager
 //////////////////////////////////////////////////////////////////////////////////////////////
-TUniquePtr<IDisplayClusterNodeController> FDisplayClusterClusterManager::CreateController() const
+TUniquePtr<IDisplayClusterClusterNodeController> FDisplayClusterClusterManager::CreateClusterNodeController() const
 {
-	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Current operation mode: %s"), *DisplayClusterTypesConverter::template ToString(CurrentOperationMode));
-
 	// Instantiate appropriate controller depending on operation mode and cluster role
-	FDisplayClusterNodeCtrlBase* NewController = nullptr;
 	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster)
 	{
 		// Master or slave
 		if (ClusterNodeId.Equals(GDisplayCluster->GetPrivateConfigMgr()->GetMasterNodeId(), ESearchCase::IgnoreCase))
 		{
-			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating cluster master controller..."));
-			NewController = new FDisplayClusterClusterNodeCtrlMaster(FString("[CTRL-M]"), ClusterNodeId);
+			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating master node controller..."));
+			return MakeUnique<FDisplayClusterClusterNodeCtrlMaster>(FString("[CTRL-M]"), ClusterNodeId);
 		}
 		else
 		{
-			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating cluster slave controller..."));
-			NewController = new FDisplayClusterClusterNodeCtrlSlave(FString("[CTRL-S]"), ClusterNodeId);
+			UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating slave node controller..."));
+			return MakeUnique<FDisplayClusterClusterNodeCtrlSlave>(FString("[CTRL-S]"), ClusterNodeId);
 		}
 	}
 	else if (CurrentOperationMode == EDisplayClusterOperationMode::Editor)
 	{
-		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating editor controller..."));
-		NewController = new FDisplayClusterClusterNodeCtrlEditor(FString("[CTRL-EDTR]"), FString("editor"));
-	}
-	else if (CurrentOperationMode == EDisplayClusterOperationMode::Disabled)
-	{
-		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Controller is not required"));
-		return nullptr;
-	}
-	else
-	{
-		UE_LOG(LogDisplayClusterCluster, Error, TEXT("Unknown operation mode"));
-		return nullptr;
+		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating editor node controller..."));
+		return MakeUnique<FDisplayClusterClusterNodeCtrlEditor>(FString("[CTRL-EDTR]"), FString("editor"));
 	}
 
-	// Return the controller
-	return TUniquePtr<IDisplayClusterNodeController>(NewController);
+	// Including CurrentOperationMode == EDisplayClusterOperationMode::Disabled
+	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Controller is not required"));
+	return MakeUnique<FDisplayClusterClusterNodeCtrlNull>(FString("[CTRL-NULL]"), ClusterNodeId);
+}
+
+TUniquePtr<IDisplayClusterFailoverNodeController> FDisplayClusterClusterManager::CreateFailoverNodeController() const
+{
+	const EDisplayClusterNodeRole ClusterRole = GetClusterRole();
+	switch (ClusterRole)
+	{
+	case EDisplayClusterNodeRole::Master:
+		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover primary controller..."));
+		return MakeUnique<FDisplayClusterFailoverNodeCtrlPrimary>();
+
+	case EDisplayClusterNodeRole::Slave:
+		UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover secondary controller..."));
+		return MakeUnique<FDisplayClusterFailoverNodeCtrlSecondary>();
+	}
+
+	UE_LOG(LogDisplayClusterCluster, Log, TEXT("Instantiating failover null controller..."));
+	return MakeUnique<FDisplayClusterFailoverNodeCtrlNull>();
 }
 
 void FDisplayClusterClusterManager::OnClusterEventJsonHandler(const FDisplayClusterClusterEventJson& Event)
 {
-	FScopeLock Lock(&ClusterEventListenersCritSec);
+	FScopeLock Lock(&ClusterEventListenersCS);
 
 	decltype(ClusterEventListeners) InvalidListeners;
 
 	for (auto Listener : ClusterEventListeners)
 	{
-		if (!Listener.GetObject() || Listener.GetObject()->IsPendingKillOrUnreachable()) // Note: .GetInterface() is always returning null when intefrace is added to class in the Blueprint.
+		if (!Listener.GetObject() || !IsValidChecked(Listener.GetObject()) || Listener.GetObject()->IsUnreachable()) // Note: .GetInterface() is always returning null when intefrace is added to class in the Blueprint.
 		{
 			UE_LOG(LogDisplayClusterCluster, Warning, TEXT("Will remove invalid cluster event listener"));
 			InvalidListeners.Add(Listener);
@@ -669,13 +871,13 @@ void FDisplayClusterClusterManager::OnClusterEventJsonHandler(const FDisplayClus
 
 void FDisplayClusterClusterManager::OnClusterEventBinaryHandler(const FDisplayClusterClusterEventBinary& Event)
 {
-	FScopeLock Lock(&ClusterEventListenersCritSec);
+	FScopeLock Lock(&ClusterEventListenersCS);
 
 	decltype(ClusterEventListeners) InvalidListeners;
 
 	for (auto Listener : ClusterEventListeners)
 	{
-		if (!Listener.GetObject() || Listener.GetObject()->IsPendingKillOrUnreachable()) // Note: .GetInterface() is always returning null when intefrace is added to class in the Blueprint.
+		if (!Listener.GetObject() || !IsValidChecked(Listener.GetObject()) || Listener.GetObject()->IsUnreachable()) // Note: .GetInterface() is always returning null when intefrace is added to class in the Blueprint.
 		{
 			UE_LOG(LogDisplayClusterCluster, Warning, TEXT("Will remove invalid cluster event listener"));
 			InvalidListeners.Add(Listener);
@@ -688,5 +890,34 @@ void FDisplayClusterClusterManager::OnClusterEventBinaryHandler(const FDisplayCl
 	for (auto& InvalidListener : InvalidListeners)
 	{
 		ClusterEventListeners.Remove(InvalidListener);
+	}
+}
+
+void FDisplayClusterClusterManager::SetInternalSyncObjectsReleaseState(bool bRelease)
+{
+	if (bRelease)
+	{
+		// Set all events signaled
+		TimeDataCacheReadySignal->Trigger();
+		CachedEventsDataSignal->Trigger();
+		NativeInputCacheReadySignal->Trigger();
+
+		for (TPair<EDisplayClusterSyncGroup, FEvent*>& It : ObjectsToSyncCacheReadySignals)
+		{
+			It.Value->Trigger();
+		}
+	}
+	else
+	{
+		// Reset all cache events
+		TimeDataCacheReadySignal->Reset();
+		CachedEventsDataSignal->Reset();
+		NativeInputCacheReadySignal->Reset();
+
+		// Reset events for all sync groups
+		for (TPair<EDisplayClusterSyncGroup, FEvent*>& It : ObjectsToSyncCacheReadySignals)
+		{
+			It.Value->Reset();
+		}
 	}
 }

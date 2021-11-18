@@ -286,7 +286,9 @@ void UAnimGraphNode_Base::InternalPinCreation(TArray<UEdGraphPin*>* OldPins)
 
 void UAnimGraphNode_Base::AllocateDefaultPins()
 {
-	InternalPinCreation(NULL);
+	InternalPinCreation(nullptr);
+
+	CreateCustomPins(nullptr);
 }
 
 void UAnimGraphNode_Base::RecalculateBindingType(FAnimGraphNodePropertyBinding& InBinding)
@@ -1702,6 +1704,45 @@ bool UAnimGraphNode_Base::ReferencesVariable(const FName& InVarName, const UStru
 	}
 
 	return false;
+}
+
+FAnimNode_Base* UAnimGraphNode_Base::GetDebuggedAnimNode() const
+{
+	if (UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(this))
+	{
+		if (UObject* ActiveObject = Blueprint->GetObjectBeingDebugged())
+		{
+			if (UAnimBlueprintGeneratedClass* Class = Cast<UAnimBlueprintGeneratedClass>((UObject*)ActiveObject->GetClass()))
+			{
+				return Class->GetPropertyInstance<FAnimNode_Base>(ActiveObject, this);
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+void UAnimGraphNode_Base::PostEditRefreshDebuggedComponent()
+{
+	if(FAnimNode_Base* DebuggedAnimNode = GetDebuggedAnimNode())
+	{
+		if(const IAnimClassInterface* AnimClassInterface = DebuggedAnimNode->GetAnimClassInterface())
+		{
+			if(const UAnimInstance* HostingInstance = Cast<UAnimInstance>(IAnimClassInterface::GetObjectPtrFromAnimNode(AnimClassInterface, DebuggedAnimNode)))
+			{
+				if(UWorld* World = HostingInstance->GetWorld())
+				{
+					if(World->IsPaused() || World->WorldType == EWorldType::Editor)
+					{
+						if(USkeletalMeshComponent* SkelMeshComponent = HostingInstance->GetSkelMeshComponent())
+						{
+							SkelMeshComponent->RefreshBoneTransforms();
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

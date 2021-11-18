@@ -3,11 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
-
-#nullable disable
 
 namespace EpicGames.Core
 {
@@ -88,9 +87,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="PlatformName">String name of the platform (equivalent to UnrealTargetPlatform)</param>
 		/// <returns></returns>
-		public static UEBuildPlatformSDK GetSDKForPlatform(string PlatformName)
+		public static UEBuildPlatformSDK? GetSDKForPlatform(string PlatformName)
 		{
-			UEBuildPlatformSDK SDK;
+			UEBuildPlatformSDK? SDK;
 			SDKRegistry.TryGetValue(PlatformName, out SDK);
 
 			return SDK;
@@ -105,23 +104,23 @@ namespace EpicGames.Core
 		}
 
 		// String name of the platform (will match an UnrealTargetPlatform)
-		public string PlatformName;
+		public string? PlatformName;
 
 		// True if this Sdk is allowed to be used by this host - if not, we can skip a lot 
 		public bool bIsSdkAllowedOnHost;
 
-		public string GetInstalledVersion(out bool bIsAutoSDK)
+		public string? GetInstalledVersion(out bool bIsAutoSDK)
 		{
 			bIsAutoSDK = HasSetupAutoSDK();
 			return GetInstalledSDKVersion();
 		}
 
-		public string GetInstalledVersion()
+		public string? GetInstalledVersion()
 		{
 			return GetInstalledSDKVersion();
 		}
 
-		public void GetInstalledVersions(out string ManualSDKVersion, out string AutoSDKVersion)
+		public void GetInstalledVersions(out string? ManualSDKVersion, out string? AutoSDKVersion)
 		{
 			// if we support AutoSDKs, then return both versions
 			if (PlatformSupportsAutoSDKs())
@@ -142,7 +141,7 @@ namespace EpicGames.Core
 		}
 
 
-		public virtual bool IsVersionValid(string Version, bool bForAutoSDK)
+		public virtual bool IsVersionValid(string? Version, bool bForAutoSDK)
 		{
 			return IsVersionValidInternal(Version, bForAutoSDK);
 		}
@@ -165,7 +164,7 @@ namespace EpicGames.Core
 		/// Returns the installed SDK version, used to determine if up to date or not (
 		/// </summary>
 		/// <returns></returns>
-		public abstract string GetInstalledSDKVersion();
+		public abstract string? GetInstalledSDKVersion();
 
 		/// <summary>
 		/// Return the SDK version that the platform wants to use (AutoSDK dir must match this, full SDKs can be in a valid range)
@@ -216,7 +215,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="MinVersion">Smallest version allowed, or null if no minmum (in other words, 0 - MaxVersion)</param>
 		/// <param name="MaxVersion">Largest version allowed (inclusive), or null if no maximum (in other words, MinVersion - infinity)y</param>
-		public abstract void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion);
+		public abstract void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion);
 
 		/// <summary>
 		/// For a platform that doesn't use properly named AutoSDK directories, the directory name may not be convertible to an integer,
@@ -249,7 +248,7 @@ namespace EpicGames.Core
 		}
 		public virtual void GetValidSoftwareVersionRange(out UInt64 MinVersion, out UInt64 MaxVersion)
 		{
-			string MinVersionString, MaxVersionString;
+			string? MinVersionString, MaxVersionString;
 			GetValidSoftwareVersionRange(out MinVersionString, out MaxVersionString);
 
 			MinVersion = UInt64.MinValue;
@@ -265,7 +264,7 @@ namespace EpicGames.Core
 
 
 		// Let platform override behavior to determine if a version is a valid (useful for non-numeric versions)
-		protected virtual bool IsVersionValidInternal(string Version, bool bForAutoSDK)
+		protected virtual bool IsVersionValidInternal(string? Version, bool bForAutoSDK)
 		{
 			// we could have null if no SDK is installed at all, etc, which is always a failure
 			if (Version == null)
@@ -333,7 +332,7 @@ namespace EpicGames.Core
 		/// <param name="StringValue">Version that comes from the installed SDK or a Turnkey manifest or the like</param>
 		/// <param name="OutValue">The integer version of StringValue, can be used to compare against a valid range</param>
 		/// <returns>If the StringValue was able to be be converted to an integer</returns>
-		public virtual bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
+		public virtual bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
 		{
 			// @todo turnkey make this abstract?
 			OutValue = 0;
@@ -344,7 +343,7 @@ namespace EpicGames.Core
 		/// Allow the platform SDK to override the name it will use in AutoSDK, but default to the platform name
 		/// </summary>
 		/// <returns>The name of the directory to use inside the AutoSDK system</returns>
-		public virtual string GetAutoSDKPlatformName()
+		public virtual string? GetAutoSDKPlatformName()
 		{
 			return PlatformName;
 		}
@@ -356,7 +355,7 @@ namespace EpicGames.Core
 		public virtual SDKStatus PrintSDKInfoAndReturnValidity(LogEventType Verbosity = LogEventType.Console, LogFormatOptions Options = LogFormatOptions.None,
 			LogEventType ErrorVerbosity = LogEventType.Error, LogFormatOptions ErrorOptions = LogFormatOptions.None)
 		{
-			string ManualSDKVersion, AutoSDKVersion;
+			string? ManualSDKVersion, AutoSDKVersion;
 			GetInstalledVersions(out ManualSDKVersion, out AutoSDKVersion);
 
 			SDKStatus Validity = SDKStatus.Valid;
@@ -411,7 +410,7 @@ namespace EpicGames.Core
 					if (!bHasShownTurnkey)
 					{
 						Msg.AppendLine("  If your Studio has it set up, you can run this command to find the SDK to install:");
-						Msg.AppendLine("    RunUAT Turnkey -command=InstallSdk -platform={0} -BestAvailable", PlatformName);
+						Msg.AppendLine("    RunUAT Turnkey -command=InstallSdk -platform={0} -BestAvailable", PlatformName!);
 
 						if ((ErrorOptions & LogFormatOptions.NoConsoleOutput) == LogFormatOptions.None)
 						{
@@ -436,7 +435,7 @@ namespace EpicGames.Core
 		#region Private/Protected general functionality
 
 		// this is the SDK version that was set before activating AutoSDK, since AutoSDK may remove ability to retrieve the Manual SDK version
-		protected string CachedManualSDKVersion;
+		protected string? CachedManualSDKVersion;
 		private static Dictionary<string, UEBuildPlatformSDK> SDKRegistry = new Dictionary<string, UEBuildPlatformSDK>();
 
 		#endregion
@@ -502,7 +501,7 @@ namespace EpicGames.Core
 		{
 			if (!bCheckedAutoSDKRootEnvVar)
 			{
-				string SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
+				string? SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
 				if (SDKRoot != null)
 				{
 					bAutoSDKSystemEnabled = true;
@@ -545,12 +544,12 @@ namespace EpicGames.Core
 		protected string GetPathToPlatformAutoSDKs()
 		{
 			string SDKPath = "";
-			string SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
+			string? SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
 			if (SDKRoot != null)
 			{
 				if (SDKRoot != "")
 				{
-					SDKPath = Path.Combine(SDKRoot, "Host" + GetAutoSDKHostPlatform(), GetAutoSDKPlatformName());
+					SDKPath = Path.Combine(SDKRoot, "Host" + GetAutoSDKHostPlatform(), GetAutoSDKPlatformName()!);
 				}
 			}
 			return SDKPath;
@@ -560,9 +559,9 @@ namespace EpicGames.Core
 		/// Returns path to platform SDKs
 		/// </summary>
 		/// <returns>Valid SDK string</returns>
-		public static bool TryGetHostPlatformAutoSDKDir(out DirectoryReference OutPlatformDir)
+		public static bool TryGetHostPlatformAutoSDKDir([NotNullWhen(true)] out DirectoryReference? OutPlatformDir)
 		{
-			string SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
+			string? SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
 			if (String.IsNullOrEmpty(SDKRoot))
 			{
 				OutPlatformDir = null;
@@ -601,9 +600,9 @@ namespace EpicGames.Core
 				{
 					using (StreamReader Reader = new StreamReader(VersionFilename))
 					{
-						string Version = Reader.ReadLine();
-						string Type = Reader.ReadLine();
-						string Level = Reader.ReadLine();
+						string? Version = Reader.ReadLine();
+						string? Type = Reader.ReadLine();
+						string? Level = Reader.ReadLine();
 						if (string.IsNullOrEmpty(Level))
 						{
 							Level = "FULL";
@@ -643,7 +642,7 @@ namespace EpicGames.Core
 				{
 					using (StreamReader Reader = new StreamReader(VersionFilename))
 					{
-						string Version = Reader.ReadLine();
+						string? Version = Reader.ReadLine();
 						if (Version != null)
 						{
 							OutLastRunScriptVersion = Version;
@@ -815,7 +814,7 @@ namespace EpicGames.Core
 
 			// parse the envvar
 			Dictionary<string, string> PlatformSpecificLevels = new Dictionary<string, string>();
-			string DetailedSettings = Environment.GetEnvironmentVariable("UE_AUTOSDK_SPECIFIC_LEVELS"); // "Android=PACKAGE;GDk=RuN;PS5=BUILD";
+			string? DetailedSettings = Environment.GetEnvironmentVariable("UE_AUTOSDK_SPECIFIC_LEVELS"); // "Android=PACKAGE;GDk=RuN;PS5=BUILD";
 			if (!string.IsNullOrEmpty(DetailedSettings) && DetailedSettings.Contains(PlatformName, StringComparison.InvariantCultureIgnoreCase))
 			{
 				foreach (string Detail in DetailedSettings.ToUpper().Split(';'))
@@ -836,7 +835,7 @@ namespace EpicGames.Core
 			}
 			else
 			{
-				string DefaultLevel = Environment.GetEnvironmentVariable("UE_AUTOSDK_DEFAULT_LEVEL");
+				string? DefaultLevel = Environment.GetEnvironmentVariable("UE_AUTOSDK_DEFAULT_LEVEL");
 				if (!string.IsNullOrEmpty(DefaultLevel) && AutoSDKLevels.Contains(DefaultLevel, StringComparer.InvariantCultureIgnoreCase))
 				{
 					FinalAutoSDKLevel = DefaultLevel.ToUpper();
@@ -948,7 +947,7 @@ namespace EpicGames.Core
 					String PlatformSetupEnvVar = GetPlatformAutoSDKSetupEnvVar();
 					for (; ; )
 					{
-						string VariableString = Reader.ReadLine();
+						string? VariableString = Reader.ReadLine();
 						if (VariableString == null)
 						{
 							break;
@@ -995,7 +994,7 @@ namespace EpicGames.Core
 
 
                     // actually perform the PATH stripping / adding.
-                    String OrigPathVar = Environment.GetEnvironmentVariable("PATH");
+                    String? OrigPathVar = Environment.GetEnvironmentVariable("PATH");
                     String PathDelimiter = RuntimePlatform.IsWindows ? ";" : ":";
                     String[] PathVars = { };
                     if (!String.IsNullOrEmpty(OrigPathVar))
@@ -1157,7 +1156,7 @@ namespace EpicGames.Core
 			return bLocalProcessSetupAutoSDK || HasParentProcessSetupAutoSDK(out _);
 		}
 
-		protected bool HasParentProcessSetupAutoSDK(out string OutAutoSDKSetupValue)
+		protected bool HasParentProcessSetupAutoSDK(out string? OutAutoSDKSetupValue)
 		{
 			bool bParentProcessSetupAutoSDK = false;
 			String AutoSDKSetupVarName = GetPlatformAutoSDKSetupEnvVar();
@@ -1189,7 +1188,7 @@ namespace EpicGames.Core
 		// tells us if the user has a valid manual install.
 		protected virtual SDKStatus HasRequiredManualSDKInternal()
 		{
-			string ManualSDKVersion;
+			string? ManualSDKVersion;
 			GetInstalledVersions(out ManualSDKVersion, out _);
 
 			return IsVersionValid(ManualSDKVersion, bForAutoSDK:false) ? SDKStatus.Valid : SDKStatus.Invalid;
@@ -1274,7 +1273,7 @@ namespace EpicGames.Core
 		/// Allows the platform to optionally returns a path to the internal SDK
 		/// </summary>
 		/// <returns>Valid path to the internal SDK, null otherwise</returns>
-		public virtual string GetInternalSDKPath()
+		public virtual string? GetInternalSDKPath()
 		{
 			return null;
 		}

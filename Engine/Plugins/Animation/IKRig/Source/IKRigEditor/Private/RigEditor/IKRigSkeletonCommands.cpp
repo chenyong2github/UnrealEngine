@@ -2,7 +2,7 @@
 
 #include "RigEditor/IKRigSkeletonCommands.h"
 
-#define LOCTEXT_NAMESPACE "ControlRigHierarchyCommands"
+#define LOCTEXT_NAMESPACE "IKRigHierarchyCommands"
 
 void FIKRigSkeletonCommands::RegisterCommands()
 {

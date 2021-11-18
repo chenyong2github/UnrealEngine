@@ -23,7 +23,7 @@ void FActorFilterAsyncTask::DoTask(ENamedThreads::Type CurrentThread, const FGra
 void FActorFilterApplyAsyncTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	check(!IsInGameThread() || IsRunningDedicatedServer());
-	if (!Manager->World->IsPendingKillOrUnreachable())
+	if (IsValidChecked(Manager->World) && !Manager->World->IsUnreachable())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(FActorFilterApplyAsyncTask);
 		Manager->ApplyFilterResults();
@@ -33,7 +33,7 @@ void FActorFilterApplyAsyncTask::DoTask(ENamedThreads::Type CurrentThread, const
 void FActorFilterDrawStateAsyncTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	check(IsInGameThread() || IsRunningDedicatedServer());
-	if (!Manager->World->IsPendingKillOrUnreachable())
+	if (IsValidChecked(Manager->World) && !Manager->World->IsUnreachable())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(FActorFilterDrawStateAsyncTask);
 		Manager->DrawFilterResults();

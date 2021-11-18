@@ -865,6 +865,11 @@ EGLSurface AndroidEGL::GetSurface() const
 	return PImplData->eglSurface;
 }
 
+EGLConfig AndroidEGL::GetConfig() const
+{
+	return PImplData->eglConfigParam;
+}
+
 void AndroidEGL::GetSwapIntervalRange(EGLint& OutMinSwapInterval, EGLint& OutMaxSwapInterval) const
 {
 	eglGetConfigAttrib(PImplData->eglDisplay, PImplData->eglConfigParam, EGL_MIN_SWAP_INTERVAL, &OutMinSwapInterval);

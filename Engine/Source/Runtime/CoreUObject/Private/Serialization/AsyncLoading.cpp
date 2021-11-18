@@ -1645,17 +1645,14 @@ FObjectImport* FAsyncPackage::FindExistingImport(int32 LocalImportIndex)
 				Import->XObject = StaticFindObjectFast(UObject::StaticClass(), ImportOuter->XObject, Import->ObjectName, false, true);
 				if (Import->XObject)
 				{
-//native blueprint 
 					FName NameImportClass(Import->ClassName);
 					FName NameActualImportClass(Import->XObject->GetClass()->GetFName());
 					if (NameActualImportClass != NameImportClass)
 					{
 						static const FName NAME_BlueprintGeneratedClass("BlueprintGeneratedClass");
-						static const FName NAME_DynamicClass("DynamicClass");
 						static const FName NAME_DelegateFunction("DelegateFunction");
 
-						bool bSafeException = (NameImportClass == NAME_BlueprintGeneratedClass && NameActualImportClass == NAME_DynamicClass)
-							|| (NameImportClass == NAME_Function && NameActualImportClass == NAME_DelegateFunction);
+						bool bSafeException = (NameImportClass == NAME_Function && NameActualImportClass == NAME_DelegateFunction);
 
 						if (!bSafeException)
 						{
@@ -2037,10 +2034,9 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 			if (ImportPackage)
 			{
 				FLinkerLoad* ImportLinker = ImportPackage->LinkerLoad;
-				bool bDynamicImport = ImportLinker && ImportLinker->bDynamicClassLinker;
 
 #if USE_EVENT_DRIVEN_ASYNC_LOAD_AT_BOOT_TIME
-				if (GIsInitialLoad && !ImportLinker && ImportPackage->HasAnyPackageFlags(PKG_CompiledIn) && !bDynamicImport)
+				if (GIsInitialLoad && !ImportLinker && ImportPackage->HasAnyPackageFlags(PKG_CompiledIn))
 				{
 					// compiled in package shouldn't be involved in non outer package import
 					check(OuterMostImport.OuterIndex.IsNull());
@@ -2100,18 +2096,6 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 						check(OuterName != NAME_None);
 						check(OuterName == Linker->GetInstancingContext().Remap(Linker->ImpExp(Import.OuterIndex).ObjectName));
 					}
-					//native blueprint 
-					bool bDynamicSomethingMissingFromTheFakeExportTable = bDynamicImport && LocalExportIndex.IsNull();
-
-					// this is a hack because the fake export table is missing lots
-					if (bDynamicSomethingMissingFromTheFakeExportTable)
-					{
-						check(ImportLinker->ExportMap.Num() == 1 || ImportLinker->ExportMap.Num() == 2);
-						// we assume there are two elements in the fake export table and the second one is the CDO
-						// or there is just a struct without any CDO
-						const int32 DynamicExportIndex = (ImportLinker->ExportMap.Num() == 2) ? 1 : 0;
-						LocalExportIndex = FPackageIndex::FromExport(DynamicExportIndex);
-					}
 
 					Import.bImportFailed = LocalExportIndex.IsNull();
 					UE_CLOG(Import.bImportFailed, LogStreaming, Warning, TEXT("Could not find import %s.%s in package %s."), *OuterName.ToString(), *Import.ObjectName.ToString(), *ImportPackage->GetName());
@@ -2129,103 +2113,63 @@ EAsyncPackageState::Type FAsyncPackage::SetupImports_Event()
 							);
 						}
 					}
-					UE_CLOG(bDynamicImport && Import.bImportFailed, LogStreaming, Fatal, TEXT("Could not find dynamic import %s.%s in package %s."), *OuterName.ToString(), *Import.ObjectName.ToString(), *ImportPackage->GetName());
 					if (!Import.bImportFailed)
 					{
 						FObjectExport& Export = ImportLinker->Exp(LocalExportIndex);
 						Import.bImportFailed = Export.bExportLoadFailed;
 						if (!Import.bImportFailed)
 						{
-							if (bDynamicSomethingMissingFromTheFakeExportTable)
+							Import.SourceIndex = LocalExportIndex.ToExport();
+							Import.SourceLinker = ImportLinker;
+							if (!Export.Object)
 							{
-								// native blueprint 
+								bAnyImportArcsAdded = true;
+								FEventLoadNodePtr MyDependentNode;
+								MyDependentNode.WaitingPackage = WeakThis;
+								MyDependentNode.ImportOrExportIndex = FPackageIndex::FromImport(LocalImportIndex);
+								MyDependentNode.Phase = EEventLoadNode::ImportOrExport_Create;
 
-								// we can't set Import.SourceIndex because they would be incorrect
-
-								// We hope this things is available when the class is constructed
-								if (!IsFullyLoadedObj(Export.Object))
 								{
-									bAnyImportArcsAdded = true;
-									FEventLoadNodePtr MyDependentNode;
-									MyDependentNode.WaitingPackage = WeakThis;
-									MyDependentNode.ImportOrExportIndex = FPackageIndex::FromImport(LocalImportIndex);
-									MyDependentNode.Phase = EEventLoadNode::ImportOrExport_Create;
+									FEventLoadNodePtr PrereqisiteNode;
+									PrereqisiteNode.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot));
+									PrereqisiteNode.ImportOrExportIndex = LocalExportIndex;
+									PrereqisiteNode.Phase = EEventLoadNode::ImportOrExport_Create;
 
-									{
-										check(int32(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot)->AsyncPackageLoadingState) >= int32(EAsyncPackageLoadingState::StartImportPackages));
-										FEventLoadNodePtr PrereqisiteNode;
-										PrereqisiteNode.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot));
-										PrereqisiteNode.ImportOrExportIndex = LocalExportIndex;
-										PrereqisiteNode.Phase = EEventLoadNode::ImportOrExport_Serialize;
+									// can't create an import until the corresponding export is created
+									AddArc(PrereqisiteNode, MyDependentNode);
+								}
 
-										// can't consider an import serialized until the corresponding export is serialized
-										AddArc(PrereqisiteNode, MyDependentNode);
-									}
 
-									{
-										FEventLoadNodePtr DependentNode;
-										DependentNode.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot));
-										DependentNode.Phase = EEventLoadNode::Package_ExportsSerialized; // this could be much later...really all we care about is that the linker isn't destroyed.
+								{
+									FEventLoadNodePtr DependentNode;
+									DependentNode.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot));
+									DependentNode.Phase = EEventLoadNode::Package_ExportsSerialized; // this could be much later...really all we care about is that the linker isn't destroyed.
 
-										// The other package should not leave the event driven loader until we have linked this import
-										AddArc(MyDependentNode, DependentNode);
-									}
+									// The other package should not leave the event driven loader until we have linked this import
+									AddArc(MyDependentNode, DependentNode);
 								}
 							}
 							else
 							{
-								Import.SourceIndex = LocalExportIndex.ToExport();
-								Import.SourceLinker = ImportLinker;
-								if (!Export.Object)
-								{
-									bAnyImportArcsAdded = true;
-									FEventLoadNodePtr MyDependentNode;
-									MyDependentNode.WaitingPackage = WeakThis;
-									MyDependentNode.ImportOrExportIndex = FPackageIndex::FromImport(LocalImportIndex);
-									MyDependentNode.Phase = EEventLoadNode::ImportOrExport_Create;
+								check(!Import.XObject || Import.XObject == Export.Object);
+								Import.XObject = Export.Object;
+								AddObjectReference(Import.XObject);
+							}
+							if (!IsFullyLoadedObj(Export.Object))
+							{
+								bAnyImportArcsAdded = true;
+								FEventLoadNodePtr MyDependentNode;
+								MyDependentNode.WaitingPackage = WeakThis;
+								MyDependentNode.ImportOrExportIndex = FPackageIndex::FromImport(LocalImportIndex);
+								MyDependentNode.Phase = EEventLoadNode::ImportOrExport_Serialize;
 
-									{
-										FEventLoadNodePtr PrereqisiteNode;
-										PrereqisiteNode.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot));
-										PrereqisiteNode.ImportOrExportIndex = LocalExportIndex;
-										PrereqisiteNode.Phase = EEventLoadNode::ImportOrExport_Create;
+								FEventLoadNodePtr PrereqisiteNode;
+								PrereqisiteNode.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot));
+								PrereqisiteNode.ImportOrExportIndex = LocalExportIndex;
+								PrereqisiteNode.Phase = EEventLoadNode::ImportOrExport_Serialize;
 
-										// can't create an import until the corresponding export is created
-										AddArc(PrereqisiteNode, MyDependentNode);
-									}
-
-
-									{
-										FEventLoadNodePtr DependentNode;
-										DependentNode.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot));
-										DependentNode.Phase = EEventLoadNode::Package_ExportsSerialized; // this could be much later...really all we care about is that the linker isn't destroyed.
-
-										// The other package should not leave the event driven loader until we have linked this import
-										AddArc(MyDependentNode, DependentNode);
-									}
-								}
-								else
-								{
-									check(!Import.XObject || Import.XObject == Export.Object);
-									Import.XObject = Export.Object;
-									AddObjectReference(Import.XObject);
-								}
-								if (!IsFullyLoadedObj(Export.Object))
-								{
-									bAnyImportArcsAdded = true;
-									FEventLoadNodePtr MyDependentNode;
-									MyDependentNode.WaitingPackage = WeakThis;
-									MyDependentNode.ImportOrExportIndex = FPackageIndex::FromImport(LocalImportIndex);
-									MyDependentNode.Phase = EEventLoadNode::ImportOrExport_Serialize;
-
-									FEventLoadNodePtr PrereqisiteNode;
-									PrereqisiteNode.WaitingPackage = FCheckedWeakAsyncPackagePtr(static_cast<FAsyncPackage*>(ImportLinker->AsyncRoot));
-									PrereqisiteNode.ImportOrExportIndex = LocalExportIndex;
-									PrereqisiteNode.Phase = EEventLoadNode::ImportOrExport_Serialize;
-
-									// can't consider an import serialized until the corresponding export is serialized
-									AddArc(PrereqisiteNode, MyDependentNode);
-								}
+								// can't consider an import serialized until the corresponding export is serialized
+								AddArc(PrereqisiteNode, MyDependentNode);
 							}
 						}
 					}
@@ -2440,9 +2384,8 @@ EAsyncPackageState::Type FAsyncPackage::SetupExports_Event()
 		// Check whether we already loaded the object and if not whether the context flags allow loading it.
 		check(!Export.Object); // we should not have this yet
 		if (!Export.Object)
-		{
-//native blueprint 
-			if (!Linker->FilterExport(Export) && (!Export.ClassIndex.IsNull() || Linker->bDynamicClassLinker))
+		{ 
+			if (!Linker->FilterExport(Export) && !Export.ClassIndex.IsNull())
 			{
 				check(Export.ObjectName != NAME_None || !(Export.ObjectFlags&RF_Public));
 
@@ -2789,8 +2732,7 @@ void FAsyncPackage::EventDrivenCreateExport(int32 LocalExportIndex)
 
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
-	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET((Export.DynamicType == FObjectExport::EDynamicType::DynamicType) ? UDynamicClass::StaticClass() : 
-		CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
 
 	// Check whether we already loaded the object and if not whether the context flags allow loading it.
 	//check(!Export.Object || Export.Object->HasAnyFlags(RF_ClassDefaultObject)); // we should not have this yet, unless it is a CDO
@@ -2812,52 +2754,6 @@ void FAsyncPackage::EventDrivenCreateExport(int32 LocalExportIndex)
 			LastObjectWorkWasPerformedOn = nullptr;
 			check(Export.ObjectName != NAME_None || !(Export.ObjectFlags&RF_Public));
 			check(LoadContext->HasStartedLoading());
-			if (Export.DynamicType == FObjectExport::EDynamicType::DynamicType)
-			{
-//native blueprint 
-
-				Export.Object = ConstructDynamicType(*Linker->GetExportPathName(LocalExportIndex), EConstructDynamicType::OnlyAllocateClassObject);
-				check(Export.Object);
-				UDynamicClass* DC = Cast<UDynamicClass>(Export.Object);
-				UObject* DCD = DC ? DC->GetDefaultObject(false) : nullptr;
-				if (GIsInitialLoad || GUObjectArray.IsOpenForDisregardForGC())
-				{
-					Export.Object->AddToRoot();
-					if (DCD)
-					{
-						DCD->AddToRoot();
-					}
-				}
-				if (DCD)
-				{
-					AddObjectReference(DCD);
-				}
-				UE_LOG(LogStreaming, Verbose, TEXT("EventDrivenCreateExport: Created dynamic class %s"), *Export.Object->GetFullName());
-				if (Export.Object)
-				{
-					Export.Object->SetLinker(Linker, LocalExportIndex);
-				}
-			}
-			else if (Export.DynamicType == FObjectExport::EDynamicType::ClassDefaultObject)
-			{
-				UClass* LoadClass = nullptr;
-				if (!Export.ClassIndex.IsNull())
-				{
-					LoadClass = CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, true, FPackageIndex::FromExport(LocalExportIndex));
-				}
-				if (!LoadClass)
-				{
-					UE_LOG(LogStreaming, Error, TEXT("Could not find class %s to create %s"), *Linker->ImpExp(Export.ClassIndex).ObjectName.ToString(), *Export.ObjectName.ToString());
-					Export.bExportLoadFailed = true;
-					return;
-				}
-				Export.Object = LoadClass->GetDefaultObject(true);
-				if (Export.Object)
-				{
-					Export.Object->SetLinker(Linker, LocalExportIndex);
-				}
-			}
-			else
 			{
 				UClass* LoadClass = nullptr;
 				if (Export.ClassIndex.IsNull())
@@ -3121,23 +3017,10 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 	FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
 
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
-	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET((Export.DynamicType == FObjectExport::EDynamicType::DynamicType) ? UDynamicClass::StaticClass() :
-		CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
+	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
 
 	UObject* Object = Export.Object;
-	if (Object && Linker->bDynamicClassLinker)
-	{
-		//native blueprint 
-		UDynamicClass* UD = Cast<UDynamicClass>(Object);
-		if (UD)
-		{
-			check(Export.DynamicType == FObjectExport::EDynamicType::DynamicType);
-			UObject* LocObj = ConstructDynamicType(*Linker->GetExportPathName(LocalExportIndex), EConstructDynamicType::CallZConstructor);
-			check(UD == LocObj);
-		}
-		Object->ClearFlags(RF_NeedLoad | RF_WillBeLoaded);
-	}
-	else if (Object && Object->HasAnyFlags(RF_NeedLoad))
+	if (Object && Object->HasAnyFlags(RF_NeedLoad))
 	{
 
 		Linker->GetAsyncLoader()->LogItem(TEXT("EventDrivenSerializeExport"), Export.SerialOffset, Export.SerialSize);
@@ -3251,18 +3134,6 @@ void FAsyncPackage::EventDrivenSerializeExport(int32 LocalExportIndex)
 void FAsyncPackage::StartPrecacheRequest()
 {
 	SCOPED_LOADTIMER(StartPrecacheRequests);
-	if (Linker->bDynamicClassLinker)
-	{
-//native blueprint 
-
-		// there is no IO for these
-		for (int32 LocalExportIndex : ExportsThatCanHaveIOStarted)
-		{
-			RemoveNode(EEventLoadNode::Export_StartIO, FPackageIndex::FromExport(LocalExportIndex));
-		}
-		ExportsThatCanHaveIOStarted.Empty();
-		return;
-	}
 	int32 LocalExportIndex = -1;
 	while (true)
 	{
@@ -3427,12 +3298,9 @@ void FAsyncPackage::FlushPrecacheBuffer()
 	SCOPED_LOADTIMER(FlushPrecacheBuffer);
 	CurrentBlockOffset = -1;
 	CurrentBlockBytes = -1;
-	if (!Linker->bDynamicClassLinker)
-	{
 	FAsyncArchive* AsyncLoader = Linker->GetAsyncLoader();
 	check(AsyncLoader);
 	AsyncLoader->FlushPrecacheBlock();
-}
 }
 
 int32 GCurrentExportIndex = -1;
@@ -3529,9 +3397,7 @@ EAsyncPackageState::Type FAsyncPackage::ProcessImportsAndExports_Event()
 			int32 LocalExportIndex = -1;
 			ExportsThatCanBeSerialized.HeapPop(LocalExportIndex, false);
 
-//native blueprint 
-			if (Linker->bDynamicClassLinker || // dynamic things aren't actually in any block
-				ExportsInThisBlock.Remove(LocalExportIndex) == 1)
+			if (ExportsInThisBlock.Remove(LocalExportIndex) == 1)
 			{
 				FGCScopeGuard GCGuard;
 				GCurrentExportIndex = LocalExportIndex;
@@ -3740,7 +3606,7 @@ void FAsyncPackage::Event_StartPostload()
 			FObjectExport& Export = Linker->ExportMap[LocalExportIndex];
 			UObject* Object = Export.Object;
 			checkSlow(!(Object && !ReferencedObjects.Contains(Object)));
-			if (Object && (Object->HasAnyFlags(RF_NeedPostLoad) || Linker->bDynamicClassLinker || Object->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading)))
+			if (Object && (Object->HasAnyFlags(RF_NeedPostLoad) || Object->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading)))
 			{
 				check(Object->IsValidLowLevelFast());
 				LoadContext->AddLoadedObject(Object);
@@ -5790,11 +5656,6 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 			}
 
 			FName NameToLoadFName = PackagePath.GetPackageFName();
-			if (GetConvertedDynamicPackageNameToTypeName().Contains(NameToLoadFName))
-			{
-				// Skip the existence and normalization checks
-			}
-			else
 			{
 				bool bDoesPackageExist = false;
 				{
@@ -5879,13 +5740,7 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 				if (Linker)
 				{
 					AsyncLoadingThread.GetPrecacheHandler().RegisterNewSummaryRequest(this);
-					if (Linker->bDynamicClassLinker)
-					{
-						//native blueprint 
-						check(!Linker->GetAsyncLoader());
-						AsyncLoadingThread.GetPrecacheHandler().SummaryComplete(WeakPtr);
-					}
-					else if (!Linker->Loader)
+					if (!Linker->Loader)
 					{
 						AsyncLoadingThread.GetPrecacheHandler().SummaryComplete(WeakPtr);
 						bLoadHasFailed = true;
@@ -6606,41 +6461,8 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 				Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 			}
 
-			// CDO need special handling, no matter if it's listed in DeferredFinalizeObjects or created here for DynamicClass
-			UObject* CDOToHandle = nullptr;
-
-			// Dynamic Class doesn't require/use pre-loading (or post-loading). 
-			// The CDO is created at this point, because now it's safe to solve cyclic dependencies.
-			if (UDynamicClass* DynamicClass = Cast<UDynamicClass>(Object))
-			{
-				check((DynamicClass->ClassFlags & CLASS_Constructed) != 0);
-
-				if (GEventDrivenLoaderEnabled)
-				{
-					//native blueprint 
-
-					check(DynamicClass->HasAnyClassFlags(CLASS_TokenStreamAssembled));
-					// this block should be removed entirely when and if we add the CDO to the fake export table
-					CDOToHandle = DynamicClass->GetDefaultObject(false);
-					UE_CLOG(!CDOToHandle, LogStreaming, Fatal, TEXT("EDL did not create the CDO for %s before it finished loading."), *DynamicClass->GetFullName());
-					CDOToHandle->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
-				}
-				else
-				{
-					UObject* OldCDO = DynamicClass->GetDefaultObject(false);
-					UObject* NewCDO = DynamicClass->GetDefaultObject(true);
-					const bool bCDOWasJustCreated = (OldCDO != NewCDO);
-					if (bCDOWasJustCreated && (NewCDO != nullptr))
-					{
-						NewCDO->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
-						CDOToHandle = NewCDO;
-					}
-				}
-			}
-			else
-			{
-				CDOToHandle = ((Object != nullptr) && Object->HasAnyFlags(RF_ClassDefaultObject)) ? Object : nullptr;
-			}
+			// CDO need special handling, no matter if it's listed in DeferredFinalizeObjects
+			UObject* CDOToHandle = ((Object != nullptr) && Object->HasAnyFlags(RF_ClassDefaultObject)) ? Object : nullptr;
 
 			// Clear AsyncLoading in CDO's subobjects.
 			if(CDOToHandle != nullptr)
@@ -6750,7 +6572,7 @@ EAsyncPackageState::Type FAsyncPackage::FinishObjects()
 			if (Object && Object->GetOutermost()->GetFName() == Desc.Name)
 			{
 				Object->ClearFlags(RF_NeedPostLoad | RF_NeedLoad | RF_NeedPostLoadSubobjects);
-				Object->MarkPendingKill();
+				Object->MarkAsGarbage();
 				PackageObjLoaded[ObjectIndex] = nullptr;
 			}
 		}
@@ -6761,7 +6583,7 @@ EAsyncPackageState::Type FAsyncPackage::FinishObjects()
 			if (bCreatedLinkerRoot)
 			{
 				LinkerRoot->ClearFlags(RF_NeedPostLoad | RF_NeedLoad | RF_NeedPostLoadSubobjects);
-				LinkerRoot->MarkPendingKill();
+				LinkerRoot->MarkAsGarbage();
 				LinkerRoot->Rename(*MakeUniqueObjectName(GetTransientPackage(), UPackage::StaticClass()).ToString(), nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_ForceNoResetLoaders | REN_NonTransactional);
 			}
 			DetachLinker();

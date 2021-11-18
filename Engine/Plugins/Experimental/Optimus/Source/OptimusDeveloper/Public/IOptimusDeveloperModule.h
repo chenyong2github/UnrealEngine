@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "Templates/SubclassOf.h"
+#include "Modules/ModuleManager.h"
+
 
 class IOptimusDeveloperModule : public IModuleInterface
 {
 public:
+	static IOptimusDeveloperModule& Get()
+	{
+		return FModuleManager::LoadModuleChecked<IOptimusDeveloperModule>(TEXT("OptimusDeveloper"));
+	}
 };

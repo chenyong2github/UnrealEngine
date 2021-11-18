@@ -169,7 +169,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 		}
 	}
 
-	void AddRectangle(const FVector3f& Location, const FVector3f& XAxis, const FVector3f& YAxis, const FVector2D& Extents, const FIntPoint& Segments, const FLinearColor& Color, bool bUnbounded)
+	void AddRectangle(const FVector3f& Location, const FVector3f& XAxis, const FVector3f& YAxis, const FVector2f& Extents, const FIntPoint& Segments, const FLinearColor& Color, bool bUnbounded)
 	{
 		const FVector3f XAxisNorm = XAxis.GetSafeNormal();
 		const FVector3f YAxisNorm = YAxis.GetSafeNormal();
@@ -177,7 +177,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 		const FIntPoint NumSegments = FIntPoint(FMath::Clamp(Segments.X, bUnbounded ? 2 : 1, 16), FMath::Clamp(Segments.Y, bUnbounded ? 2 : 1, 16));
 
 		const FVector3f StartPosition = Location - ((XAxisNorm * Extents.X) + (YAxisNorm * Extents.Y));
-		const FVector2D Step = (Extents * 2) / NumSegments;
+		const FVector2f Step = (Extents * 2) / NumSegments;
 		const FVector3f StepX = XAxisNorm * Step.X;
 		const FVector3f StepY = YAxisNorm * Step.Y;
 
@@ -360,7 +360,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 		AddLine(Location, Location + ZAxis, FLinearColor::Blue);
 	}
 
-	void AddGrid2D(const FVector3f& Center, const FQuat4f& Rotation, const FVector2D& Extents, const FIntPoint& NumCells, const FLinearColor& Color)
+	void AddGrid2D(const FVector3f& Center, const FQuat4f& Rotation, const FVector2f& Extents, const FIntPoint& NumCells, const FLinearColor& Color)
 	{
 		const FVector3f Corner = Center - Rotation.RotateVector(FVector3f(Extents.X, Extents.Y, 0.0f));
 		const FVector3f XLength = Rotation.RotateVector(FVector3f(Extents.X * 2.0f, 0.0f, 0.0f));
@@ -622,7 +622,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
 			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
-			TOptional<FVector2D> Extents = GetTag<FVector2D>(SystemInstance, FNiagaraTypeDefinition::GetVec2Def(), 4);
+			TOptional<FVector2f> Extents = GetTag<FVector2f>(SystemInstance, FNiagaraTypeDefinition::GetVec2Def(), 4);
 			TOptional<FNiagaraBool> HalfExtents = GetTag<FNiagaraBool>(SystemInstance, FNiagaraTypeDefinition::GetBoolDef(), 5);
 			TOptional<FVector3f> XAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
 			TOptional<FVector3f> YAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 7);
@@ -634,7 +634,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 			FVector3f DrawCenter = Center.Get(FVector3f::ZeroVector);
 			FVector3f DrawOffset = Offset.Get(FVector3f::ZeroVector);
-			FVector2D DrawExtents = Extents.Get(FVector2D(10));
+			FVector2f DrawExtents = Extents.Get(FVector2f(10));
 			FVector3f DrawXAxis = XAxis.Get(FVector3f::XAxisVector);
 			FVector3f DrawYAxis = YAxis.Get(FVector3f::YAxisVector);
 			int32 DrawNumXSegments = NumXSegments.Get(1);
@@ -849,8 +849,8 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 
 			FQuat4f WorldRot =
-				DrawOrientationAxisEnum == ENiagaraOrientationAxis::XAxis ? FQuat4f(FRotator(0, 90, -90)) :
-				DrawOrientationAxisEnum == ENiagaraOrientationAxis::YAxis ? FQuat4f(FRotator(0, 0, -90)) :
+				DrawOrientationAxisEnum == ENiagaraOrientationAxis::XAxis ? FQuat4f(FRotator3f(0, 90, -90)) :
+				DrawOrientationAxisEnum == ENiagaraOrientationAxis::YAxis ? FQuat4f(FRotator3f(0, 0, -90)) :
 				FQuat4f::Identity;
 
 			TransformQuat(true, WorldRot, OrientationAxisCoordinateSpace, ENiagaraCoordinateSpace::World, SystemInstance);
@@ -1000,7 +1000,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
 			TOptional<FQuat4f> Rotation = GetTag<FQuat4f>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
 			TOptional<ENiagaraCoordinateSpace> RotationWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 5);
-			TOptional<FVector2D> Extents = GetTag<FVector2D>(SystemInstance, FNiagaraTypeDefinition::GetVec2Def(), 6);
+			TOptional<FVector2f> Extents = GetTag<FVector2f>(SystemInstance, FNiagaraTypeDefinition::GetVec2Def(), 6);
 			TOptional<float> NumCellsX = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 7);
 			TOptional<float> NumCellsY = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 8);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 9);
@@ -1010,7 +1010,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			FVector3f DrawCenter = Center.Get(FVector3f::ZeroVector);
 			FVector3f DrawOffset = Offset.Get(FVector3f::ZeroVector);
 			FQuat4f DrawRotation = Rotation.Get(FQuat4f::Identity);
-			FVector2D DrawExtents = Extents.Get(FVector2D(10.f));
+			FVector2f DrawExtents = Extents.Get(FVector2f(10.f));
 			int32 DrawNumCellsX = NumCellsX.Get(10);
 			int32 DrawNumCellsY = NumCellsY.Get(10);
 			FLinearColor DrawColor = Color.Get(FLinearColor::Green);
@@ -1181,7 +1181,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
 							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
-							TOptional<FVector2D> Extents = GetCompileTag<FVector2D>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec2Def(), ParamNames[4]);
+							TOptional<FVector2f> Extents = GetCompileTag<FVector2f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec2Def(), ParamNames[4]);
 
 							bIsValid = Center.IsSet() || Extents.IsSet();
 
@@ -1530,7 +1530,7 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<FVector3f> LocationParam;
 			FNDIInputParam<FVector3f> XAxisParam;
 			FNDIInputParam<FVector3f> YAxisParam;
-			FNDIInputParam<FVector2D> ExtentsParam;
+			FNDIInputParam<FVector2f> ExtentsParam;
 			FNDIInputParam<int32> NumXSegments;
 			FNDIInputParam<int32> NumYSegments;
 			FNDIInputParam<FLinearColor> ColorParam;
@@ -1561,7 +1561,7 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<ENiagaraCoordinateSpace> LocationWSParam;
 			FNDIInputParam<FVector3f> OffsetParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> OffsetWSParam;
-			FNDIInputParam<FVector2D> ExtentsParam;
+			FNDIInputParam<FVector2f> ExtentsParam;
 			FNDIInputParam<FNiagaraBool> HalfExtentsParam;
 			FNDIInputParam<FVector3f> XAxisParam;
 			FNDIInputParam<FVector3f> YAxisParam;
@@ -1578,7 +1578,7 @@ namespace NDIDebugDrawLocal
 			const FVector3f Location = Bindings.LocationParam.GetAndAdvance();
 			const FVector3f XAxis = Bindings.XAxisParam.GetAndAdvance();
 			const FVector3f YAxis = Bindings.YAxisParam.GetAndAdvance();
-			const FVector2D Extents = Bindings.ExtentsParam.GetAndAdvance();
+			const FVector2f Extents = Bindings.ExtentsParam.GetAndAdvance();
 			const FIntPoint NumSegments = FIntPoint(FMath::Clamp(Bindings.NumXSegments.GetAndAdvance(), 1, 16), FMath::Clamp(Bindings.NumYSegments.GetAndAdvance(), 1, 16));
 			const FLinearColor Color = Bindings.ColorParam.GetAndAdvance();
 
@@ -2105,7 +2105,7 @@ namespace NDIDebugDrawLocal
 
 			FNDIInputParam<FVector3f> CenterParam;
 			FNDIInputParam<FQuat4f> RotationParam;
-			FNDIInputParam<FVector2D> ExtentsParam;
+			FNDIInputParam<FVector2f> ExtentsParam;
 			FNDIInputParam<int32> NumCellsXParam;
 			FNDIInputParam<int32> NumCellsYParam;
 			FNDIInputParam<FLinearColor> ColorParam;
@@ -2134,7 +2134,7 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<ENiagaraCoordinateSpace> OffsetWSParam;
 			FNDIInputParam<FQuat4f> RotationParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> RotationCoordinateSpace;
-			FNDIInputParam<FVector2D> ExtentsParam;
+			FNDIInputParam<FVector2f> ExtentsParam;
 			FNDIInputParam<int32> NumCellsXParam;
 			FNDIInputParam<int32> NumCellsYParam;
 			FNDIInputParam<FLinearColor> ColorParam;
@@ -2145,7 +2145,7 @@ namespace NDIDebugDrawLocal
 		{
 			const FVector3f Center = Bindings.CenterParam.GetAndAdvance();
 			const FQuat4f Rotation = Bindings.RotationParam.GetAndAdvance();
-			const FVector2D Extents = Bindings.ExtentsParam.GetAndAdvance();
+			const FVector2f Extents = Bindings.ExtentsParam.GetAndAdvance();
 			const FIntPoint NumCells(Bindings.NumCellsXParam.GetAndAdvance(), Bindings.NumCellsYParam.GetAndAdvance());
 			const FLinearColor Color = Bindings.ColorParam.GetAndAdvance();
 
@@ -2417,7 +2417,7 @@ void UNiagaraDataInterfaceDebugDraw::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Center")));
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("XAxis"))).SetValue(FVector3f::XAxisVector);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("YAxis"))).SetValue(FVector3f::YAxisVector);
-		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Extents"))).SetValue(FVector2D(10.0f));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Extents"))).SetValue(FVector2f(10.0f));
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumXSegments"))).SetValue(1);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumYSegments"))).SetValue(1);
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color")));
@@ -2527,7 +2527,7 @@ void UNiagaraDataInterfaceDebugDraw::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Execute"))).SetValue(true);
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Center")));
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
-		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Extents"))).SetValue(FVector2D(10.0f));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Extents"))).SetValue(FVector2f(10.0f));
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsX"))).SetValue(1);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsY"))).SetValue(1);
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color")));
@@ -2576,7 +2576,7 @@ void UNiagaraDataInterfaceDebugDraw::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("CenterCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Offset"))).SetValue(FVector3f::ZeroVector);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("OffsetCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
-		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Extents"))).SetValue(FVector2D(5, 5));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Extents"))).SetValue(FVector2f(5, 5));
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("HalfExtents"))).SetValue(true);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("XAxis"))).SetValue(FVector3f::XAxisVector);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("YAxis"))).SetValue(FVector3f::YAxisVector);
@@ -2744,7 +2744,7 @@ void UNiagaraDataInterfaceDebugDraw::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("OffsetCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("RotationCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
-		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Extents"))).SetValue(FVector2D(10.0f));
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Extents"))).SetValue(FVector2f(10.0f));
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsX"))).SetValue(1);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsY"))).SetValue(1);
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color")));

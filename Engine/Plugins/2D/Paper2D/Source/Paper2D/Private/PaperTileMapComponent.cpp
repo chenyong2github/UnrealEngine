@@ -269,9 +269,9 @@ void UPaperTileMapComponent::RebuildRenderData(TArray<FSpriteRenderSection>& Sec
 	
 	UTexture2D* LastSourceTexture = nullptr;
 	FVector TileSetOffset = FVector::ZeroVector;
-	FVector2D InverseTextureSize(1.0f, 1.0f);
-	FVector2D SourceDimensionsUV(1.0f, 1.0f);
-	FVector2D TileSizeXY(0.0f, 0.0f);
+	FVector2f InverseTextureSize(1.0f, 1.0f);
+	FVector2f SourceDimensionsUV(1.0f, 1.0f);
+	FVector2f TileSizeXY(0.0f, 0.0f);
 
 	const float UnrealUnitsPerPixel = TileMap->GetUnrealUnitsPerPixel();
 
@@ -369,14 +369,14 @@ void UPaperTileMapComponent::RebuildRenderData(TArray<FSpriteRenderSection>& Sec
 				{
 					UTexture2D* SourceTexture = nullptr;
 
-					FVector2D SourceUV = FVector2D::ZeroVector;
+					FVector2D SourceUVDbl = FVector2D::ZeroVector;	// LWC_TODO: Rework Paper2D API to support both FVector2f and FVector2d?
 
 					if (TileInfo.TileSet == nullptr)
 					{
 						continue;
 					}
 
-					if (!TileInfo.TileSet->GetTileUV(TileInfo.GetTileIndex(), /*out*/ SourceUV))
+					if (!TileInfo.TileSet->GetTileUV(TileInfo.GetTileIndex(), /*out*/ SourceUVDbl))
 					{
 						continue;
 					}
@@ -386,6 +386,8 @@ void UPaperTileMapComponent::RebuildRenderData(TArray<FSpriteRenderSection>& Sec
 					{
 						continue;
 					}
+
+					FVector2f SourceUV = static_cast<FVector2f>(SourceUVDbl);
 
 					if ((SourceTexture != LastSourceTexture) || (CurrentBatch == nullptr))
 					{
@@ -400,15 +402,15 @@ void UPaperTileMapComponent::RebuildRenderData(TArray<FSpriteRenderSection>& Sec
 
 					if (SourceTexture != LastSourceTexture)
 					{
-						const FVector2D TextureSize(SourceTexture->GetImportedSize());
-						InverseTextureSize = FVector2D(1.0f / TextureSize.X, 1.0f / TextureSize.Y);
+						const FVector2f TextureSize(SourceTexture->GetImportedSize());
+						InverseTextureSize = FVector2f(1.0f / TextureSize.X, 1.0f / TextureSize.Y);
 
 						if (TileInfo.TileSet != nullptr)
 						{
 							const FIntPoint TileSetTileSize(TileInfo.TileSet->GetTileSize());
 
-							SourceDimensionsUV = FVector2D(TileSetTileSize.X * InverseTextureSize.X, TileSetTileSize.Y * InverseTextureSize.Y);
-							TileSizeXY = FVector2D(UnrealUnitsPerPixel * TileSetTileSize.X, UnrealUnitsPerPixel * TileSetTileSize.Y);
+							SourceDimensionsUV = FVector2f(TileSetTileSize.X * InverseTextureSize.X, TileSetTileSize.Y * InverseTextureSize.Y);
+							TileSizeXY = FVector2f(UnrealUnitsPerPixel * TileSetTileSize.X, UnrealUnitsPerPixel * TileSetTileSize.Y);
 
 							const FIntPoint TileSetDrawingOffset = TileInfo.TileSet->GetDrawingOffset();
 							const float HorizontalCellOffset = TileSetDrawingOffset.X * UnrealUnitsPerPixel;
@@ -417,8 +419,8 @@ void UPaperTileMapComponent::RebuildRenderData(TArray<FSpriteRenderSection>& Sec
 						}
 						else
 						{
-							SourceDimensionsUV = FVector2D(TileWidth * InverseTextureSize.X, TileHeight * InverseTextureSize.Y);
-							TileSizeXY = FVector2D(UnrealUnitsPerPixel * TileWidth, UnrealUnitsPerPixel * TileHeight);
+							SourceDimensionsUV = FVector2f(TileWidth * InverseTextureSize.X, TileHeight * InverseTextureSize.Y);
+							TileSizeXY = FVector2f(UnrealUnitsPerPixel * TileWidth, UnrealUnitsPerPixel * TileHeight);
 							TileSetOffset = FVector::ZeroVector;
 						}
 						LastSourceTexture = SourceTexture;
@@ -433,7 +435,7 @@ void UPaperTileMapComponent::RebuildRenderData(TArray<FSpriteRenderSection>& Sec
 
 					const int32 Flags = TileInfo.GetFlagsAsIndex();
 
-					const FVector2D TileSizeWithFlip = TileInfo.HasFlag(EPaperTileFlags::FlipDiagonal) ? FVector2D(TileSizeXY.Y, TileSizeXY.X) : TileSizeXY;
+					const FVector2f TileSizeWithFlip = TileInfo.HasFlag(EPaperTileFlags::FlipDiagonal) ? FVector2f(TileSizeXY.Y, TileSizeXY.X) : TileSizeXY;
 					const float UValues[4] = { SourceUV.X, SourceUV.X + SourceDimensionsUV.X, SourceUV.X + SourceDimensionsUV.X, SourceUV.X };
 					const float VValues[4] = { SourceUV.Y + SourceDimensionsUV.Y, SourceUV.Y + SourceDimensionsUV.Y, SourceUV.Y, SourceUV.Y };
 
@@ -442,10 +444,10 @@ void UPaperTileMapComponent::RebuildRenderData(TArray<FSpriteRenderSection>& Sec
 					const uint8 UVIndex2 = PermutationTable[Flags][2];
 					const uint8 UVIndex3 = PermutationTable[Flags][3];
 
-					const FVector4 BottomLeft(WX0, WY0 - TileSizeWithFlip.Y, UValues[UVIndex0], VValues[UVIndex0]);
-					const FVector4 BottomRight(WX0 + TileSizeWithFlip.X, WY0 - TileSizeWithFlip.Y, UValues[UVIndex1], VValues[UVIndex1]);
-					const FVector4 TopRight(WX0 + TileSizeWithFlip.X, WY0, UValues[UVIndex2], VValues[UVIndex2]);
-					const FVector4 TopLeft(WX0, WY0, UValues[UVIndex3], VValues[UVIndex3]);
+					const FVector4f BottomLeft(WX0, WY0 - TileSizeWithFlip.Y, UValues[UVIndex0], VValues[UVIndex0]);
+					const FVector4f BottomRight(WX0 + TileSizeWithFlip.X, WY0 - TileSizeWithFlip.Y, UValues[UVIndex1], VValues[UVIndex1]);
+					const FVector4f TopRight(WX0 + TileSizeWithFlip.X, WY0, UValues[UVIndex2], VValues[UVIndex2]);
+					const FVector4f TopLeft(WX0, WY0, UValues[UVIndex3], VValues[UVIndex3]);
 
 					CurrentBatch->AddVertex(BottomRight.X, BottomRight.Y, BottomRight.Z, BottomRight.W, CurrentDestinationOrigin, DrawColor, Vertices);
 					CurrentBatch->AddVertex(TopRight.X, TopRight.Y, TopRight.Z, TopRight.W, CurrentDestinationOrigin, DrawColor, Vertices);

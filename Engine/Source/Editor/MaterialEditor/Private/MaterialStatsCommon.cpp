@@ -126,65 +126,24 @@ FString FMaterialStatsUtils::GetPlatformTypeName(const EPlatformCategoryType InE
 
 FString FMaterialStatsUtils::ShaderPlatformTypeName(const EShaderPlatform PlatformID)
 {
-	switch (PlatformID)
+	FString FormatName = LexToString(PlatformID);
+	if (FormatName.StartsWith(TEXT("SF_")))
 	{
-		case SP_PCD3D_SM6:
-			return FString("PCD3D_SM6");
-		case SP_PCD3D_SM5:
-			return FString("PCD3D_SM5");
-		case SP_METAL:
-			return FString("METAL");
-		case SP_METAL_MRT:
-			return FString("METAL_MRT");
-		case SP_METAL_TVOS:
-			return FString("METAL_TVOS");
-		case SP_METAL_MRT_TVOS:
-			return FString("METAL_MRT_TVOS");
-		case SP_PCD3D_ES3_1:
-			return FString("PCD3D_ES3_1");
-		case SP_OPENGL_PCES3_1:
-			return FString("OPENGL_PCES3_1");
-		case SP_METAL_SM5:
-			return FString("METAL_SM5");
-		case SP_VULKAN_PCES3_1:
-			return FString("VULKAN_PCES3_1");
-		case SP_VULKAN_SM5:
-			return FString("VULKAN_SM5");
-		case SP_VULKAN_ES3_1_ANDROID:
-			return FString("VULKAN_ES3_1_ANDROID");
-		case SP_VULKAN_SM5_ANDROID:
-			return FString("VULKAN_SM5_ANDROID");
-		case SP_METAL_MACES3_1:
-			return FString("METAL_MACES3_1");
-		case SP_OPENGL_ES3_1_ANDROID:
-			return FString("OPENGL_ES3_1_ANDROID");
-		case SP_METAL_MRT_MAC:
-			return FString("METAL_MRT_MAC");
-		default:
-			FString FormatName = ShaderPlatformToShaderFormatName(PlatformID).ToString();
-			if (FormatName.StartsWith(TEXT("SF_")))
-			{
-				FormatName.MidInline(3, MAX_int32, false);
-			}
-			return FormatName;
+		FormatName.MidInline(3, MAX_int32, false);
 	}
+	return FormatName;
 }
 
 FString FMaterialStatsUtils::GetPlatformOfflineCompilerPath(const EShaderPlatform ShaderPlatform)
 {
-	switch (ShaderPlatform)
+	if (FDataDrivenShaderPlatformInfo::GetNeedsOfflineCompiler(ShaderPlatform))
 	{
-		case SP_OPENGL_ES3_1_ANDROID:
-		case SP_VULKAN_ES3_1_ANDROID:
-		case SP_VULKAN_SM5_ANDROID:
+		if (FDataDrivenShaderPlatformInfo::GetIsAndroidOpenGLES(ShaderPlatform)
+			|| (FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(ShaderPlatform) && FDataDrivenShaderPlatformInfo::GetIsMobile(ShaderPlatform)))
+		{
 			return FPaths::ConvertRelativePathToFull(GetDefault<UMaterialEditorSettings>()->MaliOfflineCompilerPath.FilePath);
-		break;
-
-		default:
-			return FString();
-		break;
+		}
 	}
-
 	return FString();
 }
 
@@ -199,33 +158,7 @@ bool FMaterialStatsUtils::IsPlatformOfflineCompilerAvailable(const EShaderPlatfo
 
 bool FMaterialStatsUtils::PlatformNeedsOfflineCompiler(const EShaderPlatform ShaderPlatform)
 {
-	switch (ShaderPlatform)
-	{
-		case SP_OPENGL_PCES3_1:
-		case SP_VULKAN_PCES3_1:
-		case SP_VULKAN_SM5:
-		case SP_VULKAN_ES3_1_ANDROID:
-		case SP_VULKAN_SM5_ANDROID:
-		case SP_OPENGL_ES3_1_ANDROID:
-			return true;
-
-
-		case SP_PCD3D_SM5:
-		case SP_METAL:
-		case SP_METAL_MRT:
-		case SP_METAL_TVOS:
-		case SP_METAL_MRT_TVOS:
-		case SP_PCD3D_ES3_1:
-		case SP_METAL_SM5:
-		case SP_METAL_MACES3_1:
-		case SP_METAL_MRT_MAC:
-			return false;
-
-		default:
-			return FDataDrivenShaderPlatformInfo::GetNeedsOfflineCompiler(ShaderPlatform);
-	}
-
-	return false;
+	return FDataDrivenShaderPlatformInfo::GetNeedsOfflineCompiler(ShaderPlatform);
 }
 
 FString FMaterialStatsUtils::RepresentativeShaderTypeToString(const ERepresentativeShader ShaderType)

@@ -2,17 +2,20 @@
 
 #pragma once
 
+#include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorCommandInfo.h"
+#include "ConsoleVariablesEditorProjectSettings.h"
+
 #include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "Modules/ModuleInterface.h"
-#include "Toolkits/IToolkit.h"
+#include "Widgets/Docking/SDockTab.h"
 
+struct FAssetData;
 
-struct FConsoleVariablesEditorCommandInfo;
-
+class FConsoleVariablesEditorMainPanel;
 class FConsoleVariablesEditorToolkit;
 class ISettingsSection;
-class UConsoleVariablesAsset;
-class UConsoleVariablesEditorProjectSettings;
 
 class FConsoleVariablesEditorModule : public IModuleInterface
 {
@@ -25,7 +28,7 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface Interface
 
-	void OpenConsoleVariablesDialogWithAssetSelected(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FAssetData& InAssetData);
+	void OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData);
 	
 	static void OpenConsoleVariablesSettings();
 
@@ -54,12 +57,16 @@ private:
 
 	TObjectPtr<UConsoleVariablesAsset> AllocateTransientPreset();
 
-	void OpenConsoleVariablesEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost);
+	TSharedRef<SDockTab> SpawnMainPanelTab(const FSpawnTabArgs& Args);
+
+	void OpenConsoleVariablesEditor();
 
 	void OnConsoleVariableChange();
+	
+	static const FName ConsoleVariablesToolkitPanelTabId;
 
-	/* Lives for as long as the UI is open. */
-	TWeakPtr<FConsoleVariablesEditorToolkit> ConsoleVariablesEditorToolkit;
+	/* Lives for as long as the module is loaded. */
+	TSharedPtr<FConsoleVariablesEditorMainPanel> MainPanel;
 
 	// Transient preset that's being edited so we don't affect the reference asset unless we save it
 	TObjectPtr<UConsoleVariablesAsset> EditingAsset = nullptr;

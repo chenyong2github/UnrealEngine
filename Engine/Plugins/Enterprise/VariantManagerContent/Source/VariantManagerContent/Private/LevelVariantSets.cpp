@@ -244,7 +244,7 @@ FString ULevelVariantSets::GetUniqueVariantSetName(const FString& InPrefix)
 
 UObject* ULevelVariantSets::GetDirectorInstance(UObject* WorldContext)
 {
-	if (WorldContext == nullptr || WorldContext->IsPendingKillOrUnreachable())
+	if (WorldContext == nullptr || !IsValidChecked(WorldContext) || WorldContext->IsUnreachable())
 	{
 		return nullptr;
 	}
@@ -317,7 +317,7 @@ UObject* ULevelVariantSets::GetDirectorInstance(UObject* WorldContext)
 
 	TargetDirector->GetOnDestroy().AddLambda([this](ULevelVariantSetsFunctionDirector* Director)
 	{
-		if (this != nullptr && this->IsValidLowLevel() && !this->IsPendingKillOrUnreachable())
+		if (this != nullptr && this->IsValidLowLevel() && IsValidChecked(this) && !this->IsUnreachable())
 		{
 			HandleDirectorDestroyed(Director);
 		}
@@ -471,7 +471,7 @@ void ULevelVariantSets::UnsubscribeToEditorDelegates()
 void ULevelVariantSets::SubscribeToDirectorCompiled()
 {
 	UBlueprint* DirectorBP = Cast<UBlueprint>(DirectorBlueprint);
-	if (DirectorBP && !DirectorBP->IsPendingKillOrUnreachable())
+	if (DirectorBP && IsValidChecked(DirectorBP) && !DirectorBP->IsUnreachable())
 	{
 		OnBlueprintCompiledHandle = DirectorBP->OnCompiled().AddUObject(this, &ULevelVariantSets::OnDirectorBlueprintRecompiled);
 	}
@@ -480,7 +480,7 @@ void ULevelVariantSets::SubscribeToDirectorCompiled()
 void ULevelVariantSets::UnsubscribeToDirectorCompiled()
 {
 	UBlueprint* DirectorBP = Cast<UBlueprint>(DirectorBlueprint);
-	if (DirectorBP && !DirectorBP->IsPendingKillOrUnreachable())
+	if (DirectorBP && IsValidChecked(DirectorBP) && !DirectorBP->IsUnreachable())
 	{
 		DirectorBP->OnCompiled().Remove(OnBlueprintCompiledHandle);
 	}

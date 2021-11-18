@@ -888,10 +888,11 @@ void FAnimNode_StateMachine::EvaluateTransitionStandardBlendInternal(FPoseContex
 	// If we have a blend profile we need to blend per bone
 	if(Transition.BlendProfile)
 	{
+		const FBoneContainer& RequiredBones = Output.AnimInstanceProxy->GetRequiredBones();
 		TSharedPtr<IInterpolationIndexProvider::FPerBoneInterpolationData> Data = Transition.BlendProfile->GetPerBoneInterpolationData(Output.AnimInstanceProxy->GetSkeleton());
 		for(FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
 		{
-			const int32 PerBoneIndex = Transition.BlendProfile->GetPerBoneInterpolationIndex(BoneIndex.GetInt(), Output.AnimInstanceProxy->GetRequiredBones(), Data.Get());
+			const int32 PerBoneIndex = Transition.BlendProfile->GetPerBoneInterpolationIndex(BoneIndex, RequiredBones, Data.Get());
 
 			// Use defined per-bone scale if the bone has a scale specified in the blend profile
 			ScalarRegister FirstWeight = PerBoneIndex != INDEX_NONE ? ScalarRegister(Transition.StateBlendData[1].PerBoneBlendData[PerBoneIndex]) : ScalarRegister(VPreviousWeight);

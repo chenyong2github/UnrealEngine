@@ -67,11 +67,6 @@ class LANDSCAPE_API UMaterialExpressionLandscapeLayerBlend : public UMaterialExp
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionLandscapeLayerBlend)
 	TArray<FLayerBlendInput> Layers;
 
-	/** GUID that should be unique within the material, this is used for parameter renaming. */
-	UPROPERTY()
-	FGuid ExpressionGUID;
-
-
 	//~ Begin UObject Interface
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 #if WITH_EDITOR
@@ -87,17 +82,15 @@ class LANDSCAPE_API UMaterialExpressionLandscapeLayerBlend : public UMaterialExp
 	virtual const TArray<FExpressionInput*> GetInputs() override;
 	virtual FExpressionInput* GetInput(int32 InputIndex) override;
 	virtual FName GetInputName(int32 InputIndex) const override;
+
+	/**
+	 * Gets the landscape layer names
+	 */
+	virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const override;
 #endif
 	virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override { return true; }
 	//~ End UMaterialExpression Interface
-
-	virtual FGuid& GetParameterExpressionId() override;
-
-	/**
-	 * Get list of parameter names for static parameter sets
-	 */
-	virtual void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
 };
 
 

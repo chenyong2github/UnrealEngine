@@ -336,7 +336,7 @@ namespace UnrealBuildTool
 		/// <returns>New UnrealTargetPlatform instance</returns>
 		public static UnrealTargetPlatform ReadUnrealTargetPlatform(this BinaryArchiveReader Reader)
 		{
-			return UnrealTargetPlatform.Parse(Reader.ReadString());
+			return UnrealTargetPlatform.Parse(Reader.ReadString()!);
 		}
 
 		/// <summary>
@@ -1783,7 +1783,7 @@ namespace UnrealBuildTool
 			{
 				using (Timeline.ScopeEvent("ExternalExecution.SetupVNIModules()"))
 				{
-					VNIExecution.SetupVNIModules(ModulesToGenerateHeadersFor, out Makefile.VNIModules);
+					VNIExecution.SetupVNIModules(ModulesToGenerateHeadersFor, RulesAssembly, out Makefile.VNIModules);
 				}
 			}
 
@@ -1918,13 +1918,13 @@ namespace UnrealBuildTool
 			}
 
 			// Finalize and generate metadata for this target
-			if(!Rules.bDisableLinking)
+			if (!Rules.bDisableLinking)
 			{
 				// Also add any explicitly specified build products
-				if(Rules.AdditionalBuildProducts.Count > 0)
+				if (Rules.AdditionalBuildProducts.Count > 0)
 				{
 					Dictionary<string, string> Variables = GetTargetVariables(null);
-					foreach(string AdditionalBuildProduct in Rules.AdditionalBuildProducts)
+					foreach (string AdditionalBuildProduct in Rules.AdditionalBuildProducts)
 					{
 						FileReference BuildProductFile = new FileReference(Utils.ExpandVariables(AdditionalBuildProduct, Variables));
 						BuildProducts.Add(new KeyValuePair<FileReference, BuildProductType>(BuildProductFile, BuildProductType.RequiredResource));
@@ -1933,18 +1933,18 @@ namespace UnrealBuildTool
 
 				// Get the path to the version file unless this is a formal build (where it will be compiled in)
 				FileReference? VersionFile = null;
-				if(Rules.LinkType != TargetLinkType.Monolithic && Binaries[0].Type == UEBuildBinaryType.Executable)
+				if (Rules.LinkType != TargetLinkType.Monolithic && Binaries[0].Type == UEBuildBinaryType.Executable)
 				{
 					UnrealTargetConfiguration VersionConfig = Configuration;
-					if(VersionConfig == UnrealTargetConfiguration.DebugGame && !bCompileMonolithic && TargetType != TargetType.Program && bUseSharedBuildEnvironment)
+					if (VersionConfig == UnrealTargetConfiguration.DebugGame && !bCompileMonolithic && TargetType != TargetType.Program && bUseSharedBuildEnvironment)
 					{
 						VersionConfig = UnrealTargetConfiguration.Development;
 					}
-					VersionFile = BuildVersion.GetFileNameForTarget(ExeDir, bCompileMonolithic? TargetName : AppName, Platform, VersionConfig, Architecture);
+					VersionFile = BuildVersion.GetFileNameForTarget(ExeDir, bCompileMonolithic ? TargetName : AppName, Platform, VersionConfig, Architecture);
 				}
 
 				// Also add the version file as a build product
-				if(VersionFile != null)
+				if (VersionFile != null)
 				{
 					BuildProducts.Add(new KeyValuePair<FileReference, BuildProductType>(VersionFile, BuildProductType.RequiredResource));
 				}
@@ -1956,29 +1956,53 @@ namespace UnrealBuildTool
 				// Prepare the receipt
 				TargetReceipt Receipt = PrepareReceipt(TargetToolChain, BuildProducts, RuntimeDependencies);
 
-				// Create an action which to generate the receipts
-				WriteMetadataTargetInfo MetadataTargetInfo = new WriteMetadataTargetInfo(ProjectFile, VersionFile, ReceiptFileName, Receipt, FileNameToModuleManifest);
-				FileReference MetadataTargetFile = FileReference.Combine(ProjectIntermediateDirectory, "Metadata.dat");
-				BinaryFormatterUtils.SaveIfDifferent(MetadataTargetFile, MetadataTargetInfo);
-
-				StringBuilder WriteMetadataArguments = new StringBuilder();
-				WriteMetadataArguments.AppendFormat("-Input={0}", Utils.MakePathSafeToUseWithCommandLine(MetadataTargetFile));
-				WriteMetadataArguments.AppendFormat(" -Version={0}", WriteMetadataMode.CurrentVersionNumber);
-				if(Rules.bNoManifestChanges)
+				// Create an action which to generate the module receipts
+				if (VersionFile == null)
 				{
-					WriteMetadataArguments.Append(" -NoManifestChanges");
+					WriteMetadataTargetInfo TargetInfo = new WriteMetadataTargetInfo(ProjectFile, null, null, ReceiptFileName, Receipt);
+					FileReference TargetInfoFile = FileReference.Combine(ProjectIntermediateDirectory, "TargetMetadata.dat");
+					BinaryFormatterUtils.SaveIfDifferent(TargetInfoFile, TargetInfo);
+
+					Action WriteTargetMetadata = CreateWriteMetadataAction(Makefile, ReceiptFileName.GetFileName(), TargetInfoFile);
+					WriteTargetMetadata.ProducedItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
+					Makefile.OutputItems.AddRange(WriteTargetMetadata.ProducedItems);
 				}
+				else
+				{
+					WriteMetadataTargetInfo EngineInfo = new WriteMetadataTargetInfo(null, VersionFile, Receipt.Version, null, null);
+					FileReference EngineInfoFile = FileReference.Combine(ProjectIntermediateDirectory, "EngineMetadata.dat");
+					Action WriteEngineMetadata = CreateWriteMetadataAction(Makefile, VersionFile.GetFileName(), EngineInfoFile);
+					WriteEngineMetadata.ProducedItems.Add(FileItem.GetItemByFileReference(VersionFile));
 
-				Action WriteMetadataAction = Makefile.CreateRecursiveAction<WriteMetadataMode>(ActionType.WriteMetadata, WriteMetadataArguments.ToString());
-				WriteMetadataAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
-				WriteMetadataAction.StatusDescription = ReceiptFileName.GetFileName();
-				WriteMetadataAction.bCanExecuteRemotely = false;
-				WriteMetadataAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(MetadataTargetFile));
-				WriteMetadataAction.PrerequisiteItems.AddRange(Makefile.OutputItems);
-				WriteMetadataAction.ProducedItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
-				WriteMetadataAction.ProducedItems.AddRange(MetadataTargetInfo.FileToManifest.Keys.Where(x => !UnrealBuildTool.IsFileInstalled(x)).Select(x => FileItem.GetItemByFileReference(x)));
+					WriteMetadataTargetInfo TargetInfo = new WriteMetadataTargetInfo(ProjectFile, VersionFile, null, ReceiptFileName, Receipt);
+					FileReference TargetInfoFile = FileReference.Combine(ProjectIntermediateDirectory, "TargetMetadata.dat");
+					Action WriteTargetMetadata = CreateWriteMetadataAction(Makefile, ReceiptFileName.GetFileName(), TargetInfoFile);
+					WriteTargetMetadata.PrerequisiteItems.Add(FileItem.GetItemByFileReference(VersionFile));
+					WriteTargetMetadata.ProducedItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
 
-				Makefile.OutputItems.AddRange(WriteMetadataAction.ProducedItems);
+					foreach ((FileReference File, ModuleManifest Manifest) in FileNameToModuleManifest)
+					{
+						FileItem FileItem = FileItem.GetItemByFileReference(File);
+						if (File.IsUnderDirectory(Unreal.EngineDirectory))
+						{
+							EngineInfo.FileToManifest.Add(File, Manifest);
+							WriteEngineMetadata.ProducedItems.Add(FileItem);
+							WriteEngineMetadata.PrerequisiteItems.AddRange(Manifest.ModuleNameToFileName.Values.Select(x => FileItem.GetItemByFileReference(FileReference.Combine(File.Directory, x))));
+						}
+						else
+						{
+							TargetInfo.FileToManifest.Add(File, Manifest);
+							WriteTargetMetadata.ProducedItems.Add(FileItem);
+							WriteTargetMetadata.PrerequisiteItems.AddRange(Manifest.ModuleNameToFileName.Values.Select(x => FileItem.GetItemByFileReference(FileReference.Combine(File.Directory, x))));
+						}
+					}
+
+					BinaryFormatterUtils.SaveIfDifferent(EngineInfoFile, EngineInfo);
+					Makefile.OutputItems.AddRange(WriteEngineMetadata.ProducedItems);
+
+					BinaryFormatterUtils.SaveIfDifferent(TargetInfoFile, TargetInfo);
+					Makefile.OutputItems.AddRange(WriteTargetMetadata.ProducedItems);
+				}
 
 				// Create actions to run the post build steps
 				FileReference[] PostBuildScripts = CreatePostBuildScripts();
@@ -2104,6 +2128,25 @@ namespace UnrealBuildTool
 			CleanStaleModules();
 
 			return Makefile;
+		}
+
+		Action CreateWriteMetadataAction(TargetMakefile Makefile, string StatusDescription, FileReference InfoFile)
+		{
+			StringBuilder WriteMetadataArguments = new StringBuilder();
+			WriteMetadataArguments.AppendFormat("-Input={0}", Utils.MakePathSafeToUseWithCommandLine(InfoFile));
+			WriteMetadataArguments.AppendFormat(" -Version={0}", WriteMetadataMode.CurrentVersionNumber);
+			if (Rules.bNoManifestChanges)
+			{
+				WriteMetadataArguments.Append(" -NoManifestChanges");
+			}
+
+			Action WriteMetadataAction = Makefile.CreateRecursiveAction<WriteMetadataMode>(ActionType.WriteMetadata, WriteMetadataArguments.ToString());
+			WriteMetadataAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			WriteMetadataAction.StatusDescription = StatusDescription;
+			WriteMetadataAction.bCanExecuteRemotely = false;
+			WriteMetadataAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(InfoFile));
+			WriteMetadataAction.bUseActionHistory = false; // Different files for each target; do not want to invalidate based on this.
+			return WriteMetadataAction;
 		}
 
 		/// <summary>

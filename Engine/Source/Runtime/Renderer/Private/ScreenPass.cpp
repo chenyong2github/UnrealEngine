@@ -9,9 +9,9 @@
 IMPLEMENT_GLOBAL_SHADER(FScreenPassVS, "/Engine/Private/ScreenPass.usf", "ScreenPassVS", SF_Vertex);
 
 
-RENDERER_API const FScreenTransform FScreenTransform::Identity(FVector2D(1.0f, 1.0f), FVector2D(0.0f, 0.0f));
-RENDERER_API const FScreenTransform FScreenTransform::ScreenPosToViewportUV(FVector2D(0.5f, -0.5f), FVector2D(0.5f, 0.5f));
-RENDERER_API const FScreenTransform FScreenTransform::ViewportUVToScreenPos(FVector2D(2.0f, -2.0f), FVector2D(-1.0f, 1.0f));
+RENDERER_API const FScreenTransform FScreenTransform::Identity(FVector2f(1.0f, 1.0f), FVector2f(0.0f, 0.0f));
+RENDERER_API const FScreenTransform FScreenTransform::ScreenPosToViewportUV(FVector2f(0.5f, -0.5f), FVector2f(0.5f, 0.5f));
+RENDERER_API const FScreenTransform FScreenTransform::ViewportUVToScreenPos(FVector2f(2.0f, -2.0f), FVector2f(-1.0f, 1.0f));
 
 const FTextureRHIRef& GetMiniFontTexture()
 {
@@ -170,8 +170,8 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 		SHADER_PARAMETER(FVector4f, SourceTexelOffsets01)
 		SHADER_PARAMETER(FVector4f, SourceTexelOffsets23)
-		SHADER_PARAMETER(FVector2D, SourceMaxUV)
-		SHADER_PARAMETER(FVector2D, DestinationResolution)
+		SHADER_PARAMETER(FVector2f, SourceMaxUV)
+		SHADER_PARAMETER(FVector2f, DestinationResolution)
 		SHADER_PARAMETER(uint32, DownsampleDepthFilter)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -202,7 +202,7 @@ void AddDownsampleDepthPass(
 	PassParameters->DepthTexture = Input.Texture;
 	PassParameters->SourceTexelOffsets01 = FVector4f(0.0f, 0.0f, 1.0f / OutputViewport.Extent.X, 0.0f);
 	PassParameters->SourceTexelOffsets23 = FVector4f(0.0f, 1.0f / OutputViewport.Extent.Y, 1.0f / OutputViewport.Extent.X, 1.0f / OutputViewport.Extent.Y);
-	PassParameters->SourceMaxUV = FVector2D((View.ViewRect.Max.X - 0.5f) / InputViewport.Extent.X, (View.ViewRect.Max.Y - 0.5f) / InputViewport.Extent.Y);
+	PassParameters->SourceMaxUV = FVector2f((View.ViewRect.Max.X - 0.5f) / InputViewport.Extent.X, (View.ViewRect.Max.Y - 0.5f) / InputViewport.Extent.Y);
 	PassParameters->DownsampleDepthFilter = (uint32)DownsampleDepthFilter;
 
 	const int32 DownsampledSizeX = OutputViewport.Rect.Width();

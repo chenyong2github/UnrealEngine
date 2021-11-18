@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerGraphDataInterface.h"
-#include "MLDeformerAsset.h"
-#include "MLDeformerComponent.h"
 
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "MLDeformerAsset.h"
+#include "MLDeformerComponent.h"
 #include "NeuralNetwork.h"
+#include "OptimusDataDomain.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
@@ -20,7 +21,7 @@ FString UMLDeformerDataInterface::GetDisplayName() const
 TArray<FOptimusCDIPinDefinition> UMLDeformerDataInterface::GetPinDefinitions() const
 {
 	TArray<FOptimusCDIPinDefinition> Defs;
-	Defs.Add({ "PositionDelta", "ReadPositionDelta", "ReadNumVertices", "Vertex" });
+	Defs.Add({ "PositionDelta", "ReadPositionDelta", Optimus::DomainName::Vertex, "ReadNumVertices" });
 	return Defs;
 }
 

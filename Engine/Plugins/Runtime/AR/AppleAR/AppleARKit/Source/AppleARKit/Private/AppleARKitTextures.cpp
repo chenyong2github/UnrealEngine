@@ -840,9 +840,9 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_UAV(RWTexture2D<float4>, OutputTexture)
-		SHADER_PARAMETER(FVector2D, OutputTextureSize)
-		SHADER_PARAMETER(FVector2D, InputTextureYSize)
-		SHADER_PARAMETER(FVector2D, InputTextureCbCrSize)
+		SHADER_PARAMETER(FVector2f, OutputTextureSize)
+		SHADER_PARAMETER(FVector2f, InputTextureYSize)
+		SHADER_PARAMETER(FVector2f, InputTextureCbCrSize)
 		SHADER_PARAMETER(int, DeviceOrientation)
 		SHADER_PARAMETER_TEXTURE(Texture2D, InputTextureY)
 		SHADER_PARAMETER_TEXTURE(Texture2D, InputTextureCbCr)

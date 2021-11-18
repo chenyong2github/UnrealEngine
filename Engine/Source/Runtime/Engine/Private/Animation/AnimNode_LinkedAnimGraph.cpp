@@ -256,7 +256,7 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 			{
 				// Only call UninitializeAnimation if we are not the owning anim instance
 				InstanceToRun->UninitializeAnimation();
-				InstanceToRun->MarkPendingKill();
+				InstanceToRun->MarkAsGarbage();
 			}
 			InstanceToRun = nullptr;
 		}

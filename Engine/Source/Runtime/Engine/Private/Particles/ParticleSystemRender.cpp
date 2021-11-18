@@ -589,7 +589,7 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexDataNonInstanced(void* VertexDa
 
 		FillVertex = (FParticleSpriteVertexNonInstanced*)TempVert;
 
-		const FVector2D* SubUVVertexData = nullptr;
+		const FVector2f* SubUVVertexData = nullptr;
 
 		if (Source.RequiredModule->bCutoutTexureIsValid)
 		{
@@ -618,19 +618,19 @@ bool FDynamicSpriteEmitterData::GetVertexAndIndexDataNonInstanced(void* VertexDa
 			{
 				if(VertexIndex == 0)
 				{
-					FillVertex[VertexIndex].UV = FVector2D(0.0f, 0.0f);
+					FillVertex[VertexIndex].UV = FVector2f(0.0f, 0.0f);
 				}
 				if(VertexIndex == 1)
 				{
-					FillVertex[VertexIndex].UV = FVector2D(0.0f, 1.0f);
+					FillVertex[VertexIndex].UV = FVector2f(0.0f, 1.0f);
 				}
 				if(VertexIndex == 2)
 				{
-					FillVertex[VertexIndex].UV = FVector2D(1.0f, 1.0f);
+					FillVertex[VertexIndex].UV = FVector2f(1.0f, 1.0f);
 				}
 				if(VertexIndex == 3)
 				{
-					FillVertex[VertexIndex].UV = FVector2D(1.0f, 0.0f);
+					FillVertex[VertexIndex].UV = FVector2f(1.0f, 0.0f);
 				}
 			}
 
@@ -2149,7 +2149,7 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 		{
 			if (Source.bUseLocalSpace)
 			{
-				DeltaPosition = Proxy->GetLocalToWorld().TransformVector(DeltaPosition);
+				DeltaPosition = (FVector4f)Proxy->GetLocalToWorld().TransformVector(DeltaPosition);
 			}
 			FVector3f Direction;
 			float Speed; 

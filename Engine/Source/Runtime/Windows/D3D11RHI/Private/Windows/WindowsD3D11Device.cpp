@@ -61,6 +61,11 @@ static int D3D11RHI_PreferAdapterVendor()
 		return 0x10DE;
 	}
 
+	if (FParse::Param(FCommandLine::Get(), TEXT("preferMS")))
+	{
+		return 0x1414;
+	}
+
 	return -1;
 }
 
@@ -929,12 +934,22 @@ void FD3D11DynamicRHIModule::FindAdapter()
 		// Check that if adapter supports D3D11.
 		if(TempAdapter)
 		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("Testing D3D11 Adapter %u:"), AdapterIndex);
+			DXGI_ADAPTER_DESC AdapterDesc;
+			if (HRESULT DescResult = TempAdapter->GetDesc(&AdapterDesc); FAILED(DescResult))
+			{
+				UE_LOG(LogD3D11RHI, Warning, TEXT("Failed to get description for adapter %u."), AdapterIndex);
+			}
+			else
+			{
+				LogDXGIAdapterDesc(AdapterDesc);
+			}
+
 			D3D_FEATURE_LEVEL ActualFeatureLevel = (D3D_FEATURE_LEVEL)0;
 			if(SafeTestD3D11CreateDevice(TempAdapter,MinAllowedFeatureLevel,MaxAllowedFeatureLevel,&ActualFeatureLevel))
 			{
 				// Log some information about the available D3D11 adapters.
-				DXGI_ADAPTER_DESC AdapterDesc;
-				VERIFYD3D11RESULT(TempAdapter->GetDesc(&AdapterDesc));
+				
 				uint32 OutputCount = CountAdapterOutputs(TempAdapter);
 
 				UE_LOG(LogD3D11RHI, Log,

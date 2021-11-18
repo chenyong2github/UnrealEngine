@@ -139,10 +139,10 @@ namespace LumenRadianceCache
 			SetRadianceProbeCoordToWorldPositionBias(OutParameters, ClipmapIndex, Clipmap.ProbeCoordToWorldCenterBias);
 		}
 
-		OutParameters.InvProbeFinalRadianceAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(RadianceCacheInputs.FinalProbeResolution * RadianceCacheInputs.ProbeAtlasResolutionInProbes);
+		OutParameters.InvProbeFinalRadianceAtlasResolution = FVector2D(1.0f, 1.0f) / (RadianceCacheInputs.FinalProbeResolution * FVector2D(RadianceCacheInputs.ProbeAtlasResolutionInProbes));	// LWC_TODO: Fix! Used to be FVector2D(RadianceCacheInputs.FinalProbeResolution * RadianceCacheInputs.ProbeAtlasResolutionInProbes). No auto conversion of ProbeAtlastResolutionInProbes to FVector2D. ADL thing?
 		const int32 FinalIrradianceProbeResolution = RadianceCacheInputs.IrradianceProbeResolution + 2 * (1 << RadianceCacheInputs.FinalRadianceAtlasMaxMip);
-		OutParameters.InvProbeFinalIrradianceAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(FinalIrradianceProbeResolution * RadianceCacheInputs.ProbeAtlasResolutionInProbes);
-		OutParameters.InvProbeDepthAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(RadianceCacheInputs.RadianceProbeResolution * RadianceCacheInputs.ProbeAtlasResolutionInProbes);
+		OutParameters.InvProbeFinalIrradianceAtlasResolution = FVector2D(1.0f, 1.0f) / (FinalIrradianceProbeResolution * FVector2D(RadianceCacheInputs.ProbeAtlasResolutionInProbes));
+		OutParameters.InvProbeDepthAtlasResolution = FVector2D(1.0f, 1.0f) / (RadianceCacheInputs.RadianceProbeResolution * FVector2D(RadianceCacheInputs.ProbeAtlasResolutionInProbes));
 	}
 
 	void GetInterpolationParameters(

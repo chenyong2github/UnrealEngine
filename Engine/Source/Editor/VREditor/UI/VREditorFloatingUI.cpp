@@ -229,7 +229,7 @@ void AVREditorFloatingUI::CleanupWidgetReferences()
 	// after a previous widget component that was using it was destroyed
 	if (UserWidget != nullptr)
 	{
-		UserWidget->MarkPendingKill();
+		UserWidget->MarkAsGarbage();
 		UserWidget = nullptr;
 	}
 }

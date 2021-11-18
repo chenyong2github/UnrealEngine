@@ -9,7 +9,7 @@
 #include "HAPMediaModule.h"
 
 #include "GenericPlatform/GenericPlatformAtomics.h"
-
+#include "Misc/Paths.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 
 #include <d3d11.h>
@@ -837,66 +837,90 @@ bool WmfMediaHAPDecoder::InitPipeline()
 	}
 	)SHADER";
 
-	TComPtr<ID3DBlob> PSCode;
-	TComPtr<ID3DBlob> VSCode;
-	TComPtr<ID3DBlob> ErrorMsgs;
+	// Keeps compiler stuff together so we can ensure it gets cleaned up appropriately.
+	struct FCompilerVars
+	{
+		~FCompilerVars()
+		{
+			CleanUp();
+		}
+
+		void CleanUp()
+		{
+			if (!bIsDone)
+			{
+				bIsDone = true;
+				PSCode = nullptr;
+				VSCode = nullptr;
+				ErrorMsgs = nullptr;
+				D3DCompileFunc = nullptr;
+				FreeLibrary(CompilerDLL);
+				CompilerDLL = NULL;
+			}
+		}
+
+		TComPtr<ID3DBlob> PSCode;
+		TComPtr<ID3DBlob> VSCode;
+		TComPtr<ID3DBlob> ErrorMsgs;
+
+		HMODULE CompilerDLL = NULL;
+		pD3DCompile D3DCompileFunc = nullptr;
+
+	private:
+		bool bIsDone = false;
+	} CompilerVars;
 
 	// This function needs to load the bundled version of d3dcompiler lib explictly. Implicit linking results
 	// in picking up the system lib by both the engine and SCWs (which links to this module), which makes
 	// the shader compilation system-dependent.
-	const TCHAR* CompilerPath = TEXT("Binaries/ThirdParty/Windows/DirectX/x64/d3dcompiler_47.dll");
-	HMODULE CompilerDLL = LoadLibrary(CompilerPath);
-	if (CompilerDLL == NULL)
+	FString CompilerPath = FPaths::EngineDir();
+	CompilerPath.Append(TEXT("Binaries/ThirdParty/Windows/DirectX/x64/d3dcompiler_47.dll"));
+	CompilerVars.CompilerDLL = LoadLibrary(*CompilerPath);
+	if (CompilerVars.CompilerDLL == NULL)
 	{
-		UE_LOG(LogHAPMedia, Error, TEXT("Could not locate D3D compiler library at %s"), CompilerPath);
+		UE_LOG(LogHAPMedia, Error, TEXT("Could not locate D3D compiler library at %s"), *CompilerPath);
 		return false;
 	}
-	pD3DCompile D3DCompileFunc = (pD3DCompile)(void*)GetProcAddress(CompilerDLL, "D3DCompile");
-	if (D3DCompileFunc == nullptr)
+	
+	CompilerVars.D3DCompileFunc = (pD3DCompile)(void*)GetProcAddress(CompilerVars.CompilerDLL, "D3DCompile");
+	if (CompilerVars.D3DCompileFunc == nullptr)
 	{
-		UE_LOG(LogHAPMedia, Error, TEXT("Could not locate D3DCompile() in the compiler library at %s"), CompilerPath);
-		FreeLibrary(CompilerDLL);
+		UE_LOG(LogHAPMedia, Error, TEXT("Could not locate D3DCompile() in the compiler library at %s"), *CompilerPath);
 		return false;
 	}
 
-	HRESULT Result = D3DCompileFunc(PixelShader, sizeof(PixelShader), NULL, NULL, NULL, "PShader", "ps_5_0", 0, 0, &PSCode, &ErrorMsgs);
-	if (ErrorMsgs)
+	HRESULT Result = CompilerVars.D3DCompileFunc(PixelShader, sizeof(PixelShader), NULL, NULL, NULL, "PShader", "ps_5_0", 0, 0, &CompilerVars.PSCode, &CompilerVars.ErrorMsgs);
+	if (CompilerVars.ErrorMsgs)
 	{
-		char *pMessage = (char*)ErrorMsgs->GetBufferPointer();
+		char *pMessage = (char*)CompilerVars.ErrorMsgs->GetBufferPointer();
 		UE_LOG(LogHAPMedia, Error, TEXT("D3DCompile Error/warning: %s"), *FString(pMessage));
-		if (!PSCode.IsValid())
+		if (!CompilerVars.PSCode.IsValid())
 		{
-			FreeLibrary(CompilerDLL);
 			return false;
 		}
 	}
 
-	Result = D3DCompileFunc(VertexShader, sizeof(VertexShader), NULL, NULL, NULL, "VShader", "vs_5_0", 0, 0, &VSCode, &ErrorMsgs);
-	if (ErrorMsgs)
+	Result = CompilerVars.D3DCompileFunc(VertexShader, sizeof(VertexShader), NULL, NULL, NULL, "VShader", "vs_5_0", 0, 0, &CompilerVars.VSCode, &CompilerVars.ErrorMsgs);
+	if (CompilerVars.ErrorMsgs)
 	{
-		char *pMessage = (char*)ErrorMsgs->GetBufferPointer();
+		char *pMessage = (char*)CompilerVars.ErrorMsgs->GetBufferPointer();
 		UE_LOG(LogHAPMedia, Error, TEXT("D3DCompile Error/warning: %s"), *FString(pMessage));
-		if (!VSCode.IsValid())
+		if (!CompilerVars.VSCode.IsValid())
 		{
-			FreeLibrary(CompilerDLL);
 			return false;
 		}
 	}
-
-	D3DCompileFunc = nullptr;
-	FreeLibrary(CompilerDLL);
-	CompilerDLL = NULL;
 
 	TComPtr<ID3D11PixelShader> ps;
 	TComPtr<ID3D11VertexShader> vs;
 
-	Result = D3D11Device->CreatePixelShader(PSCode->GetBufferPointer(), PSCode->GetBufferSize(), nullptr, &ps);
+	Result = D3D11Device->CreatePixelShader(CompilerVars.PSCode->GetBufferPointer(), CompilerVars.PSCode->GetBufferSize(), nullptr, &ps);
 	if (FAILED(Result))
 	{
 		return false;
 	}
 
-	Result = D3D11Device->CreateVertexShader(VSCode->GetBufferPointer(), VSCode->GetBufferSize(), nullptr, &vs);
+	Result = D3D11Device->CreateVertexShader(CompilerVars.VSCode->GetBufferPointer(), CompilerVars.VSCode->GetBufferSize(), nullptr, &vs);
 	if (FAILED(Result))
 	{
 		return false;
@@ -929,11 +953,13 @@ bool WmfMediaHAPDecoder::InitPipeline()
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 
-	Result = D3D11Device->CreateInputLayout(InputElementDescription, 2, VSCode->GetBufferPointer(), VSCode->GetBufferSize(), &InputLayout);
+	Result = D3D11Device->CreateInputLayout(InputElementDescription, 2, CompilerVars.VSCode->GetBufferPointer(), CompilerVars.VSCode->GetBufferSize(), &InputLayout);
 	if (FAILED(Result))
 	{
 		return false;
 	}
+
+	CompilerVars.CleanUp();
 
 	D3DImmediateContext->IASetInputLayout(InputLayout);
 

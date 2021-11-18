@@ -101,7 +101,7 @@ FORCEINLINE XrExtent2Df ToXrExtent2D(FVector2D Vector, float Scale = 1.0f)
 	if (Vector.IsZero())
 		return XrExtent2Df{ 0.0f, 0.0f };
 
-	return XrExtent2Df{ Vector.X / Scale, Vector.Y / Scale };
+	return XrExtent2Df{ (float)Vector.X / Scale, (float)Vector.Y / Scale };
 }
 
 /** List all OpenXR global entry points used by Unreal. */

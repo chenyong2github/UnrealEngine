@@ -38,8 +38,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCommonScreenSpaceRayParameters, )
 
 	SHADER_PARAMETER(FVector4f, HZBUvFactorAndInvFactor)
 	SHADER_PARAMETER(FVector4f, ColorBufferScaleBias)
-	SHADER_PARAMETER(FVector2D, ReducedColorUVMax)
-	SHADER_PARAMETER(FVector2D, FullResPixelOffset)
+	SHADER_PARAMETER(FVector2f, ReducedColorUVMax)
+	SHADER_PARAMETER(FVector2f, FullResPixelOffset)
 
 	SHADER_PARAMETER(float, PixelPositionToFullResPixel)
 

@@ -114,7 +114,7 @@
 #define SSSSSampleShadowmap(coord)	float4(0,0,0,0)	// todo: not used yet
 #define SSSSSampleSceneColor(coord) GetSceneColor(coord)
 #define SSSSSampleSceneColorPoint(coord) GetSceneColor(coord) // todo: could be made point
-#define SSSSSampleProfileId(coord, ext) GetSubsurfaceProfileId(coord, ext)
+#define SSSSSampleProfileId(coord) GetSubsurfaceProfileId(coord)
 #define SSSSLerp(a, b, t) lerp(a, b, t)
 #define SSSSMad(a, b, c) mad(a, b, c)
 #define SSSSMul(v, m) mul(v, m)
@@ -201,7 +201,7 @@ float4 SSSSBlurPS(uint2 BufferPos, float2 BufferUV, float2 dir, bool initStencil
 	}
 
 	// 0..1
-	float SSSStrength = GetSubsurfaceStrength(BufferPos, BufferUV);
+	float SSSStrength = GetSubsurfaceStrength(BufferUV);
 
 #if !SSSS_COMPUTESHADER
 	// Initialize the stencil buffer in case it was not already available:
@@ -219,7 +219,7 @@ float4 SSSSBlurPS(uint2 BufferPos, float2 BufferUV, float2 dir, bool initStencil
 	finalStep *= SSSStrength; // Modulate it using the opacity (0..1 range)
     
 #if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
 	// For SSS_PROFILE_ID_PERPIXEL is managed throught the burley passes
 	const uint SubsurfaceProfileInt = SSSData.bIsProfile ? SSSData.ProfileId : SSS_PROFILE_ID_INVALID;
 #else
@@ -260,7 +260,7 @@ float4 SSSSBlurPS(uint2 BufferPos, float2 BufferUV, float2 dir, bool initStencil
 			// Fetch color and depth for current sample:
 			float2 LocalUV = BufferUV + UVOffset * Side;
 			float4 color = SSSSSampleSceneColor(LocalUV);
-			uint LocalSubsurfaceProfileInt = SSSSSampleProfileId(LocalUV, Extent);
+			uint LocalSubsurfaceProfileInt = SSSSSampleProfileId(LocalUV);
 			float3 ColorTint = LocalSubsurfaceProfileInt == SubsurfaceProfileInt ? 1.0f : BoundaryColorBleed;
 
 

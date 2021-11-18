@@ -15,16 +15,16 @@ const int32 GParticleScratchVertexBufferSize = 64 * (1 << 10); // 64KB
  */
 void FParticleTexCoordVertexBuffer::InitRHI()
 {
-	const uint32 Size = sizeof(FVector2D) * 4 * MAX_PARTICLES_PER_INSTANCE;
+	const uint32 Size = sizeof(FVector2f) * 4 * MAX_PARTICLES_PER_INSTANCE;
 	FRHIResourceCreateInfo CreateInfo(TEXT("FParticleTexCoordVertexBuffer"));
 	VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-	FVector2D* Vertices = (FVector2D*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
+	FVector2f* Vertices = (FVector2f*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 	for (uint32 SpriteIndex = 0; SpriteIndex < MAX_PARTICLES_PER_INSTANCE; ++SpriteIndex)
 	{
-		Vertices[SpriteIndex*4 + 0] = FVector2D(0.0f, 0.0f);
-		Vertices[SpriteIndex*4 + 1] = FVector2D(0.0f, 1.0f);
-		Vertices[SpriteIndex*4 + 2] = FVector2D(1.0f, 1.0f);
-		Vertices[SpriteIndex*4 + 3] = FVector2D(1.0f, 0.0f);
+		Vertices[SpriteIndex*4 + 0] = FVector2f(0.0f, 0.0f);
+		Vertices[SpriteIndex*4 + 1] = FVector2f(0.0f, 1.0f);
+		Vertices[SpriteIndex*4 + 2] = FVector2f(1.0f, 1.0f);
+		Vertices[SpriteIndex*4 + 3] = FVector2f(1.0f, 0.0f);
 	}
 	RHIUnlockBuffer( VertexBufferRHI );
 }
@@ -37,21 +37,21 @@ TGlobalResource<FParticleTexCoordVertexBuffer> GParticleTexCoordVertexBuffer;
  */
 void FParticleEightTexCoordVertexBuffer::InitRHI()
 {
-	const uint32 Size = sizeof(FVector2D) * 8 * MAX_PARTICLES_PER_INSTANCE;
+	const uint32 Size = sizeof(FVector2f) * 8 * MAX_PARTICLES_PER_INSTANCE;
 	FRHIResourceCreateInfo CreateInfo(TEXT("FParticleEightTexCoordVertexBuffer"));
 	VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-	FVector2D* Vertices = (FVector2D*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
+	FVector2f* Vertices = (FVector2f*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 	for (uint32 SpriteIndex = 0; SpriteIndex < MAX_PARTICLES_PER_INSTANCE; ++SpriteIndex)
 	{
 		// The contents of this buffer does not matter, whenever it is used, cutout geometry will override
-		Vertices[SpriteIndex*8 + 0] = FVector2D(0.0f, 0.0f);
-		Vertices[SpriteIndex*8 + 1] = FVector2D(0.0f, 1.0f);
-		Vertices[SpriteIndex*8 + 2] = FVector2D(1.0f, 1.0f);
-		Vertices[SpriteIndex*8 + 3] = FVector2D(1.0f, 0.0f);
-		Vertices[SpriteIndex*8 + 4] = FVector2D(1.0f, 0.0f);
-		Vertices[SpriteIndex*8 + 5] = FVector2D(1.0f, 0.0f);
-		Vertices[SpriteIndex*8 + 6] = FVector2D(1.0f, 0.0f);
-		Vertices[SpriteIndex*8 + 7] = FVector2D(1.0f, 0.0f);
+		Vertices[SpriteIndex*8 + 0] = FVector2f(0.0f, 0.0f);
+		Vertices[SpriteIndex*8 + 1] = FVector2f(0.0f, 1.0f);
+		Vertices[SpriteIndex*8 + 2] = FVector2f(1.0f, 1.0f);
+		Vertices[SpriteIndex*8 + 3] = FVector2f(1.0f, 0.0f);
+		Vertices[SpriteIndex*8 + 4] = FVector2f(1.0f, 0.0f);
+		Vertices[SpriteIndex*8 + 5] = FVector2f(1.0f, 0.0f);
+		Vertices[SpriteIndex*8 + 6] = FVector2f(1.0f, 0.0f);
+		Vertices[SpriteIndex*8 + 7] = FVector2f(1.0f, 0.0f);
 	}
 	RHIUnlockBuffer( VertexBufferRHI );
 }
@@ -141,7 +141,7 @@ void FParticleScratchVertexBuffer::InitRHI()
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("FParticleScratchVertexBuffer"));
 	VertexBufferRHI = RHICreateVertexBuffer(GParticleScratchVertexBufferSize, Flags, CreateInfo);
-	VertexBufferSRV_G32R32F = RHICreateShaderResourceView(VertexBufferRHI, /*Stride=*/ sizeof(FVector2D), PF_G32R32F);
+	VertexBufferSRV_G32R32F = RHICreateShaderResourceView(VertexBufferRHI, /*Stride=*/ sizeof(FVector2f), PF_G32R32F);
 }
 
 FParticleShaderParamRef FParticleScratchVertexBuffer::GetShaderParam()

@@ -36,7 +36,7 @@ public:
 	static bool TriggerBehavior(const UGameplayBehaviorConfig& Config, AActor& Avatar, AActor* SmartObjectOwner = nullptr);
 	static bool TriggerBehavior(UGameplayBehavior& Behavior, AActor& Avatar, const UGameplayBehaviorConfig* Config, AActor* SmartObjectOwner = nullptr);
 
-	bool IsShuttingDown() const { return IsPendingKillOrUnreachable(); }
+	bool IsShuttingDown() const { return !IsValidChecked(this) || IsUnreachable(); }
 
 	UWorld* GetWorldFast() const { return Cast<UWorld>(GetOuter()); }
 

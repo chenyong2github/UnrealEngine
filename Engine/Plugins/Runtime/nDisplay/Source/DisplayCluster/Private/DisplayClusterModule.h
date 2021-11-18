@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IPDisplayCluster.h"
+#include "DisplayClusterCallbacks.h"
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
@@ -27,15 +28,24 @@ public:
 	// IDisplayCluster
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool IsModuleInitialized() const override
-	{ return bIsModuleInitialized; }
+	{
+		return bIsModuleInitialized;
+	}
 	
 	virtual EDisplayClusterOperationMode GetOperationMode() const override
-	{ return CurrentOperationMode; }
+	{
+		return CurrentOperationMode;
+	}
 
 	virtual IDisplayClusterRenderManager*    GetRenderMgr()    const override { return MgrRender; }
 	virtual IDisplayClusterClusterManager*   GetClusterMgr()   const override { return MgrCluster; }
 	virtual IDisplayClusterConfigManager*    GetConfigMgr()    const override { return MgrConfig; }
 	virtual IDisplayClusterGameManager*      GetGameMgr()      const override { return MgrGame; }
+
+	virtual IDisplayClusterCallbacks& GetCallbacks() override
+	{
+		return Callbacks;
+	}
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,6 +63,7 @@ public:
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
 	virtual bool StartSession(UDisplayClusterConfigurationData* InConfigData, const FString& NodeId) override;
+	virtual void PreAppExit() override;
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
@@ -61,45 +72,6 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void PostTick(float DeltaSeconds) override;
 	virtual void EndFrame(uint64 FrameNum) override;
-
-public:
-	virtual FDisplayClusterStartSessionEvent& OnDisplayClusterStartSession() override
-	{ return DisplayClusterStartSessionEvent; }
-
-	virtual FDisplayClusterEndSessionEvent& OnDisplayClusterEndSession() override
-	{ return DisplayClusterEndSessionEvent; }
-
-	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame() override
-	{ return DisplayClusterStartFrameEvent; }
-
-	virtual FDisplayClusterEndFrameEvent& OnDisplayClusterEndFrame() override
-	{ return DisplayClusterEndFrameEvent; }
-
-	virtual FDisplayClusterPreTickEvent& OnDisplayClusterPreTick() override
-	{ return DisplayClusterPreTickEvent; }
-
-	virtual FDisplayClusterTickEvent& OnDisplayClusterTick() override
-	{ return DisplayClusterTickEvent; }
-
-	virtual FDisplayClusterPostTickEvent& OnDisplayClusterPostTick() override
-	{ return DisplayClusterPostTickEvent; }
-
-	virtual FDisplayClusterStartSceneEvent& OnDisplayClusterStartScene() override
-	{ return DisplayClusterStartSceneEvent; }
-
-	virtual FDisplayClusterEndSceneEvent& OnDisplayClusterEndScene() override
-	{ return DisplayClusterEndSceneEvent; }
-
-private:
-	FDisplayClusterStartSessionEvent         DisplayClusterStartSessionEvent;
-	FDisplayClusterEndSessionEvent           DisplayClusterEndSessionEvent;
-	FDisplayClusterStartFrameEvent           DisplayClusterStartFrameEvent;
-	FDisplayClusterEndFrameEvent             DisplayClusterEndFrameEvent;
-	FDisplayClusterPreTickEvent              DisplayClusterPreTickEvent;
-	FDisplayClusterTickEvent                 DisplayClusterTickEvent;
-	FDisplayClusterPostTickEvent             DisplayClusterPostTickEvent;
-	FDisplayClusterStartSceneEvent           DisplayClusterStartSceneEvent;
-	FDisplayClusterEndSceneEvent             DisplayClusterEndSceneEvent;
 
 private:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,6 +93,8 @@ private:
 	
 	// Array of available managers
 	TArray<IPDisplayClusterManager*> Managers;
+
+	FDisplayClusterCallbacks Callbacks;
 
 	// Runtime
 	EDisplayClusterOperationMode CurrentOperationMode = EDisplayClusterOperationMode::Disabled;

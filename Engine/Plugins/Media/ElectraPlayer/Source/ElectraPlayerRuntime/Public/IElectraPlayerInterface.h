@@ -154,6 +154,7 @@ public:
 
 	virtual bool IsLooping() const = 0;
 	virtual bool SetLooping(bool bLooping) = 0;
+	virtual int32 GetLoopCount() const = 0;
 
 	virtual FTimespan GetTime() const = 0;
 	virtual FTimespan GetDuration() const = 0;
@@ -223,7 +224,11 @@ public:
 
 	virtual void NotifyOfOptionChange() = 0;
 
-	enum {
+	// Suspends or resumes decoder instances. Not supported on all platforms.
+	virtual void SuspendOrResumeDecoders(bool bSuspend) = 0;
+
+	enum
+	{
 		ResourceFlags_Decoder = 1 << 0,
 		ResourceFlags_OutputBuffers = 1 << 1,
 

@@ -44,7 +44,7 @@ struct FRawMesh
 	/** Normal. Array[WedgeId] = float3(x,y,z) */
 	TArray<FVector3f>	WedgeTangentZ;
 	/** Texture coordinates. Array[UVId][WedgeId]=float2(u,v) */
-	TArray<FVector2D> WedgeTexCoords[MAX_MESH_TEXTURE_COORDS];
+	TArray<FVector2f> WedgeTexCoords[MAX_MESH_TEXTURE_COORDS];
 	/** Color. Array[WedgeId]=float3(r,g,b,a) */
 	TArray<FColor> WedgeColors;
 

@@ -535,7 +535,7 @@ namespace UnrealBuildTool
 			// Read the project path
 			FileReference? ProjectFile;
 
-			string RelativeProjectFile;
+			string? RelativeProjectFile;
 			if(RawObject.TryGetStringField("Project", out RelativeProjectFile))
 			{
 				ProjectFile = FileReference.Combine(Location.Directory, RelativeProjectFile);
@@ -546,7 +546,7 @@ namespace UnrealBuildTool
 			}
 
 			// Read the launch executable
-			string Architecture;
+			string? Architecture;
 			if (!RawObject.TryGetStringField("Architecture", out Architecture))
 			{
 				Architecture = "";
@@ -560,30 +560,30 @@ namespace UnrealBuildTool
 			DirectoryReference? ProjectDir = Receipt.ProjectDir;
 
 			// Read the launch executable
-			string Launch;
+			string? Launch;
 			if(RawObject.TryGetStringField("Launch", out Launch))
 			{
 				Receipt.Launch = ExpandPathVariables(Launch, EngineDir, ProjectDir);
 			}
-			string LaunchCmd;
+			string? LaunchCmd;
 			if(RawObject.TryGetStringField("LaunchCmd", out LaunchCmd))
 			{
 				Receipt.LaunchCmd = ExpandPathVariables(LaunchCmd, EngineDir, ProjectDir);
 			}
 
 			// Read the build products
-			JsonObject[] BuildProductObjects;
+			JsonObject[]? BuildProductObjects;
 			if (RawObject.TryGetObjectArrayField("BuildProducts", out BuildProductObjects))
 			{
 				foreach (JsonObject BuildProductObject in BuildProductObjects)
 				{
-					string Path;
+					string? Path;
 					BuildProductType Type;
 					if (BuildProductObject.TryGetStringField("Path", out Path) && BuildProductObject.TryGetEnumField("Type", out Type))
 					{
 						FileReference File = ExpandPathVariables(Path, EngineDir, ProjectDir);
 
-						string Module;
+						string? Module;
 						BuildProductObject.TryGetStringField("Module", out Module);
 
 						Receipt.AddBuildProduct(File, Type);
@@ -592,12 +592,12 @@ namespace UnrealBuildTool
 			}
 
 			// Read the runtime dependencies
-			JsonObject[] RuntimeDependencyObjects;
+			JsonObject[]? RuntimeDependencyObjects;
 			if (RawObject.TryGetObjectArrayField("RuntimeDependencies", out RuntimeDependencyObjects))
 			{
 				foreach (JsonObject RuntimeDependencyObject in RuntimeDependencyObjects)
 				{
-					string Path;
+					string? Path;
 					if (RuntimeDependencyObject.TryGetStringField("Path", out Path))
 					{
 						FileReference File = ExpandPathVariables(Path, EngineDir, ProjectDir);
@@ -620,12 +620,12 @@ namespace UnrealBuildTool
 			}
 
 			// Read the enabled/disabled plugins
-			JsonObject[] PluginObjects;
+			JsonObject[]? PluginObjects;
 			if (RawObject.TryGetObjectArrayField("Plugins", out PluginObjects))
 			{
 				foreach (JsonObject PluginObject in PluginObjects)
 				{
-					string PluginName;
+					string? PluginName;
 					if (PluginObject.TryGetStringField("Name", out PluginName))
 					{
 						bool PluginEnabled;
@@ -638,15 +638,15 @@ namespace UnrealBuildTool
 			}
 
 			// Read the additional properties
-			JsonObject[] AdditionalPropertyObjects;
+			JsonObject[]? AdditionalPropertyObjects;
 			if(RawObject.TryGetObjectArrayField("AdditionalProperties", out AdditionalPropertyObjects))
 			{
 				foreach(JsonObject AdditionalPropertyObject in AdditionalPropertyObjects)
 				{
-					string Name;
+					string? Name;
 					if(AdditionalPropertyObject.TryGetStringField("Name", out Name))
 					{
-						string Value;
+						string? Value;
 						if(AdditionalPropertyObject.TryGetStringField("Value", out Value))
 						{
 							Receipt.AdditionalProperties.Add(new ReceiptProperty(Name, Value));

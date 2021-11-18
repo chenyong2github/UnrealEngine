@@ -56,7 +56,7 @@ public:
 	/// @brief Returns the display name to use on the graphical node in the 
 	/// @return 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
-	FText GetDisplayName() const;
+	virtual FText GetDisplayName() const;
 
 	/// @brief Set the display name for this node.
 	/// @param InDisplayName 
@@ -277,7 +277,4 @@ private:
 
 	/// Cached pin lookups
 	mutable TMap<TArray<FName>, UOptimusNodePin*> CachedPinLookup;
-
-	/// List of all cached nodes classes. Initialized once and then never changes.
-	static TArray<UClass*> CachedNodesClasses;
 };

@@ -104,6 +104,7 @@ public:
 	//UE_DEPRECATED(4.17, "Use GetMousePositionOnViewport() instead.  Optionally and for more options, you can use GetViewportWidgetGeometry and GetPlayerScreenWidgetGeometry are newly introduced to give you the geometry of the viewport and the player screen for widgets to help convert between spaces.")
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Viewport")
 	static bool GetMousePositionScaledByDPI(APlayerController* Player, float& LocationX, float& LocationY);
+	static bool GetMousePositionScaledByDPI(APlayerController* Player, double& LocationX, double& LocationY);	// LWC_TODO: Temp stand in for native calls with FVector2D components.
 
 	/**
 	* Gets the slot object on the child widget as a Border Slot, allowing you to manipulate layout information.

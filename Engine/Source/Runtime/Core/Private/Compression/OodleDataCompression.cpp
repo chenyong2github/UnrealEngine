@@ -13,150 +13,6 @@ extern ICompressionFormat * CreateOodleDataCompressionFormat();
 namespace FOodleDataCompression
 {
 
-struct OodleDataCompressionDecoders
-{
-	OO_SINTa OodleDecoderMemorySize = 0;
-	int32 OodleDecoderBufferCount =0;
-
-	struct OodleDataCompressionDecoder
-	{
-		FCriticalSection OodleDecoderMutex;
-		void * OodleDecoderMemory = nullptr;
-		char pad[64];
-
-		OodleDataCompressionDecoder()
-		{
-		}
-	};
-
-	OodleDataCompressionDecoder* OodleDecoders = nullptr;
-
-	OodleDataCompressionDecoders()
-	{
-		// enough decoder scratch for any compressor & buffer size.
-		// note "InCompressor" is what we want to Encode with but we may be asked to decode other compressors!
-		OodleDecoderMemorySize = OodleLZDecoder_MemorySizeNeeded(OodleLZ_Compressor_Invalid, -1);
-
-		int32 BufferCount = 2;
-
-		// be wary of possible init order problem
-		//  if we init Oodle before config might not exist yet?
-		//  can we just check GConfig vs nullptr ?
-		//  (eg. if Oodle is used to unpak ini filed?)
-		if ( GConfig )
-		{
-			GConfig->GetInt(TEXT("OodleDataCompressionFormat"), TEXT("PreallocatedBufferCount"), BufferCount, GEngineIni);
-			if (BufferCount < 0)
-			{
-				BufferCount = 0;
-			}
-		}
-
-		OodleDecoderBufferCount = BufferCount;
-		if (OodleDecoderBufferCount)
-		{
-			OodleDecoders = new OodleDataCompressionDecoder[OodleDecoderBufferCount];
-		}
-	}
-	
-	~OodleDataCompressionDecoders()
-	{
-		// NOTE: currently never freed
-
-		if (OodleDecoderBufferCount)
-		{
-			for (int i = 0; i < OodleDecoderBufferCount; ++i)
-			{
-				if (OodleDecoders[i].OodleDecoderMutex.TryLock())
-				{
-					FMemory::Free(OodleDecoders[i].OodleDecoderMemory);
-					OodleDecoders[i].OodleDecoderMemory = nullptr;
-					OodleDecoders[i].OodleDecoderMutex.Unlock();
-				}
-				else
-				{
-					UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - shutting down while in use?"));
-				}
-			}
-
-			delete [] OodleDecoders;
-		}
-	}
-
-	
-	int64 OodleDecode(const void * InCompBuf, int64 InCompBufSize64, void * OutRawBuf, int64 InRawLen64) 
-	{
-		OO_SINTa InCompBufSize = IntCastChecked<OO_SINTa>(InCompBufSize64);
-		OO_SINTa InRawLen = IntCastChecked<OO_SINTa>(InRawLen64);
-
-		// find the minimum size needed for this decode, OodleDecoderMemorySize may be larger
-		OodleLZ_Compressor CurCompressor = OodleLZ_GetChunkCompressor(InCompBuf, InCompBufSize, NULL);
-		if( CurCompressor == OodleLZ_Compressor_Invalid )
-		{
-			UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - no Oodle compressor found!"));
-			return OODLELZ_FAILED;
-		}
-			
-		OO_SINTa DecoderMemorySize = OodleLZDecoder_MemorySizeNeeded(CurCompressor, InRawLen);
-		void * DecoderMemory = NULL;
-
-		// try to take a mutex for one of the pre-allocated decode buffers
-		for (int i = 0; i < OodleDecoderBufferCount; ++i)
-		{
-			if (OodleDecoders[i].OodleDecoderMutex.TryLock()) 
-			{
-				if (OodleDecoders[i].OodleDecoderMemory == nullptr)
-				{
-					// Haven't allocated yet (we allocate on demand)
-					OodleDecoders[i].OodleDecoderMemory = FMemory::Malloc(OodleDecoderMemorySize);
-					if (OodleDecoders[i].OodleDecoderMemory == nullptr)
-					{
-						UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - Failed to allocate preallocated	buffer %d bytes!"), OodleDecoderMemorySize);
-						return OODLELZ_FAILED;
-					}
-				}
-
-				if (OodleDecoders[i].OodleDecoderMemory)
-				{
-					//UE_LOG(OodleDataCompression, Display, TEXT("Decode with lock : %d -> %d"),InCompBufSize,InRawLen );
-
-					OO_SINTa Result = OodleLZ_Decompress(InCompBuf, InCompBufSize, OutRawBuf, InRawLen,
-						OodleLZ_FuzzSafe_Yes, OodleLZ_CheckCRC_Yes, OodleLZ_Verbosity_None,
-						NULL, 0, NULL, NULL,
-						OodleDecoders[i].OodleDecoderMemory, OodleDecoderMemorySize);
-
-					OodleDecoders[i].OodleDecoderMutex.Unlock();
-
-					return (int64) Result;
-				}
-
-				OodleDecoders[i].OodleDecoderMutex.Unlock();
-			}
-		}
-			
-		//UE_LOG(OodleDataCompression, Display, TEXT("Decode with malloc : %d -> %d"),InCompBufSize,InRawLen );
-
-		// allocate memory for the decoder so that Oodle doesn't allocate anything internally
-		DecoderMemory = FMemory::Malloc(DecoderMemorySize);
-		if (DecoderMemory == NULL) 
-		{
-			UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat::OodleDecode - Failed to allocate %d!"), DecoderMemorySize);
-			return OODLELZ_FAILED;
-		}
-
-		OO_SINTa Result = OodleLZ_Decompress(InCompBuf, InCompBufSize, OutRawBuf, InRawLen, 
-			OodleLZ_FuzzSafe_Yes,OodleLZ_CheckCRC_Yes,OodleLZ_Verbosity_None,
-			NULL, 0, NULL, NULL,
-			DecoderMemory, DecoderMemorySize);
-
-		FMemory::Free(DecoderMemory);
-
-		return (int64) Result;
-	}
-
-};
-
-
 
 static OodleLZ_Compressor CompressorToOodleLZ_Compressor(ECompressor Compressor)
 {
@@ -253,33 +109,207 @@ int64 CORE_API GetMaximumCompressedSize(int64 InUncompressedSize)
 	return MaxCompressedSize;
 }
 
-int64 CORE_API Compress(
-							void * OutCompressedData, int64 InCompressedBufferSize,
-							const void * InUncompressedData, int64 InUncompressedSize,
-							ECompressor Compressor,
-							ECompressionLevel Level)
+struct OodleScratchBuffers
 {
-	OodleLZ_Compressor LZCompressor = CompressorToOodleLZ_Compressor(Compressor);
-	OodleLZ_CompressionLevel LZLevel = CompressionLevelToOodleLZ_CompressionLevel(Level);
+	OO_SINTa OodleScratchMemorySize = 0;
+	int32 OodleScratchBufferCount =0;
 
-	if ( InCompressedBufferSize < (int64) OodleLZ_GetCompressedBufferSizeNeeded(LZCompressor,IntCastChecked<OO_SINTa>(InUncompressedSize)) )
+	struct OodleScratchBuffer
 	{
-		UE_LOG(OodleDataCompression,Error,TEXT("OutCompressedSize too small\n"));		
-		return OODLELZ_FAILED;
+		FCriticalSection OodleScratchMemoryMutex;
+		void * OodleScratchMemory = nullptr;
+		char pad[64];
+
+		OodleScratchBuffer()
+		{
+		}
+	};
+
+	OodleScratchBuffer* OodleScratches = nullptr;
+
+	OodleScratchBuffers()
+	{
+		// enough decoder scratch for any compressor & buffer size.
+		// note "InCompressor" is what we want to Encode with but we may be asked to decode other compressors!
+		OO_SINTa DecoderMemorySizeNeeded = OodleLZDecoder_MemorySizeNeeded(OodleLZ_Compressor_Invalid, -1);
+		OO_SINTa EncoderMemorySizeNeeded = OodleLZ_GetCompressScratchMemBound(OodleLZ_Compressor_Mermaid,OodleLZ_CompressionLevel_VeryFast,64*1024,NULL);
+		// DecoderMemorySizeNeeded is ~ 460000 , EncoderMemorySizeNeeded is ~ 470000
+		OodleScratchMemorySize = DecoderMemorySizeNeeded > EncoderMemorySizeNeeded ? DecoderMemorySizeNeeded : EncoderMemorySizeNeeded;
+
+		int32 BufferCount = 2;
+
+		// be wary of possible init order problem
+		//  if we init Oodle before config might not exist yet?
+		//  can we just check GConfig vs nullptr ?
+		//  (eg. if Oodle is used to unpak ini filed?)
+		if ( GConfig )
+		{
+			GConfig->GetInt(TEXT("OodleDataCompressionFormat"), TEXT("PreallocatedBufferCount"), BufferCount, GEngineIni);
+			if (BufferCount < 0)
+			{
+				BufferCount = 0;
+			}
+		}
+
+		OodleScratchBufferCount = BufferCount;
+		if (OodleScratchBufferCount)
+		{
+			OodleScratches = new OodleScratchBuffer[OodleScratchBufferCount];
+		}
+		
+		UE_LOG(OodleDataCompression, Display, TEXT("OodleScratchMemorySize=%d x %d"),(int)OodleScratchMemorySize,OodleScratchBufferCount);
+	}
+	
+	~OodleScratchBuffers()
+	{
+		// NOTE: currently never freed
+
+		if (OodleScratchBufferCount)
+		{
+			for (int i = 0; i < OodleScratchBufferCount; ++i)
+			{
+				if (OodleScratches[i].OodleScratchMemoryMutex.TryLock())
+				{
+					FMemory::Free(OodleScratches[i].OodleScratchMemory);
+					OodleScratches[i].OodleScratchMemory = nullptr;
+					OodleScratches[i].OodleScratchMemoryMutex.Unlock();
+				}
+				else
+				{
+					UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - shutting down while in use?"));
+				}
+			}
+
+			delete [] OodleScratches;
+		}
 	}
 
-	// OodleLZ_Compress will alloc internally using installed CorePlugins
-	//	 (currently default plugins, no plugins installed)
+	
+	int64 OodleDecode(const void * InCompBuf, int64 InCompBufSize64, void * OutRawBuf, int64 InRawLen64) 
+	{
+		OO_SINTa InCompBufSize = IntCastChecked<OO_SINTa>(InCompBufSize64);
+		OO_SINTa InRawLen = IntCastChecked<OO_SINTa>(InRawLen64);
 
-	OO_SINTa CompressedSize = OodleLZ_Compress(LZCompressor,InUncompressedData,InUncompressedSize,OutCompressedData,LZLevel);
-	return (int64) CompressedSize;
-}
+		// find the minimum size needed for this decode, OodleScratchMemorySize may be larger
+		OodleLZ_Compressor CurCompressor = OodleLZ_GetChunkCompressor(InCompBuf, InCompBufSize, NULL);
+		if( CurCompressor == OodleLZ_Compressor_Invalid )
+		{
+			UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - no Oodle compressor found!"));
+			return OODLELZ_FAILED;
+		}
+			
+		OO_SINTa DecoderMemorySize = OodleLZDecoder_MemorySizeNeeded(CurCompressor, InRawLen);
+		void * DecoderMemory = NULL;
 
-static OodleDataCompressionDecoders * GetGlobalOodleDataCompressionDecoders()
+		// try to take a mutex for one of the pre-allocated decode buffers
+		for (int i = 0; i < OodleScratchBufferCount; ++i)
+		{
+			if (OodleScratches[i].OodleScratchMemoryMutex.TryLock()) 
+			{
+				if (OodleScratches[i].OodleScratchMemory == nullptr)
+				{
+					// allocate on first use
+					OodleScratches[i].OodleScratchMemory = FMemory::Malloc(OodleScratchMemorySize);
+					if (OodleScratches[i].OodleScratchMemory == nullptr)
+					{
+						UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - Failed to allocate scratch buffer %d bytes!"), OodleScratchMemorySize);
+						return OODLELZ_FAILED;
+					}
+				}
+
+				OO_SINTa Result = OodleLZ_Decompress(InCompBuf, InCompBufSize, OutRawBuf, InRawLen,
+					OodleLZ_FuzzSafe_Yes, OodleLZ_CheckCRC_Yes, OodleLZ_Verbosity_None,
+					NULL, 0, NULL, NULL,
+					OodleScratches[i].OodleScratchMemory, OodleScratchMemorySize);
+
+				OodleScratches[i].OodleScratchMemoryMutex.Unlock();
+
+				return (int64) Result;
+			}
+		}
+			
+		//UE_LOG(OodleDataCompression, Display, TEXT("Decode with malloc : %d -> %d"),InCompBufSize,InRawLen );
+
+		// allocate memory for the decoder so that Oodle doesn't allocate anything internally
+		DecoderMemory = FMemory::Malloc(DecoderMemorySize);
+		if (DecoderMemory == NULL) 
+		{
+			UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat::OodleDecode - Failed to allocate %d!"), DecoderMemorySize);
+			return OODLELZ_FAILED;
+		}
+
+		OO_SINTa Result = OodleLZ_Decompress(InCompBuf, InCompBufSize, OutRawBuf, InRawLen, 
+			OodleLZ_FuzzSafe_Yes,OodleLZ_CheckCRC_Yes,OodleLZ_Verbosity_None,
+			NULL, 0, NULL, NULL,
+			DecoderMemory, DecoderMemorySize);
+
+		FMemory::Free(DecoderMemory);
+
+		return (int64) Result;
+	}
+
+	
+	int64 OodleEncode( void * OutCompressedData, int64 InCompressedBufferSize,
+								const void * InUncompressedData, int64 InUncompressedSize,
+								ECompressor Compressor,
+								ECompressionLevel Level)
+	{
+		OodleLZ_Compressor LZCompressor = CompressorToOodleLZ_Compressor(Compressor);
+		OodleLZ_CompressionLevel LZLevel = CompressionLevelToOodleLZ_CompressionLevel(Level);
+
+		if ( InCompressedBufferSize < (int64) OodleLZ_GetCompressedBufferSizeNeeded(LZCompressor,IntCastChecked<OO_SINTa>(InUncompressedSize)) )
+		{
+			UE_LOG(OodleDataCompression,Error,TEXT("OutCompressedSize too small\n"));		
+			return OODLELZ_FAILED;
+		}
+		
+		// try to take a mutex for one of the pre-allocated decode buffers
+		for (int i = 0; i < OodleScratchBufferCount; ++i)
+		{
+			if (OodleScratches[i].OodleScratchMemoryMutex.TryLock()) 
+			{
+				if (OodleScratches[i].OodleScratchMemory == nullptr)
+				{
+					// allocate on first use
+					OodleScratches[i].OodleScratchMemory = FMemory::Malloc(OodleScratchMemorySize);
+					if (OodleScratches[i].OodleScratchMemory == nullptr)
+					{
+						UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat - Failed to allocate scratch buffer %d bytes!"), OodleScratchMemorySize);
+						return OODLELZ_FAILED;
+					}
+				}
+
+				void * scratchMem = OodleScratches[i].OodleScratchMemory;
+				OO_SINTa scratchSize = OodleScratchMemorySize;
+
+				OO_SINTa Result = OodleLZ_Compress(LZCompressor,InUncompressedData,InUncompressedSize,OutCompressedData,LZLevel,
+															NULL,NULL,NULL,
+															scratchMem,scratchSize);
+
+				OodleScratches[i].OodleScratchMemoryMutex.Unlock();
+
+				return (int64) Result;
+			}
+		}
+
+		// OodleLZ_Compress will alloc internally using installed CorePlugins (FMemory)
+
+		void * scratchMem = nullptr;
+		OO_SINTa scratchSize = 0;
+
+		OO_SINTa Result = OodleLZ_Compress(LZCompressor,InUncompressedData,InUncompressedSize,OutCompressedData,LZLevel,
+													NULL,NULL,NULL,
+													scratchMem,scratchSize);
+
+		return (int64) Result;
+	}
+};
+
+static OodleScratchBuffers * GetGlobalOodleScratchBuffers()
 {
-	static OodleDataCompressionDecoders GlobalOodleDataCompressionDecoders;
+	static OodleScratchBuffers GlobalOodleScratchBuffers;
 	// init on first use, never freed
-	return &GlobalOodleDataCompressionDecoders;
+	return &GlobalOodleScratchBuffers;
 }
 
 
@@ -296,13 +326,28 @@ void CORE_API CompressionFormatInitOnFirstUseFromLock()
 }
 
 
+int64 CORE_API Compress(
+							void * OutCompressedData, int64 InCompressedBufferSize,
+							const void * InUncompressedData, int64 InUncompressedSize,
+							ECompressor Compressor,
+							ECompressionLevel Level)
+{
+	OodleScratchBuffers * Scratches = GetGlobalOodleScratchBuffers();
+
+	int64 EncodedSize = Scratches->OodleEncode(OutCompressedData,InCompressedBufferSize,
+							InUncompressedData,InUncompressedSize,
+							Compressor,Level);
+						
+	return EncodedSize;
+}
+
 bool CORE_API Decompress(
 						void * OutUncompressedData, int64 InUncompressedSize,
 						const void * InCompressedData, int64 InCompressedSize)
 {
-	OodleDataCompressionDecoders * Decoders = GetGlobalOodleDataCompressionDecoders();
+	OodleScratchBuffers * Scratches = GetGlobalOodleScratchBuffers();
 
-	int64 DecodeSize = Decoders->OodleDecode(InCompressedData,InCompressedSize,OutUncompressedData,InUncompressedSize);
+	int64 DecodeSize = Scratches->OodleDecode(InCompressedData,InCompressedSize,OutUncompressedData,InUncompressedSize);
 
 	if ( DecodeSize == OODLELZ_FAILED )
 	{
@@ -313,12 +358,12 @@ bool CORE_API Decompress(
 	return true;
 }
 					
-static void* OodleAlloc(OO_SINTa Size, OO_S32 Alignment)
+static void* OODLE_CALLBACK OodleAlloc(OO_SINTa Size, OO_S32 Alignment)
 {
 	return FMemory::Malloc(SIZE_T(Size), uint32(Alignment));
 }
 
-static void OodleFree(void* Ptr)
+static void OODLE_CALLBACK OodleFree(void* Ptr)
 {
 	FMemory::Free(Ptr);
 }
@@ -328,14 +373,16 @@ void CORE_API StartupPreInit(void)
 	// called from LaunchEngineLoop at "PreInit" time
 	// not all Engine services may be set up yet, be careful what you use
 	
-	// @todo Oodle could install CorePlugins here for log/alloc/etc.
-
 	// OodleConfig set global options for Oodle :
 	OodleConfigValues OodleConfig = { };
 	Oodle_GetConfigValues(&OodleConfig);
 	// UE5 will always read/write Oodle v9 binary data :
 	OodleConfig.m_OodleLZ_BackwardsCompatible_MajorVersion = 9;
 	Oodle_SetConfigValues(&OodleConfig);
+	
+	// Oodle install CorePlugins here for log/alloc/etc.
+	// 
+	// install FMemory for Oodle allocators :
 	OodleCore_Plugins_SetAllocators(OodleAlloc, OodleFree);
 }
 

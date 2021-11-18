@@ -38,7 +38,9 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 
 	BackgroundImage = SNew(SImage)
 		.ColorAndOpacity(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundColor)
-		.Image(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundBrush);
+		.Image(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundBrush)
+		.RenderTransform(this, &SDisplayClusterConfiguratorViewportNode::GetBackgroundRenderTransform)
+		.RenderTransformPivot(FVector2D(0.5f, 0.5f));
 
 	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
 
@@ -110,6 +112,18 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 										.Justification(ETextJustify::Center)
 										.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
 										.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.WhiteGray"))
+									]
+
+									+ SVerticalBox::Slot()
+									.VAlign(VAlign_Center)
+									.Padding(5.f, 2.f)
+									[
+										SNew(STextBlock)
+										.Text(this, &SDisplayClusterConfiguratorViewportNode::GetTransformText)
+										.Justification(ETextJustify::Center)
+										.TextStyle(&FDisplayClusterConfiguratorStyle::GetWidgetStyle<FTextBlockStyle>("DisplayClusterConfigurator.Node.Text.Regular"))
+										.ColorAndOpacity(FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Text.Color.WhiteGray"))
+										.Visibility(this, &SDisplayClusterConfiguratorViewportNode::GetTransformTextVisibility)
 									]
 
 									+ SVerticalBox::Slot()
@@ -263,6 +277,40 @@ const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetBackgroundBrush()
 	}
 }
 
+TOptional<FSlateRenderTransform> SDisplayClusterConfiguratorViewportNode::GetBackgroundRenderTransform() const
+{
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	const FDisplayClusterConfigurationRectangle& Region = ViewportEdNode->GetCfgViewportRegion();
+	const FDisplayClusterConfigurationViewport_RemapData& RemapData = ViewportEdNode->GetCfgViewportRemap();
+
+	FMatrix2x2 TransformMat = FMatrix2x2();
+	
+	if (RemapData.IsFlipping())
+	{
+		FScale2D Scale = FScale2D(RemapData.bFlipH ? -1.0f : 1.0f, RemapData.bFlipV ? -1.0f : 1.0f);
+		TransformMat = TransformMat.Concatenate(FMatrix2x2(Scale));
+	}
+
+	if (RemapData.IsRotating())
+	{
+		// Since the size of the node is changing to match the bounds of the rotated viewport, which scales the image,
+		// we need to undo that scaling to make the image the appropriate size before rotating the image
+		float SinAngle, CosAngle;
+		FMath::SinCos(&SinAngle, &CosAngle, FMath::DegreesToRadians(RemapData.Angle));
+
+		FVector2D RotatedSize;
+		RotatedSize.X = Region.W * FMath::Abs(CosAngle) + Region.H * FMath::Abs(SinAngle);
+		RotatedSize.Y = Region.W * FMath::Abs(SinAngle) + Region.H * FMath::Abs(CosAngle);
+
+		FMatrix2x2 RotMat = FMatrix2x2(FQuat2D(FMath::DegreesToRadians(RemapData.Angle)));
+		FMatrix2x2 ScaleMat = FMatrix2x2(FScale2D(Region.W / RotatedSize.X, Region.H / RotatedSize.Y));
+
+		TransformMat = TransformMat.Concatenate(ScaleMat.Concatenate(RotMat));
+	}
+
+	return FSlateRenderTransform(TransformMat);
+}
+
 const FSlateBrush* SDisplayClusterConfiguratorViewportNode::GetNodeShadowBrush() const
 {
 	return FEditorStyle::GetBrush(TEXT("Graph.Node.Shadow"));
@@ -308,9 +356,56 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetTextBoxColor() const
 FText SDisplayClusterConfiguratorViewportNode::GetPositionAndSizeText() const
 {
 	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
-	const FDisplayClusterConfigurationRectangle CfgViewportRegion = ViewportEdNode->GetCfgViewportRegion();
+	const FDisplayClusterConfigurationRectangle& CfgViewportRegion = ViewportEdNode->GetCfgViewportRegion();
 
 	return FText::Format(LOCTEXT("ResAndOffset", "[{0} x {1}] @ {2}, {3}"), CfgViewportRegion.W, CfgViewportRegion.H, CfgViewportRegion.X, CfgViewportRegion.Y);
+}
+
+FText SDisplayClusterConfiguratorViewportNode::GetTransformText() const
+{
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	const FDisplayClusterConfigurationViewport_RemapData& RemapData = ViewportEdNode->GetCfgViewportRemap();
+
+	TArray<FText> TransformText;
+	if (RemapData.IsRotating())
+	{
+		// Get the rotation angle expressed from -180 to 180 degrees
+		const float RotAngle = FRotator::NormalizeAxis(RemapData.Angle);
+
+		FText RotDirectionText;
+		if (RotAngle < 0)
+		{
+			RotDirectionText = LOCTEXT("ConterClockwiseLabel", "CCW");
+		}
+		else
+		{
+			RotDirectionText = LOCTEXT("ClockwiseLabel", "CW");
+		}
+
+		TransformText.Add(FText::Format(LOCTEXT("RotationFormat", "Rotated {0}\u00b0 {1}"), FMath::Abs(RotAngle), RotDirectionText));
+	}
+
+	if (RemapData.IsFlipping())
+	{
+		if (RemapData.bFlipH)
+		{
+			TransformText.Add(LOCTEXT("HorizontalFlip", "Flipped Horizontally"));
+		}
+
+		if (RemapData.bFlipV)
+		{
+			TransformText.Add(LOCTEXT("VerticalFlip", "Flipped Vertically"));
+		}
+	}
+
+	return FText::Join(FText::FromString(TEXT(", ")), TransformText);
+}
+
+EVisibility SDisplayClusterConfiguratorViewportNode::GetTransformTextVisibility() const
+{
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	const FDisplayClusterConfigurationViewport_RemapData& RemapData = ViewportEdNode->GetCfgViewportRemap();
+	return RemapData.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FMargin SDisplayClusterConfiguratorViewportNode::GetBackgroundPosition() const

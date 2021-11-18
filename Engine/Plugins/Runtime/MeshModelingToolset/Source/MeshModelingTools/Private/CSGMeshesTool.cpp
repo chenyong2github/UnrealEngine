@@ -291,6 +291,7 @@ TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 	TUniquePtr<FBooleanMeshesOp> BooleanOp = MakeUnique<FBooleanMeshesOp>();
 	
 	BooleanOp->bTrimMode = bTrimMode;
+	BooleanOp->WindingThreshold = CSGProperties->WindingThreshold;
 	if (bTrimMode)
 	{
 		BooleanOp->TrimOperation = TrimProperties->WhichMesh;

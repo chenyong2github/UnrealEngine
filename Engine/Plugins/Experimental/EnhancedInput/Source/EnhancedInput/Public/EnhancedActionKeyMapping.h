@@ -31,6 +31,15 @@ struct FEnhancedActionKeyMapping
 	//ControllerId ControllerId;	// TODO: Controller id/player id (hybrid?) allowing binding multiple pads to a series of actions.
 
 	/**
+	 * If true, then this Key Mapping should be ignored. This is set to true if the key is down
+	 * during a rebuild of it's owning PlayerInput ControlMappings.
+	 * 
+	 * @see IEnhancedInputSubsystemInterface::RebuildControlMappings
+	 */
+	UPROPERTY(Transient)
+	uint8 bShouldBeIgnored : 1;
+	
+	/**
 	* Trigger qualifiers. If any trigger qualifiers exist the mapping will not trigger unless:
 	* If there are any Explicit triggers in this list at least one of them must be met.
 	* All Implicit triggers in this list must be met.
@@ -56,6 +65,7 @@ struct FEnhancedActionKeyMapping
 	FEnhancedActionKeyMapping(const UInputAction* InAction = nullptr, const FKey InKey = EKeys::Invalid)
 		: Action(InAction)
 		, Key(InKey)
+		, bShouldBeIgnored(false)
 	{}
 
 };

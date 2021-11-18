@@ -1509,20 +1509,7 @@ TSharedRef<SWidget> SFilterList::MakeAddFilterMenu(EAssetTypeCategories::Type Me
 	ContentBrowserFilterListContext->MenuExpansion = MenuExpansion;
 	FToolMenuContext ToolMenuContext(ContentBrowserFilterListContext);
 
-	FDisplayMetrics DisplayMetrics;
-	FSlateApplication::Get().GetCachedDisplayMetrics( DisplayMetrics );
-
-	const FVector2D DisplaySize(
-		DisplayMetrics.PrimaryDisplayWorkAreaRect.Right - DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
-		DisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - DisplayMetrics.PrimaryDisplayWorkAreaRect.Top );
-
-	return 
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.MaxHeight(DisplaySize.Y * 0.9)
-		[
-			UToolMenus::Get()->GenerateWidget(FilterMenuName, ToolMenuContext)
-		];
+	return UToolMenus::Get()->GenerateWidget(FilterMenuName, ToolMenuContext);
 }
 
 void SFilterList::FilterByTypeClicked(TWeakPtr<IAssetTypeActions> AssetTypeActions)

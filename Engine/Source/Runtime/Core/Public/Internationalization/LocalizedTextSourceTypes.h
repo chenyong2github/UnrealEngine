@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/SharedPointer.h"
 
 /**
  * Categories of localized text.
@@ -71,3 +72,13 @@ struct ELocalizedTextSourcePriority
 		Highest = 1000,
 	};
 };
+
+typedef TSharedRef<FString, ESPMode::ThreadSafe> FTextDisplayStringRef;
+typedef TSharedPtr<FString, ESPMode::ThreadSafe> FTextDisplayStringPtr;
+typedef TSharedRef<const FString, ESPMode::ThreadSafe> FTextConstDisplayStringRef;
+typedef TSharedPtr<const FString, ESPMode::ThreadSafe> FTextConstDisplayStringPtr;
+
+inline FTextDisplayStringRef MakeTextDisplayString(FString&& InDisplayString)
+{
+	return MakeShared<FString, ESPMode::ThreadSafe>(MoveTemp(InDisplayString));
+}

@@ -71,8 +71,7 @@ public:
 	virtual void AUdataFlushEverything() override;
 
 	virtual void Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer, ESPMode::ThreadSafe>& Surface) override;
-
-	static void JavaCallback_NewDataAvailable(uint32 NativeDecoderID);
+	virtual void Android_SuspendOrResumeDecoder(bool bSuspend) override;
 
 	static void ReleaseToSurface(uint32 NativeDecoderID, const FDecoderTimeStamp& Time);
 
@@ -188,6 +187,8 @@ private:
 	void GetAndPrepareInputAU();
 	void PrepareAU(TSharedPtrTS<FDecoderInput> AU);
 
+	bool CheckForFlush();
+
 	bool PrepareDecoder();
 	void UnprepareDecoder();
 	EDecodeResult DrainDecoder();
@@ -210,9 +211,11 @@ private:
 
 	bool																			bCfgForceSkipUntilIDROnSurfaceChange = false;
 	bool																			bCfgReconfigureSurfaceOnWakeup = false;
+	bool																			bCfgForceNewDecoderOnWakeup = false;
 
 	FMediaEvent																		ApplicationRunningSignal;
 	FMediaEvent																		ApplicationSuspendConfirmedSignal;
+	int32																			ApplicationSuspendCount = 0;
 
 	FMediaEvent																		TerminateThreadSignal;
 	FMediaEvent																		FlushDecoderSignal;
@@ -220,6 +223,8 @@ private:
 	bool																			bThreadStarted = false;
 	bool																			bDrainForCodecChange = false;
 	bool																			bError = false;
+	bool																			bDone = false;
+	bool																			bBlockedOnInput = false;
 
 	IPlayerSessionServices*															PlayerSessionServices = nullptr;
 
@@ -248,8 +253,6 @@ private:
 	TArray<TSharedPtrTS<FDecoderInput>>												InDecoderInput;
 	volatile bool																	bForceDecoderRefresh = false;
 	bool																			bSkipUntilNextIDR = false;
-
-	FMediaEvent																		NewDataAvailable;
 
 	TArray<FOutputBufferInfo>														ReadyOutputBuffersToSurface;
 	FCriticalSection																OutputSurfaceTargetCS;
@@ -758,7 +761,7 @@ void FVideoDecoderH265::RecreateDecoderSession()
 	if (DecoderInstance.IsValid())
 	{
 		// Try to change the output surface.
-		if (Android_Workarounds().GetValue(TEXT("setOutputSurface")).SafeGetBool(false))
+		if (bCfgForceNewDecoderOnWakeup == false && Android_Workarounds().GetValue(TEXT("setOutputSurface")).SafeGetBool(false))
 		{
 			jobject VideoCodecSurface = nullptr;
 			if (Config.AdditionalOptions.GetValue(TEXT("videoDecoder_Android_UseSurface")).SafeGetBool(false) && Config.AdditionalOptions.HaveKey(TEXT("videoDecoder_Android_Surface")))
@@ -1628,7 +1631,7 @@ void FVideoDecoderH265::ProcessReadyOutputBuffersToSurface()
 		for (; I < Num; ++I)
 		{
 			const FOutputBufferInfo& OI = ReadyOutputBuffersToSurface[I];
-			if (OI.Timestamp.Time > OutputSurfaceTargetPTS.Time || OI.Timestamp.SequenceIndex > OutputSurfaceTargetPTS.SequenceIndex)
+			if ((OI.Timestamp.Time > OutputSurfaceTargetPTS.Time && OI.Timestamp.SequenceIndex == OutputSurfaceTargetPTS.SequenceIndex) || OI.Timestamp.SequenceIndex > OutputSurfaceTargetPTS.SequenceIndex)
 			{
 				// Too new, this one must stay...
 				break;
@@ -1687,6 +1690,19 @@ void FVideoDecoderH265::Android_UpdateSurface(const TSharedPtr<IOptionPointerVal
 	}
 }
 
+void FVideoDecoderH265::Android_SuspendOrResumeDecoder(bool bSuspend)
+{
+	if (bSuspend)
+	{
+		HandleApplicationWillEnterBackground();
+		ApplicationSuspendConfirmedSignal.Wait();
+	}
+	else
+	{
+		HandleApplicationHasEnteredForeground();
+	}
+}
+
 
 //-----------------------------------------------------------------------------
 /**
@@ -1694,7 +1710,11 @@ void FVideoDecoderH265::Android_UpdateSurface(const TSharedPtr<IOptionPointerVal
  */
 void FVideoDecoderH265::HandleApplicationHasEnteredForeground()
 {
-	ApplicationRunningSignal.Signal();
+	int32 Count = FPlatformAtomics::InterlockedDecrement(&ApplicationSuspendCount);
+	if (Count == 0)
+	{
+		ApplicationRunningSignal.Signal();
+	}
 }
 
 
@@ -1704,9 +1724,53 @@ void FVideoDecoderH265::HandleApplicationHasEnteredForeground()
  */
 void FVideoDecoderH265::HandleApplicationWillEnterBackground()
 {
-	ApplicationSuspendConfirmedSignal.Reset();
-	ApplicationRunningSignal.Reset();
+	int32 Count = FPlatformAtomics::InterlockedIncrement(&ApplicationSuspendCount);
+	if (Count == 1)
+	{
+		ApplicationRunningSignal.Reset();
+	}
 }
+
+
+//-----------------------------------------------------------------------------
+/**
+ * Checks if the decoder needs to be flushed.
+ */
+bool FVideoDecoderH265::CheckForFlush()
+{
+	if (FlushDecoderSignal.IsSignaled())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_VideoH265Decode);
+		CSV_SCOPED_TIMING_STAT(ElectraPlayer, VideoH265Decode);
+			
+		// Flush and stop the decoder.
+		UnprepareDecoder();
+			
+		// Flush all pending input
+		CurrentAccessUnit.Reset();
+		NextAccessUnits.Empty();
+		ReplayAccessUnits.Empty();
+		InDecoderInput.Empty();
+		CurrentSequenceIndex.Reset();
+		LastPushedPresentationTimeUs = 0;
+		DecodingState = EDecodingState::Regular;
+			
+		// Flush all pending output
+		OutputSurfaceTargetPTS.Time = -1.0;
+		OutputSurfaceTargetPTS.SequenceIndex = 0;
+		ReadyOutputBuffersToSurface.Empty();
+
+		FlushDecoderSignal.Reset();
+		DecoderFlushedSignal.Signal();
+
+		// Reset done state.
+		bDone = false;
+		bBlockedOnInput = false;
+		return true;
+	}
+	return false;
+}
+
 
 //-----------------------------------------------------------------------------
 /**
@@ -1722,16 +1786,21 @@ void FVideoDecoderH265::WorkerThread()
 	TSharedPtrTS<FFGBGNotificationHandlers> FGBGHandlers = MakeSharedTS<FFGBGNotificationHandlers>();
 	FGBGHandlers->WillEnterBackground = [this]() { HandleApplicationWillEnterBackground(); };
 	FGBGHandlers->HasEnteredForeground = [this]() { HandleApplicationHasEnteredForeground(); };
-	AddBGFGNotificationHandler(FGBGHandlers);
+	if (AddBGFGNotificationHandler(FGBGHandlers))
+	{
+		HandleApplicationWillEnterBackground();
+	}
 
 	// Get configuration values from player options.
 	bCfgForceSkipUntilIDROnSurfaceChange = PlayerSessionServices->GetOptions().GetValue(Android::OptionKey_Decoder_SkipUntilIDROnSurfaceChange).SafeGetBool(false);
-	bCfgReconfigureSurfaceOnWakeup = PlayerSessionServices->GetOptions().GetValue(Android::OptionKey_Decoder_ReconfigureSurfaceOnWakeup).SafeGetBool(false);
+	bCfgReconfigureSurfaceOnWakeup = PlayerSessionServices->GetOptions().GetValue(Android::OptionKey_Decoder_ReconfigureSurfaceOnWakeup).SafeGetBool(true);
+	bCfgForceNewDecoderOnWakeup = PlayerSessionServices->GetOptions().GetValue(Android::OptionKey_Decoder_ForceNewDecoderOnWakeup).SafeGetBool(false);
 
 	bool bGotEOS = false;
-	bool bDone = false;
 	bool bGotLastSequenceAU = false;
 
+	bDone = false;
+	bBlockedOnInput = false;
 	DecodingState = EDecodingState::Regular;
 	CurrentDecoderState = EDecoderState::IsFlushed;
 	bDrainForCodecChange = false;
@@ -1750,7 +1819,6 @@ void FVideoDecoderH265::WorkerThread()
 	}
 
 	EDecodeResult DecodeResult;
-	bool bBlockedOnInput = false;
 	int64 TimeLast = MEDIAutcTime::CurrentMSec();
 	while(!TerminateThreadSignal.IsSignaled())
 	{
@@ -1761,12 +1829,25 @@ void FVideoDecoderH265::WorkerThread()
 			ApplicationSuspendConfirmedSignal.Signal();
 			while(!ApplicationRunningSignal.WaitTimeout(100 * 1000) && !TerminateThreadSignal.IsSignaled())
 			{
+				// Check if there is a decoder flush pending. While we cannot flush right now we
+				// have to at least pretend we do
+				if (FlushDecoderSignal.IsSignaled())
+				{
+					DecoderFlushedSignal.Signal();
+				}
 			}
 			UE_LOG(LogElectraPlayer, Log, TEXT("FVideoDecoderH265(%p): OnResuming"), this);
 			if (bCfgReconfigureSurfaceOnWakeup)
 			{
 				bForceDecoderRefresh = true;
 			}
+			ApplicationSuspendConfirmedSignal.Reset();
+		}
+
+		// Is there a pending flush? If so, execute the flush and go back to the top to check if we must terminate now.
+		if (CheckForFlush())
+		{
+			continue;
 		}
 
 		// Is a decoder refresh required? This is necessary if the decoder output surface has changed.
@@ -2123,37 +2204,6 @@ void FVideoDecoderH265::WorkerThread()
 				}
 			}
 		}
-
-		// Flush?
-		if (FlushDecoderSignal.IsSignaled())
-		{
-			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_VideoH265Decode);
-			CSV_SCOPED_TIMING_STAT(ElectraPlayer, VideoH265Decode);
-
-			// Flush and stop the decoder.
-			UnprepareDecoder();
-
-			// Flush all pending input
-			CurrentAccessUnit.Reset();
-			NextAccessUnits.Empty();
-			ReplayAccessUnits.Empty();
-			InDecoderInput.Empty();
-			CurrentSequenceIndex.Reset();
-			LastPushedPresentationTimeUs = 0;
-			DecodingState = EDecodingState::Regular;
-
-			// Flush all pending output
-			OutputSurfaceTargetPTS.Time = -1.0;
-			OutputSurfaceTargetPTS.SequenceIndex = 0;
-			ReadyOutputBuffersToSurface.Empty();
-
-			FlushDecoderSignal.Reset();
-			DecoderFlushedSignal.Signal();
-
-			// Reset done state.
-			bDone = false;
-			bBlockedOnInput = false;
-		}
 	}
 
 	InternalDecoderDestroy();
@@ -2181,29 +2231,4 @@ void FVideoDecoderH265::WorkerThread()
 	}
 }
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-/**
- * Callback triggered when we release a decoder output buffer to the output surface
- * (currently here from completeness, but not currently used! - the signal that is)
- */
-void FVideoDecoderH265::JavaCallback_NewDataAvailable(uint32 NativeDecoderID)
-{
-	FScopeLock Lock(&NativeDecoderMapCS);
-	FVideoDecoderH265 **NativeDecoder = NativeDecoderMap.Find(NativeDecoderID);
-	if (NativeDecoder)
-	{
-		(*NativeDecoder)->NewDataAvailable.Signal();
-	}
-}
-
 } // namespace Electra
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-#if USE_ANDROID_JNI
-JNI_METHOD void Java_com_epicgames_unreal_ElectraVideoDecoderH265_nativeSignalNewDataAvailable(JNIEnv* jenv, jobject thiz, jint NativeDecoderID)
-{
-	Electra::FVideoDecoderH265::JavaCallback_NewDataAvailable(NativeDecoderID);
-}
-#endif

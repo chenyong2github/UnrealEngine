@@ -699,6 +699,24 @@ struct FShaderDrawDebugStateData
 	}
 };
 
+// Some resources used across frames can prevent execution of PS, CS and VS work across overlapping frames work.
+// This struct is used to transparently double buffer the sky aerial perspective volume on some platforms,
+// in order to make sure two consecutive frames have no resource dependencies, resulting in no cross frame barrier/sync point.
+struct FPersistentSkyAtmosphereData
+{
+	FPersistentSkyAtmosphereData();
+
+	void InitialiseOrNextFrame(ERHIFeatureLevel::Type FeatureLevel, FPooledRenderTargetDesc& AerialPerspectiveDesc, FRHICommandListImmediate& RHICmdList);
+
+	TRefCountPtr<IPooledRenderTarget> GetCurrentCameraAerialPerspectiveVolume();
+
+private:
+	bool bInitialised;
+	TRefCountPtr<IPooledRenderTarget> CameraAerialPerspectiveVolumes[2];
+	uint8 CameraAerialPerspectiveVolumeCount;
+	uint8 CameraAerialPerspectiveVolumeIndex;
+};
+
 /**
  * The scene manager's private implementation of persistent view state.
  * This class is associated with a particular camera across multiple frames by the game thread.
@@ -754,6 +772,8 @@ public:
 	FFrameBasedOcclusionQueryPool PrimitiveOcclusionQueryPool;
 
 	FHZBOcclusionTester HZBOcclusionTests;
+
+	FPersistentSkyAtmosphereData PersistentSkyAtmosphereData;
 
 	/** Storage to which compressed visibility chunks are uncompressed at runtime. */
 	TArray<uint8> DecompressedVisibilityChunk;
@@ -830,10 +850,15 @@ private:
 	class FEyeAdaptationManager
 	{
 	public:
-		// Allows forward declaration of FRHIGPUTextureReadback
-		~FEyeAdaptationManager();
+		FEyeAdaptationManager();
 
 		void SafeRelease();
+
+		/** Get the last frame exposure value (used to compute pre-exposure) */
+		float GetLastExposure() const { return LastExposure; }
+
+		/** Get the last frame average scene luminance (used for exposure compensation curve) */
+		float GetLastAverageSceneLuminance() const { return LastAverageSceneLuminance; }
 
 		const TRefCountPtr<IPooledRenderTarget>& GetCurrentTexture() const
 		{
@@ -846,26 +871,14 @@ private:
 			return GetOrCreateTexture(RHICmdList, CurrentBuffer);
 		}
 
-		int32 GetPreviousPreviousIndex() const
-		{
-			return ((CurrentBuffer-2)+3)%3;
-		}
-
-		/** Return old Render Target*/
-		const TRefCountPtr<IPooledRenderTarget>& GetLastTexture(FRHICommandList& RHICmdList)
-		{
-			// "last" frame is actually 2 behind
-			return GetOrCreateTexture(RHICmdList, GetPreviousPreviousIndex());
-		}
-
 		/** Reverse the current/last order of the targets */
-		void SwapTextures(FRDGBuilder& GraphBuilder, bool bUpdateLastExposure);
+		void SwapTextures();
 
-		/** Get the last frame exposure value (used to compute pre-exposure) */
-		float GetLastExposure() const { return LastExposure; }
+		/** Update Last Exposure with the most recent value */
+		void UpdateLastExposureFromTexture();
 
-		/** Get the last frame average scene luminance (used for exposure compensation curve) */
-		float GetLastAverageSceneLuminance() const { return LastAverageSceneLuminance; }
+		/** Enqueue a pass to readback current exposure */
+		void EnqueueExposureTextureReadback(FRDGBuilder& GraphBuilder);
 
 		const TRefCountPtr<FRDGPooledBuffer>& GetCurrentBuffer() const
 		{
@@ -877,12 +890,10 @@ private:
 			return GetOrCreateBuffer(GraphBuilder, CurrentBuffer);
 		}
 
-		const TRefCountPtr<FRDGPooledBuffer>& GetLastBuffer(FRDGBuilder& GraphBuilder)
-		{
-			return GetOrCreateBuffer(GraphBuilder, GetPreviousPreviousIndex());
-		}
+		void SwapBuffers();
+		void UpdateLastExposureFromBuffer();
+		void EnqueueExposureBufferReadback(FRDGBuilder& GraphBuilder);
 
-		void SwapBuffers(FRDGBuilder& GraphBuilder, bool bUpdateLastExposure);
 	private:
 		const TRefCountPtr<IPooledRenderTarget>& GetTexture(uint32 TextureIndex) const;
 		const TRefCountPtr<IPooledRenderTarget>& GetOrCreateTexture(FRHICommandList& RHICmdList, uint32 TextureIndex);
@@ -890,20 +901,27 @@ private:
 		const TRefCountPtr<FRDGPooledBuffer>& GetBuffer(uint32 BufferIndex) const;
 		const TRefCountPtr<FRDGPooledBuffer>& GetOrCreateBuffer(FRDGBuilder& GraphBuilder, uint32 BufferIndex);
 
+		FRHIGPUBufferReadback* GetLatestReadbackBuffer();
+		FRHIGPUTextureReadback* GetLatestReadbackTexture();
+
+		static const int32 NUM_BUFFERS = 2;
+
 		int32 CurrentBuffer = 0;
 
 		float LastExposure = 0;
 		float LastAverageSceneLuminance = 0; // 0 means invalid. Used for Exposure Compensation Curve.
 
-		// Data is triple buffered. When getting the "previous" frame, we actually want the
-		// data from two frames agao, so the actual previous frame is ((CurrentBuffer-1)+3)%3, but 
-		// the frame we actually want to use is ((CurrentBuffer-2)+3)%3;
-		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[3];
-		TUniquePtr<FRHIGPUTextureReadback> ExposureTextureReadback[3];
+		// Exposure texture/buffer is double buffered
+		TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[NUM_BUFFERS];
+		TArray<FRHIGPUTextureReadback*> ExposureReadbackTextures;
 
 		// ES3.1 feature level. For efficent readback use buffers instead of textures
-		TRefCountPtr<FRDGPooledBuffer> ExposureBufferData[3];
-		TUniquePtr<FRHIGPUBufferReadback> ExposureBufferReadback[3];
+		TRefCountPtr<FRDGPooledBuffer> ExposureBufferData[NUM_BUFFERS];
+		TArray<FRHIGPUBufferReadback*> ExposureReadbackBuffers;
+
+		static const uint32 MAX_READBACK_BUFFERS = 4;
+		uint32 ReadbackBuffersWriteIndex = 0;
+		uint32 ReadbackBuffersNumPending = 0;
 
 	} EyeAdaptationManager;
 
@@ -1245,15 +1263,26 @@ public:
 		return EyeAdaptationManager.GetCurrentTexture(RHICmdList).GetReference();
 	}
 
-	IPooledRenderTarget* GetLastEyeAdaptationTexture(FRHICommandList& RHICmdList)
+	/** Swaps the double-buffer targets used in eye adaptation */
+	void SwapEyeAdaptationTextures()
 	{
-		return EyeAdaptationManager.GetLastTexture(RHICmdList).GetReference();
+		EyeAdaptationManager.SwapTextures();
 	}
 
-	/** Swaps the double-buffer targets used in eye adaptation */
-	void SwapEyeAdaptationTextures(FRDGBuilder& GraphBuilder)
+	void UpdateEyeAdaptationLastExposureFromTexture()
 	{
-		EyeAdaptationManager.SwapTextures(GraphBuilder, bUpdateLastExposure && bValidEyeAdaptationTexture);
+		if (bUpdateLastExposure && bValidEyeAdaptationTexture)
+		{
+			EyeAdaptationManager.UpdateLastExposureFromTexture();
+		}
+	}
+
+	void EnqueueEyeAdaptationExposureTextureReadback(FRDGBuilder& GraphBuilder)
+	{
+		if (bUpdateLastExposure && bValidEyeAdaptationTexture)
+		{
+			EyeAdaptationManager.EnqueueExposureTextureReadback(GraphBuilder);
+		}
 	}
 
 	FRDGPooledBuffer* GetCurrentEyeAdaptationBuffer() const override final
@@ -1269,14 +1298,25 @@ public:
 		return EyeAdaptationManager.GetCurrentBuffer(GraphBuilder).GetReference();
 	}
 
-	FRDGPooledBuffer* GetLastEyeAdaptationBuffer(FRDGBuilder& GraphBuilder)
+	void SwapEyeAdaptationBuffers()
 	{
-		return EyeAdaptationManager.GetLastBuffer(GraphBuilder).GetReference();
+		EyeAdaptationManager.SwapBuffers();
 	}
 
-	void SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder)
+	void UpdateEyeAdaptationLastExposureFromBuffer()
 	{
-		EyeAdaptationManager.SwapBuffers(GraphBuilder, bUpdateLastExposure && bValidEyeAdaptationBuffer);
+		if (bUpdateLastExposure && bValidEyeAdaptationBuffer)
+		{
+			EyeAdaptationManager.UpdateLastExposureFromBuffer();
+		}
+	}
+
+	void EnqueueEyeAdaptationExposureBufferReadback(FRDGBuilder& GraphBuilder)
+	{
+		if (bUpdateLastExposure && bValidEyeAdaptationBuffer)
+		{
+			EyeAdaptationManager.EnqueueExposureBufferReadback(GraphBuilder);
+		}
 	}
 
 #if WITH_MGPU
@@ -2583,7 +2623,7 @@ public:
 	bool AddPixelInspectorRequest(FPixelInspectorRequest *PixelInspectorRequest);
 
 	//Hold the buffer array
-	TMap<FVector2D, FPixelInspectorRequest *> Requests;
+	TMap<FVector2f, FPixelInspectorRequest *> Requests;
 
 	FRenderTarget* RenderTargetBufferDepth[2];
 	FRenderTarget* RenderTargetBufferFinalColor[2];

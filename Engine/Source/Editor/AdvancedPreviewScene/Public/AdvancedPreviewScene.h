@@ -83,6 +83,7 @@ protected:
 
 	float CurrentRotationSpeed;
 	float PreviousRotation;
+	float UILightingRigRotationDelta;
 
 	bool bSkyChanged;
 	bool bPostProcessing;

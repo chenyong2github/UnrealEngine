@@ -160,6 +160,64 @@ private:
 FOpenXRRenderBridge* CreateRenderBridge_OpenGL(XrInstance InInstance, XrSystemId InSystem) { return new FOpenGLRenderBridge(InInstance, InSystem); }
 #endif
 
+#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
+class FOpenGLESRenderBridge : public FOpenXRRenderBridge
+{
+public:
+	FOpenGLESRenderBridge(XrInstance InInstance, XrSystemId InSystem)
+		: Binding()
+	{
+		PFN_xrGetOpenGLESGraphicsRequirementsKHR GetOpenGLESGraphicsRequirementsKHR;
+		XR_ENSURE(xrGetInstanceProcAddr(InInstance, "xrGetOpenGLESGraphicsRequirementsKHR", (PFN_xrVoidFunction*)&GetOpenGLESGraphicsRequirementsKHR));
+
+		XrGraphicsRequirementsOpenGLESKHR Requirements;
+		Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR;
+		Requirements.next = nullptr;
+		Requirements.minApiVersionSupported = 0;
+		Requirements.maxApiVersionSupported = 0;
+		XR_ENSURE(GetOpenGLESGraphicsRequirementsKHR(InInstance, InSystem, &Requirements));
+
+#if PLATFORM_ANDROID
+		XrVersion RHIVersion = XR_MAKE_VERSION(FAndroidOpenGL::GLMajorVerion, FAndroidOpenGL::GLMinorVersion, 0);
+		if (RHIVersion < Requirements.minApiVersionSupported) //-V547
+		{
+			UE_LOG(LogHMD, Fatal, TEXT("The OpenGLES API version does not meet the minimum version required by the OpenXR runtime"));
+		}
+
+		if (RHIVersion > Requirements.maxApiVersionSupported) //-V547
+		{
+			UE_LOG(LogHMD, Warning, TEXT("The OpenGLES API version has not been tested with the OpenXR runtime"));
+		}
+#endif
+	}
+
+	virtual void* GetGraphicsBinding() override
+	{
+#if PLATFORM_ANDROID
+		Binding.type = XR_TYPE_GRAPHICS_BINDING_OPENGL_ES_ANDROID_KHR;
+		Binding.next = nullptr;
+		Binding.display = AndroidEGL::GetInstance()->GetDisplay();
+		Binding.config = AndroidEGL::GetInstance()->GetConfig();
+		Binding.context = AndroidEGL::GetInstance()->GetRenderingContext()->eglContext;
+		return &Binding;
+#endif
+		return nullptr;
+	}
+
+	virtual FXRSwapChainPtr CreateSwapchain(XrSession InSession, uint8 Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, const FClearValueBinding& ClearValueBinding) override final
+	{
+		return CreateSwapchain_OpenGLES(InSession, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Flags, TargetableTextureFlags, ClearValueBinding);
+	}
+
+private:
+#if PLATFORM_ANDROID
+	XrGraphicsBindingOpenGLESAndroidKHR Binding;
+#endif
+};
+
+FOpenXRRenderBridge* CreateRenderBridge_OpenGLES(XrInstance InInstance, XrSystemId InSystem) { return new FOpenGLESRenderBridge(InInstance, InSystem); }
+#endif
+
 #ifdef XR_USE_GRAPHICS_API_VULKAN
 class FVulkanRenderBridge : public FOpenXRRenderBridge
 {

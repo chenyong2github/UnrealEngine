@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/Input/SButton.h"
@@ -40,6 +41,14 @@ bool SUsdOptionsWindow::ShowOptions( UObject& OptionsObject, bool bIsImport )
 		.IsImport( bIsImport )
 		.WidgetWindow( Window )
 	);
+
+	// Preemptively make sure we have a progress dialog created before showing our modal. This because the progress
+	// dialog itself is also modal. If it doesn't exist yet, and our options dialog causes a progress dialog
+	// to be spawned (e.g. when switching the Level to export via the LevelSequenceUSDExporter), the progress dialog
+	// will be pushed to the end of FSlateApplication::ActiveModalWindows (SlateApplication.cpp) and cause our options
+	// dialog to pop out of its modal loop (FSlateApplication::AddModalWindow), instantly returning false to our caller
+	FScopedSlowTask Progress( 1, LOCTEXT( "ShowingDialog", "Picking options..." ) );
+	Progress.MakeDialog();
 
 	const bool bSlowTaskWindow = false;
 	FSlateApplication::Get().AddModalWindow( Window, ParentWindow, bSlowTaskWindow );

@@ -223,6 +223,13 @@ struct FWeightmapLayerAllocationInfo
 	{
 	}
 	
+	bool operator == (const FWeightmapLayerAllocationInfo& RHS) const
+	{
+		return (LayerInfo == RHS.LayerInfo)
+			&& (WeightmapTextureIndex == RHS.WeightmapTextureIndex)
+			&& (WeightmapTextureChannel == RHS.WeightmapTextureChannel); 
+	}
+
 	FName GetLayerName() const;
 
 	uint32 GetHash() const;
@@ -235,6 +242,12 @@ struct FWeightmapLayerAllocationInfo
 
 	bool IsAllocated() const { return (WeightmapTextureChannel != 255 && WeightmapTextureIndex != 255); }
 };
+
+inline uint32 GetTypeHash(const FWeightmapLayerAllocationInfo& InAllocInfo)
+{
+	return InAllocInfo.GetHash();
+}
+
 
 struct FLandscapeComponentGrassData
 {
@@ -315,7 +328,7 @@ struct FWeightmapData
 	UPROPERTY()
 	TArray<FWeightmapLayerAllocationInfo> LayerAllocations;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, NonTransactional)
 	TArray<TObjectPtr<ULandscapeWeightmapUsage>> TextureUsages;
 };
 
@@ -482,7 +495,7 @@ class ULandscapeComponent : public UPrimitiveComponent
 
 	/** UV offset to component's weightmap data from component local coordinates*/
 	UPROPERTY()
-	FVector4 WeightmapScaleBias;
+	FVector4f WeightmapScaleBias;
 
 	/** U or V offset into the weightmap for the first subsection, in texture UV space */
 	UPROPERTY()
@@ -490,7 +503,7 @@ class ULandscapeComponent : public UPrimitiveComponent
 
 	/** UV offset to Heightmap data from component local coordinates */
 	UPROPERTY()
-	FVector4 HeightmapScaleBias;
+	FVector4f HeightmapScaleBias;
 
 	/** Cached local-space bounding box, created at heightmap update time */
 	UPROPERTY()
@@ -700,6 +713,7 @@ public:
 
 	/** Fix up component layers, weightmaps */
 	LANDSCAPE_API void FixupWeightmaps();
+	LANDSCAPE_API void FixupWeightmaps(const FGuid& InEditLayerGuid);
 
 	/** Repair invalid texture data that might have been introduced by a faulty version. Returns the list of repaired textures  */
 	TArray<UTexture*> RepairInvalidTextures();
@@ -726,6 +740,8 @@ public:
 	LANDSCAPE_API UTexture2D* GetHeightmap(bool InReturnEditingHeightmap = false) const;
 	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false) const;
+	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(const FGuid& InLayerGuid);
+	LANDSCAPE_API const TArray<UTexture2D*>& GetWeightmapTextures(const FGuid& InLayerGuid) const;
 
 	LANDSCAPE_API TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false) const;
@@ -743,6 +759,8 @@ public:
 	LANDSCAPE_API void SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToEditingWeightmap = false);
 	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false) const;
+	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(const FGuid& InLayerGuid);
+	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(const FGuid& InLayerGuid) const;
 
 	LANDSCAPE_API bool HasLayersData() const;
 	LANDSCAPE_API const FLandscapeLayerComponentData* GetLayerData(const FGuid& InLayerGuid) const;
@@ -1043,6 +1061,7 @@ public:
 
 	/** @todo document */
 	void RemoveInvalidWeightmaps();
+	void RemoveInvalidWeightmaps(const FGuid& InEditLayerGuid);
 
 	/** @todo document */
 	LANDSCAPE_API void InitHeightmapData(TArray<FColor>& Heights, bool bUpdateCollision);

@@ -212,6 +212,7 @@ FEvaluateOutput Evaluate(
 		OutSample.Emissive	= BSDF_GETEMISSIVE(HairBSDF);
 		float3 Tangent		= normalize(MaterialParameters.SharedLocalBases.Normals[BSDF_GETSHAREDLOCALBASISID(HairBSDF)]);
 		
+	#if HAIRSTRANDS_HAS_NORMAL_CONNECTED
 	  #if MATERIAL_TANGENTSPACENORMAL 
 		// Convert the tangent space input tangent 
 		// * from a frame with Z/(0,0,1) being up and Y/(0,1,0) being the main tangent direction (called green)
@@ -223,7 +224,9 @@ FEvaluateOutput Evaluate(
 	  #else // Tangent in World space (likely provided by the HairAttributes node)
 		OutSample.Tangent = Tangent;
 	  #endif
-
+	#else
+		OutSample.Tangent = normalize(Interpolants.TangentToWorld2.xyz);
+	#endif
 #else
 
 		OutSample.BaseColor = GetMaterialBaseColor(PixelMaterialInputs);

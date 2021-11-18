@@ -80,7 +80,10 @@
 
 #include "CADData.h"
 
-CADKernel::FCoreTechBridge::FCoreTechBridge(FSession& InSession)
+namespace CADKernel
+{
+
+FCoreTechBridge::FCoreTechBridge(FSession& InSession)
 	: Session(InSession)
 	, GeometricTolerance(Session.GetGeometricTolerance())
 	, SquareGeometricTolerance(FMath::Square(Session.GetGeometricTolerance()))
@@ -88,7 +91,7 @@ CADKernel::FCoreTechBridge::FCoreTechBridge(FSession& InSession)
 {
 }
 
-TSharedRef<CADKernel::FBody> CADKernel::FCoreTechBridge::AddBody(CT_OBJECT_ID CTBodyId)
+TSharedRef<FBody> FCoreTechBridge::AddBody(CT_OBJECT_ID CTBodyId)
 {
 	TSharedPtr<FEntity>* EntityPtr = CTIdToEntity.Find((uint32)CTBodyId);
 	if (EntityPtr)
@@ -157,7 +160,7 @@ TSharedRef<CADKernel::FBody> CADKernel::FCoreTechBridge::AddBody(CT_OBJECT_ID CT
 	return Body;
 }
 
-void CADKernel::FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
+void FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShell>& Shell)
 {
 	FSurfacicBoundary FaceBoundary;
 	Get2DCurvesRange(CTFaceId, FaceBoundary);
@@ -265,12 +268,12 @@ void CADKernel::FCoreTechBridge::AddFace(CT_OBJECT_ID CTFaceId, TSharedRef<FShel
 	Shell->Add(Face, Orientation);
 }
 
-void CADKernel::FCoreTechBridge::Get2DCurvesRange(CT_OBJECT_ID CTFaceId, CADKernel::FSurfacicBoundary& OutBoundary)
+void FCoreTechBridge::Get2DCurvesRange(CT_OBJECT_ID CTFaceId, FSurfacicBoundary& OutBoundary)
 {
 	CT_FACE_IO::AskUVminmax(CTFaceId, OutBoundary[EIso::IsoU].Min, OutBoundary[EIso::IsoU].Max, OutBoundary[EIso::IsoV].Min, OutBoundary[EIso::IsoV].Max);
 }
 
-TSharedPtr<CADKernel::FTopologicalLoop> CADKernel::FCoreTechBridge::AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface)
+TSharedPtr<FTopologicalLoop> FCoreTechBridge::AddLoop(CT_OBJECT_ID CTLoopId, TSharedRef<FSurface>& Surface)
 {
 	CT_LIST_IO CTCoedgeIds;
 	CT_LOOP_IO::AskCoedges(CTLoopId, CTCoedgeIds);
@@ -305,7 +308,7 @@ TSharedPtr<CADKernel::FTopologicalLoop> CADKernel::FCoreTechBridge::AddLoop(CT_O
 	return FTopologicalLoop::Make(Edges, Directions, GeometricTolerance);
 }
 
-void CADKernel::FCoreTechBridge::LinkEdgesLoop(CT_OBJECT_ID CTLoopId, FTopologicalLoop& Loop)
+void FCoreTechBridge::LinkEdgesLoop(CT_OBJECT_ID CTLoopId, FTopologicalLoop& Loop)
 {
 	CT_LIST_IO CTCoedgeIds;
 	CT_LOOP_IO::AskCoedges(CTLoopId, CTCoedgeIds);
@@ -344,7 +347,7 @@ void CADKernel::FCoreTechBridge::LinkEdgesLoop(CT_OBJECT_ID CTLoopId, FTopologic
 	}
 }
 
-TSharedPtr<CADKernel::FTopologicalEdge> CADKernel::FCoreTechBridge::AddEdge(CT_OBJECT_ID CTCoedgeId, TSharedRef<FSurface>& Surface)
+TSharedPtr<FTopologicalEdge> FCoreTechBridge::AddEdge(CT_OBJECT_ID CTCoedgeId, TSharedRef<FSurface>& Surface)
 {
 	// build carrier curve
 	CT_UINT32 Order;
@@ -412,6 +415,8 @@ TSharedPtr<CADKernel::FTopologicalEdge> CADKernel::FCoreTechBridge::AddEdge(CT_O
 	TSharedPtr<FTopologicalEdge> Edge = FTopologicalEdge::Make(RestrictionCurve);
 	if (!Edge.IsValid())
 	{
+		RestrictionCurve->Delete();
+		Curve->Delete();
 		return TSharedPtr<FTopologicalEdge>();
 	}
 
@@ -424,7 +429,7 @@ TSharedPtr<CADKernel::FTopologicalEdge> CADKernel::FCoreTechBridge::AddEdge(CT_O
 	return Edge;
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
+TSharedPtr<FSurface> FCoreTechBridge::AddSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
 {
 	TSharedPtr<FEntity>* SurfacePtr = CTIdToEntity.Find((uint32)CTSurfaceId);
 	if (SurfacePtr != nullptr)
@@ -480,7 +485,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddSurface(CT_OBJECT
 	return Surface;
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddCurve(CT_OBJECT_ID CTCurveId, CT_OBJECT_ID CTSurfaceId)
+TSharedPtr<FCurve> FCoreTechBridge::AddCurve(CT_OBJECT_ID CTCurveId, CT_OBJECT_ID CTSurfaceId)
 {
 	TSharedPtr<FEntity>* CurvePtr = CTIdToEntity.Find((uint32)CTCurveId);
 	if (CurvePtr != nullptr)
@@ -540,7 +545,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddCurve(CT_OBJECT_ID 
 	return Curve;
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddRuledSurface(CT_OBJECT_ID CTSurfaceId)
+TSharedPtr<FSurface> FCoreTechBridge::AddRuledSurface(CT_OBJECT_ID CTSurfaceId)
 {
 	CT_OBJECT_ID CTGeneratrix1Id;
 	CT_OBJECT_ID CTGeneratrix2Id;
@@ -557,7 +562,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddRuledSurface(CT_O
 	return TSharedPtr<FSurface>();
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddTorusSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
+TSharedPtr<FSurface> FCoreTechBridge::AddTorusSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
 {
 	CT_COORDINATE TorusOrigin;
 	CT_VECTOR Direction;
@@ -576,7 +581,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddTorusSurface(CT_O
 	return FEntity::MakeShared<FTorusSurface>(GeometricTolerance, CoordinateSystem, MajorRadius, MinorRadius, MajorStartAngle, MajorEndAngle, MinorStartAngle, MinorEndAngle);
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddSphereSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
+TSharedPtr<FSurface> FCoreTechBridge::AddSphereSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
 {
 	CT_COORDINATE SphereOrigin;
 	CT_VECTOR Direction;
@@ -595,7 +600,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddSphereSurface(CT_
 	return FEntity::MakeShared<FSphericalSurface>(GeometricTolerance, CoordinateSystem, Radius, MeridianStartAngle, MeridianEndAngle, ParallelStartAngle, ParallelEndAngle);
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddOffsetSurface(CT_OBJECT_ID CTSurfaceID, const FSurfacicBoundary& Boundary)
+TSharedPtr<FSurface> FCoreTechBridge::AddOffsetSurface(CT_OBJECT_ID CTSurfaceID, const FSurfacicBoundary& Boundary)
 {
 	CT_OBJECT_ID CTBaseSurfaceId;
 	CT_DOUBLE OffsetValue;
@@ -613,7 +618,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddOffsetSurface(CT_
 	return FEntity::MakeShared<FOffsetSurface>(GeometricTolerance, BaseSurface.ToSharedRef(), OffsetValue);
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddLinearTransfoSurface(CT_OBJECT_ID CTSurfaceId)
+TSharedPtr<FSurface> FCoreTechBridge::AddLinearTransfoSurface(CT_OBJECT_ID CTSurfaceId)
 {
 	ensureCADKernel(false);
 	FMessage::Printf(Log, TEXT("The CTSurface %d is a linear transform surface, this face is ignored\n"), CTSurfaceId);
@@ -638,7 +643,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddLinearTransfoSurf
 	return Surface;
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddConeSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
+TSharedPtr<FSurface> FCoreTechBridge::AddConeSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Direction;
@@ -658,7 +663,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddConeSurface(CT_OB
 	return FEntity::MakeShared<FConeSurface>(GeometricTolerance, CoordinateSystem, Radius, HalfAngle, StartRuleLength, EndRuleLength, StartAngle, EndAngle);
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddPlaneSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary)
+TSharedPtr<FSurface> FCoreTechBridge::AddPlaneSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& InBoundary)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Normal;
@@ -670,7 +675,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddPlaneSurface(CT_O
 	return FEntity::MakeShared<FPlaneSurface>(GeometricTolerance, CoordinateSystem, InBoundary);
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddCylinderSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
+TSharedPtr<FSurface> FCoreTechBridge::AddCylinderSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Direction, UReference;
@@ -689,7 +694,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddCylinderSurface(C
 	return FEntity::MakeShared<FCylinderSurface>(GeometricTolerance, CoordinateSystem, Radius, StartLength, EndLength, StartAngle, EndAngle);
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddRevolutionSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
+TSharedPtr<FSurface> FCoreTechBridge::AddRevolutionSurface(CT_OBJECT_ID CTSurfaceId, const FSurfacicBoundary& Boundary)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Direction;
@@ -716,7 +721,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddRevolutionSurface
 	return FEntity::MakeShared<FRevolutionSurface>(GeometricTolerance, Axe, Generatrix.ToSharedRef(), MinAngle, MaxAngle);
 }
 
-TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddNurbsSurface(CT_OBJECT_ID CTSurfaceId)
+TSharedPtr<FSurface> FCoreTechBridge::AddNurbsSurface(CT_OBJECT_ID CTSurfaceId)
 {
 	CT_UINT32 OrderU;
 	CT_UINT32 OrderV;
@@ -777,7 +782,7 @@ TSharedPtr<CADKernel::FSurface> CADKernel::FCoreTechBridge::AddNurbsSurface(CT_O
 	return FEntity::MakeShared<FNURBSSurface>(GeometricTolerance, PolesUNum, PolesVNum, DegreU, DegreV, KnotsU, KnotsV, Poles);
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddNurbsCurve(CT_OBJECT_ID CTCurveId)
+TSharedPtr<FCurve> FCoreTechBridge::AddNurbsCurve(CT_OBJECT_ID CTCurveId)
 {
 	CT_UINT32 Order;
 	CT_UINT32 KnotSize;
@@ -820,7 +825,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddNurbsCurve(CT_OBJEC
 	return FEntity::MakeShared<FNURBSCurve>(Degre, Knots, Poles);
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddLineCurve(CT_OBJECT_ID CTCurveId, CT_OBJECT_ID CTSurfaceId)
+TSharedPtr<FCurve> FCoreTechBridge::AddLineCurve(CT_OBJECT_ID CTCurveId, CT_OBJECT_ID CTSurfaceId)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Direction;
@@ -856,7 +861,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddLineCurve(CT_OBJECT
 	return FEntity::MakeShared<FSegmentCurve>(Point1, Point2, 3);
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddCompositeCurve(CT_OBJECT_ID CTCurveId)
+TSharedPtr<FCurve> FCoreTechBridge::AddCompositeCurve(CT_OBJECT_ID CTCurveId)
 {
 	CT_INT32 CurveNum;
 	CT_CCOMPO_IO::AskParameters(CTCurveId, CurveNum);
@@ -884,7 +889,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddCompositeCurve(CT_O
 	return FEntity::MakeShared<FCompositeCurve>(Curves);
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddCircleCurve(CT_OBJECT_ID CTCurveId)
+TSharedPtr<FCurve> FCoreTechBridge::AddCircleCurve(CT_OBJECT_ID CTCurveId)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Direction, UReference;
@@ -903,7 +908,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddCircleCurve(CT_OBJE
 	return FEntity::MakeShared<FEllipseCurve>(CoordinateSystem, Radius, Radius, FLinearBoundary(StartAngle, EndAngle));
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddParabolaCurve(CT_OBJECT_ID CTCurveId)
+TSharedPtr<FCurve> FCoreTechBridge::AddParabolaCurve(CT_OBJECT_ID CTCurveId)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Direction;
@@ -919,7 +924,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddParabolaCurve(CT_OB
 	return FEntity::MakeShared<FParabolaCurve>(CoordinateSystem, Focal, FLinearBoundary(StartAlpha, EndAlpha), 3);
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddEllipseCurve(CT_OBJECT_ID CTCurveId)
+TSharedPtr<FCurve> FCoreTechBridge::AddEllipseCurve(CT_OBJECT_ID CTCurveId)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Direction, UReference;
@@ -937,7 +942,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddEllipseCurve(CT_OBJ
 	return  FEntity::MakeShared<FEllipseCurve>(CoordinateSystem, Radius1, Radius2, FLinearBoundary(StartAlpha, EndAlpha));
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddCurveOnSurface(CT_OBJECT_ID CTCurveId)
+TSharedPtr<FCurve> FCoreTechBridge::AddCurveOnSurface(CT_OBJECT_ID CTCurveId)
 {
 	CT_OBJECT_ID CTBaseSurfaceId;
 	CT_OBJECT_ID CTParametricCurveId;
@@ -997,7 +1002,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddCurveOnSurface(CT_O
 	return FEntity::MakeShared<FSurfacicCurve>(Curve2D.ToSharedRef(), Surface.ToSharedRef());
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddHyperbolaCurve(CT_OBJECT_ID CTCurveId)
+TSharedPtr<FCurve> FCoreTechBridge::AddHyperbolaCurve(CT_OBJECT_ID CTCurveId)
 {
 	CT_COORDINATE Origin;
 	CT_VECTOR Direction;
@@ -1014,7 +1019,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FCoreTechBridge::AddHyperbolaCurve(CT_O
 	return FEntity::MakeShared<FHyperbolaCurve>(CoordinateSystem, HalfAxis1, HalfAxis2, FLinearBoundary(StartAlpha, EndAlpha));
 }
 
-CADKernel::FMatrixH CADKernel::FCoreTechBridge::CreateCoordinateSystem(const CT_COORDINATE& InOrigin, const CT_VECTOR& InDirection, const CT_VECTOR& InUReference)
+FMatrixH FCoreTechBridge::CreateCoordinateSystem(const CT_COORDINATE& InOrigin, const CT_VECTOR& InDirection, const CT_VECTOR& InUReference)
 {
 	FPoint Origin(InOrigin.xyz);
 	FPoint Ox(InUReference.xyz);
@@ -1082,7 +1087,7 @@ static void GetAttributeValue(CT_ATTRIB_TYPE AttributType, int IthField, EValueT
 			ValueType = EValueType::Unknown;
 			break;
 		}
-		StringValue = CADKernel::FCoreTechBridge::AsFString(StrValue);
+		StringValue = FCoreTechBridge::AsFString(StrValue);
 		break;
 	}
 
@@ -1094,9 +1099,9 @@ static void GetAttributeValue(CT_ATTRIB_TYPE AttributType, int IthField, EValueT
 	}
 }
 
-void CADKernel::FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDictionary> Entity)
+void FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<FMetadataDictionary> Entity)
 {
-	Entity->SetHostId(CTNodeId);
+	Entity->SetHostId((uint32) CTNodeId);
 
 	CT_UINT32 IthAttrib = 0;
 	while (CT_OBJECT_IO::SearchAttribute(CTNodeId, CT_ATTRIB_ALL, IthAttrib++) == IO_OK)
@@ -1180,6 +1185,8 @@ void CADKernel::FCoreTechBridge::AddMetadata(CT_OBJECT_ID CTNodeId, TSharedRef<F
 			break;
 		}
 	}
+}
+
 }
 
 #endif // USE_KERNEL_IO_SDK

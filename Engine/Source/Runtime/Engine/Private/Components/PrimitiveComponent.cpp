@@ -2012,7 +2012,9 @@ void UPrimitiveComponent::SetCustomPrimitiveDataFloat(int32 DataIndex, float Val
 
 void UPrimitiveComponent::SetCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value)
 {
-	SetCustomPrimitiveDataInternal(DataIndex, {Value.X, Value.Y});
+	// LWC_TODO: precision loss
+	FVector2f ValueFlt(Value);
+	SetCustomPrimitiveDataInternal(DataIndex, {ValueFlt.X, ValueFlt.Y});
 }
 
 void UPrimitiveComponent::SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value)
@@ -2058,7 +2060,8 @@ void UPrimitiveComponent::SetDefaultCustomPrimitiveDataFloat(int32 DataIndex, fl
 
 void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value)
 {
-	SetDefaultCustomPrimitiveData(DataIndex, { Value.X, Value.Y });
+	FVector2f ValueFlt(Value);
+	SetDefaultCustomPrimitiveData(DataIndex, { ValueFlt.X, ValueFlt.Y });
 }
 
 void UPrimitiveComponent::SetDefaultCustomPrimitiveDataVector3(int32 DataIndex, FVector Value)
@@ -2810,7 +2813,10 @@ bool UPrimitiveComponent::ComponentOverlapComponentImpl(class UPrimitiveComponen
 
 	if(FBodyInstance* BI = PrimComp->GetBodyInstance())
 	{
-		return BI->OverlapTestForBody(Pos, Quat, GetBodyInstance());
+		if (FBodyInstance* ThisBodyInstance = GetBodyInstance())
+		{
+			return BI->OverlapTestForBody(Pos, Quat, ThisBodyInstance);
+		}
 	}
 
 	return false;

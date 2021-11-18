@@ -61,6 +61,7 @@ enum class EMaterialGetParameterValueFlags : uint32
 	CheckInstanceOverrides = (1u << 1),
 
 	CheckAll = CheckNonOverrides | CheckInstanceOverrides,
+	Default = CheckAll,
 };
 ENUM_CLASS_FLAGS(EMaterialGetParameterValueFlags);
 
@@ -181,7 +182,8 @@ inline bool operator==(const FMaterialParameterValue& Lhs, const FMaterialParame
 	case EMaterialParameterType::DoubleVector: return
 		Lhs.Double[0] == Rhs.Double[0] &&
 		Lhs.Double[1] == Rhs.Double[1] &&
-		Lhs.Double[2] == Rhs.Double[2];
+		Lhs.Double[2] == Rhs.Double[2] &&
+		Lhs.Double[3] == Rhs.Double[3];
 	case EMaterialParameterType::Texture: return Lhs.Texture == Rhs.Texture;
 	case EMaterialParameterType::Font: return Lhs.Font.Value == Rhs.Font.Value && Lhs.Font.Page == Rhs.Font.Page;
 	case EMaterialParameterType::RuntimeVirtualTexture: return Lhs.RuntimeVirtualTexture == Rhs.RuntimeVirtualTexture;

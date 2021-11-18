@@ -7,20 +7,10 @@ using System.IO;
 using System.Xml;
 using System.Xml.Linq;
 using EpicGames.Core;
-
-#nullable disable
+using System.Linq;
 
 namespace UnrealBuildTool
 {
-	// Represents a folder within the master project. TODO Not using at the moment.
-	class CodeLiteFolder : MasterProjectFolder
-	{
-		public CodeLiteFolder(ProjectFileGenerator InitOwnerProjectFileGenerator, string InitFolderName)
-			: base(InitOwnerProjectFileGenerator, InitFolderName)
-		{
-		}
-	}
-
 	enum CodeliteProjectFileFormat
 	{
 		CodeLite9,
@@ -34,7 +24,7 @@ namespace UnrealBuildTool
 		public string CodeCompletionPreProcessorFileName = "CodeLitePreProcessor.txt";
 		CodeliteProjectFileFormat ProjectFileFormat = CodeliteProjectFileFormat.CodeLite10;
 
-		public CodeLiteGenerator(FileReference InOnlyGameProject, CommandLineArguments CommandLine)
+		public CodeLiteGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
 			if(CommandLine.HasOption("-cl10"))
@@ -57,7 +47,7 @@ namespace UnrealBuildTool
 				return ".project";
 			}
 		}
-		protected override bool WriteMasterProjectFile(ProjectFile UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			string SolutionFileName = MasterProjectName + SolutionExtension;
 			string CodeCompletionFile = MasterProjectName + CodeCompletionFileName;
@@ -77,7 +67,7 @@ namespace UnrealBuildTool
 
 			foreach (ProjectFile CurProject in GeneratedProjectFiles)
 			{
-				CodeLiteProject Project = CurProject as CodeLiteProject;
+				CodeLiteProject? Project = CurProject as CodeLiteProject;
 				if (Project == null)
 				{
 					continue;
@@ -145,9 +135,9 @@ namespace UnrealBuildTool
 			//
 			// Write project file information into CodeLite's workspace file.
 			//
-			XElement CodeLiteWorkspaceTargetEngine = null;
-			XElement CodeLiteWorkspaceTargetPrograms = null;
-			XElement CodeLiteWorkspaceTargetGame = null;
+			XElement? CodeLiteWorkspaceTargetEngine = null;
+			XElement? CodeLiteWorkspaceTargetPrograms = null;
+			XElement? CodeLiteWorkspaceTargetGame = null;
 
 			foreach (ProjectFile CurProject in AllProjectFiles)
 			{
@@ -164,7 +154,7 @@ namespace UnrealBuildTool
 				//
 				// Iterate through all targets.
 				//
-				foreach (ProjectTarget CurrentTarget in CurProject.ProjectTargets)
+				foreach (ProjectTarget CurrentTarget in CurProject.ProjectTargets.OfType<ProjectTarget>())
 				{
 					string[] tmp = CurrentTarget.ToString().Split('.');
 					string ProjectTargetFileName = CurProject.ProjectFilePath.Directory.MakeRelativeTo(MasterProjectPath) + "/" + tmp[0] + ProjectExtension;
@@ -184,7 +174,7 @@ namespace UnrealBuildTool
 					//
 					if (ProjectFileFormat == CodeliteProjectFileFormat.CodeLite10)
 					{
-						if ((CurrentTarget.TargetRules.Type == TargetType.Client) ||
+						if ((CurrentTarget.TargetRules!.Type == TargetType.Client) ||
 						    (CurrentTarget.TargetRules.Type == TargetType.Server) ||
 						    (CurrentTarget.TargetRules.Type == TargetType.Editor) ||
 						    (CurrentTarget.TargetRules.Type == TargetType.Game))
@@ -273,7 +263,7 @@ namespace UnrealBuildTool
 							continue;
 						}
 
-						foreach (ProjectTarget target in CurProject.ProjectTargets)
+						foreach (ProjectTarget target in CurProject.ProjectTargets.OfType<ProjectTarget>())
 						{
 							string[] tmp = target.ToString().Split('.');
 							String ProjectName = tmp[0];
@@ -296,14 +286,9 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath)
+		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 		{
-			return new CodeLiteProject(InitFilePath, OnlyGameProject);
-		}
-
-		public override MasterProjectFolder AllocateMasterProjectFolder(ProjectFileGenerator InitOwnerProjectFileGenerator, string InitFolderName)
-		{
-			return new CodeLiteFolder(InitOwnerProjectFileGenerator, InitFolderName);
+			return new CodeLiteProject(InitFilePath, BaseDir, OnlyGameProject);
 		}
 
 		public override void CleanProjectFiles(DirectoryReference InMasterProjectDirectory, string InMasterProjectName, DirectoryReference InIntermediateProjectFilesDirectory)

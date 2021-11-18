@@ -195,7 +195,6 @@ void SIKRetargetChainMapList::Construct(
 		]
 	    
         +SVerticalBox::Slot()
-        .AutoHeight()
         [
 			SAssignNew(ListView, SRetargetChainMapListViewType )
 			.SelectionMode(ESelectionMode::Multi)
@@ -209,7 +208,6 @@ void SIKRetargetChainMapList::Construct(
 				SNew( SHeaderRow )
 				+ SHeaderRow::Column( ColumnId_TargetChainLabel )
 				.DefaultLabel( LOCTEXT( "TargetColumnLabel", "Target Chain" ) )
-				.FixedWidth(150.f)
 
 				+ SHeaderRow::Column( ColumnId_SourceChainLabel )
 				.DefaultLabel( LOCTEXT( "SourceColumnLabel", "Source Chain" ) )

@@ -11,6 +11,7 @@
 
 
 constexpr auto BasicTriggerTestFlags = EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter;	// TODO: Run as Smoke/Client? No world on RunSmokeTests startup...
+constexpr auto DisabledBasicTriggerTestFlags = BasicTriggerTestFlags | EAutomationTestFlags::Disabled;
 
 // Dumping ground for local trigger tests
 static UInputTrigger* TestTrigger = nullptr;
@@ -148,7 +149,8 @@ bool FInputTriggerReleasedTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerHoldTest, "Input.Triggers.Hold", BasicTriggerTestFlags)
+// TODO: Provide a player input pointer to run the Timed Tests
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerHoldTest, "Input.Triggers.Hold", DisabledBasicTriggerTestFlags)
 
 bool FInputTriggerHoldTest::RunTest(const FString& Parameters)
 {
@@ -207,8 +209,8 @@ bool FInputTriggerHoldTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerHoldAndReleaseTest, "Input.Triggers.HoldAndRelease", BasicTriggerTestFlags)
+// TODO: Provide a player input pointer to run the Timed Tests
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerHoldAndReleaseTest, "Input.Triggers.HoldAndRelease", DisabledBasicTriggerTestFlags)
 
 bool FInputTriggerHoldAndReleaseTest::RunTest(const FString& Parameters)
 {
@@ -264,7 +266,8 @@ bool FInputTriggerHoldAndReleaseTest::RunTest(const FString& Parameters)
 	return true;
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerTapTest, "Input.Triggers.Tap", BasicTriggerTestFlags)
+// TODO: Provide a player input pointer to run the Timed Tests
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerTapTest, "Input.Triggers.Tap", DisabledBasicTriggerTestFlags)
 
 bool FInputTriggerTapTest::RunTest(const FString& Parameters)
 {

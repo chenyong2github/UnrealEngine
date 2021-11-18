@@ -515,7 +515,7 @@ void FTextureEditorViewportClient::DestroyCheckerboardTexture()
 		{
 			CheckerboardTexture->ReleaseResource();
 		}
-		CheckerboardTexture->MarkPendingKill();
+		CheckerboardTexture->MarkAsGarbage();
 		CheckerboardTexture = NULL;
 	}
 }

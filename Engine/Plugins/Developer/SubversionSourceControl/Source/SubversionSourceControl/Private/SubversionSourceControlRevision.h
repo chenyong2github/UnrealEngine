@@ -6,7 +6,7 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlRevision.h"
 
-class FSubversionSourceControlRevision : public ISourceControlRevision, public TSharedFromThis<FSubversionSourceControlRevision, ESPMode::ThreadSafe>
+class FSubversionSourceControlRevision : public ISourceControlRevision
 {
 public:
 	FSubversionSourceControlRevision()

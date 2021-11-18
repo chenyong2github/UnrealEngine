@@ -38,11 +38,15 @@ public:
 
 	//~ Begin Helper Functions
 	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FActorDataLayer>& DataLayers) const;
+	TArray<const UDataLayer*> GetDataLayerObjects(const TArray<FName>& InDataLayerNames) const;
 	TArray<FName> GetDataLayerNames(const TArray<FActorDataLayer>& DataLayers) const;
 	//~ End Helper Functions
 
 	// Allows overriding of DataLayers with PlayFromHere
 	void OverwriteDataLayerRuntimeStates(TArray<FActorDataLayer>* InActiveDataLayers = nullptr, TArray<FActorDataLayer>* InLoadedDataLayers = nullptr);
+
+	// Returns the DataLayer user loaded editor states
+	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const;
 #endif
 	
 	void DumpDataLayers(FOutputDevice& OutputDevice) const;

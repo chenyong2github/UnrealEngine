@@ -104,7 +104,7 @@ FWorldTileModel::~FWorldTileModel()
 		TileDetails->HideInTileViewChangedEvent.RemoveAll(this);
 				
 		TileDetails->RemoveFromRoot();
-		TileDetails->MarkPendingKill();
+		TileDetails->MarkAsGarbage();
 	}
 
 	if (LoadedLevel.IsValid())

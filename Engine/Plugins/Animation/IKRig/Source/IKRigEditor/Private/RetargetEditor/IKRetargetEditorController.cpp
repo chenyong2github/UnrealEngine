@@ -87,7 +87,7 @@ USkeletalMesh* FIKRetargetEditorController::GetSourceSkeletalMesh() const
 		return nullptr;
 	}
 
-	return AssetController->GetAsset()->GetSourceIKRig()->PreviewSkeletalMesh;
+	return AssetController->GetAsset()->GetSourceIKRig()->PreviewSkeletalMesh.Get();
 }
 
 USkeletalMesh* FIKRetargetEditorController::GetTargetSkeletalMesh() const
@@ -173,7 +173,7 @@ void FIKRetargetEditorController::RefreshAllViews() const
 
 void FIKRetargetEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
 {
-	if (AssetToPlay && SourceAnimInstance)
+	if (AssetToPlay && SourceAnimInstance.IsValid())
 	{
 		SourceAnimInstance->SetAnimationAsset(AssetToPlay);
 		PreviousAsset = AssetToPlay;

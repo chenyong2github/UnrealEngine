@@ -2,11 +2,17 @@
 
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 
-#include "CADKernel/Math/SlopeUtils.h"
+namespace CADKernel
+{
 
+void FRestrictionCurve::ExtendTo(const FPoint2D& Point)
+{
+	Curve2D->ExtendTo(Point);
+	EvaluateSurfacicPolyline(Polyline);
+}
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FRestrictionCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FRestrictionCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FSurfacicCurve::GetInfo(Info)
 		.Add(TEXT("2D polyline"), Polyline.Points2D)
@@ -14,8 +20,4 @@ CADKernel::FInfoEntity& CADKernel::FRestrictionCurve::GetInfo(FInfoEntity& Info)
 }
 #endif
 
-void CADKernel::FRestrictionCurve::ExtendTo(const FPoint2D& Point)
-{
-	Curve2D->ExtendTo(Point);
-	EvaluateSurfacicPolyline(Polyline);
 }

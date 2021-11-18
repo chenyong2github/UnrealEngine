@@ -117,7 +117,6 @@ bool FTimecodeTest::RunTest(const FString& Parameters)
 					if (!bHoursAreValid || !bMinutesAreValid || !bSecondsAreValid)
 					{
 						AddError(FString::Printf(TEXT("Timecode hours/minutes/seconds doesn't matches with Timespan '%s' from frame rate '%s'.")
-							, *TimecodeValue.ToString()
 							, *TimespanFromTimecode.ToString()
 							, *FrameRate.ToPrettyText().ToString()
 						));

@@ -1,15 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CADKernel/Geo/Curves/EllipseCurve.h"
 
+namespace CADKernel
+{
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FEllipseCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FEllipseCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
 	return FEntity::MakeShared<FEllipseCurve>(NewMatrix, RadiusU, RadiusV, Boundary);
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FEllipseCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FEllipseCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info).Add(TEXT("Matrix"), Matrix)
 		.Add(TEXT("radius U"), RadiusU)
@@ -17,3 +19,4 @@ CADKernel::FInfoEntity& CADKernel::FEllipseCurve::GetInfo(FInfoEntity& Info) con
 }
 #endif
 
+}

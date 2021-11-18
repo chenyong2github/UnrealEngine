@@ -152,6 +152,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Finds the names of all matching type parameters */
 	template<typename ExpressionType>
+	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
 	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
 	{
 		if (const UMaterialFunctionInterface* ParameterFunction = GetBaseFunction())
@@ -163,12 +164,16 @@ public:
 				{
 					if (FunctionExpression->MaterialFunction)
 					{
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
 						FunctionExpression->MaterialFunction->GetAllParameterInfo<const ExpressionType>(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 				}
 				else if (const ExpressionType* ParameterExpression = Cast<const ExpressionType>(Expression))
 				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					ParameterExpression->GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 			}
 

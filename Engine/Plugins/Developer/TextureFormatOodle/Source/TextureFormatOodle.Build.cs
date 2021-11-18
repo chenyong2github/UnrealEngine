@@ -52,10 +52,7 @@ public class TextureFormatOodle : ModuleRules
 
 		string DynamicLibName = DynamicLibNamePrefix + Version + DynamicLibNameSuffix;
 		string SdkBase = Path.Combine(ModuleDirectory, "..", "Sdks", Version);
-		string FullDynamicLibName = Path.Combine(SdkBase + "/redist", PlatformDir) + "/" + DynamicLibName;
-
-		// @@ TEMP
-		//System.Console.WriteLine("FullDynamicLibName : " + FullDynamicLibName);
+		string FullDynamicLibName = Path.Combine(SdkBase, "redist", PlatformDir, DynamicLibName);
 
 		if (!File.Exists(FullDynamicLibName))
 		{
@@ -63,10 +60,6 @@ public class TextureFormatOodle : ModuleRules
 		}
 
 		FullDynamicLibName = "$(EngineDir)/" + UnrealBuildTool.Utils.MakePathRelativeTo(FullDynamicLibName, EngineDirectory);
-
-		// @@ TEMP
-		// FullDynamicLibName : $(EngineDir) / Plugins\Developer\TextureFormatOodle\Sdks\2.9.5 / redist\Win64 / oo2tex_win64_2.9.5.dll
-		//System.Console.WriteLine("FullDynamicLibName : " + FullDynamicLibName);
 
 		RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", DynamicLibName), FullDynamicLibName, StagedFileType.NonUFS);
 	}

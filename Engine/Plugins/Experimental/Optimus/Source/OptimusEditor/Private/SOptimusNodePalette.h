@@ -8,6 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SGraphPalette.h"
 
+enum class EOptimusGlobalNotifyType;
 class FOptimusEditor;
 
 /** Widget for displaying a single item  */
@@ -31,6 +32,8 @@ private:
 class SOptimusNodePalette : public SGraphPalette
 {
 public:
+	~SOptimusNodePalette() override;
+	
 	SLATE_BEGIN_ARGS(SOptimusNodePalette) {};
 	SLATE_END_ARGS()
 
@@ -42,24 +45,9 @@ protected:
 	void CollectAllActions(FGraphActionListBuilderBase& OutAllActions) override;
 	// End of SGraphPalette Interface
 
-	/** Get the currently selected category name */
-	FString GetFilterCategoryName() const;
-
-	/** Callback for when the selected category changes */
-	void CategorySelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
-
-	/** Callback from the Asset Registry when a new asset is added. */
-	void AddAssetFromAssetRegistry(const FAssetData& InAddedAssetData);
-
-	/** Callback from the Asset Registry when an asset is removed. */
-	void RemoveAssetFromRegistry(const FAssetData& InAddedAssetData);
-
-	/** Callback from the Asset Registry when an asset is renamed. */
-	void RenameAssetFromRegistry(const FAssetData& InAddedAssetData, const FString& InNewName);
-
-	void RefreshAssetInRegistry(const FAssetData& InAddedAssetData);
-
-protected:
+private:
+	void GraphCollectionNotify(EOptimusGlobalNotifyType InType, UObject* InObject);
+	
 	// The owning editor
 	TWeakPtr<FOptimusEditor> OwningEditor;
 

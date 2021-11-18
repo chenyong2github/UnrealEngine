@@ -15,9 +15,9 @@
 
 struct FChangeDetector
 {
-	void OnDirectoryChanged(const TArray<FFileChangeData>& FileChanges)
+	void OnDirectoryChangedFunc(const FString& Title, const TArray<FFileChangeData>& FileChanges)
 	{
-		UE_LOG(LogTestPAL, Display, TEXT("  -- %d change(s) detected"), static_cast<int32>(FileChanges.Num()));
+		UE_LOG(LogTestPAL, Display, TEXT("  -- %s %d change(s) detected"), *Title, static_cast<int32>(FileChanges.Num()));
 
 		int ChangeIdx = 0;
 		for (const auto& ThisEntry : FileChanges)
@@ -32,8 +32,78 @@ struct FChangeDetector
 					)
 			);
 		}
+
+		UE_LOG(LogTestPAL, Display, TEXT(""));
+	}
+
+	void OnDirectoryChanged(const TArray<FFileChangeData>& FileChanges)
+	{
+		OnDirectoryChangedFunc(TEXT("OnDirectoryChanged1"), FileChanges);
+	}
+	void OnDirectoryChanged2(const TArray<FFileChangeData>& FileChanges)
+	{
+		OnDirectoryChangedFunc(TEXT("OnDirectoryChanged2"), FileChanges);
 	}
 };
+
+static void DoTick(IDirectoryWatcher* DirectoryWatcher, float Dt = 0.2f)
+{
+	DirectoryWatcher->Tick(Dt);
+	FPlatformProcess::Sleep(Dt);
+	DirectoryWatcher->Tick(Dt);
+}
+
+static void DoCommand(IDirectoryWatcher *DirectoryWatcher, const FString& Command, const FString& Arg)
+{
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+	if (Command == TEXT("CreateDirectory"))
+	{
+		UE_LOG(LogTestPAL, Display, TEXT("Creating DIRECTORY '%s'"), *Arg);
+		verify(PlatformFile.CreateDirectory(*Arg));
+	}
+	else if (Command == TEXT("DeleteDirectory"))
+	{
+		UE_LOG(LogTestPAL, Display, TEXT("Deleting DIRECTORY '%s'"), *Arg);
+		verify(PlatformFile.DeleteDirectory(*Arg));
+	}
+	else if (Command == TEXT("CreateModifyFile"))
+	{
+		// create file
+		UE_LOG(LogTestPAL, Display, TEXT("Creating FILE '%s'"), *Arg);
+		IFileHandle* DummyFile = PlatformFile.OpenWrite(*Arg);
+		check(DummyFile);
+		DoTick(DirectoryWatcher);
+
+		// modify file
+		UE_LOG(LogTestPAL, Display, TEXT("Modifying FILE '%s'"), *Arg);
+		uint8 Contents = 0x32;
+		DummyFile->Write(&Contents, sizeof(Contents));
+		DoTick(DirectoryWatcher);
+
+		// close the file
+		UE_LOG(LogTestPAL, Display, TEXT("Closing FILE '%s'"), *Arg);
+		delete DummyFile;
+		DummyFile = nullptr;
+		DoTick(DirectoryWatcher);
+	}
+	else if (Command == TEXT("DeleteFile"))
+	{
+		// delete file
+		UE_LOG(LogTestPAL, Display, TEXT("Deleting FILE '%s'"), *Arg);
+		verify(PlatformFile.DeleteFile(*Arg));
+		DoTick(DirectoryWatcher);
+	}
+	else
+	{
+		checkf(false, TEXT("Unknown command"));
+	}
+
+	DoTick(DirectoryWatcher);
+
+	DirectoryWatcher->DumpStats();
+
+}
 
 /**
  * Kicks directory watcher test/
@@ -47,12 +117,13 @@ int32 DirectoryWatcherTest(const TCHAR* CommandLine)
 	UE_LOG(LogTestPAL, Display, TEXT("Running directory watcher test."));
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-	FString TestDir = FString::Printf(TEXT("%s/DirectoryWatcherTest%d"), FPlatformProcess::UserTempDir(), FPlatformProcess::GetCurrentProcessId());
+	const FString TestDir = FString::Printf(TEXT("%s/DirectoryWatcherTest-%d"), FPlatformProcess::UserTempDir(), FPlatformProcess::GetCurrentProcessId());
+	const FString SubtestDir = TestDir + TEXT("/subtest");
 
-	if (PlatformFile.CreateDirectory(*TestDir) && PlatformFile.CreateDirectory(*(TestDir + TEXT("/subtest"))))
+	if (PlatformFile.CreateDirectory(*TestDir) && PlatformFile.CreateDirectory(*SubtestDir))
 	{
-		FChangeDetector Detector;
-		FDelegateHandle DirectoryChangedHandle;
+		FChangeDetector Detector, Detector2;
+		FDelegateHandle DirectoryChangedHandle, DirectoryChangedHandle2;
 
 		IDirectoryWatcher* DirectoryWatcher = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher")).Get();
 		if (DirectoryWatcher)
@@ -61,138 +132,59 @@ int32 DirectoryWatcherTest(const TCHAR* CommandLine)
 			//   IDirectoryWatcher::WatchOptions::IgnoreChangesInSubtree
 			/** Whether changes in subdirectories need to be reported. */
 			//   IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges
-			uint32 Flags = 0;
+			uint32 Flags = IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges;
 
 			auto Callback = IDirectoryWatcher::FDirectoryChanged::CreateRaw(&Detector, &FChangeDetector::OnDirectoryChanged);
 			DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(TestDir, Callback, DirectoryChangedHandle, Flags);
 			UE_LOG(LogTestPAL, Display, TEXT("Registered callback for changes in '%s'"), *TestDir);
+
+			auto Callback2 = IDirectoryWatcher::FDirectoryChanged::CreateRaw(&Detector2, &FChangeDetector::OnDirectoryChanged2);
+			DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(SubtestDir, Callback2, DirectoryChangedHandle2, Flags);
+			UE_LOG(LogTestPAL, Display, TEXT("Registered callback 2 for changes in '%s'"), *SubtestDir);
 		}
 		else
 		{
 			UE_LOG(LogTestPAL, Fatal, TEXT("Could not get DirectoryWatcher module"));
 		}
 
-		FPlatformProcess::Sleep(1.0f);
-		DirectoryWatcher->Tick(1.0f);
+		DoTick(DirectoryWatcher);
 
 		// create and remove directory
-		UE_LOG(LogTestPAL, Display, TEXT("Creating DIRECTORY '%s'"), *(TestDir + TEXT("/test")));
-		verify(PlatformFile.CreateDirectory(*(TestDir + TEXT("/test"))));
-		DirectoryWatcher->Tick(1.0f);
-		FPlatformProcess::Sleep(1.0f);
-		DirectoryWatcher->Tick(1.0f);
-
-		UE_LOG(LogTestPAL, Display, TEXT("Deleting DIRECTORY '%s'"), *(TestDir + TEXT("/test")));
-		verify(PlatformFile.DeleteDirectory(*(TestDir + TEXT("/test"))));
-		DirectoryWatcher->Tick(1.0f);
-		FPlatformProcess::Sleep(1.0f);
-		DirectoryWatcher->Tick(1.0f);
+		DoCommand(DirectoryWatcher, "CreateDirectory", (TestDir + TEXT("/test")));
+		DoCommand(DirectoryWatcher, "DeleteDirectory", (TestDir + TEXT("/test")));
 
 		// create and remove in a sub directory
-		UE_LOG(LogTestPAL, Display, TEXT("Creating DIRECTORY '%s'"), *(TestDir + TEXT("/subtest/blah")));
-		verify(PlatformFile.CreateDirectory(*(TestDir + TEXT("/subtest/blah"))));
-		DirectoryWatcher->Tick(1.0f);
-		FPlatformProcess::Sleep(1.0f);
-		DirectoryWatcher->Tick(1.0f);
+		DoCommand(DirectoryWatcher, "CreateDirectory", (SubtestDir + TEXT("/blah")));
 
-		UE_LOG(LogTestPAL, Display, TEXT("Deleting DIRECTORY '%s'"), *(TestDir + TEXT("/subtest/blah")));
-		verify(PlatformFile.DeleteDirectory(*(TestDir + TEXT("/subtest/blah"))));
-		DirectoryWatcher->Tick(1.0f);
-		FPlatformProcess::Sleep(1.0f);
-		DirectoryWatcher->Tick(1.0f);
+		UE_LOG(LogTestPAL, Display, TEXT("Moving DIRECTORY '%s' -> '%s'"), *(SubtestDir + TEXT("/blah")), *(SubtestDir + TEXT("/blah2")));
+		verify(PlatformFile.MoveFile(*(SubtestDir + TEXT("/blah2")), *(SubtestDir + TEXT("/blah"))));
+		DoTick(DirectoryWatcher);
 
-		{
-			// create file
-			FString DummyFileName = TestDir + TEXT("/test file.bin");
-			UE_LOG(LogTestPAL, Display, TEXT("Creating FILE '%s'"), *DummyFileName);
-			IFileHandle* DummyFile = PlatformFile.OpenWrite(*DummyFileName);
-			check(DummyFile);
-			DirectoryWatcher->Tick(1.0f);
-			FPlatformProcess::Sleep(1.0f);
-			DirectoryWatcher->Tick(1.0f);
+		DoCommand(DirectoryWatcher, "DeleteDirectory", (SubtestDir + TEXT("/blah2")));
 
-			// modify file
-			UE_LOG(LogTestPAL, Display, TEXT("Modifying FILE '%s'"), *DummyFileName);
-			uint8 Contents = 0;
-			DummyFile->Write(&Contents, sizeof(Contents));
-			DirectoryWatcher->Tick(1.0f);
-			FPlatformProcess::Sleep(1.0f);
-			DirectoryWatcher->Tick(1.0f);
-
-			// close the file
-			UE_LOG(LogTestPAL, Display, TEXT("Closing FILE '%s'"), *DummyFileName);
-			delete DummyFile;
-			DummyFile = nullptr;
-			DirectoryWatcher->Tick(1.0f);
-			FPlatformProcess::Sleep(1.0f);
-			DirectoryWatcher->Tick(1.0f);
-
-			// delete file
-			UE_LOG(LogTestPAL, Display, TEXT("Deleting FILE '%s'"), *DummyFileName);
-			verify(PlatformFile.DeleteFile(*DummyFileName));
-			DirectoryWatcher->Tick(1.0f);
-			FPlatformProcess::Sleep(1.0f);
-			DirectoryWatcher->Tick(1.0f);
-		}
+		DoCommand(DirectoryWatcher, "CreateModifyFile", TestDir + TEXT("/test file.bin"));
+		DoCommand(DirectoryWatcher, "DeleteFile", TestDir + TEXT("/test file.bin"));
 
 		// now the same in a grandchild directory
 		{
-			FString GrandChildDir = TestDir + TEXT("/subtest/grandchild");
+			FString GrandChildDir = SubtestDir + TEXT("/grandchild");
 
-			UE_LOG(LogTestPAL, Display, TEXT("Creating DIRECTORY '%s'"), *GrandChildDir);
-			verify(PlatformFile.CreateDirectory(*GrandChildDir));
-			DirectoryWatcher->Tick(1.0f);
-			FPlatformProcess::Sleep(1.0f);
-			DirectoryWatcher->Tick(1.0f);
-
-			{
-				// create file
-				FString DummyFileName = GrandChildDir + TEXT("/test file.bin");
-				UE_LOG(LogTestPAL, Display, TEXT("Creating FILE '%s'"), *DummyFileName);
-				IFileHandle* DummyFile = PlatformFile.OpenWrite(*DummyFileName);
-				check(DummyFile);
-				DirectoryWatcher->Tick(1.0f);
-				FPlatformProcess::Sleep(1.0f);
-				DirectoryWatcher->Tick(1.0f);
-
-				// modify file
-				UE_LOG(LogTestPAL, Display, TEXT("Modifying FILE '%s'"), *DummyFileName);
-				uint8 Contents = 0;
-				DummyFile->Write(&Contents, sizeof(Contents));
-				DirectoryWatcher->Tick(1.0f);
-				FPlatformProcess::Sleep(1.0f);
-				DirectoryWatcher->Tick(1.0f);
-
-				// close the file
-				UE_LOG(LogTestPAL, Display, TEXT("Closing FILE '%s'"), *DummyFileName);
-				delete DummyFile;
-				DummyFile = nullptr;
-				DirectoryWatcher->Tick(1.0f);
-				FPlatformProcess::Sleep(1.0f);
-				DirectoryWatcher->Tick(1.0f);
-
-				// delete file
-				UE_LOG(LogTestPAL, Display, TEXT("Deleting FILE '%s'"), *DummyFileName);
-				PlatformFile.DeleteFile(*DummyFileName);
-				DirectoryWatcher->Tick(1.0f);
-				FPlatformProcess::Sleep(1.0f);
-				DirectoryWatcher->Tick(1.0f);
-			}
-
-			UE_LOG(LogTestPAL, Display, TEXT("Deleting DIRECTORY '%s'"), *GrandChildDir);
-			verify(PlatformFile.DeleteDirectory(*GrandChildDir));
-			DirectoryWatcher->Tick(1.0f);
-			FPlatformProcess::Sleep(1.0f);
-			DirectoryWatcher->Tick(1.0f);
+			DoCommand(DirectoryWatcher, "CreateDirectory", GrandChildDir);
+			DoCommand(DirectoryWatcher, "CreateModifyFile", (GrandChildDir + TEXT("/test file.bin")));
+			DoCommand(DirectoryWatcher, "DeleteFile", (GrandChildDir + TEXT("/test file.bin")));
+			DoCommand(DirectoryWatcher, "DeleteDirectory", GrandChildDir);
 		}
 
-		DirectoryWatcher->DumpStats();
+		// remove main dirs as another test case
+		DoCommand(DirectoryWatcher, "DeleteDirectory", SubtestDir);
+		DoCommand(DirectoryWatcher, "DeleteDirectory", TestDir);
 
-		// clean up
+		// Clean up
 		verify(DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(TestDir, DirectoryChangedHandle));
-		// remove dirs as well
-		verify(PlatformFile.DeleteDirectory(*(TestDir + TEXT("/subtest"))));
-		verify(PlatformFile.DeleteDirectory(*TestDir));
+		verify(DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(SubtestDir, DirectoryChangedHandle2));
+
+		// Unregister requests get moved to a list for deletion during tick
+		DoTick(DirectoryWatcher);
 
 		UE_LOG(LogTestPAL, Display, TEXT("End of test"));
 	}

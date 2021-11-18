@@ -76,7 +76,7 @@ class FLumenCardCopyPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint4>, RWAtlasBlock4)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, RWAtlasBlock2)
-		SHADER_PARAMETER(FVector2D, OneOverSourceAtlasSize)
+		SHADER_PARAMETER(FVector2f, OneOverSourceAtlasSize)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 

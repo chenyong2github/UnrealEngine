@@ -21,7 +21,7 @@ static FAutoConsoleVariableRef CVarHairLUTSampleCount(TEXT("r.HairStrands.HairLU
 
 static bool IsHairMobilePlatform(EShaderPlatform Platform)
 {
-	return IsMobilePlatform(Platform) || Platform == SP_PCD3D_ES3_1;
+	return IsMobilePlatform(Platform);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

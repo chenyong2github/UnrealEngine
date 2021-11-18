@@ -48,8 +48,12 @@ struct CORE_API FUnixTime : public FGenericPlatformTime
 	}
 
 	static bool UpdateCPUTime(float DeltaSeconds);
+	static bool UpdateThreadCPUTime(float = 0.0);
+	static void AutoUpdateGameThreadCPUTime(double UpdateInterval);
 
-	static FCPUTime GetCPUTime();	
+	static FCPUTime GetCPUTime();
+	static FCPUTime GetThreadCPUTime();
+	static double GetLastIntervalThreadCPUTimeInSeconds();
 
 	/**
 	 * Calibration log to be printed at later time

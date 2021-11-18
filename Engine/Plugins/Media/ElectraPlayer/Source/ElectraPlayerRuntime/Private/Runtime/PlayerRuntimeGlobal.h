@@ -35,7 +35,7 @@ namespace Electra
 		TFunction<void()> WillEnterBackground;
 		TFunction<void()> HasEnteredForeground;
 	};
-	void AddBGFGNotificationHandler(TSharedPtrTS<FFGBGNotificationHandlers> InHandlers);
+	bool AddBGFGNotificationHandler(TSharedPtrTS<FFGBGNotificationHandlers> InHandlers);
 	void RemoveBGFGNotificationHandler(TSharedPtrTS<FFGBGNotificationHandlers> InHandlers);
 };
 

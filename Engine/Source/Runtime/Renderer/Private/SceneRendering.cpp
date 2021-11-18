@@ -2116,24 +2116,33 @@ IPooledRenderTarget* FViewInfo::GetEyeAdaptationTexture(FRHICommandList& RHICmdL
 	return nullptr;
 }
 
-IPooledRenderTarget* FViewInfo::GetLastEyeAdaptationTexture(FRHICommandList& RHICmdList) const
+void FViewInfo::SwapEyeAdaptationTextures() const
 {
 	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("SM5 and above use RenderTarget for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		return EffectiveViewState->GetLastEyeAdaptationTexture(RHICmdList);
+		EffectiveViewState->SwapEyeAdaptationTextures();
 	}
-	return nullptr;
 }
 
-void FViewInfo::SwapEyeAdaptationTextures(FRDGBuilder& GraphBuilder) const
+void FViewInfo::UpdateEyeAdaptationLastExposureFromTexture() const
 {
 	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("SM5 and above use RenderTarget for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		EffectiveViewState->SwapEyeAdaptationTextures(GraphBuilder);
+		EffectiveViewState->UpdateEyeAdaptationLastExposureFromTexture();
+	}
+}
+
+void FViewInfo::EnqueueEyeAdaptationExposureTextureReadback(FRDGBuilder& GraphBuilder) const
+{
+	checkf(FeatureLevel > ERHIFeatureLevel::ES3_1, TEXT("SM5 and above use RenderTarget for read back"));
+
+	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
+	{
+		EffectiveViewState->EnqueueEyeAdaptationExposureTextureReadback(GraphBuilder);
 	}
 }
 
@@ -2148,24 +2157,33 @@ FRDGPooledBuffer* FViewInfo::GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) c
 	return nullptr;
 }
 
-FRDGPooledBuffer* FViewInfo::GetLastEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const
+void FViewInfo::SwapEyeAdaptationBuffers() const
 {
 	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		return EffectiveViewState->GetLastEyeAdaptationBuffer(GraphBuilder);
+		EffectiveViewState->SwapEyeAdaptationBuffers();
 	}
-	return nullptr;
 }
 
-void FViewInfo::SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder) const
+void FViewInfo::UpdateEyeAdaptationLastExposureFromBuffer() const
 {
 	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
 
 	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
 	{
-		EffectiveViewState->SwapEyeAdaptationBuffers(GraphBuilder);
+		EffectiveViewState->UpdateEyeAdaptationLastExposureFromBuffer();
+	}
+}
+
+void FViewInfo::EnqueueEyeAdaptationExposureBufferReadback(FRDGBuilder& GraphBuilder) const
+{
+	checkf(FeatureLevel == ERHIFeatureLevel::ES3_1, TEXT("ES3_1 use RWBuffer for read back"));
+
+	if (FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
+	{
+		EffectiveViewState->EnqueueEyeAdaptationExposureBufferReadback(GraphBuilder);
 	}
 }
 
@@ -2884,19 +2902,6 @@ FRHIGPUMask FSceneRenderer::ComputeGPUMasks(FRHICommandListImmediate& RHICmdList
 	return RenderTargetGPUMask;
 }
 #endif // WITH_MGPU
-
-void FSceneRenderer::InitFXSystem()
-{
-	check(IsInRenderingThread());
-
-	// Cache the Scene FXSystem since it can be set to null at any time in UWorld::CleanupWorldInternal()
-	// If this happens, the FXSystem will still be valid until a render command destroys it (see FFXSystemInterface::Destroy()).
-	FXSystem = Scene ? Scene->FXSystem : nullptr;
-	if (FXSystem && FXSystem->IsPendingKill())
-	{
-		FXSystem = nullptr;
-	}
-}
 
 #if WITH_MGPU
 DECLARE_GPU_STAT_NAMED(CrossGPUTransfers, TEXT("Cross GPU Tranfer"));
@@ -3823,6 +3828,15 @@ void FSceneRenderer::RenderThreadBegin(FRHICommandListImmediate& RHICmdList)
 {
 	CleanUp(RHICmdList);
 
+	// Cache the FXSystem for the duration of the scene render
+	// UWorld::CleanupWorldInternal() will mark the system as pending kill on the GameThread and then enqueue a delete command
+	//-TODO: The call to IsPendingKill should no longer be required as we are caching & using within a single render command
+	FXSystem = Scene ? Scene->FXSystem : nullptr;
+	if (FXSystem && FXSystem->IsPendingKill())
+	{
+		FXSystem = nullptr;
+	}
+
 	MemStackMark = new FMemMark(FMemStack::Get());
 }
 
@@ -4241,12 +4255,6 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 
 		// Construct the scene renderer.  This copies the view family attributes into its own structures.
 		FSceneRenderer* SceneRenderer = FSceneRenderer::CreateSceneRenderer(ViewFamily, Canvas->GetHitProxyConsumer());
-
-        ENQUEUE_RENDER_COMMAND(FInitFXSystemCommand)(
-	        [SceneRenderer](FRHICommandListImmediate& RHICmdList)
-	        {
-		        SceneRenderer->InitFXSystem();
-	        });
 
 		if (!SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)
 		{

@@ -111,8 +111,10 @@ public:
 		void Reset()
 		{
 			Time.SetToInvalid();
+			StartingBitrate.Reset();
 		}
 		FTimeValue	Time;
+		TOptional<int32> StartingBitrate;
 	};
 	//! Seek to a new position and play from there. This includes first playstart.
 	//! Playback is initially paused on first player use and must be resumed to begin.
@@ -253,6 +255,7 @@ public:
 	//
 #if PLATFORM_ANDROID
 	virtual void Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer>& Surface) = 0;
+	virtual void Android_SuspendOrResumeDecoder(bool bSuspend) = 0;
 	static FParamDict& Android_Workarounds(FStreamCodecInformation::ECodec InForCodec);
 #endif
 

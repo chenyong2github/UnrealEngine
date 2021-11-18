@@ -178,7 +178,7 @@ private:
 	{
 		FString FullName;
 		FName ObjectName;
-		uint32 ExportHash = 0;
+		uint64 PublicExportHash = 0;
 		FPackageObjectIndex OuterIndex;
 		FPackageObjectIndex ClassIndex;
 		FPackageObjectIndex SuperIndex;
@@ -264,6 +264,7 @@ private:
 	FGraphData GraphData;
 
 	TArray<FPackageId> ImportedPackageIds;
+	TArray<uint64> ImportedPublicExportHashes;
 	TSet<FSHAHash> ShaderMapHashes;
 
 	FIoBuffer HeaderBuffer;
@@ -272,6 +273,7 @@ private:
 	uint32 CookedHeaderSize = 0;
 	uint64 HeaderSize = 0;
 	uint64 ExportsSerialSize = 0;
+	uint64 ImportedPublicExportHashesSize = 0;
 	uint64 ImportMapSize = 0;
 	uint64 ExportMapSize = 0;
 	uint64 ExportBundleEntriesSize = 0;
@@ -363,6 +365,7 @@ private:
 		FZenPackageSummary Summary;
 		TOptional<FZenPackageVersioningInfo> VersioningInfo;
 		TArray<FPackageId> ImportedPackageIds;
+		TArray<uint64> ImportedPublicExportHashes;
 		TArray<FNameEntryId> NameMap;
 		TArray<FPackageObjectIndex> Imports;
 		TArray<FExportMapEntry> Exports;
@@ -375,6 +378,7 @@ private:
 	using FExportGraphEdges = TMultiMap<FPackageStorePackage::FExportGraphNode*, FPackageStorePackage::FExportGraphNode*>;
 	using FExportBundleGraphEdges = TMultiMap<FPackageStorePackage::FExportBundleGraphNode*, FPackageStorePackage::FExportBundleGraphNode*>;
 
+	static uint64 GetPublicExportHash(FStringView PackageRelativeExportPath);
 	FCookedHeaderData LoadCookedHeader(const FIoBuffer& CookedHeaderBuffer) const;
 	FPackageStoreHeaderData LoadPackageStoreHeader(const FIoBuffer& PackageStoreHeaderBuffer, const FPackageStoreEntryResource& PackageStoreEntry) const;
 	void ResolveImport(FPackageStorePackage::FUnresolvedImport* Imports, const FObjectImport* ObjectImports, int32 LocalImportIndex) const;

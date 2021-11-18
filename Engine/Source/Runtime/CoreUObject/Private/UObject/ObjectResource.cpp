@@ -46,7 +46,10 @@ FObjectExport::FObjectExport()
 , bNotAlwaysLoadedForEditorGame(true)
 , bIsAsset(false)
 , bExportLoadFailed(false)
+// @todo: BP2CPP_remove
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 , DynamicType(EDynamicType::NotDynamicExport)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 , bWasFiltered(false)
 , PackageFlags(0)
 , FirstExportDependency(-1)
@@ -72,7 +75,10 @@ FObjectExport::FObjectExport( UObject* InObject, bool bInNotAlwaysLoadedForEdito
 , bNotAlwaysLoadedForEditorGame(bInNotAlwaysLoadedForEditorGame)
 , bIsAsset(false)
 , bExportLoadFailed(false)
+// @todo: BP2CPP_remove
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 , DynamicType(EDynamicType::NotDynamicExport)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 , bWasFiltered(false)
 , PackageFlags(0)
 , FirstExportDependency(-1)

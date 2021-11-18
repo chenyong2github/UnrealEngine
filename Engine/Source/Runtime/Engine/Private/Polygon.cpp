@@ -475,10 +475,10 @@ void FPoly::Transform
 
 void FPoly::Rotate
 (
-	const FRotator&		Rotation
+	const FRotator3f&		Rotation
 )
 {
-	const FRotationMatrix RotMatrix(Rotation);
+	const FRotationMatrix44f RotMatrix(Rotation);
 
 	// Rotate the vertices.
 	for (int32 Vertex = 0; Vertex < Vertices.Num(); Vertex++)

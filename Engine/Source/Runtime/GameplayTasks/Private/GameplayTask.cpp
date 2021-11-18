@@ -209,7 +209,7 @@ void UGameplayTask::OnDestroy(bool bInOwnerFinished)
 		TasksPtr->OnGameplayTaskDeactivated(*this);
 	}
 
-	MarkPendingKill();
+	MarkAsGarbage();
 }
 
 FString UGameplayTask::GetDebugString() const

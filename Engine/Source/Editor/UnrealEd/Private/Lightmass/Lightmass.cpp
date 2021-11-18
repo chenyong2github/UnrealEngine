@@ -3513,7 +3513,7 @@ void FLightmassProcessor::ImportVolumeSamples()
 					{
 						const Lightmass::FVolumeLightingSampleData& CurrentSample = VolumeSamples[SampleIndex];
 						FVolumeLightingSample NewHighQualitySample;
-						NewHighQualitySample.Position = CurrentSample.PositionAndRadius;
+						NewHighQualitySample.Position = FVector4f(CurrentSample.PositionAndRadius);
 						NewHighQualitySample.Radius = CurrentSample.PositionAndRadius.W;
 						NewHighQualitySample.SetPackedSkyBentNormal(CurrentSample.SkyBentNormal); 
 						NewHighQualitySample.DirectionalLightShadowing = CurrentSample.DirectionalLightShadowing;
@@ -3526,7 +3526,7 @@ void FLightmassProcessor::ImportVolumeSamples()
 						}							
 
 						FVolumeLightingSample NewLowQualitySample;
-						NewLowQualitySample.Position = CurrentSample.PositionAndRadius;
+						NewLowQualitySample.Position = FVector4f(CurrentSample.PositionAndRadius);
 						NewLowQualitySample.Radius = CurrentSample.PositionAndRadius.W;
 						NewLowQualitySample.DirectionalLightShadowing = CurrentSample.DirectionalLightShadowing;
 						NewLowQualitySample.SetPackedSkyBentNormal(CurrentSample.SkyBentNormal); 

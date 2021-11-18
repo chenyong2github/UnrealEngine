@@ -14,6 +14,7 @@
 
 #if PLATFORM_ANDROID
 #define XR_USE_PLATFORM_ANDROID 1
+#define XR_USE_GRAPHICS_API_OPENGL_ES	1
 #endif
 
 #if PLATFORM_WINDOWS || PLATFORM_ANDROID || PLATFORM_LINUX
@@ -60,11 +61,16 @@
 // OpenGL
 //-------------------------------------------------------------------------------------------------
 
-#ifdef XR_USE_GRAPHICS_API_OPENGL
+#if defined(XR_USE_GRAPHICS_API_OPENGL) || defined(XR_USE_GRAPHICS_API_OPENGL_ES)
 #include "OpenGLDrvPrivate.h"
 #include "OpenGLResources.h"
-#endif // XR_USE_GRAPHICS_API_OPENGL
 
+#ifdef XR_USE_PLATFORM_ANDROID
+#include "Android/AndroidEGL.h"
+#include "Android/AndroidOpenGL.h"
+#endif
+
+#endif // XR_USE_GRAPHICS_API_OPENGL
 
 //-------------------------------------------------------------------------------------------------
 // Vulkan

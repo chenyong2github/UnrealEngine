@@ -15,6 +15,21 @@
 	"IsBetaVersion": true,
 	"IsExperimentalVersion": false,
 	"Installed": false,
+	"Plugins":
+	[
+		{
+			"Name": "ConcertSyncClient",
+			"Enabled": true
+		},
+		{
+			"Name": "ConcertSyncCore",
+			"Enabled": true
+		},
+		{
+			"Name": "ConcertMain",
+			"Enabled": true
+		},
+	],
 	"Modules": [
 		{
 			"Name": "ConsoleVariablesEditor",

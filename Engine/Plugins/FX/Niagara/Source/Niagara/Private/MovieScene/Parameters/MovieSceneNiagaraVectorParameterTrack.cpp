@@ -25,9 +25,9 @@ void UMovieSceneNiagaraVectorParameterTrack::SetSectionChannelDefaults(UMovieSce
 	{
 		FMovieSceneChannelProxy& VectorChannelProxy = VectorSection->GetChannelProxy();
 
-		if (VectorSection->GetChannelsUsed() == 2 && ensureMsgf(DefaultValueData.Num() == sizeof(FVector2D), TEXT("DefaultValueData must be a FVector2D when channels used is 2")))
+		if (VectorSection->GetChannelsUsed() == 2 && ensureMsgf(DefaultValueData.Num() == sizeof(FVector2f), TEXT("DefaultValueData must be a FVector2f when channels used is 2")))
 		{
-			FVector2D DefaultValue = *((FVector2D*)DefaultValueData.GetData());
+			FVector2f DefaultValue = *((FVector2f*)DefaultValueData.GetData());
 			SetChannelDefault(VectorChannelProxy, VectorSection->GetChannel(0), DefaultValue.X);
 			SetChannelDefault(VectorChannelProxy, VectorSection->GetChannel(1), DefaultValue.Y);
 		}

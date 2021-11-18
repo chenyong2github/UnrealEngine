@@ -133,11 +133,11 @@ bool FJpegImageWrapper::SetCompressed(const void* InCompressedData, int64 InComp
 }
 
 
-bool FJpegImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
+bool FJpegImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
 {
 	check((InFormat == ERGBFormat::RGBA || InFormat == ERGBFormat::BGRA || InFormat == ERGBFormat::Gray) && InBitDepth == 8);
 
-	bool bResult = FImageWrapperBase::SetRaw(InRawData, InRawSize, InWidth, InHeight, InFormat, InBitDepth);
+	bool bResult = FImageWrapperBase::SetRaw(InRawData, InRawSize, InWidth, InHeight, InFormat, InBitDepth, InBytesPerRow);
 
 	return bResult;
 }
@@ -302,7 +302,7 @@ void FJpegImageWrapper::CompressTurbo(int32 Quality)
 		CompressedData.SetNum(OutBufferSize);
 		unsigned char* OutBuffer = CompressedData.GetData();
 
-		const bool bSuccess = tjCompress2(Compressor, RawData.GetData(), Width, 0, Height, PixelFormat, &OutBuffer, &OutBufferSize, Subsampling, Quality, Flags) == 0;
+		const bool bSuccess = tjCompress2(Compressor, RawData.GetData(), Width, RawBytesPerRow, Height, PixelFormat, &OutBuffer, &OutBufferSize, Subsampling, Quality, Flags) == 0;
 		check(bSuccess);
 
 		CompressedData.SetNum(OutBufferSize);

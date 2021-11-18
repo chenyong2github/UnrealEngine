@@ -324,11 +324,11 @@ void GeometryCollectionEngineUtility::ComputeNormals(FGeometryCollection* Geomet
 
 	// Create index and uvs in flat arrays per face vertex
 	TArray<uint32> TmpIndices;
-	TArray<FVector2D> TmpUV;
+	TArray<FVector2f> TmpUV;
 
 	TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
 	const int32 UVChannelIndex = 0;
-	TManagedArray<TArray<FVector2D>>& UVs = GeometryCollection->UVs;
+	TManagedArray<TArray<FVector2f>>& UVs = GeometryCollection->UVs;
 	for (int i = 0; i < NumIndices; ++i)
 	{
 		FIntVector CurrTri = Indices[i];
@@ -382,11 +382,11 @@ void GeometryCollectionEngineUtility::ComputeTangents(FGeometryCollection* Geome
 
 	// Create index and uvs in flat arrays per face vertex
 	TArray<uint32> TmpIndices;
-	TArray<FVector2D> TmpUV;
+	TArray<FVector2f> TmpUV;
 
 	TManagedArray<FIntVector>& Indices = GeometryCollection->Indices;
 	const int32 UVChannelIndex = 0;
-	TManagedArray<TArray<FVector2D>>& UVs = GeometryCollection->UVs;
+	TManagedArray<TArray<FVector2f>>& UVs = GeometryCollection->UVs;
 	for (int i = 0; i < NumIndices; ++i)
 	{
 		FIntVector CurrTri = Indices[i];

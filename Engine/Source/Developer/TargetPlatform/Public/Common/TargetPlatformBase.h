@@ -2,13 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "PlatformInfo.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-#include "Misc/Paths.h"
+#include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
+#include "PlatformInfo.h"
 
 /**
  * Base class for target platforms.
@@ -49,6 +50,8 @@ public:
 	{
 		return FConfigCacheIni::ForPlatform(*IniPlatformName());
 	}
+
+	TARGETPLATFORM_API virtual bool IsEnabledForPlugin(const IPlugin& Plugin) const override;
 
 	TARGETPLATFORM_API virtual bool UsesForwardShading() const override;
 
@@ -384,6 +387,16 @@ public:
 	virtual bool SupportsBuildTarget( EBuildTargetType TargetType ) const override
 	{
 		return TPlatformProperties::SupportsBuildTarget(TargetType);
+	}
+
+	virtual EBuildTargetType GetRuntimePlatformType() const override
+	{
+		if (AllowsEditorObjects())
+		{
+			// Platforms that AllowsEditorObjects need the runtime type Editor to use those objects
+			return EBuildTargetType::Editor;
+		}
+		return PlatformInfo->PlatformType;
 	}
 
 	virtual bool SupportsAutoSDK() const override

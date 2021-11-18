@@ -27,6 +27,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "RendererPrivateUtils.h"
+#include "Strata/Strata.h"
 
 DECLARE_GPU_STAT_NAMED(CapsuleShadows, TEXT("Capsule Shadows"));
 
@@ -138,7 +139,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportCapsuleShadows(Parameters.Platform);
+		return FDataDrivenShaderPlatformInfo::GetSupportsCapsuleShadows(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -199,13 +200,14 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWShadowFactors)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWBentNormalTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ReceiverBentNormalTexture)
 		SHADER_PARAMETER(FIntPoint, TileDimensions)
-		SHADER_PARAMETER(FVector2D, NumGroups)
+		SHADER_PARAMETER(FVector2f, NumGroups)
 
 		SHADER_PARAMETER(FVector4f, LightPositionAndInvRadius)
 		SHADER_PARAMETER(FVector3f, LightDirection)
@@ -219,7 +221,7 @@ public:
 		SHADER_PARAMETER(uint32, DownsampleFactor)
 		SHADER_PARAMETER(float, MaxOcclusionDistance)
 
-		SHADER_PARAMETER(FVector2D, CosFadeStartAngle)
+		SHADER_PARAMETER(FVector2f, CosFadeStartAngle)
 
 		SHADER_PARAMETER(uint32, NumShadowCapsules)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FCapsuleShape3f>, ShadowCapsuleShapes)
@@ -241,7 +243,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportCapsuleShadows(Parameters.Platform);
+		return FDataDrivenShaderPlatformInfo::GetSupportsCapsuleShadows(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -252,6 +254,7 @@ public:
 
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), GShadowShapeTileSize);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), GShadowShapeTileSize);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 
 		ECapsuleShadowingType ShadowingType = PermutationVector.Get<FShapeShadow>();
 
@@ -306,13 +309,13 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, TileIntersectionCounts)
 		SHADER_PARAMETER(FIntPoint, TileDimensions)
-		SHADER_PARAMETER(FVector2D, TileSize)
+		SHADER_PARAMETER(FVector2f, TileSize)
 		SHADER_PARAMETER(FIntRect, ScissorRectMinAndSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportCapsuleShadows(Parameters.Platform);
+		return FDataDrivenShaderPlatformInfo::GetSupportsCapsuleShadows(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -331,6 +334,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ShadowFactorsTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ShadowFactorsSampler)
 		SHADER_PARAMETER(FIntRect, ScissorRectMinAndSize)
@@ -343,12 +347,13 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportCapsuleShadows(Parameters.Platform);
+		return FDataDrivenShaderPlatformInfo::GetSupportsCapsuleShadows(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("DOWNSAMPLE_FACTOR"), 2);
+		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 };
 
@@ -373,7 +378,7 @@ void SetupCapsuleShadowingParameters(
 	int32 DownsampleFactor,
 	float MaxOcclusionDistance,
 	const FScene* Scene,
-	const FSceneView& View,
+	const FViewInfo& View,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 
 	uint32 NumShadowCapsules,
@@ -388,6 +393,7 @@ void SetupCapsuleShadowingParameters(
 {
 	Parameters.SceneTextures = SceneTexturesUniformBuffer;
 	Parameters.View = View.ViewUniformBuffer;
+	Parameters.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 
 	if (ShadowingType == ECapsuleShadowingType::MovableSkylightTiledCulling)
 	{
@@ -484,7 +490,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 		}
 	}
 
-	if (!SupportsCapsuleDirectShadows(FeatureLevel, GShaderPlatformForFeatureLevel[FeatureLevel])
+	if (!SupportsCapsuleDirectShadows(ShaderPlatform)
 		|| CapsuleShadows.Num() == 0
 		|| !ViewFamily.EngineShowFlags.CapsuleShadows
 		|| !bAllViewsHaveViewState)
@@ -622,6 +628,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 				PassParameters->VS.ScissorRectMinAndSize = FIntRect(ScissorRect.Min, ScissorRect.Size());
 
 				PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
+				PassParameters->PS.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 				PassParameters->PS.ShadowFactorsTexture = RayTracedShadowsRT;
 				PassParameters->PS.ShadowFactorsSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 				PassParameters->PS.ScissorRectMinAndSize = FIntRect(ScissorRect.Min, ScissorRect.Size());
@@ -679,7 +686,7 @@ void FDeferredShadingSceneRenderer::CreateIndirectCapsuleShadows()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CreateIndirectCapsuleShadows);
 
-	if (!SupportsCapsuleIndirectShadows(FeatureLevel, ShaderPlatform))
+	if (!SupportsCapsuleIndirectShadows(ShaderPlatform))
 	{
 		return;
 	}
@@ -945,7 +952,7 @@ static IndirectCapsuleShadowsResources CreateIndirectCapsuleShadowsResources(
 
 void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures) const
 {
-	if (!SupportsCapsuleIndirectShadows(FeatureLevel, GShaderPlatformForFeatureLevel[FeatureLevel])
+	if (!SupportsCapsuleIndirectShadows(ShaderPlatform)
 		|| !ViewFamily.EngineShowFlags.DynamicShadows
 		|| !ViewFamily.EngineShowFlags.CapsuleShadows)
 	{
@@ -1109,6 +1116,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& Gr
 				PassParameters->VS.ScissorRectMinAndSize = FIntRect(ScissorRect.Min, ScissorRect.Size());
 
 				PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
+				PassParameters->PS.Strata = Strata::BindStrataGlobalUniformParameters(View.StrataSceneData);
 				PassParameters->PS.ShadowFactorsTexture = RayTracedShadowsRT;
 				PassParameters->PS.ShadowFactorsSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 				PassParameters->PS.ScissorRectMinAndSize = FIntRect(ScissorRect.Min, ScissorRect.Size());
@@ -1193,7 +1201,7 @@ bool FSceneRenderer::ShouldPrepareForDFInsetIndirectShadow() const
 		}
 	}
 
-	return bSceneHasInsetDFPrimitives && SupportsCapsuleIndirectShadows(FeatureLevel, GShaderPlatformForFeatureLevel[FeatureLevel]) && ViewFamily.EngineShowFlags.CapsuleShadows;
+	return bSceneHasInsetDFPrimitives && SupportsCapsuleIndirectShadows(ShaderPlatform) && ViewFamily.EngineShowFlags.CapsuleShadows;
 }
 
 void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(
@@ -1201,7 +1209,7 @@ void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	FRDGTextureRef& BentNormalOutput) const
 {
-	if (SupportsCapsuleIndirectShadows(FeatureLevel, GShaderPlatformForFeatureLevel[FeatureLevel])
+	if (SupportsCapsuleIndirectShadows(ShaderPlatform)
 		&& ViewFamily.EngineShowFlags.CapsuleShadows)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderCapsuleShadowsSkylight);

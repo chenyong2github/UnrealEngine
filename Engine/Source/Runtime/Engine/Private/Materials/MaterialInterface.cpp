@@ -13,6 +13,7 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/AssetUserData.h"
 #include "Engine/Texture2D.h"
@@ -25,6 +26,12 @@
 #include "ContentStreaming.h"
 #include "MeshBatch.h"
 #include "TextureCompiler.h"
+#include "MaterialShaderQualitySettings.h"
+#include "ShaderPlatformQualitySettings.h"
+
+#if WITH_EDITOR
+#include "ObjectCacheEventSink.h"
+#endif
 
 /**
  * This is used to deprecate data that has been built with older versions.
@@ -107,6 +114,40 @@ UMaterialInterface::UMaterialInterface(const FObjectInitializer& ObjectInitializ
 	}
 }
 
+void UMaterialInterface::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+
+	Super::Serialize(Ar);
+
+	bool bSavedCachedExpressionData = false;
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::MaterialInterfaceSavedCachedData)
+	{
+		if ((Ar.IsCooking() || (FPlatformProperties::RequiresCookedData() && Ar.IsSaving() && (Ar.GetPortFlags() & PPF_Duplicate))) && (bool)CachedExpressionData)
+		{
+			bSavedCachedExpressionData = true;
+		}
+
+		Ar << bSavedCachedExpressionData;
+	}
+
+	if (bSavedCachedExpressionData)
+	{
+		if (Ar.IsLoading())
+		{
+			CachedExpressionData.Reset(new FMaterialCachedExpressionData());
+			bLoadedCachedExpressionData = true;
+		}
+		check(CachedExpressionData);
+		UScriptStruct* Struct = FMaterialCachedExpressionData::StaticStruct();
+		Struct->SerializeTaggedProperties(Ar, (uint8*)CachedExpressionData.Get(), Struct, nullptr);
+
+#if WITH_EDITOR
+		FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif
+	}
+}
+
 void UMaterialInterface::PostLoad()
 {
 	Super::PostLoad();
@@ -124,6 +165,57 @@ void UMaterialInterface::PostLoad()
 	}
 #endif
 }
+
+const FMaterialCachedExpressionData& UMaterialInterface::GetCachedExpressionData(TMicRecursionGuard) const
+{
+	const FMaterialCachedExpressionData* LocalData = CachedExpressionData.Get();
+	return LocalData ? *LocalData : FMaterialCachedExpressionData::EmptyData;
+}
+
+void UMaterialInterface::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& OutQualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking)
+{
+	OutQualityLevelsUsed = GetCachedExpressionData().QualityLevelsUsed;
+	if (OutQualityLevelsUsed.Num() == 0)
+	{
+		OutQualityLevelsUsed.AddDefaulted(EMaterialQualityLevel::Num);
+	}
+	if (ShaderPlatform != SP_NumPlatforms)
+	{
+		const UShaderPlatformQualitySettings* MaterialQualitySettings = UMaterialShaderQualitySettings::Get()->GetShaderPlatformQualitySettings(ShaderPlatform);
+		for (int32 Quality = 0; Quality < EMaterialQualityLevel::Num; ++Quality)
+		{
+			const FMaterialQualityOverrides& QualityOverrides = MaterialQualitySettings->GetQualityOverrides((EMaterialQualityLevel::Type)Quality);
+			if (bCooking && QualityOverrides.bDiscardQualityDuringCook)
+			{
+				OutQualityLevelsUsed[Quality] = false;
+			}
+			else if (QualityOverrides.bEnableOverride &&
+				QualityOverrides.HasAnyOverridesSet() &&
+				QualityOverrides.CanOverride(ShaderPlatform))
+			{
+				OutQualityLevelsUsed[Quality] = true;
+			}
+		}
+	}
+}
+
+TArrayView<const TObjectPtr<UObject>> UMaterialInterface::GetReferencedTextures() const
+{
+	return GetCachedExpressionData().ReferencedTextures;
+}
+
+#if WITH_EDITOR
+void UMaterialInterface::GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const
+{
+	for (UObject* UsedObject : GetCachedExpressionData().ReferencedTextures)
+	{
+		if (const UTexture* UsedTexture = Cast<UTexture>(UsedObject))
+		{
+			InOutTextures.Add(UsedTexture);
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 void UMaterialInterface::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray< TArray<int32> >& OutIndices, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel) const
 {
@@ -371,6 +463,22 @@ void UMaterialInterface::BeginDestroy()
 #endif
 }
 
+void UMaterialInterface::FinishDestroy()
+{
+	CachedExpressionData.Reset();
+	Super::FinishDestroy();
+}
+
+void UMaterialInterface::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	UMaterialInterface* This = CastChecked<UMaterialInterface>(InThis);
+	if (This->CachedExpressionData)
+	{
+		This->CachedExpressionData->AddReferencedObjects(Collector);
+	}
+	Super::AddReferencedObjects(This, Collector);
+}
+
 void UMaterialInterface::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
@@ -406,12 +514,24 @@ void UMaterialInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 		OutTags.Add( FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden) );
 	}
 
+	{
+		const FMaterialCachedExpressionData& CachedData = GetCachedExpressionData();
+		OutTags.Add(FAssetRegistryTag("HasSceneColor", CachedData.bHasSceneColor ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+		OutTags.Add(FAssetRegistryTag("HasPerInstanceRandom", CachedData.bHasPerInstanceRandom ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+		OutTags.Add(FAssetRegistryTag("HasPerInstanceCustomData", CachedData.bHasPerInstanceCustomData ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+		OutTags.Add(FAssetRegistryTag("HasVertexInterpolator", CachedData.bHasVertexInterpolator ? TEXT("True") : TEXT("False"), FAssetRegistryTag::TT_Alphabetical));
+	}
+
 	Super::GetAssetRegistryTags(OutTags);
 }
 #endif // WITH_EDITOR
 
 void UMaterialInterface::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const
 {
+	const FMaterialCachedExpressionData& CachedData = GetCachedExpressionData();
+	CachedData.AppendReferencedFunctionIdsTo(OutGuids);
+	CachedData.AppendReferencedParameterCollectionIdsTo(OutGuids);
+
 #if WITH_EDITORONLY_DATA
 	OutGuids.Add(LightingGuid);
 #endif // WITH_EDITORONLY_DATA
@@ -635,6 +755,19 @@ bool UMaterialInterface::GetStaticComponentMaskParameterDefaultValue(const FHash
 
 #endif // WITH_EDITOR
 
+void UMaterialInterface::GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const
+{
+	OutParameters.Reset();
+	GetCachedExpressionData().Parameters.GetAllParametersOfType(Type, OutParameters);
+}
+
+void UMaterialInterface::GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+{
+	OutParameterInfo.Reset();
+	OutParameterIds.Reset();
+	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(Type, OutParameterInfo, OutParameterIds);
+}
+
 void UMaterialInterface::GetAllScalarParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
 	GetAllParameterInfoOfType(EMaterialParameterType::Scalar, OutParameterInfo, OutParameterIds);
@@ -683,7 +816,7 @@ bool UMaterialInterface::GetParameterDesc(const FHashedMaterialParameterInfo& Pa
 	for (int32 TypeIndex = 0; TypeIndex < NumMaterialParameterTypes; ++TypeIndex)
 	{
 		FMaterialParameterMetadata Meta;
-		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckAll))
+		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckNonOverrides))
 		{
 			OutDesc = Meta.Description;
 			return true;
@@ -697,7 +830,7 @@ bool UMaterialInterface::GetGroupName(const FHashedMaterialParameterInfo& Parame
 	for (int32 TypeIndex = 0; TypeIndex < NumMaterialParameterTypes; ++TypeIndex)
 	{
 		FMaterialParameterMetadata Meta;
-		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckAll))
+		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckNonOverrides))
 		{
 			OutDesc = Meta.Group;
 			return true;
@@ -711,7 +844,7 @@ bool UMaterialInterface::GetParameterSortPriority(const FHashedMaterialParameter
 	for (int32 TypeIndex = 0; TypeIndex < NumMaterialParameterTypes; ++TypeIndex)
 	{
 		FMaterialParameterMetadata Meta;
-		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckAll))
+		if (GetParameterValue((EMaterialParameterType)TypeIndex, ParameterInfo, Meta, EMaterialGetParameterValueFlags::CheckNonOverrides))
 		{
 			OutSortPriority = Meta.SortPriority;
 			return true;

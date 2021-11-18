@@ -57,7 +57,7 @@ bool FOptimusVariableAction_AddVariable::Do(IOptimusNodeGraphCollectionOwner* In
 	else
 	{
 		Variable->Rename(nullptr, GetTransientPackage());
-		Variable->MarkPendingKill();
+		Variable->MarkAsGarbage();
 		return false;
 	}
 }
@@ -133,7 +133,7 @@ bool FOptimusVariableAction_RemoveVariable::Undo(IOptimusNodeGraphCollectionOwne
 	else
 	{
 		Variable->Rename(nullptr, GetTransientPackage());
-		Variable->MarkPendingKill();
+		Variable->MarkAsGarbage();
 		return false;
 	}
 }

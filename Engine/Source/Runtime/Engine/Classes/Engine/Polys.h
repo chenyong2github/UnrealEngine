@@ -84,7 +84,7 @@ public:
 	/**
 	 * Rotate an editor polygon.
 	 */
-	ENGINE_API void Rotate(const FRotator &Rotation);
+	ENGINE_API void Rotate(const FRotator3f &Rotation);
 
 	/**
 	 * Scale an editor polygon.

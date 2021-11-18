@@ -19,6 +19,7 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 	// Abstract types
 	case EDatasmithElementType::None:
 	case EDatasmithElementType::Light:
+	case EDatasmithElementType::BaseMaterial:
 		ensure( false );
 		break;
 	case EDatasmithElementType::Actor:
@@ -77,6 +78,8 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		return CreateMaterialId( InName );
 	case EDatasmithElementType::PostProcess:
 		return CreatePostProcess();
+	case EDatasmithElementType::PostProcessVolume:
+		return CreatePostProcessVolume( InName );
 	case EDatasmithElementType::Scene:
 		return CreateScene( InName );
 	case EDatasmithElementType::MetaData:
@@ -89,6 +92,10 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		return CreateDecalActor( InName );
 	case EDatasmithElementType::DecalMaterial:
 		return CreateDecalMaterial( InName );
+	case EDatasmithElementType::LevelSequence:
+		return FDatasmithSceneFactory::CreateLevelSequence( InName );
+	case EDatasmithElementType::Landscape:
+		return FDatasmithSceneFactory::CreateLandscape( InName );
 	case EDatasmithElementType::Variant:
 		switch( static_cast< EDatasmithElementVariantSubType > ( InSubType ) )
 		{

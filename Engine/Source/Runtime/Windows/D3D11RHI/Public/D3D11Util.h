@@ -279,18 +279,10 @@ inline bool ShouldNotEnqueueRHICommand()
 	return RHICmdList.Bypass() || (IsRunningRHIInSeparateThread() && IsInRHIThread()) || (!IsRunningRHIInSeparateThread() && IsInRenderingThread());
 }
 
-inline void D3D11StallRHIThread()
+struct FScopedD3D11RHIThreadStaller : public FScopedRHIThreadStaller
 {
-	if (IsRunningRHIInSeparateThread() && IsInRenderingThread() && GRHICommandList.IsRHIThreadActive())
+	FScopedD3D11RHIThreadStaller(bool bDoStall = true)
+		: FScopedRHIThreadStaller(FRHICommandListExecutor::GetImmediateCommandList(), bDoStall && IsInRenderingThread() && GRHICommandList.IsRHIThreadActive())
 	{
-		FRHICommandListExecutor::GetImmediateCommandList().StallRHIThread();
 	}
-}
-
-inline void D3D11UnstallRHIThread()
-{
-	if (IsRunningRHIInSeparateThread() && IsInRenderingThread() && FRHICommandListExecutor::GetImmediateCommandList().IsStalled())
-	{
-		FRHICommandListExecutor::GetImmediateCommandList().UnStallRHIThread();
-	}
-}
+};

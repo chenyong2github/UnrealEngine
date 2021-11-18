@@ -43,7 +43,7 @@ public:
 
 	// Texture target only params
 	bool bIsRenderTargetable = false;
-	int NumMips = 1;
+	int32 NumMips = 1;
 };
 
 

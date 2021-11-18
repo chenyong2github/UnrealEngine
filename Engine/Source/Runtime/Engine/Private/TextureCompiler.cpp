@@ -131,7 +131,7 @@ EQueuedWorkPriority FTextureCompilingManager::GetBasePriority(UTexture* InTextur
 FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
 {
 	static FQueuedThreadPoolWrapper* GTextureThreadPool = nullptr;
-	if (GTextureThreadPool == nullptr)
+	if (GTextureThreadPool == nullptr && FAssetCompilingManager::Get().GetThreadPool() != nullptr)
 	{
 		TextureCompilingManagerImpl::EnsureInitializedCVars();
 
@@ -182,7 +182,7 @@ void FTextureCompilingManager::Shutdown()
 
 bool FTextureCompilingManager::IsAsyncTextureCompilationEnabled() const
 {
-	if (bHasShutdown)
+	if (bHasShutdown || !FPlatformProcess::SupportsMultithreading())
 	{
 		return false;
 	}

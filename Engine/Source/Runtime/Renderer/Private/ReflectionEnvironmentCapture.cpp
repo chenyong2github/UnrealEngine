@@ -634,7 +634,7 @@ public:
 		SHADER_PARAMETER(FVector4f, SkyLightCaptureParameters)
 		SHADER_PARAMETER(int32, CubeFace)
 		SHADER_PARAMETER(FVector4f, LowerHemisphereColor)
-		SHADER_PARAMETER(FVector2D, SinCosSourceCubemapRotation)
+		SHADER_PARAMETER(FVector2f, SinCosSourceCubemapRotation)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };

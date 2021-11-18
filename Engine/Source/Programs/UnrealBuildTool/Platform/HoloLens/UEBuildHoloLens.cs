@@ -10,8 +10,6 @@ using Microsoft.Win32;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -52,9 +50,9 @@ namespace UnrealBuildTool
 		/// Contains the specific version of the Windows 10 SDK that we will build against. If empty, it will be "Latest"
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "Windows10SDKVersion")]
-		public string Win10SDKVersionString = null;
+		public string? Win10SDKVersionString = null;
 
-		internal Version Win10SDKVersion = null;
+		internal Version? Win10SDKVersion = null;
 
         /// <summary>
         /// Automatically increment the project version after each build.
@@ -71,7 +69,7 @@ namespace UnrealBuildTool
 		/// A project relative path for a custom native code analysis ruleset xml file
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "NativeCodeAnalysisRuleset")]
-		public string NativeCodeAnalysisRuleset = null;
+		public string? NativeCodeAnalysisRuleset = null;
 		
 		/// <summary>
 		/// Constructor
@@ -130,11 +128,11 @@ namespace UnrealBuildTool
 			get { return Inner.bBuildForRetailWindowsStore; }
 		}
 
-		public Version Win10SDKVersion
+		public Version? Win10SDKVersion
 		{
 			get { return Inner.Win10SDKVersion; }
 		}
-		public string Win10SDKVersionString
+		public string? Win10SDKVersionString
 		{
 			get { return Inner.Win10SDKVersionString; }
 		}
@@ -143,7 +141,7 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bRunNativeCodeAnalysis; }
 		}
-		public string NativeCodeAnalysisRuleset
+		public string? NativeCodeAnalysisRuleset
 		{
 			get { return Inner.NativeCodeAnalysisRuleset; }
 		}
@@ -177,10 +175,10 @@ namespace UnrealBuildTool
 			// retail Windows Store are both examples).  Possibly this should be done on all platforms?  But in the interest
 			// of not changing behavior on other platforms I'm limiting the scope.
 
-			DirectoryReference IniDirRef = DirectoryReference.FromFile(Target.ProjectFile);
+			DirectoryReference? IniDirRef = DirectoryReference.FromFile(Target.ProjectFile);
 			if (IniDirRef == null && !string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()))
 			{
-				IniDirRef = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath());
+				IniDirRef = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!);
 			}
 
 			// Stash the current compiler choice (accounts for command line) in case ReadSettings reverts it to default
@@ -227,8 +225,8 @@ namespace UnrealBuildTool
 			}
 
 			// Be resilient to SDKs being uninstalled but still referenced in the INI file
-			VersionNumber SelectedWindowsSdkVersion;
-			DirectoryReference SelectedWindowsSdkDir;
+			VersionNumber? SelectedWindowsSdkVersion;
+			DirectoryReference? SelectedWindowsSdkDir;
 			if (!WindowsPlatform.TryGetWindowsSdkDir(Target.HoloLensPlatform.Win10SDKVersionString, out SelectedWindowsSdkVersion, out SelectedWindowsSdkDir))
 			{
 				Target.HoloLensPlatform.Win10SDKVersionString = "Latest";
@@ -269,7 +267,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">The project being built</param>
 		/// <returns>The default architecture</returns>
-		public override string GetDefaultArchitecture(FileReference ProjectFile)
+		public override string GetDefaultArchitecture(FileReference? ProjectFile)
 		{
 			return WindowsArchitecture.x64.ToString();
 		}
@@ -334,11 +332,11 @@ namespace UnrealBuildTool
 			return new string[] { "" };
 		}
 
-		internal static DirectoryReference GetCppCXMetadataLocation(WindowsCompiler Compiler, string CompilerVersion)
+		internal static DirectoryReference? GetCppCXMetadataLocation(WindowsCompiler Compiler, string CompilerVersion)
 		{
-			VersionNumber SelectedToolChainVersion;
-			DirectoryReference SelectedToolChainDir;
-			DirectoryReference SelectedRedistDir;
+			VersionNumber? SelectedToolChainVersion;
+			DirectoryReference? SelectedToolChainDir;
+			DirectoryReference? SelectedRedistDir;
 			if (!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 			{
 				return null;
@@ -347,7 +345,7 @@ namespace UnrealBuildTool
 			return GetCppCXMetadataLocation(Compiler, SelectedToolChainDir);
 		}
 
-		public static DirectoryReference GetCppCXMetadataLocation(WindowsCompiler Compiler, DirectoryReference SelectedToolChainDir)
+		public static DirectoryReference? GetCppCXMetadataLocation(WindowsCompiler Compiler, DirectoryReference SelectedToolChainDir)
 		{
 			if (Compiler >= WindowsCompiler.VisualStudio2019)
 			{
@@ -360,7 +358,7 @@ namespace UnrealBuildTool
 		}
 
 
-		private static Version FindLatestVersionDirectory(string InDirectory, Version NoLaterThan)
+		private static Version FindLatestVersionDirectory(string InDirectory, Version? NoLaterThan)
 		{
 			Version LatestVersion = new Version(0, 0, 0, 0);
 			if (Directory.Exists(InDirectory))
@@ -369,7 +367,7 @@ namespace UnrealBuildTool
 				foreach (string Dir in VersionDirectories)
 				{
 					string VersionString = Path.GetFileName(Dir);
-					Version FoundVersion;
+					Version? FoundVersion;
 					if (Version.TryParse(VersionString, out FoundVersion) && FoundVersion > LatestVersion)
 					{
 						if (NoLaterThan == null || FoundVersion <= NoLaterThan)
@@ -384,8 +382,8 @@ namespace UnrealBuildTool
 
 		internal static string GetLatestMetadataPathForApiContract(string ApiContract, WindowsCompiler Compiler)
 		{
-			DirectoryReference SDKFolder;
-			VersionNumber SDKVersion;
+			DirectoryReference? SDKFolder;
+			VersionNumber? SDKVersion;
 			if (!WindowsPlatform.TryGetWindowsSdkDir("Latest", out SDKVersion, out SDKFolder))
 			{
 				return string.Empty;
@@ -398,8 +396,8 @@ namespace UnrealBuildTool
 				//Version WindowsSDKVersionMaxForToolchain = Compiler <= WindowsCompiler.VisualStudio2019 ? HoloLens.MaximumSDKVersionForVS2015 : null;
 				DirectoryReference SDKVersionedReferenceDir = DirectoryReference.Combine(ReferenceDir, SDKVersion.ToString());
 				DirectoryReference ContractDir = DirectoryReference.Combine(SDKVersionedReferenceDir, ApiContract);
-				Version ContractLatestVersion = null;
-				FileReference MetadataFileRef = null;
+				Version? ContractLatestVersion = null;
+				FileReference? MetadataFileRef = null;
 				if (DirectoryReference.Exists(ContractDir))
 				{
 					// Note: contract versions don't line up with Windows SDK versions (they're numbered independently as 1.0.0.0, 2.0.0.0, etc.)
@@ -587,14 +585,14 @@ namespace UnrealBuildTool
 		public override void SetUpEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
 		{
 			// Add Win10 SDK pieces - moved here since it allows better control over SDK version
-			string Win10SDKRoot = Target.WindowsPlatform.WindowsSdkDir;
+			string? Win10SDKRoot = Target.WindowsPlatform.WindowsSdkDir;
 
 			// Reference (WinMD) paths
 			// Only Foundation and Universal are referenced by default.  
 			List<string> AlwaysReferenceContracts = new List<string>();
 			AlwaysReferenceContracts.Add("Windows.Foundation.FoundationContract");
 			AlwaysReferenceContracts.Add("Windows.Foundation.UniversalApiContract");
-			ExpandWinMDReferences(Target, Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion.ToString(), ref AlwaysReferenceContracts);
+			ExpandWinMDReferences(Target, Win10SDKRoot!, Target.HoloLensPlatform.Win10SDKVersion!.ToString(), ref AlwaysReferenceContracts);
 
 			StringBuilder WinMDReferenceArguments = new StringBuilder();
 			foreach (string WinMDReference in AlwaysReferenceContracts)

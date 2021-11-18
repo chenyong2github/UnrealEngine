@@ -21,6 +21,7 @@ struct FBone
 	int32 ParentIndex = -2; // -2 is unset, -1 for root, or 0...n otherwise
 	FVector Position;
 	FQuat Rotation;
+	FVector Scale; // just passed through, not modified
 	FVector LocalPositionOrig;
 	FQuat LocalRotationOrig;
 

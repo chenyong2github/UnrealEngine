@@ -32,7 +32,7 @@ namespace FNavigationSystem
 			{
 				if (NavChunk != nullptr)
 				{
-					NavChunk->MarkPendingKill();
+					NavChunk->MarkAsGarbage();
 				}
 			}
 			Level->NavDataChunks.Empty();

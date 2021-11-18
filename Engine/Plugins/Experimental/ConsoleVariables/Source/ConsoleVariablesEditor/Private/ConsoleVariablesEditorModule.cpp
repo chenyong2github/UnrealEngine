@@ -3,22 +3,22 @@
 #include "ConsoleVariablesEditorModule.h"
 
 #include "AssetTypeActions/AssetTypeActions_ConsoleVariables.h"
-#include "ConsoleVariablesAsset.h"
-#include "ConsoleVariablesEditorCommands.h"
 #include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorStyle.h"
-#include "ConsoleVariablesEditorProjectSettings.h"
-#include "ConsoleVariablesEditorCommandInfo.h"
-#include "Toolkits/ConsoleVariablesEditorToolkit.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
 #include "Algo/Find.h"
+#include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "LevelEditor.h"
 #include "ToolMenus.h"
+#include "WorkspaceMenuStructure.h"
+#include "WorkspaceMenuStructureModule.h"
 
 #define LOCTEXT_NAMESPACE "FConsoleVariablesEditorModule"
+
+const FName FConsoleVariablesEditorModule::ConsoleVariablesToolkitPanelTabId(TEXT("ConsoleVariablesToolkitPanel"));
 
 FConsoleVariablesEditorModule& FConsoleVariablesEditorModule::Get()
 {
@@ -32,7 +32,6 @@ void FConsoleVariablesEditorModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(MakeShared<FAssetTypeActions_ConsoleVariables>());
 
 	FConsoleVariablesEditorStyle::Initialize();
-	FConsoleVariablesEditorCommands::Register();
 
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FConsoleVariablesEditorModule::PostEngineInit);
 	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FConsoleVariablesEditorModule::OnFEngineLoopInitComplete);
@@ -46,40 +45,34 @@ void FConsoleVariablesEditorModule::ShutdownModule()
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 	FConsoleVariablesEditorStyle::Shutdown();
-	
-	FConsoleVariablesEditorCommands::Unregister();
 
 	// Unregister project settings
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
 		SettingsModule.UnregisterSettings("Project", "Plugins", "Console Variables Editor");
 	}
-
-	IConsoleManager::Get().UnregisterConsoleVariableSink_Handle(VariableChangedSinkHandle);
-	VariableChangedSinkDelegate.Unbind();
-
-	ConsoleVariablesEditorToolkit.Reset();
-
+	
+	MainPanel.Reset();
+	
 	ProjectSettingsSectionPtr.Reset();
 	ProjectSettingsObjectPtr.Reset();
 
 	ConsoleVariablesMasterReference.Empty();
+
+	IConsoleManager::Get().UnregisterConsoleVariableSink_Handle(VariableChangedSinkHandle);
+	VariableChangedSinkDelegate.Unbind();
 }
 
-void FConsoleVariablesEditorModule::OpenConsoleVariablesDialogWithAssetSelected(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FAssetData& InAssetData)
+void FConsoleVariablesEditorModule::OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData)
 {
 	if (InAssetData.IsValid())
 	{
-		OpenConsoleVariablesEditor(Mode, InitToolkitHost);
+		OpenConsoleVariablesEditor();
 	}
 
-	if (ConsoleVariablesEditorToolkit.IsValid())
+	if (MainPanel.IsValid())
 	{
-		TWeakPtr<FConsoleVariablesEditorMainPanel> MainPanel = ConsoleVariablesEditorToolkit.Pin()->GetMainPanel();
-		if (MainPanel.IsValid())
-		{
-			MainPanel.Pin()->ImportPreset(InAssetData);
-		}
+		MainPanel->ImportPreset(InAssetData);
 	}
 }
 
@@ -128,6 +121,8 @@ void FConsoleVariablesEditorModule::OnFEngineLoopInitComplete()
 {
 	QueryAndBeginTrackingConsoleVariables();
 	AllocateTransientPreset();
+	
+	MainPanel = MakeShared<FConsoleVariablesEditorMainPanel>();
 
 	VariableChangedSinkDelegate = FConsoleCommandDelegate::CreateRaw(this, &FConsoleVariablesEditorModule::OnConsoleVariableChange);
 	VariableChangedSinkHandle = IConsoleManager::Get().RegisterConsoleVariableSink_Handle(VariableChangedSinkDelegate);
@@ -135,37 +130,15 @@ void FConsoleVariablesEditorModule::OnFEngineLoopInitComplete()
 
 void FConsoleVariablesEditorModule::RegisterMenuItem()
 {
-	if (FSlateApplication::IsInitialized())
-	{
-		if (IsRunningGame())
-		{
-			return;
-		}
-		
-		TSharedRef<FUICommandList> MenuItemCommandList = MakeShareable(new FUICommandList);
+	FTabSpawnerEntry& BrowserSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
+		ConsoleVariablesToolkitPanelTabId,
+		FOnSpawnTab::CreateRaw(this, & FConsoleVariablesEditorModule::SpawnMainPanelTab))
+			.SetIcon(FSlateIcon(FConsoleVariablesEditorStyle::Get().GetStyleSetName(), "ConsoleVariables.ToolbarButton", "ConsoleVariables.ToolbarButton.Small"))
+			.SetDisplayName(LOCTEXT("OpenConsoleVariablesEditorMenuItem", "Console Variables Editor"))
+			.SetTooltipText(LOCTEXT("OpenConsoleVariablesEditorTooltip", "Open the Console Variables Editor"))
+			.SetMenuType(ETabSpawnerMenuType::Enabled);
 
-		MenuItemCommandList->MapAction(
-			FConsoleVariablesEditorCommands::Get().OpenConsoleVariablesEditorMenuItem,
-			FExecuteAction::CreateLambda([this] ()
-			{
-				OpenConsoleVariablesEditor(EToolkitMode::WorldCentric, FModuleManager::LoadModuleChecked< FLevelEditorModule >("LevelEditor").GetFirstLevelEditor());
-			})
-		);
-		
-		TSharedPtr<FExtender> NewMenuExtender = MakeShareable(new FExtender);
-		NewMenuExtender->AddMenuExtension("ExperimentalTabSpawners", 
-		                                  EExtensionHook::After, 
-		                                  MenuItemCommandList, 
-		                                  FMenuExtensionDelegate::CreateLambda([this] (FMenuBuilder& MenuBuilder)
-		                                  {
-			                                  MenuBuilder.AddMenuEntry(FConsoleVariablesEditorCommands::Get().OpenConsoleVariablesEditorMenuItem);
-		                                  }));
-	
-		// Get the Level Editor so we can insert our item into the Level Editor menu subsection
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-
-		LevelEditorModule.GetMenuExtensibilityManager()->AddExtender(NewMenuExtender);
-	}
+	BrowserSpawnerEntry.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory());
 }
 
 bool FConsoleVariablesEditorModule::RegisterProjectSettings()
@@ -209,14 +182,18 @@ TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::AllocateTransi
 	return EditingAsset;
 }
 
-void FConsoleVariablesEditorModule::OpenConsoleVariablesEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost)
+TSharedRef<SDockTab> FConsoleVariablesEditorModule::SpawnMainPanelTab(const FSpawnTabArgs& Args)
 {
-	if (ConsoleVariablesEditorToolkit.IsValid())
-	{
-		ConsoleVariablesEditorToolkit.Pin()->CloseWindow();
-	}
-	
-	ConsoleVariablesEditorToolkit = FConsoleVariablesEditorToolkit::CreateConsoleVariablesEditor(Mode, InitToolkitHost);
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab).TabRole(ETabRole::NomadTab);
+	DockTab->SetContent(MainPanel->GetOrCreateWidget());
+	MainPanel->RefreshList();
+			
+	return DockTab;
+}
+
+void FConsoleVariablesEditorModule::OpenConsoleVariablesEditor()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(ConsoleVariablesToolkitPanelTabId);
 }
 
 void FConsoleVariablesEditorModule::OnConsoleVariableChange()
@@ -249,7 +226,7 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChange()
 			else
 			{
 				ConsoleVariablesMasterReference.Add(
-					MakeShared<FConsoleVariablesEditorCommandInfo>((wchar_t*)Key, AsVariable, AsVariable->GetString()));
+					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, AsVariable->GetString()));
 			}
 		}
 	}),
@@ -257,9 +234,9 @@ void FConsoleVariablesEditorModule::OnConsoleVariableChange()
 
 	if (StartingTrackedCommandsCount < EditingAsset->GetSavedCommandsAndValues().Num())
 	{
-		if (ConsoleVariablesEditorToolkit.IsValid() && ConsoleVariablesEditorToolkit.Pin()->GetMainPanel().IsValid())
+		if (MainPanel.IsValid())
 		{
-			ConsoleVariablesEditorToolkit.Pin()->GetMainPanel().Pin()->RefreshList(EditingAsset.Get());
+			MainPanel->RefreshList();
 		}
 	}
 }

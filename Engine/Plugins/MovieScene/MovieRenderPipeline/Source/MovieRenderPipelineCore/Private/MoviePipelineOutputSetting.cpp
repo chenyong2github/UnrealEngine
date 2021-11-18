@@ -25,7 +25,7 @@ UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	, bFlushDiskWritesPerShot(false)
 {
 	FileNameFormat = TEXT("{sequence_name}.{frame_number}");
-	OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");
+	OutputDirectory.Path = TEXT("{project_dir}/Saved/MovieRenders/");
 }
 
 void UMoviePipelineOutputSetting::PostLoad()
@@ -38,7 +38,7 @@ void UMoviePipelineOutputSetting::PostLoad()
 	// This isn't done in the CDO so that resetting to default value works as expected.
 	if (OutputDirectory.Path.Len() == 0)
 	{
-		OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");
+		OutputDirectory.Path = TEXT("{project_dir}/Saved/MovieRenders/");
 	}
 }
 
@@ -72,6 +72,10 @@ FText UMoviePipelineOutputSetting::GetFooterText(UMoviePipelineExecutorJob* InJo
 
 void UMoviePipelineOutputSetting::GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const
 {
+	const FString ResolvedProjectDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
+	InOutFormatArgs.FilenameArguments.Add(TEXT("project_dir"), ResolvedProjectDir);
+	InOutFormatArgs.FileMetadata.Add(TEXT("unreal/project_dir"), ResolvedProjectDir);
+
 	// Resolution Arguments
 	{
 		FString Resolution = FString::Printf(TEXT("%d_%d"), OutputResolution.X, OutputResolution.Y);

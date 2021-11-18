@@ -793,25 +793,19 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Tries to find the PluginInfo associated with a given module file
+		/// Tries to find the ModuleRulesContext associated with a given module file
 		/// </summary>
-		/// <param name="ModuleFile">The module to search for</param>
-		/// <param name="Plugin">The matching plugin info, or null.</param>
-		/// <returns>True if the module belongs to a plugin</returns>
-		public bool TryGetPluginForModule(FileReference ModuleFile, [NotNullWhen(true)] out PluginInfo? Plugin)
+		internal ModuleRulesContext? TryGetContextForModule(FileReference ModuleFile)
 		{
-			ModuleRulesContext? Context;
-			if (ModuleFileToContext.TryGetValue(ModuleFile, out Context))
+			for (RulesAssembly? Assembly = this; Assembly != null; Assembly = Assembly.Parent)
 			{
-				Plugin = Context.Plugin;
-				return Plugin != null;
+				if (Assembly.ModuleFileToContext.TryGetValue(ModuleFile, out var Context))
+				{
+					return Context;
+				}
 			}
-			if(Parent == null)
-			{
-				Plugin = null;
-				return false;
-			}
-			return Parent.TryGetPluginForModule(ModuleFile, out Plugin);
+
+			return null;
 		}
 	}
 }

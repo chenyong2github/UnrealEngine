@@ -683,7 +683,8 @@ TSharedRef<SWidget> SNiagaraSpreadsheetView::OnGetTargetMenuContent() const
 	for (TObjectIterator<UNiagaraComponent> It; It; ++It)
 	{
 		// Ignore dying or CDO versions of data..
-		if (It->IsPendingKillOrUnreachable() || It->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+		// No need to check the unreachable flag here as TObjectIterator already does that
+		if (!IsValidChecked(*It) || It->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
 		{
 			continue;
 		}

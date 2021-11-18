@@ -46,7 +46,7 @@ public:
 #endif
 
 	//INodeAndMappingsInterface
-	virtual TArray<FFBXNodeAndChannels>* GetNodeAndChannelMappings()  override;
+	virtual TArray<FFBXNodeAndChannels>* GetNodeAndChannelMappings(UMovieSceneSection* InSection)  override;
 	virtual void GetSelectedNodes(TArray<FName>& OutSelectedNodes) override;
 
 #if WITH_EDITOR

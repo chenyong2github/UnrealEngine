@@ -108,7 +108,7 @@ class FHairEnvironmentAO : public FGlobalShader
 		SHADER_PARAMETER(uint32, AO_SampleCount)
 		SHADER_PARAMETER(float, AO_DistanceThreshold)
 		SHADER_PARAMETER(uint32, Output_bHalfRes)
-		SHADER_PARAMETER(FVector2D, Output_InvResolution)
+		SHADER_PARAMETER(FVector2f, Output_InvResolution)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)

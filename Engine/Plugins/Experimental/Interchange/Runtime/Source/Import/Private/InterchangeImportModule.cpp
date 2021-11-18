@@ -25,6 +25,7 @@
 #include "Texture/InterchangePSDTranslator.h"
 #include "Texture/InterchangeTextureFactory.h"
 #include "Texture/InterchangeTGATranslator.h"
+#include "Texture/InterchangeTIFFTranslator.h"
 #include "Texture/InterchangeUDIMTranslator.h"
 
 DEFINE_LOG_CATEGORY(LogInterchangeImport);
@@ -65,6 +66,9 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterTranslator(UInterchangeTGATranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeHDRTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeIESTranslator::StaticClass());
+#if WITH_LIBTIFF
+		InterchangeManager.RegisterTranslator(UInterchangeTIFFTranslator::StaticClass());
+#endif // WITH_LIBTIFF
 
 		//Register the factories
 		InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());

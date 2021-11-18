@@ -117,7 +117,7 @@ void SNiagaraStackModuleItem::AddCustomRowWidgets(TSharedRef<SHorizontalBox> Hor
 			.Content()
 			[
 				SNew(SImage)
-				.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
+				.Image(FNiagaraEditorStyle::Get().GetBrush("Tab.ScratchPad"))
 			]
 		];
 	}

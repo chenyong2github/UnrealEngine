@@ -750,7 +750,7 @@ void UControlRigDetailPanelControlProxies::RemoveProxy(const FName& Name)
 	if (ExistingProxy)
 	{
 		ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-		ExistingProxy->MarkPendingKill();
+		ExistingProxy->MarkAsGarbage();
 	}
 	AllProxies.Remove(Name);
 }
@@ -763,7 +763,7 @@ void UControlRigDetailPanelControlProxies::RemoveAllProxies()
 		if (ExistingProxy)
 		{
 			ExistingProxy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-			ExistingProxy->MarkPendingKill();
+			ExistingProxy->MarkAsGarbage();
 		}
 	}
 	AllProxies.Empty();

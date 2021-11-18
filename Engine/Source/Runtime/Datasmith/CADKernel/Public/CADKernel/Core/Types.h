@@ -47,5 +47,6 @@ namespace CADKernel
 #ifdef DO_ENSURE_CADKERNEL
 #define ensureCADKernel(InExpression) ensure(InExpression)
 #else
-#define ensureCADKernel(InExpression) {}
+#define ensureCADKernel(InExpression) ensure(InExpression)
+//#define ensureCADKernel(InExpression) {}
 #endif

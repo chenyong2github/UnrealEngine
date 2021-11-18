@@ -18,7 +18,6 @@
 #include "Windows/WindowsTextInputMethodSystem.h"
 
 class FGenericWindow;
-struct FVector2D;
 enum class EWindowTransparency;
 class IInputInterface;
 class ITextInputMethodSystem;

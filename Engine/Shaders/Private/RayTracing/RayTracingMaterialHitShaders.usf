@@ -193,7 +193,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		SkyOcclusionUV,
 		SkyOcclusionDataIndex,
 		VolumetricLightmapBrickTextureUVs,
-		ShadingModel,
+		GetShadingModelRequiresBackfaceLighting(ShadingModel),
 		bEnableSkyLightContribution,
 		SkyDiffuseLighting,
 		SkySubsurfaceLighting);

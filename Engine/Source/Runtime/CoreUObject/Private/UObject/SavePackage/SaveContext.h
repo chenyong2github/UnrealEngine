@@ -545,6 +545,11 @@ public:
 		return PackageWriter;
 	}
 
+	ISavePackageValidator* GetPackageValidator() const
+	{
+		return SaveArgs.SavePackageContext ? SaveArgs.SavePackageContext->GetValidator() : nullptr;
+	}
+
 public:
 	ESavePackageResult Result;
 

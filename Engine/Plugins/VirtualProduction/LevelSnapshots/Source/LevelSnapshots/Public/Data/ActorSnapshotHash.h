@@ -6,6 +6,7 @@
 #include "Misc/SecureHash.h"
 #include "ActorSnapshotHash.generated.h"
 
+/** Every actor is hashed when it is saved so we can quickly check whether an actor has changed. */
 USTRUCT()
 struct LEVELSNAPSHOTS_API FActorSnapshotHash
 {

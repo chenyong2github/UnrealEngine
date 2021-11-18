@@ -263,24 +263,25 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 			.Padding(5.f)
 			.AutoHeight()
 			[
-				SNew(SVerticalBox)
-	
-				+ SVerticalBox::Slot()
-				.MaxHeight(25.f)
+				SNew(SHorizontalBox)
+				.Visibility_Lambda([] { return GLevelEditorModeTools().IsViewportUIHidden() ? EVisibility::Hidden : EVisibility::Visible; })
+
+				+ SHorizontalBox::Slot()
 				[
-					SNew(SHorizontalBox)
-					.Visibility_Lambda([] { return GLevelEditorModeTools().IsViewportUIHidden() ? EVisibility::Hidden : EVisibility::Visible; })
+					ViewportWidget->MakeExternalViewportToolbar().ToSharedRef()
+				]
 
-					+ SHorizontalBox::Slot()
-					[
-						ViewportWidget->MakeExternalViewportToolbar().ToSharedRef()
-					]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					FilmOverlayOptions					
+				]
 
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						FilmOverlayOptions					
-					]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SSpacer)
+					.Size(FVector2D(0, 55))
 				]
 			]
 

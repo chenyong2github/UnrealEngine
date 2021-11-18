@@ -501,7 +501,7 @@ public:
 	}
 
 	template<typename StructType>
-	const int32* GetNodePropertyIndexFromHierarchy(UAnimGraphNode_Base* Node)
+	const int32* GetNodePropertyIndexFromHierarchy(const UAnimGraphNode_Base* Node)
 	{
 		TArray<const UBlueprintGeneratedClass*> BlueprintHierarchy;
 		GetGeneratedClassesHierarchy(this, BlueprintHierarchy);
@@ -522,13 +522,13 @@ public:
 	}
 
 	template<typename StructType>
-	const int32* GetNodePropertyIndex(UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
+	const int32* GetNodePropertyIndex(const UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
 	{
 		return (SearchMode == EPropertySearchMode::OnlyThis) ? AnimBlueprintDebugData.NodePropertyToIndexMap.Find(Node) : GetNodePropertyIndexFromHierarchy<StructType>(Node);
 	}
 
 	template<typename StructType>
-	int32 GetLinkIDForNode(UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
+	int32 GetLinkIDForNode(const UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
 	{
 		const int32* pIndex = GetNodePropertyIndex<StructType>(Node, SearchMode);
 		if (pIndex)
@@ -539,7 +539,7 @@ public:
 	}
 
 	template<typename StructType>
-	FStructProperty* GetPropertyForNode(UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
+	FStructProperty* GetPropertyForNode(const UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
 	{
 		const int32* pIndex = GetNodePropertyIndex<StructType>(Node, SearchMode);
 		if (pIndex)
@@ -557,7 +557,7 @@ public:
 	}
 
 	template<typename StructType>
-	StructType* GetPropertyInstance(UObject* Object, UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
+	StructType* GetPropertyInstance(UObject* Object, const UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
 	{
 		FStructProperty* AnimationProperty = GetPropertyForNode<StructType>(Node);
 		if (AnimationProperty)
@@ -587,7 +587,7 @@ public:
 	}
 
 	template<typename StructType>
-	StructType& GetPropertyInstanceChecked(UObject* Object, UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
+	StructType& GetPropertyInstanceChecked(UObject* Object, const UAnimGraphNode_Base* Node, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis)
 	{
 		const int32 Index = AnimBlueprintDebugData.NodePropertyToIndexMap.FindChecked(Node);
 		FStructProperty* AnimationProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - Index];

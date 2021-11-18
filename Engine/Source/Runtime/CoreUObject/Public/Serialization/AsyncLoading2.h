@@ -21,9 +21,9 @@ class IEDLBootNotificationManager;
 class FPackageImportReference
 {
 public:
-	FPackageImportReference(uint32 InImportedPackageIndex, uint32 InExportHash)
+	FPackageImportReference(uint32 InImportedPackageIndex, uint32 InImportedPublicExportHashIndex)
 		: ImportedPackageIndex(InImportedPackageIndex)
-		, ExportHash(InExportHash)
+		, ImportedPublicExportHashIndex(InImportedPublicExportHashIndex)
 	{
 	}
 
@@ -32,14 +32,14 @@ public:
 		return ImportedPackageIndex;
 	}
 
-	uint32 GetExportHash() const
+	uint32 GetImportedPublicExportHashIndex() const
 	{
-		return ExportHash;
+		return ImportedPublicExportHashIndex;
 	}
 
 private:
 	uint32 ImportedPackageIndex;
-	uint32 ExportHash;
+	uint32 ImportedPublicExportHashIndex;
 };
 
 class FPackageObjectIndex
@@ -81,7 +81,7 @@ public:
 
 	inline static FPackageObjectIndex FromPackageImportRef(const FPackageImportReference& PackageImportRef)
 	{
-		uint64 Id = static_cast<uint64>(PackageImportRef.GetImportedPackageIndex()) << 32 | PackageImportRef.GetExportHash();
+		uint64 Id = static_cast<uint64>(PackageImportRef.GetImportedPackageIndex()) << 32 | PackageImportRef.GetImportedPublicExportHashIndex();
 		check(!(Id & TypeMask));
 		return FPackageObjectIndex(PackageImport, Id);
 	}
@@ -160,7 +160,7 @@ public:
 
 	bool IsNull() const
 	{
-		return ExportHash == 0;
+		return GetExportHash() == 0;
 	}
 
 	FPackageId GetPackageId() const
@@ -168,50 +168,52 @@ public:
 		return FPackageId::FromValue(uint64(PackageIdHigh) << 32 | PackageIdLow);
 	}
 
-	uint32 GetExportHash() const
+	uint64 GetExportHash() const
 	{
-		return ExportHash;
+		return uint64(ExportHashHigh) << 32 | ExportHashLow;
 	}
 
 	inline bool operator==(const FPublicExportKey& Other) const
 	{
-		return ExportHash == Other.ExportHash &&
-			PackageIdHigh == Other.PackageIdHigh &&
-			PackageIdLow == Other.PackageIdLow;
+		return GetExportHash() == Other.GetExportHash() &&
+			GetPackageId() == Other.GetPackageId();
 	}
 
 	inline friend uint32 GetTypeHash(const FPublicExportKey& In)
 	{
-		return HashCombine(HashCombine(In.PackageIdHigh, In.PackageIdLow), In.ExportHash);
+		return HashCombine(GetTypeHash(In.GetPackageId()), GetTypeHash(In.GetExportHash()));
 	}
 
-	static FPublicExportKey MakeKey(FPackageId PackageId, uint32 ExportHash)
+	static FPublicExportKey MakeKey(FPackageId PackageId, uint64 ExportHash)
 	{
 		check(PackageId.IsValid());
 		check(ExportHash);
 		uint64 PackageIdValue = PackageId.Value();
-		return FPublicExportKey(uint32(PackageIdValue >> 32), uint32(PackageIdValue), ExportHash);
+		return FPublicExportKey(uint32(PackageIdValue >> 32), uint32(PackageIdValue), uint32(ExportHash >> 32), uint32(ExportHash));
 	}
 
-	static FPublicExportKey FromPackageImport(FPackageObjectIndex ObjectIndex, const TArrayView<const FPackageId>& ImportedPackageIds)
+	static FPublicExportKey FromPackageImport(FPackageObjectIndex ObjectIndex, const TArrayView<const FPackageId>& ImportedPackageIds, const TArrayView<const uint64>& ImportedPublicExportHashes)
 	{
 		check(ObjectIndex.IsPackageImport());
 		FPackageImportReference PackageImportRef = ObjectIndex.ToPackageImportRef();
 		FPackageId PackageId = ImportedPackageIds[PackageImportRef.GetImportedPackageIndex()];
-		return MakeKey(PackageId, PackageImportRef.GetExportHash());
+		uint64 ExportHash = ImportedPublicExportHashes[PackageImportRef.GetImportedPublicExportHashIndex()];
+		return MakeKey(PackageId, ExportHash);
 	}
 
 private:
-	FPublicExportKey(uint32 InPackageIdHigh, uint32 InPackageIdLow, uint32 InExportHash)
+	FPublicExportKey(uint32 InPackageIdHigh, uint32 InPackageIdLow, uint32 InExportHashHigh, uint32 InExportHashLow)
 		: PackageIdHigh(InPackageIdHigh)
 		, PackageIdLow(InPackageIdLow)
-		, ExportHash(InExportHash)
+		, ExportHashHigh(InExportHashHigh)
+		, ExportHashLow(InExportHashLow)
 	{
 	}
 
 	uint32 PackageIdHigh = 0;
 	uint32 PackageIdLow = 0;
-	uint32 ExportHash = 0;
+	uint32 ExportHashHigh = 0;
+	uint32 ExportHashLow = 0;
 };
 
 /**
@@ -252,6 +254,7 @@ struct FZenPackageSummary
 	FMappedName Name;
 	uint32 PackageFlags;
 	uint32 CookedHeaderSize;
+	int32 ImportedPublicExportHashesOffset;
 	int32 ImportMapOffset;
 	int32 ExportMapOffset;
 	int32 ExportBundleEntriesOffset;
@@ -309,10 +312,10 @@ struct FExportMapEntry
 	FPackageObjectIndex ClassIndex;
 	FPackageObjectIndex SuperIndex;
 	FPackageObjectIndex TemplateIndex;
-	uint32 ExportHash;
+	uint64 PublicExportHash;
 	EObjectFlags ObjectFlags = EObjectFlags::RF_NoFlags;
 	EExportFilterFlags FilterFlags = EExportFilterFlags::None;
-	uint8 Pad[7] = {};
+	uint8 Pad[3] = {};
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry);
 };

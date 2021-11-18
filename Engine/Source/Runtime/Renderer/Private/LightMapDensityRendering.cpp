@@ -102,7 +102,7 @@ void RenderLightMapDensities(
 }
 
 template<typename LightMapPolicyType>
-void FLightmapDensityMeshProcessor::Process(
+bool FLightmapDensityMeshProcessor::Process(
 	const FMeshBatch& MeshBatch,
 	uint64 BatchElementMask,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
@@ -117,12 +117,21 @@ void FLightmapDensityMeshProcessor::Process(
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 	FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
 
+	FMaterialShaderTypes ShaderTypes;
+	ShaderTypes.AddShaderType<TLightMapDensityVS<LightMapPolicyType>>();
+	ShaderTypes.AddShaderType<TLightMapDensityPS<LightMapPolicyType>>();
+
+	FMaterialShaders Shaders;
+	if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+	{
+		return false;
+	}
+
 	TMeshProcessorShaders<
 		TLightMapDensityVS<LightMapPolicyType>,
 		TLightMapDensityPS<LightMapPolicyType>> LightmapDensityPassShaders;
-
-	LightmapDensityPassShaders.VertexShader = MaterialResource.GetShader<TLightMapDensityVS<LightMapPolicyType>>(VertexFactoryType);
-	LightmapDensityPassShaders.PixelShader = MaterialResource.GetShader<TLightMapDensityPS<LightMapPolicyType>>(VertexFactoryType);
+	Shaders.TryGetVertexShader(LightmapDensityPassShaders.VertexShader);
+	Shaders.TryGetPixelShader(LightmapDensityPassShaders.PixelShader);
 
 	TLightMapDensityElementData<LightMapPolicyType> ShaderElementData(LightMapElementData);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);
@@ -220,114 +229,146 @@ void FLightmapDensityMeshProcessor::Process(
 		SortKey,
 		EMeshPassFeatures::Default,
 		ShaderElementData);
+
+	return true;
+}
+
+bool FLightmapDensityMeshProcessor::TryAddMeshBatch(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& InMaterialRenderProxy,
+	const FMaterial& InMaterial)
+{
+	// Determine the mesh's material and blend mode.
+	const FMaterialRenderProxy* MaterialRenderProxy = &InMaterialRenderProxy;
+	const FMaterial* Material = &InMaterial;
+	const bool bMaterialMasked = Material->IsMasked();
+	const bool bTranslucentBlendMode = IsTranslucentBlendMode(Material->GetBlendMode());
+	const bool bIsLitMaterial = Material->GetShadingModels().IsLit();
+	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
+	const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
+	const FLightMapInteraction LightMapInteraction = (MeshBatch.LCI && bIsLitMaterial) ? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel) : FLightMapInteraction();
+
+	// Force simple lightmaps based on system settings.
+	bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel) && LightMapInteraction.AllowsHighQualityLightmaps();
+
+	static const auto SupportLowQualityLightmapsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
+	const bool bAllowLowQualityLightMaps = (!SupportLowQualityLightmapsVar) || (SupportLowQualityLightmapsVar->GetValueOnAnyThread() != 0);
+
+	if ((!bTranslucentBlendMode || ViewIfDynamicMeshCommand->Family->EngineShowFlags.Wireframe)
+		&& ShouldIncludeMaterialInDefaultOpaquePass(*Material))
+	{
+		if (!bMaterialMasked && !Material->MaterialModifiesMeshPosition_RenderThread())
+		{
+			// Override with the default material for opaque materials that are not two sided
+			MaterialRenderProxy = GEngine->LevelColorationLitMaterial->GetRenderProxy();
+			// If LevelColorationLitMaterial happens to be compiling, use the fallback material and overwrite MaterialRenderProxy
+			Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+			if (!Material)
+			{
+				return false;
+			}
+		}
+
+		if (!MaterialRenderProxy)
+		{
+			MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+		}
+
+		check(Material && MaterialRenderProxy);
+
+		if (bIsLitMaterial && PrimitiveSceneProxy && (LightMapInteraction.GetType() == LMIT_Texture || (PrimitiveSceneProxy->IsStatic() && PrimitiveSceneProxy->GetLightMapResolution() > 0)))
+		{
+			// Should this object be texture lightmapped? Ie, is lighting not built for it?
+			bool bUseDummyLightMapPolicy = MeshBatch.LCI == nullptr || MeshBatch.LCI->GetLightMapInteraction(FeatureLevel).GetType() != LMIT_Texture;
+
+			// Use dummy if we don't support either lightmap quality.
+			bUseDummyLightMapPolicy |= (!bAllowHighQualityLightMaps && !bAllowLowQualityLightMaps);
+			if (!bUseDummyLightMapPolicy)
+			{
+				if (bAllowHighQualityLightMaps)
+				{
+					return Process<TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>>(
+						MeshBatch,
+						BatchElementMask,
+						PrimitiveSceneProxy,
+						StaticMeshId,
+						*MaterialRenderProxy,
+						*Material,
+						TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>(),
+						MeshBatch.LCI,
+						MeshFillMode,
+						MeshCullMode);
+				}
+				else
+				{
+					return Process<TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>>(
+						MeshBatch,
+						BatchElementMask,
+						PrimitiveSceneProxy,
+						StaticMeshId,
+						*MaterialRenderProxy,
+						*Material,
+						TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>(),
+						MeshBatch.LCI,
+						MeshFillMode,
+						MeshCullMode);
+				}
+			}
+			else
+			{
+				return Process<TUniformLightMapPolicy<LMP_DUMMY>>(
+					MeshBatch,
+					BatchElementMask,
+					PrimitiveSceneProxy,
+					StaticMeshId,
+					*MaterialRenderProxy,
+					*Material,
+					TUniformLightMapPolicy<LMP_DUMMY>(),
+					MeshBatch.LCI,
+					MeshFillMode,
+					MeshCullMode);
+			}
+		}
+		else
+		{
+			return Process<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>>(
+				MeshBatch,
+				BatchElementMask,
+				PrimitiveSceneProxy,
+				StaticMeshId,
+				*MaterialRenderProxy,
+				*Material,
+				TUniformLightMapPolicy<LMP_NO_LIGHTMAP>(),
+				MeshBatch.LCI,
+				MeshFillMode,
+				MeshCullMode);
+		}
+	}
+
+	return true;
 }
 
 void FLightmapDensityMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
 	if (FeatureLevel >= ERHIFeatureLevel::SM5 && ViewIfDynamicMeshCommand->Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes() && MeshBatch.bUseForMaterial)
 	{
-		// Determine the mesh's material and blend mode.
-		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
-		const FMaterial* Material = &MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, MaterialRenderProxy);
-		const bool bMaterialMasked = Material->IsMasked();
-		const bool bTranslucentBlendMode = IsTranslucentBlendMode(Material->GetBlendMode());
-		const bool bIsLitMaterial = Material->GetShadingModels().IsLit();
-		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *Material, OverrideSettings);
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, *Material, OverrideSettings);
-		const FLightMapInteraction LightMapInteraction = (MeshBatch.LCI && bIsLitMaterial) ? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel) : FLightMapInteraction();
-
-		// Force simple lightmaps based on system settings.
-		bool bAllowHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel) && LightMapInteraction.AllowsHighQualityLightmaps();
-
-		static const auto SupportLowQualityLightmapsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
-		const bool bAllowLowQualityLightMaps = (!SupportLowQualityLightmapsVar) || (SupportLowQualityLightmapsVar->GetValueOnAnyThread() != 0);
-
-		if ((!bTranslucentBlendMode || ViewIfDynamicMeshCommand->Family->EngineShowFlags.Wireframe)
-			&& ShouldIncludeMaterialInDefaultOpaquePass(*Material))
+		const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+		while (MaterialRenderProxy)
 		{
-			if (!bMaterialMasked && !Material->MaterialModifiesMeshPosition_RenderThread())
+			const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+			if (Material)
 			{
-				// Override with the default material for opaque materials that are not two sided
-				MaterialRenderProxy = GEngine->LevelColorationLitMaterial->GetRenderProxy();
-				// If LevelColorationLitMaterial happens to be compiling, use the fallback material and overwrite MaterialRenderProxy
-				Material = &MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, MaterialRenderProxy);
-			}
-
-			if (!MaterialRenderProxy)
-			{
-				MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
-			}
-
-			check(Material && MaterialRenderProxy);
-
-			if (bIsLitMaterial && PrimitiveSceneProxy && (LightMapInteraction.GetType() == LMIT_Texture || (PrimitiveSceneProxy->IsStatic() && PrimitiveSceneProxy->GetLightMapResolution() > 0)))
-			{
-				// Should this object be texture lightmapped? Ie, is lighting not built for it?
-				bool bUseDummyLightMapPolicy = MeshBatch.LCI == nullptr || MeshBatch.LCI->GetLightMapInteraction(FeatureLevel).GetType() != LMIT_Texture;
-
-				// Use dummy if we don't support either lightmap quality.
-				bUseDummyLightMapPolicy |= (!bAllowHighQualityLightMaps && !bAllowLowQualityLightMaps);
-				if (!bUseDummyLightMapPolicy)
+				if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *MaterialRenderProxy, *Material))
 				{
-					if (bAllowHighQualityLightMaps)
-					{
-						Process<TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>>(
-							MeshBatch, 
-							BatchElementMask, 
-							PrimitiveSceneProxy, 
-							StaticMeshId,
-							*MaterialRenderProxy, 
-							*Material, 
-							TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>(), 
-							MeshBatch.LCI, 
-							MeshFillMode, 
-							MeshCullMode);
-					}
-					else
-					{
-						Process<TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>>(
-							MeshBatch, 
-							BatchElementMask, 
-							PrimitiveSceneProxy, 
-							StaticMeshId,
-							*MaterialRenderProxy, 
-							*Material, 
-							TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>(), 
-							MeshBatch.LCI, 
-							MeshFillMode, 
-							MeshCullMode);
-					}
-				}
-				else
-				{
-					Process<TUniformLightMapPolicy<LMP_DUMMY>>(
-						MeshBatch, 
-						BatchElementMask, 
-						PrimitiveSceneProxy, 
-						StaticMeshId,
-						*MaterialRenderProxy, 
-						*Material, 
-						TUniformLightMapPolicy<LMP_DUMMY>(), 
-						MeshBatch.LCI, 
-						MeshFillMode, 
-						MeshCullMode);
+					break;
 				}
 			}
-			else
-			{
-				Process<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>>(
-					MeshBatch, 
-					BatchElementMask, 
-					PrimitiveSceneProxy, 
-					StaticMeshId,
-					*MaterialRenderProxy, 
-					*Material, 
-					TUniformLightMapPolicy<LMP_NO_LIGHTMAP>(), 
-					MeshBatch.LCI, 
-					MeshFillMode, 
-					MeshCullMode);
-			}
+
+			MaterialRenderProxy = MaterialRenderProxy->GetFallback(FeatureLevel);
 		}
 	}
 }

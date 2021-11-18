@@ -44,6 +44,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, const TSharedRef<FTokenizedMessage>&);
 
+
 /**
   * A Deformer Graph is an asset that is used to create and control custom deformations on 
   * skeletal meshes.
@@ -236,7 +237,7 @@ private:
 	UOptimusNodeGraph* ResolveGraphPath(const FString& InPath, FString& OutRemainingPath);
 	UOptimusNode* ResolveNodePath(const FString& InPath, FString& OutRemainingPath);
 	
-	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject);
+	void Notify(EOptimusGlobalNotifyType InNotifyType, UObject *InObject) const;
 
 	FOptimusType_CompilerDiagnostic ProcessCompilationMessage(
 		const UOptimusNode* InKernelNode,

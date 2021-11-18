@@ -83,7 +83,7 @@ private:
 
 	void FillCompactPoseAndComponentRefRotations(const FBoneContainer& BoneContainer);
 	// Compact pose format of Mirror Bone Map
-	TArray<FCompactPoseBoneIndex> CompactPoseMirrorBones;
+	TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;
 
 	// Pre-calculated component space of reference pose, which allows mirror to work with any joint orient 
 	TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;

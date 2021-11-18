@@ -251,7 +251,7 @@ class FLandscapeGrassWeightShaderElementData : public FMeshMaterialShaderElement
 public:
 
 	int32 OutputPass;
-	FVector2D RenderOffset;
+	FVector2f RenderOffset;
 };
 
 class FLandscapeGrassWeightVS : public FMeshMaterialShader
@@ -477,7 +477,7 @@ bool FLandscapeGrassWeightMeshProcessor::Process(
 	for (int32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
 	{
 		ShaderElementData.OutputPass = (PassIndex >= FirstHeightMipsPassIndex) ? 0 : PassIndex;
-		ShaderElementData.RenderOffset = ViewOffset + FVector2D(PassOffsetX * PassIndex, 0);
+		ShaderElementData.RenderOffset = ViewOffset + FVector2f(PassOffsetX * PassIndex, 0);
 
 		uint64 Mask = (PassIndex >= FirstHeightMipsPassIndex) ? HeightMips[PassIndex - FirstHeightMipsPassIndex] : BatchElementMask;
 
@@ -2324,9 +2324,9 @@ void ALandscapeProxy::GetGrassTypes(const UWorld* World, UMaterialInterface* Lan
 	OutMaxDiscardDistance = 0.0f;
 	if (LandscapeMat)
 	{
-		GrassTypesOut.Append(LandscapeMat->GetMaterial()->GetCachedExpressionData().GrassTypes);
+		GrassTypesOut.Append(LandscapeMat->GetCachedExpressionData().GrassTypes);
 
-		for (const ULandscapeGrassType* GrassType : LandscapeMat->GetMaterial()->GetCachedExpressionData().GrassTypes)
+		for (const ULandscapeGrassType* GrassType : LandscapeMat->GetCachedExpressionData().GrassTypes)
 		{
 			if (GrassType != nullptr)
 			{

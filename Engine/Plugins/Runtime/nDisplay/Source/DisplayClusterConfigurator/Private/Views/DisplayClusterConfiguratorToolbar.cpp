@@ -122,21 +122,22 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorToolbar::GenerateExportMenu()
 	
 	const FDisplayClusterConfiguratorCommands& Commands = IDisplayClusterConfigurator::Get().GetCommands();
 	FMenuBuilder MenuBuilder(true, CommandList);
-
-	TSharedRef<SWidget> ExportPathWidget = SNew(SHorizontalBox)
-	+SHorizontalBox::Slot()
-	.VAlign(VAlign_Center)
-	.AutoWidth()
-	.Padding(0.f, 2.f, 0.f, 0.f)
-	[
-		SNew(STextBlock)
-		.Text(this, &FDisplayClusterConfiguratorToolbar::GetExportPath)
-		.ToolTipText(LOCTEXT("ExportPath_Tooltip", "Export to change the path"))
-	];
+	
+	const TSharedRef<SWidget> ExportPathWidget =
+		SNew(SBox)
+		.Padding(FMargin(16.0f, 3.0f))
+		[
+			SNew(STextBlock)
+			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+			.Text(this, &FDisplayClusterConfiguratorToolbar::GetExportPath)
+			.ToolTipText(LOCTEXT("ExportPath_Tooltip", "Export to change the path"))
+			.WrapTextAt(300)
+		];
 	
 	MenuBuilder.BeginSection("ExportPath", LOCTEXT("ExportPath_Header", "Path"));
-	MenuBuilder.AddWidget(ExportPathWidget, LOCTEXT("ExportPath_Label", ""));
+	MenuBuilder.AddWidget(ExportPathWidget, FText::GetEmpty());
 	MenuBuilder.EndSection();
+	MenuBuilder.AddSeparator();
 	MenuBuilder.BeginSection("ExportOptions");
 	MenuBuilder.AddMenuEntry(Commands.ExportConfigOnSave);
 	MenuBuilder.EndSection();

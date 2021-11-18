@@ -8,6 +8,7 @@
 
 #include "Engine/World.h"
 #include "Engine/Engine.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "UObject/PackageReload.h"
@@ -62,6 +63,8 @@ FConcertClientPackageBridge::FConcertClientPackageBridge()
 	UPackage::PackageSavedWithContextEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackageSaved);
 	FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FConcertClientPackageBridge::HandleAssetReload);
 
+	FCoreDelegates::OnEndFrame.AddRaw(this, &FConcertClientPackageBridge::OnEndFrame);
+
 	if (GIsEditor)
 	{
 		// Register Asset Registry Events
@@ -84,6 +87,7 @@ FConcertClientPackageBridge::~FConcertClientPackageBridge()
 	UPackage::PreSavePackageWithContextEvent.RemoveAll(this);
 	UPackage::PackageSavedWithContextEvent.RemoveAll(this);
 	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+	FCoreDelegates::OnEndFrame.RemoveAll(this);
 
 	if (GIsEditor)
 	{
@@ -155,12 +159,27 @@ void FConcertClientPackageBridge::HandlePackagePreSave(UPackage* Package, FObjec
 			ConcertSyncClientUtil::FillPackageInfo(Package, Asset, EConcertPackageUpdateType::Saved, PackageInfo);
 			PackageInfo.bPreSave = true;
 			PackageInfo.bAutoSave = GEngine->IsAutosaving();
-		
+
 			OnLocalPackageEventDelegate.Broadcast(PackageInfo, PackageFilename);
 		}
 	}
 
 	UE_LOG(LogConcert, Verbose, TEXT("Asset Pre-Saved: %s"), *Package->GetName());
+}
+
+void FConcertClientPackageBridge::OnEndFrame()
+{
+	if (PendingPackageInfos.Num() == 0)
+	{
+		return;
+	}
+
+	UPackage::WaitForAsyncFileWrites();
+	for (const FConcertPackageInfoTuple& PackageInfoTuple : PendingPackageInfos)
+	{
+		OnLocalPackageEventDelegate.Broadcast(PackageInfoTuple.Get<0>(), PackageInfoTuple.Get<1>());
+	}
+	PendingPackageInfos.Reset();
 }
 
 void FConcertClientPackageBridge::HandlePackageSaved(const FString& PackageFilename, UPackage* Package, FObjectPostSaveContext ObjectSaveContext)
@@ -194,8 +213,8 @@ void FConcertClientPackageBridge::HandlePackageSaved(const FString& PackageFilen
 		PackageInfo.NewPackageName = NewPackageName;
 		PackageInfo.bPreSave = false;
 		PackageInfo.bAutoSave = GEngine->IsAutosaving();
-	
-		OnLocalPackageEventDelegate.Broadcast(PackageInfo, PackageFilename);
+
+		PendingPackageInfos.Add(FConcertPackageInfoTuple(MoveTemp(PackageInfo), PackageFilename));
 	}
 
 	UE_LOG(LogConcert, Verbose, TEXT("Asset Saved: %s"), *Package->GetName());

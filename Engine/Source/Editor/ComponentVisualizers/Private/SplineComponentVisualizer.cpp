@@ -108,9 +108,9 @@ public:
 		UI_COMMAND(SetKeyToLinear, "Linear", "Set spline point to Linear type", EUserInterfaceActionType::RadioButton, FInputChord());
 		UI_COMMAND(SetKeyToConstant, "Constant", "Set spline point to Constant type", EUserInterfaceActionType::RadioButton, FInputChord());
 		UI_COMMAND(FocusViewportToSelection, "Focus Selected", "Moves the camera in front of the selection", EUserInterfaceActionType::Button, FInputChord(EKeys::F));
-		UI_COMMAND(SnapKeyToNearestSplinePoint, "Snap to Nearest Spline Point", "Snap selected spline point to nearest spline point.", EUserInterfaceActionType::Button, FInputChord(EKeys::P, EModifierKey::Shift));
-		UI_COMMAND(AlignKeyToNearestSplinePoint, "Align to Nearest Spline Point", "Align selected spline point to nearest spline point.", EUserInterfaceActionType::Button, FInputChord());
-		UI_COMMAND(AlignKeyPerpendicularToNearestSplinePoint, "Align Perpendicular to Nearest Spline Point", "Align perpendicular selected spline point to nearest spline point.", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(SnapKeyToNearestSplinePoint, "Snap to Nearest Spline Point", "Snap selected spline point to nearest non-adjacent spline point on current or nearby spline.", EUserInterfaceActionType::Button, FInputChord(EKeys::P, EModifierKey::Shift));
+		UI_COMMAND(AlignKeyToNearestSplinePoint, "Align to Nearest Spline Point", "Align selected spline point to nearest non-adjacent spline point on current or nearby spline.", EUserInterfaceActionType::Button, FInputChord());
+		UI_COMMAND(AlignKeyPerpendicularToNearestSplinePoint, "Align Perpendicular to Nearest Spline Point", "Align perpendicular selected spline point to nearest non-adjacent spline point on current or nearby spline.", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(SnapKeyToActor, "Snap to Actor", "Snap selected spline point to actor, Ctrl-LMB to select the actor after choosing this option.", EUserInterfaceActionType::Button, FInputChord(EKeys::P, (EModifierKey::Alt | EModifierKey::Shift)));
 		UI_COMMAND(AlignKeyToActor, "Align to Actor", "Align selected spline point to actor, Ctrl-LMB to select the actor after choosing this option.", EUserInterfaceActionType::Button, FInputChord());
 		UI_COMMAND(AlignKeyPerpendicularToActor, "Align Perpendicular to Actor", "Align perpendicular  selected spline point to actor, Ctrl-LMB to select the actor after choosing this option.", EUserInterfaceActionType::Button, FInputChord());
@@ -843,6 +843,8 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 {
 	ResetTempModes();
 
+	bool bVisProxyClickHandled = false;
+
 	if(VisProxy && VisProxy->Component.IsValid())
 	{
 		check(SelectionState);
@@ -877,7 +879,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				SelectionState->SetCachedRotation(SplineComp->GetQuaternionAtSplinePoint(SelectionState->GetLastKeyIndexSelected(), ESplineCoordinateSpace::World));
 
-				return true;
+				bVisProxyClickHandled = true;
 			}
 		}
 		else if (VisProxy->IsA(HSplineSegmentProxy::StaticGetType()))
@@ -939,7 +941,7 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 
 				SelectionState->SetSelectedSplinePosition(BestLocation);
 
-				return true;
+				bVisProxyClickHandled = true;
 			}
 		}
 		else if (VisProxy->IsA(HSplineTangentHandleProxy::StaticGetType()))
@@ -977,13 +979,17 @@ bool FSplineComponentVisualizer::VisProxyHandleClick(FEditorViewportClient* InVi
 				SelectionState->SetSelectedTangentHandleType(KeyProxy->bArriveTangent ? ESelectedTangentHandle::Arrive : ESelectedTangentHandle::Leave);
 				SelectionState->SetCachedRotation(SplineComp->GetQuaternionAtSplinePoint(SelectionState->GetSelectedTangentHandle(), ESplineCoordinateSpace::World));
 
-				return true;
+				bVisProxyClickHandled = true;
 			}
 		}
-
 	}
 
-	return false;
+	if (bVisProxyClickHandled)
+	{
+		GEditor->RedrawLevelEditingViewports(true);
+	}
+
+	return bVisProxyClickHandled;
 }
 
 void FSplineComponentVisualizer::SetEditedSplineComponent(const USplineComponent* InSplineComponent) 
@@ -1482,7 +1488,9 @@ bool FSplineComponentVisualizer::HandleBoxSelect(const FBox& InBox, FEditorViewp
 	if (SplineComp != nullptr)
 	{
 		bool bSelectionChanged = false;
+		bool bAppendToSelection = InViewportClient->IsShiftPressed();
 
+		const TSet<int32>& SelectedKeys = SelectionState->GetSelectedKeys();
 		const FInterpCurveVector& SplineInfo = SplineComp->GetSplinePointsPosition();
 		int32 NumPoints = SplineInfo.Points.Num();
 
@@ -1493,8 +1501,12 @@ bool FSplineComponentVisualizer::HandleBoxSelect(const FBox& InBox, FEditorViewp
 
 			if (InBox.IsInside(Pos))
 			{
-				ChangeSelectionState(KeyIdx, true);
-				bSelectionChanged = true;
+				if (!bAppendToSelection || !SelectedKeys.Contains(KeyIdx))
+				{
+					ChangeSelectionState(KeyIdx, bAppendToSelection);
+					bAppendToSelection = true;
+					bSelectionChanged = true;
+				}
 			}
 		}
 
@@ -1521,7 +1533,9 @@ bool FSplineComponentVisualizer::HandleFrustumSelect(const FConvexVolume& InFrus
 	if (SplineComp != nullptr)
 	{
 		bool bSelectionChanged = false;
+		bool bAppendToSelection = InViewportClient->IsShiftPressed();
 
+		const TSet<int32>& SelectedKeys = SelectionState->GetSelectedKeys();
 		const FInterpCurveVector& SplineInfo = SplineComp->GetSplinePointsPosition();
 		int32 NumPoints = SplineInfo.Points.Num();
 
@@ -1532,8 +1546,12 @@ bool FSplineComponentVisualizer::HandleFrustumSelect(const FConvexVolume& InFrus
 
 			if (InFrustum.IntersectPoint(Pos))
 			{
-				ChangeSelectionState(KeyIdx, true);
-				bSelectionChanged = true;
+				if (!bAppendToSelection || !SelectedKeys.Contains(KeyIdx))
+				{
+					ChangeSelectionState(KeyIdx, bAppendToSelection);
+					bAppendToSelection = true;
+					bSelectionChanged = true;
+				}
 			}
 		}
 
@@ -1706,15 +1724,72 @@ void FSplineComponentVisualizer::OnSnapKeyToNearestSplinePoint(ESplineComponentS
 	static const float SnapTol = 5000.0f;
 	float SnapTolSquared = SnapTol * SnapTol;
 
-	// Search all spline components for nearest point.
+	auto UpdateNearestKey = [WorldPos, SnapTolSquared, &NearestDistanceSquared, &NearestSplineComp, &NearestKeyIndex](USplineComponent* InSplineComp, int InKeyIdx)
+	{
+		const FVector TestKeyWorldPos = InSplineComp->GetLocationAtSplinePoint(InKeyIdx, ESplineCoordinateSpace::World);
+		float TestDistanceSquared = FVector::DistSquared(TestKeyWorldPos, WorldPos);
+
+		if (TestDistanceSquared < SnapTolSquared && (NearestKeyIndex == INDEX_NONE || TestDistanceSquared < NearestDistanceSquared))
+		{
+			NearestDistanceSquared = TestDistanceSquared;
+			NearestSplineComp = InSplineComp;
+			NearestKeyIndex = InKeyIdx;
+		}
+	};
+
+	{
+		// Test non-adjacent points on current spline.
+		const FInterpCurveVector& SplineInfo = SplineComp->GetSplinePointsPosition();
+		const int32 NumPoints = SplineInfo.Points.Num();
+
+		// Don't test against current or adjacent points
+		TSet<int32> IgnoreIndices;
+		IgnoreIndices.Add(LastKeyIndexSelected);
+		int32 PrevIndex = LastKeyIndexSelected - 1;
+		int32 NextIndex = LastKeyIndexSelected + 1;
+
+		if (PrevIndex >= 0)
+		{
+			IgnoreIndices.Add(PrevIndex);
+		}
+		else if (SplineComp->IsClosedLoop())
+		{
+			IgnoreIndices.Add(NumPoints - 1);
+		}
+
+		if (NextIndex < NumPoints)
+		{
+			IgnoreIndices.Add(NextIndex);
+		}
+		else if (SplineComp->IsClosedLoop())
+		{
+			IgnoreIndices.Add(0);
+		}
+
+		for (int32 KeyIdx = 0; KeyIdx < NumPoints; KeyIdx++)
+		{
+			if (!IgnoreIndices.Contains(KeyIdx))
+			{
+				UpdateNearestKey(SplineComp, KeyIdx);
+			}
+		}
+	}
+
+	// Test whether component and its owning actor are valid and visible
+	auto IsValidAndVisible = [](const USplineComponent* Comp)
+	{
+		return (Comp && !Comp->IsBeingDestroyed() && Comp->IsVisibleInEditor() &&
+				Comp->GetOwner() && IsValid(Comp->GetOwner()) && !Comp->GetOwner()->IsHiddenEd());
+	};
+
+	// Next search all spline components for nearest point on splines, excluding current spline
 	// Only test points in splines whose bounding box contains this point.
 	for (TObjectIterator<USplineComponent> SplineIt; SplineIt; ++SplineIt)
 	{
 		USplineComponent* TestComponent = *SplineIt;
 
-		// Ignore current spline, those that are being destroyed, those with empty bbox.
-		if (TestComponent && TestComponent != SplineComp &&
-			!TestComponent->IsBeingDestroyed() && 
+		// Ignore current spline and those which are not valid 
+		if (TestComponent && TestComponent != SplineComp && IsValidAndVisible(TestComponent) &&
 			!FMath::IsNearlyZero(TestComponent->Bounds.SphereRadius))
 		{
 			FBox TestComponentBoundingBox = TestComponent->Bounds.GetBox().ExpandBy(FVector(SnapTol, SnapTol, SnapTol));
@@ -1725,15 +1800,7 @@ void FSplineComponentVisualizer::OnSnapKeyToNearestSplinePoint(ESplineComponentS
 				const int32 NumPoints = SplineInfo.Points.Num();
 				for (int32 KeyIdx = 0; KeyIdx < NumPoints; KeyIdx++)
 				{
-					const FVector TestKeyWorldPos = TestComponent->GetLocationAtSplinePoint(KeyIdx, ESplineCoordinateSpace::World);
-					float TestDistanceSquared = FVector::DistSquared(TestKeyWorldPos, WorldPos);
-
-					if (TestDistanceSquared < SnapTolSquared && (NearestKeyIndex == INDEX_NONE || TestDistanceSquared < NearestDistanceSquared))
-					{
-						NearestDistanceSquared = TestDistanceSquared;
-						NearestSplineComp = TestComponent;
-						NearestKeyIndex = KeyIdx;
-					}
+					UpdateNearestKey(TestComponent, KeyIdx);
 				}
 			}
 		}

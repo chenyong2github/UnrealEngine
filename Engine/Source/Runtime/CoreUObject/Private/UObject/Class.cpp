@@ -110,16 +110,11 @@ COREUOBJECT_API void InitializePrivateStaticClass(
 
 	// Register the class's dependencies, then itself.
 	TClass_PrivateStaticClass->RegisterDependencies();
-	if (!TClass_PrivateStaticClass->HasAnyFlags(RF_Dynamic))
 	{
 		// Defer
 		TClass_PrivateStaticClass->Register(PackageName, Name);
 	}
-	else
-	{
-		// Register immediately (don't let the function name mistake you!)
-		TClass_PrivateStaticClass->DeferredRegister(UDynamicClass::StaticClass(), PackageName, Name);
-	}
+	
 	NotifyRegistrationEvent(PackageName, Name, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Finished);
 }
 
@@ -1204,6 +1199,7 @@ void UStruct::LoadTaggedPropertiesFromText(FStructuredArchive::FSlot Slot, uint8
 
 				FPropertyTag Tag;
 				ItemSlot.GetValue() << Tag;
+				Tag.Prop = Property;
 				Tag.ArrayIndex = ItemIndex;
 				Tag.Name = PropertyName;
 
@@ -1402,6 +1398,8 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 
 				if (Property)
 				{
+					Tag.Prop = Property;
+
 					FName PropID = Property->GetID();
 
 					// Check if this is a struct property and we have a redirector
@@ -3836,7 +3834,7 @@ UObject* UClass::CreateDefaultObject()
 			if( HasAnyClassFlags(CLASS_CompiledFromBlueprint) && (PropertyLink == NULL) && !GIsDuplicatingClassForReinstancing)
 			{
 				auto ClassLinker = GetLinker();
-				if (ClassLinker && !ClassLinker->bDynamicClassLinker)
+				if (ClassLinker)
 				{
 					if (!GEventDrivenLoaderEnabled)
 					{
@@ -3883,13 +3881,6 @@ UObject* UClass::CreateDefaultObject()
 					const FSparseDelegate& SparseDelegate = SparseDelegateIt->GetPropertyValue_InContainer(ClassDefaultObject);
 					USparseDelegateFunction* SparseDelegateFunction = CastChecked<USparseDelegateFunction>(SparseDelegateIt->SignatureFunction);
 					FSparseDelegateStorage::RegisterDelegateOffset(ClassDefaultObject, SparseDelegateFunction->DelegateName, (size_t)&SparseDelegate - (size_t)ClassDefaultObject);
-				}
-				if (HasAnyClassFlags(CLASS_CompiledFromBlueprint))
-				{
-					if (UDynamicClass* DynamicClass = Cast<UDynamicClass>(this))
-					{
-						(*(DynamicClass->DynamicClassInitializer))(DynamicClass);
-					}
 				}
 				EObjectInitializerOptions InitOptions = EObjectInitializerOptions::None;
 				if (!HasAnyClassFlags(CLASS_Native | CLASS_Intrinsic))
@@ -5304,7 +5295,7 @@ bool UClass::HotReloadPrivateStaticClass(
 
 	if( !TempObjectForVTable->IsRooted() )
 	{
-		TempObjectForVTable->MarkPendingKill();
+		TempObjectForVTable->MarkAsGarbage();
 	}
 	else
 	{
@@ -5680,15 +5671,12 @@ void GetPrivateStaticClassBody(
 	UClass::ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
 	UClass::ClassAddReferencedObjectsType InClassAddReferencedObjects,
 	UClass::StaticClassFunctionType InSuperClassFn,
-	UClass::StaticClassFunctionType InWithinClassFn,
-	bool bIsDynamic /*= false*/,
-	UDynamicClass::DynamicClassInitializerType InDynamicClassInitializerFn /*= nullptr*/
+	UClass::StaticClassFunctionType InWithinClassFn
 	)
 {
 #if WITH_RELOAD
 	if (IsReloadActive() && GetActiveReloadType() != EActiveReloadType::Reinstancing)
 	{
-		check(!bIsDynamic);
 		UPackage* Package = FindPackage(NULL, PackageName);
 		if (Package)
 		{
@@ -5724,47 +5712,24 @@ void GetPrivateStaticClassBody(
 	}
 #endif
 
-	if (!bIsDynamic)
-	{
-		ReturnClass = (UClass*)GUObjectAllocator.AllocateUObject(sizeof(UClass), alignof(UClass), true);
-		ReturnClass = ::new (ReturnClass)
-			UClass
-			(
-			EC_StaticConstructor,
-			Name,
-			InSize,
-			InAlignment,
-			InClassFlags,
-			InClassCastFlags,
-			InConfigName,
-			EObjectFlags(RF_Public | RF_Standalone | RF_Transient | RF_MarkAsNative | RF_MarkAsRootSet),
-			InClassConstructor,
-			InClassVTableHelperCtorCaller,
-			InClassAddReferencedObjects
-			);
-		check(ReturnClass);
-	}
-	else
-	{
-		ReturnClass = (UClass*)GUObjectAllocator.AllocateUObject(sizeof(UDynamicClass), alignof(UDynamicClass), GIsInitialLoad);
-		ReturnClass = ::new (ReturnClass)
-			UDynamicClass
-			(
-			EC_StaticConstructor,
-			Name,
-			InSize,
-			InAlignment,
-			InClassFlags|CLASS_CompiledFromBlueprint,
-			InClassCastFlags,
-			InConfigName,
-			EObjectFlags(RF_Public | RF_Standalone | RF_Transient | RF_Dynamic | (GIsInitialLoad ? RF_MarkAsRootSet : RF_NoFlags)),
-			InClassConstructor,
-			InClassVTableHelperCtorCaller,
-			InClassAddReferencedObjects,
-			InDynamicClassInitializerFn
-			);
-		check(ReturnClass);
-	}
+	ReturnClass = (UClass*)GUObjectAllocator.AllocateUObject(sizeof(UClass), alignof(UClass), true);
+	ReturnClass = ::new (ReturnClass)
+		UClass
+		(
+		EC_StaticConstructor,
+		Name,
+		InSize,
+		InAlignment,
+		InClassFlags,
+		InClassCastFlags,
+		InConfigName,
+		EObjectFlags(RF_Public | RF_Standalone | RF_Transient | RF_MarkAsNative | RF_MarkAsRootSet),
+		InClassConstructor,
+		InClassVTableHelperCtorCaller,
+		InClassAddReferencedObjects
+		);
+	check(ReturnClass);
+	
 	InitializePrivateStaticClass(
 		InSuperClassFn(),
 		ReturnClass,
@@ -6017,9 +5982,8 @@ bool FStructUtils::ArePropertiesTheSame(const FProperty* A, const FProperty* B, 
 
 bool FStructUtils::TheSameLayout(const UStruct* StructA, const UStruct* StructB, bool bCheckPropertiesNames)
 {
-	bool bResult = (StructA == StructB);
-	if (!bResult
-		&& StructA 
+	bool bResult = false;
+	if (StructA 
 		&& StructB 
 		&& (StructA->GetPropertiesSize() == StructB->GetPropertiesSize())
 		&& (StructA->GetMinAlignment() == StructB->GetMinAlignment()))
@@ -6390,176 +6354,25 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(USparseDelegateFunction, UDelegateFunction,
 	}
 );
 
-/*-----------------------------------------------------------------------------
-UDynamicClass constructors.
------------------------------------------------------------------------------*/
-
-/**
-* Internal constructor.
-*/
-UDynamicClass::UDynamicClass(const FObjectInitializer& ObjectInitializer)
-: UClass(ObjectInitializer)
-, AnimClassImplementation(nullptr)
-{
-	// If you add properties here, please update the other constructors and PurgeClass()
-}
-
-/**
-* Create a new UDynamicClass given its superclass.
-*/
-UDynamicClass::UDynamicClass(const FObjectInitializer& ObjectInitializer, UClass* InBaseClass)
-: UClass(ObjectInitializer, InBaseClass)
-, AnimClassImplementation(nullptr)
-{
-}
-
-/**
-* Called when dynamically linked.
-*/
-UDynamicClass::UDynamicClass(
-	EStaticConstructor,
-	FName			InName,
-	uint32			InSize,
-	uint32			InAlignment,
-	EClassFlags		InClassFlags,
-	EClassCastFlags	InClassCastFlags,
-	const TCHAR*    InConfigName,
-	EObjectFlags	InFlags,
-	ClassConstructorType InClassConstructor,
-	ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-	ClassAddReferencedObjectsType InClassAddReferencedObjects,
-	DynamicClassInitializerType InDynamicClassInitializer)
-: UClass(
-  EC_StaticConstructor
-, InName
-, InSize
-, InAlignment
-, InClassFlags
-, InClassCastFlags
-, InConfigName
-, InFlags
-, InClassConstructor
-, InClassVTableHelperCtorCaller
-, InClassAddReferencedObjects)
-, AnimClassImplementation(nullptr)
-, DynamicClassInitializer(InDynamicClassInitializer)
-{
-}
-
-void UDynamicClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{
-	UDynamicClass* This = CastChecked<UDynamicClass>(InThis);
-
-	Collector.AddReferencedObjects(This->MiscConvertedSubobjects, This);
-	Collector.AddReferencedObjects(This->ReferencedConvertedFields, This);
-	Collector.AddReferencedObjects(This->UsedAssets, This);
-	Collector.AddReferencedObjects(This->DynamicBindingObjects, This);
-	Collector.AddReferencedObjects(This->ComponentTemplates, This);
-	Collector.AddReferencedObjects(This->Timelines, This);
-
-	if (GetAllowNativeComponentClassOverrides())
-	{
-		for (TPair<FName, UClass*>& Override : This->ComponentClassOverrides)
-		{
-			Collector.AddReferencedObject(Override.Value);
-		}
-	}
-
-	Collector.AddReferencedObject(This->AnimClassImplementation, This);
-
-	Super::AddReferencedObjects(This, Collector);
-}
-
-UObject* UDynamicClass::CreateDefaultObject()
-{
-#if DO_CHECK
-	if (!HasAnyFlags(RF_ClassDefaultObject) && (0 == (ClassFlags & CLASS_Constructed)))
-	{
-		UE_LOG(LogClass, Error, TEXT("CDO is created for a dynamic class, before the class was constructed. %s"), *GetPathName());
-	}
-#endif
-	return Super::CreateDefaultObject();
-}
-
-void UDynamicClass::PurgeClass(bool bRecompilingOnLoad)
-{
-	Super::PurgeClass(bRecompilingOnLoad);
-
-	MiscConvertedSubobjects.Empty();
-	ReferencedConvertedFields.Empty();
-	UsedAssets.Empty();
-
-	DynamicBindingObjects.Empty();
-	ComponentTemplates.Empty();
-	Timelines.Empty();
-	ComponentClassOverrides.Empty();
-
-	AnimClassImplementation = nullptr;
-}
-
-UObject* UDynamicClass::FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const
-{
-	UObject* Archetype = static_cast<UObject*>(FindObjectWithOuter(this, ArchetypeClass, ArchetypeName));
-	if (!Archetype)
-	{
-		// See UBlueprintGeneratedClass::FindArchetype, UE-35259, UE-37480
-		const FName ArchetypeBaseName = FName(ArchetypeName, 0);
-		if (ArchetypeBaseName != ArchetypeName)
-		{
-			UObject* const* FountComponentTemplate = ComponentTemplates.FindByPredicate([&](UObject* InObj) -> bool
-			{ 
-				return InObj && (InObj->GetFName() == ArchetypeBaseName) && InObj->IsA(ArchetypeClass);
-			});
-			Archetype = FountComponentTemplate ? *FountComponentTemplate : nullptr;
-		}
-	}
-	const UClass* SuperClass = GetSuperClass();
-	return Archetype ? Archetype :
-		(SuperClass ? SuperClass->FindArchetype(ArchetypeClass, ArchetypeName) : nullptr);
-}
-
-void UDynamicClass::SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const
-{
-	for (const TPair<FName, UClass*>& Override : ComponentClassOverrides)
-	{
-		ObjectInitializer.SetDefaultSubobjectClass(Override.Key, Override.Value);
-	}
-
-	GetSuperClass()->SetupObjectInitializer(ObjectInitializer);
-}
-
-
-FStructProperty* UDynamicClass::FindStructPropertyChecked(const TCHAR* PropertyName) const
-{
-	return FindFieldChecked<FStructProperty>(this, PropertyName);
-}
-
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer in use; will be removed later.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 const FString& UDynamicClass::GetTempPackagePrefix()
 {
 	static const FString PackagePrefix(TEXT("/Temp/__TEMP_BP__"));
 	return PackagePrefix;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer in use; will be removed later.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 IMPLEMENT_CORE_INTRINSIC_CLASS(UDynamicClass, UClass,
 {
 	Class->ClassAddReferencedObjects = &UDynamicClass::AddReferencedObjects;
 }
 );
-
-bool UScriptStruct::CanSerializeAsAlias(const FPropertyTag& Tag) const
-{
-	// LWC_TODO: Do core types via STRUCT_SerializeFromMismatchedTag for speed and free conversion between float/double types! Check this works properly for containers.
-	return (
-		(Tag.StructName == NAME_Vector && (GetFName() == NAME_Vector3f || GetFName() == NAME_Vector3d)) ||
-		(Tag.StructName == NAME_Vector4 && (GetFName() == NAME_Vector4f || GetFName() == NAME_Vector4d)) ||
-		(Tag.StructName == NAME_Plane && (GetFName() == NAME_Plane4f || GetFName() == NAME_Plane4d)) ||
-		(Tag.StructName == NAME_Matrix && (GetFName() == NAME_Matrix44f || GetFName() == NAME_Matrix44d)) ||
-		(Tag.StructName == NAME_Quat && (GetFName() == NAME_Quat4f || GetFName() == NAME_Quat4d)) ||
-		(Tag.StructName == NAME_Transform && (GetFName() == NAME_Transform4f || GetFName() == NAME_Transform4d)) ||
-		(Tag.StructName == NAME_Box && (GetFName() == NAME_Box3f || GetFName() == NAME_Box3d)) ||
-		(Tag.StructName == NAME_BoxSphereBounds && (GetFName() == NAME_BoxSphereBounds3f || GetFName() == NAME_BoxSphereBounds3d))
-		);
-}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if defined(_MSC_VER) && _MSC_VER == 1900
 	#ifdef PRAGMA_ENABLE_SHADOW_VARIABLE_WARNINGS

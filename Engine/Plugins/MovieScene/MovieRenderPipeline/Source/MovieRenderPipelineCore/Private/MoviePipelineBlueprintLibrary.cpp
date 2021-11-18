@@ -32,6 +32,7 @@
 #include "MovieRenderPipelineCoreModule.h"
 #include "Features/IModularFeatures.h"
 #include "Misc/EngineVersion.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 
 // For camera settings
 #include "GameFramework/PlayerController.h"
@@ -72,11 +73,25 @@ FText UMoviePipelineBlueprintLibrary::GetJobName(UMoviePipeline* InMoviePipeline
 	return FText();
 }
 
+namespace MoviePipeline
+{
+	FString GetJobAuthor(const UMoviePipelineExecutorJob* InJob)
+	{
+		if (InJob && InJob->Author.Len() > 0)
+		{
+			return InJob->Author;
+		}
+
+		// If they didn't specify an author in the job, default to the local username.
+		return FPlatformProcess::UserName(false);
+	}
+}
+
 FText UMoviePipelineBlueprintLibrary::GetJobAuthor(UMoviePipeline* InMoviePipeline)
 {
 	if (InMoviePipeline)
 	{
-		return FText::FromString(InMoviePipeline->GetCurrentJob()->Author);
+		return FText::FromString(MoviePipeline::GetJobAuthor(InMoviePipeline->GetCurrentJob()));
 	}
 
 	return FText();
@@ -865,6 +880,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 	{
 		OutMergedFormatArgs.FilenameArguments.Add(TEXT("date"), InParams.InitializationTime.ToString(TEXT("%Y.%m.%d")));
 		OutMergedFormatArgs.FilenameArguments.Add(TEXT("time"), InParams.InitializationTime.ToString(TEXT("%H.%M.%S")));
+		OutMergedFormatArgs.FilenameArguments.Add(TEXT("job_author"), MoviePipeline::GetJobAuthor(InParams.Job));
 
 		FString VersionText = FString::Printf(TEXT("v%0*d"), 3, InParams.InitializationVersion);
 
@@ -874,7 +890,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobTime"), InParams.InitializationTime.ToString(TEXT("%H.%M.%S")));
 		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobVersion"), FString::FromInt(InParams.InitializationVersion));
 		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobName"), InParams.Job->JobName);
-		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobAuthor"), InParams.Job->Author);
+		OutMergedFormatArgs.FileMetadata.Add(TEXT("unreal/jobAuthor"), MoviePipeline::GetJobAuthor(InParams.Job));
 
 		// By default, we don't want to show frame duplication numbers. If we need to start writing them,
 		// they need to come before the frame number (so that tools recognize them as a sequence).

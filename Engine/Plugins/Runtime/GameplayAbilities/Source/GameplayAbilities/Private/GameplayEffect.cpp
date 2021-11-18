@@ -695,6 +695,7 @@ FGameplayEffectSpec::FGameplayEffectSpec(const FGameplayEffectSpec& Other, const
 	EffectContext = InEffectContext;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FGameplayEffectSpec::FGameplayEffectSpec(FGameplayEffectSpec&& Other)
 	: Def(Other.Def)
 	, ModifiedAttributes(MoveTemp(Other.ModifiedAttributes))
@@ -720,7 +721,9 @@ FGameplayEffectSpec::FGameplayEffectSpec(FGameplayEffectSpec&& Other)
 {
 
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FGameplayEffectSpec& FGameplayEffectSpec::operator=(FGameplayEffectSpec&& Other)
 {
 	Def = Other.Def;
@@ -746,7 +749,9 @@ FGameplayEffectSpec& FGameplayEffectSpec::operator=(FGameplayEffectSpec&& Other)
 	Level = Other.Level;
 	return *this;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FGameplayEffectSpec& FGameplayEffectSpec::operator=(const FGameplayEffectSpec& Other)
 {
 	Def = Other.Def;
@@ -772,6 +777,7 @@ FGameplayEffectSpec& FGameplayEffectSpec::operator=(const FGameplayEffectSpec& O
 	Level = Other.Level;
 	return *this;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FGameplayEffectSpecForRPC::FGameplayEffectSpecForRPC()
 	: Def(nullptr)
@@ -1073,6 +1079,29 @@ float FGameplayEffectSpec::CalculateModifiedDuration() const
 	return DurationAgg.EvaluateWithBase(GetDuration(), Params);
 }
 
+void FGameplayEffectSpec::AddDynamicAssetTag(const FGameplayTag& TagToAdd)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	DynamicAssetTags.AddTag(TagToAdd);
+	CapturedSourceTags.GetSpecTags().AddTag(TagToAdd);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FGameplayEffectSpec::AppendDynamicAssetTags(const FGameplayTagContainer& TagsToAppend)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	DynamicAssetTags.AppendTags(TagsToAppend);
+	CapturedSourceTags.GetSpecTags().AppendTags(TagsToAppend);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+const FGameplayTagContainer& FGameplayEffectSpec::GetDynamicAssetTags() const
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return DynamicAssetTags;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 float FGameplayEffectSpec::GetPeriod() const
 {
 	return Period;
@@ -1206,7 +1235,7 @@ void FGameplayEffectSpec::GetAllGrantedTags(OUT FGameplayTagContainer& Container
 
 void FGameplayEffectSpec::GetAllAssetTags(OUT FGameplayTagContainer& Container) const
 {
-	Container.AppendTags(DynamicAssetTags);
+	Container.AppendTags(GetDynamicAssetTags());
 	if (Def)
 	{
 		Container.AppendTags(Def->InheritableGameplayEffectTags.CombinedTags);
@@ -2861,7 +2890,7 @@ FActiveGameplayEffect* FActiveGameplayEffectsContainer::ApplyGameplayEffectSpec(
 		// @todo: If dynamic asset tags differ (which they shouldn't), we'll actually have to diff them
 		// and cause a removal and add of only the ones that have changed. For now, ensure on this happening and come
 		// back to this later.
-		ensureMsgf(ExistingSpec.DynamicAssetTags == Spec.DynamicAssetTags, TEXT("While adding a stack of the gameplay effect: %s, the old stack and the new application had different dynamic asset tags, which is currently not resolved properly! Existing: %s. New: %s"), *Spec.Def->GetName(), *ExistingSpec.DynamicAssetTags.ToStringSimple(), *Spec.DynamicAssetTags.ToStringSimple() );
+		ensureMsgf(ExistingSpec.GetDynamicAssetTags() == Spec.GetDynamicAssetTags(), TEXT("While adding a stack of the gameplay effect: %s, the old stack and the new application had different dynamic asset tags, which is currently not resolved properly! Existing: %s. New: %s"), *Spec.Def->GetName(), *ExistingSpec.GetDynamicAssetTags().ToStringSimple(), *Spec.GetDynamicAssetTags().ToStringSimple() );
 
 		ExistingStackableGE->Spec = Spec;
 		ExistingStackableGE->Spec.StackCount = NewStackCount;
@@ -4734,9 +4763,10 @@ bool FGameplayEffectQuery::Matches(const FGameplayEffectSpec& Spec) const
 		{
 			GETags.AppendTags(Spec.Def->InheritableGameplayEffectTags.CombinedTags);
 		}
-		if (Spec.DynamicAssetTags.Num() > 0)
+		const FGameplayTagContainer& SpecDynamicAssetTags = Spec.GetDynamicAssetTags();
+		if (SpecDynamicAssetTags.Num() > 0)
 		{
-			GETags.AppendTags(Spec.DynamicAssetTags);
+			GETags.AppendTags(SpecDynamicAssetTags);
 		}
 
 		if (EffectTagQuery.Matches(GETags) == false)

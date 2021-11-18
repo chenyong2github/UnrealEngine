@@ -17,7 +17,7 @@ public:
 	{ }
 
 public:
-	FBox GetAABBox()
+	FBox GetAABBox() const
 	{
 		FBox AABBox = FBox(FVector(FLT_MAX, FLT_MAX, FLT_MAX), FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX));
 
@@ -26,7 +26,7 @@ public:
 		{
 			for (int32 X = 0; X < Width; ++X)
 			{
-				const FVector4f& Pts = (Data)[(X + Y * Width)];
+				const FVector4f& Pts = GetPoint(X,Y);
 				if (Pts.W > 0)
 				{
 					AABBox.Min.X = FMath::Min(AABBox.Min.X, Pts.X);
@@ -82,17 +82,17 @@ public:
 		return GetPointIndex(ValidPointX, ValidPointY);
 	}
 
-	int32 GetPointIndex(int32 InX, int32 InY)
+	FORCEINLINE int32 GetPointIndex(int32 InX, int32 InY) const
 	{
 		return InX + InY * Width;
 	}
 
-	const FVector4f& GetPoint(int32 InX, int32 InY)
+	FORCEINLINE const FVector4f& GetPoint(int32 InX, int32 InY) const
 	{
 		return Data[GetPointIndex(InX, InY)];
 	}
 
-	const FVector4f& GetPoint(int32 PointIndex)
+	FORCEINLINE const FVector4f& GetPoint(int32 PointIndex) const
 	{
 		return Data[PointIndex];
 	}
@@ -133,13 +133,13 @@ public:
 
 				if (Pts0.W > 0 && Pts1.W > 0 && Pts2.W > 0)
 				{
-					const FVector N1 = Pts1 - Pts0;
-					const FVector N2 = Pts2 - Pts0;
+					const FVector N1 = FVector4(Pts1 - Pts0);
+					const FVector N2 = FVector4(Pts2 - Pts0);
 					const FVector N = FVector::CrossProduct(N2, N1).GetSafeNormal();
 
-					for (int32 i = 0; i < 3; i++)
+					for (int32 AxisIndex = 0; AxisIndex < 3; AxisIndex++)
 					{
-						Nxyz[i] += N[i];
+						Nxyz[AxisIndex] += N[AxisIndex];
 					}
 
 					Ncount++;
@@ -148,9 +148,9 @@ public:
 		}
 
 		double Scale = double(1) / Ncount;
-		for (int32 i = 0; i < 3; i++)
+		for (int32 AxisIndex = 0; AxisIndex < 3; AxisIndex++)
 		{
-			Nxyz[i] *= Scale;
+			Nxyz[AxisIndex] *= Scale;
 		}
 
 		return FVector(Nxyz[0], Nxyz[1], Nxyz[2]).GetSafeNormal();
@@ -162,8 +162,8 @@ public:
 		const FVector4f& Pts1 = GetValidPoint(Width - 1, 0);
 		const FVector4f& Pts2 = GetValidPoint(0, Height - 1);
 
-		const FVector N1 = Pts1 - Pts0;
-		const FVector N2 = Pts2 - Pts0;
+		const FVector N1 = FVector4(Pts1 - Pts0);
+		const FVector N2 = FVector4(Pts2 - Pts0);
 		return FVector::CrossProduct(N2, N1).GetSafeNormal();
 	}
 
@@ -183,16 +183,16 @@ private:
 
 	bool FindValidPointInRange(int32 Range)
 	{
-		for (int32 i = -Range; i <= Range; i++)
+		for (int32 RangeIt = -Range; RangeIt <= Range; RangeIt++)
 		{
 			// Top or bottom rows
-			if (IsValid(X0 + i, Y0 - Range) || IsValid(X0 + i, Y0 + Range))
+			if (IsValid(X0 + RangeIt, Y0 - Range) || IsValid(X0 + RangeIt, Y0 + Range))
 			{
 				return true;
 			}
 
 			// Left or Right columns
-			if (IsValid(X0 - Range, Y0 + i) || IsValid(X0 + Range, Y0 + i))
+			if (IsValid(X0 - Range, Y0 + RangeIt) || IsValid(X0 + Range, Y0 + RangeIt))
 			{
 				return true;
 			}

@@ -90,17 +90,17 @@ void F2DTransformTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyCh
 			}
 		}
 	}
-
+	
 	FWidgetTransform CurrentTransform    = PropertyChangedParams.GetPropertyValue<FWidgetTransform>();
 	FWidgetTransform RecomposedTransform = RecomposeTransform(CurrentTransform, PropertyChangedParams.ObjectsThatChanged[0], SectionToKey);
 
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, RecomposedTransform.Translation.X, bKeyTranslationX));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(1, RecomposedTransform.Translation.Y, bKeyTranslationY));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(0, RecomposedTransform.Translation.X, bKeyTranslationX));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(1, RecomposedTransform.Translation.Y, bKeyTranslationY));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(2, RecomposedTransform.Angle,         bKeyAngle));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(3, RecomposedTransform.Scale.X,       bKeyScaleX));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(4, RecomposedTransform.Scale.Y,       bKeyScaleY));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(5, RecomposedTransform.Shear.X,       bKeyShearX));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(6, RecomposedTransform.Shear.Y,       bKeyShearY));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(3, RecomposedTransform.Scale.X,       bKeyScaleX));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(4, RecomposedTransform.Scale.Y,       bKeyScaleY));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(5, RecomposedTransform.Shear.X,       bKeyShearX));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(6, RecomposedTransform.Shear.Y,       bKeyShearY));
 }
 
 FWidgetTransform F2DTransformTrackEditor::RecomposeTransform(const FWidgetTransform& InTransform, UObject* AnimatedObject, UMovieSceneSection* Section)

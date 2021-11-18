@@ -125,7 +125,7 @@ class ENGINE_API USplineMeshComponent : public UStaticMeshComponent, public IInt
 	UPROPERTY(EditAnywhere, Category = SplineMesh, AdvancedDisplay)
 	float SplineBoundaryMax;
 
-	/** If true, spline keys may be edited per instance in the level viewport. Otherwise, the spline should be initialized in the construction script. */
+	/** If true, spline mesh properties - StartPos, EndPos, StartTangent and EndTangent- may be edited per instance in the level viewport. Otherwise, the spline mesh should be initialized in the construction script. */
 	UPROPERTY(EditDefaultsOnly, Category = Spline)
 	uint8 bAllowSplineEditingPerInstance:1;
 
@@ -361,14 +361,13 @@ private:
 
 /** Used to store spline mesh data during RerunConstructionScripts */
 USTRUCT()
-struct FSplineMeshInstanceData : public FSceneComponentInstanceData
+struct FSplineMeshInstanceData : public FStaticMeshComponentInstanceData
 {
 	GENERATED_BODY()
 public:
 	FSplineMeshInstanceData() = default;
-	explicit FSplineMeshInstanceData(const USplineMeshComponent* SourceComponent)
-		: FSceneComponentInstanceData(SourceComponent)
-	{}
+	explicit FSplineMeshInstanceData(const USplineMeshComponent* SourceComponent);
+
 	virtual ~FSplineMeshInstanceData() = default;
 
 	virtual bool ContainsData() const override

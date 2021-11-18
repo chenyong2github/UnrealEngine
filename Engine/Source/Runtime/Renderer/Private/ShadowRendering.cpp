@@ -795,7 +795,7 @@ void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArr
 		OutFrustumVertices.AddUninitialized(8);
 
 		// The shadow transforms and view transforms are relative to different origins, so the world coordinates need to be translated.
-		const FVector PreShadowToPreViewTranslation(View->ViewMatrices.GetPreViewTranslation() - PreShadowTranslation);
+		const FVector3f PreShadowToPreViewTranslation(View->ViewMatrices.GetPreViewTranslation() - PreShadowTranslation);
 
 		// fill out the frustum vertices (this is only needed in the non-whole scene case)
 		for(uint32 vZ = 0;vZ < 2;vZ++)
@@ -812,7 +812,7 @@ void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArr
 							1.0f
 						)
 					);
-					const FVector ProjectedVertex = UnprojectedVertex / UnprojectedVertex.W + PreShadowToPreViewTranslation;
+					const FVector3f ProjectedVertex = UnprojectedVertex / UnprojectedVertex.W + PreShadowToPreViewTranslation;
 					OutFrustumVertices[GetCubeVertexIndex(vX,vY,vZ)] = FVector4f(ProjectedVertex, 0);
 				}
 			}
@@ -821,14 +821,14 @@ void FProjectedShadowInfo::SetupFrustumForProjection(const FViewInfo* View, TArr
 		const FVector ShadowViewOrigin = View->ViewMatrices.GetViewOrigin();
 		const FVector ShadowPreViewTranslation = View->ViewMatrices.GetPreViewTranslation();
 
-		const FVector FrontTopRight		= OutFrustumVertices[GetCubeVertexIndex(0,0,1)] - ShadowPreViewTranslation;
-		const FVector FrontTopLeft		= OutFrustumVertices[GetCubeVertexIndex(1,0,1)] - ShadowPreViewTranslation;
-		const FVector FrontBottomLeft	= OutFrustumVertices[GetCubeVertexIndex(1,1,1)] - ShadowPreViewTranslation;
-		const FVector FrontBottomRight	= OutFrustumVertices[GetCubeVertexIndex(0,1,1)] - ShadowPreViewTranslation;
-		const FVector BackTopRight		= OutFrustumVertices[GetCubeVertexIndex(0,0,0)] - ShadowPreViewTranslation;
-		const FVector BackTopLeft		= OutFrustumVertices[GetCubeVertexIndex(1,0,0)] - ShadowPreViewTranslation;
-		const FVector BackBottomLeft	= OutFrustumVertices[GetCubeVertexIndex(1,1,0)] - ShadowPreViewTranslation;
-		const FVector BackBottomRight	= OutFrustumVertices[GetCubeVertexIndex(0,1,0)] - ShadowPreViewTranslation;
+		const FVector FrontTopRight		= (FVector4)OutFrustumVertices[GetCubeVertexIndex(0,0,1)] - ShadowPreViewTranslation;
+		const FVector FrontTopLeft		= (FVector4)OutFrustumVertices[GetCubeVertexIndex(1,0,1)] - ShadowPreViewTranslation;
+		const FVector FrontBottomLeft	= (FVector4)OutFrustumVertices[GetCubeVertexIndex(1,1,1)] - ShadowPreViewTranslation;
+		const FVector FrontBottomRight	= (FVector4)OutFrustumVertices[GetCubeVertexIndex(0,1,1)] - ShadowPreViewTranslation;
+		const FVector BackTopRight		= (FVector4)OutFrustumVertices[GetCubeVertexIndex(0,0,0)] - ShadowPreViewTranslation;
+		const FVector BackTopLeft		= (FVector4)OutFrustumVertices[GetCubeVertexIndex(1,0,0)] - ShadowPreViewTranslation;
+		const FVector BackBottomLeft	= (FVector4)OutFrustumVertices[GetCubeVertexIndex(1,1,0)] - ShadowPreViewTranslation;
+		const FVector BackBottomRight	= (FVector4)OutFrustumVertices[GetCubeVertexIndex(0,1,0)] - ShadowPreViewTranslation;
 
 		const FPlane Front(FrontTopRight, FrontTopLeft, FrontBottomLeft);
 		const float FrontDistance = Front.PlaneDot(ShadowViewOrigin);

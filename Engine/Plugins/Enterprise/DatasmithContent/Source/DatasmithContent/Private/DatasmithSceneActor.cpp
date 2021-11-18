@@ -13,6 +13,11 @@
 ADatasmithSceneActor::ADatasmithSceneActor()
 {
 #if WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
 	FEditorDelegates::MapChange.AddUObject(this, &ADatasmithSceneActor::OnMapChange);
 
 	if ( GEngine )
@@ -30,6 +35,11 @@ ADatasmithSceneActor::ADatasmithSceneActor()
 ADatasmithSceneActor::~ADatasmithSceneActor()
 {
 #if WITH_EDITOR
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		return;
+	}
+
 	FEditorDelegates::MapChange.RemoveAll(this);
 
 	if ( GEngine )

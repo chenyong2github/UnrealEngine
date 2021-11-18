@@ -1,105 +1,63 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
-using System.Diagnostics;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using UnrealBuildTool;
 
 public class AlembicLib : ModuleRules
 {
 	public AlembicLib(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
+
+		PublicDependencyModuleNames.Add("Imath");
+
+		bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
+
+		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "alembic-1.8.2");
+
+		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
+
+		string LibPostfix = bDebug ? "_d" : "";
+
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
-			bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(),
+				Target.WindowsPlatform.GetArchitectureSubpath(),
+				"lib");
 
-			string LibDir = ModuleDirectory + "/AlembicDeploy/";
-			string Platform;
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				Platform = "x64";
-				LibDir += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Mac)
-			{
-				Platform = "Mac";
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux)
-			{
-				Platform = "Linux";
-			}
-			else
-			{
-				// unsupported
-				return;
-			}
-			LibDir += Platform + "/lib/";
+			string StaticLibName = "Alembic" + LibPostfix + ".lib";
 
-			string Hdf5LibPostFix = bDebug ? "_debug" : "";
-			string AlembicLibPostFix = bDebug ? "d" : "";
-			string LibExtension = (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux) ? ".a" : ".lib";
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, StaticLibName));
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"Mac",
+				"lib");
 
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PublicDefinitions.Add("H5_BUILT_AS_DYNAMIC_LIB");
+			string StaticLibName = "libAlembic" + LibPostfix + ".a";
 
-				// The Windows lib post-fix for HDF5 is different from Mac and Linux.
-				Hdf5LibPostFix = bDebug ? "_D" : "";
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, StaticLibName));
+		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"Unix",
+				Target.Architecture,
+				"lib");
 
-				List<string> ReqLibraryNames = new List<string>();
-				ReqLibraryNames.AddRange
-				(
-					new string[] {
-						"hdf5" + Hdf5LibPostFix,
-						"Alembic" + AlembicLibPostFix
-				});
-				foreach (string LibraryName in ReqLibraryNames)
-				{
-					PublicAdditionalLibraries.Add(LibDir + LibraryName + LibExtension);
-				}
+			string StaticLibName = "libAlembic" + LibPostfix + ".a";
 
-				if (Target.bDebugBuildsActuallyUseDebugCRT && bDebug)
-				{
-					RuntimeDependencies.Add("$(BinaryOutputDir)/zlibd1.dll", "$(ModuleDir)/Binaries/Win64/zlibd1.dll", StagedFileType.NonUFS);
-					RuntimeDependencies.Add("$(BinaryOutputDir)/hdf5_D.dll", "$(ModuleDir)/Binaries/Win64/hdf5_D.dll", StagedFileType.NonUFS);
-				}
-				else
-				{
-					RuntimeDependencies.Add("$(BinaryOutputDir)/hdf5.dll", "$(ModuleDir)/Binaries/Win64/hdf5.dll", StagedFileType.NonUFS);
-				}
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Mac)
-			{
-				List<string> ReqLibraryNames = new List<string>();
-				ReqLibraryNames.AddRange
-				(
-					new string[] {
-						"libhdf5" + Hdf5LibPostFix,
-						"libAlembic" + AlembicLibPostFix
-				});
-				foreach (string LibraryName in ReqLibraryNames)
-				{
-					PublicAdditionalLibraries.Add(LibDir + LibraryName + LibExtension);
-				}
-			}
-			else if (Target.Platform == UnrealTargetPlatform.Linux)
-			{
-				List<string> ReqLibraryNames = new List<string>();
-				ReqLibraryNames.AddRange
-				(
-					new string[] {
-						"libhdf5-static",
-						"libAlembic"
-				});
-				foreach (string LibraryName in ReqLibraryNames)
-				{
-					PublicAdditionalLibraries.Add(LibDir + Target.Architecture + "/" + LibraryName + LibExtension);
-				}
-			}
-
-			PublicIncludePaths.Add(ModuleDirectory + "/AlembicDeploy/include/");
-
-			PublicDependencyModuleNames.Add("UEOpenExr");
+			PublicAdditionalLibraries.Add(
+				Path.Combine(LibDirectory, StaticLibName));
 		}
 	}
 }

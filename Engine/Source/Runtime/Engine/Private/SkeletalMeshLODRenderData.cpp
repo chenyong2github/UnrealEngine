@@ -95,6 +95,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 	
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
 	uint8 ClassDataStripFlags = 0;
@@ -133,7 +134,18 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 		S.bVisibleInRayTracing = true;
 	}
 	Ar << S.BaseVertexIndex;
-	Ar << S.ClothMappingData;
+
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::AddClothMappingLODBias)
+	{
+		constexpr int32 ClothLODBias = 0;  // There isn't any cloth LOD bias prior to this version
+		S.ClothMappingDataLODs.SetNum(1);
+		Ar << S.ClothMappingDataLODs[ClothLODBias];
+	}
+	else
+	{
+		Ar << S.ClothMappingDataLODs;
+	}
+
 	Ar << S.BoneMap;
 	Ar << S.NumVertices;
 	Ar << S.MaxBoneInfluences;
@@ -670,7 +682,7 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 		NewRenderSection.bCastShadow = ModelSection.bCastShadow;
 		NewRenderSection.bVisibleInRayTracing = ModelSection.bVisibleInRayTracing;
 		NewRenderSection.BaseVertexIndex = ModelSection.BaseVertexIndex;
-		NewRenderSection.ClothMappingData = ModelSection.ClothMappingData;
+		NewRenderSection.ClothMappingDataLODs = ModelSection.ClothMappingDataLODs;
 		NewRenderSection.BoneMap = ModelSection.BoneMap;
 		NewRenderSection.NumVertices = ModelSection.NumVertices;
 		NewRenderSection.MaxBoneInfluences = ModelSection.MaxBoneInfluences;
@@ -717,7 +729,7 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 	if (ImportedModel->HasClothData())
 	{
 		TArray<FMeshToMeshVertData> MappingData;
-		TArray<uint64> ClothIndexMapping;
+		TArray<FClothBufferIndexMapping> ClothIndexMapping;
 		ImportedModel->GetClothMappingData(MappingData, ClothIndexMapping);
 		ClothVertexBuffer.Init(MappingData, ClothIndexMapping);
 	}

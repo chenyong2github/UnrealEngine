@@ -87,14 +87,6 @@ struct FReinstancingJob;
 struct FSkeletonFixupData;
 struct FCompilerData;
 
-struct FBPCompilationManagerCPPResults
-{
-	const FCompilerNativizationOptions* CppOptions = nullptr;
-
-	TSharedPtr<FString> CppSource;
-	TSharedPtr<FString> HeaderSource;
-};
-
 struct FBPCompileRequestInternal
 {
 	FBPCompileRequestInternal(FBPCompileRequest InUserData)
@@ -103,7 +95,6 @@ struct FBPCompileRequestInternal
 	}
 
 	FBPCompileRequest UserData;
-	FBPCompilationManagerCPPResults CPPResults;
 };
 
 enum class EReparentClassOptions
@@ -394,7 +385,6 @@ struct FCompilerData
 		ECompilationManagerJobType InJobType, 
 		FCompilerResultsLog* InResultsLogOverride, 
 		EBlueprintCompileOptions UserOptions, 
-		const FBPCompilationManagerCPPResults& CPPResults,
 		bool bBytecodeOnly)
 	{
 		check(InBP);
@@ -424,19 +414,10 @@ struct FCompilerData
 		InternalOptions.bUseDeltaSerializationDuringReinstancing = (UserOptions & EBlueprintCompileOptions::UseDeltaSerializationDuringReinstancing) != EBlueprintCompileOptions::None;
 		InternalOptions.CompileType = bBytecodeOnly ? EKismetCompileType::BytecodeOnly : EKismetCompileType::Full;
 
-		if(!bBytecodeOnly && CPPResults.CppOptions)
-		{
-			InternalOptions.OutCppSourceCode = CPPResults.CppSource;
-			InternalOptions.OutHeaderSourceCode = CPPResults.HeaderSource;
-			InternalOptions.NativizationOptions = *CPPResults.CppOptions;
-			InternalOptions.CompileType = EKismetCompileType::Cpp;
-		}
-
 		Compiler = FKismetCompilerContext::GetCompilerForBP(BP, *ActiveResultsLog, InternalOptions);
 	}
 
 	bool IsSkeletonOnly() const { return JobType == ECompilationManagerJobType::SkeletonOnly; }
-	bool IsCppCompileType() const { return InternalOptions.CompileType == EKismetCompileType::Cpp; }
 	bool ShouldSetTemporaryBlueprintFlags() const { return JobType != ECompilationManagerJobType::RelinkOnly; }
 	bool ShouldResetErrorState() const { return JobType == ECompilationManagerJobType::Normal && InternalOptions.CompileType != EKismetCompileType::BytecodeOnly; }
 	bool ShouldValidate() const { return JobType == ECompilationManagerJobType::Normal; }
@@ -580,8 +561,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 								DependentBlueprint, 
 								ECompilationManagerJobType::Normal, 
 								nullptr, 
-								EBlueprintCompileOptions::None, 
-								FBPCompilationManagerCPPResults(),
+								EBlueprintCompileOptions::None,
 								false // full compile
 							)
 						);
@@ -618,8 +598,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 							DependentBlueprint, 
 							ECompilationManagerJobType::Normal, 
 							nullptr, 
-							EBlueprintCompileOptions::None, 
-							FBPCompilationManagerCPPResults(),
+							EBlueprintCompileOptions::None,
 							true
 						)
 					);
@@ -678,7 +657,6 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 						ECompilationManagerJobType::SkeletonOnly, 
 						QueuedJob.UserData.ClientResultsLog, 
 						QueuedJob.UserData.CompileOptions,
-						FBPCompilationManagerCPPResults(),
 						false
 					)
 				);
@@ -715,7 +693,6 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 						JobType, 
 						QueuedJob.UserData.ClientResultsLog, 
 						QueuedJob.UserData.CompileOptions, 
-						QueuedJob.CPPResults, 
 						false
 					)
 				);
@@ -747,8 +724,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 									ChildBlueprint, 
 									ECompilationManagerJobType::RelinkOnly, 
 									nullptr, 
-									EBlueprintCompileOptions::None, 
-									FBPCompilationManagerCPPResults(),
+									EBlueprintCompileOptions::None,
 									false
 								)
 							);
@@ -1236,11 +1212,8 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				}
 
 				EBlueprintCompileReinstancerFlags CompileReinstancerFlags =
-					EBlueprintCompileReinstancerFlags::AutoInferSaveOnCompile;
-				if (!CompilerData.IsCppCompileType())
-				{
-					CompileReinstancerFlags |= EBlueprintCompileReinstancerFlags::AvoidCDODuplication;
-				}
+					EBlueprintCompileReinstancerFlags::AutoInferSaveOnCompile
+					| EBlueprintCompileReinstancerFlags::AvoidCDODuplication;
 
 				if (CompilerData.UseDeltaSerializationDuringReinstancing())
 				{
@@ -1291,7 +1264,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				// default value propagation occurs in ReinstaneBatch, CDO will be created via CompileFunctions call:
 				if(BP->ParentClass)
 				{
-					if(BP->GeneratedClass && !CompilerData.IsCppCompileType())
+					if(BP->GeneratedClass)
 					{
 						BP->GeneratedClass->ClassDefaultObject = nullptr;
 					}
@@ -2337,7 +2310,7 @@ void FBlueprintCompilationManagerImpl::ReinstanceBatch(TArray<FReinstancingJob>&
 				FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(Archetype, NewArchetype);
 
 				Archetype->RemoveFromRoot();
-				Archetype->MarkPendingKill();
+				Archetype->MarkAsGarbage();
 			}
 		}
 	}
@@ -3167,24 +3140,12 @@ void FBlueprintCompilationManager::CompileSynchronously(const FBPCompileRequest&
 	}
 }
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer implemented or in use; will be removed later.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FBlueprintCompilationManager::CompileSynchronouslyToCpp(UBlueprint* BP, TSharedPtr<FString> OutHeaderSource, TSharedPtr<FString> OutCppSource, const FCompilerNativizationOptions& NativizationOptions)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 {
-	if(BPCMImpl)
-	{
-		FBPCompileRequestInternal Request(
-			FBPCompileRequest( 
-				BP, 
-				EBlueprintCompileOptions::SkipGarbageCollection|EBlueprintCompileOptions::SkipSave,
-				nullptr
-			)
-		);
-
-		Request.CPPResults.CppOptions = &NativizationOptions;
-		Request.CPPResults.HeaderSource = OutHeaderSource;
-		Request.CPPResults.CppSource = OutCppSource;
-
-		BPCMImpl->CompileSynchronouslyImpl(Request);
-	}
 }
 
 void FBlueprintCompilationManager::NotifyBlueprintLoaded(UBlueprint* BPLoaded)

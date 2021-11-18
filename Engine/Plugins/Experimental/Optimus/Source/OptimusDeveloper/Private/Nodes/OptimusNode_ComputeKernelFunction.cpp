@@ -149,8 +149,24 @@ void UOptimusNode_ComputeKernelFunctionGeneratorClass::InitPropertiesFromCustomL
 }
 
 
+void UOptimusNode_ComputeKernelFunctionGeneratorClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
+{
+	UClass::Link(Ar, bRelinkExistingProperties);
+
+	// Force assembly of the reference token stream so that we can be properly handled by the
+	// garbage collector.
+	AssembleReferenceTokenStream(/*bForce=*/true);
+}
+
+
 UOptimusNode_ComputeKernelFunction::UOptimusNode_ComputeKernelFunction()
 {
+}
+
+
+FText UOptimusNode_ComputeKernelFunction::GetDisplayName() const
+{
+	return FText::FromString(FName::NameToDisplayString(GetGeneratorClass()->KernelName, false));
 }
 
 

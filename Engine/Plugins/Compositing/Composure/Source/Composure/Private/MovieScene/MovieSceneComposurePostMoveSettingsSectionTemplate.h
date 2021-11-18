@@ -54,7 +54,7 @@ namespace MovieScene
 {
 	inline void MultiChannelFromData(const FComposurePostMoveSettings& In, TMultiChannelValue<float, 6>& Out)
 	{
-		Out = { In.Pivot.X, In.Pivot.Y, In.Translation.X, In.Translation.Y, In.RotationAngle, In.Scale };
+		Out = { (float)In.Pivot.X, (float)In.Pivot.Y, (float)In.Translation.X, (float)In.Translation.Y, In.RotationAngle, In.Scale };
 	}
 
 	inline void ResolveChannelsToData(const TMultiChannelValue<float, 6>& In, FComposurePostMoveSettings& Out)

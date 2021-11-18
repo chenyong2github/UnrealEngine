@@ -120,30 +120,34 @@ void UDisplayClusterBlueprintAPIImpl::RemoveClusterEventListener(TScriptInterfac
 
 void UDisplayClusterBlueprintAPIImpl::EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
 {
-	UE_LOG(LogDisplayClusterBlueprint, Verbose,     TEXT("EmitClusterEventJson - emitting cluster event, bMasterOnly=%s"), *DisplayClusterTypesConverter::template ToString(bMasterOnly));
-	UE_LOG(LogDisplayClusterBlueprint, VeryVerbose, TEXT("EmitClusterEventJson - emitting cluster event, Category='%s' Type='%s' Name='%s'"), *Event.Category, *Event.Type, *Event.Name);
+	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("EmitClusterEventJson - emitting cluster event: bMasterOnly='%s' Category='%s' Type='%s' Name='%s'"),
+		*DisplayClusterTypesConverter::template ToString(bMasterOnly), *Event.Category, *Event.Type, *Event.Name);
+
 	IDisplayCluster::Get().GetClusterMgr()->EmitClusterEventJson(Event, bMasterOnly);
 }
 
 void UDisplayClusterBlueprintAPIImpl::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
 {
-	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("EmitClusterEventBinary - emitting cluster event, bMasterOnly=%s"), *DisplayClusterTypesConverter::template ToString(bMasterOnly));
-	UE_LOG(LogDisplayClusterBlueprint, VeryVerbose, TEXT("EmitClusterEventBinary - emitting cluster event, EventId='%d'"), Event.EventId);
+	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("EmitClusterEventBinary - emitting cluster event: bMasterOnly='%s' EventId='%d'"),
+		*DisplayClusterTypesConverter::template ToString(bMasterOnly), Event.EventId);
+
 	IDisplayCluster::Get().GetClusterMgr()->EmitClusterEventBinary(Event, bMasterOnly);
 }
 
 void UDisplayClusterBlueprintAPIImpl::SendClusterEventJsonTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
 {
-	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("SendClusterEventJsonTo - sending json event to %s:%d"), *Address, Port);
-	UE_LOG(LogDisplayClusterBlueprint, VeryVerbose, TEXT("SendClusterEventJsonTo - sending json event to %s:%d, Category='%s' Type='%s' Name='%s'"), *Address, Port, *Event.Category, *Event.Type, *Event.Name);
-	IDisplayCluster::Get().GetClusterMgr()->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+	checkSlow(Port > 0 && Port <= UINT16_MAX);
+
+	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("SendClusterEventJsonTo - sending json event to %s:%d, Category='%s' Type='%s' Name='%s'"), *Address, Port, *Event.Category, *Event.Type, *Event.Name);
+	IDisplayCluster::Get().GetClusterMgr()->SendClusterEventTo(Address, static_cast<uint16>(Port), Event, bMasterOnly);
 }
 
 void UDisplayClusterBlueprintAPIImpl::SendClusterEventBinaryTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
 {
-	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("SendClusterEventBinaryTo - sending binary cluster event to %s:%d"), *Address, Port);
-	UE_LOG(LogDisplayClusterBlueprint, VeryVerbose, TEXT("SendClusterEventBinaryTo - sending binary event to %s:%d, EventId='%d'"), *Address, Port, Event.EventId);
-	IDisplayCluster::Get().GetClusterMgr()->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+	checkSlow(Port > 0 && Port <= UINT16_MAX);
+
+	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("SendClusterEventBinaryTo - sending binary event to %s:%d, EventId='%d'"), *Address, Port, Event.EventId);
+	IDisplayCluster::Get().GetClusterMgr()->SendClusterEventTo(Address, static_cast<uint16>(Port), Event, bMasterOnly);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

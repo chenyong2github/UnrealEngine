@@ -153,7 +153,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, DstExtent)
 		SHADER_PARAMETER(FIntPoint, ImageExtent)
-		SHADER_PARAMETER(FVector2D, KernelSpatialTextureInvSize)
+		SHADER_PARAMETER(FVector2f, KernelSpatialTextureInvSize)
 		SHADER_PARAMETER(FIntPoint, DstBufferExtent)
 		SHADER_PARAMETER(float, KernelSupportScale)
 

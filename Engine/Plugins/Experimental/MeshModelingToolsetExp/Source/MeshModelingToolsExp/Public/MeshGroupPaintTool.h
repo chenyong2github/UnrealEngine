@@ -392,6 +392,10 @@ protected:
 	//
 
 protected:
+
+	UPROPERTY()
+	TObjectPtr<AInternalToolFrameworkActor> PreviewMeshActor = nullptr;
+
 	UPROPERTY()
 	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent;
 

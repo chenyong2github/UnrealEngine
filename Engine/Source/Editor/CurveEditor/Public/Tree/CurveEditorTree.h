@@ -484,7 +484,18 @@ public:
 	 */
 	void ToggleExpansionState(bool bRecursive);
 
-	FOnCurveEditorToggleExpansionState& GetToggleExpansionState() { return ToggleExpansionStateDelegate; }
+	FOnCurveEditorToggleExpansionState& GetToggleExpansionState()
+	{ 
+		return ToggleExpansionStateDelegate;
+	}
+
+	/**
+	Whether or not we are are doign a direct selection, could be used to see why a curve model is being created or destroyed, by direct selection or by sequencer filtering?
+	*/
+	bool IsDoingDirectSelection() const
+	{
+		return bIsDoingDirectSelection;
+	}
 
 private:
 
@@ -530,4 +541,7 @@ private:
 
 	/** Delegate for when toggle expansion state is invoked */
 	FOnCurveEditorToggleExpansionState ToggleExpansionStateDelegate;
+
+	/** Whether or not we are are doign a direct selection, could be used to see why a curve model is being created or destroyed, by direct selection or by sequencer filtering?*/
+	bool bIsDoingDirectSelection = false;
 };

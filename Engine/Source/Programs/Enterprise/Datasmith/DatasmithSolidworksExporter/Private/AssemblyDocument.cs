@@ -12,7 +12,7 @@ namespace DatasmithSolidworks
 {
 	public class FAssemblyDocument : FDocument
 	{
-		enum EComponentDirtyState
+		public enum EComponentDirtyState
 		{
 			Geometry,
 			Visibility,
@@ -24,14 +24,15 @@ namespace DatasmithSolidworks
 		class FSyncState
 		{
 			public Dictionary<string, FPartDocument> PartsMap = new Dictionary<string, FPartDocument>();
-			public Dictionary<string, FObjectMaterials> ComponentsMaterialsMap = new Dictionary<string, FObjectMaterials>();
+			public ConcurrentDictionary<string, FObjectMaterials> ComponentsMaterialsMap = new ConcurrentDictionary<string, FObjectMaterials>();
 			public Dictionary<string, string> ComponentToPartMap = new Dictionary<string, string>();
 			public HashSet<string> CleanComponents = new HashSet<string>();
 			public Dictionary<string, uint> DirtyComponents = new Dictionary<string, uint>();
 			public HashSet<string> ComponentsToDelete = new HashSet<string>();
 		}
 
-		private AssemblyDoc SwAsmDoc = null;
+		public AssemblyDoc SwAsmDoc { get; private set; } = null;
+
 		private FSyncState SyncState = new FSyncState();
 
 		public FAssemblyDocument(int InDocId, AssemblyDoc InSwDoc, FDatasmithExporter InExporter) : base(InDocId, InSwDoc as ModelDoc2, InExporter)
@@ -56,8 +57,6 @@ namespace DatasmithSolidworks
 				Exporter.RemoveActor(ActorName);
 			}
 
-			SetExportStatus("Materials");
-			SyncState.ComponentsMaterialsMap = FObjectMaterials.LoadDocumentMaterials(this, swDisplayStateOpts_e.swThisDisplayState, null);
 			Configuration CurrentConfig = SwDoc.GetActiveConfiguration() as Configuration;
 
 			SetExportStatus("");
@@ -70,24 +69,18 @@ namespace DatasmithSolidworks
 			ExportComponentRecursive(Root, null, ref MeshesToExportMap);
 
 			// Export materials
-			ConcurrentDictionary<Component2, FObjectMaterials> ComponentMaterialsMap = new ConcurrentDictionary<Component2, FObjectMaterials>();
-
 			SetExportStatus($"Component Materials");
-			Parallel.ForEach(MeshesToExportMap, KVP => 
+
+			HashSet<string> ComponentNamesToExportSet = new HashSet<string>();
+			foreach (var KVP in MeshesToExportMap)
 			{
-				Component2 Comp = KVP.Key;
-
-				FObjectMaterials ComponentMaterials = FObjectMaterials.LoadComponentMaterials(this, Comp, swDisplayStateOpts_e.swThisDisplayState, null);
-				if (ComponentMaterials == null && Comp.GetModelDoc2() is PartDoc)
+				if (!ComponentNamesToExportSet.Contains(KVP.Key.Name))
 				{
-					ComponentMaterials = FObjectMaterials.LoadPartMaterials(this, Comp.GetModelDoc2() as PartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
+					ComponentNamesToExportSet.Add(KVP.Key.Name);
 				}
-				if (ComponentMaterials != null)
-				{
-					ComponentMaterialsMap.TryAdd(Comp, ComponentMaterials);
-				}
-			});
-
+				
+			}
+			SyncState.ComponentsMaterialsMap = FObjectMaterials.LoadAssemblyMaterials(this, ComponentNamesToExportSet, swDisplayStateOpts_e.swThisDisplayState, null);
 			Exporter.ExportMaterials(ExportedMaterialsMap);
 
 			// Export meshes
@@ -98,7 +91,7 @@ namespace DatasmithSolidworks
 				Component2 Comp = KVP.Key;
 
 				FObjectMaterials ComponentMaterials = null;
-				ComponentMaterialsMap.TryGetValue(Comp, out ComponentMaterials);
+				SyncState.ComponentsMaterialsMap?.TryGetValue(Comp.Name2, out ComponentMaterials);
 
 				ConcurrentBag<FBody> Bodies = FBody.FetchBodies(Comp);
 				FMeshData MeshData = FStripGeometry.CreateMeshData(Bodies, ComponentMaterials);
@@ -128,42 +121,12 @@ namespace DatasmithSolidworks
 
 		public override bool HasMaterialUpdates()
 		{
-			Dictionary<string, FObjectMaterials> CurrentDocMaterialsMap = FObjectMaterials.LoadDocumentMaterials(this, swDisplayStateOpts_e.swThisDisplayState, null);
-
 			// Dig into part level materials (they wont be read by LoadDocumentMaterials)
 			HashSet<string> AllExportedComponents = new HashSet<string>();
 			AllExportedComponents.UnionWith(SyncState.CleanComponents);
 			AllExportedComponents.UnionWith(SyncState.DirtyComponents.Keys);
 
-			foreach (string CompName in AllExportedComponents)
-			{
-				if (!CurrentDocMaterialsMap?.ContainsKey(CompName) ?? false)
-				{
-					Component2 Comp = SwAsmDoc.GetComponentByName(CompName);
-					if (Comp == null)
-					{
-						continue;
-					}
-
-					object ComponentDoc = (object)Comp.GetModelDoc2();
-
-					// Check for part level materials
-					FObjectMaterials ComponentMaterials = FObjectMaterials.LoadComponentMaterials(this, Comp, swDisplayStateOpts_e.swThisDisplayState, null);
-					if (ComponentMaterials == null && (object)Comp.GetModelDoc2() is PartDoc)
-					{
-						ComponentMaterials = FObjectMaterials.LoadPartMaterials(this, ComponentDoc as PartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
-					}
-
-					if (ComponentMaterials != null)
-					{
-						if (CurrentDocMaterialsMap == null)
-						{
-							CurrentDocMaterialsMap = new Dictionary<string, FObjectMaterials>();
-						}
-						CurrentDocMaterialsMap[CompName] = ComponentMaterials;
-					}
-				}
-			}
+			ConcurrentDictionary<string, FObjectMaterials> CurrentDocMaterialsMap = FObjectMaterials.LoadAssemblyMaterials(this, AllExportedComponents, swDisplayStateOpts_e.swThisDisplayState, null);
 
 			if (CurrentDocMaterialsMap == null && SyncState.ComponentsMaterialsMap == null)
 			{
@@ -246,7 +209,7 @@ namespace DatasmithSolidworks
 				ActorExportInfo.Name = ComponentName;
 				ActorExportInfo.ParentName = InParent?.Name2;
 				ActorExportInfo.bVisible = true;
-				ActorExportInfo.Type = EActorType.SimpleActor;
+				ActorExportInfo.Type = Exporter.GetExportedActorType(ComponentName) ?? EActorType.SimpleActor;
 
 				if (ComponentTransform != null)
 				{
@@ -291,7 +254,8 @@ namespace DatasmithSolidworks
 					{
 						// New part
 						int PartDocId = Addin.Instance.GetDocumentId(ComponentDoc as ModelDoc2);
-						SyncState.PartsMap[PartPath] = new FPartDocument(PartDocId, ComponentDoc as PartDoc, Exporter);
+						SyncState.PartsMap[PartPath] = new FPartDocument(PartDocId, ComponentDoc as PartDoc, Exporter, this, InComponent.Name2);
+						SyncState.PartsMap[PartPath].Init();
 					}
 
 					SyncState.ComponentToPartMap[InComponent.Name2] = PartPath;
@@ -317,7 +281,7 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		private void SetComponentDirty(string InComponent, EComponentDirtyState InState)
+		public void SetComponentDirty(string InComponent, EComponentDirtyState InState)
 		{
 			if (SyncState.CleanComponents.Contains(InComponent))
 			{
@@ -336,130 +300,96 @@ namespace DatasmithSolidworks
 		{
 			base.Init();
 
-			SwAsmDoc.RegenNotify += new DAssemblyDocEvents_RegenNotifyEventHandler(OnComponentRegenNotify);
-			SwAsmDoc.ActiveDisplayStateChangePreNotify += new DAssemblyDocEvents_ActiveDisplayStateChangePreNotifyEventHandler(OnComponentActiveDisplayStateChangePreNotify);
-			SwAsmDoc.ActiveViewChangeNotify += new DAssemblyDocEvents_ActiveViewChangeNotifyEventHandler(OnComponentActiveViewChangeNotify);
-			SwAsmDoc.SuppressionStateChangeNotify += new DAssemblyDocEvents_SuppressionStateChangeNotifyEventHandler(OnComponentSuppressionStateChangeNotify);
+			SwAsmDoc.RegenNotify += new DAssemblyDocEvents_RegenNotifyEventHandler(OnRegenNotify);
+			SwAsmDoc.ActiveDisplayStateChangePreNotify += new DAssemblyDocEvents_ActiveDisplayStateChangePreNotifyEventHandler(OnActiveDisplayStateChangePreNotify);
+			SwAsmDoc.ActiveViewChangeNotify += new DAssemblyDocEvents_ActiveViewChangeNotifyEventHandler(OnActiveViewChangeNotify);
+			SwAsmDoc.SuppressionStateChangeNotify += new DAssemblyDocEvents_SuppressionStateChangeNotifyEventHandler(OnSuppressionStateChangeNotify);
 			SwAsmDoc.ComponentReorganizeNotify += new DAssemblyDocEvents_ComponentReorganizeNotifyEventHandler(OnComponentReorganizeNotify);
-			SwAsmDoc.ActiveDisplayStateChangePostNotify += new DAssemblyDocEvents_ActiveDisplayStateChangePostNotifyEventHandler(OnComponentActiveDisplayStateChangePostNotify);
+			SwAsmDoc.ActiveDisplayStateChangePostNotify += new DAssemblyDocEvents_ActiveDisplayStateChangePostNotifyEventHandler(OnActiveDisplayStateChangePostNotify);
 			SwAsmDoc.ConfigurationChangeNotify += new DAssemblyDocEvents_ConfigurationChangeNotifyEventHandler(OnConfigurationChangeNotify);
 			SwAsmDoc.DestroyNotify2 += new DAssemblyDocEvents_DestroyNotify2EventHandler(OnDocumentDestroyNotify2);
 			SwAsmDoc.ComponentConfigurationChangeNotify += new DAssemblyDocEvents_ComponentConfigurationChangeNotifyEventHandler(OnComponentConfigurationChangeNotify);
-			SwAsmDoc.UndoPostNotify += new DAssemblyDocEvents_UndoPostNotifyEventHandler(OnComponentUndoPostNotify);
-			SwAsmDoc.RenamedDocumentNotify += new DAssemblyDocEvents_RenamedDocumentNotifyEventHandler(OnComponentRenamedDocumentNotify);
-			SwAsmDoc.DragStateChangeNotify += new DAssemblyDocEvents_DragStateChangeNotifyEventHandler(OnComponentDragStateChangeNotify);
-			SwAsmDoc.RegenPostNotify2 += new DAssemblyDocEvents_RegenPostNotify2EventHandler(OnComponentRegenPostNotify2);
+			SwAsmDoc.UndoPostNotify += new DAssemblyDocEvents_UndoPostNotifyEventHandler(OnUndoPostNotify);
+			SwAsmDoc.RenamedDocumentNotify += new DAssemblyDocEvents_RenamedDocumentNotifyEventHandler(OnRenamedDocumentNotify);
+			SwAsmDoc.DragStateChangeNotify += new DAssemblyDocEvents_DragStateChangeNotifyEventHandler(OnDragStateChangeNotify);
+			SwAsmDoc.RegenPostNotify2 += new DAssemblyDocEvents_RegenPostNotify2EventHandler(OnRegenPostNotify2);
 			SwAsmDoc.ComponentReferredDisplayStateChangeNotify += new DAssemblyDocEvents_ComponentReferredDisplayStateChangeNotifyEventHandler(OnComponentReferredDisplayStateChangeNotify);
-			SwAsmDoc.RedoPostNotify += new DAssemblyDocEvents_RedoPostNotifyEventHandler(OnComponentRedoPostNotify);
+			SwAsmDoc.RedoPostNotify += new DAssemblyDocEvents_RedoPostNotifyEventHandler(OnRedoPostNotify);
 			SwAsmDoc.ComponentStateChangeNotify3 += new DAssemblyDocEvents_ComponentStateChangeNotify3EventHandler(OnComponentStateChangeNotify3);
 			SwAsmDoc.ComponentStateChangeNotify += new DAssemblyDocEvents_ComponentStateChangeNotifyEventHandler(OnComponentStateChangeNotify);
-			SwAsmDoc.ModifyNotify += new DAssemblyDocEvents_ModifyNotifyEventHandler(OnComponentModifyNotify);
-			SwAsmDoc.DeleteItemNotify += new DAssemblyDocEvents_DeleteItemNotifyEventHandler(OnComponentDeleteItemNotify);
-			SwAsmDoc.RenameItemNotify += new DAssemblyDocEvents_RenameItemNotifyEventHandler(OnComponentRenameItemNotify);
-			SwAsmDoc.AddItemNotify += new DAssemblyDocEvents_AddItemNotifyEventHandler(OnComponentAddItemNotify);
-			SwAsmDoc.FileReloadNotify += new DAssemblyDocEvents_FileReloadNotifyEventHandler(OnComponentFileReloadNotify);
-			SwAsmDoc.ActiveConfigChangeNotify += new DAssemblyDocEvents_ActiveConfigChangeNotifyEventHandler(OnComponentActiveConfigChangeNotify);
-			SwAsmDoc.FileSaveAsNotify += new DAssemblyDocEvents_FileSaveAsNotifyEventHandler(OnComponentFileSaveAsNotify);
-			SwAsmDoc.FileSaveNotify += new DAssemblyDocEvents_FileSaveNotifyEventHandler(OnComponentFileSaveNotify);
-			SwAsmDoc.RegenPostNotify += new DAssemblyDocEvents_RegenPostNotifyEventHandler(OnComponentRegenPostNotify);
-			SwAsmDoc.ActiveConfigChangePostNotify += new DAssemblyDocEvents_ActiveConfigChangePostNotifyEventHandler(OnComponentActiveConfigChangePostNotify);
+			SwAsmDoc.ModifyNotify += new DAssemblyDocEvents_ModifyNotifyEventHandler(OnModifyNotify);
+			SwAsmDoc.DeleteItemNotify += new DAssemblyDocEvents_DeleteItemNotifyEventHandler(OnDeleteItemNotify);
+			SwAsmDoc.RenameItemNotify += new DAssemblyDocEvents_RenameItemNotifyEventHandler(OnRenameItemNotify);
+			SwAsmDoc.AddItemNotify += new DAssemblyDocEvents_AddItemNotifyEventHandler(OnAddItemNotify);
+			SwAsmDoc.FileReloadNotify += new DAssemblyDocEvents_FileReloadNotifyEventHandler(OnFileReloadNotify);
+			SwAsmDoc.ActiveConfigChangeNotify += new DAssemblyDocEvents_ActiveConfigChangeNotifyEventHandler(OnActiveConfigChangeNotify);
+			SwAsmDoc.FileSaveAsNotify += new DAssemblyDocEvents_FileSaveAsNotifyEventHandler(OnFileSaveAsNotify);
+			SwAsmDoc.FileSaveNotify += new DAssemblyDocEvents_FileSaveNotifyEventHandler(OnFileSaveNotify);
+			SwAsmDoc.RegenPostNotify += new DAssemblyDocEvents_RegenPostNotifyEventHandler(OnRegenPostNotify);
+			SwAsmDoc.ActiveConfigChangePostNotify += new DAssemblyDocEvents_ActiveConfigChangePostNotifyEventHandler(OnActiveConfigChangePostNotify);
 			SwAsmDoc.ComponentStateChangeNotify2 += new DAssemblyDocEvents_ComponentStateChangeNotify2EventHandler(OnComponentStateChangeNotify2);
-			SwAsmDoc.AddCustomPropertyNotify += new DAssemblyDocEvents_AddCustomPropertyNotifyEventHandler(OnComponentAddCustomPropertyNotify);
-			SwAsmDoc.ChangeCustomPropertyNotify += new DAssemblyDocEvents_ChangeCustomPropertyNotifyEventHandler(OnComponentChangeCustomPropertyNotify);
-			SwAsmDoc.DimensionChangeNotify += new DAssemblyDocEvents_DimensionChangeNotifyEventHandler(OnComponentDimensionChangeNotify);
+			SwAsmDoc.AddCustomPropertyNotify += new DAssemblyDocEvents_AddCustomPropertyNotifyEventHandler(OnAddCustomPropertyNotify);
+			SwAsmDoc.ChangeCustomPropertyNotify += new DAssemblyDocEvents_ChangeCustomPropertyNotifyEventHandler(OnChangeCustomPropertyNotify);
+			SwAsmDoc.DimensionChangeNotify += new DAssemblyDocEvents_DimensionChangeNotifyEventHandler(OnDimensionChangeNotify);
 			SwAsmDoc.ComponentDisplayStateChangeNotify += new DAssemblyDocEvents_ComponentDisplayStateChangeNotifyEventHandler(OnComponentDisplayStateChangeNotify);
 			SwAsmDoc.ComponentVisualPropertiesChangeNotify += new DAssemblyDocEvents_ComponentVisualPropertiesChangeNotifyEventHandler(OnComponentVisualPropertiesChangeNotify);
 			SwAsmDoc.ComponentMoveNotify2 += new DAssemblyDocEvents_ComponentMoveNotify2EventHandler(OnComponentMoveNotify2);
-			SwAsmDoc.BodyVisibleChangeNotify += new DAssemblyDocEvents_BodyVisibleChangeNotifyEventHandler(OnComponentBodyVisibleChangeNotify);
+			SwAsmDoc.BodyVisibleChangeNotify += new DAssemblyDocEvents_BodyVisibleChangeNotifyEventHandler(OnBodyVisibleChangeNotify);
 			SwAsmDoc.ComponentVisibleChangeNotify += new DAssemblyDocEvents_ComponentVisibleChangeNotifyEventHandler(OnComponentVisibleChangeNotify);
 			SwAsmDoc.ComponentMoveNotify += new DAssemblyDocEvents_ComponentMoveNotifyEventHandler(OnComponentMoveNotify);
-			SwAsmDoc.FileReloadPreNotify += new DAssemblyDocEvents_FileReloadPreNotifyEventHandler(OnComponentFileReloadPreNotify);
-			SwAsmDoc.DeleteSelectionPreNotify += new DAssemblyDocEvents_DeleteSelectionPreNotifyEventHandler(OnComponentDeleteSelectionPreNotify);
-			SwAsmDoc.FileSaveAsNotify2 += new DAssemblyDocEvents_FileSaveAsNotify2EventHandler(OnComponentFileSaveAsNotify2);
-
-			SwAsmDoc.UserSelectionPostNotify += new DAssemblyDocEvents_UserSelectionPostNotifyEventHandler(OnUserSelectionPostNotify);
+			SwAsmDoc.FileReloadPreNotify += new DAssemblyDocEvents_FileReloadPreNotifyEventHandler(OnFileReloadPreNotify);
+			SwAsmDoc.DeleteSelectionPreNotify += new DAssemblyDocEvents_DeleteSelectionPreNotifyEventHandler(OnDeleteSelectionPreNotify);
+			SwAsmDoc.FileSaveAsNotify2 += new DAssemblyDocEvents_FileSaveAsNotify2EventHandler(OnFileSaveAsNotify2);
 		}
 
 		public override void Destroy()
 		{
 			base.Destroy();
 
-			SwAsmDoc.RegenNotify -= new DAssemblyDocEvents_RegenNotifyEventHandler(OnComponentRegenNotify);
-			SwAsmDoc.ActiveDisplayStateChangePreNotify -= new DAssemblyDocEvents_ActiveDisplayStateChangePreNotifyEventHandler(OnComponentActiveDisplayStateChangePreNotify);
-			SwAsmDoc.ActiveViewChangeNotify -= new DAssemblyDocEvents_ActiveViewChangeNotifyEventHandler(OnComponentActiveViewChangeNotify);
-			SwAsmDoc.SuppressionStateChangeNotify -= new DAssemblyDocEvents_SuppressionStateChangeNotifyEventHandler(OnComponentSuppressionStateChangeNotify);
+			SwAsmDoc.RegenNotify -= new DAssemblyDocEvents_RegenNotifyEventHandler(OnRegenNotify);
+			SwAsmDoc.ActiveDisplayStateChangePreNotify -= new DAssemblyDocEvents_ActiveDisplayStateChangePreNotifyEventHandler(OnActiveDisplayStateChangePreNotify);
+			SwAsmDoc.ActiveViewChangeNotify -= new DAssemblyDocEvents_ActiveViewChangeNotifyEventHandler(OnActiveViewChangeNotify);
+			SwAsmDoc.SuppressionStateChangeNotify -= new DAssemblyDocEvents_SuppressionStateChangeNotifyEventHandler(OnSuppressionStateChangeNotify);
 			SwAsmDoc.ComponentReorganizeNotify -= new DAssemblyDocEvents_ComponentReorganizeNotifyEventHandler(OnComponentReorganizeNotify);
-			SwAsmDoc.ActiveDisplayStateChangePostNotify -= new DAssemblyDocEvents_ActiveDisplayStateChangePostNotifyEventHandler(OnComponentActiveDisplayStateChangePostNotify);
+			SwAsmDoc.ActiveDisplayStateChangePostNotify -= new DAssemblyDocEvents_ActiveDisplayStateChangePostNotifyEventHandler(OnActiveDisplayStateChangePostNotify);
 			SwAsmDoc.ConfigurationChangeNotify -= new DAssemblyDocEvents_ConfigurationChangeNotifyEventHandler(OnConfigurationChangeNotify);
 			SwAsmDoc.DestroyNotify2 -= new DAssemblyDocEvents_DestroyNotify2EventHandler(OnDocumentDestroyNotify2);
 			SwAsmDoc.ComponentConfigurationChangeNotify -= new DAssemblyDocEvents_ComponentConfigurationChangeNotifyEventHandler(OnComponentConfigurationChangeNotify);
-			SwAsmDoc.UndoPostNotify -= new DAssemblyDocEvents_UndoPostNotifyEventHandler(OnComponentUndoPostNotify);
-			SwAsmDoc.RenamedDocumentNotify -= new DAssemblyDocEvents_RenamedDocumentNotifyEventHandler(OnComponentRenamedDocumentNotify);
-			SwAsmDoc.ComponentDisplayModeChangePostNotify -= new DAssemblyDocEvents_ComponentDisplayModeChangePostNotifyEventHandler(OnComponentDisplayModeChangePostNotify);
-			SwAsmDoc.DragStateChangeNotify -= new DAssemblyDocEvents_DragStateChangeNotifyEventHandler(OnComponentDragStateChangeNotify);
-			SwAsmDoc.RegenPostNotify2 -= new DAssemblyDocEvents_RegenPostNotify2EventHandler(OnComponentRegenPostNotify2);
+			SwAsmDoc.UndoPostNotify -= new DAssemblyDocEvents_UndoPostNotifyEventHandler(OnUndoPostNotify);
+			SwAsmDoc.RenamedDocumentNotify -= new DAssemblyDocEvents_RenamedDocumentNotifyEventHandler(OnRenamedDocumentNotify);
+			SwAsmDoc.DragStateChangeNotify -= new DAssemblyDocEvents_DragStateChangeNotifyEventHandler(OnDragStateChangeNotify);
+			SwAsmDoc.RegenPostNotify2 -= new DAssemblyDocEvents_RegenPostNotify2EventHandler(OnRegenPostNotify2);
 			SwAsmDoc.ComponentReferredDisplayStateChangeNotify -= new DAssemblyDocEvents_ComponentReferredDisplayStateChangeNotifyEventHandler(OnComponentReferredDisplayStateChangeNotify);
-			SwAsmDoc.RedoPostNotify -= new DAssemblyDocEvents_RedoPostNotifyEventHandler(OnComponentRedoPostNotify);
+			SwAsmDoc.RedoPostNotify -= new DAssemblyDocEvents_RedoPostNotifyEventHandler(OnRedoPostNotify);
 			SwAsmDoc.ComponentStateChangeNotify3 -= new DAssemblyDocEvents_ComponentStateChangeNotify3EventHandler(OnComponentStateChangeNotify3);
 			SwAsmDoc.ComponentStateChangeNotify -= new DAssemblyDocEvents_ComponentStateChangeNotifyEventHandler(OnComponentStateChangeNotify);
-			SwAsmDoc.ModifyNotify -= new DAssemblyDocEvents_ModifyNotifyEventHandler(OnComponentModifyNotify);
-			SwAsmDoc.DeleteItemNotify -= new DAssemblyDocEvents_DeleteItemNotifyEventHandler(OnComponentDeleteItemNotify);
-			SwAsmDoc.RenameItemNotify -= new DAssemblyDocEvents_RenameItemNotifyEventHandler(OnComponentRenameItemNotify);
-			SwAsmDoc.AddItemNotify -= new DAssemblyDocEvents_AddItemNotifyEventHandler(OnComponentAddItemNotify);
-			SwAsmDoc.FileReloadNotify -= new DAssemblyDocEvents_FileReloadNotifyEventHandler(OnComponentFileReloadNotify);
-			SwAsmDoc.ActiveConfigChangeNotify -= new DAssemblyDocEvents_ActiveConfigChangeNotifyEventHandler(OnComponentActiveConfigChangeNotify);
-			SwAsmDoc.FileSaveAsNotify -= new DAssemblyDocEvents_FileSaveAsNotifyEventHandler(OnComponentFileSaveAsNotify);
-			SwAsmDoc.FileSaveNotify -= new DAssemblyDocEvents_FileSaveNotifyEventHandler(OnComponentFileSaveNotify);
-			SwAsmDoc.RegenPostNotify -= new DAssemblyDocEvents_RegenPostNotifyEventHandler(OnComponentRegenPostNotify);
-			SwAsmDoc.ActiveConfigChangePostNotify -= new DAssemblyDocEvents_ActiveConfigChangePostNotifyEventHandler(OnComponentActiveConfigChangePostNotify);
+			SwAsmDoc.ModifyNotify -= new DAssemblyDocEvents_ModifyNotifyEventHandler(OnModifyNotify);
+			SwAsmDoc.DeleteItemNotify -= new DAssemblyDocEvents_DeleteItemNotifyEventHandler(OnDeleteItemNotify);
+			SwAsmDoc.RenameItemNotify -= new DAssemblyDocEvents_RenameItemNotifyEventHandler(OnRenameItemNotify);
+			SwAsmDoc.AddItemNotify -= new DAssemblyDocEvents_AddItemNotifyEventHandler(OnAddItemNotify);
+			SwAsmDoc.FileReloadNotify -= new DAssemblyDocEvents_FileReloadNotifyEventHandler(OnFileReloadNotify);
+			SwAsmDoc.ActiveConfigChangeNotify -= new DAssemblyDocEvents_ActiveConfigChangeNotifyEventHandler(OnActiveConfigChangeNotify);
+			SwAsmDoc.FileSaveAsNotify -= new DAssemblyDocEvents_FileSaveAsNotifyEventHandler(OnFileSaveAsNotify);
+			SwAsmDoc.FileSaveNotify -= new DAssemblyDocEvents_FileSaveNotifyEventHandler(OnFileSaveNotify);
+			SwAsmDoc.RegenPostNotify -= new DAssemblyDocEvents_RegenPostNotifyEventHandler(OnRegenPostNotify);
+			SwAsmDoc.ActiveConfigChangePostNotify -= new DAssemblyDocEvents_ActiveConfigChangePostNotifyEventHandler(OnActiveConfigChangePostNotify);
 			SwAsmDoc.ComponentStateChangeNotify2 -= new DAssemblyDocEvents_ComponentStateChangeNotify2EventHandler(OnComponentStateChangeNotify2);
-			SwAsmDoc.AddCustomPropertyNotify -= new DAssemblyDocEvents_AddCustomPropertyNotifyEventHandler(OnComponentAddCustomPropertyNotify);
-			SwAsmDoc.ChangeCustomPropertyNotify -= new DAssemblyDocEvents_ChangeCustomPropertyNotifyEventHandler(OnComponentChangeCustomPropertyNotify);
-			SwAsmDoc.DimensionChangeNotify -= new DAssemblyDocEvents_DimensionChangeNotifyEventHandler(OnComponentDimensionChangeNotify);
+			SwAsmDoc.AddCustomPropertyNotify -= new DAssemblyDocEvents_AddCustomPropertyNotifyEventHandler(OnAddCustomPropertyNotify);
+			SwAsmDoc.ChangeCustomPropertyNotify -= new DAssemblyDocEvents_ChangeCustomPropertyNotifyEventHandler(OnChangeCustomPropertyNotify);
+			SwAsmDoc.DimensionChangeNotify -= new DAssemblyDocEvents_DimensionChangeNotifyEventHandler(OnDimensionChangeNotify);
 			SwAsmDoc.ComponentDisplayStateChangeNotify -= new DAssemblyDocEvents_ComponentDisplayStateChangeNotifyEventHandler(OnComponentDisplayStateChangeNotify);
 			SwAsmDoc.ComponentVisualPropertiesChangeNotify -= new DAssemblyDocEvents_ComponentVisualPropertiesChangeNotifyEventHandler(OnComponentVisualPropertiesChangeNotify);
 			SwAsmDoc.ComponentMoveNotify2 -= new DAssemblyDocEvents_ComponentMoveNotify2EventHandler(OnComponentMoveNotify2);
-			SwAsmDoc.BodyVisibleChangeNotify -= new DAssemblyDocEvents_BodyVisibleChangeNotifyEventHandler(OnComponentBodyVisibleChangeNotify);
+			SwAsmDoc.BodyVisibleChangeNotify -= new DAssemblyDocEvents_BodyVisibleChangeNotifyEventHandler(OnBodyVisibleChangeNotify);
 			SwAsmDoc.ComponentVisibleChangeNotify -= new DAssemblyDocEvents_ComponentVisibleChangeNotifyEventHandler(OnComponentVisibleChangeNotify);
 			SwAsmDoc.ComponentMoveNotify -= new DAssemblyDocEvents_ComponentMoveNotifyEventHandler(OnComponentMoveNotify);
-			SwAsmDoc.FileReloadPreNotify -= new DAssemblyDocEvents_FileReloadPreNotifyEventHandler(OnComponentFileReloadPreNotify);
-			SwAsmDoc.DeleteSelectionPreNotify -= new DAssemblyDocEvents_DeleteSelectionPreNotifyEventHandler(OnComponentDeleteSelectionPreNotify);
-			SwAsmDoc.FileSaveAsNotify2 -= new DAssemblyDocEvents_FileSaveAsNotify2EventHandler(OnComponentFileSaveAsNotify2);
+			SwAsmDoc.FileReloadPreNotify -= new DAssemblyDocEvents_FileReloadPreNotifyEventHandler(OnFileReloadPreNotify);
+			SwAsmDoc.DeleteSelectionPreNotify -= new DAssemblyDocEvents_DeleteSelectionPreNotifyEventHandler(OnDeleteSelectionPreNotify);
+			SwAsmDoc.FileSaveAsNotify2 -= new DAssemblyDocEvents_FileSaveAsNotify2EventHandler(OnFileSaveAsNotify2);
 		}
 
-		int OnUserSelectionPostNotify()
-		{
-			return 0;
-		}
-
-		//attach events to a component if it becomes resolved
 		int OnComponentStateChangeNotify(object componentModel, short newCompState)
 		{
-			//ModelDoc2 modDoc = (ModelDoc2)componentModel;
-			//swComponentSuppressionState_e newState = (swComponentSuppressionState_e)newCompState;
-
-			//switch (newState)
-			//{
-
-			//	case swComponentSuppressionState_e.swComponentFullyResolved:
-			//	{
-			//		if ((modDoc != null) & !this.swAddin.OpenDocs.Contains(modDoc))
-			//		{
-			//			this.swAddin.AttachModelDocEventHandler(modDoc);
-			//		}
-			//		break;
-			//	}
-
-			//	case swComponentSuppressionState_e.swComponentResolved:
-			//	{
-			//		if ((modDoc != null) & !this.swAddin.OpenDocs.Contains(modDoc))
-			//		{
-			//			this.swAddin.AttachModelDocEventHandler(modDoc);
-			//		}
-			//		break;
-			//	}
-
-			//}
 			return 0;
 		}
 
@@ -467,11 +397,6 @@ namespace DatasmithSolidworks
 		{
 			OnComponentStateChangeNotify(componentModel, (short)swComponentSuppressionState_e.swComponentResolved);
 			return 0;
-		}
-
-		int OnComponentStateChange2Notify(object componentModel, string CompName, short oldCompState, short newCompState)
-		{
-			return OnComponentStateChangeNotify(componentModel, newCompState);
 		}
 
 		int OnComponentStateChangeNotify(object componentModel, short oldCompState, short newCompState)
@@ -497,22 +422,22 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentRegenNotify()
+		int OnRegenNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentActiveDisplayStateChangePreNotify()
+		int OnActiveDisplayStateChangePreNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentActiveViewChangeNotify()
+		int OnActiveViewChangeNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentSuppressionStateChangeNotify(Feature InFeature, int InNewSuppressionState, int InPreviousSuppressionState, int InConfigurationOption, ref object InConfigurationNames)
+		int OnSuppressionStateChangeNotify(Feature InFeature, int InNewSuppressionState, int InPreviousSuppressionState, int InConfigurationOption, ref object InConfigurationNames)
 		{
 			return 0;
 		}
@@ -522,7 +447,7 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentActiveDisplayStateChangePostNotify(string DisplayStateName)
+		int OnActiveDisplayStateChangePostNotify(string DisplayStateName)
 		{
 			return 0;
 		}
@@ -547,27 +472,27 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentUndoPostNotify()
+		int OnUndoPostNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentRenamedDocumentNotify(ref object RenamedDocumentInterface)
+		int OnRenamedDocumentNotify(ref object RenamedDocumentInterface)
 		{
 			return 0;
 		}
 
-		int OnComponentDisplayModeChangePostNotify(object Component)
+		int OnDisplayModeChangePostNotify(object Component)
 		{
 			return 0;
 		}
 
-		int OnComponentDragStateChangeNotify(Boolean State)
+		int OnDragStateChangeNotify(Boolean State)
 		{
 			return 0;
 		}
 
-		int OnComponentRegenPostNotify2(object stopFeature)
+		int OnRegenPostNotify2(object stopFeature)
 		{
 			return 0;
 		}
@@ -577,7 +502,7 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentRedoPostNotify()
+		int OnRedoPostNotify()
 		{
 			return 0;
 		}
@@ -591,12 +516,12 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentModifyNotify()
+		int OnModifyNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentDeleteItemNotify(int InEntityType, string InItemName)
+		int OnDeleteItemNotify(int InEntityType, string InItemName)
 		{
 			if (InEntityType == (int)swNotifyEntityType_e.swNotifyComponent && 
 				SyncState.ComponentToPartMap.ContainsKey(InItemName) && 
@@ -608,7 +533,7 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentRenameItemNotify(int InEntityType, string InOldName, string InNewName)
+		int OnRenameItemNotify(int InEntityType, string InOldName, string InNewName)
 		{
 			if (InEntityType == (int)swNotifyEntityType_e.swNotifyComponent &&
 				SyncState.ComponentToPartMap.ContainsKey(InOldName) &&
@@ -620,7 +545,7 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentAddItemNotify(int InEntityType, string InItemName)
+		int OnAddItemNotify(int InEntityType, string InItemName)
 		{
 			if (InEntityType == (int)swNotifyEntityType_e.swNotifyComponent)
 			{
@@ -629,32 +554,32 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentFileReloadNotify()
+		int OnFileReloadNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentActiveConfigChangeNotify()
+		int OnActiveConfigChangeNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentFileSaveAsNotify(string FileName)
+		int OnFileSaveAsNotify(string FileName)
 		{
 			return 0;
 		}
 
-		int OnComponentFileSaveNotify(string FileName)
+		int OnFileSaveNotify(string FileName)
 		{
 			return 0;
 		}
 
-		int OnComponentRegenPostNotify()
+		int OnRegenPostNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentActiveConfigChangePostNotify()
+		int OnActiveConfigChangePostNotify()
 		{
 			return 0;
 		}
@@ -664,17 +589,17 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentAddCustomPropertyNotify(string propName, string Configuration, string Value, int valueType)
+		int OnAddCustomPropertyNotify(string propName, string Configuration, string Value, int valueType)
 		{
 			return 0;
 		}
 
-		int OnComponentChangeCustomPropertyNotify(string propName, string Configuration, string oldValue, string NewValue, int valueType)
+		int OnChangeCustomPropertyNotify(string propName, string Configuration, string oldValue, string NewValue, int valueType)
 		{
 			return 0;
 		}
 
-		int OnComponentDimensionChangeNotify(object displayDim)
+		int OnDimensionChangeNotify(object displayDim)
 		{
 			return 0;
 		}
@@ -693,7 +618,7 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		int OnComponentBodyVisibleChangeNotify()
+		int OnBodyVisibleChangeNotify()
 		{
 			return 0;
 		}
@@ -703,30 +628,22 @@ namespace DatasmithSolidworks
 			return 0;
 		}
 
-		// called when the component moves because of Motion Manager or explode/collapse
 		int OnComponentMoveNotify()
 		{
-
-			//if (SwSingleton.CurrentScene.bDirectLinkAutoSync)
-			//{
-			//	SwSingleton.CurrentScene.EvaluateSceneTransforms();
-			//	SwSingleton.CurrentScene.bIsDirty = true;
-			//}
-
 			return 0;
 		}
 
-		int OnComponentFileReloadPreNotify()
+		int OnFileReloadPreNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentDeleteSelectionPreNotify()
+		int OnDeleteSelectionPreNotify()
 		{
 			return 0;
 		}
 
-		int OnComponentFileSaveAsNotify2(string FileName)
+		int OnFileSaveAsNotify2(string FileName)
 		{
 			return 0;
 		}

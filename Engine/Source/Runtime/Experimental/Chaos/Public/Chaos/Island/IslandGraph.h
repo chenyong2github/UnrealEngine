@@ -131,7 +131,7 @@ public:
 		/** Node Island Index (for static/kinematic particles could belong to several islands) */
 		int32 IslandIndex = INDEX_NONE;
 
-		/** Check if a node is valid (checked for graph partitionning) */
+		/** Check if a node is valid (checked for graph partitioning) */
 		bool bValidNode = true;
 
 		/** Check if a node is steady */
@@ -147,7 +147,7 @@ public:
 	/** Graph edge structure */
 	struct FGraphEdge 
 	{
-		/** First node od the edge */
+		/** First node of the edge */
 		int32 FirstNode = INDEX_NONE;
 
 		/** Second node of the edge*/
@@ -159,7 +159,7 @@ public:
 		/** Current edge index in the list of edges of the second node  */
 		int32 SecondEdge = INDEX_NONE;
 
-		/** Unique egde island index */
+		/** Unique edge island index */
 		int32 IslandIndex = INDEX_NONE;
 
 		/** Edge counter to filter edges already processed */
@@ -175,13 +175,10 @@ public:
 	/** Graph island structure */
 	struct FGraphIsland
 	{
-		/** Edge root of the graph island (to be replaced by a list of roots in case the splitting is not done every frame)*/
-		int32 RootIndex = INDEX_NONE;
-		
 		/** Number of edges per islands*/
 		int32 NumEdges = 0;
 
-		/** Number of valid nodes per islands*/
+		/** Number of valid nodes per islands (should be less than the ones in solver islands since it is only including the valid ones)*/
 		int32 NumNodes = 0;
 
 		/** Island counter to filter islands already processed */

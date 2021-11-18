@@ -160,6 +160,7 @@ namespace Metrics
 		bool			bDidTimeout = false;				//!< true if a timeout occurred. Only set if timeouts are enabled. Usually the ABR will monitor and abort.
 		bool			bParseFailure = false;				//!< true if the segment could not be parsed
 		bool			bInsertedFillerData = false;
+		bool			bIsCachedResponse = false;
 
 		// ABR state
 		FABRState		ABRState;

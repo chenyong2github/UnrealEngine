@@ -16,6 +16,7 @@
 // .z = "decal receive" stencil value
 // .w = unused
 uint4 DepthExportConfig;
+uint4 ViewRectMax;
 
 // Requirements:
 // COMPILER_SUPPORTS_TO_SCALAR_MEMORY
@@ -65,6 +66,10 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 	const uint PlatformConfig	= DepthExportConfig.x;
 	const uint PixelsWide		= DepthExportConfig.y;
 
+	if (any(PixelPos.xy >= ViewRectMax.xy))
+	{
+		return;
+	}
 	const UlongType VisPixel = VisBuffer64[PixelPos.xy];
 
 	// Calculate the HTile tile index and scalarize.
@@ -96,8 +101,11 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 
 		if (VisibleClusterIndex != 0xFFFFFFFF)
 		{
+			checkSlow(VisibleClusterIndex < DepthExportConfig.w);
+
 			FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+			checkSlow(VisibleCluster.InstanceId < PageConstants.x);
+			const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 			const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 			const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
@@ -133,8 +141,6 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				MaterialResolve[PixelPos.xy] = PackMaterialResolve(MaterialSlot, IsDecalReceiver);
 			}
 		}
-
-		GroupMemoryBarrierWithGroupSync();
 
 		const float TileMinSceneDepth = WaveActiveMin(SceneDepthValue);
 		const float TileMaxSceneDepth = WaveActiveMax(SceneDepthValue);

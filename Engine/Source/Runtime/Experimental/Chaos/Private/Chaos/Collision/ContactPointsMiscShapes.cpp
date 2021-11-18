@@ -42,8 +42,6 @@ namespace Chaos
 				if (B.SweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, 0.0f, true))
 				{
 					// @todo(chaos): margin
-					Contact.ShapeMargins[0] = 0.0f;
-					Contact.ShapeMargins[1] = 0.0f;
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 					Contact.ShapeContactPoints[1] = Location;
 					Contact.ShapeContactNormal = Normal;
@@ -90,9 +88,6 @@ namespace Chaos
 		{
 			if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 			{
-				// @todo(chaos): margin
-				Contact.ShapeMargins[0] = 0.0f;
-				Contact.ShapeMargins[1] = 0.0f;
 				Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 				Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 				Contact.ShapeContactNormal = Normal;
@@ -107,9 +102,6 @@ namespace Chaos
 			{
 				if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, ContactPhi))
 				{
-					// @todo(chaos): margin
-					Contact.ShapeMargins[0] = 0.0f;
-					Contact.ShapeMargins[1] = 0.0f;
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 					Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 					Contact.ShapeContactNormal = Normal;
@@ -123,9 +115,6 @@ namespace Chaos
 		{
 			if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
 			{
-				// @todo(chaos): margin
-				Contact.ShapeMargins[0] = 0.0f;
-				Contact.ShapeMargins[1] = 0.0f;
 				Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 				Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 				Contact.ShapeContactNormal = Normal;
@@ -218,16 +207,11 @@ namespace Chaos
 		const FVec3 Normal = Size > SMALL_NUMBER ? Direction / Size : FVec3(0, 0, 1);
 		const FReal NewPhi = Size - (R1 + R2);
 
-		// @todo(chaos): margin
-		Result.ShapeMargins[0] = 0.0f;
-		Result.ShapeMargins[1] = 0.0f;
 		Result.ShapeContactPoints[0] = Sphere1.GetCenter() - Sphere1Transform.InverseTransformVector(R1 * Normal);
 		Result.ShapeContactPoints[1] = Sphere2.GetCenter() + Sphere2Transform.InverseTransformVector(R2 * Normal);
 		Result.ShapeContactNormal = Sphere2Transform.InverseTransformVector(Normal);
-
 		Result.Phi = NewPhi;
 		Result.Normal = Normal;
-		//Result.Location = Center1 - R1 * Result.Normal;
 		Result.Location = Center2 + R2 * Result.Normal;
 
 		return Result;
@@ -247,9 +231,6 @@ namespace Chaos
 		FVec3 NormalWorld = PlaneTransform.TransformVector(NormalPlane);
 		FVec3 Location = SpherePosWorld - SphereRadius * NormalWorld;
 
-		// @todo(chaos): margin
-		Result.ShapeMargins[0] = 0.0f;
-		Result.ShapeMargins[1] = 0.0f;
 		Result.ShapeContactPoints[0] = SphereTransform.InverseTransformPosition(Location);
 		Result.ShapeContactPoints[1] = PlaneTransform.InverseTransformPosition(Location - Phi * NormalWorld);
 		Result.ShapeContactNormal = PlaneTransform.InverseTransformVector(NormalWorld);
@@ -274,9 +255,6 @@ namespace Chaos
 		FVec3 NormalWorld = BoxTransform.TransformVectorNoScale(NormalBox);
 		FVec3 LocationWorld = SphereWorld - (Sphere.GetRadius() + 0.5f * ShapePadding) * NormalWorld;
 
-		// @todo(chaos): margin
-		Result.ShapeMargins[0] = 0.0f;
-		Result.ShapeMargins[1] = 0.0f;
 		Result.ShapeContactPoints[0] = SphereTransform.InverseTransformPosition(LocationWorld);
 		Result.ShapeContactPoints[1] = BoxTransform.InverseTransformPosition(LocationWorld - Phi * NormalWorld);
 		Result.ShapeContactNormal = NormalBox;
@@ -304,9 +282,7 @@ namespace Chaos
 			FVec3 LocationA = A1 + Dir * A.GetRadius();
 			FVec3 LocationB = P2 - Dir * B.GetRadius();
 			FVec3 Normal = -Dir;
-			// @todo(chaos): margin
-			Result.ShapeMargins[0] = 0.0f;
-			Result.ShapeMargins[1] = 0.0f;
+
 			Result.ShapeContactPoints[0] = ATransform.InverseTransformPosition(LocationA);
 			Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(LocationB);
 			Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
@@ -436,9 +412,7 @@ namespace Chaos
 			FVec3 Normal = -Dir;
 			FVec3 LocationA = P1 + Dir * A.GetRadius();
 			FVec3 LocationB = P2 - Dir * B.GetRadius();
-			// @todo(chaos): margin
-			Result.ShapeMargins[0] = 0.0f;
-			Result.ShapeMargins[1] = 0.0f;
+
 			Result.ShapeContactPoints[0] = ATransform.InverseTransformPosition(LocationA);
 			Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(LocationB);
 			Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);

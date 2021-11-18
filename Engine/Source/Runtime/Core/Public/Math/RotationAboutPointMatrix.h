@@ -8,8 +8,6 @@
 #include "Math/Quat.h"
 #include "Math/RotationTranslationMatrix.h"
 
-// LWC_TODO: FRotator -> TRotator<T>
-
 namespace UE {
 namespace Math {
 
@@ -27,23 +25,23 @@ public:
 	 * @param Rot rotation
 	 * @param Origin about which to rotate.
 	 */
-	TRotationAboutPointMatrix(const FRotator& Rot, const TVector<T>& Origin);
+	TRotationAboutPointMatrix(const TRotator<T>& Rot, const TVector<T>& Origin);
 
 	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
-	static TMatrix<T> Make(const FRotator& Rot, const TVector<T>& Origin)
+	static TMatrix<T> Make(const TRotator<T>& Rot, const TVector<T>& Origin)
 	{
 		return TRotationAboutPointMatrix(Rot, Origin);
 	}
 
 	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
-	static TMatrix<T> Make(const FQuat& Rot, const TVector<T>& Origin)
+	static TMatrix<T> Make(const TQuat<T>& Rot, const TVector<T>& Origin)
 	{
 		return TRotationAboutPointMatrix(Rot.Rotator(), Origin);
 	}
 };
 
 template<typename T>
-FORCEINLINE TRotationAboutPointMatrix<T>::TRotationAboutPointMatrix(const FRotator& Rot, const TVector<T>& Origin)
+FORCEINLINE TRotationAboutPointMatrix<T>::TRotationAboutPointMatrix(const TRotator<T>& Rot, const TVector<T>& Origin)
 	: TRotationTranslationMatrix<T>(Rot, Origin)
 {
 	// FRotationTranslationMatrix generates R * T.

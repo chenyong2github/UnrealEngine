@@ -209,7 +209,7 @@ struct FCameraFocusSettings
 	uint8 bSmoothFocusChanges : 1;
 	
 	/** Controls interpolation speed when smoothing focus distance changes. Ignored if bSmoothFocusChanges is false. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Focus Settings", meta = (EditCondition = "bSmoothFocusChanges"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Focus Settings")
 	float FocusSmoothingInterpSpeed;
 
 	/** Additional focus depth offset, used for manually tweaking if your chosen focus method needs adjustment */

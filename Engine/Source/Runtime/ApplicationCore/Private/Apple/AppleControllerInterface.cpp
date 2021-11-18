@@ -167,6 +167,7 @@ void FAppleControllerInterface::HandleDisconnect(GCController* Controller)
 
 void FAppleControllerInterface::SendControllerEvents()
 {
+	@autoreleasepool{
     for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
  	{
 		// make sure the connection handler has run on this guy
@@ -230,6 +231,7 @@ void FAppleControllerInterface::SendControllerEvents()
             [Controller.PreviousExtendedGamepad retain];
 		}
 	}
+	} //@autoreleasepool
 }
 
 bool FAppleControllerInterface::IsControllerAssignedToGamepad(int32 ControllerId) const

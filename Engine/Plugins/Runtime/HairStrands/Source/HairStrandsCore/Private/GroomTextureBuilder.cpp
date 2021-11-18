@@ -55,10 +55,10 @@ void FGroomTextureBuilder::AllocateFollicleTextureResources(UTexture2D* Out, con
 	Out->SetLayerFormatSettings(0, FormatSettings);
 #endif // #if WITH_EDITORONLY_DATA
 
-	Out->PlatformData = new FTexturePlatformData();
-	Out->PlatformData->SizeX = Resolution.X;
-	Out->PlatformData->SizeY = Resolution.Y;
-	Out->PlatformData->PixelFormat = PF_B8G8R8A8;
+	Out->SetPlatformData(new FTexturePlatformData());
+	Out->GetPlatformData()->SizeX = Resolution.X;
+	Out->GetPlatformData()->SizeY = Resolution.Y;
+	Out->GetPlatformData()->PixelFormat = PF_B8G8R8A8;
 
 	// No need to create the resources when using the CPU path.
 	//Out->UpdateResource();
@@ -314,10 +314,10 @@ static void InternalBuildFollicleTexture_GPU(
 #endif
 			StrandsData.StrandsCurves.CurvesRootUV.GetData();
 			const uint32 DataCount = StrandsData.StrandsCurves.CurvesRootUV.Num();
-			const uint32 DataSizeInBytes = sizeof(FVector2D) * DataCount;
+			const uint32 DataSizeInBytes = sizeof(FVector2f) * DataCount;
 			check(DataSizeInBytes != 0);
 
-			const FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(FVector2D), DataCount);
+			const FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(FVector2f), DataCount);
 			FRDGBufferRef RootBuffer = CreateVertexBuffer(
 				GraphBuilder,
 				TEXT("RootUVBuffer"),
@@ -484,10 +484,10 @@ static void InternalAllocateStrandsTexture(UTexture2D* Out, const FIntPoint& Res
 	Out->SetLayerFormatSettings(0, FormatSettings);
 #endif // #if WITH_EDITORONLY_DATA
 
-	Out->PlatformData = new FTexturePlatformData();
-	Out->PlatformData->SizeX = Resolution.X;
-	Out->PlatformData->SizeY = Resolution.Y;
-	Out->PlatformData->PixelFormat = Format;
+	Out->SetPlatformData(new FTexturePlatformData());
+	Out->GetPlatformData()->SizeX = Resolution.X;
+	Out->GetPlatformData()->SizeY = Resolution.Y;
+	Out->GetPlatformData()->PixelFormat = Format;
 
 	//Out->UpdateResource();
 }

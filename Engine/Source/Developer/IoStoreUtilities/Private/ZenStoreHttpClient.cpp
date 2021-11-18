@@ -33,19 +33,13 @@ FZenStoreHttpClient::FZenStoreHttpClient()
 }
 
 FZenStoreHttpClient::FZenStoreHttpClient(FStringView HostName, uint16 Port)
-: ZenService(HostName, Port)
+: ZenService(HostName.IsEmpty() ? FStringView() : *WriteToString<64>(TEXT("http://"), HostName, TEXT(":"), Port))
 {
 	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
 }
 
-FZenStoreHttpClient::FZenStoreHttpClient(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort)
-: ZenService(AutoLaunchExecutablePath, AutoLaunchArguments, DesiredPort)
-{
-	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
-}
-
-FZenStoreHttpClient::FZenStoreHttpClient(UE::Zen::EServiceMode Mode)
-: ZenService(Mode)
+FZenStoreHttpClient::FZenStoreHttpClient(UE::Zen::FServiceSettings&& InSettings)
+: ZenService(MoveTemp(InSettings))
 {
 	RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), PoolEntryCount);
 }
@@ -619,11 +613,7 @@ FZenStoreHttpClient::FZenStoreHttpClient(const FStringView InHostName, uint16 In
 {
 }
 
-FZenStoreHttpClient::FZenStoreHttpClient(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort)
-{
-}
-
-FZenStoreHttpClient::FZenStoreHttpClient(UE::Zen::EServiceMode Mode)
+FZenStoreHttpClient::FZenStoreHttpClient(UE::Zen::FServiceSettings&& InSettings)
 {
 }
 

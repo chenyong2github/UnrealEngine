@@ -17,6 +17,7 @@ namespace FAndroidProfileSelectorSourceProperties
 	static FName SRC_UsingHoudini(TEXT("SRC_UsingHoudini"));
 	static FName SRC_Hardware(TEXT("SRC_Hardware"));
 	static FName SRC_Chipset(TEXT("SRC_Chipset"));
+	static FName SRC_HMDSystemName(TEXT("SRC_HMDSystemName"));
 	static FName SRC_TotalPhysicalGB(TEXT("SRC_TotalPhysicalGB"));
 };
 

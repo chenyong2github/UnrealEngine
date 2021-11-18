@@ -15,14 +15,13 @@
 
 class IStageMonitor;
 class SStageMonitorPanel;
-struct FDataProviderActivity;
 class IStageMonitorSession;
 class IStructureDetailsView;
 class FStructOnScope;
 class SDataProviderActivityFilter;
 struct FStageDataEntry;
 
-using FDataProviderActivityPtr = TSharedPtr<FDataProviderActivity>;
+using FDataProviderActivityPtr = TSharedPtr<FStageDataEntry>;
 
 
 /**
@@ -76,14 +75,17 @@ public:
 	/** Request a full rebuild of the list entries */
 	void RequestRebuild();
 
+	/** Request a refresh of the list widget. */
+	void RequestRefresh();
+
 	/** Refreshes session used to fetch data */
 	void RefreshMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession);
 
 private:
 	TSharedRef<ITableRow> OnGenerateActivityRowWidget(FDataProviderActivityPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnListViewSelectionChanged(FDataProviderActivityPtr InActivity, ESelectInfo::Type SelectInfo);
-	void OnNewStageActivity(TSharedPtr<FStageDataEntry> NewActivity);
-	void InsertActivity(TSharedPtr<FDataProviderActivity> Activity);
+	void OnNewStageActivity(FDataProviderActivityPtr NewActivity);
+	void InsertActivity(FDataProviderActivityPtr Activity);
 	void OnActivityFilterChanged();
 	void ReloadActivityHistory();
 	void OnStageDataCleared();
@@ -101,6 +103,9 @@ private:
 	TSharedPtr<IStructureDetailsView> StructureDetailsView;
 	TSharedPtr<SDataProviderActivityFilter> ActivityFilter;
 
+	int32 FramesSinceLastListRefresh = 0;
+	
 	bool bRebuildRequested = false;
+	bool bRefreshRequested = false;
 };
 

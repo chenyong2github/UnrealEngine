@@ -152,7 +152,7 @@ namespace UE
 
 							for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 							{
-								FVector VertexNormal = LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertexIndex );
+								FVector VertexNormal = (FVector4)LODRenderMesh.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( VertexIndex );
 								Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, VertexNormal ) );
 							}
 
@@ -377,7 +377,7 @@ namespace UE
 				TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 				TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 				TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-				TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+				TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 				const int32 VertexCount = VertexPositions.GetNumElements();
 				const int32 VertexInstanceCount = VertexInstanceNormals.GetNumElements();
@@ -641,7 +641,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 		pxr::TfToken NormalsInterpType = UsdMesh.GetNormalsInterpolation();
 
 		// UVs
-		TVertexInstanceAttributesRef< FVector2D > MeshDescriptionUVs = StaticMeshAttributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesRef< FVector2f > MeshDescriptionUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 
 		struct FUVSet
 		{
@@ -1269,21 +1269,27 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 			if ( RenderContext == UnrealIdentifiers::Unreal )
 			{
 				// Priority 4.1.1: Partition has an unreal rendercontext material prim binding
-				if ( TOptional<FString> UnrealMaterial = FetchMaterialFromUnrealRenderContextPrim( GeomSubset.GetPrim() ) )
+				if ( !bHasAssignment )
 				{
-					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
-					Slot.MaterialSource = UnrealMaterial.GetValue();
-					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
-					bHasAssignment = true;
+					if ( TOptional<FString> UnrealMaterial = FetchMaterialFromUnrealRenderContextPrim( GeomSubset.GetPrim() ) )
+					{
+						FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
+						Slot.MaterialSource = UnrealMaterial.GetValue();
+						Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+						bHasAssignment = true;
+					}
 				}
 
 				// Priority 4.1.2: Partitition has an unrealMaterial attribute directly on it
-				if ( TOptional<FString> UnrealMaterial = FetchFirstUEMaterialFromAttribute( GeomSubset.GetPrim(), TimeCode ) )
+				if ( !bHasAssignment )
 				{
-					FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
-					Slot.MaterialSource = UnrealMaterial.GetValue();
-					Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
-					bHasAssignment = true;
+					if ( TOptional<FString> UnrealMaterial = FetchFirstUEMaterialFromAttribute( GeomSubset.GetPrim(), TimeCode ) )
+					{
+						FUsdPrimMaterialSlot& Slot = Result.Slots.Emplace_GetRef();
+						Slot.MaterialSource = UnrealMaterial.GetValue();
+						Slot.AssignmentType = UsdUtils::EPrimAssignmentType::UnrealMaterial;
+						bHasAssignment = true;
+					}
 				}
 			}
 
@@ -1447,6 +1453,31 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 
 	// Make sure it's at least 1 LOD level
 	NumLODs = FMath::Max( HighestMeshLOD - LowestMeshLOD + 1, 1 );
+
+	// If exporting a Nanite mesh, just use the lowest LOD and write the unrealNanite override attribute,
+	// this way we can guarantee it will have Nanite when it's imported back.
+#if WITH_EDITOR
+	if ( StaticMesh->NaniteSettings.bEnabled )
+	{
+		if ( NumLODs > 1 )
+		{
+			UE_LOG( LogUsd, Log, TEXT( "Not exporting multiple LODs for mesh '%s' onto prim '%s' since the mesh has Nanite enabled: LOD '%d' will be used and the '%s' attribute will be written out instead" ),
+				*StaticMesh->GetName(),
+				*UsdToUnreal::ConvertPath( UsdPrim.GetPrimPath() ),
+				LowestMeshLOD,
+				*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealNaniteOverride )
+			);
+		}
+
+		HighestMeshLOD = LowestMeshLOD;
+		NumLODs = 1;
+
+		if ( pxr::UsdAttribute Attr = UsdPrim.CreateAttribute( UnrealIdentifiers::UnrealNaniteOverride, pxr::SdfValueTypeNames->Token ) )
+		{
+			Attr.Set( UnrealIdentifiers::UnrealNaniteOverrideEnable );
+		}
+	}
+#endif // WITH_EDITOR
 
 	pxr::UsdVariantSets VariantSets = UsdPrim.GetVariantSets();
 	if ( NumLODs > 1 && VariantSets.HasVariantSet( UnrealIdentifiers::LOD ) )

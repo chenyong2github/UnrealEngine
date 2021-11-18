@@ -555,6 +555,7 @@ protected:
 
 	/** The current mouse position. */
 	FVector2D MousePosition;
+	float DPIScaleFactor;
 
 	/** Mouse position during the call on mouse button down. */
 	FVector2D MousePositionOnButtonDown;

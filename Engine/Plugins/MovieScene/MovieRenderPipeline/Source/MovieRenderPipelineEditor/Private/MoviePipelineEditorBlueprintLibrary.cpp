@@ -175,9 +175,10 @@ UMoviePipelineExecutorJob* UMoviePipelineEditorBlueprintLibrary::CreateJobFromSe
 		CurrentWorld = FSoftObjectPath(MapPackage);
 	}
 
+	// Job author is intentionally left blank so that it doesn't get saved into queues. It will
+	// be resolved into a username when the Movie Pipeline starts if it is blank.
 	FSoftObjectPath Sequence(InSequence);
 	NewJob->Map = CurrentWorld;
-	NewJob->Author = FPlatformProcess::UserName(false);
 	NewJob->SetSequence(Sequence);
 	NewJob->JobName = NewJob->Sequence.GetAssetName();
 

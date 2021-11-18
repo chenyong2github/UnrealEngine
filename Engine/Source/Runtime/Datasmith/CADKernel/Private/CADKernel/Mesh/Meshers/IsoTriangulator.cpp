@@ -18,10 +18,13 @@
 #include "CADKernel/UI/Display.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
+namespace CADKernel
+{
+
 //#define ADD_TRIANGLE_2D
 //#define DEBUG_ISOTRIANGULATOR
 
-CADKernel::FIsoTriangulator::FIsoTriangulator(const FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh)
+FIsoTriangulator::FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh)
 	: Grid(InGrid)
 	, Mesh(EntityMesh)
 	, LoopSegmentsIntersectionTool(InGrid)
@@ -42,7 +45,7 @@ CADKernel::FIsoTriangulator::FIsoTriangulator(const FGrid& InGrid, TSharedRef<FF
 #endif
 }
 
-bool CADKernel::FIsoTriangulator::Triangulate()
+bool FIsoTriangulator::Triangulate()
 {
 	EGridSpace DisplaySpace = EGridSpace::UniformScaled;
 #ifdef DEBUG_ISOTRIANGULATOR
@@ -60,17 +63,25 @@ bool CADKernel::FIsoTriangulator::Triangulate()
 	// =============================================================================================================
 
 	BuildNodes();
+
 #ifdef CADKERNEL_DEV
 	DisplayIsoNodes(DisplaySpace);
 #endif
 
 	FillMeshNodes();
+	BuildLoopSegments();
 
-	if (!BuildLoopSegments())
-	{
-		FMessage::Printf(Log, TEXT("A loop of the surface %d is in self intersecting. The mesh of this sector is canceled.\n"), Grid.GetFace()->GetId());
-		return false;
-	}
+#ifdef CADKERNEL_DEV
+	Display(DisplaySpace, TEXT("FIsoTrianguler::LoopSegments"), LoopSegments, false, false, EVisuProperty::OrangeCurve);
+#endif
+
+	CheckLoopInSelfIntersectingAndFixIt();
+
+#ifdef CADKERNEL_DEV
+	Display(DisplaySpace, TEXT("FIsoTrianguler::LoopSegments"), LoopSegments, true, true, EVisuProperty::OrangeCurve);
+	//Wait();
+#endif
+
 
 #ifdef CADKERNEL_DEV
 	Display(DisplaySpace, TEXT("FIsoTrianguler::LoopSegments"), LoopSegments, false, false, EVisuProperty::OrangeCurve);
@@ -112,85 +123,76 @@ bool CADKernel::FIsoTriangulator::Triangulate()
 #ifdef CADKERNEL_DEV
 	Display(DisplaySpace, TEXT("FIsoTrianguler::Final Iso ToLink Inner To Loops"), FinalToLoops, false, false, EVisuProperty::YellowCurve);
 #endif
-/*
-	return true;
 
 
+	/*
+		return true;
 
+		// =============================================================================================================
+		// 	   Find first segments of the final mesh
+		// =============================================================================================================
 
+		//FindCandidateSegmentsToLinkInnerAndLoop();
 
+		SortLoopNodes();
+		// use of SortedLoopNodes but specific order
+		FindIsoSegmentToLinkLoopToLoop();
+	#ifdef CADKERNEL_DEV
+		Display(DisplaySpace, TEXT("FIsoTrianguler::Final Iso ToLink Loop To Loops"), FinalToLoops, false);
+		//Wait(bDisplay);
+	#endif
 
+	#ifdef NEED_TO_CHECK_USEFULNESS
+		CompleteIsoSegmentLoopToLoop();
+		Display(DisplaySpace, TEXT("FIsoTrianguler::Final Iso ToLink Loop To Loops with Complete"), FinalToLoops, false);
+	#endif
 
+		FindIsoSegmentToLinkInnerToLoop();
+	#ifdef CADKERNEL_DEV
+		Display(DisplaySpace, TEXT("FIsoTrianguler::Final Iso ToLink Inner To Loops"), FinalToLoops, false);
+	#endif
 
+		// =============================================================================================================
+		// 	   Find candidate segments for the  mesh and select the best set
+		// =============================================================================================================
 
+		// Delaunay
+		if (Grid.GetLoops3D().Num())
+		{
+			//ConnectCellLoopsByNeighborhood();
+	#ifdef CADKERNEL_DEV
+			Display(DisplaySpace, TEXT("FIsoTrianguler::Candidate Segments by Delaunay"), CandidateLoopToLoopSegments, false);
+	#endif
+		}
+		//Wait(bDisplay);
 
+	#ifdef CADKERNEL_DEV
+		Chronos.TriangulateDuration3 = FChrono::Elapse(StartTime);
+	#endif
 
+		// use of SortedloopNodes
+		FindCandidateSegmentsToLinkInnerToLoop();
+	#ifdef CADKERNEL_DEV
+		Display(DisplaySpace, TEXT("FIsoTrianguler::Candidate Segments ToLink Inner To Loops"), CandidateInnerToLoopSegments, false);
+	#endif
 
-	// =============================================================================================================
-	// 	   Find first segments of the final mesh
-	// =============================================================================================================
+		SelectSegmentInCandidateSegments();
+	#ifdef CADKERNEL_DEV
+		Display(DisplaySpace, TEXT("FIsoTrianguler::Final Segment To Loop"), FinalToLoops, false);
+		Display(DisplaySpace, TEXT("FIsoTrianguler::Inner Segments Limit"), FinalInnerSegments, false);
+		//Wait(bDisplay);
+	#endif
 
-	//FindCandidateSegmentsToLinkInnerAndLoop();
+		// Complete the final segments with segment connecting unconnected Inner point or inner segment
+		ConnectUnconnectedInnerSegments();
+	#ifdef CADKERNEL_DEV
+		Display(DisplaySpace, TEXT("FIsoTrianguler::Final Segment To Loop"), FinalToLoops, false);
+	#endif
 
-	SortLoopNodes();
-	// use of SortedLoopNodes but specific order
-	FindIsoSegmentToLinkLoopToLoop();
-#ifdef CADKERNEL_DEV
-	Display(DisplaySpace, TEXT("FIsoTrianguler::Final Iso ToLink Loop To Loops"), FinalToLoops, false);
-	//Wait(bDisplay);
-#endif
-
-#ifdef NEED_TO_CHECK_USEFULNESS
-	CompleteIsoSegmentLoopToLoop();
-	Display(DisplaySpace, TEXT("FIsoTrianguler::Final Iso ToLink Loop To Loops with Complete"), FinalToLoops, false);
-#endif
-
-	FindIsoSegmentToLinkInnerToLoop();
-#ifdef CADKERNEL_DEV
-	Display(DisplaySpace, TEXT("FIsoTrianguler::Final Iso ToLink Inner To Loops"), FinalToLoops, false);
-#endif
-
-	// =============================================================================================================
-	// 	   Find candidate segments for the  mesh and select the best set
-	// =============================================================================================================
-
-	// Delaunay
-	if (Grid.GetLoops3D().Num())
-	{
-		//ConnectCellLoopsByNeighborhood();
-#ifdef CADKERNEL_DEV
-		Display(DisplaySpace, TEXT("FIsoTrianguler::Candidate Segments by Delaunay"), CandidateLoopToLoopSegments, false);
-#endif
-	}
-	//Wait(bDisplay);
-	
-#ifdef CADKERNEL_DEV
-	Chronos.TriangulateDuration3 = FChrono::Elapse(StartTime);
-#endif
-
-	// use of SortedloopNodes
-	FindCandidateSegmentsToLinkInnerToLoop();
-#ifdef CADKERNEL_DEV
-	Display(DisplaySpace, TEXT("FIsoTrianguler::Candidate Segments ToLink Inner To Loops"), CandidateInnerToLoopSegments, false);
-#endif
-
-	SelectSegmentInCandidateSegments();
-#ifdef CADKERNEL_DEV
-	Display(DisplaySpace, TEXT("FIsoTrianguler::Final Segment To Loop"), FinalToLoops, false);
-	Display(DisplaySpace, TEXT("FIsoTrianguler::Inner Segments Limit"), FinalInnerSegments, false);
-	//Wait(bDisplay);
-#endif
-
-	// Complete the final segments with segment connecting unconnected Inner point or inner segment 
-	ConnectUnconnectedInnerSegments();
-#ifdef CADKERNEL_DEV
-	Display(DisplaySpace, TEXT("FIsoTrianguler::Final Segment To Loop"), FinalToLoops, false);
-#endif
-
-#ifdef CADKERNEL_DEV
-	Chronos.TriangulateDuration4 = FChrono::Elapse(StartTime);
-#endif
-*/
+	#ifdef CADKERNEL_DEV
+		Chronos.TriangulateDuration4 = FChrono::Elapse(StartTime);
+	#endif
+	*/
 	// =============================================================================================================
 	// Make the final tessellation 
 	// =============================================================================================================
@@ -205,7 +207,7 @@ bool CADKernel::FIsoTriangulator::Triangulate()
 	if (bDisplay)
 	{
 		Open3DDebugSession(TEXT("Mesh 3D"));
-		DisplayMesh(Mesh);
+		DisplayMesh(*Mesh);
 		Close3DDebugSession();
 		Close3DDebugSession();
 	}
@@ -219,7 +221,7 @@ bool CADKernel::FIsoTriangulator::Triangulate()
 	return true;
 }
 
-void CADKernel::FIsoTriangulator::BuildNodes()
+void FIsoTriangulator::BuildNodes()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -272,7 +274,7 @@ void CADKernel::FIsoTriangulator::BuildNodes()
 #endif
 }
 
-void CADKernel::FIsoTriangulator::FillMeshNodes()
+void FIsoTriangulator::FillMeshNodes()
 {
 	int32 TriangleNum = 50 + (int32)((2 * InnerNodeCount + LoopNodeCount) * 1.1);
 	Mesh->Init(TriangleNum, InnerNodeCount + LoopNodeCount);
@@ -328,95 +330,56 @@ void CADKernel::FIsoTriangulator::FillMeshNodes()
 	}
 }
 
-namespace
+namespace IsoTriangulatorImpl
 {
-	const double MaxSlopeToBeIso = 0.125;
-	const double LimitValueMin(double Slope)
-	{
-		return Slope - MaxSlopeToBeIso;
-	}
+const double MaxSlopeToBeIso = 0.125;
 
-	const double LimitValueMax(double Slope)
-	{
-		return Slope + MaxSlopeToBeIso;
-	}
+const double LimitValueMin(double Slope)
+{
+	return Slope - MaxSlopeToBeIso;
 }
 
-bool CADKernel::FIsoTriangulator::BuildLoopSegments()
+const double LimitValueMax(double Slope)
+{
+	return Slope + MaxSlopeToBeIso;
+}
+}
+
+void FIsoTriangulator::BuildLoopSegments()
 {
 	FTimePoint StartTime = FChrono::Now();
 
 	LoopSegments.Reserve(LoopNodeCount);
 
 	int32 LoopIndex = 0;
-	TArray<FIsoSegment*> Segments;
-
-	TFunction<bool()> CheckSelfIntersection = [&]()
-	{
-		FTimePoint StartCheckIntersectionTime = FChrono::Now();
-		FIntersectionSegmentTool IntersectionTool(Grid);
-		IntersectionTool.AddSegments(Segments);
-		IntersectionTool.Sort();
-		for (const FIsoSegment* Segment : Segments)
-		{
-			if (IntersectionTool.DoesIntersect(*Segment))
-			{
-				return true;
-			}
-		}
-		Segments.Empty(LoopNodeCount);
-#ifdef CADKERNEL_DEV
-		Chronos.BuildLoopSegmentsCheckIntersectionDuration += FChrono::Elapse(StartCheckIntersectionTime);
-#endif
-		return false;
-	};
-
-	Segments.Reserve(LoopNodeCount);
 	for (FLoopNode& Node : LoopNodes)
 	{
-		// Check if loops are self intersecting. 
-		if (LoopIndex != Node.GetLoopIndex())
-		{
-			if (CheckSelfIntersection())
-			{
-				return false;
-			}
-			Segments.Empty(LoopNodeCount);
-		}
-
 		FIsoSegment& Segment = IsoSegmentFactory.New();
 		Segment.Init(Node, Node.GetNextNode(), ESegmentType::Loop);
 		Segment.ConnectToNode();
 		LoopSegments.Add(&Segment);
-		Segments.Add(&Segment);
-	}
-
-	// Check last loop
-	if (CheckSelfIntersection())
-	{
-		return false;
 	}
 
 	for (FIsoSegment* Segment : LoopSegments)
 	{
 		double SegmentSlop = ComputeSlope(Segment->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Segment->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
-		if (SegmentSlop < MaxSlopeToBeIso)
+		if (SegmentSlop < IsoTriangulatorImpl::MaxSlopeToBeIso)
 		{
 			Segment->SetAsIsoU();
 		}
-		if (SegmentSlop < LimitValueMax(2.) && SegmentSlop > LimitValueMin(2.))
+		if (SegmentSlop < IsoTriangulatorImpl::LimitValueMax(2.) && SegmentSlop > IsoTriangulatorImpl::LimitValueMin(2.))
 		{
 			Segment->SetAsIsoV();
 		}
-		if (SegmentSlop < LimitValueMax(4.) && SegmentSlop > LimitValueMin(4.))
+		if (SegmentSlop < IsoTriangulatorImpl::LimitValueMax(4.) && SegmentSlop > IsoTriangulatorImpl::LimitValueMin(4.))
 		{
 			Segment->SetAsIsoU();
 		}
-		if (SegmentSlop < LimitValueMax(6.) && SegmentSlop > LimitValueMin(6.))
+		if (SegmentSlop < IsoTriangulatorImpl::LimitValueMax(6.) && SegmentSlop > IsoTriangulatorImpl::LimitValueMin(6.))
 		{
 			Segment->SetAsIsoV();
 		}
-		if (SegmentSlop > LimitValueMin(8.))
+		if (SegmentSlop > IsoTriangulatorImpl::LimitValueMin(8.))
 		{
 			Segment->SetAsIsoU();
 		}
@@ -440,12 +403,11 @@ bool CADKernel::FIsoTriangulator::BuildLoopSegments()
 #ifdef CADKERNEL_DEV
 	Chronos.BuildLoopSegmentsDuration += FChrono::Elapse(StartTime);
 #endif
-	return true;
 }
 
-void CADKernel::FIsoTriangulator::BuildThinZoneSegments()
+void FIsoTriangulator::BuildThinZoneSegments()
 {
-	ThinZoneSegments.Reserve((int32)(0.6 * (double) LoopNodeCount));
+	ThinZoneSegments.Reserve((int32)(0.6 * (double)LoopNodeCount));
 
 	TMap<int32, FLoopNode*> IndexToNode;
 	for (FLoopNode& Node : LoopNodes)
@@ -506,11 +468,16 @@ void CADKernel::FIsoTriangulator::BuildThinZoneSegments()
 	LoopSegmentsIntersectionTool.Sort();
 }
 
-void CADKernel::FIsoTriangulator::BuildInnerSegments()
+void FIsoTriangulator::BuildInnerSegments()
 {
-	// TODO this step should not be usefull, only the boundary of the grid is need
+
+#ifdef DEBUG_BUILDINNERSEGMENTS
+	F3DDebugSession _(bDisplay, TEXT("BuildInnerSegments"));
+#endif
 
 	FTimePoint StartTime = FChrono::Now();
+
+	const double GeometricTolerance = Grid.GetFace()->GetCarrierSurface()->Get3DTolerance();
 
 	// Build segments according to the Grid following u then following v
 	// Build segment must not be in intersection with the loop
@@ -519,7 +486,32 @@ void CADKernel::FIsoTriangulator::BuildInnerSegments()
 
 	LoopSegmentsIntersectionTool.Reserve(InnerSegmentsIntersectionTool.Count());
 
-	TFunction<void(const int32, const int32, const ESegmentType)> BuildSegmentIfValid = [this](const int32 IndexNode1, const int32 IndexNode2, const ESegmentType InType)
+	TFunction<bool(const FPoint2D&, const FPoint2D&)> AlmostHitsLoop = [&](const FPoint2D& Node1, const FPoint2D& Node2) -> bool
+	{
+		for (const TArray<FPoint2D>& Loop : Grid.GetLoops2D(EGridSpace::UniformScaled))
+		{
+			for (const FPoint2D& LoopPoint : Loop)
+			{
+				if (FMath::IsNearlyEqual(LoopPoint.U, Node1.U, GeometricTolerance))
+				{
+					if (Node1.V - SMALL_NUMBER < LoopPoint.V && LoopPoint.V < Node2.V + SMALL_NUMBER)
+					{
+						return true;
+					}
+				}
+				else if (FMath::IsNearlyEqual(LoopPoint.V, Node1.V, GeometricTolerance))
+				{
+					if (Node1.U - SMALL_NUMBER < LoopPoint.U && LoopPoint.U < Node2.U + SMALL_NUMBER)
+					{
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	};
+
+	TFunction<void(const int32, const int32, const ESegmentType)> BuildSegmentIfValid = [&](const int32 IndexNode1, const int32 IndexNode2, const ESegmentType InType)
 	{
 		if (!Grid.IsNodeInsideFace(IndexNode1) || !Grid.IsNodeInsideFace(IndexNode2))
 		{
@@ -529,7 +521,16 @@ void CADKernel::FIsoTriangulator::BuildInnerSegments()
 
 		if (Grid.IsNodeCloseToLoop(IndexNode1) && Grid.IsNodeCloseToLoop(IndexNode2))
 		{
-			if (LoopSegmentsIntersectionTool.DoesIntersect(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2)))
+#ifdef DEBUG_BUILDINNERSEGMENTS
+			if (bDisplay)
+			{
+				DisplaySegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2));
+				Wait();
+			}
+#endif
+
+			if (LoopSegmentsIntersectionTool.DoesIntersect(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2))
+				|| AlmostHitsLoop(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2)))
 			{
 				InnerToOuterSegmentsIntersectionTool.AddSegment(Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode1), Grid.GetInner2DPoint(EGridSpace::UniformScaled, IndexNode2));
 				return;
@@ -565,7 +566,7 @@ void CADKernel::FIsoTriangulator::BuildInnerSegments()
 #endif
 }
 
-void CADKernel::FIsoTriangulator::BuildInnerSegmentsIntersectionTool()
+void FIsoTriangulator::BuildInnerSegmentsIntersectionTool()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -675,7 +676,7 @@ void CADKernel::FIsoTriangulator::BuildInnerSegmentsIntersectionTool()
 #endif
 }
 
-void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkLoopToLoop()
+void FIsoTriangulator::FindIsoSegmentToLinkLoopToLoop()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -720,7 +721,7 @@ void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkLoopToLoop()
 		// Is Outside and not too flat at Node1
 		ensureCADKernel(Node1->GetLoopIndex() > 0);
 		const double FlatAngle = 0.1;
-		if(Node1->IsSegmentBeInsideFace(Coordinate2, Grid, FlatAngle))
+		if (Node1->IsSegmentBeInsideFace(Coordinate2, Grid, FlatAngle))
 		{
 			return;
 		}
@@ -817,7 +818,7 @@ void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkLoopToLoop()
 				// the nodes are nearly iso aligned, are they nearly in the same V Stip
 				double MinV = LoopPoint[ComplementaryAxe];
 				double MaxV = NextPoint[ComplementaryAxe];
-				Sort(MinV, MaxV);
+				GetMinMax(MinV, MaxV);
 
 				int32 IndexV = 0;
 				FindStripIndex(IsoV, IndexV, MinV);
@@ -903,47 +904,11 @@ void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkLoopToLoop()
 #endif
 }
 
-void CADKernel::FIsoTriangulator::FindSegmentToLinkOuterLoopNodes(FCell& Cell)
+void FIsoTriangulator::FindSegmentToLinkOuterLoopNodes(FCell& Cell)
 {
 	//F3DDebugSession _(TEXT("FindSegmentToLinkOuterLoopNodes"));
 
-	TArray<FLoopNode*>& OuterLoop = Cell.Loops[0];
-	int32 NodeCount = OuterLoop.Num();
-
-	int SubdivisionCount =  Cell.OuterLoopSubdivision.Num();
-	for (int32 Andex = 0; Andex < SubdivisionCount - 1; ++Andex)
-	{
-		TArray<FLoopNode*>& SubLoopA = Cell.OuterLoopSubdivision[Andex];
-		for (int32 Bndex = Andex + 1; Bndex < SubdivisionCount; ++Bndex)
-		{
-			TArray<FLoopNode*>& SubLoopB = Cell.OuterLoopSubdivision[Bndex];
-			TryToConnectTwoLoopsWithShortestSegment(Cell, SubLoopA, SubLoopB);
-		}
-	}
-	Cell.SelectSegmentInCandidateSegments(IsoSegmentFactory);
-}
-
-void CADKernel::FIsoTriangulator::AddSementToLinkOuterLoopExtremities(FCell& Cell)
-{
-	//F3DDebugSession _(TEXT("AddSementToLinkOuterLoopExtremities"));
-
-	if(!Cell.bHasOuterLoop)
-	{
-		return;
-	}
-	FLoopNode* NodeA = Cell.Loops[0][0];
-	const FPoint2D& ACoordinates = NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid);
-	FLoopNode* NodeB = Cell.Loops[0].Last();
-	const FPoint2D& BCoordinates = NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid);
-	TryToCreateSegment(Cell, NodeA, ACoordinates, NodeB, BCoordinates, 0.1);
-	Cell.SelectSegmentInCandidateSegments(IsoSegmentFactory);
-}
-
-void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkOuterLoopNodes(FCell& Cell)
-{
-	//F3DDebugSession _(TEXT("FindIsoSegmentToLinkOuterLoopNodes"));
-
-	TArray<FLoopNode*>& OuterLoop = Cell.Loops[0];
+	TArray<FLoopNode*>& OuterLoop = Cell.SubLoops[0];
 	int32 NodeCount = OuterLoop.Num();
 
 	int SubdivisionCount = Cell.OuterLoopSubdivision.Num();
@@ -953,67 +918,60 @@ void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkOuterLoopNodes(FCell& Cell
 		for (int32 Bndex = Andex + 1; Bndex < SubdivisionCount; ++Bndex)
 		{
 			TArray<FLoopNode*>& SubLoopB = Cell.OuterLoopSubdivision[Bndex];
-			TryToConnectTwoLoopsWithTheMostIsoSegment(Cell, SubLoopA, SubLoopB);
+			TryToConnectTwoSubLoopsWithShortestSegment(Cell, SubLoopA, SubLoopB);
 		}
 	}
 	Cell.SelectSegmentInCandidateSegments(IsoSegmentFactory);
 }
 
-void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkOuterLoopNodes2(FCell& Cell)
+void FIsoTriangulator::AddSementToLinkOuterLoopExtremities(FCell& Cell)
 {
-	//F3DDebugSession _(TEXT("FindIsoSegmentToLinkOuterLoopNode"));
+	//F3DDebugSession _(TEXT("AddSementToLinkOuterLoopExtremities"));
 
-	// This coefficient is to defined the tolerance on coordinates according the iso strip...
-	// With some surface, the parameterization speed can vary enormously depending on the point of the surface.
-	// A good information is the width of iso strip around a point. Indeed, strips have the optimal width to respect meshing criteria.
-	// So a fraction of the strip's width defined a good tolerance around a given point. 
-	constexpr double ToleranceCoefficent = 1. / 10.;
-
-	const TArray<double>& IsoUCoordinates = Grid.GetUniformCuttingCoordinatesAlongIso(EIso::IsoU);
-	const TArray<double>& IsoVCoordinates = Grid.GetUniformCuttingCoordinatesAlongIso(EIso::IsoV);
-
-	int32 UIndex = Cell.Id % Grid.GetCuttingCount(EIso::IsoU);
-	int32 VIndex = Cell.Id / Grid.GetCuttingCount(EIso::IsoU);
-	const double ToleranceU = (IsoUCoordinates[UIndex + 1] - IsoUCoordinates[UIndex]) * ToleranceCoefficent;
-	const double MinULength = 3 * ToleranceU;
-	const double ToleranceV = (IsoVCoordinates[VIndex + 1] - IsoVCoordinates[VIndex]) * ToleranceCoefficent;
-	const double MinVLength = 3 * ToleranceV;
-
-
-	TArray<FLoopNode*>& OuterLoop = Cell.Loops[0];
-	int32 NodeCount = OuterLoop.Num();
-	for (int32 Index = 0; Index < NodeCount - 1; ++Index)
+	if (!Cell.bHasOuterLoop)
 	{
-		FLoopNode* StartNode = OuterLoop[Index];
-		const FPoint2D& StartPoint = StartNode->Get2DPoint(EGridSpace::UniformScaled, Grid); 
-		for (int32 Endex = Index + 1; Endex < NodeCount; ++Endex)
-		{
-			FLoopNode* EndNode = OuterLoop[Endex];
-			if(&StartNode->GetNextNode() == EndNode || &StartNode->GetPreviousNode() == EndNode)
-			{
-				continue;
-			}
-			const FPoint2D& EndPoint = EndNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
-
-			FPoint2D SegmentLength = Abs(EndPoint - StartPoint);
-
-			if(SegmentLength.U < ToleranceU && SegmentLength.V > MinVLength)
-			{
-				//DisplaySegment(StartPoint, EndPoint, 0, EVisuProperty::BlueCurve);
-				TryToCreateSegment(Cell, StartNode, StartPoint, EndNode, EndPoint, 1);
-			}
-			else if (SegmentLength.V < ToleranceV && SegmentLength.U > MinULength)
-			{
-				//DisplaySegment(StartPoint, EndPoint, 0, EVisuProperty::GreenCurve);
-				TryToCreateSegment(Cell, StartNode, StartPoint, EndNode, EndPoint, 1);
-			}
-		}
+		return;
 	}
+	FLoopNode* NodeA = Cell.SubLoops[0][0];
+	const FPoint2D& ACoordinates = NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid);
+	FLoopNode* NodeB = Cell.SubLoops[0].Last();
+	const FPoint2D& BCoordinates = NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid);
+	TryToCreateSegment(Cell, NodeA, ACoordinates, NodeB, BCoordinates, 0.1);
+	Cell.SelectSegmentInCandidateSegments(IsoSegmentFactory);
 }
 
-void CADKernel::FIsoTriangulator::LastChanceToCreateSegmentInCell(FCell& Cell)
+//#define DEBUG_FIND_ISO_SEGMENT_TO_LINK_OUTER_LOOP_NODES
+void FIsoTriangulator::FindIsoSegmentToLinkOuterLoopNodes(FCell& Cell)
 {
-	if (Cell.LoopNodeCount > 5 && Cell.CandidateSegments.Num() > Cell.Loops.Num())
+#ifdef DEBUG_FIND_ISO_SEGMENT_TO_LINK_OUTER_LOOP_NODES
+	F3DDebugSession _(TEXT("FindIsoSegmentToLinkOuterLoopNodes"));
+#endif
+	TArray<FLoopNode*>& OuterLoop = Cell.SubLoops[0];
+	int32 NodeCount = OuterLoop.Num();
+
+	int SubdivisionCount = Cell.OuterLoopSubdivision.Num();
+	for (int32 Andex = 0; Andex < SubdivisionCount - 1; ++Andex)
+	{
+		TArray<FLoopNode*>& SubLoopA = Cell.OuterLoopSubdivision[Andex];
+		for (int32 Bndex = Andex + 1; Bndex < SubdivisionCount; ++Bndex)
+		{
+			TArray<FLoopNode*>& SubLoopB = Cell.OuterLoopSubdivision[Bndex];
+			TryToConnectTwoSubLoopsWithTheMostIsoSegment(Cell, SubLoopA, SubLoopB);
+		}
+	}
+
+	for (int32 Index = 0; Index < SubdivisionCount; ++Index)
+	{
+		TArray<FLoopNode*>& SubLoop = Cell.OuterLoopSubdivision[Index];
+		TryToConnectVertexSubLoopWithTheMostIsoSegment(Cell, SubLoop);
+	}
+	Cell.SelectSegmentInCandidateSegments(IsoSegmentFactory);
+}
+
+#ifdef UNUSED_TO_DELETE_
+void FIsoTriangulator::LastChanceToCreateSegmentInCell(FCell& Cell)
+{
+	if (Cell.LoopNodeCount > 5 && Cell.CandidateSegments.Num() > Cell.SubLoops.Num())
 	{
 		return;
 	}
@@ -1023,7 +981,7 @@ void CADKernel::FIsoTriangulator::LastChanceToCreateSegmentInCell(FCell& Cell)
 	TArray<FLoopNode*> Nodes;
 	Nodes.Reserve(Cell.LoopNodeCount);
 
-	for(const TArray<FLoopNode*>& Loop : Cell.Loops)
+	for (const TArray<FLoopNode*>& Loop : Cell.SubLoops)
 	{
 		Nodes.Append(Loop);
 	}
@@ -1045,7 +1003,7 @@ void CADKernel::FIsoTriangulator::LastChanceToCreateSegmentInCell(FCell& Cell)
 	}
 }
 
-void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkInnerToLoop()
+void FIsoTriangulator::FindIsoSegmentToLinkInnerToLoop()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -1185,6 +1143,8 @@ void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkInnerToLoop()
 #endif
 }
 
+#endif
+
 // =============================================================================================================
 // 	   For each cell
 // 	      - Connect loops together and to cell vertices
@@ -1192,23 +1152,25 @@ void CADKernel::FIsoTriangulator::FindIsoSegmentToLinkInnerToLoop()
 // 	           - build Delaunay connection
 // 	           - find the shortest segment to connect each connected loop by Delaunay
 // =============================================================================================================
-void CADKernel::FIsoTriangulator::ConnectCellLoops()
+//#define DEBUG_CELLS
+void FIsoTriangulator::ConnectCellLoops()
 {
 	TArray<FCell> Cells;
 	FindCellContainingBoundaryNodes(Cells);
+#ifdef DEBUG_CELLS
 	//DisplayCells(Cells);
+	//Wait();
+	F3DDebugSession _(bDisplay, ("ConnectCellLoops"));
+#endif
 
 	FinalToLoops.Reserve(LoopNodeCount + InnerNodeCount);
-
-	//F3DDebugSession _(TEXT("Cells"));
 	for (FCell& Cell : Cells)
 	{
-		//F3DDebugSession _(FString::Printf(TEXT("Cell %d"), Cell.Id));
-		ConnectCellLoopsByNeighborhood(Cell);
+		ConnectCellSubLoopsByNeighborhood(Cell);
 		if (Cell.bHasOuterLoop)
 		{
 			FindIsoSegmentToLinkOuterLoopNodes(Cell);
-			if(Cell.CandidateSegments.Num() == 0)
+			if (Cell.CandidateSegments.Num() == 0)
 			{
 				FindSegmentToLinkOuterLoopNodes(Cell);
 			}
@@ -1220,7 +1182,7 @@ void CADKernel::FIsoTriangulator::ConnectCellLoops()
 }
 
 // find cell containing boundary nodes
-void CADKernel::FIsoTriangulator::FindCellContainingBoundaryNodes(TArray<FCell>& Cells)
+void FIsoTriangulator::FindCellContainingBoundaryNodes(TArray<FCell>& Cells)
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -1292,7 +1254,7 @@ void CADKernel::FIsoTriangulator::FindCellContainingBoundaryNodes(TArray<FCell>&
 	FChrono::Elapse(StartTime);
 }
 
-void CADKernel::FIsoTriangulator::FindCandidateSegmentsToLinkInnerAndLoop()
+void FIsoTriangulator::FindCandidateSegmentsToLinkInnerAndLoop()
 {
 	const double FlatAngle = 0.1;
 
@@ -1329,7 +1291,7 @@ void CADKernel::FIsoTriangulator::FindCandidateSegmentsToLinkInnerAndLoop()
 		int32 IndexU = 0;
 		int32 IndexV = 0;
 		int32 Index = 0;
-		for(const FLoopNode& LoopPoint : LoopNodes)
+		for (const FLoopNode& LoopPoint : LoopNodes)
 		{
 			const FPoint2D& Coordinate = LoopPoint.Get2DPoint(EGridSpace::UniformScaled, Grid);
 
@@ -1349,7 +1311,7 @@ void CADKernel::FIsoTriangulator::FindCandidateSegmentsToLinkInnerAndLoop()
 
 	int32 CellIndex = -1;
 
-	FIsoInnerNode* Cell[4] = {nullptr, nullptr, nullptr, nullptr};
+	FIsoInnerNode* Cell[4] = { nullptr, nullptr, nullptr, nullptr };
 	TFunction<void(int32 CellIndex)> GetCellIsoNode = [&](int32 CellIndex)
 	{
 		int32 Index = CellIndex;
@@ -1375,7 +1337,7 @@ void CADKernel::FIsoTriangulator::FindCandidateSegmentsToLinkInnerAndLoop()
 
 		FLoopNode& LoopPoint = LoopNodes[Index];
 
-		for(int32 ICell = 0; ICell < 4; ++ICell)
+		for (int32 ICell = 0; ICell < 4; ++ICell)
 		{
 			if (Cell[ICell])
 			{
@@ -1456,14 +1418,14 @@ void CADKernel::FIsoTriangulator::FindCandidateSegmentsToLinkInnerAndLoop()
 	//Wait();
 
 	//Display(EGridSpace::UniformScaled, TEXT("TEST"), NewTestSegments, false);
-	Wait(true);
+	//Wait(true);
 
 #ifdef CADKERNEL_DEV
 	Chronos.FindSegmentToLinkInnerToLoopDuration = FChrono::Elapse(StartTime);
 #endif
 }
 
-void CADKernel::FIsoTriangulator::FindCandidateSegmentsToLinkInnerToLoop()
+void FIsoTriangulator::FindCandidateSegmentsToLinkInnerToLoop()
 {
 #ifdef CADKERNEL_DEV
 	FTimePoint StartTime = FChrono::Now();
@@ -1627,7 +1589,7 @@ void CADKernel::FIsoTriangulator::FindCandidateSegmentsToLinkInnerToLoop()
 #endif
 }
 
-void CADKernel::FIsoTriangulator::SelectSegmentInCandidateSegments()
+void FIsoTriangulator::SelectSegmentInCandidateSegments()
 {
 	constexpr double FlatAngle = 0.25; // PI/12
 	constexpr double ColinearityCriteriaAngle = 0.25; // PI/12
@@ -1804,7 +1766,7 @@ void CADKernel::FIsoTriangulator::SelectSegmentInCandidateSegments()
 #endif
 }
 
-void CADKernel::FIsoTriangulator::ConnectUnconnectedInnerSegments()
+void FIsoTriangulator::ConnectUnconnectedInnerSegments()
 {
 	TArray<FIsoNode*> UnconnectedNode;
 	UnconnectedNode.Reserve(FinalInnerSegments.Num());
@@ -1845,61 +1807,363 @@ void CADKernel::FIsoTriangulator::ConnectUnconnectedInnerSegments()
 	}
 }
 
-/**
- * Criteria to find the optimal "Delaunay" triangle starting from the segment AB to a set of point P
- * A "Delaunay" triangle is an equilateral triangle
- * The optimal value is the smallest value.
- */
-static double CotangentCriteria(const CADKernel::FPoint& APoint, const CADKernel::FPoint& BPoint, const CADKernel::FPoint& PPoint, CADKernel::FPoint& OutNormal)
+//#define DEBUG_CLOSED_OUSIDE_POINT
+bool FIsoTriangulator::TryToRemoveIntersectionByMovingTheClosedOusidePoint(const FIsoSegment* Segment0, const FIsoSegment* Segment1)
 {
-	const double BigValue = HUGE_VALUE;
+	const FIsoNode* Nodes[2][2] = { {nullptr, nullptr}, {nullptr, nullptr} };
+	Nodes[0][0] = &Segment0->GetFirstNode();
+	Nodes[0][1] = &Segment0->GetSecondNode();
+	Nodes[1][0] = &Segment1->GetFirstNode();
+	Nodes[1][1] = &Segment1->GetSecondNode();
 
-	CADKernel::FPoint PA = APoint - PPoint;
-	CADKernel::FPoint PB = BPoint - PPoint;
+	FPoint2D Points[2][2];
+	Points[0][0] = Nodes[0][0]->Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[0][1] = Nodes[0][1]->Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[1][0] = Nodes[1][0]->Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[1][1] = Nodes[1][1]->Get2DPoint(EGridSpace::UniformScaled, Grid);
 
-	// the ratio between the scalar product PA.PB (=|PA| |PB| cos (A,P,B) )
-	// with the norm of the cross product |PA^PB| (=|PA| |PB| |sin(A,P,B)|)
-	// is compute. 
-	double ScalareProduct = PA * PB;
-	OutNormal = PA ^ PB;
-	double NormOFScalarProduct = sqrt(OutNormal * OutNormal);
+	int32 ProjectedNodeIndex[2] = { 0, 0 };
+	FPoint2D ProjectedPoints[2];
+	double Distance[2] = { HUGE_VALUE, HUGE_VALUE };
+	int32 OtherSegmentIndex = 0;
+	int32 SegmentIndex = 1;
 
-	// PPoint is aligned with (A,B)
-	if (NormOFScalarProduct < SMALL_NUMBER)
+	TFunction<void(int32)> MoveNode = [&](int32 MovePointIndex)
 	{
-		return BigValue;
+		FPoint2D MoveDirection = ProjectedPoints[MovePointIndex] - Points[MovePointIndex][ProjectedNodeIndex[MovePointIndex]];
+		MoveDirection.Normalize();
+		MoveDirection *= Grid.GetFace()->GetCarrierSurface()->Get3DTolerance();
+		FPoint2D NewCoordinate = ProjectedPoints[MovePointIndex] + MoveDirection;
+
+		const_cast<FIsoNode&>((*Nodes[MovePointIndex][ProjectedNodeIndex[MovePointIndex]])).Set2DPoint(EGridSpace::UniformScaled, Grid, NewCoordinate);
+
+#ifdef DEBUG_CLOSED_OUSIDE_POINT
+		if (bDisplay)
+		{
+			F3DDebugSession _(TEXT("New Segs"));
+			DisplayPoint(NewCoordinate, EVisuProperty::RedPoint);
+			Display(EGridSpace::UniformScaled, *Segment1, 0, EVisuProperty::RedCurve);
+			Display(EGridSpace::UniformScaled, *Segment0, 0, EVisuProperty::BlueCurve);
+			//Wait();
+		}
+#endif
+	};
+
+	TFunction<void(int32)> ProjectInnerPoint = [&](int32 OtherSegmentNodeIndex)
+	{
+		double Coordinate;
+		ProjectedPoints[OtherSegmentIndex] = ProjectPointOnSegment(Points[OtherSegmentIndex][OtherSegmentNodeIndex], Points[SegmentIndex][0], Points[SegmentIndex][1], Coordinate, false);
+		bool bProjectedPoint1IsInside = (Coordinate >= -SMALL_NUMBER && Coordinate <= 1 + SMALL_NUMBER);
+		if (bProjectedPoint1IsInside)
+		{
+			Distance[OtherSegmentIndex] = ProjectedPoints[OtherSegmentIndex].Distance(Points[OtherSegmentIndex][OtherSegmentNodeIndex]);
+		}
+
+#ifdef DEBUG_CLOSED_OUSIDE_POINT
+		if (bDisplay)
+		{
+			{
+				F3DDebugSession _(TEXT("Segs"));
+				DisplaySegment(Points[SegmentIndex][0], Points[SegmentIndex][1], 0, EVisuProperty::BlueCurve);
+				DisplayPoint(Points[OtherSegmentIndex][OtherSegmentNodeIndex], EVisuProperty::RedPoint);
+				DisplayPoint(ProjectedPoints[OtherSegmentIndex], EVisuProperty::RedPoint);
+			}
+		}
+#endif
+	};
+
+	TFunction<void()> FindInnerNodeAndProjectIt = [&]()
+	{
+		OtherSegmentIndex = SegmentIndex ? 0 : 1;
+
+		double OrientedSlop = ComputeOrientedSlope(Points[SegmentIndex][0], Points[SegmentIndex][1], Points[OtherSegmentIndex][0]);
+		ProjectedNodeIndex[OtherSegmentIndex] = (OrientedSlop < 0) ? 0 : 1;
+		ProjectInnerPoint(ProjectedNodeIndex[OtherSegmentIndex]);
+	};
+
+	SegmentIndex = 0;
+	FindInnerNodeAndProjectIt();
+	SegmentIndex = 1;
+	FindInnerNodeAndProjectIt();
+
+	if (Distance[0] == HUGE_VALUE && Distance[1] == HUGE_VALUE)
+	{
+		return false;
 	}
 
-	// return Cotangent value 
-	return ScalareProduct / NormOFScalarProduct;
+	int32 MovePoint = (Distance[0] < Distance[1]) ? 0 : 1;
+	MoveNode(MovePoint);
+	return true;
 }
 
-static double CotangentCriteria(const CADKernel::FPoint2D& APoint, const CADKernel::FPoint2D& BPoint, const CADKernel::FPoint2D& PPoint)
+//#define DEBUG_TWO_CONSECUTIVE_INTERSECTING
+bool FIsoTriangulator::TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(const FIsoSegment* IntersectingSegment, FIsoSegment* Segment)
 {
-	const double BigValue = HUGE_VALUE;
+	FIsoSegment* NextSegment = nullptr;
+	FLoopNode* Node = nullptr;
 
-	CADKernel::FPoint2D PA = APoint - PPoint;
-	CADKernel::FPoint2D PB = BPoint - PPoint;
-
-	// the ratio between the scalar product PA.PB (=|PA| |PB| cos (A,P,B) )
-	// with the norm of the cross product |PA^PB| (=|PA| |PB| |sin(A,P,B)|)
-	// is compute. 
-	double ScalareProduct = PA * PB;
-	double OutNormal = PA ^ PB;
-	double NormOFPointProduct = FMath::Abs(OutNormal);
-
-	if (NormOFPointProduct < SMALL_NUMBER)
+	double OrientedSlop = ComputeOrientedSlope(IntersectingSegment->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), IntersectingSegment->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Segment->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
+	if (OrientedSlop >= 0)
 	{
-		// PPoint is aligned with (A,B)
-		return BigValue;
+		Node = (FLoopNode*)&Segment->GetSecondNode();
+		NextSegment = Node->GetSegmentConnectedTo(&Node->GetNextNode());
+	}
+	else
+	{
+		Node = (FLoopNode*)&Segment->GetFirstNode();
+		NextSegment = Node->GetSegmentConnectedTo(&Node->GetPreviousNode());
 	}
 
-	// return Cotangent value 
-	return ScalareProduct / NormOFPointProduct;
+#ifdef DEBUG_TWO_CONSECUTIVE_INTERSECTING
+	if (bDisplay)
+	{
+		F3DDebugSession _(TEXT("Intersecting Segments"));
+		Display(EGridSpace::UniformScaled, *Segment, 0, EVisuProperty::BlueCurve);
+		Display(EGridSpace::UniformScaled, *NextSegment, 0, EVisuProperty::BlueCurve);
+		Display(EGridSpace::UniformScaled, *IntersectingSegment, 0, EVisuProperty::RedCurve);
+		Display(EGridSpace::UniformScaled, *Node, 0, EVisuProperty::RedPoint);
+	}
+#endif
+
+	TSegment<FPoint2D> IntersectingSegment2D(IntersectingSegment->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), IntersectingSegment->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
+	TSegment<FPoint2D> NextSegment2D(NextSegment->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), NextSegment->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
+	if (!FastIntersectSegments2D(NextSegment2D, IntersectingSegment2D))
+	{
+		return false;
+	}
+
+	TSegment<FPoint2D> Segment2D(Segment->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), Segment->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid));
+
+	FPoint2D Intersection1 = FindIntersectionOfSegments2D(Segment2D, IntersectingSegment2D);
+	FPoint2D Intersection2 = FindIntersectionOfSegments2D(NextSegment2D, IntersectingSegment2D);
+
+
+	FPoint2D MiddleIntersection = Intersection1.Middle(Intersection2);
+
+	FPoint2D MoveDirection = IntersectingSegment2D.Point1 - IntersectingSegment2D.Point0;
+	MoveDirection = MoveDirection.Normalize().GetPerpendicularVector();
+	MoveDirection *= Grid.GetFace()->GetCarrierSurface()->Get3DTolerance();;
+
+	FPoint2D NewCoordinate = MiddleIntersection + MoveDirection;
+	Node->Set2DPoint(EGridSpace::UniformScaled, Grid, NewCoordinate);
+
+#ifdef DEBUG_TWO_CONSECUTIVE_INTERSECTING
+	if (bDisplay)
+	{
+		{
+			F3DDebugSession _(TEXT("New position"));
+			DisplayPoint(Intersection1, EVisuProperty::RedPoint);
+			DisplayPoint(Intersection2, EVisuProperty::RedPoint);
+			Display(EGridSpace::UniformScaled, *Node, EVisuProperty::RedPoint);
+			Display(EGridSpace::UniformScaled, *Segment, 0, EVisuProperty::GreenCurve/*, true*/);
+			Display(EGridSpace::UniformScaled, *NextSegment, 0, EVisuProperty::GreenCurve/*, true*/);
+		}
+	}
+#endif
+	return true;
 }
 
-#define D3_COTANGENT_CRITERIA
-void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegment*>& Cycle, const TArray<bool>& CycleOrientation)
+bool FIsoTriangulator::TryToRemoveIntersectionBySwappingSegments(FIsoSegment* Segment0, FIsoSegment* Segment1)
+{
+	auto SwapLoopOrientation = [&](int32 FirstNodeIndex, int32 LastNodeIndex)
+	{
+		TArray<FIsoSegment*> Segments;
+		Segments.Reserve(LastNodeIndex - FirstNodeIndex);
+		for (int32 Index = FirstNodeIndex + 1; Index < LastNodeIndex; ++Index)
+		{
+			LoopSegments[Index]->SwapOrientation();
+			Segments.Add(LoopSegments[Index]);
+		}
+
+		for (int32 ReverseIndex = Segments.Num() - 1, Index = FirstNodeIndex + 1; Index < LastNodeIndex; ++Index, --ReverseIndex)
+		{
+			LoopSegments[Index] = Segments[ReverseIndex];
+		}
+	};
+
+	if (LoopSegmentsIntersectionTool.DoesIntersect(Segment0->GetFirstNode(), Segment1->GetFirstNode()))
+	{
+		return false;
+	}
+
+	if (LoopSegmentsIntersectionTool.DoesIntersect(Segment0->GetSecondNode(), Segment1->GetSecondNode()))
+	{
+		return false;
+	}
+
+	int32 FirstNodeIndex = Segment0->GetFirstNode().GetIndex();
+	int32 LastNodeIndex = Segment1->GetFirstNode().GetIndex();
+
+	Segment0->GetSecondNode().RemoveSegment(Segment0);
+	Segment1->GetFirstNode().RemoveSegment(Segment1);
+
+	FIsoNode& Node = Segment0->GetSecondNode();
+	Segment0->SetSecondNode(Segment1->GetFirstNode());
+	Segment1->SetFirstNode(Node);
+
+	Segment1->GetFirstNode().ConnectSegment(Segment1);
+	Segment0->GetSecondNode().ConnectSegment(Segment0);
+
+#ifdef CADKERNEL_DEV
+	if (bDisplay)
+	{
+		F3DDebugSession _(TEXT("New Segments"));
+		Display(EGridSpace::UniformScaled, *Segment1, FirstNodeIndex, EVisuProperty::BlueCurve/*, true*/);
+		Display(EGridSpace::UniformScaled, *Segment0, LastNodeIndex, EVisuProperty::RedCurve/*, true*/);
+		//Wait();
+	}
+#endif
+	SwapLoopOrientation(FirstNodeIndex, LastNodeIndex);
+	return true;
+}
+
+void FIsoTriangulator::CheckLoopInSelfIntersectingAndFixIt()
+{
+	const double MaxGap = Grid.GetMinElementSize();
+	int32 LoopIndex = 0;
+
+	FIntersectionSegmentTool IntersectionTool(Grid);
+	IntersectionTool.Empty(LoopNodes.Num());
+
+	for (FIsoSegment* Segment : LoopSegments)
+	{
+		if (LoopIndex != ((FLoopNode&)Segment->GetFirstNode()).GetLoopIndex())
+		{
+			LoopIndex = ((FLoopNode&)Segment->GetFirstNode()).GetLoopIndex();
+			IntersectionTool.Empty(LoopNodes.Num());
+		}
+
+		if (const FIsoSegment* IntersectingSegment = IntersectionTool.DoesIntersect(*Segment))
+		{
+#ifdef CADKERNEL_DEV
+			//if (bDisplay)
+			//{
+			//	{
+			//		IntersectionTool.Display(L"IntersectionTool");
+			//		F3DDebugSession _(TEXT("New Position"));
+			//		Display(EGridSpace::UniformScaled, *Segment);
+			//		Wait();
+			//	}
+			//}
+			if (bDisplay)
+			{
+				F3DDebugSession _(TEXT("Intersecting Segments"));
+				Display(EGridSpace::UniformScaled, *Segment, 0, EVisuProperty::BlueCurve/*, true*/);
+				Display(EGridSpace::UniformScaled, *IntersectingSegment, 0, EVisuProperty::RedCurve/*, true*/);
+				Wait();
+			}
+#endif
+
+			if (!TryToRemoveIntersectionBySwappingSegments(const_cast<FIsoSegment*>(IntersectingSegment), Segment))
+			{
+				if (!TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(IntersectingSegment, Segment))
+				{
+					TryToRemoveIntersectionByMovingTheClosedOusidePoint(IntersectingSegment, Segment);
+				}
+			}
+		}
+		IntersectionTool.AddSegment(*Segment);
+	}
+
+	//if (bDisplay)
+	//{
+	//	{
+	//		F3DDebugSession A(TEXT("Segment Next"));
+	//		for (FIsoSegment* Segment : LoopSegments)
+	//		{
+	//			F3DDebugSession B(TEXT("Segment"));
+	//			Display(EGridSpace::UniformScaled, Segment->GetFirstNode(), ((FLoopNode&)Segment->GetFirstNode()).GetNextNode(), 0, EVisuProperty::BlueCurve);
+	//		}
+	//	}
+
+	//	{
+	//		F3DDebugSession C(TEXT("Segment Forward"));
+	//		for (FIsoSegment* Segment : LoopSegments)
+	//		{
+	//			F3DDebugSession D(TEXT("Segment"));
+	//			Display(EGridSpace::UniformScaled, Segment->GetSecondNode(), ((FLoopNode&)Segment->GetSecondNode()).GetPreviousNode(), 0, EVisuProperty::BlueCurve);
+	//		}
+	//	}
+	//	Wait();
+	//}
+
+}
+
+bool FIsoTriangulator::CanCycleBeFixedAndMeshed(const TArray<FIsoSegment*>& Cycle, FIntersectionSegmentTool& CycleIntersectionTool)
+{
+	bool bHasSelfIntersection = false;
+
+	for (FIsoSegment* Segment : Cycle)
+	{
+		if (const FIsoSegment* IntersectingSegment = CycleIntersectionTool.DoesIntersect(*Segment))
+		{
+			FMessage::Printf(Debug, TEXT("Remove local self intesection.\n"), Grid.GetFace()->GetId());
+
+#ifdef CADKERNEL_DEV
+			if (bDisplay)
+			{
+				F3DDebugSession _(TEXT("Segment"));
+				DisplayCycle(Cycle, TEXT("Cycle"));
+				F3DDebugSession A(TEXT("Segments"));
+				Display(EGridSpace::UniformScaled, *Segment, 0, EVisuProperty::RedCurve);
+				Display(EGridSpace::UniformScaled, *IntersectingSegment, 0, EVisuProperty::BlueCurve);
+				//Wait();
+			}
+#endif
+
+			if (!TryToRemoveIntersectionBySwappingSegments(const_cast<FIsoSegment*>(IntersectingSegment), Segment))
+			{
+				if (!TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(IntersectingSegment, Segment))
+				{
+					if (!TryToRemoveIntersectionByMovingTheClosedOusidePoint(IntersectingSegment, Segment))
+					{
+#ifdef CADKERNEL_DEV
+						if (bDisplay)
+						{
+							F3DDebugSession _(TEXT("Failed"));
+							F3DDebugSession A(TEXT("Segments"));
+							Display(EGridSpace::UniformScaled, *Segment, 0, EVisuProperty::RedPoint);
+							Display(EGridSpace::UniformScaled, *IntersectingSegment, 0, EVisuProperty::BluePoint);
+							//Wait();
+						}
+#endif
+						return false;
+					}
+				}
+			}
+
+#ifdef CADKERNEL_DEV
+			if (bDisplay)
+			{
+				F3DDebugSession _(TEXT("New Segment"));
+				F3DDebugSession A(TEXT("Segments"));
+				Display(EGridSpace::UniformScaled, *Segment, 0, EVisuProperty::RedPoint);
+				Display(EGridSpace::UniformScaled, *IntersectingSegment, 0, EVisuProperty::BluePoint);
+				Wait();
+			}
+#endif
+
+			//FixPick2(Segment, IntersectingSegment);
+			bHasSelfIntersection = true;
+		}
+	}
+
+	if (bHasSelfIntersection)
+	{
+		for (const FIsoSegment* Segment : Cycle)
+		{
+			if (CycleIntersectionTool.DoesIntersect(*Segment))
+			{
+				FMessage::Printf(Log, TEXT("A cycle of the surface %d is in self intersecting. The mesh of this sector is canceled.\n"), Grid.GetFace()->GetId());
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegment*>& Cycle, const TArray<bool>& CycleOrientation)
 {
 	int32 NodeCycleNum = (int32)Cycle.Num();
 
@@ -2002,34 +2266,27 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 		return;
 	}
 
+	const double SquareMinSize = FMath::Square(Grid.GetMinElementSize());
+
 	FIntersectionSegmentTool CycleIntersectionTool(Grid);
-	CycleIntersectionTool.Reserve((int32)FMath::Square(NodeCycleNum));
+	CycleIntersectionTool.Reserve(5 * NodeCycleNum);
 	CycleIntersectionTool.AddSegments(Cycle);
 	CycleIntersectionTool.Sort();
 
-	// check if the cycle is self intersecting. 
-	for (const FIsoSegment* Segment : Cycle)
-	{
-		if (CycleIntersectionTool.DoesIntersect(*Segment))
-		{
-			FMessage::Printf(Log, TEXT("A cycle of the surface %d is in self intersecting. The mesh of this sector is canceled.\n"), Grid.GetFace()->GetId());
-			return;
-		}
-	}
-
 #ifdef ADD_TRIANGLE_2D
+	F3DDebugSession _(bDisplay, TEXT("Mesh cycle"));
 	if (bDisplay)
 	{
-		Open3DDebugSession(TEXT("Mesh cycle"));
-
-		F3DDebugSession _(FString::Printf(TEXT("Cycle")));
-		for (const FIsoSegment* Segment : Cycle)
-		{
-			Display(EGridSpace::UniformScaled, *Segment);
-		}
-		Wait();
+		DisplayCycle(Cycle, TEXT("Cycle"));
 	}
 #endif
+
+	// Check if the cycle is in self intersecting and fix it. 
+	if (!CanCycleBeFixedAndMeshed(Cycle, CycleIntersectionTool))
+	{
+		FMessage::Printf(Log, TEXT("A cycle of the surface %d is in self intersecting. The mesh of this sector is canceled.\n"), Grid.GetFace()->GetId());
+		return;
+	}
 
 	TArray<FIsoNode*> CycleNodes;
 	CycleNodes.Reserve(NodeCycleNum);
@@ -2100,14 +2357,16 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 			{
 				NextIndex = 0;
 			}
+
 			double Length = CycleNodes[Index]->Get3DPoint(Grid).SquareDistance(CycleNodes[NextIndex]->Get3DPoint(Grid));
-			if (Length < SMALL_NUMBER)
+			if (Length < SquareMinSize)
 			{
 				Cycle[Index]->SetAsDegenerated();
 			}
 			SegmentLengths.Add(Length);
 		}
 
+		// Sort the nodes to process segments from the longest to the shortest 
 		NodeIndex.Sort([SegmentLengths](const int32& Index1, const int32& Index2) { return SegmentLengths[Index1] > SegmentLengths[Index2]; });
 
 		for (int32 Index = 0; Index < NodeCycleNum; ++Index)
@@ -2169,7 +2428,7 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 		//
 		// For each extremity (A, B) of a segment, in the existing connected segments, the segment with the smallest relative slop is identified ([A, X0] and [B, Xn]).
 		// These segments define the sector in which the best triangle could be.
-		// The triangle to build is the best triangle (according to the Cotangent Criteria) connecting the Segment to one of the allowed nodes (X) between X0 and Xn.
+		// The triangle to build is the best triangle (according to the Isosceles Criteria) connecting the Segment to one of the allowed nodes (X) between X0 and Xn.
 		// Allowed nodes (X) are in the sector, Disallowed nodes (Z) are outside the sector	
 		//
 		//                                       ------Z------X0-------X------X-----X-------Xn----Z-----Z---
@@ -2181,7 +2440,7 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 		//
 		//                                                         Not allowed triangles
 		//
-		// These computations are done in the UniformScaled space to avoid numerical error due to lenght distortion between U or V space and U or V Length.
+		// These computations are done in the UniformScaled space to avoid numerical error due to length distortion between U or V space and U or V Length.
 		// i.e. if:
 		// (UMax - UMin) / (VMax - VMin) is big 
 		// and 
@@ -2192,6 +2451,7 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 		//
 		// To avoid flat triangle, a candidate point must defined a minimal slop with [A, X0] or [B, Xn] to not be aligned with one of them. 
 		//
+		// TODO ? Need to add test to check if the candidate node will not generate flat triangle 
 
 		// PreviousSegment = [A, X0]
 		FIsoSegment* PreviousSegment = FindNextSegment(EGridSpace::UniformScaled, Segment, &StartNode, GetSlopAtStartNode);
@@ -2218,13 +2478,42 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 			{
 				F3DDebugSession _(TEXT("Next Segments"));
 				Display(EGridSpace::UniformScaled, *PreviousSegment);
-				Display(EGridSpace::UniformScaled, *NextSegment, 0, EVisuProperty::EdgeMesh);
+				Display(EGridSpace::UniformScaled, *NextSegment, 0, EVisuProperty::BlueCurve);
 				Display(EGridSpace::UniformScaled, EndNode, 0, EVisuProperty::RedPoint);
 				Display(EGridSpace::UniformScaled, NextNode);
-				Wait(Grid.GetFace()->GetId() == FaceToDebug);
+				Wait(Grid.bDisplay);
 			}
 		}
 #endif
+
+		if (&PreviousNode == &NextNode)
+		{
+			// No choice: PreviousSegment and NextSegment are connected, the triangle existe
+			if (bOrientation)
+			{
+				Segment->SetHasTriangleOnRight();
+			}
+			else
+			{
+				Segment->SetHasTriangleOnLeft();
+			}
+
+			BuildSegmentIfNeeded(&StartNode, &PreviousNode, PreviousSegment);
+			BuildSegmentIfNeeded(&PreviousNode, &EndNode, NextSegment);
+
+			Mesh->AddTriangle(EndNode.GetFaceIndex(), StartNode.GetFaceIndex(), PreviousNode.GetFaceIndex());
+
+#ifdef ADD_TRIANGLE_2D
+			if (bDisplay)
+			{
+				{
+					F3DDebugSession _(FString::Printf(TEXT("Triangle")));
+					DisplayTriangle(EGridSpace::UniformScaled, EndNode, StartNode, PreviousNode);
+				}
+			}
+#endif 
+			return;
+		}
 
 		FIsoNode* CandidatNode = nullptr;
 		FIsoSegment* StartToCandiatSegment = nullptr;
@@ -2311,6 +2600,7 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 				}
 
 #ifdef D3_COTANGENT_CRITERIA
+				// need more test, need to be tested with IsoscelesCriteria instead of 3D CotangentCriteria
 				const FPoint& NodePoint3D = Node->Get3DPoint(Grid);
 				FPoint NodeNormal;
 				double PointCriteria = FMath::Abs(CotangentCriteria(StartPoint3D, EndPoint3D, NodePoint3D, NodeNormal));
@@ -2325,8 +2615,8 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 				{
 					PointCriteria = HUGE_VALUE;
 				}
-#else // 2D CotangentCrietria
-				double PointCriteria = FMath::Abs(CotangentCriteria(StartPoint2D, EndPoint2D, NodePoint2D));
+#else 
+				double PointCriteria = IsoscelesCriteria(StartPoint2D, EndPoint2D, NodePoint2D);
 #endif
 				if (
 					// the candidate triangle is inside the current candidate triangle
@@ -2378,9 +2668,10 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 #ifdef ADD_TRIANGLE_2D
 			if (bDisplay)
 			{
-				F3DDebugSession _(FString::Printf(TEXT("Triangle")));
-				DisplayTriangle(EGridSpace::UniformScaled, EndNode, StartNode, *CandidatNode);
-				Wait(false);
+				{
+					F3DDebugSession _(FString::Printf(TEXT("Triangle")));
+					DisplayTriangle(EGridSpace::UniformScaled, EndNode, StartNode, *CandidatNode);
+				}
 			}
 #endif 
 
@@ -2394,6 +2685,7 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 	for (int32 Index = 0; Index < SegmentStack.Num(); ++Index)
 	{
 		FIsoSegment* Segment = SegmentStack[Index];
+
 		if (Segment->IsDegenerated())
 		{
 			continue;
@@ -2413,13 +2705,6 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
 	{
 		Segment->ResetHasTriangle();
 	}
-
-#ifdef ADD_TRIANGLE_2D
-	if (Grid.GetFace()->GetId() == FaceToDebug)
-	{
-		Close3DDebugSession();
-	}
-#endif 
 }
 
 /**
@@ -2434,7 +2719,7 @@ void CADKernel::FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray
  *									|			 |
  *
  */
-void CADKernel::FIsoTriangulator::FindInnerGridCellSurroundingSmallLoop()
+void FIsoTriangulator::FindInnerGridCellSurroundingSmallLoop()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -2487,7 +2772,6 @@ void CADKernel::FIsoTriangulator::FindInnerGridCellSurroundingSmallLoop()
 				break;
 			}
 		}
-
 
 		if (bBoudardyIsSurrounded)
 		{
@@ -2549,7 +2833,7 @@ void CADKernel::FIsoTriangulator::FindInnerGridCellSurroundingSmallLoop()
 }
 
 //#define FIND_CYCLE
-void CADKernel::FIsoTriangulator::TriangulateOverCycle(const EGridSpace Space)
+void FIsoTriangulator::TriangulateOverCycle(const EGridSpace Space)
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -2617,7 +2901,7 @@ void CADKernel::FIsoTriangulator::TriangulateOverCycle(const EGridSpace Space)
 			{
 				Open3DDebugSession(TEXT("Find & mesh cycles"));
 				FString Message = FString::Printf(TEXT("MeshCycle - cycle %d"), CycleIndex++);
-				::Display(EGridSpace::UniformScaled, *Message, Cycle, false);
+				Display(EGridSpace::UniformScaled, *Message, Cycle, false);
 				Close3DDebugSession();
 			}
 #endif
@@ -2638,7 +2922,8 @@ static int32 CycleId = -1;
 static int32 CycleIndex = 0;
 #endif
 
-void CADKernel::FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArray<FIsoSegment*>& Cycle, TArray<bool>& CycleOrientation)
+//#define DEBUG_FIND_CYCLE
+void FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool LeftSide, TArray<FIsoSegment*>& Cycle, TArray<bool>& CycleOrientation)
 {
 
 #ifdef FIND_CYCLE
@@ -2701,7 +2986,7 @@ void CADKernel::FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool Left
 
 	for (;;)
 	{
-		Segment = FindNextSegment(EGridSpace::Default2D, Segment, Node, ClockwiseSlop);
+		Segment = FindNextSegment(EGridSpace::UniformScaled, Segment, Node, ClockwiseSlop);
 		if (Segment == nullptr)
 		{
 			Cycle.Empty();
@@ -2776,19 +3061,20 @@ void CADKernel::FIsoTriangulator::FindCycle(FIsoSegment* StartSegment, bool Left
 #endif
 }
 
+//#define DEBUG_FIND_NEXTSEGMENT
 #ifdef DEBUG_FIND_NEXTSEGMENT
 static bool bDisplayStar = false;
 #endif
 
-CADKernel::FIsoSegment* CADKernel::FIsoTriangulator::FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, FGetSlop GetSlop) const
+FIsoSegment* FIsoTriangulator::FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, FGetSlop GetSlop) const
 {
 	const FPoint2D& StartPoint = StartNode->Get2DPoint(Space, Grid);
 	const FPoint2D& EndPoint = (StartNode == &StartSegment->GetFirstNode()) ? StartSegment->GetSecondNode().Get2DPoint(Space, Grid) : StartSegment->GetFirstNode().Get2DPoint(Space, Grid);
 
 #ifdef DEBUG_FIND_NEXTSEGMENT
+	F3DDebugSession G(bDisplayStar, TEXT("FindNextSegment"));
 	if (bDisplayStar)
 	{
-		Open3DDebugSession(TEXT("FindNextSegment"));
 		F3DDebugSession _(TEXT("Start Segment"));
 		Display(EGridSpace::Default2D, *StartNode);
 		Display(EGridSpace::Default2D, *StartSegment);
@@ -2825,16 +3111,10 @@ CADKernel::FIsoSegment* CADKernel::FIsoTriangulator::FindNextSegment(EGridSpace 
 		}
 	}
 
-#ifdef DEBUG_FIND_NEXTSEGMENT
-	if (bDisplayStar)
-	{
-		Close3DDebugSession();
-	}
-#endif
 	return NextSegment;
 }
 
-void CADKernel::FIsoTriangulator::TriangulateInnerNodes()
+void FIsoTriangulator::TriangulateInnerNodes()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -2842,7 +3122,10 @@ void CADKernel::FIsoTriangulator::TriangulateInnerNodes()
 	int32 NumV = Grid.GetCuttingCount(EIso::IsoV);
 
 #ifdef ADD_TRIANGLE_2D
-	Open3DDebugSession(TEXT("Inner Mesh 2D"));
+	if (bDisplay)
+	{
+		Open3DDebugSession(TEXT("Inner Mesh 2D"));
+	}
 #endif
 	for (int32 vIndex = 0, Index = 0; vIndex < NumV - 1; vIndex++)
 	{
@@ -2913,20 +3196,19 @@ void CADKernel::FIsoTriangulator::TriangulateInnerNodes()
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
-//#define DEBUG_DELAUNAY
 
-void CADKernel::FIsoTriangulator::ConnectCellLoopsByNeighborhood(FCell& Cell)
+void FIsoTriangulator::ConnectCellSubLoopsByNeighborhood(FCell& Cell)
 {
 	FTimePoint StartTime = FChrono::Now();
 	//F3DDebugSession _(TEXT("ConnectCellLoopsByNeighborhood"));
 
-	int32 LoopCount = Cell.Loops.Num();
+	int32 LoopCount = Cell.SubLoops.Num();
 
 	TArray<FPoint2D> LoopBarycenters;
 	// the four last points are the corners of Barycenter that defined the starting mesh for Bowyer & Watson algorithm
 	LoopBarycenters.Reserve(LoopCount + 4);
 
-	for (const TArray<FLoopNode*>& Nodes : Cell.Loops)
+	for (const TArray<FLoopNode*>& Nodes : Cell.SubLoops)
 	{
 		FPoint2D& BaryCenter = LoopBarycenters.Emplace_GetRef(FPoint2D::ZeroPoint);
 
@@ -2993,42 +3275,49 @@ void CADKernel::FIsoTriangulator::ConnectCellLoopsByNeighborhood(FCell& Cell)
 	// ==========================================================================================
 	{
 #ifdef DEBUG_DELAUNAY
-		//DisplayCell(Cell);
-		//F3DDebugSession _(TEXT("Build Segments"));
+		//F3DDebugSession _(TEXT("Build Segments Connect inner close loops "));
 #endif
 
 		for (int32 Index = 0; Index < EdgeVertexIndices.Num();)
 		{
-			//Open3DDebugSession(TEXT("Segment"));
 			int32 IndexLoopA = EdgeVertexIndices[Index++];
 			int32 IndexLoopB = EdgeVertexIndices[Index++];
 
-			//DisplaySegment(LoopBarycenters[IndexLoopA], LoopBarycenters[IndexLoopB]);
+			const TArray<FLoopNode*>& SubLoopA = Cell.SubLoops[IndexLoopA];
+			const TArray<FLoopNode*>& SubLoopB = Cell.SubLoops[IndexLoopB];
 
-			TryToConnectTwoLoopsWithShortestSegment(Cell, IndexLoopA, IndexLoopB);
-			//Close3DDebugSession();
-			//Wait();
+			TryToConnectTwoSubLoopsWithShortestSegment(Cell, SubLoopA, SubLoopB);
 		}
-#ifdef DEBUG_DELAUNAY
-		//Wait();
-#endif
 	}
 
 	// With Outer loop
 	// ==========================================================================================
-	if (Cell.bHasOuterLoop && Cell.Loops.Num() > 1)
+	if (Cell.bHasOuterLoop && Cell.SubLoops.Num() > 1)
 	{
 		Cell.IntersectionTool.AddSegments(Cell.CandidateSegments);
 		Cell.IntersectionTool.Sort();
 
 #ifdef DEBUG_DELAUNAY
-		//F3DDebugSession _(TEXT("Build Segments"));
+		F3DDebugSession _(TEXT("Build Segments  With Outer loop"));
 #endif
-		for (TArray<FLoopNode*>& SubLoop : Cell.OuterLoopSubdivision)
+		for (TArray<FLoopNode*>& SubLoopA : Cell.OuterLoopSubdivision)
 		{
-			for (int32 IndexLoopB : Cell.BorderLoopIndices)
+			for (int32 IndexBorderLoop : Cell.BorderLoopIndices)
 			{
-				TryToConnectTwoLoopsWithShortestSegment(Cell, SubLoop, IndexLoopB);
+#ifdef DEBUG_DELAUNAY
+				F3DDebugSession _(TEXT("Segment"));
+#endif
+				int32 CandidateSegmentsCount = Cell.CandidateSegments.Num();
+				const TArray<FLoopNode*>& BorderLoop = Cell.SubLoops[IndexBorderLoop];
+
+				TryToConnectTwoSubLoopsWithShortestSegment(Cell, SubLoopA, BorderLoop);
+				if (CandidateSegmentsCount == Cell.CandidateSegments.Num())
+				{
+					// if the subloops have not been connnected with TryToConnectTwoSubLoopsWithShortestSegment
+					// the try to connect them with an isoceles triangle
+					// Loops must be connected together
+					TryToConnectTwoLoopsWithIsocelesTriangle(Cell, SubLoopA, BorderLoop);
+				}
 			}
 		}
 	}
@@ -3040,20 +3329,7 @@ void CADKernel::FIsoTriangulator::ConnectCellLoopsByNeighborhood(FCell& Cell)
 #endif
 }
 
-void CADKernel::FIsoTriangulator::TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, int32 IndexLoopA, int32 IndexLoopB)
-{
-	const TArray<FLoopNode*>& LoopA = Cell.Loops[IndexLoopA];
-	const TArray<FLoopNode*>& LoopB = Cell.Loops[IndexLoopB];
-	TryToConnectTwoLoopsWithShortestSegment(Cell, LoopA, LoopB);
-};
-
-void CADKernel::FIsoTriangulator::TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, int32 IndexLoopB)
-{
-	const TArray<FLoopNode*>& LoopB = Cell.Loops[IndexLoopB];
-	TryToConnectTwoLoopsWithShortestSegment(Cell, LoopA, LoopB);
-}
-
-void CADKernel::FIsoTriangulator::TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>&LoopB)
+void FIsoTriangulator::TryToConnectTwoSubLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>& LoopB)
 {
 	double MinDistanceSquare = HUGE_VALUE_SQUARE;
 	int32 MinIndexA = -1;
@@ -3086,14 +3362,248 @@ void CADKernel::FIsoTriangulator::TryToConnectTwoLoopsWithShortestSegment(FCell&
 		FLoopNode* NodeB = LoopB[MinIndexB];
 		const FPoint2D& BCoordinates = NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid);
 
+		//Display(EGridSpace::UniformScaled, *NodeA, *NodeB, 0, EVisuProperty::RedCurve);
+		if (TryToCreateSegment(Cell, NodeA, ACoordinates, NodeB, BCoordinates, 0.1))
+		{
+			NodeA = &LoopA[MinIndexA]->GetNextNode();
+			NodeB = LoopB[MinIndexB];
+
+			//Display(EGridSpace::UniformScaled, *NodeA, *NodeB, 0, EVisuProperty::RedCurve);
+			TryToCreateSegment(Cell, NodeA, NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeB, NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid), 0.1);
+
+			NodeA = LoopA[MinIndexA];
+			NodeB = &LoopB[MinIndexB]->GetNextNode();
+
+			//Display(EGridSpace::UniformScaled, *NodeA, *NodeB, 0, EVisuProperty::RedCurve);
+			TryToCreateSegment(Cell, NodeA, NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeB, NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid), 0.1);
+			//Wait();
+		}
+
+	}
+
+};
+
+//#define DEBUG_FIND_BEST_TRIANGLE_TO_LINK_LOOPS
+void FIsoTriangulator::TryToConnectTwoLoopsWithIsocelesTriangle(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>& LoopB)
+{
+
+	TFunction<FIsoNode* (FIsoSegment*)> FindBestTriangle = [&](FIsoSegment* Segment) -> FIsoNode*
+	{
+		FGetSlop GetSlopAtStartNode = ClockwiseSlop;
+		FGetSlop GetSlopAtEndNode = CounterClockwiseSlop;
+
+		// StartNode = A
+		FIsoNode& StartNode = Segment->GetSecondNode();
+		// EndNode = B
+		FIsoNode& EndNode = Segment->GetFirstNode();
+
+		//
+		// For each segment of the LoopA, find in loopB a vertex that made the best triangle i.e. the triangle the most isosceles.
+		// According to the knowledge of the orientation, only inside triangles are tested
+		//
+		// These computations are done in the UniformScaled space to avoid numerical error due to lenght distortion between U or V space and U or V Length.
+		// i.e. if:
+		// (UMax - UMin) / (VMax - VMin) is big 
+		// and 
+		// "medium length along U" / "medium length along V" is small 
+		// 
+		// To avoid flat triangle, a candidate point must defined a minimal slop with [A, X0] or [B, Xn] to not be aligned with one of them. 
+		//
+
+#ifdef DEBUG_FIND_BEST_TRIANGLE_TO_LINK_LOOPS
+		int32 TriangleIndex = 0;
+		if (bDisplay)
+		{
+			{
+				TriangleIndex++;
+				F3DDebugSession _(FString::Printf(TEXT("Start Segment %d"), TriangleIndex));
+				Display(EGridSpace::UniformScaled, *Segment);
+				Display(EGridSpace::UniformScaled, StartNode, 0, EVisuProperty::RedPoint);
+				Display(EGridSpace::UniformScaled, EndNode);
+			}
+		}
+#endif
+
+		FIsoNode* CandidatNode = nullptr;
+		FIsoSegment* StartToCandiatSegment = nullptr;
+		FIsoSegment* EndToCandiatSegment = nullptr;
+
+		const FPoint2D& StartPoint2D = StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
+		const FPoint2D& EndPoint2D = EndNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+		double StartReferenceSlope = ComputePositiveSlope(StartPoint2D, EndPoint2D, 0);
+		double EndReferenceSlope = StartReferenceSlope < 4 ? StartReferenceSlope + 4 : StartReferenceSlope - 4;
+
+		double MinCriteria = HUGE_VALUE;
+		const double MinSlopToNotBeAligned = 0.0001;
+		double CandidateSlopeAtStartNode = 8.;
+		double CandidateSlopeAtEndNode = 8.;
+
+		for (FIsoNode* Node : LoopB)
+		{
+			// Check if the node is inside the sector (X) or outside (Z)
+			const FPoint2D& NodePoint2D = Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+			double PointCriteria = IsoscelesCriteria(StartPoint2D, EndPoint2D, NodePoint2D);
+
+			// Triangle that are too open (more than rectangle triangle) are not tested 
+			if (PointCriteria > 0.6)
+			{
+				continue;
+			}
+
+			double SlopeAtStartNode = GetSlopAtStartNode(StartPoint2D, NodePoint2D, StartReferenceSlope);
+			double SlopeAtEndNode = GetSlopAtEndNode(EndPoint2D, NodePoint2D, EndReferenceSlope);
+
+			// check the side of the candidate point accordint to the segment
+			if (SlopeAtStartNode <= MinSlopToNotBeAligned)
+			{
+				continue;
+			}
+
+			if (
+				// the candidate triangle is inside the current candidate triangle
+				((SlopeAtStartNode < (CandidateSlopeAtStartNode + MinSlopToNotBeAligned)) && (SlopeAtEndNode < (CandidateSlopeAtEndNode + MinSlopToNotBeAligned)))
+				||
+				// the candidate triangle is better than the current candidate triangle and doesn't contain the current candidate triangle
+				((PointCriteria < MinCriteria) && ((SlopeAtStartNode > CandidateSlopeAtStartNode) ^ (SlopeAtEndNode > CandidateSlopeAtEndNode))))
+			{
+				// check if the candidate segment is not in intersection with existing segments
+				// if the segment exist, it has already been tested
+				FIsoSegment* StartSegment = StartNode.GetSegmentConnectedTo(Node);
+				FIsoSegment* EndSegment = EndNode.GetSegmentConnectedTo(Node);
+
+				if (!StartSegment && LoopSegmentsIntersectionTool.DoesIntersect(StartNode, *Node))
+				{
+					continue;
+				}
+
+				if (!EndSegment && LoopSegmentsIntersectionTool.DoesIntersect(EndNode, *Node))
+				{
+					continue;
+				}
+
+				MinCriteria = PointCriteria;
+				CandidatNode = Node;
+				StartToCandiatSegment = StartSegment;
+				EndToCandiatSegment = EndSegment;
+				CandidateSlopeAtStartNode = SlopeAtStartNode;
+				CandidateSlopeAtEndNode = SlopeAtEndNode;
+			}
+		}
+
+		return CandidatNode;
+	};
+
+	// for each segment of LoopA
+	for (int32 IndexA = 0; IndexA < LoopA.Num() - 1; ++IndexA)
+	{
+		FLoopNode* NodeA1 = LoopA[IndexA];
+		FLoopNode* NodeA2 = LoopA[IndexA + 1];
+		const FPoint2D& A1Coordinates = NodeA1->Get2DPoint(EGridSpace::UniformScaled, Grid);
+		const FPoint2D& A2Coordinates = NodeA2->Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+		FIsoSegment* Segment = NodeA1->GetSegmentConnectedTo(NodeA2);
+
+		FIsoNode* Node = FindBestTriangle(Segment);
+		if (Node)
+		{
+#ifdef DEBUG_FIND_BEST_TRIANGLE_TO_LINK_LOOPS
+			if (bDisplay)
+			{
+				F3DDebugSession _(FString::Printf(TEXT("Triangle")));
+				DisplayTriangle(EGridSpace::UniformScaled, *NodeA1, *NodeA2, *Node);
+				Wait(true);
+
+			}
+#endif 
+			const FPoint2D& NodeCoordinates = Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
+			TryToCreateSegment(Cell, NodeA1, A1Coordinates, Node, NodeCoordinates, 0.1);
+			TryToCreateSegment(Cell, NodeA2, A2Coordinates, Node, NodeCoordinates, 0.1);
+		}
+	}
+
+};
+
+
+void FIsoTriangulator::TryToConnectVertexSubLoopWithTheMostIsoSegment(FCell& Cell, const TArray<FLoopNode*>& Loop)
+{
+	double MinSlope = 0.25; // ~10 deg: The segment must make an angle less than 10 deg with the Iso
+	int32 MinIndexA = -1;
+	int32 MinIndexB = -1;
+
+	if (Loop.Num() <= 2)
+	{
+		return;
+	}
+
+	// Perhaps only the both extremities could be test 
+	for (int32 IndexA = 0; IndexA < Loop.Num() - 2; ++IndexA)
+	{
+		const FLoopNode* NodeA = Loop[IndexA];
+		const FPoint2D& ACoordinates = NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid);
+		const FLoopNode* NextA = Loop[IndexA + 1];
+		const FPoint2D& NextACoordinates = NextA->Get2DPoint(EGridSpace::UniformScaled, Grid);
+		// slop SegmentA (NodeA, NextA)
+		double Slope = ComputeUnorientedSlope(ACoordinates, NextACoordinates, 0);
+		if (Slope > 2)
+		{
+			Slope = 4 - Slope;
+		}
+		double ReferenceSlope = 0;
+		if (Slope < 0.5)
+		{
+			// SegmentA close to IsoV => looking for a segment close to IsoU
+			ReferenceSlope = 2;
+		}
+		else if (Slope < 1.5)
+		{
+			// SegmentA is neither close to IsoV nor IsoU
+			continue;
+		}
+
+		for (int32 IndexB = IndexA + 2; IndexB < Loop.Num(); ++IndexB)
+		{
+			const FLoopNode* NodeB = Loop[IndexB];
+			const FPoint2D& BCoordinates = NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+			Slope = ComputeUnorientedSlope(ACoordinates, BCoordinates, 0);
+			// Want a slop between 0 and 2
+			if (Slope > 2)
+			{
+				Slope = 4 - Slope;
+			}
+
+			Slope = FMath::Abs(Slope - ReferenceSlope);
+
+			if (Slope < MinSlope)
+			{
+				MinSlope = Slope;
+				MinIndexA = IndexA;
+				MinIndexB = IndexB;
+			}
+		}
+	}
+
+	if (MinIndexA >= 0 && MinIndexB >= 0)
+	{
+		FLoopNode* NodeA = Loop[MinIndexA];
+		const FPoint2D& ACoordinates = NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid);
+		FLoopNode* NodeB = Loop[MinIndexB];
+		const FPoint2D& BCoordinates = NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+#ifdef DEBUG_FIND_ISO_SEGMENT_TO_LINK_OUTER_LOOP_NODES
+		DisplaySegment(NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid), 0, EVisuProperty::RedCurve);
+		Wait();
+#endif
 		TryToCreateSegment(Cell, NodeA, ACoordinates, NodeB, BCoordinates, 0.1);
 	}
 
 };
 
-void CADKernel::FIsoTriangulator::TryToConnectTwoLoopsWithTheMostIsoSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>& LoopB)
+void FIsoTriangulator::TryToConnectTwoSubLoopsWithTheMostIsoSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>& LoopB)
 {
-	double MinSlope = HUGE_VALUE_SQUARE;
+	double MinSlope = 0.25; // ~10 deg: The segment must make an angle less than 10 deg with the Iso
 	int32 MinIndexA = -1;
 	int32 MinIndexB = -1;
 
@@ -3108,9 +3618,18 @@ void CADKernel::FIsoTriangulator::TryToConnectTwoLoopsWithTheMostIsoSegment(FCel
 			const FPoint2D& BCoordinates = NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid);
 
 			double Slope = ComputeUnorientedSlope(ACoordinates, BCoordinates, 0);
-			if(Slope > 2)
+			// Want a slop between 0 and 2
+			if (Slope > 2)
 			{
 				Slope = 4 - Slope;
+			}
+
+			// if slop close to 2 means segment close to IsoU, otherwize segment close to IsoV
+			// Wants a slop between 0 and 1 to manage either IsoU and IsoV
+			// Close to 0 means close to IsoU or IsoV
+			if (Slope > 1)
+			{
+				Slope = 2 - Slope;
 			}
 
 			if (Slope < MinSlope)
@@ -3129,50 +3648,64 @@ void CADKernel::FIsoTriangulator::TryToConnectTwoLoopsWithTheMostIsoSegment(FCel
 		FLoopNode* NodeB = LoopB[MinIndexB];
 		const FPoint2D& BCoordinates = NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid);
 
+#ifdef DEBUG_FIND_ISO_SEGMENT_TO_LINK_OUTER_LOOP_NODES
+		DisplaySegment(NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid), 0, EVisuProperty::RedCurve);
+		Wait();
+#endif
 		TryToCreateSegment(Cell, NodeA, ACoordinates, NodeB, BCoordinates, 0.1);
 	}
 
 };
 
-void CADKernel::FIsoTriangulator::TryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const FPoint2D& ACoordinates, FIsoNode* NodeB, const FPoint2D& BCoordinates, const double FlatAngle)
+//#define DEBUG_TRY_TO_CREATE_SEGMENT
+bool FIsoTriangulator::TryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const FPoint2D& ACoordinates, FIsoNode* NodeB, const FPoint2D& BCoordinates, const double FlatAngle)
 {
+
+#ifdef DEBUG_TRY_TO_CREATE_SEGMENT
+	{
+		F3DDebugSession _(TEXT("Test"));
+		DisplaySegment(NodeA->Get2DPoint(EGridSpace::UniformScaled, Grid), NodeB->Get2DPoint(EGridSpace::UniformScaled, Grid), 0, EVisuProperty::RedCurve);
+		//Wait(false);
+	}
+#endif
+
 	if (NodeA->GetSegmentConnectedTo(NodeB))
 	{
-		return;
+		return false;
 	}
 
 	if (InnerSegmentsIntersectionTool.DoesIntersect(*NodeA, *NodeB))
 	{
-		return;
+		return false;
 	}
 
 	if (InnerToLoopSegmentsIntersectionTool.DoesIntersect(*NodeA, *NodeB))
 	{
-		return;
+		return false;
 	}
 
 	if (Cell.IntersectionTool.DoesIntersect(*NodeA, *NodeB))
 	{
-		return;
+		return false;
 	}
 
 	if (LoopSegmentsIntersectionTool.DoesIntersect(*NodeA, *NodeB))
 	{
-		return;
+		return false;
 	}
 
-	// Is Outside and not to flat at NodeA
+	// Is Outside and not too flat at NodeA
 	if (NodeA->IsSegmentBeInsideFace(BCoordinates, Grid, FlatAngle))
 	{
-		return;
+		return false;
 	}
 
-	// Is Outside and not to flat at NodeB
+	// Is Outside and not too flat at NodeB
 	if (NodeB->IsALoopNode())
 	{
 		if (((FLoopNode*)NodeB)->IsSegmentBeInsideFace(ACoordinates, Grid, FlatAngle))
 		{
-			return;
+			return false;
 		}
 	}
 
@@ -3181,12 +3714,13 @@ void CADKernel::FIsoTriangulator::TryToCreateSegment(FCell& Cell, FLoopNode* Nod
 	Segment.SetCandidate();
 	Cell.CandidateSegments.Add(&Segment);
 
-#ifdef DEBUG_DELAUNAY
-	//DisplaySegment(ACoordinates, BCoordinates, 0, EVisuProperty::OrangeCurve);
+#ifdef DEBUG_TRY_TO_CREATE_SEGMENT
+	DisplaySegment(ACoordinates, BCoordinates, 0, EVisuProperty::OrangePoint);
 #endif
+	return true;
 };
 
-void CADKernel::FIsoTriangulator::ConnectCellCornerToInnerLoop(FCell& Cell)
+void FIsoTriangulator::ConnectCellCornerToInnerLoop(FCell& Cell)
 {
 	FIsoInnerNode* CellNodes[4];
 	int32 Index = Cell.Id;
@@ -3213,7 +3747,7 @@ void CADKernel::FIsoTriangulator::ConnectCellCornerToInnerLoop(FCell& Cell)
 	}
 
 #ifdef DEBUG_DELAUNAY
-	//Open3DDebugSession(TEXT("With cell corners"));
+	F3DDebugSession _(TEXT("With cell corners"));
 #endif
 
 	TFunction<void(int32, FIsoInnerNode*)> FindAndTryCreateCandidateSegmentToLinkLoopToCorner = [&](int32 IndexLoopA, FIsoInnerNode* InnerNode)
@@ -3221,7 +3755,7 @@ void CADKernel::FIsoTriangulator::ConnectCellCornerToInnerLoop(FCell& Cell)
 
 		const FPoint2D& InnerCoordinates = InnerNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
 
-		const TArray<FLoopNode*>& LoopA = Cell.Loops[IndexLoopA];
+		const TArray<FLoopNode*>& LoopA = Cell.SubLoops[IndexLoopA];
 
 		double MinDistanceSquare = HUGE_VALUE_SQUARE;
 		int32 MinIndexA = -1;
@@ -3270,10 +3804,6 @@ void CADKernel::FIsoTriangulator::ConnectCellCornerToInnerLoop(FCell& Cell)
 		}
 	}
 
-
-#ifdef DEBUG_DELAUNAY
-	Close3DDebugSession();
-#endif
 	Cell.SelectSegmentInCandidateSegments(IsoSegmentFactory);
 }
 
@@ -3293,7 +3823,7 @@ void CADKernel::FIsoTriangulator::ConnectCellCornerToInnerLoop(FCell& Cell)
 
 
 #ifdef NEED_TO_CHECK_USEFULNESS
-void CADKernel::FIsoTriangulator::CompleteIsoSegmentLoopToLoop()
+void FIsoTriangulator::CompleteIsoSegmentLoopToLoop()
 {
 	FIntersectionSegmentTool NewSegmentsIntersectionTool(Grid);
 	// similare to FindSegmentToLinkloopToloop::CreateSegment but different 
@@ -3357,7 +3887,7 @@ void CADKernel::FIsoTriangulator::CompleteIsoSegmentLoopToLoop()
 #endif
 
 #ifdef UNUSED
-void CADKernel::FIsoTriangulator::FindSegmentToLinkLoopToLoop()
+void FIsoTriangulator::FindSegmentToLinkLoopToLoop()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -3524,7 +4054,7 @@ void CADKernel::FIsoTriangulator::FindSegmentToLinkLoopToLoop()
 	Chronos.FindSegmentToLinkLoopToLoopDuration += FChrono::Elapse(StartTime);
 }
 
-void FIsoTriangulator::ConnectCellLoopsByNeighborhood()
+void FIsoTriangulator::ConnectCellSubLoopsByNeighborhood()
 {
 	FTimePoint StartTime = FChrono::Now();
 	//F3DDebugSession DelaunayDebugSession(TEXT("Delaunay Algo"));
@@ -3906,4 +4436,190 @@ void FIsoTriangulator::ConnectCellLoopsByNeighborhood()
 #endif
 }
 
+
 #endif
+
+#ifdef UNUSED
+void FIsoTriangulator::FixPick(const FIsoSegment* Segment0, const FIsoSegment* Segment1)
+{
+	FPoint2D ClosedProjectedPoint;
+	FPoint2D Points[2][2];
+	int32 MinSegmentIndex = 0;
+	int32 MinPointIndex = 0;
+	double MinDistance = HUGE_VALUE;
+
+	auto ProjectPoint = [&](int32 PointToProjectSegmentIndex, int32 PointToProjectIndex, int32 SegmentIndex)
+	{
+		double Coordinate;
+		FPoint2D ProjectedPoint = ProjectPointOnSegment(Points[PointToProjectSegmentIndex][PointToProjectIndex], Points[SegmentIndex][0], Points[SegmentIndex][1], Coordinate, false);
+		double Distance = Points[PointToProjectSegmentIndex][PointToProjectIndex].SquareDistance(ProjectedPoint);
+
+		if (Distance < MinDistance)
+		{
+			MinDistance = Distance;
+			MinSegmentIndex = PointToProjectSegmentIndex;
+			MinPointIndex = PointToProjectIndex;
+			ClosedProjectedPoint = ProjectedPoint;
+		}
+	};
+
+	auto MoveNode = [&](const FIsoSegment* SegmentToMove)
+	{
+		FPoint2D MoveDirection = ClosedProjectedPoint - Points[MinSegmentIndex][MinPointIndex];
+		MoveDirection.Normalize();
+		MoveDirection *= Grid.GetFace()->GetCarrierSurface()->Get3DTolerance();;
+
+		FPoint2D NewCoordinate = ClosedProjectedPoint + MoveDirection;
+		const FIsoNode& NodeToMove = MinPointIndex ? SegmentToMove->GetSecondNode() : SegmentToMove->GetFirstNode();
+		const_cast<FIsoNode&>(NodeToMove).Set2DPoint(EGridSpace::UniformScaled, Grid, NewCoordinate);
+	};
+
+#ifdef CADKERNEL_DEV
+	if (bDisplay)
+	{
+		F3DDebugSession _(TEXT("Segment"));
+		Display(EGridSpace::UniformScaled, *Segment0, 0, EVisuProperty::BlueCurve);
+		Display(EGridSpace::UniformScaled, *Segment1, 0, EVisuProperty::BlueCurve);
+	}
+#endif
+
+	Points[0][0] = Segment0->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[0][1] = Segment0->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[1][0] = Segment1->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[1][1] = Segment1->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+	MinDistance = HUGE_VALUE;
+	ProjectPoint(0, 0, 1);
+	ProjectPoint(0, 1, 1);
+	ProjectPoint(1, 0, 0);
+	ProjectPoint(1, 1, 0);
+
+#ifdef CADKERNEL_DEV
+	if (bDisplay)
+	{
+		F3DDebugSession _(TEXT("Closed Point"));
+		DisplayPoint(Points[MinSegmentIndex][MinPointIndex], EVisuProperty::BluePoint);
+		DisplayPoint(ClosedProjectedPoint, EVisuProperty::RedPoint);
+	}
+#endif
+
+	MoveNode(MinSegmentIndex ? Segment1 : Segment0);
+
+#ifdef CADKERNEL_DEV
+	if (bDisplay)
+	{
+		F3DDebugSession _(TEXT("NewSegment"));
+		Display(EGridSpace::UniformScaled, *Segment0, 0, EVisuProperty::RedCurve);
+		Display(EGridSpace::UniformScaled, *Segment1, 0, EVisuProperty::RedCurve);
+		Wait();
+	}
+#endif
+};
+
+bool FIsoTriangulator::FixPick2(const FIsoSegment* SegmentToMove, const FIsoSegment* Segment1)
+{
+	FPoint2D ClosedProjectedPoint;
+	FPoint2D Points[2][2];
+	int32 MinSegmentIndex = -1;
+	int32 MinPointIndex = -1;
+	double MinDistance = HUGE_VALUE;
+
+	auto ProjectPoint = [&](int32 PointToProjectSegmentIndex, int32 PointToProjectIndex, int32 SegmentIndex)
+	{
+		double Coordinate;
+		FPoint2D ProjectedPoint = ProjectPointOnSegment(Points[PointToProjectSegmentIndex][PointToProjectIndex], Points[SegmentIndex][0], Points[SegmentIndex][1], Coordinate, false);
+
+#ifdef CADKERNEL_DEV
+		if (bDisplay)
+		{
+			F3DDebugSession _(TEXT("Closed Point"));
+			DisplayPoint(Points[PointToProjectSegmentIndex][PointToProjectIndex], EVisuProperty::BluePoint);
+			DisplayPoint(ProjectedPoint, EVisuProperty::RedPoint);
+		}
+#endif
+
+		if (Coordinate < 0 || Coordinate > 1)
+		{
+			return;
+		}
+
+		double Distance = Points[PointToProjectSegmentIndex][PointToProjectIndex].SquareDistance(ProjectedPoint);
+
+		if (Distance < MinDistance)
+		{
+			MinDistance = Distance;
+			MinSegmentIndex = PointToProjectSegmentIndex;
+			MinPointIndex = PointToProjectIndex;
+			ClosedProjectedPoint = ProjectedPoint;
+		}
+	};
+
+	auto MoveNode = [&](const FIsoSegment* SegmentToMove)
+	{
+		FPoint2D MoveDirection = ClosedProjectedPoint - Points[MinSegmentIndex][MinPointIndex];
+		MoveDirection.Normalize();
+		MoveDirection *= Grid.GetFace()->GetCarrierSurface()->Get3DTolerance();;
+
+		FPoint2D NewCoordinate = ClosedProjectedPoint + MoveDirection;
+		const FIsoNode& NodeToMove = MinPointIndex ? SegmentToMove->GetSecondNode() : SegmentToMove->GetFirstNode();
+		const_cast<FIsoNode&>(NodeToMove).Set2DPoint(EGridSpace::UniformScaled, Grid, NewCoordinate);
+	};
+
+#ifdef CADKERNEL_DEV
+	if (bDisplay)
+	{
+		F3DDebugSession _(TEXT("Segments before"));
+		Display(EGridSpace::UniformScaled, *SegmentToMove, 0, EVisuProperty::BlueCurve);
+		Display(EGridSpace::UniformScaled, *Segment1, 0, EVisuProperty::BlueCurve);
+	}
+#endif
+
+	TFunction<int32()> FindOuterNodeAndProjectIt = [&]() -> int32
+	{
+		double OrientedSlop = ComputeOrientedSlope(Points[0][0], Points[0][1], Points[1][0]);
+		return (OrientedSlop < 0) ? 0 : 1;
+	};
+
+
+	Points[0][0] = SegmentToMove->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[0][1] = SegmentToMove->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[1][0] = Segment1->GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
+	Points[1][1] = Segment1->GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+	int32 OuterNode = FindOuterNodeAndProjectIt();
+	MinDistance = HUGE_VALUE;
+	ProjectPoint(0, 1, 1);
+	ProjectPoint(1, OuterNode, 0);
+
+	if (MinSegmentIndex < 0)
+	{
+		return false;
+	}
+
+#ifdef CADKERNEL_DEV
+	if (bDisplay)
+	{
+		F3DDebugSession _(TEXT("Closed Point"));
+		DisplayPoint(Points[MinSegmentIndex][MinPointIndex], EVisuProperty::BluePoint);
+		DisplayPoint(ClosedProjectedPoint, EVisuProperty::RedPoint);
+	}
+#endif
+
+	MoveNode(MinSegmentIndex ? Segment1 : SegmentToMove);
+
+#ifdef CADKERNEL_DEV
+	if (bDisplay)
+	{
+		F3DDebugSession _(TEXT("New Segments"));
+		Display(EGridSpace::UniformScaled, *SegmentToMove, 0, EVisuProperty::RedCurve);
+		Display(EGridSpace::UniformScaled, *Segment1, 0, EVisuProperty::RedCurve);
+		Wait();
+	}
+#endif
+	return true;
+};
+#endif
+
+
+
+} //namespace CADKernel

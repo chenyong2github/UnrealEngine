@@ -355,11 +355,6 @@ public:
 
 	uint32 GetTrajectoryPathCap() const { return TrajectoryPathCap; }
 
-	/** Gets whether to show the sequencer outliner info column */
-	bool GetShowOutlinerInfoColumn() const;
-	/** Sets whether to show the sequencer outliner info column */
-	void SetShowOutlinerInfoColumn(bool bInShowOutlinerInfoColumn);
-
 	FOnLoopStateChanged& GetOnLoopStateChanged();
 
 	/** What format should we display the UI controls in when representing time in a sequence? */
@@ -571,10 +566,6 @@ protected:
 	/** Specifies the maximum number of keys to draw when rendering trajectories in viewports */
 	UPROPERTY(config, EditAnywhere, Category = General)
 	uint32 TrajectoryPathCap;
-
-	/** Whether to show the sequencer outliner info column */
-	UPROPERTY(config, EditAnywhere, Category = General)
-	bool bShowOutlinerInfoColumn;
 
 	/** What format do we display time in to the user? */
 	UPROPERTY(config, EditAnywhere, Category=General)

@@ -21,16 +21,16 @@ struct FShaderRecompileData
 	FString PlatformName;
 	/** The platform to compile shaders for, corresponds to EShaderPlatform, but a value of -1 indicates to compile for all target shader platforms. */
 	int32 ShaderPlatform;
-	TArray<FString>* ModifiedFiles;
-	TArray<uint8>* MeshMaterialMaps;
+	TArray<FString>* ModifiedFiles = nullptr;
+	TArray<uint8>* MeshMaterialMaps = nullptr;
 	TArray<FString> MaterialsToLoad;
-	bool bCompileChangedShaders;
+	ODSCRecompileCommand CommandType = ODSCRecompileCommand::Changed;
+	TArray<uint8>* GlobalShaderMap = nullptr;
 
 	TArray<FODSCRequestPayload> ShadersToRecompile;
 
 	FShaderRecompileData() :
-		ShaderPlatform(-1),
-		bCompileChangedShaders(true)
+		ShaderPlatform(-1)
 	{}
 
 	FShaderRecompileData& operator=(const FShaderRecompileData& Other)
@@ -40,7 +40,8 @@ struct FShaderRecompileData
 		ModifiedFiles = Other.ModifiedFiles;
 		MeshMaterialMaps = Other.MeshMaterialMaps;
 		MaterialsToLoad = Other.MaterialsToLoad;
-		bCompileChangedShaders = Other.bCompileChangedShaders;
+		CommandType = Other.CommandType;
+		GlobalShaderMap = Other.GlobalShaderMap;
 
 		ShadersToRecompile = Other.ShadersToRecompile;
 

@@ -48,7 +48,7 @@ public:
 		// Vieports, rendered at once for tthis family
 		TArray<FFrameView> Views;
 
-		int NumViewsForRender = 0;
+		int32 NumViewsForRender = 0;
 	};
 
 	class FFrameRenderTarget
@@ -106,7 +106,7 @@ public:
 	// Frame rect on final backbuffer
 	FIntRect FrameRect;
 
-	int DesiredNumberOfViews = 0;
+	int32 DesiredNumberOfViews = 0;
 
 	IDisplayClusterViewportManager* ViewportManager = nullptr;
 };

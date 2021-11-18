@@ -1041,6 +1041,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	{
 		Set("DeveloperTools.MenuIcon", new IMAGE_BRUSH_SVG( "Starship/Common/DeveloperTools", Icon16x16 ) );
+		Set("UnrealInsights.MenuIcon", new IMAGE_BRUSH_SVG("Starship/Common/UnrealInsights", Icon16x16));
 	}
 
 	// Automation Tools Menu
@@ -2280,14 +2281,19 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 		FLinearColor ToolbarBackgroundColor = FStyleColors::Dropdown.GetSpecifiedColor();
 		ToolbarBackgroundColor.A = .80f;
 
+		FLinearColor ToolbarPressedColor = FStyleColors::Recessed.GetSpecifiedColor();
+		ToolbarPressedColor.A = .80f;
 
 		FSlateRoundedBoxBrush* ViewportGroupBrush = new FSlateRoundedBoxBrush(ToolbarBackgroundColor, 12.f, FLinearColor(0,0,0,.8), 1.0);
 		Set("EditorViewportToolBar.Group", ViewportGroupBrush);
 
+		FSlateRoundedBoxBrush* ViewportGroupPressedBrush = new FSlateRoundedBoxBrush(ToolbarPressedColor, 12.f, FLinearColor(0, 0, 0, .8), 1.0);
+		Set("EditorViewportToolBar.Group.Pressed", ViewportGroupPressedBrush);
+
 		FButtonStyle ViewportMenuButton = FButtonStyle()
 			.SetNormal(*ViewportGroupBrush)
 			.SetHovered(*ViewportGroupBrush)
-			.SetPressed(*ViewportGroupBrush)
+			.SetPressed(*ViewportGroupPressedBrush)
 			.SetNormalForeground(FStyleColors::Foreground)
 			.SetHoveredForeground(FStyleColors::ForegroundHover)
 			.SetPressedForeground(FStyleColors::ForegroundHover)
@@ -2299,7 +2305,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 		const FCheckBoxStyle ViewportMenuToggleLeftButtonStyle = FCheckBoxStyle(ViewportToggleButton)
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(		  BOX_BRUSH("Starship/EditorViewport/ToolBarLeftGroup", 12.f/25.f, FStyleColors::Dropdown))
-			.SetUncheckedPressedImage(BOX_BRUSH("Starship/EditorViewport/ToolBarLeftGroup", 12.f/25.f,FStyleColors::Header))
+			.SetUncheckedPressedImage(BOX_BRUSH("Starship/EditorViewport/ToolBarLeftGroup", 12.f/25.f,FStyleColors::Recessed))
 			.SetUncheckedHoveredImage(BOX_BRUSH("Starship/EditorViewport/ToolBarLeftGroup", 12.f/25.f, FStyleColors::Hover))
 			.SetCheckedHoveredImage(  BOX_BRUSH("Starship/EditorViewport/ToolBarLeftGroup", 12.f/25.f, FStyleColors::PrimaryHover))
 			.SetCheckedPressedImage(  BOX_BRUSH("Starship/EditorViewport/ToolBarLeftGroup", 12.f/25.f, FStyleColors::PrimaryPress))
@@ -2310,7 +2316,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 		const FCheckBoxStyle ViewportMenuToggleMiddleButtonStyle = FCheckBoxStyle(ViewportToggleButton)
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(		  BOX_BRUSH("Starship/EditorViewport/ToolBarMiddleGroup", 12.f/25.f, FStyleColors::Dropdown))
-			.SetUncheckedPressedImage(BOX_BRUSH("Starship/EditorViewport/ToolBarMiddleGroup", 12.f/25.f, FStyleColors::Header))
+			.SetUncheckedPressedImage(BOX_BRUSH("Starship/EditorViewport/ToolBarMiddleGroup", 12.f/25.f, FStyleColors::Recessed))
 			.SetUncheckedHoveredImage(BOX_BRUSH("Starship/EditorViewport/ToolBarMiddleGroup", 12.f/25.f, FStyleColors::Hover))
 			.SetCheckedHoveredImage(  BOX_BRUSH("Starship/EditorViewport/ToolBarMiddleGroup", 12.f/25.f, FStyleColors::PrimaryHover))
 			.SetCheckedPressedImage(  BOX_BRUSH("Starship/EditorViewport/ToolBarMiddleGroup", 12.f/25.f, FStyleColors::PrimaryPress))
@@ -2321,7 +2327,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 		const FCheckBoxStyle ViewportMenuToggleRightButtonStyle = FCheckBoxStyle(ViewportToggleButton)
 			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 			.SetUncheckedImage(		  BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::Dropdown))
-			.SetUncheckedPressedImage(BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::Header))
+			.SetUncheckedPressedImage(BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::Recessed))
 			.SetUncheckedHoveredImage(BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::Hover))
 			.SetCheckedHoveredImage(  BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::PrimaryHover))
 			.SetCheckedPressedImage(  BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::PrimaryPress))
@@ -2334,7 +2340,7 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 
 		FButtonStyle ComboMenuButtonStyle = FButtonStyle(SlimCoreToolBarStyle.ButtonStyle)
 			.SetNormal(BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::Dropdown))
-			.SetPressed(BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::Header))
+			.SetPressed(BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::Recessed))
 			.SetHovered(BOX_BRUSH("Starship/EditorViewport/ToolBarRightGroup", 12.f/25.f, FStyleColors::Hover))
 			.SetNormalPadding(0.0)
 			.SetPressedPadding(0.0);
@@ -2345,11 +2351,11 @@ void FStarshipEditorStyle::FStyle::SetupViewportStyles()
 
 		FCheckBoxStyle MaximizeRestoreButton = FCheckBoxStyle(ViewportToolbarStyle.ToggleButton)
 			.SetUncheckedImage(*ViewportGroupBrush)
-			.SetUncheckedPressedImage(*ViewportGroupBrush)
+			.SetUncheckedPressedImage(*ViewportGroupPressedBrush)
 			.SetUncheckedHoveredImage(*ViewportGroupBrush)
 			.SetCheckedImage(*ViewportGroupBrush)
 			.SetCheckedHoveredImage(*ViewportGroupBrush)
-			.SetCheckedPressedImage(*ViewportGroupBrush)
+			.SetCheckedPressedImage(*ViewportGroupPressedBrush)
 			.SetForegroundColor(FStyleColors::Foreground)
 			.SetPressedForegroundColor(FStyleColors::ForegroundHover)
 			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)

@@ -260,7 +260,7 @@ protected:
 	 * The callback in called from a critical point. If you intend to process the buffer, do so in another thread.
 	 * The buffer is only valid for the duration of the callback.
 	 */
-	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height) { }
+	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow) { }
 
 	/**
 	 * Callback when the buffer was successfully copied on the GPU ram.

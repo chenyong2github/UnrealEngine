@@ -5,6 +5,7 @@
 #include "Algo/MaxElement.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundEnvelopeFollowerTypes.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundEnumRegistrationMacro.h"
@@ -33,22 +34,6 @@ namespace Metasound
 	}
 	METASOUND_PARAM(OutputAudioEnvelope, "Audio Envelope", "The output envelope value of the audio signal (audio rate).");
 
-	enum class EEnvelopeFollowMode
-	{
-		MeanSquared = 0,
-		RootMeanSquared,
-		Peak
-	};
-
-	DECLARE_METASOUND_ENUM(EEnvelopeFollowMode, EEnvelopeFollowMode::MeanSquared, METASOUNDSTANDARDNODES_API,
-	FEnumEnvelopeFollowMode, FEnumEnvelopeFollowModeInfo, FEnvelopeFollowModeReadRef, FEnumEnvelopeFollowModeWriteRef);
-
-	DEFINE_METASOUND_ENUM_BEGIN(EEnvelopeFollowMode, FEnumEnvelopeFollowMode, "EnvelopeFollowMode")
-		DEFINE_METASOUND_ENUM_ENTRY(EEnvelopeFollowMode::MeanSquared, LOCTEXT("EnvelopeFollowModeMSDescription", "MS"), LOCTEXT("EnvelopeFollowModeMSDescriptionTT", "Envelope follows a running Mean Squared of the audio signal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EEnvelopeFollowMode::RootMeanSquared, LOCTEXT("EnvelopeFollowModeRMSDescription", "RMS"), LOCTEXT("EnvelopeFollowModeRMSDescriptionTT", "Envelope follows a running Root Mean Squared of the audio signal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EEnvelopeFollowMode::Peak, LOCTEXT("EnvelopeFollowModePeakDescription", "Peak"), LOCTEXT("EnvelopeFollowModePeakDescriptionTT", "Envelope follows the peaks in the audio signal.")),
-	DEFINE_METASOUND_ENUM_END()
-
 	class FEnvelopeFollowerOperator : public TExecutableOperator<FEnvelopeFollowerOperator>
 	{
 	public:
@@ -61,7 +46,7 @@ namespace Metasound
 			const FAudioBufferReadRef& InAudioInput,
 			const FTimeReadRef& InAttackTime,
 			const FTimeReadRef& InReleaseTime,
-			const FEnvelopeFollowModeReadRef& InEnvelopeMode);
+			const FEnvelopePeakModeReadRef& InEnvelopeMode);
 
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
@@ -78,7 +63,7 @@ namespace Metasound
 		FTimeReadRef ReleaseTimeInput;
 
 		// The Envelope-Following method
-		FEnvelopeFollowModeReadRef FollowModeInput;
+		FEnvelopePeakModeReadRef FollowModeInput;
 
 		// The envelope outputs
 		FFloatWriteRef EnvelopeFloatOutput;
@@ -89,14 +74,14 @@ namespace Metasound
 
 		double PrevAttackTime = 0.0;
 		double PrevReleaseTime = 0.0;
-		EEnvelopeFollowMode PrevFollowMode = EEnvelopeFollowMode::Peak;
+		EEnvelopePeakMode PrevFollowMode = EEnvelopePeakMode::Peak;
 	};
 
 	FEnvelopeFollowerOperator::FEnvelopeFollowerOperator(const FOperatorSettings& InSettings,
 		const FAudioBufferReadRef& InAudioInput,
 		const FTimeReadRef& InAttackTime,
 		const FTimeReadRef& InReleaseTime,
-		const FEnvelopeFollowModeReadRef& InEnvelopeMode)
+		const FEnvelopePeakModeReadRef& InEnvelopeMode)
 		: AudioInput(InAudioInput)
 		, AttackTimeInput(InAttackTime)
 		, ReleaseTimeInput(InReleaseTime)
@@ -158,14 +143,14 @@ namespace Metasound
 			PrevFollowMode = *FollowModeInput;
 			switch (PrevFollowMode)
 			{
-			case EEnvelopeFollowMode::MeanSquared:
+			case EEnvelopePeakMode::MeanSquared:
 			default:
 				EnvelopeFollower.SetMode(Audio::EPeakMode::Type::MeanSquared);
 				break;
-			case EEnvelopeFollowMode::RootMeanSquared:
+			case EEnvelopePeakMode::RootMeanSquared:
 				EnvelopeFollower.SetMode(Audio::EPeakMode::Type::RootMeanSquared);
 				break;
-			case EEnvelopeFollowMode::Peak:
+			case EEnvelopePeakMode::Peak:
 				EnvelopeFollower.SetMode(Audio::EPeakMode::Type::Peak);
 				break;
 			}
@@ -190,7 +175,7 @@ namespace Metasound
 				TInputDataVertexModel<FAudioBuffer>(EnvelopeFollower::InParamNameAudioInput, LOCTEXT("AudioInputToolTT", "Audio input.")),
 				TInputDataVertexModel<FTime>(EnvelopeFollower::InParamNameAttackTime, LOCTEXT("AttackTimeTT", "The attack time of the envelope follower."), 0.01f),
 				TInputDataVertexModel<FTime>(EnvelopeFollower::InParamNameReleaseTime, LOCTEXT("ReleaseTimeTT", "The release time of the envelope follower."), 0.1f),
-				TInputDataVertexModel<FEnumEnvelopeFollowMode>(EnvelopeFollower::InParamNameFollowMode, LOCTEXT("FollowModeTT", "The following-method of the envelope follower."))
+				TInputDataVertexModel<FEnumEnvelopePeakMode>(EnvelopeFollower::InParamNameFollowMode, LOCTEXT("FollowModeTT", "The following-method of the envelope follower."))
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<float>(EnvelopeFollower::OutParamNameEnvelope, LOCTEXT("EnvelopeFollowerOutputTT", "The output envelope value of the audio signal.")),
@@ -232,7 +217,7 @@ namespace Metasound
 		FAudioBufferReadRef AudioIn = InputCollection.GetDataReadReferenceOrConstruct<FAudioBuffer>(EnvelopeFollower::InParamNameAudioInput, InParams.OperatorSettings);
 		FTimeReadRef AttackTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, EnvelopeFollower::InParamNameAttackTime, InParams.OperatorSettings);
 		FTimeReadRef ReleaseTime = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime>(InputInterface, EnvelopeFollower::InParamNameReleaseTime, InParams.OperatorSettings);
-		FEnvelopeFollowModeReadRef EnvelopeModeIn = InputCollection.GetDataReadReferenceOrConstruct<FEnumEnvelopeFollowMode>(EnvelopeFollower::InParamNameFollowMode);
+		FEnvelopePeakModeReadRef EnvelopeModeIn = InputCollection.GetDataReadReferenceOrConstruct<FEnumEnvelopePeakMode>(EnvelopeFollower::InParamNameFollowMode);
 
 
 		return MakeUnique<FEnvelopeFollowerOperator>(InParams.OperatorSettings, AudioIn, AttackTime, ReleaseTime, EnvelopeModeIn);

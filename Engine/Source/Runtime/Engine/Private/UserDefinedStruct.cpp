@@ -350,10 +350,6 @@ FGuid UUserDefinedStruct::GetCustomGuid() const
 ENGINE_API FString GetPathPostfix(const UObject* ForObject)
 {
 	FString FullAssetName = ForObject->GetOutermost()->GetPathName();
-	if (FullAssetName.StartsWith(UDynamicClass::GetTempPackagePrefix(), ESearchCase::CaseSensitive))
-	{
-		FullAssetName.RemoveFromStart(UDynamicClass::GetTempPackagePrefix(), ESearchCase::CaseSensitive);
-	}
 	FString AssetName = FPackageName::GetLongPackageAssetName(FullAssetName);
 	// append a hash of the path, this uniquely identifies assets with the same name, but different folders:
 	FullAssetName.RemoveFromEnd(AssetName);

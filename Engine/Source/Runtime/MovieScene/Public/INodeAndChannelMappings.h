@@ -11,6 +11,7 @@
 
 #include "INodeAndChannelMappings.generated.h"
 
+class UMovieSceneSection;
 
 /** Enumeration specifying the control type */
 enum class FFBXControlRigTypeProxyEnum : uint8
@@ -59,8 +60,10 @@ class MOVIESCENE_API INodeAndChannelMappings
 {
 	GENERATED_IINTERFACE_BODY()
 
-	/** Get The Node And Mappings for this Track. Note Callee is responsible for deleting */
-	virtual TArray<FFBXNodeAndChannels>*  GetNodeAndChannelMappings()  = 0;
+	/** Get The Node And Mappings for this Track. Note Callee is responsible for deleting 
+	*  InSection The section from which to get the nodes and the channels from. If empty, up to implementor to decide which section to use, usually the Section To Key.
+	*/
+	virtual TArray<FFBXNodeAndChannels>*  GetNodeAndChannelMappings(UMovieSceneSection* InSection)  = 0;
 	
 	/** Get Selected Nodes */
 	virtual void GetSelectedNodes(TArray<FName>& OutSelectedNodes) = 0;

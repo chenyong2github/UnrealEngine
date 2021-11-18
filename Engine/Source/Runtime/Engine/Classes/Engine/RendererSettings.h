@@ -877,6 +877,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bMaterialRoughDiffuse : 1; 
 
 	/**
+	"Enable rough diffuse material."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
+		ConsoleVariable = "r.Material.EnergyConservation", DisplayName = "Enable Energy Conservation on Material",
+		ToolTip = "Enable Energy Conservation on Material.",
+		ConfigRestartRequired = true))
+		uint32 bMaterialEnergyConservation : 1;
+
+	/**
 	"Skin cache allows a compute shader to skin once each vertex, save those results into a new buffer and reuse those calculations when later running the depth, base and velocity passes. This also allows opting into the 'recompute tangents' for skinned mesh instance feature. Disabling will reduce the number of shader permutations required per material. Changing this setting requires restarting the editor."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Optimizations, meta = (

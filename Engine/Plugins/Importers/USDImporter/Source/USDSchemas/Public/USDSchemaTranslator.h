@@ -147,6 +147,9 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	/** The render context to use when translating materials */
 	FName RenderContext;
 
+	/** If a generated UStaticMesh has at least this many triangles we will attempt to enable Nanite */
+	int32 NaniteTriangleThreshold;
+
 	/** Where the translated assets will be stored */
 	TStrongObjectPtr< UUsdAssetCache > AssetCache;
 
@@ -164,7 +167,7 @@ struct USDSCHEMAS_API FUsdSchemaTranslationContext : public TSharedFromThis< FUs
 	 * Whether to try to combine individual assets and components of the same type on a kind-per-kind basis,
 	 * like multiple Mesh prims into a single Static Mesh
 	 */
-	EUsdDefaultKind KindsToCollapse = EUsdDefaultKind::Component;
+	EUsdDefaultKind KindsToCollapse = EUsdDefaultKind::Component | EUsdDefaultKind::Subcomponent;
 
 	/**
 	 * If true, prims with a "LOD" variant set, and "LOD0", "LOD1", etc. variants containing each

@@ -7,9 +7,9 @@
 
 #include "PreviewScene.h"
 
-FName FSnapshotTestRunner::DefaultSnapshotId = FName("DefaultSnapshotId");
+FName UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::DefaultSnapshotId = FName("DefaultSnapshotId");
 
-FSnapshotTestRunner::FSnapshotTestRunner()
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::FSnapshotTestRunner()
 {
 	TestWorld = MakeShared<FPreviewScene>(
 		FPreviewScene::ConstructionValues()
@@ -17,7 +17,7 @@ FSnapshotTestRunner::FSnapshotTestRunner()
 			);
 }
 
-FSnapshotTestRunner::FSnapshotTestRunner(FSnapshotTestRunner&& Other)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::FSnapshotTestRunner(UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner&& Other)
 {
 	TestWorld = Other.TestWorld;
 	Snapshots = Other.Snapshots;
@@ -25,7 +25,7 @@ FSnapshotTestRunner::FSnapshotTestRunner(FSnapshotTestRunner&& Other)
 	Other.Snapshots.Empty();
 }
 
-FSnapshotTestRunner::~FSnapshotTestRunner()
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::~FSnapshotTestRunner()
 {
 	for (auto SnapshotIt = Snapshots.CreateIterator(); SnapshotIt; ++SnapshotIt)
 	{
@@ -33,13 +33,13 @@ FSnapshotTestRunner::~FSnapshotTestRunner()
 	}
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::ModifyWorld(TFunction<void(UWorld*)> Callback)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::ModifyWorld(TFunction<void(UWorld*)> Callback)
 {
 	Callback(TestWorld->GetWorld());
 	return *this;
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::TakeSnapshot(FName SnapshotId)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::TakeSnapshot(FName SnapshotId)
 {
 	if (ULevelSnapshot** ExistingSnapshot = Snapshots.Find(SnapshotId))
 	{
@@ -60,7 +60,7 @@ FSnapshotTestRunner& FSnapshotTestRunner::TakeSnapshot(FName SnapshotId)
 	return *this;
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::AccessSnapshot(TFunction<void (ULevelSnapshot*)> Callback, FName SnapshotId)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::AccessSnapshot(TFunction<void (ULevelSnapshot*)> Callback, FName SnapshotId)
 {
 	if (ULevelSnapshot** ExistingSnapshot = Snapshots.Find(SnapshotId))
 	{
@@ -74,7 +74,7 @@ FSnapshotTestRunner& FSnapshotTestRunner::AccessSnapshot(TFunction<void (ULevelS
 	return *this;
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::AccessSnapshotAndWorld(TFunction<void(ULevelSnapshot*, UWorld*)> Callback, FName SnapshotId)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::AccessSnapshotAndWorld(TFunction<void(ULevelSnapshot*, UWorld*)> Callback, FName SnapshotId)
 {
 	return AccessSnapshot([this, &Callback](ULevelSnapshot* Snapshot)
 	{
@@ -82,12 +82,12 @@ FSnapshotTestRunner& FSnapshotTestRunner::AccessSnapshotAndWorld(TFunction<void(
 	}, SnapshotId);
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::ApplySnapshot(TFunction<ULevelSnapshotFilter*()> Callback, FName SnapshotId)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::ApplySnapshot(TFunction<ULevelSnapshotFilter*()> Callback, FName SnapshotId)
 {
 	return ApplySnapshot(Callback(), SnapshotId);
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::ApplySnapshot(ULevelSnapshotFilter* Filter, FName SnapshotId)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::ApplySnapshot(ULevelSnapshotFilter* Filter, FName SnapshotId)
 {
 	if (ULevelSnapshot** ExistingSnapshot = Snapshots.Find(SnapshotId))
 	{
@@ -101,12 +101,12 @@ FSnapshotTestRunner& FSnapshotTestRunner::ApplySnapshot(ULevelSnapshotFilter* Fi
 	return *this;
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::ApplySnapshot(TFunction<FPropertySelectionMap()> Callback, FName SnapshotId)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::ApplySnapshot(TFunction<FPropertySelectionMap()> Callback, FName SnapshotId)
 {
 	return ApplySnapshot(Callback(), SnapshotId);
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::ApplySnapshot(const FPropertySelectionMap& SelectionSet, FName SnapshotId)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::ApplySnapshot(const FPropertySelectionMap& SelectionSet, FName SnapshotId)
 {
 	if (ULevelSnapshot** ExistingSnapshot = Snapshots.Find(SnapshotId))
 	{
@@ -120,21 +120,21 @@ FSnapshotTestRunner& FSnapshotTestRunner::ApplySnapshot(const FPropertySelection
 	return *this;
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::FilterProperties(AActor* OriginalActor, TFunction<void(const FPropertySelectionMap&)> Callback, const ULevelSnapshotFilter* Filter, FName SnapshotId)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::FilterProperties(AActor* OriginalActor, TFunction<void(const FPropertySelectionMap&)> Callback, const ULevelSnapshotFilter* Filter, FName SnapshotId)
 {
 	return AccessSnapshot([OriginalActor, &Callback, Filter](ULevelSnapshot* Snapshot)
 	{
-		TOptional<AActor*> SnapshotCounterpart = Snapshot->GetDeserializedActor(OriginalActor);
+		const TOptional<TNonNullPtr<AActor>> SnapshotCounterpart = Snapshot->GetDeserializedActor(OriginalActor);
 		if (ensure(SnapshotCounterpart))
 		{
 			FPropertySelectionMap SelectedProperties;
-			ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(Snapshot, SelectedProperties, OriginalActor, *SnapshotCounterpart, Filter);
+			ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(Snapshot, SelectedProperties, OriginalActor, SnapshotCounterpart.GetValue(), Filter);
 			Callback(SelectedProperties);
 		}
 	}, SnapshotId);
 }
 
-FSnapshotTestRunner& FSnapshotTestRunner::RunTest(TFunction<void()> Callback)
+UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner& UE::LevelSnapshots::Private::Tests::FSnapshotTestRunner::RunTest(TFunction<void()> Callback)
 {
 	Callback();
 	return *this;

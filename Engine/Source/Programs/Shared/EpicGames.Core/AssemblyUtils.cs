@@ -7,8 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-#nullable disable
-
 namespace EpicGames.Core
 {
 	public static class AssemblyUtils
@@ -21,7 +19,7 @@ namespace EpicGames.Core
 		/// <returns>Absolute path and filename to the assembly.</returns>
 		public static string GetOriginalLocation(this Assembly ThisAssembly)
 		{
-			return new Uri(ThisAssembly.CodeBase).LocalPath;
+			return new Uri(ThisAssembly.Location).LocalPath;
 		}
 
 		/// <summary>
@@ -31,7 +29,7 @@ namespace EpicGames.Core
 		{
 			get
 			{
-				return FileVersionInfo.GetVersionInfo(Assembly.GetEntryAssembly().GetOriginalLocation());
+				return FileVersionInfo.GetVersionInfo(Assembly.GetEntryAssembly()!.GetOriginalLocation());
 			}
 		}
 
@@ -44,7 +42,7 @@ namespace EpicGames.Core
 			AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
 			{
 				// Name is fully qualified assembly definition - e.g. "p4dn, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ff968dc1933aba6f"
-				string AssemblyName = args.Name.Split(',')[0];
+				string AssemblyName = args.Name!.Split(',')[0];
 
 				return (
 					from KnownAssemblyName in new[] { "SwarmAgent.exe", "../ThirdParty/Ionic/Ionic.Zip.Reduced.dll", "../ThirdParty/Newtonsoft/NewtonSoft.Json.dll" }
@@ -68,8 +66,8 @@ namespace EpicGames.Core
 			AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
 			{
 				// Name is fully qualified assembly definition - e.g. "p4dn, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ff968dc1933aba6f"
-				string AssemblyName = args.Name.Split(',')[0];
-				if (AssemblyLocationCache.TryGetValue(AssemblyName, out string AssemblyLocation))
+				string AssemblyName = args.Name!.Split(',')[0];
+				if (AssemblyLocationCache.TryGetValue(AssemblyName, out string? AssemblyLocation))
 				{
 					// We have this assembly in our folder.					
 					if (File.Exists(AssemblyLocation))

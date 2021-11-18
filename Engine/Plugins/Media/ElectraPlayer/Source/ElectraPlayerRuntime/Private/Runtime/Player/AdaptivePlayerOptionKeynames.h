@@ -9,11 +9,17 @@ namespace Electra
 	//! (FString) mime type of URL to load
 	const TCHAR* const OptionKeyMimeType = TEXT("mime_type");										
 
-	//! (int64) value indicating the bitrate to start with.
-	const TCHAR* const OptionKeyInitialBitrate = TEXT("initial_bitrate");							
+	//! (int64) value indicating the bitrate to start playback with (initial start).
+	const TCHAR* const OptionKeyInitialBitrate = TEXT("initial_bitrate");
+
+	//! (int64) value indicating the bitrate to start buffering with when seeking (not at playback start)
+	const TCHAR* const OptionKeySeekStartBitrate = TEXT("seekstart_bitrate");
+
+	//! (int64) value indicating the bitrate to start rebuffering with
+	const TCHAR* const OptionKeyRebufferStartBitrate = TEXT("rebufferstart_bitrate");
 
 	//! (FTimeValue) value specifying how many seconds away from the Live media timeline the seekable range should end.
-	const TCHAR* const OptionKeyLiveSeekableEndOffset = TEXT("seekable_range_live_end_offset");		
+	const TCHAR* const OptionKeyLiveSeekableEndOffset = TEXT("seekable_range_live_end_offset");
 
 	//! (bool) absolute end time (excluding) of the range to limit playback to
 	const TCHAR* const OptionRebufferingContinuesLoading = TEXT("rebuffering_continues_loading");

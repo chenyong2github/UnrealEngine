@@ -82,6 +82,18 @@ public:
 	 * @return Whether to track the added actor
 	 */
 	virtual EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const;
+	
+	/**
+	 * This is called when a component was removed from an actor since the snapshot had been taken. 
+	 * @return Whether to track the removed component
+	 */
+	virtual EFilterResult::Type IsDeletedComponentValid(const FIsDeletedComponentValidParams& Params) const;
+	
+	/**
+	 * This is called when a component was added to the world since the snapshot had been taken. 
+	 * @return Whether to track the added component
+	 */
+	virtual EFilterResult::Type IsAddedComponentValid(const FIsAddedComponentValidParams& Params) const;
 };
 
 /**
@@ -119,4 +131,18 @@ public:
 	*/
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Level Snapshots")
 	EFilterResult::Type IsAddedActorValid(const FIsAddedActorValidParams& Params) const override;
+
+	/**
+	 * This is called when a component was removed from an actor since the snapshot had been taken. 
+	 * @return Whether to track the removed component
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Level Snapshots")
+	EFilterResult::Type IsDeletedComponentValid(const FIsDeletedComponentValidParams& Params) const;
+
+	/**
+	 * This is called when a component was added to the world since the snapshot had been taken. 
+	 * @return Whether to track the added component
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Level Snapshots")
+	EFilterResult::Type IsAddedComponentValid(const FIsAddedComponentValidParams& Params) const;
 };

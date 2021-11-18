@@ -6,29 +6,14 @@ using System.Text;
 using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
-
-#nullable disable
+using System.Linq;
 
 namespace UnrealBuildTool
 {
-	/// <summary>
-	/// Represents a folder within the master project (e.g. Visual Studio solution)
-	/// </summary>
-	class MakefileFolder : MasterProjectFolder
-	{
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public MakefileFolder(ProjectFileGenerator InitOwnerProjectFileGenerator, string InitFolderName)
-			: base(InitOwnerProjectFileGenerator, InitFolderName)
-		{
-		}
-	}
-
 	class MakefileProjectFile : ProjectFile
 	{
-		public MakefileProjectFile(FileReference InitFilePath)
-			: base(InitFilePath)
+		public MakefileProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
+			: base(InitFilePath, BaseDir)
 		{
 		}
 	}
@@ -43,7 +28,7 @@ namespace UnrealBuildTool
 		bool bGenerateIntelliSenseData = true;
 
 		/// Default constructor
-		public MakefileGenerator(FileReference InOnlyGameProject)
+		public MakefileGenerator(FileReference? InOnlyGameProject)
 			: base(InOnlyGameProject)
 		{
 		}
@@ -63,7 +48,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override bool WriteMasterProjectFile(ProjectFile UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			bool bSuccess = true;
 			return bSuccess;
@@ -81,7 +66,7 @@ namespace UnrealBuildTool
 
 			if (!String.IsNullOrEmpty(GameProjectName))
 			{
-				GameProjectFile = OnlyGameProject.FullName;
+				GameProjectFile = OnlyGameProject!.FullName;
 				MakeGameProjectFile = "GAMEPROJECTFILE =" + GameProjectFile + "\n";
 				ProjectBuildCommand = "PROJECTBUILD = bash \"$(UNREALROOTPATH)/Engine/Build/BatchFiles/Linux/RunMono.sh\" \"$(UNREALROOTPATH)/Engine/Binaries/DotNET/UnrealBuildTool.exe\"\n";
 			}
@@ -101,7 +86,7 @@ namespace UnrealBuildTool
 			String MakeBuildCommand = "";
 			foreach (ProjectFile Project in GeneratedProjectFiles)
 			{
-				foreach (ProjectTarget TargetFile in Project.ProjectTargets)
+				foreach (ProjectTarget TargetFile in Project.ProjectTargets.OfType<ProjectTarget>())
 				{
 					if (TargetFile.TargetFilePath == null)
 					{
@@ -111,13 +96,13 @@ namespace UnrealBuildTool
 					string TargetFileName = TargetFile.TargetFilePath.GetFileNameWithoutExtension();
 					string Basename = TargetFileName.Substring(0, TargetFileName.LastIndexOf(".Target", StringComparison.InvariantCultureIgnoreCase));
 
-					foreach (UnrealTargetConfiguration CurConfiguration in Enum.GetValues(typeof(UnrealTargetConfiguration)))
+					foreach (UnrealTargetConfiguration CurConfiguration in (UnrealTargetConfiguration[])Enum.GetValues(typeof(UnrealTargetConfiguration)))
 					{
 						if (CurConfiguration != UnrealTargetConfiguration.Unknown && CurConfiguration != UnrealTargetConfiguration.Development)
 						{
 							if (InstalledPlatformInfo.IsValidConfiguration(CurConfiguration, EProjectType.Code))
 							{
-								string Confname = Enum.GetName(typeof(UnrealTargetConfiguration), CurConfiguration);
+								string Confname = Enum.GetName(typeof(UnrealTargetConfiguration), CurConfiguration)!;
 								MakefileContent.Append(String.Format(" \\\n\t{0}-Linux-{1} ", Basename, Confname));
 							}
 						}
@@ -136,7 +121,7 @@ namespace UnrealBuildTool
 
 			foreach (ProjectFile Project in GeneratedProjectFiles)
 			{
-				foreach (ProjectTarget TargetFile in Project.ProjectTargets)
+				foreach (ProjectTarget TargetFile in Project.ProjectTargets.OfType<ProjectTarget>())
 				{
 					if (TargetFile.TargetFilePath == null)
 					{
@@ -156,7 +141,7 @@ namespace UnrealBuildTool
 						MakeBuildCommand = "$(BUILD)";
 					}
 
-					foreach (UnrealTargetConfiguration CurConfiguration in Enum.GetValues(typeof(UnrealTargetConfiguration)))
+					foreach (UnrealTargetConfiguration CurConfiguration in (UnrealTargetConfiguration[])Enum.GetValues(typeof(UnrealTargetConfiguration)))
 					{
 						if (Basename == GameProjectName || Basename == (GameProjectName + "Editor"))
 						{
@@ -172,7 +157,7 @@ namespace UnrealBuildTool
 						{
 							if (InstalledPlatformInfo.IsValidConfiguration(CurConfiguration, EProjectType.Code))
 							{
-								string Confname = Enum.GetName(typeof(UnrealTargetConfiguration), CurConfiguration);
+								string Confname = Enum.GetName(typeof(UnrealTargetConfiguration), CurConfiguration)!;
 								MakefileContent.Append(String.Format("\n{1}-Linux-{2}:\n\t {0} {1} Linux {2} {3} $(ARGS)\n", MakeBuildCommand, Basename, Confname, MakeProjectCmdArg));
 							}
 						}
@@ -207,20 +192,15 @@ namespace UnrealBuildTool
 		}
 
 		/// ProjectFileGenerator interface
-		public override MasterProjectFolder AllocateMasterProjectFolder(ProjectFileGenerator InitOwnerProjectFileGenerator, string InitFolderName)
-		{
-			return new MakefileFolder(InitOwnerProjectFileGenerator, InitFolderName);
-		}
-
-		/// ProjectFileGenerator interface
 		/// <summary>
 		/// Allocates a generator-specific project file object
 		/// </summary>
 		/// <param name="InitFilePath">Path to the project file</param>
+		/// <param name="BaseDir">The base directory for files within this project</param>
 		/// <returns>The newly allocated project file object</returns>
-		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath)
+		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 		{
-			return new MakefileProjectFile(InitFilePath);
+			return new MakefileProjectFile(InitFilePath, BaseDir);
 		}
 
 		/// ProjectFileGenerator interface

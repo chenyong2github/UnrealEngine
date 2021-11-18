@@ -115,6 +115,7 @@ public:
 	 *
 	 * @param Image The input image.
 	 * @param BuildSettings Build settings.
+	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
 	 * @param bImageHasAlphaChannel true if the image has a non-white alpha channel.
 	 * @param OutCompressedMip The compressed image.
 	 * @returns true on success, false otherwise.
@@ -122,6 +123,7 @@ public:
 	virtual bool CompressImage(
 		const struct FImage& Image,
 		const FTextureBuildSettings& BuildSettings,
+		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		struct FCompressedImage2D& OutCompressedImage
 	) const = 0;
@@ -130,16 +132,19 @@ public:
 	 * Compress an image (or images for a miptail) into a single mip blob.
 	 *
 	 * @param Images The input image(s)
-	 * @param Images The number of images (for a miptail, this number should match what was returned in GetFormatCapabilities, mostly used for verification)
+	 * @param NumImages The number of images (for a miptail, this number should match what was returned in GetFormatCapabilities, mostly used for verification)
 	 * @param BuildSettings Build settings.
+	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
 	 * @param bImageHasAlphaChannel true if the image has a non-white alpha channel.
 	 * @param ExtData Extra data that the format may want to have passed back in to each compress call (makes the format class be stateless)
 	 * @param OutCompressedMip The compressed image.
 	 * @returns true on success, false otherwise.
 	 */
-	virtual bool CompressImageEx(const struct FImage* Images,
+	virtual bool CompressImageEx(
+		const struct FImage* Images,
 		const uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
+		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		uint32 ExtData,
 		FCompressedImage2D& OutCompressedImage) const
@@ -150,7 +155,7 @@ public:
 			return false;
 		}
 		
-		return CompressImage(*Images, BuildSettings, bImageHasAlphaChannel, OutCompressedImage);
+		return CompressImage(*Images, BuildSettings, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage);
 	}
 
 	/**
@@ -166,6 +171,7 @@ public:
 	 * @param Image The input image.
 	 * @param BuildSettings Build settings.
 	 * @param bImageHasAlphaChannel true if the image has a non-white alpha channel.
+	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
 	 * @param OutCompressedMip The compressed image.
 	 * @param Tiler The tiler settings.
 	 * @returns true on success, false otherwise.
@@ -174,6 +180,7 @@ public:
 		const struct FImage* Images,
 		uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
+		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		TSharedPtr<FTilerSettings>& TilerSettings,
 		struct FCompressedImage2D& OutCompressedImage) const

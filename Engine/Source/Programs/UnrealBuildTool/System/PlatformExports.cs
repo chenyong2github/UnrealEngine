@@ -124,7 +124,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="OutXgConsoleExe">On success, receives the path to the XGE console executable</param>
 		/// <returns>True if the path was found, false otherwise</returns>
-		public static bool TryGetXgConsoleExecutable(out string OutXgConsoleExe)
+		public static bool TryGetXgConsoleExecutable(out string? OutXgConsoleExe)
 		{
 			return XGE.TryGetXgConsoleExecutable(out OutXgConsoleExe);
 		}

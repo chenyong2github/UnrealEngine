@@ -229,7 +229,7 @@ TSoftObjectPtr<UObject> URemoteControlLevelDependantBinding::ResolveForCurrentWo
 	return nullptr;
 }
 
-UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld() const
+UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld()
 {
 	// Since this is used to retrieve the binding in the map, we never use the PIE world in editor.
 	UWorld* World = nullptr;

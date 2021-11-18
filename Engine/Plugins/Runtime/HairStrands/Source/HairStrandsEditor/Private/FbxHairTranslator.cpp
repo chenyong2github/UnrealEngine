@@ -144,7 +144,7 @@ static void ParseFbxNode(FbxNode* FileNode, FHairDescription& HairDescription, c
 
 			FVertexID VertexID = HairDescription.AddVertex();
 
-			VertexPositions[VertexID] = ConversionMatrix.TransformPosition(Position);
+			VertexPositions[VertexID] = FVector4f(ConversionMatrix.TransformPosition(Position));
 			VertexWidths[VertexID] = Radius * Scale;
 		}
 	}

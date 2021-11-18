@@ -1,23 +1,26 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SnapshotComponentUtil.h"
-#include "BaseComponentRestorer.h"
 
-#include "Data/ActorSnapshotData.h"
+#include "BaseComponentRestorer.h"
+#include "SnapshotDataCache.h"
 #include "Data/WorldSnapshotData.h"
+#include "Data/SnapshotDataCache.h"
 
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 
-namespace LevelSnapshots
+namespace UE::LevelSnapshots::Private::Internal
 {
 	/** Recreates component on actors in the snapshot world. */
 	class FSnapshotActorComponentRestorer final : public TBaseComponentRestorer<FSnapshotActorComponentRestorer>
 	{
+		FSnapshotDataCache& Cache;
 	public:
 		
-		FSnapshotActorComponentRestorer(AActor* SnapshotActor, const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData)
-			: TBaseComponentRestorer<FSnapshotActorComponentRestorer>(SnapshotActor, SnapshotData, WorldData)
+		FSnapshotActorComponentRestorer(AActor* SnapshotActor, const FSoftObjectPath& OriginalActorPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache)
+			: TBaseComponentRestorer<FSnapshotActorComponentRestorer>(SnapshotActor, OriginalActorPath, WorldData)
+			, Cache(Cache)
 		{}
 
 		//~ Begin TBaseComponentRestorer Interface
@@ -26,7 +29,8 @@ namespace LevelSnapshots
 		
 		void PostCreateComponent(FSubobjectSnapshotData& SubobjectData, UActorComponent* RecreatedComponent) const
 		{
-			SubobjectData.SnapshotObject = RecreatedComponent;
+			FSubobjectSnapshotCache& SubobjectCache = Cache.SubobjectCache.FindOrAdd(GetOriginalActorPath());
+			SubobjectCache.SnapshotObject = RecreatedComponent;
 		}
 		
 		static constexpr bool IsRestoringIntoSnapshotWorld()
@@ -38,8 +42,8 @@ namespace LevelSnapshots
 	
 }
 
-void SnapshotUtil::Component::AllocateMissingComponentsForSnapshotActor(AActor* SnapshotActor, const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData)
+void UE::LevelSnapshots::Private::AllocateMissingComponentsForSnapshotActor(AActor* SnapshotActor, const FSoftObjectPath& OriginalActorPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache)
 {
-	LevelSnapshots::FSnapshotActorComponentRestorer Restorer(SnapshotActor, SnapshotData, WorldData);
+	Internal::FSnapshotActorComponentRestorer Restorer(SnapshotActor, OriginalActorPath, WorldData, Cache);
 	Restorer.RecreateSavedComponents();
 }

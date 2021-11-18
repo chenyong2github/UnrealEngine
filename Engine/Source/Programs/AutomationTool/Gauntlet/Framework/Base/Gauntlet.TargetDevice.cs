@@ -136,4 +136,44 @@ namespace Gauntlet
 	{
 		ITargetDevice CreateDevice(string InRef, string InLocalCache, string InParam=null);
 	}
+
+	/// <summary>
+	/// Represents a class that provides services for available devices
+	/// </summary>
+	public interface IDeviceService : IDeviceSource
+	{
+		void CleanupDevices();
+	}
+
+	/// <summary>
+	/// Represents a class that tell what build the device support
+	/// </summary>
+	public interface IDeviceBuildSupport : IDeviceSource
+	{
+		bool CanSupportBuildType(BuildFlags Flag);
+		UnrealTargetPlatform? GetPlatform();
+		bool NeedBuildDeployed();
+	}
+	public abstract class BaseBuildSupport : IDeviceBuildSupport
+	{
+		protected virtual BuildFlags SupportedBuildTypes => BuildFlags.None;
+		protected virtual UnrealTargetPlatform? Platform => null;
+
+		public bool CanSupportBuildType(BuildFlags Flag)
+		{
+			return (SupportedBuildTypes & Flag) == Flag;
+		}
+
+		public bool CanSupportPlatform(UnrealTargetPlatform? InPlatform)
+		{
+			return Platform == InPlatform;
+		}
+
+		public UnrealTargetPlatform? GetPlatform()
+		{
+			return Platform;
+		}
+
+		public virtual bool NeedBuildDeployed() => true;
+	}
 }

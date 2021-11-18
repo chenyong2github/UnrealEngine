@@ -106,6 +106,7 @@ void WriteBPGCBreadcrumbs(FCrashContextExtendedWriter& Writer, const BPGCBreadcr
 }
 #endif // WITH_ADDITIONAL_CRASH_CONTEXTS
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UBlueprintGeneratedClass::UBlueprintGeneratedClass(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
@@ -113,13 +114,15 @@ UBlueprintGeneratedClass::UBlueprintGeneratedClass(const FObjectInitializer& Obj
 #endif//VALIDATE_UBER_GRAPH_PERSISTENT_FRAME
 {
 	NumReplicatedProperties = 0;
-	bHasNativizedParent = false;
+	// @todo: BP2CPP_remove
+	bHasNativizedParent_DEPRECATED = false;
 	bHasCookedComponentInstancingData = false;
 	bCustomPropertyListForPostConstructionInitialized = false;
 #if WITH_EDITORONLY_DATA
 	bIsSparseClassDataSerializable = false;
 #endif
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UBlueprintGeneratedClass::PostInitProperties()
 {
@@ -173,7 +176,7 @@ void UBlueprintGeneratedClass::PostLoad()
 				const bool bComponentChild = FCheckIfComponentChildHelper::IsComponentChild(CurrObj, ClassCDO);
 				if (!CurrObj->IsDefaultSubobject() && !CurrObj->IsRooted() && !bComponentChild)
 				{
-					CurrObj->MarkPendingKill();
+					CurrObj->MarkAsGarbage();
 				}
 			});
 		}
@@ -435,9 +438,8 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 #else
 		const bool bShouldUseCookedComponentInstancingData = bHasCookedComponentInstancingData;
 #endif
-		// Generate "fast path" instancing data for inherited SCS node templates. This data may also be used to support inherited SCS component default value overrides
-		// in a nativized, cooked build, in which this Blueprint class inherits from a nativized Blueprint parent. See CheckAndApplyComponentTemplateOverrides() below.
-		if (InheritableComponentHandler && (bShouldUseCookedComponentInstancingData || bHasNativizedParent))
+		// Generate "fast path" instancing data for inherited SCS node templates.
+		if (InheritableComponentHandler && bShouldUseCookedComponentInstancingData)
 		{
 			for (auto RecordIt = InheritableComponentHandler->CreateRecordIterator(); RecordIt; ++RecordIt)
 			{
@@ -472,14 +474,6 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 					}
 				}
 			}
-		}
-
-		// We may need to manually apply default value overrides to some inherited components in a cooked build
-		// scenario. This can occur if we have a nativized Blueprint class somewhere in the parent class ancestry.
-		// Note: This must occur AFTER component templates are loaded, but BEFORE component instances are serialized.
-		if (bHasNativizedParent)
-		{
-			CheckAndApplyComponentTemplateOverrides(ClassDefaultObject);
 		}
 	}
 
@@ -1045,18 +1039,7 @@ UDynamicBlueprintBinding* UBlueprintGeneratedClass::GetDynamicBindingObject(cons
 			}
 		}
 	}
-	else if (const UDynamicClass* DynamicClass = Cast<UDynamicClass>(ThisClass))
-	{
-		for (UObject* MiscObj : DynamicClass->DynamicBindingObjects)
-		{
-			UDynamicBlueprintBinding* DynamicBindingObject = Cast<UDynamicBlueprintBinding>(MiscObj);
-			if (DynamicBindingObject && (DynamicBindingObject->GetClass() == BindingClass))
-			{
-				DynamicBlueprintBinding = DynamicBindingObject;
-				break;
-			}
-		}
-	}
+
 	return DynamicBlueprintBinding;
 }
 
@@ -1074,17 +1057,6 @@ void UBlueprintGeneratedClass::BindDynamicDelegates(const UClass* ThisClass, UOb
 		for (UDynamicBlueprintBinding* DynamicBindingObject : BPGC->DynamicBindingObjects)
 		{
 			if (ensure(DynamicBindingObject))
-			{
-				DynamicBindingObject->BindDynamicDelegates(InInstance);
-			}
-		}
-	}
-	else if (const UDynamicClass* DynamicClass = Cast<UDynamicClass>(ThisClass))
-	{
-		for (UObject* MiscObj : DynamicClass->DynamicBindingObjects)
-		{
-			UDynamicBlueprintBinding* DynamicBindingObject = Cast<UDynamicBlueprintBinding>(MiscObj);
-			if (DynamicBindingObject)
 			{
 				DynamicBindingObject->BindDynamicDelegates(InInstance);
 			}
@@ -1112,17 +1084,6 @@ void UBlueprintGeneratedClass::UnbindDynamicDelegates(const UClass* ThisClass, U
 		for (UDynamicBlueprintBinding* DynamicBindingObject : BPGC->DynamicBindingObjects)
 		{
 			if (ensure(DynamicBindingObject))
-			{
-				DynamicBindingObject->UnbindDynamicDelegates(InInstance);
-			}
-		}
-	}
-	else if (const UDynamicClass* DynamicClass = Cast<UDynamicClass>(ThisClass))
-	{
-		for (UObject* MiscObj : DynamicClass->DynamicBindingObjects)
-		{
-			UDynamicBlueprintBinding* DynamicBindingObject = Cast<UDynamicBlueprintBinding>(MiscObj);
-			if (DynamicBindingObject)
 			{
 				DynamicBindingObject->UnbindDynamicDelegates(InInstance);
 			}
@@ -1319,100 +1280,11 @@ void UBlueprintGeneratedClass::CreateComponentsForActor(const UClass* ThisClass,
 			}
 		}
 	}
-	else if (const UDynamicClass* DynamicClass = Cast<UDynamicClass>(ThisClass))
-	{
-		for (UObject* MiscObj : DynamicClass->Timelines)
-		{
-			const UTimelineTemplate* TimelineTemplate = Cast<const UTimelineTemplate>(MiscObj);
-			// Not fatal if NULL, but shouldn't happen and ignored if not wired up in graph
-			if (TimelineTemplate)
-			{
-				CreateTimelineComponent(Actor, TimelineTemplate);
-			}
-		}
-	}
 }
 
 bool UBlueprintGeneratedClass::UseFastPathComponentInstancing()
 {
 	return bHasCookedComponentInstancingData && FPlatformProperties::RequiresCookedData() && !GBlueprintComponentInstancingFastPathDisabled;
-}
-
-void UBlueprintGeneratedClass::CheckAndApplyComponentTemplateOverrides(UObject* InClassDefaultObject)
-{
-	// Get the Blueprint class hierarchy (if valid).
-	TArray<const UBlueprintGeneratedClass*> ParentBPClassStack;
-	GetGeneratedClassesHierarchy(InClassDefaultObject->GetClass(), ParentBPClassStack);
-	if (ParentBPClassStack.Num() > 0)
-	{
-		// If the nearest native antecedent is also a nativized BP class, we may have an override
-		// in an ICH for some part of the non-native BP class hierarchy that also inherits from it.
-		if (UDynamicClass* ParentDynamicClass = Cast<UDynamicClass>(ParentBPClassStack[ParentBPClassStack.Num() - 1]->GetSuperClass()))
-		{
-			// Get all default subobjects owned by the nativized antecedent's CDO.
-			// Note: This will also include all other inherited default subobjects.
-			TArray<UObject*> DefaultSubobjects;
-			ParentDynamicClass->GetDefaultObjectSubobjects(DefaultSubobjects);
-
-			// Pick out only the UActorComponent-based subobjects and cache them to use for checking below.
-			TArray<UActorComponent*> NativizedParentClassComponentSubobjects;
-			for (UObject* DefaultSubobject : DefaultSubobjects)
-			{
-				if (UActorComponent* ComponentSubobject = Cast<UActorComponent>(DefaultSubobject))
-				{
-					NativizedParentClassComponentSubobjects.Add(ComponentSubobject);
-				}
-			}
-
-			// Now check each non-native BP class (on up to the given Actor) for any inherited component template overrides, and manually apply default value overrides as we go.
-			for (int32 i = ParentBPClassStack.Num() - 1; i >= 0; i--)
-			{
-				const UBlueprintGeneratedClass* CurrentBPGClass = ParentBPClassStack[i];
-				check(CurrentBPGClass);
-
-				UInheritableComponentHandler* ICH = const_cast<UBlueprintGeneratedClass*>(CurrentBPGClass)->GetInheritableComponentHandler();
-				if (ICH && NativizedParentClassComponentSubobjects.Num() > 0)
-				{
-					// Check each default subobject that we've inherited from the antecedent class
-					for (UActorComponent* NativizedComponentSubobject : NativizedParentClassComponentSubobjects)
-					{
-						const FName NativizedComponentSubobjectName = NativizedComponentSubobject->GetFName();
-						FComponentKey ComponentKey = ICH->FindKey(NativizedComponentSubobjectName);
-						if (ComponentKey.IsValid() && ComponentKey.IsSCSKey())
-						{
-							const FBlueprintCookedComponentInstancingData* OverrideData = ICH->GetOverridenComponentTemplateData(ComponentKey);
-							if (OverrideData != nullptr && OverrideData->bHasValidCookedData)
-							{
-								// This is the instance of the inherited component subobject that's owned by the given class default object
-								if (UObject* NativizedComponentSubobjectInstance = InClassDefaultObject->GetDefaultSubobjectByName(NativizedComponentSubobjectName))
-								{
-									// Nativized component override data loader implementation.
-									class FNativizedComponentOverrideDataLoader : public FObjectReader
-									{
-									public:
-										FNativizedComponentOverrideDataLoader(const TArray<uint8>& InSrcBytes, const FCustomPropertyListNode* InPropertyList)
-											:FObjectReader(const_cast<TArray<uint8>&>(InSrcBytes))
-										{
-											ArCustomPropertyList = InPropertyList;
-											ArUseCustomPropertyList = true;
-											this->SetWantBinaryPropertySerialization(true);
-
-											// Set this flag to emulate things that would happen in the SDO case when this flag is set (e.g. - not setting 'bHasBeenCreated').
-											ArPortFlags |= PPF_Duplicate;
-										}
-									};
-
-									// Serialize cached override data to the instanced subobject that's based on the default subobject from the nativized parent class and owned by the non-nativized child class default object.
-									FNativizedComponentOverrideDataLoader OverrideDataLoader(OverrideData->GetCachedPropertyData(), OverrideData->GetCachedPropertyList());
-									NativizedComponentSubobjectInstance->Serialize(OverrideDataLoader);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 uint8* UBlueprintGeneratedClass::GetPersistentUberGraphFrame(UObject* Obj, UFunction* FuncToCheck) const

@@ -461,3 +461,22 @@ UClass* UInputSettings::GetDefaultInputComponentClass()
 	ensureMsgf(Class.IsValid(), TEXT("Invalid InputComponent class in Input Settings. Manual reset required."));
 	return Class.IsValid() ? Class.Get() : UInputComponent::StaticClass();
 }
+
+void UInputSettings::SetDefaultPlayerInputClass(TSubclassOf<UPlayerInput> NewDefaultPlayerInputClass)
+{
+	if(ensure(NewDefaultPlayerInputClass))
+	{
+		UInputSettings* InputSettings = Cast<UInputSettings>(UInputSettings::StaticClass()->GetDefaultObject());
+		InputSettings->DefaultPlayerInputClass = NewDefaultPlayerInputClass;	
+	}
+}
+
+void UInputSettings::SetDefaultInputComponentClass(TSubclassOf<UInputComponent> NewDefaultInputComponentClass)
+{
+	if(ensure(NewDefaultInputComponentClass))
+	{
+		UInputSettings* InputSettings = Cast<UInputSettings>(UInputSettings::StaticClass()->GetDefaultObject());
+		InputSettings->DefaultInputComponentClass = NewDefaultInputComponentClass;	
+	}
+}
+

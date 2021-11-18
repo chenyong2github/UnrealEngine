@@ -609,6 +609,11 @@ FFileStatData FConcertSandboxPlatformFile::GetStatData(const TCHAR* FilenameOrDi
 		{
 			return LowerLevel->GetStatData(*ResolvedPath.GetSandboxPath());
 		}
+
+		FFileStatData StatData = LowerLevel->GetStatData(*ResolvedPath.GetNonSandboxPath());
+		// Sandbox files are always writeable.
+		StatData.bIsReadOnly = false;
+		return StatData;
 	}
 
 	return LowerLevel->GetStatData(*ResolvedPath.GetNonSandboxPath());

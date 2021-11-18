@@ -5,11 +5,13 @@
 #include "Containers/Array.h"
 #include "Containers/Set.h"
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
-#include "Serialization/FileRegions.h"
-#include "Serialization/PackageWriter.h"
 #include "Misc/DateTime.h"
 #include "ObjectMacros.h"
+#include "Serialization/FileRegions.h"
+#include "Serialization/PackageWriter.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
+#include "UObject/Package.h"
 
 #if !defined(UE_WITH_SAVEPACKAGE)
 #	define UE_WITH_SAVEPACKAGE 1
@@ -52,6 +54,17 @@ struct FSavePackageArgs
 	FSavePackageContext* SavePackageContext = nullptr;
 };
 
+/** Interface for SavePackage to test for caller-specific errors. */
+class ISavePackageValidator
+{
+public:
+	virtual ~ISavePackageValidator()
+	{
+	}
+
+	virtual ESavePackageResult ValidateImports(const UPackage* Package, const TSet<UObject*>& Imports) = 0;
+};
+
 class FSavePackageContext
 {
 public:
@@ -73,9 +86,22 @@ public:
 
 	COREUOBJECT_API ~FSavePackageContext();
 
+	ISavePackageValidator* GetValidator()
+	{
+		return Validator.Get();
+	}
+	COREUOBJECT_API void SetValidator(TUniquePtr<ISavePackageValidator>&& InValidator)
+	{
+		Validator = MoveTemp(InValidator);
+	}
+
 	const ITargetPlatform* const TargetPlatform;
 	IPackageWriter* const PackageWriter;
 	IPackageWriter::FCapabilities PackageWriterCapabilities;
+
+private:
+	TUniquePtr<ISavePackageValidator> Validator;
+public:
 
 	UE_DEPRECATED(5.0, "bForceLegacyOffsets is no longer supported; remove uses of the variable")
 	const bool bForceLegacyOffsets = false;

@@ -26,6 +26,7 @@
 #include "IDetailTreeNode.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "SGraphPanel.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphNode"
 
@@ -157,16 +158,29 @@ void SAnimationGraphNode::Construct(const FArguments& InArgs, UAnimGraphNode_Bas
 		[
 			SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton"))
 		];
+
+	// Search for an enabled or disabled pose watch on this node
+	PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode);
+
+	// Register for pose watch changes
+	AnimationEditorUtils::OnPoseWatchesChanged().AddSP(this, &SAnimationGraphNode::HandlePoseWatchesChanged);
+
+	LastHighDetailSize = FVector2D::ZeroVector;
+}
+
+void SAnimationGraphNode::HandlePoseWatchesChanged(UAnimBlueprint* InAnimBlueprint, UEdGraphNode* InNode)
+{
+	// Search for an enabled or disabled pose watch on this node
+	PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode);
 }
 
 void SAnimationGraphNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
 	SGraphNodeK2Base::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
-	if (UAnimGraphNode_Base* AnimNode = CastChecked<UAnimGraphNode_Base>(GraphNode, ECastCheckedType::NullAllowed))
+	
+	if (CachedContentArea != nullptr && !UseLowDetailNodeContent())
 	{
-		// Search for an enabled or disabled breakpoint on this node
-		PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode);
+		LastHighDetailSize = CachedContentArea->GetTickSpaceGeometry().Size;
 	}
 }
 
@@ -317,6 +331,42 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 	}
 }
 
+TSharedRef<SWidget> SAnimationGraphNode::CreateNodeContentArea()
+{
+	CachedContentArea = SGraphNodeK2Base::CreateNodeContentArea();
+
+	return SNew(SLevelOfDetailBranchNode)
+		.UseLowDetailSlot(this, &SAnimationGraphNode::UseLowDetailNodeContent)
+		.LowDetail()
+		[
+			SNew(SSpacer)
+			.Size(this, &SAnimationGraphNode::GetLowDetailDesiredSize)
+		]
+		.HighDetail()
+		[
+			CachedContentArea.ToSharedRef()
+		];
+}
+
+bool SAnimationGraphNode::UseLowDetailNodeContent() const
+{
+	if (LastHighDetailSize.IsNearlyZero())
+	{
+		return false;
+	}
+
+	if (const SGraphPanel* MyOwnerPanel = GetOwnerPanel().Get())
+	{
+		return (MyOwnerPanel->GetCurrentLOD() <= EGraphRenderingLOD::LowestDetail);
+	}
+	return false;
+}
+
+FVector2D SAnimationGraphNode::GetLowDetailDesiredSize() const
+{
+	return LastHighDetailSize;
+}
+
 // Widget used to allow functions to be viewed and edited on nodes
 class SAnimNodeFunctionsWidget : public SCompoundWidget
 {
@@ -437,6 +487,12 @@ public:
 		if(InNode->UpdateFunction.ResolveMember<UFunction>(InNode->GetBlueprintClassFromNode()) != nullptr)
 		{
 			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction));
+		}
+		
+		if(DetailNodes.Num() == 0)
+		{
+			// If we didnt add a function binding, remove the row generator as we dont need it and its expensive (as it ticks)
+			PropertyRowGenerator.Reset();
 		}
 	}
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraHLSLSyntaxHighlighter.h"
+#include "Widgets/NiagaraHLSLSyntaxHighlighter.h"
 #include "NiagaraEditorStyle.h"
 #include "Framework/Text/SlateTextRun.h"
 

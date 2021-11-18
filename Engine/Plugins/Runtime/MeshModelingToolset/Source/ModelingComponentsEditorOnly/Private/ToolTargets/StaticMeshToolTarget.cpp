@@ -75,7 +75,7 @@ bool UStaticMeshToolTarget::IsValid() const
 
 bool UStaticMeshToolTarget::IsValid(const UStaticMesh* StaticMeshIn, EStaticMeshEditingLOD EditingLODIn)
 {
-	if (!StaticMeshIn || StaticMeshIn->IsPendingKillOrUnreachable() || !StaticMeshIn->IsValidLowLevel())
+	if (!StaticMeshIn || !IsValidChecked(StaticMeshIn) || StaticMeshIn->IsUnreachable() || !StaticMeshIn->IsValidLowLevel())
 	{
 		return false;
 	}
@@ -272,8 +272,8 @@ UStaticMesh* UStaticMeshToolTarget::GetStaticMesh() const
 
 bool UStaticMeshToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
 {
-	const UStaticMesh* StaticMesh = Cast<UStaticMesh>(SourceObject);
-	return StaticMesh && !StaticMesh->IsPendingKillOrUnreachable() && StaticMesh->IsValidLowLevel()
+	const UStaticMesh* StaticMesh = GetValid(Cast<UStaticMesh>(SourceObject));
+	return StaticMesh && !StaticMesh->IsUnreachable() && StaticMesh->IsValidLowLevel()
 		&& (StaticMesh->GetNumSourceModels() > 0)
 		&& Requirements.AreSatisfiedBy(UStaticMeshToolTarget::StaticClass());
 }

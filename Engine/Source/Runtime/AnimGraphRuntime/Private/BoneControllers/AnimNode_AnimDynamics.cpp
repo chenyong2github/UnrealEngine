@@ -152,6 +152,7 @@ FAnimNode_AnimDynamics::FAnimNode_AnimDynamics()
 , bEnableWind(false)
 , bWindWasEnabled(false)
 , bUseGravityOverride(false)
+, bGravityOverrideInSimSpace(false)
 , bLinearSpring(false)
 , bAngularSpring(false)
 , bChain(false)
@@ -276,6 +277,17 @@ void FAnimNode_AnimDynamics::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 			if (SimulationSpace != AnimPhysSimSpaceType::World)
 			{
 				FTransform CurrentTransform = Output.AnimInstanceProxy->GetComponentTransform();
+
+				// Transform Gravity Override into simulation space
+				if (bUseGravityOverride && !bGravityOverrideInSimSpace)
+				{
+					const FVector GravityOverrideSimSpace = TransformWorldVectorToSimSpace(Output, GravityOverride);
+
+					for (FAnimPhysRigidBody* ChainBody : SimBodies)
+					{
+						ChainBody->GravityOverride = GravityOverrideSimSpace;
+					}
+				}
 
 				// Calc linear velocity
 				const FVector ComponentDeltaLocation = CurrentTransform.GetTranslation() - PreviousCompWorldSpaceTM.GetTranslation();
@@ -599,6 +611,9 @@ void FAnimNode_AnimDynamics::InitPhysics(FComponentSpacePoseContext& Output)
 				ChainBoneNames.Add(BoundBone.BoneName);
 			}
 
+			// Transform GravityOverride to simulation space if necessary.
+			const FVector GravityOverrideSimSpace = (bUseGravityOverride && !bGravityOverrideInSimSpace) ? TransformWorldVectorToSimSpace(Output, GravityOverride) : GravityOverride;
+
 			Bodies.Reserve(ChainBoneIndices.Num());
 			// Walk backwards here as the chain was discovered in reverse order
 			for (int32 Idx = ChainBoneIndices.Num() - 1; Idx >= 0; --Idx)
@@ -680,8 +695,8 @@ void FAnimNode_AnimDynamics::InitPhysics(FComponentSpacePoseContext& Output)
 
 				PhysicsBody.GravityScale = GravityScale;
 				PhysicsBody.bUseGravityOverride = bUseGravityOverride;
-				PhysicsBody.GravityOverride = GravityOverride;
-
+				PhysicsBody.GravityOverride = GravityOverrideSimSpace;
+				
 				PhysicsBody.bWindEnabled = bWindWasEnabled;
 
 				// Link to parent

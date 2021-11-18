@@ -424,7 +424,7 @@ void UK2Node_VariableSet::ExpandNode(class FKismetCompilerContext& CompilerConte
 				}
 			}
 			Pins.Remove(VariableGetPin);
-			VariableGetPin->MarkPendingKill();
+			VariableGetPin->MarkAsGarbage();
 		}
 
 		// If property has a BlueprintSetter accessor, then replace the variable get node with a call function

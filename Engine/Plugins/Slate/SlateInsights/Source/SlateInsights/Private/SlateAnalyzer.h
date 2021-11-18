@@ -34,6 +34,7 @@ private:
 		RouteId_RootInvalidated,
 		RouteId_RootChildOrderInvalidated,
 		RouteId_InvalidationCallstack,
+		RouteId_WidgetUpdateSteps,
 	};
 
 	TraceServices::IAnalysisSession& Session;

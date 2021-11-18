@@ -6,68 +6,53 @@
 
 namespace Audio
 {
-	void FAudioBufferDistanceAttenuation::SetSettings(const FAudioBufferDistanceAttenuation::FSettings& InSettings)
-	{
-		FScopeLock Lock(&DistAttenCritSect);
-
-		Settings = InSettings;
-
-		// Always sure we have a valid curve if none is supplied.
-		if (Settings.AttenuationCurve.Num() <= 1)
-		{
-			// Make it a default linear attenuation curve
-			TArray<FVector2D> Points;
-			Points.Add({ 0.0f, 1.0 });
-			Points.Add({ 1.0f, 0.0 });
-			Settings.AttenuationCurve.AddPoints(Points);
-		}
-	}
-
-	float FAudioBufferDistanceAttenuation::ComputeNextLinearAttenuation(float InCurrentDistance)
+	static float ComputeNextLinearAttenuation(const FAudioBufferDistanceAttenuationSettings& InSettings, float InCurrentDistance)
 	{
 		float NextAttenuationDb = 0.0f;
-		const float Denom = FMath::Max(Settings.DistanceRange.Y - Settings.DistanceRange.X, SMALL_NUMBER);
-		const float Alpha = FMath::Clamp((InCurrentDistance - Settings.DistanceRange.X) / Denom, 0.0f, 1.0f);
+		const float Denom = FMath::Max(InSettings.DistanceRange.Y - InSettings.DistanceRange.X, SMALL_NUMBER);
+		const float Alpha = FMath::Clamp((InCurrentDistance - InSettings.DistanceRange.X) / Denom, 0.0f, 1.0f);
 
 		float CurveValue = 0.0f;
 
-		bool bSuccess = Settings.AttenuationCurve.Eval(Alpha, CurveValue);
+		bool bSuccess = InSettings.AttenuationCurve.Eval(Alpha, CurveValue);
 
 		// This should succeed since we ensure we always have at least two points in the curve when it's set
 		check(bSuccess);
 
 		// Note the curve is expected to map to the attenuation amount (i.e. at right-most value, it'll be 0.0, which corresponds to max dB attenuation)
 		// This then needs to be used to interpolate the dB range (0.0 is no attenuation, -60 for example, is a lot of attenuation)
-		NextAttenuationDb = FMath::Lerp(Settings.AttenuationDbAtMaxRange, 0.0f, CurveValue);
+		NextAttenuationDb = FMath::Lerp(InSettings.AttenuationDbAtMaxRange, 0.0f, CurveValue);
 
 		float TargetAttenuationLinear = 0.0f;
-		if (NextAttenuationDb > Settings.AttenuationDbAtMaxRange)
+		if (NextAttenuationDb > InSettings.AttenuationDbAtMaxRange)
 		{
 			TargetAttenuationLinear = Audio::ConvertToLinear(NextAttenuationDb);
 		}
 		return TargetAttenuationLinear;
 	}
 
-	void FAudioBufferDistanceAttenuation::ProcessAudio(int16* InOutAudioFrames, uint32 InFrameCount, uint32 InNumChannels, float InCurrentDistance)
+
+	void DistanceAttenuationProcessAudio(TArrayView<int16>& InOutBuffer, uint32 InNumChannels, float InDistance, const FAudioBufferDistanceAttenuationSettings& InSettings, float& InOutAttenuation)
 	{
-		check(InOutAudioFrames != nullptr);
-		check(InFrameCount > 0);
+		check(InOutBuffer.Num() > 0);
 		check(InNumChannels > 0);
-		check(InCurrentDistance >= 0.0f);
+		check(InDistance >= 0.0f);
 
-		FScopeLock Lock(&DistAttenCritSect);
-
-		float TargetAttenuationLinear = ComputeNextLinearAttenuation(InCurrentDistance);
+		int32 FrameCount = InOutBuffer.Num() / InNumChannels;
+		float TargetAttenuationLinear = ComputeNextLinearAttenuation(InSettings, InDistance);
 
 		// TODO: investigate adding int16 flavors of utilities in BufferVectorOperations.h to avoid format conversions
 		uint32 CurrentSampleIndex = 0;
-		const float DeltaValue = (TargetAttenuationLinear - CurrentAttenuationLinear) / InFrameCount;
-		float Gain = CurrentAttenuationLinear;
-		for (uint32 FrameIndex = 0; FrameIndex < InFrameCount; ++FrameIndex)
+		const float DeltaValue = (TargetAttenuationLinear - InOutAttenuation) / FrameCount;
+
+		// If we're passed in a negative value for InOutAttenuation, that means we don't want to interpolate from that value to target value (i.e. it's the first one).
+		// This prevents a pop when first applying attenuation if a sound is far away.
+		float Gain = InOutAttenuation < 0.0f ? TargetAttenuationLinear : InOutAttenuation;
+		for (int32 FrameIndex = 0; FrameIndex < FrameCount; ++FrameIndex)
 		{
 			for (uint32 ChannelIndex = 0; ChannelIndex < InNumChannels; ++ChannelIndex)
 			{
-				InOutAudioFrames[CurrentSampleIndex + ChannelIndex] = InOutAudioFrames[CurrentSampleIndex + ChannelIndex] * Gain;
+				InOutBuffer[CurrentSampleIndex + ChannelIndex] = InOutBuffer[CurrentSampleIndex + ChannelIndex] * Gain;
 			}
 
 			CurrentSampleIndex += InNumChannels;
@@ -75,23 +60,24 @@ namespace Audio
 		}
 
 		// Update the current attenuation linear for the next render block
-		CurrentAttenuationLinear = TargetAttenuationLinear;
+		InOutAttenuation = TargetAttenuationLinear;
 	}
 
-	void FAudioBufferDistanceAttenuation::ProcessAudio(float* RESTRICT InOutAudioFrames, uint32 InFrameCount, uint32 InNumChannels, float InCurrentDistance)
+	void DistanceAttenuationProcessAudio(TArrayView<float>& InOutBuffer, uint32 InNumChannels, float InDistance, const FAudioBufferDistanceAttenuationSettings& InSettings, float& InOutAttenuation)
 	{
-		check(InOutAudioFrames != nullptr);
-		check(InFrameCount > 0);
+		check(InOutBuffer.Num() > 0);
 		check(InNumChannels > 0);
-		check(InCurrentDistance >= 0.0f);
+		check(InDistance >= 0.0f);
 
-		FScopeLock Lock(&DistAttenCritSect);
+		int32 FrameCount = InOutBuffer.Num() / InNumChannels;
+		float TargetAttenuationLinear = ComputeNextLinearAttenuation(InSettings, InDistance);
 
-		float TargetAttenuationLinear = ComputeNextLinearAttenuation(InCurrentDistance);
+		int32 NumSamples = (int32)(FrameCount * InNumChannels);
+		// If we're passed in a negative value for InOutAttenuation, that means we don't want to interpolate from that value to target value (i.e. it's the first one).
+		// This prevents a pop when first applying attenuation if a sound is far away.
+		float Gain = InOutAttenuation < 0.0f ? TargetAttenuationLinear : InOutAttenuation;
+		Audio::FadeBufferFast(InOutBuffer.GetData(), NumSamples, Gain, TargetAttenuationLinear);
 
-		int32 NumSamples = (int32)(InFrameCount * InNumChannels);
-		Audio::FadeBufferFast(InOutAudioFrames, NumSamples, CurrentAttenuationLinear, TargetAttenuationLinear);
-
-		CurrentAttenuationLinear = TargetAttenuationLinear;
+		InOutAttenuation = TargetAttenuationLinear;
 	}
 }

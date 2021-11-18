@@ -4,7 +4,7 @@
 
 #include "Engine/World.h"
 
-AActor* TestUtil::Spawn(UWorld* World, FName Name, UClass* Class)
+AActor* UE::LevelSnapshots::Private::Tests::Spawn(UWorld* World, FName Name, UClass* Class)
 {
 	FActorSpawnParameters Params;
 	Params.Name = Name;

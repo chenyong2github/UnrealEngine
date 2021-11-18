@@ -9,82 +9,6 @@
 #include "Templates/UnrealTypeTraits.h"
 #include <sstream>
 
-
-/**
- * Temporary local definition of UE::Math::TVector2 to support LWC conversion.
- */
-namespace UE {
-namespace Math {
-
-	template <typename T>
-	struct TVector2
-	{
-		using FReal = T;
-
-		T X{}, Y{};
-
-		TVector2() {}
-		TVector2(T InF) : X(InF), Y(InF) {}
-		TVector2(T InX, T InY) : X(InX), Y(InY) {}
-		TVector2(const FVector2D& Vec) : X((T)Vec.X), Y((T)Vec.Y) { }
-
-		template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
-		explicit TVector2(const TVector2<FArg>& From) : TVector2<T>((T)From.X, (T)From.Y) {}
-
-		explicit operator FVector2D() const { return FVector2D((float)X, (float)Y); }
-
-		static inline TVector2<T> Zero() { return TVector2<T>((T)0, (T)0); }
-		static inline TVector2<T> One() { return TVector2<T>((T)1, (T)1); }
-		static inline TVector2<T> UnitX() { return TVector2<T>((T)1, (T)0); }
-		static inline TVector2<T> UnitY() { return TVector2<T>((T)0, (T)1); }
-
-		TVector2<T>& operator=(const TVector2<T>& V2) { X = V2.X; Y = V2.Y;	return *this; }
-
-		T& operator[](int Idx) { return (&X)[Idx]; }
-		T operator[](int Idx) const { return (&X)[Idx]; }
-
-		T Length() const { return TMathUtil<T>::Sqrt(X * X + Y * Y); }
-		T SquaredLength() const { return X * X + Y * Y; }
-		T Dot(const TVector2<T>& V2) const { return X * V2.X + Y * V2.Y; }
-
-		TVector2 operator-() const { return TVector2(-X, -Y); }
-		TVector2 operator+(const TVector2& V2) const { return TVector2(X + V2.X, Y + V2.Y); }
-		TVector2 operator-(const TVector2& V2) const { return TVector2(X - V2.X, Y - V2.Y); }
-		TVector2<T> operator+(const T& Scalar) const { return TVector2<T>(X + Scalar, Y + Scalar); }
-		TVector2<T> operator-(const T& Scalar) const { return TVector2<T>(X - Scalar, Y - Scalar); }
-		TVector2<T> operator*(const T& Scalar) const { return TVector2<T>(X * Scalar, Y * Scalar); }
-		TVector2<T> operator*(const TVector2<T>& V2) const { return TVector2<T>(X * V2.X, Y * V2.Y); }
-		TVector2<T> operator/(const T& Scalar) const { return TVector2<T>(X / Scalar, Y / Scalar); }
-		TVector2<T> operator/(const TVector2<T>& V2) const { return TVector2<T>(X / V2.X, Y / V2.Y); }
-		TVector2<T>& operator+=(const TVector2<T>& V2) { X += V2.X; Y += V2.Y; return *this; }
-		TVector2<T>& operator-=(const TVector2<T>& V2) { X -= V2.X; Y -= V2.Y; return *this; }
-		TVector2<T>& operator*=(const T& Scalar) { X *= Scalar; Y *= Scalar; return *this; }
-		TVector2<T>& operator/=(const T& Scalar) { X /= Scalar; Y /= Scalar; return *this; }
-		bool operator==(const TVector2<T>& Other) const { return X == Other.X && Y == Other.Y; }
-		bool operator!=(const TVector2<T>& Other) const	{ return X != Other.X || Y != Other.Y; }
-
-		template<typename RealType2>
-		TVector2<T> operator*(const RealType2& Scalar) const { return TVector2<T>(X * (T)Scalar, Y * (T)Scalar); }
-
-		friend FArchive& operator<<(FArchive& Ar, TVector2& Vec) { Vec.Serialize(Ar); return Ar; }
-		void Serialize(FArchive& Ar) { Ar << X; Ar << Y; }
-	};
-
-
-	template <typename RealType>
-	inline TVector2<RealType> operator*(RealType Scalar, const TVector2<RealType>& V) {	return TVector2<RealType>(Scalar * V.X, Scalar * V.Y); }
-
-	template <typename T>
-	FORCEINLINE uint32 GetTypeHash(const TVector2<T>& Vector) { return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(TVector2<T>)); }
-
-}
-}
-
-typedef UE::Math::TVector2<float> FVector2f;
-typedef UE::Math::TVector2<double> FVector2d;
-template<> struct TCanBulkSerialize<FVector2f> { enum { Value = true }; };
-template<> struct TCanBulkSerialize<FVector2d> { enum { Value = true }; };
-
 namespace UE {
 namespace Geometry {
 
@@ -453,7 +377,6 @@ std::ostream& operator<<(std::ostream& os, const UE::Math::TVector<RealType>& Ve
 	os << Vec.X << " " << Vec.Y << " " << Vec.Z;
 	return os;
 }
-
 
 
 

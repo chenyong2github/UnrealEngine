@@ -120,15 +120,8 @@ namespace Chaos
 			if (Setup().LateralSlipGraph.IsEmpty())
 			{
 				float AngleLimit = FMath::DegreesToRadians(8.0f);
-				if (SlipAngle > AngleLimit)
-				{
-					SlipAngle = AngleLimit;
-				}
-				else if (SlipAngle < AngleLimit)
-				{
-					SlipAngle = AngleLimit;
-				}
-				FinalLateralForce = SlipAngle * CorneringStiffness;
+				float ClippedAngle = FMath::Clamp(SlipAngle, -AngleLimit, AngleLimit);
+				FinalLateralForce = FMath::Abs(SlipAngle) * CorneringStiffness;
 			}
 			else
 			{ 

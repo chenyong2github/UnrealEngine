@@ -33,7 +33,7 @@ struct FSoftSkinVertex
 	FVector4f			TangentZ;
 
 	// UVs
-	FVector2D		UVs[MAX_TEXCOORDS];
+	FVector2f		UVs[MAX_TEXCOORDS];
 	// VertexColor
 	FColor			Color;
 	FBoneIndexType	InfluenceBones[MAX_TOTAL_INFLUENCES];
@@ -101,8 +101,16 @@ struct FSkelMeshSection
 	/** The soft vertices of this section. */
 	TArray<FSoftSkinVertex> SoftVertices;
 
-	/** The extra vertex data for mapping to an APEX clothing simulation mesh. */
-	TArray<FMeshToMeshVertData> ClothMappingData;
+	/**
+	 * The cloth deformer mapping data to each required cloth LOD.
+	 * Raytracing may require a different deformer LOD to the one being simulated/rendered.
+	 * The outer array indexes the LOD bias to this LOD. The inner array indexes the vertex mapping data.
+	 * For example, if this LODModel is LOD3, then ClothMappingDataLODs[1] will point to defomer data that are using cloth LOD2.
+	 * Then ClothMappingDataLODs[2] will point to defomer data that are using cloth LOD1, ...etc.
+	 * ClothMappingDataLODs[0] will always point to defomer data that are using the same cloth LOD as this section LOD,
+	 * this is convenient for cases where the cloth LOD bias is not known/required.
+	 */
+	TArray<TArray<FMeshToMeshVertData>> ClothMappingDataLODs;
 
 	/** The bones which are used by the vertices of this section. Indices of bones in the USkeletalMesh::RefSkeleton array */
 	TArray<FBoneIndexType> BoneMap;
@@ -198,7 +206,8 @@ struct FSkelMeshSection
 	*/
 	FORCEINLINE bool HasClothingData() const
 	{
-		return (ClothMappingData.Num() > 0);
+		constexpr int32 ClothLODBias = 0;  // Must at least have the mapping for the matching cloth LOD
+		return ClothMappingDataLODs.Num() && ClothMappingDataLODs[ClothLODBias].Num();
 	}
 
 	/**
@@ -223,6 +232,7 @@ struct FSkelMeshSection
 
 	// Serialization.
 	friend FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S);
+	static void DeclareCustomVersions(FArchive& Ar);
 };
 
 /**
@@ -448,6 +458,7 @@ public:
 	* @param	Idx		Index of current array entry being serialized
 	*/
 	void Serialize(FArchive& Ar, UObject* Owner, int32 Idx);
+	static void DeclareCustomVersions(FArchive& Ar);
 
 	/**
 	* Fill array with vertex position and tangent data from skel mesh chunks.
@@ -461,7 +472,7 @@ public:
 	*
 	* @param MappingData Array to fill.
 	*/
-	void GetClothMappingData(TArray<FMeshToMeshVertData>& MappingData, TArray<uint64>& OutClothIndexMapping) const;
+	void GetClothMappingData(TArray<FMeshToMeshVertData>& MappingData, TArray<FClothBufferIndexMapping>& OutClothIndexMapping) const;
 
 
 

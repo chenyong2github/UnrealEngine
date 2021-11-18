@@ -57,7 +57,7 @@ protected:
 		const float CosInterpX = (Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
 		const float Alpha = CosInterpX;
 		uint16& Dest = Data[(Y - MinY)*(1 + MaxX - MinX) + X - MinX];
-		float Value = FMath::Lerp((float)Dest, Interpolant.Y, Alpha);
+		float Value = FMath::Lerp((float)Dest, (float)Interpolant.Y, Alpha);
 		uint16 DValue = (uint32)FMath::Clamp<float>(Value, 0, LandscapeDataAccess::MaxValue);
 		if ((bRaiseTerrain && DValue > Dest) ||
 			(bLowerTerrain && DValue < Dest))

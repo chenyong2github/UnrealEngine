@@ -1270,7 +1270,7 @@ struct FRemoveUnusedInputs : FRemoveAlgorithm
 							TCHAR* ElementSemanticPrefix = GetNonDigitSemanticPrefix(Allocator, MemberDeclaration->Semantic->Semantic, StartIndex);
 							if (!ElementSemanticPrefix)
 							{
-								Errors.Add(FString::Printf(TEXT("RemoveUnusedInputs: Member (%s) %s : %s is expected to have an indexed semantic!"), MemberDeclarator->Type->Specifier->TypeName, MemberDeclaration->Identifier, MemberDeclaration->Semantic));
+								Errors.Add(FString::Printf(TEXT("RemoveUnusedInputs: Member (%s) %s : %s is expected to have an indexed semantic!"), MemberDeclarator->Type->Specifier->TypeName, MemberDeclaration->Identifier, MemberDeclaration->Semantic->Semantic));
 
 								// Fatal: Array of non-indexed semantic (eg float4 Colors[4] : MYSEMANTIC; )
 								// Assume semantic is used and just fallback

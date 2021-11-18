@@ -99,14 +99,11 @@ FString UKismetSystemLibrary::GetSystemPath(const UObject* Object)
 
 FString UKismetSystemLibrary::GetDisplayName(const UObject* Object)
 {
-#if WITH_EDITOR
 	if (const AActor* Actor = Cast<const AActor>(Object))
 	{
-		return Actor->GetActorLabel();
+		return Actor->GetActorNameOrLabel();
 	}
-#endif
-
-	if (const UActorComponent* Component = Cast<const UActorComponent>(Object))
+	else if (const UActorComponent* Component = Cast<const UActorComponent>(Object))
 	{
 		return Component->GetReadableName();
 	}

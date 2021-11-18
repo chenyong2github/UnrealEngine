@@ -221,7 +221,7 @@ void FDisplayClusterProjectionVIOSOPolicy::ImplRelease()
 
 bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
-	check(Views.Num() > (int)InContextNum);
+	check(Views.Num() > (int32)InContextNum);
 
 	// Get view location in local space
 	const USceneComponent* const OriginComp = GetOriginComp();
@@ -308,7 +308,7 @@ bool FDisplayClusterProjectionVIOSOPolicy::ImplApplyWarpBlend_RenderThread(FRHIC
 	{
 		FScopeLock lock(&DllAccessCS);
 
-		for (int ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
+		for (int32 ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
 		{
 			if (!Views[ContextNum].RenderVIOSO_RenderThread(RHICmdList, InputTextures[ContextNum], OutputTextures[ContextNum], ViosoConfigData))
 			{

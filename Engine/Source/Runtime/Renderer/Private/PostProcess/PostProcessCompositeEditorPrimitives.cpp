@@ -35,7 +35,7 @@ public:
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistory)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, History)
-		SHADER_PARAMETER(FVector2D, DepthTextureJitter)
+		SHADER_PARAMETER(FVector2f, DepthTextureJitter)
 		SHADER_PARAMETER(int32, bCameraCut)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
@@ -68,7 +68,7 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
-		SHADER_PARAMETER(FVector2D, DepthTextureJitter)
+		SHADER_PARAMETER(FVector2f, DepthTextureJitter)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -110,7 +110,7 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
 		SHADER_PARAMETER(uint32, bOpaqueEditorGizmo)
 		SHADER_PARAMETER(uint32, bCompositeAnyNonNullDepth)
-		SHADER_PARAMETER(FVector2D, DepthTextureJitter)
+		SHADER_PARAMETER(FVector2f, DepthTextureJitter)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 

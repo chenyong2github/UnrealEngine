@@ -2433,6 +2433,9 @@ bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& Compi
 
 void UNiagaraSystem::EvaluateCompileResultDependencies() const
 {
+	//@todo(ng) disable dependency checking pending fixes for false positive errors
+	return;
+
 	struct FScriptCompileResultValidationInfo
 	{
 		UNiagaraEmitter* Emitter = nullptr;

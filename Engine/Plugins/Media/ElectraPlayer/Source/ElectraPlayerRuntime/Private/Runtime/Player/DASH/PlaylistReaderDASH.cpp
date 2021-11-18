@@ -1134,7 +1134,7 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 		FString EffectiveURL = ConnInfo->EffectiveURL;
 		for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
 		{
-			if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("Date")))
+			if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("Date"), ESearchCase::IgnoreCase))
 			{
 				// Parse the header
 				FTimeValue DateFromHeader;
@@ -1147,7 +1147,7 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 				FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
 				bInitialTimeSyncedToMPDDateTimeHeader = true;
 			}
-			else if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("ETag")))
+			else if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("ETag"), ESearchCase::IgnoreCase))
 			{
 				ETag = ConnInfo->ResponseHeaders[i].Value;
 			}
@@ -1270,7 +1270,7 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 		FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 		for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
 		{
-			if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("ETag")))
+			if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("ETag"), ESearchCase::IgnoreCase))
 			{
 				ETag = ConnInfo->ResponseHeaders[i].Value;
 				break;
@@ -1406,7 +1406,7 @@ void FPlaylistReaderDASH::Timesync_httphead_Completed(FResourceLoadRequestPtr Re
 		{
 			for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
 			{
-				if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("Date")))
+				if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("Date"), ESearchCase::IgnoreCase))
 				{
 					// Parse the header
 					FTimeValue DateFromHeader;

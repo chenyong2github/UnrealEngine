@@ -179,7 +179,7 @@ public:
 	 *
 	 * @param InRotation The value to use for rotation component  (after being converted to a quaternion)
 	 */
-	FORCEINLINE explicit TTransform(const FRotator& InRotation) 
+	FORCEINLINE explicit TTransform(const TRotator<T>& InRotation) 
 	{
 		TQuat<T> InQuatRotation = TQuat<T>::MakeFromRotator(InRotation);
 		// Rotation = InRotation
@@ -233,7 +233,7 @@ public:
 	 * @param InTranslation The value to use for the translation component
 	 * @param InScale3D The value to use for the scale component
 	 */
-	FORCEINLINE TTransform(const FRotator& InRotation, const TVector<T>& InTranslation, const TVector<T>& InScale3D = TVector<T>(1.f, 1.f, 1.f))
+	FORCEINLINE TTransform(const TRotator<T>& InRotation, const TVector<T>& InTranslation, const TVector<T>& InScale3D = TVector<T>(1.f, 1.f, 1.f))
 	{
 		TQuat<T> InQuatRotation = TQuat<T>::MakeFromRotator(InRotation);
 		// Rotation = InRotation
@@ -608,7 +608,7 @@ public:
 		return GetTranslation();
 	}
 
-	FORCEINLINE FRotator Rotator() const
+	FORCEINLINE TRotator<T> Rotator() const
 	{
 		TQuat<T> OutRotation;
 		VectorStoreAligned(Rotation, &OutRotation);
@@ -671,7 +671,6 @@ public:
 	// Serializer.
 	inline friend FArchive& operator<<(FArchive& Ar,TTransform<T>& M)
 	{
-		// LWC_TODO: Serializer
 		Ar << *reinterpret_cast<TQuat<T>*>(&(M.Rotation));
 		Ar << *reinterpret_cast<TVector<T>*>(&(M.Translation));
 		Ar << *reinterpret_cast<TVector<T>*>(&(M.Scale3D));
@@ -684,6 +683,14 @@ public:
 		return Ar;
 	}
 
+	bool Serialize(FArchive& Ar)
+	{
+		Ar << *this;
+		return true;
+	}
+	
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
+	
 	// Binary comparison operators.
 	/*
 	bool operator==( const TTransform<T>& Other ) const

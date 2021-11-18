@@ -5,13 +5,16 @@
 #include "CADKernel/Geo/Curves/Curve.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-CADKernel::FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurves[4])
+namespace CADKernel
+{
+
+FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurves[4])
 	: FCoonsSurface(InToleranceGeometric, InCurves[0], InCurves[1], InCurves[2], InCurves[3])
 {
 	ComputeDefaultMinToleranceIso();
 }
 
-CADKernel::FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurve1, TSharedPtr<FCurve> InCurve2, TSharedPtr<FCurve> InCurve3, TSharedPtr<FCurve> InCurve4)
+FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TSharedPtr<FCurve> InCurve1, TSharedPtr<FCurve> InCurve2, TSharedPtr<FCurve> InCurve3, TSharedPtr<FCurve> InCurve4)
 	: FSurface(InToleranceGeometric)
 {
 	Curves[0] = InCurve1;
@@ -28,7 +31,7 @@ CADKernel::FCoonsSurface::FCoonsSurface(const double InToleranceGeometric, TShar
 	ComputeDefaultMinToleranceIso();
 }
 
-void CADKernel::FCoonsSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivableCoordinates) const
+void FCoonsSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivableCoordinates) const
 {
 	TFunction<void(const TSharedPtr<FCurve>&, int32, TArray<double>&)> FindLinesNotDerivables = [&](const TSharedPtr<FCurve>& Curve, int32 CurveIndex, TArray<double>& NotDerivables)
 	{
@@ -53,7 +56,7 @@ void CADKernel::FCoonsSurface::LinesNotDerivables(const FSurfacicBoundary& Bound
 	}
 }
 
-void CADKernel::FCoonsSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void FCoonsSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	TFunction<void(const TSharedPtr<FCurve>*, const FPoint2D&, EIso, FPoint&, FCurvePoint[])> \
 	ComputePointOnRuledSurface = [&](const TSharedPtr<FCurve>* InCurves, const FPoint2D& Coord, EIso Iso, FPoint& OutPoint, FCurvePoint OutCurvePoints[2])
@@ -126,7 +129,7 @@ void CADKernel::FCoonsSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfaci
 	}
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FCoonsSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FCoonsSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FCurve> TransformedCurves[4];
 
@@ -143,7 +146,7 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FCoonsSurface::ApplyMatrix(const F
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FCoonsSurface::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FCoonsSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info).Add(TEXT("curve 1"), Curves[0])
 							      .Add(TEXT("curve 2"), Curves[1])
@@ -151,3 +154,5 @@ CADKernel::FInfoEntity& CADKernel::FCoonsSurface::GetInfo(FInfoEntity& Info) con
 							      .Add(TEXT("curve 4"), Curves[3]);
 }
 #endif
+
+}

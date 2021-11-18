@@ -222,7 +222,7 @@ struct ENGINE_API FSoundAttenuationSettings : public FBaseAttenuationSettings
 	TEnumAsByte<enum ESoundDistanceCalc> DistanceType_DEPRECATED;
 #endif
 
-	/** The distance below which a sound is non-spatialized (2D). This prevents near-field audio from flipping as audio crosses the listener's position. */
+	/** The distance below which a sound is non-spatialized (2D). This prevents near-field audio from flipping as audio crosses the listener's position. This does not apply when using a 3rd party binaural plugin (audio will remain spatialized). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta=(ClampMin = "0", EditCondition="bSpatialize", DisplayName="Non-Spatialized Radius"))
 	float OmniRadius;
 

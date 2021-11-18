@@ -13,7 +13,7 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
 
 //#define NEED_TO_CHECK_USEFULNESS
-#define DEBUG_DELAUNAY
+//#define DEBUG_DELAUNAY
 namespace CADKernel
 {
 	class FGrid;
@@ -45,7 +45,6 @@ namespace CADKernel
 		FDuration TriangulateDuration = FChrono::Init();
 		FDuration BuildIsoNodesDuration = FChrono::Init();
 		FDuration BuildLoopSegmentsDuration = FChrono::Init();
-		FDuration BuildLoopSegmentsCheckIntersectionDuration = FChrono::Init();
 		FDuration BuildInnerSegmentsDuration = FChrono::Init();
 		FDuration FindLoopSegmentOfInnerTriangulationDuration = FChrono::Init();
 		FDuration FindSegmentIsoUVSurroundingSmallLoopDuration = FChrono::Init();
@@ -80,7 +79,6 @@ namespace CADKernel
 			FChrono::PrintClockElapse(Log, TEXT("  "), TEXT("Triangulate"), TriangulateDuration);
 			FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("BuildIsoNodes"), BuildIsoNodesDuration);
 			FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("BuildLoopSegments"), BuildLoopSegmentsDuration);
-			FChrono::PrintClockElapse(Log, TEXT("      "), TEXT("BuildLoopSegments Check intersection"), BuildLoopSegmentsCheckIntersectionDuration);
 			FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("BuildInnerSegments"), BuildInnerSegmentsDuration);
 			FChrono::PrintClockElapse(Log, TEXT("    "), TEXT("FindLoopSegmentOfInnerTriangulation"), FindLoopSegmentOfInnerTriangulationDuration);
 			FChrono::PrintClockElapse(Log, TEXT("      "), TEXT("FindSegmentIsoUVSurroundingSmallLoop"), FindSegmentIsoUVSurroundingSmallLoopDuration);
@@ -106,7 +104,7 @@ namespace CADKernel
 	
 	protected:
 
-		const FGrid& Grid;
+		FGrid& Grid;
 		TSharedRef<FFaceMesh> Mesh;
 
 		TArray<int32> LoopStartIndex;
@@ -180,7 +178,7 @@ namespace CADKernel
 
 	public:
 
-		FIsoTriangulator(const FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh);
+		FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh);
 
 		/**
 		 * Main method
@@ -189,12 +187,13 @@ namespace CADKernel
 		bool Triangulate();
 
 		void BuildNodes();
+		void CheckLoopInSelfIntersectingAndFixIt();
 
 		/**
 		 * Build the segments of the loops and check if each loop is self intersecting.
 		 * @return false if the loop is self intersecting
 		 */
-		bool BuildLoopSegments();
+		void BuildLoopSegments();
 
 		void BuildInnerSegments();
 
@@ -251,7 +250,7 @@ namespace CADKernel
 		 * Each edge of this mesh defined a near loops pair
 		 * The shortest segment is then build between this pair of loops
 		 */
-		void ConnectCellLoopsByNeighborhood(FCell& cell);
+		void ConnectCellSubLoopsByNeighborhood(FCell& cell);
 
 		/**
 		 * 2nd step
@@ -262,7 +261,6 @@ namespace CADKernel
 		 * 3rd step : IsoSegment linking 
 		 */
 		void FindIsoSegmentToLinkOuterLoopNodes(FCell& Cell);
-		void FindIsoSegmentToLinkOuterLoopNodes2(FCell& Cell);
 
 		/**
 		 * 4th step : If their is no segment candidate  
@@ -281,8 +279,8 @@ namespace CADKernel
 		 * - In the same strip: each node of the segment has the same index "i" that verify: isoV[i] - TolV < Node.V < isoV[i+1] + TolV
 		 */
 		void FindIsoSegmentToLinkLoopToLoop();
+#ifdef UNUSED_TO_DELETE_
 		void LastChanceToCreateSegmentInCell(FCell& Cell);
-
 		/**
 		 * The goal of this algorithm is to connect inner node (node of the grid UV) to iso aligned loop node when they are in the same iso V (or U) strip.
 		 * I.e.:
@@ -292,12 +290,13 @@ namespace CADKernel
 		 * Slide "Find Iso Segment To Link Inner To Loop"
 		 */
 		void FindIsoSegmentToLinkInnerToLoop();
+#endif
 
 		/**
 		 * The purpose of the method is select a minimal set of segments connecting loops together
 		 * The final segments will be selected with SelectSegmentInCandidateSegments
 		 */
-		void ConnectCellLoopsByNeighborhood();  // to rename and clean
+		void ConnectCellSubLoopsByNeighborhood();  // to rename and clean
 
 #ifdef TODELETE
 		void FindSegmentToLinkLoopToLoop();
@@ -340,6 +339,22 @@ namespace CADKernel
 		 */
 		void MeshCycle(const EGridSpace Space, const TArray<FIsoSegment*>& cycle, const TArray<bool>& cycleOrientation);
 
+		bool CanCycleBeFixedAndMeshed(const TArray<FIsoSegment*>& Cycle, FIntersectionSegmentTool& CycleIntersectionTool);
+
+		bool TryToRemoveIntersectionByMovingTheClosedOusidePoint(const FIsoSegment* Segment0, const FIsoSegment* Segment1);
+		bool TryToRemoveIntersectionBySwappingSegments(FIsoSegment* Segment0, FIsoSegment* Segment1);
+
+		/**
+		 * Segment and the segment next (or before Segment) are intersecting IntersectingSegment
+		 * The commun node is moved
+		 */
+		bool TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(const FIsoSegment* IntersectingSegment, FIsoSegment* Segment);
+
+		//void FixPick(const FIsoSegment* Segment0, const FIsoSegment* Segment1);
+		//bool FixPick2(const FIsoSegment* Segment0, const FIsoSegment* Segment1);
+
+		//void AddSegmentsAndRemoveIntersection(FIntersectionSegmentTool& CycleIntersectionTool, const TArray<FIsoSegment*>& Cycle, const TArray<bool>& CycleOrientation);
+
 		/**
 		 * Finalization of the mesh by the tessellation of the inner grid
 		 */
@@ -364,21 +379,53 @@ namespace CADKernel
 				});
 		}
 
-			
 	private:
 
 		FIsoSegment* FindNextSegment(EGridSpace Space, const FIsoSegment* StartSegment, const FIsoNode* StartNode, FGetSlop GetSlop) const;
 
-		//void CreateLoopToLoopSegment(FLoopNode* NodeA, const FPoint2D& ACoordinates, FLoopNode* NodeB, const FPoint2D& BCoordinates, TArray<FIsoSegment*>& NewSegments);
-
+#ifdef UNUSED_TO_DELETE_
+		void CreateLoopToLoopSegment(FLoopNode* NodeA, const FPoint2D& ACoordinates, FLoopNode* NodeB, const FPoint2D& BCoordinates, TArray<FIsoSegment*>& NewSegments);
+#endif
 		// ==========================================================================================
 		// 	   Create segments
 		// ==========================================================================================
-		void TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, int32 IndexLoopA, int32 IndexLoopB);
-		void TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, int32 IndexLoopB);
-		void TryToConnectTwoLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>& LoopB);
-		void TryToConnectTwoLoopsWithTheMostIsoSegment(FCell& Cell, const TArray<FLoopNode*>& LoopA, const TArray<FLoopNode*>& LoopB);
-		void TryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const FPoint2D& ACoordinates, FIsoNode* NodeB, const FPoint2D& BCoordinates, const double FlatAngle);
+
+		/**  
+		 *  SubLoopA                  SubLoopB
+		 *      --X---X             X-----X--  
+		 *             \           /  
+		 *              \         /
+		 *               X=======X 
+		 *              /         \
+		 *             /           \
+		 *      --X---X             X-----X--  
+		 *
+		 *     ======= ShortestSegment
+		 */
+		void TryToConnectTwoSubLoopsWithShortestSegment(FCell& Cell, const TArray<FLoopNode*>& SubLoopA, const TArray<FLoopNode*>& SubLoopB);
+
+		void TryToConnectTwoLoopsWithIsocelesTriangle(FCell& Cell, const TArray<FLoopNode*>& SubLoopA, const TArray<FLoopNode*>& SubLoopB);
+
+		/**
+		 *    --X------X-----X--  <-- SubLoopA                         
+		 *             I                                                                     
+		 *             I    <- The most isoSegment
+		 *             I 
+		 *    ----X----X--------  <-- SubLoopB                        
+		 *
+		 */
+		void TryToConnectTwoSubLoopsWithTheMostIsoSegment(FCell& Cell, const TArray<FLoopNode*>& SubLoopA, const TArray<FLoopNode*>& SubLoopB);
+
+		/**
+		 *    X--X------X-----X--  <-- SubLoop                         
+		 *    |         I                                                                     
+		 *    |         I   <- The most isoSegment
+		 *    |         I
+		 *    X----X----X--------                          
+		 *
+		 */
+		void TryToConnectVertexSubLoopWithTheMostIsoSegment(FCell& Cell, const TArray<FLoopNode*>& SubLoop);
+		bool TryToCreateSegment(FCell& Cell, FLoopNode* NodeA, const FPoint2D& ACoordinates, FIsoNode* NodeB, const FPoint2D& BCoordinates, const double FlatAngle);
 
 #ifdef CADKERNEL_DEV
 	public:
@@ -395,6 +442,10 @@ namespace CADKernel
 		void Display(EGridSpace Space, const FIsoSegment& Segment, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::Element, bool bDisplayOrientation = false) const;
 		void Display(EGridSpace Space, const TCHAR* Message, const TArray<FIsoSegment*>& Segment, bool bDisplayNode, bool bDisplayOrientation = false, EVisuProperty Property = EVisuProperty::Element) const;
 
+		void DisplayLoops(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode>& Nodes, bool bDisplayNode, EVisuProperty Property = EVisuProperty::Element) const;
+
+		void DisplayCycle(const TArray<FIsoSegment*>& Cycle, const TCHAR* Message) const;
+
 		void DisplayCells(const TArray<FCell>& Cells) const;
 		void DisplayCell(const FCell& Cell) const;
 
@@ -403,6 +454,74 @@ namespace CADKernel
 
 	};
 
+	/**
+	 * Criteria to find the optimal "Delaunay" triangle starting from the segment AB to a set of point P
+	 * A "Delaunay" triangle is an equilateral triangle
+	 * The optimal value is the smallest value.
+	 */
+	inline double CotangentCriteria(const FPoint& APoint, const FPoint& BPoint, const FPoint& PPoint, FPoint& OutNormal)
+	{
+		const double BigValue = HUGE_VALUE;
+
+		FPoint PA = APoint - PPoint;
+		FPoint PB = BPoint - PPoint;
+
+		// the ratio between the scalar product PA.PB (=|PA| |PB| cos (A,P,B) )
+		// with the norm of the cross product |PA^PB| (=|PA| |PB| |sin(A,P,B)|)
+		// is compute. 
+		double ScalareProduct = PA * PB;
+		OutNormal = PA ^ PB;
+		double NormOFScalarProduct = sqrt(OutNormal * OutNormal);
+
+		// PPoint is aligned with (A,B)
+		if (NormOFScalarProduct < SMALL_NUMBER)
+		{
+			return BigValue;
+		}
+
+		// return Cotangent value 
+		return ScalareProduct / NormOFScalarProduct;
+	}
+
+	inline double CotangentCriteria(const FPoint2D& APoint, const FPoint2D& BPoint, const FPoint2D& PPoint)
+	{
+		const double BigValue = HUGE_VALUE;
+
+		FPoint2D PA = APoint - PPoint;
+		FPoint2D PB = BPoint - PPoint;
+
+		// the ratio between the scalar product PA.PB (=|PA| |PB| cos (A,P,B) )
+		// with the norm of the cross product |PA^PB| (=|PA| |PB| |sin(A,P,B)|)
+		// is compute. 
+		double ScalareProduct = PA * PB;
+		double OutNormal = PA ^ PB;
+		double NormOFPointProduct = FMath::Abs(OutNormal);
+
+		if (NormOFPointProduct < SMALL_NUMBER)
+		{
+			// PPoint is aligned with (A,B)
+			return BigValue;
+		}
+
+		// return Cotangent value 
+		return ScalareProduct / NormOFPointProduct;
+	}
+
+	template<class PointType>
+	inline double IsoscelesCriteria(const PointType& APoint, const PointType& BPoint, const PointType& IsoscelesVertex)
+	{
+		double Coord = CoordinateOfProjectedPointOnSegment(IsoscelesVertex, APoint, BPoint, false);
+		return FMath::Abs(Coord - 0.5);
+	}
+
+	template<class PointType>
+	inline double EquilateralCriteria(const PointType& SegmentA, const PointType& SegmentB, const PointType& Point)
+	{
+		double Criteria1 = FMath::Abs(CoordinateOfProjectedPointOnSegment(SegmentA, SegmentB, Point, false) - 0.5);
+		double Criteria2 = FMath::Abs(CoordinateOfProjectedPointOnSegment(Point, SegmentA, SegmentB, false) - 0.5);
+		double Criteria3 = FMath::Abs(CoordinateOfProjectedPointOnSegment(SegmentB, Point, SegmentA, false) - 0.5);
+		return Criteria1 + Criteria2 + Criteria3;
+	}
 
 } // namespace CADKernel
 

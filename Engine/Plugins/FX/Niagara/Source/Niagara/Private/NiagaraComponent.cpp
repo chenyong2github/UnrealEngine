@@ -569,7 +569,7 @@ void UNiagaraComponent::ReleaseToPool()
 {
 	// A component may be marked pending kill before the owner has it's reference set to null.
 	// In that case there's a window where it can be released back into the pool incorrectly, so we just skip releasing as we know it will be deleted shortly
-	if ( IsPendingKillOrUnreachable() )
+	if ( !IsValidChecked(this) || IsUnreachable() )
 	{
 		return;
 	}
@@ -2054,17 +2054,18 @@ void UNiagaraComponent::SetNiagaraVariableVec3(const FString& InVariableName, FV
 
 void UNiagaraComponent::SetVariableVec2(FName InVariableName, FVector2D InValue)
 {
+	FVector2f AsFloat = (FVector2f)InValue;
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec2Def(), InVariableName);
 	if (SystemInstanceController.IsValid())
 	{
-		SystemInstanceController->SetVariable_Deferred(InVariableName, InValue);
+		SystemInstanceController->SetVariable_Deferred(InVariableName, AsFloat);
 	}
 	else
 	{
-		OverrideParameters.SetParameterValue(InValue, VariableDesc, true);
+		OverrideParameters.SetParameterValue(AsFloat, VariableDesc, true);
 	}
 #if WITH_EDITOR
-	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FVector2D)));
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&AsFloat, sizeof(FVector2f)));
 #endif
 }
 
@@ -2909,7 +2910,14 @@ void UNiagaraComponent::AssetExposedParametersChanged()
 		return;
 	}
 	SynchronizeWithSourceSystem();
-	ReinitializeSystem();
+#if WITH_EDITOR
+	//-TODO: We can possibly remove the ReinitializeSystem here after more testing.
+	//       This fixes an issue with deleting a renderer and hitting undo in the editor.
+	if ( !GIsTransacting )
+#endif
+	{
+		ReinitializeSystem();
+	}
 }
 
 #if WITH_EDITOR

@@ -586,12 +586,7 @@ void FUnrealPropertyDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalize
 
 					if (FuncParamDef->HasAllPropertyFlags(CPF_OutParm) && !FuncParamDef->HasAllPropertyFlags(CPF_ConstParm))
 					{
-						const bool bClassGeneratedFromBP = StructDef != nullptr && StructDef->IsDynamic();
-						const bool bAllowedArrayRefFromBP = bClassGeneratedFromBP && FuncParamDef->IsDynamicArray();
-						if (!bAllowedArrayRefFromBP)
-						{
-							LogError(TEXT("BlueprintAssignable delegates do not support non-const references at the moment. Function: %s Parameter: '%s'"), *SourceDelegateFunctionDef->GetName(), *FuncParamDef->GetName());
-						}
+						LogError(TEXT("BlueprintAssignable delegates do not support non-const references at the moment. Function: %s Parameter: '%s'"), *SourceDelegateFunctionDef->GetName(), *FuncParamDef->GetName());
 					}
 				}
 			}
@@ -650,27 +645,6 @@ void FUnrealPropertyDefinitionInfo::ConcurrentPostParseFinalize()
 {
 	FUnrealTypeDefinitionInfo::ConcurrentPostParseFinalize();
 	TypePackageName = GetTypePackageNameHelper(*this);
-}
-
-bool FUnrealPropertyDefinitionInfo::IsDynamic() const
-{
-	return HasMetaData(NAME_ReplaceConverted);
-}
-
-bool FUnrealPropertyDefinitionInfo::IsOwnedByDynamicType() const
-{
-	for (FUnrealTypeDefinitionInfo* Owner = GetOuter(); Owner; Owner = Owner->GetOuter())
-	{
-		if (FUnrealPropertyDefinitionInfo* PropDef = UHTCast<FUnrealPropertyDefinitionInfo>(Owner))
-		{
-			return PropDef->IsOwnedByDynamicType();
-		}
-		else if (FUnrealObjectDefinitionInfo* ObjectDef = UHTCast<FUnrealObjectDefinitionInfo>(Owner))
-		{
-			return ObjectDef->IsOwnedByDynamicType();
-		}
-	}
-	return false;
 }
 
 void FUnrealPropertyDefinitionInfo::SetDelegateFunctionSignature(FUnrealFunctionDefinitionInfo& DelegateFunctionDef)
@@ -1386,23 +1360,6 @@ void FUnrealFieldDefinitionInfo::AddCrossModuleReference(TSet<FString>* UniqueCr
 			UniqueCrossModuleReferences->Add(GetExternDecl(bRequiresValidObject));
 		}
 	}
-}
-
-bool FUnrealFieldDefinitionInfo::IsDynamic() const
-{
-	return HasMetaData(NAME_ReplaceConverted);
-}
-
-bool FUnrealFieldDefinitionInfo::IsOwnedByDynamicType() const
-{
-	for (const FUnrealObjectDefinitionInfo* OuterObject = GetOuter(); OuterObject; OuterObject = OuterObject->GetOuter())
-	{
-		if (OuterObject->IsDynamic())
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
 FUnrealClassDefinitionInfo* FUnrealFieldDefinitionInfo::GetOwnerClass() const

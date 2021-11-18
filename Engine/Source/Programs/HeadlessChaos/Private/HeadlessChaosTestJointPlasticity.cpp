@@ -74,7 +74,7 @@ namespace ChaosTest {
 		const int32 NumIterations = 8;
 		const FReal Gravity = 980;
 		const FReal Dt = 0.01f;
-		int32 NumIts = 100;
+		int32 NumIts = 1000;
 
 		FJointChainTest<TEvolution> Test(NumIterations, Gravity);
 		Test.InitChain(2, FVec3(0, 1, 0));
@@ -86,8 +86,8 @@ namespace ChaosTest {
 
 		Test.JointSettings[0].bAngularSLerpPositionDriveEnabled = true;
 		Test.JointSettings[0].bAngularSLerpVelocityDriveEnabled = true;
-		Test.JointSettings[0].AngularDriveDamping = 500;
-		Test.JointSettings[0].AngularDriveStiffness = 50000.f;
+		Test.JointSettings[0].AngularDriveDamping = 50;
+		Test.JointSettings[0].AngularDriveStiffness = 10000.f;
 
 		Test.JointSettings[0].AngularPlasticityLimit = PlasticityAngle * (PI / 180.);
 
@@ -108,6 +108,10 @@ namespace ChaosTest {
 			//FVec3 Pos = Test.SOAs.GetDynamicParticles().X(0);
 			//std::cout << "["<< Angle <<"]" << Pos.X << "," << Pos.Y << "," << Pos.Z << std::endl;
 		}
+
+		Test.Evolution.AdvanceOneTimeStep(Dt);
+		Test.Evolution.EndFrame(Dt);
+
 		Angle = Test.Joints.GetConstraintSettings(0).AngularDrivePositionTarget.GetAngle() * (180. / PI);
 
 		// The angle should have reset. 

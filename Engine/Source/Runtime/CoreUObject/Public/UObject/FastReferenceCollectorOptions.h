@@ -15,6 +15,7 @@ enum class EFastReferenceCollectorOptions : uint32
 	AutogenerateTokenStream = 1 << 1,
 	ProcessNoOpTokens = 1 << 2,
 	WithClusters = 1 << 3, 
-	ProcessWeakReferences = 1 << 4
+	ProcessWeakReferences = 1 << 4,
+	WithPendingKill = 1 << 5,
 };
 ENUM_CLASS_FLAGS(EFastReferenceCollectorOptions);

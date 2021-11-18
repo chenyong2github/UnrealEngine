@@ -79,6 +79,18 @@ namespace UnrealBuildTool
 		bool bShowPerActionCompilationTimes = false;
 
 		/// <summary>
+		/// Whether to log command lines for actions being executed
+		/// </summary>
+		[XmlConfigFile]
+		bool bLogActionCommandLines = false;
+
+		/// <summary>
+		/// Add target names for each action executed
+		/// </summary>
+		[XmlConfigFile]
+		bool bPrintActionTargetNames = false;
+
+		/// <summary>
 		/// How many processes that will be executed in parallel
 		/// </summary>
 		public int NumParallelProcesses { get; private set; }
@@ -131,6 +143,8 @@ namespace UnrealBuildTool
 			return true;
 		}
 
+		Dictionary<TargetDescriptor, string> TargetPrefixes = new Dictionary<TargetDescriptor, string>();
+
 		/// <summary>
 		/// Executes the specified actions locally.
 		/// </summary>
@@ -139,6 +153,8 @@ namespace UnrealBuildTool
 		{
 			int ActualNumParallelProcesses = Math.Min(InputActions.Count, NumParallelProcesses);
 			Log.TraceInformation("Building {0} {1} with {2} {3}...", InputActions.Count, (InputActions.Count == 1) ? "action" : "actions", ActualNumParallelProcesses, (ActualNumParallelProcesses == 1) ? "process" : "processes");
+
+			TargetPrefixes.Clear();
 
 			// Create actions with all our internal metadata
 			List<BuildAction> Actions = new List<BuildAction>();
@@ -153,6 +169,14 @@ namespace UnrealBuildTool
 				}
 
 				Actions.Add(Action);
+
+				TargetDescriptor? Target = Action.Inner.Target;
+				if (bPrintActionTargetNames && Target != null && !TargetPrefixes.ContainsKey(Target))
+				{
+					string TargetPrefix = $"{(1 + TargetPrefixes.Count()).ToString()}>";
+					TargetPrefixes.Add(Target, TargetPrefix);
+					Log.TraceInformation($"{TargetPrefix}------ Unreal Build started: {Target.Name} {Target.Configuration} {Target.Platform} {Target.Architecture} ------");
+				}
 			}
 
 			// Update all the actions with all their dependencies
@@ -244,14 +268,33 @@ namespace UnrealBuildTool
 
 										string Description = string.Empty;
 
+										string TargetPrefix = "";
+										TargetDescriptor? Target = CompletedAction.Inner.Target;
+										if (bPrintActionTargetNames)
+										{
+											if (Target != null)
+											{
+												TargetPrefix = TargetPrefixes[Target];
+											}
+											else
+											{
+												TargetPrefix = "->";
+											}
+										}
+
+										if (bLogActionCommandLines)
+										{
+											Log.TraceLog($"{TargetPrefix}[{NumCompletedActions}/{InputActions.Count}] Command: {CompletedAction.Inner.CommandPath} {CompletedAction.Inner.CommandArguments}");
+										}
+
 										// Write it to the log
 										if (CompletedAction.Inner.bShouldOutputStatusDescription || CompletedAction.LogLines.Count == 0)
 										{
-											Description = $"{(CompletedAction.Inner.CommandDescription != null ? CompletedAction.Inner.CommandDescription : CompletedAction.Inner.CommandPath.GetFileNameWithoutExtension())} {CompletedAction.Inner.StatusDescription}".Trim();
+											Description = $"{(CompletedAction.Inner.CommandDescription ?? CompletedAction.Inner.CommandPath.GetFileNameWithoutExtension())} {CompletedAction.Inner.StatusDescription}".Trim();
 										}
 										else if (CompletedAction.LogLines.Count > 0)
 										{
-											Description = $"{(CompletedAction.Inner.CommandDescription != null ? CompletedAction.Inner.CommandDescription : CompletedAction.Inner.CommandPath.GetFileNameWithoutExtension())} {CompletedAction.LogLines[0]}".Trim();
+											Description = $"{(CompletedAction.Inner.CommandDescription ?? CompletedAction.Inner.CommandPath.GetFileNameWithoutExtension())} {CompletedAction.LogLines[0]}".Trim();
 										}
 
 										string CompilationTimes = "";
@@ -260,7 +303,7 @@ namespace UnrealBuildTool
 											CompilationTimes = $" (Wall: {CompletedAction.ExecutionTime.TotalSeconds:0.00}s CPU: {CompletedAction.ProcessorTime.TotalSeconds:0.00}s)";
 										}
 											
-										Log.TraceInformation("[{0}/{1}]{2} {3}", NumCompletedActions, InputActions.Count, CompilationTimes, Description);
+										Log.TraceInformation("{0}[{1}/{2}] {3}{4}", TargetPrefix, NumCompletedActions, InputActions.Count, Description, CompilationTimes);
 										foreach (string Line in CompletedAction.LogLines.Skip(CompletedAction.Inner.bShouldOutputStatusDescription ? 0 : 1))
 										{
 											Log.TraceInformation(Line);
@@ -285,8 +328,8 @@ namespace UnrealBuildTool
 											// BEGIN TEMPORARY TO CATCH PVS-STUDIO ISSUES
 											if (CompletedAction.LogLines.Count == 0)
 											{
-												Log.TraceInformation("[{0}/{1}] {2} - Error but no output", NumCompletedActions, InputActions.Count, Description);
-												Log.TraceInformation("[{0}/{1}] {2} - {3} {4} {5} {6}", NumCompletedActions, InputActions.Count, Description, CompletedAction.ExitCode,
+												Log.TraceInformation("{0}[{1}/{2}]{3} - Error but no output", TargetPrefix, NumCompletedActions, InputActions.Count, Description);
+												Log.TraceInformation("{0}[{1}/{2}]{3} - {4} {5} {6} {7}", TargetPrefix, NumCompletedActions, InputActions.Count, Description, CompletedAction.ExitCode,
 													CompletedAction.Inner.WorkingDirectory, CompletedAction.Inner.CommandPath, CompletedAction.Inner.CommandArguments);
 											}
 											// END TEMPORARY
@@ -317,7 +360,7 @@ namespace UnrealBuildTool
 					Log.TraceInformation("");
 					if (TotalProcessingTime.Ticks > 0)
 					{
-						Log.TraceInformation("Total CPU Time: {0} s", TotalProcessingTime.TotalSeconds);
+						Log.TraceInformation("Total CPU Time: {0:0.00} s", TotalProcessingTime.TotalSeconds);
 						Log.TraceInformation("");
 					}
 

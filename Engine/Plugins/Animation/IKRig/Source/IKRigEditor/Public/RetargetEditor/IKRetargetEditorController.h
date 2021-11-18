@@ -47,9 +47,9 @@ public:
 
 	/** viewport anim instance */
 	UPROPERTY(transient, NonTransactional)
-	TObjectPtr<class UAnimPreviewInstance> SourceAnimInstance;
+	TWeakObjectPtr<class UAnimPreviewInstance> SourceAnimInstance;
 	UPROPERTY(transient, NonTransactional)
-	TObjectPtr<class UIKRetargetAnimInstance> TargetAnimInstance;
+	TWeakObjectPtr<class UIKRetargetAnimInstance> TargetAnimInstance;
 
 	/** asset properties tab */
 	TSharedPtr<class IDetailsView> DetailsView;

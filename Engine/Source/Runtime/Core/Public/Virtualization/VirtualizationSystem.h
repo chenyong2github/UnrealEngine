@@ -99,8 +99,13 @@ public:
 	 */
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) = 0;
 
-	/** Access profiling info relating to payload activity. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
-	virtual FPayloadActivityInfo GetPayloadActivityInfo() const = 0;
+	using GetPayloadActivityInfoFuncRef = TFunctionRef<void(const FString& DebugName, const FString& ConfigName, const FPayloadActivityInfo& PAyloadInfo)>;
+
+	/** Access profiling info relating to payload activity per backend. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
+	virtual void GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef ) const = 0;
+
+	/** Access profiling info relating to accumulated payload activity. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
+	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const = 0;
 };
 
 namespace Private

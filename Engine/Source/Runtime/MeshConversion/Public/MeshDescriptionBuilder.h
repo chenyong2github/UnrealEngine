@@ -128,13 +128,13 @@ protected:
 	FMeshDescription* MeshDescription;
 
 	TVertexAttributesRef<FVector3f> VertexPositions;
-	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
+	TVertexInstanceAttributesRef<FVector2f> InstanceUVs;
 	TVertexInstanceAttributesRef<FVector3f> InstanceNormals;
 	TVertexInstanceAttributesRef<FVector3f> InstanceTangents;
 	TVertexInstanceAttributesRef<float> InstanceBiTangentSign;
 	TVertexInstanceAttributesRef<FVector4f> InstanceColors;
 
-	TArray<TUVAttributesRef<FVector2D>> UVCoordinateLayers; 
+	TArray<TUVAttributesRef<FVector2f>> UVCoordinateLayers; 
 	TArray<FVertexID> TempBuffer;
 	TArray<FUVID> TempUVBuffer;
 

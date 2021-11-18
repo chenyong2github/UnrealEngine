@@ -2719,6 +2719,49 @@ bool FWindowsPlatformMisc::GetDiskTotalAndFreeSpace( const FString& InPath, uint
 	return bSuccess;
 }
 
+bool FWindowsPlatformMisc::GetPageFaultStats(FPageFaultStats& OutStats, EPageFaultFlags Flags/*=EPageFaultFlags::All*/)
+{
+	bool bSuccess = false;
+
+	if (EnumHasAnyFlags(Flags, EPageFaultFlags::TotalPageFaults))
+	{
+		PROCESS_MEMORY_COUNTERS ProcessMemoryCounters;
+
+		FPlatformMemory::Memzero(&ProcessMemoryCounters, sizeof(ProcessMemoryCounters));
+		::GetProcessMemoryInfo(::GetCurrentProcess(), &ProcessMemoryCounters, sizeof(ProcessMemoryCounters));
+
+		OutStats.TotalPageFaults = ProcessMemoryCounters.PageFaultCount;
+
+		bSuccess = true;
+	}
+
+	return bSuccess;
+}
+
+bool FWindowsPlatformMisc::GetBlockingIOStats(FProcessIOStats& OutStats, EInputOutputFlags Flags/*=EInputOutputFlags::All*/)
+{
+	bool bSuccess = false;
+	IO_COUNTERS Counters;
+
+	FPlatformMemory::Memzero(&Counters, sizeof(Counters));
+
+	// Ignore flags as all values are grabbed at once
+	if (::GetProcessIoCounters(::GetCurrentProcess(), &Counters) != 0)
+	{
+		OutStats.BlockingInput = Counters.ReadOperationCount;
+		OutStats.BlockingOutput = Counters.WriteOperationCount;
+		OutStats.BlockingOther = Counters.OtherOperationCount;
+		OutStats.InputBytes = Counters.ReadTransferCount;
+		OutStats.OutputBytes = Counters.WriteTransferCount;
+		OutStats.OtherBytes = Counters.OtherTransferCount;
+
+		bSuccess = true;
+	}
+
+	return bSuccess;
+}
+
+
 
 uint32 FWindowsPlatformMisc::GetCPUInfo()
 {

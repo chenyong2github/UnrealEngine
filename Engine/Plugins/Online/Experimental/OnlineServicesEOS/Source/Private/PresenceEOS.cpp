@@ -93,34 +93,34 @@ void FPresenceEOS::PreShutdown()
 
 TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence::Params&& InParams)
 {
-	TOnlineAsyncOp<FQueryPresence>& Op = GetJoinableOp<FQueryPresence>(MoveTemp(InParams));
-	if (!Op.IsReady())
+	TOnlineAsyncOpRef<FQueryPresence> Op = GetJoinableOp<FQueryPresence>(MoveTemp(InParams));
+	if (!Op->IsReady())
 	{
 		// Initialize
-		const FQueryPresence::Params& Params = Op.GetParams();
+		const FQueryPresence::Params& Params = Op->GetParams();
 		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
 		{
 			// TODO: Error codes
-			Op.SetError(Errors::Unknown());
-			return Op.GetHandle();
+			Op->SetError(Errors::Unknown());
+			return Op->GetHandle();
 		}
 		TOptional<EOS_EpicAccountId> TargetUserId = EOSAccountIdFromOnlineServiceAccountId(Params.TargetUserId);
 		if (!TargetUserId.IsSet())
 		{
 			// TODO: Error codes
-			Op.SetError(Errors::Unknown());
-			return Op.GetHandle();
+			Op->SetError(Errors::Unknown());
+			return Op->GetHandle();
 		}
 
 		// TODO:  If we try to query a local user's presence, is that an error, should we return the cached state, should we still ask EOS?
 		const bool bIsLocalUser = Services.Get<FAuthEOS>()->IsLoggedIn(Params.TargetUserId);
 		if (bIsLocalUser)
 		{
-			Op.SetError(Errors::Unknown()); // TODO: Error codes
-			return Op.GetHandle();
+			Op->SetError(Errors::Unknown()); // TODO: Error codes
+			return Op->GetHandle();
 		}
 
-		Op.Then([this](TOnlineAsyncOp<FQueryPresence>& InAsyncOp) mutable
+		Op->Then([this](TOnlineAsyncOp<FQueryPresence>& InAsyncOp) mutable
 			{
 				const FQueryPresence::Params& Params = InAsyncOp.GetParams();
 				EOS_Presence_QueryPresenceOptions QueryPresenceOptions = { };
@@ -146,9 +146,9 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 					InAsyncOp.SetError(Errors::Unknown()); // TODO: Error codes
 				}
 			})
-			.Enqueue();
+			.Enqueue(GetSerialQueue());
 	}
-	return Op.GetHandle();
+	return Op->GetHandle();
 }
 
 TOnlineResult<FGetPresence> FPresenceEOS::GetPresence(FGetPresence::Params&& Params)
@@ -173,20 +173,20 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 	// EOS_PRESENCE_DATA_MAX_VALUE_LENGTH - length of each value.  Compare updated with this.
 	// EOS_PRESENCE_RICH_TEXT_MAX_VALUE_LENGTH - length of status. Compare updated with this.
 
-	TOnlineAsyncOp<FUpdatePresence>& Op = GetMergeableOp<FUpdatePresence>(MoveTemp(InParams));
-	if (!Op.IsReady())
+	TOnlineAsyncOpRef<FUpdatePresence> Op = GetMergeableOp<FUpdatePresence>(MoveTemp(InParams));
+	if (!Op->IsReady())
 	{
 		// Initialize
-		const FUpdatePresence::Params& Params = Op.GetParams();
+		const FUpdatePresence::Params& Params = Op->GetParams();
 		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
 		{
 			// TODO: Error codes
-			Op.SetError(Errors::Unknown());
-			return Op.GetHandle();
+			Op->SetError(Errors::Unknown());
+			return Op->GetHandle();
 		}
 
 		// Don't cache anything from Params as they could be modified by another merge in the meanwhile.
-		Op.Then([this](TOnlineAsyncOp<FUpdatePresence>& InAsyncOp) mutable
+		Op->Then([this](TOnlineAsyncOp<FUpdatePresence>& InAsyncOp) mutable
 			{
 				const FUpdatePresence::Params& Params = InAsyncOp.GetParams();
 				EOS_HPresenceModification ChangeHandle = nullptr;
@@ -357,9 +357,9 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 					InAsyncOp.SetError(Errors::Unknown()); // TODO: Error codes
 				}
 			})
-			.Enqueue();
+			.Enqueue(GetSerialQueue());
 	}
-	return Op.GetHandle();
+	return Op->GetHandle();
 }
 
 /** Get a user's presence, creating entries if missing */

@@ -16,8 +16,8 @@ class FRunnableThread;
 class FODSCMessageHandler : public IPlatformFile::IFileServerMessageHandler
 {
 public:
-	FODSCMessageHandler(EShaderPlatform InShaderPlatform);
-	FODSCMessageHandler(const TArray<FString>& InMaterials, EShaderPlatform InShaderPlatform, bool InbCompileChangedShaders);
+	FODSCMessageHandler(EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType);
+	FODSCMessageHandler(const TArray<FString>& InMaterials, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType);
 	/** Subclass fills out an archive to send to the server */
 	virtual void FillPayload(FArchive& Payload) override;
 
@@ -28,6 +28,7 @@ public:
 
 	const TArray<FString>& GetMaterialsToLoad() const;
 	const TArray<uint8>& GetMeshMaterialMaps() const;
+	const TArray<uint8>& GetGlobalShaderMap() const;
 	bool ReloadGlobalShaders() const;
 
 private:
@@ -41,13 +42,16 @@ private:
 	EShaderPlatform ShaderPlatform;
 
 	/** Whether or not to recompile changed shaders */
-	bool bCompileChangedShaders = false;
+	ODSCRecompileCommand RecompileCommandType = ODSCRecompileCommand::None;
 
 	/** The payload for compiling a specific set of shaders. */
 	TArray<FODSCRequestPayload> RequestBatch;
 
 	/** The serialized shader maps from across the network */
 	TArray<uint8> OutMeshMaterialMaps;
+
+	/** The serialized global shader map from across the network */
+	TArray<uint8> OutGlobalShaderMap;
 };
 
 /**
@@ -82,11 +86,11 @@ public:
 	 *
 	 * @param MaterialsToCompile - List of material names to submit compiles for.
 	 * @param ShaderPlatform - Which shader platform to compile for.
-	 * @param bCompileChangedShaders - Whether or not we shouhld recompile shaders that have changed.
+	 * @param RecompileCommandType - Whether we should recompile changed or global shaders.
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, bool bCompileChangedShaders);
+	void AddRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType);
 
 	/**
 	 * Add a request to compile a pipeline (VS/PS) of shaders.  The results are submitted and processed in an async manner.

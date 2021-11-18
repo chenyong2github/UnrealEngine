@@ -16,16 +16,16 @@ class CORE_API FStringTableEntry
 {
 public:
 	/** Create a new string table entry using the given data */
-	static FStringTableEntryRef NewStringTableEntry(FStringTableConstRef InOwnerTable, FString InSourceString, FTextDisplayStringPtr InDisplayString)
+	static FStringTableEntryRef NewStringTableEntry(FStringTableConstRef InOwnerTable, FString InSourceString, FTextId InDisplayStringId)
 	{
-		return MakeShared<FStringTableEntry, ESPMode::ThreadSafe>(MoveTemp(InOwnerTable), MoveTemp(InSourceString), MoveTemp(InDisplayString));
+		return MakeShared<FStringTableEntry, ESPMode::ThreadSafe>(MoveTemp(InOwnerTable), MoveTemp(InSourceString), MoveTemp(InDisplayStringId));
 	}
 
 	/** Default constructor */
 	FStringTableEntry();
 
 	/** Create a new string table entry using the given data */
-	FStringTableEntry(FStringTableConstRef InOwnerTable, FString InSourceString, FTextDisplayStringPtr InDisplayString);
+	FStringTableEntry(FStringTableConstRef InOwnerTable, FString InSourceString, FTextId InDisplayStringId);
 
 	/** @return true if this entry is currently owned by a string table, false if it's been disowned (and should be re-cached) */
 	bool IsOwned() const;
@@ -33,17 +33,20 @@ public:
 	/** Disown this string table entry. This is used to notify external code that has cached this entry that it needs to re-cache it from the string table */
 	void Disown();
 
+	/** Is this string table entry owned by the given string table? */
+	bool IsOwnedBy(const FStringTable& InStringTable) const;
+
 	/** Get the source string of this string table entry */
 	const FString& GetSourceString() const;
 
 	/** Get the display string of this string table entry */
-	FTextDisplayStringPtr GetDisplayString() const;
+	FTextConstDisplayStringPtr GetDisplayString() const;
+
+	/** Get the display string ID of this string table entry */
+	FTextId GetDisplayStringId() const;
 
 	/** Get the placeholder source string to use for string table entries that are missing */
 	static const FString& GetPlaceholderSourceString();
-
-	/** Get the placeholder display string to use for string table entries that are missing */
-	static FTextDisplayStringRef GetPlaceholderDisplayString();
 
 private:
 	/** The string table that owns us (if any) */
@@ -52,8 +55,8 @@ private:
 	/** The source string of this entry */
 	FString SourceString;
 
-	/** The display string of this entry */
-	FTextDisplayStringPtr DisplayString;
+	/** The display string ID of this entry */
+	FTextId DisplayStringId;
 };
 
 /** String table implementation. Holds Key->SourceString pairs of text. */
@@ -91,43 +94,42 @@ public:
 	void SetNamespace(const FString& InNamespace);
 
 	/** Get the source string used by the given entry (if any) */
-	bool GetSourceString(const FString& InKey, FString& OutSourceString) const;
+	bool GetSourceString(const FTextKey& InKey, FString& OutSourceString) const;
 
 	/** Set the source string used by the given entry (will replace any existing data for that entry) */
-	void SetSourceString(const FString& InKey, const FString& InSourceString);
+	void SetSourceString(const FTextKey& InKey, const FString& InSourceString);
 
 	/** Remove the given entry (including its meta-data) */
-	void RemoveSourceString(const FString& InKey);
+	void RemoveSourceString(const FTextKey& InKey);
 
 	/** Enumerate all source strings in the table. Return true from the enumerator to continue, or false to stop */
 	void EnumerateSourceStrings(const TFunctionRef<bool(const FString&, const FString&)>& InEnumerator) const;
+	void EnumerateKeysAndSourceStrings(const TFunctionRef<bool(const FTextKey&, const FString&)>& InEnumerator) const;
 
 	/** Clear all entries from the table (including their meta-data) */
 	void ClearSourceStrings(const int32 InSlack = 0);
 
 	/** Find the entry with the given key (if any) */
-	FStringTableEntryConstPtr FindEntry(const FString& InKey) const;
+	FStringTableEntryConstPtr FindEntry(const FTextKey& InKey) const;
 
 	/** Given an entry, check to see if it exists in this table, and if so, get its key */
 	bool FindKey(const FStringTableEntryConstRef& InEntry, FString& OutKey) const;
-
-	/** Given the display string of an entry, check to see if it exists in this table, and if so, get its key */
-	bool FindKey(const FTextDisplayStringRef& InDisplayString, FString& OutKey) const;
+	bool FindKey(const FStringTableEntryConstRef& InEntry, FTextKey& OutKey) const;
 
 	/** Get the meta-data with the given ID associated with the given entry, or an empty string if not found */
-	FString GetMetaData(const FString& InKey, const FName InMetaDataId) const;
+	FString GetMetaData(const FTextKey& InKey, const FName InMetaDataId) const;
 
 	/** Set the meta-data with the given ID associated with the given entry */
-	void SetMetaData(const FString& InKey, const FName InMetaDataId, const FString& InMetaDataValue);
+	void SetMetaData(const FTextKey& InKey, const FName InMetaDataId, const FString& InMetaDataValue);
 
 	/** Remove the meta-data with the given ID associated with the given entry */
-	void RemoveMetaData(const FString& InKey, const FName InMetaDataId);
+	void RemoveMetaData(const FTextKey& InKey, const FName InMetaDataId);
 
 	/** Enumerate all meta-data associated with the given entry. Return true from the enumerator to continue, or false to stop */
-	void EnumerateMetaData(const FString& InKey, const TFunctionRef<bool(FName, const FString&)>& InEnumerator) const;
+	void EnumerateMetaData(const FTextKey& InKey, const TFunctionRef<bool(FName, const FString&)>& InEnumerator) const;
 
 	/** Remove all meta-data associated with the given entry */
-	void ClearMetaData(const FString& InKey);
+	void ClearMetaData(const FTextKey& InKey);
 
 	/** Clear all meta-data from the table */
 	void ClearMetaData(const int32 InSlack = 0);
@@ -149,20 +151,17 @@ private:
 	bool bIsLoaded;
 
 	/** The namespace to use for all the strings in this table */
-	FString TableNamespace;
+	FTextKey TableNamespace;
 
 	/** Mapping between the text key and entry data for the strings within this table */
-	TMap<FString, FStringTableEntryPtr, FDefaultSetAllocator, FLocKeyMapFuncs<FStringTableEntryPtr>> KeysToEntries;
-
-	/** Mapping between the display string and the text key for the strings within this table */
-	TMap<FTextDisplayStringPtr, FString> DisplayStringsToKeys;
+	TMap<FTextKey, FStringTableEntryPtr> KeysToEntries;
 
 	/** Critical section preventing concurrent modification of KeysToEntries */
 	mutable FCriticalSection KeyMappingCS;
 
 	/** Mapping between the text key and its meta-data map */
 	typedef TMap<FName, FString> FMetaDataMap;
-	TMap<FString, FMetaDataMap, FDefaultSetAllocator, FLocKeyMapFuncs<FMetaDataMap>> KeysToMetaData;
+	TMap<FTextKey, FMetaDataMap> KeysToMetaData;
 
 	/** Critical section preventing concurrent modification of KeysToMetaData */
 	mutable FCriticalSection KeysToMetaDataCS;
@@ -282,8 +281,8 @@ struct CORE_API FStringTableRedirects
 	static void RedirectTableId(FName& InOutTableId);
 
 	/** Redirect a key */
-	static void RedirectKey(const FName InTableId, FString& InOutKey);
+	static void RedirectKey(const FName InTableId, FTextKey& InOutKey);
 
 	/** Redirect a table ID and key */
-	static void RedirectTableIdAndKey(FName& InOutTableId, FString& InOutKey);
+	static void RedirectTableIdAndKey(FName& InOutTableId, FTextKey& InOutKey);
 };

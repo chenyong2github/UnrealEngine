@@ -25,7 +25,7 @@ protected:
 	const FMeshDescription* Mesh;
 	TVertexAttributesConstRef<FVector3f> VertexPositions;
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals;
-	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs;
+	TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs;
 	TArrayView<const FVertexInstanceID> TriangleVertexInstanceIndices;
 
 	FVector3d BuildScale = FVector3d::One();
@@ -167,8 +167,7 @@ public:
 	/** Get UV by VertexInstanceID for a given UVLayer */
 	FVector2f GetUV(const int32 IDValue, const int32 UVLayer) const
 	{
-		const FVector2D& InstanceUV = VertexInstanceUVs.Get(FVertexInstanceID(IDValue), UVLayer);
-		return FVector2f(InstanceUV);
+		return VertexInstanceUVs.Get(FVertexInstanceID(IDValue), UVLayer);
 	}
 
 	/** Get UVs for a given UVLayer and Triangle */

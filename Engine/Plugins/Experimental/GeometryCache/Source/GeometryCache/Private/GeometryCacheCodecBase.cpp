@@ -55,10 +55,10 @@ void UGeometryCacheCodecBase::CodeFrame(const FGeometryCacheCodecEncodeArguments
 }
 #endif // WITH_EDITOR
 
-bool UGeometryCacheCodecBase::IsSameTopology(const TArray<int32> TopologyRanges, int32 FrameA, int32 FrameB)
+bool UGeometryCacheCodecBase::IsSameTopology(const TArray<int32>& TopologyRanges, int32 FrameA, int32 FrameB)
 {
 	// No topology changes at all
-	if (TopologyRanges.Num() == 0)
+	if (TopologyRanges.Num() <= 1)
 	{
 		return true;
 	}

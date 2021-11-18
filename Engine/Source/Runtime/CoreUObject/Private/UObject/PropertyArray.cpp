@@ -201,6 +201,34 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	}
 	ArrayHelper.CountBytes( UnderlyingArchive );
 
+
+	TOptional<FPropertyTag> SerializeFromMismatchedTag;
+
+	// TODO: Should work for maps + sets too.
+	auto SerializeContainerItem = [this, &SerializeFromMismatchedTag](FStructuredArchiveSlot Slot, uint8* Item)
+	{
+		if(SerializeFromMismatchedTag.IsSet())
+		{
+			const int64 StartOfProperty = Slot.GetUnderlyingArchive().Tell();
+			FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(Inner);
+			switch(StructProperty->ConvertFromType(SerializeFromMismatchedTag.GetValue(), Slot, Item, nullptr))
+			{
+				case EConvertFromTypeResult::Converted:
+					return;
+				case EConvertFromTypeResult::CannotConvert:
+					// FStructProperty::ConvertFromType doesn't handle setting the default, so do it here.
+					StructProperty->Struct->InitializeDefaultValue(Item);
+					Slot.GetUnderlyingArchive().Seek(StartOfProperty + SerializeFromMismatchedTag.GetValue().Size);	// Skip this item
+					return;
+				case EConvertFromTypeResult::UseSerializeItem:
+					// Fall through to default serialize
+					break;
+			}
+		}
+			
+		Inner->SerializeItem(Slot, Item);
+	};
+	
 	// Serialize a PropertyTag for the inner property of this array, allows us to validate the inner struct to see if it has changed
 	if (UnderlyingArchive.UEVer() >= VER_UE4_INNER_ARRAY_TAG_INFO && Inner->IsA<FStructProperty>())
 	{
@@ -218,8 +246,8 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 			{
 				return StructProperty
 					&& StructProperty->Struct
-					&& ( (PropertyTag.StructGuid.IsValid() && (PropertyTag.StructGuid == StructProperty->Struct->GetCustomGuid()))
-						|| StructProperty->Struct->CanSerializeAsAlias(PropertyTag) );
+					&& PropertyTag.StructGuid.IsValid()
+					&& PropertyTag.StructGuid == StructProperty->Struct->GetCustomGuid();
 			};
 
 			// Check if the Inner property can successfully serialize, the type may have changed
@@ -235,29 +263,37 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 			if (InnerTag.StructName != StructProperty->Struct->GetFName()
 				&& !CanSerializeFromStructWithDifferentName(InnerTag, StructProperty))
 			{
-				UE_LOG(LogClass, Warning, TEXT("Property %s of %s has a struct type mismatch (tag %s != prop %s) in package:  %s. If that struct got renamed, add an entry to ActiveStructRedirects."),
+				// Attempt mismatched tag serialization if available
+				if ((StructProperty->Struct->StructFlags & STRUCT_SerializeFromMismatchedTag) && (InnerTag.Type != NAME_StructProperty || (InnerTag.StructName != StructProperty->Struct->GetFName())))
+				{
+					SerializeFromMismatchedTag = InnerTag;
+				}
+				else
+				{
+					UE_LOG(LogClass, Warning, TEXT("Array Property %s of %s contains a struct type mismatch (tag %s != prop %s) in package:  %s. If that struct got renamed, add an entry to ActiveStructRedirects."),
 					*InnerTag.Name.ToString(), *GetName(), *InnerTag.StructName.ToString(), *CastFieldChecked<FStructProperty>(Inner)->Struct->GetName(), *UnderlyingArchive.GetArchiveName());
 
 #if WITH_EDITOR
-				// Ensure the structure is initialized
-				for (int32 i = 0; i < n; i++)
-				{
-					StructProperty->Struct->InitializeDefaultValue(ArrayHelper.GetRawPtr(i));
-				}
+					// Ensure the structure is initialized
+					for (int32 i = 0; i < n; i++)
+					{
+						StructProperty->Struct->InitializeDefaultValue(ArrayHelper.GetRawPtr(i));
+					}
 #endif // WITH_EDITOR
 
-				if (!bIsTextFormat)
-				{
-					// Skip the property
-					const int64 StartOfProperty = UnderlyingArchive.Tell();
-					const int64 RemainingSize = InnerTag.Size - (UnderlyingArchive.Tell() - StartOfProperty);
-					uint8 B;
-					for (int64 i = 0; i < RemainingSize; i++)
+					if (!bIsTextFormat)
 					{
-						UnderlyingArchive << B;
+						// Skip the property
+						const int64 StartOfProperty = UnderlyingArchive.Tell();
+						const int64 RemainingSize = InnerTag.Size - (UnderlyingArchive.Tell() - StartOfProperty);
+						uint8 B;
+						for (int64 i = 0; i < RemainingSize; i++)
+						{
+							UnderlyingArchive << B;
+						}
 					}
+					return;
 				}
-				return;
 			}
 		}
 	}
@@ -299,7 +335,7 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 
 				// Serialize the item at this array index
 				i = PropertyNode->ArrayIndex;
-				Inner->SerializeItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i));
+				SerializeContainerItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i));
 				PropertyNode = PropertyNode->PropertyListNext;
 
 				// Restore the current property list
@@ -323,7 +359,7 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 			NAME_UArraySerializeCount.SetNumber(i);
 			FArchive::FScopeAddDebugData P(UnderlyingArchive, NAME_UArraySerializeCount);
 #endif
-			Inner->SerializeItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i++));
+			SerializeContainerItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i++));
 		}
 
 		// Restore use of the custom property list (if it was previously enabled)

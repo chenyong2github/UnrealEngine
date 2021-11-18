@@ -7,13 +7,13 @@
 
 #include "UObject/UnrealType.h"
 
-UClass* FDisplayClusterConfigurationClusterSerializer::GetSupportedClass()
+UClass* UE::LevelSnapshots::nDisplay::Private::FDisplayClusterConfigurationClusterSerializer::GetSupportedClass()
 {
 	static const FSoftClassPath ClassPath("/Script/DisplayClusterConfiguration.DisplayClusterConfigurationCluster");
 	return ClassPath.ResolveClass();
 }
 
-void FDisplayClusterConfigurationClusterSerializer::MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module)
+void UE::LevelSnapshots::nDisplay::Private::FDisplayClusterConfigurationClusterSerializer::MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module)
 {
 	const FProperty* NodesProperty = GetMapProperty();
 	if (ensure(NodesProperty))
@@ -22,13 +22,13 @@ void FDisplayClusterConfigurationClusterSerializer::MarkPropertiesAsExplicitlyUn
 	}
 }
 
-void FDisplayClusterConfigurationClusterSerializer::Register(ILevelSnapshotsModule& Module)
+void UE::LevelSnapshots::nDisplay::Private::FDisplayClusterConfigurationClusterSerializer::Register(ILevelSnapshotsModule& Module)
 {
 	MarkPropertiesAsExplicitlyUnsupported(Module);
 	Module.RegisterCustomObjectSerializer(GetSupportedClass(), MakeShared<FDisplayClusterConfigurationClusterSerializer>());
 }
 
-const FMapProperty* FDisplayClusterConfigurationClusterSerializer::GetMapProperty()
+const FMapProperty* UE::LevelSnapshots::nDisplay::Private::FDisplayClusterConfigurationClusterSerializer::GetMapProperty()
 {
 	const FName NodesPropertyName("Nodes");
 	const FMapProperty* Result = CastField<FMapProperty>(GetSupportedClass()->FindPropertyByName(NodesPropertyName));

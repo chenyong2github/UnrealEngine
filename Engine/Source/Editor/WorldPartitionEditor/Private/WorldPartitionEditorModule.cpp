@@ -31,10 +31,16 @@
 #include "ContentBrowserModule.h"
 #include "EditorDirectories.h"
 #include "AssetRegistryModule.h"
+#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
+#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "Framework/Docking/LayoutExtender.h"
+#include "Widgets/Docking/SDockTab.h"
 
 IMPLEMENT_MODULE( FWorldPartitionEditorModule, WorldPartitionEditor );
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
+
+const FName WorldPartitionEditorTabId("WorldBrowserPartitionEditor");
 
 // World Partition
 static void OnLoadSelectedWorldPartitionVolumes(TArray<TWeakObjectPtr<AActor>> Volumes)
@@ -96,6 +102,10 @@ void FWorldPartitionEditorModule::StartupModule()
 		FLevelEditorModule& LevelEditorModule = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 		TArray<FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors>& MenuExtenderDelegates = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
 
+
+		LevelEditorModule.OnRegisterTabs().AddRaw(this, &FWorldPartitionEditorModule::RegisterWorldPartitionTabs);
+		LevelEditorModule.OnRegisterLayoutExtensions().AddRaw(this, &FWorldPartitionEditorModule::RegisterWorldPartitionLayout);
+
 		MenuExtenderDelegates.Add(FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateStatic(&OnExtendLevelEditorMenu));
 		LevelEditorExtenderDelegateHandle = MenuExtenderDelegates.Last().GetHandle();
 
@@ -109,6 +119,8 @@ void FWorldPartitionEditorModule::StartupModule()
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "DeveloperTools.MenuIcon"),
 			FUIAction(FExecuteAction::CreateRaw(this, &FWorldPartitionEditorModule::OnConvertMap))
 		));
+
+		FEditorDelegates::MapChange.AddRaw(this, &FWorldPartitionEditorModule::OnMapChanged);
 	}
 
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
@@ -123,7 +135,18 @@ void FWorldPartitionEditorModule::ShutdownModule()
 		if (FLevelEditorModule* LevelEditorModule = FModuleManager::Get().GetModulePtr<FLevelEditorModule>("LevelEditor"))
 		{
 			LevelEditorModule->GetAllLevelViewportContextMenuExtenders().RemoveAll([=](const FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors& In) { return In.GetHandle() == LevelEditorExtenderDelegateHandle; });
+
+			LevelEditorModule->OnRegisterTabs().RemoveAll(this);
+			LevelEditorModule->OnRegisterLayoutExtensions().RemoveAll(this);
+
+			if (LevelEditorModule->GetLevelEditorTabManager())
+			{
+				LevelEditorModule->GetLevelEditorTabManager()->UnregisterTabSpawner(WorldPartitionEditorTabId);
+			}
+
 		}
+
+		FEditorDelegates::MapChange.RemoveAll(this);
 
 		UToolMenus::UnregisterOwner(this);
 	}
@@ -149,11 +172,6 @@ TSharedRef<SWidget> FWorldPartitionEditorModule::CreateWorldPartitionEditor()
 {
 	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
 	return SNew(SWorldPartitionEditor).InWorld(EditorWorld);
-}
-
-float FWorldPartitionEditorModule::GetAutoCellLoadingMaxWorldSize() const
-{
-	return GetDefault<UWorldPartitionEditorSettings>()->AutoCellLoadingMaxWorldSize;
 }
 
 void FWorldPartitionEditorModule::OnConvertMap()
@@ -299,6 +317,67 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 	}
 
 	return false;
+}
+
+void FWorldPartitionEditorModule::OnMapChanged(uint32 MapFlags)
+{
+	if (MapFlags == MapChangeEventFlags::NewMap)
+	{
+		// If the world opened is a world partition world spawn the world partition tab if not open.
+		UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+		if (EditorWorld && EditorWorld->IsPartitionedWorld())
+		{
+			FLevelEditorModule* LevelEditorModule = FModuleManager::Get().GetModulePtr<FLevelEditorModule>("LevelEditor");
+
+			if(LevelEditorModule && LevelEditorModule->GetLevelEditorTabManager() && !WorldPartitionTab.IsValid())
+			{
+				WorldPartitionTab = LevelEditorModule->GetLevelEditorTabManager()->TryInvokeTab(WorldPartitionEditorTabId, true);
+			}
+		}
+		else if(TSharedPtr<SDockTab> WorldPartitionTabPin = WorldPartitionTab.Pin())
+		{
+			// close the WP tab if not a world partition world
+			WorldPartitionTabPin->RequestCloseTab();
+		}
+	}
+}
+
+bool FWorldPartitionEditorModule::CanSpawnWorldPartitionTab(const FSpawnTabArgs& Args)
+{
+	UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+	return EditorWorld && EditorWorld->IsPartitionedWorld();
+}
+
+TSharedRef<SDockTab> FWorldPartitionEditorModule::SpawnWorldPartitionTab(const FSpawnTabArgs& Args)
+{
+	TSharedRef<SDockTab> NewTab =
+		SNew(SDockTab)
+		.Label(NSLOCTEXT("LevelEditor", "WorldBrowserPartitionTabTitle", "World Partition"))
+		[
+			CreateWorldPartitionEditor()
+		];
+
+	WorldPartitionTab = NewTab;
+	return NewTab;
+}
+
+void FWorldPartitionEditorModule::RegisterWorldPartitionTabs(TSharedPtr<FTabManager> InTabManager)
+{
+	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
+
+	const FSlateIcon WorldPartitionIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.WorldPartition");
+	InTabManager->RegisterTabSpawner(WorldPartitionEditorTabId,
+		FOnSpawnTab::CreateRaw(this, &FWorldPartitionEditorModule::SpawnWorldPartitionTab),
+		FCanSpawnTab::CreateRaw(this, &FWorldPartitionEditorModule::CanSpawnWorldPartitionTab))
+		.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "WorldPartitionEditor", "World Partition Editor"))
+		.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "WorldPartitionEditorTooltipText", "Open the World Partition Editor."))
+		.SetGroup(MenuStructure.GetLevelEditorWorldPartitionCategory())
+		.SetIcon(WorldPartitionIcon);
+}
+
+void FWorldPartitionEditorModule::RegisterWorldPartitionLayout(FLayoutExtender& Extender)
+{
+	Extender.ExtendLayout(FTabId("LevelEditorSelectionDetails"), ELayoutExtensionPosition::After, FTabManager::FTab(WorldPartitionEditorTabId, ETabState::OpenedTab));
 }
 
 UWorldPartitionEditorSettings::UWorldPartitionEditorSettings()

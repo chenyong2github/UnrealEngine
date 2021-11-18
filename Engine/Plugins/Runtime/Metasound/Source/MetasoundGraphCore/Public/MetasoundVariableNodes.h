@@ -90,6 +90,7 @@ namespace Metasound
 		public:
 			FOperator(TDataWriteReference<FVariable> InVariable)
 			: Variable(InVariable)
+			, bCopyReferenceDataOnExecute(false)
 			{
 			}
 
@@ -110,12 +111,36 @@ namespace Metasound
 
 			void Execute()
 			{
-				Variable->CopyReferencedData();
+				if (bCopyReferenceDataOnExecute)
+				{
+					Variable->CopyReferencedData();
+				}
+				else
+				{
+					// The first time a variable node is run, it should not copy
+					// reference data in the variable, but instead use the original
+					// initial value of the variable. 
+					//
+					// The TVariableNode is currently executed before the TVariableDeferredAccessor
+					// nodes. This execution order is managed in the Metasound::Frontend::FGraphController.
+					// Because the TVariableNode is executed before the TVariableDeferredAccessor node
+					// it can undesireably override the "init" value of the variable with the "init" 
+					// value of the data reference set in the TVariableMutatorNode. 
+					// This would mean that the first call to execute on TVariableDeferredAccessor
+					// would result in reading the "init" value of the data reference
+					// set in the TVariableMutatorNode as opposed to the "init" value
+					// of the data reference set in the TVariableNode. This boolean
+					// protects against that situation so that on first call to execute, the 
+					// TVariableDeferredAccessor always reads the "init" value provided
+					// by the TVariableNode. 
+					bCopyReferenceDataOnExecute = true;
+				}
 			}
 
 		private:
 
 			TDataWriteReference<FVariable> Variable;
+			bool bCopyReferenceDataOnExecute;
 		};
 
 		class FFactory : public IOperatorFactory
@@ -302,7 +327,7 @@ namespace Metasound
 			Info.ClassName = VariableNames::GetVariableMutatorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_VariableMutatorNodeDisplayNameFormat", "Set {0}"), GetMetasoundDataTypeDisplayText<DataType>());
+			Info.DisplayName = LOCTEXT("Metasound_VariableMutatorNodeDisplayName", "Set");
 			Info.Description = LOCTEXT("Metasound_VariableMutatorNodeDescription", "Set variable on MetaSound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -410,7 +435,7 @@ namespace Metasound
 			Info.ClassName = VariableNames::GetVariableDeferredAccessorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_VariableDeferredAccessorNodeDisplayNameFormat", "Get Delayed {0}"), GetMetasoundDataTypeDisplayText<DataType>());
+			Info.DisplayName = LOCTEXT("Metasound_VariableDeferredAccessorNodeDisplayName", "Get Delayed");
 			Info.Description = LOCTEXT("Metasound_VariableDeferredAccessorNodeDescription", "Get a delayed variable on MetaSound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
@@ -517,7 +542,7 @@ namespace Metasound
 			Info.ClassName = VariableNames::GetVariableAccessorNodeClassName<DataType>();
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
-			Info.DisplayName = FText::Format(LOCTEXT("Metasound_VariableAccessorNodeDisplayNameFormat", "Get {0}"), GetMetasoundDataTypeDisplayText<DataType>());
+			Info.DisplayName = LOCTEXT("Metasound_VariableAccessorNodeDisplayName", "Get");
 			Info.Description = LOCTEXT("Metasound_VariableAccessorNodeDescription", "Get variable on MetaSound graph.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;

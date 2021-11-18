@@ -35,6 +35,7 @@
 #include "Misc/Paths.h"
 #include "PackageTools.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshCompiler.h"
 #include "SourceUri.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Templates/SharedPointer.h"
@@ -436,7 +437,7 @@ namespace DatasmithSceneElementUtil
 								ReImportSceneData->AdditionalOptions.Add(OptionObj);
 							}
 							ReImportSceneData->Update(ImportContext.Options->FilePath, ImportContext.FileHash.IsValid() ? &ImportContext.FileHash : nullptr);
-							ReImportSceneData->SourceUri = ImportContext.Options->SourceUri;
+							ReImportSceneData->DatasmithImportInfo = FDatasmithImportInfo(ImportContext.Options->SourceUri, ImportContext.Options->SourceHash);
 
 							FAssetRegistryModule::AssetCreated(ReImportSceneData);
 
@@ -557,6 +558,11 @@ UDatasmithSceneElement* UDatasmithSceneElement::ConstructDatasmithSceneFromFile(
 	UDatasmithSceneElement* DatasmithSceneElement = NewObject<UDatasmithSceneElement>();
 	DatasmithSceneElement->ExternalSourcePtr = ExternalSource;
 
+	// Creating an empty scene so that UDatasmithSceneElement's functions can safely be called.
+	// This scene is overriden when UDatasmithSceneElement::TranslateScene() is called.
+	TSharedRef<IDatasmithScene> Scene = FDatasmithSceneFactory::CreateScene(*ExternalSource->GetSourceName());
+	DatasmithSceneElement->SetDatasmithSceneElement(Scene);
+
 	const bool bLoadConfig = false; // don't load values from ini files
 	DatasmithSceneElement->ImportContextPtr.Reset(new FDatasmithImportContext(ExternalSource.ToSharedRef(), bLoadConfig, GetLoggerName(), GetDisplayName()));
 
@@ -610,6 +616,11 @@ UDatasmithSceneElement* UDatasmithSceneElement::GetExistingDatasmithScene(const 
 		DatasmithSceneElement->ExternalSourcePtr = ExternalSource;
 		
 		ExternalSource->SetSceneName(*SceneAsset->GetName()); // keep initial name
+
+		// Creating an empty scene so that UDatasmithSceneElement's functions can safely be called.
+		// This scene is overriden when UDatasmithSceneElement::TranslateScene() is called.
+		TSharedRef<IDatasmithScene> Scene = FDatasmithSceneFactory::CreateScene(*SceneAsset->GetName());
+		DatasmithSceneElement->SetDatasmithSceneElement(Scene);
 
 		// Setup pipe for reimport
 		const bool bLoadConfig = false;
@@ -1022,7 +1033,10 @@ void UDatasmithStaticMeshBlueprintLibrary::ComputeLightmapResolution(const TMap<
 			EParallelForFlags::Unbalanced
 		);
 
-		UStaticMesh::BatchBuild( StaticMeshes, true);
+		UStaticMesh::BatchBuild( StaticMeshes, true );
+
+		// To avoid race condition, we need to wait for async mesh compilation to finish (if enabled) before proceeding to access mesh properties
+		FStaticMeshCompilingManager::Get().FinishCompilation( StaticMeshes );
 
 		ParallelFor( StaticMeshes.Num(),
 			[&]( int32 Index )

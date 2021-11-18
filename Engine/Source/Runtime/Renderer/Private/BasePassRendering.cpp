@@ -595,11 +595,7 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 	Strata::BindStrataBasePassUniformParameters(GraphBuilder, View.StrataSceneData, BasePassParameters.Strata);
 
 	// Misc
-	BasePassParameters.EyeAdaptationTexture = SystemTextures.White;
-	if (View.HasValidEyeAdaptationTexture())
-	{
-		BasePassParameters.EyeAdaptationTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture());
-	}
+	BasePassParameters.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 
 	return GraphBuilder.CreateUniformBuffer(&BasePassParameters);
 }

@@ -11,9 +11,9 @@ public:
 	virtual ~IDisplayClusterViewport_CustomPostProcessSettings() = default;
 
 public:
-	enum class ERenderPass : int
+	enum class ERenderPass : uint8
 	{
-		Start,
+		Start = 0,
 		Override,
 		Final,
 		FinalPerViewport,

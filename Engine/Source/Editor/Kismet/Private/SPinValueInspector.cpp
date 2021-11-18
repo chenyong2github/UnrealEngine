@@ -242,21 +242,24 @@ void SPinValueInspector::PopulateTreeView()
 
 TWeakPtr<FPinValueInspectorTooltip> FPinValueInspectorTooltip::SummonTooltip(FEdGraphPinReference InPinRef)
 {
-	if (ensureMsgf(InPinRef.Get(), TEXT("SPinValueInspector::SummonTooltip was called with an invalid Pin")))
+	if (!FSlateApplication::Get().GetVisibleMenuWindow().Get())
 	{
-		if (!TooltipWindow.IsValid())
+		if (ensureMsgf(InPinRef.Get(), TEXT("SPinValueInspector::SummonTooltip was called with an invalid Pin")))
 		{
-			CreatePinValueTooltipWindow();
-		}
-		else if (Instance.IsValid())
-		{
-			Instance->DismissTooltip();
-		}
+			if (!TooltipWindow.IsValid())
+			{
+				CreatePinValueTooltipWindow();
+			}
+			else if (Instance.IsValid())
+			{
+				Instance->DismissTooltip();
+			}
 
-		Instance = MakeShared<FPinValueInspectorTooltip>();
-		TooltipWindow->ShowWindow();
-		TooltipWidget->SetContentWidget(SAssignNew(Instance->ValueInspectorWidget, SPinValueInspector, InPinRef));
-		return Instance;
+			Instance = MakeShared<FPinValueInspectorTooltip>();
+			TooltipWindow->ShowWindow();
+			TooltipWidget->SetContentWidget(SAssignNew(Instance->ValueInspectorWidget, SPinValueInspector, InPinRef));
+			return Instance;
+		}
 	}
 
 	return nullptr;
@@ -302,7 +305,8 @@ void FPinValueInspectorTooltip::CreatePinValueTooltipWindow()
 		.SupportsMaximize(false)
 		.SupportsMinimize(false)
 		.IsPopupWindow(true)
-		.SizingRule(ESizingRule::Autosized);
+		.SizingRule(ESizingRule::Autosized)
+		.ActivationPolicy(EWindowActivationPolicy::Never);
 
 	FSlateApplication::Get().AddWindow(TooltipWindow.ToSharedRef());
 	TooltipWindow->SetContent(SAssignNew(TooltipWidget, SToolTip));

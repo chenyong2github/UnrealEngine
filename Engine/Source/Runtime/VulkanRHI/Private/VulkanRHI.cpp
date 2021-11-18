@@ -777,6 +777,11 @@ void FVulkanDynamicRHI::InitInstance()
 #if VULKAN_RHI_RAYTRACING
 		GRHISupportsRayTracing = false; // Disable runtime hwrt on vk during development.
 		//GRHISupportsRayTracing = Device->GetOptionalExtensions().HasRaytracingExtensions();
+
+		const FRayTracingProperties& RayTracingProps = Device->GetRayTracingProperties();
+		GRHIRayTracingAccelerationStructureAlignment = 256; // TODO (currently handled by FVulkanAccelerationStructureBuffer)
+		GRHIRayTracingScratchBufferAlignment = RayTracingProps.AccelerationStructure.minAccelerationStructureScratchOffsetAlignment;
+		GRHIRayTracingInstanceDescriptorSize = uint32(sizeof(VkAccelerationStructureInstanceKHR));
 #endif
 #if VULKAN_ENABLE_DUMP_LAYER
 		// Disable RHI thread by default if the dump layer is enabled
@@ -786,6 +791,8 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsRHIThread = GRHIThreadCvar->GetInt() != 0;
 		GRHISupportsParallelRHIExecute = GRHIThreadCvar->GetInt() > 1;
 #endif
+		GSupportsParallelOcclusionQueries = true;
+
 		// Some platforms might only have CPU for an RHI thread, but not for parallel tasks
 		GSupportsParallelRenderingTasksWithSeparateRHIThread = GRHISupportsRHIThread ? FVulkanPlatform::SupportParallelRenderingTasks() : false;
 
@@ -1003,6 +1010,7 @@ void FVulkanCommandListContext::RHIEndFrame()
 
 	Device->GetStagingManager().ProcessPendingFree(false, true);
 	Device->GetMemoryManager().ReleaseFreedPages(*this);
+	Device->GetDeferredDeletionQueue().ReleaseResources();
 
 	if (UseVulkanDescriptorCache())
 	{
@@ -1011,6 +1019,8 @@ void FVulkanCommandListContext::RHIEndFrame()
 	Device->GetDescriptorPoolsManager().GC();
 
 	Device->ReleaseUnusedOcclusionQueryPools();
+
+	Device->GetPipelineStateCache()->TickLRU();
 
 	++FrameCounter;
 }
@@ -1753,6 +1763,18 @@ void FVulkanDynamicRHI::RecreateSwapChain(void* NewNativeWindow)
 void FVulkanDynamicRHI::VulkanSetImageLayout( VkCommandBuffer CmdBuffer, VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange )
 {
 	::VulkanSetImageLayout( CmdBuffer, Image, OldLayout, NewLayout, SubresourceRange );
+}
+
+bool FVulkanDynamicRHI::RHIIsTypedUAVLoadSupported(EPixelFormat PixelFormat)
+{
+	if (Device)
+	{
+		const FPixelFormatInfo& FormatInfo = GPixelFormats[PixelFormat];
+		const VkFormat Format = (VkFormat)FormatInfo.PlatformFormat;
+		const VkFormatFeatureFlags FormatFlags = Device->GetFormatProperties()[Format].optimalTilingFeatures;
+		return (FormatFlags & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) != 0;
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

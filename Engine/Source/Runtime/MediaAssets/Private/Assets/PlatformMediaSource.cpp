@@ -217,6 +217,19 @@ UMediaSource* UPlatformMediaSource::GetMediaSource() const
 /* IMediaOptions interface
  *****************************************************************************/
 
+FName UPlatformMediaSource::GetDesiredPlayerName() const
+{
+	UMediaSource* PlatformMediaSource = GetMediaSource();
+
+	if (PlatformMediaSource != nullptr)
+	{
+		return PlatformMediaSource->GetDesiredPlayerName();
+	}
+
+	return Super::GetDesiredPlayerName();
+}
+
+
 bool UPlatformMediaSource::GetMediaOption(const FName& Key, bool DefaultValue) const
 {
 	// Guard against reentrant calls.

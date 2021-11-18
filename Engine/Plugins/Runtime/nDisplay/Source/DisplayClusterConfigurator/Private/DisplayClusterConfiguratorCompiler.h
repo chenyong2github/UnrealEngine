@@ -29,8 +29,8 @@ protected:
 	virtual void SpawnNewClass(const FString& NewClassName) override;
 	virtual void OnNewClassSet(UBlueprintGeneratedClass* ClassToUse) override;
 	virtual void PreCompile() override;
+	virtual void SaveSubObjectsFromCleanAndSanitizeClass(FSubobjectCollection& SubObjectsToSave, UBlueprintGeneratedClass* ClassToClean) override;
 	virtual void CopyTermDefaultsToDefaultObject(UObject* DefaultObject) override;
-	virtual void OnPostCDOCompiled() override;
 	/** ~FKismetCompilerContext interface */
 
 	/**
@@ -40,4 +40,6 @@ protected:
 
 private:
 	class UDisplayClusterBlueprintGeneratedClass* DCGeneratedBP;
+	/** Sub-objects which should survive a compile. */
+	TArray<UObject*> SavedSubObjects;
 };

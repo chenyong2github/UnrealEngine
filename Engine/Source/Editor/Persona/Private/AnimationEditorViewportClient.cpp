@@ -489,12 +489,12 @@ void FAnimationViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterf
 		{
 			if (PreviewMeshComponent->bSkeletonSocketsVisible && PreviewMeshComponent->SkeletalMesh->GetSkeleton() )
 			{
-				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->SkeletalMesh->GetSkeleton()->Sockets, FSelectedSocketInfo(), PDI, true);
+				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->SkeletalMesh->GetSkeleton()->Sockets, GetAnimPreviewScene()->GetSelectedSocket(), PDI, true);
 			}
 
 			if ( PreviewMeshComponent->bMeshSocketsVisible )
 			{
-				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->SkeletalMesh->GetMeshOnlySocketList(), FSelectedSocketInfo(), PDI, false);
+				DrawSockets(PreviewMeshComponent, PreviewMeshComponent->SkeletalMesh->GetMeshOnlySocketList(), GetAnimPreviewScene()->GetSelectedSocket(), PDI, false);
 			}
 		}
 	}
@@ -1370,15 +1370,19 @@ void FAnimationViewportClient::DrawMeshBones(UDebugSkelMeshComponent * MeshCompo
 			const int32 ParentIndex = MeshComponent->GetReferenceSkeleton().GetParentIndex(BoneIndex);
 
 			WorldTransforms[BoneIndex] = MeshComponent->GetDrawTransform(BoneIndex) * MeshComponent->GetComponentTransform();
-			
-			if(SelectedBones.Contains(BoneIndex))
-			{
-				BoneColours[BoneIndex] = FLinearColor(1.0f, 0.34f, 0.0f, 1.0f);
-			}
-			else
-			{
-				BoneColours[BoneIndex] = (ParentIndex >= 0) ? FLinearColor::White : FLinearColor::Red;
-			}
+			BoneColours[BoneIndex] = (ParentIndex >= 0) ? FLinearColor::White : FLinearColor::Red;
+		}
+
+		// Color virtual bones
+		for (int16 VirtualBoneIndex : MeshComponent->GetReferenceSkeleton().GetRequiredVirtualBones())
+		{
+			BoneColours[VirtualBoneIndex] = FLinearColor(0.4f, 0.4f, 1.0f, 1.0f);
+		}
+
+		// Color selected bones
+		for (int32 SelectedBoneIndex : SelectedBones)
+		{
+			BoneColours[SelectedBoneIndex] = FLinearColor(1.0f, 0.34f, 0.0f, 1.0f);
 		}
 
 		DrawBones(DrawBoneIndices, MeshComponent->GetReferenceSkeleton(), WorldTransforms, MeshComponent->BonesOfInterest, PDI, BoneColours, MeshComponent->Bounds.SphereRadius, 0.f, false, MeshComponent->BoneRadiusMultiplier);
@@ -1463,7 +1467,10 @@ void FAnimationViewportClient::DrawBones(const TArray<FBoneIndexType>& RequiredB
 			}
 
 			//Render Sphere for bone end point and a cone between it and its parent.
+			FName BoneName = RefSkeleton.GetBoneName(BoneIndex);
+			PDI->SetHitProxy(new HPersonaBoneHitProxy(BoneIndex, BoneName));
 			SkeletalDebugRendering::DrawWireBone(PDI, Start, End, LineColor, SDPG_Foreground, Radius);
+			PDI->SetHitProxy(nullptr);
 
 			// draw gizmo
 			if ((GetLocalAxesMode() == ELocalAxesMode::All) ||
@@ -1579,7 +1586,7 @@ void FAnimationViewportClient::DrawSockets(const UDebugSkelMeshComponent* InPrev
 			}
 			else
 			{
-				SocketColor = (ParentIndex >= 0) ? FLinearColor::White : FLinearColor::Red;
+				SocketColor = (bUseSkeletonSocketColor) ? FLinearColor::White : FLinearColor::Red;
 			}
 
 			static const float SphereRadius = 1.0f;
@@ -1599,7 +1606,9 @@ void FAnimationViewportClient::DrawSockets(const UDebugSkelMeshComponent* InPrev
 				FMatrix SocketMatrix;
 				Socket->GetSocketMatrix( SocketMatrix, InPreviewMeshComponent);
 
+				PDI->SetHitProxy(new HPersonaSocketHitProxy(Socket));
 				DrawWireDiamond( PDI, SocketMatrix, 2.f, SocketColor, SDPG_Foreground );
+				PDI->SetHitProxy(nullptr);
 				
 				SkeletalDebugRendering::DrawAxes(PDI, FTransform(SocketMatrix), SDPG_Foreground);
 			}

@@ -496,7 +496,10 @@ void FAutomationControllerManager::ProcessAvailableTasks()
 
 					// Close play window
 					#if WITH_EDITOR
+					if (GUnrealEd)
+					{
 						GUnrealEd->RequestEndPlayMap();
+					}
 					#endif
 
 					//Notify the graphical layout we are done processing results.

@@ -236,7 +236,7 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 
 	virtual void SetUV(int32 EID, FVector2f UVIn)
 	{
-		FVector2D& UV = Collection->UVs[EID][UVLayer];
+		FVector2f& UV = Collection->UVs[EID][UVLayer];
 		UV.X = UVIn.X;
 		UV.Y = UVIn.Y;
 	}

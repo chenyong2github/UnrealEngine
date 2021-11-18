@@ -75,9 +75,6 @@
 #include "ControlRigLocalVariableDetails.h"
 #include "ControlRigInfluenceMapDetails.h"
 #include "Animation/AnimSequence.h"
-#include "Editor/SControlRigProfilingView.h"
-#include "WorkspaceMenuStructure.h"
-#include "WorkspaceMenuStructureModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ControlRigParameterTrackEditor.h"
 #include "ActorFactories/ActorFactorySkeletalMesh.h"
@@ -116,15 +113,11 @@
 #include "AssetTypeActions_ControlRigPose.h"
 #include "ControlRigBlueprintFactory.h"
 #include "ControlRigPythonLogDetails.h"
-#include "EditMode/SControlRigBaseListWidget.h"
-#include "EditMode/SControlRigTweenWidget.h"
-#include "EditMode/SControlRigSnapper.h"
 #include "Dialogs/CustomDialog.h"
 #include "Sequencer/MovieSceneControlRigSpaceChannel.h"
 #include "SequencerChannelInterface.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "Tools/SMotionTrailOptions.h"
 #include "ICurveEditorModule.h"
 #include "Channels/SCurveEditorKeyBarView.h"
 #include "ControlRigSpaceChannelCurveModel.h"
@@ -133,57 +126,6 @@
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
 DEFINE_LOG_CATEGORY(LogControlRigEditor);
-
-const FName IControlRigEditorModule::ControlRigPoseTab = FName("ControlRigPoseTab");
-const FName IControlRigEditorModule::ControlRigTweenTab = FName("ControlRigTweenTab");
-const FName IControlRigEditorModule::ControlRigSnapperTab = FName("ControlRigSnapperTab");
-const FName IControlRigEditorModule::ControlRigMotionTrailTab = FName("ControlRigMotionTrailTab");
-
-
-TSharedRef<SDockTab> SpawnRigProfiler( const FSpawnTabArgs& Args )
-{
-	return SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		[
-			SNew(SControlRigProfilingView)
-		];
-}
-
-TSharedRef<SDockTab> SpawnPoseTab(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		[
-			SNew(SControlRigBaseListWidget)
-		];
-}
-
-TSharedRef<SDockTab> SpawnTweenTab(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		[
-			SNew(SControlRigTweenWidget)
-		];
-}
-
-TSharedRef<SDockTab> SpawnSnapperTab(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		[
-			SNew(SControlRigSnapper)
-		];
-}
-
-TSharedRef<SDockTab> SpawnMotionTrailTab(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab)
-		[
-			SNew(SMotionTrailOptions)
-		];
-}
 
 
 void FControlRigEditorModule::StartupModule()
@@ -285,45 +227,6 @@ void FControlRigEditorModule::StartupModule()
 	ReconstructAllNodesDelegateHandle = FBlueprintEditorUtils::OnReconstructAllNodesEvent.AddStatic(&FControlRigBlueprintUtils::HandleReconstructAllNodes);
 	RefreshAllNodesDelegateHandle = FBlueprintEditorUtils::OnRefreshAllNodesEvent.AddStatic(&FControlRigBlueprintUtils::HandleRefreshAllNodes);
 
-#if WITH_EDITOR
-	if (FSlateApplication::IsInitialized())
-	{
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner("HierarchicalProfiler", FOnSpawnTab::CreateStatic(&SpawnRigProfiler))
-			.SetDisplayName(NSLOCTEXT("UnrealEditor", "HierarchicalProfilerTab", "Hierarchical Profiler"))
-			.SetTooltipText(NSLOCTEXT("UnrealEditor", "HierarchicalProfilerTooltip", "Open the Hierarchical Profiler tab."))
-			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsProfilingCategory())
-			.SetIcon(FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("HierarchicalProfiler.TabIcon")));
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IControlRigEditorModule::ControlRigPoseTab, FOnSpawnTab::CreateStatic(&SpawnPoseTab))
-			.SetDisplayName(NSLOCTEXT("UnrealEditor", "ControlRigPoseTab", "Control Rig Pose"))
-			.SetTooltipText(NSLOCTEXT("UnrealEditor", "ControlRigPoseTabTooltip", "Open the Control Rig Pose tab."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings"));//MZ todo replace with correct icon
-		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigPoseTab, FVector2D(850, 800));
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IControlRigEditorModule::ControlRigTweenTab, FOnSpawnTab::CreateStatic(&SpawnTweenTab))
-			.SetDisplayName(NSLOCTEXT("UnrealEditor", "ControlRigTweenTab", "Control Rig Tween"))
-			.SetTooltipText(NSLOCTEXT("UnrealEditor", "ControlRigTweenTooltip", "Open the Control Rig Tween tab."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SkeletonTree.BlendProfile")); //MZ todo replace with correct icon
-		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigTweenTab, FVector2D(400, 100));
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IControlRigEditorModule::ControlRigSnapperTab, FOnSpawnTab::CreateStatic(&SpawnSnapperTab))
-			.SetDisplayName(NSLOCTEXT("UnrealEditor", "ControlRigSnapperTab", "Control Rig Snapper"))
-			.SetTooltipText(NSLOCTEXT("UnrealEditor", "ControlRigSnapperTabTooltip", "Open the Control Rig Snapper tab."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimSlotManager"));//MZ todo replace with correct icon SkeletonTree.SkeletonSocket
-		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigSnapperTab, FVector2D(400, 400));
-
-		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IControlRigEditorModule::ControlRigMotionTrailTab, FOnSpawnTab::CreateStatic(&SpawnMotionTrailTab))
-			.SetDisplayName(NSLOCTEXT("UnrealEditor", "MotionTrailTab", "Motion Trail"))
-			.SetTooltipText(NSLOCTEXT("UnrealEditor", "MotionTrailTabTooltip", "Open the Motion Trail tab."))
-			.SetMenuType(ETabSpawnerMenuType::Hidden)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimSlotManager"));//MZ todo replace with correct icon SkeletonTree.SkeletonSocket
-		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigMotionTrailTab, FVector2D(425, 575));
-
-	};
-#endif
-
 	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
 	FControlRigSpaceChannelCurveModel::ViewID = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(
 		[](TWeakPtr<FCurveEditor> WeakCurveEditor) -> TSharedRef<SCurveEditorView>
@@ -354,17 +257,6 @@ void FControlRigEditorModule::ShutdownModule()
 	{
 		CurveEditorModule->UnregisterView(FControlRigSpaceChannelCurveModel::ViewID);
 	}
-
-#if WITH_EDITOR
-	if (FSlateApplication::IsInitialized())
-	{
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner("ControlRigProfiler");
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigPoseTab);
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigTweenTab);
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigSnapperTab);
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigMotionTrailTab);
-	}
-#endif
 
 	//UThumbnailManager::Get().UnregisterCustomRenderer(UControlRigBlueprint::StaticClass());
 	//UActorFactorySkeletalMesh::UnregisterDelegatesForAssetClass(UControlRigBlueprint::StaticClass());

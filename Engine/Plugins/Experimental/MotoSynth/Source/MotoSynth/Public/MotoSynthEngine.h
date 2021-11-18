@@ -147,8 +147,8 @@ private:
 	MotoSynthDataPtr AccelerationSourceData;
 	MotoSynthDataPtr DecelerationSourceData;
 
-	FVector2D RPMRange;
-	FVector2D RPMRange_RendererCallback;
+	FVector2f RPMRange;
+	FVector2f RPMRange_RendererCallback;
 
 	// Number of samples to use to do a grain crossfade. Smooths out discontinuities on grain boundaries.
 	int32 GrainCrossfadeSamples = 10;
@@ -164,7 +164,7 @@ private:
 	TArray<int32> FreeGrains; // Grain indicies which are free to be used. max size should be equal to grain pool size.
 
 	TArray<float> SynthBuffer;
-	FVector2D SynthFilterFreqRange = { 100.0f, 5000.0f };
+	FVector2f SynthFilterFreqRange = { 100.0f, 5000.0f };
 	Audio::FLadderFilter SynthFilter;
 	Audio::FOsc SynthOsc;
 	Audio::FADEnvelope SynthEnv;
@@ -187,19 +187,19 @@ private:
 	// Mono scratch buffer for engine generation
 	TArray<float> GrainEngineBuffer;
 
-	FVector2D SynthToneVolumeRange = { 0.0f, 0.0f };
-	FVector2D SynthToneFilterFrequencyRange = { 500.0f, 500.0f };
-	FVector2D SynthToneAttackTimeMsecRange = { 10.0f, 10.0f };
-	FVector2D SynthToneDecayTimeMsecRange = { 100.0f, 100.0f };
-	FVector2D SynthToneAttackCurveRange = { 1.0f, 1.0f };
-	FVector2D SynthToneDecayCurveRange = { 1.0f, 1.0f };
+	FVector2f SynthToneVolumeRange = { 0.0f, 0.0f };
+	FVector2f SynthToneFilterFrequencyRange = { 500.0f, 500.0f };
+	FVector2f SynthToneAttackTimeMsecRange = { 10.0f, 10.0f };
+	FVector2f SynthToneDecayTimeMsecRange = { 100.0f, 100.0f };
+	FVector2f SynthToneAttackCurveRange = { 1.0f, 1.0f };
+	FVector2f SynthToneDecayCurveRange = { 1.0f, 1.0f };
 
-	FVector2D NoiseVolumeRange = { 0.0f, 0.0f };
-	FVector2D NoiseLPFRange = { 0.0f, 0.0f };
-	FVector2D NoiseAttackTimeMsecRange = { 10.0f, 10.0f };
-	FVector2D NoiseAttackCurveRange = { 1.0f, 1.0f };
-	FVector2D NoiseDecayTimeMsecRange = { 10.0f, 10.0f };
-	FVector2D NoiseDecayCurveRange = { 1.0f, 1.0f };
+	FVector2f NoiseVolumeRange = { 0.0f, 0.0f };
+	FVector2f NoiseLPFRange = { 0.0f, 0.0f };
+	FVector2f NoiseAttackTimeMsecRange = { 10.0f, 10.0f };
+	FVector2f NoiseAttackCurveRange = { 1.0f, 1.0f };
+	FVector2f NoiseDecayTimeMsecRange = { 10.0f, 10.0f };
+	FVector2f NoiseDecayCurveRange = { 1.0f, 1.0f };
 
 	int32 SynthOctaveShift = 0;
 	float GranularEngineVolume = 1.0f;

@@ -271,7 +271,7 @@ void SDockingTabStack::OnTabRemoved( const FTabId& TabId )
 	RemovePersistentTab( TabId );
 }
 
-void SDockingTabStack::OpenTab(const TSharedRef<SDockTab>& InTab, int32 InsertLocationAmongActiveTabs)
+void SDockingTabStack::OpenTab(const TSharedRef<SDockTab>& InTab, int32 InsertLocationAmongActiveTabs, bool bKeepInactive)
 {
 	const int32 InsertIndex = OpenPersistentTab(InTab->GetLayoutIdentifier(), InsertLocationAmongActiveTabs);
 
@@ -301,16 +301,16 @@ void SDockingTabStack::OpenTab(const TSharedRef<SDockTab>& InTab, int32 InsertLo
 	}
 	else
 	{
-		AddTabWidget(InTab, InsertIndex);
+		AddTabWidget(InTab, InsertIndex, bKeepInactive);
 		OnLiveTabAdded();
 		TabWell->RefreshParentContent();
 	}
 
 }
 
-void SDockingTabStack::AddTabWidget( const TSharedRef<SDockTab>& InTab, int32 AtLocation )
+void SDockingTabStack::AddTabWidget(const TSharedRef<SDockTab>& InTab, int32 AtLocation, bool bKeepInactive)
 {
-	TabWell->AddTab( InTab, AtLocation );
+	TabWell->AddTab(InTab, AtLocation, bKeepInactive);
 
 	if ( IsTabWellHidden() && TabWell->GetNumTabs() > 1 )
 	{

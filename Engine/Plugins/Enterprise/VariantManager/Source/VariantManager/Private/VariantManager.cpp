@@ -73,7 +73,7 @@ UBlueprint* FVariantManager::GetOrCreateDirectorBlueprint(ULevelVariantSets* InL
 	// later when we want to execute these functions
 
 	UBlueprint* Director = Cast<UBlueprint>(InLevelVariantSets->GetDirectorGeneratedBlueprint());
-	if (!Director || Director->IsPendingKillOrUnreachable())
+	if (!Director || !IsValidChecked(Director) || Director->IsUnreachable())
 	{
 		FName BlueprintName = "LevelVariantSetsDirector";
 		Director = FKismetEditorUtilities::CreateBlueprint(ULevelVariantSetsFunctionDirector::StaticClass(), InLevelVariantSets, BlueprintName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());

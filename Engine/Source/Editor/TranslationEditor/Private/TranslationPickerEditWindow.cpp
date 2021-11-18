@@ -242,13 +242,12 @@ void STranslationPickerEditWidget::Construct(const FArguments& InArgs)
 	FString TranslationString;
 	bool bHasIdentity = false;
 	{
-		const FString* SourceStringPtr = FTextInspector::GetSourceString(PickedText);
-		SourceString = SourceStringPtr ? *SourceStringPtr : FString();
-
-		const FTextDisplayStringRef DisplayString = FTextInspector::GetSharedDisplayString(PickedText);
-		TranslationString = *DisplayString;
-
-		bHasIdentity = FTextLocalizationManager::Get().FindNamespaceAndKeyFromDisplayString(DisplayString, Namespace, Key);
+		if (const FString* SourceStringPtr = FTextInspector::GetSourceString(PickedText))
+		{
+			SourceString = *SourceStringPtr;
+		}
+		TranslationString = FTextInspector::GetDisplayString(PickedText);
+		bHasIdentity = !FTextInspector::GetTextId(PickedText).IsEmpty();
 	}
 
 	// Try and find the LocRes the active translation came from

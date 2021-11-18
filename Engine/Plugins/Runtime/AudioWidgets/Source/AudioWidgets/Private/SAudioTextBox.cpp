@@ -29,11 +29,13 @@ void SAudioTextBox::Construct(const SAudioTextBox::FArguments& InArgs)
 				return ShowUnitsText.Get() ? EVisibility::Visible : EVisibility::Collapsed;
 			})
 			.Text(FText::FromString("units"))
+			.Justification(ETextJustify::Left)
 			.OverflowPolicy(ETextOverflowPolicy::Ellipsis);
 
 		SAssignNew(LabelBorder, SBorder)
 			.BorderImage(&Style->BackgroundImage)
 			.BorderBackgroundColor(Style->BackgroundColor)
+			.Padding(2.0f)
 			.Visibility_Lambda([this]()
 			{
 				return (!ShowLabelOnlyOnHover.Get() || this->IsHovered()) ? EVisibility::Visible : EVisibility::Hidden;
@@ -49,7 +51,7 @@ void SAudioTextBox::Construct(const SAudioTextBox::FArguments& InArgs)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(2.0f, 0.0f, 4.0f, 0.0f)
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				[
@@ -129,6 +131,11 @@ void SAudioTextBox::UpdateValueTextWidth(const FVector2D InOutputRange)
 	{
 		// set to max of label background width and calculated max width
 		MaxValueLabelWidth = FMath::Max(MaxValueLabelWidth, Style->BackgroundImage.ImageSize.X);
+	}
+	else
+	{
+		const float UnitsTextWidth = FontMeasureService->Measure(UnitsText->GetText(), Font).X;
+		MaxValueLabelWidth = FMath::Min(MaxValueLabelWidth, Style->BackgroundImage.ImageSize.X - UnitsTextWidth);
 	}
 	ValueText->SetMinDesiredWidth(MaxValueLabelWidth);
 	if (ValueTextSlot)

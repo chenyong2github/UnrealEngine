@@ -9,8 +9,6 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -29,18 +27,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Location">Location of the response file</param>
 		/// <param name="Contents">Contents of the file</param>
-		/// <param name="ComparisonForContentChanges">The StringComparison mode to use to determine if a file should be re-written</param>
 		/// <returns>New file item</returns>
-		void CreateIntermediateTextFile(FileItem Location, string Contents, StringComparison ComparisonForContentChanges);
+		void CreateIntermediateTextFile(FileItem Location, string Contents);
 
 		/// <summary>
 		/// Creates a response file for use in the action graph, with a newline between each string in ContentLines
 		/// </summary>
 		/// <param name="Location">Location of the response file</param>
 		/// <param name="ContentLines">Contents of the file</param>
-		/// <param name="ComparisonForContentChanges">The StringComparison mode to use to determine if a file should be re-written</param>
 		/// <returns>New file item</returns>
-		void CreateIntermediateTextFile(FileItem Location, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges);
+		void CreateIntermediateTextFile(FileItem Location, IEnumerable<string> ContentLines);
 
 		/// <summary>
 		/// Adds a file which is in the non-unity working set
@@ -92,15 +88,15 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents, StringComparison ComparisonForContentChanges)
+		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents)
 		{
-			Utils.WriteFileIfChanged(FileItem, Contents, ComparisonForContentChanges);
+			Utils.WriteFileIfChanged(FileItem, Contents);
 		}
 
 		/// <inheritdoc/>
-		public virtual void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges)
+		public virtual void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines)
 		{
-			Utils.WriteFileIfChanged(FileItem, ContentLines, ComparisonForContentChanges);
+			Utils.WriteFileIfChanged(FileItem, ContentLines);
 		}
 
 		/// <inheritdoc/>
@@ -160,15 +156,15 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents, StringComparison ComparisonForContentChanges)
+		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents)
 		{
-			Inner.CreateIntermediateTextFile(FileItem, Contents, ComparisonForContentChanges);
+			Inner.CreateIntermediateTextFile(FileItem, Contents);
 		}
 
 		/// <inheritdoc/>
-		public virtual void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges)
+		public virtual void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines)
 		{
-			Inner.CreateIntermediateTextFile(FileItem, ContentLines, ComparisonForContentChanges);
+			Inner.CreateIntermediateTextFile(FileItem, ContentLines);
 		}
 
 		/// <inheritdoc/>
@@ -281,7 +277,7 @@ namespace UnrealBuildTool
 		/// <returns>New action instance</returns>
 		public static Action CreateRecursiveAction<T>(this IActionGraphBuilder Graph, ActionType Type, string Arguments) where T : ToolMode
 		{
-			ToolModeAttribute Attribute = typeof(T).GetCustomAttribute<ToolModeAttribute>();
+			ToolModeAttribute? Attribute = typeof(T).GetCustomAttribute<ToolModeAttribute>();
 			if (Attribute == null)
 			{
 				throw new BuildException("Missing ToolModeAttribute on {0}", typeof(T).Name);
@@ -300,12 +296,11 @@ namespace UnrealBuildTool
 		/// <param name="Graph">The action graph</param>
 		/// <param name="AbsolutePath">Path to the intermediate file to create</param>
 		/// <param name="Contents">Contents of the new file</param>
-		/// <param name="ComparisonForContentChanges">The StringComparison mode to use to determine if a file should be re-written</param>
 		/// <returns>File item for the newly created file</returns>
-		public static FileItem CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileReference AbsolutePath, string Contents, StringComparison ComparisonForContentChanges)
+		public static FileItem CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileReference AbsolutePath, string Contents)
 		{
 			FileItem FileItem = FileItem.GetItemByFileReference(AbsolutePath);
-			Graph.CreateIntermediateTextFile(FileItem, Contents, ComparisonForContentChanges);
+			Graph.CreateIntermediateTextFile(FileItem, Contents);
 			return FileItem;
 		}
 
@@ -316,12 +311,11 @@ namespace UnrealBuildTool
 		/// <param name="Graph">The action graph</param>
 		/// <param name="AbsolutePath">Path to the intermediate file to create</param>
 		/// <param name="ContentLines">Contents of the new file</param>
-		/// <param name="ComparisonForContentChanges">The StringComparison mode to use to determine if a file should be re-written</param>
 		/// <returns>File item for the newly created file</returns>
-		public static FileItem CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileReference AbsolutePath, IEnumerable<string> ContentLines, StringComparison ComparisonForContentChanges)
+		public static FileItem CreateIntermediateTextFile(this IActionGraphBuilder Graph, FileReference AbsolutePath, IEnumerable<string> ContentLines)
 		{
 			FileItem FileItem = UnrealBuildBase.FileItem.GetItemByFileReference(AbsolutePath);
-			Graph.CreateIntermediateTextFile(FileItem, ContentLines, ComparisonForContentChanges);
+			Graph.CreateIntermediateTextFile(FileItem, ContentLines);
 			return FileItem;
 		}
 	}

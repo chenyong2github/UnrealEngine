@@ -15,18 +15,15 @@ namespace Chaos
 	class FPBDCollisionSolverContainer;
 
 	/**
-	 * @brief The type of contact (swept or not)
+	 * @brief Whether we should run CCD (swept collision) or not
 	*/
-	enum class ECollisionConstraintType
+	enum class ECollisionCCDType
 	{
-		// Constraint is not initialized
-		None = 0,
-
 		// Standard contact constraint
-		Standard,
+		Disabled,
 
 		// Swept contact constraint
-		Swept,
+		Enabled,
 	};
 
 	/**
@@ -76,8 +73,7 @@ namespace Chaos
 		UE_DEPRECATED(4.27, "Use GetContact()")
 		FPBDCollisionConstraint& GetSweptPointContact() { return GetContact(); }
 
-
-		ECollisionConstraintType GetType() const;
+		ECollisionCCDType GetCCDType() const;
 
 		virtual void SetEnabled(bool InEnabled) override;
 

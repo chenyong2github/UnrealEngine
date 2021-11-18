@@ -230,12 +230,6 @@ public:
 	{}
 
 	/**
-	* Callback triggered when custom present handler was created
-	*/
-	DECLARE_EVENT(IDisplayClusterRenderDevice, FDisplayClusterRenderCustomPresentCreated);
-	virtual FDisplayClusterRenderCustomPresentCreated& OnDisplayClusterRenderCustomPresentCreated() = 0;
-
-	/**
 	* Returns current presentation handler
 	*
 	* @return - nullptr if failed

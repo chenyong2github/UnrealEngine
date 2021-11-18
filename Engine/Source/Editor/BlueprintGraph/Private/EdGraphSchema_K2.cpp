@@ -7167,7 +7167,7 @@ void UEdGraphSchema_K2::RecombinePin(UEdGraphPin* Pin) const
 		// loop. No known case of this being possible, but it would be trivial to write bad node logic
 		// that introduces this problem:
 		ParentSubPins.Last()->ParentPin = nullptr; 
-		ParentSubPins.Last()->MarkPendingKill();
+		ParentSubPins.Last()->MarkAsGarbage();
 		ParentSubPins.RemoveAt(ParentSubPins.Num()-1);
 	}
 

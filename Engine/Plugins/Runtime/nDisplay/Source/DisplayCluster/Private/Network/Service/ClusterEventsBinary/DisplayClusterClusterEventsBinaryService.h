@@ -22,25 +22,29 @@ public:
 	FDisplayClusterClusterEventsBinaryService();
 	virtual ~FDisplayClusterClusterEventsBinaryService();
 
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterServer
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual FString GetProtocolName() const override;
+
 protected:
 	// Creates session instance for this service
-	virtual TUniquePtr<IDisplayClusterSession> CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId) override;
-
-	virtual bool IsConnectionAllowed(FSocket* Socket, const FIPv4Endpoint& Endpoint)
-	{
-		// Always allow, an event may come from anywhere
-		return true;
-	}
+	virtual TSharedPtr<IDisplayClusterSession> CreateSession(FDisplayClusterSessionInfo& SessionInfo) override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterSessionPacketHandler
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketBinary, false>::ReturnType ProcessPacket(const TSharedPtr<FDisplayClusterPacketBinary>& Request) override;
+	virtual typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketBinary, false>::ReturnType ProcessPacket(const TSharedPtr<FDisplayClusterPacketBinary>& Request, const FDisplayClusterSessionInfo& SessionInfo) override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolEventsBinary
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event) override;
+	virtual EDisplayClusterCommResult EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event) override;
+
+protected:
+	// Callback when a session is closed
+	void ProcessSessionClosed(const FDisplayClusterSessionInfo& SessionInfo);
 };

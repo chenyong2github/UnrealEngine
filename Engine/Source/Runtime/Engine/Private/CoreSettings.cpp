@@ -212,11 +212,12 @@ UGarbageCollectionSettings::UGarbageCollectionSettings()
 	CreateGCClusters = true;	
 	MinGCClusterSize = 5;
 	AssetClusteringEnabled = true;
-	ActorClusteringEnabled = true;	
+	ActorClusteringEnabled = true;
 	BlueprintClusteringEnabled = false;
 	UseDisregardForGCOnDedicatedServers = false;
 	VerifyGCObjectNames = true;
 	VerifyUObjectsAreNotFGCObjects = true;
+	PendingKillEnabled = false;
 }
 
 void UGarbageCollectionSettings::PostInitProperties()

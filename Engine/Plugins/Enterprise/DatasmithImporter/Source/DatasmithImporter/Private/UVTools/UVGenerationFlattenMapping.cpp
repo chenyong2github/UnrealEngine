@@ -1225,7 +1225,7 @@ void UUVGenerationFlattenMapping::GenerateUVs(FMeshDescription& InMesh, int32 UV
 	TRACE_CPUPROFILER_EVENT_SCOPE(UUVGenerationFlattenMapping::GenerateUVs);
 
 	const TArray<int32> OverlappingCorners = GetOverlappingCornersRemapping(InMesh, bRemoveDegenerates);
-	const TVertexInstanceAttributesRef<FVector2D> UVChannels = InMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+	const TVertexInstanceAttributesRef<FVector2f> UVChannels = InMesh.VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 	if (UVChannels.GetNumChannels() < UVChannel + 1)
 	{
 		UVChannels.SetNumChannels(UVChannel + 1);

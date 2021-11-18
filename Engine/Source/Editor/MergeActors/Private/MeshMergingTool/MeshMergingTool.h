@@ -47,7 +47,7 @@ public:
 			if (UObjectInitialized() && DefaultSettings)
 			{
 				DefaultSettings->RemoveFromRoot();
-				DefaultSettings->MarkPendingKill();
+				DefaultSettings->MarkAsGarbage();
 			}
 			
 			DefaultSettings = nullptr;

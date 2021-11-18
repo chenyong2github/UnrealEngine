@@ -18,7 +18,10 @@
 
 static const int32 DataBaseInitialSize = 10000;
 
-CADKernel::FDatabase::FDatabase()
+namespace CADKernel
+{
+
+FDatabase::FDatabase()
 {
 	Model = FEntity::MakeShared<FModel>();
 
@@ -29,7 +32,7 @@ CADKernel::FDatabase::FDatabase()
 	AddEntity(Model.ToSharedRef());
 }
 
-TSharedRef<CADKernel::FModel> CADKernel::FDatabase::GetModel()
+TSharedRef<FModel> FDatabase::GetModel()
 {
 	if (!Model.IsValid())
 	{
@@ -39,7 +42,7 @@ TSharedRef<CADKernel::FModel> CADKernel::FDatabase::GetModel()
 	return Model.ToSharedRef();
 }
 
-FIdent CADKernel::FDatabase::CreateId()
+FIdent FDatabase::CreateId()
 {
 	if (AvailableIdents.Num() > 0)
 	{
@@ -53,7 +56,7 @@ FIdent CADKernel::FDatabase::CreateId()
 	}
 }
 
-void CADKernel::FDatabase::RemoveEntity(FEntity& Entity)
+void FDatabase::RemoveEntity(FEntity& Entity)
 {
 	FIdent EntityId = Entity.GetId();
 	if (EntityId == 0)
@@ -80,7 +83,7 @@ void CADKernel::FDatabase::RemoveEntity(FEntity& Entity)
 	}
 }
 
-void CADKernel::FDatabase::RemoveEntity(FIdent EntityId)
+void FDatabase::RemoveEntity(FIdent EntityId)
 {
 	if (EntityId >= (FIdent)DatabaseEntities.Num())
 	{
@@ -97,7 +100,7 @@ void CADKernel::FDatabase::RemoveEntity(FIdent EntityId)
 	}
 }
 
-TSharedPtr<CADKernel::FEntity> CADKernel::FDatabase::GetEntity(FIdent EntityId) const
+TSharedPtr<FEntity> FDatabase::GetEntity(FIdent EntityId) const
 {
 	if (EntityId >= (FIdent)DatabaseEntities.Num())
 	{
@@ -111,7 +114,7 @@ TSharedPtr<CADKernel::FEntity> CADKernel::FDatabase::GetEntity(FIdent EntityId) 
 	return DatabaseEntities[EntityId];
 }
 
-void CADKernel::FDatabase::GetEntities(const TArray<FIdent>& EntityIds, TArray<TSharedPtr<FEntity>>& Entities) const
+void FDatabase::GetEntities(const TArray<FIdent>& EntityIds, TArray<TSharedPtr<FEntity>>& Entities) const
 {
 	Entities.Empty(EntityIds.Num());
 
@@ -130,32 +133,32 @@ void CADKernel::FDatabase::GetEntities(const TArray<FIdent>& EntityIds, TArray<T
 	}
 }
 
-void CADKernel::FCADKernelArchive::SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, FEntity** Entity)
+void FCADKernelArchive::SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, FEntity** Entity)
 {
 	Session.Database.SetReferencedEntityOrAddToWaitingList(ArchiveId, Entity);
 }
 
-void CADKernel::FCADKernelArchive::SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TWeakPtr<FEntity>& Entity)
+void FCADKernelArchive::SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TWeakPtr<FEntity>& Entity)
 {
 	Session.Database.SetReferencedEntityOrAddToWaitingList(ArchiveId, Entity);
 }
 
-void CADKernel::FCADKernelArchive::SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TSharedPtr<FEntity>& Entity)
+void FCADKernelArchive::SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TSharedPtr<FEntity>& Entity)
 {
 	Session.Database.SetReferencedEntityOrAddToWaitingList(ArchiveId, Entity);
 }
 
-void CADKernel::FCADKernelArchive::AddEntityToSave(FIdent Id)
+void FCADKernelArchive::AddEntityToSave(FIdent Id)
 {
 	Session.Database.AddEntityToSave(Id);
 }
 
-void CADKernel::FCADKernelArchive::AddEntityFromArchive(TSharedPtr<FEntity>& Entity)
+void FCADKernelArchive::AddEntityFromArchive(TSharedPtr<FEntity>& Entity)
 {
 	Session.Database.AddEntityFromArchive(Entity);
 }
 
-void CADKernel::FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArray<FIdent>& SelectionIds)
+void FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArray<FIdent>& SelectionIds)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatabase::Serialize);
 
@@ -221,7 +224,7 @@ void CADKernel::FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArra
 	FMessage::Printf(Log, TEXT("End Serialisation of %d entities\n"), Index);
 }
 
-void CADKernel::FDatabase::Serialize(FCADKernelArchive& Ar)
+void FDatabase::Serialize(FCADKernelArchive& Ar)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatabase::Serialize);
 
@@ -262,7 +265,7 @@ void CADKernel::FDatabase::Serialize(FCADKernelArchive& Ar)
 	FMessage::Printf(Log, TEXT("End Serialisation of %d %d entity\n"), DatabaseEntities.Num(), Index);
 }
 
-void CADKernel::FDatabase::Deserialize(FCADKernelArchive& Ar)
+void FDatabase::Deserialize(FCADKernelArchive& Ar)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatabase::Deserialize);
 
@@ -286,10 +289,6 @@ void CADKernel::FDatabase::Deserialize(FCADKernelArchive& Ar)
 	{
 		Progress.Increase();
 		TSharedPtr<FEntity> Entity = FEntity::Deserialize(Ar);
-		if (!Entity.IsValid())
-		{
-			FMessage::Printf(Log, TEXT("Failed at index %d\n"), Index);
-		}
 	}
 
 	// this is a partial archive, a clean of entities has to be performed to remove invalid references in entity descriptions
@@ -304,7 +303,7 @@ void CADKernel::FDatabase::Deserialize(FCADKernelArchive& Ar)
 	FMessage::Printf(Log, TEXT("End Deserialisation of %d %d entity\n"), DatabaseEntities.Num(), ArchiveSize);
 }
 
-void CADKernel::FDatabase::CleanArchiveEntities()
+void FDatabase::CleanArchiveEntities()
 {
 	int32 FaceCount = 0;
 	int32 ShellCount = 0;
@@ -325,7 +324,9 @@ void CADKernel::FDatabase::CleanArchiveEntities()
 			{
 				TSharedPtr<FVertexLink> VertexLink = StaticCastSharedPtr<FVertexLink>(Entity);
 				VertexLink->CleanLink();
-				ensureCADKernel(VertexLink->GetTwinsEntitieNum());
+#ifdef CADKERNEL_DEV
+ 				ensureCADKernel(VertexLink->GetTwinsEntitieNum());
+#endif
 				break;
 			}
 			case EEntity::Body:
@@ -410,7 +411,7 @@ void CADKernel::FDatabase::CleanArchiveEntities()
 	Model->Append(NewBodies);
 }
 
-void CADKernel::FDatabase::Empty()
+void FDatabase::Empty()
 {
 	Model.Reset();
 	DatabaseEntities.Empty(DataBaseInitialSize);
@@ -418,7 +419,7 @@ void CADKernel::FDatabase::Empty()
 	AvailableIdents.Empty(DataBaseInitialSize);
 }
 
-uint32 CADKernel::FDatabase::SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bInForceSpawning)
+uint32 FDatabase::SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bInForceSpawning)
 {
 	bForceSpawning = bInForceSpawning;
 	EntityCount = 0;
@@ -430,7 +431,7 @@ uint32 CADKernel::FDatabase::SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>&
 	return EntityCount;
 }
 
-uint32 CADKernel::FDatabase::SpawnEntityIdent(TSharedPtr<FEntity>& Entity, bool bInForceSpawning)
+uint32 FDatabase::SpawnEntityIdent(TSharedPtr<FEntity>& Entity, bool bInForceSpawning)
 {
 	bForceSpawning = bInForceSpawning;
 	EntityCount = 0;
@@ -452,7 +453,7 @@ uint32 CADKernel::FDatabase::SpawnEntityIdent(TSharedPtr<FEntity>& Entity, bool 
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
 
-void CADKernel::FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& Entities, const TSet<EEntity>& Filters, TArray<TSharedPtr<FEntity>>& Selection) const
+void FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& Entities, const TSet<EEntity>& Filters, TArray<TSharedPtr<FEntity>>& Selection) const
 {
 	TSet<TSharedPtr<FEntity>> EntitySet;
 	ExpandSelection(Entities, Filters, EntitySet);
@@ -462,7 +463,7 @@ void CADKernel::FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& En
 	}
 }
 
-void CADKernel::FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& Entities, const TSet<EEntity>& Filter, TSet<TSharedPtr<FEntity>>& Selection) const
+void FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& Entities, const TSet<EEntity>& Filter, TSet<TSharedPtr<FEntity>>& Selection) const
 {
 	for (TSharedPtr<FEntity> Entity : Entities)
 	{
@@ -470,7 +471,7 @@ void CADKernel::FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& En
 	}
 }
 
-void CADKernel::FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>& Filter, TSet<TSharedPtr<FEntity>>& Selection) const
+void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>& Filter, TSet<TSharedPtr<FEntity>>& Selection) const
 {
 	EEntity Type = Entity->GetEntityType();
 
@@ -547,7 +548,7 @@ void CADKernel::FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSe
 
 }
 
-void CADKernel::FDatabase::TopologicalEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FTopologicalEntity>>& OutTopoEntities, bool bFindSurfaces, bool bFindEdges, bool bFindVertices) const
+void FDatabase::TopologicalEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FTopologicalEntity>>& OutTopoEntities, bool bFindSurfaces, bool bFindEdges, bool bFindVertices) const
 {
 	TSet<EEntity> Filter;
 	if (bFindSurfaces)	Filter.Add(EEntity::TopologicalFace);
@@ -558,7 +559,7 @@ void CADKernel::FDatabase::TopologicalEntitiesSelection(const TArray<TSharedPtr<
 	ExpandSelection(Entities, Filter, (TArray<TSharedPtr<FEntity>>&) OutTopoEntities);
 }
 
-void CADKernel::FDatabase::CadEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FEntity>>& OutCADEntities) const
+void FDatabase::CadEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FEntity>>& OutCADEntities) const
 {
 	TSet<EEntity> Filter;
 	Filter.Add(EEntity::TopologicalFace);
@@ -571,7 +572,7 @@ void CADKernel::FDatabase::CadEntitiesSelection(const TArray<TSharedPtr<FEntity>
 	ExpandSelection(Entities, Filter, OutCADEntities);
 }
 
-void CADKernel::FDatabase::MeshEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FEntity>>& OutMeshEntities) const
+void FDatabase::MeshEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FEntity>>& OutMeshEntities) const
 {
 	TSet<EEntity> Filter;
 	Filter.Add(EEntity::Mesh);
@@ -580,7 +581,7 @@ void CADKernel::FDatabase::MeshEntitiesSelection(const TArray<TSharedPtr<FEntity
 	ExpandSelection(Entities, Filter, OutMeshEntities);
 }
 
-void CADKernel::FDatabase::GetEntitiesOfType(EEntity Type, TArray<TSharedPtr<FEntity>>& OutEntities) const
+void FDatabase::GetEntitiesOfType(EEntity Type, TArray<TSharedPtr<FEntity>>& OutEntities) const
 {
 	TSet<EEntity> Filter;
 	Filter.Add(Type);
@@ -588,7 +589,7 @@ void CADKernel::FDatabase::GetEntitiesOfType(EEntity Type, TArray<TSharedPtr<FEn
 	GetEntitiesOfTypes(Filter, OutEntities);
 }
 
-void CADKernel::FDatabase::GetEntitiesOfTypes(const TSet<EEntity>& Filter, TArray<TSharedPtr<FEntity>>& OutEntities) const
+void FDatabase::GetEntitiesOfTypes(const TSet<EEntity>& Filter, TArray<TSharedPtr<FEntity>>& OutEntities) const
 {
 	OutEntities.Empty(100);
 	for (TSharedPtr<FEntity> Entity : DatabaseEntities)
@@ -605,7 +606,7 @@ void CADKernel::FDatabase::GetEntitiesOfTypes(const TSet<EEntity>& Filter, TArra
 	}
 }
 
-TSharedPtr<CADKernel::FEntity> CADKernel::FDatabase::GetFirstEntityOfType(EEntity Type) const
+TSharedPtr<FEntity> FDatabase::GetFirstEntityOfType(EEntity Type) const
 {
 	for (TSharedPtr<FEntity> Entity : DatabaseEntities)
 	{
@@ -622,3 +623,4 @@ TSharedPtr<CADKernel::FEntity> CADKernel::FDatabase::GetFirstEntityOfType(EEntit
 	return nullptr;
 }
 
+}

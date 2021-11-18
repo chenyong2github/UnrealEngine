@@ -16,10 +16,12 @@ public class ImageWrapper : ModuleRules
 		PublicDefinitions.Add("WITH_UNREALJPEG=1");
 
 		PrivateDependencyModuleNames.Add("Core");
+		PublicDependencyModuleNames.Add("LibTiff");
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"zlib",
-			"UElibPNG"
+			"UElibPNG",
+			"LibTiff"
 		);
 
 		// Jpeg Decoding
@@ -46,6 +48,7 @@ public class ImageWrapper : ModuleRules
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")))
 		{
 			PublicDefinitions.Add("WITH_UNREALEXR=1");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Imath");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "UEOpenExr");
 		}
 		else

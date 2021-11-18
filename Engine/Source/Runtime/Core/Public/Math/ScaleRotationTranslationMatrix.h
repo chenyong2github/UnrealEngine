@@ -6,7 +6,6 @@
 #include "Math/UnrealMathUtility.h"
 #include "Math/Matrix.h"
 
-// LWC_TODO: FRotator -> TRotator<T>
 
 namespace UE {
 namespace Math {
@@ -26,7 +25,7 @@ public:
 	 * @param Rot rotation
 	 * @param Origin translation to apply
 	 */
-	TScaleRotationTranslationMatrix(const TVector<T>& Scale, const FRotator& Rot, const TVector<T>& Origin);
+	TScaleRotationTranslationMatrix(const TVector<T>& Scale, const TRotator<T>& Rot, const TVector<T>& Origin);
 };
 
 namespace
@@ -62,7 +61,7 @@ namespace
 }
 
 template<typename T>
-FORCEINLINE TScaleRotationTranslationMatrix<T>::TScaleRotationTranslationMatrix(const TVector<T>& Scale, const FRotator& Rot, const TVector<T>& Origin)
+FORCEINLINE TScaleRotationTranslationMatrix<T>::TScaleRotationTranslationMatrix(const TVector<T>& Scale, const TRotator<T>& Rot, const TVector<T>& Origin)
 {
 	T SP, SY, SR;
 	T CP, CY, CR;

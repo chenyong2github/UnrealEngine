@@ -58,8 +58,8 @@ public:
 	UE_DEPRECATED(4.25, "This attribute is no longer supported, please remove code pertaining to it.")
 	TVertexAttributesConstRef<float> GetVertexCornerSharpnesses() const { return GetRequiredAttributes().GetVertexCornerSharpnesses(); }
 
-	TVertexInstanceAttributesRef<FVector2D> GetVertexInstanceUVs() { return GetRequiredAttributes().GetVertexInstanceUVs(); }
-	TVertexInstanceAttributesConstRef<FVector2D> GetVertexInstanceUVs() const { return GetRequiredAttributes().GetVertexInstanceUVs(); }
+	TVertexInstanceAttributesRef<FVector2f> GetVertexInstanceUVs() { return GetRequiredAttributes().GetVertexInstanceUVs(); }
+	TVertexInstanceAttributesConstRef<FVector2f> GetVertexInstanceUVs() const { return GetRequiredAttributes().GetVertexInstanceUVs(); }
 
 	TVertexInstanceAttributesRef<FVector3f> GetVertexInstanceNormals() { return GetRequiredAttributes().GetVertexInstanceNormals(); }
 	TVertexInstanceAttributesConstRef<FVector3f> GetVertexInstanceNormals() const { return GetRequiredAttributes().GetVertexInstanceNormals(); }

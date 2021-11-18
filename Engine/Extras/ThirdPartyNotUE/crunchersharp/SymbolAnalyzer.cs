@@ -13,6 +13,7 @@ namespace CruncherSharp
         public bool MatchCase { get; set; }
         public bool WholeExpression { get; set; }
         public bool UseRegularExpression { get; set; }
+        public bool UseProgressBar { get; set; }
     }
 
     public class SymbolAnalyzer
@@ -108,7 +109,7 @@ namespace CruncherSharp
 
             worker?.ReportProgress(0, "Counting symbols");
 
-            var allSymbolsCount = worker != null ? allSymbols.count : 0;
+            var allSymbolsCount = (worker != null && task.UseProgressBar) ? allSymbols.count : 0;
             var i = 0;
 
             worker?.ReportProgress(0, "Adding symbols");
@@ -188,7 +189,8 @@ namespace CruncherSharp
                     Filter = name,
                     MatchCase = true,
                     WholeExpression = true,
-                    UseRegularExpression = false
+                    UseRegularExpression = false,
+                    UseProgressBar = false
                 };
 
                 if (!LoadPdb(null, task))

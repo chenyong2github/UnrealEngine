@@ -118,7 +118,7 @@ struct FNiagaraComputeExecutionContext
 		uint32 CPUCount = 0;
 	}  EmitterInstanceReadback;
 	
-#if !UE_BUILD_SHIPPING
+#if 1//!UE_BUILD_SHIPPING
 	FName GetDebugSimFName() const { return DebugSimFName; }
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
 	void SetDebugSimName(const TCHAR* InDebugSimName)
@@ -138,7 +138,7 @@ struct FNiagaraComputeExecutionContext
 public:
 	static uint32 TickCounter;
 
-#if !UE_BUILD_SHIPPING
+#if 1//!UE_BUILD_SHIPPING
 	FName DebugSimFName;
 	FString DebugSimName;
 #endif

@@ -281,6 +281,11 @@ void FBacktracer::AddModule(UPTRINT ModuleBase, const TCHAR* Name)
 
 	// Count the number of functions. The assumption here is that if we have got this far then there is at least one function
 	uint32 NumFunctions = uint32(PdataEnd - PdataBase) / sizeof(RUNTIME_FUNCTION);
+	if (NumFunctions == 0)
+	{
+		return;
+	}
+
 	const auto* FunctionTables = (RUNTIME_FUNCTION*)PdataBase;
 	do
 	{

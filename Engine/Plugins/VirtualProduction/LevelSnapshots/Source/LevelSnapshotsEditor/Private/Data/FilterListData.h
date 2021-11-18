@@ -5,9 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "GameFramework/Actor.h"
-#include "PropertySelectionMap.h"
-
-#include "FilterListData.generated.h"
+#include "Selection/PropertySelectionMap.h"
 
 class AActor;
 class ULevelSnapshot;
@@ -15,11 +13,8 @@ class ULevelSnapshotFilter;
 struct FScopedSlowTask;
 
 /* Contains all data required to display the filter results panel. */
-USTRUCT()
 struct FFilterListData
 {
-	GENERATED_BODY()
-
 	void UpdateFilteredList(UWorld* World, ULevelSnapshot* FromSnapshot, ULevelSnapshotFilter* FilterToApply);
 	
 	/**
@@ -50,37 +45,28 @@ private:
 	void HandleActorWasAddedToWorld(AActor* WorldActor, ULevelSnapshotFilter* FilterToApply);
 	
 	
-	UPROPERTY()
-	ULevelSnapshot* RelatedSnapshot = nullptr;
+	TWeakObjectPtr<ULevelSnapshot> RelatedSnapshot = nullptr;
 
 	
 	/* Selected properties for actors allowed by filters. */
-	UPROPERTY()
 	FPropertySelectionMap ModifiedEditorObjectsSelectedProperties_AllowedByFilter;
 
 	/* Actors to show in filter results panel when "ShowUnchanged = false". */
-	UPROPERTY()
 	TSet<TWeakObjectPtr<AActor>> ModifiedWorldActors_AllowedByFilter;
 	/* Actors which existed in snapshot but not in the world. Only contains entries that passed filters. */
-	UPROPERTY()
 	TSet<FSoftObjectPath> RemovedOriginalActorPaths_AllowedByFilter;
 	/* Actors which existed in the world but not in the snapshot. Only contains entries that passed filters. */
-	UPROPERTY()
 	TSet<TWeakObjectPtr<AActor>> AddedWorldActors_AllowedByFilter;
 
 
 	
 	/* Selected properties for actors disallowed by filters. */
-	UPROPERTY()
 	FPropertySelectionMap ModifiedEditorObjectsSelectedProperties_DisallowedByFilter;
 
 	/* Actors to show in filter results panel when "ShowUnchanged = true". */
-	UPROPERTY()
 	TSet<TWeakObjectPtr<AActor>> ModifiedWorldActors_DisallowedByFilter;
 	/* Actors which existed in snapshot but not in the world. Only contains entries that did not pass filters. */
-	UPROPERTY()
 	TSet<FSoftObjectPath> RemovedOriginalActorPaths_DisallowedByFilter;
 	/* Actors which existed in the world but not in the snapshot. Only contains entries that did not pass filters. */
-	UPROPERTY()
 	TSet<TWeakObjectPtr<AActor>> AddedWorldActors_DisallowedByFilter;
 };

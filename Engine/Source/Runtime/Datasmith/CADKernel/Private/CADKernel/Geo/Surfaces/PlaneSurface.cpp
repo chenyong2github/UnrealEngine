@@ -8,7 +8,10 @@
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 #include "CADKernel/Math/Plane.h"
 
-CADKernel::FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const FSurfacicBoundary& InBoundary)
+namespace CADKernel
+{
+
+FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const FSurfacicBoundary& InBoundary)
 	: FSurface(InToleranceGeometric, InBoundary)
 {
 	Matrix = InMatrix;
@@ -20,7 +23,7 @@ CADKernel::FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const
 	ComputeMinToleranceIso();
 }
 
-CADKernel::FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FPoint& InPosition, FPoint InNormal, const FSurfacicBoundary& InBoundary)
+FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const FPoint& InPosition, FPoint InNormal, const FSurfacicBoundary& InBoundary)
 	: FSurface(InToleranceGeometric, InBoundary)
 {
 	InNormal.Normalize();
@@ -31,15 +34,15 @@ CADKernel::FPlaneSurface::FPlaneSurface(const double InToleranceGeometric, const
 	ComputeMinToleranceIso();
 }
 
-CADKernel::FPlane CADKernel::FPlaneSurface::GetPlane() const
+FPlane FPlaneSurface::GetPlane() const
 {
 	FSurfacicPoint Point3D;
 	EvaluatePoint(FPoint2D::ZeroPoint, Point3D, 0);
 	FPoint Normal = Matrix.Column(2);
-	return CADKernel::FPlane(Point3D.Point, Normal);
+	return FPlane(Point3D.Point, Normal);
 }
 
-void CADKernel::FPlaneSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void FPlaneSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	OutPoint3D.DerivativeOrder = InDerivativeOrder;
 	OutPoint3D.Point = Matrix.Multiply(InSurfacicCoordinate);
@@ -57,7 +60,7 @@ void CADKernel::FPlaneSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinat
 	}
 }
 
-void CADKernel::FPlaneSurface::EvaluatePoints(const TArray<FPoint2D>& InSurfacicCoordinates, TArray<FSurfacicPoint>& OutPoint3D, int32 InDerivativeOrder) const
+void FPlaneSurface::EvaluatePoints(const TArray<FPoint2D>& InSurfacicCoordinates, TArray<FSurfacicPoint>& OutPoint3D, int32 InDerivativeOrder) const
 {
 	int32 PointNum = InSurfacicCoordinates.Num();
 	OutPoint3D.SetNum(PointNum);
@@ -89,7 +92,7 @@ void CADKernel::FPlaneSurface::EvaluatePoints(const TArray<FPoint2D>& InSurfacic
 	}
 }
 
-void CADKernel::FPlaneSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
+void FPlaneSurface::EvaluatePointGrid(const FCoordinateGrid& Coordinates, FSurfacicSampling& OutPoints, bool bComputeNormals) const
 {
 	OutPoints.bWithNormals = bComputeNormals;
 
@@ -110,7 +113,7 @@ void CADKernel::FPlaneSurface::EvaluatePointGrid(const FCoordinateGrid& Coordina
 	}
 }
 
-CADKernel::FPoint CADKernel::FPlaneSurface::ProjectPoint(const FPoint& Point, FPoint* OutProjectedPoint) const
+FPoint FPlaneSurface::ProjectPoint(const FPoint& Point, FPoint* OutProjectedPoint) const
 {
 	FPoint PointCoordinate = InverseMatrix.Multiply(Point);
 	PointCoordinate.Z = 0.0;
@@ -123,7 +126,7 @@ CADKernel::FPoint CADKernel::FPlaneSurface::ProjectPoint(const FPoint& Point, FP
 	return PointCoordinate;
 }
 
-void CADKernel::FPlaneSurface::ProjectPoints(const TArray<FPoint>& Points, TArray<FPoint>* PointCoordinates, TArray<FPoint>* OutProjectedPointS) const
+void FPlaneSurface::ProjectPoints(const TArray<FPoint>& Points, TArray<FPoint>* PointCoordinates, TArray<FPoint>* OutProjectedPointS) const
 {
 	PointCoordinates->Reserve(Points.Num());
 	if(OutProjectedPointS) 
@@ -146,17 +149,19 @@ void CADKernel::FPlaneSurface::ProjectPoints(const TArray<FPoint>& Points, TArra
 	}
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FPlaneSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FPlaneSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
 	return FEntity::MakeShared<FPlaneSurface>(Tolerance3D, NewMatrix, Boundary);
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FPlaneSurface::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FPlaneSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info)
 		.Add(TEXT("Matrix"), Matrix)
 		.Add(TEXT("Inverse"), InverseMatrix);
 }
 #endif
+
+}

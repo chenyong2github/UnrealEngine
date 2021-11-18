@@ -30,7 +30,7 @@ FMovieSceneRootEvaluationTemplateInstance::FMovieSceneRootEvaluationTemplateInst
 
 void FMovieSceneRootEvaluationTemplateInstance::BeginDestroy()
 {
-	if (EntitySystemLinker && !EntitySystemLinker->IsPendingKillOrUnreachable() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
+	if (EntitySystemLinker && IsValidChecked(EntitySystemLinker) && !EntitySystemLinker->IsUnreachable() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
 	{
 		EntitySystemLinker->GetInstanceRegistry()->DestroyInstance(RootInstanceHandle);
 	}
@@ -348,7 +348,7 @@ void FMovieSceneRootEvaluationTemplateInstance::PlaybackContextChanged(IMovieSce
 		&& RootInstanceHandle.IsValid()
 		&& EntitySystemLinker->GetInstanceRegistry()->GetInstance(RootInstanceHandle).IsCapturingGlobalPreAnimatedState();
 
-	if (EntitySystemLinker && !EntitySystemLinker->IsPendingKillOrUnreachable() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
+	if (EntitySystemLinker && IsValidChecked(EntitySystemLinker) && !EntitySystemLinker->IsUnreachable() && !EntitySystemLinker->HasAnyFlags(RF_BeginDestroyed))
 	{
 		EntitySystemLinker->CleanupInvalidBoundObjects();
 

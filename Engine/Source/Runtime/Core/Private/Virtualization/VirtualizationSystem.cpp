@@ -34,7 +34,11 @@ public:
 		return FCompressedBuffer();
 	}
 
-	virtual FPayloadActivityInfo GetPayloadActivityInfo() const override
+	virtual void GetPayloadActivityInfo(GetPayloadActivityInfoFuncRef) const override
+	{
+	}
+
+	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override
 	{
 		return FPayloadActivityInfo();
 	}

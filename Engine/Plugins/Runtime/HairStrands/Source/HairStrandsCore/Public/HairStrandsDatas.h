@@ -376,7 +376,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	TArray<float> CurvesLength; // [0..1]
 
 	/** Roots UV. Support UDIM coordinate up to 256x256 */
-	TArray<FVector2D> CurvesRootUV; // [0..256]
+	TArray<FVector2f> CurvesRootUV; // [0..256]
 
 	/** Strand ID associated with each curve */
 	TArray<int> StrandIDs;

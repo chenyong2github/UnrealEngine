@@ -246,7 +246,6 @@ void* FAndroidWindow::WaitForHardwareWindow()
 
 	// Before sleeping, we peek into the event manager queue to see if it contains an ON_DESTROY event, 
 	// in which case, we exit the loop to allow the application to exit before a window has been created.
-	// For instance when the user aborts the "Place your phone into thr Daydream headset." screen.
 	// It is not sufficient to check the IsEngineExitRequested() global function, as the handler reacting to the APP_EVENT_STATE_ON_DESTROY
 	// may be running in the same thread as this method and therefore lead to a deadlock.
 
@@ -340,34 +339,6 @@ FPlatformRect FAndroidWindow::GetScreenRect(bool bUseEventThreadWindow)
 #else
 
 	static const bool bIsOculusMobileApp = AndroidThunkCpp_IsOculusMobileApplication();
-	static const bool bIsDaydreamApp = FAndroidMisc::IsDaydreamApplication();
-	if (bIsDaydreamApp)
-	{
-		// TODO: confirm that this is no longer required.
-		ANativeWindow* Window = (ANativeWindow*)FAndroidWindow::GetHardwareWindow_EventThread();
-		if (Window == NULL)
-		{
-			// Sleep if the hardware window isn't currently available.
-			FPlatformMisc::LowLevelOutputDebugString(TEXT("Waiting for Native window in FAndroidWindow::GetScreenRect"));
-			Window = (ANativeWindow*)FAndroidWindow::WaitForHardwareWindow();
-		}
-
-		if (Window == NULL)
-		{
-			FPlatformRect ScreenRect;
-			ScreenRect.Left = 0;
-			ScreenRect.Top = 0;
-			ScreenRect.Right = GAndroidIsPortrait ? 720 : 1280;
-			ScreenRect.Bottom = GAndroidIsPortrait ? 1280 : 720;
-
-			UE_LOG(LogAndroid, Log, TEXT("FAndroidWindow::GetScreenRect: Window was NULL, returned default resolution: %d x %d"), ScreenRect.Right, ScreenRect.Bottom);
-
-			return ScreenRect;
-		}
-
-		// dont cache rect.
-		bUseEventThreadWindow = true;
-	}
 
 	// CSF is a multiplier to 1280x720
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
@@ -432,76 +403,21 @@ void FAndroidWindow::CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& Surfac
 
 #else
 
-	// daydream case still using hardware window direct from event thread, this might not be required now.
-	if (FAndroidMisc::IsDaydreamApplication())
+	if (bUseEventThreadWindow)
 	{
-		ANativeWindow* Window = (ANativeWindow*)GetHardwareWindow_EventThread();
-		if (Window == nullptr)
-		{
-			// log the issue and callstack for backtracking the issue
-			// dump the stack HERE
-			{
-				const SIZE_T StackTraceSize = 65535;
-				ANSICHAR* StackTrace = (ANSICHAR*)FMemory::Malloc(StackTraceSize);
-				StackTrace[0] = 0;
+		check(IsInAndroidEventThread());
+		ANativeWindow* WindowEventThread = (ANativeWindow*)GetHardwareWindow_EventThread();
+		check(WindowEventThread);
 
-				// Walk the stack and dump it to the allocated memory.
-				FPlatformStackWalk::StackWalkAndDump(StackTrace, StackTraceSize, 0, NULL);
-
-				FPlatformMisc::LowLevelOutputDebugString(TEXT("== WARNNG: CalculateSurfaceSize called with NULL hardware window:"));
-
-				ANSICHAR* Start = StackTrace;
-				ANSICHAR* Next = StackTrace;
-				FPlatformMisc::LowLevelOutputDebugString(TEXT("==> STACK TRACE"));
-				while (*Next)
-				{
-					while (*Next)
-					{
-						if (*Next == 10 || *Next == 13)
-						{
-							while (*Next == 10 || *Next == 13)
-							{
-								*Next++ = 0;
-							}
-							break;
-						}
-						++Next;
-					}
-					FPlatformMisc::LowLevelOutputDebugStringf(TEXT("==> %s"), ANSI_TO_TCHAR(Start));
-					Start = Next;
-				}
-				FPlatformMisc::LowLevelOutputDebugString(TEXT("<== STACK TRACE"));
-
-				FMemory::Free(StackTrace);
-			}
-
-			SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : 1280;
-			SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : 720;
-		}
-		else
-		{
-			SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : ANativeWindow_getWidth(Window);
-			SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : ANativeWindow_getHeight(Window);
-		}
+		SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : ANativeWindow_getWidth(WindowEventThread);
+		SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : ANativeWindow_getHeight(WindowEventThread);
 	}
 	else
 	{
-		if (bUseEventThreadWindow)
-		{
-			check(IsInAndroidEventThread());
-			ANativeWindow* WindowEventThread = (ANativeWindow*)GetHardwareWindow_EventThread();
-			check(WindowEventThread);
+		FAndroidWindow::WaitForWindowDimensions();
 
-			SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : ANativeWindow_getWidth(WindowEventThread);
-			SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : ANativeWindow_getHeight(WindowEventThread);
-		}
-		else
-		{
-			FAndroidWindow::WaitForWindowDimensions();
-
-			SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : CachedNativeWindowWidth;
-			SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : CachedNativeWindowHeight;
-		}
+		SurfaceWidth = (GSurfaceViewWidth > 0) ? GSurfaceViewWidth : CachedNativeWindowWidth;
+		SurfaceHeight = (GSurfaceViewHeight > 0) ? GSurfaceViewHeight : CachedNativeWindowHeight;
 	}
 
 	// some phones gave it the other way (so, if swap if the app is landscape, but width < height)
@@ -514,7 +430,7 @@ void FAndroidWindow::CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& Surfac
 	// ensure the size is divisible by a specified amount
 	// do not convert to a surface size that is larger than native resolution
 	// Mobile VR doesn't need buffer quantization as Unreal never renders directly to the buffer in VR mode. 
-	static const bool bIsMobileVRApp = AndroidThunkCpp_IsOculusMobileApplication() || FAndroidMisc::IsDaydreamApplication();
+	static const bool bIsMobileVRApp = AndroidThunkCpp_IsOculusMobileApplication();
 	const int DividableBy = bIsMobileVRApp ? 1 : 8;
 	SurfaceWidth = (SurfaceWidth / DividableBy) * DividableBy;
 	SurfaceHeight = (SurfaceHeight / DividableBy) * DividableBy;

@@ -477,7 +477,7 @@ TArray<FMediaIOConfiguration> FAjaDeviceProvider::GetConfigurations(bool bAllowI
 											Results.Add(MediaConfiguration);
 										}
 									}
-									else if (DeviceInfo.bCanDo12GSdi && bRequiredMoreThan3G && MediaConfiguration.bIsInput)
+									else if (DeviceInfo.bCanDo12GSdi && bRequiredMoreThan3G)
 									{
 										MediaConfiguration.MediaConnection.TransportType = EMediaIOTransportType::SingleLink;
 										// in single TSI, we only support input 1, 3, 5, 7

@@ -12,16 +12,16 @@ public:
 
 	virtual void InitRHI() override
 	{
-		const uint32 Size = sizeof(FVector2D) * 4 * NumTileQuadsInBuffer;
+		const uint32 Size = sizeof(FVector2f) * 4 * NumTileQuadsInBuffer;
 		FRHIResourceCreateInfo CreateInfo(TEXT("FTileTexCoordVertexBuffer"));
 		VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FVector2D* Vertices = (FVector2D*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
+		FVector2f* Vertices = (FVector2f*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 		for (uint32 SpriteIndex = 0; SpriteIndex < NumTileQuadsInBuffer; ++SpriteIndex)
 		{
-			Vertices[SpriteIndex * 4 + 0] = FVector2D(0.0f, 0.0f);
-			Vertices[SpriteIndex * 4 + 1] = FVector2D(0.0f, 1.0f);
-			Vertices[SpriteIndex * 4 + 2] = FVector2D(1.0f, 1.0f);
-			Vertices[SpriteIndex * 4 + 3] = FVector2D(1.0f, 0.0f);
+			Vertices[SpriteIndex * 4 + 0] = FVector2f(0.0f, 0.0f);
+			Vertices[SpriteIndex * 4 + 1] = FVector2f(0.0f, 1.0f);
+			Vertices[SpriteIndex * 4 + 2] = FVector2f(1.0f, 1.0f);
+			Vertices[SpriteIndex * 4 + 3] = FVector2f(1.0f, 0.0f);
 		}
 		RHIUnlockBuffer(VertexBufferRHI);
 	}

@@ -89,14 +89,23 @@ struct FRPCAnalytics
 	/** The maximum number of calls to the RPC per second */
 	int32 MaxCountPerSec = 0;
 
+
 	/** The maximum amount of time spent executing the RPC per second (may be larger than a second, if an RPC is long-running) */
 	double MaxTimePerSec = 0.0;
+
+	/** The Game Thread CPU Usage, at the approximate time that MaxTimePerSec was set (used to detect CPU Saturation, not RPC cost) */
+	uint8 MaxTimeGameThreadCPU = 0;
+
 
 	/** The maximum amount of time spent executing a packet which contains only calls to this RPC */
 	double MaxSinglePacketRPCTime = 0.0;
 
 	/** The number of calls to this RPC within the packet, at the time that MaxSinglePacketRPCTime was set */
 	int32 SinglePacketRPCCount = 0;
+
+	/** The Game Thread CPU Usage, at the approximate time that MaxSinglePacketRPCTime was set (used to detect CPU Saturation, not RPC cost) */
+	uint8 SinglePacketGameThreadCPU = 0;
+
 
 	/** Counts the total number of times calls to this RPC were blocked */
 	int32 BlockedCount = 0;
@@ -115,7 +124,8 @@ public:
 	bool operator == (const FRPCAnalytics& A) const
 	{
 		return RPCName == A.RPCName && MaxCountPerSec == A.MaxCountPerSec && MaxTimePerSec == A.MaxTimePerSec &&
-				MaxSinglePacketRPCTime == A.MaxSinglePacketRPCTime && SinglePacketRPCCount == A.SinglePacketRPCCount &&
+				MaxTimeGameThreadCPU == A.MaxTimeGameThreadCPU && MaxSinglePacketRPCTime == A.MaxSinglePacketRPCTime &&
+				SinglePacketRPCCount == A.SinglePacketRPCCount && SinglePacketGameThreadCPU == A.SinglePacketGameThreadCPU &&
 				BlockedCount == A.BlockedCount && PlayerIP == A.PlayerIP && PlayerUID == A.PlayerUID;
 	}
 

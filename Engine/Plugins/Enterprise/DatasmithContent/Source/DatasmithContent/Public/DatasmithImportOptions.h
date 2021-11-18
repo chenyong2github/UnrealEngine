@@ -388,6 +388,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "NotVisible")
 	FString SourceUri;
 
+	/** The hash of the source referenced by SourceUri */
+	FMD5Hash SourceHash;
+
 	/** Whether to use or not the same options when loading multiple files. Default false */
 	bool bUseSameOptions;
 

@@ -74,7 +74,7 @@ public:
 
 	/**
 	 * Trigger the translation phase, which populates the DatasmithScene.
-	 * note that options should have been set before that.
+	 * note that options should have been set before that and any modification to the scene made prior will be lost.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Datasmith")
 	bool TranslateScene();

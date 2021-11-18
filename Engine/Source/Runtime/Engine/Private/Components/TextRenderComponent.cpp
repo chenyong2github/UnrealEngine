@@ -936,7 +936,7 @@ bool FTextRenderSceneProxy::BuildStringMesh( TArray<FDynamicMeshVertex>& OutVert
 			if(Tex)
 			{
 				FIntPoint ImportedTextureSize = Tex->GetImportedSize();
-				FVector2D InvTextureSize(1.0f / (float)ImportedTextureSize.X, 1.0f / (float)ImportedTextureSize.Y);
+				FVector2f InvTextureSize(1.0f / (float)ImportedTextureSize.X, 1.0f / (float)ImportedTextureSize.Y);
 
 				const float X		= LineX + StartX;
 				const float Y		= StartY + Char.VerticalOffset * YScale;
@@ -953,19 +953,19 @@ bool FTextRenderSceneProxy::BuildStringMesh( TArray<FDynamicMeshVertex>& OutVert
 				const float Bottom = Y + SizeY;
 
 				// axis choice and sign to get good alignment when placed on surface
-				const FVector4 V0(0.f, -Left, -Top, 0.f);
-				const FVector4 V1(0.f, -Right, -Top, 0.f);
-				const FVector4 V2(0.f, -Left, -Bottom, 0.f);
-				const FVector4 V3(0.f, -Right, -Bottom, 0.f);
+				const FVector4f V0(0.f, -Left, -Top, 0.f);
+				const FVector4f V1(0.f, -Right, -Top, 0.f);
+				const FVector4f V2(0.f, -Left, -Bottom, 0.f);
+				const FVector4f V3(0.f, -Right, -Bottom, 0.f);
 
-				const FVector TangentX(0.f, -1.f, 0.f);
-				const FVector TangentY(0.f, 0.f, -1.f);
-				const FVector TangentZ(1.f, 0.f, 0.f);
+				const FVector3f TangentX(0.f, -1.f, 0.f);
+				const FVector3f TangentY(0.f, 0.f, -1.f);
+				const FVector3f TangentZ(1.f, 0.f, 0.f);
 
-				const int32 V00 = OutVertices.Add(FDynamicMeshVertex(V0, TangentX, TangentZ, FVector2D(U, V), TextRenderColor));
-				const int32 V10 = OutVertices.Add(FDynamicMeshVertex(V1, TangentX, TangentZ, FVector2D(U + SizeU, V), TextRenderColor));
-				const int32 V01 = OutVertices.Add(FDynamicMeshVertex(V2, TangentX, TangentZ, FVector2D(U, V + SizeV), TextRenderColor));
-				const int32 V11 = OutVertices.Add(FDynamicMeshVertex(V3, TangentX, TangentZ, FVector2D(U + SizeU, V + SizeV), TextRenderColor));
+				const int32 V00 = OutVertices.Add(FDynamicMeshVertex(V0, TangentX, TangentZ, FVector2f(U, V), TextRenderColor));
+				const int32 V10 = OutVertices.Add(FDynamicMeshVertex(V1, TangentX, TangentZ, FVector2f(U + SizeU, V), TextRenderColor));
+				const int32 V01 = OutVertices.Add(FDynamicMeshVertex(V2, TangentX, TangentZ, FVector2f(U, V + SizeV), TextRenderColor));
+				const int32 V11 = OutVertices.Add(FDynamicMeshVertex(V3, TangentX, TangentZ, FVector2f(U + SizeU, V + SizeV), TextRenderColor));
 
 				check(V00 < 65536);
 				check(V10 < 65536);

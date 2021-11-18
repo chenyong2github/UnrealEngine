@@ -10,9 +10,14 @@
 #define EVENT_SIZE     ( sizeof(struct inotify_event) )
 #define EVENT_BUF_LEN  ( 1024 * ( EVENT_SIZE + 16 ) )
 
+#define VERBOSE_STATS  1
+
 static bool GDumpStats = false;
 static bool GDumpedError = false;
 static FString GINotifyErrorMsg;
+
+int FDirectoryWatchRequestLinux::GFileDescriptor = -1;
+TMultiMap<int32, FDirectoryWatchRequestLinux::FWatchInfo> FDirectoryWatchRequestLinux::GWatchDescriptorsToWatchInfo;
 
 static uint32 GetPathNameHash(const FString& Key)
 {
@@ -25,7 +30,6 @@ static uint32 GetPathNameHash(const FString& Key)
 FDirectoryWatchRequestLinux::FDirectoryWatchRequestLinux()
 :	bWatchSubtree(false)
 ,	bEndWatchRequestInvoked(false)
-,	FileDescriptor(-1)
 {
 }
 
@@ -36,24 +40,40 @@ FDirectoryWatchRequestLinux::~FDirectoryWatchRequestLinux()
 
 void FDirectoryWatchRequestLinux::Shutdown()
 {
-	// Go through and inotify_rm_watch all our watch descriptors
-	for (auto MapIt = WatchDescriptorsToPaths.CreateConstIterator(); MapIt; ++MapIt)
+	// Go through all watch descriptors
+	for (auto MapIt = GWatchDescriptorsToWatchInfo.CreateIterator(); MapIt; ++MapIt)
 	{
-		inotify_rm_watch(FileDescriptor, MapIt->Key);
+		// Check if this one is ours
+		if (&MapIt->Value.WatchRequest == this)
+		{
+			int WatchDescriptor = MapIt->Key;
+
+			// Remove this entry
+			MapIt.RemoveCurrent();
+
+			// If this was last watch descriptor for this directory, rm the inotify watch.
+			if (!GWatchDescriptorsToWatchInfo.Contains(WatchDescriptor))
+			{
+				UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("- inotify_rm_watch(%d)"), WatchDescriptor);
+
+				inotify_rm_watch(GFileDescriptor, WatchDescriptor);
+			}
+		}
 	}
 
-	WatchDescriptorsToPaths.Empty();
 	PathNameHashSet.Empty();
 
-	if (FileDescriptor != -1)
+	if (GWatchDescriptorsToWatchInfo.IsEmpty() && (GFileDescriptor != -1))
 	{
-		close(FileDescriptor);
-		FileDescriptor = -1;
+		close(GFileDescriptor);
+		GFileDescriptor = -1;
 	}
 }
 
 bool FDirectoryWatchRequestLinux::Init(const FString& InDirectory, uint32 Flags)
 {
+	checkf(IsInGameThread(), TEXT("INotify operations only support on main thread"));
+
 	if (InDirectory.Len() == 0)
 	{
 		// Verify input
@@ -62,27 +82,28 @@ bool FDirectoryWatchRequestLinux::Init(const FString& InDirectory, uint32 Flags)
 
 	Shutdown();
 
-	bWatchSubtree = (Flags & IDirectoryWatcher::WatchOptions::IgnoreChangesInSubtree) == 0;
-
-	bEndWatchRequestInvoked = false;
-
 	// Make sure the path is absolute
 	WatchDirectory = FPaths::ConvertRelativePathToFull(InDirectory);
+	bWatchSubtree = (Flags & IDirectoryWatcher::WatchOptions::IgnoreChangesInSubtree) == 0;
+	bEndWatchRequestInvoked = false;
 
 	UE_LOG(LogDirectoryWatcher, Verbose, TEXT("Adding watch for directory tree '%s'"), *WatchDirectory);
 
-	FileDescriptor = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
-	if (FileDescriptor == -1)
+	if (GFileDescriptor == -1)
 	{
-		if (errno == EMFILE)
+		GFileDescriptor = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+		if (GFileDescriptor == -1)
 		{
-			SetINotifyErrorMsg(TEXT("Failed to init inotify (ran out of inotify instances)"));
+			if (errno == EMFILE)
+			{
+				SetINotifyErrorMsg(TEXT("Failed to init inotify (ran out of inotify instances)"));
+			}
+			else
+			{
+				UE_LOG(LogDirectoryWatcher, Error, TEXT("Failed to init inotify (errno=%d, %s)"), errno, UTF8_TO_TCHAR(strerror(errno)));
+			}
+			return false;
 		}
-		else
-		{
-			UE_LOG(LogDirectoryWatcher, Error, TEXT("Failed to init inotify (errno=%d, %s)"), errno, UTF8_TO_TCHAR(strerror(errno)));
-		}
-		return false;
 	}
 
 	// Find all subdirs and add inotify watch requests
@@ -116,6 +137,10 @@ void FDirectoryWatchRequestLinux::EndWatchRequest()
 
 void FDirectoryWatchRequestLinux::ProcessNotifications(TMap<FString, FDirectoryWatchRequestLinux*>& RequestMap)
 {
+	checkf(IsInGameThread(), TEXT("INotify operations only support on main thread"));
+
+	ProcessAllINotifyChanges();
+
 	// Trigger any file change notification delegates
 	for (auto MapIt = RequestMap.CreateConstIterator(); MapIt; ++MapIt)
 	{
@@ -135,11 +160,6 @@ void FDirectoryWatchRequestLinux::DumpStats(TMap<FString, FDirectoryWatchRequest
 
 void FDirectoryWatchRequestLinux::ProcessPendingNotifications()
 {
-	/** Each FFileChangeData tracks whether it is a directory or not */
-	TArray<TPair<FFileChangeData, bool>> FileChanges;
-
-	ProcessChanges(FileChanges);
-
 	// Trigger all listening delegates with the files that have changed
 	if (FileChanges.Num() > 0)
 	{
@@ -174,9 +194,11 @@ void FDirectoryWatchRequestLinux::ProcessPendingNotifications()
 	}
 }
 
-void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolutePath, TArray<TPair<FFileChangeData, bool>>* FileChanges)
+void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolutePath, TArray<TPair<FFileChangeData, bool>>* FileChangesPtr)
 {
-	if (bEndWatchRequestInvoked || (FileDescriptor == -1))
+	checkf(IsInGameThread(), TEXT("INotify operations only support on main thread"));
+
+	if (bEndWatchRequestInvoked || (GFileDescriptor == -1))
 	{
 		return;
 	}
@@ -190,25 +212,25 @@ void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolut
 
 	UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("Watching tree '%s'"), *RootAbsolutePath);
 
-	if (FileChanges)
+	if (FileChangesPtr)
 	{
-		FileChanges->Emplace(FFileChangeData(RootAbsolutePath, FFileChangeData::FCA_Added), true);
+		FileChangesPtr->Emplace(FFileChangeData(RootAbsolutePath, FFileChangeData::FCA_Added), true);
 	}
 
 	TArray<FString> AllFiles;
 	if (bWatchSubtree)
 	{
 		IPlatformFile::GetPlatformPhysical().IterateDirectoryRecursively(*RootAbsolutePath,
-			[&AllFiles, FileChanges](const TCHAR* Name, bool bIsDirectory)
+			[&AllFiles, FileChangesPtr](const TCHAR* Name, bool bIsDirectory)
 				{
 					if (bIsDirectory)
 					{
 						AllFiles.Add(Name);
 					}
 
-					if (FileChanges)
+					if (FileChangesPtr)
 					{
-						FileChanges->Emplace(FFileChangeData(Name, FFileChangeData::FCA_Added), bIsDirectory);
+						FileChangesPtr->Emplace(FFileChangeData(Name, FFileChangeData::FCA_Added), bIsDirectory);
 					}
 					return true;
 				});
@@ -221,13 +243,16 @@ void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolut
 	{
 		uint32 PathNameHash = GetPathNameHash(FolderName);
 
-		if (PathNameHashSet.Find(PathNameHash) == nullptr)
+		// Check if we're already watching this directory
+		if (!PathNameHashSet.Contains(PathNameHash))
 		{
-			int32 NotifyFilter = IN_CREATE | IN_MOVE | IN_MODIFY | IN_DELETE;
-			int32 WatchDescriptor = inotify_add_watch(FileDescriptor, TCHAR_TO_UTF8(*FolderName), NotifyFilter);
+			// If we watch a directory twice, it'll return the same Watch Descriptor
+			int32 NotifyFilter = IN_CREATE | IN_MOVE | IN_MODIFY | IN_DELETE | IN_ONLYDIR;
+			int32 WatchDescriptor = inotify_add_watch(GFileDescriptor, TCHAR_TO_UTF8(*FolderName), NotifyFilter);
 
 			if (WatchDescriptor == -1)
 			{
+				// ENOSPC: The user limit on the total number of inotify watches was reached or the kernel failed to allocate a needed resource.
 				if (errno == ENOSPC)
 				{
 					FString ErrorMsg = FString::Printf(
@@ -242,10 +267,11 @@ void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolut
 			}
 			else
 			{
-				UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("+ Added a watch %d for '%s'"), WatchDescriptor, *FolderName);
+				UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("+ Added WatchDescriptor %d for '%s'"), WatchDescriptor, *FolderName);
 
 				// Set the inotify watch descriptor -> folder name mapping
-				WatchDescriptorsToPaths.Add(WatchDescriptor, FolderName);
+				FWatchInfo WatchInfo{ FolderName, *this };
+				GWatchDescriptorsToWatchInfo.Add(WatchDescriptor, WatchInfo);
 
 				// Add hashed directory path
 				PathNameHashSet.Add(PathNameHash);
@@ -256,33 +282,47 @@ void FDirectoryWatchRequestLinux::WatchDirectoryTree(const FString & RootAbsolut
 
 void FDirectoryWatchRequestLinux::UnwatchDirectoryTree(const FString& RootAbsolutePath)
 {
+	checkf(IsInGameThread(), TEXT("INotify operations only support on main thread"));
+
 	UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("Unwatching tree '%s'"), *RootAbsolutePath);
 
-	for (auto MapIt = WatchDescriptorsToPaths.CreateIterator(); MapIt; ++MapIt)
+	for (auto MapIt = GWatchDescriptorsToWatchInfo.CreateIterator(); MapIt; ++MapIt)
 	{
 		int WatchDescriptor = MapIt->Key;
-		const FString& Path = MapIt->Value;
+		const FWatchInfo& WatchInfo = MapIt->Value;
 
-		if (Path.StartsWith(RootAbsolutePath, ESearchCase::CaseSensitive))
+		// Check if this one is ours
+		if (&MapIt->Value.WatchRequest != this)
 		{
-			UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("- Removing a watch %d for '%s'"), WatchDescriptor, *Path);
+			continue;
+		}
 
-			// delete the descriptor
-			int RetVal = inotify_rm_watch(FileDescriptor, WatchDescriptor);
+		if (WatchInfo.FolderName.StartsWith(RootAbsolutePath, ESearchCase::CaseSensitive))
+		{
+			UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("- Removing WatchDescriptor %d for '%s'"), WatchDescriptor, *WatchInfo.FolderName);
 
-			// This function may be called when root path has been deleted, and inotify_rm_watch() will fail
-			// with an EINVAL when removing a watch on a deleted file.
-			if (RetVal == -1 && errno != EINVAL)
-			{
-				UE_LOG(LogDirectoryWatcher, Warning, TEXT("inotify_rm_watch cannot remove descriptor %d for folder '%s' (errno = %d, %s)"),
-						WatchDescriptor, *Path, errno, ANSI_TO_TCHAR(strerror(errno)));
-			}
+			PathNameHashSet.Remove(GetPathNameHash(WatchInfo.FolderName));
 
 			// Safe version of:
-			//   WatchDescriptorsToPaths.Remove(WatchDescriptor);
+			//   GWatchDescriptorsToWatchInfo.Remove(WatchDescriptor);
 			MapIt.RemoveCurrent();
 
-			PathNameHashSet.Remove(GetPathNameHash(Path));
+			// If that was the last reference to this watch descriptor, remove the inotify watch
+			if (!GWatchDescriptorsToWatchInfo.Contains(WatchDescriptor))
+			{
+				// delete the descriptor
+				int RetVal = inotify_rm_watch(GFileDescriptor, WatchDescriptor);
+
+				UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("- inotify_rm_watch(%d): %d"), WatchDescriptor, RetVal ? errno : 0);
+
+				// This function may be called when root path has been deleted, and inotify_rm_watch() will fail
+				// with an EINVAL when removing a watch on a deleted file.
+				if (RetVal == -1 && errno != EINVAL)
+				{
+					UE_LOG(LogDirectoryWatcher, Warning, TEXT("inotify_rm_watch cannot remove descriptor %d for folder '%s' (errno = %d, %s)"),
+							WatchDescriptor, *WatchInfo.FolderName, errno, ANSI_TO_TCHAR(strerror(errno)));
+				}
+			}
 		}
 	}
 }
@@ -318,11 +358,93 @@ static FString INotifyFlagsToStr(uint32 INotifyFlags)
 #endif
 }
 
-void FDirectoryWatchRequestLinux::ProcessChanges(TArray<TPair<FFileChangeData, bool>>& FileChanges)
+void FDirectoryWatchRequestLinux::ProcessNotifyChanges(const FString& FolderName, const struct inotify_event* Event)
+{
+	if (bEndWatchRequestInvoked)
+	{
+		return;
+	}
+
+	int WatchDescriptor = Event->wd;
+	bool bIsDir = (Event->mask & IN_ISDIR) != 0;
+	FFileChangeData::EFileChangeAction Action = FFileChangeData::FCA_Unknown;
+	FString AffectedFile = FolderName / UTF8_TO_TCHAR(Event->name);
+
+	UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("Event: WatchDescriptor %d, mask 0x%08x, EventPath: '%s' Event Name: '%s' Len: %u %s"),
+		WatchDescriptor, Event->mask, *FolderName, UTF8_TO_TCHAR(Event->name), Event->len, *INotifyFlagsToStr(Event->mask));
+
+	if ((Event->mask & IN_CREATE) || (Event->mask & IN_MOVED_TO))
+	{
+		// IN_CREATE: File/directory created in watched directory
+		// IN_MOVED_TO: Generated for the directory containing the new filename when a file is renamed
+		if (bIsDir)
+		{
+			// If a directory was created/moved, watch it and add changes to FileChanges.
+			// Leave Action as FCA_Unknown so nothing gets added down below.
+			WatchDirectoryTree(AffectedFile, &FileChanges);
+		}
+		else
+		{
+			Action = FFileChangeData::FCA_Added;
+		}
+	}
+	else if (Event->mask & IN_MODIFY)
+	{
+		// IN_MODIFY: File was modified
+		// If a directory was modified, we expect to get events from already watched files in it
+		Action = FFileChangeData::FCA_Modified;
+	}
+	// Check if the file/directory itself has been deleted (IGNORED can also be sent on delete)
+	else if ((Event->mask & IN_DELETE_SELF) || (Event->mask & IN_UNMOUNT))
+	{
+		// IN_DELETE_SELF: Watched file/directory was itself deleted.
+		//   In addition, an IN_IGNORED event will subsequently be generated for the watch descriptor
+		// IN_UNMOUNT: Filesystem containing watched object was unmounted.
+		//   In addition, an IN_IGNORED event will subsequently be generated for the watch descriptor
+
+		// If a directory was deleted, we expect to get events from already watched files in it
+
+		// NOTE: This code should ever get called - we only watch directories.
+		checkf(bIsDir, TEXT("Watched item was file?"));
+
+		if (bIsDir)
+		{
+			UnwatchDirectoryTree(AffectedFile);
+			Action = FFileChangeData::FCA_Removed;
+		}
+	}
+	else if (Event->mask & IN_IGNORED)
+	{
+		// IN_IGNORED: Watch was removed explicitly (inotify_rm_watch) or
+		//   automatically (file was deleted, or filesystem was unmounted).
+		PathNameHashSet.Remove(GetPathNameHash(FolderName));
+		GWatchDescriptorsToWatchInfo.Remove(WatchDescriptor);
+	}
+	else if ((Event->mask & IN_DELETE) || (Event->mask & IN_MOVED_FROM))
+	{
+		// IN_DELETE: File/directory deleted from watched directory
+		// IN_MOVED_FROM: Generated for the directory containing the old filename when a file is renamed
+
+		// If a directory was deleted/moved, unwatch it
+		if (bIsDir)
+		{
+			UnwatchDirectoryTree(AffectedFile);
+		}
+
+		Action = FFileChangeData::FCA_Removed;
+	}
+
+	if (Action != FFileChangeData::FCA_Unknown)
+	{
+		FileChanges.Emplace(FFileChangeData(AffectedFile, Action), bIsDir);
+	}
+}
+
+void FDirectoryWatchRequestLinux::ProcessAllINotifyChanges()
 {
 	uint8_t Buffer[EVENT_BUF_LEN] __attribute__ ((aligned(__alignof__(struct inotify_event))));
 
-	if (FileDescriptor == -1)
+	if (GFileDescriptor == -1)
 	{
 		return;
 	}
@@ -331,13 +453,13 @@ void FDirectoryWatchRequestLinux::ProcessChanges(TArray<TPair<FFileChangeData, b
 	for (;;)
 	{
 		// Read event stream
-		ssize_t Len = read(FileDescriptor, Buffer, EVENT_BUF_LEN);
+		ssize_t Len = read(GFileDescriptor, Buffer, EVENT_BUF_LEN);
 
 		// If the non-blocking read() found no events to read, then it returns -1 with errno set to EAGAIN.
 		if (Len == -1 && errno != EAGAIN)
 		{
-			UE_LOG(LogDirectoryWatcher, Error, TEXT("FDirectoryWatchRequestLinux::ProcessChanges() read() error getting events for path '%s' (errno = %d, %s)"),
-				*WatchDirectory, errno, ANSI_TO_TCHAR(strerror(errno)));
+			UE_LOG(LogDirectoryWatcher, Error, TEXT("FDirectoryWatchRequestLinux::ProcessAllINotifyChanges() read() error (errno = %d, %s)"),
+				errno, ANSI_TO_TCHAR(strerror(errno)));
 			break;
 		}
 
@@ -346,17 +468,11 @@ void FDirectoryWatchRequestLinux::ProcessChanges(TArray<TPair<FFileChangeData, b
 			break;
 		}
 
-		if (bEndWatchRequestInvoked)
-		{
-			continue;
-		}
-
 		// Loop over all events in the buffer
 		uint8_t* Ptr = Buffer;
 		while (Ptr < Buffer + Len)
 		{
 			const struct inotify_event* Event;
-			FFileChangeData::EFileChangeAction Action = FFileChangeData::FCA_Unknown;
 
 			Event = reinterpret_cast<const struct inotify_event *>(Ptr);
 			Ptr += EVENT_SIZE + Event->len;
@@ -364,91 +480,12 @@ void FDirectoryWatchRequestLinux::ProcessChanges(TArray<TPair<FFileChangeData, b
 			// Skip if overflowed
 			if ((Event->wd != -1) && (Event->mask & IN_Q_OVERFLOW) == 0)
 			{
-				const FString *EventPathPtr = WatchDescriptorsToPaths.Find(Event->wd);
+				TArray<FWatchInfo> WatchInfos;
+				GWatchDescriptorsToWatchInfo.MultiFind(Event->wd, WatchInfos);
 
-				UE_LOG(LogDirectoryWatcher, VeryVerbose, TEXT("Event: watch descriptor %d, mask 0x%08x, EventPath: '%s' Event Name: '%s' %s"),
-					Event->wd, Event->mask, EventPathPtr ? *(*EventPathPtr) : TEXT("nullptr"), ANSI_TO_TCHAR(Event->name), *INotifyFlagsToStr(Event->mask));
-
-				// If we're geting multiple events (e.g. DELETE, IGNORED) we could have removed descriptor on previous iteration,
-				// so we need to handle inability to find it in the map
-				if (EventPathPtr)
+				for (FWatchInfo& WatchInfo : WatchInfos)
 				{
-					const FString& EventPath = *EventPathPtr;
-					FString AffectedFile = EventPath / UTF8_TO_TCHAR(Event->name); // By default, some events report about the file itself
-
-					bool bIsDir = (Event->mask & IN_ISDIR) != 0;
-
-					if ((Event->mask & IN_CREATE) || (Event->mask & IN_MOVED_TO))
-					{
-						// IN_CREATE: File/directory created in watched directory
-						// IN_MOVED_TO: Generated for the directory containing the new filename when a file is renamed
-						if (bIsDir)
-						{
-							// If a directory was created/moved, watch it and add changes to FileChanges.
-							// Leave Action as FCA_Unknown so nothing gets added down below.
-							WatchDirectoryTree(AffectedFile, &FileChanges);
-						}
-						else
-						{
-							Action = FFileChangeData::FCA_Added;
-						}
-					}
-					else if (Event->mask & IN_MODIFY)
-					{
-						// IN_MODIFY: File was modified
-						// If a directory was modified, we expect to get events from already watched files in it
-						Action = FFileChangeData::FCA_Modified;
-					}
-					// Check if the file/directory itself has been deleted (IGNORED can also be sent on delete)
-					else if ((Event->mask & IN_DELETE_SELF) || (Event->mask & IN_IGNORED) || (Event->mask & IN_UNMOUNT))
-					{
-						// IN_DELETE_SELF: Watched file/directory was itself deleted.
-						//   In addition, an IN_IGNORED event will subsequently be generated for the watch descriptor
-						// IN_UNMOUNT: Filesystem containing watched object was unmounted.
-						//   In addition, an IN_IGNORED event will subsequently be generated for the watch descriptor
-						// IN_IGNORED: Watch was removed explicitly (inotify_rm_watch(2)) or
-						//   automatically (file was deleted, or filesystem was unmounted).
-
-						// If a directory was deleted, we expect to get events from already watched files in it
-						AffectedFile = EventPath;
-
-						if (bIsDir)
-						{
-							UnwatchDirectoryTree(EventPath);
-						}
-						else
-						{
-							// NOTE: I don't *believe* this code should ever get called? We only watch directories.
-							// But to be on the safe side, still handling this case...
-
-							// inotify_rm_watch() may fail here as watch descriptor is potentially no longer valid, so ignore return
-							inotify_rm_watch(FileDescriptor, Event->wd);
-
-							// Remove from both mappings
-							WatchDescriptorsToPaths.Remove(Event->wd);
-							PathNameHashSet.Remove(GetPathNameHash(EventPath));
-						}
-
-						Action = FFileChangeData::FCA_Removed;
-					}
-					else if ((Event->mask & IN_DELETE) || (Event->mask & IN_MOVED_FROM))
-					{
-						// IN_DELETE: File/directory deleted from watched directory
-						// IN_MOVED_FROM: Generated for the directory containing the old filename when a file is renamed
-
-						// If a directory was deleted/moved, unwatch it
-						if (bIsDir)
-						{
-							UnwatchDirectoryTree(AffectedFile);
-						}
-
-						Action = FFileChangeData::FCA_Removed;
-					}
-
-					if (Event->len && (Action != FFileChangeData::FCA_Unknown))
-					{
-						FileChanges.Emplace(FFileChangeData(AffectedFile, Action), bIsDir);
-					}
+					WatchInfo.WatchRequest.ProcessNotifyChanges(WatchInfo.FolderName, Event);
 				}
 			}
 		}
@@ -574,7 +611,12 @@ static void INotifyParseFDDir(const FString& Executable, int Pid, uint32 &INotif
 	{
 		FString ExeName = FPaths::GetCleanFilename(Executable);
 
-		UE_LOG(LogDirectoryWatcher, Warning, TEXT("  %s (pid %d) watches:%u instances:%u"), *ExeName, Pid, INotifyCount, INotifyInstances);
+#if !VERBOSE_STATS
+		if (Pid == getpid())
+#endif
+		{
+			UE_LOG(LogDirectoryWatcher, Warning, TEXT("  %s (pid %d) watches:%u instances:%u"), *ExeName, Pid, INotifyCount, INotifyInstances);
+		}
 
 		INotifyCountTotal += INotifyCount;
 		INotifyInstancesTotal += INotifyInstances;
@@ -633,6 +675,7 @@ void FDirectoryWatchRequestLinux::DumpINotifyErrorDetails(TMap<FString, FDirecto
 	}
 	GDumpStats = false;
 
+#if VERBOSE_STATS
 	uint32 MaxQueuedEvents = get_inotify_procfs_value("max_queued_events");
 	uint32 MaxUserInstances = get_inotify_procfs_value("max_user_instances");
 	uint32 MaxUserWatches = get_inotify_procfs_value("max_user_watches");
@@ -641,6 +684,7 @@ void FDirectoryWatchRequestLinux::DumpINotifyErrorDetails(TMap<FString, FDirecto
 	UE_LOG(LogDirectoryWatcher, Warning, TEXT("  max_queued_events: %u"), MaxQueuedEvents);
 	UE_LOG(LogDirectoryWatcher, Warning, TEXT("  max_user_instances: %u"), MaxUserInstances);
 	UE_LOG(LogDirectoryWatcher, Warning, TEXT("  max_user_watches: %u"), MaxUserWatches);
+#endif
 
 	UE_LOG(LogDirectoryWatcher, Warning, TEXT("inotify per-process stats"));
 	INotifyDumpProcessStats();
@@ -653,23 +697,33 @@ void FDirectoryWatchRequestLinux::DumpINotifyErrorDetails(TMap<FString, FDirecto
 		uint32 DirCount = 1;
 		FDirectoryWatchRequestLinux &WatchRequest = *MapIt.Value();
 
-		// Get actual count of subdirectories
-		if (WatchRequest.bWatchSubtree)
+		if (!IPlatformFile::GetPlatformPhysical().DirectoryExists(*WatchRequest.WatchDirectory))
 		{
-			IPlatformFile::GetPlatformPhysical().IterateDirectoryRecursively(*WatchRequest.WatchDirectory,
-				[&DirCount](const TCHAR* Name, bool bIsDirectory)
-				{
-					DirCount += bIsDirectory;
-					return true;
-				});
+			UE_LOG(LogDirectoryWatcher, Warning, TEXT("  %s: %u watches (dir does not exist)"),
+					*WatchRequest.WatchDirectory, WatchRequest.PathNameHashSet.Num());
 		}
+		else
+		{
+			// Get actual count of subdirectories
+			if (WatchRequest.bWatchSubtree)
+			{
+				IPlatformFile::GetPlatformPhysical().IterateDirectoryRecursively(*WatchRequest.WatchDirectory,
+						[&DirCount](const TCHAR* Name, bool bIsDirectory)
+						{
+						DirCount += bIsDirectory;
+						return true;
+						});
+			}
 
-		UE_LOG(LogDirectoryWatcher, Warning, TEXT("  %s: %u watches (%u total dirs)"),
-			*WatchRequest.WatchDirectory, WatchRequest.WatchDescriptorsToPaths.Num(), DirCount);
-		
-		Count += WatchRequest.WatchDescriptorsToPaths.Num();
+			UE_LOG(LogDirectoryWatcher, Warning, TEXT("  %s: %u watches (%u total dirs)"),
+					*WatchRequest.WatchDirectory, WatchRequest.PathNameHashSet.Num(), DirCount);
+
+			Count += WatchRequest.PathNameHashSet.Num();
+		}
 	}
-	UE_LOG(LogDirectoryWatcher, Warning, TEXT("Total UE inotify Watches:%u Instances:%u"), Count, RequestMap.Num());
+
+	UE_LOG(LogDirectoryWatcher, Warning, TEXT("Total UE inotify Watches:%u WatchDescriptors:%u Instances:%u "),
+			Count, GWatchDescriptorsToWatchInfo.Num(), RequestMap.Num());
 }
 
 #if !UE_BUILD_SHIPPING

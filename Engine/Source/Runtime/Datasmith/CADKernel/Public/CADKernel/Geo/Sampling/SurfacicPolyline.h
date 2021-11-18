@@ -25,6 +25,8 @@ namespace CADKernel
 		TArray<FVector> Normals;
 		TArray<FPoint> Tangents;
 
+		FSurfacicBoundary BoundingBox;
+
 		bool bWithNormals;
 		bool bWithTangent;
 
@@ -46,6 +48,7 @@ namespace CADKernel
 			Ar.Serialize(Points2D);
 			Ar.Serialize(Normals);
 			Ar.Serialize(Coordinates);
+			Ar.Serialize(BoundingBox);
 			Ar << bWithNormals;
 			Ar << bWithTangent;
 		}
@@ -109,7 +112,7 @@ namespace CADKernel
 			double Distance3D = Points3D[Index].Distance(Points3D[Index + 1]);
 			if (FMath::IsNearlyZero(Distance3D, (double)SMALL_NUMBER))
 			{
-				return HUGE_VALUE;
+				return (Coordinates.Last() - Coordinates[0]) / 10.;
 			}
 			else
 			{
@@ -248,6 +251,11 @@ namespace CADKernel
 			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
 			Approximator3D.ProjectCoincidentalPolyline(InPointsToProject, bSameOrientation, OutProjectedPointCoordinates);
 		}
+
+		/**
+		 * The main idea of this algorithm is to process starting for the beginning of the curve to the end of the curve.
+		 */
+		void ComputeIntersectionsWithIsos(const FLinearBoundary& InBoundary, const TArray<double>& InIsoCoordinates, const EIso InTypeIso, const FSurfacicTolerance& ToleranceIso, TArray<double>& OutIntersection) const;
 
 		const TArray<double>& GetCoordinates() const
 		{

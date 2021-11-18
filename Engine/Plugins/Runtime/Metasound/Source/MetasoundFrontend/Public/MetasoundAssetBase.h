@@ -88,13 +88,14 @@ public:
 
 	// Returns set of cached class references set on last registration
 	// prior to serialize. Used at runtime to hint where to load referenced
-	// class if sound loads before AssetManager scan is completed.  Can be
-	// superseded by another asset class with the same key it is already
-	// registered in the MetaSoundAssetManager.
+	// class if sound loads before AssetManager scan is completed.  When registered
+	// hint paths to classes here can be superseded by another asset class if it shares
+	// the same key and has already been registered in the MetaSoundAssetManager.
 	virtual TSet<FSoftObjectPath>& GetReferencedAssetClassCache() = 0;
 	virtual const TSet<FSoftObjectPath>& GetReferencedAssetClassCache() const = 0;
 
 	bool AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath) const;
+	bool IsReferencedAsset(const FMetasoundAssetBase& InAssetToCheck) const;
 	void ConvertFromPreset();
 	bool IsRegistered() const;
 
@@ -124,6 +125,14 @@ public:
 	void ConformDocumentToArchetype();
 	bool AutoUpdate(bool bInMarkDirty = false);
 	bool VersionAsset();
+
+#if WITH_EDITORONLY_DATA
+	bool GetSynchronizationPending() const;
+	bool GetSynchronizationClearUpdateNotes() const;
+	void ResetSynchronizationState();
+	void SetClearNodeNotesOnSynchronization();
+	void SetSynchronizationRequired();
+#endif // WITH_EDITORONLY_DATA
 
 	// Calls the outermost package and marks it dirty.
 	bool MarkMetasoundDocumentDirty() const;
@@ -160,6 +169,11 @@ protected:
 
 	// Returns a shared instance of the core metasound graph.
 	TSharedPtr<const Metasound::IGraph, ESPMode::ThreadSafe> GetMetasoundCoreGraph() const;
+
+#if WITH_EDITORONLY_DATA
+	bool bSynchronizationRequired = true;
+	bool bSynchronizationClearUpdateNotes = false;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 	Metasound::Frontend::FNodeRegistryKey RegistryKey;

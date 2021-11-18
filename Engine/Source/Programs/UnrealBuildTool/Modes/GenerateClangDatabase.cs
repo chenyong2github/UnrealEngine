@@ -8,8 +8,6 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -39,7 +37,7 @@ namespace UnrealBuildTool
 			Arguments.ApplyTo(BuildConfiguration);
 
 			// Parse the filter argument
-			FileFilter FileFilter = null;
+			FileFilter? FileFilter = null;
 			if(FilterRules.Count > 0)
 			{
 				FileFilter = new FileFilter(FileFilterType.Exclude);

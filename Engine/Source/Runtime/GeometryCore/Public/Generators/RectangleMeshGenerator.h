@@ -36,7 +36,7 @@ public:
 	bool bScaleUVByAspectRatio = true;
 
 	/** If true, output mesh has a single polygroup, otherwise each quad gets a separate group */
-	bool bSinglePolygroup = false;
+	bool bSinglePolyGroup = false;
 
 	/** Specifies how 2D indices are mapped to 3D points. Default is (0,1) = (x,y,0). */ 
 	FIndex2i IndicesMap;

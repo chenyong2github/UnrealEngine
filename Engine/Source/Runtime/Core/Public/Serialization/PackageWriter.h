@@ -140,7 +140,7 @@ public:
 	/** Increase the referenced ExportsSize by the size in bytes of the data that will be added on to it during
 	 * commit before writing to disk. Used for accurate disk size reporting on the UPackage and AssetRegistry.
 	 */
-	virtual void AddToExportsSize(int32& InOutExportsSize)
+	virtual void AddToExportsSize(int64& InOutExportsSize)
 	{
 	}
 

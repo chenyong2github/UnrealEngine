@@ -348,6 +348,11 @@ FVector2D SAudioMeter::ComputeDesiredSize(float) const
 	return Size; 
 }
 
+bool SAudioMeter::ComputeVolatility() const
+{
+	return true; 
+}
+
 void SAudioMeter::SetMeterChannelInfo(const TAttribute<TArray<FMeterChannelInfo>>& InMeterChannelInfo)
 {
 	SetAttribute(MeterChannelInfoAttribute, InMeterChannelInfo, EInvalidateWidgetReason::Paint);

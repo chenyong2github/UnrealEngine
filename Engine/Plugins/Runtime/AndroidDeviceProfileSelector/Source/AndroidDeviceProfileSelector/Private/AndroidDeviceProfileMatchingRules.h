@@ -23,6 +23,7 @@ enum ESourceType
 	SRC_Hardware,
 	SRC_Chipset,
 	SRC_ConfigRuleVar,
+	SRC_HMDSystemName,
 	SRC_MAX,
 };
 

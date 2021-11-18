@@ -70,13 +70,11 @@ bool UDirectLinkTestLibrary::TestParameters()
 	Store.RegisterParameter(Text, "text");
 
 	FString In = TEXT("test string value");
-//	Store.SetValue("text", In);
-//	FString Out = Store.GetValue("text");
 	FString Out;
 	ok &= ensure(Out == In);
 
-	Text.Set(Store, In);
-	Out = Text.Get(Store);
+	Text = In;
+	Out = Text;
 	ok &= ensure(Out == In);
 
 	return ok;

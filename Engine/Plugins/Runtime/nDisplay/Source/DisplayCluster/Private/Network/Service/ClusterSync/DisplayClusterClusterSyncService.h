@@ -9,7 +9,7 @@
 #include "Network/Protocol/IDisplayClusterProtocolClusterSync.h"
 #include "Network/Packet/DisplayClusterPacketInternal.h"
 
-#include "Misc/DisplayClusterBarrier.h"
+class IDisplayClusterBarrier;
 
 
 /**
@@ -25,42 +25,51 @@ public:
 	virtual ~FDisplayClusterClusterSyncService();
 
 public:
-	virtual bool Start(const FString& Address, int32 Port) override;
-	void Shutdown() override;
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterServer
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool Start(const FString& Address, const uint16 Port) override;
+	virtual bool Start(TSharedPtr<FDisplayClusterTcpListener>& ExternalListener) override;
+	virtual void Shutdown() override final;
+	virtual FString GetProtocolName() const override;
+	virtual void KillSession(const FString& NodeId) override;
 
 protected:
 	// Creates session instance for this service
-	virtual TUniquePtr<IDisplayClusterSession> CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId) override;
+	virtual TSharedPtr<IDisplayClusterSession> CreateSession(FDisplayClusterSessionInfo& SessionInfo) override;
 
-protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterSessionStatusListener
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void NotifySessionClose(uint64 SessionId) override;
+	// Callback when a session is closed
+	void ProcessSessionClosed(const FDisplayClusterSessionInfo& SessionInfo);
+
+	// Callbck on barrier timeout
+	void ProcessBarrierTimeout(const FString& BarrierName, const TArray<FString>& NodesTimedOut);
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterSessionPacketHandler
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual TSharedPtr<FDisplayClusterPacketInternal> ProcessPacket(const TSharedPtr<FDisplayClusterPacketInternal>& Request) override;
+	virtual TSharedPtr<FDisplayClusterPacketInternal> ProcessPacket(const TSharedPtr<FDisplayClusterPacketInternal>& Request, const FDisplayClusterSessionInfo& SessionInfo) override;
 
 private:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForGameStart() override;
-	virtual void WaitForFrameStart() override;
-	virtual void WaitForFrameEnd() override;
-	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override;
-	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup)  override;
-	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
-	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) override;
+	virtual EDisplayClusterCommResult WaitForGameStart() override;
+	virtual EDisplayClusterCommResult WaitForFrameStart() override;
+	virtual EDisplayClusterCommResult WaitForFrameEnd() override;
+	virtual EDisplayClusterCommResult GetTimeData(double& OutDeltaTime, double& OutGameTime, TOptional<FQualifiedFrameTime>& OutFrameTime) override;
+	virtual EDisplayClusterCommResult GetObjectsData(EDisplayClusterSyncGroup InSyncGroup, TMap<FString, FString>& OutObjectsData)  override;
+	virtual EDisplayClusterCommResult GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& OutJsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& OutBinaryEvents) override;
+	virtual EDisplayClusterCommResult GetNativeInputData(TMap<FString, FString>& OutNativeInputData) override;
 
 private:
 	// Game start sync barrier
-	FDisplayClusterBarrier BarrierGameStart;
+	TUniquePtr<IDisplayClusterBarrier> BarrierGameStart;
 	// Frame start barrier
-	FDisplayClusterBarrier BarrierFrameStart;
+	TUniquePtr<IDisplayClusterBarrier> BarrierFrameStart;
 	// Frame end barrier
-	FDisplayClusterBarrier BarrierFrameEnd;
+	TUniquePtr<IDisplayClusterBarrier> BarrierFrameEnd;
+
+	// Auxiliary container that keeps all the barriers
+	TMap<FString, TUniquePtr<IDisplayClusterBarrier>*> ServiceBarriers;
 };

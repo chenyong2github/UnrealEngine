@@ -9,6 +9,7 @@
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "ClusterConfiguration/SDisplayClusterConfiguratorNewClusterItemDialog.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorGraph.h"
+#include "Views/OutputMapping/DisplayClusterConfiguratorOutputMappingCommands.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorBaseNode.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorCanvasNode.h"
@@ -165,20 +166,18 @@ void SDisplayClusterConfiguratorGraphEditor::RebuildGraph()
 
 FActionMenuContent SDisplayClusterConfiguratorGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging)
 {
-	const FDisplayClusterConfiguratorCommands& Commands = IDisplayClusterConfigurator::Get().GetCommands();
-
 	if (InGraphNode->IsA(UDisplayClusterConfiguratorBaseNode::StaticClass()))
 	{
 		MenuBuilder->BeginSection(FName(TEXT("Add")), LOCTEXT("AddSectionLabel", "Add"));
 		{
 			if (InGraphNode->IsA<UDisplayClusterConfiguratorHostNode>() || InGraphNode->IsA<UDisplayClusterConfiguratorCanvasNode>())
 			{
-				MenuBuilder->AddMenuEntry(Commands.AddNewClusterNode);
+				MenuBuilder->AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().AddNewClusterNode);
 			}
 
 			if (InGraphNode->IsA<UDisplayClusterConfiguratorWindowNode>() || InGraphNode->IsA<UDisplayClusterConfiguratorCanvasNode>())
 			{
-				MenuBuilder->AddMenuEntry(Commands.AddNewViewport);
+				MenuBuilder->AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().AddNewViewport);
 			}
 		}
 		MenuBuilder->EndSection();
@@ -186,7 +185,7 @@ FActionMenuContent SDisplayClusterConfiguratorGraphEditor::OnCreateNodeOrPinMenu
 		MenuBuilder->BeginSection(FName(TEXT("Documentation")), LOCTEXT("Documentation", "Documentation"));
 		{
 			MenuBuilder->AddMenuEntry(
-				Commands.BrowseDocumentation,
+				FDisplayClusterConfiguratorOutputMappingCommands::Get().BrowseDocumentation,
 				NAME_None,
 				LOCTEXT("GoToDocsForActor", "View Documentation"),
 				LOCTEXT("GoToDocsForActor_ToolTip", "Click to open documentation for nDisplay"),
@@ -222,11 +221,26 @@ FActionMenuContent SDisplayClusterConfiguratorGraphEditor::OnCreateNodeOrPinMenu
 
 				InSubMenuBuilder.BeginSection("EdGraphSchemaSizing", LOCTEXT("SizeHeader", "Size"));
 				{
-					InSubMenuBuilder.AddMenuEntry(IDisplayClusterConfigurator::Get().GetCommands().FillParentNode);
-					InSubMenuBuilder.AddMenuEntry(IDisplayClusterConfigurator::Get().GetCommands().SizeToChildNodes);
+					InSubMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorOutputMappingCommands::Get().FillParentNode);
+					InSubMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorOutputMappingCommands::Get().SizeToChildNodes);
 				}
 				InSubMenuBuilder.EndSection();
 			}));
+		}
+		MenuBuilder->EndSection();
+
+		MenuBuilder->BeginSection(FName(TEXT("Transformation")), LOCTEXT("TransformationHeader", "Transform"));
+		{
+			if (InGraphNode->IsA<UDisplayClusterConfiguratorViewportNode>())
+			{
+				MenuBuilder->AddMenuEntry(FDisplayClusterConfiguratorOutputMappingCommands::Get().RotateViewport90CW);
+				MenuBuilder->AddMenuEntry(FDisplayClusterConfiguratorOutputMappingCommands::Get().RotateViewport90CCW);
+				MenuBuilder->AddMenuEntry(FDisplayClusterConfiguratorOutputMappingCommands::Get().RotateViewport180);
+				MenuBuilder->AddMenuEntry(FDisplayClusterConfiguratorOutputMappingCommands::Get().FlipViewportHorizontal);
+				MenuBuilder->AddMenuEntry(FDisplayClusterConfiguratorOutputMappingCommands::Get().FlipViewportVertical);
+				MenuBuilder->AddSeparator();
+				MenuBuilder->AddMenuEntry(FDisplayClusterConfiguratorOutputMappingCommands::Get().ResetViewportTransform);
+			}
 		}
 		MenuBuilder->EndSection();
 
@@ -239,47 +253,50 @@ void SDisplayClusterConfiguratorGraphEditor::BindCommands()
 {
 	CommandList = MakeShareable(new FUICommandList);
 
-	const FDisplayClusterConfiguratorCommands& Commands = IDisplayClusterConfigurator::Get().GetCommands();
-
 	CommandList->MapAction(
-		Commands.AddNewClusterNode,
+		FDisplayClusterConfiguratorCommands::Get().AddNewClusterNode,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::AddNewClusterNode),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanAddNewClusterNode)
 		);
 
 	CommandList->MapAction(
-		Commands.AddNewViewport,
+		FDisplayClusterConfiguratorCommands::Get().AddNewViewport,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::AddNewViewport),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanAddNewViewport)
 		);
 
 	CommandList->MapAction(
-		Commands.BrowseDocumentation,
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().BrowseDocumentation,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::BrowseDocumentation),
 		FCanExecuteAction()
 		);
 
-	CommandList->MapAction(FGenericCommands::Get().Delete,
+	CommandList->MapAction(
+		FGenericCommands::Get().Delete,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::DeleteSelectedNodes),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanDeleteNodes)
 		);
 
-	CommandList->MapAction(FGenericCommands::Get().Copy,
+	CommandList->MapAction(
+		FGenericCommands::Get().Copy,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CopySelectedNodes),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanCopyNodes)
 		);
 
-	CommandList->MapAction(FGenericCommands::Get().Cut,
+	CommandList->MapAction(
+		FGenericCommands::Get().Cut,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CutSelectedNodes),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanCutNodes)
 		);
 
-	CommandList->MapAction(FGenericCommands::Get().Paste,
+	CommandList->MapAction(
+		FGenericCommands::Get().Paste,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::PasteNodes),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanPasteNodes)
 		);
 
-	CommandList->MapAction(FGenericCommands::Get().Duplicate,
+	CommandList->MapAction(
+		FGenericCommands::Get().Duplicate,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::DuplicateNodes),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanDuplicateNodes)
 		);
@@ -321,15 +338,56 @@ void SDisplayClusterConfiguratorGraphEditor::BindCommands()
 		);
 
 	CommandList->MapAction(
-		Commands.FillParentNode,
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().FillParentNode,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::FillParentNode),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanFillParentNode)
 	);
 
 	CommandList->MapAction(
-		Commands.SizeToChildNodes,
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().SizeToChildNodes,
 		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::SizeToChildNodes),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanSizeToChildNodes)
+	);
+
+	CommandList->MapAction(
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().RotateViewport90CW,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::RotateNode, 90.0f),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanTransformNode)
+	);
+
+	CommandList->MapAction(
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().RotateViewport90CCW,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::RotateNode, -90.0f),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanTransformNode)
+	);
+
+	CommandList->MapAction(
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().RotateViewport180,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::RotateNode, 180.0f),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanTransformNode)
+	);
+
+	CommandList->MapAction(
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().FlipViewportHorizontal,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::FlipNode, true, false),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanTransformNode)
+	);
+
+	CommandList->MapAction(
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().FlipViewportVertical,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::FlipNode, false, true),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanTransformNode)
+	);
+
+	CommandList->MapAction(
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().ResetViewportTransform,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::ResetNodeTransform),
+		FCanExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::CanTransformNode)
+	);
+
+	CommandList->MapAction(
+		FDisplayClusterConfiguratorOutputMappingCommands::Get().ZoomToFit,
+		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorGraphEditor::ZoomToFit, false)
 	);
 }
 
@@ -786,7 +844,7 @@ void SDisplayClusterConfiguratorGraphEditor::FillParentNode()
 {
 	const TSet<UObject*>& SelectedNodes = GetSelectedNodes();
 
-	FScopedTransaction Transaction(IDisplayClusterConfigurator::Get().GetCommands().FillParentNode->GetLabel());
+	FScopedTransaction Transaction(FDisplayClusterConfiguratorOutputMappingCommands::Get().FillParentNode->GetLabel());
 	bool bNodesChanged = false;
 
 	for (UObject* Node : SelectedNodes)
@@ -824,7 +882,7 @@ void SDisplayClusterConfiguratorGraphEditor::SizeToChildNodes()
 {
 	const TSet<UObject*>& SelectedNodes = GetSelectedNodes();
 
-	FScopedTransaction Transaction(IDisplayClusterConfigurator::Get().GetCommands().SizeToChildNodes->GetLabel());
+	FScopedTransaction Transaction(FDisplayClusterConfiguratorOutputMappingCommands::Get().SizeToChildNodes->GetLabel());
 	bool bNodesChanged = false;
 
 	for (UObject* Node : SelectedNodes)
@@ -833,6 +891,93 @@ void SDisplayClusterConfiguratorGraphEditor::SizeToChildNodes()
 		if (BaseNode->IsA<UDisplayClusterConfiguratorHostNode>() || BaseNode->IsA<UDisplayClusterConfiguratorWindowNode>())
 		{
 			BaseNode->SizeToChildren();
+			bNodesChanged = true;
+		}
+	}
+
+	if (!bNodesChanged)
+	{
+		Transaction.Cancel();
+	}
+}
+
+bool SDisplayClusterConfiguratorGraphEditor::CanTransformNode() const
+{
+	const TSet<UObject*>& SelectedNodes = GetSelectedNodes();
+
+	if (!SelectedNodes.Num())
+	{
+		return false;
+	}
+
+	for (UObject* Node : SelectedNodes)
+	{
+		// Transforms can only be applied to viewports at this point.
+		if (!Node->IsA<UDisplayClusterConfiguratorViewportNode>())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void SDisplayClusterConfiguratorGraphEditor::RotateNode(float InRotation)
+{
+	const TSet<UObject*>& SelectedNodes = GetSelectedNodes();
+
+	FScopedTransaction Transaction(LOCTEXT("RotateNodeTransaction", "Rotate Nodes"));
+	bool bNodesChanged = false;
+
+	for (UObject* Node : SelectedNodes)
+	{
+		if (UDisplayClusterConfiguratorViewportNode* ViewportNode = Cast<UDisplayClusterConfiguratorViewportNode>(Node))
+		{
+			ViewportNode->RotateViewport(InRotation);
+			bNodesChanged = true;
+		}
+	}
+
+	if (!bNodesChanged)
+	{
+		Transaction.Cancel();
+	}
+}
+
+void SDisplayClusterConfiguratorGraphEditor::FlipNode(bool bFlipHorizontal, bool bFlipVertical)
+{
+	const TSet<UObject*>& SelectedNodes = GetSelectedNodes();
+
+	FScopedTransaction Transaction(LOCTEXT("FlipNodeTransaction", "Flip Nodes"));
+	bool bNodesChanged = false;
+
+	for (UObject* Node : SelectedNodes)
+	{
+		if (UDisplayClusterConfiguratorViewportNode* ViewportNode = Cast<UDisplayClusterConfiguratorViewportNode>(Node))
+		{
+			ViewportNode->FlipViewport(bFlipHorizontal, bFlipVertical);
+			bNodesChanged = true;
+		}
+	}
+
+	if (!bNodesChanged)
+	{
+		Transaction.Cancel();
+	}
+}
+
+void SDisplayClusterConfiguratorGraphEditor::ResetNodeTransform()
+{
+	const TSet<UObject*>& SelectedNodes = GetSelectedNodes();
+
+	FScopedTransaction Transaction(LOCTEXT("ResetNodeTransformTransaction", "Reset Node Transform"));
+	bool bNodesChanged = false;
+
+	for (UObject* Node : SelectedNodes)
+	{
+		if (UDisplayClusterConfiguratorViewportNode* ViewportNode = Cast<UDisplayClusterConfiguratorViewportNode>(Node))
+		{
+			ViewportNode->ResetTransform();
 			bNodesChanged = true;
 		}
 	}

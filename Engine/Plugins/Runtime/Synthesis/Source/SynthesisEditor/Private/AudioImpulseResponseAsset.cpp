@@ -5,6 +5,7 @@
 #include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"
 #include "Sound/SoundWave.h"
+#include "Sound/SoundWaveProcedural.h"
 #include "Sound/SampleBufferIO.h"
 #include "SampleBuffer.h"
 #include "SubmixEffects/SubmixEffectConvolutionReverb.h"
@@ -29,6 +30,20 @@ void FAudioImpulseResponseExtension::RegisterMenus()
 
 	Section.AddDynamicEntry("SoundWaveAssetConversion_CreateImpulseResponse", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
+		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+		if (!Context || Context->SelectedObjects.Num() == 0)
+		{
+			return;
+		}
+
+		for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
+		{
+			if (Object->IsA<USoundWaveProcedural>())
+			{
+				return;
+			}
+		}
+
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateImpulseResponse", "Create Impulse Response");
 		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateImpulseResponseTooltip", "Creates an impulse response asset using the selected sound wave.");
 		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.ImpulseResponse");
@@ -41,7 +56,7 @@ void FAudioImpulseResponseExtension::RegisterMenus()
 void FAudioImpulseResponseExtension::ExecuteCreateImpulseResponse(const FToolMenuContext& MenuContext)
 {
 	UContentBrowserAssetContextMenuContext* Context = MenuContext.FindContext<UContentBrowserAssetContextMenuContext>();
-	if (!Context || Context->SelectedObjects.Num() == 0)
+	if (!Context || Context->SelectedObjects.IsEmpty())
 	{
 		return;
 	}

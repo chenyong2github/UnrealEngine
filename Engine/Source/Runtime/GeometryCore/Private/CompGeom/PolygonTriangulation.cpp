@@ -175,15 +175,9 @@ void PolygonTriangulation::ComputePolygonPlane(const TArray<TVector<T>>& VertexP
 	PlaneNormalOut = TVector<T>::Zero();
 	PlanePointOut = TVector<T>::Zero();
 
-	int32 NumVertices = VertexPositions.Num();
-	if (NumVertices == 3)
-	{
-		PlaneNormalOut = VectorUtil::Normal(VertexPositions[0], VertexPositions[1], VertexPositions[2]);
-		PlanePointOut = (VertexPositions[0] + VertexPositions[1] + VertexPositions[2]) / (T)3;
-	}
-
 	// Use 'Newell's Method' to compute a robust 'best fit' plane from the vertices of this polygon
-	for (int32 VertexNumberI = NumVertices - 1, VertexNumberJ = 0; VertexNumberJ < NumVertices; VertexNumberI = VertexNumberJ, VertexNumberJ++)
+	const int32 NumVertices = VertexPositions.Num();
+	for (int32 VertexNumberI = NumVertices - 1, VertexNumberJ = 0; VertexNumberJ < NumVertices; VertexNumberI = VertexNumberJ++)
 	{
 		const TVector<T>& PositionI = VertexPositions[VertexNumberI];
 		const TVector<T>& PositionJ = VertexPositions[VertexNumberJ];

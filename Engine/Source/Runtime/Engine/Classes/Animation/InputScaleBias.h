@@ -59,7 +59,8 @@ public:
 		, Max(InMax)
 	{}
 
-	FVector2D ToVector2D() const { return FVector2D(Min, Max); } 
+	FVector2f ToVector2f() const { return FVector2f(Min, Max); } 
+	FVector2D ToVector2D() const { return (FVector2D)ToVector2f(); } 
 	
 	bool ClampValue(float& InOutValue) const 
 	{ 

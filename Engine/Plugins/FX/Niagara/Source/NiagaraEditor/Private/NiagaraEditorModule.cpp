@@ -1405,7 +1405,7 @@ void FNiagaraEditorModule::ClearObjectPool()
 		for (UObject* Var : Pool.Value)
 		{
 			Var->RemoveFromRoot();
-			Var->MarkPendingKill();
+			Var->MarkAsGarbage();
 		}
 	}
 	ObjectPool.Empty();

@@ -126,7 +126,7 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 
 		// Remove UV channels containing UV coordinates with Nan.
 		// This crashes the editor on Mac, see UE-106145.
-		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 		for ( int32 Index = VertexInstanceUVs.GetNumChannels() - 1; Index >= 0 ; --Index)
 		{
 			for (FVertexInstanceID InstanceID : MeshDescription.VertexInstances().GetElementIDs())
@@ -636,12 +636,12 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 
 		if (bGenerateLightmapUVs)
 		{
-			if (!FMath::IsWithin<int32>(SourceIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
+			if (!FMath::IsWithin(SourceIndex, 0, (int32)MAX_MESH_TEXTURE_COORDS_MD))
 			{
 				AssetsContext.GetParentContext().LogError(FText::Format(LOCTEXT("InvalidLightmapSourceIndexError", "Lightmap generation error for mesh {0}: Specified source is invalid {1}. Cannot find an available fallback source channel."), FText::FromName(StaticMesh->GetFName()), MeshElement->GetLightmapSourceUV()));
 				bGenerateLightmapUVs = false;
 			}
-			else if (!FMath::IsWithin<int32>(DestinationIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
+			else if (!FMath::IsWithin(DestinationIndex, 0, (int32)MAX_MESH_TEXTURE_COORDS_MD))
 			{
 				AssetsContext.GetParentContext().LogError(FText::Format(LOCTEXT("InvalidLightmapDestinationIndexError", "Lightmap generation error for mesh {0}: Cannot find an available destination channel."), FText::FromName(StaticMesh->GetFName())));
 				bGenerateLightmapUVs = false;

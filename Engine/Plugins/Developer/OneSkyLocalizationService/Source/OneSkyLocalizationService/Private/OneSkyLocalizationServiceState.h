@@ -32,7 +32,7 @@ namespace EOneSkyState
 	};
 }
 
-class FOneSkyLocalizationServiceState : public ILocalizationServiceState, public TSharedFromThis<FOneSkyLocalizationServiceState, ESPMode::ThreadSafe>
+class FOneSkyLocalizationServiceState : public ILocalizationServiceState
 {
 public:
 	FOneSkyLocalizationServiceState(const FLocalizationServiceTranslationIdentifier InTranslationId, EOneSkyState::Type InState = EOneSkyState::Unknown)

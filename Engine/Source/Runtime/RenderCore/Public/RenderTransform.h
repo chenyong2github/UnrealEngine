@@ -378,13 +378,13 @@ FORCEINLINE void GetHemiOrthoBasis( FVector3f& BasisX, FVector3f& BasisY, const 
 	BasisY = FVector3f( B, 1.0f - BasisZ.Y * BasisZ.Y * A, -BasisZ.Y );
 }
 
-FORCEINLINE FVector2D UnitVectorToHemiOctahedron( const FVector3f& N )
+FORCEINLINE FVector2f UnitVectorToHemiOctahedron( const FVector3f& N )
 {
 	float Sum = FMath::Abs( N.X ) + FMath::Abs( N.Y ) + FMath::Abs( N.Z );
-	return FVector2D( N.X + N.Y, N.X - N.Y ) / Sum;
+	return FVector2f( N.X + N.Y, N.X - N.Y ) / Sum;
 }
 
-FORCEINLINE FVector3f HemiOctahedronToUnitVector( const FVector2D& Oct )
+FORCEINLINE FVector3f HemiOctahedronToUnitVector( const FVector2f& Oct )
 {
 	FVector3f N;
 	N.X = Oct.X + Oct.Y;
@@ -427,7 +427,7 @@ struct FCompressedTransform
 				Scale[2] *= -1.0f;
 			}
 
-			FVector2D OctZ = UnitVectorToHemiOctahedron( Axis[2] );
+			FVector2f OctZ = UnitVectorToHemiOctahedron( Axis[2] );
 
 			FVector3f BasisX, BasisY;
 			GetHemiOrthoBasis( BasisX, BasisY, Axis[2] );
@@ -512,7 +512,7 @@ struct FCompressedTransform
 
 		// Rotation
 		{
-			FVector2D OctZ;
+			FVector2f OctZ;
 			float Spin0;
 			OctZ.X = ( (int32)Rotation[0] - 32768 ) * (1.0f / 32767.0f);
 			OctZ.Y = ( (int32)Rotation[1] - 32768 ) * (1.0f / 32767.0f);

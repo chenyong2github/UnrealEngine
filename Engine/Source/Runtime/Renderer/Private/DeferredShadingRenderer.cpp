@@ -1077,25 +1077,25 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		{
 			int32 Index = INDEX_NONE;
 
-			// Copies the next transform and user data into the current batch, returns true if arrays were re-allocated.
-			bool Add(FRayTracingScene& RayTracingScene, const FMatrix& InTransform, uint32 InUserData)
+			// Copies the next InstanceSceneDataOffset and user data into the current batch, returns true if arrays were re-allocated.
+			bool Add(FRayTracingScene& RayTracingScene, uint32 InInstanceSceneDataOffset, uint32 InUserData)
 			{
 				// Adhoc TArray-like resize behavior, in lieu of support for using a custom FMemStackBase in TArray.
 				// Idea for future: if batch becomes large enough, we could actually split it into multiple instances to avoid memory waste.
 
-				const bool bNeedReallocation = Cursor == Transforms.Num();
+				const bool bNeedReallocation = Cursor == InstanceSceneDataOffsets.Num();
 
 				if (bNeedReallocation)
 				{
-					int32 PrevCount = Transforms.Num();
+					int32 PrevCount = InstanceSceneDataOffsets.Num();
 					int32 NextCount = FMath::Max(PrevCount * 2, 1);
 
-					TArrayView<FMatrix> NewTransforms = RayTracingScene.Allocate<FMatrix>(NextCount);
+					TArrayView<uint32> NewInstanceSceneDataOffsets = RayTracingScene.Allocate<uint32>(NextCount);
 					if (PrevCount)
 					{
-						FMemory::Memcpy(NewTransforms.GetData(), Transforms.GetData(), Transforms.GetTypeSize() * Transforms.Num());
+						FMemory::Memcpy(NewInstanceSceneDataOffsets.GetData(), InstanceSceneDataOffsets.GetData(), InstanceSceneDataOffsets.GetTypeSize() * InstanceSceneDataOffsets.Num());
 					}
-					Transforms = NewTransforms;
+					InstanceSceneDataOffsets = NewInstanceSceneDataOffsets;
 
 					TArrayView<uint32> NewUserData = RayTracingScene.Allocate<uint32>(NextCount);
 					if (PrevCount)
@@ -1105,7 +1105,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 					UserData = NewUserData;
 				}
 
-				Transforms[Cursor] = InTransform;
+				InstanceSceneDataOffsets[Cursor] = InInstanceSceneDataOffset;
 				UserData[Cursor] = InUserData;
 
 				++Cursor;
@@ -1115,10 +1115,10 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 
 			bool IsValid() const
 			{
-				return Transforms.Num() != 0;
+				return InstanceSceneDataOffsets.Num() != 0;
 			}
 
-			TArrayView<FMatrix> Transforms;
+			TArrayView<uint32> InstanceSceneDataOffsets;
 			TArrayView<uint32> UserData;
 			uint32 Cursor = 0;
 		};
@@ -1224,14 +1224,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 					// Reusing a previous entry, just append to the instance list.
 
 					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances[InstanceBatch.Index];
-					bool bReallocated = InstanceBatch.Add(RayTracingScene, Scene->PrimitiveTransforms[PrimitiveIndex], (uint32)PrimitiveIndex);
+					bool bReallocated = InstanceBatch.Add(RayTracingScene, SceneInfo->GetInstanceSceneDataOffset(), (uint32)PrimitiveIndex);
 
 					++RayTracingInstance.NumTransforms;
 					check(RayTracingInstance.NumTransforms == InstanceBatch.Cursor); // sanity check
 
 					if (bReallocated)
 					{
-						RayTracingInstance.Transforms = InstanceBatch.Transforms;
+						RayTracingInstance.InstanceSceneDataOffsets = InstanceBatch.InstanceSceneDataOffsets;
 						RayTracingInstance.UserData = InstanceBatch.UserData;
 					}
 				}
@@ -1261,8 +1261,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 					RayTracingInstance.GeometryRHI = RelevantPrimitive.RayTracingGeometryRHI;
 					checkf(RayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
 
-					InstanceBatch.Add(RayTracingScene, Scene->PrimitiveTransforms[PrimitiveIndex], (uint32)PrimitiveIndex);
-					RayTracingInstance.Transforms = InstanceBatch.Transforms;
+					InstanceBatch.Add(RayTracingScene, SceneInfo->GetInstanceSceneDataOffset(), (uint32)PrimitiveIndex);
+					RayTracingInstance.InstanceSceneDataOffsets = InstanceBatch.InstanceSceneDataOffsets;
 					RayTracingInstance.UserData = InstanceBatch.UserData;
 					RayTracingInstance.NumTransforms = 1;
 
@@ -1478,7 +1478,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	RayTracingScene.Create(GraphBuilder);
+	RayTracingScene.Create(GraphBuilder, Scene->GPUScene);
 
 	const bool bRayTracingAsyncBuild = CVarRayTracingAsyncBuild.GetValueOnRenderThread() != 0;
 

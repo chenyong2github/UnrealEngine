@@ -13,16 +13,16 @@ namespace UnrealGame
 	/// Implements a default node that should boot most projects and supports n number of clients
 	/// via -numclients=<n> and a server via -server
 	/// </summary>
-	public class DefaultTest : UnrealTestNode<UE4TestConfig>
+	public class DefaultTest : UnrealTestNode<UnrealTestConfig>
 	{
 		public DefaultTest(UnrealTestContext InContext) : base(InContext)
 		{
 		}
 
-		public override UE4TestConfig GetConfiguration()
+		public override UnrealTestConfig GetConfiguration()
 		{
 			// just need a single client
-			UE4TestConfig Config = base.GetConfiguration();
+			UnrealTestConfig Config = base.GetConfiguration();
 
 			int ClientCount = Context.TestParams.ParseValue("numclients", 1);
 			bool WithServer = Context.TestParams.ParseParam("server");

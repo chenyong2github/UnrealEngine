@@ -7,10 +7,10 @@
 /** The vertex data used to filter a texture. */
 struct FDistortionVertex
 {
-	FVector2D	Position;
-	FVector2D	TexR;
-	FVector2D	TexG;
-	FVector2D	TexB;
+	FVector2f	Position;
+	FVector2f	TexR;
+	FVector2f	TexG;
+	FVector2f	TexB;
 	float		VignetteFactor;
 	float		TimewarpFactor;
 };

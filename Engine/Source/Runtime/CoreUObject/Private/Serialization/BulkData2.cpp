@@ -425,6 +425,17 @@ public:
 private:
 	FIoChunkId ChunkID;
 };
+
+namespace UE::BulkData::Private
+{
+
+IAsyncReadFileHandle* CreateAsyncReadHandle(const FIoChunkId& InChunkID)
+{
+	return new FAsyncReadChunkIdHandle(InChunkID);
+}
+
+} // namespace UE::BulkData::Private
+
 static FCriticalSection FBulkDataIoDispatcherRequestEvent;
 
 class FBulkDataIoDispatcherRequest final : public IBulkDataIORequest
@@ -663,6 +674,9 @@ TUniquePtr<IBulkDataIORequest> CreateBulkDataIoDispatcherRequest(
 	}
 	else
 	{
+		// Add some asserts to make sure that the caller won't be surprised when their parameters are ignored.
+		checkf(InOffsetInBulkData > 0, TEXT("InOffsetInBulkData would be ignored"));
+		checkf(InUserSuppliedMemory == nullptr, TEXT("InUserSuppliedMemory would be ignored"));
 		Request.Reset(new FBulkDataIoDispatcherRequest(InChunkID, InPriority, InCompleteCallback));
 	}
 
@@ -1296,7 +1310,7 @@ IAsyncReadFileHandle* FBulkDataBase::OpenAsyncReadHandle() const
 		checkf(IsInSeparateFile(),
 			TEXT("Attempting to OpenAsyncReadHandle on %s when the IoDispatcher is enabled, this operation is not supported!"),
 			IsInlined() ? TEXT("inline BulkData") : TEXT("BulkData in end-of-package-file section"));
-		return new FAsyncReadChunkIdHandle(CreateChunkId());
+		return UE::BulkData::Private::CreateAsyncReadHandle(CreateChunkId());
 	}
 	else
 	{

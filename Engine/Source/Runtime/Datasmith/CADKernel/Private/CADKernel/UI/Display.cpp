@@ -30,21 +30,20 @@
 
 namespace CADKernel
 {
+#ifdef CADKERNEL_DEV
 	void Open3DDebugSession(FString name, const TArray<FIdent>& IdArray)
 	{
-#ifdef CADKERNEL_DEV
 		FSystem::Get().GetVisu()->Open3DDebugSession(*name, IdArray);
-#endif
 	}
 
-	void Close3DDebugSession()
+	void Close3DDebugSession(bool bIsDisplayed)
 	{
-#ifdef CADKERNEL_DEV
-		FSystem::Get().GetVisu()->Close3DDebugSession();
-#endif
+		if (bIsDisplayed)
+		{
+			FSystem::Get().GetVisu()->Close3DDebugSession();
+		}
 	}
 
-#ifdef CADKERNEL_DEV
 	void Wait(bool bMakeWait)
 	{
 		if (bMakeWait)
@@ -83,14 +82,14 @@ namespace CADKernel
 #endif
 	}
 
-	void DrawMesh(const TSharedPtr<FMesh>& Mesh)
+	void DrawMesh(const FMesh& Mesh)
 	{
 #ifdef CADKERNEL_DEV
-		FSystem::Get().GetVisu()->DrawMesh(Mesh->GetId());
+		FSystem::Get().GetVisu()->DrawMesh(Mesh.GetId());
 #endif
 	}
 
-	void Draw(const FLinearBoundary& Boundary, const TSharedPtr<FRestrictionCurve>& Curve, EVisuProperty Property)
+	void Draw(const FLinearBoundary& Boundary, const FRestrictionCurve& Curve, EVisuProperty Property)
 	{
 #ifdef CADKERNEL_DEV
 		if (Boundary.IsDegenerated())
@@ -101,7 +100,7 @@ namespace CADKernel
 		bool bShowOrientation = FSystem::Get().GetVisu()->GetParameters()->bDisplayCADOrient;
 
 		TArray<FPoint> Polyline;
-		Curve->GetDiscretizationPoints<FPoint>(Boundary, EOrientation::Front, Polyline);
+		Curve.GetDiscretizationPoints<FPoint>(Boundary, EOrientation::Front, Polyline);
 		Draw(Polyline, Property);
 
 		if (bShowOrientation)
@@ -114,7 +113,7 @@ namespace CADKernel
 
 			double Coordinate = (Boundary.Max + Boundary.Min) / 2.;
 			FCurvePoint Point;
-			Curve->EvaluatePoint(Coordinate, Point, 1);
+			Curve.EvaluatePoint(Coordinate, Point, 1);
 
 			double Height = Length / 20.0;
 			double Base = Height / 2;
@@ -124,7 +123,7 @@ namespace CADKernel
 #endif
 	}
 
-	void Draw2D(const TSharedPtr<FCurve>& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
+	void Draw2D(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
 	{
 #ifdef CADKERNEL_DEV
 		if (Boundary.IsDegenerated())
@@ -136,7 +135,7 @@ namespace CADKernel
 		bool bVoirOrientation = FSystem::Get().GetVisu()->GetParameters()->bDisplayCADOrient;
 
 		FPolyline2D Polyline;
-		FCurve2DSamplerOnChord Sampler(*Curve, Boundary, DiscVisu, Polyline);
+		FCurve2DSamplerOnChord Sampler(Curve, Boundary, DiscVisu, Polyline);
 		Sampler.Sample();
 
 		Draw(Polyline.GetPoints(), Property);
@@ -147,7 +146,7 @@ namespace CADKernel
 
 			double Coordinate = (Boundary.Max + Boundary.Min) / 2.;
 			FCurvePoint Point;
-			Curve->EvaluatePoint(Coordinate, Point, 1);
+			Curve.EvaluatePoint(Coordinate, Point, 1);
 
 			double Height = Length / 20.0;
 			double Base = Height / 2;
@@ -157,7 +156,7 @@ namespace CADKernel
 #endif
 	}
 
-	void Draw3D(const TSharedPtr<FCurve>& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
+	void Draw3D(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
 	{
 #ifdef CADKERNEL_DEV
 		if (Boundary.IsDegenerated())
@@ -169,7 +168,7 @@ namespace CADKernel
 		bool bVoirOrientation = FSystem::Get().GetVisu()->GetParameters()->bDisplayCADOrient;
 
 		FPolyline3D Polyline;
-		FCurveSamplerOnChord Sampler(*Curve, Boundary, DiscVisu, Polyline);
+		FCurveSamplerOnChord Sampler(Curve, Boundary, DiscVisu, Polyline);
 		Sampler.Sample();
 
 		Draw(Polyline.GetPoints(), Property);
@@ -180,7 +179,7 @@ namespace CADKernel
 
 			double Coordinate = (Boundary.Max + Boundary.Min) / 2.;
 			FCurvePoint Point;
-			Curve->EvaluatePoint(Coordinate, Point, 1);
+			Curve.EvaluatePoint(Coordinate, Point, 1);
 
 			double Height = Length / 20.0;
 			double Base = Height / 2;
@@ -190,10 +189,10 @@ namespace CADKernel
 #endif
 	}
 
-	void Draw(const TSharedPtr<FCurve>& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
+	void Draw(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
 	{
 #ifdef CADKERNEL_DEV
-		if (Curve->GetDimension() == 3)
+		if (Curve.GetDimension() == 3)
 		{
 			Draw3D(Curve, Boundary, Property);
 		}
@@ -205,10 +204,10 @@ namespace CADKernel
 	}
 
 
-	void Draw(const TSharedPtr<FCurve>& Curve, EVisuProperty Property)
+	void Draw(const FCurve& Curve, EVisuProperty Property)
 	{
 #ifdef CADKERNEL_DEV
-		const FLinearBoundary& Bounds = Curve->GetBoundary();
+		const FLinearBoundary& Bounds = Curve.GetBoundary();
 		Draw(Curve, Bounds, Property);
 #endif
 	}
@@ -252,61 +251,52 @@ namespace CADKernel
 #endif
 	}
 
-	void DisplayEntity(const TSharedPtr<FEntity>& Entity)
+	void DisplayEntity(const FEntity& Entity)
 	{
 #ifdef CADKERNEL_DEV
-		if (!Entity.IsValid())
-		{
-			FMessage::Printf(Log, TEXT("Entity not found"));
-			return;
-		}
-
 		FTimePoint StartTime = FChrono::Now();
 
 		FProgress Progress;
 
-		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Entity->GetTypeName(), Entity->GetId()), { Entity->GetId() });
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Entity.GetTypeName(), Entity.GetId()), { Entity.GetId() });
 
-		switch (Entity->GetEntityType())
+		switch (Entity.GetEntityType())
 		{
 		case EEntity::TopologicalVertex:
-			Display((const TSharedPtr<FTopologicalVertex>) StaticCastSharedPtr<FTopologicalVertex>(Entity));
+			Display((const FTopologicalVertex&) Entity);
 			break;
 		case EEntity::Curve:
-			Display(StaticCastSharedPtr<FCurve>(Entity));
+			Display((const FCurve&) Entity);
 			break;
 		case EEntity::Surface:
-			Display(StaticCastSharedPtr<FSurface>(Entity));
+			Display((const FSurface&) Entity);
 			break;
 		case EEntity::TopologicalFace:
-			Display(StaticCastSharedPtr<FTopologicalFace>(Entity));
+			Display((const FTopologicalFace&) Entity);
 			break;
 		case EEntity::TopologicalLoop:
-			Display(StaticCastSharedPtr<FTopologicalLoop>(Entity));
+			Display((const FTopologicalLoop&) Entity);
 			break;
 		case EEntity::Shell:
-			Display(StaticCastSharedPtr<FShell>(Entity));
+			Display((const FShell&) Entity);
 			break;
 		case EEntity::Body:
-			Display(StaticCastSharedPtr<FBody>(Entity));
+			Display((const FBody&) Entity);
 			break;
 		case EEntity::TopologicalEdge:
-			Display(StaticCastSharedPtr<FTopologicalEdge>(Entity));
+			Display((const FTopologicalEdge&) Entity);
 			break;
 		case EEntity::Model:
-			Display(StaticCastSharedPtr<FModel>(Entity));
+			Display((const FModel&) Entity);
 			break;
 		case EEntity::Group:
-			Display(StaticCastSharedPtr<FGroup>(Entity));
-			break;
-		case EEntity::Mesh:
-			DisplayMesh(StaticCastSharedPtr<FMesh>(Entity));
+			Display((const FGroup&) Entity);
 			break;
 		case EEntity::MeshModel:
-			Display(StaticCastSharedPtr<FModelMesh>(Entity));
+			Display((const FModelMesh&) Entity);
 			break;
 		default:
-			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity->GetEntityType()));
+			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity.GetEntityType()));
 		}
 
 		FDuration DisplayDuration = FChrono::Elapse(StartTime);
@@ -315,37 +305,31 @@ namespace CADKernel
 #endif
 	}
 
-	void DisplayEntity2D(const TSharedPtr<FEntity>& Entity)
+	void DisplayEntity2D(const FEntity& Entity)
 	{
 #ifdef CADKERNEL_DEV
-		if (!Entity.IsValid())
-		{
-			FMessage::Printf(Log, TEXT("Entity not found"));
-			return;
-		}
-
 		FTimePoint StartTime = FChrono::Now();
 
 		FProgress Progress;
 
-		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Entity->GetTypeName(), Entity->GetId()), { Entity->GetId() });
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Entity.GetTypeName(), Entity.GetId()), { Entity.GetId() });
 
-		switch (Entity->GetEntityType())
+		switch (Entity.GetEntityType())
 		{
 		case EEntity::Surface:
-			Display2D(StaticCastSharedPtr<FSurface>(Entity));
+			Display2D((const FSurface&) Entity);
 			break;
 		case EEntity::TopologicalFace:
-			Display2D(StaticCastSharedPtr<FTopologicalFace>(Entity));
+			Display2D((const FTopologicalFace&) Entity);
 			break;
 		case EEntity::TopologicalLoop:
-			Display2D(StaticCastSharedPtr<FTopologicalLoop>(Entity));
+			Display2D((const FTopologicalLoop&) Entity);
 			break;
 		case EEntity::TopologicalEdge:
-			Display2D(StaticCastSharedPtr<FTopologicalEdge>(Entity));
+			Display2D((const FTopologicalEdge&) Entity);
 			break;
 		default:
-			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity->GetEntityType()));
+			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity.GetEntityType()));
 		}
 
 		FDuration DisplayDuration = FChrono::Elapse(StartTime);
@@ -487,67 +471,68 @@ namespace CADKernel
 #endif
 	}
 
-	void Display(const TSharedPtr<FTopologicalVertex>& Vertex)
+	void Display(const FTopologicalVertex& Vertex)
 	{
 #ifdef CADKERNEL_DEV
-		F3DDebugSegment G(Vertex->GetId());
-		DrawPoint(Vertex->GetCoordinates());
+		F3DDebugSegment G(Vertex.GetId());
+		DrawPoint(Vertex.GetCoordinates());
 #endif
 	}
 
-	void Display(const TSharedPtr<FCurve>& Curve)
+	void Display(const FCurve& Curve)
 	{
 #ifdef CADKERNEL_DEV
-		F3DDebugSegment G(Curve->GetId());
-		Draw(Curve, Curve->GetBoundary());
+		F3DDebugSegment G(Curve.GetId());
+		Draw(Curve, Curve.GetBoundary());
 #endif
 	}
 
-	void Display(const TSharedPtr<FShell>& Shell)
+	void Display(const FShell& Shell)
 	{
 #ifdef CADKERNEL_DEV
-		FProgress Progress(Shell->GetFaces().Num(), TEXT("Display Shell"));
-		for (const FOrientedFace& Face : Shell->GetFaces())
+		FProgress Progress(Shell.GetFaces().Num(), TEXT("Display Shell"));
+		for (const FOrientedFace& Face : Shell.GetFaces())
 		{
-			Display(Face.Entity);
+			Display(*Face.Entity);
 		}
 #endif
 	}
 
-	void Draw(const TSharedPtr<FShell>& Shell)
+	void Draw(const FShell& Shell)
 	{
 #ifdef CADKERNEL_DEV
-		FProgress Progress(Shell->GetFaces().Num(), TEXT("Display Shell"));
-		for (const FOrientedFace& Face : Shell->GetFaces())
+		FProgress Progress(Shell.GetFaces().Num(), TEXT("Display Shell"));
+		for (const FOrientedFace& Face : Shell.GetFaces())
 		{
-			Draw(Face.Entity);
+			F3DDebugSegment _(Face.Entity->GetId());
+			Draw(*Face.Entity);
 		}
 #endif
 	}
 
-	void Display(const TSharedPtr<FBody>& Body)
+	void Display(const FBody& Body)
 	{
 #ifdef CADKERNEL_DEV
-		FProgress Progress(Body->GetShells().Num(), TEXT("Display Body"));
+		FProgress Progress(Body.GetShells().Num(), TEXT("Display Body"));
 
-		F3DDebugSegment GraphicSegment(Body->GetId());
-		for (TSharedPtr<FShell> Shell : Body->GetShells())
+		F3DDebugSegment GraphicSegment(Body.GetId());
+		for (const TSharedPtr<FShell>& Shell : Body.GetShells())
 		{
 			if (!Shell.IsValid())
 			{
 				continue;
 			}
-			Draw(Shell);
+			Draw(*Shell);
 		}
 #endif
 	}
 
-	void Display(const TSharedPtr<FSurface>& Surface)
+	void Display(const FSurface& Surface)
 	{
 #ifdef CADKERNEL_DEV
 		FProgress Progress(TEXT("Display Surface"));
 
-		F3DDebugSegment GraphicSegment(Surface->GetId());
+		F3DDebugSegment GraphicSegment(Surface.GetId());
 
 		int32 IsoUNum = FSystem::Get().GetVisu()->GetParameters()->IsoUNumber;
 		int32 IsoVNum = FSystem::Get().GetVisu()->GetParameters()->IsoVNumber;
@@ -555,12 +540,12 @@ namespace CADKernel
 		const double VisuSag = FSystem::Get().GetVisu()->GetParameters()->ChordError;
 
 		FPolyline3D Polyline;
-		FIsoCurve3DSamplerOnChord Sampler(*Surface.Get(), VisuSag, Polyline);
+		FIsoCurve3DSamplerOnChord Sampler(Surface, VisuSag, Polyline);
 
 		TFunction <void(const int32, const EIso)> DrawIsos = [&](int32 IsoCount, const EIso IsoType)
 		{
-			const FLinearBoundary& CurveBounds = Surface->GetBoundary().Get(IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU);
-			const FLinearBoundary& Bounds = Surface->GetBoundary().Get(IsoType);
+			const FLinearBoundary& CurveBounds = Surface.GetBoundary().Get(IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU);
+			const FLinearBoundary& Bounds = Surface.GetBoundary().Get(IsoType);
 
 			double Coordinate = Bounds.Min;
 			IsoCount++;
@@ -582,16 +567,16 @@ namespace CADKernel
 #endif
 	}
 
-	void Display2D(const TSharedPtr<FSurface>& Surface)
+	void Display2D(const FSurface& Surface)
 	{
 #ifdef CADKERNEL_DEV
 		double StepU, StepV;
 
-		F3DDebugSegment G(Surface->GetId());
+		F3DDebugSegment G(Surface.GetId());
 
 		int32 IsoUCount = FSystem::Get().GetVisu()->GetParameters()->IsoUNumber;
 		int32 IsoVCount = FSystem::Get().GetVisu()->GetParameters()->IsoVNumber;
-		FSurfacicBoundary Bounds = Surface->GetBoundary();
+		FSurfacicBoundary Bounds = Surface.GetBoundary();
 
 		StepU = (Bounds[EIso::IsoU].Max - Bounds[EIso::IsoU].Min) / (IsoUCount + 1);
 		StepV = (Bounds[EIso::IsoV].Max - Bounds[EIso::IsoV].Min) / (IsoVCount + 1);
@@ -612,17 +597,17 @@ namespace CADKernel
 #endif
 	}
 
-	void DisplayIsoCurve(const TSharedPtr<FSurface>& Surface, double Coordinate, EIso IsoType)
+	void DisplayIsoCurve(const FSurface& Surface, double Coordinate, EIso IsoType)
 	{
 #ifdef CADKERNEL_DEV
 		const double VisuSag = FSystem::Get().GetVisu()->GetParameters()->ChordError;
 
-		F3DDebugSegment G(Surface->GetId());
+		F3DDebugSegment G(Surface.GetId());
 
-		const FLinearBoundary& CurveBounds = Surface->GetBoundary().Get(IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU);
+		const FLinearBoundary& CurveBounds = Surface.GetBoundary().Get(IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU);
 
 		FPolyline3D Polyline;
-		FIsoCurve3DSamplerOnChord Sampler(*Surface.Get(), VisuSag, Polyline);
+		FIsoCurve3DSamplerOnChord Sampler(Surface, VisuSag, Polyline);
 		Sampler.Set(IsoType, Coordinate, CurveBounds);
 		Draw(Polyline.GetPoints(), EVisuProperty::Iso);
 #endif
@@ -630,7 +615,7 @@ namespace CADKernel
 
 
 
-	void DisplayControlPolygon(const TSharedPtr<FCurve>& Entity)
+	void DisplayControlPolygon(const FCurve& Curve)
 	{
 #ifdef CADKERNEL_DEV
 		TFunction<void(const TArray<FPoint>&)> DisplayHull = [](const TArray<FPoint>& Poles)
@@ -647,24 +632,24 @@ namespace CADKernel
 			}
 		};
 
-		F3DDebugSegment GraphicSegment(Entity->GetId());
-		if (Entity->GetCurveType() == ECurve::Bezier)
+		F3DDebugSegment GraphicSegment(Curve.GetId());
+		if (Curve.GetCurveType() == ECurve::Bezier)
 		{
-			const TSharedPtr<FBezierCurve>& Bezier = StaticCastSharedPtr<FBezierCurve>(Entity);
-			DisplayHull(Bezier->GetPoles());
+			const FBezierCurve& Bezier = (const FBezierCurve&) Curve;
+			DisplayHull(Bezier.GetPoles());
 			return;
 		}
-		if (Entity->GetCurveType() == ECurve::Nurbs)
+		if (Curve.GetCurveType() == ECurve::Nurbs)
 		{
-			const TSharedPtr<FNURBSCurve>& Nurbs = StaticCastSharedPtr<FNURBSCurve>(Entity);
-			const TArray<FPoint>& Poles = Nurbs->GetPoles();
-			DisplayHull(Nurbs->GetPoles());
+			const FNURBSCurve& Nurbs = (const FNURBSCurve&) Curve;
+			const TArray<FPoint>& Poles = Nurbs.GetPoles();
+			DisplayHull(Nurbs.GetPoles());
 			return;
 		}
 #endif
 	}
 
-	void DisplayControlPolygon(const TSharedPtr<FSurface>& Entity)
+	void DisplayControlPolygon(const FSurface& Surface)
 	{
 #ifdef CADKERNEL_DEV
 		TFunction<void(const TArray<FPoint>&, int32, int32)> DisplayHull = [](const TArray<FPoint>& Poles, int32 PoleUNum, int32 PoleVNum)
@@ -694,43 +679,43 @@ namespace CADKernel
 			}
 		};
 
-		F3DDebugSegment GraphicSegment(Entity->GetId());
-		if (Entity->GetSurfaceType() == ESurface::Bezier)
+		F3DDebugSegment GraphicSegment(Surface.GetId());
+		if (Surface.GetSurfaceType() == ESurface::Bezier)
 		{
-			const TSharedPtr<FBezierSurface>& Bezier = StaticCastSharedPtr<FBezierSurface>(Entity);
-			DisplayHull(Bezier->GetPoles(), Bezier->GetUDegre() + 1, Bezier->GetVDegre() + 1);
+			const FBezierSurface& Bezier = (const FBezierSurface&) Surface;
+			DisplayHull(Bezier.GetPoles(), Bezier.GetUDegre() + 1, Bezier.GetVDegre() + 1);
 			return;
 		}
-		if (Entity->GetSurfaceType() == ESurface::Nurbs)
+		if (Surface.GetSurfaceType() == ESurface::Nurbs)
 		{
-			const TSharedPtr<FNURBSSurface>& Nurbs = StaticCastSharedPtr<FNURBSSurface>(Entity);
-			DisplayHull(Nurbs->GetPoles(), Nurbs->GetPoleCount(EIso::IsoU), Nurbs->GetPoleCount(EIso::IsoV));
+			const FNURBSSurface& Nurbs = (const FNURBSSurface&) Surface;
+			DisplayHull(Nurbs.GetPoles(), Nurbs.GetPoleCount(EIso::IsoU), Nurbs.GetPoleCount(EIso::IsoV));
 			return;
 		}
 #endif
 	}
 
-	void Display(const TSharedPtr<FTopologicalFace>& Face)
+	void Display(const FTopologicalFace& Face)
 	{
 #ifdef CADKERNEL_DEV
-		F3DDebugSegment GraphicSegment(Face->GetId());
+		F3DDebugSegment GraphicSegment(Face.GetId());
 		Draw(Face);
 #endif
 	}
 
-	void Display2D(const TSharedPtr<FTopologicalFace>& Face)
+	void Display2D(const FTopologicalFace& Face)
 	{
 #ifdef CADKERNEL_DEV
-		F3DDebugSegment GraphicSegment(Face->GetId());
+		F3DDebugSegment GraphicSegment(Face.GetId());
 		Draw2D(Face);
 #endif
 	}
 
-	void Draw(const TSharedPtr<FTopologicalFace>& Face)
+	void Draw(const FTopologicalFace& Face)
 	{
 #ifdef CADKERNEL_DEV
 		{
-			for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+			for (const TSharedPtr<FTopologicalLoop>& Loop : Face.GetLoops())
 			{
 				for (const FOrientedEdge& Edge : Loop->GetEdges())
 				{
@@ -755,11 +740,11 @@ namespace CADKernel
 #endif
 	}
 
-	void Draw2D(const TSharedPtr<FTopologicalFace>& Face)
+	void Draw2D(const FTopologicalFace& Face)
 	{
 #ifdef CADKERNEL_DEV
 		TArray<TArray<FPoint2D>> BoundaryApproximation;
-		Face->Get2DLoopSampling(BoundaryApproximation);
+		Face.Get2DLoopSampling(BoundaryApproximation);
 
 		for (const TArray<FPoint2D>& Boudary : BoundaryApproximation)
 		{
@@ -769,8 +754,8 @@ namespace CADKernel
 		TFunction <void(const int32, const EIso)> DrawIsos = [&](int32 IsoCount, const EIso IsoType)
 		{
 			EIso OtherIso = IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU;
-			const FLinearBoundary& Bounds = Face->GetBoundary().Get(IsoType);
-			const FLinearBoundary& CurveBounds = Face->GetBoundary().Get(OtherIso);
+			const FLinearBoundary& Bounds = Face.GetBoundary().Get(IsoType);
+			const FLinearBoundary& CurveBounds = Face.GetBoundary().Get(OtherIso);
 
 
 			double Coordinate = Bounds.Min;
@@ -816,21 +801,21 @@ namespace CADKernel
 	}
 
 
-	void DrawIsoCurves(const TSharedPtr<FTopologicalFace>& Face)
+	void DrawIsoCurves(const FTopologicalFace& Face)
 	{
 #ifdef CADKERNEL_DEV
 		TArray<TArray<FPoint2D>> BoundaryApproximation;
-		Face->Get2DLoopSampling(BoundaryApproximation);
+		Face.Get2DLoopSampling(BoundaryApproximation);
 
 		const double VisuSag = FSystem::Get().GetVisu()->GetParameters()->ChordError;
 
 		FPolyline3D Polyline;
-		const FSurface& Surface = Face->GetCarrierSurface().Get();
+		const FSurface& Surface = Face.GetCarrierSurface().Get();
 		FIsoCurve3DSamplerOnChord Sampler(Surface, VisuSag, Polyline);
 
 		TFunction <void(const int32, const EIso)> DrawIsos = [&](int32 IsoCount, const EIso IsoType)
 		{
-			const FLinearBoundary& Bounds = Face->GetBoundary().Get(IsoType);
+			const FLinearBoundary& Bounds = Face.GetBoundary().Get(IsoType);
 
 			EIso Other = IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU;
 
@@ -884,14 +869,6 @@ namespace CADKernel
 #endif
 	}
 
-	void Display(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property)
-	{
-#ifdef CADKERNEL_DEV
-		F3DDebugSegment GraphicSegment(Edge->GetId());
-		Draw(*Edge, Property);
-#endif
-	}
-
 	void Display(const FTopologicalEdge& Edge, EVisuProperty Property)
 	{
 #ifdef CADKERNEL_DEV
@@ -900,12 +877,12 @@ namespace CADKernel
 #endif
 	}
 
-	void Display2D(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property)
+	void Display2D(const FTopologicalEdge& Edge, EVisuProperty Property)
 	{
 #ifdef CADKERNEL_DEV
-		F3DDebugSegment GraphicSegment(Edge->GetId());
+		F3DDebugSegment GraphicSegment(Edge.GetId());
 		TArray<FPoint2D> Polyline;
-		Edge->GetCurve()->GetDiscretizationPoints(Edge->GetBoundary(), EOrientation::Front, Polyline);
+		Edge.GetCurve()->GetDiscretizationPoints(Edge.GetBoundary(), EOrientation::Front, Polyline);
 		DisplayPolyline(Polyline, Property);
 #endif
 	}
@@ -914,121 +891,114 @@ namespace CADKernel
 	{
 #ifdef CADKERNEL_DEV
 		const FLinearBoundary& Boundary = Edge.GetBoundary();
-		Draw(Boundary, Edge.GetCurve(), Property);
+		Draw(Boundary, *Edge.GetCurve(), Property);
 #endif
 	}
 
-	void Display(const TSharedPtr<FModel>& Model)
+	void Display(const FModel& Model)
 	{
 #ifdef CADKERNEL_DEV
 		FProgress MainProgress(2, TEXT("Display model"));
 		{
-			const TArray<TSharedPtr<FBody>>& Bodies = Model->GetBodies();
+			const TArray<TSharedPtr<FBody>>& Bodies = Model.GetBodies();
 			FProgress BodyProgress((int32)Bodies.Num(), TEXT("Bodies"));
 			for (const TSharedPtr<FBody>& Body : Bodies)
 			{
-				Display(Body);
+				Display(*Body);
 			}
 		}
 
 		{
-			const TArray<TSharedPtr<FTopologicalFace>>& Surfaces = Model->GetFaces();
+			const TArray<TSharedPtr<FTopologicalFace>>& Surfaces = Model.GetFaces();
 			FProgress SurfaceProgress((int32)Surfaces.Num(), TEXT("Surfaces"));
 			for (const TSharedPtr<FTopologicalFace>& Surface : Surfaces)
 			{
-				Display(Surface);
+				Display(*Surface);
 			}
 		}
 #endif
 	}
 
-	void DisplayProductTree(const TSharedPtr<FModel>& Model)
+	void DisplayProductTree(const FModel& Model)
 	{
 #ifdef CADKERNEL_DEV
-		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Model->GetTypeName(), Model->GetId()), { Model->GetId() });
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Model.GetTypeName(), Model.GetId()), { Model.GetId() });
 
 		FProgress MainProgress(2, TEXT("Display Model"));
 		{
-			const TArray<TSharedPtr<FBody>>& Bodies = Model->GetBodies();
+			const TArray<TSharedPtr<FBody>>& Bodies = Model.GetBodies();
 			FProgress BodyProgress((int32)Bodies.Num(), TEXT("Bodies"));
 			for (const TSharedPtr<FBody>& Body : Bodies)
 			{
-				DisplayProductTree(Body);
+				DisplayProductTree(*Body);
 			}
 		}
 
 		{
-			const TArray<TSharedPtr<FTopologicalFace>>& Faces = Model->GetFaces();
+			const TArray<TSharedPtr<FTopologicalFace>>& Faces = Model.GetFaces();
 			FProgress SurfaceProgress((int32)Faces.Num(), TEXT("Faces"));
 			for (const TSharedPtr<FTopologicalFace>& Face : Faces)
 			{
-				Display(Face);
+				Display(*Face);
 			}
 		}
 #endif
 	}
 
-	void DisplayProductTree(const TSharedPtr<FBody>& Body)
+	void DisplayProductTree(const FBody& Body)
 	{
 #ifdef CADKERNEL_DEV
 #ifdef CORETECHBRIDGE_DEBUG
-		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s KioId: %d Id: %d"), Body->GetTypeName(), Body->GetName(), Body->GetKioId(), Body->GetId()), { Body->GetId() });
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s KioId: %d Id: %d"), Body.GetTypeName(), Body.GetName(), Body.GetKioId(), Body.GetId()), { Body.GetId() });
 #else
-		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s Id: %d"), Body->GetTypeName(), Body->GetName(), Body->GetId()), { Body->GetId() });
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s Id: %d"), Body.GetTypeName(), Body.GetName(), Body.GetId()), { Body.GetId() });
 #endif
-		FProgress Progress(Body->GetShells().Num(), TEXT("Display Body"));
+		FProgress Progress(Body.GetShells().Num(), TEXT("Display Body"));
 
-		for (TSharedPtr<FShell> Shell : Body->GetShells())
+		for (TSharedPtr<FShell> Shell : Body.GetShells())
 		{
 			if (!Shell.IsValid())
 			{
 				continue;
 			}
-			DisplayProductTree(Shell);
+			DisplayProductTree(*Shell);
 		}
 #endif
 	}
 
-	void DisplayProductTree(const TSharedPtr<FShell>& Shell)
+	void DisplayProductTree(const FShell& Shell)
 	{
 #ifdef CADKERNEL_DEV
 #ifdef CORETECHBRIDGE_DEBUG
-		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s KioId: %d Id: %d"), Shell->GetTypeName(), Shell->GetName(), Shell->GetKioId(), Shell->GetId()), { Shell->GetId() });
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s KioId: %d Id: %d"), Shell.GetTypeName(), Shell.GetName(), Shell.GetKioId(), Shell.GetId()), { Shell.GetId() });
 #else
-		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s Id: %d"), Shell->GetTypeName(), Shell->GetName(), Shell->GetId()), { Shell->GetId() });
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %s Id: %d"), Shell.GetTypeName(), Shell.GetName(), Shell.GetId()), { Shell.GetId() });
 #endif
-		F3DDebugSegment Segment(Shell->GetId());
 		Draw(Shell);
 #endif
 	}
 
-	void DisplayProductTree(const TSharedPtr<FEntity>& Entity)
+	void DisplayProductTree(const FEntity& Entity)
 	{
 #ifdef CADKERNEL_DEV
-		if (!Entity.IsValid())
-		{
-			FMessage::Printf(Log, TEXT("Entity not found"));
-			return;
-		}
-
 		FTimePoint StartTime = FChrono::Now();
 
-		switch (Entity->GetEntityType())
+		switch (Entity.GetEntityType())
 		{
 		case EEntity::TopologicalFace:
-			Display(StaticCastSharedPtr<FTopologicalFace>(Entity));
+			Display((const FTopologicalFace&) Entity);
 			break;
 		case EEntity::Shell:
-			DisplayProductTree(StaticCastSharedPtr<FShell>(Entity));
+			DisplayProductTree((const FShell&) Entity);
 			break;
 		case EEntity::Body:
-			DisplayProductTree(StaticCastSharedPtr<FBody>(Entity));
+			DisplayProductTree((const FBody&) Entity);
 			break;
 		case EEntity::Model:
-			DisplayProductTree(StaticCastSharedPtr<FModel>(Entity));
+			DisplayProductTree((const FModel&) Entity);
 			break;
 		default:
-			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity->GetEntityType()));
+			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity.GetEntityType()));
 		}
 
 		FDuration DisplayDuration = FChrono::Elapse(StartTime);
@@ -1036,53 +1006,32 @@ namespace CADKernel
 #endif
 	}
 
-	void Display(const TSharedPtr<FGroup>& Group)
+	void Display(const FGroup& Group)
 	{
 #ifdef CADKERNEL_DEV
 		TArray<TSharedPtr<FEntity>> Entities;
 
-		Group->GetValidEntities(Entities);
+		Group.GetValidEntities(Entities);
 
 		FProgress Progress(Entities.Num());
 		for (const TSharedPtr<FEntity>& Entity : Entities)
 		{
-			DisplayEntity(Entity);
+			DisplayEntity(*Entity);
 		}
 #endif
 	}
 
-	void DisplayMesh(const TSharedPtr<FMesh>& Mesh)
-	{
-#ifdef CADKERNEL_DEV
-		ensureCADKernel(Mesh.IsValid());
-		switch (Mesh->GetGeometricEntity().GetEntityType())
-		{
-		case EEntity::TopologicalFace:
-			DisplayMesh(StaticCastSharedRef<FFaceMesh>(Mesh.ToSharedRef()));
-			break;
-		case EEntity::TopologicalEdge:
-			DisplayMesh(StaticCastSharedRef<FEdgeMesh>(Mesh.ToSharedRef()));
-			break;
-		case EEntity::TopologicalVertex:
-			DisplayMesh(StaticCastSharedRef<FVertexMesh>(Mesh.ToSharedRef()));
-			break;
-		default:
-			break;
-		}
-#endif
-	}
-
-	void DisplayMesh(const TSharedRef<FFaceMesh>& Mesh)
+	void DisplayMesh(const FFaceMesh& Mesh)
 	{
 #ifdef CADKERNEL_DEV
 		TMap<int32, const FPoint*> NodeIdToCoordinates;
-		Mesh->GetNodeIdToCoordinates(NodeIdToCoordinates);
+		Mesh.GetNodeIdToCoordinates(NodeIdToCoordinates);
 
 		TArray<FPoint> Points;
 		Points.SetNum(3);
 		double EdgeMeanLength = 0;
-		const TArray<int32>& TriangleIndices = Mesh->TrianglesVerticesIndex;
-		const TArray<int32>& VertexIndices = Mesh->VerticesGlobalIndex;
+		const TArray<int32>& TriangleIndices = Mesh.TrianglesVerticesIndex;
+		const TArray<int32>& VertexIndices = Mesh.VerticesGlobalIndex;
 		for (int32 Index = 0; Index < TriangleIndices.Num();)
 		{
 			Points[0] = *NodeIdToCoordinates[VertexIndices[TriangleIndices[Index++]]];
@@ -1108,7 +1057,7 @@ namespace CADKernel
 		if (FSystem::Get().GetVisu()->GetParameters()->bDisplayNormals)
 		{
 			double NormalLength = FSystem::Get().GetVisu()->GetParameters()->NormalLength;
-			const TArray<FVector>& Normals = Mesh->Normals;
+			const TArray<FVector>& Normals = Mesh.Normals;
 			for (int32 Index = 0; Index < VertexIndices.Num(); ++Index)
 			{
 				F3DDebugSegment GraphicSegment(Index);
@@ -1121,19 +1070,19 @@ namespace CADKernel
 #endif
 	}
 
-	void DisplayMesh(const TSharedRef<FEdgeMesh>& Mesh)
+	void DisplayMesh(const FEdgeMesh& Mesh)
 	{
 #ifdef CADKERNEL_DEV
-		const FModelMesh& MeshModel = Mesh->GetMeshModel();
+		const FModelMesh& MeshModel = Mesh.GetMeshModel();
 
-		const TArray<int32>& NodeIds = Mesh->EdgeVerticesIndex;
-		const TArray<FPoint>& NodeCoordinates = Mesh->GetNodeCoordinates();
+		const TArray<int32>& NodeIds = Mesh.EdgeVerticesIndex;
+		const TArray<FPoint>& NodeCoordinates = Mesh.GetNodeCoordinates();
 
 		int32 StartNodeId = NodeIds[0];
 		int32 LastNodeId = NodeIds.Last();
 
 		{
-			F3DDebugSegment GraphicSegment(Mesh->GetGeometricEntity().GetId());
+			F3DDebugSegment GraphicSegment(Mesh.GetGeometricEntity().GetId());
 			if (NodeCoordinates.Num() == 0)
 			{
 				DrawSegment(MeshModel.GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], MeshModel.GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::EdgeMesh);
@@ -1173,22 +1122,21 @@ namespace CADKernel
 #endif
 	}
 
-	void DisplayMesh(const TSharedRef<FVertexMesh>& Mesh)
+	void DisplayMesh(const FVertexMesh& Mesh)
 	{
 #ifdef CADKERNEL_DEV
-		DisplayPoint(Mesh->GetNodeCoordinates()[0], EVisuProperty::NodeMesh, Mesh->GetId());
+		DisplayPoint(Mesh.GetNodeCoordinates()[0], EVisuProperty::NodeMesh, Mesh.GetId());
 #endif
 	}
 
-
-	void Display(const TSharedPtr<FModelMesh>& MeshModel)
+	void Display(const FModelMesh& MeshModel)
 	{
 #ifdef CADKERNEL_DEV
-		for (TSharedPtr<FMesh> Mesh : MeshModel->GetMeshes())
+		for (const TSharedPtr<FFaceMesh>& Mesh : MeshModel.GetFaceMeshes())
 		{
 			if (Mesh.IsValid())
 			{
-				DisplayMesh(Mesh.ToSharedRef());
+				DisplayMesh(*Mesh);
 			}
 		}
 #endif
@@ -1222,33 +1170,33 @@ namespace CADKernel
 #endif
 	}
 
-	void DisplayLoop(const TSharedPtr<FTopologicalFace>& Surface)
+	void DisplayLoop(const FTopologicalFace& Surface)
 	{
 #ifdef CADKERNEL_DEV
-		for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Surface.GetLoops())
 		{
-			Display(Loop);
+			Display(*Loop);
 		}
 #endif
 	}
 
 
-	void Display(const TSharedPtr<FTopologicalLoop>& Loop)
+	void Display(const FTopologicalLoop& Loop)
 	{
 #ifdef CADKERNEL_DEV
-		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		for (const FOrientedEdge& Edge : Loop.GetEdges())
 		{
-			Display(Edge.Entity);
+			Display(*Edge.Entity);
 		}
 #endif
 	}
 
-	void Display2D(const TSharedPtr<FTopologicalLoop>& Loop)
+	void Display2D(const FTopologicalLoop& Loop)
 	{
 #ifdef CADKERNEL_DEV
-		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		for (const FOrientedEdge& Edge : Loop.GetEdges())
 		{
-			Display2D(Edge.Entity);
+			Display2D(*Edge.Entity);
 		}
 #endif
 	}

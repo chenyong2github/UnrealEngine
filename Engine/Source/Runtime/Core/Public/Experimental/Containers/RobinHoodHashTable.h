@@ -95,7 +95,7 @@ private:
 
 namespace RobinHoodHashTable_Private
 {
-	template<typename HashMapAllocator>
+	template<typename AllocatorType>
 	class TFreeList
 	{
 		using IndexType = int32;
@@ -106,7 +106,7 @@ namespace RobinHoodHashTable_Private
 			IndexType End;
 		};
 
-		TArray<FSpan, HashMapAllocator> FreeList;
+		TArray<FSpan, AllocatorType> FreeList;
 
 	public:
 		TFreeList()
@@ -284,6 +284,7 @@ namespace RobinHoodHashTable_Private
 	class TRobinHoodHashTable
 	{
 	protected:
+		using InlineOneAllocatorType = TInlineAllocator<1, HashMapAllocator>;
 		using KeyValueType = RobinHoodHashTable_Private::TKeyValue<KeyType, ValueType>;
 		using FindValueType = typename KeyValueType::FindValueType;
 		using ElementType = typename KeyValueType::ElementType;
@@ -432,7 +433,7 @@ namespace RobinHoodHashTable_Private
 #endif
 			TArray<KeyValueType, HashMapAllocator> KeyVals;
 			TArray<FHashType, HashMapAllocator> Hashes;
-			TFreeList<HashMapAllocator> FreeList;
+			TFreeList<InlineOneAllocatorType> FreeList;
 		};
 
 		inline IndexType ModTableSize(IndexType HashValue) const
@@ -513,8 +514,8 @@ namespace RobinHoodHashTable_Private
 
 			if ((KeyValueData.Num() * LoadFactorQuotient) >= (SizePow2Minus1 * LoadFactorDivisor))
 			{
-				TArray<IndexType> IndexDataOld = MoveTemp(IndexData);
-				TArray<FHashType> HashDataOld = MoveTemp(HashData);
+				TArray<IndexType, InlineOneAllocatorType> IndexDataOld = MoveTemp(IndexData);
+				TArray<FHashType, InlineOneAllocatorType> HashDataOld = MoveTemp(HashData);
 				IndexType OldSizePow2Minus1 = SizePow2Minus1;
 				SizePow2Minus1 = SizePow2Minus1 * 2 + 1;
 				MaximumDistance = 0;
@@ -877,8 +878,8 @@ namespace RobinHoodHashTable_Private
 
 			if (bIsFoundInMap && (KeyValueData.Num() * LoadFactorQuotient * 4) < (SizePow2Minus1 * LoadFactorDivisor))
 			{
-				TArray<IndexType> IndexDataOld = MoveTemp(IndexData);
-				TArray<FHashType> HashDataOld = MoveTemp(HashData);
+				TArray<IndexType, InlineOneAllocatorType> IndexDataOld = MoveTemp(IndexData);
+				TArray<FHashType, InlineOneAllocatorType> HashDataOld = MoveTemp(HashData);
 				IndexType OldSizePow2Minus1 = SizePow2Minus1;
 				SizePow2Minus1 = SizePow2Minus1 / 2;
 				MaximumDistance = 0;
@@ -933,8 +934,8 @@ namespace RobinHoodHashTable_Private
 
 			if (bIsFoundInMap && (KeyValueData.Num() * LoadFactorQuotient * 4) < (SizePow2Minus1 * LoadFactorDivisor))
 			{
-				TArray<IndexType> IndexDataOld = MoveTemp(IndexData);
-				TArray<FHashType> HashDataOld = MoveTemp(HashData);
+				TArray<IndexType, InlineOneAllocatorType> IndexDataOld = MoveTemp(IndexData);
+				TArray<FHashType, InlineOneAllocatorType> HashDataOld = MoveTemp(HashData);
 				IndexType OldSizePow2Minus1 = SizePow2Minus1;
 				SizePow2Minus1 = SizePow2Minus1 / 2;
 				MaximumDistance = 0;
@@ -992,8 +993,8 @@ namespace RobinHoodHashTable_Private
 
 				if (NewSizePow2Minus1 > SizePow2Minus1)
 				{
-					TArray<IndexType> IndexDataOld = MoveTemp(IndexData);
-					TArray<FHashType> HashDataOld = MoveTemp(HashData);
+					TArray<IndexType, InlineOneAllocatorType> IndexDataOld = MoveTemp(IndexData);
+					TArray<FHashType, InlineOneAllocatorType> HashDataOld = MoveTemp(HashData);
 					IndexType OldSizePow2Minus1 = SizePow2Minus1;
 					SizePow2Minus1 = NewSizePow2Minus1;
 					MaximumDistance = 0;
@@ -1019,8 +1020,8 @@ namespace RobinHoodHashTable_Private
 	private:
 		FData KeyValueData;
 
-		TArray<IndexType, HashMapAllocator> IndexData;
-		TArray<FHashType, HashMapAllocator> HashData;
+		TArray<IndexType, InlineOneAllocatorType> IndexData;
+		TArray<FHashType, InlineOneAllocatorType> HashData;
 
 		IndexType SizePow2Minus1 = 0;
 		IndexType MaximumDistance = 0;

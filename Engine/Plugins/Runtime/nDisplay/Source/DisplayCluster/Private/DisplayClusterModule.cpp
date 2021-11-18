@@ -85,11 +85,16 @@ void FDisplayClusterModule::Release()
 {
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("Cleaning up internals..."));
 
-	for (auto pMgr : Managers)
+	for (IPDisplayClusterManager* Manager : Managers)
 	{
-		pMgr->Release();
-		delete pMgr;
+		Manager->Release();
+		delete Manager;
 	}
+
+	MgrCluster = nullptr;
+	MgrRender  = nullptr;
+	MgrConfig  = nullptr;
+	MgrGame    = nullptr;
 
 	Managers.Empty();
 }
@@ -106,7 +111,7 @@ bool FDisplayClusterModule::StartSession(UDisplayClusterConfigurationData* InCon
 		++it;
 	}
 
-	DisplayClusterStartSessionEvent.Broadcast();
+	GetCallbacks().OnDisplayClusterStartSession().Broadcast();
 
 	if (!bResult)
 	{
@@ -116,15 +121,25 @@ bool FDisplayClusterModule::StartSession(UDisplayClusterConfigurationData* InCon
 	return bResult;
 }
 
+void FDisplayClusterModule::PreAppExit()
+{
+	UE_LOG(LogDisplayClusterModule, Log, TEXT("Preparing to application exit..."));
+
+	for (IPDisplayClusterManager* const Manager : Managers)
+	{
+		Manager->PreAppExit();
+	}
+}
+
 void FDisplayClusterModule::EndSession()
 {
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("Stopping DisplayCluster session..."));
 
-	DisplayClusterEndSessionEvent.Broadcast();
+	GetCallbacks().OnDisplayClusterEndSession().Broadcast();
 
-	for (auto pMgr : Managers)
+	for (IPDisplayClusterManager* const Manager : Managers)
 	{
-		pMgr->EndSession();
+		Manager->EndSession();
 	}
 }
 
@@ -132,9 +147,9 @@ bool FDisplayClusterModule::StartScene(UWorld* InWorld)
 {
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("Starting game..."));
 
-	check(InWorld);
+	checkSlow(InWorld);
 
-	DisplayClusterStartSceneEvent.Broadcast();
+	GetCallbacks().OnDisplayClusterStartScene().Broadcast();
 
 	bool bResult = true;
 	auto it = Managers.CreateIterator();
@@ -156,11 +171,11 @@ void FDisplayClusterModule::EndScene()
 {
 	UE_LOG(LogDisplayClusterModule, Log, TEXT("Stopping game..."));
 
-	DisplayClusterEndSceneEvent.Broadcast();
+	GetCallbacks().OnDisplayClusterEndScene().Broadcast();
 
-	for (auto pMgr : Managers)
+	for (IPDisplayClusterManager* const Manager : Managers)
 	{
-		pMgr->EndScene();
+		Manager->EndScene();
 	}
 }
 
@@ -168,60 +183,60 @@ void FDisplayClusterModule::StartFrame(uint64 FrameNum)
 {
 	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("StartFrame: frame num - %llu"), FrameNum);
 
-	for (auto pMgr : Managers)
+	for (IPDisplayClusterManager* const Manager : Managers)
 	{
-		pMgr->StartFrame(FrameNum);
+		Manager->StartFrame(FrameNum);
 	}
 
-	DisplayClusterStartFrameEvent.Broadcast(FrameNum);
+	GetCallbacks().OnDisplayClusterStartFrame().Broadcast(FrameNum);
 }
 
 void FDisplayClusterModule::EndFrame(uint64 FrameNum)
 {
 	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("EndFrame: frame num - %llu"), FrameNum);
 
-	for (auto pMgr : Managers)
+	for (IPDisplayClusterManager* const Manager : Managers)
 	{
-		pMgr->EndFrame(FrameNum);
+		Manager->EndFrame(FrameNum);
 	}
 
-	DisplayClusterEndFrameEvent.Broadcast(FrameNum);
+	GetCallbacks().OnDisplayClusterEndFrame().Broadcast(FrameNum);
 }
 
 void FDisplayClusterModule::PreTick(float DeltaSeconds)
 {
 	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("PreTick: delta time - %f"), DeltaSeconds);
 
-	for (auto pMgr : Managers)
+	for (IPDisplayClusterManager* const Manager : Managers)
 	{
-		pMgr->PreTick(DeltaSeconds);
+		Manager->PreTick(DeltaSeconds);
 	}
 
-	DisplayClusterPreTickEvent.Broadcast();
+	GetCallbacks().OnDisplayClusterPreTick().Broadcast();
 }
 
 void FDisplayClusterModule::Tick(float DeltaSeconds)
 {
 	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("Tick: delta time - %f"), DeltaSeconds);
 
-	for (auto pMgr : Managers)
+	for (IPDisplayClusterManager* const Manager : Managers)
 	{
-		pMgr->Tick(DeltaSeconds);
+		Manager->Tick(DeltaSeconds);
 	}
 
-	DisplayClusterTickEvent.Broadcast();
+	GetCallbacks().OnDisplayClusterTick().Broadcast();
 }
 
 void FDisplayClusterModule::PostTick(float DeltaSeconds)
 {
 	UE_LOG(LogDisplayClusterModule, Verbose, TEXT("PostTick: delta time - %f"), DeltaSeconds);
 
-	for (auto pMgr : Managers)
+	for (IPDisplayClusterManager* const Manager : Managers)
 	{
-		pMgr->PostTick(DeltaSeconds);
+		Manager->PostTick(DeltaSeconds);
 	}
 
-	DisplayClusterPostTickEvent.Broadcast();
+	GetCallbacks().OnDisplayClusterPostTick().Broadcast();
 }
 
 IMPLEMENT_MODULE(FDisplayClusterModule, DisplayCluster)

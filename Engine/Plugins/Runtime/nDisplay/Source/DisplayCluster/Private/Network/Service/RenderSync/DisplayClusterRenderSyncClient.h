@@ -11,7 +11,7 @@
  * Rendering synchronization TCP client
  */
 class FDisplayClusterRenderSyncClient
-	: public FDisplayClusterClient<FDisplayClusterPacketInternal, true>
+	: public FDisplayClusterClient<FDisplayClusterPacketInternal>
 	, public IDisplayClusterProtocolRenderSync
 {
 public:
@@ -20,7 +20,13 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterClient
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool Connect(const FString& Address, const uint16 Port, const uint32 ConnectRetriesAmount, const uint32 ConnectRetryDelay) override;
+
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolRenderSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForSwapSync() override;
+	virtual EDisplayClusterCommResult WaitForSwapSync() override;
 };

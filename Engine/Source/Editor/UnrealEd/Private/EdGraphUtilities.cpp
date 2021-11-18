@@ -194,7 +194,7 @@ protected:
 			// Move the old node into the transient package so that it is GC'd
 			Node->BreakAllNodeLinks();
 			Node->Rename(NULL, GetTransientPackage());
-			Node->MarkPendingKill();
+			Node->MarkAsGarbage();
 		}
 	}
 };

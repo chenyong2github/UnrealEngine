@@ -374,29 +374,34 @@ bool FHLMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
         UE_LOG(LogHLMediaPlayer, Verbose, TEXT("HLMediaPlayer %p: FHLMediaPlayer::InitializePlayer::Async()"), this);
 
         ID3D11Device* Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-
+		checkf(Device, TEXT("No available D3D11Device"));
 		FString RHIString = FApp::GetGraphicsRHI();
 		if (RHIString == TEXT("DirectX 12"))
 		{
-			ID3D12Device* m_d3d12Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
-			void* m_commandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+			ID3D11Device* PrevDevice = Device;
+			ID3D12Device* D3d12Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+			void* CommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
 
-			ID3D11DeviceContext* m_d3d11DeviceContext;
-			D3D11On12CreateDevice(
-				m_d3d12Device,
+			ID3D11DeviceContext* D3d11DeviceContext;
+			if (FAILED(D3D11On12CreateDevice(
+				D3d12Device,
 				D3D11_CREATE_DEVICE_BGRA_SUPPORT,
 				nullptr,
 				0,
-				reinterpret_cast<IUnknown**>(&m_commandQueue),
+				reinterpret_cast<IUnknown**>(&CommandQueue),
 				1,
 				0,
 				&Device,
-				&m_d3d11DeviceContext,
+				&D3d11DeviceContext,
 				nullptr
-			);
+			)))
+			{
+				UE_LOG(LogHLMediaPlayer, Error, TEXT("D3D11On12CreateDevice failed"));
+				Device = PrevDevice;
+			}
 		}
 
-        TComPtr<IPlaybackEngine> PlaybackEngineIn = nullptr;
+		TComPtr<IPlaybackEngine> PlaybackEngineIn = nullptr;
         if (SUCCEEDED(CreatePlaybackEngine(Device, &PlaybackEngineIn)))
         {
             {

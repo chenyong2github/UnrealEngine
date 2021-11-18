@@ -388,7 +388,7 @@ class DeviceUnreal(Device):
 
     unreal_started_signal = QtCore.Signal()
 
-    mu_server = switchboard_application.MultiUserApplication()
+    mu_server = switchboard_application.get_multi_user_server_instance()
     rsync_server = switchboard_application.RsyncServer()
 
     # Monitors the local listener executable and notifies when the file is
@@ -1173,26 +1173,10 @@ class DeviceUnreal(Device):
 
         return vproles, missing_roles
 
-    @classmethod
-    def expand_endpoint(
-            cls, endpoint: str, default_addr: str = '0.0.0.0',
-            default_port: int = 0) -> str:
-        '''
-        Given an endpoint where either address or port was omitted, use
-        the provided defaults.
-        '''
-        addr_str, _, port_str = endpoint.partition(':')
-
-        if not addr_str:
-            addr_str = default_addr
-
-        if not port_str:
-            port_str = str(default_port)
-
-        return f'{addr_str}:{port_str}'
-
     @property
     def udpmessaging_multicast_endpoint(self) -> str:
+        device_multicast = DeviceUnreal.csettings[
+            'udpmessaging_multicast_endpoint'].get_value().strip()
         return DeviceUnreal.csettings[
             'udpmessaging_multicast_endpoint'].get_value().strip()
 
@@ -1200,8 +1184,8 @@ class DeviceUnreal(Device):
     def get_muserver_endpoint(cls) -> str:
         setting_val = CONFIG.MUSERVER_ENDPOINT.strip()
         if setting_val:
-            return cls.expand_endpoint(setting_val,
-                                       SETTINGS.IP_ADDRESS.strip())
+            return sb_utils.expand_endpoint(setting_val,
+                                            SETTINGS.IP_ADDRESS.strip())
         else:
             return ''
 
@@ -1209,7 +1193,7 @@ class DeviceUnreal(Device):
     def udpmessaging_unicast_endpoint(self) -> str:
         setting_val = self.udpmessaging_unicast_endpoint_setting.strip()
         if setting_val:
-            return self.expand_endpoint(setting_val, self.ip_address)
+            return sb_utils.expand_endpoint(setting_val, self.ip_address)
         else:
             return ''
 
@@ -1237,24 +1221,24 @@ class DeviceUnreal(Device):
 
         command_line_args += f' Log={self.log_filename}'
 
-        command_line_args += " ";
+        command_line_args += " "
 
         if CONFIG.MUSERVER_AUTO_JOIN.get_value() and self.autojoin_mu_server.get_value():
             command_line_args += (
                 '-CONCERTRETRYAUTOCONNECTONERROR '
                 '-CONCERTAUTOCONNECT ')
 
-        command_line_args += (f'-CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} '
-                              f'-CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME} '
-                              f'-CONCERTDISPLAYNAME={self.name}')
+        command_line_args += (f'-CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME}" '
+                              f'-CONCERTSESSION="{SETTINGS.MUSERVER_SESSION_NAME}" '
+                              f'-CONCERTDISPLAYNAME="{self.name}"')
 
         if CONFIG.INSIGHTS_TRACE_ENABLE.get_value():
-            LOGGER.warning(f"Unreal Insight Tracing is enabled for {self.name}. This may effect Unreal Engine performance.")
+            LOGGER.warning(f"Unreal Insight Tracing is enabled for '{self.name}'. This may effect Unreal Engine performance.")
             remote_utrace_path = self.get_utrace_filepath()
             command_line_args += ' -statnamedevents' if CONFIG.INSIGHTS_STAT_EVENTS.get_value() else ''
-            command_line_args += ' -tracefile={} -trace={}'.format(
+            command_line_args += ' -tracefile="{}" -trace="{}"'.format(
                 remote_utrace_path,
-                CONFIG.INSIGHTS_TRACE_ARGS)
+                CONFIG.INSIGHTS_TRACE_ARGS.get_value())
 
         exec_cmds = str(
             DeviceUnreal.csettings["exec_cmds"].get_value(self.name)).strip()
@@ -1279,7 +1263,7 @@ class DeviceUnreal(Device):
         if session_id > 0:
             command_line_args += f" -StageSessionId={session_id}"
 
-        command_line_args += f" -StageFriendlyName={self.name}"
+        command_line_args += f' -StageFriendlyName="{self.name.replace(" ", "_")}"'
 
         # Max GPU Count (mGPU)
         max_gpu_count = DeviceUnreal.csettings["max_gpu_count"].get_value(
@@ -1302,6 +1286,9 @@ class DeviceUnreal(Device):
 
         # UdpMessaging endpoints
         if self.udpmessaging_multicast_endpoint:
+            server_mc = CONFIG.MUSERVER_MULTICAST_ENDPOINT.get_value().strip()
+            if server_mc != self.udpmessaging_multicast_endpoint:
+                LOGGER.warning(f"{self.name} contains a multicast endpoint ('{self.udpmessaging_multicast_endpoint}') that does not match configured value on Multi-user server ('{server_mc}').")
             command_line_args += (
                 ' -UDPMESSAGING_TRANSPORT_MULTICAST='
                 f'"{self.udpmessaging_multicast_endpoint}"'
@@ -1337,18 +1324,8 @@ class DeviceUnreal(Device):
             return
 
         # Launch the MU server
-        if CONFIG.MUSERVER_AUTO_LAUNCH:
-            mu_args: List[str] = []
-
-            if DeviceUnreal.get_muserver_endpoint():
-                mu_args.append('-UDPMESSAGING_TRANSPORT_UNICAST='
-                               f'"{DeviceUnreal.get_muserver_endpoint()}"')
-
-            if self.udpmessaging_multicast_endpoint:
-                mu_args.append('-UDPMESSAGING_TRANSPORT_MULTICAST='
-                               f'"{self.udpmessaging_multicast_endpoint}"')
-
-            DeviceUnreal.mu_server.launch(mu_args)
+        if CONFIG.MUSERVER_AUTO_JOIN.get_value() and self.autojoin_mu_server.get_value() and CONFIG.MUSERVER_AUTO_LAUNCH:
+            DeviceUnreal.mu_server.launch()
 
         self.compute_runtime_str()
         engine_path, args = self.generate_unreal_command_line(map_name)
@@ -1507,7 +1484,7 @@ class DeviceUnreal(Device):
         remaining_homonyms = self.program_start_queue.running_puuids_named(
             program_name)
         for prog_id in remaining_homonyms:
-            if program_name is not 'retrieve':
+            if program_name != 'retrieve':
                 LOGGER.warning(
                     f'{self.name}: But ({prog_id}) with the same name '
                     f'"{program_name}" is still in the list, which is unusual')

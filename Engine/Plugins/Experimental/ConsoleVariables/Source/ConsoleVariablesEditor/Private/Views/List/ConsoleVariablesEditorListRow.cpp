@@ -3,6 +3,7 @@
 #include "ConsoleVariablesEditorListRow.h"
 
 #include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorModule.h"
 
 #include "Algo/AnyOf.h"
 #include "Views/List/SConsoleVariablesEditorList.h"
@@ -168,32 +169,6 @@ ECheckBoxState FConsoleVariablesEditorListRow::GetWidgetCheckedState() const
 void FConsoleVariablesEditorListRow::SetWidgetCheckedState(const ECheckBoxState NewState, const bool bShouldUpdateHierarchyCheckedStates)
 {
 	WidgetCheckedState = NewState;
-
-	if (const TSharedPtr<SConsoleVariablesEditorList>& PinnedList = ListViewPtr.Pin())
-	{
-		if (bShouldUpdateHierarchyCheckedStates && GetRowType() == HeaderRow && NewState != ECheckBoxState::Undetermined)
-		{
-			PinnedList->SetAllListViewItemsCheckState(NewState);
-		}
-		else if (GetRowType() != HeaderRow)
-		{
-			if (PinnedList->DoesListHaveCheckedMembers())
-			{
-				if (PinnedList->DoesListHaveUncheckedMembers())
-				{
-					PinnedList->GetHeaderRow()->SetWidgetCheckedState(ECheckBoxState::Undetermined, false);
-				}
-				else
-				{
-					PinnedList->GetHeaderRow()->SetWidgetCheckedState(ECheckBoxState::Checked, false);
-				}
-			}
-			else
-			{
-				PinnedList->GetHeaderRow()->SetWidgetCheckedState(ECheckBoxState::Unchecked, false);
-			}
-		}
-	}
 }
 
 bool FConsoleVariablesEditorListRow::IsRowChecked() const
@@ -215,14 +190,14 @@ FReply FConsoleVariablesEditorListRow::OnRemoveButtonClicked()
 
 	GetCommandInfo().Pin()->ExecuteCommand(GetCommandInfo().Pin()->StartupValueAsString);
 
-	TWeakObjectPtr<UConsoleVariablesAsset> Asset = ListViewPtr.Pin()->GetEditedAsset();
+	const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 
-	if (ensure(Asset.IsValid()))
-	{
-		Asset->RemoveConsoleVariable(CommandInfo.Pin()->Command);
+	const TObjectPtr<UConsoleVariablesAsset> EditableAsset = ConsoleVariablesEditorModule.GetEditingAsset();
+	check(EditableAsset);
 
-		ListViewPtr.Pin()->RefreshList(Asset.Get());
-	}
+	EditableAsset->RemoveConsoleVariable(CommandInfo.Pin()->Command);
+
+	ListViewPtr.Pin()->RefreshList();
 
 	return FReply::Handled();
 }

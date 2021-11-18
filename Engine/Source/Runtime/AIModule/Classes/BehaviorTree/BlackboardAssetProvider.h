@@ -12,7 +12,7 @@
  *  Used by FBlackboardSelectorDetails to access the related Blackboard based on UObject
  *  hierarchy. The asset containing the Blackboard should broadcast OnBlackboardOwnerChanged
  *  when ever the asset ptr changes. */
-UINTERFACE(Blueprintable, MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
+UINTERFACE(BlueprintType, MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UBlackboardAssetProvider : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()

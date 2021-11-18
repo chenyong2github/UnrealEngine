@@ -34,16 +34,16 @@ static void WriteTexel(UTexture2D* Texture, int32 X, int32 Y, FColor NewColor)
 		check(Y >= 0 && Y < Texture->GetSizeY());
 
 		// Only supporting uncompressed textures for now
-		if (Texture->PlatformData &&
-			Texture->PlatformData->PixelFormat == PF_B8G8R8A8)
+		if (Texture->GetPlatformData() &&
+			Texture->GetPlatformData()->PixelFormat == PF_B8G8R8A8)
 		{
 			// The runtime data needs to be fully cached in memory for this to work.
 			// These changes won't (and don't need to) persist.
-			if (Texture->PlatformData->TryInlineMipData(0, Texture->GetPathName()))
+			if (Texture->GetPlatformData()->TryInlineMipData(0, Texture->GetPathName()))
 			{
 				// Release the texture's resources and block until the rendering thread is done accessing it
 				Texture->ReleaseResource();
-				FTexture2DMipMap& BaseMip = Texture->PlatformData->Mips[0];
+				FTexture2DMipMap& BaseMip = Texture->GetPlatformData()->Mips[0];
 				FColor* Data = (FColor*)BaseMip.BulkData.Lock( LOCK_READ_WRITE );
 				FColor& SelectedTexel = Data[Y * Texture->GetSizeX() + X];
 				// Write the new color

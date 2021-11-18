@@ -25,6 +25,11 @@ public:
 	// Track actions that have had their ValueType changed to update blueprints referencing them.
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	static TSet<const UInputAction*> ActionsWithModifiedValueTypes;
+	
+	/**
+	 * Returns a bitmask of supported trigger events that is built from each UInputTrigger on this Action.
+	 */
+	ETriggerEventsSupported GetSupportedTriggerEvents() const;
 #endif
 
 	// Should this action swallow any inputs bound to it or allow them to pass through to affect lower priority bound actions?

@@ -404,7 +404,7 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">The command line arguments</param>
 		/// <param name="ProjectFile">The project file that was parsed</param>
 		/// <returns>True if the project file was parsed, false otherwise</returns>
-		public static bool TryParseProjectFileArgument(CommandLineArguments Arguments, out FileReference? ProjectFile)
+		public static bool TryParseProjectFileArgument(CommandLineArguments Arguments, [NotNullWhen(true)] out FileReference? ProjectFile)
 		{
 			FileReference? ExplicitProjectFile;
 			if(Arguments.TryGetValue("-Project=", out ExplicitProjectFile))
@@ -425,7 +425,7 @@ namespace UnrealBuildTool
 
 			if(UnrealBuildTool.IsProjectInstalled())
 			{
-				ProjectFile = UnrealBuildTool.GetInstalledProjectFile();
+				ProjectFile = UnrealBuildTool.GetInstalledProjectFile()!;
 				return true;
 			}
 

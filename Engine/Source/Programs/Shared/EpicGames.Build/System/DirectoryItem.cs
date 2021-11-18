@@ -341,7 +341,7 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="Reader">Reader to serialize data from</param>
 		/// <returns>Instance of the serialized directory item</returns>
-		public static DirectoryItem ReadDirectoryItem(this BinaryArchiveReader Reader)
+		public static DirectoryItem? ReadDirectoryItem(this BinaryArchiveReader Reader)
 		{
 			return Reader.ReadObjectReference<DirectoryItem>(() => DirectoryItem.GetItemByDirectoryReference(Reader.ReadDirectoryReferenceNotNull()));
 		}

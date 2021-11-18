@@ -48,6 +48,12 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return MSM_MAX;
 	}
 
+	virtual FMaterialShadingModelField GetCompiledShadingModels() const override
+	{
+		// not used by Lightmass
+		return MSM_MAX;
+	}
+
 	virtual EMaterialValueType GetParameterType(int32 Index) const override
 	{
 		return MCT_Unknown;

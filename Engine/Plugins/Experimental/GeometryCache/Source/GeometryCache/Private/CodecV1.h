@@ -25,7 +25,7 @@ public:
 	{
 	}
 
-	FORCEINLINE void Register(const FVector2D& Coded, const FVector2D& Original)
+	FORCEINLINE void Register(const FVector2f& Coded, const FVector2f& Original)
 	{
 		SumSquaredX += (Original.X - Coded.X)*(Original.X - Coded.X);
 		SumSquaredY += (Original.Y - Coded.Y)*(Original.Y - Coded.Y);		
@@ -35,7 +35,7 @@ public:
 	// Mean Squared Error
 	FORCEINLINE float ReadMSE()
 	{
-		FVector2D MSE(SumSquaredX / Num, SumSquaredY / Num);
+		FVector2f MSE(SumSquaredX / Num, SumSquaredY / Num);
 		return (MSE.X + MSE.Y) / 2.0f;
 	}
 
@@ -211,7 +211,7 @@ private:
 	/** Encode a buffer with vertex normals */
 	void EncodeNormalStream(const FPackedNormal* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FHuffmanEncodeTable& Table, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex texture coordinates */
-	void EncodeUVStream(const FVector2D* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
+	void EncodeUVStream(const FVector2f* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
 	/** Encode a buffer with vertex motion vectors */
 	void EncodeMotionVectorStream(const FVector3f* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats);
 
@@ -312,7 +312,7 @@ private:
 	/** Decode a buffer of vertex normals from a bitstream */
 	void DecodeNormalStream(FHuffmanBitStreamReader& Reader, FPackedNormal* Stream, uint64 ElementOffset, uint32 ElementCount, FHuffmanDecodeTable& Table);
 	/** Decode a buffer of vertex texture coordinates from a bitstream */
-	void DecodeUVStream(FHuffmanBitStreamReader& Reader, FVector2D* Stream, uint64 ElementOffset, uint32 ElementCount);
+	void DecodeUVStream(FHuffmanBitStreamReader& Reader, FVector2f* Stream, uint64 ElementOffset, uint32 ElementCount);
 	/** Decode a buffer of vertex motion vectors from a bitstream */
 	void DecodeMotionVectorStream(FHuffmanBitStreamReader& Reader, FVector3f* Stream, uint64 ElementOffset, uint32 ElementCount);
 	

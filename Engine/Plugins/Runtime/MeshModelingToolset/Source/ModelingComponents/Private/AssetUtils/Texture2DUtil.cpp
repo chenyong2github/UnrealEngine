@@ -22,9 +22,9 @@ static bool ReadTexture_PlatformData(
 	// Note that the current code cannot run on a background thread, UpdateResource() will call FlushRenderingCommands()
 	// which will check() if it's on the Game Thread
 
-	check(TextureMap->PlatformData);
-	const int32 Width = TextureMap->PlatformData->Mips[0].SizeX;
-	const int32 Height = TextureMap->PlatformData->Mips[0].SizeY;
+	check(TextureMap->GetPlatformData());
+	const int32 Width = TextureMap->GetPlatformData()->Mips[0].SizeX;
+	const int32 Height = TextureMap->GetPlatformData()->Mips[0].SizeY;
 	const FImageDimensions Dimensions = FImageDimensions(Width, Height);
 	DestImage.SetDimensions(Dimensions);
 	const int64 Num = Dimensions.Num();
@@ -41,7 +41,7 @@ static bool ReadTexture_PlatformData(
 	TextureMap->UpdateResource();
 
 	// lock texture and read as FColor
-	const FColor* FormattedImageData = reinterpret_cast<const FColor*>(TextureMap->PlatformData->Mips[0].BulkData.LockReadOnly());
+	const FColor* FormattedImageData = reinterpret_cast<const FColor*>(TextureMap->GetPlatformData()->Mips[0].BulkData.LockReadOnly());
 
 	// maybe could be done more quickly by row?
 	for (int64 i = 0; i < Num; ++i)
@@ -54,7 +54,7 @@ static bool ReadTexture_PlatformData(
 	}
 
 	// restore built platform texture data to initial state
-	TextureMap->PlatformData->Mips[0].BulkData.Unlock();
+	TextureMap->GetPlatformData()->Mips[0].BulkData.Unlock();
 	TextureMap->CompressionSettings = InitialCompressionSettings;
 #if WITH_EDITOR
 	TextureMap->MipGenSettings = InitialMipGenSettings;

@@ -7,8 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class UEResXWriter
@@ -24,8 +22,8 @@ namespace UnrealBuildTool
 
 			RootElement.AppendChild(CreateEntry("resheader", "resmimetype", "text/microsoft-resx", null));
 			RootElement.AppendChild(CreateEntry("resheader", "version", "2.0", null));
-			RootElement.AppendChild(CreateEntry("resheader", "reader", typeof(UEResXReader).AssemblyQualifiedName, null));
-			RootElement.AppendChild(CreateEntry("resheader", "writer", typeof(UEResXWriter).AssemblyQualifiedName, null));
+			RootElement.AppendChild(CreateEntry("resheader", "reader", typeof(UEResXReader).AssemblyQualifiedName!, null));
+			RootElement.AppendChild(CreateEntry("resheader", "writer", typeof(UEResXWriter).AssemblyQualifiedName!, null));
 		}
 
 		public void Close()
@@ -38,7 +36,7 @@ namespace UnrealBuildTool
 			RootElement.AppendChild(CreateEntry("data", InName, InValue, "preserve"));
 		}
 
-		private XmlNode CreateEntry(string InRootName, string InName, string InValue, string InSpace)
+		private XmlNode CreateEntry(string InRootName, string InName, string InValue, string? InSpace)
 		{
 			XmlElement Value = Document.CreateElement("value");
 			Value.InnerText = InValue;

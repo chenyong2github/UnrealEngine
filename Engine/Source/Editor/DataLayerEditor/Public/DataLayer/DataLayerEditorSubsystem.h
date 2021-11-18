@@ -534,11 +534,9 @@ public:
 	bool RenameDataLayer(UDataLayer* DataLayer, const FName& NewDataLayerLabel);
 
 	/**
-	* Resets user override settings of the provided DataLayers
-	* 
-	* @param DataLayers A valid list of DataLayer.
+	* Resets user override settings of all DataLayers
 	*/
-	bool ResetUserSettings(const TArray<UDataLayer*>& DataLayers);
+	bool ResetUserSettings();
 
 	//~ Begin Deprecated
 

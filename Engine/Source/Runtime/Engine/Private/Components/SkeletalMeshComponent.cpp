@@ -1425,9 +1425,14 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 
 	// If we are suspended, we will not simulate clothing, but as clothing is simulated in local space
 	// relative to a root bone we need to extract simulation positions as this bone could be animated.
-	if(bClothingSimulationSuspended && ClothingSimulation && ClothingSimulation->ShouldSimulate())
+	if(bClothingSimulationSuspended && ClothingSimulation)
 	{
 		CSV_SCOPED_TIMING_STAT(Animation, Cloth);
+
+		// First update the simulation context, since the simulation isn't ticking
+		// and it is still required to get the correct simulation data and bounds.
+		constexpr bool bIsInitialization = false;
+		ClothingSimulation->FillContext(this, DeltaTime, ClothingSimulationContext, bIsInitialization);
 
 		ClothingSimulation->GetSimulationData(CurrentSimulationData, this, Cast<USkeletalMeshComponent>(MasterPoseComponent.Get()));
 	}
@@ -3010,7 +3015,7 @@ void USkeletalMeshComponent::ResetLinkedAnimInstances()
 		if(LinkedInstance && LinkedInstance->bCreatedByLinkedAnimGraph)
 		{
 			LinkedInstance->EndNotifyStates();
-			LinkedInstance->MarkPendingKill();
+			LinkedInstance->MarkAsGarbage();
 			LinkedInstance = nullptr;
 		}
 	}

@@ -24,6 +24,7 @@
 #include "ContentBrowserModule.h"
 #include "MatineeImportTools.h"
 #include "Matinee/InterpTrackAnimControl.h"
+#include "SequencerSettings.h"
 #include "SequencerUtilities.h"
 #include "ISectionLayoutBuilder.h"
 #include "Animation/AnimMontage.h"
@@ -34,6 +35,8 @@
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerTimeSliderController.h"
+#include "FrameNumberDisplayFormat.h"
+#include "FrameNumberNumericInterface.h"
 #include "AnimationEditorUtils.h"
 #include "Factories/PoseAssetFactory.h"
 #include "Misc/MessageDialog.h"
@@ -614,10 +617,28 @@ int32 FSkeletalAnimationSection::OnPaintSection( FSequencerSectionPainter& Paint
 		if (Section.GetRange().Contains(CurrentTime.FrameNumber) && Section.Params.Animation != nullptr)
 		{
 			// Draw the current time next to the scrub handle
-			const float AnimTime = Section.MapTimeToAnimation(CurrentTime, TickResolution);
-			int32 FrameTime = Section.Params.Animation->GetFrameAtTime(AnimTime);
+			const double AnimTime = Section.MapTimeToAnimation(CurrentTime, TickResolution);
+			const FFrameRate SamplingFrameRate = Section.Params.Animation->GetSamplingFrameRate();
+			const FFrameTime FrameTime = SamplingFrameRate.AsFrameTime(AnimTime);
 
-			DrawFrameNumberHint(Painter, CurrentTime, FrameTime);
+			// Get the desired frame display format and zero padding from
+			// the sequencer settings, if possible.
+			TAttribute<EFrameNumberDisplayFormats> DisplayFormatAttr(EFrameNumberDisplayFormats::Frames);
+			TAttribute<uint8> ZeroPadFrameNumbersAttr(0u);
+			if (const USequencerSettings* SequencerSettings = SequencerPtr->GetSequencerSettings())
+			{
+				DisplayFormatAttr.Set(SequencerSettings->GetTimeDisplayFormat());
+				ZeroPadFrameNumbersAttr.Set(SequencerSettings->GetZeroPadFrames());
+			}
+
+			// No frame rate conversion necessary since we're displaying
+			// the source frame time/rate.
+			const TAttribute<FFrameRate> TickResolutionAttr(SamplingFrameRate);
+			const TAttribute<FFrameRate> DisplayRateAttr(SamplingFrameRate);
+
+			const FFrameNumberInterface FrameNumberInterface(DisplayFormatAttr, ZeroPadFrameNumbersAttr, TickResolutionAttr, DisplayRateAttr);
+
+			DrawFrameTimeHint(Painter, CurrentTime, FrameTime, &FrameNumberInterface);
 		}
 	}
 	

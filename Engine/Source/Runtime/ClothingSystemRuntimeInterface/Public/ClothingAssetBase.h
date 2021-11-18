@@ -45,6 +45,13 @@ public:
 	PURE_VIRTUAL(UClothingAssetBase::UnbindFromSkeletalMesh,);
 
 	/**
+	 * Update all extra LOD deformer mappings.
+	 * This should be called whenever the raytracing LOD bias is changed.
+	 */
+	virtual void UpdateAllLODBiasMappings(USkeletalMesh* SkeletalMesh)
+	PURE_VIRTUAL(UClothingAssetBase::UpdateAllLODBiasMappings,);
+
+	/**
 	 * Called on the clothing asset when the base data (physical mesh etc.) has
 	 * changed, so any intermediate generated data can be regenerated.
 	 */

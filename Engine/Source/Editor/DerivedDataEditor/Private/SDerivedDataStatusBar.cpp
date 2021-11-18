@@ -50,6 +50,7 @@ void FDerivedDataStatusBarMenuCommands::RegisterCommands()
 	UI_COMMAND(ChangeSettings, "Change Cache Settings", "Opens a dialog to change Cache settings.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ViewCacheStatistics, "View Cache Statistics", "Opens the Cache Statistics panel.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ViewResourceUsage, "View Resource Usage", "Opens the Resource Usage panel.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ViewVirtualAssetsStatistics, "View Virtual Assets Statistics", "Opens the Virtual Assets Statistics panel.", EUserInterfaceActionType::Button, FInputChord());
 
 	ActionList->MapAction(
 		ChangeSettings,
@@ -64,6 +65,11 @@ void FDerivedDataStatusBarMenuCommands::RegisterCommands()
 	ActionList->MapAction(
 		ViewResourceUsage,
 		FExecuteAction::CreateStatic(&FDerivedDataStatusBarMenuCommands::ViewResourceUsage_Clicked)
+	);
+
+	ActionList->MapAction(
+		ViewVirtualAssetsStatistics,
+		FExecuteAction::CreateStatic(&FDerivedDataStatusBarMenuCommands::ViewVirtualAssetsStatistics_Clicked)
 	);
 }
 
@@ -82,6 +88,12 @@ void FDerivedDataStatusBarMenuCommands::ViewResourceUsage_Clicked()
 {
 	FDerivedDataEditorModule& DerivedDataEditorModule = FModuleManager::LoadModuleChecked<FDerivedDataEditorModule>("DerivedDataEditor");
 	DerivedDataEditorModule.ShowResourceUsageTab();
+}
+
+void FDerivedDataStatusBarMenuCommands::ViewVirtualAssetsStatistics_Clicked()
+{
+	FDerivedDataEditorModule& DerivedDataEditorModule = FModuleManager::LoadModuleChecked<FDerivedDataEditorModule>("DerivedDataEditor");
+	DerivedDataEditorModule.ShowVirtualAssetsStatisticsTab();
 }
 
 TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
@@ -114,6 +126,13 @@ TSharedRef<SWidget> SDerivedDataStatusBarWidget::CreateStatusBarMenu()
 			TAttribute<FText>(),
 			TAttribute<FText>(),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.ResourceUsage")
+		);
+
+		Section.AddMenuEntry(
+			FDerivedDataStatusBarMenuCommands::Get().ViewVirtualAssetsStatistics,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "DerivedData.Cache.Statistics")
 		);
 	}
 

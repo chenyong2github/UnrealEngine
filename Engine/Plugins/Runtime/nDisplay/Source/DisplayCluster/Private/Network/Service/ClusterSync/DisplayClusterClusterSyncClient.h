@@ -11,7 +11,7 @@
  * Cluster synchronization TCP client
  */
 class FDisplayClusterClusterSyncClient
-	: public FDisplayClusterClient<FDisplayClusterPacketInternal, true>
+	: public FDisplayClusterClient<FDisplayClusterPacketInternal>
 	, public IDisplayClusterProtocolClusterSync
 {
 public:
@@ -20,13 +20,19 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterClient
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool Connect(const FString& Address, const uint16 Port, const uint32 ConnectRetriesAmount, const uint32 ConnectRetryDelay) override;
+
+public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForGameStart() override;
-	virtual void WaitForFrameStart() override;
-	virtual void WaitForFrameEnd() override;
-	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override;
-	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
-	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) override;
+	virtual EDisplayClusterCommResult WaitForGameStart() override;
+	virtual EDisplayClusterCommResult WaitForFrameStart() override;
+	virtual EDisplayClusterCommResult WaitForFrameEnd() override;
+	virtual EDisplayClusterCommResult GetTimeData(double& OutDeltaTime, double& OutGameTime, TOptional<FQualifiedFrameTime>& OutFrameTime) override;
+	virtual EDisplayClusterCommResult GetObjectsData(const EDisplayClusterSyncGroup InSyncGroup, TMap<FString, FString>& OutObjectsData) override;
+	virtual EDisplayClusterCommResult GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& OutJsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& OutBinaryEvents) override;
+	virtual EDisplayClusterCommResult GetNativeInputData(TMap<FString, FString>& OutNativeInputData) override;
 };

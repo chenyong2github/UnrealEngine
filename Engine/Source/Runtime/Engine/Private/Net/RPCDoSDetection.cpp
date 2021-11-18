@@ -340,6 +340,11 @@ void FRPCDoSDetection::Init(FName NetDriverName, TSharedPtr<FNetAnalyticsAggrega
 
 	InitState(CurSeconds);
 
+	if (bRPCDoSAnalytics)
+	{
+		FPlatformTime::AutoUpdateGameThreadCPUTime(0.25);
+	}
+
 	// NetConnection's are created mid-TickDispatch, when this is initialized.
 	PreTickDispatch(CurSeconds);
 }
@@ -918,7 +923,12 @@ void FRPCDoSDetection::PostSequentialRPC(EPostSequentialRPCType SequenceType, do
 		if (RawAnalyticsEntry != nullptr)
 		{
 			RawAnalyticsEntry->MaxCountPerSec = FMath::Max(RawAnalyticsEntry->MaxCountPerSec, RPCCounter->RPCCounter);
-			RawAnalyticsEntry->MaxTimePerSec = FMath::Max(RawAnalyticsEntry->MaxTimePerSec, RPCCounter->AccumRPCTime);
+
+			if (RPCCounter->AccumRPCTime > RawAnalyticsEntry->MaxTimePerSec)
+			{
+				RawAnalyticsEntry->MaxTimePerSec = RPCCounter->AccumRPCTime;
+				RawAnalyticsEntry->MaxTimeGameThreadCPU = static_cast<uint8>(FPlatformTime::GetThreadCPUTime().CPUTimePctRelative);
+			}
 
 			if (RPCTrackingInfo->BlockState == ERPCBlockState::Blocked)
 			{
@@ -933,6 +943,7 @@ void FRPCDoSDetection::PostSequentialRPC(EPostSequentialRPCType SequenceType, do
 				{
 					RawAnalyticsEntry->MaxSinglePacketRPCTime = PacketProcessTime;
 					RawAnalyticsEntry->SinglePacketRPCCount = ReceivedPacketRPCCount;
+					RawAnalyticsEntry->SinglePacketGameThreadCPU = static_cast<uint8>(FPlatformTime::GetThreadCPUTime().CPUTimePctRelative);
 				}
 			}
 		}

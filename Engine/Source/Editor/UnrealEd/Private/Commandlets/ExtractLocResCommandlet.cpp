@@ -102,7 +102,7 @@ int32 UExtractLocResCommandlet::Main(const FString& Params)
 			LocResCSV += TEXT(",");
 			LocResCSV += FString::Printf(TEXT("0x%08x"), LocResEntryPair.Value.SourceStringHash);
 			LocResCSV += TEXT(",");
-			WriteCSVStringValue(LocResEntryPair.Value.LocalizedString);
+			WriteCSVStringValue(*LocResEntryPair.Value.LocalizedString);
 			LocResCSV += TEXT("\n");
 		}
 

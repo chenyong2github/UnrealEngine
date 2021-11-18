@@ -49,18 +49,12 @@ private:
 
 inline bool DoesPlatformSupportVolumetricFog(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5
-		|| Platform == SP_METAL_SM5
-		|| IsVulkanSM5Platform(Platform)
-		|| FDataDrivenShaderPlatformInfo::GetSupportsVolumetricFog(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsVolumetricFog(Platform);
 }
 
 inline bool DoesPlatformSupportVolumetricFogVoxelization(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5
-		|| Platform == SP_METAL_SM5
-		|| IsVulkanSM5Platform(Platform)
-		|| FDataDrivenShaderPlatformInfo::GetSupportsVolumetricFog(Platform);
+	return DoesPlatformSupportVolumetricFog(Platform);
 }
 
 extern bool ShouldRenderVolumetricFog(const FScene* Scene, const FSceneViewFamily& ViewFamily);

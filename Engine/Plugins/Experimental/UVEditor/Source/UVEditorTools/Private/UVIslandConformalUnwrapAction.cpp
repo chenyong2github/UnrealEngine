@@ -59,7 +59,8 @@ void UUVIslandConformalUnwrapAction::SetSelection(int32 SelectionTargetIndexIn, 
 
 bool UUVIslandConformalUnwrapAction::PreCheckAction() 
 {
-	if (!CurrentSelection || CurrentSelection->Type != FDynamicMeshSelection::EType::Triangle)
+	if (!CurrentSelection || CurrentSelection->Type != FDynamicMeshSelection::EType::Triangle
+		|| CurrentSelection->Mesh == nullptr || SelectionTargetIndex == INDEX_NONE)
 	{
 		return false;
 	}

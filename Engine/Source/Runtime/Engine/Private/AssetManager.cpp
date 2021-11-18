@@ -264,6 +264,7 @@ UAssetManager::UAssetManager()
 	bShouldUseSynchronousLoad = false;
 	bIsLoadingFromPakFiles = false;
 	bShouldAcquireMissingChunksOnLoad = false;
+	bTargetPlatformsAllowEditorObjects = false;
 	NumBulkScanRequests = 0;
 	bIsManagementDatabaseCurrent = false;
 	bIsPrimaryAssetDirectoryCurrent = false;
@@ -3835,8 +3836,38 @@ void UAssetManager::ApplyPrimaryAssetLabels()
 	// PostLoad in PrimaryAssetLabel sets PrimaryAssetRules overrides
 }
 
+void UAssetManager::ModifyCook(TConstArrayView<const ITargetPlatform*> TargetPlatforms, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	DeprecationSupportTargetPlatforms = TargetPlatforms;
+	ModifyCook(PackagesToCook, PackagesToNeverCook);
+	DeprecationSupportTargetPlatforms = TConstArrayView<const ITargetPlatform*>();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
 void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	TConstArrayView<const ITargetPlatform*> TargetPlatforms = DeprecationSupportTargetPlatforms;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+
+	check(TargetPlatforms.Num() > 0);
+	bTargetPlatformsAllowEditorObjects = TargetPlatforms[0]->AllowsEditorObjects();
+	for (const ITargetPlatform* TargetPlatform : TargetPlatforms.Slice(1,TargetPlatforms.Num() - 1))
+	{
+		if (TargetPlatform->AllowsEditorObjects() != bTargetPlatformsAllowEditorObjects)
+		{
+			const ITargetPlatform* PlatformThatDoesNotAllow =
+				bTargetPlatformsAllowEditorObjects ? TargetPlatform : TargetPlatforms[0];
+			UE_LOG(LogAssetManager, Error,
+				TEXT("Cooking platform %s and %s in a single cook is not supported, because they have different values for AllowsEditorObjects. ")
+				TEXT("This cook session will use AllowsEditorObjects = true, which will add packages to platform % s that should not be present."),
+				*TargetPlatforms[0]->PlatformName(), *TargetPlatform->PlatformName(),
+				*PlatformThatDoesNotAllow->PlatformName());
+			bTargetPlatformsAllowEditorObjects = true;
+			break;
+		}
+	}
 	// Make sure management database is set up
 	UpdateManagementDatabase();
 
@@ -3901,8 +3932,22 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 	}
 }
 
+void UAssetManager::ModifyDLCCook(const FString& DLCName, TConstArrayView<const ITargetPlatform*> TargetPlatforms,
+	TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	DeprecationSupportTargetPlatforms = TargetPlatforms;
+	ModifyDLCCook(DLCName, PackagesToCook, PackagesToNeverCook);
+	DeprecationSupportTargetPlatforms = TConstArrayView<const ITargetPlatform*>();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+}
+
 void UAssetManager::ModifyDLCCook(const FString& DLCName, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	TConstArrayView<const ITargetPlatform*> TargetPlatforms = DeprecationSupportTargetPlatforms;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+
 	UE_LOG(LogAssetManager, Display, TEXT("ModifyDLCCook: Scanning Plugin Directory %s for assets, and adding them to the cook list"), *DLCName);
 	FString DLCPath;
 	FString ExternalMountPointName;
@@ -3970,6 +4015,24 @@ EPrimaryAssetCookRule UAssetManager::GetPackageCookRule(FName PackageName) const
 	return BestRules.CookRule;
 }
 
+static FString GetInstigatorChainString(UE::Cook::ICookInfo* CookInfo, FName PackageName)
+{
+	if (!CookInfo)
+	{
+		return FString(TEXT("<NoCookInfo>"));
+	}
+	TArray<UE::Cook::FInstigator> Chain = CookInfo->GetInstigatorChain(PackageName);
+	TStringBuilder<1024> Result;
+	bool bFirst = true;
+	for (const UE::Cook::FInstigator& Instigator : Chain)
+	{
+		Result << (bFirst ? TEXT("") : TEXT(" <- "));
+		bFirst = false;
+		Result << TEXT("{ ") << Instigator.ToString() << TEXT(" }");
+	}
+	return FString(Result);
+};
+
 bool UAssetManager::VerifyCanCookPackage(UE::Cook::ICookInfo* CookInfo, FName PackageName, bool bLogError) const
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
@@ -3991,26 +4054,22 @@ bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) cons
 	{
 		if (bLogError)
 		{
-			UE_LOG(LogAssetManager, Error, TEXT("Package %s is set to NeverCook, but something is trying to cook it! Instigator: { %s }"),
-				*PackageName.ToString(), CookInfo ? *CookInfo->GetInstigator(PackageName).ToString() : TEXT("<NoCookInfo>"));
+			UE_LOG(LogAssetManager, Error, TEXT("Package %s is set to NeverCook, but something is trying to cook it! Instigators: %s"),
+				*PackageName.ToString(), *GetInstigatorChainString(CookInfo, PackageName));
 		}
 		
 		bRetVal = false;
 	}
-	else if ((CookRule == EPrimaryAssetCookRule::DevelopmentCook || CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysCook) && bOnlyCookProductionAssets)
+	else if ((CookRule == EPrimaryAssetCookRule::DevelopmentCook || CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysCook)
+		&& bOnlyCookProductionAssets && !bTargetPlatformsAllowEditorObjects)
 	{
 		if (bLogError)
 		{
-			UE_LOG(LogAssetManager, Warning, TEXT("Package %s is set to Development, but bOnlyCookProductionAssets is true! Instigator: { %s }"),
-				*PackageName.ToString(), CookInfo ? *CookInfo->GetInstigator(PackageName).ToString() : TEXT("<NoCookInfo>"));
+			UE_LOG(LogAssetManager, Warning, TEXT("Package %s is set to Development, but bOnlyCookProductionAssets is true! Instigators: %s"),
+				*PackageName.ToString(), *GetInstigatorChainString(CookInfo, PackageName));
 		}
 
 		bRetVal = false;
-	}
-	else if (CookInfo)
-	{
-		UE_LOG(LogAssetManager, Verbose, TEXT("Cooking package %s with instigator { %s }."),
-			*PackageName.ToString(), *CookInfo->GetInstigator(PackageName).ToString());
 	}
 
 	if (!bRetVal && bLogError)

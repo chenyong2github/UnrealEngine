@@ -429,7 +429,8 @@ void BeginInitGameTextLocalization()
 		FTextLocalizationManager::Get().LoadLocalizationResourcesForCulture(FInternationalization::Get().GetCurrentLanguage()->GetName(), LocLoadFlags);
 		FTextLocalizationManager::Get().InitializedFlags = (InitializedFlags & ~ETextLocalizationManagerInitializedFlags::Initializing) | ETextLocalizationManagerInitializedFlags::Game;
 		//FTextLocalizationManager::Get().DumpMemoryInfo();
-		FTextLocalizationManager::Get().CompactDataStructures();
+		//Worse when Compacting because we remove growth space and force new growth space to be reallocated the next time an entry is added which is going to be bigger than what we removed anyway...
+		//FTextLocalizationManager::Get().CompactDataStructures();
 		//FTextLocalizationManager::Get().DumpMemoryInfo();
 	};
 	if (FTaskGraphInterface::IsRunning())
@@ -479,24 +480,24 @@ FTextLocalizationManager::FTextLocalizationManager()
 	RegisterTextSource(PolyglotTextSource.ToSharedRef(), bRefreshResources);
 }
 
-void FTextLocalizationManager::DumpMemoryInfo()
+void FTextLocalizationManager::DumpMemoryInfo() const
 {
 	FScopeLock ScopeLock(&SynchronizationObject);
 
 	UE_LOG(LogTextLocalizationManager, Log, TEXT("DisplayStringLookupTable.GetAllocatedSize()=%d elems=%d"), DisplayStringLookupTable.GetAllocatedSize(), DisplayStringLookupTable.Num());
-
-	UE_LOG(LogTextLocalizationManager, Log, TEXT("NamespaceKeyLookupTable.GetAllocatedSize()=%d elems=%d"), NamespaceKeyLookupTable.GetAllocatedSize(), NamespaceKeyLookupTable.Num());
 
 	UE_LOG(LogTextLocalizationManager, Log, TEXT("LocalTextRevisions.GetAllocatedSize()=%d elems=%d"), LocalTextRevisions.GetAllocatedSize(), LocalTextRevisions.Num());
 }
 
 void FTextLocalizationManager::CompactDataStructures()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::CompactDataStructures);
+	LLM_SCOPE(ELLMTag::Localization);
+
 	FScopeLock ScopeLock(&SynchronizationObject);
 	double StartTime = FPlatformTime::Seconds();
 	DisplayStringLookupTable.Shrink();
 	LocalTextRevisions.Shrink();
-	NamespaceKeyLookupTable.Shrink();
 	FTextKey::CompactDataStructures();
 	UE_LOG(LogTextLocalizationManager, Log, TEXT("Compacting localization data took %6.2fms"), 1000.0 * (FPlatformTime::Seconds() - StartTime));
 }
@@ -536,6 +537,14 @@ TArray<FString> FTextLocalizationManager::GetLocalizedCultureNames(const ELocali
 
 	TArray<FString> LocalizedCultureNames = LocalizedCultureNameSet.Array();
 	LocalizedCultureNames.Sort();
+
+	// Remove any cultures that were explicitly disallowed
+	FInternationalization& I18N = FInternationalization::Get();
+	LocalizedCultureNames.RemoveAll([&I18N](const FString& InCultureName)
+	{
+		return !I18N.IsCultureAllowed(InCultureName);
+	});
+	
 	return LocalizedCultureNames;
 }
 
@@ -638,13 +647,13 @@ void FTextLocalizationManager::RegisterPolyglotTextData(TArrayView<const FPolygl
 	}
 }
 
-FTextDisplayStringPtr FTextLocalizationManager::FindDisplayString(const FTextKey& Namespace, const FTextKey& Key, const FString* const SourceString)
+FTextConstDisplayStringPtr FTextLocalizationManager::FindDisplayString(const FTextKey& Namespace, const FTextKey& Key, const FString* const SourceString) const
 {
 	FScopeLock ScopeLock( &SynchronizationObject );
 
 	const FTextId TextId(Namespace, Key);
 
-	FDisplayStringEntry* LiveEntry = DisplayStringLookupTable.Find(TextId);
+	const FDisplayStringEntry* LiveEntry = DisplayStringLookupTable.Find(TextId);
 
 	if ( LiveEntry != nullptr && ( !SourceString || LiveEntry->SourceStringHash == FTextLocalizationResource::HashString(*SourceString) ) )
 	{
@@ -654,8 +663,11 @@ FTextDisplayStringPtr FTextLocalizationManager::FindDisplayString(const FTextKey
 	return nullptr;
 }
 
-FTextDisplayStringRef FTextLocalizationManager::GetDisplayString(const FTextKey& Namespace, const FTextKey& Key, const FString* const SourceString)
+FTextConstDisplayStringRef FTextLocalizationManager::GetDisplayString(const FTextKey& Namespace, const FTextKey& Key, const FString* const SourceString)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::GetDisplayString);
+	LLM_SCOPE(ELLMTag::Localization);
+
 	FScopeLock ScopeLock( &SynchronizationObject );
 
 	// Hack fix for old assets that don't have namespace/key info.
@@ -686,24 +698,26 @@ FTextDisplayStringRef FTextLocalizationManager::GetDisplayString(const FTextKey&
 	FDisplayStringEntry* LiveEntry = DisplayStringLookupTable.Find(TextId);
 
 	// In builds with stable keys enabled, we want to use the display string from the "clean" version of the text (if the sources match) as this is the only version that is translated
-	const FString* DisplayString = SourceString;
-	FDisplayStringEntry* DisplayLiveEntry = nullptr;
+	FTextConstDisplayStringPtr SourceDisplayString;
+	FDisplayStringEntry* SourceLiveEntry = nullptr;
 #if USE_STABLE_LOCALIZATION_KEYS
 	if (GIsEditor)
 	{
 		const FTextKey DisplayNamespace = TextNamespaceUtil::StripPackageNamespace(TextId.GetNamespace().GetChars());
-
-		DisplayLiveEntry = DisplayStringLookupTable.Find(FTextId(DisplayNamespace, TextId.GetKey()));
-
-		if (DisplayLiveEntry)
+		if (DisplayNamespace != TextId.GetNamespace())
 		{
-			if (!SourceString || DisplayLiveEntry->SourceStringHash == SourceStringHash)
+			SourceLiveEntry = DisplayStringLookupTable.Find(FTextId(DisplayNamespace, TextId.GetKey()));
+
+			if (SourceLiveEntry)
 			{
-				DisplayString = &DisplayLiveEntry->DisplayString.Get();
-			}
-			else
-			{
-				DisplayLiveEntry = nullptr;
+				if (!SourceString || SourceLiveEntry->SourceStringHash == SourceStringHash)
+				{
+					SourceDisplayString = SourceLiveEntry->DisplayString;
+				}
+				else
+				{
+					SourceLiveEntry = nullptr;
+				}
 			}
 		}
 	}
@@ -712,99 +726,90 @@ FTextDisplayStringRef FTextLocalizationManager::GetDisplayString(const FTextKey&
 	// Entry is present.
 	if (LiveEntry)
 	{
-		// If the source string (hash) is different, the local source has changed and should override - can't be localized.
-		if (SourceStringHash != LiveEntry->SourceStringHash && DisplayString)
+		// If the source string (hash) is different, the local source has changed and should override
+		if (SourceString && SourceStringHash != LiveEntry->SourceStringHash)
 		{
 			LiveEntry->SourceStringHash = SourceStringHash;
-			*LiveEntry->DisplayString = *DisplayString;
-			DirtyLocalRevisionForDisplayString(LiveEntry->DisplayString);
+			LiveEntry->DisplayString = SourceDisplayString ? SourceDisplayString.ToSharedRef() : MakeTextDisplayString(CopyTemp(*SourceString));
+			DirtyLocalRevisionForTextId(TextId);
 
 #if ENABLE_LOC_TESTING
-			if (bShouldLEETIFYAll || bShouldLEETIFYUnlocalizedString)
+			if ((bShouldLEETIFYAll || bShouldLEETIFYUnlocalizedString) && !LiveEntry->DisplayString->IsEmpty())
 			{
-				FInternationalization::Leetify(*LiveEntry->DisplayString);
-				if (LiveEntry->DisplayString->Equals(*DisplayString, ESearchCase::CaseSensitive))
-				{
-					UE_LOG(LogTextLocalizationManager, Warning, TEXT("Leetify failed to alter a string (%s)."), **DisplayString);
-				}
+				FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(CopyTemp(*LiveEntry->DisplayString));
+				FInternationalization::Leetify(*TmpDisplayString);
+				LiveEntry->DisplayString = TmpDisplayString;
 			}
 #endif
 
 			UE_LOG(LogTextLocalizationManager, Verbose, TEXT("An attempt was made to get a localized string (Namespace:%s, Key:%s), but the source string hash does not match - the source string (%s) will be used."), TextId.GetNamespace().GetChars(), TextId.GetKey().GetChars(), **LiveEntry->DisplayString);
-
-#if ENABLE_LOC_TESTING
-			LiveEntry->bIsLocalized = bShouldLEETIFYAll;
-#else
-			LiveEntry->bIsLocalized = false;
-#endif
 		}
 
 		return LiveEntry->DisplayString;
 	}
 	// Entry is absent, but has a related entry to clone.
-	else if (DisplayLiveEntry)
+	else if (SourceLiveEntry)
 	{
-		check(!SourceString || DisplayLiveEntry->SourceStringHash == SourceStringHash);
-		check(DisplayString && &DisplayLiveEntry->DisplayString.Get() == DisplayString);
+		TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::GetDisplayString_AddRelatedEntry);
 
-		// Clone the entry for the active ID, and assign it a new display string instance (as all entries must have a unique display string instance).
-		FDisplayStringEntry NewEntry(*DisplayLiveEntry);
-		NewEntry.DisplayString = MakeShared<FString, ESPMode::ThreadSafe>(*DisplayString);
+		check(!SourceString || SourceLiveEntry->SourceStringHash == SourceStringHash);
+		check(SourceDisplayString && SourceLiveEntry->DisplayString == SourceDisplayString);
 
+		// Clone the entry for the active ID
+		FDisplayStringEntry NewEntry(*SourceLiveEntry);
 		DisplayStringLookupTable.Emplace(TextId, NewEntry);
-		NamespaceKeyLookupTable.Emplace(NewEntry.DisplayString, TextId);
 
 		return NewEntry.DisplayString;
 	}
 	// Entry is absent.
 	else
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::GetDisplayString_AddNewEntry);
+
 		// Don't log warnings about unlocalized strings if the system hasn't been initialized - we simply don't have localization data yet.
 		if (IsInitialized())
 		{
 			UE_LOG(LogTextLocalizationManager, Verbose, TEXT("An attempt was made to get a localized string (Namespace:%s, Key:%s, Source:%s), but it did not exist."), TextId.GetNamespace().GetChars(), TextId.GetKey().GetChars(), SourceString ? **SourceString : TEXT(""));
 		}
 
-		const FTextDisplayStringRef UnlocalizedString = MakeShared<FString, ESPMode::ThreadSafe>(DisplayString ? *DisplayString : FString());
+		auto GetEmptyDisplayString = []()
+		{
+			static const FTextConstDisplayStringRef EmptyDisplayString = MakeTextDisplayString(FString());
+			return EmptyDisplayString;
+		};
+		
+		FTextConstDisplayStringRef UnlocalizedString = SourceString ? MakeTextDisplayString(CopyTemp(*SourceString)) : GetEmptyDisplayString();
 
 #if ENABLE_LOC_TESTING
-		if ((bShouldLEETIFYAll || bShouldLEETIFYUnlocalizedString) && DisplayString)
+		if ((bShouldLEETIFYAll || bShouldLEETIFYUnlocalizedString) && !UnlocalizedString->IsEmpty())
 		{
-			FInternationalization::Leetify(*UnlocalizedString);
-			if (UnlocalizedString->Equals(*DisplayString, ESearchCase::CaseSensitive))
-			{
-				UE_LOG(LogTextLocalizationManager, Warning, TEXT("Leetify failed to alter a string (%s)."), **DisplayString);
-			}
+			FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(CopyTemp(*UnlocalizedString));
+			FInternationalization::Leetify(*TmpDisplayString);
+			UnlocalizedString = TmpDisplayString;
 		}
 #endif
 
 		// Make entries so that they can be updated when system is initialized or a culture swap occurs.
 		FDisplayStringEntry NewEntry(
-#if ENABLE_LOC_TESTING
-			bShouldLEETIFYAll					/*bIsLocalized*/
-#else
-			false								/*bIsLocalized*/
-#endif
-			, FTextKey()						/*LocResID*/
-			, SourceStringHash					/*SourceStringHash*/
-			, UnlocalizedString					/*String*/
+			FTextKey(),					/*LocResID*/
+			SourceStringHash,			/*SourceStringHash*/
+			UnlocalizedString			/*String*/
 		);
 
 		DisplayStringLookupTable.Emplace(TextId, NewEntry);
-		NamespaceKeyLookupTable.Emplace(NewEntry.DisplayString, TextId);
 
 		return UnlocalizedString;
 	}
 }
 
 #if WITH_EDITORONLY_DATA
-bool FTextLocalizationManager::GetLocResID(const FTextKey& Namespace, const FTextKey& Key, FString& OutLocResId)
+bool FTextLocalizationManager::GetLocResID(const FTextKey& Namespace, const FTextKey& Key, FString& OutLocResId) const
 {
 	FScopeLock ScopeLock(&SynchronizationObject);
 
 	const FTextId TextId(Namespace, Key);
 
-	FDisplayStringEntry* LiveEntry = DisplayStringLookupTable.Find(TextId);
+	const FDisplayStringEntry* LiveEntry = DisplayStringLookupTable.Find(TextId);
 
 	if (LiveEntry != nullptr && !LiveEntry->LocResID.IsEmpty())
 	{
@@ -816,108 +821,39 @@ bool FTextLocalizationManager::GetLocResID(const FTextKey& Namespace, const FTex
 }
 #endif
 
-bool FTextLocalizationManager::FindNamespaceAndKeyFromDisplayString(const FTextDisplayStringRef& InDisplayString, FString& OutNamespace, FString& OutKey)
+uint16 FTextLocalizationManager::GetLocalRevisionForTextId(const FTextId& InTextId) const
 {
-	FScopeLock ScopeLock( &SynchronizationObject );
-
-	const FTextId* NamespaceKeyEntry = NamespaceKeyLookupTable.Find(InDisplayString);
-
-	if (NamespaceKeyEntry)
+	if (!InTextId.IsEmpty())
 	{
-		OutNamespace = NamespaceKeyEntry->GetNamespace().GetChars();
-		OutKey = NamespaceKeyEntry->GetKey().GetChars();
-		return true;
+		FScopeLock ScopeLock(&SynchronizationObject);
+		if (const uint16* FoundLocalRevision = LocalTextRevisions.Find(InTextId))
+		{
+			return *FoundLocalRevision;
+		}
 	}
-
-	return false;
-}
-
-bool FTextLocalizationManager::FindNamespaceAndKeyFromDisplayString(const FTextDisplayStringRef& InDisplayString, FTextKey& OutNamespace, FTextKey& OutKey)
-{
-	FScopeLock ScopeLock(&SynchronizationObject);
-
-	const FTextId* NamespaceKeyEntry = NamespaceKeyLookupTable.Find(InDisplayString);
-
-	if (NamespaceKeyEntry)
-	{
-		OutNamespace = NamespaceKeyEntry->GetNamespace();
-		OutKey = NamespaceKeyEntry->GetKey();
-		return true;
-	}
-
-	return false;
-}
-
-uint16 FTextLocalizationManager::GetLocalRevisionForDisplayString(const FTextDisplayStringRef& InDisplayString)
-{
-	FScopeLock ScopeLock( &SynchronizationObject );
-
-	uint16* FoundLocalRevision = LocalTextRevisions.Find(InDisplayString);
-	return (FoundLocalRevision) ? *FoundLocalRevision : 0;
+	return 0;
 }
 
 bool FTextLocalizationManager::AddDisplayString(const FTextDisplayStringRef& DisplayString, const FTextKey& Namespace, const FTextKey& Key)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::AddDisplayString);
+	LLM_SCOPE(ELLMTag::Localization);
+
 	FScopeLock ScopeLock( &SynchronizationObject );
 
 	const FTextId TextId(Namespace, Key);
 
-	// Try to find existing entries.
-	const FTextId* ReverseLiveTableEntry = NamespaceKeyLookupTable.Find(DisplayString);
+	// Try to find existing entry.
 	FDisplayStringEntry* ExistingDisplayStringEntry = DisplayStringLookupTable.Find(TextId);
 
-	// If there are any existing entries, they may cause a conflict, unless they're exactly the same as what we would be adding.
-	if ( (ExistingDisplayStringEntry && ExistingDisplayStringEntry->DisplayString != DisplayString) || // Namespace and key mustn't be associated with a different display string.
-		(ReverseLiveTableEntry && *ReverseLiveTableEntry != TextId) ) // Display string mustn't be associated with a different namespace and key.
+	// If there are any existing entry, they may cause a conflict, unless they're exactly the same as what we would be adding.
+	if (ExistingDisplayStringEntry && ExistingDisplayStringEntry->DisplayString != DisplayString) // Namespace and key mustn't be associated with a different display string.
 	{
 		return false;
 	}
 
-	// Add the necessary associations in both directions.
-	DisplayStringLookupTable.Emplace(TextId, FDisplayStringEntry(false, FTextKey(), FTextLocalizationResource::HashString(*DisplayString), DisplayString));
-	NamespaceKeyLookupTable.Emplace(DisplayString, TextId);
-
-	return true;
-}
-
-bool FTextLocalizationManager::UpdateDisplayString(const FTextDisplayStringRef& DisplayString, const FString& Value, const FTextKey& Namespace, const FTextKey& Key)
-{
-	FScopeLock ScopeLock( &SynchronizationObject );
-
-	// Get entry from reverse live table. Contains current namespace and key values.
-	FTextId& ReverseLiveTableEntry = NamespaceKeyLookupTable[DisplayString];
-
-	const FTextId TextId(Namespace, Key);
-
-	// Copy old live table entry over as new live table entry and destroy old live table entry if the namespace or key has changed.
-	if (ReverseLiveTableEntry != TextId)
-	{
-		FDisplayStringEntry* NewDisplayStringEntry = DisplayStringLookupTable.Find(TextId);
-		if (NewDisplayStringEntry)
-		{
-			// Can not update, that namespace and key combination is already in use by another string.
-			return false;
-		}
-		else
-		{
-			// Get old namespace keys table and old live table entry under old key.
-			FDisplayStringEntry* OldDisplayStringEntry = DisplayStringLookupTable.Find(ReverseLiveTableEntry);
-
-			// Copy old live table entry to new key in the new namespace key table.
-			check(OldDisplayStringEntry);
-			DisplayStringLookupTable.Emplace(TextId, *OldDisplayStringEntry);
-
-			// Remove old live table entry and old key in the old namespace key table.
-			DisplayStringLookupTable.Remove(ReverseLiveTableEntry);
-		}
-	}
-
-	// Update display string value.
-	*DisplayString = Value;
-	DirtyLocalRevisionForDisplayString(DisplayString);
-
-	// Update entry from reverse live table.
-	ReverseLiveTableEntry = TextId;
+	// Add the necessary association.
+	DisplayStringLookupTable.Emplace(TextId, FDisplayStringEntry(FTextKey(), FTextLocalizationResource::HashString(*DisplayString), DisplayString));
 
 	return true;
 }
@@ -1177,9 +1113,14 @@ void FTextLocalizationManager::LoadLocalizationResourcesForPrioritizedCultures(T
 			for (auto& DisplayStringPair : DisplayStringLookupTable)
 			{
 				FDisplayStringEntry& LiveEntry = DisplayStringPair.Value;
-				LiveEntry.bIsLocalized = true;
-				LiveEntry.NativeStringBackup = *LiveEntry.DisplayString;
-				FInternationalization::Leetify(*LiveEntry.DisplayString);
+				LiveEntry.NativeStringBackup = LiveEntry.DisplayString;
+				
+				if (!LiveEntry.DisplayString->IsEmpty())
+				{
+					FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(CopyTemp(*LiveEntry.DisplayString));
+					FInternationalization::Leetify(*TmpDisplayString);
+					LiveEntry.DisplayString = TmpDisplayString;
+				}
 			}
 		}
 	}
@@ -1198,12 +1139,14 @@ void FTextLocalizationManager::LoadLocalizationResourcesForPrioritizedCultures(T
 
 void FTextLocalizationManager::UpdateFromNative(FTextLocalizationResource&& TextLocalizationResource, const bool bDirtyTextRevision)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::UpdateFromNative);
+	LLM_SCOPE(ELLMTag::Localization);
+
 	// Lock while updating the tables
 	{
 		FScopeLock ScopeLock(&SynchronizationObject);
 
 		DisplayStringLookupTable.Reserve(TextLocalizationResource.Entries.Num());
-		NamespaceKeyLookupTable.Reserve(TextLocalizationResource.Entries.Num());
 
 		// Add/update entries
 		// Note: This code doesn't handle "leet-ification" itself as it is resetting everything to a known "good" state ("leet-ification" happens later on the "good" native text)
@@ -1219,12 +1162,11 @@ void FTextLocalizationManager::UpdateFromNative(FTextLocalizationResource&& Text
 				// If the existing entry is empty, we just overwrite it 
 				if ((LiveEntry->SourceStringHash == NewEntry.SourceStringHash) || LiveEntry->IsEmpty())
 				{
-					LiveEntry->bIsLocalized = true;
 					// this is to account for the case where the LiveString is empty and we are overwriting the value 
 					// we could do an if check, but copying an int is cheaper 
 					LiveEntry->SourceStringHash = NewEntry.SourceStringHash;
 					// There is no good way to copy over the NativeBackupString. We disregard it as it is only for testing 
-					*LiveEntry->DisplayString = MoveTemp(NewEntry.LocalizedString);
+					LiveEntry->DisplayString = NewEntry.LocalizedString.ToSharedRef();
 #if WITH_EDITORONLY_DATA
 					LiveEntry->LocResID = NewEntry.LocResID;
 #endif	// WITH_EDITORONLY_DATA
@@ -1237,14 +1179,12 @@ void FTextLocalizationManager::UpdateFromNative(FTextLocalizationResource&& Text
 			{
 				// Add new entry
 				FDisplayStringEntry NewLiveEntry(
-					true,																			/*bIsLocalized*/
-					NewEntry.LocResID,																/*LocResID*/
-					NewEntry.SourceStringHash,														/*SourceStringHash*/
-					MakeShared<FString, ESPMode::ThreadSafe>(MoveTemp(NewEntry.LocalizedString))	/*String*/
+					NewEntry.LocResID,						/*LocResID*/
+					NewEntry.SourceStringHash,				/*SourceStringHash*/
+					NewEntry.LocalizedString.ToSharedRef()	/*String*/
 				);
 
 				DisplayStringLookupTable.Emplace(TextId, NewLiveEntry);
-				NamespaceKeyLookupTable.Emplace(NewLiveEntry.DisplayString, TextId);
 			}
 		}
 
@@ -1261,19 +1201,18 @@ void FTextLocalizationManager::UpdateFromNative(FTextLocalizationResource&& Text
 			// In builds with stable keys enabled, we have to update the display strings from the "clean" version of the text (if the sources match) as this is the only version that is translated
 			if (GIsEditor)
 			{
-				const FString LiveNamespace = DisplayStringPair.Key.GetNamespace().GetChars();
-				const FString DisplayNamespace = TextNamespaceUtil::StripPackageNamespace(LiveNamespace);
-				if (!LiveNamespace.Equals(DisplayNamespace, ESearchCase::CaseSensitive))
+				const FTextKey LiveNamespace = DisplayStringPair.Key.GetNamespace();
+				const FTextKey DisplayNamespace = TextNamespaceUtil::StripPackageNamespace(LiveNamespace.GetChars());
+				if (LiveNamespace != DisplayNamespace)
 				{
 					const FDisplayStringEntry* DisplayStringEntry = DisplayStringLookupTable.Find(FTextId(DisplayNamespace, DisplayStringPair.Key.GetKey()));
 					if (DisplayStringEntry && ((LiveEntry.SourceStringHash == DisplayStringEntry->SourceStringHash) || LiveEntry.IsEmpty()))
 					{
-						LiveEntry.bIsLocalized = true;
 						// this is to account for the case where the LiveString is empty and we are overwriting the value 
-					// we could do an if check, but copying an int is cheaper 
+						// we could do an if check, but copying an int is cheaper 
 						LiveEntry.SourceStringHash = DisplayStringEntry->SourceStringHash;
 						// There is no good way to copy over the NativeBackupString. We disregard it as it is only for testing 
-						*LiveEntry.DisplayString = *DisplayStringEntry->DisplayString;
+						LiveEntry.DisplayString = DisplayStringEntry->DisplayString;
 #if WITH_EDITORONLY_DATA
 						LiveEntry.LocResID = DisplayStringEntry->LocResID;
 #endif	// WITH_EDITORONLY_DATA
@@ -1287,10 +1226,9 @@ void FTextLocalizationManager::UpdateFromNative(FTextLocalizationResource&& Text
 
 #if ENABLE_LOC_TESTING
 			// Restore the pre-leet state (if any)
-			if (!LiveEntry.NativeStringBackup.IsEmpty())
+			if (LiveEntry.NativeStringBackup)
 			{
-				LiveEntry.bIsLocalized = false;
-				*LiveEntry.DisplayString = MoveTemp(LiveEntry.NativeStringBackup);
+				LiveEntry.DisplayString = LiveEntry.NativeStringBackup.ToSharedRef();
 				LiveEntry.NativeStringBackup.Reset();
 #if WITH_EDITORONLY_DATA
 				LiveEntry.LocResID = FTextKey();
@@ -1309,6 +1247,9 @@ void FTextLocalizationManager::UpdateFromNative(FTextLocalizationResource&& Text
 
 void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource&& TextLocalizationResource, const bool bDirtyTextRevision)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::UpdateFromLocalizations);
+	LLM_SCOPE(ELLMTag::Localization);
+
 	static const bool bShouldLEETIFYUnlocalizedString = FParse::Param(FCommandLine::Get(), TEXT("LEETIFYUnlocalized"));
 
 	// Lock while updating the tables
@@ -1316,7 +1257,6 @@ void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource
 		FScopeLock ScopeLock(&SynchronizationObject);
 
 		DisplayStringLookupTable.Reserve(TextLocalizationResource.Entries.Num());
-		NamespaceKeyLookupTable.Reserve(TextLocalizationResource.Entries.Num());
 
 		// Add/update entries
 		for (auto& EntryPair : TextLocalizationResource.Entries)
@@ -1333,21 +1273,21 @@ void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource
 				// Alternatively, if the display string is empty, we can just overwrite the data.
 				if ((LiveEntry->SourceStringHash == NewEntry.SourceStringHash) || LiveEntry->IsEmpty())
 				{
-					LiveEntry->bIsLocalized = true;
 					// this is to account for the case where the LiveString is empty and we are overwriting the value 
 					// we could do an if check, but copying an int is cheaper 
 					LiveEntry->SourceStringHash = NewEntry.SourceStringHash;
 					// @TODO: Currently no way to copy over the NativeBackupString
-					*LiveEntry->DisplayString = MoveTemp(NewEntry.LocalizedString);
+					LiveEntry->DisplayString = NewEntry.LocalizedString.ToSharedRef();
 #if WITH_EDITORONLY_DATA
 					LiveEntry->LocResID = NewEntry.LocResID;
 #endif	// WITH_EDITORONLY_DATA
 				}
 #if ENABLE_LOC_TESTING
-				else if (bShouldLEETIFYUnlocalizedString)
+				else if (bShouldLEETIFYUnlocalizedString && !LiveEntry->DisplayString->IsEmpty())
 				{
-					LiveEntry->bIsLocalized = false;
-					FInternationalization::Leetify(*LiveEntry->DisplayString);
+					FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(CopyTemp(*LiveEntry->DisplayString));
+					FInternationalization::Leetify(*TmpDisplayString);
+					LiveEntry->DisplayString = TmpDisplayString;
 #if WITH_EDITORONLY_DATA
 					LiveEntry->LocResID = FTextKey();
 #endif	// WITH_EDITORONLY_DATA
@@ -1358,14 +1298,12 @@ void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource
 			{
 				// Add new entry
 				FDisplayStringEntry NewLiveEntry(
-					true,																			/*bIsLocalized*/
-					NewEntry.LocResID,																/*LocResID*/
-					NewEntry.SourceStringHash,														/*SourceStringHash*/
-					MakeShared<FString, ESPMode::ThreadSafe>(MoveTemp(NewEntry.LocalizedString))	/*String*/
+					NewEntry.LocResID,						/*LocResID*/
+					NewEntry.SourceStringHash,				/*SourceStringHash*/
+					NewEntry.LocalizedString.ToSharedRef()	/*String*/
 				);
 
 				DisplayStringLookupTable.Emplace(TextId, NewLiveEntry);
-				NamespaceKeyLookupTable.Emplace(NewLiveEntry.DisplayString, TextId);
 			}
 		}
 
@@ -1381,9 +1319,9 @@ void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource
 				FDisplayStringEntry& LiveEntry = DisplayStringPair.Value;
 
 				// In builds with stable keys enabled, we have to update the display strings from the "clean" version of the text (if the sources match) as this is the only version that is translated
-				const FString LiveNamespace = DisplayStringPair.Key.GetNamespace().GetChars();
-				const FString DisplayNamespace = TextNamespaceUtil::StripPackageNamespace(LiveNamespace);
-				if (!LiveNamespace.Equals(DisplayNamespace, ESearchCase::CaseSensitive))
+				const FTextKey LiveNamespace = DisplayStringPair.Key.GetNamespace();
+				const FTextKey DisplayNamespace = TextNamespaceUtil::StripPackageNamespace(LiveNamespace.GetChars());
+				if (LiveNamespace != DisplayNamespace)
 				{
 					const FDisplayStringEntry* DisplayStringEntry = DisplayStringLookupTable.Find(FTextId(DisplayNamespace, DisplayStringPair.Key.GetKey()));
 
@@ -1391,21 +1329,21 @@ void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource
 					// Otherwise, it would suggest the source string has changed and the new localization may be based off of an old source string.
 					if (DisplayStringEntry && ((LiveEntry.SourceStringHash == DisplayStringEntry->SourceStringHash) || LiveEntry.IsEmpty()))
 					{
-						LiveEntry.bIsLocalized = true;
 						// this is to account for the case where the LiveString is empty and we are overwriting the value 
-				// we could do an if check, but copying an int is cheaper 
+						// we could do an if check, but copying an int is cheaper 
 						LiveEntry.SourceStringHash = DisplayStringEntry->SourceStringHash;
 						// There is no good way to copy over the NativeBackupString. We disregard it as it is only for testing 
-						*LiveEntry.DisplayString = *DisplayStringEntry->DisplayString;
+						LiveEntry.DisplayString = DisplayStringEntry->DisplayString;
 #if WITH_EDITORONLY_DATA
 						LiveEntry.LocResID = DisplayStringEntry->LocResID;
 #endif	// WITH_EDITORONLY_DATA
 					}
 #if ENABLE_LOC_TESTING
-					else if (bShouldLEETIFYUnlocalizedString)
+					else if (bShouldLEETIFYUnlocalizedString && !LiveEntry.DisplayString->IsEmpty())
 					{
-						LiveEntry.bIsLocalized = false;
-						FInternationalization::Leetify(*LiveEntry.DisplayString);
+						FTextDisplayStringRef TmpDisplayString = MakeTextDisplayString(CopyTemp(*LiveEntry.DisplayString));
+						FInternationalization::Leetify(*TmpDisplayString);
+						LiveEntry.DisplayString = TmpDisplayString;
 #if WITH_EDITORONLY_DATA
 						LiveEntry.LocResID = FTextKey();
 #endif	// WITH_EDITORONLY_DATA
@@ -1423,23 +1361,29 @@ void FTextLocalizationManager::UpdateFromLocalizations(FTextLocalizationResource
 	}
 }
 
-void FTextLocalizationManager::DirtyLocalRevisionForDisplayString(const FTextDisplayStringRef& InDisplayString)
+void FTextLocalizationManager::DirtyLocalRevisionForTextId(const FTextId& InTextId)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::DirtyLocalRevisionForTextId);
+	LLM_SCOPE(ELLMTag::Localization);
+
 	FScopeLock ScopeLock(&SynchronizationObject);
 
-	uint16* FoundLocalRevision = LocalTextRevisions.Find(InDisplayString);
+	uint16* FoundLocalRevision = LocalTextRevisions.Find(InTextId);
 	if (FoundLocalRevision)
 	{
 		while (++(*FoundLocalRevision) == 0) {} // Zero is special, don't allow an overflow to stay at zero
 	}
 	else
 	{
-		LocalTextRevisions.Add(InDisplayString, 1);
+		LocalTextRevisions.Add(InTextId, 1);
 	}
 }
 
 void FTextLocalizationManager::DirtyTextRevision()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextLocalizationManager::DirtyTextRevision);
+	LLM_SCOPE(ELLMTag::Localization);
+
 	// Lock while updating the data
 	{
 		FScopeLock ScopeLock(&SynchronizationObject);

@@ -6,6 +6,8 @@
 #include "GenericPlatform/GenericApplication.h"
 #include "HAL/IConsoleManager.h"
 
+UE_DECLARE_LWC_TYPE(Vector2,,FVector2D);
+
 /**
  * The accuracy when dealing with physical characteristics of the monitor/screen of the device we're running on.
  */
@@ -125,7 +127,7 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	 * @param	InGamma			Optional gamma correction to apply to the screen color
 	 * @return					The color of the pixel displayed at the chosen location
 	 */
-	static struct FLinearColor GetScreenPixelColor(const struct FVector2D& InScreenPos, float InGamma = 1.0f);
+	static struct FLinearColor GetScreenPixelColor(const FVector2D& InScreenPos, float InGamma = 1.0f);
 
 	/**
 	 * Searches for a window that matches the window name or the title starts with a particular text. When
@@ -259,14 +261,46 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	 * If we know or can approximate the pixel density of the screen we will convert the incoming inches
 	 * to pixels on the device.  If the accuracy is unknown OutPixels will be set to 0.
 	 */
-	static EScreenPhysicalAccuracy ConvertInchesToPixels(float Inches, float& OutPixels);
+	template<typename T, typename T2, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value && TIsFloatingPoint<T2>::Value)>
+	static EScreenPhysicalAccuracy ConvertInchesToPixels(T Inches, T2& OutPixels)
+	{
+		int32 ScreenDensity = 0;
+		const EScreenPhysicalAccuracy Accuracy = GetPhysicalScreenDensity(ScreenDensity);
+
+		if (ScreenDensity != 0)
+		{
+			OutPixels = static_cast<T2>(Inches * ScreenDensity);
+		}
+		else
+		{
+			OutPixels = 0;
+		}
+
+		return Accuracy;
+	}
 
 	/**
 	 * If we know or can approximate the pixel density of the screen we will convert the incoming pixels
 	 * to inches on the device.  If the accuracy is unknown OutInches will be set to 0.
 	 */
-	static EScreenPhysicalAccuracy ConvertPixelsToInches(float Pixels, float& OutInches);
+	template<typename T, typename T2, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value && TIsFloatingPoint<T2>::Value)>
+	static EScreenPhysicalAccuracy ConvertPixelsToInches(T Pixels, T2& OutInches)
+	{
+		int32 ScreenDensity = 0;
+		const EScreenPhysicalAccuracy Accuracy = GetPhysicalScreenDensity(ScreenDensity);
 
+		if (ScreenDensity != 0)
+		{
+			OutInches = static_cast<T2>(Pixels / ScreenDensity);
+		}
+		else
+		{
+			OutInches = 0;
+		}
+
+		return Accuracy;		
+	}
+	
 protected:
 	static bool CachedPhysicalScreenData;
 	static EScreenPhysicalAccuracy CachedPhysicalScreenAccuracy;

@@ -13,7 +13,10 @@
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 #include "CADKernel/Geo/Curves/SurfacicCurve.h"
 
-TSharedPtr<CADKernel::FEntity> CADKernel::FCurve::Deserialize(FCADKernelArchive& Archive)
+namespace CADKernel
+{
+
+TSharedPtr<FEntity> FCurve::Deserialize(FCADKernelArchive& Archive)
 {
 	ECurve CurveType = ECurve::None;
 	Archive << CurveType;
@@ -50,7 +53,7 @@ TSharedPtr<CADKernel::FEntity> CADKernel::FCurve::Deserialize(FCADKernelArchive&
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FPolyline2DCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FPolyline2DCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info)
 		.Add(TEXT("nbPoints"), this->Points.Num())
@@ -58,7 +61,7 @@ CADKernel::FInfoEntity& CADKernel::FPolyline2DCurve::GetInfo(FInfoEntity& Info) 
 		.Add(TEXT("params"), this->Coordinates);
 }
 
-CADKernel::FInfoEntity& CADKernel::FPolylineCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FPolylineCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info)
 		.Add(TEXT("nbPoints"), this->Points.Num())
@@ -66,3 +69,5 @@ CADKernel::FInfoEntity& CADKernel::FPolylineCurve::GetInfo(FInfoEntity& Info) co
 		.Add(TEXT("params"), this->Coordinates);
 }
 #endif
+
+}

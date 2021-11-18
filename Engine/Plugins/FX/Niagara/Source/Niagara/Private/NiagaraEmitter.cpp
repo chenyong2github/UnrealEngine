@@ -59,11 +59,13 @@ static FAutoConsoleVariableRef CVarEnableEmitterChangeIdMergeLogging(
 	ECVF_Default
 );
 
-static int32 GDebugForcedMaxGPUBufferElements = 0;
-static FAutoConsoleVariableRef CVarNiagaraDebugForcedMaxGPUBufferElements(
-	TEXT("fx.NiagaraDebugForcedMaxGPUBufferElements"),
-	GDebugForcedMaxGPUBufferElements,
-	TEXT("Force the maximum buffer size supported by the GPU to this value, for debugging purposes."),
+static int32 GNiagaraEmitterMaxGPUBufferElements = 0;
+static FAutoConsoleVariableRef CVarNiagaraEmitterMaxGPUBufferElements(
+	TEXT("fx.Niagara.Emitter.MaxGPUBufferElements"),
+	GNiagaraEmitterMaxGPUBufferElements,
+	TEXT("Maximum elements per GPU buffer, for example 4k elements would restrict a float buffer to be 16k maximum per buffer.\n")
+	TEXT("Note: If you request something smaller than what will satisfy a single unit of work it will be increased to that size.\n")
+	TEXT("Default 0 which will allow the buffer to be the maximum allowed by the RHI.\n"),
 	ECVF_Default
 );
 
@@ -1154,6 +1156,7 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	bRequiresViewUniformBuffer = false;
 
 	MaxInstanceCount = 0;
+	MaxAllocationCount = 0;
 	BoundsCalculators.Empty();
 
 	// Allow renderers to cache the bindings also
@@ -1211,9 +1214,32 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 		}
 
 		// See how many particles we can fit in a GPU buffer. This number can be quite small on some platforms.
-		uint64 MaxBufferElements = (GDebugForcedMaxGPUBufferElements > 0) ? (uint64)GDebugForcedMaxGPUBufferElements : GetMaxBufferDimension();
+		const uint64 MaxBufferElements = (GNiagaraEmitterMaxGPUBufferElements > 0) ? uint64(GNiagaraEmitterMaxGPUBufferElements) : GetMaxBufferDimension();
+
 		// Don't just cast the result of the division to 32-bit, since that will produce garbage if MaxNumInstances is larger than UINT_MAX. Saturate instead.
-		MaxInstanceCount = (uint32)FMath::Min(MaxBufferElements / MaxGPUBufferComponents, (uint64)UINT_MAX);
+		MaxAllocationCount = (uint32)FMath::Min(MaxBufferElements / MaxGPUBufferComponents, (uint64)UINT_MAX);
+		MaxInstanceCount = MaxAllocationCount;
+
+		if ( SimTarget == ENiagaraSimTarget::GPUComputeSim )
+		{
+			// Round down to nearest thread group size
+			MaxAllocationCount = FMath::DivideAndRoundDown(MaxAllocationCount, NiagaraComputeMaxThreadGroupSize) * NiagaraComputeMaxThreadGroupSize;
+
+			// We can't go below a thread group size, the rest of the code does not handle this and we should only hit this when buffer size forcing is enabled
+			if ( MaxAllocationCount < NiagaraComputeMaxThreadGroupSize )
+			{
+				MaxAllocationCount = NiagaraComputeMaxThreadGroupSize;
+				check(MaxAllocationCount*MaxGPUBufferComponents <= GetMaxBufferDimension());
+			}
+
+			// -1 because we need a scratch instance on the GPU
+			MaxInstanceCount = MaxAllocationCount - 1;
+		}
+
+		if (AllocationMode == EParticleAllocationMode::FixedCount)
+		{
+			MaxInstanceCount = FMath::Min(MaxInstanceCount, uint32(FMath::Max(PreAllocationCount, 0)));
+		}
 	}
 	else
 	{
@@ -2188,26 +2214,6 @@ int32 UNiagaraEmitter::GetMaxParticleCountEstimate()
 		}
 	}
 	return RuntimeEstimation.AllocationEstimate;
-}
-
-uint32 UNiagaraEmitter::GetMaxInstanceCount() const
-{
-	uint32 Result = MaxInstanceCount;
-
-	if (AllocationMode == EParticleAllocationMode::FixedCount)
-	{
-		Result = FMath::Min<uint32>(Result, PreAllocationCount);
-	}
-
-	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		// On GPU, the size of the allocated buffers must be a multiple of NiagaraComputeMaxThreadGroupSize, so round down.
-		Result = FMath::DivideAndRoundDown(Result, NiagaraComputeMaxThreadGroupSize) * NiagaraComputeMaxThreadGroupSize;
-		// We will need an extra scratch instance, so the maximum number of usable instances is one less than the value we computed.
-		Result -= 1;
-	}
-
-	return Result;
 }
 
 void UNiagaraEmitter::GenerateStatID()const

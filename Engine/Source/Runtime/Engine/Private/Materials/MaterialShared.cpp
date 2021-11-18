@@ -492,7 +492,7 @@ bool FVectorMaterialInput::Serialize(FArchive& Ar)
 
 bool FVector2MaterialInput::Serialize(FArchive& Ar)
 {
-	return SerializeMaterialInput<FVector2D>(Ar, *this);
+	return SerializeMaterialInput<FVector2f>(Ar, *this);
 }
 
 bool FMaterialAttributesInput::Serialize(FArchive& Ar)
@@ -689,6 +689,12 @@ void FMaterial::GetStaticParameterSet(EShaderPlatform Platform, FStaticParameter
 ERefractionMode FMaterial::GetRefractionMode() const 
 { 
 	return RM_IndexOfRefraction; 
+}
+
+const FMaterialCachedExpressionData& FMaterial::GetCachedExpressionData() const
+{
+	const UMaterialInterface* MaterialInterface = GetMaterialInterface();
+	return MaterialInterface ? MaterialInterface->GetCachedExpressionData() : FMaterialCachedExpressionData::EmptyData;
 }
 
 bool FMaterial::IsRequiredComplete() const
@@ -1702,22 +1708,22 @@ uint32 FMaterialResource::GetStencilCompare() const
 
 bool FMaterialResource::HasPerInstanceCustomData() const
 {
-	return Material->GetCachedExpressionData().bHasPerInstanceCustomData;
+	return GetCachedExpressionData().bHasPerInstanceCustomData;
 }
 
 bool FMaterialResource::HasPerInstanceRandom() const
 {
-	return Material->GetCachedExpressionData().bHasPerInstanceRandom;
+	return GetCachedExpressionData().bHasPerInstanceRandom;
 }
 
 bool FMaterialResource::HasVertexInterpolator() const
 {
-	return Material->GetCachedExpressionData().bHasVertexInterpolator;
+	return GetCachedExpressionData().bHasVertexInterpolator;
 }
 
 bool FMaterialResource::HasRuntimeVirtualTextureOutput() const
 {
-	return Material->GetCachedExpressionData().bHasRuntimeVirtualTextureOutput;
+	return GetCachedExpressionData().bHasRuntimeVirtualTextureOutput;
 }
 
 bool FMaterialResource::CastsRayTracedShadows() const
@@ -2050,6 +2056,7 @@ void FMaterial::SetupMaterialEnvironment(
 	OutEnvironment.SetDefine(TEXT("MATERIAL_ALLOW_NEGATIVE_EMISSIVECOLOR"), AllowNegativeEmissiveColor());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_OUTPUT_OPACITY_AS_ALPHA"), GetBlendableOutputAlpha());
 	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_SHADOW_WITH_MASKED_OPACITY"), GetCastDynamicShadowAsMasked());
+	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_WRITING_VELOCITY"), IsTranslucencyWritingVelocity());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_USE_ALPHA_TO_COVERAGE"), IsUsingAlphaToCoverage());
 	OutEnvironment.SetDefine(TEXT("MOBILE_HIGH_QUALITY_BRDF"), IsMobileHighQualityBRDFEnabled());
 
@@ -2252,32 +2259,37 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 		}
 		else
 		{
-			const TCHAR* ShaderMapCondition;
-			if (GameThreadShaderMap)
+			const bool bSkipCompilationForODSC = !IsRequiredComplete() && GShaderCompilingManager->IsShaderCompilationSkipped();
+			// If we aren't actually compiling shaders don't print the debug message that we are compiling shaders.
+			if (!bSkipCompilationForODSC)
 			{
-				ShaderMapCondition = TEXT("Incomplete");
-			}
-			else
-			{
-				ShaderMapCondition = TEXT("Missing");
-			}
+				const TCHAR* ShaderMapCondition;
+				if (GameThreadShaderMap)
+				{
+					ShaderMapCondition = TEXT("Incomplete");
+				}
+				else
+				{
+					ShaderMapCondition = TEXT("Missing");
+				}
 #if WITH_EDITOR
-			UE_LOG(LogMaterial, Display, TEXT("%s cached shadermap for %s in %s, %s, %s (DDC key hash: %s), compiling. %s"),
-				ShaderMapCondition,
-				*GetAssetName(),
-				*LexToString(Platform),
-				*LexToString(ShaderMapId.QualityLevel),
-				*LexToString(ShaderMapId.FeatureLevel),
-				*DDCKeyHash,
-				IsSpecialEngineMaterial() ? TEXT("Is special engine material.") : TEXT("") 
-			);
+				UE_LOG(LogMaterial, Display, TEXT("%s cached shadermap for %s in %s, %s, %s (DDC key hash: %s), compiling. %s"),
+					ShaderMapCondition,
+					*GetAssetName(),
+					*LexToString(Platform),
+					*LexToString(ShaderMapId.QualityLevel),
+					*LexToString(ShaderMapId.FeatureLevel),
+					*DDCKeyHash,
+					IsSpecialEngineMaterial() ? TEXT("Is special engine material.") : TEXT("")
+				);
 #else
-			UE_LOG(LogMaterial, Display, TEXT("%s cached shader map for material %, compiling. %s"),
-				ShaderMapCondition,
-				*GetAssetName(),
-				IsSpecialEngineMaterial() ? TEXT("Is special engine material.") : TEXT("")
-			);
+				UE_LOG(LogMaterial, Display, TEXT("%s cached shader map for material %, compiling. %s"),
+					ShaderMapCondition,
+					*GetAssetName(),
+					IsSpecialEngineMaterial() ? TEXT("Is special engine material.") : TEXT("")
+				);
 #endif
+			}
 
 #if WITH_EDITORONLY_DATA
 			FStaticParameterSet StaticParameterSet;
@@ -3884,10 +3896,10 @@ void FMaterial::SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, FStab
 }
 
 #if WITH_EDITOR
-void FMaterial::GetShaderTypes(EShaderPlatform Platform, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
+void FMaterial::GetShaderTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FDebugShaderTypeInfo>& OutShaderInfo)
 {
 	const FMaterialShaderParameters MaterialParameters(this);
-	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(Platform, GetShaderMapToUse()->GetPermutationFlags(), MaterialParameters);
+	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(Platform, GetShaderPermutationFlags(LayoutParams), MaterialParameters);
 
 	for (const FMeshMaterialShaderMapLayout& MeshLayout : Layout.MeshShaderMaps)
 	{
@@ -4407,7 +4419,7 @@ int32 FMaterialAttributeDefintion::CompileDefaultValue(FMaterialCompiler* Compil
 	int32 Ret;
 
 	// TODO: Temporarily preserving hack from 4.13 to change default value for two-sided foliage model 
-	if (Property == MP_SubsurfaceColor && Compiler->GetMaterialShadingModels().HasShadingModel(MSM_TwoSidedFoliage))
+	if (Property == MP_SubsurfaceColor && Compiler->GetCompiledShadingModels().HasShadingModel(MSM_TwoSidedFoliage))
 	{
 		check(ValueType == MCT_Float3);
 		return Compiler->Constant3(0, 0, 0);

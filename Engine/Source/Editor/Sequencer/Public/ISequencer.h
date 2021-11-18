@@ -36,6 +36,7 @@ class IDetailsView;
 class IKeyArea;
 enum class EMapChangeType : uint8;
 class FCurveModel;
+class FCurveEditor;
 struct FMovieSceneSequencePlaybackParams;
 struct FMovieSceneChannelMetaData;
 class IToolkitHost;
@@ -178,7 +179,7 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChangedSections, TArray<UMovieSceneSection*> /*Sections*/);
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCurveDisplayChanged, FCurveModel* , bool /*displayed*/);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCurveDisplayChanged, FCurveModel* , bool /*displayed*/,const FCurveEditor*);
 
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCloseEvent, TSharedRef<ISequencer>);
@@ -550,8 +551,8 @@ public:
 	/** Gets the currently selected folders. */
 	virtual void GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders) = 0;
 
-	/** Gets the currently selected key areas */
-	virtual void GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyAreas) = 0;
+	/** Gets the currently selected key areas. If bIncludeSelectedKeys is true it will include key areas for selected keys, if not will only include key areas for selected display nodes */
+	virtual void GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyAreas, bool bIncludeSelectedKeys = true) = 0;
 
 	/** Gets the currently selected Object Guids*/
 	virtual void GetSelectedObjects(TArray<FGuid>& OutSelectedObjects) = 0;

@@ -22,6 +22,8 @@ FDisplayClusterViewportProxyData::FDisplayClusterViewportProxyData(const FDispla
 	// Additional parameters
 	OverscanSettings = SrcViewport->OverscanRendering.Get();
 
+	RemapMesh = SrcViewport->ViewportRemap.GetRemapMesh();
+
 	ProjectionPolicy = SrcViewport->ProjectionPolicy;
 	Contexts         = SrcViewport->Contexts;
 
@@ -47,6 +49,8 @@ void FDisplayClusterViewportProxyData::UpdateProxy_RenderThread() const
 	check(DstViewportProxy);
 
 	DstViewportProxy->OverscanSettings = OverscanSettings;
+
+	DstViewportProxy->RemapMesh = RemapMesh;
 
 	DstViewportProxy->RenderSettings = RenderSettings;
 

@@ -7,77 +7,16 @@
 #include "ComponentSnapshotData.h"
 #include "CustomSerializationData.h"
 #include "ObjectSnapshotData.h"
-#include "SubobjectSnapshotData.h"
-#include "Misc/ObjectDependencyCallback.h"
 #include "ActorSnapshotData.generated.h"
 
-class UActorComponent;
-class ULevelSnapshotSelectionSet;
-class UPackage;
-struct FPropertySelectionMap;
-struct FWorldSnapshotData;
-
+/** Holds saved actor data. See ActorUtil for operations. */
 USTRUCT()
 struct LEVELSNAPSHOTS_API FActorSnapshotData
 {
 	GENERATED_BODY()
-
-	static FActorSnapshotData SnapshotActor(AActor* OriginalActor, FWorldSnapshotData& WorldData);
-
-	void ResetTransientData();
 	
-	TOptional<AActor*> GetPreallocatedIfValidButDoNotAllocate() const;
-	TOptional<AActor*> GetPreallocated(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData) const;
-	
-	TOptional<AActor*> GetDeserialized(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData, const FSoftObjectPath& OriginalActorPath, UPackage* InLocalisationSnapshotPackage);
-
-	/**
-	 * Fixes up any properties that were not yet captured
-	 */
-	void PostSerializeSnapshotActor(AActor* SnapshotActor, FWorldSnapshotData& WorldData, const FSoftObjectPath& OriginalActorPath, UPackage* InLocalisationSnapshotPackage) const;
-
-	void DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties);
-	void DeserializeIntoRecreatedEditorWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties);
-	
-	const FSoftClassPath& GetActorClass() const { return ActorClass; }
-	const FCustomSerializationData& GetCustomActorSerializationData() const { return CustomActorSerializationData; }
-
-	
-	using FSerializeActor = TFunction<void(AActor* OriginalActor, AActor* DerserializedActor)>;
-	using FSerializeComponent = TFunction<void(FSubobjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)>;
-	using FHandleFoundComponent = TFunction<void(FSubobjectSnapshotData& SerializedCompData, FComponentSnapshotData& ComponentMetaData, UActorComponent* ActorComp, const FSoftObjectPath& OriginalComponentPath, FWorldSnapshotData& SharedData)>;
-	
-	void DeserializeIntoEditorWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, UPackage* InLocalisationSnapshotPackage, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent);
-	void DeserializeComponents(AActor* IntoActor, FWorldSnapshotData& WorldData, FHandleFoundComponent Callback);
-
-	void DeserializeSubobjectsForSnapshotActor(AActor* IntoActor, FWorldSnapshotData& WorldData, const FProcessObjectDependency& ProcessObjectDependency, UPackage* InLocalisationSnapshotPackage);
-	
-	/* We cache the actor to avoid recreating it all the time */
-	UPROPERTY(Transient)
-	mutable TWeakObjectPtr<AActor> CachedSnapshotActor = nullptr;
-
-	/* Whether we already serialised the snapshot data into the actor.
-	 * 
-	 * This exists because sometimes we need to preallocate an actor without serialisation.
-	 * Example: When serializing another actor which referenced this actor.
-	 */
-	UPROPERTY(Transient)
-	bool bReceivedSerialisation = false;
-
-	/** Stores all object dependencies. Only valid if bReceivedSerialisation == true. */
-	UPROPERTY(Transient)
-	TArray<int32> ObjectDependencies;
-
-
 #if WITH_EDITORONLY_DATA
-	/** Whether bCachedHadChanges contains a valid value */
-	UPROPERTY(Transient)
-	bool bHasBeenDiffed = false;
-
-	/** Whether the saved data was different from the world counterpart, the last time we compared. */
-	UPROPERTY(Transient)
-	bool bCachedHadChanges {};
-
+	/** The label of the actor when it was saved. */
 	UPROPERTY()
 	FString ActorLabel;
 #endif

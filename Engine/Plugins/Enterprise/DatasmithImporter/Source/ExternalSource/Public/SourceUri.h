@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Map.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
@@ -27,6 +28,35 @@ namespace UE::DatasmithImporter
 		FSourceUri(const FString& InScheme, const FString& InPath)
 			: Uri(InScheme + GetSchemeDelimiter() + InPath)
 		{}
+
+		template<typename TContainer>
+		FSourceUri(const FString& InScheme, const FString& InPath, const TContainer& QueryContainer)
+			: Uri(InScheme + GetSchemeDelimiter() + InPath)
+		{
+			static_assert(std::is_same<typename TContainer::ElementType, TPair<FString, FString>>::value, TEXT("Query container must consist of a collection of TPair<FString, FString>."));
+
+			if (QueryContainer.Num() > 0)
+			{
+				TCHAR QueryDelimiter(GetQueryStartCharacter());
+				FString QueryString(1, &QueryDelimiter);
+				for (typename TContainer::TConstIterator It = QueryContainer.CreateConstIterator(); It;)
+				{
+					const TPair<FString, FString>& CurrentPair = *It;
+
+					if (++It)
+					{
+						// We are not on the last pair, add '&' character to split this pair with the next.
+						QueryString += FString::Printf(TEXT("%s%c%s%c"), *CurrentPair.Key, GetQueryPairCharacter(), *CurrentPair.Value, GetQueryAppendPairCharacter());
+					}
+					else
+					{
+						QueryString += FString::Printf(TEXT("%s%c%s"), *CurrentPair.Key, GetQueryPairCharacter(), *CurrentPair.Value);
+					}
+				}
+
+				Uri += QueryString;
+			}
+		}
 
 		/**
 		 * Generate a FSourceUri from the given filepath.
@@ -68,6 +98,10 @@ namespace UE::DatasmithImporter
 		 */
 		FStringView GetPath() const;
 
+		FStringView GetQuery() const;
+
+		TMap<FString, FString> GetQueryMap() const;
+
 		/**
 		 * Return the FSourceUri as a string.
 		 */
@@ -86,7 +120,14 @@ namespace UE::DatasmithImporter
 	private:
 
 		static const FString& GetSchemeDelimiter();
-		
+
+		/**
+		 * URI Queries are structured like so <RestOfURI>?<KeyA><ValueA>&<KeyB>=<ValueB>
+		 */
+		static TCHAR GetQueryStartCharacter() { return '?'; }
+		static TCHAR GetQueryPairCharacter() { return '='; }
+		static TCHAR GetQueryAppendPairCharacter() { return '&'; }
+
 		FString Uri;
 	};
 

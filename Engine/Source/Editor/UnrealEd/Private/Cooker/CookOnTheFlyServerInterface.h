@@ -46,10 +46,12 @@ struct FRecompileShaderRequest
 	TArray<FODSCRequestPayload> ShadersToRecompile;
 	/** Mesh materials, returned to the caller.  */
 	TArray<uint8>* MeshMaterialMaps = nullptr;
+	/** Global shader map, returned to the caller.  */
+	TArray<uint8>* GlobalShaderMap = nullptr;
 	/** All filenames that have been changed during the shader compilation. */
 	TArray<FString>* ModifiedFiles = nullptr;
-	/** Whether to compile changed shaders. */
-	bool bCompileChangedShaders = true;
+	/** What type of shaders to recompile. All, Changed, Global, or Material? */
+	ODSCRecompileCommand CommandType = ODSCRecompileCommand::Changed;
 	/** Completion callback. */
 	FRecompileShaderCompletedCallback CompletionCallback;
 };

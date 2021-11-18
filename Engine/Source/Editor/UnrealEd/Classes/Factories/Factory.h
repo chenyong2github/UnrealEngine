@@ -179,6 +179,9 @@ public:
 	/** Creates a list of file extensions supported by this factory */
 	virtual void GetSupportedFileExtensions(TArray<FString>& OutExtensions) const;
 
+	/** Returns true if the provided file extension is supported */
+	virtual bool IsSupportedFileExtension(FStringView InExtension) const;
+
 	/** Do clean up after importing is done. Will be called once for multi batch import. */
 	virtual void CleanUp() { AdditionalImportedObjects.Empty(); }
 	/**

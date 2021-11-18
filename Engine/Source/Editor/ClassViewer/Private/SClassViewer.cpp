@@ -1365,25 +1365,32 @@ void FClassHierarchy::SetAssetDataFields(TSharedPtr<FClassViewerNode>& InOutClas
 	const FString ImplementedInterfaces = InAssetData.GetTagValueRef<FString>(FBlueprintTags::ImplementedInterfaces);
 	if(!ImplementedInterfaces.IsEmpty())
 	{
-		FString FullInterface;
-		FString RemainingString;
-		FString InterfacePath;
-		FString CurrentString = *ImplementedInterfaces;
-		while(CurrentString.Split(TEXT(","), &FullInterface, &RemainingString))
-		{
-			if (!CurrentString.StartsWith(TEXT("Graphs=(")))
-			{
-				if (FullInterface.Split(TEXT("\""), &CurrentString, &InterfacePath, ESearchCase::CaseSensitive))
-				{
-					// The interface paths in metadata end with "', so remove those
-					InterfacePath.RemoveFromEnd(TEXT("\"'"));
+		// Parse string like "((Interface=Class'"/Script/VPBookmark.VPBookmarkProvider"'),(Interface=Class'"/Script/VPUtilities.VPContextMenuProvider"'))"
+		// We don't want to actually resolve the hard ref so do some manual parsing
 
-					FCoreRedirectObjectName ResolvedInterfaceName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, FCoreRedirectObjectName(InterfacePath));
-					UnloadedBlueprintData->AddImplementedInterface(ResolvedInterfaceName.ObjectName.ToString());
+		FString FullInterface;
+		FString CurrentString = *ImplementedInterfaces;
+		while(CurrentString.Split(TEXT("Interface="), nullptr, &FullInterface))
+		{
+			// Cutoff at next )
+			int32 RightParen = INDEX_NONE;			
+			if (FullInterface.FindChar(TCHAR(')'), RightParen))
+			{
+				// Keep parsing
+				CurrentString = FullInterface.Mid(RightParen);
+
+				// Strip class name
+				FullInterface = *FPackageName::ExportTextPathToObjectPath(FullInterface.Left(RightParen));
+
+				// Handle quotes
+				FString InterfacePath;
+				const TCHAR* NewBuffer = FPropertyHelpers::ReadToken(*FullInterface, InterfacePath, true);
+
+				if (NewBuffer)
+				{
+					UnloadedBlueprintData->AddImplementedInterface(InterfacePath);
 				}
 			}
-			
-			CurrentString = RemainingString;
 		}
 	}
 }

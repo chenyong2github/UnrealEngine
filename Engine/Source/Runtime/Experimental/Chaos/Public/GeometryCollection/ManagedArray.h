@@ -32,7 +32,7 @@ inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FIntVe
 	Array.BulkSerialize(Ar);
 }
 
-inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FVector2D>& Array)
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FVector2f>& Array)
 {
 	Array.BulkSerialize(Ar);
 }
@@ -42,7 +42,7 @@ inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<float>
 	Array.BulkSerialize(Ar);
 }
 
-inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FQuat>& Array)
+inline void TryBulkSerializeManagedArray(Chaos::FChaosArchive& Ar, TArray<FQuat4f>& Array)
 {
 	Array.BulkSerialize(Ar);
 }

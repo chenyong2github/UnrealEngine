@@ -43,6 +43,7 @@ private:
 	TArray<FMountedContainer> MountedContainers;
 	TMap<FPackageId, const FFilePackageStoreEntry*> StoreEntriesMap;
 	TMap<FPackageId, TTuple<FName, FPackageId>> RedirectsPackageMap;
+	TMap<FPackageId, FName> LocalizedPackages;
 	bool bNeedsUpdate = false;
 
 	static thread_local bool bIsLockedOnThread;

@@ -50,6 +50,12 @@ public:
 	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget, TSharedPtr<IAssetViewport> InViewport = nullptr)  {}
 	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget, TSharedPtr<IAssetViewport> InViewport = nullptr) {}
 
+	/** Return the size of the active viewport, accounting for DPI Scale */
+	virtual FVector2D GetActiveViewportSize() 
+	{
+		return FVector2D(EForceInit::ForceInitToZero);
+	}
+
 	/** Gets a multicast delegate which is executed whenever the toolkit host's active viewport changes. */
 	virtual FOnActiveViewportChanged& OnActiveViewportChanged() = 0;
 

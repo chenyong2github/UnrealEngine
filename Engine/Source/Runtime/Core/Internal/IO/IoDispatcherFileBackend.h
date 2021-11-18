@@ -57,7 +57,7 @@ private:
 	struct FPerfectHashMap
 	{
 		TArray<int32> TocChunkHashSeeds;
-		TArray<uint32> TocChunkHashes;
+		TArray<FIoChunkId> TocChunkIds;
 		TArray<FIoOffsetAndLength> TocOffsetAndLengths;
 	};
 	FPerfectHashMap PerfectHashMap;

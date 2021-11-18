@@ -125,6 +125,7 @@ void UMeshInspectorTool::Precompute()
 	UVBowties.Reset();
 	NormalSeamEdges.Reset();
 	GroupBoundaryEdges.Reset();
+	MissingUVTriangleEdges.Reset();
 
 	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
 	const FDynamicMeshUVOverlay* UVOverlay =
@@ -163,6 +164,18 @@ void UMeshInspectorTool::Precompute()
 		{
 			UVBowties.Add(vid);
 		}
+	}
+
+	for (int tid : TargetMesh->TriangleIndicesItr())
+	{
+		if (UVOverlay != nullptr && !UVOverlay->IsSetTriangle(tid))
+		{
+			const FIndex3i Edges = TargetMesh->GetTriEdges(tid);
+			MissingUVTriangleEdges.Add(Edges[0]);
+			MissingUVTriangleEdges.Add(Edges[1]);
+			MissingUVTriangleEdges.Add(Edges[2]);
+		}
+
 	}
 }
 
@@ -227,6 +240,8 @@ void UMeshInspectorTool::UpdateVisualization()
 	float BoundaryEdgeThickness = LineWidthMultiplier * 4.0;
 	FColor UVSeamColor(15, 240, 15);
 	float UVSeamThickness = LineWidthMultiplier * 2.0;
+	const FColor MissingUVColor(240, 15, 15);
+	const float MissingUVThickness = LineWidthMultiplier * 2.0;
 	FColor NormalSeamColor(15, 240, 240);
 	float NormalSeamThickness = LineWidthMultiplier * 2.0;
 	FColor PolygonBorderColor(240, 15, 240);
@@ -239,6 +254,7 @@ void UMeshInspectorTool::UpdateVisualization()
 
 	float BoundaryEdgeDepthBias = 0.2f;
 	float UVSeamDepthBias = 0.3f;
+	const float MissingUVDepthBias = 0.3f;
 	float NormalSeamDepthBias = 0.3f;
 	float PolygonBorderDepthBias = 0.2f;
 	float NormalDepthBias = 0.0f;
@@ -267,6 +283,15 @@ void UMeshInspectorTool::UpdateVisualization()
 		{
 			TargetMesh->GetEdgeV(eid, A, B);
 			DrawnLineSet->AddLine((FVector)A, (FVector)B, UVSeamColor, UVSeamThickness, UVSeamDepthBias);
+		}
+	}
+
+	if (Settings->bMissingUVs)
+	{
+		for (int eid : MissingUVTriangleEdges)
+		{
+			TargetMesh->GetEdgeV(eid, A, B);
+			DrawnLineSet->AddLine((FVector)A, (FVector)B, MissingUVColor, MissingUVThickness, UVSeamDepthBias);
 		}
 	}
 

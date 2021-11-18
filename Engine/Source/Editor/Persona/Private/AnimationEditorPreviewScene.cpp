@@ -48,12 +48,11 @@ FAnimationEditorPreviewScene::FAnimationEditorPreviewScene(const ConstructionVal
 	, PrevWindStrength(0.2f)
 	, GravityScale(0.25f)
 	, SelectedBoneIndex(INDEX_NONE)
-	, bEnableMeshHitProxies(false)
+	, bEnableMeshHitProxies(true)
 	, LastTickTime(0.0)
 	, bSelecting(false)
 	, bAllowAdditionalMeshes(true)
 	, bAdditionalMeshesSelectable(true)
-	, bUsePhysicsBodiesForBoneSelection(true)
 {
 	if (GEditor)
 	{
@@ -1110,37 +1109,6 @@ AActor* FAnimationEditorPreviewScene::GetActor() const
 bool FAnimationEditorPreviewScene::AllowMeshHitProxies() const
 {
 	return bEnableMeshHitProxies;
-}
-
-bool FAnimationEditorPreviewScene::UsePhysicsBodiesForBoneSelection() const
-{
-	return bUsePhysicsBodiesForBoneSelection;
-}
-
-void FAnimationEditorPreviewScene::SetUsePhysicsBodiesForBoneSelection(bool bUsePhysicsBodies)
-{
-	bUsePhysicsBodiesForBoneSelection = bUsePhysicsBodies;
-}
-
-UPersonaSelectionComponent* FAnimationEditorPreviewScene::GetSelectionComponent()
-{
-	if(!SelectionComponentPtr.IsValid())
-	{
-		FActorSpawnParameters SelectionActorParameters;
-		SelectionActorParameters.Name = TEXT("SelectionComponent");
-		AActor* SelectionActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FTransform::Identity, SelectionActorParameters);
-		check(SelectionActor);
-
-		SelectionActor->SetFlags(RF_Transient);
-		UPersonaSelectionComponent* SelectionComponent = NewObject<UPersonaSelectionComponent>(SelectionActor);
-		SelectionActor->AddOwnedComponent(SelectionComponent);
-		SelectionActor->SetRootComponent(SelectionComponent);
-		SelectionComponent->RegisterComponent();
-		SelectionComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-		SelectionComponentPtr = SelectionComponent;
-	}
-	return SelectionComponentPtr.Get();
 }
 
 void FAnimationEditorPreviewScene::SetAllowMeshHitProxies(bool bState)

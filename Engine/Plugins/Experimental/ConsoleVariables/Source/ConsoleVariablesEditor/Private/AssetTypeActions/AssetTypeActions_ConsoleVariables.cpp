@@ -26,8 +26,8 @@ void FAssetTypeActions_ConsoleVariables::GetActions(const TArray<UObject*>& InOb
 	const TArray<TWeakObjectPtr<UConsoleVariablesAsset>> ConsoleVariableAssets = GetTypedWeakObjectPtrs<UConsoleVariablesAsset>(InObjects);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AssetTypeActions_ConsoleVariable_OpenVariableCollection", "Open Variable Collection in Editor"),
-		LOCTEXT("AssetTypeActions_ConsoleVariable_OpenVariableCollectionToolTip", "Open this console variable collection in the Console Variables Editor. Select only one asset at a time."),
+		LOCTEXT("AssetTypeActions_OpenVariableCollection", "Open Variable Collection in Editor"),
+		LOCTEXT("AssetTypeActions_OpenVariableCollectionToolTip", "Open this console variable collection in the Console Variables Editor. Select only one asset at a time."),
 		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "SystemWideCommands.SummonOpenAssetDialog"),
 		FUIAction(
 			FExecuteAction::CreateLambda([=] {
@@ -48,7 +48,7 @@ void FAssetTypeActions_ConsoleVariables::OpenAssetEditor(const TArray<UObject*>&
 	{
 		FConsoleVariablesEditorModule& Module = FConsoleVariablesEditorModule::Get();
 					
-		Module.OpenConsoleVariablesDialogWithAssetSelected(EditWithinLevelEditor ? EToolkitMode::WorldCentric : EToolkitMode::Standalone, EditWithinLevelEditor, FAssetData(InObjects[0]));
+		Module.OpenConsoleVariablesDialogWithAssetSelected(FAssetData(InObjects[0]));
 	}
 }
 

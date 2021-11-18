@@ -110,7 +110,7 @@ namespace Gauntlet
 				{
 					string MacOSDir = Path.Combine(Di.FullName, "Contents", "MacOS");
 
-					// check both binary AND UE4 content. Regular UE4 builds won't have the latter
+					// check both binary AND Engine content. Regular Unreal builds won't have the latter
 					if (Directory.Exists(MacOSDir)
 						&& Directory.Exists(Path.Combine(Di.FullName, "Contents", "UE4")))
 					{

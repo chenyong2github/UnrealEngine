@@ -39,9 +39,6 @@ float GetAOMaxDistance()
 	return max(AOObjectMaxDistance, AOGlobalMaxOcclusionDistance);
 }
 
-// Pass a debug value through the pipeline instead of a bent normal
-#define PASS_THROUGH_DEBUG_VALUE 0
-
 // One for near, one for far
 #define NUM_CULLED_OBJECT_LISTS 2
 

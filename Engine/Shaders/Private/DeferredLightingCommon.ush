@@ -16,6 +16,10 @@
 #define STRATA_ENABLED 0
 #endif
 
+#ifndef StrataStruct
+#define StrataStruct Strata
+#endif
+
 /** 
  * Data about a single light.
  * Putting the light data in this struct allows the same lighting code to be used between standard deferred, 
@@ -139,8 +143,19 @@ float ShadowRayCast(
 	{
 		// Ignore hits that come from non-shadow-casting pixels
 		float3 SampleUVz = RayStartUVz + RayStepUVz * FirstHitTime;
+	#if STRATA_ENABLED
+		#if (!MATERIAL_IS_STRATA || STRATA_TRANSLUCENT_ENABLED)
+		// StrataStruct.MaterialLobesBuffer is only available to translucent materials or global shaders computing contact shadows.
+		// It is not defined for opaque materials, only the UAV is available to write the strata buffer.
+		uint2 PixelPos = View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy * SampleUVz.xy;
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(StrataStruct.MaterialLobesBuffer, StrataAddressing);
+		bOutHitCastContactShadow = StrataPixelHeader.bCastContactShadow;
+		#endif
+	#else
 		FGBufferData SampleGBuffer = GetGBufferData( SampleUVz.xy );
-		bOutHitCastContactShadow = CastContactShadow( SampleGBuffer );
+		bOutHitCastContactShadow = CastContactShadow(SampleGBuffer);
+	#endif
 
 		// Off screen masking
 		float3 HitUVz = RayStartUVz + RayStepUVz * FirstHitTime;
@@ -209,7 +224,9 @@ void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint Shad
 		}
 	}
 
-#if SUPPORT_CONTACT_SHADOWS && STRATA_ENABLED == 0
+#if SUPPORT_CONTACT_SHADOWS
+
+#if STRATA_ENABLED == 0
 	if (LightData.ShadowedBits < 2 && (ShadingModelID == SHADINGMODELID_HAIR))
 	{
 		ContactShadowLength = 0.2 * ContactShadowLengthScreenScale;
@@ -220,6 +237,7 @@ void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint Shad
 		ContactShadowLength = 0.5;
 		
 	}
+#endif
 
 	#if MATERIAL_CONTACT_SHADOWS
 		ContactShadowLength = 0.2 * ContactShadowLengthScreenScale;
@@ -238,7 +256,7 @@ void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint Shad
 		{
 			float ContactShadowOcclusion = bHitCastContactShadow ? 1.0 : LightData.ContactShadowNonShadowCastingIntensity;
 
-			// STRATA_TODO: manage SSS transmission path here. IsSubsurfaceModel does not take into account strata
+#if STRATA_ENABLED == 0
 			// Exponential attenuation is not applied on hair/eye/SSS-profile here, as the hit distance (shading-point to blocker) is different from the estimated 
 			// thickness (closest-point-from-light to shading-point), and this creates light leaks. Instead we consider first hit as a blocker (old behavior)
 			BRANCH
@@ -254,6 +272,7 @@ void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint Shad
 				float Density = SubsurfaceDensityFromOpacity(ContactShadowOpacity);
 				ContactShadowOcclusion *= 1.0 - saturate( exp( -Density * HitDistance ) );
 			}
+#endif
 
 			float ContactShadow = 1.0 - ContactShadowOcclusion;
 

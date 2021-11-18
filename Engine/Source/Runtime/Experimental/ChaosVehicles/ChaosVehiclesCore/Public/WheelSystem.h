@@ -64,7 +64,7 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 
 	enum EAxleType : uint8
 	{
-		Undefined = 0,
+		UndefinedAxle = 0,
 		Front,
 		Rear
 	};
@@ -83,7 +83,8 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, SteeringEnabled(true)
 		, EngineEnabled(false)
 		, TractionControlEnabled(false)
-		, AxleType(EAxleType::Undefined)
+		, TorqueRatio(0.f)
+		, AxleType(EAxleType::UndefinedAxle)
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
 		, FrictionMultiplier(2.0f)
 		, LateralSlipGraphMultiplier(1.0f)
@@ -118,6 +119,7 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 	bool SteeringEnabled;		// Steering is operational on this wheel
 	bool EngineEnabled;			// Wheel is driven by an engine
 	bool TractionControlEnabled;// Straight Line Traction Control
+	float TorqueRatio;			// Portion of torque going to this wheel (0->1)
 
 	EAxleType AxleType;
 

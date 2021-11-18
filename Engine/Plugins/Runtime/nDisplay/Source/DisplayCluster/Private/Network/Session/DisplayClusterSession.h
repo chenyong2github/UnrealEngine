@@ -9,6 +9,8 @@
 #include "Network/Transport/DisplayClusterSocketOperations.h"
 #include "Network/Transport/DisplayClusterSocketOperationsHelper.h"
 #include "Network/Packet/IDisplayClusterPacket.h"
+#include "Network/DisplayClusterNetworkTypes.h"
+#include "Network/IDisplayClusterServer.h"
 
 #include "Misc/DisplayClusterConstants.h"
 #include "Misc/DisplayClusterLog.h"
@@ -17,40 +19,34 @@
 #include "HAL/RunnableThread.h"
 #include "GenericPlatform/GenericPlatformAffinity.h"
 
-class IDisplayClusterSessionStatusListener;
-
 
 /**
  * Base server socket session class
  */
-template <typename TPacketType, bool bIsBidirectional, bool bExitOnCommError>
+template <typename TPacketType, bool bIsBidirectional>
 class FDisplayClusterSession
 	: public    IDisplayClusterSession
-	, public    FRunnable
+	, protected FRunnable
 	, protected FDisplayClusterSocketOperations
-	, protected FDisplayClusterSocketOperationsHelper<TPacketType, bExitOnCommError>
+	, protected FDisplayClusterSocketOperationsHelper<TPacketType>
 {
 public:
 	FDisplayClusterSession(
-			FSocket* Socket,
-			IDisplayClusterSessionStatusListener* InStatusListener,
-			IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>* InPacketHandler,
-			uint64 InSessionId,
-			const FString& InName = FString("DisplayClusterSession"),
+			const FDisplayClusterSessionInfo& InSessionInfo,
+			IDisplayClusterServer& InOwningServer,
+			IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>& InPacketHandler,
 			EThreadPriority InThreadPriority = EThreadPriority::TPri_Normal)
 
-		: FDisplayClusterSocketOperations(Socket, DisplayClusterConstants::net::PacketBufferSize, InName)
-		, FDisplayClusterSocketOperationsHelper<TPacketType, bExitOnCommError>(*this, InName)
-		, Name(InName)
-		, SessionId(InSessionId)
-		, StatusListener(InStatusListener)
+		: FDisplayClusterSocketOperations(InSessionInfo.Socket, DisplayClusterConstants::net::PacketBufferSize, InSessionInfo.SessionName)
+		, FDisplayClusterSocketOperationsHelper<TPacketType>(*this, InSessionInfo.SessionName)
+		, SessionInfo(InSessionInfo)
+		, OwningServer(InOwningServer)
 		, PacketHandler(InPacketHandler)
 		, ThreadPriority(InThreadPriority)
 	{
 		static_assert(std::is_base_of<IDisplayClusterPacket, TPacketType>::value, "TPacketType is not derived from IDisplayClusterPacket");
 
-		check(InStatusListener);
-		check(InPacketHandler);
+		checkSlow(InSessionInfo.Socket);
 	}
 
 	virtual ~FDisplayClusterSession()
@@ -62,31 +58,39 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterSession
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual FString GetName() const override final
+	virtual const FDisplayClusterSessionInfo& GetSessionInfo() const override final
 	{
-		return Name;
-	}
-
-	virtual uint64 GetSessionId() const override final
-	{
-		return SessionId;
+		return SessionInfo;
 	}
 
 	virtual bool StartSession() override
 	{
-		StatusListener->NotifySessionOpen(SessionId);
-
-		ThreadObj.Reset(FRunnableThread::Create(this, *(Name + FString("_thread")), 1024 * 1024, ThreadPriority, FPlatformAffinity::GetMainGameMask()));
+		ThreadObj.Reset(FRunnableThread::Create(this, *SessionInfo.SessionName, 1024 * 1024, ThreadPriority, FPlatformAffinity::GetMainGameMask()));
 		ensure(ThreadObj);
 
-		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session %s started"), *GetName());
-
-		return true;
+		return ThreadObj.IsValid();
 	}
 	
-	virtual void StopSession() override
+	virtual void StopSession(bool bWaitForCompletion) override
 	{
+		// Set termination flag
+		SessionInfo.bTerminatedByServer = true;
+
+		// Stop working thread
 		Stop();
+
+		if (bWaitForCompletion)
+		{
+			WaitForCompletion();
+		}
+	}
+
+	virtual void WaitForCompletion() override
+	{
+		if (ThreadObj)
+		{
+			ThreadObj->WaitForCompletion();
+		}
 	}
 
 protected:
@@ -95,54 +99,66 @@ protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual uint32 Run() override
 	{
-		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session thread %s has started"), *GetName());
+		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session thread %s has started"), *SessionInfo.SessionName);
 
 		// Using TLS dramatically speeds up clusters with large numbers of nodes
 		FMemory::SetupTLSCachesOnCurrentThread();
 
+		// Set session start time
+		SessionInfo.TimeStart = FPlatformTime::Seconds();
+
+		// Notify owner about new session
+		GetOwner().OnSessionOpened().Broadcast(SessionInfo);
+
+		// Process all incoming messages unless server is shutdown or remote host is up
 		while (FDisplayClusterSocketOperations::IsOpen())
 		{
 			// Receive a packet
-			TSharedPtr<TPacketType> Request = FDisplayClusterSocketOperationsHelper<TPacketType, bExitOnCommError>::ReceivePacket();
+			TSharedPtr<TPacketType> Request = FDisplayClusterSocketOperationsHelper<TPacketType>::ReceivePacket();
 			if (!Request)
 			{
-				UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Session %s: couldn't receive a request packet"), *GetName());
+				UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("Session %s: couldn't receive a request packet"), *SessionInfo.SessionName);
 				break;
 			}
 
 			// Processs the request
-			typename IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>::ReturnType Response = GetPacketHandler()->ProcessPacket(Request);
+			typename IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>::ReturnType Response = GetPacketHandler().ProcessPacket(Request, GetSessionInfo());
 			
 			// Send a response (or not, it depends on the connection type)
 			const bool bResult = HandleSendResponse(Response);
 			if (!bResult)
 			{
-				UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Session %s: couldn't send a response packet"), *GetName());
+				UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("Session %s: couldn't send a response packet"), *SessionInfo.SessionName);
 				break;
 			}
 
-			UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("A packet has been processed"), *GetName());
+			UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("Session %s has processed a packet"), *SessionInfo.SessionName);
 		}
 
-		GetStatusListener()->NotifySessionClose(GetSessionId());
+		// Set session end time
+		SessionInfo.TimeEnd = FPlatformTime::Seconds();
 
-		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session thread %s has finished"), *GetName());
+		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session thread %s has finished"), *SessionInfo.SessionName);
+
+		// Since we left the cycle above, it means the session has been closed. We need to notify the owning server about that.
+		GetOwner().OnSessionClosed().Broadcast(SessionInfo);
+
 		return 0;
 	}
 
 	virtual void Stop() override final
 	{
-		GetSocket()->Close();
-		ThreadObj->WaitForCompletion();
+		// Close the socket so the working thread will detect socket error and stop working
+		CloseSocket();
 	}
 
 protected:
-	IDisplayClusterSessionStatusListener* GetStatusListener() const
+	IDisplayClusterServer& GetOwner() const
 	{
-		return StatusListener;
+		return OwningServer;
 	}
 
-	IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>* GetPacketHandler() const
+	IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>& GetPacketHandler() const
 	{
 		return PacketHandler;
 	}
@@ -167,22 +183,20 @@ private:
 	{
 		if (Response.IsValid())
 		{
-			return FDisplayClusterSocketOperationsHelper<TPacketType, bExitOnCommError>::SendPacket(Response);
+			return FDisplayClusterSocketOperationsHelper<TPacketType>::SendPacket(Response);
 		}
 
 		return false;
 	}
 
 private:
-	// Session name
-	const FString Name;
-	// Session ID
-	const uint64 SessionId;
+	// Session info
+	FDisplayClusterSessionInfo SessionInfo;
 
-	// Session status listener
-	IDisplayClusterSessionStatusListener* StatusListener = nullptr;
+	// Session owner
+	IDisplayClusterServer& OwningServer;
 	// Session packets processor
-	IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>* PacketHandler = nullptr;
+	IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>& PacketHandler = nullptr;
 
 	// Working thread priority
 	const EThreadPriority ThreadPriority;

@@ -422,8 +422,9 @@ namespace Gauntlet
 
 			UnrealTestRoleContext ClientContext = Context.GetRoleContext(UnrealTargetRole.Client);
 
-			// because these need deployed we want them in flight asap
-			if (ClientContext.Platform == UnrealTargetPlatform.PS4)
+			// because these device build need deployed we want them in flight asap
+			IDeviceBuildSupport DeviceBuildSupport = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDeviceBuildSupport>().Where(D => D.CanSupportPlatform(ClientContext.Platform)).FirstOrDefault(); ;
+			if (DeviceBuildSupport != null && DeviceBuildSupport.NeedBuildDeployed())
 			{
 				return TestPriority.High;
 			}

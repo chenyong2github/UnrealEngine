@@ -122,6 +122,7 @@ namespace Metasound
 					Set("MetasoundEditor.Graph.Node.Class.Graph", new IMAGE_BRUSH_SVG(TEXT("Icons/graph_node"), Icon16));
 					Set("MetasoundEditor.Graph.Node.Class.Input", new IMAGE_BRUSH_SVG(TEXT("Icons/input_node"), FVector2D(16.0f, 13.0f)));
 					Set("MetasoundEditor.Graph.Node.Class.Output", new IMAGE_BRUSH_SVG(TEXT("Icons/output_node"), FVector2D(16.0f, 13.0f)));
+					Set("MetasoundEditor.Graph.Node.Class.Variable", new IMAGE_BRUSH_SVG(TEXT("Icons/variable_node"), FVector2D(8.0f, 16.0f)));
 
 					Set("MetasoundEditor.Graph.Node.Math.Add", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_add_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Divide", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_divide_40x.png")), Icon40x40));
@@ -341,7 +342,6 @@ namespace Metasound
 					FDataTypeRegistryInfo RegistryInfo;
 					if (ensure(DataTypeRegistry.GetDataTypeInfo(DataTypeName, RegistryInfo)))
 					{
-
 						FName PinCategory = DataTypeName;
 						FName PinSubCategory;
 
@@ -485,7 +485,12 @@ namespace Metasound
 				return NodeInputClassRegistry.FindRef(InLiteralType);
 			}
 
-			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const override
+			virtual const FEditorDataType* FindDataType(FName InDataTypeName) const override
+			{
+				return DataTypeInfo.Find(InDataTypeName);
+			}
+
+			virtual const FEditorDataType& FindDataTypeChecked(FName InDataTypeName) const override
 			{
 				return DataTypeInfo.FindChecked(InDataTypeName);
 			}

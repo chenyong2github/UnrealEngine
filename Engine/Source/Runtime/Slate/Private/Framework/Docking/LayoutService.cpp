@@ -11,6 +11,8 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogLayoutService, Log, All);
 
+const TCHAR* DefaultEditorLayoutsSectionName = TEXT("EditorLayouts");
+
 static const TCHAR* GetEditorLayoutsSectionName()
 {
 	static FString EditorLayoutsSectionName;
@@ -21,13 +23,51 @@ static const TCHAR* GetEditorLayoutsSectionName()
 		EditorLayoutsSectionName.TrimStartAndEndInline();
 		if (EditorLayoutsSectionName.IsEmpty())
 		{
-			EditorLayoutsSectionName = TEXT("EditorLayouts");
+			EditorLayoutsSectionName = DefaultEditorLayoutsSectionName;
 		}
 	}
 	
 	return *EditorLayoutsSectionName;
 }
 
+static bool GetConfigString(const TCHAR* Key, FString& Value, const FString& Filename, bool bAllowFallback = true)
+{
+	if (!GConfig->GetString(GetEditorLayoutsSectionName(), Key, Value, Filename))
+	{
+		if (bAllowFallback && GetEditorLayoutsSectionName() != DefaultEditorLayoutsSectionName)
+		{
+			return GConfig->GetString(DefaultEditorLayoutsSectionName, Key, Value, Filename);
+		}
+		return false;
+	}
+	return true;
+}
+
+static bool GetConfigSection(TArray<FString>& Result, const FString& Filename, bool bAllowFallback = true)
+{
+	if (!GConfig->GetSection(GetEditorLayoutsSectionName(), Result, Filename))
+	{
+		if (bAllowFallback && GetEditorLayoutsSectionName() != DefaultEditorLayoutsSectionName)
+		{
+			return GConfig->GetSection(DefaultEditorLayoutsSectionName, Result, Filename);
+		}
+		return false;
+	}
+	return true;
+}
+
+static FConfigSection* GetConfigSectionPrivate(const bool Force, const bool Const, const FString& Filename, bool bAllowFallback = true)
+{
+	FConfigSection* FoundSection = GConfig->GetSectionPrivate(GetEditorLayoutsSectionName(), /*Force*/false, /*Const*/true, Filename);
+	if (FoundSection)
+	{
+		if (bAllowFallback && GetEditorLayoutsSectionName() != DefaultEditorLayoutsSectionName)
+		{
+			FoundSection = GConfig->GetSectionPrivate(DefaultEditorLayoutsSectionName, /*Force*/false, /*Const*/true, Filename);
+		}
+	}
+	return FoundSection;
+}
 
 static FString PrepareLayoutStringForIni(const FString& LayoutString)
 {
@@ -102,7 +142,11 @@ static TSharedPtr<FJsonObject> ConvertSectionToJson(const TArray<FString>& Secti
 static FString GetLayoutJsonFileName(const FString& InConfigFileName)
 {
 	const FString JsonFileName = FPaths::GetBaseFilename(InConfigFileName) + TEXT(".json");
+#ifdef UE_SAVED_DIR_OVERRIDE
+	const FString UserSettingsPath = FPaths::Combine(FPlatformProcess::UserSettingsDir(), TEXT(PREPROCESSOR_TO_STRING(UE_SAVED_DIR_OVERRIDE)), TEXT("Editor"), JsonFileName);
+#else
 	const FString UserSettingsPath = FPaths::Combine(FPlatformProcess::UserSettingsDir(), FApp::GetEpicProductIdentifier(), TEXT("Editor"), JsonFileName);
+#endif
 	return UserSettingsPath;
 }
 
@@ -207,7 +251,7 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 	{
 		FString IniLayoutString;
 		// If the Key (InDefaultLayout->GetLayoutName()) already exists in the section GetEditorLayoutsSectionName() of the file InConfigFileName, try to load the layout from that file
-		GConfig->GetString(GetEditorLayoutsSectionName(), *LayoutNameString, IniLayoutString, InConfigFileName);
+		GetConfigString(*LayoutNameString, IniLayoutString, InConfigFileName);
 		bool bIsJson = false;
 		UserLayout = FTabManager::FLayout::NewFromString( GetLayoutStringFromIni( IniLayoutString, bIsJson ) );
 	}
@@ -227,7 +271,7 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 	else if (bInRemoveOlderLayoutVersions)
 	{
 		// If File and Section exist
-		if (FConfigSection* ConfigSection = GConfig->GetSectionPrivate(GetEditorLayoutsSectionName(), /*Force*/false, /*Const*/true, InConfigFileName))
+		if (FConfigSection* ConfigSection = GetConfigSectionPrivate(/*Force*/false, /*Const*/true, InConfigFileName))
 		{
 			// If Key does not exist (i.e., Section does but not contain that Key)
 			if (!ConfigSection->Find(*LayoutNameString))
@@ -255,10 +299,17 @@ TSharedRef<FTabManager::FLayout> FLayoutSaveRestore::LoadFromConfigPrivate(const
 				// Remove older versions of this Key
 				for (const FString& KeyToRemove : OutRemovedOlderLayoutVersions)
 				{
-					GConfig->RemoveKey(GetEditorLayoutsSectionName(), *KeyToRemove, InConfigFileName);
-					UE_LOG(LogLayoutService, Warning, TEXT("While key \"%s\" was not found, and older version exists (key \"%s\"). This means section \"%s\" was"
-						" created with a previous version of UE and is no longer compatible. The old key has been removed and updated with the new one."),
-						*LayoutNameString, *KeyToRemove, GetEditorLayoutsSectionName());
+					if (GConfig->RemoveKey(GetEditorLayoutsSectionName(), *KeyToRemove, InConfigFileName))
+					{
+						UE_LOG(LogLayoutService, Warning, TEXT("While key \"%s\" was not found, and older version exists (key \"%s\"). This means section \"%s\" was"
+							" created with a previous version of UE and is no longer compatible. The old key has been removed and updated with the new one."),
+							*LayoutNameString, *KeyToRemove, GetEditorLayoutsSectionName());
+					}
+					else
+					{
+						UE_LOG(LogLayoutService, Warning, TEXT("Could not remove old layout key %s because it exists in the fallback section %s instead of the current section %s"),
+							*KeyToRemove, DefaultEditorLayoutsSectionName, GetEditorLayoutsSectionName());
+					}
 				}
 			}
 		}
@@ -295,7 +346,7 @@ FText FLayoutSaveRestore::LoadSectionFromConfig(const FString& InConfigFileName,
 
 	if (ValueString.IsEmpty())
 	{
-		GConfig->GetString(GetEditorLayoutsSectionName(), *InSectionName, ValueString, InConfigFileName);
+		GetConfigString(*InSectionName, ValueString, InConfigFileName);
 	}
 
 	FText ValueText;
@@ -317,7 +368,7 @@ bool FLayoutSaveRestore::DuplicateConfig(const FString& SourceConfigFileName, co
 
 	// convert this layout to a JSON file
 	TArray<FString> SectionPairs;
-	GConfig->GetSection(GetEditorLayoutsSectionName(), SectionPairs, TargetConfigFileName);
+	GetConfigSection(SectionPairs, TargetConfigFileName);
 
 	TSharedPtr<FJsonObject> RootObject = ConvertSectionToJson(SectionPairs);
 
@@ -332,7 +383,7 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 	TArray<FString> OldSectionStrings;
 
 	// check whether any layout configuration needs to be migrated
-	if (!GConfig->GetSection(GetEditorLayoutsSectionName(), OldSectionStrings, OldConfigFileName) || (OldSectionStrings.Num() == 0))
+	if (!GetConfigSection(OldSectionStrings, OldConfigFileName) || (OldSectionStrings.Num() == 0))
 	{
 		return;
 	}
@@ -354,7 +405,11 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 	}
 
 	// remove old configuration
-	GConfig->EmptySection(GetEditorLayoutsSectionName(), OldConfigFileName);
+	if (!GConfig->EmptySection(GetEditorLayoutsSectionName(), OldConfigFileName))
+	{
+		UE_LOG(LogLayoutService, Warning, TEXT("Could not remove old layout in %s because it is using the fallback section %s instead of the current section %s. New layout file will still be created."),
+			*OldConfigFileName, DefaultEditorLayoutsSectionName, GetEditorLayoutsSectionName());
+	}
 	GConfig->Flush(false, OldConfigFileName);
 	GConfig->Flush(false, NewConfigFileName);
 
@@ -369,9 +424,13 @@ void FLayoutSaveRestore::MigrateConfig( const FString& OldConfigFileName, const 
 }
 
 
-bool FLayoutSaveRestore::IsValidConfig(const FString& InConfigFileName)
+bool FLayoutSaveRestore::IsValidConfig(const FString& InConfigFileName, bool bAllowFallback)
 {
 	if (GConfig->DoesSectionExist(GetEditorLayoutsSectionName(), *InConfigFileName))
+	{
+		return true;
+	}
+	else if (bAllowFallback && GConfig->DoesSectionExist(DefaultEditorLayoutsSectionName, *InConfigFileName))
 	{
 		return true;
 	}

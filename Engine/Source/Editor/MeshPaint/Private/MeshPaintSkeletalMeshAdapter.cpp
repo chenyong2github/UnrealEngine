@@ -473,6 +473,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::PostEdit()
 {
 	TUniquePtr< FSkinnedMeshComponentRecreateRenderStateContext > RecreateRenderStateContext = MakeUnique<FSkinnedMeshComponentRecreateRenderStateContext>(ReferencedSkeletalMesh);
 	ReferencedSkeletalMesh->InitResources();
+	ReferencedSkeletalMesh->GetOnMeshChanged().Broadcast();
 }
 
 void FMeshPaintGeometryAdapterForSkeletalMeshes::GetVertexColor(int32 VertexIndex, FColor& OutColor, bool bInstance /*= true*/) const

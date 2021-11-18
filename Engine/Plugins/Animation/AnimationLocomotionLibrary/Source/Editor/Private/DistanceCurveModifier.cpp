@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DistanceCurveModifier.h"
-#include "AnimationBlueprintLibrary.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimationPoseData.h"
 
@@ -51,10 +50,11 @@ void UDistanceCurveModifier::OnApply_Implementation(UAnimSequence* Animation)
 	}
 
 	SampleInterval = 1.f / SampleRate;
-	NumSteps = AnimLength / SampleInterval;
-	for (int32 Step = 0; Step < NumSteps; ++Step)
+	NumSteps = FMath::CeilToInt(AnimLength / SampleInterval);
+	float Time = 0.0f;
+	for (int32 Step = 0; Step <= NumSteps && Time < AnimLength; ++Step)
 	{
-		const float Time = Step * SampleInterval;
+		Time = FMath::Min(Step * SampleInterval, AnimLength);
 
 		// Assume that during any time before the stop/pivot point, the animation is approaching that point.
 		// TODO: This works for clips that are broken into starts/stops/pivots, but needs to be rethought for more complex clips.

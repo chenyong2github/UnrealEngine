@@ -64,6 +64,7 @@ Landscape.cpp: Terrain rendering
 #include "MaterialUtilities.h"
 #include "Editor.h"
 #include "Algo/Transform.h"
+#include "Algo/BinarySearch.h"
 #include "Engine/Texture2D.h"
 #endif
 #include "LandscapeVersion.h"
@@ -943,8 +944,7 @@ void ULandscapeComponent::PostLoad()
 		// Move the MICs and Textures back to the Package if they're currently in the level
 		// Moving them into the level caused them to be duplicated when running PIE, which is *very very slow*, so we've reverted that change
 		// Also clear the public flag to avoid various issues, e.g. generating and saving thumbnails that can never be seen
-		ULevel* Level = GetLevel();
-		if (ensure(Level))
+		if (ULevel* Level = GetLevel())
 		{
 			TArray<UObject*> ObjectsToMoveFromLevelToPackage;
 			GetGeneratedTexturesAndMaterialInstances(ObjectsToMoveFromLevelToPackage);
@@ -1557,6 +1557,36 @@ TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(bool InReturnEdit
 	return WeightmapTextures;
 }
 
+const TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(const FGuid& InLayerGuid) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InLayerGuid.IsValid())
+	{
+		if (const FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
+		{
+			return LayerData->WeightmapData.Textures;
+		}
+	}
+#endif
+
+	return WeightmapTextures;
+}
+
+TArray<UTexture2D*>& ULandscapeComponent::GetWeightmapTextures(const FGuid& InLayerGuid)
+{
+#if WITH_EDITORONLY_DATA
+	if (InLayerGuid.IsValid())
+	{
+		if (FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
+		{
+			return LayerData->WeightmapData.Textures;
+		}
+	}
+#endif
+
+	return WeightmapTextures;
+}
+
 const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(bool InReturnEditingWeightmap) const
 {
 #if WITH_EDITORONLY_DATA
@@ -1865,6 +1895,36 @@ const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTextur
 	return WeightmapTexturesUsage;
 }
 
+TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(const FGuid& InLayerGuid)
+{
+#if WITH_EDITORONLY_DATA
+	if (InLayerGuid.IsValid())
+	{
+		if (FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
+		{
+			return LayerData->WeightmapData.TextureUsages;
+		}
+	}
+#endif
+
+	return WeightmapTexturesUsage;
+}
+
+const TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(const FGuid& InLayerGuid) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InLayerGuid.IsValid())
+	{
+		if (const FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
+		{
+			return LayerData->WeightmapData.TextureUsages;
+		}
+	}
+#endif
+
+	return WeightmapTexturesUsage;
+}
+
 void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToEditingWeightmap)
 {
 #if WITH_EDITORONLY_DATA
@@ -1950,7 +2010,7 @@ void ALandscapeProxy::UnregisterAllComponents(const bool bForReregister)
 {
 	// Game worlds don't have landscape infos
 	// On shutdown the world will be unreachable
-	if (GetWorld() && !GetWorld()->IsPendingKillOrUnreachable() &&
+	if (GetWorld() && IsValidChecked(GetWorld()) && !GetWorld()->IsUnreachable() &&
 		// When redoing the creation of a landscape we may get UnregisterAllComponents called when
 		// we are in a "pre-initialized" state (empty guid, etc)
 		LandscapeGuid.IsValid())
@@ -2391,8 +2451,6 @@ bool ULandscapeInfo::UpdateLayerInfoMapInternal(ALandscapeProxy* Proxy, bool bIn
 
 			if (!bInvalidate)
 			{
-				// Use a scoped cache to fasten the operation (lots of redundant material analysis) : 
-				FScopedGetLayersFromMaterialCache GetLayersFromMaterialCache;
 				ForAllLandscapeProxies([this](ALandscapeProxy* EachProxy)
 				{
 					if (!EachProxy->IsPendingKillPending())
@@ -2456,7 +2514,7 @@ void ALandscapeProxy::PostLoad()
 		CreateLandscapeInfo();
 	}
 #if WITH_EDITOR
-	if (GIsEditor && !GetWorld()->IsGameWorld())
+	if (GIsEditor && GetWorld() && !GetWorld()->IsGameWorld())
 	{
 		if ((GetLinker() && (GetLinker()->UEVer() < VER_UE4_LANDSCAPE_COMPONENT_LAZY_REFERENCES)) ||
 			LandscapeComponents.Num() != CollisionComponents.Num() ||
@@ -2494,9 +2552,11 @@ void ALandscapeProxy::PostLoad()
 	}
 
 	// track feature level change to flush grass cache
-	FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateUObject(this, &ALandscapeProxy::OnFeatureLevelChanged);
-	FeatureLevelChangedDelegateHandle = GetWorld()->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
-
+	if (GetWorld())
+	{
+		FOnFeatureLevelChanged::FDelegate FeatureLevelChangedDelegate = FOnFeatureLevelChanged::FDelegate::CreateUObject(this, &ALandscapeProxy::OnFeatureLevelChanged);
+		FeatureLevelChangedDelegateHandle = GetWorld()->AddOnFeatureLevelChangedHandler(FeatureLevelChangedDelegate);
+	}
 	RepairInvalidTextures();
 #endif
 }
@@ -3034,7 +3094,7 @@ void ULandscapeInfo::RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck)
 
 		if (Info != nullptr && Info->GetLandscapeProxy() == nullptr)
 		{
-			Info->MarkPendingKill();
+			Info->MarkAsGarbage();
 			It.RemoveCurrent();
 		}
 		else if (Info == nullptr) // remove invalid entry
@@ -3297,7 +3357,20 @@ TArray<TScriptInterface<ILandscapeSplineInterface>> ULandscapeInfo::GetSplineAct
 void ULandscapeInfo::RegisterSplineActor(TScriptInterface<ILandscapeSplineInterface> SplineActor)
 {
 	Modify();
-	SplineActors.AddUnique(SplineActor);
+
+	// Sort on insert to ensure spline actors are always processed in the same order, regardless of variation in the
+	// sub level streaming/registration sequence.
+	auto SortPredicate = [](const TScriptInterface<ILandscapeSplineInterface>& A, const TScriptInterface<ILandscapeSplineInterface>& B)
+	{
+		return Cast<UObject>(A.GetInterface())->GetPathName() < Cast<UObject>(B.GetInterface())->GetPathName();
+	};
+
+	// Add a unique entry, sorted
+	const int32 LBoundIdx = Algo::LowerBound(SplineActors, SplineActor, SortPredicate);
+	if (LBoundIdx == SplineActors.Num() || SplineActors[LBoundIdx] != SplineActor)
+	{
+		SplineActors.Insert(SplineActor, LBoundIdx);
+	}
 
 	if (SplineActor->GetSplinesComponent())
 	{
@@ -3579,60 +3652,6 @@ void FLandscapeComponentDerivedData::SaveToDDC(const FGuid& StateId, UObject* Co
 	Serialize(Ar, Component);
 	GetDerivedDataCacheRef().Put(*GetDDCKeyString(StateId), Bytes, Component->GetPathName());
 }
-
-#if WITH_EDITOR
-void LandscapeMaterialsParameterValuesGetter(FStaticParameterSet& OutStaticParameterSet, UMaterialInstance* Material)
-{
-	if (Material->Parent)
-	{
-		UMaterial* ParentMaterial = Material->Parent->GetMaterial();
-
-		TArray<FMaterialParameterInfo> OutParameterInfo;
-		TArray<FGuid> Guids;
-		Material->GetAllParameterInfo<UMaterialExpressionLandscapeLayerWeight>(OutParameterInfo, Guids);
-		Material->GetAllParameterInfo<UMaterialExpressionLandscapeLayerSwitch>(OutParameterInfo, Guids);
-		Material->GetAllParameterInfo<UMaterialExpressionLandscapeLayerSample>(OutParameterInfo, Guids);
-		Material->GetAllParameterInfo<UMaterialExpressionLandscapeLayerBlend>(OutParameterInfo, Guids);
-		Material->GetAllParameterInfo<UMaterialExpressionLandscapeVisibilityMask>(OutParameterInfo, Guids);
-
-		OutStaticParameterSet.TerrainLayerWeightParameters.AddZeroed(OutParameterInfo.Num());
-		for (int32 ParameterIdx = 0; ParameterIdx < OutParameterInfo.Num(); ParameterIdx++)
-		{
-			FStaticTerrainLayerWeightParameter& ParentParameter = OutStaticParameterSet.TerrainLayerWeightParameters[ParameterIdx];
-			const FMaterialParameterInfo& ParameterInfo = OutParameterInfo[ParameterIdx];
-			FGuid ExpressionId = Guids[ParameterIdx];
-			int32 WeightmapIndex = INDEX_NONE;
-
-			ParentParameter.bOverride = false;
-			ParentParameter.ParameterInfo = ParameterInfo;
-			// Get the settings from the parent in the MIC chain
-			Material->Parent->GetTerrainLayerWeightParameterValue(ParameterInfo, ParentParameter.WeightmapIndex, ExpressionId);
-			ParentParameter.ExpressionGUID = ExpressionId;
-
-			// If the SourceInstance is overriding this parameter, use its settings
-			for (int32 WeightParamIdx = 0; WeightParamIdx < Material->GetStaticParameters().TerrainLayerWeightParameters.Num(); WeightParamIdx++)
-			{
-				const FStaticTerrainLayerWeightParameter& TerrainLayerWeightParam = Material->GetStaticParameters().TerrainLayerWeightParameters[WeightParamIdx];
-
-				if (ParameterInfo == TerrainLayerWeightParam.ParameterInfo)
-				{
-					ParentParameter.bOverride = TerrainLayerWeightParam.bOverride;
-					if (TerrainLayerWeightParam.bOverride)
-					{
-						ParentParameter.WeightmapIndex = TerrainLayerWeightParam.WeightmapIndex;
-						ParentParameter.bWeightBasedBlend = TerrainLayerWeightParam.bWeightBasedBlend;
-					}
-				}
-			}
-		}
-	}
-}
-
-bool LandscapeMaterialsParameterSetUpdater(FStaticParameterSet& StaticParameterSet, UMaterial* ParentMaterial)
-{
-	return UpdateParameterSet<FStaticTerrainLayerWeightParameter, UMaterialExpressionLandscapeLayerWeight>(StaticParameterSet.TerrainLayerWeightParameters, ParentMaterial);
-}
-#endif // WITH_EDITOR
 
 ALandscapeProxy::~ALandscapeProxy()
 {

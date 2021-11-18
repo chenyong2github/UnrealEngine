@@ -31,13 +31,13 @@ namespace MeshDescriptionUVsToDynamicMeshLocals
 	// frequently end up negative).
 	// The ScaleFactor just scales the mesh up. Scaling the mesh up makes it easier to zoom in
 	// further into the display before getting issues with the camera near plane distance.
-	FORCEINLINE FVector3d UVToVertPosition(const FVector2D& UV, double ScaleFactor)
+	FORCEINLINE FVector3d UVToVertPosition(const FVector2f& UV, double ScaleFactor)
 	{
 		return FVector3d((1 - UV.Y) * ScaleFactor, UV.X * ScaleFactor, 0);
 	}
-	FORCEINLINE FVector2D VertPositionToUV(const FVector3d& VertPosition, double ScaleFactor)
+	FORCEINLINE FVector2f VertPositionToUV(const FVector3d& VertPosition, double ScaleFactor)
 	{
-		return FVector2D(VertPosition.Y / ScaleFactor, 1 - (VertPosition.X / ScaleFactor));
+		return FVector2f(VertPosition.Y / ScaleFactor, 1 - (VertPosition.X / ScaleFactor));
 	}
 
 	// This class is copied from MeshDescriptionToDynamicMesh.cpp. We could consider putting it
@@ -72,7 +72,7 @@ namespace MeshDescriptionUVsToDynamicMeshLocals
 			check(MeshToAddTo && ScaleFactorIn != 0);
 		}
 
-		int FindOrAddUnique(const FVector2D& UV, int VertexID)
+		int FindOrAddUnique(const FVector2f& UV, int VertexID)
 		{
 			FVertexUV VertUV = { VertexID, UV.X, UV.Y };
 
@@ -118,12 +118,12 @@ TSharedPtr<FDynamicMesh3> FMeshDescriptionUVsToDynamicMesh::GetUVMesh(const FMes
 	{
 		// Create vertices for the UV elements.
 		const FUVArray& SharedUVs = MeshDescription->UVs(UVLayerIndex);
-		TUVAttributesRef<const FVector2D> SharedUVCoordinates = SharedUVs.GetAttributes().GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+		TUVAttributesRef<const FVector2f> SharedUVCoordinates = SharedUVs.GetAttributes().GetAttributesRef<FVector2f>(MeshAttribute::UV::UVCoordinate);
 
 		MeshOut->BeginUnsafeVerticesInsert();
 		for (FUVID UVID : SharedUVs.GetElementIDs())
 		{
-			const FVector2D UV = SharedUVCoordinates[UVID];
+			const FVector2f UV = SharedUVCoordinates[UVID];
 			MeshOut->InsertVertex(UVID.GetValue(), UVToVertPosition(UV, ScaleFactor), true);
 		}
 		MeshOut->EndUnsafeTrianglesInsert();
@@ -132,7 +132,7 @@ TSharedPtr<FDynamicMesh3> FMeshDescriptionUVsToDynamicMesh::GetUVMesh(const FMes
 	// Instance UV's and a welder are used if bUseSharedUVs is false, or if it is true but some 
 	// verts are not initialized.
 	FStaticMeshConstAttributes Attributes(*MeshDescription);
-	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector2f> InstanceUVs = Attributes.GetVertexInstanceUVs();
 	FUVMeshWelder UVMeshWelder(MeshOut.Get(), ScaleFactor);
 
 	// Go through triangles and build our mesh
@@ -265,7 +265,7 @@ void FMeshDescriptionUVsToDynamicMesh::BakeBackUVsFromUVMesh(const FDynamicMesh3
 	// Regardless of whether we have shared UVs or not, we are supposed to update the instance UVs.
 	// This is straightforward, since any welding or splitting does not change anything.
 	FStaticMeshAttributes Attributes(*MeshDescription);
-	TVertexInstanceAttributesRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> InstanceUVs = Attributes.GetVertexInstanceUVs();
 	for (int32 Tid : DynamicMesh->TriangleIndicesItr())
 	{
 		TArrayView<const FVertexInstanceID> MeshDescriptionTriInstanceIds = MeshDescription->GetTriangleVertexInstances(Tid);
@@ -292,7 +292,7 @@ void FMeshDescriptionUVsToDynamicMesh::BakeBackUVsFromUVMesh(const FDynamicMesh3
 		}
 
 		FUVArray& SharedUvs = MeshDescription->UVs(UVLayerIndex);
-		TUVAttributesRef<FVector2D> SharedUVCoordinates = SharedUvs.GetAttributes().GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+		TUVAttributesRef<FVector2f> SharedUVCoordinates = SharedUvs.GetAttributes().GetAttributesRef<FVector2f>(MeshAttribute::UV::UVCoordinate);
 
 		MeshDescription->SuspendUVIndexing();
 
@@ -328,7 +328,7 @@ void FMeshDescriptionUVsToDynamicMesh::BakeBackUVsFromUVMesh(const FDynamicMesh3
 				// If we haven't dealt with this vert, we will need to update its entry in SharedUVCoordinates.
 
 				FVector3d VertPosition = DynamicMesh->GetVertex(Vid);
-				FVector2D NewUVValue = VertPositionToUV(VertPosition, ScaleFactor);
+				FVector2f NewUVValue = VertPositionToUV(VertPosition, ScaleFactor);
 				
 				// See if the vert is the same one that we were expecting (including one that we may have split off just for
 				// the conversion, in which case the location will match).

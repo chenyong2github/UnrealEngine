@@ -57,12 +57,12 @@ struct TStaticMeshVertexUVsDatum
 {
 	UVTypeT UVs;
 
-	FORCEINLINE FVector2D GetUV() const
+	FORCEINLINE FVector2f GetUV() const
 	{
 		return UVs;
 	}
 
-	FORCEINLINE void SetUV(FVector2D UV)
+	FORCEINLINE void SetUV(FVector2f UV)
 	{
 		UVs = UV;
 	}
@@ -126,7 +126,7 @@ struct TStaticMeshVertexUVsTypeSelector<EStaticMeshVertexUVType::Default>
 template<>
 struct TStaticMeshVertexUVsTypeSelector<EStaticMeshVertexUVType::HighPrecision>
 {
-	typedef FVector2D UVsTypeT;
+	typedef FVector2f UVsTypeT;
 };
 
 /*
@@ -320,16 +320,16 @@ public:
 	* @param Vec2D - UV values to set
 	* @param bUseBackwardsCompatibleF16TruncUVs - whether backwards compatible Truncate mode is used for F32 to F16 conversion
 	*/
-	FORCEINLINE_DEBUGGABLE void SetVertexUV(uint32 VertexIndex, uint32 UVIndex, const FVector2D& Vec2D, bool bUseBackwardsCompatibleF16TruncUVs = false)
+	FORCEINLINE_DEBUGGABLE void SetVertexUV(uint32 VertexIndex, uint32 UVIndex, const FVector2f& Vec2D, bool bUseBackwardsCompatibleF16TruncUVs = false)
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 		checkSlow(UVIndex < GetNumTexCoords());
 
 		if (GetUseFullPrecisionUVs())
 		{
-			size_t UvStride = sizeof(FVector2D) * GetNumTexCoords();
+			size_t UvStride = sizeof(FVector2f) * GetNumTexCoords();
 
-			FVector2D* ElementData = reinterpret_cast<FVector2D*>(TexcoordDataPtr + (VertexIndex * UvStride));
+			FVector2f* ElementData = reinterpret_cast<FVector2f*>(TexcoordDataPtr + (VertexIndex * UvStride));
 			check((void*)((&ElementData[UVIndex]) + 1) <= (void*)(TexcoordDataPtr + TexcoordData->GetResourceSize()));
 			check((void*)((&ElementData[UVIndex]) + 0) >= (void*)(TexcoordDataPtr));
 			ElementData[UVIndex] = Vec2D;
@@ -354,7 +354,7 @@ public:
 	}
 
 	template<EStaticMeshVertexUVType UVTypeT>
-	FORCEINLINE_DEBUGGABLE FVector2D GetVertexUV_Typed(uint32 VertexIndex, uint32 UVIndex)const
+	FORCEINLINE_DEBUGGABLE FVector2f GetVertexUV_Typed(uint32 VertexIndex, uint32 UVIndex)const
 	{
 		typedef TStaticMeshVertexUVsDatum<typename TStaticMeshVertexUVsTypeSelector<UVTypeT>::UVsTypeT> UVType;
 		size_t UvStride = sizeof(UVType) * GetNumTexCoords();
@@ -372,7 +372,7 @@ public:
 	* @param UVIndex - [0,MAX_STATIC_TEXCOORDS] value to index into UVs array
 	* @param 2D UV values
 	*/
-	FORCEINLINE_DEBUGGABLE FVector2D GetVertexUV(uint32 VertexIndex, uint32 UVIndex) const
+	FORCEINLINE_DEBUGGABLE FVector2f GetVertexUV(uint32 VertexIndex, uint32 UVIndex) const
 	{
 		checkSlow(VertexIndex < GetNumVertices());
 		checkSlow(UVIndex < GetNumTexCoords());

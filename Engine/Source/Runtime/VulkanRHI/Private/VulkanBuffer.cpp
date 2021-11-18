@@ -71,8 +71,7 @@ FVulkanAccelerationStructureBuffer::FVulkanAccelerationStructureBuffer(FVulkanDe
 	}
 	
 	FVulkanRayTracingAllocator::Allocate(
-		InDevice->GetPhysicalHandle(),
-		InDevice->GetInstanceHandle(),
+		InDevice,
 		InSize,
 		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -467,7 +466,7 @@ FBufferRHIRef FVulkanDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags 
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanBuffers);
 
 #if VULKAN_RHI_RAYTRACING
-	if (Usage & BUF_AccelerationStructure)
+	if (EnumHasAnyFlags(Usage, BUF_AccelerationStructure))
 	{
 		return new FVulkanAccelerationStructureBuffer(Device, Size, Usage, Stride, CreateInfo);
 	}

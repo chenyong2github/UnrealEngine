@@ -172,6 +172,9 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 
 		DstViewport.RenderSettings.GPUIndex = InConfigurationViewport.GPUIndex;
 		DstViewport.RenderSettings.OverlapOrder = InConfigurationViewport.OverlapOrder;
+
+		// update viewport remap data
+		DstViewport.ViewportRemap.UpdateConfiguration(DstViewport, InConfigurationViewport.ViewportRemap);
 	}
 
 	const FDisplayClusterConfigurationViewport_RenderSettings& InRenderSettings = InConfigurationViewport.RenderSettings;

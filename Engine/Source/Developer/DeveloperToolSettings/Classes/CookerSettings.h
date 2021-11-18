@@ -28,6 +28,18 @@ enum class ECookProgressDisplayMode : int32
 	/** Display the number of remaining packages and package names */
 	NamesAndRemainingPackages = 3,
 
+	/** Display names and instigators of cooked packages */
+	Instigators = 4,
+
+	/** Display instigators and count of remaining packages */
+	InstigatorsAndCount = 5,
+
+	/** Display instigators and names of cooked packages */
+	InstigatorsAndNames = 6,
+
+	/** Display instigators and names and count of cooked packages */
+	InstigatorsAndNamesAndCount = 7,
+
 	/** MAX - invalid */
 	Max UMETA(Hidden),
 };

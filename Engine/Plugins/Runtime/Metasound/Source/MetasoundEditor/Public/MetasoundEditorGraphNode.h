@@ -20,6 +20,7 @@
 class UEdGraphPin;
 class UMetaSound;
 class UMetasoundEditorGraphOutput;
+class UMetasoundEditorGraphVariable;
 
 namespace Metasound
 {
@@ -95,6 +96,9 @@ public:
 	virtual FMetasoundFrontendClassName GetClassName() const { return FMetasoundFrontendClassName(); }
 	virtual FGuid GetNodeID() const { return FGuid(); }
 	virtual FText GetDisplayName() const;
+
+	// Whether or not to refresh given node in associated graph editor.
+	bool bRefreshNode = false;
 
 protected:
 	virtual void SetNodeID(FGuid InNodeID) { }
@@ -174,6 +178,41 @@ protected:
 	{
 		NodeID = InNodeID;
 	}
+
+	friend class Metasound::Editor::FGraphBuilder;
+};
+
+/** UMetasoundEditorGraphVariableNode represents any of the several variable node
+ * types (Accessor, DeferredAccessor, Mutator). */
+UCLASS(MinimalAPI)
+class UMetasoundEditorGraphVariableNode : public UMetasoundEditorGraphNode
+{
+	GENERATED_BODY()
+protected:
+	// Class type of the frontend node (Accessor, DeferredAccessor or Mutator)
+	UPROPERTY()
+	EMetasoundFrontendClassType ClassType;
+
+	// Class name of the frontend node.
+	UPROPERTY()
+	FMetasoundFrontendClassName ClassName;
+
+	// ID of the frontend node. 
+	UPROPERTY()
+	FGuid NodeID;
+
+public:
+	// Associated graph variable.
+	UPROPERTY()
+	UMetasoundEditorGraphVariable* Variable;
+
+	virtual FMetasoundFrontendClassName GetClassName() const override;
+	virtual FGuid GetNodeID() const override;
+	
+protected:
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FSlateIcon GetNodeTitleIcon() const override;
+	virtual void SetNodeID(FGuid InNodeID) override;
 
 	friend class Metasound::Editor::FGraphBuilder;
 };

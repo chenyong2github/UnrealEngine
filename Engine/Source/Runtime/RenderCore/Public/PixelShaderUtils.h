@@ -26,8 +26,8 @@ struct RENDERCORE_API FPixelShaderUtils
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, RectCoordBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, RectUVBuffer)
-			SHADER_PARAMETER(FVector2D, InvViewSize)
-			SHADER_PARAMETER(FVector2D, InvTextureSize)
+			SHADER_PARAMETER(FVector2f, InvViewSize)
+			SHADER_PARAMETER(FVector2f, InvTextureSize)
 			SHADER_PARAMETER(float, DownsampleFactor)
 			SHADER_PARAMETER(uint32, NumRects)
 		END_SHADER_PARAMETER_STRUCT()
@@ -132,8 +132,8 @@ struct RENDERCORE_API FPixelShaderUtils
 		PermutationVector.Set<FRasterizeToRectsVS::FRectUV>(RectUVBufferSRV != nullptr);
 		auto VertexShader = GlobalShaderMap->GetShader<FRasterizeToRectsVS>(PermutationVector);
 
-		Parameters->VS.InvViewSize = FVector2D(1.0f / ViewportSize.X, 1.0f / ViewportSize.Y);
-		Parameters->VS.InvTextureSize = FVector2D(1.0f / TextureSize.X, 1.0f / TextureSize.Y);
+		Parameters->VS.InvViewSize = FVector2f(1.0f / ViewportSize.X, 1.0f / ViewportSize.Y);
+		Parameters->VS.InvTextureSize = FVector2f(1.0f / TextureSize.X, 1.0f / TextureSize.Y);
 		Parameters->VS.DownsampleFactor = 1.0f / DownsampleFactor;
 		Parameters->VS.RectCoordBuffer = RectCoordBufferSRV;
 		Parameters->VS.RectUVBuffer = RectUVBufferSRV;

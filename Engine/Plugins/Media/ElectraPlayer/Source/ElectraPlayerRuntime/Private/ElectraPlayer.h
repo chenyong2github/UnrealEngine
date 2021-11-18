@@ -98,6 +98,7 @@ public:
 
 	bool IsLooping() const override;
 	bool SetLooping(bool bLooping) override;
+	int32 GetLoopCount() const override;
 
 	FTimespan GetTime() const override;
 	FTimespan GetDuration() const override;
@@ -131,6 +132,8 @@ public:
 	bool GetActiveVideoStreamFormat(FVideoStreamFormat& OutFormat) const override;
 
 	void NotifyOfOptionChange() override;
+
+	void SuspendOrResumeDecoders(bool bSuspend) override;
 
 private:
 	DECLARE_DELEGATE_TwoParams(FOnMediaPlayerEventReceivedDelegate, TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> /*InEvent*/, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode /*InDispatchMode*/);
@@ -294,6 +297,7 @@ private:
 	bool PresentSubtitle(const ISubtitleDecoderOutputPtr& DecoderOutput);
 
 	void PlatformNotifyOfOptionChange();
+	void PlatformSuspendOrResumeDecoders(bool bSuspend);
 
 	void OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode);
 

@@ -16,6 +16,11 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject"
 				}
 			);
+
+			if (Target.bBuildWithEditorOnlyData)
+			{
+				PrivateDependencyModuleNames.Add("DerivedDataCache");
+			}
 		}
 	}
 }

@@ -2,22 +2,26 @@
 #pragma once
 
 #include "Chaos/Collision/CollisionDetector.h"
-#include "Chaos/Collision/NarrowPhase.h"
 #include "Chaos/Collision/ParticlePairBroadPhase.h"
+
+#include "Chaos/ChaosPerfTest.h"
+#include "ChaosStats.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
 namespace Chaos
 {
-	class CHAOS_API FParticlePairCollisionDetector : public FCollisionDetector
+	class CHAOS_API FBasicCollisionDetector : public FCollisionDetector
 	{
 	public:
-		FParticlePairCollisionDetector(FParticlePairBroadPhase& InBroadPhase, FNarrowPhase& InNarrowPhase, FPBDCollisionConstraints& InCollisionContainer)
-			: FCollisionDetector(InNarrowPhase, InCollisionContainer)
+		FBasicCollisionDetector(FBasicBroadPhase& InBroadPhase, FNarrowPhase& InNarrowPhase, FPBDCollisionConstraints& InCollisionContainer)
+			: FCollisionDetector(InCollisionContainer)
 			, BroadPhase(InBroadPhase)
+			, NarrowPhase(InNarrowPhase)
 		{
 		}
 
-		FParticlePairBroadPhase& GetBroadPhase() { return BroadPhase; }
+		FBasicBroadPhase& GetBroadPhase() { return BroadPhase; }
+		FNarrowPhase& GetNarrowPhase() { return NarrowPhase; }
 
 		virtual void DetectCollisions(const FReal Dt, FEvolutionResimCache* Unused) override
 		{
@@ -39,7 +43,8 @@ namespace Chaos
 		}
 
 	private:
-		FParticlePairBroadPhase& BroadPhase;
+		FBasicBroadPhase& BroadPhase;
+		FNarrowPhase& NarrowPhase;
 	};
 
 }

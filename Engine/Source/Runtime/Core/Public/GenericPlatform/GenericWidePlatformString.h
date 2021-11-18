@@ -179,24 +179,8 @@ public:
 		return Last;
 	}
 
-#if PLATFORM_TCHAR_IS_CHAR16
 	CORE_API static int32 Strtoi(const WIDECHAR* Start, WIDECHAR** End, int32 Base);
-#else
-	CORE_API static int32 Strtoi(const WIDECHAR* Start, WIDECHAR** End, int32 Base)
-	{
-		unimplemented();
-		return 0;
-	}
-#endif
-#if PLATFORM_TCHAR_IS_CHAR16
 	CORE_API static int64 Strtoi64(const WIDECHAR* Start, WIDECHAR** End, int32 Base);
-#else
-	CORE_API static int64 Strtoi64(const WIDECHAR* Start, WIDECHAR** End, int32 Base)
-	{
-		unimplemented();
-		return 0;
-	}
-#endif
 
 	CORE_API static uint64 Strtoui64( const WIDECHAR* Start, WIDECHAR** End, int32 Base );
 	CORE_API static float Atof(const WIDECHAR* String);
@@ -216,34 +200,35 @@ public:
 	
 	CORE_API static WIDECHAR* Strtok( WIDECHAR* StrToken, const WIDECHAR* Delim, WIDECHAR** Context );
 
-#if PLATFORM_TCHAR_IS_CHAR16
 	CORE_API static int32 GetVarArgs(WIDECHAR* Dest, SIZE_T DestSize, const WIDECHAR*& Fmt, va_list ArgPtr);
-#else
-	CORE_API static int32 GetVarArgs(WIDECHAR* Dest, SIZE_T DestSize, const WIDECHAR*& Fmt, va_list ArgPtr)
-	{
-		unimplemented();
-		return 0;
-	}
-#endif
 
 	/**
 	 * Ansi implementation
 	 **/
 	CORE_API static FORCEINLINE ANSICHAR* Strcpy(ANSICHAR* Dest, SIZE_T DestCount, const ANSICHAR* Src)
 	{
+// Skip suggestions about using strcpy_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return strcpy( Dest, Src );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	CORE_API static FORCEINLINE ANSICHAR* Strncpy(ANSICHAR* Dest, const ANSICHAR* Src, SIZE_T MaxLen)
 	{
+// Skip suggestions about using strncpy_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		::strncpy(Dest, Src, MaxLen);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Dest[MaxLen-1]=0;
 		return Dest;
 	}
 
 	CORE_API static FORCEINLINE ANSICHAR* Strcat(ANSICHAR* Dest, SIZE_T DestCount, const ANSICHAR* Src)
 	{
+// Skip suggestions about using strcat_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return strcat( Dest, Src );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	CORE_API static FORCEINLINE int32 Strcmp( const ANSICHAR* String1, const ANSICHAR* String2 )
@@ -318,7 +303,10 @@ public:
 
 	CORE_API static FORCEINLINE ANSICHAR* Strtok(ANSICHAR* StrToken, const ANSICHAR* Delim, ANSICHAR** Context)
 	{
+// Skip suggestions about using strtok_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return strtok(StrToken, Delim);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	static CORE_API int32 GetVarArgs( ANSICHAR* Dest, SIZE_T DestSize, const ANSICHAR*& Fmt, va_list ArgPtr )

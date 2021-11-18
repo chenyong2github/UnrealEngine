@@ -28,7 +28,7 @@ UObject* UIKRigDefinitionFactory::FactoryCreateNew(
 	UObject* Context, 
 	FFeedbackContext* Warn)
 {
-	if (!SkeletalMesh)
+	if (!SkeletalMesh.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Unable to create IK Rig. No Skeletal Mesh asset supplied."));
 		return nullptr;
@@ -38,7 +38,7 @@ UObject* UIKRigDefinitionFactory::FactoryCreateNew(
 	
 	// imports the skeleton data into the IK Rig
 	UIKRigController* Controller = UIKRigController::GetIKRigController(IKRig);
-	Controller->SetSkeletalMesh(SkeletalMesh);
+	Controller->SetSkeletalMesh(SkeletalMesh.Get());
 	
 	return IKRig;
 }

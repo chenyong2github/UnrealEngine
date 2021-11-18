@@ -37,11 +37,11 @@
 
 #define STENCIL_TEMPORAL_RESPONSIVE_AA_MASK GET_STENCIL_BIT_MASK(TEMPORAL_RESPONSIVE_AA,1)
 
-#define STENCIL_LIGHTING_CHANNELS_MASK(Value) uint8((Value & 0x7) << STENCIL_LIGHTING_CHANNELS_BIT_ID)
+#define STENCIL_LIGHTING_CHANNELS_MASK(Value) uint8(((Value) & 0x7) << STENCIL_LIGHTING_CHANNELS_BIT_ID)
 
 // Mobile specific
 // Store shading model into stencil [1-3] bits
-#define GET_STENCIL_MOBILE_SM_MASK(Value) uint8((Value & 0x7) << 1)
+#define GET_STENCIL_MOBILE_SM_MASK(Value) uint8(((Value) & 0x7) << 1)
 
 class FSceneRenderTargets
 {

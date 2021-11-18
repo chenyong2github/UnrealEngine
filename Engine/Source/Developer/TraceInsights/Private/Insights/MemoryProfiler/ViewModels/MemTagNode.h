@@ -66,7 +66,7 @@ public:
 public:
 	/** Initialization constructor for the MemTag node. */
 	explicit FMemTagNode(Insights::FMemoryTag* InMemTag)
-		: FBaseTreeNode(FName(*InMemTag->GetStatName()), false)
+		: FBaseTreeNode(FName(*InMemTag->GetStatFullName()), false)
 		, Type(EMemTagNodeType::MemTag)
 		, MemTag(InMemTag)
 	{
@@ -101,6 +101,7 @@ public:
 	bool IsAddedToGraph() const { return MemTag ? MemTag->IsAddedToGraph() : false; }
 
 	FMemTagNodePtr GetParentTagNode() const { return ParentTagNode; }
+	Insights::FMemoryTag* GetParentMemTag() const { return ParentTagNode.IsValid() ? ParentTagNode->GetMemTag() : nullptr; }
 	void SetParentTagNode(FMemTagNodePtr NodePtr) { ParentTagNode = NodePtr; }
 
 	/**

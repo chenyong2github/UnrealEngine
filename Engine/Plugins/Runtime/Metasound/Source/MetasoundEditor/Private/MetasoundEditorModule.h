@@ -65,8 +65,8 @@ namespace Metasound
 			// By default, proxy classes support child classes & inheritance.
 			virtual void RegisterExplicitProxyClass(const UClass& InClass) = 0;
 
-			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const = 0;
-
+			virtual const FEditorDataType* FindDataType(FName InDataTypeName) const = 0;
+			virtual const FEditorDataType& FindDataTypeChecked(FName InDataTypeName) const = 0;
 			virtual bool IsMetaSoundAssetClass(const FName InClassName) const = 0;
 
 			virtual bool IsRegisteredDataType(FName InDataTypeName) const = 0;

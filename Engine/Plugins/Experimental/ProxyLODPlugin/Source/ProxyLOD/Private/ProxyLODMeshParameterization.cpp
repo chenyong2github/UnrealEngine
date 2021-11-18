@@ -318,12 +318,12 @@ bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& 
 		const size_t NumNewVerts = vb.size();
 		ResizeArray(InOutMesh.UVs, NumNewVerts);
 
-		FVector2D* UVCoords = InOutMesh.UVs.GetData();
+		FVector2f* UVCoords = InOutMesh.UVs.GetData();
 		size_t j = 0;
 		for (auto it = vb.cbegin(); it != vb.cend() && j < NumNewVerts; ++it, ++j)
 		{
 			const auto& UV = it->uv;
-			UVCoords[j] = FVector2D(UV.x, UV.y);
+			UVCoords[j] = FVector2f(UV.x, UV.y);
 		}
 
 	}

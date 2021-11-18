@@ -449,7 +449,12 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 
 void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector2D& Value)
 {
-	AddClearUAVPass(GraphBuilder, TextureUAV, { Value.X, Value.Y , 0.f, 0.f });
+	AddClearUAVPass(GraphBuilder, TextureUAV, { (float)Value.X,(float)Value.Y , 0.f, 0.f });	// LWC_TODO: Precision loss?
+}
+
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FVector4d& Value)
+{
+	AddClearUAVPass(GraphBuilder, TextureUAV, FVector4f(Value));								// LWC_TODO: Precision loss?
 }
 
 class FClearUAVRectsPS : public FGlobalShader

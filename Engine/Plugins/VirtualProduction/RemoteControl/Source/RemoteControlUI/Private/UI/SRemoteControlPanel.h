@@ -95,14 +95,14 @@ public:
 	 */
 	TSharedPtr<SRCPanelExposedEntitiesList> GetEntityList() { return EntityList; }
 
+	/** Re-create the sections of the panel. */
+	void Refresh();
+
 private:
 	/** Register editor events needed to handle reloading objects and blueprint libraries. */
 	void RegisterEvents();
 	/** Unregister editor events */
 	void UnregisterEvents();
-
-	/** Re-create the sections of the panel. */
-	void Refresh();
 
 	/** Unexpose a field from the preset. */
 	void Unexpose(const TSharedPtr<IPropertyHandle>& Handle);
@@ -225,5 +225,5 @@ private:
 	TSharedPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 	
 	/** The toolkit that hosts this panel. */
-	TSharedPtr<IToolkitHost> ToolkitHost;
+	TWeakPtr<IToolkitHost> ToolkitHost;
 };

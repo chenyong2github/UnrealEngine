@@ -5,13 +5,15 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
 
+namespace CADKernel
+{
 
-CADKernel::FCylinderSurface::FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, double InStartLength, double InEndLength, double InStartAngle, double InEndAngle)
+FCylinderSurface::FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, double InStartLength, double InEndLength, double InStartAngle, double InEndAngle)
 	: FCylinderSurface(InToleranceGeometric, InMatrix, InRadius, FSurfacicBoundary(InStartAngle, InEndAngle, InStartLength, InEndLength))
 {
 }
 
-CADKernel::FCylinderSurface::FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const double InRadius, const FSurfacicBoundary& InBoundary)
+FCylinderSurface::FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const double InRadius, const FSurfacicBoundary& InBoundary)
 : FSurface(InToleranceGeometric, InBoundary)
 , Matrix(InMatrix)
 , Radius(InRadius)
@@ -19,11 +21,11 @@ CADKernel::FCylinderSurface::FCylinderSurface(const double InToleranceGeometric,
 	ComputeMinToleranceIso();
 }
 
-void CADKernel::FCylinderSurface::InitBoundary()
+void FCylinderSurface::InitBoundary()
 {
 }
 
-void CADKernel::FCylinderSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void FCylinderSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	OutPoint3D.DerivativeOrder = InDerivativeOrder;
 
@@ -49,14 +51,14 @@ void CADKernel::FCylinderSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurf
 	}
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FCylinderSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FCylinderSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
 	return FEntity::MakeShared<FCylinderSurface>(Tolerance3D, NewMatrix, Radius, Boundary[EIso::IsoV].Min, Boundary[EIso::IsoU].Max, Boundary[EIso::IsoU].Min, Boundary[EIso::IsoU].Max);
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FCylinderSurface::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FCylinderSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info).Add(TEXT("Matrix"), Matrix)
 							 .Add(TEXT("Radius"), Radius)
@@ -66,3 +68,5 @@ CADKernel::FInfoEntity& CADKernel::FCylinderSurface::GetInfo(FInfoEntity& Info) 
 							 .Add(TEXT("EndLength"), Boundary[EIso::IsoV].Max);
 }
 #endif
+
+}

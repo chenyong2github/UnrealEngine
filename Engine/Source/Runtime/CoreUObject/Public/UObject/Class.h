@@ -30,6 +30,7 @@
 #include "UObject/Script.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/FieldPath.h"
+#include "UObject/PropertyTag.h"
 
 struct FBlake3Hash;
 struct FCustomPropertyListNode;
@@ -989,9 +990,15 @@ struct TStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<CPPSTRUCT>
 	}
 
 	template<class CPPSTRUCT>
-	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithSerializeFromMismatchedTag, bool>::Type SerializeFromMismatchedTagOrNot(FPropertyTag const& Tag, FArchive& Ar, CPPSTRUCT *Data)
+	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithSerializeFromMismatchedTag && !TIsUECoreType<CPPSTRUCT>::Value, bool>::Type SerializeFromMismatchedTagOrNot(FPropertyTag const& Tag, FArchive& Ar, CPPSTRUCT *Data)
 	{
 		return Data->SerializeFromMismatchedTag(Tag, Ar);
+	}
+
+	template<class CPPSTRUCT>
+	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithSerializeFromMismatchedTag && TIsUECoreType<CPPSTRUCT>::Value, bool>::Type SerializeFromMismatchedTagOrNot(FPropertyTag const& Tag, FArchive& Ar, CPPSTRUCT *Data)
+	{
+		return Data->SerializeFromMismatchedTag(Tag.StructName, Ar);
 	}
 
 	template<class CPPSTRUCT>
@@ -1001,10 +1008,17 @@ struct TStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<CPPSTRUCT>
 	}
 
 	template<class CPPSTRUCT>
-	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithStructuredSerializeFromMismatchedTag, bool>::Type StructuredSerializeFromMismatchedTagOrNot(FPropertyTag const& Tag, FStructuredArchive::FSlot Slot, CPPSTRUCT *Data)
+	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithStructuredSerializeFromMismatchedTag && !TIsUECoreType<CPPSTRUCT>::Value, bool>::Type StructuredSerializeFromMismatchedTagOrNot(FPropertyTag const& Tag, FStructuredArchive::FSlot Slot, CPPSTRUCT *Data)
 	{
 		return Data->SerializeFromMismatchedTag(Tag, Slot);
 	}
+
+	template<class CPPSTRUCT>
+	FORCEINLINE typename TEnableIf<TStructOpsTypeTraits<CPPSTRUCT>::WithStructuredSerializeFromMismatchedTag && TIsUECoreType<CPPSTRUCT>::Value, bool>::Type StructuredSerializeFromMismatchedTagOrNot(FPropertyTag const& Tag, FStructuredArchive::FSlot Slot, CPPSTRUCT *Data)
+	{
+		return Data->SerializeFromMismatchedTag(Tag.StructName, Slot);
+	}
+
 
 
 	/**
@@ -1541,7 +1555,15 @@ public:
 #if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 			if constexpr (TStructOpsTypeTraits<CPPSTRUCT>::WithSerializeFromMismatchedTag)
 			{
-				return ((CPPSTRUCT*)Data)->SerializeFromMismatchedTag(Tag, Ar);
+				if constexpr (TIsUECoreType<CPPSTRUCT>::Value)
+				{
+					// Custom version of SerializeFromMismatchedTag for core types, which don't have access to FPropertyTag.
+					return ((CPPSTRUCT*)Data)->SerializeFromMismatchedTag(Tag.StructName, Ar);
+				}
+				else
+				{
+					return ((CPPSTRUCT*)Data)->SerializeFromMismatchedTag(Tag, Ar);
+				}
 			}
 			else
 			{
@@ -1561,7 +1583,15 @@ public:
 #if PLATFORM_COMPILER_HAS_IF_CONSTEXPR
 			if constexpr (TStructOpsTypeTraits<CPPSTRUCT>::WithStructuredSerializeFromMismatchedTag)
 			{
-				return ((CPPSTRUCT*)Data)->SerializeFromMismatchedTag(Tag, Slot);
+				if constexpr (TIsUECoreType<CPPSTRUCT>::Value)
+				{
+					// Custom version of SerializeFromMismatchedTag for core types, which don't understand FPropertyTag.
+					return ((CPPSTRUCT*)Data)->SerializeFromMismatchedTag(Tag.StructName, Slot);
+				}
+				else
+				{
+					return ((CPPSTRUCT*)Data)->SerializeFromMismatchedTag(Tag, Slot);
+				}
 			}
 			else
 			{
@@ -1639,7 +1669,6 @@ public:
 
 	static COREUOBJECT_API ICppStructOps* FindDeferredCppStructOps(FName StructName);
 #endif
-	bool CanSerializeAsAlias(const struct FPropertyTag& Tag) const;
 
 protected:
 	/** true if we have performed PrepareCppStructOps **/
@@ -3391,10 +3420,11 @@ protected:
 #endif // HACK_HEADER_GENERATOR
 };
 
+// @todo: BP2CPP_remove
 /**
 * Dynamic class (can be constructed after initial startup)
 */
-class COREUOBJECT_API UDynamicClass : public UClass
+class COREUOBJECT_API UE_DEPRECATED(5.0, "Dynamic class types are no longer supported.") UDynamicClass : public UClass
 {
 	DECLARE_CASTED_CLASS_INTRINSIC_NO_CTOR(UDynamicClass, UClass, 0, TEXT("/Script/CoreUObject"), CASTCLASS_None, NO_API)
 	DECLARE_WITHIN_UPACKAGE()
@@ -3403,25 +3433,17 @@ public:
 
 	typedef void (*DynamicClassInitializerType)	(UDynamicClass*);
 
-	UDynamicClass(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	explicit UDynamicClass(const FObjectInitializer& ObjectInitializer, UClass* InSuperClass);
+	UDynamicClass(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()) {}
+	explicit UDynamicClass(const FObjectInitializer& ObjectInitializer, UClass* InSuperClass) {}
 	UDynamicClass(EStaticConstructor, FName InName, uint32 InSize, uint32 InAlignment, EClassFlags InClassFlags, EClassCastFlags InClassCastFlags,
 		const TCHAR* InClassConfigName, EObjectFlags InFlags, ClassConstructorType InClassConstructor,
 		ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
 		ClassAddReferencedObjectsType InClassAddReferencedObjects,
-		DynamicClassInitializerType InDynamicClassInitializer);
-
-	// UObject interface.
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-
-	// UClass interface
-	virtual UObject* CreateDefaultObject();
-	virtual void PurgeClass(bool bRecompilingOnLoad) override;
-	virtual UObject* FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const override;
-	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const override;
+		DynamicClassInitializerType InDynamicClassInitializer)
+	{}
 
 	/** Find a struct property, called from generated code */
-	FStructProperty* FindStructPropertyChecked(const TCHAR* PropertyName) const;
+	FStructProperty* FindStructPropertyChecked(const TCHAR* PropertyName) const { return nullptr; }
 
 	/** Misc objects owned by the class. */
 	TArray<UObject*> MiscConvertedSubobjects;
@@ -3493,7 +3515,6 @@ COREUOBJECT_API void InitializePrivateStaticClass(
  * @param InClassAddReferencedObjects Class AddReferencedObjects function pointer
  * @param InSuperClassFn Super class function pointer
  * @param WithinClass Within class
- * @param bIsDynamic true if the class can be constructed dynamically at runtime
  */
 COREUOBJECT_API void GetPrivateStaticClassBody(
 	const TCHAR* PackageName,
@@ -3509,9 +3530,7 @@ COREUOBJECT_API void GetPrivateStaticClassBody(
 	UClass::ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
 	UClass::ClassAddReferencedObjectsType InClassAddReferencedObjects,
 	UClass::StaticClassFunctionType InSuperClassFn,
-	UClass::StaticClassFunctionType InWithinClassFn,
-	bool bIsDynamic = false,
-	UDynamicClass::DynamicClassInitializerType InDynamicClassInitializer = nullptr);
+	UClass::StaticClassFunctionType InWithinClassFn);
 
 /*-----------------------------------------------------------------------------
 	FObjectInstancingGraph.

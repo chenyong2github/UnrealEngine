@@ -10,7 +10,7 @@
 
 void FSocketReference::InitializeSocketInfo(const FAnimInstanceProxy* InAnimInstanceProxy)
 {
-	CachedSocketMeshBoneIndex = INDEX_NONE;
+	CachedSocketMeshBoneIndex = FMeshPoseBoneIndex(INDEX_NONE);
 	CachedSocketCompactBoneIndex = FCompactPoseBoneIndex(INDEX_NONE);
 
 	if (SocketName != NAME_None)
@@ -23,9 +23,9 @@ void FSocketReference::InitializeSocketInfo(const FAnimInstanceProxy* InAnimInst
 			{
 				CachedSocketLocalTransform = Socket->GetSocketLocalTransform();
 				// cache mesh bone index, so that we know this is valid information to follow
-				CachedSocketMeshBoneIndex = OwnerMeshComponent->GetBoneIndex(Socket->BoneName);
+				CachedSocketMeshBoneIndex = FMeshPoseBoneIndex(OwnerMeshComponent->GetBoneIndex(Socket->BoneName));
 
-				ensureMsgf(CachedSocketMeshBoneIndex != INDEX_NONE, TEXT("%s : socket has invalid bone."), *SocketName.ToString());
+				ensureMsgf(CachedSocketMeshBoneIndex.IsValid(), TEXT("%s : socket has invalid bone."), *SocketName.ToString());
 			}
 		}
 		else
@@ -38,10 +38,10 @@ void FSocketReference::InitializeSocketInfo(const FAnimInstanceProxy* InAnimInst
 
 void FSocketReference::InitialzeCompactBoneIndex(const FBoneContainer& RequiredBones)
 {
-	if (CachedSocketMeshBoneIndex != INDEX_NONE)
+	if (CachedSocketMeshBoneIndex.IsValid())
 	{
-		const int32 SocketBoneSkeletonIndex = RequiredBones.GetPoseToSkeletonBoneIndexArray()[CachedSocketMeshBoneIndex];
-		CachedSocketCompactBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SocketBoneSkeletonIndex);
+		const FSkeletonPoseBoneIndex SocketBoneSkeletonIndex = RequiredBones.GetSkeletonPoseIndexFromMeshPoseIndex(CachedSocketMeshBoneIndex);
+		CachedSocketCompactBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(SocketBoneSkeletonIndex);
 	}
 }
 

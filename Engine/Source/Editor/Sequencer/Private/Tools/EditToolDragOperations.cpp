@@ -666,29 +666,24 @@ FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, const TSet<F
 
 	KeysAsArray = Keys.Array();
 
-	// However, we don't want infinite sections to be movable, so we discard them from our selection.
-	// We support partially infinite (infinite on one side) sections however.
 	for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : InSelectedSections)
 	{
 		const UMovieSceneSection* SelectedSection = WeakSection.Get();
-		if (SelectedSection->HasStartFrame() || SelectedSection->HasEndFrame())
-		{
-			Sections.AddUnique(WeakSection);
+		Sections.AddUnique(WeakSection);
 
-			UMovieScene* MovieScene = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
-			if (MovieScene)
+		UMovieScene* MovieScene = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
+		if (MovieScene)
+		{
+			// If the section is in a group, we also want to add the sections it is grouped with
+			const FMovieSceneSectionGroup* SectionGroup = MovieScene->GetSectionGroup(*SelectedSection);
+			if (SectionGroup)
 			{
-				// If the section is in a group, we also want to add the sections it is grouped with
-				const FMovieSceneSectionGroup* SectionGroup = MovieScene->GetSectionGroup(*SelectedSection);
-				if (SectionGroup)
+				for (TWeakObjectPtr<UMovieSceneSection> WeakGroupedSection : *SectionGroup)
 				{
-					for (TWeakObjectPtr<UMovieSceneSection> WeakGroupedSection : *SectionGroup)
+					// Verify sections are still valid, and are not infinite.
+					if (WeakGroupedSection.IsValid())
 					{
-						// Verify sections are still valid, and are not infinite.
-						if (WeakGroupedSection.IsValid() && (WeakGroupedSection->HasStartFrame() || WeakGroupedSection->HasEndFrame()))
-						{
-							Sections.AddUnique(WeakGroupedSection);
-						}
+						Sections.AddUnique(WeakGroupedSection);
 					}
 				}
 			}

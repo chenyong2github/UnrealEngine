@@ -87,7 +87,7 @@ namespace UnrealBuildTool
 				}
 
 				// Read the input files
-				FileReference[] InputFiles = Reader.ReadArray(() => Reader.ReadFileReference());
+				FileReference[] InputFiles = Reader.ReadArray(() => Reader.ReadFileReference())!;
 
 				// Read the types
 				int NumTypes = Reader.ReadInt32();

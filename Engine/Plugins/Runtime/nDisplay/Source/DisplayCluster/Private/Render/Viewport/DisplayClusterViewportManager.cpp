@@ -354,12 +354,17 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 		return false;
 	}
 
+	const FIntPoint RenderFrameSize = OutRenderFrame.FrameRect.Size();
+
 	for (FDisplayClusterViewport* Viewport : Viewports)
 	{
 		if (Viewport)
 		{
 			// Update TextureShare links
 			Viewport->TextureShare.UpdateLinkSceneContextToShare(*Viewport);
+
+			// Update ViewportRemap geometry
+			Viewport->ViewportRemap.Update(*Viewport, RenderFrameSize);
 		}
 	}
 
@@ -575,7 +580,7 @@ void FDisplayClusterViewportManager::ImplDeleteViewport(FDisplayClusterViewport*
 	ViewportManagerProxy->ImplDeleteViewport(ExistViewport->ViewportProxy);
 
 	// Remove viewport obj from manager
-	int ViewportIndex = Viewports.Find(ExistViewport);
+	int32 ViewportIndex = Viewports.Find(ExistViewport);
 	if (ViewportIndex != INDEX_NONE)
 	{
 		Viewports[ViewportIndex] = nullptr;

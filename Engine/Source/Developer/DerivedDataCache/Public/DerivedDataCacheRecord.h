@@ -14,6 +14,7 @@
 
 class FCbObject;
 class FCbPackage;
+class FCbObjectView;
 
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalCacheRecord; }
@@ -113,6 +114,7 @@ public:
 
 	/** Load a cache record from a compact binary package. Null on error. */
 	UE_API static FOptionalCacheRecord Load(const FCbPackage& Package);
+	UE_API static FOptionalCacheRecord Load(const FCbPackage& Package, FCbObjectView RecordObject);
 
 private:
 	friend class FOptionalCacheRecord;

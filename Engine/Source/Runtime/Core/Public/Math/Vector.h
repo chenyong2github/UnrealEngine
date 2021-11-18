@@ -9,6 +9,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
 #include "Misc/Parse.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 #include "Math/Color.h"
 #include "Math/IntPoint.h"
 #include "Logging/LogMacros.h"
@@ -153,20 +154,19 @@ public:
     FORCEINLINE TVector(T InX, T InY, T InZ);
 
     /**
-     * Constructs a vector from an FVector2D and Z value.
+     * Constructs a vector from an TVector2<T> and Z value.
      * 
      * @param V Vector to copy from.
      * @param InZ Z Coordinate.
      */
-    explicit FORCEINLINE TVector(const FVector2D V, T InZ);
+    explicit FORCEINLINE TVector(const TVector2<T> V, T InZ);
 
     /**
      * Constructor using the XYZ components from a 4D vector.
      *
      * @param V 4D Vector to copy from.
      */
-    FORCEINLINE TVector(const UE::Math::TVector4<float>& V);
-	FORCEINLINE TVector(const UE::Math::TVector4<double>& V);
+    FORCEINLINE TVector(const UE::Math::TVector4<T>& V);
 
     /**
      * Constructs a vector from an FLinearColor.
@@ -278,7 +278,7 @@ public:
      * @param Bias How much to subtract from each component.
      * @return The result of subtraction.
      */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	FORCEINLINE TVector<T> operator-(FArg Bias) const
 	{
 		return TVector<T>(X - (T)Bias, Y - (T)Bias, Z - (T)Bias);
@@ -290,7 +290,7 @@ public:
      * @param Bias How much to add to each component.
      * @return The result of addition.
      */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	FORCEINLINE TVector<T> operator+(FArg Bias) const
 	{
 		return TVector<T>(X + (T)Bias, Y + (T)Bias, Z + (T)Bias);
@@ -302,7 +302,7 @@ public:
      * @param Scale What to multiply each component by.
      * @return The result of multiplication.
      */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	FORCEINLINE TVector<T> operator*(FArg Scale) const
 	{
 		return TVector<T>(X * (T)Scale, Y * (T)Scale, Z * (T)Scale);
@@ -314,7 +314,7 @@ public:
      * @param Scale What to divide each component by.
      * @return The result of division.
      */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	TVector<T> operator/(FArg Scale) const
 	{
 		const T RScale = T(1) / Scale;
@@ -403,7 +403,7 @@ public:
      * @param Scale Amount to scale this vector by.
      * @return Copy of the vector after scaling.
      */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	FORCEINLINE TVector<T> operator*=(FArg Scale)
 	{
 		X *= Scale; Y *= Scale; Z *= Scale;
@@ -417,7 +417,7 @@ public:
      * @param V What to divide this vector by.
      * @return Copy of the vector after division.
      */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	TVector<T> operator/=(FArg Scale)
 	{
 		const T RV = (T)1 / Scale;
@@ -780,17 +780,17 @@ public:
     FORCEINLINE TVector<T> ProjectOnToNormal(const TVector<T>& Normal) const;
 
     /**
-     * Return the FRotator orientation corresponding to the direction in which the vector points.
+     * Return the TRotator orientation corresponding to the direction in which the vector points.
      * Sets Yaw and Pitch to the proper numbers, and sets Roll to zero because the roll can'T be determined from a vector.
      *
-     * @return FRotator from the Vector's direction, without any roll.
+     * @return TRotator from the Vector's direction, without any roll.
      * @see ToOrientationQuat()
      */
-    CORE_API FRotator ToOrientationRotator() const;
+    CORE_API TRotator<T> ToOrientationRotator() const;
 
     /**
      * Return the Quaternion orientation corresponding to the direction in which the vector points.
-     * Similar to the FRotator version, returns a result without roll such that it preserves the up vector.
+     * Similar to the UE::Math::TRotator<T> version, returns a result without roll such that it preserves the up vector.
      *
      * @note If you don'T care about preserving the up vector and just want the most direct rotation, you can use the faster
      * 'FQuat::FindBetweenVectors(FVector::ForwardVector, YourVector)' or 'FQuat::FindBetweenNormals(...)' if you know the vector is of unit length.
@@ -801,13 +801,16 @@ public:
     CORE_API TQuat<T> ToOrientationQuat() const;
 
     /**
-     * Return the FRotator orientation corresponding to the direction in which the vector points.
-     * Sets Yaw and Pitch to the proper numbers, and sets Roll to zero because the roll can'T be determined from a vector.
+     * Return the UE::Math::TRotator<T> orientation corresponding to the direction in which the vector points.
+     * Sets Yaw and Pitch to the proper numbers, and sets Roll to zero because the roll can't be determined from a vector.
      * @note Identical to 'ToOrientationRotator()' and preserved for legacy reasons.
-     * @return FRotator from the Vector's direction.
+     * @return UE::Math::TRotator<T> from the Vector's direction.
      * @see ToOrientationRotator(), ToOrientationQuat()
      */
-    CORE_API FRotator Rotation() const;
+	FORCEINLINE UE::Math::TRotator<T> Rotation() const
+	{
+		return ToOrientationRotator();
+	}
 
     /**
      * Find good arbitrary axis vectors to represent U and V axes of a plane,
@@ -861,7 +864,7 @@ public:
      * Converts a Cartesian unit vector into spherical coordinates on the unit sphere.
      * @return Output Theta will be in the range [0, PI], and output Phi will be in the range [-PI, PI]. 
      */
-    FVector2D UnitCartesianToSpherical() const;
+    TVector2<T> UnitCartesianToSpherical() const;
 
     /**
      * Convert a direction vector into a 'heading' angle.
@@ -1103,6 +1106,8 @@ public:
         return true;
     }
 
+	bool SerializeFromMismatchedTag(FName StructTag, FStructuredArchive::FSlot Slot);
+	
     /** 
      * Network serialization function.
      * FVectors NetSerialize without quantization (ie exact values are serialized). se the FVectors_NetQuantize etc (NetSerialization.h) instead.
@@ -1187,7 +1192,7 @@ inline void operator<<(FStructuredArchive::FSlot Slot, TVector<double>& V)
  *****************************************************************************/
 
 template<typename T>
-FORCEINLINE TVector<T>::TVector(const FVector2D V, T InZ)
+FORCEINLINE TVector<T>::TVector(const TVector2<T> V, T InZ)
     : X(V.X), Y(V.Y), Z(InZ)
 {
     DiagnosticCheckNaN();
@@ -1664,9 +1669,8 @@ FORCEINLINE void TVector<T>::ToDirectionAndLength(TVector<T>& OutDir, double& Ou
 	OutLength = Size();
 	if (OutLength > SMALL_NUMBER)
 	{
-		double OneOverLength = 1.0f / OutLength;
-		OutDir = TVector<T>(X * OneOverLength, Y * OneOverLength,
-			Z * OneOverLength);
+		T OneOverLength = T(1.0 / OutLength);
+		OutDir = TVector<T>(X * OneOverLength, Y * OneOverLength, Z * OneOverLength);
 	}
 	else
 	{
@@ -1677,12 +1681,11 @@ FORCEINLINE void TVector<T>::ToDirectionAndLength(TVector<T>& OutDir, double& Ou
 template<typename T>
 FORCEINLINE void TVector<T>::ToDirectionAndLength(TVector<T>& OutDir, float& OutLength) const
 {
-	OutLength = Size();
+	OutLength = (float)Size();
 	if (OutLength > SMALL_NUMBER)
 	{
 		float OneOverLength = 1.0f / OutLength;
-		OutDir = TVector<T>(X * OneOverLength, Y * OneOverLength,
-			Z * OneOverLength);
+		OutDir = TVector<T>(X * OneOverLength, Y * OneOverLength, Z * OneOverLength);
 	}
 	else
 	{
@@ -2275,12 +2278,12 @@ FORCEINLINE bool TVector<T>::InitFromString(const FString& InSourceString)
 }
 
 template<typename T>
-FORCEINLINE FVector2D TVector<T>::UnitCartesianToSpherical() const
+FORCEINLINE TVector2<T> TVector<T>::UnitCartesianToSpherical() const
 {
     checkSlow(IsUnit());
     const T Theta = FMath::Acos(Z / Size());
     const T Phi = FMath::Atan2(Y, X);
-    return FVector2D(Theta, Phi);
+    return TVector2<T>(Theta, Phi);
 }
 
 template<typename T>
@@ -2439,14 +2442,6 @@ template<> struct TIsPODType<FVector3d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FVector3d> { enum { Value = true }; };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FVector3d);
  
-// Forward declare all explicit specializations (in UnrealMath.cpp)
-template<> CORE_API FRotator FVector3f::ToOrientationRotator() const;
-template<> CORE_API FRotator FVector3d::ToOrientationRotator() const;
-template<> CORE_API FQuat4f FVector3f::ToOrientationQuat() const;
-template<> CORE_API FQuat4d FVector3d::ToOrientationQuat() const;
-template<> CORE_API FRotator FVector3f::Rotation() const;
-template<> CORE_API FRotator FVector3d::Rotation() const;
-
 /** Component-wise clamp for TVector */
 template<typename T>
 FORCEINLINE UE::Math::TVector<T> ClampVector(const UE::Math::TVector<T>& V, const UE::Math::TVector<T>& Min, const UE::Math::TVector<T>& Max)
@@ -2580,24 +2575,42 @@ FORCEINLINE FIntVector::FIntVector(FVector InVector)
 {
 }
 
-/* FVector2D inline functions
+template<>
+inline bool FVector3f::SerializeFromMismatchedTag(FName StructTag, FStructuredArchive::FSlot Slot)
+{
+
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Slot, Vector, Vector3f, Vector3d);
+}
+
+template<>
+inline bool FVector3d::SerializeFromMismatchedTag(FName StructTag, FStructuredArchive::FSlot Slot)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Slot, Vector, Vector3d, Vector3f);
+}
+
+
+/* TVector2<T> inline functions
  *****************************************************************************/
+namespace UE {
+namespace Math {
 
-FORCEINLINE FVector2D::FVector2D( const FVector3f& V )
-    : X(V.X), Y(V.Y)
+
+template<typename T>
+FORCEINLINE TVector2<T>::TVector2( const TVector<T>& V )
+	: X(V.X), Y(V.Y)
 {
+	DiagnosticCheckNaN();
 }
 
-FORCEINLINE FVector2D::FVector2D(const FVector3d& V)
-	: X((float)V.X), Y((float)V.Y)
+template<typename T>
+inline TVector<T> TVector2<T>::SphericalToUnitCartesian() const
 {
+    const T SinTheta = FMath::Sin(X);
+    return TVector<T>(FMath::Cos(Y) * SinTheta, FMath::Sin(Y) * SinTheta, FMath::Cos(X));
 }
 
-inline FVector FVector2D::SphericalToUnitCartesian() const
-{
-    const float SinTheta = FMath::Sin(X);
-    return FVector(FMath::Cos(Y) * SinTheta, FMath::Sin(Y) * SinTheta, FMath::Cos(X));
-}
+} // namespace UE::Math
+} // namespace UE
 
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 template<>

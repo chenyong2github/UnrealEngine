@@ -34,6 +34,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay)
 	bool bTryCollapseEdges = true;
 
+	/** Threshold to determine whether a triangle in one mesh is inside or outside of the other */
+	UPROPERTY(EditAnywhere, Category = Boolean, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
+	float WindingThreshold = 0.5;
+
 	/** Show boundary edges created by the Boolean operation, which might happen due to numerical errors */
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowNewBoundaries = true;

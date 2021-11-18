@@ -891,21 +891,13 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		void RestoreDocumentTab(FName PlaceholderId, ESearchPreference::Type SearchPreference, const TSharedRef<SDockTab>& UnmanagedTab);
 
 		/**
-		 * Opens tab if it is closed at the last known location.  If it already exists, it will draw attention to the tab.
-		 * 
-		 * @param TabId The tab identifier.
-		 * @return The existing or newly spawned tab instance.
-		 */
-		UE_DEPRECATED(4.26, "FTabManager::InvokeTab is deprecated. Please use TryInvokeTab instead!")
-		virtual TSharedRef<SDockTab> InvokeTab(const FTabId& TabId);
-
-		/**
 		 * Try to open tab if it is closed at the last known location.  If it already exists, it will draw attention to the tab.
 		 *
 		 * @param TabId The tab identifier.
+		 * @param bInvokeAsInactive	Leave the tab inactive instead of drawing attention to it
 		 * @return The existing or newly spawned tab instance if successful.
 		 */
-		virtual TSharedPtr<SDockTab> TryInvokeTab(const FTabId& TabId);
+		virtual TSharedPtr<SDockTab> TryInvokeTab(const FTabId& TabId, bool bInvokeAsInactive = false);
 
 		/**
 		 * Finds the first instance of an existing tab with the given tab id.
@@ -995,7 +987,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 
 		void MakeSpawnerMenuEntry( FMenuBuilder &PopulateMe, const TSharedPtr<FTabSpawnerEntry> &InSpawnerNode );
 
-		TSharedPtr<SDockTab> InvokeTab_Internal( const FTabId& TabId );
+		TSharedPtr<SDockTab> InvokeTab_Internal(const FTabId& TabId, bool bInvokeAsInactive = false);
 
 		/** Finds the last major or nomad tab in a particular window. */
 		TSharedPtr<SDockTab> FindLastTabInWindow(TSharedPtr<SWindow> Window) const;

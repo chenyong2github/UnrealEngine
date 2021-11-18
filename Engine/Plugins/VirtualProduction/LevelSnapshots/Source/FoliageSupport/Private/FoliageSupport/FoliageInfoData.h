@@ -5,21 +5,29 @@
 #include "CoreMinimal.h"
 #include "InstancedFoliage.h"
 
-/** Data we'll send to FFoliageImpl::Serialize */
-class FFoliageInfoData
+namespace UE::LevelSnapshots::Foliage::Private
 {
-	EFoliageImplType ImplType = EFoliageImplType::Unknown;
-	FName ComponentName;
+	/** Data we'll send to FFoliageImpl::Serialize */
+	class FFoliageInfoData
+	{
+		EFoliageImplType ImplType = EFoliageImplType::Unknown;
+		FName ComponentName;
 	
-	TArray<uint8> SerializedData;
-	
-public:
+		TArray<uint8> SerializedData;
 
-	void Save(FFoliageInfo& DataToReadFrom, const FCustomVersionContainer& VersionInfo);
-	void ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const;
-
-	EFoliageImplType GetImplType() const { return ImplType; }
-	TOptional<FName> GetComponentName() const { return ImplType == EFoliageImplType::StaticMesh && !ComponentName.IsNone() ? TOptional<FName>(ComponentName) : TOptional<FName>(); }
+		FArchive& SerializeInternal(FArchive& Ar);
 	
-	friend FArchive& operator<<(FArchive& Ar, FFoliageInfoData& MeshInfo);
-};
+	public:
+
+		void Save(FFoliageInfo& DataToReadFrom, const FCustomVersionContainer& VersionInfo);
+		void ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const;
+
+		EFoliageImplType GetImplType() const { return ImplType; }
+		TOptional<FName> GetComponentName() const { return ImplType == EFoliageImplType::StaticMesh && !ComponentName.IsNone() ? TOptional<FName>(ComponentName) : TOptional<FName>(); }
+	
+		friend FArchive& operator<<(FArchive& Ar, FFoliageInfoData& MeshInfo)
+		{
+			return MeshInfo.SerializeInternal(Ar);
+		}
+	};
+}

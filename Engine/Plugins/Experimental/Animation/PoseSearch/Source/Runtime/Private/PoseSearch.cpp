@@ -94,8 +94,8 @@ FLinearColor GetColorForFeature(FPoseSearchFeatureDesc Feature, const FPoseSearc
 	check(FeatureIdx != INDEX_NONE);
 
 	const float Hue = FeatureIdx < FeatureCountIdxHalf
-		? FMath::GetMappedRangeValueUnclamped({ 0.f, FeatureCountIdxHalf }, FVector2D(60.f, 0.f), FeatureIdx)
-		: FMath::GetMappedRangeValueUnclamped({ FeatureCountIdxHalf, FeatureCountIdx }, FVector2D(280.f, 220.f), FeatureIdx);
+		? FMath::GetMappedRangeValueUnclamped({ 0.f, FeatureCountIdxHalf }, FVector2f(60.f, 0.f), FeatureIdx)
+		: FMath::GetMappedRangeValueUnclamped({ FeatureCountIdxHalf, FeatureCountIdx }, FVector2f(280.f, 220.f), FeatureIdx);
 
 	const FLinearColor ColorHSV(Hue, 1.f, 1.f);
 	return ColorHSV.HSVToLinearRGB();
@@ -706,8 +706,8 @@ void FPoseSearchWeights::Init(const FPoseSearchWeightParams& WeightParams, const
 					// The interpolation range is 0 to 1 unless an initial value was set
 					// The initial value allows the user to set a minimum weight or reverse the lerp direction
 					// We'll normalize these weights in the next step
-					FVector2D InputRange(ChannelSampleOffsets[SegmentBegin], ChannelSampleOffsets[SegmentBegin + SegmentLength - 1]);
-					FVector2D OutputRange(HorizonParams.InitialValue, 1.0f - HorizonParams.InitialValue);
+					FVector2f InputRange(ChannelSampleOffsets[SegmentBegin], ChannelSampleOffsets[SegmentBegin + SegmentLength - 1]);
+					FVector2f OutputRange(HorizonParams.InitialValue, 1.0f - HorizonParams.InitialValue);
 
 					for (int32 OffsetIdx = SegmentBegin; OffsetIdx != SegmentBegin + SegmentLength; ++OffsetIdx)
 					{
@@ -1445,8 +1445,8 @@ bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexT
 
 	// Compute alpha between previous and next knots
 	float Alpha = FMath::GetMappedRangeValueUnclamped(
-		FVector2D(Knots[PrevIdx], Knots[NextIdx]),
-		FVector2D(0.0f, 1.0f),
+		FVector2f(Knots[PrevIdx], Knots[NextIdx]),
+		FVector2f(0.0f, 1.0f),
 		SecondsAgo);
 
 	// We may not have accumulated enough poses yet

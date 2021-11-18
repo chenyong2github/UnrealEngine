@@ -412,7 +412,7 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPooledDynamicMeshVertexBuffer::InitRHI)
 
-		uint32 TextureStride = sizeof(FVector2D);
+		uint32 TextureStride = sizeof(FVector2f);
 		EPixelFormat TextureFormat = PF_G32R32F;
 
 		if (Use16bitTexCoord)
@@ -436,7 +436,7 @@ public:
 		}
 
 		void* TexCoordBufferData = RHILockBuffer(TexCoordBuffer.VertexBufferRHI, 0, NumTexCoords * TextureStride * Vertices.Num(), RLM_WriteOnly);
-		FVector2D* TexCoordBufferData32 = !Use16bitTexCoord ? static_cast<FVector2D*>(TexCoordBufferData) : nullptr;
+		FVector2f* TexCoordBufferData32 = !Use16bitTexCoord ? static_cast<FVector2f*>(TexCoordBufferData) : nullptr;
 		FVector2DHalf* TexCoordBufferData16 = Use16bitTexCoord ? static_cast<FVector2DHalf*>(TexCoordBufferData) : nullptr;
 
 		// Copy the vertex data into the vertex buffers.
@@ -579,7 +579,7 @@ public:
 				}
 				else
 				{
-					UVSizeInBytes = sizeof(FVector2D);
+					UVSizeInBytes = sizeof(FVector2f);
 					UVDoubleWideVertexElementType = VET_Float4;
 					UVVertexElementType = VET_Float2;
 				}
@@ -681,7 +681,7 @@ FDynamicMeshBuilder::~FDynamicMeshBuilder()
 
 int32 FDynamicMeshBuilder::AddVertex(
 	const FVector3f& InPosition,
-	const FVector2D& InTextureCoordinate,
+	const FVector2f& InTextureCoordinate,
 	const FVector3f& InTangentX,
 	const FVector3f& InTangentY,
 	const FVector3f& InTangentZ,

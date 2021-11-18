@@ -7,8 +7,6 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 
-#nullable enable
-
 namespace EpicGames.Core
 {
 	/// <summary>
@@ -117,25 +115,6 @@ namespace EpicGames.Core
 		static readonly MethodInfo WritePolymorphicObjectMethodInfo = GetMethodInfo(() => WritePolymorphicObject(null!, null!));
 
 		/// <summary>
-		/// Reads an arbitrary value from the given archive.
-		/// </summary>
-		/// <typeparam name="T">Type to read</typeparam>
-		/// <param name="Reader">Reader to serialize from</param>
-		/// <returns>The given value</returns>
-		public static T Read<T>(this BinaryArchiveReader Reader)
-		{
-			Type Type = typeof(T);
-			if (Type.IsClass && !Type.IsSealed)
-			{
-				return (T)ReadObject(Reader);
-			}
-			else
-			{
-				return (T)FindOrAddSerializerInfo(typeof(T)).ReadMethod(Reader)!;
-			}
-		}
-
-		/// <summary>
 		/// Writes an arbitrary type to the given archive. May be an object or value type.
 		/// </summary>
 		/// <typeparam name="T">The type to write</typeparam>
@@ -146,7 +125,7 @@ namespace EpicGames.Core
 			Type Type = typeof(T);
 			if (Type.IsClass && !Type.IsSealed)
 			{
-				Writer.WriteObjectReference(Value, () => WriteNewPolymorphicObject(Writer, Value!));
+				Writer.WriteObjectReference(Value!, () => WriteNewPolymorphicObject(Writer, Value!));
 			}
 			else
 			{
@@ -185,7 +164,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Reader">Reader to deserializer the type from</param>
 		/// <returns>The matching type</returns>
-		public static Type ReadType(this BinaryArchiveReader Reader)
+		public static Type? ReadType(this BinaryArchiveReader Reader)
 		{
 			return Reader.ReadObjectReference(() => DigestToType[Reader.ReadContentHash()!]);
 		}
@@ -200,16 +179,21 @@ namespace EpicGames.Core
 			Writer.WriteObjectReference(Type, () => Writer.WriteContentHash(TypeToDigest[Type]));
 		}
 
-		static object ReadNewPolymorphicObject(BinaryArchiveReader Reader)
+		static object? ReadNewPolymorphicObject(BinaryArchiveReader Reader)
 		{
-			Type FinalType = Reader.ReadType();
+			Type? FinalType = Reader.ReadType();
+			if (FinalType == null)
+			{
+				return null;
+			}
+
 			TypeSerializer Info = FindOrAddSerializerInfo(FinalType);
 			return Info.ReadMethod(Reader)!;
 		}
 
-		public static object ReadObject(this BinaryArchiveReader Reader)
+		public static object? ReadObject(this BinaryArchiveReader Reader)
 		{
-			return Reader.ReadObjectReference(() => ReadNewPolymorphicObject(Reader));
+			return Reader.ReadUntypedObjectReference(() => ReadNewPolymorphicObject(Reader));
 		}
 
 		static void WriteNewPolymorphicObject(BinaryArchiveWriter Writer, object Value)
@@ -221,9 +205,9 @@ namespace EpicGames.Core
 			Info.WriteMethod(Writer, Value);
 		}
 
-		static void WritePolymorphicObject(this BinaryArchiveWriter Writer, object? Value)
+		static void WritePolymorphicObject(this BinaryArchiveWriter Writer, object Value)
 		{
-			Writer.WriteObjectReference(Value, () => WriteNewPolymorphicObject(Writer, Value!));
+			Writer.WriteObjectReference(Value, () => WriteNewPolymorphicObject(Writer, Value));
 		}
 
 		/// <summary>

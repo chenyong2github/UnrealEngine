@@ -25,19 +25,6 @@
 #include "IO/IoDispatcher.h"
 #endif
 
-#if WITH_IOSTORE_IN_EDITOR
-static FIoChunkId CreateBulkDataChunkId(FPackageId PackageId, uint32 BulkDataFlags)
-{ 
-	const EIoChunkType ChunkType = BulkDataFlags & BULKDATA_OptionalPayload
-		? EIoChunkType::OptionalBulkData
-		: BulkDataFlags & BULKDATA_MemoryMappedPayload
-			? EIoChunkType::MemoryMappedBulkData
-			: EIoChunkType::BulkData;
-
-	return CreateIoChunkId(PackageId.Value(), 0, ChunkType);
-}
-#endif // WITH_IOSTORE_IN_EDITOR
-
 /*-----------------------------------------------------------------------------
 	Constructors and operators
 -----------------------------------------------------------------------------*/
@@ -443,7 +430,7 @@ bool FUntypedBulkData::DoesExist() const
 #if WITH_IOSTORE_IN_EDITOR
 	if (IsUsingIODispatcher())
 	{
-		return FBulkDataBase::GetIoDispatcher()->DoesChunkExist(CreateBulkDataChunkId(PackageId, BulkDataFlags));
+		return FBulkDataBase::GetIoDispatcher()->DoesChunkExist(CreateChunkId());
 	}
 #endif
 
@@ -804,6 +791,31 @@ bool FUntypedBulkData::StartAsyncLoading()
 
 	check(SerializeFuture.IsValid() == false);
 
+#if WITH_IOSTORE_IN_EDITOR
+	if (IsUsingIODispatcher())
+	{
+		checkf(IsStoredCompressedOnDisk() == false, TEXT("BulkData in the IoStore should not have compression flags set!"));
+		
+		// TODO: We should be able to do this without the use of Async. We should be able to create a TPromise that is fulfilled
+		// by the callback from the IoStore and not create this extra thread job with a wait but because the callback style is 
+		// based on older code it is not a TUniqueFunction it makes it hard to pass a TPromise in.
+		// Should fix this by fixing the callbacks.
+		SerializeFuture = Async(EAsyncExecution::ThreadPool, [=]()
+		{
+			BulkDataAsync.Reallocate(GetBulkDataSize(), BulkDataAlignment);
+
+			const FIoChunkId ChunkId = CreateChunkId();
+
+			TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(ChunkId, BulkDataOffsetInFile, GetBulkDataSize(), nullptr, (uint8*)BulkDataAsync.Get());
+			Request->WaitCompletion();
+
+			return true;
+		});
+
+		return true;
+	}
+#endif //WITH_IOSTORE_IN_EDITOR
+
 	SerializeFuture = Async(EAsyncExecution::ThreadPool, [=]()
 	{
 		AsyncLoadBulkData();
@@ -866,6 +878,26 @@ uint32 FUntypedBulkData::GetBulkDataAlignment() const
 void FUntypedBulkData::ClearBulkDataFlags( uint32 BulkDataFlagsToClear )
 {
 	BulkDataFlags = static_cast<EBulkDataFlags>(BulkDataFlags & ~BulkDataFlagsToClear);
+}
+
+FIoChunkId FUntypedBulkData::CreateChunkId() const
+{
+#if WITH_IOSTORE_IN_EDITOR
+	if(IsUsingIODispatcher())
+	{ 
+		const EIoChunkType ChunkType = BulkDataFlags & BULKDATA_OptionalPayload
+			? EIoChunkType::OptionalBulkData
+			: BulkDataFlags & BULKDATA_MemoryMappedPayload
+				? EIoChunkType::MemoryMappedBulkData
+				: EIoChunkType::BulkData;
+
+		return CreateIoChunkId(PackageId.Value(), 0, ChunkType);
+	}
+	else
+#endif // WITH_IOSTORE_IN_EDITOR
+	{
+		return FIoChunkId();
+	}	
 }
 
 void FUntypedBulkData::AsyncLoadBulkData()
@@ -1193,16 +1225,19 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			}
 
 			FArchive* CacheableArchive = Ar.GetCacheableArchive();
-			if (Ar.IsAllowingLazyLoading() && CacheableArchive && !bUseIOStore)
+			if ((Ar.IsAllowingLazyLoading() && CacheableArchive) || bUseIOStore)
 			{
 				SetLocalBulkDataFlags(BULKDATA_LazyLoadable);
 
 				// Deferred serialization is allowed by the archive/caller. Set flags for how to read
 				// the data, but skip synchronous reading of it until TryLoadDataIntoMemory is called.
 #if WITH_EDITOR
-				CacheableArchive->AttachBulkData(Owner, this);
-				check(!CacheableArchive->IsTextFormat());
-				AttachedAr = CacheableArchive;
+				if (CacheableArchive != nullptr)
+				{
+					CacheableArchive->AttachBulkData(Owner, this);
+					check(!CacheableArchive->IsTextFormat());
+					AttachedAr = CacheableArchive;
+				}
 #endif // WITH_EDITOR
 
 				if (bPayloadInline)
@@ -1277,52 +1312,29 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 						// if the payload is NOT stored inline ...
 						if (bPayloadInSeparateFile)
 						{
-#if WITH_IOSTORE_IN_EDITOR
-							if (bUseIOStore)
+							SetLocalBulkDataFlags(BULKDATA_LazyLoadable); // Separate files are always lazy loadable
+
+							// open separate bulk data file
+							UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (separate file). This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
+							TUniquePtr<FArchive> TargetArchive;
+							if (IsInExternalResource())
 							{
-								FIoChunkId ChunkId = CreateBulkDataChunkId(PackageId, BulkDataFlags);
-								// If the chunk does not exist in iostore do not request it (which will trigger an error)
-								// Users will need to handle the lack of existing data, which they can check for by calling DoesExist.
-								// This is necessary to handle bulkdatas in optional segments that may not have been downloaded into the current project
-								// (e.g. optional mips)
-								if (FBulkDataBase::GetIoDispatcher()->DoesChunkExist(ChunkId))
-								{
-									TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(ChunkId);
-									Request->WaitCompletion();
-
-									FLargeMemoryReader MemoryAr(Request->GetReadResults(), Request->GetSize());
-									MemoryAr.Seek(BulkDataOffsetInFile);
-
-									SerializeBulkData(MemoryAr, BulkData.Get(), BulkDataFlags);
-								}
+								TargetArchive = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
+								checkf(TargetArchive.IsValid(), TEXT("Attempted to load bulk data from invalid WorkspaceDomain package '%s'."),
+									*PackagePath.GetPackageName());
 							}
 							else
-#endif
 							{
-								SetLocalBulkDataFlags(BULKDATA_LazyLoadable); // Separate files are always lazy loadable
-
-								// open separate bulk data file
-								UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (separate file). This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
-								TUniquePtr<FArchive> TargetArchive;
-								if (IsInExternalResource())
-								{
-									TargetArchive = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
-									checkf(TargetArchive.IsValid(), TEXT("Attempted to load bulk data from invalid WorkspaceDomain package '%s'."),
-										*PackagePath.GetPackageName());
-								}
-								else
-								{
-									FOpenPackageResult OpenResult = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
-									checkf(OpenResult.Archive.IsValid() && OpenResult.Format == EPackageFormat::Binary, TEXT("Attempted to load bulk data from an invalid PackagePath '%s': %s."),
-										*PackagePath.GetDebugName(PackageSegment), (!OpenResult.Archive.IsValid() ? TEXT("could not find package") : TEXT("package is a TextAsset which is not supported")));
-									TargetArchive = MoveTemp(OpenResult.Archive);
-								}
-
-								// seek to the location in the file where the payload is stored
-								TargetArchive->Seek(BulkDataOffsetInFile);
-								// serialize the payload
-								SerializeBulkData(*TargetArchive, BulkData.Get(), BulkDataFlags);
+								FOpenPackageResult OpenResult = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+								checkf(OpenResult.Archive.IsValid() && OpenResult.Format == EPackageFormat::Binary, TEXT("Attempted to load bulk data from an invalid PackagePath '%s': %s."),
+									*PackagePath.GetDebugName(PackageSegment), (!OpenResult.Archive.IsValid() ? TEXT("could not find package") : TEXT("package is a TextAsset which is not supported")));
+								TargetArchive = MoveTemp(OpenResult.Archive);
 							}
+
+							// seek to the location in the file where the payload is stored
+							TargetArchive->Seek(BulkDataOffsetInFile);
+							// serialize the payload
+							SerializeBulkData(*TargetArchive, BulkData.Get(), BulkDataFlags);
 						}
 						else
 						{
@@ -1864,6 +1876,13 @@ void FUntypedBulkData::SerializeBulkData(FArchive& Ar, void* Data)
 
 IAsyncReadFileHandle* FUntypedBulkData::OpenAsyncReadHandle() const
 {
+#if WITH_IOSTORE_IN_EDITOR
+	if (IsUsingIODispatcher())
+	{
+		return UE::BulkData::Private::CreateAsyncReadHandle(CreateChunkId());
+	}
+#endif //WITH_IOSTORE_IN_EDITOR
+	
 	if (IsInExternalResource())
 	{
 		return IPackageResourceManager::Get().OpenAsyncReadExternalResource(EPackageExternalResource::WorkspaceDomainFile,
@@ -1887,7 +1906,7 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 #if WITH_IOSTORE_IN_EDITOR
 	if (IsUsingIODispatcher())
 	{
-		TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateBulkDataChunkId(PackageId, BulkDataFlags), BulkDataOffsetInFile + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory, ConvertToIoDispatcherPriority(Priority));
+		TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateChunkId(), BulkDataOffsetInFile + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory, ConvertToIoDispatcherPriority(Priority));
 		return Request.Release();
 	}
 #endif
@@ -1938,7 +1957,6 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 }
 
 #if USE_BULKDATA_STREAMING_TOKEN 
-
 FBulkDataStreamingToken FUntypedBulkData::CreateStreamingToken() const
 {
 	// Checks since we are casting signed 64bit values to unsigned 32bit
@@ -1997,7 +2015,50 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FPack
 	}
 }
 
-#endif
+#else
+IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback)
+{
+	checkf(RangeArray.Num() > 0, TEXT("RangeArray cannot be empty"));
+
+	const FUntypedBulkData& Start = *(RangeArray[0]);
+
+	checkf(!Start.IsInlined(), TEXT("Cannot stream inlined BulkData"));
+
+	if (Start.IsUsingIODispatcher())
+	{
+		const FUntypedBulkData& End = *RangeArray[RangeArray.Num() - 1];
+
+		checkf(Start.IsInSeparateFile(),
+			TEXT("Attempting to CreateStreamingRequestForRange on %s when the IoDispatcher is enabled, this operation is not supported!"),
+			Start.IsInlined() ? TEXT("inline BulkData") : TEXT("BulkData in end-of-package-file section"));
+		checkf(End.IsInSeparateFile() && Start.CreateChunkId() == End.CreateChunkId(), TEXT("BulkData range does not come from the same file (%s vs %s)"),
+			*Start.GetPackagePath().GetDebugName(Start.GetPackageSegment()), *End.GetPackagePath().GetDebugName(End.GetPackageSegment()));
+
+		const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
+		const int64 ReadLength = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
+
+		checkf(ReadLength > 0, TEXT("Read length is 0"));
+
+		TUniquePtr<IBulkDataIORequest> IoRequest = CreateBulkDataIoDispatcherRequest(Start.CreateChunkId(), ReadOffset, ReadLength, CompleteCallback, nullptr, ConvertToIoDispatcherPriority(Priority));
+
+		return IoRequest.Release();
+	}
+	else
+	{
+		const FUntypedBulkData& End = *RangeArray[RangeArray.Num() - 1];
+
+		checkf(Start.GetPackagePath() == End.GetPackagePath(), TEXT("BulkData range does not come from the same file (%s vs %s)"),
+			*Start.GetPackagePath().GetDebugName(), *End.GetPackagePath().GetDebugName());
+
+		const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
+		const int64 ReadLength = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
+
+		checkf(ReadLength > 0, TEXT("Read length is 0"));
+
+		return Start.CreateStreamingRequest(0, ReadLength, Priority, CompleteCallback, nullptr);
+	}
+}
+#endif //USE_BULKDATA_STREAMING_TOKEN
 
 FBulkDataIORequest::FBulkDataIORequest(IAsyncReadFileHandle* InFileHandle)
 	: FileHandle(InFileHandle)
@@ -2147,6 +2208,19 @@ bool FUntypedBulkData::TryLoadDataIntoMemory(void* Dest)
 		FMemory::Memcpy(Dest, BulkData.Get(), GetBulkDataSize());
 		return true;
 	}
+
+#if WITH_IOSTORE_IN_EDITOR
+	if (IsUsingIODispatcher())
+	{
+		checkf(IsStoredCompressedOnDisk() == false, TEXT("BulkData in the IoStore should not have compression flags set!"));
+		const FIoChunkId ChunkId = CreateChunkId();
+
+		TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(ChunkId, BulkDataOffsetInFile, GetBulkDataSize(), nullptr, (uint8*)Dest);
+		Request->WaitCompletion();
+
+		return true;
+	}
+#endif //WITH_IOSTORE_IN_EDITOR
 
 #if WITH_EDITOR
 	TUniquePtr<FArchive> BulkDataLoadedFile;

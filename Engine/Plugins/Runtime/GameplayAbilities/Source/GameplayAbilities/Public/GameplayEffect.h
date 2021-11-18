@@ -1072,6 +1072,15 @@ struct GAMEPLAYABILITIES_API FGameplayEffectSpec
 	/** Helper function that returns the duration after applying relevant modifiers from the source and target ability system components */
 	float CalculateModifiedDuration() const;
 
+	/** Dynamically add an asset tag not originally from the source GE definition; Added to DynamicAssetTags as well as injected into the captured source spec tags */
+	void AddDynamicAssetTag(const FGameplayTag& TagToAdd);
+
+	/** Dynamically append asset tags not originally from the source GE definition; Added to DynamicAssetTags as well as injected into the captured source spec tags */
+	void AppendDynamicAssetTags(const FGameplayTagContainer& TagsToAppend);
+
+	/** Simple const accessor to the dynamic asset tags */
+	const FGameplayTagContainer& GetDynamicAssetTags() const;
+
 private:
 
 	void CaptureDataFromSource(bool bSkipRecaptureSourceActorTags = false);
@@ -1122,6 +1131,7 @@ public:
 	FGameplayTagContainer DynamicGrantedTags;
 
 	/** Tags that are on this effect spec and that did not come from the UGameplayEffect def. These are replicated. */
+	UE_DEPRECATED(5.0, "This member will be made private. Please use AddDynamicAssetTag, AppendDynamicAssetTags, or GetDynamicAssetTags as appropriate. Note that dynamic asset tag removal will no longer be supported.")
 	UPROPERTY()
 	FGameplayTagContainer DynamicAssetTags;
 

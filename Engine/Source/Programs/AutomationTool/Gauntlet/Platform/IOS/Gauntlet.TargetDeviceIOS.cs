@@ -895,7 +895,7 @@ namespace Gauntlet
 				CommandLine = String.Format("--id {0} {1}", DeviceName, CommandLine);
 			}
 
-			String IOSDeployPath = Path.Combine(Globals.UE4RootDir, "Engine/Extras/ThirdPartyNotUE/ios-deploy/bin/ios-deploy");
+			String IOSDeployPath = Path.Combine(Globals.UnrealRootDir, "Engine/Extras/ThirdPartyNotUE/ios-deploy/bin/ios-deploy");
 
 			if (!File.Exists(IOSDeployPath))
 			{
@@ -1176,5 +1176,11 @@ namespace Gauntlet
 
 		}
 
+	}
+
+	public class IOSBuildSupport : BaseBuildSupport
+	{
+		protected override BuildFlags SupportedBuildTypes => BuildFlags.Packaged | BuildFlags.CanReplaceCommandLine | BuildFlags.CanReplaceExecutable | BuildFlags.Bulk | BuildFlags.NotBulk;
+		protected override UnrealTargetPlatform? Platform => UnrealTargetPlatform.IOS;
 	}
 }

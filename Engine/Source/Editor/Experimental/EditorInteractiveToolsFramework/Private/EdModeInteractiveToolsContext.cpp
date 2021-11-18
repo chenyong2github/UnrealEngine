@@ -278,33 +278,6 @@ void UEditorInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 {
 	UInteractiveToolsContext::Initialize(QueriesAPIIn, TransactionsAPIIn);
 
-	BeginPIEDelegateHandle = FEditorDelegates::BeginPIE.AddLambda([this](bool bSimulating)
-	{
-		TerminateActiveToolsOnPIEStart();
-	});
-	PreSaveWorldDelegateHandle = FEditorDelegates::PreSaveWorldWithContext.AddLambda([this](UWorld* World, FObjectPreSaveContext ObjectSaveContext)
-	{
-		TerminateActiveToolsOnSaveWorld();
-	});
-
-	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
-	WorldTearDownDelegateHandle = LevelEditor.OnMapChanged().AddLambda([this](UWorld* World, EMapChangeType ChangeType)
-	{
-		if (ChangeType == EMapChangeType::TearDownWorld)
-		{
-			TerminateActiveToolsOnWorldTearDown();
-		}
-	});
-
-	ToolManager->OnToolEnded.AddUObject(this, &UEditorInteractiveToolsContext::OnToolEnded);
-	ToolManager->OnToolPostBuild.AddUObject(this, &UEditorInteractiveToolsContext::OnToolPostBuild);
-
-	// if viewport clients change we will discard our overrides as we aren't sure what happened
-	ViewportClientListChangedHandle = GEditor->OnViewportClientListChanged().AddLambda([this]()
-	{
-		RestoreEditorState();
-	});
-
 	InvalidationTimestamp = 0;
 
 	// This gets set up in UInteractiveToolsContext::Initialize;
@@ -313,24 +286,10 @@ void UEditorInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 
 void UEditorInteractiveToolsContext::Shutdown()
 {
-	if (ToolManager)
-	{
-		ToolManager->OnToolPostBuild.RemoveAll(this);
-		ToolManager->OnToolEnded.RemoveAll(this);
-	}
+	// auto-accept any in-progress tools
+	DeactivateAllActiveTools(EToolShutdownType::Accept);
 
-	if (FLevelEditorModule* LevelEditor = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
-	{
-		LevelEditor->OnMapChanged().Remove(WorldTearDownDelegateHandle);
-		FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
-		FEditorDelegates::PreSaveWorldWithContext.Remove(PreSaveWorldDelegateHandle);
-		GEditor->OnViewportClientListChanged().Remove(ViewportClientListChangedHandle);
-
-		// auto-accept any in-progress tools
-		DeactivateAllActiveTools(EToolShutdownType::Accept);
-
-		UInteractiveToolsContext::Shutdown();
-	}
+	UInteractiveToolsContext::Shutdown();
 }
 
 void UEditorInteractiveToolsContext::InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager, UInputRouter* UseInputRouter)
@@ -875,6 +834,16 @@ bool UModeManagerInteractiveToolsContext::ProcessEditDelete()
 	return bHandled;
 }
 
+void UModeManagerInteractiveToolsContext::DeactivateAllActiveTools(EToolShutdownType ShutdownType)
+{
+	for (UEdModeInteractiveToolsContext* EdModeContext : EdModeToolsContexts)
+	{
+		EdModeContext->DeactivateAllActiveTools(ShutdownType);
+	}
+
+	Super::DeactivateAllActiveTools(ShutdownType);
+}
+
 
 bool UModeManagerInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
@@ -1093,6 +1062,57 @@ FRay UModeManagerInteractiveToolsContext::GetLastWorldRay() const
 	return CurrentMouseState.Mouse.WorldRay;
 }
 
+void UModeManagerInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* QueriesAPIIn, IToolsContextTransactionsAPI* TransactionsAPIIn)
+{
+	Super::Initialize(QueriesAPIIn, TransactionsAPIIn);
+
+	BeginPIEDelegateHandle = FEditorDelegates::BeginPIE.AddLambda([this](bool bSimulating)
+	{
+		TerminateActiveToolsOnPIEStart();
+	});
+	PreSaveWorldDelegateHandle = FEditorDelegates::PreSaveWorldWithContext.AddLambda([this](UWorld* World, FObjectPreSaveContext ObjectSaveContext)
+	{
+		TerminateActiveToolsOnSaveWorld();
+	});
+
+	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	WorldTearDownDelegateHandle = LevelEditor.OnMapChanged().AddLambda([this](UWorld* World, EMapChangeType ChangeType)
+	{
+		if (ChangeType == EMapChangeType::TearDownWorld)
+		{
+			TerminateActiveToolsOnWorldTearDown();
+		}
+	});
+
+	ToolManager->OnToolEnded.AddUObject(this, &UModeManagerInteractiveToolsContext::OnToolEnded);
+	ToolManager->OnToolPostBuild.AddUObject(this, &UModeManagerInteractiveToolsContext::OnToolPostBuild);
+
+	// if viewport clients change we will discard our overrides as we aren't sure what happened
+	ViewportClientListChangedHandle = GEditor->OnViewportClientListChanged().AddLambda([this]()
+	{
+		RestoreEditorState();
+	});
+}
+
+void UModeManagerInteractiveToolsContext::Shutdown()
+{
+	if (ToolManager)
+	{
+		ToolManager->OnToolPostBuild.RemoveAll(this);
+		ToolManager->OnToolEnded.RemoveAll(this);
+	}
+
+	if (FLevelEditorModule* LevelEditor = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
+	{
+		LevelEditor->OnMapChanged().Remove(WorldTearDownDelegateHandle);
+		FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
+		FEditorDelegates::PreSaveWorldWithContext.Remove(PreSaveWorldDelegateHandle);
+		GEditor->OnViewportClientListChanged().Remove(ViewportClientListChangedHandle);
+	}
+
+	Super::Shutdown();
+}
+
 
 UEdModeInteractiveToolsContext* UModeManagerInteractiveToolsContext::CreateNewChildEdModeToolsContext()
 {
@@ -1100,13 +1120,22 @@ UEdModeInteractiveToolsContext* UModeManagerInteractiveToolsContext::CreateNewCh
 		NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), UEdModeInteractiveToolsContext::StaticClass(), NAME_None, RF_Transient);
 	NewModeToolsContext->InitializeContextFromModeManagerContext(this);
 
-	EdModeToolsContexts.Add(NewModeToolsContext);
-
 	return NewModeToolsContext;
 }
 
+bool UModeManagerInteractiveToolsContext::OnChildEdModeActivated(UEdModeInteractiveToolsContext* ChildToolsContext)
+{
+	if (!ensureMsgf(EdModeToolsContexts.Find(ChildToolsContext), TEXT("Child ToolsContext was already found!")))
+	{
+		return false;
+	}
 
-bool UModeManagerInteractiveToolsContext::OnChildEdModeToolsContextShutdown(UEdModeInteractiveToolsContext* ChildToolsContext)
+	EdModeToolsContexts.Add(ChildToolsContext);
+	return true;
+}
+
+
+bool UModeManagerInteractiveToolsContext::OnChildEdModeDeactivated(UEdModeInteractiveToolsContext* ChildToolsContext)
 {
 	for (int32 k = 0; k < EdModeToolsContexts.Num(); ++k)
 	{

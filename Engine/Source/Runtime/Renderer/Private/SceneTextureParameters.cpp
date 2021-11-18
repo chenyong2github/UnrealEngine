@@ -79,7 +79,8 @@ FRDGTextureRef GetEyeAdaptationTexture(FRDGBuilder& GraphBuilder, const FSceneVi
 	}
 	else
 	{
-		return GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+		return SystemTextures.White;
 	}
 }
 

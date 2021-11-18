@@ -24,7 +24,14 @@ void FLookAtEditMode::ExitMode()
 FVector FLookAtEditMode::GetWidgetLocation() const
 {
 	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
-	return GraphNode->Node.GetCachedTargetLocation();
+	EBoneControlSpace Space = RuntimeNode->LookAtTarget.HasTargetSetup() ? BCS_BoneSpace : BCS_ComponentSpace;
+	
+	return ConvertWidgetLocation(SkelComp, RuntimeNode->ForwardedPose, RuntimeNode->LookAtTarget, RuntimeNode->LookAtLocation, Space);
+}
+
+ECoordSystem FLookAtEditMode::GetWidgetCoordinateSystem() const
+{
+	return RuntimeNode->LookAtTarget.HasTargetSetup() ? COORD_Local : COORD_World;
 }
 
 UE::Widget::EWidgetMode FLookAtEditMode::GetWidgetMode() const
@@ -34,10 +41,22 @@ UE::Widget::EWidgetMode FLookAtEditMode::GetWidgetMode() const
 
 FName FLookAtEditMode::GetSelectedBone() const
 {
-	return GraphNode->Node.BoneToModify.BoneName;
+	return RuntimeNode->LookAtTarget.GetTargetSetup();
 }
 
-// @todo: will support this since now we have LookAtLocation
+bool FLookAtEditMode::ShouldDrawWidget() const
+{
+	return true;
+}
+
 void FLookAtEditMode::DoTranslation(FVector& InTranslation)
 {
+	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
+	EBoneControlSpace Space = RuntimeNode->LookAtTarget.HasTargetSetup() ? BCS_BoneSpace : BCS_ComponentSpace;
+	FVector Offset = ConvertCSVectorToBoneSpace(SkelComp, InTranslation, RuntimeNode->ForwardedPose, RuntimeNode->LookAtTarget, Space);
+
+	RuntimeNode->LookAtLocation += Offset;
+
+	GraphNode->Node.LookAtLocation = RuntimeNode->LookAtLocation;
+	GraphNode->SetDefaultValue(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_LookAt, LookAtLocation), RuntimeNode->LookAtLocation);
 }

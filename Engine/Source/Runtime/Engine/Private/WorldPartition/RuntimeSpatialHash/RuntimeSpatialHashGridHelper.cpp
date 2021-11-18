@@ -165,13 +165,6 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		const FActorCluster* ActorCluster = ClusterInstance->Cluster;
 		check(ActorCluster && ActorCluster->Actors.Num() > 0);
 		EActorGridPlacement GridPlacement = ActorCluster->GridPlacement;
-		bool bAlwaysLoadedPromotedCluster = (GridPlacement == EActorGridPlacement::None);
-		bool bAlwaysLoadedPromotedOutOfGrid = false;
-
-		if (bAlwaysLoadedPromotedCluster)
-		{
-			GridPlacement = EActorGridPlacement::AlwaysLoaded;
-		}
 
 		switch (GridPlacement)
 		{
@@ -188,7 +181,6 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			else
 			{
 				GridPlacement = EActorGridPlacement::AlwaysLoaded;
-				bAlwaysLoadedPromotedOutOfGrid = true;
 				PartitionedActors.GetAlwaysLoadedCell().AddActor(MoveTemp(ActorInstance), ClusterInstance->DataLayers);
 			}
 			break;
@@ -196,32 +188,25 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		case EActorGridPlacement::Bounds:
 		{
 			// Find grid level cell that encompasses the actor cluster and put actors in it.
+			const FBox2D ClusterBounds(FVector2D(ClusterInstance->Bounds.Min), FVector2D(ClusterInstance->Bounds.Max));
+			const FVector2D ClusterSize = ClusterBounds.GetSize();
+			const float MinRequiredCellExtent = FMath::Max(ClusterSize.X, ClusterSize.Y);
+			const int32 FirstPotentialGridLevel = FMath::Max(FMath::CeilToFloat(FMath::Log2(MinRequiredCellExtent / (float)PartitionedActors.CellSize)), 0);
+
 			bool bFoundCell = false;
-			for (FSquare2DGridHelper::FGridLevel& GridLevel : PartitionedActors.Levels)
+			for (int32 GridLevelIndex = FirstPotentialGridLevel; GridLevelIndex < PartitionedActors.Levels.Num(); GridLevelIndex++)
 			{
-				const FBox2D ActorBounds(FVector2D(ClusterInstance->Bounds.Min), FVector2D(ClusterInstance->Bounds.Max));
-				const float ActorBoundsArea = ActorBounds.GetArea();
+				FSquare2DGridHelper::FGridLevel& GridLevel = PartitionedActors.Levels[GridLevelIndex];
 
-				GridLevel.ForEachIntersectingCellsBreakable(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &ActorBounds, &ActorBoundsArea, &bFoundCell](const FIntVector2& Coords)
+				if (GridLevel.GetNumIntersectingCells(ClusterInstance->Bounds) == 1)
 				{
-					FBox2D CellBounds;
-					GridLevel.GetCellBounds(Coords, CellBounds);
-
-					const FBox2D Intersection(FVector2D::Max(CellBounds.Min, ActorBounds.Min), FVector2D::Min(CellBounds.Max, ActorBounds.Max));
-					const float CoveredArea = Intersection.GetArea() / ActorBoundsArea;
-
-					if (CoveredArea > 0.66f)
+					GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &bFoundCell](const FIntVector2& Coords)
 					{
-						GridLevel.GetCell(Coords).AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);
+						check(!bFoundCell);
+						GridLevel.GetCell(Coords).AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);						
 						bFoundCell = true;
-						return false;
-					}
+					});
 
-					return true;
-				});
-
-				if (bFoundCell)
-				{
 					break;
 				}
 			}
@@ -229,7 +214,6 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			if (!bFoundCell)
 			{
 				GridPlacement = EActorGridPlacement::AlwaysLoaded;
-				bAlwaysLoadedPromotedOutOfGrid = true;
 				PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);
 
 				UE_LOG(LogWorldPartition, Warning, TEXT("Cluster of %d actors was promoted always loaded, BV of [%d x %d] (meters)"), 
@@ -241,7 +225,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 					const FWorldPartitionActorDescView& ActorDescView = ClusterInstance->ContainerInstance->GetActorDescView(ActorGuid);
 					UE_LOG(LogWorldPartition, Warning, TEXT("   - Actor: %s (%s)"), *ActorDescView.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
 					UE_LOG(LogWorldPartition, Warning, TEXT("         Package: %s"), *ActorDescView.GetActorPackage().ToString());
-					UE_LOG(LogWorldPartition, Warning, TEXT("         Container (%08x): %s"), ClusterInstance->ContainerInstance->ID, *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
+					UE_LOG(LogWorldPartition, Warning, TEXT("         Container (%s): %s"), *ClusterInstance->ContainerInstance->ID.ToString(), *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
 				}
 			}
 			break;
@@ -259,11 +243,9 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		{
 			if (ActorCluster->Actors.Num() > 1)
 			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered %d actors (%s%s%s), generated shared BV of [%d x %d] (meters)"),
+				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered %d actors (%s), generated shared BV of [%d x %d] (meters)"),
 					ActorCluster->Actors.Num(),
 					*StaticEnum<EActorGridPlacement>()->GetNameStringByValue((int64)GridPlacement),
-					bAlwaysLoadedPromotedCluster ? TEXT(":PromotedCluster") : TEXT(""),
-					bAlwaysLoadedPromotedOutOfGrid ? TEXT(":PromotedOutOfGrid") : TEXT(""),
 					(int)(0.01f * ClusterInstance->Bounds.GetSize().X),
 					(int)(0.01f * ClusterInstance->Bounds.GetSize().Y));
 
@@ -279,7 +261,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 					const FWorldPartitionActorDescView& ActorDescView = ClusterInstance->ContainerInstance->GetActorDescView(ActorGuid);
 					UE_LOG(LogWorldPartition, Verbose, TEXT("   - Actor: %s (%s)"), *ActorDescView.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
 					UE_LOG(LogWorldPartition, Verbose, TEXT("         Package: %s"), *ActorDescView.GetActorPackage().ToString());
-					UE_LOG(LogWorldPartition, Verbose, TEXT("         Container (%08x): %s"), ClusterInstance->ContainerInstance->ID, *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
+					UE_LOG(LogWorldPartition, Verbose, TEXT("         Container (%s): %s"), *ClusterInstance->ContainerInstance->ID.ToString(), *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
 				}
 			}
 		}

@@ -73,9 +73,6 @@ static UTextureCube* GetDefaultTextureCube(const UTextureCube* Texture)
 UTextureCube::UTextureCube(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PrivatePlatformData(nullptr)
-	, PlatformData(
-		[this]()-> FTexturePlatformData* { return GetPlatformData(); },
-		[this](FTexturePlatformData* InPlatformData) { SetPlatformData(InPlatformData); })
 {
 	SRGB = true;
 }
@@ -223,7 +220,7 @@ FString UTextureCube::GetDesc()
 uint32 UTextureCube::CalcTextureMemorySize( int32 MipCount ) const
 {
 	uint32 Size = 0;
-	if (PlatformData)
+	if (GetPlatformData())
 	{
 		int32 SizeX = GetSizeX();
 		int32 SizeY = GetSizeY();
@@ -237,7 +234,7 @@ uint32 UTextureCube::CalcTextureMemorySize( int32 MipCount ) const
 		FIntPoint MipExtents = CalcMipMapExtent(SizeX, SizeY, Format, FirstMip);
 		
 		uint32 TextureAlign = 0;
-		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, FMath::Max( 1, MipCount ), TexCreate_None, FRHIResourceCreateInfo(PlatformData->GetExtData()), TextureAlign);
+		uint64 TextureSize = RHICalcTextureCubePlatformSize(MipExtents.X, Format, FMath::Max( 1, MipCount ), TexCreate_None, FRHIResourceCreateInfo(GetPlatformData()->GetExtData()), TextureAlign);
 		Size = (uint32)TextureSize;
 	}
 	return Size;
@@ -349,8 +346,8 @@ public:
 
 		check(Owner->GetNumMips() > 0);
 
-		TIndirectArray<FTexture2DMipMap>& Mips = InOwner->PlatformData->Mips;
-		const int32 FirstMipTailIndex = Mips.Num() - FMath::Max(1, InOwner->PlatformData->GetNumMipsInTail());
+		TIndirectArray<FTexture2DMipMap>& Mips = InOwner->GetPlatformData()->Mips;
+		const int32 FirstMipTailIndex = Mips.Num() - FMath::Max(1, InOwner->GetPlatformData()->GetNumMipsInTail());
 		for (int32 MipIndex = 0; MipIndex <= FirstMipTailIndex; MipIndex++)
 		{
 			FTexture2DMipMap& Mip = Mips[MipIndex];
@@ -439,7 +436,7 @@ public:
 		ETextureCreateFlags TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (Owner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed);
 		FString Name = Owner->GetPathName();
 		FRHIResourceCreateInfo CreateInfo(*Name);
-		CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->GetExtData() : 0;
+		CreateInfo.ExtData = Owner->GetPlatformData() ? Owner->GetPlatformData()->GetExtData() : 0;
 		TextureCubeRHI = RHICreateTextureCube( Owner->GetSizeX(), Owner->GetPixelFormat(), Owner->GetNumMips(), TexCreateFlags, CreateInfo );
 		TextureRHI = TextureCubeRHI;
 		TextureRHI->SetName(Owner->GetFName());
@@ -551,7 +548,7 @@ private:
 		// runtime block size checking, conversion, or the like
 		if (DestPitch == 0)
 		{
-			FMemory::Memcpy(Dest, MipData[FaceIndex][MipIndex], Owner->PlatformData->Mips[MipIndex].BulkData.GetBulkDataSize() / 6);
+			FMemory::Memcpy(Dest, MipData[FaceIndex][MipIndex], Owner->GetPlatformData()->Mips[MipIndex].BulkData.GetBulkDataSize() / 6);
 		}
 		else
 		{

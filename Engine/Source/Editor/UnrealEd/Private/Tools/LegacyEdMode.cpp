@@ -221,14 +221,6 @@ bool ULegacyEdModeWrapper::HandleClick(FEditorViewportClient* InViewportClient, 
 
 void ULegacyEdModeWrapper::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
-	// Since someone could have held onto the FEdMode directly, bubble up the deletion request to the UEdMode
-	// It will take an extra tick to fully delete in the manager, but go ahead and bail out before ticking the legacy mode.
-	if (LegacyEditorMode->IsPendingDeletion())
-	{
-		RequestDeletion();
-		return;
-	}
-
 	LegacyEditorMode->Tick(ViewportClient, DeltaTime);
 }
 
@@ -291,7 +283,6 @@ void ULegacyEdModeWrapper::Enter()
 {
 	LegacyEditorMode->Enter();
 	Toolkit = LegacyEditorMode->GetToolkit();
-	bPendingDeletion = false;
 }
 
 void ULegacyEdModeWrapper::Exit()

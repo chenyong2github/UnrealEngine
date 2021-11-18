@@ -414,7 +414,7 @@ void FDatasmithMeshExporterImpl::ClearUDatasmithMeshPool()
 		for (UDatasmithMesh* UMesh : PooledMeshes)
 		{
 			UMesh->RemoveFromRoot();
-			UMesh->MarkPendingKill();
+			UMesh->MarkAsGarbage();
 
 			//This object won't be reused, we must make sure there is no Async flag so that the GC knows it can safely collect it.
 			UMesh->ClearInternalFlags(EInternalObjectFlags::Async);

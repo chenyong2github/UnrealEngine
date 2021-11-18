@@ -2,11 +2,13 @@
 
 #include "Filters.h"
 
+#include "HAL/PlatformApplicationMisc.h"
 #include "Widgets/Docking/SDockTab.h"
 
+// Insights
 #include "Insights/InsightsStyle.h"
-#include "Insights/Widgets/SAdvancedFilter.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
+#include "Insights/Widgets/SAdvancedFilter.h"
 
 #define LOCTEXT_NAMESPACE "SFilterService"
 
@@ -60,7 +62,8 @@ TSharedRef<SDockTab> FFilterService::SpawnTab(const FSpawnTabArgs& Args)
 	const TSharedPtr<SWindow>& OwnerWindow = Args.GetOwnerWindow();
 	if (OwnerWindow.IsValid())
 	{
-		OwnerWindow->Resize(FVector2D(600, 400));
+		const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
+		OwnerWindow->Resize(FVector2D(600 * DPIScaleFactor, 400 * DPIScaleFactor));
 	}
 
 	DockTab->SetContent(PendingWidget.ToSharedRef());
@@ -78,7 +81,7 @@ void FFilterService::RegisterTabSpawner()
 		FOnSpawnTab::CreateRaw(this, &FFilterService::SpawnTab))
 		.SetDisplayName(LOCTEXT("FilterConfiguratorTabTitle", "Filter Configurator"))
 		.SetMenuType(ETabSpawnerMenuType::Hidden)
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Find"));
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ClassicFilterConfig"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

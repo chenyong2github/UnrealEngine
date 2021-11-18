@@ -420,7 +420,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		const UMaterial* Material = MaterialSection.Material->GetMaterial_Concurrent();
 		check(Material != nullptr); // Should always be valid here
 
-		const FMaterialCachedExpressionData& CachedMaterialData = Material->GetCachedExpressionData();
+		const FMaterialCachedExpressionData& CachedMaterialData = MaterialSection.Material->GetCachedExpressionData();
 		MaterialSection.bHasVertexInterpolator		= CachedMaterialData.bHasVertexInterpolator;
 		MaterialSection.bHasPerInstanceRandomID		= CachedMaterialData.bHasPerInstanceRandom;
 		MaterialSection.bHasPerInstanceCustomData	= CachedMaterialData.bHasPerInstanceCustomData;

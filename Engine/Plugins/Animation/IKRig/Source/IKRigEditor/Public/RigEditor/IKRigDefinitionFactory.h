@@ -15,7 +15,7 @@ class UIKRigDefinitionFactory : public UFactory
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TObjectPtr<class USkeletalMesh>	SkeletalMesh;
+	TWeakObjectPtr<class USkeletalMesh>	SkeletalMesh;
 
 public:
 

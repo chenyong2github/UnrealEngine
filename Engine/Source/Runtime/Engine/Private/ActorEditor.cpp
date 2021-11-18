@@ -790,10 +790,10 @@ void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
     // Mark the current actor & package as dirty
 	Modify(bShouldDirty);
 
-	UPackage* LevelPackage = GetLevel()->GetPackage();
+	UPackage* LevelPackage = GetLevel()->GetPackage(); 
 	if (bExternal)
 	{
-		UPackage* NewActorPackage = ULevel::CreateActorPackage(LevelPackage, GetPathName());
+		UPackage* NewActorPackage = ULevel::CreateActorPackage(LevelPackage, GetLevel()->GetActorPackagingScheme(), GetPathName());
 		SetExternalPackage(NewActorPackage);
 	}
 	else 

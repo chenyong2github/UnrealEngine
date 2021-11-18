@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class FnDisplaySupportModule : public IModuleInterface
+namespace UE::LevelSnapshots::nDisplay::Private
 {
-public:
+	class FnDisplaySupportModule : public IModuleInterface
+	{
+	public:
 
-	/** IModuleInterface implementation */
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-};
+		/** IModuleInterface implementation */
+		virtual void StartupModule() override;
+		virtual void ShutdownModule() override;
+	};
+}

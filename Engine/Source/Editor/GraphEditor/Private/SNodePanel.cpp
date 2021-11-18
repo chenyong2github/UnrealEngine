@@ -371,19 +371,19 @@ FVector2D SNodePanel::ComputeEdgePanAmount(const FGeometry& MyGeometry, const FV
 	// Start panning before we reach the edge of the graph panel.
 	static const float EdgePanForgivenessZone = 30.0f;
 
-	const FVector2D LocalCursorPos = MyGeometry.AbsoluteToLocal( TargetPosition );
+	const FVector2f LocalCursorPos = FVector2f(MyGeometry.AbsoluteToLocal( TargetPosition ));
 
 	// If the mouse is outside of the graph area, then we want to pan in that direction.
 	// The farther out the mouse is, the more we want to pan.
 
-	FVector2D EdgePanThisTick(0,0);
+	FVector2f EdgePanThisTick(0,0);
 	if ( LocalCursorPos.X <= EdgePanForgivenessZone )
 	{
 		EdgePanThisTick.X += FMath::Max( -MaxPanSpeed, EdgePanSpeedCoefficient * -FMath::Pow(EdgePanForgivenessZone - LocalCursorPos.X, EdgePanSpeedPower) );
 	}
 	else if( LocalCursorPos.X >= MyGeometry.GetLocalSize().X - EdgePanForgivenessZone )
 	{
-		EdgePanThisTick.X = FMath::Min( MaxPanSpeed, EdgePanSpeedCoefficient * FMath::Pow(LocalCursorPos.X - MyGeometry.GetLocalSize().X + EdgePanForgivenessZone, EdgePanSpeedPower) );
+		EdgePanThisTick.X = FMath::Min( MaxPanSpeed, EdgePanSpeedCoefficient * FMath::Pow(LocalCursorPos.X - float(MyGeometry.GetLocalSize().X) + EdgePanForgivenessZone, EdgePanSpeedPower) );
 	}
 
 	if ( LocalCursorPos.Y <= EdgePanForgivenessZone )
@@ -392,7 +392,7 @@ FVector2D SNodePanel::ComputeEdgePanAmount(const FGeometry& MyGeometry, const FV
 	}
 	else if( LocalCursorPos.Y >= MyGeometry.GetLocalSize().Y - EdgePanForgivenessZone )
 	{
-		EdgePanThisTick.Y = FMath::Min( MaxPanSpeed, EdgePanSpeedCoefficient * FMath::Pow(LocalCursorPos.Y - MyGeometry.GetLocalSize().Y + EdgePanForgivenessZone, EdgePanSpeedPower) );
+		EdgePanThisTick.Y = FMath::Min( MaxPanSpeed, EdgePanSpeedCoefficient * FMath::Pow(LocalCursorPos.Y - float(MyGeometry.GetLocalSize().Y) + EdgePanForgivenessZone, EdgePanSpeedPower) );
 	}
 
 	return EdgePanThisTick;

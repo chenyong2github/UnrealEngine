@@ -119,7 +119,7 @@ public:
 	virtual FVector GetPosition() const;
 
 	// Get the play rate multiplier. Can be negative, which will cause the animation to play in reverse.
-	float GetPlayRate() const;
+	virtual float GetPlayRate() const;
 
 	// Should the animation loop back to the start when it reaches the end?
 	bool GetLoop() const;

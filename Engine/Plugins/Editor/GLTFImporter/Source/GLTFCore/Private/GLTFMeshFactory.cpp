@@ -30,7 +30,7 @@ namespace GLTF
 			const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceNormals,
 			const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceTangents,
 			const TVertexInstanceAttributesRef<float>&     VertexInstanceBinormalSigns,
-			const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
+			const TVertexInstanceAttributesRef<FVector2f>& VertexInstanceUVs,
 			const TVertexInstanceAttributesRef<FVector4f>&  VertexInstanceColors,
 			const TEdgeAttributesRef<bool>&                EdgeHardnesses,
 			FMeshDescription* MeshDescription);
@@ -51,7 +51,7 @@ namespace GLTF
 			return VectorBuffers[Index];
 		}
 
-		inline TArray<FVector2D>& GetVector2dBuffer(int32 Index)
+		inline TArray<FVector2f>& GetVector2dBuffer(int32 Index)
 		{
 			check(Index < (sizeof(Vector2dBuffers) / sizeof(Vector2dBuffers[0])));
 			uint32 ReserveSize = Vector2dBuffers[Index].Num() + Vector2dBuffers[Index].GetSlack();
@@ -88,7 +88,7 @@ namespace GLTF
 		TMap<int32, FPolygonGroupID> MaterialIndexToPolygonGroupID;
 		TArray<FIndexVertexIdMap>    PositionIndexToVertexIdPerPrim;
 
-		TArray<FVector2D>                       Vector2dBuffers[MAX_MESH_TEXTURE_COORDS_MD + 1];
+		TArray<FVector2f>                       Vector2dBuffers[MAX_MESH_TEXTURE_COORDS_MD + 1];
 		TArray<FVector3f>                       VectorBuffers[VectorBufferCount];
 		TArray<FVector4f>                       Vector4dBuffers[Vector4dBufferCount];
 		TArray<uint32>                          IntBuffer;
@@ -169,7 +169,7 @@ namespace GLTF
 		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = StaticMeshAttributes.GetVertexInstanceNormals();
 		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = StaticMeshAttributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = StaticMeshAttributes.GetVertexInstanceBinormalSigns();
-		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 		TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = StaticMeshAttributes.GetVertexInstanceColors();
 		VertexInstanceUVs.SetNumChannels(NumUVs);
 
@@ -248,7 +248,7 @@ namespace GLTF
 		const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceNormals,
 		const TVertexInstanceAttributesRef<FVector3f>&   VertexInstanceTangents,
 		const TVertexInstanceAttributesRef<float>&     VertexInstanceBinormalSigns,
-		const TVertexInstanceAttributesRef<FVector2D>& VertexInstanceUVs,
+		const TVertexInstanceAttributesRef<FVector2f>& VertexInstanceUVs,
 		const TVertexInstanceAttributesRef<FVector4f>&  VertexInstanceColors,
 		const TEdgeAttributesRef<bool>&                EdgeHardnesses,
 		FMeshDescription* MeshDescription)
@@ -309,13 +309,13 @@ namespace GLTF
 		}
 
 		int32_t            AvailableBufferIndex = 0;
-		TArray<FVector2D>* UVs[MAX_MESH_TEXTURE_COORDS_MD];
+		TArray<FVector2f>* UVs[MAX_MESH_TEXTURE_COORDS_MD];
 		for (int32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
 		{
 			UVs[UVIndex] = &GetVector2dBuffer(AvailableBufferIndex++);
 			if (Primitive.HasTexCoords(UVIndex))
 			{
-				TArray<FVector2D>& ReindexBuffer = GetVector2dBuffer(UvReindexBufferIndex);
+				TArray<FVector2f>& ReindexBuffer = GetVector2dBuffer(UvReindexBufferIndex);
 				Primitive.GetTexCoords(UVIndex, *UVs[UVIndex]);
 				ReIndex(*UVs[UVIndex], Indices, ReindexBuffer);
 				Swap(*UVs[UVIndex], ReindexBuffer);
@@ -407,7 +407,7 @@ namespace GLTF
 		}
 		for (int32 Index = 1; Index < MAX_MESH_TEXTURE_COORDS_MD + 1; ++Index)
 		{
-			TArray<FVector2D>& Array = Vector2dBuffers[Index];
+			TArray<FVector2f>& Array = Vector2dBuffers[Index];
 			Array.Empty();
 		}
 		for (TArray<FVector4f>& Array : Vector4dBuffers)

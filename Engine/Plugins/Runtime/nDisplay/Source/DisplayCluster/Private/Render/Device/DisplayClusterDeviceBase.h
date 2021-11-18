@@ -42,8 +42,6 @@ public:
 	virtual void EndScene() override;
 	virtual void PreTick(float DeltaSeconds) override;
 
-	virtual FDisplayClusterRenderCustomPresentCreated& OnDisplayClusterRenderCustomPresentCreated() override { return DisplayClusterRenderCustomPresentCreatedEvent; }
-
 	virtual IDisplayClusterPresentation* GetPresentation() const override;
 
 	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) override;
@@ -151,7 +149,4 @@ private:
 
 	// Pointer to the current presentation handler
 	FDisplayClusterPresentationBase* CustomPresentHandler = nullptr;
-
-	// Event triggered when custom present was created
-	FDisplayClusterRenderCustomPresentCreated DisplayClusterRenderCustomPresentCreatedEvent;
 };

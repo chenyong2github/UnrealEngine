@@ -92,7 +92,7 @@ namespace Metasound
 			if (IDetailPropertyRow* Row = InputCategoryBuilder->AddExternalObjectProperty(TArray<UObject*>({ InputFloat }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInputFloat, ClampDefault)))
 			{
 				// If clamping or using slider, clamp default value to given range 
-				if (InputFloat->ClampDefault || InputFloat->InputWidgetType == EMetasoundInputWidget::Slider)
+				if (InputFloat->ClampDefault || InputFloat->InputWidgetType != EMetasoundInputWidget::None)
 				{
 					FVector2D Range = InputFloat->GetRange();
 					InDefaultValueHandle->SetInstanceMetaData("ClampMin", FString::Printf(TEXT("%f"), Range.X));

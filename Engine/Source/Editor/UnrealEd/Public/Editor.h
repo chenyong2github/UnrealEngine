@@ -190,8 +190,10 @@ struct UNREALED_API FEditorDelegates
 	UE_DEPRECATED(4.24, "Use EditorModeIDExit instead")
 	static FOnEditorModeTransitioned EditorModeExit;
 	/** Called when an editor mode ID is being entered */
+	UE_DEPRECATED(5.0, "Use the asset editor's mode manager to scope mode enter notifications.")
 	static FOnEditorModeIDTransitioned EditorModeIDEnter;
 	/** Called when an editor mode ID is being exited */
+	UE_DEPRECATED(5.0, "Use the asset editor's mode manager to scope mode exit notifications.")
 	static FOnEditorModeIDTransitioned EditorModeIDExit;
 	/** Sent when a PIE session is beginning (before we decide if PIE can run - allows clients to avoid blocking PIE) */
 	static FOnPIEEvent PreBeginPIE;

@@ -27,4 +27,9 @@ public:
 	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
+
+	// FAnimNode_BlendSpacePlayer interface
+	virtual float GetPlayRate() const override;
+	// End of FAnimNode_BlendSpacePlayer
+
 };

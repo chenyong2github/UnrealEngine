@@ -378,7 +378,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 	{
 		// The static mesh is not a UStaticMesh
 		StaticMeshObject->RemoveFromRoot();
-		StaticMeshObject->MarkPendingKill();
+		StaticMeshObject->MarkAsGarbage();
 	}
 	return StaticMeshObject;
 

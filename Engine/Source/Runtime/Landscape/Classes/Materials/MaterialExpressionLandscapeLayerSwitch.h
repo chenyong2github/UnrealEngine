@@ -30,11 +30,6 @@ class LANDSCAPE_API UMaterialExpressionLandscapeLayerSwitch : public UMaterialEx
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionLandscapeLayerSwitch)
 	uint32 PreviewUsed:1;
 
-	/** GUID that should be unique within the material, this is used for parameter renaming. */
-	UPROPERTY()
-	FGuid ExpressionGUID;
-
-
 public:
 
 	//~ Begin UObject Interface
@@ -53,12 +48,13 @@ public:
 #if WITH_EDITOR
 	virtual uint32 GetInputType(int32 InputIndex) override {return MCT_Unknown;}
 	virtual uint32 GetOutputType(int32 InputIndex) override {return MCT_Unknown;}
+
+	/**
+	 * Gets the landscape layer names
+	 */
+	virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const override;
 #endif
 	//~ End UMaterialExpression Interface
-
-	virtual FGuid& GetParameterExpressionId() override;
-
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
 
 	//~ Begin UObject Interface
 	/**

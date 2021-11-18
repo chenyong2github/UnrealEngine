@@ -8,8 +8,6 @@ using System.Collections.Generic;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool.ProjectFiles.Xcode
 {
 	/// <summary>
@@ -92,7 +90,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			foreach (string Entry in Entries)
 			{
 				string NewEntryName = Path.GetFileName(Entry).Replace(OldValue, NewValue);
-				string ParentDirectory = Path.GetDirectoryName(Entry);
+				string ParentDirectory = Path.GetDirectoryName(Entry)!;
 
 				string EntryDestination = Path.Combine(ParentDirectory, NewEntryName);
 
@@ -147,7 +145,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		/// <param name="CookedDataPath">The path to the 'cookeddata' folder that accompanies the framework.</param>
 		/// <param name="ProvisionName"></param>
 		/// <param name="TeamUUID"></param>
-		private static void SetProjectFileSettings(string RootDirectory, string FrameworkName, string BundleId, string SrcFrameworkPath, string EnginePath, string CookedDataPath, string ProvisionName, string TeamUUID)
+		private static void SetProjectFileSettings(string RootDirectory, string FrameworkName, string BundleId, string SrcFrameworkPath, string EnginePath, string CookedDataPath, string? ProvisionName, string? TeamUUID)
 		{
 			List<string> ProjectFiles = Directory.EnumerateFiles(RootDirectory, PROJECT_FILE_SEARCH_EXPRESSION, SearchOption.AllDirectories).ToList();
 
@@ -159,7 +157,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			{
 				string ProjectContents = File.ReadAllText(ProjectFiles[0]);
 
-				Dictionary<string, string> Settings = new Dictionary<string, string>()
+				Dictionary<string, string?> Settings = new Dictionary<string, string?>()
 				{
 					["FRAMEWORK_NAME"] = FrameworkName,
 					["SRC_FRAMEWORK_PATH"] = SrcFrameworkPath,
@@ -170,7 +168,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 					["DEVELOPMENT_TEAM"] = TeamUUID,
 				};
 
-				foreach (KeyValuePair<string, string> Setting in Settings)
+				foreach (KeyValuePair<string, string?> Setting in Settings)
 				{
 					ProjectContents = ChangeProjectSetting(ProjectContents, Setting.Key, Setting.Value);
 				}
@@ -199,7 +197,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		/// <param name="ProjectContents">The contents of a settings file.</param>
 		/// <param name="SettingName">The name of the setting to change.</param>
 		/// <param name="SettingValue">The new value for the setting.</param>
-		private static string ChangeProjectSetting(string ProjectContents, string SettingName, string SettingValue)
+		private static string ChangeProjectSetting(string ProjectContents, string SettingName, string? SettingValue)
 		{
 			string SettingNameRegexString = String.Format("(\\s+{0}\\s=\\s)\"?(.+)\"?;", SettingName);
 			
@@ -249,7 +247,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		/// <param name="CookedDataPath">The path to the 'cookeddata' folder that accompanies the framework.</param>
 		/// <param name="ProvisionName"></param>
 		/// <param name="TeamUUID"></param>
-		public static void GenerateXcodeFrameworkWrapper(string OutputDirectory, string ProjectName, string FrameworkName, string BundleId, string SrcFrameworkPath, string EnginePath, string CookedDataPath,string ProvisionName, string TeamUUID)
+		public static void GenerateXcodeFrameworkWrapper(string OutputDirectory, string ProjectName, string FrameworkName, string BundleId, string SrcFrameworkPath, string EnginePath, string CookedDataPath, string? ProvisionName, string? TeamUUID)
 		{
 			string OutputDir = Path.Combine(OutputDirectory, FrameworkName);
 
@@ -279,7 +277,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			//return ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.IOS);
 		}
 
-		public static string GetBundleID(DirectoryReference ProjectDirectory, FileReference ProjectFile)
+		public static string GetBundleID(DirectoryReference ProjectDirectory, FileReference? ProjectFile)
 		{
 			ConfigHierarchy Ini = GetIni(ProjectDirectory);
 			string BundleId;
@@ -289,7 +287,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 			return BundleId;
 		}
 
-		public static string GetBundleName(DirectoryReference ProjectDirectory, FileReference ProjectFile)
+		public static string GetBundleName(DirectoryReference ProjectDirectory, FileReference? ProjectFile)
 		{
 			ConfigHierarchy Ini = GetIni(ProjectDirectory);
 			string BundleName;

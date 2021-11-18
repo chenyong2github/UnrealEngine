@@ -92,7 +92,7 @@ public:
 
 	virtual FVector Normal() const override
 	{
-		return ComponentToWorldIT.TransformVector( VertexBuffer.VertexTangentZ( CurrentVertexIndex ) );
+		return ComponentToWorldIT.TransformVector( FVector4(VertexBuffer.VertexTangentZ( CurrentVertexIndex )) );
 	}
 
 protected:

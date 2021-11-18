@@ -164,7 +164,7 @@ public:
 	*
 	* @param InRotation The value to use for rotation component  (after being converted to a quaternion)
 	*/
-	FORCEINLINE explicit TTransform(const FRotator& InRotation)
+	FORCEINLINE explicit TTransform(const TRotator<T>& InRotation)
 		: Rotation(InRotation),
 		Translation(TVector<T>::ZeroVector),
 		Scale3D(TVector<T>::OneVector)
@@ -188,13 +188,13 @@ public:
 	}
 
 	/**
-	* Constructor with all components initialized, taking a FRotator as the rotation component
+	* Constructor with all components initialized, taking a TRotator<T> as the rotation component
 	*
 	* @param InRotation The value to use for rotation component (after being converted to a quaternion)
 	* @param InTranslation The value to use for the translation component
 	* @param InScale3D The value to use for the scale component
 	*/
-	FORCEINLINE TTransform(const FRotator& InRotation, const TVector<T>& InTranslation, const TVector<T>& InScale3D = TVector<T>::OneVector)
+	FORCEINLINE TTransform(const TRotator<T>& InRotation, const TVector<T>& InTranslation, const TVector<T>& InScale3D = TVector<T>::OneVector)
 		: Rotation(InRotation),
 		Translation(InTranslation),
 		Scale3D(InScale3D)
@@ -586,7 +586,7 @@ public:
 		return GetTranslation();
 	}
 
-	FORCEINLINE FRotator Rotator() const
+	FORCEINLINE TRotator<T> Rotator() const
 	{
 		return Rotation.Rotator();
 	}
@@ -636,6 +636,13 @@ public:
 		Ar << M.Scale3D;
 		return Ar;
 	}
+
+	bool Serialize(FArchive& Ar)
+	{
+		Ar << *this;
+		return true;
+	}
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 
 	// Binary comparison operators.
 	/*

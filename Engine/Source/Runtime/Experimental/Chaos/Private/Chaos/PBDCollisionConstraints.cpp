@@ -5,6 +5,7 @@
 #include "Chaos/Capsule.h"
 #include "Chaos/ChaosPerfTest.h"
 #include "Chaos/ChaosDebugDraw.h"
+#include "Chaos/ContactModification.h"
 #include "Chaos/PBDCollisionConstraintsContact.h"
 #include "Chaos/CollisionResolutionUtil.h"
 #include "Chaos/CollisionResolution.h"
@@ -93,10 +94,6 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("Collisions::UpdatePointConstraints"), STAT_Collisions_UpdatePointConstraints, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::BeginDetect"), STAT_Collisions_BeginDetect, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::EndDetect"), STAT_Collisions_EndDetect, STATGROUP_ChaosCollision);
-	DEFINE_STAT(STAT_Collisions_Gather);
-	DEFINE_STAT(STAT_Collisions_Scatter);
-	DEFINE_STAT(STAT_Collisions_Apply);
-	DEFINE_STAT(STAT_Collisions_ApplyPushOut);
 
 	//
 	// Collision Constraint Container
@@ -270,7 +267,6 @@ namespace Chaos
 		SCOPE_CYCLE_COUNTER(STAT_Collisions_Reset);
 
 		ConstraintAllocator.Reset();
-		ParticleCollisionsMap.Reset();
 	}
 
 	void FPBDCollisionConstraints::BeginDetectCollisions()
@@ -293,96 +289,35 @@ namespace Chaos
 			// @todo(chaos): this could be set on creation if the allocator knew about the container
 			Contact->SetContainer(this);
 			UpdateConstraintMaterialProperties(*Contact);
-
-			// @todo(chaos): move to constraint allocator with the other maps
-			AddToParticleCollisionMap(Contact);
 		}
 	}
 
-	void FPBDCollisionConstraints::AddToParticleCollisionMap(FPBDCollisionConstraint* Constraint)
-	{
-		// @todo(chaos): move the particle-> constraints mapping fucntionality into the collision allocator
-		if (CollisionsAllowParticleTracking)
-		{
-			auto AddToParticleCollisionsMap = [](FPBDCollisionConstraintHandle* InHandle, FGeometryParticleHandle* InParticle, TMap<FGeometryParticleHandle*, TArray<FPBDCollisionConstraintHandle*>>& InParticleCollisionsMap)
-			{
-				if (InParticle)
-				{
-					if (FPBDRigidParticleHandle* RigidParticle = InParticle->CastToRigidParticle())
-					{
-						if (RigidParticle->HasCollisionConstraintFlag(ECollisionConstraintFlags::CCF_DoBufferCollisions))
-						{
-							TArray<FPBDCollisionConstraintHandle*>* HandleArray = InParticleCollisionsMap.Find(RigidParticle);
-							if (HandleArray == nullptr)
-							{
-								InParticleCollisionsMap.Add(RigidParticle, TArray<FPBDCollisionConstraintHandle*>());
-								HandleArray = InParticleCollisionsMap.Find(RigidParticle);
-							}
-							HandleArray->Add(InHandle);
-						}
-					}
-				}
-			};
-			AddToParticleCollisionsMap(Constraint, Constraint->GetConstrainedParticles()[0], ParticleCollisionsMap);
-			AddToParticleCollisionsMap(Constraint, Constraint->GetConstrainedParticles()[1], ParticleCollisionsMap);
-		}
-	}
-
-	void FPBDCollisionConstraints::ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers)
+	void FPBDCollisionConstraints::ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers, FReal Dt)
 	{
 		if (GetConstraints().Num() > 0)
 		{
-			for(ISimCallbackObject* Modifier : CollisionModifiers)
-			{
-				TArray<FPBDCollisionConstraintHandleModification> ModificationResults;
-				ModificationResults.Reserve(GetConstraints().Num());
-				for (FPBDCollisionConstraintHandle* Handle : GetConstraintHandles())
-				{
-					if (Handle)
-					{
-						ModificationResults.Emplace(Handle);
-					}
-				}
+			TArrayView<FPBDCollisionConstraint* const> ConstraintHandles = GetConstraintHandles();
+			FCollisionContactModifier Modifier(ConstraintHandles, Dt);
 
-				Modifier->ContactModification_Internal(TArrayView<FPBDCollisionConstraintHandleModification>(ModificationResults.GetData(), ModificationResults.Num()));
+			for(ISimCallbackObject* ModifierCallback : CollisionModifiers)
+			{
+				ModifierCallback->ContactModification_Internal(Modifier);
 			}
+
+			Modifier.UpdateConstraintManifolds();
 		}
 	}
 
-	void FPBDCollisionConstraints::RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>&  InHandleSet)
+	void FPBDCollisionConstraints::DisconnectConstraints(const TSet<FGeometryParticleHandle*>& ParticleHandles)
 	{
-		const TArray<TGeometryParticleHandle<FReal, 3>*> HandleArray = InHandleSet.Array();
-		for (auto ParticleHandle : HandleArray)
-		{
-			FHandles CopyOfHandles = GetConstraintHandles();
-
-			for (FPBDCollisionConstraintHandle* ContactHandle : CopyOfHandles)
-			{
-				TVector<TGeometryParticleHandle<FReal, 3>*, 2> ConstraintParticles = ContactHandle->GetConstrainedParticles();
-				if (ConstraintParticles[1] == ParticleHandle || ConstraintParticles[0] == ParticleHandle)
-				{
-					RemoveConstraint(ContactHandle);
-				}
-			}
-		}
+		RemoveConstraints(ParticleHandles);
 	}
 
-	void FPBDCollisionConstraints::RemoveConstraint(FPBDCollisionConstraintHandle* Handle)
+	void FPBDCollisionConstraints::RemoveConstraints(const TSet<FGeometryParticleHandle*>& ParticleHandles)
 	{
-		ConstraintAllocator.DestroyConstraint(&Handle->GetContact());
-	}
-
-	void FPBDCollisionConstraints::SetConstraintIsSleeping(FPBDCollisionConstraint& Constraint, const bool bInIsSleeping)
-	{
-		if (Constraint.IsSleeping() != bInIsSleeping)
+		for (FGeometryParticleHandle* ParticleHandle : ParticleHandles)
 		{
-			Constraint.GetContainerCookie().SetIsSleeping(bInIsSleeping);
-
-			if (!bInIsSleeping)
-			{
-				// If we were just awakened, we need to reactivate the collision
-				ConstraintAllocator.AddConstraint(&Constraint);
-			}
+			ConstraintAllocator.RemoveParticle(ParticleHandle);
 		}
 	}
 

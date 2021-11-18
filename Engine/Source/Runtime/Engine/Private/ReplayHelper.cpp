@@ -839,7 +839,7 @@ void FReplayHelper::TickCheckpoint(UNetConnection* Connection)
 				bExecuteNextState = SerializeDeltaClosedChannels(Connection, Params, CheckpointArchive);
 				if (bExecuteNextState)
 				{
-					CheckpointSaveContext.DeltaCheckpointData.DestroyedNetStartupActors.Empty();
+					CheckpointSaveContext.DeltaCheckpointData.RecordingDeletedNetStartupActors.Empty();
 					CheckpointSaveContext.DeltaCheckpointData.DestroyedDynamicActors.Empty();
 					CheckpointSaveContext.DeltaCheckpointData.ChannelsToClose.Empty();
 					CheckpointSaveContext.DeltaChannelCloseKeys.Empty();
@@ -1059,7 +1059,7 @@ bool FReplayHelper::SerializeDeletedStartupActors(UNetConnection* Connection, co
 
 	const bool bDeltaCheckpoint = HasDeltaCheckpoints();
 
-	const TSet<FString>& DeletedActors = bDeltaCheckpoint ? CheckpointSaveContext.DeltaCheckpointData.DestroyedNetStartupActors : CheckpointSaveContext.DeletedNetStartupActors;
+	const TArray<FString>& DeletedActors = bDeltaCheckpoint ? CheckpointSaveContext.DeltaCheckpointData.RecordingDeletedNetStartupActors : CheckpointSaveContext.CheckpointDeletedNetStartupActors;
 
 	if (CheckpointSaveContext.NextAmortizedItem == 0)
 	{
@@ -1070,11 +1070,11 @@ bool FReplayHelper::SerializeDeletedStartupActors(UNetConnection* Connection, co
 	const double StartTime = FPlatformTime::Seconds();
 	const double Deadline = Params.StartCheckpointTime + Params.CheckpointMaxUploadTimePerFrame;
 
-	check(DeletedActors.Num() == 0 || DeletedActors.IsValidId(FSetElementId::FromInteger(CheckpointSaveContext.NextAmortizedItem)));
+	check(DeletedActors.Num() == 0 || DeletedActors.IsValidIndex(CheckpointSaveContext.NextAmortizedItem));
 
 	while (CheckpointSaveContext.NextAmortizedItem < DeletedActors.Num())
 	{
-		FString DeletedActorPath = DeletedActors[FSetElementId::FromInteger(CheckpointSaveContext.NextAmortizedItem)];
+		FString DeletedActorPath = DeletedActors[CheckpointSaveContext.NextAmortizedItem];
 
 		GEngine->NetworkRemapPath(Connection, DeletedActorPath, false);
 
@@ -1428,7 +1428,7 @@ void FReplayHelper::CacheDeletedActors(UNetConnection* Connection)
 		const double StartTime = FPlatformTime::Seconds();
 
 		// initialize serialization
-		CheckpointSaveContext.DeletedNetStartupActors.Reset();
+		CheckpointSaveContext.CheckpointDeletedNetStartupActors.Reset();
 		CheckpointSaveContext.NextAmortizedItem = 0;
 
 		const bool bDeltaCheckpoint = HasDeltaCheckpoints();
@@ -1436,10 +1436,10 @@ void FReplayHelper::CacheDeletedActors(UNetConnection* Connection)
 		// delta entries already copied into CheckpointSaveContext.DeltaCheckpointData
 		if (!bDeltaCheckpoint)
 		{
-			CheckpointSaveContext.DeletedNetStartupActors.Append(DeletedNetStartupActors);
+			CheckpointSaveContext.CheckpointDeletedNetStartupActors.Append(RecordingDeletedNetStartupActors);
 		}
 
-		UE_LOG(LogDemo, Verbose, TEXT("CacheDeletedActors: %d, %.1f ms"), bDeltaCheckpoint ? CheckpointSaveContext.DeltaCheckpointData.DestroyedNetStartupActors.Num() : CheckpointSaveContext.DeletedNetStartupActors.Num(), (FPlatformTime::Seconds() - StartTime) * 1000);
+		UE_LOG(LogDemo, Verbose, TEXT("CacheDeletedActors: %d, %.1f ms"), bDeltaCheckpoint ? CheckpointSaveContext.DeltaCheckpointData.RecordingDeletedNetStartupActors.Num() : CheckpointSaveContext.CheckpointDeletedNetStartupActors.Num(), (FPlatformTime::Seconds() - StartTime) * 1000);
 	}
 }
 
@@ -1676,9 +1676,17 @@ void FReplayHelper::Serialize(FArchive& Ar)
 			}
 		);
 
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActors",
-			DeletedNetStartupActors.CountBytes(Ar);
-			for (FString& ActorString : DeletedNetStartupActors)
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecordingDeletedNetStartupActors",
+			RecordingDeletedNetStartupActors.CountBytes(Ar);
+			for (FString& ActorString : RecordingDeletedNetStartupActors)
+			{
+				Ar << ActorString;
+			}
+		);
+
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecordingDeletedNetStartupActors",
+			RecordingDeletedNetStartupActors.CountBytes(Ar);
+			for (FString& ActorString : RecordingDeletedNetStartupActors)
 			{
 				Ar << ActorString;
 			}
@@ -2129,12 +2137,12 @@ void FReplayHelper::AddOrUpdateEvent(const FString& Name, const FString& Group, 
 
 void FReplayHelper::ReadDeletedStartupActors(UNetConnection* Connection, FArchive& Ar, TSet<FString>& DeletedStartupActors)
 {
-	TSet<FString> TempSet;
-	Ar << TempSet;
+	TArray<FString> TempList;
+	Ar << TempList;
 
-	DeletedStartupActors.Reserve(TempSet.Num());
+	DeletedStartupActors.Reserve(TempList.Num());
 
-	for (FString& Path : TempSet)
+	for (FString& Path : TempList)
 	{
 		GEngine->NetworkRemapPath(Connection, Path, true);
 

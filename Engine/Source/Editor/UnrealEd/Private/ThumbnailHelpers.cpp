@@ -877,7 +877,7 @@ bool FAnimBlueprintThumbnailScene::SetAnimBlueprint(class UAnimBlueprint* InBlue
 				if (PreviousInstance && PreviousInstance != PreviewActor->GetSkeletalMeshComponent()->GetAnimInstance())
 				{
 					//Mark this as gone!
-					PreviousInstance->MarkPendingKill();
+					PreviousInstance->MarkAsGarbage();
 				}
 
 				FTransform MeshTransform = FTransform::Identity;

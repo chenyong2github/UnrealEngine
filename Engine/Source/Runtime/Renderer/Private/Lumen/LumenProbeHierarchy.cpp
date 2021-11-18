@@ -442,7 +442,7 @@ class FTraceIndirectLightingProbeHierarchyCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
-		SHADER_PARAMETER(FVector2D, FinalProbeAtlasPixelSize)
+		SHADER_PARAMETER(FVector2f, FinalProbeAtlasPixelSize)
 		SHADER_PARAMETER(int32, SamplePerPixel)
 		SHADER_PARAMETER(float, fSamplePerPixel)
 		SHADER_PARAMETER(float, fInvSamplePerPixel)

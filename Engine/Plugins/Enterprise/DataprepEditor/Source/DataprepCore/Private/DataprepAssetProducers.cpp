@@ -456,7 +456,7 @@ UDataprepContentProducer* UDataprepAssetProducers::AddProducer_Internal(UClass* 
 		}
 		else
 		{
-			Producer->MarkPendingKill();
+			Producer->MarkAsGarbage();
 		}
 	}
 

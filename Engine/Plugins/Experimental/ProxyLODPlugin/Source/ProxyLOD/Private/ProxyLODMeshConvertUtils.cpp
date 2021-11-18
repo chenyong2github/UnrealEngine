@@ -28,7 +28,7 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	// Splitting a quad doesn't introduce any new verts.
 	const uint32 DstNumVerts = SimpleMesh.Points.size();
@@ -84,7 +84,7 @@ void ProxyLOD::MixedPolyMeshToRawMesh(const FMixedPolyMesh& SimpleMesh, FMeshDes
 																							 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
 																							 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
 			VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4f(0.0f);
-			VertexInstanceUVs.Set(VertexInstanceIDs[Corner], 0, FVector2D(0.0f, 0.0f));
+			VertexInstanceUVs.Set(VertexInstanceIDs[Corner], 0, FVector2f(0.0f, 0.0f));
 		}
 
 		// Insert a polygon into the mesh
@@ -143,7 +143,7 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	const uint32 DstNumPositions = AOSMesh.GetNumVertexes();
 	const uint32 DstNumIndexes = AOSMesh.GetNumIndexes();
@@ -197,7 +197,7 @@ void ProxyLOD::AOSMeshToRawMesh(const FAOSMesh& AOSMesh, FMeshDescription& OutRa
 																							 (VertexInstanceNormals[VertexInstanceIDs[Corner]] ^ VertexInstanceTangents[VertexInstanceIDs[Corner]]).GetSafeNormal(),
 																							 VertexInstanceNormals[VertexInstanceIDs[Corner]].GetSafeNormal());
 			VertexInstanceColors[VertexInstanceIDs[Corner]] = FVector4f(1.0f);
-			VertexInstanceUVs.Set(VertexInstanceIDs[Corner], 0, FVector2D(0.0f, 0.0f));
+			VertexInstanceUVs.Set(VertexInstanceIDs[Corner], 0, FVector2f(0.0f, 0.0f));
 		}
 
 		// Insert a polygon into the mesh
@@ -234,7 +234,7 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	const uint32 DstNumPositions = SrcVertexDataMesh.Points.Num();
 	const uint32 DstNumIndexes = SrcVertexDataMesh.Indices.Num();
@@ -318,7 +318,7 @@ void ProxyLOD::VertexDataMeshToRawMesh(const FVertexDataMesh& SrcVertexDataMesh,
 			//UVs
 			if (SrcVertexDataMesh.UVs.Num() == 0)
 			{
-				VertexInstanceUVs.Set(VertexInstanceIDs[Corner], FVector2D(0.0f, 0.0f));
+				VertexInstanceUVs.Set(VertexInstanceIDs[Corner], FVector2f(0.0f, 0.0f));
 			}
 			else
 			{
@@ -372,7 +372,7 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 
 	const uint32 DstNumPositions = SrcRawMesh.Vertices().Num();
@@ -408,7 +408,7 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 	TArray<FVector3f>& DstNormalArray = DstVertexDataMesh.Normal;
 	ResizeArray(DstNormalArray, DstNumPositions);
 
-	TArray<FVector2D>& DstUVs = DstVertexDataMesh.UVs;
+	TArray<FVector2f>& DstUVs = DstVertexDataMesh.UVs;
 	ResizeArray(DstUVs, DstNumPositions);
 
 	//Iterate all triangle and add the indices
@@ -431,7 +431,7 @@ void ProxyLOD::RawMeshToVertexDataMesh(const FMeshDescription& SrcRawMesh, FVert
 			// We assume that the raw mesh per-index data is really duplicated per-vertex data!
 			if (VertexInstanceUVs.GetNumChannels() == 0)
 			{
-				DstUVs[DstIndices[VertexInstanceCount]] = FVector2D(0.0f, 0.0f);
+				DstUVs[DstIndices[VertexInstanceCount]] = FVector2f(0.0f, 0.0f);
 			}
 			else
 			{

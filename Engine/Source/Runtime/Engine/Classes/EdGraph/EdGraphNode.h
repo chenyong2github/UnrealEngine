@@ -447,6 +447,7 @@ public:
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void DeclareCustomVersions(FArchive& Ar) override;
 	// End of UObject interface
 
 #if WITH_EDITOR

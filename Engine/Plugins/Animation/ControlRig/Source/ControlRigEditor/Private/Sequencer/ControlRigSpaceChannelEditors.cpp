@@ -452,6 +452,126 @@ FKeyHandle FControlRigSpaceChannelHelpers::SequencerKeyControlRigSpaceChannel(UC
 
 }
 
+//get the mask of the transform keys at the specified time
+static EControlRigContextChannelToKey GetCurrentTransformKeysAtThisTime(UControlRig* ControlRig, FName ControlName, UMovieSceneSection* SectionToKey, FFrameNumber Time)
+{
+	EControlRigContextChannelToKey ChannelToKey = EControlRigContextChannelToKey::None;
+	if (ControlRig && SectionToKey)
+	{
+		if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(SectionToKey))
+		{
+			TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+			FChannelMapInfo* pChannelIndex = Section->ControlChannelMap.Find(ControlName);
+			if (pChannelIndex != nullptr)
+			{
+				int32 ChannelIndex = pChannelIndex->ChannelIndex;
+
+				if (FRigControlElement* ControlElement = ControlRig->FindControl(ControlName))
+				{
+					FMovieSceneControlRigSpaceBaseKey Value;
+					switch (ControlElement->Settings.ControlType)
+					{
+					case ERigControlType::Position:
+					case ERigControlType::Scale:
+					case ERigControlType::Rotator:
+					case ERigControlType::Transform:
+					case ERigControlType::TransformNoScale:
+					case ERigControlType::EulerTransform:
+					{
+						if (FloatChannels[ChannelIndex]->GetData().FindKey(Time) != INDEX_NONE)
+						{
+							if (ControlElement->Settings.ControlType == ERigControlType::Rotator)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::RotationX;
+							}
+							else if (ControlElement->Settings.ControlType == ERigControlType::Scale)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::ScaleX;
+							}
+							else
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::TranslationX;
+							}
+						}
+						if (FloatChannels[ChannelIndex + 1]->GetData().FindKey(Time) != INDEX_NONE)
+						{
+							if (ControlElement->Settings.ControlType == ERigControlType::Rotator)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::RotationY;
+							}
+							else if (ControlElement->Settings.ControlType == ERigControlType::Scale)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::ScaleY;
+							}
+							else
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::TranslationY;
+							}
+						}
+						if (FloatChannels[ChannelIndex + 2]->GetData().FindKey(Time) != INDEX_NONE)
+						{
+							if (ControlElement->Settings.ControlType == ERigControlType::Rotator)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::RotationZ;
+							}
+							else if (ControlElement->Settings.ControlType == ERigControlType::Scale)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::ScaleZ;
+							}
+							else
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::TranslationZ;
+							}
+						}
+						if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
+							ControlElement->Settings.ControlType == ERigControlType::EulerTransform ||
+							ControlElement->Settings.ControlType == ERigControlType::TransformNoScale
+							)
+						{
+							if (FloatChannels[ChannelIndex + 3]->GetData().FindKey(Time) != INDEX_NONE)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::RotationX;
+							}
+							if (FloatChannels[ChannelIndex + 4]->GetData().FindKey(Time) != INDEX_NONE)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::RotationY;
+							}
+							if (FloatChannels[ChannelIndex + 5]->GetData().FindKey(Time) != INDEX_NONE)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::RotationZ;
+							}
+
+						}
+						if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
+							ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+						{
+							if (FloatChannels[ChannelIndex + 6]->GetData().FindKey(Time) != INDEX_NONE)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::ScaleX;
+							}
+							if (FloatChannels[ChannelIndex + 7]->GetData().FindKey(Time) != INDEX_NONE)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::ScaleY;
+							}
+							if (FloatChannels[ChannelIndex + 8]->GetData().FindKey(Time) != INDEX_NONE)
+							{
+								ChannelToKey |= EControlRigContextChannelToKey::ScaleZ;
+							}
+						}
+						break;
+
+					};
+
+					}
+				}
+			}
+		
+		}
+
+	}
+	return ChannelToKey;
+}
+
 void  FControlRigSpaceChannelHelpers::SequencerSpaceChannelKeyDeleted(UControlRig* ControlRig, ISequencer* Sequencer, FName ControlName, FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneControlRigParameterSection* SectionToKey,
 	FFrameNumber TimeOfDeletion)
 {
@@ -520,6 +640,8 @@ void  FControlRigSpaceChannelHelpers::SequencerSpaceChannelKeyDeleted(UControlRi
 			}
 			ControlRig->Evaluate_AnyThread();
 			Context.LocalTime = TickResolution.AsSeconds(FFrameTime(Frame));
+			//make sure we only add keys to those that exist since they may be getting deleted also.
+			Context.KeyMask = (uint32)GetCurrentTransformKeysAtThisTime(ControlRig, ControlKey.Name, SectionToKey, Frame);
 			ControlRig->SetControlGlobalTransform(ControlKey.Name, ControlWorldTransforms[FramesIndex++], true, Context);
 		}
 		//now delete any extra TimeOfDelete -1
@@ -665,7 +787,6 @@ void FControlRigSpaceChannelHelpers::GetFramesInThisSpaceAfterThisTime(UControlR
 		}
 	}
 }
-
 
 void FControlRigSpaceChannelHelpers::SequencerBakeControlInSpace(UControlRig* ControlRig, ISequencer* Sequencer, FMovieSceneControlRigSpaceChannel* Channel, UMovieSceneSection* SectionToKey,
 	TArray<FFrameNumber> Frames, URigHierarchy* RigHierarchy, const FRigElementKey& ControlKey, FRigSpacePickerBakeSettings Settings)

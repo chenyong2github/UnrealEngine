@@ -46,7 +46,7 @@ namespace Gauntlet
 			DevicePool.Instance.SetLocalOptions(TempDir, false, DeviceURL);
 			DevicePool.Instance.AddDevices(UnrealTargetPlatform.Win64, Devices, false);
 
-			UnrealTargetPlatform[] SupportedPlatforms = { UnrealTargetPlatform.PS4, UnrealTargetPlatform.Win64 };
+			IEnumerable<UnrealTargetPlatform> SupportedPlatforms = UnrealTargetPlatform.GetValidPlatforms();
 
 			foreach (UnrealTargetPlatform Platform in SupportedPlatforms)
 			{

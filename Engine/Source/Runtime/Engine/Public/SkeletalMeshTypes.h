@@ -83,6 +83,26 @@ struct FMeshToMeshVertData
 	friend ENGINE_API FArchive& operator<<(FArchive& Ar, FMeshToMeshVertData& V);
 };
 
+/**
+* Structure to store the buffer offsets to the section's cloth deformer mapping data. 
+* Also contains the stride to further cloth LODs data for cases where one section has
+* multiple mappings so that it can be wrap deformed with cloth data from a different LOD.
+* When using LOD bias in Raytracing for example.
+*/
+struct FClothBufferIndexMapping
+{
+	/** Section first index. */
+	uint32 BaseVertexIndex;
+
+	/** Offset in the buffer to the corresponding cloth mapping. */
+	uint32 MappingOffset;
+
+	/** Stride to the next LOD mapping if any. */
+	uint32 LODBiasStride;
+
+	friend ENGINE_API FArchive& operator<<(FArchive& Ar, FClothBufferIndexMapping& V);
+};
+
 struct FClothingSectionData
 {
 	FClothingSectionData()
@@ -90,7 +110,7 @@ struct FClothingSectionData
 		, AssetLodIndex(INDEX_NONE)
 	{}
 
-	bool IsValid()
+	bool IsValid() const
 	{
 		return AssetGuid.IsValid() && AssetLodIndex != INDEX_NONE;
 	}

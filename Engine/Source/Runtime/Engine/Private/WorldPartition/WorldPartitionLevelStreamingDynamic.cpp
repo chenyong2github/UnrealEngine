@@ -235,7 +235,7 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	for (FWorldPartitionRuntimeCellObjectMapping& ChildPackage : ChildPackages)
 	{
 		bool bNeedDup = false;
-		if (ChildPackage.ContainerID == 0)
+		if (ChildPackage.ContainerID.IsMainContainer())
 		{
 			if (ActorContainer)
 			{
@@ -276,7 +276,7 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 			ActorPair.Value->Rename(nullptr, RuntimeLevel);
 		}
 
-		ActorContainerDup->MarkPendingKill();
+		ActorContainerDup->MarkAsGarbage();
 	}
 
 	auto FinalizeLoading = [this]()

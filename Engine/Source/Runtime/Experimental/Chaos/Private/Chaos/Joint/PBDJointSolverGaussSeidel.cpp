@@ -328,15 +328,18 @@ namespace Chaos
 		}
 
 		// Final position fixup
-		if (bLinearProjectionEnabled && (LinearProjection > 0))
+		if (bLinearLocked)
 		{
-			ApplyTranslateProjection(Dt, SolverSettings, JointSettings, LinearProjection, DP1, DR1);
-		}
+			if (bLinearProjectionEnabled && (LinearProjection > 0))
+			{
+				ApplyTranslateProjection(Dt, SolverSettings, JointSettings, LinearProjection, DP1, DR1);
+			}
 
-		// Add velocity correction from the net projection motion
-		if (Chaos_Joint_VelProjectionAlpha > 0.0f)
-		{
-			ApplyVelocityProjection(Dt, SolverSettings, JointSettings, Chaos_Joint_VelProjectionAlpha, DP1, DR1);
+			// Add velocity correction from the net projection motion
+			if (Chaos_Joint_VelProjectionAlpha > 0.0f)
+			{
+				ApplyVelocityProjection(Dt, SolverSettings, JointSettings, Chaos_Joint_VelProjectionAlpha, DP1, DR1);
+			}
 		}
 	
 		UpdateIsActive(Dt, SolverSettings, JointSettings);

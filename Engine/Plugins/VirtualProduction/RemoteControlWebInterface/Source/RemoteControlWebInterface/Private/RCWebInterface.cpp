@@ -19,29 +19,21 @@
 
 namespace RCWebInterface
 {
-	bool IsWebInterfaceEnabledInEditor()
+	bool IsWebInterfaceEnabled()
 	{
 		bool bIsEditor = false;
 
 #if WITH_EDITOR
 		bIsEditor = GIsEditor;
 #endif
-
 		// By default, remote control web interface is disabled in -game and packaged game.
-		return bIsEditor || FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceEnable"));
+		return (!IsRunningCommandlet() && bIsEditor) || FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceEnable"));
 	}
 }
 
 void FRemoteControlWebInterfaceModule::StartupModule()
 {
-	bRCWebInterfaceDisable = FParse::Param(FCommandLine::Get(), TEXT("RCWebInterfaceDisable")) || IsRunningCommandlet();
-
-	if (bRCWebInterfaceDisable)
-	{
-		return;
-	}
-	
-	if (!RCWebInterface::IsWebInterfaceEnabledInEditor())
+	if (!RCWebInterface::IsWebInterfaceEnabled())
 	{
 		UE_LOG(LogRemoteControlWebInterface, Display, TEXT("Remote Control Web Interface is disabled by default when running outside the editor. Use the -RCWebInterfaceEnable flag when launching in order to use it."));
 		return;
@@ -50,44 +42,40 @@ void FRemoteControlWebInterfaceModule::StartupModule()
 	WebApp = MakeShared<FRemoteControlWebInterfaceProcess>();
 
 	TSharedPtr<FRemoteControlWebInterfaceProcess> WebAppLocal = WebApp;
+
 	FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([WebAppLocal]()
-	{
-		WebAppLocal->Start();
-	});
-	
+		{
+			WebAppLocal->Start();
+		});
+
 	if (IWebRemoteControlModule* WebRemoteControlModule = FModuleManager::GetModulePtr<IWebRemoteControlModule>("WebRemoteControl"))
 	{
-		WebSocketServerStartedDelegate = WebRemoteControlModule->OnWebSocketServerStarted().AddLambda([this](uint32) 
-		{ 
-			WebApp->Shutdown();
-			WebApp->Start();
-		});
+		WebSocketServerStartedDelegate = WebRemoteControlModule->OnWebSocketServerStarted().AddLambda([this](uint32)
+			{
+				WebApp->Shutdown();
+				WebApp->Start();
+			});
 	}
 
 #if WITH_EDITOR
 	GetMutableDefault<URemoteControlSettings>()->OnSettingChanged().AddRaw(this, &FRemoteControlWebInterfaceModule::OnSettingsModified);
-	
+
 	FCoreDelegates::OnPostEngineInit.AddLambda([this]()
-	{
-		Customizations = MakePimpl<FRCWebInterfaceCustomizations>(WebApp);
-	});
+		{
+			Customizations = MakePimpl<FRCWebInterfaceCustomizations>(WebApp);
+		});
 #endif
 }
 
 void FRemoteControlWebInterfaceModule::ShutdownModule()
 {
-	if (bRCWebInterfaceDisable)
+	if (!RCWebInterface::IsWebInterfaceEnabled())
 	{
 		return;
 	}
 
-	if (!RCWebInterface::IsWebInterfaceEnabledInEditor())
-    {
-    	return;
-    }
-    
 	WebApp->Shutdown();
-	
+
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 #if WITH_EDITOR

@@ -470,7 +470,8 @@ FRDGTextureRef AddHistogramEyeAdaptationPass(
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FRDGTextureRef HistogramTexture)
 {
-	View.SwapEyeAdaptationTextures(GraphBuilder);
+	View.UpdateEyeAdaptationLastExposureFromTexture();
+	View.SwapEyeAdaptationTextures();
 
 	FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(View.GetEyeAdaptationTexture(GraphBuilder.RHICmdList), ERenderTargetTexture::Targetable, ERDGTextureFlags::MultiFrame);
 
@@ -486,6 +487,8 @@ FRDGTextureRef AddHistogramEyeAdaptationPass(
 		ComputeShader,
 		PassParameters,
 		FIntVector(1, 1, 1));
+
+	View.EnqueueEyeAdaptationExposureTextureReadback(GraphBuilder);
 
 	return OutputTexture;
 }
@@ -627,7 +630,8 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 	FScreenPassTexture SceneColor,
 	FRDGTextureRef EyeAdaptationTexture)
 {
-	View.SwapEyeAdaptationTextures(GraphBuilder);
+	View.UpdateEyeAdaptationLastExposureFromTexture();
+	View.SwapEyeAdaptationTextures();
 
 	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
 
@@ -675,87 +679,132 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 			PassParameters);
 	}
 
+	View.EnqueueEyeAdaptationExposureTextureReadback(GraphBuilder);
+
 	return OutputTexture;
 }
 
-FSceneViewState::FEyeAdaptationManager::~FEyeAdaptationManager() {}
+FSceneViewState::FEyeAdaptationManager::FEyeAdaptationManager()
+{
+	ExposureReadbackTextures.AddZeroed(MAX_READBACK_BUFFERS);
+	ExposureReadbackBuffers.AddZeroed(MAX_READBACK_BUFFERS);
+}
 
 void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 {
 	CurrentBuffer = 0;
+	ReadbackBuffersWriteIndex = 0;
+	ReadbackBuffersNumPending = 0;
 
-	for (int32 Index = 0; Index < 3; Index++)
+	LastExposure = 0;
+	LastAverageSceneLuminance = 0;
+
+	for (int32 Index = 0; Index < NUM_BUFFERS; Index++)
 	{
 		PooledRenderTarget[Index].SafeRelease();
-		ExposureTextureReadback[Index] = nullptr;
 		ExposureBufferData[Index].SafeRelease();
-		ExposureBufferReadback[Index] = nullptr;
+	}
+
+	for (int32 Index = 0; Index < ExposureReadbackTextures.Num(); ++Index)
+	{
+		if (ExposureReadbackTextures[Index])
+		{
+			delete ExposureReadbackTextures[Index];
+			ExposureReadbackTextures[Index] = nullptr;
+		}
+	}
+
+	for (int32 Index = 0; Index < ExposureReadbackBuffers.Num(); ++Index)
+	{
+		if (ExposureReadbackBuffers[Index])
+		{
+			delete ExposureReadbackBuffers[Index];
+			ExposureReadbackBuffers[Index] = nullptr;
+		}
 	}
 }
 
-void FSceneViewState::FEyeAdaptationManager::SwapTextures(FRDGBuilder& GraphBuilder, bool bInUpdateLastExposure)
+FRHIGPUTextureReadback* FSceneViewState::FEyeAdaptationManager::GetLatestReadbackTexture()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationRTManager_SwapRTs);
+	FRHIGPUTextureReadback* LatestReadbackTexture = nullptr;
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-	// When reading back last frame's exposure data in AFR, make sure we do it on the
-	// GPUs that were actually used last frame.
-	const FRHIGPUMask ThisFrameGPUMask = RHICmdList.GetGPUMask();
-	const FRHIGPUMask LastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(ThisFrameGPUMask);
-	const FRHIGPUMask LastLastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(LastFrameGPUMask);
-
-	if (bInUpdateLastExposure && PooledRenderTarget[CurrentBuffer].IsValid())
+	// Find latest texture that is ready
+	uint32 Index = (ReadbackBuffersWriteIndex + MAX_READBACK_BUFFERS - ReadbackBuffersNumPending) % MAX_READBACK_BUFFERS;
+	while (ReadbackBuffersNumPending > 0)
 	{
-		FRDGTextureRef CurrentTexture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget[CurrentBuffer], ERenderTargetTexture::ShaderResource, ERDGTextureFlags::MultiFrame);
-
-		// first, read the value from two frames ago
-		int32 PreviousPreviousBuffer = GetPreviousPreviousIndex();
-		if (ExposureTextureReadback[PreviousPreviousBuffer] != nullptr &&
-			ExposureTextureReadback[PreviousPreviousBuffer]->IsReady())
+		if (ExposureReadbackTextures[Index]->IsReady())
 		{
-			// Workaround until FRHIGPUTextureReadback::Lock has multigpu support
-			FRHIGPUMask ReadBackGPUMask = LastLastFrameGPUMask;
-
-			RDG_GPU_MASK_SCOPE(GraphBuilder, ReadBackGPUMask);
-
-			// Read the last request results.
-			FVector4f* ReadbackData = (FVector4f*)ExposureTextureReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4f));
-			if (ReadbackData)
-			{
-				LastExposure = ReadbackData->X;
-				LastAverageSceneLuminance = ReadbackData->Z;
-
-				ExposureTextureReadback[PreviousPreviousBuffer]->Unlock();
-			}
+			--ReadbackBuffersNumPending;
+			LatestReadbackTexture = ExposureReadbackTextures[Index];
 		}
-
-		if (!ExposureTextureReadback[CurrentBuffer])
+		else
 		{
-			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
-			ExposureTextureReadback[CurrentBuffer].Reset(new FRHIGPUTextureReadback(ExposureValueName));
-			// Send the first request.
-			AddEnqueueCopyPass(GraphBuilder, ExposureTextureReadback[CurrentBuffer].Get(), CurrentTexture);
-		}
-		else // it exists, so just enqueue, don't  reset
-		{
-			// Send the request for next update.
-			AddEnqueueCopyPass(GraphBuilder, ExposureTextureReadback[CurrentBuffer].Get(), CurrentTexture);
+			break;
 		}
 	}
 
-	CurrentBuffer = (CurrentBuffer + 1) % 3;
+	return LatestReadbackTexture;
+}
+
+void FSceneViewState::FEyeAdaptationManager::SwapTextures()
+{
+	CurrentBuffer = (CurrentBuffer + 1) % NUM_BUFFERS;
+}
+
+void FSceneViewState::FEyeAdaptationManager::UpdateLastExposureFromTexture()
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationRTManager_ReadbackLastExposure);
+
+	// Get the most up to date value
+	FRHIGPUTextureReadback* ReadbackTexture = GetLatestReadbackTexture();
+
+	if (ReadbackTexture)
+	{
+		// Read the last request results.
+		FVector4f* ReadbackData = (FVector4f*)ReadbackTexture->Lock(sizeof(FVector4f));
+		if (ReadbackData)
+		{
+			LastExposure = ReadbackData->X;
+			LastAverageSceneLuminance = ReadbackData->Z;
+
+			ReadbackTexture->Unlock();
+		}
+	}
+}
+
+void FSceneViewState::FEyeAdaptationManager::EnqueueExposureTextureReadback(FRDGBuilder& GraphBuilder)
+{
+	check(PooledRenderTarget[CurrentBuffer].IsValid());
+	
+	if (ReadbackBuffersNumPending < MAX_READBACK_BUFFERS)
+	{
+		FRDGTextureRef CurrentTexture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget[CurrentBuffer], ERenderTargetTexture::ShaderResource, ERDGTextureFlags::MultiFrame);
+
+		FRHIGPUTextureReadback* ExposureReadbackTexture = ExposureReadbackTextures[ReadbackBuffersWriteIndex];
+
+		if (ExposureReadbackTexture == nullptr)
+		{
+			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
+			ExposureReadbackTexture = new FRHIGPUTextureReadback(ExposureValueName);
+			ExposureReadbackTextures[ReadbackBuffersWriteIndex] = ExposureReadbackTexture;
+		}
+
+		AddEnqueueCopyPass(GraphBuilder, ExposureReadbackTexture, CurrentTexture);
+
+		ReadbackBuffersWriteIndex = (ReadbackBuffersWriteIndex + 1) % MAX_READBACK_BUFFERS;
+		ReadbackBuffersNumPending = FMath::Min(ReadbackBuffersNumPending + 1, MAX_READBACK_BUFFERS);
+	}
 }
 
 const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetTexture(uint32 TextureIndex) const
 {
-	check(0 <= TextureIndex && TextureIndex < 3);
+	check(0 <= TextureIndex && TextureIndex < NUM_BUFFERS);
 	return PooledRenderTarget[TextureIndex];
 }
 
 const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager::GetOrCreateTexture(FRHICommandList& RHICmdList, uint32 TextureIndex)
 {
-	check(0 <= TextureIndex && TextureIndex < 3);
+	check(0 <= TextureIndex && TextureIndex < NUM_BUFFERS);
 
 	// Create textures if needed.
 	if (!PooledRenderTarget[TextureIndex].IsValid())
@@ -774,14 +823,14 @@ const TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationManager:
 
 const TRefCountPtr<FRDGPooledBuffer>& FSceneViewState::FEyeAdaptationManager::GetBuffer(uint32 BufferIndex) const
 {
-	check(0 <= BufferIndex && BufferIndex < 3);
+	check(0 <= BufferIndex && BufferIndex < NUM_BUFFERS);
 
 	return ExposureBufferData[BufferIndex];
 }
 
 const TRefCountPtr<FRDGPooledBuffer>& FSceneViewState::FEyeAdaptationManager::GetOrCreateBuffer(FRDGBuilder& GraphBuilder, uint32 BufferIndex)
 {
-	check(0 <= BufferIndex && BufferIndex < 3);
+	check(0 <= BufferIndex && BufferIndex < NUM_BUFFERS);
 
 	// Create textures if needed.
 	if (!ExposureBufferData[BufferIndex].IsValid())
@@ -800,52 +849,76 @@ const TRefCountPtr<FRDGPooledBuffer>& FSceneViewState::FEyeAdaptationManager::Ge
 	return ExposureBufferData[BufferIndex];
 }
 
-void FSceneViewState::FEyeAdaptationManager::SwapBuffers(FRDGBuilder& GraphBuilder, bool bInUpdateLastExposure)
+FRHIGPUBufferReadback* FSceneViewState::FEyeAdaptationManager::GetLatestReadbackBuffer()
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationManager_SwapBuffers);
+	FRHIGPUBufferReadback* LatestReadbackBuffer = nullptr;
 
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	// Find latest buffer that is ready
+	uint32 Index = (ReadbackBuffersWriteIndex + MAX_READBACK_BUFFERS - ReadbackBuffersNumPending) % MAX_READBACK_BUFFERS;
+	while (ReadbackBuffersNumPending > 0)
+	{
+		if (ExposureReadbackBuffers[Index]->IsReady())
+		{
+			--ReadbackBuffersNumPending;
+			LatestReadbackBuffer = ExposureReadbackBuffers[Index];
+		}
+		else
+		{
+			break;
+		}
+	}
 
-	// When reading back last frame's exposure data in AFR, make sure we do it on the
-	// GPUs that were actually used last frame.
-	const FRHIGPUMask ThisFrameGPUMask = RHICmdList.GetGPUMask();
-	const FRHIGPUMask LastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(ThisFrameGPUMask);
-	const FRHIGPUMask LastLastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(LastFrameGPUMask);
+	return LatestReadbackBuffer;
+}
 
-	if (bInUpdateLastExposure && ExposureBufferData[CurrentBuffer].IsValid())
+void FSceneViewState::FEyeAdaptationManager::SwapBuffers()
+{
+	CurrentBuffer = (CurrentBuffer + 1) % NUM_BUFFERS;
+}
+
+void FSceneViewState::FEyeAdaptationManager::UpdateLastExposureFromBuffer()
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FEyeAdaptationRTManager_ReadbackLastExposure);
+
+	// Get the most up to date value
+	FRHIGPUBufferReadback* ReadbackBuffer = GetLatestReadbackBuffer();
+
+	if (ReadbackBuffer)
+	{
+		// Read the last request results.
+		FVector4f* ReadbackData = (FVector4f*)ReadbackBuffer->Lock(sizeof(FVector4f));
+		if (ReadbackData)
+		{
+			LastExposure = ReadbackData->X;
+			LastAverageSceneLuminance = ReadbackData->Z;
+
+			ReadbackBuffer->Unlock();
+		}
+	}
+}
+
+void FSceneViewState::FEyeAdaptationManager::EnqueueExposureBufferReadback(FRDGBuilder& GraphBuilder)
+{
+	check(ExposureBufferData[CurrentBuffer].IsValid());
+
+	if (ReadbackBuffersNumPending < MAX_READBACK_BUFFERS)
 	{
 		FRDGBufferRef CurrentRDGBuffer = GraphBuilder.RegisterExternalBuffer(ExposureBufferData[CurrentBuffer], ERDGBufferFlags::MultiFrame);
 
-		// first, read the value from two frames ago
-		int32 PreviousPreviousBuffer = GetPreviousPreviousIndex();
-		if (ExposureBufferReadback[PreviousPreviousBuffer] != nullptr && ExposureBufferReadback[PreviousPreviousBuffer]->IsReady())
-		{
-			// Workaround until FRHIGPUTextureReadback::Lock has multigpu support
-			FRHIGPUMask ReadBackGPUMask = LastLastFrameGPUMask;
+		FRHIGPUBufferReadback* ExposureReadbackBuffer = ExposureReadbackBuffers[ReadbackBuffersWriteIndex];
 
-			RDG_GPU_MASK_SCOPE(GraphBuilder, ReadBackGPUMask);
-
-			// Read the last request results.
-			FVector4f* ReadbackData = (FVector4f*)ExposureBufferReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4f));
-			if (ReadbackData)
-			{
-				LastExposure = ReadbackData->X;
-				LastAverageSceneLuminance = ReadbackData->Z;
-
-				ExposureBufferReadback[PreviousPreviousBuffer]->Unlock();
-			}
-		}
-
-		if (!ExposureBufferReadback[CurrentBuffer])
+		if (ExposureReadbackBuffer == nullptr)
 		{
 			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
-			ExposureBufferReadback[CurrentBuffer].Reset(new FRHIGPUBufferReadback(ExposureValueName));
+			ExposureReadbackBuffer = new FRHIGPUBufferReadback(ExposureValueName);
+			ExposureReadbackBuffers[ReadbackBuffersWriteIndex] = ExposureReadbackBuffer;
 		}
 
-		AddEnqueueCopyPass(GraphBuilder, ExposureBufferReadback[CurrentBuffer].Get(), CurrentRDGBuffer, 0);
-	}
+		AddEnqueueCopyPass(GraphBuilder, ExposureReadbackBuffer, CurrentRDGBuffer, 0);
 
-	CurrentBuffer = (CurrentBuffer + 1) % 3;
+		ReadbackBuffersWriteIndex = (ReadbackBuffersWriteIndex + 1) % MAX_READBACK_BUFFERS;
+		ReadbackBuffersNumPending = FMath::Min(ReadbackBuffersNumPending + 1, MAX_READBACK_BUFFERS);
+	}
 }
 
 void FSceneViewState::UpdatePreExposure(FViewInfo& View)

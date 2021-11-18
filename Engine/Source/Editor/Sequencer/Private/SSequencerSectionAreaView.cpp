@@ -134,24 +134,44 @@ FText SSequencerSectionAreaView::GetSectionToolTip(TSharedRef<ISequencerSection>
 	// If the objects are valid and the section is not unbounded, add frame information to the tooltip
 	if (SectionObject && MovieScene && SectionObject->HasStartFrame() && SectionObject->HasEndFrame())
 	{
-		int32 StartFrame = ConvertFrameTime(SectionObject->GetInclusiveStartFrame(), MovieScene->GetTickResolution(), MovieScene->GetDisplayRate()).RoundToFrame().Value;
-		int32 EndFrame = ConvertFrameTime(SectionObject->GetExclusiveEndFrame(), MovieScene->GetTickResolution(), MovieScene->GetDisplayRate()).RoundToFrame().Value;
-	
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+
+		int32 StartFrame = ConvertFrameTime(SectionObject->GetInclusiveStartFrame(), TickResolution, DisplayRate).RoundToFrame().Value;
+		int32 EndFrame = ConvertFrameTime(SectionObject->GetExclusiveEndFrame(), TickResolution, DisplayRate).RoundToFrame().Value;
+
+		FText SectionToolTip;
 		if (SectionToolTipContent.IsEmpty())
 		{
-			return FText::Format(NSLOCTEXT("SequencerSection", "TooltipFormat", "{0}{1} - {2} ({3} frames)"), SectionTitleText,
+			SectionToolTip = FText::Format(NSLOCTEXT("SequencerSection", "TooltipFormat", "{0}{1} - {2} ({3} frames)"), SectionTitleText,
 				StartFrame,
 				EndFrame,
 				EndFrame - StartFrame);
 		}
 		else
 		{
-			return FText::Format(NSLOCTEXT("SequencerSection", "TooltipFormatWithSectionContent", "{0}{1} - {2} ({3} frames)\n{4}"), SectionTitleText,
+			SectionToolTip = FText::Format(NSLOCTEXT("SequencerSection", "TooltipFormatWithSectionContent", "{0}{1} - {2} ({3} frames)\n{4}"), SectionTitleText,
 				StartFrame,
 				EndFrame,
 				EndFrame - StartFrame,
 				SectionToolTipContent);
 		}
+	
+		if (SectionObject->Easing.GetEaseInDuration() > 0)
+		{
+			int32 EaseInFrames = ConvertFrameTime(SectionObject->Easing.GetEaseInDuration(), TickResolution, DisplayRate).RoundToFrame().Value;
+			FText EaseInText = FText::Format(NSLOCTEXT("SequencerSection", "EaseInFormat", "Ease In: {0} ({1} frames)"), SectionObject->Easing.EaseIn->GetDisplayName(), EaseInFrames);
+			SectionToolTip = FText::Join(FText::FromString("\n"), SectionToolTip, EaseInText);
+		}
+
+		if (SectionObject->Easing.GetEaseOutDuration() > 0)
+		{
+			int32 EaseOutFrames = ConvertFrameTime(SectionObject->Easing.GetEaseOutDuration(), TickResolution, DisplayRate).RoundToFrame().Value;
+			FText EaseOutText = FText::Format(NSLOCTEXT("SequencerSection", "EaseOutFormat", "Ease Out: {0} ({1} frames)"), SectionObject->Easing.EaseOut->GetDisplayName(), EaseOutFrames);
+			SectionToolTip = FText::Join(FText::FromString("\n"), SectionToolTip, EaseOutText);
+		}
+		
+		return SectionToolTip;
 	}
 	else
 	{

@@ -1862,13 +1862,15 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 
 	FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);
 
-	XmlString = TEXT("<Host>") + FString( DatasmithScene->GetHost() ) + TEXT("</Host>") + LINE_TERMINATOR;
+	XmlString = TEXT("<Host>") + FDatasmithSceneXmlWriterImpl::SanitizeXMLText( DatasmithScene->GetHost() ) + TEXT("</Host>") + LINE_TERMINATOR;
 	FDatasmithSceneXmlWriterImpl::SerializeToArchive( Archive, XmlString );
 
 	FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);
 
 	// Add Vendor, ProductName, ProductVersion
-	XmlString = TEXT("<Application Vendor=\"") + FString( DatasmithScene->GetVendor() ) + TEXT("\" ProductName=\"") + FString( DatasmithScene->GetProductName() ) + TEXT("\" ProductVersion=\"") + FString( DatasmithScene->GetProductVersion() ) + TEXT("\"/>") + LINE_TERMINATOR;
+	XmlString = TEXT("<Application Vendor=\"") + FDatasmithSceneXmlWriterImpl::SanitizeXMLText( DatasmithScene->GetVendor() )
+		+ TEXT("\" ProductName=\"") + FDatasmithSceneXmlWriterImpl::SanitizeXMLText( DatasmithScene->GetProductName() )
+		+ TEXT("\" ProductVersion=\"") + FDatasmithSceneXmlWriterImpl::SanitizeXMLText( DatasmithScene->GetProductVersion() ) + TEXT("\"/>") + LINE_TERMINATOR;
 	FDatasmithSceneXmlWriterImpl::SerializeToArchive(Archive, XmlString);
 
 	FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);

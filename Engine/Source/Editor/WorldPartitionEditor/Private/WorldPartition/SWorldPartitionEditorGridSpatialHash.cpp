@@ -93,6 +93,7 @@ FReply SWorldPartitionEditorGridSpatialHash::ReloadMiniMap()
 
 	WorldMiniMap->Modify();
 
+
 	// Updating VT is not supported for now
 	if (WorldMiniMap->MiniMapTexture != nullptr)
 	{

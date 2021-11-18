@@ -282,12 +282,12 @@ float UKismetMathLibrary::NormalizeToRange(float Value, float RangeMin, float Ra
 
 float UKismetMathLibrary::MapRangeUnclamped(float Value, float InRangeA, float InRangeB, float OutRangeA, float OutRangeB)
 {
-	return FMath::GetMappedRangeValueUnclamped(FVector2D(InRangeA, InRangeB), FVector2D(OutRangeA, OutRangeB), Value);
+	return FMath::GetMappedRangeValueUnclamped(FVector2f(InRangeA, InRangeB), FVector2f(OutRangeA, OutRangeB), Value);
 }
 
 float UKismetMathLibrary::MapRangeClamped(float Value, float InRangeA, float InRangeB, float OutRangeA, float OutRangeB)
 {
-	return FMath::GetMappedRangeValueClamped(FVector2D(InRangeA, InRangeB), FVector2D(OutRangeA, OutRangeB), Value);
+	return FMath::GetMappedRangeValueClamped(FVector2f(InRangeA, InRangeB), FVector2f(OutRangeA, OutRangeB), Value);
 }
 
 float UKismetMathLibrary::FInterpEaseInOut(float A, float B, float Alpha, float Exponent)
@@ -1394,9 +1394,9 @@ FVector UKismetMathLibrary::WeightedMovingAverage_FVector(FVector CurrentSample,
 FRotator UKismetMathLibrary::WeightedMovingAverage_FRotator(FRotator CurrentSample, FRotator PreviousSample, float Weight)
 {
 	FRotator OutRotator;
-	OutRotator.Yaw = FMath::Clamp(FMath::WeightedMovingAverage(CurrentSample.Yaw, PreviousSample.Yaw, Weight), -180.f, 180.f);
-	OutRotator.Pitch = FMath::Clamp(FMath::WeightedMovingAverage(CurrentSample.Pitch, PreviousSample.Pitch, Weight), -180.f, 180.f);
-	OutRotator.Roll = FMath::Clamp(FMath::WeightedMovingAverage(CurrentSample.Roll, PreviousSample.Roll, Weight), -180.f, 180.f);
+	OutRotator.Yaw = FMath::Clamp(FMath::WeightedMovingAverage<FRotator::FReal>(CurrentSample.Yaw, PreviousSample.Yaw, Weight), -180.f, 180.f);
+	OutRotator.Pitch = FMath::Clamp(FMath::WeightedMovingAverage<FRotator::FReal>(CurrentSample.Pitch, PreviousSample.Pitch, Weight), -180.f, 180.f);
+	OutRotator.Roll = FMath::Clamp(FMath::WeightedMovingAverage<FRotator::FReal>(CurrentSample.Roll, PreviousSample.Roll, Weight), -180.f, 180.f);
 	return OutRotator;
 }
 
@@ -1417,9 +1417,9 @@ FVector UKismetMathLibrary::DynamicWeightedMovingAverage_FVector(FVector Current
 FRotator UKismetMathLibrary::DynamicWeightedMovingAverage_FRotator(FRotator CurrentSample, FRotator PreviousSample, float MaxDistance, float MinWeight, float MaxWeight)
 {
 	FRotator OutRotator;
-	OutRotator.Yaw = FMath::Clamp(FMath::DynamicWeightedMovingAverage(CurrentSample.Yaw, PreviousSample.Yaw, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
-	OutRotator.Pitch = FMath::Clamp(FMath::DynamicWeightedMovingAverage(CurrentSample.Pitch, PreviousSample.Pitch, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
-	OutRotator.Roll = FMath::Clamp(FMath::DynamicWeightedMovingAverage(CurrentSample.Roll, PreviousSample.Roll, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
+	OutRotator.Yaw = FMath::Clamp(FMath::DynamicWeightedMovingAverage<FRotator::FReal>(CurrentSample.Yaw, PreviousSample.Yaw, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
+	OutRotator.Pitch = FMath::Clamp(FMath::DynamicWeightedMovingAverage<FRotator::FReal>(CurrentSample.Pitch, PreviousSample.Pitch, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
+	OutRotator.Roll = FMath::Clamp(FMath::DynamicWeightedMovingAverage<FRotator::FReal>(CurrentSample.Roll, PreviousSample.Roll, MaxDistance, MinWeight, MaxWeight), -180.f, 180.f);
 	return OutRotator;
 }
 

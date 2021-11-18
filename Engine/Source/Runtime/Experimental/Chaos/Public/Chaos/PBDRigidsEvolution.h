@@ -572,6 +572,17 @@ public:
 
 	CHAOS_API void ResetConstraints()
 	{
+		// Clear all particle lists of collisions and constraints
+		// (this could be performed by the constraint containers
+		// but it would be unnecessarily expensive to remove them
+		// one by one)
+		for (auto& Particle : Particles.GetAllParticlesView())
+		{
+			Particle.ParticleConstraints().Reset();
+			Particle.ParticleCollisions().Reset();
+		}
+
+		// Remove all constraints from the containers
 		for(FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
 			ConstraintRule->ResetConstraints();

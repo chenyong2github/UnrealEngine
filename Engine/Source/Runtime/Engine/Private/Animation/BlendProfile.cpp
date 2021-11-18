@@ -100,10 +100,15 @@ void UBlendProfile::PostLoad()
 
 int32 UBlendProfile::GetEntryIndex(const int32 InBoneIdx) const
 {
+	return GetEntryIndex(FSkeletonPoseBoneIndex(InBoneIdx));
+}
+
+int32 UBlendProfile::GetEntryIndex(const FSkeletonPoseBoneIndex InBoneIdx) const
+{
 	for(int32 Idx = 0 ; Idx < ProfileEntries.Num() ; ++Idx)
 	{
 		const FBlendProfileBoneEntry& Entry = ProfileEntries[Idx];
-		if(Entry.BoneReference.BoneIndex == InBoneIdx)
+		if(Entry.BoneReference.BoneIndex == InBoneIdx.GetInt())
 		{
 			return Idx;
 		}
@@ -134,12 +139,9 @@ float UBlendProfile::GetEntryBlendScale(const int32 InEntryIdx) const
 	return GetDefaultBlendScale();
 }
 
-int32 UBlendProfile::GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones, const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const
+int32 UBlendProfile::GetPerBoneInterpolationIndex(const FCompactPoseBoneIndex& InCompactPoseBoneIndex, const FBoneContainer& BoneContainer, const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const
 {
-	// Our internal entries are skeleton bone indices, but we have pose indices here - convert to skeleton
-	int32 ActualBoneIndex = RequiredBones.GetPoseToSkeletonBoneIndexArray()[BoneIndex];
-
-	return GetEntryIndex(ActualBoneIndex);
+	return GetEntryIndex(BoneContainer.GetSkeletonPoseIndexFromCompactPoseIndex(InCompactPoseBoneIndex));
 }
 
 void UBlendProfile::SetSingleBoneBlendScale(int32 InBoneIdx, float InScale, bool bCreate /*= false*/)

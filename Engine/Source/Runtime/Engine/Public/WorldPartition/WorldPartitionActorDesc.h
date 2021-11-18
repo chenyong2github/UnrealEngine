@@ -43,6 +43,8 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend class AActor;
 	friend class UWorldPartition;
 	friend class UActorDescContainer;
+	friend class UWorldPartitionRuntimeHash;
+	friend class FWorldPartitionStreamingGenerator;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
 	friend struct FWorldPartitionHandleUtils;
@@ -146,7 +148,7 @@ protected:
 
 	void TransformInstance(const FString& From, const FString& To);
 
-	inline void TransferRefCounts(const FWorldPartitionActorDesc* From) const
+	virtual void TransferFrom(const FWorldPartitionActorDesc* From)
 	{
 		SoftRefCount = From->SoftRefCount;
 		HardRefCount = From->HardRefCount;

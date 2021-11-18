@@ -10,6 +10,7 @@ using Autodesk.Revit.DB.Events;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Linq;
+using Autodesk.Revit.UI;
 
 namespace DatasmithRevitExporter
 {
@@ -134,7 +135,29 @@ namespace DatasmithRevitExporter
 		private Task													MetadataTask = null;
 
 		private static FDirectLink										ActiveInstance = null;
-		private static List<FDirectLink>								Instances = new List<FDirectLink>();
+		private static List<FDirectLink> Instances = new List<FDirectLink>();
+
+		private static UIApplication UIApp { get; set; } = null;
+
+		private bool bHasChanges = false;
+		private bool bSyncInProgress = false;
+
+		private static bool _bAutoSync = false;
+		public static bool bAutoSync
+		{
+			get
+			{
+				return _bAutoSync;
+			}
+			set
+			{
+				_bAutoSync = value;
+				if (_bAutoSync)
+				{
+					Get()?.RunAutoSync();
+				}
+			}
+		}
 
 		public static FDirectLink Get()
 		{
@@ -143,6 +166,11 @@ namespace DatasmithRevitExporter
 
 		public static void ActivateInstance(Document InDocument)
 		{
+			if (UIApp == null)
+			{
+				UIApp = new UIApplication(InDocument.Application);
+			}
+
 			// Disable existing instance, if there's active one.
 			ActiveInstance?.MakeActive(false);
 			ActiveInstance = null;
@@ -215,6 +243,8 @@ namespace DatasmithRevitExporter
 			foreach (ElementId ElemId in InArgs.GetModifiedElementIds())
 			{
 				Element ModifiedElement = DirectLink.RootCache.SourceDocument.GetElement(ElemId);
+			
+				DirectLink.bHasChanges = true;
 
 				if (ModifiedElement.GetType() == typeof(RevitLinkInstance))
 				{
@@ -236,6 +266,11 @@ namespace DatasmithRevitExporter
 
 				DirectLink.RootCache.ModifiedElements.Add(ElemId);
 			}
+
+			if (DirectLink.bHasChanges && bAutoSync)
+			{
+				DirectLink.RunAutoSync();
+			}
 		}
 
 		private FDirectLink(Document InDocument)
@@ -256,6 +291,23 @@ namespace DatasmithRevitExporter
 
 			DocumentChangedHandler = new EventHandler<DocumentChangedEventArgs>(OnDocumentChanged);
 			InDocument.Application.DocumentChanged += DocumentChangedHandler;
+		}
+
+		private void RunAutoSync()
+		{
+			if (bSyncInProgress)
+			{
+				return;
+			}
+
+			if (bHasChanges || SyncCount == 0)
+			{
+				RevitCommandId CmdId = RevitCommandId.LookupCommandId("3478AAF5-75A6-4E6F-BBF8-FFD791CA1801".ToLower());
+				if (CmdId != null)
+				{
+					UIApp.PostCommand(CmdId);
+				}
+			}
 		}
 
 		private void StopMetadataExport()
@@ -415,6 +467,8 @@ namespace DatasmithRevitExporter
 
 		public void OnBeginExport()
 		{
+			bSyncInProgress = true;
+
 			StopMetadataExport();
 
 			SetSceneCachePath();
@@ -634,6 +688,9 @@ namespace DatasmithRevitExporter
 			SyncTextures();
 
 			SyncCount++;
+
+			bHasChanges = false;
+			bSyncInProgress = false;
 
 			// Control metadata export via env var REVIT_DIRECTLINK_WITH_METADATA.
 			// We are not interested of its value, just if it was set.

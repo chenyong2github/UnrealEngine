@@ -2856,7 +2856,7 @@ bool ListFilesInPak(const TCHAR * InPakFilename, int64 SizeFilter, bool bInclude
 		{
 			UE_LOG(LogPakFile, Fatal, TEXT("Missing encryption key %s for pak file \"%s\"."), *PakFile.GetInfo().EncryptionKeyGuid.ToString(), InPakFilename);
 		}
-		else if (LegacyListIoStoreContainer(InPakFilename, SizeFilter, CSVFilename, bExtractToMountPoint, InKeyChain))
+		else if (LegacyListIoStoreContainer(InPakFilename, SizeFilter, CSVFilename, InKeyChain))
 		{
 			return true;
 		}
@@ -3607,7 +3607,6 @@ bool ExtractFilesFromPak(const TCHAR* InPakFilename, TMap<FString, FFileInfo>& I
 			if (!ExtractFilesFromIoStoreContainer(
 				*PakFilename,
 				InDestPath,
-				bUseMountPoint,
 				InKeyChain,
 				InFilter,
 				OutOrderMap ? &IoStoreContainerOrderMap : nullptr,

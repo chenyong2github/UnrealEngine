@@ -33,5 +33,5 @@ private:
 	FDelegateHandle WorldPartitionChangedDelegateHandle;
 	TSharedPtr<SBorder>	ContentParent;
 	TSharedPtr<class SWorldPartitionEditorGrid> GridView;
-	UWorld* World;
+	TWeakObjectPtr<UWorld> World;
 };

@@ -5,7 +5,10 @@
 #include "CADKernel/Utils/ArrayUtils.h"
 #include "CADKernel/Utils/IndexOfCoordinateFinder.h"
 
-CADKernel::FCompositeSurface::FCompositeSurface(const double InToleranceGeometric, int32 USurfaceNum, int32 VSurfaceNum, const TArray<double>& UCoordinates, const TArray<double>& VCoordinates, const TArray<TSharedPtr<FSurface>>& InSurfaces)
+namespace CADKernel
+{
+
+FCompositeSurface::FCompositeSurface(const double InToleranceGeometric, int32 USurfaceNum, int32 VSurfaceNum, const TArray<double>& UCoordinates, const TArray<double>& VCoordinates, const TArray<TSharedPtr<FSurface>>& InSurfaces)
 	: FSurface(InToleranceGeometric)
 	, Surfaces(InSurfaces)
 {
@@ -24,7 +27,7 @@ CADKernel::FCompositeSurface::FCompositeSurface(const double InToleranceGeometri
 	ComputeDefaultMinToleranceIso();
 }
 
-void CADKernel::FCompositeSurface::InitBoundary()
+void FCompositeSurface::InitBoundary()
 {
 	Boundary[EIso::IsoU].Min = GlobalCoordinates[EIso::IsoU][0];
 	Boundary[EIso::IsoV].Min = GlobalCoordinates[EIso::IsoV][0];
@@ -33,7 +36,7 @@ void CADKernel::FCompositeSurface::InitBoundary()
 }
 
 
-void CADKernel::FCompositeSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivableCoordinates) const
+void FCompositeSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 InDerivativeOrder, FCoordinateGrid& OutNotDerivableCoordinates) const
 {
 	for (int32 Iso = EIso::IsoU; Iso <= EIso::IsoV; Iso++)
 	{
@@ -67,7 +70,7 @@ void CADKernel::FCompositeSurface::LinesNotDerivables(const FSurfacicBoundary& B
 	}
 }
 
-void CADKernel::FCompositeSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void FCompositeSurface::EvaluatePoint(const FPoint2D& InSurfacicCoordinate, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	FPoint2D Coordinate = InSurfacicCoordinate;
 
@@ -92,12 +95,12 @@ void CADKernel::FCompositeSurface::EvaluatePoint(const FPoint2D& InSurfacicCoord
 	Surfaces[SurfaceIndex]->EvaluatePoint(Point2DPatch, OutPoint3D, InDerivativeOrder);
 }
 
-void CADKernel::FCompositeSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
+void FCompositeSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
 {
 	ensureCADKernel(false);
 }
 
-double CADKernel::FCompositeSurface::LocalToGlobalCoordinate(int32 SurfaceIndex, double Coordinate, EIso Iso) const
+double FCompositeSurface::LocalToGlobalCoordinate(int32 SurfaceIndex, double Coordinate, EIso Iso) const
 {
 	ensureCADKernel(!(RealCompare(Coordinate, NativeUVBoundaries[SurfaceIndex][Iso].Min) < 0 || RealCompare(Coordinate, NativeUVBoundaries[SurfaceIndex][Iso].Max) > 0));
 
@@ -110,7 +113,7 @@ double CADKernel::FCompositeSurface::LocalToGlobalCoordinate(int32 SurfaceIndex,
 	return GlobalCoord;
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FCompositeSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FCompositeSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FSurface> TransformedSurface;
 	TArray<TSharedPtr<FSurface>> TransformedSurfaces;
@@ -125,7 +128,7 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FCompositeSurface::ApplyMatrix(con
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FCompositeSurface::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FCompositeSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info)
 		.Add(TEXT("U Surf count"), GetSurfNum(EIso::IsoU))
@@ -134,3 +137,4 @@ CADKernel::FInfoEntity& CADKernel::FCompositeSurface::GetInfo(FInfoEntity& Info)
 }
 #endif
 
+}

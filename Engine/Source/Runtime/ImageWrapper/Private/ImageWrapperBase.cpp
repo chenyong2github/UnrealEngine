@@ -9,6 +9,7 @@
 FImageWrapperBase::FImageWrapperBase()
 	: RawFormat(ERGBFormat::Invalid)
 	, RawBitDepth(0)
+	, RawBytesPerRow(0)
 	, Format(ERGBFormat::Invalid)
 	, BitDepth(0)
 	, Width(0)
@@ -27,6 +28,7 @@ void FImageWrapperBase::Reset()
 
 	RawFormat = ERGBFormat::Invalid;
 	RawBitDepth = 0;
+	RawBytesPerRow = 0;
 	Format = ERGBFormat::Invalid;
 	BitDepth = 0;
 	Width = 0;
@@ -86,12 +88,13 @@ bool FImageWrapperBase::SetCompressed(const void* InCompressedData, int64 InComp
 }
 
 
-bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
+bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
 {
 	check(InRawData != NULL);
 	check(InRawSize > 0);
 	check(InWidth > 0);
 	check(InHeight > 0);
+	check(InBytesPerRow >= 0);
 
 	Reset();
 	CompressedData.Empty();		// Invalidates the compressed data too
@@ -102,6 +105,7 @@ bool FImageWrapperBase::SetRaw(const void* InRawData, int64 InRawSize, const int
 
 	RawFormat = InFormat;
 	RawBitDepth = InBitDepth;
+	RawBytesPerRow = InBytesPerRow;
 
 	Width = InWidth;
 	Height = InHeight;

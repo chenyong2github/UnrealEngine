@@ -5,7 +5,8 @@
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartitionResaveActorsBuilder.generated.h"
 
-// Example Command Line: ProjectName MapName -run=WorldPartitionBuilderCommandlet -SCCProvider=Perforce -Builder=WorldPartitionResaveActorsBuilder -ActorClass=PackedLevelInstance
+// Example Command Line: ProjectName MapName -run=WorldPartitionBuilderCommandlet -SCCProvider=Perforce -Builder=WorldPartitionResaveActorsBuilder [-ActorClass=PackedLevelInstance] [-SwitchActorPackagingSchemeToReduced]
+
 UCLASS()
 class UWorldPartitionResaveActorsBuilder : public UWorldPartitionBuilder
 {
@@ -15,9 +16,11 @@ public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override { return false; }
 	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::Custom; }
+	virtual bool OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 
 private:
 	FString ActorClassName;
+	bool bSwitchActorPackagingSchemeToReduced;
 };

@@ -342,8 +342,8 @@ void UKismetProceduralMeshLibrary::CalculateTangentsForMesh(const TArray<FVector
 			// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
 			const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
 
-			FaceTangentX[TriIdx] = TextureToLocal.TransformVector(FVector3f(1, 0, 0)).GetSafeNormal();
-			FaceTangentY[TriIdx] = TextureToLocal.TransformVector(FVector3f(0, 1, 0)).GetSafeNormal();
+			FaceTangentX[TriIdx] = FVector4f(TextureToLocal.TransformVector(FVector3f(1, 0, 0)).GetSafeNormal());
+			FaceTangentY[TriIdx] = FVector4f(TextureToLocal.TransformVector(FVector3f(0, 1, 0)).GetSafeNormal());
 		}
 		else
 		{
@@ -429,7 +429,7 @@ static int32 GetNewIndexForOldVertIndex(int32 MeshVertIndex, TMap<int32, int32>&
 		int32 SectionVertIndex = Vertices.Add(VertexBuffers.PositionVertexBuffer.VertexPosition(MeshVertIndex));
 
 		// Copy normal
-		Normals.Add(VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(MeshVertIndex));
+		Normals.Add(FVector4(VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(MeshVertIndex)));
 		check(Normals.Num() == Vertices.Num());
 
 		// Copy UVs

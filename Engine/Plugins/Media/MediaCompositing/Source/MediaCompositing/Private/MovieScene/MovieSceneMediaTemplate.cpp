@@ -234,8 +234,9 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 	{
 		const FFrameRate FrameRate = Context.GetFrameRate();
 		const FFrameNumber StartFrame = Context.HasPreRollEndTime() ? Context.GetPreRollEndFrame() - Params.SectionStartFrame + Params.StartFrameOffset : Params.StartFrameOffset;
-		const int64 DenominatorTicks = FrameRate.Denominator * ETimespan::TicksPerSecond;
-		const int64 StartTicks = FMath::DivideAndRoundNearest(int64(StartFrame.Value * DenominatorTicks), int64(FrameRate.Numerator));
+
+		const double StartFrameInSeconds = FrameRate.AsSeconds(StartFrame);
+		const int64 StartTicks = StartFrameInSeconds * ETimespan::TicksPerSecond;
 
 		ExecutionTokens.Add(FMediaSectionPreRollExecutionToken(Params.MediaSource, FTimespan(StartTicks)));
 	}
@@ -243,23 +244,25 @@ void FMovieSceneMediaSectionTemplate::Evaluate(const FMovieSceneEvaluationOperan
 	{
 		const FFrameRate FrameRate = Context.GetFrameRate();
 		const FFrameTime FrameTime(Context.GetTime().FrameNumber - Params.SectionStartFrame + Params.StartFrameOffset);
-		const int64 DenominatorTicks = FrameRate.Denominator * ETimespan::TicksPerSecond;
-		const int64 FrameTicks = FMath::DivideAndRoundNearest(int64(FrameTime.GetFrame().Value * DenominatorTicks), int64(FrameRate.Numerator));
-		const int64 FrameSubTicks = FMath::DivideAndRoundNearest(int64(FrameTime.GetSubFrame() * DenominatorTicks), int64(FrameRate.Numerator));
-		const int64 FrameDurationTicks = 1000 * FMath::DivideAndRoundNearest(DenominatorTicks, int64(FrameRate.Numerator));
+
+		const double FrameTimeInSeconds = FrameRate.AsSeconds(FrameTime);
+		const int64 FrameTicks = FrameTimeInSeconds * ETimespan::TicksPerSecond;
+
+		const double FrameDurationInSeconds = FrameRate.AsSeconds(FFrameTime(1));
+		const int64 FrameDurationTicks = FrameDurationInSeconds * ETimespan::TicksPerSecond;
 
 		#if MOVIESCENEMEDIATEMPLATE_TRACE_EVALUATION
-			GLog->Logf(ELogVerbosity::Log, TEXT("Evaluating frame %i+%f, FrameRate %i/%i, FrameTicks %d+%d"),
+			GLog->Logf(ELogVerbosity::Log, TEXT("Evaluating frame %i+%f, FrameRate %i/%i, FrameTicks %d, FrameDurationTicks"),
 				Context.GetTime().GetFrame().Value,
 				Context.GetTime().GetSubFrame(),
 				FrameRate.Numerator,
 				FrameRate.Denominator,
 				FrameTicks,
-				FrameSubTicks
+				FrameDurationTicks
 			);
 		#endif
 
-		ExecutionTokens.Add(FMediaSectionExecutionToken(Params.MediaSource, FTimespan(FrameTicks + FrameSubTicks), FTimespan(FrameDurationTicks)));
+		ExecutionTokens.Add(FMediaSectionExecutionToken(Params.MediaSource, FTimespan(FrameTicks), FTimespan(FrameDurationTicks)));
 	}
 }
 

@@ -299,7 +299,7 @@ bool FDatasmithMeshUtils::ToMeshDescription(FDatasmithMesh& DsMesh, FMeshDescrip
 	FStaticMeshAttributes Attributes(MeshDescription);
 	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 
 	// Prepared for static mesh usage ?
@@ -433,20 +433,26 @@ bool FDatasmithMeshUtils::IsUVChannelValid(const FDatasmithMesh& DsMesh, const i
 
 bool FDatasmithTextureUtils::CalculateTextureHash(const TSharedPtr<class IDatasmithTextureElement>& TextureElement)
 {
-	TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileReader(TextureElement->GetFile()));
-	if (Archive)
+	if (TextureElement)
 	{
-		TextureElement->SetFileHash(FMD5Hash::HashFileFromArchive(Archive.Get()));
-		return true;
+		TUniquePtr<FArchive> Archive(IFileManager::Get().CreateFileReader(TextureElement->GetFile()));
+		if (Archive)
+		{
+			TextureElement->SetFileHash(FMD5Hash::HashFileFromArchive(Archive.Get()));
+			return true;
+		}
 	}
 	return false;
 }
 
 void FDatasmithTextureUtils::CalculateTextureHashes(const TSharedPtr<IDatasmithScene>& Scene)
 {
-	for (int i = 0; i < Scene->GetTexturesCount(); ++i)
+	if (Scene)
 	{
-		CalculateTextureHash(Scene->GetTexture(i));
+		for (int i = 0; i < Scene->GetTexturesCount(); ++i)
+		{
+			CalculateTextureHash(Scene->GetTexture(i));
+		}
 	}
 }
 
@@ -535,32 +541,47 @@ namespace DatasmithSceneUtilsImpl
 TArray<TSharedPtr<IDatasmithCameraActorElement>> FDatasmithSceneUtils::GetAllCameraActorsFromScene(const TSharedPtr<IDatasmithScene>& Scene)
 {
 	TArray<TSharedPtr<IDatasmithCameraActorElement>> Result;
-	Result.Reserve(Scene->GetActorsCount());
-	DatasmithSceneUtilsImpl::GetAllActorsChildRecursive(Scene, EDatasmithElementType::Camera, Result);
+	if (Scene)
+	{
+		Result.Reserve(Scene->GetActorsCount());
+		DatasmithSceneUtilsImpl::GetAllActorsChildRecursive(Scene, EDatasmithElementType::Camera, Result);
+	}
+
 	return Result;
 }
 
 TArray<TSharedPtr<IDatasmithLightActorElement>> FDatasmithSceneUtils::GetAllLightActorsFromScene(const TSharedPtr<IDatasmithScene>& Scene)
 {
 	TArray<TSharedPtr<IDatasmithLightActorElement>> Result;
-	Result.Reserve(Scene->GetActorsCount());
-	DatasmithSceneUtilsImpl::GetAllActorsChildRecursive(Scene, EDatasmithElementType::Light, Result);
+	if (Scene)
+	{
+		Result.Reserve(Scene->GetActorsCount());
+		DatasmithSceneUtilsImpl::GetAllActorsChildRecursive(Scene, EDatasmithElementType::Light, Result);
+	}
+
 	return Result;
 }
 
 TArray<TSharedPtr<IDatasmithMeshActorElement>> FDatasmithSceneUtils::GetAllMeshActorsFromScene(const TSharedPtr<IDatasmithScene>& Scene)
 {
 	TArray<TSharedPtr<IDatasmithMeshActorElement>> Result;
-	Result.Reserve(Scene->GetActorsCount());
-	DatasmithSceneUtilsImpl::GetAllActorsChildRecursive(Scene, EDatasmithElementType::StaticMeshActor, Result);
+	if (Scene)
+	{
+		Result.Reserve(Scene->GetActorsCount());
+		DatasmithSceneUtilsImpl::GetAllActorsChildRecursive(Scene, EDatasmithElementType::StaticMeshActor, Result);
+	}
+
 	return Result;
 }
 
 TArray< TSharedPtr< IDatasmithCustomActorElement> > FDatasmithSceneUtils::GetAllCustomActorsFromScene(const TSharedPtr<IDatasmithScene>& Scene)
 {
 	TArray<TSharedPtr<IDatasmithCustomActorElement>> Result;
-	Result.Reserve(Scene->GetActorsCount());
-	DatasmithSceneUtilsImpl::GetAllActorsChildRecursive(Scene, EDatasmithElementType::CustomActor, Result);
+	if (Scene)
+	{
+		Result.Reserve(Scene->GetActorsCount());
+		DatasmithSceneUtilsImpl::GetAllActorsChildRecursive(Scene, EDatasmithElementType::CustomActor, Result);
+	}
 	return Result;
 }
 
@@ -593,7 +614,7 @@ bool FDatasmithSceneUtils::FindActorHierarchy(const IDatasmithScene* Scene, cons
 {
 	bool bResult = false;
 	OutHierarchy.Reset();
-	if (ToFind.IsValid())
+	if (Scene != nullptr && ToFind.IsValid())
 	{
 		const int32 ActorsCount = Scene->GetActorsCount();
 		for (int32 ActorIndex = 0; ActorIndex  < ActorsCount; ++ActorIndex)
@@ -617,6 +638,11 @@ bool FDatasmithSceneUtils::FindActorHierarchy(const IDatasmithScene* Scene, cons
 
 bool FDatasmithSceneUtils::IsMaterialIDUsedInScene(const TSharedPtr<IDatasmithScene>& Scene, const TSharedPtr<IDatasmithMaterialIDElement>& MaterialElement)
 {
+	if (!Scene)
+	{
+		return false;
+	}
+
 	TArray<TSharedPtr<IDatasmithMeshActorElement>> AllMeshActors = FDatasmithSceneUtils::GetAllMeshActorsFromScene(Scene);
 	for (const TSharedPtr<IDatasmithMeshActorElement>& MeshActor : AllMeshActors)
 	{
@@ -643,6 +669,11 @@ bool FDatasmithSceneUtils::IsMaterialIDUsedInScene(const TSharedPtr<IDatasmithSc
 
 bool FDatasmithSceneUtils::IsPostProcessUsedInScene(const TSharedPtr<IDatasmithScene>& Scene, const TSharedPtr<IDatasmithPostProcessElement>& PostProcessElement)
 {
+	if (!Scene)
+	{
+		return false;
+	}
+
 	if (Scene->GetPostProcess() == PostProcessElement)
 	{
 		return true;
@@ -785,6 +816,11 @@ namespace DatasmithSceneUtilsImpl
 
 	void CleanUpEnvironments( TSharedPtr<IDatasmithScene> Scene )
 	{
+		if (!Scene)
+		{
+			return;
+		}
+
 		// Remove unsupported environments
 		for (int32 Index = Scene->GetActorsCount() - 1; Index >= 0; --Index)
 		{

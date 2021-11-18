@@ -94,7 +94,7 @@ namespace AutomationToolDriver
 			bool bUseBuildRecordsOnlyForProjectDiscovery = bNoCompile || Unreal.IsEngineInstalled() || FoundAutomationProjects.Count() == 0;
 
 			// Load existing build records, validating them only if (re)compiling script projects is an option
-			Dictionary<UATBuildRecord, FileReference> ExistingBuildRecords = LoadExistingBuildRecords(BaseDirectories, !bUseBuildRecordsOnlyForProjectDiscovery, ref WriteTimeCache);
+			Dictionary<CsProjBuildRecord, FileReference> ExistingBuildRecords = LoadExistingBuildRecords(BaseDirectories, !bUseBuildRecordsOnlyForProjectDiscovery, ref WriteTimeCache);
 
 			if (bUseBuildRecordsOnlyForProjectDiscovery)
             {
@@ -105,7 +105,7 @@ namespace AutomationToolDriver
                 }
 
 				HashSet<FileReference> BuiltTargets = new HashSet<FileReference>(ExistingBuildRecords.Count);
-				foreach ((UATBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
+				foreach ((CsProjBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
                 {
 					FileReference ProjectPath = FileReference.Combine(BuildRecordPath.Directory, BuildRecord.ProjectPath);
 					FileReference TargetPath = FileReference.Combine(ProjectPath.Directory, BuildRecord.TargetPath);
@@ -135,7 +135,7 @@ namespace AutomationToolDriver
 			else
             {
 				// when the engine is not installed, delete any .json file that does not have a corresponding .csproj file
-				foreach ((UATBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
+				foreach ((CsProjBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
 				{
 					FileReference ProjectPath = FileReference.Combine(BuildRecordPath.Directory, BuildRecord.ProjectPath);
 
@@ -169,9 +169,9 @@ namespace AutomationToolDriver
 		/// </summary>
 		/// <param name="BaseDirectories"></param>
 		/// <returns></returns>
-		static Dictionary<UATBuildRecord, FileReference> LoadExistingBuildRecords(List<DirectoryReference> BaseDirectories, bool bValidateBuildRecordsAreUpToDate, ref WriteTimeCache Cache)
+		static Dictionary<CsProjBuildRecord, FileReference> LoadExistingBuildRecords(List<DirectoryReference> BaseDirectories, bool bValidateBuildRecordsAreUpToDate, ref WriteTimeCache Cache)
         {
-			Dictionary<UATBuildRecord, FileReference> LoadedBuildRecords = new Dictionary<UATBuildRecord, FileReference>();
+			Dictionary<CsProjBuildRecord, FileReference> LoadedBuildRecords = new Dictionary<CsProjBuildRecord, FileReference>();
 
 			foreach (DirectoryReference Directory in BaseDirectories)
 			{
@@ -187,8 +187,8 @@ namespace AutomationToolDriver
 					// slower path - buildrecord files will be re-generated, other filesystem errors may persist
 					try
 					{
-						UATBuildRecord BuildRecord =
-							JsonSerializer.Deserialize<UATBuildRecord>(FileReference.ReadAllText(JsonFile));
+						CsProjBuildRecord BuildRecord =
+							JsonSerializer.Deserialize<CsProjBuildRecord>(FileReference.ReadAllText(JsonFile));
 
 						if (bValidateBuildRecordsAreUpToDate)
 						{
@@ -215,56 +215,15 @@ namespace AutomationToolDriver
 			return LoadedBuildRecords;
         }
 
-		// Acceleration structure:
-		// used to encapsulate a full set of dependencies for an msbuild project - explicit and globbed
-		// These files are written to Intermediate/ScriptModules
-		class UATBuildRecord
-		{
-			// Version number making it possible to quickly invalidate written records.
-			public static readonly int CurrentVersion = 4;
-			public int Version { get; set; } // what value does this get if deserialized from a file with no value for this field? 
-			
-			// Path to the .csproj project file, relative to the location of the build record .json file
-			public string ProjectPath { get; set; }
-
-			// The time that the target assembly was built (read from the file after the build)
-			public DateTime TargetBuildTime { get; set; }
-			
-
-			// all following paths are relative to the project directory, the directory containing ProjectPath 
-			
-			// assembly (dll) location
-			public string TargetPath { get; set; }
-			
-			// Paths of referenced projects
-			public HashSet<string> ProjectReferences { get; set; } = new HashSet<string>();
-			
-			// file dependencies from non-glob sources
-			public HashSet<string> Dependencies { get; set; } = new HashSet<string>();
-			
-			// file dependencies from globs
-			public HashSet<string> GlobbedDependencies { get; set; } = new HashSet<string>();
-			
-			public class Glob
-			{
-				public string ItemType { get; set; }
-				public List<string> Include { get; set; }
-				public List<string> Exclude { get; set; }
-				public List<string> Remove { get; set; }
-			}
-
-			public List<Glob> Globs { get; set; } = new List<Glob>();
-		}
-
 		private static bool ValidateGlobbedFiles(DirectoryReference ProjectDirectory, 
-			List<UATBuildRecord.Glob> Globs, HashSet<string> GlobbedDependencies, out string ValidationFailureMessage)
+			List<CsProjBuildRecord.Glob> Globs, HashSet<string> GlobbedDependencies, out string ValidationFailureMessage)
 		{
 			// First, evaluate globs
 			
 			// Files are grouped by ItemType (e.g. Compile, EmbeddedResource) to ensure that Exclude and
 			// Remove act as expected.
 			Dictionary<string, HashSet<string>> Files = new Dictionary<string, HashSet<string>>();
-			foreach (UATBuildRecord.Glob Glob in Globs)
+			foreach (CsProjBuildRecord.Glob Glob in Globs)
 			{
 				HashSet<string> TypedFiles;
 				if (!Files.TryGetValue(Glob.ItemType, out TypedFiles))
@@ -281,7 +240,7 @@ namespace AutomationToolDriver
 				foreach (string Remove in Glob.Remove)
 				{
 					// FileMatcher.IsMatch() doesn't handle inconsistent path separators correctly - which is why globs
-					// are normalized when they are added to UATBuildRecord
+					// are normalized when they are added to CsProjBuildRecord
 					TypedFiles.RemoveWhere(F => FileMatcher.IsMatch(F, Remove));
 				}
 			}
@@ -328,16 +287,16 @@ namespace AutomationToolDriver
 			return bValid;
 		}
 
-		private static bool ValidateBuildRecord(UATBuildRecord BuildRecord, DirectoryReference ProjectDirectory, out string ValidationFailureMessage, 
+		private static bool ValidateBuildRecord(CsProjBuildRecord BuildRecord, DirectoryReference ProjectDirectory, out string ValidationFailureMessage, 
 			ref WriteTimeCache Cache)
 		{
 			string TargetRelativePath =
 				Path.GetRelativePath(Unreal.EngineDirectory.FullName, BuildRecord.TargetPath);
 
-			if (BuildRecord.Version != UATBuildRecord.CurrentVersion)
+			if (BuildRecord.Version != CsProjBuildRecord.CurrentVersion)
 			{
 				ValidationFailureMessage =
-					$"version does not match: build record has version {BuildRecord.Version}; current version is {UATBuildRecord.CurrentVersion}";
+					$"version does not match: build record has version {BuildRecord.Version}; current version is {CsProjBuildRecord.CurrentVersion}";
 				return false;
 			}
 
@@ -380,13 +339,13 @@ namespace AutomationToolDriver
 		// Loads build records for each project, if they exist, and then checks all recorded build dependencies to ensure
 		// that nothing has changed since the last build.
 		// This function is (currently?) all-or-nothing: either all projects are up-to-date, or none are.
-		private static HashSet<FileReference> TryGetAllUpToDateScriptModules(Dictionary<UATBuildRecord, FileReference> ExistingBuildRecords, HashSet<FileReference> FoundAutomationProjects, ref WriteTimeCache Cache)
+		private static HashSet<FileReference> TryGetAllUpToDateScriptModules(Dictionary<CsProjBuildRecord, FileReference> ExistingBuildRecords, HashSet<FileReference> FoundAutomationProjects, ref WriteTimeCache Cache)
 		{
-			Dictionary<FileReference, UATBuildRecord> ExistingBuildRecordLookup = new Dictionary<FileReference, UATBuildRecord>(ExistingBuildRecords.Count);
+			Dictionary<FileReference, CsProjBuildRecord> ExistingBuildRecordLookup = new Dictionary<FileReference, CsProjBuildRecord>(ExistingBuildRecords.Count);
 
-			Dictionary<FileReference, UATBuildRecord> ValidatedBuildRecords = new Dictionary<FileReference, UATBuildRecord>(ExistingBuildRecords.Count);
+			Dictionary<FileReference, CsProjBuildRecord> ValidatedBuildRecords = new Dictionary<FileReference, CsProjBuildRecord>(ExistingBuildRecords.Count);
 
-			foreach((UATBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
+			foreach((CsProjBuildRecord BuildRecord, FileReference BuildRecordPath) in ExistingBuildRecords)
             {
 				FileReference ProjectPath = FileReference.FromString(
 					Path.GetFullPath(BuildRecord.ProjectPath, BuildRecordPath.Directory.FullName));
@@ -400,7 +359,7 @@ namespace AutomationToolDriver
 					return true;
 				}
 
-				if (!ExistingBuildRecordLookup.TryGetValue(ProjectPath, out UATBuildRecord BuildRecord)) // LoadUpToDateBuildRecord(ProjectPath, ref Cache, AllScriptFolders);
+				if (!ExistingBuildRecordLookup.TryGetValue(ProjectPath, out CsProjBuildRecord BuildRecord)) // LoadUpToDateBuildRecord(ProjectPath, ref Cache, AllScriptFolders);
 				{
 					Log.TraceLog($"Found project {ProjectPath} with no existing build record");
 					return false;
@@ -442,7 +401,7 @@ namespace AutomationToolDriver
 
 			// it is possible that a referenced project has been rebuilt separately, that it is up to date, but that
 			// its build time is newer than a project that references it. Check for that.
-			foreach (KeyValuePair<FileReference, UATBuildRecord> Entry in ValidatedBuildRecords)
+			foreach (KeyValuePair<FileReference, CsProjBuildRecord> Entry in ValidatedBuildRecords)
             {
 				foreach(string ReferencedProjectPath in Entry.Value.ProjectReferences)
                 {
@@ -635,8 +594,8 @@ namespace AutomationToolDriver
 		private static HashSet<FileReference> BuildAllScriptPlugins(HashSet<FileReference> FoundAutomationProjects, bool bForceCompile, bool bNoCompile, out bool bBuildSuccess, 
 			ref WriteTimeCache Cache, List<DirectoryReference> BaseDirectories)
 		{
-			// The -IgnoreBuildRecords prevents the loading & parsing of build record .json files from Intermediate/ScriptModules - but UATBuildRecord objects will be used in this function regardless
-			Dictionary<FileReference, UATBuildRecord> BuildRecords = new Dictionary<FileReference, UATBuildRecord>();
+			// The -IgnoreBuildRecords prevents the loading & parsing of build record .json files from Intermediate/ScriptModules - but CsProjBuildRecord objects will be used in this function regardless
+			Dictionary<FileReference, CsProjBuildRecord> BuildRecords = new Dictionary<FileReference, CsProjBuildRecord>();
 			
 			Dictionary<string, Project> Projects = new Dictionary<string, Project>();
 			
@@ -700,9 +659,9 @@ namespace AutomationToolDriver
 			{
 				string TargetPath = Path.GetRelativePath(Project.DirectoryPath, Project.GetPropertyValue("TargetPath"));
 
-				UATBuildRecord BuildRecord = new UATBuildRecord()
+				CsProjBuildRecord BuildRecord = new CsProjBuildRecord()
 				{
-					Version = UATBuildRecord.CurrentVersion,
+					Version = CsProjBuildRecord.CurrentVersion,
 					TargetPath = TargetPath,
 					TargetBuildTime = Cache.GetLastWriteTime(DirectoryReference.FromString(Project.DirectoryPath), TargetPath),
 					ProjectPath = Path.GetRelativePath(
@@ -828,7 +787,7 @@ namespace AutomationToolDriver
 					List<string> Exclude = new List<string>(Glob.Excludes.Select(F => CleanGlobString(F))).OrderBy(x => x).ToList();
 					List<string> Remove = new List<string>(Glob.Removes.Select(F => CleanGlobString(F))).OrderBy(x => x).ToList();
 					
-					BuildRecord.Globs.Add(new UATBuildRecord.Glob() { ItemType = Glob.ItemElement.ItemType, 
+					BuildRecord.Globs.Add(new CsProjBuildRecord.Glob() { ItemType = Glob.ItemElement.ItemType, 
 						Include = Include, Exclude = Exclude, Remove = Remove });
 				}
 
@@ -854,7 +813,7 @@ namespace AutomationToolDriver
 
 				foreach (ProjectGraphNode Project in InputProjectGraph.ProjectNodesTopologicallySorted)
 				{
-					UATBuildRecord BuildRecord = BuildRecords[FileReference.FromString(Project.ProjectInstance.FullPath)];
+					CsProjBuildRecord BuildRecord = BuildRecords[FileReference.FromString(Project.ProjectInstance.FullPath)];
 
 					string ValidationFailureMessage;
 					if (!ValidateBuildRecord(BuildRecord, DirectoryReference.FromString(Project.ProjectInstance.Directory),
@@ -869,7 +828,7 @@ namespace AutomationToolDriver
 				// its build time is newer than a project that references it. Check for that.
 				foreach (ProjectGraphNode Project in InputProjectGraph.ProjectNodesTopologicallySorted)
 				{
-					UATBuildRecord BuildRecord = BuildRecords[FileReference.FromString(Project.ProjectInstance.FullPath)];
+					CsProjBuildRecord BuildRecord = BuildRecords[FileReference.FromString(Project.ProjectInstance.FullPath)];
 
 					foreach(string ReferencedProjectPath in BuildRecord.ProjectReferences)
 					{
@@ -898,7 +857,7 @@ namespace AutomationToolDriver
 				if (bNoCompile)
 				{
 					bBuildSuccess = true;
-					// return a list of all script modules that are up to date (without touching any uatbuildrecords)
+					// return a list of all script modules that are up to date (without touching any CsProjBuildRecords)
 					return new HashSet<FileReference>(InputProjectGraph.EntryPointNodes.Where(P => !OutOfDateProjects.Contains(P)).Select(P => FileReference.FromString(P.ProjectInstance.GetPropertyValue("TargetPath"))));
 				}
 
@@ -924,7 +883,7 @@ namespace AutomationToolDriver
 
 				FileReference BuildRecordPath = ConstructBuildRecordPath(ProjectPath, BaseDirectories);
 
-				UATBuildRecord BuildRecord = BuildRecords[ProjectPath];
+				CsProjBuildRecord BuildRecord = BuildRecords[ProjectPath];
 
 				// update target build times into build records to ensure everything is up-to-date
 				FileReference FullPath = FileReference.Combine(ProjectPath.Directory, BuildRecord.TargetPath);

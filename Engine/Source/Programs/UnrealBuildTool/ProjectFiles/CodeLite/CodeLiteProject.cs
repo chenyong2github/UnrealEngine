@@ -9,15 +9,13 @@ using System.Xml.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class CodeLiteProject : ProjectFile
 	{
-		FileReference OnlyGameProject;
+		FileReference? OnlyGameProject;
 
-		public CodeLiteProject( FileReference InitFilePath, FileReference InOnlyGameProject ) : base(InitFilePath)
+		public CodeLiteProject(FileReference InitFilePath, DirectoryReference BaseDir, FileReference? InOnlyGameProject) : base(InitFilePath, BaseDir)
 		{
 			OnlyGameProject = InOnlyGameProject;
 		}
@@ -55,7 +53,7 @@ namespace UnrealBuildTool
 			string GameWorkingDirectory = "";
 			if (OnlyGameProject != null)
 			{
-				GameWorkingDirectory = Path.Combine (Path.GetDirectoryName (OnlyGameProject.FullName), "Binaries", ProjectPlatformName);
+				GameWorkingDirectory = Path.Combine(Path.GetDirectoryName(OnlyGameProject.FullName)!, "Binaries", ProjectPlatformName);
 			}
 			//
 			// Build the working directory of the UnrealEditor executable.
@@ -65,7 +63,7 @@ namespace UnrealBuildTool
 			//
 			// Create the folder where the project files goes if it does not exist
 			//
-			String FilePath = Path.GetDirectoryName(ProjectFilePath.FullName);
+			String FilePath = Path.GetDirectoryName(ProjectFilePath.FullName)!;
 			if( (FilePath.Length > 0) && !Directory.Exists(FilePath))
 			{
 				Directory.CreateDirectory(FilePath);
@@ -80,12 +78,12 @@ namespace UnrealBuildTool
 			//
 			// Write all targets which will be separate projects.
 			//
-			foreach (ProjectTarget target in ProjectTargets) 
+			foreach (Project target in ProjectTargets) 
 			{
-				string[] tmp = target.ToString ().Split ('.');
+				string[] tmp = target.ToString()!.Split('.');
 				string ProjectTargetFileName = Path.GetDirectoryName (ProjectFilePath.FullName) + "/" + tmp [0] +  ProjectExtension;
 				String TargetName = tmp [0];
-				TargetType ProjectTargetType = target.TargetRules.Type;
+				TargetType ProjectTargetType = target.TargetRules!.Type;
 
 				//
 				// Create the CodeLites root element.
@@ -131,12 +129,12 @@ namespace UnrealBuildTool
 							TargetName.Equals("UnrealEditor"))
 						{
 							int Idx = Unreal.EngineDirectory.FullName.Length;
-							CurrentFilePath = Path.GetDirectoryName(Path.GetFullPath(CurrentFile.Reference.FullName)).Substring(Idx);
+							CurrentFilePath = Path.GetDirectoryName(Path.GetFullPath(CurrentFile.Reference.FullName))!.Substring(Idx);
 						}
 						else
 						{
-							int Idx = Path.GetDirectoryName(CurrentFile.Reference.FullName).IndexOf(ProjectNameRaw) + ProjectNameRaw.Length;
-							CurrentFilePath = Path.GetDirectoryName(CurrentFile.Reference.FullName).Substring(Idx);
+							int Idx = Path.GetDirectoryName(CurrentFile.Reference.FullName)!.IndexOf(ProjectNameRaw) + ProjectNameRaw.Length;
+							CurrentFilePath = Path.GetDirectoryName(CurrentFile.Reference.FullName)!.Substring(Idx);
 						}
 					}
 					else if (ProjectTargetType == TargetType.Program)
@@ -144,8 +142,8 @@ namespace UnrealBuildTool
 						//
 						// We do not need all the editors subfolders to show the content. Find the correct programs subfolder.
 						//
-						int Idx = Path.GetDirectoryName(CurrentFile.Reference.FullName).IndexOf(TargetName) + TargetName.Length;
-						CurrentFilePath = Path.GetDirectoryName(CurrentFile.Reference.FullName).Substring(Idx);
+						int Idx = Path.GetDirectoryName(CurrentFile.Reference.FullName)!.IndexOf(TargetName) + TargetName.Length;
+						CurrentFilePath = Path.GetDirectoryName(CurrentFile.Reference.FullName)!.Substring(Idx);
 					}
 
 					char[] Delimiters = new char[] { '/', '\\' };

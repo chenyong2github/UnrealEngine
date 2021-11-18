@@ -337,7 +337,7 @@ private:
 		TArray<FVector3f> InterpolatedPositions;
 		TArray<FPackedNormal> InterpolatedTangentX;
 		TArray<FPackedNormal> InterpolatedTangentZ;
-		TArray<FVector2D> InterpolatedUVs;
+		TArray<FVector2f> InterpolatedUVs;
 		TArray<FColor> InterpolatedColors;
 		TArray<FVector3f> InterpolatedMotionVectors;
 

@@ -11,6 +11,7 @@
 #include "Math/Plane.h"
 #include "Math/Rotator.h"
 #include "Math/Axis.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 #include <type_traits>
 
 UE_DECLARE_LWC_TYPE(Quat, 4);
@@ -317,7 +318,7 @@ public:
 	inline void SetColumn(int32 i, TVector<T> Value);
 
 	/** @return rotator representation of this matrix */
-	CORE_API FRotator Rotator() const;
+	CORE_API UE::Math::TRotator<T> Rotator() const;
 
 	/**
 	 * Transform a rotation matrix into a quaternion.
@@ -397,6 +398,8 @@ public:
 		}
 		//return false;
 	}
+	
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 
 	/**
 	 * Convert this Atom to the 3x4 transpose of the transformation matrix.
@@ -506,97 +509,70 @@ inline FArchive& operator<<(FArchive& Ar, TMatrix<double>& M)
 	return Ar;
 }
 
+template<typename T>
+struct TBasisVectorMatrix : TMatrix<T>
+{
+	using TMatrix<T>::M;
+	
+	// Create Basis matrix from 3 axis vectors and the origin
+	TBasisVectorMatrix(const TVector<T>& XAxis,const TVector<T>& YAxis,const TVector<T>& ZAxis,const TVector<T>& Origin);
+};
+
+
+template<typename T>
+struct TLookFromMatrix : TMatrix<T>
+{
+	using TMatrix<T>::M;
+
+	/**
+	* Creates a view matrix given an eye position, a direction to look in, and an up vector.
+	* Direction or up vectors need not be normalized.
+	* This does the same thing as FLookAtMatrix, except without completely destroying precision when position is large,
+	* Always use this instead of e.g., FLookAtMatrix(Pos, Pos + Dir,...);
+	*/
+	TLookFromMatrix(const TVector<T>& EyePosition, const TVector<T>& LookDirection, const TVector<T>& UpVector);
+};
+
+
+template<typename T>
+struct TLookAtMatrix : TLookFromMatrix<T>
+{
+	using TLookFromMatrix<T>::M;
+
+	/** 
+	* Creates a view matrix given an eye position, a position to look at, and an up vector. 
+	* Equivalent of FLookFromMatrix(EyePosition, LookAtPosition - EyePosition, UpVector)
+	* The up vector need not be normalized.
+	* This does the same thing as D3DXMatrixLookAtLH.
+	*/
+	TLookAtMatrix(const TVector<T>& EyePosition, const TVector<T>& LookAtPosition, const TVector<T>& UpVector);
+};
+
+
 } // namespace UE::Core
 } // namespace UE
 
 UE_DECLARE_LWC_TYPE(Matrix, 44);
+UE_DECLARE_LWC_TYPE(BasisVectorMatrix, 44);
+UE_DECLARE_LWC_TYPE(LookFromMatrix, 44);
+UE_DECLARE_LWC_TYPE(LookAtMatrix, 44);
 
-template<> struct TIsPODType<FMatrix44f> { enum { Value = true }; };
-template<> struct TIsUECoreVariant<FMatrix44f> { enum { Value = true }; };
-template<> struct TIsPODType<FMatrix44d> { enum { Value = true }; };
-template<> struct TIsUECoreVariant<FMatrix44d> { enum { Value = true }; };
+#define UE_DECLARE_MATRIX_TYPE_TRAITS(TYPE)										\
+template<> struct TIsPODType<F##TYPE##44f> { enum { Value = true }; };			\
+template<> struct TIsUECoreVariant<F##TYPE##44f> { enum { Value = true }; };	\
+template<> struct TIsPODType<F##TYPE##44d> { enum { Value = true }; };			\
+template<> struct TIsUECoreVariant<F##TYPE##44d> { enum { Value = true }; };	\
+
+UE_DECLARE_MATRIX_TYPE_TRAITS(Matrix);
+UE_DECLARE_MATRIX_TYPE_TRAITS(BasisVectorMatrix);
+UE_DECLARE_MATRIX_TYPE_TRAITS(LookFromMatrix);
+UE_DECLARE_MATRIX_TYPE_TRAITS(LookAtMatrix);
+
+#undef UE_DECLARE_MATRIX_TYPE_TRAITS
 
 // Forward declare all explicit specializations (in UnrealMath.cpp)
-template<> CORE_API FRotator FMatrix44f::Rotator() const;
-template<> CORE_API FRotator FMatrix44d::Rotator() const;
 template<> CORE_API FQuat4f FMatrix44f::ToQuat() const;
 template<> CORE_API FQuat4d FMatrix44d::ToQuat() const;
-
-
-#if 0	// LWC_TODO: Is this in use?
-/**
- * A storage class for compile-time fixed size matrices.
- */
-template<uint32 NumRows,uint32 NumColumns>
-class TMatrix
-{
-public:
-
-	// Variables.
-	MS_ALIGN(16) float M[NumRows][NumColumns] GCC_ALIGN(16);
-
-	// Constructor
-	TMatrix();
-
-	/** 
-	 * Constructor 
-	 *
-	 * @param InMatrix FMatrix reference
-	 */
-	TMatrix(const FMatrix& InMatrix);
-};
-
-
-template<uint32 NumRows,uint32 NumColumns>
-FORCEINLINE TMatrix<NumRows,NumColumns>::TMatrix() { }
-
-
-template<uint32 NumRows,uint32 NumColumns>
-FORCEINLINE TMatrix<NumRows,NumColumns>::TMatrix(const FMatrix& InMatrix)
-{
-	for (uint32 RowIndex = 0; (RowIndex < NumRows) && (RowIndex < 4); RowIndex++)
-	{
-		for (uint32 ColumnIndex = 0; (ColumnIndex < NumColumns) && (ColumnIndex < 4); ColumnIndex++)
-		{
-			M[RowIndex][ColumnIndex] = InMatrix.M[RowIndex][ColumnIndex];
-		}
-	}
-}
-#endif
-
-
-struct FBasisVectorMatrix: FMatrix
-{
-	// Create Basis matrix from 3 axis vectors and the origin
-	FBasisVectorMatrix(const FVector& XAxis,const FVector& YAxis,const FVector& ZAxis,const FVector& Origin);
-};
-
-
-
-struct FLookFromMatrix : FMatrix
-{
-	/**
-	 * Creates a view matrix given an eye position, a direction to look in, and an up vector.
-	 * Direction or up vectors need not be normalized.
-	 * This does the same thing as FLookAtMatrix, except without completely destroying precision when position is large,
-	 * Always use this instead of e.g., FLookAtMatrix(Pos, Pos + Dir,...);
-	 */
-	FLookFromMatrix(const FVector& EyePosition, const FVector& LookDirection, const FVector& UpVector);
-};
-
-
-struct FLookAtMatrix : FLookFromMatrix
-{
-	/** 
-	 * Creates a view matrix given an eye position, a position to look at, and an up vector. 
-	 * Equivalent of FLookFromMatrix(EyePosition, LookAtPosition - EyePosition, UpVector)
-	 * The up vector need not be normalized.
-	 * This does the same thing as D3DXMatrixLookAtLH.
-	 */
-	FLookAtMatrix(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector);
-};
-
-
 
 
 // very high quality 4x4 matrix inverse

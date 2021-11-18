@@ -40,7 +40,7 @@ FLinearColor UBlueprintMaterialTextureNodesBPLibrary::Texture2D_SampleUV_EditorO
 	{
 		int NumMips = Texture->GetNumMips();
 		int Mip = 0;
-		FTexture2DMipMap* CurMip = &Texture->PlatformData->Mips[Mip];
+		FTexture2DMipMap* CurMip = &Texture->GetPlatformData()->Mips[Mip];
 		FByteBulkData* ImageData = &CurMip->BulkData;
 
 		int32 MipWidth = CurMip->SizeX;

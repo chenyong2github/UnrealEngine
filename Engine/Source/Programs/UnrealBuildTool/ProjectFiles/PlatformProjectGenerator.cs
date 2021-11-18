@@ -7,8 +7,6 @@ using System.Diagnostics;
 using System.IO;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -254,7 +252,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">Project file this will be related to</param>
 		/// <returns>Project file written out, Solution folder it should be put in</returns>
-		public virtual Tuple<ProjectFile, string> WriteAdditionalProjFile(ProjectFile ProjectFile)
+		public virtual Tuple<ProjectFile, string>? WriteAdditionalProjFile(ProjectFile ProjectFile)
 		{
 			return null;
 		}

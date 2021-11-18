@@ -8,28 +8,12 @@ using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
-	/// <summary>
-	/// Represents a folder within the master project (e.g. Visual Studio solution)
-	/// </summary>
-	class QMakefileFolder : MasterProjectFolder
-	{
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public QMakefileFolder(ProjectFileGenerator InitOwnerProjectFileGenerator, string InitFolderName)
-			: base(InitOwnerProjectFileGenerator, InitFolderName)
-		{
-		}
-	}
-
 	class QMakefileProjectFile : ProjectFile
 	{
-		public QMakefileProjectFile(FileReference InitFilePath)
-			: base(InitFilePath)
+		public QMakefileProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
+			: base(InitFilePath, BaseDir)
 		{
 		}
 	}
@@ -40,7 +24,7 @@ namespace UnrealBuildTool
 	class QMakefileGenerator : ProjectFileGenerator
 	{
 		/// Default constructor
-		public QMakefileGenerator(FileReference InOnlyGameProject)
+		public QMakefileGenerator(FileReference? InOnlyGameProject)
 			: base(InOnlyGameProject)
 		{
 		}
@@ -54,7 +38,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override bool WriteMasterProjectFile(ProjectFile UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			bool bSuccess = true;
 			return bSuccess;
@@ -133,7 +117,7 @@ namespace UnrealBuildTool
 			foreach (ProjectFile CurProject in GeneratedProjectFiles)
 			{
 
-				QMakefileProjectFile QMakeProject = CurProject as QMakefileProjectFile;
+				QMakefileProjectFile? QMakeProject = CurProject as QMakefileProjectFile;
 				if (QMakeProject == null)
 				{
 					Log.TraceInformation("QMakeProject == null");
@@ -142,12 +126,12 @@ namespace UnrealBuildTool
 
 				foreach (string CurPath in QMakeProject.IntelliSenseIncludeSearchPaths)
 				{
-					AddIncludeDirectory(ref IncludeDirectories, CurPath, Path.GetDirectoryName(QMakeProject.ProjectFilePath.FullName));
+					AddIncludeDirectory(ref IncludeDirectories, CurPath, Path.GetDirectoryName(QMakeProject.ProjectFilePath.FullName)!);
 					// System.Console.WriteLine ("Not empty now? CurPath == ", CurPath);
 				}
 				foreach (string CurPath in QMakeProject.IntelliSenseSystemIncludeSearchPaths)
 				{
-					AddIncludeDirectory(ref SystemIncludeDirectories, CurPath, Path.GetDirectoryName(QMakeProject.ProjectFilePath.FullName));
+					AddIncludeDirectory(ref SystemIncludeDirectories, CurPath, Path.GetDirectoryName(QMakeProject.ProjectFilePath.FullName)!);
 				}
 
 			}
@@ -162,7 +146,7 @@ namespace UnrealBuildTool
 			QMakeDefinesPriFileContent.Append("DEFINES += \\\n");
 			foreach (ProjectFile CurProject in GeneratedProjectFiles)
 			{
-				QMakefileProjectFile QMakeProject = CurProject as QMakefileProjectFile;
+				QMakefileProjectFile? QMakeProject = CurProject as QMakefileProjectFile;
 				if (QMakeProject == null)
 				{
 					Log.TraceInformation("QMakeProject == null");
@@ -223,7 +207,7 @@ namespace UnrealBuildTool
 
 			if (!String.IsNullOrEmpty(GameProjectName))
 			{
-				GameProjectPath = OnlyGameProject.Directory.FullName;
+				GameProjectPath = OnlyGameProject!.Directory.FullName;
 				GameProjectFile = OnlyGameProject.FullName;
 				QMakeGameProjectFile = "gameProjectFile=" + GameProjectFile + "\n";
 				BuildCommand = "build=bash $$unrealRootPath/Engine/Build/BatchFiles/Linux/RunMono.sh $$unrealRootPath/Engine/Binaries/DotNET/UnrealBuildTool.exe\n\n";
@@ -369,7 +353,7 @@ namespace UnrealBuildTool
 
 			foreach (ProjectFile Project in GeneratedProjectFiles)
 			{
-				foreach (ProjectTarget TargetFile in Project.ProjectTargets)
+				foreach (ProjectTarget TargetFile in Project.ProjectTargets.OfType<ProjectTarget>())
 				{
 					if (TargetFile.TargetFilePath == null)
 					{
@@ -378,7 +362,7 @@ namespace UnrealBuildTool
 
 					string TargetName = TargetFile.TargetFilePath.GetFileNameWithoutAnyExtensions();		// Remove both ".cs" and ".
 
-					foreach (UnrealTargetConfiguration CurConfiguration in Enum.GetValues(typeof(UnrealTargetConfiguration)))
+					foreach (UnrealTargetConfiguration CurConfiguration in (UnrealTargetConfiguration[]) Enum.GetValues(typeof(UnrealTargetConfiguration)))
 					{
 						if (CurConfiguration != UnrealTargetConfiguration.Unknown && CurConfiguration != UnrealTargetConfiguration.Development)
 						{
@@ -389,7 +373,7 @@ namespace UnrealBuildTool
 								{
 									QMakeProjectCmdArg = " -project=\"\\\"$$gameProjectFile\\\"\"";
 								}
-								string ConfName = Enum.GetName(typeof(UnrealTargetConfiguration), CurConfiguration);
+								string ConfName = Enum.GetName(typeof(UnrealTargetConfiguration), CurConfiguration)!;
 								QMakeFileContent.Append(String.Format("{0}-Linux-{1}.commands = $$build {0} Linux {1} {2} $$args\n", TargetName, ConfName, QMakeProjectCmdArg));
 								QMakeTargetList += "\t" + TargetName + "-Linux-" + ConfName + " \\\n"; // , TargetName, ConfName);
 							}
@@ -434,20 +418,15 @@ namespace UnrealBuildTool
 		}
 
 		/// ProjectFileGenerator interface
-		public override MasterProjectFolder AllocateMasterProjectFolder(ProjectFileGenerator InitOwnerProjectFileGenerator, string InitFolderName)
-		{
-			return new QMakefileFolder(InitOwnerProjectFileGenerator, InitFolderName);
-		}
-
-		/// ProjectFileGenerator interface
 		/// <summary>
 		/// Allocates a generator-specific project file object
 		/// </summary>
 		/// <param name="InitFilePath">Path to the project file</param>
+		/// <param name="BaseDir">The base directory for files within this project</param>
 		/// <returns>The newly allocated project file object</returns>
-		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath)
+		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 		{
-			return new QMakefileProjectFile(InitFilePath);
+			return new QMakefileProjectFile(InitFilePath, BaseDir);
 		}
 
 		/// ProjectFileGenerator interface

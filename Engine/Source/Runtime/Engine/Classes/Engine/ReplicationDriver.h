@@ -70,7 +70,7 @@ public:
 	/** Called after World and NetDriver have been set. This is where RepDriver should possibly look at existing actors in the world */
 	virtual void InitializeActorsInWorld(UWorld* InWorld) PURE_VIRTUAL(UReplicationDriver::InitializeActorsInWorld, );
 
-	virtual void TearDown() { MarkPendingKill(); }
+	virtual void TearDown() { MarkAsGarbage(); }
 
 	virtual void ResetGameWorldState() PURE_VIRTUAL(UReplicationDriver::ResetGameWorldState, );
 
@@ -133,5 +133,5 @@ public:
 
 	virtual void NotifyClientVisibleLevelNamesRemove(FName LevelName) PURE_VIRTUAL(UReplicationConnectionDriver::NotifyClientVisibleLevelNamesRemove, );
 
-	virtual void TearDown() { MarkPendingKill(); }
+	virtual void TearDown() { MarkAsGarbage(); }
 };

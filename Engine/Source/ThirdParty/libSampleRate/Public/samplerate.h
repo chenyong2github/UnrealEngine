@@ -19,6 +19,8 @@
 	#define SRC_EXPORT __attribute__((visibility("default")))
 	#elif PLATFORM_LINUX
 	#define SRC_EXPORT __attribute__((visibility("default")))
+	#elif PLATFORM_CONSOLE_DYNAMIC_LINK
+	#define SRC_EXPORT __declspec(dllexport)
 	#else
 	#define SRC_EXPORT
 	#endif

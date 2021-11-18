@@ -11,8 +11,6 @@ using System.Xml.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -29,7 +27,7 @@ namespace UnrealBuildTool
 		/// <param name="SigningCertificate"></param>
 		/// <param name="TeamUUID"></param>
 		/// <param name="bAutomaticSigning"></param>
-		public static void GetProvisioningData(FileReference InProject, bool Distribution, out string MobileProvision, out string SigningCertificate, out string TeamUUID, out bool bAutomaticSigning)
+		public static void GetProvisioningData(FileReference InProject, bool Distribution, out string? MobileProvision, out string? SigningCertificate, out string? TeamUUID, out bool bAutomaticSigning)
 		{
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS)).ReadProjectSettings(InProject);
 			if (ProjectSettings == null)
@@ -190,7 +188,7 @@ namespace UnrealBuildTool
 		/// <param name="bForDistribution"></param>
 		/// <param name="IntermediateDir"></param>
 		public static void WriteEntitlements(UnrealTargetPlatform Platform, ConfigHierarchy PlatformGameConfig,
-		string AppName, FileReference MobileProvisionFile, bool bForDistribution, string IntermediateDir)
+		string AppName, FileReference? MobileProvisionFile, bool bForDistribution, string IntermediateDir)
 		{
 			// get some info from the mobileprovisioning file
 			// the iCloud identifier and the bundle id may differ

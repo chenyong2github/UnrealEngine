@@ -413,7 +413,7 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneOb
 		};
 
 		return SNew(SObjectPropertyEntryBox)
-		.DisplayBrowse(false)
+		.DisplayBrowse(true)
 		.DisplayUseSelected(false)
 		.ObjectPath_Lambda(GetObjectPathLambda)
 		.AllowedClass(RawChannel->GetPropertyClass())

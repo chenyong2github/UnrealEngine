@@ -60,7 +60,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && (!bUsingVertexLayers || RHISupportsVertexShaderLayer(Parameters.Platform));
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && (!bUsingVertexLayers || (!RHISupportsGeometryShaders(Parameters.Platform) && RHISupportsVertexShaderLayer(Parameters.Platform)));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -117,13 +117,6 @@ static TAutoConsoleVariable<int32> CVarNaniteShadowsUpdateStreaming(
 	TEXT("r.Shadow.NaniteUpdateStreaming"),
 	1,
 	TEXT("Produce Nanite geometry streaming requests from shadow map rendering."),
-	ECVF_RenderThreadSafe);
-
-int32 GShadowUseGS = 1;
-static FAutoConsoleVariableRef CVarShadowShadowUseGS(
-	TEXT("r.Shadow.UseGS"),
-	GShadowUseGS,
-	TEXT("Use geometry shaders to render cube map shadows."),
 	ECVF_RenderThreadSafe);
 
 extern int32 GNaniteShowStats;
@@ -330,6 +323,25 @@ public:
 			(!IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || !UseGPUScene(Platform) || GEnableNonNaniteVSM == 0 || bIsForGeometryShader))
 		{
 			return false;
+		}
+
+		// VSLayer and OnePassPointLight are mutually exclusive (see GetShadowDepthPassShaders())
+		if (ShaderMode == VertexShadowDepth_OnePassPointLight || ShaderMode == VertexShadowDepth_VSLayer)
+		{
+			if (RHISupportsVertexShaderLayer(Platform))
+			{
+				if (ShaderMode == VertexShadowDepth_OnePassPointLight)
+				{
+					return false;
+				}
+			}
+			else
+			{
+				if (ShaderMode == VertexShadowDepth_VSLayer)
+				{
+					return false;
+				}
+			}
 		}
 
 		//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
@@ -622,7 +634,7 @@ bool GetShadowDepthPassShaders(
 	// Vertex related shaders
 	if (bOnePassPointLightShadow)
 	{
-		if (GShadowUseGS)
+		if (!RHISupportsVertexShaderLayer(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
 			if (bPositionOnlyVS)
 			{
@@ -1679,7 +1691,9 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 		}
 
 		// Make readable because AtlasDepthTexture is not tracked via RDG yet
-		ShadowMapAtlas.RenderTargets.DepthTarget = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, AtlasDepthTexture);
+		// On mobile CSM atlas sampled only in pixel shaders
+		ERHIAccess AtlasDepthTextureAccessFinal = (FeatureLevel == ERHIFeatureLevel::ES3_1 ? ERHIAccess::SRVGraphics : ERHIAccess::SRVMask);
+		ShadowMapAtlas.RenderTargets.DepthTarget = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, AtlasDepthTexture, AtlasDepthTextureAccessFinal);
 	}
 
 	ResourceAccessFinalizer.Finalize(GraphBuilder);
@@ -2268,7 +2282,7 @@ bool FShadowDepthPassMeshProcessor::Process(
 
 	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(ShadowDepthPassShaders.VertexShader, ShadowDepthPassShaders.PixelShader);
 
-	const bool bUseGeometryShader = GShadowUseGS && RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]);
+	const bool bUseGeometryShader = !RHISupportsVertexShaderLayer(GShaderPlatformForFeatureLevel[FeatureLevel]) && RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]);
 
 	const bool bUseGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) 
 		&& VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, bUsePositionOnlyVS ? EVertexInputStreamType::PositionAndNormalOnly : EVertexInputStreamType::Default) != INDEX_NONE;

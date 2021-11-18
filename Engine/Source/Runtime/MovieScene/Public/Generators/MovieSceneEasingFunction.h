@@ -24,6 +24,10 @@ public:
 	 */
 	static float EvaluateWith(const TScriptInterface<IMovieSceneEasingFunction>& ScriptInterface, float Time);
 
+#if WITH_EDITOR
+	virtual FText GetDisplayName() const { return FText::GetEmpty(); }
+#endif
+
 protected:
 
 	/** Evaluate the easing with an interpolation value between 0 and 1 */

@@ -356,7 +356,7 @@ public:
 
 	FORCEINLINE static bool IsBoundObjectGarbage(UObject* InObject)
 	{
-		return InObject == nullptr || InObject->IsPendingKillOrUnreachable();
+		return InObject == nullptr || !IsValidChecked(InObject) || InObject->IsUnreachable();
 	}
 
 private:

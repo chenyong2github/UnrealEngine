@@ -2315,7 +2315,7 @@ FString SContentBrowser::GetCurrentPath(const EContentBrowserPathType PathType) 
 	return CurrentPath;
 }
 
-void SContentBrowser::AppendNewMenuContextObjects(const EContentBrowserDataMenuContext_AddNewMenuDomain InDomain, const TArray<FName>& InSelectedPaths, FToolMenuContext& InOutMenuContext, UContentBrowserToolbarMenuContext* CommonContext)
+void SContentBrowser::AppendNewMenuContextObjects(const EContentBrowserDataMenuContext_AddNewMenuDomain InDomain, const TArray<FName>& InSelectedPaths, FToolMenuContext& InOutMenuContext, UContentBrowserToolbarMenuContext* CommonContext, bool bCanBeModified)
 {
 	if (!UToolMenus::Get()->IsMenuRegistered("ContentBrowser.AddNewContextMenu"))
 	{
@@ -2356,10 +2356,27 @@ void SContentBrowser::AppendNewMenuContextObjects(const EContentBrowserDataMenuC
 	}
 
 	{
+		bool bContainsValidPackagePath = false;
+		for (const FName SelectedPath : InSelectedPaths)
+		{
+			FString ConvertedPath;
+			if (IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(FNameBuilder(SelectedPath), ConvertedPath) == EContentBrowserPathType::Internal)
+			{
+				if (FPackageName::IsValidPath(ConvertedPath))
+				{
+					bContainsValidPackagePath = true;
+					break;
+				}
+			}
+		}
+
 		UContentBrowserDataMenuContext_AddNewMenu* DataContextObject = NewObject<UContentBrowserDataMenuContext_AddNewMenu>();
 		DataContextObject->SelectedPaths = InSelectedPaths;
 		DataContextObject->OwnerDomain = InDomain;
 		DataContextObject->OnBeginItemCreation = UContentBrowserDataMenuContext_AddNewMenu::FOnBeginItemCreation::CreateSP(this, &SContentBrowser::NewFileItemRequested);
+		DataContextObject->bCanBeModified = bCanBeModified;
+		DataContextObject->bContainsValidPackagePath = bContainsValidPackagePath;
+
 		InOutMenuContext.AddObject(DataContextObject);
 	}
 }
@@ -2367,6 +2384,8 @@ void SContentBrowser::AppendNewMenuContextObjects(const EContentBrowserDataMenuC
 TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(const EContentBrowserDataMenuContext_AddNewMenuDomain InDomain, UContentBrowserToolbarMenuContext* CommonContext)
 {
 	const FSourcesData& SourcesData = AssetViewPtr->GetSourcesData();
+
+	bool bCanBeModified = false;
 
 	// Get all menu extenders for this context menu from the content browser module
 	TSharedPtr<FExtender> MenuExtender;
@@ -2397,6 +2416,9 @@ TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(const EContentBrowser
 
 		if (SelectedPackagePaths.Num() > 0)
 		{
+			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+			bCanBeModified = AssetToolsModule.Get().AllPassWritableFolderFilter(SelectedPackagePaths);
+
 			TArray<TSharedPtr<FExtender>> Extenders;
 			for (int32 i = 0; i < MenuExtenderDelegates.Num(); ++i)
 			{
@@ -2410,23 +2432,9 @@ TSharedRef<SWidget> SContentBrowser::MakeAddNewContextMenu(const EContentBrowser
 	}
 
 	FToolMenuContext ToolMenuContext(nullptr, MenuExtender, nullptr);
-	AppendNewMenuContextObjects(InDomain, SourcesData.VirtualPaths, ToolMenuContext, CommonContext);
+	AppendNewMenuContextObjects(InDomain, SourcesData.VirtualPaths, ToolMenuContext, CommonContext, bCanBeModified);
 
-	FDisplayMetrics DisplayMetrics;
-	FSlateApplication::Get().GetCachedDisplayMetrics( DisplayMetrics );
-
-	const FVector2D DisplaySize(
-		DisplayMetrics.PrimaryDisplayWorkAreaRect.Right - DisplayMetrics.PrimaryDisplayWorkAreaRect.Left,
-		DisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - DisplayMetrics.PrimaryDisplayWorkAreaRect.Top );
-
-	return 
-		SNew(SVerticalBox)
-
-		+SVerticalBox::Slot()
-		.MaxHeight(DisplaySize.Y * 0.9)
-		[
-			UToolMenus::Get()->GenerateWidget("ContentBrowser.AddNewContextMenu", ToolMenuContext)
-		];
+	return UToolMenus::Get()->GenerateWidget("ContentBrowser.AddNewContextMenu", ToolMenuContext);
 }
 
 void SContentBrowser::PopulateAddNewContextMenu(class UToolMenu* Menu)
@@ -3703,7 +3711,7 @@ TSharedPtr<SWidget> SContentBrowser::GetItemContextMenu(TArrayView<const FConten
 			{
 				SelectedVirtualPaths.Add(SelectedFolder.GetVirtualPath());
 			}
-			AppendNewMenuContextObjects(EContentBrowserDataMenuContext_AddNewMenuDomain::PathView, SelectedVirtualPaths, MenuContext, nullptr);
+			AppendNewMenuContextObjects(EContentBrowserDataMenuContext_AddNewMenuDomain::PathView, SelectedVirtualPaths, MenuContext, nullptr, Context->bCanBeModified);
 		}
 
 		return UToolMenus::Get()->GenerateWidget("ContentBrowser.FolderContextMenu", MenuContext);

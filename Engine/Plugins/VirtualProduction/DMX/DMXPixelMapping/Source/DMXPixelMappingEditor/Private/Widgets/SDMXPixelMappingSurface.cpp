@@ -176,36 +176,28 @@ void SDMXPixelMappingSurface::Construct(const FArguments& InArgs, const TSharedP
 
 EActiveTimerReturnType SDMXPixelMappingSurface::HandleZoomToFit( double InCurrentTime, float InDeltaTime )
 {
-	const FVector2D DesiredViewCenter = ( ZoomTargetTopLeft + ZoomTargetBottomRight ) * 0.5f;
+	const FVector2D DesiredViewCenter = (ZoomTargetTopLeft + ZoomTargetBottomRight) * 0.5f;
 	const bool bDoneScrolling = ScrollToLocation(GetCachedGeometry(), DesiredViewCenter, bTeleportInsteadOfScrollingWhenZoomingToFit ? 1000.0f : InDeltaTime);
 	const bool bDoneZooming = ZoomToLocation(GetCachedGeometry().GetLocalSize(), ZoomTargetBottomRight - ZoomTargetTopLeft, bDoneScrolling);
 
 	if (bDoneZooming && bDoneScrolling)
 	{
 		// One final push to make sure we're centered in the end
-		ViewOffset = DesiredViewCenter - ( 0.5f * GetCachedGeometry().GetLocalSize() / GetZoomAmount() );
+		ViewOffset = DesiredViewCenter - (0.5f * GetCachedGeometry().GetLocalSize() / GetZoomAmount());
 
 		ZoomTargetTopLeft = FVector2D::ZeroVector;
 		ZoomTargetBottomRight = FVector2D::ZeroVector;
 
 		return EActiveTimerReturnType::Stop;
 	}
-	
+
 	return EActiveTimerReturnType::Continue;
 }
 
 void SDMXPixelMappingSurface::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
-	// Zoom to extents
 	if ( bDeferredZoomToExtents )
 	{
-		const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
-		check(Toolkit.IsValid());
-		if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
-		{
-			RendererComponent->RendererInputTexture();
-		}
-
 		const FSlateRect Bounds = ComputeAreaBounds();
 		bDeferredZoomToExtents = false;
 		ZoomTargetTopLeft = FVector2D(Bounds.Left, Bounds.Top);
@@ -492,9 +484,9 @@ bool SDMXPixelMappingSurface::ZoomToLocation(const FVector2D& CurrentSizeWithout
 	const int32 DefaultZoomLevel = ZoomLevels->GetDefaultZoomLevel();
 	const int32 NumZoomLevels = ZoomLevels->GetNumZoomLevels();
 	int32 DesiredZoom = DefaultZoomLevel;
-
+	
 	// Find lowest zoom level that will display all nodes
-	for ( int32 Zoom = 0; Zoom < DefaultZoomLevel; ++Zoom )
+	for ( int32 Zoom = 0; Zoom < NumZoomLevels; ++Zoom )
 	{
 		const FVector2D SizeWithZoom = (CurrentSizeWithoutZoom - ZoomToFitPadding) / ZoomLevels->GetZoomAmount(Zoom);
 		const FVector2D LeftOverSize = SizeWithZoom - InDesiredSize;
@@ -561,7 +553,9 @@ FSlateColor SDMXPixelMappingSurface::GetZoomTextColorAndOpacity() const
 
 FSlateRect SDMXPixelMappingSurface::ComputeAreaBounds() const
 {
-	return FSlateRect(0, 0, 0, 0);
+	FSlateRect Bounds = FSlateRect(0.f, 0.f, 0.f, 0.f);
+
+	return Bounds;
 }
 
 FVector2D SDMXPixelMappingSurface::GetViewOffset() const

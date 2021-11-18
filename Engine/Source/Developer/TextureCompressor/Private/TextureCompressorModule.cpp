@@ -318,7 +318,7 @@ static FVector4 ComputeAlphaCoverage(const FVector4& Thresholds, const FVector4&
 {
 	FVector4 Coverage(0, 0, 0, 0);
 
-	int32 NumJobs = FTaskGraphInterface::Get().GetNumWorkerThreads();
+	int32 NumJobs = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
 	int32 NumRowsEachJob = SourceImageData.SizeY / NumJobs;
 	if (NumRowsEachJob * NumJobs < SourceImageData.SizeY)
 	{
@@ -1606,7 +1606,7 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 		const int32 NumPixels = Image.SizeX * Image.SizeY * Image.NumSlices;
 		TArrayView64<FLinearColor> ImageColors = Image.AsRGBA32F();
 
-		int32 NumJobs = FTaskGraphInterface::Get().GetNumWorkerThreads();
+		int32 NumJobs = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
 		int32 NumPixelsEachJob = NumPixels / NumJobs;
 		if (NumPixelsEachJob * NumJobs < NumPixels)
 		{
@@ -1988,7 +1988,7 @@ public:
 	/**
 	 * Initializes the data and creates the async compression task.
 	 */
-	FAsyncCompressionWorker(const ITextureFormat* InTextureFormat, const FImage* InImages, uint32 InNumImages, const FTextureBuildSettings& InBuildSettings, bool bInImageHasAlphaChannel, uint32 InExtData)
+	FAsyncCompressionWorker(const ITextureFormat* InTextureFormat, const FImage* InImages, uint32 InNumImages, const FTextureBuildSettings& InBuildSettings, FStringView InDebugTexturePathName, bool bInImageHasAlphaChannel, uint32 InExtData)
 		: TextureFormat(*InTextureFormat)
 		, SourceImages(InImages)
 		, BuildSettings(InBuildSettings)
@@ -1996,6 +1996,7 @@ public:
 		, ExtData(InExtData)
 		, NumImages(InNumImages)
 		, bCompressionResults(false)
+		, DebugTexturePathName(InDebugTexturePathName)
 	{
 	}
 
@@ -2010,6 +2011,7 @@ public:
 			SourceImages,
 			NumImages,
 			BuildSettings,
+			DebugTexturePathName,
 			bImageHasAlphaChannel,
 			ExtData,
 			CompressedImage
@@ -2044,6 +2046,7 @@ private:
 	uint32 NumImages;
 	/** true if compression was successful. */
 	bool bCompressionResults;
+	FStringView DebugTexturePathName;
 };
 
 // compress mip-maps in InMipChain and add mips to Texture, might alter the source content
@@ -2051,6 +2054,7 @@ static bool CompressMipChain(
 	const ITextureFormat* TextureFormat,
 	const TArray<FImage>& MipChain,
 	const FTextureBuildSettings& Settings,
+	FStringView DebugTexturePathName,
 	TArray<FCompressedImage2D>& OutMips,
 	uint32& OutNumMipsInTail,
 	uint32& OutExtData)
@@ -2109,6 +2113,7 @@ static bool CompressMipChain(
 				&SrcMip,
 				MipIndex == FirstMipTailIndex ? CompressorCaps.NumMipsInTail : 1, // number of mips pointed to by SrcMip
 				Settings,
+				DebugTexturePathName,
 				bImageHasAlphaChannel,
 				CompressorCaps.ExtData
 			);
@@ -2123,7 +2128,7 @@ static bool CompressMipChain(
 	{
 		AsyncCompressionTasks[TaskIndex].DoWork();
 	},
-	[&PreWorkTasks, &TextureFormat, &OutMips, &bCompressionSucceeded, &CompressorCaps, &Settings, FirstMipTailIndex, bImageHasAlphaChannel]()
+	[&PreWorkTasks, &TextureFormat, &OutMips, &bCompressionSucceeded, &CompressorCaps, &Settings, DebugTexturePathName, FirstMipTailIndex, bImageHasAlphaChannel]()
 	{
 		for (PreWork& Work : PreWorkTasks)
 		{
@@ -2131,6 +2136,7 @@ static bool CompressMipChain(
 				&Work.SrcMip,
 				Work.MipIndex == FirstMipTailIndex ? CompressorCaps.NumMipsInTail : 1, // number of mips pointed to by SrcMip
 				Settings,
+				DebugTexturePathName,
 				bImageHasAlphaChannel,
 				CompressorCaps.ExtData,
 				Work.DestMip
@@ -2223,6 +2229,7 @@ public:
 		const TArray<FImage>& SourceMips,
 		const TArray<FImage>& AssociatedNormalSourceMips,
 		const FTextureBuildSettings& BuildSettings,
+		FStringView DebugTexturePathName,
 		TArray<FCompressedImage2D>& OutTextureMips,
 		uint32& OutNumMipsInTail,
 		uint32& OutExtData
@@ -2303,7 +2310,7 @@ public:
 			BuildSettings.ArraySlices = 1;
 		}
 		
-		return CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, OutTextureMips, OutNumMipsInTail, OutExtData);
+		return CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, DebugTexturePathName, OutTextureMips, OutNumMipsInTail, OutExtData);
 	}
 
 	// IModuleInterface implementation.

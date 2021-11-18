@@ -31,9 +31,9 @@ DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionConversionLogging, Log, All);
 
 struct FUniqueVertex
 {
-	FVector Normal;
-	FVector Tangent;
-	TArray<FVector2D> UVs;
+	FVector3f Normal;
+	FVector3f Tangent;
+	TArray<FVector2f> UVs;
 
 	bool operator==(const FUniqueVertex& Other) const
 	{
@@ -102,9 +102,9 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		TArrayView<const FVector3f> SourceNormal = Attributes.GetVertexInstanceNormals().GetRawArray();
 		TArrayView<const FVector4f> SourceColor = Attributes.GetVertexInstanceColors().GetRawArray();
 
-		TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesConstRef<FVector2f> InstanceUVs = Attributes.GetVertexInstanceUVs();
 		const int32 NumUVLayers = InstanceUVs.GetNumChannels();
-		TArray<TArrayView<const FVector2D>> SourceUVArrays;
+		TArray<TArrayView<const FVector2f>> SourceUVArrays;
 		SourceUVArrays.SetNum(NumUVLayers);
 		for (int32 UVLayerIdx = 0; UVLayerIdx < NumUVLayers; ++UVLayerIdx)
 		{
@@ -116,7 +116,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		TManagedArray<FVector3f>& TargetTangentU = GeometryCollection->TangentU;
 		TManagedArray<FVector3f>& TargetTangentV = GeometryCollection->TangentV;
 		TManagedArray<FVector3f>& TargetNormal = GeometryCollection->Normal;
-		TManagedArray<TArray<FVector2D>>& TargetUVs = GeometryCollection->UVs;
+		TManagedArray<TArray<FVector2f>>& TargetUVs = GeometryCollection->UVs;
 		TManagedArray<FLinearColor>& TargetColor = GeometryCollection->Color;
 		TManagedArray<int32>& TargetBoneMap = GeometryCollection->BoneMap;
 		TManagedArray<FLinearColor>& TargetBoneColor = GeometryCollection->BoneColor;
@@ -140,7 +140,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 			TMap<FUniqueVertex, TArray<FVertexInstanceID>> SplitVertices;
 			for (const FVertexInstanceID& InstanceID : ReferencingVertexInstances)
 			{
-				TArray<FVector2D> SourceUVs;
+				TArray<FVector2f> SourceUVs;
 				SourceUVs.SetNum(NumUVLayers);
 				for (int32 UVLayerIdx = 0; UVLayerIdx < NumUVLayers; ++UVLayerIdx)
 				{
@@ -370,7 +370,7 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 	const TManagedArray<FVector3f>& SourceTangentU = SourceGeometryCollectionPtr->TangentU;
 	const TManagedArray<FVector3f>& SourceTangentV = SourceGeometryCollectionPtr->TangentV;
 	const TManagedArray<FVector3f>& SourceNormal = SourceGeometryCollectionPtr->Normal;
-	const TManagedArray<TArray<FVector2D>>& SourceUVs = SourceGeometryCollectionPtr->UVs;
+	const TManagedArray<TArray<FVector2f>>& SourceUVs = SourceGeometryCollectionPtr->UVs;
 	const TManagedArray<FLinearColor>& SourceColor = SourceGeometryCollectionPtr->Color;
 	const TManagedArray<int32>& SourceBoneMap = SourceGeometryCollectionPtr->BoneMap;
 
@@ -379,7 +379,7 @@ void FGeometryCollectionConversion::AppendGeometryCollection(const UGeometryColl
 	TManagedArray<FVector3f>& TargetTangentU = GeometryCollection->TangentU;
 	TManagedArray<FVector3f>& TargetTangentV = GeometryCollection->TangentV;
 	TManagedArray<FVector3f>& TargetNormal = GeometryCollection->Normal;
-	TManagedArray<TArray<FVector2D>>& TargetUVs = GeometryCollection->UVs;
+	TManagedArray<TArray<FVector2f>>& TargetUVs = GeometryCollection->UVs;
 	TManagedArray<FLinearColor>& TargetColor = GeometryCollection->Color;
 	TManagedArray<int32>& TargetBoneMap = GeometryCollection->BoneMap;
 
@@ -716,7 +716,7 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 						TManagedArray<FVector3f>& TangentU = GeometryCollection->TangentU;
 						TManagedArray<FVector3f>& TangentV = GeometryCollection->TangentV;
 						TManagedArray<FVector3f>& Normal = GeometryCollection->Normal;
-						TManagedArray<TArray<FVector2D>>& UVs = GeometryCollection->UVs;
+						TManagedArray<TArray<FVector2f>>& UVs = GeometryCollection->UVs;
 						TManagedArray<FLinearColor>& Color = GeometryCollection->Color;
 						TManagedArray<int32>& BoneMap = GeometryCollection->BoneMap;
 						TManagedArray<FLinearColor>& BoneColor = GeometryCollection->BoneColor;
@@ -739,7 +739,7 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 							if (SkeletalBoneIndex > -1)
 							{
 								BoneMap[VertexOffset] = SkeletalBoneIndex + TransformBaseIndex;
-								Vertex[VertexOffset] = Transform[BoneMap[VertexOffset]].ToInverseMatrixWithScale().TransformPosition(PositionVertexBuffer.VertexPosition(VertexIndex));
+								Vertex[VertexOffset] = (FVector4f)Transform[BoneMap[VertexOffset]].ToInverseMatrixWithScale().TransformPosition(PositionVertexBuffer.VertexPosition(VertexIndex));
 							}
 							check(BoneMap[VertexOffset] != -1);
 							TangentU[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIndex);

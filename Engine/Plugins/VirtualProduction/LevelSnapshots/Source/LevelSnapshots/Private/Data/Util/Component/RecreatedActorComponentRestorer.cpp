@@ -2,6 +2,7 @@
 
 #include "SnapshotComponentUtil.h"
 #include "BaseComponentRestorer.h"
+#include "SnapshotDataCache.h"
 
 #include "Data/ActorSnapshotData.h"
 #include "Data/WorldSnapshotData.h"
@@ -9,15 +10,17 @@
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 
-namespace LevelSnapshots
+namespace UE::LevelSnapshots::Private::Internal
 {
 	/** Recreates components on actors that were recreated in the editor world. */
 	class FRecreatedActorComponentRestorer final : public TBaseComponentRestorer<FRecreatedActorComponentRestorer>
 	{
+		FSnapshotDataCache& Cache;
 	public:
 
-		FRecreatedActorComponentRestorer(AActor* RecreatedEditorActor, const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData)
-		: TBaseComponentRestorer<FRecreatedActorComponentRestorer>(RecreatedEditorActor, SnapshotData, WorldData)
+		FRecreatedActorComponentRestorer(AActor* RecreatedEditorActor, const FSoftObjectPath& OriginalActorPath, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache)
+			: TBaseComponentRestorer<FRecreatedActorComponentRestorer>(RecreatedEditorActor, OriginalActorPath, WorldData)
+			, Cache(Cache)
 		{}
 		
 		//~ Begin TBaseComponentRestorer Interface
@@ -26,7 +29,8 @@ namespace LevelSnapshots
 		
 		void PostCreateComponent(FSubobjectSnapshotData& SubobjectData, UActorComponent* RecreatedComponent) const
 		{
-			SubobjectData.EditorObject = RecreatedComponent;
+			FSubobjectSnapshotCache& SubobjectCache = Cache.SubobjectCache.FindOrAdd(GetOriginalActorPath());
+			SubobjectCache.EditorObject = RecreatedComponent;
 			RecreatedComponent->RegisterComponent();
 		}
 		
@@ -39,9 +43,9 @@ namespace LevelSnapshots
 	
 }
 
-void SnapshotUtil::Component::AllocateMissingComponentsForRecreatedActor(AActor* RecreatedEditorActor, const FActorSnapshotData& SnapshotData, FWorldSnapshotData& WorldData)
+void UE::LevelSnapshots::Private::AllocateMissingComponentsForRecreatedActor(AActor* RecreatedEditorActor, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache)
 {
-	LevelSnapshots::FRecreatedActorComponentRestorer Restorer(RecreatedEditorActor, SnapshotData, WorldData);
+	Internal::FRecreatedActorComponentRestorer Restorer(RecreatedEditorActor, RecreatedEditorActor, WorldData, Cache);
 	Restorer.RecreateSavedComponents();
 }
 

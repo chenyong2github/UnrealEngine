@@ -143,6 +143,9 @@ void FContextSwitchesSharedState::OnBeginSession(Insights::ITimingViewSession& I
 		}
 	}
 
+	CpuCoreTimingTracks.Reset();
+	ContextSwitchesTimingTracks.Reset();
+
 	ThreadsSerial = 0;
 	CpuCoresSerial = 0;
 
@@ -152,6 +155,8 @@ void FContextSwitchesSharedState::OnBeginSession(Insights::ITimingViewSession& I
 	bAreExtendedLinesVisible = true;
 
 	bSyncWithProviders = true;
+
+	TargetTimingEvent = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -163,6 +168,9 @@ void FContextSwitchesSharedState::OnEndSession(Insights::ITimingViewSession& InS
 		return;
 	}
 
+	CpuCoreTimingTracks.Reset();
+	ContextSwitchesTimingTracks.Reset();
+
 	ThreadsSerial = 0;
 	CpuCoresSerial = 0;
 
@@ -172,6 +180,9 @@ void FContextSwitchesSharedState::OnEndSession(Insights::ITimingViewSession& InS
 	bAreExtendedLinesVisible = true;
 
 	bSyncWithProviders = false;
+
+	TargetTimingEvent = nullptr;
+
 	TimingView = nullptr;
 }
 

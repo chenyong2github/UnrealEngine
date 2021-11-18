@@ -601,8 +601,8 @@ void FWidget::DrawColoredSphere(FPrimitiveDrawInterface* PDI, const FVector& Cen
 		// Then rotate this arc NumSides+1 times.
 		for (int32 s = 0; s < NumSides + 1; s++)
 		{
-			FRotator ArcRotator(0, 360.f * (float)s / NumSides, 0);
-			FRotationMatrix ArcRot(ArcRotator);
+			FRotator3f ArcRotator(0, 360.f * (float)s / NumSides, 0);
+			FRotationMatrix44f ArcRot(ArcRotator);
 			float XTexCoord = ((float)s / NumSides);
 
 			for (int32 v = 0; v < NumRings + 1; v++)

@@ -37,6 +37,10 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	// Release references (will unload actors that were not already loaded in the Editor)
 	AlwaysLoadedActorsForPIE.Empty();
 
+	for (FActorDescList::TIterator<> ActorDescIterator(&ModifiedActorDescListForPIE); ActorDescIterator; ++ActorDescIterator)
+	{
+		ActorDescIterator->OnUnregister();
+	}
 	ModifiedActorDescListForPIE.Empty();
 }
 
@@ -52,85 +56,6 @@ void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExt
 				Actor->SetForceExternalActorLevelReferenceForPIE(bForceExternalActorLevelReferenceForPIE);
 			}
 		}
-	}
-}
-
-void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(CreateActorDescViewMap);
-
-	// Build the actor desc view map
-	OutActorDescViewMap.Empty();
-
-	const bool bIsPIE = GetOuterUWorldPartition()->bIsPIE;
-
-	for (UActorDescContainer::TConstIterator<> ActorDescIt(Container); ActorDescIt; ++ActorDescIt)
-	{
-		if (bIsPIE)
-		{
-			if (AActor* Actor = ActorDescIt->GetActor())
-			{
-				// Don't include deleted, unsaved actors
-				if (!IsValidChecked(Actor))
-				{
-					continue;
-				}
-
-				// Handle dirty, unsaved actors
-				if (Actor->GetPackage()->IsDirty())
-				{
-					FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(Actor);
-					OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
-					continue;
-				}
-			}
-		}
-
-		// Normal, non-dirty actors
-		OutActorDescViewMap.Emplace(ActorDescIt->GetGuid(), *ActorDescIt);
-	}
-
-	if (bIsPIE)
-	{
-		// Append new unsaved actors for the persistent level
-		if (Container->GetContainerPackage() == GetWorld()->PersistentLevel->GetPackage()->GetLoadedPath().GetPackageFName())
-		{
-			for (AActor* Actor : GetWorld()->PersistentLevel->Actors)
-			{
-				if (Actor && 
-					Actor->IsPackageExternal() && 
-					IsValidChecked(Actor) && 
-					!Container->GetActorDesc(Actor->GetActorGuid()) && // Actor not on disk yet so not found in container
-					Actor->IsMainPackageActor())
-				{
-					FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(Actor);
-					OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
-				}
-			}
-		}
-	}
-
-	// Gather all references to external actors from the level script and make them always loaded
-	if (ULevelScriptBlueprint* LevelScriptBlueprint = Container->GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
-	{
-		TArray<AActor*> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint);
-
-		for (AActor* Actor : LevelScriptExternalActorReferences)
-		{
-			if (FWorldPartitionActorDescView* ActorDescView = OutActorDescViewMap.Find(Actor->GetActorGuid()))
-			{
-				ChangeActorDescViewGridPlacement(*ActorDescView, EActorGridPlacement::AlwaysLoaded);
-			}
-		}
-	}
-}
-
-void UWorldPartitionRuntimeHash::ChangeActorDescViewGridPlacement(FWorldPartitionActorDescView& ActorDescView, EActorGridPlacement GridPlacement) const
-{
-	if (ActorDescView.EffectiveGridPlacement != GridPlacement)
-	{
-		ActorDescView.EffectiveGridPlacement = GridPlacement;
-		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' grid placement changed to %s"), *ActorDescView.GetActorLabel().ToString(), *StaticEnum<EActorGridPlacement>()->GetNameStringByValue((int64)GridPlacement));
 	}
 }
 
@@ -194,11 +119,15 @@ void UWorldPartitionRuntimeHash::CheckForErrorsInternal(const TMap<FGuid, FWorld
 							->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_StreamedActorReferenceAlwaysLoadedActor_CheckForErrors"))));
 					}
 
-					TArray<FName> ActorDescLayers = ActorDescView.GetDataLayers();
-					ActorDescLayers.Sort([](const FName& A, const FName& B) { return A.FastLess(B); });
+					AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
 
-					TArray<FName> ActorDescRefLayers = ActorDescRefView->GetDataLayers();
-					ActorDescRefLayers.Sort([](const FName& A, const FName& B) { return A.FastLess(B); });
+					TArray<FName> ActorDescLayerNames = ActorDescView.GetDataLayers();
+					ActorDescLayerNames.Sort([](const FName& A, const FName& B) { return A.FastLess(B); });
+					TArray<const UDataLayer*> ActorDescLayers = WorldDataLayers->GetDataLayerObjects(ActorDescLayerNames);
+
+					TArray<FName> ActorDescRefLayerNames = ActorDescRefView->GetDataLayers();
+					ActorDescRefLayerNames.Sort([](const FName& A, const FName& B) { return A.FastLess(B); });
+					TArray<const UDataLayer*> ActorDescRefLayers = WorldDataLayers->GetDataLayerObjects(ActorDescRefLayerNames);
 
 					if (ActorDescLayers != ActorDescRefLayers)
 					{

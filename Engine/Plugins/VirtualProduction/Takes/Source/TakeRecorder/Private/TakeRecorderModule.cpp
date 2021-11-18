@@ -54,14 +54,6 @@ FName ITakeRecorderModule::TakesBrowserInstanceName = "TakesBrowser";
 
 IMPLEMENT_MODULE(FTakeRecorderModule, TakeRecorder);
 
-static TAutoConsoleVariable<int32> CVarTakeRecorderEditTrackingMode(
-	TEXT("TakeRecorder.TrackLevelViewportChanges"),
-	0,
-	TEXT("Whether or not Take Recorder should automatically set Sequencer to track changes made in the Level Viewport.\n")
-	TEXT("0: Don't track changes (default)\n")
-	TEXT("1: Attempt to track changes made in the Level Viewport in the open Sequence\n"),
-	ECVF_Default);
-
 static TAutoConsoleVariable<int32> CVarTakeRecorderSaveRecordedAssetsOverride(
 	TEXT("TakeRecorder.SaveRecordedAssetsOverride"),
 	0,
@@ -439,10 +431,6 @@ void FTakeRecorderModule::RegisterSettings()
 	);
 
 	SequencerSettings = USequencerSettingsContainer::GetOrCreate<USequencerSettings>(TEXT("TakeRecorderSequenceEditor"));
-	SequencerSettings->LoadConfig();
-
-	const bool bTrackLevelEditorChanges = CVarTakeRecorderEditTrackingMode.GetValueOnGameThread() != 0;
-	SequencerSettings->SetAllowEditsMode(bTrackLevelEditorChanges ? EAllowEditsMode::AllowSequencerEditsOnly : EAllowEditsMode::AllEdits);
 
 	GetMutableDefault<UTakeRecorderUserSettings>()->LoadConfig();
 	const bool bSaveRecordedAssetsOverride = CVarTakeRecorderSaveRecordedAssetsOverride.GetValueOnGameThread() != 0;

@@ -29,11 +29,11 @@ bool FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(IDisplayClusterRend
 	}
 
 
-	TMap<int, int> VIndexMap;
-	int VIndex = 0;
+	TMap<int32, int32> VIndexMap;
+	int32 VIndex = 0;
 
-	uint32 MaxHeight = Height / DownScaleFactor;
-	uint32 MaxWidth = Width / DownScaleFactor;
+	const uint32 MaxHeight = Height / DownScaleFactor;
+	const uint32 MaxWidth = Width / DownScaleFactor;
 
 	{
 		//Pts + Normals + UV
@@ -42,12 +42,12 @@ bool FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(IDisplayClusterRend
 
 		for (uint32 j = 0; j < MaxHeight; ++j)
 		{
-			uint32 MeshY = (j == (MaxHeight - 1)) ? Height : (j * DownScaleFactor);
+			const uint32 MeshY = (j == (MaxHeight - 1)) ? Height : (j * DownScaleFactor);
 			for (uint32 i = 0; i < MaxWidth; ++i)
 			{
-				uint32 MeshX = (i == (MaxWidth - 1)) ? Width : (i * DownScaleFactor);
+				const uint32 MeshX = (i == (MaxWidth - 1)) ? Width : (i * DownScaleFactor);
 
-				int SrcIdx = MeshX + (MeshY) * Width;
+				const int32 SrcIdx = MeshX + (MeshY) * Width;
 				const FVector4f& v = WarpData[SrcIdx];
 				if (v.W > 0)
 				{
@@ -69,22 +69,22 @@ bool FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(IDisplayClusterRend
 		//faces
 		for (uint32 j = 0; j < MaxHeight - 1; ++j)
 		{
-			uint32 MeshY     = (j == (MaxHeight - 1)) ? Height : (j * DownScaleFactor);
-			uint32 NextMeshY = ((j+1) == (MaxHeight - 1)) ? Height : ((j+1) * DownScaleFactor);
+			const uint32 MeshY     = (j == (MaxHeight - 1)) ? Height : (j * DownScaleFactor);
+			const uint32 NextMeshY = ((j+1) == (MaxHeight - 1)) ? Height : ((j+1) * DownScaleFactor);
 
 			for (uint32 i = 0; i < MaxWidth - 1; ++i)
 			{
-				uint32 MeshX = (i == (MaxWidth - 1)) ? Width : (i * DownScaleFactor);
-				uint32 NextMeshX = ((i + 1) == (MaxWidth - 1)) ? Width : ((i + 1) * DownScaleFactor);
+				const uint32 MeshX = (i == (MaxWidth - 1)) ? Width : (i * DownScaleFactor);
+				const uint32 NextMeshX = ((i + 1) == (MaxWidth - 1)) ? Width : ((i + 1) * DownScaleFactor);
 
-				int idx[4];
+				int32 idx[4];
 
 				idx[0] = (MeshX + MeshY * Width);
 				idx[1] = (NextMeshX + MeshY * Width);
 				idx[2] = (MeshX + NextMeshY * Width);
 				idx[3] = (NextMeshX + NextMeshY * Width);
 
-				for (int a = 0; a < 4; a++)
+				for (int32 a = 0; a < 4; a++)
 				{
 					if (VIndexMap.Contains(idx[a]))
 					{

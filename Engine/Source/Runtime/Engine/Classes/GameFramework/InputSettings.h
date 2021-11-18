@@ -229,7 +229,21 @@ public:
 	// Class accessors
 	static UClass* GetDefaultPlayerInputClass();
 	static UClass* GetDefaultInputComponentClass();
+	
+	/**
+	 * Set the default player input class.
+	 *
+	 * @param NewDefaultPlayerInputClass The new class to use.
+	 */
+	static void SetDefaultPlayerInputClass(TSubclassOf<UPlayerInput> NewDefaultPlayerInputClass);
 
+	/**
+	 * Set the default input component class.
+	 *
+	 * @param NewDefaultInputComponentClass The new class to use.
+	 */
+	static void SetDefaultInputComponentClass(TSubclassOf<UInputComponent> NewDefaultInputComponentClass);
+	
 private:
 	void PopulateAxisConfigs();
 };

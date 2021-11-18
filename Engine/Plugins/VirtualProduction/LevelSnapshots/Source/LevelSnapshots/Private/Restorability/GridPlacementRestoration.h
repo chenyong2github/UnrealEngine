@@ -7,7 +7,7 @@
 
 class UStaticMeshComponent;
 
-namespace GridPlacementRestoration
+namespace UE::LevelSnapshots::Private::GridPlacementRestoration
 {
 	void Register(FLevelSnapshotsModule& Module);
 }

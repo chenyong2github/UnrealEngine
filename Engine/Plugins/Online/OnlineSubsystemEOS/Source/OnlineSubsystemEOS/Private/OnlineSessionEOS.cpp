@@ -3850,6 +3850,8 @@ void FOnlineSessionEOS::StartLobbySearch(int32 SearchingPlayerNum, EOS_HLobbySea
 
 			LobbySearchResultsCache.Reset();
 
+			CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Done;
+
 			EOS_LobbySearch_GetSearchResultCountOptions GetSearchResultCountOptions = { 0 };
 			GetSearchResultCountOptions.ApiVersion = EOS_LOBBYSEARCH_GETSEARCHRESULTCOUNT_API_LATEST;
 
@@ -3879,17 +3881,13 @@ void FOnlineSessionEOS::StartLobbySearch(int32 SearchingPlayerNum, EOS_HLobbySea
 					}
 				}
 
-				CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Done;
-
 				CompletionDelegate.ExecuteIfBound(SearchingPlayerNum, true, SearchSettings->SearchResults.Last());
 			}
 			else
 			{
 				UE_LOG_ONLINE_SESSION(Log, TEXT("[FOnlineSessionEOS::StartLobbySearch::FLobbySearchFindCallback] LobbySearch_GetSearchResultCount returned no results"));
 
-				CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Failed;
-
-				CompletionDelegate.ExecuteIfBound(SearchingPlayerNum, false, FOnlineSessionSearchResult());
+				CompletionDelegate.ExecuteIfBound(SearchingPlayerNum, true, FOnlineSessionSearchResult());
 			}
 		}
 		else

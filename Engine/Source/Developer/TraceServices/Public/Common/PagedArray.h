@@ -222,6 +222,12 @@ private:
 		}
 	}
 
+	FORCEINLINE friend bool operator!=(const TPagedArrayIterator& Lhs, const TPagedArrayIterator& Rhs)
+	{
+		checkSlow(Lhs.Outer == Rhs.Outer); // Needs to be iterators of the same array
+		return Lhs.CurrentItem != Rhs.CurrentItem;
+	}
+	
 	const TPagedArray<ItemType, PageType>* Outer = nullptr;
 	const ItemType* CurrentItem = nullptr;
 	const ItemType* CurrentPageFirstItem = nullptr;
@@ -398,6 +404,11 @@ public:
 		const ItemType* Item = LastPage->Items + LastPage->Count - 1;
 		return *Item;
 	}
+	
+	FORCEINLINE TIterator begin() { return TIterator(*this, 0, 0); }
+	FORCEINLINE TIterator begin() const { return TIterator(*this, 0, 0); }
+	FORCEINLINE TIterator end() { return TIterator(*this, NumPages()-1, uint64(TotalItemCount % PageSize)-1); }
+	FORCEINLINE TIterator end() const { return TIterator(*this, NumPages()-1, uint64(TotalItemCount % PageSize)-1); }
 
 private:
 	template<typename ItemType, typename PageType>

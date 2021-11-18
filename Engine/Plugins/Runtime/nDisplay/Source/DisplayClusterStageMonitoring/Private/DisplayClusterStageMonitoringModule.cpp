@@ -6,6 +6,7 @@
 #include "DisplayClusterConfigurationStrings.h"
 #include "DisplayClusterStageMonitoringSettings.h"
 #include "IDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
 #include "DWMSyncWatchdog.h"
 #include "NvidiaSyncWatchdog.h"
 #include "Render/IDisplayClusterRenderManager.h"
@@ -20,14 +21,14 @@ class FDisplayClusterStageMonitoringModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
-		IDisplayCluster::Get().OnDisplayClusterStartSession().AddRaw(this, &FDisplayClusterStageMonitoringModule::OnDisplayClusterStartSession);
+		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartSession().AddRaw(this, &FDisplayClusterStageMonitoringModule::OnDisplayClusterStartSession);
 	}
 
 	virtual void ShutdownModule() override
 	{
 		if (IDisplayCluster::IsAvailable())
 		{
-			IDisplayCluster::Get().OnDisplayClusterStartSession().RemoveAll(this);
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartSession().RemoveAll(this);
 		}
 	}
 

@@ -3,8 +3,8 @@
 #include "DirectLink/DatasmithFacadeDirectLink.h"
 #include "DatasmithFacadeLog.h"
 #include "DatasmithFacadeScene.h"
-#include "DirectLink/DatasmithFacadeEndPointObserver.h"
-#include "DirectLink/DatasmithFacadeEndPointObserverImpl.h"
+#include "DirectLink/DatasmithFacadeEndpointObserver.h"
+#include "DirectLink/DatasmithFacadeEndpointObserverImpl.h"
 
 #include "DatasmithExporterManager.h"
 #include "DirectLinkEndpoint.h"

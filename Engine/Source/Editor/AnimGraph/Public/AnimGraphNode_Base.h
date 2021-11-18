@@ -495,6 +495,15 @@ public:
 
 	// Set the tag for this node
 	void SetTag(FName InTag);
+
+	// Get the currently-debugged runtime anim node (in the anim BP debugger that this node is currently being edited in)
+	// @return nullptr if the node cannot be found
+	FAnimNode_Base* GetDebuggedAnimNode() const;
+	
+	// Refreshes the debugged component post-edit.
+	// This is required to see changes as the component may be either an editor-only component that is not ticking,
+	// or in a paused PIE world
+	void PostEditRefreshDebuggedComponent();
 	
 protected:
 	friend class FAnimBlueprintCompilerContext;

@@ -459,7 +459,7 @@ void FDatasmithImporter::CreateStaticMeshAssetImportData(FDatasmithImportContext
 		// #ueent_todo FH: piggybacking off of the SourceData file hash for now, until we have custom derived AssetImportData properly serialize to the AssetRegistry
 		FMD5Hash Hash = MeshElement->CalculateElementHash( false );
 		MeshImportData->Update( InContext.Options->FilePath, &Hash );
-		MeshImportData->SourceUri = InContext.Options->SourceUri;
+		MeshImportData->DatasmithImportInfo = FDatasmithImportInfo(InContext.Options->SourceUri, InContext.Options->SourceHash);
 
 		// Set the final outer // #ueent_review: propagate flags of outer?
 		for (UDatasmithAdditionalData* Data: AdditionalData)
@@ -505,7 +505,7 @@ void FDatasmithImporter::ImportTextures( FDatasmithImportContext& ImportContext 
 
 		FDatasmithTextureResize::Initialize();
 
-		// Try to import textures async first, if possible 
+		// Try to import textures async first, if possible
 		if ( GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework )
 		{
 			for ( int32 TextureIndex = 0; TextureIndex < FilteredTextureElements.Num(); TextureIndex++ )
@@ -774,7 +774,7 @@ UMaterialInterface* FDatasmithImporter::ImportMaterial( FDatasmithImportContext&
 
 	AssetImportData->Update(ImportContext.Options->FilePath, ImportContext.FileHash.IsValid() ? &ImportContext.FileHash : nullptr);
 	AssetImportData->AssetImportOptions = ImportContext.Options->BaseOptions.AssetOptions;
-	AssetImportData->SourceUri = ImportContext.Options->SourceUri;
+	AssetImportData->DatasmithImportInfo = FDatasmithImportInfo(ImportContext.Options->SourceUri, ImportContext.Options->SourceHash);
 
 	// Record requirements on mesh building for this material
 	ImportContext.AssetsContext.MaterialsRequirements.Add( MaterialElement->GetName(), FDatasmithMaterialImporter::GetMaterialRequirements( ImportedMaterial ) );
@@ -1329,7 +1329,7 @@ AActor* FDatasmithImporter::FinalizeActor( FDatasmithImportContext& ImportContex
 		ForEachObjectWithOuter( DestinationActor, [&ReferencesToRemap](UObject* InObject)
 			{
 				FDatasmithImporterImpl::FixReferencesForObject( InObject, ReferencesToRemap );
-		
+
 				InObject->PostEditImport();
 				InObject->PostEditChange();
 			});
@@ -1416,27 +1416,28 @@ void FDatasmithImporter::ImportLevelSequences( FDatasmithImportContext& ImportCo
 				continue;
 			}
 
-		ULevelSequence* ExistingLevelSequence = nullptr;
-		if ( ImportContext.SceneAsset )
-		{
-			TSoftObjectPtr< ULevelSequence >* ExistingLevelSequencePtr = ImportContext.SceneAsset->LevelSequences.Find( SequenceElement->GetName() );
-
-			if ( ExistingLevelSequencePtr )
+			ULevelSequence* ExistingLevelSequence = nullptr;
+			if ( ImportContext.SceneAsset )
 			{
-				ExistingLevelSequence = ExistingLevelSequencePtr->LoadSynchronous();
+				TSoftObjectPtr< ULevelSequence >* ExistingLevelSequencePtr = ImportContext.SceneAsset->LevelSequences.Find( SequenceElement->GetName() );
+
+				if ( ExistingLevelSequencePtr )
+				{
+					ExistingLevelSequence = ExistingLevelSequencePtr->LoadSynchronous();
+				}
 			}
-		}
 
-		FString SequenceName = ObjectTools::SanitizeObjectName(SequenceElement->GetName());
-		FDatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf(TEXT("Importing level sequence %d/%d (%s) ..."), NumImported + 1, HardLoopCounter, *SequenceName ) ) );
+			FString SequenceName = ObjectTools::SanitizeObjectName(SequenceElement->GetName());
+			FDatasmithImporterImpl::ReportProgress( Progress, 1.f, FText::FromString( FString::Printf(TEXT("Importing level sequence %d/%d (%s) ..."), NumImported + 1, HardLoopCounter, *SequenceName ) ) );
 
-		ULevelSequence*& ImportedLevelSequence = ImportContext.ImportedLevelSequences.FindOrAdd( SequenceElement.ToSharedRef() );
-		if (ImportContext.SceneTranslator)
-		{
-			FDatasmithLevelSequencePayload LevelSequencePayload;
-			ImportContext.SceneTranslator->LoadLevelSequence(SequenceElement.ToSharedRef(), LevelSequencePayload);
-		}
-		ImportedLevelSequence = FDatasmithLevelSequenceImporter::ImportLevelSequence( SequenceElement.ToSharedRef(), ImportContext, ExistingLevelSequence );
+			if (ImportContext.SceneTranslator)
+			{
+				FDatasmithLevelSequencePayload LevelSequencePayload;
+				ImportContext.SceneTranslator->LoadLevelSequence(SequenceElement.ToSharedRef(), LevelSequencePayload);
+			}
+
+			ULevelSequence*& ImportedLevelSequence = ImportContext.ImportedLevelSequences.FindOrAdd( SequenceElement.ToSharedRef() );
+			ImportedLevelSequence = FDatasmithLevelSequenceImporter::ImportLevelSequence( SequenceElement.ToSharedRef(), ImportContext, ExistingLevelSequence );
 
 			SequencesToImport.RemoveAt(SequenceIndex);
 			++NumImported;
@@ -1589,8 +1590,10 @@ void FDatasmithImporter::ImportMetaDataForObject(FDatasmithImportContext& Import
 
 void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& ImportContext )
 {
-	// Initialize the filtered scene as a copy of the original scene. We will use it to then filter out items to import.
-	ImportContext.FilteredScene = FDatasmithSceneFactory::DuplicateScene( ImportContext.Scene.ToSharedRef() );
+	if (!ImportContext.FilteredScene.IsValid())
+	{
+		ImportContext.FilteredScene = FDatasmithSceneFactory::DuplicateScene( ImportContext.Scene.ToSharedRef() );
+	}
 
 	FDatasmithSceneUtils::CleanUpScene(ImportContext.FilteredScene.ToSharedRef(), false);
 
@@ -1775,28 +1778,28 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 			{
 				break;
 			}
-  
+
 			UMaterialFunction* SourceMaterialFunction = ImportedMaterialFunctionPair.Value;
-  
+
 			if (!SourceMaterialFunction || (ValidAssets.Num() > 0 && !ValidAssets.Contains(Cast<UObject>(SourceMaterialFunction))))
 			{
 				continue;
 			}
-  
+
 			FName MaterialFunctionId = ImportedMaterialFunctionPair.Key->GetName();
 			FDatasmithImporterImpl::ReportProgress(Progress, 1.f, FText::FromString(FString::Printf(TEXT("Finalizing assets %d/%d (Material Function %s) ..."), ++AssetIndex, NumAssetsToFinalize, *SourceMaterialFunction->GetName())));
-  
+
 			UMaterialFunction* ExistingMaterialFunction = ImportContext.SceneAsset ? ImportContext.SceneAsset->MaterialFunctions.FindOrAdd(MaterialFunctionId).Get() : nullptr;
-  
+
 			FString SourcePackagePath = SourceMaterialFunction->GetOutermost()->GetName();
 			FString DestinationPackagePath = SourcePackagePath.Replace(*TransientFolderPath, *RootFolderPath, ESearchCase::CaseSensitive);
-  
+
 			ExistingMaterialFunction = FinalizeMaterialFunction(SourceMaterialFunction, *DestinationPackagePath, ExistingMaterialFunction, &ReferencesToRemap);
 			if (ImportContext.SceneAsset)
 			{
 				ImportContext.SceneAsset->MaterialFunctions[MaterialFunctionId] = ExistingMaterialFunction;
 			}
-  
+
 			FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialFunction, ImportContext);
 		}
 

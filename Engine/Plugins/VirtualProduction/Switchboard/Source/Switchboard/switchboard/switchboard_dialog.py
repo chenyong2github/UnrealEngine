@@ -4,6 +4,8 @@ import datetime
 import logging
 import os
 import threading
+import time
+import re
 from typing import List, Optional, Set
 
 from PySide2 import QtCore
@@ -30,6 +32,9 @@ from switchboard.settings_dialog import SettingsDialog
 from switchboard.switchboard_logging import ConsoleStream, LOGGER
 from switchboard.tools.insights_launcher import InsightsLauncher
 from switchboard.tools.listener_launcher import ListenerLauncher
+from switchboard.devices.unreal.plugin_unreal import DeviceUnreal
+
+from . import switchboard_utils as sb_utils
 
 ENGINE_PATH = "../../../../.."
 RELATIVE_PATH = os.path.dirname(__file__)
@@ -221,6 +226,7 @@ class SwitchboardDialog(QtCore.QObject):
 
         self.init_stylesheet_watcher()
 
+        self._exiting = False
         self._shoot = None
         self._sequence = None
         self._slate = None
@@ -231,6 +237,7 @@ class SwitchboardDialog(QtCore.QObject):
         self._multiuser_session_name = None
         self._is_recording = False
         self._description = 'description'
+        self._started_mu_server = False
 
         # Recording Manager
         self.recording_manager = recording.RecordingManager(CONFIG.SWITCHBOARD_DIR)
@@ -245,6 +252,9 @@ class SwitchboardDialog(QtCore.QObject):
 
         # Convenience local Switchboard lister launcher
         self.init_listener_launcher()
+
+        # Convenience Open Logs Folder menu item
+        self.register_open_logs_menuitem()
 
         # Transport Manager
         #self.transport_queue = recording.TransportQueue(CONFIG.SWITCHBOARD_DIR)
@@ -305,7 +315,7 @@ class SwitchboardDialog(QtCore.QObject):
         self.osc_server.dispatcher_map(osc.DATA, self.osc_data)
 
         # Connect UI to methods
-        self.window.multiuser_session_lineEdit.textChanged.connect(self.set_multiuser_session_name)
+        self.window.multiuser_session_lineEdit.textChanged.connect(self.on_multiuser_session_lineEdit_textChanged)
         self.window.slate_line_edit.textChanged.connect(self._set_slate)
         self.window.take_spin_box.valueChanged.connect(self._set_take)
         self.window.sequence_line_edit.textChanged.connect(self._set_sequence)
@@ -331,10 +341,18 @@ class SwitchboardDialog(QtCore.QObject):
         self.window.use_device_autojoin_setting_checkbox.toggled.connect(self.on_device_autojoin_changed)
         self.refresh_muserver_autojoin()
 
+        self.window.muserver_start_stop_button.clicked.connect(self.on_muserver_start_stop_click)
+
         self.window.additional_settings.signal_device_widget_tracing.connect(self.on_tracing_settings_changed)
         self.refresh_trace_settings()
 
-        # Stylesheet-related: Object names used for selectors, no focus forcing
+        # set up a thread that does periodic maintenace tasks
+        self.setup_periodic_tasks_thread()
+
+        # Connect to the session increment number.
+        self.window.multiuser_session_inc_button.clicked.connect(self.on_multiuser_session_inc)
+
+         # Stylesheet-related: Object names used for selectors, no focus forcing
         def configure_ctrl_btn(btn: sb_widgets.ControlQPushButton, name: str):
             btn.setObjectName(name)
             btn.hover_focus = False
@@ -387,6 +405,76 @@ class SwitchboardDialog(QtCore.QObject):
         # Run the transport queue
         #self.transport_queue_resume()
 
+    def _poll_muserver_status(self):
+        '''
+        Poll the status of the Multi-user server on a 1 second timer.
+        '''
+        while not self._exiting:
+            self.update_muserver_button()
+            time.sleep(1.0)
+
+    def update_muserver_button(self):
+        '''
+        Update the status of the Multi-user start/stop button to reflect the status of Multi-user server.
+        '''
+        ServerInstance = switchboard_application.get_multi_user_server_instance()
+        is_checked = self.window.muserver_start_stop_button.isChecked()
+        is_running = ServerInstance.is_running()
+        if  (is_running or self._started_mu_server) and not is_checked:
+            self.window.muserver_start_stop_button.setChecked( True )
+        elif not is_running and is_checked:
+            self.window.muserver_start_stop_button.setChecked( False )
+
+        if is_running and self._started_mu_server:
+            # Server has finished starting so reset our start flag.
+            self._started_mu_server = False
+
+    def setup_periodic_tasks_thread(self):
+        '''
+        Sets up a thread for performing maintenance tasks
+        '''
+        thread = threading.Thread(target=self._do_periodic_tasks, args=[], kwargs={})
+        thread.start()
+
+    def _do_periodic_tasks(self):
+        ''' Performs periodic tasks, like updating certain parts of the UI '''
+
+        while not self._exiting:
+
+            self.update_muserver_button()
+            self.update_locallistener_menuitem()
+            self.update_insights_menuitem()
+
+            time.sleep(1.0)
+
+    def update_locallistener_menuitem(self):
+        ''' 
+        Enables/disables the local listener launch menu item depending on whether 
+        it is already running or not.
+        '''
+        self.locallistener_launcher_menuitem.setEnabled(not self.listener_launcher.is_running())
+
+    def update_insights_menuitem(self):
+        ''' 
+        Enables/disables the UnrealInsights launch menu item depending on whether 
+        it is already running or not.
+        '''
+        self.insights_launcher_menuitem.setEnabled(not self.insights_launcher.is_running())
+
+    def on_muserver_start_stop_click(self):
+        '''
+        Handle the multi-user server button click. If we are running we stop the process. If we are not
+        running then we launch the multi-user server.
+        '''
+        ServerInstance = switchboard_application.get_multi_user_server_instance()
+        if ServerInstance.is_running():
+            ServerInstance.terminate(bypolling=True)
+            self._started_mu_server = False
+        else:
+            self._started_mu_server = True
+            ServerInstance.launch()
+        self.update_muserver_button()
+
     def init_insights_launcher(self):
         ''' Initializes insights launcher '''
 
@@ -401,9 +489,10 @@ class SwitchboardDialog(QtCore.QObject):
         action = self.register_tools_menu_action("&Insights")
         action.triggered.connect(launch_insights)
 
+        self.insights_launcher_menuitem = action
+
     def init_listener_launcher(self):
         ''' Initializes switcboard listener launcher '''
-        
         self.listener_launcher = ListenerLauncher()
 
         def launch_listener():
@@ -414,6 +503,17 @@ class SwitchboardDialog(QtCore.QObject):
 
         action = self.register_tools_menu_action("&Listener")
         action.triggered.connect(launch_listener)
+
+        self.locallistener_launcher_menuitem = action
+
+    def register_open_logs_menuitem(self):
+        ''' Registers convenience "Open Logs Folder" menu item '''
+
+        def open_logs_folder():
+            sb_utils.explore_path(DeviceUnreal.get_log_download_dir())
+
+        action = self.register_tools_menu_action("&Open Logs Folder")
+        action.triggered.connect(open_logs_folder)
 
     def add_tools_menu(self):
         ''' Adds tools menu to menu bar and populates built-in items '''
@@ -536,6 +636,7 @@ class SwitchboardDialog(QtCore.QObject):
                    for device in self.device_manager.devices())
 
     def on_exit(self):
+        self._exiting = True
         self.osc_server.close()
         for device in self.device_manager.devices():
             device.disconnect_listener()
@@ -729,6 +830,7 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_osc_client_port(CONFIG.OSC_CLIENT_PORT.get_value())
         settings_dialog.set_mu_server_name(CONFIG.MUSERVER_SERVER_NAME)
         settings_dialog.set_mu_server_endpoint(CONFIG.MUSERVER_ENDPOINT)
+        settings_dialog.set_mu_server_multicast_endpoint(CONFIG.MUSERVER_MULTICAST_ENDPOINT.get_value())
         settings_dialog.set_mu_cmd_line_args(CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS)
         settings_dialog.set_mu_clean_history(CONFIG.MUSERVER_CLEAN_HISTORY)
         settings_dialog.set_mu_auto_launch(CONFIG.MUSERVER_AUTO_LAUNCH)
@@ -790,6 +892,10 @@ class SwitchboardDialog(QtCore.QObject):
         mu_server_endpoint = settings_dialog.mu_server_endpoint()
         if mu_server_endpoint != CONFIG.MUSERVER_ENDPOINT:
             CONFIG.MUSERVER_ENDPOINT = mu_server_endpoint
+
+        mu_server_multicast_endpoint = settings_dialog.mu_server_multicast_endpoint()
+        if mu_server_multicast_endpoint != CONFIG.MUSERVER_MULTICAST_ENDPOINT:
+            CONFIG.MUSERVER_MULTICAST_ENDPOINT.update_value(mu_server_multicast_endpoint)
 
         mu_cmd_line_args = settings_dialog.mu_cmd_line_args()
         if mu_cmd_line_args != CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS:
@@ -994,13 +1100,41 @@ class SwitchboardDialog(QtCore.QObject):
     def multiuser_session_name(self):
         return self._multiuser_session_name
 
+    def on_multiuser_session_lineEdit_textChanged(self, text):
+        self.set_multiuser_session_name(text)
+
+    def on_multiuser_session_inc(self):
+        '''
+        Increment the session name by 1.
+        '''
+        current_name = self.multiuser_session_name()
+        match = re.search(r'\d+$', current_name)
+        basename = current_name
+        num_as_int = 1
+        padding = 0
+        if match is not None:
+            num_as_str = match.group()
+            basename = str.join(num_as_str, current_name.split(num_as_str)[:-1])
+            try:
+                num_as_int = int(num_as_str) + 1
+                padding = len(num_as_str)
+            except ValueError:
+                # Do not treat value conversion as an error it will just refer back to default value.
+                pass
+        new_num = f'{num_as_int}'.zfill(padding)
+        self.set_multiuser_session_name(f'{basename}{new_num}')
+
     def set_multiuser_session_name(self, value):
+
+        # sanitize the session name
+        value = value.replace(' ', '_')
+
         self._multiuser_session_name = value
 
         if self.window.multiuser_session_lineEdit.text() != value:
             self.window.multiuser_session_lineEdit.setText(value)
         
-        if value !=SETTINGS.MUSERVER_SESSION_NAME:
+        if value != SETTINGS.MUSERVER_SESSION_NAME:
             SETTINGS.MUSERVER_SESSION_NAME = value
             SETTINGS.save()
 

@@ -1185,10 +1185,9 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					// If we allow partial writes we need to ensure that we are not reading from our own buffer, we ask our data interfaces if this is true or not
 					if (TranslationStages[Index].bPartialParticleUpdate)
 					{
-						for (auto it = InCompileDuplicateData->SharedNameToDuplicatedDataInterfaceMap->CreateConstIterator(); it; ++it)
+						for (const FNiagaraCompileRequestData::FCompileDataInterfaceData& DataInterfaceData : (*InCompileData->SharedCompileDataInterfaceData.Get()))
 						{
-							const UNiagaraDataInterface* DataInterface = it->Value;
-							if (DataInterface->ReadsEmitterParticleData(InCompileData->EmitterUniqueName))
+							if(DataInterfaceData.ReadsEmitterParticleData.Contains(InCompileData->EmitterUniqueName))
 							{
 								TranslationStages[Index].bPartialParticleUpdate = false;
 								break;
@@ -6711,85 +6710,103 @@ void FHlslNiagaraTranslator::ProcessCustomHlsl(const FString& InCustomHlsl, ENia
 			TArray<FNiagaraFunctionSignature> Funcs;
 			CDO->GetFunctions(Funcs);
 
+			TArray<FString> SanitizedFunctionNames;
+			SanitizedFunctionNames.Reserve(Funcs.Num());
+			for (const FNiagaraFunctionSignature& FunctionSignature : Funcs)
+			{
+				SanitizedFunctionNames.Emplace(GetSanitizedDIFunctionName(FunctionSignature.GetName()));
+			}
+
 			bool bPermuteSignatureByDataInterface = false;
 
-			for (int32 FuncIdx = 0; FuncIdx < Funcs.Num(); FuncIdx++)
+			const FString InputPrefix = Input.GetName().ToString() + TEXT(".");
+			for (int32 TokenIndex = 0; TokenIndex < Tokens.Num();)
 			{
-				FString DIMethodInvocation = Input.GetName().ToString() + TEXT(".") + GetSanitizedDIFunctionName(Funcs[FuncIdx].GetName());
-
-				for (int32 TokenIndex = 0; TokenIndex < Tokens.Num();)
+				// If we don't start with the prefix keep looking
+				if ( !Tokens[TokenIndex].StartsWith(InputPrefix, ESearchCase::CaseSensitive) )
 				{
-					if (Tokens[TokenIndex].Compare(DIMethodInvocation, ESearchCase::CaseSensitive) == 0)
+					++TokenIndex;
+					continue;
+				}
+
+				// Find matching function
+				FStringView FunctionName(Tokens[TokenIndex]);
+				FunctionName = FunctionName.Mid(InputPrefix.Len());
+
+				const int32 FunctionIndex = SanitizedFunctionNames.IndexOfByPredicate([FunctionName](const FString& SigName){ return FunctionName.Equals(SigName, ESearchCase::CaseSensitive) != 0; });
+				if (FunctionIndex == INDEX_NONE)
+				{
+					Error(
+						FText::Format(LOCTEXT("DataInterfaceInvalidFunctionCustomHLSL", "Data interface '{0}' does not contain function '{1}' as used in custom HLSL."), FText::FromName(Input.GetName()), FText::FromString(FunctionName.GetData())),
+						InNodeForErrorReporting,
+						nullptr
+					);
+					return;
+				}
+
+				bPermuteSignatureByDataInterface = true;
+
+				// We can't replace the method-style call with the actual function name yet, because function specifiers
+				// are part of the name, and we haven't determined them yet. Just store a pointer to the token for now.
+				FString& FunctionNameToken = Tokens[TokenIndex];
+				++TokenIndex;
+
+				FNiagaraFunctionSignature Sig = Funcs[FunctionIndex];
+
+				// Override the owner id of the signature with the actual caller.
+				Sig.OwnerName = Info.Name;
+
+				// Function specifiers can be given inside angle brackets, using this syntax:
+				//
+				//		DI.Function<Specifier1=Value1, Specifier2="Value 2">(Arguments);
+				//
+				// We need to extract the specifiers and replace any tokens inside the angle brackets with empty strings,
+				// to arrive back at valid HLSL.
+				if (!ParseDIFunctionSpecifiers(InNodeForErrorReporting, Sig, Tokens, TokenIndex))
+				{
+					return;
+				}
+
+				// Now we can build the function name and replace the method call token with the final function name.
+				FunctionNameToken = GetFunctionSignatureSymbol(Sig);
+				if (Sig.bRequiresExecPin)
+				{
+					Sig.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("InExecPin")), 0);
+					Sig.Outputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("OutExecPin")), 0);
+				}
+				if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
+				{
+					//This interface requires per instance data via a user ptr so place the index as the first input.
+					Sig.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")), 0);
+
+					// Look for the opening parenthesis.
+					while (TokenIndex < Tokens.Num() && Tokens[TokenIndex] != TEXT("("))
 					{
-						bPermuteSignatureByDataInterface = true;
-
-						// We can't replace the method-style call with the actual function name yet, because function specifiers
-						// are part of the name, and we haven't determined them yet. Just store a pointer to the token for now.
-						FString& FunctionNameToken = Tokens[TokenIndex];
 						++TokenIndex;
-
-						FNiagaraFunctionSignature Sig = Funcs[FuncIdx];
-
-						// Override the owner id of the signature with the actual caller.
-						Sig.OwnerName = Info.Name;
-
-						// Function specifiers can be given inside angle brackets, using this syntax:
-						//
-						//		DI.Function<Specifier1=Value1, Specifier2="Value 2">(Arguments);
-						//
-						// We need to extract the specifiers and replace any tokens inside the angle brackets with empty strings,
-						// to arrive back at valid HLSL.
-						if (!ParseDIFunctionSpecifiers(InNodeForErrorReporting, Sig, Tokens, TokenIndex))
-						{
-							return;
-						}
-
-						// Now we can build the function name and replace the method call token with the final function name.
-						FunctionNameToken = GetFunctionSignatureSymbol(Sig);
-						if (Sig.bRequiresExecPin)
-						{
-							Sig.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("InExecPin")), 0);
-							Sig.Outputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("OutExecPin")), 0);
-						}
-						if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
-						{
-							//This interface requires per instance data via a user ptr so place the index as the first input.
-							Sig.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("InstanceData")), 0);
-
-							// Look for the opening parenthesis.
-							while (TokenIndex < Tokens.Num() && Tokens[TokenIndex] != TEXT("("))
-							{
-								++TokenIndex;
-							}
-
-							if (TokenIndex < Tokens.Num())
-							{
-								// Skip the parenthesis.
-								++TokenIndex;
-
-								// Insert the instance index as the first argument. We don't need to do range checking because even if
-								// the tokens end after the parenthesis, we'll be inserting at the end of the array.
-								Tokens.Insert(LexToString(Info.UserPtrIdx), TokenIndex++);
-
-								if (Sig.Inputs.Num() > 1 || Sig.Outputs.Num() > 0)
-								{
-									// If there are other arguments, insert a comma and a space. These are separators, so they need to be different tokens.
-									Tokens.Insert(TEXT(","), TokenIndex++);
-									Tokens.Insert(TEXT(" "), TokenIndex++);
-								}
-							}
-						}
-
-						Info.RegisteredFunctions.Add(Sig);
-						Functions.FindOrAdd(Sig);
-
-						HandleDataInterfaceCall(Info, Sig);
 					}
-					else
+
+					if (TokenIndex < Tokens.Num())
 					{
+						// Skip the parenthesis.
 						++TokenIndex;
+
+						// Insert the instance index as the first argument. We don't need to do range checking because even if
+						// the tokens end after the parenthesis, we'll be inserting at the end of the array.
+						Tokens.Insert(LexToString(Info.UserPtrIdx), TokenIndex++);
+
+						if (Sig.Inputs.Num() > 1 || Sig.Outputs.Num() > 0)
+						{
+							// If there are other arguments, insert a comma and a space. These are separators, so they need to be different tokens.
+							Tokens.Insert(TEXT(","), TokenIndex++);
+							Tokens.Insert(TEXT(" "), TokenIndex++);
+						}
 					}
 				}
+
+				Info.RegisteredFunctions.Add(Sig);
+				Functions.FindOrAdd(Sig);
+
+				HandleDataInterfaceCall(Info, Sig);
 			}
 
 			if (bPermuteSignatureByDataInterface)
@@ -7543,6 +7560,83 @@ FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctio
 		SigStr += TEXT("_") + Specifier.Key.ToString() + Specifier.Value.ToString().Replace(TEXT("."), TEXT("_"));
 	}
 	return GetSanitizedSymbolName(SigStr);
+}
+
+FString FHlslNiagaraTranslator::GenerateFunctionHlslPrototype(FStringView InVariableName, const FNiagaraFunctionSignature& FunctionSignature)
+{
+	TStringBuilder<512> StringBuilder;
+	if (FunctionSignature.bMemberFunction)
+	{
+		StringBuilder.Append(InVariableName);
+		StringBuilder.Append(TEXT("."));
+		StringBuilder.Append(FHlslNiagaraTranslator::GetSanitizedSymbolName(FunctionSignature.Name.ToString()));
+
+		// Build specifiers
+		if (FunctionSignature.FunctionSpecifiers.Num())
+		{
+			bool bNeedsComma = false;
+			StringBuilder.Append('<');
+			for (auto SpecifierIt = FunctionSignature.FunctionSpecifiers.CreateConstIterator(); SpecifierIt; ++SpecifierIt)
+			{
+				if (bNeedsComma)
+				{
+					StringBuilder.Append(TEXT(", "));
+				}
+				bNeedsComma = true;
+
+				StringBuilder.Append(SpecifierIt.Key().ToString());
+				StringBuilder.Append('=');
+				StringBuilder.Append('"');
+				StringBuilder.Append(SpecifierIt.Value().IsNone() ? TEXT("Value") : *SpecifierIt.Value().ToString());
+				StringBuilder.Append('"');
+			}
+			StringBuilder.Append('>');
+		}
+
+		// Build function parameters
+		{
+			StringBuilder.Append(TEXT("("));
+			bool bNeedsComma = false;
+
+			// Inputs
+			for (int i = 1; i < FunctionSignature.Inputs.Num(); ++i)
+			{
+				const FNiagaraVariable& InputVar = FunctionSignature.Inputs[i];
+				if (bNeedsComma)
+				{
+					StringBuilder.Append(TEXT(", "));
+				}
+				bNeedsComma = true;
+
+				StringBuilder.Append(TEXT("in "));
+				StringBuilder.Append(FHlslNiagaraTranslator::GetStructHlslTypeName(InputVar.GetType()));
+
+				StringBuilder.Append(TEXT(" In_"));
+				StringBuilder.Append(FHlslNiagaraTranslator::GetSanitizedSymbolName(InputVar.GetName().ToString()));
+			}
+
+			// Outputs
+			for (const FNiagaraVariable& OutputVar : FunctionSignature.Outputs)
+			{
+				if (bNeedsComma)
+				{
+					StringBuilder.Append(TEXT(", "));
+				}
+				bNeedsComma = true;
+				StringBuilder.Append(TEXT("out "));
+				StringBuilder.Append(FHlslNiagaraTranslator::GetStructHlslTypeName(OutputVar.GetType()));
+				StringBuilder.Append(TEXT(" Out_"));
+				StringBuilder.Append(FHlslNiagaraTranslator::GetSanitizedSymbolName(OutputVar.GetName().ToString()));
+			}
+			StringBuilder.Append(TEXT(");"));
+		}
+	}
+	else
+	{
+		ensureAlwaysMsgf(false, TEXT("None member functions not supported currently"));
+	}
+
+	return FString(StringBuilder.ToString());
 }
 
 FName FHlslNiagaraTranslator::GetDataInterfaceName(FName BaseName, const FString& UniqueEmitterName, bool bIsParameterMapDataInterface)

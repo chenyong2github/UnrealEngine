@@ -59,7 +59,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 	// Water do nto read the classification data to avoid running it a second time when water is enabled.
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(SvPosition.xy, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
-	if (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.IsSingleLayerWater)
+	if (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.bIsSingleLayerWater)
 	{
 		float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 		float SceneDepth = ConvertFromDeviceZ(DeviceZ);
@@ -253,7 +253,7 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 			#if STRATA_ENABLED
 				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 				FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
-				bContainsWater = bContainsWater || (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.IsSingleLayerWater);
+				bContainsWater = bContainsWater || (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.bIsSingleLayerWater);
 			#else
 				FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 				bContainsWater = bContainsWater || GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;
@@ -279,7 +279,7 @@ void WaterTileCatergorisationCS(uint3 ThreadId : SV_DispatchThreadID, uint3 Grou
 	#if STRATA_ENABLED
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
-		bContainsWater = bContainsWater || (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.IsSingleLayerWater);
+		bContainsWater = bContainsWater || (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.bIsSingleLayerWater);
 	#else
 		FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 		bContainsWater = bContainsWater || GBuffer.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER;

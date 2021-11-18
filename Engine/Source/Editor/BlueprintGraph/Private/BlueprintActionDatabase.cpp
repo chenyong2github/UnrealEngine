@@ -671,9 +671,7 @@ static void BlueprintActionDatabaseImpl::AddClassFunctionActions(UClass const* c
 
 			if (FKismetEditorUtilities::IsClassABlueprintInterface(Class))
 			{
-				FuncSpawner->DefaultMenuSignature.MenuName = FText::Format(LOCTEXT("InterfaceCallMenuName", "{0} (Interface Call)"), 
-					FuncSpawner->DefaultMenuSignature.MenuName);
-
+				// Use the default function name
 				ActionListOut.Add(MakeMessageNodeSpawner(Function));
 			}
 		}

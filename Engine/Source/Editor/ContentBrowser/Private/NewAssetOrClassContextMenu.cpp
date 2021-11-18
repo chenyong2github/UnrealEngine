@@ -18,6 +18,7 @@
 #include "ToolMenus.h"
 #include "IContentBrowserDataModule.h"
 #include "ContentBrowserDataSubsystem.h"
+#include "ContentBrowserDataMenuContexts.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -40,12 +41,6 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 		return bHasSinglePathSelected && bIsValidNewFolderPath;
 	};
 
-	// If a single folder is selected and it is not valid for creating a new folder (The All Folder), don't create a context menu
-	if (bHasSinglePathSelected && !bIsValidNewFolderPath)
-	{
-		return;
-	}
-
 	const FCanExecuteAction CanExecuteFolderActionsDelegate = FCanExecuteAction::CreateLambda(CanExecuteFolderActions);
 
 	// Get Content
@@ -53,6 +48,8 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 
 	if ( InOnGetContentRequested.IsBound() )
 	{
+		UContentBrowserDataMenuContext_AddNewMenu* AddNewMenuContext = Menu->FindContext<UContentBrowserDataMenuContext_AddNewMenu>();
+		if (AddNewMenuContext && AddNewMenuContext->bCanBeModified && AddNewMenuContext->bContainsValidPackagePath)
 		{
 			GetContentSection.AddMenuEntry(
 				"GetContent",
@@ -62,6 +59,12 @@ void FNewAssetOrClassContextMenu::MakeContextMenu(
 				FUIAction( FExecuteAction::CreateStatic( &FNewAssetOrClassContextMenu::ExecuteGetContent, InOnGetContentRequested ) )
 				);
 		}
+	}
+
+	// If a single folder is selected and it is not valid for creating a new folder (The All Folder), don't create a context menu
+	if (bHasSinglePathSelected && !bIsValidNewFolderPath)
+	{
+		return;
 	}
 
 	// New Folder

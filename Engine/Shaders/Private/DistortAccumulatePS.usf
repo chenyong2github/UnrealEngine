@@ -158,8 +158,8 @@ void Main(
 			// We only support rough refraction from Slab material type for now.
 			if (BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB)
 			{
-				// Approximation to surface directional albedo (STRATA_TODO: use the LUT for a more preresentative directional albedo)
-				float3 InterfaceFDG = StrataEnvBRDF(SLAB_F0(BSDF), SLAB_F90(BSDF), SLAB_ROUGHNESSX(BSDF), StrataBSDFContext.SatNoV);	
+				// Surface directional albedo
+				const FBxDFEnergyTerms EnergyTerms = ComputeGGXSpecEnergyTerms(SLAB_ROUGHNESS(BSDF), StrataBSDFContext.SatNoV, SLAB_F0(BSDF), SLAB_F90(BSDF));
 
 				// The top layer we consider a transition air to water. For layers below, we assume they all have similar index of refraction.
 				const float InterfaceEta12 = i == 0 ? 1.0f / 1.33f : 1.0f; // STRATA_TODO Use Refraction.x in IOR mode?
@@ -170,7 +170,7 @@ void Main(
 
 				// Compute the refracted Lobe according to roughness . 
 				// STRATA_TODO: take into account scattering and transmittance. Colored transmittance is taken into account already but not scattering influence on variance.
-				StrataLobeStatistic NewLobe = StrataGetRefractedLobe(WiLobe, InterfaceFDG * OutThroughput * BSDFCoverage, SLAB_ROUGHNESSX(BSDF), InterfaceEta12);
+				StrataLobeStatistic NewLobe = StrataGetRefractedLobe(WiLobe, EnergyTerms.E * OutThroughput * BSDFCoverage, SLAB_ROUGHNESS(BSDF), InterfaceEta12);
 
 				// Transform the new Lobe direction to world space and accumulate
 				NewLobe.Mu = NewLobe.Mu.x * StrataBSDFContext.X + NewLobe.Mu.y * StrataBSDFContext.Y + NewLobe.Mu.z * StrataBSDFContext.N;

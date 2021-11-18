@@ -50,10 +50,10 @@ void FMeshUtilitiesEngine::CalcBoneVertInfos(USkeletalMesh* SkeletalMesh, TArray
 			{
 				int32 BoneIndex = Section.BoneMap[GetDominantBoneIndex(SoftVert)];
 
-				FVector LocalPos = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformPosition(SoftVert->Position);
+				FVector3f LocalPos = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformPosition(SoftVert->Position);
 				Infos[BoneIndex].Positions.Add(LocalPos);
 
-				FVector LocalNormal = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformVector(SoftVert->TangentZ);
+				FVector3f LocalNormal = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformVector(SoftVert->TangentZ);
 				Infos[BoneIndex].Normals.Add(LocalNormal);
 			}
 			else
@@ -64,10 +64,10 @@ void FMeshUtilitiesEngine::CalcBoneVertInfos(USkeletalMesh* SkeletalMesh, TArray
 					{
 						int32 BoneIndex = Section.BoneMap[SoftVert->InfluenceBones[j]];
 
-						FVector LocalPos = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformPosition(SoftVert->Position);
+						FVector3f LocalPos = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformPosition(SoftVert->Position);
 						Infos[BoneIndex].Positions.Add(LocalPos);
 
-						FVector LocalNormal = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformVector(SoftVert->TangentZ);
+						FVector3f LocalNormal = SkeletalMesh->GetRefBasesInvMatrix()[BoneIndex].TransformVector(SoftVert->TangentZ);
 						Infos[BoneIndex].Normals.Add(LocalNormal);
 					}
 				}

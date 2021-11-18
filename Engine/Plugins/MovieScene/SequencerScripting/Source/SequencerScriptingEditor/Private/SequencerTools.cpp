@@ -544,7 +544,7 @@ bool USequencerToolsFunctionLibrary::ImportFBXToControlRig(UWorld* World, ULevel
 				INodeAndChannelMappings* ChannelMapping = Cast<INodeAndChannelMappings>(Track); 
 				if (ChannelMapping)
 				{
-					TArray<FFBXNodeAndChannels>* NodeAndChannels = ChannelMapping->GetNodeAndChannelMappings();
+					TArray<FFBXNodeAndChannels>* NodeAndChannels = ChannelMapping->GetNodeAndChannelMappings(nullptr);
 					//use passed in controls for selected, actually selected controls should almost be empty anyway since we just loaded/set everything up.
 					for (const FString& StringName : ControlRigNames)
 					{

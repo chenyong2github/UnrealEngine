@@ -871,3 +871,33 @@ int32 FNiagaraRenderer::SortAndCullIndices(const FNiagaraGPUSortInfo& SortInfo, 
 	}
 	return OutNumInstances;
 }
+
+FVector4f FNiagaraRenderer::CalcMacroUVParameters(const FSceneView& View, FVector MacroUVPosition, float MacroUVRadius)
+{
+	FVector4f MacroUVParameters = FVector4f(0.0f, 0.0f, 1.0f, 1.0f);
+	if (MacroUVRadius > 0.0f)
+	{
+		const FMatrix& ViewProjMatrix = View.ViewMatrices.GetViewProjectionMatrix();
+		const FMatrix& ViewMatrix = View.ViewMatrices.GetTranslatedViewMatrix();
+
+		const FVector4 ObjectPostProjectionPositionWithW = ViewProjMatrix.TransformPosition(MacroUVPosition);
+		const FVector2D ObjectNDCPosition = FVector2D(ObjectPostProjectionPositionWithW / FMath::Max(ObjectPostProjectionPositionWithW.W, 0.00001f));
+		const FVector4 RightPostProjectionPosition = ViewProjMatrix.TransformPosition(MacroUVPosition + MacroUVRadius * ViewMatrix.GetColumn(0));
+		const FVector4 UpPostProjectionPosition = ViewProjMatrix.TransformPosition(MacroUVPosition + MacroUVRadius * ViewMatrix.GetColumn(1));
+
+		const float RightNDCPosX = RightPostProjectionPosition.X / FMath::Max(RightPostProjectionPosition.W, 0.0001f);
+		const float UpNDCPosY = UpPostProjectionPosition.Y / FMath::Max(UpPostProjectionPosition.W, 0.0001f);
+		const float DX = FMath::Min<float>(RightNDCPosX - ObjectNDCPosition.X, WORLD_MAX);
+		const float DY = FMath::Min<float>(UpNDCPosY - ObjectNDCPosition.Y, WORLD_MAX);
+
+		MacroUVParameters.X = float(ObjectNDCPosition.X);
+		MacroUVParameters.Y = float(ObjectNDCPosition.Y);
+		if (DX != 0.0f && DY != 0.0f && !FMath::IsNaN(DX) && FMath::IsFinite(DX) && !FMath::IsNaN(DY) && FMath::IsFinite(DY))
+		{
+			MacroUVParameters.Z = 1.0f / float(DX);
+			MacroUVParameters.W = -1.0f / float(DY);
+		}
+	}
+	return MacroUVParameters;
+}
+

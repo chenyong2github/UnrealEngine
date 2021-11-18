@@ -57,6 +57,18 @@ namespace UnrealBuildTool
 		private static bool bShowPerActionCompilationTimes = false;
 
 		/// <summary>
+		/// Whether to log command lines for actions being executed
+		/// </summary>
+		[XmlConfigFile]
+		private static bool bLogActionCommandLines = false;
+
+		/// <summary>
+		/// Add target names for each action executed
+		/// </summary>
+		[XmlConfigFile]
+		private static bool bPrintActionTargetNames = false;
+
+		/// <summary>
 		/// How many processes that will be executed in parallel
 		/// </summary>
 		public int NumParallelProcesses { get; private set; }
@@ -303,6 +315,18 @@ namespace UnrealBuildTool
 					return;
 				}
 
+				string TargetDetails = "";
+				TargetDescriptor? Target = Action.Target;
+				if (bPrintActionTargetNames && Target != null)
+				{
+					TargetDetails = $"[{Target.Name} {Target.Platform} {Target.Configuration}]";
+				}
+
+				if (bLogActionCommandLines)
+				{
+					Log.TraceLog($"[{CompletedActions}/{TotalActions}]{TargetDetails} Command: {Action.CommandPath} {Action.CommandArguments}");
+				}
+
 				string CompilationTimes = "";
 
 				if (bShowPerActionCompilationTimes)
@@ -310,7 +334,7 @@ namespace UnrealBuildTool
 					CompilationTimes = $" (Wall: {ExecutionTime.TotalSeconds:0.00}s CPU: {ProcessorTime.TotalSeconds:0.00}s)";
 				}
 
-				Log.TraceInformation("[{0}/{1}]{2} {3}", CompletedActions, TotalActions, CompilationTimes, Description);
+				Log.TraceInformation("[{0}/{1}]{2}{3} {4}", CompletedActions, TotalActions, TargetDetails, CompilationTimes, Description);
 				foreach (string Line in LogLines.Skip(Action.bShouldOutputStatusDescription ? 0 : 1))
 				{
 					Log.TraceInformation(Line);
@@ -321,8 +345,8 @@ namespace UnrealBuildTool
 					// BEGIN TEMPORARY TO CATCH PVS-STUDIO ISSUES
 					if (LogLines.Count == 0)
 					{
-						Log.TraceInformation("[{0}/{1}] {2} - Error but no output", NumCompletedActions, TotalActions, Description);
-						Log.TraceInformation("[{0}/{1}] {2} - {3} {4} {5} {6}", NumCompletedActions, TotalActions, Description, ExitCode,
+						Log.TraceInformation("[{0}/{1}]{2} {3} - Error but no output", NumCompletedActions, TotalActions, TargetDetails, Description);
+						Log.TraceInformation("[{0}/{1}]{2} {3} - {4} {5} {6} {7}", NumCompletedActions, TotalActions, TargetDetails, Description, ExitCode,
 							Action.WorkingDirectory, Action.CommandPath, Action.CommandArguments);
 					}
 					// END TEMPORARY

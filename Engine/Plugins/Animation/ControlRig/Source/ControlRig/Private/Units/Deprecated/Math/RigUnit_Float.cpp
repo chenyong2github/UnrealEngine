@@ -29,5 +29,5 @@ FRigUnit_Clamp_Float_Execute()
 
 FRigUnit_MapRange_Float_Execute()
 {
-	Result = FMath::GetMappedRangeValueClamped(FVector2D(MinIn, MaxIn), FVector2D(MinOut, MaxOut), Value);
+	Result = FMath::GetMappedRangeValueClamped(FVector2f(MinIn, MaxIn), FVector2f(MinOut, MaxOut), Value);
 }

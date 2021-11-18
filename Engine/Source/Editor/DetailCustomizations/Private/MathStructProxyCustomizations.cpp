@@ -187,17 +187,17 @@ void FMatrixStructCustomization::CustomizeRotation(TSharedRef<class IPropertyHan
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
 		[
-			MakeNumericProxyWidget<FRotator, float>(StructPropertyHandle, CachedRotationRoll, LOCTEXT("RotationRoll", "X"), true, SNumericEntryBox<float>::RedLabelBackgroundColor)
+			MakeNumericProxyWidget<FRotator, FRotator::FReal>(StructPropertyHandle, CachedRotationRoll, LOCTEXT("RotationRoll", "X"), true, SNumericEntryBox<FRotator::FReal>::RedLabelBackgroundColor)
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(0.0f, 2.0f, 3.0f, 2.0f))
 		[
-			MakeNumericProxyWidget<FRotator, float>(StructPropertyHandle, CachedRotationPitch, LOCTEXT("RotationPitch", "Y"), true, SNumericEntryBox<float>::GreenLabelBackgroundColor)
+			MakeNumericProxyWidget<FRotator, FRotator::FReal>(StructPropertyHandle, CachedRotationPitch, LOCTEXT("RotationPitch", "Y"), true, SNumericEntryBox<FRotator::FReal>::GreenLabelBackgroundColor)
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(0.0f, 2.0f, 0.0f, 2.0f))
 		[
-			MakeNumericProxyWidget<FRotator, float>(StructPropertyHandle, CachedRotationYaw, LOCTEXT("RotationYaw", "Z"), true, SNumericEntryBox<float>::BlueLabelBackgroundColor)
+			MakeNumericProxyWidget<FRotator, FRotator::FReal>(StructPropertyHandle, CachedRotationYaw, LOCTEXT("RotationYaw", "Z"), true, SNumericEntryBox<FRotator::FReal>::BlueLabelBackgroundColor)
 		]
 	];
 }

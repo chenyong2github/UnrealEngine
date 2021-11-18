@@ -13,7 +13,7 @@ struct FDisplayClusterClusterEventBinary;
  * Binary cluster events TCP client
  */
 class FDisplayClusterClusterEventsBinaryClient
-	: public FDisplayClusterClient<FDisplayClusterPacketBinary, false>
+	: public FDisplayClusterClient<FDisplayClusterPacketBinary>
 	, public IDisplayClusterProtocolEventsBinary
 {
 public:
@@ -24,5 +24,5 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolEventsBinary
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event) override;
+	EDisplayClusterCommResult EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event) override;
 };

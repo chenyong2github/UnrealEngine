@@ -10,6 +10,7 @@
 #include "Rigs/RigSpaceHierarchy.h"
 #include "IStructureDetailsView.h"
 #include "Misc/FrameNumber.h"
+#include "EditorUndoClient.h"
 #include "SRigSpacePickerWidget.generated.h"
 
 USTRUCT()
@@ -50,7 +51,7 @@ DECLARE_DELEGATE_RetVal_TwoParams(TArray<FRigElementKey>, FRigSpacePickerGetAddi
 DECLARE_DELEGATE_RetVal_ThreeParams(FReply, SRigSpacePickerOnBake, URigHierarchy*, TArray<FRigElementKey> /* Controls */, FRigSpacePickerBakeSettings);
 
 /** Widget allowing picking of a space source for space switching */
-class CONTROLRIGEDITOR_API SRigSpacePickerWidget : public SCompoundWidget
+class CONTROLRIGEDITOR_API SRigSpacePickerWidget : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 
@@ -108,6 +109,11 @@ public:
 	FRigSpacePickerActiveSpaceChanged& OnActiveSpaceChanged() { return ActiveSpaceChangedEvent; }
 	FRigSpacePickerSpaceListChanged& OnSpaceListChanged() { return SpaceListChangedEvent; }
 	void RefreshContents();
+
+	// FEditorUndoClient interface
+	virtual void PostUndo(bool bSuccess);
+	virtual void PostRedo(bool bSuccess);
+	// End FEditorUndoClient interface
 	
 private:
 

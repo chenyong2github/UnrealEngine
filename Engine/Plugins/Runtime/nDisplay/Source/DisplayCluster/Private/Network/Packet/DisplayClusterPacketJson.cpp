@@ -23,7 +23,7 @@ bool FDisplayClusterPacketJson::SendPacket(FDisplayClusterSocketOperations& Sock
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - sending json..."), *SocketOps.GetConnectionName());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - sending json..."), *SocketOps.GetConnectionName());
 
 	// We'll be working with internal buffer to save some time on memcpy operation
 	TArray<uint8>& DataBuffer = SocketOps.GetPersistentBuffer();
@@ -34,7 +34,7 @@ bool FDisplayClusterPacketJson::SendPacket(FDisplayClusterSocketOperations& Sock
 	TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&OutputString);
 	if(!FJsonSerializer::Serialize(JsonData.ToSharedRef(), JsonWriter))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Warning, TEXT("%s - Couldn't serialize json data"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s - Couldn't serialize json data"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
@@ -43,7 +43,7 @@ bool FDisplayClusterPacketJson::SendPacket(FDisplayClusterSocketOperations& Sock
 	// Fil packet header with data
 	FPacketHeader PacketHeader;
 	PacketHeader.PacketBodyLength = OutputString.Len();
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - Outgoing packet header: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - Outgoing packet header: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
 
 	// Write packet header
 	FMemory::Memcpy(DataBuffer.GetData() + WriteOffset, &PacketHeader, sizeof(FPacketHeader));
@@ -56,11 +56,11 @@ bool FDisplayClusterPacketJson::SendPacket(FDisplayClusterSocketOperations& Sock
 	// Send packet
 	if (!SocketOps.SendChunk(DataBuffer, WriteOffset, FString("send-json")))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Warning, TEXT("%s - Couldn't send json"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s - Couldn't send json"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - Json sent"), *SocketOps.GetConnectionName());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - Json sent"), *SocketOps.GetConnectionName());
 	return true;
 }
 
@@ -82,24 +82,24 @@ bool FDisplayClusterPacketJson::RecvPacket(FDisplayClusterSocketOperations& Sock
 	DataBuffer.Reset();
 	if (!SocketOps.RecvChunk(DataBuffer, sizeof(FPacketHeader), FString("recv-json-chunk-header")))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - couldn't receive packet header. Remote host has disconnected."), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s - couldn't receive packet header. Remote host has disconnected."), *SocketOps.GetConnectionName());
 		return false;
 	}
 
 	// Ok. Now we can extract header data
 	FMemory::Memcpy(&PacketHeader, DataBuffer.GetData(), sizeof(FPacketHeader));
-	UE_LOG(LogDisplayClusterNetworkMsg, VeryVerbose, TEXT("%s - json header received: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - json header received: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
 	check(PacketHeader.PacketBodyLength > 0);
 
 	// Read packet body
 	DataBuffer.Reset();
 	if (!SocketOps.RecvChunk(DataBuffer, PacketHeader.PacketBodyLength, FString("recv-json-chunk-body")))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("%s - couldn't receive packet body"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s - couldn't receive packet body"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterNetworkMsg, VeryVerbose, TEXT("%s - json body received"), *SocketOps.GetConnectionName());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - json body received"), *SocketOps.GetConnectionName());
 
 	// Add string zero terminator
 	DataBuffer.GetData()[PacketHeader.PacketBodyLength] = 0;
@@ -111,12 +111,12 @@ bool FDisplayClusterPacketJson::RecvPacket(FDisplayClusterSocketOperations& Sock
 	// Now we deserialize a string to Json object
 	if (!FJsonSerializer::Deserialize(JsonReader, JsonData))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("%s couldn't deserialize json packet"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s couldn't deserialize json packet"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
 	// Succeeded
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - received json packet: %s"), *SocketOps.GetConnectionName(), *JsonString);
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - received json packet: %s"), *SocketOps.GetConnectionName(), *JsonString);
 	return true;
 }
 

@@ -143,7 +143,7 @@ bool FParsingUnitTests::RunTest(const FString& Parameters)
 			const bool IsEqual = IsRoughlyEqual(Result.GetValue().ConvertTo(Test.UnderlyingUnit).GetValue().Value, Test.ExpectedValue, 1e-6);
 			if (!IsEqual)
 			{
-				AddError(FString::Printf(TEXT("Parsing of expression \"%s\" failed. Expected %d but got %d."),
+				AddError(FString::Printf(TEXT("Parsing of expression \"%s\" failed. Expected %f but got %f."),
 					Test.Expression,
 					Test.ExpectedValue,
 					Result.GetValue().Value
@@ -153,7 +153,7 @@ bool FParsingUnitTests::RunTest(const FString& Parameters)
 		}
 		else
 		{
-			AddError(FString::Printf( TEXT("Parsing of expression \"%s\" was incorrect (%s). Expected %d."), 
+			AddError(FString::Printf( TEXT("Parsing of expression \"%s\" was incorrect (%s). Expected %f."),
 				Test.Expression, 
 				*(Result.GetError().ToString()), 
 				Test.ExpectedValue

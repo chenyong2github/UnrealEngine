@@ -418,7 +418,7 @@ namespace Chaos
 		if (Utilities::NormalizeSafe(Axis, KINDA_SMALL_NUMBER))
 		{
 			FReal SwingTwistDot = FVec3::DotProduct(Swing0, Twist1);
-			FReal Position = FMath::Asin(FMath::Clamp<FReal>(-SwingTwistDot, -1., 1.));
+			FReal Position = FMath::Asin(FMath::Clamp(-SwingTwistDot, FReal(-1), FReal(1)));
 			RowState.Axis = Axis;
 			RowState.CalculateError(Position, RowData.Limit);
 		}

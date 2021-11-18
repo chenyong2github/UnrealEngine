@@ -301,7 +301,7 @@ bool FRuntimeVirtualTextureComponentDetailsCustomization::IsBuildStreamedMipsEna
 
 EVisibility FRuntimeVirtualTextureComponentDetailsCustomization::IsBuildWarningIconVisible() const
 {
-	bool bVisible = RuntimeVirtualTextureComponent->GetVirtualTexture() != nullptr && !RuntimeVirtualTextureComponent->IsStreamingTextureValid();
+	const bool bVisible = RuntimeVirtualTextureComponent->IsStreamingTextureInvalid();
 	return bVisible ? EVisibility::Visible : EVisibility::Hidden;
 }
 

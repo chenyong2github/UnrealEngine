@@ -21,20 +21,29 @@ FDisplayClusterClusterEventsBinaryClient::FDisplayClusterClusterEventsBinaryClie
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolEventsBinary
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterEventsBinaryClient::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event)
+EDisplayClusterCommResult FDisplayClusterClusterEventsBinaryClient::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event)
 {
 	// Convert internal binary event type to binary net packet
 	TSharedPtr<FDisplayClusterPacketBinary> Request = DisplayClusterNetworkDataConversion::BinaryEventToBinaryPacket(Event);
 	if (!Request)
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Couldn't convert binary cluster event data to net packet"));
-		return;
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Couldn't convert binary cluster event data to net packet"));
+		return EDisplayClusterCommResult::WrongRequestData;
 	}
 
-	// Send event
-	const bool bResult = SendPacket(Request);
+	bool bResult = false;
+
+	{
+		// Send event
+		TRACE_CPUPROFILER_EVENT_SCOPE(nD CLN_CEB::EmitClusterEventBinary);
+		bResult = SendPacket(Request);
+	}
+
 	if (!bResult)
 	{
 		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Couldn't send binary cluster event"));
+		return EDisplayClusterCommResult::NetworkError;
 	}
+
+	return EDisplayClusterCommResult::Ok;
 }

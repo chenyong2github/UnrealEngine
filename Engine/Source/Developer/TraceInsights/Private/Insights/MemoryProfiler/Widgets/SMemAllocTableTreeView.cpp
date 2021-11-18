@@ -13,6 +13,7 @@
 #include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/Callstack.h"
 #include "TraceServices/Model/Modules.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SToolTip.h"
 
@@ -48,6 +49,7 @@ const int SMemAllocTableTreeView::FullCallStackIndex = 0x0000FFFFF;
 SMemAllocTableTreeView::SMemAllocTableTreeView()
 {
 	bRunInAsyncMode = true;
+	InitAvailableViewPresets();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -157,7 +159,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 						++HeapAllocCount;
 						continue;
 					}
-					
+
 					TableTreeNodes.Add(NodePtr);
 				}
 				ensure(TableTreeNodes.Num() == TotalAllocCount - HeapAllocCount);
@@ -443,413 +445,483 @@ FText SMemAllocTableTreeView::GetCurrentOperationName() const
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 {
-	return
-		SNew(SHorizontalBox)
+	TSharedPtr<SHorizontalBox> Box = SNew(SHorizontalBox);
 
-		+ SHorizontalBox::Slot()
+	Box->AddSlot()
 		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 		[
-			SNew(SButton)
-			.Text(LOCTEXT("DetailedBtn_Text", "Detailed"))
-			.ToolTipText(LOCTEXT("DetailedBtn_Tooltip", "Detailed View\nConfigure the tree view to show detailed allocation info."))
-			.OnClicked(this, &SMemAllocTableTreeView::OnDetailedViewClicked)
-		]
+			SNew(STextBlock)
+			.Text(LOCTEXT("Preset", "Preset:"))
+		];
 
-		+ SHorizontalBox::Slot()
+	Box->AddSlot()
 		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
 		[
-			SNew(SButton)
-			.Text(LOCTEXT("BySizeBtn_Text", "By Size"))
-			.ToolTipText(LOCTEXT("BySizeBtn_Tooltip", "Size Breakdown View\nConfigure the tree view to show a breakdown of allocations by their size."))
-			.OnClicked(this, &SMemAllocTableTreeView::OnSizeViewClicked)
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("ByTagBtn_Text", "By Tag"))
-			.ToolTipText(LOCTEXT("ByTagBtn_Tooltip", "Tag Breakdown View\nConfigure the tree view to show a breakdown of allocations by their LLM tags."))
-			.OnClicked(this, &SMemAllocTableTreeView::OnTagViewClicked)
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("ByCallstackBtn_Text", "By Callstack"))
-			.ToolTipText(LOCTEXT("ByCallstackBtn_Tooltip", "Callstack Breakdown View\nConfigure the tree view to show a breakdown of allocations by callstack."))
-			.OnClicked(this, &SMemAllocTableTreeView::OnCallstackViewClicked, false)
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("ByInvertedCallstackBtn_Text", "By Inverted Callstack"))
-			.ToolTipText(LOCTEXT("ByInvertedCallstackBtn_Tooltip", "Inverted Callstack Breakdown View\nConfigure the tree view to show a breakdown of allocations by inverted callstack."))
-			.OnClicked(this, &SMemAllocTableTreeView::OnCallstackViewClicked, true)
-		]	
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("ByHeapTypeBtn_Text", "By Heap"))
-			.ToolTipText(LOCTEXT("ByHeapBtn_Tooltip", "Heap type breakdown."))
-			.OnClicked(this, &SMemAllocTableTreeView::OnHeapViewClicked)
-		]
-	
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("ByMemoryPageBtn_Text", "By Memory Page"))
-			.ToolTipText(LOCTEXT("ByMemoryRegionBtn_Tooltip", "Memory Page Breakdown View\nConfigure the tree view to show a breakdown of allocations by memory page."))
-			.OnClicked(this, &SMemAllocTableTreeView::OnMemoryPageClicked)
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		[
-			SNew(SCheckBox)
-			.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
-			.HAlign(HAlign_Center)
-			.Padding(FMargin(2.0f, 4.0f, 2.0f, 0.0f))
-			.OnCheckStateChanged(this, &SMemAllocTableTreeView::CallstackGroupingByFunction_OnCheckStateChanged)
-			.IsChecked(this, &SMemAllocTableTreeView::CallstackGroupingByFunction_IsChecked)
-			.ToolTip(
-				SNew(SToolTip)
-				[
-					SNew(SVerticalBox)
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(2.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("CallstackGroupingByFunction_Tooltip_Title", "Callstack Grouping by Function Name"))
-						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
-					]
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(2.0f, 8.0f, 2.0f, 2.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("CallstackGroupingByFunction_Tooltip_Content", "If enabled, the callstack grouping will create a single group node per function name.\nExample 1: When two callstack frames are located in same function, but at different line numbers; \nExample 2: When a function is called recursively.\nOtherwise it will create separate group nodes for each unique callstack frame."))
-						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
-					]
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					.Padding(2.0f, 8.0f, 2.0f, 2.0f)
-					[
-						SNew(SHorizontalBox)
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Top)
-						.Padding(0.0f)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("CallstackGroupingByFunction_Warning", "Warning:"))
-						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
-							.ColorAndOpacity(FLinearColor(1.0f, 0.6f, 0.3f, 1.0f))
-						]
-
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("CallstackGroupingByFunction_Warning_Content", "When this option is enabled, the tree nodes that have merged multiple callstack frames\nwill show in their tooltips the source file name and the line number of an arbitrary\ncallstack frame from ones merged by respective tree node."))
-							.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
-						]
-					]
-				])
+			SNew(SBox)
+			.MinDesiredWidth(150)
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("CallstackGroupingByFunction_Text", " Fn "))
+				SAssignNew(PresetComboBox, SComboBox<TSharedRef<IViewPreset>>)
+				.ToolTipText(this, &SMemAllocTableTreeView::ViewPreset_GetSelectedToolTipText)
+				.OptionsSource(GetAvailableViewPresets())
+				.OnSelectionChanged(this, &SMemAllocTableTreeView::ViewPreset_OnSelectionChanged)
+				.OnGenerateWidget(this, &SMemAllocTableTreeView::ViewPreset_OnGenerateWidget)
+				[
+					SNew(STextBlock)
+					.Text(this, &SMemAllocTableTreeView::ViewPreset_GetSelectedText)
+				]
 			]
-		]
-	;
+		];
+
+	//for (const TSharedRef<IViewPreset>& ViewPreset : AvailableViewPresets)
+	//{
+	//	Box->AddSlot()
+	//		.AutoWidth()
+	//		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+	//		[
+	//			SNew(SButton)
+	//			.Text(ViewPreset->GetName())
+	//			.ToolTipText(ViewPreset->GetToolTip())
+	//			.OnClicked(this, &SMemAllocTableTreeView::OnApplyViewPreset, (const IViewPreset*)&ViewPreset.Get())
+	//		];
+	//}
+
+	Box->AddSlot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		[
+			ConstructFunctionToggleButton()
+		];
+
+	return Box;
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SMemAllocTableTreeView::OnDetailedViewClicked()
+void SMemAllocTableTreeView::InitAvailableViewPresets()
 {
-	ColumnBeingSorted = FTable::GetHierarchyColumnId();
-	ColumnSortMode = EColumnSortMode::Type::Ascending;
-	UpdateCurrentSortingByColumn();
+	//////////////////////////////////////////////////
+	// Default View
 
-	PreChangeGroupings();
-
-	CurrentGroupings.Reset();
-
-	check(AvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
-	CurrentGroupings.Add(AvailableGroupings[0]);
-
-	PostChangeGroupings();
-
-	FColumnConfig Preset[] =
+	class FDefaultViewPreset : public IViewPreset
 	{
-		{ FTable::GetHierarchyColumnId(),                true,  200.0f },
-		{ FMemAllocTableColumns::StartTimeColumnId,      true,  100.0f },
-		{ FMemAllocTableColumns::EndTimeColumnId,        true,  100.0f },
-		{ FMemAllocTableColumns::DurationColumnId,       true,  100.0f },
-		{ FMemAllocTableColumns::AddressColumnId,        true,  120.0f },
-		{ FMemAllocTableColumns::MemoryPageColumnId,     true,  120.0f },
-		{ FMemAllocTableColumns::CountColumnId,          true,  100.0f },
-		{ FMemAllocTableColumns::SizeColumnId,           true,  100.0f },
-		{ FMemAllocTableColumns::TagColumnId,            true,  120.0f },
-		{ FMemAllocTableColumns::FunctionColumnId,       true,  550.0f },
-	};
-	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
-
-	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SMemAllocTableTreeView::OnSizeViewClicked()
-{
-	ColumnBeingSorted = FMemAllocTableColumns::SizeColumnId;
-	ColumnSortMode = EColumnSortMode::Type::Descending;
-	UpdateCurrentSortingByColumn();
-
-	PreChangeGroupings();
-
-	CurrentGroupings.Reset();
-
-	check(AvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
-	CurrentGroupings.Add(AvailableGroupings[0]);
-
-	TSharedPtr<FTreeNodeGrouping>* SizeGrouping = AvailableGroupings.FindByPredicate(
-		[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+	public:
+		virtual FText GetName() const override
 		{
-			return Grouping->Is<FMemAllocGroupingBySize>();
-		});
-	if (SizeGrouping)
-	{
-		CurrentGroupings.Add(*SizeGrouping);
-	}
-
-	PostChangeGroupings();
-
-	FColumnConfig Preset[] =
-	{
-		{ FTable::GetHierarchyColumnId(),              true,  200.0f },
-		{ FMemAllocTableColumns::StartTimeColumnId,    false, 0.0f },
-		{ FMemAllocTableColumns::EndTimeColumnId,      false, 0.0f },
-		{ FMemAllocTableColumns::DurationColumnId,     false, 0.0f },
-		{ FMemAllocTableColumns::AddressColumnId,      true,  120.0f },
-		{ FMemAllocTableColumns::MemoryPageColumnId,   false, 0.0f },
-		{ FMemAllocTableColumns::CountColumnId,        true,  100.0f },
-		{ FMemAllocTableColumns::SizeColumnId,         true,  100.0f },
-		{ FMemAllocTableColumns::TagColumnId,          true,  120.0f },
-		{ FMemAllocTableColumns::FunctionColumnId,     true,  400.0f },
-	};
-	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
-
-	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SMemAllocTableTreeView::OnMemoryPageClicked()
-{
-	ColumnBeingSorted = FTable::GetHierarchyColumnId();
-	ColumnSortMode = EColumnSortMode::Type::Ascending;
-	UpdateCurrentSortingByColumn();
-
-	PreChangeGroupings();
-
-	CurrentGroupings.Reset();
-
-	check(AvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
-	CurrentGroupings.Add(AvailableGroupings[0]);
-
-	TSharedPtr<FTreeNodeGrouping>* MemoryPageGrouping = AvailableGroupings.FindByPredicate(
-		[](TSharedPtr<FTreeNodeGrouping>& Grouping)
-	{
-		return Grouping->Is<FTreeNodeGroupingByUniqueValueInt64>() &&
-			Grouping->As<FTreeNodeGroupingByUniqueValueInt64>().GetColumnId() == FMemAllocTableColumns::MemoryPageColumnId;
-	});
-	if (MemoryPageGrouping)
-	{
-		CurrentGroupings.Add(*MemoryPageGrouping);
-	}
-
-	PostChangeGroupings();
-
-	FColumnConfig Preset[] =
-	{
-		{ FTable::GetHierarchyColumnId(),           true,  200.0f },
-		{ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f },
-		{ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f },
-		{ FMemAllocTableColumns::DurationColumnId,  false, 0.0f },
-		{ FMemAllocTableColumns::AddressColumnId,   true,  120.0f },
-		{ FMemAllocTableColumns::MemoryPageColumnId,false, 0.0f },
-		{ FMemAllocTableColumns::CountColumnId,     true,  100.0f },
-		{ FMemAllocTableColumns::SizeColumnId,      true,  100.0f },
-		{ FMemAllocTableColumns::TagColumnId,       false, 0.0f },
-		{ FMemAllocTableColumns::FunctionColumnId,  true,  400.0f },
-	};
-	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
-
-	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SMemAllocTableTreeView::OnTagViewClicked()
-{
-	ColumnBeingSorted = FTable::GetHierarchyColumnId();
-	ColumnSortMode = EColumnSortMode::Type::Ascending;
-	UpdateCurrentSortingByColumn();
-
-	PreChangeGroupings();
-
-	CurrentGroupings.Reset();
-
-	check(AvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
-	CurrentGroupings.Add(AvailableGroupings[0]);
-
-	TSharedPtr<FTreeNodeGrouping>* TagGrouping = AvailableGroupings.FindByPredicate(
-		[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+			return LOCTEXT("Default_PresetName", "Default");
+		}
+		virtual FText GetToolTip() const override
 		{
-			return Grouping->Is<FTreeNodeGroupingByUniqueValue>() &&
-				   Grouping->As<FTreeNodeGroupingByUniqueValue>().GetColumnId() == FMemAllocTableColumns::TagColumnId;
-		});
-	if (TagGrouping)
-	{
-		CurrentGroupings.Add(*TagGrouping);
-	}
+			return LOCTEXT("Default_PresetToolTip", "Default View\nConfigure the tree view to show default allocation info.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FTable::GetHierarchyColumnId();
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Ascending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
 
-	PostChangeGroupings();
-
-	FColumnConfig Preset[] =
-	{
-		{ FTable::GetHierarchyColumnId(),           true,  200.0f },
-		{ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f },
-		{ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f },
-		{ FMemAllocTableColumns::DurationColumnId,  false, 0.0f },
-		{ FMemAllocTableColumns::AddressColumnId,   false, 0.0f },
-		{ FMemAllocTableColumns::MemoryPageColumnId,false, 0.0f },
-		{ FMemAllocTableColumns::CountColumnId,     true,  100.0f },
-		{ FMemAllocTableColumns::SizeColumnId,      true,  100.0f },
-		{ FMemAllocTableColumns::TagColumnId,       false, 0.0f },
-		{ FMemAllocTableColumns::FunctionColumnId,  true,  400.0f },
+			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),                true,  200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId,      false, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,        false, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,       false, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,        false, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,     false, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,          true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,           true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,            true,  120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,       true,  550.0f });
+		}
 	};
-	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
+	AvailableViewPresets.Add(MakeShared<FDefaultViewPreset>());
 
+	//////////////////////////////////////////////////
+	// Detailed View
+
+	class FDetailedViewPreset : public IViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("Detailed_PresetName", "Detailed");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("Detailed_PresetToolTip", "Detailed View\nConfigure the tree view to show detailed allocation info.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FTable::GetHierarchyColumnId();
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Ascending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),                true,  200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId,      true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,        true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,       true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,        true,  120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,     true,  120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,          true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,           true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,            true,  120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,       true,  550.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FDetailedViewPreset>());
+
+	//////////////////////////////////////////////////
+	// Heap Breakdown View
+
+	class FHeapViewPreset : public IViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("Heap_PresetName", "Heap");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("Heap_PresetToolTip", "Heap Breakdown View\nConfigure the tree view to show a breakdown of allocations by their parent heap type.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FMemAllocTableColumns::SizeColumnId;
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Descending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			//check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			//InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<FTreeNodeGrouping>* HeapGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FMemAllocGroupingByHeap>();
+				});
+			if (HeapGrouping)
+			{
+				InOutCurrentGroupings.Add(*HeapGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),           true,  400.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,  false, 0.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,   false, 0.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,     true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,      true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,       true,  200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,  true,  200.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FHeapViewPreset>());
+
+	//////////////////////////////////////////////////
+	// Size Breakdown View
+
+	class FSizeViewPreset : public IViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("Size_PresetName", "Size");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("Size_PresetToolTip", "Size Breakdown View\nConfigure the tree view to show a breakdown of allocations by their size.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FMemAllocTableColumns::SizeColumnId;
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Descending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<FTreeNodeGrouping>* SizeGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FMemAllocGroupingBySize>();
+				});
+			if (SizeGrouping)
+			{
+				InOutCurrentGroupings.Add(*SizeGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),              true,  200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId,    false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,      false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,     false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,      true,  120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,   false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,        true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,         true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,          true,  120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,     true,  400.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FSizeViewPreset>());
+
+	//////////////////////////////////////////////////
+	// Tag Breakdown View
+
+	class FTagViewPreset : public IViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("Tag_PresetName", "Tags");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("Tag_PresetToolTip", "Tag Breakdown View\nConfigure the tree view to show a breakdown of allocations by their LLM tag.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FTable::GetHierarchyColumnId();
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Ascending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<FTreeNodeGrouping>* TagGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FTreeNodeGroupingByUniqueValue>() &&
+						   Grouping->As<FTreeNodeGroupingByUniqueValue>().GetColumnId() == FMemAllocTableColumns::TagColumnId;
+				});
+			if (TagGrouping)
+			{
+				InOutCurrentGroupings.Add(*TagGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),           true,  200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,  false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,   false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,     true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,      true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,       false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,  true,  400.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FTagViewPreset>());
+
+	//////////////////////////////////////////////////
+	// (Inverted) Callstack Breakdown View
+
+	class FCallstackViewPreset : public IViewPreset
+	{
+	public:
+		FCallstackViewPreset(bool bIsInverted)
+			: bIsInvertedCallstack(bIsInverted)
+		{
+		}
+
+		virtual FText GetName() const override
+		{
+			return bIsInvertedCallstack ?
+				LOCTEXT("InvertedCallstack_PresetName", "Inverted Callstack") :
+				LOCTEXT("Callstack_PresetName", "Callstack");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return bIsInvertedCallstack ?
+				LOCTEXT("InvertedCallstack_PresetToolTip", "Inverted Callstack Breakdown View\nConfigure the tree view to show a breakdown of allocations by inverted callstack.") :
+				LOCTEXT("Callstack_PresetToolTip", "Callstack Breakdown View\nConfigure the tree view to show a breakdown of allocations by callstack.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FMemAllocTableColumns::SizeColumnId;
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Descending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const bool bIsInverted = bIsInvertedCallstack;
+			const TSharedPtr<FTreeNodeGrouping>* CallstackGrouping = InAvailableGroupings.FindByPredicate(
+				[bIsInverted](TSharedPtr<FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FMemAllocGroupingByCallstack>() &&
+						   Grouping->As<FMemAllocGroupingByCallstack>().IsInverted() == bIsInverted;
+				});
+			if (CallstackGrouping)
+			{
+				InOutCurrentGroupings.Add(*CallstackGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),           true,  400.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,  false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,   false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,     true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,      true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,       true,  200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,  true,  200.0f });
+		}
+
+	private:
+		bool bIsInvertedCallstack;
+	};
+	AvailableViewPresets.Add(MakeShared<FCallstackViewPreset>(false));
+	AvailableViewPresets.Add(MakeShared<FCallstackViewPreset>(true));
+
+	//////////////////////////////////////////////////
+	// Memory Page Breakdown View
+
+	class FPageViewPreset : public IViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("Page_PresetName", "Address (4K Page)");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("Page_PresetToolTip", "4K Page Breakdown View\nConfigure the tree view to show a breakdown of allocations by their address.\nIt groups allocs into 4K aligned memory pages.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FTable::GetHierarchyColumnId();
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Ascending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<FTreeNodeGrouping>* MemoryPageGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FTreeNodeGroupingByUniqueValueInt64>() &&
+						   Grouping->As<FTreeNodeGroupingByUniqueValueInt64>().GetColumnId() == FMemAllocTableColumns::MemoryPageColumnId;
+				});
+			if (MemoryPageGrouping)
+			{
+				InOutCurrentGroupings.Add(*MemoryPageGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),           true,  200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,  false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,   true,  120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,     true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,      true,  100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,       false, 0.0f   });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,  true,  400.0f });
+
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FPageViewPreset>());
+
+	//////////////////////////////////////////////////
+
+	SelectedViewPreset = AvailableViewPresets[0];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SMemAllocTableTreeView::OnApplyViewPreset(const IViewPreset* InPreset)
+{
+	ApplyViewPreset(*InPreset);
 	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SMemAllocTableTreeView::OnCallstackViewClicked(bool bIsInverted)
+void SMemAllocTableTreeView::ApplyViewPreset(const IViewPreset& InPreset)
 {
-	ColumnBeingSorted = FMemAllocTableColumns::SizeColumnId;
-	ColumnSortMode = EColumnSortMode::Type::Descending;
+	ColumnBeingSorted = InPreset.GetSortColumn();
+	ColumnSortMode = InPreset.GetSortMode();
 	UpdateCurrentSortingByColumn();
 
 	PreChangeGroupings();
-
-	CurrentGroupings.Reset();
-
-	check(AvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
-	CurrentGroupings.Add(AvailableGroupings[0]);
-
-	TSharedPtr<FTreeNodeGrouping>* CallstackGrouping = AvailableGroupings.FindByPredicate(
-		[bIsInverted](TSharedPtr<FTreeNodeGrouping>& Grouping)
-		{
-			return Grouping->Is<FMemAllocGroupingByCallstack>() &&
-				   Grouping->As<FMemAllocGroupingByCallstack>().IsInverted() == bIsInverted;
-		});
-	if (CallstackGrouping)
-	{
-		CurrentGroupings.Add(*CallstackGrouping);
-	}
-
+	InPreset.SetCurrentGroupings(AvailableGroupings, CurrentGroupings);
 	PostChangeGroupings();
 
-	FColumnConfig Preset[] =
-	{
-		{ FTable::GetHierarchyColumnId(),           true,  400.0f },
-		{ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f },
-		{ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f },
-		{ FMemAllocTableColumns::DurationColumnId,  false, 0.0f },
-		{ FMemAllocTableColumns::AddressColumnId,   false, 0.0f },
-		{ FMemAllocTableColumns::CountColumnId,     true,  100.0f },
-		{ FMemAllocTableColumns::SizeColumnId,      true,  100.0f },
-		{ FMemAllocTableColumns::TagColumnId,       true,  200.0f },
-		{ FMemAllocTableColumns::FunctionColumnId,  true,  200.0f },
-	};
-	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
-
-	return FReply::Handled();
+	TArray<FColumnConfig> ColumnConfigSet;
+	InPreset.GetColumnConfigSet(ColumnConfigSet);
+	ApplyColumnConfig(ColumnConfigSet);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SMemAllocTableTreeView::OnHeapViewClicked()
-{
-	ColumnBeingSorted = FMemAllocTableColumns::SizeColumnId;
-	ColumnSortMode = EColumnSortMode::Type::Descending;
-	UpdateCurrentSortingByColumn();
-
-	PreChangeGroupings();
-
-	CurrentGroupings.Reset();
-
-	TSharedPtr<FTreeNodeGrouping>* CallstackGrouping = AvailableGroupings.FindByPredicate(
-		[](TSharedPtr<FTreeNodeGrouping>& Grouping)
-		{
-			return Grouping->Is<FMemAllocGroupingByHeap>();
-		});
-	if (CallstackGrouping)
-	{
-		CurrentGroupings.Add(*CallstackGrouping);
-	}
-
-	PostChangeGroupings();
-
-	FColumnConfig Preset[] =
-	{
-		{ FTable::GetHierarchyColumnId(),           true,  400.0f },
-		{ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f },
-		{ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f },
-		{ FMemAllocTableColumns::DurationColumnId,  false, 0.0f },
-		{ FMemAllocTableColumns::AddressColumnId,   false, 0.0f },
-		{ FMemAllocTableColumns::CountColumnId,     true,  100.0f },
-		{ FMemAllocTableColumns::SizeColumnId,      true,  100.0f },
-		{ FMemAllocTableColumns::TagColumnId,       true,  200.0f },
-		{ FMemAllocTableColumns::FunctionColumnId,  true,  200.0f },
-	};
-	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
-
-	return FReply::Handled();
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemAllocTableTreeView::ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset)
+void SMemAllocTableTreeView::ApplyColumnConfig(const TArrayView<FColumnConfig>& InColumnConfigSet)
 {
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
 		FTableColumn& Column = ColumnRef.Get();
-		for (const FColumnConfig& Config : Preset)
+		for (const FColumnConfig& Config : InColumnConfigSet)
 		{
 			if (Column.GetId() == Config.ColumnId)
 			{
@@ -868,6 +940,43 @@ void SMemAllocTableTreeView::ApplyColumnConfig(const TArrayView<FColumnConfig>& 
 			}
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::ViewPreset_OnSelectionChanged(TSharedPtr<IViewPreset> InPreset, ESelectInfo::Type SelectInfo)
+{
+	SelectedViewPreset = InPreset;
+	if (InPreset.IsValid())
+	{
+		ApplyViewPreset(*InPreset);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> SMemAllocTableTreeView::ViewPreset_OnGenerateWidget(TSharedRef<IViewPreset> InPreset)
+{
+	return SNew(STextBlock)
+		.Text(InPreset->GetName())
+		.ToolTipText(InPreset->GetToolTip())
+		.Margin(2.0f);
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::ViewPreset_GetSelectedText() const
+{
+	return SelectedViewPreset ? SelectedViewPreset->GetName() : LOCTEXT("CustomPreset_ToolTip", "Custom");
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::ViewPreset_GetSelectedToolTipText() const
+{
+	return SelectedViewPreset ? SelectedViewPreset->GetToolTip() : LOCTEXT("CustomPreset_ToolTip", "Custom Preset");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -958,7 +1067,7 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 	STableTreeView::InternalCreateGroupings();
 
 	int32 Index = 1; // after the Flat ("All") grouping
-	
+
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingBySize>(), Index++);
 
 	TSharedPtr<FTreeNodeGrouping>* TagGroupingPtr = AvailableGroupings.FindByPredicate(
@@ -978,7 +1087,7 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(false, bIsCallstackGroupingByFunction), Index++);
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(true, bIsCallstackGroupingByFunction), Index++);
-	
+
 	const TraceServices::IAllocationsProvider* AllocationsProvider = TraceServices::ReadAllocationsProvider(*Session.Get());
 	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByHeap>(*AllocationsProvider), Index++);
 }
@@ -1035,6 +1144,76 @@ void SMemAllocTableTreeView::AddCustomAdvancedFilters()
 	AvailableFilters->Add(MakeShared<FFilter>(FullCallStackIndex, LOCTEXT("FullCallstack", "Full Callstack"), LOCTEXT("FullCallstack", "Search in all the callstack frames"), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
 	Context.AddFilterData<FString>(FullCallStackIndex, FString());
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> SMemAllocTableTreeView::ConstructFunctionToggleButton()
+{
+	TSharedRef<SWidget> Widget = SNew(SCheckBox)
+		.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
+		.HAlign(HAlign_Center)
+		.Padding(FMargin(4.0f, 2.0f, 4.0f, 2.0f))
+		.OnCheckStateChanged(this, &SMemAllocTableTreeView::CallstackGroupingByFunction_OnCheckStateChanged)
+		.IsChecked(this, &SMemAllocTableTreeView::CallstackGroupingByFunction_IsChecked)
+		.ToolTip(
+			SNew(SToolTip)
+			[
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("CallstackGroupingByFunction_Tooltip_Title", "Callstack Grouping by Function Name"))
+					.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.TooltipBold"))
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2.0f, 8.0f, 2.0f, 2.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("CallstackGroupingByFunction_Tooltip_Content", "If enabled, the callstack grouping will create a single group node per function name.\nExample 1: When two callstack frames are located in same function, but at different line numbers; \nExample 2: When a function is called recursively.\nOtherwise it will create separate group nodes for each unique callstack frame."))
+					.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2.0f, 8.0f, 2.0f, 2.0f)
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Top)
+					.Padding(0.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CallstackGroupingByFunction_Warning", "Warning:"))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
+						.ColorAndOpacity(FLinearColor(1.0f, 0.6f, 0.3f, 1.0f))
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CallstackGroupingByFunction_Warning_Content", "When this option is enabled, the tree nodes that have merged multiple callstack frames\nwill show in their tooltips the source file name and the line number of an arbitrary\ncallstack frame from ones merged by respective tree node."))
+						.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
+					]
+				]
+			])
+		[
+			SNew(SImage)
+			.Image(FInsightsStyle::GetBrush("Icons.Function"))
+		];
+
+	return Widget;
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

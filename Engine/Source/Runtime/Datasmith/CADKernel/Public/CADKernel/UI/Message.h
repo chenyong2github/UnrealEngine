@@ -21,6 +21,10 @@ namespace CADKernel
 
 		static void VPrintf(EVerboseLevel Level, const TCHAR* Text, ...);
 
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+		static void VQaPrintF(const TCHAR* Header, const TCHAR* Text, ...);
+#endif
+
 	public:
 
 		template <typename FmtType, typename... Types>
@@ -47,6 +51,15 @@ namespace CADKernel
 			CompleteText += Text;
 			VPrintf(Log, *CompleteText, Args...);
 		}
+
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+		template <typename FmtType, typename... Types>
+		static void FillQaDataFile(const FmtType& Header, const FmtType& Text, Types... Args)
+		{
+			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
+			VQaPrintF(Header, Text, Args...);
+		}
+#endif
 
 		static void Indent(int32 InNumberOfIndent = 1)
 		{

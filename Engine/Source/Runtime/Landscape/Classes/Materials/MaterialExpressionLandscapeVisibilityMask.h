@@ -17,10 +17,6 @@ class LANDSCAPE_API UMaterialExpressionLandscapeVisibilityMask : public UMateria
 {
 	GENERATED_UCLASS_BODY()
 
-	/** GUID that should be unique within the material, this is used for parameter renaming. */
-	UPROPERTY()
-	FGuid ExpressionGUID;
-
 public:
 
 	static FName ParameterName;
@@ -29,17 +25,15 @@ public:
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+
+	/**
+	 * Gets the landscape layer names
+	 */
+	virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const override;
 #endif
 	virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override { return true; }
 	//~ End UMaterialExpression Interface
-
-	virtual FGuid& GetParameterExpressionId() override;
-
-	/**
-	 * Called to get list of parameter names for static parameter sets
-	 */
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
 };
 
 

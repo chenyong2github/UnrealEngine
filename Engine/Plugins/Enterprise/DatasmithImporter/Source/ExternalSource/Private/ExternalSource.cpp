@@ -23,18 +23,9 @@ namespace UE::DatasmithImporter
 {
 	FExternalSource::FExternalSource(const FSourceUri& InSourceUri)
 		: SourceUri(InSourceUri)
-	{
-#if WITH_EDITOR
-		OnPIEEndHandle = FEditorDelegates::EndPIE.AddRaw(this, &FExternalSource::OnEndPIE);
-#endif //WITH_EDITOR
-	}
+	{}
 
-	FExternalSource::~FExternalSource()
-	{
-#if WITH_EDITOR
-		FEditorDelegates::EndPIE.Remove(OnPIEEndHandle);
-#endif //WITH_EDITOR
-	}
+	FExternalSource::~FExternalSource() {}
 
 	const TSharedPtr<IDatasmithTranslator>& FExternalSource::GetAssetTranslator()
 	{
@@ -206,40 +197,26 @@ namespace UE::DatasmithImporter
 
 	void FExternalSource::TriggerOnExternalSourceChanged()
 	{
-		TSharedRef<FExternalSource> ThisRef = AsShared();
+		if (AsyncTaskNotification.IsValid())
+		{
+			AsyncTaskNotification->SetComplete(true);
+			AsyncTaskNotification.Reset();
+		}
 
-		Async(EAsyncExecution::TaskGraphMainThread, [this, ThisRef = MoveTemp(ThisRef)]() {
-#if WITH_EDITOR
-			// If we're in PIE, delay the callbacks until we exit that mode.
-			if (GIsEditor && FApp::IsGame())
-			{
-				bChangedDuringPIE = true;
-				UE_LOG(LogExternalSource, Warning, TEXT("The DirectLink source \"%s\" received an update while in PIE mode. The reimport will be triggered when exiting PIE."), *GetSourceName());
-				return;
-			}
-#endif //WITH_EDITOR
+		TSharedPtr<IDatasmithScene> Scene = GetDatasmithScene();
 
-			if (AsyncTaskNotification.IsValid())
-			{
-				AsyncTaskNotification->SetComplete(true);
-				AsyncTaskNotification.Reset();
-			}
+		if (Scene.IsValid())
+		{
+			Scene->SetName(*GetSceneName());
+			ValidateDatasmithVersion();
+			OnExternalSourceChanged.Broadcast(AsShared());
+		}
 
-			TSharedPtr<IDatasmithScene> Scene = GetDatasmithScene();
-
-			if (Scene.IsValid())
-			{
-				Scene->SetName(*GetSceneName());
-				ValidateDatasmithVersion();
-				OnExternalSourceChanged.Broadcast(ThisRef);
-			}
-
-			FOptionalScenePromise CurrentPromise;
-			while (PendingPromiseQueue.Dequeue(CurrentPromise))
-			{
-				CurrentPromise->SetValue(Scene);
-			}
-		});
+		FOptionalScenePromise CurrentPromise;
+		while (PendingPromiseQueue.Dequeue(CurrentPromise))
+		{
+			CurrentPromise->SetValue(Scene);
+		}
 	}
 
 	void FExternalSource::ValidateDatasmithVersion() const
@@ -268,18 +245,6 @@ namespace UE::DatasmithImporter
 			}
 		}
 	}
-
-#if WITH_EDITOR
-	void FExternalSource::OnEndPIE(bool bIsSimulating)
-	{
-		if (bChangedDuringPIE)
-		{
-			// Trigger the event held off during PIE.
-			bChangedDuringPIE = false;
-			TriggerOnExternalSourceChanged();
-		}
-	}
-#endif //WITH_EDITOR
 }
 
 #undef LOCTEXT_NAMESPACE

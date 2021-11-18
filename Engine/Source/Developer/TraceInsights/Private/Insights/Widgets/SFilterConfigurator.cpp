@@ -55,12 +55,10 @@ void SFilterConfigurator::Construct(const FArguments& InArgs, TSharedPtr<FFilter
 		// Tree view
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
+			SNew(SBox)
+			.HAlign(HAlign_Fill)
 			.Padding(0.0f)
 			[
 				SAssignNew(TreeView, STreeView<FFilterConfiguratorNodePtr>)

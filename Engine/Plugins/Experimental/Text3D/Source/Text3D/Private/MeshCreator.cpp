@@ -37,7 +37,7 @@ void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
 	EText3DGroupType GroupType = FMath::IsNearlyZero(Bevel) ? EText3DGroupType::Front : EText3DGroupType::Bevel;
 	int32 GroupIndex = static_cast<int32>(GroupType);
 
-	FBox2D Box;
+	FBox2f Box;
 	TText3DGroupList& Groups = Glyph->GetGroups();
 
 	const int32 FirstVertex = Groups[GroupIndex].FirstVertex;
@@ -46,7 +46,7 @@ void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
 	TVertexAttributesConstRef<FVector3f> Positions = Glyph->GetStaticMeshAttributes().GetVertexPositions();
 
 	const FVector3f& FirstPosition = Positions[FVertexID(FirstVertex)];
-	const FVector2D PositionFlat = { FirstPosition.Y, FirstPosition.Z };
+	const FVector2f PositionFlat = { FirstPosition.Y, FirstPosition.Z };
 
 	Box.Min = PositionFlat;
 	Box.Max = PositionFlat;
@@ -64,7 +64,7 @@ void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
 
 	FStaticMeshAttributes& StaticMeshAttributes = Glyph->GetStaticMeshAttributes();
 	TVertexAttributesRef<FVector3f> VertexPositions = StaticMeshAttributes.GetVertexPositions();
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 
 	auto SetTextureCoordinates = [Groups, VertexPositions, VertexInstanceUVs, &Box](const EText3DGroupType Type)
 	{
@@ -74,7 +74,7 @@ void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
 		for (int32 Index = TypeFirstVertex; Index < TypeLastVertex; Index++)
 		{
 			const FVector Position = VertexPositions[FVertexID(Index)];
-			const FVector2D TextureCoordinate = (FVector2D(Position.Y, Position.Z) - Box.Min) / Box.Max;
+			const FVector2f TextureCoordinate = (FVector2f(Position.Y, Position.Z) - Box.Min) / Box.Max;
 			VertexInstanceUVs[FVertexInstanceID(Index)] = { TextureCoordinate.X, 1.f - TextureCoordinate.Y };
 		}
 	};
@@ -316,7 +316,7 @@ void FMeshCreator::MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroup
 	TVertexAttributesRef<FVector3f> VertexPositions = StaticMeshAttributes.GetVertexPositions();
 	TVertexInstanceAttributesRef<FVector3f> VertexNormals = StaticMeshAttributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector3f> VertexTangents = StaticMeshAttributes.GetVertexInstanceTangents();
-	TVertexInstanceAttributesRef<FVector2D> VertexUVs = StaticMeshAttributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> VertexUVs = StaticMeshAttributes.GetVertexInstanceUVs();
 
 	for (int32 VertexIndex = 0; VertexIndex < VerticesInNum; VertexIndex++)
 	{

@@ -30,8 +30,8 @@
 DEFINE_LOG_CATEGORY(LogProperty);
 
 // List the core ones here as they have already been included (and can be used without CoreUObject!)
-template<>
-struct TStructOpsTypeTraits<FVector3f> : public TStructOpsTypeTraitsBase2<FVector3f>
+template<typename T>
+struct TVector3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum
 	{
@@ -41,22 +41,12 @@ struct TStructOpsTypeTraits<FVector3f> : public TStructOpsTypeTraitsBase2<FVecto
 		WithNetSerializer = true,
 		WithNetSharedSerialization = true,
 		WithStructuredSerializer = true,
+		WithStructuredSerializeFromMismatchedTag = true,
 	};
 };
+template<> struct TStructOpsTypeTraits<FVector3f> : public TVector3StructOpsTypeTraits<FVector3f> {};
+template<> struct TStructOpsTypeTraits<FVector3d> : public TVector3StructOpsTypeTraits<FVector3d> {};
 IMPLEMENT_STRUCT(Vector3f);
-template<>
-struct TStructOpsTypeTraits<FVector3d> : public TStructOpsTypeTraitsBase2<FVector3d>
-{
-	enum
-	{
-		WithIdenticalViaEquality = true,
-		WithNoInitConstructor = true,
-		WithZeroConstructor = true,
-		WithNetSerializer = true,
-		WithNetSharedSerialization = true,
-		WithStructuredSerializer = true,
-	};
-};
 IMPLEMENT_STRUCT(Vector3d);
 IMPLEMENT_STRUCT(Vector);	// Aliased
 
@@ -86,8 +76,8 @@ struct TStructOpsTypeTraits<FIntVector> : public TStructOpsTypeTraitsBase2<FIntV
 };
 IMPLEMENT_STRUCT(IntVector);
 
-template<>
-struct TStructOpsTypeTraits<FVector2D> : public TStructOpsTypeTraitsBase2<FVector2D>
+template<typename T>
+struct TVector2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum 
 	{
@@ -97,12 +87,17 @@ struct TStructOpsTypeTraits<FVector2D> : public TStructOpsTypeTraitsBase2<FVecto
 		WithNetSerializer = true,
 		WithNetSharedSerialization = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
+template<> struct TStructOpsTypeTraits<FVector2f> : public TVector2StructOpsTypeTraits<FVector2f> {};
+template<> struct TStructOpsTypeTraits<FVector2d> : public TVector2StructOpsTypeTraits<FVector2d> {};
+IMPLEMENT_STRUCT(Vector2f);
+IMPLEMENT_STRUCT(Vector2d);
 IMPLEMENT_STRUCT(Vector2D);
 
-template<>
-struct TStructOpsTypeTraits<FVector4f> : public TStructOpsTypeTraitsBase2<FVector4f>
+template<typename T>
+struct TVector4StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum 
 	{
@@ -110,26 +105,17 @@ struct TStructOpsTypeTraits<FVector4f> : public TStructOpsTypeTraitsBase2<FVecto
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
+template<> struct TStructOpsTypeTraits<FVector4f> : public TVector4StructOpsTypeTraits<FVector4f> {};
+template<> struct TStructOpsTypeTraits<FVector4d> : public TVector4StructOpsTypeTraits<FVector4d> {};
 IMPLEMENT_STRUCT(Vector4f);
-
-template<>
-struct TStructOpsTypeTraits<FVector4d> : public TStructOpsTypeTraitsBase2<FVector4d>
-{
-	enum
-	{
-		WithIdenticalViaEquality = true,
-		WithNoInitConstructor = true,
-		WithZeroConstructor = true,
-		WithSerializer = true,
-	};
-};
 IMPLEMENT_STRUCT(Vector4d);
 IMPLEMENT_STRUCT(Vector4);	// Aliased
 
-template<>
-struct TStructOpsTypeTraits<FPlane4f> : public TStructOpsTypeTraitsBase2<FPlane4f>
+template<typename T>
+struct TPlaneStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum
 	{
@@ -139,29 +125,19 @@ struct TStructOpsTypeTraits<FPlane4f> : public TStructOpsTypeTraitsBase2<FPlane4
 		WithNetSerializer = true,
 		WithNetSharedSerialization = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
+template<> struct TStructOpsTypeTraits<FPlane4f> : public TPlaneStructOpsTypeTraits<FPlane4f> {};
+template<> struct TStructOpsTypeTraits<FPlane4d> : public TPlaneStructOpsTypeTraits<FPlane4d> {};
 IMPLEMENT_STRUCT(Plane4f);
-template<>
-struct TStructOpsTypeTraits<FPlane4d> : public TStructOpsTypeTraitsBase2<FPlane4d>
-{
-	enum
-	{
-		WithIdenticalViaEquality = true,
-		WithNoInitConstructor = true,
-		WithZeroConstructor = true,
-		WithNetSerializer = true,
-		WithNetSharedSerialization = true,
-		WithSerializer = true,
-	};
-};
 IMPLEMENT_STRUCT(Plane4d);
 IMPLEMENT_STRUCT(Plane);	// Aliased
 
-template<>
-struct TStructOpsTypeTraits<FRotator> : public TStructOpsTypeTraitsBase2<FRotator>
+template<typename T>
+struct TRotatorStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
-	enum 
+	enum
 	{
 		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
@@ -169,12 +145,18 @@ struct TStructOpsTypeTraits<FRotator> : public TStructOpsTypeTraitsBase2<FRotato
 		WithNetSerializer = true,
 		WithNetSharedSerialization = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
-IMPLEMENT_STRUCT(Rotator);
 
-template<>
-struct TStructOpsTypeTraits<FBox3f> : public TStructOpsTypeTraitsBase2<FBox3f>
+template<> struct TStructOpsTypeTraits<FRotator3f> : public TRotatorStructOpsTypeTraits<FRotator3f> {};
+template<> struct TStructOpsTypeTraits<FRotator3d> : public TRotatorStructOpsTypeTraits<FRotator3d> {};
+IMPLEMENT_STRUCT(Rotator3f);
+IMPLEMENT_STRUCT(Rotator3d);
+IMPLEMENT_STRUCT(Rotator);	// Aliased
+
+template<typename T>
+struct TBox3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum 
 	{
@@ -182,37 +164,34 @@ struct TStructOpsTypeTraits<FBox3f> : public TStructOpsTypeTraitsBase2<FBox3f>
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
+template<> struct TStructOpsTypeTraits<FBox3f> : public TBox3StructOpsTypeTraits<FBox3f> {};
+template<> struct TStructOpsTypeTraits<FBox3d> : public TBox3StructOpsTypeTraits<FBox3d> {};
 IMPLEMENT_STRUCT(Box3f);
-template<>
-struct TStructOpsTypeTraits<FBox3d> : public TStructOpsTypeTraitsBase2<FBox3d>
-{
-	enum
-	{
-		WithIdenticalViaEquality = true,
-		WithNoInitConstructor = true,
-		WithZeroConstructor = true,
-		WithSerializer = true,
-	};
-};
 IMPLEMENT_STRUCT(Box3d);
 IMPLEMENT_STRUCT(Box);		// Aliased
 
-template<>
-struct TStructOpsTypeTraits<FBox2D> : public TStructOpsTypeTraitsBase2<FBox2D>
+template<typename T>
+struct TBox2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum
 	{
 		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
+		WithSerializeFromMismatchedTag = true,		
 	};
 };
+template<> struct TStructOpsTypeTraits<FBox2f> : public TBox2StructOpsTypeTraits<FBox2f> {};
+template<> struct TStructOpsTypeTraits<FBox2d> : public TBox2StructOpsTypeTraits<FBox2d> {};
+IMPLEMENT_STRUCT(Box2f);
+IMPLEMENT_STRUCT(Box2d);
 IMPLEMENT_STRUCT(Box2D);
 
-template<>
-struct TStructOpsTypeTraits<FMatrix44f> : public TStructOpsTypeTraitsBase2<FMatrix44f>
+template<typename T>
+struct TMatrixStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum
 	{
@@ -220,44 +199,30 @@ struct TStructOpsTypeTraits<FMatrix44f> : public TStructOpsTypeTraitsBase2<FMatr
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
+
+template<> struct TStructOpsTypeTraits<FMatrix44f> : public TMatrixStructOpsTypeTraits<FMatrix44f> {};
+template<> struct TStructOpsTypeTraits<FMatrix44d> : public TMatrixStructOpsTypeTraits<FMatrix44d> {};
 IMPLEMENT_STRUCT(Matrix44f);
-template<>
-struct TStructOpsTypeTraits<FMatrix44d> : public TStructOpsTypeTraitsBase2<FMatrix44d>
-{
-	enum
-	{
-		WithIdenticalViaEquality = true,
-		WithNoInitConstructor = true,
-		WithZeroConstructor = true,
-		WithSerializer = true,
-	};
-};
 IMPLEMENT_STRUCT(Matrix44d);
 IMPLEMENT_STRUCT(Matrix);	// Aliased
 
-template<>
-struct TStructOpsTypeTraits<FBoxSphereBounds3f> : public TStructOpsTypeTraitsBase2<FBoxSphereBounds3f>
+template<typename T>
+struct TBoxSphereBoundsStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum
 	{
 		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
+template<> struct TStructOpsTypeTraits<FBoxSphereBounds3f> : public TBoxSphereBoundsStructOpsTypeTraits<FBoxSphereBounds3f> {};
+template<> struct TStructOpsTypeTraits<FBoxSphereBounds3d> : public TBoxSphereBoundsStructOpsTypeTraits<FBoxSphereBounds3d> {};
 IMPLEMENT_STRUCT(BoxSphereBounds3f);
-template<>
-struct TStructOpsTypeTraits<FBoxSphereBounds3d> : public TStructOpsTypeTraitsBase2<FBoxSphereBounds3d>
-{
-	enum 
-	{
-		WithIdenticalViaEquality = true,
-		WithNoInitConstructor = true,
-		WithZeroConstructor = true,
-	};
-};
 IMPLEMENT_STRUCT(BoxSphereBounds3d);
 IMPLEMENT_STRUCT(BoxSphereBounds);	// Aliased
 
@@ -294,8 +259,8 @@ struct TStructOpsTypeTraits<FColor> : public TStructOpsTypeTraitsBase2<FColor>
 IMPLEMENT_STRUCT(Color);
 
 
-template<>
-struct TStructOpsTypeTraits<FQuat4f> : public TStructOpsTypeTraitsBase2<FQuat4f>
+template<typename T>
+struct TQuatStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum 
 	{
@@ -305,23 +270,12 @@ struct TStructOpsTypeTraits<FQuat4f> : public TStructOpsTypeTraitsBase2<FQuat4f>
 		WithNetSharedSerialization = true,
 		WithIdentical = true,
 		WithSerializer = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
+template<> struct TStructOpsTypeTraits<FQuat4f> : public TQuatStructOpsTypeTraits<FQuat4f> {};
+template<> struct TStructOpsTypeTraits<FQuat4d> : public TQuatStructOpsTypeTraits<FQuat4d> {};
 IMPLEMENT_STRUCT(Quat4f);
-
-template<>
-struct TStructOpsTypeTraits<FQuat4d> : public TStructOpsTypeTraitsBase2<FQuat4d>
-{
-	enum
-	{
-		//quat is somewhat special in that it initialized w to one
-		WithNoInitConstructor = true,
-		WithNetSerializer = true,
-		WithNetSharedSerialization = true,
-		WithIdentical = true,
-		WithSerializer = true,
-	};
-};
 IMPLEMENT_STRUCT(Quat4d);
 IMPLEMENT_STRUCT(Quat);		// Aliased to one of FQuat4f/FQuat4d
 
@@ -413,26 +367,19 @@ struct TStructOpsTypeTraits<FGuid> : public TStructOpsTypeTraitsBase2<FGuid>
 };
 IMPLEMENT_STRUCT(Guid);
 
-template<>
-struct TStructOpsTypeTraits<FTransform3f> : public TStructOpsTypeTraitsBase2<FTransform3f>
+template<typename T>
+struct TTransformStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 {
 	enum
 	{
 		//WithSerializer = true,
 		WithIdentical = true,
+		WithSerializeFromMismatchedTag = true,
 	};
 };
+template<> struct TStructOpsTypeTraits<FTransform3f> : public TTransformStructOpsTypeTraits<FTransform3f> {};
+template<> struct TStructOpsTypeTraits<FTransform3d> : public TTransformStructOpsTypeTraits<FTransform3d> {};
 IMPLEMENT_STRUCT(Transform3f);
-
-template<>
-struct TStructOpsTypeTraits<FTransform3d> : public TStructOpsTypeTraitsBase2<FTransform3d>
-{
-	enum
-	{
-		//WithSerializer = true,
-		WithIdentical = true,
-	};
-};
 IMPLEMENT_STRUCT(Transform3d);
 IMPLEMENT_STRUCT(Transform); // Aliased
 

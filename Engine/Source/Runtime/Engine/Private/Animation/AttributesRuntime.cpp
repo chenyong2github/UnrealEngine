@@ -174,9 +174,8 @@ void Attributes::CopyAndRemapAttributes(const FHeapAttributeContainer& SourceAtt
 				const FAttributeId& AttributeId = AttributeIds[EntryIndex];
 
 				const FCompactPoseBoneIndex PoseBoneIndex = FCompactPoseBoneIndex(AttributeId.GetIndex());
-				const int32 SkeletonBoneIndex = RequiredBones.GetSkeletonIndex(FCompactPoseBoneIndex(PoseBoneIndex));
-				const int32 MeshBoneIndex = RequiredBones.GetSkeletonToPoseBoneIndexArray()[SkeletonBoneIndex];
-				const int32* Value = BoneMapToSource.Find(MeshBoneIndex);
+				const FMeshPoseBoneIndex MeshBoneIndex = RequiredBones.MakeMeshPoseIndex(PoseBoneIndex);
+				const int32* Value = BoneMapToSource.Find(MeshBoneIndex.GetInt());
 
 				// If there is no remapping the attribute will be dropped
 				if (Value)
@@ -487,8 +486,10 @@ void Attributes::MirrorAttributes(FStackAttributeContainer& CustomAttributes, co
 
 			for (int32 CurBoneIndex : UniqueBoneIndices)
 			{
-				int32 MirrorBoneIndex = MirrorTable.BoneToMirrorBoneIndex[CurBoneIndex];
-				int32 SwapCheckBoneIndex = MirrorTable.BoneToMirrorBoneIndex[MirrorBoneIndex];
+				// @FIXME: this needs addressing!
+				// Mirror tables are stored using skeleton indices, but are assumed to be used interchangeably with compact pose indices here.
+				int32 MirrorBoneIndex = MirrorTable.BoneToMirrorBoneIndex[CurBoneIndex].GetInt();
+				int32 SwapCheckBoneIndex = MirrorTable.BoneToMirrorBoneIndex[MirrorBoneIndex].GetInt();
 
 				// only handle simple swaps - both entries exist and are different
 				if (MirrorBoneIndex != INDEX_NONE && CurBoneIndex != INDEX_NONE && CurBoneIndex != MirrorBoneIndex &&

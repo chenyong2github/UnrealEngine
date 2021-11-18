@@ -269,14 +269,14 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 	.MinDesiredWidth(125.0f * 3.0f) // copied from FComponentTransformDetails
 	.MaxDesiredWidth(125.0f * 3.0f)
 	[
-		SNew(SRotatorInputBox)
+		SNew(SNumericRotatorInputBox<FRotator::FReal>)
 		.bColorAxisLabels(true)
 		.Font(DetailBuilder.GetDetailFont())
-		.Roll_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Rotation_Roll)
-		.Pitch_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Rotation_Pitch)
-		.Yaw_Static(&GetOptionalPropertyValue<float>, PropertyHandle_Rotation_Yaw)
-		.OnYawCommitted_Static(&SetPropertyValue<float>, PropertyHandle_Rotation_Yaw) // not allowed to roll or pitch landscape
-		.OnYawChanged_Lambda([=](float NewValue){ ensure(PropertyHandle_Rotation_Yaw->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
+		.Roll_Static(&GetOptionalPropertyValue<FRotator::FReal>, PropertyHandle_Rotation_Roll)
+		.Pitch_Static(&GetOptionalPropertyValue<FRotator::FReal>, PropertyHandle_Rotation_Pitch)
+		.Yaw_Static(&GetOptionalPropertyValue<FRotator::FReal>, PropertyHandle_Rotation_Yaw)
+		.OnYawCommitted_Static(&SetPropertyValue<FRotator::FReal>, PropertyHandle_Rotation_Yaw) // not allowed to roll or pitch landscape
+		.OnYawChanged_Lambda([=](FRotator::FReal NewValue){ ensure(PropertyHandle_Rotation_Yaw->SetValue(NewValue, EPropertyValueSetFlags::InteractiveChange) == FPropertyAccess::Success); })
 		.AllowSpin(true)
 	];
 

@@ -96,7 +96,7 @@ void UChildActorComponent::Serialize(FArchive& Ar)
 
 			if (AActor* UnwantedDuplicate = static_cast<AActor*>(FindObjectWithOuter(this, AActor::StaticClass())))
 			{
-				UnwantedDuplicate->MarkPendingKill();
+				UnwantedDuplicate->MarkAsGarbage();
 			}
 		}
 		else if (!GIsEditor && !Ar.IsLoading() && !GIsDuplicatingClassForReinstancing)
@@ -738,7 +738,7 @@ void UChildActorComponent::DestroyChildActor()
 		if (!GExitPurge)
 		{
 			// if still alive, destroy, otherwise just clear the pointer
-			const bool bIsChildActorPendingKillOrUnreachable = ChildActor->IsPendingKillOrUnreachable();
+			const bool bIsChildActorPendingKillOrUnreachable = !IsValidChecked(ChildActor) || ChildActor->IsUnreachable();
 			if (!bIsChildActorPendingKillOrUnreachable)
 			{
 #if WITH_EDITOR

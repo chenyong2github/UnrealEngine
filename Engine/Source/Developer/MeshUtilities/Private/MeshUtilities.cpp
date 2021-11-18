@@ -153,9 +153,9 @@ void FMeshUtilities::BuildSkeletalAdjacencyIndexBuffer(
 	BuildOptimizationThirdParty::NvTriStripHelper::BuildSkeletalAdjacencyIndexBuffer(VertexBuffer, TexCoordCount, Indices, OutPnAenIndices);
 }
 
-void CalculateTriangleTangentInternal(const FVector3f& VertexPosA, const FVector2D& VertexUVA
-									  , const FVector3f& VertexPosB, const FVector2D& VertexUVB
-									  , const FVector3f& VertexPosC, const FVector2D& VertexUVC
+void CalculateTriangleTangentInternal(const FVector3f& VertexPosA, const FVector2f& VertexUVA
+									  , const FVector3f& VertexPosB, const FVector2f& VertexUVB
+									  , const FVector3f& VertexPosC, const FVector2f& VertexUVC
 									  , TArray<FVector3f>& OutTangents, float CompareThreshold)
 {
 	//We must always allocate the OutTangents to 3 FVector3f
@@ -166,26 +166,26 @@ void CalculateTriangleTangentInternal(const FVector3f& VertexPosA, const FVector
 	//Avoid doing orthonormal vector from a degenerated triangle.
 	if (!Normal.IsNearlyZero(FLT_MIN))
 	{
-		FMatrix	ParameterToLocal(
-			FPlane(Positions[1].X - Positions[0].X, Positions[1].Y - Positions[0].Y, Positions[1].Z - Positions[0].Z, 0),
-			FPlane(Positions[2].X - Positions[0].X, Positions[2].Y - Positions[0].Y, Positions[2].Z - Positions[0].Z, 0),
-			FPlane(Positions[0].X, Positions[0].Y, Positions[0].Z, 0),
-			FPlane(0, 0, 0, 1)
+		FMatrix44f	ParameterToLocal(
+			FPlane4f(Positions[1].X - Positions[0].X, Positions[1].Y - Positions[0].Y, Positions[1].Z - Positions[0].Z, 0),
+			FPlane4f(Positions[2].X - Positions[0].X, Positions[2].Y - Positions[0].Y, Positions[2].Z - Positions[0].Z, 0),
+			FPlane4f(Positions[0].X, Positions[0].Y, Positions[0].Z, 0),
+			FPlane4f(0, 0, 0, 1)
 		);
 
-		const FVector2D T1 = VertexUVA;
-		const FVector2D T2 = VertexUVB;
-		const FVector2D T3 = VertexUVC;
+		const FVector2f T1 = VertexUVA;
+		const FVector2f T2 = VertexUVB;
+		const FVector2f T3 = VertexUVC;
 
-		FMatrix ParameterToTexture(
-			FPlane(T2.X - T1.X, T2.Y - T1.Y, 0, 0),
-			FPlane(T3.X - T1.X, T3.Y - T1.Y, 0, 0),
-			FPlane(T1.X, T1.Y, 1, 0),
-			FPlane(0, 0, 0, 1)
+		FMatrix44f ParameterToTexture(
+			FPlane4f(T2.X - T1.X, T2.Y - T1.Y, 0, 0),
+			FPlane4f(T3.X - T1.X, T3.Y - T1.Y, 0, 0),
+			FPlane4f(T1.X, T1.Y, 1, 0),
+			FPlane4f(0, 0, 0, 1)
 		);
 
 		// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
-		const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
+		const FMatrix44f TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
 
 		OutTangents[0] = (TextureToLocal.TransformVector(FVector3f(1, 0, 0)).GetSafeNormal());
 		OutTangents[1] = (TextureToLocal.TransformVector(FVector3f(0, 1, 0)).GetSafeNormal());
@@ -327,7 +327,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 		// Copy skinned vertex positions
 		for (int32 VertIndex = 0; VertIndex < FinalVertices.Num(); ++VertIndex)
 		{
-			RawMesh.VertexPositions.Add(InComponentToWorld.TransformPosition(FinalVertices[VertIndex].Position));
+			RawMesh.VertexPositions.Add((FVector4f)InComponentToWorld.TransformPosition(FinalVertices[VertIndex].Position));
 		}
 
 		const uint32 NumTexCoords = FMath::Min(LODData.StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords(), (uint32)MAX_MESH_TEXTURE_COORDS);
@@ -348,8 +348,8 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 					RawMesh.WedgeIndices.Add(BaseVertexIndex + VertexIndexForWedge);
 
 					const FFinalSkinVertex& SkinnedVertex = FinalVertices[VertexIndexForWedge];
-					const FVector3f TangentX = InComponentToWorld.TransformVector(SkinnedVertex.TangentX.ToFVector());
-					const FVector3f TangentZ = InComponentToWorld.TransformVector(SkinnedVertex.TangentZ.ToFVector());
+					const FVector3f TangentX = (FVector4f)InComponentToWorld.TransformVector(SkinnedVertex.TangentX.ToFVector());
+					const FVector3f TangentZ = (FVector4f)InComponentToWorld.TransformVector(SkinnedVertex.TangentZ.ToFVector());
 					const FVector4 UnpackedTangentZ = SkinnedVertex.TangentZ.ToFVector4();
 					const FVector3f TangentY = (TangentZ ^ TangentX).GetSafeNormal() * UnpackedTangentZ.W;
 
@@ -385,7 +385,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 				// use the remapping of material indices if there is a valid value
 				if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
 				{
-					MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, InSkinnedMeshComponent->SkeletalMesh->GetMaterials().Num());
+					MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, InSkinnedMeshComponent->SkeletalMesh->GetMaterials().Num() - 1);
 				}
 
 				// copy face info
@@ -425,7 +425,7 @@ static void StaticMeshToRawMeshes(UStaticMeshComponent* InStaticMeshComponent, i
 
 		for (int32 VertIndex = 0; VertIndex < LODResource.GetNumVertices(); ++VertIndex)
 		{
-			RawMesh.VertexPositions.Add(InComponentToWorld.TransformPosition(LODResource.VertexBuffers.PositionVertexBuffer.VertexPosition((uint32)VertIndex)));
+			RawMesh.VertexPositions.Add(FVector4f(InComponentToWorld.TransformPosition(LODResource.VertexBuffers.PositionVertexBuffer.VertexPosition((uint32)VertIndex))));
 		}
 
 		const FIndexArrayView IndexArrayView = LODResource.IndexBuffer.GetArrayView();
@@ -443,9 +443,9 @@ static void StaticMeshToRawMeshes(UStaticMeshComponent* InStaticMeshComponent, i
 				int32 Index = IndexArrayView[StaticMeshSection.FirstIndex + IndexIndex];
 				RawMesh.WedgeIndices.Add(BaseVertexIndex + Index);
 
-				RawMesh.WedgeTangentX.Add(InComponentToWorld.TransformVector(StaticMeshVertexBuffer.VertexTangentX(Index)));
-				RawMesh.WedgeTangentY.Add(InComponentToWorld.TransformVector(StaticMeshVertexBuffer.VertexTangentY(Index)));
-				RawMesh.WedgeTangentZ.Add(InComponentToWorld.TransformVector(StaticMeshVertexBuffer.VertexTangentZ(Index)));
+				RawMesh.WedgeTangentX.Add(FVector4f(InComponentToWorld.TransformVector(FVector4(StaticMeshVertexBuffer.VertexTangentX(Index)))));
+				RawMesh.WedgeTangentY.Add(FVector4f(InComponentToWorld.TransformVector(FVector4(StaticMeshVertexBuffer.VertexTangentY(Index)))));
+				RawMesh.WedgeTangentZ.Add(FVector4f(InComponentToWorld.TransformVector(FVector4(StaticMeshVertexBuffer.VertexTangentZ(Index)))));
 
 				for (int32 TexCoordIndex = 0; TexCoordIndex < MAX_MESH_TEXTURE_COORDS; TexCoordIndex++)
 				{
@@ -840,7 +840,7 @@ void FMeshUtilities::BuildSkeletalModelFromChunks(FSkeletalMeshLODModel& LODMode
 			NewVertex.TangentX = SoftVertex.TangentX;
 			NewVertex.TangentY = SoftVertex.TangentY;
 			NewVertex.TangentZ = SoftVertex.TangentZ;
-			FMemory::Memcpy(NewVertex.UVs, SoftVertex.UVs, sizeof(FVector2D)*MAX_TEXCOORDS);
+			FMemory::Memcpy(NewVertex.UVs, SoftVertex.UVs, sizeof(FVector2f)*MAX_TEXCOORDS);
 			NewVertex.Color = SoftVertex.Color;
 			for (int32 i = 0; i < MAX_TOTAL_INFLUENCES; ++i)
 			{
@@ -1135,7 +1135,7 @@ public:
 static void ComputeTriangleTangents(
 	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
-	const TArray<FVector2D>& InUVs,
+	const TArray<FVector2f>& InUVs,
 	TArray<FVector3f>& OutTangentX,
 	TArray<FVector3f>& OutTangentY,
 	TArray<FVector3f>& OutTangentZ,
@@ -1230,7 +1230,7 @@ struct FFanFace
 static void ComputeTangents(
 	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
-	const TArray<FVector2D>& InUVs,
+	const TArray<FVector2f>& InUVs,
 	const TArray<uint32>& SmoothingGroupIndices,
 	const FOverlappingCorners& OverlappingCorners,
 	TArray<FVector3f>& OutTangentX,
@@ -1575,7 +1575,7 @@ class MikkTSpace_Mesh
 public:
 	const TArray<FVector3f>& Vertices;
 	const TArray<uint32>& Indices;
-	const TArray<FVector2D>& UVs;
+	const TArray<FVector2f>& UVs;
 
 	TArray<FVector3f>& TangentsX;			//Reference to newly created tangents list.
 	TArray<FVector3f>& TangentsY;			//Reference to newly created bitangents list.
@@ -1584,7 +1584,7 @@ public:
 	MikkTSpace_Mesh(
 		const TArray<FVector3f>&		InVertices,
 		const TArray<uint32>&		InIndices,
-		const TArray<FVector2D>&	InUVs,
+		const TArray<FVector2f>&	InUVs,
 		TArray<FVector3f>&			InOutVertexTangentsX,
 		TArray<FVector3f>&			InOutVertexTangentsY,
 		const TArray<FVector3f>&		InVertexTangentsZ
@@ -1768,7 +1768,7 @@ static void MikkGetTexCoord_Skeletal(const SMikkTSpaceContext* Context, float UV
 static void ComputeNormals(
 	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
-	const TArray<FVector2D>& InUVs,
+	const TArray<FVector2f>& InUVs,
 	const TArray<uint32>& SmoothingGroupIndices,
 	const FOverlappingCorners& OverlappingCorners,
 	TArray<FVector3f>& OutTangentZ,
@@ -2023,7 +2023,7 @@ static void ComputeNormals(
 static void ComputeTangents_MikkTSpace(
 	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
-	const TArray<FVector2D>& InUVs,
+	const TArray<FVector2f>& InUVs,
 	const TArray<FVector3f>& InNormals,
 	bool bIgnoreDegenerateTriangles,
 	TArray<FVector3f>& OutTangentX,
@@ -2082,7 +2082,7 @@ static void ComputeTangents_MikkTSpace(
 static void ComputeTangents_MikkTSpace(
 	const TArray<FVector3f>& InVertices,
 	const TArray<uint32>& InIndices,
-	const TArray<FVector2D>& InUVs,
+	const TArray<FVector2f>& InUVs,
 	const TArray<uint32>& SmoothingGroupIndices,
 	const FOverlappingCorners& OverlappingCorners,
 	TArray<FVector3f>& OutTangentX,
@@ -2188,7 +2188,7 @@ static float GetComparisonThreshold(FMeshBuildSettings const& BuildSettings)
 Static mesh building.
 ------------------------------------------------------------------------------*/
 
-static void BuildStaticMeshVertex(const FRawMesh& RawMesh, const FMatrix& ScaleMatrix, const FVector3f& Position, int32 WedgeIndex, FStaticMeshBuildVertex& Vertex)
+static void BuildStaticMeshVertex(const FRawMesh& RawMesh, const FMatrix44f& ScaleMatrix, const FVector3f& Position, int32 WedgeIndex, FStaticMeshBuildVertex& Vertex)
 {
 	Vertex.Position = Position;
 
@@ -2214,7 +2214,7 @@ static void BuildStaticMeshVertex(const FRawMesh& RawMesh, const FMatrix& ScaleM
 		}
 		else
 		{
-			Vertex.UVs[i] = FVector2D(0.0f, 0.0f);
+			Vertex.UVs[i] = FVector2f(0.0f, 0.0f);
 		}
 	}
 }
@@ -2261,7 +2261,7 @@ void FMeshUtilities::BuildStaticMeshVertexAndIndexBuffers(
 	TMap<int32, int32> FinalVerts;
 	int32 NumFaces = RawMesh.WedgeIndices.Num() / 3;
 	OutWedgeMap.Reset(RawMesh.WedgeIndices.Num());
-	FMatrix ScaleMatrix(FScaleMatrix(BuildScale).Inverse().GetTransposed());
+	FMatrix44f ScaleMatrix(FScaleMatrix44f(BuildScale).Inverse().GetTransposed());
 
 	// Estimate how many vertices there will be to reduce number of re-allocations required
 	OutVertices.Reserve((int32)(NumFaces * 1.2) + 16);
@@ -2443,12 +2443,12 @@ struct FLayoutUVRawMeshView final : FLayoutUV::IMeshView
 	{}
 
 	uint32     GetNumIndices() const override { return RawMesh.WedgeIndices.Num(); }
-	FVector3f    GetPosition(uint32 Index) const override { return RawMesh.GetWedgePosition(Index); }
-	FVector3f    GetNormal(uint32 Index) const override { return bNormalsValid ? RawMesh.WedgeTangentZ[Index] : FVector3f::ZeroVector; }
-	FVector2D  GetInputTexcoord(uint32 Index) const override { return RawMesh.WedgeTexCoords[SrcChannel][Index]; }
+	FVector3f  GetPosition(uint32 Index) const override { return RawMesh.GetWedgePosition(Index); }
+	FVector3f  GetNormal(uint32 Index) const override { return bNormalsValid ? RawMesh.WedgeTangentZ[Index] : FVector3f::ZeroVector; }
+	FVector2f  GetInputTexcoord(uint32 Index) const override { return RawMesh.WedgeTexCoords[SrcChannel][Index]; }
 
 	void      InitOutputTexcoords(uint32 Num) override { RawMesh.WedgeTexCoords[DstChannel].SetNumUninitialized( Num ); }
-	void      SetOutputTexcoord(uint32 Index, const FVector2D& Value) override { RawMesh.WedgeTexCoords[DstChannel][Index] = Value; }
+	void      SetOutputTexcoord(uint32 Index, const FVector2f& Value) override { RawMesh.WedgeTexCoords[DstChannel][Index] = Value; }
 };
 
 class FStaticMeshUtilityBuilder
@@ -4039,7 +4039,7 @@ public:
 				Vertex.TangentY = TangentY;
 				Vertex.TangentZ = TangentZ;
 
-				FMemory::Memcpy(Vertex.UVs, Wedge.UVs, sizeof(FVector2D)*MAX_TEXCOORDS);
+				FMemory::Memcpy(Vertex.UVs, Wedge.UVs, sizeof(FVector2f)*MAX_TEXCOORDS);
 				Vertex.Color = Wedge.Color;
 
 				{
@@ -4500,8 +4500,8 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 				);
 
 				FMatrix	TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
-				FVector3f	TangentX = TextureToLocal.TransformVector(FVector3f(1, 0, 0)).GetSafeNormal(),
-					TangentY = TextureToLocal.TransformVector(FVector3f(0, 1, 0)).GetSafeNormal(),
+				FVector3f	TangentX = FVector4f(TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal()),
+					TangentY = FVector4f(TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal()),
 					TangentZ;
 
 				TangentX = TangentX - TriangleNormal * (TangentX | TriangleNormal);
@@ -4809,7 +4809,7 @@ bool FMeshUtilities::BuildSkeletalMesh_Legacy(FSkeletalMeshLODModel& LODModel
 			Vertex.TangentY = TangentY;
 			Vertex.TangentZ = TangentZ;
 
-			FMemory::Memcpy(Vertex.UVs, Wedges[Face.iWedge[VertexIndex]].UVs, sizeof(FVector2D)*MAX_TEXCOORDS);
+			FMemory::Memcpy(Vertex.UVs, Wedges[Face.iWedge[VertexIndex]].UVs, sizeof(FVector2f)*MAX_TEXCOORDS);
 			Vertex.Color = Wedges[Face.iWedge[VertexIndex]].Color;
 
 			{
@@ -5634,7 +5634,7 @@ void FMeshUtilities::RegisterMenus()
 	}
 }
 
-bool FMeshUtilities::GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODModel& LODModel, int32 TextureResolution, TArray<FVector2D>& OutTexCoords) const
+bool FMeshUtilities::GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODModel& LODModel, int32 TextureResolution, TArray<FVector2f>& OutTexCoords) const
 {
 	// Get easy to use SkeletalMesh data
 	TArray<FSoftSkinVertex> Vertices;
@@ -5704,7 +5704,7 @@ bool FMeshUtilities::GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODMode
 	return bPackSuccess;
 }
 
-void FMeshUtilities::CalculateTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY, TArray<FVector3f>& OutNormals) const
+void FMeshUtilities::CalculateTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2f>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY, TArray<FVector3f>& OutNormals) const
 {
 	const float ComparisonThreshold = (InTangentOptions & ETangentOptions::IgnoreDegenerateTriangles) ? THRESH_POINTS_ARE_SAME : 0.0f;
 
@@ -5721,12 +5721,12 @@ void FMeshUtilities::CalculateTangents(const TArray<FVector3f>& InVertices, cons
 	}
 }
 
-void FMeshUtilities::CalculateMikkTSpaceTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<FVector3f>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY) const
+void FMeshUtilities::CalculateMikkTSpaceTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2f>& InUVs, const TArray<FVector3f>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY) const
 {
 	ComputeTangents_MikkTSpace(InVertices, InIndices, InUVs, InNormals, bIgnoreDegenerateTriangles, OutTangentX, OutTangentY);
 }
 
-void FMeshUtilities::CalculateNormals(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutNormals) const
+void FMeshUtilities::CalculateNormals(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2f>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutNormals) const
 {
 	const float ComparisonThreshold = (InTangentOptions & ETangentOptions::IgnoreDegenerateTriangles ) ? THRESH_POINTS_ARE_SAME : 0.0f;
 
@@ -6477,7 +6477,7 @@ void FMeshUtilities::CreateProxyMesh(const TArray<AActor*>& InActors, const stru
 	Module.CreateProxyMesh(InActors, InMeshProxySettings, InOuter, InProxyBasePackageName, InGuid, InProxyCreatedDelegate, bAllowAsync, ScreenAreaSize);
 }
 
-bool FMeshUtilities::GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords) const
+bool FMeshUtilities::GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2f>& OutTexCoords) const
 {
 	// Create a copy of original mesh (only copy necessary data)
 	FRawMesh TempMesh;
@@ -6579,7 +6579,7 @@ bool FMeshUtilities::GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int
 	return bPackSuccess;
 }
 
-bool FMeshUtilities::GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, TArray<FVector2D>& OutTexCoords) const
+bool FMeshUtilities::GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, TArray<FVector2f>& OutTexCoords) const
 {
 	return GenerateUniqueUVsForStaticMesh(RawMesh, TextureResolution, false, OutTexCoords);
 }

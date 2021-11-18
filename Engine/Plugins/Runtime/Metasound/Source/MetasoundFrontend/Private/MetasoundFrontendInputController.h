@@ -39,7 +39,7 @@ namespace Metasound
 			virtual FGuid GetID() const override;
 			virtual const FName& GetDataType() const override;
 			virtual const FVertexName& GetName() const override;
-
+			virtual bool ClearLiteral() override;
 			virtual const FMetasoundFrontendLiteral* GetLiteral() const override;
 			virtual void SetLiteral(const FMetasoundFrontendLiteral& InLiteral) override;
 

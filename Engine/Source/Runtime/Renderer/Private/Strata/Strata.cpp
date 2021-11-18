@@ -224,12 +224,7 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	if (IsStrataEnabled())
 	{
 		FStrataGlobalUniformParameters* StrataUniformParameters = GraphBuilder.AllocParameters<FStrataGlobalUniformParameters>();
-		StrataUniformParameters->bRoughDiffuse = StrataSceneData.bRoughDiffuse ? 1u : 0u;
-		StrataUniformParameters->MaxBytesPerPixel = StrataSceneData.MaxBytesPerPixel;
-		StrataUniformParameters->MaterialLobesBuffer = StrataSceneData.MaterialLobesBufferSRV;
-		StrataUniformParameters->ClassificationTexture = StrataSceneData.ClassificationTexture;
-		StrataUniformParameters->TopLayerNormalTexture = StrataSceneData.TopLayerNormalTexture;
-		StrataUniformParameters->SSSTexture = StrataSceneData.SSSTexture;
+		BindStrataGlobalUniformParameters(GraphBuilder, &StrataSceneData, *StrataUniformParameters);
 		StrataSceneData.StrataGlobalUniformParameters = GraphBuilder.CreateUniformBuffer(StrataUniformParameters);
 	}
 }
@@ -247,6 +242,29 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 		OutStrataUniformParameters.bRoughDiffuse = 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
 		OutStrataUniformParameters.MaterialLobesBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
+	}
+}
+
+void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrataSceneData* StrataSceneData, FStrataGlobalUniformParameters& OutStrataUniformParameters)
+{
+	if (IsStrataEnabled() && StrataSceneData)
+	{
+		OutStrataUniformParameters.bRoughDiffuse = StrataSceneData->bRoughDiffuse ? 1u : 0u;
+		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
+		OutStrataUniformParameters.MaterialLobesBuffer = StrataSceneData->MaterialLobesBufferSRV;
+		OutStrataUniformParameters.ClassificationTexture = StrataSceneData->ClassificationTexture;
+		OutStrataUniformParameters.TopLayerNormalTexture = StrataSceneData->TopLayerNormalTexture;
+		OutStrataUniformParameters.SSSTexture = StrataSceneData->SSSTexture;
+	}
+	else
+	{
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+		OutStrataUniformParameters.bRoughDiffuse = 0;
+		OutStrataUniformParameters.MaxBytesPerPixel = 0;
+		OutStrataUniformParameters.MaterialLobesBuffer = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
+		OutStrataUniformParameters.ClassificationTexture = SystemTextures.Black;
+		OutStrataUniformParameters.TopLayerNormalTexture = SystemTextures.DefaultNormal8Bit;
+		OutStrataUniformParameters.SSSTexture = SystemTextures.Black;
 	}
 }
 
@@ -568,7 +586,6 @@ static void AddStrataInternalClassificationTilePass(
 			{
 				// Use premultiplied alpha blending, pixel shader and depth/stencil is off
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
 				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
 				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
 			}
@@ -588,6 +605,10 @@ static void AddStrataInternalClassificationTilePass(
 			GraphicsPSOInit.PrimitiveType = StrataTilePrimitiveType;
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilBit);
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersPS->VS);
+			if (bDebug)
+			{
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *ParametersPS);
+			}
 
 			RHICmdList.SetViewport(0, 0, 0.0f, OutputResolution.X, OutputResolution.Y, 1.0f);
 			RHICmdList.SetStreamSource(0, nullptr, 0);
@@ -715,14 +736,14 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 
 	if (FVisualizeMaterialPS::CanRunStrataVizualizeMaterial(Platform))
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "StrataVisualizeMaterial");
+		RDG_EVENT_SCOPE(GraphBuilder, "Strata::VisualizeMaterial");
 		AddVisualizeMaterialPasses(GraphBuilder, View, ScreenPassSceneColor.Texture, Platform);
 	}
 
 	const int32 StrataClassificationDebug = CVarStrataClassificationDebug.GetValueOnAnyThread();
 	if (IsClassificationEnabled() && StrataClassificationDebug > 0)
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "StrataVisualizeClassification");
+		RDG_EVENT_SCOPE(GraphBuilder, "Strata::VisualizeClassification");
 		const bool bDebugPass = true;
 		AddStrataInternalClassificationTilePass(
 			GraphBuilder, View, nullptr, &ScreenPassSceneColor.Texture, EStrataTileMaterialType::ESimple, bDebugPass);

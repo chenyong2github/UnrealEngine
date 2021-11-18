@@ -68,7 +68,7 @@ TUniquePtr<FPrimitiveComponentTarget> MakeComponentTarget(UPrimitiveComponent* C
 
 bool FPrimitiveComponentTarget::IsValid() const
 {
-	return (Component->IsPendingKillOrUnreachable() == false) && Component->IsValidLowLevel();
+	return IsValidChecked(Component) && !Component->IsUnreachable() && Component->IsValidLowLevel();
 }
 
 AActor* FPrimitiveComponentTarget::GetOwnerActor() const

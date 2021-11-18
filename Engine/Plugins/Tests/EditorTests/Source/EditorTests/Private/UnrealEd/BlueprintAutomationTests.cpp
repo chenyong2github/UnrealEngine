@@ -376,7 +376,7 @@ public:
 			BlueprintObj->SetFlags(RF_Transient);
 			BlueprintObj->ClearFlags(RF_Standalone | RF_Transactional);
 			BlueprintObj->RemoveFromRoot();
-			BlueprintObj->MarkPendingKill();
+			BlueprintObj->MarkAsGarbage();
 
 			InvalidatePackage(OldPackage);
 		}

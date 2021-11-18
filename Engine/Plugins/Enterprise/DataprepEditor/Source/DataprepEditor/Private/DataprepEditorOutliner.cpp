@@ -86,7 +86,7 @@ namespace DataprepEditorSceneOutlinerUtils
 		}
 	}
 
-	class FVisibilityDragDropOp : public FDragDropOperation, public TSharedFromThis<FVisibilityDragDropOp>
+	class FVisibilityDragDropOp : public FDragDropOperation
 	{
 	public:
 

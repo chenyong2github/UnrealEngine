@@ -173,9 +173,16 @@ void FMemoryTagList::UpdateInternal()
 								Tag.Id = TagId;
 								Tag.ParentId = static_cast<FMemoryTagId>(TraceTag.ParentId);
 								Tag.StatName = TraceTag.Name;
-								Tag.StatFullName = Tag.StatName;
+								Tag.StatFullName = TraceTag.Name;
 								Tag.TrackerId = Insights::FMemoryTrackerId(TrackerId);
 								Tag.SetColorAuto();
+
+								// Skip the parent prefix if it is already included in the name.
+								int32 CharIndex;
+								if (Tag.StatName.FindLastChar(TEXT('/'), CharIndex))
+								{
+									Tag.StatName = Tag.StatName.RightChop(CharIndex + 1);
+								}
 
 								Tags.Add(TagPtr);
 								TagsMap.Add(TagId, TagPtr);

@@ -5,6 +5,7 @@
 
 #include "CategoryPropertyNode.h"
 #include "Classes/EditorStyleSettings.h"
+#include "DetailCategoryBuilderImpl.h"
 #include "DetailLayoutBuilderImpl.h"
 #include "DetailsViewGenericObjectFilter.h"
 #include "DetailsViewPropertyGenerationUtilities.h"
@@ -920,7 +921,6 @@ void SDetailsView::PostSetObject(const TArray<FDetailsViewObjectRoot>& Roots)
 		}
 	}
 
-
 	FPropertyNodeInitParams InitParams;
 	InitParams.ParentNode = nullptr;
 	InitParams.Property = nullptr;
@@ -1277,6 +1277,22 @@ void SDetailsView::RebuildSectionSelector()
 	];
 
 	SectionSelectorBox->SetVisibility(EVisibility::Visible);
+
+	CurrentFilter.VisibleSections.Reset();
+
+	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		const UStruct* RootBaseStruct = RootPropertyNode->GetBaseStructure();
+		const FDetailsViewConfig* ViewConfig = GetConstViewConfig();
+		if (ViewConfig != nullptr)
+		{
+			const FDetailsSectionSelection* SectionSelection = ViewConfig->SelectedSections.Find(RootBaseStruct->GetFName());
+			if (SectionSelection != nullptr)
+			{
+				CurrentFilter.VisibleSections = SectionSelection->SectionNames;
+			}
+		}
+	}
 }
 
 void SDetailsView::OnSectionCheckedChanged(ECheckBoxState State, FName SectionName)
@@ -1309,6 +1325,19 @@ void SDetailsView::OnSectionCheckedChanged(ECheckBoxState State, FName SectionNa
 		if (SectionName != "All")
 		{
 			CurrentFilter.VisibleSections.Add(SectionName);
+		}
+	}
+
+	for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		const UStruct* RootBaseStruct = RootPropertyNode->GetBaseStructure();
+		FDetailsViewConfig* ViewConfig = GetMutableViewConfig();
+		if (ViewConfig != nullptr)
+		{
+			FDetailsSectionSelection& SectionSelection = ViewConfig->SelectedSections.FindOrAdd(RootBaseStruct->GetFName());
+			SectionSelection.SectionNames = CurrentFilter.VisibleSections;
+
+			SaveViewConfig();
 		}
 	}
 
@@ -1350,8 +1379,9 @@ TMap<FName, FText> SDetailsView::GetAllSections() const
 		{
 			if (TreeNode->GetNodeType() == EDetailNodeType::Category)
 			{
+				FDetailCategoryImpl& Category = (FDetailCategoryImpl&) TreeNode.Get();
 				TArray<TSharedRef<FDetailTreeNode>> Children;
-				TreeNode->GetChildren(Children);
+				Category.GetGeneratedChildren(Children, true, false);
 
 				if (Children.Num() > 0)
 				{

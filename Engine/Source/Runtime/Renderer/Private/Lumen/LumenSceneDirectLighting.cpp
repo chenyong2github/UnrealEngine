@@ -966,7 +966,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 					FCullCardsShapeParameters ShapeParameters;
 					ShapeParameters.InfluenceSphere = FVector4f(LightBounds.Center, LightBounds.W);
-					ShapeParameters.LightPosition = LightSceneInfo->Proxy->GetPosition();
+					ShapeParameters.LightPosition = FVector4f(LightSceneInfo->Proxy->GetPosition());
 					ShapeParameters.LightDirection = LightSceneInfo->Proxy->GetDirection();
 					ShapeParameters.LightRadius = LightSceneInfo->Proxy->GetRadius();
 					ShapeParameters.CosConeAngle = FMath::Cos(LightSceneInfo->Proxy->GetOuterConeAngle());

@@ -36,7 +36,7 @@ const void* UE::Geometry::GetDetailMeshTrianglePoint_Raycast(
 	const FRay3d ForwardRay(BasePoint, BaseNormal);
 	const FRay3d BackwardRay(BasePoint, -BaseNormal);
 	int32 ForwardHitTID = IndexConstants::InvalidID, InwardHitTID = IndexConstants::InvalidID, BackwardHitTID = IndexConstants::InvalidID;
-	double ForwardHitDist, InwardHitDist, BackwardHitDist;
+	double ForwardHitDist, InwardHitDist, BackwardHitDist = TNumericLimits<float>::Max();
 
 	IMeshSpatial::FQueryOptions Options;
 	Options.MaxDistance = Thickness;
@@ -102,7 +102,7 @@ const void* UE::Geometry::GetDetailMeshTrianglePoint_Nearest(
 	int32& DetailTriangleOut,
 	FVector3d& DetailTriBaryCoords)
 {
-	double NearDistSqr = 0;
+	double NearDistSqr = TNumericLimits<float>::Max();
 	int32 NearestTriID = IndexConstants::InvalidID;
 	FVector3d NearestBaryCoords = FVector3d::Zero();
 	const void* NearestMesh = DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, NearestBaryCoords);

@@ -8,12 +8,15 @@
 #include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Utils/Util.h"
 
-bool CADKernel::FIntersectionSegmentTool::DoesIntersect(const FIsoSegment& Segment) const
+namespace CADKernel
+{ 
+
+const FIsoSegment* FIntersectionSegmentTool::DoesIntersect(const FIsoSegment& Segment) const
 {
 	return DoesIntersect(Segment.GetFirstNode(), Segment.GetSecondNode());
 }
 
-bool CADKernel::FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const
+const FIsoSegment* FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const
 {
 	const FPoint2D& StartPoint = StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
 	const FPoint2D& EndPoint = EndNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
@@ -28,26 +31,26 @@ bool CADKernel::FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNod
 			break;
 		}
 
-		if (Segment.IsoSegment->GetFirstNode().GetId() == StartNode.GetId() || Segment.IsoSegment->GetSecondNode().GetId() == StartNode.GetId())
+		if (&Segment.IsoSegment->GetFirstNode() == &StartNode || &Segment.IsoSegment->GetSecondNode() == &StartNode)
 		{
 			continue;
 		}
 
-		if (Segment.IsoSegment->GetFirstNode().GetId() == EndNode.GetId() || Segment.IsoSegment->GetSecondNode().GetId() == EndNode.GetId())
+		if (&Segment.IsoSegment->GetFirstNode() == &EndNode || &Segment.IsoSegment->GetSecondNode() == &EndNode)
 		{
 			continue;
 		}
 
 		if (IntersectSegments2D(Segment.Segment2D, StartEndSegment.Segment2D))
 		{
-			return true;
+			return Segment.IsoSegment;
 		}
 	}
 
-	return false;
+	return nullptr;
 }
 
-bool CADKernel::FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNode, const FPoint2D& EndPoint) const
+bool FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNode, const FPoint2D& EndPoint) const
 {
 	const FPoint2D& StartPoint = StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid);
 	const FSegment4IntersectionTools StartEndSegment(StartPoint, EndPoint);
@@ -80,7 +83,7 @@ bool CADKernel::FIntersectionSegmentTool::DoesIntersect(const FIsoNode& StartNod
 	return false;
 }
 
-bool CADKernel::FIntersectionSegmentTool::DoesIntersect(const FPoint2D& StartPoint, const FPoint2D& EndPoint) const
+bool FIntersectionSegmentTool::DoesIntersect(const FPoint2D& StartPoint, const FPoint2D& EndPoint) const
 {
 	const FSegment4IntersectionTools StartEndSegment(StartPoint, EndPoint);
 	double DMax = StartEndSegment.Boundary[EIso::IsoU].Max + StartEndSegment.Boundary[EIso::IsoV].Max;
@@ -105,11 +108,12 @@ bool CADKernel::FIntersectionSegmentTool::DoesIntersect(const FPoint2D& StartPoi
 	return false;
 }
 
-CADKernel::FSegment4IntersectionTools::FSegment4IntersectionTools(const FGrid& Grid, const FIsoSegment& InSegment)
-	: FSegment4IntersectionTools(InSegment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), InSegment.GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid))
+FSegment4IntersectionTools::FSegment4IntersectionTools(const FGrid& Grid, const FIsoSegment& InSegment)
+	: Segment2D(InSegment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), InSegment.GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid))
+	, Boundary(InSegment.GetFirstNode().Get2DPoint(EGridSpace::UniformScaled, Grid), InSegment.GetSecondNode().Get2DPoint(EGridSpace::UniformScaled, Grid))
+	, IsoSegment(&InSegment)
 {
-	IsoSegment = &InSegment;
 	AxisMin = Boundary[EIso::IsoU].Min + Boundary[EIso::IsoV].Min;
 }
 
-
+} // namespace CADKernel

@@ -327,10 +327,8 @@ FCbPackage FCacheRecord::Save() const
 	return Package;
 }
 
-FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package)
+FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package, FCbObjectView RecordObject)
 {
-	FCbObjectView RecordObject = Package.GetObject();
-
 	FCacheKey Key;
 	FCbObjectView KeyObject = RecordObject["Key"_ASV].AsObjectView();
 	auto TrySetBucketName = [](FUtf8StringView Name, FCacheKey& Key)
@@ -350,7 +348,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package)
 
 	FCacheRecordBuilder Builder(Key);
 
-	Builder.SetMeta(Package.GetObject()["Meta"_ASV].AsObject());
+	Builder.SetMeta(FCbObject::Clone(RecordObject["Meta"_ASV].AsObjectView()));
 
 	auto LoadPayload = [&Package](const FCbObjectView& PayloadObject)
 	{
@@ -399,6 +397,11 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package)
 	}
 
 	return Builder.Build();
+}
+
+FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Package)
+{
+	return Load(Package, Package.GetObject());
 }
 
 FCacheRecordBuilder::FCacheRecordBuilder(const FCacheKey& Key)

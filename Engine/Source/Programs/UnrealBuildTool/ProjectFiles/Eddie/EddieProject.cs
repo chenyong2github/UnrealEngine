@@ -10,8 +10,6 @@ using System.Linq;
 using System.Text;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 
@@ -20,7 +18,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public EddieSourceFile(FileReference InitFilePath, DirectoryReference InitRelativeBaseFolder)
+		public EddieSourceFile(FileReference InitFilePath, DirectoryReference? InitRelativeBaseFolder)
 			: base(InitFilePath, InitRelativeBaseFolder)
 		{
 		}
@@ -38,8 +36,8 @@ namespace UnrealBuildTool
 		
 		public string Name;
 		public string Path;
-		public string FullPath;
-		public string WorksetPath;
+		public string? FullPath;
+		public string? WorksetPath;
 		public bool bIsModuleFolder;
 		public Dictionary<string, EddieFolder> Folders = new Dictionary<string, EddieFolder>();
 		public List<EddieSourceFile> Files = new List<EddieSourceFile>();
@@ -47,14 +45,11 @@ namespace UnrealBuildTool
 	
 	class EddieProjectFile : ProjectFile
 	{
-		//FileReference OnlyGameProject;
-		
 		Dictionary<string, EddieFolder> Folders = new Dictionary<string, EddieFolder>();
 		
-		public EddieProjectFile(FileReference InitFilePath, FileReference InOnlyGameProject)
-			: base(InitFilePath)
+		public EddieProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
+			: base(InitFilePath, BaseDir)
 		{
-			//OnlyGameProject = InOnlyGameProject;
 		}
 
 		public override string ToString()
@@ -67,7 +62,7 @@ namespace UnrealBuildTool
 			return Extension == ".c" || Extension == ".cc" || Extension == ".cpp" || Extension == ".m" || Extension == ".mm" || Extension == ".cs";
 		}
 		
-		public override SourceFile AllocSourceFile(FileReference InitFilePath, DirectoryReference InitProjectSubFolder)
+		public override SourceFile? AllocSourceFile(FileReference InitFilePath, DirectoryReference? InitProjectSubFolder)
 		{
 			if (InitFilePath.GetFileName().StartsWith("."))
 			{
@@ -76,7 +71,7 @@ namespace UnrealBuildTool
 			return new EddieSourceFile(InitFilePath, InitProjectSubFolder);
 		}
 		
-		public EddieFolder FindFolderByRelativePath(ref Dictionary<string, EddieFolder> Groups, string RelativePath)
+		public EddieFolder? FindFolderByRelativePath(ref Dictionary<string, EddieFolder> Groups, string RelativePath)
 		{
 			string[] Parts = RelativePath.Split(Path.DirectorySeparatorChar);
 			string CurrentPath = "";
@@ -123,20 +118,20 @@ namespace UnrealBuildTool
 		{
 			foreach (SourceFile CurSourceFile in SourceFiles)
 			{
-				EddieSourceFile SourceFile = CurSourceFile as EddieSourceFile;
+				EddieSourceFile SourceFile = (EddieSourceFile)CurSourceFile;
 				string FileName = SourceFile.Reference.GetFileName();
 				//string FileExtension = Path.GetExtension(FileName);
 				//string FilePath = SourceFile.Reference.MakeRelativeTo(ProjectFilePath.Directory);
 				//string FilePathMac = Utils.CleanDirectorySeparators(FilePath, '/');
 				
 				string ProjectRelativeSourceFile = CurSourceFile.Reference.MakeRelativeTo(ProjectFilePath.Directory);
-				string RelativeSourceDirectory = Path.GetDirectoryName(ProjectRelativeSourceFile);
+				string RelativeSourceDirectory = Path.GetDirectoryName(ProjectRelativeSourceFile)!;
 				// Use the specified relative base folder
 				if (CurSourceFile.BaseFolder != null)	// NOTE: We are looking for null strings, not empty strings!
 				{
-					RelativeSourceDirectory = Path.GetDirectoryName(CurSourceFile.Reference.MakeRelativeTo(CurSourceFile.BaseFolder));
+					RelativeSourceDirectory = Path.GetDirectoryName(CurSourceFile.Reference.MakeRelativeTo(CurSourceFile.BaseFolder))!;
 				}
-				EddieFolder Group = FindFolderByRelativePath(ref Folders, RelativeSourceDirectory);
+				EddieFolder? Group = FindFolderByRelativePath(ref Folders, RelativeSourceDirectory);
 				if (Group != null)
 				{
 					if (FileName.EndsWith(".build.cs") || FileName.EndsWith(".Build.cs") || FileName.EndsWith(".csproj"))
@@ -178,7 +173,7 @@ namespace UnrealBuildTool
                         
                         ProjectFileContent.Append("EndFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\"" + ProjectFileGenerator.NewLine);
                 
-                        ProjectFileGenerator.WriteFileIfChanged(CurGroup.Value.WorksetPath, ProjectFileContent.ToString(), new UTF8Encoding());
+                        ProjectFileGenerator.WriteFileIfChanged(CurGroup.Value.WorksetPath!, ProjectFileContent.ToString(), new UTF8Encoding());
                     
                         Content.Append("AddFile \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + CurGroup.Value.WorksetPath + "\"" + ProjectFileGenerator.NewLine);
                     }

@@ -445,38 +445,38 @@ void FVisualLogger::Cleanup(UWorld* OldWorld, const bool bReleaseMemory)
 		// perform cleanup only if provided world is valid and was registered
 		if (WorldToRedirectionMap.Remove(OldWorld))
 		{
-			if (WorldToRedirectionMap.Num() == 0)
-			{
-				WorldToRedirectionMap.Reset();
-				ObjectToWorldMap.Reset();
-				ChildToOwnerMap.Reset();
-				CurrentEntryPerObject.Reset();
-				ObjectToNameMap.Reset();
-				ObjectToClassNameMap.Reset();
-			}
-			else
-			{
-				for (auto It = ObjectToWorldMap.CreateIterator(); It; ++It)
-				{
-					if (It.Value() == OldWorld)
-					{
+		    if (WorldToRedirectionMap.Num() == 0)
+            {
+                WorldToRedirectionMap.Reset();
+                ObjectToWorldMap.Reset();
+                ChildToOwnerMap.Reset();
+                CurrentEntryPerObject.Reset();
+                ObjectToNameMap.Reset();
+                ObjectToClassNameMap.Reset();
+            }
+            else
+            {
+                for (auto It = ObjectToWorldMap.CreateIterator(); It; ++It)
+                {
+                    if (It.Value() == OldWorld)
+                    {
 						FObjectKey Obj = It.Key();
-						ObjectToWorldMap.Remove(Obj);
-						CurrentEntryPerObject.Remove(Obj);
-						ObjectToNameMap.Remove(Obj);
-						ObjectToClassNameMap.Remove(Obj);
-					}
-				}
-	
-				for (FChildToOwnerRedirectionMap::TIterator It = ChildToOwnerMap.CreateIterator(); It; ++It)
-				{
+                        ObjectToWorldMap.Remove(Obj);
+                        CurrentEntryPerObject.Remove(Obj);
+                        ObjectToNameMap.Remove(Obj);
+                        ObjectToClassNameMap.Remove(Obj);
+                    }
+                }
+
+                for (FChildToOwnerRedirectionMap::TIterator It = ChildToOwnerMap.CreateIterator(); It; ++It)
+                {
 					UObject* Object = It->Key.ResolveObjectPtrEvenIfPendingKill();
 					if (Object == nullptr || Object->GetWorld() == OldWorld)
-					{
-						It.RemoveCurrent();
-					}
-				}
-			}
+                    {
+                        It.RemoveCurrent();
+                    }
+                }
+            }
 		}
 	}
 	else

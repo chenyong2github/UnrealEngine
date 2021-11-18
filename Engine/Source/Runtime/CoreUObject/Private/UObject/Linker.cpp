@@ -105,10 +105,6 @@ void FGenerationInfo::Serialize(FStructuredArchive::FSlot Slot, const struct FPa
 	Record << SA_VALUE(TEXT("ExportCount"), ExportCount) << SA_VALUE(TEXT("NameCount"), NameCount);
 }
 
-#if WITH_EDITORONLY_DATA
-extern int32 GLinkerAllowDynamicClasses;
-#endif
-
 void FLinkerTables::SerializeSearchableNamesMap(FArchive& Ar)
 {
 	SerializeSearchableNamesMap(FStructuredArchiveFromArchive(Ar).GetSlot());
@@ -144,18 +140,6 @@ FName FLinker::GetExportClassName( int32 i )
 		{
 			return ImpExp(Export.ClassIndex).ObjectName;
 		}
-#if WITH_EDITORONLY_DATA
-		else if (GLinkerAllowDynamicClasses && (Export.DynamicType == FObjectExport::EDynamicType::DynamicType))
-		{
-			static FName NAME_BlueprintGeneratedClass(TEXT("BlueprintGeneratedClass"));
-			return NAME_BlueprintGeneratedClass;
-		}
-#else
-		else if (Export.DynamicType == FObjectExport::EDynamicType::DynamicType)
-		{
-			return GetDynamicTypeClassName(*GetExportPathName(i));
-		}
-#endif
 	}
 	return NAME_Class;
 }
@@ -623,15 +607,6 @@ static void LogGetPackageLinkerError(FUObjectSerializeContext* LoadContext, cons
 	}
 }
 
-static bool IsConvertedDynamicPackage(FName PackageName)
-{
-	return
-#if WITH_EDITORONLY_DATA
-		GLinkerAllowDynamicClasses && 
-#endif
-		GetConvertedDynamicPackageNameToTypeName().Contains(PackageName);
-}
-
 FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bSkipIfExists)
 {
 	if (!InLongPackageName)
@@ -658,7 +633,7 @@ FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bSkip
 	bool DoesPackageExist = FPackageName::DoesPackageExist(PackagePath, &PackagePath);
 #endif
 
-	if (!IsConvertedDynamicPackage(PackageFName) && !DoesPackageExist)
+	if (!DoesPackageExist)
 	{
 		return FString();
 	}
@@ -794,32 +769,28 @@ FLinkerLoad* GetPackageLinker
 		}
 	}
 
-	// Skip the existence and normalization checks for dynamic packages
-	if (!IsConvertedDynamicPackage(PackageFName))
-	{
-		// We need to call DoesPackageExist for a few reasons:
-		// 1) Get the extension that the package is using
-		// 2) Normalize the capitalization of the packagename to match the case on disk
-		// 3) Early exit, avoiding the cost of creating and deleting a UPackage if the package does not exist on disk
+	// We need to call DoesPackageExist for a few reasons:
+	// 1) Get the extension that the package is using
+	// 2) Normalize the capitalization of the packagename to match the case on disk
+	// 3) Early exit, avoiding the cost of creating and deleting a UPackage if the package does not exist on disk
 #if WITH_EDITORONLY_DATA
-		// If we're creating a package, we need to match the capitalization on disk so that the anyone doing source control operations based on the PackageName will send the proper capitalization to the possibly-casesensitive source control
-		bool bMatchCaseOnDisk = TargetPackage == nullptr;
+	// If we're creating a package, we need to match the capitalization on disk so that the anyone doing source control operations based on the PackageName will send the proper capitalization to the possibly-casesensitive source control
+	bool bMatchCaseOnDisk = TargetPackage == nullptr;
 #else
-		bool bMatchCaseOnDisk = false;
+	bool bMatchCaseOnDisk = false;
 #endif
-		bool bPackageExists = FPackageName::DoesPackageExist(PackagePath, bMatchCaseOnDisk, &PackagePath);
-		PackageName = PackagePath.GetPackageName();
-		if (!bPackageExists)
+	bool bPackageExists = FPackageName::DoesPackageExist(PackagePath, bMatchCaseOnDisk, &PackagePath);
+	PackageName = PackagePath.GetPackageName();
+	if (!bPackageExists)
+	{
+		// Issue a warning if the caller didn't request nowarn/quiet, and the package isn't marked as known to be missing.
+		bool bIssueWarning = (LoadFlags & (LOAD_NoWarn | LOAD_Quiet)) == 0 && !FLinkerLoad::IsKnownMissingPackage(InPackagePath.GetPackageFName());
+		if (bIssueWarning)
 		{
-			// Issue a warning if the caller didn't request nowarn/quiet, and the package isn't marked as known to be missing.
-			bool bIssueWarning = (LoadFlags & (LOAD_NoWarn | LOAD_Quiet)) == 0 && !FLinkerLoad::IsKnownMissingPackage(InPackagePath.GetPackageFName());
-			if (bIssueWarning)
-			{
-				// try to recover from this instead of throwing, it seems recoverable just by doing this
-				LogGetPackageLinkerError(InExistingContext, InPackagePath, LOCTEXT("FileNotFoundShort", "Can't find file."), InOuter, LoadFlags);
-			}
-			return nullptr;
+			// try to recover from this instead of throwing, it seems recoverable just by doing this
+			LogGetPackageLinkerError(InExistingContext, InPackagePath, LOCTEXT("FileNotFoundShort", "Can't find file."), InOuter, LoadFlags);
 		}
+		return nullptr;
 	}
 
 	UPackage* CreatedPackage = nullptr;
@@ -887,7 +858,7 @@ FLinkerLoad* GetPackageLinker
 
 	if (!Result && CreatedPackage)
 	{
-		CreatedPackage->MarkPendingKill();
+		CreatedPackage->MarkAsGarbage();
 	}
 
 	return Result;

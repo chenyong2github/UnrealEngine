@@ -180,17 +180,17 @@ inline FScreenTransform FScreenTransform::Invert(const FScreenTransform& AToB)
 	float InvY = 1.0f / AToB.Scale.Y;
 
 	return FScreenTransform(
-		FVector2D(InvX, InvY),
-		FVector2D(-InvX * AToB.Bias.X, -InvY * AToB.Bias.Y));
+		FVector2f(InvX, InvY),
+		FVector2f(-InvX * AToB.Bias.X, -InvY * AToB.Bias.Y));
 }
 
 
-inline FVector2D operator * (const FVector2D& PInA, const FScreenTransform& AToB)
+inline FVector2f operator * (const FVector2f& PInA, const FScreenTransform& AToB)
 {
 	return PInA * AToB.Scale + AToB.Bias;
 }
 
-inline FScreenTransform operator * (const FScreenTransform& AToB, const FVector2D& Scale)
+inline FScreenTransform operator * (const FScreenTransform& AToB, const FVector2f& Scale)
 {
 	return FScreenTransform(AToB.Scale * Scale, AToB.Bias * Scale);
 }
@@ -202,7 +202,7 @@ inline FScreenTransform operator * (const FScreenTransform& AToB, const float& S
 
 inline FScreenTransform operator * (const FScreenTransform& AToB, const FIntPoint& Scale)
 {
-	return AToB * FVector2D(Scale.X, Scale.Y);
+	return AToB * FVector2f(Scale.X, Scale.Y);
 }
 
 inline FScreenTransform operator * (const FScreenTransform& AToB, const FScreenTransform& BToC)
@@ -211,37 +211,37 @@ inline FScreenTransform operator * (const FScreenTransform& AToB, const FScreenT
 }
 
 
-inline FScreenTransform operator + (const FScreenTransform& AToB, const FVector2D& Bias)
+inline FScreenTransform operator + (const FScreenTransform& AToB, const FVector2f& Bias)
 {
 	return FScreenTransform(AToB.Scale, AToB.Bias + Bias);
 }
 
 inline FScreenTransform operator + (const FScreenTransform& AToB, const float& Bias)
 {
-	return AToB + FVector2D(Bias, Bias);
+	return AToB + FVector2f(Bias, Bias);
 }
 
 inline FScreenTransform operator + (const FScreenTransform& AToB, const FIntPoint& Bias)
 {
-	return AToB + FVector2D(Bias.X, Bias.Y);
+	return AToB + FVector2f(Bias.X, Bias.Y);
 }
 
 
-inline FScreenTransform operator / (const FScreenTransform& AToB, const FVector2D& InvertedScale)
+inline FScreenTransform operator / (const FScreenTransform& AToB, const FVector2f& InvertedScale)
 {
 	ensure(!FMath::IsNearlyZero(InvertedScale.X));
 	ensure(!FMath::IsNearlyZero(InvertedScale.Y));
-	return AToB * FVector2D(1.0f / InvertedScale.X, 1.0f / InvertedScale.Y);
+	return AToB * FVector2f(1.0f / InvertedScale.X, 1.0f / InvertedScale.Y);
 }
 
 inline FScreenTransform operator / (const FScreenTransform& AToB, const float& InvertedScale)
 {
-	return AToB / FVector2D(InvertedScale, InvertedScale);
+	return AToB / FVector2f(InvertedScale, InvertedScale);
 }
 
 inline FScreenTransform operator / (const FScreenTransform& AToB, const FIntPoint& InvertedScale)
 {
-	return AToB / FVector2D(InvertedScale.X, InvertedScale.Y);
+	return AToB / FVector2f(InvertedScale.X, InvertedScale.Y);
 }
 
 inline FScreenTransform operator / (const FScreenTransform& AToB, const FScreenTransform& CToB)
@@ -274,12 +274,12 @@ inline FScreenTransform FScreenTransform::ChangeTextureBasisFromTo(
 		else if (DestBasis == ETextureBasis::TexelPosition)
 		{
 			return FScreenTransform(
-				FVector2D(TextureViewport.Width(), TextureViewport.Height()),
-				FVector2D(TextureViewport.Min.X, TextureViewport.Min.Y));
+				FVector2f(TextureViewport.Width(), TextureViewport.Height()),
+				FVector2f(TextureViewport.Min.X, TextureViewport.Min.Y));
 		}
 		else if (DestBasis == ETextureBasis::TextureUV)
 		{
-			return FScreenTransform(FVector2D(1.0f / float(TextureExtent.X), 1.0f / float(TextureExtent.Y)), FVector2D(0.0f, 0.0f));
+			return FScreenTransform(FVector2f(1.0f / float(TextureExtent.X), 1.0f / float(TextureExtent.Y)), FVector2f(0.0f, 0.0f));
 		}
 		else
 		{
@@ -306,12 +306,12 @@ inline FScreenTransform FScreenTransform::ChangeTextureBasisFromTo(
 			float InvHeight = 1.0f / float(TextureViewport.Height());
 
 			return FScreenTransform(
-				FVector2D(InvWidth, InvHeight),
-				FVector2D(-InvWidth * TextureViewport.Min.X, -InvHeight * TextureViewport.Min.Y));
+				FVector2f(InvWidth, InvHeight),
+				FVector2f(-InvWidth * TextureViewport.Min.X, -InvHeight * TextureViewport.Min.Y));
 		}
 		else if (DestBasis == ETextureBasis::TexelPosition)
 		{
-			return FScreenTransform(FVector2D(TextureExtent.X, TextureExtent.Y), FVector2D(0.0f, 0.0f));
+			return FScreenTransform(FVector2f(TextureExtent.X, TextureExtent.Y), FVector2f(0.0f, 0.0f));
 		}
 		else
 		{
@@ -323,10 +323,10 @@ inline FScreenTransform FScreenTransform::ChangeTextureBasisFromTo(
 }
 
 inline FScreenTransform FScreenTransform::ChangeRectFromTo(
-	FVector2D SourceOffset,
-	FVector2D SourceExtent,
-	FVector2D DestinationOffset,
-	FVector2D DestinationExtent)
+	FVector2f SourceOffset,
+	FVector2f SourceExtent,
+	FVector2f DestinationOffset,
+	FVector2f DestinationExtent)
 {
 	FScreenTransform Transform;
 	Transform.Scale = DestinationExtent / SourceExtent;
@@ -337,8 +337,8 @@ inline FScreenTransform FScreenTransform::ChangeRectFromTo(
 inline FScreenTransform FScreenTransform::ChangeRectFromTo(const FIntRect& SrcViewport, const FIntRect& DestViewport)
 {
 	return FScreenTransform::ChangeRectFromTo(
-		FVector2D(SrcViewport.Min), FVector2D(SrcViewport.Size()),
-		FVector2D(DestViewport.Min), FVector2D(DestViewport.Size()));
+		FVector2f(SrcViewport.Min), FVector2f(SrcViewport.Size()),
+		FVector2f(DestViewport.Min), FVector2f(DestViewport.Size()));
 }
 
 template<>

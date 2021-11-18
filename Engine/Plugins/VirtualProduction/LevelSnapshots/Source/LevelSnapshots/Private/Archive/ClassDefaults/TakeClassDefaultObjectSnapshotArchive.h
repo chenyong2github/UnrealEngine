@@ -9,15 +9,20 @@ class UObject;
 struct FObjectSnapshotData;
 struct FWorldSnapshotData;
 
-/* Used when we're taking a snapshot of the world. */
-class FTakeClassDefaultObjectSnapshotArchive final : public FBaseClassDefaultArchive
+namespace UE::LevelSnapshots::Private
 {
-	using Super = FBaseClassDefaultArchive;
-public:
+	/* Used when we're taking a snapshot of the world. */
+	class FTakeClassDefaultObjectSnapshotArchive final : public FBaseClassDefaultArchive
+	{
+		using Super = FBaseClassDefaultArchive;
+	public:
 
-	static void SaveClassDefaultObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* SerializedObject);
+		static void SaveClassDefaultObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* SerializedObject);
 
-private:
+	private:
 	
-	FTakeClassDefaultObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InSerializedObject);
-};
+		FTakeClassDefaultObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InSerializedObject);
+	};
+}
+
+

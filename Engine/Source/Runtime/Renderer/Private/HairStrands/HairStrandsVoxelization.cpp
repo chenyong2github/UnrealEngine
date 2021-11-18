@@ -151,7 +151,7 @@ class FVirtualVoxelInjectOpaqueCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, VirtualVoxelParams)
 		SHADER_PARAMETER(FIntVector, DispatchedPageIndexResolution)
 		SHADER_PARAMETER(uint32, MacroGroupId)
-		SHADER_PARAMETER(FVector2D, SceneDepthResolution)
+		SHADER_PARAMETER(FVector2f, SceneDepthResolution)
 		SHADER_PARAMETER(uint32, VoxelBiasCount)
 		SHADER_PARAMETER(uint32, VoxelMarkCount)
 		RDG_BUFFER_ACCESS(IndirectDispatchArgs, ERHIAccess::IndirectArgs)

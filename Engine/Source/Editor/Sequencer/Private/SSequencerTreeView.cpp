@@ -158,6 +158,7 @@ void SSequencerTreeView::Construct(const FArguments& InArgs, const TSharedRef<FS
 	bUpdatingSequencerSelection = false;
 	bUpdatingTreeSelection = false;
 	bSequencerSelectionChangeBroadcastWasSupressed = false;
+	bSynchronizeTreeSelectionWithSequencerSelection = false;
 	bPhysicalNodesNeedUpdate = false;
 	bRightMouseButtonDown = false;
 	bShowPinnedNodes = false;
@@ -192,6 +193,15 @@ void SSequencerTreeView::Construct(const FArguments& InArgs, const TSharedRef<FS
 
 void SSequencerTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	if (bSynchronizeTreeSelectionWithSequencerSelection && !IsPendingRefresh())
+	{
+		bUpdatingTreeSelection = true;
+		SynchronizeTreeSelectionWithSequencerSelection();
+		bUpdatingTreeSelection = false;
+
+		bSynchronizeTreeSelectionWithSequencerSelection = false;
+	}
+
 	if (bSequencerSelectionChangeBroadcastWasSupressed && !FSlateApplication::Get().AnyMenusVisible())
 	{
 		FSequencerSelection& SequencerSelection = SequencerNodeTree->GetSequencer().GetSelection();
@@ -709,7 +719,7 @@ void SSequencerTreeView::SynchronizeTreeSelectionWithSequencerSelection()
 	{
 		bUpdatingTreeSelection = true;
 		{
-			const TArray<FDisplayNodeRef>& ItemsSourceRef = (*this->TreeItemsSource);
+			const TArray<FDisplayNodeRef>& ItemsSourceRef = (*this->ItemsSource);
 			
 			FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
 			FSequencerSelection& Selection = Sequencer.GetSelection();
@@ -921,11 +931,7 @@ void SSequencerTreeView::Refresh()
 		STreeView::OnExpansionChanged.BindSP(this, &SSequencerTreeView::OnExpansionChanged);
 	}
 
-	// Force synchronization of selected tree view items here since the tree nodes may have been rebuilt
-	// and the treeview's selection will now be invalid.
-	bUpdatingTreeSelection = true;
-	SynchronizeTreeSelectionWithSequencerSelection();
-	bUpdatingTreeSelection = false;
+	bSynchronizeTreeSelectionWithSequencerSelection = true;
 
 	RebuildList();
 

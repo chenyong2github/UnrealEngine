@@ -703,10 +703,7 @@ TSharedPtr<IInterpolationIndexProvider::FPerBoneInterpolationData> UBlendSpace::
 	return MakeShareable<FSortedPerBoneInterpolationData>(Data);
 }
 
-int32 UBlendSpace::GetPerBoneInterpolationIndex(
-	int32                                                         BoneIndex, 
-	const FBoneContainer&                                         RequiredBones,
-	const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const
+int32 UBlendSpace::GetPerBoneInterpolationIndex(const FCompactPoseBoneIndex& InCompactPoseBoneIndex, const FBoneContainer& RequiredBones, const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const
 {
 	if (!ensure(Data))
 	{
@@ -721,13 +718,13 @@ int32 UBlendSpace::GetPerBoneInterpolationIndex(
 		const FBoneReference& SmoothedBone = PerBoneInterpolation.BoneReference;
 		if (SmoothedBone.IsValidToEvaluate(RequiredBones))
 		{
-			int SmoothedBonePoseIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SmoothedBone.BoneIndex).GetInt();
-			if (SmoothedBonePoseIndex == BoneIndex)
+			FCompactPoseBoneIndex SmoothedBonePoseIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(SmoothedBone.GetSkeletonPoseIndex(RequiredBones));
+			if (SmoothedBonePoseIndex == InCompactPoseBoneIndex)
 			{
 				return OriginalIndex;
 			}
 			// Returns true if BoneIndex is a child of SmoothedBonePoseIndex. Searches up from BoneIndex
-			if (RequiredBones.BoneIsChildOf(BoneIndex, SmoothedBonePoseIndex))
+			if (RequiredBones.BoneIsChildOf(InCompactPoseBoneIndex, SmoothedBonePoseIndex))
 			{
 				return OriginalIndex;
 			}

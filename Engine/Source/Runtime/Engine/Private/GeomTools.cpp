@@ -528,7 +528,7 @@ FClipSMPolygon FGeomTools::Transform2DPolygonToSMPolygon(const FUtilPoly2D& InPo
 
 		FClipSMVertex* OutVertex = new(Result.Vertices) FClipSMVertex;
 		FMemory::Memzero(OutVertex,sizeof(*OutVertex));
-		OutVertex->Pos = InMatrix.TransformPosition( FVector(InVertex.Pos.X, InVertex.Pos.Y, 0.f) );
+		OutVertex->Pos = (FVector4f)InMatrix.TransformPosition( FVector(InVertex.Pos.X, InVertex.Pos.Y, 0.f) );
 		OutVertex->Color = InVertex.Color;
 		OutVertex->UVs[0] = InVertex.UV;
 	}

@@ -29,13 +29,13 @@ public:
 	// Post-process operation wrapper
 	struct FDisplayClusterPPInfo
 	{
-		FDisplayClusterPPInfo(TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& InOperation, int InPriority)
+		FDisplayClusterPPInfo(TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>& InOperation, int32 InPriority)
 			: Operation(InOperation)
 			, Priority(InPriority)
 		{ }
 
 		TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> Operation;
-		int Priority;
+		int32 Priority;
 	};
 
 public:

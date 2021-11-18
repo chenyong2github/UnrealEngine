@@ -445,6 +445,7 @@ public:
 	virtual bool CompressImage(
 			const FImage& InImage,
 			const FTextureBuildSettings& BuildSettings,
+			FStringView DebugTexturePathName,
 			bool bImageHasAlphaChannel,
 			FCompressedImage2D& OutCompressedImage
 		) const override
@@ -453,7 +454,7 @@ public:
 		if(GASTCCompressor == 0)
 		{
 			// Route ASTC compression work to the ISPC module instead.
-			return IntelISPCTexCompFormat.CompressImage(InImage, BuildSettings, bImageHasAlphaChannel, OutCompressedImage);
+			return IntelISPCTexCompFormat.CompressImage(InImage, BuildSettings, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage);
 		}
 #endif
 		bool bHDRImage = BuildSettings.bHDRSource && GASTCHDRProfile;

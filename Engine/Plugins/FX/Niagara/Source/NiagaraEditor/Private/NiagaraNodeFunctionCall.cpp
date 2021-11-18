@@ -1630,11 +1630,12 @@ bool UNiagaraNodeFunctionCall::IsValidPropagatedVariable(const FNiagaraVariable&
 
 bool UNiagaraNodeFunctionCall::FindAutoBoundInput(UNiagaraNodeInput* InputNode, UEdGraphPin* PinToAutoBind, FNiagaraVariable& OutFoundVar, ENiagaraInputNodeUsage& OutNodeUsage)
 {
-	check(InputNode && InputNode->IsExposed());
+	check(InputNode);
 	if (PinToAutoBind->LinkedTo.Num() > 0 || !InputNode->CanAutoBind())
 	{
 		return false;
 	}
+	ensureMsgf(InputNode->IsExposed() == true, TEXT("AutoBind inputs should be exposed for Function(%s) Pin(%s)"), *FunctionDisplayName, *PinToAutoBind->GetName());
 
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 	FNiagaraVariable PinVar = Schema->PinToNiagaraVariable(PinToAutoBind);

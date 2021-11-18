@@ -1047,7 +1047,7 @@ namespace ObjectTools
 			UObject* CurObject = *ObjIter;
 
 			// Don't bother replacing in objects that are about to be garbage collected
-			if ((ObjectsToReplaceWithin.Num() > 0 && !ObjectsToReplaceWithin.Contains(CurObject)) || CurObject->IsPendingKillOrUnreachable())
+			if ((ObjectsToReplaceWithin.Num() > 0 && !ObjectsToReplaceWithin.Contains(CurObject)) || !IsValidChecked(CurObject) || CurObject->IsUnreachable())
 			{
 				CurObject = nullptr;
 			}
@@ -4289,7 +4289,7 @@ namespace ObjectTools
 
 
 			// If the object is not flagged for GC and it is in one of the level packages do an indepth search to see what references it.
-			if( !Obj->IsPendingKillOrUnreachable() && LevelPackages.Find( Obj->GetOutermost() ) != NULL )
+			if( IsValidChecked(Obj) && !Obj->IsUnreachable() && LevelPackages.Find( Obj->GetOutermost() ) != NULL )
 			{
 				// Determine if the current object is in one of the search levels.  This is the same as UObject::IsIn except that we can
 				// search through many levels at once.

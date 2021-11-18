@@ -57,25 +57,25 @@ public:
 	TArray64<TTuple<int64, int64>> GutterTexels;
 
 	using FGridSampler = TGridSampler<double>;
-	FGridSampler Multisampler = FGridSampler(1);
+	FGridSampler PixelSampler = FGridSampler(1);
 
 	bool bParallel = true;
 
 
-	void Initialize(FImageDimensions DimensionsIn, int32 Multisampling = 1)
+	void Initialize(FImageDimensions DimensionsIn, int32 SamplesPerPixelIn = 1)
 	{
 		check(DimensionsIn.IsSquare()); // are we sure it works otherwise?
 		Dimensions = DimensionsIn;
 		Tile = FImageTile(FVector2i(0,0), FVector2i(Dimensions.GetWidth(), Dimensions.GetHeight()));
-		Multisampler = FGridSampler(Multisampling);
+		InitializePixelSampler(SamplesPerPixelIn);
 	}
 
-	void Initialize(FImageDimensions DimensionsIn, const FImageTile& TileIn, int32 Multisampling = 1)
+	void Initialize(FImageDimensions DimensionsIn, const FImageTile& TileIn, int32 SamplesPerPixelIn = 1)
 	{
 		check(DimensionsIn.IsSquare());
 		Dimensions = DimensionsIn;
 		Tile = TileIn;
-		Multisampler = FGridSampler(Multisampling);
+		InitializePixelSampler(SamplesPerPixelIn);
 	}
 
 	/**
@@ -109,7 +109,7 @@ public:
 		TMeshAABBTree3<MeshType> FlatSpatial(&UVSpaceMesh, true);
 
 		const int32 LinearImageSize = Tile.Num();
-		const int32 LinearSampleSize = Tile.Num() * Multisampler.Num();
+		const int32 LinearSampleSize = Tile.Num() * PixelSampler.Num();
 		TexelType.Init(EmptyTexel, LinearSampleSize);
 		TexelInteriorSamples.Init(0, LinearImageSize);
 		TexelQueryUV.Init(FVector2f::Zero(), LinearSampleSize);
@@ -140,13 +140,13 @@ public:
 				bool bIsGutterTexel = true;
 				bool bHitTriID = false;
 				TTuple<int64, int64> GutterNearestTexel;
-				for (int32 Sample = 0; Sample < Multisampler.Num(); ++Sample)
+				for (int32 Sample = 0; Sample < PixelSampler.Num(); ++Sample)
 				{
 					const FVector2i SourceCoords = Tile.GetSourceCoords(ImgX, ImgY);
 					const int64 SourceTexelLinearIdx = Dimensions.GetIndex(SourceCoords.X, SourceCoords.Y);
 					const int64 TexelLinearIdx = Tile.GetIndex(ImgX, ImgY);
-					const int64 SampleLinearIdx = TexelLinearIdx * Multisampler.Num() + Sample;
-					const FVector2d SampleUV = Multisampler.Sample(Sample);
+					const int64 SampleLinearIdx = TexelLinearIdx * PixelSampler.Num() + Sample;
+					const FVector2d SampleUV = PixelSampler.Sample(Sample);
 					FVector2d UVPoint = Dimensions.GetTexelUV(SourceTexelLinearIdx);
 					UVPoint = UVPoint - 0.5 * TexelSize + SampleUV * TexelSize;
 					const FVector3d UVPoint3d(UVPoint.X, UVPoint.Y, 0);
@@ -286,6 +286,17 @@ public:
 		}
 	}
 
+protected:
+	/**
+	 * Initialize the pixel sampler.
+	 * @param SamplesPerPixelIn The desired number of samples per pixel
+	 */
+	void InitializePixelSampler(const int32 SamplesPerPixelIn)
+	{
+		const float GridDimensionFloat = SamplesPerPixelIn > 0 ? static_cast<float>(SamplesPerPixelIn) : 1.0f;
+		const int32 GridDimension = FMathf::Clamp(FMathf::Sqrt(GridDimensionFloat), 1.0f, GridDimensionFloat);
+		PixelSampler = FGridSampler(GridDimension);
+	}
 
 };
 

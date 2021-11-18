@@ -118,7 +118,8 @@ namespace CruncherSharp
                 Filter = textBoxFilter.Text,
                 MatchCase = checkBoxMatchCase.Checked,
                 WholeExpression = checkBoxMatchWholeExpression.Checked,
-                UseRegularExpression = checkBoxRegularExpressions.Checked
+                UseRegularExpression = checkBoxRegularExpressions.Checked,
+                UseProgressBar = checkBoxEnableProgressBar.Checked
             };
             backgroundWorker.RunWorkerAsync(task);
         }

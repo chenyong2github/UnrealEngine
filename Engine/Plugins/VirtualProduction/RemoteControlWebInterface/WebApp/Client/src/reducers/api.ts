@@ -19,42 +19,45 @@ export type ApiState = {
 };
 
 
+let _preset;
 let _dispatch: Dispatch;
-let _getState: () => { api: ApiState };
 let _socket: SocketIOClient.Socket;
 const _host = (process.env.NODE_ENV === 'development' ? `http://${window.location.hostname}:7001` : '');
 
 function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
   _dispatch = dispatch;
-  _getState = getState;
 
   _socket = io(`${_host}/`, { path: '/api/io' });
 
   _socket
-    .on('disconnect', () => dispatch(API.STATUS({ connected: false })))
+    .on('disconnect', () => dispatch(API.STATUS({ connected: false, version: undefined })))
     .on('presets', (presets: IPreset[]) => dispatch(API.PRESETS(presets)))
     .on('payloads', (payloads: IPayloads) => {
       dispatch(API.PAYLOADS(payloads));
-      const preset = _internal.getPreset();
-      if (!preset || !payloads[preset])
+      if (!_preset || !payloads[_preset])
         return;
 
-      dispatch(API.PAYLOAD(payloads[preset]));
+      dispatch(API.PAYLOAD(payloads[_preset]));
     })
     .on('value', (preset: string, property: string, value: PropertyValue) => {
       dispatch(API.PAYLOADS_VALUE({ [preset]: { [property]: value }}));
-      
-      if (_internal.getPreset() === preset)
+
+      if (_preset === preset)
         dispatch(API.PAYLOAD({ [property]: value }));
     })
+    .on('values', (preset: string, changes: { [key: string]: PropertyValue }) => {
+      dispatch(API.PAYLOADS_VALUE({ [preset]: changes }));
+      if (_preset === preset)
+        dispatch(API.PAYLOAD(changes));
+    })
     .on('view', (preset: string, view: IView) => {
-      if (_internal.getPreset() !== preset)
+      if (_preset !== preset)
         return;
 
       dispatch(API.VIEW(view));
     })
-    .on('connected', (connected: boolean) => {
-      dispatch(API.STATUS({ connected, loading: false }));
+    .on('connected', (connected: boolean, version: string) => {
+      dispatch(API.STATUS({ connected, version, loading: false }));
 
       if (connected) {
           _api.presets.get();
@@ -105,11 +108,6 @@ const API = {
   PAYLOADS_VALUE: createAction<IPayloads>('API_PAYLOADS_VALUE'),
 };
 
-const _internal = {
-  getPreset: () => {
-    return _getState().api.preset;
-  }
-};
 
 export const _api = {
   initialize: () => _initialize.bind(null),
@@ -136,26 +134,24 @@ export const _api = {
       return view;
     },
     set: (view: IView) => {
-      const preset = _internal.getPreset();
-
-      _socket.emit('view', preset, view);
+      _socket.emit('view', _preset, view);
     },
   },
   payload: {
     get: (preset: string): Promise<IPayload> => _get(`/api/presets/payload?preset=${preset}`, API.PAYLOAD),
     all: (): Promise<IPayloads> => _get('/api/payloads', API.PAYLOADS),
     set: (property: string, value: PropertyValue) => {
-      const preset = _internal.getPreset();
-      _socket.emit('value', preset, property, value);
+      _socket.emit('value', _preset, property, value);
     },
     execute: (func: string, args?: Record<string, any>) => {
-      const preset = _internal.getPreset();
-      _socket.emit('execute', preset, func, args ?? {});
+      _socket.emit('execute', _preset, func, args ?? {});
     },
     metadata: (property: string, meta: string, value: string) => {
-      const preset = _internal.getPreset();
-      _socket.emit('metadata', preset, property, meta, value);
-    }
+      _socket.emit('metadata', _preset, property, meta, value);
+    },
+    rebind: (properties: string[], owner: string) => {
+      _socket.emit('rebind', _preset, properties, owner);
+    },
   },
   assets: {
     search: (q: string, types: string[], prefix: string, count: number = 50): Promise<IAsset[]> => {
@@ -244,9 +240,12 @@ reducer
         preset = presets[0]?.ID;
 
       // No available preset
-      if (!preset)
+      if (!preset) {
+        _preset = undefined;
         return { ...state, preset: undefined, view: { tabs: null }, payload: {} };
+      }
 
+      _preset = preset;
       _api.presets.load(preset)
           .then(() => Promise.all([
               _api.views.get(preset),
@@ -277,6 +276,7 @@ reducer
     return state;
   })
   .on(API.PRESET_SELECT, (state, preset) => {
+    _preset = preset;
     localStorage.setItem('preset', preset);
     _api.views.get(preset);
     _api.payload.get(preset);

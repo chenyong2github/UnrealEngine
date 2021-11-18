@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
+#include "Network/IDisplayClusterServer.h"
 
 class FDisplayClusterClusterSyncService;
 class FDisplayClusterRenderSyncService;
 class FDisplayClusterClusterEventsJsonService;
 class FDisplayClusterClusterEventsBinaryService;
+class FDisplayClusterTcpListener;
 
 
 /**
@@ -25,21 +27,21 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override;
-	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
-	virtual void GetNativeInputData(TMap<FString, FString>& EventsData) override;
+	virtual EDisplayClusterCommResult GetTimeData(double& OutDeltaTime, double& OutGameTime, TOptional<FQualifiedFrameTime>& OutFrameTime) override;
+	virtual EDisplayClusterCommResult GetObjectsData(const EDisplayClusterSyncGroup InSyncGroup, TMap<FString, FString>& OutObjectsData) override;
+	virtual EDisplayClusterCommResult GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& OutJsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& OutBinaryEvents) override;
+	virtual EDisplayClusterCommResult GetNativeInputData(TMap<FString, FString>& OutNativeInputData) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterNodeController
+	// IDisplayClusterClusterNodeController
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void ClearCache() override;
-
 	virtual EDisplayClusterNodeRole GetClusterRole() const override
 	{
 		return EDisplayClusterNodeRole::Master;
 	}
+
+	virtual bool DropClusterNode(const FString& NodeId) override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,28 +56,16 @@ protected:
 	virtual void StopClients()       override;
 
 private:
+	// Handle node failures
+	void ProcessNodeFailed(const FString& NodeId, IDisplayClusterServer::ENodeFailType NodeFailType);
+
+private:
 	// Node servers
 	TUniquePtr<FDisplayClusterClusterSyncService>         ClusterSyncServer;
 	TUniquePtr<FDisplayClusterRenderSyncService>          RenderSyncServer;
 	TUniquePtr<FDisplayClusterClusterEventsJsonService>   ClusterEventsJsonServer;
 	TUniquePtr<FDisplayClusterClusterEventsBinaryService> ClusterEventsBinaryServer;
 
-private:
-	// GetTimeData internals
-	FEventRef CachedTimeDataEvent{ EEventMode::ManualReset };
-	float   CachedDeltaTime = 0.f;
-	double  CachedGameTime = 0.f;
-	TOptional<FQualifiedFrameTime>  CachedFrameTime;
-
-	// GetSyncData internals
-	TMap<EDisplayClusterSyncGroup, FEvent*> CachedSyncDataEvents;
-	TMap<EDisplayClusterSyncGroup, TMap<FString, FString>> CachedSyncData;
-
-	// GetEventsData internals
-	FEventRef CachedEventsDataEvent{ EEventMode::ManualReset };
-	TArray<TSharedPtr<FDisplayClusterClusterEventJson,   ESPMode::ThreadSafe>>   CachedJsonEvents;
-	TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> CachedBinaryEvents;
-
-private:
-	mutable FCriticalSection InternalsSyncScope;
+	// Shared TCP connection listener. Allows to use single port for multiple internal services.
+	TSharedPtr<FDisplayClusterTcpListener> TcpListener;
 };

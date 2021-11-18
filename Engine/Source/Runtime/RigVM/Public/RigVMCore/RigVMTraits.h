@@ -43,7 +43,6 @@ struct TRigVMIsBaseStructure
 	enum { Value = false };
 };
 
-struct FRotator;
 template<> struct TRigVMIsBaseStructure<FRotator> { enum { Value = true }; };
 template<> struct TRigVMIsBaseStructure<FQuat> { enum { Value = true }; };
 template<> struct TRigVMIsBaseStructure<FTransform> { enum { Value = true }; };
@@ -55,7 +54,7 @@ template<> struct TRigVMIsBaseStructure<FColor> { enum { Value = true }; };
 template<> struct TRigVMIsBaseStructure<FPlane> { enum { Value = true }; };
 
 template<> struct TRigVMIsBaseStructure<FVector> { enum { Value = true }; };
-struct FVector2D;
+
 template<> struct TRigVMIsBaseStructure<FVector2D> { enum { Value = true }; };
 
 template<> struct TRigVMIsBaseStructure<FVector4> { enum { Value = true }; };
@@ -63,7 +62,7 @@ struct FRandomStream;
 template<> struct TRigVMIsBaseStructure<FRandomStream> { enum { Value = true }; };
 struct FGuid;
 template<> struct TRigVMIsBaseStructure<FGuid> { enum { Value = true }; };
-struct FBox2D;
+
 template<> struct TRigVMIsBaseStructure<FBox2D> { enum { Value = true }; };
 struct FFallbackStruct;
 template<> struct TRigVMIsBaseStructure<FFallbackStruct> { enum { Value = true }; };

@@ -80,6 +80,8 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 
 #if PLATFORM_WINDOWS
 	const FString StartScript = Root / TEXT("Start.bat");
+#elif PLATFORM_MAC
+	const FString StartScript = Root / TEXT("Start.command");
 #else
 	const FString StartScript = Root / TEXT("Start.sh");
 #endif

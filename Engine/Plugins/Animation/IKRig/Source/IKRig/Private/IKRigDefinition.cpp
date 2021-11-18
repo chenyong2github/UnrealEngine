@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IKRigDefinition.h"
+
+#include "IKRigObjectVersion.h"
 #include "Engine/SkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE	"IKRigDefinition"
@@ -18,6 +20,11 @@ FBoneChain* FRetargetDefinition::GetEditableBoneChainByName(FName ChainName)
 	return nullptr;
 }
 
+void UIKRigDefinition::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FIKRigObjectVersion::GUID);
+}
 
 #if WITH_EDITOR
 void UIKRigDefinition::PostEditUndo()

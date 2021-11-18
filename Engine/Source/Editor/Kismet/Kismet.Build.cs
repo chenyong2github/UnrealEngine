@@ -53,7 +53,6 @@ public class Kismet : ModuleRules
                 "JsonUtilities",
 				"DesktopPlatform",
 				"HotReload",
-                "BlueprintNativeCodeGen",
                 "UMGEditor",
                 "UMG", // for SBlueprintDiff
                 "WorkspaceMenuStructure",
@@ -70,7 +69,6 @@ public class Kismet : ModuleRules
                 "ClassViewer",
 				"Documentation",
 				"GameProjectGeneration",
-                "BlueprintCompilerCppBackend",
 			}
             );
 
@@ -78,7 +76,6 @@ public class Kismet : ModuleRules
 		CircularlyReferencedDependentModules.AddRange(
 			new string[] {
 				"BlueprintGraph",
-				"BlueprintNativeCodeGen",
 				"UMGEditor",
 				"Merge"
             }

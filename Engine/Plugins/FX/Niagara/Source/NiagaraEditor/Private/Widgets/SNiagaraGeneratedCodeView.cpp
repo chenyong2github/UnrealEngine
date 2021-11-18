@@ -21,7 +21,7 @@
 #include "NiagaraEditorStyle.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraHLSLSyntaxHighlighter.h"
+#include "Widgets/NiagaraHLSLSyntaxHighlighter.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraGeneratedCodeView"

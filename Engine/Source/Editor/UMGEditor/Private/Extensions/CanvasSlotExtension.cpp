@@ -355,7 +355,7 @@ FReply FCanvasSlotExtension::HandleAnchorEndDrag(const FGeometry& Geometry, cons
 	return FReply::Handled().ReleaseMouseCapture();
 }
 
-void FCanvasSlotExtension::ProximitySnapValue(float SnapFrequency, float SnapProximity, float& Value)
+void FCanvasSlotExtension::ProximitySnapValue(float SnapFrequency, float SnapProximity, FVector2D::FReal& Value)
 {
 	float MajorAnchorDiv = Value / SnapFrequency;
 	float SubAnchorLinePos = MajorAnchorDiv - FMath::RoundToInt(MajorAnchorDiv);

@@ -4,6 +4,7 @@
 #include <queue>
 #include "ChaosCheck.h"
 #include "ChaosLog.h"
+#include "Templates/Function.h"
 
 namespace Chaos
 {
@@ -124,8 +125,8 @@ struct TEPAEntry
 	}
 };
 
-template <typename T, typename SupportALambda, typename SupportBLambda >
-bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const SupportALambda& SupportA, const SupportBLambda& SupportB, TArray<TEPAEntry<T>>& OutEntries, TVec3<T>& OutTouchNormal)
+template <typename T>
+bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, TFunctionRef<TVector<T, 3>(const TVec3<T>& V)> SupportA, TFunctionRef<TVector<T, 3>(const TVec3<T>& V)> SupportB, TArray<TEPAEntry<T>>& OutEntries, TVec3<T>& OutTouchNormal)
 {
 	const int32 NumVerts = VertsA.Num();
 	check(VertsB.Num() == NumVerts);
@@ -288,6 +289,15 @@ bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const Sup
 	return bValid;
 }
 
+template <typename T, typename SupportALambda, typename SupportBLambda >
+bool InitializeEPA(TArray<TVec3<T>>& VertsA, TArray<TVec3<T>>& VertsB, const SupportALambda& SupportA, const SupportBLambda& SupportB, TArray<TEPAEntry<T>>& OutEntries, TVec3<T>& OutTouchNormal)
+{
+	TFunctionRef<TVector<T, 3>(const TVec3<T>& V)> SupportARef(SupportA);
+	TFunctionRef<TVector<T, 3>(const TVec3<T>& V)> SupportBRef(SupportB);
+
+	return InitializeEPA<T>(VertsA, VertsB, SupportARef, SupportBRef, OutEntries, OutTouchNormal);
+}
+
 struct FEPAFloodEntry
 {
 	int32 EntryIdx;
@@ -402,8 +412,8 @@ inline const bool IsEPASuccess(EEPAResult EPAResult)
 // Expanding Polytope Algorithm for finding the contact point for overlapping convex polyhedra.
 // See e.g., "Collision Detection in Interactive 3D Environments" (Gino van den Bergen, 2004)
 // or "Real-time Collision Detection with Implicit Objects" (Leif Olvang, 2010)
-template <typename T, typename SupportALambda, typename SupportBLambda>
-EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, const SupportALambda& SupportA, const SupportBLambda& SupportB, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& WitnessA, TVec3<T>& WitnessB)
+template <typename T, typename TSupportA, typename TSupportB>
+EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, const TSupportA& SupportA, const TSupportB& SupportB, T& OutPenetration, TVec3<T>& OutDir, TVec3<T>& WitnessA, TVec3<T>& WitnessB)
 {
 	struct FEPAEntryWrapper
 	{
@@ -589,4 +599,5 @@ EEPAResult EPA(TArray<TVec3<T>>& VertsABuffer, TArray<TVec3<T>>& VertsBBuffer, c
 	
 	return ResultStatus;
 }
+
 }

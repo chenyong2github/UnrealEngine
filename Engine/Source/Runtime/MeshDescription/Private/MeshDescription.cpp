@@ -1,16 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshDescription.h"
-#include "MeshAttributes.h"
+
 #include "Algo/Copy.h"
+#include "MeshAttributes.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/MemoryWriter.h"
 #include "Serialization/NameAsStringProxyArchive.h"
 #include "Serialization/VirtualizedBulkDataReader.h"
 #include "Serialization/VirtualizedBulkDataWriter.h"
 #include "UObject/EnterpriseObjectVersion.h"
 #include "UObject/UE5CookerObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+
+#if WITH_EDITORONLY_DATA
+#include "DerivedDataBuildVersion.h"
+#endif
 
 #if WITH_EDITOR
 #include "Misc/ScopeRWLock.h"
@@ -87,7 +93,7 @@ void FMeshDescription::Initialize()
 	VertexPositions = VertexElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::Vertex::Position, 1, FVector3f::ZeroVector, EMeshAttributeFlags::Lerpable | EMeshAttributeFlags::Mandatory);
 
 	// Register UVCoordinates attribute for UVs
-	UVElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::UV::UVCoordinate, 1, FVector2D::ZeroVector, EMeshAttributeFlags::Lerpable | EMeshAttributeFlags::Mandatory);
+	UVElements->Get().GetAttributes().RegisterAttribute(MeshAttribute::UV::UVCoordinate, 1, FVector2f::ZeroVector, EMeshAttributeFlags::Lerpable | EMeshAttributeFlags::Mandatory);
 
 	// Associate indexers with element types and their referencing attributes
 	InitializeIndexers();
@@ -1763,7 +1769,7 @@ void FMeshDescription::SetNumUVChannels(const int32 NumUVChannels)
 	// Ensure every UV element channel has a UVCoordinate attribute
 	for (int32 Index = 0; Index < NumUVChannels; Index++)
 	{
-		UVElements->Get(Index).GetAttributes().RegisterAttribute(MeshAttribute::UV::UVCoordinate, 1, FVector2D::ZeroVector, EMeshAttributeFlags::Lerpable);
+		UVElements->Get(Index).GetAttributes().RegisterAttribute(MeshAttribute::UV::UVCoordinate, 1, FVector2f::ZeroVector, EMeshAttributeFlags::Lerpable);
 	}
 }
 
@@ -1954,6 +1960,18 @@ void FMeshDescription::RemapPolygonGroups(const TMap<FPolygonGroupID, FPolygonGr
 
 #if WITH_EDITORONLY_DATA
 
+TConstArrayView<FGuid> FMeshDescriptionBulkData::GetMeshDescriptionCustomVersions()
+{
+	static FGuid Versions[]
+	{
+		FEditorObjectVersion::GUID,
+		FReleaseObjectVersion::GUID,
+		FEnterpriseObjectVersion::GUID,
+		FUE5MainStreamObjectVersion::GUID
+	};
+	return MakeArrayView(Versions);
+}
+
 void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 {
 	Ar.UsingCustomVersion( FEditorObjectVersion::GUID );
@@ -1984,19 +2002,13 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 			if( !bBulkDataUpdated )
 			{
 				const FGuid OriginalGuid = Guid;
-				FGuid OriginalHash;
-				if (!bGuidIsHash)
-				{
-					OriginalHash = GetHash();
-				}
 
 				FMeshDescription MeshDescription;
 				LoadMeshDescription( MeshDescription );
 				SaveMeshDescription( MeshDescription );
 
-				// Maintain original guid in case the hash is the same to avoid invalidating
-				// all the data already built using this guid.
-				if (!bGuidIsHash && OriginalHash == GetHash())
+				// Maintain the original guid; this is a format change only. GetIdString will change because it adds the CustomVersions to the key.
+				if (!bGuidIsHash)
 				{
 					Guid = OriginalGuid;
 				}
@@ -2126,7 +2138,19 @@ void FMeshDescriptionBulkData::Empty()
 
 FString FMeshDescriptionBulkData::GetIdString() const
 {
-	FString GuidString = Guid.ToString();
+	// Create the IDString by combining this->Guid with the CustomVersions used for serialization,
+	// hashed down into a Guid to keep the string length the same as the original Guid.
+	UE::DerivedData::FBuildVersionBuilder Builder;
+	Builder << const_cast<FGuid&>(Guid);
+	for (const FGuid& CustomVersionGuid : GetMeshDescriptionCustomVersions())
+	{
+		Builder << const_cast<FGuid&>(CustomVersionGuid);
+		TOptional<FCustomVersion> CustomVersion = FCurrentCustomVersions::Get(CustomVersionGuid);
+		check(CustomVersion);
+		Builder << CustomVersion->Version;
+	}
+
+	FString GuidString = Builder.Build().ToString();
 	if (bGuidIsHash)
 	{
 		GuidString += TEXT("X");

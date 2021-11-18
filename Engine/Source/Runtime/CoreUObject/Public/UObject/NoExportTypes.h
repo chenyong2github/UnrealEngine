@@ -344,7 +344,7 @@ enum class EUnit : uint8
 	Degrees, Radians,
 	
 	/** Speed units */
-	MetersPerSecond, KilometersPerHour, MilesPerHour,
+	CentimetersPerSecond, MetersPerSecond, KilometersPerHour, MilesPerHour,
 	
 	/** Temperature units */
 	Celsius, Farenheit, Kelvin,
@@ -572,8 +572,37 @@ struct FVector4
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector4, SaveGame)
 	FLargeWorldCoordinatesReal W;
-
 };
+
+
+/**
+* A vector in 2-D space composed of components (X, Y) with floating point precision.
+* @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector2D.h
+*/
+USTRUCT(immutable, noexport)
+struct FVector2f
+{
+	UPROPERTY(EditAnywhere, Category=Vector2D, SaveGame)
+	float X;
+
+	UPROPERTY(EditAnywhere, Category=Vector2D, SaveGame)
+	float Y;
+};
+
+/**
+* A vector in 2-D space composed of components (X, Y) with floating point precision.
+* @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Vector2D.h
+*/
+// LWC_TODO: CRITICAL! Name collision in UHT with FVector2D due to case insensitive FNames!
+// USTRUCT(immutable, noexport)
+// struct FVector2d
+// {
+// 	UPROPERTY(EditAnywhere, Category=Vector2D, SaveGame)
+// 	double X;
+//
+// 	UPROPERTY(EditAnywhere, Category=Vector2D, SaveGame)
+// 	double Y;
+// };
 
 /**
  * A vector in 2-D space composed of components (X, Y) with floating point precision.
@@ -583,11 +612,10 @@ USTRUCT(immutable, noexport, BlueprintType, meta=(HasNativeMake="Engine.KismetMa
 struct FVector2D
 {
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector2D, SaveGame)
-	float X;
+	FLargeWorldCoordinatesReal X;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Vector2D, SaveGame)
-	float Y;
-
+	FLargeWorldCoordinatesReal Y;
 };
 
 /** A pair of 3D vectors (mirrored from TwoVectors.h). */
@@ -639,21 +667,60 @@ struct FPlane : public FVector
  * An orthogonal rotation in 3d space.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Rotator.h
  */
+USTRUCT(immutable, noexport)
+struct FRotator3f
+{
+	/** Pitch (degrees) around Y axis */
+	UPROPERTY(EditAnywhere, Category=Rotator, SaveGame, meta=(DisplayName="Y"))
+	float Pitch;
+
+	/** Yaw (degrees) around Z axis */
+	UPROPERTY(EditAnywhere, Category=Rotator, SaveGame, meta=(DisplayName="Z"))
+	float Yaw;
+
+	/** Roll (degrees) around X axis */
+	UPROPERTY(EditAnywhere, Category=Rotator, SaveGame, meta=(DisplayName="X"))
+	float Roll;
+};
+
+/**
+ * An orthogonal rotation in 3d space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Rotator.h
+ */
+USTRUCT(immutable, noexport)
+struct FRotator3d
+{
+	/** Pitch (degrees) around Y axis */
+	UPROPERTY(EditAnywhere, Category=Rotator, SaveGame, meta=(DisplayName="Y"))
+	double Pitch;
+
+	/** Yaw (degrees) around Z axis */
+	UPROPERTY(EditAnywhere, Category=Rotator, SaveGame, meta=(DisplayName="Z"))
+	double Yaw;
+
+	/** Roll (degrees) around X axis */
+	UPROPERTY(EditAnywhere, Category=Rotator, SaveGame, meta=(DisplayName="X"))
+	double Roll;
+};
+
+/**
+ * An orthogonal rotation in 3d space.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Rotator.h
+ */
 USTRUCT(immutable, noexport, BlueprintType, meta=(HasNativeMake="Engine.KismetMathLibrary.MakeRotator", HasNativeBreak="Engine.KismetMathLibrary.BreakRotator"))
 struct FRotator
 {
 	/** Pitch (degrees) around Y axis */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Rotator, SaveGame, meta=(DisplayName="Y"))
-	float Pitch;
+	FLargeWorldCoordinatesReal Pitch;
 
 	/** Yaw (degrees) around Z axis */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Rotator, SaveGame, meta=(DisplayName="Z"))
-	float Yaw;
+	FLargeWorldCoordinatesReal Yaw;
 
 	/** Roll (degrees) around X axis */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Rotator, SaveGame, meta=(DisplayName="X"))
-	float Roll;
-
+	FLargeWorldCoordinatesReal Roll;
 };
 
 /**
@@ -856,7 +923,6 @@ struct FBox3f
 
 	UPROPERTY()
 	uint8 IsValid;
-
 };
 
 
@@ -875,7 +941,6 @@ struct FBox3d
 
 	UPROPERTY()
 	uint8 IsValid;
-
 };
 
 /**
@@ -893,13 +958,47 @@ struct FBox
 
 	UPROPERTY()
 	uint8 IsValid;
-
 };
 
 /**
  * A rectangular 2D Box.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Box2D.h
  */
+USTRUCT(immutable, noexport)
+struct FBox2f
+{
+	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
+	FVector2f Min;
+
+	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
+	FVector2f Max;
+
+	UPROPERTY()
+	uint8 bIsValid;
+};
+
+/**
+* A rectangular 2D Box.
+* @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Box2D.h
+*/
+// LWC_TODO: CRITICAL! Name collision in UHT with FBox2D due to case insensitive FNames!
+// USTRUCT(immutable, noexport)
+// struct FBox2d
+// {
+// 	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
+// 	FVector2d Min;
+//
+// 	UPROPERTY(EditAnywhere, Category=Box2D, SaveGame)
+// 	FVector2d Max;
+//
+// 	UPROPERTY()
+// 	uint8 bIsValid;
+// };
+
+/**
+* A rectangular 2D Box.
+* @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Box2D.h
+*/
 USTRUCT(immutable, noexport, BlueprintType, meta=(HasNativeMake="Engine.KismetMathLibrary.MakeBox2D"))
 struct FBox2D
 {
@@ -911,9 +1010,7 @@ struct FBox2D
 
 	UPROPERTY()
 	uint8 bIsValid;
-
 };
-
 
 /**
  * A bounding box and bounding sphere with the same origin.

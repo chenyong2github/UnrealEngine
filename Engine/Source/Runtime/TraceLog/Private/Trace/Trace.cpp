@@ -17,6 +17,7 @@ namespace Private
 ////////////////////////////////////////////////////////////////////////////////
 void	Writer_MemorySetHooks(AllocFunc, FreeFunc);
 void	Writer_Initialize(const FInitializeDesc&);
+void	Writer_WorkerCreate();
 void	Writer_Shutdown();
 void	Writer_Update();
 bool	Writer_SendTo(const ANSICHAR*, uint32);
@@ -122,7 +123,12 @@ bool ToggleChannel(const TCHAR* ChannelName, bool bEnabled)
 	ToAnsiCheap(ChannelNameA, ChannelName);
 	return FChannel::Toggle(ChannelNameA, bEnabled);
 }
-
+	
+////////////////////////////////////////////////////////////////////////////////
+void StartWorkerThread()
+{
+	Private::Writer_WorkerCreate();
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////

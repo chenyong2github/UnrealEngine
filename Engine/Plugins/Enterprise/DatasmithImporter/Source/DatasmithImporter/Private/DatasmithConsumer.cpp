@@ -1478,6 +1478,8 @@ namespace DatasmithConsumerUtils
 
 			FDatasmithImporter::ImportMetaDataForObject( ImportContext, RootActorElement, Actor );
 
+			// Copy Tags
+			Actor->Tags = MoveTemp(SceneActor->Tags);
 
 			// Copy the transforms
 			USceneComponent* ActorRootComponent = Actor->GetRootComponent();

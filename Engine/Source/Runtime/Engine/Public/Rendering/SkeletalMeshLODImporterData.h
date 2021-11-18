@@ -65,7 +65,7 @@ namespace SkeletalMeshImportData
 	struct FMeshWedge
 	{
 		uint32			iVertex;			// Vertex index.
-		FVector2D		UVs[MAX_TEXCOORDS];	// UVs.
+		FVector2f		UVs[MAX_TEXCOORDS];	// UVs.
 		FColor			Color;			// Vertex color.
 		friend FArchive &operator<<(FArchive& Ar, FMeshWedge& T)
 		{
@@ -86,9 +86,9 @@ namespace SkeletalMeshImportData
 		// Source Material (= texture plus unique flags) index.
 		uint16		MeshMaterialIndex;
 
-		FVector	TangentX[3];
-		FVector	TangentY[3];
-		FVector	TangentZ[3];
+		FVector3f	TangentX[3];
+		FVector3f	TangentY[3];
+		FVector3f	TangentZ[3];
 
 		// 32-bit flag for smoothing groups.
 		uint32   SmoothingGroups;
@@ -124,9 +124,9 @@ namespace SkeletalMeshImportData
 		// 32-bit flag for smoothing groups.
 		uint32   SmoothingGroups;
 
-		FVector	TangentX[3];
-		FVector	TangentY[3];
-		FVector	TangentZ[3];
+		FVector3f	TangentX[3];
+		FVector3f	TangentY[3];
+		FVector3f	TangentZ[3];
 
 
 		FTriangle& operator=(const FTriangle& Other)
@@ -258,7 +258,7 @@ namespace SkeletalMeshImportData
 	struct FVertex
 	{
 		uint32	VertexIndex; // Index to a vertex.
-		FVector2D UVs[MAX_TEXCOORDS];        // Scaled to BYTES, rather...-> Done in digestion phase, on-disk size doesn't matter here.
+		FVector2f UVs[MAX_TEXCOORDS];        // Scaled to BYTES, rather...-> Done in digestion phase, on-disk size doesn't matter here.
 		FColor	Color;		 // Vertex colors
 		uint8    MatIndex;    // At runtime, this one will be implied by the face that's pointing to us.
 		uint8    Reserved;    // Top secret.
@@ -317,7 +317,7 @@ namespace SkeletalMeshImportData
 	// Points: regular FVectors (for now..)
 	struct FPoint
 	{
-		FVector	Point; // Change into packed integer later IF necessary, for 3x size reduction...
+		FVector3f	Point; // Change into packed integer later IF necessary, for 3x size reduction...
 		
 		friend FArchive &operator<<(FArchive& Ar, FPoint& F)
 		{

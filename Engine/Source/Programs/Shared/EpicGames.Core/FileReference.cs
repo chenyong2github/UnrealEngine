@@ -950,7 +950,7 @@ namespace EpicGames.Core
 		/// <returns>New file reference instance</returns>
 		public static FileReference? ReadFileReferenceOrNull(this BinaryArchiveReader Reader)
 		{
-			string FullName = Reader.ReadString();
+			string? FullName = Reader.ReadString();
 			if(FullName == null)
 			{
 				return null;

@@ -19,11 +19,12 @@
 #include "UObject/UnrealType.h"
 #if WITH_EDITOR
 #include "ActorEditorUtils.h"
+#include "Kismet2/ComponentEditorUtils.h"
 #endif
 
-namespace
+namespace UE::LevelSnapshots::Restorability::Private::Internal
 {
-	bool DoesActorHaveSupportedClass(const AActor* Actor)
+	static bool DoesActorHaveSupportedClass(const AActor* Actor)
 	{
 		const TSet<UClass*> UnsupportedClasses = 
 		{
@@ -38,7 +39,7 @@ namespace
 		return Algo::AllOf(UnsupportedClasses, [Actor](UClass *Class) { return !Actor->IsA(Class); });
 	}
 
-	bool DoesActorHaveSupportedClassForRemoving(const AActor* Actor)
+	static bool DoesActorHaveSupportedClassForRemoving(const AActor* Actor)
 	{
 		const TSet<UClass*> UnsupportedClasses = 
 		{
@@ -52,7 +53,7 @@ namespace
 		return Algo::AllOf(UnsupportedClasses, [Actor](UClass *Class) { return !Actor->IsA(Class); });
 	}
 
-	bool DoesComponentHaveSupportedClassForCapture(const UActorComponent* Component)
+	static bool DoesComponentHaveSupportedClassForCapture(const UActorComponent* Component)
 	{
 		const TSet<UClass*> UnsupportedClasses = 
 		{
@@ -62,7 +63,7 @@ namespace
 		return Algo::AllOf(UnsupportedClasses, [Component](UClass *Class) { return !Component->IsA(Class); });
 	}
 
-	bool DoesSubobjecttHaveSupportedClassForCapture(const UObject* Subobject)
+	static bool DoesSubobjecttHaveSupportedClassForCapture(const UObject* Subobject)
 	{
 		const TSet<UClass*> UnsupportedClasses = 
 		{
@@ -72,9 +73,22 @@ namespace
 		
 		return Algo::AllOf(UnsupportedClasses, [Subobject](UClass *Class) { return !Subobject->IsA(Class); });
 	}
+
+	static USceneComponent* GetParentComponent(const UActorComponent* Component)
+	{
+		if (const USceneComponent* AsSceneComponent = Cast<USceneComponent>(Component))
+		{
+			const bool bIsParentValid = AsSceneComponent
+				&& AsSceneComponent->GetAttachParent()
+				&& Component->GetOwner() != nullptr
+				&& AsSceneComponent->GetAttachParent()->GetOwner() == Component->GetOwner();
+			return bIsParentValid ? AsSceneComponent->GetAttachParent() : nullptr;
+		}
+		return nullptr;
+	}
 }
 
-bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
+bool UE::LevelSnapshots::Restorability::IsActorDesirableForCapture(const AActor* Actor)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsActorDesirableForCapture);
 
@@ -84,7 +98,7 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 	}
 	
 	bool bSomebodyAllowed = false;
-	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
+	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
 	for (const TSharedRef<ISnapshotRestorabilityOverrider>& Override : Overrides)
 	{
 		const ISnapshotRestorabilityOverrider::ERestorabilityOverride Result = Override->IsActorDesirableForCapture(Actor);
@@ -101,7 +115,7 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 	}
 
 	
-	return DoesActorHaveSupportedClass(Actor)
+	return Private::Internal::DoesActorHaveSupportedClass(Actor)
             && !Actor->IsTemplate()								// Should never happen, but we never want CDOs
 			&& !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds	
 #if WITH_EDITOR
@@ -112,13 +126,13 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
         ;	
 }
 
-bool FSnapshotRestorability::IsActorRestorable(const AActor* Actor)
+bool UE::LevelSnapshots::Restorability::IsActorRestorable(const AActor* Actor)
 {
 	const bool bIsChildActor = Actor->GetParentComponent() != nullptr;
 	return !bIsChildActor && IsActorDesirableForCapture(Actor);
 }
 
-bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponent* Component)
+bool UE::LevelSnapshots::Restorability::IsComponentDesirableForCapture(const UActorComponent* Component)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsComponentDesirableForCapture);
 
@@ -128,7 +142,7 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 	}
 	
 	bool bSomebodyAllowed = false;
-	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
+	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
 	for (const TSharedRef<ISnapshotRestorabilityOverrider>& Override : Overrides)
 	{
 		const ISnapshotRestorabilityOverrider::ERestorabilityOverride Result = Override->IsComponentDesirableForCapture(Component);
@@ -139,26 +153,26 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 		}
 	}
 
+	constexpr bool bAllowUserContructionScriptComps = false;
 	const bool bIsAllowed =
 			// Components created in construction script are not supported
 			Component->CreationMethod != EComponentCreationMethod::UserConstructionScript
-			&& DoesComponentHaveSupportedClassForCapture(Component)
+			&& Private::Internal::DoesComponentHaveSupportedClassForCapture(Component)
 			&& !Component->HasAnyFlags(RF_Transient)
 #if WITH_EDITORONLY_DATA
-			// E.g. a sprite or camera mesh in viewport
-			&& !Component->IsVisualizationComponent()
+			&& FComponentEditorUtils::CanEditComponentInstance(Component, Private::Internal::GetParentComponent(Component), bAllowUserContructionScriptComps)
 #endif
 	;
 	return bSomebodyAllowed || bIsAllowed;
 }
 
-bool FSnapshotRestorability::IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass)
+bool UE::LevelSnapshots::Restorability::IsSubobjectClassDesirableForCapture(const UClass* SubobjectClass)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsSubobjectClassDesirableForCapture);
-	return DoesSubobjecttHaveSupportedClassForCapture(SubobjectClass) && !FLevelSnapshotsModule::GetInternalModuleInstance().ShouldSkipSubobjectClass(SubobjectClass);
+	return Private::Internal::DoesSubobjecttHaveSupportedClassForCapture(SubobjectClass) && !UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().ShouldSkipSubobjectClass(SubobjectClass);
 }
 
-bool FSnapshotRestorability::IsSubobjectDesirableForCapture(const UObject* Subobject)
+bool UE::LevelSnapshots::Restorability::IsSubobjectDesirableForCapture(const UObject* Subobject)
 {
 	checkf(!Subobject->IsA<UClass>(), TEXT("Do you have a typo on your code?"));
 	
@@ -171,7 +185,7 @@ bool FSnapshotRestorability::IsSubobjectDesirableForCapture(const UObject* Subob
 		&& !Subobject->HasAnyFlags(RF_Transient);
 }
 
-bool FSnapshotRestorability::IsPropertyDesirableForCapture(const FProperty* Property)
+bool UE::LevelSnapshots::Restorability::IsPropertyDesirableForCapture(const FProperty* Property)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyDesirableForCapture);
 	
@@ -190,25 +204,26 @@ bool FSnapshotRestorability::IsPropertyDesirableForCapture(const FProperty* Prop
 	return bIsAllowed;
 }
 
-bool FSnapshotRestorability::IsPropertyExplicitlyUnsupportedForCapture(const FProperty* Property)
+bool UE::LevelSnapshots::Restorability::IsPropertyExplicitlyUnsupportedForCapture(const FProperty* Property)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyExplicitlyUnsupportedForCapture);
-	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlyUnsupported(Property);
+	return UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlyUnsupported(Property);
 }
 
-bool FSnapshotRestorability::IsPropertyExplicitlySupportedForCapture(const FProperty* Property)
+bool UE::LevelSnapshots::Restorability::IsPropertyExplicitlySupportedForCapture(const FProperty* Property)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyExplicitlySupportedForCapture);
-	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlySupported(Property);
+	return UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyExplicitlySupported(Property);
 }
 
-bool FSnapshotRestorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)
+bool UE::LevelSnapshots::Restorability::ShouldConsiderNewActorForRemoval(const AActor* Actor)
 {
-	return DoesActorHaveSupportedClassForRemoving(Actor) && IsActorDesirableForCapture(Actor);
+	return Private::Internal::DoesActorHaveSupportedClassForRemoving(Actor) && IsActorDesirableForCapture(Actor);
 }
 
-bool FSnapshotRestorability::IsRestorableProperty(const FProperty* LeafProperty)
+bool UE::LevelSnapshots::Restorability::IsRestorableProperty(const FProperty* LeafProperty)
 {
+	using namespace UE::LevelSnapshots::Private;
 	SCOPED_SNAPSHOT_CORE_TRACE(IsRestorableProperty);
 	
 	// Deprecated and transient properties should not cause us to consider the property different because we do not save these properties.

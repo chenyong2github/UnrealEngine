@@ -9,8 +9,8 @@ DECLARE_GPU_STAT_NAMED_EXTERN(NaniteEditor, TEXT("Nanite Editor"));
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER(FVector2D, OutputToInputScale)
-	SHADER_PARAMETER(FVector2D, OutputToInputBias)
+	SHADER_PARAMETER(FVector2f, OutputToInputScale)
+	SHADER_PARAMETER(FVector2f, OutputToInputBias)
 	SHADER_PARAMETER(uint32, MaxVisibleClusters)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVisibleCluster>, VisibleClustersSWHW)
@@ -24,8 +24,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER(FVector2D, OutputToInputScale)
-	SHADER_PARAMETER(FVector2D, OutputToInputBias)
+	SHADER_PARAMETER(FVector2f, OutputToInputScale)
+	SHADER_PARAMETER(FVector2f, OutputToInputBias)
 	SHADER_PARAMETER(uint32, MaxVisibleClusters)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVisibleCluster>, VisibleClustersSWHW)

@@ -131,6 +131,7 @@ public:
 		, _ScrollbarDragFocusCause(EFocusCause::Mouse)
 		, _ConsumeMouseWheel( EConsumeMouseWheel::WhenScrollingPossible )
 		, _AllowOverscroll(EAllowOverscroll::Yes)
+		, _ScrollBarStyle(&FAppStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"))
 		, _WheelScrollMultiplier(GetGlobalScrollAmount())
 		, _OnItemToString_Debug()
 		, _OnEnteredBadState()
@@ -190,6 +191,8 @@ public:
 		SLATE_ARGUMENT( EConsumeMouseWheel, ConsumeMouseWheel );
 		
 		SLATE_ARGUMENT( EAllowOverscroll, AllowOverscroll );
+		
+		SLATE_STYLE_ARGUMENT( FScrollBarStyle, ScrollBarStyle );
 
 		SLATE_ARGUMENT( float, WheelScrollMultiplier );
 
@@ -291,7 +294,7 @@ public:
 		else
 		{
 			// Make the TableView
-			this->ConstructChildren( 0, InArgs._ItemHeight, EListItemAlignment::LeftAligned, InArgs._HeaderRow, InArgs._ExternalScrollbar, Orient_Vertical, InArgs._OnTreeViewScrolled );
+			this->ConstructChildren( 0, InArgs._ItemHeight, EListItemAlignment::LeftAligned, InArgs._HeaderRow, InArgs._ExternalScrollbar, Orient_Vertical, InArgs._OnTreeViewScrolled, InArgs._ScrollBarStyle );
 			if (this->ScrollBar.IsValid())
 			{
 				this->ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);

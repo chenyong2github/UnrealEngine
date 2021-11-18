@@ -8,6 +8,8 @@
 #include "Features/IModularFeatures.h"
 #include "Templates/UniquePtr.h"
 
+class FPackagePath;
+
 namespace UE::Virtualization
 {
 
@@ -40,6 +42,8 @@ protected:
 	/** Enum detailing which operations a backend can support */
 	enum class EOperations : uint8
 	{
+		/** Supports no operations, this should only occur when debug settings are applied */
+		None = 0,
 		/** Supports only push operations */
 		Push,
 		/** Supports only pull operations */
@@ -48,10 +52,12 @@ protected:
 		Both
 	};
 
-	IVirtualizationBackend(EOperations InSupportedOperations) 
+	IVirtualizationBackend(FStringView InConfigName, FStringView InDebugName, EOperations InSupportedOperations)
 		: SupportedOperations(InSupportedOperations)
+		, ConfigName(InConfigName)
+		, DebugName(InDebugName)
 	{
-
+		checkf(InSupportedOperations != EOperations::None, TEXT("Cannot create a backend without supporting at least one type of operation!"));
 	}
 
 public:
@@ -80,7 +86,7 @@ public:
 	 * @param Payload	A potentially compressed buffer representing the payload
 	 * @return			The result of the push operation
 	 */
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) = 0;
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext) = 0;
 
 	/** 
 	 * The backend will attempt to retrieve the given payload by what ever method the backend uses.
@@ -95,19 +101,53 @@ public:
 	 */
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) = 0;
 
+	/** Used when debugging to disable the pull operation */
+	void DisablePullOperationSupport()
+	{
+		if (SupportedOperations == EOperations::Pull)
+		{
+			SupportedOperations = EOperations::None;
+		}
+		else if (SupportedOperations == EOperations::Both)
+		{
+			SupportedOperations = EOperations::Push;
+		}
+	}
+
 	/** Return true if the backend supports push operations. Returning true allows ::PushData to be called.  */
-	bool SupportsPushOperations() const { return SupportedOperations == EOperations::Push || SupportedOperations == EOperations::Both;  }
+	bool SupportsPushOperations() const 
+	{ 
+		return SupportedOperations == EOperations::Push || SupportedOperations == EOperations::Both;  
+	}
 
 	/** Return true if the backend supports pull operations. Returning true allows ::PullData to be called.  */
-	bool SupportsPullOperations() const { return SupportedOperations == EOperations::Pull || SupportedOperations == EOperations::Both;  }
+	bool SupportsPullOperations() const
+	{ 
+		return SupportedOperations == EOperations::Pull || SupportedOperations == EOperations::Both;  
+	}
+
+	/** Returns a string containing the name of the backend as it appears in the virtualization graph in the config file */
+	const FString& GetConfigName() const
+	{
+		return ConfigName;
+	}
 
 	/** Returns a string that can be used to identify the backend for debugging and logging purposes */
-	virtual FString GetDebugString() const = 0;
+	const FString& GetDebugName() const
+	{
+		return DebugName;
+	}
 
 private:
 
 	/** The operations that this backend supports */
 	EOperations SupportedOperations;
+
+	/** The name assigned to the backend by the virtualization graph */
+	FString ConfigName;
+
+	/** Combination of the backend type and the name used to create it in the virtualization graph */
+	FString DebugName;
 };
 
 /** 
@@ -135,7 +175,7 @@ public:
 
 /**
  * This macro is used to generate a backend factories boilerplate code if you do not
- * need anything more than the default behaviour.
+ * need anything more than the default behavior.
  * As well as creating the class, a single instance will be created which will register the factory with
  * 'IModularFeatures' so that it is ready for use.
  * 
@@ -149,7 +189,7 @@ public:
 		BackendClass##Factory() { IModularFeatures::Get().RegisterModularFeature(FName("VirtualizationBackendFactory"), this); }\
 		virtual ~BackendClass##Factory() { IModularFeatures::Get().UnregisterModularFeature(FName("VirtualizationBackendFactory"), this); } \
 	private: \
-		virtual TUniquePtr<IVirtualizationBackend> CreateInstance(FStringView ConfigName) override { return MakeUnique<BackendClass>(ConfigName); } \
+		virtual TUniquePtr<IVirtualizationBackend> CreateInstance(FStringView ConfigName) override { return MakeUnique<BackendClass>(ConfigName, WriteToString<256>(#ConfigName, TEXT(" - "), ConfigName).ToString()); } \
 		virtual FName GetName() override { return FName(#ConfigName); } \
 	}; \
 	static BackendClass##Factory BackendClass##Factory##Instance;

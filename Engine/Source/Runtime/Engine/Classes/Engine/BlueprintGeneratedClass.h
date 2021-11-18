@@ -637,9 +637,11 @@ public:
 	UPROPERTY(AssetRegistrySearchable)
 	int32	NumReplicatedProperties;
 
+	// @todo: BP2CPP_remove
 	/** Flag used to indicate if this class has a nativized parent in a cooked build. */
+	UE_DEPRECATED(5.0, "This flag is no longer in use and will be removed.")
 	UPROPERTY()
-	uint8 bHasNativizedParent:1;
+	uint8 bHasNativizedParent_DEPRECATED:1;
 
 	/** Flag used to indicate if this class has data to support the component instancing fast path. */
 	UPROPERTY()
@@ -810,8 +812,10 @@ protected:
 	*/
 	static void InitArrayPropertyFromCustomList(const FArrayProperty* ArrayProperty, const FCustomPropertyListNode* InPropertyList, uint8* DataPtr, const uint8* DefaultDataPtr);
 
+	// @todo: BP2CPP_remove
 	/** Check for and handle manual application of default value overrides to component subobjects that were inherited from a nativized parent class */
-	static void CheckAndApplyComponentTemplateOverrides(UObject* InClassDefaultObject);
+	UE_DEPRECATED(5.0, "This API is no longer in use and will be removed.")
+	static void CheckAndApplyComponentTemplateOverrides(UObject* InClassDefaultObject) {}
 
 public:
 

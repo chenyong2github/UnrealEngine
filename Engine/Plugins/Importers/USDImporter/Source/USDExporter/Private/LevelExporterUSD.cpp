@@ -32,7 +32,7 @@ ULevelExporterUSD::ULevelExporterUSD()
 		}
 
 		FormatExtension.Add(Extension);
-		FormatDescription.Add(TEXT("USD file"));
+		FormatDescription.Add(TEXT("Universal Scene Description file"));
 	}
 	SupportedClass = UWorld::StaticClass();
 	bText = false;
@@ -63,7 +63,7 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 		return false;
 	}
 
-	if ( Options && ExportTask )
+	if ( ExportTask )
 	{
 		// Set this early so that we can use the Object from it (the world/level to export) when showing
 		// the level export options dialog.
@@ -78,6 +78,8 @@ bool ULevelExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type, FArchi
 	// Manual export: Show dialog options
 	if ( !ExportTask || !ExportTask->bAutomated )
 	{
+		Options->Inner.AssetFolder.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Assets" ) );
+
 		const bool bIsImport = false;
 		const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
 		if ( !bContinue )

@@ -182,7 +182,8 @@ bool UDynamicMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObjec
 {
 	UDynamicMeshComponent* Component = Cast<UDynamicMeshComponent>(SourceObject);
 	return Component 
-		&& !Component->IsPendingKillOrUnreachable() 
+		&& IsValidChecked(Component)
+		&& !Component->IsUnreachable() 
 		&& Component->IsValidLowLevel() 
 		&& Component->GetDynamicMesh()
 		&& Requirements.AreSatisfiedBy(UDynamicMeshComponentToolTarget::StaticClass());

@@ -63,8 +63,8 @@ public:
 	//! Sets the initial bandwidth, either from guessing, past history or a current measurement.
 	virtual void SetBandwidth(int64 bitsPerSecond) = 0;
 
-	//! Sets a forced bitrate for the next segment fetch only.
-	virtual void SetForcedNextBandwidth(int64 bitsPerSecond) = 0;
+	//! Sets a forced bitrate for the next segment fetches until the given duration of playable content has been received.
+	virtual void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) = 0;
 
 	struct FBlacklistedStream
 	{

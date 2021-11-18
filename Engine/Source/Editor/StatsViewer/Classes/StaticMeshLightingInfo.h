@@ -82,6 +82,10 @@ class UStaticMeshLightingInfo : public UObject
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category="Stats", meta=( DisplayName = "Num SM", ShowTotal = "true", ColumnWidth = "102" ) )
 	int32 ShadowMapLightCount;
 
+	/** The lighting texture names that the static mesh component references. */
+	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category = "Stats", meta = (DisplayName = "Lightmap Names", ColumnWidth = "300"))
+	TArray<FString> LightmapTextureNames;
+
 public:
 
 	/** Update internal strings */

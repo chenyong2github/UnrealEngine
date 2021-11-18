@@ -52,7 +52,7 @@ public:
 	void									CleanupRayTracing();
 	ID3D12Device5*							GetDevice5();
 	ID3D12Device7*							GetDevice7();
-	const FD3D12BasicRayTracingPipeline*	GetBasicRayTracingPipeline() const { return BasicRayTracingPipeline; }
+	const FD3D12BasicRayTracingPipeline*	GetBasicRayTracingPipeline();
 	FD3D12RayTracingDescriptorHeapCache*	GetRayTracingDescriptorHeapCache() { return RayTracingDescriptorHeapCache; }
 	FD3D12RayTracingPipelineCache*			GetRayTracingPipelineCache() { return RayTracingPipelineCache; }
 	FD3D12RayTracingCompactionRequestHandler* GetRayTracingCompactionRequestHandler() { return RayTracingCompactionRequestHandler; }

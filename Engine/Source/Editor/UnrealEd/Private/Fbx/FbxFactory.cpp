@@ -893,7 +893,7 @@ void UFbxFactory::CancelObjectCreation(UnFbx::FFbxImporter* FbxImporter) const
 			PotentialPackageToDeleteReferences.Add(CurrentObject->GetOutermost());
 			CurrentObject->ClearFlags(RF_Standalone | RF_Public);
 			CurrentObject->RemoveFromRoot();
-			CurrentObject->MarkPendingKill();
+			CurrentObject->MarkAsGarbage();
 		}
 	}
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);

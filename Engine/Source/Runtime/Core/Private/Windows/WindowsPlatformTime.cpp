@@ -8,6 +8,21 @@
 
 float FWindowsPlatformTime::CPUTimePctRelative = 0.0f;
 
+namespace FWindowsTimeInternal
+{
+	struct FThreadCPUStats
+	{
+		/** Current thread percentage CPU utilization for the last interval relative to one core. */
+		float ThreadCPUTimePctRelative = 0.f;
+
+		/** The per-thread CPU processing time (kernel + user) from the last update */
+		double LastIntervalThreadTime = 0;
+	};
+
+	/** Per-Thread CPU Stats */
+	thread_local FThreadCPUStats CurrentThreadCPUStats = {};
+}
+
 
 double FWindowsPlatformTime::InitTiming(void)
 {
@@ -117,7 +132,71 @@ bool FWindowsPlatformTime::UpdateCPUTime( float /*DeltaTime*/ )
 	return true;
 }
 
+bool FWindowsPlatformTime::UpdateThreadCPUTime(float/*= 0.0*/)
+{
+	struct FThreadCPUTime
+	{
+		double LastTotalThreadTime = 0.0;
+		double LastTotalThreadUserAndKernelTime = 0.0;
+	};
+
+	thread_local FThreadCPUTime ThreadTimeInfo = {};
+
+	FILETIME ThreadCreationTime = {0};
+	FILETIME ThreadExitTime = {0};
+	FILETIME ThreadKernelTime = {0};
+	FILETIME ThreadUserTime = {0};
+	FILETIME CurrentTime = {0};
+
+	::GetThreadTimes(::GetCurrentThread(), &ThreadCreationTime, &ThreadExitTime, &ThreadKernelTime, &ThreadUserTime);
+	::GetSystemTimeAsFileTime(&CurrentTime);
+
+	const double CurrentTotalThreadUserAndKernelTime = FFiletimeMisc::ToSeconds(ThreadKernelTime) + FFiletimeMisc::ToSeconds(ThreadUserTime);
+	const double CurrentTotalThreadTime = FFiletimeMisc::ToSeconds(CurrentTime) - FFiletimeMisc::ToSeconds(ThreadCreationTime);
+
+	const double IntervalThreadTime = CurrentTotalThreadTime - ThreadTimeInfo.LastTotalThreadTime;
+	const double IntervalThreadUserAndKernelTime = CurrentTotalThreadUserAndKernelTime - ThreadTimeInfo.LastTotalThreadUserAndKernelTime;
+
+	// IntervalUserAndKernelTime == 0.0f means that the OS hasn't updated the data yet, 
+	// so don't update to avoid oscillating between 0 and calculated value.
+	if (IntervalThreadUserAndKernelTime > 0.0)
+	{
+		FWindowsTimeInternal::CurrentThreadCPUStats.ThreadCPUTimePctRelative =
+			(float)((IntervalThreadUserAndKernelTime / IntervalThreadTime) * 100.0);
+
+		ThreadTimeInfo.LastTotalThreadTime = CurrentTotalThreadTime;
+		ThreadTimeInfo.LastTotalThreadUserAndKernelTime = CurrentTotalThreadUserAndKernelTime;
+		FWindowsTimeInternal::CurrentThreadCPUStats.LastIntervalThreadTime = IntervalThreadUserAndKernelTime;
+	}
+
+	return true;
+}
+
+void FWindowsPlatformTime::AutoUpdateGameThreadCPUTime(double UpdateInterval)
+{
+	static bool bEnabledGameThreadTiming = false;
+
+	if (!bEnabledGameThreadTiming)
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FPlatformTime::UpdateThreadCPUTime), (float)UpdateInterval);
+
+		bEnabledGameThreadTiming = true;
+	}
+}
+
 FCPUTime FWindowsPlatformTime::GetCPUTime()
 {
 	return FCPUTime( CPUTimePctRelative / (float)FPlatformMisc::NumberOfCoresIncludingHyperthreads(), CPUTimePctRelative );
+}
+
+FCPUTime FWindowsPlatformTime::GetThreadCPUTime()
+{
+	return FCPUTime(FWindowsTimeInternal::CurrentThreadCPUStats.ThreadCPUTimePctRelative /
+						(float)FPlatformMisc::NumberOfCoresIncludingHyperthreads(),
+					FWindowsTimeInternal::CurrentThreadCPUStats.ThreadCPUTimePctRelative);
+}
+
+double FWindowsPlatformTime::GetLastIntervalThreadCPUTimeInSeconds()
+{
+	return FWindowsTimeInternal::CurrentThreadCPUStats.LastIntervalThreadTime;
 }

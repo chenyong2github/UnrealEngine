@@ -49,6 +49,7 @@ UDMXPixelMappingMatrixComponent::UDMXPixelMappingMatrixComponent()
 
 	// Listen to Fixture Type changes
 	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddUObject(this, &UDMXPixelMappingMatrixComponent::OnFixtureTypeChanged);
+	UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddUObject(this, &UDMXPixelMappingMatrixComponent::OnFixturePatchChanged);
 }
 
 void UDMXPixelMappingMatrixComponent::Serialize(FArchive& Ar)
@@ -315,7 +316,15 @@ void UDMXPixelMappingMatrixComponent::QueueDownsample()
 
 bool UDMXPixelMappingMatrixComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
 {
-	return Component && Component->IsA<UDMXPixelMappingFixtureGroupComponent>();
+	if (const UDMXPixelMappingFixtureGroupComponent* FixtureGroupComponent = Cast<UDMXPixelMappingFixtureGroupComponent>(Component))
+	{
+		if (FixtureGroupComponent->DMXLibrary == FixturePatchRef.DMXLibrary)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 FString UDMXPixelMappingMatrixComponent::GetUserFriendlyName() const
@@ -348,6 +357,7 @@ void UDMXPixelMappingMatrixComponent::SetSize(const FVector2D& NewSize)
 	SizeX = FMath::Max(SizeX, 1.f);
 	SizeY = FMath::Max(SizeY, 1.f);
 
+	HandleMatrixChanged();
 	HandleSizeChanged();
 }
 
@@ -417,7 +427,6 @@ void UDMXPixelMappingMatrixComponent::HandleMatrixChanged()
 		RemoveChild(Child);
 	}
 
-
 	UDMXEntityFixturePatch* FixturePatch = FixturePatchRef.GetFixturePatch();
 	UDMXEntityFixtureType* FixtureType = FixturePatch ? FixturePatch->GetFixtureType() : nullptr;
 	const FDMXFixtureMode* ModePtr = FixturePatch ? FixturePatch->GetActiveMode() : nullptr;
@@ -457,6 +466,16 @@ void UDMXPixelMappingMatrixComponent::OnFixtureTypeChanged(const UDMXEntityFixtu
 
 			LogInvalidProperties();
 		}
+	}
+}
+
+void UDMXPixelMappingMatrixComponent::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
+{
+	if (FixturePatch)
+	{
+		HandleMatrixChanged();
+
+		LogInvalidProperties();
 	}
 }
 

@@ -634,6 +634,7 @@ UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVe
 		}
 	}
 
+	bRefreshNode = true;
 	return ReplacementEdNode;
 }
 
@@ -903,4 +904,37 @@ FSlateIcon UMetasoundEditorGraphExternalNode::GetNodeTitleIcon() const
 		return FSlateIcon("MetasoundStyle", GraphRefIconName);
 	}
 }
+
+
+FMetasoundFrontendClassName UMetasoundEditorGraphVariableNode::GetClassName() const
+{
+	return ClassName;
+}
+
+FGuid UMetasoundEditorGraphVariableNode::GetNodeID() const
+{
+	return NodeID;
+}
+
+FLinearColor UMetasoundEditorGraphVariableNode::GetNodeTitleColor() const
+{
+	if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+	{
+		return EditorSettings->VariableNodeTitleColor;
+	}
+
+	return Super::GetNodeTitleColor();
+}
+
+FSlateIcon UMetasoundEditorGraphVariableNode::GetNodeTitleIcon() const
+{
+	static const FName NativeIconName = "MetasoundEditor.Graph.Node.Class.Variable";
+	return FSlateIcon("MetaSoundStyle", NativeIconName);
+}
+
+void UMetasoundEditorGraphVariableNode::SetNodeID(FGuid InNodeID)
+{
+	NodeID = InNodeID;
+}
+
 #undef LOCTEXT_NAMESPACE

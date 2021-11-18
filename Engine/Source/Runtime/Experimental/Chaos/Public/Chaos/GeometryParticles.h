@@ -8,6 +8,7 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/CollisionFilterData.h"
+#include "Chaos/Collision/ParticleCollisions.h"
 #include "Chaos/Box.h"
 #include "Chaos/PhysicalMaterials.h"
 #include "UObject/PhysicsObjectVersion.h"
@@ -24,6 +25,7 @@
 namespace Chaos
 {
 	class FConstraintHandle;
+	class FParticleCollisions;
 
 	/** Data that is associated with geometry. If a union is used an entry is created per internal geometry */
 	class CHAOS_API FPerShapeData
@@ -361,6 +363,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSyncState);
 			TArrayCollection::AddArray(&MWeakParticleHandle);
 			TArrayCollection::AddArray(&MParticleConstraints);
+			TArrayCollection::AddArray(&MParticleCollisions);
 			TArrayCollection::AddArray(&MResimType);
 			TArrayCollection::AddArray(&MEnabledDuringResim);
 			TArrayCollection::AddArray(&MLightWeightDisabled);
@@ -400,6 +403,7 @@ namespace Chaos
 			, MSyncState(MoveTemp(Other.MSyncState))
 			, MWeakParticleHandle(MoveTemp(Other.MWeakParticleHandle))
 			, MParticleConstraints(MoveTemp(Other.MParticleConstraints))
+			, MParticleCollisions(MoveTemp(Other.MParticleCollisions))
 			, MResimType(MoveTemp(Other.MResimType))
 			, MEnabledDuringResim(MoveTemp(Other.MEnabledDuringResim))
 			, MLightWeightDisabled(MoveTemp(Other.MLightWeightDisabled))
@@ -426,6 +430,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSyncState);
 			TArrayCollection::AddArray(&MWeakParticleHandle);
 			TArrayCollection::AddArray(&MParticleConstraints);
+			TArrayCollection::AddArray(&MParticleCollisions);
 
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
@@ -468,6 +473,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MSyncState);
 			TArrayCollection::AddArray(&MWeakParticleHandle);
 			TArrayCollection::AddArray(&MParticleConstraints);
+			TArrayCollection::AddArray(&MParticleCollisions);
 
 #if CHAOS_DETERMINISTIC
 			TArrayCollection::AddArray(&MParticleIDs);
@@ -657,6 +663,9 @@ namespace Chaos
 			return WeakHandle;
 		}
 
+		/**
+		 * @brief All of the persistent (non-collision) constraints affecting the particle
+		*/
 		CHAOS_API FConstraintHandleArray& ParticleConstraints(const int32 Index)
 		{
 			return MParticleConstraints[Index];
@@ -673,6 +682,14 @@ namespace Chaos
 		{
 			MParticleConstraints[Index].RemoveSingleSwap(InConstraintHandle);
 			CHAOS_ENSURE(!MParticleConstraints[Index].Contains(InConstraintHandle));
+		}
+
+		/**
+		 * @brief All of the collision constraints affecting the particle
+		*/
+		CHAOS_API FParticleCollisions& ParticleCollisions(const int32 Index)
+		{
+			return MParticleCollisions[Index];
 		}
 
 		FORCEINLINE EResimType ResimType(const int32 Index) const { return MResimType[Index]; }
@@ -820,6 +837,7 @@ public:
 		TArrayCollectionArray<FSyncState> MSyncState;
 		TArrayCollectionArray<FWeakParticleHandle> MWeakParticleHandle;
 		TArrayCollectionArray<FConstraintHandleArray> MParticleConstraints;
+		TArrayCollectionArray<FParticleCollisions> MParticleCollisions;
 		TArrayCollectionArray<EResimType> MResimType;
 		TArrayCollectionArray<bool> MEnabledDuringResim;
 		TArrayCollectionArray<bool> MLightWeightDisabled;

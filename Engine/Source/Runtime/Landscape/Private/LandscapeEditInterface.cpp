@@ -222,6 +222,8 @@ bool FLandscapeEditDataInterface::GetComponentsInRegion(int32 X1, int32 Y1, int3
 void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData, const uint16* InHeightAlphaBlendData, const uint8* InHeightFlagsData, bool InCreateComponents, UTexture2D* InHeightmap, UTexture2D* InXYOffsetmapTexture,
 											   bool InUpdateBounds, bool InUpdateCollision, bool InGenerateMips)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeEditDataInterface_SetHeightData);
+
 	const int32 NumVertsX = 1 + X2 - X1;
 	const int32 NumVertsY = 1 + Y2 - Y1;
 
@@ -1581,6 +1583,8 @@ void FLandscapeEditDataInterface::GetHeightDataFast(const int32 X1, const int32 
 
 void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeComponent_DeleteLayer);
+
 	ULandscapeComponent* Component = this;
 	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(true);
 	TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(true);
@@ -1731,7 +1735,6 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 	ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage.IsValidIndex(DeleteLayerAllocation.WeightmapTextureIndex) ? ComponentWeightmapTexturesUsage[DeleteLayerAllocation.WeightmapTextureIndex] : nullptr;
 	if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
 	{
-		Usage->Modify(LandscapeEdit.GetShouldDirtyPackage());
 		Usage->ChannelUsage[DeleteLayerAllocation.WeightmapTextureChannel] = nullptr;
 	}
 
@@ -1802,6 +1805,8 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 			LocalCollisionComponent->RecreateCollision();
 		}
 	}
+
+	Proxy->ValidateProxyLayersWeightmapUsage();
 }
 
 void FLandscapeEditDataInterface::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo)
@@ -1917,7 +1922,6 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 			ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage[Allocation.WeightmapTextureIndex];
 			if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
 			{
-				Usage->Modify(LandscapeEdit.GetShouldDirtyPackage());
 				Usage->ChannelUsage[Allocation.WeightmapTextureChannel] = nullptr;
 			}
 
@@ -2014,6 +2018,8 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 			LocalCollisionComponent->RecreateCollision();
 		}
 	}
+
+	Proxy->ValidateProxyLayersWeightmapUsage();
 }
 
 void FLandscapeEditDataInterface::FillLayer(ULandscapeLayerInfoObject* LayerInfo)
@@ -2220,7 +2226,6 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 		//check(Usage);
 		if (Usage)
 		{
-			Usage->Modify(LandscapeEdit.GetShouldDirtyPackage());
 			Usage->ChannelUsage[FromLayerAllocation.WeightmapTextureChannel] = nullptr;
 		}
 
@@ -2294,6 +2299,8 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 			CollisionComp->RecreateCollision();
 		}
 	}
+
+	GetLandscapeProxy()->ValidateProxyLayersWeightmapUsage();
 }
 
 void FLandscapeEditDataInterface::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo)
@@ -2504,7 +2511,6 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 	// Mark the channel as unallocated, so we can reuse it later
 	const int32 DeleteLayerWeightmapTextureIndex = ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureIndex;
 	ULandscapeWeightmapUsage& Usage = *ComponentWeightmapTexturesUsage[DeleteLayerWeightmapTextureIndex];
-	Usage.Modify(bShouldDirtyPackage);
 	Usage.ChannelUsage[ComponentWeightmapLayerAllocations[LayerIdx].WeightmapTextureChannel] = nullptr;
 
 	// Remove the layer as it's totally painted away.
@@ -2528,6 +2534,8 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 			}
 		}
 	}
+
+	Component->GetLandscapeProxy()->ValidateProxyLayersWeightmapUsage();
 
 	return true;
 }
@@ -2762,6 +2770,8 @@ const ULandscapeLayerInfoObject* FLandscapeEditDataInterface::ChooseReplacementL
 
 void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const LayerInfo, const int32 X1, const int32 Y1, const int32 X2, const int32 Y2, const uint8* Data, int32 Stride, ELandscapeLayerPaintingRestriction PaintingRestriction /*= None*/, bool bWeightAdjust /*= true*/, bool bTotalWeightAdjust /*= false*/)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeEditDataInterface_SetAlphaData);
+
 	check(LayerInfo != nullptr);
 	check(Data != nullptr);
 	if (LayerInfo->bNoWeightBlend)
@@ -3236,6 +3246,8 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				}
 				Component->RequestWeightmapUpdate();
 			}
+
+			Component->GetLandscapeProxy()->ValidateProxyLayersWeightmapUsage();
 		}
 	}
 }
@@ -3523,6 +3535,8 @@ void FLandscapeEditDataInterface::SetAlphaData(const TSet<ULandscapeLayerInfoObj
 				}
 				Component->RequestWeightmapUpdate();
 			}
+
+			Component->GetLandscapeProxy()->ValidateProxyLayersWeightmapUsage();
 		}
 	}
 }

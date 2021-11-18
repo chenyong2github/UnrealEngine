@@ -149,7 +149,7 @@ FTileAtlasPage::~FTileAtlasPage()
 	}
 	
 	AtlasTexture->RemoveFromRoot();
-	AtlasTexture->MarkPendingKill();
+	AtlasTexture->MarkAsGarbage();
 	AtlasTexture = nullptr;
 }
 

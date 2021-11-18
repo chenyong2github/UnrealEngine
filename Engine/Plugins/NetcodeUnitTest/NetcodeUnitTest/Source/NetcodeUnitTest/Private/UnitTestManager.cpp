@@ -1345,7 +1345,7 @@ void UUnitTestManager::Tick(float DeltaTime)
 		// Now mark all of these unit tests, for garbage collection
 		for (auto CurUnitTest : FinishedUnitTests)
 		{
-			CurUnitTest->MarkPendingKill();
+			CurUnitTest->MarkAsGarbage();
 		}
 
 		FinishedUnitTests.Empty();

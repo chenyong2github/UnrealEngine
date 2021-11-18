@@ -257,47 +257,6 @@ TSharedRef<SDockTab> FBlueprintDebuggerImpl::CreateBluprintDebuggerTab(const FSp
 		)
 	);
 
-	TWeakPtr<SWidget> OwningWidgetWeak = NomadTab;
-	TabContents->SetOnMouseButtonUp(
-		FPointerEventHandler::CreateStatic(
-			[]( /** The geometry of the widget*/
-				const FGeometry&,
-				/** The Mouse Event that we are processing */
-				const FPointerEvent& PointerEvent,
-				TWeakPtr<SWidget> InOwnerWeak,
-				TSharedPtr<FUICommandList> InCommandList) -> FReply
-			{
-				if (PointerEvent.GetEffectingButton() == EKeys::RightMouseButton)
-				{
-					// if the tab manager is still available then make a context window that allows users to
-					// show and hide tabs:
-					TSharedPtr<SWidget> InOwner = InOwnerWeak.Pin();
-					if (InOwner.IsValid())
-					{
-						FMenuBuilder MenuBuilder(true, InCommandList);
-
-						MenuBuilder.PushCommandList(InCommandList.ToSharedRef());
-						{
-							MenuBuilder.AddMenuEntry(FBlueprintDebuggerCommands::Get().ShowCallStackViewer);
-							MenuBuilder.AddMenuEntry(FBlueprintDebuggerCommands::Get().ShowExecutionTrace);
-						}
-						MenuBuilder.PopCommandList();
-
-
-						FWidgetPath WidgetPath = PointerEvent.GetEventPath() != nullptr ? *PointerEvent.GetEventPath() : FWidgetPath();
-						FSlateApplication::Get().PushMenu(InOwner.ToSharedRef(), WidgetPath, MenuBuilder.MakeWidget(), PointerEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
-
-						return FReply::Handled();
-					}
-				}
-				
-				return FReply::Unhandled();
-			}
-			, OwningWidgetWeak
-			, CommandList
-		)
-	);
-
 	FMenuBarBuilder MenuBarBuilder(CommandList);
 	MenuBarBuilder.AddPullDownMenu(
 		LOCTEXT("WindowMenuLabel", "Window"),

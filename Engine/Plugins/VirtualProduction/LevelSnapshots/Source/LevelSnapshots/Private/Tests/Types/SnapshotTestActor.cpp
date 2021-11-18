@@ -178,7 +178,7 @@ void ASnapshotTestActor::DestroyNonReflectedSubobject()
 {
 	if (NonReflectedSubobject)
 	{
-		NonReflectedSubobject->MarkPendingKill();
+		NonReflectedSubobject->MarkAsGarbage();
 		NonReflectedSubobject = nullptr;
 	}
 }

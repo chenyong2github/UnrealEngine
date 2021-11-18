@@ -702,9 +702,9 @@ namespace NDIStaticMeshLocal
 					CachedSockets.AddDefaulted(NumMeshSockets);
 					for (int32 i = 0; i < NumMeshSockets; ++i)
 					{
-						CachedSockets[i].SetTranslation(StaticMesh->Sockets[i]->RelativeLocation);
-						CachedSockets[i].SetRotation(FQuat4f(StaticMesh->Sockets[i]->RelativeRotation));
-						CachedSockets[i].SetScale3D(StaticMesh->Sockets[i]->RelativeScale);
+						CachedSockets[i].SetTranslation(FVector3f(StaticMesh->Sockets[i]->RelativeLocation));
+						CachedSockets[i].SetRotation(FQuat4f(FRotator3f(StaticMesh->Sockets[i]->RelativeRotation)));
+						CachedSockets[i].SetScale3D(FVector3f(StaticMesh->Sockets[i]->RelativeScale));
 					}
 
 					NumFilteredSockets = 0;
@@ -2713,7 +2713,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetVertexUV(FVectorVMExternalFunctionCon
 	NDIStaticMeshLocal::FStaticMeshCpuHelper StaticMeshHelper(Context);
 	FNDIInputParam<int32> VertexParam(Context);
 	FNDIInputParam<int32> UVSetParam(Context);
-	FNDIOutputParam<FVector2D> OutUV(Context);
+	FNDIOutputParam<FVector2f> OutUV(Context);
 
 	const int32 VertexMax = StaticMeshHelper.GetNumUVVertices() - 1;
 	const int32 UVSetMax = StaticMeshHelper.GetNumUVs() - 1;
@@ -2723,7 +2723,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetVertexUV(FVectorVMExternalFunctionCon
 		{
 			const int32 Vertex = VertexParam.GetAndAdvance();
 			const int32 UVSet = UVSetParam.GetAndAdvance();
-			const FVector2D UV = StaticMeshHelper.GetUV(FMath::Clamp(Vertex, 0, VertexMax), FMath::Clamp(UVSet, 0, UVSetMax));
+			const FVector2f UV = StaticMeshHelper.GetUV(FMath::Clamp(Vertex, 0, VertexMax), FMath::Clamp(UVSet, 0, UVSetMax));
 			OutUV.SetAndAdvance(UV);
 		}
 	}
@@ -3067,7 +3067,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetTriangleUV(FVectorVMExternalFunctionC
 	FNDIInputParam<int32> TriangleParam(Context);
 	FNDIInputParam<FVector3f> BaryCoordParam(Context);
 	FNDIInputParam<int32> UVSetParam(Context);
-	FNDIOutputParam<FVector2D> OutUVParam(Context);
+	FNDIOutputParam<FVector2f> OutUVParam(Context);
 
 	const FIndexArrayView IndexArray = StaticMeshHelper.GetIndexArrayView();
 	const int32 TriangleMax = StaticMeshHelper.GetNumTriangles() - 1;
@@ -3079,7 +3079,7 @@ void UNiagaraDataInterfaceStaticMesh::VMGetTriangleUV(FVectorVMExternalFunctionC
 			const int32 Triangle = FMath::Clamp(TriangleParam.GetAndAdvance(), 0, TriangleMax);
 			const FVector3f BaryCoord = BaryCoordParam.GetAndAdvance();
 			const int32 UVSet = FMath::Clamp(UVSetParam.GetAndAdvance(), 0, UVSetMax);
-			const FVector2D UV = StaticMeshHelper.GetTriangleUV(BaryCoord, IndexArray[Triangle * 3 + 0], IndexArray[Triangle * 3 + 1], IndexArray[Triangle * 3 + 2], UVSet);
+			const FVector2f UV = StaticMeshHelper.GetTriangleUV(BaryCoord, IndexArray[Triangle * 3 + 0], IndexArray[Triangle * 3 + 1], IndexArray[Triangle * 3 + 2], UVSet);
 			OutUVParam.SetAndAdvance(UV);
 		}
 	}

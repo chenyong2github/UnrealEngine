@@ -464,9 +464,11 @@ class UMaterialInstance : public UMaterialInterface
 
 #if WITH_EDITORONLY_DATA
 	// Custom static parameters getter delegate.
+	UE_DEPRECATED(5.0, "Custom static parameter delegates no longer supported.")
 	ENGINE_API static FCustomStaticParametersGetterDelegate CustomStaticParametersGetters;
 
 	// An array of custom parameter set updaters.
+	UE_DEPRECATED(5.0, "Custom static parameter delegates no longer supported.")
 	ENGINE_API static TArray<FCustomParameterSetUpdaterDelegate> CustomParameterSetUpdaters;
 #endif // WITH_EDITORONLY_DATA
 
@@ -476,6 +478,8 @@ class UMaterialInstance : public UMaterialInterface
 	 * @returns Static parameter set.
 	 */
 	ENGINE_API const FStaticParameterSet& GetStaticParameters() const;
+
+	const FMaterialInstanceCachedData& GetCachedInstanceData() const { return CachedData ? *CachedData : FMaterialInstanceCachedData::EmptyData; }
 
 	/**
 	 * Indicates whether the instance has static permutation resources (which are required when static parameters are present) 
@@ -592,7 +596,7 @@ private:
 
 protected:
 	bool bLoadedCachedData;
-	FMaterialInstanceCachedData* CachedData;
+	TUniquePtr<FMaterialInstanceCachedData> CachedData;
 
 private:
 #if WITH_EDITOR
@@ -625,13 +629,14 @@ public:
 	virtual ENGINE_API UMaterial* GetMaterial() override;
 	virtual ENGINE_API const UMaterial* GetMaterial() const override;
 	virtual ENGINE_API const UMaterial* GetMaterial_Concurrent(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const override;
-	virtual ENGINE_API const UMaterial* GetMaterialInheritanceChain(FMaterialParentInstanceArray& OutInstances) const override;
+	virtual ENGINE_API void GetMaterialInheritanceChain(FMaterialInheritanceChain& OutChain) const override;
+	virtual ENGINE_API const FMaterialCachedExpressionData& GetCachedExpressionData(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const override;
 	virtual ENGINE_API FMaterialResource* AllocatePermutationResource();
 	virtual ENGINE_API FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) override;
 	virtual ENGINE_API const FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) const override;
 
 	ENGINE_API bool GetParameterOverrideValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutValue) const;
-	virtual ENGINE_API bool GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutValue, EMaterialGetParameterValueFlags Flags) const override;
+	virtual ENGINE_API bool GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutValue, EMaterialGetParameterValueFlags Flags = EMaterialGetParameterValueFlags::Default) const override;
 
 	virtual ENGINE_API void GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQualityLevel::Type QualityLevel, bool bAllQualityLevels, ERHIFeatureLevel::Type FeatureLevel, bool bAllFeatureLevels) const override;
 	virtual ENGINE_API void GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray< TArray<int32> >& OutIndices, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel) const;
@@ -640,7 +645,6 @@ public:
 	virtual ENGINE_API bool CheckMaterialUsage(const EMaterialUsage Usage) override;
 	virtual ENGINE_API bool CheckMaterialUsage_Concurrent(const EMaterialUsage Usage) const override;
 	virtual ENGINE_API bool GetMaterialLayers(FMaterialLayersFunctions& OutLayers, TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const override;
-	virtual ENGINE_API bool GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid &OutExpressionGuid) const override;
 	virtual ENGINE_API bool IsDependent(UMaterialInterface* TestDependency) override;
 	virtual ENGINE_API bool IsDependent_Concurrent(UMaterialInterface* TestDependency, TMicRecursionGuard RecursionGuard) override;
 	virtual ENGINE_API void GetDependencies(TSet<UMaterialInterface*>& Dependencies) override;
@@ -761,24 +765,23 @@ public:
 	 * Builds a composited set of parameter names, including inherited and overridden values
 	 */
 	template<typename ExpressionType>
+	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
 	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 	{
 		if (const UMaterial* Material = GetMaterial())
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Material->GetAllParameterInfo<ExpressionType>(OutParameterInfo, OutParameterIds);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	ENGINE_API virtual void GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const override;
 	ENGINE_API virtual void GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const override;
 #if WITH_EDITORONLY_DATA
 	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<class UMaterialFunctionInterface*>& DependentFunctions) const override;
 #endif // WITH_EDITORONLY_DATA
-
-	/** Appends textures referenced by expressions, including nested functions. */
-	ENGINE_API virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override final { return CachedData ? CachedData->ReferencedTextures : TArrayView<const TObjectPtr<UObject>>(); }
 
 #if WITH_EDITOR
 	/** Add to the set any texture referenced by expressions, including nested functions, as well as any overrides from parameters. */
@@ -826,21 +829,12 @@ public:
 	ENGINE_API virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal) override;
 
 #if WITH_EDITOR
-	/**
-	*	Gathers a list of shader types sorted by vertex factory types that should be cached for this material.  Avoids doing expensive material
-	*	and shader compilation to acquire this information.
-	*
-	*	@param	Platform		The shader platform to get info for.
-	*	@param	OutShaderInfo	Array of results sorted by vertex factory type, and shader type.
-	*
-	*/
-	ENGINE_API virtual void GetShaderTypes(EShaderPlatform Platform, TArray<FDebugShaderTypeInfo>& OutShaderInfo) override;
+	ENGINE_API virtual void GetShaderTypes(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FDebugShaderTypeInfo>& OutShaderInfo) override;
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
 	void BeginAllowCachingStaticParameterValues();
 	void EndAllowCachingStaticParameterValues();
-	void AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& OutIds) const;
 #endif // WITH_EDITOR
 
 protected:

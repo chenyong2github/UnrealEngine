@@ -12,8 +12,6 @@ using EpicGames.Core;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -64,7 +62,7 @@ namespace UnrealBuildTool
 			}
 			foreach(KeyValuePair<FileReference, FileReference> Pair in OldLocationToNewLocation)
 			{
-				FileReference OriginalLocation;
+				FileReference? OriginalLocation;
 				if(!HotReloadFileToOriginalFile.TryGetValue(Pair.Key, out OriginalLocation))
 				{
 					OriginalLocation = Pair.Key;
@@ -77,7 +75,7 @@ namespace UnrealBuildTool
 			{
 				foreach(FileItem ProducedItem in Action.ProducedItems)
 				{
-					FileReference OriginalLocation;
+					FileReference? OriginalLocation;
 					if(HotReloadFileToOriginalFile.TryGetValue(ProducedItem.Location, out OriginalLocation))
 					{
 						OriginalFileToHotReloadFile[OriginalLocation] = ProducedItem.Location;
@@ -106,7 +104,7 @@ namespace UnrealBuildTool
 		/// <param name="Configuration">Configuration being built</param>
 		/// <param name="Architecture">Architecture being built</param>
 		/// <returns>Location of the hot reload state file</returns>
-		public static FileReference GetLocation(FileReference ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture)
+		public static FileReference GetLocation(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture)
 		{
 			DirectoryReference BaseDir = DirectoryReference.FromFile(ProjectFile) ?? Unreal.EngineDirectory;
 			return FileReference.Combine(BaseDir, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), TargetName, Configuration.ToString(), "HotReload.state");
@@ -164,9 +162,9 @@ namespace UnrealBuildTool
 		/// <param name="Makefile">Makefile for the targe</param>
 		/// <param name="Actions">Actions for this target</param>
 		/// <param name="BuildConfiguration">Global build configuration</param>
-		public static Dictionary<FileReference, FileReference> Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> Actions, BuildConfiguration BuildConfiguration)
+		public static Dictionary<FileReference, FileReference>? Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> Actions, BuildConfiguration BuildConfiguration)
 		{
-			Dictionary<FileReference, FileReference> PatchedOldLocationToNewLocation = null;
+			Dictionary<FileReference, FileReference>? PatchedOldLocationToNewLocation = null;
 
 			// Get the hot-reload mode
 			if (TargetDescriptor.HotReloadMode == HotReloadMode.LiveCoding)
@@ -247,7 +245,7 @@ namespace UnrealBuildTool
 				Log.TraceLog("Checking for live coding mutex: {0}", MutexName);
 
 				// Try to open the mutex
-				Mutex Mutex;
+				Mutex? Mutex;
 				if(Mutex.TryOpenExisting(MutexName.ToString(), out Mutex))
 				{
 					Mutex.Dispose();
@@ -332,7 +330,7 @@ namespace UnrealBuildTool
 								continue;
 							}
 
-							Process RunningProcess;
+							Process? RunningProcess;
 							try
 							{
 								RunningProcess = Process.GetProcessById(ProcessId);
@@ -378,10 +376,10 @@ namespace UnrealBuildTool
 							// On my machine this was ~750 ms _per orphaned file_, and I spoke to someone
 							// with 10 of these in his Engine/Intermediate/EditorRun directory.
 							// 
-							FileReference MainModuleFile;
+							FileReference? MainModuleFile;
 							try
 							{
-								MainModuleFile = new FileReference(RunningProcess.MainModule.FileName);
+								MainModuleFile = new FileReference(RunningProcess!.MainModule.FileName);
 							}
 							catch
 							{
@@ -416,7 +414,7 @@ namespace UnrealBuildTool
 						foreach (FileInfo File in EditorRunsFiles)
 						{
 							int PID;
-							BuildHostPlatform.ProcessInfo Proc = null;
+							BuildHostPlatform.ProcessInfo? Proc = null;
 							if (!Int32.TryParse(File.Name, out PID) || (Proc = Processes.FirstOrDefault(P => P.PID == PID)) == default(BuildHostPlatform.ProcessInfo))
 							{
 								// Delete stale files (it may happen if editor crashes).
@@ -446,7 +444,7 @@ namespace UnrealBuildTool
 			if(FileReference.Exists(HotReloadStateFile))
 			{
 				// Try to load the state file. If it fails, we'll just warn and continue.
-				HotReloadState State = null;
+				HotReloadState? State = null;
 				try
 				{
 					State = HotReloadState.Load(HotReloadStateFile);
@@ -504,7 +502,7 @@ namespace UnrealBuildTool
 				FileItem[] ModuleOutputItems = Makefile.ModuleNameToOutputItems[HotReloadModuleName];
 				for(int Idx = 0; Idx < ModuleOutputItems.Length; Idx++)
 				{
-					FileReference NewLocation;
+					FileReference? NewLocation;
 					if(HotReloadState.OriginalFileToHotReloadFile.TryGetValue(ModuleOutputItems[Idx].Location, out NewLocation))
 					{
 						ModuleOutputItems[Idx] = FileItem.GetItemByFileReference(NewLocation);
@@ -523,7 +521,7 @@ namespace UnrealBuildTool
 		/// <param name="TargetActionsToExecute">Actions to execute for this target</param>
 		/// <param name="InitialPatchedOldLocationToNewLocation">Collection of all the renamed as part of module reload requests.  Can be null</param>
 		/// <returns>Set of actions to execute</returns>
-		public static List<LinkedAction> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> PrerequisiteActions, List<LinkedAction> TargetActionsToExecute, Dictionary<FileReference, FileReference> InitialPatchedOldLocationToNewLocation)
+		public static List<LinkedAction> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> PrerequisiteActions, List<LinkedAction> TargetActionsToExecute, Dictionary<FileReference, FileReference>? InitialPatchedOldLocationToNewLocation)
 		{
 			// Get the dependency history
 			CppDependencyCache CppDependencies = new CppDependencyCache();
@@ -640,7 +638,7 @@ namespace UnrealBuildTool
 					int ModuleSuffix;
 					if (!TargetDescriptor.HotReloadModuleNameToSuffix.TryGetValue(HotReloadModuleName, out ModuleSuffix) || ModuleSuffix == -1)
 					{
-						FileItem[] ModuleOutputItems;
+						FileItem[]? ModuleOutputItems;
 						if (Makefile.ModuleNameToOutputItems.TryGetValue(HotReloadModuleName, out ModuleOutputItems))
 						{
 							foreach (FileItem ModuleOutputItem in ModuleOutputItems)
@@ -663,7 +661,7 @@ namespace UnrealBuildTool
 						{
 							foreach (FileItem ProducedItem in PrerequisiteAction.ProducedItems)
 							{
-								FileItem[] DependentItems;
+								FileItem[]? DependentItems;
 								if (HotReloadItemToDependentItems.TryGetValue(ProducedItem, out DependentItems))
 								{
 									TargetActionsToExecute.Add(PrerequisiteAction);
@@ -843,11 +841,12 @@ namespace UnrealBuildTool
 
 						FileReference OldDependenciesFile = new FileReference(Arguments[DependenciesIdx].Substring(DependenciesPrefix.Length));
 						FileItem OldDependenciesFileItem = Action.ProducedItems.First(x => x.Location == OldDependenciesFile);
-						NewAction.PrerequisiteItems.Remove(OldDependenciesFileItem);
+						NewAction.ProducedItems.Remove(OldDependenciesFileItem);
 
 						FileReference NewDependenciesFile = OldDependenciesFile.ChangeExtension(".lc.response");
 						FileItem NewDependenciesFileItem = FileItem.GetItemByFileReference(NewDependenciesFile);
-						NewAction.PrerequisiteItems.Add(NewDependenciesFileItem);
+						NewAction.ProducedItems.Add(NewDependenciesFileItem);
+						NewAction.DependencyListFile = NewDependenciesFileItem;
 						Arguments[DependenciesIdx] = DependenciesPrefix + NewDependenciesFile.FullName;
 					}
 
@@ -867,6 +866,9 @@ namespace UnrealBuildTool
 
 					FileReference OldResponseFile = new FileReference(Arguments[ResponseFileIdx].Substring(1).Trim('\"'));
 					FileReference NewResponseFile = new FileReference(OldResponseFile.FullName + ".lc");
+
+					NewAction.PrerequisiteItems.Remove(FileItem.GetItemByFileReference(OldResponseFile));
+					NewAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(NewResponseFile));
 
 					const string OutputFilePrefix = "/Fo";
 
@@ -904,18 +906,20 @@ namespace UnrealBuildTool
 							{
 								FileReference OldSourceDependencyFile = new FileReference(ResponseLine.Substring(SourceDependencyPrefix.Length).Trim().Trim('\"'));
 								FileItem OldSourceDependencyFileItem = Action.ProducedItems.First(x => x.Location == OldSourceDependencyFile);
-								NewAction.PrerequisiteItems.Remove(OldSourceDependencyFileItem);
+								NewAction.ProducedItems.Remove(OldSourceDependencyFileItem);
 
 								FileReference NewSourceDependencyFile = OldSourceDependencyFile.ChangeExtension(NewExtension);
 								FileItem NewSourceDependencyFileItem = FileItem.GetItemByFileReference(NewSourceDependencyFile);
-								NewAction.PrerequisiteItems.Add(NewSourceDependencyFileItem);
+								NewAction.ProducedItems.Add(NewSourceDependencyFileItem);
+								NewAction.DependencyListFile = NewSourceDependencyFileItem;
 
 								ResponseLines[Idx] = SourceDependencyPrefix + "\"" + NewSourceDependencyFile.FullName + "\"";
 								break;
 							}
 						}
 					}
-					FileReference.WriteAllLines(NewResponseFile, ResponseLines);
+
+					Utils.WriteFileIfChanged(NewResponseFile, ResponseLines);
 
 					Arguments[ResponseFileIdx] = "@" + NewResponseFile.FullName;
 
@@ -949,7 +953,7 @@ namespace UnrealBuildTool
 				FileItem FirstProducedItem = Action.ProducedItems.First();
 
 				// Assume that the first produced item (with no extension) is our output file name
-				FileReference HotReloadFile;
+				FileReference? HotReloadFile;
 				if(!OriginalFileToHotReloadFile.TryGetValue(FirstProducedItem.Location, out HotReloadFile))
 				{
 					continue;
@@ -1068,7 +1072,7 @@ namespace UnrealBuildTool
 				// Fix up the list of items to delete too
 				for(int Idx = 0; Idx < NewAction.DeleteItems.Count; Idx++)
 				{
-					FileItem NewItem;
+					FileItem? NewItem;
 					if(AffectedOriginalFileItemAndNewFileItemMap.TryGetValue(NewAction.DeleteItems[Idx], out NewItem))
 					{
 						NewAction.DeleteItems[Idx] = NewItem;
@@ -1098,7 +1102,7 @@ namespace UnrealBuildTool
 				{
 					FileItem OriginalFileItem = NewAction.PrerequisiteItems[ItemIndex];
 
-					FileItem NewFileItem;
+					FileItem? NewFileItem;
 					if (AffectedOriginalFileItemAndNewFileItemMap.TryGetValue(OriginalFileItem, out NewFileItem))
 					{
 						// OK, looks like we need to replace this file item because we've renamed the file
@@ -1210,7 +1214,7 @@ namespace UnrealBuildTool
 						{
 							FileReference OriginalFile = FileReference.Combine(FileNameToVersionManifest.Key.Directory, Manifest.Value);
 
-							FileReference HotReloadFile;
+							FileReference? HotReloadFile;
 							if(OriginalFileToHotReloadFile.TryGetValue(OriginalFile, out HotReloadFile))
 							{
 								FileNameToVersionManifest.Value.ModuleNameToFileName[Manifest.Key] = HotReloadFile.GetFileName();
@@ -1252,9 +1256,9 @@ namespace UnrealBuildTool
 		/// <param name="Makefile">Makefile for the target being built</param>
 		/// <param name="Actions">Actions to be executed for this makefile</param>
 		/// <returns>Collection of file names patched.  Can be null.</returns>
-		public static Dictionary<FileReference, FileReference> PatchActionGraphWithNames(Dictionary<string, int> ModuleNameToSuffix, TargetMakefile Makefile, List<LinkedAction> Actions)
+		public static Dictionary<FileReference, FileReference>? PatchActionGraphWithNames(Dictionary<string, int> ModuleNameToSuffix, TargetMakefile Makefile, List<LinkedAction> Actions)
 		{
-			Dictionary<FileReference, FileReference> PatchedOldLocationToNewLocation = null;
+			Dictionary<FileReference, FileReference>? PatchedOldLocationToNewLocation = null;
 			if (ModuleNameToSuffix.Count > 0)
 			{
 				Dictionary<FileReference, FileReference> OldLocationToNewLocation = new Dictionary<FileReference, FileReference>();
@@ -1307,9 +1311,12 @@ namespace UnrealBuildTool
 				}
 
 				Writer.WriteObjectStart("LinkerEnvironment");
-				foreach (System.Collections.DictionaryEntry Entry in Environment.GetEnvironmentVariables())
+				foreach (Nullable<System.Collections.DictionaryEntry> Entry in Environment.GetEnvironmentVariables())
 				{
-					Writer.WriteValue(Entry.Key.ToString(), Entry.Value.ToString());
+					if (Entry.HasValue)
+					{
+						Writer.WriteValue(Entry.Value.Key.ToString()!, Entry.Value.Value!.ToString());
+					}
 				}
 				Writer.WriteObjectEnd();
 
@@ -1327,7 +1334,7 @@ namespace UnrealBuildTool
 							Writer.WriteArrayStart("Inputs");
 							foreach(FileItem InputFile in Action.PrerequisiteItems)
 							{
-								FileReference PatchedFile;
+								FileReference? PatchedFile;
 								if(OriginalFileToPatchedFile.TryGetValue(InputFile.Location, out PatchedFile))
 								{
 									Writer.WriteValue(PatchedFile.FullName);

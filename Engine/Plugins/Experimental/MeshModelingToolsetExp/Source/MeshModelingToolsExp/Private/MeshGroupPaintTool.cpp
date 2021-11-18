@@ -84,8 +84,10 @@ void UMeshGroupPaintTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "Paint PolyGroups"));
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
-	InitializeSculptMeshComponent(DynamicMeshComponent);
+	FActorSpawnParameters SpawnInfo;
+	PreviewMeshActor = TargetWorld->SpawnActor<AInternalToolFrameworkActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(PreviewMeshActor);
+	InitializeSculptMeshComponent(DynamicMeshComponent, PreviewMeshActor);
 
 	// assign materials
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
@@ -250,6 +252,12 @@ void UMeshGroupPaintTool::Shutdown(EToolShutdownType ShutdownType)
 
 	FilterProperties->SaveProperties(this);
 	PolygroupLayerProperties->SaveProperties(this, TEXT("MeshGroupPaintTool"));
+
+	if (PreviewMeshActor != nullptr)
+	{
+		PreviewMeshActor->Destroy();
+		PreviewMeshActor = nullptr;
+	}
 
 	UMeshSculptToolBase::Shutdown(ShutdownType);
 }

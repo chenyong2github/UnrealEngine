@@ -6,7 +6,7 @@
 
 bool UPrimitiveComponentToolTarget::IsValid() const
 {
-	return Component && !Component->IsPendingKillOrUnreachable() && Component->IsValidLowLevel();
+	return Component && IsValidChecked(Component) && !Component->IsUnreachable() && Component->IsValidLowLevel();
 }
 
 UPrimitiveComponent* UPrimitiveComponentToolTarget::GetOwnerComponent() const

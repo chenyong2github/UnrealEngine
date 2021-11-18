@@ -487,59 +487,75 @@ void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	if (MeshBatch.bUseForMaterial && DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel)))
+	if (MeshBatch.bUseForMaterial
+		&& DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel))
+		&& (PrimitiveSceneProxy && PrimitiveSceneProxy->ShouldRenderInMainPass() && PrimitiveSceneProxy->AffectsDynamicIndirectLighting()))
 	{
-		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
-
-		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-		const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
-		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
-		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
-		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
-
-		if (!bIsTranslucent
-			&& (PrimitiveSceneProxy && PrimitiveSceneProxy->ShouldRenderInMainPass() && PrimitiveSceneProxy->AffectsDynamicIndirectLighting())
-			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+		const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+		while (MaterialRenderProxy)
 		{
-			const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-			FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
-			constexpr bool bMultiViewCapture = false;
-
-			TMeshProcessorShaders<
-				FLumenCardVS,
-				FLumenCardPS<bMultiViewCapture>> PassShaders;
-
-			if (!GetLumenCardShaders(
-				Material,
-				VertexFactory->GetType(),
-				PassShaders.VertexShader,
-				PassShaders.PixelShader))
+			const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+			if (Material)
 			{
-				return;
-			}
+				auto TryAddMeshBatch = [this](const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId, const FMaterialRenderProxy& MaterialRenderProxy, const FMaterial& Material) -> bool
+				{
+					const EBlendMode BlendMode = Material.GetBlendMode();
+					const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
+					const bool bIsTranslucent = IsTranslucentBlendMode(BlendMode);
+					const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
+					const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, Material, OverrideSettings);
+					const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 
-			FMeshMaterialShaderElementData ShaderElementData;
-			ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
+					if (!bIsTranslucent
+						&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+					{
+						const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
+						FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
+						constexpr bool bMultiViewCapture = false;
 
-			const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(PassShaders.VertexShader, PassShaders.PixelShader);
+						TMeshProcessorShaders<
+							FLumenCardVS,
+							FLumenCardPS<bMultiViewCapture>> PassShaders;
 
-			BuildMeshDrawCommands(
-				MeshBatch,
-				BatchElementMask,
-				PrimitiveSceneProxy,
-				MaterialRenderProxy,
-				Material,
-				PassDrawRenderState,
-				PassShaders,
-				MeshFillMode,
-				MeshCullMode,
-				SortKey,
-				EMeshPassFeatures::Default,
-				ShaderElementData);
+						if (!GetLumenCardShaders(
+							Material,
+							VertexFactory->GetType(),
+							PassShaders.VertexShader,
+							PassShaders.PixelShader))
+						{
+							return false;
+						}
+
+						FMeshMaterialShaderElementData ShaderElementData;
+						ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
+
+						const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(PassShaders.VertexShader, PassShaders.PixelShader);
+
+						BuildMeshDrawCommands(
+							MeshBatch,
+							BatchElementMask,
+							PrimitiveSceneProxy,
+							MaterialRenderProxy,
+							Material,
+							PassDrawRenderState,
+							PassShaders,
+							MeshFillMode,
+							MeshCullMode,
+							SortKey,
+							EMeshPassFeatures::Default,
+							ShaderElementData);
+					}
+
+					return true;
+				};
+
+				if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *MaterialRenderProxy, *Material))
+				{
+					break;
+				}
+			};
+
+			MaterialRenderProxy = MaterialRenderProxy->GetFallback(FeatureLevel);
 		}
 	}
 }
@@ -2022,7 +2038,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				SharedView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 				SharedView->CachedViewUniformShaderParameters->PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
 				SharedView->CachedViewUniformShaderParameters->InstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
+				SharedView->CachedViewUniformShaderParameters->InstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer.SRV;
 				SharedView->CachedViewUniformShaderParameters->LightmapSceneData = Scene->GPUScene.LightmapDataBuffer.SRV;
+				SharedView->CachedViewUniformShaderParameters->InstanceSceneDataSOAStride = Scene->GPUScene.InstanceSceneDataSOAStride;
+
 				SharedView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 			}
 

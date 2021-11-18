@@ -332,10 +332,12 @@ private:
 	/** Return the address of the singleton function - handles nullptr */
 	static const FString& GetSingletonNameFuncAddr(FUnrealFieldDefinitionInfo* FieldDef, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject = true);
 
+	// @todo: BP2CPP_remove
 	/**
 	 * Returns the name (overridden if marked up) or "" wrappers for use in a string literal.
 	 */
 	template <typename T>
+	UE_DEPRECATED(5.0, "This method is no longer in use and will be removed.")
 	static FString GetUTF8OverriddenNameForLiteral(const T* Item)
 	{
 		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
@@ -672,11 +674,9 @@ private:
 
 public:
 
-	/** 
-	 * Properties in source files generated from blueprint assets have a symbol name that differs from the source asset.
-	 * This function returns the original name of the field (rather than the native, symbol name).
-	 */
+	// @todo: BP2CPP_remove
 	template <typename T>
+	UE_DEPRECATED(5.0, "This method is no longer in use and will be removed.")
 	static FString GetOverriddenName(const T* Item)
 	{
 		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
@@ -687,7 +687,9 @@ public:
 		return Item->GetName();
 	}
 
+	// @todo: BP2CPP_remove
 	template <typename T>
+	UE_DEPRECATED(5.0, "This method is no longer in use and will be removed.")
 	static FString GetOverriddenName(const T& Item)
 	{
 		const FString& OverriddenName = Item.GetMetaData(TEXT("OverrideNativeName"));
@@ -698,7 +700,9 @@ public:
 		return Item.GetName();
 	}
 
+	// @todo: BP2CPP_remove
 	template <typename T>
+	UE_DEPRECATED(5.0, "This method is no longer in use and will be removed.")
 	static FName GetOverriddenFName(const T& Item)
 	{
 		FString OverriddenName = Item.GetMetaData(TEXT("OverrideNativeName"));
@@ -709,7 +713,9 @@ public:
 		return Item.GetFName();
 	}
 
+	// @todo: BP2CPP_remove
 	template <typename T>
+	UE_DEPRECATED(5.0, "This method is no longer in use and will be removed.")
 	static FString GetOverriddenPathName(const T& Def)
 	{
 		return FString::Printf(TEXT("%s.%s"), *Def.GetTypePackageName(), *GetOverriddenName(Def));

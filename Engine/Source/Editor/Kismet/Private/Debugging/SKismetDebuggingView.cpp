@@ -110,7 +110,24 @@ FText SKismetDebuggingView::GetTopText() const
 	return LOCTEXT("ShowDebugForActors", "Showing debug info for instances of the blueprint:");
 }
 
-bool SKismetDebuggingView::CanDisableAllBreakpoints() const
+FText SKismetDebuggingView::GetToggleAllBreakpointsText() const
+{
+	const FBlueprintBreakpoint* EnabledBreakpoint = FKismetDebugUtilities::FindBreakpointByPredicate(BlueprintToWatchPtr.Get(), [](const FBlueprintBreakpoint& Breakpoint) 
+		{
+			return Breakpoint.IsEnabled();
+		});
+	
+	if (EnabledBreakpoint)
+	{
+		return LOCTEXT("DisableAllBreakPoints", "Disable All Breakpoints");
+	}
+	else
+	{
+		return LOCTEXT("EnableAllBreakPoints", "Enable All Breakpoints");
+	}
+}
+
+bool SKismetDebuggingView::CanToggleAllBreakpoints() const
 {
 	if(BlueprintToWatchPtr.IsValid())
 	{
@@ -119,19 +136,30 @@ bool SKismetDebuggingView::CanDisableAllBreakpoints() const
 	return false;
 }
 
-FReply SKismetDebuggingView::OnDisableAllBreakpointsClicked()
+FReply SKismetDebuggingView::OnToggleAllBreakpointsClicked()
 {
-	if(BlueprintToWatchPtr.IsValid())
+	if (UBlueprint* Blueprint = BlueprintToWatchPtr.Get())
 	{
-		FKismetDebugUtilities::ForeachBreakpoint(BlueprintToWatchPtr.Get(),
-			[](FBlueprintBreakpoint& Breakpoint)
+		const FBlueprintBreakpoint* EnabledBreakpoint = FKismetDebugUtilities::FindBreakpointByPredicate(BlueprintToWatchPtr.Get(), [](const FBlueprintBreakpoint& Breakpoint)
 			{
-				FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, false);
-			}
-		);
+				return Breakpoint.IsEnabled();
+			});
+
+		bool bHasAnyEnabledBreakpoint = EnabledBreakpoint != nullptr;
+		if (BlueprintToWatchPtr.IsValid())
+		{
+			FKismetDebugUtilities::ForeachBreakpoint(BlueprintToWatchPtr.Get(),
+				[bHasAnyEnabledBreakpoint](FBlueprintBreakpoint& Breakpoint)
+				{
+					FKismetDebugUtilities::SetBreakpointEnabled(Breakpoint, !bHasAnyEnabledBreakpoint);
+				}
+			);
+		}
+
+		return FReply::Handled();
 	}
-	
-	return FReply::Handled();
+
+	return FReply::Unhandled();
 }
 
 class FBlueprintFilter : public IClassViewerFilter
@@ -268,9 +296,9 @@ void SKismetDebuggingView::Construct(const FArguments& InArgs)
 							.HAlign( HAlign_Right )
 							[
 								SNew( SButton )
-					                .IsEnabled( this, &SKismetDebuggingView::CanDisableAllBreakpoints )
-					                .Text( LOCTEXT( "DisableAllBreakPoints", "Disable All Breakpoints" ) )
-					                .OnClicked( this, &SKismetDebuggingView::OnDisableAllBreakpointsClicked )
+					                .IsEnabled( this, &SKismetDebuggingView::CanToggleAllBreakpoints )
+					                .Text( this, &SKismetDebuggingView::GetToggleAllBreakpointsText )
+					                .OnClicked( this, &SKismetDebuggingView::OnToggleAllBreakpointsClicked )
 							]
 					]
 					+ SVerticalBox::Slot()

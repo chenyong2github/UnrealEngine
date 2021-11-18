@@ -54,11 +54,22 @@ namespace ClothingMeshUtils
 			}
 		};
 
-		ClothMeshDesc(TArrayView<const FVector3f> InPositions, TArrayView<const FVector3f> InNormals, TArrayView<const uint32> InIndices)
+		ClothMeshDesc(TConstArrayView<FVector3f> InPositions, TConstArrayView<FVector3f> InNormals, TConstArrayView<uint32> InIndices)
 			: Positions(InPositions)
 			, Normals(InNormals)
 			, Indices(InIndices)
 			, bHasValidBVH(false)
+			, bHasValidMaxEdgeLengths(false)
+		{
+		}
+
+		ClothMeshDesc(TConstArrayView<FVector3f> InPositions, TConstArrayView<FVector3f> InNormals, TConstArrayView<FVector3f> InTangents, TConstArrayView<uint32> InIndices)
+			: Positions(InPositions)
+			, Normals(InNormals)
+			, Tangents(InTangents)
+			, Indices(InIndices)
+			, bHasValidBVH(false)
+			, bHasValidMaxEdgeLengths(false)
 		{
 		}
 
@@ -67,63 +78,91 @@ namespace ClothingMeshUtils
 			return Positions.Num() == Normals.Num() && Indices.Num() % 3 == 0;
 		}
 
+		bool HasTangents() const
+		{
+			return Positions.Num() == Tangents.Num();
+		}
+
 		TArray<int32> FindCandidateTriangles(const FVector& InPoint, float InTolerance = KINDA_SMALL_NUMBER);
 
-		TArrayView<const FVector3f> Positions;
-		TArrayView<const FVector3f> Normals;
-		TArrayView<const uint32> Indices;
+		/**
+		 * Compute the max edge length for each edge coming out of a mesh vertex.
+		 * Useful for guiding the search radius when searching for nearest triangles.
+		 * Declared const for convenience since it doesn't change the descriptor itself.
+		 */
+		void ComputeMaxEdgeLengths() const;
+
+		TConstArrayView<FVector3f> Positions;
+		TConstArrayView<FVector3f> Normals;
+		TConstArrayView<FVector3f> Tangents;
+		TConstArrayView<uint32> Indices;
 
 		bool bHasValidBVH;
 		Chaos::TAABBTree<int32, Chaos::TAABBTreeLeafArray<int32, false>, false> BVH;
+
+		mutable bool bHasValidMaxEdgeLengths;
+		mutable TArray<float> MaxEdgeLengths;
 	};
 
-	// Static method for calculating a skinned mesh result from source data
-	// The bInPlaceOutput allows us to directly populate arrays that are already allocated
-	// bRemoveScaleAndInvertPostTransform will determine if the PostTransform should be inverted and the scale removed (NvCloth uses this). It is templated to remove branches at compile time
-	template<bool bInPlaceOutput = false, bool bRemoveScaleAndInvertPostTransform = true>
-	void CLOTHINGSYSTEMRUNTIMECOMMON_API
-	SkinPhysicsMesh(
-		const TArray<int32>& BoneMap, // UClothingAssetCommon::UsedBoneIndices
+	/**
+	 * Static method for calculating a skinned mesh result from source data
+	 */
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh(
+		const TArray<int32>& BoneMap,  // UClothingAssetCommon::UsedBoneIndices
 		const FClothPhysicalMeshData& InMesh, 
-		const FTransform& PostTransform, // Final transform to apply to component space positions and normals
+		const FTransform& PostTransform,  // Final transform to apply to component space positions and normals
 		const FMatrix44f* InBoneMatrices, 
 		const int32 InNumBoneMatrices, 
 		TArray<FVector3f>& OutPositions, 
-		TArray<FVector3f>& OutNormals,
-		uint32 ArrayOffset = 0); // Used for Chaos Cloth
+		TArray<FVector3f>& OutNormals);
 
+	/**
+	 * Static method for calculating a skinned mesh result from source data
+	 * The bInPlaceOutput allows us to directly populate arrays that are already allocated
+	 * bRemoveScaleAndInvertPostTransform will determine if the PostTransform should be inverted and the scale removed (NvCloth uses this).
+	 * It is templated to remove branches at compile time
+	 */
+	template<bool bInPlaceOutput = false, bool bRemoveScaleAndInvertPostTransform = true>
+	UE_DEPRECATED(5.0, "Use non templated version of SkinPhysicsMesh instead.")
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh(
+		const TArray<int32>& BoneMap,
+		const FClothPhysicalMeshData& InMesh,
+		const FTransform& PostTransform,
+		const FMatrix44f* InBoneMatrices,
+		const int32 InNumBoneMatrices,
+		TArray<FVector3f>& OutPositions,
+		TArray<FVector3f>& OutNormals,
+		uint32 ArrayOffset);
+
+	/**
+	* Given mesh information for two meshes, generate a list of skinning data to embed TargetMesh in SourceMesh
+	* 
+	* @param OutMeshToMeshVertData      - Final skinning data
+	* @param TargetMesh                 - Mesh data for the mesh we are embedding
+	* @param SourceMesh                 - Mesh data for the mesh we are embedding into
+	* @param MaxDistances               - Fixed positions mask used to update the vertex contributions, or null if the update is not required
+	* @param bUseSmoothTransitions      - Set blend weight to smoothen transitions between the fixed and deformed vertices when updating the vertex contributions
+	* @param bUseMultipleInfluences     - Whether to take a weighted average of influences from multiple source triangles
+	* @param KernelMaxDistance          - Max distance parameter for weighting kernel for when using multiple influences
+	*/
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API GenerateMeshToMeshVertData(
+		TArray<FMeshToMeshVertData>& OutMeshToMeshVertData,
+		const ClothMeshDesc& TargetMesh,
+		const ClothMeshDesc& SourceMesh,
+		const FPointWeightMap* MaxDistances,
+		bool bUseSmoothTransitions,
+		bool bUseMultipleInfluences,
+		float KernelMaxDistance);
 
 	/**
 	 * Compute the max edge length for each edge coming out of a mesh vertex. Useful for guiding the search radius when
 	 * searching for nearest triangles.
 	 */
-	inline void CLOTHINGSYSTEMRUNTIMECOMMON_API ComputeMaxEdgeLength(const ClothMeshDesc& TargetMesh, 
-																	 TArray<float>& OutMaxEdgeLength)
+	UE_DEPRECATED(5.0, "Superseded by GenerateMeshToMeshVertData.")
+	inline void ComputeMaxEdgeLength(const ClothMeshDesc& TargetMesh, TArray<float>& OutMaxEdgeLength)
 	{
-		const int32 NumMesh0Verts = TargetMesh.Positions.Num();
-
-		// Check we have properly formed triangles
-		ensure(TargetMesh.Indices.Num() % 3 == 0);
-		const int32 NumMesh0Tris = TargetMesh.Indices.Num() / 3;
-
-		OutMaxEdgeLength.Init(0.0f, NumMesh0Verts);
-
-		for (int32 TriangleIdx = 0; TriangleIdx < NumMesh0Tris; ++TriangleIdx)
-		{
-			const uint32* Triangle = &TargetMesh.Indices[TriangleIdx * 3];
-
-			for (int32 Vertex0Idx = 0; Vertex0Idx < 3; ++Vertex0Idx)
-			{
-				const int32 Vertex1Idx = (Vertex0Idx + 1) % 3;
-
-				const FVector& P0 = TargetMesh.Positions[Triangle[Vertex0Idx]];
-				const FVector& P1 = TargetMesh.Positions[Triangle[Vertex1Idx]];
-
-				const float EdgeLength = FVector::Distance(P0, P1);
-				OutMaxEdgeLength[Triangle[Vertex0Idx]] = FMath::Max(OutMaxEdgeLength[Triangle[Vertex0Idx]], EdgeLength);
-				OutMaxEdgeLength[Triangle[Vertex1Idx]] = FMath::Max(OutMaxEdgeLength[Triangle[Vertex1Idx]], EdgeLength);
-			}
-		}
+		TargetMesh.ComputeMaxEdgeLengths();
+		OutMaxEdgeLength = TargetMesh.MaxEdgeLengths;
 	}
 
 	/**
@@ -137,14 +176,21 @@ namespace ClothingMeshUtils
 	* @param bUseMultipleInfluences     - Whether to take a weighted average of influences from multiple source triangles
 	* @param KernelMaxDistance          - Max distance parameter for weighting kernel
 	*/
-	void CLOTHINGSYSTEMRUNTIMECOMMON_API GenerateMeshToMeshSkinningData(
+	UE_DEPRECATED(5.0, "Superseded by GenerateMeshToMeshVertData.")
+	inline void GenerateMeshToMeshSkinningData(
 		TArray<FMeshToMeshVertData>& OutSkinningData,
 		const ClothMeshDesc& TargetMesh,
 		const TArray<FVector3f>* TargetTangents,
 		const ClothMeshDesc& SourceMesh,
 		const TArray<float>& TargetMaxEdgeLength,
 		bool bUseMultipleInfluences,
-		float KernelMaxDistance);
+		float KernelMaxDistance)
+	{
+		const FPointWeightMap* const MaxDistances = nullptr;  // Disables compute vertex contributions
+		constexpr bool bUseSmoothTransitions = false;
+		
+		GenerateMeshToMeshVertData(OutSkinningData, TargetMesh, SourceMesh, MaxDistances, bUseSmoothTransitions, bUseMultipleInfluences, KernelMaxDistance);
+	}
 
 	/** 
 	 * Embeds a list of positions into a source mesh
@@ -153,9 +199,10 @@ namespace ClothingMeshUtils
 	 * @param OutEmbeddedPositions Embedded version of the original positions, a barycentric coordinate and distance along the normal of the triangle
 	 * @param OutSourceIndices Source index list for the embedded positions, 3 per position to denote the source triangle
 	 */
+	UE_DEPRECATED(5.0, "Use FVertexParameterMapper::GenerateEmbeddedPositions instead.")
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API GenerateEmbeddedPositions(
 		const ClothMeshDesc& SourceMesh, 
-		TArrayView<const FVector3f> Positions, 
+		TConstArrayView<FVector3f> Positions, 
 		TArray<FVector4>& OutEmbeddedPositions, 
 		TArray<int32>& OutSourceIndices);
 
@@ -166,18 +213,20 @@ namespace ClothingMeshUtils
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API ComputeVertexContributions(
 		TArray<FMeshToMeshVertData> &InOutSkinningData,
 		const FPointWeightMap* const InMaxDistances,
-		const bool bInSmoothTransition );
-	
+		const bool bInSmoothTransition,
+		const bool bInUseMultipleInfluences = false);
+
 	/**
 	 * Identify vertices that are not influenced by any triangles, and compute a new single attachment for the
 	 * vertex.
 	 */
-	void CLOTHINGSYSTEMRUNTIMECOMMON_API FixZeroWeightVertices(TArray<FMeshToMeshVertData>& InOutSkinningData,
-															   const ClothMeshDesc& TargetMesh,
-															   const TArray<FVector3f>* TargetTangents,
-															   const ClothMeshDesc& SourceMesh,
-															   const TArray<float>& TargetMaxEdgeLength );
-
+	UE_DEPRECATED(5.0, "Superseded by GenerateMeshToMeshVertData.")
+	void CLOTHINGSYSTEMRUNTIMECOMMON_API FixZeroWeightVertices(
+		TArray<FMeshToMeshVertData>& InOutSkinningData,
+		const ClothMeshDesc& TargetMesh,
+		const TArray<FVector3f>* TargetTangents,
+		const ClothMeshDesc& SourceMesh,
+		const TArray<float>& TargetMaxEdgeLength);
 
 	/**
 	* Given a triangle ABC with normals at each vertex NA, NB and NC, get a barycentric coordinate
@@ -228,23 +277,22 @@ namespace ClothingMeshUtils
 		FVertexParameterMapper() = delete;
 		FVertexParameterMapper(const FVertexParameterMapper& Other) = delete;
 
-		FVertexParameterMapper(TArrayView<const FVector3f> InMesh0Positions,
-			TArrayView<const FVector3f> InMesh0Normals,
-			TArrayView<const FVector3f> InMesh1Positions,
-			TArrayView<const FVector3f> InMesh1Normals,
-			TArrayView<const uint32> InMesh1Indices)
+		FVertexParameterMapper(TConstArrayView<FVector3f> InMesh0Positions,
+			TConstArrayView<FVector3f> InMesh0Normals,
+			TConstArrayView<FVector3f> InMesh1Positions,
+			TConstArrayView<FVector3f> InMesh1Normals,
+			TConstArrayView<uint32> InMesh1Indices)
 			: Mesh0Positions(InMesh0Positions)
 			, Mesh0Normals(InMesh0Normals)
 			, Mesh1Positions(InMesh1Positions)
 			, Mesh1Normals(InMesh1Normals)
 			, Mesh1Indices(InMesh1Indices)
 		{
-
 		}
 
 		/** Generic mapping function, can be used to map any type with a provided callable */
 		template<typename T, typename Lambda>
-		void Map(TArrayView<const T>& SourceData, TArray<T>& DestData, const Lambda& Func)
+		void Map(TConstArrayView<T>& SourceData, TArray<T>& DestData, const Lambda& Func)
 		{
 			// Enforce the interp func signature (returns T and takes a bary and 3 Ts)
 			// If you hit this then either the return type isn't T or your arguments aren't convertible to T
@@ -269,11 +317,9 @@ namespace ClothingMeshUtils
 				DestData.AddUninitialized(NumMesh0Positions);
 			}
 
-			ClothMeshDesc SourceMeshDesc(Mesh1Positions, Mesh1Normals, Mesh1Indices);
-
 			TArray<FVector4> EmbeddedPositions;
 			TArray<int32> SourceIndices;
-			ClothingMeshUtils::GenerateEmbeddedPositions(SourceMeshDesc, Mesh0Positions, EmbeddedPositions, SourceIndices);
+			GenerateEmbeddedPositions(EmbeddedPositions, SourceIndices);
 
 			for(int32 DestVertIndex = 0 ; DestVertIndex < NumMesh0Positions ; ++DestVertIndex)
 			{
@@ -305,20 +351,31 @@ namespace ClothingMeshUtils
 				}
 				else
 				{
-					DestData[DestVertIndex] = Func(Bary, A, B, C);
+					DestVal = Func(Bary, A, B, C);
 				}
 			}
 		}
 
-		// Defined type mappings for brevity
-		void Map(TArrayView<const float> Source, TArray<float>& Dest);
+		/**
+		 * Remap float scalar values.
+		 * This transfers the values from source to dest by matching the mesh topologies using
+		 * barycentric coordinates of the dest mesh (Mesh0) positions over the source mesh (Mesh1).
+		 */
+		void Map(TConstArrayView<float> Source, TArray<float>& Dest);
 
 	private:
 
-		TArrayView<const FVector3f> Mesh0Positions;
-		TArrayView<const FVector3f> Mesh0Normals;
-		TArrayView<const FVector3f> Mesh1Positions;
-		TArrayView<const FVector3f> Mesh1Normals;
-		TArrayView<const uint32> Mesh1Indices;
+		/** 
+		 * Embeds a list of positions into a source mesh
+		 * @param OutEmbeddedPositions Embedded version of the original positions, a barycentric coordinate and distance along the normal of the triangle
+		 * @param OutSourceIndices Source index list for the embedded positions, 3 per position to denote the source triangle
+		 */
+		void GenerateEmbeddedPositions(TArray<FVector4>& OutEmbeddedPositions, TArray<int32>& OutSourceIndices);
+
+		TConstArrayView<FVector3f> Mesh0Positions;
+		TConstArrayView<FVector3f> Mesh0Normals;
+		TConstArrayView<FVector3f> Mesh1Positions;
+		TConstArrayView<FVector3f> Mesh1Normals;
+		TConstArrayView<uint32> Mesh1Indices;
 	};
 }

@@ -169,14 +169,16 @@ protected:
 };
 
 /*
-* An Audio Curve Slider widget with default customizable curves for volume (dB). 
+* An Audio Slider widget intended to be used for volume output, with output decibel range but no customizable curves.
 */
 class AUDIOWIDGETS_API SAudioVolumeSlider
-	: public SAudioSlider
+	: public SAudioSliderBase
 {
 public:
 	SAudioVolumeSlider();
-	void Construct(const SAudioSliderBase::FArguments& InDeclaration);
+	void Construct(const SAudioSlider::FArguments& InDeclaration);
+	const float GetOutputValue(const float LinValue);
+	const float GetLinValue(const float OutputValue);
 };
 
 /*

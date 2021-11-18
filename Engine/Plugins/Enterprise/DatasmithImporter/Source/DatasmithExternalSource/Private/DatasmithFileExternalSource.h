@@ -26,6 +26,7 @@ namespace UE::DatasmithImporter
 		virtual FString GetSourceName() const override;
 		virtual bool IsAvailable() const override;
 		virtual bool IsOutOfSync() const override;
+		virtual FMD5Hash GetSourceHash() const override { return CachedHash; }
 		virtual FExternalSourceCapabilities GetCapabilities() const override;
 		virtual TSharedPtr<IDatasmithScene> GetDatasmithScene() const override { return DatasmithScene; }
 		virtual FString GetFallbackFilepath() const override;

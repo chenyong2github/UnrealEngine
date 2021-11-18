@@ -57,14 +57,14 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 		// Tree view
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 		[
 			SAssignNew(FilterConfigurator, SFilterConfigurator, InQuickFindViewModel->GetFilterConfigurator())
 		]
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0.0f, 5.0f, 0.0f, 5.0f)
+		.Padding(4.0f, 4.0f, 4.0f, 4.0f)
 		.HAlign(EHorizontalAlignment::HAlign_Left)
 		.VAlign(EVerticalAlignment::VAlign_Bottom)
 		[
@@ -78,7 +78,7 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("FindFirst", "Find First"))
-				.ToolTipText(LOCTEXT("FindFirstDesc", "Find the first occurence that matches the search criteria."))
+				.ToolTipText(LOCTEXT("FindFirstDesc", "Find First\nSelects the first timing event that matches the search criteria."))
 				.OnClicked(this, &SQuickFind::FindFirst_OnClicked)
 				.Content()
 				[
@@ -95,7 +95,7 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("FindPrev", "Find Previous"))
-				.ToolTipText(LOCTEXT("FindPrevDesc", "Find the previous occurence that matches the search criteria."))
+				.ToolTipText(LOCTEXT("FindPrevDesc", "Find Previous\nSelects the previous timing event that matches the search criteria."))
 				.OnClicked(this, &SQuickFind::FindPrevious_OnClicked)
 				.Content()
 				[
@@ -112,7 +112,7 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("FindNext", "Find Next"))
-				.ToolTipText(LOCTEXT("FindNextDesc", "Find the next occurence that matches the search criteria."))
+				.ToolTipText(LOCTEXT("FindNextDesc", "Find Next\nSelects the next timing event that matches the search criteria."))
 				.OnClicked(this, &SQuickFind::FindNext_OnClicked)
 				.Content()
 				[
@@ -129,7 +129,7 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("FindLast", "Find Last"))
-				.ToolTipText(LOCTEXT("FindLastDesc", "Find the last occurence that matches the search criteria."))
+				.ToolTipText(LOCTEXT("FindLastDesc", "Find Last\nSelects the last timing event that matches the search criteria."))
 				.OnClicked(this, &SQuickFind::FindLast_OnClicked)
 				.Content()
 				[
@@ -145,8 +145,8 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 			.Padding(1.0f)
 			[
 				SNew(SButton)
-				.Text(LOCTEXT("FilterAll", "Filter All"))
-				.ToolTipText(LOCTEXT("FilterAllDesc", "Filter all the tracks using the the search criteria."))
+				.Text(LOCTEXT("FilterAll", "Apply Filter"))
+				.ToolTipText(LOCTEXT("FilterAllDesc", "Apply Filter\nApplies the current filter to all tracks.\nIt highlights timing events that matches the filter."))
 				.OnClicked(this, &SQuickFind::FilterAll_OnClicked)
 				.Content()
 				[
@@ -163,7 +163,7 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("ClearFilters", "Clear Filters"))
-				.ToolTipText(LOCTEXT("ClearFiltersDesc", "Clear all filters applied to the tracks."))
+				.ToolTipText(LOCTEXT("ClearFiltersDesc", "Clear Filters\nClears all filters (used to highlight timing events) applied to the tracks."))
 				.OnClicked(this, &SQuickFind::ClearFilters_OnClicked)
 				.Content()
 				[

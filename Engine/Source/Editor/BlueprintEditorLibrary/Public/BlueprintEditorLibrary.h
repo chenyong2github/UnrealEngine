@@ -153,4 +153,13 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
 	static int32 RemoveUnusedVariables(UBlueprint* Blueprint);
+
+	/**
+	 * Gets the class generated when this blueprint is compiled
+	 *
+	 * @param BlueprintObj		The blueprint object
+	 * @return UClass*			The generated class
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting", meta = (ScriptMethod))
+	static UClass* GeneratedClass(UBlueprint* BlueprintObj);
 };

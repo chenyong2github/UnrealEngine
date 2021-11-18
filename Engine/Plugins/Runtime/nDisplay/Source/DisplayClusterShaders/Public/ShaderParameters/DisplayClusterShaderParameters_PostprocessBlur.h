@@ -22,7 +22,7 @@ enum class EDisplayClusterShaderParameters_PostprocessBlur : uint8
 struct FDisplayClusterShaderParameters_PostprocessBlur
 {
 	EDisplayClusterShaderParameters_PostprocessBlur Mode = EDisplayClusterShaderParameters_PostprocessBlur::None;
-	int   KernelRadius = 1;
+	int32   KernelRadius = 1;
 	float KernelScale = 1;
 
 public:

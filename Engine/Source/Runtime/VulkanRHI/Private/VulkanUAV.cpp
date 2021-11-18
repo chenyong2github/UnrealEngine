@@ -374,6 +374,13 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(const F
 			uint32 Size = FMath::Min(Buffer->GetSize() - Desc.StartOffsetBytes, Desc.NumElements * Stride);
 			return new FVulkanShaderResourceView(Device, Desc.Buffer, Buffer, Size, Format, Desc.StartOffsetBytes);
 		}
+#if VULKAN_RHI_RAYTRACING
+		case FShaderResourceViewInitializer::EType::AccelerationStructureSRV:
+		{
+			checkNoEntry(); // TODO
+			return nullptr;
+		}
+#endif // D3D12_RHI_RAYTRACING
 	}
 	checkNoEntry();
 	return nullptr;
@@ -393,6 +400,13 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FRHIBuf
 		FVulkanShaderResourceView* SRV = new FVulkanShaderResourceView(Device, Buffer);
 		return SRV;
 	}
+#if VULKAN_RHI_RAYTRACING
+	else if (BufferRHI && EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_AccelerationStructure))
+	{
+		FVulkanAccelerationStructureBuffer* Buffer = static_cast<FVulkanAccelerationStructureBuffer*>(BufferRHI);
+		return nullptr; // TODO
+	}
+#endif
 	else
 	{
 		if (!BufferRHI)

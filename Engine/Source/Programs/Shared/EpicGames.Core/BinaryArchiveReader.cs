@@ -6,8 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 
-#nullable disable
-
 namespace EpicGames.Core
 {
 	/// <summary>
@@ -19,12 +17,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The input stream.
 		/// </summary>
-		Stream Stream;
+		Stream? Stream;
 
 		/// <summary>
 		/// The input buffer
 		/// </summary>
-		byte[] Buffer;
+		byte[]? Buffer;
 
 		/// <summary>
 		/// Current position within the buffer
@@ -34,7 +32,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// List of previously serialized objects
 		/// </summary>
-		readonly List<object> Objects = new List<object>();
+		readonly List<object?> Objects = new List<object?>();
 
 		/// <summary>
 		/// Constructor
@@ -93,7 +91,7 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public byte ReadByte()
 		{
-			byte Value = Buffer[BufferPos];
+			byte Value = Buffer![BufferPos];
 			BufferPos++;
 			return Value;
 		}
@@ -122,7 +120,7 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public ushort ReadUnsignedShort()
 		{
-			ushort Value = (ushort)(Buffer[BufferPos + 0] | (Buffer[BufferPos + 1] << 8));
+			ushort Value = (ushort)(Buffer![BufferPos + 0] | (Buffer[BufferPos + 1] << 8));
 			BufferPos += 2;
 			return Value;
 		}
@@ -142,7 +140,7 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public uint ReadUnsignedInt()
 		{
-			uint Value = (uint)(Buffer[BufferPos + 0] | (Buffer[BufferPos + 1] << 8) | (Buffer[BufferPos + 2] << 16) | (Buffer[BufferPos + 3] << 24));
+			uint Value = (uint)(Buffer![BufferPos + 0] | (Buffer[BufferPos + 1] << 8) | (Buffer[BufferPos + 2] << 16) | (Buffer[BufferPos + 3] << 24));
 			BufferPos += 4;
 			return Value;
 		}
@@ -180,9 +178,9 @@ namespace EpicGames.Core
 		/// Reads a string from the stream
 		/// </summary>
 		/// <returns>The value that was read</returns>
-		public string ReadString()
+		public string? ReadString()
 		{
-			byte[] Bytes = ReadByteArray();
+			byte[]? Bytes = ReadByteArray();
 			if (Bytes == null)
 			{
 				return null;
@@ -197,7 +195,7 @@ namespace EpicGames.Core
 		/// Reads a byte array from the stream
 		/// </summary>
 		/// <returns>The data that was read</returns>
-		public byte[] ReadByteArray()
+		public byte[]? ReadByteArray()
 		{
 			return ReadPrimitiveArray<byte>(sizeof(byte));
 		}
@@ -206,7 +204,7 @@ namespace EpicGames.Core
 		/// Reads a short array from the stream
 		/// </summary>
 		/// <returns>The data that was read</returns>
-		public short[] ReadShortArray()
+		public short[]? ReadShortArray()
 		{
 			return ReadPrimitiveArray<short>(sizeof(short));
 		}
@@ -215,7 +213,7 @@ namespace EpicGames.Core
 		/// Reads an int array from the stream
 		/// </summary>
 		/// <returns>The data that was read</returns>
-		public int[] ReadIntArray()
+		public int[]? ReadIntArray()
 		{
 			return ReadPrimitiveArray<int>(sizeof(int));
 		}
@@ -225,7 +223,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="ElementSize">Size of a single element</param>
 		/// <returns>The data that was read</returns>
-		private T[] ReadPrimitiveArray<T>(int ElementSize) where T : struct
+		private T[]? ReadPrimitiveArray<T>(int ElementSize) where T : struct
 		{
 			int Length = ReadInt();
 			if (Length < 0)
@@ -290,7 +288,7 @@ namespace EpicGames.Core
 		/// <param name="Size">Size of data to read</param>
 		private void ReadBulkData(Array Data, int Size)
 		{
-			System.Buffer.BlockCopy(Buffer, BufferPos, Data, 0, Size);
+			System.Buffer.BlockCopy(Buffer!, BufferPos, Data, 0, Size);
 			BufferPos += Size;
 		}
 
@@ -299,7 +297,7 @@ namespace EpicGames.Core
 		/// Reads an array of items
 		/// </summary>
 		/// <returns>New array</returns>
-		public T[] ReadArray<T>(Func<T> ReadElement)
+		public T[]? ReadArray<T>(Func<T> ReadElement)
 		{
 			int Count = ReadInt();
 			if (Count < 0)
@@ -323,7 +321,7 @@ namespace EpicGames.Core
 		/// <typeparam name="T">The element type for the list</typeparam>
 		/// <param name="ReadElement">Delegate used to read a single element</param>
 		/// <returns>List of items</returns>
-		public List<T> ReadList<T>(Func<T> ReadElement)
+		public List<T>? ReadList<T>(Func<T> ReadElement)
 		{
 			int Count = ReadInt();
 			if (Count < 0)
@@ -347,7 +345,7 @@ namespace EpicGames.Core
 		/// <typeparam name="T">The element type for the set</typeparam>
 		/// <param name="ReadElement">Delegate used to read a single element</param>
 		/// <returns>Set of items</returns>
-		public HashSet<T> ReadHashSet<T>(Func<T> ReadElement)
+		public HashSet<T>? ReadHashSet<T>(Func<T> ReadElement)
 		{
 			int Count = ReadInt();
 			if (Count < 0)
@@ -372,7 +370,7 @@ namespace EpicGames.Core
 		/// <param name="ReadElement">Delegate used to read a single element</param>
 		/// <param name="Comparer">Comparison function for the set</param>
 		/// <returns>Set of items</returns>
-		public HashSet<T> ReadHashSet<T>(Func<T> ReadElement, IEqualityComparer<T> Comparer)
+		public HashSet<T>? ReadHashSet<T>(Func<T> ReadElement, IEqualityComparer<T> Comparer)
 		{
 			int Count = ReadInt();
 			if (Count < 0)
@@ -398,7 +396,7 @@ namespace EpicGames.Core
 		/// <param name="ReadKey">Delegate used to read a single key</param>
 		/// <param name="ReadValue">Delegate used to read a single value</param>
 		/// <returns>New dictionary instance</returns>
-		public Dictionary<K, V> ReadDictionary<K, V>(Func<K> ReadKey, Func<V> ReadValue)
+		public Dictionary<K, V>? ReadDictionary<K, V>(Func<K> ReadKey, Func<V> ReadValue) where K : notnull
 		{
 			int Count = ReadInt();
 			if (Count < 0)
@@ -425,7 +423,7 @@ namespace EpicGames.Core
 		/// <param name="ReadValue">Delegate used to read a single value</param>
 		/// <param name="Comparer">Comparison function for keys in the dictionary</param>
 		/// <returns>New dictionary instance</returns>
-		public Dictionary<K, V> ReadDictionary<K, V>(Func<K> ReadKey, Func<V> ReadValue, IEqualityComparer<K> Comparer)
+		public Dictionary<K, V>? ReadDictionary<K, V>(Func<K> ReadKey, Func<V> ReadValue, IEqualityComparer<K> Comparer) where K : notnull
 		{
 			int Count = ReadInt();
 			if (Count < 0)
@@ -466,7 +464,7 @@ namespace EpicGames.Core
 		/// <typeparam name="T">Type of the object to read</typeparam>
 		/// <param name="Read">Delegate used to read the object</param>
 		/// <returns>The object instance</returns>
-		public T ReadOptionalObject<T>(Func<T> Read) where T : class
+		public T? ReadOptionalObject<T>(Func<T> Read) where T : class
 		{
 			if (ReadBool())
 			{
@@ -487,7 +485,7 @@ namespace EpicGames.Core
 		/// <param name="CreateObject">Delegate used to create an object instance</param>
 		/// <param name="ReadObject">Delegate used to read an object instance</param>
 		/// <returns>Object instance</returns>
-		public T ReadObjectReference<T>(Func<T> CreateObject, Action<T> ReadObject) where T : class
+		public T? ReadObjectReference<T>(Func<T> CreateObject, Action<T> ReadObject) where T : class
 		{
 			int Index = ReadInt();
 			if (Index < 0)
@@ -502,7 +500,7 @@ namespace EpicGames.Core
 					Objects.Add(Object);
 					ReadObject(Object);
 				}
-				return (T)Objects[Index];
+				return (T?)Objects[Index];
 			}
 		}
 
@@ -513,7 +511,7 @@ namespace EpicGames.Core
 		/// <typeparam name="T">Type of the object to read.</typeparam>
 		/// <param name="ReadObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
 		/// <returns>Object instance</returns>
-		public T ReadObjectReference<T>(Func<T> ReadObject) where T : class
+		public object? ReadUntypedObjectReference(Func<object?> ReadObject)
 		{
 			int Index = ReadInt();
 			if (Index < 0)
@@ -532,9 +530,18 @@ namespace EpicGames.Core
 				{
 					throw new InvalidOperationException("Attempt to serialize reference to object recursively.");
 				}
-				return (T)Objects[Index];
+				return Objects[Index];
 			}
 		}
+
+		/// <summary>
+		/// Reads an object reference from the stream. Each object will only be serialized once using the supplied delegate; subsequent reads reference the original.
+		/// Since the reader only receives the object reference when the CreateObject delegate returns, it is not possible for the object to serialize a reference to itself.
+		/// </summary>
+		/// <typeparam name="T">Type of the object to read.</typeparam>
+		/// <param name="ReadObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
+		/// <returns>Object instance</returns>
+		public T? ReadObjectReference<T>(Func<T> ReadObject) where T : class => (T?)ReadUntypedObjectReference(ReadObject);
 
 		/// <summary>
 		/// Helper method for validating that deserialized objects are not null
@@ -543,7 +550,7 @@ namespace EpicGames.Core
 		/// <param name="Param">The object instance</param>
 		/// <returns>The object instance</returns>
 		[return: NotNull]
-		public static T NotNull<T>(T Param) where T : class
+		public static T NotNull<T>(T? Param) where T : class
 		{
 			if (Param == null)
 			{

@@ -86,7 +86,7 @@ FReply SConsoleVariablesEditorMainPanel::HandleConsoleInputTextCommitted(const F
 		}
 		else
 		{
-			UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("hs: Input %s is not a recognized console command."), __FUNCTION__, *CommandString);
+			UE_LOG(LogConsoleVariablesEditor, Warning, TEXT("%hs: Input %s is not a recognized console command."), __FUNCTION__, *CommandString);
 		}
 
 		ConsoleInputEditableTextBox->SetText(FText::GetEmpty());
@@ -106,8 +106,8 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const
 				
 				// Add Console Variable input
 				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Left)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
 				.Padding(2.f, 2.f)
 				[
 					InConsoleInputWidget
@@ -143,13 +143,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const
 						.Padding(0, 1, 0, 0)
 						[
 							SNew(STextBlock)
-							.Text_Lambda([this] ()
-							{
-								return MainPanel.Pin()->GetReferenceAssetOnDisk().IsValid() ? 
-									FText::Format(
-										LoadedPresetFormatText, 
-										FText::FromName(MainPanel.Pin()->GetReferenceAssetOnDisk()->GetFName())) : NoLoadedPresetText;
-							})
+							.Text(LOCTEXT("PresetsToolbarButton", "Presets"))
 						]
 					]
 				]
@@ -162,6 +156,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const
 					SNew(SBox)
 					.WidthOverride(28)
 					.HeightOverride(28)
+					.Visibility(EVisibility::Collapsed)
 					[
 						SAssignNew(SettingsButtonPtr, SCheckBox)
 						.Padding(FMargin(4.f))
@@ -190,6 +185,18 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
 
 	IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
 
+	const FText LoadedPresetName = MainPanel.Pin()->GetReferenceAssetOnDisk().IsValid() ?
+		FText::Format(LoadedPresetFormatText, FText::FromString(MainPanel.Pin()->GetReferenceAssetOnDisk()->GetName())) : NoLoadedPresetText;
+
+	MenuBuilder.AddMenuEntry(
+		LoadedPresetName,
+		LoadedPresetName,
+		FSlateIcon(),
+		FUIAction()
+	);
+
+	MenuBuilder.AddMenuSeparator();
+	
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("SavePreset_Text", "Save Preset"),
 		LOCTEXT("SavePreset_Tooltip", "Save the current preset if one has been loaded. Otherwise, the Save As dialog will be opened."),

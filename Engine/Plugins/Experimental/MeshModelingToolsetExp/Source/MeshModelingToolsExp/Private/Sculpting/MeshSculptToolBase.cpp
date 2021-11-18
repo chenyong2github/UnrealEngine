@@ -287,14 +287,13 @@ void UMeshSculptToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 
-void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponent* Component)
+void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponent* Component, AActor* Actor)
 {
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Component, nullptr);
 
 	// disable shadows initially, as changing shadow settings invalidates the SceneProxy
 	Component->SetShadowsEnabled(false);
-
-	Component->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
+	Component->SetupAttachment(Actor->GetRootComponent());
 	Component->RegisterComponent();
 
 	// initialize from LOD-0 MeshDescription

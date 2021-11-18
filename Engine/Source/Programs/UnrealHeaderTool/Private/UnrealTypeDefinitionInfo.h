@@ -537,17 +537,21 @@ public:
 		Throwf(TEXT("Meta data can not be set for a definition of this type."));
 	}
 
+	// @todo: BP2CPP_remove
 	/**
 	 * Helper function that checks if the field is a dynamic type
 	 */
+	UE_DEPRECATED(5.0, "This method is no longer in use.")
 	virtual bool IsDynamic() const
 	{
 		return false;
 	}
 
+	// @todo: BP2CPP_remove
 	/**
 	 * Helper function that checks if the field is belongs to a dynamic type
 	 */
+	UE_DEPRECATED(5.0, "This method is no longer in use.")
 	virtual bool IsOwnedByDynamicType() const
 	{
 		return false;
@@ -1186,16 +1190,6 @@ public:
 	}
 
 	/**
-	 * Helper function that checks if the field is a dynamic type
-	 */
-	virtual bool IsDynamic() const override;
-
-	/**
-	 * Helper function that checks if the field is belongs to a dynamic type
-	 */
-	virtual bool IsOwnedByDynamicType() const override;
-
-	/**
 	 * Return the replication notification function name
 	 */
 	FName GetRepNotifyFunc() const
@@ -1756,16 +1750,6 @@ public:
 	{
 		return TypePackageName;
 	}
-
-	/**
-	 * Helper function that checks if the field is a dynamic type
-	 */
-	virtual bool IsDynamic() const override;
-
-	/**
-	 * Helper function that checks if the field is belongs to a dynamic type
-	 */
-	virtual bool IsOwnedByDynamicType() const override;
 
 	/**
 	 * Return the owning class

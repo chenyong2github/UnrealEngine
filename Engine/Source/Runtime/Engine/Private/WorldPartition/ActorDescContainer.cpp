@@ -186,8 +186,8 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 
 					OnActorDescUpdating(ExistingActorDesc->Get());
 
-					// Transfer any reference count from external sources
-					NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
+					// Transfer any internal values not coming from the actor
+					NewActorDesc->TransferFrom(ExistingActorDesc->Get());
 
 					*ExistingActorDesc = MoveTemp(NewActorDesc);
 

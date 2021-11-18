@@ -144,7 +144,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, PassDebugOutput)
 
-		SHADER_PARAMETER(FVector2D, BufferUVToOutputPixelPosition)
+		SHADER_PARAMETER(FVector2f, BufferUVToOutputPixelPosition)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
 		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, CompressedMetadata, [2])
 
@@ -279,7 +279,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 
 		// Distance field AO parameters.
 		// TODO. FDFAOUpsampleParameters
-		SHADER_PARAMETER(FVector2D, AOBufferBilinearUVMax)
+		SHADER_PARAMETER(FVector2f, AOBufferBilinearUVMax)
 		SHADER_PARAMETER(float, DistanceFadeScale)
 		SHADER_PARAMETER(float, AOMaxViewDistance)
 
@@ -1196,7 +1196,7 @@ static void AddSkyReflectionPass(
 		// Setups all shader parameters related to distance field AO
 		{
 			FIntPoint AOBufferSize = GetBufferSizeForAO();
-			PassParameters->PS.AOBufferBilinearUVMax = FVector2D(
+			PassParameters->PS.AOBufferBilinearUVMax = FVector2f(
 				(View.ViewRect.Width() / GAODownsampleFactor - 0.51f) / AOBufferSize.X, // 0.51 - so bilateral gather4 won't sample invalid texels
 				(View.ViewRect.Height() / GAODownsampleFactor - 0.51f) / AOBufferSize.Y);
 

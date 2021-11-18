@@ -1234,6 +1234,12 @@ extern ENGINE_API void FinishRecompileGlobalShaders();
 /** Called by the shader compiler to process completed global shader jobs. */
 extern ENGINE_API void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& CompilationResults);
 
+/** Serializes a global shader map to an archive (used with recompiling shaders for a remote console) */
+extern ENGINE_API void SaveGlobalShadersForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform);
+
+/** Serializes a global shader map to an archive (used with recompiling shaders for a remote console) */
+extern ENGINE_API void LoadGlobalShadersForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform);
+
 /**
 * Saves the global shader map as a file for the target platform.
 * @return the name of the file written
@@ -1273,6 +1279,16 @@ struct FODSCRequestPayload
 	ENGINE_API friend FArchive& operator<<(FArchive& Ar, FODSCRequestPayload& Elem);
 };
 
+enum class ODSCRecompileCommand
+{
+	None,
+	Changed,
+	Global,
+	Material
+};
+
+#if WITH_EDITOR
+
 /**
 * Recompiles global shaders
 *
@@ -1290,8 +1306,11 @@ extern ENGINE_API void RecompileShadersForRemote(
 	const TArray<FString>& MaterialsToLoad,
 	const TArray<FODSCRequestPayload>& ShadersToRecompile,
 	TArray<uint8>* MeshMaterialMaps,
+	TArray<uint8>* GlobalShaderMap,
 	TArray<FString>* ModifiedFiles,
-	bool bCompileChangedShaders = true);
+	ODSCRecompileCommand RecompileCommandType = ODSCRecompileCommand::Changed);
+
+#endif // WITH_EDITOR
 
 extern ENGINE_API void CompileGlobalShaderMap(bool bRefreshShaderMap=false);
 extern ENGINE_API void CompileGlobalShaderMap(ERHIFeatureLevel::Type InFeatureLevel, bool bRefreshShaderMap=false);
@@ -1303,9 +1322,10 @@ extern ENGINE_API FString GetGlobalShaderMapDDCKey();
 extern ENGINE_API FString GetMaterialShaderMapDDCKey();
 
 /**
-* Handles serializing in MeshMaterialMaps from a CookOnTheFly command and applying them to the in-memory shadermaps.
+* Handles serializing in MeshMaterialMaps or GlobalShaderMap from a CookOnTheFly command and applying them to the in-memory shadermaps.
 *
-* @param MeshMaterialMaps				Byte array that contains the serialized shadermap from across the network.
+* @param MeshMaterialMaps				Byte array that contains the serialized material shadermap from across the network.
 * @param MaterialsToLoad				The materials contained in the MeshMaterialMaps
+* @param GlobalShaderMap				Byte array that contains the serialized global shadermap from across the network.
 **/
-extern ENGINE_API void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& MeshMaterialMaps, const TArray<FString>& MaterialsToLoad);
+extern ENGINE_API void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& MeshMaterialMaps, const TArray<FString>& MaterialsToLoad, const TArray<uint8>& GlobalShaderMap);

@@ -25,7 +25,6 @@
 #include "LevelEditorGenericDetails.h"
 #include "ScopedTransaction.h"
 #include "SourceCodeNavigation.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "Subsystems/PanelExtensionSubsystem.h"
 #include "DetailsViewObjectFilter.h"
 #include "IDetailRootObjectCustomization.h"
@@ -43,60 +42,10 @@
 #include "Styling/SlateIconFinder.h"
 #include "UObject/Class.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "Viewports/InViewportUIDragOperation.h"
 
 #define LOCTEXT_NAMESPACE "InViewportDetails"
-void FInViewportUIDragOperation::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
-{
-	check(CursorDecoratorWindow.IsValid());
 
-	// Destroy the CursorDecoratorWindow by calling the base class implementation because we are relocating the content into a more permanent home.
-	FDragDropOperation::OnDrop(bDropWasHandled, MouseEvent);
-
-	UIBeingDragged.Reset();
-}
-
-void FInViewportUIDragOperation::OnDragged(const FDragDropEvent& DragDropEvent)
-{
-	// The tab is being dragged. Move the the decorator window to match the cursor position.
-	FVector2D TargetPosition = DragDropEvent.GetScreenSpacePosition() - GetDecoratorOffsetFromCursor();
-	CursorDecoratorWindow->UpdateMorphTargetShape(FSlateRect(TargetPosition.X, TargetPosition.Y, TargetPosition.X + LastContentSize.X, TargetPosition.Y + LastContentSize.Y));
-	CursorDecoratorWindow->MoveWindowTo(TargetPosition);
-}
-
-TSharedRef<FInViewportUIDragOperation> FInViewportUIDragOperation::New(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InDecoratorOffset, const FVector2D& OwnerAreaSize)
-{
-	const TSharedRef<FInViewportUIDragOperation> Operation = MakeShareable(new FInViewportUIDragOperation(InUIToBeDragged, InDecoratorOffset, OwnerAreaSize));
-	return Operation;
-}
-
-FInViewportUIDragOperation::~FInViewportUIDragOperation()
-{
-
-}
-
-FInViewportUIDragOperation::FInViewportUIDragOperation(const TSharedRef<class SInViewportDetails>& InUIToBeDragged, const FVector2D InDecoratorOffset, const FVector2D& OwnerAreaSize)
-	: UIBeingDragged(InUIToBeDragged)
-	, DecoratorOffsetFromCursor(InDecoratorOffset)
-	, LastContentSize(OwnerAreaSize)
-{
-	// Create the decorator window that we will use during this drag and drop to make the user feel like
-	// they are actually dragging a piece of UI.
-
-	// Start the window off hidden.
-	const bool bShowImmediately = true;
-	CursorDecoratorWindow = FSlateApplication::Get().AddWindow(SWindow::MakeStyledCursorDecorator(FAppStyle::Get().GetWidgetStyle<FWindowStyle>("InViewportDecoratorWindow")), bShowImmediately);
-	CursorDecoratorWindow->SetOpacity(0.45f);
-	CursorDecoratorWindow->SetContent
-	(
-		InUIToBeDragged
-	);
-
-}
-
-const FVector2D FInViewportUIDragOperation::GetDecoratorOffsetFromCursor()
-{
-	return DecoratorOffsetFromCursor;
-}
 
 class SInViewportDetailsRow : public STableRow< TSharedPtr<IDetailTreeNode> >
 {
@@ -457,18 +406,29 @@ TSharedRef<ITableRow> SInViewportDetails::GenerateListRow(TSharedPtr<IDetailTree
 
 FReply SInViewportDetails::StartDraggingDetails(FVector2D InTabGrabScreenSpaceOffset, const FPointerEvent& MouseEvent)
 {
+	FOnInViewportUIDropped OnUIDropped = FOnInViewportUIDropped::CreateSP(this, &SInViewportDetails::FinishDraggingDetails);
 	// Start dragging.
 	TSharedRef<FInViewportUIDragOperation> DragDropOperation =
 		FInViewportUIDragOperation::New(
 			SharedThis(this),
 			InTabGrabScreenSpaceOffset,
-			GetDesiredSize()
+			GetDesiredSize(),
+			OnUIDropped
 		);
 	if (OwningViewport.IsValid())
 	{
 		OwningViewport.Pin()->ToggleInViewportContextMenu();
 	}
 	return FReply::Handled().BeginDragDrop(DragDropOperation);
+}
+
+void SInViewportDetails::FinishDraggingDetails(const FVector2D InLocation)
+{
+	if (OwningViewport.IsValid())
+	{
+		OwningViewport.Pin()->UpdateInViewportMenuLocation(InLocation);
+		OwningViewport.Pin()->ToggleInViewportContextMenu();
+	}
 }
 
 void SInViewportDetailsHeader::Construct(const FArguments& InArgs)

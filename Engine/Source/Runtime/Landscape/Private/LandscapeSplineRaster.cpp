@@ -432,6 +432,8 @@ void RasterizeControlPointAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& Ma
 
 void RasterizeSegmentHeight(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, const TArray<FLandscapeSplineInterpPoint>& Points, bool bRaiseTerrain, bool bLowerTerrain, TSet<ULandscapeComponent*>& ModifiedComponents)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeSpline_RasterizeSegmentHeight);
+
 	RasterizeHeight(MinX, MinY, MaxX, MaxY, LandscapeEdit, bRaiseTerrain, bLowerTerrain, ModifiedComponents, [&](FTriangleRasterizer<FLandscapeSplineHeightsRasterPolicy>& Rasterizer)
 	{
 		for (int32 j = 1; j < Points.Num(); j++)
@@ -470,6 +472,8 @@ void RasterizeSegmentHeight(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, 
 
 void RasterizeSegmentAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, FLandscapeEditDataInterface& LandscapeEdit, const TArray<FLandscapeSplineInterpPoint>& Points, ULandscapeLayerInfoObject* LayerInfo, TSet<ULandscapeComponent*>& ModifiedComponents, const TSharedPtr<FModulateAlpha>& ModulateAlpha = nullptr)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeSpline_RasterizeSegmentAlpha);
+
 	if (LayerInfo == nullptr)
 	{
 		return;
@@ -550,6 +554,8 @@ void RasterizeSegmentAlpha(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY, F
 
 bool ULandscapeInfo::ApplySplines(bool bOnlySelected, TSet<TObjectPtr<ULandscapeComponent>>* OutModifiedComponents, bool bMarkPackageDirty)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeInfo_ApplySplines);
+
 	bool bResult = false;
 
 	ALandscape* Landscape = LandscapeActor.Get();
@@ -587,6 +593,8 @@ bool ULandscapeInfo::ApplySplines(bool bOnlySelected, TSet<TObjectPtr<ULandscape
 
 bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, TScriptInterface<ILandscapeSplineInterface> SplineOwner, TSet<TObjectPtr<ULandscapeComponent>>* OutModifiedComponents, bool bMarkPackageDirty, int32 LandscapeMinX, int32 LandscapeMinY, int32 LandscapeMaxX, int32 LandscapeMaxY, TFunctionRef<TSharedPtr<FModulateAlpha>(ULandscapeLayerInfoObject*)> GetOrCreateModulate)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeInfo_ApplySplinesInternal);
+
 	if (!SplineOwner)
 	{
 		return false;

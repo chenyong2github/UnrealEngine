@@ -336,10 +336,10 @@ void FPersonaToolkit::SetPreviewMesh(class USkeletalMesh* InSkeletalMesh, bool b
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AssetToReopen);
 			return;
 		}
-
-		// if it's here, it allows to replace 
-		GetPreviewScene()->SetPreviewMesh(InSkeletalMesh, false);
 	}
+
+	// if it's here, it allows to replace 
+	GetPreviewScene()->SetPreviewMesh(InSkeletalMesh, false);
 }
 
 void FPersonaToolkit::SetPreviewAnimationBlueprint(UAnimBlueprint* InAnimBlueprint)

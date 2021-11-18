@@ -317,7 +317,7 @@ namespace Chaos
 		if (Utilities::NormalizeSafe(Axis, KINDA_SMALL_NUMBER))
 		{
 			FReal SwingTwistDot = FVec3::DotProduct(Swing0, Twist1);
-			Angle = FMath::Asin(FMath::Clamp<FReal>(-SwingTwistDot, -1., 1.));
+			Angle = FMath::Asin(FMath::Clamp(-SwingTwistDot, FReal(-1), FReal(1)));
 		}
 	}
 

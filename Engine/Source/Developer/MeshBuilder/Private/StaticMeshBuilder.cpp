@@ -202,7 +202,7 @@ static bool BuildNaniteFromHiResSourceModel(
 	BuildVertexBuffer(StaticMesh, HiResMeshDescription, HiResBuildSettings, WedgeMap, HiResStaticMeshLOD.Sections, PerSectionIndices, InputMeshData.Vertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
 	WedgeMap.Empty();
 
-	const uint32 NumTextureCoord = HiResMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate).GetNumChannels();
+	const uint32 NumTextureCoord = HiResMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate).GetNumChannels();
 
 	// Only the render data and vertex buffers will be used from now on, so we can discard Render MeshDescription
 	HiResMeshDescription.Empty();
@@ -488,7 +488,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		//Build the vertex and index buffer
 		BuildVertexBuffer(StaticMesh, MeshDescriptions[LodIndex], LODBuildSettings, WedgeMap, StaticMeshLOD.Sections, PerSectionIndices, StaticMeshBuildVertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
 
-		const uint32 NumTextureCoord = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
+		const uint32 NumTextureCoord = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2f>( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
 
 		// Only the render data and vertex buffers will be used from now on unless we have more than one source models
 		// This will help with memory usage for Nanite Mesh by releasing memory before doing the build
@@ -761,7 +761,7 @@ void BuildVertexBuffer(
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	const bool bHasColors = VertexInstanceColors.IsValid();
 	const bool bIgnoreTangents = StaticMesh->NaniteSettings.bEnabled;
@@ -842,10 +842,10 @@ void BuildVertexBuffer(
 			}
 			else
 			{
-				StaticMeshVertex.TangentX = ScaleMatrix.TransformVector(VertexInstanceTangent).GetSafeNormal();
-				StaticMeshVertex.TangentY = ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent) * VertexInstanceBinormalSign).GetSafeNormal();
+				StaticMeshVertex.TangentX = (FVector4f)ScaleMatrix.TransformVector(VertexInstanceTangent).GetSafeNormal();
+				StaticMeshVertex.TangentY = (FVector4f)ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent) * VertexInstanceBinormalSign).GetSafeNormal();
 			}
-			StaticMeshVertex.TangentZ = ScaleMatrix.TransformVector(VertexInstanceNormal).GetSafeNormal();
+			StaticMeshVertex.TangentZ = (FVector4f)ScaleMatrix.TransformVector(VertexInstanceNormal).GetSafeNormal();
 				
 			if (bHasColors)
 			{
@@ -867,7 +867,7 @@ void BuildVertexBuffer(
 				}
 				else
 				{
-					StaticMeshVertex.UVs[UVIndex] = FVector2D(0.0f, 0.0f);
+					StaticMeshVertex.UVs[UVIndex] = FVector2f(0.0f, 0.0f);
 				}
 			}
 					

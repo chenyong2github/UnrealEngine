@@ -967,7 +967,10 @@ const TCHAR* FWindowsPlatformProcess::BaseDir()
 		if (BaseArg.Len())
 		{
 			BaseArg = BaseArg.Replace(TEXT("\\"), TEXT("/"));
-			BaseArg += TEXT('/');
+			if (!BaseArg.EndsWith(TEXT("/")))
+			{
+				BaseArg += TEXT('/');
+			}
 			FCString::Strcpy(Result, *BaseArg);
 		}
 		else if (FCString::Stristr(::GetCommandLineW(), TEXT("-BaseFromWorkingDir")))
@@ -976,7 +979,10 @@ const TCHAR* FWindowsPlatformProcess::BaseDir()
 
 			FString TempResult(Result);
 			TempResult = TempResult.Replace(TEXT("\\"), TEXT("/"));
-			TempResult += TEXT('/');
+			if (!TempResult.EndsWith(TEXT("/")))
+			{
+				TempResult += TEXT('/');
+			}
 			FCString::Strcpy(Result, *TempResult);
 		}
 		else

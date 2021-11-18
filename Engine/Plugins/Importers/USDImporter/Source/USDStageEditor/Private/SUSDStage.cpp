@@ -23,6 +23,7 @@
 #include "UsdWrappers/UsdStage.h"
 
 #include "ActorTreeItem.h"
+#include "Async/Async.h"
 #include "Dialogs/DlgPickPath.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
@@ -33,6 +34,7 @@
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Layout/SSplitter.h"
 
 #define LOCTEXT_NAMESPACE "SUsdStage"
@@ -204,22 +206,28 @@ void SUsdStage::SetupStageActorDelegates()
 		OnPrimChangedHandle = ViewModel.UsdStageActor->OnPrimChanged.AddLambda(
 			[ this ]( const FString& PrimPath, bool bResync )
 			{
-				if ( this->UsdStageTreeView )
+				// The USD notices may come from a background USD TBB thread, but we should only update slate from the main/slate threads.
+				// We can't retrieve the FSlateApplication singleton here (because that can also only be used from the main/slate threads),
+				// so we must use Async or core tickers here
+				AsyncTask( ENamedThreads::GameThread, [this, PrimPath, bResync]()
 				{
-					this->UsdStageTreeView->RefreshPrim( PrimPath, bResync );
-					UsdStageTreeView->RequestTreeRefresh();
-				}
+					if ( this->UsdStageTreeView )
+					{
+						this->UsdStageTreeView->RefreshPrim( PrimPath, bResync );
+						this->UsdStageTreeView->RequestTreeRefresh();
+					}
 
-				const bool bViewingTheUpdatedPrim = SelectedPrimPath.Equals( PrimPath, ESearchCase::IgnoreCase );
-				const bool bViewingStageProperties = SelectedPrimPath.IsEmpty() || SelectedPrimPath == TEXT("/");
-				const bool bStageUpdated = PrimPath == TEXT("/");
+					const bool bViewingTheUpdatedPrim = SelectedPrimPath.Equals( PrimPath, ESearchCase::IgnoreCase );
+					const bool bViewingStageProperties = SelectedPrimPath.IsEmpty() || SelectedPrimPath == TEXT("/");
+					const bool bStageUpdated = PrimPath == TEXT("/");
 
-				if ( this->UsdPrimInfoWidget &&
-					 ViewModel.UsdStageActor.IsValid() &&
-					 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
-				{
-					this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), *PrimPath );
-				}
+					if ( this->UsdPrimInfoWidget &&
+						 ViewModel.UsdStageActor.IsValid() &&
+						 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
+					{
+						this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), *PrimPath );
+					}
+				});
 			}
 		);
 
@@ -227,51 +235,63 @@ void SUsdStage::SetupStageActorDelegates()
 		OnStageChangedHandle = ViewModel.UsdStageActor->OnStageChanged.AddLambda(
 			[ this ]()
 			{
-				// So we can reset even if our actor is being destroyed right now
-				const bool bEvenIfPendingKill = true;
-				if ( ViewModel.UsdStageActor.IsValid( bEvenIfPendingKill ) )
+				AsyncTask(ENamedThreads::GameThread, [this]()
 				{
-					if ( this->UsdPrimInfoWidget )
+					// So we can reset even if our actor is being destroyed right now
+					const bool bEvenIfPendingKill = true;
+					if ( ViewModel.UsdStageActor.IsValid( bEvenIfPendingKill ) )
 					{
-						// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
-						const UE::FUsdStage& UsdStage = static_cast< const AUsdStageActor* >( ViewModel.UsdStageActor.Get( bEvenIfPendingKill ) )->GetUsdStage();
-						this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT("/") );
+						if ( this->UsdPrimInfoWidget )
+						{
+							// The cast here forces us to use the const version of GetUsdStage, that won't force-load the stage in case it isn't opened yet
+							const UE::FUsdStage& UsdStage = static_cast< const AUsdStageActor* >( ViewModel.UsdStageActor.Get( bEvenIfPendingKill ) )->GetUsdStage();
+							this->UsdPrimInfoWidget->SetPrimPath( UsdStage, TEXT("/") );
+						}
 					}
-				}
 
-				this->Refresh();
+					this->Refresh();
+				});
 			}
 		);
 
 		OnActorDestroyedHandle = ViewModel.UsdStageActor->OnActorDestroyed.AddLambda(
 			[ this ]()
 			{
-				ClearStageActorDelegates();
-				this->ViewModel.CloseStage();
+				AsyncTask( ENamedThreads::GameThread, [this]()
+				{
+					ClearStageActorDelegates();
+					this->ViewModel.CloseStage();
 
-				this->Refresh();
+					this->Refresh();
+				});
 			}
 		);
 
 		OnStageEditTargetChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnStageEditTargetChanged().AddLambda(
 			[ this ]()
 			{
-				if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
+				AsyncTask( ENamedThreads::GameThread, [this]()
 				{
-					constexpr bool bResync = false;
-					this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), bResync );
-				}
+					if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
+					{
+						constexpr bool bResync = false;
+						this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), bResync );
+					}
+				});
 			}
 		);
 
 		OnLayersChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnLayersChanged().AddLambda(
 			[ this ]( const TArray< FString >& LayersNames )
 			{
-				if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
+				AsyncTask( ENamedThreads::GameThread, [this]()
 				{
-					constexpr bool bResync = false;
-					this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), bResync );
-				}
+					if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
+					{
+						constexpr bool bResync = false;
+						this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), bResync );
+					}
+				});
 			}
 		);
 	}
@@ -298,6 +318,8 @@ SUsdStage::~SUsdStage()
 	USelection::SelectionChangedEvent.Remove( OnViewportSelectionChangedHandle );
 
 	ClearStageActorDelegates();
+
+	ActorPickerMenu.Reset();
 }
 
 TSharedRef< SWidget > SUsdStage::MakeMainMenu()
@@ -354,25 +376,54 @@ TSharedRef< SWidget > SUsdStage::MakeActorPickerMenu()
 
 TSharedRef< SWidget > SUsdStage::MakeActorPickerMenuContent()
 {
-	FSceneOutlinerInitializationOptions InitOptions;
-	InitOptions.bShowHeaderRow = false;
-	InitOptions.bShowSearchBox = true;
-	InitOptions.bShowCreateNewFolder = false;
-	InitOptions.bFocusSearchBoxWhenOpened = true;
-	InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
-	InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateLambda([]( const AActor* Actor )
+	if ( !ActorPickerMenu.IsValid() )
 	{
-		return Actor && Actor->IsA<AUsdStageActor>();
-	}));
+		FSceneOutlinerInitializationOptions InitOptions;
+		InitOptions.bShowHeaderRow = false;
+		InitOptions.bShowSearchBox = true;
+		InitOptions.bShowCreateNewFolder = false;
+		InitOptions.bFocusSearchBoxWhenOpened = true;
+		InitOptions.ColumnMap.Add( FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo( ESceneOutlinerColumnVisibility::Visible, 0 ) );
+		InitOptions.Filters->AddFilterPredicate<FActorTreeItem>(
+			FActorTreeItem::FFilterPredicate::CreateLambda(
+				[]( const AActor* Actor )
+				{
+					return Actor && Actor->IsA<AUsdStageActor>();
+				}
+			)
+		);
 
-	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
-	return SceneOutlinerModule.CreateActorPicker(InitOptions, FOnActorPicked::CreateLambda([this](AActor* Actor)
+		FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>( "SceneOutliner" );
+		ActorPickerMenu = SceneOutlinerModule.CreateActorPicker(
+			InitOptions,
+			FOnActorPicked::CreateLambda(
+				[this]( AActor* Actor )
+				{
+					if ( Actor && Actor->IsA<AUsdStageActor>() )
+					{
+						this->SetActor( Cast<AUsdStageActor>( Actor ) );
+
+						FSlateApplication::Get().DismissAllMenus();
+					}
+				}
+			)
+		);
+	}
+
+	if ( ActorPickerMenu.IsValid() )
 	{
-		if ( Actor && Actor->IsA<AUsdStageActor>() )
-		{
-			this->SetActor( Cast<AUsdStageActor>( Actor ) );
-		}
-	}));
+		ActorPickerMenu->FullRefresh();
+
+		return SNew(SBox)
+			.Padding( FMargin( 1 ) )    // Add a small margin or else we'll get dark gray on dark gray which can look a bit confusing
+			.MinDesiredWidth( 300.0f )  // Force a min width or else the tree view item text will run up right to the very edge pixel of the menu
+			.HAlign( HAlign_Fill )
+			[
+				ActorPickerMenu.ToSharedRef()
+			];
+	}
+
+	return SNullWidget::NullWidget;
 }
 
 void SUsdStage::FillFileMenu( FMenuBuilder& MenuBuilder )
@@ -489,10 +540,7 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("PurposesToLoad", "Purposes to load"),
 			LOCTEXT("PurposesToLoad_ToolTip", "Only load prims with these specific purposes from the USD stage"),
-			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillPurposesToLoadSubMenu),
-			false,
-			FSlateIcon(),
-			false);
+			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillPurposesToLoadSubMenu));
 
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("RenderContext", "Render Context"),
@@ -512,6 +560,14 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT( "SelectionText", "Selection" ),
 			LOCTEXT( "SelectionText_ToolTip", "How the selection of prims, actors and components should behave" ),
 			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillSelectionSubMenu ) );
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT( "NaniteSettings", "Nanite" ),
+			LOCTEXT( "NaniteSettings_ToolTip", "Configure how to use Nanite for generated assets" ),
+			FNewMenuDelegate::CreateSP( this, &SUsdStage::FillNaniteThresholdSubMenu ),
+			false,
+			FSlateIcon(),
+			false );
 	}
 	MenuBuilder.EndSection();
 }
@@ -630,7 +686,7 @@ void SUsdStage::FillPurposesToLoadSubMenu(FMenuBuilder& MenuBuilder)
 				})
 			),
 			NAME_None,
-			EUserInterfaceActionType::Check
+			EUserInterfaceActionType::ToggleButton
 		);
 	};
 
@@ -700,7 +756,7 @@ void SUsdStage::FillRenderContextSubMenu( FMenuBuilder& MenuBuilder )
 
 void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 {
-	auto AddKindToCollapseEntry = [&](const EUsdDefaultKind Kind, const FText& Text)
+	auto AddKindToCollapseEntry = [&]( const EUsdDefaultKind Kind, const FText& Text, FCanExecuteAction CanExecuteAction )
 	{
 		MenuBuilder.AddMenuEntry(
 			Text,
@@ -721,10 +777,7 @@ void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 						StageActor->SetKindsToCollapse( NewKindsToCollapse );
 					}
 				}),
-				FCanExecuteAction::CreateLambda( [this]()
-				{
-					return ViewModel.UsdStageActor.Get() != nullptr;
-				}),
+				CanExecuteAction,
 				FIsActionChecked::CreateLambda( [this, Kind]()
 				{
 					if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
@@ -739,11 +792,75 @@ void SUsdStage::FillCollapsingSubMenu( FMenuBuilder& MenuBuilder )
 		);
 	};
 
-	AddKindToCollapseEntry( EUsdDefaultKind::Model, LOCTEXT( "ModelKind", "Model" ) );
-	AddKindToCollapseEntry( EUsdDefaultKind::Component, LOCTEXT( "ModelComponent", "Component" ) );
-	AddKindToCollapseEntry( EUsdDefaultKind::Group, LOCTEXT( "ModelGroup", "Group" ) );
-	AddKindToCollapseEntry( EUsdDefaultKind::Assembly, LOCTEXT( "ModelAssembly", "Assembly" ) );
-	AddKindToCollapseEntry( EUsdDefaultKind::Subcomponent, LOCTEXT( "ModelSubcomponent", "Subcomponent" ) );
+	AddKindToCollapseEntry(
+		EUsdDefaultKind::Model,
+		LOCTEXT( "ModelKind", "Model" ),
+		FCanExecuteAction::CreateLambda( [this]()
+		{
+			return ViewModel.UsdStageActor.Get() != nullptr;
+		})
+	);
+
+	AddKindToCollapseEntry(
+		EUsdDefaultKind::Component,
+		LOCTEXT( "ModelComponent", "   Component" ),
+		FCanExecuteAction::CreateLambda( [this]()
+		{
+			if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+			{
+				// If we're collapsing all "model" kinds, the all "component"s should be collapsed anyway
+				if ( !EnumHasAnyFlags( ( EUsdDefaultKind ) StageActor->KindsToCollapse, EUsdDefaultKind::Model ) )
+				{
+					return true;
+				}
+			}
+
+			return false;
+		})
+	);
+
+	AddKindToCollapseEntry(
+		EUsdDefaultKind::Group,
+		LOCTEXT( "ModelGroup", "   Group" ),
+		FCanExecuteAction::CreateLambda( [this]()
+		{
+			if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+			{
+				if ( !EnumHasAnyFlags( ( EUsdDefaultKind ) StageActor->KindsToCollapse, EUsdDefaultKind::Model ) )
+				{
+					return true;
+				}
+			}
+
+			return false;
+		})
+	);
+
+	AddKindToCollapseEntry(
+		EUsdDefaultKind::Assembly,
+		LOCTEXT( "ModelAssembly", "      Assembly" ),
+		FCanExecuteAction::CreateLambda( [this]()
+		{
+			if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+			{
+				if ( !EnumHasAnyFlags( ( EUsdDefaultKind ) StageActor->KindsToCollapse, EUsdDefaultKind::Model ) && !EnumHasAnyFlags( ( EUsdDefaultKind ) StageActor->KindsToCollapse, EUsdDefaultKind::Group ) )
+				{
+					return true;
+				}
+			}
+
+			return false;
+		})
+	);
+
+	AddKindToCollapseEntry(
+		EUsdDefaultKind::Subcomponent,
+		LOCTEXT( "ModelSubcomponent", "Subcomponent" ),
+		FCanExecuteAction::CreateLambda( [this]()
+		{
+			return ViewModel.UsdStageActor.Get() != nullptr;
+		})
+	);
 }
 
 void SUsdStage::FillSelectionSubMenu( FMenuBuilder& MenuBuilder )
@@ -794,8 +911,31 @@ void SUsdStage::FillSelectionSubMenu( FMenuBuilder& MenuBuilder )
 			})
 		),
 		NAME_None,
-		EUserInterfaceActionType::Check
+		EUserInterfaceActionType::ToggleButton
 	);
+}
+
+void SUsdStage::FillNaniteThresholdSubMenu( FMenuBuilder& MenuBuilder )
+{
+	if ( AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get() )
+	{
+		CurrentNaniteThreshold = StageActor->NaniteTriangleThreshold;
+	}
+
+	TSharedRef<SSpinBox<int32>> Slider = SNew( SSpinBox<int32> )
+		.MinValue( 0 )
+		.ToolTipText( LOCTEXT( "TriangleThresholdTooltip", "Try enabling Nanite for static meshes that are generated with at least this many triangles" ) )
+		.Value( this, &SUsdStage::GetNaniteTriangleThresholdValue )
+		.OnValueChanged(this, &SUsdStage::OnNaniteTriangleThresholdValueChanged )
+		.SupportDynamicSliderMaxValue( true )
+		.IsEnabled_Lambda( [this]() -> bool
+		{
+			return ViewModel.UsdStageActor.Get() != nullptr;
+		})
+		.OnValueCommitted( this, &SUsdStage::OnNaniteTriangleThresholdValueCommitted );
+
+	const bool bNoIndent = true;
+	MenuBuilder.AddWidget( Slider, FText::FromString( TEXT( "Triangle threshold: " ) ), bNoIndent );
 }
 
 void SUsdStage::OnNew()
@@ -922,6 +1062,9 @@ void SUsdStage::OpenStage( const TCHAR* FilePath )
 
 void SUsdStage::SetActor( AUsdStageActor* InUsdStageActor )
 {
+	// Call this first so that we clear all of our delegates from the previous actor before we switch actors
+	ClearStageActorDelegates();
+
 	ViewModel.UsdStageActor = InUsdStageActor;
 
 	SetupStageActorDelegates();
@@ -1019,6 +1162,33 @@ void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 	{
 		UsdStageTreeView->SelectPrims( PrimPaths );
 	}
+}
+
+int32 SUsdStage::GetNaniteTriangleThresholdValue() const
+{
+	return CurrentNaniteThreshold;
+}
+
+void SUsdStage::OnNaniteTriangleThresholdValueChanged( int32 InValue )
+{
+	CurrentNaniteThreshold = InValue;
+}
+
+void SUsdStage::OnNaniteTriangleThresholdValueCommitted( int32 InValue, ETextCommit::Type InCommitType )
+{
+	AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
+	if ( !StageActor )
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction( FText::Format(
+		LOCTEXT( "NaniteTriangleThresholdCommittedTransaction", "Change Nanite triangle threshold for USD stage actor '{0}'" ),
+		FText::FromString( StageActor->GetActorLabel() )
+	) );
+
+	StageActor->SetNaniteTriangleThreshold( InValue );
+	CurrentNaniteThreshold = InValue;
 }
 
 #endif // #if USE_USD_SDK

@@ -92,6 +92,65 @@ namespace CADKernel
 		}
 	}
 
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+	void FMessage::VQaPrintF(const TCHAR* Header, const TCHAR* Text, ...)
+	{
+		TSharedPtr<FArchive> QaDataFile = FSystem::Get().GetQaDataFile();
+		TSharedPtr<FArchive> QaHeaderFile = FSystem::Get().GetQaHeaderFile();
+		if (!QaDataFile.IsValid())
+		{
+			return;
+		}
+
+		FString Indentation;
+		TCHAR* Buffer = NULL;
+		int32 Result = -1;
+
+		{
+			int32 BufferSize = 1024;
+
+			// do the usual VARARGS shenanigans
+			while (Result == -1)
+			{
+				FMemory::Free(Buffer);
+				Buffer = (TCHAR*)FMemory::Malloc(BufferSize * sizeof(TCHAR));
+				GET_VARARGS_RESULT(Buffer, BufferSize, BufferSize - 1, Text, Text, Result);
+				BufferSize *= 2;
+			};
+			Buffer[Result] = 0;
+
+			Indentation.Reserve(NumberOfIndentation * 3);
+			for (int32 iIndent = 0; iIndent < NumberOfIndentation; iIndent++)
+			{
+				Indentation += TEXT(" - ");
+			}
+		}
+
+		FSystem::Get().GetConsole().Print(Header, Log);
+		FSystem::Get().GetConsole().Print(TEXT("\n"), Log);
+		FSystem::Get().GetConsole().Print(Buffer, Log);
+		FSystem::Get().GetConsole().Print(TEXT("\n"), Log);
+
+		FString HeaderStr = Header;
+		FTCHARToUTF8 UTF8String(Header, HeaderStr.Len());
+		QaDataFile->Serialize((UTF8CHAR*)UTF8String.Get(), UTF8String.Length() * sizeof(UTF8CHAR));
+		QaDataFile->Flush();
+
+		if(QaHeaderFile.IsValid())
+		{
+			FTCHARToUTF8 UTF8String(Buffer, Result);
+			QaHeaderFile->Serialize((UTF8CHAR*)UTF8String.Get(), UTF8String.Length() * sizeof(UTF8CHAR));
+			QaHeaderFile->Flush();
+		}
+
+		if (Buffer)
+		{
+			FMemory::Free(Buffer);
+		}
+	}
+#endif
+
+
 	void FChrono::PrintClockElapse(EVerboseLevel Level, const TCHAR* Indent, const TCHAR* Process, FDuration Duration, ETimeUnit Unit)
 	{
 #ifdef CADKERNEL_DEV

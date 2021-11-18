@@ -48,7 +48,7 @@ public:
 #endif
 	//~ End UMaterialExpression Interface
 
-	/** Return whether this is the named parameter, and fill in its value */
+	UE_DEPRECATED(5.0, "Use GetParameterValue and/or GetParameterName")
 	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid) const;
 
 #if WITH_EDITOR

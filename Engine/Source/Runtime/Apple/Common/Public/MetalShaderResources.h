@@ -233,7 +233,6 @@ struct FMetalCodeHeader
 {
 	FMetalShaderBindings Bindings;
 	TArray<CrossCompiler::FUniformBufferCopyInfo> UniformBuffersCopyInfo;
-	FString ShaderName;
 
 	uint64 CompilerBuild;
 	uint32 CompilerVersion;
@@ -289,8 +288,6 @@ inline FArchive& operator<<(FArchive& Ar, FMetalCodeHeader& Header)
 		}
 	}
 	
-	Ar << Header.ShaderName;
-
 	Ar << Header.CompilerBuild;
 	Ar << Header.CompilerVersion;
 	Ar << Header.SourceLen;

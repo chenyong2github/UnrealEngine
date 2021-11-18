@@ -282,35 +282,21 @@ void UMirrorDataTable::FindReplaceMirroredNames()
 }
 
 #endif // WITH_EDITOR
-void UMirrorDataTable::FillCompactPoseMirrorBones(const FBoneContainer& BoneContainer, const TArray<int32>& MirrorBoneIndexes,  TArray<FCompactPoseBoneIndex>& OutCompactPoseMirrorBones)
+void UMirrorDataTable::FillCompactPoseMirrorBones(const FBoneContainer& BoneContainer, const TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex>& MirrorBoneIndexes, TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex>& OutCompactPoseMirrorBones)
 {
-	const TArray<FBoneIndexType>& RequiredBoneIndices = BoneContainer.GetBoneIndicesArray();
-	int32 NumReqBones = RequiredBoneIndices.Num();
+	const int32 NumReqBones = BoneContainer.GetCompactPoseNumBones();
 	OutCompactPoseMirrorBones.Reset(NumReqBones);
-
-	TArray<FBoneIndexType> const& BoneIndicesArray = BoneContainer.GetBoneIndicesArray();
-	TArray<int32> const& PoseToSkeletonBoneIndexArray = BoneContainer.GetPoseToSkeletonBoneIndexArray();
-	TArray<int32> MeshIndexToCompactPoseIndex;
-	MeshIndexToCompactPoseIndex.Reset(PoseToSkeletonBoneIndexArray.Num());
-	MeshIndexToCompactPoseIndex.AddUninitialized(PoseToSkeletonBoneIndexArray.Num());
-
-	for (int32 CompactBoneIndex = 0; CompactBoneIndex < NumReqBones; ++CompactBoneIndex)
-	{
-		FBoneIndexType MeshPoseIndex = BoneIndicesArray[CompactBoneIndex];
-		MeshIndexToCompactPoseIndex[MeshPoseIndex] = CompactBoneIndex;
-	}
 
 	if (MirrorBoneIndexes.Num() > 0)
 	{
 		for (int32 CompactBoneIndex = 0; CompactBoneIndex < NumReqBones; ++CompactBoneIndex)
 		{
-			FBoneIndexType MeshPoseIndex = BoneIndicesArray[CompactBoneIndex];
+			FSkeletonPoseBoneIndex SkeletonPoseBoneIndex = BoneContainer.GetSkeletonPoseIndexFromCompactPoseIndex(FCompactPoseBoneIndex(CompactBoneIndex));
 
 			//Mirror Bone
-			const int32 MirrorIndex = MirrorBoneIndexes.IsValidIndex(MeshPoseIndex) ? MirrorBoneIndexes[MeshPoseIndex] : INDEX_NONE;
-			const int32 CompactMirrorIndex = MeshIndexToCompactPoseIndex.IsValidIndex(MirrorIndex) ? MeshIndexToCompactPoseIndex[MirrorIndex] : INDEX_NONE;
+			const FSkeletonPoseBoneIndex MirrorIndex = MirrorBoneIndexes.IsValidIndex(SkeletonPoseBoneIndex.GetInt()) ? MirrorBoneIndexes[SkeletonPoseBoneIndex] : FSkeletonPoseBoneIndex(INDEX_NONE);
 
-			OutCompactPoseMirrorBones.Add(FCompactPoseBoneIndex(CompactMirrorIndex));
+			OutCompactPoseMirrorBones.Add(BoneContainer.GetCompactPoseIndexFromSkeletonPoseIndex(MirrorIndex));
 		}
 	}
 	else
@@ -322,7 +308,7 @@ void UMirrorDataTable::FillCompactPoseMirrorBones(const FBoneContainer& BoneCont
 	}
 }
 
-void UMirrorDataTable::FillMirrorBoneIndexes(const FReferenceSkeleton& ReferenceSkeleton, TArray<int32>& OutMirrorBoneIndexes) const
+void UMirrorDataTable::FillMirrorBoneIndexes(const FReferenceSkeleton& ReferenceSkeleton, TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex>& OutMirrorBoneIndexes) const
 {
 	// Reset the mirror table to defaults (no mirroring)
 	OutMirrorBoneIndexes.SetNumUninitialized(ReferenceSkeleton.GetNum());
@@ -342,7 +328,7 @@ void UMirrorDataTable::FillMirrorBoneIndexes(const FReferenceSkeleton& Reference
 	{
 		for (int32 BoneIndex = 0; BoneIndex < OutMirrorBoneIndexes.Num(); ++BoneIndex)
 		{
-			if (OutMirrorBoneIndexes[BoneIndex] == INDEX_NONE)
+			if (!OutMirrorBoneIndexes[BoneIndex].IsValid())
 			{
 				// Find the candidate mirror partner for this bone (falling back to mirroring to self)
 				FName SourceBoneName = ReferenceSkeleton.GetBoneName(BoneIndex);
@@ -354,10 +340,10 @@ void UMirrorDataTable::FillMirrorBoneIndexes(const FReferenceSkeleton& Reference
 					MirrorBoneIndex = ReferenceSkeleton.FindBoneIndex(*MirroredBoneName);
 				}
 
-				OutMirrorBoneIndexes[BoneIndex] = MirrorBoneIndex;
+				OutMirrorBoneIndexes[BoneIndex] = FSkeletonPoseBoneIndex(MirrorBoneIndex);
 				if (MirrorBoneIndex != INDEX_NONE)
 				{
-					OutMirrorBoneIndexes[MirrorBoneIndex] = BoneIndex;
+					OutMirrorBoneIndexes[MirrorBoneIndex] = FSkeletonPoseBoneIndex(BoneIndex);
 				}
 			}
 		}

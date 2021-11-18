@@ -151,7 +151,7 @@ struct ENGINE_API FTrajectorySampleRange
 				// Note: NextIdx is biased to equal P1 rather than P2 to account for cases where subsequent trajectory iterations may require subsampling between [P1 ... P2] again
 				const FTrajectorySample& InitialSample = Samples[InitialIdx];
 				const float PrevDomainValue = DomainType == ETrajectorySampleDomain::Time ? InitialSample.AccumulatedSeconds : InitialSample.AccumulatedDistance;
-				const float Alpha = FMath::GetMappedRangeValueUnclamped(FVector2D(PrevDomainValue, NextDomainValue), FVector2D(0.f, 1.f), DomainValue);
+				const float Alpha = FMath::GetMappedRangeValueUnclamped(FVector2f(PrevDomainValue, NextDomainValue), FVector2f(0.f, 1.f), DomainValue);
 
 				FTrajectorySample InterpSample;
 				if (bSmoothInterp)

@@ -851,7 +851,7 @@ void SerializeLOD(const FGenerateCardMeshContext& Context, const FClusteringPara
 			const FMatrix LocalToWorld = Cluster.WorldToLocal.Inverse();
 
 			FLumenCardBuildData BuiltData;
-			BuiltData.OBB.Origin = LocalToWorld.TransformPosition(Cluster.Bounds.GetCenter());
+			BuiltData.OBB.Origin = (FVector4f)LocalToWorld.TransformPosition(Cluster.Bounds.GetCenter());
 			BuiltData.OBB.Extent = Cluster.Bounds.GetExtent();
 			BuiltData.OBB.AxisX = LocalToWorld.GetScaledAxis(EAxis::X);
 			BuiltData.OBB.AxisY = LocalToWorld.GetScaledAxis(EAxis::Y);

@@ -30,6 +30,9 @@ void FNiagaraRenderViewDataManager::GetSceneTextureParameters(FRDGBuilder& Graph
 			OutParameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, LocalFeatureLevel, ESceneTextureSetupMode::SceneVelocity);
 		}
 		OutParameters.MobileSceneTextures = nullptr;
+		OutParameters.Depth = Parameters.Depth;
+		OutParameters.Normal = Parameters.Normal;
+		OutParameters.Velocity = Parameters.Velocity;
 	}
 	else if (FSceneInterface::GetShadingPath(LocalFeatureLevel) == EShadingPath::Mobile)
 	{
@@ -38,10 +41,11 @@ void FNiagaraRenderViewDataManager::GetSceneTextureParameters(FRDGBuilder& Graph
 			OutParameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::None);
 		}
 		OutParameters.SceneTextures = nullptr;
+		// These will not work correctly, all scene textures should be accessed through SceneTextures UB
+		OutParameters.Depth = nullptr;
+		OutParameters.Normal = nullptr;
+		OutParameters.Velocity = nullptr;
 	}
-	OutParameters.Depth = Parameters.Depth;
-	OutParameters.Normal = Parameters.Normal;
-	OutParameters.Velocity = Parameters.Velocity;
 }
 
 void FNiagaraRenderViewDataManager::ClearSceneTextureParameters()

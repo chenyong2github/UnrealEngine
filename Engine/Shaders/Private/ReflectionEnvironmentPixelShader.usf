@@ -5,13 +5,6 @@
 =============================================================================*/
   
 #include "Common.ush"
-
-#if STRATA_ENABLED
-	#define USE_ENERGY_CONSERVATION 1
-#else
-	#define USE_ENERGY_CONSERVATION 0
-#endif
-
 #include "DeferredShadingCommon.ush"  
 #include "BRDF.ush"
 #include "ReflectionEnvironmentShared.ush"
@@ -375,10 +368,6 @@ void ReflectionEnvironmentSkyLighting(
 
 #if STRATA_ENABLED
 
-#if ENABLE_DYNAMIC_SKY_LIGHT
-#if ENABLE_SKY_LIGHT
-	// STRATA_TODO handle the ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING case 
-
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
 	BRANCH
@@ -388,6 +377,7 @@ void ReflectionEnvironmentSkyLighting(
 		float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
 		float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld)).xyz;
+		float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		float3 CameraToPixel = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
 		float3 V = -CameraToPixel;
 
@@ -405,9 +395,11 @@ void ReflectionEnvironmentSkyLighting(
 		float3 TopLayerEnvBRDF = 0.0f;
 
 		float4 StrataEnvLighting = StrataEnvironmentLighting(
+			SvPosition,
 			BufferUV,
 			SceneDepth,
 			WorldPosition,
+			TranslatedWorldPosition,
 			CameraToPixel,
 			V,
 			AmbientOcclusion,
@@ -418,16 +410,13 @@ void ReflectionEnvironmentSkyLighting(
 			SSRReductionFactor,
 			TopLayerEnvBRDF);
 
-		float3 SkyLighting = SSR.rgb * TopLayerEnvBRDF * SSRReductionFactor + StrataEnvLighting.rgb;
+		float3 EnvLighting = SSR.rgb * TopLayerEnvBRDF * SSRReductionFactor + StrataEnvLighting.rgb;
 
-		ApplyCloudVolumetricShadow(WorldPosition, SkyLighting);
+		ApplyCloudVolumetricShadow(WorldPosition, EnvLighting);
 
-		OutColor.xyz = SkyLighting;
+		OutColor.xyz = EnvLighting;
 		OutColor.a = StrataEnvLighting.a;
 	}
-
-#endif // ENABLE_SKY_LIGHT
-#endif // ENABLE_DYNAMIC_SKY_LIGHT 
 
 #else // STRATA_ENABLED
 

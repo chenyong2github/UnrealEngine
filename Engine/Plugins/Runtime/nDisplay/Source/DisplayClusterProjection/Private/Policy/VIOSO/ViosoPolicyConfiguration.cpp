@@ -138,7 +138,7 @@ bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParam
 	if (CalibrationIndex < 0)
 	{
 		// Use neg CalibrationIndex values for defined adapter
-		int AdapterIndex;
+		int32 AdapterIndex;
 		if (DisplayClusterHelpers::map::template ExtractValueFromString(InParameters, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, AdapterIndex))
 		{
 			UE_LOG(LogDisplayClusterProjectionVIOSO, Verbose, TEXT("Viewport <%s>: Projection parameter '%s' - '%d'"), *InViewportId, DisplayClusterProjectionStrings::cfg::VIOSO::CalibAdapter, AdapterIndex);

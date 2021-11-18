@@ -1012,7 +1012,7 @@ void UGameFeaturesSubsystem::TerminateGameFeaturePluginComplete(UGameFeaturePlug
 	if (Result.HasValue())
 	{
 		GameFeaturePluginStateMachines.Remove(Machine->GetPluginURL());
-		Machine->MarkPendingKill();
+		Machine->MarkAsGarbage();
 	}
 
 	CompleteDelegate.ExecuteIfBound(Result);

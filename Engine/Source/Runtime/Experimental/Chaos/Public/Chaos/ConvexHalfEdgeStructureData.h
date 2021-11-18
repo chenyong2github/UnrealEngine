@@ -88,6 +88,14 @@ namespace Chaos
 			}
 		};
 
+		// We cache 3 planes per vertex since this is the most common request and a major bottleneck in GJK 
+		// (SupportCoreScaled -> GetMarginAdjustedVertexScaled -> FindVertexPlanes
+		struct FVertexPlanes
+		{
+			FIndex PlaneIndices[3];
+			FIndex NumPlaneIndices;
+		};
+
 		// Initialize the structure data from the array of vertex indices per plane (in CW or CCW order - it is retained in structure)
 		// If this fails for some reason, the structure data will be invalid (check IsValid())
 		static FConvexHalfEdgeStructureData MakePlaneVertices(const TArray<TArray<int32>>& InPlaneVertices, int32 InNumVertices)
@@ -244,7 +252,9 @@ namespace Chaos
 
 		// Iterate over the edges associated with a plane. These edges form the boundary of the plane.
 		// Visitor should return false to halt iteration.
-		void VisitPlaneEdges(int32 PlaneIndex, const TFunction<bool(int32 HalfEdgeIndex, int32 NextHalfEdgeIndex)>& Visitor) const
+		// FVisitorType should be a function with signature: bool(int32 HalfEdgeIndex, int32 NextHalfEdgeIndex) that return false to stop the visit loop
+		template<typename FVisitorType>
+		inline void VisitPlaneEdges(int32 PlaneIndex, const FVisitorType& Visitor) const
 		{
 			const int32 FirstHalfEdgeIndex = GetPlane(PlaneIndex).FirstHalfEdgeIndex;
 			int32 HalfEdgeIndex0 = FirstHalfEdgeIndex;
@@ -265,7 +275,9 @@ namespace Chaos
 
 		// Iterate over the half-edges associated with a vertex (leading out from the vertex, so all half edges have the vertex as the root).
 		// Visitor should return false to halt iteration.
-		void VisitVertexHalfEdges(int32 VertexIndex, const TFunction<bool(int32 HalfEdgeIndex)>& Visitor) const
+		// FVisitorType should be a function with signature: bool(int32 HalfEdgeIndex) that returns false to stop the visit loop.
+		template<typename FVisitorType>
+		inline void VisitVertexHalfEdges(int32 VertexIndex, const FVisitorType& Visitor) const
 		{
 			const int32 FirstHalfEdgeIndex = GetVertex(VertexIndex).FirstHalfEdgeIndex;
 			int32 HalfEdgeIndex = FirstHalfEdgeIndex;
@@ -301,6 +313,15 @@ namespace Chaos
 			}
 
 			return NumPlanesFound;
+		}
+
+		int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const
+		{
+			const FVertexPlanes& VertexPlane = VertexPlanes[VertexIndex];
+			PlaneIndex0 = (int32)VertexPlane.PlaneIndices[0];
+			PlaneIndex1 = (int32)VertexPlane.PlaneIndices[1];
+			PlaneIndex2 = (int32)VertexPlane.PlaneIndices[2];
+			return (int32)VertexPlane.NumPlaneIndices;
 		}
 
 		// Initialize the structure data from the set of vertices associated with each plane.
@@ -396,6 +417,8 @@ namespace Chaos
 				GetHalfEdge(HalfEdgeIndex).TwinHalfEdgeIndex = (FIndex)TwinHalfEdgeIndices[HalfEdgeIndex];
 			}
 
+			BuildVertexPlanes();
+
 			return true;
 		}
 
@@ -415,6 +438,11 @@ namespace Chaos
 			else
 			{
 				Ar << Edges;
+			}
+
+			if (Ar.IsLoading())
+			{
+				BuildVertexPlanes();
 			}
 		}
 
@@ -478,10 +506,46 @@ namespace Chaos
 			}
 		}
 
+		void BuildVertexPlanes()
+		{
+			VertexPlanes.SetNum(Vertices.Num());
+
+			for (int32 VertexIndex = 0; VertexIndex < NumVertices(); ++VertexIndex)
+			{
+				FVertexPlanes& VertexPlane = VertexPlanes[VertexIndex];
+				VertexPlane.NumPlaneIndices = 0;
+				VertexPlane.PlaneIndices[0] = INDEX_NONE;
+				VertexPlane.PlaneIndices[1] = INDEX_NONE;
+				VertexPlane.PlaneIndices[2] = INDEX_NONE;
+
+				const int32 FirstHalfEdgeIndex = GetVertex(VertexIndex).FirstHalfEdgeIndex;
+				int32 HalfEdgeIndex = FirstHalfEdgeIndex;
+				if (HalfEdgeIndex != InvalidIndex)
+				{
+					do
+					{
+						VertexPlane.PlaneIndices[VertexPlane.NumPlaneIndices++] = (FIndex)GetHalfEdgePlane(HalfEdgeIndex);
+						if (VertexPlane.NumPlaneIndices == (FIndex)UE_ARRAY_COUNT(VertexPlane.PlaneIndices))
+						{
+							break;
+						}
+
+						const int32 TwinHalfEdgeIndex = GetTwinHalfEdge(HalfEdgeIndex);
+						if (TwinHalfEdgeIndex == InvalidIndex)
+						{
+							break;
+						}
+						HalfEdgeIndex = GetNextHalfEdge(TwinHalfEdgeIndex);
+					} while ((HalfEdgeIndex != FirstHalfEdgeIndex) && (HalfEdgeIndex != InvalidIndex));
+				}
+			}
+		}
+
 		TArray<FPlaneData> Planes;
 		TArray<FHalfEdgeData> HalfEdges;
 		TArray<FVertexData> Vertices;
 		TArray<FIndex> Edges;
+		TArray<FVertexPlanes> VertexPlanes;
 	};
 
 

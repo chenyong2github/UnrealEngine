@@ -2459,7 +2459,7 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 								AssignNode->GetValuePin()->DefaultValue = Pin->PinName.ToString();
 
 								// Finally remove this 'cosmetic' exec pin
-								Pins[PinIdx]->MarkPendingKill();
+								Pins[PinIdx]->MarkAsGarbage();
 								Pins.RemoveAt(PinIdx);
 							}
 						}
@@ -2497,7 +2497,7 @@ void UK2Node_CallFunction::ExpandNode(class FKismetCompilerContext& CompilerCont
 										CompilerContext.MovePinLinksToIntermediate(*Pin, *FoundPin);
 
 										// Finally remove this 'cosmetic' exec pin
-										Pins[PinIdx]->MarkPendingKill();
+										Pins[PinIdx]->MarkAsGarbage();
 										Pins.RemoveAt(PinIdx);
 									}
 								}

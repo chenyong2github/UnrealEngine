@@ -101,7 +101,7 @@ public:
 		}
 	}
 
-	void SetParameters(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SourceTexture, FVector2D SampleOffset, int KernelRadius)
+	void SetParameters(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SourceTexture, const FVector2f& SampleOffset, const int32 KernelRadius)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
@@ -112,8 +112,8 @@ public:
 	}
 };
 
-typedef TPicpBlurPostProcessPS<(int)EDisplayClusterShaderParameters_PostprocessBlur::Gaussian>   FPicpBlurPostProcessDefaultPS;
-typedef TPicpBlurPostProcessPS<(int)EDisplayClusterShaderParameters_PostprocessBlur::Dilate>     FPicpBlurPostProcessDilatePS;
+typedef TPicpBlurPostProcessPS<(int32)EDisplayClusterShaderParameters_PostprocessBlur::Gaussian>   FPicpBlurPostProcessDefaultPS;
+typedef TPicpBlurPostProcessPS<(int32)EDisplayClusterShaderParameters_PostprocessBlur::Dilate>     FPicpBlurPostProcessDilatePS;
 
 #define PostProcessShaderFileName TEXT("/Plugin/nDisplay/Private/PicpPostProcessShaders.usf")
 
@@ -153,13 +153,13 @@ static void PicpBlurPostProcess_RenderThread(
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		// Blur X
-		PixelShader->SetParameters(RHICmdList, InShaderTexture, FVector2D(InSettings.KernelScale / TargetSizeXY.X, 0.0f), InSettings.KernelRadius);
+		PixelShader->SetParameters(RHICmdList, InShaderTexture, FVector2f(InSettings.KernelScale / TargetSizeXY.X, 0.0f), InSettings.KernelRadius);
 		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
 
 		RHICmdList.CopyToResolveTarget(OutRenderTargetableTexture, InShaderTexture, FResolveParams());
 
 		// Blur Y
-		PixelShader->SetParameters(RHICmdList, InShaderTexture, FVector2D(0.0f, InSettings.KernelScale / TargetSizeXY.Y), InSettings.KernelRadius);
+		PixelShader->SetParameters(RHICmdList, InShaderTexture, FVector2f(0.0f, InSettings.KernelScale / TargetSizeXY.Y), InSettings.KernelRadius);
 		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
 	}
 	RHICmdList.EndRenderPass();
@@ -184,11 +184,11 @@ bool FDisplayClusterShadersPostprocess_Blur::RenderPostprocess_Blur(FRHICommandL
 	switch (InSettings.Mode)
 	{
 	case EDisplayClusterShaderParameters_PostprocessBlur::Gaussian:
-		PicpBlurPostProcess_RenderThread<(int)EDisplayClusterShaderParameters_PostprocessBlur::Gaussian>(RHICmdList, InSourceTexture, InRenderTargetableDestTexture, InSettings);
+		PicpBlurPostProcess_RenderThread<(int32)EDisplayClusterShaderParameters_PostprocessBlur::Gaussian>(RHICmdList, InSourceTexture, InRenderTargetableDestTexture, InSettings);
 		return true;
 
 	case EDisplayClusterShaderParameters_PostprocessBlur::Dilate:
-		PicpBlurPostProcess_RenderThread<(int)EDisplayClusterShaderParameters_PostprocessBlur::Dilate>(RHICmdList, InSourceTexture, InRenderTargetableDestTexture, InSettings);
+		PicpBlurPostProcess_RenderThread<(int32)EDisplayClusterShaderParameters_PostprocessBlur::Dilate>(RHICmdList, InSourceTexture, InRenderTargetableDestTexture, InSettings);
 		return true;
 
 	default:

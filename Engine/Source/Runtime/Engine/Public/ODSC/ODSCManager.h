@@ -6,6 +6,7 @@
 #include "Containers/Ticker.h"
 #include "RHIDefinitions.h"
 #include "Containers/Ticker.h"
+#include "ShaderCompiler.h"
 
 class FODSCThread;
 
@@ -46,11 +47,11 @@ public:
 	 *
 	 * @param MaterialsToCompile - List of material names to submit compiles for.
 	 * @param ShaderPlatform - Which shader platform to compile for.
-	 * @param bCompileChangedShaders - Whether or not we should recompile shaders that have changed.
+	 * @param RecompileCommandType - Whether we should recompile changed or global shaders.
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddThreadedRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, bool bCompileChangedShaders);
+	void AddThreadedRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType);
 
 	/**
 	 * Add a request to compile a pipeline (VS/PS) of shaders.  The results are submitted and processed in an async manner.

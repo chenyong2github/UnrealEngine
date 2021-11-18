@@ -10,7 +10,7 @@
 
 namespace Chaos
 {
-	class FParticlePairCollisionDetector;
+	class FBasicCollisionDetector;
 	class FPBDCollisionConstraints;
 	class FSimpleConstraintRule;
 	class FPBDRigidsSOAs;
@@ -28,7 +28,7 @@ namespace Chaos
 	public:
 		// @todo(ccaulfield): make it so that CollisionDetection is plugged in with a constraint rule...
 
-		using FCollisionDetector = FParticlePairCollisionDetector;
+		using FCollisionDetector = FBasicCollisionDetector;
 		using FEvolutionCallback = TFunction<void()>;
 		using FRigidParticleSOAs = FPBDRigidsSOAs;
 

@@ -9,6 +9,7 @@
 #include "ObjectEditorUtils.h"
 #include "EditorStyleSet.h"
 #include "Sound/SoundWave.h"
+#include "Sound/SoundWaveProcedural.h"
 #include "SoundSimple.h"
 #include "SoundSimpleFactory.h"
 
@@ -27,6 +28,19 @@ void FSoundWaveAssetActionExtender::RegisterMenus()
 	
 	Section.AddDynamicEntry("SoundWaveAsset", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
+		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+		if (!Context || Context->SelectedObjects.IsEmpty())
+		{
+			return;
+		}
+
+		for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
+		{
+			if (Object->IsA<USoundWaveProcedural>())
+			{
+				return;
+			}
+		}
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateSimpleSound", "Create Simple Sound");
 		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateSimpleSoundTooltip", "Creates a simple sound asset using the selected sound waves.");
 		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundSimple");

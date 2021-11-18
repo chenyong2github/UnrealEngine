@@ -1958,6 +1958,7 @@ struct FShaderCompileWorkerInfo
 
 FShaderCompileThreadRunnableBase::FShaderCompileThreadRunnableBase(FShaderCompilingManager* InManager)
 	: Manager(InManager)
+	, Thread(nullptr)
 	, MinPriorityIndex(0)
 	, MaxPriorityIndex(NumShaderCompileJobPriorities - 1)
 	, bForceFinish(false)
@@ -5154,7 +5155,11 @@ void ValidateShaderFilePath(const FString& VirtualShaderFilePath, const FString&
 		*VirtualShaderFilePath);
 }
 
-FThreadSafeSharedStringPtr GCachedGeneratedInstancedStereoCode = MakeShareable(new FString());
+/** Lock for the storage of instanced stereo code. */
+FCriticalSection GCachedGeneratedInstancedStereoCodeLock;
+
+/** Storage for instanced stereo code so it is not generated every time we compile a shader. */
+TMap<EShaderPlatform, FThreadSafeSharedStringPtr> GCachedGeneratedInstancedStereoCode;
 
 void GlobalBeginCompileShader(
 	const FString& DebugGroupName,
@@ -5419,13 +5424,21 @@ void GlobalBeginCompileShader(
 	}
 
 	// Add generated instanced stereo code
-	if (GCachedGeneratedInstancedStereoCode.Get()->Len() == 0)
 	{
-		GCachedGeneratedInstancedStereoCode = MakeShareable(new FString());
-		GenerateInstancedStereoCode(*GCachedGeneratedInstancedStereoCode.Get(), ShaderPlatform);
+		// this function may be called on multiple threads, so protect the storage
+		FScopeLock GeneratedInstancedCodeLock(&GCachedGeneratedInstancedStereoCodeLock);
+
+		FThreadSafeSharedStringPtr* Existing = GCachedGeneratedInstancedStereoCode.Find(ShaderPlatform);
+		FThreadSafeSharedStringPtr CachedCodePtr = Existing ? *Existing : nullptr;
+		if (!CachedCodePtr.IsValid())
+		{
+			CachedCodePtr = MakeShareable(new FString());
+			GenerateInstancedStereoCode(*CachedCodePtr.Get(), ShaderPlatform);
+			GCachedGeneratedInstancedStereoCode.Add(ShaderPlatform, CachedCodePtr);
+		}
+
+		Input.Environment.IncludeVirtualPathToExternalContentsMap.Add(TEXT("/Engine/Generated/GeneratedInstancedStereo.ush"), CachedCodePtr);
 	}
-	
-	Input.Environment.IncludeVirtualPathToExternalContentsMap.Add(TEXT("/Engine/Generated/GeneratedInstancedStereo.ush"), GCachedGeneratedInstancedStereoCode);
 
 	{
 		// Check if the compile environment explicitly wants to force optimization
@@ -5763,6 +5776,12 @@ void GlobalBeginCompileShader(
 	}
 
 	{
+		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Material.EnergyConservation"));
+		const bool bMaterialEnergyConservation = CVar && CVar->GetInt() != 0;
+		Input.Environment.SetDefine(TEXT("MATERIAL_ENERGYCONSERVATION"), bMaterialEnergyConservation ? 1 : 0);
+	}
+
+	{
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SupportSkyAtmosphereAffectsHeightFog"));
 		Input.Environment.SetDefine(TEXT("PROJECT_SUPPORT_SKY_ATMOSPHERE_AFFECTS_HEIGHFOG"), (CVar && bSupportSkyAtmosphere) ? (CVar->GetInt() != 0) : 0);
 	}
@@ -5893,16 +5912,16 @@ protected:
 
 namespace
 {
-	bool ParseRecompileCommandString(const TCHAR* CmdString, TArray<FString>& OutMaterialsToLoad)
+	ODSCRecompileCommand ParseRecompileCommandString(const TCHAR* CmdString, TArray<FString>& OutMaterialsToLoad)
 	{
 		FString CmdName = FParse::Token(CmdString, 0);
 
-		bool bCompileChangedShaders = false;
+		ODSCRecompileCommand CommandType = ODSCRecompileCommand::None;
 		OutMaterialsToLoad.Empty();
 
 		if( !CmdName.IsEmpty() && FCString::Stricmp(*CmdName,TEXT("Material"))==0 )
 		{
-			bCompileChangedShaders = false;
+			CommandType = ODSCRecompileCommand::Material;
 
 			// tell other side the material to load, by pathname
 			FString RequestedMaterialName( FParse::Token( CmdString, 0 ) );
@@ -5918,12 +5937,18 @@ namespace
 				}
 			}
 		}
+		else if (!CmdName.IsEmpty() && FCString::Stricmp(*CmdName, TEXT("Global")) == 0)
+		{
+			CommandType = ODSCRecompileCommand::Global;
+		}
 		else if (!CmdName.IsEmpty() && FCString::Stricmp(*CmdName, TEXT("Changed")) == 0)
 		{
-			bCompileChangedShaders = true;
+			CommandType = ODSCRecompileCommand::Changed;
 		}
 		else
 		{
+			CommandType = ODSCRecompileCommand::Material;
+
 			// tell other side all the materials to load, by pathname
 			for (TObjectIterator<UMaterialInterface> It; It; ++It)
 			{
@@ -5931,11 +5956,11 @@ namespace
 			}
 		}
 
-		return bCompileChangedShaders;
+		return CommandType;
 	}
 }
 
-void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& MeshMaterialMaps, const TArray<FString>& MaterialsToLoad)
+void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& MeshMaterialMaps, const TArray<FString>& MaterialsToLoad, const TArray<uint8>& GlobalShaderMap)
 {
 	check(IsInGameThread());
 
@@ -5964,7 +5989,7 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 		if (LoadedMaterials.Num())
 		{
 			// this will stop the rendering thread, and reattach components, in the destructor
-			FMaterialUpdateContext UpdateContext(0);
+			FMaterialUpdateContext UpdateContext(FMaterialUpdateContext::EOptions::RecreateRenderStates);
 
 			// gather the shader maps to reattach
 			for (UMaterialInterface* Material : LoadedMaterials)
@@ -5973,6 +5998,16 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 				UpdateContext.AddMaterialInterface(Material);
 			}
 		}
+	}
+
+	// load all the global shaders if any were sent back
+	if (GlobalShaderMap.Num() > 0)
+	{
+		// parse the shaders
+		FMemoryReader MemoryReader(GlobalShaderMap, true);
+		FNameAsStringProxyArchive Ar(MemoryReader);
+
+		LoadGlobalShadersForRemoteRecompile(Ar, GMaxRHIShaderPlatform);
 	}
 }
 
@@ -6032,8 +6067,8 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 #if WITH_ODSC
 		TArray<FString> MaterialsToLoad;
-		bool bCompileChangedShaders = ParseRecompileCommandString(Cmd, MaterialsToLoad);
-		GODSCManager->AddThreadedRequest(MaterialsToLoad, GMaxRHIShaderPlatform, bCompileChangedShaders);
+		ODSCRecompileCommand CommandType = ParseRecompileCommandString(Cmd, MaterialsToLoad);
+		GODSCManager->AddThreadedRequest(MaterialsToLoad, GMaxRHIShaderPlatform, CommandType);
 #endif
 		return true;
 	}
@@ -6182,7 +6217,7 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 		return 1;
 	}
 
-	UE_LOG(LogShaderCompilers, Warning, TEXT("Invalid parameter. Options are: \n'Changed', 'Global', 'Material [name]', 'All' 'Platform [name]'\nNote: Platform implies Changed, and requires the proper target platform modules to be compiled."));
+	UE_LOG(LogShaderCompilers, Warning, TEXT("Invalid parameter. Options are: \n'Changed', 'Global', 'Material [name]', 'All'."));
 	return 1;
 }
 
@@ -7009,6 +7044,7 @@ FArchive& operator<<(FArchive& Ar, FODSCRequestPayload& Elem)
 	return Ar;
 }
 
+#if WITH_EDITOR
 void RecompileShadersForRemote(
 	const FString& PlatformName,
 	EShaderPlatform ShaderPlatformToCompile,
@@ -7016,8 +7052,9 @@ void RecompileShadersForRemote(
 	const TArray<FString>& MaterialsToLoad,
 	const TArray<FODSCRequestPayload>& ShadersToRecompile,
 	TArray<uint8>* MeshMaterialMaps,
+	TArray<uint8>* GlobalShaderMap,
 	TArray<FString>* ModifiedFiles,
-	bool bCompileChangedShaders)
+	ODSCRecompileCommand RecompileCommandType)
 {
 	// figure out what shader platforms to recompile
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
@@ -7058,6 +7095,7 @@ void RecompileShadersForRemote(
 	// Pick up new changes to shader files
 	FlushShaderFileCache();
 
+	const bool bCompileChangedShaders = RecompileCommandType == ODSCRecompileCommand::Changed;
 	if (bCompileChangedShaders)
 	{
 		GetOutdatedShaderTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
@@ -7110,17 +7148,40 @@ void RecompileShadersForRemote(
 			// Only compile for the desired platform if requested
 			if (ShaderPlatform == ShaderPlatformToCompile || ShaderPlatformToCompile == SP_NumPlatforms)
 			{
-				if (bCompileChangedShaders)
+				// If we are explicitly wanting to recompile global or if shaders have changed.
+				if (RecompileCommandType == ODSCRecompileCommand::Global ||
+					RecompileCommandType == ODSCRecompileCommand::Changed)
 				{
+					UE_LOG(LogShaders, Display, TEXT("Recompiling global shaders."));
+
+					// Explicitly get outdated types for global shaders.
+					const FGlobalShaderMap* ShaderMap = GGlobalShaderMap[ShaderPlatform];
+					if (ShaderMap)
+					{
+						ShaderMap->GetOutdatedTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
+					}
+
+					UE_LOG(LogShaders, Display, TEXT("\tFound %d outdated shader types."), OutdatedShaderTypes.Num() + OutdatedShaderPipelineTypes.Num());
+
 					// Kick off global shader recompiles
 					BeginRecompileGlobalShaders(OutdatedShaderTypes, OutdatedShaderPipelineTypes, ShaderPlatform, TargetPlatform);
 
 					// Block on global shaders
 					FinishRecompileGlobalShaders();
+
+					// write the shader compilation info to memory, converting fnames to strings
+					FMemoryWriter MemWriter(*GlobalShaderMap, true);
+					FNameAsStringProxyArchive Ar(MemWriter);
+					Ar.SetCookingTarget(TargetPlatform);
+
+					// save out the global shader map to the byte array
+					SaveGlobalShadersForRemoteRecompile(Ar, ShaderPlatform);
 				}
 
 				// we only want to actually compile mesh shaders if a client directly requested it, and there's actually some work to do
-				if (MeshMaterialMaps != NULL && (OutdatedShaderTypes.Num() || OutdatedFactoryTypes.Num() || bCompileChangedShaders == false))
+				if ((RecompileCommandType == ODSCRecompileCommand::Material || RecompileCommandType == ODSCRecompileCommand::Changed) &&
+					MeshMaterialMaps != nullptr && 
+					(OutdatedShaderTypes.Num() || OutdatedFactoryTypes.Num() || bCompileChangedShaders == false))
 				{
 					TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > > CompiledShaderMaps;
 					UMaterial::CompileMaterialsForRemoteRecompile(MaterialsToCompile, ShaderPlatform, TargetPlatform, CompiledShaderMaps);
@@ -7134,20 +7195,20 @@ void RecompileShadersForRemote(
 					FMaterialShaderMap::SaveForRemoteRecompile(Ar, CompiledShaderMaps);
 				}
 
-					// save it out so the client can get it (and it's up to date next time)
-					FString GlobalShaderFilename = SaveGlobalShaderFile(ShaderPlatform, OutputDirectory, TargetPlatform);
+				// save it out so the client can get it (and it's up to date next time)
+				FString GlobalShaderFilename = SaveGlobalShaderFile(ShaderPlatform, OutputDirectory, TargetPlatform);
 
-					// add this to the list of files to tell the other end about
-					if (ModifiedFiles)
-					{
-						// need to put it in non-sandbox terms
-						FString SandboxPath(GlobalShaderFilename);
-						check(SandboxPath.StartsWith(OutputDirectory));
-						SandboxPath.ReplaceInline(*OutputDirectory, TEXT("../../../"));
-						FPaths::NormalizeFilename(SandboxPath);
-						ModifiedFiles->Add(SandboxPath);
-					}
+				// add this to the list of files to tell the other end about
+				if (ModifiedFiles)
+				{
+					// need to put it in non-sandbox terms
+					FString SandboxPath(GlobalShaderFilename);
+					check(SandboxPath.StartsWith(OutputDirectory));
+					SandboxPath.ReplaceInline(*OutputDirectory, TEXT("../../../"));
+					FPaths::NormalizeFilename(SandboxPath);
+					ModifiedFiles->Add(SandboxPath);
 				}
+			}
 		}
 	}
 
@@ -7157,6 +7218,7 @@ void RecompileShadersForRemote(
 	// Restore compilation state.
 	GShaderCompilingManager->SkipShaderCompilation(bPreviousState);
 }
+#endif // WITH_EDITOR
 
 void BeginRecompileGlobalShaders(const TArray<const FShaderType*>& OutdatedShaderTypes, const TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, EShaderPlatform ShaderPlatform, const ITargetPlatform* TargetPlatform)
 {
@@ -7307,6 +7369,58 @@ void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& Comp
 			if (!GRHISupportsMultithreadedShaderCreation && Platform == GMaxRHIShaderPlatform)
 			{
 				CreateClearReplacementShaders();
+			}
+		}
+	}
+}
+
+void SaveGlobalShadersForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform)
+{
+	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(ShaderPlatform);
+	uint8 bIsValid = GlobalShaderMap != nullptr;
+	Ar << bIsValid;
+
+	if (GlobalShaderMap)
+	{
+		GlobalShaderMap->SaveToGlobalArchive(Ar);
+	}
+}
+
+void LoadGlobalShadersForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform)
+{
+	uint8 bIsValid = 0;
+	Ar << bIsValid;
+
+	if (bIsValid)
+	{
+		FlushRenderingCommands();
+
+		FGlobalShaderMap* NewGlobalShaderMap = new FGlobalShaderMap(ShaderPlatform);
+		if (NewGlobalShaderMap)
+		{
+			NewGlobalShaderMap->LoadFromGlobalArchive(Ar);
+
+			if (GGlobalShaderMap[ShaderPlatform])
+			{
+				GGlobalShaderMap[ShaderPlatform]->ReleaseAllSections();
+
+				delete GGlobalShaderMap[ShaderPlatform];
+				GGlobalShaderMap[ShaderPlatform] = nullptr;
+				GGlobalShaderMap[ShaderPlatform] = NewGlobalShaderMap;
+
+				VerifyGlobalShaders(ShaderPlatform, nullptr, false);
+
+				// Invalidate global bound shader states so they will be created with the new shaders the next time they are set (in SetGlobalBoundShaderState)
+				for (TLinkedList<FGlobalBoundShaderStateResource*>::TIterator It(FGlobalBoundShaderStateResource::GetGlobalBoundShaderStateList()); It; It.Next())
+				{
+					BeginUpdateResourceRHI(*It);
+				}
+
+				PropagateGlobalShadersToAllPrimitives();
+			}
+			else
+			{
+				delete NewGlobalShaderMap;
 			}
 		}
 	}

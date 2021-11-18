@@ -725,7 +725,7 @@ EVisibility FDetailItemNode::ComputeItemVisibility() const
 		FName RowName;
 		if (Customization.HasCustomWidget())
 		{
-			RowName = FName(*Customization.WidgetDecl->FilterTextString.ToString());
+			RowName = Customization.WidgetDecl->GetRowName();
 		}
 		else if (Customization.HasCustomBuilder())
 		{

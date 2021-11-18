@@ -7,6 +7,7 @@
 
 class Animatable;
 enum class EMaxLightClass;
+class IDatasmithElement;
 class IDatasmithActorElement;
 class IDatasmithAreaLightElement;
 class IDatasmithCameraActorElement;
@@ -19,6 +20,7 @@ class IDatasmithPostProcessElement;
 class IDatasmithPostProcessVolumeElement;
 class IDatasmithScene;
 class IDatasmithTransformAnimationElement;
+class IDatasmithMetaDataElement;
 class INode;
 class INodeTab;
 class CameraObject;
@@ -80,6 +82,9 @@ public:
 	
 	static TSharedPtr< IDatasmithLightActorElement > CreateLightElementForNode(INode* Node, const TCHAR* Name);
 	static bool ParseLight(INode* Node, TSharedRef< IDatasmithLightActorElement > LightElement, TSharedRef< IDatasmithScene > DatasmithScene);
+
+	static TSharedPtr<IDatasmithMetaDataElement> ParseUserProperties(INode* Node, TSharedRef< IDatasmithActorElement > ActorElement, TSharedRef< IDatasmithScene > DatasmithScene);
+
 private:
 	/* Return the physical scale for the unitless light */
 	static float GetLightPhysicalScale();
@@ -95,6 +100,5 @@ private:
 	static bool ParseVRayLightIES(LightObject& Light, TSharedRef< IDatasmithPointLightElement > PointLightElement, TSharedRef< IDatasmithScene > DatasmithScene);
 	static bool ParseLightParameters(EMaxLightClass LightClass, LightObject& Light, TSharedRef< IDatasmithLightActorElement > LightElement, TSharedRef< IDatasmithScene > DatasmithScene);
 	static bool ProcessLightTexture(TSharedRef< IDatasmithLightActorElement > LightElement, Texmap* LightTexture, TSharedRef< IDatasmithScene > DatasmithScene);
-	static void ParseUserProperties(INode* Node, TSharedRef< IDatasmithActorElement > ActorElement, TSharedRef< IDatasmithScene > DatasmithScene);
 	static bool ParseTransformAnimation(INode* Node, TSharedRef< IDatasmithTransformAnimationElement > AnimationElement, float UnitMultiplier, const FMaxLightCoordinateConversionParams& LightParams);
 };

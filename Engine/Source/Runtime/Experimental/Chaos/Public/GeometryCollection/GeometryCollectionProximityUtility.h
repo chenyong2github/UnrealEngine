@@ -30,9 +30,9 @@ private:
 	bool AreNormalsOpposite(const FVector3f& Normal0, const FVector3f& Normal1) const;
 	bool AreFacesCoPlanar(int32 Idx0, int32 Idx1) const;
 	bool DoFacesOverlap(int32 Idx0, int32 Idx1) const;
-	static bool IdenticalTriangles(const TStaticArray<FVector2D, 3>& T0, const TStaticArray<FVector2D, 3>& T1);
-	static bool TrianglesIntersect(const TStaticArray<FVector2D,3>& T0, const TStaticArray<FVector2D,3>& T1);
-	static bool Cross(const TStaticArray<FVector2D,3>& Points, const FVector2D& B, const FVector2D& C, float Normal);
+	static bool IdenticalTriangles(const TStaticArray<FVector2f, 3>& T0, const TStaticArray<FVector2f, 3>& T1);
+	static bool TrianglesIntersect(const TStaticArray<FVector2f,3>& T0, const TStaticArray<FVector2f,3>& T1);
+	static bool Cross(const TStaticArray<FVector2f,3>& Points, const FVector2f& B, const FVector2f& C, float Normal);
 
 private:
 	FGeometryCollection* Collection;

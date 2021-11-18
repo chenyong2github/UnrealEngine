@@ -45,7 +45,7 @@ int32 SDockingTabWell::GetNumTabs() const
 	return Tabs.Num();
 }
 
-void SDockingTabWell::AddTab( const TSharedRef<SDockTab>& InTab, int32 AtIndex )
+void SDockingTabWell::AddTab( const TSharedRef<SDockTab>& InTab, int32 AtIndex, bool bKeepInactive)
 {
 	InTab->SetParent(SharedThis(this));
 
@@ -53,13 +53,20 @@ void SDockingTabWell::AddTab( const TSharedRef<SDockTab>& InTab, int32 AtIndex )
 	if (AtIndex == INDEX_NONE)
 	{
 		this->Tabs.Add( InTab );
-		BringTabToFront( Tabs.Num()-1 );
+		if (!bKeepInactive)
+		{
+			BringTabToFront(Tabs.Num() - 1);
+		}
 	}
 	else
 	{
 		AtIndex = FMath::Clamp( AtIndex, 0, Tabs.Num() );
 		this->Tabs.Insert( InTab, AtIndex );
-		BringTabToFront( AtIndex );
+
+		if (!bKeepInactive)
+		{
+			BringTabToFront(AtIndex);
+		}
 	}
 
 

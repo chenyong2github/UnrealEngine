@@ -137,29 +137,6 @@ namespace EAndroidAudio
 }
 
 UENUM()
-namespace EGoogleVRMode
-{
-	enum Type
-	{
-		Cardboard = 0 UMETA(DisplayName = "Cardboard", ToolTip = "Configure GoogleVR to run in Cardboard-only mode."),
-		Daydream = 1 UMETA(DisplayName = "Daydream", ToolTip = "Configure GoogleVR to run in Daydream-only mode. In this mode, app won't be able to run on Non Daydream-ready phone."),
-		DaydreamAndCardboard = 2 UMETA(DisplayName = "Daydream & Cardboard", ToolTip = "Configure GoogleVR to run in Daydream mode on Daydream-ready phone and fallback to Cardboard mode on Non Daydream-ready phone.")
-	};
-}
-
-UENUM()
-namespace EGoogleVRCaps
-{
-	enum Type
-	{
-		Cardboard = 0 UMETA(DisplayName = "Cardboard", ToolTip = "Head orientation, no controller."),
-		Daydream33 = 1 UMETA(DisplayName = "Daydream (3.3 DoF)", ToolTip = "Head orientation, controller orientation. Daydream without positional tracking."),
-		Daydream63 = 2 UMETA(DisplayName = "Daydream (6.3 DoF)", ToolTip = "Head position and orientation, controller orientation. Daydream with positional tracking."),
-		Daydream66 = 3 UMETA(DisplayName = "Daydream (6.6 DoF)", ToolTip = "Head position and orientation, 2 controllers with position and orientation. Daydream with positional tracking.")
-	};
-}
-
-UENUM()
 namespace EAndroidGraphicsDebugger
 {
 	enum Type
@@ -361,14 +338,6 @@ public:
 	// Removes Oculus Signature Files (osig) from APK if Quest/Go APK signed for distribution and enables entitlement checker
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced APK Packaging", Meta = (DisplayName = "Remove Oculus Signature Files from Distribution APK"))
 	bool bRemoveOSIG;
-
-	// Configure AndroidManifest.xml to support specific hardward configurations, position and orientation of the head and controller.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced APK Packaging", Meta = (DisplayName = "Configure GoogleVR to support specific hardware configurations"))
-	TArray<TEnumAsByte<EGoogleVRCaps::Type>> GoogleVRCaps;
-
-	// Configure the Android to run in sustained performance with lower max speeds, but no FPS fluctuations due to temperature
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Advanced APK Packaging", Meta = (DisplayName = "Configure GoogleVR for sustained-performance mode"))
-	bool bGoogleVRSustainedPerformance;
 
 	// This is the file that keytool outputs, specified with the -keystore parameter (file should be in <Project>/Build/Android)
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = DistributionSigning, Meta = (DisplayName = "Key Store (output of keytool, placed in <Project>/Build/Android)"))

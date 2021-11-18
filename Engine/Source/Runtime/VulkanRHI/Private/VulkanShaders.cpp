@@ -26,7 +26,16 @@ static TAutoConsoleVariable<int32> GDescriptorSetLayoutMode(
 	0,
 	TEXT("0 to not change layouts (eg Set 0 = Vertex, 1 = Pixel, etc\n")\
 	TEXT("1 to use a new set for common Uniform Buffers\n")\
-	TEXT("2 to collapse all sets into Set 0\n"),
+	TEXT("2 to collapse all sets into Set 0"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
+static int32 GVulkanCompressSPIRV = 0;
+static FAutoConsoleVariableRef GVulkanCompressSPIRVCVar(
+	TEXT("r.Vulkan.CompressSPIRV"),
+	GVulkanCompressSPIRV,
+	TEXT("0 SPIRV source is stored in RAM as-is. (default)\n")
+	TEXT("1 SPIRV source is compressed on load and decompressed as when needed, this saves RAM but can introduce hitching when creating shaders."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
@@ -89,6 +98,65 @@ void FVulkanShaderFactory::OnDeleteShader(const FVulkanShader& Shader)
 	ShaderMap[Shader.Frequency].Remove(ShaderKey);
 }
 
+FArchive& operator<<(FArchive& Ar, FVulkanShader::FSpirvContainer& SpirvContainer)
+{
+	uint32 SpirvCodeSizeInBytes;
+	Ar << SpirvCodeSizeInBytes;
+	check(SpirvCodeSizeInBytes);
+	check(Ar.IsLoading());
+
+	TArray<uint8>& SpirvCode = SpirvContainer.SpirvCode;
+
+	if (!GVulkanCompressSPIRV)
+	{
+		SpirvCode.Reserve(SpirvCodeSizeInBytes);
+		SpirvCode.SetNumUninitialized(SpirvCodeSizeInBytes);
+		Ar.Serialize(SpirvCode.GetData(), SpirvCodeSizeInBytes);
+	}
+	else
+	{
+		const int32 CompressedUpperBound = FCompression::CompressMemoryBound(NAME_Zlib, SpirvCodeSizeInBytes);
+		SpirvCode.Reserve(CompressedUpperBound);
+		SpirvCode.SetNumUninitialized(CompressedUpperBound);
+
+		TArray<uint8> UncompressedSpirv;
+		UncompressedSpirv.SetNumUninitialized(SpirvCodeSizeInBytes);
+		Ar.Serialize(UncompressedSpirv.GetData(), SpirvCodeSizeInBytes);
+
+		int32 CompressedSizeBytes = CompressedUpperBound;
+		if (FCompression::CompressMemory(NAME_Zlib, SpirvCode.GetData(), CompressedSizeBytes, UncompressedSpirv.GetData(), UncompressedSpirv.GetTypeSize() * UncompressedSpirv.Num()))
+		{
+			SpirvContainer.UncompressedSizeBytes = SpirvCodeSizeInBytes;
+			SpirvCode.SetNumUninitialized(CompressedSizeBytes);
+		}
+		else
+		{
+			SpirvCode = MoveTemp(UncompressedSpirv);
+		}
+	}
+
+	return Ar;
+}
+
+FVulkanShader::FSpirvCode FVulkanShader::GetSpirvCode()
+{
+	if (SpirvContainer.IsCompressed())
+	{
+		TArray<uint32> UncompressedSpirv;
+		const size_t ElementSize = UncompressedSpirv.GetTypeSize();
+		UncompressedSpirv.Reserve(SpirvContainer.GetSizeBytes() / ElementSize);
+		UncompressedSpirv.SetNumUninitialized(SpirvContainer.GetSizeBytes() / ElementSize);
+		FCompression::UncompressMemory(NAME_Zlib, UncompressedSpirv.GetData(), SpirvContainer.GetSizeBytes(), SpirvContainer.SpirvCode.GetData(), SpirvContainer.SpirvCode.Num());
+
+		return FSpirvCode(MoveTemp(UncompressedSpirv));
+	}
+	else
+	{
+		return FSpirvCode(TArrayView<uint32>((uint32*)SpirvContainer.SpirvCode.GetData(), SpirvContainer.SpirvCode.Num() / sizeof(uint32)));
+	}
+}
+
+
 void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 InShaderKey)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanShaders);
@@ -100,11 +168,9 @@ void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 
 
 	Ar << CodeHeader;
 
-	Ar << Spirv;
+	Ar << SpirvContainer;
 
-	checkf(Spirv.Num() != 0, TEXT("Empty SPIR-V! %s"), *CodeHeader.DebugName);
-
-	SpirvSize = Spirv.Num() * sizeof(uint32);
+	checkf(SpirvContainer.GetSizeBytes() != 0, TEXT("Empty SPIR-V! %s"), *CodeHeader.DebugName);
 
 	check(CodeHeader.UniformBufferSpirvInfos.Num() == CodeHeader.UniformBuffers.Num());
 
@@ -132,8 +198,9 @@ void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 
 #endif
 }
 
-static VkShaderModule CreateShaderModule(FVulkanDevice* Device, const TArray<uint32>& Spirv)
+static VkShaderModule CreateShaderModule(FVulkanDevice* Device, FVulkanShader::FSpirvCode& SpirvCode)
 {
+	const TArrayView<uint32> Spirv = SpirvCode.GetCodeView();
 	VkShaderModule ShaderModule;
 	VkShaderModuleCreateInfo ModuleCreateInfo;
 	ZeroVulkanStruct(ModuleCreateInfo, VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
@@ -160,8 +227,9 @@ static VkShaderModule CreateShaderModule(FVulkanDevice* Device, const TArray<uin
  *  Replace all subpassInput declarations with subpassInputMS
  *  Replace all subpassLoad(Input) with subpassLoad(Input, 0)
  */
-static void PatchSpirvInputAttachments(TArray<uint32>& InSpirv)
+FVulkanShader::FSpirvCode FVulkanShader::PatchSpirvInputAttachments(FVulkanShader::FSpirvCode& SpirvCode)
 {
+	TArrayView<uint32> InSpirv = SpirvCode.GetCodeView();
 	const uint32 kHeaderLength = 5;
 	const uint32 kOpTypeImage = 25;
 	const uint32 kDimSubpassData = 6;
@@ -174,7 +242,7 @@ static void PatchSpirvInputAttachments(TArray<uint32>& InSpirv)
 	// Make sure we at least have a header
 	if (Len < kHeaderLength)
 	{
-		return;
+		return SpirvCode;
 	}
 
 	TArray<uint32> OutSpirv;
@@ -231,8 +299,7 @@ static void PatchSpirvInputAttachments(TArray<uint32>& InSpirv)
 		}
 		Pos += InstLen;
 	}
-
-	Swap(InSpirv, OutSpirv);
+	return FVulkanShader::FSpirvCode(MoveTemp(OutSpirv));
 }
 
 bool FVulkanShader::NeedsSpirvInputAttachmentPatching(const FGfxPipelineDesc& Desc) const
@@ -242,10 +309,12 @@ bool FVulkanShader::NeedsSpirvInputAttachmentPatching(const FGfxPipelineDesc& De
 
 VkShaderModule FVulkanShader::CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash)
 {
+	FSpirvCode Spirv = GetSpirvCode();
+
 	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
 	if (NeedsSpirvInputAttachmentPatching(Desc))
 	{
-		PatchSpirvInputAttachments(Spirv);
+		Spirv = PatchSpirvInputAttachments(Spirv);
 	}
 
 	VkShaderModule Module = CreateShaderModule(Device, Spirv);
@@ -255,6 +324,8 @@ VkShaderModule FVulkanShader::CreateHandle(const FGfxPipelineDesc& Desc, const F
 
 VkShaderModule FVulkanShader::CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
 {
+	FSpirvCode Spirv = GetSpirvCode();
+
 	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
 	VkShaderModule Module = CreateShaderModule(Device, Spirv);
 	ShaderModules.Add(LayoutHash, Module);
@@ -277,9 +348,9 @@ void FVulkanShader::PurgeShaderModules()
 	ShaderModules.Empty(0);
 }
 
-void FVulkanLayout::PatchSpirvBindings(TArray<uint32>& Spirv, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const
+void FVulkanLayout::PatchSpirvBindings(FVulkanShader::FSpirvCode& SprivCode, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const
 {
-	//#todo-rco: Do we need an actual copy of the SPIR-V?
+	TArrayView<uint32> Spirv = SprivCode.GetCodeView();	//#todo-rco: Do we need an actual copy of the SPIR-V?
 	ShaderStage::EStage Stage = ShaderStage::GetStageForFrequency(Frequency);
 	const FDescriptorSetRemappingInfo::FStageInfo& StageInfo = DescriptorSetLayout.RemappingInfo.StageInfos[Stage];
 	

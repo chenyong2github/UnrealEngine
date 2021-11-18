@@ -7,6 +7,8 @@
 #include "Misc/QualifiedFrameTime.h"
 
 #include "Cluster/DisplayClusterClusterEvent.h"
+#include "Network/DisplayClusterNetworkTypes.h"
+#include "Network/Barrier/IDisplayClusterBarrier.h"
 
 
 /**
@@ -20,23 +22,23 @@ public:
 
 public:
 	// Game start barrier
-	virtual void WaitForGameStart() = 0;
+	virtual EDisplayClusterCommResult WaitForGameStart() = 0;
 
 	// Frame start barrier
-	virtual void WaitForFrameStart() = 0;
+	virtual EDisplayClusterCommResult WaitForFrameStart() = 0;
 
 	// Frame end barrier
-	virtual void WaitForFrameEnd() = 0;
+	virtual EDisplayClusterCommResult WaitForFrameEnd() = 0;
 
 	// Engine time
-	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) = 0;
+	virtual EDisplayClusterCommResult GetTimeData(double& OutDeltaTime, double& OutGameTime, TOptional<FQualifiedFrameTime>& OutFrameTime) = 0;
 
 	// Sync objects
-	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;
+	virtual EDisplayClusterCommResult GetObjectsData(const EDisplayClusterSyncGroup InSyncGroup, TMap<FString, FString>& OutObjectsData) = 0;
 
 	// Sync events
-	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;
+	virtual EDisplayClusterCommResult GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& OutJsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& OutBinaryEvents) = 0;
 
 	// Sync native UE input
-	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) = 0;
+	virtual EDisplayClusterCommResult GetNativeInputData(TMap<FString, FString>& OutNativeInputData) = 0;
 };

@@ -23,7 +23,6 @@ UTakeRecorderDMXLibrarySource::UTakeRecorderDMXLibrarySource(const FObjectInitia
 	: Super(ObjInit)
 	, DMXLibrary(nullptr)
 	, bRecordNormalizedValues(true)
-	, bReduceKeys(false)
 	, bDiscardSamplesBeforeStart(true)
 {
 	// DMX Tracks are blue
@@ -89,7 +88,6 @@ void UTakeRecorderDMXLibrarySource::StartRecording(const FTimecode& InSectionSta
 {
 	if (TrackRecorder)
 	{
-		TrackRecorder->SetReduceKeys(bReduceKeys);
 		TrackRecorder->SetSectionStartTimecode(InSectionStartTimecode, InSectionFirstFrame);
 	}
 }

@@ -895,7 +895,7 @@ void ULandscapeSplinesComponent::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	if (GIsEditor && GetWorld()->WorldType == EWorldType::Editor)
+	if (GIsEditor && GetWorld() && GetWorld()->WorldType == EWorldType::Editor)
 	{
 		// Build MeshComponentForeignOwnersMap (Component->Spline) from ForeignWorldSplineDataMap (World->Spline->Component)
 		for (auto& ForeignWorldSplineDataPair : ForeignWorldSplineDataMap)

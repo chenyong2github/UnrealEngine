@@ -30,7 +30,6 @@ private:
 	void BuildAppManifestSection(IDetailLayoutBuilder& DetailLayout);
 	void BuildIconSection(IDetailLayoutBuilder& DetailLayout);
 	void BuildLaunchImageSection(IDetailLayoutBuilder& DetailLayout);
-	void BuildDaydreamAppTileImageSection(IDetailLayoutBuilder& DetailLayout);
 	void BuildGraphicsDebuggerSection(IDetailLayoutBuilder& DetailLayout);
 
 	// Navigates to the build files in the explorer or finder
@@ -44,9 +43,6 @@ private:
 
 	// Called when the app id is modified
 	void OnAppIDModified();
-
-	// Called when GoogleVRCaps is modified
-	void OnGoogleVRCapsChange();
 
 	// Called when EnableGradle is modified
 	void OnEnableGradleChange();
@@ -79,7 +75,6 @@ private:
 
 	TArray<struct FPlatformIconInfo> IconNames;
 	TArray<struct FPlatformIconInfo> LaunchImageNames;
-	TArray<struct FPlatformIconInfo> DaydreamAppTileImageNames;
 
 	// Is the manifest writable?
 	TAttribute<bool> SetupForPlatformAttribute;

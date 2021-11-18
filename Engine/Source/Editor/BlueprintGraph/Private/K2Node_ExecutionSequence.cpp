@@ -226,7 +226,7 @@ void UK2Node_ExecutionSequence::RemovePinFromExecutionNode(UEdGraphPin* TargetPi
 	if (OwningSeq)
 	{
 		OwningSeq->Pins.Remove(TargetPin);
-		TargetPin->MarkPendingKill();
+		TargetPin->MarkAsGarbage();
 
 		// Renumber the pins so the numbering is compact
 		int32 ThenIndex = 0;

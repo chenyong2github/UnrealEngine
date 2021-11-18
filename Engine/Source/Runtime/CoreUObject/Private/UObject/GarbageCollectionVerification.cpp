@@ -338,7 +338,6 @@ void VerifyClustersAssumptions()
 	UE_CLOG(NumErrors.GetValue() > 0, LogGarbage, Fatal, TEXT("Encountered %d object(s) breaking GC Clusters assumptions. Please check log for details."), NumErrors.GetValue());
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void VerifyObjectFlagMirroring()
 {
 	int32 MaxNumberOfObjects = GUObjectArray.GetObjectArrayNum();
@@ -356,25 +355,35 @@ void VerifyObjectFlagMirroring()
 			FUObjectItem& ObjectItem = GUObjectArray.GetObjectItemArrayUnsafe()[FirstObjectIndex + ObjectIndex];
 			if (ObjectItem.Object)
 			{
-				UObjectBaseUtility* Object = (UObjectBaseUtility*)ObjectItem.Object;				
-				bool bHasObjectFlag = Object->HasAnyFlags(RF_PendingKill);				
+				UObjectBaseUtility* Object = (UObjectBaseUtility*)ObjectItem.Object;
+				bool bHasObjectFlag = Object->HasAnyFlags(RF_InternalPendingKill);
 				bool bHasInternalFlag = ObjectItem.HasAnyFlags(EInternalObjectFlags::PendingKill);
 				if (bHasObjectFlag != bHasInternalFlag)
 				{
-					UE_LOG(LogGarbage, Warning, TEXT("RF_PendingKill (%d) and EInternalObjectFlags::PendingKill (%d) flag mismatch on object %s"),
+					UE_LOG(LogGarbage, Warning, TEXT("RF_PendingKill (%d) and EInternalObjectFlags::PendingKill (%d) flag mismatch on %s"),
 						(int32)bHasObjectFlag,
 						(int32)bHasInternalFlag,
 						*Object->GetFullName());
 
 					++NumErrors;
 				}
-			}
+
+				bHasObjectFlag = Object->HasAnyFlags(RF_InternalGarbage);
+				bHasInternalFlag = ObjectItem.HasAnyFlags(EInternalObjectFlags::Garbage);
+				if (bHasObjectFlag != bHasInternalFlag)
+				{
+					UE_LOG(LogGarbage, Warning, TEXT("RF_Garbage (%d) and EInternalObjectFlags::Garbage (%d) flag mismatch on %s"),
+						(int32)bHasObjectFlag,
+						(int32)bHasInternalFlag,
+						*Object->GetFullName());
+
+					++NumErrors;
+				}
 		}
-	});
+	}});
 
 	UE_CLOG(NumErrors > 0, LogGarbage, Fatal, TEXT("Encountered %d object(s) breaking Object and Internal flag mirroring assumptions. Please check log for details."), (uint32)NumErrors);
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif // VERIFY_DISREGARD_GC_ASSUMPTIONS
 #if PROFILE_GCConditionalBeginDestroy

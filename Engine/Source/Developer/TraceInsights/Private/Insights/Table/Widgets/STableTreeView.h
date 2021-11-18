@@ -135,8 +135,13 @@ public:
 protected:
 	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
 	void InitCommandList();
-	virtual TSharedPtr<SWidget> ConstructToolbar();
-	virtual TSharedPtr<SWidget> ConstructFooter();
+	virtual TSharedRef<SWidget> ConstructSearchBox();
+	virtual TSharedRef<SWidget> ConstructAdvancedFiltersButton();
+	virtual TSharedRef<SWidget> ConstructHierarchyBreadcrumbTrail();
+	virtual TSharedPtr<SWidget> ConstructToolbar() { return nullptr; }
+	virtual TSharedPtr<SWidget> ConstructFooter() { return nullptr; }
+	virtual void ConstructHeaderArea(TSharedRef<SVerticalBox> InWidgetContent);
+	virtual void ConstructFooterArea(TSharedRef<SVerticalBox> InWidgetContent);
 
 	void UpdateTree();
 

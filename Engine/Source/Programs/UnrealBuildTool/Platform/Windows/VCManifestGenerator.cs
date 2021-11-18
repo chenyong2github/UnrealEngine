@@ -11,8 +11,7 @@ using System.Xml.Linq;
 using System.Text;
 using System.Diagnostics;
 using UnrealBuildBase;
-
-#nullable disable
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -34,21 +33,21 @@ namespace UnrealBuildTool
         protected const int MaxResourceEntries = 200;
 
         // INI configuration cache
-        protected ConfigHierarchy EngineIni;
-        protected ConfigHierarchy GameIni;
+        protected ConfigHierarchy? EngineIni;
+        protected ConfigHierarchy? GameIni;
 
-        protected string DefaultCulture;
-        protected List<string> CulturesToStage;
+        protected string? DefaultCulture;
+        protected List<string>? CulturesToStage;
 
-        protected UEResXWriter DefaultResourceWriter;
-        protected Dictionary<string, UEResXWriter> PerCultureResourceWriters;
+        protected UEResXWriter? DefaultResourceWriter;
+        protected Dictionary<string, UEResXWriter>? PerCultureResourceWriters;
         protected UnrealTargetPlatform Platform;
-		protected FileReference ProjectFile;
-        protected string ProjectPath;
-        protected string OutputPath;
-        protected string IntermediatePath;
+		protected FileReference? ProjectFile;
+        protected string? ProjectPath;
+        protected string? OutputPath;
+        protected string? IntermediatePath;
 
-		protected List<string> UpdatedFilePaths;
+		protected List<string>? UpdatedFilePaths;
 
 		/// <summary>
 		/// Create a manifest generator for the given platform variant.
@@ -158,7 +157,7 @@ namespace UnrealBuildTool
         }
 
 
-        protected string ValidatePackageVersion(string InVersionNumber)
+        protected string? ValidatePackageVersion(string InVersionNumber)
 		{
 			string WorkingVersionNumber = Regex.Replace(InVersionNumber, "[^.0-9]", "");
 			string CompletedVersionString = "";
@@ -208,7 +207,7 @@ namespace UnrealBuildTool
 			return CompletedVersionString;
 		}
 
-        protected string ValidateProjectBaseName(string InApplicationId)
+        protected string? ValidateProjectBaseName(string InApplicationId)
 		{
 			string ReturnVal = Regex.Replace(InApplicationId, "[^A-Za-z0-9]", "");
 			if (ReturnVal != null)
@@ -223,28 +222,30 @@ namespace UnrealBuildTool
 			return ReturnVal;
 		}
 
-        protected string ReadIniString(string Key, string Section, string DefaultValue = null)
+		[return: NotNullIfNotNull("DefaultValue")]
+        protected string? ReadIniString(string? Key, string Section, string? DefaultValue = null)
 		{
 			if (Key == null)
 				return DefaultValue;
 
 			string Value;
-			if (GameIni.GetString(Section, Key, out Value) && !string.IsNullOrWhiteSpace(Value))
+			if (GameIni!.GetString(Section, Key, out Value) && !string.IsNullOrWhiteSpace(Value))
 				return Value;
 
-			if (EngineIni.GetString(Section, Key, out Value) && !string.IsNullOrWhiteSpace(Value))
+			if (EngineIni!.GetString(Section, Key, out Value) && !string.IsNullOrWhiteSpace(Value))
 				return Value;
 
 			return DefaultValue;
 		}
 
-        protected string GetConfigString(string PlatformKey, string GenericKey, string DefaultValue = null)
+		[return: NotNullIfNotNull("DefaultValue")]
+        protected string? GetConfigString(string PlatformKey, string? GenericKey, string? DefaultValue = null)
 		{
-			var GenericValue = ReadIniString(GenericKey, IniSection_GeneralProjectSettings, DefaultValue);
+			string? GenericValue = ReadIniString(GenericKey, IniSection_GeneralProjectSettings, DefaultValue);
 			return ReadIniString(PlatformKey, IniSection_PlatformTargetSettings, GenericValue);
 		}
 
-        protected bool GetConfigBool(string PlatformKey, string GenericKey, bool DefaultValue = false)
+        protected bool GetConfigBool(string PlatformKey, string? GenericKey, bool DefaultValue = false)
 		{
 			var GenericValue = ReadIniString(GenericKey, IniSection_GeneralProjectSettings, null);
 			var ResultStr = ReadIniString(PlatformKey, IniSection_PlatformTargetSettings, GenericValue);
@@ -263,7 +264,7 @@ namespace UnrealBuildTool
 			if (ConfigValue == null)
 				return DefaultValue;
 
-			Dictionary<string, string> Pairs;
+			Dictionary<string, string>? Pairs;
 			int R, G, B;
 			if (ConfigHierarchy.TryParse(ConfigValue, out Pairs) &&
 				int.TryParse(Pairs["R"], out R) &&
@@ -280,13 +281,13 @@ namespace UnrealBuildTool
 		protected virtual bool FindResourceBinaryFile( out string SourcePath, string ResourceFileName, bool AllowEngineFallback = true)
 		{
 			// look in project normal Build location
-			SourcePath = Path.Combine(ProjectPath, "Build", Platform.ToString(), BuildResourceSubPath);
+			SourcePath = Path.Combine(ProjectPath!, "Build", Platform.ToString(), BuildResourceSubPath);
 			bool bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 
 			// look in Platform Extensions next
 			if (!bFileExists)
 			{
-				SourcePath = Path.Combine(ProjectPath, "Platforms", Platform.ToString(), "Build", BuildResourceSubPath);
+				SourcePath = Path.Combine(ProjectPath!, "Platforms", Platform.ToString(), "Build", BuildResourceSubPath);
 				bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 			}
 
@@ -315,7 +316,7 @@ namespace UnrealBuildTool
 
         protected bool CopyAndReplaceBinaryIntermediate(string ResourceFileName, bool AllowEngineFallback = true)
 		{
-			string TargetPath = Path.Combine(IntermediatePath, BuildResourceSubPath);
+			string TargetPath = Path.Combine(IntermediatePath!, BuildResourceSubPath);
 			string SourcePath;
 			bool bFileExists = FindResourceBinaryFile( out SourcePath, ResourceFileName, AllowEngineFallback );
 
@@ -339,7 +340,7 @@ namespace UnrealBuildTool
 			{
 				//@todo only copy files for cultures we are staging
 				string TargetResourcePath = Path.Combine(TargetPath, SourceResourceFile.Substring(SourcePath.Length + 1));
-				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)))
+				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)!))
 				{
 					Log.TraceError("Unable to create intermediate directory {0}.", Path.GetDirectoryName(TargetResourcePath));
 					continue;
@@ -376,7 +377,7 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			CreateCheckDirectory(Path.GetDirectoryName(TargetPath));
+			CreateCheckDirectory(Path.GetDirectoryName(TargetPath)!);
 
 			// Check for differences in file contents
 			if (File.Exists(TargetPath))
@@ -415,14 +416,14 @@ namespace UnrealBuildTool
 					Log.TraceError("Unable to copy file {0}.", TargetPath);
 					return;
 				}
-				UpdatedFilePaths.Add(TargetPath);
+				UpdatedFilePaths!.Add(TargetPath);
 			}
 		}
 
         protected void CopyResourcesToTargetDir()
 		{
-			string TargetPath = Path.Combine(OutputPath, BuildResourceSubPath);
-			string SourcePath = Path.Combine(IntermediatePath, BuildResourceSubPath);
+			string TargetPath = Path.Combine(OutputPath!, BuildResourceSubPath);
+			string SourcePath = Path.Combine(IntermediatePath!, BuildResourceSubPath);
 
 			// If the target resource folder doesn't exist yet, create it
 			if (!CreateCheckDirectory(TargetPath))
@@ -477,13 +478,13 @@ namespace UnrealBuildTool
 
         protected string AddResourceEntry(string ResourceEntryName, string ConfigKey, string GenericINISection, string GenericINIKey, string DefaultValue, string ValueSuffix = "")
 		{
-			string ConfigScratchValue = null;
+			string? ConfigScratchValue = null;
 
 			// Get the default culture value
 			string DefaultCultureScratchValue;
-			if (EngineIni.GetString(IniSection_PlatformTargetSettings, "CultureStringResources", out DefaultCultureScratchValue))
+			if (EngineIni!.GetString(IniSection_PlatformTargetSettings, "CultureStringResources", out DefaultCultureScratchValue))
 			{
-				Dictionary<string, string> Values;
+				Dictionary<string, string>? Values;
 				if (!ConfigHierarchy.TryParse(DefaultCultureScratchValue, out Values))
 				{
 					Log.TraceError("Invalid default culture string resources: \"{0}\". Unable to add resource entry.", DefaultCultureScratchValue);
@@ -499,15 +500,15 @@ namespace UnrealBuildTool
 				ConfigScratchValue = ReadIniString(GenericINIKey, GenericINISection, DefaultValue);
 			}
 
-			DefaultResourceWriter.AddResource(ResourceEntryName, ConfigScratchValue + ValueSuffix);
+			DefaultResourceWriter!.AddResource(ResourceEntryName, ConfigScratchValue + ValueSuffix);
 
 			// Find the default value
-			List<string> PerCultureValues;
+			List<string>? PerCultureValues;
 			if (EngineIni.GetArray(IniSection_PlatformTargetSettings, "PerCultureResources", out PerCultureValues))
 			{
 				foreach (string CultureCombinedValues in PerCultureValues)
 				{
-					Dictionary<string, string> SeparatedCultureValues;
+					Dictionary<string, string>? SeparatedCultureValues;
 					if (!ConfigHierarchy.TryParse(CultureCombinedValues, out SeparatedCultureValues)
 						|| !SeparatedCultureValues.ContainsKey("CultureStringResources")
 						|| !SeparatedCultureValues.ContainsKey("CultureId"))
@@ -517,9 +518,9 @@ namespace UnrealBuildTool
 					}
 
 					var CultureId = SeparatedCultureValues["CultureId"];
-					if (CulturesToStage.Contains(CultureId))
+					if (CulturesToStage!.Contains(CultureId))
 					{
-						Dictionary<string, string> CultureStringResources;
+						Dictionary<string, string>? CultureStringResources;
 						if (!ConfigHierarchy.TryParse(SeparatedCultureValues["CultureStringResources"], out CultureStringResources))
 						{
 							Log.TraceError("Invalid culture string resources: \"{0}\". Unable to add resource entry.", CultureCombinedValues);
@@ -530,7 +531,7 @@ namespace UnrealBuildTool
 
 						if (CulturesToStage.Contains(CultureId) && !string.IsNullOrEmpty(Value))
 						{
-							var Writer = PerCultureResourceWriters[CultureId];
+							var Writer = PerCultureResourceWriters![CultureId];
 							Writer.AddResource(ResourceEntryName, Value + ValueSuffix);
 						}
 					}
@@ -542,11 +543,11 @@ namespace UnrealBuildTool
 
 		protected string AddExternalResourceEntry(string ResourceEntryName, string DefaultValue, Dictionary<string,string> CultureIdToCultureValues)
 		{
-			DefaultResourceWriter.AddResource(ResourceEntryName, DefaultValue);
+			DefaultResourceWriter!.AddResource(ResourceEntryName, DefaultValue);
 
 			foreach( KeyValuePair<string,string> CultureIdToCultureValue in CultureIdToCultureValues)
 			{
-				var Writer = PerCultureResourceWriters[CultureIdToCultureValue.Key];
+				var Writer = PerCultureResourceWriters![CultureIdToCultureValue.Key];
 				Writer.AddResource(ResourceEntryName, CultureIdToCultureValue.Value);
 			}
 
@@ -555,11 +556,11 @@ namespace UnrealBuildTool
 
 		protected string AddDebugResourceString(string ResourceEntryName, string Value)
 		{
-			DefaultResourceWriter.AddResource(ResourceEntryName, Value);
+			DefaultResourceWriter!.AddResource(ResourceEntryName, Value);
 
-			foreach (var CultureId in CulturesToStage)
+			foreach (var CultureId in CulturesToStage!)
 			{
-				var Writer = PerCultureResourceWriters[CultureId];
+				var Writer = PerCultureResourceWriters![CultureId];
 				Writer.AddResource(ResourceEntryName, Value);
 			}
 
@@ -575,11 +576,11 @@ namespace UnrealBuildTool
 		{
 			var ResourceCulturesList = CulturesToStage.ToList();
 			// Move the default culture to the front of the list
-			ResourceCulturesList.Remove(DefaultCulture);
-			ResourceCulturesList.Insert(0, DefaultCulture);
+			ResourceCulturesList.Remove(DefaultCulture!);
+			ResourceCulturesList.Insert(0, DefaultCulture!);
 
 			// Check that we have a valid number of cultures
-			if (CulturesToStage.Count < 1 || CulturesToStage.Count >= MaxResourceEntries)
+			if (CulturesToStage!.Count < 1 || CulturesToStage.Count >= MaxResourceEntries)
 			{
 				Log.TraceWarning("Incorrect number of cultures to stage. There must be between 1 and {0} cultures selected.", MaxResourceEntries);
 			}
@@ -604,7 +605,7 @@ namespace UnrealBuildTool
 
 			// If specified in the project settings append the users machine name onto the package name to allow sharing of devkits without stomping of deploys
 			bool bPackageNameUseMachineName;
-			if (EngineIni.GetBool(IniSection_PlatformTargetSettings, "bPackageNameUseMachineName", out bPackageNameUseMachineName) && bPackageNameUseMachineName)
+			if (EngineIni!.GetBool(IniSection_PlatformTargetSettings, "bPackageNameUseMachineName", out bPackageNameUseMachineName) && bPackageNameUseMachineName)
 			{
 				var MachineName = Regex.Replace(Environment.MachineName.ToString(), "[^-.A-Za-z0-9]", "");
 				PackageName = PackageName + ".NOT.SHIPPABLE." + MachineName;
@@ -619,14 +620,14 @@ namespace UnrealBuildTool
 			return PublisherName;
 		}
 
-		protected string GetIdentityVersionNumber()
+		protected string? GetIdentityVersionNumber()
 		{
             var VersionNumber = GetConfigString("PackageVersion", "ProjectVersion", "1.0.0.0");
             VersionNumber = ValidatePackageVersion(VersionNumber);
 
             // If specified in the project settings attempt to retrieve the current build number and increment the version number by that amount, accounting for overflows
             bool bIncludeEngineVersionInPackageVersion;
-            if (EngineIni.GetBool(IniSection_PlatformTargetSettings, "bIncludeEngineVersionInPackageVersion", out bIncludeEngineVersionInPackageVersion) && bIncludeEngineVersionInPackageVersion)
+            if (EngineIni!.GetBool(IniSection_PlatformTargetSettings, "bIncludeEngineVersionInPackageVersion", out bIncludeEngineVersionInPackageVersion) && bIncludeEngineVersionInPackageVersion)
             {
 				VersionNumber = IncludeBuildVersionInPackageVersion(VersionNumber);
             }
@@ -648,10 +649,10 @@ namespace UnrealBuildTool
                 new XAttribute("Version", VersionNumber));
         }
 
-		protected virtual string IncludeBuildVersionInPackageVersion(string VersionNumber)
+		protected virtual string? IncludeBuildVersionInPackageVersion(string? VersionNumber)
 		{
-			BuildVersion BuildVersionForPackage;
-			if (BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out BuildVersionForPackage) && BuildVersionForPackage.Changelist != 0)
+			BuildVersion? BuildVersionForPackage;
+			if (VersionNumber != null && BuildVersion.TryRead(BuildVersion.GetDefaultFileName(), out BuildVersionForPackage) && BuildVersionForPackage.Changelist != 0)
 			{
 				// Break apart the version number into individual elements
 				string[] SplitVersionString = VersionNumber.Split('.');
@@ -680,7 +681,7 @@ namespace UnrealBuildTool
         {
 		}
 
-        public List<string> CreateManifest(string InManifestName, string InOutputPath, string InIntermediatePath, FileReference InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables)
+        public List<string>? CreateManifest(string InManifestName, string InOutputPath, string InIntermediatePath, FileReference? InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables)
 		{
 			// Verify we can find the SDK.
 			string SDKDirectory = GetSDKDirectory();
@@ -725,7 +726,7 @@ namespace UnrealBuildTool
 
 			// Load and verify/clean culture list
 			{
-				List<string> CulturesToStageWithDuplicates;
+				List<string>? CulturesToStageWithDuplicates;
 				GameIni.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "CulturesToStage", out CulturesToStageWithDuplicates);
 				GameIni.GetString("/Script/UnrealEd.ProjectPackagingSettings", "DefaultCulture", out DefaultCulture);
 				if (CulturesToStageWithDuplicates == null || CulturesToStageWithDuplicates.Count < 1)
@@ -747,12 +748,12 @@ namespace UnrealBuildTool
 				Log.TraceWarning("The default culture must be one of the staged cultures. Using {0}.", DefaultCulture);
 			}
 
-			List<string> PerCultureValues;
+			List<string>? PerCultureValues;
 			if (EngineIni.GetArray(IniSection_PlatformTargetSettings, "PerCultureResources", out PerCultureValues))
 			{
 				foreach (string CultureCombinedValues in PerCultureValues)
 				{
-					Dictionary<string, string> SeparatedCultureValues;
+					Dictionary<string, string>? SeparatedCultureValues;
 					if (!ConfigHierarchy.TryParse(CultureCombinedValues, out SeparatedCultureValues))
 					{
 						Log.TraceWarning("Invalid per-culture resource value: {0}", CultureCombinedValues);
@@ -813,7 +814,7 @@ namespace UnrealBuildTool
 
 
 			// Create the manifest document
-			string IdentityName = null;
+			string? IdentityName = null;
 			var ManifestXmlDocument = new XDocument(GetManifest(InTargetConfigs, InExecutables, out IdentityName));
 
 			// Export manifest to the intermediate directory then compare the contents to any existing target manifest
@@ -896,7 +897,7 @@ namespace UnrealBuildTool
 				PriStartIndex.Value = ResourcesResFile;
 
 				// Swap the default folder indexer-config to a RESFILES indexer-config.
-				XmlElement FolderIndexerConfigNode = PriConfig.SelectSingleNode("/resources/index/indexer-config[@type='folder']") as XmlElement;
+				XmlElement FolderIndexerConfigNode = (XmlElement)PriConfig.SelectSingleNode("/resources/index/indexer-config[@type='folder']");
 				FolderIndexerConfigNode.SetAttribute("type", "RESFILES");
 				FolderIndexerConfigNode.RemoveAttribute("foldernameAsQualifier");
 				FolderIndexerConfigNode.RemoveAttribute("filenameAsQualifier");

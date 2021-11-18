@@ -62,12 +62,12 @@ public:
 
 	/**
 	* Get all of the control rigs and their bindings in the level sequence
-	* @param LevelSequence The movie scene sequence to look for Control Rigs.
+	* @param LevelSequence The movie scene sequence to look for Control Rigs
 	* @return returns list of Control Rigs in the level sequence.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static TArray<FControlRigSequencerBindingProxy> GetControlRigs(ULevelSequence* LevelSequence);
-	
+
 	/**
 	* Find or create a Control Rig track of a specific class based upon the binding
 	* @param World The world used to spawn into temporarily if binding is a spawnable
@@ -778,5 +778,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	static void SetLocalControlRigTransforms(ULevelSequence* LevelSequence, UControlRig* ControlRig, FName ControlName, const TArray<FFrameNumber>& Frames, const TArray<FTransform> Values,
 		ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate);
+
+	/*
+	 * Import FBX onto a control rig with the specified track and section
+	 *
+	 * @InWorld World to import to
+	 * @InSequence Sequence to import
+	 * @InTrack Track to import onto
+	 * @InSection Section to import onto, may be null in which case we use the track's section to key
+	 * @SelectedControlRigNames  List of selected control rig names. Will use them if  ImportFBXControlRigSettings->bImportOntoSelectedControls is true
+	 * @ImportFBXControlRigSettings Settings to control import.
+	 * @InImportFileName Path to fbx file to create
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
+	static bool ImportFBXToControlRigTrack(UWorld* World, ULevelSequence* InSequence, UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection,
+			const TArray<FString>& SelectedControlRigNames,
+			UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,
+			const FString& ImportFilename);
 };
 

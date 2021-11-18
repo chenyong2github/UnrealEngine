@@ -23,6 +23,8 @@ FText UAnimGraphNode_AnimDynamics::GetTooltipText() const
 
 void UAnimGraphNode_AnimDynamics::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshComponent * PreviewSkelMeshComp) const
 {
+	check(PreviewSkelMeshComp);
+
 	if(LastPreviewComponent != PreviewSkelMeshComp)
 	{
 		LastPreviewComponent = PreviewSkelMeshComp;
@@ -39,6 +41,18 @@ void UAnimGraphNode_AnimDynamics::Draw(FPrimitiveDrawInterface* PDI, USkeletalMe
 			{
 				const FAnimPhysRigidBody& Body = ActivePreviewNode->GetPhysBody(BodyIndex);
 				FTransform BodyTransform(Body.Pose.Orientation, Body.Pose.Position);
+
+				// Physics bodies are in Simulation Space. Transform into component space before rendering in the viewport.
+				if (ActivePreviewNode->SimulationSpace == AnimPhysSimSpaceType::RootRelative)
+				{
+					const FTransform RelativeBoneTransform = PreviewSkelMeshComp->GetBoneTransform(0);
+					BodyTransform = BodyTransform * RelativeBoneTransform;
+				}
+				else if (ActivePreviewNode->SimulationSpace == AnimPhysSimSpaceType::BoneRelative)
+				{
+					const FTransform RelativeBoneTransform = PreviewSkelMeshComp->GetBoneTransform(PreviewSkelMeshComp->GetBoneIndex(ActivePreviewNode->RelativeSpaceBone.BoneName));
+					BodyTransform = BodyTransform * RelativeBoneTransform;
+				}
 
 				for(const FAnimPhysShape& Shape : Body.Shapes)
 				{
@@ -146,7 +160,7 @@ void UAnimGraphNode_AnimDynamics::Draw(FPrimitiveDrawInterface* PDI, USkeletalMe
 			// World space transform
 			const FTransform BoneTransform = PreviewSkelMeshComp->GetBoneTransform(BoneIndex);
 			FTransform ShapeTransform = BoneTransform;
-			ShapeTransform.SetTranslation(ShapeTransform.GetTranslation() - Node.LocalJointOffset);
+			ShapeTransform.SetTranslation(ShapeTransform.GetTranslation() - BoneTransform.GetRotation().RotateVector(Node.LocalJointOffset));
 			
 			for(const FIntVector& Triangle : EditPreviewShape.Triangles)
 			{
@@ -400,6 +414,13 @@ void UAnimGraphNode_AnimDynamics::Serialize(FArchive& Ar)
 		FAnimPhysConstraintSetup& ConSetup = Node.ConstraintSetup;
 		ConSetup.AngularLimitsMin = FVector(-ConSetup.AngularXAngle_DEPRECATED, -ConSetup.AngularYAngle_DEPRECATED, -ConSetup.AngularZAngle_DEPRECATED);
 		ConSetup.AngularLimitsMax = FVector(ConSetup.AngularXAngle_DEPRECATED, ConSetup.AngularYAngle_DEPRECATED, ConSetup.AngularZAngle_DEPRECATED);
+	}
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+		
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::GravityOverrideDefinedInWorldSpace)
+	{
+		Node.bGravityOverrideInSimSpace = true;
 	}
 }
 

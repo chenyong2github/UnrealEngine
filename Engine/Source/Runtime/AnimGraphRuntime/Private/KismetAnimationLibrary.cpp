@@ -69,7 +69,7 @@ float UKismetAnimationLibrary::K2_DistanceBetweenTwoSocketsAndMapRange(const USk
 
 		if (bRemapRange)
 		{
-			return FMath::GetMappedRangeValueClamped(FVector2D(InRangeMin, InRangeMax), FVector2D(OutRangeMin, OutRangeMax), Distance);
+			return FMath::GetMappedRangeValueClamped(FVector2f(InRangeMin, InRangeMax), FVector2f(OutRangeMin, OutRangeMax), Distance);
 		}
 		else
 		{
@@ -105,7 +105,7 @@ FVector UKismetAnimationLibrary::K2_MakePerlinNoiseVectorAndRemap(float X, float
 float UKismetAnimationLibrary::K2_MakePerlinNoiseAndRemap(float Value, float RangeOutMin, float RangeOutMax)
 {
 	// perlin noise output is always from [-1, 1]
-	return FMath::GetMappedRangeValueClamped(FVector2D(-1.f, 1.f), FVector2D(RangeOutMin, RangeOutMax), FMath::PerlinNoise1D(Value));
+	return FMath::GetMappedRangeValueClamped(FVector2f(-1.f, 1.f), FVector2f(RangeOutMin, RangeOutMax), FMath::PerlinNoise1D(Value));
 }
 
 float UKismetAnimationLibrary::K2_CalculateVelocityFromPositionHistory(

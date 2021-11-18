@@ -9,9 +9,7 @@
 #include "Misc/PackagePath.h"
 
 FWorldPartitionPackageCache::FWorldPartitionPackageCache()
-{
-	
-}
+{}
 
 FWorldPartitionPackageCache::~FWorldPartitionPackageCache()
 {
@@ -49,10 +47,10 @@ void FWorldPartitionPackageCache::UnloadPackage(UPackage* InPackage)
 {
 	check(InPackage);
 	ForEachObjectWithPackage(InPackage, [](UObject* Object)
-		{
-			Object->ClearFlags(RF_Standalone);
-			return true;
-		}, false);
+	{
+		Object->ClearFlags(RF_Standalone);
+		return true;
+	}, false);
 
 	// World specific
 	if (UWorld* PackageWorld = UWorld::FindWorldInPackage(InPackage))
@@ -64,10 +62,10 @@ void FWorldPartitionPackageCache::UnloadPackage(UPackage* InPackage)
 				if (UPackage* ActorPackage = Actor ? Actor->GetExternalPackage() : nullptr)
 				{
 					ForEachObjectWithPackage(ActorPackage, [&](UObject* Object)
-						{
-							Object->ClearFlags(RF_Standalone);
-							return true;
-						}, false);
+					{
+						Object->ClearFlags(RF_Standalone);
+						return true;
+					}, false);
 				}
 			}
 		}
@@ -103,18 +101,18 @@ void FWorldPartitionPackageCache::LoadPackageAsyncInternal(FName InPackageName, 
 	LoadingPackages.Add(InPackageName, { InCompletionDelegate });
 
 	FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([this](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+	{
+		if (Result == EAsyncLoadingResult::Succeeded)
 		{
-			if (Result == EAsyncLoadingResult::Succeeded)
-			{
-				CachedPackages.Add(LoadedPackageName, LoadedPackage);
-			}
+			CachedPackages.Add(LoadedPackageName, LoadedPackage);
+		}
 	
-			TArray<FLoadPackageAsyncDelegate> CompletionDelegates = LoadingPackages.FindAndRemoveChecked(LoadedPackageName);
-			for (FLoadPackageAsyncDelegate& CompletionDelegate : CompletionDelegates)
-			{
-				CompletionDelegate.Execute(LoadedPackageName, LoadedPackage, Result);
-			}
-		});
+		TArray<FLoadPackageAsyncDelegate> CompletionDelegates = LoadingPackages.FindAndRemoveChecked(LoadedPackageName);
+		for (FLoadPackageAsyncDelegate& CompletionDelegate : CompletionDelegates)
+		{
+			CompletionDelegate.Execute(LoadedPackageName, LoadedPackage, Result);
+		}
+	});
 
 	// This is to prevent the world to be initialized (when a World asset is added and its type is EWorldType::Inactive it gets initialized)
 	if (bInWorldPackage)

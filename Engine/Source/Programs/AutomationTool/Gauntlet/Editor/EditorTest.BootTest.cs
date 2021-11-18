@@ -16,9 +16,9 @@ namespace EditorTest
 		{
 		}
 
-		public override UnrealGame.UE4TestConfig GetConfiguration()
+		public override UnrealGame.UnrealTestConfig GetConfiguration()
 		{
-			UnrealGame.UE4TestConfig Config = base.GetConfiguration();
+			UnrealGame.UnrealTestConfig Config = base.GetConfiguration();
 
 			Config.RequireRole(UnrealTargetRole.Editor);
 

@@ -7,8 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -25,7 +23,7 @@ namespace UnrealBuildTool
 		/// <param name="SigningCertificate"></param>
 		/// <param name="TeamUUID"></param>
 		/// <param name="bAutomaticSigning"></param>
-		public static void GetProvisioningData(FileReference InProject, bool Distribution, out string MobileProvision, out string SigningCertificate, out string TeamUUID, out bool bAutomaticSigning)
+		public static void GetProvisioningData(FileReference InProject, bool Distribution, out string? MobileProvision, out string? SigningCertificate, out string? TeamUUID, out bool bAutomaticSigning)
 		{
 			IOSProjectSettings ProjectSettings = ((TVOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.TVOS)).ReadProjectSettings(InProject);
 			if (ProjectSettings == null)

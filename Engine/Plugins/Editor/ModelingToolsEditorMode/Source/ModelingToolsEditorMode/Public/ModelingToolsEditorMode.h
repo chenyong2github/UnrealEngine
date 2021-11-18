@@ -44,8 +44,6 @@ public:
 
 	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
 
-	virtual EToolsContextScope GetDefaultToolScope() const override { return EToolsContextScope::EdMode; }
-
 	/*
 	 * focus events
 	 */

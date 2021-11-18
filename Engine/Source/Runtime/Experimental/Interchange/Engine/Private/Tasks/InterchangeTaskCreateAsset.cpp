@@ -3,8 +3,9 @@
 
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
-#include "InterchangeFactoryBase.h"
+#include "InterchangeAssetImportData.h"
 #include "InterchangeEngineLogPrivate.h"
+#include "InterchangeFactoryBase.h"
 #include "InterchangeManager.h"
 #include "InterchangeResult.h"
 #include "InterchangeSourceData.h"
@@ -40,6 +41,48 @@ namespace UE
 
 				OutPackageName = FPaths::Combine(*SanitazedPackageBasePath, *OutAssetName);
 			}
+
+			UObject* GetExistingObjectFromAssetImportData(TSharedPtr<UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper, UInterchangeBaseNode* Node)
+			{
+				UInterchangeAssetImportData* OriginalAssetImportData = nullptr;
+				TArray<UObject*> SubObjects;
+				GetObjectsWithOuter(AsyncHelper->TaskData.ReimportObject, SubObjects);
+				for (UObject* SubObject : SubObjects)
+				{
+					OriginalAssetImportData = Cast<UInterchangeAssetImportData>(SubObject);
+					if (OriginalAssetImportData)
+					{
+						break;
+					}
+				}
+
+				if (OriginalAssetImportData)
+				{
+					if (UInterchangeBaseNodeContainer* NodeContainer = OriginalAssetImportData->NodeContainer)
+					{
+						UClass* FactoryNodeClass = Node->GetClass();
+						UInterchangeBaseNode* SelectedOriginalNode = nullptr;
+						NodeContainer->BreakableIterateNodes([FactoryNodeClass, &SelectedOriginalNode](const FString&, UInterchangeBaseNode* OriginalNode)
+							{
+								if (OriginalNode->GetClass() == FactoryNodeClass && OriginalNode->GetParentUid() == UInterchangeBaseNode::InvalidNodeUid())
+								{
+									SelectedOriginalNode = OriginalNode;
+									return true;
+								}
+								return false;
+							});
+
+						// Hack for the reimport with a new file. (to revisited for MVP as this not a future proof solution. Should there be some sort of adapter that tell us how to do the mapping? Or should the pipeline do the mapping on a reimport? After all it is the pipeline that chose the name of the asset.
+						if (SelectedOriginalNode)
+						{
+							return AsyncHelper->TaskData.ReimportObject;
+						}
+					}
+				}
+
+				return nullptr;
+			}
+
 		}//ns Private
 	}//ns Interchange
 }//ns UE
@@ -80,6 +123,14 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 		UPackage* ResultFindPackage = FindPackage(nullptr, *PackageName);
 		UObject* FindOuter = (ResultFindPackage == nullptr ? ANY_PACKAGE : ResultFindPackage);
 		UObject* ExistingObject = FindObject<UObject>(FindOuter, *AssetName);
+
+		if (ExistingObject != AsyncHelper->TaskData.ReimportObject)
+		{
+			// Try to see if we can do a mapping from the source data (we should revisit this for the MVP)
+			ExistingObject = UE::Interchange::Private::GetExistingObjectFromAssetImportData(AsyncHelper, Node);
+		}
+		
+
 		if (ExistingObject)
 		{
 			Pkg = ExistingObject->GetPackage();
@@ -201,11 +252,19 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 		UPackage* ResultFindPackage = FindPackage(nullptr, *PackageName);
 		UObject* FindOuter = (ResultFindPackage == nullptr ? ANY_PACKAGE : ResultFindPackage);
 		ExistingObject = FindObject<UObject>(FindOuter, *AssetName);
+
+		if(ExistingObject != AsyncHelper->TaskData.ReimportObject)
+		{
+			// Try to see if we can do a mapping from the source data (we should revisit this for the MVP)
+			ExistingObject = UE::Interchange::Private::GetExistingObjectFromAssetImportData(AsyncHelper, Node);
+		}
+
 		bSkipAsset = !ExistingObject || ExistingObject != AsyncHelper->TaskData.ReimportObject;
 		if (!bSkipAsset)
 		{
 			Pkg = AsyncHelper->TaskData.ReimportObject->GetPackage();
 			PackageName = Pkg->GetPathName();
+			AssetName = ExistingObject->GetName();
 		}
 		else if(ExistingObject)
 		{

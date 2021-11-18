@@ -23,7 +23,7 @@ namespace ChaosTest
 	{
 		// @todo(ccaulfield): remove template parameters on collisions and other constraints
 		using FCollisionConstraints = FPBDCollisionConstraints;
-		using FCollisionDetector = FParticlePairCollisionDetector;
+		using FCollisionDetector = FBasicCollisionDetector;
 		using FRigidParticleSOAs = FPBDRigidsSOAs;
 		using FParticleHandle = FPBDRigidParticleHandle;
 		using FParticlePair = TVec2<FGeometryParticleHandle*>;
@@ -41,8 +41,8 @@ namespace ChaosTest
 		TArrayCollectionArray<FVec3> ParticlePrevXs;
 		TArrayCollectionArray<FRotation3> ParticlePrevRs;
 		FCollisionConstraints Collisions(ParticlesContainer, CollidedParticles, ParticleMaterials, PerParticleMaterials);
-		FParticlePairBroadPhase BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr, 0);
-		FNarrowPhase NarrowPhase;
+		FBasicBroadPhase BroadPhase(&ActivePotentiallyCollidingPairs, nullptr, nullptr);
+		FNarrowPhase NarrowPhase(0, 0, Collisions.GetConstraintAllocator());
 		FCollisionDetector CollisionDetector(BroadPhase, NarrowPhase, Collisions);
 		TSimpleConstraintRule<FCollisionConstraints> CollisionsRule(1, Collisions);
 		// End collisions stuff

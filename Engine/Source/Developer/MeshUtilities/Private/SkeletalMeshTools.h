@@ -24,11 +24,11 @@ struct FSkeletalMeshVertIndexAndZ
 
 struct FSoftSkinBuildVertex
 {
-	FVector			Position;
-	FVector			TangentX,	// Tangent, U-direction
+	FVector3f		Position;
+	FVector3f		TangentX,	// Tangent, U-direction
 					TangentY,	// Binormal, V-direction
 					TangentZ;	// Normal
-	FVector2D		UVs[MAX_TEXCOORDS]; // UVs
+	FVector2f		UVs[MAX_TEXCOORDS]; // UVs
 	FColor			Color;		// VertexColor
 	FBoneIndexType	InfluenceBones[MAX_TOTAL_INFLUENCES];
 	uint8			InfluenceWeights[MAX_TOTAL_INFLUENCES];

@@ -247,7 +247,7 @@ public:
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
-		SHADER_PARAMETER(FVector2D, HZBSize)
+		SHADER_PARAMETER(FVector2f, HZBSize)
 
 		SHADER_PARAMETER(uint32, NumViewIds)
 		SHADER_PARAMETER(uint32, NumCullingViews)
@@ -360,7 +360,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 
 	const bool bOcclusionCullInstances = PrevHZB.IsValid() && IsOcclusionCullingEnabled();
 	const uint32 InstanceIdBufferSize = TotalInstances * ViewIds.Num();
-	if (InstanceCullingDrawParams && InstanceCullingManager && InstanceCullingManager->IsDeferredCullingActive())
+	if (InstanceCullingDrawParams && InstanceCullingManager && InstanceCullingManager->IsDeferredCullingActive() && (InstanceCullingMode == EInstanceCullingMode::Normal))
 	{
 		FInstanceCullingDeferredContext *DeferredContext = InstanceCullingManager->DeferredContext;
 
@@ -945,7 +945,16 @@ void FInstanceCullingContext::SetupDrawCommands(
 		{
 			LoadBalancer = new FInstanceProcessingGPULoadBalancer;
 		}
-		check(LoadBalancer->IsEmpty());
+#if DO_CHECK
+		if (InstanceCullingMode == EInstanceCullingMode::Stereo)
+		{
+			check(ViewIds.Num() == 2);
+		}
+		else
+		{
+			check(LoadBalancer->IsEmpty());
+		}
+#endif
 	}
 
 	int32 CurrentStateBucketId = -1;

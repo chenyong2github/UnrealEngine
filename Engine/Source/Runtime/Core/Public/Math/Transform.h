@@ -11,6 +11,7 @@
 #include "Math/ScalarRegister.h"
 #include "Math/TransformVectorized.h"
 #include "Math/TransformNonVectorized.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 
 UE_DECLARE_LWC_TYPE(Transform, 3);
 
@@ -22,3 +23,15 @@ template<> struct TCanBulkSerialize<FTransform3f> { enum { Value = false }; }; /
 template<> struct TCanBulkSerialize<FTransform3d> { enum { Value = false }; }; // LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
 DECLARE_INTRINSIC_TYPE_LAYOUT(FTransform3f);
 DECLARE_INTRINSIC_TYPE_LAYOUT(FTransform3d);
+
+template<>
+inline bool FTransform3f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Transform, Transform3f, Transform3d);
+}
+
+template<>
+inline bool FTransform3d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Transform, Transform3d, Transform3f);
+}

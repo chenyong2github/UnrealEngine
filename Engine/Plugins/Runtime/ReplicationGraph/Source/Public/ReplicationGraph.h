@@ -96,7 +96,7 @@ public:
 	virtual void PrepareForReplication() { };
 
 	/** Debugging only function to return a normal TArray of actor rep list (for logging, debug UIs, etc) */
-	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const { }
+	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const;
 
 	// -----------------------------------------------------
 

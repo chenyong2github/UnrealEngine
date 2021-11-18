@@ -250,7 +250,7 @@ void FRDGGPUStatScopeOpArray::Execute(FRHIComputeCommandList& RHICmdListCompute)
 		const FRDGGPUStatScopeOp Op = Ops[Index];
 		const FRDGGPUStatScope* Scope = Op.Scope;
 
-		if (Scope->DrawCallCounter != nullptr)
+		if (Scope->DrawCallCounter != nullptr && (**Scope->DrawCallCounter) != -1)
 		{
 			RHICmdList.EnqueueLambda(
 				[DrawCallCounter = Scope->DrawCallCounter, bPush = Op.IsPush()](auto&)

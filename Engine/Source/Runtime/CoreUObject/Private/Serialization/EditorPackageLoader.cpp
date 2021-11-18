@@ -173,14 +173,9 @@ public:
 	{
 		FUObjectThreadContext& ThreadContext = FUObjectThreadContext::Get();
 
-		if (ThreadContext.AsyncPackageLoader == CookedPackageLoader.Get())
+		if (ThreadContext.AsyncPackageLoader)
 		{
-			CookedPackageLoader->NotifyConstructedDuringAsyncLoading(Object, bSubObject);
-		}
-		else
-		{
-			check(ThreadContext.AsyncPackageLoader == UncookedPackageLoader.Get());
-			UncookedPackageLoader->NotifyConstructedDuringAsyncLoading(Object, bSubObject);
+			ThreadContext.AsyncPackageLoader->NotifyConstructedDuringAsyncLoading(Object, bSubObject);
 		}
 	}
 

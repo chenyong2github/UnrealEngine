@@ -85,10 +85,10 @@ UTexture2D* FOpenCVHelper::TextureFromCvMat(cv::Mat& Mat, const FString* Package
 
 		Texture->SetLayerFormatSettings(0, FormatSettings);
 
-		Texture->PlatformData = new FTexturePlatformData();
-		Texture->PlatformData->SizeX = Mat.cols;
-		Texture->PlatformData->SizeY = Mat.rows;
-		Texture->PlatformData->PixelFormat = PixelFormat;
+		Texture->SetPlatformData(new FTexturePlatformData());
+		Texture->GetPlatformData()->SizeX = Mat.cols;
+		Texture->GetPlatformData()->SizeY = Mat.rows;
+		Texture->GetPlatformData()->PixelFormat = PixelFormat;
 
 		Texture->UpdateResource();
 
@@ -120,7 +120,7 @@ UTexture2D* FOpenCVHelper::TextureFromCvMat(cv::Mat& Mat, const FString* Package
 
 		// Copy the pixels from the OpenCV Mat to the Texture
 
-		FTexture2DMipMap& Mip0 = Texture->PlatformData->Mips[0];
+		FTexture2DMipMap& Mip0 = Texture->GetPlatformData()->Mips[0];
 		void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
 
 		const int32 PixelStride = Mat.channels();
@@ -176,7 +176,7 @@ UTexture2D* FOpenCVHelper::TextureFromCvMat(cv::Mat& Mat, UTexture2D* InTexture)
 
 	// Copy the pixels from the OpenCV Mat to the Texture
 
-	FTexture2DMipMap& Mip0 = InTexture->PlatformData->Mips[0];
+	FTexture2DMipMap& Mip0 = InTexture->GetPlatformData()->Mips[0];
 	void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
 
 	const int32 PixelStride = Mat.channels();

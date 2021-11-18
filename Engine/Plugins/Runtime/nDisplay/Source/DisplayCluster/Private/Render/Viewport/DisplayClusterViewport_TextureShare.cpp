@@ -98,7 +98,7 @@ bool FDisplayClusterViewport_TextureShare::UpdateLinkSceneContextToShare(const F
 
 			if(ExistConfiguration.IsValid())
 			{
-				int PassType = InContext.StereoscopicPass;
+				int32 PassType = InContext.StereoscopicPass;
 
 				static ITextureShare& TextureShareAPI = ITextureShare::Get();
 				TSharedPtr<ITextureShareItem> ShareItem;

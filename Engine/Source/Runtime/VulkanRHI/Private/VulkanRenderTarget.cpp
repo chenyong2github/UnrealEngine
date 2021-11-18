@@ -326,18 +326,43 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 		OutData.AddZeroed(NumPixels);
 		return;
 	}
-	FRHITexture2D* TextureRHI2D = TextureRHI->GetTexture2D();
-	check(TextureRHI2D);
-	FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)TextureRHI2D;
-	FVulkanSurface* Surface = &Texture2D->Surface;
+
+	FVulkanSurface* Surface = nullptr;
+
+	FRHITexture2D* Texture2DRHI = TextureRHI->GetTexture2D();
+	if (Texture2DRHI)
+	{
+		FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)Texture2DRHI;
+		Surface = &Texture2D->Surface;
+	}
+	else
+	{
+		// In VR, the high level code calls this function on the viewport render target, without knowing that it's
+		// actually a texture array created and managed by the VR runtime. In that case we'll just read the first
+		// slice of the array, which corresponds to one of the eyes.
+		FRHITexture2DArray* Texture2DArrayRHI = TextureRHI->GetTexture2DArray();
+		if (Texture2DArrayRHI)
+		{
+			FVulkanTexture2DArray* Texture2DArray = (FVulkanTexture2DArray*)Texture2DArrayRHI;
+			Surface = &Texture2DArray->Surface;
+		}
+	}
+
+	if (!Surface)
+	{
+		// Just return black for texture types we don't support.
+		OutData.Empty(0);
+		OutData.AddZeroed(NumPixels);
+		return;
+	}
 
 	Device->PrepareForCPURead();
 
 	FVulkanCommandListContext& ImmediateContext = Device->GetImmediateContext();
 
-	ensure(Texture2D->Surface.StorageFormat == VK_FORMAT_R8G8B8A8_UNORM || Texture2D->Surface.StorageFormat == VK_FORMAT_B8G8R8A8_UNORM || Texture2D->Surface.StorageFormat == VK_FORMAT_R16G16B16A16_SFLOAT || Texture2D->Surface.StorageFormat == VK_FORMAT_A2B10G10R10_UNORM_PACK32 || Texture2D->Surface.StorageFormat == VK_FORMAT_R16G16B16A16_UNORM);
+	ensure(Surface->StorageFormat == VK_FORMAT_R8G8B8A8_UNORM || Surface->StorageFormat == VK_FORMAT_B8G8R8A8_UNORM || Surface->StorageFormat == VK_FORMAT_R16G16B16A16_SFLOAT || Surface->StorageFormat == VK_FORMAT_A2B10G10R10_UNORM_PACK32 || Surface->StorageFormat == VK_FORMAT_R16G16B16A16_UNORM);
 	bool bIs8Bpp = true;
-	switch (Texture2D->Surface.StorageFormat)
+	switch (Surface->StorageFormat)
 	{
 	case VK_FORMAT_R16G16B16A16_SFLOAT:
 	case VK_FORMAT_R16G16B16A16_SNORM:
@@ -362,28 +387,28 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 		VkBufferImageCopy CopyRegion;
 		FMemory::Memzero(CopyRegion);
 		uint32 MipLevel = InFlags.GetMip();
-		uint32 SizeX = FMath::Max(TextureRHI2D->GetSizeX() >> MipLevel, 1u);
-		uint32 SizeY = FMath::Max(TextureRHI2D->GetSizeY() >> MipLevel, 1u);
+		uint32 SizeX = FMath::Max(Surface->Width >> MipLevel, 1u);
+		uint32 SizeY = FMath::Max(Surface->Height >> MipLevel, 1u);
 		CopyRegion.bufferRowLength = SizeX;
 		CopyRegion.bufferImageHeight = SizeY;
-		CopyRegion.imageSubresource.aspectMask = Texture2D->Surface.GetFullAspectMask();
+		CopyRegion.imageSubresource.aspectMask = Surface->GetFullAspectMask();
 		CopyRegion.imageSubresource.mipLevel = MipLevel;
 		CopyRegion.imageSubresource.layerCount = 1;
 		CopyRegion.imageExtent.width = SizeX;
 		CopyRegion.imageExtent.height = SizeY;
 		CopyRegion.imageExtent.depth = 1;
 
-		VkImageLayout& CurrentLayout = Device->GetImmediateContext().GetLayoutManager().FindOrAddLayoutRW(Texture2D->Surface, VK_IMAGE_LAYOUT_UNDEFINED);
+		VkImageLayout& CurrentLayout = Device->GetImmediateContext().GetLayoutManager().FindOrAddLayoutRW(*Surface, VK_IMAGE_LAYOUT_UNDEFINED);
 		bool bHadLayout = (CurrentLayout != VK_IMAGE_LAYOUT_UNDEFINED);
 		if (CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 		{
-			VulkanSetImageLayoutAllMips(CmdBuffer->GetHandle(), Texture2D->Surface.Image, CurrentLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+			VulkanSetImageLayoutAllMips(CmdBuffer->GetHandle(), Surface->Image, CurrentLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 		}
 
-		VulkanRHI::vkCmdCopyImageToBuffer(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, StagingBuffer->GetHandle(), 1, &CopyRegion);
+		VulkanRHI::vkCmdCopyImageToBuffer(CmdBuffer->GetHandle(), Surface->Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, StagingBuffer->GetHandle(), 1, &CopyRegion);
 		if (bHadLayout && CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 		{
-			VulkanSetImageLayoutAllMips(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentLayout);
+			VulkanSetImageLayoutAllMips(CmdBuffer->GetHandle(), Surface->Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentLayout);
 		}
 		else
 		{
@@ -417,39 +442,39 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rec
 
 	uint32 DestWidth = Rect.Max.X - Rect.Min.X;
 	uint32 DestHeight = Rect.Max.Y - Rect.Min.Y;
-	if (Texture2D->Surface.StorageFormat == VK_FORMAT_R16G16B16A16_SFLOAT)
+	if (Surface->StorageFormat == VK_FORMAT_R16G16B16A16_SFLOAT)
 	{
 		uint32 PixelByteSize = 8u;
-		uint8* In = MappedPointer + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
-		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		uint8* In = MappedPointer + (Rect.Min.Y * Surface->Width + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = Surface->Width * PixelByteSize;
 		ConvertRawR16G16B16A16FDataToFColor(DestWidth, DestHeight, In, SrcPitch, Dest, false);
 	}
-	else if (Texture2D->Surface.StorageFormat == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+	else if (Surface->StorageFormat == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
 	{
 		uint32 PixelByteSize = 4u;
-		uint8* In = MappedPointer + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
-		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		uint8* In = MappedPointer + (Rect.Min.Y * Surface->Width + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = Surface->Width * PixelByteSize;
 		ConvertRawR10G10B10A2DataToFColor(DestWidth, DestHeight, In, SrcPitch, Dest);
 	}
-	else if (Texture2D->Surface.StorageFormat == VK_FORMAT_R8G8B8A8_UNORM)
+	else if (Surface->StorageFormat == VK_FORMAT_R8G8B8A8_UNORM)
 	{
 		uint32 PixelByteSize = 4u;
-		uint8* In = MappedPointer + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
-		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		uint8* In = MappedPointer + (Rect.Min.Y * Surface->Width + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = Surface->Width * PixelByteSize;
 		ConvertRawR8G8B8A8DataToFColor(DestWidth, DestHeight, In, SrcPitch, Dest);
 	}
-	else if (Texture2D->Surface.StorageFormat == VK_FORMAT_R16G16B16A16_UNORM)
+	else if (Surface->StorageFormat == VK_FORMAT_R16G16B16A16_UNORM)
 	{
 		uint32 PixelByteSize = 8u;
-		uint8* In = MappedPointer + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
-		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		uint8* In = MappedPointer + (Rect.Min.Y * Surface->Width + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = Surface->Width * PixelByteSize;
 		ConvertRawR16G16B16A16DataToFColor(DestWidth, DestHeight, In, SrcPitch, Dest);
 	}
-	else if (Texture2D->Surface.StorageFormat == VK_FORMAT_B8G8R8A8_UNORM)
+	else if (Surface->StorageFormat == VK_FORMAT_B8G8R8A8_UNORM)
 	{
 		uint32 PixelByteSize = 4u;
-		uint8* In = MappedPointer + (Rect.Min.Y * TextureRHI2D->GetSizeX() + Rect.Min.X) * PixelByteSize;
-		uint32 SrcPitch = TextureRHI2D->GetSizeX() * PixelByteSize;
+		uint8* In = MappedPointer + (Rect.Min.Y * Surface->Width + Rect.Min.X) * PixelByteSize;
+		uint32 SrcPitch = Surface->Width * PixelByteSize;
 		ConvertRawB8G8R8A8DataToFColor(DestWidth, DestHeight, In, SrcPitch, Dest);
 	}
 

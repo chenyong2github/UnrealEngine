@@ -721,7 +721,7 @@ ULevelSequenceExporterUsd::ULevelSequenceExporterUsd()
 		}
 
 		FormatExtension.Add( Extension );
-		FormatDescription.Add( TEXT( "USD file" ) );
+		FormatDescription.Add( TEXT( "Universal Scene Description file" ) );
 	}
 	SupportedClass = ULevelSequence::StaticClass();
 	bText = false;
@@ -750,19 +750,26 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 	{
 		Options = Cast<ULevelSequenceExporterUsdOptions>( ExportTask->Options );
 	}
-	if ( !Options && ( !ExportTask || !ExportTask->bAutomated ) )
+
+	if ( !Options )
 	{
 		Options = GetMutableDefault<ULevelSequenceExporterUsdOptions>();
-		if ( Options )
-		{
-			Options->TimeCodesPerSecond = MovieScene->GetDisplayRate().AsDecimal();
+	}
+	if ( !Options )
+	{
+		return false;
+	}
 
-			const bool bIsImport = false;
-			const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
-			if ( !bContinue )
-			{
-				return false;
-			}
+	if ( !ExportTask || !ExportTask->bAutomated )
+	{
+		Options->LevelExportOptions.AssetFolder.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Assets" ) );
+		Options->TimeCodesPerSecond = MovieScene->GetDisplayRate().AsDecimal();
+
+		const bool bIsImport = false;
+		const bool bContinue = SUsdOptionsWindow::ShowOptions( *Options, bIsImport );
+		if ( !bContinue )
+		{
+			return false;
 		}
 	}
 
@@ -777,7 +784,18 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 	Params.SpawnRegister = SpawnRegister;
 	Params.ViewParams.bReadOnly = true;
 	Params.bEditWithinLevelEditor = false;
-	Params.PlaybackContext = Options->Level.Get();
+
+	// UE-132538: Use a getter for the playback context instead of just binding the world directly because FSequencer::UpdateCachedPlaybackContextAndClient will
+	// ignore the attribute's value and only check the getter
+	UWorld* World = Options->Level.Get();
+	if ( !World )
+	{
+		World = GWorld;
+	}
+	Params.PlaybackContext = TAttribute<UObject*>::Create( TAttribute<UObject*>::FGetter::CreateLambda( [World]()
+	{
+		return World;
+	}));
 
 	// Set to read only or else CreateSequencer will change the playback range of the moviescene without even calling Modify()
 	const bool bOldReadOnly = MovieScene->IsReadOnly();
@@ -814,7 +832,7 @@ bool ULevelSequenceExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type
 			FString Filename;
 			FString Extension;
 			FPaths::Split( TargetFileName, Directory, Filename, Extension );
-			Context.LevelFilePath = FPaths::Combine( Directory, FString::Printf( TEXT( "%s.%s" ), *GWorld->GetFName().ToString(), *Extension ) );
+			Context.LevelFilePath = FPaths::Combine( Directory, FString::Printf( TEXT( "%s.%s" ), *WorldToExport->GetFName().ToString(), *Extension ) );
 
 			Context.UsedFilePaths.Add( Context.LevelFilePath );
 

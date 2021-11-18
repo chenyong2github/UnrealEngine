@@ -62,7 +62,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 	}
 
 	// Create and store nDisplay-to-Domeprojection viewport adapter
-	const int MaxViewsAmount = 2; // always init contexts for stereo
+	const int32 MaxViewsAmount = 2; // always init contexts for stereo
 
 	ViewAdapter = CreateViewAdapter(FDisplayClusterProjectionDomeprojectionViewAdapterBase::FInitParams{ MaxViewsAmount });
 	if (!(ViewAdapter && ViewAdapter->Initialize(FullFilePath)))

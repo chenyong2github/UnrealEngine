@@ -1356,7 +1356,9 @@ FVector UKismetMathLibrary::Spherical2DToUnitCartesian(FVector2D A)
 KISMET_MATH_FORCEINLINE
 void UKismetMathLibrary::ToDirectionAndLength2D(FVector2D A, FVector2D &OutDir, float &OutLength)
 {
-	A.ToDirectionAndLength(OutDir, OutLength);
+	double OutLengthDbl;	// LWC_TODO: Perf pessimization
+	A.ToDirectionAndLength(OutDir, OutLengthDbl);
+	OutLength = OutLengthDbl;
 }
 
 KISMET_MATH_FORCEINLINE

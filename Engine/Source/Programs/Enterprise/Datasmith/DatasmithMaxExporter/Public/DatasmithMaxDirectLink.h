@@ -24,6 +24,7 @@ MAX_INCLUDES_END
 
 // Log all messages
 // #define LOG_DEBUG_HEAVY_ENABLE 1
+// #define LOG_DEBUG_ENABLE 1
 
 void AssignMeshMaterials(TSharedPtr<IDatasmithMeshElement>&MeshElement, Mtl * Material, const TSet<uint16>&SupportedChannels);
 
@@ -31,6 +32,7 @@ namespace DatasmithMaxDirectLink
 {
 
 class ISceneTracker;
+class FLayerTracker;
 
 //---- Main class for export/change tracking
 class IExporter
@@ -87,6 +89,7 @@ public:
 
 	INode* const Node;
 	FNodeTracker* Collision = nullptr;
+	FLayerTracker* Layer = nullptr;
 	AnimHandle InstanceHandle = 0; // todo: rename - this is handle for object this node is instance of
 	FString Name; 
 	bool bInvalidated = true;
@@ -184,7 +187,7 @@ FRenderMeshForConversion GetMeshForGeomObject(INode* Node, Object* Obj); // Extr
 FRenderMeshForConversion GetMeshForNode(INode* Node, FTransform Pivot); // Extract mesh evaluating node object
 FRenderMeshForConversion GetMeshForCollision(INode* Node);
 
-void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, INode* ExportedNode, bool bForceSingleMat, TSet<uint16>& SupportedChannels, const TCHAR* MeshName, FTransform Pivot);
+void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, INode* ExportedNode, bool bForceSingleMat, TSet<uint16>& SupportedChannels, TMap<int32, int32>& UVChannelsMap, FTransform Pivot);
 
 
 // Creates Mesh element and converts max mesh into it
@@ -235,6 +238,11 @@ public:
 		return FVector(UnitToCentimeter * Point.x,
 			UnitToCentimeter * -Point.y,
 			UnitToCentimeter * Point.z);
+	}
+
+	FVector toDatasmithNormal(Point3 Point) const
+	{
+		return FVector(Point.x, -Point.y, Point.z);
 	}
 
 	FColor toDatasmithColor(Point3& Point)

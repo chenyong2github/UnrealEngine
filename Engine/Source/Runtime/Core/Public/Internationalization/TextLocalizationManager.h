@@ -22,9 +22,6 @@ class ILocalizedTextSource;
 class IPakFile;
 class FTextLocalizationResource;
 
-typedef TSharedRef<FString, ESPMode::ThreadSafe> FTextDisplayStringRef;
-typedef TSharedPtr<FString, ESPMode::ThreadSafe> FTextDisplayStringPtr;
-
 enum class ETextLocalizationManagerInitializedFlags : uint8
 {
 	None = 0,
@@ -49,40 +46,35 @@ private:
 	/** Data struct for tracking a display string. */
 	struct FDisplayStringEntry
 	{
-		FTextDisplayStringRef DisplayString;
+		FTextConstDisplayStringRef DisplayString;
 #if WITH_EDITORONLY_DATA
 		FTextKey LocResID;
 #endif
 #if ENABLE_LOC_TESTING
-		FString NativeStringBackup;
+		FTextConstDisplayStringPtr NativeStringBackup;
 #endif
 		uint32 SourceStringHash;
-		bool bIsLocalized;
 
-		FDisplayStringEntry(const bool InIsLocalized, const FTextKey& InLocResID, const uint32 InSourceStringHash, const FTextDisplayStringRef& InDisplayString)
+		FDisplayStringEntry(const FTextKey& InLocResID, const uint32 InSourceStringHash, const FTextConstDisplayStringRef& InDisplayString)
 			: DisplayString(InDisplayString)
 #if WITH_EDITORONLY_DATA
 			, LocResID(InLocResID)
 #endif
 			, SourceStringHash(InSourceStringHash)
-			, bIsLocalized(InIsLocalized)
 		{
 		}
 
 		/** 
-		* Returns true if the display string entry contains valid display string data. 
+		* Returns true if the display string entry contains invalid display string data. 
 		*/
 		bool IsEmpty() const
 		{
-			return !bIsLocalized && (SourceStringHash == 0) && DisplayString->IsEmpty();
+			return SourceStringHash == 0 && DisplayString->IsEmpty();
 		}
 	};
 
 	/** Manages the currently loaded or registered text localizations. */
 	typedef TMap<FTextId, FDisplayStringEntry> FDisplayStringLookupTable;
-
-	/** Manages the identity associated with a display string, for use in looking up namespace and key from a display string. */
-	typedef TMap<FTextDisplayStringRef, FTextId> FNamespaceKeyLookupTable;
 
 private:
 	ETextLocalizationManagerInitializedFlags InitializedFlags = ETextLocalizationManagerInitializedFlags::None;
@@ -97,10 +89,9 @@ private:
 		return EnumHasAnyFlags(InitializedFlags, ETextLocalizationManagerInitializedFlags::Initializing);
 	}
 
-	FCriticalSection SynchronizationObject;
+	mutable FCriticalSection SynchronizationObject;
 	FDisplayStringLookupTable DisplayStringLookupTable;
-	FNamespaceKeyLookupTable NamespaceKeyLookupTable;
-	TMap<FTextDisplayStringRef, uint16> LocalTextRevisions;
+	TMap<FTextId, uint16> LocalTextRevisions;
 	uint16 TextRevisionCounter;
 
 #if WITH_EDITOR
@@ -118,7 +109,7 @@ public:
 	static FTextLocalizationManager& Get();
 	static void TearDown();
 
-	void DumpMemoryInfo();
+	void DumpMemoryInfo() const;
 	void CompactDataStructures();
 
 	/**
@@ -155,7 +146,7 @@ public:
 
 	/**	Finds and returns the display string with the given namespace and key, if it exists.
 	 *	Additionally, if a source string is specified and the found localized display string was not localized from that source string, null will be returned. */
-	FTextDisplayStringPtr FindDisplayString(const FTextKey& Namespace, const FTextKey& Key, const FString* const SourceString = nullptr);
+	FTextConstDisplayStringPtr FindDisplayString(const FTextKey& Namespace, const FTextKey& Key, const FString* const SourceString = nullptr) const;
 
 	/**	Returns a display string with the given namespace and key.
 	 *	If no display string exists, it will be created using the source string or an empty string if no source string is provided.
@@ -163,40 +154,31 @@ public:
 	 *		... but it was not localized from the specified source string, the display string will be set to the specified source and returned.
 	 *		... and it was localized from the specified source string (or none was provided), the display string will be returned.
 	*/
-	FTextDisplayStringRef GetDisplayString(const FTextKey& Namespace, const FTextKey& Key, const FString* const SourceString);
+	FTextConstDisplayStringRef GetDisplayString(const FTextKey& Namespace, const FTextKey& Key, const FString* const SourceString);
 
 #if WITH_EDITORONLY_DATA
 	/** If an entry exists for the specified namespace and key, returns true and provides the localization resource identifier from which it was loaded. Otherwise, returns false. */
-	bool GetLocResID(const FTextKey& Namespace, const FTextKey& Key, FString& OutLocResId);
+	bool GetLocResID(const FTextKey& Namespace, const FTextKey& Key, FString& OutLocResId) const;
 #endif
-	/**	Finds the namespace and key associated with the specified display string.
-	 *	Returns true if found and sets the out parameters. Otherwise, returns false.
-	 */
-	bool FindNamespaceAndKeyFromDisplayString(const FTextDisplayStringRef& InDisplayString, FString& OutNamespace, FString& OutKey);
 
-	/**	Finds the namespace and key associated with the specified display string.
-	 *	Returns true if found and sets the out parameters. Otherwise, returns false.
-	 */
-	bool FindNamespaceAndKeyFromDisplayString(const FTextDisplayStringRef& InDisplayString, FTextKey& OutNamespace, FTextKey& OutKey);
+	UE_DEPRECATED(5.0, "FindNamespaceAndKeyFromDisplayString no longer functions! Use FTextInspector::GetTextId instead.")
+	bool FindNamespaceAndKeyFromDisplayString(const FTextConstDisplayStringPtr& InDisplayString, FString& OutNamespace, FString& OutKey) const { return false; }
+
+	UE_DEPRECATED(5.0, "FindNamespaceAndKeyFromDisplayString no longer functions! Use FTextInspector::GetTextId instead.")
+	bool FindNamespaceAndKeyFromDisplayString(const FTextConstDisplayStringPtr& InDisplayString, FTextKey& OutNamespace, FTextKey& OutKey) const { return false; }
 	
 	/**
-	 * Attempts to find a local revision history for the given display string.
+	 * Attempts to find a local revision history for the given text ID.
 	 * This will only be set if the display string has been changed since the localization manager version has been changed (eg, if it has been edited while keeping the same key).
 	 * @return The local revision, or 0 if there have been no changes since a global history change.
 	 */
-	uint16 GetLocalRevisionForDisplayString(const FTextDisplayStringRef& InDisplayString);
+	uint16 GetLocalRevisionForTextId(const FTextId& InTextId) const;
 
 	/**	Attempts to register the specified display string, associating it with the specified namespace and key.
 	 *	Returns true if the display string has been or was already associated with the namespace and key.
 	 *	Returns false if the display string was already associated with another namespace and key or the namespace and key are already in use by another display string.
 	 */
 	bool AddDisplayString(const FTextDisplayStringRef& DisplayString, const FTextKey& Namespace, const FTextKey& Key);
-
-	/**
-	 * Updates the underlying value of a display string and associates it with a specified namespace and key, then returns true.
-	 * If the namespace and key are already in use by another display string, no changes occur and false is returned.
-	 */
-	bool UpdateDisplayString(const FTextDisplayStringRef& DisplayString, const FString& Value, const FTextKey& Namespace, const FTextKey& Key);
 
 	/** Updates display string entries and adds new display string entries based on localizations found in a specified localization resource. */
 	void UpdateFromLocalizationResource(const FString& LocalizationResourceFilePath);
@@ -291,8 +273,8 @@ private:
 	/** Updates display string entries and adds new display string entries based on provided localizations. */
 	void UpdateFromLocalizations(FTextLocalizationResource&& TextLocalizationResource, const bool bDirtyTextRevision = true);
 
-	/** Dirties the local revision counter for the given display string by incrementing it (or adding it) */
-	void DirtyLocalRevisionForDisplayString(const FTextDisplayStringRef& InDisplayString);
+	/** Dirties the local revision counter for the given text ID by incrementing it (or adding it) */
+	void DirtyLocalRevisionForTextId(const FTextId& InTextId);
 
 	/** Dirties the text revision counter by incrementing it, causing a revision mismatch for any information cached before this happens.  */
 	void DirtyTextRevision();

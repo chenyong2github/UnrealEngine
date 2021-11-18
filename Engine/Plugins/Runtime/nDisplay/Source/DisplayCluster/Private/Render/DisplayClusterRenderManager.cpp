@@ -307,28 +307,28 @@ bool FDisplayClusterRenderManager::RegisterSynchronizationPolicyFactory(const FS
 		SyncPolicyFactories.Emplace(InSyncPolicyType, InFactory);
 	}
 
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registered factory for syncrhonization policy: %s"), *InSyncPolicyType);
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registered factory for synchronization policy: %s"), *InSyncPolicyType);
 
 	return true;
 }
 
 bool FDisplayClusterRenderManager::UnregisterSynchronizationPolicyFactory(const FString& InSyncPolicyType)
 {
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistering factory for syncrhonization policy: %s"), *InSyncPolicyType);
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistering factory for synchronization policy: %s"), *InSyncPolicyType);
 
 	{
 		FScopeLock Lock(&CritSecInternals);
 
 		if (!SyncPolicyFactories.Contains(InSyncPolicyType))
 		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("A factory for '%s' syncrhonization policy not found"), *InSyncPolicyType);
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("A factory for '%s' synchronization policy not found"), *InSyncPolicyType);
 			return false;
 		}
 
 		SyncPolicyFactories.Remove(InSyncPolicyType);
 	}
 
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistered factory for syncrhonization policy: %s"), *InSyncPolicyType);
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistered factory for synchronization policy: %s"), *InSyncPolicyType);
 
 	return true;
 }

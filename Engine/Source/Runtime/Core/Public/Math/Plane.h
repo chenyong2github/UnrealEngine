@@ -7,6 +7,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Math/Vector.h"
 #include "Math/Vector4.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 #include "UObject/ObjectVersion.h"
 
 #ifdef _MSC_VER
@@ -298,6 +299,8 @@ public:
 		}
 		//return false;
 	}
+
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 
 	/**
 	 * Serializes the vector compressed for e.g. network transmission.
@@ -687,6 +690,20 @@ template<> struct TIsUECoreVariant<FPlane4f> { enum { Value = true }; };
 
 template<> struct TIsPODType<FPlane4d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FPlane4d> { enum { Value = true }; };
+
+
+template<>
+inline bool FPlane4f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Plane, Plane4f, Plane4d);
+}
+
+template<>
+inline bool FPlane4d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Plane, Plane4d, Plane4f);
+}
+
 
 #ifdef _MSC_VER
 #pragma warning (pop)

@@ -431,7 +431,7 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER(float,HistoryDistanceThreshold)
 		SHADER_PARAMETER(float,HistoryWeight)
 		SHADER_PARAMETER(float,PrevInvPreExposure)
-		SHADER_PARAMETER(FVector2D,InvDiffuseIndirectBufferSize)
+		SHADER_PARAMETER(FVector2f,InvDiffuseIndirectBufferSize)
 		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)

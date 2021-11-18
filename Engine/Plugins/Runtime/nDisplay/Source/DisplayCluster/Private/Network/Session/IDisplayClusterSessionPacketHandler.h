@@ -2,6 +2,8 @@
 
 #pragma once
 
+struct FDisplayClusterSessionInfo;
+
 
 /**
  * Packet handler interface for all incoming packets
@@ -19,5 +21,5 @@ public:
 	typedef typename std::conditional<bIsBidirectional, TSharedPtr<TPacketType>, NoResponse>::type ReturnType;
 
 	// Process incoming packet and return response packet
-	virtual typename IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>::ReturnType ProcessPacket(const TSharedPtr<TPacketType>& Request) = 0;
+	virtual typename IDisplayClusterSessionPacketHandler<TPacketType, bIsBidirectional>::ReturnType ProcessPacket(const TSharedPtr<TPacketType>& Request, const FDisplayClusterSessionInfo& SessionInfo) = 0;
 };

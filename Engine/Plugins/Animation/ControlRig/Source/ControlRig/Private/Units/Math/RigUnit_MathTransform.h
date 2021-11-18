@@ -172,7 +172,7 @@ struct CONTROLRIG_API FRigUnit_MathTransformMakeAbsolute : public FRigUnit_MathT
 * projects each transform into the target space. Optionally you can provide
 * a custom parent indices array, with which you can represent more than just chains.
 */
-USTRUCT(meta=(DisplayName="Accumulate Transform Array", Keywords="Local,Global,Absolute,Array"))
+USTRUCT(meta=(DisplayName="Make Transform Array Relative", Keywords="Local,Global,Absolute,Array,Accumulate"))
 struct CONTROLRIG_API FRigUnit_MathTransformAccumulateArray : public FRigUnit_MathTransformMutableBase
 {
 	GENERATED_BODY()
@@ -182,6 +182,8 @@ struct CONTROLRIG_API FRigUnit_MathTransformAccumulateArray : public FRigUnit_Ma
 		TargetSpace = EBoneGetterSetterMode::GlobalSpace;
 		Root = FTransform::Identity;
 	}
+
+	virtual FString GetUnitLabel() const override;
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;

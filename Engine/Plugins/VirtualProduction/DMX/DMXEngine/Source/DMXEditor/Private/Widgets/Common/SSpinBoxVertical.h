@@ -294,7 +294,7 @@ public:
 	
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override
 	{
-		const bool bActiveFeedback = IsHovered() || bDragging;
+		const bool bActiveFeedback = bDragging || IsInTextMode();
 
 		const FSlateBrush* BackgroundImage = bActiveFeedback ?
 			BackgroundHoveredBrush :
@@ -306,63 +306,61 @@ public:
 
 		const int32 BackgroundLayer = LayerId;
 
-		const bool bEnabled = ShouldBeEnabled( bParentEnabled );
+		const bool bEnabled = ShouldBeEnabled(bParentEnabled);
 		const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
-		FLinearColor BackColor = FLinearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			BackgroundLayer,
 			AllottedGeometry.ToPaintGeometry(),
 			BackgroundImage,
-			//FEditorStyle::GetBrush("TextBlock.HighlightShape"),
 			DrawEffects,
-			BackColor
-			);
+			BackgroundImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+		);
 
 		const int32 FilledLayer = BackgroundLayer + 1;
 
 		//if there is a spin range limit, draw the filler bar
 		if (!bUnlimitedSpinRange)
 		{
-			double Value = ValueAttribute.Get();
+			NumericType Value = ValueAttribute.Get();
 			NumericType CurrentDelta = Delta.Get();
-			if( CurrentDelta != 0.0f )
+			if (CurrentDelta != NumericType())
 			{
-				Value= Snap(Value, CurrentDelta); // snap floating point value to nearest Delta
+				Value = FMath::GridSnap(Value, CurrentDelta); // snap value to nearest Delta
 			}
-
-			float FractionFilled = Fraction(Value, GetMinSliderValue(), GetMaxSliderValue());
+			
+			float FractionFilled = Fraction((double)Value, (double)GetMinSliderValue(), (double)GetMaxSliderValue());
 			const float CachedSliderExponent = SliderExponent.Get();
-			if (CachedSliderExponent != 1)
+			if (!FMath::IsNearlyEqual(CachedSliderExponent, 1.f))
 			{
 				if (SliderExponentNeutralValue.IsSet() && SliderExponentNeutralValue.Get() > GetMinSliderValue() && SliderExponentNeutralValue.Get() < GetMaxSliderValue())
 				{
 					//Compute a log curve on both side of the neutral value
-					float StartFractionFilled = Fraction(SliderExponentNeutralValue.Get(), GetMinSliderValue(), GetMaxSliderValue());
+					float StartFractionFilled = Fraction((double)SliderExponentNeutralValue.Get(), (double)GetMinSliderValue(), (double)GetMaxSliderValue());
 					FractionFilled = SpinBoxVertComputeExponentSliderFraction(FractionFilled, StartFractionFilled, CachedSliderExponent);
 				}
 				else
 				{
-					FractionFilled = 1.0f - FMath::Pow( 1.0f - FractionFilled, CachedSliderExponent);
+					FractionFilled = 1.0f - FMath::Pow(1.0f - FractionFilled, CachedSliderExponent);
 				}
 			}
-			const FVector2D FillSize( AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * -FractionFilled);
+			const FVector2D FillSize(AllottedGeometry.GetLocalSize().X, AllottedGeometry.GetLocalSize().Y * FractionFilled);
 
-			if ( ! IsInTextMode() )
+			if (!IsInTextMode())
 			{
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					FilledLayer,
-					AllottedGeometry.ToPaintGeometry(FVector2D(0, AllottedGeometry.GetLocalSize().Y), FillSize),
-					FillImage, //FEditorStyle::GetBrush("TextBlock.HighlightShape"),
+					AllottedGeometry.ToPaintGeometry(AllottedGeometry.GetLocalSize() - FillSize, FillSize),
+					FillImage,
 					DrawEffects,
 					FillImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-					);
+				);
 			}
 		}
 
-		return FMath::Max( FilledLayer, SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, FilledLayer, InWidgetStyle, bEnabled ) );
+		return FMath::Max(FilledLayer, SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, FilledLayer, InWidgetStyle, bEnabled));
 	}
 
 	/**

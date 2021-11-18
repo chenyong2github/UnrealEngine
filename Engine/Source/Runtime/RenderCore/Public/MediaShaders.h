@@ -57,11 +57,11 @@ namespace MediaShaders
 struct FMediaElementVertex
 {
 	FVector4f Position;
-	FVector2D TextureCoordinate;
+	FVector2f TextureCoordinate;
 
 	FMediaElementVertex() { }
 
-	FMediaElementVertex(const FVector4f& InPosition, const FVector2D& InTextureCoordinate)
+	FMediaElementVertex(const FVector4f& InPosition, const FVector2f& InTextureCoordinate)
 		: Position(InPosition)
 		, TextureCoordinate(InTextureCoordinate)
 	{ }
@@ -450,6 +450,32 @@ public:
 	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YUVTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
+
+/**
+ * Pixel shader to convert YUV Y416 to RGB
+ *
+ * This shader expects a single texture in PF_A16B16G16R16 format.
+ */
+class FYUVY416ConvertPS
+	: public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FYUVY416ConvertPS, Global, RENDERCORE_API);
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+	}
+
+	FYUVY416ConvertPS() { }
+
+	FYUVY416ConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{ }
+
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FShaderResourceViewRHIRef SRV_Y, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+};
 
 
 /**

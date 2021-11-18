@@ -8,8 +8,10 @@
 #include "Misc/Timecode.h"
 #include "Misc/FrameRate.h"
 
-class IDisplayClusterNodeController;
+class IDisplayClusterClusterNodeController;
+class IDisplayClusterFailoverNodeController;
 class FJsonObject;
+struct FQualifiedFrameTime;
 
 
 /**
@@ -23,17 +25,25 @@ public:
 	virtual ~IPDisplayClusterClusterManager() = default;
 
 public:
-	virtual IDisplayClusterNodeController* GetController() const = 0;
+	virtual IDisplayClusterClusterNodeController*  GetClusterNodeController() const = 0;
+	virtual IDisplayClusterFailoverNodeController* GetFailoverNodeController() const = 0;
 
-	virtual void ExportSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) const = 0;
-	virtual void ImportSyncData(const TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;
+	// Time data sync
+	virtual void SyncTimeData() = 0;
+	virtual void ExportTimeData(      double& OutDeltaTime,      double& OutGameTime,      TOptional<FQualifiedFrameTime>& OutFrameTime) = 0;
+	virtual void ImportTimeData(const double& InDeltaTime, const double& InGameTime, const TOptional<FQualifiedFrameTime>& InFrameTime) = 0;
 
-	virtual void ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;
-	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;
-
+	// Objects sync
 	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) = 0;
+	virtual void ExportObjectsData(const EDisplayClusterSyncGroup InSyncGroup,       TMap<FString, FString>& OutObjectsData) = 0;
+	virtual void ImportObjectsData(const EDisplayClusterSyncGroup InSyncGroup, const TMap<FString, FString>& InObjectsData) = 0;
+
+	// Cluster events sync
 	virtual void SyncEvents() = 0;
-	
-	virtual void ProvideNativeInputData(const TMap<FString, FString>& NativeInputData) = 0;
-	virtual void SyncNativeInput(TMap<FString, FString>& NativeInputData) = 0;
+	virtual void ExportEventsData(      TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& OutJsonEvents,      TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& OutBinaryEvents) = 0;
+	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& InJsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& InBinaryEvents) = 0;
+
+	// Native input sync
+	virtual void ExportNativeInputData(TMap<FString, FString>&  OutNativeInputData) = 0;
+	virtual void ImportNativeInputData(TMap<FString, FString>&& InNativeInputData) = 0;
 };

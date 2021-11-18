@@ -90,8 +90,8 @@ struct FCpuProfilerTrace
 
 	struct FEventScope
 	{
-		FEventScope(uint32 InSpecId, const UE::Trace::FChannel& Channel)
-			: bEnabled(Channel | CpuChannel)
+		FEventScope(uint32 InSpecId, const UE::Trace::FChannel& Channel, bool bCondition)
+			: bEnabled(bCondition && (Channel | CpuChannel))
 		{
 			if (bEnabled)
 			{
@@ -142,16 +142,26 @@ struct FCpuProfilerTrace
 	};
 };
 
+// Advanced macro for integrating e.g. stats/named events with cpu trace
+// Declares a cpu timing event for future use, conditionally and with a particular variable name for storing the id
+#define TRACE_CPUPROFILER_EVENT_DECLARE(NameStr, DeclName, Channel, Condition) \
+	static uint32 DeclName; \
+	if ((Condition) && bool(Channel|CpuChannel) && (DeclName == 0)) { \
+		DeclName = FCpuProfilerTrace::OutputEventType(NameStr, __FILE__, __LINE__); \
+	}
+
+// Advanced macro for integrating e.g. stats/named events with cpu trace
+// Traces a scoped event previously declared with TRACE_CPUPROFILER_EVENT_DECLARE, conditionally
+#define TRACE_CPUPROFILER_EVENT_SCOPE_USE(DeclName, ScopeName, Channel, Condition) \
+	FCpuProfilerTrace::FEventScope ScopeName(DeclName, Channel, Condition);
+
 // Trace a scoped cpu timing event providing a static string (const ANSICHAR* or const TCHAR*)
 // as the scope name and a trace channel.
 // Example: TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("My Scoped Timer A", CpuChannel)
 // Note: The event will be emitted only if both the given channel and CpuChannel is enabled.
 #define TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(NameStr, Channel) \
-	static uint32 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
-	if (bool(Channel|CpuChannel) && PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) == 0) { \
-		PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__) = FCpuProfilerTrace::OutputEventType(NameStr, __FILE__, __LINE__); \
-	} \
-	FCpuProfilerTrace::FEventScope PREPROCESSOR_JOIN(__CpuProfilerEventScope, __LINE__)(PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__), Channel);
+	TRACE_CPUPROFILER_EVENT_DECLARE(NameStr, PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__), Channel, true); \
+	TRACE_CPUPROFILER_EVENT_SCOPE_USE(PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__), PREPROCESSOR_JOIN(__CpuProfilerEventScope, __LINE__), Channel, true); 
 
 // Trace a scoped cpu timing event providing a scope name (plain text) and a trace channel.
 // Example: TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(MyScopedTimer::A, CpuChannel)
@@ -193,6 +203,8 @@ struct FCpuProfilerTrace
 
 #else
 
+#define TRACE_CPUPROFILER_EVENT_DECLARE(NameStr, DeclName, Channel, Condition)
+#define TRACE_CPUPROFILER_EVENT_SCOPE_USE(DeclName, ScopeName, Channel, Condition)
 #define TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(NameStr, Channel)
 #define TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(Name, Channel)
 #define TRACE_CPUPROFILER_EVENT_SCOPE_STR(NameStr)

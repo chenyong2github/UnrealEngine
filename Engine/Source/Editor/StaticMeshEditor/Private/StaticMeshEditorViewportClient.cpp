@@ -625,9 +625,9 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 			const FVector& VertexPos = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition( Indices[i] );
 
 			const FVector WorldPos = StaticMeshComponent->GetComponentTransform().TransformPosition( VertexPos );
-			const FVector& Normal = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( Indices[i] ); 
-			const FVector& Binormal = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY( Indices[i] ); 
-			const FVector& Tangent = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX( Indices[i] ); 
+			const FVector3f& Normal = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ( Indices[i] ); 
+			const FVector3f& Binormal = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY( Indices[i] ); 
+			const FVector3f& Tangent = LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX( Indices[i] ); 
 
 			const float Len = 5.0f;
 			const float BoxLen = 2.0f;
@@ -1035,7 +1035,7 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 					const uint32 Index = Indices[VertexProxy->Index];
 
 					Socket->RelativeLocation = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index);
-					Socket->RelativeRotation = FRotationMatrix::MakeFromYZ(LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index), LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index)).Rotator();
+					Socket->RelativeRotation = FRotator(FRotationMatrix44f::MakeFromYZ(LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Index), LODModel.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(Index)).Rotator());
 
 					ClearSelectedSockets = false;
 				}

@@ -48,9 +48,6 @@ public:
 	/** Creates a track. We don't call UMovieSceneTrackRecorder::CreateTrack or CreateTrackImpl since that expects an  ObjectToRecord and a GUID which isn't needed. */
 	TWeakObjectPtr<UMovieSceneDMXLibraryTrack> CreateTrack(UMovieScene* InMovieScene, UDMXLibrary* Library, const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs, bool bDiscardSamplesBeforeStart, bool bRecordNormalizedValues);
 
-	/** Sets if keys should be reduced */
-	void SetReduceKeys(bool bInReduce) { bReduceKeys = bInReduce; }
-
 private:
 	/** Asnyc Recorder for DMX */
 	TSharedPtr<FDMXAsyncDMXRecorder> AsyncDMXRecorder;
@@ -76,8 +73,7 @@ private:
 	/** The frame at the start of this recording section */
 	FFrameNumber RecordStartFrame;
 
-	/** If the keys should be reduced */
-	bool bReduceKeys;
-
+	/** If true, discards samples that were recorded before the actual recording start frame */
+	bool bDiscardSamplesBeforeStart;
 };
 

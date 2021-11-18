@@ -19,14 +19,13 @@
 #endif
 
 THIRD_PARTY_INCLUDES_START
-#include <Alembic/AbcCoreHDF5/All.h>
-#include <Alembic/AbcCoreOgawa/All.h>
-#include <Alembic/AbcCoreFactory/All.h>
-#include <Alembic/AbcCoreAbstract/TimeSampling.h>
-#include <Alembic/AbcCoreHDF5/All.h>
 #include <Alembic/Abc/All.h>
-#include <Alembic/AbcGeom/All.h>
 #include <Alembic/Abc/IObject.h>
+#include <Alembic/AbcCoreAbstract/TimeSampling.h>
+#include <Alembic/AbcCoreFactory/All.h>
+#include <Alembic/AbcCoreOgawa/All.h>
+#include <Alembic/AbcGeom/All.h>
+#include <Imath/ImathVec.h>
 THIRD_PARTY_INCLUDES_END
 
 #if PLATFORM_WINDOWS
@@ -682,10 +681,10 @@ bool AbcImporterUtilities::GenerateAbcMeshSampleDataForFrame(const Alembic::AbcG
 	return bRetrievalResult;
 }
 
-void AbcImporterUtilities::ReadUVSetData(Alembic::AbcGeom::IV2fGeomParam &UVCoordinateParameter, const Alembic::Abc::ISampleSelector FrameSelector, TArray<FVector2D>& OutUVs, const TArray<uint32>& MeshIndices, const bool bNeedsTriangulation, const TArray<uint32>& FaceCounts, const int32 NumVertices)
+void AbcImporterUtilities::ReadUVSetData(Alembic::AbcGeom::IV2fGeomParam &UVCoordinateParameter, const Alembic::Abc::ISampleSelector FrameSelector, TArray<FVector2f>& OutUVs, const TArray<uint32>& MeshIndices, const bool bNeedsTriangulation, const TArray<uint32>& FaceCounts, const int32 NumVertices)
 {
 	Alembic::Abc::V2fArraySamplePtr UVSample = UVCoordinateParameter.getValueProperty().getValue(FrameSelector);
-	RetrieveTypedAbcData<Alembic::Abc::V2fArraySamplePtr, FVector2D>(UVSample, OutUVs);
+	RetrieveTypedAbcData<Alembic::Abc::V2fArraySamplePtr, FVector2f>(UVSample, OutUVs);
 
 	// Can only retrieve UV indices when the UVs array is indexed
 	const bool bIndexedUVs = UVCoordinateParameter.getIndexProperty().valid();
@@ -701,7 +700,7 @@ void AbcImporterUtilities::ReadUVSetData(Alembic::AbcGeom::IV2fGeomParam &UVCoor
 		}
 
 		// Expand UV array
-		ExpandVertexAttributeArray<FVector2D>(UVIndices, OutUVs);
+		ExpandVertexAttributeArray<FVector2f>(UVIndices, OutUVs);
 	}
 	else if (OutUVs.Num())
 	{
@@ -1159,30 +1158,30 @@ void AbcImporterUtilities::PropogateMatrixTransformationToSample(FAbcMeshSample*
 {		
 	for (FVector3f& Position : Sample->Vertices)
 	{
-		Position = Matrix.TransformPosition(Position);
+		Position = (FVector4f)Matrix.TransformPosition(Position);
 	}
 
 	for (FVector3f& Velocity : Sample->Velocities)
 	{
-		Velocity = Matrix.TransformVector(Velocity);
+		Velocity = (FVector4f)Matrix.TransformVector(Velocity);
 	}
 
 	// TODO could make this a for loop and combine the transforms
 	for (FVector3f& Normal : Sample->Normals)
 	{
-		Normal = Matrix.TransformVector(Normal);
+		Normal = (FVector4f)Matrix.TransformVector(Normal);
 		Normal.Normalize();
 	}
 
 	for (FVector3f& TangentX : Sample->TangentX)
 	{
-		TangentX = Matrix.TransformVector(TangentX);
+		TangentX = (FVector4f)Matrix.TransformVector(TangentX);
 		TangentX.Normalize();
 	}
 
 	for (FVector3f& TangentY : Sample->TangentY)
 	{
-		TangentY = Matrix.TransformVector(TangentY);
+		TangentY = (FVector4f)Matrix.TransformVector(TangentY);
 		TangentY.Normalize();
 	}
 }
@@ -1323,7 +1322,7 @@ void AbcImporterUtilities::ApplyConversion(FAbcMeshSample* InOutSample, const FA
 				
 		for (uint32 UVIndex = 0; UVIndex < InOutSample->NumUVSets; ++UVIndex)
 		{
-			for (FVector2D& UV : InOutSample->UVs[UVIndex])
+			for (FVector2f& UV : InOutSample->UVs[UVIndex])
 			{
 				UV = UVOffset + UVMatrix.TransformPoint(UV);
 			}

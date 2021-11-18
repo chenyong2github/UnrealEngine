@@ -40,8 +40,8 @@ SMemInvestigationView::~SMemInvestigationView()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SMemInvestigationView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProfilerWindow> InProfilerWindow)
 {
 	check(InProfilerWindow.IsValid());
@@ -65,9 +65,11 @@ void SMemInvestigationView::Construct(const FArguments& InArgs, TSharedPtr<SMemo
 	// Update the Session (i.e. when analysis session was already started).
 	InsightsManager_OnSessionChanged();
 }
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 {
 	TSharedRef<SWidget> Widget =
@@ -190,9 +192,11 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructInvestigationWidgetArea()
 
 	return Widget;
 }
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SMemInvestigationView::QueryRule_OnGenerateWidget(TSharedPtr<Insights::FMemoryRuleSpec> InRule)
 {
 	const FText QueryRuleText = FText::Format(LOCTEXT("QueryRuleComboBox_TextFmt", "{0} ({1})"), InRule->GetVerboseName(), InRule->GetShortName());
@@ -221,9 +225,11 @@ TSharedRef<SWidget> SMemInvestigationView::QueryRule_OnGenerateWidget(TSharedPtr
 
 	return Widget;
 }
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 TimeMarkerIndex)
 {
 	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
@@ -291,8 +297,8 @@ TSharedRef<SWidget> SMemInvestigationView::ConstructTimeMarkerWidget(uint32 Time
 
 	return Widget;
 }
-
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SMemInvestigationView::InsightsManager_OnSessionChanged()
@@ -489,7 +495,7 @@ FReply SMemInvestigationView::RunQuery()
 			{
 				Builder.Append(TEXT(", "));
 			}
-			Builder.Append(TEXT('A') + TimeMarkerIndex);
+			Builder.Append((TCHAR)(TEXT('A') + TimeMarkerIndex));
 			const TSharedRef<Insights::FTimeMarker>& TimeMarker = ProfilerWindow->GetCustomTimeMarker(TimeMarkerIndex);
 			Builder.Appendf(TEXT("=%.9f"), TimeMarker->GetTime());
 		}

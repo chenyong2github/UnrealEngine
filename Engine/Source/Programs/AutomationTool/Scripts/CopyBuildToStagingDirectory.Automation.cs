@@ -183,7 +183,7 @@ namespace AutomationScripts
 			return Result;
 		}
 
-		static public string GetUnrealPakArguments(FileReference ProjectPath, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, List<OrderFile> PakOrderFileLocations, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, List<OrderFile> SecondaryPakOrderFileLocations)
+		static public string GetUnrealPakArguments(FileReference ProjectPath, Dictionary<string, string> UnrealPakResponseFile, FileReference OutputLocation, List<OrderFile> PakOrderFileLocations, string PlatformOptions, bool Compressed, EncryptionAndSigning.CryptoSettings CryptoSettings, FileReference CryptoKeysCacheFilename, String PatchSourceContentPath, string EncryptionKeyGuid, List<OrderFile> SecondaryPakOrderFileLocations, bool bUnattended)
 		{
 			StringBuilder CmdLine = new StringBuilder(MakePathSafeToUseWithCommandLine(ProjectPath.FullName));
 			CmdLine.AppendFormat(" {0}", MakePathSafeToUseWithCommandLine(OutputLocation.FullName));
@@ -226,6 +226,12 @@ namespace AutomationScripts
 				{
 					CmdLine.AppendFormat(" -sign");
 				}
+			}
+
+			if (bUnattended)
+			{
+				// We don't want unrealpak popping up interactive dialogs while we're running a build
+				CmdLine.AppendFormat(" -unattended");
 			}
 
 			CmdLine.Append(PlatformOptions);
@@ -301,7 +307,7 @@ namespace AutomationScripts
 				return;
 			}
 
-			string Arguments = GetUnrealPakArguments(Params.RawProjectPath, UnrealPakResponseFile, OutputLocation, PakOrderFileLocations, PlatformOptions, Compressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, EncryptionKeyGuid, SecondaryPakOrderFileLocations);
+			string Arguments = GetUnrealPakArguments(Params.RawProjectPath, UnrealPakResponseFile, OutputLocation, PakOrderFileLocations, PlatformOptions, Compressed, CryptoSettings, CryptoKeysCacheFilename, PatchSourceContentPath, EncryptionKeyGuid, SecondaryPakOrderFileLocations, Params.Unattended);
 			RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, Arguments, Options: ERunOptions.Default | ERunOptions.UTF8Output);
 		}
 
@@ -2753,6 +2759,42 @@ namespace AutomationScripts
 								}
 							}
 
+							FileReference InUtocFile = SourceOutputLocation.ChangeExtension(".utoc");
+							FileReference InUcasFile = SourceOutputLocation.ChangeExtension(".ucas");
+							if (FileReference.Exists(InUtocFile) || FileReference.Exists(InUcasFile))
+							{
+								if (FileReference.Exists(InUcasFile))
+								{
+									FileReference OutUcasFile = OutputLocation.ChangeExtension(".ucas");
+									LogInformation("Copying ucas from {0} to {1}", InUcasFile, OutUcasFile);
+									if (!InternalUtils.SafeCopyFile(InUcasFile.FullName, OutUcasFile.FullName))
+									{
+										LogInformation("Failed to copy ucas {0} to {1}, creating new pak", InUcasFile, OutUcasFile);
+										bCopiedExistingPak = false;
+									}
+								}
+								else
+								{
+									LogInformation("Missing ucas file {0}, creating new pak", InUcasFile);
+									bCopiedExistingPak = false;
+								}
+
+								if (FileReference.Exists(InUtocFile))
+								{
+									FileReference OutUtocFile = OutputLocation.ChangeExtension(".utoc");
+									LogInformation("Copying utoc from {0} to {1}", InUtocFile, OutUtocFile);
+									if (!InternalUtils.SafeCopyFile(InUtocFile.FullName, OutUtocFile.FullName))
+									{
+										LogInformation("Failed to copy utoc {0} to {1}, creating new pak", InUtocFile, OutUtocFile);
+										bCopiedExistingPak = false;
+									}
+								}
+								else
+								{
+									LogInformation("Missing utoc file {0}, creating new pak", InUtocFile);
+									bCopiedExistingPak = false;
+								}
+							}
 						}
 					}
 					if (!bCopiedExistingPak)
@@ -2917,7 +2959,8 @@ namespace AutomationScripts
 							Params.SkipEncryption ? null : CryptoKeysCacheFilename,
 							PatchSourceContentPath,
 							Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid,
-							SecondaryOrderFiles));
+							SecondaryOrderFiles,
+							Params.Unattended));
 
 						LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 					}
@@ -3256,6 +3299,12 @@ namespace AutomationScripts
 				CommandletParams += String.Format(" -BasedOnReleaseVersionPath={0}", Params.GetBasedOnReleaseVersionPath(SC, Params.Client));
 			}
 
+			if (Params.Unattended)
+			{
+				// We don't want unrealpak popping up interactive dialogs while we're running a build
+				CommandletParams += " -unattended";
+			}
+
 			LogInformation("Running UnrealPak with arguments: {0}", CommandletParams);
 			RunAndLog(CmdEnv, GetUnrealPakLocation().FullName, CommandletParams, Options: ERunOptions.Default | ERunOptions.UTF8Output);
 		}
@@ -3263,6 +3312,14 @@ namespace AutomationScripts
 		private static void RunUnrealPakInParallel(List<string> Commands, List<string> LogNames, string AdditionalCompressionOptionsOnCommandLine)
 		{
 			LogInformation("Executing {0} UnrealPak command{1}...", Commands.Count, (Commands.Count > 1)? "s" : "");
+
+			// Stash these off and restore later.  We most likely cannot spawn the max number of threads to run UnrealPak.
+			ThreadPool.GetMaxThreads(out int MaxWorkerThreads, out int MaxCompletionPortThreads);
+			if (MaxWorkerThreads > Environment.ProcessorCount || MaxCompletionPortThreads > Environment.ProcessorCount)
+			{
+				ThreadPool.SetMaxThreads(Environment.ProcessorCount, Environment.ProcessorCount);
+				LogInformation($"Lowering ThreadPool.MaxThreads: {Environment.ProcessorCount} Workers / {Environment.ProcessorCount} IO");
+			}
 
 			// Spawn tasks for each command
 			IProcessResult[] Results = new IProcessResult[Commands.Count];
@@ -3305,6 +3362,9 @@ namespace AutomationScripts
 					NumFailed++;
 				}
 			}
+
+			// Restore the ThreadPool values
+			ThreadPool.SetMaxThreads(MaxWorkerThreads, MaxCompletionPortThreads);
 
 			// Abort if any instance failed
 			if(NumFailed > 0)

@@ -24,7 +24,7 @@
  * repository. For the moment, our 'labels' don't filter the parts of the repo that are under them, so 
  * they effectively just act as metadata on a revision number across the whole repo.
  */
-class FSubversionSourceControlLabel : public ISourceControlLabel, public TSharedFromThis<FSubversionSourceControlLabel>
+class FSubversionSourceControlLabel : public ISourceControlLabel
 {
 public:
 

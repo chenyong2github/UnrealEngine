@@ -153,7 +153,7 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 
 	for (int32 VertIndex = 0; VertIndex < VertexCount; ++VertIndex)
 	{
-		FVector Normal			= Vertices[VertIndex].TangentZ;
+		FVector Normal			= (FVector4)Vertices[VertIndex].TangentZ;
 		FbxVector4 FbxNormal	= Converter.ConvertToFbxPos(Normal);
 
 		LayerElementNormal->GetDirectArray().Add(FbxNormal);

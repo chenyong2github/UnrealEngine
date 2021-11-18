@@ -30,14 +30,19 @@ namespace UnrealBuildTool
 		public FileReference? VersionFile;
 
 		/// <summary>
-		/// Output location for the target file
+		/// The new version to write. This should only be set on the engine step.
 		/// </summary>
-		public FileReference ReceiptFile;
+		public BuildVersion? Version;
 
 		/// <summary>
-		/// The partially constructed receipt data
+		/// Output location for the target file
 		/// </summary>
-		public TargetReceipt Receipt;
+		public FileReference? ReceiptFile;
+
+		/// <summary>
+		/// The new receipt to write. This should only be set on the target step.
+		/// </summary>
+		public TargetReceipt? Receipt;
 
 		/// <summary>
 		/// Map of module manifest filenames to their location on disk.
@@ -49,16 +54,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile"></param>
 		/// <param name="VersionFile"></param>
+		/// <param name="Version"></param>
 		/// <param name="ReceiptFile"></param>
 		/// <param name="Receipt"></param>
-		/// <param name="FileToManifest"></param>
-		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, FileReference ReceiptFile, TargetReceipt Receipt, Dictionary<FileReference, ModuleManifest> FileToManifest)//string EngineManifestName, string ProjectManifestName, Dictionary<string, FileReference> ModuleNameToLocation)
+		public WriteMetadataTargetInfo(FileReference? ProjectFile, FileReference? VersionFile, BuildVersion? Version, FileReference? ReceiptFile, TargetReceipt? Receipt)
 		{
 			this.ProjectFile = ProjectFile;
 			this.VersionFile = VersionFile;
+			this.Version = Version;
 			this.ReceiptFile = ReceiptFile;
 			this.Receipt = Receipt;
-			this.FileToManifest = FileToManifest;
 		}
 	}
 
@@ -72,7 +77,7 @@ namespace UnrealBuildTool
 		/// Version number for output files. This is not used directly, but can be appended to command-line invocations of the tool to ensure that actions to generate metadata are updated if the output format changes. 
 		/// The action graph is regenerated whenever UBT is rebuilt, so this should always match.
 		/// </summary>
-		public const int CurrentVersionNumber = 1;
+		public const int CurrentVersionNumber = 2;
 
 		/// <summary>
 		/// Execute the command
@@ -109,46 +114,32 @@ namespace UnrealBuildTool
 				throw new BuildException("Version number to WriteMetadataMode is incorrect (expected {0}, got {1})", CurrentVersionNumber, VersionNumber);
 			}
 
-			// Check if we need to set a build id
-			TargetReceipt Receipt = TargetInfo.Receipt;
-			if(String.IsNullOrEmpty(Receipt.Version.BuildId))
+			// Get the build id to use
+			string? BuildId;
+			if (TargetInfo.Version != null && !String.IsNullOrEmpty(TargetInfo.Version.BuildId))
 			{
-				// Check if there's an existing version file. If it exists, try to merge in any manifests that are valid (and reuse the existing build id)
-				BuildVersion? PreviousVersion;
-				if(TargetInfo.VersionFile != null && BuildVersion.TryRead(TargetInfo.VersionFile, out PreviousVersion))
-				{
-					// Check if we can reuse the existing manifests. This prevents unnecessary builds when switching between projects.
-					Dictionary<FileReference, ModuleManifest> PreviousFileToManifest = new Dictionary<FileReference, ModuleManifest>();
-					if(TryRecyclingManifests(PreviousVersion.BuildId, TargetInfo.FileToManifest.Keys, PreviousFileToManifest))
-					{
-						// Merge files from the existing manifests with the new ones
-						foreach(KeyValuePair<FileReference, ModuleManifest> Pair in PreviousFileToManifest)
-						{
-							ModuleManifest TargetManifest = TargetInfo.FileToManifest[Pair.Key];
-							MergeManifests(Pair.Value, TargetManifest);
-						}
-
-						// Update the build id to use the current one
-						Receipt.Version.BuildId = PreviousVersion.BuildId;
-					}
-				}
-
-				// If the build id is still not set, generate a new one from a GUID
-				if(String.IsNullOrEmpty(Receipt.Version.BuildId))
-				{
-					Receipt.Version.BuildId = Guid.NewGuid().ToString();
-				}
+				BuildId = TargetInfo.Version.BuildId;
+			}
+			else if (TargetInfo.Receipt != null && !String.IsNullOrEmpty(TargetInfo.Receipt.Version.BuildId))
+			{
+				BuildId = TargetInfo.Receipt.Version.BuildId;
+			}
+			else if (TargetInfo.VersionFile != null && BuildVersion.TryRead(TargetInfo.VersionFile, out BuildVersion? PrevVersion) && CanRecycleBuildId(PrevVersion.BuildId, TargetInfo.FileToManifest))
+			{
+				BuildId = PrevVersion.BuildId;
 			}
 			else
 			{
-				// Read all the manifests and merge them into the new ones, if they have the same build id
-				foreach(KeyValuePair<FileReference, ModuleManifest> Pair in TargetInfo.FileToManifest)
+				BuildId = Guid.NewGuid().ToString();
+			}
+
+			// Read all the existing manifests and merge them into the new ones if they have the same build id
+			foreach(KeyValuePair<FileReference, ModuleManifest> Pair in TargetInfo.FileToManifest)
+			{
+				ModuleManifest? SourceManifest;
+				if(TryReadManifest(Pair.Key, out SourceManifest) && SourceManifest.BuildId == BuildId)
 				{
-					ModuleManifest? SourceManifest;
-					if(TryReadManifest(Pair.Key, out SourceManifest) && SourceManifest.BuildId == Receipt.Version.BuildId)
-					{
-						MergeManifests(SourceManifest, Pair.Value);
-					}
+					MergeManifests(SourceManifest, Pair.Value);
 				}
 			}
 
@@ -159,7 +150,7 @@ namespace UnrealBuildTool
 				if(!UnrealBuildTool.IsFileInstalled(ManifestFile))
 				{
 					ModuleManifest Manifest = Pair.Value;
-					Manifest.BuildId = Receipt.Version.BuildId;
+					Manifest.BuildId = BuildId ?? String.Empty;
 
 					if(!FileReference.Exists(ManifestFile))
 					{
@@ -193,58 +184,50 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// Write out the version file, if it's changed. Since this file is next to the executable, it may be used by multiple targets, and we should avoid modifying it unless necessary.
-			if(TargetInfo.VersionFile != null && !UnrealBuildTool.IsFileInstalled(TargetInfo.VersionFile))
+			// Write out the version file
+			if (TargetInfo.Version != null && TargetInfo.VersionFile != null)
 			{
 				DirectoryReference.CreateDirectory(TargetInfo.VersionFile.Directory);
-
-				StringWriter Writer = new StringWriter();
-				Receipt.Version.Write(Writer);
-
-				string Text = Writer.ToString();
-				if(!FileReference.Exists(TargetInfo.VersionFile) || File.ReadAllText(TargetInfo.VersionFile.FullName) != Text)
-				{
-					File.WriteAllText(TargetInfo.VersionFile.FullName, Text);
-				}
+				TargetInfo.Version.BuildId = BuildId;
+				TargetInfo.Version.Write(TargetInfo.VersionFile);
 			}
 
 			// Write out the receipt
-			if(!UnrealBuildTool.IsFileInstalled(TargetInfo.ReceiptFile))
+			if (TargetInfo.Receipt != null && TargetInfo.ReceiptFile != null)
 			{
 				DirectoryReference.CreateDirectory(TargetInfo.ReceiptFile.Directory);
-				Receipt.Write(TargetInfo.ReceiptFile);
+				TargetInfo.Receipt.Version.BuildId = BuildId;
+				TargetInfo.Receipt.Write(TargetInfo.ReceiptFile);
 			}
 
 			return 0;
 		}
 
 		/// <summary>
-		/// Checks whether existing manifests on disk can be merged with new manifests being created, by testing whether any build products they reference have a newer timestamp
+		/// Checks if this 
 		/// </summary>
-		/// <param name="BuildId">The current build id read from the version file. Only manifests matching this ID will be considered.</param>
-		/// <param name="ManifestFiles">List of new manifest files</param>
-		/// <param name="RecycleFileToManifest">If successful, is populated with a map of filename to existing manifests that can be merged with the new manifests.</param>
-		/// <returns>True if the manifests can be recycled (and fills RecycleFileToManifest)</returns>
-		bool TryRecyclingManifests(string? BuildId, IEnumerable<FileReference> ManifestFiles, Dictionary<FileReference, ModuleManifest> RecycleFileToManifest)
+		/// <param name="BuildId"></param>
+		/// <param name="FileToManifest"></param>
+		/// <returns></returns>
+		bool CanRecycleBuildId(string? BuildId, Dictionary<FileReference, ModuleManifest> FileToManifest)
 		{
-			bool bCanRecycleManifests = true;
-			foreach(FileReference ManifestFileName in ManifestFiles)
+			foreach (FileReference ManifestFileName in FileToManifest.Keys)
 			{
 				ModuleManifest? Manifest;
-				if(ManifestFileName.IsUnderDirectory(Unreal.EngineDirectory) && TryReadManifest(ManifestFileName, out Manifest))
+				if (TryReadManifest(ManifestFileName, out Manifest) && Manifest.BuildId == BuildId)
 				{
-					if(Manifest.BuildId == BuildId)
+					DateTime ManifestTime = FileReference.GetLastWriteTimeUtc(ManifestFileName);
+					foreach (string FileName in Manifest.ModuleNameToFileName.Values)
 					{
-						if(IsOutOfDate(ManifestFileName, Manifest))
+						FileInfo ModuleInfo = new FileInfo(FileReference.Combine(ManifestFileName.Directory, FileName).FullName);
+						if (!ModuleInfo.Exists || ModuleInfo.LastWriteTimeUtc > ManifestTime)
 						{
-							bCanRecycleManifests = false;
-							break;
+							return false;
 						}
-						RecycleFileToManifest.Add(ManifestFileName, Manifest);
 					}
 				}
 			}
-			return bCanRecycleManifests;
+			return true;
 		}
 
 		/// <summary>
@@ -287,29 +270,6 @@ namespace UnrealBuildTool
 					TargetManifest.ModuleNameToFileName.Add(ModulePair.Key, ModulePair.Value);
 				}
 			}
-		}
-
-		/// <summary>
-		/// Checks whether a module manifest on disk is out of date (whether any of the binaries it references are newer than it is)
-		/// </summary>
-		/// <param name="ManifestFileName">Path to the manifest</param>
-		/// <param name="Manifest">The manifest contents</param>
-		/// <returns>True if the manifest is out of date</returns>
-		bool IsOutOfDate(FileReference ManifestFileName, ModuleManifest Manifest)
-		{
-			if(!UnrealBuildTool.IsFileInstalled(ManifestFileName))
-			{
-				DateTime ManifestTime = FileReference.GetLastWriteTimeUtc(ManifestFileName);
-				foreach(string FileName in Manifest.ModuleNameToFileName.Values)
-				{
-					FileInfo ModuleInfo = new FileInfo(FileReference.Combine(ManifestFileName.Directory, FileName).FullName);
-					if(!ModuleInfo.Exists || ModuleInfo.LastWriteTimeUtc > ManifestTime)
-					{
-						return true;
-					}
-				}
-			}
-			return false;
 		}
 	}
 }

@@ -273,7 +273,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCombineLUTParameters, CombineLUT)
-		SHADER_PARAMETER(FVector2D, OutputExtentInverse)
+		SHADER_PARAMETER(FVector2f, OutputExtentInverse)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWOutputTexture)
 	END_SHADER_PARAMETER_STRUCT()
 

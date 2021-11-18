@@ -99,7 +99,7 @@ UTexture2D* FOpenCVLensDistortionParameters::CreateUndistortUVDisplacementMap(co
 	UTexture2D* Result = UTexture2D::CreateTransient(InImageSize.X, InImageSize.Y, PF_G16R16F);
 
 	// Lock the texture so it can be modified
-	FTexture2DMipMap& Mip = Result->PlatformData->Mips[0];
+	FTexture2DMipMap& Mip = Result->GetPlatformData()->Mips[0];
 	uint16* MipData = reinterpret_cast<uint16*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
 	check(MipData);
 

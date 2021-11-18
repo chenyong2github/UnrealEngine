@@ -354,7 +354,7 @@ void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, float I
 	}
 }
 
-void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector2D InValue)
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector2f InValue)
 {
 	if (OverrideParameters)
 	{

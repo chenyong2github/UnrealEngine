@@ -38,7 +38,7 @@ void FMovieSceneSpawnable::CopyObjectTemplate(UObject& InSourceObject, UMovieSce
 	if (ObjectTemplate)
 	{
 		ObjectTemplate->Rename(*MakeUniqueObjectName(MovieSceneSequence.GetMovieScene(), ObjectTemplate->GetClass(), "ExpiredSpawnable").ToString());
-		ObjectTemplate->MarkPendingKill();
+		ObjectTemplate->MarkAsGarbage();
 		ObjectTemplate = nullptr;
 	}
 

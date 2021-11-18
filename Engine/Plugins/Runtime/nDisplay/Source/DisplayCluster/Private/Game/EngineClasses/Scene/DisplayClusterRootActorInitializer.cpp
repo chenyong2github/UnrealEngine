@@ -148,7 +148,7 @@ bool FDisplayClusterRootActorInitializer::DoesComponentBelongToBlueprint(UActorC
 			bIsForBlueprint = true;
 		}
 	}
-	else if (Component->GetTypedOuter<UDisplayClusterBlueprintGeneratedClass>() != nullptr || Component->GetTypedOuter<UDynamicClass>() != nullptr)
+	else if (Component->GetTypedOuter<UDisplayClusterBlueprintGeneratedClass>() != nullptr)
 	{
 		bIsForBlueprint = true;
 	}

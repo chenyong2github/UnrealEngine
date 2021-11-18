@@ -61,10 +61,6 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Scene")
 	bool bRecordNormalizedValues;
 
-	/** Eliminate repeated keyframe values after recording is done */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source")
-	bool bReduceKeys;
-
 protected:
 	// ~Begin UTakeRecorderSource Interface
 	virtual bool SupportsSubscenes() const override { return false; }
@@ -98,7 +94,7 @@ private:
 	void ResetPatchesLibrary();
 
 private:
-	/** Whether to discard livelink samples with timecode that occurs before the start of recording*/
+	/** Whether to discard samples with timecode that occurs before the start of recording*/
 	bool bDiscardSamplesBeforeStart;
 
 	/** Track recorder used by this source */

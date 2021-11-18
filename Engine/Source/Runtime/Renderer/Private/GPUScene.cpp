@@ -713,6 +713,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 
 		FRHICommandListExecutor::Transition({
 			FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
+			FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
 			FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask)
 		}, ERHIPipeline::Graphics, ERHIPipeline::All);
 	});
@@ -1424,6 +1425,12 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 			[this, Scene, UploadAdapter, BufferState = MoveTemp(BufferState)](FRHICommandListImmediate& RHICmdList)
 		{
 			UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(RHICmdList, Scene, UploadAdapter, BufferState);
+
+			FRHICommandListExecutor::Transition({
+				FRHITransitionInfo(BufferState.InstanceSceneDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
+				FRHITransitionInfo(BufferState.InstancePayloadDataBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask),
+				FRHITransitionInfo(BufferState.PrimitiveBuffer.Buffer, ERHIAccess::Unknown, ERHIAccess::SRVMask)
+				}, ERHIPipeline::Graphics, ERHIPipeline::All);
 		});
 	}
 
@@ -1803,9 +1810,10 @@ bool FGPUScene::BeginReadWriteAccess(FRDGBuilder& GraphBuilder)
 		// TODO: Remove this when everything is properly RDG'd
 		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionInstanceSceneDataBuffer"), [this](FRHICommandList& RHICmdList)
 		{
-			FRHITransitionInfo 	Transitions[2] =
+			FRHITransitionInfo 	Transitions[] =
 			{
 				FRHITransitionInfo(InstanceSceneDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(InstancePayloadDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
 				FRHITransitionInfo(PrimitiveBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
 			};
 
@@ -1841,9 +1849,10 @@ void FGPUScene::EndReadWriteAccess(FRDGBuilder& GraphBuilder, ERHIAccess FinalAc
 		// TODO: Remove this when everything is properly RDG'd
 		AddPass(GraphBuilder, RDG_EVENT_NAME("GPUScene::TransitionInstanceSceneDataBuffer"), [this, FinalAccessState](FRHICommandList& RHICmdList)
 		{
-			FRHITransitionInfo 	Transitions[2] =
+			FRHITransitionInfo 	Transitions[] =
 			{
 				FRHITransitionInfo(InstanceSceneDataBuffer.UAV, ERHIAccess::UAVCompute, FinalAccessState),
+				FRHITransitionInfo(InstancePayloadDataBuffer.UAV, ERHIAccess::UAVCompute, FinalAccessState),
 				FRHITransitionInfo(PrimitiveBuffer.UAV, ERHIAccess::UAVCompute, FinalAccessState)
 			};
 

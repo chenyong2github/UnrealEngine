@@ -116,7 +116,7 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 	
 	/** Draw-able vertex data */
 	TArray<FVector3f> Positions;
-	TArray<FVector2D> TextureCoordinates;
+	TArray<FVector2f> TextureCoordinates;
 	TArray<FPackedNormal> TangentsX;
 	TArray<FPackedNormal> TangentsZ;
 	TArray<FColor> Colors;
@@ -149,7 +149,7 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 	{
 		// Calculate resource size according to what is actually serialized
 		CumulativeResourceSize.AddUnknownMemoryBytes(Positions.Num() * sizeof(FVector3f));
-		CumulativeResourceSize.AddUnknownMemoryBytes(TextureCoordinates.Num() * sizeof(FVector2D));
+		CumulativeResourceSize.AddUnknownMemoryBytes(TextureCoordinates.Num() * sizeof(FVector2f));
 		CumulativeResourceSize.AddUnknownMemoryBytes(TangentsX.Num() * sizeof(FPackedNormal));
 		CumulativeResourceSize.AddUnknownMemoryBytes(TangentsZ.Num() * sizeof(FPackedNormal));
 		CumulativeResourceSize.AddUnknownMemoryBytes(Colors.Num() * sizeof(FColor));

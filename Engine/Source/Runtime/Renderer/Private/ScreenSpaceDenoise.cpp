@@ -760,11 +760,11 @@ static bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, ESha
 {
 	if (SignalProcessing == ESignalProcessing::ScreenSpaceDiffuseIndirect)
 	{
-		return Platform == SP_PCD3D_SM5 || FDataDrivenShaderPlatformInfo::GetCompileSignalProcessingPipeline(FStaticShaderPlatform(Platform)) || Platform == SP_METAL_SM5 || FDataDrivenShaderPlatformInfo::GetSupportsSSDIndirect(Platform);
+		return FDataDrivenShaderPlatformInfo::GetCompileSignalProcessingPipeline(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsSSDIndirect(Platform);
 	}
 	else if (SignalProcessing == ESignalProcessing::Reflections)
 	{
-		return Platform == SP_PCD3D_SM5 || RHISupportsRayTracingShaders(Platform);
+		return RHISupportsRayTracingShaders(Platform);
 	}
 	else if (
 		SignalProcessing == ESignalProcessing::ShadowVisibilityMask ||
@@ -795,9 +795,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 	SHADER_PARAMETER(FIntPoint, ViewportMin)
 	SHADER_PARAMETER(FIntPoint, ViewportMax)
 	SHADER_PARAMETER(FVector4f, ThreadIdToBufferUV)
-	SHADER_PARAMETER(FVector2D, BufferUVToOutputPixelPosition)
+	SHADER_PARAMETER(FVector2f, BufferUVToOutputPixelPosition)
 	SHADER_PARAMETER(FMatrix44f, ScreenToView)
-	SHADER_PARAMETER(FVector2D, BufferUVBilinearCorrection)
+	SHADER_PARAMETER(FVector2f, BufferUVBilinearCorrection)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 

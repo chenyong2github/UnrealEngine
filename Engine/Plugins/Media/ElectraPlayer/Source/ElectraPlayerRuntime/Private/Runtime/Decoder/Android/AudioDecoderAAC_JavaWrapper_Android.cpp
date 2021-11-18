@@ -71,6 +71,91 @@ private:
 		return RawBuffer;
 	}
 
+	template<typename ReturnType>
+	ReturnType CallMethodNoVerify(FJavaClassMethod Method, ...);
+
+	template<>
+	void CallMethodNoVerify<void>(FJavaClassMethod Method, ...)
+	{
+		JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+		va_list Params;
+		va_start(Params, Method);
+		JEnv->CallVoidMethodV(Object, Method.Method, Params);
+		va_end(Params);
+	}
+
+	template<>
+	bool CallMethodNoVerify<bool>(FJavaClassMethod Method, ...)
+	{
+		JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+		va_list Params;
+		va_start(Params, Method);
+		bool RetVal = JEnv->CallBooleanMethodV(Object, Method.Method, Params);
+		va_end(Params);
+		return RetVal;
+	}
+
+	template<>
+	int CallMethodNoVerify<int>(FJavaClassMethod Method, ...)
+	{
+		JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+		va_list Params;
+		va_start(Params, Method);
+		int RetVal = JEnv->CallIntMethodV(Object, Method.Method, Params);
+		va_end(Params);
+		return RetVal;
+	}
+
+	template<>
+	jobject CallMethodNoVerify<jobject>(FJavaClassMethod Method, ...)
+	{
+		JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+		va_list Params;
+		va_start(Params, Method);
+		jobject val = JEnv->CallObjectMethodV(Object, Method.Method, Params);
+		va_end(Params);
+		jobject RetVal = JEnv->NewGlobalRef(val);
+		JEnv->DeleteLocalRef(val);
+		return RetVal;
+	}
+
+	template<>
+	jobjectArray CallMethodNoVerify<jobjectArray>(FJavaClassMethod Method, ...)
+	{
+		JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+		va_list Params;
+		va_start(Params, Method);
+		jobject val = JEnv->CallObjectMethodV(Object, Method.Method, Params);
+		va_end(Params);
+		jobjectArray RetVal = (jobjectArray)JEnv->NewGlobalRef(val);
+		JEnv->DeleteLocalRef(val);
+		return RetVal;
+	}
+
+	template<>
+	int64 CallMethodNoVerify<int64>(FJavaClassMethod Method, ...)
+	{
+		JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+		va_list Params;
+		va_start(Params, Method);
+		int64 RetVal = JEnv->CallLongMethodV(Object, Method.Method, Params);
+		va_end(Params);
+		return RetVal;
+	}
+
+	template<>
+	FString CallMethodNoVerify<FString>(FJavaClassMethod Method, ...)
+	{
+		JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+		va_list Params;
+		va_start(Params, Method);
+		jstring RetVal = static_cast<jstring>(
+			JEnv->CallObjectMethodV(Object, Method.Method, Params));
+		va_end(Params);
+		auto Result = FJavaHelper::FStringFromLocalRef(JEnv, RetVal);
+		return Result;
+	}
+
 	// Java methods
 	FJavaClassMethod	CreateDecoderFN;
 	FJavaClassMethod	ReleaseDecoderFN;
@@ -201,7 +286,7 @@ int32 FAndroidJavaAACAudioDecoder::InitializeDecoder(const MPEG::FAACDecoderConf
 	jbyteArray  CSD			= MakeJavaByteArray(InParsedConfigurationRecord.GetCodecSpecificData().GetData(), InParsedConfigurationRecord.GetCodecSpecificData().Num());
 	int 		NumChannels = (int) InParsedConfigurationRecord.PSSignal == 1 ? 2 : NumChannelsForConfig[InParsedConfigurationRecord.ChannelConfiguration];
 	int			SampleRate  = (int)(InParsedConfigurationRecord.ExtSamplingFrequency ? InParsedConfigurationRecord.ExtSamplingFrequency : InParsedConfigurationRecord.SamplingRate);
-	int32 result = CallMethod<int>(CreateDecoderFN, NumChannels, SampleRate, CSD);
+	int32 result = CallMethodNoVerify<int>(CreateDecoderFN, NumChannels, SampleRate, CSD);
 	JEnv->DeleteLocalRef(CSD);
 	if (JEnv->ExceptionCheck())
 	{
@@ -227,7 +312,7 @@ int32 FAndroidJavaAACAudioDecoder::ReleaseDecoder()
 {
 	if (bHaveDecoder)
 	{
-		int32 result = CallMethod<int>(ReleaseDecoderFN);
+		int32 result = CallMethodNoVerify<int>(ReleaseDecoderFN);
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 		if (JEnv->ExceptionCheck())
 		{
@@ -251,7 +336,7 @@ int32 FAndroidJavaAACAudioDecoder::Start()
 {
 	if (bHaveDecoder && !bIsStarted)
 	{
-		int32 result = CallMethod<int>(StartFN);
+		int32 result = CallMethodNoVerify<int>(StartFN);
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 		if (JEnv->ExceptionCheck())
 		{
@@ -279,7 +364,7 @@ int32 FAndroidJavaAACAudioDecoder::Stop()
 {
 	if (bHaveDecoder && bIsStarted)
 	{
-		int32 result = CallMethod<int>(StopFN);
+		int32 result = CallMethodNoVerify<int>(StopFN);
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 		if (JEnv->ExceptionCheck())
 		{
@@ -308,7 +393,7 @@ int32 FAndroidJavaAACAudioDecoder::Flush()
 	// Synchronously operating decoders must be in the started state to be flushed.
 	if (bHaveDecoder && bIsStarted)
 	{
-		int32 result = CallMethod<int>(FlushFN);
+		int32 result = CallMethodNoVerify<int>(FlushFN);
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 		if (JEnv->ExceptionCheck())
 		{
@@ -333,7 +418,7 @@ int32 FAndroidJavaAACAudioDecoder::DequeueInputBuffer(int32 InTimeoutUsec)
 {
 	if (bHaveDecoder)
 	{
-		int32 result = CallMethod<int>(DequeueInputBufferFN, InTimeoutUsec);
+		int32 result = CallMethodNoVerify<int>(DequeueInputBufferFN, InTimeoutUsec);
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 		if (JEnv->ExceptionCheck())
 		{
@@ -363,7 +448,7 @@ int32 FAndroidJavaAACAudioDecoder::QueueInputBuffer(int32 InBufferIndex, const v
 	{
 		JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
 		jbyteArray  InData = MakeJavaByteArray((const uint8*)InAccessUnitData, InAccessUnitSize);
-		int32 result = CallMethod<int>(QueueInputBufferFN, InBufferIndex, (jlong)InTimestampUSec, InData);
+		int32 result = CallMethodNoVerify<int>(QueueInputBufferFN, InBufferIndex, (jlong)InTimestampUSec, InData);
 		JEnv->DeleteLocalRef(InData);
 		if (JEnv->ExceptionCheck())
 		{
@@ -390,7 +475,7 @@ int32 FAndroidJavaAACAudioDecoder::QueueEOSInputBuffer(int32 InBufferIndex, int6
 	if (bHaveDecoder)
 	{
 		JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-		int32 result = CallMethod<int>(QueueEOSInputBufferFN, InBufferIndex, (jlong)InTimestampUSec);
+		int32 result = CallMethodNoVerify<int>(QueueEOSInputBufferFN, InBufferIndex, (jlong)InTimestampUSec);
 		if (JEnv->ExceptionCheck())
 		{
 			JEnv->ExceptionDescribe();

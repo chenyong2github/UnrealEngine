@@ -3,6 +3,9 @@
 #include "Render/Presentation/DisplayClusterPresentationBase.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
+#include "IPDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
+
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 
@@ -49,12 +52,12 @@ bool FDisplayClusterPresentationBase::Present(int32& InOutSyncInterval)
 		// Update sync value with nDisplay value
 		InOutSyncInterval = GetSwapInt();
 		
-		OnDisplayClusterPresentationPreSynchronization_RHIThread().Broadcast();
+		GDisplayCluster->GetCallbacks().OnDisplayClusterPresentationPreSynchronization_RHIThread().Broadcast();
 
 		// False results means we don't need to present current frame, the sync object already presented it
 		bNeedPresent = SyncPolicy->SynchronizeClusterRendering(InOutSyncInterval);
 
-		OnDisplayClusterPresentationPostSynchronization_RHIThread().Broadcast();
+		GDisplayCluster->GetCallbacks().OnDisplayClusterPresentationPostSynchronization_RHIThread().Broadcast();
 	}
 
 	return bNeedPresent;

@@ -343,8 +343,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 
 	// Bloom texture
 	SHADER_PARAMETER(FScreenTransform, ColorToBloom)
-	SHADER_PARAMETER(FVector2D, BloomUVViewportBilinearMin)
-	SHADER_PARAMETER(FVector2D, BloomUVViewportBilinearMax)
+	SHADER_PARAMETER(FVector2f, BloomUVViewportBilinearMin)
+	SHADER_PARAMETER(FVector2f, BloomUVViewportBilinearMax)
 	SHADER_PARAMETER(FVector4f, BloomMultiply)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomSampler)

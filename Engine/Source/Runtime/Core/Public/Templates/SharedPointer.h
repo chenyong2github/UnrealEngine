@@ -125,7 +125,7 @@ FORCEINLINE TSharedRef< CastToType, Mode > StaticCastSharedRef( TSharedRef< Cast
 }
 
 
-namespace UE::Core::Private::SharedPointer
+namespace UE::Core::Private
 {
 	// Needed to work around an Android compiler bug - we need to construct a TSharedRef
 	// from MakeShared without making MakeShared a friend in order to access the private constructor.
@@ -611,7 +611,7 @@ private:
 		#pragma warning(disable : 4396) // warning: the inline specifier cannot be used when a friend declaration refers to a specialization of a function template
 	#endif
 
-	friend TSharedRef UE::Core::Private::SharedPointer::MakeSharedRef<ObjectType, Mode>(ObjectType* InObject, SharedPointerInternals::TReferenceControllerBase<Mode>* InSharedReferenceCount);
+	friend TSharedRef UE::Core::Private::MakeSharedRef<ObjectType, Mode>(ObjectType* InObject, SharedPointerInternals::TReferenceControllerBase<Mode>* InSharedReferenceCount);
 
 	#ifdef _MSC_VER
 		#pragma warning(pop)
@@ -1545,6 +1545,50 @@ public:
 		return MoveTemp( SharedThis ).ToSharedRef();
 	}
 
+	/**
+	 * Provides a weak reference to this object.  Note that is only valid to call
+	 * this after a shared reference (or shared pointer) to the object has already been created.
+	 * Also note that it is illegal to call this in the object's destructor.
+	 *
+	 * @return	Returns this object as a shared pointer
+	 */
+	TWeakPtr< ObjectType, Mode > AsWeak()
+	{
+		TWeakPtr< ObjectType, Mode > Result = WeakThis;
+
+		//
+		// If the following assert goes off, it means one of the following:
+		//
+		//     - You tried to request a weak pointer before the object was ever assigned to a shared pointer. (e.g. constructor)
+		//     - You tried to request a weak pointer while the object is being destroyed (destructor chain)
+		//
+		// To fix this, make sure you create at least one shared reference to your object instance before requested,
+		// and also avoid calling this function from your object's destructor.
+		//
+		check( Result.Pin().Get() == this );
+
+		// Now that we've verified the pointer is valid, we'll return it!
+		return Result;
+	}
+	TWeakPtr< ObjectType const, Mode > AsWeak() const
+	{
+		TWeakPtr< ObjectType const, Mode > Result = WeakThis;
+
+		//
+		// If the following assert goes off, it means one of the following:
+		//
+		//     - You tried to request a weak pointer before the object was ever assigned to a shared pointer. (e.g. constructor)
+		//     - You tried to request a weak pointer while the object is being destroyed (destructor chain)
+		//
+		// To fix this, make sure you create at least one shared reference to your object instance before requested,
+		// and also avoid calling this function from your object's destructor.
+		//
+		check( Result.Pin().Get() == this );
+
+		// Now that we've verified the pointer is valid, we'll return it!
+		return Result;
+	}
+
 protected:
 
 	/**
@@ -2027,7 +2071,7 @@ template <typename InObjectType, ESPMode InMode = ESPMode::ThreadSafe, typename.
 FORCEINLINE TSharedRef<InObjectType, InMode> MakeShared(InArgTypes&&... Args)
 {
 	SharedPointerInternals::TIntrusiveReferenceController<InObjectType, InMode>* Controller = SharedPointerInternals::NewIntrusiveReferenceController<InMode, InObjectType>(Forward<InArgTypes>(Args)...);
-	return UE::Core::Private::SharedPointer::MakeSharedRef<InObjectType, InMode>(Controller->GetObjectPtr(), (SharedPointerInternals::TReferenceControllerBase<InMode>*)Controller);
+	return UE::Core::Private::MakeSharedRef<InObjectType, InMode>(Controller->GetObjectPtr(), (SharedPointerInternals::TReferenceControllerBase<InMode>*)Controller);
 }
 
 

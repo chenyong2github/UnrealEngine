@@ -5,19 +5,25 @@
 #include "CoreMinimal.h"
 #include "Helpers/MapSubobjectSerializer.h"
 
-class FScriptMapHelper;
-class ILevelSnapshotsModule;
-
-class FDisplayClusterConfigurationClusterNodeSerializer : public TMapSubobjectSerializer<FDisplayClusterConfigurationClusterNodeSerializer>
+namespace UE::LevelSnapshots
 {
-	static UClass* GetSupportedClass();
-	static void MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module);
+	class ILevelSnapshotsModule;
+}
 
-public:
+namespace UE::LevelSnapshots::nDisplay::Private
+{
 	
-	static void Register(ILevelSnapshotsModule& Module);
+	class FDisplayClusterConfigurationClusterNodeSerializer : public TMapSubobjectSerializer<FDisplayClusterConfigurationClusterNodeSerializer>
+	{
+		static UClass* GetSupportedClass();
+		static void MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module);
+
+	public:
 	
-	//~ Begin TMapSubobjectSerializer Interface
-	static const FMapProperty* GetMapProperty();
-	//~ End TMapSubobjectSerializer Interface
-};
+		static void Register(ILevelSnapshotsModule& Module);
+	
+		//~ Begin TMapSubobjectSerializer Interface
+		static const FMapProperty* GetMapProperty();
+		//~ End TMapSubobjectSerializer Interface
+	};
+}

@@ -43,6 +43,8 @@ public:
 
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 
+	void SetGridPlacement(EActorGridPlacement InGridPlacement);
+
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{
 		return GetGuid() == Other.GetGuid();
@@ -55,6 +57,6 @@ public:
 
 protected:
 	const FWorldPartitionActorDesc* ActorDesc;
-	EActorGridPlacement EffectiveGridPlacement;
+	EActorGridPlacement GridPlacement;
 };
 #endif

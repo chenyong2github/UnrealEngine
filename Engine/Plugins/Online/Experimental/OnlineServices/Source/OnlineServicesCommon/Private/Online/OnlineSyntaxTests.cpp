@@ -191,7 +191,7 @@ inline void TestAsyncOpContinuationSyntax(FOnlineServicesCommon& Services)
 		.Then([](TOnlineAsyncOp<FTestOp>&, int, TPromise<FString>&& Promise) { Promise.SetValue(FString()); })
 		.Then([](TOnlineAsyncOp<FTestOp>&, const FString&, TPromise<int>&& Promise) { Promise.SetValue(1); })
 		.Then([](TOnlineAsyncOp<FTestOp>&, int) {})
-		.Enqueue(/*queue*/);
+		.Enqueue(Services.GetParallelQueue());
 	Op.GetHandle();
 }
 
@@ -373,28 +373,28 @@ public:
 inline void TestAsyncOpCacheSyntax(FOnlineServicesCommon& Services, Test::FTestInterfaceCommon& Interface)
 {
 	Test::FTestOp::Params Params;
-	TOnlineAsyncOp<Test::FTestOp>& Op = Interface.GetOp<Test::FTestOp>(MoveTemp(Params));
-	TOnlineAsyncOp<Test::FTestOp>& Op2 = Services.GetOp<Test::FTestOp>(MoveTemp(Params));
+	TOnlineAsyncOpRef<Test::FTestOp> Op = Interface.GetOp<Test::FTestOp>(MoveTemp(Params));
+	TOnlineAsyncOpRef<Test::FTestOp> Op2 = Services.GetOp<Test::FTestOp>(MoveTemp(Params));
 
 	Test::FTestUserOp::Params UserParams;
-	TOnlineAsyncOp<Test::FTestUserOp>& UserOp = Interface.GetOp<Test::FTestUserOp>(MoveTemp(UserParams));
-	TOnlineAsyncOp<Test::FTestUserOp>& UserOp2 = Services.GetOp<Test::FTestUserOp>(MoveTemp(UserParams));
+	TOnlineAsyncOpRef<Test::FTestUserOp> UserOp = Interface.GetOp<Test::FTestUserOp>(MoveTemp(UserParams));
+	TOnlineAsyncOpRef<Test::FTestUserOp> UserOp2 = Services.GetOp<Test::FTestUserOp>(MoveTemp(UserParams));
 
 	Test::FJoinableTestOp::Params JoinableParams;
-	TOnlineAsyncOp<Test::FJoinableTestOp>& JoinableOp = Interface.GetJoinableOp<Test::FJoinableTestOp>(MoveTemp(JoinableParams));
-	TOnlineAsyncOp<Test::FJoinableTestOp>& JoinableOp2 = Services.GetJoinableOp<Test::FJoinableTestOp>(MoveTemp(JoinableParams));
+	TOnlineAsyncOpRef<Test::FJoinableTestOp> JoinableOp = Interface.GetJoinableOp<Test::FJoinableTestOp>(MoveTemp(JoinableParams));
+	TOnlineAsyncOpRef<Test::FJoinableTestOp> JoinableOp2 = Services.GetJoinableOp<Test::FJoinableTestOp>(MoveTemp(JoinableParams));
 
 	Test::FJoinableTestUserOp::Params JoinableUserParams;
-	TOnlineAsyncOp<Test::FJoinableTestUserOp>& JoinableUserOp = Interface.GetJoinableOp<Test::FJoinableTestUserOp>(MoveTemp(JoinableUserParams));
-	TOnlineAsyncOp<Test::FJoinableTestUserOp>& JoinableUserOp2 = Services.GetJoinableOp<Test::FJoinableTestUserOp>(MoveTemp(JoinableUserParams));
+	TOnlineAsyncOpRef<Test::FJoinableTestUserOp> JoinableUserOp = Interface.GetJoinableOp<Test::FJoinableTestUserOp>(MoveTemp(JoinableUserParams));
+	TOnlineAsyncOpRef<Test::FJoinableTestUserOp> JoinableUserOp2 = Services.GetJoinableOp<Test::FJoinableTestUserOp>(MoveTemp(JoinableUserParams));
 
 	Test::FMergeableTestOp::Params MergeableParams;
-	TOnlineAsyncOp<Test::FMergeableTestOp>& MergeableOp = Interface.GetMergeableOp<Test::FMergeableTestOp>(MoveTemp(MergeableParams));
-	TOnlineAsyncOp<Test::FMergeableTestOp>& MergeableOp2 = Services.GetMergeableOp<Test::FMergeableTestOp>(MoveTemp(MergeableParams));
+	TOnlineAsyncOpRef<Test::FMergeableTestOp> MergeableOp = Interface.GetMergeableOp<Test::FMergeableTestOp>(MoveTemp(MergeableParams));
+	TOnlineAsyncOpRef<Test::FMergeableTestOp> MergeableOp2 = Services.GetMergeableOp<Test::FMergeableTestOp>(MoveTemp(MergeableParams));
 
 	Test::FMergeableTestUserOp::Params MergeableUserParams;
-	TOnlineAsyncOp<Test::FMergeableTestUserOp>& MergeableUserOp = Interface.GetMergeableOp<Test::FMergeableTestUserOp>(MoveTemp(MergeableUserParams));
-	TOnlineAsyncOp<Test::FMergeableTestUserOp>& MergeableUserOp2 = Services.GetMergeableOp<Test::FMergeableTestUserOp>(MoveTemp(MergeableUserParams));
+	TOnlineAsyncOpRef<Test::FMergeableTestUserOp> MergeableUserOp = Interface.GetMergeableOp<Test::FMergeableTestUserOp>(MoveTemp(MergeableUserParams));
+	TOnlineAsyncOpRef<Test::FMergeableTestUserOp> MergeableUserOp2 = Services.GetMergeableOp<Test::FMergeableTestUserOp>(MoveTemp(MergeableUserParams));
 }
 
 /* UE::Online */ }

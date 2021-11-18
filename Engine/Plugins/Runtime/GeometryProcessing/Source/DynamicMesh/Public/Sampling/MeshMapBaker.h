@@ -66,14 +66,14 @@ public:
 	void SetDimensions(FImageDimensions DimensionsIn);
 	void SetGutterEnabled(bool bEnabled);
 	void SetGutterSize(int32 GutterSizeIn);
-	void SetMultisampling(int32 MultisamplingIn);
+	void SetSamplesPerPixel(int32 SamplesPerPixelIn);
 	void SetFilter(EBakeFilterType FilterTypeIn);
 	void SetTileSize(int TileSizeIn);
 
 	FImageDimensions GetDimensions() const { return Dimensions; }
 	bool GetGutterEnabled() const { return bGutterEnabled; }
 	int32 GetGutterSize() const { return GutterSize; }
-	int32 GetMultisampling() const { return Multisampling; }
+	int32 GetSamplesPerPixel() const { return SamplesPerPixel; }
 	EBakeFilterType GetFilter() const { return FilterType; }
 	int32 GetTileSize() const { return TileSize; }
 
@@ -85,7 +85,7 @@ public:
 		double TotalBakeDuration = 0.0;
 		double WriteToImageDuration = 0.0;
 		double WriteToGutterDuration = 0.0;
-		std::atomic<int64> NumBakedPixels = 0;
+		std::atomic<int64> NumSamplePixels = 0;
 		std::atomic<int64> NumGutterPixels = 0;
 
 		void Reset()
@@ -93,7 +93,7 @@ public:
 			TotalBakeDuration = 0.0;
 			WriteToImageDuration = 0.0;
 			WriteToGutterDuration = 0.0;
-			NumBakedPixels = 0;
+			NumSamplePixels = 0;
 			NumGutterPixels = 0;
 		}
 	};
@@ -133,8 +133,8 @@ protected:
 	/** The pixel distance (in texel diagonal length) to pad baked content past the UV borders. */
 	int32 GutterSize = 4;
 
-	/** The square dimensions for multisampling each pixel. */
-	int32 Multisampling = 1;
+	/** The number of samples to evaluate per pixel. */
+	int32 SamplesPerPixel = 1;
 
 	/** The square dimensions for tiled processing of the output image(s). */
 	int32 TileSize = 32;

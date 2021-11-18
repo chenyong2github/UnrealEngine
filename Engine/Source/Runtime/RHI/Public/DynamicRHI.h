@@ -102,6 +102,8 @@ struct FRayTracingGeometryInstance
 	// All copies share the same shader binding table entries and therefore will have the same material and shader resources.
 	TArrayView<const FMatrix> Transforms;
 
+	TArrayView<const uint32> InstanceSceneDataOffsets;
+
 	// Optional buffer that stores GPU transforms. Used instead of CPU-side transform data.
 	FShaderResourceViewRHIRef GPUTransformsSRV = nullptr;
 

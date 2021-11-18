@@ -22,24 +22,94 @@ class USkeletalMesh;
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDetailMeshToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UBakeInputMeshProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
-	/** The detail mesh to sample */
-	UPROPERTY(VisibleAnywhere, Category = DetailMesh, DisplayName = "Detail Mesh", meta = (TransientToolProperty, EditCondition = "DetailStaticMesh != nullptr", EditConditionHides))
-	TObjectPtr<UStaticMesh> DetailStaticMesh = nullptr;
+	/** Target mesh to sample to */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Target Mesh", meta = (TransientToolProperty,
+		EditCondition = "TargetStaticMesh != nullptr", EditConditionHides))
+	TObjectPtr<UStaticMesh> TargetStaticMesh = nullptr;
 
-	UPROPERTY(VisibleAnywhere, Category = DetailMesh, DisplayName = "Detail Mesh", meta = (TransientToolProperty, EditCondition = "DetailSkeletalMesh != nullptr", EditConditionHides))
-	TObjectPtr<USkeletalMesh> DetailSkeletalMesh = nullptr;
+	/** Target mesh to sample to */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Target Mesh", meta = (TransientToolProperty,
+		EditCondition = "TargetSkeletalMesh != nullptr", EditConditionHides))
+	TObjectPtr<USkeletalMesh> TargetSkeletalMesh = nullptr;
 
-	/** The detail mesh normal map to sample. If empty, the geometric normals will be used. */
-	UPROPERTY(EditAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> DetailMeshNormalMap = nullptr;
+	/** Target mesh to sample to */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Target Mesh", meta = (TransientToolProperty,
+		EditCondition = "TargetDynamicMesh != nullptr", EditConditionHides))
+	TObjectPtr<AActor> TargetDynamicMesh = nullptr;
 
-	/** UV layer to sample from on the detail mesh */
-	UPROPERTY(EditAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
-	int32 DetailNormalUVLayer = 0;
+	/** UV channel to use for the target mesh */
+	UPROPERTY(EditAnywhere, Category = BakeInput, meta = (DisplayName = "Target Mesh UV Channel",
+		GetOptions = GetTargetUVLayerNamesFunc, TransientToolProperty, NoResetToDefault,
+		EditCondition = "bHasTargetUVLayer == true", EditConditionHides, HideEditConditionToggle))
+	FString TargetUVLayer;
+
+	/** If true, expose the TargetUVLayer property */ 
+	UPROPERTY()
+	bool bHasTargetUVLayer = false;
+
+	/** Source mesh to sample from */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Source Mesh", meta = (TransientToolProperty,
+		EditCondition = "SourceStaticMesh != nullptr", EditConditionHides))
+	TObjectPtr<UStaticMesh> SourceStaticMesh = nullptr;
+
+	/** Source mesh to sample from */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Source Mesh", meta = (TransientToolProperty,
+		EditCondition = "SourceSkeletalMesh != nullptr", EditConditionHides))
+	TObjectPtr<USkeletalMesh> SourceSkeletalMesh = nullptr;
+
+	/** Source mesh to sample from */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Source Mesh", meta = (TransientToolProperty,
+		EditCondition = "SourceDynamicMesh != nullptr", EditConditionHides))
+	TObjectPtr<AActor> SourceDynamicMesh = nullptr;
+
+	/** Source mesh normal map; if empty, the geometric normals will be used */
+	UPROPERTY(EditAnywhere, Category = BakeInput, AdvancedDisplay, meta = (TransientToolProperty,
+		EditCondition = "bHasSourceNormalMap == true", EditConditionHides, HideEditConditionToggle))
+	TObjectPtr<UTexture2D> SourceNormalMap = nullptr;
+
+	/** UV channel to use for the source mesh normal map; only relevant if a source normal map is set */
+	UPROPERTY(EditAnywhere, Category = BakeInput, AdvancedDisplay, meta = (DisplayName = "Source Normal UV Channel",
+		GetOptions = GetSourceUVLayerNamesFunc, TransientToolProperty, NoResetToDefault,
+		EditCondition = "bHasSourceNormalMap == true", EditConditionHides, HideEditConditionToggle))
+	FString SourceNormalMapUVLayer;
+
+	/** If true, expose the SourceNormalMap and SourceNormalMapUVLayer properties */
+	UPROPERTY()
+	bool bHasSourceNormalMap = false;
+
+	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
+	 * This is only relevant if a separate source mesh is provided. */
+	UPROPERTY(EditAnywhere, Category = BakeInput, AdvancedDisplay, meta = (ClampMin = "0.001",
+		EditCondition = "SourceStaticMesh != nullptr || SourceSkeletalMesh != nullptr || SourceDynamicMesh != nullptr", HideEditConditionToggle))
+	float ProjectionDistance = 3.0;
+
+	/** If true, uses the world space positions for the projection from target mesh to source mesh, otherwise it uses their object space positions.
+	 * This is only relevant if a separate source mesh is provided. */
+	UPROPERTY(EditAnywhere, Category = BakeInput, AdvancedDisplay, meta = (
+		EditCondition = "SourceStaticMesh != nullptr || SourceSkeletalMesh != nullptr || SourceDynamicMesh != nullptr", HideEditConditionToggle))
+	bool bProjectionInWorldSpace = false;
+
+	UFUNCTION()
+	const TArray<FString>& GetTargetUVLayerNamesFunc() const
+	{
+		return TargetUVLayerNamesList;
+	}
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> TargetUVLayerNamesList;
+
+	UFUNCTION()
+	const TArray<FString>& GetSourceUVLayerNamesFunc() const
+	{
+		return SourceUVLayerNamesList;
+	}
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> SourceUVLayerNamesList;
 };
 
 
@@ -57,21 +127,21 @@ class MESHMODELINGTOOLSEXP_API UBakedOcclusionMapToolProperties : public UIntera
 {
 	GENERATED_BODY()
 public:
-	/** Number of occlusion rays */
-	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
+	/** Number of occlusion rays per sample */
+	UPROPERTY(EditAnywhere, Category = OcclusionOutput, meta = (UIMin = "1", UIMax = "1024", ClampMin = "1", ClampMax = "65536"))
 	int32 OcclusionRays = 16;
 
-	/** Maximum occlusion distance (0 = infinity) */
-	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0.0", UIMax = "1000.0", ClampMin = "0.0", ClampMax = "99999999.0"))
-	float MaxDistance = 0;
+	/** Maximum distance for occlusion rays to test for intersections; a value of 0 means infinity */
+	UPROPERTY(EditAnywhere, Category = OcclusionOutput, meta = (UIMin = "0.0", UIMax = "1000.0", ClampMin = "0.0", ClampMax = "99999999.0"))
+	float MaxDistance = 0.0f;
 
-	/** Maximum spread angle of occlusion rays. */
-	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "180.0", ClampMin = "0", ClampMax = "180.0"))
-	float SpreadAngle = 180.0;
+	/** Maximum spread angle in degrees for occlusion rays; for example, 180 degrees will cover the entire hemisphere whereas 90 degrees will only cover the center of the hemisphere down to 45 degrees from the horizon. */
+	UPROPERTY(EditAnywhere, Category = OcclusionOutput, meta = (UIMin = "0", UIMax = "180.0", ClampMin = "0", ClampMax = "180.0"))
+	float SpreadAngle = 180.0f;
 
-	/** Contribution of AO rays that are within this angle (degrees) from horizontal are attenuated. This reduces faceting artifacts. */
-	UPROPERTY(EditAnywhere, Category = OcclusionMap, meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
-	float BiasAngle = 15.0;
+	/** Angle in degrees from the horizon for occlusion rays for which the contribution is attenuated to reduce faceting artifacts. */
+	UPROPERTY(EditAnywhere, Category = OcclusionOutput, meta = (UIMin = "0", UIMax = "45.0", ClampMin = "0", ClampMax = "89.9"))
+	float BiasAngle = 15.0f;
 };
 
 
@@ -80,25 +150,27 @@ class MESHMODELINGTOOLSEXP_API UBakedOcclusionMapVisualizationProperties : publi
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY(EditAnywhere, Category = Visualization, meta = (UIMin = "0.0", UIMax = "1.0"))
-	float BaseGrayLevel = 1.0;
+	/** Adjust the brightness of the preview material; does not affect results stored in textures */
+	UPROPERTY(EditAnywhere, Category = Preview, meta = (DisplayName = "Brightness", UIMin = "0.0", UIMax = "1.0"))
+	float Brightness = 1.0f;
 
-	/** AO Multiplier in visualization (does not affect output) */
-	UPROPERTY(EditAnywhere, Category = Visualization, meta = (UIMin = "0.0", UIMax = "1.0"))
-	float OcclusionMultiplier = 1.0;
+	/** Ambient Occlusion multiplier in the viewport; does not affect results stored in textures */
+	UPROPERTY(EditAnywhere, Category = Preview, meta = (DisplayName = "AO Multiplier", UIMin = "0.0", UIMax = "1.0",
+		ClampMin = "0.0", ClampMax = "1.0"))
+	float AOMultiplier = 1.0f;
 };
 
 
 UENUM()
 enum class EBakedCurvatureTypeMode
 {
-	/** Mean Curvature is the average of the Max and Min Principal curvatures */
+	/** Average of the minimum and maximum principal curvatures */
 	MeanAverage,
-	/** Max Principal Curvature */
+	/** Maximum principal curvature */
 	Max,
-	/** Min Principal Curvature */
+	/** Minimum principal curvature */
 	Min,
-	/** Gaussian Curvature is the product of the Max and Min Principal curvatures */
+	/** Product of the minimum and maximum principal curvatures */
 	Gaussian
 };
 
@@ -108,9 +180,9 @@ enum class EBakedCurvatureColorMode
 {
 	/** Map curvature values to grayscale such that black is negative, grey is zero, and white is positive */
 	Grayscale,
-	/** Map curvature values to red/blue scale such that red is negative, black is zero, and blue is positive */
+	/** Map curvature values to red and blue such that red is negative, black is zero, and blue is positive */
 	RedBlue,
-	/** Map curvature values to red/green/blue scale such that red is negative, green is zero, and blue is positive */
+	/** Map curvature values to red, green, blue such that red is negative, green is zero, and blue is positive */
 	RedGreenBlue
 };
 
@@ -121,9 +193,9 @@ enum class EBakedCurvatureClampMode
 	/** Include both negative and positive curvatures */
 	None,
 	/** Clamp negative curvatures to zero */
-	Positive,
+	OnlyPositive,
 	/** Clamp positive curvatures to zero */
-	Negative
+	OnlyNegative
 };
 
 
@@ -132,24 +204,24 @@ class MESHMODELINGTOOLSEXP_API UBakedCurvatureMapToolProperties : public UIntera
 {
 	GENERATED_BODY()
 public:
-	/** Type of curvature to compute */
-	UPROPERTY(EditAnywhere, Category = CurvatureMap)
+	/** Type of curvature */
+	UPROPERTY(EditAnywhere, Category = CurvatureOutput)
 	EBakedCurvatureTypeMode CurvatureType = EBakedCurvatureTypeMode::MeanAverage;
 
-	/** Color mapping calculated from curvature values */
-	UPROPERTY(EditAnywhere, Category = CurvatureMap)
-	EBakedCurvatureColorMode ColorMode = EBakedCurvatureColorMode::Grayscale;
+	/** How to map calculated curvature values to colors */
+	UPROPERTY(EditAnywhere, Category = CurvatureOutput)
+	EBakedCurvatureColorMode ColorMapping = EBakedCurvatureColorMode::Grayscale;
 
-	/** Scale the maximum curvature value used to compute the mapping to grayscale/color */
-	UPROPERTY(EditAnywhere, Category = CurvatureMap, meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.001", ClampMax = "100.0"))
-	float RangeMultiplier = 1.0;
+	/** Multiplier for how the curvature values fill the available range in the selected Color Mapping; a larger value means that higher curvature is required to achieve the maximum color value. */
+	UPROPERTY(EditAnywhere, Category = CurvatureOutput, meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.001", ClampMax = "100.0"))
+	float ColorRangeMultiplier = 1.0;
 
-	/** Scale the minimum curvature value used to compute the mapping to grayscale/color (fraction of maximum) */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = CurvatureMap, meta = (UIMin = "0.0", UIMax = "1.0"))
+	/** Minimum for the curvature values to not be clamped to zero relative to the curvature for the maximum color value; a larger value means that higher curvature is required to not be considered as no curvature. */
+	UPROPERTY(EditAnywhere, Category = CurvatureOutput, AdvancedDisplay, meta = (DisplayName = "Color Range Minimum", UIMin = "0.0", UIMax = "1.0"))
 	float MinRangeMultiplier = 0.0;
 
-	/** Clamping to apply to curvature values before scaling to color range */
-	UPROPERTY(EditAnywhere, Category = CurvatureMap)
+	/** Clamping applied to curvature values before color mapping */
+	UPROPERTY(EditAnywhere, Category = CurvatureOutput)
 	EBakedCurvatureClampMode Clamping = EBakedCurvatureClampMode::None;
 };
 
@@ -159,12 +231,12 @@ class MESHMODELINGTOOLSEXP_API UBakedTexture2DImageProperties : public UInteract
 {
 	GENERATED_BODY()
 public:
-	/** The source texture that is to be resampled into a new texture map */
-	UPROPERTY(EditAnywhere, Category = Texture2D, meta = (TransientToolProperty))
+	/** Source mesh texture that is to be resampled into a new texture */
+	UPROPERTY(EditAnywhere, Category = TextureOutput, meta = (TransientToolProperty))
 	TObjectPtr<UTexture2D> SourceTexture;
 
-	/** The UV layer on the source mesh that corresponds to the SourceTexture */
-	UPROPERTY(EditAnywhere, Category = Texture2D)
+	/** UV channel to use for the source mesh texture */
+	UPROPERTY(EditAnywhere, Category = TextureOutput, meta = (DisplayName = "Source Texture UV Channel"))
 	int32 UVLayer = 0;
 };
 
@@ -176,15 +248,17 @@ class MESHMODELINGTOOLSEXP_API UBakedMultiTexture2DImageProperties : public UInt
 public:
 
 	/** For each material ID, the source texture that will be resampled in that material's region*/
-	UPROPERTY(EditAnywhere, Category = MultiTexture, meta = (DisplayName = "Material IDs / Source Textures", TransientToolProperty))
-	TMap<int32, TObjectPtr<UTexture2D>> MaterialIDSourceTextureMap;
+	UPROPERTY(EditAnywhere, EditFixedSize, Category = MultiTexture, meta = (DisplayName = "Material IDs",
+		TransientToolProperty, EditFixedOrder))
+	TArray<TObjectPtr<UTexture2D>> MaterialIDSourceTextures;
 
-	/** UV layer to sample from on the input mesh */
-	UPROPERTY(EditAnywhere, Category = MultiTexture)
+	/** UV channel to use for the source mesh textures */
+	UPROPERTY(EditAnywhere, Category = MultiTexture, meta = (DisplayName = "Source Texture UV Channel"))
 	int32 UVLayer = 0;
 
 	/** The set of all source textures from all input materials */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = MultiTexture, meta = (DisplayName = "Source Textures", TransientToolProperty))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = MultiTexture, meta = (DisplayName = "Source Textures",
+		TransientToolProperty))
 	TArray<TObjectPtr<UTexture2D>> AllSourceTextures;
 
 };

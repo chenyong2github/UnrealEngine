@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class TVOSProjectSettings : IOSProjectSettings
@@ -18,7 +16,7 @@ namespace UnrealBuildTool
 			get { return "3"; }
 		}
 
-		public TVOSProjectSettings(FileReference ProjectFile, String Bundle)
+		public TVOSProjectSettings(FileReference? ProjectFile, String? Bundle)
 			: base(ProjectFile, UnrealTargetPlatform.TVOS, Bundle)
 		{
 		}
@@ -43,7 +41,7 @@ namespace UnrealBuildTool
 		public static string TVOSArchitecture = "";
 
 		// The current architecture - affects everything about how UBT operates on IOS
-		public override string GetDefaultArchitecture(FileReference ProjectFile)
+		public override string GetDefaultArchitecture(FileReference? ProjectFile)
 		{
 			return TVOSArchitecture;
 		}
@@ -62,12 +60,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public new TVOSProjectSettings ReadProjectSettings(FileReference ProjectFile, string Bundle = "")
+		public new TVOSProjectSettings ReadProjectSettings(FileReference? ProjectFile, string Bundle = "")
 		{
 			return (TVOSProjectSettings)base.ReadProjectSettings(ProjectFile, Bundle);
 		}
 
-		protected override IOSProjectSettings CreateProjectSettings(FileReference ProjectFile, string Bundle)
+		protected override IOSProjectSettings CreateProjectSettings(FileReference? ProjectFile, string? Bundle)
 		{
 			return new TVOSProjectSettings(ProjectFile, Bundle);
 		}

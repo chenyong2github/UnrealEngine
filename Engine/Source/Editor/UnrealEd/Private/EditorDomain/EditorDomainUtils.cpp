@@ -21,13 +21,17 @@
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "Serialization/MemoryReader.h"
 #include "Serialization/PackageWriterToSharedBuffer.h"
+#include "String/ParseTokens.h"
 #include "TargetDomain/TargetDomainUtils.h"
 #include "UObject/CoreRedirects.h"
 #include "UObject/ObjectVersion.h"
 #include "UObject/Package.h"
+#include "UObject/PackageFileSummary.h"
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 /** Modify the masked bits in the output: set them to A & B. */
 template<typename Enum>
@@ -47,6 +51,10 @@ static ValueType MapFindRef(const TMap<KeyType, ValueType, SetAllocator, KeyFunc
 namespace UE::EditorDomain
 {
 
+TArray<FGuid> GetCustomVersions(UClass& Class);
+TMap<FGuid, UObject*> FindCustomVersionCulprits(TConstArrayView<FGuid> UnknownGuids, UPackage* Package);
+void InitializeGlobalAddedCustomVersions();
+
 FClassDigestMap GClassDigests;
 FClassDigestMap& GetClassDigests()
 {
@@ -55,13 +63,17 @@ FClassDigestMap& GetClassDigests()
 
 TMap<FName, EDomainUse> GClassBlockedUses;
 TMap<FName, EDomainUse> GPackageBlockedUses;
+TMultiMap<FName, FName> GConstructClasses;
+TArray<FName> GGlobalConstructClasses;
 TSet<FName> GTargetDomainClassBlockList;
 bool GTargetDomainClassUseAllowList = true;
 bool GTargetDomainClassEmptyAllowList = false;
+TArray<FGuid> GGlobalAddedCustomVersions;
+bool bGGlobalAddedCustomVersionsInitialized = false;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("A8FBE991C37D45F0B428D9CC24201DE8");
-											
+const TCHAR* EditorDomainVersion = TEXT("CE45C7BCF04246A4AEA6136DE532DF85");
+
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
 const TCHAR* EditorDomainBulkDataListBucketName = TEXT("EditorDomainBulkDataList");
@@ -84,7 +96,7 @@ static bool GetEditorDomainSaveUnversioned()
 }
 
 EPackageDigestResult AppendPackageDigest(FCbWriter& Writer, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage,
-	const FAssetPackageData& PackageData, FName PackageName)
+	const FAssetPackageData& PackageData, FName PackageName, TArray<FGuid>* OutCustomVersions)
 {
 	OutEditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
 	
@@ -97,23 +109,14 @@ EPackageDigestResult AppendPackageDigest(FCbWriter& Writer, EDomainUse& OutEdito
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Writer << CurrentFileVersionUE;
 	Writer << CurrentFileVersionLicenseeUE;
-	check(Algo::IsSorted(PackageData.GetCustomVersions()));
+	TArray<FGuid> CustomVersionGuidBuffer;
+	TArray<FGuid>& CustomVersionGuids(OutCustomVersions ? *OutCustomVersions : CustomVersionGuidBuffer);
+	CustomVersionGuids.Reset(PackageData.GetCustomVersions().Num());
 	for (const UE::AssetRegistry::FPackageCustomVersion& PackageVersion : PackageData.GetCustomVersions())
 	{
-		Writer << const_cast<FGuid&>(PackageVersion.Key);
-		TOptional<FCustomVersion> CurrentVersion = FCurrentCustomVersions::Get(PackageVersion.Key);
-		if (CurrentVersion.IsSet())
-		{
-			Writer << CurrentVersion->Version;
-		}
-		else
-		{
-			OutErrorMessage = FString::Printf(TEXT("Package %s uses CustomVersion guid %s but that guid is not available in FCurrentCustomVersions"),
-				*PackageName.ToString(), *PackageVersion.Key.ToString());
-			return EPackageDigestResult::MissingCustomVersion;
-		}
+		CustomVersionGuids.Add(PackageVersion.Key);
 	}
-	FNameBuilder NameBuilder;
+
 	int32 NextClass = 0;
 	FClassDigestMap& ClassDigests = GetClassDigests();
 	for (int32 Attempt = 0; NextClass < PackageData.ImportedClasses.Num(); ++Attempt)
@@ -144,267 +147,394 @@ EPackageDigestResult AppendPackageDigest(FCbWriter& Writer, EDomainUse& OutEdito
 			{
 				Writer << ExistingData->SchemaHash;
 			}
+			CustomVersionGuids.Append(ExistingData->CustomVersionGuids);
 			EnumSetFlagsAnd(OutEditorDomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
 				OutEditorDomainUse, ExistingData->EditorDomainUse);
 		}
 	}
-	return EPackageDigestResult::Success;
-}
 
-void PrecacheClassDigests(TConstArrayView<FName> ClassNames, TMap<FName, FClassDigestData>* OutDatas)
-{
-	FClassDigestMap& ClassDigests = GetClassDigests();
-	FString ClassNameStr;
-	TArray<FName, TInlineAllocator<10>> ClassesToAdd;
-	ClassesToAdd.Reserve(ClassNames.Num());
+	InitializeGlobalAddedCustomVersions();
+	CustomVersionGuids.Append(GGlobalAddedCustomVersions);
+	CustomVersionGuids.Sort();
+	CustomVersionGuids.SetNum(Algo::Unique(CustomVersionGuids));
+	for (const FGuid& CustomVersionGuid : CustomVersionGuids)
 	{
-		FWriteScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
-		for (FName ClassName : ClassNames)
+		Writer << const_cast<FGuid&>(CustomVersionGuid);
+		TOptional<FCustomVersion> CurrentVersion = FCurrentCustomVersions::Get(CustomVersionGuid);
+		if (CurrentVersion.IsSet())
 		{
-			FClassDigestData* DigestData = ClassDigests.Map.Find(ClassName);
-			if (DigestData)
-			{
-				if (OutDatas)
-				{
-					OutDatas->Add(ClassName, *DigestData);
-				}
-			}
-			else
-			{
-				ClassesToAdd.Add(ClassName);
-			}
-		}
-	}
-	if (ClassesToAdd.Num() == 0)
-	{
-		return;
-	}
-
-	struct FClassData
-	{
-		FName Name;
-		FName ParentName;
-		UStruct* ParentStruct = nullptr;
-		FClassDigestData DigestData;
-	};
-	TArray<FClassData, TInlineAllocator<10>> ClassDatas;
-	FString NameStringBuffer;
-	IAssetRegistry& AssetRegistry = *IAssetRegistry::Get();
-	TArray<FName> AncestorShortNames;
-
-	ClassDatas.Reserve(ClassesToAdd.Num());
-	for (FName ClassName : ClassesToAdd)
-	{
-		FName LookupName = ClassName;
-		ClassName.ToString(NameStringBuffer);
-		FCoreRedirectObjectName ClassNameRedirect(NameStringBuffer);
-		FCoreRedirectObjectName RedirectedClassNameRedirect = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, ClassNameRedirect);
-		if (ClassNameRedirect != RedirectedClassNameRedirect)
-		{
-			NameStringBuffer = RedirectedClassNameRedirect.ToString();
-			LookupName = FName(NameStringBuffer);
-		}
-		UStruct* Struct = nullptr;
-		if (FPackageName::IsScriptPackage(NameStringBuffer))
-		{
-			Struct = FindObject<UStruct>(nullptr, *NameStringBuffer);
-			if (!Struct)
-			{
-				// If a native class is not found we do not put it in our results
-				continue;
-			}
-		}
-		
-		FClassData& ClassData = ClassDatas.Emplace_GetRef();
-		ClassData.Name = ClassName;
-		ClassData.DigestData.EditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
-		ClassData.DigestData.EditorDomainUse &= ~MapFindRef(GClassBlockedUses, ClassName, EDomainUse::None);
-		if (LookupName != ClassName)
-		{
-			ClassData.DigestData.EditorDomainUse &= ~MapFindRef(GClassBlockedUses, LookupName, EDomainUse::None);
-		}
-		if (!GTargetDomainClassUseAllowList)
-		{
-			ClassData.DigestData.bTargetIterativeEnabled = !GTargetDomainClassBlockList.Contains(ClassName);
-			if (LookupName != ClassName)
-			{
-				ClassData.DigestData.bTargetIterativeEnabled &= !GTargetDomainClassBlockList.Contains(LookupName);
-			}
-		}
-
-		if (Struct)
-		{
-			ClassData.DigestData.bNative = true;
-			ClassData.DigestData.SchemaHash = Struct->GetSchemaHash(false /* bSkipEditorOnly */);
-			ClassData.ParentStruct = Struct->GetSuperStruct();
-			if (ClassData.ParentStruct)
-			{
-				NameStringBuffer.Reset();
-				ClassData.ParentStruct->GetPathName(nullptr, NameStringBuffer);
-				ClassData.ParentName = FName(*NameStringBuffer);
-			}
+			Writer << CurrentVersion->Version;
 		}
 		else
 		{
-			ClassData.DigestData.bNative = false;
-			ClassData.DigestData.SchemaHash.Reset();
-			FStringView UnusedClassOfClassName;
-			FStringView ClassPackageName;
-			FStringView ClassObjectName;
-			FStringView ClassSubObjectName;
-			FPackageName::SplitFullObjectPath(NameStringBuffer, UnusedClassOfClassName, ClassPackageName, ClassObjectName, ClassSubObjectName);
-			FName ClassObjectFName(ClassObjectName);
-			// TODO_EDITORDOMAIN: If the class is not yet present in the assetregistry, or
-			// if its parent classes are not, then we will not be able to propagate information from the parent classes; wait on the class to be parsed
-			AncestorShortNames.Reset();
-			IAssetRegistry::Get()->GetAncestorClassNames(ClassObjectFName, AncestorShortNames);
-			for (FName ShortName : AncestorShortNames)
+			OutErrorMessage = FString::Printf(TEXT("Package %s uses CustomVersion guid %s but that guid is not available in FCurrentCustomVersions"),
+				*PackageName.ToString(), *CustomVersionGuid.ToString());
+			return EPackageDigestResult::MissingCustomVersion;
+		}
+	}
+
+	return EPackageDigestResult::Success;
+}
+
+/**
+ * Holds context data for a call to PrecacheClassDigests, which needs to recursively
+ * traverse a graph of of class parents and construction classes
+ */
+class FPrecacheClassDigest
+{
+public:
+	FPrecacheClassDigest()
+		: ClassDigestsMap(GetClassDigests())
+		, ClassDigests(ClassDigestsMap.Map)
+		, AssetRegistry(*IAssetRegistry::Get())
+	{
+		ClassDigestsMap.Lock.WriteLock();
+	}
+
+	~FPrecacheClassDigest()
+	{
+		ClassDigestsMap.Lock.WriteUnlock();
+	}
+
+	FClassDigestData* GetRecursive(FName ClassName);
+
+	struct FUnlockScope
+	{
+		FUnlockScope(FRWLock& InLock)
+			: Lock(InLock)
+		{
+			Lock.WriteUnlock();
+		}
+		~FUnlockScope()
+		{
+			Lock.WriteLock();
+		}
+		FRWLock& Lock;
+	};
+
+private:
+	FClassDigestMap& ClassDigestsMap;
+	TMap<FName, FClassDigestData>& ClassDigests;
+	IAssetRegistry& AssetRegistry;
+
+	// Scratch variables usable during GetRecursive; they are invalidated when a recursive call is made
+	FString NameStringBuffer;
+	TArray<FName> AncestorShortNames;
+};
+
+FClassDigestData* FPrecacheClassDigest::GetRecursive(FName ClassName)
+{
+	// Called within ClassDigestsMap.Lock.WriteLock()
+	FClassDigestData* DigestData = &ClassDigests.FindOrAdd(ClassName);
+	if (DigestData->bConstructed)
+	{
+		return DigestData;
+	}
+	DigestData->bConstructed = true;
+
+	FName LookupName = ClassName;
+	ClassName.ToString(NameStringBuffer);
+	FCoreRedirectObjectName ClassNameRedirect(NameStringBuffer);
+	FCoreRedirectObjectName RedirectedClassNameRedirect = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, ClassNameRedirect);
+	if (ClassNameRedirect != RedirectedClassNameRedirect)
+	{
+		NameStringBuffer = RedirectedClassNameRedirect.ToString();
+		LookupName = FName(NameStringBuffer);
+	}
+
+	UStruct* Struct = nullptr;
+	if (FPackageName::IsScriptPackage(NameStringBuffer))
+	{
+		Struct = FindObject<UStruct>(nullptr, *NameStringBuffer);
+		if (!Struct)
+		{
+			// If ClassName is native but is not yet loaded then abort and the caller gives an error or retries later
+			ClassDigests.Remove(ClassName);
+			return nullptr;
+		}
+	}
+
+	// Fill in digest data config-driven flags
+	DigestData->EditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
+	DigestData->EditorDomainUse &= ~MapFindRef(GClassBlockedUses, ClassName, EDomainUse::None);
+	if (LookupName != ClassName)
+	{
+		DigestData->EditorDomainUse &= ~MapFindRef(GClassBlockedUses, LookupName, EDomainUse::None);
+	}
+	if (!GTargetDomainClassUseAllowList)
+	{
+		DigestData->bTargetIterativeEnabled = !GTargetDomainClassBlockList.Contains(ClassName);
+		if (LookupName != ClassName)
+		{
+			DigestData->bTargetIterativeEnabled &= !GTargetDomainClassBlockList.Contains(LookupName);
+		}
+	}
+
+	// Fill in native-specific digest data, get the ParentName, and if non-native, get the native ancestor struct
+	FName ParentName;
+	if (Struct)
+	{
+		DigestData->bNative = true;
+		DigestData->SchemaHash = Struct->GetSchemaHash(false /* bSkipEditorOnly */);
+		UStruct* ParentStruct = Struct->GetSuperStruct();
+		if (ParentStruct)
+		{
+			NameStringBuffer.Reset();
+			ParentStruct->GetPathName(nullptr, NameStringBuffer);
+			ParentName = FName(*NameStringBuffer);
+		}
+	}
+	else
+	{
+		DigestData->bNative = false;
+		DigestData->SchemaHash.Reset();
+		DigestData->CustomVersionGuids.Empty();
+		FStringView UnusedClassOfClassName;
+		FStringView ClassPackageName;
+		FStringView ClassObjectName;
+		FStringView ClassSubObjectName;
+		FPackageName::SplitFullObjectPath(NameStringBuffer, UnusedClassOfClassName, ClassPackageName, ClassObjectName, ClassSubObjectName);
+		FName ClassObjectFName(ClassObjectName);
+		// TODO_EDITORDOMAIN: If the class is not yet present in the assetregistry, or
+		// if its parent classes are not, then we will not be able to propagate information from the parent classes; wait on the class to be parsed
+		AncestorShortNames.Reset();
+		IAssetRegistry::Get()->GetAncestorClassNames(ClassObjectFName, AncestorShortNames);
+		for (FName ShortName : AncestorShortNames)
+		{
+			// TODO_EDITORDOMAIN: For robustness and performance, we need the AssetRegistry to return FullPathNames rather than ShortNames
+			// For now, we lookup each shortname using FindObject, and do not handle propagating data from blueprint classes to child classes
+			if (UStruct* CurrentStruct = FindObjectFast<UStruct>(nullptr, ShortName, false /* ExactClass */, true /* AnyPackage */))
 			{
-				// TODO_EDITORDOMAIN: For robustness and performance, we need the AssetRegistry to return FullPathNames rather than ShortNames
-				// For now, we lookup each shortname using FindObject, and do not handle propagating data from blueprint classes to child classes
-				if (UStruct* ParentStruct = FindObjectFast<UStruct>(nullptr, ShortName, false /* ExactClass */, true /* AnyPackage */))
+				NameStringBuffer.Reset();
+				CurrentStruct->GetPathName(nullptr, NameStringBuffer);
+				if (FPackageName::IsScriptPackage(NameStringBuffer))
 				{
-					NameStringBuffer.Reset();
-					ParentStruct->GetPathName(nullptr, NameStringBuffer);
-					if (FPackageName::IsScriptPackage(NameStringBuffer))
-					{
-						ClassData.ParentStruct = ParentStruct;
-						ClassData.ParentName = FName(*NameStringBuffer);
-						break;
-					}
+					ParentName = FName(*NameStringBuffer);
+					Struct = CurrentStruct;
+					break;
 				}
 			}
 		}
 	}
 
-	TMap<FName, FClassData> RemainingBatch;
+	// Get the CustomVersions used by the native class; GetCustomVersions already returns all custom versions used
+	// by the parent class so we do not need to copy data from the parent
+	UClass* StructAsClass = Cast<UClass>(Struct);
+	if (StructAsClass)
 	{
-		FWriteScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
+		// GetCustomVersions can create the ClassDefaultObject, which can trigger LoadPackage, which
+		// can reenter this function recursively. We have to drop the lock to prevent a deadlock.
+		FUnlockScope UnlockScope(ClassDigestsMap.Lock);
+		DigestData->CustomVersionGuids = GetCustomVersions(*StructAsClass);
+	}
+	else
+	{
+		DigestData->CustomVersionGuids.Reset();
+	}
 
-		// Look up the data for the parent of each class, so we can propagate bEditorDomainEnabled from the parent,
-		// once parent data is propagated, add it to the ClassDigests map.
-		// For any parents missing data, keep the class for a second pass that adds the parent
-		for (FClassData& ClassData : ClassDatas)
+	// Propagate values from the parent
+	if (!ParentName.IsNone())
+	{
+		FClassDigestData* ParentDigest = GetRecursive(ParentName);
+		// The map has possibly been modified so we need to recalculate the address of ClassName's DigestData
+		DigestData = &ClassDigests.FindChecked(ClassName);
+		if (!ParentDigest)
 		{
-			bool bNeedsParent = false;
-			if (!ClassData.ParentName.IsNone())
+			UE_LOG(LogEditorDomain, Display, TEXT("Parent class %s of class %s not found. Allow flags for editordomain and iterative cooking will be invalid."),
+				*ParentName.ToString(), *ClassName.ToString());
+		}
+		else
+		{
+			if (!ParentDigest->bConstructionComplete)
 			{
-				FClassDigestData* ParentDigest = ClassDigests.Map.Find(ClassData.ParentName);
-				if (ParentDigest)
-				{
-					EnumSetFlagsAnd(ClassData.DigestData.EditorDomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
-						ClassData.DigestData.EditorDomainUse, ParentDigest->EditorDomainUse);
-					if (!GTargetDomainClassUseAllowList)
-					{
-						ClassData.DigestData.bTargetIterativeEnabled &= ParentDigest->bTargetIterativeEnabled;
-					}
-				}
-				else
-				{
-					bNeedsParent = true;
-				}
+				UE_LOG(LogEditorDomain, Display, TEXT("Cycle detected in parents of class %s. Allow flags for editordomain and iterative cooking will be invalid."), *ClassName.ToString());
 			}
-			if (!bNeedsParent)
+			EnumSetFlagsAnd(DigestData->EditorDomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
+				DigestData->EditorDomainUse, ParentDigest->EditorDomainUse);
+			if (!GTargetDomainClassUseAllowList)
 			{
-				if (OutDatas)
-				{
-					OutDatas->Add(ClassData.Name, ClassData.DigestData);
-				}
-				ClassDigests.Map.Add(ClassData.Name, MoveTemp(ClassData.DigestData));
+				DigestData->bTargetIterativeEnabled &= ParentDigest->bTargetIterativeEnabled;
+			}
+		}
+	}
+
+	// Propagate values from the ConstructClasses
+	TArray<FName> ConstructClasses; // Not a class scratch variable because we use it across recursive calls
+	GConstructClasses.MultiFind(ClassName, ConstructClasses);
+	if (!ConstructClasses.IsEmpty())
+	{
+		TArray<FGuid> ConstructCustomVersions; // Not a class scratch variable because we use it across recursive calls
+		for (FName ConstructClass : ConstructClasses)
+		{
+			FClassDigestData* ConstructClassDigest = GetRecursive(ConstructClass);
+			if (!ConstructClassDigest)
+			{
+				UE_LOG(LogEditorDomain, Warning, TEXT("Construct class %s specified by Editor.ini:[EditorDomain]:PostLoadConstructClasses for class %s is not found. ")
+					TEXT("This is a class that can be constructed by postload upgrades of class %s. ")
+					TEXT("Old packages with class %s will load more slowly."),
+					*ConstructClass.ToString(), *ClassName.ToString(), *ClassName.ToString(), *ClassName.ToString());
 			}
 			else
 			{
-				RemainingBatch.Add(ClassData.Name, MoveTemp(ClassData));
+				if (!ConstructClassDigest->bConstructionComplete)
+				{
+					UE_LOG(LogEditorDomain, Verbose, TEXT("Cycle detected in Editor.ini:[EditorDomain]:PostLoadConstructClasses of class %s. This is unexpected, but not a problem."),
+						*ClassName.ToString());
+				}
+				ConstructCustomVersions.Append(ConstructClassDigest->CustomVersionGuids);
 			}
 		}
+		// The map has possibly been modified so we need to recalculate the address of ClassName's DigestData
+		DigestData = &ClassDigests.FindChecked(ClassName);
+		DigestData->CustomVersionGuids.Append(MoveTemp(ConstructCustomVersions));
+		Algo::Sort(DigestData->CustomVersionGuids);
+		DigestData->CustomVersionGuids.SetNum(Algo::Unique(DigestData->CustomVersionGuids));
 	}
 
-	if (RemainingBatch.Num() == 0)
+	DigestData->bConstructionComplete = true;
+	return DigestData;
+}
+
+/** Try to add the FClassDigestData for each given class into the GetClassDigests map */
+void PrecacheClassDigests(TConstArrayView<FName> ClassNames)
+{
+	FPrecacheClassDigest Digester;
+	for (FName ClassName : ClassNames)
+	{
+		Digester.GetRecursive(ClassName);
+	}
+}
+
+/** Construct GGlobalAddedCustomVersions from the classes specified by config */
+void InitializeGlobalAddedCustomVersions()
+{
+	if (bGGlobalAddedCustomVersionsInitialized)
 	{
 		return;
 	}
-
-	// Get all unique ancestors (skipping those that are already in the batch) and recursively cache them
-	TSet<FName> Parents;
-	for (const TPair<FName, FClassData>& RemainingPair : RemainingBatch)
+	bGGlobalAddedCustomVersionsInitialized = true;
+	TArray<FName> GlobalAddedClassNames;
 	{
-		const FClassData& ClassData = RemainingPair.Value;
-		if (ClassData.ParentName.IsNone() || RemainingBatch.Contains(ClassData.ParentName))
+		TArray<FString> Lines;
+		GConfig->GetArray(TEXT("EditorDomain"), TEXT("GlobalCanConstructClasses"), Lines, GEditorIni);
+		GlobalAddedClassNames.Reserve(Lines.Num());
+		for (const FString& Line : Lines)
 		{
-			continue;
+			GlobalAddedClassNames.Add(FName(FStringView(Line).TrimStartAndEnd()));
 		}
-		checkf(ClassData.ParentStruct, TEXT("If the ClassData has a parent, it should have come either from the ParentStruct."));
-		FName ParentName = ClassData.ParentName;
-		UStruct* ParentStruct = ClassData.ParentStruct;
-		do
-		{
-			bool bAlreadyExists;
-			Parents.Add(ParentName, &bAlreadyExists);
-			if (bAlreadyExists)
-			{
-				break;
-			}
-			ParentStruct = ParentStruct->GetSuperStruct();
-			if (ParentStruct)
-			{
-				NameStringBuffer.Reset();
-				ParentStruct->GetPathName(nullptr, NameStringBuffer);
-				ParentName = FName(*NameStringBuffer);
-			}
-		}
-		while (ParentStruct);
-	}
-	TMap<FName, FClassDigestData> ParentDigests;
-	PrecacheClassDigests(Parents.Array(), &ParentDigests);
-
-	// Propagate parent values to children, pulling parentdata from ParentDigests or RemainingBatch
-	TSet<FName> Visited;
-	auto RecursivePropagate = [&RemainingBatch, &ParentDigests, &Visited](FClassData& ClassData, auto& RecursivePropagateReference)
-	{
-		bool bAlreadyInSet;
-		Visited.Add(ClassData.Name, &bAlreadyInSet);
-		if (bAlreadyInSet)
-		{
-			return;
-		}
-		FClassDigestData* ParentDigest = ParentDigests.Find(ClassData.ParentName);
-		if (!ParentDigest)
-		{
-			FClassData* ParentData = RemainingBatch.Find(ClassData.ParentName);
-			if (ParentData)
-			{
-				RecursivePropagateReference(*ParentData, RecursivePropagateReference);
-				ParentDigest = &ParentData->DigestData;
-			}
-		}
-		// If the superclass was not found, due to a bad redirect or a missing blueprint assetregistry entry, then give up and treat the class as having no parent
-		if (ParentDigest)
-		{
-			EnumSetFlagsAnd(ClassData.DigestData.EditorDomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
-				ClassData.DigestData.EditorDomainUse, ParentDigest->EditorDomainUse);
-			if (!GTargetDomainClassUseAllowList)
-			{
-				ClassData.DigestData.bTargetIterativeEnabled &= ParentDigest->bTargetIterativeEnabled;
-			}
-		}
-	};
-	for (TPair<FName, FClassData>& RemainingPair : RemainingBatch)
-	{
-		RecursivePropagate(RemainingPair.Value, RecursivePropagate);
 	}
 
-	// Add the now-complete RemainingBatch digests to ClassDigests
+	PrecacheClassDigests(GlobalAddedClassNames);
+	FClassDigestMap& ClassDigests = GetClassDigests();
+	FReadScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
+	for (FName ClassName : GlobalAddedClassNames)
 	{
-		FWriteScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
-		for (TPair<FName, FClassData>& RemainingPair : RemainingBatch)
+		FClassDigestData* ExistingData = ClassDigests.Map.Find(ClassName);
+		if (!ExistingData)
 		{
-			if (OutDatas)
-			{
-				OutDatas->Add(RemainingPair.Key, RemainingPair.Value.DigestData);
-			}
-			ClassDigests.Map.Add(RemainingPair.Key, MoveTemp(RemainingPair.Value.DigestData));
+			UE_LOG(LogEditorDomain, Display, TEXT("Construct class %s specified by Editor.ini:[EditorDomain]:GlobalCanConstructClasses is not found. ")
+				TEXT("This is a class that can be constructed automatically by SavePackage when saving old packages. ")
+				TEXT("Old packages that do not yet have this class will load more slowly."),
+				*ClassName.ToString());
+		}
+		else
+		{
+			GGlobalAddedCustomVersions.Append(ExistingData->CustomVersionGuids);
 		}
 	}
+	Algo::Sort(GGlobalAddedCustomVersions);
+	GGlobalAddedCustomVersions.SetNum(Algo::Unique(GGlobalAddedCustomVersions));
+}
+
+/** An archive that just collects custom versions. */
+class FCustomVersionCollectorArchive : public FArchiveUObject
+{
+public:
+	FCustomVersionCollectorArchive()
+	{
+		SetIsSaving(true);
+		SetIsPersistent(true);
+	}
+	// The base class functionality does most of what we need:
+	// ignore Serialize(void*,int), ignore Serialize(UObject*), collect customversions
+	// Some classes expect Seek and Tell to work, though, so we simulate those
+	virtual void Seek(int64 InPos) override
+	{
+		check(0 <= Pos && Pos <= Max);
+		Pos = InPos;
+	}
+	virtual int64 Tell() override
+	{
+		return Pos;
+	}
+	virtual int64 TotalSize() override
+	{
+		return Max;
+	}
+	virtual void Serialize(void* V, int64 Length) override
+	{
+		Pos += Length;
+		Max = FMath::Max(Pos, Max);
+	}
+	virtual FString GetArchiveName() const override
+	{
+		return TEXT("FCustomVersionCollectorArchive");
+	}
+
+private:
+	int64 Pos = 0;
+	int64 Max = 0;
+};
+
+/** Collect the CustomVersions that can be used by the given Class when it is saved */
+TArray<FGuid> GetCustomVersions(UClass& Class)
+{
+	FCustomVersionCollectorArchive Ar;
+	Class.GetDefaultObject()->DeclareCustomVersions(Ar);
+	// Default objects of blueprint classes are serialized during SavePackage with a special call to
+	// UBlueprintGeneratedClass::SerializeDefaultObject
+	// All packages that include a BlueprintGeneratedClass import the UClass BlueprintGeneratedClass
+	// (Note the UClass BlueprintGeneratedClass is not the same as the c++ UBlueprintGeneratedClass)
+	// We therefore add on the CustomVersions used by UBlueprintGeneratedClass::SerializeDefaultObject into
+	// the CustomVersions for the UClass named BlueprintGeneratedClass
+	static const FName NAME_EnginePackage(TEXT("/Script/Engine"));
+	static const FName NAME_BlueprintGeneratedClass(TEXT("BlueprintGeneratedClass"));
+	if (Class.GetFName() == NAME_BlueprintGeneratedClass && Class.GetPackage()->GetFName() == NAME_EnginePackage)
+	{
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	}
+	TArray<FGuid> Guids;
+	const FCustomVersionContainer& CustomVersions = Ar.GetCustomVersions();
+	Guids.Reserve(CustomVersions.GetAllVersions().Num());
+	for (const FCustomVersion& CustomVersion : CustomVersions.GetAllVersions())
+	{
+		Guids.Add(CustomVersion.Key);
+	}
+	Algo::Sort(Guids);
+	Guids.SetNum(Algo::Unique(Guids));
+	return Guids;
+}
+
+/** Serialize each object in the package to find the one using each of the given CustomVersions */
+TMap<FGuid, UObject*> FindCustomVersionCulprits(TConstArrayView<FGuid> UnknownGuids, UPackage* Package)
+{
+	TArray<UObject*> Objects;
+	GetObjectsWithPackage(Package, Objects);
+	TMap<FGuid, UObject*> Culprits;
+	for (UObject* Object : Objects)
+	{
+		FCustomVersionCollectorArchive Ar;
+		Object->Serialize(Ar);
+		for (const FCustomVersion& CustomVersion : Ar.GetCustomVersions().GetAllVersions())
+		{
+			UObject*& Existing = Culprits.FindOrAdd(CustomVersion.Key);
+			if (!Existing)
+			{
+				Existing = Object;
+			}
+		}
+	}
+	return Culprits;
 }
 
 TMap<FName, EDomainUse> ConstructClassBlockedUses()
@@ -538,7 +668,7 @@ void ConstructTargetIterativeClassAllowList()
 	}
 
 	TArray<FName> EnabledFNamesArray = EnabledFNames.Array();
-	PrecacheClassDigests(EnabledFNamesArray, nullptr /* OutDatas */);
+	PrecacheClassDigests(EnabledFNamesArray);
 	FClassDigestMap& ClassDigests = GetClassDigests();
 	{
 		FWriteScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
@@ -553,6 +683,34 @@ void ConstructTargetIterativeClassAllowList()
 	}
 }
 
+/** Construct PostLoadCanConstructClasses multimap from config settings and return it */
+TMultiMap<FName, FName> ConstructConstructClasses()
+{
+	TArray<FString> Lines;
+	GConfig->GetArray(TEXT("EditorDomain"), TEXT("PostLoadCanConstructClasses"), Lines, GEditorIni);
+	TMultiMap<FName, FName> ConstructClasses;
+	for (const FString& Line : Lines)
+	{
+		int32 NumTokens = 0;
+		FStringView PostLoadClass;
+		FStringView ConstructedClass;
+		UE::String::ParseTokens(Line, TEXT(','), [&NumTokens, &PostLoadClass, &ConstructedClass](FStringView Token)
+			{
+				*(NumTokens == 0 ? &PostLoadClass : &ConstructedClass) = Token;
+				++NumTokens;
+			});
+		if (NumTokens != 2)
+		{
+			UE_LOG(LogEditorDomain, Warning, TEXT("Invalid value %s in config setting Editor.ini:[EditorDomain]:PostLoadCanConstructClasses"), *Line);
+			continue;
+		}
+		PostLoadClass.TrimStartAndEndInline();
+		ConstructedClass.TrimStartAndEndInline();
+		ConstructClasses.Add(FName(PostLoadClass), FName(ConstructedClass));
+	};
+	return ConstructClasses;
+}
+
 FDelegateHandle GUtilsPostInitDelegate;
 void UtilsPostEngineInit();
 
@@ -560,6 +718,7 @@ void UtilsInitialize()
 {
 	GClassBlockedUses = ConstructClassBlockedUses();
 	GPackageBlockedUses = ConstructPackageNameBlockedUses();
+	GConstructClasses = ConstructConstructClasses();
 
 	bool bTargetDomainClassUseBlockList = true;
 	if (FParse::Param(FCommandLine::Get(), TEXT("fullcook")))
@@ -604,10 +763,12 @@ void UtilsPostEngineInit()
 }
 
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FPackageDigest& OutPackageDigest, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage)
+	FPackageDigest& OutPackageDigest, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage,
+	TArray<FGuid>* OutCustomVersions)
 {
 	FCbWriter Builder;
-	EPackageDigestResult Result = AppendPackageDigest(AssetRegistry, PackageName, Builder, OutEditorDomainUse, OutErrorMessage);
+	EPackageDigestResult Result = AppendPackageDigest(AssetRegistry, PackageName, Builder, OutEditorDomainUse, 
+		OutErrorMessage, OutCustomVersions);
 	if (Result == EPackageDigestResult::Success)
 	{
 		OutPackageDigest = Builder.Save().GetRangeHash();
@@ -616,7 +777,7 @@ EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName Packa
 }
 
 EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
-	FCbWriter& Builder, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage)
+	FCbWriter& Builder, EDomainUse& OutEditorDomainUse, FString& OutErrorMessage, TArray<FGuid>* OutCustomVersions)
 {
 	AssetRegistry.WaitForPackage(PackageName.ToString());
 	TOptional<FAssetPackageData> PackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
@@ -625,9 +786,14 @@ EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName Pa
 		OutErrorMessage = FString::Printf(TEXT("Package %s does not exist in the AssetRegistry"),
 			*PackageName.ToString());
 		OutEditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
+		if (OutCustomVersions)
+		{
+			OutCustomVersions->Reset();
+		}
 		return EPackageDigestResult::FileDoesNotExist;
 	}
-	EPackageDigestResult Result = AppendPackageDigest(Builder, OutEditorDomainUse, OutErrorMessage, *PackageData, PackageName);
+	EPackageDigestResult Result = AppendPackageDigest(Builder, OutEditorDomainUse, OutErrorMessage, *PackageData,
+		PackageName, OutCustomVersions);
 	EnumSetFlagsAnd(OutEditorDomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
 		OutEditorDomainUse, ~MapFindRef(GPackageBlockedUses, PackageName, EDomainUse::None));
 	return Result;
@@ -674,9 +840,8 @@ void RequestEditorDomainPackage(const FPackagePath& PackagePath,
 class FEditorDomainPackageWriter final : public TPackageWriterToSharedBuffer<IPackageWriter>
 {
 public:
-	FEditorDomainPackageWriter(UE::DerivedData::FCacheRecordBuilder& InRecordBuilder, uint64& InFileSize)
-		: RecordBuilder(InRecordBuilder)
-		, FileSize(InFileSize)
+	FEditorDomainPackageWriter(uint64& InFileSize)
+		: FileSize(InFileSize)
 	{
 	}
 
@@ -686,6 +851,31 @@ public:
 		FCapabilities Result;
 		Result.bDeclareRegionForEachAdditionalFile = true;
 		return Result;
+	}
+
+	/** Deserialize the CustomVersions out of the PackageFileSummary that was serialized into the header */
+	bool TryGetCustomVersions(FCustomVersionContainer& OutVersions)
+	{
+		FMemoryReaderView HeaderArchive(WritePackageRecord.Buffer.GetView());
+		FPackageFileSummary Summary;
+		HeaderArchive << Summary;
+		if (HeaderArchive.IsError())
+		{
+			return false;
+		}
+		OutVersions = Summary.GetCustomVersionContainer();
+		return true;
+	}
+
+	struct FAttachment
+	{
+		FSharedBuffer Buffer;
+		UE::DerivedData::FPayloadId PayloadId;
+	};
+	/** The Buffer+Id for each section making up the EditorDomain's copy of the package */
+	TConstArrayView<FAttachment> GetAttachments() const
+	{
+		return Attachments;
 	}
 
 protected:
@@ -709,6 +899,7 @@ protected:
 			// 6) Handle EPackageSegment::PayloadSidecar in FEditorDomain::OpenReadPackage by returning an archive configured to deserialize the sidecar segment.
 			unimplemented();
 		}
+		WritePackageRecord = *Record.Package;
 
 		TArray<FSharedBuffer> AttachmentBuffers;
 
@@ -778,18 +969,21 @@ protected:
 		};
 
 		uint32 AttachmentIndex = 1; // 0 is not a valid value for IntToPayloadId
+		Attachments.Reserve(AttachmentBuffers.Num());
 		FileSize = 0;
 		for (const FSharedBuffer& Buffer : AttachmentBuffers)
 		{
-			RecordBuilder.AddAttachment(Buffer, IntToPayloadId(AttachmentIndex++));
+			Attachments.Add(FAttachment{ Buffer, IntToPayloadId(AttachmentIndex++) });
 			FileSize += Buffer.GetSize();
 		}
+		WritePackageRecord = MoveTemp(*Record.Package);
 
 		return TFuture<FMD5Hash>();
 	}
 
 private:
-	UE::DerivedData::FCacheRecordBuilder& RecordBuilder;
+	TArray<FAttachment> Attachments;
+	FPackageWriterRecords::FWritePackage WritePackageRecord;
 	uint64& FileSize;
 };
 
@@ -801,8 +995,9 @@ bool TrySavePackage(UPackage* Package)
 	FString ErrorMessage;
 	FPackageDigest PackageDigest;
 	EDomainUse EditorDomainUse;
+	TArray<FGuid> CustomVersionGuids;
 	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), Package->GetFName(), PackageDigest,
-		EditorDomainUse, ErrorMessage);
+		EditorDomainUse, ErrorMessage, &CustomVersionGuids);
 	switch (FindHashResult)
 	{
 	case EPackageDigestResult::Success:
@@ -848,8 +1043,7 @@ bool TrySavePackage(UPackage* Package)
 	}
 
 	uint64 FileSize = 0;
-	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest));
-	FEditorDomainPackageWriter* PackageWriter = new FEditorDomainPackageWriter(RecordBuilder, FileSize);
+	FEditorDomainPackageWriter* PackageWriter = new FEditorDomainPackageWriter(FileSize);
 	IPackageWriter::FBeginPackageInfo BeginInfo;
 	BeginInfo.PackageName = Package->GetFName();
 	PackageWriter->BeginPackage(BeginInfo);
@@ -860,10 +1054,10 @@ bool TrySavePackage(UPackage* Package)
 		nullptr /* DiffMap */, &SavePackageContext);
 	if (Result.Result != ESavePackageResult::Success)
 	{
+		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save %s to EditorDomain: SavePackage returned %d."),
+			*Package->GetName(), Result.Result);
 		return false;
 	}
-
-	ICache& Cache = GetCache();
 
 	ICookedPackageWriter::FCommitPackageInfo Info;
 	Info.bSucceeded = true;
@@ -871,11 +1065,80 @@ bool TrySavePackage(UPackage* Package)
 	Info.WriteOptions = IPackageWriter::EWriteOptions::Write;
 	PackageWriter->CommitPackage(MoveTemp(Info));
 
+	FCustomVersionContainer SavedCustomVersions;
+	if (!PackageWriter->TryGetCustomVersions(SavedCustomVersions))
+	{
+		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save %s to EditorDomain: Could not read the PackageFileSummary from the saved bytes."),
+			*Package->GetName());
+		return false;
+	}
+	TSet<FGuid> KnownGuids;
+	KnownGuids.Reserve(CustomVersionGuids.Num());
+	for (const FGuid& CustomVersionGuid : CustomVersionGuids)
+	{
+		KnownGuids.Add(CustomVersionGuid);
+	}
+	TArray<FGuid> UnknownGuids;
+	for (const FCustomVersion& CustomVersion : SavedCustomVersions.GetAllVersions())
+	{
+		if (!KnownGuids.Contains(CustomVersion.Key))
+		{
+			UnknownGuids.Add(CustomVersion.Key);
+		}
+	}
+	if (!UnknownGuids.IsEmpty())
+	{
+		TMap<FGuid, UObject*> Culprits = FindCustomVersionCulprits(UnknownGuids, Package);
+		UObject* ConstructedCulprit = nullptr;
+		TOptional<FAssetPackageData> PackageData = IAssetRegistry::Get()->GetAssetPackageDataCopy(Package->GetFName());
+		TStringBuilder<256> Message;
+		TStringBuilder<128> FixupSuggestion;
+		Message << TEXT("Could not save ") << Package->GetFName() << TEXT(" to EditorDomain: It uses an unexpected custom version. ")
+			<< TEXT("Optimized loading and iterative cooking will be disabled for this package. ");
+		FixupSuggestion << TEXT("Modify the classes or structs used in the package to call Ar.UsingCustomVersion(Guid) at the beginning of their serialize function.");
+		for (const FGuid& CustomVersionGuid : UnknownGuids)
+		{
+			TOptional<FCustomVersion> CustomVersion = FCurrentCustomVersions::Get(CustomVersionGuid);
+			UObject* Culprit = Culprits.FindOrAdd(CustomVersionGuid);
+			FixupSuggestion << TEXT("\nCustomVersion(Guid=") << CustomVersionGuid << TEXT(", Name=")
+				<< (CustomVersion ? *CustomVersion->GetFriendlyName().ToString() : TEXT("<Unknown>"))
+				<< TEXT("): Used by ")
+				<< (Culprit ? *Culprit->GetClass()->GetPathName() : TEXT("<CulpritUnknown>"));
+			if (Culprit)
+			{
+				FName CulpritClassName = FName(*Culprit->GetClass()->GetPathName());
+				if (!PackageData->ImportedClasses.Contains(CulpritClassName))
+				{
+					ConstructedCulprit = Culprit;
+					break;
+				}
+			}
+		}
+		if (ConstructedCulprit)
+		{
+			FixupSuggestion.Reset();
+			FixupSuggestion << TEXT("The custom version is used by a class which was created after load of the package. ")
+				<< TEXT("Find the class that added ") << ConstructedCulprit->GetFullName() << TEXT(" and add ")
+				<< TEXT("Editor.ini:[EditorDomain]:+PostLoadCanConstructClasses=<ConstructingClass>,")
+				<< ConstructedCulprit->GetClass()->GetPathName();
+		}
+		Message << FixupSuggestion;
+		UE_LOG(LogEditorDomain, Display, TEXT("%s"), Message.ToString());
+		return false;
+	}
+
+	ICache& Cache = GetCache();
+
 	TCbWriter<16> MetaData;
 	MetaData.BeginObject();
 	MetaData << "FileSize" << FileSize;
 	MetaData.EndObject();
 
+	FCacheRecordBuilder RecordBuilder(GetEditorDomainPackageKey(PackageDigest));
+	for (const FEditorDomainPackageWriter::FAttachment& Attachment : PackageWriter->GetAttachments())
+	{
+		RecordBuilder.AddAttachment(Attachment.Buffer, Attachment.PayloadId);
+	}
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	FRequestOwner Owner(EPriority::Normal);
 	Cache.Put({RecordBuilder.Build()}, Package->GetName(), ECachePolicy::Default, Owner);

@@ -8,7 +8,7 @@
 #include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "UObject/UnrealType.h"
 
-void FTakeWorldObjectSnapshotArchive::TakeSnapshot(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
+void UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::TakeSnapshot(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
 {
 	check(InOriginalObject);
 	
@@ -17,12 +17,12 @@ void FTakeWorldObjectSnapshotArchive::TakeSnapshot(FObjectSnapshotData& InObject
 	InObjectData.ObjectFlags = InOriginalObject->GetFlags();
 }
 
-FTakeWorldObjectSnapshotArchive::FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
+UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::FTakeWorldObjectSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject)
 	:
 	Super(InObjectData, InSharedData, false, InOriginalObject)
 {}
 
-bool FTakeWorldObjectSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
+bool UE::LevelSnapshots::Private::FTakeWorldObjectSnapshotArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
 	const bool bSuperWantsToSkip = Super::ShouldSkipProperty(InProperty);
 

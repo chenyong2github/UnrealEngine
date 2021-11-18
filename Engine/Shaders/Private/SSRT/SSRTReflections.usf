@@ -144,7 +144,7 @@ void ScreenSpaceReflections(
 		// So in this case we simply load the Header and water BSDF directly because we know there can only be a single one.
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialLobesBuffer, StrataAddressing);
-		if (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.IsSingleLayerWater)
+		if (StrataPixelHeader.BSDFCount > 0 && StrataPixelHeader.bIsSingleLayerWater)
 		{
 			const FStrataBSDF SLWaterBSDF = UnpackStrataBSDFIn(Strata.MaterialLobesBuffer, StrataAddressing);
 			N = StrataGetBSDFSharedBasis(StrataPixelHeader, SLWaterBSDF, StrataAddressing)[2];

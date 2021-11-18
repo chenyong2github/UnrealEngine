@@ -13,6 +13,10 @@
 #include "LMHelpers.h"
 #include "ImportExport.h"
 #include "HAL/PlatformApplicationMisc.h"
+#if PLATFORM_LINUX
+#include "HAL/PlatformStackWalk.h"
+#include "Unix/UnixPlatformCrashContext.h"
+#endif
 
 #if USE_LOCAL_SWARM_INTERFACE
 #include "IMessagingModule.h"
@@ -449,7 +453,36 @@ void SendSwarmCriticalErrorMessage()
 	GSwarm->SendAlertMessage(NSwarm::ALERT_LEVEL_ERROR, FGuid(), SOURCEOBJECTTYPE_Unknown, *ErrorLog);
 }
 
-#endif
+#elif PLATFORM_LINUX
+
+static void UnrealLightmassUnixCrashHandler(const FGenericCrashContext& GenericContext)
+{
+	const uint32 DumpCallstackSize = 2047;
+	ANSICHAR DumpCallstack[DumpCallstackSize] = { 0 };
+	const FUnixCrashContext& Context = static_cast< const FUnixCrashContext& >( GenericContext );
+
+	FPlatformStackWalk::StackWalkAndDump(DumpCallstack, DumpCallstackSize, 2);
+
+	GSwarm->SendTextMessage(TEXT("\n=== Lightmass crashed (Signal=%d): ==="), Context.Signal);
+	GSwarm->SendTextMessage(TEXT("Callstack:\n%s"), UTF8_TO_TCHAR(DumpCallstack));
+	GSwarm->SendTextMessage(TEXT("*** CRITICAL ERROR! Machine: %s"), FPlatformProcess::ComputerName() );
+	GSwarm->SendTextMessage(TEXT("*** CRITICAL ERROR! Logfile: %s"), FLightmassLog::Get()->GetLogFilename() );
+	GLog->Flush();
+
+	// remove the handler for this signal and re-raise it (which should generate the proper core dump)
+	// print message to stdout directly, it may be too late for the log (doesn't seem to be printed during a crash in the thread) 
+	fprintf(stderr, "UnrealLightmass re-raising signal %d for the default handler. Good bye.\n", Context.Signal);
+
+	struct sigaction ResetToDefaultAction;
+	FMemory::Memzero(ResetToDefaultAction);
+	ResetToDefaultAction.sa_handler = SIG_DFL;
+	sigfillset(&ResetToDefaultAction.sa_mask);
+	sigaction(Context.Signal, &ResetToDefaultAction, nullptr);
+
+	raise(Context.Signal);
+}
+
+#endif // PLATFORM_LINUX
 
 } // namespace Lightmass
 
@@ -472,7 +505,7 @@ int main(int argc, ANSICHAR* argv[])
 	}
 #endif
 
-#if PLATFORM_MAC || PLATFORM_LINUX
+#if PLATFORM_MAC
  	if ( true )
 #else
 	if ( FPlatformMisc::IsDebuggerPresent() )
@@ -481,7 +514,17 @@ int main(int argc, ANSICHAR* argv[])
 		// Don't use exception handling when a debugger is attached to exactly trap the crash.
 		ErrorLevel = Lightmass::LightmassMain(argc, argv);
 	}
-#if PLATFORM_WINDOWS
+#if PLATFORM_LINUX
+	else
+	{
+		FPlatformMisc::SetCrashHandler(Lightmass::UnrealLightmassUnixCrashHandler);
+
+		GIsGuarded = true;
+		// Run the guarded code.
+		ErrorLevel = Lightmass::LightmassMain(argc, argv);
+		GIsGuarded = false;
+	}
+#elif PLATFORM_WINDOWS
 	else
 	{
 		// Use structured exception handling to trap any crashes, walk the the stack and display a crash dialog box.

@@ -38,7 +38,7 @@ namespace LowLevelTests
 
 			if (!Path.IsPathRooted(ContextOptions.Build))
 			{
-				ContextOptions.Build = Path.Combine(Globals.UE4RootDir, ContextOptions.Build);
+				ContextOptions.Build = Path.Combine(Globals.UnrealRootDir, ContextOptions.Build);
 			}
 
 			return RunTests(ContextOptions);

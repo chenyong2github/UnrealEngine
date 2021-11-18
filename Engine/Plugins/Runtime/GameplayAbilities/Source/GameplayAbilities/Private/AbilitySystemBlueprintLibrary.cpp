@@ -808,7 +808,7 @@ FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::AddAssetTag(FGameplayE
 	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 	if (Spec)
 	{
-		Spec->DynamicAssetTags.AddTag(NewGameplayTag);
+		Spec->AddDynamicAssetTag(NewGameplayTag);
 	}
 	else
 	{
@@ -823,7 +823,7 @@ FGameplayEffectSpecHandle UAbilitySystemBlueprintLibrary::AddAssetTags(FGameplay
 	FGameplayEffectSpec* Spec = SpecHandle.Data.Get();
 	if (Spec)
 	{
-		Spec->DynamicAssetTags.AppendTags(NewGameplayTags);
+		Spec->AppendDynamicAssetTags(NewGameplayTags);
 	}
 	else
 	{

@@ -40,7 +40,7 @@ public:
 	// Rendering data, for internal usage
 
 	// GPU index for this context render target
-	int GPUIndex = -1;
+	int32 GPUIndex = -1;
 
 	bool bAllowGPUTransferOptimization = false;
 	bool bEnabledGPUTransferLockSteps = true;
@@ -55,7 +55,7 @@ public:
 	FIntRect FrameTargetRect;
 
 	// Mips number for additional MipsShader resources
-	int NumMips = 1;
+	int32 NumMips = 1;
 
 	// Disable render for this viewport (Overlay)
 	bool bDisableRender = false;

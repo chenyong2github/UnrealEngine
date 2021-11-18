@@ -128,7 +128,7 @@ UObject* UInterchangePhysicsAssetFactory::CreateAsset(const FCreateAssetParams& 
 	{
 		//The PhysicsAsset is not a UPhysicsAsset
 		PhysicsAssetObject->RemoveFromRoot();
-		PhysicsAssetObject->MarkPendingKill();
+		PhysicsAssetObject->MarkAsGarbage();
 	}
 	return PhysicsAssetObject;
 #endif

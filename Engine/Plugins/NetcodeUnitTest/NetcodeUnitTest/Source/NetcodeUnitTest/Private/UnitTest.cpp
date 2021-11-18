@@ -267,7 +267,7 @@ void UUnitTest::CleanupUnitTest(EUnitTestResetStage ResetStage/*=EUniTestResetSt
 		else
 		{
 			// Mark for garbage collection
-			MarkPendingKill();
+			MarkAsGarbage();
 		}
 	}
 	else

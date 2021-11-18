@@ -148,8 +148,8 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 	UClass* BoundObjectClass = nullptr;
 	if (Binding)
 	{
-		UObject* BoundObject = Binding->GetObject();
-		if (BoundObject && !BoundObject->IsPendingKillOrUnreachable())
+		UObject* BoundObject = GetValid(Binding->GetObject());
+		if (BoundObject && !BoundObject->IsUnreachable())
 		{
 			BoundObjectClass = BoundObject->GetClass();
 		}
@@ -187,8 +187,8 @@ TSharedRef<SWidget> FVariantManagerFunctionPropertyNode::GetMenuContent()
 		)
 	);
 
-	UBlueprint* DirectorBP = Cast<UBlueprint>(LVS->GetDirectorGeneratedBlueprint());
-	if (BoundObjectClass && DirectorBP && !DirectorBP->IsPendingKillOrUnreachable())
+	UBlueprint* DirectorBP = GetValid(Cast<UBlueprint>(LVS->GetDirectorGeneratedBlueprint()));
+	if (BoundObjectClass && DirectorBP && !DirectorBP->IsUnreachable())
 	{
 		FSlateIcon Icon(FEditorStyle::GetStyleSetName(), "GraphEditor.Function_16x");
 

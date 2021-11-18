@@ -122,9 +122,9 @@ class FRasterizeToCardsVS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardScatterParameters, CardScatterParameters)
 		SHADER_PARAMETER(uint32, CardScatterInstanceIndex)
 		SHADER_PARAMETER(FVector4f, InfluenceSphere)
-		SHADER_PARAMETER(FVector2D, IndirectLightingAtlasSize)
+		SHADER_PARAMETER(FVector2f, IndirectLightingAtlasSize)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, RectMinMaxBuffer)
-		SHADER_PARAMETER(FVector2D, InvRectMinMaxResolution)
+		SHADER_PARAMETER(FVector2f, InvRectMinMaxResolution)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FClampToInfluenceSphere : SHADER_PERMUTATION_BOOL("CLAMP_TO_INFLUENCE_SPHERE");

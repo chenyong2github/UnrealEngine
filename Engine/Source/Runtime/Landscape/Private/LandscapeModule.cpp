@@ -50,24 +50,6 @@ void AddPerWorldLandscapeData(UWorld* World)
 	}
 }
 
-#if WITH_EDITOR
-/**
- * Gets landscape-specific material's static parameters values.
- *
- * @param OutStaticParameterSet A set that should be updated with found parameters values.
- * @param Material Material instance to look for parameters.
- */
-void LandscapeMaterialsParameterValuesGetter(FStaticParameterSet &OutStaticParameterSet, UMaterialInstance* Material);
-
-/**
- * Updates landscape-specific material parameters.
- *
- * @param OutStaticParameterSet A set of parameters.
- * @param Material A material to update.
- */
-bool LandscapeMaterialsParameterSetUpdater(FStaticParameterSet &OutStaticParameterSet, UMaterial* Material);
-#endif // WITH_EDITOR
-
 /**
  * Function that will fire every time a world is created.
  *
@@ -198,19 +180,6 @@ void WorldDuplicateEventFunction(UWorld* World, bool bDuplicateForPIE, TMap<UObj
 
 void FLandscapeModule::StartupModule()
 {
-#if WITH_EDITOR
-	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
-	UMaterialInstance::CustomStaticParametersGetters.AddStatic(
-		&LandscapeMaterialsParameterValuesGetter
-	);
-
-	UMaterialInstance::CustomParameterSetUpdaters.Add(
-		UMaterialInstance::FCustomParameterSetUpdaterDelegate::CreateStatic(
-			&LandscapeMaterialsParameterSetUpdater
-		)
-	);
-#endif // WITH_EDITOR
-
 	FWorldDelegates::OnPostWorldCreation.AddStatic(
 		&WorldCreationEventFunction
 	);

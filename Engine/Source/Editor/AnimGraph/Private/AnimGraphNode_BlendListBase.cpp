@@ -80,7 +80,7 @@ void UAnimGraphNode_BlendListBase::RemovePinsFromOldPins(TArray<UEdGraphPin*>& O
 				// and if array index is greater than removed index, decrease index
 				if (ArrayIndex == RemovedArrayIndex)
 				{
-					OldPins[PinIdx]->MarkPendingKill();
+					OldPins[PinIdx]->MarkAsGarbage();
 					OldPins.RemoveAt(PinIdx);
 					--PinIdx;
 				}

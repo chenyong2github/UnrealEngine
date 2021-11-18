@@ -665,6 +665,15 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
 #endif
 
+	//-TEMP: Until we prune data interface on cook this will avoid consuming memory
+	{
+		extern int32 GNiagaraRenderTargetIgnoreCookedOut;
+		if (GNiagaraRenderTargetIgnoreCookedOut && !IsUsedWithGPUEmitter())
+		{
+			return false;
+		}
+	}
+
 	// Do we need to create a new texture?
 	if (!bInheritUserParameterSettings && (InstanceData->TargetTexture == nullptr))
 	{

@@ -9,6 +9,9 @@ FDatasmithLevelSequenceElementImpl::FDatasmithLevelSequenceElementImpl(const TCH
 	: FDatasmithElementImpl(InName, EDatasmithElementType::LevelSequence)
 	, FrameRate(30.f)
 {
+	Store.RegisterParameter(File,      "File"     );
+	Store.RegisterParameter(FileHash,  "FileHash" );
+	Store.RegisterParameter(FrameRate, "FrameRate");
 }
 
 FDatasmithTransformAnimationElementImpl::FDatasmithTransformAnimationElementImpl(const TCHAR* InName)

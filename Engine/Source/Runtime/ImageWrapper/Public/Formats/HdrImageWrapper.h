@@ -18,7 +18,7 @@ public:
 
 	// IIMageWrapper Interface begin
 	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
-	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) override;
+	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow) override;
 	virtual bool SetAnimationInfo(int32 InNumFrames, int32 InFramerate) override;
 	virtual TArray64<uint8> GetCompressed(int32 Quality = 0) override;
 	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData) override;

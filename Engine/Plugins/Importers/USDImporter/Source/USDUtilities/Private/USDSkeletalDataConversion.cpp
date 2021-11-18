@@ -86,7 +86,7 @@ namespace SkelDataConversionImpl
 		TArray< FVector3f > Vertices;
 		TArray< FVector3f> NormalsPerVertex;
 		TArray< uint32 > Indices;
-		TArray< FVector2D > UVs;
+		TArray< FVector2f > UVs;
 		TArray< uint32 > SmoothingGroups;
 		TArray<SkeletalMeshImportData::FTriangle> Faces;
 		TMap< uint32, TArray< uint32 > > VertexIndexToFaceIndices;
@@ -97,7 +97,7 @@ namespace SkelDataConversionImpl
 		TArray< FVector3f > Vertices;
 		TArray< FVector3f> NormalsPerIndex;
 		TArray< uint32 > Indices;
-		TArray< FVector2D > UVs;
+		TArray< FVector2f > UVs;
 		TArray< uint32 > SmoothingGroups;
 		TArray< uint32 > MorphedIndexToSourceIndex;
 	};
@@ -714,7 +714,7 @@ namespace UnrealToUsdImpl
 
 					for ( int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex )
 					{
-						Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, Vertices[ VertexIndex ].TangentZ ) );
+						Normals.push_back( UnrealToUsd::ConvertVector( StageInfo, FVector4(Vertices[ VertexIndex ].TangentZ) ) );
 					}
 
 					NormalsAttribute.Set( Normals, TimeCode );
@@ -1713,8 +1713,8 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 	TUsdStore<std::vector<double>> UsdJointTransformTimeSamples;
 	AnimQuery.Get().GetJointTransformTimeSamples( &( UsdJointTransformTimeSamples.Get() ) );
 	int32 NumJointTransformSamples = UsdJointTransformTimeSamples.Get().size();
-	double FirstJointSampleTimeCode = 0;
-	double LastJointSampleTimeCode = 0;
+	TOptional<double> FirstJointSampleTimeCode;
+	TOptional<double> LastJointSampleTimeCode;
 	if ( UsdJointTransformTimeSamples.Get().size() > 0 )
 	{
 		const std::vector<double>& JointTransformTimeSamples = UsdJointTransformTimeSamples.Get();
@@ -1725,13 +1725,19 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 	TUsdStore<std::vector<double>> UsdBlendShapeTimeSamples;
 	AnimQuery.Get().GetBlendShapeWeightTimeSamples( &( UsdBlendShapeTimeSamples.Get() ) );
 	int32 NumBlendShapeSamples = UsdBlendShapeTimeSamples.Get().size();
-	double FirstBlendShapeSampleTimeCode = 0;
-	double LastBlendShapeSampleTimeCode = 0;
+	TOptional<double> FirstBlendShapeSampleTimeCode;
+	TOptional<double> LastBlendShapeSampleTimeCode;
 	if ( UsdBlendShapeTimeSamples.Get().size() > 0 )
 	{
 		const std::vector<double>& BlendShapeTimeSamples = UsdBlendShapeTimeSamples.Get();
 		FirstBlendShapeSampleTimeCode = BlendShapeTimeSamples[ 0 ];
 		LastBlendShapeSampleTimeCode = BlendShapeTimeSamples[ BlendShapeTimeSamples.size() - 1 ];
+	}
+
+	// Nothing to do: we don't actually have joints or blend shape time samples
+	if ( !FirstJointSampleTimeCode.IsSet() && !FirstBlendShapeSampleTimeCode.IsSet() )
+	{
+		return true;
 	}
 
 	// The animation should have a length in seconds according exclusively to its layer's timeCodesPerSecond, and that's it.
@@ -1744,8 +1750,8 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 	// which is important because later our composition of tracks and subsections within a LevelSequence will reapply analogous
 	// offsets and scalings anyway
 
-	const double StageStartTimeCode = FMath::Min( FirstJointSampleTimeCode, FirstBlendShapeSampleTimeCode );
-	const double StageEndTimeCode = FMath::Max( LastJointSampleTimeCode, LastBlendShapeSampleTimeCode );
+	const double StageStartTimeCode = FMath::Min( FirstJointSampleTimeCode.Get( TNumericLimits<double>::Max() ), FirstBlendShapeSampleTimeCode.Get( TNumericLimits<double>::Max() ) );
+	const double StageEndTimeCode = FMath::Max( LastJointSampleTimeCode.Get( TNumericLimits<double>::Lowest() ), LastBlendShapeSampleTimeCode.Get( TNumericLimits<double>::Lowest() ) );
 	const double StageStartSeconds = StageStartTimeCode / StageTimeCodesPerSecond;
 	const double StageSequenceLengthTimeCodes = StageEndTimeCode - StageStartTimeCode;
 	const double LayerSequenceLengthTimeCodes = StageSequenceLengthTimeCodes / Offset.Scale;
@@ -2152,7 +2158,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	}
 	if ( SkeletalMesh->GetRefSkeleton().GetRawBoneNum() == 0 )
 	{
-		SkeletalMesh->MarkPendingKill();
+		SkeletalMesh->MarkAsGarbage();
 		return nullptr;
 	}
 
@@ -2247,7 +2253,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 
 		if ( !bBuildSuccess )
 		{
-			SkeletalMesh->MarkPendingKill();
+			SkeletalMesh->MarkAsGarbage();
 			return nullptr;
 		}
 

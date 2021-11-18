@@ -69,6 +69,11 @@ namespace UE::DatasmithImporter
 		 */
 		virtual bool IsOutOfSync() const = 0;
 
+		/**
+		 * Gives the hash of the source, only returns a valid hash after loading the scene.
+		 */
+		virtual FMD5Hash GetSourceHash() const = 0;
+
 		virtual FExternalSourceCapabilities GetCapabilities() const = 0;
 
 		/**
@@ -155,9 +160,6 @@ namespace UE::DatasmithImporter
 
 		void ValidateDatasmithVersion() const;
 
-#if WITH_EDITOR
-		void OnEndPIE(bool bIsSimulating);
-#endif
 		/**
 		 * Queue containing the unfulfilled promises added by AsyncLoad()
 		 * We can't directly make a TQueue of TPromise, as the queue internally creates nodes for tracking the head/tail,
@@ -178,10 +180,5 @@ namespace UE::DatasmithImporter
 		FString SceneName;
 
 		TSharedPtr<IDatasmithTranslator> AssetTranslator;
-
-#if WITH_EDITOR
-		bool bChangedDuringPIE = false;
-		FDelegateHandle OnPIEEndHandle;
-#endif
 	};
 }

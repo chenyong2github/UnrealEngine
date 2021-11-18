@@ -163,7 +163,7 @@ IAudioEndpointFactory* IAudioEndpointFactory::Get(const FName& InName)
 
 	for (IAudioEndpointFactory* Factory : Factories)
 	{
-		if (Factory && InName == Factory->GetEndpointTypeName())
+		if (Factory && Factory->bIsImplemented && InName == Factory->GetEndpointTypeName())
 		{
 			return Factory;
 		}
@@ -176,17 +176,17 @@ IAudioEndpointFactory* IAudioEndpointFactory::Get(const FName& InName)
 
 TArray<FName> IAudioEndpointFactory::GetAvailableEndpointTypes()
 {
-	TArray<FName> SoundfieldFormatNames;
+	TArray<FName> EndpointNames;
 
-	SoundfieldFormatNames.Add(GetTypeNameForDefaultEndpoint());
+	EndpointNames.Add(GetTypeNameForDefaultEndpoint());
 
 	TArray<IAudioEndpointFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioEndpointFactory>(GetModularFeatureName());
 	for (IAudioEndpointFactory* Factory : Factories)
 	{
-		SoundfieldFormatNames.Add(Factory->GetEndpointTypeName());
+		EndpointNames.AddUnique(Factory->GetEndpointTypeName());
 	}
 
-	return SoundfieldFormatNames;
+	return EndpointNames;
 }
 
 TUniquePtr<IAudioEndpoint> IAudioEndpointFactory::CreateNewEndpointInstance(const FAudioPluginInitializationParams& InitInfo, const IAudioEndpointSettingsProxy& InitialSettings)

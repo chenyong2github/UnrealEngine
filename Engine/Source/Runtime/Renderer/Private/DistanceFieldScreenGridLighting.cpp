@@ -28,13 +28,21 @@
 #include "ClearQuad.h"
 #include "VisualizeTexture.h"
 
-int32 GAOUseJitter = 1;
-FAutoConsoleVariableRef CVarAOUseJitter(
+static int32 GAOUseJitter = 1;
+static FAutoConsoleVariableRef CVarAOUseJitter(
 	TEXT("r.AOUseJitter"),
 	GAOUseJitter,
 	TEXT("Whether to use 4x temporal supersampling with Screen Grid DFAO.  When jitter is disabled, a shorter history can be used but there will be more spatial aliasing."),
 	ECVF_RenderThreadSafe
-	);
+);
+
+static int32 GDistanceFieldAOTraverseMips = 1;
+static FAutoConsoleVariableRef CVarDistanceFieldAOTraverseMips(
+	TEXT("r.DistanceFieldAO.TraverseMips"),
+	GDistanceFieldAOTraverseMips,
+	TEXT("Whether to traverse mips while tracing AO cones against object SDFs."),
+	ECVF_RenderThreadSafe
+);
 
 int32 GConeTraceDownsampleFactor = 4;
 
@@ -43,24 +51,24 @@ FIntPoint GetBufferSizeForConeTracing()
 	return FIntPoint::DivideAndRoundDown(GetBufferSizeForAO(), GConeTraceDownsampleFactor);
 }
 
-FVector2D JitterOffsets[4] = 
+FVector2f JitterOffsets[4] = 
 {
-	FVector2D(.25f, 0),
-	FVector2D(.75f, .25f),
-	FVector2D(.5f, .75f),
-	FVector2D(0, .5f)
+	FVector2f(.25f, 0),
+	FVector2f(.75f, .25f),
+	FVector2f(.5f, .75f),
+	FVector2f(0, .5f)
 };
 
 extern int32 GAOUseHistory;
 
-FVector2D GetJitterOffset(int32 SampleIndex)
+FVector2f GetJitterOffset(int32 SampleIndex)
 {
 	if (GAOUseJitter && GAOUseHistory)
 	{
 		return JitterOffsets[SampleIndex] * GConeTraceDownsampleFactor;
 	}
 
-	return FVector2D(0, 0);
+	return FVector2f(0, 0);
 }
 
 class FConeTraceScreenGridObjectOcclusionCS : public FGlobalShader
@@ -80,7 +88,8 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FUseGlobalDistanceField : SHADER_PERMUTATION_BOOL("USE_GLOBAL_DISTANCE_FIELD");
-	using FPermutationDomain = TShaderPermutationDomain<FUseGlobalDistanceField>;
+	class FTraverseMips : SHADER_PERMUTATION_BOOL("SDF_TRACING_TRAVERSE_MIPS");
+	using FPermutationDomain = TShaderPermutationDomain<FUseGlobalDistanceField, FTraverseMips>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -352,7 +361,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, ConeBufferMax, ConeBufferMaxValue);
 
 		FIntPoint const DFNormalBufferSize = GetBufferSizeForAO();
-		FVector2D const DFNormalBufferUVMaxValue(
+		FVector2f const DFNormalBufferUVMaxValue(
 			(View.ViewRect.Width()  / GAODownsampleFactor - 0.5f) / DFNormalBufferSize.X,
 			(View.ViewRect.Height() / GAODownsampleFactor - 0.5f) / DFNormalBufferSize.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, DFNormalBufferUVMax, DFNormalBufferUVMaxValue);
@@ -486,6 +495,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 
 		FConeTraceScreenGridObjectOcclusionCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FConeTraceScreenGridObjectOcclusionCS::FUseGlobalDistanceField>(bUseGlobalDistanceField);
+		PermutationVector.Set<FConeTraceScreenGridObjectOcclusionCS::FTraverseMips>(GDistanceFieldAOTraverseMips != 0);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FConeTraceScreenGridObjectOcclusionCS>(PermutationVector);
 

@@ -50,13 +50,13 @@ public:
 	{
 		TargetMeshTangents = Tangents;
 	}
-	void SetUVLayer(const int32 UVLayerIn)
+	void SetTargetMeshUVLayer(const int32 UVLayerIn)
 	{
-		UVLayer = UVLayerIn;
+		TargetMeshUVLayer = UVLayerIn;
 	}
-	void SetThickness(const double ThicknessIn)
+	void SetProjectionDistance(const double ProjectionDistanceIn)
 	{
-		Thickness = ThicknessIn;
+		ProjectionDistance = ProjectionDistanceIn;
 	}
 	void SetCorrespondenceStrategy(const ECorrespondenceStrategy Strategy)
 	{
@@ -70,8 +70,12 @@ public:
 	}
 	const FDynamicMeshUVOverlay* GetTargetMeshUVs() const
 	{
-		check(TargetMesh && TargetMesh->HasAttributes() && UVLayer < TargetMesh->Attributes()->NumUVLayers());
-        return TargetMesh->Attributes()->GetUVLayer(UVLayer);
+		check(TargetMesh && TargetMesh->HasAttributes() && TargetMeshUVLayer < TargetMesh->Attributes()->NumUVLayers());
+        return TargetMesh->Attributes()->GetUVLayer(TargetMeshUVLayer);
+	}
+	int32 GetTargetMeshUVLayer() const
+	{
+		return TargetMeshUVLayer;
 	}
 	const FDynamicMeshNormalOverlay* GetTargetMeshNormals() const
 	{
@@ -90,13 +94,9 @@ public:
 	}
 
 	// Other Getters
-	int32 GetUVLayer() const
+	double GetProjectionDistance() const
 	{
-		return UVLayer;
-	}
-	double GetThickness() const
-	{
-		return Thickness;
+		return ProjectionDistance;
 	}
 	ECorrespondenceStrategy GetCorrespondenceStrategy() const
 	{
@@ -106,9 +106,9 @@ public:
 protected:
 	const FDynamicMesh3* TargetMesh = nullptr;
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> TargetMeshTangents;
-
-	int32 UVLayer = 0;
-	double Thickness = 3.0;
+	int32 TargetMeshUVLayer = 0;
+	
+	double ProjectionDistance = 3.0;
 	ECorrespondenceStrategy CorrespondenceStrategy = ECorrespondenceStrategy::RaycastStandard;
 
 	IMeshBakerDetailSampler* DetailSampler = nullptr;

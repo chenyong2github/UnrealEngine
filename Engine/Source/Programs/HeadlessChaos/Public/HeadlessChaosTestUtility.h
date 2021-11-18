@@ -148,7 +148,7 @@ namespace ChaosTest {
 	{
 		// Settings used for unit tests
 		const float CullDistance = 3.0f;
-		Evolution.GetBroadPhase().SetBoundsThickness(CullDistance);
+		Evolution.GetNarrowPhase().SetBoundsExpansion(CullDistance);
 		Evolution.GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = false;
 		Evolution.GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = true;
 		Evolution.GetCollisionConstraints().SetSolverType(EConstraintSolverType::QuasiPbd);
@@ -158,6 +158,16 @@ namespace ChaosTest {
 	void InitSolverSettings(T_SOLVER& Solver)
 	{
 		InitEvolutionSettings(*Solver->GetEvolution());
+	}
+
+
+	template <typename TParticle>
+	void SetCubeInertiaTensor(TParticle& Particle, float Dimension, float Mass)
+	{
+		float Element = Mass * Dimension * Dimension / 6.0f;
+		float InvElement = 1.f / Element;
+		Particle.SetI(FMatrix33(Element, Element, Element));
+		Particle.SetInvI(FMatrix33(InvElement, InvElement, InvElement));
 	}
 
 

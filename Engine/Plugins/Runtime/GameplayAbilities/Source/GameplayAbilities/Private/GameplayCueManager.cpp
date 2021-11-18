@@ -715,53 +715,6 @@ void UGameplayCueManager::RefreshObjectLibraries()
 	}
 }
 
-static void SearchDynamicClassCues(const FName PropertyName, const TArray<FString>& Paths, TArray<FGameplayCueReferencePair>& CuesToAdd, TArray<FSoftObjectPath>& AssetsToLoad)
-{
-	// Iterate over all Dynamic Classes (nativized Blueprints). Search for ones with GameplayCueName tag.
-
-	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
-	TMap<FName, FDynamicClassStaticData>& DynamicClassMap = GetDynamicClassMap();
-	for (auto PairIter : DynamicClassMap)
-	{
-		const FName* FoundGameplayTag = PairIter.Value.SelectedSearchableValues.Find(PropertyName);
-		if (!FoundGameplayTag)
-		{
-			continue;
-		}
-
-		const FString ClassPath = PairIter.Key.ToString();
-		for (const FString& Path : Paths)
-		{
-			const bool PathContainsClass = ClassPath.StartsWith(Path); // TODO: is it enough?
-			if (!PathContainsClass)
-			{
-				continue;
-			}
-
-			ABILITY_LOG(Log, TEXT("GameplayCueManager Found a Dynamic Class: %s / %s"), *FoundGameplayTag->ToString(), *ClassPath);
-
-			FGameplayTag GameplayCueTag = Manager.RequestGameplayTag(*FoundGameplayTag, false);
-			if (GameplayCueTag.IsValid())
-			{
-				FSoftObjectPath StringRef(ClassPath); // TODO: is there any translation needed?
-				ensure(StringRef.IsValid());
-
-				CuesToAdd.Add(FGameplayCueReferencePair(GameplayCueTag, StringRef));
-				AssetsToLoad.Add(StringRef);
-
-				// Make sure core knows about this ref so it can be properly detected during cook.
-				StringRef.PostLoadPath(nullptr);
-			}
-			else
-			{
-				ABILITY_LOG(Warning, TEXT("Found GameplayCue tag %s in Dynamic Class %s but there is no corresponding tag in the GameplayTagManager."), *FoundGameplayTag->ToString(), *ClassPath);
-			}
-
-			break;
-		}
-	}
-}
-
 TSharedPtr<FStreamableHandle> UGameplayCueManager::InitObjectLibrary(FGameplayCueObjectLibrary& Lib)
 {
 	TSharedPtr<FStreamableHandle> RetVal;
@@ -841,7 +794,6 @@ TSharedPtr<FStreamableHandle> UGameplayCueManager::InitObjectLibrary(FGameplayCu
 
 	const FName PropertyName = GET_MEMBER_NAME_CHECKED(AGameplayCueNotify_Actor, GameplayCueName);
 	check(PropertyName == GET_MEMBER_NAME_CHECKED(UGameplayCueNotify_Static, GameplayCueName));
-	SearchDynamicClassCues(PropertyName, Lib.Paths, CuesToAdd, AssetsToLoad);
 
 	// ------------------------------------------------------------------------------------------------------------------------------------
 	// Add these cues to the set. The UGameplayCueSet is the data structure used in routing the gameplay cue events at runtime.

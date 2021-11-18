@@ -338,4 +338,4 @@ RENDERCORE_API bool IsHDRAllowed()
 	return false;
 }
 
-FMatrix FVirtualTextureUniformData::Invalid = FMatrix::Identity;
+FMatrix44f FVirtualTextureUniformData::Invalid = FMatrix44f::Identity;

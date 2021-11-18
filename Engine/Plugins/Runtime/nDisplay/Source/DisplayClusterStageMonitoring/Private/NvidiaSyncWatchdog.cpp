@@ -4,6 +4,7 @@
 
 #include "Async/Async.h"
 #include "IDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
 #include "IStageDataProvider.h"
 #include "Logging/LogMacros.h"
 #include "Render/IDisplayClusterRenderManager.h"
@@ -25,24 +26,15 @@ DEFINE_LOG_CATEGORY_STATIC(LogDisplayClusterStageMonitoring, Log, All)
 
 FNvidiaSyncWatchdog::FNvidiaSyncWatchdog()
 {
-	if (IDisplayCluster::Get().GetRenderMgr() && IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice())
-	{
-		IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->OnDisplayClusterRenderCustomPresentCreated().AddRaw(this, &FNvidiaSyncWatchdog::OnCustomPresentCreated);
-	}
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterCustomPresentSet().AddRaw(this, &FNvidiaSyncWatchdog::OnCustomPresentCreated);
 }
 
 FNvidiaSyncWatchdog::~FNvidiaSyncWatchdog()
 {
-	if (IDisplayCluster::Get().GetRenderMgr() && IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice())
-	{
-		IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->OnDisplayClusterRenderCustomPresentCreated().RemoveAll(this);
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterCustomPresentSet().RemoveAll(this);
 
-		if (IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation())
-		{
-			IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation()->OnDisplayClusterPresentationPreSynchronization_RHIThread().RemoveAll(this);
-			IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation()->OnDisplayClusterPresentationPostSynchronization_RHIThread().RemoveAll(this);
-		}
-	}
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPresentationPreSynchronization_RHIThread().RemoveAll(this);
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPresentationPostSynchronization_RHIThread().RemoveAll(this);
 
 	//If we have an async task in flight, wait for it to complete so D3DDevice isn't used anymore
 	if (AsyncFrameCountFuture.IsValid())
@@ -57,8 +49,8 @@ void FNvidiaSyncWatchdog::OnCustomPresentCreated()
 	if (D3DDevice)
 	{
 		UE_LOG(LogDisplayClusterStageMonitoring, VeryVerbose, TEXT("Nvidia Sync watchdog active"));
-		IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation()->OnDisplayClusterPresentationPreSynchronization_RHIThread().AddRaw(this, &FNvidiaSyncWatchdog::OnPresentationPreSynchronization_RHIThread);
-		IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation()->OnDisplayClusterPresentationPostSynchronization_RHIThread().AddRaw(this, &FNvidiaSyncWatchdog::OnPresentationPostSynchronization_RHIThread);
+		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPresentationPreSynchronization_RHIThread().AddRaw(this, &FNvidiaSyncWatchdog::OnPresentationPreSynchronization_RHIThread);
+		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPresentationPostSynchronization_RHIThread().AddRaw(this, &FNvidiaSyncWatchdog::OnPresentationPostSynchronization_RHIThread);
 	}
 }
 

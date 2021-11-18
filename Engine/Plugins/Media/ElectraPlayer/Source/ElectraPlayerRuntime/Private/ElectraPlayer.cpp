@@ -490,6 +490,15 @@ void FElectraPlayer::FPlayerState::SetPlayRateFromPlayer(float InCurrentPlayerPl
 }
 
 
+//-----------------------------------------------------------------------------
+/**
+* Suspends or resumes decoder instances.
+*/
+void FElectraPlayer::SuspendOrResumeDecoders(bool bSuspend)
+{
+	PlatformSuspendOrResumeDecoders(bSuspend);
+}
+
 
 //-----------------------------------------------------------------------------
 /**
@@ -857,6 +866,18 @@ bool FElectraPlayer::SetLooping(bool bLooping)
 	}
 	return false;
 }
+
+int32 FElectraPlayer::GetLoopCount() const
+{
+	if (CurrentPlayer.Get())
+	{
+		IAdaptiveStreamingPlayer::FLoopState loopState;
+		CurrentPlayer->AdaptivePlayer->GetLoopState(loopState);
+		return (int32) loopState.Count;
+	}
+	return -1;
+}
+
 
 FTimespan FElectraPlayer::GetTime() const
 {

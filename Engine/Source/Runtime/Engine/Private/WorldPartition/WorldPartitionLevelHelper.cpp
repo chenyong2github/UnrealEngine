@@ -57,7 +57,7 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 	for (const FWorldPartitionRuntimeCellObjectMapping& PackageObjectMapping : InChildPackages)
 	{
 		// We assume actor failed to duplicate if LoadedPath equals NAME_None (warning already logged we can skip this mapping)
-		if (PackageObjectMapping.LoadedPath == NAME_None && PackageObjectMapping.ContainerID != 0)
+		if (PackageObjectMapping.LoadedPath == NAME_None && !PackageObjectMapping.ContainerID.IsMainContainer())
 		{
 			continue;
 		}
@@ -113,34 +113,49 @@ void FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(ULevel* InLevel, UWor
 	check(InLevel);
 	check(InWorldPartition);
 
-	struct FSoftPathFixupSerializer : public FArchiveUObject
+	FSoftObjectPathFixupArchive FixupSerializer([InWorldPartition](FSoftObjectPath& Value)
 	{
-		FSoftPathFixupSerializer(UWorldPartition* InWorldPartition)
-			: WorldPartition(InWorldPartition)
+		if(!Value.IsNull())
 		{
-			this->SetIsSaving(true);
-			this->ArShouldSkipBulkData = true;
+			InWorldPartition->RemapSoftObjectPath(Value);
 		}
+	});
+	FixupSerializer.Fixup(InLevel);
+}
 
-		FArchive& operator<<(FSoftObjectPath& Value)
+FString FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(const FActorContainerID& InContainerID, const FString& InSubPathString)
+{
+	if (!InContainerID.IsMainContainer())
+	{
+		constexpr const TCHAR PersistenLevelName[] = TEXT("PersistentLevel.");
+		constexpr const int32 DotPos = UE_ARRAY_COUNT(PersistenLevelName);
+		if (InSubPathString.StartsWith(PersistenLevelName))
 		{
-			if (!Value.IsNull())
+			const int32 SubObjectPos = InSubPathString.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, DotPos);
+			if (SubObjectPos == INDEX_NONE)
 			{
-				WorldPartition->RemapSoftObjectPath(Value);
+				return InSubPathString + TEXT("_") + InContainerID.ToString();
 			}
-			return *this;
+			else
+			{
+				return InSubPathString.Mid(0, SubObjectPos) + TEXT("_") + InContainerID.ToString() + InSubPathString.Mid(SubObjectPos);
+			}
 		}
-
-		UWorldPartition* WorldPartition;
-	};
-
-	FSoftPathFixupSerializer FixupSerializer(InWorldPartition);
-	TArray<UObject*> SubObjects;
-	GetObjectsWithOuter(InLevel, SubObjects);
-	for (UObject* Object : SubObjects)
-	{
-		Object->Serialize(FixupSerializer);
 	}
+
+	return InSubPathString;
+}
+
+FString FWorldPartitionLevelHelper::AddActorContainerIDToActorPath(const FActorContainerID& InContainerID, const FString& InActorPath)
+{
+	if (!InContainerID.IsMainContainer())
+	{
+		const FSoftObjectPath SoftObjectPath(InActorPath);
+		const FString NewSubPathString = FWorldPartitionLevelHelper::AddActorContainerIDToSubPathString(InContainerID, SoftObjectPath.GetSubPathString());
+		return FSoftObjectPath(SoftObjectPath.GetAssetPathName(), NewSubPathString).ToString();
+	}
+
+	return InActorPath;
 }
 
 /**
@@ -218,12 +233,12 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 	ActorPackages.Reserve(InActorPackages.Num());
 
 	// Levels to Load with actors to duplicate
-	TMap<uint64, TArray<FWorldPartitionRuntimeCellObjectMapping*>> PackagesToDuplicate;
+	TMap<FActorContainerID, TArray<FWorldPartitionRuntimeCellObjectMapping*>> PackagesToDuplicate;
 	check(!bLoadForPlay || InOutInstancingContext);
 
 	for (FWorldPartitionRuntimeCellObjectMapping& PackageObjectMapping : InActorPackages)
 	{
-		if (PackageObjectMapping.ContainerID == 0)
+		if (PackageObjectMapping.ContainerID.IsMainContainer())
 		{
 			if (bLoadForPlay)
 			{
@@ -299,14 +314,14 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 	for (auto& Pair : PackagesToDuplicate)
 	{
 		FString PackageToLoadFrom = Pair.Value[0]->ContainerPackage.ToString();
-		FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([LoadProgress, LevelInstanceID = Pair.Key, Mappings = MoveTemp(Pair.Value), InDestLevel, &InPackageCache, InCompletionCallback](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+		FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([LoadProgress, ContainerInstanceID = Pair.Key, Mappings = MoveTemp(Pair.Value), InDestLevel, &InPackageCache, InCompletionCallback](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
 		{
 			check(LoadProgress->NumPendingLoadRequests);
 			LoadProgress->NumPendingLoadRequests--;
 
 			if (LoadedPackage)
 			{
-				FName DuplicatePackageName(*FString::Printf(TEXT("%s_%016llx"), *LoadedPackage->GetName(), LevelInstanceID));
+				FName DuplicatePackageName(*FString::Printf(TEXT("%s_%s"), *LoadedPackage->GetName(), *ContainerInstanceID.ToString()));
 				UPackage* DuplicatedPackage = InPackageCache.FindPackage(DuplicatePackageName);
 				UWorld* DuplicatedWorld = nullptr;
 
@@ -335,6 +350,11 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 					DuplicatedWorld = UWorld::FindWorldInPackage(DuplicatedPackage);
 				}
 
+				// Get Source Path for this world (ReplaceFrom)
+				UWorld* LoadedWorld = UWorld::FindWorldInPackage(LoadedPackage);
+				FString SourceWorldPath, RemappedWorldPath;
+				LoadedWorld->GetSoftObjectPathMapping(SourceWorldPath, RemappedWorldPath);
+				
 				for (auto Mapping : Mappings)
 				{
 					FString ActorName = FPaths::GetExtension(Mapping->Path.ToString());
@@ -342,7 +362,7 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 					// Possible actor isn't found if Actor package failed to load because of missing dependencies (ex: deleted Blueprint)
 					if (DuplicatedActor)
 					{
-						DuplicatedActor->Rename(*FString::Printf(TEXT("%s_%016llx"), *DuplicatedActor->GetName(), Mapping->ContainerID), InDestLevel, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors);
+						DuplicatedActor->Rename(*FString::Printf(TEXT("%s_%s"), *DuplicatedActor->GetName(), *Mapping->ContainerID.ToString()), InDestLevel, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors);
 						USceneComponent* RootComponent = DuplicatedActor->GetRootComponent();
 
 						FLevelUtils::FApplyLevelTransformParams TransformParams(nullptr, Mapping->ContainerTransform);
@@ -352,6 +372,18 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 
 						// Path to use when searching for this actor in MoveExternalActorsToLevel
 						Mapping->LoadedPath = *DuplicatedActor->GetPathName();
+						
+						// Fixup any FSoftObjectPath from this Actor (and its SubObjects) in this container to another object in the same container with a ContainerID suffix that can be remapped to
+						// to a Cell in the StreamingPolicy (this relies on the fact that the _DUP package doesn't get fixed up)
+						FSoftObjectPathFixupArchive FixupArchive([&](FSoftObjectPath& Value)
+						{
+							if (!Value.IsNull() && Value.GetAssetPathString().Equals(SourceWorldPath, ESearchCase::IgnoreCase))
+							{
+								Value.SetSubPathString(AddActorContainerIDToSubPathString(Mapping->ContainerID, Value.GetSubPathString()));
+							}
+						});
+						FixupArchive.Fixup(DuplicatedActor);
+
 						UE_LOG(LogEngine, Verbose, TEXT(" ==> Duplicated %s (remaining: %d)"), *DuplicatedActor->GetFullName(), LoadProgress->NumPendingLoadRequests);
 					}
 					else

@@ -25,10 +25,98 @@ struct FStackEntry;
 	FastReferenceCollector.h: Unreal realtime garbage collection helpers
 =============================================================================*/
 
+/** Base class for TFastReferenceCollector array pools. */
+template <typename ArrayStructType>
+class TFastReferenceCollectorArrayPool
+{
+	static_assert(std::is_base_of_v<FGCArrayStruct, ArrayStructType>, "ArrayStructType must derive from FGCArrayStruct.");
+public:
+	/**
+	 * Gets an event from the pool or creates one if necessary.
+	 *
+	 * @return The array.
+	 * @see ReturnToPool
+	 */
+	FORCEINLINE ArrayStructType* GetArrayStructFromPool()
+	{
+		ArrayStructType* Result = Pool.Pop();
+		if (!Result)
+		{
+			Result = new ArrayStructType();
+		}
+		check(Result);
+#if UE_BUILD_DEBUG
+		NumberOfUsedArrays++;
+#endif // UE_BUILD_DEBUG
+		return Result;
+	}
+
+	/**
+	 * Returns an array to the pool.
+	 *
+	 * @param Array The array to return.
+	 * @see GetArrayFromPool
+	 */
+	FORCEINLINE void ReturnToPool(ArrayStructType* ArrayStruct)
+	{
+#if UE_BUILD_DEBUG
+		const int32 CheckUsedArrays = --NumberOfUsedArrays;
+		checkSlow(CheckUsedArrays >= 0);
+#endif // UE_BUILD_DEBUG
+		check(ArrayStruct);
+		ArrayStruct->ObjectsToSerialize.Reset();
+		Pool.Push(ArrayStruct);
+	}
+
+	/**
+	 * Performs manual memory cleanup.
+	 * Generally the pools will be cleaned up when ClearWeakReferences is called on a full GC purge
+	 */
+	void Cleanup()
+	{
+#if UE_BUILD_DEBUG
+		const int32 CheckUsedArrays = NumberOfUsedArrays;
+		checkSlow(CheckUsedArrays == 0);
+#endif // UE_BUILD_DEBUG
+
+		SIZE_T FreedMemory = 0;
+		TArray<ArrayStructType*> AllArrays;
+		Pool.PopAll(AllArrays);
+		for (ArrayStructType* ArrayStruct : AllArrays)
+		{
+			// If we are cleaning up with active weak references the weak references will get corrupted
+			checkSlow(ArrayStruct->WeakReferences.Num() == 0);
+			FreedMemory += ArrayStruct->GetAllocatedSize();
+			delete ArrayStruct;
+		}
+		UE_LOG(LogGarbage, Log, TEXT("Freed %" SIZE_T_FMT "b from %d GC array pools."), FreedMemory, AllArrays.Num());
+	}
+
+#if UE_BUILD_DEBUG
+	void CheckLeaks()
+	{
+		// This function is called after GC has finished so at this point there should be no
+		// arrays used by GC and all should be returned to the pool
+		const int32 LeakedGCPoolArrays = NumberOfUsedArrays;
+		checkSlow(LeakedGCPoolArrays == 0);
+	}
+#endif
+
+protected:
+
+	/** Holds the collection of recycled arrays. */
+	TLockFreePointerListLIFO< ArrayStructType > Pool;
+
+#if UE_BUILD_DEBUG
+	/** Number of arrays currently acquired from the pool by GC */
+	std::atomic<int32> NumberOfUsedArrays;
+#endif // UE_BUILD_DEBUG
+};
+
 /**
  * Pool for reducing GC allocations
  */
-class FGCArrayPool
+class FGCArrayPool : public TFastReferenceCollectorArrayPool<FGCArrayStruct>
 {
 private:
 	// allows sharing a singleton between all compilation units while still having an inlined getter
@@ -48,68 +136,6 @@ public:
 			Singleton = GetGlobalSingleton();
 		}
 		return *Singleton;
-	}
-
-	/**
-	 * Gets an event from the pool or creates one if necessary.
-	 *
-	 * @return The array.
-	 * @see ReturnToPool
-	 */
-	FORCEINLINE FGCArrayStruct* GetArrayStructFromPool()
-	{
-		FGCArrayStruct* Result = Pool.Pop();
-		if (!Result)
-		{
-			Result = new FGCArrayStruct();
-		}
-		check(Result);
-#if UE_BUILD_DEBUG
-		NumberOfUsedArrays.Increment();
-#endif // UE_BUILD_DEBUG
-		return Result;
-	}
-
-	/**
-	 * Returns an array to the pool.
-	 *
-	 * @param Array The array to return.
-	 * @see GetArrayFromPool
-	 */
-	FORCEINLINE void ReturnToPool(FGCArrayStruct* ArrayStruct)
-	{
-#if UE_BUILD_DEBUG
-		const int32 CheckUsedArrays = NumberOfUsedArrays.Decrement();
-		checkSlow(CheckUsedArrays >= 0);
-#endif // UE_BUILD_DEBUG
-		check(ArrayStruct);
-		ArrayStruct->ObjectsToSerialize.Reset();
-		Pool.Push(ArrayStruct);
-	}
-
-	/** 
-	 * Performs manual memory cleanup. 
-	 * Generally the pools will be cleaned up when ClearWeakReferences is called on a full GC purge
-	 */
-	void Cleanup()
-	{
-#if UE_BUILD_DEBUG
-		const int32 CheckUsedArrays = NumberOfUsedArrays.GetValue();
-		checkSlow(CheckUsedArrays == 0);
-#endif // UE_BUILD_DEBUG
-
-		SIZE_T FreedMemory = 0;
-		TArray<FGCArrayStruct*> AllArrays;
-		Pool.PopAll(AllArrays);
-		for (FGCArrayStruct* ArrayStruct : AllArrays)
-		{
-			// If we are cleaning up with active weak references the weak references will get corrupted
-			checkSlow(ArrayStruct->WeakReferences.Num() == 0);
-			FreedMemory += ArrayStruct->ObjectsToSerialize.GetAllocatedSize();
-			FreedMemory += ArrayStruct->WeakReferences.GetAllocatedSize();
-			delete ArrayStruct;
-		}
-		UE_LOG(LogGarbage, Log, TEXT("Freed %" SIZE_T_FMT "b from %d GC array pools."), FreedMemory, AllArrays.Num());
 	}
 
 	/**
@@ -187,14 +213,11 @@ public:
 
 	/** 
 	 * Clears weak references for everything in the pool. 
-	 * If bClearPools is true it will clear all of the pools as well, which is used during a full purge 
+	 * @param AllArrays Arrays to process 
 	 */
-	void ClearWeakReferences(bool bClearPools)
+	void ClearWeakReferences(TArray<FGCArrayStruct*>& AllArrays)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ClearWeakReferences);
-		TArray<FGCArrayStruct*> AllArrays;
-		Pool.PopAll(AllArrays);
-		int32 Index = 0;
 		for (FGCArrayStruct* ArrayStruct : AllArrays)
 		{
 			for (UObject** WeakReference : ArrayStruct->WeakReferences)
@@ -206,38 +229,37 @@ public:
 				}
 			}
 			ArrayStruct->WeakReferences.Reset();
-			if (bClearPools 
-				|| Index % 7 == 3) // delete 1/7th of them just to keep things from growing too much between full purges
-			{
-				delete ArrayStruct;
-			}
-			else
-			{
-				Pool.Push(ArrayStruct);
-			}
-			Index++;
 		}
 	}
 
-#if UE_BUILD_DEBUG
-	void CheckLeaks()
+	/**
+	 * Dumps garbage references to the log.
+	 * @param AllArrays Arrays to process
+	 */
+	void DumpGarbageReferencers(TArray<FGCArrayStruct*>& AllArrays);
+
+	/**
+	 * Grabs all arrays from the pool 
+	 */
+	void GetAllArrayStructsFromPool(TArray<FGCArrayStruct*>& AllArrays)
 	{
-		// This function is called after GC has finished so at this point there should be no
-		// arrays used by GC and all should be returned to the pool
-		const int32 LeakedGCPoolArrays = NumberOfUsedArrays.GetValue();
-		checkSlow(LeakedGCPoolArrays == 0);
-	}
-#endif
-
-private:
-
-	/** Holds the collection of recycled arrays. */
-	TLockFreePointerListLIFO< FGCArrayStruct > Pool;
-
+		Pool.PopAll(AllArrays);
 #if UE_BUILD_DEBUG
-	/** Number of arrays currently acquired from the pool by GC */
-	FThreadSafeCounter NumberOfUsedArrays;
+		NumberOfUsedArrays += AllArrays.Num();
 #endif // UE_BUILD_DEBUG
+	}
+
+	/**
+	 * Frees an allocated array
+	 */
+	void FreeArrayStruct(FGCArrayStruct* InArray)
+	{
+		delete InArray;
+#if UE_BUILD_DEBUG
+		const int32 CheckUsedArrays = --NumberOfUsedArrays;
+		checkSlow(CheckUsedArrays >= 0);
+#endif // UE_BUILD_DEBUG
+	}
 };
 
 /**

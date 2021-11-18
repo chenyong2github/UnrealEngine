@@ -60,9 +60,9 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, RWOutputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, CombineSourceIn, [kMaxCombinedSources])
-		SHADER_PARAMETER(FVector2D, HMDFieldOfView)
-		SHADER_PARAMETER(FVector2D, LeftEyeCenterPixelXY)
-		SHADER_PARAMETER(FVector2D, RightEyeCenterPixelXY)
+		SHADER_PARAMETER(FVector2f, HMDFieldOfView)
+		SHADER_PARAMETER(FVector2f, LeftEyeCenterPixelXY)
+		SHADER_PARAMETER(FVector2f, RightEyeCenterPixelXY)
 		SHADER_PARAMETER(float, ViewDiagonalSquaredInPixels)
 		SHADER_PARAMETER(float, FixedFoveationFullRateCutoffSquared)
 		SHADER_PARAMETER(float, FixedFoveationHalfRateCutoffSquared)
@@ -110,8 +110,8 @@ struct FVRSImageGenerationParameters
 {
 	FIntPoint Size = FIntPoint(0, 0);
 
-	FVector2D HMDFieldOfView = FVector2D(90.0f, 90.0f);
-	FVector2D HMDEyeTrackedFoveationOrigin = FVector2D(0.0f, 0.0f);
+	FVector2f HMDFieldOfView = FVector2f(90.0f, 90.0f);
+	FVector2f HMDEyeTrackedFoveationOrigin = FVector2f(0.0f, 0.0f);
 
 	float HMDFixedFoveationFullRateCutoff = 1.0f;
 	float HMDFixedFoveationHalfRateCutoff = 1.0f;

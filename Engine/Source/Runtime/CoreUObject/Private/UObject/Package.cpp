@@ -277,21 +277,18 @@ bool UPackage::IsFullyLoaded() const
 		return true;
 	}
 
-	if (!GetConvertedDynamicPackageNameToTypeName().Contains(GetFName())) // ConvertedDynamicPackageNames do not exist on disk, but are not a special case
+	// Newly created packages aren't loaded and therefore haven't been marked as being fully loaded. They are treated as fully
+	// loaded packages though in this case, which is why we are looking to see whether the package exists on disk and assume it
+	// has been fully loaded if it doesn't.
+	// Try to find matching package in package file cache. We use the LoadedPath here as it may be loaded into a temporary package
+	FString DummyFilename;
+	FPackagePath SourcePackagePath = !LoadedPath.IsEmpty() ? LoadedPath : FPackagePath::FromPackageNameChecked(GetName());
+	if (!FPackageName::DoesPackageExist(SourcePackagePath, &SourcePackagePath) ||
+		(GIsEditor && IPackageResourceManager::Get().FileSize(SourcePackagePath) < 0))
 	{
-		// Newly created packages aren't loaded and therefore haven't been marked as being fully loaded. They are treated as fully
-		// loaded packages though in this case, which is why we are looking to see whether the package exists on disk and assume it
-		// has been fully loaded if it doesn't.
-		// Try to find matching package in package file cache. We use the LoadedPath here as it may be loaded into a temporary package
-		FString DummyFilename;
-		FPackagePath SourcePackagePath = !LoadedPath.IsEmpty() ? LoadedPath : FPackagePath::FromPackageNameChecked(GetName());
-		if (!FPackageName::DoesPackageExist(SourcePackagePath, &SourcePackagePath) ||
-			(GIsEditor && IPackageResourceManager::Get().FileSize(SourcePackagePath) < 0))
-		{
-			// Package has NOT been found, so we assume it's a newly created one and therefore fully loaded.
-			bHasBeenFullyLoaded = true;
-			return true;
-		}
+		// Package has NOT been found, so we assume it's a newly created one and therefore fully loaded.
+		bHasBeenFullyLoaded = true;
+		return true;
 	}
 
 	// Not a special case; respect the current 'false' value of bHasBeenFullyLoaded

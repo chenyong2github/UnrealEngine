@@ -65,6 +65,17 @@ void UInterchangeBaseNodeContainer::IterateNodes(TFunctionRef<void(const FString
 	}
 }
 
+void UInterchangeBaseNodeContainer::BreakableIterateNodes(TFunctionRef<bool(const FString&, UInterchangeBaseNode*)> IterationLambda) const
+{
+	for (auto& NodeKeyValue : Nodes)
+	{
+		if (IterationLambda(NodeKeyValue.Key, NodeKeyValue.Value))
+		{
+			break;
+		}
+	}
+}
+
 void UInterchangeBaseNodeContainer::GetRoots(TArray<FString>& RootNodes) const
 {
 	for (auto& NodeKeyValue : Nodes)

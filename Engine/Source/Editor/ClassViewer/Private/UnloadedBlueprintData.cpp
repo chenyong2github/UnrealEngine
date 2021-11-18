@@ -43,10 +43,11 @@ bool FUnloadedBlueprintData::IsChildOf(const UClass* InClass) const
 
 bool FUnloadedBlueprintData::ImplementsInterface(const UClass* InInterface) const
 {
+	FString InterfacePath = InInterface->GetPathName();
 	// Does this blueprint implement the interface directly?
 	for (const FString& DirectlyImplementedInterface : ImplementedInterfaces)
 	{
-		if (DirectlyImplementedInterface == InInterface->GetName())
+		if (DirectlyImplementedInterface == InterfacePath)
 		{
 			return true;
 		}

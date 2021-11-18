@@ -517,11 +517,11 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insight
 		const Insights::FMemoryTracker* Tracker = GetTrackerById(InMemTrackerId);
 		if (Tracker && Tracker != DefaultTracker.Get())
 		{
-			SeriesName = FString::Printf(TEXT("LLM %s (%s)"), *TagPtr->GetStatName(), *Tracker->GetName());
+			SeriesName = FString::Printf(TEXT("LLM %s (%s)"), *TagPtr->GetStatFullName(), *Tracker->GetName());
 		}
 		else
 		{
-			SeriesName = FString::Printf(TEXT("LLM %s"), *TagPtr->GetStatName());
+			SeriesName = FString::Printf(TEXT("LLM %s"), *TagPtr->GetStatFullName());
 		}
 	}
 	else
@@ -872,7 +872,7 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateGraphTrack(const Insight
 			Insights::FMemoryTag& Tag = *TagPtr;
 
 			TSharedPtr<FMemoryGraphSeries> Series = GraphTrack->AddMemTagSeries(MemTrackerId, Tag.GetId());
-			Series->SetName(Tag.GetStatName());
+			Series->SetName(FText::FromString(FString::Printf(TEXT("LLM %s"), *Tag.GetStatFullName())));
 			const FLinearColor Color = Tag.GetColor();
 			const FLinearColor BorderColor(FMath::Min(Color.R + 0.4f, 1.0f), FMath::Min(Color.G + 0.4f, 1.0f), FMath::Min(Color.B + 0.4f, 1.0f), 1.0f);
 			Series->SetColor(Color, BorderColor);

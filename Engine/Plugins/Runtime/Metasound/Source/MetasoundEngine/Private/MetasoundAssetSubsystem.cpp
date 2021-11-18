@@ -12,6 +12,7 @@
 #include "MetasoundSettings.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
+#include "UObject/NoExportTypes.h"
 
 
 namespace Metasound
@@ -93,25 +94,14 @@ void UMetaSoundAssetSubsystem::PostInitAssetScan()
 {
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundAssetSubsystem::PostInitAssetScan);
 
-	UAssetManager& AssetManager = UAssetManager::Get();
-
-	FAssetManagerSearchRules Rules;
-	Rules.AssetScanPaths.Add(TEXT("/Game"));
-
-	Rules.AssetBaseClass = UMetaSound::StaticClass();
-	TArray<FAssetData> MetaSoundAssets;
-	AssetManager.SearchAssetRegistryPaths(MetaSoundAssets, Rules);
-	for (const FAssetData& AssetData : MetaSoundAssets)
+	const UMetaSoundSettings* Settings = GetDefault<UMetaSoundSettings>();
+	if (ensureAlways(Settings))
 	{
-		AddOrUpdateAsset(AssetData, false /* bRegisterWithFrontend */);
-	}
-
-	Rules.AssetBaseClass = UMetaSoundSource::StaticClass();
-	TArray<FAssetData> MetaSoundSourceAssets;
-	AssetManager.SearchAssetRegistryPaths(MetaSoundSourceAssets, Rules);
-	for (const FAssetData& AssetData : MetaSoundSourceAssets)
-	{
-		AddOrUpdateAsset(AssetData, false /* bRegisterWithFrontend */);
+		SearchAndIterateDirectoryAssets(Settings->DirectoriesToRegister, [this](const FAssetData& AssetData)
+		{
+			constexpr bool bRegisterWithFrontend = false;
+			AddOrUpdateAsset(AssetData, bRegisterWithFrontend);
+		});
 	}
 }
 
@@ -418,4 +408,60 @@ void UMetaSoundAssetSubsystem::SynchronizeAssetClassDisplayName(const FAssetData
 	FMetasoundAssetBase* MetaSoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
 	check(MetaSoundAsset);
 	Metasound::Frontend::FSynchronizeAssetClassDisplayName(InAssetData.AssetName).Transform(MetaSoundAsset->GetDocumentHandle());
+}
+
+void UMetaSoundAssetSubsystem::SearchAndIterateDirectoryAssets(const TArray<FDirectoryPath>& InDirectories, TFunctionRef<void(const FAssetData&)> InFunction)
+{
+	if (InDirectories.IsEmpty())
+	{
+		return;
+	}
+
+	UAssetManager& AssetManager = UAssetManager::Get();
+
+	FAssetManagerSearchRules Rules;
+	for (const FDirectoryPath& Path : InDirectories)
+	{
+		Rules.AssetScanPaths.Add(*Path.Path);
+	}
+
+	Rules.AssetBaseClass = UMetaSound::StaticClass();
+	TArray<FAssetData> MetaSoundAssets;
+	AssetManager.SearchAssetRegistryPaths(MetaSoundAssets, Rules);
+	for (const FAssetData& AssetData : MetaSoundAssets)
+	{
+		InFunction(AssetData);
+	}
+
+	Rules.AssetBaseClass = UMetaSoundSource::StaticClass();
+	TArray<FAssetData> MetaSoundSourceAssets;
+	AssetManager.SearchAssetRegistryPaths(MetaSoundSourceAssets, Rules);
+	for (const FAssetData& AssetData : MetaSoundSourceAssets)
+	{
+		InFunction(AssetData);
+	}
+}
+
+void UMetaSoundAssetSubsystem::RegisterAssetClassesInDirectories(const TArray<FMetaSoundAssetDirectory>& InDirectories)
+{
+	TArray<FDirectoryPath> Directories;
+	Algo::Transform(InDirectories, Directories, [](const FMetaSoundAssetDirectory& AssetDir) { return AssetDir.Directory; });
+
+	SearchAndIterateDirectoryAssets(Directories, [this](const FAssetData& AssetData)
+	{
+		constexpr bool bRegisterWithFrontend = true;
+		AddOrUpdateAsset(AssetData, bRegisterWithFrontend);
+	});
+}
+
+void UMetaSoundAssetSubsystem::UnregisterAssetClassesInDirectories(const TArray<FMetaSoundAssetDirectory>& InDirectories)
+{
+	TArray<FDirectoryPath> Directories;
+	Algo::Transform(InDirectories, Directories, [](const FMetaSoundAssetDirectory& AssetDir) { return AssetDir.Directory; });
+
+	SearchAndIterateDirectoryAssets(Directories, [this](const FAssetData& AssetData)
+	{
+		constexpr bool bUnregisterWithFrontend = true;
+		RemoveAsset(AssetData, bUnregisterWithFrontend);
+	});
 }

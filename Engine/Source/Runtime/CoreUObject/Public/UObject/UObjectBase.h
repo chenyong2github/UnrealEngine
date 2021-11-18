@@ -23,6 +23,7 @@ class COREUOBJECT_API UObjectBase
 	friend struct Z_Construct_UClass_UObject_Statics;
 	friend class FUObjectArray; // for access to InternalIndex without revealing it to anyone else
 	friend class FUObjectAllocator; // for access to destructor without revealing it to anyone else
+	friend struct FInternalUObjectBaseUtilityIsValidFlagsChecker; // for access to InternalIndex
 	friend COREUOBJECT_API void UObjectForceRegistration(UObjectBase* Object, bool bCheckForModuleRelease);
 	friend COREUOBJECT_API void InitializePrivateStaticClass(
 		class UClass* TClass_Super_StaticClass,
@@ -310,11 +311,6 @@ struct FClassRegisterCompiledInInfo
 COREUOBJECT_API void RegisterCompiledInInfo(class UClass* (*InOuterRegister)(), class UClass* (*InInnerRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FClassRegistrationInfo& InInfo, const FClassReloadVersionInfo& InVersionInfo);
 
 /**
- * Adds a dynamic class registration.
- */
-COREUOBJECT_API void RegisterCompiledInInfo(class UClass* (*InOuterRegister)(), class UClass* (*InInnerRegister)(), const TCHAR* Name, const TCHAR* PackageName, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName, void (*InInitSearchableValues)(TMap<FName, FName>&));
-
-/**
  * Reload version information for structures
  */
 struct FStructReloadVersionInfo
@@ -346,11 +342,6 @@ struct FStructRegisterCompiledInInfo
  * Adds a struct registration and version information. The InInfo parameter must be static.
  */
 COREUOBJECT_API void RegisterCompiledInInfo(class UScriptStruct* (*InOuterRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FStructRegistrationInfo& InInfo, const FStructReloadVersionInfo& InVersionInfo);
-
-/**
- * Adds a dynamic struct registration.
- */
-COREUOBJECT_API void RegisterCompiledInInfo(class UScriptStruct* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName);
 
 /**
  * Invoke the registration method wrapped in notifications.
@@ -393,11 +384,6 @@ struct FEnumRegisterCompiledInInfo
  * Adds a static enum registration and version information. The InInfo parameter must be static.
  */
 COREUOBJECT_API void RegisterCompiledInInfo(class UEnum* (*InOuterRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FEnumRegistrationInfo& InInfo, const FEnumReloadVersionInfo& InVersionInfo);
-
-/**
- * Adds a dynamic enum registration.
- */
-COREUOBJECT_API void RegisterCompiledInInfo(class UEnum* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName);
 
 /**
  * Invoke the registration method wrapped in notifications.
@@ -502,10 +488,6 @@ struct UE_DEPRECATED(5.0, "FCompiledInDefer has been deprecated, use FRegisterCo
 {
 	FCompiledInDefer(class UClass *(*InRegister)(), class UClass *(*InStaticClass)(), const TCHAR* PackageName, const TCHAR* Name, bool bDynamic, const TCHAR* DynamicPackageName = nullptr, const TCHAR* DynamicPathName = nullptr, void (*InInitSearchableValues)(TMap<FName, FName>&) = nullptr)
 	{
-		if (bDynamic)
-		{
-			GetConvertedDynamicPackageNameToTypeName().Add(FName(DynamicPackageName), FName(Name));
-		}
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UObjectCompiledInDefer(InRegister, InStaticClass, Name, PackageName, bDynamic, DynamicPathName, InInitSearchableValues);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -522,10 +504,6 @@ struct UE_DEPRECATED(5.0, "FCompiledInDeferStruct has been deprecated, use FRegi
 {
 	FCompiledInDeferStruct(class UScriptStruct *(*InRegister)(), const TCHAR* PackageName, const TCHAR* Name, bool bDynamic, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName)
 	{
-		if (bDynamic)
-		{
-			GetConvertedDynamicPackageNameToTypeName().Add(FName(DynamicPackageName), FName(Name));
-		}
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UObjectCompiledInDeferStruct(InRegister, PackageName, Name, bDynamic, DynamicPathName);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -542,20 +520,20 @@ struct UE_DEPRECATED(5.0, "FCompiledInDeferEnum has been deprecated, use FRegist
 {
 	FCompiledInDeferEnum(class UEnum *(*InRegister)(), const TCHAR* PackageName, const TCHAR* Name, bool bDynamic, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName)
 	{
-		if (bDynamic)
-		{
-			GetConvertedDynamicPackageNameToTypeName().Add(FName(DynamicPackageName), FName(Name));
-		}
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UObjectCompiledInDeferEnum(InRegister, PackageName, Name, bDynamic, DynamicPathName);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 };
 
+// @todo: BP2CPP_remove
 /** Called during HotReload to hook up an existing structure */
+UE_DEPRECATED(5.0, "This API is no longer in use and will be removed.")
 COREUOBJECT_API class UScriptStruct* FindExistingStructIfHotReloadOrDynamic(UObject* Outer, const TCHAR* StructName, SIZE_T Size, uint32 Crc, bool bIsDynamic);
 
+// @todo: BP2CPP_remove
 /** Called during HotReload to hook up an existing enum */
+UE_DEPRECATED(5.0, "This API is no longer in use and will be removed.")
 COREUOBJECT_API class UEnum* FindExistingEnumIfHotReloadOrDynamic(UObject* Outer, const TCHAR* EnumName, SIZE_T Size, uint32 Crc, bool bIsDynamic);
 
 /** Must be called after a module has been loaded that contains UObject classes */

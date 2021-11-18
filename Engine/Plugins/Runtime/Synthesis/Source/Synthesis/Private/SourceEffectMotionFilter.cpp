@@ -411,7 +411,7 @@ bool FSourceEffectMotionFilter::UpdateModulationMatrix(const float UpdateTime)
 			}
 
 			// Update Target Matrix value
-			TargetMatrixIndex = FMath::GetMappedRangeValueClamped(Value.ModulationInputRange, OutputRange, ModSources[(uint8)Source]);
+			TargetMatrixIndex = FMath::GetMappedRangeValueClamped(Value.ModulationInputRange, OutputRange, FVector2D::FReal(ModSources[(uint8)Source]));
 
 			// If Target Matrix value has been changed significantly, then we need to re-target our Linear Ease
 			if (!FMath::IsNearlyEqual(LastTargetMatrixIndex, TargetMatrixIndex, 0.001f))

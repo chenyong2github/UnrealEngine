@@ -354,14 +354,14 @@ void FEditorCameraController::UpdateRotation( const FCameraControllerUserImpulse
 		if( CurRotationAxis == 1 )		// 1 == pitch
 		{
 			// Normalize the angle to -180 to 180.
-			float Angle = FMath::Fmod((float)InOutCameraEuler[ CurRotationAxis ], 360.0f);
-			if (Angle > 180.f)
+			FVector::FReal Angle = FMath::Fmod(InOutCameraEuler[ CurRotationAxis ], 360.0);
+			if (Angle > 180.)
 			{
-				Angle -= 360.f;
+				Angle -= 360.;
 			}
-			else if (Angle < -180.f)
+			else if (Angle < -180.)
 			{
-				Angle += 360.f;
+				Angle += 360.;
 			}
 			
 			if (Config.bLockedPitch) 
@@ -369,8 +369,8 @@ void FEditorCameraController::UpdateRotation( const FCameraControllerUserImpulse
 				// Clamp the angle.
 				InOutCameraEuler[ CurRotationAxis ] =
 					FMath::Clamp( Angle,
-					Config.MinimumAllowedPitchRotation,
-					Config.MaximumAllowedPitchRotation );
+					(FVector::FReal)Config.MinimumAllowedPitchRotation,
+					(FVector::FReal)Config.MaximumAllowedPitchRotation );
 			}
 		}
 	}

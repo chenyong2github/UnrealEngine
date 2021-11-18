@@ -24,8 +24,8 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
-		SHADER_PARAMETER(FVector2D, DispatchThreadToInputUVScale)
-		SHADER_PARAMETER(FVector2D, DispatchThreadToInputUVBias)
+		SHADER_PARAMETER(FVector2f, DispatchThreadToInputUVScale)
+		SHADER_PARAMETER(FVector2f, DispatchThreadToInputUVBias)
 	END_SHADER_PARAMETER_STRUCT()
 };
 

@@ -11,62 +11,65 @@
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "Util/SnapshotObjectUtil.h"
 
-class FSnapshotSubobjectMetaDataManager
+namespace UE::LevelSnapshots::Private::Internal
+{
+	class FSnapshotSubobjectMetaDataManager
 	:
 	public ISnapshotSubobjectMetaData,
 	public TSharedFromThis<FSnapshotSubobjectMetaDataManager>
-{
-public:
-	
-	const FSoftObjectPath CachedSubobjectPath;
-	const int32 OwningDataSubobjectIndex;
-	const FWorldSnapshotData& WorldData;
-	
-	const FCustomSerializationDataGetter_ReadOnly SerializationDataGetter_ReadOnly;
-	const FCustomSerializationDataGetter_ReadWrite SerializationDataGetter_ReadWrite;
-
-	FSnapshotSubobjectMetaDataManager(
-		FSoftObjectPath CachedSubobjectPath,
-		int32 SubobjectIndex,
-		const FWorldSnapshotData& WorldData,
-		const FCustomSerializationDataGetter_ReadOnly& SerializationDataGetter_ReadOnly,
-		FCustomSerializationDataGetter_ReadWrite SerializationDataGetter_ReadWrite)
-		:
-		CachedSubobjectPath(CachedSubobjectPath),
-		OwningDataSubobjectIndex(SubobjectIndex),
-		WorldData(WorldData),
-		SerializationDataGetter_ReadOnly(SerializationDataGetter_ReadOnly),
-		SerializationDataGetter_ReadWrite(SerializationDataGetter_ReadWrite)
-	{}
-
-	virtual FSoftObjectPath GetOriginalPath() const override
 	{
-		return CachedSubobjectPath;
-	}
+	public:
 	
-	virtual void WriteObjectAnnotation(const FObjectAnnotator& Writer) override
-	{
-		if (Writer.IsBound() && ensure(SerializationDataGetter_ReadWrite.IsBound()))
+		const FSoftObjectPath CachedSubobjectPath;
+		const int32 OwningDataSubobjectIndex;
+		const FWorldSnapshotData& WorldData;
+	
+		const FCustomSerializationDataGetter_ReadOnly SerializationDataGetter_ReadOnly;
+		const FCustomSerializationDataGetter_ReadWrite SerializationDataGetter_ReadWrite;
+
+		FSnapshotSubobjectMetaDataManager(
+			FSoftObjectPath CachedSubobjectPath,
+			int32 SubobjectIndex,
+			const FWorldSnapshotData& WorldData,
+			const FCustomSerializationDataGetter_ReadOnly& SerializationDataGetter_ReadOnly,
+			FCustomSerializationDataGetter_ReadWrite SerializationDataGetter_ReadWrite)
+			:
+			CachedSubobjectPath(CachedSubobjectPath),
+			OwningDataSubobjectIndex(SubobjectIndex),
+			WorldData(WorldData),
+			SerializationDataGetter_ReadOnly(SerializationDataGetter_ReadOnly),
+			SerializationDataGetter_ReadWrite(SerializationDataGetter_ReadWrite)
+		{}
+
+		virtual FSoftObjectPath GetOriginalPath() const override
 		{
-			FMemoryWriter MemoryWriter(SerializationDataGetter_ReadWrite.Execute()->Subobjects[OwningDataSubobjectIndex].SubobjectAnnotationData, true);
-			FObjectAndNameAsStringProxyArchive RootArchive(MemoryWriter, false);
-			Writer.Execute(RootArchive);
+			return CachedSubobjectPath;
 		}
-	}
 	
-	virtual void ReadObjectAnnotation(const FObjectAnnotator& Reader) const override
-	{
-		if (Reader.IsBound() && ensure(SerializationDataGetter_ReadOnly.IsBound()))
+		virtual void WriteObjectAnnotation(const FObjectAnnotator& Writer) override
 		{
-			FMemoryReader MemoryReader(SerializationDataGetter_ReadOnly.Execute()->Subobjects[OwningDataSubobjectIndex].SubobjectAnnotationData, true);
-			FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, true);
-			WorldData.GetSnapshotVersionInfo().ApplyToArchive(RootArchive);
-			Reader.Execute(RootArchive);
+			if (Writer.IsBound() && ensure(SerializationDataGetter_ReadWrite.IsBound()))
+			{
+				FMemoryWriter MemoryWriter(SerializationDataGetter_ReadWrite.Execute()->Subobjects[OwningDataSubobjectIndex].SubobjectAnnotationData, true);
+				FObjectAndNameAsStringProxyArchive RootArchive(MemoryWriter, false);
+				Writer.Execute(RootArchive);
+			}
 		}
-	}
-};
+	
+		virtual void ReadObjectAnnotation(const FObjectAnnotator& Reader) const override
+		{
+			if (Reader.IsBound() && ensure(SerializationDataGetter_ReadOnly.IsBound()))
+			{
+				FMemoryReader MemoryReader(SerializationDataGetter_ReadOnly.Execute()->Subobjects[OwningDataSubobjectIndex].SubobjectAnnotationData, true);
+				FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, true);
+				WorldData.SnapshotVersionInfo.ApplyToArchive(RootArchive);
+				Reader.Execute(RootArchive);
+			}
+		}
+	};
+}
 
-FCustomSerializationDataReader::FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly SerializationDataGetter, const FWorldSnapshotData& ConstWorldData)
+UE::LevelSnapshots::Private::FCustomSerializationDataReader::FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly SerializationDataGetter, const FWorldSnapshotData& ConstWorldData)
 		:
 		SerializationDataGetter_ReadOnly(SerializationDataGetter),
 		WorldData_ReadOnly(ConstWorldData)
@@ -78,7 +81,7 @@ FCustomSerializationDataReader::FCustomSerializationDataReader(FCustomSerializat
 		{
 			const FCustomSubbjectSerializationData& SubobjectData = SerializationData->Subobjects[i];
 			CachedSubobjectMetaData.Add(
-				MakeShared<FSnapshotSubobjectMetaDataManager>(
+				MakeShared<Internal::FSnapshotSubobjectMetaDataManager>(
 					ConstWorldData.SerializedObjectReferences[SubobjectData.ObjectPathIndex],
 						i,
 						WorldData_ReadOnly,
@@ -90,45 +93,45 @@ FCustomSerializationDataReader::FCustomSerializationDataReader(FCustomSerializat
 	}
 }
 
-void FCustomSerializationDataReader::WriteObjectAnnotation(const FObjectAnnotator& Writer)
+void UE::LevelSnapshots::Private::FCustomSerializationDataReader::WriteObjectAnnotation(const FObjectAnnotator& Writer)
 {
 	checkNoEntry();
 }
 
-void FCustomSerializationDataReader::ReadObjectAnnotation(const FObjectAnnotator& Reader) const
+void UE::LevelSnapshots::Private::FCustomSerializationDataReader::ReadObjectAnnotation(const FObjectAnnotator& Reader) const
 {
 	if (Reader.IsBound())
 	{
 		FMemoryReader MemoryReader(SerializationDataGetter_ReadOnly.Execute()->RootAnnotationData, true);
 		FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, true);
-		WorldData_ReadOnly.GetSnapshotVersionInfo().ApplyToArchive(RootArchive);
+		WorldData_ReadOnly.SnapshotVersionInfo.ApplyToArchive(RootArchive);
 		Reader.Execute(RootArchive);
 	}
 }
 
-int32 FCustomSerializationDataReader::AddSubobjectSnapshot(UObject* Subobject)
+int32 UE::LevelSnapshots::Private::FCustomSerializationDataReader::AddSubobjectSnapshot(UObject* Subobject)
 {
 	return INDEX_NONE;	
 }
 
-TSharedPtr<ISnapshotSubobjectMetaData> FCustomSerializationDataReader::GetSubobjectMetaData(int32 Index)
+TSharedPtr<UE::LevelSnapshots::ISnapshotSubobjectMetaData> UE::LevelSnapshots::Private::FCustomSerializationDataReader::GetSubobjectMetaData(int32 Index)
 {
 	return CachedSubobjectMetaData[Index];
 }
 
-const TSharedPtr<ISnapshotSubobjectMetaData> FCustomSerializationDataReader::GetSubobjectMetaData(int32 Index) const
+const TSharedPtr<UE::LevelSnapshots::ISnapshotSubobjectMetaData> UE::LevelSnapshots::Private::FCustomSerializationDataReader::GetSubobjectMetaData(int32 Index) const
 {
 	return CachedSubobjectMetaData[Index];
 }
 
-int32 FCustomSerializationDataReader::GetNumSubobjects() const
+int32 UE::LevelSnapshots::Private::FCustomSerializationDataReader::GetNumSubobjects() const
 {
 	return SerializationDataGetter_ReadOnly.Execute()->Subobjects.Num();
 }
 
-FCustomSerializationDataWriter::FCustomSerializationDataWriter(FCustomSerializationDataGetter_ReadWrite SerializationDataGetter, FWorldSnapshotData& WorldData, UObject* SerializedObject)
+UE::LevelSnapshots::Private::FCustomSerializationDataWriter::FCustomSerializationDataWriter(FCustomSerializationDataGetter_ReadWrite SerializationDataGetter, FWorldSnapshotData& WorldData, UObject* SerializedObject)
 	:
-	FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly(), WorldData),
+	UE::LevelSnapshots::Private::FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly(), WorldData),
 	SerializationDataGetter_ReadWrite(SerializationDataGetter),
 	WorldData_ReadWrite(WorldData),
 	SerializedObject(SerializedObject)
@@ -140,7 +143,7 @@ FCustomSerializationDataWriter::FCustomSerializationDataWriter(FCustomSerializat
 	{
 		const FCustomSubbjectSerializationData& SubobjectData = SerializationData->Subobjects[i];
 		CachedSubobjectMetaData.Add(
-			MakeShared<FSnapshotSubobjectMetaDataManager>(
+			MakeShared<Internal::FSnapshotSubobjectMetaDataManager>(
 				WorldData.SerializedObjectReferences[SubobjectData.ObjectPathIndex],
 					i,
 					WorldData_ReadOnly,
@@ -151,18 +154,18 @@ FCustomSerializationDataWriter::FCustomSerializationDataWriter(FCustomSerializat
 	}
 }
 
-void FCustomSerializationDataWriter::WriteObjectAnnotation(const FObjectAnnotator& Writer)
+void UE::LevelSnapshots::Private::FCustomSerializationDataWriter::WriteObjectAnnotation(const FObjectAnnotator& Writer)
 {
 	if (Writer.IsBound())
 	{
 		FMemoryWriter MemoryWriter(SerializationDataGetter_ReadWrite.Execute()->RootAnnotationData, true);
 		FObjectAndNameAsStringProxyArchive RootArchive(MemoryWriter, false);
-		WorldData_ReadOnly.GetSnapshotVersionInfo().ApplyToArchive(RootArchive);
+		WorldData_ReadOnly.SnapshotVersionInfo.ApplyToArchive(RootArchive);
 		Writer.Execute(RootArchive);
 	}
 }
 
-int32 FCustomSerializationDataWriter::AddSubobjectSnapshot(UObject* Subobject)
+int32 UE::LevelSnapshots::Private::FCustomSerializationDataWriter::AddSubobjectSnapshot(UObject* Subobject)
 {
 	if (!ensure(Subobject && Subobject->IsIn(SerializedObject)))
 	{
@@ -191,15 +194,15 @@ int32 FCustomSerializationDataWriter::AddSubobjectSnapshot(UObject* Subobject)
 	}
 
 	FCustomSubbjectSerializationData SubobjectData;
-	SubobjectData.ObjectPathIndex = SnapshotUtil::Object::AddObjectDependency(WorldData_ReadWrite, Subobject, false);
+	SubobjectData.ObjectPathIndex = AddObjectDependency(WorldData_ReadWrite, Subobject, false);
 	const int32 SubobjectIndex = SerializationData->Subobjects.Emplace(
 		MoveTemp(SubobjectData) // Not profiled
 		);
 	// Optimisation: Serialize into the allocated SerializationData directly avoiding a possibly large copy of the serialized data
 	FTakeWorldObjectSnapshotArchive::TakeSnapshot(SerializationData->Subobjects[SubobjectIndex], WorldData_ReadWrite, Subobject);
 	
-	CachedSubobjectMetaData.Add(MakeShared<FSnapshotSubobjectMetaDataManager>(Subobject, SubobjectIndex, WorldData_ReadWrite, SerializationDataGetter_ReadOnly, SerializationDataGetter_ReadWrite));
+	CachedSubobjectMetaData.Add(MakeShared<Internal::FSnapshotSubobjectMetaDataManager>(Subobject, SubobjectIndex, WorldData_ReadWrite, SerializationDataGetter_ReadOnly, SerializationDataGetter_ReadWrite));
 
-	FCustomObjectSerializationWrapper::TakeSnapshotForSubobject(Subobject, WorldData_ReadWrite);
+	TakeSnapshotForSubobject(Subobject, WorldData_ReadWrite);
 	return SubobjectIndex;
 }

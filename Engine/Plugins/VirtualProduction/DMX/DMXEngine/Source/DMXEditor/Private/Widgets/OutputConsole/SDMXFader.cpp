@@ -3,6 +3,7 @@
 #include "SDMXFader.h"
 
 #include "DMXEditorLog.h"
+#include "DMXEditorStyle.h"
 #include "DMXProtocolCommon.h"
 #include "DMXProtocolSettings.h"
 #include "Interfaces/IDMXProtocol.h"
@@ -24,10 +25,6 @@ namespace DMXFader
 {
 	const FSlateFontInfo NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 7);
 	const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-
-	const FLinearColor DefaultFillColor = FLinearColor::FromSRGBColor(FColor::FromHex("00aeef"));
-	const FLinearColor DefaultBackColor = FLinearColor::FromSRGBColor(FColor::FromHex("ffffff"));
-	const FLinearColor DefeaultForeColor = FLinearColor::FromSRGBColor(FColor::FromHex("ffffff"));	
 };
 
 void SDMXFader::Construct(const FArguments& InArgs)
@@ -43,24 +40,6 @@ void SDMXFader::Construct(const FArguments& InArgs)
 
 	SanetizeDMXProperties();
 
-	// Init styles
-	FSlateBrush FillBrush;
-	FillBrush.TintColor = DMXFader::DefaultFillColor;
-
-	FSlateBrush BackBrush;
-	BackBrush.TintColor = DMXFader::DefaultBackColor;
-
-	FSlateBrush ArrowsImage;
-	ArrowsImage.TintColor = FLinearColor::Transparent;
-
-	OutputFaderStyle = FSpinBoxStyle(FCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox"))
-		.SetActiveFillBrush(FillBrush)
-		.SetInactiveFillBrush(FillBrush)
-		.SetBackgroundBrush(BackBrush)
-		.SetHoveredBackgroundBrush(BackBrush)
-		.SetForegroundColor(DMXFader::DefeaultForeColor)
-		.SetArrowsImage(ArrowsImage);
-		
 	ChildSlot
 	.Padding(5.0f, 0.0f)
 	[
@@ -167,7 +146,7 @@ void SDMXFader::Construct(const FArguments& InArgs)
 								.MinSliderValue(0)
 								.MaxSliderValue(DMX_MAX_VALUE)
 								.OnValueChanged(this, &SDMXFader::HandleValueChanged)
-								.Style(&OutputFaderStyle)
+								.Style(FDMXEditorStyle::Get(), "DMXEditor.OutputConsole.Fader")
 								.MinDesiredWidth(30.0f)
 							]
 						]
@@ -211,7 +190,7 @@ void SDMXFader::Select()
 {
 	bSelected = true;
 
-	BackgroundBorder->SetBorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Highlighted"));
+	BackgroundBorder->SetBorderImage(FDMXEditorStyle::Get().GetBrush("DMXEditor.OutputConsole.Fader_Highlighted"));
 
 	FSlateApplication::Get().SetKeyboardFocus(SharedThis(this));
 }
@@ -220,7 +199,7 @@ void SDMXFader::Unselect()
 {
 	bSelected = false;
 
-	BackgroundBorder->SetBorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle"));
+	BackgroundBorder->SetBorderImage(FDMXEditorStyle::Get().GetBrush("DMXEditor.OutputConsole.Fader"));
 }
 
 void SDMXFader::SanetizeDMXProperties()

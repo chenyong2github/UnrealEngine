@@ -128,7 +128,10 @@ public:
 	
 	typedef uint32 FParameter;
 	
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return Parameters.Platform == SP_PCD3D_SM5; }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return FDataDrivenShaderPlatformInfo::GetIsLanguageD3D(Parameters.Platform);
+	}
 	
 	FResolveSingleSamplePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 	FGlobalShader(Initializer)

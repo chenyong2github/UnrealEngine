@@ -34,6 +34,7 @@ public:
 	virtual uint64 GetGraphicsAdapterLuid() override;
 	virtual FString GetAudioInputDevice() override;
 	virtual FString GetAudioOutputDevice() override;
+	virtual FString GetDeviceSystemName() override;
 	virtual TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > CreateTrackingSystem() override;
 	virtual TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > GetVulkanExtensions() override;
 	virtual bool IsStandaloneStereoOnlyDevice() override;
@@ -87,8 +88,6 @@ public:
 		return false;
 #endif
 	}
-
-	FString GetDeviceProfileName();
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	OCULUSHMD_API static void* GetOVRPluginHandle();

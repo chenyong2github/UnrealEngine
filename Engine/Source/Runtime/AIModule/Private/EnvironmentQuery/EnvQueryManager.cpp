@@ -197,7 +197,7 @@ UEnvQueryManager::UEnvQueryManager(const FObjectInitializer& ObjectInitializer) 
 void UEnvQueryManager::PostLoad()
 {
 	Super::PostLoad();
-	MarkPendingKill();
+	MarkAsGarbage();
 }
 
 void UEnvQueryManager::PostInitProperties()
@@ -464,7 +464,11 @@ void UEnvQueryManager::Tick(float DeltaTime)
 					// Always log that we executed total execution time at the end of the query.
 					if (QueryInstancePtr->TotalExecutionTime > ExecutionTimeWarningSeconds)
 					{
-						UE_LOG(LogEQS, Warning, TEXT("Finished query %s over execution time warning. %s"), *QueryInstancePtr->QueryName, *QueryInstancePtr->GetExecutionTimeDescription());
+						UE_LOG(LogEQS, Warning, TEXT("Query %s (Owner: %s) has finished in %.2f ms, exceeding the configured limit of %.2f ms. Execution details: %s"), 
+							*QueryInstancePtr->QueryName, *GetNameSafe(QueryInstancePtr->Owner.Get()), 
+							1000.f * QueryInstancePtr->TotalExecutionTime, 1000.f * ExecutionTimeWarningSeconds, 
+							*QueryInstancePtr->GetExecutionTimeDescription());
+
 						QueryInstancePtr->bHasLoggedTimeLimitWarning = true;
 					}
 
@@ -510,7 +514,11 @@ void UEnvQueryManager::Tick(float DeltaTime)
 
 				if (QueryInstancePtr->TotalExecutionTime > ExecutionTimeWarningSeconds && !QueryInstancePtr->bHasLoggedTimeLimitWarning)
 				{
-					UE_LOG(LogEQS, Warning, TEXT("Query %s over execution time warning. %s"), *QueryInstancePtr->QueryName, *QueryInstancePtr->GetExecutionTimeDescription());
+					UE_LOG(LogEQS, Warning, TEXT("Query %s (Owner: %s) has taken %.2f ms so far, exceeding the configured limit of %.2f ms. Execution details: %s"), 
+						*QueryInstancePtr->QueryName, *GetNameSafe(QueryInstancePtr->Owner.Get()), 
+						1000.f * QueryInstancePtr->TotalExecutionTime, 1000.f * ExecutionTimeWarningSeconds, 
+						*QueryInstancePtr->GetExecutionTimeDescription());
+
 					QueryInstancePtr->bHasLoggedTimeLimitWarning = true;
 				}
 			}

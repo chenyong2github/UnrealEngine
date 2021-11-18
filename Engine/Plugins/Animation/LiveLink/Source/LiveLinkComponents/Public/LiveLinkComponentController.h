@@ -49,6 +49,10 @@ public:
 	// If false, will not evaluate live link, effectively pausing.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
 	bool bEvaluateLiveLink = true;
+
+	// If true, will tick when the world is a preview (i.e Blueprint editors)
+	UPROPERTY(EditAnywhere, Category = "LiveLink", AdvancedDisplay, meta = (EditCondition = "bUpdateInEditor"))
+	bool bUpdateInPreviewEditor = false;
 	
 protected:
 	// Keep track when component gets registered or controller map gets changed

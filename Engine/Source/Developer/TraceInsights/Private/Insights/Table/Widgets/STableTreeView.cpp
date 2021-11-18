@@ -206,85 +206,12 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
 
-	TSharedPtr<SHorizontalBox> ToolbarBox;
+	auto WidgetContent = SNew(SVerticalBox);
 
-	auto WidgetContent =
-	SNew(SVerticalBox)
-
-	+ SVerticalBox::Slot()
-	.VAlign(VAlign_Center)
-	.AutoHeight()
-	.Padding(2.0f, 2.0f, 2.0f, 2.0f)
-	[
-		SNew(SVerticalBox)
-
-		// Search box
-		+ SVerticalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(2.0f)
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0)
-			.VAlign(VAlign_Center)
-			[
-				SAssignNew(SearchBox, SSearchBox)
-				.HintText(LOCTEXT("SearchBox_Hint", "Search"))
-				.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
-				.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
-				.ToolTipText(this, &STableTreeView::SearchBox_GetTooltipText)
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("AdvancedFiltersBtn_Text", "Advanced Filters"))
-				.ToolTipText(this, &STableTreeView::AdvancedFilters_GetTooltipText)
-				.OnClicked(this, &STableTreeView::OnAdvancedFiltersClicked)
-				.IsEnabled(this, &STableTreeView::AdvancedFilters_ShouldBeEnabled)
-			]
-		]
-
-		// Group by
-		+ SVerticalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(2.0f)
-		.AutoHeight()
-		[
-			SAssignNew(ToolbarBox, SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("GroupByText", "Hierarchy:"))
-				.Margin(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-			]
-
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.VAlign(VAlign_Center)
-			[
-				SAssignNew(GroupingBreadcrumbTrail, SBreadcrumbTrail<TSharedPtr<FTreeNodeGrouping>>)
-				.ButtonContentPadding(FMargin(1.0f, 1.0f))
-				//.DelimiterImage(FEditorStyle::GetBrush("SlateFileDialogs.PathDelimiter"))
-				//.TextStyle(FEditorStyle::Get(), "Tutorials.Browser.PathText")
-				//.ShowLeadingDelimiter(true)
-				//.PersistentBreadcrumbs(true)
-				.OnCrumbClicked(this, &STableTreeView::OnGroupingCrumbClicked)
-				.GetCrumbMenuContent(this, &STableTreeView::GetGroupingCrumbMenuContent)
-			]
-		]
-	]
+	ConstructHeaderArea(WidgetContent);
 
 	// Tree view
-	+ SVerticalBox::Slot()
+	WidgetContent->AddSlot()
 	.FillHeight(1.0f)
 	.Padding(0.0f, 6.0f, 0.0f, 0.0f)
 	[
@@ -338,28 +265,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 		]
 	];
 
-	TSharedPtr<SWidget> Toolbar = ConstructToolbar();
-	if (Toolbar.IsValid())
-	{
-		ToolbarBox->AddSlot()
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			.Padding(0.0f)
-			[
-				Toolbar.ToSharedRef()
-			];
-	}
-
-	TSharedPtr<SWidget> Footer = ConstructFooter();
-	if (Footer.IsValid())
-	{
-		WidgetContent->AddSlot()
-		.AutoHeight()
-		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
-		[
-			Footer.ToSharedRef()
-		];
-	}
+	ConstructFooterArea(WidgetContent);
 
 	ChildSlot
 	[
@@ -387,6 +293,156 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &STableTreeView::InsightsManager_OnSessionChanged);
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> STableTreeView::ConstructSearchBox()
+{
+	SAssignNew(SearchBox, SSearchBox)
+		.HintText(LOCTEXT("SearchBox_Hint", "Search"))
+		.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
+		.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
+		.ToolTipText(this, &STableTreeView::SearchBox_GetTooltipText);
+
+	return SearchBox.ToSharedRef();
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> STableTreeView::ConstructAdvancedFiltersButton()
+{
+	return SNew(SButton)
+		.ContentPadding(FMargin(-2.0f, 2.0f, -2.0f, 2.0f))
+		//.Text(LOCTEXT("AdvancedFiltersBtn_Text", "Advanced Filters"))
+		.ToolTipText(this, &STableTreeView::AdvancedFilters_GetTooltipText)
+		.OnClicked(this, &STableTreeView::OnAdvancedFiltersClicked)
+		.IsEnabled(this, &STableTreeView::AdvancedFilters_ShouldBeEnabled)
+		[
+			SNew(SImage)
+			.Image(FInsightsStyle::GetBrush("Icons.ClassicFilterConfig"))
+		];
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+TSharedRef<SWidget> STableTreeView::ConstructHierarchyBreadcrumbTrail()
+{
+	return SNew(SHorizontalBox)
+
+	+ SHorizontalBox::Slot()
+	.AutoWidth()
+	.VAlign(VAlign_Center)
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("GroupByText", "Hierarchy:"))
+		.Margin(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+	]
+
+	+ SHorizontalBox::Slot()
+	.FillWidth(1.0f)
+	.VAlign(VAlign_Center)
+	[
+		SAssignNew(GroupingBreadcrumbTrail, SBreadcrumbTrail<TSharedPtr<FTreeNodeGrouping>>)
+		.ButtonContentPadding(FMargin(1.0f, 1.0f))
+		//.DelimiterImage(FInsightsStyle::GetBrush("HierarchyPathDelimiter"))
+		//.TextStyle(FInsightsStyle::Get(), "HierarchyPathText")
+		//.ShowLeadingDelimiter(true)
+		//.PersistentBreadcrumbs(true)
+		.OnCrumbClicked(this, &STableTreeView::OnGroupingCrumbClicked)
+		.GetCrumbMenuContent(this, &STableTreeView::GetGroupingCrumbMenuContent)
+	];
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+void STableTreeView::ConstructHeaderArea(TSharedRef<SVerticalBox> InWidgetContent)
+{
+	InWidgetContent->AddSlot()
+	.VAlign(VAlign_Center)
+	.AutoHeight()
+	.Padding(2.0f)
+	[
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.VAlign(VAlign_Center)
+		[
+			ConstructSearchBox()
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			ConstructAdvancedFiltersButton()
+		]
+	];
+
+	TSharedPtr<SWidget> ToolbarWidget = ConstructToolbar();
+	if (ToolbarWidget)
+	{
+		InWidgetContent->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoHeight()
+		.Padding(2.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				ConstructHierarchyBreadcrumbTrail()
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				ToolbarWidget.ToSharedRef()
+			]
+		];
+	}
+	else
+	{
+		InWidgetContent->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoHeight()
+		.Padding(2.0f)
+		[
+			ConstructHierarchyBreadcrumbTrail()
+		];
+	}
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+void STableTreeView::ConstructFooterArea(TSharedRef<SVerticalBox> InWidgetContent)
+{
+	TSharedPtr<SWidget> FooterWidget = ConstructFooter();
+	if (FooterWidget.IsValid())
+	{
+		InWidgetContent->AddSlot()
+		.AutoHeight()
+		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+		[
+			FooterWidget.ToSharedRef()
+		];
+	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -2934,20 +2990,6 @@ FText STableTreeView::AdvancedFilters_GetTooltipText() const
 bool STableTreeView::FilterConfigurator_HasFilters() const
 {
 	return FilterConfigurator.IsValid() && FilterConfigurator->GetRootNode()->GetChildren().Num() > 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedPtr<SWidget> STableTreeView::ConstructToolbar()
-{
-	return nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedPtr<SWidget> STableTreeView::ConstructFooter()
-{
-	return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

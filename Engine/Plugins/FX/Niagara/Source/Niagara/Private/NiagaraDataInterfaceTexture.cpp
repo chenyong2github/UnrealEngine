@@ -415,7 +415,7 @@ public:
 				SamplerStateRHI,
 				TextureDI->ResolvedTextureRHI
 			);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector2D(TextureDI->TexDims.X, TextureDI->TexDims.Y));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector2f(TextureDI->TexDims.X, TextureDI->TexDims.Y));
 		}
 		else
 		{
@@ -428,7 +428,7 @@ public:
 				GBlackTexture->TextureRHI
 			);
 			FVector2D TexDims(EForceInit::ForceInitToZero);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector2D::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, FVector2f::ZeroVector);
 		}
 	}
 

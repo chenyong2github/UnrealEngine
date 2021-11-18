@@ -163,7 +163,8 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseRotator(const FString& Source, FRotator& OutVal);
+	static bool ParseRotator(const FString& Source, FRotator3f& OutVal);
+	static bool ParseRotator(const FString& Source, FRotator3d& OutVal);
 
 	/**
 	 * Converts a string into a FLinearColor. 

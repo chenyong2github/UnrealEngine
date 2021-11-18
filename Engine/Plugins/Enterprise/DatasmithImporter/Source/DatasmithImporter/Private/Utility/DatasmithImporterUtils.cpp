@@ -433,7 +433,7 @@ void FDatasmithImporterUtils::DeleteActor( AActor& Actor )
 
 void FDatasmithImporterUtils::AddUniqueLayersToWorld(UWorld* World, const TSet< FName >& LayerNames)
 {
-	if (!World || World->IsPendingKillOrUnreachable() || LayerNames.Num() == 0)
+	if (!World || !IsValidChecked(World) || World->IsUnreachable() || LayerNames.Num() == 0)
 	{
 		return;
 	}
@@ -1351,7 +1351,7 @@ UStaticMesh* FDatasmithImporterUtils::DuplicateStaticMesh(UStaticMesh* SourceSta
 	{
 		// The source mesh is stripped from it's source model, it is not buildable anymore.
 		// -> MarkPendingKill to avoid use-after-move crash in the StaticMesh::Build()
-		SourceStaticMesh->MarkPendingKill();
+		SourceStaticMesh->MarkAsGarbage();
 
 		// Apply source models to the duplicated mesh
 		DuplicateMesh->SetSourceModels(MoveTemp(SourceModels));

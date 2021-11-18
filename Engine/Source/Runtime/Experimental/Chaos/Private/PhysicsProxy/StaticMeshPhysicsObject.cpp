@@ -222,8 +222,8 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::FImplicitObject>(Capsule));
 			if (!Parameters.MeshVertexPositions.Size())
 			{
-				float HalfHeight = Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X;
-				float Radius = Parameters.ShapeParams.CapsuleHalfHeightAndRadius.Y;
+				FVector2D::FReal HalfHeight = Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X;
+				FVector2D::FReal Radius = Parameters.ShapeParams.CapsuleHalfHeightAndRadius.Y;
 
 				Parameters.MeshVertexPositions.AddParticles(14);
 				Parameters.MeshVertexPositions.X(0) = Chaos::FVec3(HalfHeight + Radius, 0, 0);

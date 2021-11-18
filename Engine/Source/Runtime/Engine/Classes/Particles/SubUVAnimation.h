@@ -55,7 +55,7 @@ enum EOpacitySourceMode
 class ENGINE_API FSubUVDerivedData
 {
 public:
-	TArray<FVector2D> BoundingGeometry;
+	TArray<FVector2f> BoundingGeometry;
 
 	static FString GetDDCKeyString(const FGuid& StateId, int32 SizeX, int32 SizeY, int32 Mode, float AlphaThreshold, int32 OpacitySourceMode);
 	static void GetFeedback(UTexture2D* SubUVTexture, int32 SubImages_Horizontal, int32 SubImages_Vertical, ESubUVBoundingVertexCount BoundingMode, float AlphaThreshold, EOpacitySourceMode OpacitySourceMode,
@@ -67,10 +67,10 @@ public:
 class FSubUVBoundingGeometryBuffer : public FVertexBuffer
 {
 public:
-	TArray<FVector2D>* Vertices;
+	TArray<FVector2f>* Vertices;
 	FShaderResourceViewRHIRef ShaderResourceView;
 
-	FSubUVBoundingGeometryBuffer(TArray<FVector2D>* InVertices)
+	FSubUVBoundingGeometryBuffer(TArray<FVector2f>* InVertices)
 	{
 		Vertices = InVertices;
 	}
@@ -190,7 +190,7 @@ public:
 		return DerivedData.BoundingGeometry.Num() != 0;
 	}
 
-	inline const FVector2D* GetFrameData(int32 FrameIndex) const
+	inline const FVector2f* GetFrameData(int32 FrameIndex) const
 	{
 		return &DerivedData.BoundingGeometry[FrameIndex * GetNumBoundingVertices()];
 	}

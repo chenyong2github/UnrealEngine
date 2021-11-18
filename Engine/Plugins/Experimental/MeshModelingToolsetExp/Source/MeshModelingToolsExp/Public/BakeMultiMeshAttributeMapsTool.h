@@ -11,7 +11,6 @@
 #include "Sampling/MeshMapBaker.h"
 #include "Scene/MeshSceneAdapter.h"
 #include "ModelingOperators.h"
-#include "MeshOpPreviewHelpers.h"
 #include "PreviewMesh.h"
 #include "BakeMeshAttributeMapsToolBase.h"
 #include "BakeMultiMeshAttributeMapsTool.generated.h"
@@ -40,45 +39,37 @@ class MESHMODELINGTOOLSEXP_API UBakeMultiMeshAttributeMapsToolProperties : publi
 
 public:
 	/** The map types to generate */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(Bitmask, BitmaskEnum=EBakeMapType, ValidEnumValues="TangentSpaceNormal, Texture"))
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(DisplayName="Output Types", Bitmask, BitmaskEnum=EBakeMapType,
+		ValidEnumValues="TangentSpaceNormal, Texture"))
 	int32 MapTypes = (int32) EBakeMapType::None;
 
 	/** The map type index to preview */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta=(TransientToolProperty, GetOptions = GetMapPreviewNamesFunc))
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(DisplayName="Preview Output Type", TransientToolProperty, GetOptions = GetMapPreviewNamesFunc,
+		EditCondition = "MapTypes != 0"))
 	FString MapPreview;
 
 	/** The pixel resolution of the generated map */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
+	UPROPERTY(EditAnywhere, Category = Textures, meta = (TransientToolProperty))
 	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution256;
 
 	/** The channel bit depth of the source data for the generated textures */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty))
-	EBakeTextureFormat SourceFormat = EBakeTextureFormat::ChannelBits8;
+	UPROPERTY(EditAnywhere, Category = Textures, meta = (TransientToolProperty))
+	EBakeTextureBitDepth BitDepth = EBakeTextureBitDepth::ChannelBits8;
 
-	/** The multisampling configuration per texel */
-	UPROPERTY(EditAnywhere, Category = MapSettings)
-	EBakeMultisampling Multisampling = EBakeMultisampling::None;
-
-	/** Distance to search for the correspondence between the source and target meshes */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = "0.001"))
-	float Thickness = 3.0;
-
-	/** The base mesh UV layer to use to create the map */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (GetOptions = GetUVLayerNamesFunc))
-	FString UVLayer;
+	/** Number of samples per pixel */
+	UPROPERTY(EditAnywhere, Category = Textures)
+	EBakeTextureSamplesPerPixel SamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
 
 	UFUNCTION()
-	TArray<FString> GetUVLayerNamesFunc();
-	UPROPERTY(meta = (TransientToolProperty))
-	TArray<FString> UVLayerNamesList;
-
-	UFUNCTION()
-	const TArray<FString>& GetMapPreviewNamesFunc();
+	const TArray<FString>& GetMapPreviewNamesFunc()
+	{
+		return MapPreviewNamesList;
+	}
 	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> MapPreviewNamesList;
 	TMap<FString, FString> MapPreviewNamesMap;
 
-	UPROPERTY(VisibleAnywhere, Category = MapSettings, meta = (TransientToolProperty))
+	UPROPERTY(VisibleAnywhere, Category = Textures, meta = (DisplayName = "Results", TransientToolProperty))
 	TMap<EBakeMapType, TObjectPtr<UTexture2D>> Result;
 
 };
@@ -89,28 +80,55 @@ struct MESHMODELINGTOOLSEXP_API FBakeMultiMeshDetailProperties
 {
 	GENERATED_BODY()
 
-	/** The detail mesh to sample */
-	UPROPERTY(VisibleAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
-	TObjectPtr<UStaticMesh> DetailMesh = nullptr;
+	/** Source mesh to sample from */
+	UPROPERTY(VisibleAnywhere, Category = BakeSources, meta = (TransientToolProperty))
+	TObjectPtr<UStaticMesh> SourceMesh = nullptr;
 
-	/** The detail mesh normal map to sample. If empty, the geometric normals will be used. */
-	UPROPERTY(EditAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
-	TObjectPtr<UTexture2D> DetailColorMap = nullptr;
+	/** Source mesh color texture that is to be resampled into a new texture */
+	UPROPERTY(EditAnywhere, Category = BakeSources, meta = (TransientToolProperty,
+		EditCondition="SourceMesh != nullptr"))
+	TObjectPtr<UTexture2D> SourceTexture = nullptr;
 
-	/** UV layer to sample from on the detail mesh */
-	UPROPERTY(EditAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
-	int32 DetailColorMapUVLayer = 0;
+	/** UV channel to use for the source mesh color texture */
+	UPROPERTY(EditAnywhere, Category = BakeSources, meta = (TransientToolProperty, DisplayName = "Source Texture UV Channel",
+		EditCondition="SourceTexture != nullptr"))
+	int32 SourceTextureUVLayer = 0;
 };
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeMultiMeshDetailToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UBakeMultiMeshInputToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (TransientToolProperty, EditFixedSize))
-	TArray<FBakeMultiMeshDetailProperties> DetailProperties;
+	/** Target mesh to sample to */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Target Mesh", meta = (TransientToolProperty))
+	TObjectPtr<UStaticMesh> TargetStaticMesh = nullptr;
+
+	/** UV channel to use for the target mesh */
+	UPROPERTY(EditAnywhere, Category = BakeInput, meta = (DisplayName = "Target Mesh UV Channel",
+		GetOptions = GetTargetUVLayerNamesFunc, TransientToolProperty, NoResetToDefault))
+	FString TargetUVLayer;
+
+	/** Source meshes and textures to sample from */
+	UPROPERTY(EditAnywhere, EditFixedSize, Category = BakeInput, meta = (TransientToolProperty, EditFixedOrder))
+	TArray<FBakeMultiMeshDetailProperties> SourceMeshes;
+
+	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
+	 * This is only relevant if a separate source mesh is provided. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = BakeInput, meta = (ClampMin = "0.001",
+		EditCondition = "SourceStaticMesh != nullptr", HideEditConditionToggle))
+	float ProjectionDistance = 3.0;
+
+	UFUNCTION()
+	const TArray<FString>& GetTargetUVLayerNamesFunc() const
+	{
+		return TargetUVLayerNamesList;
+	}
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> TargetUVLayerNamesList;
 };
 
 
@@ -165,7 +183,7 @@ protected:
 	TObjectPtr<UBakeMultiMeshAttributeMapsToolProperties> Settings;
 
 	UPROPERTY()
-	TObjectPtr<UBakeMultiMeshDetailToolProperties> DetailProps;
+	TObjectPtr<UBakeMultiMeshInputToolProperties> InputMeshProps;
 
 
 protected:

@@ -225,6 +225,15 @@ namespace Chaos
 		return 0;
 	}
 
+	int32 FConvex::GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const
+	{
+		if (StructureData.IsValid())
+		{
+			return StructureData.GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
+		}
+		return 0;
+	}
+
 	int32 FConvex::NumPlaneVertices(int32 PlaneIndex) const
 	{
 		if (StructureData.IsValid())

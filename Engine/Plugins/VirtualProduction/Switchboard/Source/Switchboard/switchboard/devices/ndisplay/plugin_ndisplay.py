@@ -465,17 +465,17 @@ class DevicenDisplay(DeviceUnreal):
             #   Engine\Plugins\Runtime\nDisplay\Source\DisplayCluster\
             #   Private\Misc\DisplayClusterLog.cpp
             categories=[
-                'LogDisplayClusterEngine',
-                'LogDisplayClusterModule',
+                'LogConcert',
                 'LogDisplayClusterCluster',
                 'LogDisplayClusterConfig',
+                'LogDisplayClusterEngine',
                 'LogDisplayClusterGame',
                 'LogDisplayClusterNetwork',
-                'LogDisplayClusterNetworkMsg',
                 'LogDisplayClusterRender',
                 'LogDisplayClusterRenderSync',
                 'LogDisplayClusterViewport',
-                'LogDisplayClusterBlueprint'
+                'LogLiveLink',
+                'LogRemoteControl',
             ],
             tool_tip='Logging categories and verbosity levels'
         ),
@@ -749,7 +749,7 @@ class DevicenDisplay(DeviceUnreal):
         session_id = f"-StageSessionId={session_id}" if session_id > 0 else ''
 
         # Friendly name. Avoid spaces to avoid parsing issues.
-        friendly_name = f'-StageFriendlyName={self.name.replace(" ", "_")}'
+        friendly_name = f'-StageFriendlyName="{self.name.replace(" ", "_")}"'
 
         # Unattended mode
         unattended = (
@@ -860,11 +860,26 @@ class DevicenDisplay(DeviceUnreal):
                 '-CONCERTAUTOCONNECT'])
 
         args.extend([
-            f'-CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME}',
-            f'-CONCERTSESSION={SETTINGS.MUSERVER_SESSION_NAME}',
-            f'-CONCERTDISPLAYNAME={self.name}',
+            f'-CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME}"',
+            f'-CONCERTSESSION="{SETTINGS.MUSERVER_SESSION_NAME}"',
+            f'-CONCERTDISPLAYNAME="{self.name}"',
             '-CONCERTISHEADLESS',
         ])
+
+        # Insights traces parameters
+        if CONFIG.INSIGHTS_TRACE_ENABLE.get_value():
+
+            LOGGER.warning(f"Unreal Insight Tracing is enabled for '{self.name}'. This may effect Unreal Engine performance.")
+
+            remote_utrace_path = self.get_utrace_filepath()
+
+            args.extend([
+                f'-tracefile="{remote_utrace_path}"',
+                f'-trace="{CONFIG.INSIGHTS_TRACE_ARGS.get_value()}"'
+            ])
+
+            if CONFIG.INSIGHTS_STAT_EVENTS.get_value():
+                args.append("-statnamedevents")
 
         args.append(self.csettings['logging'].get_command_line_arg(
             override_device_name=self.name))

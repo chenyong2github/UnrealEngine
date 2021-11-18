@@ -4,7 +4,7 @@
 #include "Render/Viewport/Containers/DisplayClusterViewport_OverscanSettings.h"
 #include "Render/Viewport/DisplayClusterViewport.h"
 
-static TAutoConsoleVariable<int> CVarDisplayClusterRenderCustomFrustumEnable(
+static TAutoConsoleVariable<int32> CVarDisplayClusterRenderCustomFrustumEnable(
 	TEXT("nDisplay.render.custom_frustum.enable"),
 	1,
 	TEXT("Enable custom frustum feature.\n")
@@ -34,51 +34,38 @@ bool FImplDisplayClusterViewport_CustomFrustum::UpdateProjectionAngles(float& In
 void FImplDisplayClusterViewport_CustomFrustum::Update(FDisplayClusterViewport& Viewport, FIntRect& InOutRenderTargetRect)
 {
 	// Disable CustomFrustum feature from console
-	if (CVarDisplayClusterRenderCustomFrustumEnable.GetValueOnGameThread() == 0)
+	if ((CustomFrustumSettings.Mode == EDisplayClusterViewport_CustomFrustumMode::Disabled) || (CVarDisplayClusterRenderCustomFrustumEnable.GetValueOnGameThread() == 0))
 	{
 		return;
 	}
 
+	RuntimeSettings.bIsEnabled = true;
 	const FIntPoint Size = InOutRenderTargetRect.Size();
 
-	switch (CustomFrustumSettings.Mode)
+	if (CustomFrustumSettings.Mode == EDisplayClusterViewport_CustomFrustumMode::Percent)
 	{
-		case EDisplayClusterViewport_CustomFrustumMode::Percent:
-		{
-			RuntimeSettings.bIsEnabled = true;
-
-			RuntimeSettings.CustomFrustumPercent.Left   = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Left);
-			RuntimeSettings.CustomFrustumPercent.Right  = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Right);
-			RuntimeSettings.CustomFrustumPercent.Top    = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Top);
-			RuntimeSettings.CustomFrustumPercent.Bottom = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Bottom);
-			break;
-		}
-
-		case EDisplayClusterViewport_CustomFrustumMode::Pixels:
-		{
-			RuntimeSettings.bIsEnabled = true;
-
-			RuntimeSettings.CustomFrustumPercent.Left   = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Left   / Size.X);
-			RuntimeSettings.CustomFrustumPercent.Right  = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Right  / Size.X);
-			RuntimeSettings.CustomFrustumPercent.Top    = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Top    / Size.Y);
-			RuntimeSettings.CustomFrustumPercent.Bottom = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Bottom / Size.Y);
-
-			break;
-		}
-
-		default:
-			break;
+		RuntimeSettings.CustomFrustumPercent.Left = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Left);
+		RuntimeSettings.CustomFrustumPercent.Right = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Right);
+		RuntimeSettings.CustomFrustumPercent.Top = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Top);
+		RuntimeSettings.CustomFrustumPercent.Bottom = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Bottom);
+	}
+	else if (CustomFrustumSettings.Mode == EDisplayClusterViewport_CustomFrustumMode::Pixels)
+	{
+		RuntimeSettings.CustomFrustumPercent.Left   = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Left   / Size.X);
+		RuntimeSettings.CustomFrustumPercent.Right  = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Right  / Size.X);
+		RuntimeSettings.CustomFrustumPercent.Top    = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Top    / Size.Y);
+		RuntimeSettings.CustomFrustumPercent.Bottom = FDisplayClusterViewport_OverscanSettings::ClampPercent(CustomFrustumSettings.Bottom / Size.Y);
 	}
 
-	// Update RTT size for CustomFrustum
-	if (RuntimeSettings.bIsEnabled)
-	{
-		// Calc pixels from percent
-		RuntimeSettings.CustomFrustumPixels.Left   = FMath::RoundToInt(Size.X * RuntimeSettings.CustomFrustumPercent.Left);
-		RuntimeSettings.CustomFrustumPixels.Right  = FMath::RoundToInt(Size.X * RuntimeSettings.CustomFrustumPercent.Right);
-		RuntimeSettings.CustomFrustumPixels.Top    = FMath::RoundToInt(Size.Y * RuntimeSettings.CustomFrustumPercent.Top);
-		RuntimeSettings.CustomFrustumPixels.Bottom = FMath::RoundToInt(Size.Y * RuntimeSettings.CustomFrustumPercent.Bottom);
+	// Calc pixels from percent
+	RuntimeSettings.CustomFrustumPixels.Left   = FMath::RoundToInt(Size.X * RuntimeSettings.CustomFrustumPercent.Left);
+	RuntimeSettings.CustomFrustumPixels.Right  = FMath::RoundToInt(Size.X * RuntimeSettings.CustomFrustumPercent.Right);
+	RuntimeSettings.CustomFrustumPixels.Top    = FMath::RoundToInt(Size.Y * RuntimeSettings.CustomFrustumPercent.Top);
+	RuntimeSettings.CustomFrustumPixels.Bottom = FMath::RoundToInt(Size.Y * RuntimeSettings.CustomFrustumPercent.Bottom);
 
+	// Update RTT size for CustomFrustum when we need to scale target resolution
+	if (CustomFrustumSettings.bAdaptResolution)
+	{
 		const FIntPoint CustomFrustumSize = Size + RuntimeSettings.CustomFrustumPixels.Size();
 		const FIntPoint ValidCustomFrustumSize = Viewport.GetValidRect(FIntRect(FIntPoint(0, 0), CustomFrustumSize), TEXT("CustomFrustum")).Size();
 

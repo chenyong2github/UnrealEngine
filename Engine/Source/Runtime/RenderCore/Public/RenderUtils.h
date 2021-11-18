@@ -220,16 +220,16 @@ public:
 	{
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo(TEXT("FScreenSpaceVertexBuffer"));
-		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector2D) * 4, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector2D) * 4, RLM_WriteOnly);
-		static const FVector2D Vertices[4] =
+		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector2f) * 4, BUF_Static, CreateInfo);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector2f) * 4, RLM_WriteOnly);
+		static const FVector2f Vertices[4] =
 		{
-			FVector2D(-1,-1),
-			FVector2D(-1,+1),
-			FVector2D(+1,-1),
-			FVector2D(+1,+1),
+			FVector2f(-1,-1),
+			FVector2f(-1,+1),
+			FVector2f(+1,-1),
+			FVector2f(+1,+1),
 		};
-		FMemory::Memcpy(VoidPtr, Vertices, sizeof(FVector2D) * 4);
+		FMemory::Memcpy(VoidPtr, Vertices, sizeof(FVector2f) * 4);
 		RHIUnlockBuffer(VertexBufferRHI);
 	}
 };
@@ -247,7 +247,7 @@ public:
 	virtual void InitRHI()
 	{
 		FVertexDeclarationElementList Elements;
-		uint16 Stride = sizeof(FVector2D);
+		uint16 Stride = sizeof(FVector2f);
 		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, Stride, false));
 		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
 	}
@@ -675,10 +675,7 @@ inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFe
 	const bool bPlatformSupportsNanite = DoesPlatformSupportNanite(ShaderPlatform);
 	const bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
 
-	// TODO: VSMs not currently working on Vulkan for some platforms, re-enable when UE-129831 passes
-	const bool bVulkanSM5 = ShaderPlatform == SP_VULKAN_SM5;
-
-	return bVirtualShadowMapsEnabled && bPlatformSupportsNanite && bUseGPUScene && !bForwardShadingEnabled && !bVulkanSM5;
+	return bVirtualShadowMapsEnabled && bPlatformSupportsNanite && bUseGPUScene && !bForwardShadingEnabled;
 }
 
 /**
@@ -701,3 +698,8 @@ RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatur
  *  Checks if the non-pipeline shaders will not be compild and ones from FShaderPipeline used instead.
  */
 RENDERCORE_API bool ExcludeNonPipelinedShaderTypes(EShaderPlatform ShaderPlatform);
+
+/**
+ *   Checks if skin cache shaders are enabled for the platform (via r.SkinCache.CompileShaders)
+ */
+RENDERCORE_API bool AreSkinCacheShadersEnabled(EShaderPlatform Platform);

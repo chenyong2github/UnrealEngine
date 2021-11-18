@@ -27,6 +27,7 @@ namespace UE::Zen {
 	struct FZenEndPointStats
 	{
 		FString Name;
+		FString Url;
 		FString Health;
 		double HitRatio = 0.0;
 		double DownloadedMB = 0;

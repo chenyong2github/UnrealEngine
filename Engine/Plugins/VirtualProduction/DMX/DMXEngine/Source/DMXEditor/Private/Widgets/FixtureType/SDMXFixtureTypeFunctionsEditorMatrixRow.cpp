@@ -9,6 +9,7 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Widgets/FixtureType/DMXFixtureTypeFunctionsEditorFunctionItem.h"
 #include "Widgets/FixtureType/DMXFixtureTypeFunctionsEditorMatrixItem.h"
+#include "Widgets/FixtureType/SDMXFixtureTypeFunctionsEditor.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeFunctionsEditorFunctionRow.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeMatrixFunctionsEditor.h"
 
@@ -59,7 +60,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorMatrixRow::GenerateWidgetForCo
 		TWeakObjectPtr<UDMXEntityFixtureType> FixtureType = MatrixItem->GetFixtureType();
 		const int32 ModeIndex = MatrixItem->GetModeIndex();
 
-		if (ColumnName == "Status")
+		if (ColumnName == FDMXFixtureTypeFunctionsEditorCollumnIDs::Status)
 		{
 			return
 				SNew(SBorder)
@@ -96,7 +97,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorMatrixRow::GenerateWidgetForCo
 						})
 				];
 		}
-		else if (ColumnName == "Channel")
+		else if (ColumnName == FDMXFixtureTypeFunctionsEditorCollumnIDs::Channel)
 		{
 			return
 				SNew(SBorder)
@@ -116,7 +117,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorMatrixRow::GenerateWidgetForCo
 					.IsSelected(IsSelected)
 				];
 		}
-		else if (ColumnName == "Name")
+		else if (ColumnName == FDMXFixtureTypeFunctionsEditorCollumnIDs::Name)
 		{
 			return
 				SNew(SBorder)
@@ -174,7 +175,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorMatrixRow::GenerateWidgetForCo
 					]
 				];
 		}
-		else if (ColumnName == "Attribute")
+		else if (ColumnName == FDMXFixtureTypeFunctionsEditorCollumnIDs::Attribute)
 		{
 			return
 				SNew(SBorder)

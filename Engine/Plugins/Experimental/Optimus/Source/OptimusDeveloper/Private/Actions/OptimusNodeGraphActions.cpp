@@ -2,6 +2,7 @@
 
 #include "OptimusNodeGraphActions.h"
 
+#include "IOptimusDeveloperModule.h"
 #include "IOptimusNodeGraphCollectionOwner.h"
 #include "Nodes/OptimusNode_ComputeKernelFunction.h"
 #include "Nodes/OptimusNode_CustomComputeKernel.h"
@@ -133,7 +134,7 @@ bool FOptimusNodeGraphAction_RemoveGraph::Undo(IOptimusNodeGraphCollectionOwner*
 	else
 	{
 		Graph->Rename(nullptr, GetTransientPackage());
-		Graph->MarkPendingKill();
+		Graph->MarkAsGarbage();
 		return false;
 	}
 }
@@ -601,8 +602,13 @@ bool FOptimusNodeGraphAction_PackageKernelFunction::Do(IOptimusNodeGraphCollecti
 	{
 		return false;
 	}
-
-	//  FIXME: This packaging action should only create the class. We need action piping.
+	
+	// Notify the world that we've added a new node class. This updates the node palette, among
+	// other things.
+	Graph->GetOwnerCollection()->GetNotifyDelegate().Broadcast(EOptimusGlobalNotifyType::NodeTypeAdded, PackagedNodeClass);
+	
+	// FIXME: This packaging action should only create the class. We need action chaining with
+	// argument piping.
 	NodeClassName = PackagedNodeClass->GetName();
 
 	UOptimusNode *Node = Graph->CreateNodeDirect(PackagedNodeClass, NodeName, 
@@ -645,7 +651,16 @@ bool FOptimusNodeGraphAction_PackageKernelFunction::Undo(IOptimusNodeGraphCollec
 		return false;
 	}
 
-	return NodeClass->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional);
+	if (!NodeClass->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional))
+	{
+		return false;
+	}
+
+	// Notify the world that we've removed the class. We do this after shuffling it into the transient
+	// package so that it can be filtered out by UOptimusNode::GetAllNodeClasses.
+	Graph->GetOwnerCollection()->GetNotifyDelegate().Broadcast(EOptimusGlobalNotifyType::NodeTypeRemoved, NodeClass);
+
+	return true;
 }
 
 

@@ -117,7 +117,7 @@ public:
 
 	virtual ~FDatasmithMaterialExpressionImpl() = default;
 
-	virtual EDatasmithMaterialExpressionType GetExpressionType() const override { return static_cast<EDatasmithMaterialExpressionType>( this->Subtype.Get( this->Store ) ); }
+	virtual EDatasmithMaterialExpressionType GetExpressionType() const override { return static_cast<EDatasmithMaterialExpressionType>(this->Subtype.Get()); }
 
 	virtual bool IsSubType( const EDatasmithMaterialExpressionType ExpressionType ) const override
 	{ return this->IsSubTypeInternal( (uint64)ExpressionType ); }
@@ -174,7 +174,7 @@ public:
 		this->Store.RegisterParameter( GroupName, "GroupName" );
 	}
 
-	virtual const TCHAR* GetGroupName() const override { return *GroupName.Get( this->Store ); }
+	virtual const TCHAR* GetGroupName() const override { return *GroupName.Get(); }
 	virtual void SetGroupName( const TCHAR* InGroupName ) override { GroupName = InGroupName; }
 
 protected:
@@ -202,13 +202,13 @@ class FDatasmithMaterialExpressionBoolImpl : public FDatasmithExpressionParamete
 public:
 	FDatasmithMaterialExpressionBoolImpl();
 
-	virtual bool& GetBool() override { return bValue.Edit( Store ); }
-	virtual const bool& GetBool() const override { return bValue.Get( Store ); }
+	virtual bool& GetBool() override { return bValue; }
+	virtual const bool& GetBool() const override { return bValue; }
 
 	virtual void ResetExpressionImpl() override
 	{
-		GroupName.Edit(Store).Reset();
-		bValue.Edit(Store) = false;
+		GroupName = FString();
+		bValue = false;
 	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
@@ -238,13 +238,13 @@ class FDatasmithMaterialExpressionColorImpl : public FDatasmithExpressionParamet
 public:
 	FDatasmithMaterialExpressionColorImpl();
 
-	virtual FLinearColor& GetColor() override { return LinearColor.Edit( Store ); }
-	virtual const FLinearColor& GetColor() const override { return LinearColor.Get( Store ); }
+	virtual FLinearColor& GetColor() override { return LinearColor; }
+	virtual const FLinearColor& GetColor() const override { return LinearColor; }
 
 	virtual void ResetExpressionImpl() override
 	{
-		GroupName.Edit(Store).Reset();
-		LinearColor.Edit(Store) = FLinearColor();
+		GroupName = FString();
+		LinearColor = FLinearColor();
 	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
@@ -274,13 +274,13 @@ class FDatasmithMaterialExpressionScalarImpl : public FDatasmithExpressionParame
 public:
 	FDatasmithMaterialExpressionScalarImpl();
 
-	virtual float& GetScalar() override { return Scalar.Edit( Store ); }
-	virtual const float& GetScalar() const override { return Scalar.Get( Store ); }
+	virtual float& GetScalar() override { return Scalar; }
+	virtual const float& GetScalar() const override { return Scalar; }
 
 	virtual void ResetExpressionImpl() override
 	{
-		GroupName.Edit(Store).Reset();
-		Scalar.Edit(Store) = 0;
+		GroupName = FString();
+		Scalar = 0;
 	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
@@ -310,7 +310,7 @@ class FDatasmithMaterialExpressionTextureImpl : public FDatasmithExpressionParam
 public:
 	FDatasmithMaterialExpressionTextureImpl();
 
-	virtual const TCHAR* GetTexturePathName() const override { return *TexturePathName.Get( Store ); }
+	virtual const TCHAR* GetTexturePathName() const override { return *TexturePathName.Get(); }
 	virtual void SetTexturePathName( const TCHAR* InTexturePathName ) { TexturePathName = InTexturePathName; }
 
 	/**
@@ -325,8 +325,8 @@ public:
 
 	virtual void ResetExpressionImpl() override
 	{
-		GroupName.Edit(Store).Reset();
-		TexturePathName.Edit(Store).Reset();
+		GroupName = FString();
+		TexturePathName = FString();
 	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
@@ -380,9 +380,9 @@ public:
 
 	virtual void ResetExpressionImpl() override
 	{
-		CoordinateIndex.Edit(Store) = 0;
-		UTiling.Edit(Store) = 1;
-		VTiling.Edit(Store) = 1;
+		CoordinateIndex = 0;
+		UTiling = 1;
+		VTiling = 1;
 	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
@@ -467,7 +467,7 @@ public:
 
 
 	virtual void SetExpressionName( const TCHAR* InExpressionName ) override { ExpressionName = InExpressionName; }
-	virtual const TCHAR* GetExpressionName() const override { return *ExpressionName.Get( Store ); }
+	virtual const TCHAR* GetExpressionName() const override { return *ExpressionName.Get(); }
 
 	int32 GetPropertiesCount() const override { return Properties.Num(); }
 
@@ -494,9 +494,9 @@ public:
 
 	virtual void ResetExpressionImpl() override
 	{
-		Inputs.Edit().Reset();
-		ExpressionName.Edit( Store ).Reset();
-		Properties.Edit().Reset();
+		Inputs.Empty();
+		ExpressionName = FString();
+		Properties.Empty();
 	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
@@ -537,7 +537,7 @@ public:
 	}
 
 	virtual void SetFunctionPathName( const TCHAR* InFunctionPathName ) override { FunctionPathName = InFunctionPathName; }
-	virtual const TCHAR* GetFunctionPathName() const override { return *FunctionPathName.Get( Store ); }
+	virtual const TCHAR* GetFunctionPathName() const override { return *FunctionPathName.Get(); }
 
 	virtual int32 GetInputCount() const override { return Inputs.Num(); }
 	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override
@@ -554,8 +554,8 @@ public:
 
 	virtual void ResetExpressionImpl() override
 	{
-		Inputs.Edit().Reset();
-		FunctionPathName.Edit(Store).Reset();
+		Inputs.Empty();
+		FunctionPathName = FString();
 	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
@@ -592,35 +592,35 @@ public:
 	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index].Get() : nullptr; }
 
 	virtual void SetCode(const TCHAR* InCode) override { Code = InCode; }
-	virtual const TCHAR* GetCode() const override { return *Code.Get(this->Store); }
+	virtual const TCHAR* GetCode() const override { return *Code.Get(); }
 
 	virtual void SetDescription(const TCHAR* InDescription) override { Description = InDescription; }
-	virtual const TCHAR* GetDescription() const override { return *Description.Get(this->Store); }
+	virtual const TCHAR* GetDescription() const override { return *Description.Get(); }
 
 	virtual void SetOutputType(EDatasmithShaderDataType InOutputType) override { OutputType = InOutputType; }
 	virtual EDatasmithShaderDataType GetOutputType() const override { return OutputType; }
 
-	virtual int32 GetIncludeFilePathCount() const override { return IncludeFilePaths.Get(Store).Num(); }
-	virtual void AddIncludeFilePath(const TCHAR* Path) override { IncludeFilePaths.Edit(Store).Add(Path); }
-	virtual const TCHAR* GetIncludeFilePath(int32 Index) const override { return IncludeFilePaths.Get(Store).IsValidIndex(Index) ? *IncludeFilePaths.Get(Store)[Index] : TEXT(""); }
+	virtual int32 GetIncludeFilePathCount() const override { return IncludeFilePaths.Get().Num(); }
+	virtual void AddIncludeFilePath(const TCHAR* Path) override { IncludeFilePaths.Get().Add(Path); }
+	virtual const TCHAR* GetIncludeFilePath(int32 Index) const override { return IncludeFilePaths.Get().IsValidIndex(Index) ? *IncludeFilePaths.Get()[Index] : TEXT(""); }
 
-	virtual int32 GetAdditionalDefineCount() const override { return Defines.Get(Store).Num(); }
-	virtual void AddAdditionalDefine(const TCHAR* Define) override { Defines.Edit(Store).Add(Define); }
-	virtual const TCHAR* GetAdditionalDefine(int32 Index) const override { return Defines.Get(Store).IsValidIndex(Index) ? *Defines.Get(Store)[Index] : TEXT(""); }
+	virtual int32 GetAdditionalDefineCount() const override { return Defines.Get().Num(); }
+	virtual void AddAdditionalDefine(const TCHAR* Define) override { Defines.Get().Add(Define); }
+	virtual const TCHAR* GetAdditionalDefine(int32 Index) const override { return Defines.Get().IsValidIndex(Index) ? *Defines.Get()[Index] : TEXT(""); }
 
-	virtual int32 GetArgumentNameCount() const override { return ArgNames.Get(Store).Num(); }
+	virtual int32 GetArgumentNameCount() const override { return ArgNames.Get().Num(); }
 	virtual void SetArgumentName(int32 ArgIndex, const TCHAR* ArgName) override;
-	virtual const TCHAR* GetArgumentName(int32 Index) const override { return ArgNames.Get(Store).IsValidIndex(Index) ? *ArgNames.Get(Store)[Index] : TEXT("");}
+	virtual const TCHAR* GetArgumentName(int32 Index) const override { return ArgNames.Get().IsValidIndex(Index) ? *ArgNames.Get()[Index] : TEXT("");}
 
 	virtual void ResetExpressionImpl() override
 	{
-		Code.Edit( Store ).Reset();
-		Description.Edit( Store ).Reset();
-		OutputType.Edit( Store ) = EDatasmithShaderDataType::Float1;
-		IncludeFilePaths.Edit( Store ).Reset();
-		Defines.Edit( Store ).Reset();
-		ArgNames.Edit( Store ).Reset();
-		Inputs.Edit().Reset();
+		Code = FString();
+		Description = FString();
+		OutputType = EDatasmithShaderDataType::Float1;
+		IncludeFilePaths.Get().Empty();
+		Defines.Get().Empty();
+		ArgNames.Get().Empty();
+		Inputs.Empty();
 	}
 
 	virtual FMD5Hash CalculateElementHash(bool bForce) override
@@ -705,8 +705,8 @@ public:
 	virtual void SetParentLabel( const TCHAR* InParentLabel ) override { ParentLabel = InParentLabel; }
 	virtual const TCHAR* GetParentLabel() const override;
 
-	virtual void SetShadingModel( const EDatasmithShadingModel InShadingModel ) override { ShadingModel.Edit( Store ) = InShadingModel; }
-	virtual EDatasmithShadingModel GetShadingModel() const override { return ShadingModel.Get( Store ); }
+	virtual void SetShadingModel( const EDatasmithShadingModel InShadingModel ) override { ShadingModel = InShadingModel; }
+	virtual EDatasmithShadingModel GetShadingModel() const override { return ShadingModel; }
 
 	virtual void CustomSerialize(class DirectLink::FSnapshotProxy& Ar) override;
 
@@ -768,7 +768,7 @@ void FDatasmithMaterialExpressionImpl< InterfaceType >::ResetExpression()
 	// Call the derived implementation first, it may remove unneeded inputs.
 	ResetExpressionImpl();
 
-	this->Label.Edit( this->Store ).Reset();
+	this->Label = FString();
 	this->ElementHash = FMD5Hash();
 
 	for ( int InputIndex = 0; InputIndex < GetInputCount(); ++InputIndex )

@@ -3,16 +3,17 @@
 #include "WorldPartition/WorldPartitionActorDescView.h"
 
 #if WITH_EDITOR
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView()
 	: ActorDesc(nullptr)
-	, EffectiveGridPlacement(EActorGridPlacement::None)
+	, GridPlacement(EActorGridPlacement::None)
 {}
 
 FWorldPartitionActorDescView::FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc)
 	: ActorDesc(InActorDesc)
-	, EffectiveGridPlacement(InActorDesc->GetGridPlacement())
+	, GridPlacement(InActorDesc->GetGridPlacement())
 {}
 
 const FGuid& FWorldPartitionActorDescView::GetGuid() const
@@ -37,7 +38,7 @@ FVector FWorldPartitionActorDescView::GetOrigin() const
 
 EActorGridPlacement FWorldPartitionActorDescView::GetGridPlacement() const
 {
-	return EffectiveGridPlacement;
+	return GridPlacement;
 }
 
 FName FWorldPartitionActorDescView::GetRuntimeGrid() const
@@ -105,4 +106,12 @@ bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContaine
 	return ActorDesc->GetContainerInstance(OutLevelContainer, OutLevelTransform, OutClusterMode);
 }
 
+void FWorldPartitionActorDescView::SetGridPlacement(EActorGridPlacement InGridPlacement)
+{
+	if (GridPlacement != InGridPlacement)
+	{
+		GridPlacement = InGridPlacement;
+		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' grid placement changed to %s"), *GetActorLabel().ToString(), *StaticEnum<EActorGridPlacement>()->GetNameStringByValue((int64)InGridPlacement));
+	}
+}
 #endif

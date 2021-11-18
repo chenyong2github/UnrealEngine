@@ -269,7 +269,6 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildActions()
 	XrPath SimpleControllerPath = GetPath(Instance, "/interaction_profiles/khr/simple_controller");
 	TMap<FString, FInteractionProfile> Profiles;
 	Profiles.Add("SimpleController", FInteractionProfile(SimpleControllerPath, true));
-	Profiles.Add("Daydream", FInteractionProfile(GetPath(Instance, "/interaction_profiles/google/daydream_controller"), false));
 	Profiles.Add("Vive", FInteractionProfile(GetPath(Instance, "/interaction_profiles/htc/vive_controller"), true));
 	Profiles.Add("MixedReality", FInteractionProfile(GetPath(Instance, "/interaction_profiles/microsoft/motion_controller"), true));
 	Profiles.Add("OculusGo", FInteractionProfile(GetPath(Instance, "/interaction_profiles/oculus/go_controller"), false));

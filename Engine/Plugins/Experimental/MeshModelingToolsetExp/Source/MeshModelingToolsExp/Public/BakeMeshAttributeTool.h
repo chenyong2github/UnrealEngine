@@ -9,8 +9,69 @@
 #include "InteractiveToolQueryInterfaces.h" // for UInteractiveToolExclusiveToolAPI
 #include "DynamicMesh/DynamicMesh3.h"
 #include "PreviewMesh.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "TargetInterfaces/SkeletalMeshBackedTarget.h"
+#include "TargetInterfaces/DynamicMeshSource.h"
 #include "BakeMeshAttributeToolCommon.h"
 #include "BakeMeshAttributeTool.generated.h"
+
+/**
+ * Bake map enums
+ */
+
+UENUM(meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+enum class EBakeMapType
+{
+	None                   = 0,
+
+	/* Normals in tangent space */
+	TangentSpaceNormal     = 1 << 0,
+	/* Ambient occlusion sampled across the hemisphere */
+	AmbientOcclusion       = 1 << 1,
+	/* Normals skewed towards the least occluded direction */
+	BentNormal             = 1 << 2,
+	/* Local curvature of the mesh surface */
+	Curvature              = 1 << 3,
+	/* Transfer a given texture */
+	Texture                = 1 << 4,
+	/* Interpolated normals in object space */
+	ObjectSpaceNormal      = 1 << 5 UMETA(DisplayName = "Normal"),
+	/* Geometric face normals in object space */
+	FaceNormal             = 1 << 6,
+	/* Positions in object space */
+	Position               = 1 << 7,
+	/* Material IDs as unique colors */
+	MaterialID             = 1 << 8 UMETA(DisplayName = "Material ID"),
+	/* Transfer a texture per material ID */
+	MultiTexture           = 1 << 9,
+	/* Interpolated vertex colors */
+	VertexColor            = 1 << 10,
+
+	Occlusion              = (AmbientOcclusion | BentNormal) UMETA(Hidden),
+	All                    = 0x7FF UMETA(Hidden)
+};
+ENUM_CLASS_FLAGS(EBakeMapType);
+
+
+// Only include the Occlusion bitmask rather than its components
+// (AmbientOcclusion | BentNormal). Since the Occlusion evaluator can
+// evaluate both types in a single pass, only iterating over the Occlusion
+// bitmask gives direct access to both types without the need to
+// externally track if we've handled the Occlusion evaluator in a prior
+// iteration loop.
+static constexpr EBakeMapType ALL_BAKE_MAP_TYPES[] =
+{
+	EBakeMapType::TangentSpaceNormal,
+	EBakeMapType::Occlusion, // (AmbientOcclusion | BentNormal)
+	EBakeMapType::Curvature,
+	EBakeMapType::Texture,
+	EBakeMapType::ObjectSpaceNormal,
+	EBakeMapType::FaceNormal,
+	EBakeMapType::Position,
+	EBakeMapType::MaterialID,
+	EBakeMapType::MultiTexture,
+	EBakeMapType::VertexColor
+};
 
 /**
  * Base Mesh Bake tool
@@ -39,6 +100,10 @@ protected:
 	//
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> WorkingPreviewMaterial;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> ErrorPreviewMaterial;
+	
 	float SecondsBeforeWorkingMaterial = 0.75;
 
 protected:
@@ -52,6 +117,31 @@ protected:
 
 
 protected:
+	/** @return StaticMesh from a tool target */ 
+	static UStaticMesh* GetStaticMeshTarget(UToolTarget* Target)
+	{
+		IStaticMeshBackedTarget* TargetStaticMeshTarget = Cast<IStaticMeshBackedTarget>(Target);
+		UStaticMesh* TargetStaticMesh = TargetStaticMeshTarget ? TargetStaticMeshTarget->GetStaticMesh() : nullptr;
+		return TargetStaticMesh;
+	}
+
+	/** @return SkeletalMesh from a tool target */
+	static USkeletalMesh* GetSkeletalMeshTarget(UToolTarget* Target)
+	{
+		ISkeletalMeshBackedTarget* TargetSkeletalMeshTarget = Cast<ISkeletalMeshBackedTarget>(Target);
+		USkeletalMesh* TargetSkeletalMesh = TargetSkeletalMeshTarget ? TargetSkeletalMeshTarget->GetSkeletalMesh() : nullptr;
+		return TargetSkeletalMesh;
+	}
+
+	/** @return AActor that owns a DynamicMeshComponent from a tool target */
+	static AActor* GetDynamicMeshTarget(UToolTarget* Target)
+	{
+		IPersistentDynamicMeshSource* TargetDynamicMeshTarget = Cast<IPersistentDynamicMeshSource>(Target);
+		UDynamicMeshComponent* TargetDynamicMeshComponent = TargetDynamicMeshTarget ? TargetDynamicMeshTarget->GetDynamicMeshComponent() : nullptr;
+		AActor* TargetDynamicMesh = TargetDynamicMeshComponent ? TargetDynamicMeshComponent->GetOwner() : nullptr;
+		return TargetDynamicMesh;
+	}
+		
 	/**
 	 * Given an array of textures associated with a material,
 	 * use heuristics to identify the color/albedo texture.
@@ -63,10 +153,21 @@ protected:
 	/**
 	 * Iterate through a primitive component's textures by material ID.
 	 * @param Component the component to query
-	 * @param ProcessFunc enumeration function with signature: void(int MaterialID, const TArray<UTexture*>& Textures)
+	 * @param ProcessFunc enumeration function with signature: void(int NumMaterials, int MaterialID, const TArray<UTexture*>& Textures)
 	 */
 	template <typename ProcessFn>
 	static void ProcessComponentTextures(const UPrimitiveComponent* Component, ProcessFn&& ProcessFunc);
+
+	/**
+	 * Find all source textures and material IDs for a given target.
+	 * @param Target the tool target to inspect
+	 * @param AllSourceTextures the output array of all textures associated with the target.
+	 * @param MaterialIDTextures the output array of material IDs and best guess textures for those IDs on the target.
+	 */
+	static void UpdateMultiTextureMaterialIDs(
+		UToolTarget* Target,
+		TArray<TObjectPtr<UTexture2D>>& AllSourceTextures,
+		TArray<TObjectPtr<UTexture2D>>& MaterialIDTextures);
 };
 
 
@@ -80,18 +181,17 @@ void UBakeMeshAttributeTool::ProcessComponentTextures(const UPrimitiveComponent*
 
 	TArray<UMaterialInterface*> Materials;
 	Component->GetUsedMaterials(Materials);
-	
-	for (int32 MaterialID = 0; MaterialID < Materials.Num(); ++MaterialID)	// TODO: This won't match MaterialIDs on the FDynamicMesh3 in general, will it?
+
+	const int32 NumMaterials = Materials.Num();
+	for (int32 MaterialID = 0; MaterialID < NumMaterials; ++MaterialID)	// TODO: This won't match MaterialIDs on the FDynamicMesh3 in general, will it?
 	{
 		UMaterialInterface* MaterialInterface = Materials[MaterialID];
-		if (MaterialInterface == nullptr)
-		{
-			continue;
-		}
-
 		TArray<UTexture*> Textures;
-		MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
-		ProcessFunc(MaterialID, Textures);
+		if (MaterialInterface)
+		{
+			MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
+		}
+		ProcessFunc(NumMaterials, MaterialID, Textures);
 	}
 }
 

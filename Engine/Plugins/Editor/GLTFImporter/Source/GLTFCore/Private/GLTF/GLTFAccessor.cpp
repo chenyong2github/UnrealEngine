@@ -162,7 +162,7 @@ namespace GLTF
 
 	void FAccessor::GetFloatArray(float* Buffer) const {}
 
-	void FAccessor::GetVec2Array(FVector2D* Buffer) const {}
+	void FAccessor::GetVec2Array(FVector2f* Buffer) const {}
 
 	void FAccessor::GetVec3Array(FVector3f* Buffer) const {}
 
@@ -346,11 +346,11 @@ namespace GLTF
 				if (ComponentType == EComponentType::F32)
 				{
 					// copy float vec2 directly from buffer
-					return *reinterpret_cast<const FVector2D*>(Pointer);
+					return FVector2D(*reinterpret_cast<const FVector2f*>(Pointer));
 				}
 				else if (Normalized)
 				{
-					return GetNormalized<FVector2D, 2>(ComponentType, Pointer);
+					return GetNormalized<FVector2f, 2>(ComponentType, Pointer);
 				}
 			}
 		}
@@ -376,7 +376,7 @@ namespace GLTF
 				if (ComponentType == EComponentType::F32)
 				{
 					// copy float vec3 directly from buffer
-					return *reinterpret_cast<const FVector3f*>(Pointer);
+					return FVector(*reinterpret_cast<const FVector3f*>(Pointer));
 				}
 				else if (Normalized)
 				{
@@ -481,7 +481,7 @@ namespace GLTF
 		check(false);
 	}
 
-	void FValidAccessor::GetVec2Array(FVector2D* Buffer) const
+	void FValidAccessor::GetVec2Array(FVector2f* Buffer) const
 	{
 		if (Type == EType::Vec2)  // strict format match, unlike GPU shader fetch
 		{
@@ -490,12 +490,12 @@ namespace GLTF
 			if (ComponentType == EComponentType::F32)
 			{
 				// copy float vec2 directly from buffer
-				memcpy(Buffer, Src, Count * sizeof(FVector2D));
+				memcpy(Buffer, Src, Count * sizeof(FVector2f));
 				return;
 			}
 			else if (Normalized)
 			{
-				CopyNormalized<FVector2D, 2>(Buffer, Src, ComponentType, Count);
+				CopyNormalized<FVector2f, 2>(Buffer, Src, ComponentType, Count);
 				return;
 			}
 		}

@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
                 (Target.Platform == UnrealTargetPlatform.Mac) ||
 				bLinuxEnabled)
             {
+                AddEngineThirdPartyPrivateStaticDependencies(Target, "Imath");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "UEOpenExr");
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
             }

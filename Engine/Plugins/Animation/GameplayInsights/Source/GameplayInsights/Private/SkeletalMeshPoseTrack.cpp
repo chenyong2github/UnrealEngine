@@ -50,7 +50,7 @@ FSkeletalMeshPoseTrack::~FSkeletalMeshPoseTrack()
 		if(WorldCacheEntry.Value.Component)
 		{
 			WorldCacheEntry.Value.Component->UnregisterComponent();
-			WorldCacheEntry.Value.Component->MarkPendingKill();
+			WorldCacheEntry.Value.Component->MarkAsGarbage();
 			WorldCacheEntry.Value.Component = nullptr;
 		}
 
@@ -350,7 +350,7 @@ void FSkeletalMeshPoseTrack::RemoveWorld(UWorld* InWorld)
 	if(CacheForWorld.Component)
 	{
 		CacheForWorld.Component->UnregisterComponent();
-		CacheForWorld.Component->MarkPendingKill();
+		CacheForWorld.Component->MarkAsGarbage();
 		CacheForWorld.Component = nullptr;
 	}
 

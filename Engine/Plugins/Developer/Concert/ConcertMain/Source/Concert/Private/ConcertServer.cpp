@@ -389,7 +389,7 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateSession(const FConcertSe
 	if (!DefaultSessionRepository && !MountDefaultSessionRepository(Settings.Get()))
 	{
 		OutFailureReason = FText::Format(LOCTEXT("Error_CreateSession_NoRepository", "Session '{0}' could not be created. The default repository used to store sessions files is not mounted. Reason: {1}"), FText::AsCultureInvariant(SessionInfo.SessionName), DefaultSessionRepositoryStatus);
-		UE_LOG(LogConcert, Error, TEXT("An attempt to create a session with name '%s' was made, but the server did not have any repository mounted to store it!"), *SessionInfo.SessionName);
+		UE_LOG(LogConcert, Error, TEXT("An attempt to create a session with name '%s' was made, but the server did not have any repository mounted to store it! The repository may already be mounted by another process."), *SessionInfo.SessionName);
 		return nullptr;
 	}
 

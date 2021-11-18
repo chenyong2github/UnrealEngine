@@ -40,6 +40,7 @@
 #include "ToolMenus.h"
 #include "Classes/EditorStyleSettings.h"
 #include "Framework/Commands/UIAction.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Textures/SlateIcon.h"
@@ -1880,6 +1881,87 @@ void UEdGraphSchema_Niagara::GetNumericConversionToSubMenuActionsAll(UToolMenu* 
 	}
 }
 
+void UEdGraphSchema_Niagara::GenerateDataInterfacePinMenu(UToolMenu* ToolMenu, const FName SectionName, const UEdGraphPin* GraphPin, FNiagaraTypeDefinition TypeDef) const
+{
+	UNiagaraDataInterface* DataInterface = CastChecked<UNiagaraDataInterface>(TypeDef.GetClass()->GetDefaultObject());
+
+	// No functions, don't add an option
+	TArray<FNiagaraFunctionSignature> FunctionSignatures;
+	DataInterface->GetFunctions(FunctionSignatures);
+	if (FunctionSignatures.Num() == 0)
+	{
+		return;
+	}
+
+	// Make the data interface name
+	FString DataInterfaceName = GraphPin->GetName();
+	{
+		int32 LastPinNameDot = 0;
+		if (DataInterfaceName.FindLastChar('.', LastPinNameDot))
+		{
+			DataInterfaceName.RightChopInline(LastPinNameDot + 1);
+		}
+		DataInterfaceName = FHlslNiagaraTranslator::GetSanitizedSymbolName(DataInterfaceName);
+	}
+
+	// Generate all prototypes
+	TArray<TPair<FString, FString>> FunctionPrototypes;
+	FunctionPrototypes.Reserve(FunctionSignatures.Num());
+	for (const FNiagaraFunctionSignature& FunctionSignature : FunctionSignatures)
+	{
+		FString Prototype = FHlslNiagaraTranslator::GenerateFunctionHlslPrototype(DataInterfaceName, FunctionSignature);
+		if ( Prototype.Len() > 0 )
+		{
+			Prototype.Append(TEXT("\r\n"));
+			FunctionPrototypes.Emplace(FunctionSignature.GetName(), Prototype);
+		}
+	}
+
+	if ( FunctionPrototypes.Num () == 0 )
+	{
+		return;
+	}
+
+	// Make the menu
+	FToolMenuSection& Section = ToolMenu->FindOrAddSection(SectionName);
+	Section.AddSubMenu(
+		"DataInterfaceFunctionHLSL",
+		LOCTEXT("DataInterfaceFunctionHLSL", "Data Interface Function HLSL..."),
+		LOCTEXT("DataInterfaceFunctionHLSLToolTip", "List of all data interface functions, selecting will copy the prototype into the clipboard for easy HLSL coding."),
+		FNewToolMenuDelegate::CreateLambda(
+			[SectionName, FunctionPrototypes](UToolMenu* ToolMenu)
+			{
+				FString AllPrototypes;
+				for ( const auto& Prototype : FunctionPrototypes )
+				{
+					AllPrototypes += Prototype.Value;
+				}
+
+				FToolMenuSection& Section = ToolMenu->FindOrAddSection(SectionName);
+				Section.AddMenuEntry(
+					NAME_None,
+					LOCTEXT("CopyAllToClipboard", "Copy All To Clipboard"),
+					LOCTEXT("CopyAllToClipboardTooltip", "Copies all functions into the clipboard"),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([ClipboardText=MoveTemp(AllPrototypes)]() { FPlatformApplicationMisc::ClipboardCopy(*ClipboardText); }))
+				);
+				Section.AddSeparator(NAME_None);
+
+				for (const auto& Prototype : FunctionPrototypes)
+				{
+					Section.AddMenuEntry(
+						NAME_None,
+						FText::FromString(Prototype.Key),
+						FText::FromString(Prototype.Value),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([ClipboardText=Prototype.Value]() { FPlatformApplicationMisc::ClipboardCopy(*ClipboardText); }))
+					);
+				}
+			}
+		)
+	);
+}
+
 void UEdGraphSchema_Niagara::ToggleNodeEnabledState(UNiagaraNode* InNode) const
 {
 	if (InNode != nullptr)
@@ -1959,13 +2041,18 @@ void UEdGraphSchema_Niagara::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 		{
 			const FName SectionName = "EdGraphSchema_NiagaraPinActions";
 			FToolMenuSection& Section = Menu->AddSection(SectionName, LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
-			if (PinToTypeDefinition(InGraphPin) == FNiagaraTypeDefinition::GetGenericNumericDef() && InGraphPin->LinkedTo.Num() == 0)
+			FNiagaraTypeDefinition InGraphPinType = PinToTypeDefinition(InGraphPin);
+			if (InGraphPinType == FNiagaraTypeDefinition::GetGenericNumericDef() && InGraphPin->LinkedTo.Num() == 0)
 			{
 				Section.AddSubMenu(
 					"ConvertNumericSpecific",
 					LOCTEXT("ConvertNumericSpecific", "Convert Numeric To..."),
 					LOCTEXT("ConvertNumericSpecificToolTip", "Convert Numeric pin to the specific typed pin."),
 				FNewToolMenuDelegate::CreateUObject((UEdGraphSchema_Niagara*const)this, &UEdGraphSchema_Niagara::GetNumericConversionToSubMenuActions, SectionName, const_cast<UEdGraphPin*>(InGraphPin)));
+			}
+			else if ( InGraphPinType.IsDataInterface() )
+			{
+				GenerateDataInterfacePinMenu(Menu, SectionName, InGraphPin, InGraphPinType);
 			}
 
 			if (InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input)

@@ -124,7 +124,7 @@ class PollProcess(object):
 
     def kill(self):
         try:
-            subprocess.check_output(f"taskkill.exe /F /IM {self.task_name}")
+            subprocess.check_output(f"taskkill.exe /F /IM {self.task_name}", startupinfo=get_hidden_sp_startupinfo())
         except:
             pass
 
@@ -152,3 +152,32 @@ def remove_prefix(str, prefix):
     if str.startswith(prefix):
         return str[len(prefix):]
     return str
+
+def expand_endpoint(
+        endpoint: str, default_addr: str = '0.0.0.0',
+        default_port: int = 0) -> str:
+    '''
+    Given an endpoint where either address or port was omitted, use
+    the provided defaults.
+    '''
+    addr_str, _, port_str = endpoint.partition(':')
+
+    if not addr_str:
+        addr_str = default_addr
+
+    if not port_str:
+        port_str = str(default_port)
+
+    return f'{addr_str}:{port_str}'
+
+def explore_path(path:str):
+    ''' Opens the os file browser at the specified folder path '''
+
+    if sys.platform.startswith('win'):
+        subprocess.Popen(f'explorer {path}')
+    elif sys.platform.startswith('linux'):
+        subprocess.Popen(f'xdg-open {path}')
+    elif sys.platform.startswith('darwin'):
+        subprocess.Popen(f'open {path}')
+    else:
+        LOGGER.error(f"explore_path not supported in platform '{sys.platform}'")

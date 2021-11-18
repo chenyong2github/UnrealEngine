@@ -79,6 +79,14 @@ void FPBDIslandSolver::ReserveConstraints(const int32 NumConstraints)
 	IslandConstraints.Reserve(NumConstraints);
 }
 
+void FPBDIslandSolver::ResetIndices()
+{
+	for(FConstraintHandleHolder& ConstraintHandle : IslandConstraints)
+	{
+		ConstraintHandle->SetConstraintGraphIndex(INDEX_NONE);
+	}
+}
+
 void FPBDIslandSolver::ClearConstraints()
 {
 	IslandConstraints.Reset();
@@ -95,9 +103,9 @@ inline bool ConstraintSortPredicate(const FConstraintHandle& L, const FConstrain
 		//sort constraints by the smallest particle idx in them first
 		//if the smallest particle idx is the same for both, use the other idx
 
-		if (CollisionConstraintL->GetType() != CollisionConstraintR->GetType())
+		if (CollisionConstraintL->GetCCDType() != CollisionConstraintR->GetCCDType())
 		{
-			return CollisionConstraintL->GetType() < CollisionConstraintR->GetType();
+			return CollisionConstraintL->GetCCDType() < CollisionConstraintR->GetCCDType();
 		}
 
 		const FParticleID ParticleIdxsL[] = { CollisionConstraintL->Particle[0]->ParticleID(), CollisionConstraintL->Particle[1]->ParticleID() };

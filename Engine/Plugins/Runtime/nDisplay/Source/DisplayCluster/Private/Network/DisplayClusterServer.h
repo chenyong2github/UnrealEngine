@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "Network/IDisplayClusterServer.h"
-#include "Network/Session/IDisplayClusterSessionStatusListener.h"
+#include "Network/DisplayClusterNetworkTypes.h"
 
 #include "Containers/Queue.h"
 
@@ -19,7 +20,6 @@ class FDisplayClusterTcpListener;
  */
 class FDisplayClusterServer
 	: public IDisplayClusterServer
-	, public IDisplayClusterSessionStatusListener
 {
 public:
 	// Minimal time (seconds) before cleaning resources of the 'pending kill' sessions
@@ -27,15 +27,18 @@ public:
 
 public:
 	FDisplayClusterServer(const FString& Name);
-	virtual ~FDisplayClusterServer();
+	virtual ~FDisplayClusterServer() = default;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterServer
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	
-	// Start server
-	virtual bool Start(const FString& Address, int32 Port) override;
+	// Start server on a specific socket
+	virtual bool Start(const FString& Address, const uint16 Port) override;
+
+	// Start server with a specified listener
+	virtual bool Start(TSharedPtr<FDisplayClusterTcpListener>& ExternalListener) override;
 
 	// Stop server
 	virtual void Shutdown() override;
@@ -50,40 +53,51 @@ public:
 	}
 
 	// Server address
-	virtual FString GetAddress() const override
-	{
-		return ServerAddress;
-	}
+	virtual FString GetAddress() const override;
 
 	// Server port
-	virtual int32 GetPort() const override
+	virtual uint16 GetPort() const override;
+
+	// Kills all sessions of a specified cluster node
+	virtual void KillSession(const FString& NodeId) override;
+
+	// Connection validation delegate
+	virtual FIsConnectionAllowedDelegate& OnIsConnectionAllowed() override
 	{
-		return ServerPort;
+		return IsConnectionAllowedDelegate;
+	}
+
+	// Session opened event
+	virtual FSessionOpenedEvent& OnSessionOpened() override
+	{
+		return SessionOpenedEvent;
+	}
+
+	// Session closed event
+	virtual FSessionClosedEvent& OnSessionClosed() override
+	{
+		return SessionClosedEvent;
+	}
+
+	// Node failed event
+	virtual FNodeFailedEvent& OnNodeFailed() override
+	{
+		return NodeFailedEvent;
 	}
 
 protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterSessionStatusListener
-	//////////////////////////////////////////////////////////////////////////////////////////////
+	// Allow to specify custom session class
+	virtual TSharedPtr<IDisplayClusterSession> CreateSession(FDisplayClusterSessionInfo& SessionInfo) = 0;
+
+	// Handle incoming connections
+	bool ConnectionHandler(FDisplayClusterSessionInfo& SessionInfo);
 
 	// Callback on session opened
-	virtual void NotifySessionOpen(uint64 SessionId) override;
+	void ProcessSessionOpened(const FDisplayClusterSessionInfo& SessionInfo);
 	// Callback on session closed
-	virtual void NotifySessionClose(uint64 SessionId) override;
-
-protected:
-	// Ask concrete server implementation if connection is allowed
-	virtual bool IsConnectionAllowed(FSocket* Socket, const FIPv4Endpoint& Endpoint)
-	{
-		return true;
-	}
-
-	// Allow to specify custom session class
-	virtual TUniquePtr<IDisplayClusterSession> CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId) = 0;
+	void ProcessSessionClosed(const FDisplayClusterSessionInfo& SessionInfo);
 
 private:
-	// Handles incoming connections
-	bool ConnectionHandler(FSocket* Socket, const FIPv4Endpoint& Endpoint);
 	// Free resources of the sessions that already finished their job
 	void CleanPendingKillSessions();
 
@@ -91,31 +105,28 @@ private:
 	// Server data
 	const FString Name;
 	
-	// Socket data
-	FString ServerAddress;
-	int32   ServerPort = 0;
-
 	// Server running state
 	bool bIsRunning = false;
 
-	// Socket listener
-	TUniquePtr<FDisplayClusterTcpListener> Listener;
+	// Socket listeners
+	TSharedPtr<FDisplayClusterTcpListener> Listener;
 
+	// Server events/delegates
+	FIsConnectionAllowedDelegate IsConnectionAllowedDelegate;
+	FSessionOpenedEvent SessionOpenedEvent;
+	FSessionClosedEvent SessionClosedEvent;
+	FNodeFailedEvent    NodeFailedEvent;
+
+private:
 	// Session counter used for session ID generation
 	uint64 IncrementalSessionId = 0;
-	// Active sessions
-	TMap<uint64, TUniquePtr<IDisplayClusterSession>> ActiveSessions;
-	// Pending sessions
-	TMap<uint64, TUniquePtr<IDisplayClusterSession>> PendingSessions;
 
-	// Session end time
-	struct FPendingKillSessionInfo
-	{
-		uint64 SessionId;
-		double Time;
-	};
-	// Dead sessions info
-	TQueue<FPendingKillSessionInfo, EQueueMode::Mpsc> PendingKillSessionsInfo;
+	// Pending sessions
+	TMap<uint64, TSharedPtr<IDisplayClusterSession>> PendingSessions;
+	// Active sessions
+	TMap<uint64, TSharedPtr<IDisplayClusterSession>> ActiveSessions;
+	// Closed sessions, awaiting for cleaning
+	TMap<uint64, TSharedPtr<IDisplayClusterSession>> PendingKillSessions;
 
 	// Sync access
 	mutable FCriticalSection ServerStateCritSec;

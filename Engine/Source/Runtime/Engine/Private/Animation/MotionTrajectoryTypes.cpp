@@ -2,6 +2,7 @@
 
 #include "Animation/MotionTrajectoryTypes.h"
 #include "Algo/AllOf.h"
+#include "Animation/AnimTypes.h"
 #include "DrawDebugHelpers.h"
 #include "Animation/AnimTypes.h"
 

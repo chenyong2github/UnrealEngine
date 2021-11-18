@@ -108,11 +108,11 @@ public:
 			DistanceFieldAOBentNormal
 		);
 
-		extern FVector2D GetJitterOffset(int32 SampleIndex);
-		FVector2D const JitterOffsetValue = GetJitterOffset(View.GetDistanceFieldTemporalSampleIndex());
+		extern FVector2f GetJitterOffset(int32 SampleIndex);
+		FVector2f const JitterOffsetValue = GetJitterOffset(View.GetDistanceFieldTemporalSampleIndex());
 
 		const FIntPoint DownsampledBufferSize = GetBufferSizeForAO();
-		const FVector2D BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
+		const FVector2f BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldGBufferTexelSize, BaseLevelTexelSizeValue);
 
 		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldGBufferJitterOffset, BaseLevelTexelSizeValue * JitterOffsetValue);
@@ -361,12 +361,12 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, HistoryWeight, GAOHistoryWeight);
 
 		const FIntPoint DownsampledBufferSize(GetSceneTextureExtent() / FIntPoint(GAODownsampleFactor, GAODownsampleFactor));
-		const FVector2D BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
+		const FVector2f BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, BentNormalAOTexelSize, BaseLevelTexelSizeValue);
 
 		if (bManuallyClampUV)
 		{
-			FVector2D MaxSampleBufferUVValue(
+			FVector2f MaxSampleBufferUVValue(
 				(View.ViewRect.Width() / GAODownsampleFactor - 0.5f - GAODownsampleFactor) / DownsampledBufferSize.X,
 				(View.ViewRect.Height() / GAODownsampleFactor - 0.5f - GAODownsampleFactor) / DownsampledBufferSize.Y);
 			SetShaderValue(RHICmdList, ShaderRHI, MaxSampleBufferUV, MaxSampleBufferUVValue);

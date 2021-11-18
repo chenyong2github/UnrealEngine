@@ -28,6 +28,9 @@ class UMaterialInstanceConstant : public UMaterialInstance
 	FGuid ParameterStateId;
 #endif
 
+	virtual ENGINE_API void PostLoad() override;
+	virtual ENGINE_API void FinishDestroy() override;
+
 #if WITH_EDITOR
 	/** For constructing new MICs. */
 	friend class UMaterialInstanceConstantFactoryNew;
@@ -94,7 +97,5 @@ class UMaterialInstanceConstant : public UMaterialInstance
 	 */
 	ENGINE_API void ClearParameterValuesEditorOnly();
 #endif // #if WITH_EDITOR
-
-	ENGINE_API void PostLoad();
 };
 

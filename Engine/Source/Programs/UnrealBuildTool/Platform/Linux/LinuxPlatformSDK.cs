@@ -7,8 +7,6 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class LinuxPlatformSDK : UEBuildPlatformSDK
@@ -25,7 +23,7 @@ namespace UnrealBuildTool
 			MaxVersion = "v19_clang-11.0.1-centos7";
 		}
 
-		public override void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion)
+		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			MinVersion = MaxVersion = null;
 		}
@@ -36,11 +34,11 @@ namespace UnrealBuildTool
 		}
 
 
-		public override string GetInstalledSDKVersion()
+		public override string? GetInstalledSDKVersion()
 		{
 			// @todo turnkey: ForceUseSystemCompiler() returns true, we should probably run system clang -V or similar to get version
 
-			string SDKDir = GetSDKLocation();
+			string? SDKDir = GetSDKLocation();
 			if (string.IsNullOrEmpty(SDKDir))
 			{
 				return null;
@@ -55,14 +53,14 @@ namespace UnrealBuildTool
 			}
 
 			StreamReader SDKVersionFile = new StreamReader(VersionFile);
-			string SDKVersionString = SDKVersionFile.ReadLine();
+			string? SDKVersionString = SDKVersionFile.ReadLine();
 			SDKVersionFile.Close();
 
 			return SDKVersionString;
 		}
 
 
-		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
+		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
 		{
 			if (StringValue != null)
 			{
@@ -124,9 +122,9 @@ namespace UnrealBuildTool
 		/// Returns a path to the internal SDK
 		/// </summary>
 		/// <returns>Valid path to the internal SDK, null otherwise</returns>
-		public override string GetInternalSDKPath()
+		public override string? GetInternalSDKPath()
 		{
-			string SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
+			string? SDKRoot = Environment.GetEnvironmentVariable(SDKRootEnvVar);
 			if (!String.IsNullOrEmpty(SDKRoot))
 			{
 				string AutoSDKPath = Path.Combine(SDKRoot, "Host" + BuildHostPlatform.Current.Platform, TargetPlatformName, GetAutoSDKDirectoryForMainVersion(), LinuxPlatform.DefaultHostArchitecture);
@@ -199,10 +197,10 @@ namespace UnrealBuildTool
 		/// WARNING: Do not cache this value - it may be changed after sourcing OutputEnvVars.txt
 		/// </summary>
 		/// <returns>Valid SDK string</returns>
-		public virtual string GetSDKLocation()
+		public virtual string? GetSDKLocation()
 		{
 			// if new multi-arch toolchain is used, prefer it
-			string MultiArchRoot = Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT");
+			string? MultiArchRoot = Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT");
 
 			if (String.IsNullOrEmpty(MultiArchRoot))
 			{
@@ -225,11 +223,11 @@ namespace UnrealBuildTool
 		/// WARNING: Do not cache this value - it may be changed after sourcing OutputEnvVars.txt
 		/// </summary>
 		/// <returns>Valid SDK string</returns>
-		public virtual string GetBaseLinuxPathForArchitecture(string Architecture)
+		public virtual string? GetBaseLinuxPathForArchitecture(string Architecture)
 		{
 			// if new multi-arch toolchain is used, prefer it
-			string MultiArchRoot = GetSDKLocation();
-			string BaseLinuxPath;
+			string? MultiArchRoot = GetSDKLocation();
+			string? BaseLinuxPath;
 
 			if (!String.IsNullOrEmpty(MultiArchRoot))
 			{
@@ -260,7 +258,7 @@ namespace UnrealBuildTool
 			// FIXME: UBT should loop across all the architectures and compile for all the selected ones.
 
 			// do not cache this value - it may be changed after sourcing OutputEnvVars.txt
-			string BaseLinuxPath = GetBaseLinuxPathForArchitecture(LinuxPlatform.DefaultHostArchitecture);
+			string? BaseLinuxPath = GetBaseLinuxPathForArchitecture(LinuxPlatform.DefaultHostArchitecture);
 
 			if (ForceUseSystemCompiler())
 			{

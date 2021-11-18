@@ -8,7 +8,6 @@
 
 class FVulkanCommandListContext;
 class FVulkanResourceMultiBuffer;
-class FVulkanAccelerationStructureBuffer;
 class FVulkanRayTracingLayout;
 
 #define ENUM_VK_ENTRYPOINTS_RAYTRACING(EnumMacro) \
@@ -39,7 +38,7 @@ public:
 class FVulkanRayTracingAllocator
 {
 public:
-	static void Allocate(VkPhysicalDevice Gpu, VkDevice Device, VkDeviceSize Size, VkBufferUsageFlags UsageFlags, VkMemoryPropertyFlags MemoryFlags, FVkRtAllocation& Result);
+	static void Allocate(FVulkanDevice* Device, VkDeviceSize Size, VkBufferUsageFlags UsageFlags, VkMemoryPropertyFlags MemoryFlags, FVkRtAllocation& Result);
 	static void Free(FVkRtAllocation& Allocation);
 };
 
@@ -67,7 +66,6 @@ struct FVkRtBLASBuildData
 
 	TArray<VkAccelerationStructureGeometryKHR, TInlineAllocator<1>> Segments;
 	TArray<VkAccelerationStructureBuildRangeInfoKHR, TInlineAllocator<1>> Ranges;
-	TArray<uint32, TInlineAllocator<1>> VertexCounts;
 	VkAccelerationStructureBuildGeometryInfoKHR GeometryInfo;
 	VkAccelerationStructureBuildSizesInfoKHR SizesInfo;
 };
@@ -75,66 +73,51 @@ struct FVkRtBLASBuildData
 class FVulkanRayTracingGeometry : public FRHIRayTracingGeometry
 {
 public:
-	FVulkanRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer, const FVulkanDevice* InDevice);
+	FVulkanRayTracingGeometry(FRayTracingGeometryInitializer Initializer, FVulkanDevice* InDevice);
 	~FVulkanRayTracingGeometry();
 
-	virtual uint32 GetNumSegments() const final override { return Segments.Num(); }
+	virtual FRayTracingAccelerationStructureAddress GetAccelerationStructureAddress(uint64 GPUIndex) const final override { return Address; }
+	virtual uint32 GetNumSegments() const final override { return Initializer.Segments.Num(); }
 
 	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
-	
-	VkDeviceAddress GetAccelerationStructureAddress() const
-	{
-		return Allocation.Address;
-	}
 
 private:
+	FVulkanDevice* const Device = nullptr;
+
+	const FRayTracingGeometryInitializer Initializer;
 	uint32 IndexStrideInBytes  = 0;
-	uint32 IndexOffsetInBytes  = 0;
-	uint32 TotalPrimitiveCount = 0;
-	
-	FBufferRHIRef IndexBufferRHI;
-	
-	bool bFastBuild   = false;
-	bool bAllowUpdate = false;
 
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
-	FVkRtAllocation Allocation;
-	FVkRtAllocation Scratch;
-
-	TArray<FRayTracingGeometrySegment> Segments;
-
-	FName DebugName;
-	const FVulkanDevice* Device = nullptr;
+	VkDeviceAddress Address = 0;
+	TRefCountPtr<FVulkanAccelerationStructureBuffer> AccelerationStructureBuffer;
+	TRefCountPtr<FVulkanResourceMultiBuffer> ScratchBuffer;
 };
 
 class FVulkanRayTracingScene : public FRHIRayTracingScene
 {
 public:
-	FVulkanRayTracingScene(const FRayTracingSceneInitializer& Initializer, const FVulkanDevice* InDevice);
+	FVulkanRayTracingScene(FRayTracingSceneInitializer2 Initializer, FVulkanDevice* InDevice, FVulkanResourceMultiBuffer* InInstanceBuffer);
 	~FVulkanRayTracingScene();
+
+	const FRayTracingSceneInitializer2& GetInitializer() const override final { return Initializer; }
 
 	void BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffset);
 	void BuildAccelerationStructure(
 		FVulkanCommandListContext& CommandContext, 
 		FVulkanResourceMultiBuffer* ScratchBuffer, uint32 ScratchOffset, 
-		FVulkanResourceMultiBuffer* InstanceBuffer, uint32 InstanceOffset, 
-		uint32 NumInstanceDescs);
+		FVulkanResourceMultiBuffer* InstanceBuffer, uint32 InstanceOffset);
 
-	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
-	TRefCountPtr<FVulkanAccelerationStructureBuffer> AccelerationStructureBuffer;
-	FVkRtAllocation Scratch;
-	FVkRtAllocation InstanceBuffer;
-
-	TArray<VkAccelerationStructureInstanceKHR> InstanceDescs;
-	TArray<const FVulkanRayTracingGeometry*> InstanceGeometry;
-	TArray<TRefCountPtr<const FVulkanRayTracingGeometry>> ReferencedGeometry;
-	FName DebugName;
-	uint32 NumInstances = 0;
-	uint32 BufferOffset = 0;
 	FRayTracingAccelerationStructureSize SizeInfo;
 
 private:
-	const FVulkanDevice* Device = nullptr;
+	FVulkanDevice* const Device = nullptr;
+
+	const FRayTracingSceneInitializer2 Initializer;
+
+	TRefCountPtr<FVulkanResourceMultiBuffer> InstanceBuffer;
+
+	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
+	TRefCountPtr<FVulkanAccelerationStructureBuffer> AccelerationStructureBuffer;
 };
 
 class FVulkanRayTracingPipelineState : public FRHIRayTracingPipelineState

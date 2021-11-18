@@ -176,6 +176,8 @@ public:
 protected:
 	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) override;
 
+	bool IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FName>& InInputNameTypePairs) const;
+
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
 	{
 		using namespace Metasound::Frontend;

@@ -154,7 +154,7 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::CreateFromFile(const FString& FullPa
 		{
 			bool bResult = true;
 
-			int LineIdx = 0;
+			int32 LineIdx = 0;
 			// Parse each line from config
 			for (FString Line : data)
 			{
@@ -188,13 +188,13 @@ bool FDisplayCluster_MeshGeometryLoaderOBJ::SaveToTarget()
 {
 	for (FFaceIdx& It : Faces)
 	{
-		FVector VertexPos = (It.VertexIdx < 0) ? FVector(0, 0, 0) : InVertex[It.VertexIdx];
+		const FVector VertexPos = (It.VertexIdx < 0) ? FVector(0, 0, 0) : InVertex[It.VertexIdx];
 		Target.Vertices.Add(VertexPos);
 
-		FVector VertexNormal = (It.VertexNormalIdx < 0) ? FVector(0, 0, 0) : InVertexNormal[It.VertexNormalIdx];
+		const FVector VertexNormal = (It.VertexNormalIdx < 0) ? FVector(0, 0, 0) : InVertexNormal[It.VertexNormalIdx];
 		Target.Normal.Add(VertexNormal);
 
-		FVector UVCoord = (It.UVIdx < 0) ? FVector(0, 0, 0) : InUV[It.UVIdx];
+		const FVector UVCoord = (It.UVIdx < 0) ? FVector(0, 0, 0) : InUV[It.UVIdx];
 		Target.UV.Add(FVector2D(UVCoord.X, UVCoord.Y));
 	}
 

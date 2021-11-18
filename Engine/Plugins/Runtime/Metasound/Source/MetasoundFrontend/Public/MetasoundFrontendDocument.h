@@ -59,6 +59,9 @@ enum class EMetasoundFrontendClassType : uint8
 	Variable,
 
 	// The MetaSound class accesses variables.
+	VariableDeferredAccessor,
+
+	// The MetaSound class accesses variables.
 	VariableAccessor,
 
 	// The MetaSound class mutates variables.

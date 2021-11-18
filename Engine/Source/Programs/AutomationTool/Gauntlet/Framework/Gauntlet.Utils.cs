@@ -29,7 +29,7 @@ namespace Gauntlet
 
 		static string InnerTempDir;
 		static string InnerLogDir;
-		static string InnerUE4RootDir;
+		static string InnerUnrealRootDir;
 		static object InnerLockObject = new object();
 		static List<Action> InnerAbortHandlers;
 		static List<Action> InnerPostAbortHandlers = new List<Action>();
@@ -82,16 +82,16 @@ namespace Gauntlet
 			}
 		}
 
-		public static string UE4RootDir
+		public static string UnrealRootDir
 		{
 			get
 			{
-				if (String.IsNullOrEmpty(InnerUE4RootDir))
+				if (String.IsNullOrEmpty(InnerUnrealRootDir))
 				{
-					InnerUE4RootDir = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
+					InnerUnrealRootDir = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().GetOriginalLocation()), "..", "..", "..", ".."));
 				}
 
-				return InnerUE4RootDir;
+				return InnerUnrealRootDir;
 			}
 
 		}
@@ -1152,7 +1152,7 @@ namespace Gauntlet
 									Copied = true;
 
 									// Filter out some known unneeded files which can cause this warning, and log the message instead
-									string[] Blacklist = new string[]{ "UECC-XboxOne", "PersistentDownloadDir" };
+									string[] Blacklist = new string[]{ "UECC-", "PersistentDownloadDir" };
 									string Message = string.Format("Long path file copy failed with {0}.  Please verify that this file is not required.", ex.Message);
 									if ( Blacklist.FirstOrDefault(B => { return SrcInfo.FullName.IndexOf(B, StringComparison.OrdinalIgnoreCase) >= 0; }) == null)
 									{

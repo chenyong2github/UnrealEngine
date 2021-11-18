@@ -39,7 +39,7 @@ namespace GeometryCollection
 		TManagedArray<FVector3f>& Normals = RestCollection->Normal;
 		TManagedArray<FVector3f>& TangentU = RestCollection->TangentU;
 		TManagedArray<FVector3f>& TangentV = RestCollection->TangentV;
-		TManagedArray<TArray<FVector2D>>& UVs = RestCollection->UVs;
+		TManagedArray<TArray<FVector2f>>& UVs = RestCollection->UVs;
 		TManagedArray<FLinearColor>& Colors = RestCollection->Color;
 		TManagedArray<FIntVector>& Indices = RestCollection->Indices;
 		TManagedArray<bool>& Visible = RestCollection->Visible;

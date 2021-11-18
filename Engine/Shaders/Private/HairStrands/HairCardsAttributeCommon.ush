@@ -56,7 +56,7 @@ FHairVertexAttributes GetHairStrandsAttributes(float2 InAtlasUV, float2 InRootUV
 
 	FHairVertexAttributes Out;
 	Out.HairUV = float2(CoordU, 0.5f);
-	Out.HairRootUV = InRootUV;
+	Out.HairRootUV = HairCardsVF.bUseTextureRootUV ? Value.xy : InRootUV;
 	Out.HairDimensions = float2(WorldLength, WorldRadius);
 	Out.HairBaseColor = 0;
 	Out.HairSeed = Seed;
@@ -84,6 +84,12 @@ float2 GetHairStrandsRootUV(float2 HairPrimitiveUV, float2 InRootUV)
 	// Invert V to compensate image origin flip
 	// Similar to DecodeHairAttribute in HairStrandVertexFactoryCommon.ush
 	InRootUV.y = 1.0 - InRootUV.y; 
+
+	// If VF use texture data (for helmet/meshes), fetch root UV from the attribute texture
+	if (HairCardsVF.bUseTextureRootUV)
+	{
+		InRootUV = Texture2DSample(HairCardsVF.AttributeTexture, HairCardsVF.AttributeSampler, HairPrimitiveUV).xy;
+	}
 	return InRootUV;
 }
 

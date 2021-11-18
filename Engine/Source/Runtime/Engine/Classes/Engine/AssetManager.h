@@ -494,9 +494,15 @@ public:
 	// EDITOR ONLY FUNCTIONALITY
 
 	/** Gets package names to add to the cook, and packages to never cook even if in startup set memory or referenced */
+	virtual void ModifyCook(TConstArrayView<const ITargetPlatform*> TargetPlatforms, TArray<FName>& PackagesToCook,
+		TArray<FName>& PackagesToNeverCook);
+	UE_DEPRECATED(5.0, "Use version that takes TargetPlatforms instead")
 	virtual void ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
 
 	/** Gets package names to add to a DLC cook*/
+	virtual void ModifyDLCCook(const FString& DLCName, TConstArrayView<const ITargetPlatform*> TargetPlatforms,
+		TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
+	UE_DEPRECATED(5.0, "Use version that takes TargetPlatforms instead")
 	virtual void ModifyDLCCook(const FString& DLCName, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
 
 	/** Returns whether or not a specific UPackage should be cooked for the provied TargetPlatform */
@@ -756,6 +762,9 @@ protected:
 	UPROPERTY()
 	bool bOnlyCookProductionAssets;
 
+	/** Suppresses bOnlyCookProductionAssets based on the AllowsEditorObjects() property of the TargetPlatforms being cooked. */
+	bool bTargetPlatformsAllowEditorObjects;
+
 	/** >0 if we are currently in bulk scanning mode */
 	UPROPERTY()
 	int32 NumBulkScanRequests;
@@ -817,6 +826,8 @@ private:
 	mutable const class UAssetManagerSettings* CachedSettings;
 	UE_DEPRECATED(5.0, "Only used for deprecation support, do not use directly.")
 	mutable UE::Cook::ICookInfo* DeprecationSupportCookInfo = nullptr;
+	UE_DEPRECATED(5.0, "Only used for deprecation support, do not use directly.")
+	mutable TConstArrayView<const ITargetPlatform*> DeprecationSupportTargetPlatforms;
 
 	friend struct FCompiledAssetManagerSearchRules;
 };

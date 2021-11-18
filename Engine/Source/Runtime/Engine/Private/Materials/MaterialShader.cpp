@@ -306,6 +306,22 @@ void FStaticParameterSet::SerializeLegacy(FArchive& Ar)
 
 void FStaticParameterSet::UpdateLegacyData()
 {
+	int32 ParameterIndex = 0;
+	while (ParameterIndex < TerrainLayerWeightParameters.Num())
+	{
+		FStaticTerrainLayerWeightParameter& TerrainParameter = TerrainLayerWeightParameters[ParameterIndex];
+		if (TerrainParameter.bOverride_DEPRECATED)
+		{
+			TerrainParameter.LayerName = TerrainParameter.ParameterInfo_DEPRECATED.Name;
+			ParameterIndex++;
+		}
+		else
+		{
+			// Remove any parameters that didn't have bOverride set
+			TerrainLayerWeightParameters.RemoveAt(ParameterIndex);
+		}
+	}
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (MaterialLayersParameters_DEPRECATED.Num() > 0)
 	{
@@ -354,7 +370,7 @@ void FStaticParameterSet::SortForEquivalent()
 {
 	StaticSwitchParameters.Sort([](const FStaticSwitchParameter& A, const FStaticSwitchParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
 	StaticComponentMaskParameters.Sort([](const FStaticComponentMaskParameter& A, const FStaticComponentMaskParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
-	TerrainLayerWeightParameters.Sort([](const FStaticTerrainLayerWeightParameter& A, const FStaticTerrainLayerWeightParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
+	TerrainLayerWeightParameters.Sort([](const FStaticTerrainLayerWeightParameter& A, const FStaticTerrainLayerWeightParameter& B) { return B.LayerName.LexicalLess(A.LayerName); });
 }
 
 bool FStaticParameterSet::Equivalent(const FStaticParameterSet& ReferenceSet) const
@@ -837,13 +853,6 @@ bool FMaterialShaderMapId::IsContentValid() const
 			return false;
 		}
 	}
-	for (const FStaticTerrainLayerWeightParameter& StaticTerrainLayerWeightParameter : TerrainLayerWeightParameters)
-{
-		if (StaticTerrainLayerWeightParameter.bOverride != false)
-		{
-			return false;
-		}
-	}
 #endif // WITH_EDITOR
 	return true;
 }
@@ -862,6 +871,14 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 		}
 	};
 
+	struct FStaticTerrainLayerWeightParameterCompare
+	{
+		bool operator()(const FStaticTerrainLayerWeightParameter& Lhs, const FStaticTerrainLayerWeightParameter& Rhs) const
+		{
+			return Lhs.LayerName.LexicalLess(Rhs.LayerName);
+		}
+	};
+
 	StaticSwitchParameters = StaticParameters.StaticSwitchParameters;
 	StaticComponentMaskParameters = StaticParameters.StaticComponentMaskParameters;
 	TerrainLayerWeightParameters = StaticParameters.TerrainLayerWeightParameters;
@@ -873,7 +890,7 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 	// Sort the arrays by parameter name, ensure the ID is not influenced by the order
 	StaticSwitchParameters.Sort(FStaticParameterCompare());
 	StaticComponentMaskParameters.Sort(FStaticParameterCompare());
-	TerrainLayerWeightParameters.Sort(FStaticParameterCompare());
+	TerrainLayerWeightParameters.Sort(FStaticTerrainLayerWeightParameterCompare());
 
 	//since bOverrides aren't used to check id matches, make sure they're consistently set to false in the static parameter set as part of the id.
 	//this ensures deterministic cook results, rather than allowing bOverride to be set in the shader map's copy of the id based on the first id used.
@@ -884,10 +901,6 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 	for (FStaticComponentMaskParameter& StaticComponentMaskParameter : StaticComponentMaskParameters)
 	{
 		StaticComponentMaskParameter.bOverride = false;
-	}
-	for (FStaticTerrainLayerWeightParameter& StaticTerrainLayerWeightParameter : TerrainLayerWeightParameters)
-	{
-		StaticTerrainLayerWeightParameter.bOverride = false;
 	}
 }	
 #endif // WITH_EDITOR
@@ -1960,7 +1973,7 @@ void FMaterialShaderMap::Compile(
 		const FStaticTerrainLayerWeightParameter& StaticTerrainLayerWeightParameter = ShaderMapId.GetTerrainLayerWeightParameters()[StaticLayerIndex];
 		WorkingDebugDescription += FString::Printf(
 			TEXT(", StaticTerrainLayer'%s'=%s"),
-			*StaticTerrainLayerWeightParameter.ParameterInfo.ToString(),
+			*StaticTerrainLayerWeightParameter.LayerName.ToString(),
 			*FString::Printf(TEXT("Weightmap%u"), StaticTerrainLayerWeightParameter.WeightmapIndex)
 		);
 	}
@@ -1992,7 +2005,11 @@ void FMaterialShaderMap::Compile(
 		}
 	}
 
-	UE_LOG(LogShaders, Display, TEXT("	%s"), *WorkingDebugDescription);
+	// If we aren't actually compiling shaders don't print the debug message that we are compiling shaders.
+	if (PrecompileMode != EMaterialShaderPrecompileMode::None)
+	{
+		UE_LOG(LogShaders, Display, TEXT("	%s"), *WorkingDebugDescription);
+	}
 	NewContent->DebugDescription = *WorkingDebugDescription;
 #else
 	FString DebugExtension = "";
@@ -3002,7 +3019,7 @@ void FMaterialShaderMapContent::RemoveMeshShaderMap(const FHashedName& VertexFac
 	}
 }
 
-void FMaterialShaderMap::DumpDebugInfo()
+void FMaterialShaderMap::DumpDebugInfo() const
 {
 	const FString& FriendlyNameS = GetFriendlyName();
 	UE_LOG(LogConsoleResponse, Display, TEXT("FMaterialShaderMap:  FriendlyName %s"), *FriendlyNameS);

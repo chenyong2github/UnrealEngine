@@ -129,7 +129,9 @@ public:
 	uint32					LoadFlags;
 	/** Indicates whether the imports for this loader have been verified													*/
 	bool					bHaveImportsBeenVerified;
+	// @todo: BP2CPP_remove
 	/** Indicates that this linker was created for a dynamic class package and will not use Loader */
+	UE_DEPRECATED(5.0, "This member is no longer in use and will be removed.")
 	bool					bDynamicClassLinker;
 
 	UObject*				TemplateForGetArchetypeFromLoader;
@@ -813,7 +815,7 @@ private:
 	 */
 	FORCEINLINE virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override
 	{
-		return bDynamicClassLinker || Loader->Precache(PrecacheOffset, PrecacheSize);
+		return Loader->Precache(PrecacheOffset, PrecacheSize);
 	}
 
 #if WITH_EDITOR
@@ -1265,9 +1267,6 @@ private:
 	UObject* FindImport(UClass* ImportClass, UObject* ImportOuter, const TCHAR* Name);
 	/** Finds import, tries to fall back to dynamic class if the object could not be found */
 	static UObject* FindImportFast(UClass* ImportClass, UObject* ImportOuter, FName Name, bool bAnyPackage = false);
-
-	/** Fills all necessary information for constructing dynamic type package linker */
-	void CreateDynamicTypeLoader();
 
 #if	USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	/** 

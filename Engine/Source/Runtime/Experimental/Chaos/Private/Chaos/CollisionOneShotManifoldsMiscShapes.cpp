@@ -43,7 +43,6 @@ namespace Chaos
 
 			FContactPoint ContactPoint = SphereSphereContactPoint(SphereA, SphereATransform, SphereB, SphereBTransform, Constraint.Manifold.RestitutionPadding);
 
-			ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 			Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 		}
 
@@ -63,9 +62,7 @@ namespace Chaos
 
 			FContactPoint ContactPoint = SpherePlaneContactPoint(Sphere, SphereTransform, Plane, PlaneTransform, Constraint.Manifold.RestitutionPadding);
 
-			ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 			Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
-
 		}	
 
 		void ConstructSphereBoxOneShotManifold(const TSphere<FReal, 3>& Sphere, const FRigidTransform3& SphereTransform, const FImplicitBox3& Box, const FRigidTransform3& BoxTransform, const FReal Dt, FPBDCollisionConstraint& Constraint)
@@ -78,7 +75,6 @@ namespace Chaos
 
 			FContactPoint ContactPoint = SphereBoxContactPoint(Sphere, SphereTransform, Box, BoxTransform, Constraint.Manifold.RestitutionPadding);
 
-			ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 			Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 		}
 
@@ -92,7 +88,6 @@ namespace Chaos
 
 			FContactPoint ContactPoint = SphereCapsuleContactPoint(Sphere, SphereTransform, Capsule, CapsuleTransform, Constraint.Manifold.RestitutionPadding);
 
-			ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 			Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 		}
 
@@ -106,7 +101,6 @@ namespace Chaos
 
 			FContactPoint ContactPoint = SphereConvexContactPoint(Sphere, SphereTransform, Convex, ConvexTransform);
 
-			ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 			Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 		}
 
@@ -121,7 +115,6 @@ namespace Chaos
 
 			FContactPoint ContactPoint = SphereTriangleMeshContactPoint(Sphere, SphereWorldTransform, TriangleMesh, TriMeshWorldTransform, Constraint.GetCullDistance(), 0.0f);
 
-			ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 			Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 		}
 
@@ -135,7 +128,6 @@ namespace Chaos
 
 			FContactPoint ContactPoint = SphereHeightFieldContactPoint(Sphere, SphereTransform, Heightfield, HeightfieldTransform, Constraint.GetCullDistance(), 0.0f);
 
-			ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 			Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 		}
 
@@ -160,7 +152,6 @@ namespace Chaos
 			if (FMath::Abs(ADotB) < AxisDotMinimum || AHalfLen < KINDA_SMALL_NUMBER || BHalfLen < KINDA_SMALL_NUMBER)
 			{
 				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, Constraint.GetCullDistance());
-				ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 				Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 				return;
 			}
@@ -182,7 +173,6 @@ namespace Chaos
 			if (DeltaLen < KINDA_SMALL_NUMBER)
 			{
 				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, Constraint.GetCullDistance());
-				ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 				Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 				return;
 			}
@@ -203,7 +193,6 @@ namespace Chaos
 			if (Clipped1Coord > Clipped2Coord) // No overlap
 			{
 				FContactPoint ContactPoint = CapsuleCapsuleContactPoint(CapsuleA, CapsuleATransform, CapsuleB, CapsuleBTransform, Constraint.GetCullDistance());
-				ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
 				Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 				return;
 			}
@@ -213,9 +202,6 @@ namespace Chaos
 			FVec3 Normal = -Dir;
 
 			FContactPoint ContactPoint;
-			ContactPoint.ContactNormalOwnerIndex = 1; // Ignored
-			ContactPoint.ShapeMargins[0] = 0.0f;
-			ContactPoint.ShapeMargins[1] = 0.0f;
 			ContactPoint.ShapeContactNormal = CapsuleBTransform.InverseTransformVector(Normal);
 			ContactPoint.Normal = Normal;
 

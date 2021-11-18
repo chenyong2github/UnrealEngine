@@ -41,7 +41,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the field was read (and OutBuildSteps is set), false otherwise.</returns>
 		public static bool TryRead(JsonObject RawObject, string FieldName, [NotNullWhen(true)] out CustomBuildSteps? OutBuildSteps)
 		{
-			JsonObject BuildStepsObject;
+			JsonObject? BuildStepsObject;
 			if(RawObject.TryGetObjectField(FieldName, out BuildStepsObject))
 			{
 				OutBuildSteps = new CustomBuildSteps(BuildStepsObject);

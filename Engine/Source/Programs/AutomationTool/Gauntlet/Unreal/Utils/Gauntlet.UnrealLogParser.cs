@@ -390,7 +390,7 @@ namespace Gauntlet
 		{
 			var Info = new UnrealLog.BuildInfo();
 
-			// pull from Branch Name: UE4
+			// pull from Branch Name: <name>
 			Match M = Regex.Match(Content, @"LogInit.+Name:\s*(.*)", RegexOptions.IgnoreCase);
 
 			if (M.Success)

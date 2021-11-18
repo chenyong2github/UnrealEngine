@@ -278,6 +278,13 @@ namespace Audio
 		bool bDidStopGeneratingAudio = false;
 #if PLATFORM_WINDOWS
 		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_CheckThreadedDeviceSwap, FColor::Blue);
+
+		static float ThreadedSwapDebugExtraTimeMsCVar = 0;
+		static FAutoConsoleVariableRef CVarOverrunTimeout(
+			TEXT("au.ThreadedSwapDebugExtraTime"),
+			ThreadedSwapDebugExtraTimeMsCVar,
+			TEXT("Simulate a slow device swap by adding addional time to the swap task"),
+			ECVF_Default);
 	
 		if (bMoveAudioStreamToNewAudioDevice || ActiveDeviceSwap.IsValid())
 		{
@@ -461,6 +468,12 @@ namespace Audio
 									SAFE_RELEASE(Results.XAudio2System);
 									return {};
 								}
+							}
+
+							// Optionally for testing, sleep for some duration in order to help repro race conditions.
+							if (ThreadedSwapDebugExtraTimeMsCVar > 0.f)
+							{
+								FPlatformProcess::Sleep(ThreadedSwapDebugExtraTimeMsCVar/1000.f); 
 							}
 
 							// Listen session for changes to this device.

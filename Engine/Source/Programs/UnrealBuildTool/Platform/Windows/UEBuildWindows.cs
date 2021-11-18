@@ -1258,7 +1258,7 @@ namespace UnrealBuildTool
 						}
 
 						// Check for AutoSDK paths
-						DirectoryReference AutoSdkDir;
+						DirectoryReference? AutoSdkDir;
 						if(UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out AutoSdkDir))
 						{
 							DirectoryReference ClangBaseDir = DirectoryReference.Combine(AutoSdkDir, "Win64", "LLVM");
@@ -1298,7 +1298,7 @@ namespace UnrealBuildTool
 					    }
 
 						// Enumerate all the AutoSDK toolchains
-						DirectoryReference PlatformDir;
+						DirectoryReference? PlatformDir;
 						if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out PlatformDir))
 						{
 							string VSDir = string.Empty;
@@ -1799,7 +1799,7 @@ namespace UnrealBuildTool
 			{
 				DiaSdkDirs = new List<DirectoryReference>();
 
-				DirectoryReference PlatformDir;
+				DirectoryReference? PlatformDir;
 				if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out PlatformDir))
 				{
 					string VSDir = string.Empty;
@@ -1952,7 +1952,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">The project file</param>
 		/// <returns>The icon to use for this project</returns>
-		public static FileReference GetWindowsApplicationIcon(FileReference ProjectFile)
+		public static FileReference GetWindowsApplicationIcon(FileReference? ProjectFile)
 		{
 			// Check if there's a custom icon
 			if(ProjectFile != null)

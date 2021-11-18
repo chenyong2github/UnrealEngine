@@ -31,7 +31,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCommonParameters, )
 	SHADER_PARAMETER(FIntPoint, TracingViewportBufferSize)
 
 	// 1.0f / TracingViewportBufferSize
-	SHADER_PARAMETER(FVector2D, TracingViewportTexelSize)
+	SHADER_PARAMETER(FVector2f, TracingViewportTexelSize)
 
 	// How much downscale the ray tracing is done 
 	SHADER_PARAMETER(int32, DownscaleFactor)

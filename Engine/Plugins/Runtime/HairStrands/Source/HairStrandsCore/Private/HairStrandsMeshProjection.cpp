@@ -1480,7 +1480,7 @@ void AddHairStrandUpdateMeshSamplesPass(
 
 // Generate follicle mask texture
 BEGIN_SHADER_PARAMETER_STRUCT(FHairFollicleMaskParameters, )
-	SHADER_PARAMETER(FVector2D, OutputResolution)
+	SHADER_PARAMETER(FVector2f, OutputResolution)
 	SHADER_PARAMETER(uint32, MaxRootCount)
 	SHADER_PARAMETER(uint32, Channel)
 	SHADER_PARAMETER(uint32, KernelSizeInPixels)

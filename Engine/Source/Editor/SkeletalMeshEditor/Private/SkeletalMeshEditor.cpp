@@ -209,65 +209,6 @@ bool FSkeletalMeshEditor::OnRequestClose()
 	return bAllowClose;
 }
 
-
-void FSkeletalMeshEditor::OnClose()
-{
-	UPersonaSelectionComponent* SelectionComponent = PersonaToolkit->GetPreviewScene()->GetSelectionComponent();
-
-	if (SelectionComponent)
-	{
-		SelectionComponent->OnUpdateCapsules().Unbind();
-		SelectionComponent->GetWorld()->RemoveActor(SelectionComponent->GetOwner(), true);
-	}
-
-	ISkeletalMeshEditor::OnClose();
-}
-
-
-void FSkeletalMeshEditor::UpdateCapsules()
-{
-	UPersonaSelectionComponent* SelectionComponent = PersonaToolkit->GetPreviewScene()->GetSelectionComponent();
-	check(SelectionComponent != nullptr);
-	
-	SelectionComponent->Reset();
-	CapsuleInfos.Reset();
-	
-	// setup the capsules for selecting bones / sockets in the viewport
-	const FReferenceSkeleton& ReferenceSkeleton = PersonaToolkit->GetSkeleton()->GetReferenceSkeleton();
-	for(int32 Index = 0; Index < ReferenceSkeleton.GetNum(); Index++)
-	{
-		FCapsuleInfo Info;
-		Info.Type = ECapsuleType::Bone;
-		Info.Name = ReferenceSkeleton.GetBoneName(Index);
-		Info.Index = Index;
-		CapsuleInfos.Add(Info);
-
-		SelectionComponent->Add();
-	}
-
-	for(int32 Index = 0; Index < PersonaToolkit->GetSkeleton()->GetVirtualBones().Num(); Index++)
-	{
-		FCapsuleInfo Info;
-		Info.Type = ECapsuleType::VirtualBone;
-		Info.Name = PersonaToolkit->GetSkeleton()->GetVirtualBones()[Index].VirtualBoneName;
-		Info.Index = Index;
-		CapsuleInfos.Add(Info);
-
-		SelectionComponent->Add();
-	}
-
-	for(int32 Index = 0; Index < PersonaToolkit->GetSkeleton()->Sockets.Num(); Index++)
-	{
-		FCapsuleInfo Info;
-		Info.Type = ECapsuleType::Socket;
-		Info.Name = PersonaToolkit->GetSkeleton()->Sockets[Index]->GetFName();
-		Info.Index = Index;
-		CapsuleInfos.Add(Info);
-
-		SelectionComponent->Add();
-	}
-}
-
 void FSkeletalMeshEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_SkeletalMeshEditor", "Skeletal Mesh Editor"));
@@ -329,100 +270,12 @@ void FSkeletalMeshEditor::InitSkeletalMeshEditor(const EToolkitMode::Type Mode, 
 
 	// Set up mesh click selection
 	PreviewScene->RegisterOnMeshClick(FOnMeshClick::CreateSP(this, &FSkeletalMeshEditor::HandleMeshClick));
-	PreviewScene->SetAllowMeshHitProxies(GetDefault<UPersonaOptions>()->bAllowMeshSectionSelection);
+	PreviewScene->SetAllowMeshHitProxies(true);
 	if(PreviewScene->GetPreviewMeshComponent())
 	{
 		PreviewScene->GetPreviewMeshComponent()->bSelectable = PreviewScene->AllowMeshHitProxies();
 		PreviewScene->GetPreviewMeshComponent()->MarkRenderStateDirty();
 	}
-
-	UpdateCapsules();
-	
-	// setup the lambda to fill the capsules
-	UPersonaSelectionComponent* SelectionComponent = PreviewScene->GetSelectionComponent();
-	check(SelectionComponent != nullptr);
-
-	// make sure the selection component ticks after the skeletal mesh comp
-	SelectionComponent->AddTickPrerequisiteComponent(PreviewScene->GetPreviewMeshComponent());
-
-	SelectionComponent->OnUpdateCapsules().BindLambda(
-		[this, PreviewScene](UPersonaSelectionComponent*, const TArray<int32>& InIndices, TArray<FPersonaSelectionCapsule>& OutCapsules)
-		{
-			const FReferenceSkeleton& ReferenceSkeleton = PreviewScene->GetPreviewMeshComponent()->GetReferenceSkeleton();
-			TArray<FTransform> ComponentSpaceTransforms = PreviewScene->GetPreviewMeshComponent()->GetComponentSpaceTransforms();
-			
-			for(int32 Index = 0; Index < InIndices.Num(); Index++)
-			{
-				const int32 CapsuleIndex = InIndices[Index];
-				check(CapsuleInfos.IsValidIndex(CapsuleIndex));
-
-				const FCapsuleInfo& CapsuleInfo = CapsuleInfos[CapsuleIndex];
-				switch(CapsuleInfo.Type)
-				{
-					case ECapsuleType::Bone:
-					{
-						OutCapsules[CapsuleIndex].Name = CapsuleInfo.Name;
-						if(!ComponentSpaceTransforms.IsValidIndex(CapsuleInfo.Index))
-						{
-							break;
-						}
-
-						const FVector& BonePosition = ComponentSpaceTransforms[CapsuleInfo.Index].GetLocation();
-
-						FVector Start, End;
-							
-						const int32 ParentIndex = ReferenceSkeleton.GetParentIndex(CapsuleInfo.Index);
-						if(ComponentSpaceTransforms.IsValidIndex(ParentIndex))
-						{
-							Start = ComponentSpaceTransforms[ParentIndex].GetLocation();
-							End = BonePosition;
-						}
-						else
-						{
-							Start = FVector::ZeroVector;
-							End = BonePosition;
-						}
-
-						UPersonaSelectionComponent::ComputeCapsuleFromBonePositions(Start, End, 100.f, 1.f, OutCapsules[CapsuleIndex]);
-						break;
-					}
-					default:
-					{
-						break;
-					}
-				}
-			}
-		});
-
-	SelectionComponent->OnClicked().BindLambda(
-		[PreviewScene](UPersonaSelectionComponent*, int32 InIndex, const FPersonaSelectionCapsule& InCapsule)
-		{
-			PreviewScene->DeselectAll();
-
-			bool bFoundSocket = false;
-
-			if(USkeleton* Skeleton = PreviewScene->GetPersonaToolkit()->GetSkeleton())
-			{
-				for(USkeletalMeshSocket* Socket : Skeleton->Sockets)
-				{
-					if(Socket->GetFName() == InCapsule.Name)
-					{
-						bFoundSocket = true;
-
-						FSelectedSocketInfo SocketInfo;
-						SocketInfo.Socket = Socket;
-						SocketInfo.bSocketIsOnSkeleton = !SocketInfo.Socket->GetOuter()->IsA<USkeletalMesh>();
-						PreviewScene->SetSelectedSocket(SocketInfo);
-					}
-				}
-			}
-						
-			if(!bFoundSocket)
-			{
-				PreviewScene->SetSelectedBone(InCapsule.Name, ESelectInfo::OnMouseClick);
-			}
-
-		});
 
 	// Make sure we get told when the editor mode changes so we can switch to the appropriate tab
 	// if there's a toolbox available.
@@ -463,11 +316,6 @@ void FSkeletalMeshEditor::BindCommands()
 
 	ToolkitCommands->MapAction(FSkeletalMeshEditorCommands::Get().ReimportAllMesh,
 		FExecuteAction::CreateSP(this, &FSkeletalMeshEditor::HandleReimportAllMesh, (int32)INDEX_NONE));
-
-	ToolkitCommands->MapAction(FSkeletalMeshEditorCommands::Get().MeshSectionSelection,
-		FExecuteAction::CreateSP(this, &FSkeletalMeshEditor::ToggleMeshSectionSelection),
-		FCanExecuteAction(), 
-		FIsActionChecked::CreateSP(this, &FSkeletalMeshEditor::IsMeshSectionSelectionChecked));
 
 	ToolkitCommands->MapAction(FPersonaCommonCommands::Get().TogglePlay,
 		FExecuteAction::CreateRaw(&GetPersonaToolkit()->GetPreviewScene().Get(), &IPersonaPreviewScene::TogglePlayback));
@@ -789,12 +637,6 @@ void FSkeletalMeshEditor::ExtendToolbar()
 
 		Section.AddEntry(FToolMenuEntry::InitComboButton("ReimportContextMenu", FUIAction(), FNewToolMenuDelegate(), FText(), FText(), FSlateIcon(), true));
 	}
-
-	{
-		FToolMenuSection& Section = ToolMenu->AddSection("SkeletalMesh", FText(), FToolMenuInsert("Mesh", EToolMenuInsertType::After));
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton(FSkeletalMeshEditorCommands::Get().MeshSectionSelection));
-	}
-
 
 	// If the ToolbarExtender is valid, remove it before rebuilding it
 	if (ToolbarExtender.IsValid())
@@ -1161,7 +1003,7 @@ void FSkeletalMeshEditor::OnCreateClothingAssetMenuItemClicked(FSkeletalMeshClot
 			int32 SectionIndex = -1, AssetLodIndex = -1;
 			if (Params.bRemapParameters)
 			{
-				if (TargetAssetPtr)
+				if (TargetAssetPtr && Mesh->GetImportedModel()->LODModels.IsValidIndex(Params.TargetLod))
 				{
 					//Cache the section and asset LOD this asset was bound at before unbinding
 					FSkeletalMeshLODModel& SkelLod = Mesh->GetImportedModel()->LODModels[Params.TargetLod];
@@ -1590,16 +1432,6 @@ void FSkeletalMeshEditor::HandleReimportAllMeshWithNewFile(int32 SourceFileIndex
 			ReimportAllCustomLODs(SkeletalMesh, GetPersonaToolkit()->GetPreviewMeshComponent(), true);
 		}
 	}
-}
-
-
-void FSkeletalMeshEditor::ToggleMeshSectionSelection()
-{
-	TSharedRef<IPersonaPreviewScene> PreviewScene = GetPersonaToolkit()->GetPreviewScene();
-	PreviewScene->DeselectAll();
-	bool bState = !PreviewScene->AllowMeshHitProxies();
-	GetMutableDefault<UPersonaOptions>()->bAllowMeshSectionSelection = bState;
-	PreviewScene->SetAllowMeshHitProxies(bState);
 }
 
 bool FSkeletalMeshEditor::IsMeshSectionSelectionChecked() const

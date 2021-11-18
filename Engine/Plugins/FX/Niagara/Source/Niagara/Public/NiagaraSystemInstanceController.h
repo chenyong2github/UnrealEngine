@@ -151,7 +151,7 @@ private:
 	void SetVariable(FName InVariableName, bool InValue);
 	void SetVariable(FName InVariableName, int32 InValue);
 	void SetVariable(FName InVariableName, float InValue);
-	void SetVariable(FName InVariableName, FVector2D InValue);
+	void SetVariable(FName InVariableName, FVector2f InValue);
 	void SetVariable(FName InVariableName, FVector3f InValue);
 	void SetVariable(FName InVariableName, FVector4f InValue);
 	void SetVariable(FName InVariableName, FLinearColor InValue);

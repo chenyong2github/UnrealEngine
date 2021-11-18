@@ -539,6 +539,33 @@ void USequencerPivotTool::GizmoTransformStarted(UTransformProxy* Proxy)
 }
 
 
+
+//For some reason when just setting the location of the actor the gizmo was not updating, so we do the full suite of notifications to make
+//sure the other systems know the actor got moved
+static void SetLocation(AActor* Actor, const FVector& NewLocation)
+{
+	if (Actor != nullptr)
+	{
+		if (USceneComponent* RootComponent = Actor->GetRootComponent())
+		{
+			GEditor->BroadcastBeginObjectMovement(*Actor);
+			FProperty* TransformProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
+			FEditPropertyChain PropertyChain;
+			PropertyChain.AddHead(TransformProperty);
+			FCoreUObjectDelegates::OnPreObjectPropertyChanged.Broadcast(Actor, PropertyChain);
+			RootComponent->SetWorldLocation(NewLocation);
+			FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
+			// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
+			FCoreUObjectDelegates::OnObjectPropertyChanged.Broadcast(Actor, PropertyChangedEvent);
+			GUnrealEd->UpdatePivotLocationForSelection();
+			GUnrealEd->SetPivotMovedIndependently(false);
+			const bool bFinished = false;	// @todo gizmo: PostEditChange never called; and bFinished=true never known!!
+			Actor->PostEditMove(bFinished);
+			GEditor->BroadcastEndObjectMovement(*Actor);
+		}
+	}
+}
+
 void USequencerPivotTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
 	if (!bGizmoBeingDragged)
@@ -590,16 +617,17 @@ void USequencerPivotTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransfo
 					FVector RotatedDiff = Diff.GetRotation().RotateVector(LocDiff);
 					FVector NewLocation = StartDragTransform.TransformPosition(RotatedDiff);
 					ActorDrag.CurrentTransform.SetLocation(NewLocation);
+					SetLocation(ActorDrag.Actor, NewLocation);
+					/*Note that calling the bit below isn't enought. That's just sends a begin/end event, the other bits are needed, and needed between these events
 					UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
 					EditorActorSubsystem->SetActorTransform(ActorDrag.Actor,ActorDrag.CurrentTransform);
 					GUnrealEd->UpdatePivotLocationForSelection();
+					*/
 				}
 			}
 			else //last one with shift we keep locked!
 			{
-				UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
-				EditorActorSubsystem->SetActorTransform(ActorDrag.Actor, ActorDrag.CurrentTransform);
-				GUnrealEd->UpdatePivotLocationForSelection();
+				SetLocation(ActorDrag.Actor, ActorDrag.CurrentTransform.GetLocation());
 			}
 			++Index;
 		}

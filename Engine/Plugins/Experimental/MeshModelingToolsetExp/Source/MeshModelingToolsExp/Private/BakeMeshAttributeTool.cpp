@@ -2,6 +2,8 @@
 
 #include "BakeMeshAttributeTool.h"
 #include "InteractiveToolManager.h"
+#include "ModelingToolTargetUtil.h"
+#include "ToolSetupUtil.h"
 
 using namespace UE::Geometry;
 
@@ -13,12 +15,8 @@ void UBakeMeshAttributeTool::Setup()
 	Super::Setup();
 
 	// Setup preview materials
-	UMaterial* WorkingMaterial = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/InProgressMaterial"));
-	check(WorkingMaterial);
-	if (WorkingMaterial != nullptr)
-	{
-		WorkingPreviewMaterial = UMaterialInstanceDynamic::Create(WorkingMaterial, GetToolManager());
-	}
+	WorkingPreviewMaterial = ToolSetupUtil::GetDefaultWorkingMaterialInstance(GetToolManager());
+	ErrorPreviewMaterial = ToolSetupUtil::GetDefaultErrorMaterial(GetToolManager());
 }
 
 
@@ -71,6 +69,39 @@ int UBakeMeshAttributeTool::SelectColorTextureToBake(const TArray<UTexture*>& Te
 	}
 
 	return MaxIndex;
+}
+
+void UBakeMeshAttributeTool::UpdateMultiTextureMaterialIDs(
+	UToolTarget* Target,
+	TArray<TObjectPtr<UTexture2D>>& AllSourceTextures,
+	TArray<TObjectPtr<UTexture2D>>& MaterialIDTextures)
+{
+	ProcessComponentTextures(UE::ToolTarget::GetTargetComponent(Target),
+		[&AllSourceTextures, &MaterialIDTextures](const int NumMaterials, const int MaterialID, const TArray<UTexture*>& Textures)
+	{
+		MaterialIDTextures.SetNumZeroed(NumMaterials);
+			
+		for (UTexture* Tex : Textures)
+		{
+			UTexture2D* Tex2D = Cast<UTexture2D>(Tex);
+			if (Tex2D)
+			{
+				AllSourceTextures.Add(Tex2D);
+			}
+		}
+
+		UTexture2D* Tex2D = nullptr;
+		constexpr bool bGuessAtTextures = true;
+		if constexpr (bGuessAtTextures)
+		{
+			const int SelectedTextureIndex = SelectColorTextureToBake(Textures);
+			if (SelectedTextureIndex >= 0)
+			{
+				Tex2D = Cast<UTexture2D>(Textures[SelectedTextureIndex]);	
+			}
+		}
+		MaterialIDTextures[MaterialID] = Tex2D;
+	});
 }
 
 #undef LOCTEXT_NAMESPACE

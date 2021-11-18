@@ -337,9 +337,9 @@ private:
 		bool bOutOfFrustumPoints = false;
 
 		// Search a camera space frustum
-		for (int i = 0; i < 8; ++i)
+		for (int32 AABBPointIndex = 0; AABBPointIndex < 8; ++AABBPointIndex)
 		{
-			bOutOfFrustumPoints |= !GetProjectionClip(GeometryContext.AABBoxPts[i]);
+			bOutOfFrustumPoints |= !GetProjectionClip(GeometryContext.AABBoxPts[AABBPointIndex]);
 		}
 
 		return bOutOfFrustumPoints == false;
@@ -391,7 +391,7 @@ private:
 	const FDisplayClusterWarpEye& Eye;
 
 	// legacy WarpMap, now always use x16 downscale ratio
-	const int WarpMapLODRatio = 16;
+	const int32 WarpMapLODRatio = 16;
 
 	// Build
 	FDisplayClusterWarpContext Frustum;

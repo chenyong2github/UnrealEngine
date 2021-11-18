@@ -149,39 +149,9 @@ void UDataLayerEditorSubsystem::UpdateDataLayerEditorPerProjectUserSettings()
 {
 	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		const TArray<FName>& SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
-		const TArray<FName>& SettingsDataLayersLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersLoadedInEditor(GetWorld());
-
 		TArray<FName> DataLayersNotLoadedInEditor;
 		TArray<FName> DataLayersLoadedInEditor;
-		WorldDataLayers->ForEachDataLayer([&DataLayersNotLoadedInEditor, &DataLayersLoadedInEditor, &SettingsDataLayersNotLoadedInEditor, &SettingsDataLayersLoadedInEditor](UDataLayer* DataLayer)
-		{
-			if (DataLayer->IsLoadedInEditorChangedByUserOperation())
-			{			
-				if (!DataLayer->IsLoadedInEditor() && DataLayer->IsInitiallyLoadedInEditor())
-				{
-					DataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
-				}
-				else if (DataLayer->IsLoadedInEditor() && !DataLayer->IsInitiallyLoadedInEditor())
-				{
-					DataLayersLoadedInEditor.Add(DataLayer->GetFName());
-				}
-
-				DataLayer->ClearLoadedInEditorChangedByUserOperation();
-			}
-			else
-			{
-				if (SettingsDataLayersNotLoadedInEditor.Contains(DataLayer->GetFName()))
-				{
-					DataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
-				}
-				else if (SettingsDataLayersLoadedInEditor.Contains(DataLayer->GetFName()))
-				{
-					DataLayersLoadedInEditor.Add(DataLayer->GetFName());
-				}
-			}
-			return true;
-		});
+		WorldDataLayers->GetUserLoadedInEditorStates(DataLayersLoadedInEditor, DataLayersNotLoadedInEditor);
 		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetWorldDataLayersNonDefaultEditorLoadStates(GetWorld(), DataLayersLoadedInEditor, DataLayersNotLoadedInEditor);
 	}
 }
@@ -846,12 +816,16 @@ bool UDataLayerEditorSubsystem::ToggleDataLayersIsLoadedInEditor(const TArray<UD
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
 }
 
-bool UDataLayerEditorSubsystem::ResetUserSettings(const TArray<UDataLayer*>& DataLayers)
+bool UDataLayerEditorSubsystem::ResetUserSettings()
 {
 	bool bRefreshNeeded = false;
-	for (UDataLayer* DataLayer : DataLayers)
+	if (const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor(), true);
+		WorldDataLayers->ForEachDataLayer([this, &bRefreshNeeded](UDataLayer* DataLayer)
+		{
+			bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor(), true);
+			return true;
+		});
 	}
 	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(true) : true;
 }

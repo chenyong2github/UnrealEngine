@@ -1021,7 +1021,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("LightmassRayTracingScratchBuffer"));
 			FBufferRHIRef ScratchBuffer = RHICreateBuffer(
 				uint32(SizeInfo.BuildScratchSize),
-				BUF_UnorderedAccess, GRHIRayTracingAccelerationStructureAlignment, ERHIAccess::UAVCompute,
+				BUF_UnorderedAccess, GRHIRayTracingScratchBufferAlignment, ERHIAccess::UAVCompute,
 				ScratchBufferCreateInfo);
 
 			FRWBufferStructured InstanceBuffer;
@@ -1056,6 +1056,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 					RayTracingGeometryInstances,
 					SceneWithGeometryInstances.InstanceGeometryIndices,
 					SceneWithGeometryInstances.BaseUploadBufferOffsets,
+					SceneWithGeometryInstances.NumNativeGPUSceneInstances,
 					SceneWithGeometryInstances.NumNativeCPUInstances,
 					MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances),
 					MakeArrayView(TransformUploadData, SceneWithGeometryInstances.NumNativeCPUInstances * 3));
@@ -1081,10 +1082,12 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 			BuildRayTracingInstanceBuffer(
 				RHICmdList,
+				nullptr,
 				InstanceBuffer.UAV,
 				InstanceUploadSRV,
 				AccelerationStructureAddressesBuffer.SRV,
 				TransformUploadSRV,
+				SceneWithGeometryInstances.NumNativeGPUSceneInstances,
 				SceneWithGeometryInstances.NumNativeCPUInstances,
 				{});
 

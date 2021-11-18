@@ -10,8 +10,6 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	abstract class AppleToolChainSettings
@@ -58,7 +56,7 @@ namespace UnrealBuildTool
 			// Installed engine requires Xcode 11
 			if (Unreal.IsEngineInstalled())
 			{
-				string InstalledSdkVersion = UnrealBuildBase.ApplePlatformSDK.InstalledSDKVersion;
+				string? InstalledSdkVersion = UnrealBuildBase.ApplePlatformSDK.InstalledSDKVersion;
 				if (String.IsNullOrEmpty(InstalledSdkVersion))
 				{
 					throw new BuildException("Unable to get xcode version");
@@ -83,7 +81,7 @@ namespace UnrealBuildTool
 					// loop over the subdirs and parse out the version
 					int MaxSDKVersionMajor = 0;
 					int MaxSDKVersionMinor = 0;
-					string MaxSDKVersionString = null;
+					string? MaxSDKVersionString = null;
 					foreach (string SubDir in SubDirs)
 					{
 						string SubDirName = Path.GetFileNameWithoutExtension(SubDir);
@@ -149,9 +147,9 @@ namespace UnrealBuildTool
 
 	abstract class AppleToolChain : ISPCToolChain
 	{
-		protected FileReference ProjectFile;
+		protected FileReference? ProjectFile;
 
-		public AppleToolChain(FileReference InProjectFile)
+		public AppleToolChain(FileReference? InProjectFile)
 		{
 			ProjectFile = InProjectFile;
 		}
@@ -177,8 +175,8 @@ namespace UnrealBuildTool
 			Utils.RunLocalProcessAndLogOutput(StartInfo);
 		}
 
-		static Version ClangVersion = null;
-		static string FullClangVersion = null;
+		static Version? ClangVersion = null;
+		static string? FullClangVersion = null;
 
 		protected Version GetClangVersion()
 		{	
@@ -196,7 +194,7 @@ namespace UnrealBuildTool
 			{
 				// get the first line that has the full clang and build number
 				FileReference ClangLocation = new FileReference("/usr/bin/clang");
-				FullClangVersion = RunToolAndCaptureOutput(ClangLocation, "--version", "(.*)");
+				FullClangVersion = RunToolAndCaptureOutput(ClangLocation, "--version", "(.*)")!;
 			}
 
 			return FullClangVersion;
@@ -271,7 +269,7 @@ namespace UnrealBuildTool
 					DsymutilLocation = PatchedDsymutilLocation;
 				}
 
-				DirectoryReference AutoSdkDir;
+				DirectoryReference? AutoSdkDir;
 				if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out AutoSdkDir))
 				{
 					FileReference AutoSdkDsymutilLocation = FileReference.Combine(AutoSdkDir, "Mac", "LLVM", "bin", "dsymutil");

@@ -43,7 +43,7 @@ void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache)
 	UAnimSeqExportOption* AnimSeqExportOption = NewObject<UAnimSeqExportOption>(GetTransientPackage(), NAME_None);
 	MovieSceneToolHelpers::ExportToAnimSequence(CachedAnimSequence, AnimSeqExportOption,Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene(), Sequencer.Get(), SkeletalMeshComponent.Get(),
 		Sequencer->GetFocusedTemplateID(), MovieSceneSequenceTransform);
-	AnimSeqExportOption->MarkPendingKill();
+	AnimSeqExportOption->MarkAsGarbage();
 	Sequencer->ForceEvaluate();
 
 	GetSpaceBasedAnimationData(GlobalBoneTransforms);

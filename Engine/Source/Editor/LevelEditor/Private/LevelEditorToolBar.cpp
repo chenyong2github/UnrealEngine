@@ -1963,7 +1963,6 @@ void FLevelEditorToolBar::RegisterAddMenu()
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
 	UToolMenu* AddMenu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.AddQuickMenu");
-	AddMenu->bSearchable = true;
 	{
 		FToolMenuSection& Section = AddMenu->FindOrAddSection("Content");
 

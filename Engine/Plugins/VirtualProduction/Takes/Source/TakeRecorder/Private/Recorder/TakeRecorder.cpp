@@ -1194,7 +1194,7 @@ void UTakeRecorder::StopInternal(const bool bCancelled)
 
 		SequenceAsset->ClearFlags(RF_Standalone | RF_Public);
 		SequenceAsset->RemoveFromRoot();
-		SequenceAsset->MarkPendingKill();
+		SequenceAsset->MarkAsGarbage();
 		SequenceAsset = nullptr;
 	}
 

@@ -42,53 +42,6 @@ enum class ENavDataGatheringMode : uint8;
 
 #if WITH_EDITOR
 LANDSCAPE_API extern bool GLandscapeEditModeActive;
-
-
-// ----------------------------------------------------------------------------------
-// Acceleration structure for when calling GetLayersFromMaterial repeatedly on potentially identical materials
-struct FGetLayersFromMaterialCache
-{
-	friend struct FScopedGetLayersFromMaterialCache;
-
-	// Use that function to retrieve the list of layers from a given material. 
-	// If a FScopedGetLayersFromMaterialCache object is currently in use, it will 
-	//  only compute that list for materials that are not yet in the cache 
-	static TArray<FName> GetLayersFromMaterial(const UMaterialInterface* InMaterialInterface);
-
-private:
-	TArray<FName> GetLayersFromMaterialInternal(const UMaterialInterface* InMaterialInterface);
-	static TArray<FName> ComputeLayersFromMaterial(const UMaterialInterface* InMaterialInterface);
-
-private:
-	TMap<const UMaterialInterface*, TArray<FName>> PerMaterialLayersCache;
-
-	static FGetLayersFromMaterialCache* ActiveCache;
-};
-
-
-// Scope object to use when repeatedly calling GetLayersFromMaterial on potentially identical materials
-struct FScopedGetLayersFromMaterialCache
-{
-	FScopedGetLayersFromMaterialCache()
-	{
-		check(FGetLayersFromMaterialCache::ActiveCache == nullptr); // Only one scoped cache allowed at a time for now 
-		FGetLayersFromMaterialCache::ActiveCache = &Cache;
-	}
-
-	~FScopedGetLayersFromMaterialCache()
-	{
-		check(FGetLayersFromMaterialCache::ActiveCache == &Cache);
-		FGetLayersFromMaterialCache::ActiveCache = nullptr;
-	}
-
-	// Non-copyable idiom:
-	FScopedGetLayersFromMaterialCache(const FScopedGetLayersFromMaterialCache&) = delete;
-	FScopedGetLayersFromMaterialCache& operator=(const FScopedGetLayersFromMaterialCache&) = delete;
-
-private:
-	FGetLayersFromMaterialCache Cache;
-};
-
 #endif // WITH_EDITOR
 
 
@@ -721,6 +674,12 @@ public:
 	TMap<UTexture2D*, FLandscapeEditLayerReadback*> WeightmapsCPUReadback;
 
 	FRenderCommandFence ReleaseResourceFence;
+
+	/** Map of weightmap usage */
+	UPROPERTY(Transient, NonTransactional)
+	TMap<TObjectPtr<UTexture2D>, TObjectPtr<ULandscapeWeightmapUsage>> WeightmapUsageMap;
+
+	bool bNeedsWeightmapUsagesUpdate = false;
 #endif
 
 	/** Data set at creation time */
@@ -771,10 +730,6 @@ public:
 	/** Map of material instance constants used to for the components. Key is generated with ULandscapeComponent::GetLayerAllocationKey() */
 	TMap<FString, UMaterialInstanceConstant*> MaterialInstanceConstantMap;
 #endif
-
-	/** Map of weightmap usage */
-	UPROPERTY(Transient)
-	TMap<TObjectPtr<UTexture2D>, TObjectPtr<ULandscapeWeightmapUsage>> WeightmapUsageMap;
 
 	// Blueprint functions
 
@@ -991,12 +946,16 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditImport() override;
+	virtual void PostEditUndo() override;
 	//~ End UObject Interface
 
 	LANDSCAPE_API void InitializeProxyLayersWeightmapUsage();
+	void ValidateProxyLayersWeightmapUsage() const;
+	void UpdateProxyLayersWeightmapUsage();
+	void RequestProxyLayersWeightmapUsageUpdate();
 
-	LANDSCAPE_API static TArray<FName> GetLayersFromMaterial(UMaterialInterface* Material);
-	LANDSCAPE_API TArray<FName> GetLayersFromMaterial() const;
+	LANDSCAPE_API static const TArray<FName>& GetLayersFromMaterial(UMaterialInterface* Material);
+	LANDSCAPE_API const TArray<FName>& GetLayersFromMaterial() const;
 	LANDSCAPE_API static ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* LayerName, ULevel* Level);
 	LANDSCAPE_API ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* LayerName);
 

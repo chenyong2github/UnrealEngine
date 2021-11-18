@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimDistanceMatchingLibrary.h"
+#include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimSequence.h"
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
 #include "Curves/CurveFloat.h"
@@ -22,6 +23,11 @@ float GetTimeAfterDistanceTraveled(const UAnimSequence* AnimSequence, float Curr
 
 			const float SequenceLength = AnimSequence->GetPlayLength();
 			const float StepTime = 1.f / 30.f;
+			
+			// Distance Matching expects the distance curve on the animation to increase monotonically. If the curve fails to increase in value
+			// after a certain number of iterations, we abandon the algorithm to avoid an infinite loop.
+			const int32 StuckLoopThreshold = 5;
+			int32 StuckLoopCounter = 0;
 
 			// Traverse the distance curve, accumulating animated distance until the desired distance is reached.
 			while ((AccumulatedDistance < DistanceTraveled) && (bAllowLooping || (NewTime + StepTime < SequenceLength)))
@@ -46,6 +52,17 @@ float GetTimeAfterDistanceTraveled(const UAnimSequence* AnimSequence, float Curr
 						AccumulatedDistance = DistanceTraveled;
 						break;
 					}
+
+					StuckLoopCounter = 0;
+				}
+				else
+				{
+					++StuckLoopCounter;
+					if (StuckLoopCounter >= StuckLoopThreshold)
+					{
+						UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Failed to advance any distance after %d loops on anim sequence (%s). Aborting."), StuckLoopThreshold, *GetNameSafe(AnimSequence));
+						break;
+					}
 				}
 			}
 		}
@@ -63,54 +80,53 @@ float GetTimeAfterDistanceTraveled(const UAnimSequence* AnimSequence, float Curr
 }
 
 FSequenceEvaluatorReference UAnimDistanceMatchingLibrary::AdvanceTimeByDistanceMatching(const FAnimUpdateContext& UpdateContext, const FSequenceEvaluatorReference& SequenceEvaluator,
-	float DistanceTraveled, const FDistanceCurve& CachedDistanceCurve, const UCurveFloat* PlayRateAdjustmentCurve, FVector2D PlayRateClamp)
+	float DistanceTraveled, const FDistanceCurve& CachedDistanceCurve, FVector2D PlayRateClamp)
 {
 	SequenceEvaluator.CallAnimNodeFunction<FAnimNode_SequenceEvaluator>(
 		TEXT("AdvanceTimeByDistanceMatching"),
-		[&UpdateContext, DistanceTraveled, &CachedDistanceCurve, PlayRateAdjustmentCurve, PlayRateClamp](FAnimNode_SequenceEvaluator& InSequenceEvaluator)
+		[&UpdateContext, DistanceTraveled, &CachedDistanceCurve, PlayRateClamp](FAnimNode_SequenceEvaluator& InSequenceEvaluator)
 		{
 			if (const FAnimationUpdateContext* AnimationUpdateContext = UpdateContext.GetContext())
 			{
 				const float DeltaTime = AnimationUpdateContext->GetDeltaTime(); 
 
-				if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(InSequenceEvaluator.GetSequence()))
+				if (DeltaTime > 0 && DistanceTraveled > 0)
 				{
-					const float CurrentTime = InSequenceEvaluator.GetExplicitTime();
-					const float CurrentAssetLength = InSequenceEvaluator.GetCurrentAssetLength();
-					const bool bAllowLooping = InSequenceEvaluator.GetShouldLoop();
-
-					float TimeAfterDistanceTraveled = GetTimeAfterDistanceTraveled(AnimSequence, CurrentTime, DistanceTraveled, CachedDistanceCurve, bAllowLooping);
-
-					// Calculate the effective playrate that would result from advancing the animation by the distance traveled.
-					// Account for the animation looping.
-					if (TimeAfterDistanceTraveled < CurrentTime)
+					if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(InSequenceEvaluator.GetSequence()))
 					{
-						TimeAfterDistanceTraveled += CurrentAssetLength;
-					}
-					float EffectivePlayRate = (TimeAfterDistanceTraveled - CurrentTime) / DeltaTime;
+						const float CurrentTime = InSequenceEvaluator.GetExplicitTime();
+						const float CurrentAssetLength = InSequenceEvaluator.GetCurrentAssetLength();
+						const bool bAllowLooping = InSequenceEvaluator.GetShouldLoop();
 
-					// Clamp the effective play rate.
-					if (PlayRateAdjustmentCurve != nullptr)
-					{
-						EffectivePlayRate = FMath::Max(PlayRateAdjustmentCurve->GetFloatValue(EffectivePlayRate), 0.f);
-					}
-					else if (PlayRateClamp.X < PlayRateClamp.Y)
-					{
-						EffectivePlayRate = FMath::Clamp(EffectivePlayRate, PlayRateClamp.X, PlayRateClamp.Y);
-					}
+						float TimeAfterDistanceTraveled = GetTimeAfterDistanceTraveled(AnimSequence, CurrentTime, DistanceTraveled, CachedDistanceCurve, bAllowLooping);
 
-					// Advance animation time by the effective play rate.
-					float NewTime = CurrentTime;
-					FAnimationRuntime::AdvanceTime(bAllowLooping, EffectivePlayRate * DeltaTime, NewTime, CurrentAssetLength);
+						// Calculate the effective playrate that would result from advancing the animation by the distance traveled.
+						// Account for the animation looping.
+						if (TimeAfterDistanceTraveled < CurrentTime)
+						{
+							TimeAfterDistanceTraveled += CurrentAssetLength;
+						}
+						float EffectivePlayRate = (TimeAfterDistanceTraveled - CurrentTime) / DeltaTime;
 
-					if(!InSequenceEvaluator.SetExplicitTime(NewTime))
-					{
-						UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Could not set explicit time on sequence evaluator, value is not dynamic. Set it as Always Dynamic."));
+						// Clamp the effective play rate.
+						if (PlayRateClamp.X >= 0.0f && PlayRateClamp.X < PlayRateClamp.Y)
+						{
+							EffectivePlayRate = FMath::Clamp(EffectivePlayRate, PlayRateClamp.X, PlayRateClamp.Y);
+						}
+
+						// Advance animation time by the effective play rate.
+						float NewTime = CurrentTime;
+						FAnimationRuntime::AdvanceTime(bAllowLooping, EffectivePlayRate * DeltaTime, NewTime, CurrentAssetLength);
+
+						if (!InSequenceEvaluator.SetExplicitTime(NewTime))
+						{
+							UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Could not set explicit time on sequence evaluator, value is not dynamic. Set it as Always Dynamic."));
+						}
 					}
-				}
-				else
-				{
-					UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Sequence evaluator does not have an anim sequence to play."));
+					else
+					{
+						UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Sequence evaluator does not have an anim sequence to play."));
+					}
 				}
 			}
 			else
@@ -142,7 +158,7 @@ FSequenceEvaluatorReference UAnimDistanceMatchingLibrary::DistanceMatchToTarget(
 				}
 				else
 				{
-					UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("DistanceMatchToTarget called with invalid CachedDistanceCurve."));
+					UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("DistanceMatchToTarget called with invalid CachedDistanceCurve or animation (%s) is missing a distance curve."), *GetNameSafe(AnimSequence));
 				}
 			}
 			else
@@ -153,4 +169,51 @@ FSequenceEvaluatorReference UAnimDistanceMatchingLibrary::DistanceMatchToTarget(
 		});
 
 	return SequenceEvaluator;
+}
+
+FSequencePlayerReference UAnimDistanceMatchingLibrary::SetPlayrateToMatchSpeed(const FSequencePlayerReference& SequencePlayer, float SpeedToMatch, FVector2D PlayRateClamp)
+{
+	SequencePlayer.CallAnimNodeFunction<FAnimNode_SequencePlayer>(
+		TEXT("SetPlayrateToMatchSpeed"),
+		[SpeedToMatch, PlayRateClamp](FAnimNode_SequencePlayer& InSequencePlayer)
+		{
+			if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(InSequencePlayer.GetSequence()))
+			{
+				const float AnimLength = AnimSequence->GetPlayLength();
+				if (!FMath::IsNearlyZero(AnimLength))
+				{
+					// Calculate the speed as: (distance traveled by the animation) / (length of the animation)
+					const FVector RootMotionTranslation = AnimSequence->ExtractRootMotionFromRange(0.0f, AnimLength).GetTranslation();
+					const float RootMotionDistance = RootMotionTranslation.Size2D();
+					if (!FMath::IsNearlyZero(RootMotionDistance))
+					{
+						const float AnimationSpeed = RootMotionDistance / AnimLength;
+						float DesiredPlayRate = SpeedToMatch / AnimationSpeed;
+						if (PlayRateClamp.X >= 0.0f && PlayRateClamp.X < PlayRateClamp.Y)
+						{
+							DesiredPlayRate = FMath::Clamp(DesiredPlayRate, PlayRateClamp.X, PlayRateClamp.Y);
+						}
+
+						if (!InSequencePlayer.SetPlayRate(DesiredPlayRate))
+						{
+							UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Could not set play rate on sequence player, value is not dynamic. Set it as Always Dynamic."));
+						}
+					}
+					else
+					{
+						UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Unable to adjust playrate for animation with no root motion delta (%s)."), *GetNameSafe(AnimSequence));
+					}
+				}
+				else
+				{
+					UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Unable to adjust playrate for zero length animation (%s)."), *GetNameSafe(AnimSequence));
+				}
+			}
+			else
+			{
+				UE_LOG(LogAnimDistanceMatchingLibrary, Warning, TEXT("Sequence player does not have an anim sequence to play."));
+			}
+		});
+
+	return SequencePlayer;
 }

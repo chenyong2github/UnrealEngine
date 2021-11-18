@@ -190,7 +190,7 @@ void FNavigationPath::ResetForRepath()
 	InternalResetNavigationPath();
 }
 
-void FNavigationPath::DebugDraw(const ANavigationData* NavData, FColor PathColor, UCanvas* Canvas, bool bPersistent, const uint32 NextPathPointIndex) const
+void FNavigationPath::DebugDraw(const ANavigationData* NavData, FColor PathColor, UCanvas* Canvas, bool bPersistent, float LifeTime, const uint32 NextPathPointIndex) const
 {
 #if ENABLE_DRAW_DEBUG
 
@@ -203,19 +203,19 @@ void FNavigationPath::DebugDraw(const ANavigationData* NavData, FColor PathColor
 	{
 		// draw box at vert
 		FVector const VertLoc = PathPoints[VertIdx].Location + NavigationDebugDrawing::PathOffset;
-		DrawDebugSolidBox(World, VertLoc, NavigationDebugDrawing::PathNodeBoxExtent, VertIdx < int32(NextPathPointIndex) ? Grey : PathColor, bPersistent);
+		DrawDebugSolidBox(World, VertLoc, NavigationDebugDrawing::PathNodeBoxExtent, VertIdx < int32(NextPathPointIndex) ? Grey : PathColor, bPersistent, LifeTime);
 
 		// draw line to next loc
 		FVector const NextVertLoc = PathPoints[VertIdx+1].Location + NavigationDebugDrawing::PathOffset;
 		DrawDebugLine(World, VertLoc, NextVertLoc, VertIdx < int32(NextPathPointIndex)-1 ? Grey : PathColor, bPersistent
-			, /*LifeTime*/-1.f, /*DepthPriority*/0
+			, LifeTime, /*DepthPriority*/0
 			, /*Thickness*/NavigationDebugDrawing::PathLineThickness);
 	}
 
 	// draw last vert
 	if (NumPathVerts > 0)
 	{
-		DrawDebugBox(World, PathPoints[NumPathVerts-1].Location + NavigationDebugDrawing::PathOffset, FVector(15.f), PathColor, bPersistent);
+		DrawDebugBox(World, PathPoints[NumPathVerts-1].Location + NavigationDebugDrawing::PathOffset, FVector(15.f), PathColor, bPersistent, LifeTime);
 	}
 
 	// if observing goal actor draw a radius and a line to the goal
@@ -224,8 +224,8 @@ void FNavigationPath::DebugDraw(const ANavigationData* NavData, FColor PathColor
 		const FVector GoalLocation = GetGoalLocation() + NavigationDebugDrawing::PathOffset;
 		const FVector EndLocation = GetEndLocation() + NavigationDebugDrawing::PathOffset;
 		static const FVector CylinderHalfHeight = FVector::UpVector * 10.f;
-		DrawDebugCylinder(World, EndLocation - CylinderHalfHeight, EndLocation + CylinderHalfHeight, FMath::Sqrt(GoalActorLocationTetherDistanceSq), 16, PathColor, bPersistent);
-		DrawDebugLine(World, EndLocation, GoalLocation, Grey, bPersistent);
+		DrawDebugCylinder(World, EndLocation - CylinderHalfHeight, EndLocation + CylinderHalfHeight, FMath::Sqrt(GoalActorLocationTetherDistanceSq), 16, PathColor, bPersistent, LifeTime);
+		DrawDebugLine(World, EndLocation, GoalLocation, Grey, bPersistent, LifeTime);
 	}
 
 #endif
@@ -488,7 +488,7 @@ void UNavigationPath::DrawDebug(UCanvas* Canvas, APlayerController*)
 {
 	if (SharedPath.IsValid())
 	{
-		SharedPath->DebugDraw(SharedPath->GetNavigationDataUsed(), DebugDrawingColor, Canvas, /*bPersistent=*/false);
+		SharedPath->DebugDraw(SharedPath->GetNavigationDataUsed(), DebugDrawingColor, Canvas, /*bPersistent=*/false, -1.f);
 	}
 }
 
@@ -590,4 +590,13 @@ void UNavigationPath::SetPathPointsFromPath(FNavigationPath& NativePath)
 	{
 		PathPoints.Add(PathPoint.Location);
 	}
+}
+
+
+//------------------------------------------------------------------------//
+// deprecated functions
+//------------------------------------------------------------------------//
+void FNavigationPath::DebugDraw(const ANavigationData* NavData, FColor PathColor, UCanvas* Canvas, bool bPersistent, const uint32 NextPathPointIndex) const
+{
+	DebugDraw(NavData, PathColor, Canvas, bPersistent, -1.f, NextPathPointIndex);
 }

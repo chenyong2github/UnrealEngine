@@ -1068,17 +1068,36 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				{
 					MaterialShaderResource->CheckForStaleResources();
 
-					const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(ActiveSceneView.GetFeatureLevel(), MaterialRenderProxy);
-
-					TShaderRef<FSlateMaterialShaderPS> PixelShader = GetMaterialPixelShader(&Material, ShaderType);
-
 					const bool bUseInstancing = RenderBatch.InstanceCount > 0 && RenderBatch.InstanceData != nullptr;
-					TShaderRef<FSlateMaterialShaderVS> VertexShader = GetMaterialVertexShader(&Material, bUseInstancing);
+
+					TShaderRef<FSlateMaterialShaderVS> VertexShader;
+					TShaderRef<FSlateMaterialShaderPS> PixelShader;
+
+					FMaterialShaderTypes ShaderTypesToGet;
+					ChooseMaterialShaderTypes(ShaderType, bUseInstancing, ShaderTypesToGet);
+					const FMaterial* EffectiveMaterial = nullptr;
+
+					const ERHIFeatureLevel::Type ViewFeatureLevel = ActiveSceneView.GetFeatureLevel();
+					while(MaterialRenderProxy)
+					{
+						const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(ViewFeatureLevel);
+						FMaterialShaders Shaders;
+						if (Material && Material->TryGetShaders(ShaderTypesToGet, nullptr, Shaders))
+						{
+							EffectiveMaterial = Material;
+							Shaders.TryGetVertexShader(VertexShader);
+							Shaders.TryGetPixelShader(PixelShader);
+							break;
+						}
+
+						MaterialRenderProxy = MaterialRenderProxy->GetFallback(ViewFeatureLevel);
+					}
 
 					FRHIUniformBuffer* SceneTextureUniformBuffer = GetSceneTextureExtracts().GetUniformBuffer();
 
 					if (VertexShader.IsValid() && PixelShader.IsValid() && SceneTextureUniformBuffer)
 					{
+						check(EffectiveMaterial);
 						const FUniformBufferStaticBindings StaticUniformBuffers(SceneTextureUniformBuffer);
 						SCOPED_UNIFORM_BUFFER_STATIC_BINDINGS(RHICmdList, StaticUniformBuffers);
 
@@ -1107,9 +1126,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						else
 #endif
 						{
-							PixelShader->SetBlendState(GraphicsPSOInit, &Material);
+							PixelShader->SetBlendState(GraphicsPSOInit, EffectiveMaterial);
 							FSlateShaderResource* MaskResource = MaterialShaderResource->GetTextureMaskResource();
-							if (MaskResource && (Material.GetBlendMode() == EBlendMode::BLEND_Opaque || Material.GetBlendMode() == EBlendMode::BLEND_Masked))
+							if (MaskResource && (EffectiveMaterial->GetBlendMode() == EBlendMode::BLEND_Opaque || EffectiveMaterial->GetBlendMode() == EBlendMode::BLEND_Masked))
 							{
 								// Font materials require some form of translucent blending
 								GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_InverseDestAlpha, BF_One>::GetRHI();
@@ -1126,9 +1145,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 								QUICK_SCOPE_CYCLE_COUNTER(Slate_SetMaterialShaderParams);
 								VertexShader->SetViewProjection(RHICmdList, ViewProjection);
 								VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
-								VertexShader->SetMaterialShaderParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, &Material);
+								VertexShader->SetMaterialShaderParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial);
 
-								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, &Material, ShaderParams);
+								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial, ShaderParams);
 								const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? 1.0f / EngineGamma : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
 								const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
 								PixelShader->SetDisplayGammaAndContrast(RHICmdList, FinalGamma, FinalContrast);
@@ -1450,55 +1469,40 @@ TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGl
 	return PixelShader;
 }
 
-TShaderRef<FSlateMaterialShaderPS> FSlateRHIRenderingPolicy::GetMaterialPixelShader( const FMaterial* Material, ESlateShader ShaderType)
+void FSlateRHIRenderingPolicy::ChooseMaterialShaderTypes(ESlateShader ShaderType, bool bUseInstancing, FMaterialShaderTypes& OutShaderTypes)
 {
-	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
-
-	TShaderRef<FShader> FoundShader;
 	switch (ShaderType)
 	{
+	case ESlateShader::RoundedBox:
+		// Todo rounded box not supported in materials currently, intentional fall-through to Default
 	case ESlateShader::Default:
-		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Default>::StaticType);
+		OutShaderTypes.AddShaderType<TSlateMaterialShaderPS<ESlateShader::Default>>();
 		break;
 	case ESlateShader::Border:
-		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Border>::StaticType);
+		OutShaderTypes.AddShaderType<TSlateMaterialShaderPS<ESlateShader::Border>>();
 		break;
 	case ESlateShader::GrayscaleFont:
-		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::GrayscaleFont>::StaticType);
+		OutShaderTypes.AddShaderType<TSlateMaterialShaderPS<ESlateShader::GrayscaleFont>>();
 		break;
 	case ESlateShader::ColorFont:
-		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::ColorFont>::StaticType);
+		OutShaderTypes.AddShaderType<TSlateMaterialShaderPS<ESlateShader::ColorFont>>();
 		break;
 	case ESlateShader::Custom:
-		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Custom>::StaticType);
-		break;
-	case ESlateShader::RoundedBox:
-		// Todo rounded box not supported in materials currently
-		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderPS<ESlateShader::Default>::StaticType);
+		OutShaderTypes.AddShaderType<TSlateMaterialShaderPS<ESlateShader::Custom>>();
 		break;
 	default:
 		checkf(false, TEXT("Unsupported Slate shader type for use with materials"));
 		break;
 	}
 
-	return TShaderRef<FSlateMaterialShaderPS>::Cast(FoundShader);
-}
-
-TShaderRef<FSlateMaterialShaderVS> FSlateRHIRenderingPolicy::GetMaterialVertexShader( const FMaterial* Material, bool bUseInstancing )
-{
-	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
-
-	TShaderRef<FShader> FoundShader;
-	if( bUseInstancing )
+	if (bUseInstancing)
 	{
-		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderVS<true>::StaticType);
+		OutShaderTypes.AddShaderType<TSlateMaterialShaderVS<true>>();
 	}
 	else
 	{
-		FoundShader = MaterialShaderMap->GetShader(&TSlateMaterialShaderVS<false>::StaticType);
+		OutShaderTypes.AddShaderType<TSlateMaterialShaderVS<false>>();
 	}
-	
-	return TShaderRef<FSlateMaterialShaderVS>::Cast(FoundShader);
 }
 
 EPrimitiveType FSlateRHIRenderingPolicy::GetRHIPrimitiveType(ESlateDrawPrimitive SlateType)

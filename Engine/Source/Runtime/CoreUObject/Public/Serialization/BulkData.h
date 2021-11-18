@@ -23,7 +23,7 @@
 #endif
 
 // Enable the following to use the more compact FBulkDataStreamingToken in places where it is implemented
-#define USE_BULKDATA_STREAMING_TOKEN !USE_NEW_BULKDATA
+#define USE_BULKDATA_STREAMING_TOKEN !USE_NEW_BULKDATA && !WITH_IOSTORE_IN_EDITOR
 
 #if USE_BULKDATA_STREAMING_TOKEN
 	#define STREAMINGTOKEN_PARAM(param) param,
@@ -296,7 +296,11 @@ public:
 	friend class FExportArchive;
 	friend class UE::Virtualization::FVirtualizedUntypedBulkData; // To allow access to AttachedAr
 
-	using BulkDataRangeArray = TArray<FBulkDataStreamingToken*, TInlineAllocator<8>>;
+#if USE_BULKDATA_STREAMING_TOKEN
+	using BulkDataRangeArray = TArray<FBulkDataStreamingToken*, TInlineAllocator<8>>;	
+#else
+	using BulkDataRangeArray = TArray<FUntypedBulkData*, TInlineAllocator<8>>;
+#endif //USE_BULKDATA_STREAMING_TOKEN
 
 	/*-----------------------------------------------------------------------------
 		Constructors and operators
@@ -526,6 +530,9 @@ public:
 	 **/
 	FIoFilenameHash GetIoFilenameHash() const { return MakeIoFilenameHash(PackagePath); }
 
+	/** Returns a FIoChunkId for the bulkdata payload, this will be invalid if the bulkdata is not stored in the IoStore */
+	FIoChunkId CreateChunkId() const;
+
 	/*-----------------------------------------------------------------------------
 		Data retrieval and manipulation.
 	-----------------------------------------------------------------------------*/
@@ -748,7 +755,9 @@ public:
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const FPackagePath& PackagePath, EPackageSegment PackageSegment, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 	UE_DEPRECATED(4.26, "Use version that takes a FPackagePath instead")
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
-#endif
+#else
+	static IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
+#endif //USE_BULKDATA_STREAMING_TOKEN
 
 	/** Enable the given flags in the given accumulator variable. */
 	static void SetBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToSet);

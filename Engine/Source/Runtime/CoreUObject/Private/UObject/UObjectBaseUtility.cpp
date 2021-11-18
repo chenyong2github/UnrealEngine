@@ -13,6 +13,8 @@
 #include "Misc/StringBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/MallocProfiler.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/ConfigCacheIni.h"
 
 /***********************/
 /******** Names ********/

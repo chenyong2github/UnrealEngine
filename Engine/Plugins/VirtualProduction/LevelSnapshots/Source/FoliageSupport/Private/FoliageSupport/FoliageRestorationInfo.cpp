@@ -2,15 +2,15 @@
 
 #include "FoliageSupport/FoliageRestorationInfo.h"
 
-#include "Data/AddedAndRemovedComponentInfo.h"
-#include "Data/RestorableObjectSelection.h"
 #include "FoliageSupport/FoliageInfoData.h"
-#include "PropertySelectionMap.h"
+#include "Selection/AddedAndRemovedComponentInfo.h"
+#include "Selection/RestorableObjectSelection.h"
+#include "Selection/PropertySelectionMap.h"
 
 #include "InstancedFoliageActor.h"
 #include "LevelSnapshotsLog.h"
 
-FFoliageRestorationInfo FFoliageRestorationInfo::From(AInstancedFoliageActor* Object, const FPropertySelectionMap& SelectionMap, bool bWasRecreated)
+UE::LevelSnapshots::Foliage::Private::FFoliageRestorationInfo UE::LevelSnapshots::Foliage::Private::FFoliageRestorationInfo::From(AInstancedFoliageActor* Object, const FPropertySelectionMap& SelectionMap, bool bWasRecreated)
 {
 	FFoliageRestorationInfo Result;
 	Result.bWasRecreated = bWasRecreated;
@@ -33,12 +33,12 @@ FFoliageRestorationInfo FFoliageRestorationInfo::From(AInstancedFoliageActor* Ob
 	return Result;
 }
 
-bool FFoliageRestorationInfo::ShouldSkipFoliageType(const FFoliageInfoData& SavedData) const
+bool UE::LevelSnapshots::Foliage::Private::FFoliageRestorationInfo::ShouldSkipFoliageType(const FFoliageInfoData& SavedData) const
 {
 	return SavedData.GetImplType() != EFoliageImplType::StaticMesh;
 }
 
-bool FFoliageRestorationInfo::ShouldSerializeFoliageType(const FFoliageInfoData& SavedData) const
+bool UE::LevelSnapshots::Foliage::Private::FFoliageRestorationInfo::ShouldSerializeFoliageType(const FFoliageInfoData& SavedData) const
 {
 	if (bWasRecreated)
 	{

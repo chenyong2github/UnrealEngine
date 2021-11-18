@@ -39,19 +39,28 @@ public:
 	 **/
 	static FORCEINLINE WIDECHAR* Strcpy(WIDECHAR* Dest, SIZE_T DestCount, const WIDECHAR* Src)
 	{
+// Skip suggestions about using wcscpy_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return wcscpy(Dest, Src);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	static FORCEINLINE WIDECHAR* Strncpy(WIDECHAR* Dest, const WIDECHAR* Src, SIZE_T MaxLen)
 	{
+// Skip suggestions about using wcsncpy_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		wcsncpy(Dest, Src, MaxLen-1);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Dest[MaxLen-1]=0;
 		return Dest;
 	}
 
 	static FORCEINLINE WIDECHAR* Strcat(WIDECHAR* Dest, SIZE_T DestCount, const WIDECHAR* Src)
 	{
+// Skip suggestions about using wcscat_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return (WIDECHAR*)wcscat( Dest, Src );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	static FORCEINLINE int32 Strcmp( const WIDECHAR* String1, const WIDECHAR* String2 )
@@ -126,7 +135,10 @@ public:
 
 	static FORCEINLINE WIDECHAR* Strtok(WIDECHAR* StrToken, const WIDECHAR* Delim, WIDECHAR** Context)
 	{
+// Skip suggestions about using wcstok_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return wcstok(StrToken, Delim, Context);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 #if PLATFORM_USE_SYSTEM_VSWPRINTF
@@ -199,19 +211,28 @@ public:
 	 **/
 	static FORCEINLINE ANSICHAR* Strcpy(ANSICHAR* Dest, SIZE_T DestCount, const ANSICHAR* Src)
 	{
+// Skip suggestions about using strcpy_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return strcpy( Dest, Src );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	static FORCEINLINE ANSICHAR* Strncpy(ANSICHAR* Dest, const ANSICHAR* Src, SIZE_T MaxLen)
 	{
+// Skip suggestions about using strncpy_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		::strncpy(Dest, Src, MaxLen);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Dest[MaxLen-1]=0;
 		return Dest;
 	}
 
 	static FORCEINLINE ANSICHAR* Strcat(ANSICHAR* Dest, SIZE_T DestCount, const ANSICHAR* Src)
 	{
+// Skip suggestions about using strcat_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return strcat( Dest, Src );
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	static FORCEINLINE int32 Strcmp( const ANSICHAR* String1, const ANSICHAR* String2 )
@@ -286,7 +307,10 @@ public:
 
 	static FORCEINLINE ANSICHAR* Strtok(ANSICHAR* StrToken, const ANSICHAR* Delim, ANSICHAR** Context)
 	{
+// Skip suggestions about using strtok_s instead.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return strtok(StrToken, Delim);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	static CORE_API int32 GetVarArgs( ANSICHAR* Dest, SIZE_T DestSize, const ANSICHAR*& Fmt, va_list ArgPtr )

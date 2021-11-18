@@ -240,7 +240,7 @@ UNiagaraComponent* UNiagaraFunctionLibrary::SpawnSystemAttached(
 						{
 							//It is now possible for us to be already regisetered so we must use AttachToComponent() instead.
 							SetupRelativeTransforms();
-							PSC->AttachToComponent(AttachToComponent, FAttachmentTransformRules::KeepRelativeTransform);
+							PSC->AttachToComponent(AttachToComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachPointName);
 						}
 						else
 						{

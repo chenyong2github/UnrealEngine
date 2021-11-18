@@ -715,7 +715,7 @@ float SRadialSlider::GetNormalizedValue(float RawValue) const
 			SampleValueMin = SliderRangeCurveKeys[i].Value;
 		}
 
-		NormalizedValue = FMath::GetMappedRangeValueClamped(FVector2D(SampleValueMin, SampleValueMax), FVector2D(SliderPercentMin, SliderPercentMax), RawValue);
+		NormalizedValue = FMath::GetMappedRangeValueClamped(FVector2f(SampleValueMin, SampleValueMax), FVector2f(SliderPercentMin, SliderPercentMax), RawValue);
 	}
 
 	return NormalizedValue;

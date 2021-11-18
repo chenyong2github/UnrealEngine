@@ -52,7 +52,6 @@
 #include "EdGraph/EdGraphNode_Documentation.h"
 #include "Engine/DynamicBlueprintBinding.h"
 #include "Engine/InheritableComponentHandler.h"
-#include "BlueprintCompilerCppBackendInterface.h"
 #include "Serialization/ArchiveScriptReferenceCollector.h"
 #include "UObject/UnrealTypePrivate.h"
 
@@ -2100,7 +2099,7 @@ void FKismetCompilerContext::CompileFunction(FKismetFunctionContext& Context)
 		const FString NodeComment = Node->NodeComment.IsEmpty() ? Node->GetName() : Node->NodeComment;
 		const bool bPureNode = IsNodePure(Node);
 		// Debug comments
-		if (KismetCompilerDebugOptions::EmitNodeComments && !Context.bGeneratingCpp)
+		if (KismetCompilerDebugOptions::EmitNodeComments)
 		{
 			FBlueprintCompiledStatement& Statement = Context.AppendStatementForNode(Node);
 			Statement.Type = KCST_Comment;
@@ -2242,11 +2241,6 @@ void FKismetCompilerContext::CompileFunction(FKismetFunctionContext& Context)
 			// Proceed to the next node
 			++TestIndex;
 		}
-	}
-
-	if (Context.bIsUbergraph && CompileOptions.DoesRequireCppCodeGeneration())
-	{
-		Context.UnsortedSeparateExecutionGroups = FKismetCompilerUtilities::FindUnsortedSeparateExecutionGroups(Context.LinearExecutionList);
 	}
 
 	// Propagate thread-safe flags in this first pass. Also gets called from SetCalculatedMetaDataAndFlags in the second
@@ -2998,7 +2992,7 @@ void FKismetCompilerContext::CreateFunctionStubForEvent(UK2Node_Event* SrcEventN
 	ChildStubGraph->SetFlags(RF_Transient);
 	MessageLog.NotifyIntermediateObjectCreation(ChildStubGraph, SrcEventNode);
 
-	FKismetFunctionContext& StubContext = *new FKismetFunctionContext(MessageLog, Schema, NewClass, Blueprint, CompileOptions.DoesRequireCppCodeGeneration());
+	FKismetFunctionContext& StubContext = *new FKismetFunctionContext(MessageLog, Schema, NewClass, Blueprint);
 	FunctionList.Add(&StubContext);
 	StubContext.SourceGraph = ChildStubGraph;
 
@@ -3476,7 +3470,7 @@ void FKismetCompilerContext::CreateAndProcessUbergraph()
 
 		// Do some cursory validation (pin types match, inputs to outputs, pins never point to their parent node, etc...)
 		{
-			UbergraphContext = new FKismetFunctionContext(MessageLog, Schema, NewClass, Blueprint, CompileOptions.DoesRequireCppCodeGeneration());
+			UbergraphContext = new FKismetFunctionContext(MessageLog, Schema, NewClass, Blueprint);
 			FunctionList.Add(UbergraphContext);
 			UbergraphContext->SourceGraph = ConsolidatedEventGraph;
 			UbergraphContext->MarkAsEventGraph();
@@ -3889,7 +3883,7 @@ void FKismetCompilerContext::ProcessOneFunctionGraph(UEdGraph* SourceGraph, bool
 	}
 
 	const UEdGraphSchema_K2* FunctionGraphSchema = CastChecked<const UEdGraphSchema_K2>(FunctionGraph->GetSchema());
-	FKismetFunctionContext& Context = *new FKismetFunctionContext(MessageLog, FunctionGraphSchema, NewClass, Blueprint, CompileOptions.DoesRequireCppCodeGeneration());
+	FKismetFunctionContext& Context = *new FKismetFunctionContext(MessageLog, FunctionGraphSchema, NewClass, Blueprint);
 	FunctionList.Add(&Context);
 	Context.SourceGraph = FunctionGraph;
 
@@ -4015,7 +4009,7 @@ void FKismetCompilerContext::CreateFunctionList()
 
 FKismetFunctionContext* FKismetCompilerContext::CreateFunctionContext()
 {
-	FKismetFunctionContext* Result = new FKismetFunctionContext(MessageLog, Schema, NewClass, Blueprint, CompileOptions.DoesRequireCppCodeGeneration());
+	FKismetFunctionContext* Result = new FKismetFunctionContext(MessageLog, Schema, NewClass, Blueprint);
 	FunctionList.Add(Result);
 	return Result;
 }
@@ -4235,21 +4229,8 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 	const bool bSkipRefreshExternalBlueprintDependencyNodes = !!(InternalFlags & EInternalCompilerFlags::SkipRefreshExternalBlueprintDependencyNodes);
 	FKismetCompilerVMBackend Backend_VM(Blueprint, Schema, *this);
 
-	// Determine whether or not to skip generated class validation.
-	bool bSkipGeneratedClassValidation;
-	if (CompileOptions.DoesRequireCppCodeGeneration())
-	{
-		// CPP codegen requires default value assignment to occur as part of the compilation phase, so we override it here.
-		bPropagateValuesToCDO = true;
-
-		// Also skip generated class validation since it may result in errors and we don't really need to keep the generated class.
-		bSkipGeneratedClassValidation = true;
-	}
-	else
-	{
-		// In all other cases, validation requires CDO value propagation to occur first.
-		bSkipGeneratedClassValidation = !bPropagateValuesToCDO;
-	}
+	// Validation requires CDO value propagation to occur first.
+	bool bSkipGeneratedClassValidation = !bPropagateValuesToCDO;
 
 	if( bGenerateLocals )
 	{
@@ -4418,12 +4399,10 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 	// Fill out the function bodies, either with function bodies, or simple stubs if this is skeleton generation
 	{
 		// Should we display debug information about the backend outputs?
-		bool bDisplayCpp = false;
 		bool bDisplayBytecode = false;
 
 		if (!Blueprint->bIsRegeneratingOnLoad)
 		{
-			GConfig->GetBool(TEXT("Kismet"), TEXT("CompileDisplaysTextBackend"), /*out*/ bDisplayCpp, GEngineIni);
 			GConfig->GetBool(TEXT("Kismet"), TEXT("CompileDisplaysBinaryBackend"), /*out*/ bDisplayBytecode, GEngineIni);
 		}
 
@@ -4470,34 +4449,6 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 					UE_LOG(LogK2Compiler, Log, TEXT("\n\n[function %s]:\n"), *(Function.Function->GetName()));
 					Disasm.DisassembleStructure(Function.Function);
 				}
-			}
-		}
-
-		// Generate code thru the backend(s)
-		if ((bDisplayCpp && bIsFullCompile && !IsRunningCommandlet()) || CompileOptions.DoesRequireCppCodeGeneration())
-		{
-			FString CppSourceCode;
-			FString HeaderSourceCode;
-
-			{
-				TUniquePtr<IBlueprintCompilerCppBackend> Backend_CPP(IBlueprintCompilerCppBackendModuleInterface::Get().Create());
-				HeaderSourceCode = Backend_CPP->GenerateCodeFromClass(NewClass, FunctionList, !bIsFullCompile, CompileOptions.NativizationOptions, CppSourceCode);
-			}
-
-			if (CompileOptions.OutHeaderSourceCode.IsValid())
-			{
-				*CompileOptions.OutHeaderSourceCode = HeaderSourceCode;
-			}
-
-			if (CompileOptions.OutCppSourceCode.IsValid())
-			{
-				*CompileOptions.OutCppSourceCode = CppSourceCode;
-			}
-
-			if (bDisplayCpp && !IsRunningCommandlet())
-			{
-				UE_LOG(LogK2Compiler, Log, TEXT("[header]\n\n\n%s"), *HeaderSourceCode);
-				UE_LOG(LogK2Compiler, Log, TEXT("[body]\n\n\n%s"), *CppSourceCode);
 			}
 		}
 
@@ -4891,7 +4842,7 @@ void FKismetCompilerContext::SetCanEverTick() const
 
 bool FKismetCompilerContext::UsePersistentUberGraphFrame() const
 {
-	return UBlueprintGeneratedClass::UsePersistentUberGraphFrame() && !CompileOptions.DoesRequireCppCodeGeneration();
+	return UBlueprintGeneratedClass::UsePersistentUberGraphFrame();
 }
 
 FString FKismetCompilerContext::GetGuid(const UEdGraphNode* Node) const

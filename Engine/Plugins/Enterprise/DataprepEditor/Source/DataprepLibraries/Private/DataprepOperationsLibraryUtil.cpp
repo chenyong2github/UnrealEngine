@@ -287,7 +287,7 @@ namespace DataprepOperationsLibraryUtil
 						FStaticMeshAttributes Attributes(*MeshDescription);
 						if(SourceModel.BuildSettings.DstLightmapIndex != -1)
 						{
-							TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+							TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 							SourceModel.BuildSettings.bGenerateLightmapUVs = VertexInstanceUVs.IsValid() && VertexInstanceUVs.GetNumChannels() > SourceModel.BuildSettings.DstLightmapIndex;
 						}
 						else

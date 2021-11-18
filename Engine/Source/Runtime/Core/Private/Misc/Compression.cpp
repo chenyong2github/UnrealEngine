@@ -665,7 +665,7 @@ bool FCompression::CompressMemory(FName FormatName, void* CompressedBuffer, int3
 
 FString FCompression::GetCompressorDDCSuffix(FName FormatName)
 {
-	FString DDCSuffix = FString::Printf(TEXT("%s_VER%D_"), *FormatName.ToString(), FCompression::GetCompressorVersion(FormatName));
+	FString DDCSuffix = FString::Printf(TEXT("%s_VER%d_"), *FormatName.ToString(), FCompression::GetCompressorVersion(FormatName));
 
 	if (FormatName == NAME_None || FormatName == NAME_LZ4 )
 	{

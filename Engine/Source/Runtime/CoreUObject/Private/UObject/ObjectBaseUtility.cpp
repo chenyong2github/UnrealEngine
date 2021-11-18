@@ -6,6 +6,8 @@
 #include "UObject/UObjectBaseUtility.h"
 #include "UObject/Package.h"
 #include "UObject/LinkerLoad.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/ConfigCacheIni.h"
 
 /**
  * Returns the UE version of the linker for this object.
@@ -120,4 +122,24 @@ int32 UObjectBaseUtility::GetLinkerLicenseeUEVersion() const
 		// We don't have a linker associated as we e.g. might have been saved or had loaders reset, ...
 		return GPackageFileLicenseeUEVersion;
 	}
+}
+
+// Console variable so that GarbageCollectorSettings work in the editor but we don't want to use it in runtime as we can't support changing its value from console
+int32 GPendingKillEnabled = 1;
+static FAutoConsoleVariableRef CVarPendingKillEnabled(
+	TEXT("gc.PendingKillEnabled"),
+	GPendingKillEnabled,
+	TEXT("If true, objects marked as PendingKill will be automatically nulled and destroyed by Garbage Collector."),
+	ECVF_Default
+);
+bool UObjectBaseUtility::bPendingKillDisabled = !GPendingKillEnabled;
+
+void InitNoPendingKill()
+{
+	check(GConfig);
+	bool bPendingKillEnabled = false;
+	GConfig->GetBool(TEXT("/Script/Engine.GarbageCollectionSettings"), TEXT("gc.PendingKillEnabled"), bPendingKillEnabled, GEngineIni);
+	// Try to sync even though we're not gonna use the console var
+	UObjectBaseUtility::bPendingKillDisabled = !bPendingKillEnabled;
+	GPendingKillEnabled = bPendingKillEnabled;
 }

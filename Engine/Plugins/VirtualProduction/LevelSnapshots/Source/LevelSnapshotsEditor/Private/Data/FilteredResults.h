@@ -44,7 +44,5 @@ private:
 	TWeakObjectPtr<ULevelSnapshotFilter> UserFilters;
 	
 	/* Null until UpdatePropertiesToRollback is called. */ 
-	UPROPERTY()
 	FPropertySelectionMap PropertiesToRollback;
-	
 };

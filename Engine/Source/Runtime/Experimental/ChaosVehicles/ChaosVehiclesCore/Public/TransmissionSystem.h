@@ -27,6 +27,7 @@ namespace Chaos
 
 	enum EDifferentialType : uint8
 	{
+		UndefinedDrive,
 		AllWheelDrive,
 		FrontWheelDrive,
 		RearWheelDrive,

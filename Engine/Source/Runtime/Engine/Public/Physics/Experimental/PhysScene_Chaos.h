@@ -11,6 +11,7 @@
 #include "PhysInterface_Chaos.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "Chaos/ChaosScene.h"
+#include "Chaos/ContactModification.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1

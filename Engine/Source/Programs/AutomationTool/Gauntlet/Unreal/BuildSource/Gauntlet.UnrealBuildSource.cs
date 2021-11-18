@@ -63,11 +63,7 @@ namespace Gauntlet
 
 		public bool CanSupportPlatform(UnrealTargetPlatform Platform)
 		{
-			// todo - need to return values of discovered builds
-			return Platform == UnrealTargetPlatform.Win64
-				|| Platform == UnrealTargetPlatform.PS4
-				|| Platform == UnrealTargetPlatform.Android
-				|| Platform == UnrealTargetPlatform.Mac;
+			return UnrealTargetPlatform.GetValidPlatforms().Contains(Platform);
 		}
 
 

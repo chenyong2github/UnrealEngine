@@ -842,7 +842,7 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 
 	// Vertices Group
 	const TManagedArray<FVector3f>& VertexArray = Collection->Vertex;
-	const TManagedArray<TArray<FVector2D>>& UVsArray = Collection->UVs;
+	const TManagedArray<TArray<FVector2f>>& UVsArray = Collection->UVs;
 	const TManagedArray<FLinearColor>& ColorArray = Collection->Color;
 	const TManagedArray<FVector3f>& TangentUArray = Collection->TangentU;
 	const TManagedArray<FVector3f>& TangentVArray = Collection->TangentV;

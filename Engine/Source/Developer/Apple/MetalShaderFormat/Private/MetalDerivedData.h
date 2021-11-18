@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 #include "Misc/SecureHash.h"
-#include "DerivedDataPluginInterface.h"
 #include "ShaderCompilerCommon.h"
 #include "HlslccDefinitions.h"
 #include "MetalBackend.h"
@@ -35,27 +34,6 @@ struct FMetalShaderDebugInfo
 		Ar << Info.UncompressedSize << Info.CompressedData;
 		return Ar;
 	}
-};
-
-class FMetalShaderDebugInfoCooker : public FDerivedDataPluginInterface
-{
-public:
-	FMetalShaderDebugInfoCooker(FMetalShaderDebugInfoJob& Job);
-	virtual ~FMetalShaderDebugInfoCooker();
-	
-#if PLATFORM_MAC || PLATFORM_IOS
-#pragma mark - FDerivedDataPluginInterface Interface -
-#endif
-	virtual const TCHAR* GetPluginName() const override;
-	virtual const TCHAR* GetVersionString() const override;
-	virtual FString GetPluginSpecificCacheKeySuffix() const override;
-	virtual bool IsBuildThreadsafe() const override;
-	virtual bool Build(TArray<uint8>& OutData) override;
-	
-private:
-	FMetalShaderDebugInfoJob& Job;
-	
-	FMetalShaderDebugInfo Output;
 };
 
 struct FMetalShaderBytecodeJob
@@ -98,27 +76,6 @@ struct FMetalShaderBytecode
 	}
 };
 
-class FMetalShaderBytecodeCooker : public FDerivedDataPluginInterface
-{
-public:
-	FMetalShaderBytecodeCooker(FMetalShaderBytecodeJob& Job);
-	virtual ~FMetalShaderBytecodeCooker();
-
-#if PLATFORM_MAC || PLATFORM_IOS
-#pragma mark - FDerivedDataPluginInterface Interface - 
-#endif
-	virtual const TCHAR* GetPluginName() const override;
-	virtual const TCHAR* GetVersionString() const override;
-	virtual FString GetPluginSpecificCacheKeySuffix() const override;
-	virtual bool IsBuildThreadsafe() const override;
-	virtual bool Build(TArray<uint8>& OutData) override;
-	
-private:
-	FMetalShaderBytecodeJob& Job;
-	
-	FMetalShaderBytecode Output;
-};
-
 struct FMetalShaderPreprocessed
 {
 	FString NativePath;
@@ -132,35 +89,18 @@ struct FMetalShaderPreprocessed
 	}
 };
 
-class FMetalShaderOutputCooker : public FDerivedDataPluginInterface
-{
-public:
-	FMetalShaderOutputCooker(const FShaderCompilerInput& _Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory, FString PreprocessedShader, FSHAHash GUIDHash, uint8 VersionEnum, uint32 CCFlags, EMetalGPUSemantics Semantics, EMetalTypeBufferMode TypeMode, uint32 MaxUnrollLoops, EShaderFrequency Frequency, bool bDumpDebugInfo, FString Standard, FString MinOSVersion);
-	virtual ~FMetalShaderOutputCooker();
-
-#if PLATFORM_MAC || PLATFORM_IOS
-#pragma mark - FDerivedDataPluginInterface Interface - 
-#endif
-	virtual const TCHAR* GetPluginName() const override;
-	virtual const TCHAR* GetVersionString() const override;
-	virtual FString GetPluginSpecificCacheKeySuffix() const override;
-	virtual bool IsBuildThreadsafe() const override;
-	virtual bool Build(TArray<uint8>& OutData) override;
-	
-private:
-	const FShaderCompilerInput& Input;
-	FShaderCompilerOutput& Output;
-	const FString& WorkingDirectory;
-	FString PreprocessedShader;
-	FSHAHash GUIDHash;
-	uint8 VersionEnum;
-	uint32 CCFlags;
-	int32 IABTier;
-	EMetalGPUSemantics Semantics;
-	EMetalTypeBufferMode TypeMode;
-	uint32 MaxUnrollLoops;
-	EShaderFrequency Frequency;
-	bool bDumpDebugInfo;
-	FString Standard;
-	FString MinOSVersion;
-};
+bool DoCompileMetalShader(
+	const FShaderCompilerInput& Input,
+	FShaderCompilerOutput& Output,
+	const FString& WorkingDirectory,
+	const FString& PreprocessedShader,
+	FSHAHash GUIDHash,
+	uint32 VersionEnum,
+	uint32 CCFlags,
+	EMetalGPUSemantics Semantics,
+	EMetalTypeBufferMode TypeMode,
+	uint32 MaxUnrollLoops,
+	EShaderFrequency Frequency,
+	bool bDumpDebugInfo,
+	const FString& Standard,
+	const FString& MinOSVersion);

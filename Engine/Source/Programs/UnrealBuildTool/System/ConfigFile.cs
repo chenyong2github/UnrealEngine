@@ -113,7 +113,7 @@ namespace UnrealBuildTool
 		/// <param name="Name">Name of the line you want to get</param>
 		/// <param name="OutLine">The result of the operation</param>
 		/// <returns>return true if the line is retrieved return false and null OutLine if Name isn't found in this section</returns>
-		public bool TryGetLine(string Name, out ConfigLine? OutLine)
+		public bool TryGetLine(string Name, [NotNullWhen(true)] out ConfigLine? OutLine)
 		{
 			foreach ( ConfigLine Line in Lines)
 			{

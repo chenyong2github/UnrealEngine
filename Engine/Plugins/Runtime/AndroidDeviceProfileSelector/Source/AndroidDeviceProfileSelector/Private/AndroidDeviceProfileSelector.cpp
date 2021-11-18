@@ -51,6 +51,7 @@ void FAndroidDeviceProfileSelector::VerifySelectorParams()
 	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_VulkanAvailable));
 	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_Hardware));
 	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_Chipset));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_HMDSystemName));
 	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_TotalPhysicalGB));
 }
 
@@ -71,6 +72,7 @@ FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& Fallba
 	FString Hardware			= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_Hardware);
 	FString Chipset				= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_Chipset);
 	FString TotalPhysicalGB		= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_TotalPhysicalGB);
+	FString HMDSystemName		= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_HMDSystemName);
 
 	for (const FProfileMatch& Profile : GetAndroidDeviceProfileMatchingRules()->MatchProfile)
 	{
@@ -121,6 +123,9 @@ FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& Fallba
 				break;
 			case ESourceType::SRC_Chipset:
 				SourceString = &Chipset;
+				break;
+			case ESourceType::SRC_HMDSystemName:
+				SourceString = &HMDSystemName;
 				break;
 			case ESourceType::SRC_ConfigRuleVar:
 				{

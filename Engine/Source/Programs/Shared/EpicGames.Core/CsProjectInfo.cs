@@ -2,14 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
-
-#nullable disable
 
 namespace EpicGames.Core
 {
@@ -63,16 +62,16 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="File">If successful, receives the assembly path</param>
 		/// <returns>True if the output file was found</returns>
-		public bool TryGetOutputFile(out FileReference File)
+		public bool TryGetOutputFile([NotNullWhen(true)] out FileReference? File)
 		{
-			DirectoryReference OutputDir;
+			DirectoryReference? OutputDir;
 			if(!TryGetOutputDir(out OutputDir))
 			{
 				File = null;
 				return false;
 			}
 
-			string AssemblyName;
+			string? AssemblyName;
 			if(!TryGetAssemblyName(out AssemblyName))
 			{
 				File = null;
@@ -89,7 +88,7 @@ namespace EpicGames.Core
 		/// <returns>True if this is a netcore project</returns>
 		private bool IsNetCoreProject()
 		{
-			string Framework;
+			string? Framework;
 			return Properties.TryGetValue("TargetFramework", out Framework) && Framework.StartsWith("netcoreapp");
 		}
 
@@ -100,7 +99,7 @@ namespace EpicGames.Core
 		/// <returns>The configured output directory</returns>
 		public DirectoryReference GetOutputDir(DirectoryReference BaseDirectory)
 		{
-			string OutputPath;
+			string? OutputPath;
 			if (Properties.TryGetValue("OutputPath", out OutputPath))
 			{
 				return DirectoryReference.Combine(BaseDirectory, OutputPath);
@@ -121,9 +120,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="OutputDir">If successful, receives the output directory</param>
 		/// <returns>True if the output directory was found</returns>
-		public bool TryGetOutputDir(out DirectoryReference OutputDir)
+		public bool TryGetOutputDir([NotNullWhen(true)] out DirectoryReference? OutputDir)
 		{
-			string OutputPath;
+			string? OutputPath;
 			if (Properties.TryGetValue("OutputPath", out OutputPath))
 			{
 				OutputDir = DirectoryReference.Combine(ProjectPath.Directory, OutputPath);
@@ -146,7 +145,7 @@ namespace EpicGames.Core
 		/// Returns the assembly name used by this project
 		/// </summary>
 		/// <returns></returns>
-		public bool TryGetAssemblyName(out string AssemblyName)
+		public bool TryGetAssemblyName([NotNullWhen(true)] out string? AssemblyName)
 		{
 			if (Properties.TryGetValue("AssemblyName", out AssemblyName))
 			{
@@ -184,7 +183,7 @@ namespace EpicGames.Core
 			// Copy the build products for any referenced projects. Note that this does NOT operate recursively.
 			foreach(KeyValuePair<FileReference, bool> ProjectReference in ProjectReferences)
 			{
-				CsProjectInfo OtherProjectInfo;
+				CsProjectInfo? OtherProjectInfo;
 				if(ProjectFileToInfo.TryGetValue(ProjectReference.Key, out OtherProjectInfo))
 				{
 					OtherProjectInfo.FindCompiledBuildProducts(OutputDir, BuildProducts);
@@ -202,7 +201,7 @@ namespace EpicGames.Core
 		/// <param name="BuildProducts">Receives the set of build products</param>
 		public void FindCompiledBuildProducts(DirectoryReference OutputDir, HashSet<FileReference> BuildProducts)
 		{
-			string OutputType, AssemblyName;
+			string? OutputType, AssemblyName;
 			if (Properties.TryGetValue("OutputType", out OutputType) && TryGetAssemblyName(out AssemblyName))
 			{
 				switch (OutputType)
@@ -238,7 +237,7 @@ namespace EpicGames.Core
 			// Copy any referenced projects too.
 			foreach(KeyValuePair<FileReference, bool> ProjectReference in ProjectReferences)
 			{
-				CsProjectInfo OtherProjectInfo;
+				CsProjectInfo? OtherProjectInfo;
 				if(ProjectFileToInfo.TryGetValue(ProjectReference.Key, out OtherProjectInfo))
 				{
 					OtherProjectInfo.FindCopiedContent(OutputDir, OutputFiles, ProjectFileToInfo);
@@ -286,7 +285,7 @@ namespace EpicGames.Core
 		{
 			bool bIsDotNetCoreProject = false;
 
-			string TargetFramework;
+			string? TargetFramework;
 			if (Properties.TryGetValue("TargetFramework", out TargetFramework))
 			{
 				bIsDotNetCoreProject = TargetFramework.ToLower().Contains("netstandard") || TargetFramework.ToLower().Contains("netcoreapp");
@@ -351,7 +350,7 @@ namespace EpicGames.Core
 		/// <returns>The parsed project info</returns>
 		public static CsProjectInfo Read(FileReference File, Dictionary<string, string> Properties)
 		{
-			CsProjectInfo Project;
+			CsProjectInfo? Project;
 			if(!TryRead(File, Properties, out Project))
 			{
 				throw new Exception(String.Format("Unable to read '{0}'", File));
@@ -366,7 +365,7 @@ namespace EpicGames.Core
 		/// <param name="Properties">Initial set of property values</param>
 		/// <param name="OutProjectInfo">If successful, the parsed project info</param>
 		/// <returns>True if the project was read successfully, false otherwise</returns>
-		public static bool TryRead(FileReference File, Dictionary<string, string> Properties, out CsProjectInfo OutProjectInfo)
+		public static bool TryRead(FileReference File, Dictionary<string, string> Properties, [NotNullWhen(true)] out CsProjectInfo? OutProjectInfo)
 		{
 			// Read the project file
 			XmlDocument Document = new XmlDocument();
@@ -462,7 +461,7 @@ namespace EpicGames.Core
 		/// <param name="References">Dictionary of project files to a bool indicating whether the assembly should be copied locally to the referencing project.</param>
 		static void ParseReference(DirectoryReference BaseDirectory, XmlElement ParentElement, Dictionary<FileReference, bool> References)
 		{
-			string HintPath = UnescapeString(GetChildElementString(ParentElement, "HintPath", null));
+			string? HintPath = UnescapeString(GetChildElementString(ParentElement, "HintPath", null));
 			if (!String.IsNullOrEmpty(HintPath))
 			{
 				// Don't include embedded assemblies; they aren't referenced externally by the compiled executable
@@ -485,7 +484,7 @@ namespace EpicGames.Core
 		/// <param name="ProjectReferences">Dictionary of project files to a bool indicating whether the outputs of the project should be copied locally to the referencing project.</param>
 		static void ParseProjectReference(DirectoryReference BaseDirectory, XmlElement ParentElement, Dictionary<string, string> Properties, Dictionary<FileReference, bool> ProjectReferences)
 		{
-			string IncludePath = UnescapeString(ParentElement.GetAttribute("Include"));
+			string? IncludePath = UnescapeString(ParentElement.GetAttribute("Include"));
 			if (!String.IsNullOrEmpty(IncludePath))
 			{
 				FileReference ProjectFile = FileReference.Combine(BaseDirectory, ExpandProperties(IncludePath, Properties));
@@ -584,7 +583,7 @@ namespace EpicGames.Core
 			List<FileReference> FoundFiles = new List<FileReference>();		
 
 			// split off the drive root
-			string DriveRoot = Path.GetPathRoot(InPath.FullName);
+			string DriveRoot = Path.GetPathRoot(InPath.FullName)!;
 
 			// break the rest of the path into components
 			string[] PathComponents = InPath.FullName.Substring(DriveRoot.Length).Split(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
@@ -603,7 +602,7 @@ namespace EpicGames.Core
 		/// <param name="CompileReferences">List of source files.</param>
 		static void ParseCompileReference(DirectoryReference BaseDirectory, XmlElement ParentElement, List<FileReference> CompileReferences)
 		{
-			string IncludePath = UnescapeString(ParentElement.GetAttribute("Include"));
+			string? IncludePath = UnescapeString(ParentElement.GetAttribute("Include"));
 			if (!String.IsNullOrEmpty(IncludePath))
 			{
 				FileReference SourceFile = FileReference.Combine(BaseDirectory, IncludePath);
@@ -627,10 +626,10 @@ namespace EpicGames.Core
 		/// <param name="Contents">Dictionary of project files to a bool indicating whether the assembly should be copied locally to the referencing project.</param>
 		static void ParseContent(DirectoryReference BaseDirectory, XmlElement ParentElement, Dictionary<FileReference, bool> Contents)
 		{
-			string IncludePath = UnescapeString(ParentElement.GetAttribute("Include"));
+			string? IncludePath = UnescapeString(ParentElement.GetAttribute("Include"));
 			if (!String.IsNullOrEmpty(IncludePath))
 			{
-				string CopyTo = GetChildElementString(ParentElement, "CopyToOutputDirectory", null);
+				string? CopyTo = GetChildElementString(ParentElement, "CopyToOutputDirectory", null);
 				bool ShouldCopy = !String.IsNullOrEmpty(CopyTo) && (CopyTo.Equals("Always", StringComparison.InvariantCultureIgnoreCase) || CopyTo.Equals("PreserveNewest", StringComparison.InvariantCultureIgnoreCase));
 				FileReference ContentFile = FileReference.Combine(BaseDirectory, IncludePath);
 				Contents.Add(ContentFile, ShouldCopy);
@@ -644,7 +643,7 @@ namespace EpicGames.Core
 		/// <param name="Name">Name of the child element</param>
 		/// <param name="DefaultValue">Default value to return if the child element is missing</param>
 		/// <returns>The contents of the child element, or default value if it's not present</returns>
-		static string GetChildElementString(XmlElement ParentElement, string Name, string DefaultValue)
+		static string? GetChildElementString(XmlElement ParentElement, string Name, string? DefaultValue)
 		{
 			XmlElement ChildElement = ParentElement.ChildNodes.OfType<XmlElement>().FirstOrDefault(x => x.Name == Name);
 			if (ChildElement == null)
@@ -666,7 +665,7 @@ namespace EpicGames.Core
 		/// <returns>The parsed boolean, or the default value</returns>
 		static bool GetChildElementBoolean(XmlElement ParentElement, string Name, bool DefaultValue)
 		{
-			string Value = GetChildElementString(ParentElement, Name, null);
+			string? Value = GetChildElementString(ParentElement, Name, null);
 			if (Value == null)
 			{
 				return DefaultValue;
@@ -793,7 +792,11 @@ namespace EpicGames.Core
 
 				// Find the value for it, either from the dictionary or the environment block
 				string Value;
-				if (!Properties.TryGetValue(Tokens[0], out Value))
+				if (Properties.TryGetValue(Tokens[0], out string? RetrievedValue))
+				{
+					Value = RetrievedValue;
+				}
+				else
 				{
 					Value = Environment.GetEnvironmentVariable(Tokens[0]) ?? "";
 				}
@@ -833,7 +836,7 @@ namespace EpicGames.Core
 					// Execute the method
 					try
 					{
-						Value = typeof(string).InvokeMember(MethodName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.InvokeMethod, Type.DefaultBinder, Value, Arguments.ToArray()).ToString();
+						Value = typeof(string).InvokeMember(MethodName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.InvokeMethod, Type.DefaultBinder, Value, Arguments.ToArray())!.ToString()!;
 					}
 					catch(Exception Ex)
 					{
@@ -1025,11 +1028,11 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Text">String to remove escape characters from</param>
 		/// <returns>Unescaped string</returns>
-		static string UnescapeString(string Text)
+		static string? UnescapeString(string? Text)
 		{
 			const string HexChars = "0123456789abcdef";
 
-			string NewText = Text;
+			string? NewText = Text;
 			if(NewText != null)
 			{
 				for(int Idx = 0; Idx + 2 < NewText.Length; Idx++)

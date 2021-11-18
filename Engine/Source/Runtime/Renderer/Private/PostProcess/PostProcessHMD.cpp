@@ -40,8 +40,8 @@ TGlobalResource<FDistortionVertexDeclaration> GDistortionVertexDeclaration;
 BEGIN_SHADER_PARAMETER_STRUCT(FHMDDistortionParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
-	SHADER_PARAMETER(FVector2D, EyeToSrcUVScale)
-	SHADER_PARAMETER(FVector2D, EyeToSrcUVOffset)
+	SHADER_PARAMETER(FVector2f, EyeToSrcUVScale)
+	SHADER_PARAMETER(FVector2f, EyeToSrcUVOffset)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 

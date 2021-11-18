@@ -14,11 +14,12 @@
 class FControlRigEditModeToolkit : public FModeToolkit
 {
 public:
+	friend class SControlRigTweenWidget;
 
 	FControlRigEditModeToolkit(FControlRigEditMode& InEditMode)
 		: EditMode(InEditMode)
 	{
-		SAssignNew(ModeTools, SControlRigEditModeTools, EditMode, EditMode.GetWorld());
+		
 	}
 
 	/** IToolkit interface */
@@ -35,7 +36,7 @@ public:
 		return false;
 	}
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
-
+	~FControlRigEditModeToolkit();
 	/** Mode Toolbar Palettes **/
 	virtual void GetToolPaletteNames(TArray<FName>& InPaletteName) const override;
 	virtual FText GetToolPaletteDisplayName(FName PaletteName) const override;
@@ -46,10 +47,38 @@ public:
 	virtual FText GetActiveToolMessage() const override;
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
+	void TryInvokeToolkitUI(const FName InName);
+
+public:
+	static const FName PoseTabName;
+	static const FName MotionTrailTabName;
+	static const FName TweenOverlayName;
+	static const FName SnapperTabName;
+
+protected:
+	void CreateAndShowTweenOverlay();
+	void TryShowTweenOverlay();
+	void RemoveAndDestroyTweenOverlay();
+	void TryRemoveTweenOverlay();
+
+	void UpdateTweenWidgetLocation(const FVector2D InLocation);
+
+	FMargin GetTweenWidgetPadding() const;
+
+	/* FModeToolkit Interface */
+	virtual void RequestModeUITabs() override;
+	virtual void InvokeUI() override;
+
+private:
+	void TryInvokeSnapperTab();
+	void TryInvokePoseTab();
+
 private:
 	/** The edit mode we are bound to */
 	FControlRigEditMode& EditMode;
-
+	TSharedPtr<SWidget> TweenWidget;
+	FVector2D InViewportTweenWidgetLocation;
 	/** The tools widget */
 	TSharedPtr<SControlRigEditModeTools> ModeTools;
+
 };

@@ -57,7 +57,7 @@ namespace UnrealBuildTool
 				string PlatformSDKString = "";
 				if (bOutputSDKs)
 				{
-					PlatformSDKString = BuildPlatform != null ? UEBuildPlatform.GetSDK(Platform).GetMainVersion() : "<UNKNOWN>";
+					PlatformSDKString = BuildPlatform != null ? UEBuildPlatform.GetSDK(Platform)!.GetMainVersion() : "<UNKNOWN>";
 				}
 
 				if (BuildPlatform != null && BuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid)

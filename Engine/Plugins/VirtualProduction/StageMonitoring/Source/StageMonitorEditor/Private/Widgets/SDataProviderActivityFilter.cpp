@@ -4,15 +4,13 @@
 
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IStageMonitor.h"
-#include "IStageMonitorModule.h"
 #include "StageMessages.h"
+#include "Styling/SlateTypes.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 
 #define LOCTEXT_NAMESPACE "SDataProviderActivityFilter"
 
@@ -21,6 +19,7 @@
 FDataProviderActivityFilter::FDataProviderActivityFilter(TWeakPtr<IStageMonitorSession> InSession)
 	: Session(MoveTemp(InSession))
 {
+	FilterSettings.MaxMessageAgeInMinutes = CVarStageMonitorDefaultMaxMessageAge.GetValueOnAnyThread();
 	//Default to filter out period message types
 	for (TObjectIterator<UScriptStruct> It; It; ++It)
 	{
@@ -29,50 +28,97 @@ FDataProviderActivityFilter::FDataProviderActivityFilter(TWeakPtr<IStageMonitorS
 		const bool bIsPeriodMessageStruct = PeriodicMessageStruct && Struct->IsChildOf(PeriodicMessageStruct) && (Struct != PeriodicMessageStruct);
 		if (bIsPeriodMessageStruct)
 		{
-			RestrictedTypes.Add(Struct);
+			FilterSettings.ExistingPeriodicTypes.Add(Struct);
+			FilterSettings.RestrictedTypes.Add(Struct);
 		}
 	}
 }
 
 bool FDataProviderActivityFilter::DoesItPass(TSharedPtr<FStageDataEntry>& Entry) const
 {
-	TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin();
+	return FilterActivity(Entry) == EFilterResult::Pass ? true : false;
+}
+
+void FDataProviderActivityFilter::FilterActivities(const TArray<TSharedPtr<FStageDataEntry>>& InUnfilteredActivities, TArray<TSharedPtr<FStageDataEntry>>& OutFilteredActivities) const
+{
+	for (const TSharedPtr<FStageDataEntry>& Entry : InUnfilteredActivities)
+	{
+		const EFilterResult Result = FilterActivity(Entry);
+		if (Result == EFilterResult::Pass)
+		{
+			OutFilteredActivities.Add(Entry);
+		}
+		else if (Result == EFilterResult::FailMaxAge)
+		{
+			// Since activities are sorted by time code, don't bother filtering the rest of the activities since they are older.
+			break;
+		}
+	}
+}
+
+FDataProviderActivityFilter::EFilterResult FDataProviderActivityFilter::FilterActivity(const TSharedPtr<FStageDataEntry>& Entry) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(StageMonitor::FilterActivity);
+	const TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin();
+	
 	if (!SessionPtr.IsValid() || !Entry.IsValid() || !Entry->Data.IsValid() || Entry->Data->GetStructMemory() == nullptr)
 	{
-		return false;
+		return EFilterResult::InvalidEntry;
 	}
 
-	if (RestrictedTypes.Contains(Cast<UScriptStruct>(Entry->Data->GetStruct())))
+	if (FilterSettings.RestrictedTypes.Contains(Cast<UScriptStruct>(Entry->Data->GetStruct())))
 	{
-		return false;
+		return EFilterResult::FailRestrictedTypes;
 	}
 
 	const FStageDataBaseMessage* Message = reinterpret_cast<const FStageDataBaseMessage*>(Entry->Data->GetStructMemory());
 	const FGuid ProviderIdentifier = Message->Identifier;
-	if (RestrictedProviders.ContainsByPredicate([ProviderIdentifier](const FStageSessionProviderEntry& Other) { return Other.Identifier == ProviderIdentifier; }))
+
+	FStageSessionProviderEntry ProviderEntry;
+	if (SessionPtr->GetProvider(ProviderIdentifier, ProviderEntry))
 	{
-		return false;
+		const FName FriendlyName = ProviderEntry.Descriptor.FriendlyName;
+		if (FilterSettings.RestrictedProviders.ContainsByPredicate([FriendlyName](const FName& Other) { return Other == FriendlyName; }))
+		{
+			return EFilterResult::FailRestrictedProviders;
+		}
+	}
+
+	if (FilterSettings.bEnableTimeFilter)
+	{
+		const double AgeInMinutes = (FApp::GetCurrentTime() - Entry->MessageTime) / 60.0;
+		if (FMath::Max<uint32>(0, FMath::RoundToInt(AgeInMinutes)) >= FilterSettings.MaxMessageAgeInMinutes)
+		{
+			return EFilterResult::FailMaxAge;
+		}
 	}
 
 	//If we're not filtering based on critical sources, we're done here
-	if (!bEnableCriticalStateFilter)
+	if (!FilterSettings.bEnableCriticalStateFilter)
 	{
-		return true;
+		return EFilterResult::Pass;
 	}
-
+	
 	const FStageProviderMessage* ProviderMessage = reinterpret_cast<const FStageProviderMessage*>(Entry->Data->GetStructMemory());
 	const TArray<FName> Sources = SessionPtr->GetCriticalStateSources(ProviderMessage->FrameTime.AsSeconds());
 	for (const FName& Source : Sources)
 	{
-		if (RestrictedSources.Contains(Source))
+		if (FilterSettings.RestrictedSources.Contains(Source))
 		{
-			return true;
+			return EFilterResult::Pass;
 		}
 	}
 	
-	return false;
+	return EFilterResult::FailRestrictedCriticalState;
 }
 
+SDataProviderActivityFilter::~SDataProviderActivityFilter()
+{
+	if (UObjectInitialized())
+	{
+		SaveSettings();
+	}
+}
 
 void SDataProviderActivityFilter::Construct(const FArguments& InArgs, const TWeakPtr<IStageMonitorSession>& InSession)
 {
@@ -125,6 +171,8 @@ void SDataProviderActivityFilter::Construct(const FArguments& InArgs, const TWea
 			SNew(STextBlock)
 		]
 	];
+
+	LoadSettings();
 }
 
 void SDataProviderActivityFilter::RefreshMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
@@ -132,35 +180,35 @@ void SDataProviderActivityFilter::RefreshMonitorSession(const TWeakPtr<IStageMon
 	AttachToMonitorSession(NewSession);
 }
 
-void SDataProviderActivityFilter::ToggleProviderFilter(FStageSessionProviderEntry Provider)
+void SDataProviderActivityFilter::ToggleProviderFilter(FName ProviderName)
 {
-	if (CurrentFilter->RestrictedProviders.Contains(Provider))
+	if (CurrentFilter->FilterSettings.RestrictedProviders.Contains(ProviderName))
 	{
-		CurrentFilter->RestrictedProviders.RemoveSingle(Provider);
+		CurrentFilter->FilterSettings.RestrictedProviders.RemoveSingle(ProviderName);
 	}
 	else
 	{
-		CurrentFilter->RestrictedProviders.AddUnique(Provider);
+		CurrentFilter->FilterSettings.RestrictedProviders.AddUnique(ProviderName);
 	}
 
 	OnActivityFilterChanged.ExecuteIfBound();
 }
 
-bool SDataProviderActivityFilter::IsProviderFiltered(FStageSessionProviderEntry Provider) const
+bool SDataProviderActivityFilter::IsProviderFiltered(FName ProviderName) const
 {
 	// The list contains types to filter. Inverse return value to display a more natural way of looking at filter choices
-	return !CurrentFilter->RestrictedProviders.Contains(Provider);
+	return !CurrentFilter->FilterSettings.RestrictedProviders.Contains(ProviderName);
 }
 
 void SDataProviderActivityFilter::ToggleDataTypeFilter(UScriptStruct* Type)
 {
-	if(CurrentFilter->RestrictedTypes.Contains(Type))
+	if(CurrentFilter->FilterSettings.RestrictedTypes.Contains(Type))
 	{
-		CurrentFilter->RestrictedTypes.RemoveSingle(Type);
+		CurrentFilter->FilterSettings.RestrictedTypes.RemoveSingle(Type);
 	}
 	else
 	{
-		CurrentFilter->RestrictedTypes.AddUnique(Type);
+		CurrentFilter->FilterSettings.RestrictedTypes.AddUnique(Type);
 	}
 
 	OnActivityFilterChanged.ExecuteIfBound();
@@ -169,18 +217,18 @@ void SDataProviderActivityFilter::ToggleDataTypeFilter(UScriptStruct* Type)
 bool SDataProviderActivityFilter::IsDataTypeFiltered(UScriptStruct* Type) const
 {
 	// The list contains types to filter. Inverse return value to display a more natural way of looking at filter choices
-	return !CurrentFilter->RestrictedTypes.Contains(Type);
+	return !CurrentFilter->FilterSettings.RestrictedTypes.Contains(Type);
 }
 
 void SDataProviderActivityFilter::ToggleCriticalStateSourceFilter(FName Source)
 {
-	if (CurrentFilter->RestrictedSources.Contains(Source))
+	if (CurrentFilter->FilterSettings.RestrictedSources.Contains(Source))
 	{
-		CurrentFilter->RestrictedSources.RemoveSingle(Source);
+		CurrentFilter->FilterSettings.RestrictedSources.RemoveSingle(Source);
 	}
 	else
 	{
-		CurrentFilter->RestrictedSources.AddUnique(Source);
+		CurrentFilter->FilterSettings.RestrictedSources.AddUnique(Source);
 	}
 
 	OnActivityFilterChanged.ExecuteIfBound();
@@ -189,19 +237,31 @@ void SDataProviderActivityFilter::ToggleCriticalStateSourceFilter(FName Source)
 bool SDataProviderActivityFilter::IsCriticalStateSourceFiltered(FName Source) const
 {
 	// The list contains sources to passing the filter.
-	return CurrentFilter->RestrictedSources.Contains(Source);
+	return CurrentFilter->FilterSettings.RestrictedSources.Contains(Source);
 }
 
 void SDataProviderActivityFilter::ToggleCriticalSourceEnabledFilter()
 {
-	CurrentFilter->bEnableCriticalStateFilter = !CurrentFilter->bEnableCriticalStateFilter;
+	CurrentFilter->FilterSettings.bEnableCriticalStateFilter = !CurrentFilter->FilterSettings.bEnableCriticalStateFilter;
+
+	OnActivityFilterChanged.ExecuteIfBound();
+}
+
+void SDataProviderActivityFilter::ToggleTimeFilterEnabled(ECheckBoxState CheckboxState)
+{
+	CurrentFilter->FilterSettings.bEnableTimeFilter = !CurrentFilter->FilterSettings.bEnableTimeFilter;
 
 	OnActivityFilterChanged.ExecuteIfBound();
 }
 
 bool SDataProviderActivityFilter::IsCriticalSourceFilteringEnabled() const
 {
-	return CurrentFilter->bEnableCriticalStateFilter;
+	return CurrentFilter->FilterSettings.bEnableCriticalStateFilter;
+}
+
+bool SDataProviderActivityFilter::IsTimeFilterEnabled() const
+{
+	return CurrentFilter->FilterSettings.bEnableTimeFilter;
 }
 
 TSharedRef<SWidget> SDataProviderActivityFilter::MakeAddFilterMenu()
@@ -243,6 +303,15 @@ TSharedRef<SWidget> SDataProviderActivityFilter::MakeAddFilterMenu()
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
+
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("FilterBasedOnTime", "Time"),
+			LOCTEXT("FilterRecentMessagesTooltip", "Filters based on the messages' age"),
+			FNewMenuDelegate::CreateSP(this, &SDataProviderActivityFilter::CreateTimeFilterMenu),
+			FUIAction(),
+			NAME_None,
+			EUserInterfaceActionType::None
+		);
 	}
 	MenuBuilder.EndSection();
 
@@ -266,7 +335,7 @@ void SDataProviderActivityFilter::CreateMessageTypeFilterMenu(FMenuBuilder& Menu
 				MenuBuilder.AddMenuEntry
 				(
 					Struct->GetDisplayNameText(), //Label
-					Struct->GetDisplayNameText(), //Tooltip
+					Struct->GetToolTipText(), //Tooltip
 					FSlateIcon(),
 					FUIAction
 					(
@@ -299,9 +368,9 @@ void SDataProviderActivityFilter::CreateProviderFilterMenu(FMenuBuilder& MenuBui
 					FSlateIcon(),
 					FUIAction
 					(
-						FExecuteAction::CreateSP(this, &SDataProviderActivityFilter::ToggleProviderFilter, Provider)
+						FExecuteAction::CreateSP(this, &SDataProviderActivityFilter::ToggleProviderFilter, Provider.Descriptor.FriendlyName)
 						, FCanExecuteAction()
-						, FIsActionChecked::CreateSP(this, &SDataProviderActivityFilter::IsProviderFiltered, Provider)
+						, FIsActionChecked::CreateSP(this, &SDataProviderActivityFilter::IsProviderFiltered, Provider.Descriptor.FriendlyName)
 					),
 					NAME_None,
 					EUserInterfaceActionType::ToggleButton
@@ -342,7 +411,7 @@ void SDataProviderActivityFilter::CreateCriticalStateSourceFilterMenu(FMenuBuild
 					FUIAction
 					(
 						FExecuteAction::CreateSP(this, &SDataProviderActivityFilter::ToggleCriticalStateSourceFilter, Source)
-						, FCanExecuteAction::CreateLambda([this]() { return CurrentFilter->bEnableCriticalStateFilter; })
+						, FCanExecuteAction::CreateLambda([this]() { return CurrentFilter->FilterSettings.bEnableCriticalStateFilter; })
 						, FIsActionChecked::CreateSP(this, &SDataProviderActivityFilter::IsCriticalStateSourceFiltered, Source)
 					),
 					NAME_None,
@@ -355,6 +424,53 @@ void SDataProviderActivityFilter::CreateCriticalStateSourceFilterMenu(FMenuBuild
 	MenuBuilder.EndSection();
 }
 
+void SDataProviderActivityFilter::CreateTimeFilterMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("TimeFilter", LOCTEXT("TimeFilter", "Time filter"));
+	{
+		if (const TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
+		{
+			constexpr uint32 MaxAgeMaxSliderValue = 2880; // Default to a max slider value of 2 days
+			
+			MenuBuilder.AddWidget
+			(
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &SDataProviderActivityFilter::ToggleTimeFilterEnabled)
+					.IsChecked(this, &SDataProviderActivityFilter::IsTimeFilterChecked)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(2.f, 0.f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("MaxAgeLabel", "Max Age (min)"))
+				]
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SNumericEntryBox<uint32>)
+					.MinDesiredValueWidth(100.f)
+					.Value(this, &SDataProviderActivityFilter::GetMaxMessageAge)
+					.AllowSpin(true)
+					.MinValue(0)
+					.MaxValue(TNumericLimits<uint32>::Max())
+					.MinSliderValue(0)				
+					.MaxSliderValue(MaxAgeMaxSliderValue) 
+					.OnValueChanged(this, &SDataProviderActivityFilter::OnMaxMessageAgeChanged)
+					.OnValueCommitted(this, &SDataProviderActivityFilter::OnMaxMessageAgeCommitted)
+				],
+				FText::GetEmpty(),
+				true,
+				false 
+			);
+		}
+	}
+	MenuBuilder.EndSection();
+}
 
 void SDataProviderActivityFilter::AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
 {
@@ -363,6 +479,67 @@ void SDataProviderActivityFilter::AttachToMonitorSession(const TWeakPtr<IStageMo
 		Session = NewSession;
 		CurrentFilter->Session = Session;
 	}
+}
+
+ECheckBoxState SDataProviderActivityFilter::IsTimeFilterChecked() const
+{
+	return CurrentFilter->FilterSettings.bEnableTimeFilter ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+TOptional<uint32> SDataProviderActivityFilter::GetMaxMessageAge() const
+{
+	return CurrentFilter->FilterSettings.MaxMessageAgeInMinutes;
+}
+
+void SDataProviderActivityFilter::OnMaxMessageAgeChanged(uint32 NewMax)
+{
+	CurrentFilter->FilterSettings.MaxMessageAgeInMinutes = NewMax;
+}
+
+void SDataProviderActivityFilter::OnMaxMessageAgeCommitted(uint32 NewMax, ETextCommit::Type)
+{
+	CurrentFilter->FilterSettings.MaxMessageAgeInMinutes = NewMax;
+	OnActivityFilterChanged.ExecuteIfBound();
+}
+
+void SDataProviderActivityFilter::LoadSettings()
+{
+	FString FoundIniSettings;
+	if (GConfig->GetString(TEXT("StageMonitor"), TEXT("ActivityFilter"), FoundIniSettings, GEditorPerProjectIni))
+	{
+		FDataProviderActivityFilterSettings LoadedSettings;
+		FDataProviderActivityFilterSettings::StaticStruct()->ImportText(*FoundIniSettings, &LoadedSettings, nullptr, PPF_None, GLog, TEXT("DataProviderActivityFilterSettings"));
+		
+		//Cleanup any types that don't exist anymore
+		LoadedSettings.ExistingPeriodicTypes.RemoveAll([](const UScriptStruct* Other) { return Other == nullptr; });
+		LoadedSettings.RestrictedTypes.RemoveAll([](const UScriptStruct* Other) { return Other == nullptr; });
+
+		//Verify if there are new periodic types (filtered out by default) not found in the saved settings
+		for (UScriptStruct* ExistingType : CurrentFilter->FilterSettings.ExistingPeriodicTypes)
+		{
+			if (ExistingType)
+			{
+				if (LoadedSettings.ExistingPeriodicTypes.Contains(ExistingType) == false)
+				{
+					LoadedSettings.ExistingPeriodicTypes.AddUnique(ExistingType);
+				
+					//We default to restrict periodic types so add it it by default
+					LoadedSettings.RestrictedTypes.AddUnique(ExistingType);
+				}
+			}
+		}
+
+		CurrentFilter->FilterSettings = MoveTemp(LoadedSettings);
+	}
+
+	OnActivityFilterChanged.ExecuteIfBound();
+}
+
+void SDataProviderActivityFilter::SaveSettings()
+{
+	FString TextValue;
+	FDataProviderActivityFilterSettings::StaticStruct()->ExportText(TextValue, &CurrentFilter->FilterSettings, &CurrentFilter->FilterSettings, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+	GConfig->SetString(TEXT("StageMonitor"), TEXT("ActivityFilter"), *TextValue, GEditorPerProjectIni);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -589,7 +589,7 @@ public:
 		}
 		else
 		{
-			ensure(false);	//can't serialize out, if you are trying to serialize for perf/debug set CHAOS_SERIALIZE_OUT to 1 
+			CHAOS_ENSURE(false);	//can't serialize out, if you are trying to serialize for perf/debug set CHAOS_SERIALIZE_OUT to 1 
 		}
 	}
 

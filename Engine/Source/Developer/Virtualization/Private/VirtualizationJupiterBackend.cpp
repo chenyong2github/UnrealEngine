@@ -615,7 +615,7 @@ private:
 			{
 				UE_LOG(
 					LogVirtualization,
-					Verbose,
+					VeryVerbose,
 					TEXT("Finished %s HTTP cache entry (response %d) from %s. %s"),
 					VerbStr,
 					ResponseCode,
@@ -635,7 +635,7 @@ private:
 				{
 					UE_LOG(
 						LogVirtualization,
-						Verbose,
+						VeryVerbose,
 						TEXT("Failed %s HTTP cache entry (response %d) from %s. Response: %s"),
 						VerbStr,
 						ResponseCode,
@@ -1313,8 +1313,8 @@ private:
 class FJupiterBackend : public IVirtualizationBackend
 {
 public:
-	FJupiterBackend(FStringView ConfigName)
-		: IVirtualizationBackend(EOperations::Both)
+	FJupiterBackend(FStringView ConfigName, FStringView InDebugName)
+		: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
 		, Namespace(TEXT("mirage"))
 		, Bucket(TEXT("default"))
 		, ChunkSize(-1)
@@ -1396,7 +1396,7 @@ private:
 		return true; 
 	}
 
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload) override
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& CompressedPayload, const FPackagePath& PackageContext) override
 	{
 		using namespace Utility;
 
@@ -1557,7 +1557,7 @@ private:
 					// Response 400 indicates that the payload does not exist in Jupiter. Note that it is faster to just make the request
 					// and check for the response rather than call ::DoesPayloadExist prior to requesting the json header because this way 
 					// we will only make a single request if the payload exists or not.
-					UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugString(), *Id.ToString());
+					UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *Id.ToString());
 					return FCompressedBuffer();
 				}
 				else if(!ShouldRetryOnError(ResponseCode))
@@ -1629,11 +1629,6 @@ private:
 			UE_LOG(LogVirtualization, Error, TEXT("Failed to download %d chunks for the payload '%s'"), NumFailedChunks.load(), *Id.ToString());
 			return FCompressedBuffer();
 		}
-	}
-
-	virtual FString GetDebugString() const override
-	{
-		return FString(TEXT("Jupiter"));
 	}
 
 	bool IsUsingLocalHost() const

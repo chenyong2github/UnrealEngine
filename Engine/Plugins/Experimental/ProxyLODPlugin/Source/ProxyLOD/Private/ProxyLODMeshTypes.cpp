@@ -348,9 +348,9 @@ FMeshDescriptionArrayAdapter::FRawPoly FMeshDescriptionArrayAdapter::GetRawPoly(
 			{
 				for (int32 i = 0; i < 3; ++i)
 				{
-					RawPoly.WedgeTangentX[i] = InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentX[i]) * MulBy;
-					RawPoly.WedgeTangentY[i] = InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentY[i]) * MulBy;
-					RawPoly.WedgeTangentZ[i] = InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentZ[i]) * MulBy;
+					RawPoly.WedgeTangentX[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentX[i]) * MulBy);
+					RawPoly.WedgeTangentY[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentY[i]) * MulBy);
+					RawPoly.WedgeTangentZ[i] = FVector4f(InstancesAdjointTArray[MeshIdx][InstanceIdx].TransformVector(RawPoly.WedgeTangentZ[i]) * MulBy);
 				}
 			}
 		}

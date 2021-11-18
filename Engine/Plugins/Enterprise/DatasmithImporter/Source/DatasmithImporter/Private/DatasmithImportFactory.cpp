@@ -168,7 +168,7 @@ namespace DatasmithImportFactoryImpl
 			ReImportSceneData->AdditionalOptions.Add(OptionObj);
 		}
 		ReImportSceneData->Update( InContext.Options->FilePath, InContext.FileHash.IsValid() ? &InContext.FileHash : nullptr );
-		ReImportSceneData->SourceUri = InContext.Options->SourceUri;
+		ReImportSceneData->DatasmithImportInfo = FDatasmithImportInfo(InContext.Options->SourceUri, InContext.Options->SourceHash);
 
 		FAssetRegistryModule::AssetCreated(ReImportSceneData);
 
@@ -627,11 +627,11 @@ void UDatasmithImportFactory::SetReimportPaths( UObject* Obj, const TArray<FStri
 		FString SourceUriString = FSourceUri::FromFilePath(NewReimportPaths[0]).ToString();
 		if (UDatasmithAssetImportData* DatasmithAssetReImportData = Cast<UDatasmithAssetImportData>(ReImportData))
 		{
-			DatasmithAssetReImportData->SourceUri = MoveTemp(SourceUriString);
+			DatasmithAssetReImportData->DatasmithImportInfo = FDatasmithImportInfo(SourceUriString);
 		}
 		else if (UDatasmithSceneImportData* DatasmithSceneReImportData = Cast<UDatasmithSceneImportData>(ReImportData))
 		{
-			DatasmithSceneReImportData->SourceUri = MoveTemp(SourceUriString);
+			DatasmithSceneReImportData->DatasmithImportInfo = FDatasmithImportInfo(SourceUriString);
 		}
 	}
 }
@@ -797,7 +797,7 @@ EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* Sc
 	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager().TryGetExternalSourceFromImportData(AssetImportData);
 	if (!ExternalSource)
 	{
-		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportScene error: cannot resolve the external source from Source file or URI. Abort import"));
+		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith ReimportScene error: Import source is not available. Abort import."));
 		return EReimportResult::Failed;
 	}
 

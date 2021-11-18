@@ -61,7 +61,7 @@ void MeshDescriptionToProcMesh( const FMeshDescription& MeshDescription, UProced
 	TVertexInstanceAttributesConstRef<float> BinormalSigns = AttributeGetter.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector3f> Normals = AttributeGetter.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector4f> Colors = AttributeGetter.GetVertexInstanceColors();
-	TVertexInstanceAttributesConstRef<FVector2D> UVs = AttributeGetter.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector2f> UVs = AttributeGetter.GetVertexInstanceUVs();
 
 	const int32 NumSections = ProcMeshComp->GetNumSections();
 
@@ -117,7 +117,7 @@ FMeshDescription BuildMeshDescription( UProceduralMeshComponent* ProcMeshComp )
 	TVertexInstanceAttributesRef<float> BinormalSigns = AttributeGetter.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector3f> Normals = AttributeGetter.GetVertexInstanceNormals();
 	TVertexInstanceAttributesRef<FVector4f> Colors = AttributeGetter.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> UVs = AttributeGetter.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> UVs = AttributeGetter.GetVertexInstanceUVs();
 
 	// Materials to apply to new mesh
 	const int32 NumSections = ProcMeshComp->GetNumSections();

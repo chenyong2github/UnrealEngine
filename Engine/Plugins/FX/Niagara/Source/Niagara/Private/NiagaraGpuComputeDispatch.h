@@ -244,6 +244,10 @@ private:
 	TArray<int32> FreeGPURayTracedCollisionGroups;
 	int32 NumGPURayTracedCollisionGroups = 0;
 
-	// Cached information to build a dummy view info if neccessary
+	// Cached information to build a dummy view info if necessary
 	FIntRect CachedViewRect;
+
+#if WITH_EDITOR
+	bool bRaisedWarningThisFrame = false;
+#endif
 };

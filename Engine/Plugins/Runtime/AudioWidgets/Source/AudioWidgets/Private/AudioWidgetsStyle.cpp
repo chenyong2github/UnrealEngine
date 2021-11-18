@@ -18,7 +18,7 @@ FAudioWidgetsStyle::FAudioWidgetsStyle()
 	/** 
 	* AudioTextBox Style
 	*/
-	const float LabelWidth = 56.0f;
+	const float LabelWidth = 64.0f;
 	const float LabelHeight = 28.0f;
 	const FVector2D LabelBackgroundSize = FVector2D(LabelWidth, LabelHeight);
 	const FLinearColor LabelBackgroundColor = FStyleColors::Recessed.GetSpecifiedColor();

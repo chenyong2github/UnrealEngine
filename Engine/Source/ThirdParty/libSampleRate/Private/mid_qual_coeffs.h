@@ -14,6 +14,7 @@
 **   half length      : 22437
 **   increment        : 491
 */
+#ifndef LIBSAMPLERATE_WITHOUT_SINC
 
 #ifdef _MSC_VER
 #pragma warning (push)
@@ -22470,3 +22471,5 @@ static const struct slow_mid_qual_coeffs_s
 #ifdef _MSC_VER
 #pragma warning (pop)
 #endif
+
+#endif // LIBSAMPLERATE_WITHOUT_SINC

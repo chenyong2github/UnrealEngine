@@ -20,9 +20,9 @@ struct FOverlappingCornersArrayMeshView : FLayoutUV::IMeshView
 	virtual FVector3f   GetPosition(uint32 Index) const override { return Vertices[Indices[Index]]; }
 
 	virtual FVector3f   GetNormal(uint32 Index) const override { check(0); return FVector3f(); }
-	virtual FVector2D   GetInputTexcoord(uint32 Index) const override { check(0); return FVector2D(); }
+	virtual FVector2f   GetInputTexcoord(uint32 Index) const override { check(0); return FVector2f(); }
 	virtual void        InitOutputTexcoords(uint32 Num) override { check(0); }
-	virtual void        SetOutputTexcoord(uint32 Index, const FVector2D& Value) override { check(0); }
+	virtual void        SetOutputTexcoord(uint32 Index, const FVector2f& Value) override { check(0); }
 	// IMeshView Interface --
 };
 

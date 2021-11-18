@@ -61,7 +61,7 @@ void FAnimNode_LinkedAnimLayer::InitializeSelfLayer(const UAnimInstance* SelfAni
 	{
 		CurrentTarget->UninitializeAnimation();
 		MeshComp->GetLinkedAnimInstances().Remove(CurrentTarget);
-		CurrentTarget->MarkPendingKill();
+		CurrentTarget->MarkAsGarbage();
 		CurrentTarget = nullptr;
 	}
 

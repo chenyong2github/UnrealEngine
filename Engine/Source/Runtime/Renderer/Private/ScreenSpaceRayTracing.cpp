@@ -381,10 +381,10 @@ class FSSRTPrevFrameReductionCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector4f, PrevBufferBilinearUVMinMax)
 		SHADER_PARAMETER(FVector4f, PrevScreenPositionScaleBias)
-		SHADER_PARAMETER(FVector2D, ViewportUVToHZBBufferUV)
-		SHADER_PARAMETER(FVector2D, ReducedSceneColorSize)
-		SHADER_PARAMETER(FVector2D, ReducedSceneColorTexelSize)
-		SHADER_PARAMETER(FVector2D, HigherMipBufferBilinearMax)
+		SHADER_PARAMETER(FVector2f, ViewportUVToHZBBufferUV)
+		SHADER_PARAMETER(FVector2f, ReducedSceneColorSize)
+		SHADER_PARAMETER(FVector2f, ReducedSceneColorTexelSize)
+		SHADER_PARAMETER(FVector2f, HigherMipBufferBilinearMax)
 		SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
 		SHADER_PARAMETER(float, MinimumLuminance)
 		SHADER_PARAMETER(float, HigherMipDownScaleFactor)
@@ -423,7 +423,7 @@ class FSSRTDiffuseTileClassificationCS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector2D, SamplePixelToHZBUV)
+		SHADER_PARAMETER(FVector2f, SamplePixelToHZBUV)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClosestHZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ClosestHZBTextureSampler)

@@ -61,6 +61,10 @@ void FElectraPlayer::PlatformNotifyOfOptionChange()
 {
 }
 
+void FElectraPlayer::PlatformSuspendOrResumeDecoders(bool /*bSuspend*/)
+{
+}
+
 #endif
 
 

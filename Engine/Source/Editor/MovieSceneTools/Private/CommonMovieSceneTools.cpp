@@ -1,18 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CommonMovieSceneTools.h"
+#include "FrameNumberNumericInterface.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "SequencerSectionPainter.h"
 
-void DrawFrameNumberHint(FSequencerSectionPainter& InPainter, FFrameTime CurrentTime, int32 FrameNumber)
+void DrawFrameTimeHint(FSequencerSectionPainter& InPainter, const FFrameTime& CurrentTime, const FFrameTime& FrameTime, const FFrameNumberInterface* FrameNumberInterface)
 {
-	FString FrameString = FString::FromInt(FrameNumber);
+	FString FrameTimeString;
+	if (FrameNumberInterface)
+	{
+		FrameTimeString = FrameNumberInterface->ToString(FrameTime.AsDecimal());
+	}
+	else
+	{
+		FrameTimeString = FString::FromInt(FrameTime.GetFrame().Value);
+	}
 
 	const FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
 	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-	FVector2D TextSize = FontMeasureService->Measure(FrameString, SmallLayoutFont);
+	FVector2D TextSize = FontMeasureService->Measure(FrameTimeString, SmallLayoutFont);
 
 	const float PixelX = InPainter.GetTimeConverter().FrameToPixel(CurrentTime);
 
@@ -43,7 +52,7 @@ void DrawFrameNumberHint(FSequencerSectionPainter& InPainter, FFrameTime Current
 		InPainter.DrawElements,
 		InPainter.LayerId + 6,
 		InPainter.SectionGeometry.ToPaintGeometry(TextOffset, TextSize),
-		FrameString,
+		FrameTimeString,
 		SmallLayoutFont,
 		DrawEffects,
 		DrawColor

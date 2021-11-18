@@ -235,7 +235,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 		ShaderICVFX.CollectRefViewports(ViewportResources);
 		{
 			// ICVFX warp:
-			for (int ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
+			for (int32 ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
 			{
 				// Update ref viewport resources:
 				for (FDisplayClusterShaderParametersICVFX_ViewportResource* It : ViewportResources)
@@ -251,7 +251,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 						if (RefViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::MipsShaderResource, RefTextures) ||
 							RefViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InputShaderResource, RefTextures))
 						{
-							int ReContextNum = FMath::Min(ContextNum, RefTextures.Num());
+							const int32 ReContextNum = FMath::Min(ContextNum, RefTextures.Num());
 							It->Texture = RefTextures[ReContextNum];
 
 							// Support stereo icvfx
@@ -300,7 +300,7 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 	}
 	
 	// Mesh warp:
-	for (int ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
+	for (int32 ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
 	{
 		// Initialize shader input data
 		FDisplayClusterShaderParameters_WarpBlend WarpBlendParameters;

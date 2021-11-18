@@ -10,8 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using System.Diagnostics;
 using UnrealBuildBase;
-
-#nullable disable
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -47,7 +46,7 @@ namespace UnrealBuildTool
 		/// Disable native project file generators for platforms. Platforms with native project file generators typically require IDE extensions to be installed.
 		/// </summary>
 		[XmlConfigFile(Category = "ProjectFileGenerator")]
-		string[] DisablePlatformProjectGenerators = null;
+		string[]? DisablePlatformProjectGenerators = null;
 
 		/// <summary>
 		/// Whether this command is being run in an automated mode
@@ -73,7 +72,7 @@ namespace UnrealBuildTool
 			Log.AddFileWriter("DefaultLogTraceListener", LogFile);
 
 			// Parse rocket-specific arguments.
-			FileReference ProjectFile;
+			FileReference? ProjectFile;
 			TryParseProjectFileArgument(Arguments, out ProjectFile);
 
 			// Warn if there are explicit project file formats specified
@@ -127,7 +126,7 @@ namespace UnrealBuildTool
 			{
 				if (CheckType.IsClass && !CheckType.IsAbstract && CheckType.IsSubclassOf(typeof(PlatformProjectGenerator)))
 				{
-					PlatformProjectGenerator Generator = (PlatformProjectGenerator)Activator.CreateInstance(CheckType, Arguments);
+					PlatformProjectGenerator Generator = (PlatformProjectGenerator)Activator.CreateInstance(CheckType, Arguments)!;
 					foreach(UnrealTargetPlatform Platform in Generator.GetPlatforms())
 					{
 						if(DisablePlatformProjectGenerators == null || !DisablePlatformProjectGenerators.Any(x => x.Equals(Platform.ToString(), StringComparison.OrdinalIgnoreCase)))
@@ -144,7 +143,7 @@ namespace UnrealBuildTool
 			Log.TraceLog("\n---   SDK INFO START   ---");
 			foreach (string PlatformName in UnrealTargetPlatform.GetValidPlatformNames())
 			{
-				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(PlatformName);
+				UEBuildPlatformSDK? SDK = UEBuildPlatformSDK.GetSDKForPlatform(PlatformName);
 				if (SDK != null && SDK.bIsSdkAllowedOnHost)
 				{
 					// print out the info to the log, and if it's invalid, remember it
@@ -249,9 +248,9 @@ namespace UnrealBuildTool
 		/// <param name="Arguments">The command line arguments</param>
 		/// <param name="ProjectFile">The project file that was parsed</param>
 		/// <returns>True if the project file was parsed, false otherwise</returns>
-		private static bool TryParseProjectFileArgument(CommandLineArguments Arguments, out FileReference ProjectFile)
+		private static bool TryParseProjectFileArgument(CommandLineArguments Arguments, [NotNullWhen(true)] out FileReference? ProjectFile)
 		{
-			string CandidateProjectPath = null;
+			string? CandidateProjectPath = null;
 
 			// look for -project=<path>, if it does not exist check arguments for anything that has .uproject in it
 			if (!Arguments.TryGetValue("-Project=", out CandidateProjectPath))
@@ -300,7 +299,7 @@ namespace UnrealBuildTool
 				return true;
 			}
 			
-			FileReference InstalledProjectFile = UnrealBuildTool.GetInstalledProjectFile();
+			FileReference? InstalledProjectFile = UnrealBuildTool.GetInstalledProjectFile();
 			if(InstalledProjectFile != null)
 			{
 				ProjectFile = InstalledProjectFile;

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Math/TransformVectorized.h"
+#include "Math/Transform.h"
 #include "Misc/AssertionMacros.h"
 #include "Math/UnrealMathUtility.h"
 #include "Containers/Array.h"
@@ -40,7 +41,7 @@ void TTransform<T>::DebugPrint() const
 template<typename T>
 FString TTransform<T>::ToHumanReadableString() const
 {
-	FRotator R(GetRotation());
+	TRotator<T> R(GetRotation());
 	TVector<T> Tr(GetTranslation());
 	TVector<T> S(GetScale3D());
 
@@ -55,7 +56,7 @@ FString TTransform<T>::ToHumanReadableString() const
 template<typename T>
 FString TTransform<T>::ToString() const
 {
-	const FRotator R(Rotator());
+	const TRotator<T> R(Rotator());
 	const TVector<T> Tr(GetTranslation());
 	const TVector<T> S(GetScale3D());
 
@@ -81,7 +82,7 @@ bool TTransform<T>::InitFromString( const FString& Source )
 	}
 
 	// Rotation
-	FRotator ParsedRotation = FRotator::ZeroRotator;
+	TRotator<T> ParsedRotation = TRotator<T>::ZeroRotator;
 	if( !FDefaultValueHelper::ParseRotator(ComponentStrings[1], ParsedRotation) )
 	{
 		return false;

@@ -46,8 +46,8 @@ private:
 
 	#define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
-	const FText NoLoadedPresetText = LOCTEXT("PresetsToolbarButton_NoLoadedPreset", "Load/Save Preset");
-	const FText LoadedPresetFormatText = LOCTEXT("PresetsToolbarButton_LoadedPresetFormat", "Current Preset: {0}");
+	const FText NoLoadedPresetText = LOCTEXT("NoLoadedPreset", "No Loaded Preset");
+	const FText LoadedPresetFormatText = LOCTEXT("LoadedPresetFormat", "Current Preset: {0}");
 
     #undef LOCTEXT_NAMESPACE
 

@@ -5,7 +5,10 @@
 
 namespace CADKernel
 {
-	template<typename ValueType> const void Sort(const ValueType& ValueA, const ValueType& ValueB, ValueType& OutMin, ValueType& OutMax)
+	/**
+	 * Sort input A & B values into OutMin & OutMax
+	 */
+	template<typename ValueType> const void GetMinMax(const ValueType& ValueA, const ValueType& ValueB, ValueType& OutMin, ValueType& OutMax)
 	{
 		if (ValueA < ValueB)
 		{
@@ -19,7 +22,10 @@ namespace CADKernel
 		}
 	}
 
-	template<typename ValueType> const void Sort(ValueType& Min, ValueType& Max)
+	/**
+	 * Sort input values to be Min and Max
+	 */
+	template<typename ValueType> const void GetMinMax(ValueType& Min, ValueType& Max)
 	{
 		if (Max < Min)
 		{

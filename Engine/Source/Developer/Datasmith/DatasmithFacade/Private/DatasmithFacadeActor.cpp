@@ -79,9 +79,9 @@ void FDatasmithFacadeActor::GetRotation(
 {
 	FRotator Rotator(GetDatasmithActorElement()->GetRotation().Rotator());
 
-	OutPitch = Rotator.Pitch;
-	OutYaw = Rotator.Yaw;
-	OutRoll = Rotator.Roll;
+	OutPitch = (float)Rotator.Pitch;
+	OutYaw = (float)Rotator.Yaw;
+	OutRoll = (float)Rotator.Roll;
 }
 
 void FDatasmithFacadeActor::SetRotation(

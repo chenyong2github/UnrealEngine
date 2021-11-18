@@ -7,22 +7,24 @@
 
 #if RHI_RAYTRACING
 
+class FGPUScene;
+
 /*
 * 
 * Each FRayTracingGeometryInstance can translate to multiple native TLAS instances (see FRayTracingGeometryInstance::NumTransforms).
 * 
 * The FRayTracingGeometryInstance array (ie: FRayTracingScene::Instances) used to create FRayTracingSceneRHI
-* can have mix of instances using CPU transforms or GPUTransformSRV.
+* can have mix of instances using GPUScene, CPU transforms or GPUTransformSRV.
 * In order to reduce the number of dispatches to build the native RayTracing Instance Buffer,
-* the upload buffer containing FRayTracingInstanceDescriptorInput is split in 2 sections, CPU instances / GPU instances.
-* This way all native CPU instance descriptors can be built in a single dispatch.
+* the upload buffer containing FRayTracingInstanceDescriptorInput is split in 3 sections, [GPUSceneInstances] [CPUInstances] [GPUInstances].
+* This way native GPUScene and CPU instance descriptors can be built in a single dispatch per type.
 * Followed by one dispatch per GPU instance (since GPU transforms of each GPU instance are stored in separate buffers).
 * 
 */
 
 struct FRayTracingInstanceDescriptorInput
 {
-	uint32 TransformIndex;
+	uint32 GPUSceneInstanceOrTransformIndex;
 	uint32 OutputDescriptorIndex;
 	uint32 AccelerationStructureIndex;
 	uint32 InstanceId;
@@ -40,6 +42,7 @@ struct FRayTracingGPUInstance
 struct FRayTracingSceneWithGeometryInstances
 {
 	FRayTracingSceneRHIRef Scene;
+	uint32 NumNativeGPUSceneInstances;
 	uint32 NumNativeCPUInstances;
 	uint32 NumNativeGPUInstances;
 	// index of each instance geometry in FRayTracingSceneRHIRef ReferencedGeometries
@@ -63,16 +66,19 @@ RENDERER_API void FillRayTracingInstanceUploadBuffer(
 	TConstArrayView<FRayTracingGeometryInstance> Instances,
 	TConstArrayView<uint32> InstanceGeometryIndices,
 	TConstArrayView<uint32> BaseUploadBufferOffsets,
+	uint32 NumNativeGPUSceneInstances,
 	uint32 NumNativeCPUInstances,
 	TArrayView<FRayTracingInstanceDescriptorInput> OutInstanceUploadData,
 	TArrayView<FVector4f> OutTransformData);
 
 RENDERER_API void BuildRayTracingInstanceBuffer(
 	FRHICommandList& RHICmdList,
+	const FGPUScene* GPUScene,
 	FUnorderedAccessViewRHIRef InstancesUAV,
 	FShaderResourceViewRHIRef InstanceUploadSRV,
 	FShaderResourceViewRHIRef AccelerationStructureAddressesSRV,
 	FShaderResourceViewRHIRef CPUInstanceTransformSRV,
+	uint32 NumNativeGPUSceneInstances,
 	uint32 NumNativeCPUInstances,
 	TConstArrayView<FRayTracingGPUInstance> GPUInstances);
 

@@ -78,7 +78,7 @@ struct TGPUSkinVertexFloat32Uvs : public TGPUSkinVertexBase
 	/** full float position **/
 	FVector3f			Position;
 	/** full float UVs */
-	FVector2D UVs[NumTexCoords];
+	FVector2f UVs[NumTexCoords];
 
 	/**
 	* Serializer

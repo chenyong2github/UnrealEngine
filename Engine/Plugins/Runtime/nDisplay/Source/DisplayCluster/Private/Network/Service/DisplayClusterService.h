@@ -3,11 +3,14 @@
 #pragma once
 
 #include "Network/DisplayClusterServer.h"
+#include "Network/DisplayClusterNetworkTypes.h"
+#include "Network/Barrier/IDisplayClusterBarrier.h"
 #include "GenericPlatform/GenericPlatformAffinity.h"
 
 
 class FSocket;
 struct FIPv4Endpoint;
+struct FDisplayClusterSessionInfo;
 
 
 /**
@@ -22,12 +25,16 @@ public:
 public:
 	static EThreadPriority ConvertThreadPriorityFromCvarValue(int ThreadPriority);
 	static EThreadPriority GetThreadPriority();
-
-public:
-	// Returns true if requested Endpoint is a part of nDisplay cluster (listed in a config file)
-	static bool IsClusterIP(const FIPv4Endpoint& Endpoint);
+	static EDisplayClusterCommResult TranslateBarrierWaitResultIntoCommResult(EDisplayClusterBarrierWaitResult WaitResult);
 
 protected:
-	// Ask a server implementation if it's  allowed to accept incoming connections from non-cluster addresses
-	virtual bool IsConnectionAllowed(FSocket* Socket, const FIPv4Endpoint& Endpoint) override;
+	// Cache session info data if needed for child service implementations
+	void SetSessionInfoCache(const FDisplayClusterSessionInfo& SessionInfo);
+	const FDisplayClusterSessionInfo& GetSessionInfoCache() const;
+	void ClearCache();
+
+private:
+	// Session info cache
+	TMap<uint32, FDisplayClusterSessionInfo> SessionInfoCache;
+	mutable FCriticalSection SessionInfoCacheCS;
 };

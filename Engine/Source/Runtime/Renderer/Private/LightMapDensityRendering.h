@@ -40,7 +40,7 @@ public:
 	typename LightMapPolicyType::ElementDataType LightMapPolicyElementData;
 
 	FVector3f BuiltLightingAndSelectedFlags;
-	FVector2D LightMapResolutionScale; 
+	FVector2f LightMapResolutionScale; 
 	bool bTextureMapped;
 };
 
@@ -185,8 +185,16 @@ public:
 
 private:
 
+	bool TryAddMeshBatch(
+		const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		int32 StaticMeshId,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material);
+
 	template<typename LightMapPolicyType>
-	void Process(
+	bool Process(
 		const FMeshBatch& MeshBatch,
 		uint64 BatchElementMask,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,

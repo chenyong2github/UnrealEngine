@@ -16,8 +16,8 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FGenMipsSRGB, FGaussianBlur>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector2D, SrcTexelSize)
-		SHADER_PARAMETER(FVector2D, DstTexelSize)
+		SHADER_PARAMETER(FVector2f, SrcTexelSize)
+		SHADER_PARAMETER(FVector2f, DstTexelSize)
 		SHADER_PARAMETER(int32, KernelHWidth)
 		SHADER_PARAMETER(FIntPoint, MipOutSize)
 		SHADER_PARAMETER_UAV(RWTexture2D<float4>, MipOutUAV)

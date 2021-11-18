@@ -129,7 +129,7 @@ void FSwitchboardEditorModule::RunDefaultOSCListener()
 	if (SwitchboardOSCListener.IsValid())
 	{
 		UObject* SwitchboardOSCListenerObject = SwitchboardOSCListener.TryLoad();
-		if (SwitchboardOSCListenerObject && !SwitchboardOSCListenerObject->IsPendingKillOrUnreachable() && GEditor)
+		if (SwitchboardOSCListenerObject && IsValidChecked(SwitchboardOSCListenerObject) && !SwitchboardOSCListenerObject->IsUnreachable() && GEditor)
 		{
 			GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>()->TryRun(SwitchboardOSCListenerObject);
 		}

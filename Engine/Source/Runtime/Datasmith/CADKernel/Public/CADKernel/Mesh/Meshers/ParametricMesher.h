@@ -7,8 +7,6 @@
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/UI/Progress.h"
 
-//#define DEBUG_INTERSECTEDGEISOS
-
 namespace CADKernel
 {
 	class FCriterion;
@@ -113,11 +111,11 @@ namespace CADKernel
 
 		FMesherChronos Chronos;
 
+		bool bDisplay = false;
+
 	public:
 
 		FParametricMesher(TSharedRef<FModelMesh> MeshModel);
-		FParametricMesher(TSharedRef<FModelMesh> MeshModel, TArray<TSharedPtr<FEntity>>& InEntities);
-		FParametricMesher(TSharedRef<FModelMesh> MeshModel, TSharedRef<FTopologicalEntity>& InEntity);
 
 		const TSharedRef<FModelMesh>& GetMeshModel() const
 		{
@@ -185,12 +183,6 @@ namespace CADKernel
 		 * Generate Edge Elements on active edge from Edge cutting points
 		 */
 		void GenerateEdgeElements(FTopologicalEdge& Edge);
-
-		void IntersectEdgeIsos(const FTopologicalEdge& Edge, const TArray<FPoint2D>& EdgeCrossingPoints2D, const double ToleranceIso, const TArray<double>& IsoCoordinates, EIso Iso, TArray<double>& OutIntersections);
-
-#ifdef DEBUG_INTERSECTEDGEISOS
-		void DebugIntersectEdgeIsos(const FTopologicalEdge& Edge, const FTopologicalFace& Face, const TArray<FPoint2D>& EdgeCrossingPoints2D, const double ToleranceIso, const TArray<double>& IsoCoordinates, EIso TypeIso);
-#endif
 	};
 
 } // namespace CADKernel

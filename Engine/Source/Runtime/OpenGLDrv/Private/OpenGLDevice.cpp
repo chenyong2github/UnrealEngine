@@ -636,6 +636,10 @@ static void InitRHICapabilitiesForGL()
 	GRHIAdapterName = FOpenGL::GetAdapterName();
 	GRHIAdapterInternalDriverVersion = ANSI_TO_TCHAR((const ANSICHAR*)glGetString(GL_VERSION));
 
+	// Shader platform & RHI feature level
+	GMaxRHIFeatureLevel = FOpenGL::GetFeatureLevel();
+	GMaxRHIShaderPlatform = FOpenGL::GetShaderPlatform();
+
 	// Log all supported extensions.
 #if PLATFORM_WINDOWS
 	bool bWindowsSwapControlExtensionPresent = false;
@@ -791,11 +795,7 @@ static void InitRHICapabilitiesForGL()
 	// Set capabilities.
 	const GLint MajorVersion = FOpenGL::GetMajorVersion();
 	const GLint MinorVersion = FOpenGL::GetMinorVersion();
-
-	// Shader platform & RHI feature level
-	GMaxRHIFeatureLevel = FOpenGL::GetFeatureLevel();
-	GMaxRHIShaderPlatform = FOpenGL::GetShaderPlatform();
-	 
+ 
 	// Enable the OGL rhi thread if explicitly requested.
 	GRHISupportsRHIThread = (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 && CVarAllowRGLHIThread.GetValueOnAnyThread())
 #if WITH_EDITOR

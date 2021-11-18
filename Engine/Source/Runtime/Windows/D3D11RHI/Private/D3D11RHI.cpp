@@ -591,9 +591,11 @@ bool FD3DGPUProfiler::CheckGpuHeartbeat(bool bShowActiveStatus) const
 	if (GDX11NVAfterMathEnabled && bTrackingGPUCrashData)
 	{
 		GFSDK_Aftermath_Device_Status Status;
-		D3D11StallRHIThread();
-		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_GetDeviceStatus(&Status);
-		D3D11UnstallRHIThread();
+		GFSDK_Aftermath_Result Result;
+		{
+			FScopedD3D11RHIThreadStaller StallRHIThread;
+			Result = GFSDK_Aftermath_GetDeviceStatus(&Status);
+		}
 		if (Result == GFSDK_Aftermath_Result_Success)
 		{
 			if (Status != GFSDK_Aftermath_Device_Status_Active || bShowActiveStatus)
@@ -613,9 +615,10 @@ bool FD3DGPUProfiler::CheckGpuHeartbeat(bool bShowActiveStatus) const
 				if (AftermathContext)
 				{
 					GFSDK_Aftermath_ContextData ContextDataOut;
-					D3D11StallRHIThread();
-					Result = GFSDK_Aftermath_GetData(1, &AftermathContext, &ContextDataOut);
-					D3D11UnstallRHIThread();
+					{
+						FScopedD3D11RHIThreadStaller StallRHIThread;
+						Result = GFSDK_Aftermath_GetData(1, &AftermathContext, &ContextDataOut);
+					}
 					if (Result == GFSDK_Aftermath_Result_Success)
 					{
 						UE_LOG(LogRHI, Error, TEXT("[Aftermath] GPU Stack Dump"));

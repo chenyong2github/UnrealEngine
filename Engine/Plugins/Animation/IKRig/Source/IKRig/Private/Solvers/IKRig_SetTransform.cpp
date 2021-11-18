@@ -13,7 +13,7 @@ UIKRig_SetTransform::UIKRig_SetTransform()
 
 void UIKRig_SetTransform::Initialize(const FIKRigSkeleton& IKRigSkeleton)
 {
-	BoneIndex = IKRigSkeleton.GetBoneIndexFromName(Bone);
+	BoneIndex = IKRigSkeleton.GetBoneIndexFromName(RootBone);
 }
 
 void UIKRig_SetTransform::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals)
@@ -68,7 +68,7 @@ FText UIKRig_SetTransform::GetNiceName() const
 
 bool UIKRig_SetTransform::GetWarningMessage(FText& OutWarningMessage) const
 {
-	if (Bone == NAME_None)
+	if (RootBone == NAME_None)
 	{
 		OutWarningMessage = LOCTEXT("MissingGoal", "Missing goals.");
 		return true;
@@ -79,7 +79,7 @@ bool UIKRig_SetTransform::GetWarningMessage(FText& OutWarningMessage) const
 void UIKRig_SetTransform::AddGoal(const UIKRigEffectorGoal& NewGoal)
 {
 	Goal = NewGoal.GoalName;
-	Bone = NewGoal.BoneName;
+	RootBone = NewGoal.BoneName;
 }
 
 void UIKRig_SetTransform::RemoveGoal(const FName& GoalName)
@@ -87,7 +87,7 @@ void UIKRig_SetTransform::RemoveGoal(const FName& GoalName)
 	if (Goal == GoalName)
 	{
 		Goal = NAME_None;
-		Bone = NAME_None;
+		RootBone = NAME_None;
 	}	
 }
 
@@ -103,7 +103,7 @@ void UIKRig_SetTransform::SetGoalBone(const FName& GoalName, const FName& NewBon
 {
 	if (Goal == GoalName)
 	{
-		Bone = NewBoneName;
+		RootBone = NewBoneName;
 	}
 }
 
@@ -119,7 +119,7 @@ UObject* UIKRig_SetTransform::GetGoalSettings(const FName& GoalName) const
 
 bool UIKRig_SetTransform::IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const
 {
-	return IKRigSkeleton.IsBoneInDirectLineage(BoneName, Bone);
+	return IKRigSkeleton.IsBoneInDirectLineage(BoneName, RootBone);
 }
 
 #endif

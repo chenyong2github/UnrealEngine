@@ -419,6 +419,43 @@ void AWorldDataLayers::OverwriteDataLayerRuntimeStates(TArray<FActorDataLayer>* 
 	}
 }
 
+void AWorldDataLayers::GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const
+{
+	const TArray<FName>& SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
+	const TArray<FName>& SettingsDataLayersLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersLoadedInEditor(GetWorld());
+
+	OutDataLayersNotLoadedInEditor.Empty();
+	OutDataLayersLoadedInEditor.Empty();
+	ForEachDataLayer([&OutDataLayersNotLoadedInEditor, &OutDataLayersLoadedInEditor, &SettingsDataLayersNotLoadedInEditor, &SettingsDataLayersLoadedInEditor](UDataLayer* DataLayer)
+	{
+		if (DataLayer->IsLoadedInEditorChangedByUserOperation())
+		{
+			if (!DataLayer->IsLoadedInEditor() && DataLayer->IsInitiallyLoadedInEditor())
+			{
+				OutDataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
+			}
+			else if (DataLayer->IsLoadedInEditor() && !DataLayer->IsInitiallyLoadedInEditor())
+			{
+				OutDataLayersLoadedInEditor.Add(DataLayer->GetFName());
+			}
+			
+			DataLayer->ClearLoadedInEditorChangedByUserOperation();
+		}
+		else
+		{
+			if (SettingsDataLayersNotLoadedInEditor.Contains(DataLayer->GetFName()))
+			{
+				OutDataLayersNotLoadedInEditor.Add(DataLayer->GetFName());
+			}
+			else if (SettingsDataLayersLoadedInEditor.Contains(DataLayer->GetFName()))
+			{
+				OutDataLayersLoadedInEditor.Add(DataLayer->GetFName());
+			}
+		}
+		return true;
+	});
+}
+
 AWorldDataLayers* AWorldDataLayers::Create(UWorld* World)
 {
 	check(World);
@@ -478,6 +515,22 @@ TArray<FName> AWorldDataLayers::GetDataLayerNames(const TArray<FActorDataLayer>&
 	}
 
 	return OutDataLayerNames;
+}
+
+TArray<const UDataLayer*> AWorldDataLayers::GetDataLayerObjects(const TArray<FName>& InDataLayerNames) const
+{
+	TArray<const UDataLayer*> OutDataLayers;
+	OutDataLayers.Reserve(DataLayers.Num());
+
+	for (const FName& DataLayerName : InDataLayerNames)
+	{
+		if (const UDataLayer* DataLayerObject = GetDataLayerFromName(DataLayerName))
+		{
+			OutDataLayers.AddUnique(DataLayerObject);
+		}
+	}
+
+	return OutDataLayers;
 }
 
 TArray<const UDataLayer*> AWorldDataLayers::GetDataLayerObjects(const TArray<FActorDataLayer>& InDataLayers) const
@@ -644,7 +697,7 @@ void AWorldDataLayers::PostLoad()
 	}
 
 	// Initialize DataLayer's IsLoadedInEditor based on DataLayerEditorPerProjectUserSettings
-	const TArray<FName>& SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
+	TArray<FName> SettingsDataLayersNotLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersNotLoadedInEditor(GetWorld());
 	for (const FName& DataLayerName : SettingsDataLayersNotLoadedInEditor)
 	{
 		if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))
@@ -653,7 +706,7 @@ void AWorldDataLayers::PostLoad()
 		}
 	}
 
-	const TArray<FName>& SettingsDataLayersLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersLoadedInEditor(GetWorld());
+	TArray<FName> SettingsDataLayersLoadedInEditor = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetWorldDataLayersLoadedInEditor(GetWorld());
 	for (const FName& DataLayerName : SettingsDataLayersLoadedInEditor)
 	{
 		if (UDataLayer* DataLayer = const_cast<UDataLayer*>(GetDataLayerFromName(DataLayerName)))

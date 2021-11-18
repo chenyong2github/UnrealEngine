@@ -26,12 +26,13 @@ SWidgetSwitcher::FScopedWidgetSlotArguments SWidgetSwitcher::AddSlot(int32 SlotI
 {
 	if (!AllChildren.IsValidIndex(SlotIndex))
 	{
+		// Insert at the end
 		return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), AllChildren, INDEX_NONE };
 	}
 	else
 	{
 		TWeakPtr<SWidgetSwitcher> WeakSwitcher = SharedThis(this);
-		return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), AllChildren, INDEX_NONE, [WeakSwitcher](const FSlot*, int32 SlotIndex)
+		return FScopedWidgetSlotArguments{ MakeUnique<FSlot>(), AllChildren, SlotIndex, [WeakSwitcher](const FSlot*, int32 SlotIndex)
 			{
 				if (TSharedPtr<SWidgetSwitcher> Switcher = WeakSwitcher.Pin())
 				{

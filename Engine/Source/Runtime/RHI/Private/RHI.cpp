@@ -1398,6 +1398,7 @@ bool GRHISupportsRayTracingDispatchIndirect = false;
 bool GRHISupportsRayTracingAsyncBuildAccelerationStructure = false;
 bool GRHISupportsRayTracingAMDHitToken = false;
 uint32 GRHIRayTracingAccelerationStructureAlignment = 0;
+uint32 GRHIRayTracingScratchBufferAlignment = 0;
 uint32 GRHIRayTracingShaderTableAlignment = 0;
 uint32 GRHIRayTracingInstanceDescriptorSize = 0;
 bool GRHISupportsWaveOperations = false;
@@ -1807,13 +1808,6 @@ RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
 	return Version;
 }
 
-RHI_API bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)
-{
-	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform)
-		|| FDataDrivenShaderPlatformInfo::GetSupportsIndexBufferUAVs(Platform);
-}
-
-
 static ERHIFeatureLevel::Type GRHIMobilePreviewFeatureLevel = ERHIFeatureLevel::Num;
 RHI_API void RHISetMobilePreviewFeatureLevel(ERHIFeatureLevel::Type MobilePreviewFeatureLevel)
 {
@@ -2201,6 +2195,7 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 	bSupportsWaterIndirectDraw = true;
 	bSupportsAsyncPipelineCompilation = true;
 	bSupportsGPUSkinCache = true;
+	bSupportsManualVertexFetch = true;
 }
 
 void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info)
@@ -2218,12 +2213,14 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bIsPC);
 	GET_SECTION_BOOL_HELPER(bIsConsole);
 	GET_SECTION_BOOL_HELPER(bIsAndroidOpenGLES);
+	GET_SECTION_BOOL_HELPER(bSupportsDebugViewShaders);
 	GET_SECTION_BOOL_HELPER(bSupportsMobileMultiView);
 	GET_SECTION_BOOL_HELPER(bSupportsArrayTextureCompression);
 	GET_SECTION_BOOL_HELPER(bSupportsDistanceFields);
 	GET_SECTION_BOOL_HELPER(bSupportsDiaphragmDOF);
 	GET_SECTION_BOOL_HELPER(bSupportsRGBColorBuffer);
 	GET_SECTION_BOOL_HELPER(bSupportsCapsuleShadows);
+	GET_SECTION_BOOL_HELPER(bSupportsPercentageCloserShadows);
 	GET_SECTION_BOOL_HELPER(bSupportsVolumetricFog);
 	GET_SECTION_BOOL_HELPER(bSupportsIndexBufferUAVs);
 	GET_SECTION_BOOL_HELPER(bSupportsInstancedStereo);
@@ -2283,6 +2280,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bOverrideFMaterial_NeedsGBufferEnabled);
 	GET_SECTION_BOOL_HELPER(bSupportsMobileDistanceField);
 	GET_SECTION_BOOL_HELPER(bSupportsFFTBloom);
+	GET_SECTION_BOOL_HELPER(bSupportsVertexShaderLayer);
 	GET_SECTION_BOOL_HELPER(bSupportsBindless);
 #undef GET_SECTION_BOOL_HELPER
 #undef GET_SECTION_INT_HELPER
@@ -2294,6 +2292,12 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 
 void FGenericDataDrivenShaderPlatformInfo::Initialize()
 {
+	static bool bInitialized = false;
+	if (bInitialized)
+	{
+		return;
+	}
+
 	// look for the standard DataDriven ini files
 	int32 NumDDInfoFiles = FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles();
 	for (int32 Index = 0; Index < NumDDInfoFiles; Index++)
@@ -2325,53 +2329,55 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 			}
 		}
 	}
+
+	bInitialized = true;
 }
 
 //
 //	MSAA sample offsets.
 //
 // https://docs.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_standard_multisample_quality_levels
-FVector2D GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16] = {
+FVector2f GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16] = {
 	// MSAA x1
-	FVector2D(+0.0f / 8.0f, +0.0f / 8.0f),
+	FVector2f(+0.0f / 8.0f, +0.0f / 8.0f),
 
 	// MSAA x2
-	FVector2D(+4.0f / 8.0f, +4.0f / 8.0f),
-	FVector2D(-4.0f / 8.0f, -4.0f / 8.0f),
+	FVector2f(+4.0f / 8.0f, +4.0f / 8.0f),
+	FVector2f(-4.0f / 8.0f, -4.0f / 8.0f),
 
 	// MSAA x4
-	FVector2D(-2.0f / 8.0f, -6.0f / 8.0f),
-	FVector2D(+6.0f / 8.0f, -2.0f / 8.0f),
-	FVector2D(-6.0f / 8.0f, +2.0f / 8.0f),
-	FVector2D(+2.0f / 8.0f, +6.0f / 8.0f),
+	FVector2f(-2.0f / 8.0f, -6.0f / 8.0f),
+	FVector2f(+6.0f / 8.0f, -2.0f / 8.0f),
+	FVector2f(-6.0f / 8.0f, +2.0f / 8.0f),
+	FVector2f(+2.0f / 8.0f, +6.0f / 8.0f),
 
 	// MSAA x8
-	FVector2D(+1.0f / 8.0f, -3.0f / 8.0f),
-	FVector2D(-1.0f / 8.0f, +3.0f / 8.0f),
-	FVector2D(+5.0f / 8.0f, +1.0f / 8.0f),
-	FVector2D(-3.0f / 8.0f, -5.0f / 8.0f),
-	FVector2D(-5.0f / 8.0f, +5.0f / 8.0f),
-	FVector2D(-7.0f / 8.0f, -1.0f / 8.0f),
-	FVector2D(+3.0f / 8.0f, +7.0f / 8.0f),
-	FVector2D(+7.0f / 8.0f, -7.0f / 8.0f),
+	FVector2f(+1.0f / 8.0f, -3.0f / 8.0f),
+	FVector2f(-1.0f / 8.0f, +3.0f / 8.0f),
+	FVector2f(+5.0f / 8.0f, +1.0f / 8.0f),
+	FVector2f(-3.0f / 8.0f, -5.0f / 8.0f),
+	FVector2f(-5.0f / 8.0f, +5.0f / 8.0f),
+	FVector2f(-7.0f / 8.0f, -1.0f / 8.0f),
+	FVector2f(+3.0f / 8.0f, +7.0f / 8.0f),
+	FVector2f(+7.0f / 8.0f, -7.0f / 8.0f),
 
 	// MSAA x16
-	FVector2D(+1.0f / 8.0f, +1.0f / 8.0f),
-	FVector2D(-1.0f / 8.0f, -3.0f / 8.0f),
-	FVector2D(-3.0f / 8.0f, +2.0f / 8.0f),
-	FVector2D(+4.0f / 8.0f, -1.0f / 8.0f),
-	FVector2D(-5.0f / 8.0f, -2.0f / 8.0f),
-	FVector2D(+2.0f / 8.0f, +5.0f / 8.0f),
-	FVector2D(+5.0f / 8.0f, +3.0f / 8.0f),
-	FVector2D(+3.0f / 8.0f, -5.0f / 8.0f),
-	FVector2D(-2.0f / 8.0f, +6.0f / 8.0f),
-	FVector2D(+0.0f / 8.0f, -7.0f / 8.0f),
-	FVector2D(-4.0f / 8.0f, -6.0f / 8.0f),
-	FVector2D(-6.0f / 8.0f, +4.0f / 8.0f),
-	FVector2D(-8.0f / 8.0f, +0.0f / 8.0f),
-	FVector2D(+7.0f / 8.0f, -4.0f / 8.0f),
-	FVector2D(+6.0f / 8.0f, +7.0f / 8.0f),
-	FVector2D(-7.0f / 8.0f, -8.0f / 8.0f),
+	FVector2f(+1.0f / 8.0f, +1.0f / 8.0f),
+	FVector2f(-1.0f / 8.0f, -3.0f / 8.0f),
+	FVector2f(-3.0f / 8.0f, +2.0f / 8.0f),
+	FVector2f(+4.0f / 8.0f, -1.0f / 8.0f),
+	FVector2f(-5.0f / 8.0f, -2.0f / 8.0f),
+	FVector2f(+2.0f / 8.0f, +5.0f / 8.0f),
+	FVector2f(+5.0f / 8.0f, +3.0f / 8.0f),
+	FVector2f(+3.0f / 8.0f, -5.0f / 8.0f),
+	FVector2f(-2.0f / 8.0f, +6.0f / 8.0f),
+	FVector2f(+0.0f / 8.0f, -7.0f / 8.0f),
+	FVector2f(-4.0f / 8.0f, -6.0f / 8.0f),
+	FVector2f(-6.0f / 8.0f, +4.0f / 8.0f),
+	FVector2f(-8.0f / 8.0f, +0.0f / 8.0f),
+	FVector2f(+7.0f / 8.0f, -4.0f / 8.0f),
+	FVector2f(+6.0f / 8.0f, +7.0f / 8.0f),
+	FVector2f(-7.0f / 8.0f, -8.0f / 8.0f),
 };
 
 int32 CalculateMSAASampleArrayIndex(int32 NumSamples, int32 SampleIndex)

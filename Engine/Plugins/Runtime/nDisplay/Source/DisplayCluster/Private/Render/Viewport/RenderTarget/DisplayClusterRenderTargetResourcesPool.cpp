@@ -177,7 +177,7 @@ bool FDisplayClusterRenderTargetResourcesPool::BeginReallocateTextureResources(c
 	return false;
 }
 
-FDisplayClusterTextureResource* FDisplayClusterRenderTargetResourcesPool::AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, enum EPixelFormat CustomPixelFormat, int InNumMips)
+FDisplayClusterTextureResource* FDisplayClusterRenderTargetResourcesPool::AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, enum EPixelFormat CustomPixelFormat, int32 InNumMips)
 {
 	if (pTextureResourceSettings == nullptr || !IsTextureSizeValid(InSize))
 	{

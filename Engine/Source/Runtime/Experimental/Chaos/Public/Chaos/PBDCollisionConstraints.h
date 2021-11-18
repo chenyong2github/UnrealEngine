@@ -33,12 +33,6 @@ namespace Collisions
 	struct FContactIterationParameters;
 }
 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Gather"), STAT_Collisions_Gather, STATGROUP_ChaosCollision, CHAOS_API);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Scatter"), STAT_Collisions_Scatter, STATGROUP_ChaosCollision, CHAOS_API);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Apply"), STAT_Collisions_Apply, STATGROUP_ChaosCollision, CHAOS_API);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::ApplyPushOut"), STAT_Collisions_ApplyPushOut, STATGROUP_ChaosCollision, CHAOS_API);
-
-
 /**
  * A container and solver for collision constraints.
  * 
@@ -116,30 +110,23 @@ public:
 	 * You would probably call this in the PostComputeCallback. Prefer this to calling RemoveConstraints in a loop,
 	 * so you don't have to worry about constraint iterator/indices changing.
 	 */
-	void ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers);
+	void ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers, FReal Dt);
 
 
 	/**
 	* Remove the constraints associated with the ParticleHandle.
 	*/
-	void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>&  ParticleHandle);
+	void RemoveConstraints(const TSet<FGeometryParticleHandle*>&  ParticleHandle);
 
+	/**
+	 * @brief Remove all constraints associated with the particles - called when particles are destroyed
+	*/
+	virtual void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& ParticleHandles) override;
 
 	/**
 	* Disable the constraints associated with the ParticleHandle.
 	*/
-	void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& ParticleHandle) {}
-
-
-	/**
-	* Remove the constraint, update the handle, and any maps. 
-	*/
-	void RemoveConstraint(FPBDCollisionConstraintHandle* ConstraintHandle);
-
-	/**
-	 * Set the sleeping state of the constraint. When awaking, reactivates the constraint.
-	*/
-	void SetConstraintIsSleeping(FPBDCollisionConstraint& Constraint, bool bInIsSleeping);
+	void DisableConstraints(const TSet<FGeometryParticleHandle*>& ParticleHandle) {}
 
 	//
 	// General Rule API
@@ -288,9 +275,6 @@ public:
 
 	FCollisionConstraintAllocator& GetConstraintAllocator() { return ConstraintAllocator; }
 
-	TMap<FParticleHandle*, TArray<FPBDCollisionConstraintHandle*> >& GetParticleCollisionsMap() { return ParticleCollisionsMap; }
-	const TMap<FParticleHandle*, TArray<FPBDCollisionConstraintHandle*> >& GetParticleCollisionsMap() const { return ParticleCollisionsMap; }
-
 protected:
 	FPBDCollisionConstraint& GetConstraint(int32 Index);
 	FPBDCollisionSolverContainer& GetConstraintSolverContainer(FPBDIslandSolverData& SolverData);
@@ -309,18 +293,12 @@ protected:
 	bool LegacyApplyPhase2Serial(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
 	bool LegacyApplyPhase2Parallel(const FReal Dt, const int32 Iterations, const int32 NumIterations, const int32 BeginIndex, const int32 EndIndex, FPBDIslandSolverData& SolverData);
 
-	void AddToParticleCollisionMap(FPBDCollisionConstraint* Constraint);
-
 private:
 
 	const FPBDRigidsSOAs& Particles;
 
 	FCollisionConstraintAllocator ConstraintAllocator;
 	int32 NumActivePointConstraints;
-
-	// @todo(chaos): this functionality should be moved to the PBDCollisionConstraintAlloctor now
-	TMap<FParticleHandle*,TArray<FPBDCollisionConstraintHandle*> > ParticleCollisionsMap;
-
 
 	TArrayCollectionArray<bool>& MCollided;
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;

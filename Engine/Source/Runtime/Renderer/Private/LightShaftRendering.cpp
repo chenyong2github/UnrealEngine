@@ -135,7 +135,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightShaftPixelShaderParameters, )
 	SHADER_PARAMETER(FVector4f, AspectRatioAndInvAspectRatio)
 	SHADER_PARAMETER(FVector4f, LightShaftParameters)
 	SHADER_PARAMETER(FVector4f, BloomTintAndThreshold)
-	SHADER_PARAMETER(FVector2D, TextureSpaceBlurOrigin)
+	SHADER_PARAMETER(FVector2f, TextureSpaceBlurOrigin)
 	SHADER_PARAMETER(float, BloomMaxBrightness)
 END_SHADER_PARAMETER_STRUCT()
 

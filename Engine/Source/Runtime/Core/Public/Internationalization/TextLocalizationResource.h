@@ -56,7 +56,7 @@ public:
 	/** Data struct for tracking a localization entry from a localization resource. */
 	struct FEntry
 	{
-		FString LocalizedString;
+		FTextConstDisplayStringPtr LocalizedString;
 		FTextKey LocResID;
 		uint32 SourceStringHash = 0;
 		int32 Priority = 0; // Smaller numbers are higher priority
@@ -79,7 +79,9 @@ public:
 
 	/** Add a single entry to this resource. */
 	void AddEntry(const FTextKey& InNamespace, const FTextKey& InKey, const FString& InSourceString, const FString& InLocalizedString, const int32 InPriority, const FTextKey& InLocResID = FTextKey());
+	void AddEntry(const FTextKey& InNamespace, const FTextKey& InKey, const FString& InSourceString, const FTextConstDisplayStringRef& InLocalizedString, const int32 InPriority, const FTextKey& InLocResID = FTextKey());
 	void AddEntry(const FTextKey& InNamespace, const FTextKey& InKey, const uint32 InSourceStringHash, const FString& InLocalizedString, const int32 InPriority, const FTextKey& InLocResID = FTextKey());
+	void AddEntry(const FTextKey& InNamespace, const FTextKey& InKey, const uint32 InSourceStringHash, const FTextConstDisplayStringRef& InLocalizedString, const int32 InPriority, const FTextKey& InLocResID = FTextKey());
 
 	/** Is this resource empty? */
 	bool IsEmpty() const;

@@ -24,23 +24,23 @@ void FAuthCommon::RegisterCommands()
 
 TOnlineAsyncOpHandle<FAuthLogin> FAuthCommon::Login(FAuthLogin::Params&& Params)
 {
-	TOnlineAsyncOp<FAuthLogin>& Operation = GetOp<FAuthLogin>(MoveTemp(Params));
-	Operation.SetError(Errors::NotImplemented());  
-	return Operation.GetHandle();
+	TOnlineAsyncOpRef<FAuthLogin> Operation = GetOp<FAuthLogin>(MoveTemp(Params));
+	Operation->SetError(Errors::NotImplemented());  
+	return Operation->GetHandle();
 }
 
 TOnlineAsyncOpHandle<FAuthLogout> FAuthCommon::Logout(FAuthLogout::Params&& Params)
 {
-	TOnlineAsyncOp<FAuthLogout>& Operation = GetOp<FAuthLogout>(MoveTemp(Params));
-	Operation.SetError(Errors::NotImplemented());
-	return Operation.GetHandle();
+	TOnlineAsyncOpRef<FAuthLogout> Operation = GetOp<FAuthLogout>(MoveTemp(Params));
+	Operation->SetError(Errors::NotImplemented());
+	return Operation->GetHandle();
 }
 
 TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthCommon::GenerateAuth(FAuthGenerateAuth::Params&& Params)
 {
-	TOnlineAsyncOp<FAuthGenerateAuth>& Operation = GetOp<FAuthGenerateAuth>(MoveTemp(Params));
-	Operation.SetError(Errors::NotImplemented());
-	return Operation.GetHandle();
+	TOnlineAsyncOpRef<FAuthGenerateAuth> Operation = GetOp<FAuthGenerateAuth>(MoveTemp(Params));
+	Operation->SetError(Errors::NotImplemented());
+	return Operation->GetHandle();
 }
 
 TOnlineResult<FAuthGetAccountByLocalUserNum> FAuthCommon::GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params)

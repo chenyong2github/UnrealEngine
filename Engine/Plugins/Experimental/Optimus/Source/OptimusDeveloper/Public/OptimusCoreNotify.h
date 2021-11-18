@@ -26,7 +26,10 @@ enum class EOptimusGlobalNotifyType
 	VariableRemoved,		/// A variable is about to be removed (Subject == UOptimusVariableDescription)
 	VariableIndexChanged,	/// A variable's index has changed (Subject == UOptimusVariableDescription)
 	VariableRenamed,		/// A variable has been renamed (Subject == UOptimusVariableDescription)
-	VariabelTypeChanged,	/// A variable's type has been changed (Subject == UOptimusVariableDescription)
+	VariableTypeChanged,	/// A variable's type has been changed (Subject == UOptimusVariableDescription)
+
+	NodeTypeAdded,			/// A new node type has been added (Subject == UClass)
+	NodeTypeRemoved,		/// A node type is about to be removed (Subject == UClass)
 };
 
 // A delegate for subscribing / reacting to Optimus global notifications.

@@ -85,7 +85,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the version was read successfully, false otherwise</returns>
 		public static bool TryRead(FileReference FileName, [NotNullWhen(true)] out BuildVersion? Version)
 		{
-			JsonObject Object;
+			JsonObject? Object;
 			if (!JsonObject.TryRead(FileName, out Object))
 			{
 				Version = null;

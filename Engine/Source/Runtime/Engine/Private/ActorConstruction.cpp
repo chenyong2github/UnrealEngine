@@ -709,19 +709,6 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 	TArray<const UBlueprintGeneratedClass*> ParentBPClassStack;
 	const bool bErrorFree = UBlueprintGeneratedClass::GetGeneratedClassesHierarchy(GetClass(), ParentBPClassStack);
 
-	TArray<const UDynamicClass*> ParentDynamicClassStack;
-	for (UClass* ClassIt = GetClass(); ClassIt; ClassIt = ClassIt->GetSuperClass())
-	{
-		if (UDynamicClass* DynamicClass = Cast<UDynamicClass>(ClassIt))
-		{
-			ParentDynamicClassStack.Add(DynamicClass);
-		}
-	}
-	for (int32 i = ParentDynamicClassStack.Num() - 1; i >= 0; i--)
-	{
-		UBlueprintGeneratedClass::CreateComponentsForActor(ParentDynamicClassStack[i], this);
-	}
-
 	// If this actor has a blueprint lineage, go ahead and run the construction scripts from least derived to most
 	if( (ParentBPClassStack.Num() > 0)  )
 	{
@@ -1124,14 +1111,6 @@ UActorComponent* AActor::AddComponent(FName TemplateName, bool bManualAttachment
 			{
 				Template = BPGC->FindComponentTemplateByName(TemplateName);
 			}
-		}
-		else if (UDynamicClass* DynamicClass = Cast<UDynamicClass>(TemplateOwnerClass))
-		{
-			UObject** FoundTemplatePtr = DynamicClass->ComponentTemplates.FindByPredicate([=](UObject* Obj) -> bool
-			{
-				return Obj && Obj->IsA<UActorComponent>() && (Obj->GetFName() == TemplateName);
-			});
-			Template = (nullptr != FoundTemplatePtr) ? Cast<UActorComponent>(*FoundTemplatePtr) : nullptr;
 		}
 	}
 

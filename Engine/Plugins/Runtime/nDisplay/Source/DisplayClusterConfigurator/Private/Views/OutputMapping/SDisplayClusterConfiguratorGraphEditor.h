@@ -66,6 +66,8 @@ public:
 	void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect);
 	void JumpToObject(UObject* InObject);
 
+	TSharedPtr<FUICommandList> GetCommandList() const { return CommandList; }
+
 private:
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 	void OnNodeDoubleClicked(UEdGraphNode* ClickedNode);
@@ -109,6 +111,11 @@ private:
 
 	bool CanSizeToChildNodes() const;
 	void SizeToChildNodes();
+
+	bool CanTransformNode() const;
+	void RotateNode(float InRotation);
+	void FlipNode(bool bFlipHorizontal, bool bFlipVertical);
+	void ResetNodeTransform();
 
 	void SortNodes();
 

@@ -33,7 +33,7 @@ public:
 	}
 
 	virtual void BeginPackage(const FBeginPackageInfo& Info) override;
-	virtual void AddToExportsSize(int32& ExportsSize) override;
+	virtual void AddToExportsSize(int64& ExportsSize) override;
 
 	virtual FDateTime GetPreviousCookTime() const override;
 	virtual void Initialize(const FCookInfo& Info) override;

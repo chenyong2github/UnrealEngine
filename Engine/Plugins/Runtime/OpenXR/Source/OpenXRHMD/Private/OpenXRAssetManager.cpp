@@ -16,7 +16,6 @@
 /* FOpenXRAssetDirectory
  *****************************************************************************/
 
-FSoftObjectPath FOpenXRAssetDirectory::GoogleDaydream             = FString(TEXT("/OpenXR/Devices/GoogleDaydream/GoogleDaydreamController.GoogleDaydreamController"));
 FSoftObjectPath FOpenXRAssetDirectory::HPMixedRealityLeft         = FString(TEXT("/OpenXR/Devices/HPMixedReality/Left/left_HPMixedRealityController.left_HPMixedRealityController"));
 FSoftObjectPath FOpenXRAssetDirectory::HPMixedRealityRight        = FString(TEXT("/OpenXR/Devices/HPMixedReality/Right/right_HPMixedRealityController.right_HPMixedRealityController"));
 FSoftObjectPath FOpenXRAssetDirectory::HTCVive                    = FString(TEXT("/OpenXR/Devices/HTCVive/HTCViveController.HTCViveController"));
@@ -57,8 +56,6 @@ namespace OpenXRAssetManager_Impl
 
 	static TArray<FRenderableDevice> RenderableDevices =
 	{
-		{ "/user/hand/left",  "/interaction_profiles/google/daydream_controller", FOpenXRAssetDirectory::GoogleDaydream },
-		{ "/user/hand/right", "/interaction_profiles/google/daydream_controller", FOpenXRAssetDirectory::GoogleDaydream },
 		{ "/user/hand/left",  "/interaction_profiles/htc/vive_controller", FOpenXRAssetDirectory::HTCVive },
 		{ "/user/hand/right", "/interaction_profiles/htc/vive_controller", FOpenXRAssetDirectory::HTCVive },
 		{ "/user/hand/left",  "/interaction_profiles/microsoft/motion_controller", FOpenXRAssetDirectory::MicrosoftMixedRealityLeft },

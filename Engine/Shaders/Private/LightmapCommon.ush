@@ -82,7 +82,7 @@ half4 GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, float2 Li
 	return half4( Color, Luma );
 }
 
-void GetLightMapColorHQ( VTPageTableResult LightmapVTPageTableResult, float2 LightmapUV0, float2 LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, float2 SvPositionXY, uint ShadingModel, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting )
+void GetLightMapColorHQ( VTPageTableResult LightmapVTPageTableResult, float2 LightmapUV0, float2 LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, float2 SvPositionXY, bool bEvaluateBackface, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting )
 {
 	OutSubsurfaceLighting = 0;
 
@@ -118,8 +118,8 @@ void GetLightMapColorHQ( VTPageTableResult LightmapVTPageTableResult, float2 Lig
 	// Sample SH with normal
 	half Directionality = max( 0.0, dot( SH, float4(WorldNormal.yzx, 1) ) );
 
-	#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-	if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+	if (bEvaluateBackface)
 	{
 		half SubsurfaceDirectionality = max(0.0, dot(SH, float4(-WorldNormal.yzx, 1)));
 		OutSubsurfaceLighting = L * SubsurfaceDirectionality * UVW;
@@ -128,8 +128,8 @@ void GetLightMapColorHQ( VTPageTableResult LightmapVTPageTableResult, float2 Lig
 #else
 	half Directionality = 0.6;
 
-	#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-	if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+	if (bEvaluateBackface)
 	{
 		OutSubsurfaceLighting = L * Directionality * UVW;
 	}

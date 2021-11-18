@@ -2,11 +2,10 @@
 
 #include "SConsoleVariablesEditorListRow.h"
 
-#include "ConsoleVariablesEditorListRow.h"
 #include "ConsoleVariablesEditorStyle.h"
-
-#include "EditorStyleSet.h"
 #include "SConsoleVariablesEditorListValueInput.h"
+
+#include "Kismet/KismetMathLibrary.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -17,265 +16,22 @@
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
-void SConsoleVariablesEditorListRow::Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow, const FConsoleVariablesEditorListSplitterManagerPtr& InSplitterManagerPtr)
+void SConsoleVariablesEditorListRow::Construct(
+	const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, const TWeakPtr<FConsoleVariablesEditorListRow> InRow)
 {
 	check(InRow.IsValid());
 
 	Item = InRow;
+	const FConsoleVariablesEditorListRowPtr PinnedItem = Item.Pin();
 
-	FConsoleVariablesEditorListRowPtr PinnedItem = Item.Pin();
-	
-	SplitterManagerPtr = InSplitterManagerPtr;
-	check(SplitterManagerPtr.IsValid());
-	
-	const FConsoleVariablesEditorListRow::EConsoleVariablesEditorListRowType RowType = PinnedItem->GetRowType();
-	const bool bIsHeaderRow = RowType == FConsoleVariablesEditorListRow::HeaderRow;
+	// Set up flash animation
+	FlashAnimation = FCurveSequence(0.f, FlashAnimationDuration, ECurveEaseFunction::QuadInOut);
 
-	const FText DisplayText = FText::FromString(PinnedItem->GetCommandInfo().Pin()->Command);
-
-	// For grouping row support
-	const bool bDoesRowNeedSplitter = true;
-
-	int32 IndentationDepth = 0;
-	TWeakPtr<FConsoleVariablesEditorListRow> ParentRow = PinnedItem->GetDirectParentRow();
-	while (ParentRow.IsValid())
-	{
-		IndentationDepth++;
-		ParentRow = ParentRow.Pin()->GetDirectParentRow();
-	}
-	PinnedItem->SetChildDepth(IndentationDepth);
-
-	ChildSlot
-	[
-		SNew(SBox)
-		.Padding(FMargin(5,2))
-		[
-			SAssignNew(BorderPtr, SBorder)
-			.Padding(FMargin(0, 5))
-			.ToolTipText(FText::FromString(PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr ?
-				FString(PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr->GetHelp()) : ""))
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Center)
-			.BorderImage_Lambda([RowType]()
-			{
-				switch (RowType)
-				{							
-					case FConsoleVariablesEditorListRow::CommandGroup:
-						return FConsoleVariablesEditorStyle::Get().GetBrush("ConsoleVariablesEditor.CommandGroupBorder");
-
-					case FConsoleVariablesEditorListRow::HeaderRow:
-						return FConsoleVariablesEditorStyle::Get().GetBrush("ConsoleVariablesEditor.HeaderRowBorder");
-
-					default:
-						return FConsoleVariablesEditorStyle::Get().GetBrush("ConsoleVariablesEditor.DefaultBorder");
-				}
-			})
-		]
-	];
-
-	// Create name and checkbox
-
-	const TSharedRef<SHorizontalBox> BasicRowWidgets = SNew(SHorizontalBox);
-
-	BasicRowWidgets->AddSlot()
-	.VAlign(VAlign_Center)
-	.HAlign(HAlign_Left)
-	.AutoWidth()
-	.Padding(5.f, 2.f)
-	[
-		SNew(SCheckBox)
-		.IsChecked_Lambda([this] ()
-		{
-			if (ensure(Item.IsValid()))
-			{
-				return Item.Pin()->GetWidgetCheckedState();
-			}
-
-			return ECheckBoxState::Checked;
-		})
-		.OnCheckStateChanged_Lambda([this] (const ECheckBoxState NewStats)
-		{
-			if (TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin())  
-			{
-				if (PinnedItem->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand && ValueChildInputWidget.IsValid())
-				{
-					
-					PinnedItem->SetWidgetCheckedState(NewStats, true);
-					
-					if (PinnedItem->IsRowChecked())
-					{
-						PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueChildInputWidget->GetCachedValue());
-					}
-					else
-					{
-						PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(PinnedItem->GetCommandInfo().Pin()->StartupValueAsString);
-					}
-				}
-			}
-		})
-	];
-
-	BasicRowWidgets->AddSlot()
-	.VAlign(VAlign_Center)
-	.HAlign(HAlign_Left)
-	[
-		SNew(STextBlock)
-		.Text(bIsHeaderRow ? LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableName", "Console Variable Name") : DisplayText)
-	];
-
-	// Create value widgets
-	
-	if (bDoesRowNeedSplitter)
-	{
-		SAssignNew(OuterSplitterPtr, SSplitter)
-		.PhysicalSplitterHandleSize(5.0f)
-		.HitDetectionSplitterHandleSize(5.0f);
-
-		OuterSplitterPtr->AddSlot()
-		.SizeRule(SSplitter::ESizeRule::FractionOfParent)
-		.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([this] (float InWidth) {}))
-		.Value(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &SConsoleVariablesEditorListRow::GetNameColumnSize)))
-		[
-			BasicRowWidgets
-		];
-
-		OuterSplitterPtr->AddSlot()
-		.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SConsoleVariablesEditorListRow::SetNestedColumnSize))
-		.Value(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &SConsoleVariablesEditorListRow::CalculateAndReturnNestedColumnSize)))
-		[
-			SAssignNew(NestedSplitterPtr, SSplitter)
-			.PhysicalSplitterHandleSize(5.0f)
-			.HitDetectionSplitterHandleSize(5.0f)
-		];
-	
-		// Nested Splitter Slot 0
-
-		TSharedPtr<SWidget> ValueChildWidget;
-
-		if (bIsHeaderRow)
-		{
-			ValueChildWidget = 
-				SNew(STextBlock)
-				.Text(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableValueHeaderText", "Value"));
-		}
-		else
-		{
-			if (PinnedItem->GetCommandInfo().IsValid() && PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr)
-			{
-				ValueChildWidget = ValueChildInputWidget = SConsoleVariablesEditorListValueInput::GetInputWidget(Item);
-			}
-		}
-
-		const TSharedRef<SHorizontalBox> FinalValueWidget = SNew(SHorizontalBox);
-
-		FinalValueWidget->AddSlot()
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(2, 0))
-			[
-				ValueChildWidget.ToSharedRef()
-			];
-
-		FinalValueWidget->AddSlot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(2, 0))
-			[
-				SNew(SButton)
-				.IsFocusable(false)
-				.ToolTipText(
-					LOCTEXT("ResetRowValueTooltipText", "Reset this value to what is defined in the preset or what it was when the engine started."))
-				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
-				.ContentPadding(0)
-				.Visibility_Lambda([this]()
-				{
-					if (Item.Pin()->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
-					{
-						return Item.Pin()->GetCommandInfo().Pin()->IsCurrentValueDifferentFromInputValue(Item.Pin()->GetPresetValue()) ?
-							EVisibility::Visible : EVisibility::Hidden;
-					}
-
-					return EVisibility::Collapsed;
-				})
-				.OnClicked_Lambda([this]()
-				{
-					Item.Pin()->ResetToPresetValue();
-
-					return FReply::Handled();
-				})
-				.Content()
-				[
-					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("PropertyWindow.DiffersFromDefault"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
-			];
-
-		NestedSplitterPtr->AddSlot()
-			.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([this] (float InWidth) {}))
-			.Value(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &SConsoleVariablesEditorListRow::GetValueColumnSize)))
-			[
-				FinalValueWidget
-			];
-
-		// Splitter Slot 1
-		
-		TSharedPtr<SWidget> SourceWidget;
-
-		if (bIsHeaderRow)
-		{
-			SourceWidget = 
-				SNew(STextBlock)
-				.Visibility(EVisibility::SelfHitTestInvisible)
-				.Text(LOCTEXT("ConsoleVariablesEditorList_SourceHeaderText", "Source"));
-		}
-		else
-		{
-			SourceWidget =
-				SNew(SOverlay)
-				.Visibility(EVisibility::SelfHitTestInvisible)
-
-				+SOverlay::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]()
-					{
-						return Item.Pin()->GetCommandInfo().Pin()->GetSource();
-					})
-				]
-
-				+SOverlay::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				[
-					SAssignNew(HoverableWidgetsPtr, SConsoleVariablesEditorListRowHoverWidgets, Item)
-					.Visibility(EVisibility::Collapsed)
-				];
-		}
-
-		const TSharedRef<SWidget> FinalSourceWidget = SNew(SBox)
-			.Visibility(EVisibility::SelfHitTestInvisible)
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(2, 0))
-			[
-				SourceWidget.ToSharedRef()
-			];
-
-		NestedSplitterPtr->AddSlot()
-		.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SConsoleVariablesEditorListRow::SetSourceColumnSize))
-		.Value(TAttribute<float>::Create(TAttribute<float>::FGetter::CreateSP(this, &SConsoleVariablesEditorListRow::GetSourceColumnSize)))
-		[
-			FinalSourceWidget
-		];
-		
-		BorderPtr->SetContent(OuterSplitterPtr.ToSharedRef());
-	}
-	else
-	{
-		// Unreachable right now, left in for future grouping row support
-		BorderPtr->SetContent(BasicRowWidgets);
-	}
+	SMultiColumnTableRow<FConsoleVariablesEditorListRowPtr>::Construct(
+		FSuperRowType::FArguments()
+		.Padding(1.0f),
+		InOwnerTable
+	);
 
 	if (PinnedItem->GetShouldFlashOnScrollIntoView())
 	{
@@ -285,11 +41,41 @@ void SConsoleVariablesEditorListRow::Construct(const FArguments& InArgs, const T
 	}
 }
 
-void SConsoleVariablesEditorListRow::FlashRow() const
+TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateWidgetForColumn(const FName& InColumnName)
 {
-	FLinearColor Color = BorderPtr->GetColorAndOpacity();
-	BorderPtr->SetColorAndOpacity(FLinearColor::White);
-	BorderPtr->SetColorAndOpacity(Color);
+	const FConsoleVariablesEditorListRowPtr PinnedItem = Item.Pin();
+
+	const TSharedPtr<SWidget> CellWidget = GenerateCells(InColumnName, PinnedItem);
+
+	const TSharedRef<SImage> FlashImage = SNew(SImage)
+										.Image(new FSlateColorBrush(FStyleColors::White))
+										.Visibility_Raw(this, &SConsoleVariablesEditorListRow::GetFlashImageVisibility)
+										.ColorAndOpacity_Raw(this, &SConsoleVariablesEditorListRow::GetFlashImageColorAndOpacity);
+
+	FlashImages.Add(FlashImage);
+
+	return SNew(SBox)
+			[
+				SNew(SOverlay)
+
+				+SOverlay::Slot()
+				[
+					FlashImage
+				]
+
+				+SOverlay::Slot()
+				[
+					SNew(SBorder)
+					.ToolTipText(FText::FromString(PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr ?
+						FString(PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr->GetHelp()) : ""))
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Center)
+					.BorderImage(GetBorderImage(PinnedItem->GetRowType()))
+					[
+						CellWidget.ToSharedRef()
+					]
+				]
+			];
 }
 
 void SConsoleVariablesEditorListRow::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -335,56 +121,192 @@ SConsoleVariablesEditorListRow::~SConsoleVariablesEditorListRow()
 
 	OuterSplitterPtr.Reset();
 	NestedSplitterPtr.Reset();
-	SplitterManagerPtr.Reset();
-}
 
-float SConsoleVariablesEditorListRow::GetNameColumnSize() const
-{
-	return 1.0f - CachedNestedColumnWidthAdjusted;
-}
+	Item.Reset();
 
-float SConsoleVariablesEditorListRow::CalculateAndReturnNestedColumnSize()
-{
-	check(Item.IsValid());
+	FlashImages.Empty();
+
+	ValueChildInputWidget.Reset();
 	
-	const TSharedPtr<FConsoleVariablesEditorListRow>& PinnedItem = Item.Pin();
-	const uint8 ChildDepth = PinnedItem->GetChildDepth();
-	const float StartWidth = SplitterManagerPtr->NestedColumnWidth;
+	SplitterManagerPtr.Reset();
+	
+	HoverableWidgetsPtr.Reset();
+}
 
-	if (ChildDepth > 0)
+void SConsoleVariablesEditorListRow::FlashRow()
+{
+	FlashAnimation.Play(this->AsShared());
+}
+
+EVisibility SConsoleVariablesEditorListRow::GetFlashImageVisibility() const
+{
+	return FlashAnimation.IsPlaying() ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden;
+}
+
+FSlateColor SConsoleVariablesEditorListRow::GetFlashImageColorAndOpacity() const
+{
+	if (FlashAnimation.IsPlaying())
 	{
-		constexpr float LocalPixelOffset = 10.0f;
-		const float LocalPixelDifference = LocalPixelOffset * ChildDepth;
-		const float LocalSizeX = GetTickSpaceGeometry().GetLocalSize().X;
-		const float NestedItemCoefficient = (LocalSizeX + LocalPixelDifference) / LocalSizeX;
-		
-		CachedNestedColumnWidthAdjusted = StartWidth * NestedItemCoefficient;
-		
-		return CachedNestedColumnWidthAdjusted;
+		// This equation modulates the alpha into a parabolic curve 
+		const float Progress = FMath::Abs(FMath::Abs((FlashAnimation.GetLerp() - 0.5f) * 2) - 1);
+		return FLinearColor::LerpUsingHSV(FLinearColor::Transparent, FlashColor, Progress);
 	}
 
-	return CachedNestedColumnWidthAdjusted = StartWidth;
+	return FLinearColor::Transparent; 
 }
 
-float SConsoleVariablesEditorListRow::GetSourceColumnSize() const
+const FSlateBrush* SConsoleVariablesEditorListRow::GetBorderImage(
+	const FConsoleVariablesEditorListRow::EConsoleVariablesEditorListRowType InRowType)
 {
-	const float EndWidth = SplitterManagerPtr->SnapshotPropertyColumnWidth;
-	return EndWidth;
+	switch (InRowType)
+	{							
+	case FConsoleVariablesEditorListRow::CommandGroup:
+		return FConsoleVariablesEditorStyle::Get().GetBrush("ConsoleVariablesEditor.CommandGroupBorder");
+
+	case FConsoleVariablesEditorListRow::HeaderRow:
+		return FConsoleVariablesEditorStyle::Get().GetBrush("ConsoleVariablesEditor.HeaderRowBorder");
+
+	default:
+		return FConsoleVariablesEditorStyle::Get().GetBrush("ConsoleVariablesEditor.DefaultBorder");
+	}
 }
 
-float SConsoleVariablesEditorListRow::GetValueColumnSize() const
+TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& InColumnName, const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem)
 {
-	return 1.0f - GetSourceColumnSize();
+	if (InColumnName.IsEqual(SConsoleVariablesEditorList::CheckBoxColumnName))
+	{
+		return SNew(SBox)
+				.HAlign(HAlign_Center)
+				[
+					SNew(SCheckBox)
+					.IsChecked_Raw(this, &SConsoleVariablesEditorListRow::GetCheckboxState)
+					.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorListRow::OnCheckboxStateChange)
+				];
+	}
+	if (InColumnName.IsEqual(SConsoleVariablesEditorList::VariableNameColumnName))
+	{
+		return  SNew(STextBlock)
+				.Text(FText::FromString(PinnedItem->GetCommandInfo().Pin()->Command));
+	}
+	if (InColumnName.IsEqual(SConsoleVariablesEditorList::ValueColumnName))
+	{
+		return GenerateValueCellWidget(PinnedItem);
+	}
+	if (InColumnName.IsEqual(SConsoleVariablesEditorList::SourceColumnName))
+	{
+		return SNew(SOverlay)
+				.Visibility(EVisibility::SelfHitTestInvisible)
+
+				+SOverlay::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]()
+					{
+						return Item.Pin()->GetCommandInfo().Pin()->GetSource();
+					})
+				]
+
+				+SOverlay::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				[
+					SAssignNew(HoverableWidgetsPtr, SConsoleVariablesEditorListRowHoverWidgets, Item)
+					.Visibility(EVisibility::Collapsed)
+				];
+	}
+
+	return SNullWidget::NullWidget;
 }
 
-void SConsoleVariablesEditorListRow::SetNestedColumnSize(const float InWidth) const
+ECheckBoxState SConsoleVariablesEditorListRow::GetCheckboxState() const
 {
-	SplitterManagerPtr->NestedColumnWidth = InWidth;
+	if (ensure(Item.IsValid()))
+	{
+		return Item.Pin()->GetWidgetCheckedState();
+	}
+
+	return ECheckBoxState::Checked;
 }
 
-void SConsoleVariablesEditorListRow::SetSourceColumnSize(const float InWidth) const
+void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState InNewState) const
 {
-	SplitterManagerPtr->SnapshotPropertyColumnWidth = InWidth;
+	if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin())  
+	{
+		PinnedItem->SetWidgetCheckedState(InNewState, true);
+		
+		if (PinnedItem->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand && ValueChildInputWidget.IsValid())
+		{									
+			if (PinnedItem->IsRowChecked())
+			{
+				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueChildInputWidget->GetCachedValue());
+			}
+			else
+			{
+				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(PinnedItem->GetCommandInfo().Pin()->StartupValueAsString);
+			}
+		}
+
+		if (const TWeakPtr<SConsoleVariablesEditorList> ListView = PinnedItem->GetListViewPtr(); ListView.IsValid())
+		{
+			ListView.Pin()->OnListItemCheckBoxStateChange(InNewState);
+		}
+	}
+}
+
+TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem)
+{
+	if (PinnedItem->GetCommandInfo().IsValid() && PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr)
+	{
+		const TSharedRef<SHorizontalBox> FinalValueWidget = SNew(SHorizontalBox);
+		ValueChildInputWidget = SConsoleVariablesEditorListValueInput::GetInputWidget(Item);
+
+		FinalValueWidget->AddSlot()
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2, 0))
+		[
+			ValueChildInputWidget.ToSharedRef()
+		];
+
+		FinalValueWidget->AddSlot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2, 0))
+		[
+			SNew(SButton)
+			.IsFocusable(false)
+			.ToolTipText(
+				LOCTEXT("ResetRowValueTooltipText", "Reset this value to what is defined in the preset or what it was when the engine started."))
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
+			.ContentPadding(0)
+			.Visibility_Lambda([this]()
+			{
+				if (Item.Pin()->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
+				{
+					return Item.Pin()->GetCommandInfo().Pin()->IsCurrentValueDifferentFromInputValue(Item.Pin()->GetPresetValue()) ?
+						EVisibility::Visible : EVisibility::Hidden;
+				}
+
+				return EVisibility::Collapsed;
+			})
+			.OnClicked_Lambda([this]()
+			{
+				Item.Pin()->ResetToPresetValue();
+
+				return FReply::Handled();
+			})
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("PropertyWindow.DiffersFromDefault"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+		];
+
+		return FinalValueWidget;
+	}
+
+	return SNullWidget::NullWidget;
 }
 
 void SConsoleVariablesEditorListRowHoverWidgets::Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow)

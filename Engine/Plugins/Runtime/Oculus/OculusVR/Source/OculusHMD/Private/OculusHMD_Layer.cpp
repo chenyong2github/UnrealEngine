@@ -710,7 +710,7 @@ const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, 
 		case ovrpShape_Quad:
 			{
 				float QuadSizeY = (Desc.Flags & IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO) ? Desc.QuadSize.X * AspectRatio : Desc.QuadSize.Y;
-				OvrpLayerSubmit.Quad.Size = ovrpSizef { Desc.QuadSize.X * Scale.x, QuadSizeY * Scale.y };
+				OvrpLayerSubmit.Quad.Size = ovrpSizef { (float)Desc.QuadSize.X * Scale.x, (float)QuadSizeY * Scale.y };
 			}
 			break;
 		case ovrpShape_Cylinder:

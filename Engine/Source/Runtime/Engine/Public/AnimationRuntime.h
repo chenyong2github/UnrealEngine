@@ -70,6 +70,8 @@ void ENGINE_API BlendCurves(const TArrayView<const FBlendedCurve* const> SourceC
 class ENGINE_API IInterpolationIndexProvider
 {
 public:
+	~IInterpolationIndexProvider() = default;
+	
 	struct FPerBoneInterpolationData
 	{
 		virtual ~FPerBoneInterpolationData() {}
@@ -79,11 +81,14 @@ public:
 	// latter is often called multiple times whilst iterating over a skeleton.
 	virtual TSharedPtr<FPerBoneInterpolationData> GetPerBoneInterpolationData(const USkeleton* Skeleton) const { return nullptr; }
 
+	UE_DEPRECATED(5.0, "Please use the overload that takes a FCompactPoseBoneIndex")
+	virtual int32 GetPerBoneInterpolationIndex(
+		int32 BoneIndex, const FBoneContainer& RequiredBones, const FPerBoneInterpolationData* Data) const;
+
 	// Implementation should return the index into the PerBoneBlendData array that would be required when looking
 	// up/blending BoneIndex. This call will be passed the results of GetPerBoneInterpolationData, so the two functions
 	// should be matched.
-	virtual int32 GetPerBoneInterpolationIndex(
-		int32 BoneIndex, const FBoneContainer& RequiredBones, const FPerBoneInterpolationData* Data) const = 0;
+	virtual int32 GetPerBoneInterpolationIndex(const FCompactPoseBoneIndex& InCompactPoseBoneIndex, const FBoneContainer& RequiredBones, const FPerBoneInterpolationData* Data) const = 0;
 };
 
 /** In AnimationRunTime Library, we extract animation data based on Skeleton hierarchy, not ref pose hierarchy. 

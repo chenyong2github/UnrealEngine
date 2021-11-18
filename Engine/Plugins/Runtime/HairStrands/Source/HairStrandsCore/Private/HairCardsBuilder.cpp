@@ -3462,7 +3462,7 @@ void BuildGeometry(
 		Out.RenderData.Normals[PointIt * 2] = FVector4(Out.Cards.Tangents[PointIt], 0);
 		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4(Out.Cards.Normals[PointIt], 1);
 
-		Out.Cards.BoundingBox += Out.RenderData.Positions[PointIt];
+		Out.Cards.BoundingBox += FVector4(Out.RenderData.Positions[PointIt]);
 	}
 
 	const uint32 IndexCount = Out.Cards.Indices.Num();
@@ -3673,7 +3673,7 @@ bool InternalImportGeometry(
 	const TVertexInstanceAttributesRef<const FVector3f> VertexInstanceNormals	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
 	const TVertexInstanceAttributesRef<const FVector3f> VertexInstanceTangents	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Tangent);
 	const TVertexInstanceAttributesRef<const float> VertexInstanceBinormalSigns	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<float>(MeshAttribute::VertexInstance::BinormalSign);
-	const TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+	const TVertexInstanceAttributesRef<const FVector2f> VertexInstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 
 	for (const FVertexID VertexId : MeshDescription->Vertices().GetElementIDs())
 	{
@@ -4160,7 +4160,7 @@ void BuildGeometry(
 		OutBulk.Normals[PointIt * 2] = FVector4(Out.Meshes.Tangents[PointIt], 0);
 		OutBulk.Normals[PointIt * 2 + 1] = FVector4(Out.Meshes.Normals[PointIt], 1);
 
-		Out.Meshes.BoundingBox += OutBulk.Positions[PointIt];
+		Out.Meshes.BoundingBox += FVector4(OutBulk.Positions[PointIt]);
 	}
 	OutBulk.BoundingBox = Out.Meshes.BoundingBox;
 
@@ -4196,8 +4196,8 @@ void ImportGeometry(
 	{
 		Out.Meshes.Positions[VertexIt]	= LODData.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIt);
 		Out.Meshes.UVs[VertexIt]		= LODData.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIt, 0);
-		Out.Meshes.Tangents[VertexIt]	= LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIt);
-		Out.Meshes.Normals[VertexIt]	= LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIt);
+		Out.Meshes.Tangents[VertexIt]	= FVector4f(LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertexIt));
+		Out.Meshes.Normals[VertexIt]	= FVector4f(LODData.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertexIt));
 
 		Out.Meshes.BoundingBox += Out.Meshes.Positions[VertexIt];
 	}
@@ -4285,7 +4285,7 @@ protected:
 	FMeshDescription* MeshDescription;
 
 	TVertexAttributesRef<FVector3f> VertexPositions;
-	TVertexInstanceAttributesRef<FVector2D> InstanceUVs;
+	TVertexInstanceAttributesRef<FVector2f> InstanceUVs;
 	TVertexInstanceAttributesRef<FVector3f> InstanceNormals;
 	TVertexInstanceAttributesRef<FVector4f> InstanceColors;
 
@@ -4301,7 +4301,7 @@ void FMeshDescriptionBuilder::SetMeshDescription(FMeshDescription* Description)
 {
 	this->MeshDescription	= Description;
 	this->VertexPositions	= MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
-	this->InstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+	this->InstanceUVs		= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 	this->InstanceNormals	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector3f>(MeshAttribute::VertexInstance::Normal);
 	this->InstanceColors	= MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4f>(MeshAttribute::VertexInstance::Color);
 }

@@ -57,7 +57,7 @@ public:
 		{
 			SetSRVParameter(RHICmdList, PixelShaderRHI, FMaskTex, FmaskSRV);
 		}
-		SetShaderValue(RHICmdList, PixelShaderRHI, ResolveOrigin, FVector2D(Origin));
+		SetShaderValue(RHICmdList, PixelShaderRHI, ResolveOrigin, FVector2f(Origin));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

@@ -370,8 +370,6 @@ namespace SavePackageUtilities
 	// return if the new save algorithm is enabled for cooked or uncooked
 	bool IsNewSaveEnabled(bool bForCooking = false);
 
-	void GetBlueprintNativeCodeGenReplacement(UObject* InObj, UClass*& ObjClass, UObject*& ObjOuter, FName& ObjName, const ITargetPlatform* TargetPlatform);
-
 	void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
 
 	/**

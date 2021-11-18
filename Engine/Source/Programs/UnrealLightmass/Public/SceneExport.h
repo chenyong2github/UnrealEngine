@@ -1188,7 +1188,7 @@ struct FMinimalStaticLightingVertex
 {
 	FVector4 WorldPosition;
 	FVector4 WorldTangentZ;
-	FVector2D TextureCoordinates[MAX_TEXCOORDS];
+	FVector2f TextureCoordinates[MAX_TEXCOORDS];
 };
 
 struct FStaticLightingVertexData : public FMinimalStaticLightingVertex

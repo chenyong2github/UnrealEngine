@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IO/IoDispatcher.h"
+#include "ZenServerInterface.h"
 
 class FPackageStoreManifest
 {
@@ -22,13 +23,9 @@ public:
 	
 	struct FZenServerInfo
 	{
-		FString AutoLaunchExecutablePath;
-		FString AutoLaunchArguments;
-		FString HostName;
-		uint16 Port;
+		UE::Zen::FServiceSettings Settings;
 		FString ProjectId;
 		FString OplogId;
-		bool bAutoLaunch = false;
 	};
 
 	IOSTOREUTILITIES_API FPackageStoreManifest(const FString& CookedOutputPath);

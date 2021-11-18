@@ -21,14 +21,8 @@ private:
 	/** DDC data put notification handler */
 	void OnDDCNotificationEvent(FDerivedDataCacheInterface::EDDCNotification DDCNotification);
 	
-	/** Manually clear any presented DDC notifications */
-	void ClearSharedDDCNotification();
-
 	/** Subscribe to the notifactions */
 	void Subscribe(bool bSubscribe);
-
-	/** Whether or not to show the Shared DDC notification */
-	bool bShowSharedDDCNotification;
 
 	/** Whether we are subscribed or not **/
 	bool bSubscribed;

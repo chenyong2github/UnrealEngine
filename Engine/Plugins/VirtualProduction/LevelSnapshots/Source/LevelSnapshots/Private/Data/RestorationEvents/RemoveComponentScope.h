@@ -8,14 +8,19 @@
 
 class UActorComponent;
 
-/**
- * Convenience type that calls FLevelSnaphshotsModule::OnPreRemoveComponent and FLevelSnaphshotsModule::OnPostRemoveComponent.
- */
-class FRemoveComponentScope : public FNoncopyable
+namespace UE::LevelSnapshots::Private
 {
-	FPostRemoveComponentParams Params;
-public:
+	/**
+	 * Convenience type that calls FLevelSnaphshotsModule::OnPreRemoveComponent and FLevelSnaphshotsModule::OnPostRemoveComponent.
+	 */
+	class FRemoveComponentScope : public FNoncopyable
+	{
+		FPostRemoveComponentParams Params;
+	public:
 
-	FRemoveComponentScope(UActorComponent* RemovedComponent);
-	~FRemoveComponentScope();
-};
+		FRemoveComponentScope(UActorComponent* RemovedComponent);
+		~FRemoveComponentScope();
+	};
+}
+
+

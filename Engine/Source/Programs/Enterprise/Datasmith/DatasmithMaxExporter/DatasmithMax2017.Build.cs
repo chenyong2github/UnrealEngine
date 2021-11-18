@@ -5,51 +5,25 @@ namespace UnrealBuildTool.Rules
 {
 	public abstract class DatasmithMaxBase : ModuleRules
 	{
-		// todo: duplicated in TargetRules
-		public bool bBuildExporterPlugin = true;
-
 		public DatasmithMaxBase(ReadOnlyTargetRules Target)
 			: base(Target)
 		{
 
 			bUseRTTI = true;
 
-			// todo: duplicated in TargetRules
-			string BuildDirectLinkEnvVar = System.Environment.GetEnvironmentVariable("DATASMITH_3DSMAX_PLUGIN_WITH_DIRECTLINK");
-			if (BuildDirectLinkEnvVar != null && BuildDirectLinkEnvVar != "")
-			{
-				bBuildExporterPlugin  = false;
-			}
 
-			if (!bBuildExporterPlugin)
-            {
-				PublicDefinitions.Add("NEW_DIRECTLINK_PLUGIN=1");
-            }
+			PublicDefinitions.Add("NEW_DIRECTLINK_PLUGIN=1");
 
-			if (bBuildExporterPlugin)
-			{
-				PrivateDependencyModuleNames.AddRange(
-					new string[]
-					{
-					"Core",
-					"DatasmithExporter",
-					"Projects",
-					}
-				);
-			}
-            else
-            {
-				PrivateDependencyModuleNames.AddRange(
-					new string[]
-					{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
 					"DatasmithExporter",
 					"DatasmithExporterUI",
 
 					"UdpMessaging", // required for DirectLink networking
 					"UEOpenExr",
-					}
-				);
-			}
+				}
+			);
 
 
 			PrivateIncludePaths.AddRange( new string[] { "Runtime/Launch/Public", "Runtime/Launch/Private", ModuleDirectory } );

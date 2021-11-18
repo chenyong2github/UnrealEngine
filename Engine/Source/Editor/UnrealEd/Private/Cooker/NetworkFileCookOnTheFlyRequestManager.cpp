@@ -97,8 +97,9 @@ private:
 			RecompileData.MaterialsToLoad,
 			RecompileData.ShadersToRecompile,
 			RecompileData.MeshMaterialMaps,
+			RecompileData.GlobalShaderMap,
 			RecompileData.ModifiedFiles,
-			RecompileData.bCompileChangedShaders,
+			RecompileData.CommandType,
 			MoveTemp(RecompileCompleted)
 		});
 		check(bEnqueued);

@@ -13,7 +13,7 @@ namespace Metasound
 		struct METASOUNDEDITOR_API FGraphNodeValidationResult
 		{
 			// Node associated with validation result
-			UMetasoundEditorGraphExternalNode* Node = nullptr;
+			UMetasoundEditorGraphNode* Node = nullptr;
 
 			// Whether associated node is in invalid state (document is corrupt and no Frontend representation could be
 			// found for the node)
@@ -22,7 +22,7 @@ namespace Metasound
 			// Whether validation made changes to the node and is now in a dirty state
 			bool bIsDirty = false;
 
-			FGraphNodeValidationResult(UMetasoundEditorGraphExternalNode& InNode)
+			FGraphNodeValidationResult(UMetasoundEditorGraphNode& InNode)
 				: Node(&InNode)
 			{
 			}

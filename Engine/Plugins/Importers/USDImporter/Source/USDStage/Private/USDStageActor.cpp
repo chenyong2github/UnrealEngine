@@ -91,6 +91,7 @@ struct FUsdStageActorImpl
 		TranslationContext->ObjectFlags = DefaultObjFlag;
 		TranslationContext->Time = StageActor->GetTime();
 		TranslationContext->PurposesToLoad = (EUsdPurpose) StageActor->PurposesToLoad;
+		TranslationContext->NaniteTriangleThreshold = StageActor->NaniteTriangleThreshold;
 		TranslationContext->RenderContext = StageActor->RenderContext;
 		TranslationContext->MaterialToPrimvarToUVIndex = &StageActor->MaterialToPrimvarToUVIndex;
 		TranslationContext->BlendShapesByPath = &StageActor->BlendShapesByPath;
@@ -553,6 +554,7 @@ struct FUsdStageActorImpl
 			EventAttributes.Emplace( TEXT( "InitialLoadSet" ), LexToString( (uint8)StageActor->InitialLoadSet ) );
 			EventAttributes.Emplace( TEXT( "KindsToCollapse" ), LexToString( StageActor->KindsToCollapse ) );
 			EventAttributes.Emplace( TEXT( "PurposesToLoad" ), LexToString( StageActor->PurposesToLoad ) );
+			EventAttributes.Emplace( TEXT( "NaniteTriangleThreshold" ), LexToString( StageActor->NaniteTriangleThreshold ) );
 			EventAttributes.Emplace( TEXT( "RenderContext" ), StageActor->RenderContext.ToString() );
 
 			const bool bAutomated = false;
@@ -630,8 +632,9 @@ TMap<UBlueprint*, FDelegateHandle> FRecompilationTracker::RecompilingBlueprints;
 
 AUsdStageActor::AUsdStageActor()
 	: InitialLoadSet( EUsdInitialLoadSet::LoadAll )
-	, KindsToCollapse( (int32) EUsdDefaultKind::Component )
+	, KindsToCollapse( ( int32 ) ( EUsdDefaultKind::Component | EUsdDefaultKind::Subcomponent ) )
 	, PurposesToLoad( (int32) EUsdPurpose::Proxy )
+	, NaniteTriangleThreshold( (uint64) 1000000 )
 	, Time( 0.0f )
 	, bIsTransitioningIntoPIE( false )
 	, bIsModifyingAProperty( false )
@@ -670,7 +673,7 @@ AUsdStageActor::AUsdStageActor()
 				if ( SupportedExtensions.Num() > 0 )
 				{
 					FString JoinedExtensions = FString::Join( SupportedExtensions, TEXT( "; *." ) ); // Combine "usd" and "usda" into "usd; *.usda"
-					Property->SetMetaData( TEXT("FilePathFilter"), FString::Printf( TEXT( "usd files (*.%s)|*.%s" ), *JoinedExtensions, *JoinedExtensions ) );
+					Property->SetMetaData( TEXT("FilePathFilter"), FString::Printf( TEXT( "Universal Scene Description files|*.%s" ), *JoinedExtensions, *JoinedExtensions ) );
 				}
 				break;
 			}
@@ -1251,7 +1254,22 @@ void AUsdStageActor::SetKindsToCollapse( int32 NewKindsToCollapse )
 {
 	Modify();
 
-	KindsToCollapse = NewKindsToCollapse;
+	const EUsdDefaultKind NewEnum = ( EUsdDefaultKind ) NewKindsToCollapse;
+	EUsdDefaultKind Result = NewEnum;
+
+	// If we're collapsing all 'model's, then we must collapse all of its derived kinds
+	if ( EnumHasAnyFlags( NewEnum, EUsdDefaultKind::Model ) )
+	{
+		Result |= ( EUsdDefaultKind::Component | EUsdDefaultKind::Group | EUsdDefaultKind::Assembly );
+	}
+
+	// If we're collapsing all 'group's, then we must collapse all of its derived kinds
+	if ( EnumHasAnyFlags( NewEnum, EUsdDefaultKind::Group ) )
+	{
+		Result |= ( EUsdDefaultKind::Assembly );
+	}
+
+	KindsToCollapse = ( int32 ) Result;
 	LoadUsdStage();
 }
 
@@ -1260,6 +1278,14 @@ void AUsdStageActor::SetPurposesToLoad( int32 NewPurposesToLoad )
 	Modify();
 
 	PurposesToLoad = NewPurposesToLoad;
+	LoadUsdStage();
+}
+
+void AUsdStageActor::SetNaniteTriangleThreshold( int32 NewNaniteTriangleThreshold )
+{
+	Modify();
+
+	NaniteTriangleThreshold = NewNaniteTriangleThreshold;
 	LoadUsdStage();
 }
 
@@ -2335,6 +2361,10 @@ void AUsdStageActor::HandlePropertyChangedEvent( FPropertyChangedEvent& Property
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, PurposesToLoad ) )
 	{
 		SetPurposesToLoad( PurposesToLoad );
+	}
+	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, NaniteTriangleThreshold ) )
+	{
+		SetNaniteTriangleThreshold( NaniteTriangleThreshold );
 	}
 	else if ( PropertyName == GET_MEMBER_NAME_CHECKED( AUsdStageActor, RenderContext ) )
 	{

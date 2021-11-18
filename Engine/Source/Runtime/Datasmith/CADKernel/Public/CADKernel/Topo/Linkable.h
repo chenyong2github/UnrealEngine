@@ -177,6 +177,7 @@ namespace CADKernel
 				{
 					Entity->SetTopologicalLink(Link1);
 				}
+				Link2->Delete();
 			}
 			else
 			{

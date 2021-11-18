@@ -516,40 +516,13 @@ bool IsFullyLoadedObj(UObject* Obj)
 	{
 		return GetGEDLBootNotificationManager().IsObjComplete(Obj);
 	}
-	//native blueprint 
-	UDynamicClass* UD = Cast<UDynamicClass>(Obj);
-	if (!UD)
-	{
-		return true;
-	}
-
-	if (GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME)
-	{
-		if (0 != (UD->ClassFlags & CLASS_Constructed))
-		{
-			return true;
-		}
-	}
-	else
-	{
-		if (UD->GetDefaultObject(false))
-		{
-			UE_CLOG(!UD->HasAnyClassFlags(CLASS_TokenStreamAssembled), LogStreaming, Fatal, TEXT("Class %s is fully loaded, but does not have its token stream assembled."), *UD->GetFullName());
-			return true;
-		}
-	}
-	return false;
+	
+	return true;
 }
 
 bool IsNativeCodePackage(UPackage* Package)
 {
-	if (!Package || !Package->HasAnyPackageFlags(PKG_CompiledIn))
-	{
-		return false;
-	}
-
-	// Make sure it isn't a dynamically loaded one, this check is slower
-	return !GetConvertedDynamicPackageNameToTypeName().Contains(Package->GetFName());
+	return (Package && Package->HasAnyPackageFlags(PKG_CompiledIn));
 }
 
 /** Checks if the object can have PostLoad called on the Async Loading Thread */

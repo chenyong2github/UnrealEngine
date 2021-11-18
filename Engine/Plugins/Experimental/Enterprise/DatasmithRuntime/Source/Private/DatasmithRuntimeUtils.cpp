@@ -54,7 +54,7 @@ namespace DatasmithRuntime
 
 		for (; FirstEmptyUVs < NumberOfUVs; ++FirstEmptyUVs)
 		{
-			const TVertexInstanceAttributesConstRef<FVector2D> UVChannels = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			const TVertexInstanceAttributesConstRef<FVector2f> UVChannels = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 			const FVector2D DefValue = UVChannels.GetDefaultValue();
 			bool bHasNonDefaultValue = false;
 
@@ -430,7 +430,7 @@ namespace DatasmithRuntime
 						Entry.Value->ClearFlags(RF_Public);
 						Entry.Value->SetFlags(RF_Transient);
 						Entry.Value->Rename(nullptr, nullptr, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-						Entry.Value->MarkPendingKill();
+						Entry.Value->MarkAsGarbage();
 						Entry.Value.Reset();
 
 						EntriesToDelete.Add(Entry.Key);

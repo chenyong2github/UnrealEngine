@@ -18,16 +18,16 @@ namespace Chaos
 		return Intermediate;
 	}
 
-	FORCEINLINE_DEBUGGABLE int32 GetDirtyCellIndexFromWorldCoordinate(FReal Coordinate, FReal DirtyElementGridCellSizeInv)
+	FORCEINLINE_DEBUGGABLE int64 GetDirtyCellIndexFromWorldCoordinate(FReal Coordinate, FReal DirtyElementGridCellSizeInv)
 	{
 		FReal CellIndex = Coordinate * DirtyElementGridCellSizeInv;
 		// Bias values just enough to remove floating point integer inconsistencies
 		// Assume maximum of 1ULP error in DirtyElementGridCellSizeInv
 		FReal FloatingPointMaxCellIndexError = FMath::Abs(CellIndex) * std::numeric_limits<FReal>::epsilon();
-		return (int32)(FMath::Floor(CellIndex + FloatingPointMaxCellIndexError));
+		return (int64)(FMath::Floor(CellIndex + FloatingPointMaxCellIndexError));
 	}
 
-	FORCEINLINE_DEBUGGABLE int32 HashCell(int32 XCell, int32 YCell)
+	FORCEINLINE_DEBUGGABLE int32 HashCell(int64 XCell, int64 YCell)
 	{
 		return (int32)(InterleaveWithZeros((uint16)XCell) | (InterleaveWithZeros((uint16)YCell) << 1));
 	}
@@ -35,8 +35,8 @@ namespace Chaos
 	FORCEINLINE_DEBUGGABLE int32 HashCoordinates(FReal Xcoordinate, FReal Ycoordinate, FReal DirtyElementGridCellSizeInv)
 	{
 		// Requirement: Hash should change for adjacent cells
-		int32 X = GetDirtyCellIndexFromWorldCoordinate(Xcoordinate,DirtyElementGridCellSizeInv);
-		int32 Y = GetDirtyCellIndexFromWorldCoordinate(Ycoordinate,DirtyElementGridCellSizeInv);
+		int64 X = GetDirtyCellIndexFromWorldCoordinate(Xcoordinate,DirtyElementGridCellSizeInv);
+		int64 Y = GetDirtyCellIndexFromWorldCoordinate(Ycoordinate,DirtyElementGridCellSizeInv);
 
 		return HashCell(X, Y);
 	}
@@ -44,10 +44,10 @@ namespace Chaos
 	template <typename T>
 	FORCEINLINE_DEBUGGABLE bool TooManyOverlapQueryCells(const TAABB<T, 3>& AABB, FReal DirtyElementGridCellSizeInv, int32 MaximumOverlap)
 	{
-		int32 XsampleCount = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().X, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().X, DirtyElementGridCellSizeInv) + 1;
-		int32 YsampleCount = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().Y, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().Y, DirtyElementGridCellSizeInv) + 1;
+		int64 XsampleCount = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().X, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().X, DirtyElementGridCellSizeInv) + 1;
+		int64 YsampleCount = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().Y, DirtyElementGridCellSizeInv) - GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().Y, DirtyElementGridCellSizeInv) + 1;
 
-		if (XsampleCount * YsampleCount <= MaximumOverlap)
+		if (XsampleCount * YsampleCount <= (int64)MaximumOverlap)
 		{
 			return false;
 		}
@@ -57,15 +57,15 @@ namespace Chaos
 	template <typename T, typename FunctionType>
 	FORCEINLINE_DEBUGGABLE bool DoForOverlappedCells(const TAABB<T, 3>& AABB, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
 	{
-		int32 CellStartX = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv);
-		int32 CellStartY = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv);
+		int64 CellStartX = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().X, DirtyElementGridCellSizeInv);
+		int64 CellStartY = GetDirtyCellIndexFromWorldCoordinate(AABB.Min().Y, DirtyElementGridCellSizeInv);
 
-		int32 CellEndX = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().X, DirtyElementGridCellSizeInv);
-		int32 CellEndY = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().Y, DirtyElementGridCellSizeInv);
+		int64 CellEndX = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().X, DirtyElementGridCellSizeInv);
+		int64 CellEndY = GetDirtyCellIndexFromWorldCoordinate(AABB.Max().Y, DirtyElementGridCellSizeInv);
 
-		for (int32 X = CellStartX; X <= CellEndX; X++)
+		for (int64 X = CellStartX; X <= CellEndX; X++)
 		{
-			for (int32 Y = CellStartY; Y <= CellEndY; Y++)
+			for (int64 Y = CellStartY; Y <= CellEndY; Y++)
 			{
 				if (!Function(HashCell(X, Y)))
 				{
@@ -81,17 +81,17 @@ namespace Chaos
 	FORCEINLINE_DEBUGGABLE bool DoForOverlappedCellsExclude(const TAABB<T, 3>& AABB, const TAABB<T, 3>& AABBExclude, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType Function)
 	{
 
-		int32 NewCellStartX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().X, DirtyElementGridCellSizeInv);
-		int32 NewCellStartY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().Y, DirtyElementGridCellSizeInv);
+		int64 NewCellStartX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().X, DirtyElementGridCellSizeInv);
+		int64 NewCellStartY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Min().Y, DirtyElementGridCellSizeInv);
 
-		int32 NewCellEndX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().X, DirtyElementGridCellSizeInv);
-		int32 NewCellEndY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().Y, DirtyElementGridCellSizeInv);
+		int64 NewCellEndX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().X, DirtyElementGridCellSizeInv);
+		int64 NewCellEndY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABB.Max().Y, DirtyElementGridCellSizeInv);
 
-		int32 OldCellStartX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Min().X, DirtyElementGridCellSizeInv);
-		int32 OldCellStartY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Min().Y, DirtyElementGridCellSizeInv);
+		int64 OldCellStartX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Min().X, DirtyElementGridCellSizeInv);
+		int64 OldCellStartY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Min().Y, DirtyElementGridCellSizeInv);
 
-		int32 OldCellEndX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Max().X, DirtyElementGridCellSizeInv);
-		int32 OldCellEndY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Max().Y, DirtyElementGridCellSizeInv);
+		int64 OldCellEndX = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Max().X, DirtyElementGridCellSizeInv);
+		int64 OldCellEndY = GetDirtyCellIndexFromWorldCoordinate((FReal)AABBExclude.Max().Y, DirtyElementGridCellSizeInv);
 
 		// Early out here
 		if (OldCellStartX <= NewCellStartX &&
@@ -102,9 +102,9 @@ namespace Chaos
 			return true;
 		}
 
-		for (int32 X = NewCellStartX; X <= NewCellEndX; X++)
+		for (int64 X = NewCellStartX; X <= NewCellEndX; X++)
 		{
-			for (int32 Y = NewCellStartY; Y <= NewCellEndY; Y++)
+			for (int64 Y = NewCellStartY; Y <= NewCellEndY; Y++)
 			{
 				if (!(X >= OldCellStartX && X <= OldCellEndX && Y >= OldCellStartY && Y <= OldCellEndY))
 				{
@@ -261,8 +261,8 @@ namespace Chaos
 
 
 		// The Reference Cell's origin is used for the local coordinates origin
-		const int32 ReferenceCellIndexX = GetDirtyCellIndexFromWorldCoordinate(StartPointX, DirtyElementGridCellSizeInv);
-		const int32 ReferenceCellIndexY = GetDirtyCellIndexFromWorldCoordinate(StartPointY, DirtyElementGridCellSizeInv);
+		const int64 ReferenceCellIndexX = GetDirtyCellIndexFromWorldCoordinate(StartPointX, DirtyElementGridCellSizeInv);
+		const int64 ReferenceCellIndexY = GetDirtyCellIndexFromWorldCoordinate(StartPointY, DirtyElementGridCellSizeInv);
 		const TVector<FReal, 2> LocalCoordinatesOrigin{ (FReal)ReferenceCellIndexX * DirtyElementGridCellSize, (FReal)ReferenceCellIndexY * DirtyElementGridCellSize};
 		const TVector<FReal, 2> StartPointLocal{ StartPointX - LocalCoordinatesOrigin.X, StartPointY - LocalCoordinatesOrigin.Y };
 		const TVector<FReal, 2> EndPointLocal{ StartPointLocal.X + RayX, StartPointLocal.Y + RayY};
@@ -276,8 +276,8 @@ namespace Chaos
 		bool DxTooSmall = AbsDx <= SMALL_NUMBER;
 		bool DyTooSmall = AbsDy <= SMALL_NUMBER;
 
-		int DeltaCelIndexX;
-		int DeltaCelIndexY;
+		int64 DeltaCelIndexX;
+		int64 DeltaCelIndexY;
 		FReal DtDy = 0; // DeltaTime over DeltaX
 		FReal DtDx = 0;
 
@@ -304,7 +304,7 @@ namespace Chaos
 		FReal YEndPointExpanded = EndPointLocal.Y + (DeltaCelIndexY >= 0 ? QueryHalfExtentsY : -QueryHalfExtentsY);
 		FReal XStartPointExpanded = StartPointLocal.X + (DeltaCelIndexX >= 0 ? -QueryHalfExtentsX : QueryHalfExtentsX);
 		FReal YStartPointExpanded = StartPointLocal.Y + (DeltaCelIndexY >= 0 ? -QueryHalfExtentsY : QueryHalfExtentsY);
-		int32 TurningPointForLine1; // This is where we need to change direction for line 2
+		int64 TurningPointForLine1; // This is where we need to change direction for line 2
 		TurningPointForLine1 = GetDirtyCellIndexFromWorldCoordinate(StartPointLocal.X + (DeltaCelIndexX >= 0 ? QueryHalfExtentsX : -QueryHalfExtentsX), DirtyElementGridCellSizeInv);
 
 		// Line0 current position
@@ -315,14 +315,14 @@ namespace Chaos
 		FReal X1 = XStartPointExpanded;
 		FReal Y1 = YStartPointExpanded;
 
-		int32 CurrentCellIndexX0 = GetDirtyCellIndexFromWorldCoordinate(X0 + LocalCoordinatesOrigin.X, DirtyElementGridCellSizeInv);
-		int32 CurrentCellIndexY0 = GetDirtyCellIndexFromWorldCoordinate(Y0 + LocalCoordinatesOrigin.Y, DirtyElementGridCellSizeInv);
+		int64 CurrentCellIndexX0 = GetDirtyCellIndexFromWorldCoordinate(X0 + LocalCoordinatesOrigin.X, DirtyElementGridCellSizeInv);
+		int64 CurrentCellIndexY0 = GetDirtyCellIndexFromWorldCoordinate(Y0 + LocalCoordinatesOrigin.Y, DirtyElementGridCellSizeInv);
 
-		int32 CurrentCellIndexX1 = GetDirtyCellIndexFromWorldCoordinate(X1 + LocalCoordinatesOrigin.X, DirtyElementGridCellSizeInv);
-		int32 CurrentCellIndexY1 = GetDirtyCellIndexFromWorldCoordinate(Y1 + LocalCoordinatesOrigin.Y, DirtyElementGridCellSizeInv);
+		int64 CurrentCellIndexX1 = GetDirtyCellIndexFromWorldCoordinate(X1 + LocalCoordinatesOrigin.X, DirtyElementGridCellSizeInv);
+		int64 CurrentCellIndexY1 = GetDirtyCellIndexFromWorldCoordinate(Y1 + LocalCoordinatesOrigin.Y, DirtyElementGridCellSizeInv);
 
-		int32 LastCellIndexX = GetDirtyCellIndexFromWorldCoordinate(XEndPointExpanded + LocalCoordinatesOrigin.X, DirtyElementGridCellSizeInv);
-		int32 LastCellIndexY = GetDirtyCellIndexFromWorldCoordinate(YEndPointExpanded + LocalCoordinatesOrigin.Y, DirtyElementGridCellSizeInv);
+		int64 LastCellIndexX = GetDirtyCellIndexFromWorldCoordinate(XEndPointExpanded + LocalCoordinatesOrigin.X, DirtyElementGridCellSizeInv);
+		int64 LastCellIndexY = GetDirtyCellIndexFromWorldCoordinate(YEndPointExpanded + LocalCoordinatesOrigin.Y, DirtyElementGridCellSizeInv);
 
 		bool Done = false;
 		while (!Done)
@@ -343,7 +343,7 @@ namespace Chaos
 				}
 			}
 
-			for (int CurrentFillCellIndexY = CurrentCellIndexY1; CurrentFillCellIndexY * DeltaCelIndexY <= CurrentCellIndexY0 * DeltaCelIndexY; CurrentFillCellIndexY += DeltaCelIndexY)
+			for (int64 CurrentFillCellIndexY = CurrentCellIndexY1; CurrentFillCellIndexY * DeltaCelIndexY <= CurrentCellIndexY0 * DeltaCelIndexY; CurrentFillCellIndexY += DeltaCelIndexY)
 			{
 				InFunction((FReal)CurrentCellIndexX0 * DirtyElementGridCellSize, (FReal)CurrentFillCellIndexY * DirtyElementGridCellSize);
 			}
@@ -436,16 +436,16 @@ namespace Chaos
 	{
 		FVec3 EndPoint = StartPoint + Length * Dir;
 
-		int32 FirstCellIndexX = GetDirtyCellIndexFromWorldCoordinate(StartPoint.X, DirtyElementGridCellSizeInv);
-		int32 FirstCellIndexY = GetDirtyCellIndexFromWorldCoordinate(StartPoint.Y, DirtyElementGridCellSizeInv);
+		int64 FirstCellIndexX = GetDirtyCellIndexFromWorldCoordinate(StartPoint.X, DirtyElementGridCellSizeInv);
+		int64 FirstCellIndexY = GetDirtyCellIndexFromWorldCoordinate(StartPoint.Y, DirtyElementGridCellSizeInv);
 
-		int32 LastCellIndexX = GetDirtyCellIndexFromWorldCoordinate(EndPoint.X, DirtyElementGridCellSizeInv);
-		int32 LastCellIndexY = GetDirtyCellIndexFromWorldCoordinate(EndPoint.Y, DirtyElementGridCellSizeInv);
+		int64 LastCellIndexX = GetDirtyCellIndexFromWorldCoordinate(EndPoint.X, DirtyElementGridCellSizeInv);
+		int64 LastCellIndexY = GetDirtyCellIndexFromWorldCoordinate(EndPoint.Y, DirtyElementGridCellSizeInv);
 
 		// This will be equal to the Manhattan distance 
-		int CellCount = FMath::Abs(FirstCellIndexX - LastCellIndexX) + FMath::Abs(FirstCellIndexY - LastCellIndexY);
+		uint64 CellCount = FMath::Abs(FirstCellIndexX - LastCellIndexX) + FMath::Abs(FirstCellIndexY - LastCellIndexY);
 
-		if (CellCount > DirtyElementMaxGridCellQueryCount)
+		if (CellCount > (uint64)DirtyElementMaxGridCellQueryCount)
 		{
 			return true;
 		}
@@ -457,13 +457,11 @@ namespace Chaos
 	template <typename FunctionType>
 	FORCEINLINE_DEBUGGABLE void DoForRaycastIntersectCells(const FVec3& StartPoint, const FVec3& Dir, FReal Length, FReal DirtyElementGridCellSize, FReal DirtyElementGridCellSizeInv, FunctionType InFunction)
 	{
-		
+		const int64 FirstCellIndexX = GetDirtyCellIndexFromWorldCoordinate(StartPoint.X, DirtyElementGridCellSizeInv);
+		const int64 FirstCellIndexY = GetDirtyCellIndexFromWorldCoordinate(StartPoint.Y, DirtyElementGridCellSizeInv);
 
-		const int32 FirstCellIndexX = GetDirtyCellIndexFromWorldCoordinate(StartPoint.X, DirtyElementGridCellSizeInv);
-		const int32 FirstCellIndexY = GetDirtyCellIndexFromWorldCoordinate(StartPoint.Y, DirtyElementGridCellSizeInv);
-
-		int32 CurrentCellIndexX = FirstCellIndexX;
-		int32 CurrentCellIndexY = FirstCellIndexY;
+		int64 CurrentCellIndexX = FirstCellIndexX;
+		int64 CurrentCellIndexY = FirstCellIndexY;
 
 		// Note: local coordinates are relative to the StartPoint cell origin
 		const FVec3 LocalCoordinatesOrigin{ (FReal)CurrentCellIndexX * DirtyElementGridCellSize, (FReal)CurrentCellIndexY * DirtyElementGridCellSize,  StartPoint.Z};
@@ -472,8 +470,8 @@ namespace Chaos
 
 		const FVec3 EndPointLocal = StartPointLocal + Length * Dir; // Local coordinates are relative to the start point
 		const FVec3 EndPoint = LocalCoordinatesOrigin + EndPointLocal;
-		int32 LastCellIndexX = GetDirtyCellIndexFromWorldCoordinate(EndPoint.X, DirtyElementGridCellSizeInv);
-		int32 LastCellIndexY = GetDirtyCellIndexFromWorldCoordinate(EndPoint.Y, DirtyElementGridCellSizeInv);
+		int64 LastCellIndexX = GetDirtyCellIndexFromWorldCoordinate(EndPoint.X, DirtyElementGridCellSizeInv);
+		int64 LastCellIndexY = GetDirtyCellIndexFromWorldCoordinate(EndPoint.Y, DirtyElementGridCellSizeInv);
 
 		FReal DeltaX = EndPointLocal.X - StartPointLocal.X;
 		FReal DeltaY = EndPointLocal.Y - StartPointLocal.Y;

@@ -192,14 +192,14 @@ void AHUD::PostRender()
 
 				for (int32 FingerIndex = 0; FingerIndex < EKeys::NUM_TOUCH_KEYS; ++FingerIndex)
 				{
-					FVector2D TouchLocation;
+					FVector2f TouchLocation;
 					bool bPressed = false;
 
 					GetOwningPlayerController()->GetInputTouchState((ETouchIndex::Type)FingerIndex, TouchLocation.X, TouchLocation.Y, bPressed);
 
 					if (bPressed)
 					{
-						ContactPoints.Add(TouchLocation);
+						ContactPoints.Add((FVector2D)TouchLocation);
 					}
 				}
 

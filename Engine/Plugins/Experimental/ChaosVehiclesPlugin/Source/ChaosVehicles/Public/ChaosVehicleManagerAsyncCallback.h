@@ -167,5 +167,5 @@ class FChaosVehicleManagerAsyncCallback : public Chaos::TSimCallbackObject<FChao
 {
 private:
 	virtual void OnPreSimulate_Internal() override;
-	virtual void OnContactModification_Internal(const TArrayView<Chaos::FPBDCollisionConstraintHandleModification>& Modifications) override;
+	virtual void OnContactModification_Internal(Chaos::FCollisionContactModifier& Modifications) override;
 };

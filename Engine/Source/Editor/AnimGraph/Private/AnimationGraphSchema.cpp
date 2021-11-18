@@ -89,7 +89,7 @@ FReply FAnimationLayerDragDropAction::DroppedOnPanel(const TSharedRef< class SWi
 			FGraphNodeCreator<UAnimGraphNode_LinkedAnimLayer> LinkedInputLayerNodeCreator(*TargetRigGraph);
 			UAnimGraphNode_LinkedAnimLayer* LinkedAnimLayerNode = LinkedInputLayerNodeCreator.CreateNode();	
 			const FName GraphName = TargetRigGraph->GetFName();
-			LinkedAnimLayerNode->Node.Layer = SourceFuncName; 
+			LinkedAnimLayerNode->SetupFromLayerId(SourceFuncName);
 			LinkedInputLayerNodeCreator.Finalize();
 			LinkedAnimLayerNode->NodePosX = GraphPosition.X;
 			LinkedAnimLayerNode->NodePosY = GraphPosition.Y;

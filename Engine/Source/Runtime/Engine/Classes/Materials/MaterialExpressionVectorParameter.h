@@ -64,7 +64,7 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 #endif
 	//~ End UMaterialExpression Interface
 
-	/** Return whether this is the named parameter, and fill in its value */
+	UE_DEPRECATED(5.0, "Use GetParameterValue and/or GetParameterName")
 	bool IsNamedParameter(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const;
 
 #if WITH_EDITOR
@@ -88,6 +88,7 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 	}
 #endif
 
+	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
 	virtual void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const override;
 };
 

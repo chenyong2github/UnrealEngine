@@ -131,7 +131,7 @@ void FStaticMeshVertexBuffer::ConvertHalfTexcoordsToFloat(const uint8* InData)
 	TexcoordDataPtr = TexcoordData->GetDataPointer();
 	TexcoordStride = sizeof(UVType);
 
-	FVector2D* DestTexcoordDataPtr = (FVector2D*)TexcoordDataPtr;
+	FVector2f* DestTexcoordDataPtr = (FVector2f*)TexcoordDataPtr;
 	FVector2DHalf* SourceTexcoordDataPtr = (FVector2DHalf*)(InData ? InData : OriginalTexcoordData->GetDataPointer());
 	for (uint32 i = 0; i < NumVertices * GetNumTexCoords(); i++)
 	{

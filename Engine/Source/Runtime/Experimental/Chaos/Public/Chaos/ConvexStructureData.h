@@ -53,7 +53,7 @@ namespace Chaos
 		//			[]() { return 0; });
 		//
 		template<typename T_OP, typename T_EMPTYOP>
-		auto ConstDataOp(const T_OP& Op, const T_EMPTYOP& EmptyOp) const
+		inline auto ConstDataOp(const T_OP& Op, const T_EMPTYOP& EmptyOp) const
 		{
 			switch (IndexType)
 			{
@@ -67,9 +67,21 @@ namespace Chaos
 			return EmptyOp();
 		}
 
+		#define CHAOS_CONVEXSTRUCTUREDATA_DATAOP(Op, DefaultValue)	\
+			switch (IndexType)										\
+			{														\
+			case EIndexType::Small:									\
+				return Op(DataS());									\
+			case EIndexType::Medium:								\
+				return Op(DataM());									\
+			case EIndexType::Large:									\
+				return Op(DataL());									\
+			}														\
+			return DefaultValue;
+
 		// A write-enabled version of ConstDataOp
 		template<typename T_OP, typename T_EMPTYOP>
-		auto NonConstDataOp(const T_OP& Op, const T_EMPTYOP& EmptyOp)
+		inline auto NonConstDataOp(const T_OP& Op, const T_EMPTYOP& EmptyOp)
 		{
 			switch (IndexType)
 			{
@@ -117,25 +129,39 @@ namespace Chaos
 		}
 
 
-		bool IsValid() const
+		inline bool IsValid() const
 		{
 			return (Data.Ptr != nullptr);
 		}
 
-		EIndexType GetIndexType() const
+		inline EIndexType GetIndexType() const
 		{
 			return IndexType;
 		}
 
-		int32 FindVertexPlanes(int32 VertexIndex, int32* VertexPlanes, int32 MaxVertexPlanes) const
+		inline int32 FindVertexPlanes(int32 VertexIndex, int32* VertexPlanes, int32 MaxVertexPlanes) const
 		{
 			return ConstDataOp(
 				[VertexIndex, VertexPlanes, MaxVertexPlanes](const auto& ConcreteData) { return ConcreteData.FindVertexPlanes(VertexIndex, VertexPlanes, MaxVertexPlanes); },
 				[]() { return 0; });
 		}
 
+		inline int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const
+		{
+			switch (IndexType)
+			{
+			case EIndexType::Small:
+				return DataS().GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
+			case EIndexType::Medium:
+				return DataM().GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
+			case EIndexType::Large:
+				return DataL().GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
+			}
+			return 0;
+		}
+
 		// The number of vertices that make up the corners of the specified face
-		int32 NumPlaneVertices(int32 PlaneIndex) const
+		inline int32 NumPlaneVertices(int32 PlaneIndex) const
 		{
 			return ConstDataOp(
 				[PlaneIndex](const auto& ConcreteData) { return ConcreteData.NumPlaneVertices(PlaneIndex); },
@@ -143,23 +169,22 @@ namespace Chaos
 		}
 
 		// Get the vertex index (in the outer convex container) of one of the vertices making up the corners of the specified face
-		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
+		inline int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
 		{
 			checkSlow(IsValid());
-
 			return ConstDataOp(
 				[PlaneIndex, PlaneVertexIndex](const auto& ConcreteData) { return ConcreteData.GetPlaneVertex(PlaneIndex, PlaneVertexIndex); },
 				[]() { return (int32)INDEX_NONE; });
 		}
 
-		int32 NumEdges() const
+		inline int32 NumEdges() const
 		{
 			return ConstDataOp(
 				[](const auto& ConcreteData) { return ConcreteData.NumEdges(); },
 				[]() { return 0; });
 		}
 
-		int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+		inline int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
 		{
 			return ConstDataOp(
 				[EdgeIndex, EdgeVertexIndex](const auto& ConcreteData)
@@ -169,7 +194,7 @@ namespace Chaos
 				[]() { return (int32)INDEX_NONE; });
 		}
 
-		int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+		inline int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
 		{
 			return ConstDataOp(
 				[EdgeIndex, EdgePlaneIndex](const auto& ConcreteData)

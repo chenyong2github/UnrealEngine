@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "FrameNumberNumericInterface.h"
 #include "Layout/Geometry.h"
 #include "Misc/FrameRate.h"
 
@@ -121,10 +122,12 @@ private:
 
 
 /**
- * Draw the current frame number next to the scrub handle
+ * Draw a frame time next to the scrub handle
  *
  * @param InPainter Structure that affords common painting operations
  * @param CurrentTime Current time of the scrub handle
- * @param FrameNumber Frame number to draw
+ * @param FrameTime Frame time to draw
+ * @param FrameNumberInterface (optional) Interface to control the display format and/or frame rate conversion of the drawn frame time.
+ *            If not provided, the frame time will be drawn as a frame number without any subframe.
  */
-void DrawFrameNumberHint(FSequencerSectionPainter& InPainter, FFrameTime CurrentTime, int32 FrameNumber);
+void DrawFrameTimeHint(FSequencerSectionPainter& InPainter, const FFrameTime& CurrentTime, const FFrameTime& FrameTime, const FFrameNumberInterface* FrameNumberInterface = nullptr);

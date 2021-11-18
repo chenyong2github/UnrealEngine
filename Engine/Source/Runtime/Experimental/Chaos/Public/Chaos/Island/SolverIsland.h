@@ -78,6 +78,11 @@ class CHAOS_API FPBDIslandSolver : public FPBDIslandSolverData
 	void RemoveConstraint(FConstraintHandle* ConstraintHandle);
 
 	/**
+	* Reset all the island constraint graph index
+	*/
+	void ResetIndices();
+
+	/**
 	* Sort the islands constraints
 	*/
 	void SortConstraints();

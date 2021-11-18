@@ -1,17 +1,15 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseClassDefaultArchive.h"
-#include "GameFramework/Actor.h"
-#include "Serialization/ArchiveSerializedPropertyChain.h"
+
+#include "Util/Property/PropertyUtil.h"
+#include "Util/SnapshotObjectUtil.h"
 #include "WorldSnapshotData.h"
 
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
-#include "Serialization/ArchiveSerializedPropertyChain.h"
-#include "Util/PropertyUtil.h"
-#include "Util/SnapshotObjectUtil.h"
 
-bool FBaseClassDefaultArchive::ShouldSkipProperty(const FProperty* InProperty) const
+bool UE::LevelSnapshots::Private::FBaseClassDefaultArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
 	const bool bSuperWantsToSkip = Super::ShouldSkipProperty(InProperty);
 	
@@ -19,12 +17,12 @@ bool FBaseClassDefaultArchive::ShouldSkipProperty(const FProperty* InProperty) c
 	return bSuperWantsToSkip || IsPropertyReferenceToSubobjectOrClassDefaults(InProperty);
 }
 
-UObject* FBaseClassDefaultArchive::ResolveObjectDependency(int32 ObjectIndex) const
+UObject* UE::LevelSnapshots::Private::FBaseClassDefaultArchive::ResolveObjectDependency(int32 ObjectIndex) const
 {
-	return SnapshotUtil::Object::ResolveObjectDependencyForClassDefaultObject(GetSharedData(), ObjectIndex);
+	return ResolveObjectDependencyForClassDefaultObject(GetSharedData(), ObjectIndex);
 }
 
-FBaseClassDefaultArchive::FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore)
+UE::LevelSnapshots::Private::FBaseClassDefaultArchive::FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore)
 	:
 	Super(InObjectData, InSharedData, bIsLoading, InObjectToRestore)
 {
@@ -37,7 +35,7 @@ FBaseClassDefaultArchive::FBaseClassDefaultArchive(FObjectSnapshotData& InObject
 	ArSerializingDefaults = true;
 }
 
-bool FBaseClassDefaultArchive::IsPropertyReferenceToSubobjectOrClassDefaults(const FProperty* InProperty) const
+bool UE::LevelSnapshots::Private::FBaseClassDefaultArchive::IsPropertyReferenceToSubobjectOrClassDefaults(const FProperty* InProperty) const
 {
 	const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(InProperty);
 	if (!ObjectProperty)
@@ -54,7 +52,7 @@ bool FBaseClassDefaultArchive::IsPropertyReferenceToSubobjectOrClassDefaults(con
 
 	const FArchiveSerializedPropertyChain* PropertyChain = GetSerializedPropertyChain();
 	void* ContainerPtr = GetSerializedObject();
-	const bool bIsUnsupported = SnapshotUtil::Property::FollowPropertyChainUntilPredicateIsTrue(ContainerPtr, PropertyChain, InProperty, [this, ObjectProperty](void* LeafValuePtr)
+	const bool bIsUnsupported = UE::LevelSnapshots::Private::FollowPropertyChainUntilPredicateIsTrue(ContainerPtr, PropertyChain, InProperty, [this, ObjectProperty](void* LeafValuePtr)
 	{
 		if (const UObject* ContainedPtr = ObjectProperty->GetObjectPropertyValue(LeafValuePtr))
 		{

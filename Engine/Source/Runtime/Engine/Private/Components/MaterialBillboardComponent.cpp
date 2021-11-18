@@ -22,11 +22,11 @@
 /** A material sprite vertex. */
 struct FMaterialSpriteVertex
 {
-	FVector Position;
+	FVector3f Position;
 	FPackedNormal TangentX;
 	FPackedNormal TangentZ;
 	FColor Color;
-	FVector2D TexCoords;
+	FVector2f TexCoords;
 };
 
 /** A dummy vertex buffer used to give the FMaterialSpriteVertexFactory something to reference as a stream source. */

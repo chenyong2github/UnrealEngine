@@ -79,12 +79,12 @@ namespace UnrealBuildTool
 		/// <param name="Reader">Archive to read from</param>
 		public TargetInfo(BinaryArchiveReader Reader)
 		{
-			this.Name = Reader.ReadString();
-			this.Platform = UnrealTargetPlatform.Parse(Reader.ReadString());
-			string ConfigurationStr = Reader.ReadString();
-			this.Architecture = Reader.ReadString();
+			this.Name = Reader.ReadString()!;
+			this.Platform = UnrealTargetPlatform.Parse(Reader.ReadString()!);
+			string ConfigurationStr = Reader.ReadString()!;
+			this.Architecture = Reader.ReadString()!;
 			this.ProjectFile = Reader.ReadFileReferenceOrNull();
-			string[] ArgumentStrs = Reader.ReadArray(() => Reader.ReadString());
+			string[]? ArgumentStrs = Reader.ReadArray(() => Reader.ReadString()!);
 
 			if (!UnrealTargetConfiguration.TryParse(ConfigurationStr, out Configuration))
 			{
@@ -92,7 +92,7 @@ namespace UnrealBuildTool
 					string.Join(",", Enum.GetValues(typeof(UnrealTargetConfiguration)).Cast<UnrealTargetConfiguration>().Select(x => x.ToString()))));
 			}
 
-			Arguments = new CommandLineArguments(ArgumentStrs);
+			Arguments = ArgumentStrs == null ? null : new CommandLineArguments(ArgumentStrs);
 		}
 
 		/// <summary>

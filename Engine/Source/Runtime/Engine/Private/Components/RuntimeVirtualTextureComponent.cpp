@@ -154,11 +154,6 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	return Settings.PackedValue;
 }
 
-bool URuntimeVirtualTextureComponent::IsStreamingTextureValid() const
-{
-	return VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->Texture != nullptr && StreamingTexture->BuildHash == CalculateStreamingTextureSettingsHash();
-}
-
 bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
 {
 #if WITH_EDITOR
@@ -167,7 +162,12 @@ bool URuntimeVirtualTextureComponent::IsStreamingLowMips() const
 		return false;
 	}
 #endif
-	return IsStreamingTextureValid();
+	return VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->Texture != nullptr;
+}
+
+bool URuntimeVirtualTextureComponent::IsStreamingTextureInvalid() const
+{
+	return VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->Texture != nullptr && StreamingTexture->BuildHash != CalculateStreamingTextureSettingsHash();
 }
 
 #if WITH_EDITOR
@@ -278,7 +278,7 @@ void URuntimeVirtualTextureComponent::CheckForErrors()
 	Super::CheckForErrors();
 
 	// Check if streaming texture has been built with the latest settings. If not then it won't be used which would cause a performance regression.
-	if (VirtualTexture != nullptr && StreamingTexture != nullptr && StreamingTexture->Texture != nullptr && StreamingTexture->BuildHash != CalculateStreamingTextureSettingsHash())
+	if (IsStreamingTextureInvalid())
 	{
 		FMessageLog("MapCheck").PerformanceWarning()
 			->AddToken(FUObjectToken::Create(this))

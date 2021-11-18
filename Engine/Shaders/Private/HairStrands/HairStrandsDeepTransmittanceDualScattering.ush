@@ -183,31 +183,30 @@ float3 GetHairTransmittanceOnly(FHairTransmittanceMask TransmittanceMask, FGBuff
 }
 
 // Evaluate local scattering scattering
-FHairTransmittanceData EvaluateDualScattering(inout FGBufferData GBuffer, float3 V, float3 L)
+FHairTransmittanceData EvaluateDualScattering(inout float3 BaseColor, float3 WorldNormal, float Roughness, float3 V, float3 L)
 {
 	// Prevent numerical issue causing NaN during hair lighting (i.e., during baseColor/luma(baseColor) computation)
-	GBuffer.BaseColor = max(0.0001f, GBuffer.BaseColor);
+	BaseColor = max(0.0001f, BaseColor);
 
-	FHairTransmittanceData Out = InitHairStrandsTransmittanceData();
-	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
-	{
-		// Compute the transmittance based on precompute Hair transmittance LUT
-		const float SinLightAngle = dot(L, GBuffer.WorldNormal);
+	// Compute the transmittance based on precompute Hair transmittance LUT
+	const float SinLightAngle = dot(L, WorldNormal);
+	const FHairAverageScattering AverageScattering = SampleHairLUT(View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, BaseColor, Roughness, SinLightAngle);
 
-		FHairTransmittanceMask TransmittanceMask = InitHairTransmittanceMask();
-		const FHairAverageScattering AverageScattering = SampleHairLUT(View.HairScatteringLUTTexture, View.HairScatteringLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
-		Out = ComputeDualScatteringTerms(
-			TransmittanceMask,
-			AverageScattering,
-			GBuffer.Roughness,
-			1, // Backlit / GBuffer.CustomData.z;
-			V,
-			L,
-			GBuffer.WorldNormal,
-			View.HairComponents);
-	}
+	return ComputeDualScatteringTerms(
+		InitHairTransmittanceMask(),
+		AverageScattering,
+		Roughness,
+		1, // Backlit / GBuffer.CustomData.z;
+		V,
+		L,
+		WorldNormal,
+		View.HairComponents);
+}
 
-	return Out;
+FHairTransmittanceData EvaluateDualScattering(inout FGBufferData GBuffer, float3 V, float3 L)
+{
+	checkSlow(GBuffer.ShadingModelID == SHADINGMODELID_HAIR);
+	return EvaluateDualScattering(GBuffer.BaseColor, GBuffer.WorldNormal, GBuffer.Roughness, V, L);
 }
 
 bool ShouldUseHairComplexTransmittance(FGBufferData GBuffer)

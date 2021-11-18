@@ -60,7 +60,7 @@ bool FOptimusResourceAction_AddResource::Do(IOptimusNodeGraphCollectionOwner* In
 	else
 	{
 		Resource->Rename(nullptr, GetTransientPackage());
-		Resource->MarkPendingKill();
+		Resource->MarkAsGarbage();
 		return false;
 	}
 }
@@ -136,7 +136,7 @@ bool FOptimusResourceAction_RemoveResource::Undo(IOptimusNodeGraphCollectionOwne
 	else
 	{
 		Resource->Rename(nullptr, GetTransientPackage());
-		Resource->MarkPendingKill();
+		Resource->MarkAsGarbage();
 		return false;
 	}
 }

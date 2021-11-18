@@ -80,10 +80,10 @@ public:
 		void SetCompressQuality(int32 InQuality);
   
 		/** Send an image to the connected clients */
-		void SendRawImageToClients(int32 Width, int32 Height, const TArray<FColor>& ImageData);
+		void SendRawImageToClients(int32 Width, int32 Height, const TArray<FColor>& ImageData, int32 BytesPerRow = 0);
   
 		/** Send an image to the connected clients */
-		void SendRawImageToClients(int32 Width, int32 Height, const void* ImageData, int32 AllocatedImageDataSize);
+		void SendRawImageToClients(int32 Width, int32 Height, const void* ImageData, int32 AllocatedImageDataSize, int32 BytesPerRow = 0);
   
 	private:
   

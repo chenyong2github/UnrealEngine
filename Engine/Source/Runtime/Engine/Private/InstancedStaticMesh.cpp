@@ -2626,8 +2626,8 @@ void UInstancedStaticMeshComponent::GetLightAndShadowMapMemoryUsage( int32& Ligh
 struct FInstancedStaticMeshInstanceData_DEPRECATED
 {
 	FMatrix44f Transform;
-	FVector2D LightmapUVBias;
-	FVector2D ShadowmapUVBias;
+	FVector2f LightmapUVBias;
+	FVector2f ShadowmapUVBias;
 	
 	friend FArchive& operator<<(FArchive& Ar, FInstancedStaticMeshInstanceData_DEPRECATED& InstanceData)
 	{

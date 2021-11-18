@@ -62,7 +62,7 @@ private:
 		TSharedPtr<IPropertyTypeIdentifier> Identifier;
 	};
 
-	UObject* Object;
+	TWeakObjectPtr<UObject> WeakObject;
 	UNiagaraNode* OwningNiagaraNode;
 	FOnSelectRootNodes OnSelectRootNodesDelegate;
 	TArray<FRegisteredClassCustomization> RegisteredClassCustomizations;

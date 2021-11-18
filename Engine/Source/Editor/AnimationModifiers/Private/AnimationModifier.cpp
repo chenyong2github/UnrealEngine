@@ -148,7 +148,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 		/** Mark the previous modifier pending kill, as it will be replaced with the current modifier state */
 		if (PreviouslyAppliedModifier)
 		{
-			PreviouslyAppliedModifier->MarkPendingKill();
+			PreviouslyAppliedModifier->MarkAsGarbage();
 		}
 
 		PreviouslyAppliedModifier = DuplicateObject(this, GetOuter(), MakeUniqueObjectName(GetOuter(), GetClass(), RevertModifierObjectName));
@@ -212,7 +212,7 @@ void UAnimationModifier::RevertFromAnimationSequence(class UAnimSequence* InAnim
 		CurrentAnimSequence = nullptr;
 		CurrentSkeleton = nullptr;
 
-		PreviouslyAppliedModifier->MarkPendingKill();
+		PreviouslyAppliedModifier->MarkAsGarbage();
 		PreviouslyAppliedModifier = nullptr;
 	}
 }

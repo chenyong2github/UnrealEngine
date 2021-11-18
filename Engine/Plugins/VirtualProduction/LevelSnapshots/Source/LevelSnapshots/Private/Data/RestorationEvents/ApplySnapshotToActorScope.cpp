@@ -4,14 +4,14 @@
 
 #include "LevelSnapshotsModule.h"
 
-FApplySnapshotToActorScope::FApplySnapshotToActorScope(const FApplySnapshotToActorParams& Params)
+UE::LevelSnapshots::Private::FApplySnapshotToActorScope::FApplySnapshotToActorScope(const FApplySnapshotToActorParams& Params)
 	:
 	Params(Params)
 {
 	FLevelSnapshotsModule::GetInternalModuleInstance().OnPreApplySnapshotToActor(Params);
 }
 
-FApplySnapshotToActorScope::~FApplySnapshotToActorScope()
+UE::LevelSnapshots::Private::FApplySnapshotToActorScope::~FApplySnapshotToActorScope()
 {
 	FLevelSnapshotsModule::GetInternalModuleInstance().OnPostApplySnapshotToActor(Params);
 }

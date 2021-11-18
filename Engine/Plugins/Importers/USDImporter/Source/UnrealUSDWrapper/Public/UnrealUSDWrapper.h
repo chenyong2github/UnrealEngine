@@ -322,6 +322,10 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken MaterialAssignment;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Unreal;
 
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealNaniteOverride;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealNaniteOverrideEnable;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken UnrealNaniteOverrideDisable;
+
 	extern UNREALUSDWRAPPER_API const pxr::TfToken DiffuseColor;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken EmissiveColor;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Metallic;

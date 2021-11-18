@@ -546,27 +546,39 @@ bool FDefaultValueHelper::ParseVector4(const FString& Source, FVector4d& OutVal)
 }
 
 
-bool FDefaultValueHelper::ParseRotator(const FString& Source, FRotator& OutVal)
+bool FDefaultValueHelper::ParseRotator(const FString& Source, FRotator3f& OutVal)
 {
-	FVector Vector;
-	if( ParseVector( Source, Vector ) )
+	// LWC_TODO: Perf pessimization, especially if LWC is disabled!
+	FRotator3d TempRotator;
+	if (ParseRotator(Source, TempRotator))
 	{
-		using FReal = decltype(FRotator::Pitch);
-		OutVal = FRotator((FReal)Vector.X, (FReal)Vector.Y, (FReal)Vector.Z);
+		OutVal = FRotator3f((float)TempRotator.Pitch, (float)TempRotator.Yaw, (float)TempRotator.Roll);
+		return true;
+	}
+	return false;
+}
+
+bool FDefaultValueHelper::ParseRotator(const FString& Source, FRotator3d& OutVal)
+{
+	FVector3d Vector;
+	if (ParseVector(Source, Vector))
+	{
+		using FReal = decltype(FRotator3d::Pitch);
+		OutVal = FRotator3d((FReal)Vector.X, (FReal)Vector.Y, (FReal)Vector.Z);
 		return true;
 	}
 
 	// Fallback to p= format
-	if(OutVal.InitFromString(Source))
+	if (OutVal.InitFromString(Source))
 	{
 		return true;
 	}
-	
+
 	// try Pitch= format
-	FRotator Rotator = FRotator::ZeroRotator;
-	if(FParse::Value( *Source, TEXT("Pitch="), Rotator.Pitch ) &&
-		FParse::Value( *Source, TEXT("Yaw="), Rotator.Yaw ) &&
-		FParse::Value( *Source, TEXT("Roll="), Rotator.Roll ))
+	FRotator3d Rotator = FRotator3d::ZeroRotator;
+	if (FParse::Value(*Source, TEXT("Pitch="), Rotator.Pitch) &&
+		FParse::Value(*Source, TEXT("Yaw="), Rotator.Yaw) &&
+		FParse::Value(*Source, TEXT("Roll="), Rotator.Roll))
 	{
 		OutVal = Rotator;
 		return true;

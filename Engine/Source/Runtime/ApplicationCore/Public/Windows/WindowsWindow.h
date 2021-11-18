@@ -14,7 +14,6 @@
 #include "Windows/HideWindowsPlatformTypes.h"
 
 class FWindowsApplication;
-struct FVector2D;
 enum class EWindowTransparency;
 
 /**

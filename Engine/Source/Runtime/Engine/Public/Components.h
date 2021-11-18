@@ -24,7 +24,7 @@ struct FStaticMeshBuildVertex
 	FVector3f TangentY;
 	FVector3f TangentZ;
 
-	FVector2D UVs[MAX_STATIC_TEXCOORDS];
+	FVector2f UVs[MAX_STATIC_TEXCOORDS];
 	FColor Color;
 };
 

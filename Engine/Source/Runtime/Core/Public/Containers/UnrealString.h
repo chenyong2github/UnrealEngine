@@ -129,122 +129,40 @@ public:
 	{
 	}
 
-	/**
-	 * Constructor using an array of TCHAR
-	 *
-	 * @param In array of TCHAR
-	 */
-	template <
-		typename CharType,
-		typename = typename TEnableIf<TIsCharType<CharType>::Value>::Type // This TEnableIf is to ensure we don't instantiate this constructor for non-char types, like id* in Obj-C
-	>
-	FORCEINLINE FString(const CharType* Src)
-	{
-		if (Src && *Src)
-		{
-			int32 SrcLen  = TCString<CharType>::Strlen(Src) + 1;
-			int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(Src, SrcLen);
-			Data.Reserve(DestLen);
-			Data.AddUninitialized(DestLen);
+	/** Construct from null-terminated C string or nullptr  */
+	FString(const ANSICHAR* Str);
+	FString(const WIDECHAR* Str);
+	FString(const UTF8CHAR* Str);
+	FString(const UCS2CHAR* Str);
 
-			FPlatformString::Convert(Data.GetData(), DestLen, Src, SrcLen);
-		}
-	}
+	/** Construct from null-terminated C substring or nullptr */
+	FString(int32 Len, const ANSICHAR* Str);
+	FString(int32 Len, const WIDECHAR* Str);
+	FString(int32 Len, const UTF8CHAR* Str);
+	FString(int32 Len, const UCS2CHAR* Str);
 
-	/** 
-	 * Constructor to create FString with specified number of characters from another string with additional character zero
-	 *
-	 * @param InCount how many characters to copy
-	 * @param InSrc String to copy from
-	 */
-	template <
-		typename CharType,
-		typename = typename TEnableIf<TIsCharType<CharType>::Value>::Type // This TEnableIf is to ensure we don't instantiate this constructor for non-char types, like id* in Obj-C
-	>
-	FORCEINLINE explicit FString(int32 InCount, const CharType* InSrc)
-	{
-		if (InSrc)
-		{
-			int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(InSrc, InCount);
-			if (DestLen > 0 && *InSrc)
-			{
-				Data.Reserve(DestLen + 1);
-				Data.AddUninitialized(DestLen + 1);
+	/** Construct from null-terminated C string or nullptr with extra slack on top of original string length */
+	FString(const ANSICHAR* Str, int32 ExtraSlack);
+	FString(const WIDECHAR* Str, int32 ExtraSlack);
+	FString(const UTF8CHAR* Str, int32 ExtraSlack);
+	FString(const UCS2CHAR* Str, int32 ExtraSlack);
 
-				FPlatformString::Convert(Data.GetData(), DestLen, InSrc, InCount);
-				*(Data.GetData() + Data.Num() - 1) = TEXT('\0');
-			}
-		}
-	}
-
-	/**
-	 * Constructor to create FString with specified number of characters from another string with additional character zero
-	 *
-	 * @param Other the other string to create a new copy from
-	 * @param ExtraSlack number of extra characters to add to the end of the other string in this string
-	 */
-	template <
-		typename CharType,
-		typename = typename TEnableIf<TIsCharType<CharType>::Value>::Type // This TEnableIf is to ensure we don't instantiate this constructor for non-char types, like id* in Obj-C
-	>
-		FORCEINLINE FString(const CharType* Src, int32 ExtraSlack)
-	{
-		if (Src && *Src)
-		{
-			int32 SrcLen = TCString<CharType>::Strlen(Src) + 1;
-			int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(Src, SrcLen);
-			Data.Reserve(DestLen + ExtraSlack);
-			Data.AddUninitialized(DestLen);
-
-			FPlatformString::Convert(Data.GetData(), DestLen, Src, SrcLen);
-		}
-		else
-		{
-			Reserve(ExtraSlack); 
-		}
-	}
-
-	/**
-	 * Create an FString from a contiguous range of characters
-	 *
-	 * Use this constructor for types like FStringView, FStringBuilderBase, TStringBuilder.
-	 *
-	 * @param Other The contiguous character range to copy from
-	 */
+	/** Construct from contiguous range of characters such as FStringView or FStringBuilderBase */
 	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArrayNotFString<CharRangeType>::Value>::Type* = nullptr>
-	explicit FString(CharRangeType&& Other)
+	FORCEINLINE explicit FString(CharRangeType&& Str) : FString(GetNum(Str), GetData(Forward<CharRangeType>(Str)))
 	{
-		if (const auto OtherNum = GetNum(Other))
-		{
-			const int32 OtherLen = int32(OtherNum);
-			checkf(decltype(OtherNum)(OtherLen) == OtherNum, TEXT("Invalid number of characters to add to this string type: %" UINT64_FMT), uint64(OtherNum));
-			Reserve(OtherLen);
-			AppendChars(GetData(Forward<CharRangeType>(Other)), OtherLen);
-		}
 	}
 
-	/**
-	 * Create an FString from a contiguous range of characters, with extra slack at the end of the string
-	 *
-	 * Use this constructor for types like FStringView, FStringBuilderBase, TStringBuilder.
-	 *
-	 * @param Other The contiguous character range to copy from
-	 * @param ExtraSlack The number of extra characters to reserve space for in the new string
-	 */
+	/** Construct from contiguous range of characters with extra slack on top of original string length */
 	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArrayNotFString<CharRangeType>::Value>::Type* = nullptr>
-	explicit FString(CharRangeType&& Other, int32 ExtraSlack)
+	explicit FString(CharRangeType&& Str, int32 ExtraSlack)
 	{
-		const auto OtherNum = GetNum(Other);
-		const int32 OtherLen = int32(OtherNum);
-		checkf(decltype(OtherNum)(OtherLen) == OtherNum, TEXT("Invalid number of characters to add to this string type: %" UINT64_FMT), uint64(OtherNum));
-
-		Reserve(OtherLen + ExtraSlack);
-		if (OtherLen)
-		{
-			AppendChars(GetData(Forward<CharRangeType>(Other)), OtherLen);
-		}
+		uint32 InLen = GetNum(Str);
+		Reserve(InLen + ExtraSlack);
+		AppendChars(GetData(Forward<CharRangeType>(Str)), InLen);
 	}
 
+public:
 #ifdef __OBJC__
 	/** Convert Objective-C NSString* to FString */
 	FORCEINLINE FString(const NSString* In)
@@ -273,68 +191,19 @@ public:
 	}
 #endif
 
-	/**
-	 * Copy Assignment from array of TCHAR
-	 *
-	 * @param Other array of TCHAR
-	 */
-	FORCEINLINE FString& operator=( const TCHAR* Other )
-	{
-		if (Data.GetData() != Other)
-		{
-			int32 Len = (Other && *Other) ? FCString::Strlen(Other)+1 : 0;
-			Data.Empty(Len);
-			Data.AddUninitialized(Len);
-			
-			if( Len )
-			{
-				FMemory::Memcpy( Data.GetData(), Other, Len * sizeof(TCHAR) );
-			}
-		}
-		return *this;
-	}
+	FString& operator=(const TCHAR* Str);
 
-	/**
-	 * Copy assignment from a contiguous range of characters
-	 *
-	 * Use this for types like FStringView, FStringBuilderBase, TStringBuilder.
-	 */
 	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
-	FString& operator=(CharRangeType&& Other)
+	FORCEINLINE FString& operator=(CharRangeType&& Range)
 	{
-		const auto OtherNum = GetNum(Other);
-		const int32 OtherLen = int32(OtherNum);
-		checkf(decltype(OtherNum)(OtherLen) == OtherNum, TEXT("Invalid number of characters to assign to this string type: %" UINT64_FMT), uint64(OtherNum));
-
-		if (OtherLen == 0)
-		{
-			Empty();
-		}
-		else
-		{
-			const TCHAR* const OtherData = GetData(Other);
-			const int32 ThisLen = Len();
-			if (OtherLen <= ThisLen)
-			{
-				// Unless the input is longer, this might be assigned from a view of itself.
-				TCHAR* DataPtr = Data.GetData();
-				FMemory::Memmove(DataPtr, OtherData, OtherLen * sizeof(TCHAR));
-				DataPtr[OtherLen] = TEXT('\0');
-				Data.RemoveAt(OtherLen + 1, ThisLen - OtherLen);
-			}
-			else
-			{
-				Data.Empty(OtherLen + 1);
-				Data.AddUninitialized(OtherLen + 1);
-				TCHAR* DataPtr = Data.GetData();
-				FMemory::Memcpy(DataPtr, OtherData, OtherLen * sizeof(TCHAR));
-				DataPtr[OtherLen] = TEXT('\0');
-			}
-		}
-
+		AssignRange(GetData(Range), GetNum(Range));
 		return *this;
 	}
 
+private:
+	void AssignRange(const TCHAR* Str, int32 Len);
+
+public:
 	/**
 	 * Return specific character from this string
 	 *
@@ -377,7 +246,6 @@ public:
 		return Data.CreateConstIterator();
 	}
 
-public:
 	/**
 	 * DO NOT USE DIRECTLY
 	 * STL-like iterators to enable range-based for loop support.
@@ -387,7 +255,6 @@ public:
 	FORCEINLINE DataType::RangedForIteratorType      end  ()       { auto Result = Data.end();   if (Data.Num()) { --Result; }     return Result; }
 	FORCEINLINE DataType::RangedForConstIteratorType end  () const { auto Result = Data.end();   if (Data.Num()) { --Result; }     return Result; }
 
-public:
 	FORCEINLINE SIZE_T GetAllocatedSize() const
 	{
 		return Data.GetAllocatedSize();
@@ -409,10 +276,8 @@ public:
 	 *
 	 * @param Slack length of empty string to create
 	 */
-	FORCEINLINE void Empty( int32 Slack=0 )
-	{
-		Data.Empty(Slack);
-	}
+	void Empty();
+	void Empty(int32 Slack);
 
 	/**
 	 * Test whether this string is empty
@@ -429,23 +294,12 @@ public:
 	 *
 	 * @param NewReservedSize The expected usage size (in characters, not including the terminator) after calling this function.
 	 */
-	FORCEINLINE void Reset(int32 NewReservedSize = 0)
-	{
-		const int32 NewSizeIncludingTerminator = (NewReservedSize > 0) ? (NewReservedSize + 1) : 0;
-		Data.Reset(NewSizeIncludingTerminator);
-		if (TCHAR* DataPtr = Data.GetData())
-		{
-			*DataPtr = TEXT('\0');
-		}
-	}
+	void Reset(int32 NewReservedSize = 0);
 
 	/**
 	 * Remove unallocated empty character space from the end of this string
 	 */
-	FORCEINLINE void Shrink()
-	{
-		Data.Shrink();
-	}
+	void Shrink();
 
 	/**
 	 * Tests if index is valid, i.e. greater than or equal to zero, and less than the number of characters in this string (excluding the null terminator).
@@ -540,26 +394,7 @@ public:
 	}
 
 	/** Append a single character and return a reference to this */
-	FORCEINLINE FString& AppendChar(TCHAR InChar)
-	{
-		CheckInvariants();
-
-		if ( InChar != 0 )
-		{
-			// position to insert the character.  
-			// At the end of the string if we have existing characters, otherwise at the 0 position
-			int32 InsertIndex = (Data.Num() > 0) ? Data.Num()-1 : 0;	
-
-			// number of characters to add.  If we don't have any existing characters, 
-			// we'll need to append the terminating zero as well.
-			int32 InsertCount = (Data.Num() > 0) ? 1 : 2;
-
-			Data.AddUninitialized(InsertCount);
-			Data[InsertIndex] = InChar;
-			Data[InsertIndex+1] = TEXT('\0');
-		}
-		return *this;
-	}
+	FString& AppendChar(TCHAR InChar);
 
 	/** Append a string and return a reference to this */
 	template <typename StrType>
@@ -570,6 +405,9 @@ public:
 	FORCEINLINE FString& operator+=(WIDECHAR Char)	{ return AppendChar(Char); }
 	FORCEINLINE FString& operator+=(UCS2CHAR Char)	{ return AppendChar(Char); }
 
+	void InsertAt(int32 Index, TCHAR Character);
+	void InsertAt(int32 Index, const FString& Characters);
+
 	/**
 	 * Removes characters within the string.
 	 *
@@ -577,40 +415,8 @@ public:
 	 * @param Count           The number of characters to remove.
 	 * @param bAllowShrinking Whether or not to reallocate to shrink the storage after removal.
 	 */
-	FORCEINLINE void RemoveAt(int32 Index, int32 Count = 1, bool bAllowShrinking = true)
-	{
-		Data.RemoveAt(Index, FMath::Clamp(Count, 0, Len()-Index), bAllowShrinking);
-	}
+	void RemoveAt(int32 Index, int32 Count = 1, bool bAllowShrinking = true);
 
-	FORCEINLINE void InsertAt(int32 Index, TCHAR Character)
-	{
-		if (Character != 0)
-		{
-			if (Data.Num() == 0)
-			{
-				*this += Character;
-			}
-			else
-			{
-				Data.Insert(Character, Index);
-			}
-		}
-	}
-
-	FORCEINLINE void InsertAt(int32 Index, const FString& Characters)
-	{
-		if (Characters.Len())
-		{
-			if (Data.Num() == 0)
-			{
-				*this += Characters;
-			}
-			else
-			{
-				Data.Insert(Characters.Data.GetData(), Characters.Len(), Index);
-			}
-		}
-	}
 	/**
 	 * Removes the text from the start of the string if it exists.
 	 *
@@ -690,250 +496,37 @@ public:
 	}
 
 private:
-	template <typename LhsType, typename RhsType>
-	UE_NODISCARD FORCEINLINE static FString ConcatFStrings(typename TIdentity<LhsType>::Type Lhs, typename TIdentity<RhsType>::Type Rhs)
-	{
-		Lhs.CheckInvariants();
-		Rhs.CheckInvariants();
-
-		if (Lhs.IsEmpty())
-		{
-			return MoveTempIfPossible(Rhs);
-		}
-
-		int32 RhsLen = Rhs.Len();
-
-		FString Result(MoveTempIfPossible(Lhs), RhsLen);
-		Result.AppendChars(Rhs.Data.GetData(), RhsLen);
-		
-		return Result;
-	}
-
-	template <typename RhsType>
-	UE_NODISCARD FORCEINLINE static FString ConcatTCHARsToFString(const TCHAR* Lhs, typename TIdentity<RhsType>::Type Rhs)
-	{
-		checkSlow(Lhs);
-		if (!Lhs)
-		{
-			return MoveTempIfPossible(Rhs);
-		}
-		return ConcatTCHARRangeToFString<RhsType>(Lhs, FCString::Strlen(Lhs), MoveTempIfPossible(Rhs));
-	}
-
-	template <typename RhsType>
-	UE_NODISCARD FORCEINLINE static FString ConcatTCHARRangeToFString(const TCHAR* Lhs, int32 LhsLen, typename TIdentity<RhsType>::Type Rhs)
-	{
-		checkSlow(LhsLen >= 0);
-		Rhs.CheckInvariants();
-		if (LhsLen == 0)
-		{
-			return MoveTempIfPossible(Rhs);
-		}
-
-		int32 RhsLen = Rhs.Len();
-
-		// This is not entirely optimal, as if the Rhs is an rvalue and has enough slack space to hold Lhs, then
-		// the memory could be reused here without constructing a new object.  However, until there is proof otherwise,
-		// I believe this will be relatively rare and isn't worth making the code a lot more complex right now.
-		FString Result;
-		Result.Data.Reserve(LhsLen + RhsLen + 1);
-		Result.Data.AddUninitialized(LhsLen + RhsLen + 1);
-
-		TCHAR* ResultData = Result.Data.GetData();
-		CopyAssignItems(ResultData, Lhs, LhsLen);
-		CopyAssignItems(ResultData + LhsLen, Rhs.Data.GetData(), RhsLen);
-		*(ResultData + LhsLen + RhsLen) = TEXT('\0');
-		
-		return Result;
-	}
-
-	template <typename LhsType>
-	UE_NODISCARD FORCEINLINE static FString ConcatFStringToTCHARs(typename TIdentity<LhsType>::Type Lhs, const TCHAR* Rhs)
-	{
-		checkSlow(Rhs);
-		if (!Rhs)
-		{
-			return MoveTempIfPossible(Lhs);
-		}
-		return ConcatFStringToTCHARRange<LhsType>(MoveTempIfPossible(Lhs), Rhs, FCString::Strlen(Rhs));
-	}
-
-	template <typename LhsType>
-	UE_NODISCARD FORCEINLINE static FString ConcatFStringToTCHARRange(typename TIdentity<LhsType>::Type Lhs, const TCHAR* Rhs, int32 RhsLen)
-	{
-		Lhs.CheckInvariants();
-		checkSlow(RhsLen >= 0);
-		if (RhsLen == 0)
-		{
-			return MoveTempIfPossible(Lhs);
-		}
-
-		FString Result(MoveTempIfPossible(Lhs), RhsLen);
-		Result.AppendChars(Rhs, RhsLen);
-		
-		return Result;
-	}
+	UE_NODISCARD static FString ConcatFF(const FString& Lhs, const FString& Rhs);
+	UE_NODISCARD static FString ConcatFF(FString&& Lhs, const FString& Rhs);
+	UE_NODISCARD static FString ConcatFF(const FString& Lhs, FString&& Rhs);
+	UE_NODISCARD static FString ConcatFF(FString&& Lhs,	FString&& Rhs);
+	UE_NODISCARD static FString ConcatFC(const FString& Lhs, const TCHAR* Rhs);
+	UE_NODISCARD static FString ConcatFC(FString&& Lhs,	const TCHAR* Rhs);
+	UE_NODISCARD static FString ConcatCF(const TCHAR* Lhs, const FString& Rhs);
+	UE_NODISCARD static FString ConcatCF(const TCHAR* Lhs, FString&& Rhs);
+	UE_NODISCARD static FString ConcatFR(const FString& Lhs, const TCHAR* Rhs, int32 RhsLen);
+	UE_NODISCARD static FString ConcatFR(FString&& Lhs,	const TCHAR* Rhs, int32 RhsLen);
+	UE_NODISCARD static FString ConcatRF(const TCHAR* Lhs, int32 LhsLen, const FString& Rhs);
+	UE_NODISCARD static FString ConcatRF(const TCHAR* Lhs, int32 LhsLen, FString&& Rhs);
 
 public:
-	/**
-	 * Concatenate two FStrings.
-	 * 
-	 * @param Lhs The FString on the left-hand-side of the expression.
-	 * @param Rhs The FString on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, const FString& Rhs)
-	{
-		return ConcatFStrings<const FString&, const FString&>(Lhs, Rhs);
-	}
+	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, const FString& Rhs)	{ return ConcatFF(Lhs, Rhs); }
+	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, const FString& Rhs)		{ return ConcatFF(MoveTemp(Lhs), Rhs); }
+	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, FString&& Rhs)		{ return ConcatFF(Lhs,MoveTemp(Rhs)); }
+	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, FString&& Rhs)				{ return ConcatFF(MoveTemp(Lhs), MoveTemp(Rhs)); }
+	UE_NODISCARD FORCEINLINE friend FString operator+(const TCHAR* Lhs, const FString& Rhs)		{ return ConcatCF(Lhs, Rhs); }
+	UE_NODISCARD FORCEINLINE friend FString operator+(const TCHAR* Lhs, FString&& Rhs)			{ return ConcatCF(Lhs, MoveTemp(Rhs)); }
+	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, const TCHAR* Rhs)		{ return ConcatFC(Lhs, Rhs); }
+	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, const TCHAR* Rhs)			{ return ConcatFC(MoveTemp(Lhs), Rhs); }
 
-	/**
-	 * Concatenate two FStrings.
-	 * 
-	 * @param Lhs The FString on the left-hand-side of the expression.
-	 * @param Rhs The FString on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, const FString& Rhs)
-	{
-		return ConcatFStrings<FString&&, const FString&>(MoveTemp(Lhs), Rhs);
-	}
-
-	/**
-	 * Concatenate two FStrings.
-	 * 
-	 * @param Lhs The FString on the left-hand-side of the expression.
-	 * @param Rhs The FString on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, FString&& Rhs)
-	{
-		return ConcatFStrings<const FString&, FString&&>(Lhs, MoveTemp(Rhs));
-	}
-
-	/**
-	 * Concatenate two FStrings.
-	 * 
-	 * @param Lhs The FString on the left-hand-side of the expression.
-	 * @param Rhs The FString on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, FString&& Rhs)
-	{
-		return ConcatFStrings<FString&&, FString&&>(MoveTemp(Lhs), MoveTemp(Rhs));
-	}
-
-	/**
-	 * Concatenates a TCHAR array to an FString.
-	 * 
-	 * @param Lhs The TCHAR array on the left-hand-side of the expression.
-	 * @param Rhs The FString on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	UE_NODISCARD FORCEINLINE friend FString operator+(const TCHAR* Lhs, const FString& Rhs)
-	{
-		return ConcatTCHARsToFString<const FString&>(Lhs, Rhs);
-	}
-
-	/**
-	 * Concatenates a Range of TCHARs to an FString (e.g. FStringView).
-	 *
-	 * @param Lhs The CharRangeType on the left-hand-side of the expression.
-	 * @param Rhs The FString on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArrayNotFString<CharRangeType>::Value>::Type* = nullptr>
-	UE_NODISCARD FORCEINLINE friend FString operator+(CharRangeType&& Lhs, const FString& Rhs)
-	{
-		return ConcatTCHARRangeToFString<const FString&>(GetData(Lhs), GetNum(Lhs), Rhs);
-	}
-
-	/**
-	 * Concatenates a TCHAR array to an FString.
-	 * 
-	 * @param Lhs The TCHAR array on the left-hand-side of the expression.
-	 * @param Rhs The FString on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	UE_NODISCARD FORCEINLINE friend FString operator+(const TCHAR* Lhs, FString&& Rhs)
-	{
-		return ConcatTCHARsToFString<FString&&>(Lhs, MoveTemp(Rhs));
-	}
-
-	/**
-	 * Concatenates a Range of TCHARs to an FString (e.g. FStringView).
-	 *
-	 * @param Lhs The CharRangeType on the left-hand-side of the expression.
-	 * @param Rhs The FString on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArrayNotFString<CharRangeType>::Value>::Type* = nullptr>
-	UE_NODISCARD FORCEINLINE friend FString operator+(CharRangeType&& Lhs, FString&& Rhs)
-	{
-		return ConcatTCHARRangeToFString<FString&&>(GetData(Lhs), GetNum(Lhs), MoveTemp(Rhs));
-	}
-
-	/**
-	 * Concatenates an FString to a TCHAR array.
-	 * 
-	 * @param Lhs The FString on the left-hand-side of the expression.
-	 * @param Rhs The TCHAR array on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, const TCHAR* Rhs)
-	{
-		return ConcatFStringToTCHARs<const FString&>(Lhs, Rhs);
-	}
-
-	/**
-	 * Concatenates an FString to a range of TCHARs (e.g. FStringView).
-	 *
-	 * @param Lhs The FString on the left-hand-side of the expression.
-	 * @param Rhs The CharRangeType on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArrayNotFString<CharRangeType>::Value>::Type* = nullptr>
-	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, CharRangeType&& Rhs)
-	{
-		return ConcatFStringToTCHARRange<const FString&>(Lhs, GetData(Rhs), GetNum(Rhs));
-	}
-
-	/**
-	 * Concatenates an FString to a TCHAR array.
-	 * 
-	 * @param Lhs The FString on the left-hand-side of the expression.
-	 * @param Rhs The TCHAR array on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, const TCHAR* Rhs)
-	{
-		return ConcatFStringToTCHARs<FString&&>(MoveTemp(Lhs), Rhs);
-	}
-
-	/**
-	 * Concatenates an FString to a range of TCHARs (e.g. FStringView).
-	 *
-	 * @param Lhs The FString on the left-hand-side of the expression.
-	 * @param Rhs The CharRangeType on the right-hand-side of the expression.
-	 *
-	 * @return The concatenated string.
-	 */
-	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArrayNotFString<CharRangeType>::Value>::Type* = nullptr>
-	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, CharRangeType&& Rhs)
-	{
-		return ConcatFStringToTCHARRange<FString&&>(MoveTemp(Lhs), GetData(Rhs), GetNum(Rhs));
-	}
+	template <typename T, typename TEnableIf<TIsTCharRangeNotCArrayNotFString<T>::Value>::Type* = nullptr>
+	UE_NODISCARD FORCEINLINE friend FString operator+(T&& Lhs, const FString& Rhs)				{ return ConcatRF(GetData(Lhs), GetNum(Lhs), Rhs); }
+	template <typename T, typename TEnableIf<TIsTCharRangeNotCArrayNotFString<T>::Value>::Type* = nullptr>
+	UE_NODISCARD FORCEINLINE friend FString operator+(T&& Lhs, FString&& Rhs)					{ return ConcatRF(GetData(Lhs), GetNum(Lhs), MoveTemp(Rhs)); }
+	template <typename T, typename TEnableIf<TIsTCharRangeNotCArrayNotFString<T>::Value>::Type* = nullptr>
+	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, T&& Rhs)				{ return ConcatFR(Lhs, GetData(Rhs), GetNum(Rhs)); }
+	template <typename T, typename TEnableIf<TIsTCharRangeNotCArrayNotFString<T>::Value>::Type* = nullptr>
+	UE_NODISCARD FORCEINLINE friend FString operator+(FString&& Lhs, T&& Rhs)					{ return ConcatFR(MoveTemp(Lhs), GetData(Rhs), GetNum(Rhs)); }
 
 	/**
 	 * Concatenate this path with given path ensuring the / character is used between them
@@ -1373,11 +966,7 @@ public:
 	}
 
 	/** Returns the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
-	UE_NODISCARD FORCEINLINE FString RightChop( int32 Count ) const &
-	{
-		const int32 Length = Len();
-		return FString( **this + Length-FMath::Clamp(Length-Count,0, Length) );
-	}
+	UE_NODISCARD FString RightChop( int32 Count ) const &;
 
 	UE_NODISCARD FORCEINLINE FString RightChop(int32 Count) &&
 	{
@@ -1392,30 +981,20 @@ public:
 	}
 
 	/** Returns the substring from Start position for Count characters. */
-	UE_NODISCARD FORCEINLINE FString Mid( int32 Start, int32 Count=MAX_int32 ) const &
-	{
-		FString Result;
-		if (Count >= 0)
-		{
-			const int32 Length = Len();
-			const int32 RequestedStart = Start;
-			Start = FMath::Clamp(Start, 0, Length);
-			const int32 End = (int32)FMath::Clamp((int64)Count + RequestedStart, (int64)Start, (int64)Length);
-			Result = FString(End-Start, **this + Start);
-		}
-		return Result;
-	}
+	UE_NODISCARD FString Mid(int32 Start, int32 Count) const &;
+	UE_NODISCARD FString Mid(int32 Start, int32 Count) &&;
 
-	UE_NODISCARD FORCEINLINE FString Mid(int32 Start, int32 Count = MAX_int32) &&
-	{
-		MidInline(Start, Count, false);
-		return MoveTemp(*this);
-	}
+	/** Returns the substring from Start position to the end */
+	UE_NODISCARD FORCEINLINE FString Mid(int32 Start) const & { return RightChop(Start); }
+	UE_NODISCARD FORCEINLINE FString Mid(int32 Start) && { return ((FString&&)*this).RightChop(Start); }
 
 	/** Modifies the string such that it is now the substring from Start position for Count characters. */
 	FORCEINLINE void MidInline(int32 Start, int32 Count = MAX_int32, bool bAllowShrinking = true)
 	{
-		LeftInline((int32)FMath::Min((int64)Count+Start, (int64)MAX_int32), false);
+		if (Count != MAX_int32 && int64(Start) + Count < MAX_int32)
+		{
+			LeftInline(Count + Start, false);
+		}
 		RightChopInline(Start, bAllowShrinking);
 	}
 
@@ -1588,36 +1167,11 @@ public:
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return true if string is split, otherwise false
 	 */
-	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
-		ESearchDir::Type SearchDir = ESearchDir::FromStart) const
-	{
-		check(LeftS != RightS || LeftS == nullptr);
+	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase,
+		ESearchDir::Type SearchDir = ESearchDir::FromStart) const;
 
-		int32 InPos = Find(InS, SearchCase, SearchDir);
-
-		if (InPos < 0) { return false; }
-
-		if (LeftS)
-		{
-			if (LeftS != this)
-			{
-				*LeftS = Left(InPos);
-				if (RightS) { *RightS = Mid(InPos + InS.Len()); }
-			}
-			else
-			{
-				// we know that RightS can't be this so we can safely modify it before we deal with LeftS
-				if (RightS) { *RightS = Mid(InPos + InS.Len()); }
-				*LeftS = Left(InPos);
-			}
-		}
-		else if (RightS)
-		{
-			*RightS = Mid(InPos + InS.Len());
-		}
-
-		return true;
-	}
+	/** Split with ESearchCase::IgnoreCase and ESearchDir::FromStart. Allows compiler to avoid branches w/o inlining code. */
+	bool Split(const FString& InS, FString* LeftS, FString* RightS) const;
 
 	/** Returns a new string with the characters of this converted to uppercase */
 	UE_NODISCARD FString ToUpper() const &;
@@ -1737,7 +1291,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string begins with specified text, false otherwise
 	 */
-	UE_NODISCARD bool StartsWith(const TCHAR* InSuffix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	UE_NODISCARD bool StartsWith(const TCHAR* InPrefix, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/**
 	 * Test whether this string starts with given string.
@@ -2115,14 +1669,7 @@ public:
 	UE_NODISCARD static FString FormatAsNumber( int32 InNumber );
 
 	// To allow more efficient memory handling, automatically adds one for the string termination.
-	FORCEINLINE void Reserve(int32 CharacterCount)
-	{
-		checkSlow(CharacterCount >= 0 && CharacterCount < MAX_int32);
-		if (CharacterCount > 0)
-		{
-			Data.Reserve(CharacterCount + 1);
-		}	
-	}
+	void Reserve(int32 CharacterCount);
 
 	/**
 	 * Serializes a string as ANSI char array.

@@ -302,12 +302,6 @@ FString FFieldPath::ToString() const
 		Result = PathToString(Path);
 	}
 
-	// Nativized BP support
-	if (Result.StartsWith(UDynamicClass::GetTempPackagePrefix(), ESearchCase::IgnoreCase))
-	{
-		Result.RemoveFromStart(UDynamicClass::GetTempPackagePrefix(), ESearchCase::IgnoreCase);
-	}
-
 	return Result;
 }
 

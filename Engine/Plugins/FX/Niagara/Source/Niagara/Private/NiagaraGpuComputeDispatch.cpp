@@ -937,19 +937,34 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 				continue;
 			}
 
-#if WITH_EDITOR
-			//-TODO: Temporary change to avoid crashing on incorrect FeatureLevel
-			if (ComputeContext->GPUScript_RT->GetFeatureLevel() != FeatureLevel)
-			{
-				continue;
-			}
-#endif
-
 			// Nothing to dispatch?
 			if ( InstanceData.TotalDispatches == 0 )
 			{
 				continue;
 			}
+
+#if WITH_EDITOR
+			//-TODO: Validate feature level in the editor as when using the preview mode we can be using the wrong shaders for the renderer type.
+			//       i.e. We may attempt to sample the gbuffer / depth using deferred scene textures rather than mobile which will crash.
+			if (ComputeContext->GPUScript_RT->GetFeatureLevel() != FeatureLevel)
+			{
+				if (ComputeProxy->GetComputeTickStage() == ENiagaraGpuComputeTickStage::PostOpaqueRender)
+				{
+					if (bRaisedWarningThisFrame == false)
+					{
+						bRaisedWarningThisFrame = true;
+						AsyncTask(
+							ENamedThreads::GameThread,
+							[MessageId=uint64(this), DebugSimName=ComputeContext->GetDebugSimFName()]()
+							{
+								GEngine->AddOnScreenDebugMessage(MessageId, 1.f, FColor::White, *FString::Printf(TEXT("GPU Simulation(%s) will not show in preview mode, as we may sample from wrong SceneTextures buffer."), *DebugSimName.ToString()));
+							}
+						);
+					}
+					continue;
+				}
+			}
+#endif
 
 			// Determine this instances start dispatch group, in the case of emitter dependencies (i.e. particle reads) we need to continue rather than starting again
 			iInstanceStartDispatchGroup = InstanceData.bStartNewOverlapGroup ? iInstanceCurrDispatchGroup : iInstanceStartDispatchGroup;
@@ -1594,6 +1609,9 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 {
 	bRequiresReadback = false;
 	GNiagaraViewDataManager.ClearSceneTextureParameters();
+#if WITH_EDITOR
+	bRaisedWarningThisFrame = false;
+#endif
 
 	GpuReadbackManagerPtr->Tick();
 #if NIAGARA_COMPUTEDEBUG_ENABLED
@@ -1608,17 +1626,10 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 
 	// Add pass to begin the gpu profiler frame
 #if WITH_NIAGARA_GPU_PROFILER
+	AddPass(GraphBuilder, RDG_EVENT_NAME("Niagara::GPUProfiler_BeginFrame"), [this](FRHICommandListImmediate& RHICmdList)
 	{
-		int32* NullParameter = GraphBuilder.AllocParameters<int32>();
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Niagara::GPUProfiler"),
-			ERDGPassFlags::None,
-			[this](FRHICommandListImmediate& RHICmdList)
-			{
-				GPUProfilerPtr->BeginFrame(RHICmdList);
-			}
-		);
-	}
+		GPUProfilerPtr->BeginFrame(RHICmdList);
+	});
 #endif
 
 	// Reset the list of GPUSort tasks and release any resources they hold on to.
@@ -1704,23 +1715,25 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 		CachedViewRect = Views[0].ViewRect;
 	}
 
-	FNiagaraSceneTextureParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraSceneTextureParameters>();
-	GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, *PassParameters);
-
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("Niagara::PostRenderOpaque"),
-		PassParameters,
-		ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-		[this, PassParameters, Views, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
+	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
-		if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+		FNiagaraSceneTextureParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraSceneTextureParameters>();
+		// TODO: This will cause a fragment->compute barrier on a scene textures which could be costly especially on mobile GPUs
+		// Will be nice to avoid executing this if we know that there are no simulations that require access to a scene textures
+		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, *PassParameters);
+
+ 		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("Niagara::PostRenderOpaque"),
+			PassParameters,
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+			[this, PassParameters, Views](FRHICommandListImmediate& RHICmdList)
 		{
 			NiagaraSceneTextures = PassParameters;
 			ON_SCOPE_EXIT{ NiagaraSceneTextures = nullptr; };
 
-#if RHI_RAYTRACING
+	#if RHI_RAYTRACING
 			BuildRayTracingSceneInfo(RHICmdList, Views);
-#endif
+	#endif
 
 			CurrentPassViews = Views;
 
@@ -1731,26 +1744,33 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 
 			FinishDispatches();
 
-#if RHI_RAYTRACING
+	#if RHI_RAYTRACING
 			RayTracingHelper->EndFrame(RHICmdList, HasRayTracingScene(), GetScene());
-#endif
+	#endif
 
 			// Clear CurrentPassViews
 			CurrentPassViews = TConstArrayView<FViewInfo>();
 
 			ProcessDebugReadbacks(RHICmdList, false);
-		}
+		});
+	}
 
-		if ( bRequiresReadback )
+	if (bRequiresReadback)
+	{
+		AddPass(GraphBuilder, RDG_EVENT_NAME("Niagara::GPUReadback"), [this](FRHICommandListImmediate& RHICmdList)
 		{
 			check(!GPUInstanceCounterManager.HasPendingGPUReadback());
 			GPUInstanceCounterManager.EnqueueGPUReadback(RHICmdList);
-			bRequiresReadback = false;
-		}
+		});
+		bRequiresReadback = false;
+	}
+
 #if WITH_NIAGARA_GPU_PROFILER
+	AddPass(GraphBuilder, RDG_EVENT_NAME("Niagara::GPUProfiler_EndFrame"), [this](FRHICommandListImmediate& RHICmdList)
+	{
 		GPUProfilerPtr->EndFrame(RHICmdList);
-#endif
 	});
+#endif
 
 	GNiagaraViewDataManager.ClearSceneTextureParameters();
 }

@@ -159,6 +159,7 @@ void SReplaceNodeReferences::Construct(const FArguments& InArgs, TSharedPtr<clas
 {
 	BlueprintEditor = InBlueprintEditor;
 	Refresh();
+	bFindWithinBlueprint = false;
 	bShowReplacementsWhenFinished = true;
 
 	ChildSlot
@@ -691,11 +692,10 @@ void SReplaceNodeReferences::FindAllReplacementsComplete(TArray<FImaginaryFiBDat
 
 	if (SelectedTargetReferenceItem.IsValid())
 	{
-		UClass* SourcePropertyClass = SourceProperty ? SourceProperty->GetOwnerClass() : nullptr;
 		FMemberReference SourceVariableReference;
-		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourcePropertyClass);
+		SourceVariableReference.SetFromField<FProperty>(SourceProperty, SourceProperty->GetOwnerClass());
 		FMemberReference TargetVariableReference;
-		if (SelectedTargetReferenceItem->GetMemberReference(TargetVariableReference) && SourceVariableReference.ResolveMember<FProperty>(SourcePropertyClass))
+		if (SelectedTargetReferenceItem->GetMemberReference(TargetVariableReference) && SourceVariableReference.ResolveMember<FProperty>(SourceProperty->GetOwnerClass()))
 		{
 			TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditor.Pin();
 			if (PinnedEditor.IsValid())

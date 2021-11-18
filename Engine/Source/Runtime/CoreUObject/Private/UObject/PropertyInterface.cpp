@@ -223,38 +223,46 @@ void FInterfaceProperty::ExportTextItem( FString& ValueStr, const void* Property
 	}
 }
 
-const TCHAR* FInterfaceProperty::ImportText_Internal( const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText/*=NULL*/ ) const
+const TCHAR* FInterfaceProperty::ImportText_Internal( const TCHAR* InBuffer, void* Data, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText) const
 {
 	FScriptInterface* InterfaceValue = (FScriptInterface*)Data;
 	UObject* ResolvedObject = InterfaceValue->GetObject();
 	void* InterfaceAddress = InterfaceValue->GetInterface();
 
 	const TCHAR* Buffer = InBuffer;
-	if ( !FObjectPropertyBase::ParseObjectPropertyValue(this, Parent, UObject::StaticClass(), PortFlags, Buffer, ResolvedObject) )
+	if (!FObjectPropertyBase::ParseObjectPropertyValue(this, Parent, UObject::StaticClass(), PortFlags, Buffer, ResolvedObject))
 	{
 		// we only need to call SetObject here - if ObjectAddress was not modified, then InterfaceValue should not be modified either
-		// if it was set to NULL, SetObject will take care of clearing the interface address too
+		// if it was set to nullptr, SetObject will take care of clearing the interface address too
 		InterfaceValue->SetObject(ResolvedObject);
-		return NULL;
+		return nullptr;
 	}
 
 	// so we should now have a valid object
-	if ( ResolvedObject == NULL )
+	if (ResolvedObject == nullptr)
 	{
-		// if ParseObjectPropertyValue returned true but ResolvedObject is NULL, the imported text was "None".  Make sure the interface pointer
+		// if ParseObjectPropertyValue returned true but ResolvedObject is nullptr, the imported text was "None".  Make sure the interface pointer
 		// is cleared, then stop
-		InterfaceValue->SetObject(NULL);
+		InterfaceValue->SetObject(nullptr);
 		return Buffer;
 	}
 
 	void* NewInterfaceAddress = ResolvedObject->GetInterfaceAddress(InterfaceClass);
-	if ( NewInterfaceAddress == NULL )
+	if (NewInterfaceAddress == nullptr)
 	{
+		// If this is a bp implementation of a native interface, set object but clear the interface
+		if (ResolvedObject->GetClass()->ImplementsInterface(InterfaceClass))
+		{
+			InterfaceValue->SetObject(ResolvedObject);
+			InterfaceValue->SetInterface(nullptr);
+			return Buffer;
+		}
+
 		// the object we imported doesn't implement our interface class
 		ErrorText->Logf( TEXT("%s: specified object doesn't implement the required interface class '%s': %s"),
 						*GetFullName(), *InterfaceClass->GetName(), InBuffer );
 
-		return NULL;
+		return nullptr;
 	}
 
 	InterfaceValue->SetObject(ResolvedObject);

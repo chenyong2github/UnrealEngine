@@ -381,7 +381,6 @@ void InitIcons(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("NiagaraEditor.Module.Pin.TypeSelector", new IMAGE_PLUGIN_BRUSH("Icons/Scratch", Icon16x16, FLinearColor::Gray));
 	Style->Set("NiagaraEditor.Module.AddPin", new IMAGE_PLUGIN_BRUSH("Icons/PlusSymbol_12x", Icon12x12, FLinearColor::Gray));
 	Style->Set("NiagaraEditor.Module.RemovePin", new IMAGE_PLUGIN_BRUSH("Icons/MinusSymbol_12x", Icon12x12, FLinearColor::Gray));
-	Style->Set("NiagaraEditor.Scratch", new IMAGE_PLUGIN_BRUSH("Icons/Scratch", Icon16x16, FLinearColor::Yellow));
 	Style->Set("NiagaraEditor.Message.CustomNote", new IMAGE_PLUGIN_BRUSH("Icons/icon_custom_note_16x", Icon16x16));
 }
 
@@ -532,8 +531,7 @@ void InitScriptGraph(TSharedRef< FSlateStyleSet > Style)
 void InitDebuggerStyle(TSharedRef< FSlateStyleSet > Style)
 {
 	const FVector2D Icon24x24(24.0f, 24.0f);
-
-	Style->Set("NiagaraEditor.Debugger.TabIcon", new IMAGE_PLUGIN_BRUSH_SVG("Icons/NiagaraDebugger", Icon16x16));
+	
 	Style->Set("NiagaraEditor.Debugger.PlayIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Play", Icon24x24));
 	Style->Set("NiagaraEditor.Debugger.SpeedIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Speed", Icon24x24));
 	Style->Set("NiagaraEditor.Debugger.PauseIcon", new IMAGE_PLUGIN_BRUSH("Icons/Debugger/Pause", Icon24x24));
@@ -621,6 +619,23 @@ void InitToolbar(TSharedRef< FSlateStyleSet > Style)
 	}
 }
 
+void InitTabIcons(TSharedRef<FSlateStyleSet> Style)
+{
+	Style->Set("Tab.Curves", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Curves", Icon16x16));
+	Style->Set("Tab.GeneratedCode", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/GeneratedCode", Icon16x16));
+	Style->Set("Tab.Log", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Log", Icon16x16));
+	Style->Set("Tab.Debugger", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/NiagaraDebugger", Icon16x16));
+	Style->Set("Tab.Parameters", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Parameters", Icon16x16));
+	Style->Set("Tab.ScratchPad", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/ScratchPad", Icon16x16, FLinearColor::Yellow));
+	Style->Set("Tab.ScriptStats", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/ScriptStats", Icon16x16));
+	Style->Set("Tab.Settings", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Settings", Icon16x16));
+	Style->Set("Tab.Spreadsheet", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Spreadsheet", Icon16x16));
+	Style->Set("Tab.SystemOverview", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/SystemOverview", Icon16x16));
+	Style->Set("Tab.Timeline", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Timeline", Icon16x16));
+	Style->Set("Tab.Viewport", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Viewport", Icon16x16));
+	Style->Set("Tab.VisualEffects", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/VisualEffects", Icon16x16));
+}
+
 void InitOutlinerStyle(TSharedRef< FSlateStyleSet > Style)
 {
 	const FSlateColor SelectionColor = FEditorStyle::GetSlateColor("SelectionColor");
@@ -701,6 +716,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	InitSelectedEmitter(Style);
 	InitToolbarIcons(Style);
 	InitToolbar(Style);
+	InitTabIcons(Style);
 	InitIcons(Style);
 	InitEmitterDetails(Style);
 	InitAssetColors(Style);

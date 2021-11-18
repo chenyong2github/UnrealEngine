@@ -32,11 +32,11 @@ struct FDynamicMeshVertex
 
 		for (int i = 0; i < MAX_STATIC_TEXCOORDS; i++)
 		{
-			TextureCoordinate[i] = FVector2D::ZeroVector;
+			TextureCoordinate[i] = FVector2f::ZeroVector;
 		}
 	}
 
-	FDynamicMeshVertex(const FVector3f& InPosition, const FVector2D& InTexCoord, const FColor& InColor) :
+	FDynamicMeshVertex(const FVector3f& InPosition, const FVector2f& InTexCoord, const FColor& InColor) :
 		Position(InPosition),
 		TangentX(FVector3f(1, 0, 0)),
 		TangentZ(FVector3f(0, 0, 1)),
@@ -51,7 +51,7 @@ struct FDynamicMeshVertex
 		}
 	}
 
-	FDynamicMeshVertex(const FVector3f& InPosition,const FVector3f& InTangentX,const FVector3f& InTangentZ,const FVector2D& InTexCoord, const FColor& InColor):
+	FDynamicMeshVertex(const FVector3f& InPosition,const FVector3f& InTangentX,const FVector3f& InTangentZ,const FVector2f& InTexCoord, const FColor& InColor):
 		Position(InPosition),
 		TangentX(InTangentX),
 		TangentZ(InTangentZ),
@@ -66,7 +66,7 @@ struct FDynamicMeshVertex
 		}
 	}
 
-	FDynamicMeshVertex(const FVector3f& InPosition, const FVector3f& LayerTexcoords, const FVector2D& WeightmapTexcoords)
+	FDynamicMeshVertex(const FVector3f& InPosition, const FVector3f& LayerTexcoords, const FVector2f& WeightmapTexcoords)
 		: Position(InPosition)
 		, TangentX(FVector3f(1, 0, 0))
 		, TangentZ(FVector3f(0, 0, 1))
@@ -75,9 +75,9 @@ struct FDynamicMeshVertex
 		// TangentZ.w contains the sign of the tangent basis determinant. Assume +1
 		TangentZ.Vector.W = 127;
 
-		TextureCoordinate[0] = FVector2D(LayerTexcoords.X, LayerTexcoords.Y);
-		TextureCoordinate[1] = FVector2D(LayerTexcoords.X, LayerTexcoords.Y); // Z not currently set, so use Y
-		TextureCoordinate[2] = FVector2D(LayerTexcoords.Y, LayerTexcoords.X); // Z not currently set, so use X
+		TextureCoordinate[0] = FVector2f(LayerTexcoords.X, LayerTexcoords.Y);
+		TextureCoordinate[1] = FVector2f(LayerTexcoords.X, LayerTexcoords.Y); // Z not currently set, so use Y
+		TextureCoordinate[2] = FVector2f(LayerTexcoords.Y, LayerTexcoords.X); // Z not currently set, so use X
 		TextureCoordinate[3] = WeightmapTexcoords;
 	};
 
@@ -95,7 +95,7 @@ struct FDynamicMeshVertex
 	};
 
 	FVector3f Position;
-	FVector2D TextureCoordinate[MAX_STATIC_TEXCOORDS];
+	FVector2f TextureCoordinate[MAX_STATIC_TEXCOORDS];
 	FPackedNormal TangentX;
 	FPackedNormal TangentZ;
 	FColor Color;
@@ -170,7 +170,7 @@ public:
 	/** Adds a vertex to the mesh. */
 	ENGINE_API int32 AddVertex(
 		const FVector3f& InPosition,
-		const FVector2D& InTextureCoordinate,
+		const FVector2f& InTextureCoordinate,
 		const FVector3f& InTangentX,
 		const FVector3f& InTangentY,
 		const FVector3f& InTangentZ,

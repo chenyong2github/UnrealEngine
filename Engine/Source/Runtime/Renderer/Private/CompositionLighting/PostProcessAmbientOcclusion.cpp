@@ -518,7 +518,7 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSAOShaderParameters, SSAOParameters)
 
 		SHADER_PARAMETER(float, ThresholdInverse)
-		SHADER_PARAMETER(FVector2D, InputExtentInverse)
+		SHADER_PARAMETER(FVector2f, InputExtentInverse)
 
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 
@@ -664,7 +664,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FAmbientOcclusionParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FHZBParameters, HZBParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSSAOShaderParameters, SSAOParameters)
 
-	SHADER_PARAMETER(FVector2D, SSAO_DownsampledAOInverseSize)
+	SHADER_PARAMETER(FVector2f, SSAO_DownsampledAOInverseSize)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSAO_SetupTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSAO_NormalsTexture)
@@ -1364,12 +1364,12 @@ public:
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GTAOTemporalInput)
 		SHADER_PARAMETER_SAMPLER(SamplerState, GTAOTemporalSampler)
-		SHADER_PARAMETER(FVector2D, GTAOTemporalInputPixelSize)
+		SHADER_PARAMETER(FVector2f, GTAOTemporalInputPixelSize)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HistoryTextureSampler)
-		SHADER_PARAMETER(FVector2D, HistoryTextureSize)
-		SHADER_PARAMETER(FVector2D, HistoryTexturePixelSize)
+		SHADER_PARAMETER(FVector2f, HistoryTextureSize)
+		SHADER_PARAMETER(FVector2f, HistoryTexturePixelSize)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ZCurrTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ZCurrTextureSampler)
@@ -1608,7 +1608,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GTAOUpsampleTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, GTAOUpsampleSampler)
-		SHADER_PARAMETER(FVector2D, GTAOUpsamplePixelSize)
+		SHADER_PARAMETER(FVector2f, GTAOUpsamplePixelSize)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_GLOBAL_SHADER_PARAMETER_STRUCT();

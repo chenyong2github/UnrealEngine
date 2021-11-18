@@ -1299,8 +1299,8 @@ void FBSPOps::RotateBrushVerts(ABrush* Brush, const FRotator& Rotation, bool bCl
 			Poly->Base = Brush->GetPivotOffset() + RotMatrix.TransformVector(Poly->Base - Brush->GetPivotOffset());
 
 			// Rotate the texture vectors.
-			Poly->TextureU = RotMatrix.TransformVector( Poly->TextureU );
-			Poly->TextureV = RotMatrix.TransformVector( Poly->TextureV );
+			Poly->TextureU = FVector4f(RotMatrix.TransformVector( Poly->TextureU ));
+			Poly->TextureV = FVector4f(RotMatrix.TransformVector( Poly->TextureV ));
 
 			// Recalc the normal for the poly.
 			Poly->Normal = FVector3f::ZeroVector;

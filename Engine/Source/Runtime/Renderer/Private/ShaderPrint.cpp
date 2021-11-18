@@ -55,6 +55,24 @@ namespace ShaderPrint
 		int32 Type;
 	};
 
+	// Empty buffer for binding when ShaderPrint is disabled
+	class FEmptyBuffer : public FBufferWithRDG
+	{
+	public:
+		void InitRHI() override
+		{
+			if (!Buffer.IsValid())
+			{
+				FRHICommandList* UnusedCmdList = new FRHICommandList(FRHIGPUMask::All());
+				GetPooledFreeBuffer(*UnusedCmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), 1), Buffer, TEXT("EmptyShaderPrintValueBuffer"));
+				delete UnusedCmdList;
+				UnusedCmdList = nullptr;
+			}
+		}
+	};
+
+	FBufferWithRDG* GEmptyBuffer = new TGlobalResource<FEmptyBuffer>();
+
 	// Get value buffer size
 	// Note that if the ShaderPrint system is disabled we still want to bind a minimal buffer
 	static int32 GetMaxValueCount()
@@ -292,17 +310,18 @@ namespace ShaderPrint
 		View.ShaderPrintData.MaxSymbolCount = GetMaxSymbolCount();
 		GCharacterRequestCount = 0;
 
-		// Initialize output buffer and store in the view info
-		// Values buffer contains Count + 1 elements. The first element is only used as a counter.
-		View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), View.ShaderPrintData.MaxValueCount + 1), TEXT("ShaderPrintValueBuffer"));
-
 		// Early out if system is disabled
-		// Note that we still prepared a minimal ShaderPrintValueBuffer 
+		// Note that we still bind a dummy ShaderPrintValueBuffer 
 		// This is in case some debug shader code is still active (we don't want an unbound buffer!)
 		if (!IsEnabled())
 		{
+			View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.RegisterExternalBuffer(GEmptyBuffer->Buffer);
 			return;
 		}
+
+		// Initialize output buffer and store in the view info
+		// Values buffer contains Count + 1 elements. The first element is only used as a counter.
+		View.ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(ShaderPrintItem), View.ShaderPrintData.MaxValueCount + 1), TEXT("ShaderPrintValueBuffer"));
 
 		// Clear the output buffer internal counter ready for use
 		const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();

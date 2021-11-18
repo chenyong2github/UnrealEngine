@@ -199,6 +199,8 @@ struct FInputTestHelper
 
 	static bool HasActionData(UControllablePlayer& Data, FName ActionName);
 
+	static void ResetActionInstanceData(UControllablePlayer& Data);
+
 	static const struct FInputActionInstance& GetActionData(UControllablePlayer& Data, FName ActionName);
 };
 

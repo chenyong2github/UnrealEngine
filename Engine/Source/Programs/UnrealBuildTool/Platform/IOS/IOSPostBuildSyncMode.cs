@@ -8,8 +8,6 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	[Serializable]
@@ -17,7 +15,7 @@ namespace UnrealBuildTool
 	{
 		public UnrealTargetPlatform Platform;
 		public UnrealTargetConfiguration Configuration;
-		public FileReference ProjectFile;
+		public FileReference? ProjectFile;
 		public string TargetName;
 		public TargetType TargetType;
 		public FileReference OutputPath;
@@ -26,15 +24,15 @@ namespace UnrealBuildTool
 		public bool bCreateStubIPA;
 		public bool bSkipCrashlytics;
 		public DirectoryReference ProjectDirectory;
-		public DirectoryReference ProjectIntermediateDirectory;
-		public string ImportProvision;
-		public string ImportCertificate;
-		public string ImportCertificatePassword;
+		public DirectoryReference? ProjectIntermediateDirectory;
+		public string? ImportProvision;
+		public string? ImportCertificate;
+		public string? ImportCertificatePassword;
 		public Dictionary<string, DirectoryReference> FrameworkNameToSourceDir;
 		public bool bForDistribution = false;
 		public bool bBuildAsFramework = false;
 
-		public IOSPostBuildSyncTarget(ReadOnlyTargetRules Target, FileReference OutputPath, DirectoryReference ProjectIntermediateDirectory, List<string> UPLScripts, VersionNumber SdkVersion, Dictionary<string, DirectoryReference> FrameworkNameToSourceDir)
+		public IOSPostBuildSyncTarget(ReadOnlyTargetRules Target, FileReference OutputPath, DirectoryReference? ProjectIntermediateDirectory, List<string> UPLScripts, VersionNumber SdkVersion, Dictionary<string, DirectoryReference> FrameworkNameToSourceDir)
 		{
 			this.Platform = Target.Platform;
 			this.Configuration = Target.Configuration;
@@ -61,10 +59,10 @@ namespace UnrealBuildTool
 	class IOSPostBuildSyncMode : ToolMode
 	{
 		[CommandLine("-Input=", Required = true)]
-		public FileReference InputFile = null;
+		public FileReference? InputFile = null;
 
 		[CommandLine("-XmlConfigCache=")]
-		public FileReference XmlConfigCache = null;
+		public FileReference? XmlConfigCache = null;
 
 		public override int Execute(CommandLineArguments Arguments)
 		{
@@ -72,7 +70,7 @@ namespace UnrealBuildTool
 			Arguments.CheckAllArgumentsUsed();
 
 			// Run the PostBuildSync command
-			IOSPostBuildSyncTarget Target = BinaryFormatterUtils.Load<IOSPostBuildSyncTarget>(InputFile);
+			IOSPostBuildSyncTarget Target = BinaryFormatterUtils.Load<IOSPostBuildSyncTarget>(InputFile!);
 			IOSToolChain.PostBuildSync(Target);
 
 			return 0;

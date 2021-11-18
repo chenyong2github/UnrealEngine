@@ -342,7 +342,7 @@ void UActorComponent::PostInitProperties()
 				else
 #endif // WITH_EDITOR
 				{
-					MarkPendingKill();
+					MarkAsGarbage();
 				}
 			}
 		}
@@ -430,7 +430,7 @@ void UActorComponent::PostLoad()
 #if WITH_EDITOR
 	if (bMarkPendingKillOnPostLoad)
 	{
-		MarkPendingKill();
+		MarkAsGarbage();
 		bMarkPendingKillOnPostLoad = false;
 	}
 #endif // WITH_EDITOR
@@ -656,7 +656,8 @@ bool UActorComponent::ComponentIsInPersistentLevel(bool bIncludeLevelStreamingPe
 
 FString UActorComponent::GetReadableName() const
 {
-	FString Result = GetNameSafe(GetOwner()) + TEXT(".") + GetName();
+	const AActor* Owner = GetOwner();
+	FString Result = (Owner ? Owner->GetActorNameOrLabel() : TEXT("None")) + TEXT(".") + GetName();
 	UObject const *Add = AdditionalStatObject();
 	if (Add)
 	{
@@ -1392,7 +1393,7 @@ void UActorComponent::DestroyComponent(bool bPromoteChildren/*= false*/)
 	OnComponentDestroyed(false);
 
 	// Finally mark pending kill, to NULL out any other refs
-	MarkPendingKill();
+	MarkAsGarbage();
 }
 
 void UActorComponent::OnComponentCreated()
@@ -2063,6 +2064,13 @@ void UActorComponent::OnRep_IsActive()
 #if WITH_EDITOR
 bool UActorComponent::CanEditChange(const FProperty* InProperty) const
 {
+	if (AActor* Owner = GetOwner())
+	{
+		if (!Owner->CanEditChangeComponent(this, InProperty))
+		{
+			return false;
+		}
+	}
 	if (Super::CanEditChange(InProperty))
 	{
 		UActorComponent* ComponentArchetype = Cast<UActorComponent>(GetArchetype());

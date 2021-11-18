@@ -184,7 +184,7 @@ struct DMXRUNTIME_API FDMXFixtureMatrix
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "60", DisplayName = "Cell Attributes"), Category = "Mode Settings")
 	TArray<FDMXFixtureCellAttribute> CellAttributes;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1", ClampMax = "512"), Category = "Mode Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20", DisplayName = "First Cell Channel", ClampMin = "1", ClampMax = "512"), Category = "Mode Settings")
 	int32 FirstCellChannel = 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30", DisplayName = "X Cells", ClampMin = "1"), Category = "Mode Settings")
@@ -441,8 +441,11 @@ public:
 
 	// Fixture Matrix related
 public:
-	/** Adds a new cell attribute to the selected Mode */
+	/** Adds a new cell attribute to the Mode */
 	void AddCellAttribute(int32 ModeIndex);
+
+	/** Removes a cell attribute to the Mode */
+	void RemoveCellAttribute(int32 ModeIndex, int32 CellAttributeIndex);
 
 	/**
 	 * Reorders the Fixture Matrix to reside after a function, subsequently reorders other affected Functions

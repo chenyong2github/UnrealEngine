@@ -3,6 +3,7 @@
 #include "DerivedDataBuildRemoteExecutor.h"
 
 #include "Algo/Find.h"
+#include "Containers/Queue.h"
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildInputs.h"
@@ -15,21 +16,24 @@
 #include "Features/IModularFeatures.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
-#include "IContentAddressableStorage.h"
-#include "IRemoteExecutor.h"
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Optional.h"
 #include "Misc/PathViews.h"
 #include "Modules/ModuleManager.h"
+#include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "TickableEditorObject.h"
+#include "Tasks/Task.h"
+#include "Templates/Function.h"
+#include "ZenServerHttp.h"
+#include "ZenServerInterface.h"
+
 #include <atomic>
 
-#include "HttpManager.h"
-#include "HttpModule.h"
-#include "RemoteMessages.h"
+#if UE_WITH_ZEN
 
 namespace UE::DerivedData
 {
@@ -70,64 +74,6 @@ public:
 	}
 
 private:
-	enum class ENodeType
-	{
-		File,
-		Directory,
-		//Symlink,
-	};
-
-	enum class EFileType
-	{
-		Worker,
-		Input,
-		BuildAction,
-	};
-
-	static const TCHAR* LexToString(EFileType FileType)
-	{
-		switch (FileType)
-		{
-			case EFileType::Worker:
-				return TEXT("Worker");
-			case EFileType::Input:
-				return TEXT("Input");
-			case EFileType::BuildAction:
-				return TEXT("BuildAction");
-			default:
-				return TEXT("Unknown");
-		}
-	}
-
-	struct FVariantIndex
-	{
-		ENodeType NodeType;
-		int32 Index;
-
-		FVariantIndex(ENodeType InNodeType, int32 InIndex)
-		: NodeType(InNodeType)
-		, Index(InIndex)
-		{
-		}
-	};
-
-	struct FMerkleTreeFileBuilder
-	{
-		FStringView Path;
-		UE::RemoteExecution::FFileNode File;
-		EFileType Type;
-		FCompositeBuffer ContentBytes;
-	};
-
-	struct FMerkleTreeDirectoryBuilder
-	{
-		FStringView Name;
-		FStringView Path;
-		UE::RemoteExecution::FDirectoryTree Directory;
-		TOptional<FIoHash> Digest;
-		TArray<uint8> ContentBytes;
-		TArray<int32> SubDirIndices;
-	};
 
 	struct FRemoteExecutionState
 	{
@@ -138,43 +84,23 @@ private:
 		IRequestOwner& Owner;
 		FBuildPolicy BuildPolicy;
 
-		// Unordered arrays that are indexed into
-		TArray<FMerkleTreeDirectoryBuilder> Directories;
-		TArray<FMerkleTreeFileBuilder> Files;
+		FIoHash WorkerDescriptionId;
+		FIoHash ActionId;
 
-		// Lookup tables for indexing in different scenarios
-		TMultiMap<FIoHash, FVariantIndex> DigestFilesystemIndex;
-		TMap<FStringView, int32> PathToDirectoryIndex;
-		TMap<int32, FString> FileIndexToInputKey;
-		FString BaseDirectoryPath;
+		FCbObject WorkerDescriptor;
+		FCbObject Action;
 
-		// Unique items in the tree
-		UE::RemoteExecution::FTask Task;
-		TArray<uint8>TaskContentBytes;
-		FIoHash TaskDigest;
-		UE::RemoteExecution::FRequirements Requirements;
-		TArray<uint8> RequirementsContentBytes;
-		FCompositeBuffer BuildActionContentBytes {};
-		FIoHash BuildActionDigest;
-		TArray<FString> InputPaths;
+		// Step 1: Query if worker exists
+		// Step 1a: Post Worker object
+		// Step 1b: Post Worker package which contains missing blobs
+		// Step 2: Post Action object
+		// Step 2a: Post Action package which contains missing blobs
+		// Step 3: Wait for results, return Package
 
-		// Step 1: Find missing blobs
-		TSet<FIoHash> DoBlobsExistRequest;
-		TMap<FIoHash, UE::RemoteExecution::EStatusCode> DoBlobsExistResponse;
-
-		// Step 3: Batch update blobs (upload)
-		TMap<FIoHash, TArray<uint8>> PutBlobsRequest;
-
-		// Step 3: Execute
-		UE::RemoteExecution::FAddTasksRequest ExecuteRequest;
-		UE::RemoteExecution::FGetTaskUpdateResponse ExecuteResponse;
-
-		// Step 4: Get execute results
-		UE::RemoteExecution::FTaskResult ExecuteResult;
-		TMap<FString, FIoHash> ExecuteResultFiles;
-
-		// Step 5: Batch read blobs (download)
-		TSet<FIoHash> GetBlobsRequest;
+		UE::Zen::FZenHttpRequest::Result Result;
+		int ResponseCode;
+		TSet<FIoHash> NeedHashes;
+		FCbPackage ResultPackage;
 	};
 
 	FRemoteExecutionState State;
@@ -184,44 +110,37 @@ private:
 	std::atomic<bool> bCancelPending;
 	bool bHeuristicBuildStarted;
 
-	// Merkle tree operations
-	FMerkleTreeDirectoryBuilder& GetOrAddMerkleTreeDirectory(FStringView Path, int32& OutDirectoryBuilderIndex);
-	int32 AddMerkleTreeFile(FStringView Path, const FIoHash& RawHash, uint64 RawSize, bool bIsExecutable, EFileType FileType, FCompositeBuffer ContentBytes = FCompositeBuffer::Null);
-	const FIoHash& BuildMerkleTreeDirectoryDigest(int32 Index);
-	void BuildMerkleTreeNodes();
-
 	// General utility methods
-	void GatherMissingInputFileBlobs(TArray<FStringView>& OutMissingInputs);
-	bool ValidateUploadSuccess(const TMap<FIoHash, UE::RemoteExecution::EStatusCode>& PutBlobsResponse);
-	void GatherExecuteFileResults(const TMap<FIoHash, TArray<uint8>>& Data, const FString& Parent, const FIoHash& DirectoryTreeHash);
-	FOptionalBuildOutput ComposeBuildOutput(TMap<FIoHash, TPair<UE::RemoteExecution::EStatusCode, TArray<uint8>>>&& GetBlobsResponse, EStatus& OutStatus);
+	static FCbObject BuildWorkerDescriptor(const FBuildWorker& Worker, const int TimeoutSeconds);
+
 	bool ProcessCancellation();
-	bool IsStatusOk(UE::RemoteExecution::EStatusCode Status, const TCHAR* OperationDesc);
+	bool IsResultOk(const UE::Zen::FZenHttpRequest::Result& Result, const TCHAR* OperationDesc);
+	bool IsResponseOk(const int ResponseCode, const TCHAR* OperationDesc);
 
 	// Async steps
-	TFuture<TMap<FIoHash, UE::RemoteExecution::EStatusCode>> DetermineMissingBlobsAsync();
-	void LoadMissingWorkerFileBlobsAsync();
-	TFuture<TMap<FIoHash, UE::RemoteExecution::EStatusCode>> UploadMissingBlobsAsync();
-	TFuture<TPair<UE::RemoteExecution::EStatusCode, UE::RemoteExecution::FGetTaskUpdatesResponse>> ExecuteBuildAsync();
-	TFuture<TPair<UE::RemoteExecution::EStatusCode, UE::RemoteExecution::FGetObjectTreeResponse>> GetTaskResultAsync();
-	TFuture<TMap<FIoHash, TPair<UE::RemoteExecution::EStatusCode, TArray<uint8>>>> DownloadResultsAsync();
+	void DetermineIfWorkerExists_Async();
+	void PostWorkerObject_Async();
+	void PostWorkerPackage_Async();
+	void PostActionObject_Async();
+	void PostActionPackage_Async();
+	void GetResultPackage_Async();
+
+	void QueueGetResultPackage();
 
 	// Post-step flow
-	void OnMissingBlobsDetermined(TMap<FIoHash, UE::RemoteExecution::EStatusCode>&& Result);
-	void OnMissingBlobsUploaded(const TMap<FIoHash, UE::RemoteExecution::EStatusCode>& Result);
-	void OnExecutionCompleted(UE::RemoteExecution::EStatusCode Status, UE::RemoteExecution::FGetTaskUpdatesResponse&& Result);
-	void OnTaskResultDownloaded(UE::RemoteExecution::EStatusCode Status, UE::RemoteExecution::FGetObjectTreeResponse&& Result);
-	void OnOutputBlobsDownloaded(TMap<FIoHash, TPair<UE::RemoteExecution::EStatusCode, TArray<uint8>>>&& Result);
+	void OnWorkerExistsDetermined(const UE::Zen::FZenHttpRequest::Result& Result);
+	void OnPostWorkerObjectComplete(const UE::Zen::FZenHttpRequest::Result& Result);
+	void OnPostWorkerPackageComplete(const UE::Zen::FZenHttpRequest::Result& Result);
+	void OnPostActionObjectComplete(const UE::Zen::FZenHttpRequest::Result& Result);
+	void OnPostActionPackageComplete(const UE::Zen::FZenHttpRequest::Result& Result);
+	void OnGetResultPackageComplete(const UE::Zen::FZenHttpRequest::Result& Result);
 };
 
-class FRemoteBuildWorkerExecutor final: public IBuildWorkerExecutor
+class FRemoteBuildWorkerExecutor final: public IBuildWorkerExecutor, FRunnable
 {
 public:
 	FRemoteBuildWorkerExecutor()
 	: GlobalExecutionTimeoutSeconds(-1)
-	, RemoteExecutor(nullptr)
-	, ContentAddressableStorage(nullptr)
-	, Execution(nullptr)
 	, bEnabled(false)
 	{
 		check(IsInGameThread()); // initialization from the main thread is expected to allow config reading for the limiting heuristics
@@ -229,32 +148,36 @@ public:
 
 		bool bConfigEnabled = false;
 		GConfig->GetBool(TEXT("DerivedDataBuildRemoteExecutor"), TEXT("bEnabled"), bConfigEnabled, GEngineIni);
-		GConfig->GetString(TEXT("DerivedDataBuildRemoteExecutor"), TEXT("NameSpaceId"), NameSpaceId, GEngineIni);
 		GConfig->GetInt(TEXT("DerivedDataBuildRemoteExecutor"), TEXT("GlobalExecutionTimeoutSeconds"), GlobalExecutionTimeoutSeconds, GEngineIni);
-
-		const FName RemoteExecutionFeatureName(TEXT("RemoteExecution"));
-		IModularFeatures& ModularFeatures = IModularFeatures::Get();
 
 		if (bConfigEnabled || FParse::Param(FCommandLine::Get(), TEXT("DDC2RemoteExecution")))
 		{
-			FModuleManager::Get().LoadModule("HordeExecutor");
-			if (ModularFeatures.IsModularFeatureAvailable(RemoteExecutionFeatureName))
+			ScopeZenService = MakeUnique<UE::Zen::FScopeZenService>();
+			UE::Zen::FZenServiceInstance& ZenServiceInstance = ScopeZenService->GetInstance();
+			if (ZenServiceInstance.IsServiceRunning())
 			{
-				RemoteExecutor = &ModularFeatures.GetModularFeature<UE::RemoteExecution::IRemoteExecutor>(RemoteExecutionFeatureName);
-				if (RemoteExecutor)
-				{
-					ContentAddressableStorage = RemoteExecutor->GetContentAddressableStorage();
-					Execution = RemoteExecutor->GetExecution();
-				}
+				
+				ProcessingThreadEvent = FPlatformProcess::GetSynchEventFromPool(/* bIsManualReset = */ false);
+				ProcessingThread = TUniquePtr<FRunnableThread>(FRunnableThread::Create(this, TEXT("FRemoteBuildWorkerExecutor"), 0, TPri_BelowNormal));
+				bEnabled = ProcessingThread.IsValid();
+			}
+			
+			if (bEnabled)
+			{
+				RequestPool = MakeUnique<UE::Zen::FZenHttpRequestPool>(ZenServiceInstance.GetURL());
+				IModularFeatures::Get().RegisterModularFeature(IBuildWorkerExecutor::GetFeatureName(), this);
+			}
+			else
+			{
+				bProcessingThreadRunning = false;
+				ProcessingThreadEvent->Trigger();
+				ProcessingThread->WaitForCompletion();
+				ScopeZenService.Reset();
+				ProcessingThread.Reset();
+				FPlatformProcess::ReturnSynchEventToPool(ProcessingThreadEvent);
 			}
 		}
 
-		bEnabled = (RemoteExecutor != nullptr) && (ContentAddressableStorage != nullptr) && (Execution != nullptr) && !NameSpaceId.IsEmpty();
-		if (bEnabled)
-		{
-			ModularFeatures.RegisterModularFeature(IBuildWorkerExecutor::GetFeatureName(), this);
-		}
-		RemoteBuildTickable.SetTickable(bEnabled);
 	}
 
 	virtual ~FRemoteBuildWorkerExecutor()
@@ -262,8 +185,12 @@ public:
 		if (bEnabled)
 		{
 			IModularFeatures::Get().UnregisterModularFeature(IBuildWorkerExecutor::GetFeatureName(), this);
+			bProcessingThreadRunning = false;
+			ProcessingThreadEvent->Trigger();
+			ProcessingThread->WaitForCompletion();
+			FPlatformProcess::ReturnSynchEventToPool(ProcessingThreadEvent);
 		}
-	}
+	}	
 
 	void Build(
 		const FBuildAction& Action,
@@ -329,6 +256,45 @@ public:
 		Stats.Dump();
 	}
 
+	uint32 Run() final
+	{
+		bProcessingThreadRunning = true;
+		while (bProcessingThreadRunning)
+		{
+			ProcessingThreadEvent->Wait();
+			TUniqueFunction<void(bool)> Function;
+			while (PendingRequests.Dequeue(Function))
+			{
+				Function(true);
+			}
+			if (bProcessingThreadRunning)
+			{
+				FPlatformProcess::Sleep(1.0f);
+			}
+		}
+		return 0;
+	}
+
+	void Stop() final
+	{
+		bProcessingThreadRunning = false;
+	}
+	
+	void Exit() final
+	{
+		TUniqueFunction<void(bool)> Function;
+		while (PendingRequests.Dequeue(Function))
+		{
+			Function(false);
+		}
+	}
+
+	void AddResultWaitRequest(TUniqueFunction<void(bool)>&& Function)
+	{
+		PendingRequests.Enqueue(MoveTemp(Function));
+		ProcessingThreadEvent->Trigger();
+	}
+
 private:
 	struct FStats
 	{
@@ -336,6 +302,7 @@ private:
 		std::atomic<uint32> InFlightRemoteBuilds{0};
 
 		std::atomic<uint64> TotalSuccessfulRemoteBuilds{0};
+		std::atomic<uint64> TotalTimedOutRemoteBuilds{0};
 
 		struct FBlobStat
 		{
@@ -348,29 +315,35 @@ private:
 				Bytes.fetch_add(InBytes, std::memory_order_relaxed);
 			}
 		};
-		FBlobStat TotalActionBlobsUploaded;
-		FBlobStat TotalRequirementBlobsUploaded;
-		FBlobStat TotalDirectoryBlobsUploaded;
-		FBlobStat TotalFileBlobsUploaded;
-		FBlobStat TotalFileBlobsDownloaded;
+		FBlobStat TotalWorkerObjectsUploaded;
+		FBlobStat TotalWorkerPackagesUploaded;
+		FBlobStat TotalActionObjectsUploaded;
+		FBlobStat TotalActionPackagesUploaded;
+
+		FBlobStat TotalObjectsDownloaded;
+		FBlobStat TotalPackagesDownloaded;
 
 		void Dump()
 		{
 			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT(""));
 			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("DDC Remote Execution Stats"));
 			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("=========================="));
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Total remote builds"), TotalRemoteBuilds.load());
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Successful remote builds"), TotalSuccessfulRemoteBuilds.load());
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Uploaded actions (quantity)"), TotalActionBlobsUploaded.Quantity.load());
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Uploaded actions (KB)"), TotalActionBlobsUploaded.Bytes.load()/1024);
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Uploaded requirements (quantity)"), TotalRequirementBlobsUploaded.Quantity.load());
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Uploaded requirements (KB)"), TotalRequirementBlobsUploaded.Bytes.load()/1024);
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Uploaded directories (quantity)"), TotalDirectoryBlobsUploaded.Quantity.load());
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Uploaded directories (KB)"), TotalDirectoryBlobsUploaded.Bytes.load()/1024);
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Uploaded files (quantity)"), TotalFileBlobsUploaded.Quantity.load());
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Uploaded files (KB)"), TotalFileBlobsUploaded.Bytes.load()/1024);
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Downloaded files (quantity)"), TotalFileBlobsDownloaded.Quantity.load());
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-35s=%10") UINT64_FMT, TEXT("Downloaded files (KB)"), TotalFileBlobsDownloaded.Bytes.load()/1024);
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Total remote builds"), TotalRemoteBuilds.load());
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Successful remote builds"), TotalSuccessfulRemoteBuilds.load());
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Timed out remote builds"), TotalTimedOutRemoteBuilds.load());
+
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Uploaded worker objects (quantity)"), TotalWorkerObjectsUploaded.Quantity.load());
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Uploaded worker objects (KB)"), TotalWorkerObjectsUploaded.Bytes.load()/1024);
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Uploaded worker packages (quantity)"), TotalWorkerPackagesUploaded.Quantity.load());
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Uploaded worker packages (KB)"), TotalWorkerPackagesUploaded.Bytes.load() / 1024);
+
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Uploaded action objects (quantity)"), TotalActionObjectsUploaded.Quantity.load());
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Uploaded action objects (KB)"), TotalActionObjectsUploaded.Bytes.load() / 1024);
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Uploaded action packages (quantity)"), TotalActionPackagesUploaded.Quantity.load());
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Uploaded action packages (KB)"), TotalActionPackagesUploaded.Bytes.load() / 1024);
+
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Downloaded packages (quantity)"), TotalPackagesDownloaded.Quantity.load());
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Display, TEXT("%-36s=%10") UINT64_FMT, TEXT("Downloaded packages (KB)"), TotalPackagesDownloaded.Bytes.load() / 1024);
 		}
 	};
 
@@ -465,43 +438,18 @@ private:
 		bool bEnableLimits{false};
 	};
 
-	class FRemoteBuildTickableObject : public FTickableEditorObject, public FTickableCookObject
-	{
-		bool bIsTickable;
-		// FTickableEditorObject/FTickableCookObject interface
-		virtual void Tick(float DeltaTime) override
-		{
-			TickCook(DeltaTime, false  /* bTickComplete */);
-		}
-		virtual void TickCook(float DeltaTime, bool bTickComplete) override
-		{
-			FHttpModule* HttpModule = static_cast<FHttpModule*>(FModuleManager::Get().GetModule("HTTP"));
-			if (!HttpModule)
-			{
-				bIsTickable = false;
-				return;
-			}
-			HttpModule->GetHttpManager().Tick(DeltaTime);
-		}
-		virtual bool IsTickable() const { return bIsTickable; }
-		virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Conditional; }
-		virtual TStatId GetStatId() const override { return TStatId(); }
-	public:
-		FRemoteBuildTickableObject() : bIsTickable(false) {}
-		void SetTickable(bool IsTickable) { bIsTickable = IsTickable; }
-	};
-
 	friend class FRemoteBuildExecutionRequest;
 
 	FStats Stats;
 	FLimitingHeuristics LimitingHeuristics;
-	FRemoteBuildTickableObject RemoteBuildTickable;
-	FString NameSpaceId;
+	TUniquePtr<FRunnableThread> ProcessingThread;
+	FEvent* ProcessingThreadEvent;
+	TQueue<TUniqueFunction<void(bool)>, EQueueMode::Mpsc> PendingRequests;
 	int GlobalExecutionTimeoutSeconds;
-	UE::RemoteExecution::IRemoteExecutor* RemoteExecutor;
-	UE::RemoteExecution::IContentAddressableStorage* ContentAddressableStorage;
-	UE::RemoteExecution::IExecution* Execution;
+	TUniquePtr<UE::Zen::FScopeZenService> ScopeZenService;
+	TUniquePtr<UE::Zen::FZenHttpRequestPool> RequestPool;
 	bool bEnabled;
+	std::atomic<bool> bProcessingThreadRunning;
 };
 
 FRemoteBuildExecutionRequest::FRemoteBuildExecutionRequest(
@@ -520,8 +468,20 @@ FRemoteBuildExecutionRequest::FRemoteBuildExecutionRequest(
 , bHeuristicBuildStarted(false)
 {
 	Owner.Begin(this);
-	DetermineMissingBlobsAsync()
-		.Next([this] (TMap<FIoHash, UE::RemoteExecution::EStatusCode>&& Result) { OnMissingBlobsDetermined(MoveTemp(Result)); });
+
+	if (!Executor.LimitingHeuristics.TryStartNewBuild(Executor.Stats))
+	{
+		State.Owner.End(this, [this]
+			{
+				CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Error });
+				CompletionEvent->Trigger();
+			});
+		return;
+	}
+
+	bHeuristicBuildStarted = true;
+
+	DetermineIfWorkerExists_Async();
 }
 
 FRemoteBuildExecutionRequest::~FRemoteBuildExecutionRequest()
@@ -532,325 +492,65 @@ FRemoteBuildExecutionRequest::~FRemoteBuildExecutionRequest()
 	}
 }
 
-FRemoteBuildExecutionRequest::FMerkleTreeDirectoryBuilder& FRemoteBuildExecutionRequest::GetOrAddMerkleTreeDirectory(FStringView Path, int32& OutDirectoryBuilderIndex)
+FCbObject FRemoteBuildExecutionRequest::BuildWorkerDescriptor(const FBuildWorker& Worker, const int TimeoutSeconds)
 {
-	int32& DirectoryBuilderIndex = State.PathToDirectoryIndex.FindOrAdd(Path, INDEX_NONE);
-	if (DirectoryBuilderIndex == INDEX_NONE)
-	{
-		DirectoryBuilderIndex = State.Directories.Num();
-		FMerkleTreeDirectoryBuilder& NewNode = State.Directories.AddDefaulted_GetRef();
-		NewNode.Path = Path;
-		NewNode.Name = Path.IsEmpty() ? Path : FPathViews::GetCleanFilename(Path);
-	}
+	FCbWriter WorkerDescriptor;
+	WorkerDescriptor.BeginObject();
 
-	OutDirectoryBuilderIndex = DirectoryBuilderIndex;
+	WorkerDescriptor.AddString("name"_ASV, Worker.GetName());
+	WorkerDescriptor.AddString("path"_ASV, Worker.GetPath());
+	WorkerDescriptor.AddString("host"_ASV, Worker.GetHostPlatform());
+	WorkerDescriptor.AddUuid("buildsystem_version"_ASV, Worker.GetBuildSystemVersion());
+	WorkerDescriptor.AddInteger("timeout"_ASV, TimeoutSeconds);
+	WorkerDescriptor.AddInteger("cores"_ASV, 1);
+	//WorkerDescriptor.AddInteger("memory"_ASV, 1 * 1024 * 1024 * 1024);
 
-	int32 ContainingDirectoryIndex = DirectoryBuilderIndex;
-	while (!Path.IsEmpty())
-	{
-		int32 SubDirIndex = ContainingDirectoryIndex;
-		Path = FPathViews::GetPath(Path);
-		GetOrAddMerkleTreeDirectory(Path, ContainingDirectoryIndex).SubDirIndices.AddUnique(SubDirIndex);
-	}
-
-	return State.Directories[OutDirectoryBuilderIndex];
-}
-
-int32 FRemoteBuildExecutionRequest::AddMerkleTreeFile(FStringView Path, const FIoHash& RawHash, uint64 RawSize, bool bIsExecutable, EFileType FileType, FCompositeBuffer ContentBytes)
-{
-	FStringView ContainingDirectoryPath = FPathViews::GetPath(Path);
-	int32 ContainingDirectoryIndex = INDEX_NONE;
-	FMerkleTreeDirectoryBuilder* ContainingDirectoryBuilder = &GetOrAddMerkleTreeDirectory(ContainingDirectoryPath, ContainingDirectoryIndex);
-	UE::RemoteExecution::FFileNode& NewNode = ContainingDirectoryBuilder->Directory.Files.AddDefaulted_GetRef();
-	NewNode.Name = FPathViews::GetCleanFilename(Path);
-	NewNode.Hash = RawHash;
-	NewNode.Size = RawSize;
-
-	constexpr int32 ExecutableFileAttribute = 0x1ED; // 0755 octal
-	constexpr int32 NormalFileAttribute = 0x1A4; // 0644 octal
-	NewNode.Attributes = bIsExecutable ? ExecutableFileAttribute : NormalFileAttribute;
-
-	UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Remote execution: added merkle tree file '%.*s' (hash: %s, size: %u)"), Path.Len(), Path.GetData(), *::LexToString(RawHash), RawSize);
-
-	int32 NewFileIndex = State.Files.Num();
-	State.DigestFilesystemIndex.Add(NewNode.Hash, FVariantIndex(ENodeType::File, NewFileIndex));
-	FMerkleTreeFileBuilder& FileBuilder = State.Files.AddDefaulted_GetRef();
-	FileBuilder.Path = Path;
-	FileBuilder.File = NewNode; // Duplicates the node in the state's file array
-	FileBuilder.Type = FileType;
-	if (ContentBytes)
-	{
-		FileBuilder.ContentBytes = ContentBytes;
-	}
-
-	return NewFileIndex;
-}
-
-const FIoHash& FRemoteBuildExecutionRequest::BuildMerkleTreeDirectoryDigest(int32 Index)
-{
-	FMerkleTreeDirectoryBuilder& DirBuilder = State.Directories[Index];
-
-	if (DirBuilder.Digest.IsSet())
-	{
-		return DirBuilder.Digest.GetValue();
-	}
-
-	for (int32 SubDirIndex : DirBuilder.SubDirIndices)
-	{
-		UE::RemoteExecution::FDirectoryNode& SubDirNode = DirBuilder.Directory.Directories.AddDefaulted_GetRef();
-		SubDirNode.Name = State.Directories[SubDirIndex].Name;
-		SubDirNode.Hash = BuildMerkleTreeDirectoryDigest(SubDirIndex);
-		State.DigestFilesystemIndex.Add(SubDirNode.Hash, FVariantIndex(ENodeType::Directory, SubDirIndex));
-	}
-
-	DirBuilder.Directory.Directories.Sort([] (const UE::RemoteExecution::FDirectoryNode& A, const UE::RemoteExecution::FDirectoryNode& B)
-	{
-		return A.Name < B.Name;
-	});
-
-	DirBuilder.Directory.Files.Sort([] (const UE::RemoteExecution::FFileNode& A, const UE::RemoteExecution::FFileNode& B)
-	{
-		return A.Name < B.Name;
-	});
-
-	Executor.ContentAddressableStorage->ToBlob(DirBuilder.Directory, DirBuilder.ContentBytes, DirBuilder.Digest.Emplace());
-
-	return DirBuilder.Digest.GetValue();
-}
-
-void FRemoteBuildExecutionRequest::BuildMerkleTreeNodes()
-{
-	TArray<FIoHash> WorkerFileHashes;
-	TArray<TTuple<FStringView, bool>> WorkerFileMeta;
-	State.BuildWorker.IterateExecutables([&WorkerFileHashes, &WorkerFileMeta] (FStringView Path, const FIoHash& RawHash, uint64 RawSize)
+	WorkerDescriptor.BeginArray("environment"_ASV);
+	Worker.IterateEnvironment([&WorkerDescriptor](FStringView Name, FStringView Value)
 		{
-			WorkerFileHashes.Emplace(RawHash);
-			WorkerFileMeta.Emplace(Path, true);
+			WorkerDescriptor.AddString(WriteToString<256>(Name, "=", Value));
 		});
+	WorkerDescriptor.EndArray();
 
-	State.BuildWorker.IterateFiles([&WorkerFileHashes, &WorkerFileMeta] (FStringView Path, const FIoHash& RawHash, uint64 RawSize)
+	WorkerDescriptor.BeginArray("executables"_ASV);
+	Worker.IterateExecutables([&WorkerDescriptor](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
-			WorkerFileHashes.Emplace(RawHash);
-			WorkerFileMeta.Emplace(Path, false);
+			WorkerDescriptor.BeginObject();
+			WorkerDescriptor.AddString("name"_ASV, Key);
+			WorkerDescriptor.AddBinaryAttachment("hash"_ASV, RawHash);
+			WorkerDescriptor.AddInteger("size"_ASV, RawSize);
+			WorkerDescriptor.EndObject();
 		});
+	WorkerDescriptor.EndArray();
 
-	FRequestOwner BlockingOwner(EPriority::Blocking);
-	State.BuildWorker.FindFileData(WorkerFileHashes, BlockingOwner,
-		[this, &WorkerFileMeta] (FBuildWorkerFileDataCompleteParams&& Params)
+	WorkerDescriptor.BeginArray("files");
+	Worker.IterateFiles([&WorkerDescriptor](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
-			uint32 MetaIndex = 0;
-			for (const FCompressedBuffer& Buffer : Params.Files)
-			{
-				const TTuple<FStringView, bool>& Meta = WorkerFileMeta[MetaIndex];
-				FCompositeBuffer DecompressedComposite = Buffer.DecompressToComposite();
-				AddMerkleTreeFile(Meta.Key, FIoHash::HashBuffer(DecompressedComposite), DecompressedComposite.GetSize(), Meta.Value, EFileType::Worker, Buffer.DecompressToComposite());
-				++MetaIndex;
-			}
+			WorkerDescriptor.BeginObject();
+			WorkerDescriptor.AddString("name"_ASV, Key);
+			WorkerDescriptor.AddBinaryAttachment("hash"_ASV, RawHash);
+			WorkerDescriptor.AddInteger("size"_ASV, RawSize);
+			WorkerDescriptor.EndObject();
 		});
-	BlockingOwner.Wait();
+	WorkerDescriptor.EndArray();
 
-	State.BuildAction.IterateInputs([this] (FStringView Key, const FIoHash& RawHash, uint64 RawSize)
+	WorkerDescriptor.BeginArray("dirs"_ASV);
+	WorkerDescriptor.AddString(WriteToString<256>("Engine/Binaries/", Worker.GetHostPlatform()));
+	WorkerDescriptor.EndArray();
+
+	WorkerDescriptor.BeginArray("functions"_ASV);
+	Worker.IterateFunctions([&WorkerDescriptor](FStringView Name, const FGuid& Version)
 		{
-			TStringBuilder<128> InputPath;
-			InputPath << TEXT("Inputs/") << RawHash;
-			const FString& NewInputPath = State.InputPaths.Emplace_GetRef(InputPath);
-			const FCompressedBuffer& Buffer = State.BuildInputs.Get().FindInput(Key);
-			check(!Buffer.IsNull());
-			int32 FileIndex = AddMerkleTreeFile(NewInputPath, FIoHash::HashBuffer(Buffer.GetCompressed()), Buffer.GetCompressedSize(), false, EFileType::Input, Buffer.GetCompressed());
-			State.FileIndexToInputKey.Emplace(FileIndex, Key);
+			WorkerDescriptor.BeginObject();
+			WorkerDescriptor.AddString("name"_ASV, Name);
+			WorkerDescriptor.AddUuid("version"_ASV, Version);
+			WorkerDescriptor.EndObject();
 		});
+	WorkerDescriptor.EndArray();
 
-	// This base directory must be created as worker executables (even those that don't exist in this directory) will attempt to change directories into it during startup.
-	int32 BaseDirectoryIndex = INDEX_NONE;
-	TStringBuilder<128> BaseDirectoryPathBuilder;
-	FPathViews::Append(BaseDirectoryPathBuilder, TEXT("Engine/Binaries/"), State.BuildWorker.GetHostPlatform());
-	State.BaseDirectoryPath = BaseDirectoryPathBuilder.ToString();
-	GetOrAddMerkleTreeDirectory(State.BaseDirectoryPath, BaseDirectoryIndex);
+	WorkerDescriptor.EndObject();
 
-	FCbWriter BuildActionWriter;
-	State.BuildAction.Save(BuildActionWriter);
-	FUniqueBuffer UncompressedBuildActionContentBytes = FUniqueBuffer::Alloc(BuildActionWriter.GetSaveSize());
-	BuildActionWriter.Save(UncompressedBuildActionContentBytes);
-	State.BuildActionContentBytes = FCompositeBuffer(UncompressedBuildActionContentBytes.MoveToShared());
-	State.BuildActionDigest = FIoHash::HashBuffer(State.BuildActionContentBytes);
-	AddMerkleTreeFile(TEXT("Build.action"), State.BuildActionDigest, State.BuildActionContentBytes.GetSize(), false, EFileType::BuildAction, State.BuildActionContentBytes);
-
-
-	if (!State.PathToDirectoryIndex.IsEmpty())
-	{
-		int32 RootDirectoryIndex = State.PathToDirectoryIndex.FindChecked(TEXT(""));
-		State.Task.SandboxHash = BuildMerkleTreeDirectoryDigest(RootDirectoryIndex);
-		State.DigestFilesystemIndex.Add(State.Task.SandboxHash, FVariantIndex(ENodeType::Directory, RootDirectoryIndex));
-	}
-
-	{
-		State.Requirements.Condition = TEXT("OSFamily == 'Windows'");
-		Executor.ContentAddressableStorage->ToBlob(State.Requirements, State.RequirementsContentBytes, State.Task.RequirementsHash);
-	}
-
-	State.Task.OutputPaths.Add("Outputs");
-	State.Task.OutputPaths.Add("Build.output");
-	State.Task.Executable = State.BuildWorker.GetPath();
-	State.Task.Arguments.Add("-Build=Build.action");
-	State.BuildWorker.IterateEnvironment([this] (FStringView Name, FStringView Value)
-		{
-			State.Task.EnvVars.Add(FString(Name), FString(Value));
-		});
-	Executor.ContentAddressableStorage->ToBlob(State.Task, State.TaskContentBytes, State.TaskDigest);
-}
-
-void FRemoteBuildExecutionRequest::GatherMissingInputFileBlobs(TArray<FStringView>& OutMissingInputs)
-{
-	for (const TPair<FIoHash, UE::RemoteExecution::EStatusCode>& MissingItem : State.DoBlobsExistResponse)
-	{
-		if (MissingItem.Value == UE::RemoteExecution::EStatusCode::Ok)
-		{
-			continue;
-		}
-
-		TArray<FVariantIndex> DigestFilesystemEntries;
-		State.DigestFilesystemIndex.MultiFind(MissingItem.Key, DigestFilesystemEntries);
-
-		for (FVariantIndex& VariantIndex : DigestFilesystemEntries)
-		{
-			if (VariantIndex.NodeType == ENodeType::File)
-			{
-				const FMerkleTreeFileBuilder& File = State.Files[VariantIndex.Index];
-				if ((File.Type == EFileType::Input) && File.ContentBytes.IsNull())
-				{
-					OutMissingInputs.Add(State.FileIndexToInputKey[VariantIndex.Index]);
-				}
-			}
-		}
-	}
-}
-
-bool FRemoteBuildExecutionRequest::ValidateUploadSuccess(const TMap<FIoHash, UE::RemoteExecution::EStatusCode>& PutBlobsResponse)
-{
-	bool bSuccess = true;
-	for (const TPair<FIoHash, TArray<uint8>>& BlobRequest : State.PutBlobsRequest)
-	{
-		const UE::RemoteExecution::EStatusCode* StatusCode = PutBlobsResponse.Find(BlobRequest.Key);
-		if (StatusCode == nullptr || *StatusCode != UE::RemoteExecution::EStatusCode::Ok)
-		{
-			FStringView ActionName = State.BuildAction.GetName();
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Log, TEXT("Remote execution system error: data for action '%.*s' could not be uploaded (hash: %s, size: %u)"), ActionName.Len(), ActionName.GetData(), *::LexToString(BlobRequest.Key), BlobRequest.Value.Num());
-			bSuccess = false;
-		}
-	}
-	return bSuccess;
-}
-
-void FRemoteBuildExecutionRequest::GatherExecuteFileResults(const TMap<FIoHash, TArray<uint8>>& Data, const FString& Parent, const FIoHash& DirectoryTreeHash)
-{
-	if (DirectoryTreeHash == FIoHash::Zero)
-	{
-		return;
-	}
-
-	UE::RemoteExecution::FDirectoryTree DirectoryTree;
-	{
-		const FCbObjectView View = FCbObjectView(Data[DirectoryTreeHash].GetData());
-		DirectoryTree.Load(View);
-	}
-
-	for (UE::RemoteExecution::FFileNode& FileNode : DirectoryTree.Files)
-	{
-		FString Path = Parent;
-		Path.Append(MoveTemp(FileNode.Name));
-		State.ExecuteResultFiles.Add(MoveTemp(Path), MoveTemp(FileNode.Hash));
-	}
-
-	for (UE::RemoteExecution::FDirectoryNode& DirectoryNode : DirectoryTree.Directories)
-	{
-		FString Path = Parent;
-		Path.Append(MoveTemp(DirectoryNode.Name));
-		Path.AppendChar('/');
-		GatherExecuteFileResults(Data, Parent, DirectoryNode.Hash);
-	}
-}
-
-FOptionalBuildOutput FRemoteBuildExecutionRequest::ComposeBuildOutput(TMap<FIoHash, TPair<UE::RemoteExecution::EStatusCode, TArray<uint8>>>&& GetBlobsResponse, EStatus& OutStatus)
-{
-	OutStatus = EStatus::Error;
-
-	for (const TPair<FIoHash, TPair<UE::RemoteExecution::EStatusCode, TArray<uint8>>>& BlobResponse : GetBlobsResponse)
-	{
-		if (BlobResponse.Value.Key == UE::RemoteExecution::EStatusCode::Ok)
-		{
-			continue;
-		}
-	}
-
-	if (!State.ExecuteResultFiles.Contains(TEXT("Build.output")))
-	{
-		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Worker error: build output structure not produced!"));
-		return FOptionalBuildOutput();
-	};
-
-	FIoHash BuildOutputDigest = State.ExecuteResultFiles[TEXT("Build.output")];
-
-	FOptionalBuildOutput RemoteBuildOutput;
-
-	TMap<FIoHash, FCompressedBuffer> PayloadResponses;
-	for (TPair<FString, FIoHash>& ResultFile : State.ExecuteResultFiles)
-	{
-		TArray<uint8>&& FileData = MoveTemp(GetBlobsResponse[ResultFile.Value].Value);
-		Executor.Stats.TotalFileBlobsDownloaded.AddBlob(FileData.Num());
-
-		if (ResultFile.Value == BuildOutputDigest)
-		{
-			FSharedBuffer BuildOutputBuffer = MakeSharedBufferFromArray(MoveTemp(FileData));
-
-			if (ValidateCompactBinary(BuildOutputBuffer, ECbValidateMode::Default) != ECbValidateError::None)
-			{
-				UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Worker error: build output structure not valid!"));
-				return FOptionalBuildOutput();
-			}
-
-			RemoteBuildOutput = FBuildOutput::Load(State.BuildAction.GetName(), State.BuildAction.GetFunction(), FCbObject(BuildOutputBuffer));
-		}
-		else
-		{
-			FCompressedBuffer NewBuffer = FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(FileData)));
-			PayloadResponses.Add(NewBuffer.GetRawHash(), MoveTemp(NewBuffer));
-		}
-	}
-
-	if (RemoteBuildOutput.IsNull())
-	{
-		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: build output blob missing!"));
-		return FOptionalBuildOutput();
-	}
-
-	FBuildOutputBuilder OutputBuilder = State.BuildSystem.CreateOutput(State.BuildAction.GetName(), State.BuildAction.GetFunction());
-	
-	RemoteBuildOutput.Get().IterateDiagnostics( [&OutputBuilder](const FBuildDiagnostic& Diagnostic)
-	{
-		if (Diagnostic.Level == EBuildDiagnosticLevel::Warning)
-		{
-			OutputBuilder.AddWarning(Diagnostic.Category, Diagnostic.Message);
-		}
-		else if (Diagnostic.Level == EBuildDiagnosticLevel::Error)
-		{
-			OutputBuilder.AddError(Diagnostic.Category, Diagnostic.Message);
-		}
-	});
-
-	for (const FPayload& Payload : RemoteBuildOutput.Get().GetPayloads())
-	{
-		FCompressedBuffer* BufferForPayload = PayloadResponses.Find(Payload.GetRawHash());
-		if (!BufferForPayload)
-		{
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: payload blob missing!"));
-			return FOptionalBuildOutput();
-		}
-
-		OutputBuilder.AddPayload(FPayload(Payload.GetId(), *BufferForPayload));
-	}
-
-	OutStatus = State.ExecuteResult.ExitCode == 0 ? EStatus::Ok : EStatus::Error;
-	return OutputBuilder.Build();
+	return std::move(WorkerDescriptor.Save().AsObject());
 }
 
 bool FRemoteBuildExecutionRequest::ProcessCancellation()
@@ -867,11 +567,11 @@ bool FRemoteBuildExecutionRequest::ProcessCancellation()
 	return false;
 }
 
-bool FRemoteBuildExecutionRequest::IsStatusOk(UE::RemoteExecution::EStatusCode Status, const TCHAR* OperationDesc)
+bool FRemoteBuildExecutionRequest::IsResultOk(const UE::Zen::FZenHttpRequest::Result& Result, const TCHAR* OperationDesc)
 {
-	if (Status != UE::RemoteExecution::EStatusCode::Ok)
+	if (Result == Zen::FZenHttpRequest::Result::Failed)
 	{
-		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: operation '%s' produced an error result (%d)!"), OperationDesc, (int)Status);
+		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: operation '%s' produced an failed result!"), OperationDesc);
 
 		State.Owner.End(this, [this]
 		{
@@ -883,374 +583,459 @@ bool FRemoteBuildExecutionRequest::IsStatusOk(UE::RemoteExecution::EStatusCode S
 	return true;
 }
 
-TFuture<TMap<FIoHash, UE::RemoteExecution::EStatusCode>> FRemoteBuildExecutionRequest::DetermineMissingBlobsAsync()
+bool FRemoteBuildExecutionRequest::IsResponseOk(const int ResponseCode, const TCHAR* OperationDesc)
 {
-	BuildMerkleTreeNodes();
-
-	State.DoBlobsExistRequest.Add(State.TaskDigest);
-	UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Checking CAS presence of task (hash: %s) of size %d."), *::LexToString(State.TaskDigest), State.TaskContentBytes.Num());
-
-	State.DoBlobsExistRequest.Add(State.Task.RequirementsHash);
-	UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Checking CAS presence of requirements (hash: %s) of size %d."), *::LexToString(State.Task.RequirementsHash), State.RequirementsContentBytes.Num());
-
-	for (const TPair<FIoHash, FVariantIndex>& FilesystemItem : State.DigestFilesystemIndex)
+	if (!UE::Zen::IsSuccessCode(ResponseCode))
 	{
-		State.DoBlobsExistRequest.Add(FilesystemItem.Key);
-		switch (FilesystemItem.Value.NodeType)
-		{
-		case ENodeType::Directory:
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Checking CAS presence of directory '%s' (hash: %s) of size %d."),
-				*FString(State.Directories[FilesystemItem.Value.Index].Path),
-				*::LexToString(FilesystemItem.Key),
-				State.Directories[FilesystemItem.Value.Index].ContentBytes.Num());
-			break;
-		case ENodeType::File:
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Checking CAS presence of file '%s' (hash: %s, type: %s) of size %d."),
-				*FString(State.Files[FilesystemItem.Value.Index].Path),
-				*::LexToString(FilesystemItem.Key),
-				LexToString(State.Files[FilesystemItem.Value.Index].Type), State.Files[FilesystemItem.Value.Index].File.Size);
-			break;
-		default:
-			checkNoEntry();
-			break;
-		}
+		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: operation '%s' produced an error result (%d)!"), OperationDesc, ResponseCode);
+
+		State.Owner.End(this, [this]
+			{
+				CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Error });
+				CompletionEvent->Trigger();
+			});
+		return false;
 	}
-	return Executor.ContentAddressableStorage->DoBlobsExistAsync(Executor.NameSpaceId, State.DoBlobsExistRequest);
+	return true;
 }
 
-void FRemoteBuildExecutionRequest::LoadMissingWorkerFileBlobsAsync()
+void FRemoteBuildExecutionRequest::DetermineIfWorkerExists_Async()
 {
-	TArray<FIoHash> WorkerFileHashes;
-	TMultiMap<FIoHash, uint32> WorkerFileMapping;
-	for (const TPair<FIoHash, UE::RemoteExecution::EStatusCode>& MissingItem : State.DoBlobsExistResponse)
-	{
-		if (MissingItem.Value == UE::RemoteExecution::EStatusCode::Ok)
+	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::GetWorkerExists"), [this]
 		{
-			continue;
+			State.WorkerDescriptor = BuildWorkerDescriptor(State.BuildWorker, Executor.GlobalExecutionTimeoutSeconds);
+			State.WorkerDescriptionId = State.WorkerDescriptor.GetHash();
+
+			TStringBuilder<128> WorkerUri;
+			WorkerUri.AppendAnsi("/apply/workers/");
+			WorkerUri << State.WorkerDescriptionId;
+
+			UE::Zen::FZenScopedRequestPtr Request(Executor.RequestPool.Get());
+			State.Result = Request->PerformBlockingDownload(WorkerUri, nullptr, Zen::EContentType::CbObject);
+			State.ResponseCode = Request->GetResponseCode();
+			
+			OnWorkerExistsDetermined(State.Result);
 		}
-		TArray<FVariantIndex> DigestFilesystemEntries;
-		State.DigestFilesystemIndex.MultiFind(MissingItem.Key, DigestFilesystemEntries);
-
-		for (FVariantIndex& VariantIndex : DigestFilesystemEntries)
-		{
-			if (VariantIndex.NodeType == ENodeType::File)
-			{
-				const FMerkleTreeFileBuilder& File = State.Files[VariantIndex.Index];
-				if ((File.Type == EFileType::Worker) && File.ContentBytes.IsNull())
-				{
-					WorkerFileHashes.Emplace(MissingItem.Key);
-					WorkerFileMapping.Add(MissingItem.Key, VariantIndex.Index);
-				}
-			}
-		}
-	}
-
-	FRequestOwner BlockingOwner(EPriority::Blocking);
-	State.BuildWorker.FindFileData(WorkerFileHashes, BlockingOwner,
-		[this, &WorkerFileMapping] (FBuildWorkerFileDataCompleteParams&& Params)
-		{
-			uint32 MetaIndex = 0;
-			for (const FCompressedBuffer& Buffer : Params.Files)
-			{
-				FCompositeBuffer UncompressedWorkerFile = Buffer.DecompressToComposite();
-				TArray<uint32> WorkerFileIndices;
-				WorkerFileMapping.MultiFind(Buffer.GetRawHash(), WorkerFileIndices);
-
-				for (int32 FileIndex : WorkerFileIndices)
-				{
-					State.Files[FileIndex].ContentBytes = UncompressedWorkerFile;
-				}
-			}
-		});
-	BlockingOwner.Wait();
+	);
 }
 
-TFuture<TMap<FIoHash, UE::RemoteExecution::EStatusCode>> FRemoteBuildExecutionRequest::UploadMissingBlobsAsync()
+void FRemoteBuildExecutionRequest::PostWorkerObject_Async()
 {
-	for (const TPair<FIoHash, UE::RemoteExecution::EStatusCode>& MissingItem : State.DoBlobsExistResponse)
-	{
-		if (MissingItem.Value == UE::RemoteExecution::EStatusCode::Ok)
+	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::PostWorkerObject"), [this]
 		{
-			continue;
-		}
+			TStringBuilder<128> WorkerUri;
+			WorkerUri.AppendAnsi("/apply/workers/");
+			WorkerUri << State.WorkerDescriptionId;
 
-		if (MissingItem.Key == State.TaskDigest)
-		{
-			Executor.Stats.TotalActionBlobsUploaded.AddBlob(State.TaskContentBytes.Num());
-			State.PutBlobsRequest.Add(State.TaskDigest, MoveTemp(State.TaskContentBytes));
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Uploading task (hash: %s) of upload size %d."), *::LexToString(State.TaskDigest), State.PutBlobsRequest[State.TaskDigest].Num());
-		}
-		else if (MissingItem.Key == State.Task.RequirementsHash)
-		{
-			Executor.Stats.TotalRequirementBlobsUploaded.AddBlob(State.RequirementsContentBytes.Num());
-			State.PutBlobsRequest.Add(State.Task.RequirementsHash, MoveTemp(State.RequirementsContentBytes));
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Uploading requirements (hash: %s) of upload size %d."), *::LexToString(State.Task.RequirementsHash), State.PutBlobsRequest[State.Task.RequirementsHash].Num());
-		}
-		else
-		{
-			const FVariantIndex VariantIndex = State.DigestFilesystemIndex.FindChecked(MissingItem.Key);
-			switch (VariantIndex.NodeType)
+			Executor.Stats.TotalWorkerObjectsUploaded.AddBlob(State.WorkerDescriptor.GetSize());
+
+			State.NeedHashes.Empty();
+
+			UE::Zen::FZenScopedRequestPtr Request(Executor.RequestPool.Get());
+			State.Result = Request->PerformBlockingPost(WorkerUri, State.WorkerDescriptor);
+			State.ResponseCode = Request->GetResponseCode();
+
+			if (Request->GetResponseCode() == 404)
 			{
-			case ENodeType::Directory:
-				Executor.Stats.TotalDirectoryBlobsUploaded.AddBlob(State.Directories[VariantIndex.Index].ContentBytes.Num());
-				State.PutBlobsRequest.Add(State.Directories[VariantIndex.Index].Digest.GetValue(), MoveTemp(State.Directories[VariantIndex.Index].ContentBytes));
-				UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Uploading directory '%s' (hash: %s) of upload size %d."),
-					*FString(State.Directories[VariantIndex.Index].Path),
-					*::LexToString(State.Directories[VariantIndex.Index].Digest.GetValue()),
-					State.PutBlobsRequest[State.Directories[VariantIndex.Index].Digest.GetValue()].Num());
-				break;
-			case ENodeType::File:
+				FCbObjectView Response = Request->GetResponseAsObject();
+				FCbArrayView NeedArray = Response["need"].AsArrayView();
+
+				for (auto& It : NeedArray)
 				{
-					Executor.Stats.TotalFileBlobsUploaded.AddBlob(State.Files[VariantIndex.Index].ContentBytes.GetSize());
-					FCompositeBuffer& FileBuffer = State.Files[VariantIndex.Index].ContentBytes;
-					check(!FileBuffer.IsNull());
-					TArray<uint8> FileData;
-					FileData.Reserve(FileBuffer.GetSize());
-					for (const FSharedBuffer& Segment : State.Files[VariantIndex.Index].ContentBytes.GetSegments())
+					State.NeedHashes.Add(It.AsHash());
+				}
+			}
+
+			OnPostWorkerObjectComplete(State.Result);
+		}
+	);
+}
+
+void FRemoteBuildExecutionRequest::PostWorkerPackage_Async()
+{
+	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::PostWorkerPackage"), [this]
+		{
+			TStringBuilder<128> WorkerUri;
+			WorkerUri.AppendAnsi("/apply/workers/");
+			WorkerUri << State.WorkerDescriptionId;
+
+			uint64_t AttachmentBytes{};
+			FCbPackage Package;
+
+			{
+				TSet<FIoHash> WorkerFileHashes;
+				State.BuildWorker.IterateExecutables([NeedHashes = State.NeedHashes, &WorkerFileHashes](FStringView Path, const FIoHash& RawHash, uint64 RawSize)
 					{
-						FileData.Append((const uint8 *)Segment.GetData(), Segment.GetSize());
-					}
-					FileBuffer.Reset();
-					State.PutBlobsRequest.Add(State.Files[VariantIndex.Index].File.Hash, MoveTemp(FileData));
-					UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Uploading file '%s' (hash: %s, type: %s) of upload size %d."),
-						*FString(State.Files[VariantIndex.Index].Path),
-						*::LexToString(State.Files[VariantIndex.Index].File.Hash), LexToString(State.Files[VariantIndex.Index].Type),
-						State.PutBlobsRequest[State.Files[VariantIndex.Index].File.Hash].Num());
+						if (NeedHashes.Contains(RawHash))
+						{
+							WorkerFileHashes.Emplace(RawHash);
+						}
+					});
+
+				State.BuildWorker.IterateFiles([NeedHashes = State.NeedHashes, &WorkerFileHashes](FStringView Path, const FIoHash& RawHash, uint64 RawSize)
+					{
+						if (NeedHashes.Contains(RawHash))
+						{
+							WorkerFileHashes.Emplace(RawHash);
+						}
+					});
+
+				if (State.NeedHashes.Num() != WorkerFileHashes.Num())
+				{
+					UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: build input file missing!"));
+					State.Result = UE::Zen::FZenHttpRequest::Result::Failed;
+					State.ResponseCode = 0;
+					OnPostWorkerPackageComplete(State.Result);
+					return;
 				}
-				break;
-			default:
-				checkNoEntry();
-				break;
+
+				FRequestOwner BlockingOwner(EPriority::Blocking);
+				State.BuildWorker.FindFileData(WorkerFileHashes.Array(), BlockingOwner, [&Package, &AttachmentBytes](FBuildWorkerFileDataCompleteParams&& Params)
+					{
+						for (const FCompressedBuffer& Buffer : Params.Files)
+						{
+							Package.AddAttachment(FCbAttachment{ Buffer });
+							AttachmentBytes += Buffer.GetCompressedSize();
+						}
+					});
+				BlockingOwner.Wait();
 			}
+
+			Package.SetObject(State.WorkerDescriptor);
+
+			Executor.Stats.TotalActionPackagesUploaded.AddBlob(AttachmentBytes + State.WorkerDescriptor.GetSize());
+
+			UE::Zen::FZenScopedRequestPtr Request(Executor.RequestPool.Get());
+			State.Result = Request->PerformBlockingPostPackage(WorkerUri, Package);
+			State.ResponseCode = Request->GetResponseCode();
+			
+			OnPostWorkerPackageComplete(State.Result);
 		}
-	}
-
-	return Executor.ContentAddressableStorage->PutBlobsAsync(Executor.NameSpaceId, State.PutBlobsRequest);
+	);
 }
 
-TFuture<TPair<UE::RemoteExecution::EStatusCode, UE::RemoteExecution::FGetTaskUpdatesResponse>> FRemoteBuildExecutionRequest::ExecuteBuildAsync()
+void FRemoteBuildExecutionRequest::PostActionObject_Async()
 {
-	State.ExecuteRequest.RequirementsHash = State.Task.RequirementsHash;
-	State.ExecuteRequest.TaskHashes.Empty();
-	State.ExecuteRequest.TaskHashes.Add(State.TaskDigest);
-	//State.ExecuteRequest.DoNotCache = true;
-	return Executor.Execution->RunTasksAsync(State.ExecuteRequest, Executor.GlobalExecutionTimeoutSeconds);
-}
-
-TFuture<TPair<UE::RemoteExecution::EStatusCode, UE::RemoteExecution::FGetObjectTreeResponse>> FRemoteBuildExecutionRequest::GetTaskResultAsync()
-{
-	return Executor.ContentAddressableStorage->GetObjectTreeAsync(Executor.NameSpaceId, State.ExecuteResponse.ResultHash);
-}
-
-TFuture<TMap<FIoHash, TPair<UE::RemoteExecution::EStatusCode, TArray<uint8>>>> FRemoteBuildExecutionRequest::DownloadResultsAsync()
-{
-	return Executor.ContentAddressableStorage->GetBlobsAsync(Executor.NameSpaceId, State.GetBlobsRequest);
-}
-
-void FRemoteBuildExecutionRequest::OnMissingBlobsDetermined(TMap<FIoHash, UE::RemoteExecution::EStatusCode>&& Result)
-{
-	if (ProcessCancellation())
-	{
-		return;
-	}
-
-	for (const TPair<FIoHash, UE::RemoteExecution::EStatusCode>& Entry : Result)
-	{
-		if (Entry.Value != UE::RemoteExecution::EStatusCode::NotFound && !IsStatusOk(Entry.Value, TEXT("FindMissingBlobs")))
+	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::PostActionObject"), [this]
 		{
+			{
+				FCbWriter BuildActionWriter;
+				State.BuildAction.Save(BuildActionWriter);
+				State.Action = BuildActionWriter.Save().AsObject();
+				State.ActionId = State.Action.GetHash();
+			}
+
+			TStringBuilder<128> ActionUri;
+			ActionUri.AppendAnsi("/apply/jobs/");
+			ActionUri << State.WorkerDescriptionId;
+
+			State.NeedHashes.Empty();
+
+			Executor.Stats.TotalActionObjectsUploaded.AddBlob(State.Action.GetSize());
+
+			UE::Zen::FZenScopedRequestPtr Request(Executor.RequestPool.Get());
+			State.Result = Request->PerformBlockingPost(ActionUri, State.Action);
+			State.ResponseCode = Request->GetResponseCode();
+
+			if (Request->GetResponseCode() == 404)
+			{
+				FCbObjectView Response = Request->GetResponseAsObject();
+				FCbArrayView NeedArray = Response["need"].AsArrayView();
+
+				for (auto& It : NeedArray)
+				{
+					State.NeedHashes.Add(It.AsHash());
+				}
+			}
+
+			OnPostActionObjectComplete(State.Result);
+		}
+	);
+}
+
+void FRemoteBuildExecutionRequest::PostActionPackage_Async()
+{
+	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::PostActionPackage"), [this]
+		{
+			uint64_t AttachmentBytes{};
+			FCbPackage ActionPackage;
+
+			State.BuildInputs.Get().IterateInputs([NeedHashes = State.NeedHashes, &ActionPackage, &AttachmentBytes](FStringView Key, const FCompressedBuffer& Buffer)
+				{
+					if (NeedHashes.Contains(Buffer.GetRawHash()))
+					{
+						ActionPackage.AddAttachment(FCbAttachment{ Buffer });
+						AttachmentBytes += Buffer.GetCompressedSize();
+					}
+				});
+
+			if (State.NeedHashes.Num() != ActionPackage.GetAttachments().Num())
+			{
+				UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: build input attachment missing!"));
+				State.Result = UE::Zen::FZenHttpRequest::Result::Failed;
+				State.ResponseCode = 0;
+				OnPostActionPackageComplete(State.Result);
+				return;
+			}
+
+			ActionPackage.SetObject(State.Action);
+
+			TStringBuilder<128> ActionUri;
+			ActionUri.AppendAnsi("/apply/jobs/");
+			ActionUri << State.WorkerDescriptionId;
+
+			Executor.Stats.TotalActionPackagesUploaded.AddBlob(AttachmentBytes + State.Action.GetSize());
+
+			UE::Zen::FZenScopedRequestPtr Request(Executor.RequestPool.Get());
+			State.Result = Request->PerformBlockingPostPackage(ActionUri, ActionPackage);
+			State.ResponseCode = Request->GetResponseCode();
+			
+			OnPostActionPackageComplete(State.Result);
+		}
+	);
+}
+
+void FRemoteBuildExecutionRequest::GetResultPackage_Async()
+{
+	UE::Tasks::Launch(TEXT("FRemoteBuildExecutionRequest::GetResultPackage"), [this]
+		{
+			TStringBuilder<128> JobGetUri;
+			JobGetUri.AppendAnsi("/apply/jobs/");
+			JobGetUri << State.WorkerDescriptionId;
+			JobGetUri << "/";
+			JobGetUri << State.ActionId;
+
+			UE::Zen::FZenScopedRequestPtr Request(Executor.RequestPool.Get());
+			State.Result = Request->PerformBlockingDownload(JobGetUri.ToString(), nullptr, UE::Zen::EContentType::CbPackage);
+			State.ResponseCode = Request->GetResponseCode();
+			if (State.ResponseCode == 200)
+			{
+				Executor.Stats.TotalPackagesDownloaded.AddBlob(Request->GetResponseBuffer().Num());
+				State.ResultPackage = Request->GetResponseAsPackage();
+			}
+			else if (State.ResponseCode == 404)
+			{
+				Executor.Stats.TotalTimedOutRemoteBuilds.fetch_add(1, std::memory_order_relaxed);
+			}
+			
+			OnGetResultPackageComplete(State.Result);
+		}
+	);
+}
+
+void FRemoteBuildExecutionRequest::QueueGetResultPackage()
+{
+	auto Callback = [this](const bool Continue) mutable
+	{
+		if (!Continue)
+		{
+			State.Owner.End(this, [this]
+				{
+					CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Canceled });
+					CompletionEvent->Trigger();
+				});
 			return;
 		}
-	}
+		GetResultPackage_Async();
+	};
 
-	State.DoBlobsExistResponse = MoveTemp(Result);
-	constexpr bool bForceUploads = false;
-	if (bForceUploads)
-	{
-		for (TPair<FIoHash, UE::RemoteExecution::EStatusCode>& Entry : State.DoBlobsExistResponse)
-		{
-			Entry.Value = UE::RemoteExecution::EStatusCode::NotFound;
-		}
-	}
-
-	TArray<FStringView> MissingInputViews;
-	GatherMissingInputFileBlobs(MissingInputViews);
-	if (!MissingInputViews.IsEmpty())
-	{
-		State.Owner.End(this, [this, &MissingInputViews]
-		{
-			CompletionCallback({State.BuildAction.GetKey(), {}, MissingInputViews, EStatus::Ok});
-			CompletionEvent->Trigger();
-		});
-		return;
-	}
-
-	if (!Executor.LimitingHeuristics.TryStartNewBuild(Executor.Stats))
-	{
-		State.Owner.End(this, [this]
-		{
-			CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Error});
-			CompletionEvent->Trigger();
-		});
-		return;
-	}
-
-	bHeuristicBuildStarted = true;
-
-	// TODO: This should be async but isn't.  Requires IRequest chaining.
-	LoadMissingWorkerFileBlobsAsync();
-
-	TMap<FIoHash, UE::RemoteExecution::EStatusCode> Missing = State.DoBlobsExistResponse.FilterByPredicate([](const TPair<FIoHash, UE::RemoteExecution::EStatusCode>& Entry) { return Entry.Value == UE::RemoteExecution::EStatusCode::NotFound; });
-
-	if (!Missing.IsEmpty())
-	{
-		UploadMissingBlobsAsync()
-			.Next([this] (const TMap<FIoHash, UE::RemoteExecution::EStatusCode>& InnerResult) { OnMissingBlobsUploaded(InnerResult); });
-	}
-	else
-	{
-		ExecuteBuildAsync()
-			.Next([this] (TPair<UE::RemoteExecution::EStatusCode, UE::RemoteExecution::FGetTaskUpdatesResponse>&& Result) { OnExecutionCompleted(Result.Key, MoveTemp(Result.Value)); });
-	}
+	Executor.AddResultWaitRequest(MoveTemp(Callback));
 }
 
-void FRemoteBuildExecutionRequest::OnMissingBlobsUploaded(const TMap<FIoHash, UE::RemoteExecution::EStatusCode>& Result)
+void FRemoteBuildExecutionRequest::OnWorkerExistsDetermined(const UE::Zen::FZenHttpRequest::Result& Result)
 {
 	if (ProcessCancellation())
 	{
 		return;
 	}
 
-	for (const TPair<FIoHash, UE::RemoteExecution::EStatusCode>& Entry : Result)
+	if (!IsResultOk(Result, TEXT("GetWorkerExists")))
 	{
-		if (!IsStatusOk(Entry.Value, TEXT("BatchUploadBlobs")))
+		return;
+	}
+
+	if (State.ResponseCode == 404)
+	{
+		// Worker missing, proceed to posting Object
+		PostWorkerObject_Async();
+		return;
+	}
+
+	if (!IsResponseOk(State.ResponseCode, TEXT("GetWorkerExists")))
+	{
+		return;
+	}
+
+	// Worker exists, proceed to action
+	PostActionObject_Async();
+}
+
+void FRemoteBuildExecutionRequest::OnPostWorkerObjectComplete(const UE::Zen::FZenHttpRequest::Result& Result)
+{
+	if (ProcessCancellation())
+	{
+		return;
+	}
+
+	if (!IsResultOk(Result, TEXT("PostWorkerObject")))
+	{
+		return;
+	}
+
+	if (State.ResponseCode == 404)
+	{
+		// Worker content missing, proceed to posting Package
+		PostWorkerPackage_Async();
+		return;
+	}
+
+	if (!IsResponseOk(State.ResponseCode, TEXT("PostWorkerObject")))
+	{
+		return;
+	}
+
+	// Worker exists and is not missing anything, proceed to action
+	PostActionObject_Async();
+}
+void FRemoteBuildExecutionRequest::OnPostWorkerPackageComplete(const UE::Zen::FZenHttpRequest::Result& Result)
+{
+	if (ProcessCancellation())
+	{
+		return;
+	}
+
+	if (!IsResultOk(Result, TEXT("PostWorkerPackage")) || !IsResponseOk(State.ResponseCode, TEXT("PostWorkerPackage")))
+	{
+		return;
+	}
+
+	// Worker exists and is not missing anything, proceed to action
+	PostActionObject_Async();
+}
+
+void FRemoteBuildExecutionRequest::OnPostActionObjectComplete(const UE::Zen::FZenHttpRequest::Result& Result)
+{
+	if (ProcessCancellation())
+	{
+		return;
+	}
+
+	if (!IsResultOk(Result, TEXT("PostActionObject")))
+	{
+		return;
+	}
+
+	if (State.ResponseCode == 404)
+	{
+		// Action content missing, proceed to posting Package
+		PostActionPackage_Async();
+		return;
+	}
+
+	if (!IsResponseOk(State.ResponseCode, TEXT("PostWorkerObject")))
+	{
+		return;
+	}
+
+	// Action posted, proceed to waiting
+	QueueGetResultPackage();
+}
+
+void FRemoteBuildExecutionRequest::OnPostActionPackageComplete(const UE::Zen::FZenHttpRequest::Result& Result)
+{
+	if (ProcessCancellation())
+	{
+		return;
+	}
+
+	if (!IsResultOk(Result, TEXT("PostActionPackage")) || !IsResponseOk(State.ResponseCode, TEXT("PostActionPackage")))
+	{
+		return;
+	}
+
+	// Action posted, proceed to waiting
+	QueueGetResultPackage();
+}
+
+void FRemoteBuildExecutionRequest::OnGetResultPackageComplete(const UE::Zen::FZenHttpRequest::Result& Result)
+{
+	if (ProcessCancellation())
+	{
+		return;
+	}
+
+	if (!IsResultOk(Result, TEXT("GetResultPackage")) || !IsResponseOk(State.ResponseCode, TEXT("GetResultPackage")))
+	{
+		return;
+	}
+
+	if (State.ResponseCode == 202)
+	{
+		QueueGetResultPackage();
+		return;
+	}
+
+	// We're done!
+
+	FOptionalBuildOutput RemoteBuildOutput = FBuildOutput::Load(State.BuildAction.GetName(), State.BuildAction.GetFunction(), State.ResultPackage.GetObject());
+
+	if (RemoteBuildOutput.IsNull())
+	{
+		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: build output blob missing!"));
+		State.Owner.End(this, [this]
+			{
+				CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Error });
+				CompletionEvent->Trigger();
+			});
+		return;
+	}
+
+	FBuildOutputBuilder OutputBuilder = State.BuildSystem.CreateOutput(State.BuildAction.GetName(), State.BuildAction.GetFunction());
+
+	RemoteBuildOutput.Get().IterateDiagnostics([&OutputBuilder](const FBuildDiagnostic& Diagnostic)
 		{
+			if (Diagnostic.Level == EBuildDiagnosticLevel::Warning)
+			{
+				OutputBuilder.AddWarning(Diagnostic.Category, Diagnostic.Message);
+			}
+			else if (Diagnostic.Level == EBuildDiagnosticLevel::Error)
+			{
+				OutputBuilder.AddError(Diagnostic.Category, Diagnostic.Message);
+			}
+		});
+
+	for (const FPayload& Payload : RemoteBuildOutput.Get().GetPayloads())
+	{
+		FCompressedBuffer BufferForPayload;
+
+		if (const FCbAttachment* Attachment = State.ResultPackage.FindAttachment(Payload.GetRawHash()))
+		{
+			BufferForPayload = Attachment->AsCompressedBinary();
+		}
+
+		if (BufferForPayload.IsNull())
+		{
+			UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: payload blob missing!"));
+			State.Owner.End(this, [this]
+				{
+					CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Error });
+					CompletionEvent->Trigger();
+				});
 			return;
 		}
+
+		OutputBuilder.AddPayload(FPayload(Payload.GetId(), BufferForPayload));
 	}
 
-	UE_LOG(LogDerivedDataBuildRemoteExecutor, Verbose, TEXT("Uploaded %d data blobs for remote execution."), State.PutBlobsRequest.Num());
-	if (!ValidateUploadSuccess(Result))
-	{
-		State.Owner.End(this, [this]
+	FBuildOutput BuildOutput = OutputBuilder.Build();
+
+	Executor.Stats.TotalSuccessfulRemoteBuilds.fetch_add(1, std::memory_order_relaxed);
+
+	State.Owner.End(this, [this, &BuildOutput]() mutable
 		{
-			CompletionCallback({State.BuildAction.GetKey(), {}, {}, EStatus::Error});
+			CompletionCallback({ State.BuildAction.GetKey(), MoveTemp(BuildOutput), {}, EStatus::Ok });
 			CompletionEvent->Trigger();
 		});
-		return;
-	}
-
-	ExecuteBuildAsync()
-		.Next([this] (TPair<UE::RemoteExecution::EStatusCode, UE::RemoteExecution::FGetTaskUpdatesResponse>&& Result) { OnExecutionCompleted(Result.Key, MoveTemp(Result.Value)); });
-
-}
-
-void FRemoteBuildExecutionRequest::OnExecutionCompleted(UE::RemoteExecution::EStatusCode Status, UE::RemoteExecution::FGetTaskUpdatesResponse&& Result)
-{
-	if (ProcessCancellation())
-	{
-		return;
-	}
-
-	if (!IsStatusOk(Status, TEXT("OnExecutionCompleted")))
-	{
-		if (!Result.Updates.IsEmpty())
-		{
-			UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Task %s Outcome %s: %s"),
-				*FString::FromHexBlob(Result.Updates[0].TaskHash.GetBytes(), sizeof(FIoHash::ByteArray)),
-				*UE::RemoteExecution::ComputeTaskOutcomeString(Result.Updates[0].Outcome),
-				*Result.Updates[0].Detail);
-		}
-		return;
-	}
-
-	if (Result.Updates.IsEmpty())
-	{
-		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Failed to get results from remote build operation!"));
-		State.Owner.End(this, [this]
-			{
-				CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Error });
-				CompletionEvent->Trigger();
-			});
-		return;
-	}
-
-	if (Result.Updates[0].Outcome != UE::RemoteExecution::EComputeTaskOutcome::Success)
-	{
-		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Task %s Outcome %s: %s"),
-			*FString::FromHexBlob(Result.Updates[0].TaskHash.GetBytes(), sizeof(FIoHash::ByteArray)),
-			*UE::RemoteExecution::ComputeTaskOutcomeString(Result.Updates[0].Outcome),
-			*Result.Updates[0].Detail);
-		State.Owner.End(this, [this]
-			{
-				CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Error });
-				CompletionEvent->Trigger();
-			});
-		return;
-	}
-
-	if (Result.Updates[0].ResultHash == FIoHash::Zero)
-	{
-		UE_LOG(LogDerivedDataBuildRemoteExecutor, Warning, TEXT("Remote execution system error: Zero ResultHash returned from remote build operation!"));
-		State.Owner.End(this, [this]
-			{
-				CompletionCallback({ State.BuildAction.GetKey(), {}, {}, EStatus::Error });
-				CompletionEvent->Trigger();
-			});
-		return;
-	}
-
-	State.ExecuteResponse = MoveTemp(Result.Updates[0]);
-	GetTaskResultAsync()
-		.Next([this] (TPair<UE::RemoteExecution::EStatusCode, UE::RemoteExecution::FGetObjectTreeResponse>&& InnerResult)
-			{
-				OnTaskResultDownloaded(InnerResult.Key, MoveTemp(InnerResult.Value));
-			});
-
-}
-
-void FRemoteBuildExecutionRequest::OnTaskResultDownloaded(UE::RemoteExecution::EStatusCode Status, UE::RemoteExecution::FGetObjectTreeResponse&& Result)
-{
-	if (ProcessCancellation())
-	{
-		return;
-	}
-
-	if (!IsStatusOk(Status, TEXT("OnTaskResultDownloaded")))
-	{
-		return;
-	}
-
-	const FCbObjectView View = FCbObjectView(Result.Objects[State.ExecuteResponse.ResultHash].GetData());
-	State.ExecuteResult.Load(View);
-	State.GetBlobsRequest = MoveTemp(Result.BinaryAttachments);
-	GatherExecuteFileResults(Result.Objects, TEXT(""), State.ExecuteResult.OutputHash);
-
-	DownloadResultsAsync()
-		.Next([this](TMap<FIoHash, TPair<UE::RemoteExecution::EStatusCode, TArray<uint8>>>&& InnerResult)
-			{
-				OnOutputBlobsDownloaded(MoveTemp(InnerResult));
-			});
-}
-
-void FRemoteBuildExecutionRequest::OnOutputBlobsDownloaded(TMap<FIoHash, TPair<UE::RemoteExecution::EStatusCode, TArray<uint8>>>&& Result)
-{
-	if (ProcessCancellation())
-	{
-		return;
-	}
-
-	EStatus BuildStatus = EStatus::Error;
-	FOptionalBuildOutput BuildOutput = ComposeBuildOutput(MoveTemp(Result), BuildStatus);
-	if (BuildStatus == EStatus::Ok)
-	{
-		Executor.Stats.TotalSuccessfulRemoteBuilds.fetch_add(1, std::memory_order_relaxed);
-	}
-
-	State.Owner.End(this, [this, &BuildOutput, BuildStatus]() mutable
-	{
-		CompletionCallback({State.BuildAction.GetKey(), MoveTemp(BuildOutput), {}, BuildStatus});
-		CompletionEvent->Trigger();
-	});
 }
 
 } // namespace UE::DerivedData
@@ -1274,3 +1059,16 @@ void DumpDerivedDataBuildRemoteExecutorStats()
 		GRemoteBuildWorkerExecutor->DumpStats();
 	}
 }
+
+#else
+
+void InitDerivedDataBuildRemoteExecutor()
+{
+}
+
+void DumpDerivedDataBuildRemoteExecutorStats()
+{
+}
+
+
+#endif // #if UE_WITH_ZEN

@@ -38,10 +38,10 @@ FORCEINLINE_DEBUGGABLE bool FRHICommandListBase::Bypass() const
 	return GRHICommandList.Bypass();
 }
 
-FORCEINLINE_DEBUGGABLE FScopedRHIThreadStaller::FScopedRHIThreadStaller(class FRHICommandListImmediate& InImmed)
+FORCEINLINE_DEBUGGABLE FScopedRHIThreadStaller::FScopedRHIThreadStaller(class FRHICommandListImmediate& InImmed, bool bDoStall)
 	: Immed(nullptr)
 {
-	if (IsRunningRHIInSeparateThread())
+	if (bDoStall && IsRunningRHIInSeparateThread())
 	{
 		check(IsInRenderingThread());
 		if (InImmed.StallRHIThread())

@@ -37,7 +37,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogZenHttp, Log, All);
 namespace UE::Zen {
 
 #define UE_ZENDDC_BACKEND_WAIT_INTERVAL			0.01f
-#define UE_ZENDDC_HTTP_REQUEST_TIMEOUT_SECONDS	30L
 #define UE_ZENDDC_HTTP_DEBUG					0
 
 	struct FZenHttpRequest::FStatics
@@ -79,7 +78,7 @@ namespace UE::Zen {
 		curl_easy_reset(Curl);
 
 		// Options that are always set for all connections.
-		curl_easy_setopt(Curl, CURLOPT_CONNECTTIMEOUT, UE_ZENDDC_HTTP_REQUEST_TIMEOUT_SECONDS);
+		curl_easy_setopt(Curl, CURLOPT_CONNECTTIMEOUT, 30L);
 		curl_easy_setopt(Curl, CURLOPT_EXPECT_100_TIMEOUT_MS, 0);
 		curl_easy_setopt(Curl, CURLOPT_NOSIGNAL, 1L);
 		curl_easy_setopt(Curl, CURLOPT_BUFFERSIZE, 256 * 1024L);
@@ -256,6 +255,43 @@ namespace UE::Zen {
 		}
 
 		return PerformBlockingPost(Uri, Out.GetView(), EContentType::CbPackage);
+	}
+
+	FZenHttpRequest::Result FZenHttpRequest::PerformRpc(FStringView Uri, FCbObjectView Request, FCbPackage &OutResponse)
+	{
+		FLargeMemoryWriter RequestBuffer;
+		
+		Request.CopyTo(RequestBuffer);
+		FCompositeBuffer Buffer(FSharedBuffer::MakeView(RequestBuffer.GetView()));
+		ReadDataView = &Buffer;
+
+		const uint32 ContentLength = RequestBuffer.TotalSize();
+
+		curl_easy_setopt(Curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(Curl, CURLOPT_INFILESIZE, ContentLength);
+		curl_easy_setopt(Curl, CURLOPT_READDATA, this);
+		curl_easy_setopt(Curl, CURLOPT_READFUNCTION, &FZenHttpRequest::FStatics::StaticReadFn);
+
+		AddHeader(TEXT("Content-Type"_SV), GetMimeType(EContentType::CbObject));
+		AddHeader(TEXT("Accept"_SV), GetMimeType(EContentType::CbPackage));
+		
+		Result RpcResult = PerformBlocking(Uri, RequestVerb::Post, ContentLength);
+
+		if (RpcResult != Result::Success || !IsSuccessCode(ResponseCode))
+		{
+			return Result::Failed;
+		}
+
+		if (ResponseBuffer.Num())
+		{
+			FLargeMemoryReader Ar(ResponseBuffer.GetData(), ResponseBuffer.Num());
+			if (!OutResponse.TryLoad(Ar))
+			{
+				return Result::Failed;
+			}
+		}
+
+		return Result::Success;
 	}
 
 	FCbPackage FZenHttpRequest::GetResponseAsPackage() const

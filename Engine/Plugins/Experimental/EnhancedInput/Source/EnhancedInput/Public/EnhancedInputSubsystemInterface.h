@@ -57,24 +57,24 @@ public:
 	 * @param MappingContext	A set of key to action mappings to apply to this player
 	 * @param Priority			Higher priority mappings will be applied first and, if they consume input, will block lower priority mappings.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input")
-	virtual void AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority);
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease"))
+	virtual void AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const bool bIgnoreAllPressedKeysUntilRelease = true);
 
 	/**
 	 * Remove a specific control context. 
 	 * This is safe to call even if the context is not applied.
 	 * @param MappingContext		Context to remove from the player
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input")
-	virtual void RemoveMappingContext(const UInputMappingContext* MappingContext);
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease"))
+	virtual void RemoveMappingContext(const UInputMappingContext* MappingContext, const bool bIgnoreAllPressedKeysUntilRelease = true);
 
 	/**
 	 * Flag player for reapplication of all mapping contexts at the end of this frame.
 	 * This is called automatically when adding or removing mappings contexts.
 	 * @param bForceImmediately		THe mapping changes will be applied synchronously, rather than at the end of the frame, making them available to the input system on the same frame.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input")
-	virtual void RequestRebuildControlMappings(bool bForceImmediately = false);
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease"))
+	virtual void RequestRebuildControlMappings(bool bForceImmediately = false, const bool bIgnoreAllPressedKeysUntilRelease = true);
 
 	/**
 	 * Check if a key mapping is safe to add to a given mapping context within the set of active contexts currently applied to the player controller.
@@ -127,7 +127,9 @@ private:
 	void InjectChordBlockers(const TArray<int32>& ChordedMappings);
 	bool HasTriggerWith(TFunctionRef<bool(const class UInputTrigger*)> TestFn, const TArray<class UInputTrigger*>& Triggers);
 
-	/** Reapply all control mappings to players pending a rebuild */
+	/**
+	 * Reapply all control mappings to players pending a rebuild
+	 */
 	void RebuildControlMappings();
 
 	/** Convert input settings axis config to modifiers for a given mapping */
@@ -135,6 +137,14 @@ private:
 
 	TMap<TWeakObjectPtr<const UInputAction>, FInputActionValue> ForcedActions;
 	TMap<FKey, FInputActionValue> ForcedKeys;
+
+	/**
+	 * A flag that will be set when adding/removing a mapping context.
+	 *
+	 * If this is true, then any keys that are pressed when control mappings are rebuilt will be ignored 
+	 * by the new Input context after being until the key is lifted
+	 */
+	bool bIgnoreAllPressedKeysUntilReleaseOnRebuild = true;
 
 	bool bMappingRebuildPending = false;
 

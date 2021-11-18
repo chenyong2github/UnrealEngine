@@ -47,7 +47,7 @@ void UMetaSound::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
 void UMetaSound::PostEditUndo()
 {
 	Super::PostEditUndo();
-	Metasound::PostAssetUndo(*this);
+	bSynchronizationRequired = true;
 }
 
 void UMetaSound::PostEditChangeProperty(FPropertyChangedEvent& InEvent)

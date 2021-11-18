@@ -1018,8 +1018,11 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	RecompileData.PlatformName = ConnectedPlatformName;
 	// All target platforms
 	RecompileData.ShaderPlatform = -1;
-	RecompileData.ModifiedFiles = NULL;
-	RecompileData.MeshMaterialMaps = NULL;
+	RecompileData.ModifiedFiles = nullptr;
+	RecompileData.MeshMaterialMaps = nullptr;
+	TArray<uint8> GlobalShaderMap;
+	RecompileData.GlobalShaderMap = &GlobalShaderMap;
+	RecompileData.CommandType = ODSCRecompileCommand::Global;
 	NetworkFileDelegates->RecompileShadersDelegate.ExecuteIfBound(RecompileData);
 
 	UE_LOG(LogFileServer, Display, TEXT("Getting files for %d directories, game = %s, platform = %s"), RootDirectories.Num(), *GameName, *ConnectedPlatformName);
@@ -1279,15 +1282,17 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 {
 	TArray<FString> RecompileModifiedFiles;
 	TArray<uint8> MeshMaterialMaps;
+	TArray<uint8> GlobalShaderMap;
 	FShaderRecompileData RecompileData;
 	RecompileData.PlatformName = ConnectedPlatformName;
 	RecompileData.ModifiedFiles = &RecompileModifiedFiles;
 	RecompileData.MeshMaterialMaps = &MeshMaterialMaps;
+	RecompileData.GlobalShaderMap = &GlobalShaderMap;
 
 	// tell other side all the materials to load, by pathname
 	In << RecompileData.MaterialsToLoad;
 	In << RecompileData.ShaderPlatform;
-	In << RecompileData.bCompileChangedShaders;
+	In << RecompileData.CommandType;
 	In << RecompileData.ShadersToRecompile;
 
 	NetworkFileDelegates->RecompileShadersDelegate.ExecuteIfBound(RecompileData);
@@ -1295,6 +1300,7 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 	// tell other side what to do!
 	Out << RecompileModifiedFiles;
 	Out << MeshMaterialMaps;
+	Out << GlobalShaderMap;
 }
 
 

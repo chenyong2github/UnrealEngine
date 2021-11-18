@@ -324,20 +324,9 @@ namespace Chaos
 				PointProjectedOntoReferenceFace[RefPlaneCoordinateIndex] = refBoxHalfExtents[RefPlaneCoordinateIndex] * (FReal)(ReferenceFaceBox1 ? BestFaceNormalAxisDirectionBox1 : BestFaceNormalAxisDirectionBox2);
 				FVec3 ClippedPointInOtherCubeCoordinates = BoxOtherToRef.InverseTransformPositionNoScale(VertexInReferenceCubeCoordinates);
 
-				ContactPoint.ShapeMargins[0] = 0.0f;
-				ContactPoint.ShapeMargins[1] = 0.0f;
 				ContactPoint.ShapeContactPoints[0] = ReferenceFaceBox1 ? PointProjectedOntoReferenceFace + RefBox->GetCenter() : ClippedPointInOtherCubeCoordinates + OtherBox->GetCenter();
 				ContactPoint.ShapeContactPoints[1] = ReferenceFaceBox1 ? ClippedPointInOtherCubeCoordinates + OtherBox->GetCenter() : PointProjectedOntoReferenceFace + RefBox->GetCenter();
-				if (bChaos_Collision_Manifold_FixNormalsInWorldSpace)
-				{
-					ContactPoint.ShapeContactNormal = SeparationDirectionLocalBox2;
-					ContactPoint.ContactNormalOwnerIndex = 1; // Ignored
-				}
-				else
-				{
-					ContactPoint.ShapeContactNormal = ReferenceFaceBox1 ? SeparationDirectionLocalBox1 : SeparationDirectionLocalBox2;
-					ContactPoint.ContactNormalOwnerIndex = ReferenceFaceBox1 ? 0 : 1;
-				}
+				ContactPoint.ShapeContactNormal = SeparationDirectionLocalBox2;
 				ContactPoint.Location = RefBoxTM->TransformPositionNoScale(PointProjectedOntoReferenceFace);
 				ContactPoint.Normal = GJKContactPoint.Normal;
 				ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCubeCoordinates, ReferenceFaceBox1 ? SeparationDirectionLocalBox1 : -SeparationDirectionLocalBox2);
@@ -630,7 +619,7 @@ namespace Chaos
 		// Use GJK to find the closest points (or shallowest penetrating points) on two convex shapes usingthe specified margin
 		// @todo(chaos): dedupe from GJKContactPoint in CollisionResolution.cpp
 		template <typename GeometryA, typename GeometryB>
-		FContactPoint GJKContactPointMargin(const GeometryA& A, const GeometryB& B, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, FReal MarginA, FReal MarginB, FGJKSimplexData& InOutGjkWarmStartData)
+		FContactPoint GJKContactPointMargin(const GeometryA& A, const GeometryB& B, const FRigidTransform3& ATM, const FRigidTransform3& BToATM, FReal MarginA, FReal MarginB, FGJKSimplexData& InOutGjkWarmStartData, FReal& OutMaxMarginDelta)
 		{
 			SCOPE_CYCLE_COUNTER_MANIFOLD_GJK();
 
@@ -645,10 +634,8 @@ namespace Chaos
 			const TGJKCoreShape<GeometryA> AWithMargin(A, MarginA);
 			const TGJKCoreShape<GeometryB> BWithMargin(B, MarginB);
 
-			if (GJKPenetrationWarmStartable<true>(AWithMargin, BWithMargin, BToATM, FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, InOutGjkWarmStartData, Epsilon))
+			if (GJKPenetrationWarmStartable<true>(AWithMargin, BWithMargin, BToATM, FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, InOutGjkWarmStartData, OutMaxMarginDelta, Epsilon))
 			{
-				Contact.ShapeMargins[0] = 0.0f;
-				Contact.ShapeMargins[1] = 0.0f;
 				Contact.ShapeContactPoints[0] = ClosestA;
 				Contact.ShapeContactPoints[1] = ClosestB;
 				Contact.ShapeContactNormal = -NormalB;	// We want normal pointing from B to A
@@ -761,14 +748,13 @@ namespace Chaos
 			}
 
 			// Find the deepest penetration. This is used to determine the planes and points to use for the manifold
-			FContactPoint GJKContactPoint = GJKContactPointMargin(Convex1, Convex2, Convex1Transform, Convex2ToConvex1Transform, Margin1, Margin2, Constraint.GetGJKWarmStartData());
+			// MaxMarginDelta is an upper bound on the distance from the contact on the rounded core shape to the actual shape surface. 
+			FReal MaxMarginDelta = FReal(0);
+			FContactPoint GJKContactPoint = GJKContactPointMargin(Convex1, Convex2, Convex1Transform, Convex2ToConvex1Transform, Margin1, Margin2, Constraint.GetGJKWarmStartData(), MaxMarginDelta);
 
 			// GJK is using margins and rounded corner, so if we have a corner-to-corner contact it will under-report the actual distance by an amount that depends on how
-			// "pointy" the edge/corner is - it can be arbitrarily large. For now just expand the cull distance by some multiple of the margin (it would need to be
-			// (sqrt(3) - 1)*margin for a box, but can be much larger for acute angles.
-			// @todo(chaos): return the correct margin error with the GJK result, or do something so we don't need this at all. SAT?
-			const FReal GJKCullDistanceMarginMultiplier = Chaos_Collision_Manifold_CullDistanceMarginMultiplier;
-			const FReal GJKCullDistance = Constraint.GetCullDistance() + GJKCullDistanceMarginMultiplier * (Margin1 + Margin2);
+			// "pointy" the edge/corner is - this error is bounded by MaxMarginDelta.
+			const FReal GJKCullDistance = Constraint.GetCullDistance() + MaxMarginDelta;
 			if (GJKContactPoint.Phi > GJKCullDistance)
 			{
 				return;
@@ -923,24 +909,10 @@ namespace Chaos
 					FVec3 PointProjectedOntoReferenceFace = VertexInReferenceCoordinates - FVec3::DotProduct(VertexInReferenceCoordinates - RefPlanePosition, RefPlaneNormal) * RefPlaneNormal;
 					FVec3 ClippedPointInOtherCoordinates = ConvexOtherToRef.InverseTransformPositionNoScale(VertexInReferenceCoordinates);
 
-					ContactPoint.ShapeMargins[0] = 0.0f;
-					ContactPoint.ShapeMargins[1] = 0.0f;
 					ContactPoint.ShapeContactPoints[0] = ReferenceFaceConvex1 ? PointProjectedOntoReferenceFace : ClippedPointInOtherCoordinates;
 					ContactPoint.ShapeContactPoints[1] = ReferenceFaceConvex1 ? ClippedPointInOtherCoordinates : PointProjectedOntoReferenceFace;
-					if (bChaos_Collision_Manifold_FixNormalsInWorldSpace)
-					{
-						ContactPoint.ShapeContactNormal = SeparationDirectionLocalConvex2;
-						ContactPoint.ContactNormalOwnerIndex = 1;// Owner is ignored
-						// These values will be overwritten later, but set it here for testing
-						ContactPoint.Location = ReferenceFaceConvex1 ? RefConvexTM->TransformPositionNoScale(VertexInReferenceCoordinates) : RefConvexTM->TransformPositionNoScale(PointProjectedOntoReferenceFace);
-					}
-					else
-					{
-						ContactPoint.ShapeContactNormal = RefSeparationDirection;
-						ContactPoint.ContactNormalOwnerIndex = ReferenceFaceConvex1 ? 0 : 1;
-						ContactPoint.Location = RefConvexTM->TransformPositionNoScale(PointProjectedOntoReferenceFace);
-					}
-
+					ContactPoint.ShapeContactNormal = SeparationDirectionLocalConvex2;
+					ContactPoint.Location = ReferenceFaceConvex1 ? RefConvexTM->TransformPositionNoScale(VertexInReferenceCoordinates) : RefConvexTM->TransformPositionNoScale(PointProjectedOntoReferenceFace);
 					ContactPoint.Normal = GJKContactPoint.Normal;
 					ContactPoint.Phi = FVec3::DotProduct(PointProjectedOntoReferenceFace - VertexInReferenceCoordinates, ReferenceFaceConvex1 ? SeparationDirectionLocalConvex1 : -SeparationDirectionLocalConvex2);				
 

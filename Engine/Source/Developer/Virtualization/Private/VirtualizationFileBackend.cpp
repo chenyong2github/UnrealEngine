@@ -12,17 +12,16 @@
 namespace UE::Virtualization
 {
 
-FFileSystemBackend::FFileSystemBackend(FStringView ConfigName)
-	: IVirtualizationBackend(EOperations::Both)
+FFileSystemBackend::FFileSystemBackend(FStringView ConfigName, FStringView DebugName)
+	: IVirtualizationBackend(ConfigName, DebugName, EOperations::Both)
 {
-	DebugName = WriteToString<256>(TEXT("FFileSystemBackend - "), ConfigName).ToString();
 }
 
 bool FFileSystemBackend::Initialize(const FString& ConfigEntry)
 {
 	if (!FParse::Value(*ConfigEntry, TEXT("Path="), RootDirectory))
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("[%s] 'Path=' not found in the config file"), *GetDebugString());
+		UE_LOG(LogVirtualization, Error, TEXT("[%s] 'Path=' not found in the config file"), *GetDebugName());
 		return false;
 	}
 
@@ -30,7 +29,7 @@ bool FFileSystemBackend::Initialize(const FString& ConfigEntry)
 
 	if (RootDirectory.IsEmpty())
 	{
-		UE_LOG(LogVirtualization, Error, TEXT("[%s] Config file entry 'Path=' was empty"), *GetDebugString());
+		UE_LOG(LogVirtualization, Error, TEXT("[%s] Config file entry 'Path=' was empty"), *GetDebugName());
 		return false;
 	}
 
@@ -49,19 +48,19 @@ bool FFileSystemBackend::Initialize(const FString& ConfigEntry)
 	}
 
 	// Now log a summary of the backend settings to make issues easier to diagnose
-	UE_LOG(LogVirtualization, Log, TEXT("[%s] Using path: '%s'"), *GetDebugString(), *RootDirectory);
-	UE_LOG(LogVirtualization, Log, TEXT("[%s] Will retry failed read attempts %d times with a gap of %dms betwen them"), *GetDebugString(), RetryCount, RetryWaitTimeMS);
+	UE_LOG(LogVirtualization, Log, TEXT("[%s] Using path: '%s'"), *GetDebugName(), *RootDirectory);
+	UE_LOG(LogVirtualization, Log, TEXT("[%s] Will retry failed read attempts %d times with a gap of %dms betwen them"), *GetDebugName(), RetryCount, RetryWaitTimeMS);
 
 	return true;
 }
 
-EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload)
+EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFileSystemBackend::PushData);
 
 	if (DoesExist(Id))
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugString(), *Id.ToString());
+		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *Id.ToString());
 		return EPushResult::PayloadAlreadyExisted;
 	}
 
@@ -80,7 +79,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 		Utils::GetFormattedSystemError(SystemErrorMsg);
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' to '%s' due to system error: %s"), 
-			*GetDebugString(),
+			*GetDebugName(),
 			*Id.ToString(),
 			*TempFilePath,
 			SystemErrorMsg.ToString());
@@ -100,7 +99,7 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 		Utils::GetFormattedSystemError(SystemErrorMsg);
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
-			*GetDebugString(),
+			*GetDebugName(),
 			*Id.ToString(),
 			*TempFilePath,
 			SystemErrorMsg.ToString());
@@ -126,16 +125,16 @@ EPushResult FFileSystemBackend::PushData(const FPayloadId& Id, const FCompressed
 		// don't need to give an error message.
 		if (DoesExist(Id))
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugString(), *Id.ToString());
+			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *Id.ToString());
 			return EPushResult::PayloadAlreadyExisted;
 		}
 		else
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to move payload '%s' to it's final location '%s' due to system error: %s"),
-				*GetDebugString(),
-				*Id.ToString(),
-				*FilePath,
-				SystemErrorMsg.ToString());
+			UE_LOG(	LogVirtualization, Error, TEXT("[%s] Failed to move payload '%s' to it's final location '%s' due to system error: %s"),
+					*GetDebugName(),
+					*Id.ToString(),
+					*FilePath,
+					SystemErrorMsg.ToString());
 
 			return EPushResult::Failed;
 		}
@@ -154,7 +153,7 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 	// TODO: Should we allow the error severity to be configured via ini or just not report this case at all?
 	if (!IFileManager::Get().FileExists(FilePath.ToString()))
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugString(), *Id.ToString());
+		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Does not contain the payload '%s'"), *GetDebugName(), *Id.ToString());
 		return FCompressedBuffer();
 	}
 
@@ -166,7 +165,7 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 		Utils::GetFormattedSystemError(SystemErrorMsg);
 
 		UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to load payload '%s' from file '%s' due to system error: %s"),
-			*GetDebugString(),
+			*GetDebugName(),
 			*Id.ToString(),
 			FilePath.ToString(),
 			SystemErrorMsg.ToString());
@@ -175,11 +174,6 @@ FCompressedBuffer FFileSystemBackend::PullData(const FPayloadId& Id)
 	}
 
 	return FCompressedBuffer::FromCompressed(*FileAr);
-}
-
-FString FFileSystemBackend::GetDebugString() const
-{
-	return DebugName;
 }
 
 bool FFileSystemBackend::DoesExist(const FPayloadId& Id)
@@ -215,7 +209,7 @@ TUniquePtr<FArchive> FFileSystemBackend::OpenFileForReading(const TCHAR* FilePat
 		}
 		else
 		{
-			UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to open '%s' for reading attempt retrying (%d/%d) in %dms..."), *GetDebugString(), FilePath, Retries, RetryCount, RetryWaitTimeMS);
+			UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to open '%s' for reading attempt retrying (%d/%d) in %dms..."), *GetDebugName(), FilePath, Retries, RetryCount, RetryWaitTimeMS);
 			FPlatformProcess::SleepNoStats(RetryWaitTimeMS * 0.001f);
 
 			Retries++;

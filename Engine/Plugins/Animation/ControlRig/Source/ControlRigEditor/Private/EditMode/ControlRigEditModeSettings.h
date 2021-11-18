@@ -23,7 +23,9 @@ class UControlRigEditModeSettings : public UObject
 		, bOnlySelectRigControls(false)
 		, bLocalTransformsInEachLocalSpace(true)
 		, ShapeScale(1.0f)
-	{}
+	{
+		LastInViewportTweenWidgetLocation = FVector2D(EForceInit::ForceInitToZero);
+	}
 
 	// UObject interface
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
@@ -68,4 +70,7 @@ public:
 	/** The scale for Gizmos */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation")
 	float ShapeScale;
+
+	UPROPERTY(config)
+	FVector2D LastInViewportTweenWidgetLocation;
 };

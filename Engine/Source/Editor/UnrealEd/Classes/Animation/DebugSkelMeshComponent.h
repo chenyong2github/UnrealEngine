@@ -97,7 +97,6 @@ public:
 	bool bDrawClothPaintPreview;
 
 	bool bFlipNormal;
-	bool bCullBackface;
 
 	int32 ClothingSimDataIndexWhenPainting;
 	TArray<uint32> ClothingSimIndices;
@@ -105,8 +104,6 @@ public:
 	TArray<float> ClothingVisiblePropertyValues;
 	float PropertyViewMin;
 	float PropertyViewMax;
-
-	float ClothMeshOpacity;
 
 	TArray<FVector3f> SkinnedPositions;
 	TArray<FVector3f> SkinnedNormals;
@@ -537,8 +534,10 @@ public:
 	TArray<FVector3f> SkinnedSelectedClothingNormals;
 
 private:
+	// Rebuilds the fixed vertex attribute on any cloth deformer mappings,
+	// including LOD bias mappings, that reference the specified LOD section.
+	void RebuildClothingSectionFixedVerts(int32 LODIndex, int32 SectionIndex);
 
-private:
 	// Helper function to generate space bases for current frame
 	void GenSpaceBases(TArray<FTransform>& OutSpaceBases);
 

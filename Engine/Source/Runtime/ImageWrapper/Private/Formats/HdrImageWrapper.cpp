@@ -88,7 +88,7 @@ bool FHdrImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompr
 	return SetCompressedFromView(MakeArrayView(CompressedDataHolder));
 }
 
-bool FHdrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
+bool FHdrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
 {
 	// Move the code that export hdr here
 	unimplemented();

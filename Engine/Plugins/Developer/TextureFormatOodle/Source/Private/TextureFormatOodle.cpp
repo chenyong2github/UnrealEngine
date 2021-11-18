@@ -21,6 +21,10 @@
 #include "DerivedDataBuildFunctionFactory.h"
 #include "Tasks/Task.h"
 #include "TextureBuildFunction.h"
+#include "HAL/FileManager.h"
+#include "Misc/WildcardString.h"
+
+#include "DDSFile.h"
 
 #include "oodle2tex.h"
 
@@ -310,6 +314,126 @@ class FOodleTextureBuildFunction final : public FTextureBuildFunction
 	}
 };
 
+
+
+struct FOodlePixelFormatMapping 
+{
+	OodleDDS::EDXGIFormat DXGIFormat;
+	OodleTex_PixelFormat OodlePF;
+	bool bHasAlpha;
+};
+
+//  mapping from/to UNORM formats; sRGB-ness is handled separately.
+// when there are multiple dxgi formats mapping to the same Oodle format, the first one is used
+// for conversions from Oodle to DXGI
+static FOodlePixelFormatMapping PixelFormatMap[] = 
+{
+	// dxgi											ootex								has_alpha
+	{ OodleDDS::EDXGIFormat::R32G32B32A32_FLOAT,	OodleTex_PixelFormat_4_F32_RGBA,	true },
+	{ OodleDDS::EDXGIFormat::R32G32B32_FLOAT,		OodleTex_PixelFormat_3_F32_RGB,		true },
+	{ OodleDDS::EDXGIFormat::R16G16B16A16_FLOAT,	OodleTex_PixelFormat_4_F16_RGBA,	true },
+	{ OodleDDS::EDXGIFormat::R8G8B8A8_UNORM,		OodleTex_PixelFormat_4_U8_RGBA,		true },
+	{ OodleDDS::EDXGIFormat::R16G16B16A16_UNORM,	OodleTex_PixelFormat_4_U16,			true },
+	{ OodleDDS::EDXGIFormat::R16G16_UNORM,			OodleTex_PixelFormat_2_U16,			false },
+	{ OodleDDS::EDXGIFormat::R16G16_SNORM,			OodleTex_PixelFormat_2_S16,			false },
+	{ OodleDDS::EDXGIFormat::R8G8_UNORM,			OodleTex_PixelFormat_2_U8,			false },
+	{ OodleDDS::EDXGIFormat::R8G8_SNORM,			OodleTex_PixelFormat_2_S8,			false },
+	{ OodleDDS::EDXGIFormat::R16_UNORM,				OodleTex_PixelFormat_1_U16,			false },
+	{ OodleDDS::EDXGIFormat::R16_SNORM,				OodleTex_PixelFormat_1_S16,			false },
+	{ OodleDDS::EDXGIFormat::R8_UNORM,				OodleTex_PixelFormat_1_U8,			false },
+	{ OodleDDS::EDXGIFormat::R8_SNORM,				OodleTex_PixelFormat_1_S8,			false },
+	{ OodleDDS::EDXGIFormat::B8G8R8A8_UNORM,		OodleTex_PixelFormat_4_U8_BGRA,		true },
+	{ OodleDDS::EDXGIFormat::B8G8R8X8_UNORM,		OodleTex_PixelFormat_4_U8_BGRx,		false },
+};
+
+static OodleTex_PixelFormat OodlePFFromDXGIFormat(OodleDDS::EDXGIFormat InFormat) 
+{
+	InFormat = OodleDDS::DXGIFormatRemoveSRGB(InFormat);
+	for (size_t i = 0; i < sizeof(PixelFormatMap) / sizeof(*PixelFormatMap); ++i) 
+	{
+		if (PixelFormatMap[i].DXGIFormat == InFormat) 
+		{
+			return PixelFormatMap[i].OodlePF;
+		}
+	}
+	return OodleTex_PixelFormat_Invalid;
+}
+
+// don't need this for all DXGI formats, just the ones we can translate to Oodle Texture formats
+static bool DXGIFormatHasAlpha(OodleDDS::EDXGIFormat InFormat)
+{
+	InFormat = OodleDDS::DXGIFormatRemoveSRGB(InFormat);
+	for (size_t i = 0; i < sizeof(PixelFormatMap) / sizeof(*PixelFormatMap); ++i) 
+	{
+		if (PixelFormatMap[i].DXGIFormat == InFormat)
+		{
+			return PixelFormatMap[i].bHasAlpha;
+		}
+	}
+	// when we don't know the format, the answer doesn't really matter; let's just say "yes"
+	return true;
+}
+
+static OodleDDS::EDXGIFormat DXGIFormatFromOodlePF(OodleTex_PixelFormat pf) 
+{
+	for (size_t i = 0; i < sizeof(PixelFormatMap) / sizeof(*PixelFormatMap); ++i) 
+	{
+		if (PixelFormatMap[i].OodlePF == pf) 
+		{
+			return PixelFormatMap[i].DXGIFormat;
+		}
+	}
+	return OodleDDS::EDXGIFormat::UNKNOWN;
+}
+
+struct FOodleBCMapping 
+{
+	OodleDDS::EDXGIFormat DXGIFormat;
+	OodleTex_BC OodleBC;
+};
+
+static FOodleBCMapping BCFormatMap[] = 
+{
+	{ OodleDDS::EDXGIFormat::BC1_UNORM, OodleTex_BC1 },
+	{ OodleDDS::EDXGIFormat::BC1_UNORM, OodleTex_BC1_WithTransparency },
+	{ OodleDDS::EDXGIFormat::BC2_UNORM, OodleTex_BC2 },
+	{ OodleDDS::EDXGIFormat::BC3_UNORM, OodleTex_BC3 },
+	{ OodleDDS::EDXGIFormat::BC4_UNORM, OodleTex_BC4U },
+	{ OodleDDS::EDXGIFormat::BC4_SNORM, OodleTex_BC4S },
+	{ OodleDDS::EDXGIFormat::BC5_UNORM, OodleTex_BC5U },
+	{ OodleDDS::EDXGIFormat::BC5_SNORM, OodleTex_BC5S },
+	{ OodleDDS::EDXGIFormat::BC6H_UF16, OodleTex_BC6U },
+	{ OodleDDS::EDXGIFormat::BC6H_SF16, OodleTex_BC6S },
+	{ OodleDDS::EDXGIFormat::BC7_UNORM, OodleTex_BC7RGBA },
+	{ OodleDDS::EDXGIFormat::BC7_UNORM, OodleTex_BC7RGB },
+};
+
+static OodleTex_BC OodleBCFromDXGIFormat(OodleDDS::EDXGIFormat InFormat) 
+{
+	InFormat = OodleDDS::DXGIFormatRemoveSRGB(InFormat);
+	for (size_t i = 0; i < sizeof(BCFormatMap) / sizeof(*BCFormatMap); ++i) 
+	{
+		if (BCFormatMap[i].DXGIFormat == InFormat)
+		{
+			return BCFormatMap[i].OodleBC;
+		}
+	}
+	return OodleTex_BC_Invalid;
+}
+
+static OodleDDS::EDXGIFormat DXGIFormatFromOodleBC(OodleTex_BC InBC) 
+{
+	for (size_t i = 0; i < sizeof(BCFormatMap) / sizeof(*BCFormatMap); ++i) 
+	{
+		if (BCFormatMap[i].OodleBC == InBC)
+		{
+			return BCFormatMap[i].DXGIFormat;
+		}
+	}
+	return OodleDDS::EDXGIFormat::UNKNOWN;
+}
+
+
 static void TFO_Plugins_Init();
 static void TFO_Plugins_Install(const FOodleTextureVTable * VTable);
 
@@ -347,123 +471,17 @@ static FName GSupportedTextureFormatNames[] =
 #undef DECL_FORMAT_NAME_ENTRY
 #undef ENUSUPPORTED_FORMATS
 
-class FImageDumper
-{
-
-public:
-
-	FImageDumper()
-		: ImageWrapperModule(nullptr)
-		, ImageFormat(EImageFormat::Invalid)
-		, RGBFormat(ERGBFormat::Invalid)
-		, BytesPerPixel(0)
-		, BitDepth(0)
-		, Extension(nullptr)
-	{ }
-
-	bool Initialize(const ERawImageFormat::Type InImageFormat)
-	{
-		ImageWrapper.Reset();
-
-		switch (InImageFormat)
-		{
-		case ERawImageFormat::RGBA32F:
-			ImageFormat = EImageFormat::EXR;
-			RGBFormat = ERGBFormat::RGBAF;
-			BytesPerPixel = 16;
-			BitDepth = 32;
-			Extension = TEXT(".exr");
-			break;
-
-		case ERawImageFormat::RGBA16:
-			ImageFormat = EImageFormat::PNG;
-			RGBFormat = ERGBFormat::RGBA;
-			BytesPerPixel = 8;
-			BitDepth = 16;
-			Extension = TEXT(".png");
-			break;
-
-		case ERawImageFormat::BGRA8:
-			ImageFormat = EImageFormat::PNG;
-			RGBFormat = ERGBFormat::BGRA;
-			BytesPerPixel = 4;
-			BitDepth = 8;
-			Extension = TEXT(".png");
-			break;
-
-		default:
-			return false;
-		}
-
-		if (!ImageWrapperModule)
-		{
-			ImageWrapperModule = FModuleManager::GetModulePtr<IImageWrapperModule>("ImageWrapper");
-		}
-
-		if (ImageWrapperModule)
-		{
-			ImageWrapper = ImageWrapperModule->CreateImageWrapper(ImageFormat);
-		}
-
-		return ImageWrapper.IsValid();
-	}
-
-	bool DumpImage(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const int32 InSlice, const int32 InRDOLambda, const OodleTex_BC InOodleBCN,
-		const FOodleTextureVTable * VTable)
-	{
-		check(InRawData);
-		check(InWidth > 0);
-		check(InHeight > 0);
-		check(InRawSize == (int64)BytesPerPixel * InWidth * InHeight);
-
-		if (!ImageWrapper.IsValid() || !ImageWrapper->SetRaw(InRawData, InRawSize, InWidth, InHeight, RGBFormat, BitDepth))
-		{
-			return false;
-		}
-
-		FMD5 MD5;
-		FString ImageHash = MD5.HashBytes(static_cast<const uint8*>(InRawData), InRawSize);
-		FString OodleBCName( (VTable->fp_OodleTex_BC_GetName)(InOodleBCN));
-		FString Filename = FString::Printf(TEXT("%s.w%d.h%d.s%d.rdo%d.%s%s"), *ImageHash, InWidth, InHeight, InSlice, InRDOLambda, *OodleBCName, Extension);
-		
-		// put in subdir by format and size
-		// helps reduce the count of files in a single dir, which stresses the file system
-		FString Subdir = FString::Printf(TEXT("%s.w%d.h%d"), *OodleBCName, InWidth, InHeight);
-
-		FString Path = FPaths::ProjectSavedDir() / TEXT("Oodle") / TEXT("DebugDump") / Subdir / Filename;
-
-		//UE_LOG(LogTextureFormatOodle, Display, TEXT("DumpImage : %s"), *Filename );
-		
-		int32 Quality = ( ImageFormat == EImageFormat::EXR ) ? (int32)EImageCompressionQuality::Uncompressed : (int32)EImageCompressionQuality::Default;
-
-		const TArray64<uint8>& CompressedImage = ImageWrapper->GetCompressed(Quality);
-		return FFileHelper::SaveArrayToFile(CompressedImage, *Path);
-	}
-
-private:
-
-	IImageWrapperModule* ImageWrapperModule;
-	TSharedPtr<IImageWrapper> ImageWrapper;
-
-	EImageFormat ImageFormat;
-	ERGBFormat RGBFormat;
-	int32 BytesPerPixel;
-	int32 BitDepth;
-	const TCHAR* Extension;
-};
-
 class FTextureFormatOodleConfig
 {
 public:
 	struct FLocalDebugConfig
 	{
 		FLocalDebugConfig() :
-			bDebugDump(false),
 			LogVerbosity(0)
 		{
 		}
 
-		bool bDebugDump; // dump textures that were encoded
+		FString DebugDumpFilter; // dump textures that were encoded
 		int LogVerbosity; // 0-2 ; 0=never, 1=large only, 2=always
 	};
 
@@ -483,23 +501,6 @@ public:
 	{
 		const TCHAR* IniSection = TEXT("TextureFormatOodleSettings");
 		
-		#if 0
-		// Check that our config section exists, and if not, init with defaults
-		//  this will add it to your per-user "Saved" Engine.ini
-		// eg: C:\UnrealEngine\Games\oodletest\Saved\Config\Windows\Engine.ini
-		// you can then move or copy it to DefaultEngine.ini if you like
-		if (!GConfig->DoesSectionExist(OODLETEXTURE_INI_SECTION, GEngineIni))
-		{
-			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
-			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugColor"), bDebugColor, GEngineIni);
-			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugDump"), bDebugDump, GEngineIni);
-			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("LogVerbosity"), LogVerbosity, GEngineIni);
-			GConfig->SetFloat(OODLETEXTURE_INI_SECTION, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
-
-			GConfig->Flush(false);
-		}
-		#endif
-		
 		//
 		// Note that while this gets called during singleton init for the module,
 		// the INIs don't exist when we're being run as a texture build worker,
@@ -509,7 +510,7 @@ public:
 		// Class config variables
 		GConfig->GetBool(IniSection, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bDebugColor"), bDebugColor, GEngineIni);
-		GConfig->GetBool(IniSection, TEXT("bDebugDump"), LocalDebugConfig.bDebugDump, GEngineIni);
+		GConfig->GetString(IniSection, TEXT("DebugDumpFilter"), LocalDebugConfig.DebugDumpFilter, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("LogVerbosity"), LocalDebugConfig.LogVerbosity, GEngineIni);
 		GConfig->GetFloat(IniSection, TEXT("GlobalLambdaMultiplier"), GlobalLambdaMultiplier, GEngineIni);
 
@@ -870,7 +871,7 @@ public:
 		return CompressedPixelFormat;
 	}
 
-	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
+	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_CompressImage);
 
@@ -1003,7 +1004,7 @@ public:
 		// verify OodlePF matches Image :
 		check( Image.GetBytesPerPixel() == (VTable->fp_OodleTex_PixelFormat_BytesPerPixel)(OodlePF) );
 		
-		OodleTex_Surface InSurf = { 0 };
+		OodleTex_Surface InSurf = {};
 		InSurf.width  = Image.SizeX;
 		InSurf.height = Image.SizeY;
 		InSurf.pixels = 0;
@@ -1046,6 +1047,11 @@ public:
 		{
 			// fill Texture with solid color based on which BCN we would have output
 			// lets you visually identify BCN textures in the Editor or game
+			const bool IsRDO = RDOLambda != 0;
+			constexpr SSIZE_T CheckerSizeBits = 4;
+			const SSIZE_T NumSlices = Image.NumSlices;
+			const SSIZE_T SizeY = Image.SizeY;
+			const SSIZE_T SizeX = Image.SizeX;
 
 			// use fast encoding settings for debug color :
 			RDOLambda = 0;
@@ -1055,13 +1061,50 @@ public:
 			{
 				//BC6 = purple
 				check(OodleBCN == OodleTex_BC6U);
-				for(float * ptr = (float *) ImageBasePtr; ptr< (float *)(ImageBasePtr + InBytesTotal); ptr += 4)
+
+				if (IsRDO)
 				{
-					// RGBA floats
-					ptr[0] = 0.5f;
-					ptr[1] = 0;
-					ptr[2] = 0.8f;
-					ptr[3] = 1.f;
+					for (SSIZE_T Slice = 0; Slice < NumSlices; Slice++)
+					{
+						float* LineBase = (float*)(ImageBasePtr + InBytesPerSlice * Slice);
+						for (SSIZE_T Y = 0; Y < SizeY; Y++, LineBase += (InSurf.rowStrideBytes / sizeof(float)))
+						{
+							for (SSIZE_T X = 0; X < SizeX; X++)
+							{
+								float* Pixel = LineBase + 4 * X;
+
+								SSIZE_T GridOnY = Y & (1 << CheckerSizeBits);
+								SSIZE_T GridOnX = X & (1 << CheckerSizeBits);
+								SSIZE_T GridOn = GridOnX ^ GridOnY;
+
+								if (GridOn)
+								{
+									Pixel[0] = 0.5f;
+									Pixel[1] = 0;
+									Pixel[2] = 0.8f;
+									Pixel[3] = 1.f;
+								}
+								else
+								{
+									Pixel[0] = 1.0f;
+									Pixel[1] = 1.0f;
+									Pixel[2] = 1.0f;
+									Pixel[3] = 1.f;
+								}
+							}
+						} // each line
+					} // each slice
+				} // end if RDO
+				else
+				{
+					for(float * ptr = (float *) ImageBasePtr; ptr < (float *)(ImageBasePtr + InBytesTotal); ptr += 4)
+					{
+						// RGBA floats
+						ptr[0] = 0.5f;
+						ptr[1] = 0;
+						ptr[2] = 0.8f;
+						ptr[3] = 1.f;
+					}
 				}
 			}
 			else
@@ -1085,9 +1128,39 @@ public:
 					default: break;
 				}
 
-				for(uint8 * ptr = ImageBasePtr; ptr < (ImageBasePtr + InBytesTotal); ptr += 4)
+				if (IsRDO)
 				{
-					*((uint32 *)ptr) = DebugColor;
+					for (SSIZE_T Slice = 0; Slice < NumSlices; Slice++)
+					{
+						uint8* LineBase = ImageBasePtr + InBytesPerSlice * Slice;;
+						for (SSIZE_T Y = 0; Y < SizeY; Y++, LineBase += InSurf.rowStrideBytes)
+						{
+							for (SSIZE_T X = 0; X < SizeX; X++)
+							{
+								uint8* Pixel = LineBase + 4 * X;
+
+								SSIZE_T GridOnY = Y & (1 << CheckerSizeBits);
+								SSIZE_T GridOnX = X & (1 << CheckerSizeBits);
+								SSIZE_T GridOn = GridOnX ^ GridOnY;
+
+								if (GridOn)
+								{
+									*((uint32*)Pixel) = DebugColor;
+								}
+								else
+								{
+									*((uint32*)Pixel) = 0xFFFFFFFF;
+								}
+							}
+						} // each line
+					} // each slice
+				} // end if RDO
+				else
+				{
+					for(uint8 * ptr = ImageBasePtr; ptr < (ImageBasePtr + InBytesTotal); ptr += 4)
+					{
+						*((uint32 *)ptr) = DebugColor;
+					}
 				}
 			}			
 		}
@@ -1109,17 +1182,15 @@ public:
 
 		uint8 * OutBlocksBasePtr = (uint8 *) &OutImage.RawData[0];
 
-		FImageDumper ImageDumper;
+		// Check if we want to dump the before/after images out.
 		bool bImageDump = false;
-		if (GlobalFormatConfig.GetLocalDebugConfig().bDebugDump && !bDebugColor)
+		if (GlobalFormatConfig.GetLocalDebugConfig().DebugDumpFilter.Len() && 
+			!bDebugColor && // don't bother if they are solid color
+			(Image.SizeX >= 4 || Image.SizeY >= 4)) // don't bother if they are too small.
 		{
-			if (ImageDumper.Initialize(ImageFormat))
+			if (FWildcardString::IsMatchSubstring(*GlobalFormatConfig.GetLocalDebugConfig().DebugDumpFilter, DebugTexturePathName.GetData(), DebugTexturePathName.GetData() + DebugTexturePathName.Len(), ESearchCase::IgnoreCase))
 			{
 				bImageDump = true;
-			}
-			else
-			{
-				UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture debug dump initialization failed!"));
 			}
 		}
 
@@ -1153,16 +1224,41 @@ public:
 			InSurf.pixels = ImageBasePtr + Slice * InBytesPerSlice;
 			uint8 * OutSlicePtr = OutBlocksBasePtr + Slice * OutBytesPerSlice;
 
-			if (bImageDump && !ImageDumper.DumpImage(InSurf.pixels, (int64)Image.GetBytesPerPixel() * Image.SizeX * Image.SizeY, Image.SizeX, Image.SizeY, Slice, RDOLambda, OodleBCN, VTable))
-			{
-				UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture debug dump failed!"));
-			}
-
 			OodleTex_RDO_Options OodleOptions = { };
 			OodleOptions.effort = EffortLevel;
 			OodleOptions.metric = OodleTex_RDO_ErrorMetric_Default;
 			OodleOptions.bcn_flags = OodleTex_BCNFlags_None;
 			OodleOptions.universal_tiling = RDOUniversalTiling;
+
+			if (bImageDump)
+			{
+				OodleDDS::EDXGIFormat DebugFormat = DXGIFormatFromOodlePF(OodlePF);
+				if (DebugFormat != OodleDDS::EDXGIFormat::UNKNOWN)
+				{
+					OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateEmpty2D(Image.SizeX, Image.SizeY, 1, DebugFormat, OodleDDS::FDDSFile::CREATE_FLAG_NONE);
+					FMemory::Memcpy(DDS->Mips[0].Data, InSurf.pixels, InBytesPerSlice);
+
+					FString InputFileName = FString::Printf(TEXT("%.*s_%dx%d_Slice%d_IN.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), Image.SizeX, Image.SizeY, Slice);
+
+					// Object paths a) can contain slashes as its a path, and we dont want a hierarchy and b) can have random characters we don't want
+					InputFileName = FPaths::MakeValidFileName(InputFileName, TEXT('_'));
+					InputFileName = FPaths::ProjectSavedDir() + TEXT("OodleDebugImages/") + InputFileName;
+				
+					FArchive* Ar = IFileManager::Get().CreateFileWriter(*InputFileName);
+					if (Ar != nullptr)
+					{					
+						DDS->SerializeToArchive(Ar);
+						Ar->Close();
+						delete Ar;
+					}
+					else
+					{
+						UE_LOG(LogTextureFormatOodle, Error, TEXT("Failed to open DDS debug input file: %s"), *InputFileName);
+					}
+
+					delete DDS;
+				}
+			}
 
 			// if RDOLambda == 0, does non-RDO encode :
 			OodleTex_Err OodleErr = (VTable->fp_OodleTex_EncodeBCN_RDO_Ex)(OodleBCN, OutSlicePtr, NumBlocksPerSlice, 
@@ -1175,6 +1271,34 @@ public:
 				UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture encode failed!? %s"), OodleErrStr );
 				bCompressionSucceeded = false;
 				break;
+			}
+			else
+			{
+				if (bImageDump)
+				{
+					OodleDDS::FDDSFile* DDS = OodleDDS::FDDSFile::CreateEmpty2D(Image.SizeX, Image.SizeY, 1, DXGIFormatFromOodleBC(OodleBCN), OodleDDS::FDDSFile::CREATE_FLAG_NONE);
+					FMemory::Memcpy(DDS->Mips[0].Data, OutSlicePtr, OutBytesPerSlice);
+
+					FString OutputFileName = FString::Printf(TEXT("%.*s_%dx%d_Slice%d_OUT.dds"), DebugTexturePathName.Len(), DebugTexturePathName.GetData(), Image.SizeX, Image.SizeY, Slice);
+
+					// Object paths a) can contain slashes as its a path, and we dont want a hierarchy and b) can have random characters we don't want
+					OutputFileName = FPaths::MakeValidFileName(OutputFileName, TEXT('_'));
+					OutputFileName = FPaths::ProjectSavedDir() + TEXT("OodleDebugImages/") + OutputFileName;
+
+					FArchive* Ar = IFileManager::Get().CreateFileWriter(*OutputFileName);
+					if (Ar != nullptr)
+					{
+						DDS->SerializeToArchive(Ar);
+						Ar->Close();
+						delete Ar;
+					}
+					else
+					{
+						UE_LOG(LogTextureFormatOodle, Error, TEXT("Failed to open DDS debug output file: %s"), *OutputFileName);
+					}
+
+					delete DDS;
+				}
 			}
 		}
 
@@ -1283,7 +1407,7 @@ static void TFO_Plugins_Init()
 	else
 	{
 		OodleJobifyUserPointer = nullptr;
-		OodleJobifyNumThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
+		OodleJobifyNumThreads = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
 	}
 }
 

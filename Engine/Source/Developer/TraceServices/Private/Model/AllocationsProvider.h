@@ -45,7 +45,6 @@ private:
 	struct ThreadState
 	{
 		TArray<uint32> TagStack;
-		bool bReallocTagActive;
 	};
 
 	struct TagEntry
@@ -61,9 +60,9 @@ public:
 	uint32 GetCurrentTag(uint32 ThreadId, uint8 Tracker) const;
 	const TCHAR* GetTagString(uint32 Tag) const;
 
-	void PushRealloc(uint32 ThreadId, uint8 Tracker, uint32 Tag);
-	void PopRealloc(uint32 ThreadId, uint8 Tracker);
-	bool HasReallocScope(uint32 ThreadId, uint8 Tracker) const;
+	void PushTagFromPtr(uint32 ThreadId, uint8 Tracker, uint32 Tag);
+	void PopTagFromPtr(uint32 ThreadId, uint8 Tracker);
+	bool HasTagFromPtrScope(uint32 ThreadId, uint8 Tracker) const;
 
 private:
 	inline uint32 GetTrackerThreadId(uint32 ThreadId, uint8 Tracker) const
@@ -109,19 +108,6 @@ struct FAllocationItem
 static_assert(sizeof(FAllocationItem) == 64, "struct FAllocationItem needs packing");
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#if 0
-struct FAllocationCoreItem
-{
-	uint32 StartEventIndex;
-	uint32 EndEventIndex;
-	double StartTime;
-	double EndTime;
-	uint64 Owner;
-	uint64 Base;
-	uint32 Size;
-};
-#endif
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FShortLivingAllocs
 {
@@ -139,6 +125,8 @@ public:
 	FShortLivingAllocs();
 	~FShortLivingAllocs();
 
+	void Reset();
+
 	bool IsFull() const { return AllocCount == MaxAllocCount; }
 	int32 Num() const { return AllocCount; }
 
@@ -147,7 +135,7 @@ public:
 	// The collection keeps ownership of FAllocationItem* until Remove is called or until the oldest allocation is removed.
 	// Returns the removed oldest allocation if collection is already full; nullptr otherwise.
 	// The caller receives ownership of the removed oldest allocation, if a valid pointer is returned.
-	FORCEINLINE FAllocationItem* AddChecked(FAllocationItem* Alloc);
+	FORCEINLINE FAllocationItem* AddAndRemoveOldest(FAllocationItem* Alloc);
 
 	// The caller takes ownership of FAllocationItem*. Returns nullptr if Address is not found.
 	FORCEINLINE FAllocationItem* Remove(uint64 Address);
@@ -159,10 +147,56 @@ public:
 
 private:
 	TMap<uint64, FNode*> AddressMap; // map for short living allocations: Address -> FNode*
-	FNode* AllNodes = nullptr; // preallocated array of nodes
+	FNode* AllNodes = nullptr; // preallocated array of nodes (MaxAllocCount nodes)
 	FNode* LastAddedAllocNode = nullptr; // the last added alloc; double linked list: Prev -> .. -> OldestAlloc
 	FNode* OldestAllocNode = nullptr; // the oldest alloc; double linked list: Next -> .. -> LastAddedAlloc
 	FNode* FirstUnusedNode = nullptr; // simple linked list with unused nodes (uses Next)
+	int32 AllocCount = 0;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHeapAllocs
+{
+private:
+	struct FNode
+	{
+		FAllocationItem* Alloc;
+		FNode* Next;
+		FNode* Prev;
+	};
+
+	struct FList
+	{
+		FNode* First = nullptr;
+		FNode* Last = nullptr;
+	};
+
+public:
+	FHeapAllocs();
+	~FHeapAllocs();
+
+	void Reset();
+
+	int32 Num() const { return AllocCount; }
+
+	// Finds the last heap allocation with specified address.
+	// Returns the found allocation or nullptr if not found.
+	FORCEINLINE FAllocationItem* FindRef(uint64 Address);
+
+	// The collection keeps ownership of FAllocationItem* until Remove is called.
+	FORCEINLINE void Add(FAllocationItem* Alloc);
+
+	// The caller takes ownership of FAllocationItem*. Returns nullptr if Address is not found.
+	FORCEINLINE FAllocationItem* Remove(uint64 Address);
+
+	void Enumerate(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
+
+	// Finds an allocation that contains the address specified or null if not found.
+	FAllocationItem* FindRange(uint64 Address) const;
+
+private:
+	TMap<uint64, FList> AddressMap; // map heap allocs: Address -> list of heap allocs
 	int32 AllocCount = 0;
 };
 
@@ -177,25 +211,58 @@ public:
 	uint32 Num() const { return TotalAllocCount; }
 	uint32 PeakCount() const { return MaxAllocCount; }
 	
+	// Finds the allocation with specified address.
+	// Returns the found allocation or nullptr if not found.
 	FORCEINLINE FAllocationItem* FindRef(uint64 Address);
 
-	// Finds the block containing the address or nullptr if the address was not found.
-	FORCEINLINE FAllocationItem* FindParentHeap(uint64 Address);
+	// Finds the heap allocation with specified address.
+	// Returns the found allocation or nullptr if not found.
+	FORCEINLINE FAllocationItem* FindHeapRef(uint64 Address);
 
+	// Finds an allocation containing the address.
+	// Returns the found allocation or nullptr if not found.
+	FORCEINLINE FAllocationItem* FindByAddressRange(uint64 Address);
+
+	// Finds the heap allocation containing the address.
+	// Returns the found allocation or nullptr if not found.
+	FORCEINLINE FAllocationItem* FindHeapByAddressRange(uint64 Address);
+
+	// Adds a new allocation with specified address.
 	// The collection keeps ownership of FAllocationItem* until Remove is called.
 	// Returns the new added allocation.
-	FORCEINLINE FAllocationItem* AddNewChecked(uint64 Address);
+	FORCEINLINE FAllocationItem* AddNew(uint64 Address);
 
+	// Adds a new allocation.
+	// The collection keeps ownership of FAllocationItem* until Remove is called.
+	FORCEINLINE void Add(FAllocationItem* Alloc);
+
+	// Adds a new heap allocation with specified address.
+	// The collection keeps ownership of FAllocationItem* until RemoveHeap is called.
+	// Returns the new added allocation.
+	FORCEINLINE FAllocationItem* AddNewHeap(uint64 Address);
+
+	// Adds a new heap allocation.
+	// The collection keeps ownership of FAllocationItem* until RemoveHeap is called.
+	FORCEINLINE void AddHeap(FAllocationItem* HeapAlloc);
+
+	// Removes an allocation with specified address.
 	// The caller takes ownership of FAllocationItem*.
-	// Returns nullptr if Address is not found.
+	// Returns the removed allocation or nullptr if not found.
 	FORCEINLINE FAllocationItem* Remove(uint64 Address);
 
+	// Removes a heap allocation with specified address.
+	// The caller takes ownership of FAllocationItem*.
+	// Returns the removed heap allocation or nullptr if not found.
+	FORCEINLINE FAllocationItem* RemoveHeap(uint64 Address);
+
+	// Enumerates all allocations (including heap allocations).
 	void Enumerate(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
 
 private:
 	FAllocationItem* LastAlloc = nullptr; // last allocation
 	FShortLivingAllocs ShortLivingAllocs; // short living allocs
 	TMap<uint64, FAllocationItem*> LongLivingAllocs; // long living allocations
+	FHeapAllocs HeapAllocs; // heap allocs
 
 	uint32 TotalAllocCount = 0;
 	uint32 MaxAllocCount = 0; // debug stats
@@ -244,11 +311,10 @@ public:
 	void EnumerateLiveAllocs(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
 	uint32 GetNumLiveAllocs() const;
 
-	bool HasReallocScope(uint32 ThreadId, uint8 Tracker) const { ReadAccessCheck(); return TagTracker.HasReallocScope(ThreadId, Tracker); }
+	virtual const TCHAR* GetTagName(int32 Tag) const { ReadAccessCheck(); return TagTracker.GetTagString(Tag); }
+	bool HasTagFromPtrScope(uint32 ThreadId, uint8 Tracker) const { ReadAccessCheck(); return TagTracker.HasTagFromPtrScope(ThreadId, Tracker); }
 
 	void DebugPrint() const;
-
-	virtual const TCHAR* GetTagName(int32 Tag) const { ReadAccessCheck(); return TagTracker.GetTagString(Tag); }
 
 	//////////////////////////////////////////////////
 	// Edit operations
@@ -263,11 +329,10 @@ public:
 	void EditUnmarkAllocationAsHeap(double Time, uint64 Address, HeapId Heap);
 	
 	void EditAddTagSpec(int32 Tag, uint32 ParentTag, const TCHAR* Display) { EditAccessCheck(); TagTracker.AddTagSpec(Tag, ParentTag, Display); }
-	void EditPushTag(uint32 ThreadId, uint8 Tracker, uint32 Tag)           { EditAccessCheck(); TagTracker.PushTag(ThreadId, Tracker, Tag); }
-	void EditPopTag(uint32 ThreadId, uint8 Tracker)                        { EditAccessCheck(); TagTracker.PopTag(ThreadId, Tracker); }
-
-	void EditPushRealloc(uint32 ThreadId, uint8 Tracker, uint64 Ptr);
-	void EditPopRealloc(uint32 ThreadId, uint8 Tracker);
+	void EditPushTag(uint32 ThreadId, uint8 Tracker, uint32 Tag);
+	void EditPopTag(uint32 ThreadId, uint8 Tracker);
+	void EditPushTagFromPtr(uint32 ThreadId, uint8 Tracker, uint64 Ptr);
+	void EditPopTagFromPtr(uint32 ThreadId, uint8 Tracker);
 
 	void EditOnAnalysisCompleted(double Time);
 
@@ -303,6 +368,8 @@ private:
 
 	FLiveAllocCollection* LiveAllocs[MaxRootHeaps];
 
+	uint64 MiscErrors = 0;
+	uint64 HeapErrors = 0;
 	uint64 AllocErrors = 0;
 	uint64 FreeErrors = 0;
 

@@ -32,22 +32,6 @@
 const float AnalogScrollUpdatePeriod = 0.1f;
 const float ScrollDeadZone = 0.2f;
 
-FString ToDebugString(const TSharedPtr<SWidget>& Widget)
-{
-	if (Widget)
-	{
-		if (Widget->GetType() == FName(TEXT("SObjectWidget")))
-		{
-			if (UUserWidget* UserWidget = StaticCastSharedPtr<SObjectWidget>(Widget)->GetWidgetObject())
-			{
-				return UserWidget->GetName();
-			}
-		}
-		return Widget->ToString();
-	}
-	return TEXT("nullptr");
-}
-
 bool IsEligibleFakeKeyPointerEvent(const FPointerEvent& PointerEvent)
 {
 	FKey EffectingButton = PointerEvent.GetEffectingButton();

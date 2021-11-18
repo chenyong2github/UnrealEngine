@@ -67,7 +67,7 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 	}
 
 	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
-				{
+	{
 		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionX) ||
 			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, PositionY) ||
 			PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingOutputComponent, SizeX) ||
@@ -90,8 +90,20 @@ void UDMXPixelMappingOutputComponent::PostEditChangeProperty(FPropertyChangedEve
 					GetParent()->RemoveChild(this);
 				}
 			}
+
+			// Remove childs if not over self
+			for (UDMXPixelMappingBaseComponent* Child : TArray<UDMXPixelMappingBaseComponent*>(Children))
+			{
+				if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Child))
+				{
+					if (OutputComponent && !OutputComponent->IsOverParent())
+					{
+						RemoveChild(OutputComponent);
+					}
+				}
+			}
+		}
 	}
-}
 }
 #endif // WITH_EDITOR
 

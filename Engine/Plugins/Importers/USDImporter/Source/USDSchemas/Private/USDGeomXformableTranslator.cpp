@@ -471,6 +471,42 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 	{
 		TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshes = UsdUtils::GetAllPrimsOfType( Prim, pxr::TfType::Find< pxr::UsdGeomMesh >() );
 
+		// Don't collapse children if they have different Nanite override values
+		bool bChildrenWantNanite = false;
+		bool bOtherChildHasNaniteOpinion = false;
+		for ( const TUsdStore< pxr::UsdPrim >& StoredPrim : ChildGeomMeshes )
+		{
+			pxr::UsdPrim ChildGeomMeshPrim = StoredPrim.Get();
+			if ( !pxr::UsdGeomMesh{ ChildGeomMeshPrim } )
+			{
+				continue;
+			}
+
+			if ( pxr::UsdAttribute NaniteOverride = ChildGeomMeshPrim.GetAttribute( UnrealIdentifiers::UnrealNaniteOverride ) )
+			{
+				pxr::TfToken OverrideValue;
+				if ( NaniteOverride.Get( &OverrideValue ) )
+				{
+					const bool bChildWantsNanite = ( OverrideValue == UnrealIdentifiers::UnrealNaniteOverrideEnable );
+
+					if ( bOtherChildHasNaniteOpinion && ( bChildWantsNanite != bChildrenWantNanite ) )
+					{
+						UE_LOG( LogUsd, Log, TEXT( "Not collapsing down from prim '%s' as child meshes have different values for the '%s' attribute" ),
+							*PrimPath.GetString(),
+							*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealNaniteOverride )
+						);
+						return false;
+					}
+					else if ( !bOtherChildHasNaniteOpinion )
+					{
+						bChildrenWantNanite = bChildWantsNanite;
+						bOtherChildHasNaniteOpinion = true;
+					}
+				}
+			}
+		}
+
+
 		// We only support collapsing GeomMeshes for now and we only want to do it when there are multiple meshes as the resulting mesh is considered unique
 		if ( ChildGeomMeshes.Num() < 2 )
 		{
@@ -494,6 +530,35 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 
 					if ( NumVertices > MaxVertices )
 					{
+						bCollapsesChildren = false;
+						break;
+					}
+				}
+
+				// Note that we wont try to prevent collapsing in general if the combined mesh would have a triangle count above the threshold but too many material slots:
+				// We'll just disable Nanite with a message on the log instead.
+				// This because not only is it difficult to estimate the total number of UE triangles we'll get from the combined USD Mesh prims, but also because
+				// it doesn't really work very well: Imagine we have the Kitchen Set scene (that collapses to like 500 material slots) and we put the threshold just under
+				// the combined number of triangles. This means we can't collapse then, as the combined mesh would want Nanite (as it has more triangles than the threshold)
+				// but has too many material slots. If we prevent if from collapsing, what do we do with the uncollapsed meshes then?
+				//  - If we enable Nanite for them its a bit unexpected because now we'll have a bunch of tiny meshes that for some reason have Nanite enabled;
+				//  - If we don't enable Nanite for them, then what is the benefit? Now the mesh hasn't collapsed but we don't have Nanite anywhere anyway...
+				// At least for the case below (with the explicit overrides) we would end up with some meshes having Nanite, according to how the user set them.
+				// In the future we could expose the collapsing controls on the stage actor to let the user control this a bit better
+
+				// Don't collapse children if the child meshes have Nanite override opinions but the combined mesh would lead to over 64 material slots.
+				if ( bChildrenWantNanite )
+				{
+					std::vector<pxr::UsdGeomSubset> GeomSubsets = pxr::UsdShadeMaterialBindingAPI( ChildPrim.Get() ).GetMaterialBindSubsets();
+					NumMaxExpectedMaterialSlots += FMath::Max<int32>( 1, GeomSubsets.size() + 1 ); // +1 because we may create an additional slot if it's not properly partitioned
+
+					const int32 MaxNumSections = 64; // There is no define for this, but it's checked for on NaniteBuilder.cpp, FBuilderModule::Build
+					if ( NumMaxExpectedMaterialSlots > MaxNumSections )
+					{
+						UE_LOG( LogUsd, Log, TEXT( "Not collapsing down from prim '%s' as child meshes want Nanite to be abled but the generated static mesh would have more than '%d' material slots" ),
+							*PrimPath.GetString(),
+							MaxNumSections
+						);
 						bCollapsesChildren = false;
 						break;
 					}

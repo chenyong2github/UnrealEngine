@@ -823,7 +823,7 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 		}
 		else if(CurrentMaterial)
 		{
-			bIsOverridden = CurrentMaterial->GetParameterValue(EMaterialParameterType::StaticSwitch, StaticSwitchParameterInfo[ParameterIndex], Meta, EMaterialGetParameterValueFlags::CheckAll);
+			bIsOverridden = CurrentMaterial->GetParameterValue(EMaterialParameterType::StaticSwitch, StaticSwitchParameterInfo[ParameterIndex], Meta);
 		}
 
 		if (!bIsOverridden)
@@ -859,7 +859,7 @@ void FAnalyzeMaterialTreeAsyncTask::DoWork()
 		}
 		else if (CurrentMaterial)
 		{
-			bIsOverridden = CurrentMaterial->GetParameterValue(EMaterialParameterType::StaticComponentMask, StaticSwitchParameterInfo[ParameterIndex], Meta, EMaterialGetParameterValueFlags::CheckAll);
+			bIsOverridden = CurrentMaterial->GetParameterValue(EMaterialParameterType::StaticComponentMask, StaticSwitchParameterInfo[ParameterIndex], Meta);
 		}
 
 		if(!bIsOverridden)

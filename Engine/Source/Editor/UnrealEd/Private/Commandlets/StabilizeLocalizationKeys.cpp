@@ -120,13 +120,14 @@ public:
 			return false;
 		}
 
-		FString Namespace;
-		FString Key;
-		const bool bFoundNamespaceAndKey = FTextLocalizationManager::Get().FindNamespaceAndKeyFromDisplayString(FTextInspector::GetSharedDisplayString(InOutText), Namespace, Key);
-		if (!bFoundNamespaceAndKey)
+		const FTextId TextId = FTextInspector::GetTextId(InOutText);
+		if (TextId.IsEmpty())
 		{
 			return false;
 		}
+
+		const FString Namespace = TextId.GetNamespace().GetChars();
+		const FString Key = TextId.GetKey().GetChars();
 
 		const FString CurrentPackageNamespace = TextNamespaceUtil::ExtractPackageNamespace(Namespace);
 		if (CurrentPackageNamespace.Equals(PackageNamespace, ESearchCase::CaseSensitive))

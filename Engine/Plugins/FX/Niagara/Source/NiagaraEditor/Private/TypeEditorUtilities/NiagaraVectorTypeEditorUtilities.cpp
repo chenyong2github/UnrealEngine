@@ -124,13 +124,13 @@ public:
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
 	{
 		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec2Struct(), TEXT("Struct type not supported."));
-		VectorValue = *((FVector2D*)Struct->GetStructMemory());
+		VectorValue = *((FVector2f*)Struct->GetStructMemory());
 	}
 
 	virtual void UpdateStructFromInternalValue(TSharedRef<FStructOnScope> Struct) override
 	{
 		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec2Struct(), TEXT("Struct type not supported."));
-		*((FVector2D*)Struct->GetStructMemory()) = VectorValue;
+		*((FVector2f*)Struct->GetStructMemory()) = VectorValue;
 	}
 
 protected:
@@ -145,7 +145,7 @@ protected:
 	}
 
 private:
-	FVector2D VectorValue;
+	FVector2f VectorValue;
 };
 
 TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorVector2TypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
@@ -161,15 +161,15 @@ bool FNiagaraEditorVector2TypeUtilities::CanHandlePinDefaults() const
 FString FNiagaraEditorVector2TypeUtilities::GetPinDefaultStringFromValue(const FNiagaraVariable& AllocatedVariable) const
 {
 	checkf(AllocatedVariable.IsDataAllocated(), TEXT("Can not generate a default value string for an unallocated variable."));
-	return AllocatedVariable.GetValue<FVector2D>().ToString();
+	return AllocatedVariable.GetValue<FVector2f>().ToString();
 }
 
 bool FNiagaraEditorVector2TypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
 {
-	FVector2D VectorValue = FVector2D::ZeroVector;
+	FVector2f VectorValue = FVector2f::ZeroVector;
 	if (VectorValue.InitFromString(StringValue) || !Variable.IsDataAllocated())
 	{
-		Variable.SetValue<FVector2D>(VectorValue);
+		Variable.SetValue<FVector2f>(VectorValue);
 		return true;
 	}
 	return false;
@@ -182,7 +182,7 @@ FText FNiagaraEditorVector2TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 
 FText FNiagaraEditorVector2TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
 {
-	FVector2D Value = Variable.GetValue<FVector2D>();
+	FVector2f Value = Variable.GetValue<FVector2f>();
 	return FText::Format(FText::FromString("({0}, {1})"), Value.X, Value.Y);
 }
 

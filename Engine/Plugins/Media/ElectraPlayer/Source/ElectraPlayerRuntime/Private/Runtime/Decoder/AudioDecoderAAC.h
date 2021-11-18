@@ -80,6 +80,13 @@ namespace Electra
 		// Methods from IDecoderReadyBufferDiags
 		//
 		virtual void SetReadyBufferListener(IDecoderOutputBufferListener* Listener) = 0;
+
+		//-------------------------------------------------------------------------
+		// Platform specifics
+		//
+#if PLATFORM_ANDROID
+		virtual void Android_SuspendOrResumeDecoder(bool bSuspend) = 0;
+#endif
 	};
 
 

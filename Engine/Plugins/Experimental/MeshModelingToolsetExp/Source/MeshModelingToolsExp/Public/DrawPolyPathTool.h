@@ -75,6 +75,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Path, meta = (EditCondition = "WidthMode == EDrawPolyPathWidthMode::Fixed", UIMin = "0.0001", UIMax = "1000", ClampMin = "0", ClampMax = "999999"))
 	float Width = 10.0f;
 
+	/** If true, all quads on the path will belong to the same polygon. If false, each quad gets its own polygon. */
+	UPROPERTY(EditAnywhere, Category = Path)
+	bool bSinglePolyGroup = false;
+
 	/** If and how the drawn path gets extruded */
 	UPROPERTY(EditAnywhere, Category = Extrude)
 	EDrawPolyPathExtrudeMode ExtrudeMode = EDrawPolyPathExtrudeMode::Interactive;
@@ -133,7 +137,6 @@ class MESHMODELINGTOOLSEXP_API UDrawPolyPathTool : public UInteractiveTool, publ
 {
 	GENERATED_BODY()
 public:
-	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	virtual void SetWorld(UWorld* World);
 
@@ -194,7 +197,6 @@ protected:
 
 	TArray<UE::Geometry::FFrame3d> CurPathPoints;
 	TArray<double> OffsetScaleFactors;
-	TArray<double> ArcLengths;
 	TArray<FVector3d> CurPolyLine;
 	double CurPathLength;
 	double CurOffsetDistance;
@@ -229,7 +231,6 @@ protected:
 	void ClearPreview();
 	void GeneratePathMesh(UE::Geometry::FDynamicMesh3& Mesh);
 	void GenerateExtrudeMesh(UE::Geometry::FDynamicMesh3& PathMesh);
-	void GenerateRampMesh(FDynamicMesh3& PathMesh);
 	void EmitNewObject(EDrawPolyPathExtrudeMode ExtrudeMode);
 
 	// user feedback messages

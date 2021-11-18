@@ -61,7 +61,7 @@ namespace TypePromoTestUtils
 		{
 			if (TestPin)
 			{
-				TestPin->MarkPendingKill();
+				TestPin->MarkAsGarbage();
 			}
 		}
 		InPins.Empty();
@@ -330,7 +330,7 @@ bool FFindBestMatchingFunc::RunTest(const FString& Parameters)
 	}
 	
 	TypePromoTestUtils::CleanupTestPins(PinTypes);
-	TestNode->MarkPendingKill();
+	TestNode->MarkAsGarbage();
 
 	return true;
 }
@@ -385,7 +385,7 @@ bool FPromotableTypeToOperator::RunTest(const FString& Parameters)
 	// Cleanup test
 	{
 		TypePromoTestUtils::CleanupTestPins(PinTypes);
-		TestNode->MarkPendingKill();
+		TestNode->MarkAsGarbage();
 	}
 
 	return true;
@@ -454,9 +454,9 @@ bool FPromotableOpDefaultState::RunTest(const FString& Parameters)
 
 	// Cleanup test BP and graph
 	{
-		WildcardStartTestBP->MarkPendingKill();
+		WildcardStartTestBP->MarkAsGarbage();
 		WildcardStartTestBP->Rename(nullptr, nullptr, REN_DontCreateRedirectors);
-		TestWildcardGraph->MarkPendingKill();
+		TestWildcardGraph->MarkAsGarbage();
 	}
 
 	return true;
@@ -548,10 +548,10 @@ bool FPromotableOpTolerancePin::RunTest(const FString& Parameters)
 	{
 		TypePromoTestUtils::CleanupTestPins(PinTypes);
 
-		ToleranceTestBP->MarkPendingKill();
+		ToleranceTestBP->MarkAsGarbage();
 		ToleranceTestBP->Rename(nullptr, nullptr, REN_DontCreateRedirectors);
-		TestNode->MarkPendingKill();
-		ToleranceGraph->MarkPendingKill();
+		TestNode->MarkAsGarbage();
+		ToleranceGraph->MarkAsGarbage();
 	}
 
 	return true;
@@ -657,10 +657,10 @@ bool FPromotableOpNodeAddPinInterface::RunTest(const FString& Parameters)
 	{
 		TypePromoTestUtils::CleanupTestPins(PinTypes);
 
-		TestBP->MarkPendingKill();
+		TestBP->MarkAsGarbage();
 		TestBP->Rename(nullptr, nullptr, REN_DontCreateRedirectors);
-		TestGraph->MarkPendingKill();
-		TestNode->MarkPendingKill();
+		TestGraph->MarkAsGarbage();
+		TestNode->MarkAsGarbage();
 	}
 
 	return true;
@@ -749,10 +749,10 @@ bool FPromotableOperatorConnectionChanged::RunTest(const FString& Parameters)
 	{
 		TypePromoTestUtils::CleanupTestPins(PinTypes);
 
-		BP_ConnectionChanged->MarkPendingKill();
+		BP_ConnectionChanged->MarkAsGarbage();
 		BP_ConnectionChanged->Rename(nullptr, nullptr, REN_DontCreateRedirectors);
-		TestGraph->MarkPendingKill();
-		TestNode->MarkPendingKill();
+		TestGraph->MarkAsGarbage();
+		TestNode->MarkAsGarbage();
 	}
 
 	return true;
@@ -838,10 +838,10 @@ bool FPromotableOperatorPrimitivePromotions::RunTest(const FString& Parameters)
 	{
 		TypePromoTestUtils::CleanupTestPins(PinTypes);
 
-		BP_Primative_Connections->MarkPendingKill();
+		BP_Primative_Connections->MarkAsGarbage();
 		BP_Primative_Connections->Rename(nullptr, nullptr, REN_DontCreateRedirectors);
-		TestGraph->MarkPendingKill();
-		TestNode->MarkPendingKill();
+		TestGraph->MarkAsGarbage();
+		TestNode->MarkAsGarbage();
 	}
 
 	return true;

@@ -290,7 +290,7 @@ void FBlueprintUnloader::UnloadBlueprint(const bool bResetPackage)
 		UnloadingBp->SetFlags(RF_Transient);
 		UnloadingBp->ClearFlags(RF_Standalone | RF_Transactional);
 		UnloadingBp->RemoveFromRoot();
-		UnloadingBp->MarkPendingKill();
+		UnloadingBp->MarkAsGarbage();
 		// if it's in the undo buffer, then we have to clear that...
 		if (FKismetEditorUtilities::IsReferencedByUndoBuffer(UnloadingBp))
 		{
@@ -838,7 +838,7 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 		if (Component->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
 		{
 			// Async loading components cannot be pending kill, or the async loading code will assert when trying to postload them.
-			Component->ClearPendingKill();
+			Component->ClearGarbage();
 			FLinkerLoad::InvalidateExport(Component);
 		}
 		DestroyedComponents.Add(Component);
@@ -2630,14 +2630,49 @@ bool FKismetEditorUtilities::IsClassABlueprintInterface(const UClass* Class)
 	return false;
 }
 
+bool FKismetEditorUtilities::IsClassABlueprintImplementableInterface(const UClass* Class)
+{
+	if (!IsClassABlueprintInterface(Class))
+	{
+		return false;
+	}
+	
+	// First check explicit tags
+	if (Class->HasMetaData(FBlueprintMetadata::MD_CannotImplementInterfaceInBlueprint))
+	{
+		return false;
+	}
+	if (Class->HasMetaDataHierarchical(FBlueprintMetadata::MD_IsBlueprintBase))
+	{
+		if (Class->GetBoolMetaDataHierarchical(FBlueprintMetadata::MD_IsBlueprintBase))
+		{
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	
+	// Unclear, treat it as blueprintable if it has any events as the header parser would complain if they were the wrong type
+	for (TFieldIterator<UFunction> FuncIt(Class, EFieldIteratorFlags::IncludeSuper); FuncIt; ++FuncIt)
+	{
+		UFunction* Function = *FuncIt;
+		if (Function->HasAnyFunctionFlags(FUNC_BlueprintEvent))
+		{
+			return true;
+		}
+	}
 
+	return false;
+}
 
 bool FKismetEditorUtilities::CanBlueprintImplementInterface(UBlueprint const* Blueprint, UClass const* Class)
 {
 	bool bCanImplementInterface = false;
 
 	// if the class is an actual implementable interface
-	if (IsClassABlueprintInterface(Class) && !Class->HasMetaData(FBlueprintMetadata::MD_CannotImplementInterfaceInBlueprint))
+	if (IsClassABlueprintImplementableInterface(Class))
 	{
 		bCanImplementInterface = true;
 

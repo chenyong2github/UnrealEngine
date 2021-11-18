@@ -55,7 +55,7 @@ bool UCameraAnim::CreateFromInterpGroup(class UInterpGroup* SrcGroup, class AMat
 			// delete the old one, if it exists
 			if (OldGroup)
 			{
-				OldGroup->MarkPendingKill();
+				OldGroup->MarkAsGarbage();
 			}
 
 			// success!

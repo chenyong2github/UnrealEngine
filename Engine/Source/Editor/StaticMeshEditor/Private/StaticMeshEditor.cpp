@@ -2011,10 +2011,21 @@ void FStaticMeshEditor::SetEditorMesh(UStaticMesh* InStaticMesh, bool bResetCame
 	// Set the details view.
 	StaticMeshDetailsView->SetObject(StaticMesh);
 
-	if (GetStaticMeshViewport().IsValid())
+	if (SStaticMeshEditorViewport* StaticMeshViewport = GetStaticMeshViewport().Get())
 	{
-		GetStaticMeshViewport()->UpdatePreviewMesh(StaticMesh, bResetCamera);
-		GetStaticMeshViewport()->RefreshViewport();
+		StaticMeshViewport->UpdatePreviewMesh(StaticMesh, bResetCamera);
+		StaticMeshViewport->RefreshViewport();
+		if (EditorModeManager)
+		{
+			// update the selection
+			if (USelection* ComponentSet = EditorModeManager->GetSelectedComponents())
+			{
+				ComponentSet->BeginBatchSelectOperation();
+				ComponentSet->DeselectAll();
+				ComponentSet->Select(StaticMeshViewport->GetStaticMeshComponent(), true);
+				ComponentSet->EndBatchSelectOperation();
+			}
+		}
 	}
 }
 

@@ -538,7 +538,7 @@ FLumenTranslucencyLightingVolumeParameters GetTranslucencyLightingVolumeParamete
 	
 	Parameters.FurthestHZBTexture = View.HZB;
 	Parameters.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2(GTranslucencyFroxelGridPixelSize) - 1, 0.0f);
-	Parameters.ViewportUVToHZBBufferUV = FVector2D(
+	Parameters.ViewportUVToHZBBufferUV = FVector2f(
 		float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
 		float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
 

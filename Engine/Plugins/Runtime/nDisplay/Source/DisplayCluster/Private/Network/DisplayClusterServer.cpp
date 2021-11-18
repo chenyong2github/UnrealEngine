@@ -2,7 +2,8 @@
 
 #include "Network/DisplayClusterServer.h"
 #include "Network/Session/IDisplayClusterSession.h"
-#include "Network/DisplayClusterTcpListener.h"
+#include "Network/Listener/DisplayClusterTcpListener.h"
+#include "Network/DisplayClusterNetworkTypes.h"
 
 #include "Engine/GameEngine.h"
 #include "TimerManager.h"
@@ -20,72 +21,111 @@ const double FDisplayClusterServer::CleanSessionResourcesSafePeriod = 10.f;
 
 FDisplayClusterServer::FDisplayClusterServer(const FString& InName)
 	: Name(InName)
-	, Listener(new FDisplayClusterTcpListener(InName + FString("_listener")))
 {
-	// Bind connection handler method
-	Listener->OnConnectionAccepted().BindRaw(this, &FDisplayClusterServer::ConnectionHandler);
+	// Subscribe for session events
+	OnSessionOpened().AddRaw(this, &FDisplayClusterServer::ProcessSessionOpened);
+	OnSessionClosed().AddRaw(this, &FDisplayClusterServer::ProcessSessionClosed);
 }
 
-FDisplayClusterServer::~FDisplayClusterServer()
+bool FDisplayClusterServer::Start(const FString& Address, const uint16 Port)
 {
-	// Call from child .dtor
-	Shutdown();
-}
-
-
-bool FDisplayClusterServer::Start(const FString& Address, int32 Port)
-{
-	check(Port > 0 && Port < 0xffff);
-	check(Listener);
-
 	FScopeLock Lock(&ServerStateCritSec);
 
-	// Nothing to do if alrady running
-	if (bIsRunning == true)
+	// Nothing to do if already running
+	if (bIsRunning)
 	{
 		return true;
 	}
 
-	// Start listening for incoming connections
+	UE_LOG(LogDisplayClusterNetwork, Log, TEXT("%s starting..."), *Name);
+
+	// Instantiate internal listener
+	Listener = MakeShared<FDisplayClusterTcpListener>(false, GetName() + FString("_listener"));
+	// Bind connection handler method
+	Listener->OnConnectionAccepted().BindRaw(this, &FDisplayClusterServer::ConnectionHandler);
+
 	if (!Listener->StartListening(Address, Port))
 	{
-		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s couldn't start the listener [%s:%d]"), *Name, *Address, Port);
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s couldn't start connection listener [%s:%d]"), *Name, *Address, Port);
 		return false;
 	}
 
 	// Update server state
 	bIsRunning = true;
 
-	// Update socket data
-	ServerAddress = Address;
-	ServerPort = Port;
+	return bIsRunning;
+}
+
+bool FDisplayClusterServer::Start(TSharedPtr<FDisplayClusterTcpListener>& ExternalListener)
+{
+	check(ExternalListener.IsValid());
+
+	FScopeLock Lock(&ServerStateCritSec);
+
+	// Set connection handler up
+	const FString ProtocolName = GetProtocolName();
+	ExternalListener->OnConnectionAccepted(ProtocolName).BindRaw(this, &FDisplayClusterServer::ConnectionHandler);
+
+	// Nothing to do if alrady running
+	if (bIsRunning)
+	{
+		return true;
+	}
+
+	// Keep external listener ptr
+	Listener = ExternalListener;
+
+	// Update server state
+	bIsRunning = true;
 
 	return bIsRunning;
 }
 
 void FDisplayClusterServer::Shutdown()
 {
-	FScopeLock Lock(&ServerStateCritSec);
+	TArray<TSharedPtr<IDisplayClusterSession>> ActiveSessionsToWait;
 
-	// Nothing to do if not running
-	if (!bIsRunning)
 	{
-		return;
+		FScopeLock Lock(&ServerStateCritSec);
+
+		// Nothing to do if not running
+		if (!IsRunning())
+		{
+			return;
+		}
+
+		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("%s stopping..."), *Name);
+
+		// Update server state so no new sessions allowed anymore
+		bIsRunning = false;
+		// Stop listening for new connections
+		Listener.Reset();
+
+		// Make copy of all active sessions to wait for completion later
+		ActiveSessions.GenerateValueArray(ActiveSessionsToWait);
+
+		// Send stop command to all active sessions
+		for (auto It = ActiveSessions.CreateIterator(); It; ++It)
+		{
+			It->Value->StopSession(false);
+		}
 	}
 
-	UE_LOG(LogDisplayClusterNetwork, Log, TEXT("%s stopping the service..."), *Name);
+	// Now wait unless all session threads are finished. We're waiting outside of the
+	// critical section so the sessions won't be deadlocked notifying the server about their state changes.
+	for (TSharedPtr<IDisplayClusterSession>& Session : ActiveSessionsToWait)
+	{
+		Session->WaitForCompletion();
+	}
 
-	// Stop connections listening
-	Listener->StopListening();
-	// Destroy sessions
-	ActiveSessions.Reset();
-	PendingSessions.Reset();
-	PendingKillSessionsInfo.Empty();
-	// Update server state
-	bIsRunning = false;
-	// Update socket data
-	ServerAddress = FString();
-	ServerPort = 0;
+	{
+		FScopeLock Lock(&ServerStateCritSec);
+
+		// Finally, cleanup internals
+		ActiveSessions.Reset();
+		PendingSessions.Reset();
+		PendingKillSessions.Reset();
+	}
 }
 
 bool FDisplayClusterServer::IsRunning() const
@@ -94,83 +134,133 @@ bool FDisplayClusterServer::IsRunning() const
 	return bIsRunning;
 }
 
-bool FDisplayClusterServer::ConnectionHandler(FSocket* Socket, const FIPv4Endpoint& Endpoint)
+FString FDisplayClusterServer::GetAddress() const
 {
-	check(Socket);
+	FScopeLock Lock(&SessionsCritSec);
+	return IsRunning() ? Listener->GetListeningHost() : FString();
+}
+
+// Server port
+uint16 FDisplayClusterServer::GetPort() const
+{
+	FScopeLock Lock(&SessionsCritSec);
+	return IsRunning() ? Listener->GetListeningPort() : 0;
+}
+
+void FDisplayClusterServer::KillSession(const FString& NodeId)
+{
+	FScopeLock Lock(&SessionsCritSec);
+
+	if (IsRunning())
+	{
+		// Iterate over all active sessions
+		for (TPair<uint64, TSharedPtr<IDisplayClusterSession>>& SessionIt : ActiveSessions)
+		{
+			// Make sure the session ID is valid (only for in-cluster comm sessions)
+			const FString SessionNodeId = SessionIt.Value->GetSessionInfo().NodeId.Get(FString());
+			if (!SessionNodeId.IsEmpty())
+			{
+				// Stop session if ID matches the requested one
+				if (SessionNodeId.Equals(NodeId, ESearchCase::IgnoreCase))
+				{
+					// No need to wait for completion to prevent deadlock in case the KillSession pipeline
+					// is triggered from one of the sessions
+					SessionIt.Value->StopSession(false);
+				}
+			}
+		}
+	}
+}
+
+bool FDisplayClusterServer::ConnectionHandler(FDisplayClusterSessionInfo& SessionInfo)
+{
+	check(SessionInfo.Socket);
 
 	FScopeLock Lock(&SessionsCritSec);
 
-	if (IsRunning() && IsConnectionAllowed(Socket, Endpoint))
+	if (IsRunning() && (IsConnectionAllowedDelegate.IsBound() ? IsConnectionAllowedDelegate.Execute(SessionInfo) : true))
 	{
-		Socket->SetLinger(false, 0);
-		Socket->SetNonBlocking(false);
-		Socket->SetNoDelay(true);
+		UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("Connection %s is allowed %s"),
+			*SessionInfo.ToString(),
+			IsConnectionAllowedDelegate.IsBound() ? TEXT("by a validator") : TEXT("(no validation)"));
+
+		// Set socket properties (non-blocking, no delay)
+		SessionInfo.Socket->SetNoDelay(true);
+		SessionInfo.Socket->SetLinger(true, 0);
+		SessionInfo.Socket->SetNonBlocking(false);
+		// Update other session info
+		SessionInfo.Protocol  = GetProtocolName();
+		SessionInfo.SessionId = IncrementalSessionId++;
 
 		// Create new session for this incoming connection
-		TUniquePtr<IDisplayClusterSession> Session = CreateSession(Socket, Endpoint, IncrementalSessionId);
+		TSharedPtr<IDisplayClusterSession> Session = CreateSession(SessionInfo);
 		check(Session.IsValid());
-		if (Session && Session->StartSession()) 
+		if (Session)
 		{
-			// Store session object
-			PendingSessions.Emplace(IncrementalSessionId, MoveTemp(Session));
-			// Increment session ID counter
-			++IncrementalSessionId;
+			// Move the session to the pending session list unless it's started
+			PendingSessions.Emplace(SessionInfo.SessionId, Session);
+			// And trigger session start
+			return Session->StartSession();
 		}
-
-		return true;
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Connection request %s has been rejected"), *SessionInfo.ToString());
 	}
 
 	return false;
 }
 
+void FDisplayClusterServer::ProcessSessionOpened(const FDisplayClusterSessionInfo& SessionInfo)
+{
+	FScopeLock Lock(&SessionsCritSec);
+
+	if (IsRunning())
+	{
+		UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("Session start: %s"), *SessionInfo.SessionName);
+
+		// Change session status from 'Pending' to 'Active'
+		TSharedPtr<IDisplayClusterSession> Session;
+		if (PendingSessions.RemoveAndCopyValue(SessionInfo.SessionId, Session))
+		{
+			ActiveSessions.Emplace(SessionInfo.SessionId, Session);
+		}
+	}
+}
+
+void FDisplayClusterServer::ProcessSessionClosed(const FDisplayClusterSessionInfo& SessionInfo)
+{
+	FScopeLock Lock(&SessionsCritSec);
+
+	if (IsRunning())
+	{
+		UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("Session end: %s"), *SessionInfo.SessionName);
+
+		// Change session status from 'Active' to 'PendingKill'
+		TSharedPtr<IDisplayClusterSession> Session;
+		if (ActiveSessions.RemoveAndCopyValue(SessionInfo.SessionId, Session))
+		{
+			PendingKillSessions.Emplace(SessionInfo.SessionId, Session);
+		}
+
+		// Clean sessions that have been queued previously
+		CleanPendingKillSessions();
+	}
+}
 
 void FDisplayClusterServer::CleanPendingKillSessions()
 {
 	FScopeLock Lock(&SessionsCritSec);
 
-	if (!PendingKillSessionsInfo.IsEmpty())
-	{
-		const FPendingKillSessionInfo* Info = PendingKillSessionsInfo.Peek();
-		const double CurTime = FPlatformTime::Seconds();
+	const double CurrentTime = FPlatformTime::Seconds();
 
-		// Free only those sessions that have cleaning safe period expired
-		while (Info && (CurTime - Info->Time > FDisplayClusterServer::CleanSessionResourcesSafePeriod))
+	// Release all PendingKill sessions that have timed out (safe release period)
+	for (auto SessionIt = PendingKillSessions.CreateIterator(); SessionIt; ++SessionIt)
+	{
+		if ((CurrentTime - SessionIt->Value->GetSessionInfo().TimeEnd) > FDisplayClusterServer::CleanSessionResourcesSafePeriod)
 		{
-			UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("%s - cleaning session resources id=%llu..."), *Name, Info->SessionId);
-			ActiveSessions.Remove(Info->SessionId);
-			PendingKillSessionsInfo.Pop();
-			Info = PendingKillSessionsInfo.Peek();
+			UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("%s - cleaning session resources, SessionId=%llu..."), *Name, SessionIt->Key);
+			SessionIt.RemoveCurrent();
 		}
 	}
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// IDisplayClusterSessionListener
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterServer::NotifySessionOpen(uint64 SessionId)
-{
-	FScopeLock Lock(&SessionsCritSec);
-
-	// Change session status from 'pending' to 'active'
-	TUniquePtr<IDisplayClusterSession> Session;
-	if (PendingSessions.RemoveAndCopyValue(SessionId, Session))
-	{
-		ActiveSessions.Emplace(SessionId, MoveTemp(Session));
-	}
-}
-
-void FDisplayClusterServer::NotifySessionClose(uint64 SessionId)
-{
-	FScopeLock Lock(&SessionsCritSec);
-
-	// Clean the 'pending kill' session that have been queued previously
-	CleanPendingKillSessions();
-
-	// We come here from a Session object so we can't delete it right now. The delete operation should
-	// be performed later when the session is completely finished and its working thread is closed.
-	// Here we store ID of the session and its death time to clean the resources safely later.
-	FPendingKillSessionInfo PendingKillSession;
-	PendingKillSession.SessionId = SessionId;
-	PendingKillSession.Time = FPlatformTime::Seconds();
-	PendingKillSessionsInfo.Enqueue(PendingKillSession);
 }

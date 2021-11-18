@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "Network/Packet/IDisplayClusterPacket.h"
+#include "Network/DisplayClusterNetworkTypes.h"
 #include "Misc/DisplayClusterTypesConverter.h"
 
 class FMemoryWriter;
@@ -26,25 +27,36 @@ public:
 		: Name(InName)
 		, Type(InType)
 		, Protocol(InProtocol)
+		, CommResult(EDisplayClusterCommResult::Ok)
 	{ }
 
 public:
 	// Packet name
-	inline FString GetName() const
+	inline const FString& GetName() const
 	{
 		return Name;
 	}
 
 	// Packet type
-	inline FString GetType() const
+	inline const FString& GetType() const
 	{
 		return Type;
 	}
 
 	// Packet protocol
-	inline FString GetProtocol() const
+	inline const FString& GetProtocol() const
 	{
 		return Protocol;
+	}
+
+	inline EDisplayClusterCommResult GetCommResult() const
+	{
+		return CommResult;
+	}
+
+	inline void SetCommResult(EDisplayClusterCommResult InCommResult)
+	{
+		CommResult = InCommResult;
 	}
 
 public:
@@ -79,6 +91,16 @@ public:
 		}
 
 		Section->Emplace(ArgName, DisplayClusterTypesConverter::template ToString<ValType>(ArgVal));
+	}
+
+	// Remove text argument
+	void RemoveTextArg(const FString& SectionName, const FString& ArgName)
+	{
+		TMap<FString, FString>* Section = TextArguments.Find(SectionName);
+		if (Section)
+		{
+			Section->Remove(ArgName);
+		}
 	}
 
 	// Get all text arguments of a specified section
@@ -124,6 +146,16 @@ public:
 		}
 
 		Section->Emplace(ArgName, ArgVal);
+	}
+
+	// Remove binary argument
+	void RemoveBinArg(const FString& SectionName, const FString& ArgName)
+	{
+		TMap<FString, TArray<uint8>>* Section = BinaryArguments.Find(SectionName);
+		if (Section)
+		{
+			Section->Remove(ArgName);
+		}
 	}
 
 	// Get all binary arguments of a specified section
@@ -227,6 +259,8 @@ private:
 	FString Name;
 	FString Type;
 	FString Protocol;
+
+	EDisplayClusterCommResult CommResult;
 
 	TMap<FString, TMap<FString, FString>>       TextArguments;
 	TMap<FString, TMap<FString, TArray<uint8>>> BinaryArguments;

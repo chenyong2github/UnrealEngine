@@ -70,18 +70,31 @@ namespace CADKernel
 
 		void SetMin(double Coordinates)
 		{
-			Sort(Coordinates, Max, Min, Max);
+			GetMinMax(Coordinates, Max, Min, Max);
 		}
 
 		void SetMax(double Coordinates)
 		{
-			Sort(Min, Coordinates, Min, Max);
+			GetMinMax(Min, Coordinates, Min, Max);
 		}
 
 		void Set(double InUMin = 0., double InUMax = 1.)
 		{
-			Sort(InUMin, InUMax, Min, Max);
+			GetMinMax(InUMin, InUMax, Min, Max);
 		}
+
+		/**
+		 * Set the boundary with the min and max of the array
+		 */
+		void Set(const TArray<double>& Coordinates)
+		{
+			Init();
+			for (const double& Coordinate : Coordinates)
+			{
+				ExtendTo(Coordinate);
+			}
+		}
+
 
 		bool IsValid() const
 		{
@@ -144,7 +157,7 @@ namespace CADKernel
 
 		void ExtendTo(double MinCoordinate, double MaxCoordinate)
 		{
-			Sort(MinCoordinate, MaxCoordinate);
+			GetMinMax(MinCoordinate, MaxCoordinate);
 			Min = FMath::Min(Min, MinCoordinate);
 			Max = FMath::Max(Max, MaxCoordinate);
 		}
@@ -258,6 +271,18 @@ namespace CADKernel
 		{
 			UVBoundaries[EIso::IsoU].Set();
 			UVBoundaries[EIso::IsoV].Set();
+		}
+
+		/**
+		 * Set the boundary with the min and max of this array
+		 */
+		void Set(const TArray<FPoint2D>& Points)
+		{
+			Init();
+			for (const FPoint2D& Point : Points)
+			{
+				ExtendTo(Point);
+			}
 		}
 
 		const FLinearBoundary& Get(EIso Type) const

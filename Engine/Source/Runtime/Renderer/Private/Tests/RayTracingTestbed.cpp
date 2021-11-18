@@ -133,7 +133,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("RayTracingTestBedScratchBuffer"));
 	FBufferRHIRef ScratchBuffer = RHICreateBuffer(
 		uint32(SceneSizeInfo.BuildScratchSize),
-		BUF_UnorderedAccess, GRHIRayTracingAccelerationStructureAlignment, ERHIAccess::UAVCompute,
+		BUF_UnorderedAccess, GRHIRayTracingScratchBufferAlignment, ERHIAccess::UAVCompute,
 		ScratchBufferCreateInfo);
 
 	FRWBufferStructured InstanceBuffer;
@@ -170,6 +170,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 			Instances,
 			RayTracingScene.InstanceGeometryIndices,
 			RayTracingScene.BaseUploadBufferOffsets,
+			RayTracingScene.NumNativeGPUSceneInstances,
 			RayTracingScene.NumNativeCPUInstances,
 			MakeArrayView(InstanceUploadData, SceneInitializer.NumNativeInstances),
 			MakeArrayView(TransformUploadData, RayTracingScene.NumNativeCPUInstances * 3));
@@ -195,10 +196,12 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 
 	BuildRayTracingInstanceBuffer(
 		RHICmdList,
+		nullptr,
 		InstanceBuffer.UAV,
 		InstanceUploadSRV,
 		AccelerationStructureAddressesBuffer.SRV,
 		TransformUploadSRV,
+		RayTracingScene.NumNativeGPUSceneInstances,
 		RayTracingScene.NumNativeCPUInstances,
 		{});
 

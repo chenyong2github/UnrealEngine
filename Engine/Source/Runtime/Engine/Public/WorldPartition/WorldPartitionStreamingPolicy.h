@@ -57,7 +57,6 @@ public:
 
 	// PIE/Game methods
 	virtual void PrepareActorToCellRemapping() {}
-	virtual void ClearActorToCellRemapping() {}
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) {}
 #endif
 

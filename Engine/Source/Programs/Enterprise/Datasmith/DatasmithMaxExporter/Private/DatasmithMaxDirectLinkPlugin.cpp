@@ -27,8 +27,24 @@ __declspec( dllexport ) bool LibInitialize(void)
 {
 	// Restore LC_NUMERIC locale after initialization of UE4
 	_wsetlocale(LC_NUMERIC, *OriginalLocale);
+
+	UE_SET_LOG_VERBOSITY(LogDatasmithMaxExporter, Verbose);
 	return true;
 }
+
+__declspec( dllexport ) int LibShutdown()
+{
+	DatasmithMaxDirectLink::ShutdownExporter();
+
+	// Set GIsRequestingExit flag so that static dtors don't crash
+	if (!IsEngineExitRequested())
+	{
+		RequestEngineExit(TEXT("LibShutdown received"));
+	}
+
+	return TRUE;
+}
+
 
 __declspec(dllexport) const TCHAR* LibDescription()
 {
@@ -60,13 +76,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, ULONG FdwReason, LPVOID LpvReserved)
 		MaxSDK::Util::UseLanguagePackLocale();
 		HInstanceMax = hinstDLL;
 		DisableThreadLibraryCalls(HInstanceMax);
-
-		UE_SET_LOG_VERBOSITY(LogDatasmithMaxExporter, Verbose);
 		break;
 	}
 	case DLL_PROCESS_DETACH:
 	{
-
 		break;
 	}
 	};

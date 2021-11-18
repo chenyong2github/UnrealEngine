@@ -485,29 +485,6 @@ public:
 
 	void RebuildCache();
 
-
-	// Shader microcode is shared between pipeline entries so keep a cache around to prevent duplicated storage
-	struct FShaderUCodeCache
-	{
-		using TDataMap = TMap<FSHAHash, TArray<uint32>>;
-		TDataMap Data;
-
-		TArray<uint32>* Add(const FSHAHash& Hash, const FVulkanShader* Shader)
-		{
-			check(Shader->Spirv.Num() != 0);
-
-			TArray<uint32>& Code = Data.Add(Hash);
-			Code = Shader->Spirv;
-
-			return &Data[Hash];
-		}
-
-		TArray<uint32>* Get(const FSHAHash& Hash)
-		{
-			return Data.Find(Hash);
-		}
-	};
-	
 	FVulkanComputePipeline* GetOrCreateComputePipeline(FVulkanComputeShader* ComputeShader);
 	void NotifyDeletedComputePipeline(FVulkanComputePipeline* Pipeline);
 
@@ -530,6 +507,7 @@ private:
 	FVulkanComputePipeline* CreateComputePipelineFromShader(FVulkanComputeShader* Shader);
 
 	/** LRU Related functions */
+	void TickLRU();
 	bool LRUEvictImmediately();
 	void LRUTrim(uint32 nSpaceNeeded);
 	void LRUAdd(FVulkanRHIGraphicsPipelineState* PSO);
@@ -557,7 +535,7 @@ private:
 	TMap<uint64, FVulkanComputePipeline*> ComputePipelineEntries;
 
 	VkPipelineCache PipelineCache;
-	FShaderUCodeCache ShaderCache;
+
 	FCriticalSection LayoutMapCS;
 	TMap<FVulkanDescriptorSetsLayoutInfo, FVulkanLayout*> LayoutMap;
 	FVulkanDescriptorSetLayoutMap DSetLayoutMap;

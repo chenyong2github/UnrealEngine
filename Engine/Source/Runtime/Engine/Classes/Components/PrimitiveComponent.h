@@ -659,15 +659,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = RayTracing)
 	int32 RayTracingGroupId;
 
-	/**
-	 * Defines how quickly it should be culled. For example buildings should have a low priority, but small dressing should have a high priority.
-	 */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = RayTracing)
-	ERayTracingGroupCullingPriority RayTracingGroupCullingPriority;
-
-	/** Mask used for stencil buffer writes. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "Rendering", meta = (editcondition = "bRenderCustomDepth"))
-	ERendererStencilMask CustomDepthStencilWriteMask;
+	/** Used for precomputed visibility */
+	UPROPERTY()
+	int32 VisibilityId=0;
 
 	/** Optionally write this 0-255 value to the stencil buffer in CustomDepth pass (Requires project setting or r.CustomDepth == 3) */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value"))
@@ -707,10 +701,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = Rendering)
 	float TranslucencySortDistanceOffset = 0.0f;
-
-	/** Used for precomputed visibility */
-	UPROPERTY()
-	int32 VisibilityId=0;
 
 	/** 
 	 * Array of runtime virtual textures into which we draw the mesh for this actor. 
@@ -1248,6 +1238,16 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="Input|Touch Input")
 	FComponentEndTouchOverSignature OnInputTouchLeave;
 
+	/**
+	 * Defines how quickly it should be culled. For example buildings should have a low priority, but small dressing should have a high priority.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = RayTracing)
+	ERayTracingGroupCullingPriority RayTracingGroupCullingPriority;
+
+	/** Mask used for stencil buffer writes. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "Rendering", meta = (editcondition = "bRenderCustomDepth"))
+	ERendererStencilMask CustomDepthStencilWriteMask;
+
 	/** Scale the bounds of this object, used for frustum culling. Useful for features like WorldPositionOffset. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	void SetBoundsScale(float NewBoundsScale=1.f);
@@ -1759,6 +1759,7 @@ private:
 	TObjectPtr<class UPrimitiveComponent> CachedLODParentPrimitive;
 
 public:
+
 	/** Set the LOD parent component */
 	void SetLODParentPrimitive(UPrimitiveComponent* InLODParentPrimitive);
 

@@ -103,8 +103,8 @@ public:
 	UE_DEPRECATED(4.26, "Individual toolkit hosts, such as the level editor, should handle determining if they show a mode toolbox for hosted toolkits.")
 	bool ShouldShowModeToolbox() const;
 protected:
-	/** Deactivates the editor mode at the specified index */
-	void DeactivateScriptableModeAtIndex(int32 InIndex);
+	/** Exits the given editor mode */
+	void ExitMode(UEdMode* InMode);
 
 	/** Removes the mode ID from the tools manager when a mode is unregistered */
 	void OnModeUnregistered(FEditorModeID ModeID);
@@ -565,6 +565,9 @@ protected:
 
 	/** A list of previously active editor modes that we will potentially recycle */
 	TMap< FEditorModeID, UEdMode* > RecycledScriptableModes;
+
+	/** A list of previously active editor modes that we will potentially recycle */
+	TMap< FEditorModeID, UEdMode* > PendingDeactivateModes;
 
 	/** The mode that the editor viewport widget is in. */
 	UE::Widget::EWidgetMode WidgetMode;

@@ -156,6 +156,16 @@ bool UWidgetLayoutLibrary::GetMousePositionScaledByDPI(APlayerController* Player
 
 	return false;
 }
+bool UWidgetLayoutLibrary::GetMousePositionScaledByDPI(APlayerController* Player, double& LocationX, double& LocationY)
+{
+	float X = (float)LocationX, Y = (float)LocationY;
+	if(GetMousePositionScaledByDPI(Player, X, Y))
+	{
+		LocationX = X; LocationY = Y;
+		return true;
+	}
+	return false;
+}
 
 FVector2D UWidgetLayoutLibrary::GetViewportSize(UObject* WorldContextObject)
 {

@@ -229,8 +229,12 @@ protected:
 	// end UMeshSculptToolBase API
 
 protected:
+
 	UPROPERTY()
-	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent;
+	TObjectPtr<AInternalToolFrameworkActor> PreviewMeshActor = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent = nullptr;
 
 	// realtime visualization
 	void OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);

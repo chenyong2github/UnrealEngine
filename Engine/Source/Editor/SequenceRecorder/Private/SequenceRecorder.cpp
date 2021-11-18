@@ -490,7 +490,7 @@ void FSequenceRecorder::DrawDebug(UCanvas* InCanvas, APlayerController* InPlayer
 		const FVector2D HalfIconSize(64.0f, 64.0f);
 		const float LineThickness = 2.0f;
 
-		FVector2D Center;
+		FVector2f Center;
 		InCanvas->GetCenter(Center.X, Center.Y);
 		FVector2D IconPosition = Center - HalfIconSize;
 

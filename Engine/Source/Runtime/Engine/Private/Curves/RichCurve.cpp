@@ -642,14 +642,6 @@ void FRichCurve::AutoSetTangents(float Tension)
 			if (KeyIndex < (Keys.Num() - 1) && Key.TangentMode == RCTM_Auto)
 			{
 				LeaveTangent = 0.0f;
-
-				if (Key.InterpMode == RCIM_Cubic)
-				{
-					// Since we are the first key and ComputeCurveTangent() only compute the arriving tangent, we use the Arriving tangent of the next key as our leaving key.
-					NextKey = &Keys[KeyIndex + 1];
-					CurrentKey = NextKey; 
-					bNeedsComputeTangent = true;
-				}
 			}
 		}
 		else
@@ -680,11 +672,6 @@ void FRichCurve::AutoSetTangents(float Tension)
 				if (Key.InterpMode == RCIM_Cubic && Key.TangentMode == RCTM_Auto)
 				{
 					ArriveTangent = 0.0f;
-					if (Keys.Num() > 1)
-					{
-						PrevKey = &Keys[KeyIndex - 1];
-						bNeedsComputeTangent = true;
-					}
 				}
 			}
 		}

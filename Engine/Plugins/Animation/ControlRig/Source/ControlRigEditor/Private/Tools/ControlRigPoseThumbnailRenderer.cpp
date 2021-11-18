@@ -117,7 +117,7 @@ bool FControlRigPoseThumbnailScene::SetControlRigPoseAsset(UControlRigPoseAsset*
 			const float BoundsZOffset = GetBoundsZOffset(PreviewActor->GetSkeletalMeshComponent()->Bounds);
 			PreviewActor->SetActorLocation(-PreviewActor->GetSkeletalMeshComponent()->Bounds.Origin + FVector(0, 0, BoundsZOffset), false);
 			PreviewActor->GetSkeletalMeshComponent()->RecreateRenderState_Concurrent();
-			TempControlRig->MarkPendingKill();
+			TempControlRig->MarkAsGarbage();
 
 		}
 

@@ -31,10 +31,9 @@ void UMaterialInstanceDynamic::UpdateCachedDataDynamic()
 
 	if (!CachedData)
 	{
-		CachedData = new FMaterialInstanceCachedData();
+		CachedData.Reset(new FMaterialInstanceCachedData());
 	}
 	CachedData->InitializeForDynamic(bParentHasLayers ? &ParentLayers : nullptr);
-	// TODO - should we copy ReferencedTextures from our parent?
 
 	if (Resource)
 	{

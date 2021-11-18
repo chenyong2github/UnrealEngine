@@ -106,25 +106,40 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 		UE_LOG(LogUsd, Error, TEXT("No file extensions supported by the USD SDK!"));
 		return {};
 	}
-	FString JoinedExtensions = FString::Join(SupportedExtensions, TEXT(";*.")); // Combine "usd" and "usda" into "usd; *.usda"
-	FString FileTypes = FString::Printf(TEXT("usd files (*.%s)|*.%s"), *JoinedExtensions, *JoinedExtensions);
 
 	switch ( Mode )
 	{
 		case EBrowseFileMode::Open :
+		{
+			FString JoinedExtensions = FString::Join( SupportedExtensions, TEXT( ";*." ) ); // Combine "usd" and "usda" into "usd; *.usda"
+			FString FileTypes = FString::Printf( TEXT( "Universal Scene Description files|*.%s" ), *JoinedExtensions, *JoinedExtensions );
+
 			if ( !DesktopPlatform->OpenFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
 			{
 				return {};
 			}
 			break;
-
+		}
 		case EBrowseFileMode::Save :
+		{
+			FString FileTypes;
+			for ( const FString& SupportedExtension : SupportedExtensions )
+			{
+				// USD 21.08 doesn't yet support saving to USDZ, so instead of allowing this option and leading to an error we'll just hide it
+				if ( SupportedExtension == TEXT( "usdz" ) )
+				{
+					continue;
+				}
+
+				FileTypes += FString::Printf( TEXT( "Universal Scene Description file|*.%s|" ), *SupportedExtension );
+			}
+
 			if ( !DesktopPlatform->SaveFileDialog( ParentWindowHandle, LOCTEXT( "ChooseFile", "Choose file").ToString(), TEXT(""), TEXT(""), *FileTypes, EFileDialogFlags::None, OutFiles ) )
 			{
 				return {};
 			}
 			break;
-
+		}
 		default:
 			break;
 	}

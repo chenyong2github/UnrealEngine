@@ -10,12 +10,15 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
 #include "CADKernel/UI/Display.h"
 
-void CADKernel::FIsoTriangulator::Display(EGridSpace Space, const FIsoSegment& Segment, FIdent Ident, EVisuProperty Property, bool bDisplayOrientation) const
+namespace CADKernel
 {
-	CADKernel::DisplaySegment(Segment.GetFirstNode().GetPoint(Space, Grid), Segment.GetSecondNode().GetPoint(Space, Grid), Ident, Property, bDisplayOrientation);
+
+void FIsoTriangulator::Display(EGridSpace Space, const FIsoSegment& Segment, FIdent Ident, EVisuProperty Property, bool bDisplayOrientation) const
+{
+	DisplaySegment(Segment.GetFirstNode().GetPoint(Space, Grid), Segment.GetSecondNode().GetPoint(Space, Grid), Ident, Property, bDisplayOrientation);
 }
 
-void CADKernel::FIsoTriangulator::DisplayTriangle(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, const FIsoNode& NodeC) const
+void FIsoTriangulator::DisplayTriangle(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, const FIsoNode& NodeC) const
 {
 	TArray<FPoint> Points;
 	Points.SetNum(3);
@@ -28,17 +31,17 @@ void CADKernel::FIsoTriangulator::DisplayTriangle(EGridSpace Space, const FIsoNo
 	DisplaySegment(Points[2], Points[0]);
 }
 
-void CADKernel::FIsoTriangulator::Display(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, FIdent Ident, EVisuProperty Property) const
+void FIsoTriangulator::Display(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, FIdent Ident, EVisuProperty Property) const
 {
-	return CADKernel::DisplaySegment(NodeA.GetPoint(Space, Grid), NodeB.GetPoint(Space, Grid), Ident, Property);
+	return DisplaySegment(NodeA.GetPoint(Space, Grid), NodeB.GetPoint(Space, Grid), Ident, Property);
 }
 
-void CADKernel::FIsoTriangulator::Display(EGridSpace Space, const FIsoNode& Node, FIdent Ident, EVisuProperty Property) const
+void FIsoTriangulator::Display(EGridSpace Space, const FIsoNode& Node, FIdent Ident, EVisuProperty Property) const
 {
-	return CADKernel::DisplayPoint(Node.GetPoint(Space, Grid), Property, Ident);
+	return DisplayPoint(Node.GetPoint(Space, Grid), Property, Ident);
 }
 
-void CADKernel::FIsoTriangulator::Display(EGridSpace Space, const TCHAR* Message, const TArray<FIsoSegment*>& Segments, bool bDisplayNode, bool bDisplayOrientation, EVisuProperty Property) const
+void FIsoTriangulator::Display(EGridSpace Space, const TCHAR* Message, const TArray<FIsoSegment*>& Segments, bool bDisplayNode, bool bDisplayOrientation, EVisuProperty Property) const
 {
 	if (!bDisplay)
 	{
@@ -76,7 +79,33 @@ void CADKernel::FIsoTriangulator::Display(EGridSpace Space, const TCHAR* Message
 	//Wait();
 }
 
-void CADKernel::FIsoTriangulator::DisplayIsoNodes(EGridSpace Space) const
+void FIsoTriangulator::DisplayLoops(EGridSpace Space, const TCHAR* Message, const TArray<FLoopNode>& Nodes, bool bDisplayNode, EVisuProperty Property) const
+{
+	if (!bDisplay)
+	{
+		return;
+	}
+
+	F3DDebugSession _(Message);
+
+	for (const FLoopNode& Node : Nodes)
+	{
+		{
+			Display(Space, Node, Node.GetNextNode(), 0, Property);
+		}
+	}
+
+	if (bDisplayNode)
+	{
+		for (const FLoopNode& Node : Nodes)
+		{
+			Display(Space, Node, Node.GetFaceIndex());
+		}
+	}
+}
+
+
+void FIsoTriangulator::DisplayIsoNodes(EGridSpace Space) const
 {
 	if (!bDisplay)
 	{
@@ -97,18 +126,18 @@ void CADKernel::FIsoTriangulator::DisplayIsoNodes(EGridSpace Space) const
 	Close3DDebugSession();
 }
 
-void CADKernel::FIsoTriangulator::DisplayPixel(const int32 IndexU, const int32 IndexV) const
+void FIsoTriangulator::DisplayPixel(const int32 IndexU, const int32 IndexV) const
 {
 	DisplayPixel(IndexV * Grid.GetCuttingCount(EIso::IsoU) + IndexU);
 }
 
-void CADKernel::FIsoTriangulator::DisplayPixel(const int32 Index) const
+void FIsoTriangulator::DisplayPixel(const int32 Index) const
 {
 	FPoint Point = (Grid.GetInner2DPoint(EGridSpace::Default2D, Index) + Grid.GetInner2DPoint(EGridSpace::Default2D, Index + Grid.GetCuttingCount(EIso::IsoU) + 1)) * 0.5;
-	CADKernel::DisplayPoint(Point, EVisuProperty::GreenPoint);
+	DisplayPoint(Point, EVisuProperty::GreenPoint);
 };
 
-void CADKernel::FIsoTriangulator::DisplayPixels(TArray<uint8>& Pixel) const
+void FIsoTriangulator::DisplayPixels(TArray<uint8>& Pixel) const
 {
 	if (!bDisplay)
 	{
@@ -126,7 +155,17 @@ void CADKernel::FIsoTriangulator::DisplayPixels(TArray<uint8>& Pixel) const
 	Close3DDebugSession();
 }
 
-void CADKernel::FIsoTriangulator::DisplayCells(const TArray<FCell>& Cells) const
+void FIsoTriangulator::DisplayCycle(const TArray<FIsoSegment*>& Cycle, const TCHAR* Message) const
+{
+	F3DDebugSession _(Message);
+	for (const FIsoSegment* Segment : Cycle)
+	{
+		Display(EGridSpace::UniformScaled, *Segment);
+	}
+}
+
+
+void FIsoTriangulator::DisplayCells(const TArray<FCell>& Cells) const
 {
 	if (!bDisplay)
 	{
@@ -141,7 +180,7 @@ void CADKernel::FIsoTriangulator::DisplayCells(const TArray<FCell>& Cells) const
 	}
 }
 
-void CADKernel::FIsoTriangulator::DisplayCell(const FCell& Cell) const
+void FIsoTriangulator::DisplayCell(const FCell& Cell) const
 {
 	if (!bDisplay)
 	{
@@ -149,16 +188,16 @@ void CADKernel::FIsoTriangulator::DisplayCell(const FCell& Cell) const
 	}
 
 	F3DDebugSession _(FString::Printf(TEXT("Cell %d"), Cell.Id));
-	for (const TArray<FLoopNode*>& Nodes : Cell.Loops)
+	for (const TArray<FLoopNode*>& Nodes : Cell.SubLoops)
 	{
 		for (const FLoopNode* Node : Nodes)
 		{
-			CADKernel::DisplayPoint(Node->GetPoint(EGridSpace::UniformScaled, Grid), EVisuProperty::OrangePoint, Cell.Id);
+			DisplayPoint(Node->GetPoint(EGridSpace::UniformScaled, Grid), EVisuProperty::OrangePoint, Cell.Id);
 		}
 	}
 }
 
-void CADKernel::FIntersectionSegmentTool::Display(const TCHAR* Message) const
+void FIntersectionSegmentTool::Display(const TCHAR* Message) const
 {
 	if (!Grid.bDisplay)
 	{
@@ -172,5 +211,8 @@ void CADKernel::FIntersectionSegmentTool::Display(const TCHAR* Message) const
 	}
 	Close3DDebugSession();
 }
+
+
+} // namespace CADKernel
 
 #endif

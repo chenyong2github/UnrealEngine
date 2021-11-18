@@ -109,7 +109,13 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 	// Auto update must be done after all referenced asset classes are registered
 	if (InRegistrationOptions.bAutoUpdate)
 	{
-		AutoUpdate();
+		const bool bWasAutoUpdated = AutoUpdate();
+		if (bWasAutoUpdated)
+		{
+#if WITH_EDITORONLY_DATA
+			SetSynchronizationRequired();
+#endif // WITH_EDITORONLY_DATA
+		}
 	}
 
 	// Registers node by copying document. Updates to document require re-registration.
@@ -406,6 +412,34 @@ bool FMetasoundAssetBase::VersionAsset()
 	return bDidEdit;
 }
 
+#if WITH_EDITORONLY_DATA
+bool FMetasoundAssetBase::GetSynchronizationPending() const
+{
+	return bSynchronizationRequired;
+}
+
+bool FMetasoundAssetBase::GetSynchronizationClearUpdateNotes() const
+{
+	return bSynchronizationClearUpdateNotes;
+}
+
+void FMetasoundAssetBase::SetSynchronizationRequired()
+{
+	bSynchronizationRequired = true;
+}
+
+void FMetasoundAssetBase::SetClearNodeNotesOnSynchronization()
+{
+	bSynchronizationClearUpdateNotes = true;
+}
+
+void FMetasoundAssetBase::ResetSynchronizationState()
+{
+	bSynchronizationClearUpdateNotes = false;
+	bSynchronizationRequired = false;
+}
+#endif // WITH_EDITORONLY_DATA
+
 TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMetasoundDocument() const
 {
 	using namespace Metasound;
@@ -449,6 +483,30 @@ bool FMetasoundAssetBase::IsRegistered() const
 	return FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(RegistryKey);
 }
 
+bool FMetasoundAssetBase::IsReferencedAsset(const FMetasoundAssetBase& InAsset) const
+{
+	using namespace Metasound::Frontend;
+
+	bool bIsReferenced = false;
+	Metasound::AssetBasePrivate::DepthFirstTraversal(*this, [&](const FMetasoundAssetBase& ChildAsset)
+	{
+		TSet<const FMetasoundAssetBase*> Children;
+		if (&ChildAsset == &InAsset)
+		{
+			bIsReferenced = true;
+			return Children;
+		}
+
+		TArray<FMetasoundAssetBase*> ChildRefs;
+		ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(ChildAsset, ChildRefs));
+		Algo::Transform(ChildRefs, Children, [](FMetasoundAssetBase* Child) { return Child; });
+		return Children;
+
+	});
+
+	return bIsReferenced;
+}
+
 bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath) const
 {
 	using namespace Metasound::Frontend;
@@ -464,7 +522,6 @@ bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InRef
 	Metasound::AssetBasePrivate::DepthFirstTraversal(*ReferenceAsset, [&](const FMetasoundAssetBase& ChildAsset)
 	{
 		TSet<const FMetasoundAssetBase*> Children;
-
 		if (Parent == &ChildAsset)
 		{
 			bCausesLoop = true;
@@ -472,14 +529,8 @@ bool FMetasoundAssetBase::AddingReferenceCausesLoop(const FSoftObjectPath& InRef
 		}
 
 		TArray<FMetasoundAssetBase*> ChildRefs;
-		ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(*this, ChildRefs));
-		for (const FMetasoundAssetBase* ChildRef : ChildRefs)
-		{
-			if (ChildRef)
-			{
-				Children.Add(ChildRef);
-			}
-		}
+		ensureAlways(IMetaSoundAssetManager::GetChecked().TryLoadReferencedAssets(ChildAsset, ChildRefs));
+		Algo::Transform(ChildRefs, Children, [] (FMetasoundAssetBase* Child) { return Child; });
 		return Children;
 	});
 

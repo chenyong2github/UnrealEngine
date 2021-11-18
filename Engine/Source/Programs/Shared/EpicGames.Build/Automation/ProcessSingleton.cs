@@ -8,8 +8,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
-#nullable disable
-
 namespace UnrealBuildBase
 {
 	public class ProcessSingleton
@@ -35,7 +33,7 @@ namespace UnrealBuildBase
 		{
 			bool AllowMultipleInsances = (Environment.GetEnvironmentVariable("uebp_UATMutexNoWait") == "1");
 	
-            string EntryAssemblyLocation = Assembly.GetEntryAssembly().GetOriginalLocation();
+            string EntryAssemblyLocation = Assembly.GetEntryAssembly()!.GetOriginalLocation();
 
 			string MutexName = GetUniqueMutexForPath(Path.GetFileNameWithoutExtension(EntryAssemblyLocation), EntryAssemblyLocation);
 			using (Mutex SingleInstanceMutex = new Mutex(true, MutexName, out bool bCreatedMutex))

@@ -42,7 +42,7 @@ namespace LedWallCalibration
 		FVector Vertices[4];
 
 		/** UV (2d) corners of this panel. Expected to be sorted top-left, top-right, bottom-left, bottom-right */
-		FVector2D UVs[4];
+		FVector2f UVs[4];
 
 		/** Estimated row number (zero based) of this panel in the wall it belongs to */
 		int32 Row = 0;
@@ -67,7 +67,7 @@ namespace LedWallCalibration
 				});
 
 			FVector VerticesCopy[4];
-			FVector2D UVsCopy[4];
+			FVector2f UVsCopy[4];
 
 			for (int32 Idx = 0; Idx < 4; ++Idx)
 			{
@@ -183,7 +183,7 @@ namespace LedWallCalibration
 		const TVertexAttributesRef<const FVector3f> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector3f>(MeshAttribute::Vertex::Position);
 
 		// UV 2d positions, indexable by VertexInstaceId
-		const TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		const TVertexInstanceAttributesRef<const FVector2f> VertexInstanceUVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 
 		// Iterate over all the triangles
 		for (const FTriangleID& TriangleElementId : MeshDescription->Triangles().GetElementIDs())

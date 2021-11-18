@@ -22,7 +22,6 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 
-#include "Misc/DisplayClusterAppExit.h"
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"

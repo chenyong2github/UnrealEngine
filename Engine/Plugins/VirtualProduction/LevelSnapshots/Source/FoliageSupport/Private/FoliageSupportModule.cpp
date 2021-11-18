@@ -6,15 +6,15 @@
 
 #define LOCTEXT_NAMESPACE "FFoliageSupportModule"
 
-void FFoliageSupportModule::StartupModule()
+void UE::LevelSnapshots::Foliage::Private::FFoliageSupportModule::StartupModule()
 {
 	ILevelSnapshotsModule& Module = ILevelSnapshotsModule::Get();
-	FFoliageSupport::Register(Module);
+	UE::LevelSnapshots::Foliage::Private::FFoliageSupport::Register(Module);
 }
 
-void FFoliageSupportModule::ShutdownModule()
+void UE::LevelSnapshots::Foliage::Private::FFoliageSupportModule::ShutdownModule()
 {}
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FFoliageSupportModule, FoliageSupport)
+IMPLEMENT_MODULE(UE::LevelSnapshots::Foliage::Private::FFoliageSupportModule, FoliageSupport)

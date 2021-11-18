@@ -47,12 +47,12 @@ void FRemoteSessionImageChannel::FImageSender::SetCompressQuality(int32 InQualit
 	CompressQuality = InQuality;
 }
 
-void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width, int32 Height, const TArray<FColor>& ImageData)
+void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width, int32 Height, const TArray<FColor>& ImageData, int32 BytesPerRow)
 {
-	SendRawImageToClients(Width, Height, ImageData.GetData(), ImageData.GetAllocatedSize());
+	SendRawImageToClients(Width, Height, ImageData.GetData(), ImageData.GetAllocatedSize(), BytesPerRow);
 }
 
-void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width, int32 Height, const void* ImageData, int32 AllocatedImageDataSize)
+void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width, int32 Height, const void* ImageData, int32 AllocatedImageDataSize, int32 BytesPerRow)
 {
 	static bool SkipImages = FParse::Param(FCommandLine::Get(), TEXT("remote.noimage"));
 
@@ -69,7 +69,7 @@ void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width
 		{
 			TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::JPEG);
 
-			ImageWrapper->SetRaw(ImageData, AllocatedImageDataSize, Width, Height, ERGBFormat::BGRA, 8);
+			ImageWrapper->SetRaw(ImageData, AllocatedImageDataSize, Width, Height, ERGBFormat::BGRA, 8, BytesPerRow);
 
 			const int32 CurrentQuality = QualityMasterSetting > 0 ? QualityMasterSetting : CompressQuality.Load();
 			const TArray64<uint8> JPGData = ImageWrapper->GetCompressed(CurrentQuality);

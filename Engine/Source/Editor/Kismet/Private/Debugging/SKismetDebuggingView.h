@@ -51,8 +51,9 @@ public:
 	void SetBlueprintToWatch(TWeakObjectPtr<UBlueprint> InBlueprintToWatch);
 protected:
 	FText GetTopText() const;
-	bool CanDisableAllBreakpoints() const;
-	FReply OnDisableAllBreakpointsClicked();
+	bool CanToggleAllBreakpoints() const;
+	FText GetToggleAllBreakpointsText() const;
+	FReply OnToggleAllBreakpointsClicked();
 
 	void OnBlueprintClassPicked(UClass* PickedClass);
 	TSharedRef<SWidget> ConstructBlueprintClassPicker();

@@ -269,7 +269,7 @@ void FClothPhysicalMeshData::CalculateTethers(bool bUseEuclideanDistance, bool b
 	}
 }
 
-
+// TODO: Deprecated, turn this into CalculateNormals() after 5.0
 void FClothPhysicalMeshData::ComputeFaceAveragedVertexNormals(TArray<FVector3f>& OutNormals) const
 {
 	OutNormals.Init(FVector3f{ 0.f, 0.f, 0.f }, Vertices.Num());
@@ -306,3 +306,9 @@ void FClothPhysicalMeshData::ComputeFaceAveragedVertexNormals(TArray<FVector3f>&
 	}
 }
 
+void FClothPhysicalMeshData::CalculateNormals()
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ComputeFaceAveragedVertexNormals(Normals);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}

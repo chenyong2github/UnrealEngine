@@ -4,6 +4,7 @@
 
 #include "Engine/DataTable.h"
 #include "BoneContainer.h"
+#include "CustomBoneIndexArray.h"
 #include "MirrorDataTable.generated.h"
 
 /** Type referenced by a row in the mirror data table */
@@ -141,7 +142,7 @@ public:
 	 * @param	MirrorBoneIndexes				Mirror bone indexes created for the ReferenceSkeleton used by the BoneContainer 
 	 * @param	OutCompactPoseMirrorBones		An efficient representation of the bones to mirror which can be used at runtime
 	 */
-	ENGINE_API static void FillCompactPoseMirrorBones(const FBoneContainer& BoneContainer, const TArray<int32>& MirrorBoneIndexes, TArray<FCompactPoseBoneIndex>& OutCompactPoseMirrorBones);
+	ENGINE_API static void FillCompactPoseMirrorBones(const FBoneContainer& BoneContainer, const TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex>& MirrorBoneIndexes, TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex>& OutCompactPoseMirrorBones);
 
 
 	/**
@@ -150,7 +151,7 @@ public:
 	 * @param	ReferenceSkeleton		The ReferenceSkeleton to compute the mirror index against
 	 * @param	OutMirrorBoneIndexes	An array that provides the bone index of the mirror bone, or INDEX_NONE if the bone is not mirrored
 	 */
-	ENGINE_API void FillMirrorBoneIndexes(const FReferenceSkeleton& ReferenceSkeleton, TArray<int32>& OutMirrorBoneIndexes) const;
+	ENGINE_API void FillMirrorBoneIndexes(const FReferenceSkeleton& ReferenceSkeleton, TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex>& OutMirrorBoneIndexes) const;
 
 #if WITH_EDITOR  
 	/**
@@ -180,7 +181,7 @@ public:
 	TObjectPtr<USkeleton> Skeleton; 
 
 	// Index of the mirror bone for a given bone index in the reference skeleton, or INDEX_NONE if the bone is not mirrored
-	TArray<int32> BoneToMirrorBoneIndex;
+	TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> BoneToMirrorBoneIndex;
 
 	// Array with entries the source UIDs of curves that should be mirrored. 
 	TArray<SmartName::UID_Type> CurveMirrorSourceUIDArray;

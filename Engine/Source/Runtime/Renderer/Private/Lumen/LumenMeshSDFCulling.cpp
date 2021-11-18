@@ -111,7 +111,7 @@ class FMeshSDFObjectCullPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER(float, HZBMipLevel)
 		SHADER_PARAMETER(uint32, HaveClosestHZB)
-		SHADER_PARAMETER(FVector2D, ViewportUVToHZBBufferUV)
+		SHADER_PARAMETER(FVector2f, ViewportUVToHZBBufferUV)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FCullToFroxelGrid : SHADER_PERMUTATION_BOOL("CULL_TO_FROXEL_GRID");

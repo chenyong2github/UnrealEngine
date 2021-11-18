@@ -1038,6 +1038,17 @@ AReplicationGraphDebugActor* UReplicationGraph::CreateDebugActor() const
 }
 #endif
 
+void UReplicationGraphNode::GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const
+{
+	for (UReplicationGraphNode* ChildNode : AllChildNodes)
+	{
+		if (ChildNode)
+		{
+			ChildNode->GetAllActorsInNode_Debugging(OutArray);
+		}
+	}
+}
+
 void UReplicationGraphNode::LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const
 {
 	DebugInfo.Log(NodeName);

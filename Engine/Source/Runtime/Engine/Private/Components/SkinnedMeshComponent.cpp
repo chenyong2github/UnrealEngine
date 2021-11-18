@@ -4219,9 +4219,9 @@ void GetTypedSkinnedTangentBasis(
 	const int32 BufferVertIndex = Section.GetVertexBufferIndex() + VertIndex;
 	const int32 MaxBoneInfluences = SkinWeightVertexBuffer.GetMaxBoneInfluences();
 
-	const FVector VertexTangentX = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentX(BufferVertIndex);
-	const FVector VertexTangentY = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentY(BufferVertIndex);
-	const FVector VertexTangentZ = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(BufferVertIndex);
+	const FVector3f VertexTangentX = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentX(BufferVertIndex);
+	const FVector3f VertexTangentY = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentY(BufferVertIndex);
+	const FVector3f VertexTangentZ = StaticVertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(BufferVertIndex);
 
 #if !PLATFORM_LITTLE_ENDIAN
 	// uint8[] elements in LOD.VertexBufferGPUSkin have been swapped for VET_UBYTE4 vertex stream use
@@ -4232,7 +4232,7 @@ void GetTypedSkinnedTangentBasis(
 	{
 		const int32 MeshBoneIndex = Section.BoneMap[SkinWeightVertexBuffer.GetBoneIndex(BufferVertIndex, InfluenceIndex)];
 		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
-		const FMatrix& RefToLocal = RefToLocals[MeshBoneIndex];
+		const FMatrix44f& RefToLocal = RefToLocals[MeshBoneIndex];
 		OutTangentX += RefToLocal.TransformVector(VertexTangentX) * Weight;
 		OutTangentY += RefToLocal.TransformVector(VertexTangentY) * Weight;
 		OutTangentZ += RefToLocal.TransformVector(VertexTangentZ) * Weight;

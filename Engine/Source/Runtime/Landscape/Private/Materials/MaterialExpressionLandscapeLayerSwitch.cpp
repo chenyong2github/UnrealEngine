@@ -28,8 +28,6 @@ UMaterialExpressionLandscapeLayerSwitch::UMaterialExpressionLandscapeLayerSwitch
 	};
 	static FConstructorStatics ConstructorStatics;
 
-	bIsParameterExpression = true;
-
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Landscape);
 
@@ -130,23 +128,11 @@ void UMaterialExpressionLandscapeLayerSwitch::PostLoad()
 	}
 }
 
-
-FGuid& UMaterialExpressionLandscapeLayerSwitch::GetParameterExpressionId()
+#if WITH_EDITOR
+void UMaterialExpressionLandscapeLayerSwitch::GetLandscapeLayerNames(TArray<FName>& OutLayers) const
 {
-	return ExpressionGUID;
+	OutLayers.AddUnique(ParameterName);
 }
-
-
-void UMaterialExpressionLandscapeLayerSwitch::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
-{
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-	OutParameterInfo.AddUnique(NewParameter);
-
-	if (CurrentSize != OutParameterInfo.Num())
-	{
-		OutParameterIds.Add(ExpressionGUID);
-	}
-}
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

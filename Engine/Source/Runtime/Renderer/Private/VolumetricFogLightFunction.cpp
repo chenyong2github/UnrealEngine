@@ -100,12 +100,12 @@ public:
 			const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
 			// Switch x and z so that z of the user specified scale affects the distance along the light direction
 			const FVector InverseScale = FVector( 1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X );
-			const FMatrix44f WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));	
+			const FMatrix44f WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));		// LWC_TODO: Precision loss
 
 			SetShaderValue(RHICmdList, ShaderRHI, LightFunctionWorldToLight, WorldToLight);
 		}
 
-		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionTexelSize, LightFunctionTexelSizeValue);
+		SetShaderValue(RHICmdList, ShaderRHI, LightFunctionTexelSize, FVector2f(LightFunctionTexelSizeValue));
 		
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowToWorld, ShadowToWorldValue);
 		SetShaderValue(RHICmdList, ShaderRHI, LightWorldPositionParam, FVector3f(LightSceneInfo->Proxy->GetPosition()));

@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
+using System.Collections.Concurrent;
 
 namespace UnrealBuildTool
 {
@@ -980,7 +981,7 @@ namespace UnrealBuildTool
 		/// NOTE: This function may return null. Some accounts (eg. the SYSTEM account on Windows) do not have a personal folder, and Jenkins
 		/// runs using this account by default.
 		/// </summary>
-		public static DirectoryReference? GetUserSettingDirectory()
+		public static DirectoryReference GetUserSettingDirectory()
 		{
 			if (RuntimePlatform.IsMac)
 			{
@@ -1412,7 +1413,7 @@ namespace UnrealBuildTool
 		/// <param name="Location">Location of the file</param>
 		/// <param name="Contents">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		internal static void WriteFileIfChanged(FileReference Location, string Contents, StringComparison Comparison)
+		internal static void WriteFileIfChanged(FileReference Location, string Contents, StringComparison Comparison = StringComparison.Ordinal)
 		{
 			FileItem FileItem = FileItem.GetItemByFileReference(Location);
 			WriteFileIfChanged(FileItem, Contents, Comparison);
@@ -1424,10 +1425,136 @@ namespace UnrealBuildTool
 		/// <param name="Location">Location of the file</param>
 		/// <param name="ContentLines">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		internal static void WriteFileIfChanged(FileReference Location, IEnumerable<string> ContentLines, StringComparison Comparison)
+		internal static void WriteFileIfChanged(FileReference Location, IEnumerable<string> ContentLines, StringComparison Comparison = StringComparison.Ordinal)
 		{
 			FileItem FileItem = FileItem.GetItemByFileReference(Location);
 			WriteFileIfChanged(FileItem, ContentLines, Comparison);
+		}
+
+		/// <summary>
+		/// Record each file that has been requested written, with the number of times the file has been written
+		/// </summary>
+		static readonly Dictionary<FileReference, (int WriteRequestCount, int ActualWriteCount)> WriteFileIfChangedRecord = new Dictionary<FileReference, (int, int)>();
+
+		static internal FileReference? WriteFileIfChangedTrace = null;
+		static internal string WriteFileIfChangedContext = "";
+
+		static void RecordWriteFileIfChanged(FileReference File, bool bNew, bool bChanged)
+		{
+			int NewWriteRequestCount = 1;
+			int NewActualWriteCount = bChanged ? 1 : 0;
+
+			bool bOverrideLogEventType = FileReference.Equals(WriteFileIfChangedTrace, File);
+			LogEventType OverrideType = LogEventType.Console;
+
+			string Prefix = "";
+			if (bOverrideLogEventType)
+			{
+				Prefix = "[TraceWrites] ";
+			}
+
+			string Context = "";
+			if (!String.IsNullOrEmpty(WriteFileIfChangedContext))
+			{
+				Context = $" ({WriteFileIfChangedContext})";
+			}
+
+			lock (WriteFileIfChangedRecord)
+			{
+				if (WriteFileIfChangedRecord.TryGetValue(File, out (int WriteRequestCount, int ActualWriteCount) WriteRecord))
+				{
+					// Unexepected that a file is getting written more than once during a single execution
+
+					NewWriteRequestCount += WriteRecord.WriteRequestCount;
+					NewActualWriteCount += WriteRecord.ActualWriteCount;
+
+					if (WriteRecord.ActualWriteCount == 0)
+					{
+						if (bNew)
+						{
+							Log.WriteLine(bOverrideLogEventType ? OverrideType : LogEventType.Warning,
+								$"{Prefix}Writing a file that previously existed was not overwritten and then removed: \"{File}\"{Context}");
+						}
+						else
+						{
+							if (bChanged)
+							{
+								Log.WriteLine(bOverrideLogEventType ? OverrideType : LogEventType.Warning,
+									$"{Prefix}Writing a file that previously was not written \"{File}\"{Context}");
+							}
+							else
+							{
+								if (bOverrideLogEventType)
+								{
+									Log.WriteLine(OverrideType,
+										$"{Prefix}Not writing a file that was previously not written: \"{File}\"{Context}");
+								}
+
+							}
+						}
+					}
+					else
+					{
+						if (bNew)
+						{
+							Log.WriteLine(bOverrideLogEventType ? OverrideType : LogEventType.Warning,
+								$"{Prefix}Re-writing a file that was previously written and then removed: \"{File}\"{Context}");
+						}
+						else
+						{
+							if (bChanged)
+							{
+								Log.WriteLine(bOverrideLogEventType ? OverrideType : LogEventType.Warning,
+									$"{Prefix}Re-writing a file that was previously written: \"{File}\"{Context}");
+							}
+							else
+							{
+								if (bOverrideLogEventType)
+								{
+									Log.WriteLine(OverrideType,
+										$"{Prefix}Not writing a file that was previously written: \"{File}\"{Context}");
+								}
+							}
+						}
+					}
+				}
+				else
+				{
+					if (FileReference.Equals(WriteFileIfChangedTrace, File))
+					{
+						if (bNew)
+						{
+							Log.TraceInformation($"{Prefix}Writing new file: \"{File}\"{Context}");
+						}
+						else
+						{
+							if (bChanged)
+							{
+								Log.TraceInformation($"{Prefix}Writing changed file: \"{File}\"{Context}");
+							}
+							else
+							{
+								Log.TraceInformation($"{Prefix}Not writing unchanged file: \"{File}\"{Context}");
+							}
+						}
+					}
+				}
+
+				WriteFileIfChangedRecord[File] = (NewWriteRequestCount, NewActualWriteCount);
+			}
+		}
+
+		internal static void LogWriteFileIfChangedActivity()
+		{
+			int TotalRequests = 0;
+			int TotalWrites = 0;
+			foreach ((int Requested, int Actual) in WriteFileIfChangedRecord.Values)
+			{
+				TotalRequests += Requested;
+				TotalWrites += Actual;
+			}
+
+			Log.TraceLog($"WriteFileIfChanged() wrote {TotalWrites} changed files of {TotalRequests} requested writes.");
 		}
 
 		/// <summary>
@@ -1436,7 +1563,7 @@ namespace UnrealBuildTool
 		/// <param name="FileItem">Location of the file</param>
 		/// <param name="Contents">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		internal static void WriteFileIfChanged(FileItem FileItem, string Contents, StringComparison Comparison)
+		internal static void WriteFileIfChanged(FileItem FileItem, string Contents, StringComparison Comparison = StringComparison.Ordinal)
 		{
 			// Only write the file if its contents have changed.
 			FileReference Location = FileItem.Location;
@@ -1445,6 +1572,8 @@ namespace UnrealBuildTool
 				DirectoryReference.CreateDirectory(Location.Directory);
 				FileReference.WriteAllText(Location, Contents, GetEncodingForString(Contents));
 				FileItem.ResetCachedInfo();
+
+				RecordWriteFileIfChanged(FileItem.Location, bNew: true, bChanged: true);
 			}
 			else
 			{
@@ -1465,6 +1594,12 @@ namespace UnrealBuildTool
 					}
 					FileReference.WriteAllText(Location, Contents, GetEncodingForString(Contents));
 					FileItem.ResetCachedInfo();
+
+					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: true);
+				}
+				else
+				{ 
+					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: false);
 				}
 			}
 		}
@@ -1475,7 +1610,7 @@ namespace UnrealBuildTool
 		/// <param name="FileItem">Location of the file</param>
 		/// <param name="ContentLines">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		internal static void WriteFileIfChanged(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison Comparison)
+		internal static void WriteFileIfChanged(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison Comparison = StringComparison.Ordinal)
 		{
 			// Only write the file if its contents have changed.
 			FileReference Location = FileItem.Location;
@@ -1485,6 +1620,8 @@ namespace UnrealBuildTool
 				DirectoryReference.CreateDirectory(Location.Directory);
 				FileReference.WriteAllLines(Location, ContentLines, GetEncodingForStrings(ContentLines));
 				FileItem.ResetCachedInfo();
+
+				RecordWriteFileIfChanged(FileItem.Location, bNew: true, bChanged: true);
 			}
 			else
 			{
@@ -1505,6 +1642,12 @@ namespace UnrealBuildTool
 					}
 					FileReference.WriteAllLines(Location, ContentLines, GetEncodingForStrings(ContentLines));
 					FileItem.ResetCachedInfo();
+
+					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: true);
+				}
+				else
+				{ 
+					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: false);
 				}
 			}
 		}

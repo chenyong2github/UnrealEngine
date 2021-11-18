@@ -176,7 +176,7 @@ int32 UCookGlobalShadersCommandlet::Main(const FString& Params)
 		FString OutputDir = FPaths::ProjectSavedDir() / TEXT("CookGlobalShaders") / PlatformName;
 		const TArray<FString> MaterialsToLoad;
 		const TArray<FODSCRequestPayload> ShadersToLoad;
-		RecompileShadersForRemote(PlatformName, SP_NumPlatforms, OutputDir, MaterialsToLoad, ShadersToLoad, nullptr, nullptr);
+		RecompileShadersForRemote(PlatformName, SP_NumPlatforms, OutputDir, MaterialsToLoad, ShadersToLoad, nullptr, nullptr, nullptr);
 
 		bool bCopySucceeded = false;
 

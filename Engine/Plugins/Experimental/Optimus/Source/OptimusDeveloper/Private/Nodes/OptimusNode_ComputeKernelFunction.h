@@ -27,6 +27,7 @@ public:
 
 	// UClass overrides
 	void InitPropertiesFromCustomList(uint8* InObjectPtr, const uint8* InCDOPtr) override;
+	void Link(FArchive& Ar, bool bRelinkExistingProperties) override;
 	
 	UPROPERTY()
 	FName Category;
@@ -68,6 +69,7 @@ public:
 
 	
 	// UOptimusNode overrides
+	FText GetDisplayName() const override;
 	FName GetNodeCategory() const override; 
 
 	// UOptimusNode_ComputeKernelBase overrides

@@ -10,9 +10,9 @@ void UDisplayClusterICVFXCameraComponent::GetDesiredView(FMinimalViewInfo& Desir
 {
 	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOwner()))
 	{
-		UCineCameraComponent* CineCameraComponent = CameraSettings.ExternalCameraActor.IsValid() ? CameraSettings.ExternalCameraActor->GetCineCameraComponent() : static_cast<UCineCameraComponent*>(this);
+		UCineCameraComponent* const CineCameraComponent = CameraSettings.ExternalCameraActor.IsValid() ? CameraSettings.ExternalCameraActor->GetCineCameraComponent() : this;
 
-		float DeltaTime = RootActor->GetWorldDeltaSeconds();
+		const float DeltaTime = RootActor->GetWorldDeltaSeconds();
 		CineCameraComponent->GetCameraView(DeltaTime, DesiredView);
 	}
 }
@@ -30,9 +30,7 @@ FString UDisplayClusterICVFXCameraComponent::GetCameraUniqueId() const
 #if WITH_EDITOR
 bool UDisplayClusterICVFXCameraComponent::GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut)
 {
-	const bool bEnabled = Super::GetEditorPreviewInfo(DeltaTime, ViewOut);
-	GetDesiredView(ViewOut);
-	return bEnabled;
+	return false;
 }
 #endif
 

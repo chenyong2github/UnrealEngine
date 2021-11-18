@@ -119,7 +119,7 @@ float FInputScaleBiasClamp::ApplyTo(float Value, float InDeltaTime) const
 
 	if (bMapRange)
 	{
-		Result = FMath::GetMappedRangeValueUnclamped(InRange.ToVector2D(), OutRange.ToVector2D(), Result);
+		Result = FMath::GetMappedRangeValueUnclamped(InRange.ToVector2f(), OutRange.ToVector2f(), Result);
 	}
 
 	Result = Result * Scale + Bias;
@@ -224,7 +224,7 @@ float FInputScaleBiasClampState::ApplyTo(const FInputScaleBiasClampConstants& In
 
 	if (InConstants.bMapRange)
 	{
-		Result = FMath::GetMappedRangeValueUnclamped(InConstants.InRange.ToVector2D(), InConstants.OutRange.ToVector2D(), Result);
+		Result = FMath::GetMappedRangeValueUnclamped(InConstants.InRange.ToVector2f(), InConstants.OutRange.ToVector2f(), Result);
 	}
 
 	Result = Result * InConstants.Scale + InConstants.Bias;
@@ -255,7 +255,7 @@ float FInputScaleBiasClampState::ApplyTo(const FInputScaleBiasClampConstants& In
 
 	if (InConstants.bMapRange)
 	{
-		Result = FMath::GetMappedRangeValueUnclamped(InConstants.InRange.ToVector2D(), InConstants.OutRange.ToVector2D(), Result);
+		Result = FMath::GetMappedRangeValueUnclamped(InConstants.InRange.ToVector2f(), InConstants.OutRange.ToVector2f(), Result);
 	}
 
 	Result = Result * InConstants.Scale + InConstants.Bias;

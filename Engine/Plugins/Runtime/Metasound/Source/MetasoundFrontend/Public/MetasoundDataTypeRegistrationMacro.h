@@ -367,14 +367,14 @@ namespace Metasound
 						TVariableNode<TDataType> VariablePrototype(TEXT(""), FGuid(), FLiteral());
 						VariableClass = Metasound::Frontend::GenerateClassDescription(VariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
 
-						TVariableMutatorNode<TDataType> SetVariablePrototype(TEXT(""), FGuid());
-						SetVariableClass = Metasound::Frontend::GenerateClassDescription(SetVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableMutator);
+						TVariableMutatorNode<TDataType> VariableMutatorPrototype(TEXT(""), FGuid());
+						VariableMutatorClass = Metasound::Frontend::GenerateClassDescription(VariableMutatorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableMutator);
 
-						TVariableAccessorNode<TDataType> GetVariablePrototype(TEXT(""), FGuid());
-						GetVariableClass = Metasound::Frontend::GenerateClassDescription(GetVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
+						TVariableAccessorNode<TDataType> VariableAccessorPrototype(TEXT(""), FGuid());
+						VariableAccessorClass = Metasound::Frontend::GenerateClassDescription(VariableAccessorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
 
-						TVariableDeferredAccessorNode<TDataType> GetDelayedVariablePrototype(TEXT(""), FGuid());
-						GetDelayedVariableClass = Metasound::Frontend::GenerateClassDescription(GetDelayedVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::VariableAccessor);
+						TVariableDeferredAccessorNode<TDataType> VariableDeferredAccessorPrototype(TEXT(""), FGuid());
+						VariableDeferredAccessorClass = Metasound::Frontend::GenerateClassDescription(VariableDeferredAccessorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableDeferredAccessor);
 					}
 				}
 				virtual ~FDataTypeRegistryEntry() {}
@@ -409,19 +409,19 @@ namespace Metasound
 					return VariableClass;
 				}
 
-				virtual const FMetasoundFrontendClass& GetFrontendSetVariableClass() const override
+				virtual const FMetasoundFrontendClass& GetFrontendVariableMutatorClass() const override
 				{
-					return SetVariableClass;
+					return VariableMutatorClass;
 				}
 
-				virtual const FMetasoundFrontendClass& GetFrontendGetVariableClass() const override
+				virtual const FMetasoundFrontendClass& GetFrontendVariableAccessorClass() const override
 				{
-					return GetVariableClass;
+					return VariableAccessorClass;
 				}
 
-				virtual const FMetasoundFrontendClass& GetFrontendGetDelayedVariableClass() const 
+				virtual const FMetasoundFrontendClass& GetFrontendVariableDeferredAccessorClass() const 
 				{
-					return GetDelayedVariableClass;
+					return VariableDeferredAccessorClass;
 				}
 
 				virtual TUniquePtr<INode> CreateInputNode(FInputNodeConstructorParams&& InParams) const override
@@ -565,9 +565,9 @@ namespace Metasound
 				FMetasoundFrontendClass OutputClass;
 				FMetasoundFrontendClass LiteralClass;
 				FMetasoundFrontendClass VariableClass;
-				FMetasoundFrontendClass SetVariableClass;
-				FMetasoundFrontendClass GetVariableClass;
-				FMetasoundFrontendClass GetDelayedVariableClass;
+				FMetasoundFrontendClass VariableMutatorClass;
+				FMetasoundFrontendClass VariableAccessorClass;
+				FMetasoundFrontendClass VariableDeferredAccessorClass;
 				TSharedPtr<Frontend::IEnumDataTypeInterface> EnumInterface;
 			};
 

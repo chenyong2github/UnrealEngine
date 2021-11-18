@@ -39,7 +39,7 @@ FMD5Hash FDatasmithMeshElementImpl::CalculateElementHash(bool bForce)
 		return ElementHash;
 	}
 	FMD5 MD5;
-	const FMD5Hash& FileHashValue = FileHash.Get(Store);
+	const FMD5Hash& FileHashValue = FileHash;
 	MD5.Update(FileHashValue.GetBytes(), FileHashValue.GetSize());
 	MD5.Update(reinterpret_cast<const uint8*>(&LightmapSourceUV), sizeof(LightmapSourceUV));
 	MD5.Update(reinterpret_cast<const uint8*>(&LightmapCoordinateIndex), sizeof(LightmapCoordinateIndex));
@@ -111,26 +111,28 @@ TSharedPtr< IDatasmithKeyValueProperty > FDatasmithKeyValuePropertyImpl::NullPro
 
 FDatasmithKeyValuePropertyImpl::FDatasmithKeyValuePropertyImpl(const TCHAR* InName)
 	: FDatasmithElementImpl(InName, EDatasmithElementType::KeyValueProperty)
+	, PropertyType(EDatasmithKeyValuePropertyType::String)
+	, Value(InName)
 {
-	Store.RegisterParameter(Value, "Value").Set(Store, InName);
-	Store.RegisterParameter(PropertyType, "PropertyType").Set(Store, EDatasmithKeyValuePropertyType::String);
+	Store.RegisterParameter(Value, "Value");
+	Store.RegisterParameter(PropertyType, "PropertyType");
 }
 
 void FDatasmithKeyValuePropertyImpl::SetPropertyType( EDatasmithKeyValuePropertyType InType )
 {
-	PropertyType.Set(Store, InType);
+	PropertyType = InType;
 	FormatValue();
 }
 
 void FDatasmithKeyValuePropertyImpl::SetValue(const TCHAR* InValue)
 {
-	Value.Set(Store, InValue);
+	Value = InValue;
 	FormatValue();
 }
 
 void FDatasmithKeyValuePropertyImpl::FormatValue()
 {
-	FString Tmp = Value.Get(Store);
+	FString Tmp = Value;
 	if ( Tmp.Len() > 0 && (
 		GetPropertyType() == EDatasmithKeyValuePropertyType::Vector ||
 		GetPropertyType() == EDatasmithKeyValuePropertyType::Color ) )
@@ -147,7 +149,7 @@ void FDatasmithKeyValuePropertyImpl::FormatValue()
 
 		Tmp.ReplaceInline( TEXT(" "), TEXT(",") ); // FVector::ToString separates the arguments with a " " rather than with a ","
 	}
-	Value.Set(Store, Tmp);
+	Value = Tmp;
 }
 
 FDatasmithMaterialIDElementImpl::FDatasmithMaterialIDElementImpl(const TCHAR* InName)
@@ -511,11 +513,11 @@ FMD5Hash FDatasmithTextureElementImpl::CalculateElementHash(bool bForce)
 	}
 	FMD5 MD5;
 	// Update FileHash if it has not already been done
-	if (!FileHash.Get(Store).IsValid() && GetFile() != nullptr && FCString::Strlen(GetFile()) > 0)
+	if (!FileHash.Get().IsValid() && GetFile() != nullptr && FCString::Strlen(GetFile()) > 0)
 	{
-		FileHash.Edit(Store) = FMD5Hash::HashFile(GetFile());
+		FileHash = FMD5Hash::HashFile(GetFile());
 	}
-	const FMD5Hash& FileHashValue = FileHash.Get(Store);
+	const FMD5Hash& FileHashValue = FileHash.Get();
 	MD5.Update(FileHashValue.GetBytes(), FileHashValue.GetSize());
 	MD5.Update(reinterpret_cast<uint8*>(&RGBCurve), sizeof(RGBCurve));
 	MD5.Update(reinterpret_cast<uint8*>(&TextureMode), sizeof(TextureMode));
@@ -1067,7 +1069,7 @@ void FDatasmithSceneImpl::Reset()
 	MetaData.Empty();
 	LevelSequences.Empty();
 	LevelVariantSets.Empty();
-	LODScreenSizes.Edit(Store).Reset();
+	LODScreenSizes.Get().Reset();
 	PostProcess.Inner.Reset();
 	ElementToMetaDataMap.Empty();
 
@@ -1088,12 +1090,12 @@ void FDatasmithSceneImpl::Reset()
 
 const TCHAR* FDatasmithSceneImpl::GetHost() const
 {
-	return *Hostname.Get(Store);
+	return *Hostname.Get();
 }
 
 void FDatasmithSceneImpl::SetHost(const TCHAR* InHostname)
 {
-	Hostname.Set(Store, InHostname);
+	Hostname = InHostname;
 }
 
 static const TSharedPtr< IDatasmithMeshElement > InvalidMeshElement;
@@ -1290,7 +1292,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithSceneImpl::GetActor(int32 InIndex)
 	return Actors.IsValidIndex(InIndex) ? Actors[InIndex] : nullptr;
 }
 
-const TSharedPtr<IDatasmithActorElement>& FDatasmithSceneImpl::GetActor(int32 InIndex) const 
+const TSharedPtr<IDatasmithActorElement>& FDatasmithSceneImpl::GetActor(int32 InIndex) const
 {
 	static TSharedPtr<IDatasmithActorElement> InvalidActor;
 	return Actors.IsValidIndex(InIndex) ? Actors[InIndex] : InvalidActor;

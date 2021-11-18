@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "IDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
 #include "IStageDataProvider.h"
 #include "Logging/LogMacros.h"
 #include "Render/IDisplayClusterRenderManager.h"
@@ -27,31 +28,15 @@ DEFINE_LOG_CATEGORY_STATIC(LogDisplayClusterStageMonitoringDWM, Log, All)
 
 FDWMSyncWatchdog::FDWMSyncWatchdog()
 {
-	if (IDisplayCluster::Get().GetRenderMgr() && IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice())
-	{
-		IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->OnDisplayClusterRenderCustomPresentCreated().AddRaw(this, &FDWMSyncWatchdog::OnCustomPresentCreated);
-	}
+	UE_LOG(LogDisplayClusterStageMonitoringDWM, Log, TEXT("DWM Sync watchdog active"));
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPresentationPreSynchronization_RHIThread().AddRaw(this, &FDWMSyncWatchdog::OnPresentationPreSynchronization_RHIThread);
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPresentationPostSynchronization_RHIThread().AddRaw(this, &FDWMSyncWatchdog::OnPresentationPostSynchronization_RHIThread);
 }
 
 FDWMSyncWatchdog::~FDWMSyncWatchdog()
 {
-	if (IDisplayCluster::Get().GetRenderMgr() && IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice())
-	{
-		IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->OnDisplayClusterRenderCustomPresentCreated().RemoveAll(this);
-
-		if (IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation())
-		{
-			IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation()->OnDisplayClusterPresentationPreSynchronization_RHIThread().RemoveAll(this);
-			IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation()->OnDisplayClusterPresentationPostSynchronization_RHIThread().RemoveAll(this);
-		}
-	}
-}
-
-void FDWMSyncWatchdog::OnCustomPresentCreated()
-{
-	UE_LOG(LogDisplayClusterStageMonitoringDWM, Log, TEXT("DWM Sync watchdog active"));
-	IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation()->OnDisplayClusterPresentationPreSynchronization_RHIThread().AddRaw(this, &FDWMSyncWatchdog::OnPresentationPreSynchronization_RHIThread);
-	IDisplayCluster::Get().GetRenderMgr()->GetRenderDevice()->GetPresentation()->OnDisplayClusterPresentationPostSynchronization_RHIThread().AddRaw(this, &FDWMSyncWatchdog::OnPresentationPostSynchronization_RHIThread);
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPresentationPreSynchronization_RHIThread().RemoveAll(this);
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPresentationPostSynchronization_RHIThread().RemoveAll(this);
 }
 
 void FDWMSyncWatchdog::OnPresentationPreSynchronization_RHIThread()

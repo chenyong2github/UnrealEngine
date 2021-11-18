@@ -11,7 +11,7 @@ struct FActorSnapshotData;
 struct FWorldSnapshotData;
 struct FActorSnapshotHash;
 
-namespace SnapshotUtil
+namespace UE::LevelSnapshots::Private
 {
 	/** Updated by project settings */
 	extern FHashSettings GHashSettings;

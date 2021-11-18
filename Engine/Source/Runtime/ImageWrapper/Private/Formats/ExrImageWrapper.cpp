@@ -53,7 +53,7 @@ public:
 	// returns 0.
 	//---------------------------------------------------------
 
-	virtual Imf::Int64 tellp()
+	uint64_t tellp() override
 	{
 		return Pos;
 	}
@@ -64,7 +64,7 @@ public:
 	// After calling seekp(i), tellp() returns i.
 	//-------------------------------------------
 
-	virtual void seekp(Imf::Int64 pos)
+	void seekp(uint64_t pos) override
 	{
 		Pos = pos;
 	}
@@ -126,7 +126,7 @@ public:
 	// read the first byte in the file, tellg() returns 0.
 	//--------------------------------------------------------
 
-	virtual Imf::Int64 tellg()
+	uint64_t tellg() override
 	{
 		return Pos;
 	}
@@ -136,7 +136,7 @@ public:
 	// After calling seekg(i), tellg() returns i.
 	//-------------------------------------------
 
-	virtual void seekg(Imf::Int64 pos)
+	void seekg(uint64_t pos) override
 	{
 		Pos = pos;
 	}
@@ -183,12 +183,13 @@ int32 GetChannelNames(ERGBFormat InRGBFormat, const char* const*& OutChannelName
 	return ChannelCount;
 }
 
-bool FExrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth)
+bool FExrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow)
 {
 	check(InRawData);
 	check(InRawSize > 0);
 	check(InWidth > 0);
 	check(InHeight > 0);
+	check(InBytesPerRow >= 0);
 
 	switch (InBitDepth)
 	{
@@ -216,7 +217,7 @@ bool FExrImageWrapper::SetRaw(const void* InRawData, int64 InRawSize, const int3
 		break;
 	}
 
-	return FImageWrapperBase::SetRaw(InRawData, InRawSize, InWidth, InHeight, InFormat, InBitDepth);
+	return FImageWrapperBase::SetRaw(InRawData, InRawSize, InWidth, InHeight, InFormat, InBitDepth, InBytesPerRow);
 }
 
 bool FExrImageWrapper::SetCompressed(const void* InCompressedData, int64 InCompressedSize)
@@ -382,7 +383,7 @@ void FExrImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDe
 		// Before ERGBFormat::RGBAF and ERGBFormat::GrayF were introduced, 16-bit ERGBFormat::RGBA and ERGBFormat::Gray were used to describe float pixel formats.
 		// ERGBFormat::RGBA and ERGBFormat::Gray should now only be used for integer channels, while EXR format doesn't support 16-bit integer channels.
 		const TCHAR* FormatName = (InFormat == ERGBFormat::RGBA) ? TEXT("RGBA") : TEXT("Gray");
-		ErrorMessage = FString::Printf(TEXT("Usage of 16-bit ERGBFormat::%s raw format for decompressing float EXR channels is deprecated, please use ERGBFormat::%sF instead."), *FormatName, *FormatName);
+		ErrorMessage = FString::Printf(TEXT("Usage of 16-bit ERGBFormat::%s raw format for decompressing float EXR channels is deprecated, please use ERGBFormat::%sF instead."), FormatName, FormatName);
 	}
 	else if (InBitDepth != 16 && InBitDepth != 32)
 	{

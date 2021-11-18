@@ -57,6 +57,9 @@ private:
 	/** Combined dirty rectangle to process at the next flush. */
 	FIntRect CombinedDirtyRect;
 
+	/** DelegateHandle for on screen warning messages. */
+	FDelegateHandle OnScreenWarningDelegateHandle;
+
 	/** Static ProducerId counter. */
 	static int32 ProducerIdGenerator;
 };

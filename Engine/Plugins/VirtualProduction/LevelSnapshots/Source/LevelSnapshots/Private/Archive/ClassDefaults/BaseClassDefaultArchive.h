@@ -9,25 +9,28 @@ class UObject;
 struct FObjectSnapshotData;
 struct FWorldSnapshotData;
 
-/* Shared logic for serializing class defaults. */
-class FBaseClassDefaultArchive : public FSnapshotArchive
+namespace UE::LevelSnapshots::Private
 {
-	using Super = FSnapshotArchive;
-public:
+	/* Shared logic for serializing class defaults. */
+	class FBaseClassDefaultArchive : public FSnapshotArchive
+	{
+		using Super = FSnapshotArchive;
+	public:
 
-	//~ Begin FSnapshotArchive Interface
-	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
-	//~ End FSnapshotArchive Interface
+		//~ Begin FSnapshotArchive Interface
+		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
+		//~ End FSnapshotArchive Interface
 
-protected:
+		protected:
 	
-	//~ Begin FSnapshotArchive Interface
-	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const override;
-	//~ End FSnapshotArchive Interface
+		//~ Begin FSnapshotArchive Interface
+		virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const override;
+		//~ End FSnapshotArchive Interface
 	
-	FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore);
+		FBaseClassDefaultArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InObjectToRestore);
 
-private:
+	private:
 	
-	bool IsPropertyReferenceToSubobjectOrClassDefaults(const FProperty* InProperty) const;
-};
+		bool IsPropertyReferenceToSubobjectOrClassDefaults(const FProperty* InProperty) const;
+	};
+}

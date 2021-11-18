@@ -20,13 +20,13 @@ UE::DerivedData::FPayload ToDDCPayload(const FPayloadId& Id, const FCompressedBu
 	return UE::DerivedData::FPayload(DDCPayloadId, Payload);
 }
 
-FDDCBackend::FDDCBackend(FStringView ConfigName)
-: IVirtualizationBackend(EOperations::Both)
+FDDCBackend::FDDCBackend(FStringView ConfigName, FStringView InDebugName)
+: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
 , BucketName(TEXT("BulkData"))
 , TransferPolicy(UE::DerivedData::ECachePolicy::None)
 , QueryPolicy(UE::DerivedData::ECachePolicy::None)
 {
-	DebugName = WriteToString<256>(TEXT("FDDCBackend - "), ConfigName);
+	
 }
 
 bool FDDCBackend::Initialize(const FString& ConfigEntry)
@@ -35,24 +35,24 @@ bool FDDCBackend::Initialize(const FString& ConfigEntry)
 
 	if (!FParse::Value(*ConfigEntry, TEXT("Bucket="), BucketName))
 	{
-		UE_LOG(LogVirtualization, Fatal, TEXT("[%s] 'Bucket=' not found in the config file"), *GetDebugString());
+		UE_LOG(LogVirtualization, Fatal, TEXT("[%s] 'Bucket=' not found in the config file"), *GetDebugName());
 	}
 
 	bool bAllowLocal = true;
 	if (FParse::Bool(*ConfigEntry, TEXT("LocalStorage="), bAllowLocal))
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("[%s] Use of local storage set to '%s"), *GetDebugString(), bAllowLocal ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogVirtualization, Log, TEXT("[%s] Use of local storage set to '%s"), *GetDebugName(), bAllowLocal ? TEXT("true") : TEXT("false"));
 	}
 
 	bool bAllowRemote = true;
 	if (FParse::Bool(*ConfigEntry, TEXT("RemoteStorage="), bAllowRemote))
 	{
-		UE_LOG(LogVirtualization, Log, TEXT("[%s] Use of remote storage set to '%s"), *GetDebugString(), bAllowRemote ? TEXT("true") : TEXT("false"));
+		UE_LOG(LogVirtualization, Log, TEXT("[%s] Use of remote storage set to '%s"), *GetDebugName(), bAllowRemote ? TEXT("true") : TEXT("false"));
 	}
 
 	if (!bAllowLocal && !bAllowRemote)
 	{
-		UE_LOG(LogVirtualization, Fatal, TEXT("[%s] LocalStorage and RemoteStorage cannot both be disabled"), *GetDebugString());
+		UE_LOG(LogVirtualization, Fatal, TEXT("[%s] LocalStorage and RemoteStorage cannot both be disabled"), *GetDebugName());
 		return false;
 	}
 
@@ -73,13 +73,13 @@ bool FDDCBackend::Initialize(const FString& ConfigEntry)
 	return true;	
 }
 
-EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload)
+EPushResult FDDCBackend::PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDDCBackend::PushData);
 
 	if (DoesExist(Id))
 	{
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugString(), *Id.ToString());
+		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Already has a copy of the payload '%s'."), *GetDebugName(), *Id.ToString());
 		return EPushResult::PayloadAlreadyExisted;
 	}
 
@@ -154,11 +154,6 @@ FCompressedBuffer FDDCBackend::PullData(const FPayloadId& Id)
 	Owner.Wait();
 
 	return ResultData;
-}
-
-FString FDDCBackend::GetDebugString() const
-{
-	return DebugName;
 }
 
 bool FDDCBackend::DoesExist(const FPayloadId& Id) const

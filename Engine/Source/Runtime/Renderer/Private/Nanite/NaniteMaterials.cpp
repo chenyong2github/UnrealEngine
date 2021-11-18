@@ -209,6 +209,7 @@ class FDepthExportCS : public FNaniteShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER(FIntVector4, DepthExportConfig)
+		SHADER_PARAMETER(FIntVector4, ViewRectMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Velocity)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialResolve)
@@ -662,7 +663,8 @@ void EmitDepthTargets(
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->PageConstants			= PageConstants;
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
-		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, StencilDecalMask, 0);
+		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, StencilDecalMask, Nanite::FGlobalResources::GetMaxVisibleClusters());
+		PassParameters->ViewRectMax				= FIntVector4(View.ViewRect.Max.X, View.ViewRect.Max.Y, 0, 0);
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->Velocity				= VelocityUAV;
 		PassParameters->MaterialResolve			= MaterialResolveUAV;

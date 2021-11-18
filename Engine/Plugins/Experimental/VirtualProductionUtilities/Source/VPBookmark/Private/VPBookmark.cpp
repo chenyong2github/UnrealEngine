@@ -180,7 +180,7 @@ void UVPBookmark::RemoveBookmark()
 			}
 			else
 			{
-				MarkPendingKill();
+				MarkAsGarbage();
 			}
 		}
 	}

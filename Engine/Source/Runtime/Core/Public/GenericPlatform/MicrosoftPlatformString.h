@@ -3,7 +3,11 @@
 #pragma once
 
 #include "Misc/Char.h"
-#include "GenericPlatform/GenericPlatformString.h"
+#if PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
+	#include "GenericPlatform/GenericWidePlatformString.h"
+#else
+	#include "GenericPlatform/GenericPlatformString.h"
+#endif
 #include "GenericPlatform/GenericPlatformStricmp.h"
 #include <stdarg.h>
 #include <stdio.h>
@@ -19,8 +23,19 @@
 #pragma warning(disable : 4996) // 'function' was declared deprecated  (needed for the secure string functions)
 #pragma warning(disable : 4995) // 'function' was declared deprecated  (needed for the secure string functions)
 
-struct FMicrosoftPlatformString : public FGenericPlatformString
+struct FMicrosoftPlatformString :
+#if PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
+	public FGenericWidePlatformString
+#else
+	public FGenericPlatformString
+#endif
 {
+#if PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
+	using Super = FGenericWidePlatformString;
+#else
+	using Super = FGenericPlatformString;
+#endif
+
 	using FGenericPlatformString::Stricmp;
 	using FGenericPlatformString::Strncmp;
 	using FGenericPlatformString::Strnicmp;
@@ -125,12 +140,17 @@ struct FMicrosoftPlatformString : public FGenericPlatformString
 		return _tcstok_s(StrToken, Delim, Context);
 	}
 
+// Allow fallback to FGenericWidePlatformString::GetVarArgs when PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION is set.
+#if PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION
+	using Super::GetVarArgs;
+#else
 	static FORCEINLINE int32 GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, const WIDECHAR*& Fmt, va_list ArgPtr )
 	{
 		int32 Result = vswprintf(Dest, DestSize, Fmt, ArgPtr);
 		va_end( ArgPtr );
 		return Result;
 	}
+#endif
 
 	/** 
 	 * Ansi implementation 

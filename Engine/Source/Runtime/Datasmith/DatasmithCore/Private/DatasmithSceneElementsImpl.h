@@ -27,11 +27,11 @@ public:
 
 	virtual bool IsA( EDatasmithElementType InType ) const override { return EnumHasAnyFlags( GetElementType(), InType); }
 
-	virtual const TCHAR* GetName() const override { return *Name.Get(Store); }
-	virtual void SetName(const TCHAR* InName) override {Name.Set(Store, FDatasmithUtils::SanitizeObjectName(InName)); }
+	virtual const TCHAR* GetName() const override { return *Name.Get(); }
+	virtual void SetName(const TCHAR* InName) override { Name = InName; }
 
-	virtual const TCHAR* GetLabel() const override { const FString& Tmp = Label.Get(Store); return Tmp.IsEmpty() ? GetName() : *Tmp; }
-	virtual void SetLabel(const TCHAR* InLabel) override { Label.Set(Store, FDatasmithUtils::SanitizeObjectName(InLabel)); }
+	virtual const TCHAR* GetLabel() const override { const FString& Tmp = Label.Get(); return Tmp.IsEmpty() ? GetName() : *Tmp; }
+	virtual void SetLabel(const TCHAR* InLabel) override { Label = FDatasmithUtils::SanitizeObjectName(InLabel); }
 
 	virtual FMD5Hash CalculateElementHash(bool) override { return ElementHash; }
 
@@ -42,8 +42,8 @@ public:
 
 protected:
 	virtual bool IsSubTypeInternal( uint64 InSubType ) const { return ( InSubType & GetSubType() ) != 0; }
-	EDatasmithElementType GetElementType() const { return Type.Get(Store); }
-	uint64 GetSubType() const { return Subtype.Get(Store); }
+	EDatasmithElementType GetElementType() const { return Type.Get(); }
+	uint64 GetSubType() const { return Subtype.Get(); }
 
 protected:
 	FMD5Hash ElementHash;
@@ -76,7 +76,7 @@ public:
 	EDatasmithKeyValuePropertyType GetPropertyType() const override { return PropertyType; }
 	void SetPropertyType( EDatasmithKeyValuePropertyType InType ) override;
 
-	const TCHAR* GetValue() const override { return *Value.Get(Store); }
+	const TCHAR* GetValue() const override { return *Value.Get(); }
 	void SetValue( const TCHAR* InValue ) override;
 
 	static TSharedPtr< IDatasmithKeyValueProperty > NullPropertyPtr;
@@ -107,7 +107,7 @@ public:
 	using FDatasmithElementImpl< InterfaceType >::Store;
 	FDatasmithActorElementImpl(const TCHAR* InName, EDatasmithElementType InType);
 
-	virtual FVector GetTranslation() const override { return Translation.Get(Store); }
+	virtual FVector GetTranslation() const override { return Translation.Get(); }
 	virtual void SetTranslation(float InX, float InY, float InZ, bool bKeepChildrenRelative) override { SetTranslation( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
 	virtual void SetTranslation(const FVector& Value, bool bKeepChildrenRelative) override
 	{
@@ -122,7 +122,7 @@ public:
 		}
 	}
 
-	virtual FVector GetScale() const override { return Scale.Get(Store); }
+	virtual FVector GetScale() const override { return Scale.Get(); }
 	virtual void SetScale(float InX, float InY, float InZ, bool bKeepChildrenRelative) override { SetScale( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
 	virtual void SetScale(const FVector& Value, bool bKeepChildrenRelative) override
 	{
@@ -157,10 +157,10 @@ public:
 	virtual const TCHAR* GetLayer() const override { return *(FString&)Layer; }
 	virtual void SetLayer(const TCHAR* InLayer) override { Layer = InLayer; }
 
-	virtual void AddTag(const TCHAR* InTag) override { Tags.Edit(Store).Add(InTag); }
-	virtual void ResetTags() override { Tags.Edit(Store).Reset(); }
-	virtual int32 GetTagsCount() const { return Tags.Get(Store).Num(); }
-	virtual const TCHAR* GetTag(int32 TagIndex) const override { return Tags.Get(Store).IsValidIndex(TagIndex) ? *Tags.Get(Store)[TagIndex] : nullptr; }
+	virtual void AddTag(const TCHAR* InTag) override { Tags.Get().Add(InTag); }
+	virtual void ResetTags() override { Tags.Get().Reset(); }
+	virtual int32 GetTagsCount() const { return Tags.Get().Num(); }
+	virtual const TCHAR* GetTag(int32 TagIndex) const override { return Tags.Get().IsValidIndex(TagIndex) ? *Tags.Get()[TagIndex] : nullptr; }
 
 	virtual void AddChild(const TSharedPtr< IDatasmithActorElement >& InChild, EDatasmithActorAttachmentRule AttachementRule = EDatasmithActorAttachmentRule::KeepWorldTransform) override;
 	virtual int32 GetChildrenCount() const override
@@ -171,18 +171,18 @@ public:
 	/** Get the 'InIndex'th child of the actor  */
 	virtual TSharedPtr< IDatasmithActorElement > GetChild(int32 InIndex) override
 	{
-		return Children.Inner.IsValidIndex(InIndex) ? Children.Inner[InIndex] : NullActorPtr;
+		return Children.IsValidIndex(InIndex) ? Children[InIndex] : NullActorPtr;
 	};
 
 	virtual const TSharedPtr< IDatasmithActorElement >& GetChild(int32 InIndex) const override
 	{
-		return Children.Inner.IsValidIndex(InIndex) ? Children.Inner[InIndex] : NullActorPtr;
+		return Children.IsValidIndex(InIndex) ? Children[InIndex] : NullActorPtr;
 	};
 
 	virtual void RemoveChild(const TSharedPtr< IDatasmithActorElement >& InChild) override
 	{
-		Children.Inner.Remove(InChild);
-		static_cast< FDatasmithActorElementImpl* >( InChild.Get() )->Parent.Inner.Reset();
+		Children.Edit().Remove(InChild);
+		static_cast< FDatasmithActorElementImpl* >( InChild.Get() )->Parent.Edit().Reset();
 	}
 
 	virtual const TSharedPtr< IDatasmithActorElement >& GetParentActor() const override
@@ -203,9 +203,9 @@ protected:
 	/** Converts all children's transforms to world */
 	void ConvertChildsToWorld();
 
-	void SetInternalRotation(const FQuat& Value) { Rotation.Set(Store, Value); }
-	void SetInternalScale(const FVector& Value) { Scale.Set(Store, Value); }
-	void SetInternalTranslation(const FVector& Value) { Translation.Set(Store, Value); }
+	void SetInternalRotation(const FQuat& Value) { Rotation = Value; }
+	void SetInternalScale(const FVector& Value) { Scale = Value; }
+	void SetInternalTranslation(const FVector& Value) { Translation = Value; }
 
 private:
 	static TSharedPtr<IDatasmithActorElement> NullActorPtr;
@@ -288,7 +288,7 @@ inline void FDatasmithActorElementImpl<T>::ConvertChildsToRelative()
 {
 	FTransform ThisWorldTransform( GetRotation(), GetTranslation(), GetScale() );
 
-	for ( TSharedPtr< IDatasmithActorElement >& Child : Children.Inner )
+	for ( const TSharedPtr< IDatasmithActorElement >& Child : Children.View() )
 	{
 		if ( !Child.IsValid() )
 		{
@@ -312,7 +312,7 @@ inline void FDatasmithActorElementImpl<T>::ConvertChildsToWorld()
 {
 	FTransform ThisWorldTransform( GetRotation(), GetTranslation(), GetScale() );
 
-	for ( TSharedPtr< IDatasmithActorElement >& Child : Children.Inner )
+	for ( const TSharedPtr< IDatasmithActorElement >& Child : Children.View() )
 	{
 		if ( !Child.IsValid() )
 		{
@@ -945,8 +945,6 @@ public:
 
 	/** Removes a property from this actor, doesn't preserve ordering */
 	virtual void RemoveProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) override { Properties.Edit().RemoveSingleSwap( Property ); }
-
-
 
 protected:
 	/** Add a property to this actor */
@@ -1617,9 +1615,9 @@ public:
 	virtual void SetUsePhysicalSky(bool bInUsePhysicalSky) override { bUseSky = bInUsePhysicalSky; }
 	virtual bool GetUsePhysicalSky() const override { return bUseSky; }
 
-	virtual void AddLODScreenSize( float ScreenSize ) override { LODScreenSizes.Edit(Store).Add( FMath::Clamp( ScreenSize, 0.f, 1.f ) ); }
-	virtual int32 GetLODScreenSizesCount() const override { return LODScreenSizes.Get(Store).Num(); }
-	virtual float GetLODScreenSize(int32 InIndex) const override { return LODScreenSizes.Get(Store).IsValidIndex( InIndex ) ? LODScreenSizes.Get(Store)[InIndex] : 0.f; }
+	virtual void AddLODScreenSize( float ScreenSize ) override { LODScreenSizes.Get().Add( FMath::Clamp( ScreenSize, 0.f, 1.f ) ); }
+	virtual int32 GetLODScreenSizesCount() const override { return LODScreenSizes.Get().Num(); }
+	virtual float GetLODScreenSize(int32 InIndex) const override { return LODScreenSizes.Get().IsValidIndex( InIndex ) ? LODScreenSizes.Get()[InIndex] : 0.f; }
 
 	virtual void AddMetaData(const TSharedPtr< IDatasmithMetaDataElement >& InMetaData) override { MetaData.Add(InMetaData); ElementToMetaDataMap.Add(InMetaData->GetAssociatedElement(), InMetaData); }
 

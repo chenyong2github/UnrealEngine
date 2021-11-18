@@ -10,13 +10,55 @@
 #include "SlateFwd.h"
 #include "StageMessages.h"
 #include "Templates/SharedPointer.h"
-#include "Widgets/Views/SListView.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+#include "SDataProviderActivityFilter.generated.h"
 
+enum class ECheckBoxState : uint8;
 class FStructOnScope;
 class FMenuBuilder;
 class IStageMonitorSession;
+
+static TAutoConsoleVariable<int32> CVarStageMonitorDefaultMaxMessageAge(TEXT("StageMonitor.DefaultMaxMessageAge"), 30, TEXT("The default value in minutes for the maximum age for which to display messages in the data monitor."));
+
+/** Filter settings used live and also load/saved to ini config */
+USTRUCT()
+struct FDataProviderActivityFilterSettings
+{
+	GENERATED_BODY()
+
+	/** 
+	 * Periodic message structure type. 
+	 * Used to detect new types that would be filtered out automatically
+	 */
+	UPROPERTY()
+	TArray<UScriptStruct*> ExistingPeriodicTypes;
+
+	/** Message types that are filtered */
+	UPROPERTY()
+	TArray<UScriptStruct*> RestrictedTypes;
+
+	/** Providers that are filtered using their friendly name */
+	UPROPERTY()
+	TArray<FName> RestrictedProviders;
+
+	/** Critical state sources that are filtered */
+	UPROPERTY()
+	TArray<FName> RestrictedSources;
+
+	/** Global critical state filter state */
+	UPROPERTY()
+	bool bEnableCriticalStateFilter = false;
+
+	/** Should time filtering (timecode age) be enabled */
+	UPROPERTY()
+	bool bEnableTimeFilter = true;
+
+	/** How far back in time should we display messages */
+	UPROPERTY()
+	uint32 MaxMessageAgeInMinutes = 30;
+};
+
 
 /**
  *
@@ -28,13 +70,24 @@ public:
 
 	/** Returns true if the entry passes the current filter */
 	bool DoesItPass(TSharedPtr<FStageDataEntry>& Entry) const;
+	void FilterActivities(const TArray<TSharedPtr<FStageDataEntry>>& InUnfilteredActivities, TArray<TSharedPtr<FStageDataEntry>>& OutFilteredActivities) const;
 
 public:
-	TArray<UScriptStruct*> RestrictedTypes;
-	TArray<FStageSessionProviderEntry> RestrictedProviders;
-	TArray<FName> RestrictedSources;
-	bool bEnableCriticalStateFilter = false;
+	FDataProviderActivityFilterSettings FilterSettings;
 	TWeakPtr<IStageMonitorSession> Session;
+
+private:
+	enum class EFilterResult : uint8
+	{
+		InvalidEntry,
+		FailRestrictedTypes,
+		FailRestrictedProviders,
+		FailRestrictedCriticalState,
+		FailMaxAge,
+		Pass
+	};
+	
+	EFilterResult FilterActivity(const TSharedPtr<FStageDataEntry>& Entries) const;
 };
 
 
@@ -50,6 +103,7 @@ public:
 		SLATE_EVENT(FSimpleDelegate, OnActivityFilterChanged)
 	SLATE_END_ARGS()
 
+	~SDataProviderActivityFilter();
 	void Construct(const FArguments& InArgs, const TWeakPtr<IStageMonitorSession>& InSession);
 
 	/** Returns the activity filter */
@@ -61,10 +115,10 @@ public:
 private:
 
 	/** Toggles state of provider filter */
-	void ToggleProviderFilter(FStageSessionProviderEntry Provider);
+	void ToggleProviderFilter(FName ProviderName);
 
 	/** Returns true if provider is currently filtered out */
-	bool IsProviderFiltered(FStageSessionProviderEntry Provider) const;
+	bool IsProviderFiltered(FName ProviderName) const;
 
 	/** Toggles state of data type filter */
 	void ToggleDataTypeFilter(UScriptStruct* Type);
@@ -81,8 +135,14 @@ private:
 	/** Toggles whether critical source filtering is enabled or not */
 	void ToggleCriticalSourceEnabledFilter();
 
+	/** Toggle whether time filtering is enabled. */
+	void ToggleTimeFilterEnabled(ECheckBoxState CheckboxState);
+
 	/** Returns true if filtering by critical state source enabled */
 	bool IsCriticalSourceFilteringEnabled() const;
+	
+	/** Returns true if filtering by message age is enabled. */
+	bool IsTimeFilterEnabled() const;
 
 	/** Create the AddFilter menu when combo button is clicked. Different filter types will be submenus */
 	TSharedRef<SWidget> MakeAddFilterMenu();
@@ -96,8 +156,29 @@ private:
 	/** Create the menu listing all critical state sources */
 	void CreateCriticalStateSourceFilterMenu(FMenuBuilder& MenuBuilder);
 
+	/** Create a menu listing the options for filtering message based on their age. */
+	void CreateTimeFilterMenu(FMenuBuilder& MenuBuilder);
+
 	/** Binds this widget to some session callbacks */
 	void AttachToMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession);
+
+	/** Returns whether the time filter checkbox should be checked or not. */
+	ECheckBoxState IsTimeFilterChecked() const;
+
+	/** Return the max age in minutes where messages should be filtered out. */
+	TOptional<uint32> GetMaxMessageAge() const;
+
+	/** Handle modifying the maximum message age. */
+	void OnMaxMessageAgeChanged(uint32 NewMax);
+
+	/** Handle setting the new maximum message age. */
+	void OnMaxMessageAgeCommitted(uint32 NewMax, ETextCommit::Type);
+
+	/** Load filtering settings from ini */
+	void LoadSettings();
+
+	/** Save filtering settings from ini */
+	void SaveSettings();
 
 private:
 

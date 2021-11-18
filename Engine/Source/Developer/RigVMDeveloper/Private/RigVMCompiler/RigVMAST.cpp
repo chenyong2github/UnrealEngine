@@ -1965,7 +1965,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 	}
 
 	TempVM->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-	TempVM->MarkPendingKill();
+	TempVM->MarkAsGarbage();
 
 	RemoveExpressions(ExpressionsToRemove);
 

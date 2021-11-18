@@ -263,7 +263,7 @@ void FBatchedElements::AddReserveLines(int32 NumLines, bool bDepthBiased, bool b
 	}
 }
 
-/** 
+/**
 * Reserves space in triangle arrays 
 * 
 * @param NumMeshTriangles - number of triangles to reserve space for
@@ -985,11 +985,9 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 			{
 				check(WireTriVerts.Num() == WireTris.Num() * 3);
 
-				FRHIResourceCreateInfo CreateInfo(TEXT("WireTris"));
-				FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FSimpleElementVertex) * WireTriVerts.Num(), BUF_Volatile, CreateInfo);
-				void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FSimpleElementVertex) * WireTriVerts.Num(), RLM_WriteOnly);
-				FMemory::Memcpy(VoidPtr, WireTriVerts.GetData(), sizeof(FSimpleElementVertex) * WireTriVerts.Num());
-				RHIUnlockBuffer(VertexBufferRHI);
+				FRHIResourceCreateInfo CreateInfo(TEXT("WireTris"), &WireTriVerts);
+				FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(WireTriVerts.GetResourceDataSize(), BUF_Volatile, CreateInfo);
+
 				RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 
 				const bool bEnableMSAA = true;

@@ -488,7 +488,7 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 }
 
 // Key that forms the basis of the HLOD proxy key. Bump this key (i.e. generate a new GUID) when you want to force a rebuild of ALL HLOD proxies
-#define HLOD_PROXY_BASE_KEY		TEXT("174C29B19AB34A21894058E058F253B3")
+#define HLOD_PROXY_BASE_KEY		TEXT("1623F71084794B7A925C65D479104CA6")
 
 FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoLevelTransform)
 {
@@ -685,7 +685,7 @@ void UHLODProxy::DestroyObject(UObject* InObject)
 		InObject->ClearFlags(RF_Public | RF_Standalone);
 		InObject->SetFlags(RF_Transient);
 		InObject->Rename(nullptr, GetTransientPackage());
-		InObject->MarkPendingKill();
+		InObject->MarkAsGarbage();
 	
 		if (InObject->IsRooted())
 		{

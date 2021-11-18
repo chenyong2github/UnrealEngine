@@ -120,7 +120,7 @@ void UNiagaraScriptSource::ReleaseCompilationCopy()
 		bIsReleased = true;
 		NodeGraph = nullptr;
 		RemoveFromRoot();
-		MarkPendingKill();
+		MarkAsGarbage();
 	}
 }
 

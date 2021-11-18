@@ -381,11 +381,25 @@ FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathFo
 	return BurleySampleInfo;
 }
 
-float GetProfileMask(float2 BufferUV, float2 Extent)
+#if STRATA_ENABLED
+FStrataSubsurfaceData LoadStrataSSSData(float2 UV)
+{
+	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy;
+	return StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0)));
+}
+
+FStrataTopLayerData LoadStrataTopLayerData(float2 UV)
+{
+	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy;
+	return StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(PixelPos, 0)));
+}
+#endif
+
+
+float GetProfileMask(float2 BufferUV)
 {
 #if STRATA_ENABLED
-	const uint2 PixelCoord = BufferUV * Extent;
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStrataSSSData(BufferUV);
 	const bool bIsProfile = SSSData.bIsValid;
 #else
 	const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
@@ -409,15 +423,15 @@ float GetProfileEdgeMask(float2 BufferUV)
 	#define PIXELOFFSET_UVDELTA 1.0f
 #endif
 
-	float P11 = GetProfileMask((BufferUV + float2(0.0f, 0.0f) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
-	float P00 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
-	float P01 = GetProfileMask((BufferUV + float2(0.0f, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
-	float P02 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
-	float P10 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
-	float P12 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
-	float P20 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
-	float P21 = GetProfileMask((BufferUV + float2(0.0f, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
-	float P22 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P11 = GetProfileMask((BufferUV + float2(0.0f, 0.0f) * SubsurfaceInput0_ExtentInverse));
+	float P00 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P01 = GetProfileMask((BufferUV + float2(0.0f, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P02 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P10 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse));
+	float P12 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse));
+	float P20 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P21 = GetProfileMask((BufferUV + float2(0.0f, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P22 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
 
 	return (P00 + P01 + P02 + P10 + P11 + P12 + P20 + P21 + P22) / 9.0f;
 }
@@ -805,8 +819,7 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 
 #if !(ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE !=1))
 	#if STRATA_ENABLED
-	const uint2 CenterPos = ClampedUV * SubsurfaceInput0_Extent;
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(CenterPos, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStrataSSSData(ClampedUV);
 	#else
 	const FGBufferData SSSData = GetScreenSpaceData(ClampedUV).GBuffer;
 	#endif
@@ -977,9 +990,8 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	}
 
 #if STRATA_ENABLED
-	const uint2 BufferPos = BufferUV * SubsurfaceInput0_Extent;
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
-	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(BufferPos, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStrataSSSData(BufferUV);
+	const FStrataTopLayerData TopLayerData = LoadStrataTopLayerData(BufferUV);
 	const float3 WorldNormal = TopLayerData.WorldNormal;
 	const uint SubsurfaceProfileInt = SSSData.ProfileId;
 	const FBurleyParameter BurleyParameter = GetBurleyParameters(SSSData);
@@ -1083,15 +1095,14 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 			float4 SampledRadianceAndDepth = float4(SampledDiffuseAndSpecular.Diffuse, CalcSceneDepth(SampledDiscUV));
 
 		#if STRATA_ENABLED
-			const uint2 BufferPos = SampledDiscUV * SubsurfaceInput0_Extent;
-			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(BufferPos, 0));
+			const FStrataTopLayerData TopLayerData = LoadStrataTopLayerData(SampleDiscUV);
 			const float3 SampleWorldNormal = TopLayerData.WorldNormal;
 		#else
 			const FScreenSpaceData SampleScreenSpaceData = GetScreenSpaceData(SampledDiscUV);
 			const float3 SampleWorldNormal = SampleScreenSpaceData.GBuffer.WorldNormal;
 		#endif
 
-			uint LocalProfile = ExtractSubsurfaceProfileIntWithInvalid(GetSubsurfaceProfileId(SampledDiscUV, SubsurfaceInput0_Extent));
+			uint LocalProfile = ExtractSubsurfaceProfileIntWithInvalid(GetSubsurfaceProfileId(SampledDiscUV));
 #else
 
 			// Determine the miplevel with the expected number of samples at the pixel.
@@ -1273,10 +1284,9 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 
 			// Also fetch the normal and profile ID
 		#if STRATA_ENABLED
-			const uint2 BufferPos = SampleUV * Output_Extent;
-			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(BufferPos, 0)));
+			const FStrataTopLayerData TopLayerData = LoadStrataTopLayerData(SampleUV);
 			const float3 SampleWorldNormal = TopLayerData.WorldNormal;
-			const FStrataSubsurfaceData SampleSSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+			const FStrataSubsurfaceData SampleSSSData = LoadStrataSSSData(SampleUV);
 		#else
 			const FGBufferData SampleSSSData = GetScreenSpaceData(SampleUV).GBuffer;
 			const float3 SampleWorldNormal = SampleSSSData.WorldNormal;
@@ -1332,7 +1342,7 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 			float4 SurfaceColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, LBufferUV);
 
 			// We have to check per pixel if this is a burley so that we don't overwrite separable pixels
-			uint SelectedProfile = GetSubsurfaceProfileId(LBufferUV, SubsurfaceInput0_Extent);
+			uint SelectedProfile = GetSubsurfaceProfileId(LBufferUV);
 			bool UseBurley = GetSubsurfaceProfileUseBurley(SelectedProfile);
 			if (UseBurley)
 			{

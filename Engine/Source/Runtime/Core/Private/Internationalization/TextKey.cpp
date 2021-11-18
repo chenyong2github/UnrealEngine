@@ -5,6 +5,7 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Hash/CityHash.h"
 #include "Misc/ByteSwap.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Misc/LazySingleton.h"
 #include "Misc/ScopeLock.h"
 #include "Logging/LogMacros.h"
@@ -24,6 +25,7 @@ public:
 		const FString* StrPtr = KeysTable.Find(SrcKey);
 		if (!StrPtr)
 		{
+			LLM_SCOPE(ELLMTag::Localization);
 			FString StrCopy = CopyString(InStrLen, InStr); // Need to copy the string here so we can reference its internal allocation as the key
 			const FKeyData DestKey(*StrCopy, StrCopy.Len(), SrcKey.StrHash);
 			StrPtr = &KeysTable.Add(DestKey, MoveTemp(StrCopy));
@@ -44,6 +46,7 @@ public:
 		const FString* StrPtr = KeysTable.Find(SrcKey);
 		if (!StrPtr)
 		{
+			LLM_SCOPE(ELLMTag::Localization);
 			FString StrCopy = CopyString(InStrLen, InStr); // Need to copy the string here so we can reference its internal allocation as the key
 			const FKeyData DestKey(*StrCopy, StrCopy.Len(), SrcKey.StrHash);
 			StrPtr = &KeysTable.Add(DestKey, MoveTemp(StrCopy));
@@ -63,6 +66,7 @@ public:
 		const FString* StrPtr = KeysTable.Find(SrcKey);
 		if (!StrPtr)
 		{
+			LLM_SCOPE(ELLMTag::Localization);
 			FString StrCopy = InStr; // Need to copy the string here so we can reference its internal allocation as the key
 			const FKeyData DestKey(*StrCopy, StrCopy.Len(), SrcKey.StrHash);
 			StrPtr = &KeysTable.Add(DestKey, MoveTemp(StrCopy));
@@ -83,6 +87,7 @@ public:
 		const FString* StrPtr = KeysTable.Find(SrcKey);
 		if (!StrPtr)
 		{
+			LLM_SCOPE(ELLMTag::Localization);
 			const FKeyData DestKey(*InStr, InStr.Len(), SrcKey.StrHash);
 			StrPtr = &KeysTable.Add(DestKey, MoveTemp(InStr));
 			check(DestKey.Str == **StrPtr); // The move must have moved the allocation we referenced in the key
@@ -95,6 +100,7 @@ public:
 	void Shrink()
 	{
 		FScopeLock ScopeLock(&SynchronizationObject);
+		LLM_SCOPE(ELLMTag::Localization);
 		KeysTable.Shrink();
 	}
 

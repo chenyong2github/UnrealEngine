@@ -93,5 +93,14 @@ DEFINE_STAT(STAT_ParamUpdateField_DynamicConstraint);
 DEFINE_STAT(STAT_ForceUpdateField_LinearForce);
 DEFINE_STAT(STAT_ForceUpdateField_AngularTorque);
 
-
-// Field update stats
+DEFINE_STAT(STAT_Collisions_Detect);
+DEFINE_STAT(STAT_Collisions_ParticlePairBroadPhase);
+DEFINE_STAT(STAT_Collisions_SpatialBroadPhase);
+DEFINE_STAT(STAT_Collisions_AABBTree);
+DEFINE_STAT(STAT_Collisions_Restore);
+DEFINE_STAT(STAT_Collisions_Filtering);
+DEFINE_STAT(STAT_Collisions_GenerateCollisions);
+DEFINE_STAT(STAT_Collisions_Gather);
+DEFINE_STAT(STAT_Collisions_Scatter);
+DEFINE_STAT(STAT_Collisions_Apply);
+DEFINE_STAT(STAT_Collisions_ApplyPushOut);

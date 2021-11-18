@@ -32,6 +32,12 @@ void SDisplayClusterConfiguratorViewOutputMapping::Construct(const FArguments& I
 		CommandList->Append(AdditionalCommands.ToSharedRef());
 	}
 
+	TSharedPtr<FUICommandList> GraphEditorCommands = InGraphEditor->GetCommandList();
+	if (GraphEditorCommands.IsValid())
+	{
+		CommandList->Append(GraphEditorCommands.ToSharedRef());
+	}
+
 	SDisplayClusterConfiguratorViewBase::Construct(
 		SDisplayClusterConfiguratorViewBase::FArguments()
 		.Content()
@@ -278,21 +284,9 @@ FText SDisplayClusterConfiguratorViewOutputMapping::GetViewScaleText() const
 	return FText::Format(LOCTEXT("ViewScaleFormat", "View Scale x{0}"), FText::AsNumber(ViewScale));
 }
 
-void SDisplayClusterConfiguratorViewOutputMapping::ZoomToFit()
-{
-	GraphEditorPtr.Pin()->ZoomToFit(false);
-}
-
 void SDisplayClusterConfiguratorViewOutputMapping::BindCommands()
 {
 	CommandList = MakeShareable(new FUICommandList);
-
-	const FDisplayClusterConfiguratorCommands& Commands = IDisplayClusterConfigurator::Get().GetCommands();
-
-	CommandList->MapAction(
-		Commands.ZoomToFit,
-		FExecuteAction::CreateSP(this, &SDisplayClusterConfiguratorViewOutputMapping::ZoomToFit)
-	);
 }
 
 float SDisplayClusterConfiguratorViewOutputMapping::GetDPIScale() const

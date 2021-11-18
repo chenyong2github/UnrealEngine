@@ -114,7 +114,7 @@ FSubSectionPainterResult FSubSectionPainterUtil::PaintSection(TSharedPtr<const I
             const FFrameRate TickResolution = SubSequenceMovieScene->GetTickResolution();
             const FFrameNumber CurrentFrameNumber = ConvertFrameTime(CurrentTime * SectionObject.OuterToInnerTransform(), TickResolution, DisplayRate).FloorToFrame();
 
-            DrawFrameNumberHint(InPainter, CurrentTime, CurrentFrameNumber.Value);
+            DrawFrameTimeHint(InPainter, CurrentTime, CurrentFrameNumber);
         }
     }
 

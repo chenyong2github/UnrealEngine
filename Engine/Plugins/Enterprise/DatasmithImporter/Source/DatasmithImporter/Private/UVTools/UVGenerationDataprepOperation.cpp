@@ -22,7 +22,7 @@ void UUVGenerationFlattenMappingOperation::OnExecution_Implementation(const FDat
 	{
 		if (AActor* Actor = Cast<AActor>(Object))
 		{
-			if (Actor->IsPendingKillOrUnreachable())
+			if (!IsValidChecked(Actor) || Actor->IsUnreachable())
 			{
 				continue;
 			}

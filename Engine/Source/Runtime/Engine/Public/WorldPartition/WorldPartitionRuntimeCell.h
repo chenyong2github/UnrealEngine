@@ -6,6 +6,7 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "WorldPartition/WorldPartitionActorCluster.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #include "Algo/AnyOf.h"
 #include "WorldPartitionRuntimeCell.generated.h"
@@ -25,14 +26,13 @@ struct FWorldPartitionRuntimeCellObjectMapping
 #if WITH_EDITORONLY_DATA
 		: Package(NAME_None)
 		, Path(NAME_None)
-		, ContainerID(0)
 		, ContainerTransform(FTransform::Identity)
 		, ContainerPackage(NAME_None)
 		, LoadedPath(NAME_None)
 #endif
 	{}
 
-	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, uint64 InContainerID, const FTransform& InContainerTransform, FName InContainerPackage)
+	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage)
 #if WITH_EDITORONLY_DATA
 		: Package(InPackage)
 		, Path(InPath)
@@ -60,7 +60,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 	 * ID of the owning container instance
 	 */
 	UPROPERTY()
-	uint64 ContainerID;
+	FActorContainerID ContainerID;
 
 	/** 
 	 * Transform of the owning container instance
@@ -160,7 +160,7 @@ class UWorldPartitionRuntimeCell : public UObject
 
 	void SetDataLayers(const TArray<const UDataLayer*>& InDataLayers);
 	void SetDebugInfo(FIntVector InCoords, FName InGridName);
-	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint64 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
+	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
 	// Cook methods

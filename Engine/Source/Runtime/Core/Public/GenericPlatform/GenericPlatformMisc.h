@@ -359,6 +359,107 @@ struct FProcessorGroupDesc
 };
 
 /**
+ * Different types of Page Fault stats
+ */
+struct FPageFaultStats
+{
+	/** Page faults for data already in memory (platform dependent) */
+	uint64 SoftPageFaults	= 0;
+
+	/** Page faults for data on disk (platform dependent) */
+	uint64 HardPageFaults	= 0;
+
+	/** All page fault types */
+	uint64 TotalPageFaults	= 0;
+};
+
+/**
+ * Flags for page fault stats to retrieve
+ */
+enum class EPageFaultFlags : uint8
+{
+	SoftPageFaults		= 0x01,
+	HardPageFaults		= 0x02,
+	TotalPageFaults		= 0x04,
+
+	All					= 0xFF
+};
+
+ENUM_CLASS_FLAGS(EPageFaultFlags);
+
+
+/**
+ * Different types of Input/Output stats
+ */
+struct FProcessIOStats
+{
+	/** Blocking Input operations */
+	uint64 BlockingInput	= 0;
+
+	/** Blocking Output operations */
+	uint64 BlockingOutput	= 0;
+
+	/** Blocking operations that were neither Input or Output operations (platform dependent) */
+	uint64 BlockingOther	= 0;
+
+	/** Input bytes transferred */
+	uint64 InputBytes		= 0;
+
+	/** Output bytes transferred */
+	uint64 OutputBytes		= 0;
+
+	/** Bytes transferred that were not from either Input or Output operations */
+	uint64 OtherBytes		= 0;
+};
+
+/**
+ * Flags for Input/Output stats to retrieve
+ */
+enum class EInputOutputFlags : uint8
+{
+	BlockingInput		= 0x01,
+	BlockingOutput		= 0x02,
+	BlockingOther		= 0x04,
+	InputBytes			= 0x08,
+	OutputBytes			= 0x10,
+	OtherBytes			= 0x20,
+
+	All					= 0xFF
+};
+
+ENUM_CLASS_FLAGS(EInputOutputFlags);
+
+
+/**
+ * Different types of Context Switch stats
+ */
+struct FContextSwitchStats
+{
+	/** Context switches that occurred voluntarily (e.g. yield - platform dependent) */
+	uint64 VoluntaryContextSwitches		= 0;
+
+	/** Context switches that were involuntary (e.g. quantum reached/exceeded - platform dependent) */
+	uint64 InvoluntaryContextSwitches	= 0;
+
+	/** All context switch types */
+	uint64 TotalContextSwitches			= 0;
+};
+
+/**
+ * Flags for Context Switch stats to retrieve
+ */
+enum class EContextSwitchFlags : uint8
+{
+	VoluntaryContextSwitches		= 0x01,
+	InvoluntaryContextSwitches		= 0x02,
+	TotalContextSwitches			= 0x04,
+
+	All								= 0xFF
+};
+
+ENUM_CLASS_FLAGS(EContextSwitchFlags);
+
+/**
  * Generic implementation for most platforms
  */
 struct CORE_API FGenericPlatformMisc
@@ -566,6 +667,42 @@ struct CORE_API FGenericPlatformMisc
 
 	/** Retrieves information about the total number of bytes and number of free bytes for the specified disk path. */
 	static bool GetDiskTotalAndFreeSpace( const FString& InPath, uint64& TotalNumberOfBytes, uint64& NumberOfFreeBytes );
+
+	/**
+	 * Gets Page Fault stats covering the lifetime of the process
+	 *
+	 * @param OutStats	Outputs the page fault stats
+	 * @param Flags		The type of page fault stats to retrieve
+	 * @return			Whether or not stats were successfully retrieved
+	 */
+	static bool GetPageFaultStats(FPageFaultStats& OutStats, EPageFaultFlags Flags=EPageFaultFlags::All)
+	{
+		return false;
+	}
+
+	/**
+	 * Gets Blocking Input/Output stats covering the lifetime of the process
+	 *
+	 * @param OutStats	Outputs the IO stats
+	 * @param Flags		The type of IO stats to retrieve
+	 * @return			Whether or not stats were successfully retrieved
+	 */
+	static bool GetBlockingIOStats(FProcessIOStats& OutStats, EInputOutputFlags Flags=EInputOutputFlags::All)
+	{
+		return false;
+	}
+
+	/**
+	 * Gets Context Switch stats covering the lifetime of the process
+	 *
+	 * @param OutStats	Outputs the Context Switch stats
+	 * @param Flags		The type of Context Switch stats to retrieve
+	 * @return			Whether or not stats were successfully retrieved
+	 */
+	static bool GetContextSwitchStats(FContextSwitchStats& OutStats, EContextSwitchFlags Flags=EContextSwitchFlags::All)
+	{
+		return false;
+	}
 
 	static bool SupportsMessaging()
 	{

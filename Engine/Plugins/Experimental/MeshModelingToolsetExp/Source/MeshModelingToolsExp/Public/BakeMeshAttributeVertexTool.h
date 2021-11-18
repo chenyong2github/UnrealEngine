@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "InteractiveToolQueryInterfaces.h" // for UInteractiveToolExclusiveToolAPI
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "ModelingOperators.h"
@@ -37,49 +36,12 @@ protected:
 
 
 UENUM()
-enum class EBakeVertexMode
+enum class EBakeVertexOutput
 {
-	/* Bake vertex data to color */
-	Color,
+	/* Bake vertex data to RGBA */
+	RGBA,
 	/* Bake vertex data to individual color channels */
 	PerChannel
-};
-
-
-UENUM()
-enum class EBakeVertexTypeColor
-{
-	/* Sample tangent space normals from the detail mesh */
-	TangentSpaceNormal,
-	/* Sample ambient occlusion from the detail mesh */
-	AmbientOcclusion,
-	/* Sample normals skewed towards the least occluded direction from the detail mesh */
-	BentNormal,
-	/* Sample mesh curvatures from the detail mesh */
-	Curvature,
-	/* Sample a source texture from the detail mesh UVs */
-	Texture,
-	/* Sample object space normals from the detail mesh */
-	ObjectSpaceNormal,
-	/* Sample object space face normals from the detail mesh */
-	FaceNormal,
-	/* Sample bounding box relative positions from the detail mesh */
-	Position,
-	/* Sample material IDs as unique colors from the detail mesh */
-	MaterialID UMETA(DisplayName="Material ID"),
-	/* Sample a source texture per material ID on the detail mesh */
-	MultiTexture
-};
-
-
-UENUM()
-enum class EBakeVertexTypeChannel
-{
-	None,
-	/* Sample ambient occlusion from the detail mesh */
-	AmbientOcclusion,
-	/* Sample mesh curvatures from the detail mesh */
-	Curvature
 };
 
 
@@ -100,65 +62,51 @@ class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeVertexToolProperties : public U
 	GENERATED_BODY()
 
 public:
-	/** The bake types to generate */
-	UPROPERTY(EditAnywhere, Category = BakeSettings)
-	EBakeVertexMode VertexMode = EBakeVertexMode::Color;
+	/** The bake output mode */
+	UPROPERTY(EditAnywhere, Category = BakeOutput)
+	EBakeVertexOutput OutputMode = EBakeVertexOutput::RGBA;
 
-	/** The vertex channel to preview */
-	UPROPERTY(EditAnywhere, Category = BakeSettings, meta = (TransientToolProperty))
-	EBakeVertexChannel VertexChannelPreview = EBakeVertexChannel::RGBA;
+	/** The bake output type to generate */
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+		ValidEnumValues="TangentSpaceNormal, AmbientOcclusion, BentNormal, Curvature, Texture, ObjectSpaceNormal, FaceNormal, Position, MaterialID, MultiTexture",
+		EditCondition="OutputMode == EBakeVertexOutput::RGBA", EditConditionHides))
+	EBakeMapType OutputType = EBakeMapType::TangentSpaceNormal;
 
-	/** Distance to search for the correspondence between the source and target meshes */
-	UPROPERTY(EditAnywhere, Category = BakeSettings, meta = (ClampMin = "0.001"))
-	float Thickness = 3.0;
+	/** The bake output type to generate in the Red channel */
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+		ValidEnumValues="None, AmbientOcclusion, Curvature",
+		EditCondition="OutputMode == EBakeVertexOutput::PerChannel", EditConditionHides))
+	EBakeMapType OutputTypeR = EBakeMapType::None;
 
-	/** Compute target mesh to detail mesh correspondence in world space */
-	UPROPERTY(EditAnywhere, Category = BakeSettings)
-	bool bUseWorldSpace = false;
+	/** The bake output type to generate in the Green channel */
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+		ValidEnumValues="None, AmbientOcclusion, Curvature",
+		EditCondition="OutputMode == EBakeVertexOutput::PerChannel", EditConditionHides))
+	EBakeMapType OutputTypeG = EBakeMapType::None;
 
-	/** Split vertex colors at normal seams */
-	UPROPERTY(EditAnywhere, Category = BakeSettings)
+	/** The bake output type to generate in the Blue channel */
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+		ValidEnumValues="None, AmbientOcclusion, Curvature",
+		EditCondition="OutputMode == EBakeVertexOutput::PerChannel", EditConditionHides))
+	EBakeMapType OutputTypeB = EBakeMapType::None;
+
+	/** The bake output type to generate in the Alpha channel */
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(
+		ValidEnumValues="None, AmbientOcclusion, Curvature",
+		EditCondition="OutputMode == EBakeVertexOutput::PerChannel", EditConditionHides))
+	EBakeMapType OutputTypeA = EBakeMapType::None;
+
+	/** The vertex color channel to preview */
+	UPROPERTY(EditAnywhere, Category = BakeOutput, meta = (TransientToolProperty))
+	EBakeVertexChannel PreviewMode = EBakeVertexChannel::RGBA;
+
+	/** If true, compute a separate vertex color for each unique normal on a vertex */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = BakeOutput)
 	bool bSplitAtNormalSeams = false;
 
-	/** Split vertex colors at UV seams */
-	UPROPERTY(EditAnywhere, Category = BakeSettings)
+	/** If true, Compute a separate vertex color for each unique UV on a vertex. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = BakeOutput, meta=(DisplayName = "Split at UV Seams"))
 	bool bSplitAtUVSeams = false;
-};
-
-
-UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeVertexToolColorProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	/** The bake type to generate */
-	UPROPERTY(EditAnywhere, Category = ColorBakeSettings)
-	EBakeVertexTypeColor BakeType = EBakeVertexTypeColor::TangentSpaceNormal;
-};
-
-
-UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeVertexToolChannelProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	/** The bake type to generate in the Red channel */
-	UPROPERTY(EditAnywhere, Category = PerChannelBakeSettings)
-	EBakeVertexTypeChannel BakeTypeR = EBakeVertexTypeChannel::None;
-
-	/** The bake type to generate in the Green channel */
-	UPROPERTY(EditAnywhere, Category = PerChannelBakeSettings)
-	EBakeVertexTypeChannel BakeTypeG = EBakeVertexTypeChannel::None;
-
-	/** The bake type to generate in the Blue channel */
-	UPROPERTY(EditAnywhere, Category = PerChannelBakeSettings)
-	EBakeVertexTypeChannel BakeTypeB = EBakeVertexTypeChannel::None;
-
-	/** The bake type to generate in the Alpha channel */
-	UPROPERTY(EditAnywhere, Category = PerChannelBakeSettings)
-	EBakeVertexTypeChannel BakeTypeA = EBakeVertexTypeChannel::None;
 };
 
 
@@ -191,13 +139,10 @@ public:
 
 protected:
 	UPROPERTY()
+	TObjectPtr<UBakeInputMeshProperties> MeshProps;
+	
+	UPROPERTY()
 	TObjectPtr<UBakeMeshAttributeVertexToolProperties> Settings;
-
-	UPROPERTY()
-	TObjectPtr<UBakeMeshAttributeVertexToolColorProperties> ColorSettings;
-
-	UPROPERTY()
-	TObjectPtr<UBakeMeshAttributeVertexToolChannelProperties> PerChannelSettings;
 
 	UPROPERTY()
 	TObjectPtr<UBakedOcclusionMapToolProperties> OcclusionSettings;
@@ -246,41 +191,30 @@ protected:
 
 	struct FBakeSettings
 	{
-		EBakeVertexMode VertexMode = EBakeVertexMode::Color;
-		EBakeVertexChannel VertexChannelPreview = EBakeVertexChannel::RGBA;
-		float Thickness = 3.0;
-		bool bUseWorldSpace = false;
+		EBakeVertexOutput OutputMode = EBakeVertexOutput::RGBA;
+		EBakeMapType OutputType = EBakeMapType::TangentSpaceNormal;
+		EBakeMapType OutputTypePerChannel[4] = { EBakeMapType::None, EBakeMapType::None, EBakeMapType::None, EBakeMapType::None };
+		EBakeVertexChannel PreviewMode = EBakeVertexChannel::RGBA;
+		float ProjectionDistance = 3.0;
+		bool bProjectionInWorldSpace = false;
 		bool bSplitAtNormalSeams = false;
 		bool bSplitAtUVSeams = false;
 
 		bool operator==(const FBakeSettings& Other) const
 		{
-			return (VertexMode == Other.VertexMode && bUseWorldSpace == Other.bUseWorldSpace &&
-				Thickness == Other.Thickness && bSplitAtNormalSeams == Other.bSplitAtNormalSeams &&
+			return (OutputMode == Other.OutputMode &&
+				OutputType == Other.OutputType &&
+				OutputTypePerChannel[0] == Other.OutputTypePerChannel[0] &&
+				OutputTypePerChannel[1] == Other.OutputTypePerChannel[1] &&
+				OutputTypePerChannel[2] == Other.OutputTypePerChannel[2] &&
+				OutputTypePerChannel[3] == Other.OutputTypePerChannel[3] &&
+				bProjectionInWorldSpace == Other.bProjectionInWorldSpace &&
+				ProjectionDistance == Other.ProjectionDistance &&
+				bSplitAtNormalSeams == Other.bSplitAtNormalSeams &&
 				bSplitAtUVSeams == Other.bSplitAtUVSeams);
 		}
 	};
 	FBakeSettings CachedBakeSettings;
-
-	struct FBakeColorSettings
-	{
-		EBakeVertexTypeColor BakeType = EBakeVertexTypeColor::TangentSpaceNormal;
-		bool operator==(const FBakeColorSettings& Other) const
-		{
-			return (BakeType == Other.BakeType);
-		}
-	};
-	FBakeColorSettings CachedColorSettings;
-
-	struct FBakeChannelSettings
-	{
-		EBakeVertexTypeChannel BakeType[4] = { EBakeVertexTypeChannel::None, EBakeVertexTypeChannel::None, EBakeVertexTypeChannel::None, EBakeVertexTypeChannel::None };
-		bool operator==(const FBakeChannelSettings& Other) const
-		{
-			return (BakeType[0] == Other.BakeType[0] && BakeType[1] == Other.BakeType[1] && BakeType[2] == Other.BakeType[2] && BakeType[3] == Other.BakeType[3]);
-		}
-	};
-	FBakeChannelSettings CachedChannelSettings;
 
 	//FNormalMapSettings CachedNormalMapSettings;
 	EBakeOpState UpdateResult_Normal();
@@ -298,7 +232,7 @@ protected:
 	FTexture2DImageSettings CachedTexture2DImageSettings;
 	EBakeOpState UpdateResult_Texture2DImage();
 
-	TMap<int32, TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> CachedMultiTextures;
+	TArray<TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> CachedMultiTextures;
 	EBakeOpState UpdateResult_MultiTexture();
 
 	//
@@ -318,8 +252,6 @@ protected:
 		FMeshSettings MeshSettings;
 
 		FBakeSettings BakeSettings;
-		FBakeColorSettings BakeColorSettings;
-		FBakeChannelSettings BakeChannelSettings;
 		FOcclusionMapSettings OcclusionSettings;
 		FCurvatureMapSettings CurvatureSettings;
 	};
@@ -339,8 +271,6 @@ protected:
 	 */
 	static void GatherAnalytics(const UE::Geometry::FMeshVertexBaker& Result,
 								const FBakeSettings& Settings,
-								const FBakeColorSettings& ColorSettings,
-								const FBakeChannelSettings& ChannelSettings,
 								FBakeAnalytics& Data);
 
 	/**

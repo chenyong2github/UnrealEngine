@@ -350,11 +350,6 @@ EConvertFromTypeResult FStructProperty::ConvertFromType(const FPropertyTag& Tag,
 
 	auto CanSerializeFromStructWithDifferentName = [](const FArchive& InAr, const FPropertyTag& PropertyTag, const FStructProperty* StructProperty)
 	{
-		if (StructProperty && StructProperty->Struct && StructProperty->Struct->CanSerializeAsAlias(PropertyTag))
-		{
-			return true;
-		}
-
 		if (InAr.UEVer() < VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG)
 		{
 			// Old Implementation
@@ -393,22 +388,6 @@ EConvertFromTypeResult FStructProperty::ConvertFromType(const FPropertyTag& Tag,
 
 		if (Tag.Type == NAME_StructProperty && Tag.StructName != Struct->GetFName() && !CanSerializeFromStructWithDifferentName(UnderlyingArchive, Tag, this))
 		{
-			//handle Vector -> Vector4 upgrades here because using the SerializeFromMismatchedTag system would cause a dependency from Core -> CoreUObject
-			if (Tag.StructName == NAME_Vector && Struct->GetFName() == NAME_Vector4)
-			{
-				void* DestAddress = ContainerPtrToValuePtr<void>(Data, Tag.ArrayIndex);
-				FVector OldValue;
-				Slot << OldValue;
-
-				//only set X/Y/Z.  The W should already have been set to the property specific default and we don't want to trash it by forcing 0 or 1.
-				FVector4* DestValue = (FVector4*)DestAddress;
-				DestValue->X = OldValue.X;
-				DestValue->Y = OldValue.Y;
-				DestValue->Z = OldValue.Z;
-
-				return EConvertFromTypeResult::Converted;
-			}
-
 			UE_LOG(LogClass, Warning, TEXT("Property %s of %s has a struct type mismatch (tag %s != prop %s) in package:  %s. If that struct got renamed, add an entry to ActiveStructRedirects."),
 				*Tag.Name.ToString(), *GetName(), *Tag.StructName.ToString(), *Struct->GetName(), *UnderlyingArchive.GetArchiveName());
 			return EConvertFromTypeResult::CannotConvert;

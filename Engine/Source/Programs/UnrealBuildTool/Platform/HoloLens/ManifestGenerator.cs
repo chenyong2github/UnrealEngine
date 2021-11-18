@@ -11,8 +11,6 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -22,39 +20,39 @@ namespace UnrealBuildTool
 	{
 		// Global path configuration
 		private string BuildResourceSubPath = "Resources";
-		private string StoreResourceSubPath;
+		private string? StoreResourceSubPath;
 		private const string EngineResourceSubPath = "DefaultImages";
 
 		// Manifest compliance values
 		private const int MaxResourceEntries = 200;
 
 		// INI configuration cache
-		private ConfigHierarchy EngineIni;
-		private ConfigHierarchy GameIni;
+		private ConfigHierarchy? EngineIni;
+		private ConfigHierarchy? GameIni;
 
 		// Manifest configuration values/paths
-		private List<WinMDRegistrationInfo> WinMDReferences;
+		private List<WinMDRegistrationInfo>? WinMDReferences;
 		//private UnrealTargetPlatform Platform;
 		private WindowsArchitecture Architecture;
-		private string TargetSettings;
-		private string BuildResourceProjectRelativePath;
-		private string ProjectPath;
-		private string OutputPath;
-		private string IntermediatePath;
-		private List<string> CulturesToStage;
+		private string? TargetSettings;
+		private string? BuildResourceProjectRelativePath;
+		private string? ProjectPath;
+		private string? OutputPath;
+		private string? IntermediatePath;
+		private List<string>? CulturesToStage;
 
 		// Manifest generation state
-		private UEResXWriter NeutralResourceWriter;
-		private List<UEResXWriter> PerCultureResourceWriters;
-		private XmlDocument AppxManifestXmlDocument;
-		private List<string> UpdatedFilePaths;
-		private List<string> ManifestRelatedFilePaths;
+		private UEResXWriter? NeutralResourceWriter;
+		private List<UEResXWriter>? PerCultureResourceWriters;
+		private XmlDocument? AppxManifestXmlDocument;
+		private List<string>? UpdatedFilePaths;
+		private List<string>? ManifestRelatedFilePaths;
 
 		// Analagous to RelativeProjectRootForStage in UAT so that VS (UBT only) and UAT layouts match
-		private string RelativeProjectRootForStage;
+		private string? RelativeProjectRootForStage;
 		bool IsGameSpecificExe;
 		private bool IsDlc;
-		private Dictionary<string, string> ParsedDlcInfo;
+		private Dictionary<string, string>? ParsedDlcInfo;
 
 
 		/// <summary>
@@ -85,7 +83,7 @@ namespace UnrealBuildTool
 			string InterprettedSetting = "";
 
 			// Manifest settings are only (validly) located in Engine INI files
-			if (!EngineIni.GetString("AppxManifest", LookupString, out BaseSetting))
+			if (!EngineIni!.GetString("AppxManifest", LookupString, out BaseSetting))
 			{
 				return "";
 			}
@@ -123,7 +121,7 @@ namespace UnrealBuildTool
 						string IniSection = VariableName.Substring(0, VariableName.IndexOf(':'));
 						string IniSetting = VariableName.Substring(VariableName.IndexOf(':') + 1);
 						string IniValue;
-						GameIni.GetString(IniSection, IniSetting, out IniValue);
+						GameIni!.GetString(IniSection, IniSetting, out IniValue);
 						// If not found in Game INIs, search for the same Key in Engine INIs
 						if (IniValue.Length == 0)
 						{
@@ -146,7 +144,7 @@ namespace UnrealBuildTool
 						if (VariableName.StartsWith("Insert:"))
 						{
 							// Attempt to open path provided based off of the current project path
-							string InsertSource = Path.Combine(ProjectPath, VariableName.Substring(VariableName.IndexOf(':') + 1));
+							string InsertSource = Path.Combine(ProjectPath!, VariableName.Substring(VariableName.IndexOf(':') + 1));
 							if (!File.Exists(InsertSource))
 							{
 								Log.TraceWarning("Invalid path for insertion: {0}", InsertSource);
@@ -155,7 +153,7 @@ namespace UnrealBuildTool
 								// "InvalidIniValue" above.
 								break;
 							}
-							string[] InsertContents = null;
+							string[]? InsertContents = null;
 							try
 							{
 								InsertContents = File.ReadAllLines(InsertSource);
@@ -180,8 +178,8 @@ namespace UnrealBuildTool
 							// Look up $Section:Key$ in Game INIs
 							string SettingSection = SectionKeyPair.Substring(0, SectionKeyPair.IndexOf(':'));
 							string SettingKey = SectionKeyPair.Substring(SectionKeyPair.IndexOf(':') + 1);
-							String SettingValue = null;
-							GameIni.GetString(SettingSection, SettingKey, out SettingValue);
+							String? SettingValue = null;
+							GameIni!.GetString(SettingSection, SettingKey, out SettingValue);
 							// If not found in Game INIs, search for the same Key in Engine INIs
 							if (SettingValue == null || SettingValue.Length == 0)
 							{
@@ -199,8 +197,8 @@ namespace UnrealBuildTool
 							// Look up $Section:Key$ in Game INIs
 							string ArraySection = SectionKeyPair.Substring(0, SectionKeyPair.IndexOf(':'));
 							string ArrayKey = SectionKeyPair.Substring(SectionKeyPair.IndexOf(':') + 1);
-							List<string> ArraySettingValue = null;
-							GameIni.GetArray(ArraySection, ArrayKey, out ArraySettingValue);
+							List<string>? ArraySettingValue = null;
+							GameIni!.GetArray(ArraySection, ArrayKey, out ArraySettingValue);
 							// If not found in Game INIs, search for the same Key in Engine INIs
 							if (ArraySettingValue == null || ArraySettingValue.Count == 0)
 							{
@@ -229,8 +227,8 @@ namespace UnrealBuildTool
 							// Look up $Section:Key$ in Game INIs
 							string SettingSection = SectionKeyPair.Substring(0, SectionKeyPair.IndexOf(':'));
 							string SettingKey = SectionKeyPair.Substring(SectionKeyPair.IndexOf(':') + 1);
-							string SettingValue = null;
-							GameIni.GetString(SettingSection, SettingKey, out SettingValue);
+							string? SettingValue = null;
+							GameIni!.GetString(SettingSection, SettingKey, out SettingValue);
 							// If not found in Game INIs, search for the same Key in Engine INIs
 							if (SettingValue == null || SettingValue.Length == 0)
 							{
@@ -269,22 +267,22 @@ namespace UnrealBuildTool
 							string SettingSection = VariableName.Substring(SectionIndex, KeyIndex - SectionIndex - 1);
 							string SettingKey = VariableName.Substring(KeyIndex, ValueTypeIndex - KeyIndex - 1);
 							// Look up $Section:Key$ in Game INIs
-							string SettingValue = null;
+							string? SettingValue = null;
 							if (ValueType.Equals("Int32", StringComparison.InvariantCultureIgnoreCase))
 							{
 								int Int32SettingValue;
-								GameIni.GetInt32(SettingSection, SettingKey, out Int32SettingValue);
+								GameIni!.GetInt32(SettingSection, SettingKey, out Int32SettingValue);
 								SettingValue = Int32SettingValue.ToString();
 							}
 							else if (ValueType.Equals("GUID", StringComparison.InvariantCultureIgnoreCase))
 							{
 								Guid GuidSettingValue;
-								GameIni.TryGetValue(SettingSection, SettingKey, out GuidSettingValue);
+								GameIni!.TryGetValue(SettingSection, SettingKey, out GuidSettingValue);
 								SettingValue = GuidSettingValue.ToString("N");
 							}
 							else
 							{
-								GameIni.GetString(SettingSection, SettingKey, out SettingValue);
+								GameIni!.GetString(SettingSection, SettingKey, out SettingValue);
 							}
 							// If not found in Game INIs, search for the same Key in Engine INIs
 							if (SettingValue == null || SettingValue.Length == 0)
@@ -376,7 +374,7 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			CreateCheckDirectory(Path.GetDirectoryName(TargetPath));
+			CreateCheckDirectory(Path.GetDirectoryName(TargetPath)!);
 
 			// Check for differences in file contents
 			if (File.Exists(TargetPath))
@@ -415,7 +413,7 @@ namespace UnrealBuildTool
 					Log.TraceError("Unable to copy file {0}.", TargetPath);
 					return;
 				}
-				UpdatedFilePaths.Add(TargetPath);
+				UpdatedFilePaths!.Add(TargetPath);
 			}
 		}
 
@@ -423,10 +421,10 @@ namespace UnrealBuildTool
 		/// Copies all cultures of a source resource to the intermediate directory.
 		/// <returns>true on success, false if the operation fails (i.e. the default source file doesn't exist)</returns>
 		/// </summary>
-		private bool CopyAndReplaceBinaryIntermediate(string ResourceFileName, bool AllowEngineFallback = true, Action<string, string> CopyOp = null)
+		private bool CopyAndReplaceBinaryIntermediate(string ResourceFileName, bool AllowEngineFallback = true, Action<string, string>? CopyOp = null)
 		{
-			string TargetPath = Path.Combine(IntermediatePath, BuildResourceSubPath);
-			string SourcePath = Path.Combine(ProjectPath, BuildResourceProjectRelativePath, BuildResourceSubPath);
+			string TargetPath = Path.Combine(IntermediatePath!, BuildResourceSubPath);
+			string SourcePath = Path.Combine(ProjectPath!, BuildResourceProjectRelativePath!, BuildResourceSubPath);
 
 			CopyOp = CopyOp ?? File.Copy;
 
@@ -436,7 +434,7 @@ namespace UnrealBuildTool
 			{
 				if (AllowEngineFallback)
 				{
-					SourcePath = Path.Combine(Unreal.EngineDirectory.FullName, BuildResourceProjectRelativePath, EngineResourceSubPath);
+					SourcePath = Path.Combine(Unreal.EngineDirectory.FullName, BuildResourceProjectRelativePath!, EngineResourceSubPath);
 					bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 				}
 			}
@@ -461,7 +459,7 @@ namespace UnrealBuildTool
 			{
 				//@todo only copy files for cultures we are staging
 				string TargetResourcePath = Path.Combine(TargetPath, SourceResourceFile.Substring(SourcePath.Length + 1));
-				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)))
+				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)!))
 				{
 					Log.TraceError("Unable to create intermediate directory {0}.", Path.GetDirectoryName(TargetResourcePath));
 					continue;
@@ -490,7 +488,7 @@ namespace UnrealBuildTool
 			{
 				//@todo only copy files for cultures we are staging
 				string TargetResourcePath = Path.Combine(TargetPath, SourceResourceFile.Substring(SourcePath.Length + 1));
-				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)))
+				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)!))
 				{
 					Log.TraceError("Unable to create intermediate directory {0}.", Path.GetDirectoryName(TargetResourcePath));
 					continue;
@@ -520,8 +518,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		private void CopyResourcesToTargetDir()
 		{
-			string TargetPath = Path.Combine(OutputPath, StoreResourceSubPath);
-			string SourcePath = Path.Combine(IntermediatePath, BuildResourceSubPath);
+			string TargetPath = Path.Combine(OutputPath!, StoreResourceSubPath!);
+			string SourcePath = Path.Combine(IntermediatePath!, BuildResourceSubPath);
 
 			// If the target resource folder doesn't exist yet, create it
 			if (!CreateCheckDirectory(TargetPath))
@@ -571,7 +569,7 @@ namespace UnrealBuildTool
 				//@todo only copy files for cultures we are staging
 				string TargetResourcePath = Path.Combine(TargetPath, SourceResourceFile.Substring(SourcePath.Length + 1));
 				CompareAndReplaceModifiedTarget(SourceResourceFile, TargetResourcePath);
-				ManifestRelatedFilePaths.Add(TargetResourcePath);
+				ManifestRelatedFilePaths!.Add(TargetResourcePath);
 			}
 		}
 
@@ -650,9 +648,9 @@ namespace UnrealBuildTool
         }
 
         // Update any ini keyName entries in the project directory with newString.  The new value will take effect on the next build since the ini has already been ingested.
-        bool UpdateProjectIniString(FileReference InProjectFile, UnrealTargetPlatform TargetPlatform, string SectionName, string keyName, string newString)
+        bool UpdateProjectIniString(FileReference? InProjectFile, UnrealTargetPlatform TargetPlatform, string SectionName, string keyName, string newString)
         {
-            DirectoryReference IniDirRef = DirectoryReference.FromFile(InProjectFile);
+            DirectoryReference? IniDirRef = DirectoryReference.FromFile(InProjectFile);
             bool iniUpdated = false;
 
             List<string> projectIniFilePaths = new List<string>();
@@ -661,7 +659,7 @@ namespace UnrealBuildTool
             {
                 // If ini file does not exist, or is not in the project directory, move on to the next one.
                 if (!File.Exists(IniFileName.FullName)
-					|| !IniFileName.FullName.StartsWith(InProjectFile.Directory.FullName))
+					|| !IniFileName.FullName.StartsWith(InProjectFile!.Directory.FullName))
                 {
                     continue;
                 }
@@ -730,7 +728,7 @@ namespace UnrealBuildTool
         /// <param name="InExecutables">The launch executable for each configuration. Must match the length and order of InTargetConfigs.</param>
         /// <param name="InWinMDReferences">The WinMD references that should be added as activatable types</param>
         /// <returns>A list of all updated target files</returns>
-        public List<string> CreateManifest(UnrealTargetPlatform TargetPlatform, WindowsArchitecture TargetArchitecture, string InOutputPath, string InIntermediatePath, FileReference InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables, IEnumerable<WinMDRegistrationInfo> InWinMDReferences)
+        public List<string>? CreateManifest(UnrealTargetPlatform TargetPlatform, WindowsArchitecture TargetArchitecture, string InOutputPath, string InIntermediatePath, FileReference? InProjectFile, string InProjectDirectory, List<UnrealTargetConfiguration> InTargetConfigs, List<string> InExecutables, IEnumerable<WinMDRegistrationInfo>? InWinMDReferences)
 		{
 			// Check parameter values are valid
 			if (InTargetConfigs.Count != InExecutables.Count)
@@ -741,12 +739,12 @@ namespace UnrealBuildTool
 			if (File.Exists(InOutputPath))
 			{
 				Log.TraceWarning("InOutputPath {0} is a file. Should be a directory. Continuing using parent directory.", InOutputPath);
-				InOutputPath = Path.GetDirectoryName(InOutputPath);
+				InOutputPath = Path.GetDirectoryName(InOutputPath)!;
 			}
 			if (File.Exists(InIntermediatePath))
 			{
 				Log.TraceWarning("InIntermediatePath {0} is a file. Should be a directory. Continuing using parent directory.", InIntermediatePath);
-				InIntermediatePath = Path.GetDirectoryName(InIntermediatePath);
+				InIntermediatePath = Path.GetDirectoryName(InIntermediatePath)!;
 			}
 			if (!CreateCheckDirectory(InOutputPath))
 			{
@@ -806,19 +804,19 @@ namespace UnrealBuildTool
 
 				if (IsDlc)
 				{
-					DirectoryReference IniDirRef = DirectoryReference.FromFile(InProjectFile).ParentDirectory.ParentDirectory;
+					DirectoryReference IniDirRef = DirectoryReference.FromFile(InProjectFile).ParentDirectory!.ParentDirectory!;
 					GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, IniDirRef, TargetPlatform);
 					EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, IniDirRef, TargetPlatform);
 					IsGameSpecificExe = new DirectoryReference(InOutputPath).IsUnderDirectory(IniDirRef);
 
-					List<string> DlcStoreMapping = new List<string>();
+					List<string>? DlcStoreMapping = new List<string>();
 					if (EngineIni.GetArray("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "DLCStoreMapping", out DlcStoreMapping))
 					{
 						foreach (string DlcEntry in DlcStoreMapping)
 						{
 							Dictionary<string, string> PossibleParsedDlcInfo = new Dictionary<string, string>();
 							InterpretINIStruct(DlcEntry, out PossibleParsedDlcInfo);
-							string DlcName = null;
+							string? DlcName = null;
 							PossibleParsedDlcInfo.TryGetValue("PluginName", out DlcName);
 							if (DlcName == InProjectFile.GetFileNameWithoutExtension())
 							{
@@ -847,7 +845,7 @@ namespace UnrealBuildTool
 			}
 			else if (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()))
 			{
-				DirectoryReference IniDirRef = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath());
+				DirectoryReference IniDirRef = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!);
 				GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, IniDirRef, TargetPlatform);
 				EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, IniDirRef, TargetPlatform);
 				IsGameSpecificExe = false;
@@ -860,10 +858,10 @@ namespace UnrealBuildTool
 			}
 
 			ProjectPath = InProjectDirectory;
-			RelativeProjectRootForStage = IsGameSpecificExe ? InProjectFile.GetFileNameWithoutAnyExtensions() : "Engine";
+			RelativeProjectRootForStage = IsGameSpecificExe ? InProjectFile!.GetFileNameWithoutAnyExtensions() : "Engine";
 
 			// Load and verify/clean culture list
-			List<string> CulturesToStageWithDuplicates = null;
+			List<string>? CulturesToStageWithDuplicates = null;
 			GameIni.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "CulturesToStage", out CulturesToStageWithDuplicates);
 			if (CulturesToStageWithDuplicates == null || CulturesToStageWithDuplicates.Count < 1)
 			{
@@ -974,7 +972,7 @@ namespace UnrealBuildTool
 			// DLC packages do not contain an exe
 			if (InExecutables.Count > 0)
 			{
-				string ManifestBinaryPath = Path.Combine(Path.GetDirectoryName(InExecutables[0]), ManifestName);
+				string ManifestBinaryPath = Path.Combine(Path.GetDirectoryName(InExecutables[0])!, ManifestName);
 				CompareAndReplaceModifiedTarget(ManifestIntermediatePath, ManifestBinaryPath);
 			}
 
@@ -1001,7 +999,7 @@ namespace UnrealBuildTool
 			if (UpdatedFilePaths.Count > 0 || TargetPriFiles.Count() == 0)
 			{
 				// Create resource index configuration
-				string PriExecutable = HoloLensToolChain.GetWindowsSdkToolPath("makepri.exe").FullName;
+				string PriExecutable = HoloLensToolChain.GetWindowsSdkToolPath("makepri.exe")!.FullName;
 
 				// We're not currently splitting pri files along the culture dimension, so all supported languages should be defaults
 				string AllDefaultCultures = CulturesToStage.Aggregate((c1, c2) => (c1 + "_" + c2));
@@ -1024,9 +1022,9 @@ namespace UnrealBuildTool
 
 				// Remove the 'Packaging' node so that we have no autoResourcePackage entries
 				XmlNodeList PackagingNodes = PriConfig.SelectNodes("/resources/packaging");
-				foreach (XmlNode Node in PackagingNodes)
+				foreach (XmlNode? Node in PackagingNodes)
 				{
-					Node.ParentNode.RemoveChild(Node);
+					Node?.ParentNode.RemoveChild(Node);
 				}
 
 				// The approach to limiting the indexer causes files to have dodgy uris in the generated pri e.g.
@@ -1034,8 +1032,13 @@ namespace UnrealBuildTool
 				// This appears to affect Windows's ability to locate a valid image in some scenarios such as a
 				// desktop shortcut.  So on HoloLens we start from the root and add exclusions.
 				XmlNodeList ConfigNodes = PriConfig.SelectNodes("/resources/index/indexer-config");
-				foreach (XmlNode ConfigNode in ConfigNodes)
+				foreach (XmlNode? ConfigNode in ConfigNodes)
 				{
+					if (ConfigNode == null)
+					{ 
+						continue;
+					}	
+
 					if (ConfigNode.Attributes["type"].Value == "folder")
 					{
 						IEnumerable<string> AllSubItems = Directory.EnumerateFileSystemEntries(OutputPath);
@@ -1117,17 +1120,17 @@ namespace UnrealBuildTool
 		/// <param name="InProjectFile">Path to the uproject file</param>
 		/// <param name="InProjectDirectory">Directory containing the uproject file or the base engine path if no project file is specified (for content only builds).</param>
 		/// <returns>A list of all updated target files</returns>
-		public List<string> CreateAssetsManifest(UnrealTargetPlatform TargetPlatform, string InOutputPath, string InIntermediatePath, FileReference InProjectFile, string InProjectDirectory)
+		public List<string>? CreateAssetsManifest(UnrealTargetPlatform TargetPlatform, string InOutputPath, string InIntermediatePath, FileReference InProjectFile, string InProjectDirectory)
 		{
 			if (File.Exists(InOutputPath))
 			{
 				Log.TraceWarning("InOutputPath {0} is a file. Should be a directory. Continuing using parent directory.", InOutputPath);
-				InOutputPath = Path.GetDirectoryName(InOutputPath);
+				InOutputPath = Path.GetDirectoryName(InOutputPath)!;
 			}
 			if (File.Exists(InIntermediatePath))
 			{
 				Log.TraceWarning("InIntermediatePath {0} is a file. Should be a directory. Continuing using parent directory.", InIntermediatePath);
-				InIntermediatePath = Path.GetDirectoryName(InIntermediatePath);
+				InIntermediatePath = Path.GetDirectoryName(InIntermediatePath)!;
 			}
 			if (!CreateCheckDirectory(InOutputPath))
 			{
@@ -1175,19 +1178,19 @@ namespace UnrealBuildTool
 
 				if (IsDlc)
 				{
-					DirectoryReference IniDirRef = DirectoryReference.FromFile(InProjectFile).ParentDirectory.ParentDirectory;
+					DirectoryReference IniDirRef = DirectoryReference.FromFile(InProjectFile).ParentDirectory!.ParentDirectory!;
 					GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, IniDirRef, TargetPlatform);
 					EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, IniDirRef, TargetPlatform);
 					IsGameSpecificExe = new DirectoryReference(InOutputPath).IsUnderDirectory(IniDirRef);
 
-					List<string> DlcStoreMapping = new List<string>();
+					List<string>? DlcStoreMapping = new List<string>();
 					if (EngineIni.GetArray("/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "DLCStoreMapping", out DlcStoreMapping))
 					{
 						foreach (string DlcEntry in DlcStoreMapping)
 						{
 							Dictionary<string, string> PossibleParsedDlcInfo = new Dictionary<string, string>();
 							InterpretINIStruct(DlcEntry, out PossibleParsedDlcInfo);
-							string DlcName = null;
+							string? DlcName = null;
 							PossibleParsedDlcInfo.TryGetValue("PluginName", out DlcName);
 							if (DlcName == InProjectFile.GetFileNameWithoutExtension())
 							{
@@ -1216,7 +1219,7 @@ namespace UnrealBuildTool
 			}
 			else if (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()))
 			{
-				DirectoryReference IniDirRef = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath());
+				DirectoryReference IniDirRef = new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!);
 				GameIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, IniDirRef, TargetPlatform);
 				EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, IniDirRef, TargetPlatform);
 				IsGameSpecificExe = false;
@@ -1229,10 +1232,10 @@ namespace UnrealBuildTool
 			}
 
 			ProjectPath = InProjectDirectory;
-			RelativeProjectRootForStage = IsGameSpecificExe ? InProjectFile.GetFileNameWithoutAnyExtensions() : "Engine";
+			RelativeProjectRootForStage = IsGameSpecificExe ? InProjectFile!.GetFileNameWithoutAnyExtensions() : "Engine";
 
 			// Load and verify/clean culture list
-			List<string> CulturesToStageWithDuplicates = null;
+			List<string>? CulturesToStageWithDuplicates = null;
 			GameIni.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "CulturesToStage", out CulturesToStageWithDuplicates);
 			if (CulturesToStageWithDuplicates == null || CulturesToStageWithDuplicates.Count < 1)
 			{
@@ -1278,7 +1281,7 @@ namespace UnrealBuildTool
 				XmlAttribute ManifestNamespace = AppxManifestXmlDocument.CreateAttribute("xmlns");
 				ManifestNamespace.Value = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
 				Package.Attributes.Append(ManifestNamespace);
-				Version WinBuild;
+				Version? WinBuild;
 
 				XmlElement Identity = AppxManifestXmlDocument.CreateElement("Identity");
 				{
@@ -1397,10 +1400,10 @@ namespace UnrealBuildTool
 		/// 4. Game INI value with section equal to GenericINISection and key equal to GenericINIKey
 		/// 5. The DefaultValue passed in
 		/// </summary>
-		private string CreateStringValue(string PlatformINIKey, string ManifestFullPath, string GenericINISection, string GenericINIKey, string DefaultValue, Func<string, string> ValueValidationDelegate = null)
+		private string CreateStringValue(string PlatformINIKey, string ManifestFullPath, string GenericINISection, string GenericINIKey, string DefaultValue, Func<string, string>? ValueValidationDelegate = null)
 		{
 			string ConfigScratchValue = "";
-			if (!EngineIni.GetString(TargetSettings, PlatformINIKey, out ConfigScratchValue) || ConfigScratchValue.Length <= 0)
+			if (!EngineIni!.GetString(TargetSettings!, PlatformINIKey, out ConfigScratchValue) || ConfigScratchValue.Length <= 0)
 			{
 				if (ManifestFullPath != null)
 				{
@@ -1415,7 +1418,7 @@ namespace UnrealBuildTool
 						// If the engine config read failed or the returned value was empty/null, keep searching, otherwise use the value we already retrieved in ConfigScratchValue
 						if (!EngineConfigReadSuccess || ConfigScratchValue == null || ConfigScratchValue.Length <= 0)
 						{
-							bool GameConfigReadSuccess = GameIni.GetString(GenericINISection, GenericINIKey, out ConfigScratchValue);
+							bool GameConfigReadSuccess = GameIni!.GetString(GenericINISection, GenericINIKey, out ConfigScratchValue);
 							// If the game config read failed or the returned value was empty/null, use the default value, otherwise use the value we already retrieved in ConfigScratchValue
 							if (!GameConfigReadSuccess || ConfigScratchValue == null || ConfigScratchValue.Length <= 0)
 							{
@@ -1468,8 +1471,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		private List<string> CreateArrayValue(string PlatformINIKey, string ManifestPath, string ManifestSubKey, string GenericINISection, string GenericINIKey, List<string> DefaultValue)
 		{
-			List<string> ConfigScratchValue = null;
-			if (!EngineIni.GetArray(TargetSettings, PlatformINIKey, out ConfigScratchValue))
+			List<string>? ConfigScratchValue = null;
+			if (!EngineIni!.GetArray(TargetSettings!, PlatformINIKey, out ConfigScratchValue))
 			{
 				if (ManifestPath != null)
 				{
@@ -1497,7 +1500,7 @@ namespace UnrealBuildTool
 				}
 				if (ConfigScratchValue == null || ConfigScratchValue.Count <= 0)
 				{
-					if (GenericINISection == null || GenericINIKey == null || (!EngineIni.GetArray(GenericINISection, GenericINIKey, out ConfigScratchValue) && !GameIni.GetArray(GenericINISection, GenericINIKey, out ConfigScratchValue)))
+					if (GenericINISection == null || GenericINIKey == null || (!EngineIni.GetArray(GenericINISection, GenericINIKey, out ConfigScratchValue) && !GameIni!.GetArray(GenericINISection, GenericINIKey, out ConfigScratchValue)))
 					{
 						ConfigScratchValue = DefaultValue;
 					}
@@ -1511,7 +1514,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlElement CreateStringElement(string ElementName, string PlatformINIKey, string ManifestFullPath, string GenericINISection, string GenericINIKey, string DefaultValue)
 		{
-			XmlElement TargetElement = AppxManifestXmlDocument.CreateElement(ElementName);
+			XmlElement TargetElement = AppxManifestXmlDocument!.CreateElement(ElementName);
 			string ConfigScratchValue = CreateStringValue(PlatformINIKey, ManifestFullPath, GenericINISection, GenericINIKey, DefaultValue);
 			TargetElement.InnerText = ConfigScratchValue;
 			return TargetElement;
@@ -1520,9 +1523,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Calculate a manifest string value using CreateStringValue and return it as an XmlAttribute.
 		/// </summary>
-		private XmlAttribute CreateStringAttribute(string ElementName, string PlatformINIKey, string ManifestFullPath, string GenericINISection, string GenericINIKey, string DefaultValue, Func<string, string> ValueValidationDelegate = null)
+		private XmlAttribute CreateStringAttribute(string ElementName, string PlatformINIKey, string ManifestFullPath, string GenericINISection, string GenericINIKey, string DefaultValue, Func<string, string>? ValueValidationDelegate = null)
 		{
-			XmlAttribute TargetAttribute = AppxManifestXmlDocument.CreateAttribute(ElementName);
+			XmlAttribute TargetAttribute = AppxManifestXmlDocument!.CreateAttribute(ElementName);
 			string ConfigScratchValue = CreateStringValue(PlatformINIKey, ManifestFullPath, GenericINISection, GenericINIKey, DefaultValue, ValueValidationDelegate);
 			TargetAttribute.Value = ConfigScratchValue;
 			return TargetAttribute;
@@ -1538,7 +1541,7 @@ namespace UnrealBuildTool
 		private XmlAttribute CreateColorAttribute(string ElementName, string PlatformINIKey, string ManifestFullPath, string DefaultValue)
 		{
 			string ColorValue = "";
-			if (EngineIni.GetString(TargetSettings, PlatformINIKey, out ColorValue))
+			if (EngineIni!.GetString(TargetSettings!, PlatformINIKey, out ColorValue))
 			{
 				// Break the setting down by color
 				Dictionary<string, string> StructValues;
@@ -1563,7 +1566,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			XmlAttribute ColorAttribute = AppxManifestXmlDocument.CreateAttribute("BackgroundColor");
+			XmlAttribute ColorAttribute = AppxManifestXmlDocument!.CreateAttribute("BackgroundColor");
 			ColorAttribute.Value = ColorValue;
 			return ColorAttribute;
 		}
@@ -1608,7 +1611,7 @@ namespace UnrealBuildTool
 			// Enter the default (no-culture) value
 			string ConfigScratchValue = "";
 			string DefaultCultureScratchValue = "";
-			if (EngineIni.GetString(TargetSettings, "CultureStringResources", out DefaultCultureScratchValue))
+			if (EngineIni!.GetString(TargetSettings!, "CultureStringResources", out DefaultCultureScratchValue))
 			{
 				Dictionary<string, string> DefaultCultureStringValues;
 				InterpretINIStruct(DefaultCultureScratchValue, out DefaultCultureStringValues);
@@ -1622,7 +1625,7 @@ namespace UnrealBuildTool
 				}
 				if (ConfigScratchValue == null || ConfigScratchValue.Length <= 0)
 				{
-					if (GenericINISection == null || GenericINIKey == null || (!EngineIni.GetString(GenericINISection, GenericINIKey, out ConfigScratchValue) && !GameIni.GetString(GenericINISection, GenericINIKey, out ConfigScratchValue)))
+					if (GenericINISection == null || GenericINIKey == null || (!EngineIni.GetString(GenericINISection, GenericINIKey, out ConfigScratchValue) && !GameIni!.GetString(GenericINISection, GenericINIKey, out ConfigScratchValue)))
 					{
 						ConfigScratchValue = DefaultValue;
 					}
@@ -1632,18 +1635,18 @@ namespace UnrealBuildTool
 			bool IsDlcDefinedResource = UseDlcResourcesForResourceEntry(ResourceEntryName);
 
 			Dictionary<string, string> IniLocalizedValues = new Dictionary<string, string>();
-			List<string> PerCultureValues;
-			if (EngineIni.GetArray(TargetSettings, IsDlcDefinedResource ? "DlcPerCultureResources" : "PerCultureResources", out PerCultureValues))
+			List<string>? PerCultureValues;
+			if (EngineIni.GetArray(TargetSettings!, IsDlcDefinedResource ? "DlcPerCultureResources" : "PerCultureResources", out PerCultureValues))
 			{
 				foreach (string CultureCombinedValues in PerCultureValues)
 				{
 					Dictionary<string, string> SeparatedCultureValues;
 					InterpretINIStruct(CultureCombinedValues, out SeparatedCultureValues);
 					if (!IsDlcDefinedResource ||
-						string.Compare(SeparatedCultureValues["AppliesToDlcPlugin"], ParsedDlcInfo["PluginName"], StringComparison.InvariantCultureIgnoreCase) == 0)
+						string.Compare(SeparatedCultureValues["AppliesToDlcPlugin"], ParsedDlcInfo!["PluginName"], StringComparison.InvariantCultureIgnoreCase) == 0)
 					{
 						string CultureId = SeparatedCultureValues["CultureId"];
-						bool IsStagedCulture = string.IsNullOrEmpty(CultureId) || CulturesToStage.Contains(CultureId);
+						bool IsStagedCulture = string.IsNullOrEmpty(CultureId) || CulturesToStage!.Contains(CultureId);
 						if (IsStagedCulture)
 						{
 							if (SeparatedCultureValues[ConfigKey] != null && SeparatedCultureValues[ConfigKey].Length > 0)
@@ -1655,20 +1658,20 @@ namespace UnrealBuildTool
 				}
 			}
 
-			string NeutralValue = string.Empty;
+			string? NeutralValue = string.Empty;
 			if (!IniLocalizedValues.TryGetValue("", out NeutralValue))
 			{
 				NeutralValue = ConfigScratchValue + ValuePostfix;
 			}
 
 			bool IsEverLocalized = false;
-			for (int i = 0; i < CulturesToStage.Count; ++i)
+			for (int i = 0; i < CulturesToStage!.Count; ++i)
 			{
-				string ValueToWrite = string.Empty;
+				string? ValueToWrite = string.Empty;
 				if (IniLocalizedValues.TryGetValue(CulturesToStage[i], out ValueToWrite))
 				{
 					IsEverLocalized = true;
-					PerCultureResourceWriters[i].AddResource(ResourceEntryName, ValueToWrite);
+					PerCultureResourceWriters![i].AddResource(ResourceEntryName, ValueToWrite);
 				}
 				else
 				{ 
@@ -1698,14 +1701,14 @@ namespace UnrealBuildTool
 					//string ValueToWrite = string.Empty;
 					if (!IniLocalizedValues.ContainsKey(CulturesToStage[i]))
 					{
-						PerCultureResourceWriters[i].AddResource(ResourceEntryName, NeutralValue);
+						PerCultureResourceWriters![i].AddResource(ResourceEntryName, NeutralValue);
 					}
 				}
 			}
 			else
 			{
 				// No culture has a specific value for this string.  Write the shared value to the neutral resource collection.
-				NeutralResourceWriter.AddResource(ResourceEntryName, NeutralValue);
+				NeutralResourceWriter!.AddResource(ResourceEntryName, NeutralValue);
 			}
 		}
 
@@ -1716,7 +1719,7 @@ namespace UnrealBuildTool
 		/// <param name="bNodeRequired">Display an error if the node is invalid and won't be added to the parent.</param>
 		/// <param name="bNodeMustNotBeEmpty">The child node must contain child nodes of it's own to be considered valid.</param>
 		/// </summary>
-		private void AddElementIfValid(XmlNode Parent, XmlNode Child, bool bNodeRequired, bool bNodeMustNotBeEmpty = false)
+		private void AddElementIfValid(XmlNode Parent, XmlNode? Child, bool bNodeRequired, bool bNodeMustNotBeEmpty = false)
 		{
 			if (Child != null)
 			{
@@ -1731,7 +1734,7 @@ namespace UnrealBuildTool
 			}
 			else if (bNodeRequired)
 			{
-				Log.TraceError("Unable to create required manifest entry {0}.", Child.Name);
+				Log.TraceError("Unable to create required manifest entry");
 			}
 		}
 
@@ -1740,7 +1743,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetPackage(UnrealTargetPlatform TargetPlatform, List<UnrealTargetConfiguration> TargetConfigs, List<string> Executables)
 		{
-			XmlElement Package = AppxManifestXmlDocument.CreateElement("Package");
+			XmlElement Package = AppxManifestXmlDocument!.CreateElement("Package");
 
 			XmlAttribute ManifestNamespace = AppxManifestXmlDocument.CreateAttribute("xmlns");
 			ManifestNamespace.Value = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
@@ -1795,7 +1798,7 @@ namespace UnrealBuildTool
 				XmlNode Capabilities = GetCapabilities(TargetPlatform);
 				AddElementIfValid(Package, Capabilities, true);
 
-				XmlNode Extensions = GetPackageExtensions();
+				XmlNode? Extensions = GetPackageExtensions();
 				AddElementIfValid(Package, Extensions, false, true);
 			}
 			return Package;
@@ -1811,6 +1814,7 @@ namespace UnrealBuildTool
 			{
 				Log.TraceError("Invalid package name {0}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", InPackageName);
 				Log.TraceError("Consider using the setting [/Script/HoloLensPlatformEditor.HoloLensTargetSettings]:PackageName to provide a HoloLens specific value.");
+				ReturnVal = String.Empty;
 			}
 			return ReturnVal;
 		}
@@ -1820,7 +1824,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetIdentity()
 		{
-			XmlElement Identity = AppxManifestXmlDocument.CreateElement("Identity");
+			XmlElement Identity = AppxManifestXmlDocument!.CreateElement("Identity");
 
 			if (!IsDlc)
 			{
@@ -1830,7 +1834,7 @@ namespace UnrealBuildTool
 			else
 			{
 				XmlAttribute PackageName = AppxManifestXmlDocument.CreateAttribute("Name");
-				PackageName.Value = ParsedDlcInfo["PackageIdentityName"];
+				PackageName.Value = ParsedDlcInfo!["PackageIdentityName"];
 				ValidatePackageName(PackageName.Value);
 				Identity.Attributes.Append(PackageName);
 			}
@@ -1851,7 +1855,7 @@ namespace UnrealBuildTool
 			else
 			{
 				XmlAttribute VersionNumber = AppxManifestXmlDocument.CreateAttribute("Version");
-				VersionNumber.Value = ParsedDlcInfo["PackageIdentityVersion"];
+				VersionNumber.Value = ParsedDlcInfo!["PackageIdentityVersion"];
 				Identity.Attributes.Append(VersionNumber);
 			}
 
@@ -1863,7 +1867,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetProperties()
 		{
-			XmlElement Properties = AppxManifestXmlDocument.CreateElement("Properties");
+			XmlElement Properties = AppxManifestXmlDocument!.CreateElement("Properties");
 
 			XmlElement DisplayName = AppxManifestXmlDocument.CreateElement("DisplayName");
 			DisplayName.InnerText = "ms-resource:PackageDisplayName";
@@ -1899,7 +1903,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetDependencies(List<UnrealTargetConfiguration> TargetConfigs)
 		{
-			XmlElement Dependencies = AppxManifestXmlDocument.CreateElement("Dependencies");
+			XmlElement Dependencies = AppxManifestXmlDocument!.CreateElement("Dependencies");
 			
 			{
 				XmlElement TargetDeviceFamily = AppxManifestXmlDocument.CreateElement("TargetDeviceFamily");
@@ -1954,11 +1958,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetPrerequisites()
 		{
-			XmlElement Prerequisites = AppxManifestXmlDocument.CreateElement("Prerequisites");
-			XmlElement OSMinVersion = CreateStringElement("OSMinVersion", "MinimumOSVersion", "Package.Prerequisites.OSMinVersion", TargetSettings, "MinimumOSVersion", "6.2");
+			XmlElement Prerequisites = AppxManifestXmlDocument!.CreateElement("Prerequisites");
+			XmlElement OSMinVersion = CreateStringElement("OSMinVersion", "MinimumOSVersion", "Package.Prerequisites.OSMinVersion", TargetSettings!, "MinimumOSVersion", "6.2");
 			Prerequisites.AppendChild(OSMinVersion);
 
-			XmlElement OSMaxVersionTested = CreateStringElement("OSMaxVersionTested", "MaximumOSVersion", "Package.Prerequisites.OSMaxVersionTested", TargetSettings, "MaximumOSVersion", "6.2");
+			XmlElement OSMaxVersionTested = CreateStringElement("OSMaxVersionTested", "MaximumOSVersion", "Package.Prerequisites.OSMaxVersionTested", TargetSettings!, "MaximumOSVersion", "6.2");
 			Prerequisites.AppendChild(OSMaxVersionTested);
 
 			return Prerequisites;
@@ -1969,10 +1973,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetResources()
 		{
-			XmlElement Resources = AppxManifestXmlDocument.CreateElement("Resources");
+			XmlElement Resources = AppxManifestXmlDocument!.CreateElement("Resources");
 
 			// Check that we have a valid number of cultures.
-			if (CulturesToStage.Count < 1 || CulturesToStage.Count >= MaxResourceEntries)
+			if (CulturesToStage!.Count < 1 || CulturesToStage.Count >= MaxResourceEntries)
 			{
 				Log.TraceWarning("Incorrect number of cultures to stage. There must be between 1 and {0} cultures selected.", MaxResourceEntries);
 			}
@@ -1997,7 +2001,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetApplications(List<UnrealTargetConfiguration> TargetConfigs, List<string> Executables)
 		{
-			XmlElement Applications = AppxManifestXmlDocument.CreateElement("Applications");
+			XmlElement Applications = AppxManifestXmlDocument!.CreateElement("Applications");
 
 			if (TargetConfigs.Count < 1)
 			{
@@ -2035,6 +2039,7 @@ namespace UnrealBuildTool
 			{
 				Log.TraceError("Invalid application ID {0}. Application IDs must only contain letters and numbers. And they must begin with a letter.", InApplicationId);
 				Log.TraceError("Consider using the setting [/Script/HoloLensPlatformEditor.HoloLensTargetSettings]:ValidateApplicationName to provide a HoloLens specific value.");
+				ReturnVal = String.Empty;
 			}
 			return ReturnVal;
 		}
@@ -2044,7 +2049,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetApplication(int ApplicationIndex, UnrealTargetConfiguration TargetConfig, string ExecutablePath, bool bIncludeConfigPostfix)
 		{
-			XmlElement Application = AppxManifestXmlDocument.CreateElement("Application");
+			XmlElement Application = AppxManifestXmlDocument!.CreateElement("Application");
 
 			string PackageBaseName = CreateStringValue("ApplicationName", "Package.Applications.Application[" + ApplicationIndex + "].Id", "/Script/EngineSettings.GeneralProjectSettings", "ProjectName", "UnrealGame", ValidateApplicationName);
 
@@ -2054,10 +2059,10 @@ namespace UnrealBuildTool
 				ConfigPostfix = TargetConfig.ToString();
 			}
 
-			string MakeRelativeTo = IsGameSpecificExe ? Path.Combine(ProjectPath, "..") : Unreal.EngineDirectory.FullName;
+			string MakeRelativeTo = IsGameSpecificExe ? Path.Combine(ProjectPath!, "..") : Unreal.EngineDirectory.FullName;
 			string RelativeExePath = IsGameSpecificExe ?
 				Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo) :
-				Path.Combine(RelativeProjectRootForStage, Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo));
+				Path.Combine(RelativeProjectRootForStage!, Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo));
 
 			XmlAttribute Id = AppxManifestXmlDocument.CreateAttribute("Id");
 			Id.Value = "App" + PackageBaseName + ConfigPostfix;
@@ -2082,7 +2087,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetVisualElements(int ApplicationIndex, string ConfigPostfix)
 		{
-			XmlElement VisualElements = AppxManifestXmlDocument.CreateElement("uap:VisualElements", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+			XmlElement VisualElements = AppxManifestXmlDocument!.CreateElement("uap:VisualElements", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
 
 			XmlAttribute DisplayName = AppxManifestXmlDocument.CreateAttribute("DisplayName");
 			if (ConfigPostfix != null && ConfigPostfix.Length > 0)
@@ -2145,7 +2150,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetDefaultTile(int ApplicationIndex)
 		{
-			XmlElement DefaultTile = AppxManifestXmlDocument.CreateElement("uap:DefaultTile", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+			XmlElement DefaultTile = AppxManifestXmlDocument!.CreateElement("uap:DefaultTile", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
 			bool bIsWideLogoUsed = false;
 
 			XmlAttribute WideLogo = AppxManifestXmlDocument.CreateAttribute("Wide310x150Logo");
@@ -2189,7 +2194,7 @@ namespace UnrealBuildTool
 			}
 
 			bool bUseNameForLogo;
-			if(EngineIni.GetBool(TargetSettings, "bUseNameForLogo", out bUseNameForLogo) && bUseNameForLogo)
+			if(EngineIni!.GetBool(TargetSettings!, "bUseNameForLogo", out bUseNameForLogo) && bUseNameForLogo)
 			{
 				XmlElement ShowNameOnTiles = AppxManifestXmlDocument.CreateElement("uap:ShowNameOnTiles", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
 				Func<string, bool> addShowOnTile = (string s) => 
@@ -2218,7 +2223,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private XmlNode GetSplashScreen(int ApplicationIndex)
 		{
-			XmlElement SplashScreen = AppxManifestXmlDocument.CreateElement("uap:SplashScreen", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
+			XmlElement SplashScreen = AppxManifestXmlDocument!.CreateElement("uap:SplashScreen", "http://schemas.microsoft.com/appx/manifest/uap/windows10");
 
 			XmlAttribute BackgroundColor = CreateColorAttribute("BackgroundColor", "SplashScreenBackgroundColor", "Package.Applications.Application[" + ApplicationIndex + "].VisualElements.SplashScreen.BackgroundColor", "#000040");
 			SplashScreen.Attributes.Append(BackgroundColor);
@@ -2239,14 +2244,14 @@ namespace UnrealBuildTool
 
         private XmlNode GetCapabilities(UnrealTargetPlatform TargetPlatform)
         {
-            XmlElement Capabilities = AppxManifestXmlDocument.CreateElement("Capabilities");
+            XmlElement Capabilities = AppxManifestXmlDocument!.CreateElement("Capabilities");
 
-            List<string> CapabilityList = new List<string>();
-            List<string> DeviceCapabilityList = new List<string>();
-            List<string> UapCapabilityList = new List<string>();
-            List<string> Uap2CapabilityList = new List<string>();
+            List<string>? CapabilityList = new List<string>();
+            List<string>? DeviceCapabilityList = new List<string>();
+            List<string>? UapCapabilityList = new List<string>();
+            List<string>? Uap2CapabilityList = new List<string>();
 
-            if (EngineIni.GetArray(TargetSettings, "CapabilityList", out CapabilityList))
+            if (EngineIni!.GetArray(TargetSettings!, "CapabilityList", out CapabilityList))
             {
                 foreach (string capName in CapabilityList)
                 {
@@ -2258,7 +2263,7 @@ namespace UnrealBuildTool
                 }
             }
 
-            if (EngineIni.GetArray(TargetSettings, "UapCapabilityList", out UapCapabilityList))
+            if (EngineIni.GetArray(TargetSettings!, "UapCapabilityList", out UapCapabilityList))
             {
                 foreach (string capName in UapCapabilityList)
                 {
@@ -2270,7 +2275,7 @@ namespace UnrealBuildTool
                 }
             }
 
-            if (EngineIni.GetArray(TargetSettings, "Uap2CapabilityList", out Uap2CapabilityList))
+            if (EngineIni.GetArray(TargetSettings!, "Uap2CapabilityList", out Uap2CapabilityList))
             {
                 foreach (string capName in Uap2CapabilityList)
                 {
@@ -2282,7 +2287,7 @@ namespace UnrealBuildTool
                 }
             }
 
-            if (EngineIni.GetArray(TargetSettings, "DeviceCapabilityList", out DeviceCapabilityList))
+            if (EngineIni.GetArray(TargetSettings!, "DeviceCapabilityList", out DeviceCapabilityList))
             {
                 foreach (string capName in DeviceCapabilityList)
                 {
@@ -2302,11 +2307,11 @@ namespace UnrealBuildTool
 		/// that can occur in any order and may individually be present or absent. A great deal of the complexity of this
 		/// function deals with correlating the old and new style INI entries across these order differences.
 		/// </summary>
-		private XmlNode GetPackageExtensions()
+		private XmlNode? GetPackageExtensions()
 		{
-			XmlElement Extensions = AppxManifestXmlDocument.CreateElement("Extensions");
+			XmlElement Extensions = AppxManifestXmlDocument!.CreateElement("Extensions");
 
-			foreach (var WinMD in WinMDReferences)
+			foreach (var WinMD in WinMDReferences!)
 			{
 				XmlElement ExtensionElement = AppxManifestXmlDocument.CreateElement("Extension");
 				Extensions.AppendChild(ExtensionElement);
@@ -2354,16 +2359,16 @@ namespace UnrealBuildTool
 			System.Xml.Schema.XmlSchemaSet AppxSchema = new System.Xml.Schema.XmlSchemaSet();
 
 			// Validate against VS schemas if possible
-			DirectoryReference SdkSchemaFolder = null;
-			DirectoryReference VSSchemaFolder = null;
-			DirectoryReference PhoneSchemaFolder = null;
+			DirectoryReference? SdkSchemaFolder = null;
+			DirectoryReference? VSSchemaFolder = null;
+			DirectoryReference? PhoneSchemaFolder = null;
 
 			// Limit to VS2015 compatible SDKs here - newer ones have incomplete schema sets
 			string SDKVersion = "";
 
 			DirectoryReference SDKRootFolder;
-			VersionNumber version;
-			if (WindowsPlatform.TryGetWindowsSdkDir("Latest", out version, out SDKRootFolder))
+			VersionNumber? version;
+			if (WindowsPlatform.TryGetWindowsSdkDir("Latest", out version, out SDKRootFolder!))
 			{
 				SDKVersion = version.ToString();
 			}
@@ -2371,7 +2376,7 @@ namespace UnrealBuildTool
 			SdkSchemaFolder = DirectoryReference.Combine(SDKRootFolder, "Include", SDKVersion.ToString(), "winrt");
 			PhoneSchemaFolder = DirectoryReference.Combine(SDKRootFolder, "Extension SDKs", "WindowsMobile", SDKVersion.ToString(), "Include", "WinRT");
 
-			IEnumerable<DirectoryReference> VSInstallDirs;
+			IEnumerable<DirectoryReference>? VSInstallDirs;
 			if (null != (VSInstallDirs = WindowsPlatform.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019)))
 			{
 				VSSchemaFolder = DirectoryReference.Combine(VSInstallDirs.First(), "Xml", "Schemas");
@@ -2408,7 +2413,7 @@ namespace UnrealBuildTool
 
 			foreach (string SchemaName in RequiredSchemas)
 			{
-				FileReference SchemaFile = null;
+				FileReference? SchemaFile = null;
 
 				if (VSSchemaFolder != null)
 				{

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "MultiUser/ConsoleVariableSync.h"
 #include "ConsoleVariablesEditorModule.h"
 #include "Widgets/SWidget.h"
 
@@ -17,11 +18,11 @@ public:
 	TSharedRef<SWidget> GetOrCreateWidget();
 
 	static FConsoleVariablesEditorModule& GetConsoleVariablesModule();
-	static TWeakObjectPtr<UConsoleVariablesAsset> GetEditingAsset();
+	static TObjectPtr<UConsoleVariablesAsset> GetEditingAsset();
 
 	void AddConsoleVariable(const FString& InConsoleCommand, const FString& InValue, const bool bScrollToNewRow = false) const;
 
-	void RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo = "") const;
+	void RefreshList(const FString& InConsoleCommandToScrollTo = "") const;
 	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;
 
 	// Save / Load
@@ -42,7 +43,7 @@ public:
 
 private:
 
-	bool ImportPreset_Impl(const FAssetData& InPresetAsset, const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset);
+	bool ImportPreset_Impl(const FAssetData& InPresetAsset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset);
 
 	TSharedPtr<SConsoleVariablesEditorMainPanel> MainPanelWidget;
 
@@ -50,4 +51,6 @@ private:
 	TWeakObjectPtr<UConsoleVariablesAsset> ReferenceAssetOnDisk;
 
 	TSharedPtr<FConsoleVariablesEditorList> EditorList;
+
+	UE::ConsoleVariables::MultiUser::Private::FManager MultiUserManager;
 };

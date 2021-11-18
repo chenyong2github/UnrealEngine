@@ -47,7 +47,9 @@ private:
 	UPROPERTY()
 	FGuid PinId;
 
-	/** Path from the pin to a nested property, empty if just watching the Pin */
+	/** Path from the pin to a nested property, empty if just watching the Pin
+	 *  NOTE: each segment of the path is Property->GetAuthoredName
+	 */
 	UPROPERTY()
 	TArray<FName> PathToProperty;
 

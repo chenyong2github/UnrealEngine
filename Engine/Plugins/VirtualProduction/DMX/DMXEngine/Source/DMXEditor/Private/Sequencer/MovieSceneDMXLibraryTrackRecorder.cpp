@@ -48,7 +48,7 @@ TWeakObjectPtr<UMovieSceneDMXLibraryTrack> UMovieSceneDMXLibraryTrackRecorder::C
 		});
 
 	MovieScene = InMovieScene;
-	// TODO? bDiscardSamplesBeforeStart = bInDiscardSamplesBeforeStart;
+	bDiscardSamplesBeforeStart = bInDiscardSamplesBeforeStart;
 
 	DMXLibraryTrack = MovieScene->AddMasterTrack<UMovieSceneDMXLibraryTrack>();
 	DMXLibraryTrack->SetDMXLibrary(Library);
@@ -135,41 +135,59 @@ void UMovieSceneDMXLibraryTrackRecorder::FinalizeTrackImpl()
 {
 	check(AsyncDMXRecorder.IsValid());
 
-	// Write keyframes
+	if(UMovieSceneDMXLibrarySection* LibrarySection = DMXLibrarySection.Get())
 	{
-		TArray<FDMXFunctionChannelData> FunctionChannelData = AsyncDMXRecorder->GetRecordedData();
-		int32 TotalNumChannels = FunctionChannelData.Num();
-
-		FScopedSlowTask WriteKeyframesTask(TotalNumChannels, FText::Format(LOCTEXT("WriteRecordedDMXData", "Writing Sequencer Channels for {0} DMX Attributes"), TotalNumChannels));
-		const bool bShowCancelButton = true;
-		const bool bAllowInPie = true;
-		WriteKeyframesTask.MakeDialog(bShowCancelButton, bAllowInPie);
-
-		for (FDMXFunctionChannelData& SingleChannelData : FunctionChannelData)
+		// Write keyframes
 		{
-			if (FDMXFixtureFunctionChannel* FunctionChannel = SingleChannelData.TryGetFunctionChannel(DMXLibrarySection.Get()))
+			TArray<FDMXFunctionChannelData> FunctionChannelData = AsyncDMXRecorder->GetRecordedData();
+			int32 TotalNumChannels = FunctionChannelData.Num();
+
+			FScopedSlowTask WriteKeyframesTask(TotalNumChannels, FText::Format(LOCTEXT("WriteRecordedDMXData", "Writing Sequencer Channels for {0} DMX Attributes"), TotalNumChannels));
+			const bool bShowCancelButton = true;
+			const bool bAllowInPie = true;
+			WriteKeyframesTask.MakeDialog(bShowCancelButton, bAllowInPie);
+
+			for (FDMXFunctionChannelData& SingleChannelData : FunctionChannelData)
 			{
-				FunctionChannel->Channel.AddKeys(SingleChannelData.Times, SingleChannelData.Values);
+				if (FDMXFixtureFunctionChannel* FunctionChannel = SingleChannelData.TryGetFunctionChannel(DMXLibrarySection.Get()))
+				{
+					// If bDiscardSamplesBeforeStart is set, remove samples before start
+					if (bDiscardSamplesBeforeStart)
+					{
+						const int32 LastDiscardSampleIndex = SingleChannelData.Times.IndexOfByPredicate([this](const FFrameNumber& FrameNumber)
+							{
+								return FrameNumber < DMXLibrarySection->GetInclusiveStartFrame();
+							});
+
+						for (int32 DiscardIndex = 0; DiscardIndex < LastDiscardSampleIndex; DiscardIndex++)
+						{
+							SingleChannelData.Times.RemoveAt(DiscardIndex);
+							SingleChannelData.Values.RemoveAt(DiscardIndex);
+						}
+					}
+
+					FunctionChannel->Channel.AddKeys(SingleChannelData.Times, SingleChannelData.Values);
+				}
+
+				WriteKeyframesTask.EnterProgressFrame();
+			}
+		}
+
+		if (DMXLibrarySection.IsValid())
+		{
+			// Set the final range 
+			TOptional<TRange<FFrameNumber> > DefaultSectionLength = DMXLibrarySection->GetAutoSizeRange();
+			if (DefaultSectionLength.IsSet())
+			{
+				DMXLibrarySection->SetRange(DefaultSectionLength.GetValue());
 			}
 
-			WriteKeyframesTask.EnterProgressFrame();
+			// Rebuild the section's cache so it can be played back right away
+			DMXLibrarySection->RebuildPlaybackCache();
+
+			// Activate the section
+			DMXLibrarySection->SetIsActive(true);
 		}
-	}
-
-	if (DMXLibrarySection.IsValid())
-	{
-		// Set the final range 
-		TOptional<TRange<FFrameNumber> > DefaultSectionLength = DMXLibrarySection->GetAutoSizeRange();
-		if (DefaultSectionLength.IsSet())
-		{
-			DMXLibrarySection->SetRange(DefaultSectionLength.GetValue());
-		}
-
-		// Rebuild the section's cache so it can be played back right away
-		DMXLibrarySection->RebuildPlaybackCache();
-
-		// Activate the section
-		DMXLibrarySection->SetIsActive(true);
 	}
 }
 

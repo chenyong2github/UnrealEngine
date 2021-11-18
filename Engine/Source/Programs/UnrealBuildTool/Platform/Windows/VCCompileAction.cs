@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -17,7 +15,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Path to the compiled module interface file
 		/// </summary>
-		FileItem CompiledModuleInterfaceFile { get; }
+		FileItem? CompiledModuleInterfaceFile { get; }
 	}
 
 	/// <summary>
@@ -48,52 +46,52 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Source file to compile
 		/// </summary>
-		public FileItem SourceFile { get; set; }
+		public FileItem? SourceFile { get; set; }
 
 		/// <summary>
 		/// The object file to output
 		/// </summary>
-		public FileItem ObjectFile { get; set; }
+		public FileItem? ObjectFile { get; set; }
 
 		/// <summary>
 		/// The output preprocessed file
 		/// </summary>
-		public FileItem PreprocessedFile { get; set; }
+		public FileItem? PreprocessedFile { get; set; }
 
 		/// <summary>
 		/// The dependency list file
 		/// </summary>
-		public FileItem DependencyListFile { get; set; }
+		public FileItem? DependencyListFile { get; set; }
 
 		/// <summary>
 		/// Compiled module interface
 		/// </summary>
-		public FileItem CompiledModuleInterfaceFile { get; set; }
+		public FileItem? CompiledModuleInterfaceFile { get; set; }
 
 		/// <summary>
 		/// For C++ source files, specifies a timing file used to track timing information.
 		/// </summary>
-		public FileItem TimingFile { get; set; }
+		public FileItem? TimingFile { get; set; }
 
 		/// <summary>
 		/// Response file for the compiler
 		/// </summary>
-		public FileItem ResponseFile { get; set; }
+		public FileItem? ResponseFile { get; set; }
 
 		/// <summary>
 		/// The precompiled header file
 		/// </summary>
-		public FileItem CreatePchFile { get; set; }
+		public FileItem? CreatePchFile { get; set; }
 
 		/// <summary>
 		/// The precompiled header file
 		/// </summary>
-		public FileItem UsingPchFile { get; set; }
+		public FileItem? UsingPchFile { get; set; }
 
 		/// <summary>
 		/// The header which matches the PCH
 		/// </summary>
-		public FileItem PchThroughHeaderFile { get; set; }
+		public FileItem? PchThroughHeaderFile { get; set; }
 
 		/// <summary>
 		/// List of include paths
@@ -147,6 +145,9 @@ namespace UnrealBuildTool
 
 		/// <inheritdoc/>
 		public bool bCanExecuteRemotelyWithSNDBS { get; set; }
+
+		/// <inheritdoc/>
+		public bool bUseActionHistory => true;
 
 		#endregion
 
@@ -315,9 +316,9 @@ namespace UnrealBuildTool
 		public VCCompileAction(BinaryArchiveReader Reader)
 		{
 			ActionType = (ActionType)Reader.ReadInt();
-			CompilerExe = Reader.ReadFileItem();
+			CompilerExe = Reader.ReadFileItem()!;
 			CompilerType = (WindowsCompiler)Reader.ReadInt();
-			ToolChainVersion = Reader.ReadString();
+			ToolChainVersion = Reader.ReadString()!;
 			SourceFile = Reader.ReadFileItem();
 			ObjectFile = Reader.ReadFileItem();
 			PreprocessedFile = Reader.ReadFileItem();
@@ -328,18 +329,18 @@ namespace UnrealBuildTool
 			CreatePchFile = Reader.ReadFileItem();
 			UsingPchFile = Reader.ReadFileItem();
 			PchThroughHeaderFile = Reader.ReadFileItem();
-			IncludePaths = Reader.ReadList(() => Reader.ReadDirectoryReference());
-			SystemIncludePaths = Reader.ReadList(() => Reader.ReadDirectoryReference());
-			Definitions = Reader.ReadList(() => Reader.ReadString());
-			ForceIncludeFiles = Reader.ReadList(() => Reader.ReadFileItem());
-			Arguments = Reader.ReadList(() => Reader.ReadString());
+			IncludePaths = Reader.ReadList(() => Reader.ReadDirectoryReference())!;
+			SystemIncludePaths = Reader.ReadList(() => Reader.ReadDirectoryReference())!;
+			Definitions = Reader.ReadList(() => Reader.ReadString())!;
+			ForceIncludeFiles = Reader.ReadList(() => Reader.ReadFileItem())!;
+			Arguments = Reader.ReadList(() => Reader.ReadString())!;
 			bShowIncludes = Reader.ReadBool();
 			bCanExecuteRemotely = Reader.ReadBool();
 			bCanExecuteRemotelyWithSNDBS = Reader.ReadBool();
 
-			AdditionalPrerequisiteItems = Reader.ReadList(() => Reader.ReadFileItem());
-			AdditionalProducedItems = Reader.ReadList(() => Reader.ReadFileItem());
-			DeleteItems = Reader.ReadList(() => Reader.ReadFileItem());
+			AdditionalPrerequisiteItems = Reader.ReadList(() => Reader.ReadFileItem())!;
+			AdditionalProducedItems = Reader.ReadList(() => Reader.ReadFileItem())!;
+			DeleteItems = Reader.ReadList(() => Reader.ReadFileItem())!;
 		}
 
 		/// <inheritdoc/>
@@ -381,7 +382,7 @@ namespace UnrealBuildTool
 		{
 			if (ResponseFile != null)
 			{
-				Graph.CreateIntermediateTextFile(ResponseFile, GetCompilerArguments(), StringComparison.InvariantCultureIgnoreCase);
+				Graph.CreateIntermediateTextFile(ResponseFile, GetCompilerArguments());
 			}
 		}
 
@@ -417,12 +418,12 @@ namespace UnrealBuildTool
 
 			if (CreatePchFile != null)
 			{
-				VCToolChain.AddCreatePchFile(Arguments, PchThroughHeaderFile, CreatePchFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddCreatePchFile(Arguments, PchThroughHeaderFile!, CreatePchFile, CompilerType, PreprocessedFile != null);
 			}
 
 			if (UsingPchFile != null && CompilerType != WindowsCompiler.Clang)
 			{
-				VCToolChain.AddUsingPchFile(Arguments, PchThroughHeaderFile, UsingPchFile, CompilerType, PreprocessedFile != null);
+				VCToolChain.AddUsingPchFile(Arguments, PchThroughHeaderFile!, UsingPchFile, CompilerType, PreprocessedFile != null);
 			}
 
 			if (PreprocessedFile != null)
@@ -475,7 +476,7 @@ namespace UnrealBuildTool
 		string GetClFilterArguments()
 		{
 			List<string> Arguments = new List<string>();
-			string DependencyListFileString = VCToolChain.NormalizeCommandLinePath(DependencyListFile, CompilerType, PreprocessedFile != null);
+			string DependencyListFileString = VCToolChain.NormalizeCommandLinePath(DependencyListFile!, CompilerType, PreprocessedFile != null);
 			Arguments.Add(String.Format("-dependencies={0}", Utils.MakePathSafeToUseWithCommandLine(DependencyListFileString)));
 
 			if (TimingFile != null)

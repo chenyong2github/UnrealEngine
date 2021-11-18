@@ -5566,7 +5566,7 @@ namespace TestSuiteNS
 	FScale2D Scale;
 	FShear2D Shear;
 	FQuat2D Rot;
-	FVector2D Offset(0,0);
+	FVector2f Offset(0,0);
 }
 
 class SRenderTransformManipulatorWidgetImpl : public SRenderTransformManipulatorWidget

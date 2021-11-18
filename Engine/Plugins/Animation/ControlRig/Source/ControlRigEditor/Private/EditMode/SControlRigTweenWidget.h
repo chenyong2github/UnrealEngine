@@ -18,12 +18,13 @@
 
 class UControlRig;
 class ISequencer;
+class FControlRigEditModeToolkit;
 
 class SControlRigTweenWidget : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SControlRigTweenWidget) {}
 	SLATE_ARGUMENT(UControlRigPoseAsset*, PoseAsset)
-
+    SLATE_ARGUMENT(TSharedPtr<FControlRigEditModeToolkit>, InOwningToolkit)
 	SLATE_END_ARGS()
 	~SControlRigTweenWidget()
 	{
@@ -44,6 +45,13 @@ private:
 	void OnEndSliderMovement(float NewValue);
 	float OnGetPoseBlendValueFloat() const { return PoseBlendValue; }
 
+	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+	};
+	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	void FinishDraggingWidget(const FVector2D InLocation);
+
 	void SetupControls();
 	float PoseBlendValue;
 	bool bIsBlending;
@@ -52,5 +60,6 @@ private:
 	FControlsToTween  ControlsToTween;
 
 	TWeakPtr<ISequencer> WeakSequencer;
+	TWeakPtr<FControlRigEditModeToolkit> OwningToolkit;
 };
 

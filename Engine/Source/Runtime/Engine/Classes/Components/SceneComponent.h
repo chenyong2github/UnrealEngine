@@ -295,6 +295,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category=PhysicsVolume, meta=(DisplayName="Physics Volume Changed"))
 	FPhysicsVolumeChanged PhysicsVolumeChangedDelegate;
 
+	/** Delegate invoked when this scene component becomes the actor's root component or when it no longer is. */
+	FIsRootComponentChanged IsRootComponentChanged;
+
 #if WITH_EDITORONLY_DATA
 protected:
 	/** Editor only component used to display the sprite so as to be able to see the location of the Component  */
@@ -1248,9 +1251,6 @@ public:
 
 	/** Get the extent used when placing this component in the editor, used for 'pulling back' hit. */
 	virtual FBoxSphereBounds GetPlacementExtent() const;
-
-	/** Delegate invoked when this scene component becomes the actor's root component or when it no longer is. */
-	FIsRootComponentChanged IsRootComponentChanged;
 
 private:
 	friend class AActor;

@@ -90,7 +90,7 @@ public:
 				CameraLocalPos3D.X + SceneProxy->SectionBase.X,
 				CameraLocalPos3D.Y + SceneProxy->SectionBase.Y
 			);
-			ShaderBindings.Add(TexCoordOffsetParameter, TexCoordOffset);
+			ShaderBindings.Add(TexCoordOffsetParameter, FVector2f(TexCoordOffset));
 		}
 
 		if (SceneProxy->bRegistered)

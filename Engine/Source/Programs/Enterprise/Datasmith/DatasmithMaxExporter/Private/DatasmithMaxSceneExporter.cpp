@@ -726,7 +726,7 @@ TSharedPtr< IDatasmithLightActorElement > FDatasmithMaxSceneExporter::CreateLigh
 	return TSharedPtr< IDatasmithLightActorElement >();
 }
 
-void FDatasmithMaxSceneExporter::ParseUserProperties(INode* Node, TSharedRef< IDatasmithActorElement > ActorElement, TSharedRef< IDatasmithScene > DatasmithScene)
+TSharedPtr<IDatasmithMetaDataElement> FDatasmithMaxSceneExporter::ParseUserProperties(INode* Node, TSharedRef< IDatasmithActorElement > ActorElement, TSharedRef< IDatasmithScene > DatasmithScene)
 {
 	// Check if the node has some metadata associated as custom user properties (User Defined Properties in Object Properties)
 	MSTR Buffer;
@@ -773,7 +773,9 @@ void FDatasmithMaxSceneExporter::ParseUserProperties(INode* Node, TSharedRef< ID
 		}
 
 		DatasmithScene->AddMetaData(MetaDataElement);
+		return MetaDataElement;
 	}
+	return TSharedPtr<IDatasmithMetaDataElement>();
 }
 
 bool FDatasmithMaxSceneExporter::ParseActor(INode* Node, TSharedRef< IDatasmithActorElement > ActorElement, float UnitMultiplier, TSharedRef< IDatasmithScene > DatasmithScene)

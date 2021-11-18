@@ -676,8 +676,8 @@ bool FLevelSet::ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorReporter
 		TriangleBounds.GrowToInclude(InParticles.X(Element[2]));
 		MOriginalLocalBoundingBox.GrowToInclude(TriangleBounds); //also save the original bounding box
 
-		TVec3<int32> StartIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx())));
-		TVec3<int32> EndIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx())));
+		TVec3<int32> StartIndex = MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx()));
+		TVec3<int32> EndIndex = MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx()));
 		for (int32 i = StartIndex[0]; i <= EndIndex[0]; ++i)
 		{
 			for (int32 j = StartIndex[1]; j <= EndIndex[1]; ++j)
@@ -1304,8 +1304,8 @@ void FLevelSet::ComputeNormals(const FParticles& InParticles, const FTriangleMes
 		TriangleBounds.GrowToInclude(InParticles.X(Element[2]));
 		MOriginalLocalBoundingBox.GrowToInclude(TriangleBounds); //also save the original bounding box
 
-		TVec3<int32> StartIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx())));
-		TVec3<int32> EndIndex = MGrid.ClampIndex(MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx())));
+		TVec3<int32> StartIndex = MGrid.Cell(TriangleBounds.Min() - FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx()));
+		TVec3<int32> EndIndex = MGrid.Cell(TriangleBounds.Max() + FVec3((0.5f + KINDA_SMALL_NUMBER) * MGrid.Dx()));
 		for (int32 i = StartIndex[0]; i <= EndIndex[0]; ++i)
 		{
 			for (int32 j = StartIndex[1]; j <= EndIndex[1]; ++j)

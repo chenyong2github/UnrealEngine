@@ -16,17 +16,16 @@ namespace Chaos
 	public:
 		FVec3 ShapeContactPoints[2];	// Shape-space contact points on the two bodies, without the margin added (i.e., contact point on the core shape)
 		FVec3 ShapeContactNormal;		// Shape-space contact normal relative to the NormalOwner, but with direction that always goes from body 1 to body 0
-		FReal ShapeMargins[2];			// Margins used in collision detection
-		int32 ContactNormalOwnerIndex;	// The shape which owns the contact normal (usually the second body, but not always for manifolds) // Remove this when bChaos_Collision_Manifold_FixNormalsInWorldSpace is set to true permanetly
 
-		// @todo(chaos): these do not need to be stored here (they can be derived from above)
+		// @todo(chaos): Collision detection output should only produce shape-space results so Location and Normal should go
+		// E.g., ShapeContactNormal is used in the trianglemesh contact culling
 		FVec3 Location;					// World-space contact location
-		FVec3 Normal;					// World-space contact normal
+		FVec3 Normal;					// World-space contact normal with direction that always goes from body 1 to body 0
+
 		FReal Phi;						// Contact separation (negative for overlap)
 
 		FContactPoint()
-			: ContactNormalOwnerIndex(1)
-			, Normal(1, 0, 0)
+			: Normal(1, 0, 0)
 			, Phi(TNumericLimits<FReal>::Max())
 		{
 		}
@@ -40,9 +39,7 @@ namespace Chaos
 			if (IsSet())
 			{
 				Swap(ShapeContactPoints[0], ShapeContactPoints[1]);
-				Swap(ShapeMargins[0], ShapeMargins[1]);
 				ShapeContactNormal = -ShapeContactNormal;
-				ContactNormalOwnerIndex = (ContactNormalOwnerIndex == 0) ? 1 : 0; // ContactNormalOwnerIndex is ignored when  bChaos_Collision_Manifold_FixNormalsInWorldSpace is set
 				Normal = -Normal;
 			}
 			return *this;

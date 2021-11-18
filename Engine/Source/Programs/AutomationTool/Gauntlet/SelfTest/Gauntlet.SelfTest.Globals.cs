@@ -8,13 +8,13 @@ namespace Gauntlet.SelfTest
 {
 	public class Globals
 	{
-		public string PS4DevkitName { get; protected set; }
+		public string DeviceDevkitName { get; protected set; }
 
 		private static Globals _Instance;
 
 		protected Globals()
 		{
-			PS4DevkitName = "AndrewGNeo";
+			DeviceDevkitName = "AndrewGNeo";
 		}
 
 		public static Globals Instance

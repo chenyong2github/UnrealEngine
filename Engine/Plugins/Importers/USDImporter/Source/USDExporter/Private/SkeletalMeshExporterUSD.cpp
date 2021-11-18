@@ -68,7 +68,7 @@ USkeletalMeshExporterUsd::USkeletalMeshExporterUsd()
 		}
 
 		FormatExtension.Add(Extension);
-		FormatDescription.Add(TEXT("USD file"));
+		FormatDescription.Add(TEXT("Universal Scene Description file"));
 	}
 	SupportedClass = USkeletalMesh::StaticClass();
 	bText = false;
@@ -169,16 +169,15 @@ bool USkeletalMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type,
 				AssetStage.SetDefaultPrim( AssetRootPrim );
 				UsdUtils::AddPayload( AssetRootPrim, *PayloadFilename );
 			}
-
-			UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage, Options->MeshAssetOptions.LowestMeshLOD, Options->MeshAssetOptions.HighestMeshLOD );
 		}
 	}
 	// Not using payload: Just author everything on the current edit target of the single stage
 	else
 	{
-		UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim );
 		AssetStage = UsdStage;
 	}
+
+	UnrealToUsd::ConvertSkeletalMesh( SkeletalMesh, RootPrim, UsdUtils::GetDefaultTimeCode(), &AssetStage, Options->MeshAssetOptions.LowestMeshLOD, Options->MeshAssetOptions.HighestMeshLOD );
 
 	// Bake materials and replace unrealMaterials with references to the baked files.
 	if ( Options->MeshAssetOptions.bBakeMaterials )

@@ -321,6 +321,12 @@ namespace Gauntlet
 		}
 	}
 
+	public class AndroidBuildSupport : BaseBuildSupport
+	{
+		protected override BuildFlags SupportedBuildTypes => BuildFlags.Packaged | BuildFlags.CanReplaceCommandLine | BuildFlags.CanReplaceExecutable | BuildFlags.Bulk | BuildFlags.NotBulk;
+		protected override UnrealTargetPlatform? Platform => UnrealTargetPlatform.Android;
+	}
+
 	public class AndroidDeviceFactory : IDeviceFactory
 	{
 		public bool CanSupportPlatform(UnrealTargetPlatform? Platform)

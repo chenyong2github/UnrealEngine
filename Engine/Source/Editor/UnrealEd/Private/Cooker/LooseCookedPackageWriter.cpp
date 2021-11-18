@@ -174,7 +174,7 @@ void FLooseCookedPackageWriter::CollectForSaveExportsFooter(FRecord& Record, FCo
 	Context.ExportsBuffers.Add(FExportBuffer{ Buffer, TArray<FFileRegion>() });
 }
 
-void FLooseCookedPackageWriter::AddToExportsSize(int32& ExportsSize)
+void FLooseCookedPackageWriter::AddToExportsSize(int64& ExportsSize)
 {
 	ExportsSize += sizeof(uint32); // Footer size
 }

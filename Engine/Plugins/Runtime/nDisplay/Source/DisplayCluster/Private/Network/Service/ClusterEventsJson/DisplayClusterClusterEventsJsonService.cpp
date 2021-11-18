@@ -19,32 +19,36 @@
 FDisplayClusterClusterEventsJsonService::FDisplayClusterClusterEventsJsonService()
 	: FDisplayClusterService(FString("SRV_CEJ"))
 {
+	// Subscribe for SessionClosed events
+	OnSessionClosed().AddRaw(this, &FDisplayClusterClusterEventsJsonService::ProcessSessionClosed);
 }
 
 FDisplayClusterClusterEventsJsonService::~FDisplayClusterClusterEventsJsonService()
 {
+	// Unsubscribe from SessionClosed notifications
+	OnSessionClosed().RemoveAll(this);
+
 	Shutdown();
 }
 
 
-TUniquePtr<IDisplayClusterSession> FDisplayClusterClusterEventsJsonService::CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId)
+FString FDisplayClusterClusterEventsJsonService::GetProtocolName() const
 {
-	return MakeUnique<FDisplayClusterSession<FDisplayClusterPacketJson, false, false>>(
-		Socket,
-		this,
-		this,
-		SessionId,
-		FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionId, *Endpoint.ToString()),
-		FDisplayClusterService::GetThreadPriority());
+	static const FString ProtocolName("ClusterEventsJson");
+	return ProtocolName;
+}
+
+TSharedPtr<IDisplayClusterSession> FDisplayClusterClusterEventsJsonService::CreateSession(FDisplayClusterSessionInfo& SessionInfo)
+{
+	SessionInfo.SessionName = FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionInfo.SessionId, *SessionInfo.Endpoint.ToString());
+	return MakeShared<FDisplayClusterSession<FDisplayClusterPacketJson, false>>(SessionInfo, *this, *this, FDisplayClusterService::GetThreadPriority());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterSessionListener
 //////////////////////////////////////////////////////////////////////////////////////////////
-typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::ReturnType FDisplayClusterClusterEventsJsonService::ProcessPacket(const TSharedPtr<FDisplayClusterPacketJson>& Request)
+typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::ReturnType FDisplayClusterClusterEventsJsonService::ProcessPacket(const TSharedPtr<FDisplayClusterPacketJson>& Request, const FDisplayClusterSessionInfo& SessionInfo)
 {
-	IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
-
 	// Check the pointer
 	if (!Request.IsValid())
 	{
@@ -56,19 +60,19 @@ typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::
 
 	if (!Request->GetJsonData()->HasField(FString(DisplayClusterClusterEventsJsonStrings::ArgName)))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Json packet doesn't have a mandatory field: %s"), DisplayClusterClusterEventsJsonStrings::ArgName);
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Json packet doesn't have a mandatory field: %s"), DisplayClusterClusterEventsJsonStrings::ArgName);
 		return IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::ReturnType();
 	}
 
 	if (!Request->GetJsonData()->HasField(FString(DisplayClusterClusterEventsJsonStrings::ArgType)))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Json packet doesn't have a mandatory field: %s"), DisplayClusterClusterEventsJsonStrings::ArgType);
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Json packet doesn't have a mandatory field: %s"), DisplayClusterClusterEventsJsonStrings::ArgType);
 		return IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::ReturnType();
 	}
 
 	if (!Request->GetJsonData()->HasField(FString(DisplayClusterClusterEventsJsonStrings::ArgCategory)))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Json packet doesn't have a mandatory field: %s"), DisplayClusterClusterEventsJsonStrings::ArgCategory);
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Json packet doesn't have a mandatory field: %s"), DisplayClusterClusterEventsJsonStrings::ArgCategory);
 		return IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::ReturnType();
 	}
 
@@ -76,7 +80,7 @@ typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::
 	FDisplayClusterClusterEventJson ClusterEvent;
 	if(!DisplayClusterNetworkDataConversion::JsonPacketToJsonEvent(Request, ClusterEvent))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("%s - couldn't translate net packet data to json event"), *GetName());
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s - couldn't translate net packet data to json event"), *GetName());
 		return IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::ReturnType();
 	}
 
@@ -91,7 +95,28 @@ typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolEventsJson
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterEventsJsonService::EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event)
+EDisplayClusterCommResult FDisplayClusterClusterEventsJsonService::EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(nD SRV_CEJ::EmitClusterEventJson);
+
 	GDisplayCluster->GetPrivateClusterMgr()->EmitClusterEventJson(Event, true);
+	return EDisplayClusterCommResult::Ok;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterClusterEventsJsonService
+//////////////////////////////////////////////////////////////////////////////////////////////
+void FDisplayClusterClusterEventsJsonService::ProcessSessionClosed(const FDisplayClusterSessionInfo& SessionInfo)
+{
+	if (!SessionInfo.IsTerminatedByServer())
+	{
+		// Get node ID
+		const FString NodeId = SessionInfo.NodeId.Get(FString());
+		if (!NodeId.IsEmpty())
+		{
+			// Notify others about node fail
+			OnNodeFailed().Broadcast(NodeId, ENodeFailType::ConnectionLost);
+		}
+	}
 }

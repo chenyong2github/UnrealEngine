@@ -20,6 +20,7 @@ class UControlRig;
 class URigHierarchy;
 class FToolBarBuilder;
 class FEditorModeTools;
+class FControlRigEditModeToolkit;
 
 class SControlRigEditModeTools : public SCompoundWidget, public IDetailKeyframeHandler
 {
@@ -27,7 +28,7 @@ public:
 	SLATE_BEGIN_ARGS(SControlRigEditModeTools) {}
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, FControlRigEditMode& InEditMode, UWorld* InWorld);
+	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditModeToolkit> InOwningToolkit, FControlRigEditMode& InEditMode, UWorld* InWorld);
 
 	/** Set the objects to be displayed in the details panel */
 	void SetDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
@@ -94,11 +95,6 @@ private:
 
 private:
 	/** Toolbar functions and windows*/
-
-	void MakePoseDialog();
-	void MakeTweenDialog();
-	void MakeSnapperDialog();
-	void MakeMotionTrailDialog();
 	void ToggleEditPivotMode();
 
 	//TODO may put back void MakeSelectionSetDialog();
@@ -108,6 +104,9 @@ private:
 	FRigTreeDisplaySettings DisplaySettings;
 	const FRigTreeDisplaySettings& GetDisplaySettings() const { return DisplaySettings; }
 	bool bIsChangingRigHierarchy;
+
+	// The toolkit that created this UI
+	TWeakPtr<FControlRigEditModeToolkit> OwningToolkit;
 
 public:
 	/** Modes Panel Header Information **/

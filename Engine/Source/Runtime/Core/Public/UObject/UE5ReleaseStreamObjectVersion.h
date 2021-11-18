@@ -50,7 +50,16 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 
 		// Material layer stacks are no longer considered 'static parameters'
 		MaterialLayerStacksAreNotParameters,
+
+		// CachedExpressionData is moved from UMaterial to UMaterialInterface
+		MaterialInterfaceSavedCachedData,
 		
+		// Add support for multiple cloth deformer LODs to be able to raytrace cloth with a different LOD than the one it is rendered with
+		AddClothMappingLODBias,
+
+		// Add support for different external actor packaging schemes
+		AddLevelActorPackagingScheme,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

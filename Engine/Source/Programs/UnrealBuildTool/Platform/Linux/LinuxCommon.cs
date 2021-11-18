@@ -9,13 +9,11 @@ using System.Linq;
 using Microsoft.Win32;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class LinuxCommon
 	{
-		public static string Which(string name)
+		public static string? Which(string name)
 		{
 			Process proc = new Process();
 			proc.StartInfo.FileName = "/bin/sh";
@@ -28,7 +26,7 @@ namespace UnrealBuildTool
 			proc.Start();
 			proc.WaitForExit();
 
-			string path = proc.StandardOutput.ReadLine();
+			string? path = proc.StandardOutput.ReadLine();
 			Log.TraceVerbose(String.Format("which {0} result: ({1}) {2}", name, proc.ExitCode, path));
 
 			if (proc.ExitCode == 0 && String.IsNullOrEmpty(proc.StandardError.ReadToEnd()))
@@ -38,16 +36,16 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		public static string WhichClang()
+		public static string? WhichClang()
 		{
-			string InternalSDKPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux).GetInternalSDKPath();
+			string? InternalSDKPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)?.GetInternalSDKPath();
 			if (!String.IsNullOrEmpty(InternalSDKPath))
 			{
 				return Path.Combine(InternalSDKPath, "bin", "clang++");
 			}
 
 			string[] ClangNames = { "clang++", "clang++-7.0", "clang++-6.0" };
-			string ClangPath;
+			string? ClangPath;
 			foreach (string ClangName in ClangNames)
 			{
 				ClangPath = Which(ClangName);
@@ -60,7 +58,7 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		public static string WhichGcc()
+		public static string? WhichGcc()
 		{
 			return Which("g++");
 		}

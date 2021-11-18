@@ -303,16 +303,6 @@ namespace UnrealBuildTool
 		public bool bLegalToDistributeBinary = false;
 
 		/// <summary>
-		/// Obsolete. Use bLegalToDistributeBinary instead.
-		/// </summary>
-		[Obsolete("bOutputPubliclyDistributable has been deprecated in 4.24. Use bLegalToDistributeBinary instead.")]
-		public bool bOutputPubliclyDistributable
-		{
-			get { return bLegalToDistributeBinary; }
-			set { bLegalToDistributeBinary = value; }
-		}
-
-		/// <summary>
 		/// Specifies the configuration whose binaries do not require a "-Platform-Configuration" suffix.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -327,13 +317,6 @@ namespace UnrealBuildTool
 			set { bAllowHotReloadOverride = value; }
 		}
 		private bool? bAllowHotReloadOverride;
-
-		/// <summary>
-		/// Build all the plugins that we can find, even if they're not enabled. This is particularly useful for content-only projects,
-		/// where you're building the UnrealEditor target but running it with a game that enables a plugin.
-		/// </summary>
-		[Obsolete("bBuildAllPlugins has been deprecated. Use bPrecompile to build all modules which are not part of the target.")]
-		public bool bBuildAllPlugins = false;
 
 		/// <summary>
 		/// Build all the modules that are valid for this target type. Used for CIS and making installed engine builds.
@@ -371,15 +354,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-DisablePlugin=", ListSeparator = '+')]
 		public List<string> DisablePlugins = new List<string>();
-
-		/// <summary>
-		/// Accessor for
-		/// </summary>
-		[Obsolete("The ExcludePlugins setting has been renamed to DisablePlugins. Please update your code to avoid build failures in future versions of the engine.")]
-		public List<string> ExcludePlugins
-		{
-			get { return DisablePlugins; }
-		}
 
 		/// <summary>
 		/// Path to the set of pak signing keys to embed in the executable.
@@ -591,16 +565,6 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bCompileCustomSQLitePlatform")]
 		public bool bCompileCustomSQLitePlatform = true;
-
-		/// <summary>
-		/// Whether to compile lean and mean version of UE.
-		/// </summary>
-		[Obsolete("bCompileLeanAndMeanUE is deprecated. Set bBuildDeveloperTools to the opposite value instead.")]
-		public bool bCompileLeanAndMeanUE
-		{
-			get { return !bBuildDeveloperTools; }
-			set { bBuildDeveloperTools = !value; }
-		}
 
 		/// <summary>
 		/// Whether to utilize cache freed OS allocs with MallocBinned
@@ -864,17 +828,6 @@ namespace UnrealBuildTool
 		public bool bUseXGEController = true;
 
 		/// <summary>
-		/// Whether to use backwards compatible defaults for this module. By default, engine modules always use the latest default settings, while project modules do not (to support
-		/// an easier migration path).
-		/// </summary>
-		[Obsolete("Set DefaultBuildSettings to the appropriate engine version (eg. BuildSettingsVersion.Release_4_23) or BuildSettingsVersion.Latest instead")]
-		public bool bUseBackwardsCompatibleDefaults
-		{
-			get { return DefaultBuildSettings != BuildSettingsVersion.Latest; }
-			set { DefaultBuildSettings = (value ? BuildSettingsVersion.V1 : BuildSettingsVersion.Latest); }
-		}
-
-		/// <summary>
 		/// Enables "include what you use" by default for modules in this target. Changes the default PCH mode for any module in this project to PCHUsageMode.UseExplicitOrSharedPCHs.
 		/// </summary>
 		[CommandLine("-IWYU")]
@@ -1045,16 +998,6 @@ namespace UnrealBuildTool
 		public WarningLevel ShadowVariableWarningLevel = WarningLevel.Warning;
 
 		/// <summary>
-		/// Forces shadow variable warnings to be treated as errors on platforms that support it.
-		/// </summary>
-		[Obsolete("bShadowVariableErrors is deprecated in UE 4.24. Set ShadowVariableWarningLevel = WarningLevel.Error instead.")]
-		public bool bShadowVariableErrors
-		{
-			get { return ShadowVariableWarningLevel == WarningLevel.Error; }
-			set { ShadowVariableWarningLevel = (value? WarningLevel.Error : WarningLevel.Warning); }
-		}
-
-		/// <summary>
 		/// Whether to enable all warnings as errors. UE enables most warnings as errors already, but disables a few (such as deprecation warnings).
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -1206,26 +1149,6 @@ namespace UnrealBuildTool
 		/// Whether to enable support for C++20 modules
 		/// </summary>
 		public bool bEnableCppModules = false;
-
-		/// <summary>
-		/// Whether to strip iOS symbols or not (implied by bGeneratedSYMFile).
-		/// </summary>
-		[Obsolete("bStripSymbolsOnIOS has been deprecated. Use IOSPlatform.bStripSymbols instead.")]
-		public bool bStripSymbolsOnIOS
-		{
-			get { return IOSPlatform.bStripSymbols; }
-			set { IOSPlatform.bStripSymbols = value; }
-		}
-
-		/// <summary>
-		/// If true, then a stub IPA will be generated when compiling is done (minimal files needed for a valid IPA).
-		/// </summary>
-		[Obsolete("bCreateStubIPA has been deprecated. Use IOSPlatform.bCreateStubIPA instead.")]
-		public bool bCreateStubIPA
-		{
-			get { return IOSPlatform.bCreateStubIPA; }
-			set { IOSPlatform.bCreateStubIPA = value; }
-		}
 
 		/// <summary>
 		/// If true, then enable memory profiling in the build (defines USE_MALLOC_PROFILER=1 and forces bOmitFramePointers=false).
@@ -1717,7 +1640,7 @@ namespace UnrealBuildTool
 			EncryptionAndSigning.CryptoSettings CryptoSettings = EncryptionAndSigning.ParseCryptoSettings(CryptoSettingsDir, Platform);
 			if (CryptoSettings.IsAnyEncryptionEnabled())
 			{
-				ProjectDefinitions.Add(String.Format("IMPLEMENT_ENCRYPTION_KEY_REGISTRATION()=UE_REGISTER_ENCRYPTION_KEY({0})", FormatHexBytes(CryptoSettings.EncryptionKey.Key)));
+				ProjectDefinitions.Add(String.Format("IMPLEMENT_ENCRYPTION_KEY_REGISTRATION()=UE_REGISTER_ENCRYPTION_KEY({0})", FormatHexBytes(CryptoSettings.EncryptionKey!.Key!)));
 			}
 			else
 			{
@@ -1726,7 +1649,7 @@ namespace UnrealBuildTool
 
 			if (CryptoSettings.IsPakSigningEnabled())
 			{
-				ProjectDefinitions.Add(String.Format("IMPLEMENT_SIGNING_KEY_REGISTRATION()=UE_REGISTER_SIGNING_KEY(UE_LIST_ARGUMENT({0}), UE_LIST_ARGUMENT({1}))", FormatHexBytes(CryptoSettings.SigningKey.PublicKey.Exponent), FormatHexBytes(CryptoSettings.SigningKey.PublicKey.Modulus)));
+				ProjectDefinitions.Add(String.Format("IMPLEMENT_SIGNING_KEY_REGISTRATION()=UE_REGISTER_SIGNING_KEY(UE_LIST_ARGUMENT({0}), UE_LIST_ARGUMENT({1}))", FormatHexBytes(CryptoSettings.SigningKey!.PublicKey.Exponent!), FormatHexBytes(CryptoSettings.SigningKey.PublicKey.Modulus!)));
 			}
 			else
 			{
@@ -1782,8 +1705,9 @@ namespace UnrealBuildTool
 			if (!bIsCookedCooker)
 			{
 				bBuildAdditionalConsoleApp = false;
-				GlobalDefinitions.Add("ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR=1");
 			}
+
+			GlobalDefinitions.Add("ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR=1");
 			bUseLoggingInShipping = true;
 
 			GlobalDefinitions.Add("UE_IS_COOKED_EDITOR=1");
@@ -2107,12 +2031,6 @@ namespace UnrealBuildTool
 			get { return Inner.bAllowHotReload; }
 		}
 
-		[Obsolete("bBuildAllPlugins has been deprecated. Use bPrecompile to build all modules which are not part of the target.")]
-		public bool bBuildAllPlugins
-		{
-			get { return Inner.bBuildAllPlugins; }
-		}
-
 		public bool bBuildAllModules
 		{
 			get { return Inner.bBuildAllModules; }
@@ -2285,12 +2203,6 @@ namespace UnrealBuildTool
 		public bool bCompileCustomSQLitePlatform
 		{
 			get { return Inner.bCompileCustomSQLitePlatform; }
-		}
-
-		[Obsolete("bCompileLeanAndMeanUE is deprecated. Use bBuildDeveloperTools instead.")]
-		public bool bCompileLeanAndMeanUE
-		{
-			get { return Inner.bCompileLeanAndMeanUE; }
 		}
 
 		public bool bUseCacheFreedOSAllocs
@@ -2470,14 +2382,6 @@ namespace UnrealBuildTool
 		public PointerMemberBehavior? NativePointerMemberBehaviorOverride
 		{
 			get { return Inner.NativePointerMemberBehaviorOverride; }
-		}
-
-		[Obsolete("Use DefaultBuildSettings to determine the default settings used for this target instead")]
-		public bool bUseBackwardsCompatibleDefaults
-		{
-			#pragma warning disable CS0618
-			get { return Inner.bUseBackwardsCompatibleDefaults; }
-			#pragma warning restore CS0618
 		}
 
 		public bool bIWYU
@@ -2684,12 +2588,6 @@ namespace UnrealBuildTool
 			get { return Inner.bEnableCppModules; }
 		}
 
-		[Obsolete("bStripSymbolsOnIOS has been deprecated. Use IOSPlatform.bStripSymbols instead.")]
-		public bool bStripSymbolsOnIOS
-		{
-			get { return IOSPlatform.bStripSymbols; }
-		}
-
 		public bool bUseMallocProfiler
 		{
 			get { return Inner.bUseMallocProfiler; }
@@ -2743,12 +2641,6 @@ namespace UnrealBuildTool
 		public bool bDeployAfterCompile
 		{
 			get { return Inner.bDeployAfterCompile; }
-		}
-
-		[Obsolete("bCreateStubIPA has been deprecated. Use IOSPlatform.bCreateStubIPA instead.")]
-		public bool bCreateStubIPA
-		{
-			get { return IOSPlatform.bCreateStubIPA; }
 		}
 
 		public bool bAllowRemotelyCompiledPCHs

@@ -2,6 +2,7 @@
 
 #include "AbcFile.h"
 #include "Misc/App.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/Paths.h"
 
 #include "AbcImporter.h"
@@ -15,6 +16,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "AbcImportLogger.h"
 
+#include "HAL/Event.h"
 #include "HAL/Platform.h"
 
 
@@ -31,6 +33,8 @@ THIRD_PARTY_INCLUDES_END
 #if PLATFORM_WINDOWS
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
+
+#include <atomic>
 
 #define LOCTEXT_NAMESPACE "AbcFile"
 
@@ -486,10 +490,9 @@ void FAbcFile::CleanupFrameData(const int32 ReadIndex)
 
 void FAbcFile::ProcessFrames(TFunctionRef<void(int32, FAbcFile*)> InCallback, const EFrameReadFlags InFlags)
 {
-	const int32 NumWorkerThreads = FMath::Min(FTaskGraphInterface::Get().GetNumWorkerThreads(), MaxNumberOfResidentSamples);
-	const bool bSingleThreaded = (CompressionType == Alembic::AbcCoreFactory::IFactory::kHDF5) || ImportSettings->NumThreads == 1 ||
+	const int32 NumWorkerThreads = FMath::Clamp(FTaskGraphInterface::Get().GetNumWorkerThreads(), 1, MaxNumberOfResidentSamples);
+	const bool bSingleThreaded = ImportSettings->NumThreads == 1 ||
 								 EnumHasAnyFlags(InFlags, EFrameReadFlags::ForceSingleThreaded) || !FApp::ShouldUseThreadingForPerformance();
-	int32 ProcessedFrameIndex = StartFrameIndex - 1;
 
 	if (bSingleThreaded)
 	{
@@ -502,36 +505,53 @@ void FAbcFile::ProcessFrames(TFunctionRef<void(int32, FAbcFile*)> InCallback, co
 	}
 	else
 	{
-		ParallelFor(NumWorkerThreads, [this, InFlags, InCallback, bSingleThreaded, NumWorkerThreads, &ProcessedFrameIndex](int32 ThreadIndex)
-		{			
-			int32 FrameIndex = INDEX_NONE;
-				
-			int32 StepIndex = 0;
-			FrameIndex = (NumWorkerThreads * StepIndex + ThreadIndex) + StartFrameIndex;
+		// Frame data can be read concurrently but will be processed sequentially.
+		std::atomic<int32> WriteFrameIndex = StartFrameIndex;
+		FCriticalSection Mutex;
+		FEvent* FrameWrittenEvent = FPlatformProcess::GetSynchEventFromPool();
+		if (!FrameWrittenEvent)
+		{
+			TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("NoSynchEvent", "Unable to get synchronization event for parallelized Alembic frame data import."));
+			FAbcImportLogger::AddImportMessage(Message);
+			return;
+		}
+
+		ParallelFor(NumWorkerThreads, [this, InFlags, InCallback, bSingleThreaded, NumWorkerThreads, &WriteFrameIndex, &Mutex, &FrameWrittenEvent](int32 ThreadIndex)
+		{
+			int32 FrameIndex = StartFrameIndex + ThreadIndex;
 
 			while (FrameIndex <= EndFrameIndex)
 			{
 				// Read frame data into memory
 				ReadFrame(FrameIndex, InFlags, ThreadIndex);
 
-				// Spin until we can process our frame
-				while (ProcessedFrameIndex < (FrameIndex - 1))
-				{	
-					FPlatformProcess::Sleep(0.1f);
+				// Wait until it's our turn to process this frame.
+				while (WriteFrameIndex < FrameIndex)
+				{
+					FrameWrittenEvent->Wait(100);
 				}
 
-				// Call user defined callback and mark this frame index as processed
-				InCallback(FrameIndex, this);					
-				ProcessedFrameIndex = FrameIndex;
+				{
+					FScopeLock WriteLock(&Mutex);
+
+					// Call the user defined callback.
+					InCallback(FrameIndex, this);
+					
+					// Mark the next frame index as ready for processing.
+					++WriteFrameIndex;
+
+					FrameWrittenEvent->Trigger();
+				}
 
 				// Now cleanup the frame data
 				CleanupFrameData(ThreadIndex);
 
 				// Get new frame index to read for next run cycle
-				++StepIndex;
-				FrameIndex = (NumWorkerThreads * StepIndex + ThreadIndex) + StartFrameIndex;
+				FrameIndex += NumWorkerThreads;
 			};
 		});
+
+		FPlatformProcess::ReturnSynchEventToPool(FrameWrittenEvent);
 	}
 }
 

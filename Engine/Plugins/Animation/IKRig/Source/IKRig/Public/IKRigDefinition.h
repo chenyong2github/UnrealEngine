@@ -77,10 +77,6 @@ public:
 	}
 	
 #endif
-
-private:
-	UPROPERTY()
-	TObjectPtr<UIKRigDefinition> ParentIKRig = nullptr;
 };
 
 USTRUCT(Blueprintable)
@@ -151,6 +147,8 @@ public:
 	TObjectPtr<UObject> Controller;
 	
 #endif
+
+	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
 	// This delegate is called when an edit operation is undone on the rig asset.

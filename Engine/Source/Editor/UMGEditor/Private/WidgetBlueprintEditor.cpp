@@ -1452,7 +1452,7 @@ void FWidgetBlueprintEditor::DestroyPreview()
 
 		TWeakPtr<SWidget> PreviewSlateWidgetWeak = PreviewUserWidget->GetCachedWidget();
 
-		PreviewUserWidget->MarkPendingKill();
+		PreviewUserWidget->MarkAsGarbage();
 		PreviewUserWidget->ReleaseSlateResources(true);
 
 		ensure(!PreviewSlateWidgetWeak.IsValid());

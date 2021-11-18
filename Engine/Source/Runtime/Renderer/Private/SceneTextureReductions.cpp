@@ -22,8 +22,8 @@ static TAutoConsoleVariable<int32> CVarHZBBuildUseCompute(
 BEGIN_SHADER_PARAMETER_STRUCT(FSharedHZBParameters, )
 	SHADER_PARAMETER(FVector4f, DispatchThreadIdToBufferUV)
 	SHADER_PARAMETER(FIntVector4, PixelViewPortMinMax)
-	SHADER_PARAMETER(FVector2D, InputViewportMaxBound)
-	SHADER_PARAMETER(FVector2D, InvSize)
+	SHADER_PARAMETER(FVector2f, InputViewportMaxBound)
+	SHADER_PARAMETER(FVector2f, InvSize)
 
 	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentTextureMip)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ParentTextureMipSampler)

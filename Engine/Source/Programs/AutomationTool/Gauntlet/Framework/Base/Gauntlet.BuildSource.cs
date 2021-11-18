@@ -20,8 +20,8 @@ namespace Gauntlet
 		CanReplaceExecutable = (1 << 3),		// build can use exes from elsewhere
         Bulk = (1 << 4),						// build is full-content, now startup download
 		NotBulk = (1 << 5),						// build is not bulk
-		ContentOnlyProject = (1 << 6)			// build is a content-only project, e.g. exe is ue4game.exe
-    }
+		ContentOnlyProject = (1 << 6)           // build is a content-only project, e.g. exe is UnrealGame.exe
+	}
 
 	/// <summary>
 	/// An interface that represents a build. A build is defined as something that a device is able to install, hence

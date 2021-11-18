@@ -87,21 +87,18 @@ namespace ChaosTest {
 
 		FCollisionConstraintAllocator CollisionAllocator;
 
-		FPBDCollisionConstraint* Constraint = FPBDCollisionConstraint::Make(
+		TUniquePtr<FPBDCollisionConstraint> Constraint = FPBDCollisionConstraint::Make(
 			Box0,
 			Box0->Geometry().Get(),
 			nullptr,
-			FParticleUtilities::GetActorWorldTransform(Box0),
 			FRigidTransform3(),
 			Box1,
 			Box1->Geometry().Get(),
 			nullptr,
-			FParticleUtilities::GetActorWorldTransform(Box1),
 			FRigidTransform3(),
 			FLT_MAX,
-			EContactShapesType::BoxBox, 
-			true, 
-			CollisionAllocator);
+			true,
+			EContactShapesType::BoxBox);
 
 		// Detect collisions
 		Constraint->ResetPhi(Constraint->GetCullDistance());
@@ -200,21 +197,18 @@ namespace ChaosTest {
 
 		FCollisionConstraintAllocator CollisionConstraintAllocator;
 
-		FPBDCollisionConstraint* Constraint = FPBDCollisionConstraint::Make(
+		TUniquePtr<FPBDCollisionConstraint> Constraint = FPBDCollisionConstraint::Make(
 			Box0,
 			Box0->Geometry().Get(),
 			nullptr,
-			FParticleUtilities::GetActorWorldTransform(Box0),
 			FRigidTransform3(),
 			Box1,
 			Box1->Geometry().Get(),
 			nullptr,
-			FParticleUtilities::GetActorWorldTransform(Box1),
 			FRigidTransform3(),
 			FLT_MAX,
-			EContactShapesType::GenericConvexConvex,
 			true,
-			CollisionConstraintAllocator);
+			EContactShapesType::GenericConvexConvex);
 
 		// Detect collisions
 		Collisions::UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(*Constraint, FParticleUtilitiesPQ::GetActorWorldTransform(Box0), FParticleUtilitiesPQ::GetActorWorldTransform(Box1), 1 / 30.0f);

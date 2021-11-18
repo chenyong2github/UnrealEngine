@@ -44,22 +44,13 @@ int32 FClothingSimulationMesh::GetLODIndex() const
 
 	if (Asset && SkeletalMeshComponent)
 	{
-		if (const FClothingSimulationContextCommon* const Context = 
-			static_cast<const FClothingSimulationContextCommon*>(SkeletalMeshComponent->GetClothingSimulationContext()))
+		const int32 MeshLODIndex = SkeletalMeshComponent->GetPredictedLODLevel();
+		if (Asset->LodMap.IsValidIndex(MeshLODIndex))
 		{
-			const int32 PredictedLODIndex = Context->PredictedLod;
-
-			// If PredictedLODIndex doesn't map to a valid LOD, we try higher LOD levels for a valid LOD.
-			// Asset might only have lod on LOD 1 and not 0, however if mesh doesn't force LOD to 1, 
-			// asset will not be assigned valid LOD index and will not generate sim data, breaking things.
-			for (int32 Index = PredictedLODIndex; Index < Asset->LodMap.Num(); ++Index)
+			const int32 ClothLODIndex = Asset->LodMap[MeshLODIndex];
+			if (Asset->LodData.IsValidIndex(ClothLODIndex))
 			{
-				const int32 MappedLODIndex = Asset->LodMap[Index];
-				if (Asset->LodData.IsValidIndex(MappedLODIndex))
-				{
-					LODIndex = MappedLODIndex;
-					break;
-				}
+				LODIndex = ClothLODIndex;
 			}
 		}
 	}
@@ -236,8 +227,8 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 // Inline function used to force the unrolling of the skinning loop
 FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, const FVector3f& RefParticle, const FVector3f& RefNormal, const FMatrix44f& BoneMatrix, const FRealSingle Weight)
 {
-	OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-	OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
+	OutPosition += FVector4(BoneMatrix.TransformPosition(RefParticle) * Weight);
+	OutNormal += FVector4(BoneMatrix.TransformVector(RefNormal) * Weight);
 }
 
 void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& LocalSpaceLocation, FVec3* OutPositions, FVec3* OutNormals) const

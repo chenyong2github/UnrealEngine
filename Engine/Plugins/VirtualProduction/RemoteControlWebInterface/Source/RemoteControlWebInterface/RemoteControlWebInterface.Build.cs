@@ -17,6 +17,7 @@ public class RemoteControlWebInterface : ModuleRules
 				"Slate",
 				"SlateCore",
 				"Projects",
+				"RemoteControl",
 				"WebRemoteControl"
 			}
 			);

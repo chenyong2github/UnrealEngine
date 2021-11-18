@@ -192,7 +192,7 @@ void UBackgroundBlur::PostLoad()
 
 				// We don't want anyone considering this panel slot for anything, so mark it pending kill.  Otherwise
 				// it will confuse the pass we do when doing template validation when it finds it outered to the blur widget.
-				PanelSlot->MarkPendingKill();
+				PanelSlot->MarkAsGarbage();
 			}
 		}
 	}

@@ -222,7 +222,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FCullingParameters, )
 	SHADER_PARAMETER( uint32,		NumPrimaryViews )
 	SHADER_PARAMETER( float,		DisocclusionLodScaleFactor )
 
-	SHADER_PARAMETER( FVector2D,	HZBSize )
+	SHADER_PARAMETER( FVector2f,	HZBSize )
 
 	SHADER_PARAMETER_RDG_TEXTURE( Texture2D,	HZBTexture )
 	SHADER_PARAMETER_SAMPLER( SamplerState,		HZBSampler )
@@ -2063,7 +2063,7 @@ void CullRasterize(
 		CullingParameters.NumPrimaryViews = NumPrimaryViews;
 		CullingParameters.DisocclusionLodScaleFactor = GNaniteDisocclusionHack ? 0.01f : 1.0f;	// TODO: Get rid of this hack
 		CullingParameters.HZBTexture	= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
-		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2D(0.0f);
+		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2f(0.0f);
 		CullingParameters.HZBSampler	= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
 		CullingParameters.PageConstants = CullingContext.PageConstants;
 		CullingParameters.MaxCandidateClusters	= Nanite::FGlobalResources::GetMaxCandidateClusters();

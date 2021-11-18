@@ -112,7 +112,11 @@ bool FObjectPropertyBase::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void
 {
 	UObject* Object = GetObjectPropertyValue(Data);
 	bool Result = Map->SerializeObject( Ar, PropertyClass, Object );
-	SetObjectPropertyValue(Data, Object);
+	// Prevent serializing invalid objects through network
+	if (!Object || IsValidChecked(Object))
+	{
+		SetObjectPropertyValue(Data, Object);
+	}
 	return Result;
 }
 void FObjectPropertyBase::Serialize( FArchive& Ar )

@@ -495,26 +495,29 @@ void AWaterBrushManager::GetRenderDependencies(TSet<UObject*>& OutDependencies)
 
 void AWaterBrushManager::UpdateTransform(const FTransform& Transform)
 {
-	LandscapeTransform = Transform;
-	check(SceneCaptureComponent2D != nullptr);
+	if (!Transform.Equals(LandscapeTransform))
+	{
+		LandscapeTransform = Transform;
+		check(SceneCaptureComponent2D != nullptr);
 
-	FVector Scale = LandscapeTransform.GetScale3D();
-	WorldSize.Set(Scale.X * (float)LandscapeQuads.X, Scale.Y * (float)LandscapeQuads.Y, 0.512f);
+		FVector Scale = LandscapeTransform.GetScale3D();
+		WorldSize.Set(Scale.X * (float)LandscapeQuads.X, Scale.Y * (float)LandscapeQuads.Y, 0.512f);
 
-	const FVector Temp(Scale.X * (float)LandscapeRTRes.X, Scale.Y * (float)LandscapeRTRes.Y, 0.512f);
-	SceneCaptureComponent2D->OrthoWidth = FMath::Max(Temp.X, Temp.Y);
+		const FVector Temp(Scale.X * (float)LandscapeRTRes.X, Scale.Y * (float)LandscapeRTRes.Y, 0.512f);
+		SceneCaptureComponent2D->OrthoWidth = FMath::Max(Temp.X, Temp.Y);
 
-	FVector LocationVector(Temp - Scale);
-	LocationVector *= 0.5f;
-	LocationVector = LandscapeTransform.GetRotation().RotateVector(LocationVector);
-	LocationVector += LandscapeTransform.GetLocation();
-	LocationVector.Z = 50000.0f;
-	SceneCaptureComponent2D->SetWorldLocation(LocationVector);
+		FVector LocationVector(Temp - Scale);
+		LocationVector *= 0.5f;
+		LocationVector = LandscapeTransform.GetRotation().RotateVector(LocationVector);
+		LocationVector += LandscapeTransform.GetLocation();
+		LocationVector.Z = 50000.0f;
+		SceneCaptureComponent2D->SetWorldLocation(LocationVector);
 
-	// The landscape transform has changed, let's re-draw everything (no need to request a landscape update because we're in the middle of one) :
-	bKillCache = true;
-	// Of course we also need to regenerate the water depth velocity RT : 
-	MarkRenderTargetsDirty();
+		// The landscape transform has changed, let's re-draw everything (no need to request a landscape update because we're in the middle of one) :
+		bKillCache = true;
+		// Of course we also need to regenerate the water depth velocity RT : 
+		MarkRenderTargetsDirty();
+	}
 }
 
 bool AWaterBrushManager::SetupRiverSplineRenderMIDs(const FBrushActorRenderContext& BrushActorRenderContext, bool bRestoreMIDs, TArray<UMaterialInterface*>& InOutMIDs)

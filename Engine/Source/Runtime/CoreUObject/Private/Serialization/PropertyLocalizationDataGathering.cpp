@@ -766,10 +766,11 @@ void FPropertyLocalizationDataGatherer::MarkDefaultTextInstance(const FText& Tex
 
 bool FPropertyLocalizationDataGatherer::ExtractTextIdentity(const FText& Text, FString& OutNamespace, FString& OutKey, const bool bCleanNamespace)
 {
-	const FTextDisplayStringRef DisplayString = FTextInspector::GetSharedDisplayString(Text);
-	const bool bFoundNamespaceAndKey = FTextLocalizationManager::Get().FindNamespaceAndKeyFromDisplayString(DisplayString, OutNamespace, OutKey);
-	if (bFoundNamespaceAndKey && Text.ShouldGatherForLocalization())
+	const FTextId TextId = FTextInspector::GetTextId(Text);
+	if (!TextId.IsEmpty() && Text.ShouldGatherForLocalization())
 	{
+		OutNamespace = TextId.GetNamespace().GetChars();
+		OutKey = TextId.GetKey().GetChars();
 		if (bCleanNamespace)
 		{
 			OutNamespace = TextNamespaceUtil::StripPackageNamespace(OutNamespace);
