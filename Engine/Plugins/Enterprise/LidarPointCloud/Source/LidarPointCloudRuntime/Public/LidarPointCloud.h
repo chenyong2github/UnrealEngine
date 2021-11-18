@@ -152,6 +152,8 @@ private:
 	/** Description of collision */
 	UPROPERTY(transient, duplicatetransient)
 	UBodySetup* BodySetup;
+	UPROPERTY(transient, duplicatetransient)
+	UBodySetup* NewBodySetup;
 
 	/** Used for collision building */
 	FThreadSafeBool bCollisionBuildInProgress;
@@ -175,7 +177,7 @@ public:
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 #if WITH_EDITOR
 	virtual void ClearAllCachedCookedPlatformData() override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent & PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	// End UObject Interface.
 
@@ -644,8 +646,8 @@ public:
 
 private:
 	/** Once async physics cook is done, create needed state */
-	void FinishPhysicsAsyncCook(UBodySetup* NewBodySetup, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification) { FinishPhysicsAsyncCook(true, NewBodySetup, Notification); }
-	void FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBodySetup, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification);
+	void FinishPhysicsAsyncCook(TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification) { FinishPhysicsAsyncCook(true, Notification); }
+	void FinishPhysicsAsyncCook(bool bSuccess, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification);
 
 	void InitializeCollisionRendering();
 	void ReleaseCollisionRendering(bool bDestroyAfterRelease);

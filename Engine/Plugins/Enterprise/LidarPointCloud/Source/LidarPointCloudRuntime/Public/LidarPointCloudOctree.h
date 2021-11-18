@@ -18,6 +18,9 @@ class FLidarPointCloudOctree;
 struct FLidarPointCloudTraversalOctree;
 struct FLidarPointCloudTraversalOctreeNode;
 
+class FLidarPointCloudRenderBuffer;
+class FLidarPointCloudVertexFactory;
+
 /**
  * WARNING: Exercise caution when modifying the contents of the Octree, as it may be in use by the Rendering Thread via FPointCloudSceneProxy
  * Use the FLidarPointCloudOctree::DataLock prior to such attempt
@@ -92,8 +95,8 @@ private:
 	uint32 BulkDataSize;
 
 	/** Holds render data for this node */
-	class FLidarPointCloudRenderBuffer* DataCache;
-	class FLidarPointCloudVertexFactory* VertexFactory;
+	TSharedPtr<FLidarPointCloudRenderBuffer> DataCache;
+	TSharedPtr<FLidarPointCloudVertexFactory> VertexFactory;
 
 	bool bRenderDataDirty;
 
@@ -119,10 +122,10 @@ public:
 	FLidarPointCloudPoint* GetPersistentData() const;
 
 	/** Returns a pointer to the point data */
-	FORCEINLINE FLidarPointCloudRenderBuffer* GetDataCache() { return DataCache; }
+	FORCEINLINE TSharedPtr<FLidarPointCloudRenderBuffer> GetDataCache() { return DataCache; }
 
 	/** Return a pointer to the vertex factory containing pre-cached geometry */
-	FORCEINLINE FLidarPointCloudVertexFactory* GetVertexFactory() { return VertexFactory; }
+	FORCEINLINE TSharedPtr<FLidarPointCloudVertexFactory> GetVertexFactory() { return VertexFactory; }
 
 	/**
 	 * Builds and updates the necessary render data buffers
@@ -166,7 +169,7 @@ public:
 	bool HasData() const { return bHasData; }
 
 	/** Returns true, if the node has its data loaded */
-	bool HasRenderData() const { return DataCache || VertexFactory; }
+	bool HasRenderData() const { return DataCache.IsValid() || VertexFactory.IsValid(); }
 
 	/**
 	 * Releases the BulkData
@@ -235,7 +238,7 @@ public:
 	FCriticalSection DataReleaseLock;
 
 private:
-	FLidarPointCloudOctreeNode Root;
+	FLidarPointCloudOctreeNode* Root;
 	
 	/** Stores shared per-LOD node data. */
 	TArray<FSharedLODData> SharedData;
@@ -301,7 +304,7 @@ public:
 	FLidarPointCloudOctree& operator=(FLidarPointCloudOctree&&) = delete;
 
 	/** Returns true if the Root node exists and has any data assigned. */
-	bool HasData() const { return Root.GetNumPoints() > 0; }
+	bool HasData() const { return Root->GetNumPoints() > 0; }
 
 	/** Returns the number of different LODs. */
 	int32 GetNumLODs() const;

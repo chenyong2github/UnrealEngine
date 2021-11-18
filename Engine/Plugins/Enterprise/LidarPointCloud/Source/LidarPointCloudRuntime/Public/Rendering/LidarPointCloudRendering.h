@@ -16,17 +16,32 @@ struct FLidarPointCloudSceneProxyWrapper
 
 struct FLidarPointCloudProxyUpdateDataNode
 {
+private:
+	struct FLidarPointCloudOctreeNode* DataNode;
+	
+public:
 	uint8 VirtualDepth;
 	int64 NumVisiblePoints;
-	struct FLidarPointCloudOctreeNode* DataNode;
+
+	/**
+	 * Holds render data pointers for this node
+	 * This allows us to avoid exposing potentially invalid DataNode pointer in Render Thread
+	 */
+	TSharedPtr<class FLidarPointCloudRenderBuffer> DataCache;
+	TSharedPtr<class FLidarPointCloudVertexFactory> VertexFactory;
 
 	FLidarPointCloudProxyUpdateDataNode() : FLidarPointCloudProxyUpdateDataNode(0, 0, nullptr) {}
 	FLidarPointCloudProxyUpdateDataNode(uint8 VirtualDepth, int64 NumVisiblePoints, FLidarPointCloudOctreeNode* DataNode)
-		: VirtualDepth(VirtualDepth)
+		: DataNode(DataNode)
+		, VirtualDepth(VirtualDepth)
 		, NumVisiblePoints(NumVisiblePoints)
-		, DataNode(DataNode)
+		, DataCache(nullptr)
+		, VertexFactory(nullptr)
 	{
 	}
+
+	/** Passthrough method */
+	bool BuildDataCache(bool bUseStaticBuffers);
 };
 
 /** Used to pass data to RT to update the proxy's render data */

@@ -70,6 +70,9 @@ class FLidarPointCloudLODManager : public FTickableGameObject
 	/** Stores the number of points in visible frustum during last frame */
 	FThreadSafeCounter64 NumPointsInFrustum;
 
+	/** Stores the last calculated point budget */
+	uint32 LastPointBudget;
+
 public:
 	FLidarPointCloudLODManager();
 
@@ -83,6 +86,8 @@ public:
 
 	static void RegisterProxy(ULidarPointCloudComponent* Component, TWeakPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper);
 
+	static void RefreshLOD();
+
 private:
 	/**
 	 * This function:
@@ -94,9 +99,14 @@ private:
 	 */
 	int64 ProcessLOD(const TArray<FRegisteredProxy>& RegisteredProxies, const float CurrentTime, const uint32 PointBudget, const TArray<FLidarPointCloudClippingVolumeParams>& ClippingVolumes);
 
+	/** Forces a refresh of the LOD processing. Must be called from a GT */
+	void ForceProcessLOD();
+
 	/** Called to prepare the proxies for processing */
 	void PrepareProxies();
 
 	/** Compiles a list of all clipping volumes affecting any of the registered proxies */
 	TArray<FLidarPointCloudClippingVolumeParams> GetClippingVolumes() const;
+
+	static FLidarPointCloudLODManager& Get();
 };

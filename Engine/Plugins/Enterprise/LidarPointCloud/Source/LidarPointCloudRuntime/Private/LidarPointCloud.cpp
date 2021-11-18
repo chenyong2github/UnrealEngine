@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LidarPointCloud.h"
-
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudActor.h"
 #include "LidarPointCloudComponent.h"
@@ -280,6 +279,7 @@ ULidarPointCloud::ULidarPointCloud()
 	, LocationOffset(FDoubleVector::ZeroVector)
 	, Notifications(this)
 	, BodySetup(nullptr)
+	, NewBodySetup(nullptr)
 	, bCollisionBuildInProgress(false)
 {
 	// Make sure we are transactional to allow undo redo
@@ -600,22 +600,22 @@ void ULidarPointCloud::BuildCollision()
 	bCollisionBuildInProgress = true;
 	MarkPackageDirty();
 
-	UBodySetup* NewBodySetup = NewObject<UBodySetup>(this);
+	NewBodySetup = NewObject<UBodySetup>(this);
 	NewBodySetup->BodySetupGuid = FGuid::NewGuid();
 	NewBodySetup->CollisionTraceFlag = CTF_UseComplexAsSimple;
 	NewBodySetup->bHasCookedCollisionData = true;
 
-	Async(EAsyncExecution::Thread, [this, Notification, NewBodySetup]{
+	Async(EAsyncExecution::Thread, [this, Notification]{
 		Octree.BuildCollision(MaxCollisionError, true);
 
 		FBenchmarkTimer::Reset();
 #if WITH_PHYSX  && PHYSICS_INTERFACE_PHYSX
-		AsyncTask(ENamedThreads::GameThread, [this, NewBodySetup, Notification] {
-			NewBodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateUObject(this, &ULidarPointCloud::FinishPhysicsAsyncCook, NewBodySetup, Notification));
+		AsyncTask(ENamedThreads::GameThread, [this, Notification] {
+			NewBodySetup->CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished::CreateUObject(this, &ULidarPointCloud::FinishPhysicsAsyncCook, Notification));
 		});
 #elif WITH_CHAOS
 		NewBodySetup->CreatePhysicsMeshes();
-		AsyncTask(ENamedThreads::GameThread, [this, NewBodySetup, Notification] { FinishPhysicsAsyncCook(true, NewBodySetup, Notification); });
+		AsyncTask(ENamedThreads::GameThread, [this, Notification] { FinishPhysicsAsyncCook(true, Notification); });
 #endif		
 	});
 }
@@ -1377,7 +1377,7 @@ FBox ULidarPointCloud::CalculateBoundsFromPoints(FLidarPointCloudPoint** Points,
 	return Bounds;
 }
 
-void ULidarPointCloud::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBodySetup, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification)
+void ULidarPointCloud::FinishPhysicsAsyncCook(bool bSuccess, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification)
 {
 	FBenchmarkTimer::Log("CookingCollision");
 	Notification->Close(bSuccess);
