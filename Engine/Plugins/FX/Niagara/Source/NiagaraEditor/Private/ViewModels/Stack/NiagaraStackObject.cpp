@@ -15,16 +15,15 @@
 #include "ViewModels/Stack/NiagaraStackObjectIssueGenerator.h"
 
 UNiagaraStackObject::UNiagaraStackObject()
-	: Object(nullptr)
 {
 }
 
 void UNiagaraStackObject::Initialize(FRequiredEntryData InRequiredEntryData, UObject* InObject, FString InOwnerStackItemEditorDataKey, UNiagaraNode* InOwningNiagaraNode)
 {
-	checkf(Object == nullptr, TEXT("Can only initialize once."));
+	checkf(WeakObject.IsValid() == false, TEXT("Can only initialize once."));
 	FString ObjectStackEditorDataKey = FString::Printf(TEXT("%s-%s"), *InOwnerStackItemEditorDataKey, *InObject->GetName());
 	Super::Initialize(InRequiredEntryData, InOwnerStackItemEditorDataKey, ObjectStackEditorDataKey);
-	Object = InObject;
+	WeakObject = InObject;
 	OwningNiagaraNode = InOwningNiagaraNode;
 	bIsRefresingDataInterfaceErrors = false;
 }
@@ -48,13 +47,13 @@ void UNiagaraStackObject::RegisterInstancedCustomPropertyTypeLayout(FName Proper
 
 UObject* UNiagaraStackObject::GetObject()
 {
-	return Object;
+	return WeakObject.Get();
 }
 
 void UNiagaraStackObject::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 {
 	TArray<UObject*> ChangedObjects;
-	ChangedObjects.Add(Object);
+	ChangedObjects.Add(GetObject());
 	OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Changed);
 }
 
@@ -70,7 +69,7 @@ bool UNiagaraStackObject::GetShouldShowInStack() const
 
 UObject* UNiagaraStackObject::GetDisplayedObject() const
 {
-	return Object;
+	return WeakObject.Get();
 }
 
 void UNiagaraStackObject::FinalizeInternal()
@@ -143,6 +142,12 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 		}
 	};
 
+	UObject* Object = WeakObject.Get();
+	if ( Object == nullptr )
+	{
+		return;
+	}
+
 	GatherIssueFromProperties((uint8*)Object, Object->GetClass(), true);
 
 	if (GetSystemViewModel()->GetIsForDataProcessingOnly() == false && PropertyRowGenerator.IsValid() == false)
@@ -182,7 +187,15 @@ void UNiagaraStackObject::RefreshChildrenInternal(const TArray<UNiagaraStackEntr
 			{
 				FStackIssueFix(
 					NSLOCTEXT("StackObject","TransactionalFix", "Fix transactional status."),
-					FStackIssueFixDelegate::CreateLambda([this]() { Object->SetFlags(RF_Transactional); })),
+					FStackIssueFixDelegate::CreateLambda(
+					[WeakObject=this->WeakObject]()
+					{ 
+						if ( UObject* Object = WeakObject.Get() )
+						{
+							Object->SetFlags(RF_Transactional);
+						}
+					}
+				)),
 			}));
 	}
 
