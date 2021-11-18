@@ -23,6 +23,26 @@ class UEnhancedInputSubsystemInterface : public UInterface
 	GENERATED_BODY()
 };
 
+/** Passed in as params for Adding/Remove input contexts */
+USTRUCT(BlueprintType)
+struct FModifyContextOptions
+{
+	GENERATED_BODY()
+	
+	FModifyContextOptions()
+		: bIgnoreAllPressedKeysUntilRelease(true)
+		, bForceImmediately(false)
+	{}
+
+	// If true than any keys that are pressed during the rebuild of control mappings will be ignored until they are released.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	uint8 bIgnoreAllPressedKeysUntilRelease : 1;
+
+	// The mapping changes will be applied synchronously, rather than at the end of the frame, making them available to the input system on the same frame.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	uint8 bForceImmediately : 1;
+};
+
 // Includes native functionality shared between all subsystems
 class ENHANCEDINPUT_API IEnhancedInputSubsystemInterface
 {
@@ -54,27 +74,60 @@ public:
 
 	/**
 	 * Add a control mapping context.
-	 * @param MappingContext	A set of key to action mappings to apply to this player
-	 * @param Priority			Higher priority mappings will be applied first and, if they consume input, will block lower priority mappings.
+	 * 
+	 * @param MappingContext		A set of key to action mappings to apply to this player
+	 * @param Priority				Higher priority mappings will be applied first and, if they consume input, will block lower priority mappings.
+	 * @param bIgnoreAllPressedKeysUntilRelease	If true than any keys that are pressed during the rebuild of control mappings will be ignored until they are released.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease"))
+	UE_DEPRECATED(5.0, "This version of AddMappingContext has been deprecated, please use the version that takes in a FModifyContextOptions instead.")
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease", DisplayName= "AddMappingContext_DEPRECATED"))
 	virtual void AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const bool bIgnoreAllPressedKeysUntilRelease = true);
-
+	
+	/**
+	 * Add a control mapping context.
+	 * @param MappingContext		A set of key to action mappings to apply to this player
+	 * @param Priority				Higher priority mappings will be applied first and, if they consume input, will block lower priority mappings.
+	 * @param Options				Options to consider when adding this mapping context.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName="Add Mapping Context", ScriptName="AddMappingContext", AutoCreateRefParm = "Options"))
+	virtual void AddInputMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const FModifyContextOptions& Options = FModifyContextOptions());
+	
 	/**
 	 * Remove a specific control context. 
 	 * This is safe to call even if the context is not applied.
 	 * @param MappingContext		Context to remove from the player
+	 * @param bIgnoreAllPressedKeysUntilRelease	If true than any keys that are pressed during the rebuild of control mappings will be ignored until they are released.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease"))
+	UE_DEPRECATED(5.0, "This version of RemoveMappingContext has been deprecated, please use the version that takes in a FModifyContextOptions instead.")
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease", DisplayName= "RemoveMappingContext_DEPRECATED"))
 	virtual void RemoveMappingContext(const UInputMappingContext* MappingContext, const bool bIgnoreAllPressedKeysUntilRelease = true);
 
+	/**
+	* Remove a specific control context. 
+	* This is safe to call even if the context is not applied.
+	* @param MappingContext		Context to remove from the player
+	* @param Options			Options to consider when removing this input mapping context
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName = "Remove Mapping Context", ScriptName = "RemoveMappingContext", AutoCreateRefParm = "Options"))
+	virtual void RemoveInputMappingContext(const UInputMappingContext* MappingContext, const FModifyContextOptions& Options = FModifyContextOptions());
+	
 	/**
 	 * Flag player for reapplication of all mapping contexts at the end of this frame.
 	 * This is called automatically when adding or removing mappings contexts.
 	 * @param bForceImmediately		THe mapping changes will be applied synchronously, rather than at the end of the frame, making them available to the input system on the same frame.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease"))
+	UE_DEPRECATED(5.0, "This version of RequestRebuildControlMappings has been deprecated, please use the version that takes in a FModifyContextOptions instead.")
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(AdvancedDisplay = "bIgnoreAllPressedKeysUntilRelease", DisplayName="RequestRebuildControlMappings_DEPRECATED"))
 	virtual void RequestRebuildControlMappings(bool bForceImmediately = false, const bool bIgnoreAllPressedKeysUntilRelease = true);
+
+	/**
+	* Flag player for reapplication of all mapping contexts at the end of this frame.
+	* This is called automatically when adding or removing mappings contexts.
+	*
+	* @param Options		Options to consider when removing this input mapping context
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName = "RequestRebuildControlMappings", ScriptName="RequestRebuildControlMappings", AutoCreateRefParm = "Options"))
+	virtual void RequestRebuildInputControlMappings(const FModifyContextOptions& Options = FModifyContextOptions());
 
 	/**
 	 * Check if a key mapping is safe to add to a given mapping context within the set of active contexts currently applied to the player controller.
