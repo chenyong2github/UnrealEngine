@@ -6,6 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/Controller.h"
 #include "KismetAnimationLibrary.h"
 
 // ----------- BEGIN Derived from FCharacterMovementComponentAsyncInput ----------- //
