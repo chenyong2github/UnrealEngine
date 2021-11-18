@@ -60,6 +60,7 @@ public:
 	}
 
 	virtual void PostEditUndo() override;
+	void UpdateDocumentInputLiteral(bool bPostTransaction = true);
 
 	const UMetasoundEditorGraphMember* GetParentMember() const
 	{
@@ -203,11 +204,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
 	UMetasoundEditorGraphInputLiteral* Literal;
 
-	void UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParameterInterface) const;
-
 	void OnDataTypeChanged() override;
-
-	void UpdateDocumentInput(bool bPostTransaction = true);
 
 	virtual const FText& GetGraphMemberLabel() const override;
 	virtual Metasound::Editor::ENodeSection GetSectionID() const override;

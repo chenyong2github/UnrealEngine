@@ -340,25 +340,18 @@ void UMetasoundEditorGraphInputLiteral::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GetOuter()))
-	{
-		Input->UpdateDocumentInput(false /* bPostTransaction */);
-	}
+	UpdateDocumentInputLiteral(false /* bPostTransaction */);
 }
 
-void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
+void UMetasoundEditorGraphInputLiteral::UpdateDocumentInputLiteral(bool bPostTransaction)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(GetOuter());
+	UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GetOuter());
+	UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(Input->GetOuter());
 	UObject* Metasound = MetasoundGraph->GetMetasound();
 	if (!ensure(Metasound))
-	{
-		return;
-	}
-
-	if (!ensure(Literal))
 	{
 		return;
 	}
@@ -370,17 +363,17 @@ void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
 	check(MetasoundAsset);
 
 	FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-	FNodeHandle NodeHandle = GraphHandle->GetNodeWithID(NodeID);
+	FNodeHandle NodeHandle = GraphHandle->GetNodeWithID(Input->NodeID);
 
 	const Metasound::FVertexName& NodeName = NodeHandle->GetNodeName();
 	const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeName);
-	GraphHandle->SetDefaultInput(VertexID, Literal->GetDefault());
+	GraphHandle->SetDefaultInput(VertexID, GetDefault());
 
 	// Disabled as internal call to validation to all other open graphs
 	// is expensive and can be spammed by dragging values 
 // 	Metasound::Editor::FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
 
-	const bool bIsPreviewing = CastChecked<UMetasoundEditorGraph>(GetOuter())->IsPreviewing();
+	const bool bIsPreviewing = MetasoundGraph->IsPreviewing();
 	if (bIsPreviewing)
 	{
 		UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent();
@@ -388,7 +381,7 @@ void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
 
 		if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent)
 		{
-			Metasound::Frontend::FConstNodeHandle ConstNodeHandle = GetConstNodeHandle();
+			Metasound::Frontend::FConstNodeHandle ConstNodeHandle = Input->GetConstNodeHandle();
 			Metasound::FVertexName VertexKey = NodeHandle->GetNodeName();
 			UpdatePreviewInstance(VertexKey, ParamInterface);
 		}
@@ -398,14 +391,6 @@ void UMetasoundEditorGraphInput::UpdateDocumentInput(bool bPostTransaction)
 Metasound::Editor::ENodeSection UMetasoundEditorGraphInput::GetSectionID() const 
 {
 	return Metasound::Editor::ENodeSection::Inputs;
-}
-
-void UMetasoundEditorGraphInput::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterInterface>& InParamInterface) const
-{
-	if (ensure(Literal))
-	{
-		Literal->UpdatePreviewInstance(InParameterName, InParamInterface);
-	}
 }
 
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphInput::AddNodeHandle(const FName& InName, FName InDataType)
@@ -453,8 +438,7 @@ void UMetasoundEditorGraphInput::PostEditUndo()
 		}
 		return;
 	}
-
-	UpdateDocumentInput(false /* bPostTransaction */);
+	Literal->UpdateDocumentInputLiteral(false /* bPostTransaction */);
 	UpdateEditorLiteralType();
 }
 

@@ -128,7 +128,10 @@ namespace Metasound
 					{
 						if (Input.IsValid())
 						{
-							Input->UpdateDocumentInput();
+							if (UMetasoundEditorGraphInputLiteral* InputLiteral = Input->Literal)
+							{
+								InputLiteral->UpdateDocumentInputLiteral();
+							}
 						}
 					});
 					RangeHandle->SetOnPropertyValueChanged(UpdateDocumentInput);
@@ -508,7 +511,10 @@ namespace Metasound
 				{
 					if (GraphInput.IsValid())
 					{
-						GraphInput->UpdateDocumentInput();
+						if (UMetasoundEditorGraphInputLiteral* InputLiteral = GraphInput->Literal)
+						{
+							InputLiteral->UpdateDocumentInputLiteral();
+						}
 					}
 				}
 			});
@@ -829,7 +835,10 @@ namespace Metasound
 								{
 									if (GraphMember.IsValid())
 									{
-										GraphMember->UpdateDocumentInput();
+										if (UMetasoundEditorGraphInputLiteral* InputLiteral = GraphMember->Literal)
+										{
+											InputLiteral->UpdateDocumentInputLiteral();
+										}
 									}
 								});
 
