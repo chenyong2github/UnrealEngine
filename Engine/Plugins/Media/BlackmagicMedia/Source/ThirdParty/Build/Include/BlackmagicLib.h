@@ -55,9 +55,9 @@ namespace BlackmagicDesign
 		Channels_16 = 16
 	};
 
-	enum class EAudioSampleRate
+	enum class EAudioSampleRate : uint32_t
 	{
-		SR_48kHz
+		SR_48kHz = 48000
 	};
 
 

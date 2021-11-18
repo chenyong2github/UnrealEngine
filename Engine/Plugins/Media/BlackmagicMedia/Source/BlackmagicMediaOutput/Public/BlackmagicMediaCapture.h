@@ -84,5 +84,7 @@ private:
 	EBlackmagicMediaOutputAudioBitDepth AudioBitDepth = EBlackmagicMediaOutputAudioBitDepth::Signed_16Bits;
 
 	bool bOutputAudio = false;
+
+	uint8 NumOutputChannels = 0;
 	
 };
