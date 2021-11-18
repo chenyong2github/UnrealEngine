@@ -720,7 +720,7 @@ private:
 
 bool USkinWeightsBindingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, FToolTargetTypeRequirements()) == 1;
 }
 
 
@@ -728,7 +728,7 @@ UInteractiveTool* USkinWeightsBindingToolBuilder::BuildTool(const FToolBuilderSt
 {
 	USkinWeightsBindingTool* NewTool = NewObject<USkinWeightsBindingTool>(SceneState.ToolManager);
 
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, FToolTargetTypeRequirements());
 	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 

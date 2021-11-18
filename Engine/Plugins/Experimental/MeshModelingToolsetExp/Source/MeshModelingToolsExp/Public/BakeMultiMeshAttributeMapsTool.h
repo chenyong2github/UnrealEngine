@@ -28,7 +28,7 @@ class MESHMODELINGTOOLSEXP_API UBakeMultiMeshAttributeMapsToolBuilder : public U
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
 	protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 
