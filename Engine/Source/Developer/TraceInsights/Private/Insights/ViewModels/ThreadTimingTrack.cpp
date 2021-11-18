@@ -69,7 +69,15 @@ static void AppendMetadataToTooltip(FTooltipDrawState& Tooltip, TArrayView<const
 		case ECborCode::Uint:
 			{
 				uint64 Value = Context.AsUInt();
-				FString ValueStr = FString::Printf(TEXT("%llu"), Value);
+				FString ValueStr;
+				if (Value > 999'999'999ULL)
+				{
+					ValueStr = FString::Printf(TEXT("0x%llX"), Value);
+				}
+				else
+				{
+					ValueStr = FString::Printf(TEXT("%llu"), Value);
+				}
 				Tooltip.AddNameValueTextLine(Key, ValueStr);
 				continue;
 			}
@@ -103,6 +111,18 @@ static void AppendMetadataToTooltip(FTooltipDrawState& Tooltip, TArrayView<const
 			double Value = Context.AsDouble();
 			FString ValueStr = FString::Printf(TEXT("%g"), Value);
 			Tooltip.AddNameValueTextLine(Key, ValueStr);
+			continue;
+		}
+
+		if (Context.RawCode() == (ECborCode::Prim | ECborCode::False))
+		{
+			Tooltip.AddNameValueTextLine(Key, FString(TEXT("false")));
+			continue;
+		}
+
+		if (Context.RawCode() == (ECborCode::Prim | ECborCode::True))
+		{
+			Tooltip.AddNameValueTextLine(Key, FString(TEXT("true")));
 			continue;
 		}
 
@@ -161,7 +181,14 @@ static void AppendMetadataToString(FString& Str, TArrayView<const uint8>& Metada
 		case ECborCode::Uint:
 			{
 				uint64 Value = Context.AsUInt();
-				Str += FString::Printf(TEXT("%llu"), Value);
+				if (Value > 999'999'999ULL)
+				{
+					Str += FString::Printf(TEXT("0x%llX"), Value);
+				}
+				else
+				{
+					Str += FString::Printf(TEXT("%llu"), Value);
+				}
 				continue;
 			}
 
@@ -189,6 +216,18 @@ static void AppendMetadataToString(FString& Str, TArrayView<const uint8>& Metada
 		{
 			double Value = Context.AsDouble();
 			Str += FString::Printf(TEXT("%g"), Value);
+			continue;
+		}
+
+		if (Context.RawCode() == (ECborCode::Prim | ECborCode::False))
+		{
+			Str += TEXT("false");
+			continue;
+		}
+
+		if (Context.RawCode() == (ECborCode::Prim | ECborCode::True))
+		{
+			Str += TEXT("true");
 			continue;
 		}
 
