@@ -32,7 +32,9 @@ void UEnhancedInputLibrary::RequestRebuildControlMappingsUsingContext(const UInp
 			check(Subsystem);
 			if (Subsystem && Subsystem->HasMappingContext(Context))
 			{
-				Subsystem->RequestRebuildControlMappings(bForceImmediately);
+				FModifyContextOptions Options {};
+				Options.bForceImmediately = bForceImmediately;
+				Subsystem->RequestRebuildInputControlMappings(Options);
 			}
 		});
 }

@@ -46,7 +46,7 @@ UControllablePlayer& AControllablePlayer(UWorld* World)
 UInputMappingContext* AnInputContextIsAppliedToAPlayer(UControllablePlayer& PlayerData, FName ContextName, int32 WithPriority)
 {
 	UInputMappingContext* Context = PlayerData.InputContext.Emplace(ContextName, NewObject<UInputMappingContext>(PlayerData.Player, ContextName));
-	PlayerData.Subsystem->AddMappingContext(Context, WithPriority);
+	PlayerData.Subsystem->AddInputMappingContext(Context, WithPriority);
 	return Context;
 }
 
@@ -60,7 +60,9 @@ UInputAction* AnInputAction(UControllablePlayer& PlayerData, FName ActionName, E
 void ControlMappingsAreRebuilt(UControllablePlayer& PlayerData)
 {
 	FInputTestHelper::ResetActionInstanceData(PlayerData);
-	PlayerData.Subsystem->RequestRebuildControlMappings(true);
+	FModifyContextOptions Options;
+	Options.bForceImmediately = true;
+	PlayerData.Subsystem->RequestRebuildInputControlMappings(Options);
 }
 
 FEnhancedActionKeyMapping& AnActionIsMappedToAKey(UControllablePlayer& PlayerData, FName ContextName, FName ActionName, FKey Key)
