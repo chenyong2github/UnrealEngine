@@ -18,7 +18,7 @@ FCartesianCoordinates::FCartesianCoordinates(double InX, double InY, double InZ)
 
 }
 
-FCartesianCoordinates::FCartesianCoordinates(const FVector3d& Coordinates)
+FCartesianCoordinates::FCartesianCoordinates(const FVector& Coordinates)
 	: X(Coordinates.X)
 	, Y(Coordinates.Y)
 	, Z(Coordinates.Z)
@@ -78,7 +78,7 @@ void FCartesianCoordinates::ToFloatApproximation(float& OutX, float& OutY, float
 	OutZ = static_cast<float>(Z);
 }
 
-FVector3d FCartesianCoordinates::ToVector3d() const
+FVector FCartesianCoordinates::ToVector() const
 {
-	return FVector3d(X, Y, Z);
+	return FVector(X, Y, Z);
 }

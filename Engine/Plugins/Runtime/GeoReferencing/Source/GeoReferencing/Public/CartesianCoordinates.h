@@ -4,16 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-
-// Using double precision maths from the Geometry plugin. 
-#include "VectorTypes.h"
-
 #include "CartesianCoordinates.generated.h"
 
-/// PEER_REVIEW - I used an Fxxx instead of UObject-based as I thought it was cheaper memorywise, 
-/// but I needed to add a BP_FL to make the conversions since Fstruct can't contain UFUNCTIONS. Is that a good choice ?
 
 USTRUCT(BlueprintType)
+
 struct GEOREFERENCING_API FCartesianCoordinates
 {
 	GENERATED_USTRUCT_BODY()
@@ -21,8 +16,11 @@ struct GEOREFERENCING_API FCartesianCoordinates
 public:
 	FCartesianCoordinates();
 	FCartesianCoordinates(double InX, double InY, double InZ);
-	FCartesianCoordinates(const FVector3d& Coordinates);
-	FCartesianCoordinates(const FVector4d& Coordinates);
+	FCartesianCoordinates(const FVector& Coordinates);
+
+	double X;
+	double Y;
+	double Z;
 
 	FText ToFullText(int32 IntegralDigits = 3);
 	FText ToCompactText(int32 IntegralDigits = 3);
@@ -30,11 +28,19 @@ public:
 
 	void ToFloatApproximation(float& OutX, float& OutY, float& OutZ);
 
-	FVector3d ToVector3d() const;
+	FVector ToVector() const;
 	
-	double X;
-	double Y;
-	double Z;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
+
+
+		UE_DEPRECATED(5.0, "Use FCartesianCoordinates::ToVector() instead.")
+		FVector3d ToVector3d() const;
+		UE_DEPRECATED(5.0, "Use FCartesianCoordinates(const FVector& Coordinates) instead.")
+		FCartesianCoordinates(const FVector4d& Coordinates);
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	
 };
 
 UCLASS()

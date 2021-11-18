@@ -17,8 +17,11 @@ public:
 	FGeographicCoordinates();
 	FGeographicCoordinates(double InLongitude, double InLatitude, double InAltitude);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "GeoReferencing")
 	double Longitude;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "GeoReferencing")
 	double Latitude;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "GeoReferencing")
 	double Altitude;
 
 	FText ToFullText(int32 IntegralDigitsLatLon = 8, int32 IntegralDigitsAlti = 2, bool bAsDMS = false);

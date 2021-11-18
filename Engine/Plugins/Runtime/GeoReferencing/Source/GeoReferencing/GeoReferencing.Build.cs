@@ -25,12 +25,12 @@ public class GeoReferencing : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"GeometryCore",
 				"PROJ",
 				"Projects",
 				"Slate",
 				"SlateCore",
 				"SQLiteCore"
+
 			}
 		);
 

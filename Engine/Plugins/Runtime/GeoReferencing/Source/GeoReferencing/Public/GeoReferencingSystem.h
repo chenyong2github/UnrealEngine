@@ -12,11 +12,6 @@
 #include "CartesianCoordinates.h"
 #include "Ellipsoid.h"
 
-// Using double precision maths from the Geometry plugin. 
-#include "VectorTypes.h"
-#include "MatrixTypes.h"
-#include "Matrix4d.h"
-
 #include "GeoReferencingSystem.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGeoReferencing, Log, All);
@@ -210,7 +205,7 @@ public:
 	 *    CRS can be identified by their code (EPSG:4326), a well-known text(WKT) string, or PROJ strings...
 	 **/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Config, Category = "GeoReferencing")
-	FString ProjectedCRS = FString(TEXT("EPSG:32617")); // UTM Zone 17 North - (Cary) https://epsg.io/32617
+	FString ProjectedCRS = FString(TEXT("EPSG:32631")); // UTM Zone 31 North - (0,0) https://epsg.io/32631
 
 	/**
 	 * String that describes the GEOGRAPHIC CRS of choice.
@@ -245,37 +240,38 @@ public:
 	 * Latitude of UE Origin on planet
 	 **/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeoReferencing|Origin Location", meta = (EditConditionHides, EditCondition = "!bOriginLocationInProjectedCRS && !bOriginAtPlanetCenter", ClampMin = "-90", ClampMax = "90"))
-	int32 OriginLatitude = 35; // Around Epic Games HQ
+	double OriginLatitude = 0.0;
+
 
 	/**
 	 * Longitude of UE Origin on planet
 	 **/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeoReferencing|Origin Location", meta = (EditConditionHides, EditCondition = "!bOriginLocationInProjectedCRS && !bOriginAtPlanetCenter", ClampMin = "-180", ClampMax = "180"))
-	int32 OriginLongitude = -78; // Around Epic Games HQ
+	double OriginLongitude = 0.0;
 
 	/**
 	 * Altitude of UE Origin on planet
 	 **/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeoReferencing|Origin Location", meta = (EditConditionHides, EditCondition = "!bOriginLocationInProjectedCRS && !bOriginAtPlanetCenter"))
-	int32 OriginAltitude = 0; // For constituency, but should be 0
+	double OriginAltitude = 0.0; // For constituency, but should be 0
 
 	/**
 	 * Easting position of UE Origin on planet, express in the Projected CRS Frame
 	 **/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeoReferencing|Origin Location", meta = (EditConditionHides, EditCondition = "bOriginLocationInProjectedCRS && !bOriginAtPlanetCenter"))
-	int32 OriginProjectedCoordinatesEasting = 705000; // Around Epic Games HQ
+	double OriginProjectedCoordinatesEasting = 500000.0;
 
 	/**
 	 * Northing position of UE Origin on planet, express in the Projected CRS Frame
 	 **/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeoReferencing|Origin Location", meta = (EditConditionHides, EditCondition = "bOriginLocationInProjectedCRS && !bOriginAtPlanetCenter"))
-	int32 OriginProjectedCoordinatesNorthing = 3960000; // Around Epic Games HQ
+	double OriginProjectedCoordinatesNorthing = 5000000.0;
 
 	/**
 	 * Up position of UE Origin on planet, express in the Projected CRS Frame
 	 **/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeoReferencing|Origin Location", meta = (EditConditionHides, EditCondition = "bOriginLocationInProjectedCRS && !bOriginAtPlanetCenter"))
-	int32 OriginProjectedCoordinatesUp = 0;
+	double OriginProjectedCoordinatesUp = 0.0;
 
 	
 #if WITH_EDITOR
