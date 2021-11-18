@@ -356,6 +356,11 @@ namespace UnrealBuildTool
 		public List<string> DisablePlugins = new List<string>();
 
 		/// <summary>
+		/// A list of Plugin names that are allowed to exist as dependencies without being defined in the uplugin descriptor
+		/// </summary>
+		public List<string> InternalPluginDependencies = new List<string>();
+
+		/// <summary>
 		/// Path to the set of pak signing keys to embed in the executable.
 		/// </summary>
 		public string PakSigningKeysFile = "";
@@ -2056,6 +2061,10 @@ namespace UnrealBuildTool
 			get { return Inner.BuildPlugins; }
 		}
 
+		public IEnumerable<string> InternalPluginDependencies
+		{
+			get { return Inner.InternalPluginDependencies; }
+		}
 		public bool bRuntimeDependenciesComeFromBuildPlugins
 		{
 			get { return Inner.bRuntimeDependenciesComeFromBuildPlugins; }

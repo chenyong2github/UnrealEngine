@@ -1708,7 +1708,9 @@ namespace UnrealBuildTool
 					foreach(UEBuildModule DependencyModule in DependencyModules)
 					{
 						UEBuildPlugin? DependencyPlugin;
-						if(ModuleToPlugin.TryGetValue(DependencyModule, out DependencyPlugin) && DependencyPlugin != Plugin && !Plugin.Dependencies!.Contains(DependencyPlugin))
+						if(ModuleToPlugin.TryGetValue(DependencyModule, out DependencyPlugin) && DependencyPlugin != Plugin
+							&& !Rules.InternalPluginDependencies.Contains(DependencyPlugin.Name)
+							&& !Plugin.Dependencies!.Contains(DependencyPlugin))
 						{
 							Log.TraceWarning("Warning: Plugin '{0}' does not list plugin '{1}' as a dependency, but module '{2}' depends on '{3}'.", Plugin.Name, DependencyPlugin.Name, Module.Name, DependencyModule.Name);
 						}
