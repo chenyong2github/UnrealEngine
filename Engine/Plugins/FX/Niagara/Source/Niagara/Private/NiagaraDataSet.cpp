@@ -90,7 +90,7 @@ static FAutoConsoleVariableRef CVarNiagaraGPUDataWarningSize(
 	TEXT("fx.NiagaraGPUDataWarningSize"),
 	GNiagaraGPUDataWarningSize,
 	TEXT("Allocation size where we should log a warning."),
-	ECVF_Default
+	ECVF_Scalability
 );
 
 void NiagaraWarnGpuBufferSize(const int32 ByteSize, const TCHAR* DebugSimName)
