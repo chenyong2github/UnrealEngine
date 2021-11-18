@@ -242,36 +242,70 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 	struct FReadArrayRef
 	{
 		FReadArrayRef(TOwnerType* Owner, FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData)
-			: ScopeLock(InstanceData->ArrayRWGuard)
 		{
-			ArrayData = InstanceData->bIsModified  ? &InstanceData->ArrayData : &Owner->GetArrayReference();
+			if ( InstanceData )
+			{
+				LockObject = &InstanceData->ArrayRWGuard;
+				LockObject->ReadLock();
+				ArrayData = InstanceData->bIsModified ? &InstanceData->ArrayData : &Owner->GetArrayReference();
+			}
+			else
+			{
+				ArrayData = &Owner->GetArrayReference();
+			}
+		}
+		~FReadArrayRef()
+		{
+			if ( LockObject )
+			{
+				LockObject->ReadUnlock();
+			}
 		}
 
 		const TArray<TArrayType>& GetArray() { return *ArrayData; }
 
 	private:
-		FReadScopeLock				ScopeLock;
+		FRWLock*					LockObject = nullptr;
 		const TArray<TArrayType>*	ArrayData = nullptr;
+		UE_NONCOPYABLE(FReadArrayRef);
 	};
 
 	struct FWriteArrayRef
 	{
 		FWriteArrayRef(TOwnerType* Owner, FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData)
-			: ScopeLock(InstanceData->ArrayRWGuard)
 		{
-			if ( InstanceData->bIsModified == false )
+			if (InstanceData)
 			{
-				InstanceData->bIsModified = true;
-				InstanceData->ArrayData = Owner->GetArrayReference();
+				LockObject = &InstanceData->ArrayRWGuard;
+				LockObject->WriteLock();
+
+				if (InstanceData->bIsModified == false)
+				{
+					InstanceData->bIsModified = true;
+					InstanceData->ArrayData = Owner->GetArrayReference();
+				}
+				ArrayData = &InstanceData->ArrayData;
 			}
-			ArrayData = &InstanceData->ArrayData;
+			else
+			{
+				ArrayData = &Owner->GetArrayReference();
+			}
+		}
+
+		~FWriteArrayRef()
+		{
+			if (LockObject)
+			{
+				LockObject->WriteUnlock();
+			}
 		}
 
 		TArray<TArrayType>& GetArray() { return *ArrayData; }
 
 	private:
-		FWriteScopeLock		ScopeLock;
-		TArray<TArrayType>* ArrayData = nullptr;
+		FRWLock*			LockObject = nullptr;
+		TArray<TArrayType>*	ArrayData = nullptr;
+		UE_NONCOPYABLE(FWriteArrayRef);
 	};
 
 	struct FGameToRenderInstanceData
@@ -412,6 +446,69 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 	}
 
 	//////////////////////////////////////////////////////////////////////////
+	// BP user parameter accessors, should remove if we every start to share the object between instances
+	void SetArrayData(const TArray<TArrayType>& InArrayData)
+	{
+		if (PerInstanceData_GameThread.IsEmpty())
+		{
+			Owner->GetArrayReference() = InArrayData;
+		}
+		else
+		{
+			ensure(PerInstanceData_GameThread.Num() == 1);
+			FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.CreateConstIterator().Value();
+			FWriteScopeLock	ScopeLock(InstanceData->ArrayRWGuard);
+			InstanceData->bIsModified = false;
+			InstanceData->bIsRenderDirty = bShouldSyncToGpu;
+			InstanceData->ArrayData.Empty();
+			Owner->GetArrayReference() = InArrayData;
+		}
+	}
+
+	TArray<TArrayType> GetArrayData()
+	{
+		ensure(PerInstanceData_GameThread.Num() <= 1);
+		FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.IsEmpty() ? nullptr : PerInstanceData_GameThread.CreateConstIterator().Value();
+		FReadArrayRef ArrayRef(Owner, InstanceData);
+		return ArrayRef.GetArray();
+	}
+
+	void SetArrayValue(int Index, const TArrayType& Value, bool bSizeToFit)
+	{
+		ensure(PerInstanceData_GameThread.Num() <= 1);
+		FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.IsEmpty() ? nullptr : PerInstanceData_GameThread.CreateConstIterator().Value();
+		FWriteArrayRef ArrayRef(Owner, InstanceData);
+
+		if (!ArrayRef.GetArray().IsValidIndex(Index))
+		{
+			if (!bSizeToFit)
+			{
+				return;
+			}
+			ArrayRef.GetArray().AddDefaulted(Index + 1 - ArrayRef.GetArray().Num());
+		}
+
+		ArrayRef.GetArray()[Index] = Value;
+	}
+
+	TArrayType GetArrayValue(int Index)
+	{
+		TArrayType ValueOut = TArrayType(FNDIArrayImplHelper<TArrayType>::GetDefaultValue());
+
+		ensure(PerInstanceData_GameThread.Num() <= 1);
+		FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.IsEmpty() ? nullptr : PerInstanceData_GameThread.CreateConstIterator().Value();
+		FReadArrayRef ArrayRef(Owner, InstanceData);
+
+		if (!ArrayRef.GetArray().IsValidIndex(Index))
+		{
+			ValueOut = ArrayRef.GetArray()[Index];
+		}
+
+		return ValueOut;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// VM accessors to ensure we maintain per correctness for shared data interfaces
 	void SetArrayData(FNiagaraSystemInstanceID InstanceID, const TArray<TArrayType>& InArrayData)
 	{
 		if ( FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.FindRef(InstanceID) )

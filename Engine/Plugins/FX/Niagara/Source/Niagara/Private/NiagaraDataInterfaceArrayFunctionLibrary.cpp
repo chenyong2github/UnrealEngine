@@ -8,29 +8,24 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraFunctionLibrary.h"
 
+// If / when we share user parameter UObjects we will need to make this per instance which introduces some tricky things about allocating before the instance is active
 template<typename TArrayType, typename TDataInterace>
 void SetNiagaraArray(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<TArrayType>& InArray)
 {
-	if (auto SystemInstanceController = NiagaraSystem->GetSystemInstanceController())
+	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
 	{
-		if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
-		{
-			auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
-			ArrayProxy->SetArrayData(SystemInstanceController->GetSystemInstanceID(), InArray);
-		}
+		auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+		ArrayProxy->SetArrayData(InArray);
 	}
 }
 
 template<typename TArrayType, typename TDataInterace>
 TArray<TArrayType> GetNiagaraArray(UNiagaraComponent* NiagaraSystem, FName OverrideName)
 {
-	if (auto SystemInstanceController = NiagaraSystem->GetSystemInstanceController())
+	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
 	{
-		if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
-		{
-			auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
-			return ArrayProxy->GetArrayData(SystemInstanceController->GetSystemInstanceID());
-		}
+		auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+		return ArrayProxy->GetArrayData();
 	}
 	return TArray<TArrayType>();
 }
@@ -38,26 +33,20 @@ TArray<TArrayType> GetNiagaraArray(UNiagaraComponent* NiagaraSystem, FName Overr
 template<typename TArrayType, typename TDataInterace>
 void SetNiagaraArrayValue(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index, const TArrayType& Value, bool bSizeToFit)
 {
-	if (auto SystemInstanceController = NiagaraSystem->GetSystemInstanceController())
+	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
 	{
-		if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
-		{
-			auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
-			ArrayProxy->SetArrayValue(SystemInstanceController->GetSystemInstanceID(), Index, Value, bSizeToFit);
-		}
+		auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+		ArrayProxy->SetArrayValue(Index, Value, bSizeToFit);
 	}
 }
 
 template<typename TArrayType, typename TDataInterace>
 TArrayType GetNiagaraArrayValue(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index)
 {
-	if (auto SystemInstanceController = NiagaraSystem->GetSystemInstanceController())
+	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
 	{
-		if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
-		{
-			auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
-			return ArrayProxy->GetArrayValue(SystemInstanceController->GetSystemInstanceID(), Index);
-		}
+		auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+		return ArrayProxy->GetArrayValue(Index);
 	}
 	//-TODO: Should be DefaultValue
 	return TArrayType();
