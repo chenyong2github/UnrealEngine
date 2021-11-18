@@ -59,14 +59,14 @@ TMap<FHashedName, FShaderParametersMetadata*>& FShaderParametersMetadata::GetNam
 	return NameStructMap;
 }
 
-void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const
+void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Result, bool bSupportsPrecisionModifier) const
 {
 	switch (GetBaseType())
 	{
 	case UBMT_INT32:   Result = TEXT("int"); break;
 	case UBMT_UINT32:  Result = TEXT("uint"); break;
 	case UBMT_FLOAT32:
-		if (GetPrecision() == EShaderPrecisionModifier::Float || !SupportShaderPrecisionModifier(ShaderPlatform))
+		if (GetPrecision() == EShaderPrecisionModifier::Float || !bSupportsPrecisionModifier)
 		{
 			Result = TEXT("float");
 		}
@@ -92,6 +92,11 @@ void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Re
 	{
 		Result = FString::Printf(TEXT("%s%u"), *Result, GetNumColumns());
 	}
+}
+
+void FShaderParametersMetadata::FMember::GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const
+{
+	GenerateShaderParameterType(Result, SupportShaderPrecisionModifier(ShaderPlatform));
 }
 
 FShaderParametersMetadata* FindUniformBufferStructByName(const TCHAR* StructName)

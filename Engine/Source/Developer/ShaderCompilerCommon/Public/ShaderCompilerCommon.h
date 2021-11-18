@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UniformBuffer.h"
 #include "ShaderCore.h"
 #include "ShaderCompilerCore.h"
 #include "CrossCompilerDefinitions.h"
@@ -98,12 +97,31 @@ public:
 		const FString& ShaderBindingName,
 		int32 ReflectionOffset,
 		int32 ReflectionSize,
+		bool bPlatformSupportsPrecisionModifier,
 		FShaderCompilerOutput& CompilerOutput) const;
+
+	void ValidateShaderParameterType(
+		const FShaderCompilerInput& CompilerInput,
+		const FString& ShaderBindingName,
+		int32 ReflectionOffset,
+		int32 ReflectionSize,
+		FShaderCompilerOutput& CompilerOutput) const
+	{
+		ValidateShaderParameterType(CompilerInput, ShaderBindingName, ReflectionOffset, ReflectionSize, false, CompilerOutput);
+	}
 
 	/** Validates shader parameter map is compatible with the shader parameter structure. */
 	void ValidateShaderParameterTypes(
 		const FShaderCompilerInput& CompilerInput,
+		bool bPlatformSupportsPrecisionModifier,
 		FShaderCompilerOutput& CompilerOutput) const;
+
+	void ValidateShaderParameterTypes(
+		const FShaderCompilerInput& CompilerInput,
+		FShaderCompilerOutput& CompilerOutput) const
+	{
+		ValidateShaderParameterTypes(CompilerInput, false, CompilerOutput);
+	}
 
 	/** Gets file and line of the parameter in the shader source code. */
 	void GetParameterFileAndLine(const FParsedShaderParameter& ParsedParameter, FString& OutFile, FString& OutLine) const

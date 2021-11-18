@@ -205,6 +205,7 @@ public:
 			return ElementSize;
 		}
 
+		void GenerateShaderParameterType(FString& Result, bool bSupportsPrecisionModifier) const;
 		void GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const;
 
 	private:
