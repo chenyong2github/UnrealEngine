@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "CookTypes.h"
+#include "ShaderCompiler.h"
 
 struct FODSCRequestPayload;
 class ICookedPackageWriter;
@@ -36,22 +37,8 @@ struct FCookPackageRequest
  */
 struct FRecompileShaderRequest
 {
-	/** The platform name to compile for. */
-	FName PlatformName;
-	/** Shader platform, corresponds to EShaderPlatform, -1 indicates to compile for all target shader platforms. */
-	int32 ShaderPlatformToCompile = -1; // 
-	/** Materials to laod. */
-	TArray<FString> MaterialsToLoad;
-	/** On-demand shader compiler payload.  */
-	TArray<FODSCRequestPayload> ShadersToRecompile;
-	/** Mesh materials, returned to the caller.  */
-	TArray<uint8>* MeshMaterialMaps = nullptr;
-	/** Global shader map, returned to the caller.  */
-	TArray<uint8>* GlobalShaderMap = nullptr;
-	/** All filenames that have been changed during the shader compilation. */
-	TArray<FString>* ModifiedFiles = nullptr;
-	/** What type of shaders to recompile. All, Changed, Global, or Material? */
-	ODSCRecompileCommand CommandType = ODSCRecompileCommand::Changed;
+	/** The arguments to configure shader compilation for this request. */
+	FShaderRecompileData RecompileArguments;
 	/** Completion callback. */
 	FRecompileShaderCompletedCallback CompletionCallback;
 };

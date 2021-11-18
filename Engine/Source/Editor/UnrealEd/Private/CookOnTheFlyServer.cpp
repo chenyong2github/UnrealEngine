@@ -384,7 +384,7 @@ public:
 	virtual bool EnqueueRecompileShaderRequest(UE::Cook::FRecompileShaderRequest RecompileShaderRequest) override
 	{
 		UE_LOG(LogCook, Verbose, TEXT("Enqueing recompile shader(s) request, Platform='%s', ShaderPlatform='%d'"),
-			*RecompileShaderRequest.PlatformName.ToString(), RecompileShaderRequest.ShaderPlatformToCompile);
+			*RecompileShaderRequest.RecompileArguments.PlatformName, RecompileShaderRequest.RecompileArguments.ShaderPlatform);
 
 		Cooker.PackageTracker->RecompileRequests.Enqueue(MoveTemp(RecompileShaderRequest));
 
@@ -665,26 +665,12 @@ void UCookOnTheFlyServer::InitializeShadersForCookOnTheFly(const TArrayView<ITar
 {
 	for (const ITargetPlatform* TargetPlatform : NewTargetPlatforms)
 	{
-		UE_LOG(LogCook, Display, TEXT("Initializing shaders for cook-on-the-fly on platform '%s'"), *TargetPlatform->PlatformName());
-
 		const FString& PlatformName = TargetPlatform->PlatformName();
-		FString OutputDir = GetSandboxDirectory(PlatformName);
+		UE_LOG(LogCook, Display, TEXT("Initializing shaders for cook-on-the-fly on platform '%s'"), *PlatformName);
 
 		TArray<uint8> GlobalShaderMap;
-		UE::Cook::FRecompileShaderRequest RecompileShaderRequest;
-		RecompileShaderRequest.CommandType = ODSCRecompileCommand::Global;
-		RecompileShaderRequest.GlobalShaderMap = &GlobalShaderMap;
-
-		RecompileShadersForRemote(
-			PlatformName, 
-			SP_NumPlatforms,
-			OutputDir, 
-			RecompileShaderRequest.MaterialsToLoad, 
-			RecompileShaderRequest.ShadersToRecompile,
-			RecompileShaderRequest.MeshMaterialMaps, 
-			RecompileShaderRequest.GlobalShaderMap,
-			RecompileShaderRequest.ModifiedFiles,
-			RecompileShaderRequest.CommandType);
+		FShaderRecompileData RecompileArgs(PlatformName, SP_NumPlatforms, ODSCRecompileCommand::Global, nullptr, nullptr, &GlobalShaderMap);
+		RecompileShadersForRemote(RecompileArgs, GetSandboxDirectory(PlatformName));
 	}
 }
 
@@ -3993,20 +3979,7 @@ void UCookOnTheFlyServer::TickRecompileShaderRequests()
 	UE::Cook::FRecompileShaderRequest RecompileShaderRequest;
 	if (PackageTracker->RecompileRequests.Dequeue(&RecompileShaderRequest))
 	{
-		FString PlatformName = RecompileShaderRequest.PlatformName.ToString(); 
-		FString OutputDir = GetSandboxDirectory(PlatformName);
-
-		RecompileShadersForRemote(
-			PlatformName, 
-			RecompileShaderRequest.ShaderPlatformToCompile == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileShaderRequest.ShaderPlatformToCompile,
-			OutputDir, 
-			RecompileShaderRequest.MaterialsToLoad, 
-			RecompileShaderRequest.ShadersToRecompile,
-			RecompileShaderRequest.MeshMaterialMaps,
-			RecompileShaderRequest.GlobalShaderMap,
-			RecompileShaderRequest.ModifiedFiles,
-			RecompileShaderRequest.CommandType);
-
+		RecompileShadersForRemote(RecompileShaderRequest.RecompileArguments, GetSandboxDirectory(RecompileShaderRequest.RecompileArguments.PlatformName));
 		RecompileShaderRequest.CompletionCallback();
 	}
 }
@@ -6607,17 +6580,11 @@ void UCookOnTheFlyServer::SaveGlobalShaderMapFiles(const TArrayView<const ITarge
 	check( !IsCookingDLC() );
 	for (int32 Index = 0; Index < Platforms.Num(); Index++)
 	{
-		// make sure global shaders are up to date!
 		TArray<FString> Files;
-		FShaderRecompileData RecompileData;
-		RecompileData.PlatformName = Platforms[Index]->PlatformName();
-		// Compile for all platforms
-		RecompileData.ShaderPlatform = -1;
-		RecompileData.ModifiedFiles = &Files;
-		RecompileData.MeshMaterialMaps = nullptr;
 		TArray<uint8> GlobalShaderMap;
-		RecompileData.GlobalShaderMap = &GlobalShaderMap;
-		RecompileData.CommandType = ODSCRecompileCommand::Changed;
+
+		// make sure global shaders are up to date!
+		FShaderRecompileData RecompileData(Platforms[Index]->PlatformName(), SP_NumPlatforms, ODSCRecompileCommand::Changed, &Files, nullptr, &GlobalShaderMap);
 
 		check( IsInGameThread() );
 
@@ -6625,15 +6592,7 @@ void UCookOnTheFlyServer::SaveGlobalShaderMapFiles(const TArrayView<const ITarge
 
 		UE_LOG(LogCook, Display, TEXT("Checking global shaders for platform %s"), *RecompileData.PlatformName);
 
-		RecompileShadersForRemote
-			(RecompileData.PlatformName, 
-			RecompileData.ShaderPlatform == -1 ? SP_NumPlatforms : (EShaderPlatform)RecompileData.ShaderPlatform, //-V547
-			OutputDir, 
-			RecompileData.MaterialsToLoad, 
-			RecompileData.ShadersToRecompile,
-			RecompileData.MeshMaterialMaps,
-			RecompileData.GlobalShaderMap,
-			RecompileData.ModifiedFiles);
+		RecompileShadersForRemote(RecompileData, OutputDir);
 	}
 }
 

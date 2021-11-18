@@ -534,16 +534,12 @@ private:
 		TArray<uint8> MeshMaterialMaps;
 		TArray<uint8> GlobalShaderMap;
 
-		FShaderRecompileData RecompileData;
-		RecompileData.PlatformName = Client.PlatformName.ToString();
-		RecompileData.ModifiedFiles = &RecompileModifiedFiles;
-		RecompileData.MeshMaterialMaps = &MeshMaterialMaps;
-		RecompileData.GlobalShaderMap = &GlobalShaderMap;
-
+		FShaderRecompileData RecompileData(Client.PlatformName.ToString(), &RecompileModifiedFiles, &MeshMaterialMaps, &GlobalShaderMap);
 		{
+			int32 iShaderPlatform = static_cast<int32>(RecompileData.ShaderPlatform);
 			TUniquePtr<FArchive> Ar = Request.ReadBody();
 			*Ar << RecompileData.MaterialsToLoad;
-			*Ar << RecompileData.ShaderPlatform;
+			*Ar << iShaderPlatform;
 			*Ar << RecompileData.CommandType;
 			*Ar << RecompileData.ShadersToRecompile;
 		}
@@ -571,14 +567,7 @@ private:
 
 		const bool bEnqueued = CookOnTheFlyServer.EnqueueRecompileShaderRequest(UE::Cook::FRecompileShaderRequest
 		{
-			FName(*RecompileData.PlatformName),
-			RecompileData.ShaderPlatform,
-			RecompileData.MaterialsToLoad,
-			RecompileData.ShadersToRecompile,
-			RecompileData.MeshMaterialMaps,
-			RecompileData.GlobalShaderMap,
-			RecompileData.ModifiedFiles,
-			RecompileData.CommandType,
+			RecompileData, 
 			MoveTemp(RecompileCompleted)
 		});
 		check(bEnqueued);

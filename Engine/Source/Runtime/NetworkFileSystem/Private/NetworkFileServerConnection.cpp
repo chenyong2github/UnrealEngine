@@ -1014,15 +1014,8 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 	// make sure the global shaders are up to date before letting the client read any shaders
 	// @todo: This will probably add about 1/2 second to the boot-up time of the client while the server does this
 	// @note: We assume the delegate will write to the proper sandbox directory, should we pass in SandboxDirectory, or Sandbox?
-	FShaderRecompileData RecompileData;
-	RecompileData.PlatformName = ConnectedPlatformName;
-	// All target platforms
-	RecompileData.ShaderPlatform = -1;
-	RecompileData.ModifiedFiles = nullptr;
-	RecompileData.MeshMaterialMaps = nullptr;
 	TArray<uint8> GlobalShaderMap;
-	RecompileData.GlobalShaderMap = &GlobalShaderMap;
-	RecompileData.CommandType = ODSCRecompileCommand::Global;
+	FShaderRecompileData RecompileData(ConnectedPlatformName, SP_NumPlatforms, ODSCRecompileCommand::Global, nullptr, nullptr, &GlobalShaderMap);
 	NetworkFileDelegates->RecompileShadersDelegate.ExecuteIfBound(RecompileData);
 
 	UE_LOG(LogFileServer, Display, TEXT("Getting files for %d directories, game = %s, platform = %s"), RootDirectories.Num(), *GameName, *ConnectedPlatformName);
@@ -1283,15 +1276,13 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 	TArray<FString> RecompileModifiedFiles;
 	TArray<uint8> MeshMaterialMaps;
 	TArray<uint8> GlobalShaderMap;
-	FShaderRecompileData RecompileData;
-	RecompileData.PlatformName = ConnectedPlatformName;
-	RecompileData.ModifiedFiles = &RecompileModifiedFiles;
-	RecompileData.MeshMaterialMaps = &MeshMaterialMaps;
-	RecompileData.GlobalShaderMap = &GlobalShaderMap;
+	FShaderRecompileData RecompileData(ConnectedPlatformName, SP_NumPlatforms, ODSCRecompileCommand::Changed, &RecompileModifiedFiles, &MeshMaterialMaps, &GlobalShaderMap);
 
 	// tell other side all the materials to load, by pathname
 	In << RecompileData.MaterialsToLoad;
-	In << RecompileData.ShaderPlatform;
+
+	int32 iShaderPlatform = static_cast<int32>(RecompileData.ShaderPlatform);
+	In << iShaderPlatform;
 	In << RecompileData.CommandType;
 	In << RecompileData.ShadersToRecompile;
 

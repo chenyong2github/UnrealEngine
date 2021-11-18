@@ -174,9 +174,9 @@ int32 UCookGlobalShadersCommandlet::Main(const FString& Params)
 		// Cook shaders
 		UE_LOG(LogCookGlobalShaders, Log, TEXT("Cooking Global Shaders..."));
 		FString OutputDir = FPaths::ProjectSavedDir() / TEXT("CookGlobalShaders") / PlatformName;
-		const TArray<FString> MaterialsToLoad;
-		const TArray<FODSCRequestPayload> ShadersToLoad;
-		RecompileShadersForRemote(PlatformName, SP_NumPlatforms, OutputDir, MaterialsToLoad, ShadersToLoad, nullptr, nullptr, nullptr);
+		TArray<uint8> OutGlobalShaderMap;
+		FShaderRecompileData Arguments(PlatformName, SP_NumPlatforms, ODSCRecompileCommand::Global, nullptr, nullptr, &OutGlobalShaderMap);
+		RecompileShadersForRemote(Arguments, OutputDir);
 
 		bool bCopySucceeded = false;
 

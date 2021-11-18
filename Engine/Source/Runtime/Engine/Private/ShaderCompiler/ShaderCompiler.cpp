@@ -5956,6 +5956,12 @@ namespace
 		else if (!CmdName.IsEmpty() && FCString::Stricmp(*CmdName, TEXT("Changed")) == 0)
 		{
 			CommandType = ODSCRecompileCommand::Changed;
+
+			// Compile all the shaders that have changed for the materials we have loaded.
+			for (TObjectIterator<UMaterialInterface> It; It; ++It)
+			{
+				OutMaterialsToLoad.Add(It->GetPathName());
+			}
 		}
 		else
 		{
@@ -7056,26 +7062,40 @@ FArchive& operator<<(FArchive& Ar, FODSCRequestPayload& Elem)
 	return Ar;
 }
 
+FShaderRecompileData::FShaderRecompileData(const FString& InPlatformName, TArray<FString>* OutModifiedFiles, TArray<uint8>* OutMeshMaterialMaps, TArray<uint8>* OutGlobalShaderMap)
+: PlatformName(InPlatformName),
+  ModifiedFiles(OutModifiedFiles),
+  MeshMaterialMaps(OutMeshMaterialMaps),
+  GlobalShaderMap(OutGlobalShaderMap)
+{
+}
+
+FShaderRecompileData::FShaderRecompileData(const FString& InPlatformName, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InCommandType, TArray<FString>* OutModifiedFiles, TArray<uint8>* OutMeshMaterialMaps, TArray<uint8>* OutGlobalShaderMap)
+: PlatformName(InPlatformName),
+  ShaderPlatform(InShaderPlatform),
+  ModifiedFiles(OutModifiedFiles),
+  MeshMaterialMaps(OutMeshMaterialMaps),
+  CommandType(InCommandType),
+  GlobalShaderMap(OutGlobalShaderMap)
+{
+}
+
+
 #if WITH_EDITOR
 void RecompileShadersForRemote(
-	const FString& PlatformName,
-	EShaderPlatform ShaderPlatformToCompile,
-	const FString& OutputDirectory,
-	const TArray<FString>& MaterialsToLoad,
-	const TArray<FODSCRequestPayload>& ShadersToRecompile,
-	TArray<uint8>* MeshMaterialMaps,
-	TArray<uint8>* GlobalShaderMap,
-	TArray<FString>* ModifiedFiles,
-	ODSCRecompileCommand RecompileCommandType)
+	FShaderRecompileData& Args,
+	const FString& OutputDirectory)
 {
 	// figure out what shader platforms to recompile
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
-	ITargetPlatform* TargetPlatform = TPM->FindTargetPlatform(PlatformName);
+	ITargetPlatform* TargetPlatform = TPM->FindTargetPlatform(Args.PlatformName);
 	if (TargetPlatform == NULL)
 	{
-		UE_LOG(LogShaders, Display, TEXT("Failed to find target platform module for %s"), *PlatformName);
+		UE_LOG(LogShaders, Display, TEXT("Failed to find target platform module for %s"), *Args.PlatformName);
 		return;
 	}
+
+	const double StartTime = FPlatformTime::Seconds();
 
 	UE_LOG(LogShaders, Display, TEXT(""));
 	UE_LOG(LogShaders, Display, TEXT("********************************"));
@@ -7087,14 +7107,14 @@ void RecompileShadersForRemote(
 	TArray<FName> DesiredShaderFormats;
 	TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
 
-	UE_LOG(LogShaders, Verbose, TEXT("Loading %d materials..."), MaterialsToLoad.Num());
+	UE_LOG(LogShaders, Verbose, TEXT("Loading %d materials..."), Args.MaterialsToLoad.Num());
 	// make sure all materials the client has loaded will be processed
 	TArray<UMaterialInterface*> MaterialsToCompile;
 
-	for (int32 Index = 0; Index < MaterialsToLoad.Num(); Index++)
+	for (int32 Index = 0; Index < Args.MaterialsToLoad.Num(); Index++)
 	{
-		UE_LOG(LogShaders, Verbose, TEXT("   --> %s"), *MaterialsToLoad[Index]);
-		MaterialsToCompile.Add(LoadObject<UMaterialInterface>(NULL, *MaterialsToLoad[Index]));
+		UE_LOG(LogShaders, Verbose, TEXT("   --> %s"), *Args.MaterialsToLoad[Index]);
+		MaterialsToCompile.Add(LoadObject<UMaterialInterface>(NULL, *Args.MaterialsToLoad[Index]));
 	}
 
 	UE_LOG(LogShaders, Verbose, TEXT("  Done!"))
@@ -7107,19 +7127,12 @@ void RecompileShadersForRemote(
 	// Pick up new changes to shader files
 	FlushShaderFileCache();
 
-	const bool bCompileChangedShaders = RecompileCommandType == ODSCRecompileCommand::Changed;
-	if (bCompileChangedShaders)
+	if (Args.ShadersToRecompile.Num())
 	{
-		GetOutdatedShaderTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
-		UE_LOG(LogShaders, Display, TEXT("We found %d out of date shader types, %d outdated pipeline types, and %d out of date VF types!"), OutdatedShaderTypes.Num(), OutdatedShaderPipelineTypes.Num(), OutdatedFactoryTypes.Num());
+		UE_LOG(LogShaders, Display, TEXT("Received %d shaders to compile."), Args.ShadersToRecompile.Num());
 	}
 
-	if (ShadersToRecompile.Num())
-	{
-		UE_LOG(LogShaders, Display, TEXT("Received %d shaders to compile."), ShadersToRecompile.Num());
-	}
-
-	for (const FODSCRequestPayload& payload: ShadersToRecompile)
+	for (const FODSCRequestPayload& payload: Args.ShadersToRecompile)
 	{
 		UE_LOG(LogShaders, Display, TEXT(""));
 		UE_LOG(LogShaders, Display, TEXT("\tMaterial:    %s "), *payload.MaterialName);
@@ -7158,11 +7171,11 @@ void RecompileShadersForRemote(
 			const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
 
 			// Only compile for the desired platform if requested
-			if (ShaderPlatform == ShaderPlatformToCompile || ShaderPlatformToCompile == SP_NumPlatforms)
+			if (ShaderPlatform == Args.ShaderPlatform || Args.ShaderPlatform == SP_NumPlatforms)
 			{
 				// If we are explicitly wanting to recompile global or if shaders have changed.
-				if (RecompileCommandType == ODSCRecompileCommand::Global ||
-					RecompileCommandType == ODSCRecompileCommand::Changed)
+				if (Args.CommandType == ODSCRecompileCommand::Global ||
+					Args.CommandType == ODSCRecompileCommand::Changed)
 				{
 					UE_LOG(LogShaders, Display, TEXT("Recompiling global shaders."));
 
@@ -7182,7 +7195,7 @@ void RecompileShadersForRemote(
 					FinishRecompileGlobalShaders();
 
 					// write the shader compilation info to memory, converting fnames to strings
-					FMemoryWriter MemWriter(*GlobalShaderMap, true);
+					FMemoryWriter MemWriter(*Args.GlobalShaderMap, true);
 					FNameAsStringProxyArchive Ar(MemWriter);
 					Ar.SetCookingTarget(TargetPlatform);
 
@@ -7190,16 +7203,15 @@ void RecompileShadersForRemote(
 					SaveGlobalShadersForRemoteRecompile(Ar, ShaderPlatform);
 				}
 
-				// we only want to actually compile mesh shaders if a client directly requested it, and there's actually some work to do
-				if ((RecompileCommandType == ODSCRecompileCommand::Material || RecompileCommandType == ODSCRecompileCommand::Changed) &&
-					MeshMaterialMaps != nullptr && 
-					(OutdatedShaderTypes.Num() || OutdatedFactoryTypes.Num() || bCompileChangedShaders == false))
+				// we only want to actually compile mesh shaders if a client directly requested it
+				if ((Args.CommandType == ODSCRecompileCommand::Material || Args.CommandType == ODSCRecompileCommand::Changed) &&
+					Args.MeshMaterialMaps != nullptr)
 				{
 					TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > > CompiledShaderMaps;
 					UMaterial::CompileMaterialsForRemoteRecompile(MaterialsToCompile, ShaderPlatform, TargetPlatform, CompiledShaderMaps);
 
 					// write the shader compilation info to memory, converting fnames to strings
-					FMemoryWriter MemWriter(*MeshMaterialMaps, true);
+					FMemoryWriter MemWriter(*Args.MeshMaterialMaps, true);
 					FNameAsStringProxyArchive Ar(MemWriter);
 					Ar.SetCookingTarget(TargetPlatform);
 
@@ -7211,21 +7223,24 @@ void RecompileShadersForRemote(
 				FString GlobalShaderFilename = SaveGlobalShaderFile(ShaderPlatform, OutputDirectory, TargetPlatform);
 
 				// add this to the list of files to tell the other end about
-				if (ModifiedFiles)
+				if (Args.ModifiedFiles)
 				{
 					// need to put it in non-sandbox terms
 					FString SandboxPath(GlobalShaderFilename);
 					check(SandboxPath.StartsWith(OutputDirectory));
 					SandboxPath.ReplaceInline(*OutputDirectory, TEXT("../../../"));
 					FPaths::NormalizeFilename(SandboxPath);
-					ModifiedFiles->Add(SandboxPath);
+					Args.ModifiedFiles->Add(SandboxPath);
 				}
 			}
 		}
 	}
 
 	UE_LOG(LogShaders, Display, TEXT(""));
-	UE_LOG(LogShaders, Display, TEXT("Finished shader compile request."));
+	UE_LOG(LogShaders, Display, TEXT("Finished shader compile request in %.2f seconds."), FPlatformTime::Seconds() - StartTime);
+
+	// Provide a log of what happened.
+	GShaderCompilingManager->PrintStats(true);
 
 	// Restore compilation state.
 	GShaderCompilingManager->SkipShaderCompilation(bPreviousState);
