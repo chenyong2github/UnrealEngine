@@ -22,6 +22,24 @@ FText UMovieSceneTrackExtensions::GetDisplayName(UMovieSceneTrack* Track)
 	return FText::GetEmpty();
 }
 
+void UMovieSceneTrackExtensions::SetTrackRowDisplayName(UMovieSceneTrack* Track, const FText& InName, int32 RowIndex)
+{
+	if (UMovieSceneNameableTrack* NameableTrack = Cast<UMovieSceneNameableTrack>(Track))
+	{
+#if WITH_EDITORONLY_DATA
+		NameableTrack->SetTrackRowDisplayName(InName, RowIndex);
+#endif
+	}
+}
+
+FText UMovieSceneTrackExtensions::GetTrackRowDisplayName(UMovieSceneTrack* Track, int32 RowIndex)
+{
+#if WITH_EDITORONLY_DATA
+	return Track->GetTrackRowDisplayName(RowIndex);
+#endif
+	return FText::GetEmpty();
+}
+
 UMovieSceneSection* UMovieSceneTrackExtensions::AddSection(UMovieSceneTrack* Track)
 {
 	UMovieSceneSection* NewSection = Track->CreateNewSection();

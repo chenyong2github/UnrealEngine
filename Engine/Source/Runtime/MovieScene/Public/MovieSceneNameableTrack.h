@@ -28,6 +28,14 @@ public:
 	MOVIESCENE_API virtual void SetDisplayName(const FText& NewDisplayName);
 
 	/**
+	 * Set the track row's display name.
+	 *
+	 * @param NewName The name to set.
+	 * @param RowIndex The track row index to set.
+	 */
+	MOVIESCENE_API virtual void SetTrackRowDisplayName(const FText& NewDisplayName, int32 TrackRowIndex);
+
+	/**
 	 * Can rename this track.
 	 *
 	 * @return Whether this track can be renamed.
@@ -47,6 +55,7 @@ public:
 	// UMovieSceneTrack interface
 
 	MOVIESCENE_API virtual FText GetDisplayName() const override;
+	MOVIESCENE_API virtual FText GetTrackRowDisplayName(int32 RowIndex) const override;
 	MOVIESCENE_API virtual FText GetDefaultDisplayName() const;
 
 private:
@@ -54,5 +63,10 @@ private:
 	/** The track's human readable display name. */
 	UPROPERTY(EditAnywhere, Category="Track")
 	FText DisplayName;
+
+	/** The track display name per row. */
+	UPROPERTY(EditAnywhere, Category="Track")
+	TArray<FText> TrackRowDisplayNames;
+
 #endif
 };
