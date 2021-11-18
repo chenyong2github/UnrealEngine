@@ -4,7 +4,53 @@
 #include "Misc/MemStack.h"
 #include "MaterialShared.h" // TODO - split preshader out into its own module
 
-UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::CombineEvaluationTypes(EExpressionEvaluationType Lhs, EExpressionEvaluationType Rhs)
+// From MaterialUniformExpressions.cpp
+extern void WriteMaterialUniformAccess(UE::Shader::EValueComponentType ComponentType, uint32 NumComponents, uint32 UniformOffset, FStringBuilderBase& OutResult);
+
+static const TCHAR* AllocateString(FMemStackBase& Allocator, const TCHAR* String, int32 Length)
+{
+	TCHAR* Result = New<TCHAR>(Allocator, Length + 1);
+	FMemory::Memcpy(Result, String, Length * sizeof(TCHAR));
+	Result[Length] = 0;
+	return Result;
+}
+
+static const TCHAR* AllocateString(FMemStackBase& Allocator, FStringView String)
+{
+	return AllocateString(Allocator, String.GetData(), String.Len());
+}
+
+static const TCHAR* AllocateString(FMemStackBase& Allocator, const FStringBuilderBase& StringBuilder)
+{
+	return AllocateString(Allocator, StringBuilder.GetData(), StringBuilder.Len());
+}
+
+template <typename FormatType, typename... ArgTypes>
+static const TCHAR* AllocateStringf(FMemStackBase& Allocator, const FormatType& Format, ArgTypes... Args)
+{
+	TStringBuilder<1024> String;
+	String.Appendf(Format, Forward<ArgTypes>(Args)...);
+	return AllocateString(Allocator, String);
+}
+
+static FSHAHash HashString(const TCHAR* String, int32 Length)
+{
+	FSHAHash Hash;
+	FSHA1::HashBuffer(String, Length * sizeof(TCHAR), Hash.Hash);
+	return Hash;
+}
+
+static FSHAHash HashString(const FStringBuilderBase& StringBuilder)
+{
+	return HashString(StringBuilder.GetData(), StringBuilder.Len());
+}
+
+namespace UE
+{
+namespace HLSLTree
+{
+
+EExpressionEvaluationType CombineEvaluationTypes(EExpressionEvaluationType Lhs, EExpressionEvaluationType Rhs)
 {
 	if (Lhs == EExpressionEvaluationType::Constant && Rhs == EExpressionEvaluationType::Constant)
 	{
@@ -20,50 +66,12 @@ UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::CombineEvaluationTypes(EEx
 	return EExpressionEvaluationType::Preshader;
 }
 
-const TCHAR* AllocateString(FMemStackBase& Allocator, const TCHAR* String, int32 Length)
-{
-	TCHAR* Result = New<TCHAR>(Allocator, Length + 1);
-	FMemory::Memcpy(Result, String, Length * sizeof(TCHAR));
-	Result[Length] = 0;
-	return Result;
-}
-
-const TCHAR* AllocateString(FMemStackBase& Allocator, FStringView String)
-{
-	return AllocateString(Allocator, String.GetData(), String.Len());
-}
-
-const TCHAR* AllocateString(FMemStackBase& Allocator, const FStringBuilderBase& StringBuilder)
-{
-	return AllocateString(Allocator, StringBuilder.GetData(), StringBuilder.Len());
-}
-
-template <typename FormatType, typename... ArgTypes>
-const TCHAR* AllocateStringf(FMemStackBase& Allocator, const FormatType& Format, ArgTypes... Args)
-{
-	TStringBuilder<1024> String;
-	String.Appendf(Format, Forward<ArgTypes>(Args)...);
-	return AllocateString(Allocator, String);
-}
-
-FSHAHash HashString(const TCHAR* String, int32 Length)
-{
-	FSHAHash Hash;
-	FSHA1::HashBuffer(String, Length * sizeof(TCHAR), Hash.Hash);
-	return Hash;
-}
-
-FSHAHash HashString(const FStringBuilderBase& StringBuilder)
-{
-	return HashString(StringBuilder.GetData(), StringBuilder.Len());
-}
-
-UE::HLSLTree::FErrors::FErrors(FMemStackBase& InAllocator)
+FErrors::FErrors(FMemStackBase& InAllocator)
 	: Allocator(&InAllocator)
 {
 }
 
-void UE::HLSLTree::FErrors::AddError(const FNode* InNode, FStringView InError)
+void FErrors::AddError(const FNode* InNode, FStringView InError)
 {
 	const int32 SizeofString = InError.Len() * sizeof(TCHAR);
 	void* Memory = Allocator->Alloc(sizeof(FError) + SizeofString, alignof(FError));
@@ -79,22 +87,22 @@ void UE::HLSLTree::FErrors::AddError(const FNode* InNode, FStringView InError)
 	ensureMsgf(false, TEXT("%s"), Error->Message);
 }
 
-UE::HLSLTree::FEmitContext::FEmitContext(FMemStackBase& InAllocator)
+FEmitContext::FEmitContext(FMemStackBase& InAllocator)
 	: Allocator(&InAllocator)
 	, Errors(InAllocator)
 {
 }
 
-UE::HLSLTree::FEmitContext::~FEmitContext()
+FEmitContext::~FEmitContext()
 {
 }
 
-const TCHAR* UE::HLSLTree::FEmitContext::AcquireLocalDeclarationCode()
+const TCHAR* FEmitContext::AcquireLocalDeclarationCode()
 {
 	return AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
 }
 
-const TCHAR* UE::HLSLTree::FEmitContext::CastShaderValue(const FNode* Node, const TCHAR* Code, const FType& SourceType, const FType& DestType, ECastFlags Flags)
+const TCHAR* FEmitContext::CastShaderValue(const FNode* Node, const TCHAR* Code, const FType& SourceType, const FType& DestType, ECastFlags Flags)
 {
 	if (SourceType == DestType)
 	{
@@ -226,10 +234,7 @@ const TCHAR* UE::HLSLTree::FEmitContext::CastShaderValue(const FNode* Node, cons
 	}
 }
 
-// From MaterialUniformExpressions.cpp
-extern void WriteMaterialUniformAccess(UE::Shader::EValueComponentType ComponentType, uint32 NumComponents, uint32 UniformOffset, FStringBuilderBase& OutResult);
-
-void UE::HLSLTree::FEmitContext::AddPreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader, FStringBuilderBase& OutCode)
+void FEmitContext::AddPreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader, FStringBuilderBase& OutCode)
 {
 	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
 	ensure(TypeDesc.ComponentType == Shader::EValueComponentType::Float || TypeDesc.ComponentType == Shader::EValueComponentType::Double);
@@ -262,10 +267,10 @@ void UE::HLSLTree::FEmitContext::AddPreshader(Shader::EValueType Type, const Sha
 			OutCode.Appendf(TEXT("MakeLWCVector%d("), TypeDesc.NumComponents);
 		}
 
-		WriteMaterialUniformAccess(UE::Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, OutCode); // Tile
+		WriteMaterialUniformAccess(Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, OutCode); // Tile
 		UniformPreshaderOffset += TypeDesc.NumComponents;
 		OutCode.Append(TEXT(","));
-		WriteMaterialUniformAccess(UE::Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, OutCode); // Offset
+		WriteMaterialUniformAccess(Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, OutCode); // Offset
 		UniformPreshaderOffset += TypeDesc.NumComponents;
 		OutCode.Append(TEXT(")"));
 	}
@@ -276,12 +281,12 @@ void UE::HLSLTree::FEmitContext::AddPreshader(Shader::EValueType Type, const Sha
 	}
 }
 
-void UE::HLSLTree::FEmitContext::Finalize()
+void FEmitContext::Finalize()
 {
 	MaterialCompilationOutput->UniformExpressionSet.UniformPreshaderBufferSize = (UniformPreshaderOffset + 3u) / 4u;
 }
 
-const TCHAR* UE::HLSLTree::FType::GetName() const
+const TCHAR* FType::GetName() const
 {
 	if (StructType)
 	{
@@ -293,7 +298,7 @@ const TCHAR* UE::HLSLTree::FType::GetName() const
 	return TypeDesc.Name;
 }
 
-int32 UE::HLSLTree::FType::GetNumComponents() const
+int32 FType::GetNumComponents() const
 {
 	if (StructType)
 	{
@@ -303,7 +308,7 @@ int32 UE::HLSLTree::FType::GetNumComponents() const
 	return TypeDesc.NumComponents;
 }
 
-bool UE::HLSLTree::FType::Merge(const FType& OtherType)
+bool FType::Merge(const FType& OtherType)
 {
 	if (ValueType == Shader::EValueType::Void)
 	{
@@ -332,7 +337,7 @@ bool UE::HLSLTree::FType::Merge(const FType& OtherType)
 	return true;
 }
 
-UE::HLSLTree::FStructFieldRef UE::HLSLTree::FStructType::FindFieldByName(const TCHAR* InName) const
+FStructFieldRef FStructType::FindFieldByName(const TCHAR* InName) const
 {
 	for (const FStructField& Field : Fields)
 	{
@@ -345,7 +350,7 @@ UE::HLSLTree::FStructFieldRef UE::HLSLTree::FStructType::FindFieldByName(const T
 	return FStructFieldRef();
 }
 
-UE::HLSLTree::FConstantValue::FConstantValue(const Shader::FValue& InValue) : Type(InValue.GetType())
+FConstantValue::FConstantValue(const Shader::FValue& InValue) : Type(InValue.GetType())
 {
 	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
 	Component.Empty(TypeDesc.NumComponents);
@@ -355,7 +360,7 @@ UE::HLSLTree::FConstantValue::FConstantValue(const Shader::FValue& InValue) : Ty
 	}
 }
 
-UE::HLSLTree::FScope* UE::HLSLTree::FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
+FScope* FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
 {
 	FScope* Scope0 = Lhs;
 	FScope* Scope1 = Rhs;
@@ -378,7 +383,7 @@ UE::HLSLTree::FScope* UE::HLSLTree::FScope::FindSharedParent(FScope* Lhs, FScope
 	return Scope0;
 }
 
-void UE::HLSLTree::FExpressionLocalPHI::UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType)
+void FExpressionLocalPHI::UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType)
 {
 	FType TypePerValue[MaxNumPreviousScopes];
 	int32 NumValidTypes = 0;
@@ -421,7 +426,7 @@ void UE::HLSLTree::FExpressionLocalPHI::UpdateType(FUpdateTypeContext& Context, 
 	}
 }
 
-void UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
+void FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 {
 	FExpression* ForwardExpression = Values[0];
 	for (int32 i = 1; i < NumValues; ++i)
@@ -494,7 +499,7 @@ void UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 	}
 }
 
-void UE::HLSLTree::FNodeVisitor::VisitNode(FNode* Node)
+void FNodeVisitor::VisitNode(FNode* Node)
 {
 	if (Node)
 	{
@@ -502,22 +507,22 @@ void UE::HLSLTree::FNodeVisitor::VisitNode(FNode* Node)
 	}
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FStatement::Visit(FNodeVisitor& Visitor)
+ENodeVisitResult FStatement::Visit(FNodeVisitor& Visitor)
 {
 	return Visitor.OnStatement(*this);
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FExpression::Visit(FNodeVisitor& Visitor)
+ENodeVisitResult FExpression::Visit(FNodeVisitor& Visitor)
 {
 	return Visitor.OnExpression(*this);
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FTextureParameterDeclaration::Visit(FNodeVisitor& Visitor)
+ENodeVisitResult FTextureParameterDeclaration::Visit(FNodeVisitor& Visitor)
 {
 	return Visitor.OnTextureParameterDeclaration(*this);
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(FNodeVisitor& Visitor)
+ENodeVisitResult FScope::Visit(FNodeVisitor& Visitor)
 {
 	const ENodeVisitResult Result = Visitor.OnScope(*this);
 	if (ShouldVisitDependentNodes(Result))
@@ -527,7 +532,7 @@ UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(FNodeVisitor& Visitor
 	return Result;
 }
 
-UE::HLSLTree::FType UE::HLSLTree::RequestExpressionType(FUpdateTypeContext& Context, FExpression* InExpression, const FRequestedType& RequestedType)
+FType RequestExpressionType(FUpdateTypeContext& Context, FExpression* InExpression, const FRequestedType& RequestedType)
 {
 	if (!InExpression)
 	{
@@ -586,7 +591,7 @@ UE::HLSLTree::FType UE::HLSLTree::RequestExpressionType(FUpdateTypeContext& Cont
 	return InExpression->Type;
 }
 
-UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression)
+EExpressionEvaluationType PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression)
 {
 	if (!InExpression)
 	{
@@ -610,12 +615,12 @@ UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::PrepareExpressionValue(FEm
 	return InExpression->EvaluationType;
 }
 
-void UE::HLSLTree::FExpression::SetType(FUpdateTypeContext& Context, const FType& InType)
+void FExpression::SetType(FUpdateTypeContext& Context, const FType& InType)
 {
 	Type = InType;
 }
 
-void UE::HLSLTree::FExpression::InternalSetValueShader(FEmitContext& Context, const TCHAR* InCode, int32 InLength, bool bInline)
+void FExpression::InternalSetValueShader(FEmitContext& Context, const TCHAR* InCode, int32 InLength, bool bInline)
 {
 	check(!Code);
 	check(EvaluationType == EExpressionEvaluationType::None);
@@ -659,7 +664,7 @@ void UE::HLSLTree::FExpression::InternalSetValueShader(FEmitContext& Context, co
 	}
 }
 
-void UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& InPreshader)
+void FExpression::SetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& InPreshader)
 {
 	check(!Preshader);
 	check(EvaluationType == EExpressionEvaluationType::None);
@@ -669,7 +674,7 @@ void UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, Shader:
 	Preshader = new Shader::FPreshaderData(MoveTemp(InPreshader));
 }
 
-void UE::HLSLTree::FExpression::SetValueConstant(FEmitContext& Context, const Shader::FValue& InValue)
+void FExpression::SetValueConstant(FEmitContext& Context, const Shader::FValue& InValue)
 {
 	check(EvaluationType == EExpressionEvaluationType::None);
 	check(!Type.IsStruct());
@@ -678,7 +683,7 @@ void UE::HLSLTree::FExpression::SetValueConstant(FEmitContext& Context, const Sh
 	ConstantValue = Shader::Cast(InValue, Type);
 }
 
-void UE::HLSLTree::FExpression::SetValueForward(FEmitContext& Context, FExpression* Source)
+void FExpression::SetValueForward(FEmitContext& Context, FExpression* Source)
 {
 	check(EvaluationType == EExpressionEvaluationType::None);
 	check(Source);
@@ -696,7 +701,7 @@ void UE::HLSLTree::FExpression::SetValueForward(FEmitContext& Context, FExpressi
 	}
 }
 
-void UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, Shader::FPreshaderData& InPreshader)
+void FExpression::SetValuePreshader(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, Shader::FPreshaderData& InPreshader)
 {
 	if (InEvaluationType == EExpressionEvaluationType::Constant)
 	{
@@ -713,7 +718,7 @@ void UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, EExpres
 	}
 }
 
-const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context)
+const TCHAR* FExpression::GetValueShader(FEmitContext& Context)
 {
 	check(EvaluationType != EExpressionEvaluationType::None);
 	if (!Code)
@@ -735,7 +740,7 @@ const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context)
 	return Code;
 }
 
-const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context, const FType& InType)
+const TCHAR* FExpression::GetValueShader(FEmitContext& Context, const FType& InType)
 {
 	check(EvaluationType != EExpressionEvaluationType::None);
 
@@ -753,7 +758,7 @@ const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context, co
 	return Context.CastShaderValue(this, GetValueShader(Context), Type, InType, CastFlags);
 }
 
-void UE::HLSLTree::FExpression::GetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader)
+void FExpression::GetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader)
 {
 	switch (EvaluationType)
 	{
@@ -770,13 +775,13 @@ void UE::HLSLTree::FExpression::GetValuePreshader(FEmitContext& Context, Shader:
 	}
 }
 
-UE::Shader::FValue UE::HLSLTree::FExpression::GetValueConstant(FEmitContext& Context)
+Shader::FValue FExpression::GetValueConstant(FEmitContext& Context)
 {
 	check(EvaluationType == EExpressionEvaluationType::Constant);
 	return ConstantValue;
 }
 
-bool UE::HLSLTree::FScope::HasParentScope(const FScope& InParentScope) const
+bool FScope::HasParentScope(const FScope& InParentScope) const
 {
 	const FScope* CurrentScope = this;
 	while (CurrentScope)
@@ -790,16 +795,12 @@ bool UE::HLSLTree::FScope::HasParentScope(const FScope& InParentScope) const
 	return false;
 }
 
-void UE::HLSLTree::FScope::AddPreviousScope(FScope& Scope)
+void FScope::AddPreviousScope(FScope& Scope)
 {
 	check(NumPreviousScopes < MaxNumPreviousScopes);
 	PreviousScope[NumPreviousScopes++] = &Scope;
 }
 
-namespace UE
-{
-namespace HLSLTree
-{
 class FNodeVisitor_MoveToScope : public FNodeVisitor
 {
 public:
@@ -820,17 +821,15 @@ public:
 
 	FScope* Scope;
 };
-} // namespace HLSLTree
-} // namespace UE
 
-void UE::HLSLTree::FScope::UseExpression(FExpression* Expression)
+void FScope::UseExpression(FExpression* Expression)
 {
 	// Need to move all dependent expressions/declarations into this scope
 	FNodeVisitor_MoveToScope Visitor(this);
 	Visitor.VisitNode(Expression);
 }
 
-void UE::HLSLTree::FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, FScope* NestedScope, const TCHAR* String, int32 Length)
+void FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, FScope* NestedScope, const TCHAR* String, int32 Length)
 {
 	if (NestedScope && NestedScope->Statement && !NestedScope->Statement->bEmitHLSL)
 	{
@@ -860,7 +859,7 @@ void UE::HLSLTree::FScope::InternalEmitCode(FEmitContext& Context, FCodeList& Li
 	List.Num++;
 }
 
-void UE::HLSLTree::RequestScopeTypes(FUpdateTypeContext& Context, const FScope* InScope)
+void RequestScopeTypes(FUpdateTypeContext& Context, const FScope* InScope)
 {
 	if (InScope && InScope->Statement)
 	{
@@ -868,7 +867,7 @@ void UE::HLSLTree::RequestScopeTypes(FUpdateTypeContext& Context, const FScope* 
 	}
 }
 
-UE::HLSLTree::FTree* UE::HLSLTree::FTree::Create(FMemStackBase& Allocator)
+FTree* FTree::Create(FMemStackBase& Allocator)
 {
 	FTree* Tree = new(Allocator) FTree();
 	Tree->Allocator = &Allocator;
@@ -876,7 +875,7 @@ UE::HLSLTree::FTree* UE::HLSLTree::FTree::Create(FMemStackBase& Allocator)
 	return Tree;
 }
 
-void UE::HLSLTree::FTree::Destroy(FTree* Tree)
+void FTree::Destroy(FTree* Tree)
 {
 	if (Tree)
 	{
@@ -903,12 +902,12 @@ static void WriteIndent(int32 IndentLevel, FStringBuilderBase& InOutString)
 	}
 }
 
-void UE::HLSLTree::FScope::MarkLive()
+void FScope::MarkLive()
 {
 	bLive = true;
 }
 
-void UE::HLSLTree::FScope::MarkLiveRecursive()
+void FScope::MarkLiveRecursive()
 {
 	FScope* Scope = this;
 	while (Scope)
@@ -918,7 +917,7 @@ void UE::HLSLTree::FScope::MarkLiveRecursive()
 	}
 }
 
-void UE::HLSLTree::FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const
+void FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const
 {
 	{
 		const FCodeEntry* CodeDeclaration = Declarations.First;
@@ -955,7 +954,7 @@ void UE::HLSLTree::FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString
 	}
 }
 
-void UE::HLSLTree::FStructType::WriteHLSL(FStringBuilderBase& OutString) const
+void FStructType::WriteHLSL(FStringBuilderBase& OutString) const
 {
 	OutString.Appendf(TEXT("struct %s\n"), Name);
 	OutString.Append(TEXT("{\n"));
@@ -973,7 +972,7 @@ void UE::HLSLTree::FStructType::WriteHLSL(FStringBuilderBase& OutString) const
 	OutString.Append(TEXT("\n"));
 }
 
-bool UE::HLSLTree::FTree::EmitHLSL(FEmitContext& Context,
+bool FTree::EmitHLSL(FEmitContext& Context,
 	FStringBuilderBase& OutDeclarations,
 	FStringBuilderBase& OutCode) const
 {
@@ -1026,13 +1025,13 @@ bool UE::HLSLTree::FTree::EmitHLSL(FEmitContext& Context,
 	return Context.Errors.Num() == 0;
 }
 
-void UE::HLSLTree::FTree::RegisterExpression(FScope& Scope, FExpression* Expression)
+void FTree::RegisterExpression(FScope& Scope, FExpression* Expression)
 {
 	check(!Expression->ParentScope);
 	Expression->ParentScope = &Scope;
 }
 
-void UE::HLSLTree::FTree::RegisterStatement(FScope& Scope, FStatement* Statement)
+void FTree::RegisterStatement(FScope& Scope, FStatement* Statement)
 {
 	check(!Scope.Statement)
 	check(!Statement->ParentScope);
@@ -1040,7 +1039,7 @@ void UE::HLSLTree::FTree::RegisterStatement(FScope& Scope, FStatement* Statement
 	Scope.Statement = Statement;
 }
 
-UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewScope(FScope& Scope)
+FScope* FTree::NewScope(FScope& Scope)
 {
 	FScope* NewScope = NewNode<FScope>();
 	NewScope->ParentScope = &Scope;
@@ -1049,20 +1048,15 @@ UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewScope(FScope& Scope)
 	return NewScope;
 }
 
-UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue)
+FTextureParameterDeclaration* FTree::NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue)
 {
 	FTextureParameterDeclaration* Declaration = NewNode<FTextureParameterDeclaration>(Name, DefaultValue);
 	return Declaration;
 }
 
-namespace UE
-{
-namespace HLSLTree
-{
 namespace Private
 {
-
-static void SetComponentTypes(Shader::EValueComponentType* ComponentTypes, int32 ComponentIndex, const HLSLTree::FType& Type)
+void SetComponentTypes(Shader::EValueComponentType* ComponentTypes, int32 ComponentIndex, const HLSLTree::FType& Type)
 {
 	if (Type.IsStruct())
 	{
@@ -1080,12 +1074,9 @@ static void SetComponentTypes(Shader::EValueComponentType* ComponentTypes, int32
 		}
 	}
 }
+} // namespace Private
 
-}
-}
-}
-
-const UE::HLSLTree::FStructType* UE::HLSLTree::FTree::NewStructType(const FStructTypeInitializer& Initializer)
+const FStructType* FTree::NewStructType(const FStructTypeInitializer& Initializer)
 {
 	const int32 NumFields = Initializer.Fields.Num();
 	int32 ComponentIndex = 0;
@@ -1117,9 +1108,11 @@ const UE::HLSLTree::FStructType* UE::HLSLTree::FTree::NewStructType(const FStruc
 	return StructType;
 }
 
-void UE::HLSLTree::FTree::SetResult(FStatement& InResult)
+void FTree::SetResult(FStatement& InResult)
 {
 	check(!ResultStatement);
 	ResultStatement = &InResult;
 }
 
+} // namespace HLSLTree
+} // namespace UE

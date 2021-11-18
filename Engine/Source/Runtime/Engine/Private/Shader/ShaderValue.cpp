@@ -7,9 +7,9 @@ namespace UE
 {
 namespace Shader
 {
+
 namespace Private
 {
-
 struct FCastFloat
 {
 	using FComponentType = float;
@@ -142,10 +142,8 @@ void FormatComponent_Double(double Value, int32 NumComponents, EValueStringForma
 }
 
 } // namespace Private
-} // namespace Shader
-} // namespace UE
 
-UE::Shader::FValue UE::Shader::FValue::FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes)
+FValue FValue::FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes)
 {
 	FValue Result(Type);
 	const uint8* Bytes = static_cast<const uint8*>(Data);
@@ -165,7 +163,7 @@ UE::Shader::FValue UE::Shader::FValue::FromMemoryImage(EValueType Type, const vo
 	return Result;
 }
 
-UE::Shader::FMemoryImageValue UE::Shader::FValue::AsMemoryImage() const
+FMemoryImageValue FValue::AsMemoryImage() const
 {
 	FMemoryImageValue Result;
 	uint8* Bytes = Result.Bytes;
@@ -183,54 +181,54 @@ UE::Shader::FMemoryImageValue UE::Shader::FValue::AsMemoryImage() const
 	return Result;
 }
 
-UE::Shader::FFloatValue UE::Shader::FValue::AsFloat() const
+FFloatValue FValue::AsFloat() const
 {
 	FFloatValue Result;
 	Private::AsType(Private::FCastFloat(), *this, Result);
 	return Result;
 }
 
-UE::Shader::FDoubleValue UE::Shader::FValue::AsDouble() const
+FDoubleValue FValue::AsDouble() const
 {
 	FDoubleValue Result;
 	Private::AsType(Private::FCastDouble(), *this, Result);
 	return Result;
 }
 
-FLinearColor UE::Shader::FValue::AsLinearColor() const
+FLinearColor FValue::AsLinearColor() const
 {
 	const FFloatValue Result = AsFloat();
 	return FLinearColor(Result.Component[0], Result.Component[1], Result.Component[2], Result.Component[3]);
 }
 
-FVector4d UE::Shader::FValue::AsVector4d() const
+FVector4d FValue::AsVector4d() const
 {
 	const FDoubleValue Result = AsDouble();
 	return FVector4d(Result.Component[0], Result.Component[1], Result.Component[2], Result.Component[3]);
 }
 
-UE::Shader::FIntValue UE::Shader::FValue::AsInt() const
+FIntValue FValue::AsInt() const
 {
 	FIntValue Result;
 	Private::AsType(Private::FCastInt(), *this, Result);
 	return Result;
 }
 
-UE::Shader::FBoolValue UE::Shader::FValue::AsBool() const
+FBoolValue FValue::AsBool() const
 {
 	FBoolValue Result;
 	Private::AsType(Private::FCastBool(), *this, Result);
 	return Result;
 }
 
-float UE::Shader::FValue::AsFloatScalar() const
+float FValue::AsFloatScalar() const
 {
 	FFloatValue Result;
 	Private::AsType(Private::FCastFloat(), *this, Result);
 	return Result[0];
 }
 
-bool UE::Shader::FValue::AsBoolScalar() const
+bool FValue::AsBoolScalar() const
 {
 	const FBoolValue Result = AsBool();
 	for (int32 i = 0; i < NumComponents; ++i)
@@ -243,7 +241,7 @@ bool UE::Shader::FValue::AsBoolScalar() const
 	return false;
 }
 
-uint32 UE::Shader::GetComponentTypeSizeInBytes(EValueComponentType Type)
+uint32 GetComponentTypeSizeInBytes(EValueComponentType Type)
 {
 	switch (Type)
 	{
@@ -256,7 +254,7 @@ uint32 UE::Shader::GetComponentTypeSizeInBytes(EValueComponentType Type)
 	}
 }
 
-const TCHAR* UE::Shader::FValueComponent::ToString(EValueComponentType Type, FStringBuilderBase& OutString) const
+const TCHAR* FValueComponent::ToString(EValueComponentType Type, FStringBuilderBase& OutString) const
 {
 	switch (Type)
 	{
@@ -268,7 +266,7 @@ const TCHAR* UE::Shader::FValueComponent::ToString(EValueComponentType Type, FSt
 	return OutString.ToString();
 }
 
-const TCHAR* UE::Shader::FValue::ToString(EValueStringFormat Format, FStringBuilderBase& OutString) const
+const TCHAR* FValue::ToString(EValueStringFormat Format, FStringBuilderBase& OutString) const
 {
 	if (Format == EValueStringFormat::HLSL && ComponentType == EValueComponentType::Double)
 	{
@@ -345,7 +343,7 @@ const TCHAR* UE::Shader::FValue::ToString(EValueStringFormat Format, FStringBuil
 	return OutString.ToString();
 }
 
-UE::Shader::FValueTypeDescription UE::Shader::GetValueTypeDescription(EValueType Type)
+FValueTypeDescription GetValueTypeDescription(EValueType Type)
 {
 	switch (Type)
 	{
@@ -371,7 +369,7 @@ UE::Shader::FValueTypeDescription UE::Shader::GetValueTypeDescription(EValueType
 	}
 }
 
-UE::Shader::EValueType UE::Shader::MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
+EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 {
 	if (NumComponents == 0)
 	{
@@ -424,18 +422,18 @@ UE::Shader::EValueType UE::Shader::MakeValueType(EValueComponentType ComponentTy
 	return EValueType::Void;
 }
 
-UE::Shader::EValueType UE::Shader::MakeValueType(EValueType BaseType, int32 NumComponents)
+EValueType MakeValueType(EValueType BaseType, int32 NumComponents)
 {
 	return MakeValueType(GetValueTypeDescription(BaseType).ComponentType, NumComponents);
 }
 
-UE::Shader::EValueType UE::Shader::MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents)
+EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents)
 {
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(BaseType);
 	return MakeValueType(TypeDesc.ComponentType, FMath::Min(TypeDesc.NumComponents, RequestedNumComponents));
 }
 
-UE::Shader::EValueType UE::Shader::MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)
+EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)
 {
 	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs);
 	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs);
@@ -488,7 +486,7 @@ UE::Shader::EValueType UE::Shader::MakeArithmeticResultType(EValueType Lhs, EVal
 	return EValueType::Void;
 }
 
-UE::Shader::EValueType UE::Shader::MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)
+EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)
 {
 	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs);
 	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs);
@@ -512,10 +510,6 @@ UE::Shader::EValueType UE::Shader::MakeComparisonResultType(EValueType Lhs, EVal
 	return EValueType::Void;
 }
 
-namespace UE
-{
-namespace Shader
-{
 namespace Private
 {
 
@@ -607,9 +601,9 @@ inline FValue UnaryOp(const Operation& Op, const FValue& Value)
 
 	if constexpr (Operation::SupportsDouble)
 	{
-		if (Value.ComponentType == UE::Shader::EValueComponentType::Double)
+		if (Value.ComponentType == EValueComponentType::Double)
 		{
-			Result.ComponentType = UE::Shader::EValueComponentType::Double;
+			Result.ComponentType = EValueComponentType::Double;
 			const FDoubleValue Cast = Value.AsDouble();
 			for (int32 i = 0; i < NumComponents; ++i)
 			{
@@ -621,9 +615,9 @@ inline FValue UnaryOp(const Operation& Op, const FValue& Value)
 
 	if constexpr (Operation::SupportsInt)
 	{
-		if (Value.ComponentType != UE::Shader::EValueComponentType::Float)
+		if (Value.ComponentType != EValueComponentType::Float)
 		{
-			Result.ComponentType = UE::Shader::EValueComponentType::Int;
+			Result.ComponentType = EValueComponentType::Int;
 			const FIntValue Cast = Value.AsInt();
 			for (int32 i = 0; i < NumComponents; ++i)
 			{
@@ -633,7 +627,7 @@ inline FValue UnaryOp(const Operation& Op, const FValue& Value)
 		}
 	}
 
-	Result.ComponentType = UE::Shader::EValueComponentType::Float;
+	Result.ComponentType = EValueComponentType::Float;
 	const FFloatValue Cast = Value.AsFloat();
 	for (int32 i = 0; i < NumComponents; ++i)
 	{
@@ -659,9 +653,9 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 
 	if constexpr (Operation::SupportsDouble)
 	{
-		if (Lhs.ComponentType == UE::Shader::EValueComponentType::Double || Rhs.ComponentType == UE::Shader::EValueComponentType::Double)
+		if (Lhs.ComponentType == EValueComponentType::Double || Rhs.ComponentType == EValueComponentType::Double)
 		{
-			Result.ComponentType = UE::Shader::EValueComponentType::Double;
+			Result.ComponentType = EValueComponentType::Double;
 			const FDoubleValue LhsCast = Lhs.AsDouble();
 			const FDoubleValue RhsCast = Rhs.AsDouble();
 			for (int32 i = 0; i < NumComponents; ++i)
@@ -674,9 +668,9 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 
 	if constexpr (Operation::SupportsInt)
 	{
-		if (Lhs.ComponentType != UE::Shader::EValueComponentType::Float && Rhs.ComponentType != UE::Shader::EValueComponentType::Float)
+		if (Lhs.ComponentType != EValueComponentType::Float && Rhs.ComponentType != EValueComponentType::Float)
 		{
-			Result.ComponentType = UE::Shader::EValueComponentType::Int;
+			Result.ComponentType = EValueComponentType::Int;
 			const FIntValue LhsCast = Lhs.AsInt();
 			const FIntValue RhsCast = Rhs.AsInt();
 			for (int32 i = 0; i < NumComponents; ++i)
@@ -687,7 +681,7 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 		}
 	}
 
-	Result.ComponentType = UE::Shader::EValueComponentType::Float;
+	Result.ComponentType = EValueComponentType::Float;
 	const FFloatValue LhsCast = Lhs.AsFloat();
 	const FFloatValue RhsCast = Rhs.AsFloat();
 	for (int32 i = 0; i < NumComponents; ++i)
@@ -698,10 +692,8 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 }
 
 } // namespace Private
-} // namespace Shader
-} // namespace UE
 
-bool UE::Shader::operator==(const FValue& Lhs, const FValue& Rhs)
+bool operator==(const FValue& Lhs, const FValue& Rhs)
 {
 	if (Lhs.ComponentType != Rhs.ComponentType || Lhs.NumComponents != Rhs.NumComponents)
 	{
@@ -717,7 +709,7 @@ bool UE::Shader::operator==(const FValue& Lhs, const FValue& Rhs)
 	return true;
 }
 
-uint32 UE::Shader::GetTypeHash(const FValue& Value)
+uint32 GetTypeHash(const FValue& Value)
 {
 	uint32 Result = ::GetTypeHash(Value.ComponentType);
 	Result = HashCombine(Result, ::GetTypeHash(Value.NumComponents));
@@ -738,156 +730,156 @@ uint32 UE::Shader::GetTypeHash(const FValue& Value)
 	return Result;
 }
 
-UE::Shader::FValue UE::Shader::Abs(const FValue& Value)
+FValue Abs(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpAbs(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Saturate(const FValue& Value)
+FValue Saturate(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpSaturate(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Floor(const FValue& Value)
+FValue Floor(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpFloor(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Ceil(const FValue& Value)
+FValue Ceil(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpCeil(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Round(const FValue& Value)
+FValue Round(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpRound(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Trunc(const FValue& Value)
+FValue Trunc(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpTrunc(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Sign(const FValue& Value)
+FValue Sign(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpSign(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Frac(const FValue& Value)
+FValue Frac(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpFrac(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Fractional(const FValue& Value)
+FValue Fractional(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpFractional(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Sqrt(const FValue& Value)
+FValue Sqrt(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpSqrt(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Rcp(const FValue& Value)
+FValue Rcp(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpRcp(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Log2(const FValue& Value)
+FValue Log2(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpLog2(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Log10(const FValue& Value)
+FValue Log10(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpLog10(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Sin(const FValue& Value)
+FValue Sin(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpSin(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Cos(const FValue& Value)
+FValue Cos(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpCos(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Tan(const FValue& Value)
+FValue Tan(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpTan(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Asin(const FValue& Value)
+FValue Asin(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpAsin(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Acos(const FValue& Value)
+FValue Acos(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpAcos(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Atan(const FValue& Value)
+FValue Atan(const FValue& Value)
 {
 	return Private::UnaryOp(Private::FOpAtan(), Value);
 }
 
-UE::Shader::FValue UE::Shader::Add(const UE::Shader::FValue& Lhs, const UE::Shader::FValue& Rhs)
+FValue Add(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpAdd(), Lhs, Rhs);
 }
 
-UE::Shader::FValue UE::Shader::Sub(const UE::Shader::FValue& Lhs, const UE::Shader::FValue& Rhs)
+FValue Sub(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpSub(), Lhs, Rhs);
 }
 
-UE::Shader::FValue UE::Shader::Mul(const UE::Shader::FValue& Lhs, const UE::Shader::FValue& Rhs)
+FValue Mul(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpMul(), Lhs, Rhs);
 }
 
-UE::Shader::FValue UE::Shader::Div(const UE::Shader::FValue& Lhs, const UE::Shader::FValue& Rhs)
+FValue Div(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpDiv(), Lhs, Rhs);
 }
 
-UE::Shader::FValue UE::Shader::Min(const UE::Shader::FValue& Lhs, const UE::Shader::FValue& Rhs)
+FValue Min(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpMin(), Lhs, Rhs);
 }
 
-UE::Shader::FValue UE::Shader::Max(const UE::Shader::FValue& Lhs, const UE::Shader::FValue& Rhs)
+FValue Max(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpMax(), Lhs, Rhs);
 }
 
-UE::Shader::FValue UE::Shader::Fmod(const UE::Shader::FValue& Lhs, const UE::Shader::FValue& Rhs)
+FValue Fmod(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpFmod(), Lhs, Rhs);
 }
 
-UE::Shader::FValue UE::Shader::Atan2(const FValue& Lhs, const FValue& Rhs)
+FValue Atan2(const FValue& Lhs, const FValue& Rhs)
 {
 	return Private::BinaryOp(Private::FOpAtan2(), Lhs, Rhs);
 }
 
-UE::Shader::FValue UE::Shader::Clamp(const FValue& Value, const FValue& Low, const FValue& High)
+FValue Clamp(const FValue& Value, const FValue& Low, const FValue& High)
 {
 	return Min(Max(Value, Low), High);
 }
 
-UE::Shader::FValue UE::Shader::Dot(const FValue& Lhs, const FValue& Rhs)
+FValue Dot(const FValue& Lhs, const FValue& Rhs)
 {
 	const int8 NumComponents = Private::GetNumComponentsResult(Lhs.NumComponents, Rhs.NumComponents);
 
 	FValue Result;
 	Result.NumComponents = 1;
 
-	if (Lhs.ComponentType == UE::Shader::EValueComponentType::Double || Rhs.ComponentType == UE::Shader::EValueComponentType::Double)
+	if (Lhs.ComponentType == EValueComponentType::Double || Rhs.ComponentType == EValueComponentType::Double)
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Double;
+		Result.ComponentType = EValueComponentType::Double;
 		const FDoubleValue LhsValue = Lhs.AsDouble();
 		const FDoubleValue RhsValue = Rhs.AsDouble();
 		double ComponentValue = 0.0;
@@ -897,9 +889,9 @@ UE::Shader::FValue UE::Shader::Dot(const FValue& Lhs, const FValue& Rhs)
 		}
 		Result.Component[0].Double = ComponentValue;
 	}
-	else if (Lhs.ComponentType == UE::Shader::EValueComponentType::Float || Rhs.ComponentType == UE::Shader::EValueComponentType::Float)
+	else if (Lhs.ComponentType == EValueComponentType::Float || Rhs.ComponentType == EValueComponentType::Float)
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Float;
+		Result.ComponentType = EValueComponentType::Float;
 		const FFloatValue LhsValue = Lhs.AsFloat();
 		const FFloatValue RhsValue = Rhs.AsFloat();
 		float ComponentValue = 0.0f;
@@ -911,7 +903,7 @@ UE::Shader::FValue UE::Shader::Dot(const FValue& Lhs, const FValue& Rhs)
 	}
 	else
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Int;
+		Result.ComponentType = EValueComponentType::Int;
 		const FIntValue LhsValue = Lhs.AsInt();
 		const FIntValue RhsValue = Rhs.AsInt();
 		int32 ComponentValue = 0;
@@ -924,14 +916,14 @@ UE::Shader::FValue UE::Shader::Dot(const FValue& Lhs, const FValue& Rhs)
 	return Result;
 }
 
-UE::Shader::FValue UE::Shader::Cross(const FValue& Lhs, const FValue& Rhs)
+FValue Cross(const FValue& Lhs, const FValue& Rhs)
 {
 	FValue Result;
 	Result.NumComponents = 3;
 
-	if (Lhs.ComponentType == UE::Shader::EValueComponentType::Double || Rhs.ComponentType == UE::Shader::EValueComponentType::Double)
+	if (Lhs.ComponentType == EValueComponentType::Double || Rhs.ComponentType == EValueComponentType::Double)
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Double;
+		Result.ComponentType = EValueComponentType::Double;
 		const FDoubleValue LhsValue = Lhs.AsDouble();
 		const FDoubleValue RhsValue = Rhs.AsDouble();
 
@@ -939,9 +931,9 @@ UE::Shader::FValue UE::Shader::Cross(const FValue& Lhs, const FValue& Rhs)
 		Result.Component[1].Double = LhsValue.Component[2] * RhsValue.Component[0] - LhsValue.Component[0] * RhsValue.Component[2];
 		Result.Component[2].Double = LhsValue.Component[0] * RhsValue.Component[1] - LhsValue.Component[1] * RhsValue.Component[0];
 	}
-	else if (Lhs.ComponentType == UE::Shader::EValueComponentType::Float || Rhs.ComponentType == UE::Shader::EValueComponentType::Float)
+	else if (Lhs.ComponentType == EValueComponentType::Float || Rhs.ComponentType == EValueComponentType::Float)
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Float;
+		Result.ComponentType = EValueComponentType::Float;
 		const FFloatValue LhsValue = Lhs.AsFloat();
 		const FFloatValue RhsValue = Rhs.AsFloat();
 		
@@ -951,7 +943,7 @@ UE::Shader::FValue UE::Shader::Cross(const FValue& Lhs, const FValue& Rhs)
 	}
 	else
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Int;
+		Result.ComponentType = EValueComponentType::Int;
 		const FIntValue LhsValue = Lhs.AsInt();
 		const FIntValue RhsValue = Rhs.AsInt();
 
@@ -962,7 +954,7 @@ UE::Shader::FValue UE::Shader::Cross(const FValue& Lhs, const FValue& Rhs)
 	return Result;
 }
 
-UE::Shader::FValue UE::Shader::Append(const FValue& Lhs, const FValue& Rhs)
+FValue Append(const FValue& Lhs, const FValue& Rhs)
 {
 	FValue Result;
 	int32 NumComponents = 0;
@@ -980,9 +972,9 @@ UE::Shader::FValue UE::Shader::Append(const FValue& Lhs, const FValue& Rhs)
 			Result.Component[NumComponents++] = Rhs.Component[i];
 		}
 	}
-	else if (Lhs.ComponentType == UE::Shader::EValueComponentType::Double || Rhs.ComponentType == UE::Shader::EValueComponentType::Double)
+	else if (Lhs.ComponentType == EValueComponentType::Double || Rhs.ComponentType == EValueComponentType::Double)
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Double;
+		Result.ComponentType = EValueComponentType::Double;
 		const FDoubleValue LhsValue = Lhs.AsDouble();
 		const FDoubleValue RhsValue = Rhs.AsDouble();
 		for (int32 i = 0; i < Lhs.NumComponents; ++i)
@@ -994,9 +986,9 @@ UE::Shader::FValue UE::Shader::Append(const FValue& Lhs, const FValue& Rhs)
 			Result.Component[NumComponents++].Double = RhsValue.Component[i];
 		}
 	}
-	else if (Lhs.ComponentType == UE::Shader::EValueComponentType::Float || Rhs.ComponentType == UE::Shader::EValueComponentType::Float)
+	else if (Lhs.ComponentType == EValueComponentType::Float || Rhs.ComponentType == EValueComponentType::Float)
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Float;
+		Result.ComponentType = EValueComponentType::Float;
 		const FFloatValue LhsValue = Lhs.AsFloat();
 		const FFloatValue RhsValue = Rhs.AsFloat();
 		for (int32 i = 0; i < Lhs.NumComponents; ++i)
@@ -1010,7 +1002,7 @@ UE::Shader::FValue UE::Shader::Append(const FValue& Lhs, const FValue& Rhs)
 	}
 	else
 	{
-		Result.ComponentType = UE::Shader::EValueComponentType::Int;
+		Result.ComponentType = EValueComponentType::Int;
 		const FIntValue LhsValue = Lhs.AsInt();
 		const FIntValue RhsValue = Rhs.AsInt();
 		for (int32 i = 0; i < Lhs.NumComponents; ++i)
@@ -1026,7 +1018,7 @@ UE::Shader::FValue UE::Shader::Append(const FValue& Lhs, const FValue& Rhs)
 	return Result;
 }
 
-UE::Shader::FValue UE::Shader::Cast(const FValue& Value, EValueType Type)
+FValue Cast(const FValue& Value, EValueType Type)
 {
 	const EValueType SourceType = Value.GetType();
 	if (Type == SourceType)
@@ -1047,3 +1039,5 @@ UE::Shader::FValue UE::Shader::Cast(const FValue& Value, EValueType Type)
 	return Result;
 }
 
+} // namespace Shader
+} // namespace UE
