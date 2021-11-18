@@ -108,13 +108,15 @@ struct IKRIG_API FIKRigSkeleton
 	
 	int32 GetBoneIndexFromName(const FName InName) const;
 
-	FName GetBoneNameFromIndex(const int32 BoneIndex) const;
+	const FName& GetBoneNameFromIndex(const int32 BoneIndex) const;
 	
 	int32 GetParentIndex(const int32 BoneIndex) const;
 
 	int32 GetParentIndexThatIsNotExcluded(const int32 BoneIndex) const;
 
 	int32 GetChildIndices(const int32 ParentBoneIndex, TArray<int32>& Children) const;
+	
+	int32 GetCachedEndOfBranchIndex(const int32 InBoneIndex) const;
 
 	static void ConvertLocalPoseToGlobal(
 		const TArray<int32>& InParentIndices,
@@ -138,4 +140,9 @@ struct IKRIG_API FIKRigSkeleton
 	static void NormalizeRotations(TArray<FTransform>& Transforms);
 
 	void GetChainsInList(const TArray<int32>& SelectedBones, TArray<FIKRigSkeletonChain>& OutChains) const;
+
+private:
+
+	/** The branch bellow a specific bone. It stores the last element of the branch instead of the indices */
+	mutable TArray<int32> CachedEndOfBranchIndices;
 };
