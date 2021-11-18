@@ -48,25 +48,40 @@ void SDataRegistryItemNameWidget::Construct(const FArguments& InArgs)
 
 	this->ChildSlot
 	[
-		SAssignNew(ValueSwitcher, SWidgetSwitcher)
-		.WidgetIndex(0)
-		+ SWidgetSwitcher::Slot()
-		[	
-			PropertyCustomizationHelpers::MakePropertyComboBox(NameArgs)
-		]
-		+ SWidgetSwitcher::Slot()
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(1)
 		[
-			SNew(SComboButton)
-			.OnGetMenuContent(this, &SDataRegistryItemNameWidget::GetTagContent)
-			.OnMenuOpenChanged(this, &SDataRegistryItemNameWidget::OnTagUIOpened)
-			.ContentPadding(FMargin(4.0f, 2.0f))
-			.MenuPlacement(MenuPlacement_BelowAnchor)
-			.ButtonContent()
-			[
-				SNew(STextBlock)
-				.Text(this, &SDataRegistryItemNameWidget::OnGetNameValueText)
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+			SAssignNew(ValueSwitcher, SWidgetSwitcher)
+			.WidgetIndex(0)
+			+ SWidgetSwitcher::Slot()
+			[	
+				PropertyCustomizationHelpers::MakePropertyComboBox(NameArgs)
 			]
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(SComboButton)
+				.OnGetMenuContent(this, &SDataRegistryItemNameWidget::GetTagContent)
+				.OnMenuOpenChanged(this, &SDataRegistryItemNameWidget::OnTagUIOpened)
+				.MenuPlacement(MenuPlacement_BelowAnchor)
+				.ButtonContent()
+				[
+					SNew(STextBlock)
+					.Text(this, &SDataRegistryItemNameWidget::OnGetNameValueText)
+					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				]
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(FMargin(2, 0, 0, 0))
+		.AutoWidth()
+		.VAlign(EVerticalAlignment::VAlign_Center)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.WarningWithColor"))
+			.DesiredSizeOverride(FVector2D(16, 16))
+			.ToolTipText(LOCTEXT("InvalidRegistryId", "Unknown Item Name, this will not work at runtime with the current registry settings"))
+			.Visibility(this, &SDataRegistryItemNameWidget::GetWarningVisibility)
 		]
 	];
 }
@@ -79,8 +94,9 @@ void SDataRegistryItemNameWidget::Tick(const FGeometry& AllottedGeometry, const 
 	// Refresh if type has changed, or it's a custom type that might be different based on external factors
 	if (CurrentId.RegistryType != CachedIdValue.RegistryType || CurrentId.RegistryType == FDataRegistryType::CustomContextType)
 	{
+		bool bClearInvalid = CachedIdValue.RegistryType.IsValid();
 		CachedIdValue = CurrentId;
-		OnTypeChanged();
+		OnTypeChanged(bClearInvalid);
 	}
 	else if (CurrentId.ItemName != CachedIdValue.ItemName)
 	{
@@ -96,7 +112,7 @@ void SDataRegistryItemNameWidget::OnNameSelected(const FString& NameString)
 	OnSetId.Execute(NewId);
 }
 
-void SDataRegistryItemNameWidget::OnTypeChanged()
+void SDataRegistryItemNameWidget::OnTypeChanged(bool bClearInvalid)
 {
 	int32 SwitcherIndex = 0;
 	CachedIds.Reset();
@@ -132,7 +148,7 @@ void SDataRegistryItemNameWidget::OnTypeChanged()
 		}
 	}
 
-	if (!CachedIdValue.ItemName.IsNone() && !CachedIds.Contains(CachedIdValue))
+	if (!CachedIdValue.ItemName.IsNone() && !CachedIds.Contains(CachedIdValue) && bClearInvalid)
 	{
 		// Name no longer valid, clear
 		OnSetId.Execute(FDataRegistryId(CachedIdValue.RegistryType, NAME_None));
@@ -204,6 +220,15 @@ FString SDataRegistryItemNameWidget::OnGetNameValueString() const
 FText SDataRegistryItemNameWidget::OnGetNameValueText() const
 {
 	return OnGetDisplayText.Execute();
+}
+
+EVisibility SDataRegistryItemNameWidget::GetWarningVisibility() const
+{
+	if (CachedIdValue.RegistryType.IsValid() && !CachedIdValue.ItemName.IsNone() && !CachedIds.Contains(CachedIdValue))
+	{
+		return EVisibility::Visible;
+	}
+	return EVisibility::Collapsed;
 }
 
 TSharedRef<IPropertyTypeCustomization> FDataRegistryIdCustomization::MakeInstance()
