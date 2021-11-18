@@ -16,8 +16,6 @@ $ ProjectFile (FileReference): Path to the project file for the project containi
 
 $ Version (ReadOnlyBuildVersion): The current build version
 
-$ ExcludePlugins (List&lt;String&gt;): Accessor for
-
 $ HostPlatform (UnrealTargetPlatform): Gets the host platform being built on
 
 $ bGenerateProjectFiles (Boolean): Expose the bGenerateProjectFiles flag to targets, so we can modify behavior as appropriate for better intellisense
@@ -43,8 +41,6 @@ $ bDebugBuildsActuallyUseDebugCRT (Boolean): Enables the debug C++ runtime (CRT)
 $ bLegalToDistributeBinary (Boolean): Whether the output from this target can be publicly distributed, even if it has dependencies on modules that are in folders with special restrictions (eg. CarefullyRedist, NotForLicensees, NoRedist).
 
 $ UndecoratedConfiguration (UnrealTargetConfiguration): Specifies the configuration whose binaries do not require a "-Platform-Configuration" suffix.
-
-$ bBuildAllPlugins (Boolean): Build all the plugins that we can find, even if they're not enabled. This is particularly useful for content-only projects, where you're building the UnrealEditor target but running it with a game that enables a plugin.
 
 $ bBuildAllModules (Boolean): Build all the modules that are valid for this target type. Used for CIS and making installed engine builds.
 
@@ -332,8 +328,6 @@ $ Name (String): The name of this target
 
 $ DefaultBuildSettings (BuildSettingsVersion): Specifies the engine version to maintain backwards-compatible default build settings with (eg. DefaultSettingsVersion.Release_4_23, DefaultSettingsVersion.Release_4_24). Specify DefaultSettingsVersion.Latest to always use defaults for the current engine version, at the risk of introducing build errors while upgrading.
 
-$ bOutputPubliclyDistributable (Boolean): Obsolete. Use bLegalToDistributeBinary instead.
-
 $ bAllowHotReload (Boolean): Whether this target supports hot reload
 
 $ bBuildEditor (Boolean): Whether to compile the editor or not. Only desktop platforms (Windows or Mac) will use this, other platforms force this to false.
@@ -345,8 +339,6 @@ $ bBuildWithEditorOnlyData (Boolean): Whether to compile WITH_EDITORONLY_DATA di
 $ bBuildDeveloperTools (Boolean): Whether to compile the developer tools.
 
 $ bBuildTargetDeveloperTools (Boolean): Whether to compile the developer tools that are for target platforms or connected devices (defaults to bBuildDeveloperTools)
-
-$ bCompileLeanAndMeanUE (Boolean): Whether to compile lean and mean version of UE.
 
 $ bCompileSpeedTree (Boolean): Whether we should compile in support for Simplygon or not.
 
@@ -360,8 +352,6 @@ $ bWithPerfCounters (Boolean): Whether to include PerfCounters support.
 
 $ bWithLiveCoding (Boolean): Whether to enable support for live coding
 
-$ bUseBackwardsCompatibleDefaults (Boolean): Whether to use backwards compatible defaults for this module. By default, engine modules always use the latest default settings, while project modules do not (to support an easier migration path).
-
 $ bHasExports (Boolean): Whether the final executable should export symbols.
 
 $ bBuildAdditionalConsoleApp (Boolean): If true, creates an additional console application. Hack for Windows, where it's not possible to conditionally inherit a parent's console Window depending on how the application is invoked; you have to link the same executable with a different subsystem setting.
@@ -373,12 +363,6 @@ $ bAdaptiveUnityDisablesPCHForProject (Boolean): Whether to disable force-includ
 $ DefaultWarningLevel (WarningLevel): Default treatment of uncategorized warnings
 
 $ DeprecationWarningLevel (WarningLevel): Level to report deprecation warnings as errors
-
-$ bShadowVariableErrors (Boolean): Forces shadow variable warnings to be treated as errors on platforms that support it.
-
-$ bStripSymbolsOnIOS (Boolean): Whether to strip iOS symbols or not (implied by bGeneratedSYMFile).
-
-$ bCreateStubIPA (Boolean): If true, then a stub IPA will be generated when compiling is done (minimal files needed for a valid IPA).
 
 $ bLegacyPublicIncludePaths (Boolean): Add all the public folders as include paths for the compile environment.
 

@@ -248,6 +248,10 @@ $ bShowCompilationTimes : Whether to show compilation times along with worst off
 
 $ bShowPerActionCompilationTimes : Whether to show compilation times for each executed action
 
+$ bLogActionCommandLines : Whether to log command lines for actions being executed
+
+$ bPrintActionTargetNames : Add target names for each action executed
+
 ### HybridExecutor
 
 $ MaxLocalActions : Maximum number of actions to execute locally.
@@ -259,6 +263,10 @@ $ bStopCompilationAfterErrors : When enabled, will stop compiling targets after 
 $ bShowCompilationTimes : Whether to show compilation times along with worst offenders or not.
 
 $ bShowPerActionCompilationTimes : Whether to show compilation times for each executed action
+
+$ bLogActionCommandLines : Whether to log command lines for actions being executed
+
+$ bPrintActionTargetNames : Add target names for each action executed
 
 $ MaxProcessorCount : Maximum processor count for local execution.
 

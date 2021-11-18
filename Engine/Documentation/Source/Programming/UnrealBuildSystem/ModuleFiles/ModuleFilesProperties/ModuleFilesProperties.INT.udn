@@ -10,12 +10,6 @@ $ IsPlugin (Boolean): True if a Plugin contains this module
 
 $ HasPackageOverride (Boolean): Returns true if there has been an override type specified on this module
 
-$ PublicLibraryPaths (List&lt;String&gt;): List of system/library paths (directory of .lib files) - typically used for External (third party) modules
-
-$ Definitions (List&lt;String&gt;): Accessor for the PublicDefinitions list
-
-$ PlatformSpecificDynamicallyLoadedModuleNames (List&lt;String&gt;): Extra modules this module may require at run time, that are on behalf of another platform (i.e. shader formats and the like)
-
 $ AutoSdkDirectory (String): The AutoSDK directory for the active host platform
 
 $ EngineDirectory (String): The current engine directory
@@ -118,8 +112,6 @@ $ AdditionalBundleResources (List&lt;BundleResource&gt;): List of addition resou
 
 $ TypeLibraries (List&lt;TypeLibrary&gt;): List of type libraries that we need to generate headers for (Windows only)
 
-$ PublicAdditionalShadowFiles (List&lt;String&gt;): For builds that execute on a remote machine (e.g. iOS), this list contains additional files that need to be copied over in order for the app to link successfully.  Source/header files and PCHs are automatically copied.  Usually this is simply a list of precompiled third party library dependencies.
-
 $ PublicDelayLoadDLLs (List&lt;String&gt;): List of delay load DLLs - typically used for External (third party) modules
 
 $ PrivateDefinitions (List&lt;String&gt;): Private compiler definitions for this module
@@ -156,19 +148,11 @@ $ PCHUsage (PCHUsageMode): Precompiled header usage for this module
 
 $ DefaultBuildSettings (BuildSettingsVersion): Which engine version's build settings to use by default.
 
-$ bUseBackwardsCompatibleDefaults (Boolean): Whether to use backwards compatible defaults for this module. By default, engine modules always use the latest default settings, while project modules do not (to support an easier migration path).
-
 $ ShadowVariableWarningLevel (WarningLevel): How to treat shadow variable warnings
-
-$ bEnableShadowVariableWarnings (Boolean): Enable warnings for shadowed variables
 
 $ UnsafeTypeCastWarningLevel (WarningLevel): How to treat unsafe implicit type cast warnings (e.g., double->float or int64->int32)
 
-$ bFasterWithoutUnity (Boolean): If true and unity builds are enabled, this module will build without unity.
-
 $ bUseUnity (Boolean): If unity builds are enabled this can be used to override if this specific module will build using Unity. This is set using the per module configurations in BuildConfiguration.
-
-$ bOutputPubliclyDistributable (Boolean): Obsolete. Use bLegalToDistributeObjectCode instead.
 
 $ bLegacyPublicIncludePaths (Boolean): Whether this module qualifies included headers from other modules relative to the root of their 'Public' folder. This reduces the number of search paths that have to be passed to the compiler, improving performance and reducing the length of the compiler command line.
 
