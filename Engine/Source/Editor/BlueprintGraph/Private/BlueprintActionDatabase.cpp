@@ -1179,8 +1179,8 @@ FBlueprintActionDatabase::~FBlueprintActionDatabase()
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 		AssetRegistry.OnAssetAdded().Remove(OnAssetAddedDelegateHandle);
-		AssetRegistry.OnAssetAdded().Remove(OnAssetRemovedDelegateHandle);
-		AssetRegistry.OnAssetAdded().Remove(OnAssetRenamedDelegateHandle);
+		AssetRegistry.OnAssetRemoved().Remove(OnAssetRemovedDelegateHandle);
+		AssetRegistry.OnAssetRenamed().Remove(OnAssetRenamedDelegateHandle);
 	}
 
 	FEditorDelegates::OnAssetsPreDelete.Remove(OnAssetsPreDeleteDelegateHandle);
@@ -1189,7 +1189,7 @@ FBlueprintActionDatabase::~FBlueprintActionDatabase()
 	if (GEngine)
 	{
 		GEngine->OnWorldAdded().Remove(OnWorldAddedDelegateHandle);
-		GEngine->OnWorldAdded().Remove(OnWorldDestroyedDelegateHandle);
+		GEngine->OnWorldDestroyed().Remove(OnWorldDestroyedDelegateHandle);
 	}
 
 	FWorldDelegates::RefreshLevelScriptActions.Remove(RefreshLevelScriptActionsDelegateHandle);
