@@ -82,7 +82,7 @@ public:
 	}
 
 public:
-	/** The object path for the asset in the form PackageName.AssetName. Only top level objects in a package can have AssetData */
+	/** The object path for the asset in the form PackageName.ObjectName, or PackageName.ObjectName:SubObjectName. */
 	FName ObjectPath;
 	/** The name of the package in which the asset is found, this is the full long package name such as /Game/Path/Package */
 	FName PackageName;
@@ -164,6 +164,18 @@ public:
 
 	/** Returns true if the given UObject is the primary asset in a package, true for maps and assets but false for secondary objects like class redirectors */
 	COREUOBJECT_API static bool IsUAsset(UObject* Object);
+
+	/**
+	 * Returns true iff the Asset is a TopLevelAsset (not a subobject, its outer is a UPackage).
+	 * Only TopLevelAssets can be PrimaryAssets in the AssetManager.
+	 */
+	COREUOBJECT_API bool IsTopLevelAsset() const;
+	
+	/**
+	 * Returns true iff the given Object, assumed to be an Asset, is a TopLevelAsset (not a subobject, its outer is a UPackage).
+	 * Only TopLevelAssets can be PrimaryAssets in the AssetManager.
+	 */
+	COREUOBJECT_API static bool IsTopLevelAsset(UObject* Object);
 
 	void Shrink()
 	{

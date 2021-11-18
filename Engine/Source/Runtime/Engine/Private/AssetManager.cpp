@@ -534,7 +534,10 @@ int32 UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataLi
 	{
 		return 0;
 	}
-
+	if (Rules.AssetScanPaths.IsEmpty())
+	{
+		return 0;
+	}
 	TArray<FString> Directories, PackageNames;
 	TArray<FString> ScanPaths = Rules.AssetScanPaths;
 	// Add path info
@@ -871,6 +874,11 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 	// Now add to map or update as needed
 	for (FAssetData& Data : AssetDataList)
 	{
+		if (!Data.IsTopLevelAsset())
+		{
+			// Only TopLevelAssets can be PrimaryAssets
+			continue;
+		}
 		FPrimaryAssetId PrimaryAssetId = ExtractPrimaryAssetIdFromData(Data, PrimaryAssetType);
 
 		// Remove invalid or wrong type assets
@@ -899,7 +907,7 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 
 		NumAdded++;
 
-		UpdateCachedAssetData(PrimaryAssetId, Data, false);
+		TryUpdateCachedAssetData(PrimaryAssetId, Data, false);
 	}
 
 	if (!IsBulkScanning())
@@ -959,8 +967,10 @@ bool UAssetManager::RegisterSpecificPrimaryAsset(const FPrimaryAssetId& PrimaryA
 		return false;
 	}
 
-	// If we got this far, it will succeed but might warn
-	UpdateCachedAssetData(PrimaryAssetId, NewAssetData, false);
+	if (!TryUpdateCachedAssetData(PrimaryAssetId, NewAssetData, false))
+	{
+		return false;
+	}
 
 	if (!IsBulkScanning())
 	{
@@ -974,21 +984,31 @@ bool UAssetManager::RegisterSpecificPrimaryAsset(const FPrimaryAssetId& PrimaryA
 enum class EAssetDataCanBeSubobject { Yes, No };
 
 template<EAssetDataCanBeSubobject ScanForSubobject>
-FSoftObjectPath ToSoftObjectPath(const FAssetData& AssetData);
+bool TryToSoftObjectPath(const FAssetData& AssetData, FSoftObjectPath& OutSoftObjectPath);
 
-void UAssetManager::UpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId, const FAssetData& NewAssetData, bool bAllowDuplicates)
+bool UAssetManager::TryUpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId, const FAssetData& NewAssetData, bool bAllowDuplicates)
 {
 	check(PrimaryAssetId.IsValid());
 
 	const TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetId.PrimaryAssetType);
 
-	if (ensure(FoundType))
+	if (!ensure(FoundType))
+	{
+		return false;
+	}
+	else
 	{
 		FPrimaryAssetTypeData& TypeData = FoundType->Get();
 
 		FPrimaryAssetData* OldData = TypeData.AssetMap.Find(PrimaryAssetId.PrimaryAssetName);
 
-		FSoftObjectPath NewAssetPath = ToSoftObjectPath<EAssetDataCanBeSubobject::No>(NewAssetData);
+		FSoftObjectPath NewAssetPath;
+		if (!TryToSoftObjectPath<EAssetDataCanBeSubobject::No>(NewAssetData, NewAssetPath))
+		{
+			UE_LOG(LogAssetManager, Warning, TEXT("Tried to add primary asset %s, but it is not a TopLevelAsset and so cannot be a primary asset"),
+				*NewAssetData.ObjectPath.ToString())
+			return false;
+		}
 
 		ensure(NewAssetPath.IsAsset());
 
@@ -1078,6 +1098,7 @@ void UAssetManager::UpdateCachedAssetData(const FPrimaryAssetId& PrimaryAssetId,
 			CachedAssetBundles.Remove(PrimaryAssetId);
 		}
 	}
+	return true;
 }
 
 int32 UAssetManager::ScanPathForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const FString& Path, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly, bool bForceSynchronousScan)
@@ -2357,7 +2378,7 @@ bool UAssetManager::OnAssetRegistryAvailableAfterInitialization(FName InName, FA
 					if (!bPathExclusionsExists || !IsPathExcludedFromScan(AssetData.PackageName.ToString()))
 					{
 						FPrimaryAssetId PrimaryAssetId = AssetData.GetPrimaryAssetId();
-						if (PrimaryAssetId.IsValid())
+						if (PrimaryAssetId.IsValid() && AssetData.IsTopLevelAsset())
 						{
 							TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetId.PrimaryAssetType);
 							if (FoundType)
@@ -2389,8 +2410,10 @@ bool UAssetManager::OnAssetRegistryAvailableAfterInitialization(FName InName, FA
 										}
 
 										// Check exclusion path
-										UpdateCachedAssetData(PrimaryAssetId, AssetData, false);
-										bRebuildReferenceList = true;
+										if (TryUpdateCachedAssetData(PrimaryAssetId, AssetData, false))
+										{
+											bRebuildReferenceList = true;
+										}
 									}
 								}
 							}
@@ -2724,32 +2747,42 @@ static bool ContainsSubobjectDelimiter(FName Name)
 }
 
 template<EAssetDataCanBeSubobject ScanForSubobject>
-FSoftObjectPath ToSoftObjectPath(const FAssetData& AssetData)
+bool TryToSoftObjectPath(const FAssetData& AssetData, FSoftObjectPath& OutObjectPath)
 {
 	if (!AssetData.IsValid())
 	{
-		return FSoftObjectPath();
+		OutObjectPath = FSoftObjectPath();
+		return false;
 	}
 	else if (EndsWithBlueprint(AssetData.AssetClass))
 	{
 		TStringBuilder<256> AssetPath;
 		AssetPath << AssetData.ObjectPath << TEXT("_C");
-		return FSoftObjectPath(FStringView(AssetPath));
+		OutObjectPath = FSoftObjectPath(FStringView(AssetPath));
+		return true;
 	}
 	else if (ScanForSubobject == EAssetDataCanBeSubobject::Yes)
 	{
-		return FSoftObjectPath(AssetData.ObjectPath);
+		OutObjectPath = FSoftObjectPath(AssetData.ObjectPath);
+		return true;
 	}
 	else
 	{
-		check(!ContainsSubobjectDelimiter(AssetData.ObjectPath));
-		return FSoftObjectPath(AssetData.ObjectPath, /* no subobject */ FString());
+		if (ContainsSubobjectDelimiter(AssetData.ObjectPath))
+		{
+			OutObjectPath = FSoftObjectPath();
+			return false;
+		}
+		OutObjectPath = FSoftObjectPath(AssetData.ObjectPath, /* no subobject */ FString());
+		return true;
 	}
 }
 
 FSoftObjectPath UAssetManager::GetAssetPathForData(const FAssetData& AssetData) const
 {
-	return ToSoftObjectPath<EAssetDataCanBeSubobject::Yes>(AssetData);
+	FSoftObjectPath Result;
+	TryToSoftObjectPath<EAssetDataCanBeSubobject::Yes>(AssetData, Result);
+	return Result;
 }
 
 void UAssetManager::GetAssetDataForPathInternal(IAssetRegistry& AssetRegistry, const FString& AssetPath, OUT FAssetData& OutAssetData) const
@@ -4246,7 +4279,7 @@ void UAssetManager::OnInMemoryAssetCreated(UObject *Object)
 
 			GetAssetDataForPathInternal(AssetRegistry, Object->GetPathName(), NewAssetData);
 
-			if (NewAssetData.IsValid())
+			if (NewAssetData.IsValid() && NewAssetData.IsTopLevelAsset())
 			{
 				// Make sure it's in a valid path
 				bool bFoundPath = false;
@@ -4262,9 +4295,10 @@ void UAssetManager::OnInMemoryAssetCreated(UObject *Object)
 				if (bFoundPath)
 				{
 					// Add or update asset data
-					UpdateCachedAssetData(PrimaryAssetId, NewAssetData, true);
-
-					RebuildObjectReferenceList();
+					if (TryUpdateCachedAssetData(PrimaryAssetId, NewAssetData, true))
+					{
+						RebuildObjectReferenceList();
+					}
 				}
 			}
 		}
@@ -4379,7 +4413,7 @@ void UAssetManager::RefreshAssetData(UObject* ChangedObject)
 
 		if (ensure(NewData.IsValid()))
 		{
-			UpdateCachedAssetData(PrimaryAssetId, NewData, false);
+			TryUpdateCachedAssetData(PrimaryAssetId, NewData, false);
 		}
 	}
 	else

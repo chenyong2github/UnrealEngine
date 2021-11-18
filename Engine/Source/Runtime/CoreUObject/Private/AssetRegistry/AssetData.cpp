@@ -129,6 +129,27 @@ bool FAssetData::IsUAsset(UObject* InAsset)
 	return DetectIsUAssetByNames(PackageNameStrBuilder, AssetNameStrBuilder);
 }
 
+bool FAssetData::IsTopLevelAsset() const
+{
+	int32 SubObjectIndex;
+	FStringView(WriteToString<256>(ObjectPath)).FindChar(SUBOBJECT_DELIMITER_CHAR, SubObjectIndex);
+	return SubObjectIndex == INDEX_NONE;
+}
+
+bool FAssetData::IsTopLevelAsset(UObject* Object)
+{
+	if (!Object)
+	{
+		return false;
+	}
+	UObject* Outer = Object->GetOuter();
+	if (!Outer)
+	{
+		return false;
+	}
+	return Outer->IsA<UPackage>();
+}
+
 void FAssetData::SetTagsAndAssetBundles(FAssetDataTagMap&& Tags)
 {
 	using namespace UE::AssetData::Private;
