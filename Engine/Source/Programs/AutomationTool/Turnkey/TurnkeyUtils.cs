@@ -292,11 +292,14 @@ namespace Turnkey
 				ProjectNames.AddRange(ProjectsByType[CurrentMode].Select(x => (CurrentMode == ProjectMode.Recent) ? x.FullName : x.GetFileNameWithoutAnyExtensions()));
 
 				// and finally a manual entry option
-#if WINDOWS
-				ProjectNames.Add("[Browse...]");
-#else
-				ProjectNames.Add("[Enter Path To .uproject...]");
-#endif
+				if (RuntimePlatform.IsWindows)
+				{
+					ProjectNames.Add("[Browse...]");
+				}
+				else
+				{
+					ProjectNames.Add("[Enter Path To .uproject...]");
+				}
 
 				int Default = LastProject == null ? -1 : ProjectNames.FindIndex(x => x.Equals(LastProject, StringComparison.OrdinalIgnoreCase));
 				int Choice = TurnkeyUtils.ReadInputInt(string.Format("Choose a {0} project to execute, or select a set of projects to list. (You can skip this by specifying -project=XXX on the commandline)", CurrentMode), ProjectNames, true, Default == -1 ? -1 : Default + 1);
@@ -310,47 +313,43 @@ namespace Turnkey
 				// look for manual entry option
 				if (Choice == ProjectNames.Count - 1)
 				{
-#if WINDOWS
-					System.Windows.Forms.OpenFileDialog Dialog = new System.Windows.Forms.OpenFileDialog();
-					Dialog.Filter = "Project Files (*.uproject)|*.uproject";
-					Dialog.AutoUpgradeEnabled = true;
-					Dialog.CheckFileExists = true;
-//						Dialog.InitialDirectory = TurnkeySettings.GetUserSettingIfSet("User_Last")
-
-					System.Windows.Forms.DialogResult Result = System.Windows.Forms.DialogResult.None;
-					System.Threading.Thread t = new System.Threading.Thread(x =>
+					if (RuntimePlatform.IsWindows)
 					{
-						Result = Dialog.ShowDialog();
-					});
-
-					t.SetApartmentState(System.Threading.ApartmentState.STA);
-					t.Start();
-					t.Join();
-
-					if (Result != System.Windows.Forms.DialogResult.OK)
-					{
-						continue;
-					}
-					Project = Dialog.FileName;
-#else
-					while (true)
-					{
-						string ProjectChoice = TurnkeyUtils.ReadInput("Enter path to .uproject file:");
-						if (!File.Exists(ProjectChoice))
+						string ChosenFile = null;
+						System.Threading.Thread t = new System.Threading.Thread(x =>
 						{
-							bool bResponse = TurnkeyUtils.GetUserConfirmation(string.Format("'{0}' doesn't exist. Would you like to enter another path?", ProjectChoice), false);
-							if (bResponse == false)
+							ChosenFile = UnrealWindowsForms.Utils.ShowOpenFileDialogAndReturnFilename("Project Files (*.uproject)|*.uproject");
+						});
+
+						t.SetApartmentState(System.Threading.ApartmentState.STA);
+						t.Start();
+						t.Join();
+
+						if (ChosenFile == null)
+						{
+							continue;
+						}
+					}
+					else
+					{
+						while (true)
+						{
+							string ProjectChoice = TurnkeyUtils.ReadInput("Enter path to .uproject file:");
+							if (!File.Exists(ProjectChoice))
 							{
+								bool bResponse = TurnkeyUtils.GetUserConfirmation(string.Format("'{0}' doesn't exist. Would you like to enter another path?", ProjectChoice), false);
+								if (bResponse == false)
+								{
+									break;
+								}
+							}
+							else
+							{
+								Project = ProjectChoice;
 								break;
 							}
 						}
-						else
-						{
-							Project = ProjectChoice;
-							break;
-						}
 					}
-#endif
 
 					// if we got a valid vhoice, remember it
 					if (!string.IsNullOrEmpty(Project))

@@ -5,10 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
-#if WINDOWS
 using System.Security.AccessControl;
 using System.Security.Principal;
-#endif
 
 namespace Turnkey
 {
@@ -124,7 +122,6 @@ namespace Turnkey
 
 		private bool VerifyPathAccess( string PathString )
 		{
-#if WINDOWS
 			bool bResult = false;
 
 			DirectoryInfo DirInfo = new DirectoryInfo(PathString);
@@ -166,10 +163,6 @@ namespace Turnkey
 				Turnkey.LogWarning($"You do not have permission to access {PathString}");
 			}
 			return bResult;
-#else
-			// WindowsIdentity not supported on Mac/Linux
-			return true;
-#endif
 		}
 
 		private void ExpandWildcards(string Prefix, string PathString, Dictionary<string, List<string>> Output, List<string> ExpansionSet)

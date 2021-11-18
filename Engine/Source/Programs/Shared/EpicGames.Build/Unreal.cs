@@ -70,12 +70,18 @@ namespace UnrealBuildBase
 
 			// the UnrealBuildTool executable is assumed to be located under {RootDirectory}/Engine/Binaries/DotNET/UnrealBuildTool/
 			FileReference UnrealBuildToolPath = FileReference.Combine(EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool", UBTName);
-			
+
 			UnrealBuildToolPath = FileReference.FindCorrectCase(UnrealBuildToolPath);
 
 			if (!FileReference.Exists(UnrealBuildToolPath))
 			{
-				throw new Exception($"Unable to find {UBTName} in the expected location at {UnrealBuildToolPath.FullName}");
+				// if there's no exe found, use the dll as a fallback
+				UnrealBuildToolPath = FileReference.FindCorrectCase(UnrealBuildToolPath.ChangeExtension(".dll"));
+			}
+
+			if (!FileReference.Exists(UnrealBuildToolPath))
+			{
+				throw new Exception($"Unable to find UnrealBuildTool in the expected location at {UnrealBuildToolPath.FullName}");
 			}
 
 			return UnrealBuildToolPath;

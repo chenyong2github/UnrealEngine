@@ -77,6 +77,12 @@ namespace AutomationTool
 
 			if (!CommandUtils.FileExists(UATExe))
 			{
+				// use the dll as a fallback if the exe doesn't exist
+				UATExe = Assembly.GetEntryAssembly().GetOriginalLocation();
+			}
+
+			if (!CommandUtils.FileExists(UATExe))
+			{
 				throw new AutomationException("Could not find AutomationTool.exe. Reflection indicated it was here: {0}", UATExe);
 			}
 
