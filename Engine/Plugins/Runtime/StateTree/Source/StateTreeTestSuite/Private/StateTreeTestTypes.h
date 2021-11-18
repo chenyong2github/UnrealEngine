@@ -388,7 +388,7 @@ struct FTestEval_SmartObjectSensor : public FStateTreeEvaluatorBase
 
 
 USTRUCT()
-struct FTestTask_ReserveSmartObjectInstanceData : public FStateTreeTaskBase
+struct FTestTask_ReserveSmartObjectInstanceData
 {
 	GENERATED_BODY()
 
@@ -728,7 +728,7 @@ struct FTestTask_UseSmartObject : public FStateTreeTaskBase
 	FTestTask_UseSmartObject(const FName InName) { Name = InName; }
 	virtual ~FTestTask_UseSmartObject() {}
 
-	virtual const UStruct* GetRuntimeDataType() const { return FTestTask_UseSmartObjectInstanceData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType()const override { return FTestTask_UseSmartObjectInstanceData::StaticStruct(); }
 
 	virtual bool Link(FStateTreeLinker& Linker) override
 	{
