@@ -2196,7 +2196,20 @@ void SSubobjectEditor::OnGetChildrenForTree(FSubobjectEditorTreeNodePtrType InNo
 		const TArray<FSubobjectEditorTreeNodePtrType>& Children = InNodePtr->GetChildren();
 		OutChildren.Reserve(Children.Num());
 
-		OutChildren = Children;
+		if (GetComponentTypeFilterToApply() || !GetFilterText().IsEmpty())
+		{
+			for(FSubobjectEditorTreeNodePtrType Child : Children)
+			{
+				if (!Child->IsFlaggedForFiltration())
+				{
+					OutChildren.Add(Child);
+				}
+			}
+		}
+		else
+		{
+			OutChildren = Children;	
+		}
 	}
 	else
 	{
