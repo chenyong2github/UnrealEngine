@@ -1483,12 +1483,12 @@ public class IOSPlatform : Platform
 				int EndPos = Contents.IndexOf("</string>", Pos);
 				BundleIdentifier = Contents.Substring(Pos, EndPos - Pos);
 			}
-			string Arguments = "/usr/bin/xctrace";
+			string Arguments = "/usr/bin/xcrun xctrace";
 			Arguments += " record";
 			Arguments += " --device '" + Params.DeviceNames[0] + "'";
 			Arguments += " --template 'Activity Monitor'";
 			Arguments += " --output \"" + Params.BaseStageDirectory + "/" + PlatformName + "/launch.trace\"";
-			Arguments += " --attach '" + BundleIdentifier + "'";
+			Arguments += " --launch '" + BundleIdentifier + "'";
 			IProcessResult ClientProcess = Run("/usr/bin/env", Arguments, null, ClientRunFlags | ERunOptions.NoWaitForExit);
 			return new IOSClientProcess(ClientProcess, Params.DeviceNames[0]);
 		}
