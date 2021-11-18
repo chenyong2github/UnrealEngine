@@ -33,15 +33,8 @@ FTrajectorySample UMotionTrajectoryComponent::CalcWorldSpacePresentTrajectorySam
 	return FTrajectorySample();
 }
 
-bool UMotionTrajectoryComponent::HasTrajectoryTickedThisFrame() const
-{
-	return GFrameCounter == LastTrajectoryTickFrame;
-}
-
 void UMotionTrajectoryComponent::TickTrajectory(float DeltaTime)
 {
-	LastTrajectoryTickFrame = static_cast<uint32>(GFrameCounter);
-
 	// Compute the instantaneous/present trajectory sample and guarantee that is zeroed on all accumulated domains
 	PresentTrajectorySampleWS = CalcWorldSpacePresentTrajectorySample(DeltaTime);
 	PresentTrajectorySampleWS.AccumulatedDistance = 0.f;
@@ -163,12 +156,7 @@ void UMotionTrajectoryComponent::TickHistoryEvictionPolicy()
 			});
 	}
 
-	// Disallow trajectory samples beyond the maximum count
-	// An opportunity to insert more samples will arise as history decays
-	if (SampleHistory.Num() < MaxSamples)
-	{
-		SampleHistory.Emplace(PresentTrajectorySampleLS);
-	}
+	SampleHistory.Emplace(PresentTrajectorySampleLS);
 	
 	// Cache the present world space sample as the next frame's reference point for delta computation
 	PreviousWorldTransform = WorldTransform;
@@ -205,18 +193,13 @@ void UMotionTrajectoryComponent::BeginPlay()
 	PresentTrajectorySampleWS.Transform = PresentTransform;
 
 	PresentTrajectorySampleLS = FTrajectorySample();
-
-	LastTrajectoryTickFrame = 0u;
 }
 
 void UMotionTrajectoryComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (!HasTrajectoryTickedThisFrame())
-	{
-		TickTrajectory(DeltaTime);
-	}
+	TickTrajectory(DeltaTime);
 }
 
 FTrajectorySampleRange UMotionTrajectoryComponent::GetTrajectory() const

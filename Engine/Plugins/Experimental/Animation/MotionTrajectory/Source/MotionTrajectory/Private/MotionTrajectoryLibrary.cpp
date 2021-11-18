@@ -227,9 +227,9 @@ FTrajectorySampleRange UMotionTrajectoryBlueprintLibrary::MakeTrajectoryRelative
 	const AActor* Owner = Component->GetOwner();
 	const FTransform OwnerTransformWS = Owner->GetActorTransform();
 	const FTransform ComponentTransformWS = Component->GetComponentTransform();
-	const FQuat Rotation = ComponentTransformWS.GetRotation().Inverse() * OwnerTransformWS.GetRotation();
+	const FTransform ReferenceChangeTransform = OwnerTransformWS.GetRelativeTransform(ComponentTransformWS);
 
-	ActorTrajectory.Rotate(Rotation);
+	ActorTrajectory.TransformReferenceFrame(ReferenceChangeTransform);
 	return ActorTrajectory;
 }
 
@@ -238,6 +238,8 @@ void UMotionTrajectoryBlueprintLibrary::DebugDrawTrajectory(const AActor* Actor
 	, const FTrajectorySampleRange& Trajectory
 	, const FLinearColor PredictionColor
 	, const FLinearColor HistoryColor
+	, float TransformScale
+	, float TransformThickness
 	, float ArrowScale
 	, float ArrowSize
 	, float ArrowThickness
@@ -250,6 +252,8 @@ void UMotionTrajectoryBlueprintLibrary::DebugDrawTrajectory(const AActor* Actor
 			, WorldTransform.IsValid() ? WorldTransform : FTransform::Identity
 			, PredictionColor
 			, HistoryColor
+			, TransformScale
+			, TransformThickness
 			, ArrowScale
 			, ArrowSize
 			, ArrowThickness

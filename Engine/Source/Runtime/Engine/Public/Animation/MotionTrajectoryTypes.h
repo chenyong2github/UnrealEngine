@@ -40,14 +40,6 @@ struct ENGINE_API FTrajectorySample
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
 	FVector LinearVelocity = FVector::ZeroVector;
 
-	// Axis around which the angular velocity rotates the in-motion object
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motion Trajectory")
-	FVector AngularVelocityAxis = FVector::ZeroVector;
-
-	// Rotation speed around AngularVelocityAxis
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Motion Trajectory")
-	float AngularSpeed = 0.0f;
-
 	// Linear acceleration relative to the sampled in-motion object
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Motion Trajectory")
 	FVector LinearAcceleration = FVector::ZeroVector;
@@ -65,6 +57,8 @@ struct ENGINE_API FTrajectorySample
 	// DeltaSeconds
 	void PrependOffset(const FTransform DeltaTransform, float DeltaSeconds);
 
+	void TransformReferenceFrame(const FTransform DeltaTransform);
+
 	// Determines if all sample properties are zeroed
 	bool IsZeroSample() const;
 };
@@ -78,7 +72,9 @@ struct ENGINE_API FTrajectorySampleRange
 	// Debug rendering contants
 	static constexpr FLinearColor DebugDefaultPredictionColor{ 0.f, 1.f, 0.f };
 	static constexpr FLinearColor DebugDefaultHistoryColor{ 0.f, 0.f, 1.f };
-	static constexpr float DebugDefaultArrowScale = 10.f;
+	static constexpr float DebugDefaultTransformScale = 10.f;
+	static constexpr float DebugDefaultTransformThickness = 2.f;
+	static constexpr float DebugDefaultArrowScale = 0.025f;
 	static constexpr float DebugDefaultArrowSize = 40.f;
 	static constexpr float DebugDefaultArrowThickness = 2.f;
 
@@ -101,6 +97,9 @@ struct ENGINE_API FTrajectorySampleRange
 	// Rotates all samples in the trajectory
 	void Rotate(const FQuat& Rotation);
 
+	// Rotates all samples in the trajectory
+	void TransformReferenceFrame(const FTransform& Transform);
+
 	// Determine if any trajectory samples are present
 	bool HasSamples() const;
 
@@ -113,9 +112,11 @@ struct ENGINE_API FTrajectorySampleRange
 		, const FTransform& WorldTransform
 		, const FLinearColor PredictionColor = DebugDefaultPredictionColor
 		, const FLinearColor HistoryColor = DebugDefaultHistoryColor
-		, float ArrowScale = DebugDefaultArrowScale
-		, float ArrowSize = DebugDefaultArrowSize
-		, float ArrowThickness = DebugDefaultArrowThickness) const;
+		, float TransformScale = DebugDefaultTransformScale
+		, float TransformThickness = DebugDefaultTransformThickness
+		, float VelArrowScale = DebugDefaultArrowScale
+		, float VelArrowSize = DebugDefaultArrowSize
+		, float VelArrowThickness = DebugDefaultArrowThickness) const;
 
 	// Iterator for precise subsampling of the trajectory
 	template <typename Container> static FTrajectorySample IterSampleTrajectory(const Container& Samples, ETrajectorySampleDomain DomainType, float DomainValue, int32& InitialIdx, bool bSmoothInterp = false)

@@ -67,13 +67,11 @@ protected:
 	// Retained trajectory history samples
 	TRingBuffer<FTrajectorySample> SampleHistory = {};
 
-	// Retained instantaneous/present trajectory
+	// Retained instantaneous/present trajectory in world space
 	FTrajectorySample PresentTrajectorySampleWS = {};
 
+	// Retained instantaneous/present trajectory in actor space
 	FTrajectorySample PresentTrajectorySampleLS = {};
-
-	// if anything makes the trajectory tick before ::TickComponent, skip it.
-	uint32 LastTrajectoryTickFrame = 0u;
 
 	// Gets the instantaneous/present trajectory sample of the current frame
 	virtual FTrajectorySample CalcWorldSpacePresentTrajectorySample(float DeltaTime) const;
@@ -87,8 +85,6 @@ protected:
 	// Combines all trajectory samples in the past, present, and future into a unifed trajectory range
 	FTrajectorySampleRange CombineHistoryPresentPrediction(bool bIncludeHistory, const FTrajectorySampleRange& Prediction) const;
 
-	// Checks the component internal frame counter to say if the component has already ticked this frame or not
-	bool HasTrajectoryTickedThisFrame() const;
 
 	// Forcefully evicts all trajectory history and resets internal history tracking state
 	void FlushHistory();
