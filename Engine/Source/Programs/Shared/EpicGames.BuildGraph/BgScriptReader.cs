@@ -1445,7 +1445,7 @@ namespace EpicGames.BuildGraph
 		{
 			if(await EvaluateConditionAsync(Element))
 			{
-				string Name = Element.GetAttribute("Name");
+				string Name = ReadAttribute(Element, "Name");
 				if (ValidateName(Element, Name))
 				{
 					BgScriptMacro? Macro;

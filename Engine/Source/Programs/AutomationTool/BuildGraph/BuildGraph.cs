@@ -117,7 +117,7 @@ namespace AutomationTool
 		{
 			try
 			{
-				return Task.FromResult(FileReference.Exists(FileReference.Combine(Unreal.RootDirectory, Path)));
+				return Task.FromResult(FileReference.Exists(FileReference.Combine(Unreal.RootDirectory, Path)) || DirectoryReference.Exists(DirectoryReference.Combine(Unreal.RootDirectory, Path)));
 			}
 			catch
 			{
