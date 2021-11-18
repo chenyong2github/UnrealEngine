@@ -40,7 +40,7 @@ public:
 #endif
 		, _Orientation( Orient_Vertical )
 		, _DragFocusCause( EFocusCause::Mouse )
-		, _Thickness( FVector2D( _Style->Thickness, _Style->Thickness ) )
+		, _Thickness()
 		, _Padding( 2.0f )
 		{}
 
