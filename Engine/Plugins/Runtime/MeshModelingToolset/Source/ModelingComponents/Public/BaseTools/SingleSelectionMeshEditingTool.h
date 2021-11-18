@@ -54,7 +54,8 @@ public:
 	virtual UWorld* GetTargetWorld() { return TargetWorld; }
 
 protected:
-	UWorld* TargetWorld = nullptr;
+	UPROPERTY()
+	TObjectPtr<UWorld> TargetWorld = nullptr;
 
 	//
 	// Mesh Selection support
