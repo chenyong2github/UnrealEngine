@@ -132,10 +132,10 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 	if(RequiredBones.IsValid())
 	{
 		RefPoseSetterHash.Reset();
-		
-		TArray<FName> const& UIDToNameLookUpTable = RequiredBones.GetUIDToNameLookupTable();
 
-		auto CacheMapping = [&](const TMap<FName, FName>& Mapping, TArray<FName> const& InUIDToNameLookUpTable, 
+		const FSmartNameMapping* CurveMapping = RequiredBones.GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+
+		auto CacheMapping = [&](const TMap<FName, FName>& Mapping, const FSmartNameMapping* CurveNameMapping, 
 			const FAnimationCacheBonesContext& InContext, URigHierarchy* InHierarchy)
 		{
 			for (auto Iter = Mapping.CreateConstIterator(); Iter; ++Iter)
@@ -146,8 +146,8 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 
 				if (SourcePath != NAME_None && TargetPath != NAME_None)
 				{
-					int32 Found = InUIDToNameLookUpTable.Find(TargetPath);
-					if (Found != INDEX_NONE)
+					const SmartName::UID_Type Found = CurveNameMapping->FindUID(TargetPath);
+					if (Found != SmartName::MaxUID)
 					{
 						// set value - sound should be UID
 						InputToCurveMappingUIDs.Add(Iter.Value()) = Found;
@@ -177,8 +177,8 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 			Hierarchy = CurrentControlRig->GetHierarchy();
 		}
 
-		CacheMapping(InputMapping, UIDToNameLookUpTable, Context, Hierarchy);
-		CacheMapping(OutputMapping, UIDToNameLookUpTable, Context, Hierarchy);
+		CacheMapping(InputMapping, CurveMapping, Context, Hierarchy);
+		CacheMapping(OutputMapping, CurveMapping, Context, Hierarchy);
 	}
 }
 
