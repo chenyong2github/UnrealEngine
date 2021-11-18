@@ -19968,6 +19968,19 @@ void UMaterialExpressionThinTranslucentMaterialOutput::GetCaption(TArray<FString
 	OutCaptions.Add(FString(TEXT("Thin Translucent Material")));
 }
 
+uint32 UMaterialExpressionThinTranslucentMaterialOutput::GetInputType(int32 InputIndex)
+{
+	switch (InputIndex)
+	{
+	case 0:
+		return MCT_Float3;
+		break;
+	}
+
+	check(false);
+	return MCT_Float1;
+}
+
 #endif // WITH_EDITOR
 
 int32 UMaterialExpressionThinTranslucentMaterialOutput::GetNumOutputs() const
