@@ -63,7 +63,7 @@ UE::HLSLTree::FErrors::FErrors(FMemStackBase& InAllocator)
 {
 }
 
-bool UE::HLSLTree::FErrors::AddError(const FNode* InNode, FStringView InError)
+void UE::HLSLTree::FErrors::AddError(const FNode* InNode, FStringView InError)
 {
 	const int32 SizeofString = InError.Len() * sizeof(TCHAR);
 	void* Memory = Allocator->Alloc(sizeof(FError) + SizeofString, alignof(FError));
@@ -76,7 +76,7 @@ bool UE::HLSLTree::FErrors::AddError(const FNode* InNode, FStringView InError)
 	FirstError = Error;
 	NumErrors++;
 
-	return false;
+	ensureMsgf(false, TEXT("%s"), Error->Message);
 }
 
 UE::HLSLTree::FEmitContext::FEmitContext(FMemStackBase& InAllocator)
@@ -94,7 +94,7 @@ const TCHAR* UE::HLSLTree::FEmitContext::AcquireLocalDeclarationCode()
 	return AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
 }
 
-const TCHAR* UE::HLSLTree::FEmitContext::CastShaderValue(const FNode* Node, const TCHAR* Code, Shader::EValueType SourceType, Shader::EValueType DestType, ECastFlags Flags)
+const TCHAR* UE::HLSLTree::FEmitContext::CastShaderValue(const FNode* Node, const TCHAR* Code, const FType& SourceType, const FType& DestType, ECastFlags Flags)
 {
 	if (SourceType == DestType)
 	{
@@ -281,6 +281,80 @@ void UE::HLSLTree::FEmitContext::Finalize()
 	MaterialCompilationOutput->UniformExpressionSet.UniformPreshaderBufferSize = (UniformPreshaderOffset + 3u) / 4u;
 }
 
+const TCHAR* UE::HLSLTree::FType::GetName() const
+{
+	if (StructType)
+	{
+		return StructType->Name;
+	}
+
+	check(ValueType != Shader::EValueType::Struct);
+	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(ValueType);
+	return TypeDesc.Name;
+}
+
+int32 UE::HLSLTree::FType::GetNumComponents() const
+{
+	if (StructType)
+	{
+		return StructType->ComponentTypes.Num();
+	}
+	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(ValueType);
+	return TypeDesc.NumComponents;
+}
+
+bool UE::HLSLTree::FType::Merge(const FType& OtherType)
+{
+	if (ValueType == Shader::EValueType::Void)
+	{
+		ValueType = OtherType.ValueType;
+		StructType = OtherType.StructType;
+		return true;
+	}
+
+	if (IsStruct() || OtherType.IsStruct())
+	{
+		return StructType == OtherType.StructType;
+	}
+
+	if (ValueType != OtherType.ValueType)
+	{
+		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(ValueType);
+		const Shader::FValueTypeDescription OtherTypeDesc = Shader::GetValueTypeDescription(OtherType);
+		if (TypeDesc.ComponentType != OtherTypeDesc.ComponentType)
+		{
+			return false;
+		}
+
+		const int8 NumComponents = FMath::Max(TypeDesc.NumComponents, OtherTypeDesc.NumComponents);
+		ValueType = Shader::MakeValueType(TypeDesc.ComponentType, NumComponents);
+	}
+	return true;
+}
+
+UE::HLSLTree::FStructFieldRef UE::HLSLTree::FStructType::FindFieldByName(const TCHAR* InName) const
+{
+	for (const FStructField& Field : Fields)
+	{
+		if (FCString::Strcmp(Field.Name, InName) == 0)
+		{
+			return FStructFieldRef(Field.Type, Field.ComponentIndex, Field.Type.GetNumComponents());
+		}
+	}
+
+	return FStructFieldRef();
+}
+
+UE::HLSLTree::FConstantValue::FConstantValue(const Shader::FValue& InValue) : Type(InValue.GetType())
+{
+	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
+	Component.Empty(TypeDesc.NumComponents);
+	for (int32 i = 0; i < TypeDesc.NumComponents; ++i)
+	{
+		Component.Add(InValue.Component[i]);
+	}
+}
+
 UE::HLSLTree::FScope* UE::HLSLTree::FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
 {
 	FScope* Scope0 = Lhs;
@@ -304,69 +378,50 @@ UE::HLSLTree::FScope* UE::HLSLTree::FScope::FindSharedParent(FScope* Lhs, FScope
 	return Scope0;
 }
 
-bool UE::HLSLTree::FExpressionLocalPHI::UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents)
+void UE::HLSLTree::FExpressionLocalPHI::UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType)
 {
-	Shader::EValueType TypePerValue[MaxNumPreviousScopes] = { Shader::EValueType::Void };
+	FType TypePerValue[MaxNumPreviousScopes];
 	int32 NumValidTypes = 0;
-	Shader::EValueComponentType ComponentType = Shader::EValueComponentType::Void;
-	int8 NumComponents = 0;
+	FType CurrentType;
 
 	auto UpdateValueTypes = [&]()
 	{
 		for (int32 i = 0; i < NumValues; ++i)
 		{
-			if (TypePerValue[i] == Shader::EValueType::Void)
+			if (!TypePerValue[i])
 			{
-				TypePerValue[i] = RequestExpressionType(Context, Values[i], InRequestedNumComponents);
-				if (TypePerValue[i] != Shader::EValueType::Void)
+				TypePerValue[i] = RequestExpressionType(Context, Values[i], RequestedType);
+				if (TypePerValue[i])
 				{
-					const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(TypePerValue[i]);
-					if (ComponentType == Shader::EValueComponentType::Void)
+					if (!CurrentType.Merge(TypePerValue[i]))
 					{
-						ComponentType = TypeDesc.ComponentType;
-						NumComponents = TypeDesc.NumComponents;
-					}
-					else
-					{
-						NumComponents = FMath::Max(NumComponents, TypeDesc.NumComponents);
-						if (ComponentType != TypeDesc.ComponentType)
-						{
-							return Context.Errors.AddError(this, TEXT("Type mismatch"));
-						}
+						return Context.Errors.AddError(this, TEXT("Type mismatch"));
 					}
 					check(NumValidTypes < NumValues);
 					NumValidTypes++;
 				}
 			}
 		}
-		return true;
 	};
 
 	// First try to assign all the values we can
-	if (!UpdateValueTypes())
-	{
-		return false;
-	}
+	UpdateValueTypes();
 
 	// Assuming we have at least one value with a valid type, we use that to initialize our type
-	if (!SetType(Context, Shader::MakeValueType(ComponentType, NumComponents)))
-	{
-		return false;
-	}
+	SetType(Context, CurrentType);
 
 	if (NumValidTypes < NumValues)
 	{
 		// Now try to assign remaining types that failed the first iteration 
-		if (!UpdateValueTypes())
+		UpdateValueTypes();
+		if (NumValidTypes < NumValues)
 		{
-			return false;
+			return Context.Errors.AddError(this, TEXT("Failed to compute all types for LocalPHI"));
 		}
 	}
-
-	return NumValidTypes == NumValues;
 }
 
-bool UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
+void UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 {
 	FExpression* ForwardExpression = Values[0];
 	for (int32 i = 1; i < NumValues; ++i)
@@ -385,10 +440,7 @@ bool UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 	}
 
 	const int32 LocalPHIIndex = Context.NumLocalPHIs++;
-	if (!SetValueInlineShaderf(Context, TEXT("LocalPHI%d"), LocalPHIIndex))
-	{
-		return false;
-	}
+	SetValueInlineShaderf(Context, TEXT("LocalPHI%d"), LocalPHIIndex);
 
 	// Find the outermost scope to declare our local variable
 	FScope* DeclarationScope = ParentScope;
@@ -397,7 +449,7 @@ bool UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 		DeclarationScope = FScope::FindSharedParent(DeclarationScope, Scopes[i]);
 		if (!DeclarationScope)
 		{
-			return false;
+			return Context.Errors.AddError(this, TEXT("Invalid LocalPHI"));
 		}
 	}
 
@@ -405,23 +457,22 @@ bool UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 	{
 		if (PrepareExpressionValue(Context, Values[i]) == EExpressionEvaluationType::None)
 		{
-			return false;
+			return Context.Errors.AddError(this, TEXT("Invalid LocalPHI"));
 		}
 	}
 
-	const Shader::EValueType Type = GetValueType();
-	const Shader::FValueTypeDescription& TypeDesc = Shader::GetValueTypeDescription(Type);
+	const FType LocalType = GetType();
 
 	bool bNeedToAddDeclaration = true;
 	for (int32 i = 0; i < NumValues; ++i)
 	{
 		FScope* ValueScope = Scopes[i];
-		const TCHAR* ValueCode = Values[i]->GetValueShader(Context, Type);
+		const TCHAR* ValueCode = Values[i]->GetValueShader(Context, LocalType);
 		ValueScope->MarkLiveRecursive();
 		if (ValueScope == DeclarationScope)
 		{
 			ValueScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%d = %s;"),
-				TypeDesc.Name,
+				LocalType.GetName(),
 				LocalPHIIndex,
 				ValueCode);
 			bNeedToAddDeclaration = false;
@@ -438,11 +489,9 @@ bool UE::HLSLTree::FExpressionLocalPHI::PrepareValue(FEmitContext& Context)
 	{
 		check(DeclarationScope->IsLive());
 		DeclarationScope->EmitDeclarationf(Context, TEXT("%s LocalPHI%d;"),
-			TypeDesc.Name,
+			LocalType.GetName(),
 			LocalPHIIndex);
 	}
-
-	return true;
 }
 
 void UE::HLSLTree::FNodeVisitor::VisitNode(FNode* Node)
@@ -478,31 +527,63 @@ UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(FNodeVisitor& Visitor
 	return Result;
 }
 
-UE::Shader::EValueType UE::HLSLTree::RequestExpressionType(FUpdateTypeContext& Context, FExpression* InExpression, int8 InRequestedNumComponents)
+UE::HLSLTree::FType UE::HLSLTree::RequestExpressionType(FUpdateTypeContext& Context, FExpression* InExpression, const FRequestedType& RequestedType)
 {
 	if (!InExpression)
 	{
 		return Shader::EValueType::Void;
 	}
 
-	if (!InExpression->bReentryFlag && InRequestedNumComponents > InExpression->RequestedNumComponents)
+	if (InExpression->bReentryFlag)
 	{
-		InExpression->bReentryFlag = true;
-		const bool bUpdateResult = InExpression->UpdateType(Context, InRequestedNumComponents);
-		InExpression->bReentryFlag = false;
+		// Valid for this to be called reentrantly
+		// Code should ensure that the type is set before the reentrant call, otherwise type will not be valid here
+		// LocalPHI nodes rely on this to break loops
+		return InExpression->Type;
+	}
 
-		if (bUpdateResult)
+	bool bNeedToUpdateType = false;
+	if (InExpression->CurrentRequestedType.RequestedComponents.Num() == 0)
+	{
+		InExpression->CurrentRequestedType = RequestedType;
+		bNeedToUpdateType = !RequestedType.IsVoid();
+	}
+	else if(InExpression->CurrentRequestedType.StructType != RequestedType.StructType)
+	{
+		Context.Errors.AddError(InExpression, TEXT("Type mismatch"));
+		return Shader::EValueType::Void;
+	}
+	else
+	{
+		const int32 NumComponents = RequestedType.GetNumComponents();
+		InExpression->CurrentRequestedType.RequestedComponents.PadToNum(NumComponents, false);
+		for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 		{
-			check(InExpression->ValueType != Shader::EValueType::Void);
-			InExpression->RequestedNumComponents = InRequestedNumComponents;
-		}
-		else
-		{
-			InExpression->ValueType = Shader::EValueType::Void;
+			if (!InExpression->CurrentRequestedType.IsComponentRequested(ComponentIndex) && RequestedType.IsComponentRequested(ComponentIndex))
+			{
+				InExpression->CurrentRequestedType.RequestedComponents[ComponentIndex] = true;
+				bNeedToUpdateType = true;
+			}
 		}
 	}
 
-	return InExpression->ValueType;
+	if (bNeedToUpdateType)
+	{
+		check(!InExpression->CurrentRequestedType.IsVoid());
+
+		InExpression->bReentryFlag = true;
+		InExpression->UpdateType(Context, InExpression->CurrentRequestedType);
+		InExpression->bReentryFlag = false;
+
+		if (!InExpression->Type)
+		{
+			// If we failed to assign a valid type, reset the requested type as well
+			// This ensures we'll try to compute a type again the next time we're called
+			InExpression->CurrentRequestedType.Reset();
+		}
+	}
+
+	return InExpression->Type;
 }
 
 UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression)
@@ -512,7 +593,7 @@ UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::PrepareExpressionValue(FEm
 		return EExpressionEvaluationType::None;
 	}
 
-	if (InExpression->ValueType == Shader::EValueType::Void)
+	if (!InExpression->Type)
 	{
 		// Can't prepare value if we didn't successfully prepare a type
 		return EExpressionEvaluationType::None;
@@ -523,22 +604,18 @@ UE::HLSLTree::EExpressionEvaluationType UE::HLSLTree::PrepareExpressionValue(FEm
 		check(!InExpression->bReentryFlag); // Re-entry is not supported
 
 		InExpression->bReentryFlag = true;
-		const bool bPrepareResult = InExpression->PrepareValue(Context);
+		InExpression->PrepareValue(Context);
 		InExpression->bReentryFlag = false;
-
-		if (bPrepareResult)
-		{
-			check(InExpression->EvaluationType != EExpressionEvaluationType::None);
-		}
-		else
-		{
-			InExpression->EvaluationType = EExpressionEvaluationType::None;
-		}
 	}
 	return InExpression->EvaluationType;
 }
 
-bool UE::HLSLTree::FExpression::InternalSetValueShader(FEmitContext& Context, const TCHAR* InCode, int32 InLength, bool bInline)
+void UE::HLSLTree::FExpression::SetType(FUpdateTypeContext& Context, const FType& InType)
+{
+	Type = InType;
+}
+
+void UE::HLSLTree::FExpression::InternalSetValueShader(FEmitContext& Context, const TCHAR* InCode, int32 InLength, bool bInline)
 {
 	check(!Code);
 	check(EvaluationType == EExpressionEvaluationType::None);
@@ -572,56 +649,54 @@ bool UE::HLSLTree::FExpression::InternalSetValueShader(FEmitContext& Context, co
 			check(ParentScope);
 			Declaration = Context.AcquireLocalDeclarationCode();
 			ParentScope->ExpressionCodeMap.Add(Hash, Declaration);
-			const Shader::FValueTypeDescription& TypeDesc = Shader::GetValueTypeDescription(ValueType);
 			ParentScope->MarkLiveRecursive();
 			ParentScope->EmitStatementf(Context, TEXT("const %s %s = %s;"),
-				TypeDesc.Name,
+				Type.GetName(),
 				Declaration,
 				InCode);
 		}
 		Code = Declaration;
 	}
-
-	return true;
 }
 
-bool UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& InPreshader)
+void UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& InPreshader)
 {
 	check(!Preshader);
 	check(EvaluationType == EExpressionEvaluationType::None);
+	check(!Type.IsStruct());
 
 	EvaluationType = EExpressionEvaluationType::Preshader;
 	Preshader = new Shader::FPreshaderData(MoveTemp(InPreshader));
-	return true;
 }
 
-bool UE::HLSLTree::FExpression::SetValueConstant(FEmitContext& Context, const Shader::FValue& InValue)
+void UE::HLSLTree::FExpression::SetValueConstant(FEmitContext& Context, const Shader::FValue& InValue)
 {
 	check(EvaluationType == EExpressionEvaluationType::None);
+	check(!Type.IsStruct());
 
 	EvaluationType = EExpressionEvaluationType::Constant;
-	ConstantValue = Shader::Cast(InValue, ValueType);
-	return true;
+	ConstantValue = Shader::Cast(InValue, Type);
 }
 
-bool UE::HLSLTree::FExpression::SetValueForward(FEmitContext& Context, FExpression* Source)
+void UE::HLSLTree::FExpression::SetValueForward(FEmitContext& Context, FExpression* Source)
 {
 	check(EvaluationType == EExpressionEvaluationType::None);
 	check(Source);
 
+	ensure(Type == Source->GetType());
+
 	EvaluationType = PrepareExpressionValue(Context, Source);
 	switch (EvaluationType)
 	{
-	case EExpressionEvaluationType::None: return false;
+	case EExpressionEvaluationType::None: break;
 	case EExpressionEvaluationType::Shader: Code = Source->Code; break;
 	case EExpressionEvaluationType::Preshader: Preshader = Source->Preshader; break;
 	case EExpressionEvaluationType::Constant: ConstantValue = Source->ConstantValue; break;
-	default: checkNoEntry(); return false;
+	default: checkNoEntry(); break;
 	}
-	return true;
 }
 
-bool UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, Shader::FPreshaderData& InPreshader)
+void UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, Shader::FPreshaderData& InPreshader)
 {
 	if (InEvaluationType == EExpressionEvaluationType::Constant)
 	{
@@ -629,12 +704,12 @@ bool UE::HLSLTree::FExpression::SetValuePreshader(FEmitContext& Context, EExpres
 		FMaterialRenderContext RenderContext(nullptr, *Context.Material, nullptr);
 		Shader::FValue Value;
 		InPreshader.Evaluate(nullptr, RenderContext, Value);
-		return SetValueConstant(Context, Value);
+		SetValueConstant(Context, Value);
 	}
 	else
 	{
 		check(InEvaluationType == EExpressionEvaluationType::Preshader);
-		return SetValuePreshader(Context, InPreshader);
+		SetValuePreshader(Context, InPreshader);
 	}
 }
 
@@ -652,7 +727,7 @@ const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context)
 		{
 			check(EvaluationType == EExpressionEvaluationType::Preshader);
 			check(Preshader);
-			Context.AddPreshader(ValueType, *Preshader, FormattedCode);
+			Context.AddPreshader(Type, *Preshader, FormattedCode);
 		}
 		Code = AllocateString(*Context.Allocator, FormattedCode);
 	}
@@ -660,11 +735,11 @@ const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context)
 	return Code;
 }
 
-const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context, Shader::EValueType Type)
+const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context, const FType& InType)
 {
 	check(EvaluationType != EExpressionEvaluationType::None);
 
-	if (EvaluationType == EExpressionEvaluationType::Constant && Type != ValueType)
+	if (EvaluationType == EExpressionEvaluationType::Constant && Type != InType)
 	{
 		// If we need to cast a constant value, perform the cast first, then convert the result to HLSL
 		const Shader::FValue CastConstantValue = Shader::Cast(ConstantValue, Type);
@@ -675,7 +750,7 @@ const TCHAR* UE::HLSLTree::FExpression::GetValueShader(FEmitContext& Context, Sh
 	}
 
 	const ECastFlags CastFlags = ECastFlags::ReplicateScalar | ECastFlags::AllowAppendZeroes | ECastFlags::AllowTruncate;
-	return Context.CastShaderValue(this, GetValueShader(Context), ValueType, Type, CastFlags);
+	return Context.CastShaderValue(this, GetValueShader(Context), Type, InType, CastFlags);
 }
 
 void UE::HLSLTree::FExpression::GetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader)
@@ -880,7 +955,27 @@ void UE::HLSLTree::FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString
 	}
 }
 
-bool UE::HLSLTree::FTree::EmitHLSL(FEmitContext& Context, FStringBuilderBase& Writer) const
+void UE::HLSLTree::FStructType::WriteHLSL(FStringBuilderBase& OutString) const
+{
+	OutString.Appendf(TEXT("struct %s\n"), Name);
+	OutString.Append(TEXT("{\n"));
+	for (const FStructField& Field : Fields)
+	{
+		OutString.Appendf(TEXT("\t%s %s;\n"), Field.Type.GetName(), Field.Name);
+	}
+	OutString.Append(TEXT("};\n"));
+
+	for (const FStructField& Field : Fields)
+	{
+		OutString.Appendf(TEXT("%s %s_Set%s(%s Self, %s Value) { Self.%s = Value; return Self; }\n"),
+			Name, Name, Field.Name, Name, Field.Type.GetName(), Field.Name);
+	}
+	OutString.Append(TEXT("\n"));
+}
+
+bool UE::HLSLTree::FTree::EmitHLSL(FEmitContext& Context,
+	FStringBuilderBase& OutDeclarations,
+	FStringBuilderBase& OutCode) const
 {
 	if (!ResultStatement)
 	{
@@ -890,6 +985,10 @@ bool UE::HLSLTree::FTree::EmitHLSL(FEmitContext& Context, FStringBuilderBase& Wr
 	{
 		FUpdateTypeContext UpdateTypeContext(Context.Errors);
 		RequestScopeTypes(UpdateTypeContext, RootScope);
+		if (Context.Errors.Num() > 0)
+		{
+			return false;
+		}
 	}
 
 	ResultStatement->bEmitHLSL = true;
@@ -899,15 +998,32 @@ bool UE::HLSLTree::FTree::EmitHLSL(FEmitContext& Context, FStringBuilderBase& Wr
 		return false;
 	}
 
+	if (Context.Errors.Num() > 0)
+	{
+		return false;
+	}
+
 	if (RootScope->Statement)
 	{
 		RootScope->Statement->EmitHLSL(Context);
+		if (Context.Errors.Num() > 0)
+		{
+			return false;
+		}
 	}
 
 	Context.Finalize();
 
-	RootScope->WriteHLSL(1, Writer);
-	return true;
+	RootScope->WriteHLSL(1, OutCode);
+
+	const FStructType* StructType = StructTypes;
+	while (StructType)
+	{
+		StructType->WriteHLSL(OutDeclarations);
+		StructType = StructType->NextType;
+	}
+
+	return Context.Errors.Num() == 0;
 }
 
 void UE::HLSLTree::FTree::RegisterExpression(FScope& Scope, FExpression* Expression)
@@ -937,6 +1053,68 @@ UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParam
 {
 	FTextureParameterDeclaration* Declaration = NewNode<FTextureParameterDeclaration>(Name, DefaultValue);
 	return Declaration;
+}
+
+namespace UE
+{
+namespace HLSLTree
+{
+namespace Private
+{
+
+static void SetComponentTypes(Shader::EValueComponentType* ComponentTypes, int32 ComponentIndex, const HLSLTree::FType& Type)
+{
+	if (Type.IsStruct())
+	{
+		for (const FStructField& Field : Type.StructType->Fields)
+		{
+			SetComponentTypes(ComponentTypes, ComponentIndex + Field.ComponentIndex, Field.Type);
+		}
+	}
+	else
+	{
+		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
+		for (int32 i = 0; i < TypeDesc.NumComponents; ++i)
+		{
+			ComponentTypes[ComponentIndex + i] = TypeDesc.ComponentType;
+		}
+	}
+}
+
+}
+}
+}
+
+const UE::HLSLTree::FStructType* UE::HLSLTree::FTree::NewStructType(const FStructTypeInitializer& Initializer)
+{
+	const int32 NumFields = Initializer.Fields.Num();
+	int32 ComponentIndex = 0;
+	FStructField* Fields = new(*Allocator) FStructField[NumFields];
+	for (int32 FieldIndex = 0; FieldIndex < NumFields; ++FieldIndex)
+	{
+		const FStructFieldInitializer& FieldInitializer = Initializer.Fields[FieldIndex];
+		const FType& FieldType = FieldInitializer.Type;
+		FStructField& Field = Fields[FieldIndex];
+		Field.Name = AllocateString(*Allocator, FieldInitializer.Name);
+		Field.Type = FieldType;
+		Field.ComponentIndex = ComponentIndex;
+		ComponentIndex += FieldType.GetNumComponents();
+	}
+
+	Shader::EValueComponentType* ComponentTypes = new(*Allocator) Shader::EValueComponentType[ComponentIndex];
+	for (int32 FieldIndex = 0; FieldIndex < NumFields; ++FieldIndex)
+	{
+		const FStructField& Field = Fields[FieldIndex];
+		Private::SetComponentTypes(ComponentTypes, Field.ComponentIndex, Field.Type);
+	}
+
+	FStructType* StructType = NewNode<FStructType>();
+	StructType->Name = AllocateString(*Allocator, Initializer.Name);
+	StructType->Fields = MakeArrayView(Fields, NumFields);
+	StructType->ComponentTypes = MakeArrayView(ComponentTypes, ComponentIndex);
+	StructType->NextType = StructTypes;
+	StructTypes = StructType;
+	return StructType;
 }
 
 void UE::HLSLTree::FTree::SetResult(FStatement& InResult)

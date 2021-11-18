@@ -16,15 +16,73 @@
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "Containers/LazyPrintf.h"
 
+static UE::Shader::EValueType GetShaderType(EMaterialValueType MaterialType)
+{
+	switch (MaterialType)
+	{
+	case MCT_Float1: return UE::Shader::EValueType::Float1;
+	case MCT_Float2: return UE::Shader::EValueType::Float2;
+	case MCT_Float3: return UE::Shader::EValueType::Float3;
+	case MCT_Float4: return UE::Shader::EValueType::Float4;
+	case MCT_Float: return UE::Shader::EValueType::Float1;
+	case MCT_StaticBool: return UE::Shader::EValueType::Bool1;
+	case MCT_MaterialAttributes: return UE::Shader::EValueType::Struct;
+	case MCT_ShadingModel: return UE::Shader::EValueType::Int1;
+	case MCT_LWCScalar: return UE::Shader::EValueType::Double1;
+	case MCT_LWCVector2: return UE::Shader::EValueType::Double2;
+	case MCT_LWCVector3: return UE::Shader::EValueType::Double3;
+	case MCT_LWCVector4: return UE::Shader::EValueType::Double4;
+	default:return UE::Shader::EValueType::Void;
+	}
+}
+
 FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial, const FMaterialCompileTargetParameters& InCompileTarget, UE::HLSLTree::FTree& InOutTree)
 	: CompileTarget(InCompileTarget)
 	, TargetMaterial(InTargetMaterial)
 	, HLSLTree(&InOutTree)
 	, bGeneratedResult(false)
 {
+	const EMaterialShadingModel DefaultShadingModel = InTargetMaterial->GetShadingModels().GetFirstShadingModel();
+
 	FFunctionCallEntry* RootFunctionEntry = new(InOutTree.GetAllocator()) FFunctionCallEntry();
 	FunctionCallStack.Add(RootFunctionEntry);
 
+	TArray<UE::HLSLTree::FStructFieldInitializer, TInlineAllocator<MP_MAX>> MaterialAttributeFields;
+
+	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
+	for (const FGuid& AttributeID : OrderedVisibleAttributes)
+	{
+		const FString& PropertyName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
+		const EMaterialValueType PropertyType = FMaterialAttributeDefinitionMap::GetValueType(AttributeID);
+		const UE::Shader::EValueType ValueType = GetShaderType(PropertyType);
+		
+		if (ValueType != UE::Shader::EValueType::Void &&
+			ValueType != UE::Shader::EValueType::Struct)
+		{
+			MaterialAttributeFields.Emplace(PropertyName, ValueType);
+
+			if (PropertyType == MCT_ShadingModel)
+			{
+				check(ValueType == UE::Shader::EValueType::Int1);
+				MaterialAttributesDefaultValue.Component.Add((int32)DefaultShadingModel);
+			}
+			else
+			{
+				const UE::Shader::FValue DefaultValue = UE::Shader::Cast(FMaterialAttributeDefinitionMap::GetDefaultValue(AttributeID), ValueType);
+				for (int32 i = 0; i < DefaultValue.NumComponents; ++i)
+				{
+					MaterialAttributesDefaultValue.Component.Add(DefaultValue.Component[i]);
+				}
+			}
+		}
+	}
+
+	UE::HLSLTree::FStructTypeInitializer MaterialAttributesInitializer;
+	MaterialAttributesInitializer.Name = TEXT("FMaterialAttributes");
+	MaterialAttributesInitializer.Fields = MaterialAttributeFields;
+	MaterialAttributesType = InOutTree.NewStructType(MaterialAttributesInitializer);
+
+	MaterialAttributesDefaultValue.Type = MaterialAttributesType;
 }
 
 void FMaterialHLSLGenerator::AcquireErrors(TArray<FString>& OutCompileErrors, TArray<UMaterialExpression*>& OutErrorExpressions)
@@ -124,6 +182,7 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 	UMaterial* Material,
 	UE::HLSLTree::FExpression* AttributesExpression)
 {
+#if 0
 	UE::HLSLTree::FExpression* Expression = nullptr;
 	if (Material->IsPropertyActive(InputProperty))
 	{
@@ -170,7 +229,7 @@ static UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenerator& G
 		SetAttributeExpression->ValueExpression = Expression;
 		return SetAttributeExpression;
 	}
-
+#endif
 	return AttributesExpression;
 }
 
@@ -191,13 +250,13 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 				FMaterialInputDescription InputDescription;
 				if (TargetMaterial->GetExpressionInputDescription(MP_MaterialAttributes, InputDescription))
 				{
-					check(InputDescription.Type == UE::Shader::EValueType::MaterialAttributes);
+					check(InputDescription.Type == UE::Shader::EValueType::Struct);
 					AttributesExpression = InputDescription.Input->AcquireHLSLExpression(*this, Scope);
 				}
 			}
 			else
 			{
-				AttributesExpression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionDefaultMaterialAttributes>(Scope);
+				AttributesExpression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionConstant>(Scope, MaterialAttributesDefaultValue);
 				for (int32 PropertyIndex = 0; PropertyIndex < MP_MAX; ++PropertyIndex)
 				{
 					const EMaterialProperty Property = (EMaterialProperty)PropertyIndex;
@@ -208,6 +267,7 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 			if (AttributesExpression)
 			{
 				UE::HLSLTree::FStatementReturn* ReturnStatement = HLSLTree->NewStatement<UE::HLSLTree::FStatementReturn>(Scope);
+				ReturnStatement->Type = MaterialAttributesType;
 				ReturnStatement->Expression = AttributesExpression;
 				HLSLTree->SetResult(*ReturnStatement);
 				bResult = true;

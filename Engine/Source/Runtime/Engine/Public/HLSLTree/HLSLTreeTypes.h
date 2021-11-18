@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Misc/EnumClassFlags.h"
+#include "Containers/BitArray.h"
 #include "Shader/ShaderTypes.h"
 
 class UTexture;
@@ -12,12 +13,12 @@ namespace HLSLTree
 {
 
 class FNode;
+class FStructType;
 class FExpression;
 class FTextureParameterDeclaration;
 class FStatement;
 class FScope;
 class FTree;
-class FCodeWriter;
 
 /**
  * Describes how a given expression needs to be evaluated */

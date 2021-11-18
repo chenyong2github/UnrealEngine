@@ -22294,7 +22294,12 @@ void UMaterialExpressionGetLocal::GetCaption(TArray<FString>& OutCaptions) const
 
 uint32 UMaterialExpressionGetLocal::GetOutputType(int32 InputIndex)
 {
-	return MCT_Float1;
+	return MCT_Unknown;
+}
+
+bool UMaterialExpressionGetLocal::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	return false;
 }
 #endif
 
@@ -22317,11 +22322,7 @@ UMaterialExpressionSetLocal::UMaterialExpressionSetLocal(const FObjectInitialize
 #if WITH_EDITOR
 uint32 UMaterialExpressionSetLocal::GetInputType(int32 InputIndex)
 {
-	switch (InputIndex)
-	{
-	case 0: return MCT_Float1;
-	default: checkNoEntry(); return 0u;
-	}
+	return MCT_Unknown;
 }
 
 int32 UMaterialExpressionSetLocal::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)

@@ -16,7 +16,6 @@ enum class EValueComponentType : uint8
 	Double,
 	Int,
 	Bool,
-	MaterialAttributes,
 };
 
 struct FValueTypeDescription
@@ -53,7 +52,7 @@ enum class EValueType : uint8
 	Bool3,
 	Bool4,
 
-	MaterialAttributes,
+	Struct,
 };
 
 uint32 GetComponentTypeSizeInBytes(EValueComponentType Type);
@@ -100,6 +99,8 @@ union FValueComponent
 
 	// 'Bool' is stored as uint8 to avoid changing on different compilers
 	bool AsBool() const { return Bool != 0u; }
+
+	const TCHAR* ToString(EValueComponentType Type, FStringBuilderBase& OutString) const;
 
 	uint64 Packed;
 	double Double;

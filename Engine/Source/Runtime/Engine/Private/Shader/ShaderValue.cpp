@@ -252,9 +252,20 @@ uint32 UE::Shader::GetComponentTypeSizeInBytes(EValueComponentType Type)
 	case EValueComponentType::Double: return sizeof(double);
 	case EValueComponentType::Int: return sizeof(int32);
 	case EValueComponentType::Bool: return 1u;
-	case EValueComponentType::MaterialAttributes: return 0u;
 	default: checkNoEntry(); return 0u;
 	}
+}
+
+const TCHAR* UE::Shader::FValueComponent::ToString(EValueComponentType Type, FStringBuilderBase& OutString) const
+{
+	switch (Type)
+	{
+	case EValueComponentType::Int: OutString.Appendf(TEXT("%d"), Int); break;
+	case EValueComponentType::Bool: OutString.Append(AsBool() ? TEXT("true") : TEXT("false")); break;
+	case EValueComponentType::Float: OutString.Appendf(TEXT("%#.9gf"), Float); break;
+	default: checkNoEntry(); break; // TODO - double
+	}
+	return OutString.ToString();
 }
 
 const TCHAR* UE::Shader::FValue::ToString(EValueStringFormat Format, FStringBuilderBase& OutString) const
@@ -355,21 +366,20 @@ UE::Shader::FValueTypeDescription UE::Shader::GetValueTypeDescription(EValueType
 	case EValueType::Bool2: return FValueTypeDescription(TEXT("bool2"), EValueComponentType::Bool, 2);
 	case EValueType::Bool3: return FValueTypeDescription(TEXT("bool3"), EValueComponentType::Bool, 3);
 	case EValueType::Bool4: return FValueTypeDescription(TEXT("bool4"), EValueComponentType::Bool, 4);
-	case EValueType::MaterialAttributes: return FValueTypeDescription(TEXT("FMaterialAttributes"), EValueComponentType::MaterialAttributes, 0);
-	default: checkNoEntry(); return FValueTypeDescription();
+	case EValueType::Struct: return FValueTypeDescription(TEXT("struct"), EValueComponentType::Void, 0);
+	default: checkNoEntry(); return FValueTypeDescription(TEXT("<INVALID>"), EValueComponentType::Void, 0);
 	}
 }
 
 UE::Shader::EValueType UE::Shader::MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 {
+	if (NumComponents == 0)
+	{
+		return EValueType::Void;
+	}
+
 	switch (ComponentType)
 	{
-	case EValueComponentType::Void:
-		check(NumComponents == 0);
-		return EValueType::Void;
-	case EValueComponentType::MaterialAttributes:
-		check(NumComponents == 0);
-		return EValueType::MaterialAttributes;
 	case EValueComponentType::Float:
 		switch (NumComponents)
 		{

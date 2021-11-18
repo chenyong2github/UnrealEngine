@@ -31,8 +31,10 @@
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionBinaryOp.h"
 #include "Materials/MaterialExpressionAppendVector.h"
+#include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Materials/MaterialExpressionReflectionVectorWS.h"
 #include "Materials/MaterialExpressionSetLocal.h"
@@ -235,6 +237,18 @@ EMaterialGenerateHLSLStatus UMaterialExpressionMultiply::GenerateHLSLExpression(
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
+EMaterialGenerateHLSLStatus UMaterialExpressionDivide::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	UE::HLSLTree::FExpression* Lhs = A.GetTracedInput().Expression ? A.AcquireHLSLExpression(Generator, Scope) : Generator.NewConstant(ConstA);
+	UE::HLSLTree::FExpression* Rhs = B.GetTracedInput().Expression ? B.AcquireHLSLExpression(Generator, Scope) : Generator.NewConstant(ConstB);
+	if (!Lhs || !Rhs)
+	{
+		return EMaterialGenerateHLSLStatus::Error;
+	}
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionBinaryOp>(Scope, UE::HLSLTree::EBinaryOp::Div, Lhs, Rhs);
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
 EMaterialGenerateHLSLStatus UMaterialExpressionAppendVector::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	UE::HLSLTree::FExpression* Lhs = A.AcquireHLSLExpression(Generator, Scope);
@@ -247,6 +261,37 @@ EMaterialGenerateHLSLStatus UMaterialExpressionAppendVector::GenerateHLSLExpress
 	return EMaterialGenerateHLSLStatus::Success;
 }
 
+EMaterialGenerateHLSLStatus UMaterialExpressionGetMaterialAttributes::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	UE::HLSLTree::FExpression* AttributesExpression = MaterialAttributes.AcquireHLSLExpression(Generator, Scope);
+	if (!AttributesExpression)
+	{
+		return EMaterialGenerateHLSLStatus::Error;
+	}
+	if (OutputIndex == 0)
+	{
+		OutExpression = AttributesExpression;
+		return EMaterialGenerateHLSLStatus::Success;
+	}
+	const int32 AttributeIndex = OutputIndex - 1;
+	if (!AttributeGetTypes.IsValidIndex(AttributeIndex))
+	{
+		return Generator.Error(TEXT("Invalid attribute"));
+	}
+
+	const FGuid& AttributeID = AttributeGetTypes[AttributeIndex];
+	const FString& AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
+
+	UE::HLSLTree::FExpressionGetStructField* SetAttributeExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionGetStructField>(Scope);
+	SetAttributeExpression->StructType = Generator.GetMaterialAttributesType();
+	SetAttributeExpression->StructExpression = AttributesExpression;
+	SetAttributeExpression->FieldName = *AttributeName;
+	OutExpression = SetAttributeExpression;
+
+	return EMaterialGenerateHLSLStatus::Success;
+
+}
+
 EMaterialGenerateHLSLStatus UMaterialExpressionSetMaterialAttributes::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
 	UE::HLSLTree::FExpression* AttributesExpression = nullptr;
@@ -256,7 +301,7 @@ EMaterialGenerateHLSLStatus UMaterialExpressionSetMaterialAttributes::GenerateHL
 	}
 	else
 	{
-		AttributesExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionDefaultMaterialAttributes>(Scope);
+		AttributesExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionConstant>(Scope, Generator.GetMaterialAttributesDefaultValue());
 	}
 
 	for (int32 PinIndex = 0; PinIndex < AttributeSetTypes.Num(); ++PinIndex)
@@ -267,15 +312,17 @@ EMaterialGenerateHLSLStatus UMaterialExpressionSetMaterialAttributes::GenerateHL
 			const FGuid& AttributeID = AttributeSetTypes[PinIndex];
 			// Only compile code to set attributes of the current shader frequency
 			const EShaderFrequency AttributeFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(AttributeID);
+			const FString& AttributeName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
 			//if (AttributeFrequency == Compiler->GetCurrentShaderFrequency())
 			{
 				UE::HLSLTree::FExpression* ValueExpression = AttributeInput.AcquireHLSLExpression(Generator, Scope);
 				if (ValueExpression)
 				{
-					UE::HLSLTree::FExpressionSetMaterialAttribute* SetAttributeExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSetMaterialAttribute>(Scope);
-					SetAttributeExpression->AttributeID = AttributeID;
-					SetAttributeExpression->AttributesExpression = AttributesExpression;
-					SetAttributeExpression->ValueExpression = ValueExpression;
+					UE::HLSLTree::FExpressionSetStructField* SetAttributeExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionSetStructField>(Scope);
+					SetAttributeExpression->StructType = Generator.GetMaterialAttributesType();
+					SetAttributeExpression->FieldName = *AttributeName;
+					SetAttributeExpression->StructExpression = AttributesExpression;
+					SetAttributeExpression->FieldExpression = ValueExpression;
 					AttributesExpression = SetAttributeExpression;
 				}
 			}

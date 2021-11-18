@@ -2964,14 +2964,14 @@ public:
 	}
 
 	/** Returns the display name of a material attribute */
-	ENGINE_API static FString GetAttributeName(EMaterialProperty Property)
+	ENGINE_API static const FString& GetAttributeName(EMaterialProperty Property)
 	{
 		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(Property);
 		return Attribute->AttributeName;
 	}
 
 	/** Returns the display name of a material attribute */
-	ENGINE_API static FString GetAttributeName(const FGuid& AttributeID)
+	ENGINE_API static const FString& GetAttributeName(const FGuid& AttributeID)
 	{
 		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(AttributeID);
 		return Attribute->AttributeName;

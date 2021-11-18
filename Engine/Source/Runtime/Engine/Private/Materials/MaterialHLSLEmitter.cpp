@@ -44,6 +44,7 @@ static const TCHAR* HLSLTypeString(EMaterialValueType Type)
 static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 	const FMaterial& Material,
 	const UE::HLSLTree::FEmitContext& EmitContext,
+	const TCHAR* DeclarationsCode,
 	const TCHAR* PixelShaderCode)
 {
 	FString MaterialTemplateSource;
@@ -131,8 +132,11 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 		}
 	}
 
-	LazyPrintf.PushParam(*MaterialAttributesDeclaration);
-	LazyPrintf.PushParam(*MaterialAttributesUtilities);
+	//LazyPrintf.PushParam(*MaterialAttributesDeclaration);
+	//LazyPrintf.PushParam(*MaterialAttributesUtilities);
+
+	LazyPrintf.PushParam(DeclarationsCode);
+	LazyPrintf.PushParam(TEXT(""));
 
 	// Stores the shared shader results member declarations
 	// PixelMembersDeclaration should be the same for all variations, but might change in the future. There are cases where work is shared
@@ -276,7 +280,7 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 
 	LazyPrintf.PushParam(*CustomInterpolatorAssignments);
 
-	LazyPrintf.PushParam(*MaterialAttributesDefault);
+	//LazyPrintf.PushParam(*MaterialAttributesDefault);
 
 	//if (bEnableExecutionFlow)
 	{
@@ -310,7 +314,12 @@ static FString GenerateMaterialTemplateHLSL(EShaderPlatform ShaderPlatform,
 			// Special case MP_SubsurfaceColor as the actual property is a combination of the color and the profile but we don't want to expose the profile
 			const FString PropertyName = FMaterialAttributeDefinitionMap::GetAttributeName(Property);
 
-			if (PropertyIndex == MP_SubsurfaceColor)
+			if (PropertyIndex == MP_FrontMaterial)
+			{
+				// TODO - Strata
+				EvaluateMaterialAttributesCode += FString::Printf("    PixelMaterialInputs.%s = GetInitialisedStrataData();" LINE_TERMINATOR, *PropertyName);
+			}
+			else if (PropertyIndex == MP_SubsurfaceColor)
 			{
 				// TODO - properly handle subsurface profile
 				EvaluateMaterialAttributesCode += FString::Printf("    PixelMaterialInputs.Subsurface = float4(MaterialAttributes.%s, 0.0f);" LINE_TERMINATOR, *PropertyName);
@@ -646,6 +655,12 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 	OutEnvironment.SetDefine(TEXT("TEXTURE_SAMPLE_DEBUG"), false);// IsDebugTextureSampleEnabled() ? TEXT("1") : TEXT("0"));
 }
 
+class FStringBuilderMemstack : public TStringBuilderBase<TCHAR>
+{
+public:
+	FStringBuilderMemstack(FMemStackBase& Allocator, int32 InSize) : TStringBuilderBase<TCHAR>((TCHAR*)Allocator.Alloc(sizeof(TCHAR)* InSize, alignof(TCHAR)), InSize) {}
+};
+
 bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	const FMaterial& InMaterial,
 	const FStaticParameterSet& InStaticParameters,
@@ -674,18 +689,19 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	FMemStackBase Allocator;
 	FMemMark MemMark(Allocator);
 
-	TStringBuilder<32 * 1024> Code;
+	FStringBuilderMemstack Declarations(Allocator, 64 * 1024);
+	FStringBuilderMemstack Code(Allocator, 1024 * 1024);
 
 	UE::HLSLTree::FEmitContext EmitContext(Allocator);
 	EmitContext.Material = &InMaterial;
 	EmitContext.StaticParameters = &InStaticParameters;
 	EmitContext.MaterialCompilationOutput = &OutCompilationOutput;
-	InTree.EmitHLSL(EmitContext, Code);
+	InTree.EmitHLSL(EmitContext, Declarations, Code);
 
 	//InOutMaterial.CompileErrors = MoveTemp(CompileErrors);
 	//InOutMaterial.ErrorExpressions = MoveTemp(ErrorExpressions);
 
-	const FString MaterialTemplateSource = GenerateMaterialTemplateHLSL(InCompilerTarget.ShaderPlatform, InMaterial, EmitContext, Code.ToString());
+	const FString MaterialTemplateSource = GenerateMaterialTemplateHLSL(InCompilerTarget.ShaderPlatform, InMaterial, EmitContext, Declarations.ToString(), Code.ToString());
 
 	OutMaterialEnvironment = new FSharedShaderCompilerEnvironment();
 	OutMaterialEnvironment->TargetPlatform = InCompilerTarget.TargetPlatform;

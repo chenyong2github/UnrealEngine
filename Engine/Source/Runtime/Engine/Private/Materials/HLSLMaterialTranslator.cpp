@@ -96,7 +96,7 @@ static inline EMaterialValueType GetMaterialValueType(UE::Shader::EValueType Typ
 	case UE::Shader::EValueType::Bool3: return MCT_Float3;
 	case UE::Shader::EValueType::Bool4: return MCT_Float4;
 
-	case UE::Shader::EValueType::MaterialAttributes: return MCT_MaterialAttributes;
+	case UE::Shader::EValueType::Struct: return MCT_MaterialAttributes;
 	default: checkNoEntry(); return MCT_Unknown;
 	}
 }
@@ -2032,9 +2032,10 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 
 	FString MaterialAttributesDeclaration;
 	FString MaterialAttributesUtilities;
-	FString MaterialAttributesDefault;
 
 	const EMaterialShadingModel DefaultShadingModel = Material->GetShadingModels().GetFirstShadingModel();
+
+	MaterialAttributesDeclaration += TEXT("struct FMaterialAttributes\n{\n");
 
 	const TArray<FGuid>& OrderedVisibleAttributes = FMaterialAttributeDefinitionMap::GetOrderedVisibleAttributeList();
 	for (const FGuid& AttributeID : OrderedVisibleAttributes)
@@ -2063,20 +2064,10 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 			// Chainable method to set the attribute
 			MaterialAttributesUtilities += FString::Printf(TEXT("FMaterialAttributes FMaterialAttributes_Set%s(FMaterialAttributes InAttributes, %s InValue) { InAttributes.%s = InValue; return InAttributes; }") LINE_TERMINATOR,
 				*PropertyName, HLSLType, *PropertyName);
-
-			// Standard value type
-			switch (PropertyType)
-			{
-			case MCT_Float: case MCT_Float1: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = %0.8f;") LINE_TERMINATOR, *PropertyName, DefaultValue.X); break;
-			case MCT_Float2: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = MaterialFloat2(%0.8f,%0.8f);") LINE_TERMINATOR, *PropertyName, DefaultValue.X, DefaultValue.Y); break;
-			case MCT_Float3: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = MaterialFloat3(%0.8f,%0.8f,%0.8f);") LINE_TERMINATOR, *PropertyName, DefaultValue.X, DefaultValue.Y, DefaultValue.Z); break;
-			case MCT_Float4: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = MaterialFloat4(%0.8f,%0.8f,%0.8f,%0.8f);") LINE_TERMINATOR, *PropertyName, DefaultValue.X, DefaultValue.Y, DefaultValue.Z, DefaultValue.W); break;
-			case MCT_ShadingModel: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = %d;") LINE_TERMINATOR, *PropertyName, (int32)DefaultShadingModel); break;
-			case MCT_Strata: MaterialAttributesDefault += FString::Printf(TEXT("\tResult.%s = GetInitialisedStrataData();") LINE_TERMINATOR, *PropertyName); break; // TODO
-			default: checkNoEntry(); break;
-			}
 		}
 	}
+
+	MaterialAttributesDeclaration += TEXT("};\n");
 
 	LazyPrintf.PushParam(*MaterialAttributesDeclaration);
 	LazyPrintf.PushParam(*MaterialAttributesUtilities);
@@ -2205,8 +2196,6 @@ FString FHLSLMaterialTranslator::GetMaterialShaderCode()
 	}
 
 	LazyPrintf.PushParam(*CustomInterpolatorAssignments);
-
-	LazyPrintf.PushParam(*MaterialAttributesDefault);
 
 	if (bEnableExecutionFlow)
 	{

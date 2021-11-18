@@ -241,10 +241,8 @@ float4 GetDynamicParameter(FMaterialParticleParameters Parameters, float4 Defaul
 
 }
 
-struct FMaterialAttributes
-{
+/** Material declarations */
 %s
-};
 
 /** FMaterialAttributes utilities */
 %s
@@ -2737,16 +2735,9 @@ float3 CalculateAnisotropyTangent(in out FMaterialPixelParameters Parameters, FP
 	return Tangent;
 }
 
-FMaterialAttributes FMaterialAttributes_GetDefault()
-{
-	FMaterialAttributes Result;
-%s
-	return Result;
-}
-
 FMaterialAttributes EvaluateVertexMaterialAttributes(FMaterialVertexParameters Parameters)
 {
-	FMaterialAttributes DefaultMaterialAttributes = FMaterialAttributes_GetDefault();
+	FMaterialAttributes DefaultMaterialAttributes = (FMaterialAttributes)0;
 %s
 	// Return the default, this may be skipped if the above code returns different attributes
 	return DefaultMaterialAttributes;
@@ -2754,7 +2745,7 @@ FMaterialAttributes EvaluateVertexMaterialAttributes(FMaterialVertexParameters P
 
 FMaterialAttributes EvaluatePixelMaterialAttributes(in out FMaterialPixelParameters Parameters)
 {
-	FMaterialAttributes DefaultMaterialAttributes = FMaterialAttributes_GetDefault();
+	FMaterialAttributes DefaultMaterialAttributes = (FMaterialAttributes)0;
 %s
 	// Return the default, this may be skipped if the above code returns different attributes
 	return DefaultMaterialAttributes;

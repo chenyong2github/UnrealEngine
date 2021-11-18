@@ -39,14 +39,14 @@ FBinaryOpDescription GetBinaryOpDesription(EBinaryOp Op);
 class FExpressionConstant : public FExpression
 {
 public:
-	explicit FExpressionConstant(const Shader::FValue& InValue)
+	explicit FExpressionConstant(const FConstantValue& InValue)
 		: Value(InValue)
 	{}
 
-	Shader::FValue Value;
+	FConstantValue Value;
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override { return SetType(Context, Shader::MakeValueTypeWithRequestedNumComponents(Value.GetType(), InRequestedNumComponents)); }
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionMaterialParameter : public FExpression
@@ -60,8 +60,8 @@ public:
 	Shader::FValue DefaultValue;
 	EMaterialParameterType ParameterType;
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 enum class EExternalInputType
@@ -92,8 +92,8 @@ public:
 
 	EExternalInputType InputType;
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override { return SetType(Context, GetInputExpressionType(InputType)); }
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override { SetType(Context, GetInputExpressionType(InputType)); }
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionTextureSample : public FExpression
@@ -122,41 +122,56 @@ public:
 		return Result;
 	}
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
-class FExpressionDefaultMaterialAttributes : public FExpression
+class FExpressionGetStructField : public FExpression
 {
 public:
-	FExpressionDefaultMaterialAttributes() {}
+	FExpressionGetStructField() {}
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override { return SetType(Context, Shader::EValueType::MaterialAttributes); }
-	virtual bool PrepareValue(FEmitContext& Context) override;
-};
-
-class FExpressionSetMaterialAttribute : public FExpression
-{
-public:
-	FExpressionSetMaterialAttribute() {}
-
-	FGuid AttributeID;
-	FExpression* AttributesExpression;
-	FExpression* ValueExpression;
+	const FStructType* StructType;
+	const TCHAR* FieldName;
+	FExpression* StructExpression;
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
 	{
 		const ENodeVisitResult Result = FExpression::Visit(Visitor);
 		if (ShouldVisitDependentNodes(Result))
 		{
-			Visitor.VisitNode(AttributesExpression);
-			Visitor.VisitNode(ValueExpression);
+			Visitor.VisitNode(StructExpression);
 		}
 		return Result;
 	}
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
+};
+
+class FExpressionSetStructField : public FExpression
+{
+public:
+	FExpressionSetStructField() {}
+
+	const FStructType* StructType;
+	const TCHAR* FieldName;
+	FExpression* StructExpression;
+	FExpression* FieldExpression;
+	
+	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
+	{
+		const ENodeVisitResult Result = FExpression::Visit(Visitor);
+		if (ShouldVisitDependentNodes(Result))
+		{
+			Visitor.VisitNode(StructExpression);
+			Visitor.VisitNode(FieldExpression);
+		}
+		return Result;
+	}
+
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionSelect : public FExpression
@@ -184,8 +199,8 @@ public:
 		return Result;
 	}
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionBinaryOp : public FExpression
@@ -212,8 +227,8 @@ public:
 		return Result;
 	}
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 struct FSwizzleParameters
@@ -247,8 +262,8 @@ public:
 		return Result;
 	}
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionAppend : public FExpression
@@ -273,21 +288,23 @@ public:
 		return Result;
 	}
 
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override;
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 class FExpressionReflectionVector : public FExpression
 {
 public:
-	virtual bool UpdateType(FUpdateTypeContext& Context, int8 InRequestedNumComponents) override { return SetType(Context, Shader::EValueType::Float3); }
-	virtual bool PrepareValue(FEmitContext& Context) override;
+	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override { SetType(Context, Shader::EValueType::Float3); }
+	virtual void PrepareValue(FEmitContext& Context) override;
 };
 
 class FStatementReturn : public FStatement
 {
 public:
 	static constexpr bool MarkScopeLiveRecursive = true;
+
+	FType Type;
 	FExpression* Expression;
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override

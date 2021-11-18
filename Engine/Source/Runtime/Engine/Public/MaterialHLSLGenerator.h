@@ -132,6 +132,9 @@ public:
 		return Data;
 	}
 
+	const UE::HLSLTree::FStructType* GetMaterialAttributesType() const { return MaterialAttributesType; }
+	const UE::HLSLTree::FConstantValue& GetMaterialAttributesDefaultValue() const { return MaterialAttributesDefaultValue; }
+
 private:
 	static constexpr int32 MaxNumPreviousScopes = UE::HLSLTree::MaxNumPreviousScopes;
 	struct FExpressionKey
@@ -207,6 +210,9 @@ private:
 
 	const FMaterialCompileTargetParameters& CompileTarget;
 	UMaterial* TargetMaterial;
+
+	const UE::HLSLTree::FStructType* MaterialAttributesType;
+	UE::HLSLTree::FConstantValue MaterialAttributesDefaultValue;
 
 	UE::HLSLTree::FTree* HLSLTree;
 	TArray<FExpressionKey> ExpressionStack;
