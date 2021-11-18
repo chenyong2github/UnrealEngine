@@ -1591,6 +1591,7 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 		{
 			MaterialDetailsView->SetObjects(SelectedObjects, true);
 		}
+
 		Material->MarkPackageDirty();
 		SetMaterialDirty();
 	}
