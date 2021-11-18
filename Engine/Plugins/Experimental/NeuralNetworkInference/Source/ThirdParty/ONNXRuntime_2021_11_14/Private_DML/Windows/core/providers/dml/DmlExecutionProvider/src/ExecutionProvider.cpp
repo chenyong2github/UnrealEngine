@@ -16,7 +16,6 @@
 #include "GraphPartitioner.h"
 #include "core/graph/indexed_sub_graph.h"
 #include "core/framework/compute_capability.h"
-#include "core/providers/dml/dml_provider_factory.h" // WITH_UE: For the UE structs added there
 
 #ifdef ERROR
 #undef ERROR
@@ -35,34 +34,6 @@ using namespace Windows::AI::MachineLearning::Adapter;
 namespace Dml
 {
     using namespace onnxruntime::common;
-
-#ifdef WITH_UE
-    class OrtDMLGPUResourceAllocatorWrapper : public OrtDMLGPUResourceAllocator
-    {
-    public:
-        OrtDMLGPUResourceAllocatorWrapper(const OrtMemoryInfo& gpuMemInfo)
-            : m_memInfo(gpuMemInfo) {
-            version = ORT_API_VERSION;
-            OrtDMLGPUResourceAllocator::GetProviderMemoryInfo = [](const OrtDMLGPUResourceAllocator* this_) {
-                    return static_cast< const OrtDMLGPUResourceAllocatorWrapper* >(this_)->GetProviderMemoryInfo();
-            };
-
-            OrtDMLGPUResourceAllocator::GPUAllocationFromD3DResource = [] (OrtDMLGPUResourceAllocator* this_, void* resHandle) -> void* {
-                    return Dml::CreateGPUAllocationFromD3DResource(reinterpret_cast< ID3D12Resource* >(resHandle));
-            };
-
-            OrtDMLGPUResourceAllocator::FreeGPUAllocation = [] (OrtDMLGPUResourceAllocator* this_, void* allocHandle) {
-                    Dml::FreeGPUAllocation(allocHandle);
-            };
-        }
-
-    private:
-        const OrtMemoryInfo* GetProviderMemoryInfo() const {
-            return &m_memInfo;
-        }
-        const OrtMemoryInfo& m_memInfo;
-    };
-#endif
 
     ExecutionProvider::~ExecutionProvider()
     { 
@@ -89,7 +60,7 @@ namespace Dml
     ExecutionProvider::ExecutionProvider(
         IDMLDevice* dmlDevice,
         ID3D12CommandQueue* commandQueue,
-        bool enableMetacommands, OrtDMLGPUResourceAllocator** resourceAllocator) : // WITH_UE: Added resourceAllocator
+        bool enableMetacommands) :
             IExecutionProvider(onnxruntime::kDmlExecutionProvider)
     {
         D3D12_COMMAND_LIST_TYPE queueType = commandQueue->GetDesc().Type;
@@ -108,13 +79,6 @@ namespace Dml
         InsertAllocator(m_impl->GetGpuAllocator());
         InsertAllocator(m_impl->GetCpuInputAllocator());
         InsertAllocator(m_impl->GetCpuOutputAllocator());
-
-#ifdef WITH_UE
-        if (resourceAllocator) {
-            m_resourceAlloc.reset(new OrtDMLGPUResourceAllocatorWrapper(m_impl->GetGpuAllocator()->Info()));
-            resourceAllocator[0] = m_resourceAlloc.get();
-        }
-#endif //WITH_UE
     }
 
     std::vector<std::unique_ptr<onnxruntime::ComputeCapability>>
@@ -821,9 +785,9 @@ namespace Dml
     std::unique_ptr<onnxruntime::IExecutionProvider> CreateExecutionProvider(
         IDMLDevice* dmlDevice,
         ID3D12CommandQueue* commandQueue,
-        bool enableMetacommands, OrtDMLGPUResourceAllocator** resourceAllocator) // WITH_UE: Added resourceAllocator
+        bool enableMetacommands)
     {
-        return std::make_unique<Dml::ExecutionProvider>(dmlDevice, commandQueue, enableMetacommands, resourceAllocator); // WITH_UE: Added resourceAllocator
+        return std::make_unique<Dml::ExecutionProvider>(dmlDevice, commandQueue, enableMetacommands);
     }
 
     ID3D12Resource* GetD3D12ResourceFromAllocation(onnxruntime::IAllocator* allocator, void* ptr)

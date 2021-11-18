@@ -52,66 +52,6 @@ ORT_API_STATUS(OrtSessionOptionsAppendExecutionProvider_DML, _In_ OrtSessionOpti
 ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderEx_DML, _In_ OrtSessionOptions* options,
                _In_ IDMLDevice* dml_device, _In_ ID3D12CommandQueue* cmd_queue);
 
-#ifdef WITH_UE
-/** OrtDMLGPUResourceAllocator allows wrapping of a ID312Resource to DML allocation */
-typedef struct OrtDMLGPUResourceAllocator {
-    uint32_t version;  // Initialize to ORT_API_VERSION
-    const struct OrtMemoryInfo* (ORT_API_CALL* GetProviderMemoryInfo)(const struct OrtDMLGPUResourceAllocator* this_);
-    void* (ORT_API_CALL* GPUAllocationFromD3DResource)(struct OrtDMLGPUResourceAllocator* this_, void* resource);
-    void (ORT_API_CALL* FreeGPUAllocation)(struct OrtDMLGPUResourceAllocator* this_, void* allocation);
-} OrtDMLGPUResourceAllocator;
-
-/**
- * Options for the DML provider that are passed to SessionOptionsAppendExecutionProviderWithOptions_DML
- */
-typedef struct OrtDMLProviderOptions {
-    // Input
-    IDMLDevice* dml_device;
-    ID3D12CommandQueue* cmd_queue;
-    // Output
-    OrtDMLGPUResourceAllocator** resource_allocator;
-} OrtDMLProviderOptions;
-
-/** Create DirectML Execution Provider with specified options */
-ORT_EXPORT ORT_API_STATUS(OrtSessionOptionsAppendExecutionProviderWithOptions_DML, _In_ OrtSessionOptions* options, _In_ OrtDMLProviderOptions* provider_options);
-
-namespace Ort
-{
-/** DMLGPUResourceAllocator allows wrapping of a ID312Resource to DML allocation. @TODO: Right now DMLGPUResourceAllocator is unused */
-class DMLGPUResourceAllocator
-{
-public:
-    DMLGPUResourceAllocator(OrtDMLGPUResourceAllocator* allocator = nullptr) : allocator_(allocator) {}
-
-    const OrtMemoryInfo* GetProviderMemoryInfo() const
-    {
-        return (allocator_ ? allocator_->GetProviderMemoryInfo(allocator_) : nullptr);
-    }
-
-    void* GPUAllocationFromD3DResource(void* resource)
-    {
-        return (allocator_ ? allocator_->GPUAllocationFromD3DResource(allocator_, resource) : nullptr);
-    }
-
-    void FreeGPUAllocation(void* allocation)
-    {
-        if (allocator_)
-            return allocator_->FreeGPUAllocation(allocator_, allocation);
-    }
-
-    void SetAllocator(OrtDMLGPUResourceAllocator* allocator) { allocator_ = allocator; }
-
-    OrtDMLGPUResourceAllocator** GetAllocatorAddressOf() { return &allocator_; }
-
-    bool IsValid() const { return allocator_ != nullptr; }
-
-private:
-    OrtDMLGPUResourceAllocator* allocator_;
-};
-
-} // namspace Ort
-#endif // WITH_UE
-
 struct OrtDmlApi;
 typedef struct OrtDmlApi OrtDmlApi;
 
