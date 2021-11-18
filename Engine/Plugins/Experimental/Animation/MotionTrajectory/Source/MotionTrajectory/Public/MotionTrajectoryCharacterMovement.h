@@ -16,10 +16,17 @@ protected:
 
 	// Begin UMotionTrajectoryComponent Interface
 	virtual FTrajectorySample CalcWorldSpacePresentTrajectorySample(float DeltaTime) const override;
+	virtual void TickTrajectory(float DeltaTime) override;
 	// End UMotionTrajectoryComponent Interface
 
 	UFUNCTION()
 	void OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
+
+	UPROPERTY(Transient)
+	FRotator LastDesiredControlRotation = FRotator::ZeroRotator;
+	
+	UPROPERTY(Transient)
+	FRotator DesiredControlRotationVelocity = FRotator::ZeroRotator;
 
 public:
 
@@ -28,6 +35,7 @@ public:
 	// Begin UActorComponent Interface
 	virtual void InitializeComponent() override;
 	virtual void UninitializeComponent() override;
+	virtual void BeginPlay() override;
 	// End UActorComponent Interface
 
 	// Begin UMotionTrajectoryComponent Interface

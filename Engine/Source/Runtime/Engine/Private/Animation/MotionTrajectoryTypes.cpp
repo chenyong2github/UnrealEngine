@@ -60,7 +60,6 @@ bool FTrajectorySample::IsZeroSample() const
 		&& LinearAcceleration.IsNearlyZero()
 		&& Transform.GetTranslation().IsNearlyZero()
 		&& FMath::IsNearlyZero(AccumulatedDistance)
-		&& FMath::IsNearlyZero(AngularSpeed)
 		&& Transform.GetRotation().IsIdentity();
 }
 
@@ -74,22 +73,6 @@ FTrajectorySample FTrajectorySample::Lerp(const FTrajectorySample& Sample, float
 
 	Interp.Transform.Blend(Transform, Sample.Transform, Alpha);
 	
-	// TODO: this is very simple, more like Lerp than Slerp, can we do better?
-	const FVector AngularVelocity = AngularVelocityAxis * AngularSpeed;
-	const FVector SampleAngularVelocity = Sample.AngularVelocityAxis * Sample.AngularSpeed;
-	const FVector LerpedAngularVelocity = FMath::Lerp(AngularVelocity, SampleAngularVelocity, Alpha);
-	const float LerpedAngularSpeed = LerpedAngularVelocity.Size();
-	if (LerpedAngularSpeed > SMALL_NUMBER)
-	{
-		Interp.AngularVelocityAxis = LerpedAngularVelocity / LerpedAngularSpeed;
-		Interp.AngularSpeed = LerpedAngularSpeed;
-	}
-	else
-	{
-		Interp.AngularVelocityAxis = FVector::ZeroVector;
-		Interp.AngularSpeed = 0.0f;
-	}
-
 	return Interp;
 }
 
@@ -125,24 +108,6 @@ FTrajectorySample FTrajectorySample::SmoothInterp(const FTrajectorySample& PrevS
 
 	Interp.Transform.SetRotation(FQuat::Squad(Q1, T0, Q2, T1, Alpha));
 
-	const FVector V0 = PrevSample.AngularVelocityAxis * PrevSample.AngularSpeed;
-	const FVector V1 = AngularVelocityAxis * AngularSpeed;
-	const FVector V2 = Sample.AngularVelocityAxis * Sample.AngularSpeed;
-	const FVector V3 = NextSample.AngularVelocityAxis * NextSample.AngularSpeed;
-
-	const FVector LerpedAngularVelocity = CubicCRSplineInterpSafe(V0, V1, V2, V3, Alpha);
-	const float LerpedAngularSpeed = LerpedAngularVelocity.Size();
-	if (LerpedAngularSpeed > SMALL_NUMBER)
-	{
-		Interp.AngularVelocityAxis = LerpedAngularVelocity / LerpedAngularSpeed;
-		Interp.AngularSpeed = LerpedAngularSpeed;
-	}
-	else
-	{
-		Interp.AngularVelocityAxis = FVector::ZeroVector;
-		Interp.AngularSpeed = 0.0f;
-	}
-
 	return Interp;
 }
 
@@ -167,7 +132,14 @@ void FTrajectorySample::PrependOffset(const FTransform DeltaTransform, float Del
 
 	LinearVelocity = DeltaTransform.TransformVectorNoScale(LinearVelocity);
 	LinearAcceleration = DeltaTransform.TransformVectorNoScale(LinearAcceleration);
-	AngularVelocityAxis = DeltaTransform.TransformVectorNoScale(AngularVelocityAxis);
+}
+
+void FTrajectorySample::TransformReferenceFrame(const FTransform DeltaTransform)
+{
+	Transform = DeltaTransform.Inverse() * Transform * DeltaTransform;
+
+	LinearVelocity = DeltaTransform.TransformVectorNoScale(LinearVelocity);
+	LinearAcceleration = DeltaTransform.TransformVectorNoScale(LinearAcceleration);
 }
 
 bool FTrajectorySampleRange::HasSamples() const
@@ -199,14 +171,24 @@ void FTrajectorySampleRange::Rotate(const FQuat& Rotation)
 	}
 }
 
+void FTrajectorySampleRange::TransformReferenceFrame(const FTransform& Transform)
+{
+	for (auto& Sample : Samples)
+	{
+		Sample.TransformReferenceFrame(Transform);
+	}
+}
+
 void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 	, const UWorld* World
 	, const FTransform& WorldTransform
 	, const FLinearColor PredictionColor
 	, const FLinearColor HistoryColor
-	, float ArrowScale
-	, float ArrowSize
-	, float ArrowThickness) const
+	, float TransformScale
+	, float TransformThickness
+	, float VelArrowScale
+	, float VelArrowSize
+	, float VelArrowThickness) const
 {
 	if (bEnable
 #if ENABLE_ANIM_DEBUG
@@ -222,17 +204,37 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 #endif
 			for (int32 Idx = 0, Num = Samples.Num(); Idx < Num; Idx++)
 			{
-				const FVector WorldPosition = WorldTransform.TransformPosition(Samples[Idx].Transform.GetTranslation());
-				const FVector WorldForward = 
-					(WorldTransform.TransformVectorNoScale(Samples[Idx].Transform.GetRotation().GetAxisX()) *
-					 ArrowScale) 
-					+ WorldPosition;
+				const FTransform SampleTransformWS = Samples[Idx].Transform * WorldTransform;
+				const FVector SamplePositionWS = SampleTransformWS.GetTranslation();
+
+				const FVector WorldVelocity =
+					(WorldTransform.TransformVector(Samples[Idx].LinearVelocity) * VelArrowScale) + SamplePositionWS;
 
 				// Interpolate the history and prediction color over the entire trajectory range
 				const float ColorLerp = static_cast<float>(Idx) / static_cast<float>(Num);
 				const FLinearColor Color = FLinearColor::LerpUsingHSV(PredictionColor, HistoryColor, ColorLerp);
 
-				DrawDebugDirectionalArrow(World, WorldPosition, WorldForward, ArrowSize, Color.ToFColor(true), false, 0.f, 0, ArrowThickness);
+				if (VelArrowScale > 0.0f)
+				{
+					DrawDebugDirectionalArrow(
+						World, SamplePositionWS, WorldVelocity, 
+						VelArrowSize, Color.ToFColor(true), false, 0.f, 0, VelArrowThickness);
+				}
+
+				if (TransformScale > 0.0f)
+				{
+					DrawDebugCoordinateSystem(
+						World, SampleTransformWS.GetLocation(), SampleTransformWS.Rotator(),
+						TransformScale, false, 0.f, 0, TransformThickness);
+
+					if (VelArrowThickness == 0.0f)
+					{
+						DrawDebugSphere(
+							World, SamplePositionWS,										
+							TransformScale * 0.5f, 4, Color.ToFColor(true), false, 0.f, 0, TransformThickness * 0.5f);
+					}
+				}
+
 #if ENABLE_ANIM_DEBUG
 				FString DebugString;
 				FString DebugSampleString;
@@ -275,7 +277,7 @@ void FTrajectorySampleRange::DebugDrawTrajectory(bool bEnable
 						DrawDebugString(World, WorldTransform.GetLocation() + DebugSampleTypeOffset, DebugString, nullptr, FColor::White, 0.f, false, 1.f);
 					}
 
-					DrawDebugString(World, WorldForward + DebugSampleOffset, DebugSampleString, nullptr, FColor::White, 0.f, false, 1.f);
+					DrawDebugString(World, WorldVelocity + DebugSampleOffset, DebugSampleString, nullptr, FColor::White, 0.f, false, 1.f);
 				}
 #endif
 			}

@@ -97,7 +97,9 @@ public:
 		, const FTrajectorySampleRange& Trajectory
 		, const FLinearColor PredictionColor = FLinearColor(0.f, 1.f, 0.f)
 		, const FLinearColor HistoryColor = FLinearColor(0.f, 0.f, 1.f)
-		, float ArrowScale = 10.f
+		, float TransformScale = 10.f
+		, float TransformThickness = 2.f
+		, float ArrowScale = 0.025f
 		, float ArrowSize = 40.f
 		, float ArrowThickness = 2.f
 	);
