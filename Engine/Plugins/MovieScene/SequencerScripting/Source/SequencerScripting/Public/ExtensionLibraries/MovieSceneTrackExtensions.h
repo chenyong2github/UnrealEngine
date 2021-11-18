@@ -42,6 +42,27 @@ public:
 	static FText GetDisplayName(UMovieSceneTrack* Track);
 
 	/**
+	 * Set this track row's display name
+	 *
+	 * @param Track        The track to use
+	 * @param InName The name for this track
+	 * @param RowIndex The row index for the track
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta=(ScriptMethod, DevelopmentOnly))
+	static void SetTrackRowDisplayName(UMovieSceneTrack* Track, const FText& InName, int32 RowIndex);
+
+	/**
+	 * Get this track row's display name
+	 *
+	 * @param Track        The track to use
+	 * @param RowIndex The row index for the track
+	 * @return This track's display name
+	 * 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Track", meta=(ScriptMethod, DevelopmentOnly))
+	static FText GetTrackRowDisplayName(UMovieSceneTrack* Track, int32 RowIndex);
+
+	/**
 	 * Add a new section to this track
 	 *
 	 * @param Track        The track to use

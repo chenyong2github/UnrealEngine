@@ -724,6 +724,16 @@ void FSequencerTrackNode::GetChildKeyAreaNodesRecursively(TArray<TSharedRef<FSeq
 
 FText FSequencerTrackNode::GetDisplayName() const
 {
+	if (UMovieSceneNameableTrack* NameableTrack = Cast<UMovieSceneNameableTrack>(AssociatedTrack.Get()))
+	{
+		if (SubTrackMode == ESubTrackMode::SubTrack)
+		{	
+			int32 TrackRowIndex = GetRowIndex();
+
+			return NameableTrack->GetTrackRowDisplayName(TrackRowIndex);
+		}
+	}
+
 	return AssociatedTrack.IsValid() ? AssociatedTrack->GetDisplayName() : FText::GetEmpty();
 }
 
@@ -813,13 +823,21 @@ ESequencerNode::Type FSequencerTrackNode::GetType() const
 
 void FSequencerTrackNode::SetDisplayName(const FText& NewDisplayName)
 {
-	auto NameableTrack = Cast<UMovieSceneNameableTrack>(AssociatedTrack.Get());
-
-	if (NameableTrack != nullptr && !NameableTrack->GetDisplayName().EqualTo(NewDisplayName))
+	if (UMovieSceneNameableTrack* NameableTrack = Cast<UMovieSceneNameableTrack>(AssociatedTrack.Get()))
 	{
 		const FScopedTransaction Transaction(NSLOCTEXT("SequencerTrackNode", "RenameTrack", "Rename Track"));
 
-		NameableTrack->SetDisplayName(NewDisplayName);
+		if (SubTrackMode == ESubTrackMode::SubTrack)
+		{
+			int32 TrackRowIndex = GetRowIndex();
+		
+			NameableTrack->SetTrackRowDisplayName(NewDisplayName, TrackRowIndex);
+		}
+		else
+		{
+			NameableTrack->SetDisplayName(NewDisplayName);
+		}
+
 		GetSequencer().NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 
 		SetNodeName(FName(*NewDisplayName.ToString()));

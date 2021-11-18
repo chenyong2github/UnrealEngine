@@ -24,6 +24,24 @@ void UMovieSceneNameableTrack::SetDisplayName(const FText& NewDisplayName)
 	DisplayName = NewDisplayName;
 }
 
+void UMovieSceneNameableTrack::SetTrackRowDisplayName(const FText& NewDisplayName, int32 TrackRowIndex)
+{
+	if (TrackRowIndex >= TrackRowDisplayNames.Num())
+	{
+		TrackRowDisplayNames.AddDefaulted(TrackRowIndex+1);
+	}
+
+	if (NewDisplayName.EqualTo(TrackRowDisplayNames[TrackRowIndex]))
+	{
+		return;
+	}
+
+	SetFlags(RF_Transactional);
+	Modify();
+
+	TrackRowDisplayNames[TrackRowIndex] = NewDisplayName;
+}
+
 bool UMovieSceneNameableTrack::ValidateDisplayName(const FText& NewDisplayName, FText& OutErrorMessage) const
 {
 	if (NewDisplayName.IsEmpty())
@@ -49,6 +67,21 @@ bool UMovieSceneNameableTrack::ValidateDisplayName(const FText& NewDisplayName, 
 
 FText UMovieSceneNameableTrack::GetDisplayName() const
 {
+	if (DisplayName.IsEmpty())
+	{
+		return GetDefaultDisplayName();
+	}
+
+	return DisplayName;
+}
+
+FText UMovieSceneNameableTrack::GetTrackRowDisplayName(int32 TrackRowIndex) const
+{
+	if (TrackRowIndex < TrackRowDisplayNames.Num() && !TrackRowDisplayNames[TrackRowIndex].IsEmpty())
+	{
+		return TrackRowDisplayNames[TrackRowIndex];
+	}
+
 	if (DisplayName.IsEmpty())
 	{
 		return GetDefaultDisplayName();
