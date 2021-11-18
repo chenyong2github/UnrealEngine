@@ -10,23 +10,38 @@
 
 namespace Chaos
 {
-	// Data returned by the low-level collision functions
+	// 
+	// In principle, the low-level collision detection functions should not need to calculate the world-space contact data, but some of them
+	// do some of their work in world space and already have the results we need. To avoid duplicate work, all collision detection functions
+	// should also fill in the world-space data
+
+	/**
+	 * @brief Data returned by the low-level collision functions
+	 * 
+	 * @note In principle, the low-level collision detection functions should not need to calculate the world-space contact data, but some of them
+	 * do some of their work in world space and already have the results we need. To avoid duplicate work, all collision detection functions
+	 * should also fill in the world-space data
+	*/
 	class CHAOS_API FContactPoint
 	{
 	public:
-		FVec3 ShapeContactPoints[2];	// Shape-space contact points on the two bodies, without the margin added (i.e., contact point on the core shape)
-		FVec3 ShapeContactNormal;		// Shape-space contact normal relative to the NormalOwner, but with direction that always goes from body 1 to body 0
+		// Shape-space contact points on the two bodies, without the margin added (i.e., contact point on the core shape)
+		FVec3 ShapeContactPoints[2];
 
-		// @todo(chaos): Collision detection output should only produce shape-space results so Location and Normal should go
-		// E.g., ShapeContactNormal is used in the trianglemesh contact culling
-		FVec3 Location;					// World-space contact location
-		FVec3 Normal;					// World-space contact normal with direction that always goes from body 1 to body 0
+		// Shape-space contact normal on the second shape with direction that points away from shape 1
+		FVec3 ShapeContactNormal;
 
-		FReal Phi;						// Contact separation (negative for overlap)
+		// World-space contact location
+		FVec3 Location;
+
+		// World-space contact normal with direction that points away from shape 1
+		FVec3 Normal;
+
+		// Contact separation (negative for overlap)
+		FReal Phi;
 
 		FContactPoint()
-			: Normal(1, 0, 0)
-			, Phi(TNumericLimits<FReal>::Max())
+			: Phi(TNumericLimits<FReal>::Max())
 		{
 		}
 
