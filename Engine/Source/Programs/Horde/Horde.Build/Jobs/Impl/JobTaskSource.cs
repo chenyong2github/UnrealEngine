@@ -431,7 +431,7 @@ namespace HordeServer.Tasks.Impl
 
 			// Query for a new list of jobs for the queue
 			List<IJob> NewJobs = await Jobs.GetDispatchQueueAsync();
-			for(int Idx = 0; Idx < NewJobs.Count; Idx++)
+			for (int Idx = 0; Idx < NewJobs.Count; Idx++)
 			{
 				IJob? NewJob = NewJobs[Idx];
 
@@ -460,52 +460,53 @@ namespace HordeServer.Tasks.Impl
 				}
 
 				// Update all the batches
-				bool IsRunning = false;
-				for (int BatchIdx = 0; NewJob != null && BatchIdx < NewJob.Batches.Count; BatchIdx++)
+				HashSet<SubResourceId> CheckedBatchIds = new HashSet<SubResourceId>();
+				while (NewJob != null)
 				{
-					IJobStepBatch Batch = NewJob.Batches[BatchIdx];
-					IsRunning |= (Batch.State == JobStepBatchState.Ready || Batch.State == JobStepBatchState.Starting || Batch.State == JobStepBatchState.Running || Batch.State == JobStepBatchState.Stopping);
-
-					// Skip any batches which aren't ready to execute
-					if (Batch.State == JobStepBatchState.Ready)
+					// Find the next batch within this job that is ready
+					int BatchIdx = NewJob.Batches.FindIndex(x => x.State == JobStepBatchState.Ready && CheckedBatchIds.Add(x.Id));
+					if (BatchIdx == -1)
 					{
-						// Validate the agent type and workspace settings
-						IPool? Pool;
-						if (!Stream.AgentTypes.TryGetValue(Graph.Groups[Batch.GroupIdx].AgentType, out AgentType? AgentType))
-						{
-							NewJob = await SkipBatchAsync(NewJob, BatchIdx, Graph, JobStepBatchError.UnknownAgentType);
-						}
-						else if (!CachedPoolIdToInstance.TryGetValue(AgentType.Pool, out Pool))
-						{
-							NewJob = await SkipBatchAsync(NewJob, BatchIdx, Graph, JobStepBatchError.UnknownPool);
-						}
-						else if (!ValidPools.Contains(AgentType.Pool))
-						{
-							NewJob = await SkipBatchAsync(NewJob, BatchIdx, Graph, JobStepBatchError.NoAgentsInPool);
-						}
-						else if (!OnlinePools.Contains(AgentType.Pool))
-						{
-							NewJob = await SkipBatchAsync(NewJob, BatchIdx, Graph, JobStepBatchError.NoAgentsOnline);
-						}
-						else if (!Stream.TryGetAgentWorkspace(AgentType, out AgentWorkspace? Workspace))
-						{
-							NewJob = await SkipBatchAsync(NewJob, BatchIdx, Graph, JobStepBatchError.UnknownWorkspace);
-						}
-						else
-						{
-							QueueItem NewQueueItem = new QueueItem(Stream, NewJob, BatchIdx, AgentType.Pool, Workspace);
-							NewQueue.Add(NewQueueItem);
-							NewBatchIdToQueueItem[(NewJob.Id, Batch.Id)] = NewQueueItem;
-						}
+						break;
+					}
+
+					// Validate the agent type and workspace settings
+					IJobStepBatch Batch = NewJob.Batches[BatchIdx];
+					if (!Stream.AgentTypes.TryGetValue(Graph.Groups[Batch.GroupIdx].AgentType, out AgentType? AgentType))
+					{
+						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.UnknownAgentType);
+					}
+					else if (!CachedPoolIdToInstance.TryGetValue(AgentType.Pool, out IPool? Pool))
+					{
+						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.UnknownPool);
+					}
+					else if (!ValidPools.Contains(AgentType.Pool))
+					{
+						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.NoAgentsInPool);
+					}
+					else if (!OnlinePools.Contains(AgentType.Pool))
+					{
+						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.NoAgentsOnline);
+					}
+					else if (!Stream.TryGetAgentWorkspace(AgentType, out AgentWorkspace? Workspace))
+					{
+						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.UnknownWorkspace);
+					}
+					else
+					{
+						QueueItem NewQueueItem = new QueueItem(Stream, NewJob, BatchIdx, AgentType.Pool, Workspace);
+						NewQueue.Add(NewQueueItem);
+						NewBatchIdToQueueItem[(NewJob.Id, Batch.Id)] = NewQueueItem;
 					}
 				}
 
-				// Add a warning if a job looks to be idle
-				if (!IsRunning && NewJob != null)
+				if (NewJob != null)
 				{
-					Logger.LogError("Job {JobId} is in dispatch queue but not currently executing", NewJob.Id);
-					await Jobs.TryRemoveFromDispatchQueueAsync(NewJob);
-					continue;
+					if (!NewJob.Batches.Any(Batch => Batch.State == JobStepBatchState.Ready || Batch.State == JobStepBatchState.Starting || Batch.State == JobStepBatchState.Running || Batch.State == JobStepBatchState.Stopping))
+					{
+						Logger.LogError("Job {JobId} is in dispatch queue but not currently executing", NewJob.Id);
+						await Jobs.TryRemoveFromDispatchQueueAsync(NewJob);
+					}
 				}
 			}
 
@@ -539,12 +540,12 @@ namespace HordeServer.Tasks.Impl
 			}
 		}
 
-		private async Task<IJob?> SkipBatchAsync(IJob Job, int BatchIdx, IGraph Graph, JobStepBatchError Reason)
+		private async Task<IJob?> SkipBatchAsync(IJob Job, SubResourceId BatchId, IGraph Graph, JobStepBatchError Reason)
 		{
-			Logger.LogInformation("Skipping batch {BatchIdx} for job {JobId} (reason: {Reason})", BatchIdx, Job.Id, Reason);
+			Logger.LogInformation("Skipping batch {BatchId} for job {JobId} (reason: {Reason})", BatchId, Job.Id, Reason);
 
 			IReadOnlyList<(LabelState, LabelOutcome)> OldLabelStates = Job.GetLabelStates(Graph);
-			IJob? NewJob = await Jobs.SkipBatchAsync(Job, BatchIdx, Graph, Reason);
+			IJob? NewJob = await Jobs.SkipBatchAsync(Job, BatchId, Graph, Reason);
 			if(NewJob != null)
 			{
 				IReadOnlyList<(LabelState, LabelOutcome)> NewLabelStates = NewJob.GetLabelStates(Graph);
@@ -743,7 +744,7 @@ namespace HordeServer.Tasks.Impl
 		private async Task<AgentLease?> TryCreateLeaseAsync(QueueItem Item, QueueWaiter Waiter)
 		{
 			IJob Job = Item.Job;
-			IJobStepBatch Batch = Job.Batches[Item.BatchIdx];
+			IJobStepBatch Batch = Item.Batch;
 			IAgent Agent = Waiter.Agent;
 			Logger.LogDebug("Assigning job {JobId}, batch {BatchId} to waiter (agent {AgentID})", Job.Id, Batch.Id, Agent.Id);
 
