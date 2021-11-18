@@ -6,6 +6,7 @@
 #include "UObject/NoExportTypes.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
+#include "InteractiveToolChange.h"
 #include "AttributeEditorTool.generated.h"
 
 
@@ -403,4 +404,16 @@ protected:
 	void ResetLightmapUVsChannels();
 
 	void AddNewAttribute(EAttributeEditorElementType ElemType, EAttributeEditorAttribType AttribType, FName AttributeName);
+
+	friend class FAttributeEditor_AttributeListsChange;
+	void EmitAttributesChange();
+};
+
+
+class MESHMODELINGTOOLSEDITORONLY_API FAttributeEditor_AttributeListsChange : public FToolCommandChange
+{
+public:
+	virtual void Apply(UObject* Object) override;
+	virtual void Revert(UObject* Object) override;
+	virtual FString ToString() const override;
 };
