@@ -437,6 +437,7 @@ void UAnimationBlueprintLibrary::AddAnimationSyncMarker(UAnimSequence* Animation
 			NewMarker.MarkerName = MarkerName;
 			NewMarker.Time = Time;
 			NewMarker.TrackIndex = GetTrackIndexForAnimationNotifyTrackName(AnimationSequence, TrackName);
+			NewMarker.Guid = FGuid::NewGuid();
 
 			AnimationSequence->AuthoredSyncMarkers.Add(NewMarker);
 			AnimationSequence->AnimNotifyTracks[NewMarker.TrackIndex].SyncMarkers.Add(&AnimationSequence->AuthoredSyncMarkers.Last());

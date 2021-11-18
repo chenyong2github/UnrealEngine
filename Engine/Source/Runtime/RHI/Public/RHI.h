@@ -122,11 +122,11 @@ RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId);
 // helper to return the shader language version for the given shader platform.
 RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform);
 
-// helper to check that the shader platform supports writing to UAVs from pixel shaders.
-RHI_API bool RHISupportsPixelShaderUAVs(const FStaticShaderPlatform Platform);
-
 // helper to check that the shader platform supports creating a UAV off an index buffer.
-RHI_API bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform);
+inline bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsIndexBufferUAVs(Platform);
+}
 
 // helper to check if a preview feature level has been requested.
 RHI_API bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT);
@@ -139,14 +139,12 @@ RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatf
 
 inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
-	return Platform == EShaderPlatform::SP_PCD3D_SM5 || Platform == EShaderPlatform::SP_METAL_SM5
-		|| Platform == EShaderPlatform::SP_PCD3D_ES3_1 || FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsInstancedStereo(Platform);
 }
 
 inline bool RHISupportsMultiView(const FStaticShaderPlatform Platform)
 {
-	return ((Platform == EShaderPlatform::SP_METAL_SM5))
-		|| FDataDrivenShaderPlatformInfo::GetSupportsMultiView(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsMultiView(Platform);
 }
 
 inline bool RHISupportsMSAA(const FStaticShaderPlatform Platform)
@@ -168,7 +166,7 @@ inline bool RHISupportsVolumeTextures(const FStaticFeatureLevel FeatureLevel)
 
 inline bool RHISupportsVertexShaderLayer(const FStaticShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsMetalPlatform(Platform) && IsPCPlatform(Platform);
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && FDataDrivenShaderPlatformInfo::GetSupportsVertexShaderLayer(Platform);
 }
 
 /** Return true if and only if the GPU support rendering to volume textures (2D Array, 3D) is guaranteed supported for a target platform.
@@ -185,19 +183,14 @@ inline bool RHISupports4ComponentUAVReadWrite(const FStaticShaderPlatform Platfo
 {
 	// Must match usf PLATFORM_SUPPORTS_4COMPONENT_UAV_READ_WRITE
 	// D3D11 does not support multi-component loads from a UAV: "error X3676: typed UAV loads are only allowed for single-component 32-bit element types"
-	return IsMetalPlatform(Platform) 
-		|| FDataDrivenShaderPlatformInfo::GetSupports4ComponentUAVReadWrite(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupports4ComponentUAVReadWrite(Platform);
 }
 
 /** Whether Manual Vertex Fetch is supported for the specified shader platform.
 	Shader Platform must not use the mobile renderer, and for Metal, the shader language must be at least 2. */
 inline bool RHISupportsManualVertexFetch(const FStaticShaderPlatform InShaderPlatform)
 {
-	bool bIsMetalMobilePlatform = IsMetalMobilePlatform(InShaderPlatform);
-	bool bIsUnsupportedGL = IsOpenGLPlatform(InShaderPlatform);
-
-	return (!bIsUnsupportedGL && !IsMobilePlatform(InShaderPlatform) && !bIsMetalMobilePlatform)
-		|| FDataDrivenShaderPlatformInfo::GetSupportsManualVertexFetch(InShaderPlatform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsManualVertexFetch(InShaderPlatform);
 }
 
 /** 
@@ -599,8 +592,11 @@ extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 /** Whether or not the RHI supports the AMD Hit Token extension. */
 extern RHI_API bool GRHISupportsRayTracingAMDHitToken;
 
-/** Required alignment for ray tracing acceleration structures and scratch buffers. */
+/** Required alignment for ray tracing acceleration structures. */
 extern RHI_API uint32 GRHIRayTracingAccelerationStructureAlignment;
+
+/** Required alignment for ray tracing scratch buffers. */
+extern RHI_API uint32 GRHIRayTracingScratchBufferAlignment;
 
 /** Required alignment for ray tracing shader binding table buffer. */
 extern RHI_API uint32 GRHIRayTracingShaderTableAlignment;
@@ -723,13 +719,13 @@ extern RHI_API bool GRHISupportsMeshShadersTier1;
 extern RHI_API bool GRHISupportsShaderTimestamp;
 
 /** Tables of all MSAA sample offset for all MSAA supported. Use GetMSAASampleOffsets() to read it. */
-extern RHI_API FVector2D GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];
+extern RHI_API FVector2f GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];
 
 // Calculate the index of the sample in GRHIDefaultMSAASampleOffsets
 extern RHI_API int32 CalculateMSAASampleArrayIndex(int32 NumSamples, int32 SampleIndex);
 
 // Gets the MSAA sample's offset from the center of the pixel coordinate.
-inline FVector2D GetMSAASampleOffsets(int32 NumSamples, int32 SampleIndex)
+inline FVector2f GetMSAASampleOffsets(int32 NumSamples, int32 SampleIndex)
 {
 	return GRHIDefaultMSAASampleOffsets[CalculateMSAASampleArrayIndex(NumSamples, SampleIndex)];
 }
@@ -1109,7 +1105,7 @@ private:
 		DeviceZ = FMath::Min(DeviceZ, 1 - Z_PRECISION);
 
 		// for depth to linear conversion
-		const FVector2D InvDeviceZToWorldZ(0.1f, 0.1f);
+		const FVector2f InvDeviceZToWorldZ(0.1f, 0.1f);
 
 		return 1.0f / (DeviceZ * InvDeviceZToWorldZ.X - InvDeviceZToWorldZ.Y);
 	}

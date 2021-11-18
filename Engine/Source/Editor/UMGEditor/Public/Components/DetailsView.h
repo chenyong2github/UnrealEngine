@@ -84,9 +84,9 @@ public:
 
 protected:
 	void ToggleShowingOnlyAllowedProperties();
-	bool IsRowVisibilityFiltered() const;
-	bool GetIsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const;
-	bool GetIsRowVisible(FName InRowName, FName InParentName) const;
+	virtual bool IsRowVisibilityFiltered() const;
+	virtual bool GetIsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const;
+	virtual bool GetIsRowVisible(FName InRowName, FName InParentName) const;
 
 private:
 	TSharedPtr<IDetailsView> DetailViewWidget;

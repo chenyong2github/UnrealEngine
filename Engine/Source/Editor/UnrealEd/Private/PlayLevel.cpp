@@ -399,7 +399,7 @@ void UEditorEngine::EndPlayMap()
 	{
 		auto MarkObjectPendingKill = [](UObject* Object)
 		{
-			Object->MarkPendingKill();
+			Object->MarkAsGarbage();
 		};
 		ForEachObjectWithOuter(*It, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 	}

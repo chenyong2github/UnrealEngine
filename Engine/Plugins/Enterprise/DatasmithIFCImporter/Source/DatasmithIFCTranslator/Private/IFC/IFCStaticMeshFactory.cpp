@@ -45,7 +45,7 @@ namespace IFC
 		TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-		TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 		const int32 NumUVs = 1;
 		VertexInstanceUVs.SetNumChannels(NumUVs);

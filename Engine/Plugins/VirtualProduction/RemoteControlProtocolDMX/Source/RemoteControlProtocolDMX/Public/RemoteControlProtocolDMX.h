@@ -37,9 +37,6 @@ struct FRemoteControlDMXProtocolEntity : public FRemoteControlProtocolEntity
 
 	friend class FRemoteControlProtocolDMX;
 
-	/** Destructor */
-	virtual ~FRemoteControlDMXProtocolEntity();
-
 public:
 	//~ Begin FRemoteControlProtocolEntity interface
 	virtual FName GetRangePropertyName() const override { return NAME_UInt32Property; }
@@ -78,7 +75,12 @@ public:
 	UPROPERTY(Transient)
 	uint32 RangeInputTemplate = 0;
 
+	/** If set to true, uses the default input port set in Remote Control Protocol project settings */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	bool bUseDefaultInputPort = true;
+
 	/** Reference of an input DMX port id */
+	UPROPERTY(EditAnywhere, Category = Mapping)
 	FGuid InputPortId;
 
 private:
@@ -87,9 +89,6 @@ private:
 
 	/** A single, generic DMX signal. One universe of raw DMX data received */
 	FDMXSignalSharedPtr LastSignalPtr;
-
-	/** Delegate for port changes */
-	FDelegateHandle PortsChangedHandle;
 };
 
 /**

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioAnalyzerSubsystem.h"
+#include "Containers/Ticker.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 
@@ -10,6 +11,11 @@ UAudioAnalyzerSubsystem::UAudioAnalyzerSubsystem()
 
 UAudioAnalyzerSubsystem::~UAudioAnalyzerSubsystem()
 {
+	if (TickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		TickerHandle.Reset();
+	}
 	AudioAnalyzers.Reset();
 }
 
@@ -22,12 +28,7 @@ UAudioAnalyzerSubsystem* UAudioAnalyzerSubsystem::Get()
 	return nullptr;
 }
 
-TStatId UAudioAnalyzerSubsystem::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UAudioAnalyzerSubsystem, STATGROUP_Tickables);
-}
-
-void UAudioAnalyzerSubsystem::Tick(float DeltaTime)
+bool UAudioAnalyzerSubsystem::Tick(float DeltaTime)
 {
 	// Loop through all analyzers and if they're ready to analyze, do it
 	for (UAudioAnalyzer* Analyzer : AudioAnalyzers)
@@ -40,20 +41,7 @@ void UAudioAnalyzerSubsystem::Tick(float DeltaTime)
 			}
 		}
 	}
-}
-
-bool UAudioAnalyzerSubsystem::IsTickable() const
-{
-	// As soon as any analyzers are ready, say we're ok to be ticked
-	for (UAudioAnalyzer* Analyzer : AudioAnalyzers)
-	{
-		if (Analyzer->IsReadyForAnalysis())
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return true;
 }
 
 void UAudioAnalyzerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -69,10 +57,19 @@ void UAudioAnalyzerSubsystem::Deinitialize()
 
 void UAudioAnalyzerSubsystem::RegisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer)
 {
+	if (!TickerHandle.IsValid())
+	{
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UAudioAnalyzerSubsystem::Tick), 0.0f);
+	}
 	AudioAnalyzers.AddUnique(InAnalyzer);
 }
 
 void UAudioAnalyzerSubsystem::UnregisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer)
 {
 	AudioAnalyzers.Remove(InAnalyzer);
+	if (AudioAnalyzers.IsEmpty() && TickerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		TickerHandle.Reset();
+	}
 }

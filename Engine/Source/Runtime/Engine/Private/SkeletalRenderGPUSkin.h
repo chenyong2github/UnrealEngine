@@ -155,6 +155,17 @@ struct FMorphGPUSkinVertex
 class FMorphVertexBuffer : public FVertexBuffer
 {
 public:
+	/**
+	* Default Constructor
+	*/
+	FMorphVertexBuffer()
+		: bHasBeenUpdated(false)
+		, bNeedsInitialClear(true)
+		, bUsesComputeShader(false)
+		, LODIdx(-1)
+		, SkelMeshRenderData(nullptr)
+	{
+	}
 
 	/** 
 	* Constructor
@@ -261,6 +272,38 @@ private:
 
 	// parent mesh containing the source data, never 0
 	FSkeletalMeshRenderData* SkelMeshRenderData;
+
+	/** Latest updated frame number, -1 means invalid */
+	uint32 FrameNumber = -1;
+
+	friend class FMorphVertexBufferPool;
+};
+
+/**
+* Pooled morph vertex buffers that store the vertex deltas.
+*/
+class FMorphVertexBufferPool
+{
+public:
+	FMorphVertexBufferPool(FSkeletalMeshRenderData* InSkelMeshRenderData, int32 InLOD, ERHIFeatureLevel::Type InFeatureLevel)
+	{
+		MorphVertexBuffers[0] = FMorphVertexBuffer(InSkelMeshRenderData, InLOD, InFeatureLevel);
+		MorphVertexBuffers[1] = FMorphVertexBuffer(InSkelMeshRenderData, InLOD, InFeatureLevel);
+	}
+
+	void InitResources();
+	void ReleaseResources();
+	SIZE_T GetResourceSize() const;
+	void EnableDoubleBuffer();
+	bool IsDoubleBuffered() const	{ return bDoubleBuffer; }
+	const FMorphVertexBuffer& GetMorphVertexBufferForReading(bool bPrevious, uint32 FrameNumber) const;
+	FMorphVertexBuffer& GetMorphVertexBufferForWriting(uint32 FrameNumber);
+
+private:
+	/** Vertex buffer that stores the morph target vertex deltas. */
+	FMorphVertexBuffer MorphVertexBuffers[2];
+	/** whether to double buffer. If going through skin cache, then use single buffer; otherwise double buffer. */
+	bool bDoubleBuffer = false;
 };
 
 /**
@@ -440,7 +483,7 @@ public:
 		FStaticMeshVertexBuffers* StaticVertexBuffers = nullptr;
 		FSkinWeightVertexBuffer* SkinWeightVertexBuffer = nullptr;
 		FColorVertexBuffer*	ColorVertexBuffer = nullptr;
-		FMorphVertexBuffer* MorphVertexBuffer = nullptr;
+		FMorphVertexBufferPool* MorphVertexBufferPool = nullptr;
 		FSkeletalMeshVertexClothBuffer*	APEXClothVertexBuffer = nullptr;
 		FVertexOffsetBuffers* VertexOffsetVertexBuffers = nullptr;
 		uint32 NumVertices = 0;
@@ -544,7 +587,7 @@ protected:
 			: SkelMeshRenderData(InSkelMeshRenderData)
 			, LODIndex(InLOD)
 			, FeatureLevel(InFeatureLevel)
-			, MorphVertexBuffer(InSkelMeshRenderData,LODIndex, FeatureLevel)
+			, MorphVertexBufferPool(InSkelMeshRenderData, LODIndex, FeatureLevel)
 			, MeshObjectWeightBuffer(nullptr)
 			, MeshObjectColorBuffer(nullptr)
 		{
@@ -579,7 +622,7 @@ protected:
 		 */
 		void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		{
-			CumulativeResourceSize.AddUnknownMemoryBytes(MorphVertexBuffer.GetResourceSize());
+			CumulativeResourceSize.AddUnknownMemoryBytes(MorphVertexBufferPool.GetResourceSize());
 			CumulativeResourceSize.AddUnknownMemoryBytes(VertexOffsetVertexBuffers.GetResourceSize());
 			CumulativeResourceSize.AddUnknownMemoryBytes(GPUSkinVertexFactories.GetResourceSize());
 		}
@@ -590,8 +633,8 @@ protected:
 
 		ERHIFeatureLevel::Type FeatureLevel;
 
-		/** Vertex buffer that stores the morph target vertex deltas. Updated on the CPU */
-		FMorphVertexBuffer MorphVertexBuffer;
+		/** Pooled vertex buffers that store the morph target vertex deltas. */
+		FMorphVertexBufferPool	MorphVertexBufferPool;
 
 		FVertexOffsetBuffers VertexOffsetVertexBuffers;
 
@@ -610,9 +653,9 @@ protected:
 		 * @param ActiveMorphTargets - Morph to accumulate. assumed to be weighted and have valid targets
 		 * @param MorphTargetWeights - All Morph weights
 		 */
-		void UpdateMorphVertexBufferCPU(const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights);
+		void UpdateMorphVertexBufferCPU(const TArray<FActiveMorphTarget>& ActiveMorphTargets, const TArray<float>& MorphTargetWeights, FMorphVertexBuffer& MorphVertexBuffer);
 		void UpdateMorphVertexBufferGPU(FRHICommandListImmediate& RHICmdList, const TArray<float>& MorphTargetWeights, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, 
-										const TArray<int32>& SectionIdsUseByActiveMorphTargets, const FName& OwnerName, EGPUSkinCacheEntryMode Mode);
+										const TArray<int32>& SectionIdsUseByActiveMorphTargets, const FName& OwnerName, EGPUSkinCacheEntryMode Mode, FMorphVertexBuffer& MorphVertexBuffer);
 
 		void UpdateSkinWeights(FSkelMeshComponentLODInfo* CompLODInfo);
 
@@ -639,7 +682,7 @@ protected:
 
 	void ProcessUpdatedDynamicData(EGPUSkinCacheEntryMode Mode, FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, uint32 FrameNumberToPrepare, uint32 RevisionNumber, bool bMorphNeedsUpdate, int32 LODIndex);
 
-	virtual void UpdateMorphVertexBuffer(FRHICommandListImmediate& RHICmdList, EGPUSkinCacheEntryMode Mode, FSkeletalMeshObjectLOD& LOD, const FSkeletalMeshLODRenderData& LODData);
+	virtual void UpdateMorphVertexBuffer(FRHICommandListImmediate& RHICmdList, EGPUSkinCacheEntryMode Mode, FSkeletalMeshObjectLOD& LOD, const FSkeletalMeshLODRenderData& LODData, FMorphVertexBuffer& MorphVertexBuffer);
 
 	void WaitForRHIThreadFenceForDynamicData();
 

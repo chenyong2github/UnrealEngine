@@ -3,6 +3,7 @@
 #include "NavMesh/RecastNavMeshGenerator.h"
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "Components/PrimitiveComponent.h"
+#include "Compression/OodleDataCompression.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"
@@ -67,6 +68,18 @@ static int32 GNavmeshDebugTileY = MAX_int32;
 static FAutoConsoleVariableRef NavmeshVarDebugTileX(TEXT("n.GNavmeshDebugTileX"), GNavmeshDebugTileX, TEXT(""), ECVF_Default);
 static FAutoConsoleVariableRef NavmeshVarDebugTileY(TEXT("n.GNavmeshDebugTileY"), GNavmeshDebugTileY, TEXT(""), ECVF_Default);
 #endif //RECAST_INTERNAL_DEBUG_DATA
+
+// Hotfixing this flag without rebuilding the data will cause decompression errors, equivalent to not having prebuilt navmesh data at all.
+static bool GNavmeshUseOodleCompression = true;
+static FAutoConsoleVariableRef NavmeshVarOodleCompression(TEXT("n.NavmeshUseOodleCompression"), GNavmeshUseOodleCompression, TEXT("Use Oodle for run-time tile cache compression/decompression. Optimized for size in editor, optimized for speed in standalone."), ECVF_Default);
+
+#if	WITH_EDITOR	
+static FOodleDataCompression::ECompressor GNavmeshTileCacheCompressor = FOodleDataCompression::ECompressor::Kraken;
+static FOodleDataCompression::ECompressionLevel GNavmeshTileCacheCompressionLevel = FOodleDataCompression::ECompressionLevel::Optimal1;
+#else
+static FOodleDataCompression::ECompressor GNavmeshTileCacheCompressor = FOodleDataCompression::ECompressor::Mermaid;
+static FOodleDataCompression::ECompressionLevel GNavmeshTileCacheCompressionLevel = FOodleDataCompression::ECompressionLevel::HyperFast1;
+#endif
 
 FORCEINLINE bool DoesBoxContainOrOverlapVector(const FBox& BigBox, const FVector& In)
 {
@@ -1785,11 +1798,18 @@ struct FTileCacheCompressor : public dtTileCacheCompressor
 
 	virtual int32 maxCompressedSize(const int32 bufferSize)
 	{
-		return FMath::TruncToInt(bufferSize * 1.1f) + sizeof(FCompressedCacheHeader);
+		if (GNavmeshUseOodleCompression)
+		{
+			return FOodleDataCompression::CompressedBufferSizeNeeded(bufferSize) + sizeof(FCompressedCacheHeader);
+		}
+		else
+		{
+			return FMath::TruncToInt(bufferSize * 1.1f) + sizeof(FCompressedCacheHeader);
+		}
 	}
 
 	virtual dtStatus compress(const uint8* buffer, const int32 bufferSize,
-		uint8* compressed, const int32 maxCompressedSize, int32* compressedSize)
+		uint8* compressed, const int32 maxCompressedSize, int32* outCompressedSize)
 	{
 		const int32 HeaderSize = sizeof(FCompressedCacheHeader);
 
@@ -1800,14 +1820,36 @@ struct FTileCacheCompressor : public dtTileCacheCompressor
 		uint8* DataPtr = compressed + HeaderSize;		
 		int32 DataSize = maxCompressedSize - HeaderSize;
 
-		FCompression::CompressMemory(NAME_Zlib, (void*)DataPtr, DataSize, (const void*)buffer, bufferSize, COMPRESS_BiasMemory);
+		if (GNavmeshUseOodleCompression)
+		{
+			const int64 CompressedSize = FOodleDataCompression::Compress((void*)DataPtr, DataSize, (const void*)buffer, bufferSize, GNavmeshTileCacheCompressor, GNavmeshTileCacheCompressionLevel);
+			if (CompressedSize > 0)
+			{
+				*outCompressedSize = CompressedSize + HeaderSize;
+				return DT_SUCCESS;
+			}
+			else
+			{
+				return DT_FAILURE;
+			}
+		}
+		else
+		{
+			if (FCompression::CompressMemory(NAME_Zlib, (void*)DataPtr, DataSize, (const void*)buffer, bufferSize, COMPRESS_BiasMemory))
+			{
+				*outCompressedSize = DataSize + HeaderSize;
+				return DT_SUCCESS;
+			}
+			else
+			{
+				return DT_FAILURE;
+			}
 
-		*compressedSize = DataSize + HeaderSize;
-		return DT_SUCCESS;
+		}
 	}
 
 	virtual dtStatus decompress(const uint8* compressed, const int32 compressedSize,
-		uint8* buffer, const int32 maxBufferSize, int32* bufferSize)
+		uint8* buffer, const int32 maxBufferSize, int32* outDecompressedSize)
 	{
 		const int32 HeaderSize = sizeof(FCompressedCacheHeader);
 		
@@ -1817,10 +1859,30 @@ struct FTileCacheCompressor : public dtTileCacheCompressor
 		const uint8* DataPtr = compressed + HeaderSize;		
 		const int32 DataSize = compressedSize - HeaderSize;
 
-		FCompression::UncompressMemory(NAME_Zlib, (void*)buffer, DataHeader.UncompressedSize, (const void*)DataPtr, DataSize);
-
-		*bufferSize = DataHeader.UncompressedSize;
-		return DT_SUCCESS;
+		if (GNavmeshUseOodleCompression)
+		{
+			if (FOodleDataCompression::Decompress((void*)buffer, DataHeader.UncompressedSize, (const void*)DataPtr, DataSize))
+			{
+				*outDecompressedSize = DataHeader.UncompressedSize;
+				return DT_SUCCESS;
+			}
+			else
+			{
+				return DT_FAILURE;
+			}
+		}
+		else
+		{
+			if (FCompression::UncompressMemory(NAME_Zlib, (void*)buffer, DataHeader.UncompressedSize, (const void*)DataPtr, DataSize))
+			{
+				*outDecompressedSize = DataHeader.UncompressedSize;
+				return DT_SUCCESS;
+			}
+			else
+			{
+				return DT_FAILURE;
+			}
+		}
 	}
 };
 
@@ -2289,7 +2351,9 @@ void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNaviga
 		}
 	}
 
-	const FCompositeNavModifier ModifierInstance = ElementData->GetModifierForAgent(&OwnerNavDataConfig);
+	// Temporary change to help narrow down a rare crash:
+	// Was: const FCompositeNavModifier ModifierInstance = ElementData->GetModifierForAgent(&OwnerNavDataConfig);
+	const FCompositeNavModifier& ModifierInstance = ElementData->Modifiers.HasMetaAreas() ? ElementData->Modifiers.GetInstantiatedMetaModifier(&OwnerNavDataConfig, ElementData->SourceObject) : ElementData->Modifiers;
 
 	const bool bExportGeometry = bGeometryChanged && ElementData->HasGeometry();
 	if (bExportGeometry)

@@ -8,6 +8,7 @@
 #include "HAL/ThreadSingleton.h"
 #include "UObject/Class.h"
 #include "UObject/ObjectPtr.h"
+#include "UObject/UObjectHash.h"
 
 /**
  * A struct that contains a string reference to an object, either a top level asset or a subobject.
@@ -86,6 +87,11 @@ struct COREUOBJECT_API FSoftObjectPath
 		return AssetPathName;
 	}
 
+	FORCEINLINE void SetAssetPathName(FName InAssetPathName)
+	{
+		AssetPathName = InAssetPathName;
+	}
+
 	/** Returns string version of asset path, including both package and asset but not sub object */
 	FORCEINLINE FString GetAssetPathString() const
 	{
@@ -101,6 +107,11 @@ struct COREUOBJECT_API FSoftObjectPath
 	FORCEINLINE const FString& GetSubPathString() const
 	{
 		return SubPathString;
+	}
+
+	FORCEINLINE void SetSubPathString(const FString& InSubPathString)
+	{
+		SubPathString = InSubPathString;
 	}
 
 	/** Returns /package/path, leaving off the asset name and sub object */
@@ -460,19 +471,25 @@ struct FSoftObjectPathFixupArchive : public FArchiveUObject
 
 	FSoftObjectPathFixupArchive(const FString& InOldAssetPathString, const FString& InNewAssetPathString)
 		: FSoftObjectPathFixupArchive([OldAssetPathString = InOldAssetPathString, NewAssetPathString = InNewAssetPathString](FSoftObjectPath& Value)
+		{
+			if (!Value.IsNull() && Value.GetAssetPathString().Equals(OldAssetPathString, ESearchCase::IgnoreCase))
 			{
-				if (!Value.IsNull() && Value.GetAssetPathString() == OldAssetPathString)
-				{
-					Value = FSoftObjectPath(NewAssetPathString + TEXT(":") + Value.GetSubPathString());
-				}
-			})
+				Value.SetAssetPathName(FName(*NewAssetPathString));
+			}
+		})
 	{
 	}
 
-	FArchive& operator<<(FSoftObjectPath& Value)
+	FArchive& operator<<(FSoftObjectPath& Value) override
 	{
 		FixupFunction(Value);
 		return *this;
+	}
+
+	void Fixup(UObject* Root)
+	{
+		Root->Serialize(*this);
+		ForEachObjectWithOuter(Root, [this](UObject* InObject) { InObject->Serialize(*this);  });
 	}
 
 	TFunction<void(FSoftObjectPath&)> FixupFunction;

@@ -28,8 +28,6 @@ UMaterialExpressionLandscapeLayerWeight::UMaterialExpressionLandscapeLayerWeight
 	};
 	static FConstructorStatics ConstructorStatics;
 
-	bIsParameterExpression = true;
-
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Landscape);
 #endif
@@ -37,13 +35,6 @@ UMaterialExpressionLandscapeLayerWeight::UMaterialExpressionLandscapeLayerWeight
 	PreviewWeight = 0.0f;
 	ConstBase = FVector(0.f, 0.f, 0.f);
 }
-
-
-FGuid& UMaterialExpressionLandscapeLayerWeight::GetParameterExpressionId()
-{
-	return ExpressionGUID;
-}
-
 
 void UMaterialExpressionLandscapeLayerWeight::PostLoad()
 {
@@ -121,18 +112,10 @@ bool UMaterialExpressionLandscapeLayerWeight::MatchesSearchQuery(const TCHAR* Se
 	return Super::MatchesSearchQuery(SearchQuery);
 }
 
-#endif // WITH_EDITOR
-
-void UMaterialExpressionLandscapeLayerWeight::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+void UMaterialExpressionLandscapeLayerWeight::GetLandscapeLayerNames(TArray<FName>& OutLayers) const
 {
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-	OutParameterInfo.AddUnique(NewParameter);
-
-	if (CurrentSize != OutParameterInfo.Num())
-	{
-		OutParameterIds.Add(ExpressionGUID);
-	}
+	OutLayers.AddUnique(ParameterName);
 }
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

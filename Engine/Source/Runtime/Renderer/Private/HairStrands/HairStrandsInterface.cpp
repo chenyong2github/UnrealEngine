@@ -168,7 +168,7 @@ bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platfor
 	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
 	//                              The runtime setting in these case are r.HairStrands.Binding=0 & r.HairStrands.Simulation=0
 	const bool Cards_Meshes_All = true;
-	const bool bIsMobile = IsMobilePlatform(Platform) || Platform == SP_PCD3D_ES3_1;
+	const bool bIsMobile = IsMobilePlatform(Platform);
 
 	switch (Type)
 	{
@@ -189,7 +189,7 @@ bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 	// Important:
 	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
 	//                              The runtime setting in these case are r.HairStrands.Binding=0 & r.HairStrands.Simulation=0
-	const bool bIsMobile = Platform != EShaderPlatform::SP_NumPlatforms ? IsMobilePlatform(Platform) || Platform == SP_PCD3D_ES3_1 : false;
+	const bool bIsMobile = Platform != EShaderPlatform::SP_NumPlatforms ? IsMobilePlatform(Platform) : false;
 	const int32 HairStrandsEnable = CVarHairStrandsEnable.GetValueOnAnyThread();
 	const int32 HairCardsEnable   = CVarHairCardsEnable.GetValueOnAnyThread();
 	const int32 HairMeshesEnable  = CVarHairMeshesEnable.GetValueOnAnyThread();

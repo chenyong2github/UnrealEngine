@@ -7,6 +7,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
 #include "Misc/Parse.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 #include "Logging/LogMacros.h"
 #include "Math/Vector2D.h"
 #include "Math/Vector.h"
@@ -124,7 +125,7 @@ public:
 	 * @param InXY A 2D vector holding the X- and Y-components.
 	 * @param InZW A 2D vector holding the Z- and W-components.
 	 */
-	explicit TVector4(FVector2D InXY, FVector2D InZW);
+	explicit TVector4(TVector2<T> InXY, TVector2<T> InZW);
 
 	/**
 	 * Creates and initializes a new vector from an int vector value.
@@ -224,7 +225,7 @@ public:
 	 * @param Scale The scaling factor.
 	 * @return The result of vector scaling.
 	 */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	FORCEINLINE TVector4<T> operator*(FArg Scale) const
 	{
 		return TVector4(X * Scale, Y * Scale, Z * Scale, W * Scale);
@@ -236,7 +237,7 @@ public:
 	 * @param Scale What to divide by.
 	 * @return The result of division.
 	 */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	FORCEINLINE TVector4<T> operator/(FArg Scale) const
 	{
 		const T RScale = T(1.0f) / Scale;
@@ -281,7 +282,7 @@ public:
 	 * @param Scale The scaling factor.
 	 * @return The result of vector scaling.
 	 */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	FORCEINLINE TVector4<T> operator*=(FArg Scale)
 	{
 		X *= Scale; Y *= Scale; Z *= Scale; W *= Scale;
@@ -295,7 +296,7 @@ public:
 	 * @param Scale The inverse scaling factor.
 	 * @return The result of vector scaling by 1/Scale.
 	 */
-	template<typename FArg, TEMPLATE_REQUIRES(std::is_convertible<FArg, T>::value)>
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
 	FORCEINLINE TVector4<T> operator/=(FArg Scale)
 	{
 		const T RV = T(1.0f) / Scale;
@@ -401,7 +402,7 @@ public:
 	 * Sets Yaw and Pitch to the proper numbers, and sets roll to zero because the roll can't be determined from a vector.
 	 * @return FRotator from the Vector's direction.
 	 */
-	CORE_API FRotator ToOrientationRotator() const;
+	CORE_API TRotator<T> ToOrientationRotator() const;
 
 	/**
 	 * Return the Quaternion orientation corresponding to the direction in which the vector points.
@@ -416,7 +417,10 @@ public:
 	 * @return FRotator from the Vector's direction.
 	 * @see ToOrientationRotator()
 	 */
-	CORE_API FRotator Rotation() const;
+	FORCEINLINE TRotator<T> Rotation() const
+	{
+		return ToOrientationRotator();
+	}
 
 	/**
 	 * Set all of the vectors coordinates.
@@ -485,6 +489,8 @@ public:
 	FORCEINLINE void DiagnosticCheckNaN() { }
 #endif
 
+private:
+	bool SerializeFromVector3(FName StructTag, FArchive&Ar);
 public:
 
 	bool Serialize(FArchive& Ar)
@@ -493,6 +499,8 @@ public:
 		return true;
 	}
 
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
+	
 	// Conversion from other type. TODO: explicit!
 	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
 	TVector4(const TVector4<FArg>& From) : TVector4<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
@@ -594,7 +602,7 @@ FORCEINLINE TVector4<T>::TVector4(ENoInit)
 
 
 template<typename T>
-FORCEINLINE TVector4<T>::TVector4(FVector2D InXY, FVector2D InZW)
+FORCEINLINE TVector4<T>::TVector4(TVector2<T> InXY, TVector2<T> InZW)
 	: X(InXY.X)
 	, Y(InXY.Y)
 	, Z(InZW.X)
@@ -850,6 +858,33 @@ FORCEINLINE TVector4<T> TVector4<T>::operator/(const TVector4<T>& V) const
 }
 
 
+template <typename T>
+bool TVector4<T>::SerializeFromVector3(FName StructTag, FArchive& Ar)
+{
+	// Upgrade Vector3 - only set X/Y/Z.  The W should already have been set to the property specific default and we don't want to trash it by forcing 0 or 1.
+	// LWC_TODO: Serialize - Convert from Vector based on archive version
+	if(StructTag == NAME_Vector || StructTag == NAME_Vector3f)
+	{
+		FVector3f AsVec;
+		Ar << AsVec;
+		X = (T)AsVec.X;
+		Y = (T)AsVec.Y;
+		Z = (T)AsVec.Z;		
+		return true;
+	}
+	else if(StructTag == NAME_Vector3d)
+	{
+		FVector3d AsVec;
+		Ar << AsVec;
+		X = (T)AsVec.X;
+		Y = (T)AsVec.Y;
+		Z = (T)AsVec.Z;		
+		return true;
+	}
+	return false;
+}
+
+
 } // namespace UE::Math
 } // namespace UE
 
@@ -866,13 +901,28 @@ DECLARE_INTRINSIC_TYPE_LAYOUT(FVector4f);
 DECLARE_INTRINSIC_TYPE_LAYOUT(FVector4d);
 
 
-// Forward declare all explicit specializations (in UnrealMath.cpp)
-template<> CORE_API FRotator FVector4f::ToOrientationRotator() const;
-template<> CORE_API FRotator FVector4d::ToOrientationRotator() const;
-template<> CORE_API FQuat4f FVector4f::ToOrientationQuat() const;
-template<> CORE_API FQuat4d FVector4d::ToOrientationQuat() const;
-template<> CORE_API FRotator FVector4f::Rotation() const;
-template<> CORE_API FRotator FVector4d::Rotation() const;
+template<>
+inline bool FVector4f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{	
+	if(SerializeFromVector3(StructTag, Ar))
+	{
+		return true;
+	}
+
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Vector4, Vector4f, Vector4d);
+}
+
+template<>
+inline bool FVector4d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	if(SerializeFromVector3(StructTag, Ar))
+	{
+		return true;
+	}
+
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Vector4, Vector4d, Vector4f);
+}
+
 
 /**
  * Creates a hash value from a TVector4.
@@ -977,37 +1027,29 @@ namespace Math
 		Axis2 = Axis1 ^ *this;
 	}
 
+
+/* FVector inline functions
+*****************************************************************************/
+
+template<typename T>
+FORCEINLINE TVector<T>::TVector( const TVector4<T>& V )
+	: X(V.X), Y(V.Y), Z(V.Z)
+	{
+		DiagnosticCheckNaN();
+	}
+
+
+/* FVector2D inline functions
+*****************************************************************************/
+
+template<typename T>
+FORCEINLINE TVector2<T>::TVector2( const TVector4<T>& V )
+	: X(V.X), Y(V.Y)
+	{
+		DiagnosticCheckNaN();
+	}
+
 } // namespace UE::Math
 } // namespace UE
 
 
-
-/* FVector inline functions
- *****************************************************************************/
-
-template<typename T>
-FORCEINLINE UE::Math::TVector<T>::TVector( const UE::Math::TVector4<float>& V )
-	: X(V.X), Y(V.Y), Z(V.Z)
-{
-	DiagnosticCheckNaN();
-}
-
-template<typename T>
-FORCEINLINE UE::Math::TVector<T>::TVector(const UE::Math::TVector4<double>& V)
-	: X((T)V.X), Y((T)V.Y), Z((T)V.Z)
-{
-	DiagnosticCheckNaN();
-}
-
-/* FVector2D inline functions
- *****************************************************************************/
-
-FORCEINLINE FVector2D::FVector2D(const UE::Math::TVector4<float>& V)
-	: X(V.X), Y(V.Y)
-{
-}
-
-FORCEINLINE FVector2D::FVector2D(const UE::Math::TVector4<double>& V)
-	: X((float)V.X), Y((float)V.Y)
-{
-}

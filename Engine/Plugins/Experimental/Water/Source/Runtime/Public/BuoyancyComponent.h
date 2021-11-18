@@ -63,6 +63,7 @@ public:
 	const TArray<UWaterBodyComponent*>& GetCurrentWaterBodyComponents() const { return CurrentWaterBodyComponents; }
 	TArray<UWaterBodyComponent*>& GetCurrentWaterBodyComponents() { return CurrentWaterBodyComponents; }
 
+	UFUNCTION(BlueprintCallable, Category = Buoyancy)
 	bool IsOverlappingWaterBody() const { return bIsOverlappingWaterBody; }
 
 	virtual bool IsActive() const { return bCanBeActive && IsOverlappingWaterBody(); }

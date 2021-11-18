@@ -7,8 +7,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -122,7 +120,7 @@ namespace UnrealBuildTool
 			foreach (TimingData Data in ParsedTimingData)
 			{
 				// See if we've already added a child that matches this data's name. If so, just add to the duration.
-				TimingData MatchedData;
+				TimingData? MatchedData;
 				if (Summary.Children.TryGetValue(Data.Name, out MatchedData))
 				{
 					MatchedData.Count += 1;
@@ -141,11 +139,11 @@ namespace UnrealBuildTool
 		{
 			List<TimingData> ParsedTimingData = new List<TimingData>();
 			int LastDepth = 0;
-			TimingData LastTimingData = null;
+			TimingData? LastTimingData = null;
 			foreach (string Line in Lines)
 			{
 				int LineDepth;
-				TimingData CurrentTimingData = ParseTimingDataFromLine(TimingType, Line, out LineDepth);
+				TimingData CurrentTimingData = ParseTimingDataFromLine(TimingType, Line, out LineDepth)!;
 				if (LineDepth == 0)
 				{
 					ParsedTimingData.Add(CurrentTimingData);
@@ -154,16 +152,16 @@ namespace UnrealBuildTool
 				{
 					while (LineDepth < LastDepth)
 					{
-						LastTimingData = LastTimingData.Parent;
+						LastTimingData = LastTimingData!.Parent;
 						--LastDepth;
 					}
 
 					// If this timing data would have a parent, add the data to that parent and reduce its exclusive
 					// duration by this data's inclusive duration.
-					TimingData ParentData = null;
+					TimingData? ParentData = null;
 					if (LineDepth == LastDepth)
 					{
-						CurrentTimingData.Parent = LastTimingData.Parent;
+						CurrentTimingData.Parent = LastTimingData!.Parent;
 						ParentData = LastTimingData.Parent;
 						
 					}
@@ -187,7 +185,7 @@ namespace UnrealBuildTool
 			return ParsedTimingData;
 		}
 
-		TimingData ParseTimingDataFromLine(TimingDataType TimingType, string Line, out int LineDepth)
+		TimingData? ParseTimingDataFromLine(TimingDataType TimingType, string Line, out int LineDepth)
 		{
 			Match TimingDataMatch = Regex.Match(Line, TimingDataRegex);
 			if (!TimingDataMatch.Success)

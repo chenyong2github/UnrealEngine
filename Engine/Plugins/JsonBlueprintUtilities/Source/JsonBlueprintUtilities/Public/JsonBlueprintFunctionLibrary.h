@@ -23,6 +23,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Json", meta = (WorldContext="WorldContextObject",  HidePin = "WorldContextObject", DefaultToSelf = "WorldContextObject", DisplayName="Load Json from File"))
 	static UPARAM(DisplayName="Success") bool FromFile(UObject* WorldContextObject, const FFilePath& File, UPARAM(DisplayName="JsonObject") FJsonObjectWrapper& OutJsonObject);
 
+	/** Creates a Json string from the provided JsonObject. */
+	UFUNCTION(BlueprintCallable, Category="Json", meta = (DisplayName = "Get Json String"))
+	static UPARAM(DisplayName="Success") bool ToString(const FJsonObjectWrapper& JsonObject, UPARAM(DisplayName="String") FString& OutJsonString);
+	
+	/** Creates a file from the provided JsonObject. */
+	UFUNCTION(BlueprintCallable, Category="Json", meta = (DisplayName = "Save Json to File"))
+	static UPARAM(DisplayName="Success") bool ToFile(const FJsonObjectWrapper& JsonObject, const FFilePath& File);
+	
 	/** Gets the value of the specified field. */
 	UFUNCTION(BlueprintCallable, CustomThunk, BlueprintInternalUseOnly, Category="Json", meta = (CustomStructureParam = "OutValue", AutoCreateRefTerm = "OutValue"))
 	static UPARAM(DisplayName="Success") bool GetField(const FJsonObjectWrapper& JsonObject, const FString& FieldName, UPARAM(DisplayName="Value") int32& OutValue);
@@ -33,6 +41,14 @@ public:
 	static UPARAM(DisplayName="Success") bool SetField(const FJsonObjectWrapper& JsonObject, const FString& FieldName, const int32& Value);
 	DECLARE_FUNCTION(execSetField);
 
+	/** Checks if the field exists on the object. */
+	UFUNCTION(BlueprintCallable, Category="Json")
+	static UPARAM(DisplayName="Success") bool HasField(const FJsonObjectWrapper& JsonObject, const FString& FieldName);
+
+	/** Gets all field names on the JsonObject */
+	UFUNCTION(BlueprintCallable, Category="Json")
+	static UPARAM(DisplayName="Success") bool GetFieldNames(const FJsonObjectWrapper& JsonObject, TArray<FString>& FieldNames);
+	
 private:
 	/** FieldName only used for logging, SrcValue should be the resolved field. */
 	static bool JsonFieldToProperty(const FString& FieldName, const FJsonObjectWrapper& SourceObject, FProperty* TargetProperty, void* TargetValuePtr);

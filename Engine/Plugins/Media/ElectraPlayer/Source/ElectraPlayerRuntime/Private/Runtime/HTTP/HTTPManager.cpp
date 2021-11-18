@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HTTP/HTTPManager.h"
+#include "HTTP/HTTPResponseCache.h"
 #include "Utilities/StringHelpers.h"
 #include "PlayerTime.h"
 #include "Player/PlayerSessionServices.h"
@@ -152,7 +153,7 @@ namespace Electra
 						HttpsRequestCallbackWrapper->Unbind();
 					}
 					HttpsRequestCallbackWrapper.Reset();
-					if (HttpRequest.IsValid() && !EHttpRequestStatus::IsFinished(HttpRequest->GetStatus()))
+					if (HttpRequest.IsValid() && !ActiveResponse.bHitCache && !EHttpRequestStatus::IsFinished(HttpRequest->GetStatus()))
 					{
 						HttpRequest->CancelRequest();
 					}
@@ -160,8 +161,30 @@ namespace Electra
 				}
 			}
 
+			bool ProcessHTTPRequest()
+			{
+				check(HandleType == EHandleType::HTTPHandle);
+
+				// Check if this request can be satisfied from the response cache.
+				if (HttpResponseCache.IsValid())
+				{
+					TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheItem;
+					if (HttpResponseCache->GetCachedEntity(CacheItem, ActiveResponse.URL, ActiveResponse.Range))
+					{
+						if (CacheItem.IsValid())
+						{
+							ActiveResponse.CacheResponse = MoveTemp(CacheItem);
+							return true;
+						}
+					}
+				}
+				return HttpRequest->ProcessRequest();
+			}
+
 			struct FRequestResponse
 			{
+				// URL
+				FString URL;
 				// Current range requested from server.
 				FParams::FRange Range;
 				// Current response received from server
@@ -174,6 +197,11 @@ namespace Electra
 				//
 				bool bIsSubRangeRequest = false;
 				int32 NumSubRangeRequest = 0;
+				//
+				TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheResponse;
+				bool bHitCache = false;
+				bool bWasAddedToCache = false;
+
 
 				//
 				int64 SizeRemaining() const
@@ -221,6 +249,7 @@ namespace Electra
 			FHttpRequestPtr			HttpRequest;
 			TSharedPtr<FHTTPCallbackWrapper, ESPMode::ThreadSafe>	HttpsRequestCallbackWrapper;
 			bool					bHttpRequestFirstEvent = true;
+			TSharedPtrTS<IHTTPResponseCache> HttpResponseCache;
 
 			FTimeValue				LastTimeDataReceived;
 			FTimeValue				TimeAtNextProgressCallback;
@@ -285,6 +314,7 @@ namespace Electra
 		void HandlePeriodicCallbacks(const FTimeValue& Now);
 		void HandleTimeouts(const FTimeValue& Now);
 		void HandleLocalFileRequests();
+		void HandleCachedHTTPRequests(const FTimeValue& Now);
 		void HandleHTTPRequests(const FTimeValue& Now);
 		void HandleHTTPResponses(const FTimeValue& Now);
 		void RemoveAllRequests();
@@ -486,6 +516,7 @@ namespace Electra
 		Handle->HttpRequest->OnRequestProgress().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestProgress);
 		Handle->HttpRequest->OnHeaderReceived().BindThreadSafeSP(Handle->HttpsRequestCallbackWrapper.ToSharedRef(), &FHTTPCallbackWrapper::ReportRequestHeaderReceived);
 		Handle->HttpRequest->SetURL(Request->Parameters.URL);
+		Handle->ActiveResponse.URL = Request->Parameters.URL;
 		if (!Request->Parameters.Verb.IsEmpty())
 		{
 			Handle->HttpRequest->SetVerb(Request->Parameters.Verb);
@@ -498,6 +529,7 @@ namespace Electra
 		else
 		{
 			Handle->HttpRequest->SetVerb(TEXT("GET"));
+			Handle->HttpResponseCache = Request->ResponseCache;
 		}
 
 		Handle->HttpRequest->SetHeader(TEXT("User-Agent"), "X-UnrealEngine-Agent");
@@ -592,6 +624,9 @@ namespace Electra
 			FString Range = FString::Printf(TEXT("bytes=%s"), *Handle->ActiveResponse.Range.GetString());
 			Handle->HttpRequest->SetHeader(TEXT("Range"), Range);
 		}
+
+		// This could be for the next sub-range request that we also want to add to the cache!
+		Handle->ActiveResponse.bWasAddedToCache = false;
 		return true;
 	}
 
@@ -632,7 +667,7 @@ namespace Electra
 				if (Handle)
 				{
 					ActiveRequests.Add(Handle, Request);
-					if (!Handle->HttpRequest->ProcessRequest())
+					if (!Handle->ProcessHTTPRequest())
 					{
 						Request->ConnectionInfo.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage("HTTP request failed on ProcessRequest()");
 						RequestsCompleted.Enqueue(Request);
@@ -791,8 +826,8 @@ namespace Electra
 			{
 				continue;
 			}
-			// HTTP transfers that are not processing also do not need to be checked.
-			else if (Handle->HandleType == FHandle::EHandleType::HTTPHandle && Handle->HttpRequest.IsValid() && EHttpRequestStatus::IsFinished(Handle->HttpRequest->GetStatus()))
+			// HTTP transfers that are cached or not processing also do not need to be checked.
+			else if (Handle->HandleType == FHandle::EHandleType::HTTPHandle && (Handle->ActiveResponse.CacheResponse.IsValid() || (Handle->HttpRequest.IsValid() && EHttpRequestStatus::IsFinished(Handle->HttpRequest->GetStatus()))))
 			{
 				continue;
 			}
@@ -902,6 +937,9 @@ namespace Electra
 
 				Now = MEDIAutcTime::Current();
 
+				// Handle requests that have a cached response.
+				HandleCachedHTTPRequests(Now);
+
 				// Handle requests to the HTTP module
 				HandleHTTPRequests(Now);
 				// Handle the responses.
@@ -952,6 +990,45 @@ namespace Electra
 					Request->ConnectionInfo.bWasAborted = true;
 					Request->ConnectionInfo.RequestEndTime = Request->ConnectionInfo.StatusInfo.OccurredAtUTC = MEDIAutcTime::Current();
 					RequestsCompleted.Enqueue(Request);
+				}
+			}
+		}
+	}
+
+	void FElectraHttpManager::HandleCachedHTTPRequests(const FTimeValue& Now)
+	{
+		for(TMap<FHandle*, TSharedPtrTS<FRequest>>::TIterator It = ActiveRequests.CreateIterator(); It; ++It)
+		{
+			FHandle* Handle = It.Key();
+			if (Handle->HandleType == FHandle::EHandleType::HTTPHandle)
+			{
+				TSharedPtrTS<FRequest> Request = It.Value();
+				if (Handle->ActiveResponse.CacheResponse.IsValid())
+				{
+					// First send all headers again
+					FScopeLock lock(&HttpModuleEventLock);
+					FHttpEventData& Evt = HttpModuleEventMap.FindOrAdd(Handle->HttpRequest);
+					for(auto &Header : Handle->ActiveResponse.CacheResponse->Response->GetAllHeaders())
+					{
+						HTTP::FHTTPHeader Hdr;
+						Hdr.SetFromString(Header);
+						// Filter out some response headers we cannot re-use.
+						if (Hdr.Header.Equals(TEXT("Date"), ESearchCase::IgnoreCase))
+						{
+							// Date header is bad because this can be used to synchronize the player clock.
+							continue;
+						}
+						Evt.Headers.Emplace(MoveTemp(Hdr));
+					}
+					// Set the received length;
+					Evt.BytesReceived = Handle->ActiveResponse.CacheResponse->Response->GetContent().Num();
+					// And the rest
+					Evt.bComplete = true;
+					Evt.bConnectedSuccessfully = true;
+					Evt.Status = EHttpRequestStatus::Type::Succeeded;
+					Evt.Response = Handle->ActiveResponse.CacheResponse->Response;
+					Handle->ActiveResponse.CacheResponse.Reset();
+					Handle->ActiveResponse.bHitCache = true;
 				}
 			}
 		}
@@ -1222,11 +1299,23 @@ namespace Electra
 			{
 				TSharedPtrTS<FRequest> Request = It.Value();
 				HTTP::FConnectionInfo& ci = Request->ConnectionInfo;
+				ci.bIsCachedResponse = Handle->ActiveResponse.bHitCache;
 
 				// Active response?
 				if (Handle->ActiveResponse.Response.IsValid())
 				{
 					bool bHasFinished = false;
+
+					// Add to response cache unless this was a cached response already.
+					if (Request->ResponseCache.IsValid() && !Handle->ActiveResponse.bHitCache && !Handle->ActiveResponse.bWasAddedToCache)
+					{
+						Handle->ActiveResponse.bWasAddedToCache = true;
+						TSharedPtrTS<IHTTPResponseCache::FCacheItem> CacheItem = MakeSharedTS<IHTTPResponseCache::FCacheItem>();
+						CacheItem->URL = Request->Parameters.URL;
+						CacheItem->Range = Handle->ActiveResponse.Range;
+						CacheItem->Response = Handle->ActiveResponse.Response;
+						Request->ResponseCache->CacheEntity(CacheItem);
+					}
 
 					// Receive buffer still there?
 					TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
@@ -1285,7 +1374,7 @@ namespace Electra
 										// Still another sub range to go.
 										if (PrepareHTTPModuleHandle(Now, Handle, Request, false))
 										{
-											if (!Handle->HttpRequest->ProcessRequest())
+											if (!Handle->ProcessHTTPRequest())
 											{
 												ci.StatusInfo.ErrorDetail.SetError(UEMEDIA_ERROR_INTERNAL).SetFacility(Facility::EFacility::HTTPReader).SetMessage("HTTP request failed on ProcessRequest()");
 												bHasFinished = true;

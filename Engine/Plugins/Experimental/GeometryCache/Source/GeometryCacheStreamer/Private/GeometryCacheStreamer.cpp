@@ -41,7 +41,7 @@ private:
 };
 
 FGeometryCacheStreamer::FGeometryCacheStreamer()
-: MaxReads(FTaskGraphInterface::Get().GetNumWorkerThreads())
+: MaxReads(FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads()))
 , NumReads(0)
 , CurrentIndex(0)
 

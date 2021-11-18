@@ -131,23 +131,23 @@ bool FDisplayClusterRenderFrameManager::BuildSimpleFrame(FViewport* InViewport, 
 					}
 				}
 
-					float CustomBufferRatio = ViewportIt->GetRenderSettings().BufferRatio;
-					{
-						// Global multiplier
-						CustomBufferRatio *= InRenderFrameSettings.ClusterBufferRatioMult;
+				float CustomBufferRatio = ViewportIt->GetRenderSettings().BufferRatio;
+				{
+					// Global multiplier
+					CustomBufferRatio *= InRenderFrameSettings.ClusterBufferRatioMult;
 
-						if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXTarget) != 0)
-						{
-							// Outer viewport
-							CustomBufferRatio *= InRenderFrameSettings.ClusterICVFXOuterViewportBufferRatioMult;
-						}
-						else
-						if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0)
-						{
-							// Inner Frustum
-							CustomBufferRatio *= InRenderFrameSettings.ClusterICVFXInnerFrustumBufferRatioMult;
-						}
+					if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXTarget) != 0)
+					{
+						// Outer viewport
+						CustomBufferRatio *= InRenderFrameSettings.ClusterICVFXOuterViewportBufferRatioMult;
 					}
+					else
+					if ((ViewportIt->RenderSettingsICVFX.RuntimeFlags & ViewportRuntime_ICVFXIncamera) != 0)
+					{
+						// Inner Frustum
+						CustomBufferRatio *= InRenderFrameSettings.ClusterICVFXInnerFrustumBufferRatioMult;
+					}
+				}
 
 				FDisplayClusterRenderFrame::FFrameViewFamily FrameViewFamily;
 				{

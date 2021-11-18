@@ -1438,10 +1438,14 @@ void FBlueprintVarActionDetails::OnTooltipTextCommitted(const FText& NewText, ET
 
 void FBlueprintVarActionDetails::PopulateCategories(SMyBlueprint* MyBlueprint, TArray<TSharedPtr<FText>>& CategorySource)
 {
-	// Used to compare found categories to prevent double adds
-	TArray<FString> CategoryNameList;
+	auto IsNewCategorySource = [&CategorySource](const FText& NewCategory)
+	{
+		return !CategorySource.ContainsByPredicate([&NewCategory](const TSharedPtr<FText>& ExistingCategory)
+		{
+			return ExistingCategory->ToString().Equals(NewCategory.ToString(), ESearchCase::CaseSensitive);
+		});
+	};
 
-	TArray<FName> VisibleVariables;
 	bool bShowUserVarsOnly = MyBlueprint->ShowUserVarsOnly();
 	UBlueprint* Blueprint = MyBlueprint->GetBlueprintObj();
 	check(Blueprint != NULL);
@@ -1458,6 +1462,7 @@ void FBlueprintVarActionDetails::PopulateCategories(SMyBlueprint* MyBlueprint, T
 		SuperClassFlag = EFieldIteratorFlags::IncludeSuper;
 	}
 
+	TArray<FName> VisibleVariables;
 	for (TFieldIterator<FProperty> PropertyIt(Blueprint->SkeletonGeneratedClass, SuperClassFlag); PropertyIt; ++PropertyIt)
 	{
 		FProperty* Property = *PropertyIt;
@@ -1469,22 +1474,15 @@ void FBlueprintVarActionDetails::PopulateCategories(SMyBlueprint* MyBlueprint, T
 	}
 
 	CategorySource.Reset();
-	CategorySource.Add(MakeShareable(new FText(UEdGraphSchema_K2::VR_DefaultCategory)));
-	for (int32 i = 0; i < VisibleVariables.Num(); ++i)
+	CategorySource.Add(MakeShared<FText>(UEdGraphSchema_K2::VR_DefaultCategory));
+	for (const FName& VariableName : VisibleVariables)
 	{
-		FText Category = FBlueprintEditorUtils::GetBlueprintVariableCategory(Blueprint, VisibleVariables[i], nullptr);
+		FText Category = FBlueprintEditorUtils::GetBlueprintVariableCategory(Blueprint, VariableName, nullptr);
 		if (!Category.IsEmpty() && !Category.EqualTo(FText::FromString(Blueprint->GetName())))
 		{
-			const FText DisplayCategory = FEditorCategoryUtils::GetCategoryDisplayString(Category);
-			
-			bool bNewCategory = true;
-			for (int32 j = 0; j < CategorySource.Num() && bNewCategory; ++j)
+			if (IsNewCategorySource(Category))
 			{
-				bNewCategory &= !CategorySource[j].Get()->EqualTo(DisplayCategory);
-			}
-			if (bNewCategory)
-			{
-				CategorySource.Add(MakeShareable(new FText(DisplayCategory)));
+				CategorySource.Add(MakeShared<FText>(Category));
 			}
 		}
 	}
@@ -1498,17 +1496,9 @@ void FBlueprintVarActionDetails::PopulateCategories(SMyBlueprint* MyBlueprint, T
 
 			if(!FunctionCategory.IsEmpty())
 			{
-				const FText DisplayCategory = FEditorCategoryUtils::GetCategoryDisplayString(FunctionCategory);
-				
-				bool bNewCategory = true;
-				for (int32 j = 0; j < CategorySource.Num() && bNewCategory; ++j)
+				if (IsNewCategorySource(FunctionCategory))
 				{
-					bNewCategory &= !CategorySource[j].Get()->EqualTo(DisplayCategory);
-				}
-
-				if(bNewCategory)
-				{
-					CategorySource.Add(MakeShareable(new FText(DisplayCategory)));
+					CategorySource.Add(MakeShared<FText>(FunctionCategory));
 				}
 			}
 		}
@@ -1518,16 +1508,9 @@ void FBlueprintVarActionDetails::PopulateCategories(SMyBlueprint* MyBlueprint, T
 		{
 			for (FBPVariableDescription& Variable : FunctionEntryNode->LocalVariables)
 			{
-				const FText DisplayCategory = FEditorCategoryUtils::GetCategoryDisplayString(Variable.Category);
-				
-				bool bNewCategory = true;
-				for (int32 j = 0; j < CategorySource.Num() && bNewCategory; ++j)
+				if (IsNewCategorySource(Variable.Category))
 				{
-					bNewCategory &= !CategorySource[j].Get()->EqualTo(DisplayCategory);
-				}
-				if (bNewCategory)
-				{
-					CategorySource.Add(MakeShareable(new FText(DisplayCategory)));
+					CategorySource.Add(MakeShared<FText>(Variable.Category));
 				}
 			}
 		}
@@ -1540,16 +1523,9 @@ void FBlueprintVarActionDetails::PopulateCategories(SMyBlueprint* MyBlueprint, T
 		{
 			if (!TypedEntryNode->MetaData.Category.IsEmpty())
 			{
-				const FText DisplayCategory = FEditorCategoryUtils::GetCategoryDisplayString(TypedEntryNode->MetaData.Category);
-				
-				bool bNewCategory = true;
-				for (int32 j = 0; j < CategorySource.Num() && bNewCategory; ++j)
+				if (IsNewCategorySource(TypedEntryNode->MetaData.Category))
 				{
-					bNewCategory &= !CategorySource[j].Get()->EqualTo(DisplayCategory);
-				}
-				if (bNewCategory)
-				{
-					CategorySource.Add(MakeShareable(new FText(DisplayCategory)));
+					CategorySource.Add(MakeShared<FText>(TypedEntryNode->MetaData.Category));
 				}
 			}
 		}
@@ -1567,17 +1543,9 @@ void FBlueprintVarActionDetails::PopulateCategories(SMyBlueprint* MyBlueprint, T
 
 			if (!FunctionCategory.IsEmpty())
 			{
-				const FText DisplayCategory = FEditorCategoryUtils::GetCategoryDisplayString(FunctionCategory);
-			
-				bool bNewCategory = true;
-				for (int32 j = 0; j < CategorySource.Num() && bNewCategory; ++j)
+				if (IsNewCategorySource(FunctionCategory))
 				{
-					bNewCategory &= !CategorySource[j].Get()->EqualTo(DisplayCategory);
-				}
-
-				if (bNewCategory)
-				{
-					CategorySource.Add(MakeShareable(new FText(DisplayCategory)));
+					CategorySource.Add(MakeShared<FText>(FunctionCategory));
 				}
 			}
 		}
@@ -6010,14 +5978,19 @@ void FBlueprintGlobalOptionsDetails::CustomizeDetails(IDetailLayoutBuilder& Deta
 		]
 		.ValueContent()
 		[
-			SAssignNew(ParentClassComboButton, SComboButton)
-			.IsEnabled(this, &FBlueprintGlobalOptionsDetails::CanReparent)
-			.OnGetMenuContent(this, &FBlueprintGlobalOptionsDetails::GetParentClassMenuContent)
-			.ButtonContent()
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
 			[
-				SNew(STextBlock)
-				.Text(this, &FBlueprintGlobalOptionsDetails::GetParentClassName)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
+				SAssignNew(ParentClassComboButton, SComboButton)
+				.IsEnabled(this, &FBlueprintGlobalOptionsDetails::CanReparent)
+				.OnGetMenuContent(this, &FBlueprintGlobalOptionsDetails::GetParentClassMenuContent)
+				.ButtonContent()
+				[
+					SNew(STextBlock)
+					.Text(this, &FBlueprintGlobalOptionsDetails::GetParentClassName)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
 			]
 		];
 		
@@ -6469,6 +6442,14 @@ TSharedRef< ITableRow > FBlueprintComponentDetails::MakeVariableCategoryViewWidg
 
 void FBlueprintComponentDetails::PopulateVariableCategories()
 {
+	auto IsNewCategorySource = [this](const FText& NewCategory)
+	{
+		return !VariableCategorySource.ContainsByPredicate([&NewCategory](const TSharedPtr<FText>& ExistingCategory)
+		{
+			return ExistingCategory->ToString().Equals(NewCategory.ToString(), ESearchCase::CaseSensitive);
+		});
+	};
+
 	UBlueprint* BlueprintObj = GetBlueprintObj();
 
 	check(BlueprintObj);
@@ -6487,23 +6468,16 @@ void FBlueprintComponentDetails::PopulateVariableCategories()
 
 	FBlueprintEditorUtils::GetSCSVariableNameList(BlueprintObj, VisibleVariables);
 
-	VariableCategorySource.Empty();
-	VariableCategorySource.Add(MakeShareable(new FText(UEdGraphSchema_K2::VR_DefaultCategory)));
+	VariableCategorySource.Reset();
+	VariableCategorySource.Add(MakeShared<FText>(UEdGraphSchema_K2::VR_DefaultCategory));
 	for (const FName& VariableName : VisibleVariables)
 	{
 		FText Category = FBlueprintEditorUtils::GetBlueprintVariableCategory(BlueprintObj, VariableName, nullptr);
 		if (!Category.IsEmpty() && !Category.EqualTo(FText::FromString(BlueprintObj->GetName())))
 		{
-			const FText DisplayCategory = FEditorCategoryUtils::GetCategoryDisplayString(Category);
-			
-			bool bNewCategory = true;
-			for (int32 j = 0; j < VariableCategorySource.Num() && bNewCategory; ++j)
+			if (IsNewCategorySource(Category))
 			{
-				bNewCategory &= !VariableCategorySource[j].Get()->EqualTo(DisplayCategory);
-			}
-			if (bNewCategory)
-			{
-				VariableCategorySource.Add(MakeShareable(new FText(DisplayCategory)));
+				VariableCategorySource.Add(MakeShared<FText>(Category));
 			}
 		}
 	}

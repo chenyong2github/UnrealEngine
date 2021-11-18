@@ -49,7 +49,7 @@ void FSubUVBoundingGeometryBuffer::InitRHI()
 		FSubUVVertexResourceArray ResourceArray(Vertices->GetData(), SizeInBytes);
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSubUVBoundingGeometryBuffer"), &ResourceArray);
 		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_ShaderResource | BUF_Static, CreateInfo);
-		ShaderResourceView = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
+		ShaderResourceView = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
 	}
 }
 
@@ -111,16 +111,16 @@ void USubUVAnimation::CacheDerivedData()
 	if (GetDerivedDataCacheRef().GetSynchronous(*KeyString, Data, GetPathName()))
 	{
 		COOK_STAT(Timer.AddHit(Data.Num()));
-		DerivedData.BoundingGeometry.Empty(Data.Num() / sizeof(FVector2D));
-		DerivedData.BoundingGeometry.AddUninitialized(Data.Num() / sizeof(FVector2D));
+		DerivedData.BoundingGeometry.Empty(Data.Num() / sizeof(FVector2f));
+		DerivedData.BoundingGeometry.AddUninitialized(Data.Num() / sizeof(FVector2f));
 		FPlatformMemory::Memcpy(DerivedData.BoundingGeometry.GetData(), Data.GetData(), Data.Num() * Data.GetTypeSize());
 	}
 	else
 	{
 		DerivedData.Build(SubUVTexture, SubImages_Horizontal, SubImages_Vertical, BoundingMode, AlphaThreshold, OpacitySourceMode);
 
-		Data.Empty(DerivedData.BoundingGeometry.Num() * sizeof(FVector2D));
-		Data.AddUninitialized(DerivedData.BoundingGeometry.Num() * sizeof(FVector2D));
+		Data.Empty(DerivedData.BoundingGeometry.Num() * sizeof(FVector2f));
+		Data.AddUninitialized(DerivedData.BoundingGeometry.Num() * sizeof(FVector2f));
 		FPlatformMemory::Memcpy(Data.GetData(), DerivedData.BoundingGeometry.GetData(), DerivedData.BoundingGeometry.Num() * DerivedData.BoundingGeometry.GetTypeSize());
 		GetDerivedDataCacheRef().Put(*KeyString, Data, GetPathName());
 		COOK_STAT(Timer.AddMiss(Data.Num()));

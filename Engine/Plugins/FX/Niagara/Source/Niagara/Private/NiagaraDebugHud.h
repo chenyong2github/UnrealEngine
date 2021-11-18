@@ -153,15 +153,26 @@ class FNiagaraDebugHud
 	struct FSmoothedCounter
 	{
 		uint64			LastFrameSeen = 0;
-		TCounterType	FrameCount[SmoothedNumFrames];
-		uint32			MaxIndex = 0;
-		uint32			CurrentIndex = SmoothedNumFrames - 1;
+		bool			SmoothedSetOnce = false;
+		TCounterType	SmoothedFrameMax = TCounterType();
+		float			SmoothedTotalAvg = 0.0f;
+
+		uint32			CurrentCount = 0;
+		TCounterType	CurrentFrameMax = TCounterType();
+		TCounterType	CurrentTotalSum = TCounterType();
+		TCounterType	CurrentFrameSum = TCounterType();
 
 		void Reset()
 		{
 			LastFrameSeen = 0;
-			MaxIndex = 0;
-			CurrentIndex = SmoothedNumFrames - 1;
+			SmoothedSetOnce = false;
+			SmoothedFrameMax = TCounterType();
+			SmoothedTotalAvg = 0.0f;
+
+			CurrentCount = 0;
+			CurrentFrameMax = TCounterType();
+			CurrentTotalSum = TCounterType();
+			CurrentFrameSum = TCounterType();
 		}
 
 		bool ShouldPrune(uint64 FrameCounter)
@@ -174,37 +185,32 @@ class FNiagaraDebugHud
 			if ( LastFrameSeen != InLastFrameSeen )
 			{
 				LastFrameSeen = InLastFrameSeen;
-				CurrentIndex = (CurrentIndex + 1) % SmoothedNumFrames;
-				FrameCount[CurrentIndex] = TCounterType(0);
-				MaxIndex = FMath::Max(MaxIndex, CurrentIndex + 1);
+
+				CurrentFrameMax = FMath::Max(CurrentFrameSum, CurrentFrameMax);
+				CurrentFrameSum = TCounterType();
+
+				const bool bResetCurrent = ++CurrentCount >= SmoothedNumFrames;
+				if (!SmoothedSetOnce || bResetCurrent)
+				{
+					SmoothedSetOnce |= bResetCurrent;
+					SmoothedFrameMax = CurrentFrameMax;
+					SmoothedTotalAvg = float(CurrentTotalSum) / float(CurrentCount);
+				}
+
+				if (bResetCurrent)
+				{
+					CurrentCount = 0;
+					CurrentFrameMax = TCounterType();
+					CurrentTotalSum = TCounterType();
+				}
 			}
-			FrameCount[CurrentIndex] += Value;
+			CurrentTotalSum += Value;
+			CurrentFrameSum += Value;
 		}
 
 		template<typename TReturnType = TCounterType>
-		TReturnType GetAverage() const
-		{
-			TReturnType Result = 0;
-			if (MaxIndex > 0)
-			{
-				for (uint32 i = 0; i < MaxIndex; ++i)
-				{
-					Result += TReturnType(FrameCount[i]);
-				}
-				Result /= TReturnType(MaxIndex);
-			}
-			return Result;
-		}
-
-		TCounterType GetMax() const
-		{
-			TCounterType Result = 0;
-			for (uint32 i = 0; i < MaxIndex; ++i)
-			{
-				Result = FMath::Max(Result, FrameCount[i]);
-			}
-			return Result;
-		}
+		TReturnType GetAverage() const { return TReturnType(SmoothedTotalAvg); }
+		TCounterType GetMax() const { return SmoothedFrameMax; }
 	};
 
 public:

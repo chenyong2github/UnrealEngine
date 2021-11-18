@@ -173,7 +173,7 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, FReal InMargin) const
+		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta) const
 		{
 			// Note: assumes margin == 0
 			const FReal DotA = FVec3::DotProduct(A, Direction);
@@ -192,10 +192,10 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale) const
+		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta) const
 		{
 			// Note: ignores InMargin, assumed 0 (triangles cannot have a margin as they are zero thickness)
-			return SupportCore(Direction * Scale, 0.0f) * Scale;
+			return SupportCore(Direction * Scale, 0.0f, OutSupportDelta) * Scale;
 		}
 
 		FORCEINLINE FReal GetMargin() const { return 0; }

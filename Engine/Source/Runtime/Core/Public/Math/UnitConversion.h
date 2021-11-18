@@ -25,7 +25,7 @@ enum class EUnit : uint8
 	Degrees, Radians,
 
 	/** Speed units */
-	MetersPerSecond, KilometersPerHour, MilesPerHour,
+	CentimetersPerSecond, MetersPerSecond, KilometersPerHour, MilesPerHour,
 
 	/** Temperature units */
 	Celsius, Farenheit, Kelvin,

@@ -62,19 +62,19 @@ void FFilterListData::ApplyFilterToFindSelectedProperties(AActor* WorldActor, UL
 	
 	if (bIsAllowedByFilters)
 	{
-		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot, ModifiedEditorObjectsSelectedProperties_AllowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
+		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot.Get(), ModifiedEditorObjectsSelectedProperties_AllowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
 	}
 	else
 	{
-		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot, ModifiedEditorObjectsSelectedProperties_DisallowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
+		ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(RelatedSnapshot.Get(), ModifiedEditorObjectsSelectedProperties_DisallowedByFilter, WorldActor, DeserializedActor.Get(), FilterToApply);
 	}
 }
 
 TWeakObjectPtr<AActor> FFilterListData::GetSnapshotCounterpartFor(TWeakObjectPtr<AActor> WorldActor) const
 {
-	const TOptional<AActor*> DeserializedActor = RelatedSnapshot->GetDeserializedActor(WorldActor.Get());
+	const TOptional<TNonNullPtr<AActor>> DeserializedActor = RelatedSnapshot->GetDeserializedActor(WorldActor.Get());
 	return ensureAlwaysMsgf(DeserializedActor, TEXT("Deserialized actor does no exist. Either the snapshots's container world was deleted or the snapshot has no counterpart for this actor"))
-		? *DeserializedActor : nullptr;
+		? DeserializedActor.GetValue() : nullptr;
 }
 
 void FFilterListData::HandleActorExistsInWorldAndSnapshot(const FSoftObjectPath& OriginalActorPath, ULevelSnapshotFilter* FilterToApply, FScopedSlowTask* Progress)
@@ -92,13 +92,13 @@ void FFilterListData::HandleActorExistsInWorldAndSnapshot(const FSoftObjectPath&
 	if (ensureAlwaysMsgf(WorldActor, TEXT("A path that was previously associated with an actor no longer refers to an actor. Something is wrong."))
 		&& RelatedSnapshot->HasChangedSinceSnapshotWasTaken(WorldActor))
 	{
-		TOptional<AActor*> DeserializedSnapshotActor = RelatedSnapshot->GetDeserializedActor(OriginalActorPath);
+		const TOptional<TNonNullPtr<AActor>> DeserializedSnapshotActor = RelatedSnapshot->GetDeserializedActor(OriginalActorPath);
 		if (!ensureAlwaysMsgf(DeserializedSnapshotActor.Get(nullptr), TEXT("Failed to get TMap value for key %s. Is the snapshot corrupted?"), *OriginalActorPath.ToString()))
 		{
 			return;
 		}
 			
-		const EFilterResult::Type ActorInclusionResult = FilterToApply->IsActorValid(FIsActorValidParams(*DeserializedSnapshotActor, WorldActor));
+		const EFilterResult::Type ActorInclusionResult = FilterToApply->IsActorValid(FIsActorValidParams(DeserializedSnapshotActor.GetValue(), WorldActor));
 		if (EFilterResult::CanInclude(ActorInclusionResult))
 		{
 			ModifiedWorldActors_AllowedByFilter.Add(WorldActor);

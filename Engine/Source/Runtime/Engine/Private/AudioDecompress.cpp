@@ -769,7 +769,10 @@ void FAsyncAudioDecompressWorker::DoWork()
 
 		if (Wave->DecompressionType == DTYPE_Native)
 		{
-			FOwnedBulkDataPtr* BulkDataPtr = Wave->GetOwnedBulkData();
+			// todo: this code is stale and needs to be gutted since going all-in on stream caching,
+			// but for now, GetOwnedBulkData() is being removed as a function.
+			// FOwnedBulkDataPtr* BulkDataPtr = Wave->GetOwnedBulkData();
+			FOwnedBulkDataPtr* BulkDataPtr = nullptr;
 			UE_CLOG(BulkDataPtr && BulkDataPtr->GetMappedRegion(), LogAudio, Warning, TEXT("Mapped audio (%s) was discarded after decompression. This is not ideal as it takes more load time and doesn't save memory."), *Wave->GetName());
 
 			// Delete the compressed data

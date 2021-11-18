@@ -781,6 +781,14 @@ namespace Audio
 			SourceInfo.NumInputChannels = InitParams.NumInputChannels;
 			SourceInfo.NumInputFrames = InitParams.NumInputFrames;
 
+			// init and zero-out buffers
+			const int32 BufferSize = NumOutputFrames * InitParams.NumInputChannels;
+			SourceInfo.PreEffectBuffer.Reset();
+			SourceInfo.PreEffectBuffer.AddZeroed(BufferSize);
+
+			SourceInfo.PreDistanceAttenuationBuffer.Reset();
+			SourceInfo.PreDistanceAttenuationBuffer.AddZeroed(BufferSize);
+
 			// Initialize the number of per-source LPF filters based on input channels
 			SourceInfo.LowPassFilter.Init(MixerDevice->SampleRate, InitParams.NumInputChannels);
 			SourceInfo.HighPassFilter.Init(MixerDevice->SampleRate, InitParams.NumInputChannels);
@@ -1848,7 +1856,7 @@ namespace Audio
 
 			if (SourceInfo.SubCallbackDelayLengthInFrames && !SourceInfo.bDelayLineSet)
 			{
-				SourceInfo.SourceBufferDelayLine.SetCapacity(SourceInfo.SubCallbackDelayLengthInFrames + 1);
+				SourceInfo.SourceBufferDelayLine.SetCapacity(SourceInfo.SubCallbackDelayLengthInFrames * SourceInfo.NumInputChannels + SourceInfo.NumInputChannels);
 				SourceInfo.SourceBufferDelayLine.PushZeros(SourceInfo.SubCallbackDelayLengthInFrames * SourceInfo.NumInputChannels);
 				SourceInfo.bDelayLineSet = true;
 			}
@@ -2720,12 +2728,26 @@ namespace Audio
 
 	const float* FMixerSourceManager::GetPreDistanceAttenuationBuffer(const int32 SourceId) const
 	{
-		return SourceInfos[SourceId].PreDistanceAttenuationBuffer.GetData();
+		const FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+		if (SourceInfo.bIsPaused || SourceInfo.bIsPausedForQuantization)
+		{
+			return nullptr;
+		}
+
+		return SourceInfo.PreDistanceAttenuationBuffer.GetData();
 	}
 
 	const float* FMixerSourceManager::GetPreEffectBuffer(const int32 SourceId) const
 	{
-		return SourceInfos[SourceId].PreEffectBuffer.GetData();
+		const FSourceInfo& SourceInfo = SourceInfos[SourceId];
+
+		if (SourceInfo.bIsPaused || SourceInfo.bIsPausedForQuantization)
+		{
+			return nullptr;
+		}
+		
+		return SourceInfo.PreEffectBuffer.GetData();
 	}
 
 	const float* FMixerSourceManager::GetPreviousSourceBusBuffer(const int32 SourceId) const

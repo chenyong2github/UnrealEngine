@@ -22,7 +22,7 @@ struct LEVELSNAPSHOTS_API FSnapshotFileVersionInfo
 
 	/* UE4 File version */
 	UPROPERTY()
-	int32 FileVersionUE4 = 0;
+	int32 FileVersionUE4 = VER_LATEST_ENGINE_UE4;
 
 	/* UE5 File version */
 	UPROPERTY()

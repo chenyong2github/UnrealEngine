@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -22,11 +23,12 @@ class ENGINE_API UCurveBase
 	/** Get the time range across all curves */
 	UFUNCTION(BlueprintCallable, Category="Math|Curves")
 	void GetTimeRange(float& MinTime, float& MaxTime) const;
+	void GetTimeRange(double& MinTime, double& MaxTime) const;		// LWC_TODO: Native workaround for FVector2D components
 
 	/** Get the value range across all curves */
 	UFUNCTION(BlueprintCallable, Category="Math|Curves")
 	void GetValueRange(float& MinValue, float& MaxValue) const;
-
+	void GetValueRange(double& MinValue, double& MaxValue) const;		// LWC_TODO: Native workaround for FVector2D components
 	/** 
 	 *	Create curve from CSV style comma-separated string.
 	 *

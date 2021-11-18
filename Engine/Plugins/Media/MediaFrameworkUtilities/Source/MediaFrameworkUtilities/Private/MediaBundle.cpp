@@ -78,7 +78,7 @@ namespace MediaBundlePrivate
 			for (UMediaBundle* Bundle : BundlesToClose)
 			{
 				//Our bundles need to close their player. Only do it if both are "valid" 
-				if (!Bundle->IsPendingKillOrUnreachable() && !Bundle->GetMediaPlayer()->IsPendingKillOrUnreachable())
+				if (IsValidChecked(Bundle) && !Bundle->IsUnreachable() && IsValidChecked(Bundle->GetMediaPlayer()) && !Bundle->GetMediaPlayer()->IsUnreachable())
 				{
 					Bundle->GetMediaPlayer()->Close();
 				}

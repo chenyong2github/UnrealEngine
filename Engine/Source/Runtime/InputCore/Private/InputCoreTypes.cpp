@@ -255,18 +255,6 @@ const FKey EKeys::Android_Volume_Up("Android_Volume_Up");
 const FKey EKeys::Android_Volume_Down("Android_Volume_Down");
 const FKey EKeys::Android_Menu("Android_Menu");
 
-// Google Daydream
-const FKey EKeys::Daydream_Left_Select_Click("Daydream_Left_Select_Click");
-const FKey EKeys::Daydream_Left_Trackpad_X("Daydream_Left_Trackpad_X");
-const FKey EKeys::Daydream_Left_Trackpad_Y("Daydream_Left_Trackpad_Y");
-const FKey EKeys::Daydream_Left_Trackpad_Click("Daydream_Left_Trackpad_Click");
-const FKey EKeys::Daydream_Left_Trackpad_Touch("Daydream_Left_Trackpad_Touch");
-const FKey EKeys::Daydream_Right_Select_Click("Daydream_Right_Select_Click");
-const FKey EKeys::Daydream_Right_Trackpad_X("Daydream_Right_Trackpad_X");
-const FKey EKeys::Daydream_Right_Trackpad_Y("Daydream_Right_Trackpad_Y");
-const FKey EKeys::Daydream_Right_Trackpad_Click("Daydream_Right_Trackpad_Click");
-const FKey EKeys::Daydream_Right_Trackpad_Touch("Daydream_Right_Trackpad_Touch");
-
 // HTC Vive Controller
 const FKey EKeys::Vive_Left_System_Click("Vive_Left_System_Click");
 const FKey EKeys::Vive_Left_Grip_Click("Vive_Left_Grip_Click");
@@ -778,20 +766,6 @@ void EKeys::Initialize()
 	AddKey(FKeyDetails(EKeys::Android_Volume_Up, LOCTEXT("Android_Volume_Up", "Android Volume Up"), FKeyDetails::GamepadKey, "Android"));
 	AddKey(FKeyDetails(EKeys::Android_Volume_Down, LOCTEXT("Android_Volume_Down", "Android Volume Down"), FKeyDetails::GamepadKey, "Android"));
 	AddKey(FKeyDetails(EKeys::Android_Menu, LOCTEXT("Android_Menu", "Android Menu"), FKeyDetails::GamepadKey, "Android"));
-
-	// Google Daydream
-	AddMenuCategoryDisplayInfo("Daydream", LOCTEXT("DaydreamSubCategory", "Google Daydream"), TEXT("GraphEditor.PadEvent_16x"));
-
-	AddKey(FKeyDetails(EKeys::Daydream_Left_Select_Click, LOCTEXT("Daydream_Left_Select_Click", "Daydream (L) Select"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Left_Trackpad_X, LOCTEXT("Daydream_Left_Trackpad_X", "Daydream (L) Trackpad X"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Left_Trackpad_Y, LOCTEXT("Daydream_Left_Trackpad_Y", "Daydream (L) Trackpad Y"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Left_Trackpad_Click, LOCTEXT("Daydream_Left_Trackpad_Click", "Daydream (L) Trackpad"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Left_Trackpad_Touch, LOCTEXT("Daydream_Left_Trackpad_Touch", "Daydream (L) Trackpad Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Right_Select_Click, LOCTEXT("Daydream_Right_Select_Click", "Daydream (R) Select"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Right_Trackpad_X, LOCTEXT("Daydream_Right_Trackpad_X", "Daydream (R) Trackpad X"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Right_Trackpad_Y, LOCTEXT("Daydream_Right_Trackpad_Y", "Daydream (R) Trackpad Y"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Right_Trackpad_Click, LOCTEXT("Daydream_Right_Trackpad_Click", "Daydream (R) Trackpad"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
-	AddKey(FKeyDetails(EKeys::Daydream_Right_Trackpad_Touch, LOCTEXT("Daydream_Right_Trackpad_Touch", "Daydream (R) Trackpad Touch"), FKeyDetails::GamepadKey | FKeyDetails::NotBlueprintBindableKey, "Daydream"));
 
 	// HTC Vive Controller
 	AddMenuCategoryDisplayInfo("Vive", LOCTEXT("ViveSubCategory", "HTC Vive"), TEXT("GraphEditor.PadEvent_16x"));

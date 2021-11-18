@@ -247,7 +247,7 @@ public:
 		const EventType* Event = EventsIterator.GetCurrentItem();
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) < IntervalStart)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				check(CurrentStackDepth < SettingsType::MaxDepth);
 				FEnumerationStackEntry& StackEntry = EventStack[CurrentStackDepth++];
@@ -276,7 +276,7 @@ public:
 		}
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) <= IntervalEnd)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				check(CurrentStackDepth < SettingsType::MaxDepth);
 				FEnumerationStackEntry& StackEntry = EventStack[CurrentStackDepth++];
@@ -309,7 +309,7 @@ public:
 				bSearchEndTimeUsingPages = true;
 				break;
 			}
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				++ExitDepth;
 			}
@@ -452,7 +452,7 @@ public:
 		const EventType* Event = EventsIterator.GetCurrentItem();
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) > IntervalEnd)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				check(CurrentStackDepth > 0);
 				--CurrentStackDepth;
@@ -480,7 +480,7 @@ public:
 		// Enumerate backwards between IntervalEnd and IntervalStart.
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) >= IntervalStart)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				check(CurrentStackDepth > 0);
 				FEnumerationStackEntry& StackEntry = EventStack[--CurrentStackDepth];
@@ -516,7 +516,7 @@ public:
 				bSearchStartTimeUsingPages = true;
 				break;
 			}
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				if (ExitDepth == 0)
 				{
@@ -826,7 +826,7 @@ public:
 		//Iterate from the start of the page to the start time of our interval
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) <= IntervalStart)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				check(CurrentStackDepth < SettingsType::MaxDepth);
 				FEventInfoStackEntry& StackEntry = EventStack[CurrentStackDepth++];
@@ -967,7 +967,7 @@ public:
 		while (ScopeEntry &&
 			   Depth < CurrentStackDepth)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				check(CurrentStackDepth < SettingsType::MaxDepth);
 				FEventInfoStackEntry& StackEntry = EventStack[CurrentStackDepth++];
@@ -1034,7 +1034,7 @@ public:
 		const FEventScopeEntry* ScopeEntry = ScopeEntryIterator.GetCurrentItem();
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) < Time)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				CurrentStackDepth++;
 			}
@@ -1270,7 +1270,7 @@ private:
 		//......]...]....]...TargetExactTime
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) <= InParams.TargetExactTime)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				check(IterationState.StackDepth < SettingsType::MaxDepth);
 				FEventInfoStackEntry& StackEntry = IterationState.EventStack[IterationState.StackDepth++];
@@ -1322,7 +1322,7 @@ private:
 		bool bHasStartEvent = false;
 		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) <= InParams.TargetEndTime)
 		{
-			if (ScopeEntry->Time < 0.0)
+			if (FMath::IsNegative(ScopeEntry->Time))
 			{
 				check(IterationState.StackDepth < SettingsType::MaxDepth);
 				FEventInfoStackEntry& StackEntry = IterationState.EventStack[IterationState.StackDepth++];

@@ -136,7 +136,7 @@ bool FDisplayClusterViewportPostProcessManager::CreatePostprocess(const FString&
 				PostProcessInstance->HandleStartScene(&ViewportManager);
 }
 
-			for (int Order = 0; Order < Postprocess.Num(); Order++)
+			for (int32 Order = 0; Order < Postprocess.Num(); Order++)
 {
 				if (Postprocess[Order].IsValid() && Postprocess[Order]->GetOrder() > PostProcessInstance->GetOrder())
 				{

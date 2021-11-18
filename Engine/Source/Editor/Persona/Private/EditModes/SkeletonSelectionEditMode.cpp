@@ -11,6 +11,7 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "EngineUtils.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Engine/WindDirectionalSource.h"
 
 #include "IPersonaToolkit.h"
 #include "IEditableSkeleton.h"
@@ -327,17 +328,6 @@ bool FSkeletonSelectionEditMode::InputDelta(FEditorViewportClient* InViewportCli
 	return bHandled;
 }
 
-void FSkeletonSelectionEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
-{
-	// If we have a socket of interest, draw the widget
-	if (GetAnimPreviewScene().GetSelectedSocket().IsValid())
-	{
-		TArray<USkeletalMeshSocket*> SocketAsArray;
-		SocketAsArray.Add(GetAnimPreviewScene().GetSelectedSocket().Socket);
-		FAnimationViewportClient::DrawSockets(GetAnimPreviewScene().GetPreviewMeshComponent(), SocketAsArray, GetAnimPreviewScene().GetSelectedSocket(), PDI, false);
-	}
-}
-
 FIntPoint FSkeletonSelectionEditMode::GetDPIUnscaledSize(FViewport* Viewport, FViewportClient* Client)
 {
 	const FIntPoint Size = Viewport->GetSizeXY();
@@ -515,70 +505,55 @@ FVector FSkeletonSelectionEditMode::GetWidgetLocation() const
 	return FVector::ZeroVector;
 }
 
-bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click)
+bool FSkeletonSelectionEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
-	bool bHandled = false;
-	const bool bSelectingSections = GetAnimPreviewScene().AllowMeshHitProxies();
-
+	GetAnimPreviewScene().DeselectAll();
 	USkeletalMeshComponent* MeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-
-	if ( HitProxy )
+	if (MeshComponent)
 	{
-		if (!HitProxy->IsA(HActor::StaticGetType()) && MeshComponent)
-		{
-			MeshComponent->SetSelectedEditorSection(INDEX_NONE);
-		}
-
-		if ( HitProxy->IsA( HPersonaSelectionHitProxy::StaticGetType() ) )
-		{
-			GetAnimPreviewScene().DeselectAll();
-			static_cast<HPersonaSelectionHitProxy*>(HitProxy)->BroadcastClicked();
-			bHandled = true;
-		}
-		else if ( HitProxy->IsA( HActor::StaticGetType() ) && bSelectingSections)
-		{
-			HActor* ActorHitProxy = static_cast<HActor*>(HitProxy);
-			GetAnimPreviewScene().BroadcastMeshClick(ActorHitProxy, Click); // This can pop up menu which redraws viewport and invalidates HitProxy!
-			bHandled = true;
-		}
-	}
-	else
-	{
-		// Deselect mesh sections
-		if (MeshComponent)
-		{
-			MeshComponent->SetSelectedEditorSection(INDEX_NONE);
-		}
+		MeshComponent->SetSelectedEditorSection(INDEX_NONE);
 	}
 
-	const bool bUsePhysicsBodiesForBoneSelection = GetAnimPreviewScene().UsePhysicsBodiesForBoneSelection();
-	if ( !bHandled && !bSelectingSections && bUsePhysicsBodiesForBoneSelection)
+	if (!HitProxy)
 	{
-		// Cast for phys bodies if we didn't get any hit proxies
-		FHitResult Result(1.0f);
-		UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-		bool bHit = PreviewMeshComponent->LineTraceComponent(Result, Click.GetOrigin(), Click.GetOrigin() + Click.GetDirection() * SkeletonSelectionModeConstants::BodyTraceDistance, FCollisionQueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(),true));
-		
-		if(bHit)
+		return false;
+	}
+
+	if (HPersonaBoneHitProxy* BoneHitProxy = HitProxyCast<HPersonaBoneHitProxy>(HitProxy))
+	{
+		GetAnimPreviewScene().SetSelectedBone(BoneHitProxy->BoneName, ESelectInfo::OnMouseClick);
+		return true;
+	}
+	if (HPersonaSocketHitProxy* SocketHitProxy = HitProxyCast<HPersonaSocketHitProxy>(HitProxy))
+	{
+		if (USkeleton* Skeleton = GetAnimPreviewScene().GetPersonaToolkit()->GetSkeleton())
 		{
-			// Clear the current selection if we are not multi-selecting
-			const bool bCtrlDown = InViewportClient->Viewport->KeyState(EKeys::LeftControl) || InViewportClient->Viewport->KeyState(EKeys::RightControl);
-			const bool bShiftDown = InViewportClient->Viewport->KeyState(EKeys::LeftShift) || InViewportClient->Viewport->KeyState(EKeys::RightShift);
-			if (!bCtrlDown && !bShiftDown)
+			FSelectedSocketInfo SocketInfo;
+			SocketInfo.Socket = SocketHitProxy->Socket;
+			SocketInfo.bSocketIsOnSkeleton = !SocketInfo.Socket->GetOuter()->IsA<USkeletalMesh>();
+			GetAnimPreviewScene().SetSelectedSocket(SocketInfo);
+			return true;
+		}
+	}
+	if (HActor* ActorHitProxy = HitProxyCast<HActor>(HitProxy))
+	{
+		if (ActorHitProxy->Actor)
+		{
+			if (ActorHitProxy->Actor->IsA<AWindDirectionalSource>())
 			{
-				GetAnimPreviewScene().DeselectAll();
+				AWindDirectionalSource* WindSourceActor = CastChecked<AWindDirectionalSource>(ActorHitProxy->Actor);
+				if (WindSourceActor->IsSelectable())
+				{
+					GetAnimPreviewScene().SetSelectedActor(WindSourceActor);
+					return true;
+				}
 			}
-			GetAnimPreviewScene().SetSelectedBone(Result.BoneName, ESelectInfo::OnMouseClick);
-			bHandled = true;
 		}
-		else
-		{
-			// We didn't hit a proxy or a physics object, so deselect all objects
-			GetAnimPreviewScene().DeselectAll();
-		}
+		GetAnimPreviewScene().BroadcastMeshClick(ActorHitProxy, Click); // This can pop up menu which redraws viewport and invalidates HitProxy!
+		return true;
 	}
 
-	return bHandled;
+	return false;
 }
 
 bool FSkeletonSelectionEditMode::CanCycleWidgetMode() const

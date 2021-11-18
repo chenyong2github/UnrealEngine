@@ -22,6 +22,7 @@
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
 #include "Misc/MessageDialog.h"
+#include "ContentBrowserDataMenuContexts.h"
 
 #define LOCTEXT_NAMESPACE "Bridge"
 #define LEVELEDITOR_MODULE_NAME TEXT("LevelEditor")
@@ -98,13 +99,21 @@ void FBridgeUIManagerImpl::SetupMenuItem()
 	//FToolMenuSection& ContextMenuSection = ContextMenu->AddSection("ContentBrowserMegascans", LOCTEXT("GetContentMenuHeading", "Quixel Content"));
 	FToolMenuSection& ContextMenuSection = ContextMenu->FindOrAddSection("ContentBrowserGetContent");
 	
-	ContextMenuSection.AddMenuEntry(
-		"GetMegascans",
-		LOCTEXT("OpenBridgeTabText", "Add Quixel Content"),
-		LOCTEXT("GetBridgeTooltip", "Add Megascans and DHI assets to project."),
-		FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.MenuLogo"),
-		FUIAction(FExecuteAction::CreateRaw(this, &FBridgeUIManagerImpl::CreateWindow), FCanExecuteAction())
-	);
+	TWeakPtr<FBridgeUIManagerImpl> WeakPtr = AsShared();
+	ContextMenuSection.AddDynamicEntry("GetMegascans", FNewToolMenuSectionDelegate::CreateLambda([WeakPtr](FToolMenuSection& InSection)
+	{
+		UContentBrowserDataMenuContext_AddNewMenu* AddNewMenuContext = InSection.FindContext<UContentBrowserDataMenuContext_AddNewMenu>();
+		if (AddNewMenuContext && AddNewMenuContext->bCanBeModified && AddNewMenuContext->bContainsValidPackagePath && WeakPtr.IsValid())
+		{
+			InSection.AddMenuEntry(
+				"GetMegascans",
+				LOCTEXT("OpenBridgeTabText", "Add Quixel Content"),
+				LOCTEXT("GetBridgeTooltip", "Add Megascans and DHI assets to project."),
+				FSlateIcon(FBridgeStyle::GetStyleSetName(), "Bridge.MenuLogo"),
+				FUIAction(FExecuteAction::CreateSP(WeakPtr.Pin().ToSharedRef(), &FBridgeUIManagerImpl::CreateWindow), FCanExecuteAction())
+			);
+		}
+	}));
 
 	/*TSharedPtr<FExtender> NewMenuExtender = MakeShareable(new FExtender);
 	NewMenuExtender->AddMenuExtension("LevelEditor",
@@ -174,20 +183,41 @@ void FBridgeUIManagerImpl::CreateWindow()
 
 void FBridgeUIManager::Shutdown()
 {
+	if (FBridgeUIManager::Instance.IsValid())
+	{
+		if (FBridgeUIManager::Instance->Browser != NULL && FBridgeUIManager::Instance->Browser.IsValid())
+		{
+			FBridgeUIManager::Instance->Browser = NULL;
+		}
+		if (FBridgeUIManager::Instance->WebBrowserWidget != NULL && FBridgeUIManager::Instance->WebBrowserWidget.IsValid())
+		{
+			FBridgeUIManager::Instance->WebBrowserWidget = NULL;
+		}
+		if (FBridgeUIManager::Instance->LocalBrowserDock != NULL && FBridgeUIManager::Instance->LocalBrowserDock.IsValid())
+		{
+			FBridgeUIManager::Instance->LocalBrowserDock = NULL;
+		}
+	}
+
 	FBridgeStyle::Shutdown();
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(BridgeTabName);
 }
 
 TSharedRef<SDockTab> FBridgeUIManagerImpl::CreateBridgeTab(const FSpawnTabArgs& Args)
 {
+	// Start node process
+	FNodeProcessManager::Get()->StartNodeProcess();
+
+	// Delay launch on Mac & Linux
+#if PLATFORM_MAC || PLATFORM_LINUX
+	FGenericPlatformProcess::Sleep(2);
+#endif
+
 	FWebBrowserInitSettings browserInitSettings = FWebBrowserInitSettings();
 	IWebBrowserModule::Get().CustomInitialize(browserInitSettings);
 
 	FString PluginPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Bridge"));
 	FString IndexUrl = FPaths::ConvertRelativePathToFull(FPaths::Combine(PluginPath, TEXT("ThirdParty"), TEXT("megascans"), TEXT("index.html")));
-
-	// Start node process
-	FNodeProcessManager::Get()->StartNodeProcess();
 
 	WindowSettings.InitialURL = FPaths::Combine(TEXT("file:///"), IndexUrl);
 	WindowSettings.BrowserFrameRate = 60;
@@ -200,10 +230,20 @@ TSharedRef<SDockTab> FBridgeUIManagerImpl::CreateBridgeTab(const FSpawnTabArgs& 
 		SAssignNew(LocalBrowserDock, SDockTab)
 			.OnTabClosed_Lambda([](TSharedRef<class SDockTab> InParentTab)
 			{
+				// Kill node process if bound
+				FBridgeUIManager::BrowserBinding->OnExitDelegate.ExecuteIfBound("Plugin Window Closed");
+				FBridgeUIManager::BrowserBinding = NULL;
+				// Adding a delay for Mac, for node process to exit completely (before plugin)
+			#if PLATFORM_MAC
+				FGenericPlatformProcess::Sleep(0.3);
+			#endif
+
+				// Clean up browser
 				FBridgeUIManager::Instance->LocalBrowserDock = NULL;
 				if (FBridgeUIManager::Instance->WebBrowserWidget.IsValid())
 				{
 					FBridgeUIManager::Instance->WebBrowserWidget.Reset();
+					FBridgeUIManager::Instance->Browser.Reset();
 				}
 			})
 			.TabRole(ETabRole::NomadTab)

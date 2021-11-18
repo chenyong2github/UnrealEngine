@@ -1301,19 +1301,9 @@ void FTabManager::RestoreDocumentTab( FName PlaceholderId, ESearchPreference::Ty
 	}
 }
 
-TSharedRef<SDockTab> FTabManager::InvokeTab(const FTabId& TabId)
+TSharedPtr<SDockTab> FTabManager::TryInvokeTab(const FTabId& TabId, bool bInvokeAsInactive)
 {
-	if (TSharedPtr<SDockTab> NewTab = TryInvokeTab(TabId))
-	{
-		return NewTab.ToSharedRef();
-	}
-
-	return SNew(SDockTab);
-}
-
-TSharedPtr<SDockTab> FTabManager::TryInvokeTab(const FTabId& TabId)
-{
-	TSharedPtr<SDockTab> NewTab = InvokeTab_Internal(TabId);
+	TSharedPtr<SDockTab> NewTab = InvokeTab_Internal(TabId, bInvokeAsInactive);
 	if (!NewTab.IsValid())
 	{
 		return NewTab;
@@ -1330,7 +1320,7 @@ TSharedPtr<SDockTab> FTabManager::TryInvokeTab(const FTabId& TabId)
 	return NewTab;
 }
 
-TSharedPtr<SDockTab> FTabManager::InvokeTab_Internal( const FTabId& TabId )
+TSharedPtr<SDockTab> FTabManager::InvokeTab_Internal(const FTabId& TabId, bool bInvokeAsInactive)
 {
 	// Tab Spawning Rules:
 	// 
@@ -1376,7 +1366,7 @@ TSharedPtr<SDockTab> FTabManager::InvokeTab_Internal( const FTabId& TabId )
 			// 2. Tab's owning major tab is not in the foreground (making the tab we want to draw attention to is not visible)
 			// 3. Tab is nomad and is not in the foreground
 			// If the tab is not active or the tabs major tab is not in the foreground, activate it
-			if (!ExistingTab->IsActive() || (MajorTab && !MajorTab->IsForeground()) || !ExistingTab->IsForeground())
+			if (!bInvokeAsInactive && (!ExistingTab->IsActive() || (MajorTab && !MajorTab->IsForeground()) || !ExistingTab->IsForeground()))
 			{
 				// Draw attention to this tab if it didn't already have focus
 				DrawAttention(ExistingTab.ToSharedRef());
@@ -1390,11 +1380,11 @@ TSharedPtr<SDockTab> FTabManager::InvokeTab_Internal( const FTabId& TabId )
 
 	if (StackToSpawnIn.IsValid())
 	{
-		const TSharedPtr<SDockTab> NewTab = SpawnTab( TabId, TSharedPtr<SWindow>() );
+		const TSharedPtr<SDockTab> NewTab = SpawnTab(TabId, TSharedPtr<SWindow>());
 
 		if (NewTab.IsValid())
 		{
-			StackToSpawnIn->OpenTab(NewTab.ToSharedRef());
+			StackToSpawnIn->OpenTab(NewTab.ToSharedRef(), INDEX_NONE, bInvokeAsInactive);
 			NewTab->PlaySpawnAnim();
 			FGlobalTabmanager::Get()->UpdateMainMenu(NewTab.ToSharedRef(), false);
 		}
@@ -1404,7 +1394,7 @@ TSharedPtr<SDockTab> FTabManager::InvokeTab_Internal( const FTabId& TabId )
 	else if ( FGlobalTabmanager::Get() != SharedThis(this) && NomadTabSpawner->Contains(TabId.TabType) )
 	{
 		// This tab could have been spawned in the global tab manager since it has a nomad tab spawner
-		return FGlobalTabmanager::Get()->InvokeTab_Internal(TabId);
+		return FGlobalTabmanager::Get()->InvokeTab_Internal(TabId, bInvokeAsInactive);
 	}
 	else
 	{

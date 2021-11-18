@@ -1030,7 +1030,12 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 
 			// When this flag is true, the tangent is flat if the value has the same value as the previous or next key.
 			const bool bTangentGenericClamp = (KeyTangentMode & FbxAnimCurveDef::eTangentGenericClamp);
+
+			//Time independent tangent this is consider has a spline tangent key
+			const bool bTangentGenericTimeIndependent = (KeyTangentMode & FbxAnimCurveDef::ETangentMode::eTangentGenericTimeIndependent);
+			
 			// When this flag is true, the tangent is flat if the value is outside of the [previous key, next key] value range.
+			//Clamp progressive is (eTangentGenericClampProgressive |eTangentGenericTimeIndependent)
 			const bool bTangentGenericClampProgressive = (KeyTangentMode & FbxAnimCurveDef::ETangentMode::eTangentGenericClampProgressive) == FbxAnimCurveDef::ETangentMode::eTangentGenericClampProgressive;
 
 			if (KeyTangentMode & FbxAnimCurveDef::eTangentGenericBreak)
@@ -1055,6 +1060,7 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 				// get tangents
 				{
 					bool bIsFlatTangent = false;
+					bool bIsComputedTangent = false;
 					if (bTangentGenericClampProgressive)
 					{
 						if (bPreviousKeyValid && bNextKeyValid)
@@ -1081,12 +1087,49 @@ bool UnFbx::FFbxImporter::ImportCurve(const FbxAnimCurve* FbxCurve, FRichCurve& 
 							bIsFlatTangent |= Value == NextValue;
 						}
 					}
+					else if (bTangentGenericTimeIndependent)
+					{
+						//Spline tangent key, because bTangentGenericClampProgressive include bTangentGenericTimeIndependent, we must treat this case after bTangentGenericClampProgressive
+						if (KeyCount == 1)
+						{
+							bIsFlatTangent = true;
+						}
+						else
+						{
+							//Spline mode is the tangent are equal to the slope between previous and next control point
+							if (bPreviousKeyValid && bNextKeyValid)
+							{
+								bIsComputedTangent = true;
+								LeftTangent = (NextValue - PreviousValue) / FMath::Max<float>(KINDA_SMALL_NUMBER, NextKeyTimeValue - PreviousKeyTimeValue);
+								RightTangent = LeftTangent;
+							}
+							else
+							{
+								//Last key left tangent is the slope between last key and the previous key
+								if (bPreviousKeyValid)
+								{
+									bIsComputedTangent = true;
+									LeftTangent = (Value - PreviousValue) / FMath::Max<float>(KINDA_SMALL_NUMBER, KeyTimeValue - PreviousKeyTimeValue);
+								}
+								//First key right tangent is the slope between first key and the next key
+								if (bNextKeyValid)
+								{
+									bIsComputedTangent = true;
+									RightTangent = (NextValue - Value) / FMath::Max<float>(KINDA_SMALL_NUMBER, NextKeyTimeValue - KeyTimeValue);
+								}
+							}
+						}
+					}
 					
 					if (bIsFlatTangent)
 					{
 						RightTangent = 0;
 						LeftTangent = 0;
 						//To force flat tangent we need to set the tangent mode to user
+						NewTangentMode = RCTM_User;
+					}
+					else if (bIsComputedTangent)
+					{
 						NewTangentMode = RCTM_User;
 					}
 					else

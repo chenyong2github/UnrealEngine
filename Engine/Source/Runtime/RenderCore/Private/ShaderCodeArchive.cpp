@@ -789,6 +789,7 @@ bool FShaderCodeArchive::PreloadShader(int32 ShaderIndex, FGraphEventArray& OutC
 	FWriteScopeLock Lock(ShaderPreloadLock);
 
 	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[ShaderIndex];
+	checkf(!ShaderPreloadEntry.bNeverToBePreloaded, TEXT("We are preloading a shader that shouldn't be preloaded in this run (e.g. raytracing shader on D3D11)."));
 	const uint32 ShaderNumRefs = ShaderPreloadEntry.NumRefs++;
 	if (ShaderNumRefs == 0u)
 	{
@@ -939,6 +940,7 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 
 	const FShaderCodeEntry& ShaderEntry = SerializedShaders.ShaderEntries[Index];
 	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[Index];
+	checkf(!ShaderPreloadEntry.bNeverToBePreloaded, TEXT("We are creating a shader that shouldn't be preloaded in this run (e.g. raytracing shader on D3D11)."));
 
 	void* PreloadedShaderCode = nullptr;
 	{

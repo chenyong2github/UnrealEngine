@@ -6,16 +6,12 @@
 
 #define TEST_INT16_ATTENUATION 1
 
-FToneGenerator::FToneGenerator(int32 InSampleRate, int32 InNumChannels, int32 InFrequency, float InVolume, const Audio::FAudioBufferDistanceAttenuation::FSettings& InAttenuationSettings)
+FToneGenerator::FToneGenerator(int32 InSampleRate, int32 InNumChannels, int32 InFrequency, float InVolume, const Audio::FAudioBufferDistanceAttenuationSettings& InAttenuationSettings)
 	: NumChannels(InNumChannels)
 {
 	SineOsc.Init(InSampleRate, InFrequency, InVolume);
 
-	AudioBufferDistanceAttenuation.SetSettings(InAttenuationSettings);
-}
-
-FToneGenerator::~FToneGenerator()
-{
+	DistanceAttenuationSettings = InAttenuationSettings;
 }
 
 void FToneGenerator::SetDistance(float InCurrentDistance)
@@ -68,7 +64,8 @@ int32 FToneGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 		AudioBuffer[SampleIndex] = (int16)(OutAudio[SampleIndex] * 32768.0f);
 	}
 
-	AudioBufferDistanceAttenuation.ProcessAudio(AudioBuffer.GetData(), NumFrames, NumChannels, CurrentDistance);
+	TArrayView<int16> AudioBufferView = MakeArrayView(AudioBuffer);
+	Audio::DistanceAttenuationProcessAudio(AudioBufferView, NumChannels, CurrentDistance, DistanceAttenuationSettings, CurrentAttenuation);
 
 	// Convert back to float
 	for (SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
@@ -76,7 +73,9 @@ int32 FToneGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 		OutAudio[SampleIndex] = (float)AudioBuffer[SampleIndex] / 32768.0f;
 	}
 #else
-	AudioBufferDistanceAttenuation.ProcessAudio(OutAudio, NumFrames, NumChannels, CurrentDistance);
+	TArrayView<float> AudioBufferView = MakeArrayView(OutAudio, NumFrames * NumChannels);
+
+	Audio::DistanceAttenuationProcessAudio(AudioBufferView, NumChannels, CurrentDistance, DistanceAttenuationSettings, CurrentAttenuation);
 #endif
 	return NumSamples;
 }

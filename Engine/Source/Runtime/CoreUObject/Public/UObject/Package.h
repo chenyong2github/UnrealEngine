@@ -49,7 +49,11 @@ enum class ESavePackageResult
 	GenerateStub,
 	DifferentContent	UE_DEPRECATED(5.0, "Diffing is now done using FDiffPackageWriter."),
 	/** [When cooking] The file requested (when cooking on the fly) did not exist on disk */
-	MissingFile
+	MissingFile,
+	/** Result from ISavePackageValidator that indicates an error. */
+	ValidatorError,
+	/** Result from ISavePackageValidator that suppresses the save but is not an error. */
+	ValidatorSuppress,
 };
 
 /**

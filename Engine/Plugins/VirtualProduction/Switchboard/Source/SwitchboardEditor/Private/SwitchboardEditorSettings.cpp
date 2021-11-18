@@ -4,24 +4,51 @@
 #include "GenericPlatform/GenericPlatformProperties.h"
 #include "Misc/Paths.h"
 
+
+namespace UE::Switchboard::Private
+{
+
+TTuple<FString, FString> PlatformAndExtension()
+{
+#if PLATFORM_WINDOWS
+	FString PlatformName = TEXT("Win64");
+	FString ExeExt = TEXT(".exe");
+#elif PLATFORM_LINUX
+	FString ExeExt = TEXT("");
+	FString PlatformName = TEXT("Linux");
+#endif
+	return TTuple<FString,FString>{MoveTemp(PlatformName), MoveTemp(ExeExt)};
+}
+
+template <typename... TPaths>
+FString ConcatPaths(FString BaseDir, TPaths... InPaths)
+{
+	FString BaseConverted = FPaths::ConvertRelativePathToFull(BaseDir);
+	BaseConverted /= ( InPaths / ... );
+	return BaseConverted;
+}
+
+FString DefaultListenerPath()
+{
+	const auto [PlatformName, ExeExt] = UE::Switchboard::Private::PlatformAndExtension();
+
+	return ConcatPaths(FPaths::EngineDir(),
+					   FString(TEXT("Binaries")),
+					   PlatformName,
+					   FString(TEXT("SwitchboardListener") + ExeExt));
+}
+
+}
+
 USwitchboardEditorSettings::USwitchboardEditorSettings()
 {
-	FString DefaultSwitchboardPath = FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir() + FString(TEXT("VirtualProduction")));
-	DefaultSwitchboardPath /= FString(TEXT("Switchboard")) / FString(TEXT("Source")) / FString(TEXT("Switchboard"));
-	SwitchboardPath = { DefaultSwitchboardPath };
+	using namespace UE::Switchboard::Private;
+	SwitchboardPath = {ConcatPaths(FPaths::EnginePluginsDir() + FString(TEXT("VirtualProduction")),
+								   FString(TEXT("Switchboard")),
+								   FString(TEXT("Source")),
+								   FString(TEXT("Switchboard")))};
 
-#if PLATFORM_WINDOWS
-	const FString PlatformName = TEXT("Win64");
-	const FString ExeExt = TEXT(".exe");
-#elif PLATFORM_LINUX
-	const FString ExeExt = TEXT("");
-	const FString PlatformName = TEXT("Linux");
-#endif
-
-	FString DefaultListenerPath = FPaths::ConvertRelativePathToFull(FPaths::EngineDir());
-	DefaultListenerPath /= FString(TEXT("Binaries")) / PlatformName;
-	DefaultListenerPath /= (TEXT("SwitchboardListener") + ExeExt);
-	ListenerPath = { DefaultListenerPath };
+	ListenerPath = {DefaultListenerPath()};
 }
 
 USwitchboardEditorSettings* USwitchboardEditorSettings::GetSwitchboardEditorSettings()

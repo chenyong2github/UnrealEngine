@@ -35,10 +35,11 @@ class SInlineEditableTextBlock;
 class SVirtualKeyboardEntry;
 class SSafeZone;
 struct FMarqueeRect;
-class SRotatorInputBox;
 
 template <typename NumericType> class SNumericVectorInputBox;
 using SVectorInputBox = SNumericVectorInputBox<float>;
+template <typename NumericType> class SNumericRotatorInputBox;
+using SRotatorInputBox = SNumericRotatorInputBox<float>;
 class SVirtualJoystick;
 
 enum ETabActivationCause : uint8;

@@ -726,15 +726,10 @@ private:
 
 	FText( FName InTableId, FString InKey, const EStringTableLoadingPolicy InLoadingPolicy );
 
-	FText( FString&& InSourceString, FTextDisplayStringRef InDisplayString );
-
 	FText( FString&& InSourceString, const FTextKey& InNamespace, const FTextKey& InKey, uint32 InFlags=0 );
 
 	static void SerializeText( FArchive& Ar, FText& Value );
 	static void SerializeText(FStructuredArchive::FSlot Slot, FText& Value);
-
-	/** Returns the source string of the FText */
-	const FString& GetSourceString() const;
 
 	/** Get any historic text format data from the history used by this FText */
 	void GetHistoricFormatData(TArray<FHistoricTextFormatData>& OutHistoricFormatData) const;
@@ -1084,14 +1079,17 @@ private:
 	/** A pointer to the text data for the FText that we took a snapshot of (used for an efficient pointer compare) */
 	TSharedPtr<ITextData, ESPMode::ThreadSafe> TextDataPtr;
 
-	/** Global revision index of localization manager when we took the snapshot, or 0 if there was no history */
-	uint16 GlobalHistoryRevision;
+	/** The localized string of the text when we took the snapshot (if any) */
+	FTextConstDisplayStringPtr LocalizedStringPtr;
 
-	/** Local revision index of the display string we took a snapshot of, or 0 if there was no history */
-	uint16 LocalHistoryRevision;
+	/** Global revision index of the text when we took the snapshot, or 0 if there was no history */
+	uint16 GlobalHistoryRevision = 0;
+
+	/** Local revision index of the text when we took the snapshot, or 0 if there was no history */
+	uint16 LocalHistoryRevision = 0;
 
 	/** Flags with various information on what sort of FText we took a snapshot of */
-	uint32 Flags;
+	uint32 Flags = 0;
 };
 
 class CORE_API FTextInspector
@@ -1104,13 +1102,17 @@ public:
 	static bool ShouldGatherForLocalization(const FText& Text);
 	static TOptional<FString> GetNamespace(const FText& Text);
 	static TOptional<FString> GetKey(const FText& Text);
+	static FTextId GetTextId(const FText& Text);
 	static const FString* GetSourceString(const FText& Text);
 	static const FString& GetDisplayString(const FText& Text);
-	static const FTextDisplayStringRef GetSharedDisplayString(const FText& Text);
+	UE_DEPRECATED(5.0, "GetSharedDisplayString is no longer guaranteed to return a valid result and should NOT be used! If you wanted to get the text ID, use FTextInspector::GetTextId instead. If you wanted a key for unique text instances, use FTextInspector::GetSharedDataId instead.")
+	static FTextConstDisplayStringPtr GetSharedDisplayString(const FText& Text);
 	static bool GetTableIdAndKey(const FText& Text, FName& OutTableId, FString& OutKey);
+	static bool GetTableIdAndKey(const FText& Text, FName& OutTableId, FTextKey& OutKey);
 	static uint32 GetFlags(const FText& Text);
 	static void GetHistoricFormatData(const FText& Text, TArray<FHistoricTextFormatData>& OutHistoricFormatData);
 	static bool GetHistoricNumericData(const FText& Text, FHistoricTextNumericData& OutHistoricNumericData);
+	static const void* GetSharedDataId(const FText& Text);
 };
 
 class CORE_API FTextStringHelper
@@ -1245,20 +1247,6 @@ private:
 
 	TArray<FText> Lines;
 	int32 IndentCount = 0;
-};
-
-class CORE_API FScopedTextIdentityPreserver
-{
-public:
-	FScopedTextIdentityPreserver(FText& InTextToPersist);
-	~FScopedTextIdentityPreserver();
-
-private:
-	FText& TextToPersist;
-	bool HadFoundNamespaceAndKey;
-	FString Namespace;
-	FString Key;
-	uint32 Flags;
 };
 
 /** Unicode character helper functions */

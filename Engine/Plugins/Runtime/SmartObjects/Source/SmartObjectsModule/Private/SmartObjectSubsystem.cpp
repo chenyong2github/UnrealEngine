@@ -693,7 +693,7 @@ void USmartObjectSubsystem::RegisterCollection(ASmartObjectCollection& InCollect
 	}
 	else
 	{
-		InCollection.MarkPendingKill();
+		InCollection.MarkAsGarbage();
 	}
 }
 

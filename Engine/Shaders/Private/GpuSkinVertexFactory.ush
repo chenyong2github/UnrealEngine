@@ -109,8 +109,8 @@ struct FVertexFactoryInput
 	float3 PreSkinOffset : ATTRIBUTE11;
 	float3 PostSkinOffset : ATTRIBUTE12;
 
-#if GPUSKIN_APEX_CLOTH
-	uint ClothVertexID : SV_VertexID;
+#if GPUSKIN_MORPH_BLEND || GPUSKIN_APEX_CLOTH
+	uint VertexID : SV_VertexID;
 #endif
 
 	/** Per vertex color */
@@ -485,6 +485,10 @@ float3 UnpackedPosition( FVertexFactoryInput Input )
 }
 
 #if GPUSKIN_MORPH_BLEND
+#if GPUSKIN_MORPH_USE_PREVIOUS
+Buffer<float> PreviousMorphBuffer;
+#endif
+
 /** 
 * Adds the delta position from the combined morph targets to the vertex position 
 */
@@ -492,7 +496,24 @@ float3 MorphPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Int
 {
 	return Intermediates.UnpackedPosition + Input.DeltaPosition;
 }
+
+float3 MorphPreviousPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
+{
+#if GPUSKIN_MORPH_USE_PREVIOUS
+	// 3 + 3 floats because of the format defined in InitMorphVertexFactoryComponents / FMorphGPUSkinVertex
+	uint Offset = Input.VertexID * (3 + 3);
+
+	float3 PreviousDeltaPosition = float3(
+		PreviousMorphBuffer[Offset + 0],
+		PreviousMorphBuffer[Offset + 1],
+		PreviousMorphBuffer[Offset + 2]);
+
+	return Intermediates.UnpackedPosition + PreviousDeltaPosition;
+#else
+	return Intermediates.UnpackedPosition + Input.DeltaPosition;
 #endif
+}
+#endif // GPUSKIN_MORPH_BLEND
 
 FBoneMatrix GetBoneMatrix(int Index)
 {
@@ -632,7 +653,7 @@ float3 SkinPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Inte
 float3 SkinPreviousPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
 {
 #if GPUSKIN_MORPH_BLEND
-	float3 Position = MorphPosition(Input, Intermediates);
+	float3 Position = MorphPreviousPosition(Input, Intermediates);
 #else
 	float3 Position = Intermediates.UnpackedPosition;
 #endif
@@ -794,7 +815,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.UnpackedPosition		= UnpackedPosition(Input);
 
 #if GPUSKIN_APEX_CLOTH
-	SetupClothVertex(Input.ClothVertexID, Intermediates.ClothVertexInfluences);
+	SetupClothVertex(Input.VertexID, Intermediates.ClothVertexInfluences);
 	if( IsSimulatedVertex(Intermediates.ClothVertexInfluences[0]) )
 	{
 		Intermediates.PreviousSimulatedPosition = ClothingPosition(Intermediates.ClothVertexInfluences, true);

@@ -818,6 +818,9 @@ class LoggingModel(QtGui.QStandardItemModel):
         '''
         value = value or collections.OrderedDict()
 
+        # sort them by name to facilitate finding them
+        value = collections.OrderedDict(sorted(value.items(), key=lambda item: str(item[0]).lower()))
+
         self.beginResetModel()
 
         self.removeRows(0, self.rowCount())
@@ -1373,6 +1376,15 @@ class Config(object):
         self.MUSERVER_SERVER_NAME = data.get(
             'muserver_server_name', f'{self.PROJECT_NAME}_MU_Server')
         self.MUSERVER_ENDPOINT = data.get('muserver_endpoint', ':9030')
+        self.MUSERVER_MULTICAST_ENDPOINT = StringSetting(
+            attr_name='udpmessaging_multicast_endpoint',
+            nice_name='Multicast Endpoint',
+            value=data.get('muserver_multicast_endpoint', '230.0.0.1:6666'),
+            tool_tip=(
+                'Multicast group and port (-UDPMESSAGING_TRANSPORT_MULTICAST) '
+                'in the {ip}:{port} endpoint format. The multicast group IP '
+                'must be in the range 224.0.0.0 to 239.255.255.255.'),
+        )
         self.MUSERVER_AUTO_LAUNCH = data.get('muserver_auto_launch', True)
         self.MUSERVER_CLEAN_HISTORY = data.get('muserver_clean_history', False)
         self.MUSERVER_AUTO_BUILD = data.get('muserver_auto_build', True)
@@ -1412,6 +1424,7 @@ class Config(object):
         data["muserver_auto_endpoint"] = self.MUSERVER_AUTO_ENDPOINT
 
         data["muserver_auto_join"] = self.MUSERVER_AUTO_JOIN.get_value()
+        data["muserver_multicast_endpoint"] = self.MUSERVER_MULTICAST_ENDPOINT.get_value()
 
     def save_unreal_insights(self, data):
         data['tracing_enabled'] = self.INSIGHTS_TRACE_ENABLE.get_value()
@@ -1823,7 +1836,7 @@ class UserSettings(object):
 
         # UI Settings
         self.MUSERVER_SESSION_NAME = data.get(
-            'muserver_session_name', 'MU_Session')
+            'muserver_session_name', 'MU_Session').replace(' ','_')
         self.CURRENT_SEQUENCE = data.get('current_sequence', 'Default')
         self.CURRENT_SLATE = data.get('current_slate', 'Scene')
         self.CURRENT_TAKE = data.get('current_take', 1)

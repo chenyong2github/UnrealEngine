@@ -356,17 +356,23 @@ namespace Chaos
 		}
 
 		// Returns a position on the core shape excluding the margin
-		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, FReal InMargin) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta) const
 		{
-			return AABB.SupportCore(Direction, InMargin);
+			return AABB.SupportCore(Direction, InMargin, OutSupportDelta);
 		}
 
-		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, FReal InMargin, const TVector<T, d>& Scale) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const FReal InMargin, const TVector<T, d>& Scale, T* OutSupportDelta) const
 		{
+			return AABB.SupportCoreScaled(Direction, InMargin, Scale, OutSupportDelta);
 			// @todo(chaos): Needs to operate in scaled space as margin is not non-uniform scalable
-			const FReal InvScale = 1.0f / Scale[0];
-			const FReal NetMargin = InvScale * InMargin;
-			return AABB.SupportCore(Direction * Scale, NetMargin) * Scale;
+			//const FReal InvScale = 1.0f / Scale[0];
+			//const FReal NetMargin = InvScale * InMargin;
+			//const FVec3 CoreVertex = AABB.SupportCore(Direction * Scale, NetMargin, OutSupportDelta);
+			//if (OutSupportDelta != nullptr)
+			//{
+			//	*OutSupportDelta = *OutSupportDelta * Scale[0];
+			//}
+			//return CoreVertex * Scale;
 		}
 
 		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)

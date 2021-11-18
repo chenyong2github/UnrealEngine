@@ -100,6 +100,17 @@ static FORCEINLINE double BYTESWAP_ORDERD(double val)
 	return *reinterpret_cast<const double*>(&uval);
 }
 
+#if PLATFORM_TCHAR_IS_UTF8CHAR
+
+static FORCEINLINE void BYTESWAP_ORDER_TCHARARRAY(TCHAR* str)
+{
+	static_assert(sizeof(TCHAR) == 1, "Assuming TCHAR is 1 byte wide.");
+
+	// No need to byteswap single bytes.
+}
+
+#else
+
 static FORCEINLINE void BYTESWAP_ORDER_TCHARARRAY(TCHAR* str)
 {
 	static_assert(sizeof(TCHAR) == sizeof(uint16), "Assuming TCHAR is 2 bytes wide.");
@@ -109,6 +120,7 @@ static FORCEINLINE void BYTESWAP_ORDER_TCHARARRAY(TCHAR* str)
 	}
 }
 
+#endif
 
 // General byte swapping.
 #if PLATFORM_LITTLE_ENDIAN

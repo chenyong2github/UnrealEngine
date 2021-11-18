@@ -177,6 +177,7 @@ export enum IPanelType {
 export interface IPanel {
   id?: string;
   title?: string;
+  isTemplate?: boolean;
   type: IPanelType;
   widgets?: ICustomStackWidget[];
   items?: ICustomStackListItem[];

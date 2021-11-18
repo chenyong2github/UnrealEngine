@@ -22,6 +22,13 @@ public:
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override
 	{
 		DisplayName = GetFName().ToString();
+		Super::PostRename(OldOuter, OldName);
+	}
+
+	virtual void PostDuplicate(bool bDuplicateForPIE) override
+	{
+		DisplayName = GetFName().ToString();
+		Super::PostDuplicate(bDuplicateForPIE);
 	}
 
 public:

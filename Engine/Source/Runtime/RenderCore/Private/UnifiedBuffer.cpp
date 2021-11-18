@@ -41,12 +41,7 @@ class FByteBufferShader : public FGlobalShader
 
 		if (ResourceType == EByteBufferResourceType::Uint_Buffer || ResourceType == EByteBufferResourceType::Uint4Aligned_Buffer)
 		{
-			/*
-			return RHISupportsComputeShaders(Parameters.Platform)
-				&& FDataDrivenShaderPlatformInfo::GetInfo(Parameters.Platform).bSupportsByteBufferComputeShaders;
-				*/
-				// TODO: Workaround for FDataDrivenShaderPlatformInfo::GetInfo not being properly filled out yet.
-			return FDataDrivenShaderPlatformInfo::GetSupportsByteBufferComputeShaders(Parameters.Platform) || Parameters.Platform == SP_PCD3D_SM5;
+			return FDataDrivenShaderPlatformInfo::GetSupportsByteBufferComputeShaders(Parameters.Platform);
 		}
 		else
 		{

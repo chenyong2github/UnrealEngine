@@ -299,6 +299,10 @@ HRESULT WmfMediaAppleProResDecoder::ProcessOutput(DWORD dwFlags, DWORD cOutputBu
 	return hr;
 }
 
+bool WmfMediaAppleProResDecoder::IsExternalBufferSupported() const
+{
+	return true;
+}
 
 HRESULT WmfMediaAppleProResDecoder::InternalProcessOutput(IMFSample* InSample)
 {
@@ -320,35 +324,40 @@ HRESULT WmfMediaAppleProResDecoder::InternalProcessOutput(IMFSample* InSample)
 	UINT dwViewIndex = 0;
 	TComPtr<ID3D11Texture2D> TextureNV12_Y = nullptr;
 
-	HRESULT Result = InSample->GetBufferCount(&cBuffers);
-	if (FAILED(Result))
+	HRESULT Result = S_OK;
+	if (bIsExternalBufferEnabled == false)
 	{
-		return Result;
-	}
-	if (1 == cBuffers)
-	{
-		Result = InSample->GetBufferByIndex(0, &pBuffer);
+		Result = InSample->GetBufferCount(&cBuffers);
 		if (FAILED(Result))
 		{
 			return Result;
 		}
-	}
-	Result = pBuffer->QueryInterface(__uuidof(IMFDXGIBuffer), (LPVOID*)&pDXGIBuffer);
-	if (FAILED(Result))
-	{
-		return Result;
-	}
+		if (1 == cBuffers)
+		{
+			Result = InSample->GetBufferByIndex(0, &pBuffer);
+			if (FAILED(Result))
+			{
+				return Result;
+			}
+		}
+		Result = pBuffer->QueryInterface(__uuidof(IMFDXGIBuffer), (LPVOID*)&pDXGIBuffer);
+		if (FAILED(Result))
+		{
+			return Result;
+		}
 
-	Result = pDXGIBuffer->GetResource(__uuidof(ID3D11Texture2D), (LPVOID*)&TextureNV12_Y);
-	if (FAILED(Result))
-	{
-		return Result;
-	}
+		Result = pDXGIBuffer->GetResource(__uuidof(ID3D11Texture2D), (LPVOID*)&TextureNV12_Y);
+		if (FAILED(Result))
+		{
+			return Result;
+		}
 
-	Result = pDXGIBuffer->GetSubresourceIndex(&dwViewIndex);
-	if (FAILED(Result))
-	{
-		return Result;
+		Result = pDXGIBuffer->GetSubresourceIndex(&dwViewIndex);
+		if (FAILED(Result))
+		{
+			return Result;
+		}
+
 	}
 
 	DataBuffer OuputDataBuffer;
@@ -356,10 +365,26 @@ HRESULT WmfMediaAppleProResDecoder::InternalProcessOutput(IMFSample* InSample)
 
 	LONGLONG TimeStamp = OuputDataBuffer.TimeStamp;
 
-	D3D11_MAPPED_SUBRESOURCE MappedResourceColor;
-	Result = D3DImmediateContext->Map(OutputTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResourceColor);
-	memcpy(MappedResourceColor.pData, OuputDataBuffer.Color.GetData(), MappedResourceColor.DepthPitch);
-	D3DImmediateContext->Unmap(OutputTexture, 0);
+	if (bIsExternalBufferEnabled == false)
+	{
+		D3D11_MAPPED_SUBRESOURCE MappedResourceColor;
+		Result = D3DImmediateContext->Map(OutputTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResourceColor);
+		memcpy(MappedResourceColor.pData, OuputDataBuffer.Color.GetData(), MappedResourceColor.DepthPitch);
+		D3DImmediateContext->Unmap(OutputTexture, 0);
+	}
+	else
+	{
+		// Get buffer.
+		TArray<uint8>* pExternalBuffer = AllocateExternalBuffer(TimeStamp, OuputDataBuffer.Color.Num());
+		if (pExternalBuffer == nullptr)
+		{
+			return 0;
+		}
+		
+		// Copy to buffer.
+		pExternalBuffer->SetNum(OuputDataBuffer.Color.Num());
+		FMemory::Memcpy(pExternalBuffer->GetData(), OuputDataBuffer.Color.GetData(), OuputDataBuffer.Color.Num());
+	}
 
 	InputQueue.Enqueue(MoveTemp(OuputDataBuffer));
 

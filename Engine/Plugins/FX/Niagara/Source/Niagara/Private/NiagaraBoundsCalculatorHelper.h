@@ -112,7 +112,7 @@ public:
 	}
 
 	FNiagaraDataSetAccessor<FVector3f> PositionAccessor;
-	FNiagaraDataSetAccessor<FVector2D> SpriteSizeAccessor;
+	FNiagaraDataSetAccessor<FVector2f> SpriteSizeAccessor;
 	FNiagaraDataSetAccessor<FVector3f> ScaleAccessor;
 	FNiagaraDataSetAccessor<float> RibbonWidthAccessor;
 

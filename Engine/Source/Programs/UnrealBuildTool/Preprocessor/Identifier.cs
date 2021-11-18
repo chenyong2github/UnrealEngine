@@ -120,7 +120,7 @@ namespace UnrealBuildTool
 		/// <returns>Instance of the serialized identifier</returns>
 		public static Identifier ReadIdentifier(this BinaryArchiveReader Reader)
 		{
-			return Reader.ReadObjectReference<Identifier>(() => Identifier.FindOrAdd(Reader.ReadString()));
+			return Reader.ReadObjectReference<Identifier>(() => Identifier.FindOrAdd(Reader.ReadString()!))!;
 		}
 
 		/// <summary>

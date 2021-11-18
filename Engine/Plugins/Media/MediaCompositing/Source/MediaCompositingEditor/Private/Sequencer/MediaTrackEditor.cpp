@@ -159,12 +159,11 @@ TSharedRef<ISequencerSection> FMediaTrackEditor::MakeSectionInterface(UMovieScen
 	return MakeShared<FMediaThumbnailSection>(*CastChecked<UMovieSceneMediaSection>(&SectionObject), ThumbnailPool, GetSequencer());
 }
 
-
-bool FMediaTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
-{
-	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
+bool FMediaTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const 
+{    
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneMediaTrack::StaticClass()) : ETrackSupport::NotSupported;    
+	return (InSequence && InSequence->IsA(ULevelSequence::StaticClass())) || TrackSupported == ETrackSupport::Supported; 
 }
-
 
 bool FMediaTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> TrackClass) const
 {

@@ -334,6 +334,6 @@ void FMaterialBakingHelpers::PerformUVBorderSmearAndShrink(TArray<FColor>& InOut
 {
 	FMaterialBakingHelpersImpl::PerformShrinking(InOutPixels, InOutImageWidth, InOutImageHeight);
 
-	const int32 DefaultMaxIteration = 8; // This amount of smearing should be enough to cover any bleeding issue.
+	const int32 DefaultMaxIteration = -1; // Perform smearing over the whole image
 	FMaterialBakingHelpersImpl::PerformUVBorderSmear(InOutPixels, InOutImageWidth, InOutImageHeight, DefaultMaxIteration);
 }

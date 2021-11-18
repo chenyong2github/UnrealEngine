@@ -27,23 +27,18 @@ namespace UE::Virtualization
 class FDDCBackend : public IVirtualizationBackend
 {
 public:
-	explicit FDDCBackend(FStringView ConfigName);
+	explicit FDDCBackend(FStringView ConfigName, FStringView InDebugName);
 	virtual ~FDDCBackend() = default;
 
 protected:
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override;
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext) override;
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
 
-	virtual FString GetDebugString() const override;
-
 	bool DoesExist(const FPayloadId& Id) const;
-	
-	/** Debug name used to identify the backend */
-	FString DebugName;
 
 	/** The bucket being used to group together the virtualized payloads in storage */
 	FString BucketName;

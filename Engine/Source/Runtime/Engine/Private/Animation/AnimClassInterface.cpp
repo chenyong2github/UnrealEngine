@@ -33,11 +33,7 @@ IAnimClassInterface* IAnimClassInterface::GetFromClass(UClass* InClass)
 	{
 		return AnimClassInterface;
 	}
-	if (auto DynamicClass = Cast<UDynamicClass>(InClass))
-	{
-		DynamicClass->GetDefaultObject(true);
-		return CastChecked<IAnimClassInterface>(DynamicClass->AnimClassImplementation, ECastCheckedType::NullAllowed);
-	}
+
 	return nullptr;
 }
 
@@ -47,11 +43,7 @@ const IAnimClassInterface* IAnimClassInterface::GetFromClass(const UClass* InCla
 	{
 		return AnimClassInterface;
 	}
-	if (auto DynamicClass = Cast<const UDynamicClass>(InClass))
-	{
-		DynamicClass->GetDefaultObject(true);
-		return CastChecked<const IAnimClassInterface>(DynamicClass->AnimClassImplementation, ECastCheckedType::NullAllowed);
-	}
+
 	return nullptr;
 }
 
@@ -152,7 +144,7 @@ static const UObject* ValuePtrToContainerUObjectPtr(FProperty* Property, const v
 	return (const UObject*)ContainerPtr;
 }
 
-const UObject* IAnimClassInterface::GetObjectPtrFromAnimNode(IAnimClassInterface* InAnimClassInterface, const FAnimNode_Base* InNode)
+const UObject* IAnimClassInterface::GetObjectPtrFromAnimNode(const IAnimClassInterface* InAnimClassInterface, const FAnimNode_Base* InNode)
 {
 	const int32 NodeIndex = InNode->GetNodeIndex();
 	FStructProperty* NodeProperty = InAnimClassInterface->GetAnimNodeProperties()[NodeIndex];

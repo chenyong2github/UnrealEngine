@@ -1049,10 +1049,7 @@ public:
 
 inline bool DoesPlatformSupportDistanceFields(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_PCD3D_SM5
-		|| IsMetalSM5Platform(Platform)
-		|| IsVulkanSM5Platform(Platform)
-		|| FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsDistanceFields(Platform);
 }
 
 inline bool DoesPlatformSupportDistanceFieldShadowing(EShaderPlatform Platform)
@@ -1262,7 +1259,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
 	SHADER_PARAMETER(float, SourceRadius)
 
 	// Dimensions of the light, for spot light, but also
-	SHADER_PARAMETER(FVector2D, SpotAngles)
+	SHADER_PARAMETER(FVector2f, SpotAngles)
 
 	// Radius of the soft source.
 	SHADER_PARAMETER(float, SoftSourceRadius)

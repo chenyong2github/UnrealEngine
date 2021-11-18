@@ -182,7 +182,7 @@ void FAliasModelToCADKernelConverter::LinkEdgesLoop(const AlTrimBoundary& TrimBo
 			continue;
 		}
 
-		ensureCADKernel(&Loop == Edge->GetLoop());
+		ensure(&Loop == (*Edge)->GetLoop());
 
 		// Link edges
 		TUniquePtr<AlTrimCurve> TwinCurve(TrimCurve->getTwinCurve());

@@ -86,7 +86,7 @@ protected:
 };
 
 
-UINTERFACE(Blueprintable, MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
+UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
 class UStateTreeEditorPropertyBindingsOwner : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()

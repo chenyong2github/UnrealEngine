@@ -30,18 +30,9 @@ UMaterialExpressionLandscapeLayerBlend::UMaterialExpressionLandscapeLayerBlend(c
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
-	bIsParameterExpression = true;
-
 	MenuCategories.Add(ConstructorStatics.NAME_Landscape);
 #endif
 }
-
-
-FGuid& UMaterialExpressionLandscapeLayerBlend::GetParameterExpressionId()
-{
-	return ExpressionGUID;
-}
-
 
 void UMaterialExpressionLandscapeLayerBlend::Serialize(FStructuredArchive::FRecord Record)
 {
@@ -323,22 +314,14 @@ void UMaterialExpressionLandscapeLayerBlend::PostEditChangeProperty(FPropertyCha
 		}
 	}
 }
-#endif // WITH_EDITOR
 
-
-void UMaterialExpressionLandscapeLayerBlend::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+void UMaterialExpressionLandscapeLayerBlend::GetLandscapeLayerNames(TArray<FName>& OutLayers) const
 {
 	for (const FLayerBlendInput& Layer : Layers)
 	{
-		int32 CurrentSize = OutParameterInfo.Num();
-		FMaterialParameterInfo NewParameter(Layer.LayerName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-		OutParameterInfo.AddUnique(NewParameter);
-
-		if (CurrentSize != OutParameterInfo.Num())
-		{
-			OutParameterIds.Add(ExpressionGUID);
-		}
+		OutLayers.AddUnique(Layer.LayerName);
 	}
 }
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

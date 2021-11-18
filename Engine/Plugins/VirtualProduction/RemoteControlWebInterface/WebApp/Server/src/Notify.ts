@@ -15,7 +15,8 @@ export namespace Notify {
         .on('view', onViewChange)
         .on('value', UnrealEngine.setPayloadValue)
         .on('execute', UnrealEngine.executeFunction)
-        .on('metadata', UnrealEngine.setPresetPropertyMetadata);
+        .on('metadata', UnrealEngine.setPresetPropertyMetadata)
+        .on('rebind', UnrealEngine.rebindProperties);
 
       if (UnrealEngine.isConnected())
         socket.emit('connected', true);
@@ -25,8 +26,8 @@ export namespace Notify {
     });
   }
 
-  export function emit(what: 'presets' | 'payloads' | 'connected' | 'loading', value: any) {
-    io.emit(what, value);
+  export function emit(what: 'presets' | 'payloads' | 'connected' | 'loading', ...args: any[]) {
+    io.emit(what, ...args);
   }
 
   export function onViewChange(preset: string, view: IView, supressUnrealNotification?: boolean) {
@@ -37,5 +38,9 @@ export namespace Notify {
 
   export function emitValueChange(preset: string, property: string, value: PropertyValue) {
     io.emit('value', preset, property, value);
+  }
+
+  export function emitValuesChanges(preset: string, changes: { [key: string]: PropertyValue }) {
+    io.emit('values', preset, changes);
   }
 }

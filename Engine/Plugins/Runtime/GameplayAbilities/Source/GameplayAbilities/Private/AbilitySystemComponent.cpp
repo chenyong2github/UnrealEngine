@@ -1274,6 +1274,9 @@ void UAbilitySystemComponent::RemoveGameplayCue_Internal(const FGameplayTag Game
 	{
 		bool bWasInList = HasMatchingGameplayTag(GameplayCueTag);
 
+		// Force replication so GameplayCue removals are properly replicated to all clients during Mixed and Minimal replication modes
+		bIsNetDirty = true;
+		ForceReplication();
 		GameplayCueContainer.RemoveCue(GameplayCueTag);
 
 		if (bWasInList)

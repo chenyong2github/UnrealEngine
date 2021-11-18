@@ -142,7 +142,7 @@ void FAppleHttpRequest::AppendToHeader(const FString& HeaderName, const FString&
         NSString* PreviousHeaderValuePtr = [Headers objectForKey: HeaderName.GetNSString()];
         FString PreviousValue(PreviousHeaderValuePtr);
 		FString NewValue;
-		if (PreviousValue != nullptr && !PreviousValue.IsEmpty())
+		if (!PreviousValue.IsEmpty())
 		{
 			NewValue = PreviousValue + TEXT(", ");
 		}

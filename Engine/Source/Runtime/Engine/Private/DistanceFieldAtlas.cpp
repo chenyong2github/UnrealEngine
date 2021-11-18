@@ -287,12 +287,16 @@ FDistanceFieldAsyncQueue::FDistanceFieldAsyncQueue()
 
 	const int32 MaxConcurrency = -1;
 	// In Editor, we allow faster compilation by letting the asset compiler's scheduler organize work.
-	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(FAssetCompilingManager::Get().GetThreadPool(), MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+	FQueuedThreadPool* InnerThreadPool = FAssetCompilingManager::Get().GetThreadPool();
 #else
 	const int32 MaxConcurrency = 1;
-	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(GThreadPool, MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+	FQueuedThreadPool* InnerThreadPool = GThreadPool;
 #endif
 
+	if (InnerThreadPool != nullptr)
+	{
+		ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(InnerThreadPool, MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+	}
 	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddRaw(this, &FDistanceFieldAsyncQueue::OnPostReachabilityAnalysis);
 }
 
@@ -780,6 +784,8 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 				if (PlatformRenderData->LODResources[0].DistanceFieldData)
 				{
 					*PlatformRenderData->LODResources[0].DistanceFieldData = *Task->GeneratedVolumeData;
+					// The old bulk data assignment operator doesn't copy over flags
+					PlatformRenderData->LODResources[0].DistanceFieldData->StreamableMips.ResetBulkDataFlags(Task->GeneratedVolumeData->StreamableMips.GetBulkDataFlags());
 				}
 				PlatformRenderData = PlatformRenderData->NextCachedRenderData.Get();
 			}
@@ -811,7 +817,7 @@ void FDistanceFieldAsyncQueue::Shutdown()
 	CancelAllOutstandingBuilds();
 
 	UE_LOG(LogStaticMesh, Log, TEXT("Abandoning remaining async distance field tasks for shutdown"));
-	ThreadPool->Destroy();
+	ThreadPool.Reset();
 }
 
 FLandscapeTextureAtlas::FLandscapeTextureAtlas(ESubAllocType InSubAllocType)

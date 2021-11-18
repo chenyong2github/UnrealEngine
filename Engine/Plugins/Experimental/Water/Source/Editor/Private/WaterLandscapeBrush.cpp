@@ -40,7 +40,8 @@ void AWaterLandscapeBrush::AddActorInternal(AActor* Actor, const UWorld* ThisWor
 {
 	if (IsActorAffectingLandscape(Actor) &&
 		!Actor->HasAnyFlags(RF_Transient | RF_ClassDefaultObject | RF_ArchetypeObject) &&
-		!Actor->IsPendingKillOrUnreachable() &&
+		IsValidChecked(Actor) &&
+		!Actor->IsUnreachable() &&
 		Actor->GetLevel() != nullptr &&
 		!Actor->GetLevel()->bIsBeingRemoved &&
 		ThisWorld == Actor->GetWorld())

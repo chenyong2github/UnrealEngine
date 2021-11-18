@@ -195,10 +195,10 @@ static void BuildCoarseRepresentation(
 		Vertex.TangentY = FVector3f::ZeroVector;
 		Vertex.TangentZ = CoarseRepresentation.GetNormal(Iter);
 
-		const FVector2D* UVs = CoarseRepresentation.GetUVs(Iter);
+		const FVector2f* UVs = CoarseRepresentation.GetUVs(Iter);
 		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; ++UVIndex)
 		{
-			Vertex.UVs[UVIndex] = UVs[UVIndex].ContainsNaN() ? FVector2D::ZeroVector : UVs[UVIndex];
+			Vertex.UVs[UVIndex] = UVs[UVIndex].ContainsNaN() ? FVector2f::ZeroVector : UVs[UVIndex];
 		}
 
 		if (CoarseRepresentation.bHasColors)

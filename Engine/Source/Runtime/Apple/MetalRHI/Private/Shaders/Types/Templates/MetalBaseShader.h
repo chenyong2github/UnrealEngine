@@ -261,9 +261,10 @@ void TMetalBaseShader<BaseResourceType, ShaderType>::Init(TArrayView<const uint8
 			METAL_GPUPROFILE(FScopedMetalCPUStats CPUStat(FString::Printf(TEXT("NewLibrarySource: %d_%d"), SourceLen, SourceCRC)));
 			NSString* ShaderString = ((OfflineCompiledFlag == 0) ? [NSString stringWithUTF8String:SourceCode] : GlslCodeNSString);
 
-			if(Header.ShaderName.Len())
+			const FString ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
+			if(ShaderName.Len())
 			{
-				ShaderString = [NSString stringWithFormat:@"// %@\n%@", Header.ShaderName.GetNSString(), ShaderString];
+				ShaderString = [NSString stringWithFormat:@"// %@\n%@", ShaderName.GetNSString(), ShaderString];
 			}
 
 			NSString* NewShaderString = [ShaderString stringByReplacingOccurrencesOfString:@"#pragma once" withString:@""];

@@ -1346,15 +1346,7 @@ bool FMaterialUniformExpressionExternalTextureParameter::IsIdentical(const FMate
 
 void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue) const
 {
-	if (!ParameterInfo.Name.IsNone())
-	{
-		const bool bOverrideValuesOnly = true;
-		if (!MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue, bOverrideValuesOnly))
-		{
-			OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);
-		}
-	}
-	else
+	if (ParameterInfo.Name.IsNone() || !MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue))
 	{
 		OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);
 	}

@@ -8,8 +8,6 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	abstract class UEToolChain
@@ -59,10 +57,11 @@ namespace UnrealBuildTool
 			throw new NotSupportedException("This platform does not support type libraries.");
 		}
 
-		public abstract FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph);
+		public abstract FileItem? LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph);
 		public virtual FileItem[] LinkAllFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
-			return new FileItem[] { LinkFiles(LinkEnvironment, bBuildImportLibraryOnly, Graph) };
+			FileItem? LinkFile = LinkFiles(LinkEnvironment, bBuildImportLibraryOnly, Graph);
+			return LinkFile != null ? new FileItem[] { LinkFile } : new FileItem[] { };
 		}
 
 
@@ -75,7 +74,7 @@ namespace UnrealBuildTool
 		public static FileReference GetResponseFileName(LinkEnvironment LinkEnvironment, FileItem OutputFile)
 		{
 			// Construct a relative path for the intermediate response file
-			return FileReference.Combine(LinkEnvironment.IntermediateDirectory, OutputFile.Location.GetFileName() + ".response");
+			return FileReference.Combine(LinkEnvironment.IntermediateDirectory!, OutputFile.Location.GetFileName() + ".response");
 		}
 
 		public virtual ICollection<FileItem> PostBuild(FileItem Executable, LinkEnvironment ExecutableLinkEnvironment, IActionGraphBuilder Graph)
@@ -134,7 +133,7 @@ namespace UnrealBuildTool
 		/// <param name="ToolArg">Argument that will be passed to the tool</param>
 		/// <param name="Expression">null, or a Regular expression to capture in the output</param>
 		/// <returns></returns>
-		public static string RunToolAndCaptureOutput(FileReference Command, string ToolArg, string Expression = null)
+		public static string? RunToolAndCaptureOutput(FileReference Command, string ToolArg, string? Expression = null)
 		{
 			string ProcessOutput = Utils.RunLocalProcessAndReturnStdOut(Command.FullName, ToolArg);
 
@@ -156,9 +155,9 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static Version RunToolAndCaptureVersion(FileReference Command, string VersionArg, string VersionExpression = @"(\d+\.\d+(\.\d+)?(\.\d+)?)")
 		{
-			string ProcessOutput = RunToolAndCaptureOutput(Command, VersionArg, VersionExpression);
+			string? ProcessOutput = RunToolAndCaptureOutput(Command, VersionArg, VersionExpression);
 
-			Version ToolVersion = new Version(0, 0);
+			Version? ToolVersion;
 
 			if (Version.TryParse(ProcessOutput, out ToolVersion))
 			{
@@ -167,7 +166,7 @@ namespace UnrealBuildTool
 
 			Log.TraceWarning("Unable to retrieve version from {0} {1}", Command, VersionArg);
 
-			return ToolVersion;
+			return new Version(0, 0);
 		}
 	};
 
@@ -179,7 +178,7 @@ namespace UnrealBuildTool
 		/// <param name="Platform">Which OS platform to target.</param>
 		/// <param name="Arch">Which architecture inside an OS platform to target. Only used for Android currently.</param>
 		/// <returns>List of instruction set targets passed to ISPC compiler</returns>
-		public virtual List<string> GetISPCCompileTargets(UnrealTargetPlatform Platform, string Arch)
+		public virtual List<string> GetISPCCompileTargets(UnrealTargetPlatform Platform, string? Arch)
 		{
 			List<string> ISPCTargets = new List<string>();
 
@@ -251,7 +250,7 @@ namespace UnrealBuildTool
 		/// <param name="Platform">Which OS platform to target.</param>
 		/// <param name="Arch">Which architecture inside an OS platform to target. Only used for Android currently.</param>
 		/// <returns>Arch string passed to ISPC compiler</returns>
-		public virtual string GetISPCArchTarget(UnrealTargetPlatform Platform, string Arch)
+		public virtual string GetISPCArchTarget(UnrealTargetPlatform Platform, string? Arch)
 		{
 			string ISPCArch = "";
 
@@ -329,7 +328,7 @@ namespace UnrealBuildTool
 		{
 			if (!ISPCCompilerVersions.ContainsKey(Platform))
 			{
-				Version CompilerVersion = null;
+				Version? CompilerVersion = null;
 				string CompilerPath = GetISPCHostCompilerPath(Platform);
 
 				if (!File.Exists(CompilerPath))
@@ -338,7 +337,7 @@ namespace UnrealBuildTool
 					CompilerVersion = new Version(-1, -1);
 				}
 
-				ISPCCompilerVersions[Platform] = RunToolAndCaptureOutput(new FileReference(CompilerPath), "--version", "(.*)");
+				ISPCCompilerVersions[Platform] = RunToolAndCaptureOutput(new FileReference(CompilerPath), "--version", "(.*)")!;
 			}
 
 			return ISPCCompilerVersions[Platform];			
@@ -489,7 +488,7 @@ namespace UnrealBuildTool
 				CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
 
 				FileReference ResponseFileName = new FileReference(ISPCIncludeHeaderFile.AbsolutePath + ".response");
-				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)), StringComparison.InvariantCultureIgnoreCase);
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
 				CompileAction.CommandArguments += String.Format("@\"{0}\"", ResponseFileName);
 				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 
@@ -689,7 +688,7 @@ namespace UnrealBuildTool
 				Result.ObjectFiles.AddRange(CompiledISPCObjFiles);
 
 				FileReference ResponseFileName = new FileReference(CompiledISPCObjFileNoISA.AbsolutePath + ".response");
-				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)), StringComparison.InvariantCultureIgnoreCase);
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments.Select(x => Utils.ExpandVariables(x)));
 				CompileAction.CommandArguments = " @\"" + ResponseFileName + "\"";
 				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 

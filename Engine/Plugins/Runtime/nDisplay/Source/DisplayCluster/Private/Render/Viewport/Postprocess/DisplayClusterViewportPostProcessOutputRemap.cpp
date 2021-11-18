@@ -145,7 +145,7 @@ void FDisplayClusterViewportPostProcessOutputRemap::PerformPostProcessFrame_Rend
 		{
 			const bool bClearOutputRemapFrameTextureEnabled = CVarClearOutputRemapFrameTextureEnabled.GetValueOnRenderThread() != 0;
 
-			for (int Index = 0; Index < InFrameTargets->Num(); Index++)
+			for (int32 Index = 0; Index < InFrameTargets->Num(); Index++)
 			{
 				FRHITexture2D* InOutTexture = (*InFrameTargets)[Index];
 				FRHITexture2D* TempTargetableTexture = (*InAdditionalFrameTargets)[Index];

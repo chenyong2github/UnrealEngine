@@ -5278,7 +5278,7 @@ UChannel* UNetDriver::GetOrCreateChannelByName(const FName& ChName)
 			if (RetVal && RetVal->GetClass() != ChannelDefinitionMap[ChName].ChannelClass)
 			{
 				// Channel type Changed since this channel was added to the pool. Throw it away.
-				RetVal->MarkPendingKill();
+				RetVal->MarkAsGarbage();
 				RetVal = nullptr;
 			}
 		}

@@ -37,7 +37,7 @@ namespace UE
 			}
 		}
 
-		public class ListenServerConfig : UnrealGame.UE4TestConfig
+		public class ListenServerConfig : UnrealGame.UnrealTestConfig
 		{
 			string ListenServerIP = "";
 

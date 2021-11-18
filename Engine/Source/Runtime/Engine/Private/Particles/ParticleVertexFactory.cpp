@@ -22,7 +22,7 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
-		const uint32 Size = sizeof(FVector2D) * 4;
+		const uint32 Size = sizeof(FVector2f) * 4;
 
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo(TEXT("FNullSubUVCutoutVertexBuffer"));
@@ -31,7 +31,7 @@ public:
 		FMemory::Memzero(BufferData, Size);
 		RHIUnlockBuffer(VertexBufferRHI);
 
-		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
+		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
 	}
 	
 	virtual void ReleaseRHI() override
@@ -247,7 +247,7 @@ void FParticleSpriteVertexFactory::InitStreams()
 	check(Streams.Num() == 0);
 	FVertexStream* TexCoordStream = new(Streams) FVertexStream;
 	TexCoordStream->VertexBuffer = &GParticleTexCoordVertexBuffer;
-	TexCoordStream->Stride = sizeof(FVector2D);
+	TexCoordStream->Stride = sizeof(FVector2f);
 	TexCoordStream->Offset = 0;
 	FVertexStream* InstanceStream = new(Streams) FVertexStream;
 	FVertexStream* DynamicParameterStream = new(Streams) FVertexStream;

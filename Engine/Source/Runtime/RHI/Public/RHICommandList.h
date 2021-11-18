@@ -4012,7 +4012,8 @@ class FScopedRHIThreadStaller
 {
 	class FRHICommandListImmediate* Immed; // non-null if we need to unstall
 public:
-	FScopedRHIThreadStaller(class FRHICommandListImmediate& InImmed);
+	FScopedRHIThreadStaller() = delete;
+	FScopedRHIThreadStaller(class FRHICommandListImmediate& InImmed, bool bDoStall = true);
 	~FScopedRHIThreadStaller();
 };
 

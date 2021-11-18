@@ -163,7 +163,7 @@ public:
 		SetTextureParameter(RHICmdList, ShaderRHI, BentNormalAOTexture, BentNormalAOSampler, TStaticSamplerState<SF_Bilinear>::GetRHI(), BentNormalAO);
 
 		FIntPoint const AOBufferSize = GetBufferSizeForAO();
-		FVector2D const UVMax(
+		FVector2f const UVMax(
 			(View.ViewRect.Width() / GAODownsampleFactor - 0.51f) / AOBufferSize.X, // 0.51 - so bilateral gather4 won't sample invalid texels
 			(View.ViewRect.Height() / GAODownsampleFactor - 0.51f) / AOBufferSize.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, AOBufferBilinearUVMax, UVMax);
@@ -255,10 +255,10 @@ public:
 	void Set(FRHICommandList& RHICmdList, const TParamRef& ShaderRHI, const FViewInfo& View, FRHITexture* DistanceFieldNormal)
 	{
 		const FIntPoint DownsampledBufferSize = GetBufferSizeForAO();
-		const FVector2D BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
+		const FVector2f BaseLevelTexelSizeValue(1.0f / DownsampledBufferSize.X, 1.0f / DownsampledBufferSize.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, BaseLevelTexelSize, BaseLevelTexelSizeValue);
 
-		extern FVector2D GetJitterOffset(int32 SampleIndex);
+		extern FVector2f GetJitterOffset(int32 SampleIndex);
 		SetShaderValue(RHICmdList, ShaderRHI, JitterOffset, GetJitterOffset(View.GetDistanceFieldTemporalSampleIndex()));
 
 

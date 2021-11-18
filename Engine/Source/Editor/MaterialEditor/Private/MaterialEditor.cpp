@@ -1181,7 +1181,7 @@ void FMaterialEditor::ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourc
 		UMaterialExpressionPinBase* PinBase = Cast<UMaterialExpressionPinBase>(Cast<UMaterialGraphNode>(Entry)->MaterialExpression);
 		PinBase->DeleteReroutePins();
 		Material->Expressions.Remove(PinBase);
-		PinBase->MarkPendingKill();
+		PinBase->MarkAsGarbage();
 		Entry->DestroyNode();
 		bPreviewExpressionDeleted |= PinBase == PreviewExpression;
 	}
@@ -1191,7 +1191,7 @@ void FMaterialEditor::ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourc
 		UMaterialExpressionPinBase* PinBase = Cast<UMaterialExpressionPinBase>(Cast<UMaterialGraphNode>(Result)->MaterialExpression);
 		PinBase->DeleteReroutePins();
 		Material->Expressions.Remove(PinBase);
-		PinBase->MarkPendingKill();
+		PinBase->MarkAsGarbage();
 		Result->DestroyNode();
 		bPreviewExpressionDeleted |= PinBase == PreviewExpression;
 	}
@@ -1207,7 +1207,7 @@ void FMaterialEditor::ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourc
 	UMaterialExpression* CompositeExpression = Cast<UMaterialGraphNode>(InNodeToExpand)->MaterialExpression;
 	CompositeExpression->Modify();
 	Material->Expressions.Remove(CompositeExpression);
-	CompositeExpression->MarkPendingKill();
+	CompositeExpression->MarkAsGarbage();
 	InNodeToExpand->DestroyNode();
 	bPreviewExpressionDeleted |= CompositeExpression == PreviewExpression;
 
@@ -1844,7 +1844,6 @@ void FMaterialEditor::GenerateInheritanceMenu(UToolMenu* Menu)
 {
 	RebuildInheritanceList();
 	Menu->bShouldCloseWindowAfterMenuSelection = true;
-	Menu->bSearchable = true;
 	Menu->SetMaxHeight(500);
 
 	if (!MaterialFunction)
@@ -5350,7 +5349,7 @@ void FMaterialEditor::DeleteNodesInternal(const TArray<class UEdGraphNode*>& Nod
 					Material->Expressions.Remove( MaterialExpression );
 					Material->RemoveExpressionParameter(MaterialExpression);
 					// Make sure the deleted expression is caught by gc
-					MaterialExpression->MarkPendingKill();
+					MaterialExpression->MarkAsGarbage();
 				}
 			}
 			else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(NodesToDelete[Index]))
@@ -5900,7 +5899,7 @@ void FMaterialEditor::OnExpandNodes()
 			ExpandNode(SelectedCompositeNode, SourceGraph, /*inout*/ ExpandedNodes);
 
 			FBlueprintEditorUtils::RemoveGraph(nullptr, SourceGraph, EGraphRemoveFlags::None);
-			SourceGraph->MarkPendingKill();
+			SourceGraph->MarkAsGarbage();
 		}
 
 		UEdGraphNode* SourceNode = CastChecked<UEdGraphNode>(*NodeIt);
@@ -6700,7 +6699,7 @@ void FMaterialEditor::CleanUnusedExpressions()
 				Material->Expressions.Remove(MaterialExpression);
 				Material->RemoveExpressionParameter(MaterialExpression);
 				// Make sure the deleted expression is caught by gc
-				MaterialExpression->MarkPendingKill();
+				MaterialExpression->MarkAsGarbage();
 			}
 
 			Material->MaterialGraph->LinkMaterialExpressionsFromGraph();

@@ -17,9 +17,7 @@ public:
 
 		SLATE_ATTRIBUTE(const FSlateBrush*, Icon)
 
-		/** The clicked handler. Note that if this is set, the button will behave as though it were just a button.
-		 * This means that OnGetMenuContent, OnComboBoxOpened and OnMenuOpenChanged will all be ignored, since there is no menu.
-		 */
+		/** The clicked handler. */
 		SLATE_EVENT(FOnClicked, OnClicked)
 
 	SLATE_END_ARGS()

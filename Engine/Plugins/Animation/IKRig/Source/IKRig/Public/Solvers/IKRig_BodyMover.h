@@ -20,9 +20,9 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Body Mover Effector")
 	FName BoneName;
 
-	/** Scale the amount this effector rotates the body. Range is 0-10. Default is 1.0. */
+	/** Scale the influence this effector has on the body. Range is 0-10. Default is 1.0. */
 	UPROPERTY(EditAnywhere, Category = "Body Mover Effector", meta = (ClampMin = "0", ClampMa = "10", UIMin = "0.0", UIMax = "10.0"))
-	float RotationMultiplier = 1.0f;
+	float InfluenceMultiplier = 1.0f;
 };
 
 UCLASS(EditInlineNew)
@@ -34,7 +34,7 @@ public:
 
 	/** The target bone to move with the effectors. */
 	UPROPERTY(VisibleAnywhere, Category = "Body Mover Settings")
-	FName BodyBone;
+	FName RootBone;
 
 	/** Blend the translational effect of this solver on/off. Range is 0-1. Default is 1.0. */
 	UPROPERTY(EditAnywhere, Category = "Body Mover Settings", meta = (UIMin = "0.0", UIMax = "1.0"))
@@ -81,13 +81,13 @@ public:
 	float RotateZAlpha = 1.0f;
 	
 	UPROPERTY()
-	TArray<UIKRig_BodyMoverEffector*> Effectors;
+	TArray<TObjectPtr<UIKRig_BodyMoverEffector>> Effectors;
 
 	/** UIKRigSolver interface */
 	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) override;
 	virtual void Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals) override;
 
-	virtual FName GetRootBone() const override { return BodyBone; };
+	virtual FName GetRootBone() const override { return RootBone; };
 #if WITH_EDITOR
 	virtual void UpdateSolverSettings(UIKRigSolver* InSettings) override;
 	virtual FText GetNiceName() const override;

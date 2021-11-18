@@ -63,6 +63,7 @@ class FMaterialExternalTextureParameterInfo;
 class FMeshMaterialShaderMapLayout;
 struct FMaterialShaderTypes;
 struct FMaterialShaders;
+struct FMaterialCachedExpressionData;
 
 namespace UE
 {
@@ -1340,7 +1341,7 @@ public:
 			}
 		}
 	}
-	void DumpDebugInfo();
+	void DumpDebugInfo() const;
 
 #if WITH_EDITOR
 	void InitalizeForODSC(EShaderPlatform TargetShaderPlatform, const FMaterialCompilationOutput& NewCompilationOutput);
@@ -1832,6 +1833,8 @@ public:
 	virtual bool IsPersistent() const = 0;
 	virtual UMaterialInterface* GetMaterialInterface() const { return NULL; }
 
+	ENGINE_API const FMaterialCachedExpressionData& GetCachedExpressionData() const;
+
 	/** Is the material required to be complete? Default materials, special engine materials, etc */
 	ENGINE_API bool IsRequiredComplete() const;
 
@@ -2041,7 +2044,7 @@ public:
 *	@param	OutShaderInfo	Array of results sorted by vertex factory type, and shader type.
 *
 */
-	void GetShaderTypes(EShaderPlatform Platform, TArray<FDebugShaderTypeInfo>& OutShaderInfo);
+	void GetShaderTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FDebugShaderTypeInfo>& OutShaderInfo);
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
@@ -3013,14 +3016,14 @@ public:
 	}
 
 	/** Returns the default value of a material property */
-	ENGINE_API static FVector4 GetDefaultValue(EMaterialProperty Property)
+	ENGINE_API static FVector4f GetDefaultValue(EMaterialProperty Property)
 	{
 		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(Property);
 		return Attribute->DefaultValue;
 	}
 
 	/** Returns the default value of a material attribute */
-	ENGINE_API static FVector4 GetDefaultValue(const FGuid& AttributeID)
+	ENGINE_API static FVector4f GetDefaultValue(const FGuid& AttributeID)
 	{
 		FMaterialAttributeDefintion* Attribute = GMaterialPropertyAttributesMap.Find(AttributeID);
 		return Attribute->DefaultValue;

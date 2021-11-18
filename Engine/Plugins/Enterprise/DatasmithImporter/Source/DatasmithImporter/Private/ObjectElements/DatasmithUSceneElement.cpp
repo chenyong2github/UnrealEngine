@@ -975,7 +975,7 @@ namespace DatasmithSceneImpl
 			auto* Element = Itt.Value;
 			if (Element)
 			{
-				Element->MarkPendingKill();
+				Element->MarkAsGarbage();
 			}
 		}
 		Elements.Reset();

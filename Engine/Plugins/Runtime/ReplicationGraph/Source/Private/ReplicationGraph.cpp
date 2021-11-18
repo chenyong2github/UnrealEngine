@@ -338,7 +338,7 @@ void UReplicationGraph::InitGlobalActorClassSettings()
 
 	RPC_Multicast_OpenChannelForClass.Reset();
 	RPC_Multicast_OpenChannelForClass.Set(AActor::StaticClass(), true); // Open channels for multicast RPCs by default
-	RPC_Multicast_OpenChannelForClass.Set(AController::StaticClass(), false);
+	RPC_Multicast_OpenChannelForClass.Set(AController::StaticClass(), false); // multicasts should never open channels on Controllers since opening a channel on a non-owner breaks the Controller's replication.
 	RPC_Multicast_OpenChannelForClass.Set(AServerStatReplicator::StaticClass(), false);	
 }
 
@@ -2147,6 +2147,7 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 						if (Actor->bOnlyRelevantToOwner && (!Actor->GetNetOwner() || (Actor->GetNetOwner() != NetConnection->PlayerController)))
 						{
 							UE_LOG(LogReplicationGraph, Warning, TEXT("Multicast RPC opening channel for bOnlyRelevantToOwner actor, check RPC_Multicast_OpenChannelForClass: Actor: %s Target: %s Function: %s"), *GetNameSafe(Actor), *GetNameSafe(TargetObj), *GetNameSafe(Function));
+							ensureMsgf(Cast<APlayerController>(Actor) == nullptr, TEXT("MulticastRPC %s will open a channel for %s to a non-owner. This will break the PlayerController replication."), *Function->GetName(), *GetNameSafe(Actor));
 						}
 #endif
 
@@ -2909,7 +2910,7 @@ void UReplicationGraphNode::TearDown()
 
 	AllChildNodes.Reset();
 
-	MarkPendingKill();
+	MarkAsGarbage();
 }
 
 void UReplicationGraphNode::DoCollectActorRepListStats(FActorRepListStatCollector& StatsCollector) const

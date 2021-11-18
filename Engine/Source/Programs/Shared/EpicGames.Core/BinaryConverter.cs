@@ -4,8 +4,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Reflection;
 
-#nullable enable
-
 namespace EpicGames.Core
 {
 	/// <summary>

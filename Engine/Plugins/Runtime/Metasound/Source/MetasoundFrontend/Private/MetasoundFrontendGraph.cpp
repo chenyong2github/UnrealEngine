@@ -467,7 +467,10 @@ namespace Metasound
 					}
 					break;
 
+					// Variable accessors and mutators are constructed with the same
+					// parameters as external nodes. 
 					case EMetasoundFrontendClassType::VariableAccessor:
+					case EMetasoundFrontendClassType::VariableDeferredAccessor:
 					case EMetasoundFrontendClassType::VariableMutator:
 					case EMetasoundFrontendClassType::External:
 					default:

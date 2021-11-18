@@ -3,11 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SnapshotDataCache.h"
 #include "WorldSnapshotData.h"
 #include "LevelSnapshot.generated.h"
 
-class ULevelSnapshotTrackingComponent;
 struct FPropertySelectionMap;
+
+UENUM()
+enum class ECachedDiffResult : uint8
+{
+	/** The actor was not yet analysed */
+	NotInitialised,
+	/** Actor was analysed and had changes */
+	HadChanges,
+	/** Actor was analysed and had no changes */
+	HadNoChanges
+};
+
 
 /* Holds the state of a world at a given time. This asset can be used to rollback certain properties in a UWorld. */
 UCLASS(BlueprintType)
@@ -19,11 +31,11 @@ public:
 	DECLARE_DELEGATE_OneParam(FActorPathConsumer, const FSoftObjectPath& /*OriginalActorPath*/);
 	DECLARE_DELEGATE_OneParam(FActorConsumer, AActor* /*WorldActor*/);
 	
+	/* Captures the current state of the given world. */
+	bool SnapshotWorld(UWorld* TargetWorld);
 	
 	/* Applies this snapshot to the given world. We assume the world matches. SelectionSet specifies which properties to roll back. */
 	void ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet);
-	/* Captures the current state of the given world. */
-	bool SnapshotWorld(UWorld* TargetWorld);
 
 
 	/**
@@ -41,13 +53,13 @@ public:
 	 * Use this function instead of HasChangedSinceSnapshotWasTaken if you've already called GetDeserializedActor. Otherwise
 	 * HasChangedSinceSnapshotWasTaken should be faster in most cases.
 	 */
-	bool HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor) const;
+	bool HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor);
 
 	/** Gets the display label of the path of the actor */
 	FString GetActorLabel(const FSoftObjectPath& OriginalActorPath) const;
 	
 	/** Given an actor path in the world, gets the equivalent actor from the snapshot. */
-	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalActorPath);
+	TOptional<TNonNullPtr<AActor>> GetDeserializedActor(const FSoftObjectPath& OriginalActorPath);
 	
 	
 	int32 GetNumSavedActors() const;
@@ -78,6 +90,7 @@ public:
 	FString GetSnapshotDescription() const { return SnapshotDescription; }
 
 	const FWorldSnapshotData& GetSerializedData() const { return SerializedData; }
+	const FSnapshotDataCache& GetCache() const { return Cache; }
 
 	
 	//~ Begin UObject Interface
@@ -90,36 +103,54 @@ private:
 
 	void EnsureWorldInitialised();
 	void DestroyWorld();
+	void ClearCache();
 
 #if WITH_EDITOR
 	/** Clears FActorSnapshotData::bHasBeenDiffed */
 	void ClearCachedDiffFlag(UObject* ModifiedObject);
 #endif
+
 	
-	/** The world we will be adding temporary actors to */
-	UPROPERTY(Transient)
-	UWorld* SnapshotContainerWorld;
 	/** Callback to destroy our world when editor (editor build) or play (game builds) world is destroyed. */
 	FDelegateHandle Handle;
 	/** Callback to when an object is modified. Clears FActorSnapshotData::bHasBeenDiffed */
 	FDelegateHandle OnObjectModifiedHandle;
 
-	UPROPERTY(VisibleAnywhere, Category = "Snapshot")
+	
+	/** The world we will be adding temporary actors to */
+	UPROPERTY(Transient)
+	UWorld* SnapshotContainerWorld;
+	
+	
+	/** The saved snapshot data */
+	UPROPERTY()
 	FWorldSnapshotData SerializedData;
 
+	/** Holds all loaded objects*/
+	UPROPERTY(Transient)
+	FSnapshotDataCache Cache;
+	
+#if WITH_EDITORONLY_DATA
+
+	/** Caches whether an actor was diffed already */	
+	UPROPERTY(Transient)
+	TMap<TWeakObjectPtr<AActor>, ECachedDiffResult> CachedDiffedActors;
+#endif
+
+	
 	/** Path of the map that the snapshot was taken in */
-	UPROPERTY(VisibleAnywhere, BlueprintGetter = "GetMapPath", AssetRegistrySearchable, Category = "Snapshot")
+	UPROPERTY(VisibleAnywhere, BlueprintGetter = "GetMapPath", AssetRegistrySearchable, Category = "Level Snapshots")
 	FSoftObjectPath MapPath;
 	
 	/** UTC Time that the snapshot was taken */
-	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetCaptureTime", VisibleAnywhere, Category = "Snapshot")
+	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetCaptureTime", VisibleAnywhere, Category = "Level Snapshots")
 	FDateTime CaptureTime;
 
 	/** User defined name for the snapshot, can differ from the actual asset name. */
-	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetSnapshotName", EditAnywhere, Category = "Snapshot")
+	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetSnapshotName", EditAnywhere, Category = "Level Snapshots")
 	FName SnapshotName;
 	
 	/** User defined description of the snapshot */
-	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetSnapshotDescription", EditAnywhere, Category = "Snapshot")
+	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetSnapshotDescription", EditAnywhere, Category = "Level Snapshots")
 	FString SnapshotDescription;
 };

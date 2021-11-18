@@ -34,7 +34,6 @@ void UNiagaraDataInterfaceArray::PostLoad()
 void UNiagaraDataInterfaceArray::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	MarkRenderDataDirty();
 }
 #endif
 
@@ -46,14 +45,8 @@ bool UNiagaraDataInterfaceArray::CopyToInternal(UNiagaraDataInterface* Destinati
 	}
 	UNiagaraDataInterfaceArray* OtherTyped = CastChecked<UNiagaraDataInterfaceArray>(Destination);
 	OtherTyped->MaxElements = MaxElements;
-	bool bCopied = true;
-	if (ensureMsgf(Impl.IsValid(), TEXT("Impl should always be valid for %s"), *GetNameSafe(GetClass())))
-	{
-		bCopied = Impl->CopyToInternal(OtherTyped->Impl.Get());
-	}
-
-	OtherTyped->MarkRenderDataDirty();
-	return bCopied;
+	OtherTyped->GpuSyncMode = GpuSyncMode;
+	return GetProxyAs<INDIArrayProxyBase>()->CopyToInternal(OtherTyped->GetProxyAs<INDIArrayProxyBase>());
 }
 
 bool UNiagaraDataInterfaceArray::Equals(const UNiagaraDataInterface* Other) const
@@ -64,25 +57,13 @@ bool UNiagaraDataInterfaceArray::Equals(const UNiagaraDataInterface* Other) cons
 	}
 
 	const UNiagaraDataInterfaceArray* OtherTyped = CastChecked<UNiagaraDataInterfaceArray>(Other);
-	if (OtherTyped->MaxElements != MaxElements)
+	if ((OtherTyped->MaxElements != MaxElements) ||
+		(OtherTyped->GpuSyncMode != GpuSyncMode))
 	{
 		return false;
 	}
 
-	if (ensureMsgf(Impl.IsValid(), TEXT("Impl should always be valid for %s"), *GetNameSafe(GetClass())))
-	{
-		return Impl->Equals(OtherTyped->Impl.Get());
-	}
-	return true;
-}
-
-
-void UNiagaraDataInterfaceArray::PushToRenderThreadImpl()
-{
-	if (Impl.IsValid())
-	{
-		Impl->PushToRenderThread();
-	}
+	return GetProxyAs<INDIArrayProxyBase>()->Equals(OtherTyped->GetProxyAs<INDIArrayProxyBase>());
 }
 
 #undef LOCTEXT_NAMESPACE

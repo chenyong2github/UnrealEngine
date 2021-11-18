@@ -29,13 +29,13 @@ struct FMemoryTagInfo
 {
 	static const FMemoryTagId InvalidTagId = 0;
 
-	// Unique identifier of the llm tag. Values larger than uint8 (or even uint32) are possible, but rare.
+	// Unique identifier of the llm tag.
 	FMemoryTagId Id;
 
 	// Name of the stat associated with the llm tag.
 	FString Name;
 
-	// Id of parent, -1 if no parent.
+	// Id of parent, 0 if no parent.
 	FMemoryTagId ParentId;
 
 	// Bit flags for trackers using this llm tag.

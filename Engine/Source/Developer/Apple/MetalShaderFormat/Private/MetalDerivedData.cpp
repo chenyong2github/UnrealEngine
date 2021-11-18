@@ -36,203 +36,6 @@ extern void BuildMetalShaderOutput(
 	TArray<uint8> const& TypedBufferFormats,
 	bool bAllowFastIntriniscs
 );
-
-FMetalShaderDebugInfoCooker::FMetalShaderDebugInfoCooker(FMetalShaderDebugInfoJob& InJob)
-	: Job(InJob)
-{
-}
-
-FMetalShaderDebugInfoCooker::~FMetalShaderDebugInfoCooker()
-{
-}
-
-#if PLATFORM_MAC || PLATFORM_IOS
-#pragma mark - FDerivedDataPluginInterface Interface -
-#endif
-const TCHAR* FMetalShaderDebugInfoCooker::GetPluginName() const
-{
-	return TEXT("FMetalShaderDebugInfo");
-}
-
-const TCHAR* FMetalShaderDebugInfoCooker::GetVersionString() const
-{
-	static FString Version = FString::Printf(TEXT("%u"), (uint32)GetMetalFormatVersion(Job.ShaderFormat));
-	return *Version;
-}
-
-FString FMetalShaderDebugInfoCooker::GetPluginSpecificCacheKeySuffix() const
-{
-	EShaderPlatform Platform = FMetalCompilerToolchain::MetalShaderFormatToLegacyShaderPlatform(Job.ShaderFormat);
-	const FString& CompilerVersion = FMetalCompilerToolchain::Get()->GetCompilerVersionString(Platform);
-
-	FString VersionedName = FString::Printf(TEXT("%s%u%u%s%s%s%s%s%s"), *Job.ShaderFormat.GetPlainNameString(), Job.SourceCRCLen, Job.SourceCRC, *Job.Hash.ToString(), *Job.CompilerVersion, *Job.MinOSVersion, *Job.DebugInfo, *Job.MathMode, *Job.Standard);
-	// get rid of some not so filename-friendly characters ('=',' ' -> '_')
-	VersionedName = VersionedName.Replace(TEXT("="), TEXT("_")).Replace(TEXT(" "), TEXT("_"));
-
-	return VersionedName;
-}
-
-bool FMetalShaderDebugInfoCooker::IsBuildThreadsafe() const
-{
-	return false;
-}
-
-bool FMetalShaderDebugInfoCooker::Build(TArray<uint8>& OutData)
-{
-	bool bSucceeded = false;
-
-	uint32 CodeSize = FCStringAnsi::Strlen(TCHAR_TO_UTF8(*Job.MetalCode)) + 1;
-
-	int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, CodeSize);
-	Output.CompressedData.SetNum(CompressedSize);
-
-	if (FCompression::CompressMemory(NAME_Zlib, Output.CompressedData.GetData(), CompressedSize, TCHAR_TO_UTF8(*Job.MetalCode), CodeSize))
-	{
-		Output.UncompressedSize = CodeSize;
-		Output.CompressedData.SetNum(CompressedSize);
-		Output.CompressedData.Shrink();
-		bSucceeded = true;
-
-		FMemoryWriter Ar(OutData);
-		Ar << Output;
-	}
-
-	return bSucceeded;
-}
-
-FMetalShaderBytecodeCooker::FMetalShaderBytecodeCooker(FMetalShaderBytecodeJob& InJob)
-	: Job(InJob)
-{
-}
-
-FMetalShaderBytecodeCooker::~FMetalShaderBytecodeCooker()
-{
-}
-
-#if PLATFORM_MAC || PLATFORM_IOS
-#pragma mark - FDerivedDataPluginInterface Interface - 
-#endif
-const TCHAR* FMetalShaderBytecodeCooker::GetPluginName() const
-{
-	return TEXT("MetalShaderBytecode");
-}
-
-const TCHAR* FMetalShaderBytecodeCooker::GetVersionString() const
-{
-	static FString Version = FString::Printf(TEXT("%u"), (uint32)GetMetalFormatVersion(Job.ShaderFormat));
-	return *Version;
-}
-
-FString FMetalShaderBytecodeCooker::GetPluginSpecificCacheKeySuffix() const
-{
-	FString CompilerVersion = Job.CompilerVersion;
-	EShaderPlatform ShaderPlatform = FMetalCompilerToolchain::MetalShaderFormatToLegacyShaderPlatform(Job.ShaderFormat);
-	
-	uint64 ModTime = 0;
-	if (Job.bCompileAsPCH)
-	{
-		uint32 MetalCompilerVersion = FMetalCompilerToolchain::Get()->GetCompilerVersion(ShaderPlatform).Version;
-		uint32 MetalTargetVersion = FMetalCompilerToolchain::Get()->GetTargetVersion(ShaderPlatform).Version;
-		CompilerVersion += FString::Printf(TEXT("xc%u%u"), MetalCompilerVersion, MetalTargetVersion);
-	}
-
-	// TODO this previously had the mod time in it...which shouldn't be needed because we have the CRC. So it's been removed.
-
-	FString VersionedName = FString::Printf(TEXT("%s%u%u%s%s%s%s%s%s%s%d"), *Job.ShaderFormat.GetPlainNameString(), Job.SourceCRCLen, Job.SourceCRC, *Job.Hash.ToString(), *CompilerVersion, *Job.MinOSVersion, *Job.DebugInfo, *Job.MathMode, *Job.Standard, Job.bRetainObjectFile ? TEXT("+O") : TEXT(""), GetTypeHash(Job.Defines));
-	// get rid of some not so filename-friendly characters ('=',' ' -> '_')
-	VersionedName = VersionedName.Replace(TEXT("="), TEXT("_")).Replace(TEXT(" "), TEXT("_"));
-
-	return VersionedName;
-}
-
-bool FMetalShaderBytecodeCooker::IsBuildThreadsafe() const
-{
-	return false;
-}
-
-bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
-{
-	bool bSuccess = FMetalCompilerToolchain::Get()->CompileMetalShader(this->Job, this->Output);
-
-	if (bSuccess)
-	{
-		FMemoryWriter Ar(OutData);
-		Ar << Output;
-	}
-
-	return bSuccess;
-}
-
-FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _Input, FShaderCompilerOutput& _Output, const FString& _WorkingDirectory, FString _PreprocessedShader, FSHAHash _GUIDHash, uint8 _VersionEnum, uint32 _CCFlags, EMetalGPUSemantics _Semantics, EMetalTypeBufferMode _TypeMode, uint32 _MaxUnrollLoops, EShaderFrequency _Frequency, bool _bDumpDebugInfo, FString _Standard, FString _MinOSVersion)
-	: Input(_Input)
-	, Output(_Output)
-	, WorkingDirectory(_WorkingDirectory)
-	, PreprocessedShader(_PreprocessedShader)
-	, GUIDHash(_GUIDHash)
-	, VersionEnum(_VersionEnum)
-	, CCFlags(_CCFlags)
-	, IABTier(0)
-	, Semantics(_Semantics)
-	, TypeMode(_TypeMode)
-	, MaxUnrollLoops(_MaxUnrollLoops)
-	, Frequency(_Frequency)
-	, bDumpDebugInfo(_bDumpDebugInfo)
-	, Standard(_Standard)
-	, MinOSVersion(_MinOSVersion)
-{
-	FString const* IABVersion = Input.Environment.GetDefinitions().Find(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"));
-	if (IABVersion && VersionEnum >= 4)
-	{
-		if(IABVersion->IsNumeric())
-		{
-			LexFromString(IABTier, *(*IABVersion));
-		}
-	}
-}
-
-FMetalShaderOutputCooker::~FMetalShaderOutputCooker()
-{
-}
-
-#if PLATFORM_MAC || PLATFORM_IOS
-#pragma mark - FDerivedDataPluginInterface Interface -
-#endif
-
-const TCHAR* FMetalShaderOutputCooker::GetPluginName() const
-{
-	return TEXT("MetalShaderOutput");
-}
-
-const TCHAR* FMetalShaderOutputCooker::GetVersionString() const
-{
-	static FString Version = FString::Printf(TEXT("%u"), (uint32)GetMetalFormatVersion(Input.ShaderFormat));
-	return *Version;
-}
-
-FString FMetalShaderOutputCooker::GetPluginSpecificCacheKeySuffix() const
-{
-	FString CachedOutputName;
-	{
-		FSHAHash Hash;
-		FSHA1::HashBuffer(*PreprocessedShader, PreprocessedShader.Len() * sizeof(TCHAR), Hash.Hash);
-
-		uint32 Len = PreprocessedShader.Len();
-
-		uint32 FormatVers = GetMetalFormatVersion(Input.ShaderFormat);
-
-		uint64 Flags = Input.Environment.CompilerFlags.GetData();
-
-		CachedOutputName = FString::Printf(TEXT("%s-%s_%s-%u_%u_%llu_%hu_%d_%s_%s"), *Input.ShaderFormat.GetPlainNameString(), *Input.EntryPointName, *Hash.ToString(), Len, FormatVers, Flags, VersionEnum, IABTier, *GUIDHash.ToString(), *Standard);
-	}
-
-	return CachedOutputName;
-}
-
-bool FMetalShaderOutputCooker::IsBuildThreadsafe() const
-{
-	return false;
-}
-
 struct FMetalShaderOutputMetaData
 {
 	TArray<uint8> TypedBufferFormats;
@@ -316,8 +119,30 @@ static bool PatchSpecialTextureInHlslSource(std::string& SourceData, uint32* Out
 	return bSourceDataWasModified;
 }
 
-bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
+bool DoCompileMetalShader(
+	const FShaderCompilerInput& Input,
+	FShaderCompilerOutput& Output,
+	const FString& WorkingDirectory,
+	const FString& InPreprocessedShader,
+	FSHAHash GUIDHash,
+	uint32 VersionEnum,
+	uint32 CCFlags,
+	EMetalGPUSemantics Semantics,
+	EMetalTypeBufferMode TypeMode,
+	uint32 MaxUnrollLoops,
+	EShaderFrequency Frequency,
+	bool bDumpDebugInfo,
+	const FString& Standard,
+	const FString& MinOSVersion)
 {
+	int32 IABTier = 0;
+
+	FString const* IABVersion = Input.Environment.GetDefinitions().Find(TEXT("METAL_INDIRECT_ARGUMENT_BUFFERS"));
+	if (VersionEnum >= 4 && IABVersion && IABVersion->IsNumeric())
+	{
+		LexFromString(IABTier, *(*IABVersion));
+	}
+
 	Output.bSucceeded = false;
 
 	std::string MetalSource;
@@ -363,6 +188,8 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		bool bUsed;
 	};
 	TMap<FString, TArray<FMetalResourceTableEntry>> IABs;
+
+	FString PreprocessedShader = InPreprocessedShader;
 	
 #if PLATFORM_MAC || PLATFORM_WINDOWS
 	{
@@ -1440,9 +1267,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 	{
 		Output.Target = Input.Target;
 		BuildMetalShaderOutput(Output, Input, GUIDHash, CCFlags, MetalSource.c_str(), MetalSource.length(), CRCLen, CRC, VersionEnum, *Standard, *MinOSVersion, TypeMode, Output.Errors, OutputData.TypedBuffers, OutputData.InvariantBuffers, OutputData.TypedUAVs, OutputData.ConstantBuffers, OutputData.TypedBufferFormats, bAllowFastIntriniscs);
-
-		FMemoryWriter Ar(OutData);
-		Ar << Output;
 	}
 	else
 	{
@@ -1458,5 +1282,5 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		}
 	}
 
-	return Output.bSucceeded;
+	return Result != 0;
 }

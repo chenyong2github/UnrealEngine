@@ -1210,7 +1210,7 @@ int FBSPUtils::bspBrushCSG
 
 		// Transform it.
 		DestEdPoly.Scale( Scale );
-		DestEdPoly.Rotate( Rotation );
+		DestEdPoly.Rotate( FRotator3f(Rotation) );	// LWC_TODO: Precision loss?
 		DestEdPoly.Transform( Location );
 
 		// Reverse winding and normal if the parent brush is mirrored
@@ -1339,8 +1339,8 @@ int FBSPUtils::bspBrushCSG
 		{
 			FPoly *DestEdPoly = &Brush->Polys->Element[i];
 			DestEdPoly->Transform(-Location);
-			DestEdPoly->Rotate(Rotation.GetInverse());
-			DestEdPoly->Scale(FVector(1.0f) / Scale);
+			DestEdPoly->Rotate(FRotator3f(Rotation.GetInverse()));
+			DestEdPoly->Scale(FVector3f(1.0f) / Scale);
 			DestEdPoly->Fix();
 			DestEdPoly->Actor		= NULL;
 			DestEdPoly->iBrushPoly	= i;

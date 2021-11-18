@@ -5,7 +5,10 @@
 #include "Archive/ApplySnapshotToEditorArchive.h"
 #include "Archive/LoadSnapshotObjectArchive.h"
 #include "Archive/TakeWorldObjectSnapshotArchive.h"
+#include "Data/Util/Restoration/ActorUtil.h"
+#include "Data/Util/Restoration/WorldDataUtil.h"
 #include "LevelSnapshotsLog.h"
+#include "SnapshotRestorability.h"
 #include "SnapshotUtil.h"
 #include "SubobjectSnapshotData.h"
 #include "WorldSnapshotData.h"
@@ -13,13 +16,13 @@
 #include "Components/ActorComponent.h"
 #include "EngineUtils.h"
 #include "ObjectTrace.h"
-#include "SnapshotRestorability.h"
+#include "SnapshotDataCache.h"
 #include "GameFramework/Actor.h"
 #include "Templates/NonNullPointer.h"
 
-namespace
+namespace UE::LevelSnapshots::Private::Internal
 {
-	UObject* ResolveExternalReference(const FSoftObjectPath& ObjectPath)
+	static UObject* ResolveExternalReference(const FSoftObjectPath& ObjectPath)
 	{
 		UObject* ExternalReference = ObjectPath.ResolveObject();
 		const bool bNeedsToLoadFromDisk = ExternalReference == nullptr;
@@ -33,16 +36,16 @@ namespace
 		return ExternalReference;
 	}
 	
-	UObject* CreateSubobjectForSnapshotWorld(FWorldSnapshotData& WorldData, int32 ObjectPathIndex, const FSoftObjectPath& SnapshotPathToSubobject, const FProcessObjectDependency& ProcessObjectDependency, const FString& LocalisationNamespace)
+	static UObject* CreateSubobjectForSnapshotWorld(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, int32 ObjectPathIndex, const FSoftObjectPath& SnapshotPathToSubobject, const FProcessObjectDependency& ProcessObjectDependency, const FString& LocalisationNamespace)
 	{
 		FSubobjectSnapshotData* SubobjectData = WorldData.Subobjects.Find(ObjectPathIndex);
 		if (!SubobjectData || SubobjectData->bWasSkippedClass)
 		{
 			return nullptr;
 		}
-		if (SubobjectData->SnapshotObject.IsValid())
+		if (const FSubobjectSnapshotCache* SubobjectCache = Cache.SubobjectCache.Find(SnapshotPathToSubobject); SubobjectCache && SubobjectCache->SnapshotObject.IsValid())
 		{
-			return SubobjectData->SnapshotObject.Get();
+			return SubobjectCache->SnapshotObject.Get();
 		}
 		
 	
@@ -55,7 +58,7 @@ namespace
 		
 		const int32 OuterIndex = SubobjectData->OuterIndex;
 		check(OuterIndex != ObjectPathIndex);
-		UObject* SubobjectOuter = SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(WorldData, OuterIndex, ProcessObjectDependency, LocalisationNamespace);
+		UObject* SubobjectOuter = ResolveObjectDependencyForSnapshotWorld(WorldData, Cache, OuterIndex, ProcessObjectDependency, LocalisationNamespace);
 		if (!SubobjectOuter)
 		{
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to create '%s' because its outer could not be created."), *SnapshotPathToSubobject.ToString());
@@ -63,7 +66,7 @@ namespace
 		}
 		
 	
-		const FName SubobjectName = *SnapshotUtil::ExtractLastSubobjectName(SnapshotPathToSubobject);
+		const FName SubobjectName = *ExtractLastSubobjectName(SnapshotPathToSubobject);
 		const bool bSubobjectNameIsTaken = [SubobjectOuter, SubobjectName]()
 		{
 			TArray<UObject*> Subobjects;
@@ -85,27 +88,33 @@ namespace
 
 	
 		
-		UObject* Subobject = NewObject<UObject>(SubobjectOuter, Class, SubobjectName); 
-		SubobjectData->SnapshotObject = Subobject;
+		UObject* Subobject = NewObject<UObject>(SubobjectOuter, Class, SubobjectName);
+		FSubobjectSnapshotCache& SubobjectCache = Cache.SubobjectCache.FindOrAdd(WorldData.SerializedObjectReferences[ObjectPathIndex]);
+		SubobjectCache.SnapshotObject = Subobject;
 			
-		WorldData.SerializeClassDefaultsInto(Subobject);
-		FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(*SubobjectData, WorldData, Subobject, ProcessObjectDependency, LocalisationNamespace)	;
+		SerializeClassDefaultsInto(WorldData, Subobject);
+		FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(*SubobjectData, WorldData, Cache, Subobject, ProcessObjectDependency, LocalisationNamespace)	;
 
 		return Subobject;
 	}
 	
-	UObject* SerializeOrCreateSubobjectForEditorWorld(FWorldSnapshotData& WorldData, FSubobjectSnapshotData& SubobjectData, UObject* ResolvedObject, const FSoftObjectPath& OriginalObjectPath, const FString& LocalisationNamespace, const FPropertySelectionMap& SelectionMap)
+	static UObject* SerializeOrCreateSubobjectForEditorWorld(FWorldSnapshotData& WorldData, FSubobjectSnapshotData& SubobjectData, FSnapshotDataCache& Cache, UObject* ResolvedObject, const FSoftObjectPath& OriginalObjectPath, const FString& LocalisationNamespace, const FPropertySelectionMap& SelectionMap)
 	{
-		using namespace SnapshotUtil;
-		
-		if (SubobjectData.EditorObject.IsValid())
-		{
-			return SubobjectData.EditorObject.Get();
-		}
+		using namespace UE::LevelSnapshots::Private;
 
 		if (SubobjectData.bWasSkippedClass)
 		{
 			return !IsValid(ResolvedObject) || ResolvedObject->IsUnreachable() ? nullptr : ResolvedObject;
+		}
+
+		FSubobjectSnapshotCache* SubobjectCache = Cache.SubobjectCache.Find(OriginalObjectPath);
+		if (!ensureMsgf(SubobjectCache, TEXT("Subobject should already have been cached when snapshot world was created. Investigate.")))
+		{
+			return nullptr;
+		}
+		if (SubobjectCache->EditorObject.IsValid())
+		{
+			return SubobjectCache->EditorObject.Get();
 		}
 		
 		UClass* ExpectedClass = SubobjectData.Class.ResolveClass();
@@ -114,7 +123,6 @@ namespace
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Class '%s' could not be resolved."), *SubobjectData.Class.ToString());
 			return nullptr;
 		}
-
 		// Suppose ActorA and ActorB. ActorA is being serialized before ActorB. ActorA has a reference to a component in ActorB.
 		// That component is instanced and was not recreated yet because, unluckily, we're serializing ActorA before ActorB.
 		if (ExpectedClass->IsChildOf(UActorComponent::StaticClass()))
@@ -122,7 +130,7 @@ namespace
 			UE_LOG(LogLevelSnapshots, Error, TEXT("Object depends on a component that must be recreated and is owned by another actor. Support for this is not yet implemented."));
 			return nullptr;
 		}
-
+		
 		// Need to clean rename dead objects otherwise we'll get a name clash when instantiating new object
 		if (ResolvedObject)
 		{
@@ -135,13 +143,13 @@ namespace
 				ResolvedObject = nullptr;
 			}
 		}
-		
-		if (!ensureMsgf(SubobjectData.SnapshotObject.IsValid(), TEXT("Subobject pointer should have been set. Investigate.")))
+
+		if (!ensureMsgf(SubobjectCache->SnapshotObject.IsValid(), TEXT("Subobject pointer should have been set. Investigate.")))
 		{
 			return ResolvedObject;
 		}
 		
-		UObject* SnapshotVersion = SubobjectData.SnapshotObject.Get();
+		UObject* SnapshotVersion = SubobjectCache->SnapshotObject.Get();
 		if (ResolvedObject)
 		{
 			// We can't tell whether ResolvedObject is 1: a normal referenced object or 2: a dead object that just has not been collected yet
@@ -151,19 +159,19 @@ namespace
 			{
 				// No serialization is required. Just return it.
 			}
-			else if (const FPropertySelection* PropertySelection = SelectionMap.GetObjectSelection(OriginalObjectPath).GetPropertySelection())
+			else if (SelectionMap.GetObjectSelection(OriginalObjectPath).GetPropertySelection() != nullptr)
 			{
-				FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SubobjectData, WorldData, ResolvedObject, SnapshotVersion, SelectionMap, *PropertySelection);
+				FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SubobjectData, WorldData, Cache, ResolvedObject, SnapshotVersion, SelectionMap);
 			}
 			else
 			{
 				// Reuse existing instance but treat it like it was just freshly allocated
-				FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SubobjectData, WorldData, ResolvedObject, SnapshotVersion, SelectionMap);
+				FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SubobjectData, WorldData, Cache, ResolvedObject, SelectionMap);
 			}
 		}
 		else 
 		{
-			UObject* Outer = Object::ResolveObjectDependencyForEditorWorld(WorldData, SubobjectData.OuterIndex, LocalisationNamespace, SelectionMap);
+			UObject* Outer = UE::LevelSnapshots::Private::ResolveObjectDependencyForEditorWorld(WorldData, Cache, SubobjectData.OuterIndex, LocalisationNamespace, SelectionMap);
 			if (!Outer)
 			{
 				UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to resolve object '%s' because its outer '%s' could not be resolved"), *OriginalObjectPath.ToString(), *WorldData.SerializedObjectReferences[SubobjectData.OuterIndex].ToString());
@@ -171,21 +179,21 @@ namespace
 			}
 
 			// Must set RF_Transactional so object creation is transacted
-			ResolvedObject = NewObject<UObject>(Outer, ExpectedClass, *ExtractLastSubobjectName(OriginalObjectPath), SubobjectData.GetObjectFlags() | RF_Transactional);
+			ResolvedObject = NewObject<UObject>(Outer, ExpectedClass, *UE::LevelSnapshots::Private::ExtractLastSubobjectName(OriginalObjectPath), SubobjectData.GetObjectFlags() | RF_Transactional);
 			if (ensureMsgf(ResolvedObject, TEXT("Failed to allocate '%s'"), *OriginalObjectPath.ToString()))
 			{
 				ResolvedObject->SetFlags(SubobjectData.GetObjectFlags());
-				FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SubobjectData, WorldData, ResolvedObject, SnapshotVersion, SelectionMap);
+				FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SubobjectData, WorldData, Cache, ResolvedObject, SelectionMap);
 			}
 		}
 		
-		SubobjectData.EditorObject = ResolvedObject;
+		SubobjectCache->EditorObject = ResolvedObject;
 		return ResolvedObject;
 	}
 
-	void AddSubobjectDependencyInternal(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject, int32 ObjectIndex)
+	static void AddSubobjectDependencyInternal(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject, int32 ObjectIndex)
 	{
-		if (!FSnapshotRestorability::IsSubobjectDesirableForCapture(ReferenceFromOriginalObject))
+		if (!Restorability::IsSubobjectDesirableForCapture(ReferenceFromOriginalObject))
 		{
 			WorldData.Subobjects.Add(ObjectIndex, FSubobjectSnapshotData::MakeSkippedSubobjectData());
 			return;
@@ -210,16 +218,16 @@ namespace
 			FSubobjectSnapshotData SubobjectData; 
 			UClass* Class = ReferenceFromOriginalObject->GetClass();
 			SubobjectData.Class = Class;
-			SubobjectData.OuterIndex = SnapshotUtil::Object::AddObjectDependency(WorldData, ReferenceFromOriginalObject->GetOuter());
+			SubobjectData.OuterIndex = UE::LevelSnapshots::Private::AddObjectDependency(WorldData, ReferenceFromOriginalObject->GetOuter());
 			// ... because serialisation recursively calls this function. FWorldSnapshotData::Subobjects is possibly reallocated
 			FTakeWorldObjectSnapshotArchive::TakeSnapshot(SubobjectData, WorldData, ReferenceFromOriginalObject);
 			
 			WorldData.Subobjects[ObjectIndex] = MoveTemp(SubobjectData); // MoveTemp not profiled
-			WorldData.AddClassDefault(Class);
+			AddClassDefault(WorldData, Class);
 		}
 	}
 	
-	void EnsureSubobjectIsSerialized(FWorldSnapshotData& WorldData, UObject* ExistingObject, int32 ObjectPathIndex, const FProcessObjectDependency& ProcessObjectDependency, const FString& LocalisationNamespace)
+	static void EnsureSubobjectIsSerialized(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UObject* ExistingObject, int32 ObjectPathIndex, const FProcessObjectDependency& ProcessObjectDependency, const FString& LocalisationNamespace)
 	{
 		FSubobjectSnapshotData* SubobjectData = WorldData.Subobjects.Find(ObjectPathIndex);
 		if (!SubobjectData || SubobjectData->bWasSkippedClass)
@@ -233,14 +241,15 @@ namespace
 			return;
 		}
 
-		if (!SubobjectData->SnapshotObject.IsValid())
+		FSubobjectSnapshotCache& SubobjectCache = Cache.SubobjectCache.FindOrAdd(WorldData.SerializedObjectReferences[ObjectPathIndex]);
+		if (!SubobjectCache.SnapshotObject.IsValid())
 		{
-			SubobjectData->SnapshotObject = ExistingObject;
-			FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(*SubobjectData, WorldData, ExistingObject, ProcessObjectDependency, LocalisationNamespace);
+			SubobjectCache.SnapshotObject = ExistingObject;
+			FLoadSnapshotObjectArchive::ApplyToSnapshotWorldObject(*SubobjectData, WorldData, Cache, ExistingObject, ProcessObjectDependency, LocalisationNamespace);
 		}
 	}
 	
-	int32 AddOrFindObjectReference(FWorldSnapshotData& WorldData, const FSoftObjectPath& ObjectPath)
+	static int32 AddOrFindObjectReference(FWorldSnapshotData& WorldData, const FSoftObjectPath& ObjectPath)
 	{
 		if (const int32* ExistingIndex = WorldData.ReferenceToIndex.Find(ObjectPath))
 		{
@@ -253,10 +262,8 @@ namespace
 	}
 }
 
-UObject* SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(FWorldSnapshotData& WorldData, int32 ObjectPathIndex, const FProcessObjectDependency& ProcessObjectDependency, const FString& LocalisationNamespace)
+UObject* UE::LevelSnapshots::Private::ResolveObjectDependencyForSnapshotWorld(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, int32 ObjectPathIndex, const FProcessObjectDependency& ProcessObjectDependency, const FString& LocalisationNamespace)
 {
-	using namespace SnapshotUtil;
-	
 	if (!ensure(WorldData.SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
 	{
 		return nullptr;
@@ -264,22 +271,22 @@ UObject* SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(FWorldSna
 	
 	const FSoftObjectPath& OriginalObjectPath = WorldData.SerializedObjectReferences[ObjectPathIndex];
 	bool bIsPathToActorSubobject;
-	const TOptional<FActorSnapshotData*> SnapshotData = FindSavedActorDataUsingObjectPath(WorldData.ActorData, OriginalObjectPath, bIsPathToActorSubobject);
+	const TOptional<FSoftObjectPath> PathToActor = ExtractActorFromPath(OriginalObjectPath, bIsPathToActorSubobject);
 	
-	const bool bIsExternalAssetReference = !SnapshotData.IsSet();
+	const bool bIsExternalAssetReference = !PathToActor.IsSet();
 	if (bIsExternalAssetReference)
 	{
-		return ResolveExternalReference(OriginalObjectPath);
+		return Internal::ResolveExternalReference(OriginalObjectPath);
 	}
 
-	TOptional<AActor*> Result = SnapshotData.GetValue()->GetPreallocated(WorldData.TempActorWorld->GetWorld(), WorldData);
+	const TOptional<TNonNullPtr<AActor>> Result = UE::LevelSnapshots::Private::GetPreallocated(*PathToActor, WorldData, Cache, WorldData.SnapshotWorld->GetWorld());
 	if (!Result.IsSet())
 	{
 		return nullptr;
 	}
 
 	// Reference to actor
-	AActor* SnapshotActor = *Result;
+	AActor* SnapshotActor = Result.GetValue();
 	const bool bIsPathToActor = !bIsPathToActorSubobject; 
 	if (bIsPathToActor)
 	{
@@ -287,18 +294,18 @@ UObject* SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(FWorldSna
 	}
 
 	// Reference to default subobjects, such as components, or an object we already allocated.
-	const FSoftObjectPath SnapshotPathToSubobject = SetActorInPath(SnapshotActor, OriginalObjectPath);
+	const FSoftObjectPath SnapshotPathToSubobject = UE::LevelSnapshots::Private::SetActorInPath(SnapshotActor, OriginalObjectPath);
 	if (UObject* ExistingSubobject = SnapshotPathToSubobject.ResolveObject())
 	{
-		EnsureSubobjectIsSerialized(WorldData, ExistingSubobject, ObjectPathIndex, ProcessObjectDependency, LocalisationNamespace);
+		Internal::EnsureSubobjectIsSerialized(WorldData, Cache, ExistingSubobject, ObjectPathIndex, ProcessObjectDependency, LocalisationNamespace);
 		return ExistingSubobject;
 	}
 
 	// The subobject is instanced: recreate it recursively
-	return CreateSubobjectForSnapshotWorld(WorldData, ObjectPathIndex, SnapshotPathToSubobject, ProcessObjectDependency, LocalisationNamespace);
+	return Internal::CreateSubobjectForSnapshotWorld(WorldData, Cache, ObjectPathIndex, SnapshotPathToSubobject, ProcessObjectDependency, LocalisationNamespace);
 }
 
-UObject* SnapshotUtil::Object::ResolveObjectDependencyForEditorWorld(FWorldSnapshotData& WorldData, int32 ObjectPathIndex, const FString& LocalisationNamespace, const FPropertySelectionMap& SelectionMap)
+UObject* UE::LevelSnapshots::Private::ResolveObjectDependencyForEditorWorld(FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, int32 ObjectPathIndex, const FString& LocalisationNamespace, const FPropertySelectionMap& SelectionMap)
 {
 	if (!ensure(WorldData.SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
 	{
@@ -307,13 +314,13 @@ UObject* SnapshotUtil::Object::ResolveObjectDependencyForEditorWorld(FWorldSnaps
 	
 	const FSoftObjectPath& OriginalObjectPath = WorldData.SerializedObjectReferences[ObjectPathIndex];
 	bool bIsPathToActorSubobject;
-	const TOptional<FActorSnapshotData*> SnapshotData = FindSavedActorDataUsingObjectPath(WorldData.ActorData, OriginalObjectPath, bIsPathToActorSubobject);
+	const TOptional<TNonNullPtr<FActorSnapshotData>> SnapshotData = UE::LevelSnapshots::Private::FindSavedActorDataUsingObjectPath(WorldData.ActorData, OriginalObjectPath, bIsPathToActorSubobject);
 	
 	// Dealing with an external (asset) reference, e.g. a UMaterial?
 	const bool bIsExternalAssetReference = !SnapshotData.IsSet();
 	if (bIsExternalAssetReference)
 	{
-		return ResolveExternalReference(OriginalObjectPath);
+		return Internal::ResolveExternalReference(OriginalObjectPath);
 	}
 
 	// Can return immediately for actors and components: their serialization is handled by FActorSnapshotData.
@@ -326,7 +333,7 @@ UObject* SnapshotUtil::Object::ResolveObjectDependencyForEditorWorld(FWorldSnaps
 	
 	if (FSubobjectSnapshotData* const SubobjectData = WorldData.Subobjects.Find(ObjectPathIndex))
 	{
-		return SerializeOrCreateSubobjectForEditorWorld(WorldData, *SubobjectData, ResolvedObject, OriginalObjectPath, LocalisationNamespace, SelectionMap);
+		return Internal::SerializeOrCreateSubobjectForEditorWorld(WorldData, *SubobjectData, Cache, ResolvedObject, OriginalObjectPath, LocalisationNamespace, SelectionMap);
 	}
 	
 	// This should not happen after release of 4.27. This is error may happen if certain snapshots in an older data format are applied because the data wasn't yet captured.
@@ -334,37 +341,37 @@ UObject* SnapshotUtil::Object::ResolveObjectDependencyForEditorWorld(FWorldSnaps
 	return ResolvedObject;
 }
 
-UObject* SnapshotUtil::Object::ResolveObjectDependencyForClassDefaultObject(FWorldSnapshotData& WorldData, int32 ObjectPathIndex)
+UObject* UE::LevelSnapshots::Private::ResolveObjectDependencyForClassDefaultObject(FWorldSnapshotData& WorldData, int32 ObjectPathIndex)
 {
 	if (ensure(WorldData.SerializedObjectReferences.IsValidIndex(ObjectPathIndex)))
 	{
 		const FSoftObjectPath& OriginalObjectPath = WorldData.SerializedObjectReferences[ObjectPathIndex];
-		return ResolveExternalReference(OriginalObjectPath);
+		return Internal::ResolveExternalReference(OriginalObjectPath);
 	}
 	return nullptr;
 }
 
-int32 SnapshotUtil::Object::AddObjectDependency(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject, bool bCheckWhetherSubobject)
+int32 UE::LevelSnapshots::Private::AddObjectDependency(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject, bool bCheckWhetherSubobject)
 {
 	// Even if FSnapshotRestorability::IsSubobjectDesirableForCapture later returns false for this object, we want to track it
-	const int32 Result = AddOrFindObjectReference(WorldData, ReferenceFromOriginalObject);
+	const int32 Result = Internal::AddOrFindObjectReference(WorldData, ReferenceFromOriginalObject);
 
 	if (bCheckWhetherSubobject && ReferenceFromOriginalObject && ReferenceFromOriginalObject->GetTypedOuter<AActor>())
 	{
-		AddSubobjectDependencyInternal(WorldData, ReferenceFromOriginalObject, Result);
+		Internal::AddSubobjectDependencyInternal(WorldData, ReferenceFromOriginalObject, Result);
 	}
 	
 	return Result;
 }
 
-int32 SnapshotUtil::Object::AddCustomSubobjectDependency(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject)
+int32 UE::LevelSnapshots::Private::AddCustomSubobjectDependency(FWorldSnapshotData& WorldData, UObject* ReferenceFromOriginalObject)
 {
 	if (!ensure(ReferenceFromOriginalObject))
 	{
 		return INDEX_NONE;
 	}
 
-	const int32 SubobjectIndex = AddOrFindObjectReference(WorldData, ReferenceFromOriginalObject);
+	const int32 SubobjectIndex = Internal::AddOrFindObjectReference(WorldData, ReferenceFromOriginalObject);
 	if (WorldData.CustomSubobjectSerializationData.Find(SubobjectIndex) == nullptr)
 	{
 		WorldData.CustomSubobjectSerializationData.Add(SubobjectIndex);
@@ -378,18 +385,18 @@ int32 SnapshotUtil::Object::AddCustomSubobjectDependency(FWorldSnapshotData& Wor
 	return SubobjectIndex;
 }
 
-FCustomSerializationData* SnapshotUtil::Object::FindCustomSubobjectData(FWorldSnapshotData& WorldData,const FSoftObjectPath& ReferenceFromOriginalObject)
+FCustomSerializationData* UE::LevelSnapshots::Private::FindCustomSubobjectData(FWorldSnapshotData& WorldData,const FSoftObjectPath& ReferenceFromOriginalObject)
 {
 	const int32 SubobjectIndex = WorldData.SerializedObjectReferences.Find(ReferenceFromOriginalObject);
 	return WorldData.CustomSubobjectSerializationData.Find(SubobjectIndex);
 }
 
-const FCustomSerializationData* SnapshotUtil::Object::FindCustomActorOrSubobjectData(const FWorldSnapshotData& WorldData,UObject* OriginalObject)
+const FCustomSerializationData* UE::LevelSnapshots::Private::FindCustomActorOrSubobjectData(const FWorldSnapshotData& WorldData,UObject* OriginalObject)
 {
 	// Is it an actor?
 	if (const FActorSnapshotData* SavedActorData = WorldData.ActorData.Find(OriginalObject))
 	{
-		return &SavedActorData->GetCustomActorSerializationData();
+		return &SavedActorData->CustomActorSerializationData;
 	}
 	if (Cast<AActor>(OriginalObject))
 	{

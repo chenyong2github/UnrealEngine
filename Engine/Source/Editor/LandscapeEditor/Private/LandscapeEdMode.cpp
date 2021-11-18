@@ -680,7 +680,7 @@ void FEdModeLandscape::Exit()
 void FEdModeLandscape::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
 {
 	// If the mode is pending deletion, don't run the presave routine.
-	if (IsPendingDeletion())
+	if (!Owner->IsModeActive(GetID()))
 	{
 		return;
 	}

@@ -10,8 +10,6 @@ using Microsoft.Win32;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -90,7 +88,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected FileReference ProjectFile;
+		protected FileReference? ProjectFile;
 		private bool bUseLdGold;
 		private List<string> AdditionalArches;
 		private List<string> AdditionalGPUArches;
@@ -103,10 +101,10 @@ namespace UnrealBuildTool
 
 		// Version string from the Android specific build of clang. E.g in Android (6317467 based on r365631c1) clang version 9.0.8
 		// this would be 6317467)
-		protected static string AndroidClangBuild;
+		protected static string? AndroidClangBuild;
 
 		// the list of architectures we will compile for
-		protected List<string> Arches = null;
+		protected List<string>? Arches = null;
 
 		private AndroidToolChainOptions Options;
 
@@ -139,7 +137,7 @@ namespace UnrealBuildTool
 			{ "-x64",   new string[] { "OculusEntitlementCallbackProxy", "OculusCreateSessionCallbackProxy", "OculusFindSessionsCallbackProxy", "OculusIdentityCallbackProxy", "OculusNetConnection", "OculusNetDriver", "OnlineSubsystemOculus_init" } }
 		};
 
-		public string NDKToolchainVersion;
+		public string? NDKToolchainVersion;
 		public UInt64 NDKVersionInt;
 
 		protected void SetClangVersion(int Major, int Minor, int Patch)
@@ -185,17 +183,17 @@ namespace UnrealBuildTool
 
 		protected bool bEnableGcSections = true;
 
-		public AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches)
+		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches)
 			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, AndroidToolChainOptions.None)
 		{
 		}
 
-		public AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches, AndroidToolChainOptions ToolchainOptions)
+		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, AndroidToolChainOptions ToolchainOptions)
 			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ToolchainOptions)
 		{
 		}
 
-		protected AndroidToolChain(FileReference InProjectFile, bool bInUseLdGold, IReadOnlyList<string> InAdditionalArches, IReadOnlyList<string> InAdditionalGPUArches, bool bAllowMissingNDK, AndroidToolChainOptions ToolchainOptions)
+		protected AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, bool bAllowMissingNDK, AndroidToolChainOptions ToolchainOptions)
 		{
 			Options = ToolchainOptions;
 			ProjectFile = InProjectFile;
@@ -222,7 +220,7 @@ namespace UnrealBuildTool
 				AdditionalArches.AddRange(ArchitectureArg);
 			}
 
-			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
+			string? NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
 
 			// don't register if we don't have an NDKROOT specified
 			if (String.IsNullOrEmpty(NDKPath))
@@ -271,7 +269,7 @@ namespace UnrealBuildTool
 			}
 
 			// get the installed version (in the form r10e and 100500)
-			UEBuildPlatformSDK SDK = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Android);
+			UEBuildPlatformSDK SDK = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Android)!;
 			NDKToolchainVersion = SDK.GetInstalledVersion();
 			SDK.TryConvertVersionToInt(NDKToolchainVersion, out NDKVersionInt);
 
@@ -447,7 +445,7 @@ namespace UnrealBuildTool
 				ParseArchitectures();
 			}
 
-			return Arches;
+			return Arches!;
 		}
 
 		public int GetNdkApiLevelInt(int MinNdk = 21)
@@ -484,7 +482,7 @@ namespace UnrealBuildTool
 				// try to read it
 				try
 				{
-					JsonObject PlatformsObj = null;
+					JsonObject? PlatformsObj = null;
 					if (JsonObject.TryRead(new FileReference(PlatformsFilename), out PlatformsObj))
 					{
 						CachedPlatformsValid = PlatformsObj.TryGetIntegerField("min", out CachedMinPlatform) && PlatformsObj.TryGetIntegerField("max", out CachedMaxPlatform);
@@ -533,11 +531,11 @@ namespace UnrealBuildTool
 			// ask the .ini system for what version to use
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
 			string NDKLevel;
-			Ini.GetString("/Script/AndroidPlatformEditor.AndroidSDKSettings", "NDKAPILevel", out NDKLevel);
+			Ini.GetString("/Script/AndroidPlatformEditor.AndroidSDKSettings", "NDKAPILevel", out NDKLevel!);
 
 			// check for project override of NDK API level
 			string ProjectNDKLevel;
-			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "NDKAPILevelOverride", out ProjectNDKLevel);
+			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "NDKAPILevelOverride", out ProjectNDKLevel!);
 			ProjectNDKLevel = ProjectNDKLevel.Trim();
 			if (ProjectNDKLevel != "")
 			{
@@ -741,7 +739,7 @@ namespace UnrealBuildTool
 				// 'Function control flow change detected (hash mismatch)' warnings. 
 				Result += " -Wno-backend-plugin";
 
-				Result += string.Format(" -fprofile-use=\"{0}.profdata\"", Path.Combine(CompileEnvironment.PGODirectory, CompileEnvironment.PGOFilenamePrefix));
+				Result += string.Format(" -fprofile-use=\"{0}.profdata\"", Path.Combine(CompileEnvironment.PGODirectory!, CompileEnvironment.PGOFilenamePrefix!));
 
 				//TODO: measure LTO.
 				//Result += " -flto=thin";
@@ -944,7 +942,7 @@ namespace UnrealBuildTool
 				Result += " -Wno-profile-instr-out-of-date";
 				Result += " -Wno-profile-instr-unprofiled";
 
-				Result += string.Format(" -fprofile-use=\"{0}.profdata\"", Path.Combine(LinkEnvironment.PGODirectory, LinkEnvironment.PGOFilenamePrefix));
+				Result += string.Format(" -fprofile-use=\"{0}.profdata\"", Path.Combine(LinkEnvironment.PGODirectory!, LinkEnvironment.PGOFilenamePrefix!));
 
 				//TODO: check LTO improves perf.
 				//Result += " -flto=thin";
@@ -995,7 +993,7 @@ namespace UnrealBuildTool
 			if (GetNdkApiLevelInt() >= 21)
 			{
 				// this file was added in NDK11 so use existence to detect (RELEASE.TXT no longer present)
-				string NDKRoot = Environment.GetEnvironmentVariable("NDKROOT").Replace("\\", "/");
+				//string NDKRoot = Environment.GetEnvironmentVariable("NDKROOT").Replace("\\", "/");
 			}
 		}
 
@@ -1068,7 +1066,7 @@ namespace UnrealBuildTool
 			// deal with .so files with wrong architecture
 			if (Path.GetExtension(FullLib) == ".so")
 			{
-				string ParentDirectory = Path.GetDirectoryName(FullLib);
+				string ParentDirectory = Path.GetDirectoryName(FullLib)!;
 				if (!IsDirectoryForArch(ParentDirectory, Arch))
 				{
 					return true;
@@ -1076,13 +1074,13 @@ namespace UnrealBuildTool
 			}
 
 			// apply the same directory filtering to libraries as we do to additional library paths
-			if (!IsDirectoryForArch(Path.GetDirectoryName(FullLib), Arch))
+			if (!IsDirectoryForArch(Path.GetDirectoryName(FullLib)!, Arch))
 			{
 				return true;
 			}
 
 			// if another architecture is in the filename, reject it
-			foreach (string ComboName in Arches)
+			foreach (string ComboName in Arches!)
 			{
 				if (ComboName != Arch)
 				{
@@ -1200,17 +1198,10 @@ namespace UnrealBuildTool
 			string LinkerExceptionsName = "../UELinkerExceptions";
 			FileReference LinkerExceptionsCPPFilename = FileReference.Combine(OutputDirectory, LinkerExceptionsName + ".cpp");
 
-			// Create the cpp filename
-			if (!FileReference.Exists(LinkerExceptionsCPPFilename))
-			{
-				// Create a dummy file in case it doesn't exist yet so that the module does not complain it's not there
-				Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, new List<string>(), StringComparison.Ordinal);
-			}
-
 			List<string> Result = new List<string>();
 			Result.Add("#include \"CoreTypes.h\"");
 			Result.Add("");
-			foreach (string Arch in Arches)
+			foreach (string Arch in Arches!)
 			{
 				switch (Arch)
 				{
@@ -1230,33 +1221,19 @@ namespace UnrealBuildTool
 				Result.Add("#endif");
 			}
 
-			// Determine if the file changed. Write it if it either doesn't exist or the contents are different.
-			bool bShouldWriteFile = true;
-			if (FileReference.Exists(LinkerExceptionsCPPFilename))
-			{
-				string[] ExistingExceptionText = File.ReadAllLines(LinkerExceptionsCPPFilename.FullName);
-				string JoinedNewContents = string.Join("", Result.ToArray());
-				string JoinedOldContents = string.Join("", ExistingExceptionText);
-				bShouldWriteFile = (JoinedNewContents != JoinedOldContents);
-			}
-
-			// If we determined that we should write the file, write it now.
-			if (bShouldWriteFile)
-			{
-				Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, Result, StringComparison.Ordinal);
-			}
+			Graph.CreateIntermediateTextFile(LinkerExceptionsCPPFilename, Result);
 
 			SourceFiles.Add(FileItem.GetItemByFileReference(LinkerExceptionsCPPFilename));
 		}
 
 		// cache the location of NDK tools
-		protected static string ClangPath;
-		protected static string ToolchainParamsArm64;
-		protected static string ToolchainParamsx64;
-		protected static string ToolchainLinkParamsArm64;
-		protected static string ToolchainLinkParamsx64;
-		protected static string ArPathArm64;
-		protected static string ArPathx64;
+		protected static string? ClangPath;
+		protected static string? ToolchainParamsArm64;
+		protected static string? ToolchainParamsx64;
+		protected static string? ToolchainLinkParamsArm64;
+		protected static string? ToolchainLinkParamsx64;
+		protected static string? ArPathArm64;
+		protected static string? ArPathx64;
 
 		static public string GetStripExecutablePath(string UnrealArch)
 		{
@@ -1264,9 +1241,9 @@ namespace UnrealBuildTool
 
 			switch (UnrealArch)
 			{
-				case "-arm64": StripPath = ArPathArm64; break;
-				case "-x64": StripPath = ArPathx64; break;
-				default: StripPath = ArPathArm64; break;
+				case "-arm64": StripPath = ArPathArm64!; break;
+				case "-x64": StripPath = ArPathx64!; break;
+				default: StripPath = ArPathArm64!; break;
 			}
 			return StripPath.Replace("-ar", "-strip");
 		}
@@ -1274,7 +1251,7 @@ namespace UnrealBuildTool
 		static private bool bHasHandledLaunchModule = false;
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
 		{
-			if (Arches.Count == 0)
+			if (Arches!.Count == 0)
 			{
 				throw new BuildException("At least one architecture (arm64, x64, etc) needs to be selected in the project settings to build");
 			}
@@ -1345,7 +1322,7 @@ namespace UnrealBuildTool
 			string PCHExtension = ".gch";
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
-				BasePCHName = RemoveArchName(CompileEnvironment.PrecompiledHeaderFile.AbsolutePath).Replace(PCHExtension, "");
+				BasePCHName = RemoveArchName(CompileEnvironment.PrecompiledHeaderFile!.AbsolutePath).Replace(PCHExtension, "");
 			}
 
 			// Create a compile action for each source file.
@@ -1524,21 +1501,21 @@ namespace UnrealBuildTool
 
 					// Create the response file
 					FileReference ResponseFileName = CompileAction.ProducedItems[0].Location + ".rsp";
-					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, new List<string> { AllArguments }, StringComparison.InvariantCultureIgnoreCase);
+					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, new List<string> { AllArguments });
 					string ResponseArgument = string.Format("@\"{0}\"", ResponseFileName);
 
 					CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 					if(bExecuteCompilerThroughShell)
 					{
-						SetupActionToExecuteCompilerThroughShell(ref CompileAction, ClangPath, ResponseArgument, "Compile");
+						SetupActionToExecuteCompilerThroughShell(ref CompileAction, ClangPath!, ResponseArgument, "Compile");
 					}
 					else
 					{
-						CompileAction.CommandPath = new FileReference(ClangPath);
+						CompileAction.CommandPath = new FileReference(ClangPath!);
 						CompileAction.CommandArguments = ResponseArgument;
 					}
 					CompileAction.PrerequisiteItems.Add(ResponseFileItem);
-					CompileAction.CommandVersion = AndroidClangBuild;
+					CompileAction.CommandVersion = AndroidClangBuild!;
 
 					CompileAction.StatusDescription = string.Format("{0} [{1}]", Path.GetFileName(SourceFile.AbsolutePath), Arch.Replace("-", ""));
 
@@ -1555,7 +1532,7 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
+		public override FileItem? LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, IActionGraphBuilder Graph)
 		{
 			return null;
 		}
@@ -1567,7 +1544,7 @@ namespace UnrealBuildTool
 			{
 				FinalArch = ShortArchNames[FinalArch];
 			}
-			return Path.Combine(Path.GetDirectoryName(Pathname), Path.GetFileNameWithoutExtension(Pathname) + FinalArch + Path.GetExtension(Pathname));
+			return Path.Combine(Path.GetDirectoryName(Pathname)!, Path.GetFileNameWithoutExtension(Pathname) + FinalArch + Path.GetExtension(Pathname));
 		}
 
 		public string RemoveArchName(string Pathname)
@@ -1575,7 +1552,7 @@ namespace UnrealBuildTool
 			// remove all architecture names
 			foreach (string Arch in GetAllArchitectures())
 			{
-				Pathname = Path.Combine(Path.GetDirectoryName(Pathname), Path.GetFileName(Pathname).Replace(Arch, ""));
+				Pathname = Path.Combine(Path.GetDirectoryName(Pathname)!, Path.GetFileName(Pathname).Replace(Arch, ""));
 			}
 			return Pathname;
 		}
@@ -1587,7 +1564,7 @@ namespace UnrealBuildTool
 
 		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
-			if (Arches.Count == 0)
+			if (Arches!.Count == 0)
 			{
 				throw new BuildException("At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build");
 			}
@@ -1726,7 +1703,7 @@ namespace UnrealBuildTool
 		
 		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
-			if (Arches.Count == 0)
+			if (Arches!.Count == 0)
 			{
 				throw new BuildException("At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build");
 			}
@@ -1939,7 +1916,7 @@ namespace UnrealBuildTool
 				ModifyLibraries(LinkEnvironment);
 			}
 
-			for (int ArchIndex = 0; ArchIndex < Arches.Count; ArchIndex++)
+			for (int ArchIndex = 0; ArchIndex < Arches!.Count; ArchIndex++)
 			{
 				string Arch = Arches[ArchIndex];
 
@@ -1961,18 +1938,18 @@ namespace UnrealBuildTool
 				{
 					switch (Arch)
 					{
-						case "-arm64": LinkAction.CommandPath = new FileReference(ArPathArm64); break;
-						case "-x64": LinkAction.CommandPath = new FileReference(ArPathx64); break;
+						case "-arm64": LinkAction.CommandPath = new FileReference(ArPathArm64!); break;
+						case "-x64": LinkAction.CommandPath = new FileReference(ArPathx64!); break;
 					}
 				}
 				else
 				{
-					LinkAction.CommandPath = new FileReference(ClangPath);
+					LinkAction.CommandPath = new FileReference(ClangPath!);
 				}
 
 				DirectoryReference LinkerPath = LinkAction.WorkingDirectory;
 
-				LinkAction.WorkingDirectory = LinkEnvironment.IntermediateDirectory;
+				LinkAction.WorkingDirectory = LinkEnvironment.IntermediateDirectory!;
 
 				// Get link arguments.
 				LinkAction.CommandArguments = LinkEnvironment.bIsBuildingLibrary ? GetArArguments(LinkEnvironment) : GetLinkArguments(LinkEnvironment, Arch);
@@ -1983,7 +1960,7 @@ namespace UnrealBuildTool
 				Outputs.Add(OutputFile);
 				LinkAction.ProducedItems.Add(OutputFile);
 				LinkAction.StatusDescription = string.Format("{0}", Path.GetFileName(OutputFile.AbsolutePath));
-				LinkAction.CommandVersion = AndroidClangBuild;
+				LinkAction.CommandVersion = AndroidClangBuild!;
 
 				// LinkAction.bPrintDebugInfo = true;
 
@@ -2005,9 +1982,9 @@ namespace UnrealBuildTool
 					if (Path.GetFileNameWithoutExtension(InputFile.AbsolutePath).EndsWith(ShortArchNames[Arch]))
 					{
 						string InputPath;
-						if (InputFile.Location.IsUnderDirectory(LinkEnvironment.IntermediateDirectory))
+						if (InputFile.Location.IsUnderDirectory(LinkEnvironment.IntermediateDirectory!))
 						{
-							InputPath = InputFile.Location.MakeRelativeTo(LinkEnvironment.IntermediateDirectory);
+							InputPath = InputFile.Location.MakeRelativeTo(LinkEnvironment.IntermediateDirectory!);
 						}
 						else
 						{
@@ -2070,7 +2047,7 @@ namespace UnrealBuildTool
 					{
 						if (!ShouldSkipLib(Library.FullName, Arch))
 						{
-							string AbsoluteLibraryPath = Path.GetDirectoryName(Library.FullName);
+							string AbsoluteLibraryPath = Path.GetDirectoryName(Library.FullName)!;
 							LinkAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(Library));
 
 							string Lib = Path.GetFileNameWithoutExtension(Library.FullName);
@@ -2113,7 +2090,7 @@ namespace UnrealBuildTool
 					// Write the MAP file to the output directory.
 					if (LinkEnvironment.bCreateMapFile)
 					{
-						FileReference MAPFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".map");
+						FileReference MAPFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory!, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".map");
 						FileItem MAPFile = FileItem.GetItemByFileReference(MAPFilePath);
 						LinkResponseArguments += String.Format(" -Wl,--cref -Wl,-Map,\"{0}\"", MAPFilePath);
 						LinkAction.ProducedItems.Add(MAPFile);
@@ -2130,7 +2107,7 @@ namespace UnrealBuildTool
 				FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 				InputFileNames.Add(LinkResponseArguments.Replace("\\", "/"));
 
-				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, InputFileNames, StringComparison.InvariantCultureIgnoreCase);
+				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, InputFileNames);
 
 				LinkAction.CommandArguments += string.Format(" @\"{0}\"", ResponseFileName);
 				LinkAction.PrerequisiteItems.Add(ResponseFileItem);
@@ -2265,12 +2242,12 @@ namespace UnrealBuildTool
 			string StripExe;
 			if (SourceFile.FullName.Contains("-arm64"))
 			{
-				StripExe = ArPathArm64;
+				StripExe = ArPathArm64!;
 			}
 			else
 			if (SourceFile.FullName.Contains("-x64"))
 			{
-				StripExe = ArPathx64;
+				StripExe = ArPathx64!;
 			}
 			else
 			{

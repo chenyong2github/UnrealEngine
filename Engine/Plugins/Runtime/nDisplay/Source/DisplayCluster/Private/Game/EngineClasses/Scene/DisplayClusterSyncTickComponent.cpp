@@ -17,6 +17,10 @@ UDisplayClusterSyncTickComponent::UDisplayClusterSyncTickComponent(const FObject
 
 void UDisplayClusterSyncTickComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	GDisplayCluster->Tick(DeltaTime);
+	if (GDisplayCluster->GetOperationMode() != EDisplayClusterOperationMode::Disabled)
+	{
+		GDisplayCluster->Tick(DeltaTime);
+	}
+
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }

@@ -59,7 +59,7 @@ struct FActiveSound;
 struct FAttenuationFocusData;
 struct FAudioComponentParam;
 struct FAudioQualitySettings;
-struct FRotator;
+UE_DECLARE_LWC_TYPE(Rotator, 3);
 struct FWaveInstance;
 
 namespace Audio

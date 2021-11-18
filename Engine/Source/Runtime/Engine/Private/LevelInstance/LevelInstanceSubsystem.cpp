@@ -116,7 +116,7 @@ void ULevelInstanceSubsystem::UnregisterLevelInstance(ALevelInstance* LevelInsta
 
 void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInstanceActor, bool bForce /* = false */)
 {
-	check(LevelInstanceActor && !LevelInstanceActor->IsPendingKillOrUnreachable());
+	check(LevelInstanceActor && IsValidChecked(LevelInstanceActor) && !LevelInstanceActor->IsUnreachable());
 	if (LevelInstanceActor->IsLevelInstancePathValid())
 	{
 #if WITH_EDITOR
@@ -235,7 +235,7 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 void ULevelInstanceSubsystem::LoadLevelInstance(ALevelInstance* LevelInstanceActor)
 {
 	check(LevelInstanceActor);
-	if (IsLoaded(LevelInstanceActor) || LevelInstanceActor->IsPendingKillOrUnreachable() || !LevelInstanceActor->IsLevelInstancePathValid())
+	if (IsLoaded(LevelInstanceActor) || !IsValidChecked(LevelInstanceActor) || LevelInstanceActor->IsUnreachable() || !LevelInstanceActor->IsLevelInstancePathValid())
 	{
 		return;
 	}
@@ -776,8 +776,16 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	check(LoadedLevel);
 
 	const bool bWarnAboutReferences = true;
-	const bool bWarnAboutRenaming = true;
+	const bool bWarnAboutRenaming = false;
 	const bool bMoveAllOrFail = true;
+
+	TSet<FName> DirtyPackages;
+
+	// Capture Packages before Moving actors as they can get GCed in the process
+	for (AActor* ActorToMove : ActorsToMove)
+	{
+		DirtyPackages.Add(ActorToMove->GetPackage()->GetFName());
+	}
 
 	if (!EditorLevelUtils::MoveActorsToLevel(ActorsToMove, LoadedLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
 	{
@@ -864,15 +872,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	LevelStreaming->LevelInstanceID = NewLevelInstanceActor->GetLevelInstanceID();
 		
 	GetWorld()->SetCurrentLevel(LoadedLevel);
-
-	TSet<UPackage*> DirtyPackages;
-	DirtyPackages.Add(NewLevelInstanceActor->GetPackage());
-
-	for (AActor* ActorToMove : ActorsToMove)
-	{
-		DirtyPackages.Add(ActorToMove->GetPackage());
-	}
-				
+	DirtyPackages.Add(NewLevelInstanceActor->GetPackage()->GetFName());
 	// Use LevelStreaming->GetLevelInstanceActor() because OnWorldAssetSaved could've reinstanced the LevelInstanceActor
 	return CommitLevelInstance(LevelStreaming->GetLevelInstanceActor(), /*bDiscardEdits*/false, CreationParams.bPromptForSave, &DirtyPackages);
 }
@@ -990,7 +990,7 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 		check(DestinationLevel);
 
 		const bool bWarnAboutReferences = true;
-		const bool bWarnAboutRenaming = true;
+		const bool bWarnAboutRenaming = false;
 		const bool bMoveAllOrFail = true;
 		if (!EditorLevelUtils::CopyActorsToLevel(ActorsToMove.Array(), DestinationLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
 		{
@@ -1596,7 +1596,7 @@ void ULevelInstanceSubsystem::CommitChildrenLevelInstances(ALevelInstance* Level
 	});
 }
 
-ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, bool bPromptForSave, TSet<UPackage*>* DirtyPackages)
+ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, bool bPromptForSave, TSet<FName>* DirtyPackages)
 {
 	check(CanCommitLevelInstance(LevelInstanceActor));
 
@@ -1618,7 +1618,7 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 		if (!FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, nullptr,
 			[=](UPackage* DirtyPackage)
 			{
-				if (DirtyPackages && DirtyPackages->Contains(DirtyPackage))
+				if (DirtyPackages && DirtyPackages->Contains(DirtyPackage->GetFName()))
 				{
 					return false;
 				}

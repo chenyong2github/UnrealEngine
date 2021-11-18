@@ -101,6 +101,20 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > FOpenXRHM
 	return nullptr;
 }
 
+FString FOpenXRHMDModule::GetDeviceSystemName()
+{
+	if (InitInstanceAndSystem())
+	{
+		XrSystemProperties SystemProperties;
+		SystemProperties.type = XR_TYPE_SYSTEM_PROPERTIES;
+		SystemProperties.next = nullptr;
+		xrGetSystemProperties(Instance, System, &SystemProperties);
+
+		return FString(UTF8_TO_TCHAR(SystemProperties.systemName));
+	}
+	return FString("");
+}
+
 bool FOpenXRHMDModule::IsStandaloneStereoOnlyDevice()
 {
 	if (InitInstanceAndSystem())
@@ -252,11 +266,19 @@ bool FOpenXRHMDModule::InitRenderBridge()
 	else
 #endif
 #ifdef XR_USE_GRAPHICS_API_OPENGL
+	#if PLATFORM_ANDROID
+	if (RHIString == TEXT("OpenGL") && IsExtensionEnabled(XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME))
+	{
+		RenderBridge = CreateRenderBridge_OpenGLES(Instance, System);
+	}
+	else
+	#else
 	if (RHIString == TEXT("OpenGL") && IsExtensionEnabled(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME))
 	{
 		RenderBridge = CreateRenderBridge_OpenGL(Instance, System);
 	}
 	else
+	#endif
 #endif
 #ifdef XR_USE_GRAPHICS_API_VULKAN
 	if (RHIString == TEXT("Vulkan") && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
@@ -377,6 +399,9 @@ bool FOpenXRHMDModule::GetOptionalExtensions(TArray<const ANSICHAR*>& OutExtensi
 #endif
 #ifdef XR_USE_GRAPHICS_API_OPENGL
 	OutExtensions.Add(XR_KHR_OPENGL_ENABLE_EXTENSION_NAME);
+#endif
+#ifdef XR_USE_GRAPHICS_API_OPENGL_ES
+	OutExtensions.Add(XR_KHR_OPENGL_ES_ENABLE_EXTENSION_NAME);
 #endif
 #ifdef XR_USE_GRAPHICS_API_VULKAN
 	OutExtensions.Add(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME);

@@ -23,6 +23,7 @@
 #include "WmfMediaAudioSample.h"
 #include "WmfMediaBinarySample.h"
 #include "WmfMediaCodec/WmfMediaCodecManager.h"
+#include "WmfMediaCodec/WmfMediaDecoder.h"
 #include "WmfMediaHardwareVideoDecodingTextureSample.h"
 #include "WmfMediaOverlaySample.h"
 #include "WmfMediaSampler.h"
@@ -53,6 +54,7 @@ FWmfMediaTracks::FWmfMediaTracks()
 	, bVideoTrackRequestedHardwareAcceleration(false)
 	, VideoSamplePool(nullptr)
 	, VideoHardwareVideoDecodingSamplePool(nullptr)
+	, SessionState(EMediaState::Closed)
 {}
 
 
@@ -372,6 +374,12 @@ void FWmfMediaTracks::Shutdown()
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
 }
 
+void FWmfMediaTracks::SetSessionState(EMediaState InState)
+{
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FWmfMediaTracks::SetSessionState %d"), InState);
+	SessionState = InState;
+}
+
 #if WMFMEDIA_PLAYER_VERSION >= 2
 
 void FWmfMediaTracks::SeekStarted(const FTimespan& InTime)
@@ -506,6 +514,12 @@ void FWmfMediaTracks::FlushSamples()
 
 IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp> & TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse)
 {
+	// Don't return any samples if we are stopped. We could be prerolling.
+	if (SessionState == EMediaState::Stopped)
+	{
+		return IMediaSamples::EFetchBestSampleResult::NoSample;;
+	}
+
 	FTimespan TimeRangeLow = TimeRange.GetLowerBoundValue().Time;
 	FTimespan TimeRangeHigh = TimeRange.GetUpperBoundValue().Time;
 	// Account for loop wraparound.
@@ -1337,9 +1351,34 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 			UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Failed to configure decoder node for stream %i"), this, Track.StreamIndex);
 			return false;
 		}
+
+		// Get the decoder.
+		WmfMediaDecoder* Decoder = (WmfMediaDecoder*)Transform.Get();
+		if (Decoder != nullptr)
+		{
+			// Enable external buffers.
+			if (Decoder->IsExternalBufferSupported())
+			{
+				Decoder->EnableExternalBuffer(true);
+
+				if (MediaStreamSink.IsValid())
+				{
+					MediaStreamSink->SetDecoder(Decoder);
+				}
+			}
+		}
 	}
 	else
 	{
+		// We only support our own decoders in D3D12.
+		const TCHAR* RHIName = GDynamicRHI->GetName();
+		bool bIsD3D12 = (TCString<TCHAR>::Stricmp(RHIName, TEXT("D3D12")) == 0);
+		if (bIsD3D12)
+		{
+			UE_LOG(LogWmfMedia, Error, TEXT("Tracks %p: Format is not supported in D3D12."), this);
+			return false;
+		}
+
 		// connect nodes
 		Result = SourceNode->ConnectOutput(0, OutputNode, 0);
 	}

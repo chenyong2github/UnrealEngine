@@ -88,7 +88,7 @@ public:
 		return Lightcard.IsValid() && LightcardMode == EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
 	}
 
-	bool IsCameraUsed(int CameraIndex) const
+	bool IsCameraUsed(int32 CameraIndex) const
 	{
 		return (Cameras.Num() > CameraIndex) && CameraIndex >= 0 && Cameras[CameraIndex].IsUsed();
 	}
@@ -221,7 +221,7 @@ public:
 		FVector2D ChromakeyMarkersOffset;
 		FTextureRHIRef ChromakeMarkerTextureRHI;
 
-		int RenderOrder = -1;
+		int32 RenderOrder = -1;
 	};
 
 	TArray<FCameraSettings> Cameras;

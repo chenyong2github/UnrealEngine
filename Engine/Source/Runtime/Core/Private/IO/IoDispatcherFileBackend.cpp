@@ -107,7 +107,7 @@ static FAutoConsoleVariableRef CVar_IoDispatcherRequestLatencyCircuitBreakerMS(
 	TEXT("If s.IoDispatcherSortRequestsByOffset is enabled and this is >0, if the oldest request has been in the queue for this long, read it instead of the most optimal read")
 );
 
-int32 GIoDispatcherTocsEnablePerfectHashing = 0;
+int32 GIoDispatcherTocsEnablePerfectHashing = 1;
 static FAutoConsoleVariableRef CVar_IoDispatcherTocsEnablePerfectHashing(
 	TEXT("s.IoDispatcherTocsEnablePerfectHashing"),
 	GIoDispatcherTocsEnablePerfectHashing,
@@ -716,13 +716,7 @@ FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InContainerPath, int32 InO
 
 		PerfectHashMap.TocChunkHashSeeds = MoveTemp(TocResource.ChunkPerfectHashSeeds);
 		PerfectHashMap.TocOffsetAndLengths = MoveTemp(TocResource.ChunkOffsetLengths);
-		PerfectHashMap.TocChunkHashes.SetNumUninitialized(TocResource.Header.TocEntryCount);
-		// Store only the chunk hashes, assumes that the perfect hash function is different from the
-		// default hash function and that they won't both collide
-		for (uint32 ChunkIndex = 0; ChunkIndex < TocResource.Header.TocEntryCount; ++ChunkIndex)
-		{
-			PerfectHashMap.TocChunkHashes[ChunkIndex] = GetTypeHash(TocResource.ChunkIds[ChunkIndex]);
-		}
+		PerfectHashMap.TocChunkIds = MoveTemp(TocResource.ChunkIds);
 		bHasPerfectHashMap = true;
 	}
 	else
@@ -746,7 +740,7 @@ FIoStatus FFileIoStoreReader::Initialize(const TCHAR* InContainerPath, int32 InO
 	TRACE_COUNTER_ADD(IoStoreTocMemory,
 		TocImperfectHashMapFallback.GetAllocatedSize() +
 		PerfectHashMap.TocOffsetAndLengths.GetAllocatedSize() +
-		PerfectHashMap.TocChunkHashes.GetAllocatedSize() +
+		PerfectHashMap.TocChunkIds.GetAllocatedSize() +
 		PerfectHashMap.TocChunkHashSeeds.GetAllocatedSize() +
 		ContainerFile.CompressionBlocks.GetAllocatedSize() +
 		ContainerFile.BlockSignatureHashes.GetAllocatedSize());
@@ -769,7 +763,7 @@ FIoStatus FFileIoStoreReader::Close()
 	}
 
 	PerfectHashMap.TocChunkHashSeeds.Empty();
-	PerfectHashMap.TocChunkHashes.Empty();
+	PerfectHashMap.TocChunkIds.Empty();
 	PerfectHashMap.TocOffsetAndLengths.Empty();
 	TocImperfectHashMapFallback.Empty();
 	ContainerFile = FFileIoStoreContainerFile();
@@ -785,7 +779,7 @@ const FIoOffsetAndLength* FFileIoStoreReader::FindChunkInternal(const FIoChunkId
 	if (bHasPerfectHashMap)
 	{
 		// See FIoStoreWriterImpl::GeneratePerfectHashes
-		const uint32 ChunkCount = PerfectHashMap.TocChunkHashes.Num();
+		const uint32 ChunkCount = PerfectHashMap.TocChunkIds.Num();
 		if (!ChunkCount)
 		{
 			return nullptr;
@@ -815,7 +809,7 @@ const FIoOffsetAndLength* FFileIoStoreReader::FindChunkInternal(const FIoChunkId
 		{
 			Slot = FIoStoreTocResource::HashChunkIdWithSeed(static_cast<uint32>(Seed), ChunkId) % ChunkCount;
 		}
-		if (PerfectHashMap.TocChunkHashes[Slot] == GetTypeHash(ChunkId))
+		if (PerfectHashMap.TocChunkIds[Slot] == ChunkId)
 		{
 			return &PerfectHashMap.TocOffsetAndLengths[Slot];
 		}

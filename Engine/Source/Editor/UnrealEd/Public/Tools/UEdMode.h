@@ -179,18 +179,6 @@ public:
 	 * You should not need to override this function in your UEdMode implementation.
 	*/
 	virtual FEdMode* AsLegacyMode() { return nullptr; }
-
-public:
-
-	/** Request that this mode be deleted at the next convenient opportunity (FEditorModeTools::Tick) */
-	void RequestDeletion();
-
-	/** returns true if this mode is to be deleted at the next convenient opportunity (FEditorModeTools::Tick) */
-	bool IsPendingDeletion() const { return bPendingDeletion; }
-
-protected:
-	/** true if this mode is pending removal from its owner */
-	bool bPendingDeletion;
 	
 protected:
 
@@ -218,7 +206,7 @@ public:
 	 * Default Scope for InteractiveToolsContext API functions, eg RegisterTool(), GetToolManager(), GetInteractiveToolsContext().
 	 * See EToolsContextScope for details. Defaults to Editor scope.
 	 */
-	virtual EToolsContextScope GetDefaultToolScope() const { return EToolsContextScope::Editor; }
+	virtual EToolsContextScope GetDefaultToolScope() const { return EToolsContextScope::EdMode; }
 
 	/**
 	 * @return active ToolManager for the desired (or default) ToolsContext Scope
@@ -242,6 +230,7 @@ protected:
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
 	virtual void ActivateDefaultTool() {}
 	virtual void BindCommands() {}
+	void OnModeActivated(const FEditorModeID& InID, bool bIsActive);
 
 private:
 

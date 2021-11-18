@@ -117,10 +117,10 @@ void FMotoSynthEngine::SetSourceData(uint32 InAccelerationSourceID, uint32 InDec
 
 	if (InAccelerationSourceData.IsValid() && InDecelerationSourceData.IsValid())
 	{
-		FVector2D AccelRPMRange;
+		FVector2f AccelRPMRange;
 		InAccelerationSourceData->RPMCurve.GetValueRange(AccelRPMRange.X, AccelRPMRange.Y);
 
-		FVector2D DecelRPMRange;
+		FVector2f DecelRPMRange;
 		InDecelerationSourceData->RPMCurve.GetValueRange(DecelRPMRange.X, DecelRPMRange.Y);
 
 		FVector2D NewRPMRange = { FMath::Max(AccelRPMRange.X, DecelRPMRange.X), FMath::Min(AccelRPMRange.Y, DecelRPMRange.Y) };
@@ -150,12 +150,12 @@ void FMotoSynthEngine::SetSettings(const FMotoSynthRuntimeSettings& InSettings)
 		bSynthToneEnvelopeEnabled = InSettings.bSynthToneEnvelopeEnabled;
 		SynthOctaveShift = InSettings.SynthOctaveShift;
 
-		SynthToneVolumeRange = { FMath::Clamp(InSettings.SynthToneVolumeRange.X, 0.0f, 4.0f), FMath::Clamp(InSettings.SynthToneVolumeRange.Y, 0.0f, 4.0f) };
-		SynthToneFilterFrequencyRange = { FMath::Clamp(InSettings.SynthToneFilterFrequencyRange.X, 20.0f, 10000.0f), FMath::Clamp(InSettings.SynthToneFilterFrequencyRange.Y, 20.0f, 10000.0f) };;
-		SynthToneAttackTimeMsecRange = { FMath::Max(InSettings.SynthToneAttackTimeMsecRange.X, 0.0f), FMath::Max(InSettings.SynthToneAttackTimeMsecRange.Y, 0.0f) };
-		SynthToneDecayTimeMsecRange = { FMath::Max(InSettings.SynthToneDecayTimeMsecRange.X, 0.0f), FMath::Max(InSettings.SynthToneDecayTimeMsecRange.Y, 0.0f) };
-		SynthToneAttackCurveRange = { FMath::Max(InSettings.SynthToneAttackCurveRange.X, 0.0f), FMath::Max(InSettings.SynthToneAttackCurveRange.Y, 0.0f) };
-		SynthToneDecayCurveRange = { FMath::Max(InSettings.SynthToneDecayCurveRange.X, 0.0f), FMath::Max(InSettings.SynthToneDecayCurveRange.Y, 0.0f) };
+		SynthToneVolumeRange = { FMath::Clamp<float>(InSettings.SynthToneVolumeRange.X, 0.0f, 4.0f), FMath::Clamp<float>(InSettings.SynthToneVolumeRange.Y, 0.0f, 4.0f) };
+		SynthToneFilterFrequencyRange = { FMath::Clamp<float>(InSettings.SynthToneFilterFrequencyRange.X, 20.0f, 10000.0f), FMath::Clamp<float>(InSettings.SynthToneFilterFrequencyRange.Y, 20.0f, 10000.0f) };;
+		SynthToneAttackTimeMsecRange = { FMath::Max<float>(InSettings.SynthToneAttackTimeMsecRange.X, 0.0f), FMath::Max<float>(InSettings.SynthToneAttackTimeMsecRange.Y, 0.0f) };
+		SynthToneDecayTimeMsecRange = { FMath::Max<float>(InSettings.SynthToneDecayTimeMsecRange.X, 0.0f), FMath::Max<float>(InSettings.SynthToneDecayTimeMsecRange.Y, 0.0f) };
+		SynthToneAttackCurveRange = { FMath::Max<float>(InSettings.SynthToneAttackCurveRange.X, 0.0f), FMath::Max<float>(InSettings.SynthToneAttackCurveRange.Y, 0.0f) };
+		SynthToneDecayCurveRange = { FMath::Max<float>(InSettings.SynthToneDecayCurveRange.X, 0.0f), FMath::Max<float>(InSettings.SynthToneDecayCurveRange.Y, 0.0f) };
 
 		bGranularEngineEnabled = InSettings.bGranularEngineEnabled;
 		TargetGranularEngineVolume = InSettings.GranularEngineVolume;
@@ -169,12 +169,12 @@ void FMotoSynthEngine::SetSettings(const FMotoSynthRuntimeSettings& InSettings)
 		bNoiseEnabled = InSettings.bNoiseEnabled;
 		bNoiseEnvelopeEnabled = InSettings.bNoiseEnvelopeEnabled;
 
-		NoiseVolumeRange = { FMath::Clamp(InSettings.NoiseVolumeRange.X, 0.0f, 4.0f), FMath::Clamp(InSettings.NoiseVolumeRange.Y, 0.0f, 4.0f) };
-		NoiseLPFRange = { FMath::Clamp(InSettings.NoiseLPFRange.X, 20.0f, 20000.0f), FMath::Clamp(InSettings.NoiseLPFRange.Y, 20.0f, 20000.0f) };
-		NoiseAttackTimeMsecRange = { FMath::Max(InSettings.NoiseAttackTimeMsecRange.X, 0.0f), FMath::Max(InSettings.NoiseAttackTimeMsecRange.Y, 0.0f) };
-		NoiseDecayTimeMsecRange = { FMath::Max(InSettings.NoiseDecayTimeMsecRange.X, 0.0f), FMath::Max(InSettings.NoiseDecayTimeMsecRange.Y, 0.0f) };
-		NoiseAttackCurveRange = { FMath::Max(InSettings.NoiseAttackCurveRange.X, 0.0f), FMath::Max(InSettings.NoiseAttackCurveRange.Y, 0.0f) };
-		NoiseDecayCurveRange = { FMath::Max(InSettings.NoiseDecayCurveRange.X, 0.0f), FMath::Max(InSettings.NoiseDecayCurveRange.Y, 0.0f) };
+		NoiseVolumeRange = { FMath::Clamp<float>(InSettings.NoiseVolumeRange.X, 0.0f, 4.0f), FMath::Clamp<float>(InSettings.NoiseVolumeRange.Y, 0.0f, 4.0f) };
+		NoiseLPFRange = { FMath::Clamp<float>(InSettings.NoiseLPFRange.X, 20.0f, 20000.0f), FMath::Clamp<float>(InSettings.NoiseLPFRange.Y, 20.0f, 20000.0f) };
+		NoiseAttackTimeMsecRange = { FMath::Max<float>(InSettings.NoiseAttackTimeMsecRange.X, 0.0f), FMath::Max<float>(InSettings.NoiseAttackTimeMsecRange.Y, 0.0f) };
+		NoiseDecayTimeMsecRange = { FMath::Max<float>(InSettings.NoiseDecayTimeMsecRange.X, 0.0f), FMath::Max<float>(InSettings.NoiseDecayTimeMsecRange.Y, 0.0f) };
+		NoiseAttackCurveRange = { FMath::Max<float>(InSettings.NoiseAttackCurveRange.X, 0.0f), FMath::Max<float>(InSettings.NoiseAttackCurveRange.Y, 0.0f) };
+		NoiseDecayCurveRange = { FMath::Max<float>(InSettings.NoiseDecayCurveRange.X, 0.0f), FMath::Max<float>(InSettings.NoiseDecayCurveRange.Y, 0.0f) };
 
 		DelayStereo.SetDelayTimeMsec(InSettings.StereoDelayMsec);
 		DelayStereo.SetFeedback(InSettings.StereoFeedback);

@@ -83,9 +83,6 @@ private:
 	FDelegateHandle OnDeferredSyncAllNameMatchParametersHandle;
 
 private:
-	/** Get all parameter definitions in the project, including all mounted plugins. */
-	TArray<UNiagaraParameterDefinitionsBase*> GetAllParameterDefinitions() const;
-
 	/** Update the cached change Id of specified Synchronized Subscribed Parameter Definition subscriptions so that they are not marked pending sync. */
 	void MarkParameterDefinitionSubscriptionsSynchronized(TArray<FGuid> SynchronizedParameterDefinitionsIds /*= TArray<FGuid>()*/);
 #endif

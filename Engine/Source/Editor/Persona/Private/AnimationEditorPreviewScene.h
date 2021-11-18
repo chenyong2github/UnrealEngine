@@ -317,14 +317,6 @@ public:
 		bAllowAdditionalMeshes = bAllow;
 	}
 
-	/** Get whether bones can be selected by their physics bodies */
-	virtual bool UsePhysicsBodiesForBoneSelection() const override;
-
-	/** Set whether bones can be selected by their physics bodies */
-	virtual void SetUsePhysicsBodiesForBoneSelection(bool bUsePhysicsBodies) override;
-
-	virtual UPersonaSelectionComponent* GetSelectionComponent() override;
-
 	virtual void SetEditableSkeleton(TSharedPtr<IEditableSkeleton> InEditableSkeleton) override
 	{
 		EditableSkeletonPtr = InEditableSkeleton;
@@ -474,12 +466,6 @@ private:
 	/** Allow additional meshes to be selectable */
 	bool bAdditionalMeshesSelectable;
 
-	/** Allow bones to be selectable by clicking on their respective physics bodies */
-	bool bUsePhysicsBodiesForBoneSelection;
-
 	/** Delegate Remove attach component */
 	FOnRemoveAttachedComponentFilter OnRemoveAttachedComponentFilter;
-
-	/** The component storing the capsules */
-	TWeakObjectPtr<UPersonaSelectionComponent> SelectionComponentPtr;
 };

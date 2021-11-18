@@ -12,8 +12,6 @@ using EpicGames.Core;
 
 using Ionic.Zip;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class AndroidAARHandler
@@ -44,9 +42,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public List<string> Repositories = null;
-		public List<AndroidAAREntry> AARList = null;
-		private List<AndroidAAREntry> JARList = null;
+		public List<string>? Repositories = null;
+		public List<AndroidAAREntry>? AARList = null;
+		private List<AndroidAAREntry>? JARList = null;
 
 		/// <summary>
 		/// Handler for AAR and JAR dependency determination and staging
@@ -67,7 +65,7 @@ namespace UnrealBuildTool
 			if (Directory.Exists(RepositoryPath))
 			{
 				Log.TraceInformation("Added repository: {0}", RepositoryPath);
-				Repositories.Add(RepositoryPath);
+				Repositories!.Add(RepositoryPath);
 			}
 			else
 			{
@@ -96,7 +94,7 @@ namespace UnrealBuildTool
 						if (SearchPath.Contains(SearchPattern))
 						{
 							Log.TraceInformation("Added repository: {0}", SearchPath);
-							Repositories.Add(SearchPath);
+							Repositories!.Add(SearchPath);
 						}
 						else
 						{
@@ -114,11 +112,11 @@ namespace UnrealBuildTool
 		public void DumpAAR()
 		{
 			Log.TraceInformation("ALL DEPENDENCIES");
-			foreach (AndroidAAREntry Entry in AARList)
+			foreach (AndroidAAREntry Entry in AARList!)
 			{
 				Log.TraceInformation("{0}", Entry.Filename);
 			}
-			foreach (AndroidAAREntry Entry in JARList)
+			foreach (AndroidAAREntry Entry in JARList!)
 			{
 				Log.TraceInformation("{0}", Entry.Filename);
 			}
@@ -130,12 +128,12 @@ namespace UnrealBuildTool
 			return (Element != null) ? Element.Value : DefaultValue;
 		}
 
-		private string FindPackageFile(string PackageName, string BaseName, string Version)
+		private string? FindPackageFile(string PackageName, string BaseName, string Version)
 		{
 			string[] Sections = PackageName.Split('.');
 			string PackagePath = Path.Combine(Sections);
 
-			foreach (string Repository in Repositories)
+			foreach (string Repository in Repositories!)
 			{
 				string PackageDirectory = Path.Combine(Repository, PackagePath, BaseName, Version);
 
@@ -244,7 +242,7 @@ namespace UnrealBuildTool
 		/// <param name="Version">Version of the AAR to use</param>
 		public void AddNewJAR(string PackageName, string BaseName, string Version)
 		{
-			string BasePath = FindPackageFile(PackageName, BaseName, Version);
+			string? BasePath = FindPackageFile(PackageName, BaseName, Version);
 			if (BasePath == null)
 			{
 				Log.TraceError("AAR: Unable to find package {0}!", PackageName + "/" + BaseName);
@@ -254,7 +252,7 @@ namespace UnrealBuildTool
 
 			// Check if already added
 			uint NewVersionValue = GetVersionValue(Version);
-			for (int JARIndex = 0; JARIndex < JARList.Count; JARIndex++)
+			for (int JARIndex = 0; JARIndex < JARList!.Count; JARIndex++)
 			{
 				if (JARList[JARIndex].BaseName == BaseName)
 				{
@@ -345,11 +343,11 @@ namespace UnrealBuildTool
 			if (!HandleDependencies)
 			{
 				AndroidAAREntry NewAAREntry = new AndroidAAREntry(BaseName, Version, PackageName);
-				AARList.Add(NewAAREntry);
+				AARList!.Add(NewAAREntry);
 				return;
 			}
 
-			string BasePath = FindPackageFile(PackageName, BaseName, Version);
+			string? BasePath = FindPackageFile(PackageName, BaseName, Version);
 			if (BasePath == null)
 			{
 				Log.TraceError("AAR: Unable to find package {0}!", PackageName + "/" + BaseName);
@@ -359,7 +357,7 @@ namespace UnrealBuildTool
 
 			// Check if already added
 			uint NewVersionValue = GetVersionValue(Version);
-			for (int AARIndex = 0; AARIndex < AARList.Count; AARIndex++)
+			for (int AARIndex = 0; AARIndex < AARList!.Count; AARIndex++)
 			{
 				if (AARList[AARIndex].BaseName == BaseName)
 				{
@@ -450,7 +448,7 @@ namespace UnrealBuildTool
 
 		private void MakeDirectoryIfRequiredForFile(string DestFilename)
 		{
-			string DestSubdir = Path.GetDirectoryName(DestFilename);
+			string DestSubdir = Path.GetDirectoryName(DestFilename)!;
 			if (!Directory.Exists(DestSubdir))
 			{
 				Directory.CreateDirectory(DestSubdir);
@@ -475,7 +473,7 @@ namespace UnrealBuildTool
 			DestinationPath = Path.Combine(DestinationPath, "libs");
 			MakeDirectoryIfRequired(DestinationPath);
 
-			foreach (AndroidAAREntry Entry in JARList)
+			foreach (AndroidAAREntry Entry in JARList!)
 			{
 				string Filename = Entry.Filename + ".jar";
 				string BaseName = Path.GetFileName(Filename);
@@ -506,7 +504,7 @@ namespace UnrealBuildTool
 			MakeDirectoryIfRequired(DestinationPath);
 
 			Log.TraceInformation("Extracting AARs");
-			foreach (AndroidAAREntry Entry in AARList)
+			foreach (AndroidAAREntry Entry in AARList!)
 			{
 				string BaseName = Path.GetFileName(Entry.Filename);
 				string TargetPath = Path.Combine(DestinationPath, BaseName);
@@ -613,7 +611,7 @@ namespace UnrealBuildTool
 					if (Entry.FileName.Contains("internal_impl"))
 					{
 						string _ZipName = Path.GetFileNameWithoutExtension(ZipFileName);
-						string NewOutputFileName = Path.Combine(Path.GetDirectoryName(OutputFileName),
+						string NewOutputFileName = Path.Combine(Path.GetDirectoryName(OutputFileName)!,
 							_ZipName + '-' + Path.GetFileNameWithoutExtension(OutputFileName) + '.' + Path.GetExtension(OutputFileName));
 						Log.TraceInformation("Changed FileName {0} => {1}", Entry.FileName, NewOutputFileName);
 						OutputFileName = NewOutputFileName;

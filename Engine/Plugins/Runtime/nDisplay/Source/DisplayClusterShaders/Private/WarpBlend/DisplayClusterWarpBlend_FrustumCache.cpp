@@ -2,7 +2,7 @@
 
 #include "DisplayClusterWarpBlend_FrustumCache.h"
 
-void FDisplayClusterWarpBlend_FrustumCache::SetFrustumCacheDepth(int InFrustumCacheDepth)
+void FDisplayClusterWarpBlend_FrustumCache::SetFrustumCacheDepth(const int32 InFrustumCacheDepth)
 {
 	check(IsInGameThread());
 
@@ -30,12 +30,12 @@ bool FDisplayClusterWarpBlend_FrustumCache::GetCachedFrustum(const FDisplayClust
 		// Try to use old frustum values from cache (reduce CPU cost)
 		if (FrustumCache.Num() > 0)
 		{
-			for (int i = 0; i < FrustumCache.Num(); i++)
+			for (int32 FrustumCacheIndex = 0; FrustumCacheIndex < FrustumCache.Num(); FrustumCacheIndex++)
 			{
-				if (FrustumCache[i].Eye.IsEqual(InEye, FrustumCachePrecision))
+				if (FrustumCache[FrustumCacheIndex].Eye.IsEqual(InEye, FrustumCachePrecision))
 				{
 					// Use cached value
-					OutContext = FrustumCache[i].Context;
+					OutContext = FrustumCache[FrustumCacheIndex].Context;
 
 					// Move used value on a cache top
 					AddFrustum(InEye, OutContext);
@@ -59,7 +59,7 @@ void FDisplayClusterWarpBlend_FrustumCache::AddFrustum(const FDisplayClusterWarp
 	}
 
 	// Remove too old cached values
-	int TotalTooOldValuesCount = FrustumCache.Num() - FrustumCacheDepth;
+	const int32 TotalTooOldValuesCount = FrustumCache.Num() - FrustumCacheDepth;
 	if (TotalTooOldValuesCount > 0)
 	{
 		FrustumCache.RemoveAt(0, TotalTooOldValuesCount);

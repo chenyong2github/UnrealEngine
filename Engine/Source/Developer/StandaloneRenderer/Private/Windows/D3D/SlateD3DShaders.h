@@ -164,7 +164,7 @@ public:
 	void SetShaderType(uint32 InShaderType);
 	void SetDrawEffects(ESlateDrawEffect InDrawEffects);
 	void SetShaderParams(const FShaderParams& InShaderParams);
-	void SetGammaValues(const FVector2D& InGammaValues);
+	void SetGammaValues(const FVector2f& InGammaValues);
 protected:
 	void UpdateParameters();
 private:
@@ -181,9 +181,9 @@ private:
 
 	MS_ALIGN(16) struct FPerFrameConstants
 	{
-		FVector2D GammaValues;
+		FVector2f GammaValues;
 	};
-	static_assert(sizeof(FVector2D) == sizeof(float) * 2, "Size mismatch");	// LWC_TODO: Fix for FVector2f
+	static_assert(sizeof(FVector2f) == sizeof(float) * 2, "Size mismatch");
 
 	FSlateD3DConstantBuffer<FPerElementConstants> PerElementConstants;
 	FSlateD3DConstantBuffer<FPerFrameConstants> PerFrameConstants;

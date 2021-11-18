@@ -12,14 +12,14 @@
 
 MANAGED_ARRAY_TYPE(FVector3f, Vector)
 MANAGED_ARRAY_TYPE(FIntVector, IntVector)
-MANAGED_ARRAY_TYPE(FVector2D, Vector2D)
+MANAGED_ARRAY_TYPE(FVector2f, Vector2D)
 MANAGED_ARRAY_TYPE(FLinearColor, LinearColor)
 MANAGED_ARRAY_TYPE(int32, Int32)
 MANAGED_ARRAY_TYPE(bool, Bool)
 MANAGED_ARRAY_TYPE(FTransform, Transform)
 MANAGED_ARRAY_TYPE(FString, String)
 MANAGED_ARRAY_TYPE(float, Float)
-MANAGED_ARRAY_TYPE(FQuat, Quat)
+MANAGED_ARRAY_TYPE(FQuat4f, Quat)
 MANAGED_ARRAY_TYPE(FGeometryCollectionBoneNode, BoneNode)
 MANAGED_ARRAY_TYPE(FGeometryCollectionSection, MeshSection)
 MANAGED_ARRAY_TYPE(FBox, Box)
@@ -40,7 +40,7 @@ MANAGED_ARRAY_TYPE(Chaos::ThreadSafeSharedPtr_FImplicitObject, FImplicitObject3T
 MANAGED_ARRAY_TYPE(Chaos::NotThreadSafeSharedPtr_FImplicitObject, FImplicitObject3SharedPointer)
 MANAGED_ARRAY_TYPE(Chaos::FPBDRigidClusteredParticleHandle*, TPBDRigidClusteredParticleHandle3fPtr)
 MANAGED_ARRAY_TYPE(TUniquePtr<Chaos::FConvex>, FConvexUniquePtr)
-MANAGED_ARRAY_TYPE(TArray<FVector2D>, Vector2DArray)
+MANAGED_ARRAY_TYPE(TArray<FVector2f>, Vector2DArray)
 MANAGED_ARRAY_TYPE(double, Double)
 
 // NOTE: new types must be added at the bottom to keep serialization from breaking

@@ -4,6 +4,7 @@
 #include "Misc/Paths.h"
 #include "CoreMinimal.h"
 #include "NodeProcess.h"
+#include "NodeProcessRunnableThread.h"
 
 #define LOCTEXT_NAMESPACE "Bridge"
 
@@ -20,7 +21,17 @@ public:
 
 	virtual void ShutdownModule() override
 	{
+		FBridgeUIManager::Shutdown();
+		
 		// TODO: Do some clean up (if required)
+		TArray<NodeProcessRunnableThread*> NodeThreads = FNodeProcessManager::Get()->NodeThreads;
+		for (int i = 0; i < NodeThreads.Num(); i++)
+		{
+			if (NodeThreads[i] != nullptr)
+			{
+				NodeThreads[i]->Exit();
+			}
+		}
 	}
 };
 

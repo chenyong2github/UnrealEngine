@@ -16,6 +16,7 @@ FOnlineServicesCommon::FOnlineServicesCommon(const FString& InConfigName)
 	, InstanceIndex(NextInstanceIndex++)
 	, ConfigProvider(MakeUnique<FOnlineConfigProviderGConfig>(GEngineIni))
 	, ConfigName(InConfigName)
+	, SerialQueue(ParallelQueue)
 {
 }
 
@@ -58,6 +59,11 @@ IPresencePtr FOnlineServicesCommon::GetPresenceInterface()
 	return IPresencePtr(AsShared(), Get<IPresence>());
 }
 
+IExternalUIPtr FOnlineServicesCommon::GetExternalUIInterface()
+{
+	return IExternalUIPtr(AsShared(), Get<IExternalUI>());
+}
+
 void FOnlineServicesCommon::RegisterComponents()
 {
 }
@@ -81,6 +87,8 @@ bool FOnlineServicesCommon::Tick(float DeltaSeconds)
 {
 	Components.Visit(&IOnlineComponent::Tick, DeltaSeconds);
 
+	ParallelQueue.Tick(DeltaSeconds);
+
 	return true;
 }
 
@@ -92,6 +100,32 @@ void FOnlineServicesCommon::PreShutdown()
 void FOnlineServicesCommon::Shutdown()
 {
 	Components.Visit(&IOnlineComponent::Shutdown);
+}
+
+FOnlineAsyncOpQueueParallel& FOnlineServicesCommon::GetParallelQueue()
+{
+	return ParallelQueue;
+}
+
+FOnlineAsyncOpQueue& FOnlineServicesCommon::GetSerialQueue()
+{
+	return SerialQueue;
+}
+
+FOnlineAsyncOpQueue& FOnlineServicesCommon::GetSerialQueue(FAccountId& AccountId)
+{
+	TUniquePtr<FOnlineAsyncOpQueueSerial>* Queue = PerUserSerialQueue.Find(AccountId);
+	if (Queue == nullptr)
+	{
+		Queue = &PerUserSerialQueue.Emplace(AccountId, MakeUnique<FOnlineAsyncOpQueueSerial>(ParallelQueue));
+	}
+
+	return **Queue;
+}
+
+void FOnlineServicesCommon::RegisterExecHandler(const FString& Name, TUniquePtr<IOnlineExecHandler>&& Handler)
+{
+	ExecCommands.Emplace(Name, MoveTemp(Handler));
 }
 
 bool FOnlineServicesCommon::Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar)

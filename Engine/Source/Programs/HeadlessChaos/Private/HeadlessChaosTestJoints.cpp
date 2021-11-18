@@ -355,7 +355,7 @@ namespace ChaosTest {
 
 			Test.GetParticle(0)->X() = RootPosition;
 
-			Test.Evolution.GetCollisionDetector().GetBroadPhase().SetBoundsVelocityInflation(1);
+			Test.Evolution.GetCollisionDetector().GetNarrowPhase().SetBoundsVelocityInflation(1);
 			Test.Evolution.AdvanceOneTimeStep(Dt);
 			Test.Evolution.EndFrame(Dt);
 
@@ -429,7 +429,7 @@ namespace ChaosTest {
 		}
 
 		Test.Create();
-		Test.Evolution.GetCollisionDetector().GetBroadPhase().SetBoundsVelocityInflation(1);
+		Test.Evolution.GetCollisionDetector().GetNarrowPhase().SetBoundsVelocityInflation(1);
 
 		const FVec3 Box2LocalSpaceJointPosition = Test.JointPositions[0] - Test.ParticlePositions[1];
 

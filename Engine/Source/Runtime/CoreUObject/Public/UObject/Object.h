@@ -348,6 +348,12 @@ public:
 	 */
 	virtual void Serialize(FArchive& Ar);
 	virtual void Serialize(FStructuredArchive::FRecord Record);
+	/**
+	 * Call Ar.UsingCustomVersion for every CustomVersion that might be serialized by this class when saving.
+	 * This duplicates CustomVersions declared in Serialize; Serialize still needs to declare them.
+	 * Used to track which customversions will be used by a package when it is resaved.
+	 * Not yet exhaustive; add CustomVersions as necessary to remove EditorDomain warnings about missing versions. */
+	virtual void DeclareCustomVersions(FArchive& Ar);
 
 	/** After a critical error, perform any mission-critical cleanup, such as restoring the video mode orreleasing hardware resources. */
 	virtual void ShutdownAfterError() {}
@@ -1609,32 +1615,39 @@ private:
 	}
 };
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+struct FInternalUObjectBaseUtilityIsValidFlagsChecker
+{
+	FORCEINLINE static bool CheckObjectValidBasedOnItsFlags(const UObject* Test)
+	{
+		// Here we don't really check if the flags match but if the end result is the same
+		checkSlow(GUObjectArray.IndexToObject(Test->InternalIndex)->HasAnyFlags(EInternalObjectFlags::PendingKill | EInternalObjectFlags::Garbage) == Test->HasAnyFlags(RF_InternalPendingKill | RF_InternalGarbage));
+		return !Test->HasAnyFlags(RF_InternalPendingKill | RF_InternalGarbage);
+	}
+};
 
 /**
 * Test validity of object
 *
 * @param	Test			The object to test
-* @return	Return true if the object is usable: non-null and not pending kill
+* @return	Return true if the object is usable: non-null and not pending kill or garbage
 */
 FORCEINLINE bool IsValid(const UObject *Test)
 {
-	return Test && !Test->IsPendingKill();
+	return Test && FInternalUObjectBaseUtilityIsValidFlagsChecker::CheckObjectValidBasedOnItsFlags(Test);
 }
 
 /**
 * Test validity of object similar to IsValid(Test) however the null pointer test is skipped
 *
 * @param	Test			The object to test
-* @return	Return true if the object is usable: not pending kill
+* @return	Return true if the object is usable: not pending kill or garbage
 */
 FORCEINLINE bool IsValidChecked(const UObject* Test)
 {
 	check(Test);
-	return !Test->IsPendingKill();
+	return FInternalUObjectBaseUtilityIsValidFlagsChecker::CheckObjectValidBasedOnItsFlags(Test);
 }
 
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 /**
 * Returns a pointer to a valid object if the Test object passes IsValid() tests, otherwise null
 *

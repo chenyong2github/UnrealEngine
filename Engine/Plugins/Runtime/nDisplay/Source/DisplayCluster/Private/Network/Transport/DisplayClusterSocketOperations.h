@@ -13,7 +13,7 @@
 class FDisplayClusterSocketOperations
 {
 public:
-	FDisplayClusterSocketOperations(FSocket* Socket, int32 PersistentBufferSize, const FString& ConnectionName);
+	FDisplayClusterSocketOperations(FSocket* Socket, int32 PersistentBufferSize, const FString& ConnectionName, bool bReleaseSocketOnDestroy = true);
 	virtual ~FDisplayClusterSocketOperations();
 
 public:
@@ -29,10 +29,24 @@ public:
 		return CritSecInternals;
 	}
 
-	// Access to the socket
-	inline FSocket* GetSocket()
+	// Connect
+	inline bool ConnectSocket(const FInternetAddr& Addr)
 	{
-		return Socket;
+		if (!IsOpen())
+		{
+			return Socket->Connect(Addr);
+		}
+
+		return false;
+	}
+
+	// Close socket
+	inline void CloseSocket()
+	{
+		if (IsOpen())
+		{
+			Socket->Close();
+		}
 	}
 
 	// Access to the connection name
@@ -48,14 +62,21 @@ public:
 	}
 
 public:
-	// Receive specified amount of bytes to custom buffer
+	// Receive specified amount of bytes to custom buffer (external socket object)
+	static bool RecvChunk(FSocket* const InSocket, TArray<uint8>& ChunkBuffer, const uint32 ChunkSize, const FString& ChunkName = FString("ReadDataChunk"));
+	// Send specified amount of bytes from specified buffer (external socket object)
+	static bool SendChunk(FSocket* const InSocket, const TArray<uint8>& ChunkBuffer, const uint32 ChunkSize, const FString& ChunkName = FString("WriteDataChunk"));
+
+	// Receive specified amount of bytes to custom buffer (internal socket object)
 	bool RecvChunk(TArray<uint8>& ChunkBuffer, const uint32 ChunkSize, const FString& ChunkName = FString("ReadDataChunk"));
-	// Send specified amount of bytes from specified buffer
+	// Send specified amount of bytes from specified buffer (internal socket object)
 	bool SendChunk(const TArray<uint8>& ChankBuffer, const uint32 ChunkSize, const FString& ChunkName = FString("WriteDataChunk"));
 
 private:
 	// Socket
-	FSocket* const Socket = nullptr;
+	FSocket* Socket = nullptr;
+	// Should the socket be released in .dtor
+	bool bReleaseSocket = false;
 	// Data buffer
 	TArray<uint8> DataBuffer;
 	// Connection name (basically for nice logging)

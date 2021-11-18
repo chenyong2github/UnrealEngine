@@ -21,6 +21,14 @@ struct FWorldPartitionPerWorldSettings
 	FWorldPartitionPerWorldSettings(TArray<FName>& InLoadedEditorGridCells)
 		: LoadedEditorGridCells(InLoadedEditorGridCells)
 	{}
+
+	void Reset()
+	{
+		LoadedEditorGridCells.Empty();
+		NotLoadedDataLayers.Empty();
+		LoadedDataLayers.Empty();
+		EditorGridConfigHash = 0;
+	}
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -38,8 +46,8 @@ struct FWorldPartitionPerWorldSettings
 #endif
 };
 
-UCLASS(MinimalAPI, config = EditorPerProjectUserSettings)
-class UWorldPartitionEditorPerProjectUserSettings : public UObject
+UCLASS(config = EditorPerProjectUserSettings)
+class ENGINE_API UWorldPartitionEditorPerProjectUserSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -57,61 +65,21 @@ public:
 	{}
 
 #if WITH_EDITOR
-	void SetEditorGridConfigHash(UWorld* InWorld, uint32 InEditorGridConfigHash)
-	{ 
-		if (ShouldSaveSettings(InWorld))
-		{
-			FWorldPartitionPerWorldSettings& PerWorldSettings = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld));
-			if (PerWorldSettings.EditorGridConfigHash != InEditorGridConfigHash)
-			{
-				PerWorldSettings.EditorGridConfigHash = InEditorGridConfigHash;
-				PerWorldSettings.LoadedEditorGridCells.Empty();
-				SaveConfig();
-			}
-		}
-	}
-
-	const TArray<FName>& GetEditorGridLoadedCells(UWorld* InWorld)
-	{ 
-		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
-	}
-
-	void SetEditorGridLoadedCells(UWorld* InWorld, TArray<FName>& InEditorGridLoadedCells)
-	{
-		if (ShouldSaveSettings(InWorld))
-		{
-			TArray<FName>& GridLoadedCells = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
-			GridLoadedCells = InEditorGridLoadedCells;
-			SaveConfig();
-		}
-	}
+	TArray<FName> GetEditorGridLoadedCells(UWorld* InWorld) const;
+	void SetEditorGridLoadedCells(UWorld* InWorld, const TArray<FName>& InEditorGridLoadedCells);
 
 	bool GetEnableLoadingOfLastLoadedCells() const
 	{
 		return !bDisableLoadingOfLastLoadedCells;
 	}
 
-	const TArray<FName>& GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld)
-	{
-		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).NotLoadedDataLayers;
-	}
+	TArray<FName> GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld) const;
+	TArray<FName> GetWorldDataLayersLoadedInEditor(UWorld* InWorld) const;
+	
+	void SetWorldDataLayersNonDefaultEditorLoadStates(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor, const TArray<FName>& InDataLayersNotLoadedInEditor);
 
-	const TArray<FName>& GetWorldDataLayersLoadedInEditor(UWorld* InWorld)
-	{
-		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedDataLayers;
-	}
-
-	void SetWorldDataLayersNonDefaultEditorLoadStates(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor, const TArray<FName>& InDataLayersNotLoadedInEditor)
-	{
-		if (ShouldSaveSettings(InWorld))
-		{
-			FWorldPartitionPerWorldSettings& PerWorldSettings = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld));
-
-			PerWorldSettings.NotLoadedDataLayers = InDataLayersNotLoadedInEditor;
-			PerWorldSettings.LoadedDataLayers = InDataLayersLoadedInEditor;
-			SaveConfig();
-		}
-	}
+private:
+	const FWorldPartitionPerWorldSettings* GetWorldPartitionPerWorldSettings(UWorld* InWorld) const;
 #endif
 
 #if WITH_EDITORONLY_DATA

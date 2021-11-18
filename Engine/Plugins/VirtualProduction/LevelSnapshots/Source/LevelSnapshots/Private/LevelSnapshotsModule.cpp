@@ -21,9 +21,9 @@
 #include "ISettingsModule.h"
 #endif
 
-namespace
+namespace UE::LevelSnapshots::Private::Internal
 {
-	void AddSoftObjectPathSupport(FLevelSnapshotsModule& Module)
+	static void AddSoftObjectPathSupport(UE::LevelSnapshots::Private::FLevelSnapshotsModule& Module)
 	{
 		// FSnapshotRestorability::IsRestorableProperty requires properties to have the CPF_Edit specifier
 		// FSoftObjectPath does not have this so we need to explicitly allow its properties
@@ -39,7 +39,7 @@ namespace
 		Module.AddExplicitilySupportedProperties(SoftObjectPathProperties);
 	}
 
-	void AddAttachParentSupport(FLevelSnapshotsModule& Module)
+	static void AddAttachParentSupport(UE::LevelSnapshots::Private::FLevelSnapshotsModule& Module)
 	{
 		// These properties are not visible by default because they're not CPF_Edit
 		const FProperty* AttachParent = USceneComponent::StaticClass()->FindPropertyByName(FName("AttachParent"));
@@ -52,7 +52,7 @@ namespace
 		}
 	}
 
-	void DisableIrrelevantBrushSubobjects(FLevelSnapshotsModule& Module)
+	static void DisableIrrelevantBrushSubobjects(UE::LevelSnapshots::Private::FLevelSnapshotsModule& Module)
 	{
 #if WITH_EDITORONLY_DATA
 		// ABrush::BrushBuilder is CPF_Edit but no user ever cares about it. We don't want it to make volumes to show up as changed.
@@ -64,7 +64,7 @@ namespace
 #endif
 	}
 
-	void DisableIrrelevantWorldSettings(FLevelSnapshotsModule& Module)
+	static void DisableIrrelevantWorldSettings(UE::LevelSnapshots::Private::FLevelSnapshotsModule& Module)
 	{
 		// AWorldSettings::NavigationSystemConfig is CPF_Edit but no user ever cares about it.
 		const FProperty* NavigationSystemConfig = AWorldSettings::StaticClass()->FindPropertyByName(FName("NavigationSystemConfig"));
@@ -74,7 +74,7 @@ namespace
 		}
 	}
 
-	void DisableIrrelevantMaterialInstanceProperties(FLevelSnapshotsModule& Module)
+	static void DisableIrrelevantMaterialInstanceProperties(UE::LevelSnapshots::Private::FLevelSnapshotsModule& Module)
 	{
 		// This property causes diffs sometimes for unexplained reasons when creating in construction script... does not seem to be important
 		const FProperty* BasePropertyOverrides = UMaterialInstance::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMaterialInstance, BasePropertyOverrides));
@@ -84,7 +84,7 @@ namespace
 		}
 	}
 
-	void DisableIrrelevantActorProperties(FLevelSnapshotsModule& Module)
+	static void DisableIrrelevantActorProperties(UE::LevelSnapshots::Private::FLevelSnapshotsModule& Module)
 	{
 		const FProperty* ActorGuid = AActor::StaticClass()->FindPropertyByName(FName("ActorGuid"));
 		if (ensure(ActorGuid))
@@ -94,17 +94,17 @@ namespace
 	}
 }
 
-FLevelSnapshotsModule& FLevelSnapshotsModule::GetInternalModuleInstance()
+UE::LevelSnapshots::Private::FLevelSnapshotsModule& UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetInternalModuleInstance()
 {
-	static FLevelSnapshotsModule& ModuleInstance = *[]() -> FLevelSnapshotsModule*
+	static UE::LevelSnapshots::Private::FLevelSnapshotsModule& ModuleInstance = *[]() -> UE::LevelSnapshots::Private::FLevelSnapshotsModule*
 	{
 		UE_CLOG(!FModuleManager::Get().IsModuleLoaded("LevelSnapshots"), LogLevelSnapshots, Fatal, TEXT("You called GetInternalModuleInstance before the module was initialised."));
-		return &FModuleManager::GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
+		return &FModuleManager::GetModuleChecked<UE::LevelSnapshots::Private::FLevelSnapshotsModule>("LevelSnapshots");
 	}();
 	return ModuleInstance;
 }
 
-void FLevelSnapshotsModule::StartupModule()
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::StartupModule()
 {
 	// Hook up project settings
 	const TSharedRef<FClassRestorationSkipper> ClassSkipper = MakeShared<FClassRestorationSkipper>(
@@ -117,12 +117,12 @@ void FLevelSnapshotsModule::StartupModule()
 	RegisterRestorabilityOverrider(ClassSkipper);
 
 	// Enable / disable troublesome properties
-	AddSoftObjectPathSupport(*this);
-	AddAttachParentSupport(*this);
-	DisableIrrelevantBrushSubobjects(*this);
-	DisableIrrelevantWorldSettings(*this);
-	DisableIrrelevantMaterialInstanceProperties(*this);
-	DisableIrrelevantActorProperties(*this);
+	UE::LevelSnapshots::Private::Internal::AddSoftObjectPathSupport(*this);
+	UE::LevelSnapshots::Private::Internal::AddAttachParentSupport(*this);
+	UE::LevelSnapshots::Private::Internal::DisableIrrelevantBrushSubobjects(*this);
+	UE::LevelSnapshots::Private::Internal::DisableIrrelevantWorldSettings(*this);
+	UE::LevelSnapshots::Private::Internal::DisableIrrelevantMaterialInstanceProperties(*this);
+	UE::LevelSnapshots::Private::Internal::DisableIrrelevantActorProperties(*this);
 
 	// Interact with special engine features
 	FCollisionRestoration::Register(*this);
@@ -140,7 +140,7 @@ void FLevelSnapshotsModule::StartupModule()
 #endif
 }
 
-void FLevelSnapshotsModule::ShutdownModule()
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::ShutdownModule()
 {
 	Overrides.Reset();
 	PropertyComparers.Reset();
@@ -155,17 +155,17 @@ void FLevelSnapshotsModule::ShutdownModule()
 #endif
 }
 
-void FLevelSnapshotsModule::RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)
 {
 	Overrides.AddUnique(Overrider);
 }
 
-void FLevelSnapshotsModule::UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorabilityOverrider(TSharedRef<ISnapshotRestorabilityOverrider> Overrider)
 {
 	Overrides.RemoveSwap(Overrider);
 }
 
-void FLevelSnapshotsModule::AddSkippedSubobjectClasses(const TSet<UClass*>& Classes)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::AddSkippedSubobjectClasses(const TSet<UClass*>& Classes)
 {
 	for (UClass* Class : Classes)
 	{
@@ -182,7 +182,7 @@ void FLevelSnapshotsModule::AddSkippedSubobjectClasses(const TSet<UClass*>& Clas
 	}
 }
 
-void FLevelSnapshotsModule::RemoveSkippedSubobjectClasses(const TSet<UClass*>& Classes)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RemoveSkippedSubobjectClasses(const TSet<UClass*>& Classes)
 {
 	for (UClass* Class : Classes)
 	{
@@ -190,12 +190,12 @@ void FLevelSnapshotsModule::RemoveSkippedSubobjectClasses(const TSet<UClass*>& C
 	}
 }
 
-void FLevelSnapshotsModule::RegisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer)
 {
 	PropertyComparers.FindOrAdd(Class).AddUnique(Comparer);
 }
 
-void FLevelSnapshotsModule::UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterPropertyComparer(UClass* Class, TSharedRef<IPropertyComparer> Comparer)
 {
 	TArray<TSharedRef<IPropertyComparer>>* Comparers = PropertyComparers.Find(Class);
 	if (!Comparers)
@@ -210,7 +210,7 @@ void FLevelSnapshotsModule::UnregisterPropertyComparer(UClass* Class, TSharedRef
 	}
 }
 
-void FLevelSnapshotsModule::RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterCustomObjectSerializer(UClass* Class, TSharedRef<ICustomObjectSnapshotSerializer> CustomSerializer, bool bIncludeBlueprintChildClasses)
 {
 	if (!ensureAlways(Class))
 	{
@@ -232,32 +232,32 @@ void FLevelSnapshotsModule::RegisterCustomObjectSerializer(UClass* Class, TShare
 	CustomSerializers.Add(Class, { CustomSerializer, bIncludeBlueprintChildClasses });
 }
 
-void FLevelSnapshotsModule::UnregisterCustomObjectSerializer(UClass* Class)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterCustomObjectSerializer(UClass* Class)
 {
 	CustomSerializers.Remove(Class);
 }
 
-void FLevelSnapshotsModule::RegisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
 {
 	SnapshotLoaders.AddUnique(Loader);
 }
 
-void FLevelSnapshotsModule::UnregisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterSnapshotLoader(TSharedRef<ISnapshotLoader> Loader)
 {
 	SnapshotLoaders.RemoveSingle(Loader);
 }
 
-void FLevelSnapshotsModule::RegisterRestorationListener(TSharedRef<IRestorationListener> Listener)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RegisterRestorationListener(TSharedRef<IRestorationListener> Listener)
 {
 	RestorationListeners.AddUnique(Listener);
 }
 
-void FLevelSnapshotsModule::UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::UnregisterRestorationListener(TSharedRef<IRestorationListener> Listener)
 {
 	RestorationListeners.RemoveSingle(Listener);
 }
 
-void FLevelSnapshotsModule::AddExplicitilySupportedProperties(const TSet<const FProperty*>& Properties)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::AddExplicitilySupportedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
 	{
@@ -265,7 +265,7 @@ void FLevelSnapshotsModule::AddExplicitilySupportedProperties(const TSet<const F
 	}
 }
 
-void FLevelSnapshotsModule::RemoveAdditionallySupportedProperties(const TSet<const FProperty*>& Properties)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RemoveAdditionallySupportedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
 	{
@@ -273,7 +273,7 @@ void FLevelSnapshotsModule::RemoveAdditionallySupportedProperties(const TSet<con
 	}
 }
 
-void FLevelSnapshotsModule::AddExplicitlyUnsupportedProperties(const TSet<const FProperty*>& Properties)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::AddExplicitlyUnsupportedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
 	{
@@ -281,7 +281,7 @@ void FLevelSnapshotsModule::AddExplicitlyUnsupportedProperties(const TSet<const 
 	}
 }
 
-void FLevelSnapshotsModule::RemoveExplicitlyUnsupportedProperties(const TSet<const FProperty*>& Properties)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RemoveExplicitlyUnsupportedProperties(const TSet<const FProperty*>& Properties)
 {
 	for (const FProperty* Property : Properties)
 	{
@@ -289,17 +289,17 @@ void FLevelSnapshotsModule::RemoveExplicitlyUnsupportedProperties(const TSet<con
 	}
 }
 
-void FLevelSnapshotsModule::AddSkippedClassDefault(const UClass* Class)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::AddSkippedClassDefault(const UClass* Class)
 {
 	SkippedCDOs.Add(Class);
 }
 
-void FLevelSnapshotsModule::RemoveSkippedClassDefault(const UClass* Class)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RemoveSkippedClassDefault(const UClass* Class)
 {
 	SkippedCDOs.Remove(Class);
 }
 
-bool FLevelSnapshotsModule::ShouldSkipClassDefaultSerialization(const UClass* Class) const
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::ShouldSkipClassDefaultSerialization(const UClass* Class) const
 {
 	for (const UClass* CurrentClass = Class; CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
 	{
@@ -312,7 +312,7 @@ bool FLevelSnapshotsModule::ShouldSkipClassDefaultSerialization(const UClass* Cl
 	return false;
 }
 
-bool FLevelSnapshotsModule::ShouldSkipSubobjectClass(const UClass* Class) const
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::ShouldSkipSubobjectClass(const UClass* Class) const
 {
 	if (Class->IsChildOf(UActorComponent::StaticClass()))
 	{
@@ -328,22 +328,22 @@ bool FLevelSnapshotsModule::ShouldSkipSubobjectClass(const UClass* Class) const
 	return bFoundSkippedClass;
 }
 
-const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& FLevelSnapshotsModule::GetOverrides() const
+const TArray<TSharedRef<UE::LevelSnapshots::ISnapshotRestorabilityOverrider>>& UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetOverrides() const
 {
 	return Overrides;
 }
 
-bool FLevelSnapshotsModule::IsPropertyExplicitlySupported(const FProperty* Property) const
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::IsPropertyExplicitlySupported(const FProperty* Property) const
 {
 	return SupportedProperties.Contains(Property);
 }
 
-bool FLevelSnapshotsModule::IsPropertyExplicitlyUnsupported(const FProperty* Property) const
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::IsPropertyExplicitlyUnsupported(const FProperty* Property) const
 {
 	return UnsupportedProperties.Contains(Property);
 }
 
-FPropertyComparerArray FLevelSnapshotsModule::GetPropertyComparerForClass(UClass* Class) const
+UE::LevelSnapshots::Private::FPropertyComparerArray UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetPropertyComparerForClass(UClass* Class) const
 {
 	FPropertyComparerArray Result;
 	for (UClass* CurrentClass = Class; CurrentClass; CurrentClass = CurrentClass->GetSuperClass())
@@ -357,7 +357,7 @@ FPropertyComparerArray FLevelSnapshotsModule::GetPropertyComparerForClass(UClass
 	return Result;
 }
 
-IPropertyComparer::EPropertyComparison FLevelSnapshotsModule::ShouldConsiderPropertyEqual(const FPropertyComparerArray& Comparers, const FPropertyComparisonParams& Params) const
+UE::LevelSnapshots::IPropertyComparer::EPropertyComparison UE::LevelSnapshots::Private::FLevelSnapshotsModule::ShouldConsiderPropertyEqual(const FPropertyComparerArray& Comparers, const FPropertyComparisonParams& Params) const
 {
 	for (const TSharedRef<IPropertyComparer>& Comparer : Comparers)
 	{
@@ -370,36 +370,36 @@ IPropertyComparer::EPropertyComparison FLevelSnapshotsModule::ShouldConsiderProp
 	return IPropertyComparer::EPropertyComparison::CheckNormally;
 }
 
-TSharedPtr<ICustomObjectSnapshotSerializer> FLevelSnapshotsModule::GetCustomSerializerForClass(UClass* Class) const
+TSharedPtr<UE::LevelSnapshots::ICustomObjectSnapshotSerializer> UE::LevelSnapshots::Private::FLevelSnapshotsModule::GetCustomSerializerForClass(UClass* Class) const
 {
-	// Walk to first native parent
-	const bool bPassedInBlueprint = Class->IsInBlueprint();
-	while (Class && Class->IsInBlueprint())
-	{
-		Class = Class->GetSuperClass();
-	}
-
-	if (ensureAlways(Class))
-	{
-		const FCustomSerializer* Result = CustomSerializers.Find(Class);
-		return (Result && (!bPassedInBlueprint || Result->bIncludeBlueprintChildren)) ? Result->Serializer : TSharedPtr<ICustomObjectSnapshotSerializer>();
-	}
+    SCOPED_SNAPSHOT_CORE_TRACE(GetCustomSerializerForClass);
+    
+    const bool bWasInBlueprint = Class->IsInBlueprint();
+	while (Class)
+    {
+        if (const FCustomSerializer* Result = CustomSerializers.Find(Class); Result && (!bWasInBlueprint || Result->bIncludeBlueprintChildren))
+        {
+            return  Result->Serializer;
+        }
+		
+        Class = Class->GetSuperClass();
+    }
 
 	return nullptr;
 }
 
-void FLevelSnapshotsModule::AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate)
 {
 	CanTakeSnapshotDelegates.FindOrAdd(DelegateName) = Delegate;
 }
 
-void FLevelSnapshotsModule::RemoveCanTakeSnapshotDelegate(FName DelegateName)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::RemoveCanTakeSnapshotDelegate(FName DelegateName)
 {
 	CanTakeSnapshotDelegates.Remove(DelegateName);
 }
 
 
-bool FLevelSnapshotsModule::CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const
+bool UE::LevelSnapshots::Private::FLevelSnapshotsModule::CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const
 {
 	return Algo::AllOf(CanTakeSnapshotDelegates, [&Event](const TTuple<FName,FCanTakeSnapshot>& Pair)
 		{
@@ -411,7 +411,7 @@ bool FLevelSnapshotsModule::CanTakeSnapshot(const FPreTakeSnapshotEventData& Eve
 		});
 }
 
-void FLevelSnapshotsModule::OnPostLoadSnapshotObject(const FPostLoadSnapshotObjectParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostLoadSnapshotObject(const FPostLoadSnapshotObjectParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(SnapshotLoaders);
 	
@@ -421,7 +421,7 @@ void FLevelSnapshotsModule::OnPostLoadSnapshotObject(const FPostLoadSnapshotObje
 	}
 }
 
-void FLevelSnapshotsModule::OnPreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -431,7 +431,7 @@ void FLevelSnapshotsModule::OnPreApplySnapshotProperties(const FApplySnapshotPro
 	}
 }
 
-void FLevelSnapshotsModule::OnPostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostApplySnapshotProperties(const FApplySnapshotPropertiesParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -441,7 +441,7 @@ void FLevelSnapshotsModule::OnPostApplySnapshotProperties(const FApplySnapshotPr
 	}
 }
 
-void FLevelSnapshotsModule::OnPreApplySnapshotToActor(const FApplySnapshotToActorParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreApplySnapshotToActor(const FApplySnapshotToActorParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -451,7 +451,7 @@ void FLevelSnapshotsModule::OnPreApplySnapshotToActor(const FApplySnapshotToActo
 	}
 }
 
-void FLevelSnapshotsModule::OnPostApplySnapshotToActor(const FApplySnapshotToActorParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostApplySnapshotToActor(const FApplySnapshotToActorParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -461,7 +461,7 @@ void FLevelSnapshotsModule::OnPostApplySnapshotToActor(const FApplySnapshotToAct
 	}
 }
 
-void FLevelSnapshotsModule::OnPreCreateActor(UWorld* World, TSubclassOf<AActor> ActorClass, FActorSpawnParameters& InOutSpawnParams)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreCreateActor(UWorld* World, TSubclassOf<AActor> ActorClass, FActorSpawnParameters& InOutSpawnParams)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -471,7 +471,7 @@ void FLevelSnapshotsModule::OnPreCreateActor(UWorld* World, TSubclassOf<AActor> 
 	}
 }
 
-void FLevelSnapshotsModule::OnPostRecreateActor(AActor* Actor)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostRecreateActor(AActor* Actor)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -481,7 +481,7 @@ void FLevelSnapshotsModule::OnPostRecreateActor(AActor* Actor)
 	}
 }
 
-void FLevelSnapshotsModule::OnPreRemoveActor(AActor* Actor)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreRemoveActor(AActor* Actor)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -491,7 +491,7 @@ void FLevelSnapshotsModule::OnPreRemoveActor(AActor* Actor)
 	}
 }
 
-void FLevelSnapshotsModule::OnPreRecreateComponent(const FPreRecreateComponentParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreRecreateComponent(const FPreRecreateComponentParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -501,7 +501,7 @@ void FLevelSnapshotsModule::OnPreRecreateComponent(const FPreRecreateComponentPa
 	}
 }
 
-void FLevelSnapshotsModule::OnPostRecreateComponent(UActorComponent* RecreatedComponent)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostRecreateComponent(UActorComponent* RecreatedComponent)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 	
@@ -511,7 +511,7 @@ void FLevelSnapshotsModule::OnPostRecreateComponent(UActorComponent* RecreatedCo
 	}
 }
 
-void FLevelSnapshotsModule::OnPreRemoveComponent(UActorComponent* ComponentToRemove)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPreRemoveComponent(UActorComponent* ComponentToRemove)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 
@@ -521,7 +521,7 @@ void FLevelSnapshotsModule::OnPreRemoveComponent(UActorComponent* ComponentToRem
 	}
 }
 
-void FLevelSnapshotsModule::OnPostRemoveComponent(const FPostRemoveComponentParams& Params)
+void UE::LevelSnapshots::Private::FLevelSnapshotsModule::OnPostRemoveComponent(const FPostRemoveComponentParams& Params)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(RestorationListeners);
 
@@ -531,4 +531,4 @@ void FLevelSnapshotsModule::OnPostRemoveComponent(const FPostRemoveComponentPara
 	}
 }
 
-IMPLEMENT_MODULE(FLevelSnapshotsModule, LevelSnapshots)
+IMPLEMENT_MODULE(UE::LevelSnapshots::Private::FLevelSnapshotsModule, LevelSnapshots)

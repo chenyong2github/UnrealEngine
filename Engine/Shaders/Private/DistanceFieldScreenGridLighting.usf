@@ -15,6 +15,9 @@
 #include "/Engine/Private/Strata/Strata.ush"
 #endif
 
+// Pass a debug value through the pipeline instead of a bent normal
+#define PASS_THROUGH_DEBUG_VALUE 0
+
 /** Computes the distance field normal from the GBuffer. */
 void ComputeDistanceFieldNormalPS(
 	in float4 UVAndScreenPos : TEXCOORD0, 
@@ -90,9 +93,15 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 			float ObjectOccluderRadius = length(DFObjectData.VolumePositionExtent) * .5f * DFObjectData.VolumeScale;
 			float SelfShadowScale = 1.0f / max(DFObjectData.SelfShadowBias, .0001f);
 
-			uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
+			const uint MaxMipIndex = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips - 1;
+
+#if SDF_TRACING_TRAVERSE_MIPS
+			uint ReversedMipIndex = MaxMipIndex;
+#else
 			// Always trace against medium resolution mip
-			FDFAssetData DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, min(1u, NumMips - 1));
+			uint ReversedMipIndex = min(1u, MaxMipIndex);
+#endif
+			FDFAssetData DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
 
 			LOOP
 			for (uint ConeIndex = 0; ConeIndex < NUM_CONE_DIRECTIONS; ConeIndex++)
@@ -115,9 +124,28 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 				{
 					float3 StepSamplePosition = VolumeShadingPosition + ScaledLocalConeDirection * WorldStepOffset;
 					float3 ClampedSamplePosition = fastClamp(StepSamplePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
-					float DistanceToClamped = lengthFast(StepSamplePosition - ClampedSamplePosition);
+					float DistanceField = SampleSparseMeshSignedDistanceField(ClampedSamplePosition, DFAssetData);
 
-					float DistanceToOccluder = (SampleSparseMeshSignedDistanceField(ClampedSamplePosition, DFAssetData) + DistanceToClamped) * DFObjectData.VolumeScale;
+#if SDF_TRACING_TRAVERSE_MIPS
+					float MaxEncodedDistance = DFAssetData.DistanceFieldToVolumeScaleBias.x + DFAssetData.DistanceFieldToVolumeScaleBias.y;
+
+					// We reached the maximum distance of this mip's narrow band, use a lower resolution mip for next iteration
+					if (abs(DistanceField) >= MaxEncodedDistance && ReversedMipIndex > 0)
+					{
+						ReversedMipIndex--;
+						DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
+					}
+					// We are close to the surface, step back to safety and use a higher resolution mip for next iteration
+					else if (abs(DistanceField) < .25f * MaxEncodedDistance && ReversedMipIndex < MaxMipIndex)
+					{
+						DistanceField -= 6.0f * DFObjectData.VolumeSurfaceBias;
+						ReversedMipIndex++;
+						DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
+					}
+#endif
+
+					float DistanceToClamped = lengthFast(StepSamplePosition - ClampedSamplePosition);
+					float DistanceToOccluder = (DistanceField + DistanceToClamped) * DFObjectData.VolumeScale;
 
 					float SphereRadius = WorldStepOffset * TanConeHalfAngle;
 					float InvSphereRadius = rcpFast(SphereRadius);
@@ -131,13 +159,11 @@ void HemisphereConeTraceAgainstTileCulledObjects(uint ObjectIndex, uint OutputBa
 					// Don't allow occlusion within an object's self shadow distance
 					float SelfShadowVisibility = 1 - saturate(WorldStepOffset * SelfShadowScale);
 					
-					Visibility = max(Visibility, max(SmallObjectVisibility, SelfShadowVisibility));
-
-					float OccluderDistanceFraction = (WorldStepOffset + DistanceToOccluder) * InvMaxOcclusionDistance;
-
 					// Fade out occlusion based on distance to occluder to avoid a discontinuity at the max AO distance
+					float OccluderDistanceFraction = (WorldStepOffset + DistanceToOccluder) * InvMaxOcclusionDistance;
 					float DistanceFadeout = saturate(OccluderDistanceFraction * OccluderDistanceFraction * .6f);
-					Visibility = max(Visibility, DistanceFadeout);
+
+					Visibility = max(Visibility, max(SmallObjectVisibility, max(SelfShadowVisibility, DistanceFadeout)));
 					MinVisibility = min(Visibility, MinVisibility);
 					
 					float MinStepScale = .6f;

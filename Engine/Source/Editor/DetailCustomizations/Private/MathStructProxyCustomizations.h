@@ -233,9 +233,9 @@ public:
 public:
 	FMatrixStructCustomization()
 		: CachedRotation(MakeShareable( new TProxyValue<FRotator>(FRotator::ZeroRotator)))
-		, CachedRotationYaw(MakeShareable( new TProxyProperty<FRotator, float>(CachedRotation, CachedRotation->Get().Yaw)))
-		, CachedRotationPitch(MakeShareable( new TProxyProperty<FRotator, float>(CachedRotation, CachedRotation->Get().Pitch)))
-		, CachedRotationRoll(MakeShareable( new TProxyProperty<FRotator, float>(CachedRotation, CachedRotation->Get().Roll)))
+		, CachedRotationYaw(MakeShareable( new TProxyProperty<FRotator, FRotator::FReal>(CachedRotation, CachedRotation->Get().Yaw)))
+		, CachedRotationPitch(MakeShareable( new TProxyProperty<FRotator, FRotator::FReal>(CachedRotation, CachedRotation->Get().Pitch)))
+		, CachedRotationRoll(MakeShareable( new TProxyProperty<FRotator, FRotator::FReal>(CachedRotation, CachedRotation->Get().Roll)))
 		, CachedTranslation(MakeShareable( new TProxyValue<FVector>(FVector::ZeroVector)))
 		, CachedTranslationX(MakeShareable( new TProxyProperty<FVector, FVector::FReal>(CachedTranslation, CachedTranslation->Get().X)))
 		, CachedTranslationY(MakeShareable( new TProxyProperty<FVector, FVector::FReal>(CachedTranslation, CachedTranslation->Get().Y)))
@@ -279,9 +279,9 @@ protected:
 protected:
 	/** Cached rotation values */
 	mutable TSharedRef< TProxyValue<FRotator> > CachedRotation;
-	mutable TSharedRef< TProxyProperty<FRotator, float> > CachedRotationYaw;
-	mutable TSharedRef< TProxyProperty<FRotator, float> > CachedRotationPitch;
-	mutable TSharedRef< TProxyProperty<FRotator, float> > CachedRotationRoll;
+	mutable TSharedRef< TProxyProperty<FRotator, FRotator::FReal> > CachedRotationYaw;
+	mutable TSharedRef< TProxyProperty<FRotator, FRotator::FReal> > CachedRotationPitch;
+	mutable TSharedRef< TProxyProperty<FRotator, FRotator::FReal> > CachedRotationRoll;
 
 	/** Cached translation values */
 	mutable TSharedRef< TProxyValue<FVector> > CachedTranslation;

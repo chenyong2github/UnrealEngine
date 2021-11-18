@@ -56,12 +56,12 @@ public:
 	float*				GetAttributes( uint32 VertIndex );
 	FVector3f&			GetNormal( uint32 VertIndex );
 	FLinearColor&		GetColor( uint32 VertIndex );
-	FVector2D*			GetUVs( uint32 VertIndex );
+	FVector2f*			GetUVs( uint32 VertIndex );
 
 	const FVector3f&	GetPosition( uint32 VertIndex ) const;
 	const FVector3f&	GetNormal( uint32 VertIndex ) const;
 	const FLinearColor&	GetColor( uint32 VertIndex ) const;
-	const FVector2D*	GetUVs( uint32 VertIndex ) const;
+	const FVector2f*	GetUVs( uint32 VertIndex ) const;
 
 	friend FArchive& operator<<(FArchive& Ar, FCluster& Cluster);
 
@@ -146,14 +146,14 @@ FORCEINLINE const FLinearColor& FCluster::GetColor( uint32 VertIndex ) const
 	return *reinterpret_cast< const FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
 }
 
-FORCEINLINE FVector2D* FCluster::GetUVs( uint32 VertIndex )
+FORCEINLINE FVector2f* FCluster::GetUVs( uint32 VertIndex )
 {
-	return reinterpret_cast< FVector2D* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
+	return reinterpret_cast< FVector2f* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
 }
 
-FORCEINLINE const FVector2D* FCluster::GetUVs( uint32 VertIndex ) const
+FORCEINLINE const FVector2f* FCluster::GetUVs( uint32 VertIndex ) const
 {
-	return reinterpret_cast< const FVector2D* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
+	return reinterpret_cast< const FVector2f* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
 }
 
 } // namespace Nanite

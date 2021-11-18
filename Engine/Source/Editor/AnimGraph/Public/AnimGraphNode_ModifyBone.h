@@ -41,8 +41,5 @@ protected:
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTitleTextTable CachedNodeTitles;
-
-	// storing current widget mode 
-	int32 CurWidgetMode;
 };
 

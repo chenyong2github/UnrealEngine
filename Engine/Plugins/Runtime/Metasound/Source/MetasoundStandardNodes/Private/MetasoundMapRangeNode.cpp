@@ -98,11 +98,11 @@ namespace Metasound
 			{
 				if (*bClamped)
 				{
-					*OutputValue = (int32)FMath::GetMappedRangeValueClamped({ (float)*InRangeA, (float)*InRangeB }, { (float)*OutRangeA, (float)*OutRangeB }, (float)*Value);
+					*OutputValue = (int32)FMath::GetMappedRangeValueClamped(FVector2f{ (float)*InRangeA, (float)*InRangeB }, FVector2f{ (float)*OutRangeA, (float)*OutRangeB }, (float)*Value);
 				}
 				else
 				{
-					*OutputValue = (int32)FMath::GetMappedRangeValueUnclamped({ (float)*InRangeA, (float)*InRangeB }, { (float)*OutRangeA, (float)*OutRangeB }, (float)*Value);
+					*OutputValue = (int32)FMath::GetMappedRangeValueUnclamped(FVector2f{ (float)*InRangeA, (float)*InRangeB }, FVector2f{ (float)*OutRangeA, (float)*OutRangeB }, (float)*Value);
 				}
 			}
 
@@ -182,11 +182,11 @@ namespace Metasound
 			{
 				if (*bClamped)
 				{
-					*OutputValue = FMath::GetMappedRangeValueClamped({ *InRangeA, *InRangeB }, { *OutRangeA, *OutRangeB }, *Value);
+					*OutputValue = FMath::GetMappedRangeValueClamped(FVector2f{ *InRangeA, *InRangeB }, FVector2f{ *OutRangeA, *OutRangeB }, *Value);
 				}
 				else
 				{
-					*OutputValue = FMath::GetMappedRangeValueUnclamped({ *InRangeA, *InRangeB }, { *OutRangeA, *OutRangeB }, *Value);
+					*OutputValue = FMath::GetMappedRangeValueUnclamped(FVector2f{ *InRangeA, *InRangeB }, FVector2f{ *OutRangeA, *OutRangeB }, *Value);
 				}
 			}
 
@@ -271,8 +271,8 @@ namespace Metasound
 				const float* InBufferPtr = InBuffer.GetData();
 				int32 NumSamples = InBuffer.Num();
 
-				FVector2D InputRange = { *InRangeA, *InRangeB };
-				FVector2D OutputRange = { *OutRangeA, *OutRangeB };
+				FVector2f InputRange = { *InRangeA, *InRangeB };
+				FVector2f OutputRange = { *OutRangeA, *OutRangeB };
 
 				// TODO: SIMD this
 				for (int32 i = 0; i < NumSamples; ++i)

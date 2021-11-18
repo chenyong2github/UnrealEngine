@@ -14,6 +14,7 @@
 #include "ChaosVehicleWheel.h"
 #include "SuspensionUtility.h"
 #include "SteeringUtility.h"
+#include "TransmissionUtility.h"
 #include "Chaos/ChaosEngineInterface.h"
 #include "Chaos/PBDSuspensionConstraintData.h"
 #include "Chaos/DebugDrawQueue.h"
@@ -812,6 +813,7 @@ void UChaosWheeledVehicleSimulation::ProcessMechanicalSimulation(float DeltaTime
 			}
 		}
 
+		float WheelSpeedRPM = FMath::Abs(PTransmission.GetEngineRPMFromWheelRPM(WheelRPM));
 		PEngine.SetEngineRPM(PTransmission.IsOutOfGear(), PTransmission.GetEngineRPMFromWheelRPM(WheelRPM));
 		PEngine.Simulate(DeltaTime);
 
@@ -822,36 +824,25 @@ void UChaosWheeledVehicleSimulation::ProcessMechanicalSimulation(float DeltaTime
 		PTransmission.Simulate(DeltaTime);
 
 		float TransmissionTorque = PTransmission.GetTransmissionTorque(PEngine.GetEngineTorque());
+		if (WheelSpeedRPM > PEngine.Setup().MaxRPM)
+		{
+			TransmissionTorque = 0.f;
+		}
 
 		// apply drive torque to wheels
 		for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
 		{
 			auto& PWheel = PVehicle->Wheels[WheelIdx];
-			if (PWheel.EngineEnabled)
+			if (PWheel.Setup().EngineEnabled)
 			{
-				check(PVehicle->NumDrivenWheels > 0);
-
-				if (PDifferential.Setup().DifferentialType == EDifferentialType::AllWheelDrive)
-				{
-					float SplitTorque = 1.0f;
-
-					if (PWheel.Setup().AxleType == FSimpleWheelConfig::EAxleType::Front)
-					{
-						SplitTorque = (1.0f - PDifferential.FrontRearSplit);
-					}
-					else
-					{
-						SplitTorque = PDifferential.FrontRearSplit;
-					}
-
-					PWheel.SetDriveTorque(TorqueMToCm(TransmissionTorque * SplitTorque) / (float)PVehicle->NumDrivenWheels);
-				}
-				else
-				{
-					PWheel.SetDriveTorque(TorqueMToCm(TransmissionTorque) / (float)PVehicle->NumDrivenWheels);
-				}
+				PWheel.SetDriveTorque(TorqueMToCm(TransmissionTorque) * PWheel.Setup().TorqueRatio);
+			}
+			else
+			{
+				PWheel.SetDriveTorque(0.f);
 			}
 		}
+
 	}
 }
 
@@ -1419,6 +1410,17 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicle(TUniquePtr<Chaos::FSimp
 
 		Chaos::FSimpleDifferentialSim DifferentialSim(&DifferentialSetup.GetPhysicsDifferentialConfig());
 		PVehicle->Differential.Add(DifferentialSim);
+
+		// Setup override of wheel TorqueRatio & EngineEnabled from vehicle differential settings
+		for (int WheelIdx = 0; WheelIdx < PVehicle->Wheels.Num(); WheelIdx++)
+		{
+			FSimpleWheelSim& PWheel = PVehicle->Wheels[WheelIdx];
+			bool IsWheelPowered = FTransmissionUtility::IsWheelPowered(DifferentialSim.Setup().DifferentialType, PWheel.Setup().AxleType, PWheel.EngineEnabled);
+			PWheel.AccessSetup().EngineEnabled = IsWheelPowered;
+
+			float TorqueRatio = FTransmissionUtility::GetTorqueRatioForWheel(DifferentialSim, WheelIdx, PVehicle->Wheels);
+			PWheel.AccessSetup().TorqueRatio = TorqueRatio;
+		}
 	}
 
 	Chaos::FSimpleSteeringSim SteeringSim(&SteeringSetup.GetPhysicsSteeringConfig(WheelTrackDimensions));

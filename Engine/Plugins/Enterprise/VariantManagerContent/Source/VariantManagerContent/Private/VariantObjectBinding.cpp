@@ -132,7 +132,7 @@ UObject* UVariantObjectBinding::GetObject() const
 #endif
 
 		UObject* Obj = TempPtr.ResolveObject();
-		if (Obj && !Obj->IsPendingKillOrUnreachable())
+		if (IsValid(Obj) && !Obj->IsUnreachable())
 		{
 			LazyObjectPtr = Obj;
 			return Obj;

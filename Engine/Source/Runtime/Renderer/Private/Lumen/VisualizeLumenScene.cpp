@@ -758,7 +758,7 @@ void DrawPrimitiveBounds(const FLumenPrimitiveGroup& PrimitiveGroup, FLinearColo
 	}
 }
 
-void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const FMatrix44f& PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType SurfelType, FLinearColor SurfelColor, FViewElementPDI& ViewPDI, float SurfelRadius = 2.0f)
+void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const FMatrix& PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType SurfelType, FLinearColor SurfelColor, FViewElementPDI& ViewPDI, float SurfelRadius = 2.0f)
 {
 	FColoredMaterialRenderProxy* MaterialRenderProxy = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->LevelColorationUnlitMaterial->GetRenderProxy(), SurfelColor);
 
@@ -782,8 +782,8 @@ void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const
 		const FLumenCardBuildDebugData::FSurfel& Surfel = Surfels[SurfelIndex];
 		if (Surfel.Type == SurfelType)
 		{
-			FVector3f DiskPosition = PrimitiveToWorld.TransformPosition(Surfel.Position);
-			FVector3f DiskNormal = WorldToPrimitiveT.TransformVector(Surfel.Normal).GetSafeNormal();
+			FVector3f DiskPosition = (FVector4f)PrimitiveToWorld.TransformPosition(Surfel.Position);
+			FVector3f DiskNormal = (FVector4f)WorldToPrimitiveT.TransformVector(Surfel.Normal).GetSafeNormal();
 
 			// Surface bias
 			DiskPosition += DiskNormal * 0.5f;

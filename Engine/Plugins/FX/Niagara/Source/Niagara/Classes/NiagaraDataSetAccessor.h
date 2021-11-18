@@ -234,9 +234,9 @@ struct FNiagaraDataSetAccessorTypeInfo<float>
 };
 
 template<>
-struct FNiagaraDataSetAccessorTypeInfo<FVector2D>
+struct FNiagaraDataSetAccessorTypeInfo<FVector2f>
 {
-	using TAccessorBaseClass = FNiagaraDataSetAccessorFloat<FVector2D>;
+	using TAccessorBaseClass = FNiagaraDataSetAccessorFloat<FVector2f>;
 
 	static constexpr bool bSupportsHalf = true;
 	static constexpr int32 NumElements = 2;

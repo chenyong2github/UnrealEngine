@@ -176,23 +176,23 @@ namespace Gauntlet
 				RequiredBuildFlags |= BuildFlags.CanReplaceExecutable;
 			}
 
-			//@todo: for bulk/packaged builds, we should mark the platform as capable of these as we're catching global and not test specific flags
-			// where we may be running parallel tests on multiple platforms
-			if (InPlatform == UnrealTargetPlatform.Android || InPlatform == UnrealTargetPlatform.IOS)
+			// Enforce build flags for the platform build that support it 
+			IDeviceBuildSupport TargetBuildSupport = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDeviceBuildSupport>().Where(B => B.CanSupportPlatform(InPlatform)).FirstOrDefault();
+			if (TargetBuildSupport != null)
 			{
-				if (Globals.Params.ParseParam("bulk"))
+				if (Globals.Params.ParseParam("bulk") && TargetBuildSupport.CanSupportBuildType(BuildFlags.Bulk))
 				{
 					RequiredBuildFlags |= BuildFlags.Bulk;
 				}
-				else
+				else if (TargetBuildSupport.CanSupportBuildType(BuildFlags.NotBulk))
 				{
 					RequiredBuildFlags |= BuildFlags.NotBulk;
 				}
-			}
 
-			if (Globals.Params.ParseParam("packaged") && (InPlatform == UnrealTargetPlatform.Switch || InPlatform == UnrealTargetPlatform.PS4))
-			{
-				RequiredBuildFlags |= BuildFlags.Packaged;
+				if (Globals.Params.ParseParam("packaged") && TargetBuildSupport.CanSupportBuildType(BuildFlags.Packaged))
+				{
+					RequiredBuildFlags |= BuildFlags.Packaged;
+				}
 			}
 
 			InstallOnly = false;

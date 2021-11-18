@@ -208,6 +208,12 @@ void FDisplayClusterConfiguratorBlueprintEditor::PostUndo(bool bSuccess)
 {
 	FBlueprintEditor::PostUndo(bSuccess);
 
+	if (UBlueprint* Blueprint = GetBlueprintObj())
+	{
+		// Helps when dealing with removal / addition of nodes and viewports.
+		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	}
+
 	// Make sure to force any property window displaying this actor class to refresh in case 
 	// the cluster hierarchy was changed in the undo transaction
 	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
@@ -219,6 +225,12 @@ void FDisplayClusterConfiguratorBlueprintEditor::PostUndo(bool bSuccess)
 void FDisplayClusterConfiguratorBlueprintEditor::PostRedo(bool bSuccess)
 {
 	FBlueprintEditor::PostRedo(bSuccess);
+
+	if (UBlueprint* Blueprint = GetBlueprintObj())
+	{
+		// Helps when dealing with removal / addition of nodes and viewports.
+		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	}
 
 	// Make sure to force any property window displaying this actor class to refresh in case 
 	// the cluster hierarchy was changed in the redo transaction

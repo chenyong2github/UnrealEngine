@@ -1113,8 +1113,11 @@ EGoogleARCoreTrackingFailureReason FGoogleARCoreFrame::GetCameraTrackingFailureR
 static FARCameraIntrinsics FromCameraIntrinsics(const ArSession* SessionHandle, const ArCameraIntrinsics* NativeCameraIntrinsics)
 {
 	FARCameraIntrinsics ConvertedIntrinsics;
-	ArCameraIntrinsics_getFocalLength(SessionHandle, NativeCameraIntrinsics, &ConvertedIntrinsics.FocalLength.X, &ConvertedIntrinsics.FocalLength.Y);
-	ArCameraIntrinsics_getPrincipalPoint(SessionHandle, NativeCameraIntrinsics, &ConvertedIntrinsics.PrincipalPoint.X, &ConvertedIntrinsics.PrincipalPoint.Y);
+	FVector2f FocalLength, PrincipalPoint;
+	ArCameraIntrinsics_getFocalLength(SessionHandle, NativeCameraIntrinsics, &FocalLength.X, &FocalLength.Y);
+	ConvertedIntrinsics.FocalLength = FVector2D(FocalLength);
+	ArCameraIntrinsics_getPrincipalPoint(SessionHandle, NativeCameraIntrinsics, &PrincipalPoint.X, &PrincipalPoint.Y);
+	ConvertedIntrinsics.PrincipalPoint = FVector2D(PrincipalPoint);
 	ArCameraIntrinsics_getImageDimensions(SessionHandle, NativeCameraIntrinsics, &ConvertedIntrinsics.ImageResolution.X, &ConvertedIntrinsics.ImageResolution.Y);
 	return ConvertedIntrinsics;
 }

@@ -1614,7 +1614,7 @@ namespace SkeletalSimplifier
 			/** Expand this bbox to include the provied point
 			* @param Point - point to be included in this Axis aligned bounding box
 			*/
-			void ExpandToInclude(const FVector2D& Point)
+			void ExpandToInclude(const FVector2f& Point)
 			{
 				MinMax[0] = FMath::Min(MinMax[0], Point.X);
 				MinMax[1] = FMath::Min(MinMax[1], Point.Y);
@@ -1628,7 +1628,7 @@ namespace SkeletalSimplifier
 			* Clamp values that exceed the bbox
 			* @Param Point - point to be clamped by this bbox
 			*/
-			void ClampPoint(FVector2D& Point) const
+			void ClampPoint(FVector2f& Point) const
 			{
 				Point.X = FMath::Clamp(Point.X, MinMax[0], MinMax[2]);
 				Point.Y = FMath::Clamp(Point.Y, MinMax[1], MinMax[3]);
@@ -1639,7 +1639,7 @@ namespace SkeletalSimplifier
 			* @Param Point - point to be clamped by a padded version of this bbox
 			* @Param Fraction - fraction of box width to use for padding.
 			*/
-			void ClampPoint(FVector2D& Point, const float Fraction) const
+			void ClampPoint(FVector2f& Point, const float Fraction) const
 			{
 				const float HalfFrac = Fraction * 0.5f;
 				const float XPad = HalfFrac * (MinMax[2] - MinMax[0]);
@@ -1652,18 +1652,18 @@ namespace SkeletalSimplifier
 			/**
 			* Min corner the bbox
 			*/
-			FVector2D Min() const
+			FVector2f Min() const
 			{
-				struct FVector2D BBoxMin = { MinMax[0], MinMax[1] };
+				FVector2f BBoxMin = { MinMax[0], MinMax[1] };
 				return BBoxMin;
 			}
 
 			/**
 			* Max corner the bbox
 			*/
-			FVector2D Max() const
+			FVector2f Max() const
 			{
-				FVector2D BBoxMax = { MinMax[2], MinMax[3] };
+				FVector2f BBoxMax = { MinMax[2], MinMax[3] };
 				return BBoxMax;
 			}
 		private:

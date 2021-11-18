@@ -494,18 +494,6 @@ struct INPUTCORE_API EKeys
 	static const FKey Android_Volume_Down;
 	static const FKey Android_Menu;
 
-	// Google Daydream
-	static const FKey Daydream_Left_Select_Click;
-	static const FKey Daydream_Left_Trackpad_X;
-	static const FKey Daydream_Left_Trackpad_Y;
-	static const FKey Daydream_Left_Trackpad_Click;
-	static const FKey Daydream_Left_Trackpad_Touch;
-	static const FKey Daydream_Right_Select_Click;
-	static const FKey Daydream_Right_Trackpad_X;
-	static const FKey Daydream_Right_Trackpad_Y;
-	static const FKey Daydream_Right_Trackpad_Click;
-	static const FKey Daydream_Right_Trackpad_Touch;
-
 	// HTC Vive Controller
 	static const FKey Vive_Left_System_Click;
 	static const FKey Vive_Left_Grip_Click;

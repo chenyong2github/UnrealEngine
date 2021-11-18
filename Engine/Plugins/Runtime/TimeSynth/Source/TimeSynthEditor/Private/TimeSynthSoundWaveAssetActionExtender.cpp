@@ -10,6 +10,7 @@
 #include "ObjectEditorUtils.h"
 #include "EditorStyleSet.h"
 #include "Sound/SoundWave.h"
+#include "Sound/SoundWaveProcedural.h"
 #include "TimeSynthClip.h"
 #include "TimeSynthComponent.h"
 
@@ -34,9 +35,17 @@ void FTimeSynthSoundWaveAssetActionExtender::RegisterMenus()
 	Section.AddDynamicEntry("TimeSynthSoundWaveAsset", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-		if (!Context || Context->SelectedObjects.Num() == 0)
+		if (!Context || Context->SelectedObjects.IsEmpty())
 		{
 			return;
+		}
+
+		for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
+		{
+			if (Object->IsA<USoundWaveProcedural>())
+			{
+				return;
+			}
 		}
 
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateTimeSynthClip", "Create Time Synth Clip(s)");

@@ -192,7 +192,7 @@ void UDataTable::OnPostDataImported(TArray<FString>& OutCollectedImportProblems)
 
 void UDataTable::HandleDataTableChanged(FName ChangedRowName)
 {
-	if (IsPendingKillOrUnreachable() || HasAnyFlags(RF_BeginDestroyed))
+	if (!IsValidChecked(this) || IsUnreachable() || HasAnyFlags(RF_BeginDestroyed))
 	{
 		// This gets called during destruction, don't broadcast callbacks
 		return;

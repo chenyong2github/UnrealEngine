@@ -405,7 +405,7 @@ void FSlateDefaultVS::SetViewProjection( const FMatrix& ViewProjectionMatrix )
 
 void FSlateDefaultVS::SetShaderParams( const FVector4& InShaderParams )
 {
-	ConstantBuffer.GetBufferData().VertexShaderParams = (FVector4f)InShaderParams;		// LWC_TODO: Precision loss
+	ConstantBuffer.GetBufferData().VertexShaderParams = FVector4f(InShaderParams);		// LWC_TODO: Precision loss
 }
 
 void FSlateDefaultVS::UpdateParameters()
@@ -428,7 +428,7 @@ FSlateDefaultPS::FSlateDefaultPS()
 	PerFrameConstants.Create();
 	PerElementConstants.Create();
 
-	PerFrameConstants.GetBufferData().GammaValues = FVector2D(1, 1 / 2.2f);
+	PerFrameConstants.GetBufferData().GammaValues = FVector2f(1, 1 / 2.2f);
 
 	PerFrameCBufferParam->SetParameter(PerFrameConstants.GetResource());
 
@@ -457,7 +457,7 @@ void FSlateDefaultPS::SetShaderParams(const FShaderParams& InShaderParams)
 	PerElementConstants.GetBufferData().ShaderParams2 = InShaderParams.PixelParams2;
 }
 
-void FSlateDefaultPS::SetGammaValues(const FVector2D& InGammaValues)
+void FSlateDefaultPS::SetGammaValues(const FVector2f& InGammaValues)
 {
 	PerFrameConstants.GetBufferData().GammaValues = InGammaValues;
 }

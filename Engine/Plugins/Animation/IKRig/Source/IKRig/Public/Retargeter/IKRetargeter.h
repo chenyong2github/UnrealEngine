@@ -80,15 +80,15 @@ class IKRIG_API UIKRetargeter : public UObject
 public:
 
 	/** Get read-only access to the source IK Rig asset */
-	const UIKRigDefinition* GetSourceIKRig() const { return SourceIKRigAsset; };
+	const UIKRigDefinition* GetSourceIKRig() const { return SourceIKRigAsset.Get(); };
 	/** Get read-only access to the target IK Rig asset */
-	const UIKRigDefinition* GetTargetIKRig() const { return TargetIKRigAsset; };
+	const UIKRigDefinition* GetTargetIKRig() const { return TargetIKRigAsset.Get(); };
 	/** Get read-write access to the source IK Rig asset.
 	 * WARNING: do not use for editing the data model. Use Controller class instead. */
-	 UIKRigDefinition* GetSourceIKRigWriteable() const { return SourceIKRigAsset; };
+	 UIKRigDefinition* GetSourceIKRigWriteable() const { return SourceIKRigAsset.Get(); };
 	/** Get read-write access to the target IK Rig asset.
 	 * WARNING: do not use for editing the data model. Use Controller class instead. */
-	UIKRigDefinition* GetTargetIKRigWriteable() const { return TargetIKRigAsset; };
+	UIKRigDefinition* GetTargetIKRigWriteable() const { return TargetIKRigAsset.Get(); };
 	/** Get read-only access to the chain mapping */
 	const TArray<FRetargetChainMap>& GetChainMapping() const { return ChainMapping; };
 	/** Get read-only access to a retarget pose */
@@ -119,18 +119,18 @@ private:
 
 	/** The rig to copy animation FROM.*/
 	UPROPERTY(VisibleAnywhere, Category = Rigs)
-	TObjectPtr<UIKRigDefinition> SourceIKRigAsset = nullptr;
+	TWeakObjectPtr<UIKRigDefinition> SourceIKRigAsset = nullptr;
 	
 	/** The rig to copy animation TO.*/
 	UPROPERTY(EditAnywhere, Category = Rigs)
-	TObjectPtr<UIKRigDefinition> TargetIKRigAsset = nullptr;
+	TWeakObjectPtr<UIKRigDefinition> TargetIKRigAsset = nullptr;
 
 public:
 
 #if WITH_EDITORONLY_DATA
 	/** The Skeletal Mesh to preview the retarget on.*/
 	UPROPERTY(EditAnywhere, Category = Rigs)
-	TObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
+	TWeakObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
 #endif
 	
 	/** When false, translational motion of skeleton root is not copied. Useful for debugging.*/

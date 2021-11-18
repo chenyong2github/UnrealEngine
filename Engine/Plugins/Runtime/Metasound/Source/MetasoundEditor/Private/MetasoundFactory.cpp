@@ -27,7 +27,7 @@ namespace Metasound
 				FGraphBuilder::InitMetaSoundPreset(*InReferencedMetaSoundObject, *MetaSoundObject);
 			}
 
-			FGraphBuilder::SynchronizeGraph(*MetaSoundObject);
+			FGraphBuilder::InitGraph(*MetaSoundObject);
 
 			return MetaSoundObject;
 		}

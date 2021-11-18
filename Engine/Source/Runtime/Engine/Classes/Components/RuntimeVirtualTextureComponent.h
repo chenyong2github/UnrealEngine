@@ -116,8 +116,8 @@ public:
 	/** Public getter for debug streaming mips flag. */
 	bool IsBuildDebugStreamingMips() { return bBuildDebugStreamingMips; }
 
-	/** Returns true if the StreamingTexure contents are valid for use. */
-	bool IsStreamingTextureValid() const;
+	/** Returns true if there are StreamingTexure contents but they are not valid for use. */
+	bool IsStreamingTextureInvalid() const;
 
 #if WITH_EDITOR
 	/** Set a new asset to hold the low mip streaming texture. This should only be called directly before setting data to the new asset. */

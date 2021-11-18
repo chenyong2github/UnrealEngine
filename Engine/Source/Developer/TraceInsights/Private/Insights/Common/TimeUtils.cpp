@@ -66,7 +66,7 @@ FString FormatTimeAuto(const double InDuration, const int32 NumDigits)
 
 	TStringBuilder<64> StrBuilder;
 
-	if (FMath::IsNegativeDouble(Duration))
+	if (FMath::IsNegative(Duration))
 	{
 		Duration = -Duration;
 		StrBuilder.Append(TEXT('-'));
@@ -232,7 +232,7 @@ FString FormatTimeMs(const double InDuration, const int32 NumDigits, bool bAddTi
 	double Duration = InDuration;
 	TStringBuilder<64> StrBuilder;
 
-	if (FMath::IsNegativeDouble(Duration))
+	if (FMath::IsNegative(Duration))
 	{
 		Duration = -Duration;
 		StrBuilder.Append(TEXT('-'));
@@ -286,7 +286,7 @@ FString FormatTime(const double InTime, const double Precision)
 	double Time = InTime;
 	TStringBuilder<64> StrBuilder;
 
-	if (FMath::IsNegativeDouble(Time))
+	if (FMath::IsNegative(Time))
 	{
 		Time = -Time;
 		StrBuilder.Append(TEXT('-'));
@@ -469,7 +469,7 @@ void SplitTime(const double InTime, FTimeSplit& OutTimeSplit)
 		return;
 	}
 
-	if (FMath::IsNegativeDouble(Time))
+	if (FMath::IsNegative(Time))
 	{
 		Time = -Time;
 		OutTimeSplit.bIsNegative = true;

@@ -166,6 +166,9 @@ static WindowsRHI ChooseDefaultRHI()
 		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats, GEngineIni);
 		if (TargetedShaderFormats.Num() > 0)
 		{
+			// Make sure the DDSPI is initialized before we try and read from it
+			FGenericDataDrivenShaderPlatformInfo::Initialize();
+
 			// Pick the first one
 			FName ShaderFormatName(*TargetedShaderFormats[0]);
 			EShaderPlatform TargetedPlatform = ShaderFormatToLegacyShaderPlatform(ShaderFormatName);

@@ -267,6 +267,8 @@ void FDMXProtocolSACNSender::Update()
 {
 	// process delayed signals
 	const double Now = FPlatformTime::Seconds();
+	
+	FScopeLock Lock(&LatestSignalLock);
 
 	for (;;)
 	{
@@ -292,8 +294,6 @@ void FDMXProtocolSACNSender::Update()
 	}
 
 	{
-		FScopeLock Lock(&LatestSignalLock);
-
 		// Keep latest signal per universe
 		FDMXSignalSharedPtr DequeuedDMXSignal;
 		while (Buffer.Dequeue(DequeuedDMXSignal))

@@ -94,6 +94,9 @@ UE_TRACE_EVENT_BEGIN(SlateTrace, InvalidationCallstack)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, CallstackText) // Text of the captured callstack
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(SlateTrace, WidgetUpdateSteps)
+	UE_TRACE_EVENT_FIELD(uint8[], Buffer)		// Buffer of the pass and the widget id
+UE_TRACE_EVENT_END()
 
 //-----------------------------------------------------------------------------------//
 
@@ -111,6 +114,18 @@ namespace SlateTraceDetail
 	uint32 GFrameInvalidateCount = 0;
 	uint32 GFrameRootInvalidateCount = 0;
 
+	const int32 SizeOfWidgetUpdateStepsBuffer = 2048*sizeof(uint64);
+	uint8 WidgetUpdateStepsBuffer[SizeOfWidgetUpdateStepsBuffer];
+	uint32 WidgetUpdateStepsIndex = 0;
+	uint32 WidgetUpdateStepsBufferNumber = 0;
+
+	TArray<TWeakPtr<const SWidget>> UpdateWidgetInfos;
+
+	uint8 kWidgetUpdateStepsCommand_NewRootPaint = 0xE0;
+	uint8 kWidgetUpdateStepsCommand_StartPaint = 0xE1;	//[cycle][widgetid]
+	uint8 kWidgetUpdateStepsCommand_EndPaint = 0xE2;	//[cycle]
+	uint8 kWidgetUpdateStepsCommand_NewBuffer = 0xE7;	//[buffer index]
+
 	uint64 GetWidgetId(const SWidget* InWidget)
 	{
 #if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
@@ -127,6 +142,71 @@ namespace SlateTraceDetail
 #endif
 		return 0;
 	}
+
+	void SerializeToWidgetUpdateSteps(uint8 InNumber)
+	{
+		WidgetUpdateStepsBuffer[WidgetUpdateStepsIndex] = InNumber;
+		++WidgetUpdateStepsIndex;
+	}
+
+	void SerializeToWidgetUpdateSteps(uint32 InNumber)
+	{
+		*reinterpret_cast<uint32*>(WidgetUpdateStepsBuffer + WidgetUpdateStepsIndex) = InNumber;
+#if !PLATFORM_LITTLE_ENDIAN
+		Algo::Reverse(WidgetUpdateStepsBuffer + WidgetUpdateStepsIndex, sizeof(uint32));
+#endif
+		WidgetUpdateStepsIndex  += sizeof(uint32);
+	}
+	
+	void SerializeToWidgetUpdateSteps(uint64 InNumber)
+	{
+		*reinterpret_cast<uint64*>(WidgetUpdateStepsBuffer + WidgetUpdateStepsIndex) = InNumber;
+#if !PLATFORM_LITTLE_ENDIAN
+		Algo::Reverse(WidgetUpdateStepsBuffer + WidgetUpdateStepsIndex, sizeof(uint64));
+#endif
+		WidgetUpdateStepsIndex += sizeof(uint64);
+	}
+
+	void FlushWidgetUpdateStepsBuffer()
+	{
+		if (WidgetUpdateStepsIndex > 0)
+		{
+			UE_TRACE_LOG(SlateTrace, WidgetUpdateSteps, SlateChannel)
+				<< WidgetUpdateSteps.Buffer(WidgetUpdateStepsBuffer, WidgetUpdateStepsIndex);
+
+			WidgetUpdateStepsIndex = 0;
+			SerializeToWidgetUpdateSteps(kWidgetUpdateStepsCommand_NewBuffer);
+			++WidgetUpdateStepsBufferNumber;
+			SerializeToWidgetUpdateSteps(WidgetUpdateStepsBufferNumber);
+		}
+	}
+
+	void AddStartWidgetPaintSteps(const SWidget* InWidget, uint64 InCycle)
+	{
+		if (WidgetUpdateStepsIndex + sizeof(uint64) + sizeof(uint64) + sizeof(uint8) + sizeof(uint8) >= SizeOfWidgetUpdateStepsBuffer)
+		{
+			FlushWidgetUpdateStepsBuffer();
+		}
+
+		if (SlateTraceDetail::GScopedPaintCount == 0)
+		{
+			SerializeToWidgetUpdateSteps(kWidgetUpdateStepsCommand_NewRootPaint);
+		}
+
+		SerializeToWidgetUpdateSteps(kWidgetUpdateStepsCommand_StartPaint);
+		SerializeToWidgetUpdateSteps(InCycle);
+		SerializeToWidgetUpdateSteps(GetWidgetId(InWidget));
+	}
+
+	void AddEndWidgetPaintPass(const SWidget* InWidget, uint64 InCycle)
+	{
+		if (WidgetUpdateStepsIndex + sizeof(uint64) + sizeof(uint8) >= SizeOfWidgetUpdateStepsBuffer)
+		{
+			FlushWidgetUpdateStepsBuffer();
+		}
+		SerializeToWidgetUpdateSteps(kWidgetUpdateStepsCommand_EndPaint);
+		SerializeToWidgetUpdateSteps(InCycle);
+	}
 }
 
  //-----------------------------------------------------------------------------------//
@@ -138,6 +218,7 @@ FSlateTrace::FScopedWidgetPaintTrace::FScopedWidgetPaintTrace(const SWidget* InW
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel))
 	{
 		StartCycle = FPlatformTime::Cycles64();
+		SlateTraceDetail::AddStartWidgetPaintSteps(Widget, StartCycle);
 	}
 
 	++SlateTraceDetail::GScopedPaintCount;
@@ -149,9 +230,11 @@ FSlateTrace::FScopedWidgetPaintTrace::~FScopedWidgetPaintTrace()
 	--SlateTraceDetail::GScopedPaintCount;
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel))
 	{
-		const double EndCycle = FPlatformTime::Cycles64();
+		const uint64 EndCycle = FPlatformTime::Cycles64();
 		const uint32 AffectedCount = SlateTraceDetail::GFramePaintCount - StartPaintCount;
-		//FSlateTrace::OutputWidgetPaint(Widget, StartCycle, EndCycle, AffectedCount);
+
+		SlateTraceDetail::AddEndWidgetPaintPass(Widget, EndCycle);
+
 		if (SlateTraceDetail::GScopedPaintCount == 0)
 		{
 			const EWidgetUpdateFlags UpdateFlags = Widget->IsVolatile() ? EWidgetUpdateFlags::NeedsVolatilePaint : EWidgetUpdateFlags::NeedsRepaint;
@@ -193,6 +276,24 @@ void FSlateTrace::ApplicationTickAndDrawWidgets(float DeltaTime)
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel))
 	{
 		static_assert(sizeof(ESlateTraceApplicationFlags) == sizeof(uint8), "FSlateTrace::ESlateFlags is not a uint8");
+
+		SlateTraceDetail::FlushWidgetUpdateStepsBuffer();
+
+		for (TWeakPtr<const SWidget>& WeakUpdateWidgetInfo : SlateTraceDetail::UpdateWidgetInfos)
+		{
+			if (TSharedPtr<const SWidget> SharedWidget = WeakUpdateWidgetInfo.Pin())
+			{
+				const uint64 WidgetId = SlateTraceDetail::GetWidgetId(SharedWidget.Get());
+				const FString Path = FReflectionMetaData::GetWidgetPath(SharedWidget.Get());
+				const FString DebugInfo = FReflectionMetaData::GetWidgetDebugInfo(SharedWidget.Get());
+
+				UE_TRACE_LOG(SlateTrace, WidgetInfo, SlateChannel)
+					<< WidgetInfo.WidgetId(WidgetId)
+					<< WidgetInfo.Path(*Path)
+					<< WidgetInfo.DebugInfo(*DebugInfo);
+			}
+		}
+		SlateTraceDetail::UpdateWidgetInfos.Empty();
 
 		ESlateTraceApplicationFlags LocalFlags = ESlateTraceApplicationFlags::None;
 		if (GSlateEnableGlobalInvalidation) { LocalFlags |= ESlateTraceApplicationFlags::GlobalInvalidation; }
@@ -382,14 +483,10 @@ void FSlateTrace::UpdateWidgetInfo(const SWidget* Widget)
 {
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(SlateChannel))
 	{
-		const uint64 WidgetId = SlateTraceDetail::GetWidgetId(Widget);
-		const FString Path = FReflectionMetaData::GetWidgetPath(Widget);
-		const FString DebugInfo = FReflectionMetaData::GetWidgetDebugInfo(Widget);
-
-		UE_TRACE_LOG(SlateTrace, WidgetInfo, SlateChannel)
-			<< WidgetInfo.WidgetId(WidgetId)
-			<< WidgetInfo.Path(*Path)
-			<< WidgetInfo.DebugInfo(*DebugInfo);
+		if (Widget)
+		{
+			SlateTraceDetail::UpdateWidgetInfos.Add(Widget->AsShared());
+		}
 	}
 }
 

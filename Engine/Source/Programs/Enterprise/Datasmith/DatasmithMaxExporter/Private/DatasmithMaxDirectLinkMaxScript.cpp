@@ -9,6 +9,8 @@
 
 #include "Logging/LogMacros.h"
 
+#include "Resources/Windows/resource.h"
+
 #include "Windows/AllowWindowsPlatformTypes.h"
 MAX_INCLUDES_START
 	#include "impexp.h"
@@ -20,8 +22,10 @@ MAX_INCLUDES_START
 	#include "maxscript/foundation/numbers.h"
 	#include "maxscript/foundation/arrays.h"
 	#include "maxscript\macros\define_instantiation_functions.h"
-
 MAX_INCLUDES_END
+
+extern HINSTANCE HInstanceMax;
+
 
 namespace DatasmithMaxDirectLink
 {
@@ -227,6 +231,139 @@ Value* LogInfo_cf(Value** arg_list, int count)
 	return bool_result(true);
 }
 Primitive LogInfo_pf(_M("Datasmith_LogInfo"), LogInfo_cf);
+
+// Setup ActionTable with Datasmith commands exposed as actions
+class FDatasmithActions
+{
+public:
+	const ActionTableId ActionTableId = 0x291356d8;
+	const ActionContextId ActionContextId = 0x291356d9;
+
+	enum EActionIds
+	{
+		ID_SYNC_ACTION_ID,
+		ID_AUTOSYNC_ACTION_ID,
+		ID_CONNECTIONS_ACTION_ID,
+		ID_EXPORT_ACTION_ID,
+		ID_SHOWLOG_ACTION_ID,
+	};
+
+	class FDatasmithActionCallback : public ActionCallback
+	{
+
+	public:
+
+		BOOL ExecuteAction (int id) {
+			LogDebug(FString::Printf(TEXT("Action: %d"), id));
+
+			switch (id)
+			{
+			case ID_SYNC_ACTION_ID:
+			{
+				if (GetExporter())
+				{
+					GetExporter()->UpdateScene(false);
+					GetExporter()->UpdateDirectLinkScene();
+				}
+				return true;
+			}
+			case ID_AUTOSYNC_ACTION_ID:
+			{
+				if (GetExporter())
+				{
+					// todo: GetExporter()->ToggleAutoSync();
+				}
+				return true;
+			}
+			case ID_CONNECTIONS_ACTION_ID:
+			{
+				OpenDirectLinkUI();
+				return true;
+			}
+			case ID_EXPORT_ACTION_ID:
+			{
+				if (GetExporter())
+				{
+					MCHAR* ScriptCode = _T("Datasmith_ExportDialog()");
+#if MAX_PRODUCT_YEAR_NUMBER >= 2022
+					 ExecuteMAXScriptScript(ScriptCode, MAXScript::ScriptSource::NonEmbedded);
+#else
+					 ExecuteMAXScriptScript(ScriptCode);
+#endif
+				}
+				return true;
+			}
+			case ID_SHOWLOG_ACTION_ID:
+			{
+				return true;
+			}
+			}
+		    return false;
+		}
+	};
+
+	FDatasmithActions()
+		: Name(TEXT("Datasmith"))
+		, Table(ActionTableId, ActionContextId, Name)
+	{
+		// todo: localization of Name
+
+		static ActionDescription ActionsDescriptions[] = { 
+			ID_SYNC_ACTION_ID, // ID
+			IDS_SYNC_DESC, // Description
+			IDS_SYNC_NAME, // Name
+			IDS_DATASMITH_CATEGORY, // Category name
+
+			ID_AUTOSYNC_ACTION_ID, // ID
+			IDS_AUTOSYNC_DESC, // Description
+			IDS_AUTOSYNC_NAME, // Name
+			IDS_DATASMITH_CATEGORY, // Category name
+
+			ID_CONNECTIONS_ACTION_ID, // ID
+			IDS_CONNECTIONS_DESC, // Description
+			IDS_CONNECTIONS_NAME, // Name
+			IDS_DATASMITH_CATEGORY, // Category name
+
+			ID_EXPORT_ACTION_ID, // ID
+			IDS_EXPORT_DESC, // Description
+			IDS_EXPORT_NAME, // Name
+			IDS_DATASMITH_CATEGORY, // Category name
+
+			ID_SHOWLOG_ACTION_ID, // ID
+			IDS_SHOWLOG_DESC, // Description
+			IDS_SHOWLOG_NAME, // Name
+			IDS_DATASMITH_CATEGORY, // Category name
+		};
+
+		Table.BuildActionTable(nullptr, sizeof(ActionsDescriptions) / sizeof(ActionsDescriptions[0]), ActionsDescriptions, HInstanceMax);
+		GetCOREInterface()->GetActionManager()->RegisterActionContext(ActionContextId, Name.data());
+
+		// Register table - this needs to be called explicitly when action table is not returned to Max with ClassDesc's GetActionTable method
+		GetCOREInterface()->GetActionManager()->RegisterActionTable(&Table);
+
+		GetCOREInterface()->GetActionManager()->ActivateActionTable(&ActionCallback, ActionTableId);
+	}
+
+private:
+	TSTR Name;
+	ActionTable Table;
+	FDatasmithActionCallback ActionCallback;
+};
+
+
+TUniquePtr<FDatasmithActions> Actions;
+
+Value* SetupActions_cf(Value** arg_list, int count)
+{
+	if (!Actions)
+	{
+		Actions = MakeUnique<FDatasmithActions>();
+	}
+
+	return bool_result(true);
+}
+Primitive SetupActions_pf(_M("Datasmith_SetupActions"), SetupActions_cf);
+
 
 }
 

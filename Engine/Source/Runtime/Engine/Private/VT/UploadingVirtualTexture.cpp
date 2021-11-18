@@ -371,26 +371,22 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 	{
 		enum class EChunkSource
 		{
-			PackagePath,
 			File,
 			BulkData,
 			Invalid
 		};
 		EChunkSource ChunkSource = EChunkSource::Invalid;
-		FPackagePath ChunkPackagePath;
-		EPackageSegment ChunkPackageSegment = EPackageSegment::Header;
 		FString ChunkFileName;
 		int64 ChunkOffsetInFile = 0;
 #if WITH_EDITOR
 		// If the bulkdata has a file associated with it, we stream directly from it.
 		// This only happens for lightmaps atm
-		if (!BulkData.GetPackagePath().IsEmpty())
+		if (BulkData.CanLoadFromDisk())
 		{
 			ensure(Size <= (size_t)BulkData.GetBulkDataSize());
-			ChunkPackagePath = BulkData.GetPackagePath();
-			ChunkPackageSegment = BulkData.GetPackageSegment();
-			ChunkSource = EChunkSource::PackagePath;
+
 			ChunkOffsetInFile = BulkData.GetBulkDataOffsetInFile();
+			ChunkSource = EChunkSource::BulkData;
 		}
 		// Else it should be VT data that is injected into the DDC (and stream from VT DDC cache)
 		else
@@ -429,12 +425,6 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		// If we do not then pass in the BulkData object which will create the IAsyncReadFileHandle for us.
 		switch (ChunkSource)
 		{
-		case EChunkSource::PackagePath:
-		{
-			IAsyncReadFileHandle* AsyncFileHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(ChunkPackagePath, ChunkPackageSegment);
-			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(AsyncFileHandle, ChunkOffsetInFile));
-			break;
-		}
 		case EChunkSource::File:
 			Handle.Reset(IFileCacheHandle::CreateFileCacheHandle(*ChunkFileName, ChunkOffsetInFile));
 			break;

@@ -54,20 +54,20 @@ namespace
 					{
 						const int32 ChannelIndex = *ChannelPtr - 1;
 						if (ensure(UniverseData.IsValidIndex(ChannelIndex)))
+						{
+							if (bNormalizedValues)
 							{
-					if (bNormalizedValues)
-					{
 								MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToNormalizedValue(CellAttributePtr->DataType, CellAttributePtr->bUseLSBMode, &UniverseData[ChannelIndex]);
-					}
-					else
-					{
+							}
+							else
+							{
 								MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToInt(CellAttributePtr->DataType, CellAttributePtr->bUseLSBMode, &UniverseData[ChannelIndex]);
-					}
+							}
 						}
 
-					bAcquiredValue = true;
+						bAcquiredValue = true;
+					}
 				}
-			}
 			}
 			else
 			{
@@ -118,10 +118,10 @@ namespace
 					MutableChannelData.Times.Last() = FrameNumber;
 					MutableChannelData.Values.Last() = MovieSceneFloatValue;
 				}
-				else 
+				else
 				{
 					FMovieSceneFloatValue PreviousValue = MutableChannelData.Values.Last();
-				
+
 					// Only record changed Values
 					if (PreviousValue.Value != MovieSceneFloatValue.Value)
 					{
@@ -150,19 +150,19 @@ FDMXFunctionChannelData::FDMXFunctionChannelData(UDMXEntityFixturePatch* InFixtu
 	, bCellChannel(false)
 	, CellCoordinate(FIntPoint(0, 0))
 {
-	if (FunctionChannel && 
+	if (FunctionChannel &&
 		FixturePatch.IsValid() &&
 		IsValid(FixturePatch->GetFixtureType()))
 	{
 		LocalUniverseID = FixturePatch->GetUniverseID();
 		AttributeName = FunctionChannel->AttributeName;
 		bCellChannel = FunctionChannel->IsCellFunction();
-		
+
 		if (bCellChannel)
 		{
 			CellCoordinate = FunctionChannel->CellCoordinate;
 		}
-	}	
+	}
 }
 
 FDMXFixtureFunctionChannel* FDMXFunctionChannelData::TryGetFunctionChannel(const UMovieSceneDMXLibrarySection* MovieSceneDMXLibrarySection)
@@ -172,14 +172,14 @@ FDMXFixtureFunctionChannel* FDMXFunctionChannelData::TryGetFunctionChannel(const
 		// Find the patch channel that is using the same patch
 		const FDMXFixturePatchChannel* EqualPatchChannelPtr = MovieSceneDMXLibrarySection->GetFixturePatchChannels().FindByPredicate([this](const FDMXFixturePatchChannel& FixturePatchChannel) {
 			return FixturePatchChannel.Reference.GetFixturePatch() == FixturePatch;
-		});
+			});
 
 		if (EqualPatchChannelPtr)
 		{
 			// Find the function channel at the same memory location
 			const FDMXFixtureFunctionChannel* EqualFunctionChannelPtr = EqualPatchChannelPtr->FunctionChannels.FindByPredicate([this](const FDMXFixtureFunctionChannel& FixtureFunctionChannel) {
 				return FunctionChannel == &FixtureFunctionChannel;
-			});
+				});
 
 			// The function still exists
 			return FunctionChannel;
@@ -214,7 +214,7 @@ FDMXAsyncDMXRecorder::FDMXAsyncDMXRecorder(UDMXLibrary* InDMXLibrary, UMovieScen
 		for (FDMXFixturePatchChannel& FixturePatchChannel : MovieSceneDMXLibrarySection->GetMutableFixturePatchChannels())
 		{
 			UDMXEntityFixturePatch* FixturePatch = FixturePatchChannel.Reference.GetFixturePatch();
-			
+
 			// Only valid patches
 			if (IsValid(FixturePatch))
 			{
@@ -229,7 +229,7 @@ FDMXAsyncDMXRecorder::FDMXAsyncDMXRecorder(UDMXLibrary* InDMXLibrary, UMovieScen
 	// Sort by universe id ascending for faster writes
 	FunctionChannelDataArr.Sort([](const FDMXFunctionChannelData& First, const FDMXFunctionChannelData& Second) {
 		return First.GetLocalUniverseID() < Second.GetLocalUniverseID();
-	});
+		});
 
 	// Create Listeners
 	for (const FDMXPortSharedRef& Port : DMXLibrary->GenerateAllPortsSet())
@@ -293,7 +293,7 @@ FSingleThreadRunnable* FDMXAsyncDMXRecorder::GetSingleThreadInterface()
 {
 	return this;
 }
-	
+
 void FDMXAsyncDMXRecorder::StartRecording(double InRecordStartTime, FFrameNumber InRecordStartFrame, FFrameRate InTickResolution)
 {
 	if (!IsValid(DMXLibrary))
@@ -311,9 +311,9 @@ void FDMXAsyncDMXRecorder::StartRecording(double InRecordStartTime, FFrameNumber
 		Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 
 		bStartAtCurrentTimecode = Parameters.Project.bStartAtCurrentTimecode;
-		RecordStartTime			= InRecordStartTime;
-		RecordStartFrame		= InRecordStartFrame;
-		TickResolution			= InTickResolution;
+		RecordStartTime = InRecordStartTime;
+		RecordStartFrame = InRecordStartFrame;
+		TickResolution = InTickResolution;
 
 		// Recording started, minimize resource usage
 		Thread->SetThreadPriority(TPri_Lowest);
@@ -382,7 +382,7 @@ void FDMXAsyncDMXRecorder::Update()
 	NumSignalsToProccess = SignalToLocalUniverseMap.Num();
 
 	// Proccess data
-	for(const TTuple<FDMXSignalSharedRef, int32>& SignalToLocalUniverseKvp : SignalToLocalUniverseMap)
+	for (const TTuple<FDMXSignalSharedRef, int32>& SignalToLocalUniverseKvp : SignalToLocalUniverseMap)
 	{
 		int32 LocalUniverseID = SignalToLocalUniverseKvp.Value;
 

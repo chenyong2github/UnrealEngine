@@ -691,8 +691,8 @@ namespace DisplaceMeshToolLocals{
 	void FDisplaceMeshOpFactory::UpdateMap()
 	{
 		if (Parameters.DisplacementMap == nullptr ||
-			Parameters.DisplacementMap->PlatformData == nullptr ||
-			Parameters.DisplacementMap->PlatformData->Mips.Num() < 1)
+			Parameters.DisplacementMap->GetPlatformData() == nullptr ||
+			Parameters.DisplacementMap->GetPlatformData()->Mips.Num() < 1)
 		{
 			Parameters.DisplaceField = FSampledScalarField2f();
 			Parameters.DisplaceField.GridValues.AssignAll(0);
@@ -821,8 +821,11 @@ void UDisplaceMeshTool::Setup()
 
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(UE::ToolTarget::GetTargetActor(Target));
-	DynamicMeshComponent->SetupAttachment(UE::ToolTarget::GetTargetActor(Target)->GetRootComponent());
+	FActorSpawnParameters SpawnInfo;
+	PreviewMeshActor = TargetWorld->SpawnActor<AInternalToolFrameworkActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
+
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(PreviewMeshActor);
+	DynamicMeshComponent->SetupAttachment(PreviewMeshActor->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
 	DynamicMeshComponent->SetWorldTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
 	DynamicMeshComponent->bExplicitShowWireframe = CommonProperties->bShowWireframe;
@@ -948,6 +951,13 @@ void UDisplaceMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		DynamicMeshComponent->DestroyComponent();
 		DynamicMeshComponent = nullptr;
 	}
+
+	if (PreviewMeshActor != nullptr)
+	{
+		PreviewMeshActor->Destroy();
+		PreviewMeshActor = nullptr;
+	}
+
 }
 
 

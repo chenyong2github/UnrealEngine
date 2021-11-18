@@ -627,7 +627,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV(FVectorVMExternalFunctionCon
 	checkf(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
 	checkf(InstData->bMeshValid, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
 
-	FNDIOutputParam<FVector2D> OutUV(Context);
+	FNDIOutputParam<FVector2f> OutUV(Context);
 
 	USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(InstData->SceneComponent.Get());
 	if ( const FSkeletalMeshLODRenderData* LODData = InstData->CachedLODData )
@@ -664,7 +664,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetVertexUV<FSkelMeshVertexAccessorNoop>
 	FNDIInputParam<int32> UVSetParam(Context);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 
-	FNDIOutputParam<FVector2D> OutUV(Context);
+	FNDIOutputParam<FVector2f> OutUV(Context);
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{

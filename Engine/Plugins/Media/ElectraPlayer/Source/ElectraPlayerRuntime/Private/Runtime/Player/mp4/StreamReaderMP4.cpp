@@ -429,8 +429,9 @@ void FStreamReaderMP4::HandleRequest()
 		HTTP->Parameters.SubRangeRequestSize = SubRequestSize;
 	}
 
-	HTTP->ReceiveBuffer 				= ReadBuffer.ReceiveBuffer;
-	HTTP->ProgressListener  			= ProgressListener;
+	HTTP->ReceiveBuffer = ReadBuffer.ReceiveBuffer;
+	HTTP->ProgressListener = ProgressListener;
+	HTTP->ResponseCache = PlayerSessionServices->GetHTTPResponseCache();
 	PlayerSessionServices->GetHTTPManager()->AddRequest(HTTP, false);
 
 
@@ -731,6 +732,7 @@ void FStreamReaderMP4::HandleRequest()
 	{
 		ds.ThroughputBps = ds.TimeToDownload > 0.0 ? 8 * ds.NumBytesDownloaded / ds.TimeToDownload : 0;
 	}
+	ds.bIsCachedResponse = Request->ConnectionInfo.bIsCachedResponse;
 
 	ActiveTrackMap.Reset();
 

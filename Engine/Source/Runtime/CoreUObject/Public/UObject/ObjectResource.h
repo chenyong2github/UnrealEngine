@@ -314,17 +314,22 @@ struct FObjectExport : public FObjectResource
 	 */
 	bool			bExportLoadFailed;
 
+	// @todo: BP2CPP_remove
 	/**
 	 * Export is a dynamic type.
 	 */
-	enum class EDynamicType : uint8
+	enum class UE_DEPRECATED(5.0, "This type is no longer in use and will be removed.") EDynamicType : uint8
 	{
 		NotDynamicExport,
 		DynamicType,
 		ClassDefaultObject,
 	};
 
+	// @todo: BP2CPP_remove
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.0, "FObjectExport::DynamicType is no longer in use and will be removed.")
 	EDynamicType	DynamicType;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Export was filtered out on load

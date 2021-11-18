@@ -20,7 +20,6 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraSystem.h"
-#include "ScopedTransaction.h"
 #include "SDropTarget.h"
 #include "SNiagaraGraphActionWidget.h"
 #include "SNiagaraParameterEditor.h"
@@ -40,13 +39,14 @@
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/SNiagaraLibraryOnlyToggleHeader.h"
 #include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/NiagaraHLSLSyntaxHighlighter.h"
+#include "Widgets/Text/SMultiLineEditableText.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SSpinBox.h"
@@ -61,6 +61,7 @@ void SNiagaraStackFunctionInputValue::Construct(const FArguments& InArgs, UNiaga
 {
 	FunctionInput = InFunctionInput;
 	FunctionInput->OnValueChanged().AddSP(this, &SNiagaraStackFunctionInputValue::OnInputValueChanged);
+	SyntaxHighlighter = FNiagaraHLSLSyntaxHighlighter::Create();
 
 	TSharedPtr<SHorizontalBox> ChildrenBox;
 	
@@ -298,10 +299,19 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 	}
 	case UNiagaraStackFunctionInput::EValueMode::Expression:
 	{
-		return SNew(SEditableTextBox)
-			.IsReadOnly(false)
-			.Text_UObject(FunctionInput, &UNiagaraStackFunctionInput::GetCustomExpressionText)
-			.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::OnExpressionTextCommitted);
+		const FEditableTextBoxStyle& TextBoxStyle = FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
+		return SNew(SBorder)
+			.BorderBackgroundColor(TextBoxStyle.BackgroundColor)
+			.Padding(TextBoxStyle.Padding)
+			.BorderImage(&TextBoxStyle.BackgroundImageNormal)
+			[
+				SNew(SMultiLineEditableText)
+				.IsReadOnly(false)
+				.Marshaller(SyntaxHighlighter)
+				.AllowMultiLine(false)
+				.Text_UObject(FunctionInput, &UNiagaraStackFunctionInput::GetCustomExpressionText)
+				.OnTextCommitted(this, &SNiagaraStackFunctionInputValue::OnExpressionTextCommitted)
+			];
 	}
 	case UNiagaraStackFunctionInput::EValueMode::InvalidOverride:
 	{

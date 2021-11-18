@@ -47,10 +47,6 @@ struct FVector2i
 		return &X;
 	}
 
-	explicit operator FVector2D() const
-	{
-		return FVector2D((float)X, (float)Y);
-	}
 	explicit operator FVector2f() const
 	{
 		return FVector2f((float)X, (float)Y);

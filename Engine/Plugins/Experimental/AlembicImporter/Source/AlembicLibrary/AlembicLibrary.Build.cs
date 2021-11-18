@@ -14,6 +14,7 @@ public class AlembicLibrary : ModuleRules
                 "InputCore",
                 "UnrealEd",
                 "GeometryCache",
+                "Imath",
                 "AlembicLib",
                 "MeshUtilities",
                 "MaterialUtilities",

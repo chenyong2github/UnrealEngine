@@ -7,94 +7,80 @@
 #include "SConsoleVariablesEditorListRow.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/SOverlay.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 
 #define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
+const FName SConsoleVariablesEditorList::CheckBoxColumnName(TEXT("Column"));
+const FName SConsoleVariablesEditorList::VariableNameColumnName(TEXT("Name"));
+const FName SConsoleVariablesEditorList::ValueColumnName(TEXT("Value"));
+const FName SConsoleVariablesEditorList::SourceColumnName(TEXT("Source"));
+
 void SConsoleVariablesEditorList::Construct(const FArguments& InArgs)
 {
-	DefaultNameText = LOCTEXT("ConsoleVariables", "Console Variables");
-
-	HeaderDummyInfo = MakeShared<FConsoleVariablesEditorCommandInfo>("", nullptr, "");
-
+	HeaderRow = SNew(SHeaderRow)
+				.CanSelectGeneratedColumn(true).Visibility(EVisibility::Visible);
+	
+	GenerateHeaderRow();
+	
 	ChildSlot
+	[
+		SNew(SVerticalBox)
+		
+		+ SVerticalBox::Slot()
+		.VAlign(VAlign_Top)
+		.AutoHeight()
 		[
-			SNew(SVerticalBox)
+			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			[
+				SAssignNew(ListSearchBoxPtr, SSearchBox)
+				.HintText(LOCTEXT("ConsoleVariablesEditorList_SearchHintText", "Search tracked variables, values, sources or help text..."))
+				.OnTextChanged_Raw(this, &SConsoleVariablesEditorList::OnListViewSearchTextChanged)
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		[
+			SNew(SWidgetSwitcher)
+			.WidgetIndex_Lambda([this]()
+			{
+				return DoesTreeViewHaveVisibleChildren() ? 0 : 1;
+			})
 			
-			+ SVerticalBox::Slot()
-			.VAlign(VAlign_Top)
-			.AutoHeight()
+			+ SWidgetSwitcher::Slot()
+			.HAlign(HAlign_Fill)
+			.Padding(2.0f, 2.0f, 2.0f, 2.0f)
 			[
-				SNew(SHorizontalBox)
-
-				+SHorizontalBox::Slot()
-				[
-					SAssignNew(ListSearchBoxPtr, SSearchBox)
-					.HintText(LOCTEXT("ConsoleVariablesEditorList_SearchHintText", "Search tracked variables, values, sources or help text..."))
-					.OnTextChanged_Raw(this, &SConsoleVariablesEditorList::OnListViewSearchTextChanged)
-				]
+				SAssignNew(TreeViewPtr, STreeView<FConsoleVariablesEditorListRowPtr>)
+				.HeaderRow(HeaderRow)
+				.SelectionMode(ESelectionMode::None)
+				.TreeItemsSource(&TreeViewRootObjects)
+				.OnGenerateRow_Lambda([this](FConsoleVariablesEditorListRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable)
+					{
+						check(Row.IsValid());
+					
+						return SNew(SConsoleVariablesEditorListRow, TreeViewPtr.ToSharedRef(), Row)
+								.Visibility_Raw(Row.Get(), &FConsoleVariablesEditorListRow::GetDesiredVisibility);
+					})
+				.OnGetChildren_Raw(this, &SConsoleVariablesEditorList::OnGetRowChildren)
+				.OnExpansionChanged_Raw(this, &SConsoleVariablesEditorList::OnRowChildExpansionChange, false)
+				.OnSetExpansionRecursive(this, &SConsoleVariablesEditorList::OnRowChildExpansionChange, true)
 			]
 
-			+ SVerticalBox::Slot()
+			// For when no rows exist in view
+			+ SWidgetSwitcher::Slot()
+			.HAlign(HAlign_Center)
+			.Padding(2.0f, 24.0f, 2.0f, 2.0f)
 			[
-				SNew(SOverlay)
-				
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Fill)
-				.Padding(2.0f, 2.0f, 2.0f, 2.0f)
-				[
-					SNew(SVerticalBox)
-
-					// Slot for Header Row. Separate from other Tree View objects so that it doesn't scroll with the rest of the list
-					+SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SAssignNew(HeaderBoxPtr, SBox)
-						.Padding(FMargin(10.f, 2.f, 0.f, 2.f))
-					]
-
-					+SVerticalBox::Slot()
-					[
-						SAssignNew(TreeViewPtr, STreeView<FConsoleVariablesEditorListRowPtr>)
-						.SelectionMode(ESelectionMode::None)
-						.TreeItemsSource(&TreeViewRootObjects)
-						.OnGenerateRow_Lambda([this](FConsoleVariablesEditorListRowPtr Row, const TSharedRef<STableViewBase>& OwnerTable)
-							{
-								check(Row.IsValid());
-							
-								return SNew(STableRow<FConsoleVariablesEditorListRowPtr>, OwnerTable)
-									[
-										SNew(SConsoleVariablesEditorListRow, Row, SplitterManagerPtr)
-									]
-									.Visibility_Raw(Row.Get(), &FConsoleVariablesEditorListRow::GetDesiredVisibility);
-							})
-						.OnGetChildren_Raw(this, &SConsoleVariablesEditorList::OnGetRowChildren)
-						.OnExpansionChanged_Raw(this, &SConsoleVariablesEditorList::OnRowChildExpansionChange, false)
-						.OnSetExpansionRecursive(this, &SConsoleVariablesEditorList::OnRowChildExpansionChange, true)
-						.Visibility_Lambda([this]()
-						{
-							return this->DoesTreeViewHaveVisibleChildren() ? EVisibility::Visible : EVisibility::Collapsed;
-						})
-					]
-				]
-
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.Padding(2.0f, 24.0f, 2.0f, 2.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("ConsoleVariablesEditorList_NoList", "No List to show. Try clearing the active search or adding some console variables to the list."))
-					.Visibility_Lambda([this]()
-						{
-							return DoesTreeViewHaveVisibleChildren() ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
-						})
-				]
+				SNew(STextBlock)
+				.Text(LOCTEXT("ConsoleVariablesEditorList_NoList", "No List to show. Try clearing the active search or adding some console variables to the list."))
 			]
-		];
+		]
+	];
 }
 
 SConsoleVariablesEditorList::~SConsoleVariablesEditorList()
@@ -102,11 +88,8 @@ SConsoleVariablesEditorList::~SConsoleVariablesEditorList()
 	ListSearchBoxPtr.Reset();
 	ListBoxContainerPtr.Reset();
 
-	SplitterManagerPtr.Reset();
-
 	FlushMemory(false);
 
-	HeaderBoxPtr.Reset();
 	TreeViewPtr.Reset();
 }
 
@@ -140,9 +123,6 @@ void SConsoleVariablesEditorList::FlushMemory(const bool bShouldKeepMemoryAlloca
 	{
 		TreeViewRootObjects.Empty();
 	}
-
-	HeaderBoxPtr.Get()->SetContent(SNullWidget::NullWidget);
-	EditedAsset.Reset();
 }
 
 void SConsoleVariablesEditorList::RefreshScroll() const
@@ -150,9 +130,19 @@ void SConsoleVariablesEditorList::RefreshScroll() const
 	TreeViewPtr->RequestListRefresh();
 }
 
-void SConsoleVariablesEditorList::RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo)
+void SConsoleVariablesEditorList::RefreshList(const FString& InConsoleCommandToScrollTo)
 {
-	GenerateTreeView(InAsset);
+	GenerateTreeView();
+
+	// Enforce Sort
+	TArray<FName> MapKeys;
+	if (SortingMap.GetKeys(MapKeys))
+	{
+		const FName& Key = MapKeys[0];
+		const EColumnSortMode::Type Mode = *SortingMap.Find(Key);
+		
+		ExecuteSort(Key, Mode);
+	}
 
 	if (!InConsoleCommandToScrollTo.IsEmpty())
 	{
@@ -201,49 +191,44 @@ FString SConsoleVariablesEditorList::GetSearchStringFromSearchInputField() const
 	? ListSearchBoxPtr->GetText().ToString() : "";
 }
 
-void SConsoleVariablesEditorList::GenerateTreeView(UConsoleVariablesAsset* InAsset)
+void SConsoleVariablesEditorList::GenerateTreeView()
 {	
-	if (!ensure(TreeViewPtr.IsValid() && InAsset))
+	if (!ensure(TreeViewPtr.IsValid()))
 	{
 		return;
 	}
 	
 	FlushMemory(true);
 
-	EditedAsset = InAsset;
-	
-	SplitterManagerPtr = MakeShared<FConsoleVariablesEditorListSplitterManager>(FConsoleVariablesEditorListSplitterManager());
-
 	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 
-	for (const TPair<FString, FString>& CommandAndValue : InAsset->GetSavedCommandsAndValues())
+	const TObjectPtr<UConsoleVariablesAsset> EditableAsset = ConsoleVariablesEditorModule.GetEditingAsset();
+	check(EditableAsset);
+
+	for (const TPair<FString, FString>& CommandAndValue : EditableAsset->GetSavedCommandsAndValues())
 	{
 		TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = ConsoleVariablesEditorModule.FindCommandInfoByName(CommandAndValue.Key);
 		
 		if (CommandInfo.IsValid())
 		{
-			CommandInfo.Pin()->ExecuteCommand(CommandAndValue.Value);
+			if (const TObjectPtr<IConsoleVariable> VariablePtr = CommandInfo.Pin()->ConsoleVariablePtr)
+			{
+				if (!VariablePtr->GetString().Equals(CommandAndValue.Value))
+				{
+					CommandInfo.Pin()->ExecuteCommand(CommandAndValue.Value);
+				}
 			
-			FConsoleVariablesEditorListRowPtr NewRow = 
-				MakeShared<FConsoleVariablesEditorListRow>(
-						CommandInfo.Pin(), CommandAndValue.Value, FConsoleVariablesEditorListRow::SingleCommand, 
-						ECheckBoxState::Checked, SharedThis(this), nullptr);
-			TreeViewRootObjects.Add(NewRow);
+				FConsoleVariablesEditorListRowPtr NewRow = 
+					MakeShared<FConsoleVariablesEditorListRow>(
+							CommandInfo.Pin(), CommandAndValue.Value, FConsoleVariablesEditorListRow::SingleCommand, 
+							ECheckBoxState::Checked, SharedThis(this), nullptr);
+				TreeViewRootObjects.Add(NewRow);
+			}
 		}
 	}
 
 	if (TreeViewRootObjects.Num() > 0)
 	{
-		// Header
-		HeaderRow = 
-			MakeShared<FConsoleVariablesEditorListRow>(
-					HeaderDummyInfo, "", FConsoleVariablesEditorListRow::HeaderRow, ECheckBoxState::Checked, SharedThis(this), nullptr
-			);
-
-		HeaderBoxPtr->SetContent(SNew(SConsoleVariablesEditorListRow, HeaderRow, SplitterManagerPtr));
-
-		SortTreeViewObjects(SelectedSortType);
-
 		TreeViewPtr->RequestListRefresh();
 
 		// Apply last search
@@ -251,24 +236,61 @@ void SConsoleVariablesEditorList::GenerateTreeView(UConsoleVariablesAsset* InAss
 	}
 }
 
-void SConsoleVariablesEditorList::SortTreeViewObjects(EConsoleVariablesEditorSortType InSortType)
+TSharedPtr<SHeaderRow> SConsoleVariablesEditorList::GenerateHeaderRow()
 {
-	auto SortByVariableName = [](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
-	{
-		return A->GetCommandInfo().Pin()->Command < B->GetCommandInfo().Pin()->Command;
-	};
-
-	switch (InSortType)
-	{
-		case EConsoleVariablesEditorSortType::SortByVariableName:
-			TreeViewRootObjects.StableSort(SortByVariableName);
-			break;
-
-		default:
-			break;
-	};
+	check(HeaderRow);
+	HeaderRow->ClearColumns();
 	
-	
+	HeaderRow->AddColumn(
+		SHeaderRow::Column(CheckBoxColumnName)
+			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableCheckboxHeaderText", "Checkbox"))
+			.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+			.FixedWidth(50.f)
+			.ShouldGenerateWidget(true)
+			.HeaderContent()
+			[
+				SNew(SCheckBox)
+				.IsChecked_Lambda([this]()
+				{
+					return HeaderCheckBoxState;
+				})
+				.OnCheckStateChanged_Lambda([this] (const ECheckBoxState NewState)
+				{
+					HeaderCheckBoxState = NewState;
+					
+					for (const FConsoleVariablesEditorListRowPtr& Object : TreeViewRootObjects)
+					{
+						Object->SetWidgetCheckedState(NewState);
+					}
+				})
+			]
+	);
+
+	HeaderRow->AddColumn(
+		SHeaderRow::Column(VariableNameColumnName)
+			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableNameHeaderText", "Console Variable Name"))
+			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
+			.ShouldGenerateWidget(true)
+			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortMode, VariableNameColumnName)
+			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)
+	);
+
+	HeaderRow->AddColumn(
+		SHeaderRow::Column(ValueColumnName)
+			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_ConsoleVariableValueHeaderText", "Value"))
+			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
+			.ShouldGenerateWidget(true)
+	);
+
+	HeaderRow->AddColumn(
+		SHeaderRow::Column(SourceColumnName)
+			.DefaultLabel(LOCTEXT("ConsoleVariablesEditorList_SourceHeaderText", "Source"))
+			.HAlignHeader(EHorizontalAlignment::HAlign_Left)
+			.SortMode_Raw(this, &SConsoleVariablesEditorList::GetSortMode, SourceColumnName)
+			.OnSort_Raw(this, &SConsoleVariablesEditorList::OnSortColumnCalled)
+	);
+
+	return HeaderRow;
 }
 
 FReply SConsoleVariablesEditorList::SetAllGroupsCollapsed()
@@ -377,6 +399,100 @@ bool SConsoleVariablesEditorList::DoesListHaveUncheckedMembers() const
 	}
 
 	return false;
+}
+
+void SConsoleVariablesEditorList::OnListItemCheckBoxStateChange(const ECheckBoxState InNewState)
+{
+	HeaderCheckBoxState = ECheckBoxState::Checked;
+
+	if (DoesListHaveUncheckedMembers())
+	{
+		HeaderCheckBoxState = ECheckBoxState::Unchecked;
+
+		if (DoesListHaveCheckedMembers())
+		{
+			HeaderCheckBoxState = ECheckBoxState::Undetermined;
+		}
+	}
+}
+
+EColumnSortMode::Type SConsoleVariablesEditorList::GetSortMode(FName InColumnName) const
+{
+	EColumnSortMode::Type ColumnSortMode = EColumnSortMode::None;
+
+	if (const EColumnSortMode::Type* FoundSortMode = SortingMap.Find(InColumnName))
+	{
+		ColumnSortMode = *FoundSortMode;
+	}
+
+	return ColumnSortMode;
+}
+
+void SConsoleVariablesEditorList::OnSortColumnCalled(EColumnSortPriority::Type Priority, const FName& ColumnName, EColumnSortMode::Type SortMode)
+{
+	ExecuteSort(ColumnName, CycleSortMode(ColumnName));
+}
+
+EColumnSortMode::Type SConsoleVariablesEditorList::CycleSortMode(const FName& InColumnName)
+{
+	EColumnSortMode::Type ColumnSortMode = EColumnSortMode::None;
+
+	if (const EColumnSortMode::Type* FoundSortMode = SortingMap.Find(InColumnName))
+	{
+		ColumnSortMode = *FoundSortMode;
+	}
+
+	switch (ColumnSortMode)
+	{
+	case EColumnSortMode::None:
+		ColumnSortMode = EColumnSortMode::Ascending;
+		break;
+
+	case EColumnSortMode::Ascending:
+		ColumnSortMode = EColumnSortMode::Descending;
+		break;
+
+	case EColumnSortMode::Descending:
+		ColumnSortMode = EColumnSortMode::None;
+		break;
+
+	default:
+		ColumnSortMode = EColumnSortMode::None;
+		break;
+	}
+
+	SortingMap.Empty();
+	SortingMap.Add(InColumnName, ColumnSortMode);
+
+	return ColumnSortMode;
+}
+
+void SConsoleVariablesEditorList::ExecuteSort(const FName& InColumnName, const EColumnSortMode::Type InColumnSortMode)
+{
+	if (InColumnSortMode == EColumnSortMode::Ascending)
+	{
+		if (InColumnName.IsEqual(VariableNameColumnName))
+		{
+			TreeViewRootObjects.StableSort(SortByVariableNameAscending);
+		}
+		else if (InColumnName.IsEqual(SourceColumnName))
+		{
+			TreeViewRootObjects.StableSort(SortBySourceAscending);
+		}
+	}
+	else if (InColumnSortMode == EColumnSortMode::Descending)
+	{
+		if (InColumnName.IsEqual(VariableNameColumnName))
+		{
+			TreeViewRootObjects.StableSort(SortByVariableNameDescending);
+		}
+		else if (InColumnName.IsEqual(SourceColumnName))
+		{
+			TreeViewRootObjects.StableSort(SortBySourceDescending);
+		}
+	}
+	
+	TreeViewPtr->RequestTreeRefresh();
 }
 
 void SConsoleVariablesEditorList::OnGetRowChildren(FConsoleVariablesEditorListRowPtr Row, TArray<FConsoleVariablesEditorListRowPtr>& OutChildren) const

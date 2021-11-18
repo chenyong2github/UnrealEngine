@@ -45,10 +45,13 @@ public:
 private:
 	FSlateColor GetBackgroundColor() const;
 	const FSlateBrush* GetBackgroundBrush() const;
+	TOptional<FSlateRenderTransform> GetBackgroundRenderTransform() const;
 	const FSlateBrush* GetNodeShadowBrush() const;
 	const FSlateBrush* GetBorderBrush() const;
 	FSlateColor GetTextBoxColor() const;
 	FText GetPositionAndSizeText() const;
+	FText GetTransformText() const;
+	EVisibility GetTransformTextVisibility() const;
 	FMargin GetBackgroundPosition() const;
 	FMargin GetAreaResizeHandlePosition() const;
 	bool IsViewportLocked() const;

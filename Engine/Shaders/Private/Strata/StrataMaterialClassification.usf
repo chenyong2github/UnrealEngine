@@ -64,7 +64,7 @@ void ComputePostProcessBSDFData(
 		if (bTopLayer)
 		{
 			// Setup SSR for the top layer
-			TopLayerRoughness += BSDFWeightAvg * SLAB_ROUGHNESSX(BSDF);
+			TopLayerRoughness += BSDFWeightAvg * SLAB_ROUGHNESS(BSDF);
 			TopLayerRoughnessAverageCount += BSDFWeightAvg;
 		}
 
@@ -73,6 +73,7 @@ void ComputePostProcessBSDFData(
 			BSDF_GETHASSSS(BSDF) && BSDFWeightAvg > 0)
 		{
 			Classification.bHasSubsurface = true;
+			Classification.bHasSubsurfaceProfile = Classification.bHasSubsurfaceProfile || BSDF_GETHASSSSPROFILE(BSDF);;
 
 			SSS.BaseColor = SLAB_DIFFUSEALBEDO(BSDF);
 			SSS.Specular  = SLAB_F0(BSDF);				// STRATA_TODO: Specular or F0?

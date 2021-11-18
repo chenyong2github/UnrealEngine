@@ -637,7 +637,30 @@ void SDMXPixelMappingDesignerView::OnPaintBackground(const FGeometry& AllottedGe
 
 FSlateRect SDMXPixelMappingDesignerView::ComputeAreaBounds() const
 {
-	return FSlateRect(0, 0, GetPreviewAreaWidth().Get(), GetPreviewAreaHeight().Get());
+	FSlateRect Bounds = FSlateRect(0.f, 0.f, 0.f, 0.f);
+
+	if (const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin())
+	{
+		const TSet<FDMXPixelMappingComponentReference> SelectedComponents = Toolkit->GetSelectedComponents();
+		for (const FDMXPixelMappingComponentReference& ComponentReference : SelectedComponents)
+		{
+			if (UDMXPixelMappingBaseComponent* Component = ComponentReference.GetComponent())
+			{
+				if (UDMXPixelMappingRendererComponent* RendererComponent = Component->GetRendererComponent())
+				{
+					Bounds.Left = FMath::Min(RendererComponent->GetPosition().X, Bounds.Left);
+					Bounds.Top = FMath::Min(RendererComponent->GetPosition().Y, Bounds.Top);
+
+					Bounds.Right = FMath::Max(RendererComponent->GetPosition().X + RendererComponent->GetSize().X, Bounds.Right);
+					Bounds.Bottom = FMath::Max(RendererComponent->GetPosition().Y + RendererComponent->GetSize().Y, Bounds.Bottom);
+
+					break;
+				}
+			}
+		}
+	}
+
+	return Bounds;
 }
 
 int32 SDMXPixelMappingDesignerView::GetGraphRulePeriod() const
@@ -764,6 +787,7 @@ TSharedRef<SWidget> SDMXPixelMappingDesignerView::CreateOverlayUI()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
+				.ButtonColorAndOpacity(FLinearColor::Transparent)
 				.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
 				.ToolTipText(LOCTEXT("ZoomToFit_ToolTip", "Zoom To Fit"))
 				.OnClicked(this, &SDMXPixelMappingDesignerView::HandleZoomToFitClicked)

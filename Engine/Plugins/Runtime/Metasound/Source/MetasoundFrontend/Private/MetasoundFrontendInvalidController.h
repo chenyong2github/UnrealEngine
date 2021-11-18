@@ -93,6 +93,7 @@ namespace Metasound
 			virtual const FVertexName& GetName() const override { return Invalid::GetInvalidName(); }
 			virtual FText GetDisplayName() const override { return Invalid::GetInvalidText(); }
 			virtual const FText& GetTooltip() const override { return Invalid::GetInvalidText(); }
+			virtual bool ClearLiteral() override { return false; }
 			virtual const FMetasoundFrontendVertexMetadata& GetMetadata() const override { return Invalid::GetInvalidVertexMetadata(); }
 			virtual const FMetasoundFrontendLiteral* GetLiteral() const override { return nullptr; }
 			virtual void SetLiteral(const FMetasoundFrontendLiteral& InLiteral) { };
@@ -286,6 +287,8 @@ namespace Metasound
 			virtual FVariableHandle AddVariable(const FName& InDataTypeName) override { return IVariableController::GetInvalidHandle(); }
 			virtual FVariableHandle FindVariable(const FGuid& InVariableID) override { return IVariableController::GetInvalidHandle(); }
 			virtual FConstVariableHandle FindVariable(const FGuid& InVariableID) const { return IVariableController::GetInvalidHandle(); }
+			virtual FVariableHandle FindVariableContainingNode(const FGuid& InNodeID) override { return IVariableController::GetInvalidHandle(); }
+			virtual FConstVariableHandle FindVariableContainingNode(const FGuid& InNodeID) const override { return IVariableController::GetInvalidHandle(); }
 			virtual bool RemoveVariable(const FGuid& InVariableID) override { return false; }
 			virtual TArray<FVariableHandle> GetVariables() override { return TArray<FVariableHandle>(); }
 			virtual TArray<FConstVariableHandle> GetVariables() const override { return TArray<FConstVariableHandle>(); }

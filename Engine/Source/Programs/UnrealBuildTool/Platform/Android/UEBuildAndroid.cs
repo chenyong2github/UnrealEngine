@@ -6,8 +6,6 @@ using System.Text;
 using System.IO;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -318,9 +316,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference ProjectFile, ReadOnlyTargetRules Target)
+		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
 		{
-			AndroidToolChain ToolChain = CreateToolChain(Target) as AndroidToolChain;
+			AndroidToolChain ToolChain = (AndroidToolChain)CreateToolChain(Target);
 
 			List<string> Architectures = ToolChain.GetAllArchitectures();
 
@@ -365,13 +363,13 @@ namespace UnrealBuildTool
 
 		public virtual void SetUpSpecificEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
 		{
-			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
+			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT")!;
 			NDKPath = NDKPath.Replace("\"", "");
 
 			AndroidToolChain ToolChain = new AndroidToolChain(Target.ProjectFile, false, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures);
 
 			// figure out the NDK version
-			string NDKToolchainVersion = SDK.GetInstalledVersion();
+			string? NDKToolchainVersion = SDK.GetInstalledVersion();
 			UInt64 NDKVersionInt;
 			SDK.TryConvertVersionToInt(NDKToolchainVersion, out NDKVersionInt);
 
@@ -443,7 +441,7 @@ namespace UnrealBuildTool
 				Log.TraceInformation("PGO {0} build", Target.bPGOOptimize ? "optimize" : "profile");
 				if(Target.bPGOOptimize)
 				{
-					CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile).FullName, "Platforms", "Android", "Build", "PGO");
+					CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile)!.FullName, "Platforms", "Android", "Build", "PGO");
 					CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-Android", Target.Name);
 
 					LinkEnvironment.PGODirectory = CompileEnvironment.PGODirectory;
@@ -519,7 +517,7 @@ namespace UnrealBuildTool
 			AndroidToolChainOptions Options = CreateToolChainOptions(Target.AndroidPlatform.TargetRules);
 			return new AndroidToolChain(Target.ProjectFile, bUseLdGold, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options);
 		}
-		public virtual UEToolChain CreateTempToolChainForProject(FileReference ProjectFile)
+		public virtual UEToolChain CreateTempToolChainForProject(FileReference? ProjectFile)
 		{
 			AndroidTargetRules TargetRules = new AndroidTargetRules();
 			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules);

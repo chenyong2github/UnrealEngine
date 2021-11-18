@@ -322,7 +322,7 @@ FText UKismetTextLibrary::TextFromStringTable(const FName TableId, const FString
 
 bool UKismetTextLibrary::StringTableIdAndKeyFromText(FText Text, FName& OutTableId, FString& OutKey)
 {
-	return FStringTableRegistry::Get().FindTableIdAndKey(Text, OutTableId, OutKey);
+	return FTextInspector::GetTableIdAndKey(Text, OutTableId, OutKey);
 }
 
 void UKismetTextLibrary::IsPolyglotDataValid(const FPolyglotTextData& PolyglotData, bool& IsValid, FText& ErrorMessage)

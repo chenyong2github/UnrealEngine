@@ -92,7 +92,7 @@ SMediaFrameworkVideoInputDisplay::~SMediaFrameworkVideoInputDisplay()
 {
 	if (MediaPlayerCallback)
 	{
-		MediaPlayerCallback->MarkPendingKill();
+		MediaPlayerCallback->MarkAsGarbage();
 	}
 
 	if (GEditor && RestartPlayerTimerHandle.IsValid())

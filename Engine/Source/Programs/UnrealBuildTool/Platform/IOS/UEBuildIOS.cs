@@ -9,8 +9,6 @@ using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -63,24 +61,24 @@ namespace UnrealBuildTool
 		/// Manual override for the provision to use. Should be a full path.
 		/// </summary>
 		[CommandLine("-ImportProvision=")]
-		public string ImportProvision = null;
+		public string? ImportProvision = null;
 
 		/// <summary>
 		/// Imports the given certificate (inc private key) into a temporary keychain before signing.
 		/// </summary>
 		[CommandLine("-ImportCertificate=")]
-		public string ImportCertificate = null;
+		public string? ImportCertificate = null;
 
 		/// <summary>
 		/// Password for the imported certificate
 		/// </summary>
 		[CommandLine("-ImportCertificatePassword=")]
-		public string ImportCertificatePassword = null;
+		public string? ImportCertificatePassword = null;
 
 		/// <summary>
 		/// Cached project settings for the target (set in ResetTarget)
 		/// </summary>
-		public IOSProjectSettings ProjectSettings = null;
+		public IOSProjectSettings? ProjectSettings = null;
 
 		/// <summary>
 		/// Enables address sanitizer (ASan)
@@ -132,7 +130,7 @@ namespace UnrealBuildTool
 			
 		public bool bShipForBitcode
 		{
-			get { return Inner.ProjectSettings.bShipForBitcode; }
+			get { return Inner.ProjectSettings!.bShipForBitcode; }
 		}
 
 		public bool bGenerateFrameworkWrapperProject
@@ -160,24 +158,24 @@ namespace UnrealBuildTool
 			get { return Inner.bForDistribution; }
 		}
 
-		public string ImportProvision
+		public string? ImportProvision
 		{
 			get { return Inner.ImportProvision; }
 		}
 
-		public string ImportCertificate
+		public string? ImportCertificate
 		{
 			get { return Inner.ImportCertificate; }
 		}
 
-		public string ImportCertificatePassword
+		public string? ImportCertificatePassword
 		{
 			get { return Inner.ImportCertificatePassword; }
 		}
 
 		public float RuntimeVersion
 		{
-			get { return float.Parse(Inner.ProjectSettings.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture); }
+			get { return float.Parse(Inner.ProjectSettings!.RuntimeVersion, System.Globalization.CultureInfo.InvariantCulture); }
 		}
 
 		public bool bEnableAddressSanitizer
@@ -207,7 +205,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The cached project file location
 		/// </summary>
-		public readonly FileReference ProjectFile;
+		public readonly FileReference? ProjectFile;
 
 		/// <summary>
 		/// Whether to build the iOS project as a framework.
@@ -246,7 +244,7 @@ namespace UnrealBuildTool
         /// The minimum supported version
         /// </summary>
         [ConfigFile(ConfigHierarchyType.Engine, "/Script/IOSRuntimeSettings.IOSRuntimeSettings", "MinimumiOSVersion")]
-		private readonly string MinimumIOSVersion = null;
+		private readonly string? MinimumIOSVersion = null;
 
 		/// <summary>
 		/// Whether to support iPhone
@@ -413,7 +411,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ProjectFile">The project file to read settings for</param>
 		/// <param name="Bundle">Bundle identifier needed when project file is empty</param>
-		public IOSProjectSettings(FileReference ProjectFile, string Bundle) 
+		public IOSProjectSettings(FileReference? ProjectFile, string? Bundle) 
 			: this(ProjectFile, UnrealTargetPlatform.IOS, Bundle)
 		{
 		}
@@ -424,7 +422,7 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile">The project file to read settings for</param>
 		/// <param name="Platform">The platform to read settings for</param>
 		/// <param name="Bundle">Bundle identifier needed when project file is empty</param>
-		protected IOSProjectSettings(FileReference ProjectFile, UnrealTargetPlatform Platform, string Bundle)
+		protected IOSProjectSettings(FileReference? ProjectFile, UnrealTargetPlatform Platform, string? Bundle)
 		{
 			this.ProjectFile = ProjectFile;
 			ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, this);
@@ -441,17 +439,17 @@ namespace UnrealBuildTool
 	/// </summary>
     class IOSProvisioningData
     {
-		public string SigningCertificate;
-		public FileReference MobileProvisionFile;
-        public string MobileProvisionUUID;
-        public string MobileProvisionName;
-        public string TeamUUID;
-		public string BundleIdentifier;
+		public string? SigningCertificate;
+		public FileReference? MobileProvisionFile;
+        public string? MobileProvisionUUID;
+        public string? MobileProvisionName;
+        public string? TeamUUID;
+		public string? BundleIdentifier;
 		public bool bHaveCertificate = false;
 
-		public string MobileProvision
+		public string? MobileProvision
 		{
-			get { return (MobileProvisionFile == null)? null : MobileProvisionFile.GetFileName(); }
+			get => MobileProvisionFile?.GetFileName();
 		}
 
 		public IOSProvisioningData(IOSProjectSettings ProjectSettings, bool bForDistribution)
@@ -462,9 +460,9 @@ namespace UnrealBuildTool
 		protected IOSProvisioningData(IOSProjectSettings ProjectSettings, bool bIsTVOS, bool bForDistribtion)
 		{
             SigningCertificate = ProjectSettings.SigningCertificate;
-            string MobileProvision = ProjectSettings.MobileProvision;
+            string? MobileProvision = ProjectSettings.MobileProvision;
 
-			FileReference ProjectFile = ProjectSettings.ProjectFile;
+			FileReference? ProjectFile = ProjectSettings.ProjectFile;
 			FileReference IPhonePackager = FileReference.Combine(Unreal.EngineDirectory, "Binaries/DotNET/IOS/IPhonePackager.exe");
 
 			if (!string.IsNullOrEmpty(SigningCertificate))
@@ -503,11 +501,11 @@ namespace UnrealBuildTool
 				DirectoryReference MobileProvisionDir;
 				if(BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 				{
-					MobileProvisionDir = DirectoryReference.Combine(new DirectoryReference(Environment.GetEnvironmentVariable("HOME")), "Library", "MobileDevice", "Provisioning Profiles");
+					MobileProvisionDir = DirectoryReference.Combine(new DirectoryReference(Environment.GetEnvironmentVariable("HOME")!), "Library", "MobileDevice", "Provisioning Profiles");
 				}
 				else
 				{
-					MobileProvisionDir = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData), "Apple Computer", "MobileDevice", "Provisioning Profiles");
+					MobileProvisionDir = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData)!, "Apple Computer", "MobileDevice", "Provisioning Profiles");
 				}
 
 				FileReference PossibleMobileProvisionFile = FileReference.Combine(MobileProvisionDir, MobileProvision);
@@ -710,7 +708,7 @@ namespace UnrealBuildTool
 		}
 
 		// The current architecture - affects everything about how UBT operates on IOS
-		public override string GetDefaultArchitecture(FileReference ProjectFile)
+		public override string GetDefaultArchitecture(FileReference? ProjectFile)
 		{
 			return IOSArchitecture;
 		}
@@ -720,7 +718,7 @@ namespace UnrealBuildTool
 			return IOSArchitecture;
 		}
 
-		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference ProjectFile, ReadOnlyTargetRules Target)
+		public override List<FileReference> FinalizeBinaryPaths(FileReference BinaryName, FileReference? ProjectFile, ReadOnlyTargetRules Target)
 		{
 			List<FileReference> BinaryPaths = new List<FileReference>();
 			if(Target.bShouldCompileAsDLL)
@@ -845,9 +843,9 @@ namespace UnrealBuildTool
 			return base.GetBinaryExtension(InBinaryType);
 		}
 
-		public IOSProjectSettings ReadProjectSettings(FileReference ProjectFile, string Bundle = "")
+		public IOSProjectSettings ReadProjectSettings(FileReference? ProjectFile, string? Bundle = "")
 		{
-			IOSProjectSettings ProjectSettings = null;
+			IOSProjectSettings? ProjectSettings = null;
 
 			// Use separate lists to prevent an overridden Bundle id polluting the standard project file. 
 			bool bCacheByBundle = !string.IsNullOrEmpty(Bundle);
@@ -875,12 +873,12 @@ namespace UnrealBuildTool
 			return ProjectSettings;
 		}
 
-		protected virtual IOSProjectSettings CreateProjectSettings(FileReference ProjectFile, string Bundle)
+		protected virtual IOSProjectSettings CreateProjectSettings(FileReference? ProjectFile, string? Bundle)
 		{
 			return new IOSProjectSettings(ProjectFile, Bundle);
 		}
 
-		public IOSProvisioningData ReadProvisioningData(FileReference ProjectFile, bool bForDistribution = false, string Bundle = "")
+		public IOSProvisioningData ReadProvisioningData(FileReference? ProjectFile, bool bForDistribution = false, string? Bundle = "")
 		{
 			IOSProjectSettings ProjectSettings = ReadProjectSettings(ProjectFile, Bundle);
 			return ReadProvisioningData(ProjectSettings, bForDistribution);
@@ -890,7 +888,7 @@ namespace UnrealBuildTool
         {
 			string ProvisionKey = ProjectSettings.BundleIdentifier + " " + bForDistribution.ToString();
 
-            IOSProvisioningData ProvisioningData;
+            IOSProvisioningData? ProvisioningData;
 			if(!ProvisionCache.TryGetValue(ProvisionKey, out ProvisioningData))
             {
 				ProvisioningData = CreateProvisioningData(ProjectSettings, bForDistribution);

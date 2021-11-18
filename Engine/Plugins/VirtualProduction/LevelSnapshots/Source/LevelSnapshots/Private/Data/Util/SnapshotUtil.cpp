@@ -9,7 +9,7 @@
 #include "GameFramework/Actor.h"
 #include "Misc/ScopeExit.h"
 
-FString SnapshotUtil::ExtractLastSubobjectName(const FSoftObjectPath& ObjectPath)
+FString UE::LevelSnapshots::Private::ExtractLastSubobjectName(const FSoftObjectPath& ObjectPath)
 {
 	const FString& SubPathString = ObjectPath.GetSubPathString();
 	const int32 LastDotIndex = SubPathString.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
@@ -21,7 +21,7 @@ FString SnapshotUtil::ExtractLastSubobjectName(const FSoftObjectPath& ObjectPath
 	return SubPathString.RightChop(LastDotIndex + 1);
 }
 
-TOptional<FSoftObjectPath> SnapshotUtil::ExtractActorFromPath(const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject)
+TOptional<FSoftObjectPath> UE::LevelSnapshots::Private::ExtractActorFromPath(const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject)
 {
 	const static FString PersistentLevelString("PersistentLevel.");
 	const int32 PersistentLevelStringLength = PersistentLevelString.Len();
@@ -46,7 +46,7 @@ TOptional<FSoftObjectPath> SnapshotUtil::ExtractActorFromPath(const FSoftObjectP
 		FSoftObjectPath(OriginalObjectPath.GetAssetPathName(), SubPathString.Left(DotAfterActorNameIndex));
 }
 
-TOptional<int32> SnapshotUtil::FindDotAfterActorName(const FSoftObjectPath& OriginalObjectPath)
+TOptional<int32> UE::LevelSnapshots::Private::FindDotAfterActorName(const FSoftObjectPath& OriginalObjectPath)
 {
 	const static FString PersistentLevelString("PersistentLevel.");
 	const int32 PersistentLevelStringLength = PersistentLevelString.Len();
@@ -63,9 +63,9 @@ TOptional<int32> SnapshotUtil::FindDotAfterActorName(const FSoftObjectPath& Orig
 	return DotAfterActorNameIndex != INDEX_NONE ? DotAfterActorNameIndex : TOptional<int32>();
 }
 
-TOptional<FActorSnapshotData*> SnapshotUtil::FindSavedActorDataUsingObjectPath(TMap<FSoftObjectPath, FActorSnapshotData>& ActorData, const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject)
+TOptional<TNonNullPtr<FActorSnapshotData>> UE::LevelSnapshots::Private::FindSavedActorDataUsingObjectPath(TMap<FSoftObjectPath, FActorSnapshotData>& ActorData, const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject)
 {
-	const TOptional<FSoftObjectPath> PathToActor = SnapshotUtil::ExtractActorFromPath(OriginalObjectPath, bIsPathToActorSubobject);
+	const TOptional<FSoftObjectPath> PathToActor = UE::LevelSnapshots::Private::ExtractActorFromPath(OriginalObjectPath, bIsPathToActorSubobject);
 	if (!PathToActor.IsSet())
 	{
 		return {};	
@@ -73,7 +73,7 @@ TOptional<FActorSnapshotData*> SnapshotUtil::FindSavedActorDataUsingObjectPath(T
 	
 	FActorSnapshotData* Result = ActorData.Find(*PathToActor);
 	UE_CLOG(Result == nullptr, LogLevelSnapshots, Warning, TEXT("Path %s looks like an actor path but no data was saved for it. Maybe it was a reference to an auto-generated actor, e.g. a brush or volume present in all worlds by default?"), *OriginalObjectPath.ToString());
-	return Result ? Result : TOptional<FActorSnapshotData*>();  
+	return Result ? TOptional<TNonNullPtr<FActorSnapshotData>>(Result) : TOptional<TNonNullPtr<FActorSnapshotData>>();  
 }
 
 
@@ -81,7 +81,7 @@ TOptional<FActorSnapshotData*> SnapshotUtil::FindSavedActorDataUsingObjectPath(T
  *
  * E.g. /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent could become /Game/MapName.MapName:PersistentLevel.SomeOtherActor.StaticMeshComponent
  */
-FSoftObjectPath SnapshotUtil::SetActorInPath(AActor* NewActor, const FSoftObjectPath& OriginalObjectPath)
+FSoftObjectPath UE::LevelSnapshots::Private::SetActorInPath(AActor* NewActor, const FSoftObjectPath& OriginalObjectPath)
 {
 	const static FString PersistentLevelString("PersistentLevel.");
 	const int32 PersistentLevelStringLength = PersistentLevelString.Len();

@@ -89,22 +89,22 @@ public:
 		const FCompiledCameraModel& CompiledCameraModel,
 		const FIntPoint& DisplacementMapResolution)
 	{
-		FVector2D PixelUVSizeValue(
+		FVector2f PixelUVSizeValue(
 			1.f / float(DisplacementMapResolution.X), 1.f / float(DisplacementMapResolution.Y));
 		FVector3f RadialDistortionCoefsValue(
 			CompiledCameraModel.OriginalCameraModel.K1,
 			CompiledCameraModel.OriginalCameraModel.K2,
 			CompiledCameraModel.OriginalCameraModel.K3);
-		FVector2D TangentialDistortionCoefsValue(
+		FVector2f TangentialDistortionCoefsValue(
 			CompiledCameraModel.OriginalCameraModel.P1,
 			CompiledCameraModel.OriginalCameraModel.P2);
 
 		SetShaderValue(RHICmdList, ShaderRHI, PixelUVSize, PixelUVSizeValue);
-		SetShaderValue(RHICmdList, ShaderRHI, DistortedCameraMatrix, (FVector4f)CompiledCameraModel.DistortedCameraMatrix);
-		SetShaderValue(RHICmdList, ShaderRHI, UndistortedCameraMatrix, (FVector4f)CompiledCameraModel.UndistortedCameraMatrix);
+		SetShaderValue(RHICmdList, ShaderRHI, DistortedCameraMatrix, FVector4f(CompiledCameraModel.DistortedCameraMatrix));
+		SetShaderValue(RHICmdList, ShaderRHI, UndistortedCameraMatrix, FVector4f(CompiledCameraModel.UndistortedCameraMatrix));
 		SetShaderValue(RHICmdList, ShaderRHI, RadialDistortionCoefs, RadialDistortionCoefsValue);
 		SetShaderValue(RHICmdList, ShaderRHI, TangentialDistortionCoefs, TangentialDistortionCoefsValue);
-		SetShaderValue(RHICmdList, ShaderRHI, OutputMultiplyAndAdd, CompiledCameraModel.OutputMultiplyAndAdd);
+		SetShaderValue(RHICmdList, ShaderRHI, OutputMultiplyAndAdd, FVector2f(CompiledCameraModel.OutputMultiplyAndAdd));
 	}
 
 private:

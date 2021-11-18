@@ -102,11 +102,11 @@ fi
 
 echo
 echo === Checking out vcpkg to $DIR/vcpkg ===
-git clone https://github.com/microsoft/vcpkg.git --depth 1 --branch $VCPKG_VERSION $DIR/vcpkg
+git clone https://github.com/microsoft/vcpkg.git --depth 1 --branch $VCPKG_VERSION "$DIR/vcpkg"
 
 echo
 echo === Bootstrapping vcpkg ===
-$DIR/vcpkg/bootstrap-vcpkg.sh
+"$DIR/vcpkg/bootstrap-vcpkg.sh"
 
 for VCPKG_TRIPLET in ${VCPKG_TRIPLETS[@]}
 do
@@ -117,7 +117,7 @@ do
 
   [ -d "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET" ] && echo
   [ -d "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET" ] && echo === Making $VCPKG_INSTALLED/$VCPKG_TRIPLET artifacts writeable ===
-  [ -d "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET" ] && chmod -R u+w $DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET
+  [ -d "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET" ] && chmod -R u+w "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET"
 
   echo
   echo === Running vcpkg in manifest mode ===
@@ -125,10 +125,10 @@ do
   # --overlay-triplets tells it to resolve a named triplet via additional paths outside vcpkg/, PWD relative
   # --triplet names the triplet to configure the build with, our custom triplet file w/o .cmake extentions
   # --debug will provide extra information to stdout
-  $DIR/vcpkg/vcpkg install --x-install-root=$DIR/$VCPKG_INSTALLED --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=$VCPKG_TRIPLET "proj4[core,database]"
+  "$DIR/vcpkg/vcpkg" install --x-install-root="$DIR/$VCPKG_INSTALLED" --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=$VCPKG_TRIPLET "proj4[core,database]"
 
   echo
   echo === Reconciling $VCPKG_INSTALLED artifacts ===
-  p4 reconcile $DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET/...
+  p4 reconcile "$DIR/$VCPKG_INSTALLED/$VCPKG_TRIPLET/..."
 done
   

@@ -166,6 +166,32 @@ struct FRetargetSourceCachedData
 	TArray<int32> CompactPoseIndexToOrientAndScaleIndex;
 };
 
+/** Iterator for compact pose indices */
+struct FCompactPoseBoneIndexIterator
+{
+	int32 Index;
+
+	FCompactPoseBoneIndexIterator(int32 InIndex) : Index(InIndex) {}
+
+	FCompactPoseBoneIndexIterator& operator++() { ++Index; return (*this); }
+	bool operator==(FCompactPoseBoneIndexIterator& Rhs) { return Index == Rhs.Index; }
+	bool operator!=(FCompactPoseBoneIndexIterator& Rhs) { return Index != Rhs.Index; }
+	FCompactPoseBoneIndex operator*() const { return FCompactPoseBoneIndex(Index); }
+};
+
+/** Reverse iterator for compact pose indices */
+struct FCompactPoseBoneIndexReverseIterator
+{
+	int32 Index;
+
+	FCompactPoseBoneIndexReverseIterator(int32 InIndex) : Index(InIndex) {}
+
+	FCompactPoseBoneIndexReverseIterator& operator++() { --Index; return (*this); }
+	bool operator==(FCompactPoseBoneIndexReverseIterator& Rhs) { return Index == Rhs.Index; }
+	bool operator!=(FCompactPoseBoneIndexReverseIterator& Rhs) { return Index != Rhs.Index; }
+	FCompactPoseBoneIndex operator*() const { return FCompactPoseBoneIndex(Index); }
+};
+
 /**
 * This is a native transient structure.
 * Contains:
@@ -309,8 +335,9 @@ public:
 	}
 
 	/**
-	* returns Required Bone Indices Array
-	*/
+	 * Returns array of the size of compact pose, mapping to mesh pose index
+	 * returns Required Bone Indices Array
+	 */
 	const TArray<FBoneIndexType>& GetBoneIndicesArray() const
 	{
 		return BoneIndicesArray;
@@ -461,28 +488,139 @@ public:
 		return BoneSwitchArray[NewIndex];
 	}
 
-	/** Const accessor to GetSkeletonToPoseBoneIndexArray(). */
+	/** Const accessor to SkeletonToPoseBoneIndexArray. */
+	UE_DEPRECATED(5.0, "Please use GetMeshPoseIndexFromSkeletonPoseIndex")
 	TArray<int32> const & GetSkeletonToPoseBoneIndexArray() const
 	{
 		return SkeletonToPoseBoneIndexArray;
 	}
 
-	/** Const accessor to GetSkeletonToPoseBoneIndexArray(). */
+	/** Const accessor to PoseToSkeletonBoneIndexArray. */
+	UE_DEPRECATED(5.0, "Please use GetSkeletonPoseIndexFromMeshPoseIndex")
 	TArray<int32> const & GetPoseToSkeletonBoneIndexArray() const
 	{
 		return PoseToSkeletonBoneIndexArray;
 	}
+	
+	template<typename IterType>
+	struct FRangedForSupport
+	{
+		const FBoneContainer& BoneContainer;
 
+		FRangedForSupport(const FBoneContainer& InBoneContainer) : BoneContainer(InBoneContainer) {};
+		
+		IterType begin() { return BoneContainer.MakeBeginIter(); }
+		IterType end() { return BoneContainer.MakeEndIter(); }
+	};
+
+	template<typename IterType>
+	struct FRangedForReverseSupport
+	{
+		const FBoneContainer& BoneContainer;
+
+		FRangedForReverseSupport(const FBoneContainer& InBoneContainer) : BoneContainer(InBoneContainer) {};
+
+		IterType begin() { return BoneContainer.MakeBeginIterReverse(); }
+		IterType end() { return BoneContainer.MakeEndIterReverse(); }
+	};
+	
+	FORCEINLINE FRangedForSupport<FCompactPoseBoneIndexIterator> ForEachCompactPoseBoneIndex() const
+	{
+		return FRangedForSupport<FCompactPoseBoneIndexIterator>(*this);
+	}
+	FORCEINLINE FRangedForReverseSupport<FCompactPoseBoneIndexReverseIterator> ForEachCompactPoseBoneIndexReverse() const
+	{
+		return FRangedForReverseSupport<FCompactPoseBoneIndexReverseIterator>(*this);
+	}
+	FORCEINLINE FCompactPoseBoneIndexIterator MakeBeginIter() const
+	{
+		return FCompactPoseBoneIndexIterator(0);
+	}
+	FORCEINLINE FCompactPoseBoneIndexIterator MakeEndIter() const
+	{
+		return FCompactPoseBoneIndexIterator(GetCompactPoseNumBones());
+	}
+	FORCEINLINE FCompactPoseBoneIndexReverseIterator MakeBeginIterReverse() const
+	{
+		return FCompactPoseBoneIndexReverseIterator(GetCompactPoseNumBones() - 1);
+	}
+	FORCEINLINE FCompactPoseBoneIndexReverseIterator MakeEndIterReverse() const
+	{
+		return FCompactPoseBoneIndexReverseIterator(-1);
+	}
+	
+	/** 
+	 * Map skeleton bone index to mesh index
+	 * @return	the mesh pose bone index for the specified skeleton pose bone index. Returns an invalid index if the mesh
+	 *			does not include the specified skeleton bone.
+	 */
+	FMeshPoseBoneIndex GetMeshPoseIndexFromSkeletonPoseIndex(const FSkeletonPoseBoneIndex& SkeletonIndex) const
+	{
+		if (SkeletonToPoseBoneIndexArray.IsValidIndex(SkeletonIndex.GetInt()))
+		{
+			return FMeshPoseBoneIndex(SkeletonToPoseBoneIndexArray[SkeletonIndex.GetInt()]);
+		}
+		
+		return FMeshPoseBoneIndex(INDEX_NONE);
+	}
+
+	/**
+	 * Map mesh bone index to skeleton index
+	 * @return	the skeleton pose bone index for the specified mesh pose bone index. Ensures and returns an invalid
+	 *			index if the skeleton does not include the specified mesh bone.
+	 */
+	FSkeletonPoseBoneIndex GetSkeletonPoseIndexFromMeshPoseIndex(const FMeshPoseBoneIndex& MeshIndex) const
+	{
+		if (ensure(PoseToSkeletonBoneIndexArray.IsValidIndex(MeshIndex.GetInt())))
+		{
+			return FSkeletonPoseBoneIndex(PoseToSkeletonBoneIndexArray[MeshIndex.GetInt()]);
+		}
+		
+		return FSkeletonPoseBoneIndex(INDEX_NONE);
+	}
+
+	// DEPRECATED - Ideally should use GetSkeletonPoseIndexFromCompactPoseIndex due to raw int32 here
 	int32 GetSkeletonIndex(const FCompactPoseBoneIndex& BoneIndex) const
 	{
 		return CompactPoseToSkeletonIndex[BoneIndex.GetInt()];
 	}
 
+	/**
+	 * Map compact bone index to skeleton index
+	 * @return	the skeleton pose bone index for the specified compact pose bone index. Ensures and returns an invalid
+	 *			index if the skeleton does not include the specified compact pose bone.
+	 */	
+	FSkeletonPoseBoneIndex GetSkeletonPoseIndexFromCompactPoseIndex(const FCompactPoseBoneIndex& BoneIndex) const
+	{
+		if (ensure(CompactPoseToSkeletonIndex.IsValidIndex(BoneIndex.GetInt())))
+		{
+			return FSkeletonPoseBoneIndex(CompactPoseToSkeletonIndex[BoneIndex.GetInt()]);
+		}
+		
+		return FSkeletonPoseBoneIndex(INDEX_NONE);
+	}
+
+	// DEPRECATED - Ideally should use GetCompactPoseIndexFromSkeletonPoseIndex due to raw int32 here
 	FCompactPoseBoneIndex GetCompactPoseIndexFromSkeletonIndex(const int32 SkeletonIndex) const
 	{
 		if (ensure(SkeletonToCompactPose.IsValidIndex(SkeletonIndex)))
 		{
 			return SkeletonToCompactPose[SkeletonIndex];
+		}
+
+		return FCompactPoseBoneIndex(INDEX_NONE);
+	}
+
+	/** 
+	 * Map skeleton bone index to compact pose index
+	 * @return	the compact pose bone index for the specified skeleton pose bone index. Returns an invalid index if the
+	 *			compact pose does not include the specified skeleton bone.
+	 */	
+	FCompactPoseBoneIndex GetCompactPoseIndexFromSkeletonPoseIndex(const FSkeletonPoseBoneIndex& SkeletonIndex) const
+	{
+		if (SkeletonToCompactPose.IsValidIndex(SkeletonIndex.GetInt()))
+		{
+			return SkeletonToCompactPose[SkeletonIndex.GetInt()];
 		}
 
 		return FCompactPoseBoneIndex(INDEX_NONE);
@@ -620,6 +758,24 @@ struct FBoneReference
 		CachedCompactPoseIndex = FCompactPoseBoneIndex(INDEX_NONE);
 	}
 
+	FSkeletonPoseBoneIndex GetSkeletonPoseIndex(const FBoneContainer& RequiredBones) const
+	{ 
+		// accessing array with invalid index would cause crash, so we have to check here
+		if (BoneIndex != INDEX_NONE)
+		{
+			if (bUseSkeletonIndex)
+			{
+				return FSkeletonPoseBoneIndex(BoneIndex);
+			}
+			else
+			{
+				return RequiredBones.GetSkeletonPoseIndexFromMeshPoseIndex(FMeshPoseBoneIndex(BoneIndex));
+			}
+		}
+
+		return FSkeletonPoseBoneIndex(INDEX_NONE);
+	}
+	
 	FMeshPoseBoneIndex GetMeshPoseIndex(const FBoneContainer& RequiredBones) const
 	{ 
 		// accessing array with invalid index would cause crash, so we have to check here
@@ -627,7 +783,7 @@ struct FBoneReference
 		{
 			if (bUseSkeletonIndex)
 			{
-				return FMeshPoseBoneIndex(RequiredBones.GetSkeletonToPoseBoneIndexArray()[BoneIndex]);
+				return RequiredBones.GetMeshPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(BoneIndex));
 			}
 			else
 			{
@@ -646,7 +802,7 @@ struct FBoneReference
 			if (BoneIndex != INDEX_NONE)
 			{
 				// accessing array with invalid index would cause crash, so we have to check here
-				return RequiredBones.GetCompactPoseIndexFromSkeletonIndex(BoneIndex);
+				return RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(BoneIndex));
 			}
 			return FCompactPoseBoneIndex(INDEX_NONE);
 		}

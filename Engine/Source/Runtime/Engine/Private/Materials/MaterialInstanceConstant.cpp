@@ -33,6 +33,11 @@ UMaterialInstanceConstant::UMaterialInstanceConstant(const FObjectInitializer& O
 	PhysMaterialMask = nullptr;
 }
 
+void UMaterialInstanceConstant::FinishDestroy()
+{
+	Super::FinishDestroy();
+}
+
 void UMaterialInstanceConstant::PostLoad()
 {
 	LLM_SCOPE(ELLMTag::Materials);
@@ -154,40 +159,44 @@ void UMaterialInstanceConstant::UpdateCachedData()
 	// Don't need to rebuild cached data if it was serialized
 	if (!bLoadedCachedData)
 	{
-		UMaterialInstance* ParentInstance = nullptr;
-		FMaterialCachedExpressionData CachedExpressionData;
-		CachedExpressionData.Reset();
-		if (Parent)
+		if (!CachedData)
 		{
-			CachedExpressionData.ReferencedTextures = Parent->GetReferencedTextures();
-			ParentInstance = Cast<UMaterialInstance>(Parent);
+			CachedData.Reset(new FMaterialInstanceCachedData());
 		}
 
 		FMaterialLayersFunctions Layers;
 		const bool bHasLayers = GetMaterialLayers(Layers);
-		if (bHasLayers)
-		{
-			FMaterialCachedExpressionContext Context;
-			CachedExpressionData.UpdateForLayerFunctions(Context, Layers);
-		}
-
-		if (!CachedData)
-		{
-			CachedData = new FMaterialInstanceCachedData();
-		}
 
 		FMaterialLayersFunctions ParentLayers;
 		const bool bParentHasLayers = Parent && Parent->GetMaterialLayers(ParentLayers);
-		CachedData->InitializeForConstant(MoveTemp(CachedExpressionData),
-			bHasLayers ? &Layers : nullptr,
-			bParentHasLayers ? &ParentLayers : nullptr);
+		CachedData->InitializeForConstant(bHasLayers ? &Layers : nullptr, bParentHasLayers ? &ParentLayers : nullptr);
 		if (Resource)
 		{
 			Resource->GameThread_UpdateCachedData(*CachedData);
 		}
 	}
 
-	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+	if (!bLoadedCachedExpressionData)
+	{
+		FMaterialCachedExpressionData* LocalCachedExpressionData = nullptr;
+
+		// If we have overriden material layers, need to create a local cached expression data
+		// Otherwise we can leave it as null, and use cached data from our parent
+		const FStaticParameterSet& LocalStaticParameters = GetStaticParameters();
+		if (LocalStaticParameters.bHasMaterialLayers)
+		{
+			UMaterial* BaseMaterial = GetMaterial();
+
+			FMaterialCachedExpressionContext Context;
+			Context.LayerOverrides = &LocalStaticParameters.MaterialLayers;
+			LocalCachedExpressionData = new FMaterialCachedExpressionData();
+			LocalCachedExpressionData->Reset();
+			LocalCachedExpressionData->UpdateForExpressions(Context, BaseMaterial->Expressions, GlobalParameter, INDEX_NONE);
+		}
+		CachedExpressionData.Reset(LocalCachedExpressionData);
+
+		FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+	}
 }
 
 #endif // #if WITH_EDITOR

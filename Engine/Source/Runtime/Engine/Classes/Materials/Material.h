@@ -10,7 +10,6 @@
 #include "RenderCommandFence.h"
 #include "Materials/MaterialInterface.h"
 #include "MaterialShared.h"
-#include "MaterialCachedData.h"
 #include "MaterialExpressionIO.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
@@ -1018,10 +1017,6 @@ private:
 	bool bSavedCachedExpressionData_DEPRECATED;
 #endif
 
-	bool bLoadedCachedExpressionData;
-
-	FMaterialCachedExpressionData* CachedExpressionData;
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FGuid> ReferencedTextureGuids;
@@ -1029,15 +1024,12 @@ private:
 #endif // WITH_EDITORONLY_DATA
 public:
 
-	const FMaterialCachedExpressionData& GetCachedExpressionData() const { return CachedExpressionData ? *CachedExpressionData : FMaterialCachedExpressionData::EmptyData; }
-
 	//~ Begin UMaterialInterface Interface.
 	ENGINE_API virtual UMaterial* GetMaterial() override;
 	ENGINE_API virtual const UMaterial* GetMaterial() const override;
 	ENGINE_API virtual const UMaterial* GetMaterial_Concurrent(TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const override;
-	ENGINE_API virtual const UMaterial* GetMaterialInheritanceChain(FMaterialParentInstanceArray& OutInstances) const override;
-
-	ENGINE_API virtual bool GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutValue, EMaterialGetParameterValueFlags Flags) const override;
+	ENGINE_API virtual void GetMaterialInheritanceChain(FMaterialInheritanceChain& OutChain) const override;
+	ENGINE_API virtual bool GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutValue, EMaterialGetParameterValueFlags Flags = EMaterialGetParameterValueFlags::Default) const override;
 
 	ENGINE_API virtual bool GetRefractionSettings(float& OutBiasValue) const override;
 	ENGINE_API virtual void GetDependencies(TSet<UMaterialInterface*>& Dependencies) override;
@@ -1055,7 +1047,6 @@ public:
 	ENGINE_API virtual FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) override;
 	ENGINE_API virtual const FMaterialResource* GetMaterialResource(ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::Num) const override;
 	ENGINE_API virtual bool GetMaterialLayers(FMaterialLayersFunctions& OutLayers, TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) const override;
-	ENGINE_API virtual bool GetTerrainLayerWeightParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutWeightmapIndex, FGuid& OutExpressionGuid) const override;
 	ENGINE_API virtual bool UpdateLightmassTextureTracking() override;
 #if WITH_EDITOR
 	ENGINE_API virtual bool GetGroupSortPriority(const FString& InGroupName, int32& OutSortPriority) const override;
@@ -1264,6 +1255,7 @@ public:
 	 * @return	Returns a array of parameter names used in this material for the specified expression type.
 	 */
 	template<typename ExpressionType>
+	UE_DEPRECATED(5.0, "Use GetAllParameterInfoOfType or GetAllParametersOfType")
 	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 	{
 		for (const TObjectPtr<UMaterialExpression>& Expression : Expressions)
@@ -1276,13 +1268,17 @@ public:
 			// which are a top-level only parameter without having to deal with the below recursion
 			if (const ExpressionType* ParameterExpression = Cast<const ExpressionType>(Expression))
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				ParameterExpression->GetAllParameterInfo(OutParameterInfo, OutParameterIds, BaseParameterInfo);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 			else if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = Cast<const UMaterialExpressionMaterialFunctionCall>(Expression))
 			{
 				if (FunctionExpression->MaterialFunction)
 				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					FunctionExpression->MaterialFunction->GetAllParameterInfo<ExpressionType>(OutParameterInfo, OutParameterIds, BaseParameterInfo);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 			}
 			else if (const UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<const UMaterialExpressionMaterialAttributeLayers>(Expression))
@@ -1296,7 +1292,9 @@ public:
 					{
 						BaseParameterInfo.Association = EMaterialParameterAssociation::LayerParameter;
 						BaseParameterInfo.Index = LayerIndex;
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
 						Layer->GetAllParameterInfo<ExpressionType>(OutParameterInfo, OutParameterIds, BaseParameterInfo);
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 				}
 
@@ -1306,7 +1304,9 @@ public:
 					{
 						BaseParameterInfo.Association = EMaterialParameterAssociation::BlendParameter;
 						BaseParameterInfo.Index = BlendIndex;
+						PRAGMA_DISABLE_DEPRECATION_WARNINGS
 						Blend->GetAllParameterInfo<ExpressionType>(OutParameterInfo, OutParameterIds, BaseParameterInfo);
+						PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					}
 				}
 			}
@@ -1316,8 +1316,6 @@ public:
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	ENGINE_API virtual void GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const override;
-	ENGINE_API virtual void GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const override;
 #if WITH_EDITORONLY_DATA
 	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<class UMaterialFunctionInterface*>& DependentFunctions) const override;
@@ -1449,19 +1447,6 @@ public:
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	/** Determines whether each quality level has different nodes by inspecting the material's expressions. 
-	* Or is required by the material quality setting overrides.
-	* @param	QualityLevelsUsed	output array of used quality levels.
-	* @param	ShaderPlatform	The shader platform to use for the quality settings.
-	* @param	bCooking		During cooking, certain quality levels may be discarded
-	*/
-	void GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& QualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking = false);
-	
-	inline void GetQualityLevelUsageForCooking(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& QualityLevelsUsed, EShaderPlatform ShaderPlatform)
-	{
-		GetQualityLevelUsage(QualityLevelsUsed, ShaderPlatform, true);
-	}
-
 #if WITH_EDITOR
 	ENGINE_API void UpdateCachedExpressionData();
 #endif
@@ -1473,7 +1458,7 @@ private:
 	/**
 	 * Flush existing resource shader maps and resets the material resource's Ids.
 	 */
-	ENGINE_API virtual void FlushResourceShaderMaps();
+	ENGINE_API virtual void ReleaseResourcesAndMutateDDCKey();
 	
 	/** 
 	 * Cache resource shaders for rendering. 
@@ -1624,12 +1609,6 @@ public:
 	ENGINE_API static bool IsDynamicParameter(const UMaterialExpression* Expression);
 #endif // WITH_EDITOR
 
-	/** Returns an array of the guids of functions used in this material, with the call hierarchy flattened. */
-	void AppendReferencedFunctionIdsTo(TArray<FGuid>& OutIds) const;
-
-	/** Returns an array of the guids of parameter collections used in this material. */
-	void AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& OutIds) const;
-
 	/* Helper functions for text output of properties. */
 	static const TCHAR* GetMaterialShadingModelString(EMaterialShadingModel InMaterialShadingModel);
 	static EMaterialShadingModel GetMaterialShadingModelFromString(const TCHAR* InMaterialShadingModelStr);
@@ -1690,13 +1669,7 @@ public:
 		TArray<UMaterialExpression*>& OutExpressions, struct FStaticParameterSet* InStaticParameterSet,
 		ERHIFeatureLevel::Type InFeatureLevel = ERHIFeatureLevel::Num, EMaterialQualityLevel::Type InQuality = EMaterialQualityLevel::Num, ERHIShadingPath::Type InShadingPath = ERHIShadingPath::Num);
 
-	/** Add to the set any texture referenced by expressions, including nested functions, as well as any overrides from parameters. */
-	ENGINE_API virtual void GetReferencedTexturesAndOverrides(TSet<const UTexture*>& InOutTextures) const;
-
 #endif // WITH_EDITOR
-
-	/** Appends textures referenced by expressions, including nested functions. */
-	ENGINE_API virtual TArrayView<const TObjectPtr<UObject>> GetReferencedTextures() const override final { return GetCachedExpressionData().ReferencedTextures; }
 
 protected:
 
@@ -1739,15 +1712,7 @@ public:
 	ENGINE_API virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal) override;
 
 #if WITH_EDITOR
-	/**
-	*	Gathers a list of shader types sorted by vertex factory types that should be cached for this material.  Avoids doing expensive material
-	*	and shader compilation to acquire this information.
-	*
-	*	@param	Platform		The shader platform to get info for.
-	*	@param	OutShaderInfo	Array of results sorted by vertex factory type, and shader type.
-	*
-	*/
-	ENGINE_API virtual void GetShaderTypes(EShaderPlatform Platform, TArray<FDebugShaderTypeInfo>& OutShaderInfo) override;
+	ENGINE_API virtual void GetShaderTypes(EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TArray<FDebugShaderTypeInfo>& OutShaderInfo) override;
 #endif // WITH_EDITOR
 
 	bool HasBaseColorConnected() const { return BaseColor.IsConnected() || GetCachedExpressionData().IsMaterialAttributePropertyConnected(MP_BaseColor); }

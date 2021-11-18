@@ -26,7 +26,7 @@ FVector2D UStaticMeshDescription::GetVertexInstanceUV(FVertexInstanceID VertexIn
 		return FVector2D::ZeroVector;
 	}
 
-	return GetMeshDescription().VertexInstanceAttributes().GetAttribute<FVector2D>(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, UVIndex);
+	return (FVector2D)GetMeshDescription().VertexInstanceAttributes().GetAttribute<FVector2f>(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, UVIndex);
 }
 
 
@@ -44,7 +44,7 @@ void UStaticMeshDescription::SetVertexInstanceUV(FVertexInstanceID VertexInstanc
 		return;
 	}
 
-	GetMeshDescription().VertexInstanceAttributes().SetAttribute(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, UVIndex, UV);
+	GetMeshDescription().VertexInstanceAttributes().SetAttribute(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, UVIndex, FVector2f(UV));
 }
 
 
@@ -85,14 +85,14 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 		VertexIDs[Index] = MeshDescription.CreateVertex();
 	}
 
-	Positions[VertexIDs[0]] = Center + HalfExtents * FVector( 1.0f, -1.0f,  1.0f);
-	Positions[VertexIDs[1]] = Center + HalfExtents * FVector( 1.0f,  1.0f,  1.0f);
-	Positions[VertexIDs[2]] = Center + HalfExtents * FVector(-1.0f,  1.0f,  1.0f);
-	Positions[VertexIDs[3]] = Center + HalfExtents * FVector(-1.0f, -1.0f,  1.0f);
-	Positions[VertexIDs[4]] = Center + HalfExtents * FVector(-1.0f,  1.0f, -1.0f);
-	Positions[VertexIDs[5]] = Center + HalfExtents * FVector(-1.0f, -1.0f, -1.0f);
-	Positions[VertexIDs[6]] = Center + HalfExtents * FVector( 1.0f, -1.0f, -1.0f);
-	Positions[VertexIDs[7]] = Center + HalfExtents * FVector( 1.0f,  1.0f, -1.0f);
+	Positions[VertexIDs[0]] = Center + HalfExtents * FVector3f( 1.0f, -1.0f,  1.0f);
+	Positions[VertexIDs[1]] = Center + HalfExtents * FVector3f( 1.0f,  1.0f,  1.0f);
+	Positions[VertexIDs[2]] = Center + HalfExtents * FVector3f(-1.0f,  1.0f,  1.0f);
+	Positions[VertexIDs[3]] = Center + HalfExtents * FVector3f(-1.0f, -1.0f,  1.0f);
+	Positions[VertexIDs[4]] = Center + HalfExtents * FVector3f(-1.0f,  1.0f, -1.0f);
+	Positions[VertexIDs[5]] = Center + HalfExtents * FVector3f(-1.0f, -1.0f, -1.0f);
+	Positions[VertexIDs[6]] = Center + HalfExtents * FVector3f( 1.0f, -1.0f, -1.0f);
+	Positions[VertexIDs[7]] = Center + HalfExtents * FVector3f( 1.0f,  1.0f, -1.0f);
 
 	auto MakePolygon = [this, &MeshDescription, &VertexIDs, PolygonGroup](int32 P0, int32 P1, int32 P2, int32 P3) -> FPolygonID
 	{
@@ -102,11 +102,11 @@ void UStaticMeshDescription::CreateCube(FVector Center, FVector HalfExtents, FPo
 		VertexInstanceIDs[2] = MeshDescription.CreateVertexInstance(VertexIDs[P2]);
 		VertexInstanceIDs[3] = MeshDescription.CreateVertexInstance(VertexIDs[P3]);
 
-		TVertexInstanceAttributesRef<FVector2D> UVs = GetVertexInstanceUVs();
-		UVs[VertexInstanceIDs[0]] = FVector2D(0.0f, 0.0f);
-		UVs[VertexInstanceIDs[1]] = FVector2D(1.0f, 0.0f);
-		UVs[VertexInstanceIDs[2]] = FVector2D(1.0f, 1.0f);
-		UVs[VertexInstanceIDs[3]] = FVector2D(0.0f, 1.0f);
+		TVertexInstanceAttributesRef<FVector2f> UVs = GetVertexInstanceUVs();
+		UVs[VertexInstanceIDs[0]] = FVector2f(0.0f, 0.0f);
+		UVs[VertexInstanceIDs[1]] = FVector2f(1.0f, 0.0f);
+		UVs[VertexInstanceIDs[2]] = FVector2f(1.0f, 1.0f);
+		UVs[VertexInstanceIDs[3]] = FVector2f(0.0f, 1.0f);
 
 		TVertexInstanceAttributesRef<FVector4f> Colors = GetVertexInstanceColors();
 		Colors[VertexInstanceIDs[0]] = FLinearColor::Red;

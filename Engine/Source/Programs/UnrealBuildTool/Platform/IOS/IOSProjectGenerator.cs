@@ -7,8 +7,6 @@ using System.Diagnostics;
 using System.IO;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>

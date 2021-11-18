@@ -30,9 +30,9 @@ public:
 
 public:
 	// Connects to a server
-	bool Connect(const FString& Address, const int32 Port, const int32 TriesAmount, const float TryDelay);
+	virtual bool Connect(const FString& Address, const uint16 Port, const uint32 ConnectRetriesAmount, const uint32 ConnectRetryDelay) override;
 	// Terminates current connection
-	void Disconnect() override final;
+	virtual void Disconnect() override final;
 
 	// Provides with net unit name
 	virtual FString GetName() const override
@@ -51,14 +51,14 @@ protected:
 };
 
 
-template <typename TPacketType, bool bExitOnCommError>
+template <typename TPacketType>
 class FDisplayClusterClient
 	: public    FDisplayClusterClientBase
-	, protected FDisplayClusterSocketOperationsHelper<TPacketType, bExitOnCommError>
+	, protected FDisplayClusterSocketOperationsHelper<TPacketType>
 {
 public:
 	FDisplayClusterClient(const FString& InName)
 		: FDisplayClusterClientBase(InName)
-		, FDisplayClusterSocketOperationsHelper<TPacketType, bExitOnCommError>(*this, InName)
+		, FDisplayClusterSocketOperationsHelper<TPacketType>(*this, InName)
 	{ }
 };

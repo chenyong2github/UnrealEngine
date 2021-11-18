@@ -114,7 +114,6 @@
 #include "AssetTypeActions/AssetTypeActions_VectorFieldAnimated.h"
 #include "AssetTypeActions/AssetTypeActions_VectorFieldStatic.h"
 #include "AssetTypeActions/AssetTypeActions_World.h"
-#include "AssetTypeActions/Experimental/AssetTypeActions_ChaosPhysicalMaterial.h"
 #include "ComputeFramework/ComputeKernelAssetActions.h"
 #include "ComputeFramework/ComputeKernelFromTextAssetActions.h"
 #include "SDiscoveringAssetsDialog.h"
@@ -251,7 +250,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CompositeDataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Enum));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ChaosPhysicalMaterial));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Class));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Struct));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SceneImportData));

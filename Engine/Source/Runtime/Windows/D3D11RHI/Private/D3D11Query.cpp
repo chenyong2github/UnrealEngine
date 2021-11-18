@@ -288,9 +288,10 @@ void FD3D11DynamicRHI::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataSize, ERenderQueryType QueryType, bool bWait, bool bStallRHIThread)
 {
 #define SAFE_GET_QUERY_DATA \
-	if (bStallRHIThread) D3D11StallRHIThread(); \
-	Result = Direct3DDeviceIMContext->GetData(Query, Data, DataSize, 0); \
-	if (bStallRHIThread) D3D11UnstallRHIThread();
+	{ \
+		FScopedD3D11RHIThreadStaller StallRHIThread(bStallRHIThread); \
+		Result = Direct3DDeviceIMContext->GetData(Query, Data, DataSize, 0); \
+	}
 
 	// Request the data from the query.
 	HRESULT Result;
@@ -452,9 +453,10 @@ void FD3D11BufferedGPUTiming::PlatformStaticInitialize(void* UserData)
 
 			D3D11_QUERY_DATA_TIMESTAMP_DISJOINT FreqQueryData;
 
-			D3D11StallRHIThread();
-			D3DResult = D3D11DeviceContext->GetData(FreqQuery, &FreqQueryData, sizeof(D3D11_QUERY_DATA_TIMESTAMP_DISJOINT), 0);
-			D3D11UnstallRHIThread();
+			{
+				FScopedD3D11RHIThreadStaller StallRHIThread;
+				D3DResult = D3D11DeviceContext->GetData(FreqQuery, &FreqQueryData, sizeof(D3D11_QUERY_DATA_TIMESTAMP_DISJOINT), 0);
+			}
 
 			double StartTime = FPlatformTime::Seconds();
 			while (D3DResult == S_FALSE && (FPlatformTime::Seconds() - StartTime) < 0.5f)
@@ -462,9 +464,8 @@ void FD3D11BufferedGPUTiming::PlatformStaticInitialize(void* UserData)
 				++DebugCounter;
 				FPlatformProcess::Sleep(0.005f);
 
-				D3D11StallRHIThread();
+				FScopedD3D11RHIThreadStaller StallRHIThread;
 				D3DResult = D3D11DeviceContext->GetData(FreqQuery, &FreqQueryData, sizeof(D3D11_QUERY_DATA_TIMESTAMP_DISJOINT), 0);
-				D3D11UnstallRHIThread();
 			}
 
 			if (D3DResult == S_OK)

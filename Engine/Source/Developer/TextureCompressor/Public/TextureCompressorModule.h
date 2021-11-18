@@ -300,6 +300,7 @@ public:
 	 * Builds a texture from source images.
 	 * @param SourceMips - The input mips.
 	 * @param BuildSettings - Build settings.
+	 * @param DebugTexturePathName - The path name of the texture being built, for logging/filtering/dumping.
 	 * @param OutCompressedMips - The compressed mips built by the compressor.
 	 * @param OutNumMipsInTail - The number of mips that are joined into a single mip tail mip
 	 * @param OutExtData - Extra data that the runtime may need
@@ -309,6 +310,7 @@ public:
 		const TArray<struct FImage>& SourceMips,
 		const TArray<struct FImage>& AssociatedNormalSourceMips,
 		const FTextureBuildSettings& BuildSettings,
+		FStringView DebugTexturePathName,
 		TArray<FCompressedImage2D>& OutTextureMips,
 		uint32& OutNumMipsInTail,
 		uint32& OutExtData

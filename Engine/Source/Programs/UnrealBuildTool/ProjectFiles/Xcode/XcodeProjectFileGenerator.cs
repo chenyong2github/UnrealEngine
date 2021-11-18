@@ -7,21 +7,8 @@ using System.IO;
 using EpicGames.Core;
 using System.Linq;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
-	/// <summary>
-	/// Represents a folder within the master project (e.g. Visual Studio solution)
-	/// </summary>
-	class XcodeProjectFolder : MasterProjectFolder
-	{
-		public XcodeProjectFolder(ProjectFileGenerator InitOwnerProjectFileGenerator, string InitFolderName)
-			: base(InitOwnerProjectFileGenerator, InitFolderName)
-		{
-		}
-	}
-
 	/// <summary>
 	/// Xcode project file generator implementation
 	/// </summary>
@@ -45,7 +32,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		string AppName = "";
 
-		public XcodeProjectFileGenerator(FileReference InOnlyGameProject, CommandLineArguments CommandLine)
+		public XcodeProjectFileGenerator(FileReference? InOnlyGameProject, CommandLineArguments CommandLine)
 			: base(InOnlyGameProject)
 		{
 			if (CommandLine.HasOption("-distribution"))
@@ -118,16 +105,11 @@ namespace UnrealBuildTool
 		/// Allocates a generator-specific project file object
 		/// </summary>
 		/// <param name="InitFilePath">Path to the project file</param>
+		/// <param name="BaseDir">The base directory for files within this project</param>
 		/// <returns>The newly allocated project file object</returns>
-		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath)
+		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
 		{
-			return new XcodeProjectFile(InitFilePath, OnlyGameProject, bForDistribution, BundleIdentifier, AppName);
-		}
-
-		/// ProjectFileGenerator interface
-		public override MasterProjectFolder AllocateMasterProjectFolder(ProjectFileGenerator InitOwnerProjectFileGenerator, string InitFolderName)
-		{
-			return new XcodeProjectFolder(InitOwnerProjectFileGenerator, InitFolderName);
+			return new XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName);
 		}
 
 		private bool WriteWorkspaceSettingsFile(string Path)
@@ -186,24 +168,21 @@ namespace UnrealBuildTool
 
 			List<XcodeProjectFile> BuildableProjects = new List<XcodeProjectFile>();
 
-			System.Action< List<MasterProjectFolder> /* Folders */, string /* Ident */ > AddProjectsFunction = null;
+			System.Action< List<PrimaryProjectFolder> /* Folders */, string /* Ident */ >? AddProjectsFunction = null;
 			AddProjectsFunction = (FolderList, Ident) =>
 				{
-					foreach (XcodeProjectFolder CurFolder in FolderList)
+					foreach (PrimaryProjectFolder CurFolder in FolderList)
 					{
 						WorkspaceDataContent.Append(Ident + "   <Group" + ProjectFileGenerator.NewLine);
 						WorkspaceDataContent.Append(Ident + "      location = \"container:\"      name = \"" + CurFolder.FolderName + "\">" + ProjectFileGenerator.NewLine);
 
-						AddProjectsFunction(CurFolder.SubFolders, Ident + "   ");
+						AddProjectsFunction!(CurFolder.SubFolders, Ident + "   ");
 				
 						// Filter out anything that isn't an XC project, and that shouldn't be in the workspace
 						IEnumerable<XcodeProjectFile> SupportedProjects =
-								CurFolder.ChildProjects
-									.Where(P => P is XcodeProjectFile)
-									.Select(P => P as XcodeProjectFile)
+								CurFolder.ChildProjects.OfType<XcodeProjectFile>()
 									.Where(P => P.ShouldIncludeProjectInWorkspace())
 									.OrderBy(P => P.ProjectFilePath.GetFileName());
-
 
 						foreach (XcodeProjectFile XcodeProject in SupportedProjects)
 						{
@@ -226,11 +205,11 @@ namespace UnrealBuildTool
 			int SchemeIndex = 0;
 			BuildableProjects.Sort((ProjA, ProjB) => {
 
-				var TargetA = ProjA.ProjectTargets.OrderBy(T => T.TargetRules.Type).FirstOrDefault();
-				var TargetB = ProjB.ProjectTargets.OrderBy(T => T.TargetRules.Type).FirstOrDefault();
+				ProjectTarget TargetA = ProjA.ProjectTargets.OfType<ProjectTarget>().OrderBy(T => T.TargetRules!.Type).First();
+				ProjectTarget TargetB = ProjB.ProjectTargets.OfType<ProjectTarget>().OrderBy(T => T.TargetRules!.Type).First();
 
-				var TypeA = TargetA != null ? TargetA.TargetRules.Type : TargetType.Program;
-				var TypeB = TargetB != null ? TargetB.TargetRules.Type : TargetType.Program;
+				TargetType TypeA = TargetA.TargetRules!.Type;
+				TargetType TypeB = TargetB.TargetRules!.Type;
 
 				if (TypeA != TypeB)
 				{
@@ -271,7 +250,7 @@ namespace UnrealBuildTool
 			return bSuccess;
 		}
 
-		protected override bool WriteMasterProjectFile(ProjectFile UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteMasterProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
 		{
 			return WriteXcodeWorkspace();
 		}

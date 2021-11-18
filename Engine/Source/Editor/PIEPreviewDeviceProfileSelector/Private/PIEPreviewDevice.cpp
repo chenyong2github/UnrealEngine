@@ -454,6 +454,7 @@ FString FPIEPreviewDevice::GetProfile() const
 				DeviceParameters.Add(FName(TEXT("SRC_UsingHoudini")), AndroidProperties.UsingHoudini ? "true" : "false");
 				DeviceParameters.Add(FName(TEXT("SRC_Hardware")), AndroidProperties.Hardware);
 				DeviceParameters.Add(FName(TEXT("SRC_Chipset")), AndroidProperties.Chipset);
+				DeviceParameters.Add(FName(TEXT("SRC_HMDSystemName")), AndroidProperties.HMDSystemName);
 				DeviceParameters.Add(FName(TEXT("SRC_TotalPhysicalGB")), AndroidProperties.TotalPhysicalGB);
 
 				AndroidDeviceProfileSelector->SetSelectorProperties(DeviceParameters);

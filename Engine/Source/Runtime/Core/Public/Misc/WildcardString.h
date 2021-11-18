@@ -7,6 +7,10 @@
 
 /**
  * Implements a string with wild card pattern matching abilities.
+ * 
+ * The FWildcardString is meant to hold the pattern you are matching against.
+ * For basic use, just call the static functions IsMatch() or IsMatchSubstring
+ * if you have FStringView
  */
 class FWildcardString
 	: public FString
@@ -87,6 +91,16 @@ public:
 	 * @param Input The input string to check.
 	 */
 	static CORE_API bool IsMatch( const TCHAR* Pattern, const TCHAR* Input );
+
+	/**
+	* 
+	* As IsMatch, except can accept the end of the input string in order to facilitate
+	* FStringView usage.
+	* 
+	* if ESearchCase::IgnoreCase is used, the pattern and input are ToLower()d before
+	* comparison (note - does not apply locale and just uses c runtime style tolower)
+	*/
+	static CORE_API bool IsMatchSubstring( const TCHAR* Pattern, const TCHAR* Input, const TCHAR* InputEnd, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive);
 
 protected:
 

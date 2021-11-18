@@ -744,7 +744,7 @@ namespace Audio
 
 		AUDIO_MIXER_TRACE_CPUPROFILER_EVENT_SCOPE(FMixerSource::Update);
 
-		// if MarkPendingKill() was called, WaveInstance->WaveData is null
+		// if MarkAsGarbage() was called, WaveInstance->WaveData is null
 		if (!WaveInstance->WaveData)
 		{
 			StopNow();
@@ -1008,7 +1008,7 @@ namespace Audio
 
 		USoundWave* SoundWave = WaveInstance ? WaveInstance->WaveData : nullptr;
 
-		// If MarkPendingKill() was called, SoundWave can be null
+		// If MarkAsGarbage() was called, SoundWave can be null
 		if (!SoundWave)
 		{
 			StopNow();

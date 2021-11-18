@@ -92,7 +92,7 @@ public:
 	FMovieSceneSkeletalAnimationParams Params;
 
 	/** Get Frame Time as Animation Time*/
-	MOVIESCENETRACKS_API float MapTimeToAnimation(FFrameTime InPosition, FFrameRate InFrameRate) const;
+	MOVIESCENETRACKS_API double MapTimeToAnimation(FFrameTime InPosition, FFrameRate InFrameRate) const;
 	
 	//~ UMovieSceneSection interface
 	virtual void SetRange(const TRange<FFrameNumber>& NewRange) override;

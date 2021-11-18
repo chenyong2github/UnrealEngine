@@ -2712,6 +2712,7 @@ UTextureFactory::UTextureFactory(const FObjectInitializer& ObjectInitializer)
 	Formats.Add( TEXT( "jpeg;Texture" ) );
 	Formats.Add( TEXT( "exr;Texture (HDR)" ) );
 	Formats.Add( TEXT( "tif;Texture (TIFF)" ) );
+	Formats.Add( TEXT( "tiff;Texture (TIFF)" ) );
 
 	bCreateNew = false;
 	bEditorImport = true;
@@ -3227,6 +3228,62 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 		}
 	}
 
+	//
+	// TIFF
+	//
+	if (ImageFormat == EImageFormat::TIFF)
+	{
+		TSharedPtr<IImageWrapper> TiffImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::TIFF);
+		if (TiffImageWrapper.IsValid())
+		{
+			if (TiffImageWrapper->SetCompressed(Buffer, Length))
+			{ 
+				// Check the resolution of the imported texture to ensure validity
+				if (!IsImportResolutionValid(TiffImageWrapper->GetWidth(), TiffImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
+				{
+					return false;
+				}
+
+				ETextureSourceFormat SourceFormat = TSF_Invalid;
+				ERGBFormat TiffFormat = TiffImageWrapper->GetFormat();
+				const int32 BitDepth = TiffImageWrapper->GetBitDepth();
+				bool bIsSRGB = false;
+
+				if (TiffFormat == ERGBFormat::BGRA)
+				{
+					SourceFormat = TSF_BGRA8;
+					bIsSRGB = true;
+				}
+				else if (TiffFormat == ERGBFormat::RGBA)
+				{
+					SourceFormat = TSF_RGBA16;
+				}
+				else if (TiffFormat == ERGBFormat::RGBAF)
+				{
+					SourceFormat = TSF_RGBA16F;
+				}
+				else if (TiffFormat == ERGBFormat::Gray)
+				{
+					SourceFormat = TSF_G8;
+					if (BitDepth == 16)
+					{
+						SourceFormat = TSF_G16;
+					}
+				}
+
+				OutImage.Init2DWithParams(
+					TiffImageWrapper->GetWidth(),
+					TiffImageWrapper->GetHeight(),
+					SourceFormat,
+					bIsSRGB
+				);
+
+				return TiffImageWrapper->GetRaw(TiffFormat, BitDepth, OutImage.RawData);
+			}
+
+			return false;
+		}
+	}
 
 	//
 	// PCX
@@ -3525,8 +3582,9 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 		}
 	}
 
+
 	//
-	// TIFF
+	// Legacy TIFF import (for the platforms that doesn't have libtiff)
 	//
 	FTiffLoadHelper TiffLoaderHelper;
 	if (TiffLoaderHelper.IsValid())

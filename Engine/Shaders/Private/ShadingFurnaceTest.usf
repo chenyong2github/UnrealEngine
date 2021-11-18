@@ -6,13 +6,14 @@
 
 #define SUPPORT_CONTACT_SHADOWS 0
 #define SHADING_PATH_DEFERRED 1
-#if STRATA_ENABLED
-#define USE_ENERGY_CONSERVATION 1
-#else
-#define USE_ENERGY_CONSERVATION 0
-#endif
 #define USE_SOURCE_TEXTURE 0
 #define DEBUG_ENABLE 0
+
+#if STRATA_ENABLED
+#define STRATA_INLINE_SHADING 0
+#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
+#include "/Engine/Private/Strata/Strata.ush"
+#endif
 
 #include "DeferredShadingCommon.ush"
 #include "DeferredLightingCommon.ush"
@@ -25,8 +26,6 @@
 #endif 
 
 #if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataDeferredLighting.ush"
 #endif
@@ -53,7 +52,7 @@ void MainPS(
 	float ClearCoatRoughness = 0.5f;
 	float3 N = float3(0, 0, 1);
 	float SceneDepth = 0;
-#if STRATA_ENABLED
+#if STRATA_ENABLED 
 	{
 		// Fetch the first layer of roughness & normal only. This fine for simple material but will not work for clear coat.
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);

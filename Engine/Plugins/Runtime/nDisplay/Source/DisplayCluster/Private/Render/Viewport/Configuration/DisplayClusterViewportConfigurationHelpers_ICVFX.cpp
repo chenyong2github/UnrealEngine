@@ -265,7 +265,7 @@ FDisplayClusterShaderParameters_ICVFX::FCameraSettings FDisplayClusterViewportCo
 	Result.InnerCameraFrameAspectRatio = (float)CameraSettings.RenderSettings.CustomFrameSize.CustomWidth / (float)CameraSettings.RenderSettings.CustomFrameSize.CustomHeight;
 
 	const FString InnerFrustumID = InCameraComponent.GetCameraUniqueId();
-	const int CameraRenderOrder = RootActor.GetInnerFrustumPriority(InnerFrustumID);
+	const int32 CameraRenderOrder = RootActor.GetInnerFrustumPriority(InnerFrustumID);
 
 	Result.RenderOrder = (CameraRenderOrder<0) ? CameraSettings.RenderSettings.RenderOrder : CameraRenderOrder;
 
@@ -333,7 +333,6 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 
 	// FDisplayClusterConfigurationICVFX_CameraSettings
 	DstViewport.RenderSettings.CameraId.Empty();
-	DstViewport.Owner.SetViewportBufferRatio(DstViewport, CameraSettings.BufferRatio);
 
 	// UDisplayClusterConfigurationICVFX_CameraRenderSettings
 	FIntPoint DesiredSize(0);
@@ -371,6 +370,7 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 
 	// Support inner camera custom frustum
 	FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraCustomFrustum(DstViewport, CameraSettings.CustomFrustum);
+	UpdateCameraViewportBufferRatio(DstViewport, CameraSettings);
 }
 
 void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportSettings(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& InCameraViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
@@ -601,31 +601,32 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateLightcardViewportS
 	}
 }
 
-void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraCustomFrustum(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraCustomFrustum& InCameraCustomFrustum)
+void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraCustomFrustum(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraCustomFrustum& InCameraCustomFrustumConfiguration)
 {
-	if (InCameraCustomFrustum.bEnable)
+	if (InCameraCustomFrustumConfiguration.bEnable)
 	{
 		FImplDisplayClusterViewport_CustomFrustumSettings CustomFrustumSettings;
+		CustomFrustumSettings.bAdaptResolution = InCameraCustomFrustumConfiguration.bAdaptResolution;
 
-		switch (InCameraCustomFrustum.Mode)
+		switch (InCameraCustomFrustumConfiguration.Mode)
 		{
 		case EDisplayClusterConfigurationViewportCustomFrustumMode::Percent:
 			CustomFrustumSettings.Mode = EDisplayClusterViewport_CustomFrustumMode::Percent;
 
 			// Scale 0..100% to 0..1 range
-			CustomFrustumSettings.Left = .01f * InCameraCustomFrustum.Left;
-			CustomFrustumSettings.Right = .01f * InCameraCustomFrustum.Right;
-			CustomFrustumSettings.Top = .01f * InCameraCustomFrustum.Top;
-			CustomFrustumSettings.Bottom = .01f * InCameraCustomFrustum.Bottom;
+			CustomFrustumSettings.Left = .01f * InCameraCustomFrustumConfiguration.Left;
+			CustomFrustumSettings.Right = .01f * InCameraCustomFrustumConfiguration.Right;
+			CustomFrustumSettings.Top = .01f * InCameraCustomFrustumConfiguration.Top;
+			CustomFrustumSettings.Bottom = .01f * InCameraCustomFrustumConfiguration.Bottom;
 			break;
 
 		case EDisplayClusterConfigurationViewportCustomFrustumMode::Pixels:
 			CustomFrustumSettings.Mode = EDisplayClusterViewport_CustomFrustumMode::Pixels;
 
-			CustomFrustumSettings.Left = InCameraCustomFrustum.Left;
-			CustomFrustumSettings.Right = InCameraCustomFrustum.Right;
-			CustomFrustumSettings.Top = InCameraCustomFrustum.Top;
-			CustomFrustumSettings.Bottom = InCameraCustomFrustum.Bottom;
+			CustomFrustumSettings.Left = InCameraCustomFrustumConfiguration.Left;
+			CustomFrustumSettings.Right = InCameraCustomFrustumConfiguration.Right;
+			CustomFrustumSettings.Top = InCameraCustomFrustumConfiguration.Top;
+			CustomFrustumSettings.Bottom = InCameraCustomFrustumConfiguration.Bottom;
 			break;
 
 		default:
@@ -635,3 +636,16 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraCustomFrustu
 		DstViewport.CustomFrustumRendering.Set(CustomFrustumSettings);
 	}
 };
+
+void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportBufferRatio(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings)
+{
+	float BufferRatio = CameraSettings.BufferRatio;
+
+	// adapt resolution should work as a shortcut to improve rendering quality
+	if (CameraSettings.CustomFrustum.bAdaptResolution)
+	{
+		DstViewport.RenderSettings.RenderTargetRatio *= CameraSettings.CustomFrustum.FieldOfViewMultiplier;
+	}
+
+	DstViewport.Owner.SetViewportBufferRatio(DstViewport, BufferRatio);
+}

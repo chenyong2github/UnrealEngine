@@ -97,6 +97,7 @@ public:
 		, _EnableAnimatedScrolling(false)
 		, _ScrollbarDragFocusCause(EFocusCause::Mouse)
 		, _AllowOverscroll(EAllowOverscroll::Yes)
+		, _ScrollBarStyle(&FAppStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"))
 		, _ConsumeMouseWheel(EConsumeMouseWheel::WhenScrollingPossible)
 		, _WheelScrollMultiplier(GetGlobalScrollAmount())
 		, _NavigationScrollOffset(0.5f)
@@ -156,6 +157,8 @@ public:
 		SLATE_ARGUMENT( EFocusCause, ScrollbarDragFocusCause )
 
 		SLATE_ARGUMENT( EAllowOverscroll, AllowOverscroll );
+		
+		SLATE_STYLE_ARGUMENT( FScrollBarStyle, ScrollBarStyle );
 
 		SLATE_ARGUMENT( EConsumeMouseWheel, ConsumeMouseWheel );
 
@@ -260,7 +263,7 @@ public:
 		else
 		{
 			// Make the TableView
-			ConstructChildren( 0, InArgs._ItemHeight, EListItemAlignment::LeftAligned, InArgs._HeaderRow, InArgs._ExternalScrollbar, InArgs._Orientation, InArgs._OnListViewScrolled );
+			ConstructChildren( 0, InArgs._ItemHeight, EListItemAlignment::LeftAligned, InArgs._HeaderRow, InArgs._ExternalScrollbar, InArgs._Orientation, InArgs._OnListViewScrolled, InArgs._ScrollBarStyle );
 			if(ScrollBar.IsValid())
 			{
 				ScrollBar->SetDragFocusCause(InArgs._ScrollbarDragFocusCause);
@@ -1591,8 +1594,11 @@ public:
 	 */
 	void RequestNavigateToItem(ItemType Item, const uint32 UserIndex = 0)
 	{
-		Item = Private_FindNextSelectableOrNavigable(Item);
-		Private_RequestNavigateToItem(Item, UserIndex);
+		TOptional<ItemType> FirstValidItem = Private_FindNextSelectableOrNavigable(Item);
+		if (FirstValidItem.IsSet())
+		{
+			Private_RequestNavigateToItem(FirstValidItem.GetValue(), UserIndex);
+		}
 	}
 
 private:
@@ -1622,8 +1628,11 @@ public:
 	 */
 	void SetSelection(ItemType SoleSelectedItem, ESelectInfo::Type SelectInfo = ESelectInfo::Direct)
 	{
-		SoleSelectedItem = Private_FindNextSelectableOrNavigable(SoleSelectedItem);
-		Private_SetSelection(SoleSelectedItem, SelectInfo);
+		TOptional<ItemType> FirstValidItem = Private_FindNextSelectableOrNavigable(SoleSelectedItem);
+		if (FirstValidItem.IsSet())
+		{
+			Private_SetSelection(FirstValidItem.GetValue(), SelectInfo);
+		}
 	}
 
 private:
@@ -2032,7 +2041,7 @@ protected:
 
 protected:
 
-	ItemType Private_FindNextSelectableOrNavigable(const ItemType& InItemToSelect)
+	TOptional<ItemType> Private_FindNextSelectableOrNavigable(const ItemType& InItemToSelect)
 	{
 		ItemType ItemToSelect = InItemToSelect;
 
@@ -2065,12 +2074,13 @@ protected:
 				}
 				else
 				{
-					break;
+					// Failed to find a valid item to select
+					return TOptional<ItemType>();
 				}
 			}
 		}
 
-		return ItemToSelect;
+		return TOptional<ItemType>(ItemToSelect);
 	}
 
 	/**
@@ -2081,17 +2091,21 @@ protected:
 	 */
 	virtual void NavigationSelect(const ItemType& InItemToSelect, const FInputEvent& InInputEvent)
 	{
-		ItemType ItemToSelect = Private_FindNextSelectableOrNavigable(InItemToSelect);
+		TOptional<ItemType> ItemToSelect = Private_FindNextSelectableOrNavigable(InItemToSelect);
+		if (!ItemToSelect.IsSet())
+		{
+			return;
+		}
 
 		const ESelectionMode::Type CurrentSelectionMode = SelectionMode.Get();
 
 		if (CurrentSelectionMode != ESelectionMode::None)
 		{
 			// Must be set before signaling selection changes because sometimes new items will be selected that need to stomp this value
-			SelectorItem = ItemToSelect;
+			SelectorItem = ItemToSelect.GetValue();
 
 			// Always request scroll into view, otherwise partially visible items will be selected - also do this before signaling selection for similar stomp-allowing reasons
-			Private_RequestNavigateToItem(ItemToSelect, InInputEvent.GetUserIndex());
+			Private_RequestNavigateToItem(ItemToSelect.GetValue(), InInputEvent.GetUserIndex());
 
 			if (CurrentSelectionMode == ESelectionMode::Multi && (InInputEvent.IsShiftDown() || InInputEvent.IsControlDown()))
 			{
@@ -2104,7 +2118,7 @@ protected:
 						this->Private_ClearSelection();
 					}
 
-					this->Private_SelectRangeFromCurrentTo(ItemToSelect);
+					this->Private_SelectRangeFromCurrentTo(ItemToSelect.GetValue());
 				}
 
 				this->Private_SignalSelectionChanged(ESelectInfo::OnNavigation);
@@ -2112,7 +2126,7 @@ protected:
 			else
 			{
 				// Single select.
-				this->Private_SetSelection(ItemToSelect, ESelectInfo::OnNavigation);
+				this->Private_SetSelection(ItemToSelect.GetValue(), ESelectInfo::OnNavigation);
 			}
 		}
 	}

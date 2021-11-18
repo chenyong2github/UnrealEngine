@@ -3,7 +3,6 @@
 #include "Editor/GroupActor.h"
 #include "Misc/MessageDialog.h"
 #include "Editor/UnrealEdEngine.h"
-#include "Components/BillboardComponent.h"
 #include "Engine/Selection.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
@@ -307,18 +306,7 @@ void GetBoundingVectorsForGroup(AGroupActor* GroupActor, FViewport* Viewport, FV
 
 			if(!bActorHiddenForViewport)
 			{
-				FBox ActorBox;
-
-				// First check to see if we're dealing with a sprite, otherwise just use the normal bounding box
-				UBillboardComponent* SpriteComponent = Actor->FindComponentByClass<UBillboardComponent>();
-				if(SpriteComponent != NULL)
-				{
-					ActorBox = SpriteComponent->Bounds.GetBox();
-				}
-				else
-				{
-					ActorBox = Actor->GetComponentsBoundingBox( true );
-				}
+				FBox ActorBox = Actor->GetComponentsBoundingBox( true );
 
 				// MinVector
 				OutVectorMin.X = FMath::Min<float>( ActorBox.Min.X, OutVectorMin.X );

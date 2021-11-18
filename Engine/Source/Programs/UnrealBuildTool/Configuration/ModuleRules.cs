@@ -299,16 +299,6 @@ namespace UnrealBuildTool
 			{
 				Inner.Add(new RuntimeDependency(InPath, InSourcePath, InType));
 			}
-
-			/// <summary>
-			/// Add a runtime dependency to the list
-			/// </summary>
-			/// <param name="InRuntimeDependency">RuntimeDependency instance</param>
-			[Obsolete("Constructing a RuntimeDependency object is deprecated. Call RuntimeDependencies.Add() with the path to the file to stage.")]
-			public void Add(RuntimeDependency InRuntimeDependency)
-			{
-				Inner.Add(InRuntimeDependency);
-			}
 		}
 
 		/// <summary>
@@ -337,16 +327,6 @@ namespace UnrealBuildTool
 			public void Add(string Name, string Value)
 			{
 				Inner.Add(new ReceiptProperty(Name, Value));
-			}
-
-			/// <summary>
-			/// Add a receipt property to the list
-			/// </summary>
-			/// <param name="InReceiptProperty">ReceiptProperty instance</param>
-			[Obsolete("Constructing a ReceiptProperty object is deprecated. Call ReceiptProperties.Add() with the path to the file to stage.")]
-			public void Add(ReceiptProperty InReceiptProperty)
-			{
-				Inner.Add(InReceiptProperty);
 			}
 		}
 
@@ -400,24 +380,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Deprecated; wrapper for Framework.
-		/// </summary>
-		[Obsolete("The UEBuildFramework class has been deprecated in UE 4.22. Please use the Framework class instead.")]
-		public class UEBuildFramework : Framework
-		{
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="Name">Name of the framework</param>
-			/// <param name="ZipPath">Path to a zip file containing the framework</param>
-			/// <param name="CopyBundledAssets"></param>
-			public UEBuildFramework(string Name, string ZipPath, string? CopyBundledAssets = null)
-				: base(Name, ZipPath, CopyBundledAssets)
-			{
-			}
-		}
-
-		/// <summary>
 		/// 
 		/// </summary>
 		public class BundleResource
@@ -448,24 +410,6 @@ namespace UnrealBuildTool
 				this.ResourcePath = ResourcePath;
 				this.BundleContentsSubdir = BundleContentsSubdir;
 				this.bShouldLog = bShouldLog;
-			}
-		}
-
-		/// <summary>
-		/// Deprecated; wrapper for BundleResource.
-		/// </summary>
-		[Obsolete("The UEBuildBundleResource class has been deprecated in UE 4.22. Please use the BundleResource class instead.")]
-		public class UEBuildBundleResource : BundleResource
-		{
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="InResourcePath"></param>
-			/// <param name="InBundleContentsSubdir"></param>
-			/// <param name="bInShouldLog"></param>
-			public UEBuildBundleResource(string InResourcePath, string InBundleContentsSubdir = "Resources", bool bInShouldLog = true)
-				: base(InResourcePath, InBundleContentsSubdir, bInShouldLog)
-			{
 			}
 		}
 
@@ -699,17 +643,6 @@ namespace UnrealBuildTool
 		private BuildSettingsVersion? DefaultBuildSettingsPrivate;
 
 		/// <summary>
-		/// Whether to use backwards compatible defaults for this module. By default, engine modules always use the latest default settings, while project modules do not (to support
-		/// an easier migration path).
-		/// </summary>
-		[Obsolete("Set DefaultBuildSettings to the appropriate engine version instead")]
-		public bool bUseBackwardsCompatibleDefaults
-		{
-			get { return DefaultBuildSettings != BuildSettingsVersion.Latest; }
-			set { DefaultBuildSettings = bUseBackwardsCompatibleDefaults ? BuildSettingsVersion.V1 : BuildSettingsVersion.Latest; }
-		}
-
-		/// <summary>
 		/// Use run time type information
 		/// </summary>
 		public bool bUseRTTI = false;
@@ -748,16 +681,6 @@ namespace UnrealBuildTool
 		private WarningLevel ShadowVariableWarningLevelPrivate;
 
 		/// <summary>
-		/// Enable warnings for shadowed variables
-		/// </summary>
-		[Obsolete("The bEnableShadowVariableWarnings setting is deprecated in UE 4.24. Please use ShadowVariableWarningLevel = WarningLevel.Warning/Off; instead.")]
-		public bool bEnableShadowVariableWarnings
-		{
-			get { return ShadowVariableWarningLevel >= WarningLevel.Warning; }
-			set { ShadowVariableWarningLevel = (value ? WarningLevel.Warning : WarningLevel.Off); }
-		}
-
-		/// <summary>
 		/// How to treat unsafe implicit type cast warnings (e.g., double->float or int64->int32)
 		/// </summary>
 		public WarningLevel UnsafeTypeCastWarningLevel
@@ -773,15 +696,6 @@ namespace UnrealBuildTool
 		/// Enable warnings for using undefined identifiers in #if expressions
 		/// </summary>
 		public bool bEnableUndefinedIdentifierWarnings = true;
-
-		/// <summary>
-		/// If true and unity builds are enabled, this module will build without unity.
-		/// </summary>
-		[Obsolete("bFasterWithoutUnity has been deprecated in favor of setting 'bUseUnity' on a per module basis in BuildConfiguration")]
-		public bool bFasterWithoutUnity
-		{
-			set { bUseUnity = !value; }
-		}
 
 		private bool? bUseUnityOverride;
 		/// <summary>
@@ -828,16 +742,6 @@ namespace UnrealBuildTool
 		/// This should be used when you plan to release binaries but not source.
 		/// </summary>
 		public bool bLegalToDistributeObjectCode = false;
-
-		/// <summary>
-		/// Obsolete. Use bLegalToDistributeObjectCode instead.
-		/// </summary>
-		[Obsolete("bOutputPubliclyDistributable has been deprecated in 4.24. Use bLegalToDistributeObjectCode instead.")]
-		public bool bOutputPubliclyDistributable
-		{
-			get { return bLegalToDistributeObjectCode; }
-			set { bLegalToDistributeObjectCode = value; }
-		}
 
 		/// <summary>
 		/// List of folders which are allowed to be referenced when compiling this binary, without propagating restricted folder names
@@ -933,13 +837,6 @@ namespace UnrealBuildTool
 		public List<string> PrivateIncludePaths = new List<string>();
 
 		/// <summary>
-		/// List of system/library paths (directory of .lib files) - typically used for External (third party) modules
-		/// </summary>
-		[Obsolete(
-			"For external libraries use the full path in PublicAdditionalLibraries, if its a system library then use PublicSystemLibraries/PublicSystemLibraryPaths")]
-		public List<string> PublicLibraryPaths => PublicSystemLibraryPaths;
-
-		/// <summary>
 		/// List of system library paths (directory of .lib files) - for External (third party) modules please use the PublicAdditionalLibaries instead
 		/// </summary>
 		public List<string> PublicSystemLibraryPaths = new List<string>();
@@ -995,26 +892,9 @@ namespace UnrealBuildTool
 		public List<TypeLibrary> TypeLibraries = new List<TypeLibrary>();
 
 		/// <summary>
-		/// For builds that execute on a remote machine (e.g. iOS), this list contains additional files that
-		/// need to be copied over in order for the app to link successfully.  Source/header files and PCHs are
-		/// automatically copied.  Usually this is simply a list of precompiled third party library dependencies.
-		/// </summary>
-		[Obsolete("To specify files to be transferred to a remote Mac for compilation, create a [Project]/Build/Rsync/RsyncProject.txt file. See https://linux.die.net/man/1/rsync for more information about Rsync filter rules.")]
-		public List<string> PublicAdditionalShadowFiles = new List<string>();
-
-		/// <summary>
 		/// List of delay load DLLs - typically used for External (third party) modules
 		/// </summary>
 		public List<string> PublicDelayLoadDLLs = new List<string>();
-
-		/// <summary>
-		/// Accessor for the PublicDefinitions list
-		/// </summary>
-		[Obsolete("The 'Definitions' property has been deprecated. Please use 'PublicDefinitions' instead.")]
-		public List<string> Definitions
-		{
-			get { return PublicDefinitions; }
-		}
 
 		/// <summary>
 		/// Private compiler definitions for this module
@@ -1051,15 +931,6 @@ namespace UnrealBuildTool
 		/// Addition modules this module may require at run-time 
 		/// </summary>
 		public List<string> DynamicallyLoadedModuleNames = new List<string>();
-
-		/// <summary>
-		/// Extra modules this module may require at run time, that are on behalf of another platform (i.e. shader formats and the like)
-		/// </summary>
-		[Obsolete("PlatformSpecificDynamicallyLoadedModuleNames is deprecated; use DynamicallyLoadedModuleNames instead")]
-		public List<string> PlatformSpecificDynamicallyLoadedModuleNames
-		{
-			get { return DynamicallyLoadedModuleNames; }
-		}
 
 		/// <summary>
 		/// List of files which this module depends on at runtime. These files will be staged along with the target.

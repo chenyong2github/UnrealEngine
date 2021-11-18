@@ -1,25 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CADKernel/Geo/Curves/BoundedCurve.h"
 
+namespace CADKernel
+{
 
-void CADKernel::FBoundedCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder) const
+void FBoundedCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder) const
 {
 	ensure(Boundary.Contains(Coordinate));
 	return Curve->EvaluatePoint(Coordinate, OutPoint, DerivativeOrder);
 }
 
-void CADKernel::FBoundedCurve::Evaluate2DPoint(double Coordinate, FCurvePoint2D& OutPoint, int32 DerivativeOrder) const
+void FBoundedCurve::Evaluate2DPoint(double Coordinate, FCurvePoint2D& OutPoint, int32 DerivativeOrder) const
 {
 	ensure(Boundary.Contains(Coordinate));
 	return Curve->Evaluate2DPoint(Coordinate, OutPoint, DerivativeOrder);
 }
 
-void CADKernel::FBoundedCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const
+void FBoundedCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const
 {
 	Curve->FindNotDerivableCoordinates(InBoundary, DerivativeOrder, OutNotDerivableCoordinates);
 }
 
-TSharedPtr<CADKernel::FCurve> CADKernel::FBoundedCurve::MakeBoundedCurve(const FLinearBoundary& InBoundary)
+TSharedPtr<FCurve> FBoundedCurve::MakeBoundedCurve(const FLinearBoundary& InBoundary)
 {
 	ensureCADKernel(Curve.IsValid());
 
@@ -46,7 +48,7 @@ TSharedPtr<CADKernel::FCurve> CADKernel::FBoundedCurve::MakeBoundedCurve(const F
 	return FEntity::MakeShared<FBoundedCurve>(Curve.ToSharedRef(), NewBoundary, Dimension);
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FBoundedCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FBoundedCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FCurve> TransformedCurve = StaticCastSharedPtr<FCurve>(Curve->ApplyMatrix(InMatrix));
 	if (!TransformedCurve.IsValid()) 
@@ -58,8 +60,10 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FBoundedCurve::ApplyMatrix(const F
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FBoundedCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FBoundedCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info).Add(TEXT("base curve"), Curve);
 }
 #endif
+
+}

@@ -263,7 +263,8 @@ namespace Metasound
 
 				if (GraphMember.IsValid())
 				{
-					GraphMember->SetDescription(InNewText);
+					constexpr bool bPostTransaction = true;
+					GraphMember->SetDescription(InNewText, bPostTransaction);
 				}
 			}
 
@@ -283,7 +284,8 @@ namespace Metasound
 
 				if (!bIsNameInvalid && GraphMember.IsValid())
 				{
-					GraphMember->SetDisplayName(FText::GetEmpty());
+					constexpr bool bPostTransaction = true;
+					GraphMember->SetDisplayName(FText::GetEmpty(), bPostTransaction);
 				}
 
 				DisplayNameEditableTextBox->SetError(FText::GetEmpty());
@@ -296,8 +298,12 @@ namespace Metasound
 
 				if (!bIsNameInvalid && GraphMember.IsValid())
 				{
-					GraphMember->SetDisplayName(FText::GetEmpty());
-					GraphMember->SetMemberName(*InNewName.ToString());
+					const FText TransactionLabel = FText::Format(LOCTEXT("Rename Graph Member", "Set MetaSound {0}'s Name"), GraphMember->GetGraphMemberLabel());
+					const FScopedTransaction Transaction(TransactionLabel);
+
+					constexpr bool bPostTransaction = false;
+					GraphMember->SetDisplayName(FText::GetEmpty(), bPostTransaction);
+					GraphMember->SetMemberName(*InNewName.ToString(), bPostTransaction);
 				}
 
 				DisplayNameEditableTextBox->SetError(FText::GetEmpty());

@@ -26,7 +26,7 @@ public:
 
 public:
 	bool BeginReallocateTextureResources(FViewport* InViewport);
-	FDisplayClusterTextureResource* AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, EPixelFormat CustomPixelFormat, int NumMips = 1);
+	FDisplayClusterTextureResource* AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, EPixelFormat CustomPixelFormat, int32 NumMips = 1);
 	void FinishReallocateTextureResources();
 
 protected:

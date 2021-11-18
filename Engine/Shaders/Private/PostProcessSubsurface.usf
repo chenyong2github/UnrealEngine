@@ -117,11 +117,19 @@ float GetMaskFromDepthInAlpha(float Alpha)
 	return Alpha > 0;
 }
 
+#if STRATA_ENABLED
+FStrataSubsurfaceData LoadStataSSSData(float2 UV)
+{
+	const float2 PixelPos = UV.xy * View.BufferSizeAndInvSize.xy - View.ViewRectMin.xy;
+	return StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0)));
+}
+#endif
+
 // can be optimized
-float GetSubsurfaceStrength(uint2 PixelCoord, float2 UV)
+float GetSubsurfaceStrength(float2 UV)
 {
 #if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStataSSSData(UV);
 	const float Mask = SSSData.bIsValid ? 1.0f : 0.0f;
 	const float RadiusScale = SSSData.ProfileRadiusScale;
 #else
@@ -152,12 +160,11 @@ float3 GetSubsurfaceProfileNormal(float2 BufferUV)
 	return LocalGBufferData.WorldNormal;
 }
 
-uint GetSubsurfaceProfileId(float2 BufferUV, float2 Extent)
+uint GetSubsurfaceProfileId(float2 BufferUV)
 {
 	BufferUV = clamp(BufferUV, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
 #if STRATA_ENABLED
-	const uint2 PixelCoord = BufferUV * Extent;
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
 	return SSSData.ProfileId;
 #else
 	FGBufferData LocalGBufferData = GetGBufferData(BufferUV);
@@ -238,7 +245,7 @@ void VisualizePS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPo
 		float2 UV = SubsurfaceInput0_ViewportMin * SubsurfaceInput0_ExtentInverse + IDAreaLocalUV * (SubsurfaceInput0_ViewportSize * SubsurfaceInput0_ExtentInverse);
 
 	#if STRATA_ENABLED
-		const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0)));
+		const FStrataSubsurfaceData SSSData = LoadStataSSSData(UV);
 		const uint SubsurfaceProfileInt = SSSData.ProfileId;
 		const bool bIsProfile = SSSData.bIsProfile;
 		const float PixelRadiusScale = SSSData.ProfileRadiusScale;
@@ -399,11 +406,10 @@ SDiffuseAndSpecular ReconstructLighting(float2 UVSceneColor, uint ReconstructMet
 
 // @param UVSceneColor for the full res rendertarget (BufferSize) e.g. SceneColor or GBuffers
 // @return .RGB Color that should be scattared, .A:1 for subsurface scattering material, 0 for not
-float4 SetupSubsurfaceForOnePixel(float2 UVSceneColor, float2 Extent)
+float4 SetupSubsurfaceForOnePixel(float2 UVSceneColor)
 {
 #if STRATA_ENABLED
-	const uint2 PixelCoord = UVSceneColor * Extent;
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStataSSSData(UVSceneColor);
 	const bool bHasSSSProfile = SSSData.bIsValid;
 #else
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UVSceneColor);
@@ -606,10 +612,10 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	// order aligned with Gather() hardware implementation
 	// RGB: color*A, A:weight 0 if no subsurface scattering
 
-	float4 A = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax), SubsurfaceInput0_Extent);
-	float4 B = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax), SubsurfaceInput0_Extent);
-	float4 C = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax), SubsurfaceInput0_Extent);
-	float4 D = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax), SubsurfaceInput0_Extent);
+	float4 A = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 B = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 C = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 D = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
 
 	float4 Sum = (A + B) + (C + D);
 
@@ -637,7 +643,7 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 #else // SUBSURFACE_HALF_RES
 	
 	bool bHasSubsurface = false;
-	OutColor = SetupSubsurfaceForOnePixel(BufferUV, SubsurfaceInput0_Extent);
+	OutColor = SetupSubsurfaceForOnePixel(BufferUV);
 
 	if (OutColor.a > 0)
 	{
@@ -656,7 +662,7 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 #endif // SUBSURFACE_HALF_RES
 
 #if !SUBSURFACE_FORCE_SEPARABLE && ENABLE_PROFILE_ID_CACHE
-	uint ProfileId = GetSubsurfaceProfileId(BufferUV, SubsurfaceInput0_Extent);
+	uint ProfileId = GetSubsurfaceProfileId(BufferUV);
 #endif
 
 	// setup the Subsurface type
@@ -668,13 +674,13 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	#if 0
 		// the code here is designed for half resolution burley.
 		float2 UVA = min(BufferUV + float2(-0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
-		uint PidA = GetSubsurfaceProfileId(UVA, SubsurfaceInput0_Extent);
+		uint PidA = GetSubsurfaceProfileId(UVA);
 		float2 UVB = min(BufferUV + float2(0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
-		uint PidB = GetSubsurfaceProfileId(UVB, SubsurfaceInput0_Extent);
+		uint PidB = GetSubsurfaceProfileId(UVB);
 		float2 UVC = min(BufferUV + float2(0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
-		uint PidC = GetSubsurfaceProfileId(UVC, SubsurfaceInput0_Extent);
+		uint PidC = GetSubsurfaceProfileId(UVC);
 		float2 UVD = min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
-		uint PidD = GetSubsurfaceProfileId(UVD, SubsurfaceInput0_Extent);
+		uint PidD = GetSubsurfaceProfileId(UVD);
 
 		// Gatter available and use the last subsurface type for the current pixel.
 		SelectedProfile = lerp(SelectedProfile, PidA, A.a);
@@ -688,14 +694,14 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 		BufferUV = lerp(BufferUV, UVC, C.a);
 		BufferUV = lerp(BufferUV, UVD, D.a);
 		
-		SelectedProfile = GetSubsurfaceProfileId(BufferUV, SubsurfaceInput0_Extent);
+		SelectedProfile = GetSubsurfaceProfileId(BufferUV);
 		Type = GetSubsurfaceType(SelectedProfile);
 	#else
 		Type = TYPE_SEPARABLE; // use separable for half resolution
 	#endif
 		
 #else
-		SelectedProfile = GetSubsurfaceProfileId(BufferUV, SubsurfaceInput0_Extent);
+		SelectedProfile = GetSubsurfaceProfileId(BufferUV);
 		Type = GetSubsurfaceType(SelectedProfile);
 #endif
 	}
@@ -735,7 +741,7 @@ void MainIndirectDispatchCS(
 	uint2  BufferPos = Pos;
 
 #if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
 	const uint bUseBurley = SSSData.bIsProfile ? GetSubsurfaceProfileUseBurley(SSSData.ProfileId) : SSSData.bIsValid;
 #else
 	const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
@@ -782,10 +788,9 @@ void MainIndirectDispatchCS(
 void SubsurfaceRecombinePS(noperspective float2 UV : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
 	const float2 BufferUV  = UV.xy;
-	const uint2  BufferPos = SvPosition.xy;
 
 #if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
 	const bool bUseSSSProfile = SSSData.bIsValid;
 #else
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
@@ -889,10 +894,9 @@ void SubsurfaceRecombinePS(noperspective float2 UV : TEXCOORD0, float4 SvPositio
 void SubsurfaceRecombineCopyPS(noperspective float2 UV : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
 	const float2 BufferUV = UV.xy;
-	const uint2  BufferPos = SvPosition.xy;
 
 #if STRATA_ENABLED
-	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+	const FStrataSubsurfaceData SSSData = LoadStataSSSData(BufferUV);
 	const bool bUseSSSProfile = SSSData.bIsValid;
 #else
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);

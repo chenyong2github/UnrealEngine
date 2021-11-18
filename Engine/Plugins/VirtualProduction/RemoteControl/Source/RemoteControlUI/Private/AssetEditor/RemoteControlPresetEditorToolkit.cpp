@@ -30,6 +30,16 @@ void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToo
 
 	PanelTab = FRemoteControlUIModule::Get().CreateRemoteControlPanel(InPreset, InitToolkitHost);
 
+	// Required, will cause the previous toolkit to close bringing down the RemoteControlPreset and unsubscribing the
+	// tab spawner. Without this, the InitAssetEditor call below will trigger an ensure as the RemoteControlPreset
+	// tab ID will already be registered within EditorTabManager
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<FTabManager> EditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+	if (EditorTabManager->FindExistingLiveTab(FRemoteControlUIModule::RemoteControlPanelTabName).IsValid())
+	{
+		EditorTabManager->TryInvokeTab(FRemoteControlUIModule::RemoteControlPanelTabName)->RequestCloseTab();
+	}
+
 	RegisterTabSpawners(InitToolkitHost->GetTabManager().ToSharedRef());
 
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_RemoteControlPresetEditor")
@@ -45,17 +55,6 @@ void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToo
 
 	constexpr bool bCreateDefaultStandaloneMenu = true;
 	constexpr bool bCreateDefaultToolbar = true;
-
-	// Required, will cause the previous toolkit to close bringing down the RemoteControlPreset and unsubscribing the
-	// tab spawner. Without this, the InitAssetEditor call below will trigger an ensure as the RemoteControlPreset
-	// tab ID will already be registered within EditorTabManager
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	TSharedPtr<FTabManager> EditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-	if (EditorTabManager->FindExistingLiveTab(FRemoteControlUIModule::RemoteControlPanelTabName).IsValid())
-	{
-		EditorTabManager->TryInvokeTab(FRemoteControlUIModule::RemoteControlPanelTabName)->RequestCloseTab();
-	}
-	
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, RemoteControlPanelAppIdentifier, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultStandaloneMenu, InPreset);
 
 	InvokePanelTab();
@@ -134,8 +133,18 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnPan
 {
 	check(Args.GetTabId() == FRemoteControlUIModule::RemoteControlPanelTabName);
 
+	FText TabName;
+	if (Preset)
+	{
+		TabName = FText::FromString(Preset->GetName());
+	}
+	else
+	{
+		TabName = LOCTEXT("ControlPanelLabel", "Control Panel");
+	}
+
 	return SNew(SDockTab)
-		.Label(LOCTEXT("ControlPanelLabel", "Control Panel"))
+		.Label(TabName)
 		.TabColorScale(GetTabColorScale())	
 		[
 			PanelTab.ToSharedRef()

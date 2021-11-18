@@ -6,7 +6,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/Texture.h"
-#include "Misc/FieldAccessor.h"
 #include "TextureCube.generated.h"
 
 class FTextureResource;
@@ -18,12 +17,8 @@ class UTextureCube : public UTexture
 
 	/** The derived data for this texture on this platform. */
 	FTexturePlatformData* PrivatePlatformData;
-public:
-	// The deprecation will be enabled further along the dev cycle and fixed accordingly.
-	// This is to avoid merge conflicts with other branches that fixing this deprecation might cause.
-	//UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead.")
-	TFieldPtrAccessor<FTexturePlatformData> PlatformData;
 
+public:
 	/** Set the derived data for this texture on this platform. */
 	ENGINE_API void SetPlatformData(FTexturePlatformData* PlatformData);
 	/** Get the derived data for this texture on this platform. */

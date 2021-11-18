@@ -77,6 +77,8 @@ public:
 
 	bool RegisterForSessionNotifications(const TComPtr<IMMDevice>& InDevice)
 	{	
+		FScopeLock Lock(&SessionRegistrationCS);
+
 		// If we're already listening to this device, we can early out.
 		if (DeviceListeningToSessionEvents == InDevice)
 		{
@@ -116,6 +118,8 @@ public:
 
 	void UnregisterForSessionNotifications()
 	{	
+		FScopeLock Lock(&SessionRegistrationCS);
+
 		// Unregister for any device we're already listening to.
 		if (SessionControls)
 		{
@@ -639,10 +643,14 @@ private:
 	LONG Ref;
 	TSet<Audio::IAudioMixerDeviceChangedListener*> Listeners;
 	FRWLock ListenersSetRwLock;
+	
 	TComPtr<IMMDeviceEnumerator> DeviceEnumerator;
+
+	FCriticalSection SessionRegistrationCS;
 	TComPtr<IAudioSessionManager> SessionManager;
 	TComPtr<IAudioSessionControl> SessionControls;
 	TComPtr<IMMDevice> DeviceListeningToSessionEvents;
+
 	bool bComInitialized;
 	std::atomic<bool> bHasDisconnectSessionHappened;
 };
@@ -1344,6 +1352,7 @@ namespace Audio
 			{
 				// Unregister and kill cache.
 				WindowsNotificationClient->UnRegisterDeviceDeviceChangedListener(static_cast<FWindowsMMDeviceCache*>(DeviceInfoCache.Get()));
+				
 				DeviceInfoCache.Reset();
 			}
 			

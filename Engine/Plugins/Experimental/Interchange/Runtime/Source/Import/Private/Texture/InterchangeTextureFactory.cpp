@@ -8,6 +8,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
+#include "Engine/TextureDefines.h"
 #include "Engine/TextureLightProfile.h"
 #include "HAL/FileManagerGeneric.h"
 #include "InterchangeAssetImportData.h"
@@ -808,6 +809,14 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 		UTexture* NewTexture = NewObject<UTexture>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
 		NewTexture->AlphaCoverageThresholds = FVector4(0.0, 0.0, 0.0, 1.0);
 		Texture = NewTexture;
+
+		if (UTextureLightProfile* LightProfile = Cast<UTextureLightProfile>(NewTexture))
+		{
+			LightProfile->AddressX = TA_Clamp;
+			LightProfile->AddressY = TA_Clamp;
+			LightProfile->MipGenSettings = TMGS_NoMipmaps;
+			LightProfile->LODGroup = TEXTUREGROUP_IESLightProfile;
+		}
 	}
 	else if (ExistingAsset->GetClass()->IsChildOf(TextureClass))
 	{
@@ -932,7 +941,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 		if (!Arguments.ReimportObject)
 		{
 			Texture->RemoveFromRoot();
-			Texture->MarkPendingKill();
+			Texture->MarkAsGarbage();
 		}
 		return nullptr;
 	}

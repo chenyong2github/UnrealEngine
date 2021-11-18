@@ -119,7 +119,7 @@ class CHAOS_API TUniformGridBase
 	//		rcpps is faster but less accurate (12 bits of precision), this can causes incorrect CellIdx
 	DISABLE_FUNCTION_OPTIMIZATION 
 #endif
-	TVector<int32, d> Cell(const TVector<T, d>& X) const
+	TVector<int32, d> CellUnsafe(const TVector<T, d>& X) const
 	{
 		const TVector<T, d> Delta = X - MMinCorner;
 		TVector<int32, d> Result = Delta / MDx;
@@ -132,6 +132,25 @@ class CHAOS_API TUniformGridBase
 		}
 		return Result;
 	}
+
+#ifdef PLATFORM_COMPILER_CLANG
+	// Disable optimization (-ffast-math) since its currently causing regressions.
+	//		freciprocal-math:
+	//		x / y = x * rccps(y) 
+	//		rcpps is faster but less accurate (12 bits of precision), this can causes incorrect CellIdx
+	DISABLE_FUNCTION_OPTIMIZATION
+#endif
+	TVector<int32, d> Cell(const TVector<T, d>& X) const
+	{
+		const TVector<T, d> Delta = X - MMinCorner;
+		TVector<int32, d> Result = Delta / MDx;
+		for (int Axis = 0; Axis < d; ++Axis)
+		{
+			Result[Axis] = Result[Axis] >= MCells[Axis] ? MCells[Axis] - 1 : (Result[Axis] < 0 ? 0 : Result[Axis]);
+		}
+		return Result;
+	}
+
 	TVector<int32, d> Face(const TVector<T, d>& X, const int32 Component) const
 	{
 		return Cell(X + (MDx / 2) * TVector<T, d>::AxisVector(Component));

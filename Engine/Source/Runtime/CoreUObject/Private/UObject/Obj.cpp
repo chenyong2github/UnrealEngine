@@ -96,7 +96,7 @@ static UPackage*			GObjTransientPkg								= NULL;
 #endif // WITH_EDITOR
 
 UObject::UObject( EStaticConstructor, EObjectFlags InFlags )
-: UObjectBaseUtility(InFlags | (!(InFlags & RF_Dynamic) ? (RF_MarkAsNative | RF_MarkAsRootSet) : RF_NoFlags))
+: UObjectBaseUtility(InFlags | (RF_MarkAsNative | RF_MarkAsRootSet))
 {
 	EnsureNotRetrievingVTablePtr();
 }
@@ -1095,10 +1095,10 @@ void UObject::ConditionalPostLoad()
 			else
 			{
 #if WITH_EDITOR
-				SCOPED_LOADTIMER_TEXT(*((GetClass()->IsChildOf(UDynamicClass::StaticClass()) ? UDynamicClass::StaticClass() : GetClass())->GetName() + TEXT("_PostLoad")));
+				SCOPED_LOADTIMER_TEXT(*(GetClass()->GetName() + TEXT("_PostLoad")));
 #endif
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetOutermost(), ELLMTagSet::Assets);
-				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetClass()->IsChildOf(UDynamicClass::StaticClass()) ? UDynamicClass::StaticClass() : GetClass(), ELLMTagSet::AssetClasses);
+				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetClass(), ELLMTagSet::AssetClasses);
 
 				PostLoad();
 
@@ -1441,11 +1441,11 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 				Record << SA_VALUE(TEXT("WasKill"), WasKill);
 				if (WasKill)
 				{
-					MarkPendingKill();
+					MarkAsGarbage();
 				}
 				else
 				{
-					ClearPendingKill();
+					ClearGarbage();
 				}
 			}
 			else if (UnderlyingArchive.IsSaving())
@@ -1480,6 +1480,80 @@ void UObject::Serialize(FStructuredArchive::FRecord Record)
 		UE_ASSET_LOG(LogCore, Warning, this, TEXT("Soft object paths were redirected during cook of '%s' - package should be resaved."), *GetName());
 	}
 #endif
+}
+
+void UObject::DeclareCustomVersions(FArchive& Ar)
+{
+	// DeclareCustomVersions is called on the default object for each class
+	// We first Serialize the object, which catches all the UsingCustomVersion statements
+	// class authors have added unconditionally in their Serialize function
+	Serialize(Ar);
+
+	// To further catch CustomVersions used by non-native structs that are in an array or don't
+	// otherwise exist on the default object, Construct an instance of the struct and serialize
+	// it for every struct property in the Class.
+	// Since structs can contain other structs, we do a tree search of the fields.
+	struct FStackData
+	{
+		UStruct* Struct;
+		FProperty* NextProperty;
+	};
+	TArray<FStackData> StructStack;
+	UClass* Class = GetClass();
+	StructStack.Add(FStackData{ Class, Class->PropertyLink });
+	TArray<uint8> AllocationBuffer;
+	while (!StructStack.IsEmpty())
+	{
+		FStackData& StackData = StructStack.Last();
+		FProperty*& Property = StackData.NextProperty;
+		bool bPushedStack = false;
+		while (Property)
+		{
+			FProperty* InnerProperty = Property;
+			Property = Property->PropertyLinkNext;
+			FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
+			if (ArrayProperty)
+			{
+				InnerProperty = ArrayProperty->Inner;
+			}
+			FStructProperty* StructProperty = CastField<FStructProperty>(InnerProperty);
+			if (StructProperty)
+			{
+				UStruct* Struct = StructProperty->Struct;
+				if (StructStack.ContainsByPredicate(
+					[Struct](const FStackData& InStackData) { return InStackData.Struct == Struct; }))
+				{
+					// A cycle in the declarations (struct FA { FB B; }; struct FB { FA A; };)
+					// This is invalid, but avoid an infinite loop by skipping the nested struct.
+					continue;
+				}
+				// We handle structs that are direct members (not a pointer)
+				// UObjects and structs cannot have a UObject as a direct member.
+				// We rely on not having to handle it; we can construct Structs in our earliest calls,
+				// but constructing a UObject during startup would cause problems.
+				check(!Struct->IsA<UClass>());
+				UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Struct);
+				if (ScriptStruct)
+				{
+					// Construct an instance and collect CustomProperties from it via Serialize
+					int32 Size = ScriptStruct->GetPropertiesSize();
+					int32 Alignment = ScriptStruct->GetMinAlignment();
+					AllocationBuffer.SetNumUninitialized(Align(Size, Alignment) + Alignment);
+					uint8* StructBytes = Align(AllocationBuffer.GetData(), Alignment);
+					ScriptStruct->InitializeStruct(StructBytes);
+					ScriptStruct->SerializeItem(Ar, StructBytes, nullptr);
+					ScriptStruct->DestroyStruct(StructBytes);
+				}
+				StructStack.Add(FStackData{ Struct, Struct->PropertyLink });
+				bPushedStack = true;
+				break;
+			}
+		}
+		if (!bPushedStack)
+		{
+			StructStack.Pop(false /* bAllowShrinking */);
+		}
+	}
 }
 
 void UObject::SerializeScriptProperties(FArchive& Ar) const
@@ -1680,7 +1754,7 @@ bool UObject::CanCheckDefaultSubObjects(bool bForceCheck, bool& bResult) const
 		bResult = false; // these aren't in a suitable spot in their lifetime for testing
 		bCanCheck = false;
 	}
-	if (bCanCheck && (HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects) || IsPendingKillOrUnreachable() || GIsDuplicatingClassForReinstancing))
+	if (bCanCheck && (HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedPostLoadSubobjects) || !IsValidChecked(this) || IsUnreachable() || GIsDuplicatingClassForReinstancing))
 	{
 		bResult = true; // these aren't in a suitable spot in their lifetime for testing
 		bCanCheck = false;

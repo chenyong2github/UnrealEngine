@@ -3878,6 +3878,13 @@ public:
 	/** Given a level script actor, modify the string such that it points to the correct instance of the object. For replays. */
 	bool RemapCompiledScriptActor(FString& Str) const;
 
+	/** 
+	 * If World Package is instanced return a mapping that can be used to fixup SoftObjectPaths for this world 
+	 *
+	 * returns false if package doesn't need remapping
+	 */
+	bool GetSoftObjectPathMapping(FString& OutSourceWorldPath, FString& OutRemappedWorldPath) const;
+
 	/** Given a PackageName and a PIE Instance ID return the name of that Package when being run as a PIE world */
 	static FString ConvertToPIEPackageName(const FString& PackageName, int32 PIEInstanceID);
 

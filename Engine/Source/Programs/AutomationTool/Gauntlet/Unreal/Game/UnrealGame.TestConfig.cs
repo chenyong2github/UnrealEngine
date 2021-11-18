@@ -13,7 +13,7 @@ namespace UnrealGame
 	/// Default set of options for testing "DefaultGame". Options that tests can configure
 	/// should be public, external command-line driven options should be protected/private
 	/// </summary>
-	public class UE4TestConfig : UnrealTestConfiguration
+	public class UnrealTestConfig : UnrealTestConfiguration
 	{
 		/// <summary>
 		/// Applies these options to the provided app config

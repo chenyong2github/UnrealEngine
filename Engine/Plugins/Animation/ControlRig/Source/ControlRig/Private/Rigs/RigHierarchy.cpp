@@ -1215,6 +1215,33 @@ TArray<FRigElementWeight> URigHierarchy::GetParentWeightArray(const FRigBaseElem
 	return Weights;
 }
 
+FRigElementKey URigHierarchy::GetActiveParent(const FRigElementKey& InKey) const
+{
+	const TArray<FRigElementWeight> ParentWeights = GetParentWeightArray(InKey);
+	if (ParentWeights.Num() > 0)
+	{
+		const TArray<FRigElementKey> ParentKeys = GetParents(InKey);
+		check(ParentKeys.Num() == ParentWeights.Num());
+		for (int32 ParentIndex = 0; ParentIndex < ParentKeys.Num(); ParentIndex++)
+		{
+			if (ParentWeights[ParentIndex].IsAlmostZero())
+			{
+				continue;
+			}
+			if (ParentIndex == 0)
+			{
+				if (!(ParentKeys[ParentIndex] == URigHierarchy::GetDefaultParentKey() || ParentKeys[ParentIndex] == URigHierarchy::GetWorldSpaceReferenceKey()))
+				{
+					return URigHierarchy::GetDefaultParentKey();
+				}
+			}
+			return ParentKeys[ParentIndex];
+		}
+	}
+	return URigHierarchy::GetDefaultParentKey();
+}
+
+
 bool URigHierarchy::SetParentWeight(FRigElementKey InChild, FRigElementKey InParent, FRigElementWeight InWeight, bool bInitial, bool bAffectChildren)
 {
 	return SetParentWeight(Find(InChild), Find(InParent), InWeight, bInitial, bAffectChildren);

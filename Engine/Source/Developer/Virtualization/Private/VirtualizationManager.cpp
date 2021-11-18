@@ -117,24 +117,24 @@ namespace Profiling
 
 	void CreateStats(const IVirtualizationBackend& Backend)
 	{
-		CacheStats.Add(Backend.GetDebugString());	
-		PushStats.Add(Backend.GetDebugString());
-		PullStats.Add(Backend.GetDebugString());
+		CacheStats.Add(Backend.GetDebugName());
+		PushStats.Add(Backend.GetDebugName());
+		PullStats.Add(Backend.GetDebugName());
 	}
 
 	FCookStats::CallStats& GetCacheStats(const IVirtualizationBackend& Backend)
 	{
-		return *CacheStats.Find(Backend.GetDebugString());
+		return *CacheStats.Find(Backend.GetDebugName());
 	}
 	
 	FCookStats::CallStats& GetPushStats(const IVirtualizationBackend& Backend)
 	{
-		return *PushStats.Find(Backend.GetDebugString());
+		return *PushStats.Find(Backend.GetDebugName());
 	}
 
 	FCookStats::CallStats& GetPullStats(const IVirtualizationBackend& Backend)
 	{
-		return *PullStats.Find(Backend.GetDebugString());
+		return *PullStats.Find(Backend.GetDebugName());
 	}
 
 	/** Returns true if we have gathered any profiling data at all */
@@ -244,7 +244,6 @@ FVirtualizationManager::FVirtualizationManager()
 	, MinPayloadLength(0)
 	, BackendGraphName(TEXT("ContentVirtualizationBackendGraph_None"))
 	, bForceSingleThreaded(false)
-	, bFailPayloadPullOperations(false)
 	, bValidateAfterPushOperation(false)
 {
 	UE_LOG(LogVirtualization, Log, TEXT("Virtualization manager created"));
@@ -266,6 +265,7 @@ FVirtualizationManager::FVirtualizationManager()
 	}
 
 	ApplySettingsFromCmdline();
+	ApplyDebugSettingsFromFromCmdline();
 
 	MountBackends();
 }
@@ -343,10 +343,10 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 
 	for (IVirtualizationBackend* Backend : Backends)
 	{
-		const EPushResult Result = TryPushDataToBackend(*Backend, Id, Payload) ? EPushResult::Success : EPushResult::Failed;
+		const EPushResult Result = TryPushDataToBackend(*Backend, Id, Payload, PackageContext) ? EPushResult::Success : EPushResult::Failed;
 
-		UE_CLOG(Result != EPushResult::Failed, LogVirtualization, Verbose, TEXT("[%s] Pushed the payload '%s'"), *Backend->GetDebugString(), *Id.ToString());
-		UE_CLOG(Result == EPushResult::Failed, LogVirtualization, Error, TEXT("[%s] Failed to push the payload '%s'"), *Backend->GetDebugString(), *Id.ToString());
+		UE_CLOG(Result != EPushResult::Failed, LogVirtualization, Verbose, TEXT("[%s] Pushed the payload '%s'"), *Backend->GetDebugName(), *Id.ToString());
+		UE_CLOG(Result == EPushResult::Failed, LogVirtualization, Error, TEXT("[%s] Failed to push the payload '%s'"), *Backend->GetDebugName(), *Id.ToString());
 
 		if (Result == EPushResult::Failed)
 		{
@@ -358,8 +358,10 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 		if (bValidateAfterPushOperation && Result != EPushResult::Failed && Backend->SupportsPullOperations())
 		{
 			FCompressedBuffer PulledPayload = PullDataFromBackend(*Backend, Id);
-			checkf(Payload.GetRawHash() == PulledPayload.GetRawHash(), TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"), 
-				*Backend->GetDebugString(), *Id.ToString());
+			checkf(	Payload.GetRawHash() == PulledPayload.GetRawHash(), 
+					TEXT("[%s] Failed to pull payload '%s' after it was pushed to backend"), 
+					*Backend->GetDebugName(), 
+					*Id.ToString());
 		}
 	}
 
@@ -388,12 +390,6 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 		return FCompressedBuffer();
 	}
 
-	if (bFailPayloadPullOperations)
-	{
-		UE_LOG(LogVirtualization, Error, TEXT("Payload '%s' failed to be pulled as the debug option 'FailPayloadPullOperations' is enabled!"), *Id.ToString());
-		return FCompressedBuffer();
-	}
-
 	FConditionalScopeLock _(&ForceSingleThreadedCS, bForceSingleThreaded);
 
 	for (IVirtualizationBackend* Backend : PullEnabledBackends)
@@ -419,7 +415,7 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 	return FCompressedBuffer();
 }
 
-FPayloadActivityInfo FVirtualizationManager::GetPayloadActivityInfo() const
+FPayloadActivityInfo FVirtualizationManager::GetAccumualtedPayloadActivityInfo() const
 {
 	FPayloadActivityInfo Info;
 
@@ -433,9 +429,9 @@ FPayloadActivityInfo FVirtualizationManager::GetPayloadActivityInfo() const
 
 	for (const auto& Iterator : Profiling::PushStats)
 	{
-		Info.Push.PayloadCount	+= Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
-		Info.Push.TotalBytes	+= Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
-		Info.Push.CyclesSpent	+= Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles);		
+		Info.Push.PayloadCount += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+		Info.Push.TotalBytes += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
+		Info.Push.CyclesSpent += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles);
 	}
 
 	for (const auto& Iterator : Profiling::PullStats)
@@ -447,6 +443,40 @@ FPayloadActivityInfo FVirtualizationManager::GetPayloadActivityInfo() const
 #endif // ENABLE_COOK_STATS
 
 	return Info;
+}
+
+void FVirtualizationManager::GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef GetPayloadFunc ) const
+{
+	FPayloadActivityInfo Info;
+
+#if ENABLE_COOK_STATS
+
+	for (const auto& Backend : AllBackends)
+	{
+		const FCookStats::CallStats& CacheStats = Profiling::GetCacheStats(*Backend);
+
+		Info.Cache.PayloadCount = CacheStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+		Info.Cache.TotalBytes = CacheStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
+		Info.Cache.CyclesSpent = CacheStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles);
+
+		const FCookStats::CallStats& PushStats = Profiling::GetPushStats(*Backend);
+
+		Info.Push.PayloadCount = PushStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+		Info.Push.TotalBytes = PushStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
+		Info.Push.CyclesSpent = PushStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles);
+
+		const FCookStats::CallStats& PullStats = Profiling::GetPullStats(*Backend);
+
+		Info.Pull.PayloadCount = PullStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+		Info.Pull.TotalBytes = PullStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
+		Info.Pull.CyclesSpent = PullStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles);
+
+		GetPayloadFunc(Backend->GetDebugName(), Backend->GetConfigName(), Info);
+
+	}
+#endif // ENABLE_COOK_STATS
+
+	
 }
 
 void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& PlatformEngineIni)
@@ -548,13 +578,6 @@ void FVirtualizationManager::ApplyDebugSettingsFromConfigFiles(const FConfigFile
 		UE_LOG(LogVirtualization, Log, TEXT("\tForceSingleThreaded : %s"), bForceSingleThreaded ? TEXT("true") : TEXT("false"));
 	}
 
-	bool bFailPayloadPullOperationsFromIni = false;
-	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualizationDebugOptions"), TEXT("FailPayloadPullOperations"), bFailPayloadPullOperationsFromIni))
-	{
-		bFailPayloadPullOperations = bFailPayloadPullOperationsFromIni;
-		UE_LOG(LogVirtualization, Log, TEXT("\tFailPayloadPullOperations : %s"), bFailPayloadPullOperations ? TEXT("true") : TEXT("false"));
-	}
-
 	bool bValidateAfterPushOperationFromIni = false;
 	if (PlatformEngineIni.GetBool(TEXT("Core.ContentVirtualizationDebugOptions"), TEXT("ValidateAfterPushOperation"), bValidateAfterPushOperationFromIni))
 	{
@@ -565,8 +588,22 @@ void FVirtualizationManager::ApplyDebugSettingsFromConfigFiles(const FConfigFile
 	// Some debug options will cause intentional breaks or slow downs for testing purposes, if these are enabled then we should give warning/errors 
 	// so it is clear in the log that future failures are being caused by the given dev option.
 	UE_CLOG(bForceSingleThreaded, LogVirtualization, Warning, TEXT("ForceSingleThreaded is enabled, virtualization will run in single threaded mode and may be slower!"));
-	UE_CLOG(bFailPayloadPullOperations, LogVirtualization, Error, TEXT("FailPayloadPullOperations is enabled, all virtualization pull operations will fail!"));
 	UE_CLOG(bValidateAfterPushOperation, LogVirtualization, Error, TEXT("ValidateAfterPushOperation is enabled, each push will be followed by a pull to validate it!"));
+}
+
+void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
+{
+	FString MissOptions;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-VA-MissBackends="), MissOptions))
+	{
+		MissOptions.ParseIntoArray(BackendsToDisablePulls, TEXT("+"), true);
+
+		UE_LOG(LogVirtualization, Warning, TEXT("Cmdline has disabled payload pulling for the following backends:"));
+		for (const FString& Backend : BackendsToDisablePulls)
+		{
+			UE_LOG(LogVirtualization, Warning, TEXT("\t%s"), *Backend);
+		}
+	}
 }
 
 void FVirtualizationManager::MountBackends()
@@ -646,6 +683,11 @@ bool FVirtualizationManager::CreateBackend(const TCHAR* GraphName, const FString
 				return false;
 
 			}
+
+			if (BackendsToDisablePulls.Find(Backend->GetConfigName()) != INDEX_NONE  || BackendsToDisablePulls.Find(TEXT("All")) != INDEX_NONE)
+			{
+				Backend->DisablePullOperationSupport();
+			}
 			
 			if (Backend->Initialize(Cmdine))
 			{
@@ -674,7 +716,7 @@ bool FVirtualizationManager::CreateBackend(const TCHAR* GraphName, const FString
 
 void FVirtualizationManager::AddBackend(TUniquePtr<IVirtualizationBackend> Backend, FBackendArray& PushArray)
 {
-	checkf(!AllBackends.Contains(Backend), TEXT("Adding the same virtualization backend (%s) multiple times!"), *Backend->GetDebugString());
+	checkf(!AllBackends.Contains(Backend), TEXT("Adding the same virtualization backend (%s) multiple times!"), *Backend->GetDebugName());
 
 	// Move ownership of the backend to AllBackends
 	AllBackends.Add(MoveTemp(Backend));
@@ -694,7 +736,7 @@ void FVirtualizationManager::AddBackend(TUniquePtr<IVirtualizationBackend> Backe
 
 	COOK_STAT(Profiling::CreateStats(*BackendRef));
 
-	UE_LOG(LogVirtualization, Log, TEXT("Mounted backend: %s"), *BackendRef->GetDebugString());
+	UE_LOG(LogVirtualization, Log, TEXT("Mounted backend: %s"), *BackendRef->GetDebugName());
 }
 
 void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource)
@@ -713,15 +755,17 @@ void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompresse
 		UE_CLOG(	!bResult, LogVirtualization, Warning,
 					TEXT("Failed to cache payload '%s' to backend '%s'"),
 					*Id.ToString(),
-					*BackendToCache->GetDebugString());
+					*BackendToCache->GetDebugName());
 
 		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
 		// that the pulled payload is the same as the original
 		if (bValidateAfterPushOperation && bResult && BackendToCache->SupportsPullOperations())
 		{
 			FCompressedBuffer PulledPayload = PullDataFromBackend(*BackendToCache, Id);
-			checkf(Payload.GetRawHash() == PulledPayload.GetRawHash(), TEXT("[%s] Failed to pull payload '%s' after it was cached to backend"),
-				*BackendToCache->GetDebugString(), *Id.ToString());
+			checkf(	Payload.GetRawHash() == PulledPayload.GetRawHash(), 
+					TEXT("[%s] Failed to pull payload '%s' after it was cached to backend"),
+					*BackendToCache->GetDebugName(), 
+					*Id.ToString());
 		}
 	}
 }
@@ -729,7 +773,7 @@ void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompresse
 bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload)
 {
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetCacheStats(Backend)));
-	const EPushResult Result = Backend.PushData(Id, Payload);
+	const EPushResult Result = Backend.PushData(Id, Payload, FPackagePath());
 
 	if (Result == EPushResult::Success)
 	{
@@ -739,10 +783,10 @@ bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backe
 	return Result != EPushResult::Failed;
 }
 
-bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload)
+bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext)
 {
 	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetPushStats(Backend)));
-	const EPushResult Result = Backend.PushData(Id, Payload);
+	const EPushResult Result = Backend.PushData(Id, Payload, PackageContext);
 
 	if (Result == EPushResult::Success)
 	{

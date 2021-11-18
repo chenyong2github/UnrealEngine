@@ -68,6 +68,7 @@ enum class EOnlineServices : uint8
 using IAuthPtr = TSharedPtr<class IAuth>;
 using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;
+using IExternalUIPtr = TSharedPtr<class IExternalUI>;
 struct FOnlineId;
 using FAccountId = FOnlineId;
 
@@ -103,6 +104,11 @@ public:
 	 *
 	 */
 	virtual IPresencePtr GetPresenceInterface() = 0;
+
+	/**
+	 *
+	 */
+	virtual IExternalUIPtr GetExternalUIInterface() = 0;
 };
 
 /**

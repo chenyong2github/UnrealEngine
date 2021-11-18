@@ -31,10 +31,10 @@ void FMemTagTreeViewColumnFactory::CreateMemTagTreeViewColumns(TArray<TSharedRef
 	Columns.Add(CreateNameColumn());
 	Columns.Add(CreateTypeColumn());
 	Columns.Add(CreateTrackerColumn());
-	Columns.Add(CreateInstanceCountColumn());
-	Columns.Add(CreateMinValueColumn());
-	Columns.Add(CreateMaxValueColumn());
-	Columns.Add(CreateAverageValueColumn());
+	//Columns.Add(CreateInstanceCountColumn());
+	//Columns.Add(CreateMinValueColumn());
+	//Columns.Add(CreateMaxValueColumn());
+	//Columns.Add(CreateAverageValueColumn());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

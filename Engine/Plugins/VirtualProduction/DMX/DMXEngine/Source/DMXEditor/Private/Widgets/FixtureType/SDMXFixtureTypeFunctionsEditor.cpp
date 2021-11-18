@@ -23,6 +23,11 @@
 
 #define LOCTEXT_NAMESPACE "SDMXFixtureTypeFunctionsEditor"
 
+const FName FDMXFixtureTypeFunctionsEditorCollumnIDs::Status = "Status";
+const FName FDMXFixtureTypeFunctionsEditorCollumnIDs::Channel = "Channel";
+const FName FDMXFixtureTypeFunctionsEditorCollumnIDs::Name = "Name";
+const FName FDMXFixtureTypeFunctionsEditorCollumnIDs::Attribute = "Attribute";
+
 SDMXFixtureTypeFunctionsEditor::~SDMXFixtureTypeFunctionsEditor()
 {
 	SaveHeaderRowSettings();
@@ -370,28 +375,28 @@ TSharedRef<SHeaderRow> SDMXFixtureTypeFunctionsEditor::GenerateHeaderRow()
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId("Status")
+		.ColumnId(FDMXFixtureTypeFunctionsEditorCollumnIDs::Status)
 		.DefaultLabel(LOCTEXT("StatusColumnLabel", ""))
 		.FixedWidth(StatusColumnWidth)
 	);
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId("Channel")
+		.ColumnId(FDMXFixtureTypeFunctionsEditorCollumnIDs::Channel)
 		.DefaultLabel(LOCTEXT("ChannelColumnLabel", "Ch."))
 		.FixedWidth(56.f)
 	);
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId("Name")
+		.ColumnId(FDMXFixtureTypeFunctionsEditorCollumnIDs::Name)
 		.DefaultLabel(LOCTEXT("NameColumnLabel", "Name"))
 		.FillWidth(0.5f)
 	);
 
 	HeaderRow->AddColumn(
 		SHeaderRow::FColumn::FArguments()
-		.ColumnId("Attribute")
+		.ColumnId(FDMXFixtureTypeFunctionsEditorCollumnIDs::Attribute)
 		.DefaultLabel(LOCTEXT("AttributeColumnLabel", "Attribute"))
 		.FillWidth(0.5f)
 	);

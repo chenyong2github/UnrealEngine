@@ -4,8 +4,13 @@
 
 #include "CoreMinimal.h"
 
-/**
- * Callback used to traverse object dependencies while serializing objects.
- * @param OriginalObjectDependency Index to FWorldSnapshotData::SerializedReferences
- */
-using FProcessObjectDependency = TFunctionRef<void(int32 OriginalObjectIndex)>;
+namespace UE::LevelSnapshots
+{
+	/**
+	 * Callback used to traverse object dependencies while serializing objects.
+	 * @param OriginalObjectDependency Index to FWorldSnapshotData::SerializedReferences
+	 */
+	using FProcessObjectDependency = TFunctionRef<void(int32 OriginalObjectIndex)>;
+}
+
+

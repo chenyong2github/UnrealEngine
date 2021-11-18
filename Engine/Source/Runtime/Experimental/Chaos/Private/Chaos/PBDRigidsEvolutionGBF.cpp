@@ -267,14 +267,14 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	if(CollisionModifiers)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CollisionModifierCallback);
-		CollisionConstraints.ApplyCollisionModifier(*CollisionModifiers);
+		CollisionConstraints.ApplyCollisionModifier(*CollisionModifiers, Dt);
 	}
 
 	if (bChaosUseCCD)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CCD);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, CCD);
-		CCDManager.ApplyConstraintsPhaseCCD(Dt, NarrowPhase.GetContext().CollisionAllocator, Particles.GetActiveParticlesView().Num());
+		CCDManager.ApplyConstraintsPhaseCCD(Dt, &CollisionConstraints.GetConstraintAllocator(), Particles.GetActiveParticlesView().Num());
 	}
 
 	{
@@ -590,8 +590,8 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	, SuspensionConstraintRule(SuspensionConstraints, ChaosSolverSuspensionPriority)
 	, CollisionConstraints(InParticles, Collided, PhysicsMaterials, PerParticlePhysicsMaterials, DefaultNumCollisionPairIterations, DefaultNumCollisionPushOutPairIterations, DefaultRestitutionThreshold)
 	, CollisionRule(CollisionConstraints, ChaosSolverCollisionPriority)
-	, BroadPhase(InParticles, DefaultCollisionCullDistance, BoundsThicknessVelocityMultiplier)
-	, NarrowPhase()
+	, BroadPhase(InParticles)
+	, NarrowPhase(DefaultCollisionCullDistance, BoundsThicknessVelocityMultiplier, CollisionConstraints.GetConstraintAllocator())
 	, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	, PostIntegrateCallback(nullptr)
 	, PreApplyCallback(nullptr)
@@ -638,7 +638,6 @@ FPBDRigidsEvolutionGBF::FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles,THand
 	NarrowPhase.GetContext().bFilteringEnabled = true;
 	NarrowPhase.GetContext().bDeferUpdate = false;
 	NarrowPhase.GetContext().bAllowManifolds = false;
-	NarrowPhase.GetContext().CollisionAllocator = &CollisionConstraints.GetConstraintAllocator();
 }
 
 FPBDRigidsEvolutionGBF::~FPBDRigidsEvolutionGBF()
@@ -663,7 +662,74 @@ void FPBDRigidsEvolutionGBF::SetCurrentStepResimCache(IResimCacheBase* InCurrent
 
 void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 {
-#	//
+	// Transfer collisions from the child of a joint to the parent.
+	// E.g., if body A and B are connected by a joint, with A the parent and B the child...
+	// then a third body C collides with B...
+	// we create a new collision between A and C at the same world position.
+	// E.g., This can be used to forward collision impulses from a vehicle bumper to its
+	// chassis without having to worry about making the joint connecting them very stiff
+	// which is quite difficult for large mass ratios and would require many iterations.
+	if (DoTransferJointConstraintCollisions)
+	{
+		FCollisionConstraintAllocator& CollisionAllocator = CollisionConstraints.GetConstraintAllocator();
+
+		// @todo(chaos): we should only visit the joints that have ContactTransferScale > 0 
+		for (int32 JointConstraintIndex = 0; JointConstraintIndex < GetJointConstraints().NumConstraints(); ++JointConstraintIndex)
+		{
+			FPBDJointConstraintHandle* JointConstraint = GetJointConstraints().GetConstraintHandle(JointConstraintIndex);
+			const FPBDJointSettings& JointSettings = JointConstraint->GetSettings();
+			if (JointSettings.ContactTransferScale > FReal(0))
+			{
+				FGenericParticleHandle ParentParticle = JointConstraint->GetConstrainedParticles()[1];
+				FGenericParticleHandle ChildParticle = JointConstraint->GetConstrainedParticles()[0];
+
+				const FRigidTransform3 ParentTransform = FParticleUtilities::GetActorWorldTransform(ParentParticle);
+				const FRigidTransform3 ChildTransform = FParticleUtilities::GetActorWorldTransform(ChildParticle);
+				const FRigidTransform3 ChildToParentTransform = ChildTransform.GetRelativeTransform(ParentTransform);
+
+				ChildParticle->Handle()->ParticleCollisions().VisitCollisions(
+					[&](const FPBDCollisionConstraint* ChildCollisionConstraint)
+					{
+						if (ChildCollisionConstraint->GetCCDType() != ECollisionCCDType::Disabled)
+						{
+							return;
+						}
+
+						// @todo(chaos): implemeent this
+						// Note: the defined out version has a couple issues we will need to address in the new version
+						//	-	it passes Implicit pointers from one body to a constraint whose lifetime is not controlled by that body
+						//		which could cause problems if the first body is destroyed.
+						//	-	we need to properly support collisions constraints without one (or both) Implicit Objects. Collisions are 
+						//		managed per shape pair, and found by a key that depends on them, so we'd need to rethink that a bit. 
+						//		Here it's useful to be able to use the child implicit to generate the unique key, but we don't want the 
+						//		constraint to hold the pointer (see previous issue).
+						//	-	we should check to see if there is already an active constraint between the bodies because we don't want
+						//		to replace a legit collision with our fake one...probably
+						ensure(false);
+
+						const FGeometryParticleHandle* NewParentParticleConst = (ChildCollisionConstraint->GetParticle0() == ChildParticle->Handle()) ? ChildCollisionConstraint->GetParticle1() : ChildCollisionConstraint->GetParticle0();
+						
+						FGeometryParticleHandle* NewParticleA = const_cast<FGeometryParticleHandle*>(NewParentParticleConst);
+						FGeometryParticleHandle* NewParticleB = ParentParticle->Handle();
+
+						// Set up NewCollision - this should duplicate what happens in collision detection, except the
+						// contact points are just read from the source constraint rather than via the narrow phase
+						//FPBDCollisionConstraint NewCollision = FPBDCollisionConstraint(...);
+						// NewCollision.AddOneshotManifoldContact(...);
+						// ...
+						// NewCollision.SetStiffness(JointSettings.ContactTransferScale);
+
+						// Add collision to the system
+						//FParticlePairMidPhase* MidPhase = CollisionAllocator.GetParticlePairMidPhase(NewParticleA, NewParticleB);
+						//MidPhase->InjectCollision(NewCollision);
+					});
+			}
+		}
+
+		CollisionAllocator.ProcessInjectedConstraints();
+	}
+#if 0
+	//
 	// Append transfer constraints. 
 	//
 	// @todo(chaos): this should be implementable with a collision modifier system
@@ -692,7 +758,7 @@ void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 
 								for (FPBDCollisionConstraintHandle* ContactHandle : CollisionPair.Value)
 								{
-									if (ContactHandle->GetType() == ECollisionConstraintType::Standard)
+									if (ContactHandle->GetCCDType() == ECollisionCCDType::Disabled)
 									{
 										const FPBDCollisionConstraint& CurrConstraint = ContactHandle->GetContact();
 
@@ -757,6 +823,7 @@ void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
 
 		CollisionAllocator.ProcessInjectedConstraints();
 	}
+#endif
 }
 
 }

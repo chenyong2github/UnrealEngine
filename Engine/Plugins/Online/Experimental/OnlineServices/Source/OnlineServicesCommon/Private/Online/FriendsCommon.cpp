@@ -19,9 +19,9 @@ void FFriendsCommon::RegisterCommands()
 
 TOnlineAsyncOpHandle<FQueryFriends> FFriendsCommon::QueryFriends(FQueryFriends::Params&& Params)
 {
-	TOnlineAsyncOp<FQueryFriends>& Operation = GetOp<FQueryFriends>(MoveTemp(Params));
-	Operation.SetError(Errors::NotImplemented());
-	return Operation.GetHandle();
+	TOnlineAsyncOpRef<FQueryFriends> Operation = GetOp<FQueryFriends>(MoveTemp(Params));
+	Operation->SetError(Errors::NotImplemented());
+	return Operation->GetHandle();
 }
 
 TOnlineResult<FGetFriends> FFriendsCommon::GetFriends(FGetFriends::Params&& Params)
@@ -31,9 +31,9 @@ TOnlineResult<FGetFriends> FFriendsCommon::GetFriends(FGetFriends::Params&& Para
 
 TOnlineAsyncOpHandle<FAddFriend> FFriendsCommon::AddFriend(FAddFriend::Params&& Params)
 {
-	TOnlineAsyncOp<FAddFriend>& Operation = GetOp<FAddFriend>(MoveTemp(Params));
-	Operation.SetError(Errors::NotImplemented());
-	return Operation.GetHandle();
+	TOnlineAsyncOpRef<FAddFriend> Operation = GetOp<FAddFriend>(MoveTemp(Params));
+	Operation->SetError(Errors::NotImplemented());
+	return Operation->GetHandle();
 }
 
 TOnlineEvent<void(const FFriendsListUpdated&)> FFriendsCommon::OnFriendsListUpdated()

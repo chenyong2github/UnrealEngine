@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Network/DisplayClusterNetworkTypes.h"
+
 
 /**
  * Rendering synchronization protocol. Used to synchronize everything we need
@@ -14,5 +16,5 @@ public:
 
 public:
 	// Swap sync barrier
-	virtual void WaitForSwapSync() = 0;
+	virtual EDisplayClusterCommResult WaitForSwapSync() = 0;
 };

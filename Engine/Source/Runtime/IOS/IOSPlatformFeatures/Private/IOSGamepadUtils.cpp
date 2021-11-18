@@ -59,10 +59,11 @@ UTexture2D* FIOSGamepadUtils::GetGamepadButtonGlyph(const FGamepadKeyNames::Type
                     NewTexture = UTexture2D::CreateTransient(ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), PF_B8G8R8A8);
 
                     if (NewTexture != nullptr)
-                    {
-                        void* TextureData = NewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+                    {					
+						FTexture2DMipMap& Mip0 = NewTexture->GetPlatformData()->Mips[0];
+						void* TextureData = Mip0.BulkData.Lock(LOCK_READ_WRITE);
                         FMemory::Memcpy(TextureData, RawImageData.GetData(), RawImageData.Num());
-                        NewTexture->PlatformData->Mips[0].BulkData.Unlock();
+						Mip0.BulkData.Unlock();
                         NewTexture->UpdateResource();
                         GamepadGlyph GamepadGlyph;
                         GamepadGlyph.ControllerType = ControllerType;

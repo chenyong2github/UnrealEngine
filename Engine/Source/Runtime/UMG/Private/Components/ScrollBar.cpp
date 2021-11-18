@@ -9,7 +9,10 @@
 /////////////////////////////////////////////////////
 // UScrollBar
 
-static FScrollBarStyle* DefaultScrollBarStyle = nullptr;
+namespace
+{
+	static FScrollBarStyle* DefaultScrollBarStyle = nullptr;
+}
 
 #if WITH_EDITOR
 static FScrollBarStyle* EditorScrollBarStyle = nullptr;

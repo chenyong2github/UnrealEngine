@@ -20,6 +20,14 @@
 #define JNI_CURRENT_VERSION JNI_VERSION_1_6
 extern JavaVM* GJavaVM;
 
+static int32 GAndroidAddSwapToTotalPhysical = 1;
+static FAutoConsoleVariableRef CVarAddSwapToTotalPhysical(
+	TEXT("android.AddSwapToTotalPhysical"),
+	GAndroidAddSwapToTotalPhysical,
+	TEXT("When non zero, Total physical memory reporting will also include swap memory. (default)"),
+	ECVF_Default
+);
+
 static int64 GetNativeHeapAllocatedSize()
 {
 	int64 AllocatedSize = 0;
@@ -128,6 +136,39 @@ namespace AndroidPlatformMemory
 
 extern int32 AndroidThunkCpp_GetMetaDataInt(const FString& Key);
 
+// useful for debugging, this triggers a traversal of smaps and can take 100s of ms.
+static bool GetPss(uint64& PSSOUT, uint64& SwapPSSOUT)
+{
+	PSSOUT = 0;
+	SwapPSSOUT = 0;
+	int FieldsSetSuccessfully = 0;
+	// again /proc "API" :/
+	if (FILE* SmapsRollup = fopen("/proc/self/smaps_rollup", "r"))
+	{
+		do
+		{
+			char LineBuffer[256] = { 0 };
+			char* Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), SmapsRollup);
+			if (Line == nullptr)
+			{
+				break;	// eof or an error
+			}
+			if (strstr(Line, "SwapPss:") == Line)
+			{
+				SwapPSSOUT = AndroidPlatformMemory::GetBytesFromStatusLine(Line);
+				++FieldsSetSuccessfully;
+			}
+			else if (strstr(Line, "Pss:") == Line)
+			{
+				PSSOUT = AndroidPlatformMemory::GetBytesFromStatusLine(Line);
+				++FieldsSetSuccessfully;
+			}
+		} while (FieldsSetSuccessfully < 2);
+		fclose(SmapsRollup);
+	}
+	return FieldsSetSuccessfully == 2;
+}
+
 FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 {
 	FPlatformMemoryStats MemoryStats;	// will init from constants
@@ -213,9 +254,19 @@ FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 				MemoryStats.UsedPhysical = AndroidPlatformMemory::GetBytesFromStatusLine(Line);
 				++FieldsSetSuccessfully;
 			}
-		} while (FieldsSetSuccessfully < 4);
+			else if (strstr(Line, "VmSwap:") == Line)
+			{
+				MemoryStats.VMSwap = AndroidPlatformMemory::GetBytesFromStatusLine(Line);
+				++FieldsSetSuccessfully;
+			}
+		} while (FieldsSetSuccessfully < 5);
 
 		fclose(ProcMemStats);
+	}
+
+	if (GAndroidAddSwapToTotalPhysical)
+	{
+		MemoryStats.UsedPhysical += MemoryStats.VMSwap;
 	}
 
 
@@ -271,9 +322,12 @@ uint64 FAndroidPlatformMemory::GetMemoryUsedFast()
 	}
 #endif
 
+	uint64 VMRSS = 0;
+	uint64 VMSwap = 0;
 	// minimal code to get Used memory
 	if (FILE* ProcMemStats = fopen("/proc/self/status", "r"))
 	{
+		int LinesToFind = GAndroidAddSwapToTotalPhysical ? 2 : 1;
 		while (1)
 		{
 			char LineBuffer[256] = { 0 };
@@ -284,14 +338,24 @@ uint64 FAndroidPlatformMemory::GetMemoryUsedFast()
 			}
 			else if (strstr(Line, "VmRSS:") == Line)
 			{
-				fclose(ProcMemStats);
-				return AndroidPlatformMemory::GetBytesFromStatusLine(Line);
+				VMRSS = AndroidPlatformMemory::GetBytesFromStatusLine(Line);
+				LinesToFind--;
+			}
+			else if (GAndroidAddSwapToTotalPhysical && strstr(Line, "VmSwap:") == Line)
+			{
+				VMSwap = AndroidPlatformMemory::GetBytesFromStatusLine(Line);
+				LinesToFind--;
+			}
+
+			if (LinesToFind == 0)
+			{
+				break;
 			}
 		} 
 		fclose(ProcMemStats);
 	}
 
-	return 0;
+	return VMRSS + VMSwap;
 }
 
 // Called from JNI when trim messages are recieved.

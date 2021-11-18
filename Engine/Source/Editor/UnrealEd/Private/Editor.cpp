@@ -330,7 +330,6 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 						//Add the missing entries
 						SourceFilenames.AddDefaulted(RealSourceFileIndex - (SourceFilenames.Num() - 1));
 					}
-					bAskForNewFileIfMissing = true;
 				}
 
 				MissingFileIndex.AddUnique(RealSourceFileIndex);

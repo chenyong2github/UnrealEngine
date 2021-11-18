@@ -141,6 +141,11 @@ UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStru
 		return nullptr;
 
 	// Note: UE core types are converted to the float variant as Niagara only works with float types.
+	if (InStruct->GetFName() == NAME_Vector2D || InStruct->GetFName() == NAME_Vector2d) // LWC support
+	{
+		return FNiagaraTypeDefinition::GetVec2Struct();
+	}
+
 	if (InStruct->GetFName() == NAME_Vector || InStruct->GetFName() == NAME_Vector3d) // LWC support
 	{
 		return FNiagaraTypeDefinition::GetVec3Struct();

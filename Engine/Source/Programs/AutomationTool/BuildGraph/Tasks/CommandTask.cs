@@ -99,6 +99,7 @@ namespace BuildGraph.Tasks
 					CommandLine.Append("-nosubmit ");
 				}
 			}
+			CommandLine.Append("-NoCompile ");
 			CommandLine.Append(Parameters.Name);
 			if (!String.IsNullOrEmpty(Parameters.Arguments))
 			{

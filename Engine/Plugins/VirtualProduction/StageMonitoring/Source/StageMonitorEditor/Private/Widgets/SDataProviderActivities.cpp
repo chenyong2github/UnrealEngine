@@ -2,12 +2,9 @@
 
 #include "SDataProviderActivities.h"
 
-#include "EditorFontGlyphs.h"
-#include "EditorStyleSet.h"
 #include "IDetailsView.h"
 #include "IStructureDetailsView.h"
 #include "IStageMonitorSession.h"
-#include "Misc/App.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "Misc/Timecode.h"
 #include "Modules/ModuleManager.h"
@@ -15,14 +12,13 @@
 #include "SDataProviderActivityFilter.h"
 #include "StageMessages.h"
 #include "StageMonitorEditorStyle.h"
+#include "Templates/Greater.h"
 #include "Widgets/Text/STextBlock.h"
 
 
-PRAGMA_DISABLE_OPTIMIZATION
-
+static TAutoConsoleVariable<int32> CVarStageMonitorMinFramesBetweenRefresh(TEXT("StageMonitor.MinFramesBetweenRefresh"), 15, TEXT("The minimum number of frames between a UI refresh."));
 
 #define LOCTEXT_NAMESPACE "SDataProviderActivities"
-
 
 namespace DataProviderActivitiesListView
 {
@@ -31,23 +27,6 @@ namespace DataProviderActivitiesListView
 	const FName HeaderIdName_Type = "Type";
 	const FName HeaderIdName_Description = "Description";
 }
-
-
-/**
- * FDataProviderTableRowData
- */
-struct FDataProviderActivity : TSharedFromThis<FDataProviderActivity>
-{
-	FDataProviderActivity(TSharedPtr<FStageDataEntry> InActivityPayload)
-		: ActivityPayload(InActivityPayload)
-	{
-
-	}
-
-public:
-	TSharedPtr<FStageDataEntry> ActivityPayload;
-};
-
 
 /**
  * SDataProviderActivities
@@ -150,13 +129,28 @@ void SDataProviderActivities::Tick(const FGeometry& AllottedGeometry, const doub
 		ReloadActivityHistory();
 		ActivityList->RebuildList();
 	}
+
+	if (bRefreshRequested && FramesSinceLastListRefresh > CVarStageMonitorMinFramesBetweenRefresh.GetValueOnAnyThread())
+	{
+		FramesSinceLastListRefresh = 0;
+		bRefreshRequested = false;
+		ActivityList->RequestListRefresh();
+	}
+		
 	Super::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+	
+	FramesSinceLastListRefresh++;
 }
 
 
 void SDataProviderActivities::RequestRebuild()
 {
 	bRebuildRequested = true;
+}
+
+void SDataProviderActivities::RequestRefresh()
+{
+	bRefreshRequested = true;
 }
 
 void SDataProviderActivities::RefreshMonitorSession(const TWeakPtr<IStageMonitorSession>& NewSession)
@@ -177,7 +171,7 @@ void SDataProviderActivities::OnListViewSelectionChanged(FDataProviderActivityPt
 {
 	if (InActivity.IsValid())
 	{
-		StructureDetailsView->SetStructureData(InActivity->ActivityPayload->Data);
+		StructureDetailsView->SetStructureData(InActivity->Data);
 	}
 	else
 	{
@@ -185,29 +179,29 @@ void SDataProviderActivities::OnListViewSelectionChanged(FDataProviderActivityPt
 	}
 }
 
-void SDataProviderActivities::OnNewStageActivity(TSharedPtr<FStageDataEntry> NewActivity)
+void SDataProviderActivities::OnNewStageActivity(FDataProviderActivityPtr NewActivity)
 {
 	//Make new row data
-	TSharedPtr<FDataProviderActivity> RowData = MakeShared<FDataProviderActivity>(NewActivity);
-	Activities.Add(RowData);
+	Activities.Add(NewActivity);
 	if (ActivityFilter->GetActivityFilter().DoesItPass(NewActivity))
 	{
-		InsertActivity(RowData);
-
-		ActivityList->RequestListRefresh();
+		InsertActivity(NewActivity);
+		RequestRefresh();
 	}
 }
 
-void SDataProviderActivities::InsertActivity(TSharedPtr<FDataProviderActivity> Activity)
+void SDataProviderActivities::InsertActivity(FDataProviderActivityPtr Activity)
 {
-	//We might receive messages out of order, make sure we're displaying them in order of source timecode
-	const FStageProviderMessage* ThisActivity = reinterpret_cast<const FStageProviderMessage*>(Activity->ActivityPayload->Data->GetStructMemory());
+	TRACE_CPUPROFILER_EVENT_SCOPE(StageMonitor::InsertActivity);
 
+	//We might receive messages out of order, make sure we're displaying them in order of source timecode
+	const FStageProviderMessage* ThisActivity = reinterpret_cast<const FStageProviderMessage*>(Activity->Data->GetStructMemory());
 	const double NewFrameSeconds = ThisActivity->FrameTime.AsSeconds();
 	int32 EntryIndex = 0;
+
 	for (; EntryIndex < FilteredActivities.Num(); ++EntryIndex)
 	{
-		const FStageProviderMessage* ThisEntry = reinterpret_cast<const FStageProviderMessage*>(FilteredActivities[EntryIndex]->ActivityPayload->Data->GetStructMemory());
+		const FStageProviderMessage* ThisEntry = reinterpret_cast<const FStageProviderMessage*>(FilteredActivities[EntryIndex]->Data->GetStructMemory());
 		const double ThisFrameSeconds = ThisEntry->FrameTime.AsSeconds();
 		if (NewFrameSeconds >= ThisFrameSeconds)
 		{
@@ -223,19 +217,18 @@ void SDataProviderActivities::OnActivityFilterChanged()
 	//When filtering has changed, update the current filtered list based on the full list
 	FilteredActivities.Reset(Activities.Num());
 
-	for (int32 i = 0; i < Activities.Num(); ++i)
+	auto FrameTimeProjection = [](FDataProviderActivityPtr ActivityPtr)
 	{
-		const FDataProviderActivityPtr& Activity = Activities.Last(i);
-		if (ActivityFilter->GetActivityFilter().DoesItPass(Activity->ActivityPayload))
-		{
-			InsertActivity(Activity);
-		}
-	}
-
+		const FStageProviderMessage* ThisEntry = reinterpret_cast<const FStageProviderMessage*>(ActivityPtr->Data->GetStructMemory());
+		return ThisEntry->FrameTime.AsSeconds();
+	};
+	
+	Algo::SortBy(Activities, FrameTimeProjection, TGreater<>());
+	ActivityFilter->GetActivityFilter().FilterActivities(Activities, FilteredActivities);
 	ActivityList->ScrollToTop();
 
 	// Request a refresh to update the view
-	ActivityList->RequestListRefresh();
+	RequestRefresh();
 }
 
 void SDataProviderActivities::ReloadActivityHistory()
@@ -253,7 +246,7 @@ void SDataProviderActivities::ReloadActivityHistory()
 		}
 	}
 
-	ActivityList->RequestListRefresh();
+	RequestRefresh();
 }
 
 void SDataProviderActivities::OnStageDataCleared()
@@ -294,9 +287,9 @@ void SDataProviderActivitiesTableRow::Construct(const FArguments & InArgs, const
 	
 	if (TSharedPtr<IStageMonitorSession> SessionPtr = Session.Pin())
 	{
-		if (Item->ActivityPayload.IsValid())
+		if (Item.IsValid())
 		{
-			FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->ActivityPayload->Data->GetStructMemory());
+			FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->Data->GetStructMemory());
 
 			FStageSessionProviderEntry Provider;
 			if (SessionPtr->GetProvider(Data->Identifier, Provider))
@@ -369,10 +362,10 @@ TSharedRef<SWidget> SDataProviderActivitiesTableRow::GenerateWidgetForColumn(con
 
 FText SDataProviderActivitiesTableRow::GetTimecode() const
 {	
-	if (Item->ActivityPayload.IsValid())
+	if (Item.IsValid())
 	{
-		check(Item->ActivityPayload->Data->GetStruct()->IsChildOf(FStageProviderMessage::StaticStruct()));
-		FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->ActivityPayload->Data->GetStructMemory());
+		check(Item->Data->GetStruct()->IsChildOf(FStageProviderMessage::StaticStruct()));
+		FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->Data->GetStructMemory());
 		return FText::FromString(FTimecode::FromFrameNumber(Data->FrameTime.Time.GetFrame(), Data->FrameTime.Rate).ToString());
 	}
 
@@ -381,7 +374,7 @@ FText SDataProviderActivitiesTableRow::GetTimecode() const
 
 FText SDataProviderActivitiesTableRow::GetStageName() const
 {
-	if (Item->ActivityPayload.IsValid())
+	if (Item.IsValid())
 	{
 		return FText::FromName(Descriptor.FriendlyName);
 	}
@@ -391,10 +384,10 @@ FText SDataProviderActivitiesTableRow::GetStageName() const
 
 FText SDataProviderActivitiesTableRow::GetMessageType() const
 {
-	if (Item->ActivityPayload.IsValid())
+	if (Item.IsValid())
 	{
-		check(Item->ActivityPayload->Data->GetStruct()->IsChildOf(FStageProviderMessage::StaticStruct()));
-		return Item->ActivityPayload->Data->GetStruct()->GetDisplayNameText();
+		check(Item->Data->GetStruct()->IsChildOf(FStageProviderMessage::StaticStruct()));
+		return Item->Data->GetStruct()->GetDisplayNameText();
 	}
 
 	return FText::GetEmpty();
@@ -402,19 +395,14 @@ FText SDataProviderActivitiesTableRow::GetMessageType() const
 
 FText SDataProviderActivitiesTableRow::GetDescription() const
 {
-	if (Item->ActivityPayload.IsValid())
+	if (Item.IsValid())
 	{
-		check(Item->ActivityPayload->Data->GetStruct()->IsChildOf(FStageProviderMessage::StaticStruct()));
-		FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->ActivityPayload->Data->GetStructMemory());
+		check(Item->Data->GetStruct()->IsChildOf(FStageProviderMessage::StaticStruct()));
+		FStageProviderMessage* Data = reinterpret_cast<FStageProviderMessage*>(Item->Data->GetStructMemory());
 		return FText::FromString(Data->ToString());
 	}
 
 	return FText::GetEmpty();
 }
 
-
-#undef LOCTEXT_NAMESPACE
-
-
-
-PRAGMA_ENABLE_OPTIMIZATION
+#undef LOCTEXT_NAMESPACE /*SDataProviderActivities*/

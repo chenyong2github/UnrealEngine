@@ -11,6 +11,7 @@
 #include "Widgets/SNameListPicker.h"
 #include "Widgets/FixtureType/DMXFixtureTypeFunctionsEditorFunctionItem.h"
 #include "Widgets/FixtureType/DMXFixtureTypeFunctionsEditorMatrixItem.h"
+#include "Widgets/FixtureType/SDMXFixtureTypeFunctionsEditor.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeFunctionsEditorMatrixRow.h"
 
 #include "ScopedTransaction.h"
@@ -59,7 +60,7 @@ FReply SDMXFixtureTypeFunctionsEditorFunctionRow::OnDragDetected(const FGeometry
 
 TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
-	if (ColumnName == "Status")
+	if (ColumnName == FDMXFixtureTypeFunctionsEditorCollumnIDs::Status)
 	{
 		return
 			SNew(SBox)
@@ -97,7 +98,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 					})
 			];
 	}
-	else if (ColumnName == "Channel")
+	else if (ColumnName == FDMXFixtureTypeFunctionsEditorCollumnIDs::Channel)
 	{
 		return
 			SNew(SBorder)
@@ -119,7 +120,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 				.IsSelected(IsSelected)
 			];
 	}
-	else if (ColumnName == "Name")
+	else if (ColumnName == FDMXFixtureTypeFunctionsEditorCollumnIDs::Name)
 	{
 		return
 			SNew(SBorder)
@@ -148,7 +149,7 @@ TSharedRef<SWidget> SDMXFixtureTypeFunctionsEditorFunctionRow::GenerateWidgetFor
 				.IsSelected(IsSelected)
 			];
 	}
-	else if (ColumnName == "Attribute")
+	else if (ColumnName == FDMXFixtureTypeFunctionsEditorCollumnIDs::Attribute)
 	{
 		return
 			SNew(SBorder)

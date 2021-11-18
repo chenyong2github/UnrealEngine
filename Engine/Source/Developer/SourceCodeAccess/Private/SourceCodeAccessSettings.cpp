@@ -11,7 +11,12 @@ USourceCodeAccessSettings::USourceCodeAccessSettings(const FObjectInitializer& O
 #elif PLATFORM_MAC
 	PreferredAccessor = TEXT("XCodeSourceCodeAccessor");
 #elif PLATFORM_LINUX
-	GConfig->GetString(TEXT("/Script/SourceCodeAccess.SourceCodeAccessSettings"), TEXT("PreferredAccessor"), PreferredAccessor, GEngineIni);
+	if (!GConfig->GetString(TEXT("/Script/SourceCodeAccess.SourceCodeAccessSettings"), TEXT("PreferredAccessor"), PreferredAccessor, GEditorSettingsIni))
+	{
+		// If no config is found default to VSCode
+		PreferredAccessor = TEXT("VisualStudioCode");
+	}
+
 	UE_LOG(LogHAL, Log, TEXT("Linux SourceCodeAccessSettings: %s"), *PreferredAccessor);
 #endif
 }

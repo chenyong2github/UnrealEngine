@@ -517,7 +517,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public static final int ANDROID_BUILD_VERSION = android.os.Build.VERSION.SDK_INT;
 	
 	private StoreHelper IapStoreHelper;
-	
+
 //$${gameActivityClassAdditions}$$
 
 	@Override
@@ -1695,6 +1695,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		variables.put("SRC_VulkanVersion", VulkanVersionString);
 		variables.put("SRC_VulkanAvailable", (bSupportsVulkan && VulkanVersionString != "0.0.0") ? "true" : "false");  // commandline could still disable!
 		variables.put("SRC_UsingHoudini", bHasHoudini ? "true" : "false");
+		variables.put("SRC_HMDSystemName", "");
 
 		variables.put("SRC_GpuVendor", OpenGLVendor);
 		variables.put("SRC_SDKLevel", Integer.toString(android.os.Build.VERSION.SDK_INT));
@@ -2245,9 +2246,10 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return containerFrameLayout;
 	}
 
-	protected String FindLineFromStatus(String fieldToReport)
+	protected String[] FindLineFromFile(String Filepath, String[] fieldsToReport)
 	{
-		File file = new File("/proc/self/status");
+		String[] foundStrings = new String[fieldsToReport.length];
+		File file = new File(Filepath);
 		if (file.exists())
 		{
 			try (BufferedReader reader = new BufferedReader(new FileReader(file));)
@@ -2255,9 +2257,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				String line;
 				while ((line = reader.readLine()) != null)
 				{
-					if(line.contains(fieldToReport))
+					for(int i = 0; i<fieldsToReport.length; i++)
 					{
-						return line;
+						if(line.startsWith(fieldsToReport[i]))
+						{
+							foundStrings[i] = line;
+						}
 					}
 				}
 			}
@@ -2266,7 +2271,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				Log.debug("failed to read status: " + ie);
 			}
 		}
-		return "";
+		return foundStrings;
 	}
 
 	@Override
@@ -2388,32 +2393,46 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		{
 			Logger.SuppressLogs();
 		}
-		
+
 		// update memory stats every 10 seconds
 		memoryRunnable = new Runnable() {
+			int LastProcessMemoryValue = 0;
 			@Override
 			public void run()
 			{
 				int ProcessMemory = 0;
-					
-					ActivityManager activityManager = (ActivityManager)_activity.getSystemService(Context.ACTIVITY_SERVICE);
-					int pid = android.os.Process.myPid();
-					int pids[] = new int[] { pid };
-					android.os.Debug.MemoryInfo[] memoryInfo = activityManager.getProcessMemoryInfo(pids);
-					if (memoryInfo.length > 0)
-					{
-						ProcessMemory = memoryInfo[0].dalvikPss + memoryInfo[0].nativePss + memoryInfo[0].otherPss;
 
-						if (Build.VERSION.SDK_INT >= 23)
+				ActivityManager activityManager = (ActivityManager)_activity.getSystemService(Context.ACTIVITY_SERVICE);
+				int pid = android.os.Process.myPid();
+				int pids[] = new int[] { pid };
+				android.os.Debug.MemoryInfo[] memoryInfo = activityManager.getProcessMemoryInfo(pids);
+				if (memoryInfo.length > 0)
+				{
+					ProcessMemory = memoryInfo[0].dalvikPss + memoryInfo[0].nativePss + memoryInfo[0].otherPss;
+
+					if (Build.VERSION.SDK_INT >= 23)
+					{
+						Map<String, String> memstats = memoryInfo[0].getMemoryStats();
+						if (memstats.containsKey("summary.total-pss"))
 						{
-							Map<String, String> memstats = memoryInfo[0].getMemoryStats();
-							if (memstats.containsKey("summary.total-pss"))
-							{
-								ProcessMemory = Integer.parseInt(memstats.get("summary.total-pss"));
-							}
+							ProcessMemory = Integer.parseInt(memstats.get("summary.total-pss"));
 						}
 					}
-					Log.debug("Used memory: " + ProcessMemory + " ("+FindLineFromStatus("VmRSS:")+")");
+				}
+
+				Log.debug("--- memstats:");
+				String[] statusLines = FindLineFromFile("/proc/self/status",new String[] {"VmSize:","VmHWM:", "VmRSS:", "VmData:", "VmSwap:"});
+				String ProcessMemInfoLine = "Used memory: ";
+				if( LastProcessMemoryValue != ProcessMemory)
+				{
+					ProcessMemInfoLine+=" (updated): ";
+					LastProcessMemoryValue = ProcessMemory;
+				}
+				Log.debug("memstat: "+ProcessMemInfoLine + ProcessMemory);
+				for(String memstatusline : statusLines)
+				{
+					Log.debug("memstat: "+memstatusline);
+				}
 				
 				synchronized(_activity)
 				{

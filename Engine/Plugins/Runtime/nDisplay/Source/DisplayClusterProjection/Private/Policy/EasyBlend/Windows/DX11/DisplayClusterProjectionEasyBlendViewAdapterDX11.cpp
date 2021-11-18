@@ -174,7 +174,7 @@ void FDisplayClusterProjectionEasyBlendViewAdapterDX11::ImplInitializeResources_
 // Location/Rotation inside the function is in EasyBlend space with a scale applied
 bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
-	check(Views.Num() > (int)InContextNum);
+	check(Views.Num() > (int32)InContextNum);
 
 	ZNear = NCP;
 	ZFar = FCP;
@@ -210,7 +210,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(IDisplayCl
 
 bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
-	check(Views.Num() > (int)InContextNum);
+	check(Views.Num() > (int32)InContextNum);
 
 	// Build Projection matrix:
 	const float Left   = Views[InContextNum].EasyBlendMeshData->Frustum.LeftAngle;
@@ -252,7 +252,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 	ImplInitializeResources_RenderThread();
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay EasyBlend::Render);
-	for (int ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
+	for (int32 ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
 	{
 		if (!ImplApplyWarpBlend_RenderThread(RHICmdList, ContextNum, InputTextures[ContextNum], OutputTextures[ContextNum]))
 		{
@@ -264,7 +264,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 	return InViewportProxy->ResolveResources(RHICmdList, EDisplayClusterViewportResourceType::AdditionalTargetableResource, InViewportProxy->GetOutputResourceType());
 }
 
-bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int ContextNum, FRHITexture2D* InputTexture, FRHITexture2D* OutputTexture)
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 ContextNum, FRHITexture2D* InputTexture, FRHITexture2D* OutputTexture)
 {
 	if (!IsEasyBlendRenderingEnabled())
 	{

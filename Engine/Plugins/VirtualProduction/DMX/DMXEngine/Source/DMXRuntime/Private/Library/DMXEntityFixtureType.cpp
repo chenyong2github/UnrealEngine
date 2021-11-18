@@ -507,42 +507,21 @@ void UDMXEntityFixtureType::SetFixtureMatrixEnabled(int32 ModeIndex, bool bEnabl
 		if (bEnableMatrix != Mode.bFixtureMatrixEnabled)
 		{
 			Mode.bFixtureMatrixEnabled = bEnableMatrix;
-			
-			// Realign the Functions, only if the Matrix has at least one Channel
-			const int32 NumMatrixChannels = Matrix.GetNumChannels();
-			if (NumMatrixChannels > 0)
+
+			// Align functions and matrix
+			int32 NextFreeChannel = 1;
+			bool bHandledMatrix = !bEnableMatrix;
+			for (FDMXFixtureFunction& Function : Mode.Functions)
 			{
-				const int32 IndexOfFirstFunctionOverMatrix = Mode.Functions.IndexOfByPredicate([Matrix](const FDMXFixtureFunction& Function)
-					{
-						return Function.Channel >= Matrix.FirstCellChannel;
-					});
-
-				// Remember the old, set the new Matrix starting channel
-				const int32 OldMatrixLastChannel = Matrix.GetLastChannel();
-				Matrix.FirstCellChannel = [Mode, IndexOfFirstFunctionOverMatrix]()
+				if (!bHandledMatrix && Mode.FixtureMatrixConfig.FirstCellChannel <= NextFreeChannel)
 				{
-					const int32 IndexOfLastFunctionBeforeMatrix = IndexOfFirstFunctionOverMatrix - 1;
-					if (Mode.Functions.IsValidIndex(IndexOfLastFunctionBeforeMatrix))
-					{
-						return Mode.Functions[IndexOfLastFunctionBeforeMatrix].GetLastChannel() + 1;
-					}
-
-					return 1;
-				}();
-
-				// Align Functions
-				const int32 MatrixDeltaChannels = Matrix.GetLastChannel() - OldMatrixLastChannel;
-				const int32 FunctionDeltaChannels = bEnableMatrix ?
-					NumMatrixChannels + MatrixDeltaChannels :
-					-(NumMatrixChannels + MatrixDeltaChannels);
-
-				for (FDMXFixtureFunction& Function : Mode.Functions)
-				{
-					if (Function.Channel >= Matrix.FirstCellChannel)
-					{
-						Function.Channel += FunctionDeltaChannels;
-					}
+					Mode.FixtureMatrixConfig.FirstCellChannel = NextFreeChannel;
+					NextFreeChannel = NextFreeChannel + Mode.FixtureMatrixConfig.GetNumChannels();
+					bHandledMatrix = true;
 				}
+
+				Function.Channel = NextFreeChannel;
+				NextFreeChannel = Function.GetLastChannel() + 1;
 			}
 		}
 	}
@@ -918,7 +897,7 @@ void UDMXEntityFixtureType::ClampFunctionDefautValueByDataType(int32 ModeIndex, 
 
 void UDMXEntityFixtureType::AddCellAttribute(int32 ModeIndex)
 {
-	if (Modes.IsValidIndex(ModeIndex))
+	if (ensureMsgf(Modes.IsValidIndex(ModeIndex), TEXT("Trying to add a Cell Attribute, but Mode Index is not valid.")))
 	{
 		FDMXFixtureMode& Mode = Modes[ModeIndex];
 		FDMXFixtureMatrix& Matrix = Mode.FixtureMatrixConfig;
@@ -934,6 +913,22 @@ void UDMXEntityFixtureType::AddCellAttribute(int32 ModeIndex)
 
 		SetFixtureMatrixEnabled(ModeIndex, true);
 		UpdateChannelSpan(ModeIndex);
+	}
+}
+
+void UDMXEntityFixtureType::RemoveCellAttribute(int32 ModeIndex, int32 CellAttributeIndex)
+{
+	if (ensureMsgf(Modes.IsValidIndex(ModeIndex) && Modes[ModeIndex].FixtureMatrixConfig.CellAttributes.IsValidIndex(CellAttributeIndex), TEXT("Trying to remove a Cell Attribute, but Mode Index or Cell Attribute Index is invalid.")))
+	{
+		FDMXFixtureMode& Mode = Modes[ModeIndex];
+		FDMXFixtureMatrix& Matrix = Mode.FixtureMatrixConfig;
+
+		// Disable the matrix while editing it so other functions align when enabling it again
+		SetFixtureMatrixEnabled(ModeIndex, false);
+
+		Matrix.CellAttributes.RemoveAt(CellAttributeIndex);
+
+		SetFixtureMatrixEnabled(ModeIndex, true);
 	}
 }
 

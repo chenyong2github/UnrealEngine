@@ -33,7 +33,7 @@ namespace LevelSnapshotsEditorCustomWidgetGenerator
 		const TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda = nullptr);
 
 	TSharedPtr<SWidget> GenerateObjectPropertyWidget(
-		const void* InPropertyValue, const TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda = nullptr);
+		const TObjectPtr<UObject> InObject, const TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda = nullptr);
 
 	TSharedPtr<SWidget> DeterminePropertyTypeAndReturnWidget(const TObjectPtr<FProperty> InProperty, const void* InPropertyValue, const TObjectPtr<UObject> InObject);
 

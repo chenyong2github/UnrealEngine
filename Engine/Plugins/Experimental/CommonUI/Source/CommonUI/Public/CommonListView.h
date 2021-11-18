@@ -34,8 +34,14 @@ public:
 				if (TListTypeTraits<ItemType>::IsPtrValid(ItemNavigatedTo))
 				{
 					ItemType SelectedItem = TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(ItemNavigatedTo);
-					this->SetSelection(SelectedItem, ESelectInfo::OnNavigation);
-					this->RequestNavigateToItem(SelectedItem, InFocusEvent.GetUser());
+
+					// Preselect the first valid widget so these calls do not internally select something different
+					TOptional<ItemType> FirstValidItem = this->Private_FindNextSelectableOrNavigable(SelectedItem);
+					if (FirstValidItem.IsSet())
+					{
+						this->SetSelection(FirstValidItem.GetValue(), ESelectInfo::OnNavigation);
+						this->RequestNavigateToItem(FirstValidItem.GetValue(), InFocusEvent.GetUser());
+					}
 				}
 			}
 		}

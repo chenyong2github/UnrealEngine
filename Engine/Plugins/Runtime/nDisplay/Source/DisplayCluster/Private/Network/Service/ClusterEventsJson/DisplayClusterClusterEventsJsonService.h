@@ -24,6 +24,12 @@ public:
 	virtual ~FDisplayClusterClusterEventsJsonService();
 
 public:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterServer
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual FString GetProtocolName() const override;
+
+public:
 	enum class EDisplayClusterJsonError : uint8
 	{
 		Ok = 0,
@@ -34,25 +40,23 @@ public:
 
 protected:
 	// Creates session instance for this service
-	virtual TUniquePtr<IDisplayClusterSession> CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId) override;
-	
-	virtual bool IsConnectionAllowed(FSocket* Socket, const FIPv4Endpoint& Endpoint)
-	{
-		// Always allow, an event may come from anywhere
-		return true;
-	}
+	virtual TSharedPtr<IDisplayClusterSession> CreateSession(FDisplayClusterSessionInfo& SessionInfo) override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterSessionPacketHandler
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::ReturnType ProcessPacket(const TSharedPtr<FDisplayClusterPacketJson>& Request) override;
+	virtual typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketJson, false>::ReturnType ProcessPacket(const TSharedPtr<FDisplayClusterPacketJson>& Request, const FDisplayClusterSessionInfo& SessionInfo) override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolEventsJson
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event) override;
+	virtual EDisplayClusterCommResult EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event) override;
+
+protected:
+	// Callback when a session is closed
+	void ProcessSessionClosed(const FDisplayClusterSessionInfo& SessionInfo);
 
 private:
 	FDisplayClusterClusterEventJson BuildClusterEventFromJson(const FString& EventName, const FString& EventType, const FString& EventCategory, const TSharedPtr<FJsonObject>& JsonPacket) const;

@@ -398,14 +398,14 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 			if ((Upper.Location.X - Lower.Location.X)*.5f > MinTimeSize)
 			{
-				float      NewPointTime  = (Upper.Location.X + Lower.Location.X)*.5f;
+				FVector2D::FReal      NewPointTime  = (Upper.Location.X + Lower.Location.X)*.5f;
 				FFrameTime FrameTime     = NewPointTime * TimeToPixelConverter.GetTickResolution();
 				float      NewPointValue = SectionObject->EvaluateEasing(FrameTime);
 
 				// Check that the gradient is changing significantly
-				float LinearValue = (Upper.Location.Y + Lower.Location.Y) * .5f;
-				float PointGradient = NewPointValue - SectionObject->EvaluateEasing(FMath::Lerp(Lower.Location.X, NewPointTime, 0.9f) * TimeToPixelConverter.GetTickResolution());
-				float OuterGradient = Upper.Location.Y - Lower.Location.Y;
+				FVector2D::FReal LinearValue = (Upper.Location.Y + Lower.Location.Y) * .5f;
+				FVector2D::FReal PointGradient = NewPointValue - SectionObject->EvaluateEasing(FMath::Lerp(Lower.Location.X, NewPointTime, 0.9f) * TimeToPixelConverter.GetTickResolution());
+				FVector2D::FReal OuterGradient = Upper.Location.Y - Lower.Location.Y;
 				if (!FMath::IsNearlyEqual(OuterGradient, PointGradient, GradientThreshold) ||
 					!FMath::IsNearlyEqual(LinearValue, NewPointValue, ValueThreshold))
 				{

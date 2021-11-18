@@ -14,7 +14,7 @@ public:
 	{ }
 
 public:
-	void SetFrustumCacheDepth(int InFrustumCacheDepth);
+	void SetFrustumCacheDepth(const int32 InFrustumCacheDepth);
 	void SetFrustumCachePrecision(float InFrustumCachePrecision);
 
 	bool GetCachedFrustum(const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutContext);
@@ -36,6 +36,6 @@ private:
 
 	TArray<FCacheItem> FrustumCache;
 
-	int FrustumCacheDepth = 0;
+	int32 FrustumCacheDepth = 0;
 	float FrustumCachePrecision = 0;
 };

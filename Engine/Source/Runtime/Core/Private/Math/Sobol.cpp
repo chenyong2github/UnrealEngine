@@ -50,7 +50,8 @@ FVector2D FSobol::Evaluate(int32 Index, int32 CellBits, FIntPoint Cell, FIntPoin
 		Result.Y ^= (Index & 1) * Cell2DDirectionNumbers[CellBits][i][1];
 	}
 
-	return FVector2D(Result) / float(1 << (24 - CellBits));
+	const float CellScale = float(1 << (24 - CellBits));
+	return FVector2D(Result) / CellScale;
 }
 
 FVector2D FSobol::Next(int32 Index, int32 CellBits, FVector2D Value)
@@ -64,7 +65,7 @@ FVector2D FSobol::Next(int32 Index, int32 CellBits, FVector2D Value)
 	int32 ChangedBit = FMath::CountTrailingZeros(Index) & 31;
 	float CellScale = float(1 << (24 - CellBits));
 
-	FIntPoint Result = FIntPoint(int32(Value.X * CellScale) & 0xffffff, int32(Value.Y * CellScale) & 0xffffff);
+	FIntPoint Result = FIntPoint(int32(Value.X * CellScale) & 0xffffff, int32(Value.Y * CellScale) & 0xffffff);	// LWC_TODO: Precision loss
 	Result.X ^= Cell2DGrayNumbers[CellBits][ChangedBit][0];
 	Result.Y ^= Cell2DGrayNumbers[CellBits][ChangedBit][1];
 	return FVector2D(Result) / CellScale;
@@ -103,7 +104,8 @@ FVector FSobol::Evaluate(int32 Index, int32 CellBits, FIntVector Cell, FIntVecto
 		Result.Z ^= (Index & 1) * Cell3DDirectionNumbers[CellBits][i][2];
 	}
 
-	return FVector(Result) / float(1 << (24 - CellBits));
+	const float CellScale = float(1 << (24 - CellBits));
+	return FVector(Result) / CellScale;
 }
 
 FVector FSobol::Next(int32 Index, int32 CellBits, FVector Value)
@@ -117,7 +119,7 @@ FVector FSobol::Next(int32 Index, int32 CellBits, FVector Value)
 	int32 ChangedBit = FMath::CountTrailingZeros(Index) & 31;
 	float CellScale = float(1 << (24 - CellBits));
 
-	FIntVector Result = FIntVector(int32(Value.X * CellScale) & 0xffffff, int32(Value.Y * CellScale) & 0xffffff, int32(Value.Z * CellScale) & 0xffffff);
+	FIntVector Result = FIntVector(int32(Value.X * CellScale) & 0xffffff, int32(Value.Y * CellScale) & 0xffffff, int32(Value.Z * CellScale) & 0xffffff);		// LWC_TODO: Precision loss
 	Result.X ^= Cell3DGrayNumbers[CellBits][ChangedBit][0];
 	Result.Y ^= Cell3DGrayNumbers[CellBits][ChangedBit][1];
 	Result.Z ^= Cell3DGrayNumbers[CellBits][ChangedBit][2];

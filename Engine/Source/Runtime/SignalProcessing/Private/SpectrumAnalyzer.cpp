@@ -37,7 +37,6 @@ namespace Audio
 				,	OutIndex(InOutIndex)
 				,	PowerSpectrumScale(1.f)
 				{
-					// TODO: Check this: not calling virtual function from constructor
 					FBandSpec::Update(InSettings, InSpectrumSettings);
 				}
 
@@ -526,8 +525,9 @@ namespace Audio
 				int32 OutIndex = GetNumBands();
 
 				T BandSpec(InBandSettings, Settings, SpectrumSettings, OutIndex);
+				BandSpec.Update(Settings, SpectrumSettings);
 
-				return InBandSpecs.Add_GetRef(BandSpec);
+				return InBandSpecs.Add_GetRef(MoveTemp(BandSpec));
 			}
 
 			// Calls update on all band specs in the array.

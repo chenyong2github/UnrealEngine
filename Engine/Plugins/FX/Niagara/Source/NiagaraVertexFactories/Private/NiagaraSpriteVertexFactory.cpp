@@ -190,7 +190,7 @@ void FNiagaraSpriteVertexFactory::InitStreams()
 	check(Streams.Num() == 0);
 	FVertexStream* TexCoordStream = new(Streams) FVertexStream;
 	TexCoordStream->VertexBuffer = VertexBufferOverride ? VertexBufferOverride : &GParticleTexCoordVertexBuffer;
-	TexCoordStream->Stride = sizeof(FVector2D);
+	TexCoordStream->Stride = sizeof(FVector2f);
 	TexCoordStream->Offset = 0;
 }
 

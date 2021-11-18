@@ -23,7 +23,7 @@
 static bool PlatformSupportsDebugViewShaders(EShaderPlatform Platform)
 {
 	// List of platforms that have been tested and proved functional.
-	return Platform == SP_VULKAN_SM5 || Platform == SP_PCD3D_SM5 || Platform == SP_METAL_SM5;
+	return FDataDrivenShaderPlatformInfo::GetSupportsDebugViewShaders(Platform);
 }
 
 bool AllowDebugViewVSDSHS(EShaderPlatform Platform)

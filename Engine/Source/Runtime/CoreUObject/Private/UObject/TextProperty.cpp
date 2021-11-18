@@ -17,11 +17,12 @@ EConvertFromTypeResult FTextProperty::ConvertFromType(const FPropertyTag& Tag, F
 	// Convert serialized string to text.
 	if (Tag.Type==NAME_StrProperty)
 	{
-		FString str;
-		Slot << str;
-		FText Text = FText::FromString(str);
-		Text.TextData->PersistText();
+		FString Str;
+		Slot << Str;
+
+		FText Text = FText::FromString(MoveTemp(Str));
 		Text.Flags |= ETextFlag::ConvertedProperty;
+		
 		SetPropertyValue_InContainer(Data, Text, Tag.ArrayIndex);
 		return EConvertFromTypeResult::Converted;
 	}
@@ -31,8 +32,10 @@ EConvertFromTypeResult FTextProperty::ConvertFromType(const FPropertyTag& Tag, F
 	{
 		FName Name;
 		Slot << Name;
+
 		FText Text = FText::FromName(Name);
 		Text.Flags |= ETextFlag::ConvertedProperty;
+		
 		SetPropertyValue_InContainer(Data, Text, Tag.ArrayIndex);
 		return EConvertFromTypeResult::Converted;
 	}

@@ -186,10 +186,6 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 {
 	check(InClass);
 
-	// Note: It's not safe to assume here that the UserWidget class type is a UWidgetBlueprintGeneratedClass! In the case of a nativized widget
-	// blueprint class, it will be a UDynamicClass instead, and this API will be invoked by the blueprint's C++ code that's generated at cook time.
-	// - @see FBackendHelperUMG::EmitWidgetInitializationFunctions()
-
 	if ( UserWidget->IsTemplate() )
 	{
 		return;

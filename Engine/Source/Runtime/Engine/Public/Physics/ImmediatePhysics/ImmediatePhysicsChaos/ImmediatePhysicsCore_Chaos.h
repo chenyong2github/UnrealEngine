@@ -13,8 +13,8 @@ namespace Chaos
 {
 	class FImplicitObject;
 	class FNarrowPhase;
-	class FParticlePairBroadPhase;
-	class FParticlePairCollisionDetector;
+	class FBasicBroadPhase;
+	class FBasicCollisionDetector;
 	class FPBDJointConstraintHandle;
 	class FPBDJointConstraints;
 	class FPerShapeData;

@@ -6,6 +6,7 @@
 #include "LiveLinkComponentSettings.h"
 #include "LiveLinkControllerBase.h"
 
+#include "Engine/World.h"
 #include "Features/IModularFeatures.h"
 #include "GameFramework/Actor.h"
 #include "Logging/LogMacros.h"
@@ -165,6 +166,13 @@ void ULiveLinkComponentController::DestroyComponent(bool bPromoteChildren /*= fa
 
 void ULiveLinkComponentController::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	// Verify if we are in an editor preview world (blueprint editor). Without being able to select the desired component
+	// When you spawn a LL component, it defaults to the root component on which we can't reset the transform in case it's manipulated by LL automatically
+	if (GetWorld() && GetWorld()->WorldType == EWorldType::EditorPreview && bUpdateInPreviewEditor == false)
+	{
+		return;
+	}
+
 	// Check for spawnable
 	if (bIsDirty || !bIsSpawnableCache.IsSet())
 	{

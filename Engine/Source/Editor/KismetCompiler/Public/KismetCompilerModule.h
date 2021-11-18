@@ -12,7 +12,10 @@ class UBlueprintGeneratedClass;
 class UUserDefinedEnum;
 class UUserDefinedStruct;
 struct FKismetCompilerOptions;
+// @todo: BP2CPP_remove
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FCompilerNativizationOptions;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #define KISMET_COMPILER_MODULENAME "KismetCompiler"
 
@@ -91,10 +94,16 @@ public:
 	 */
 	virtual void GetBlueprintTypesForClass(UClass* ParentClass, UClass*& OutBlueprintClass, UClass*& OutBlueprintGeneratedClass) const = 0;
 
-	virtual void GenerateCppCodeForEnum(UUserDefinedEnum* UDEnum, const FCompilerNativizationOptions& NativizationOptions, FString& OutHeaderCode, FString& OutCPPCode) = 0;
-	virtual void GenerateCppCodeForStruct(UUserDefinedStruct* UDStruct, const FCompilerNativizationOptions& NativizationOptions, FString& OutHeaderCode, FString& OutCPPCode) = 0;
+	// @todo: BP2CPP_remove
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.0, "This API is no longer required. Any overrides should be removed.")
+	virtual void GenerateCppCodeForEnum(UUserDefinedEnum* UDEnum, const FCompilerNativizationOptions& NativizationOptions, FString& OutHeaderCode, FString& OutCPPCode) {}
+	UE_DEPRECATED(5.0, "This API is no longer required. Any overrides should be removed.")
+	virtual void GenerateCppCodeForStruct(UUserDefinedStruct* UDStruct, const FCompilerNativizationOptions& NativizationOptions, FString& OutHeaderCode, FString& OutCPPCode) {}
 	// Generate a wrapper class, that helps accessing non-native properties and calling non-native functions
-	virtual FString GenerateCppWrapper(UBlueprintGeneratedClass* BPGC, const FCompilerNativizationOptions& NativizationOptions) = 0;
+	UE_DEPRECATED(5.0, "This API is no longer required. Any overrides should be removed.")
+	virtual FString GenerateCppWrapper(UBlueprintGeneratedClass* BPGC, const FCompilerNativizationOptions& NativizationOptions) { return FString(); }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 

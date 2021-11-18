@@ -652,7 +652,7 @@ FMaterialInstanceEditor::~FMaterialInstanceEditor()
 	{
 		MaterialEditorInstance->SourceInstance = nullptr;
 		MaterialEditorInstance->SourceFunction = nullptr;
-		MaterialEditorInstance->MarkPendingKill();
+		MaterialEditorInstance->MarkAsGarbage();
 		MaterialEditorInstance = nullptr;
 	}
 
@@ -870,7 +870,6 @@ void FMaterialInstanceEditor::GenerateInheritanceMenu(UToolMenu* Menu)
 {
 	RebuildInheritanceList();
 	Menu->bShouldCloseWindowAfterMenuSelection = true;
-	Menu->bSearchable = true;
 	Menu->SetMaxHeight(500);
 
 	{

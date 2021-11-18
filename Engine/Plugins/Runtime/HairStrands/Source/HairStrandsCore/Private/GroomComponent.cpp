@@ -1792,43 +1792,50 @@ FPrimitiveSceneProxy* UGroomComponent::CreateSceneProxy()
 FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) const
 {
 	if (GroomAsset && GroomAsset->GetNumHairGroups() > 0)
-	{
-		if (RegisteredMeshComponent)
+	{		
+		FBox LocalHairBound(EForceInit::ForceInitToZero);
+		if (!GroomCacheBuffers.IsValid())
 		{
-			const FBox WorldSkeletalBound = RegisteredMeshComponent->CalcBounds(InLocalToWorld).GetBox();
-			return FBoxSphereBounds(WorldSkeletalBound);
+			for (const FHairGroupData& GroupData : GroomAsset->HairGroupsData)
+			{
+				if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands) && GroupData.Strands.HasValidData())
+				{
+					LocalHairBound += GroupData.Strands.GetBounds();
+				}
+				else if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards) && GroupData.Cards.HasValidData())
+				{
+					LocalHairBound += GroupData.Cards.GetBounds();
+				}
+				else if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes) && GroupData.Meshes.HasValidData())
+				{
+					LocalHairBound += GroupData.Meshes.GetBounds();
+				}
+				else if (GroupData.Guides.HasValidData())
+				{
+					LocalHairBound += GroupData.Guides.GetBounds();
+				}
+			}
 		}
 		else
 		{
-			FBox LocalBounds(EForceInit::ForceInitToZero);
-			if (!GroomCacheBuffers.IsValid())
-			{
-				for (const FHairGroupData& GroupData : GroomAsset->HairGroupsData)
-				{
-					if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands) && GroupData.Strands.HasValidData())
-					{
-						LocalBounds += GroupData.Strands.GetBounds();
-					}
-					else if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards) && GroupData.Cards.HasValidData())
-					{ 
-						LocalBounds += GroupData.Cards.GetBounds();
-					}
-					else if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes) && GroupData.Meshes.HasValidData())
-					{
-						LocalBounds += GroupData.Meshes.GetBounds();
-					}
-					else if (GroupData.Guides.HasValidData())
-					{
-						LocalBounds += GroupData.Guides.GetBounds();
-					}
-				}
-			}
-			else
-			{
-				FGroomCacheBuffers* Buffers = static_cast<FGroomCacheBuffers*>(GroomCacheBuffers.Get());
-				LocalBounds = Buffers->GetBoundingBox();
-			}
-			return FBoxSphereBounds(LocalBounds.TransformBy(InLocalToWorld));
+			FGroomCacheBuffers* Buffers = static_cast<FGroomCacheBuffers*>(GroomCacheBuffers.Get());
+			LocalHairBound = Buffers->GetBoundingBox();
+		}
+
+		if (RegisteredMeshComponent)
+		{
+			const FBox LocalSkeletalBound = RegisteredMeshComponent->CalcBounds(FTransform::Identity).GetBox();
+
+			FBox LocalBound(EForceInit::ForceInitToZero);
+			LocalBound += LocalSkeletalBound.Min;
+			LocalBound += LocalSkeletalBound.Max;
+			LocalBound += LocalHairBound.Min;
+			LocalBound += LocalHairBound.Max;
+			return FBoxSphereBounds(LocalBound.TransformBy(InLocalToWorld));
+		}
+		else
+		{
+			return FBoxSphereBounds(LocalHairBound.TransformBy(InLocalToWorld));
 		}
 	}
 	else
@@ -2390,7 +2397,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	{
 		RegisteredMeshComponent = ValidatedMeshComponent;
 		AddTickPrerequisiteComponent(ValidatedMeshComponent);
-		bUseAttachParentBound = true;
+		bUseAttachParentBound = false;
 		if (bHasNeedBindingData)
 		{
 			LocalBindingAsset = BindingAsset;

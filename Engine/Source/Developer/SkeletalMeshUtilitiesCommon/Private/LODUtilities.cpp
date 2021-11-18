@@ -2425,7 +2425,7 @@ struct FMeshDataBundle
 {
 	TArray< FVector3f > Vertices;
 	TArray< uint32 > Indices;
-	TArray< FVector2D > UVs;
+	TArray< FVector2f > UVs;
 	TArray< uint32 > SmoothingGroups;
 	TArray<SkeletalMeshImportData::FTriangle> Faces;
 };

@@ -12,7 +12,8 @@ TSharedRef<ISequencerTrackEditor> FLiveLinkCameraControllerTrackEditor::CreateTr
 
 bool FLiveLinkCameraControllerTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return (InSequence && InSequence->IsA(ULevelSequence::StaticClass()));
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneLiveLinkCameraControllerTrack::StaticClass()) : ETrackSupport::NotSupported;    
+	return (InSequence && InSequence->IsA(ULevelSequence::StaticClass())) || TrackSupported == ETrackSupport::Supported; 
 }
 
 bool FLiveLinkCameraControllerTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const

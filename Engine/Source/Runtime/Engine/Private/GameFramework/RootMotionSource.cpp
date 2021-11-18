@@ -75,7 +75,7 @@ static float EvaluateFloatCurveAtFraction(const UCurveFloat& Curve, const float 
 	float MaxCurveTime(1.f);
 
 	Curve.GetTimeRange(MinCurveTime, MaxCurveTime);
-	return Curve.GetFloatValue(FMath::GetRangeValue(FVector2D(MinCurveTime, MaxCurveTime), Fraction));
+	return Curve.GetFloatValue(FMath::GetRangeValue(FVector2f(MinCurveTime, MaxCurveTime), Fraction));
 }
 
 static FVector EvaluateVectorCurveAtFraction(const UCurveVector& Curve, const float Fraction)
@@ -84,7 +84,7 @@ static FVector EvaluateVectorCurveAtFraction(const UCurveVector& Curve, const fl
 	float MaxCurveTime(1.f);
 
 	Curve.GetTimeRange(MinCurveTime, MaxCurveTime);
-	return Curve.GetVectorValue(FMath::GetRangeValue(FVector2D(MinCurveTime, MaxCurveTime), Fraction));
+	return Curve.GetVectorValue(FMath::GetRangeValue(FVector2f(MinCurveTime, MaxCurveTime), Fraction));
 }
 
 

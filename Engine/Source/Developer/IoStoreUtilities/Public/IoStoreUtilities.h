@@ -14,7 +14,6 @@ IOSTOREUTILITIES_API bool LegacyListIoStoreContainer(
 	const TCHAR* InContainerFilename,
 	int64 InSizeFilter,
 	const FString& InCSVFilename,
-	bool bInUseMountPoint,
 	const FKeyChain& InKeyChain);
 
 IOSTOREUTILITIES_API bool LegacyDiffIoStoreContainers(
@@ -27,7 +26,6 @@ IOSTOREUTILITIES_API bool LegacyDiffIoStoreContainers(
 IOSTOREUTILITIES_API bool ExtractFilesFromIoStoreContainer(
 	const TCHAR* InContainerFilename,
 	const TCHAR* InDestPath,
-	bool bInExtractToMountPoint,
 	const FKeyChain& InKeyChain,
 	const FString* InFilter,
 	TMap<FString, uint64>* OutOrderMap,

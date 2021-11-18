@@ -9,6 +9,7 @@
 #include "Async/Async.h"
 #include "DirectLinkEndpoint.h"
 #include "DirectLinkDeltaConsumer.h"
+#include "DirectLinkMisc.h"
 #include "Misc/AsyncTaskNotification.h"
 
 #define LOCTEXT_NAMESPACE "DirectLinkExternalSource"
@@ -31,6 +32,7 @@ namespace UE::DatasmithImporter
 			SceneReceiver->FinalSnapshot(SceneSnapshot);
 			if (TSharedPtr<FDirectLinkExternalSource> PinnedExternalSource = DirectLinkExternalSource.Pin())
 			{
+				PinnedExternalSource->CachedHash = DirectLink::GenerateSceneSnapshotHash(SceneSnapshot);
 				PinnedExternalSource->TriggerOnExternalSourceChanged();
 			}
 		}

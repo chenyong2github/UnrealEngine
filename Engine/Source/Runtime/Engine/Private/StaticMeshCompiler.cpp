@@ -158,7 +158,7 @@ EQueuedWorkPriority FStaticMeshCompilingManager::GetBasePriority(UStaticMesh* In
 FQueuedThreadPool* FStaticMeshCompilingManager::GetThreadPool() const
 {
 	static FQueuedThreadPoolDynamicWrapper* GStaticMeshThreadPool = nullptr;
-	if (GStaticMeshThreadPool == nullptr)
+	if (GStaticMeshThreadPool == nullptr && FAssetCompilingManager::Get().GetThreadPool() != nullptr)
 	{
 		StaticMeshCompilingManagerImpl::EnsureInitializedCVars();
 
@@ -207,7 +207,7 @@ void FStaticMeshCompilingManager::Shutdown()
 
 bool FStaticMeshCompilingManager::IsAsyncStaticMeshCompilationEnabled() const
 {
-	if (bHasShutdown)
+	if (bHasShutdown || !FPlatformProcess::SupportsMultithreading())
 	{
 		return false;
 	}
@@ -646,21 +646,23 @@ void FStaticMeshCompilingManager::Reschedule()
 
 			if (DistanceToEditingViewport.Num())
 			{
-				FQueuedThreadPoolDynamicWrapper* QueuedThreadPool = (FQueuedThreadPoolDynamicWrapper*)GetThreadPool();
-				QueuedThreadPool->Sort(
-					[&DistanceToEditingViewport](const IQueuedWork* Lhs, const IQueuedWork* Rhs)
-					{
-						const FStaticMeshAsyncBuildTask* TaskA = (const FStaticMeshAsyncBuildTask*)Lhs;
-						const FStaticMeshAsyncBuildTask* TaskB = (const FStaticMeshAsyncBuildTask*)Rhs;
+				if (FQueuedThreadPoolDynamicWrapper* QueuedThreadPool = (FQueuedThreadPoolDynamicWrapper*)GetThreadPool())
+				{
+					QueuedThreadPool->Sort(
+						[&DistanceToEditingViewport](const IQueuedWork* Lhs, const IQueuedWork* Rhs)
+						{
+							const FStaticMeshAsyncBuildTask* TaskA = (const FStaticMeshAsyncBuildTask*)Lhs;
+							const FStaticMeshAsyncBuildTask* TaskB = (const FStaticMeshAsyncBuildTask*)Rhs;
 
-						const float* ResultA = DistanceToEditingViewport.Find(TaskA->StaticMesh);
-						const float* ResultB = DistanceToEditingViewport.Find(TaskB->StaticMesh);
+							const float* ResultA = DistanceToEditingViewport.Find(TaskA->StaticMesh);
+							const float* ResultB = DistanceToEditingViewport.Find(TaskB->StaticMesh);
 
-						const float FinalResultA = ResultA ? *ResultA : FLT_MAX;
-						const float FinalResultB = ResultB ? *ResultB : FLT_MAX;
-						return FinalResultA < FinalResultB;
-					}
-				);
+							const float FinalResultA = ResultA ? *ResultA : FLT_MAX;
+							const float FinalResultB = ResultB ? *ResultB : FLT_MAX;
+							return FinalResultA < FinalResultB;
+						}
+					);
+				}
 			}
 		}
 	}

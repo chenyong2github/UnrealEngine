@@ -15,14 +15,14 @@ UToolMenu::UToolMenu() :
 	, bShouldCleanupContextOnDestroy(true)
 	, bShouldCloseWindowAfterMenuSelection(true)
 	, bCloseSelfOnly(false)
-	, bSearchable(false)
+	, bSearchable(true)
 	, bToolBarIsFocusable(false)
 	, bToolBarForceSmallIcons(false)
 	, bRegistered(false)
 	, bIsRegistering(false)
 	, bExtendersEnabled(true)
 	, StyleSet(&FCoreStyle::Get())
-	, MaxHeight(INT_MAX)
+	, MaxHeight(800.f)
 {
 }
 

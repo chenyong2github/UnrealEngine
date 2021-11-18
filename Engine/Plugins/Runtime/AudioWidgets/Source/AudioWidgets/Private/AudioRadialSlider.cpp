@@ -228,7 +228,7 @@ UAudioVolumeRadialSlider::UAudioVolumeRadialSlider(const FObjectInitializer& Obj
 	: Super(ObjectInitializer)
 {
 	Super::SetUnitsText(FText::FromString("dB"));
-	OutputRange = FVector2D(-12.0f, 100.0f);
+	OutputRange = FVector2D(-12.0f, 0.0f);
 }
 
 TSharedRef<SWidget> UAudioVolumeRadialSlider::RebuildWidget()

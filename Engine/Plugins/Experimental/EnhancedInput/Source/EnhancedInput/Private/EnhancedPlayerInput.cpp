@@ -207,6 +207,20 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		FVector RawKeyValue = KeyState ? KeyState->RawValue : FVector::ZeroVector;
 		//UE_CLOG(RawKeyValue.SizeSquared(), LogTemp, Warning, TEXT("Key %s - state %s"), *Mapping.Key.GetDisplayName().ToString(), *RawKeyValue.ToString());
 
+		// Should this key be ignored because it was down during a context switch?
+		// If so, check if it is back up, otherwise ignore it.
+		if(Mapping.bShouldBeIgnored && KeyState)
+		{
+			if(KeyState->bDown)
+			{
+				continue;				
+			}
+			else
+			{
+				Mapping.bShouldBeIgnored = false;	
+			}
+		}
+		
 		// Establish update type.
 		bool bDownLastTick = KeyDownPrevious.FindRef(Mapping.Key);
 		// TODO: Can't just use bDown as paired axis event edges may not fire due to axial deadzoning/missing axis properties. Need to change how this is detected in PlayerInput.cpp.

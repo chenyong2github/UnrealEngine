@@ -2399,7 +2399,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.HMDViewNoRollUp = InViewMatrices.GetHMDViewMatrixNoRoll().GetColumn(1);
 	ViewUniformShaderParameters.HMDViewNoRollRight = InViewMatrices.GetHMDViewMatrixNoRoll().GetColumn(0);
 	ViewUniformShaderParameters.InvDeviceZToWorldZTransform = InvDeviceZToWorldZTransform;
-	ViewUniformShaderParameters.RelativeWorldViewOrigin = InViewMatrices.GetOverriddenInvTranslatedViewMatrix().TransformPosition(FVector(0)) - InViewMatrices.GetPreViewTranslation() - ViewTileOffset;
+	ViewUniformShaderParameters.RelativeWorldViewOrigin = (FVector4f)InViewMatrices.GetOverriddenInvTranslatedViewMatrix().TransformPosition(FVector(0)) - InViewMatrices.GetPreViewTranslation() - ViewTileOffset;
 	ViewUniformShaderParameters.ViewTilePosition = AbsoluteViewOrigin.GetTile();
 	ViewUniformShaderParameters.MatrixTilePosition = RelativeMatrices.TilePosition;
 	ViewUniformShaderParameters.RelativeWorldCameraOrigin = InViewMatrices.GetViewOrigin() - ViewTileOffset;

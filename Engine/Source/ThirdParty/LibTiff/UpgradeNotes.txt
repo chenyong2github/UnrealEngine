@@ -1,0 +1,38 @@
+Current version 4.2
+https://gitlab.com/libtiff/libtiff/-/tree/v4.2.0
+
+Location of the official depot: https://gitlab.com/libtiff/libtiff
+Doc: http://www.simplesystems.org/libtiff/
+
+To udate or to add new platform download the project from the wesite.
+Modify the root CMakeList.txt file. We want it to use third party libs from the engine for zlib and turbojpeg (libJPEG).  
+Example. Replace these sections in the file with those below (for windows with libtiff 4.2)
+
+#Zlib
+set(ZLIB_FOUND TRUE)
+set(ZLIB_INCLUDE_DIRS D:/dev/UE5/Engine/Source/ThirdParty/zlib/v1.2.8/include/Win64/VS2015)
+set(ZLIB_LIBRARIES D:/dev/UE5/Engine/Source/ThirdParty/zlib/v1.2.8/lib/Win64-llvm/Release/zlibstatic.lib)
+if(ZLIB_FOUND)
+  set(ZLIB_SUPPORT 1)
+endif()
+set(ZIP_SUPPORT ${ZLIB_SUPPORT})
+
+# JPEG
+option(jpeg "use libjpeg (required for JPEG compression)" ON)
+if (jpeg)
+  set(JPEG_FOUND TRUE)
+  set(JPEG_INCLUDE_DIR D:/dev/UE5/Engine/Source/ThirdParty/libjpeg-turbo/include)
+  set(JPEG_LIBRARIES D:/dev/UE5/Engine/Source/ThirdParty/libjpeg-turbo/lib/Win64/turbojpeg-static.lib)
+endif()
+set(JPEG_SUPPORT FALSE)
+if(JPEG_FOUND)
+  set(JPEG_SUPPORT TRUE)
+endif()
+
+
+After that set all the optional feature(options) to on (Those that require any other third party will be turned off automatically).
+Set the build shared libraries to false.
+Build the lib in release.
+Update the headers if needed.
+
+Update these notes if needed.

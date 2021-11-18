@@ -263,7 +263,7 @@ public:
 		// the least of the users problems at the moment.
 		for (const TPair<FString, FString>& Entry : MovedOriginalFiles)
 		{
-			FileSystem.Delete(*Entry.Value);
+			FileSystem.Delete(*Entry.Value, /*RequireExists*/false, /*EvenReadOnly*/true);
 		}
 	}
 
@@ -278,24 +278,6 @@ bool IsNewSaveEnabled(bool bForCooking)
 {
 	int32 EnableNewSave = CVarEnablePackageNewSave.GetValueOnAnyThread();
 	return (bForCooking && (EnableNewSave & 1) != 0) || (!bForCooking && (EnableNewSave & 2) != 0);
-}
-
-void GetBlueprintNativeCodeGenReplacement(UObject* InObj, UClass*& ObjClass, UObject*& ObjOuter, FName& ObjName, const ITargetPlatform* TargetPlatform)
-{
-#if WITH_EDITOR
-	if (const IBlueprintNativeCodeGenCore* Coordinator = IBlueprintNativeCodeGenCore::Get())
-	{
-		const FCompilerNativizationOptions& NativizationOptions = Coordinator->GetNativizationOptionsForPlatform(TargetPlatform);
-		if (UClass* ReplacedClass = Coordinator->FindReplacedClassForObject(InObj, NativizationOptions))
-		{
-			ObjClass = ReplacedClass;
-		}
-		if (UObject* ReplacedOuter = Coordinator->FindReplacedNameAndOuter(InObj, /*out*/ObjName, NativizationOptions))
-		{
-			ObjOuter = ReplacedOuter;
-		}
-	}
-#endif
 }
 
 bool HasUnsaveableOuter(UObject* InObj, UPackage* InSavingPackage)
@@ -681,6 +663,11 @@ ESavePackageResult FinalizeTempOutputFiles(const FPackagePath& PackagePath, cons
 		if (!File.TempFilePath.IsEmpty())
 		{
 			FFileStatData FileStats = FileSystem.GetStatData(*File.TargetPath);
+			if (FileStats.bIsValid && FileStats.bIsReadOnly)
+			{
+				UE_LOG(LogSavePackage, Error, TEXT("Cannot remove '%s' as it is read only!"), *File.TargetPath);
+				return ESavePackageResult::Error;
+			}
 			CanFileBeMoved[Index] = FileStats.bIsValid;
 		}
 		else

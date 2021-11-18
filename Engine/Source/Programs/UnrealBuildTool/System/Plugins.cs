@@ -211,7 +211,7 @@ namespace UnrealBuildTool
 		/// <param name="ProjectDir">Path to the project directory (or null)</param>
 		/// <param name="AdditionalDirectories">List of additional directories to scan for available plugins</param>
 		/// <returns>Sequence of PluginInfo objects, one for each discovered plugin</returns>
-		public static List<PluginInfo> ReadAvailablePlugins(DirectoryReference EngineDir, DirectoryReference ProjectDir, List<DirectoryReference> AdditionalDirectories)
+		public static List<PluginInfo> ReadAvailablePlugins(DirectoryReference EngineDir, DirectoryReference? ProjectDir, List<DirectoryReference>? AdditionalDirectories)
 		{
 			List<PluginInfo> Plugins = new List<PluginInfo>();
 

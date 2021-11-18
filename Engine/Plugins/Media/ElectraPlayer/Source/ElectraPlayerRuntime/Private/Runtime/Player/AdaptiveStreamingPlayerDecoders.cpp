@@ -425,6 +425,7 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 				}
 #endif
 
+				VideoDecoder.CheckIfNewDecoderMustBeSuspendedImmediately();
 				if (VideoDecoder.Decoder)
 				{
 					// Now we get the currently limited stream resolution and let the decoder now what we will be using
@@ -476,6 +477,7 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 					AudioDecoder.Decoder->Open(PlayerConfig.DecoderCfgAAC);
 				}
 
+				AudioDecoder.CheckIfNewDecoderMustBeSuspendedImmediately();
 				if (!AudioDecoder.Decoder)
 				{
 					FErrorDetail err;

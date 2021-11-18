@@ -24,6 +24,8 @@ public:
 	virtual HRESULT STDMETHODCALLTYPE ProcessMessage(MFT_MESSAGE_TYPE eMessage, ULONG_PTR ulParam) override;
 	virtual HRESULT STDMETHODCALLTYPE ProcessOutput(DWORD dwFlags, DWORD cOutputBufferCount, MFT_OUTPUT_DATA_BUFFER* pOutputSamples, DWORD* pdwStatus) override;
 
+	virtual bool IsExternalBufferSupported() const override;
+
 public:
 
 	static bool IsSupported(const GUID& InGuid);

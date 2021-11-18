@@ -34,10 +34,6 @@ class LANDSCAPE_API UMaterialExpressionLandscapeLayerWeight : public UMaterialEx
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionLandscapeLayerWeight)
 	FVector ConstBase;
 
-	/** GUID that should be unique within the material, this is used for parameter renaming. */
-	UPROPERTY()
-	FGuid ExpressionGUID;
-
 public:
 
 	//~ Begin UMaterialExpression Interface
@@ -51,15 +47,13 @@ public:
 	virtual bool CanReferenceTexture() const override { return true; }
 #if WITH_EDITOR
 	virtual uint32 GetInputType(int32 InputIndex) override {return MCT_Float | MCT_MaterialAttributes;}
-#endif //WITH_EDITOR
-	//~ End UMaterialExpression Interface
-
-	virtual FGuid& GetParameterExpressionId() override;
 
 	/**
-	 * Called to get list of parameter names for static parameter sets
+	 * Gets the landscape layer names
 	 */
-	void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfox) const;
+	virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const override;
+#endif //WITH_EDITOR
+	//~ End UMaterialExpression Interface
 
 	//~ Begin UObject Interface
 	/**

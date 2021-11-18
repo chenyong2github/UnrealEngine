@@ -17,9 +17,10 @@
 
 class USkeleton;
 
+// @todo: BP2CPP_remove
 /** Serialized anim BP function data */
 USTRUCT()
-struct FAnimBlueprintFunctionData
+struct UE_DEPRECATED(5.0, "This type is no longer in use and will be removed.") FAnimBlueprintFunctionData
 {
 	GENERATED_BODY()
 
@@ -35,6 +36,8 @@ struct FAnimBlueprintFunctionData
 	TArray<TFieldPath<FProperty>> InputProperties;
 };
 
+// @todo: BP2CPP_remove
+class UE_DEPRECATED(5.0, "This type is no longer in use and will be removed.") UAnimClassData;
 UCLASS()
 class ENGINE_API UAnimClassData : public UObject, public IAnimClassInterface
 {
@@ -59,11 +62,11 @@ public:
 	// All of the functions that this anim class provides
 	UPROPERTY()
 	TArray<FAnimBlueprintFunction> AnimBlueprintFunctions;
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// Serialized function data, used to patch up transient data in AnimBlueprintFunctions
 	UPROPERTY()
 	TArray<FAnimBlueprintFunctionData> AnimBlueprintFunctionData;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// The array of anim nodes
 	UPROPERTY()
 	TArray< TFieldPath<FStructProperty> > AnimNodeProperties;
@@ -157,9 +160,6 @@ private:
 #endif
 	
 public:
-	// Resolve TFieldPaths to FStructPropertys, init value handlers
-	void DynamicClassInitialization(UDynamicClass* InDynamicClass);
-
 #if WITH_EDITOR
 	// Copy data from an existing BP generated class to this class data
 	void CopyFrom(UAnimBlueprintGeneratedClass* AnimClass);

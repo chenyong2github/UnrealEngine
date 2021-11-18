@@ -4,11 +4,12 @@
 
 #include "DMXDisplayClusterReplicator.h"
 #include "IDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
 
 
 void FDMXDisplayClusterModule::StartupModule()
 {
-	IDisplayCluster::Get().OnDisplayClusterStartSession().AddRaw(this, &FDMXDisplayClusterModule::CreateDMXDisplayClusterReplicator);
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartSession().AddRaw(this, &FDMXDisplayClusterModule::CreateDMXDisplayClusterReplicator);
 }
 
 void FDMXDisplayClusterModule::CreateDMXDisplayClusterReplicator()

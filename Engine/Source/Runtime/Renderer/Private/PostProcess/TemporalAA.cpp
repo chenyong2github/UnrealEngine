@@ -108,7 +108,7 @@ class FTemporalAACS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector4f, ViewportUVToInputBufferUV)
 		SHADER_PARAMETER(FVector4f, MaxViewportUVAndSvPositionToViewportUV)
-		SHADER_PARAMETER(FVector2D, ScreenPosAbsMax)
+		SHADER_PARAMETER(FVector2f, ScreenPosAbsMax)
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 		SHADER_PARAMETER(float, CurrentFrameWeight)
 		SHADER_PARAMETER(int32, bCameraCut)
@@ -152,8 +152,8 @@ class FTemporalAACS : public FGlobalShader
 
 		// Temporal upsample specific parameters.
 		SHADER_PARAMETER(FVector4f, InputViewSize)
-		SHADER_PARAMETER(FVector2D, InputViewMin)
-		SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
+		SHADER_PARAMETER(FVector2f, InputViewMin)
+		SHADER_PARAMETER(FVector2f, TemporalJitterPixels)
 		SHADER_PARAMETER(float, ScreenPercentage)
 		SHADER_PARAMETER(float, UpscaleFactor)
 

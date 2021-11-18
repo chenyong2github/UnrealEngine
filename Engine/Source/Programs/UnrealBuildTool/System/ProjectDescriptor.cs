@@ -161,28 +161,28 @@ namespace UnrealBuildTool
 			RawObject.TryGetBoolField("DisableEnginePluginsByDefault", out DisableEnginePluginsByDefault);
 
 			// Read the modules
-			JsonObject[] ModulesArray;
+			JsonObject[]? ModulesArray;
 			if (RawObject.TryGetObjectArrayField("Modules", out ModulesArray))
 			{
 				Modules = Array.ConvertAll(ModulesArray, x => ModuleDescriptor.FromJsonObject(x, JsonFilePath));
 			}
 
 			// Read the plugins
-			JsonObject[] PluginsArray;
+			JsonObject[]? PluginsArray;
 			if (RawObject.TryGetObjectArrayField("Plugins", out PluginsArray))
 			{
 				Plugins = Array.ConvertAll(PluginsArray, x => PluginReferenceDescriptor.FromJsonObject(x));
 			}
 
 			// Read the additional root directories
-			string[] RootDirectoryStrings;
+			string[]? RootDirectoryStrings;
 			if (RawObject.TryGetStringArrayField("AdditionalRootDirectories", out RootDirectoryStrings))
 			{
 				AdditionalRootDirectories.AddRange(RootDirectoryStrings.Select(x => DirectoryReference.Combine(BaseDir, x)));
 			}
 
 			// Read the additional plugin directories
-			string[] PluginDirectoryStrings;
+			string[]? PluginDirectoryStrings;
 			if (RawObject.TryGetStringArrayField("AdditionalPluginDirectories", out PluginDirectoryStrings))
 			{
 				AdditionalPluginDirectories.AddRange(PluginDirectoryStrings.Select(x => DirectoryReference.Combine(BaseDir, x)));

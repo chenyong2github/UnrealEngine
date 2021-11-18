@@ -2,7 +2,7 @@
 
 #include "Blueprints/MPCDIGeometryData.h"
 
-void FMPCDIGeometryExportData::PostAddFace(int f0, int f1, int f2)
+void FMPCDIGeometryExportData::PostAddFace(int32 f0, int32 f1, int32 f2)
 {
 	Triangles.Add(f0);
 	Triangles.Add(f1);

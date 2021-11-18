@@ -44,6 +44,15 @@ static FAutoConsoleVariableRef CVarNiagaraReleaseResourceOnRemove(
 	ECVF_Default
 );
 
+//-TEMP: Until we prune data interface on cook this will avoid consuming memory
+int32 GNiagaraRenderTargetIgnoreCookedOut = true;
+static FAutoConsoleVariableRef CVarNiagaraRenderTargetIgnoreCookedOut(
+	TEXT("fx.Niagara.RenderTarget.IgnoreCookedOut"),
+	GNiagaraRenderTargetIgnoreCookedOut,
+	TEXT("Ignores create render targets for cooked out emitter, i.e. ones that are not used by any GPU emitter."),
+	ECVF_Default
+);
+
 float GNiagaraRenderTargetResolutionMultiplier = 1.0f;
 static FAutoConsoleVariableRef CVarNiagaraRenderTargetResolutionMultiplier(
 	TEXT("fx.Niagara.RenderTarget.ResolutionMultiplier"),
@@ -730,6 +739,12 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 #if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
 #endif
+
+	//-TEMP: Until we prune data interface on cook this will avoid consuming memory
+	if (GNiagaraRenderTargetIgnoreCookedOut && !IsUsedWithGPUEmitter())
+	{
+		return false;
+	}
 
 	// Do we need to create a new texture?
 	if (!bInheritUserParameterSettings && (InstanceData->TargetTexture == nullptr))

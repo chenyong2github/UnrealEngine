@@ -100,7 +100,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRCommonParameters, )
 	SHADER_PARAMETER(FIntPoint, InputPixelPosMin)
 	SHADER_PARAMETER(FIntPoint, InputPixelPosMax)
 
-	SHADER_PARAMETER(FVector2D, InputJitter)
+	SHADER_PARAMETER(FVector2f, InputJitter)
 	SHADER_PARAMETER(int32, bCameraCut)
 	SHADER_PARAMETER(float, MoireInvExposure)
 
@@ -210,8 +210,8 @@ class FTSRDilateVelocityCS : public FTSRShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
 
-		SHADER_PARAMETER(FVector2D, PrevOutputBufferUVMin)
-		SHADER_PARAMETER(FVector2D, PrevOutputBufferUVMax)
+		SHADER_PARAMETER(FVector2f, PrevOutputBufferUVMin)
+		SHADER_PARAMETER(FVector2f, PrevOutputBufferUVMax)
 		SHADER_PARAMETER(float, WorldDepthToDepthError)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)

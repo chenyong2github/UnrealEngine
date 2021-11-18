@@ -2727,8 +2727,7 @@ void FAssetDataGatherer::TickInternal(bool& bOutIsTickInterrupt)
 {
 	using namespace UE::AssetDataGather::Private;
 
-	const int32 BatchSize = FTaskGraphInterface::Get().GetNumWorkerThreads() * AssetDataGathererConstants::SingleThreadFilesPerBatch;
-	check(BatchSize > 0); // GetNumWorkerThreads should never return 0
+	const int32 BatchSize = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads()) * AssetDataGathererConstants::SingleThreadFilesPerBatch;
 	typedef TInlineAllocator<AssetDataGathererConstants::ExpectedMaxBatchSize> FBatchInlineAllocator;
 
 	TArray<FGatheredPathData, FBatchInlineAllocator> LocalFilesToSearch;

@@ -3,13 +3,16 @@
 
 #include "CADKernel/Topo/Shell.h"
 
-void CADKernel::FBody::AddShell(TSharedRef<FShell> Shell)
+namespace CADKernel
+{
+
+void FBody::AddShell(TSharedRef<FShell> Shell)
 {
 	Shells.Add(Shell);
 	Shell->HostedBy = StaticCastSharedRef<FBody>(AsShared());
 }
 
-void CADKernel::FBody::RemoveEmptyShell()
+void FBody::RemoveEmptyShell()
 {
 	TArray<TSharedPtr<FShell>> NewShells;
 	NewShells.Reserve(Shells.Num());
@@ -23,7 +26,7 @@ void CADKernel::FBody::RemoveEmptyShell()
 	Swap(NewShells, Shells);
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FBody::ApplyMatrix(const CADKernel::FMatrixH& InMatrix) const 
+TSharedPtr<FEntityGeom> FBody::ApplyMatrix(const FMatrixH& InMatrix) const 
 {
 	TArray<TSharedPtr<FShell>> NewShells;
 	for (TSharedPtr<FShell> Shell : Shells)
@@ -34,9 +37,10 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FBody::ApplyMatrix(const CADKernel
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FBody::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FBody::GetInfo(FInfoEntity& Info) const
 {
 	return FTopologicalEntity::GetInfo(Info).Add(TEXT("shells"), Shells).Add(*this);
 }
 #endif
 
+}

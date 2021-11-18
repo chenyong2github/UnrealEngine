@@ -7,7 +7,9 @@
 #include "Modules/ModuleManager.h"
 
 #include "RemoteControlProtocolDMX.h"
-#include "RemoteControlProtocolDMXEditorCustomization.h"
+#include "RemoteControlProtocolDMXSettings.h"
+#include "RemoteControlProtocolDMXSettingsDetails.h"
+#include "RemoteControlDMXProtocolEntityExtraSettingCustomization.h"
 
 /**
  * Remote control protocol DMX editor that allows have editor functionality for the protocol
@@ -27,7 +29,11 @@ void FRemoteControlProtocolDMXEditorModule::StartupModule()
 
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout(
 		FRemoteControlDMXProtocolEntityExtraSetting::StaticStruct()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateStatic(FRemoteControlProtocolDMXEditorTypeCustomization::MakeInstance));
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(FRemoteControlDMXProtocolEntityExtraSettingCustomization::MakeInstance));
+
+	PropertyEditorModule.RegisterCustomClassLayout(
+		URemoteControlProtocolDMXSettings::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(FRemoteControlProtocolDMXSettingsDetails::MakeInstance));
 }
 
 void FRemoteControlProtocolDMXEditorModule::ShutdownModule()
@@ -36,7 +42,9 @@ void FRemoteControlProtocolDMXEditorModule::ShutdownModule()
 	{
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyEditorModule.UnregisterCustomPropertyTypeLayout(FRemoteControlDMXProtocolEntityExtraSetting::StaticStruct()->GetFName());
+		PropertyEditorModule.UnregisterCustomClassLayout(URemoteControlProtocolDMXSettings::StaticClass()->GetFName());
 	}
 }
+
 
 IMPLEMENT_MODULE(FRemoteControlProtocolDMXEditorModule, RemoteControlProtocolDMXEditorModule);

@@ -13,8 +13,6 @@ using EpicGames.Core;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
-#nullable enable
-
 namespace UnrealBuildTool
 {
 	/// <summary>

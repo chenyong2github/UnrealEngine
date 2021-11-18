@@ -561,6 +561,29 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			{
 				// Need to load the payload so that we can write it out
 				FCompressedBuffer PayloadToSerialize = GetDataInternal();
+				
+				// Checks to make sure that the payload we are saving is what we expect it to be. If not then we need to log an error to the
+				// user, mark the archive as having an error and return.
+				// This error is not reasonable to expect, if it occurs then it means something has gone very wrong, which is why there is
+				// also an ensure to make sure that any instances of it occuring as properly recorded and can be investigated.
+				if (!IsValid(*this, PayloadToSerialize))
+				{
+					ensureMsgf(false, TEXT("%s"), *GetCorruptedPayloadErrorMsgForSave(LinkerSave).ToString());
+
+					if (LinkerSave && LinkerSave->GetOutputDevice() != nullptr)
+					{
+						LinkerSave->GetOutputDevice()->Logf(ELogVerbosity::Error, TEXT("%s"), *GetCorruptedPayloadErrorMsgForSave(LinkerSave).ToString());
+					}
+					else
+					{
+						UE_LOG(LogVirtualization, Error, TEXT("%s"), *GetCorruptedPayloadErrorMsgForSave(LinkerSave).ToString());
+					}
+
+					Ar.SetError();
+
+					return;
+				}
+
 				RecompressForSerialization(PayloadToSerialize, UpdatedFlags);
 
 				// If we are expecting a valid payload but fail to find one something critical has broken so assert now
@@ -1087,7 +1110,7 @@ FPackagePath FVirtualizedUntypedBulkData::GetPackagePathFromOwner(UObject* Owner
 bool FVirtualizedUntypedBulkData::CanUnloadData() const
 {
 	// We cannot unload the data if are unable to reload it from a file
-	return IsDataVirtualized() || PackagePath.IsEmpty() == false;
+	return IsDataVirtualized() || (PackagePath.IsEmpty() == false && AttachedAr != nullptr);
 }
 
 bool FVirtualizedUntypedBulkData::IsMemoryOnlyPayload() const
@@ -1136,7 +1159,7 @@ void FVirtualizedUntypedBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePaylo
 		{
 			FCompressedBuffer CompressedPayload = GetDataInternal();
 
-			UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
+			UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMsgForLoad());
 
 			Payload = CompressedPayload.Decompress();
 		}
@@ -1227,7 +1250,7 @@ FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 		FCompressedBuffer CompressedPayload = PullData();
 		
 		checkf(Payload.IsNull(), TEXT("Pulling data somehow assigned it to the bulk data object!")); //Make sure that we did not assign the buffer internally
-		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
+		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMsgForLoad());
 		
 		return CompressedPayload;
 	}
@@ -1236,7 +1259,7 @@ FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 		FCompressedBuffer CompressedPayload = LoadFromDisk();
 		
 		check(Payload.IsNull()); //Make sure that we did not assign the buffer internally
-		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
+		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMsgForLoad());
 		
 		return CompressedPayload;
 	}
@@ -1260,7 +1283,7 @@ TFuture<FSharedBuffer> FVirtualizedUntypedBulkData::GetPayload() const
 	{
 		FCompressedBuffer CompressedPayload = GetDataInternal();
 
-		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMessage());
+		UE_CLOG(!IsValid(*this, CompressedPayload), LogVirtualization, VBD_CORRUPTED_DATA_SEVERITY, TEXT("%s"), *GetCorruptedPayloadErrorMsgForLoad());
 		
 		// TODO: Not actually async yet!
 		Promise.SetValue(CompressedPayload.Decompress());
@@ -1442,7 +1465,7 @@ FVirtualizedUntypedBulkData::EFlags FVirtualizedUntypedBulkData::BuildFlagsForSe
 	}
 }
 
-FString FVirtualizedUntypedBulkData::GetCorruptedPayloadErrorMessage() const
+FString FVirtualizedUntypedBulkData::GetCorruptedPayloadErrorMsgForLoad() const
 {
 	TStringBuilder<512> Message;
 	
@@ -1456,6 +1479,33 @@ FString FVirtualizedUntypedBulkData::GetCorruptedPayloadErrorMessage() const
 	}
 
 	return Message.ToString();
+}
+
+FText FVirtualizedUntypedBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) const
+{
+	const FText GuidID = FText::FromString(GetIdentifier().ToString());
+
+	if (Linker != nullptr)
+	{
+		const FText PackageName = FText::FromString(Linker->LinkerRoot->GetName());
+		
+		return FText::Format(	NSLOCTEXT("Core", "Virtualization_InvalidPayloadPkg", 
+								"Attempting to save bulkdata {0} with an invalid payload to package '{1}'. The package probably needs to be reverted/recreated to fix this."), 						
+								GuidID, PackageName);
+	}
+	else if(!PackagePath.IsEmpty())
+	{
+		const FText PackageName = FText::FromString(PackagePath.GetPackageName());
+
+		return FText::Format(	NSLOCTEXT("Core", "Virtualization_InvalidPayloadPath", 
+								"Attempting to save bulkdata {0} with an invalid payload from package '{1}'. The package probably needs to be reverted/recreated to fix this."),
+								GuidID, PackageName);
+	}
+	else
+	{
+		return FText::Format(	NSLOCTEXT("Core", "Virtualization_InvalidPayloadPath", "Attempting to save bulkdata {0} with an invalid payload, source unknown"),
+								GuidID);
+	}
 }
 	
 FArchive& operator<<(FArchive& Ar, FTocEntry& Entry)

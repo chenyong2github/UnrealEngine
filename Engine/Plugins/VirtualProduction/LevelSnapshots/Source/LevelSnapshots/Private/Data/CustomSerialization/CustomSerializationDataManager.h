@@ -8,53 +8,62 @@
 #include "WorldSnapshotData.h"
 #include "Params/ObjectSnapshotSerializationData.h"
 
-class FSnapshotSubobjectMetaDataManager;
 
-DECLARE_DELEGATE_RetVal(const FCustomSerializationData*, FCustomSerializationDataGetter_ReadOnly);
-DECLARE_DELEGATE_RetVal(FCustomSerializationData*, FCustomSerializationDataGetter_ReadWrite);
-
-class FCustomSerializationDataReader : public ICustomSnapshotSerializationData
+namespace UE::LevelSnapshots::Private
 {
-public:
+	namespace Internal
+	{
+		class FSnapshotSubobjectMetaDataManager;
+	}
 	
-	FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly SerializationDataGetter, const FWorldSnapshotData& ConstWorldData);
+	DECLARE_DELEGATE_RetVal(const FCustomSerializationData*, FCustomSerializationDataGetter_ReadOnly);
+	DECLARE_DELEGATE_RetVal(FCustomSerializationData*, FCustomSerializationDataGetter_ReadWrite);
 
-	virtual void WriteObjectAnnotation(const FObjectAnnotator& Writer) override;
-	virtual void ReadObjectAnnotation(const FObjectAnnotator& Reader) const override;
-	virtual int32 AddSubobjectSnapshot(UObject* Subobject) override;
-	virtual TSharedPtr<ISnapshotSubobjectMetaData> GetSubobjectMetaData(int32 Index) override;
-	virtual const TSharedPtr<ISnapshotSubobjectMetaData> GetSubobjectMetaData(int32 Index) const override;
-	virtual int32 GetNumSubobjects() const override;
+	class FCustomSerializationDataReader : public ICustomSnapshotSerializationData
+	{
+	public:
+		
+		FCustomSerializationDataReader(FCustomSerializationDataGetter_ReadOnly SerializationDataGetter, const FWorldSnapshotData& ConstWorldData);
 
-protected:
-	
-	/** To avoid dynamically allocating memory every time GetSubobjectMetaData is called, we cache the results here. Just to improve heap memory footprint a tiny bit. */
-	TArray<TSharedPtr<FSnapshotSubobjectMetaDataManager>> CachedSubobjectMetaData;
-	
-	/** Looks up actor or subobject  serialization data. Used instead of reference because some functions, like TakeSubobjectSnapshot, cause FWorldSnapshotData::CustomSubobjectSerializationData to reallocate. */
-	FCustomSerializationDataGetter_ReadOnly SerializationDataGetter_ReadOnly;
+		virtual void WriteObjectAnnotation(const FObjectAnnotator& Writer) override;
+		virtual void ReadObjectAnnotation(const FObjectAnnotator& Reader) const override;
+		virtual int32 AddSubobjectSnapshot(UObject* Subobject) override;
+		virtual TSharedPtr<ISnapshotSubobjectMetaData> GetSubobjectMetaData(int32 Index) override;
+		virtual const TSharedPtr<ISnapshotSubobjectMetaData> GetSubobjectMetaData(int32 Index) const override;
+		virtual int32 GetNumSubobjects() const override;
 
-	/* Needed to look up soft object paths by index */
-	const FWorldSnapshotData& WorldData_ReadOnly;
-};
+	protected:
+		
+		/** To avoid dynamically allocating memory every time GetSubobjectMetaData is called, we cache the results here. Just to improve heap memory footprint a tiny bit. */
+		TArray<TSharedPtr<Internal::FSnapshotSubobjectMetaDataManager>> CachedSubobjectMetaData;
+		
+		/** Looks up actor or subobject  serialization data. Used instead of reference because some functions, like TakeSubobjectSnapshot, cause FWorldSnapshotData::CustomSubobjectSerializationData to reallocate. */
+		FCustomSerializationDataGetter_ReadOnly SerializationDataGetter_ReadOnly;
 
-class FCustomSerializationDataWriter : public FCustomSerializationDataReader
-{
-public:
+		/* Needed to look up soft object paths by index */
+		const FWorldSnapshotData& WorldData_ReadOnly;
+	};
 
-	FCustomSerializationDataWriter(FCustomSerializationDataGetter_ReadWrite SerializationDataGetter, FWorldSnapshotData& WorldData, UObject* SerializedObject);
-	
-	virtual void WriteObjectAnnotation(const FObjectAnnotator& Writer) override;
-	virtual int32 AddSubobjectSnapshot(UObject* Subobject) override;
+	class FCustomSerializationDataWriter : public FCustomSerializationDataReader
+	{
+	public:
 
-private:
+		FCustomSerializationDataWriter(FCustomSerializationDataGetter_ReadWrite SerializationDataGetter, FWorldSnapshotData& WorldData, UObject* SerializedObject);
+		
+		virtual void WriteObjectAnnotation(const FObjectAnnotator& Writer) override;
+		virtual int32 AddSubobjectSnapshot(UObject* Subobject) override;
 
-	/** Looks up actor or subobject  serialization data. Used instead of reference because some functions, like TakeSubobjectSnapshot, cause FWorldSnapshotData::CustomSubobjectSerializationData to reallocate. */
-	FCustomSerializationDataGetter_ReadWrite SerializationDataGetter_ReadWrite;
+	private:
 
-	/* Needed to look up soft object paths by index */
-	FWorldSnapshotData& WorldData_ReadWrite;
+		/** Looks up actor or subobject  serialization data. Used instead of reference because some functions, like TakeSubobjectSnapshot, cause FWorldSnapshotData::CustomSubobjectSerializationData to reallocate. */
+		FCustomSerializationDataGetter_ReadWrite SerializationDataGetter_ReadWrite;
 
-	/* Has no function: just used for validating. */
-	UObject* SerializedObject;
-};
+		/* Needed to look up soft object paths by index */
+		FWorldSnapshotData& WorldData_ReadWrite;
+
+		/* Has no function: just used for validating. */
+		UObject* SerializedObject;
+	};
+}
+
+

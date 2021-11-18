@@ -4098,11 +4098,11 @@ FPropertyAccess::Result FPropertyHandleObject::SetObjectValueFromSelection()
 }
 
 
-// Temporary mixed float/double property handle to support the various default vector types having differing component types. LWC_TODO: Remove once all types support double.
-FPropertyHandleVector::FPropertyHandleMixed::FPropertyHandleMixed(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities)
+// Temporary mixed float/double property handle to support the various default template types having differing component types. LWC_TODO: Remove once all types support double.
+FPropertyHandleMixed::FPropertyHandleMixed(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities)
 	: FPropertyHandleBase(PropertyNode, NotifyHook, PropertyUtilities) {}
 
-bool FPropertyHandleVector::FPropertyHandleMixed::Supports(TSharedRef<FPropertyNode> PropertyNode)
+bool FPropertyHandleMixed::Supports(TSharedRef<FPropertyNode> PropertyNode)
 {
 	FProperty* Property = PropertyNode->GetProperty();
 
@@ -4114,7 +4114,7 @@ bool FPropertyHandleVector::FPropertyHandleMixed::Supports(TSharedRef<FPropertyN
 	return Property->IsA(FFloatProperty::StaticClass()) || Property->IsA(FDoubleProperty::StaticClass());
 }
 
-FPropertyAccess::Result FPropertyHandleVector::FPropertyHandleMixed::GetValue(double& OutValue) const
+FPropertyAccess::Result FPropertyHandleMixed::GetValue(double& OutValue) const
 {
 	void* PropValue = nullptr;
 	FPropertyAccess::Result Res = Implementation->GetValueData(PropValue);
@@ -4134,7 +4134,7 @@ FPropertyAccess::Result FPropertyHandleVector::FPropertyHandleMixed::GetValue(do
 	return Res;
 }
 
-FPropertyAccess::Result FPropertyHandleVector::FPropertyHandleMixed::SetValue(const double& NewValue, EPropertyValueSetFlags::Type Flags)
+FPropertyAccess::Result FPropertyHandleMixed::SetValue(const double& NewValue, EPropertyValueSetFlags::Type Flags)
 {
 	FPropertyAccess::Result Res;
 	// Clamp the value from any meta data ranges stored on the property value
@@ -4146,7 +4146,7 @@ FPropertyAccess::Result FPropertyHandleVector::FPropertyHandleMixed::SetValue(co
 	return Res;
 }
 
-FPropertyAccess::Result FPropertyHandleVector::FPropertyHandleMixed::GetValue(float& OutValue) const
+FPropertyAccess::Result FPropertyHandleMixed::GetValue(float& OutValue) const
 {
 	double AsDouble;
 	FPropertyAccess::Result Res = GetValue(AsDouble);
@@ -4154,7 +4154,7 @@ FPropertyAccess::Result FPropertyHandleVector::FPropertyHandleMixed::GetValue(fl
 	return Res;
 }
 
-FPropertyAccess::Result FPropertyHandleVector::FPropertyHandleMixed::SetValue(const float& NewValue, EPropertyValueSetFlags::Type Flags)
+FPropertyAccess::Result FPropertyHandleMixed::SetValue(const float& NewValue, EPropertyValueSetFlags::Type Flags)
 {
 	return SetValue((double)NewValue);
 }
@@ -4432,11 +4432,11 @@ FPropertyHandleRotator::FPropertyHandleRotator( TSharedRef<class FPropertyNode> 
 {
 	const bool bRecurse = false;
 	// A vector is a struct property that has 3 children.  We get/set the values from the children
-	RollValue = MakeShareable( new FPropertyHandleFloat( Implementation->GetChildNode("Roll", bRecurse).ToSharedRef(), NotifyHook, PropertyUtilities ) );
+	RollValue = MakeShareable( new FPropertyHandleMixed( Implementation->GetChildNode("Roll", bRecurse).ToSharedRef(), NotifyHook, PropertyUtilities ) );
 
-	PitchValue = MakeShareable( new FPropertyHandleFloat( Implementation->GetChildNode("Pitch", bRecurse).ToSharedRef(), NotifyHook, PropertyUtilities ) );
+	PitchValue = MakeShareable( new FPropertyHandleMixed( Implementation->GetChildNode("Pitch", bRecurse).ToSharedRef(), NotifyHook, PropertyUtilities ) );
 
-	YawValue = MakeShareable( new FPropertyHandleFloat( Implementation->GetChildNode("Yaw", bRecurse).ToSharedRef(), NotifyHook, PropertyUtilities ) );
+	YawValue = MakeShareable( new FPropertyHandleMixed( Implementation->GetChildNode("Yaw", bRecurse).ToSharedRef(), NotifyHook, PropertyUtilities ) );
 }
 
 
@@ -4478,19 +4478,19 @@ FPropertyAccess::Result FPropertyHandleRotator::SetValue( const FRotator& NewVal
 	}
 }
 
-FPropertyAccess::Result FPropertyHandleRotator::SetRoll( float InRoll, EPropertyValueSetFlags::Type Flags )
+FPropertyAccess::Result FPropertyHandleRotator::SetRoll( double InRoll, EPropertyValueSetFlags::Type Flags )
 {
 	FPropertyAccess::Result Res = RollValue->SetValue( InRoll, Flags );
 	return Res;
 }
 
-FPropertyAccess::Result FPropertyHandleRotator::SetPitch( float InPitch, EPropertyValueSetFlags::Type Flags )
+FPropertyAccess::Result FPropertyHandleRotator::SetPitch( double InPitch, EPropertyValueSetFlags::Type Flags )
 {
 	FPropertyAccess::Result Res = PitchValue->SetValue( InPitch, Flags );
 	return Res;
 }
 
-FPropertyAccess::Result FPropertyHandleRotator::SetYaw( float InYaw, EPropertyValueSetFlags::Type Flags )
+FPropertyAccess::Result FPropertyHandleRotator::SetYaw( double InYaw, EPropertyValueSetFlags::Type Flags )
 {
 	FPropertyAccess::Result Res = YawValue->SetValue( InYaw, Flags );
 	return Res;

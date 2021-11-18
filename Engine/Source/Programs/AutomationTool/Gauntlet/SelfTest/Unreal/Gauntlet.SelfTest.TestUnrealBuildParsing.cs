@@ -54,15 +54,9 @@ namespace Gauntlet.SelfTest
 				new BuildData("ActionRPG", "ActionRPG.exe", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Win64, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG-Win64-Test.exe", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Win64, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG-Win64-Shipping.exe", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Win64, UnrealTargetRole.Client ),
-				new BuildData("ActionRPG", "ActionRPG.self", UnrealTargetConfiguration.Development, UnrealTargetPlatform.PS4, UnrealTargetRole.Client ),
-				new BuildData("ActionRPG", "ActionRPG-PS4-Test.self", UnrealTargetConfiguration.Test, UnrealTargetPlatform.PS4, UnrealTargetRole.Client ),
-				new BuildData("ActionRPG", "ActionRPG-PS4-Shipping.self", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.PS4, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG.app", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Mac, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG-Mac-Test.app", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Mac, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG-Mac-Shipping.app", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Mac, UnrealTargetRole.Client ),
-				new BuildData("ActionRPG", "ActionRPG.nss", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Switch, UnrealTargetRole.Client ),
-				new BuildData("ActionRPG", "ActionRPG-Switch-Test.nss", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Switch, UnrealTargetRole.Client ),
-				new BuildData("ActionRPG", "ActionRPG-Switch-Shipping.nss", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Switch, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG.ipa", UnrealTargetConfiguration.Development, UnrealTargetPlatform.IOS, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG-IOS-Test.ipa", UnrealTargetConfiguration.Test, UnrealTargetPlatform.IOS, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG-IOS-Shipping.ipa", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.IOS, UnrealTargetRole.Client ),
@@ -71,28 +65,6 @@ namespace Gauntlet.SelfTest
 				new BuildData("ActionRPG", "ActionRPG-arm64.apk", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG-Android-Test-arm64.apk", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
 				new BuildData("ActionRPG", "ActionRPG-Android-Shipping-arm64.apk", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Android, UnrealTargetRole.Client ),
-
-				// Test a project like ForniteGame that emits dedicated Client executables
-				new BuildData("FortniteGame", "FortniteClient.exe", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Win64, UnrealTargetRole.Client ),
-				new BuildData("FortniteGame", "FortniteClient-Win64-Test.exe", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Win64, UnrealTargetRole.Client ),
-				new BuildData("FortniteGame", "FortniteClient-Win64-Shipping.exe", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Win64, UnrealTargetRole.Client ),
-				new BuildData("FortniteGame", "FortniteClient.self", UnrealTargetConfiguration.Development, UnrealTargetPlatform.PS4, UnrealTargetRole.Client ),
-				new BuildData("FortniteGame", "FortniteClient-PS4-Test.self", UnrealTargetConfiguration.Test, UnrealTargetPlatform.PS4, UnrealTargetRole.Client ),
-				new BuildData("FortniteGame", "FortniteClient-PS4-Shipping.self", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.PS4, UnrealTargetRole.Client ),
-				new BuildData("FortniteGame", "FortniteClient.app", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Mac, UnrealTargetRole.Client ),
-				new BuildData("FortniteGame", "FortniteClient-Mac-Test.app", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Mac, UnrealTargetRole.Client ),
-				new BuildData("FortniteGame", "FortniteClient-Mac-Shipping.app", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Mac, UnrealTargetRole.Client ),
-
-				// Test a project like ForniteGame that emits dedicated Server executables
-				new BuildData("FortniteGame", "FortniteServer.exe", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Win64, UnrealTargetRole.Server ),
-				new BuildData("FortniteGame", "FortniteServer-Win64-Test.exe", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Win64, UnrealTargetRole.Server ),
-				new BuildData("FortniteGame", "FortniteServer-Win64-Shipping.exe", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Win64, UnrealTargetRole.Server ),
-				new BuildData("FortniteGame", "FortniteServer", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Linux, UnrealTargetRole.Server ),
-				new BuildData("FortniteGame", "FortniteServer-Linux-Test", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Linux, UnrealTargetRole.Server ),
-				new BuildData("FortniteGame", "FortniteServer-Linux-Shipping", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Linux, UnrealTargetRole.Server ),
-				new BuildData("FortniteGame", "FortniteServer.app", UnrealTargetConfiguration.Development, UnrealTargetPlatform.Mac, UnrealTargetRole.Server ),
-				new BuildData("FortniteGame", "FortniteServer-Mac-Test.app", UnrealTargetConfiguration.Test, UnrealTargetPlatform.Mac, UnrealTargetRole.Server ),
-				new BuildData("FortniteGame", "FortniteServer-Mac-Shipping.app", UnrealTargetConfiguration.Shipping, UnrealTargetPlatform.Mac, UnrealTargetRole.Server ),
 			};
 
 			foreach (BuildData Data in TestData)

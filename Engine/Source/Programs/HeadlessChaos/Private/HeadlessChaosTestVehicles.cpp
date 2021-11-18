@@ -13,6 +13,7 @@
 #include "SuspensionSystem.h"
 #include "SuspensionUtility.h"
 #include "SteeringUtility.h"
+#include "TransmissionUtility.h"
 
 // for Simulation Tests
 #include "Chaos/PBDRigidsEvolutionGBF.h"
@@ -232,6 +233,153 @@ namespace ChaosTest
 		EXPECT_GT(H, 0.f);
 		EXPECT_GT(H, 0.f);
 	}
+
+
+	GTEST_TEST(AllTraits, VehicleTest_TransmissionUtilityIsWheelPowered)
+	{
+		TArray<FSimpleWheelSim> Wheels;
+
+		for (int I = 0; I < 2; I++)
+		{
+			FSimpleWheelConfig SetupFront;
+			SetupFront.AxleType = FSimpleWheelConfig::EAxleType::Front;
+			SetupFront.EngineEnabled = false;
+			FSimpleWheelSim WheelFront(&SetupFront);
+			Wheels.Add(WheelFront);
+		}
+
+		for (int I = 0; I < 4; I++)
+		{
+			FSimpleWheelConfig SetupRear;
+			SetupRear.AxleType = FSimpleWheelConfig::EAxleType::Rear;
+			SetupRear.EngineEnabled = true;
+			FSimpleWheelSim WheelRear(&SetupRear);
+			Wheels.Add(WheelRear);
+		}
+
+		EXPECT_EQ(FTransmissionUtility::GetNumWheelsOnAxle(FSimpleWheelConfig::EAxleType::Front, Wheels), 2);
+		EXPECT_EQ(FTransmissionUtility::GetNumWheelsOnAxle(FSimpleWheelConfig::EAxleType::Rear, Wheels), 4);
+
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::AllWheelDrive, Wheels[0]), true); // front
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::AllWheelDrive, Wheels[1]), true); // front
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::AllWheelDrive, Wheels[2]), true); // rear
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::AllWheelDrive, Wheels[5]), true); // rear
+
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::FrontWheelDrive, Wheels[0]), true); // front
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::FrontWheelDrive, Wheels[1]), true); // front
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::FrontWheelDrive, Wheels[2]), false); // rear
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::FrontWheelDrive, Wheels[5]), false); // rear
+
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::RearWheelDrive, Wheels[0]), false); // front
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::RearWheelDrive, Wheels[1]), false); // front
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::RearWheelDrive, Wheels[2]), true); // rear
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::RearWheelDrive, Wheels[5]), true); // rear
+
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::UndefinedDrive, Wheels[0]), false); // front
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::UndefinedDrive, Wheels[1]), false); // front
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::UndefinedDrive, Wheels[2]), true); // rear
+		EXPECT_EQ(FTransmissionUtility::IsWheelPowered(EDifferentialType::UndefinedDrive, Wheels[5]), true); // rear
+
+	}
+
+	GTEST_TEST(AllTraits, VehicleTest_TransmissionUtilityGetTorqueRatioForWheel)
+	{
+		TArray<FSimpleWheelSim> Wheels;
+
+		for (int I=0; I < 2; I++)
+		{
+			FSimpleWheelConfig SetupFront;
+			SetupFront.AxleType = FSimpleWheelConfig::EAxleType::Front;
+			SetupFront.EngineEnabled = false;
+			FSimpleWheelSim WheelFront(&SetupFront);
+			Wheels.Add(WheelFront);
+		}
+
+		for (int I = 0; I < 4; I++)	
+		{
+			FSimpleWheelConfig SetupRear;
+			SetupRear.AxleType = FSimpleWheelConfig::EAxleType::Rear;
+			SetupRear.EngineEnabled = true;
+			FSimpleWheelSim WheelRear(&SetupRear);
+			Wheels.Add(WheelRear);
+		}
+
+		EXPECT_EQ(FTransmissionUtility::GetNumWheelsOnAxle(FSimpleWheelConfig::EAxleType::Front, Wheels), 2);
+		EXPECT_EQ(FTransmissionUtility::GetNumWheelsOnAxle(FSimpleWheelConfig::EAxleType::Rear, Wheels), 4);
+
+		FSimpleDifferentialConfig DiffSetup;
+		DiffSetup.FrontRearSplit = 0.5f;
+		FSimpleDifferentialSim Differential(&DiffSetup);
+		
+		float Error = 0.01f;
+
+		DiffSetup.DifferentialType = EDifferentialType::AllWheelDrive;
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 0, Wheels), 0.25f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 1, Wheels), 0.25f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 2, Wheels), 0.125f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 3, Wheels), 0.125f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 4, Wheels), 0.125f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 5, Wheels), 0.125f, Error); // rear
+
+		DiffSetup.DifferentialType = EDifferentialType::FrontWheelDrive;
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 0, Wheels), 0.5f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 1, Wheels), 0.5f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 2, Wheels), 0.0f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 3, Wheels), 0.0f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 4, Wheels), 0.0f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 5, Wheels), 0.0f, Error); // rear
+
+		DiffSetup.DifferentialType = EDifferentialType::RearWheelDrive;
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 0, Wheels), 0.0f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 1, Wheels), 0.0f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 2, Wheels), 0.25f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 3, Wheels), 0.25f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 4, Wheels), 0.25f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 5, Wheels), 0.25f, Error); // rear
+
+		DiffSetup.DifferentialType = EDifferentialType::UndefinedDrive;
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 0, Wheels), 0.0f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 1, Wheels), 0.0f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 2, Wheels), 0.25f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 3, Wheels), 0.25f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 4, Wheels), 0.25f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 5, Wheels), 0.25f, Error); // rear
+
+		Differential.FrontRearSplit = 0.8f; // more torque to the rear
+		DiffSetup.DifferentialType = EDifferentialType::AllWheelDrive;
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 0, Wheels), 0.1f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 1, Wheels), 0.1f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 2, Wheels), 0.2f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 3, Wheels), 0.2f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 4, Wheels), 0.2f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 5, Wheels), 0.2f, Error); // rear
+
+		for (int I = 0; I < 6; I++)
+		{
+			Wheels[I].AccessSetup().AxleType = FSimpleWheelConfig::EAxleType::UndefinedAxle;
+		}
+		// front 2 have SetupFront.EngineEnabled = false, the rest are true
+		EXPECT_EQ(FTransmissionUtility::GetNumDrivenWheels(Wheels), 4);
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 0, Wheels), 0.f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 1, Wheels), 0.f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 2, Wheels), 1.f / 4.f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 3, Wheels), 1.f / 4.f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 4, Wheels), 1.f / 4.f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 5, Wheels), 1.f / 4.f, Error); // rear
+
+		// now turn off torque to the rear two
+		Wheels[4].EngineEnabled = false;
+		Wheels[5].EngineEnabled = false;
+		EXPECT_EQ(FTransmissionUtility::GetNumDrivenWheels(Wheels), 2);
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 0, Wheels), 0.f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 1, Wheels), 0.f, Error); // front
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 2, Wheels), 1.f / 2.f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 3, Wheels), 1.f / 2.f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 4, Wheels), 0.f, Error); // rear
+		EXPECT_NEAR(FTransmissionUtility::GetTorqueRatioForWheel(Differential, 5, Wheels), 0.f, Error); // rear
+
+	}
+
 
 	GTEST_TEST(AllTraits, VehicleTest_SystemTemplate)
 	{

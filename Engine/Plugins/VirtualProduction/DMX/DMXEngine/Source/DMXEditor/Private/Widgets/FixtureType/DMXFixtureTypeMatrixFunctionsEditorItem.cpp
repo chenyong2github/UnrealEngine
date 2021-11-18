@@ -45,3 +45,16 @@ void FDMXFixtureTypeMatrixFunctionsEditorItem::SetCellAttributeName(const FDMXAt
 		FixtureType->PostEditChange();
 	}
 }
+
+void FDMXFixtureTypeMatrixFunctionsEditorItem::RemoveFromFixtureType()
+{
+	if (FixtureType.IsValid() && FixtureType->Modes.IsValidIndex(ModeIndex) && FixtureType->Modes[ModeIndex].FixtureMatrixConfig.CellAttributes.IsValidIndex(CellAttributeIndex))
+	{
+		const FScopedTransaction SetCellAttributeTransaction(NSLOCTEXT("DMXFixtureTypeMatrixFunctionsEditorItem", "RemoveCellAttributeTransaction", "Remove Cell Attribute"));
+		FixtureType->PreEditChange(nullptr);
+
+		FixtureType->RemoveCellAttribute(ModeIndex, CellAttributeIndex);
+
+		FixtureType->PostEditChange();
+	}
+}

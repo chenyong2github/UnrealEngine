@@ -454,6 +454,8 @@ bool UDMXEntityFixturePatch::SetActiveModeIndex(int32 NewActiveModeIndex)
 		if (ParentFixtureTypeTemplate->Modes.IsValidIndex(NewActiveModeIndex))
 		{
 			ActiveMode = NewActiveModeIndex;
+			RebuildCache();
+
 			return true;
 		}
 	}

@@ -9,8 +9,8 @@
 #include "CoreTypes.h"
 #include "CoreFwd.h"
 
-struct FBasisVectorMatrix;
-struct FLookAtMatrix;
+UE_DECLARE_LWC_TYPE(BasisVectorMatrix, 44);
+UE_DECLARE_LWC_TYPE(LookAtMatrix, 44);
 struct FMath;
 
 namespace UE
@@ -885,15 +885,12 @@ inline TPlane<T> UE::Math::TPlane<T>::TransformByUsingAdjointT(const TMatrix<T>&
 	return TPlane<T>(M.TransformPosition(*this * W), newNorm);
 }
 
-} // namespace UE::Core
-} // namespace UE
+/**
+* TMatrix variation inline functions.
+*/
 
-#undef T
-
-
-
-
-FORCEINLINE FBasisVectorMatrix::FBasisVectorMatrix(const FVector& XAxis,const FVector& YAxis,const FVector& ZAxis,const FVector& Origin)
+template<typename T>
+FORCEINLINE TBasisVectorMatrix<T>::TBasisVectorMatrix(const TVector<T>& XAxis,const TVector<T>& YAxis,const TVector<T>& ZAxis,const TVector<T>& Origin)
 {
 	for(uint32 RowIndex = 0;RowIndex < 3;RowIndex++)
 	{
@@ -906,15 +903,16 @@ FORCEINLINE FBasisVectorMatrix::FBasisVectorMatrix(const FVector& XAxis,const FV
 	M[3][1] = Origin | YAxis;
 	M[3][2] = Origin | ZAxis;
 	M[3][3] = 1.0f;
-	DiagnosticCheckNaN();
+	this->DiagnosticCheckNaN();
 }
 
 
-FORCEINLINE FLookFromMatrix::FLookFromMatrix(const FVector& EyePosition, const FVector& LookDirection, const FVector& UpVector)
+template<typename T>
+FORCEINLINE TLookFromMatrix<T>::TLookFromMatrix(const TVector<T>& EyePosition, const TVector<T>& LookDirection, const TVector<T>& UpVector)
 {
-	const FVector ZAxis = LookDirection.GetSafeNormal();
-	const FVector XAxis = (UpVector ^ ZAxis).GetSafeNormal();
-	const FVector YAxis = ZAxis ^ XAxis;
+	const TVector<T> ZAxis = LookDirection.GetSafeNormal();
+	const TVector<T> XAxis = (UpVector ^ ZAxis).GetSafeNormal();
+	const TVector<T> YAxis = ZAxis ^ XAxis;
 
 	for (uint32 RowIndex = 0; RowIndex < 3; RowIndex++)
 	{
@@ -927,14 +925,31 @@ FORCEINLINE FLookFromMatrix::FLookFromMatrix(const FVector& EyePosition, const F
 	M[3][1] = -EyePosition | YAxis;
 	M[3][2] = -EyePosition | ZAxis;
 	M[3][3] = 1.0f;
-	DiagnosticCheckNaN();
-
+	this->DiagnosticCheckNaN();
 }
 
 
-
-FORCEINLINE FLookAtMatrix::FLookAtMatrix(const FVector& EyePosition, const FVector& LookAtPosition, const FVector& UpVector) :
-	FLookFromMatrix(EyePosition, LookAtPosition - EyePosition, UpVector)
+template<typename T>
+FORCEINLINE TLookAtMatrix<T>::TLookAtMatrix(const TVector<T>& EyePosition, const TVector<T>& LookAtPosition, const TVector<T>& UpVector) :
+	TLookFromMatrix<T>(EyePosition, LookAtPosition - EyePosition, UpVector)
 {
 }
+
+
+} // namespace UE::Core
+} // namespace UE
+
+template<>
+inline bool FMatrix44f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{	
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Matrix, Matrix44f, Matrix44d);
+}
+
+template<>
+inline bool FMatrix44d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Matrix, Matrix44d, Matrix44f);
+}
+
+
 

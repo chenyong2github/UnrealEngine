@@ -66,6 +66,11 @@ public:
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
+	virtual void SetWorld(UWorld* World)
+	{
+		TargetWorld = World;
+	}
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -95,8 +100,15 @@ public:
 	TObjectPtr<UMaterialInstanceDynamic> CheckerMaterial = nullptr;
 
 protected:
+
 	UPROPERTY()
-	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent;
+	TObjectPtr<UWorld> TargetWorld = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<AInternalToolFrameworkActor> PreviewMeshActor = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic;

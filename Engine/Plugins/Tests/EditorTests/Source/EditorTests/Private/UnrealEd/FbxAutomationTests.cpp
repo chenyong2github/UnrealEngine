@@ -310,7 +310,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 								{
 									ExistingObject->ClearFlags(RF_Standalone | RF_Public);
 									ExistingObject->RemoveFromRoot();
-									ExistingObject->MarkPendingKill();
+									ExistingObject->MarkAsGarbage();
 								}
 						
 							}
@@ -1468,12 +1468,12 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 				}
 				const int32 LODIndex = ExpectedResult.ExpectedPresetsDataInteger[0];
 				const int32 VertexIndex = ExpectedResult.ExpectedPresetsDataInteger[1];
-				const FVector ExpectedNormal(ExpectedResult.ExpectedPresetsDataFloat[0], ExpectedResult.ExpectedPresetsDataFloat[1], ExpectedResult.ExpectedPresetsDataFloat[2]);
+				const FVector3f ExpectedNormal(ExpectedResult.ExpectedPresetsDataFloat[0], ExpectedResult.ExpectedPresetsDataFloat[1], ExpectedResult.ExpectedPresetsDataFloat[2]);
 				int32 LODNumber = 0;
 				int32 VertexNumber = 0;
 				bool BadLodIndex = false;
 				bool BadVertexIndex = false;
-				FVector VertexNormal(0.0f);
+				FVector3f VertexNormal(0.0f);
 				if (ImportedObjects.Num() > 0)
 				{
 					UObject *Object = ImportedObjects[0];
@@ -1990,7 +1990,7 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 							{
 								ExistingObject->ClearFlags(RF_Standalone | RF_Public);
 								ExistingObject->RemoveFromRoot();
-								ExistingObject->MarkPendingKill();
+								ExistingObject->MarkAsGarbage();
 							}
 
 						}

@@ -358,9 +358,29 @@ namespace Gauntlet
 						Device.Dispose();
 					}
 
+					// Additional devices cleanup
+					IEnumerable<UnrealTargetPlatform?> UsedPlatforms = ReservedDevices.Select(D => D.Platform).Distinct();
+					CleanupDevices(UsedPlatforms);
+
 					AvailableDevices.Clear();
 					UnprovisionedDevices.Clear();
 					ReservedDevices.Clear();
+				}
+			}
+		}
+
+		static private void CleanupDevices(IEnumerable<UnrealTargetPlatform?> Platforms)
+		{
+			IEnumerable<IDeviceService> DeviceServices = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDeviceService>();
+			if (DeviceServices.Any())
+			{
+				foreach (UnrealTargetPlatform? Platform in Platforms)
+				{
+					IDeviceService DeviceService = DeviceServices.Where(D => D.CanSupportPlatform(Platform)).FirstOrDefault();
+					if (DeviceService != null)
+					{
+						DeviceService.CleanupDevices();
+					}
 				}
 			}
 		}

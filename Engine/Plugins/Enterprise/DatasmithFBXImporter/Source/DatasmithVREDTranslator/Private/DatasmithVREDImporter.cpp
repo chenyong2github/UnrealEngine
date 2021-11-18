@@ -763,6 +763,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithVREDImporter::ConvertNode(const TSh
 		TSharedPtr<FDatasmithFBXSceneMesh> ThisMesh = Node->Mesh;
 		FName MeshName = FName(*ThisMesh->Name);
 
+		TSharedPtr<IDatasmithMeshElement> CreatedMesh = nullptr;
 		TSharedPtr<FDatasmithFBXSceneMesh>* FoundMesh = MeshNameToFBXMesh.Find(MeshName);
 		if (FoundMesh && (*FoundMesh).IsValid())
 		{
@@ -773,9 +774,9 @@ TSharedPtr<IDatasmithActorElement> FDatasmithVREDImporter::ConvertNode(const TSh
 		{
 			// Create a mesh
 			MeshNameToFBXMesh.Add(MeshName, ThisMesh);
-			TSharedRef<IDatasmithMeshElement> MeshElement = FDatasmithSceneFactory::CreateMesh(*ThisMesh->Name);
+			CreatedMesh = FDatasmithSceneFactory::CreateMesh(*ThisMesh->Name);
 
-			DatasmithScene->AddMesh(MeshElement);
+			DatasmithScene->AddMesh(CreatedMesh);
 		}
 
 		TSharedPtr<IDatasmithMeshActorElement> MeshActorElement = FDatasmithSceneFactory::CreateMeshActor(*Node->Name);
@@ -789,6 +790,12 @@ TSharedPtr<IDatasmithActorElement> FDatasmithVREDImporter::ConvertNode(const TSh
 			TSharedRef<IDatasmithMaterialIDElement> MaterialIDElement(FDatasmithSceneFactory::CreateMaterialId(MaterialElement->GetName()));
 			MaterialIDElement->SetId(MaterialID);
 			MeshActorElement->AddMaterialOverride(MaterialIDElement);
+
+			// Also set the material directly on the mesh if this was the node that created it
+			if (CreatedMesh)
+			{
+				CreatedMesh->SetMaterial(MaterialElement->GetName(), MaterialID);
+			}
 		}
 
 		ActorElement = MeshActorElement;

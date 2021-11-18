@@ -4,26 +4,33 @@
 #include "NiagaraDataInterfaceArrayFloat.h"
 #include "NiagaraDataInterfaceArrayInt.h"
 #include "NiagaraDataInterfaceArrayImpl.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystemInstance.h"
 #include "NiagaraFunctionLibrary.h"
 
 template<typename TArrayType, typename TDataInterace>
 void SetNiagaraArray(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<TArrayType>& InArray)
 {
-	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
+	if (auto SystemInstanceController = NiagaraSystem->GetSystemInstanceController())
 	{
-		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
-		ArrayDI->GetArrayReference() = InArray;
-		ArrayDI->MarkRenderDataDirty();
+		if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
+		{
+			auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+			ArrayProxy->SetArrayData(SystemInstanceController->GetSystemInstanceID(), InArray);
+		}
 	}
 }
 
 template<typename TArrayType, typename TDataInterace>
 TArray<TArrayType> GetNiagaraArray(UNiagaraComponent* NiagaraSystem, FName OverrideName)
 {
-	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
+	if (auto SystemInstanceController = NiagaraSystem->GetSystemInstanceController())
 	{
-		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
-		return ArrayDI->GetArrayReference();
+		if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
+		{
+			auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+			return ArrayProxy->GetArrayData(SystemInstanceController->GetSystemInstanceID());
+		}
 	}
 	return TArray<TArrayType>();
 }
@@ -31,34 +38,28 @@ TArray<TArrayType> GetNiagaraArray(UNiagaraComponent* NiagaraSystem, FName Overr
 template<typename TArrayType, typename TDataInterace>
 void SetNiagaraArrayValue(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index, const TArrayType& Value, bool bSizeToFit)
 {
-	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
+	if (auto SystemInstanceController = NiagaraSystem->GetSystemInstanceController())
 	{
-		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_Write);
-		auto& ArrayData = ArrayDI->GetArrayReference();
-
-		if (!ArrayData.IsValidIndex(Index))
+		if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
 		{
-			if (!bSizeToFit)
-			{
-				return;
-			}
-			ArrayData.AddDefaulted(Index + 1 - ArrayData.Num());
+			auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+			ArrayProxy->SetArrayValue(SystemInstanceController->GetSystemInstanceID(), Index, Value, bSizeToFit);
 		}
-
-		ArrayData[Index] = Value;
-		ArrayDI->MarkRenderDataDirty();
 	}
 }
 
 template<typename TArrayType, typename TDataInterace>
 TArrayType GetNiagaraArrayValue(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index)
 {
-	if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
+	if (auto SystemInstanceController = NiagaraSystem->GetSystemInstanceController())
 	{
-		FRWScopeLock WriteLock(ArrayDI->ArrayRWGuard, SLT_ReadOnly);
-		auto& ArrayData = ArrayDI->GetArrayReference();
-		return ArrayData.IsValidIndex(Index) ? ArrayData[Index] : TArrayType();
+		if (TDataInterace* ArrayDI = UNiagaraFunctionLibrary::GetDataInterface<TDataInterace>(NiagaraSystem, OverrideName))
+		{
+			auto* ArrayProxy = static_cast<FNDIArrayProxyImpl<TArrayType, TDataInterace>*>(ArrayDI->GetProxy());
+			return ArrayProxy->GetArrayValue(SystemInstanceController->GetSystemInstanceID(), Index);
+		}
 	}
+	//-TODO: Should be DefaultValue
 	return TArrayType();
 }
 

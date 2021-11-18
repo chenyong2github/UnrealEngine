@@ -123,7 +123,7 @@ public:
 	*/
 	virtual class IStereoLayers* GetStereoLayers() = 0;
 
-	virtual FString GetDeviceProfileName() = 0;
+	virtual FString GetDeviceSystemName() = 0;
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	virtual bool PoseToOrientationAndPosition(const FQuat& InOrientation, const FVector& InPosition, FQuat& OutOrientation, FVector& OutPosition) const = 0;

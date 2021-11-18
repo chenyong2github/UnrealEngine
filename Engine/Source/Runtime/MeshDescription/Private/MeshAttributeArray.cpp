@@ -68,7 +68,7 @@ FArchive& operator<<( FArchive& Ar, FAttributesSetBase& AttributesSet )
 		AttributesSet.Map.Empty();
 		SerializeLegacy<FVector4f>( Ar, AttributesSet );
 		SerializeLegacy<FVector3f>( Ar, AttributesSet );
-		SerializeLegacy<FVector2D>( Ar, AttributesSet );
+		SerializeLegacy<FVector2f>( Ar, AttributesSet );
 		SerializeLegacy<float>( Ar, AttributesSet );
 		SerializeLegacy<int>( Ar, AttributesSet );
 		SerializeLegacy<bool>( Ar, AttributesSet );

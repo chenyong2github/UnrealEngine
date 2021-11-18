@@ -22,22 +22,20 @@ void UDisplayClusterPlayerInput::ProcessInputStack(const TArray<UInputComponent*
 {
 	UE_LOG(LogDisplayClusterGame, Verbose, TEXT("Processing input stack..."));
 
-	static IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr();
-
-	if (ClusterMgr)
+	if (IPDisplayClusterClusterManager* const ClusterMgr = GDisplayCluster->GetPrivateClusterMgr())
 	{
 		TMap<FString, FString> KeyStates;
 
 		if (ClusterMgr->IsMaster())
 		{
-			// Export key states data
+			// Export key states data for the stack
 			SerializeKeyStateMap(KeyStates);
-			ClusterMgr->ProvideNativeInputData(KeyStates);
+			ClusterMgr->ImportNativeInputData(MoveTemp(KeyStates));
 		}
 		else
 		{
-			// Import key states data
-			ClusterMgr->SyncNativeInput(KeyStates);
+			// Import key states data to the stack
+			ClusterMgr->ExportNativeInputData(KeyStates);
 			DeserializeKeyStateMap(KeyStates);
 		}
 	}

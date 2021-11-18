@@ -1723,7 +1723,7 @@ void FD3D11DynamicRHI::RHIBlockUntilGPUIdle()
 	TRefCountPtr<ID3D11Query> Query;
 	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateQuery(&Desc, Query.GetInitReference()), Direct3DDevice);
 	
-	D3D11StallRHIThread();
+	FScopedD3D11RHIThreadStaller StallRHIThread;
 	
 	Direct3DDeviceIMContext->End(Query.GetReference());
 	Direct3DDeviceIMContext->Flush();
@@ -1741,8 +1741,6 @@ void FD3D11DynamicRHI::RHIBlockUntilGPUIdle()
 			FPlatformProcess::Sleep(0.005f);
 		}
 	}
-
-	D3D11UnstallRHIThread();
 }
 
 /**
@@ -2024,7 +2022,7 @@ void FD3D11DynamicRHI::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIS
 			// Copy the contents of the vertex buffer to the staging buffer.
 			D3D11_BOX SourceBox;
 			SourceBox.left = Offset;
-			SourceBox.right = NumBytes;
+			SourceBox.right = Offset + NumBytes;
 			SourceBox.top = SourceBox.front = 0;
 			SourceBox.bottom = SourceBox.back = 1;
 			Direct3DDeviceIMContext->CopySubresourceRegion(StagingBuffer->StagedRead, 0, 0, 0, 0, SourceBuffer->Resource, 0, &SourceBox);

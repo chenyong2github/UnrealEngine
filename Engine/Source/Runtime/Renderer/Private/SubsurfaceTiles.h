@@ -66,7 +66,7 @@ class FSubsurfaceTilePassVS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, ViewMin)
 		SHADER_PARAMETER(int32, bRectPrimitive)
 		SHADER_PARAMETER(uint32, TileType)
-		SHADER_PARAMETER(FVector2D, ExtentInverse)
+		SHADER_PARAMETER(FVector2f, ExtentInverse)
 		SHADER_PARAMETER(uint32, OutputFlag)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileDataBuffer)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)

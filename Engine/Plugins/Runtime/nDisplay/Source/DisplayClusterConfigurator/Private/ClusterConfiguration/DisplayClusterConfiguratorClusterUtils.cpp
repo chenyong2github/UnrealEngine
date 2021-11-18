@@ -498,7 +498,7 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveUnusedHostDisplayData(UDispl
 
 		for (const FString& UnusedHost : UnusedHosts)
 		{
-			Cluster->HostDisplayData[UnusedHost]->MarkPendingKill();
+			Cluster->HostDisplayData[UnusedHost]->MarkAsGarbage();
 			Cluster->HostDisplayData.Remove(UnusedHost);
 		}
 

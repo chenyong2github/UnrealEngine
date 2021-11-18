@@ -179,7 +179,7 @@ void FMeshElementIndexer::UpdatePerChannelIndices()
 	//   refers to:
 	//
 	//   UV Element Type [2 channels]
-	//     - attribute TextureCoordinate (FVector2D)
+	//     - attribute TextureCoordinate (FVector2f)
 	//
 	// If the number of channels doesn't correspond, we build the minimum number of channels shared by both referencer and referencee.
 

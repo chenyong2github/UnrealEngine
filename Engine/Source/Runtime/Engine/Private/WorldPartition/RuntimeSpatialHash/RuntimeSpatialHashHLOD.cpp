@@ -378,7 +378,7 @@ static void UpdateHLODGridsActors(UWorld* World, const TMap<FName, FSpatialHashR
 	}
 }
 
-bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
+bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* SourceControlHelper, FActorClusterContext& ActorClusterContext, bool bCreateActorsOnly)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateHLOD);
 
@@ -442,18 +442,12 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 		}
 	}
 
-	// Create actor clusters - ignore HLOD actors
-	FActorClusterContext ClusterContext(WorldPartition, this, [](const FWorldPartitionActorDescView& ActorDescView)
-	{
-		return !ActorDescView.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
-	}, /* bInIncludeChildContainers=*/ false);
-
-	FActorContainerInstance& MainContainerInstance = *ClusterContext.GetClusterInstance(WorldPartition);
+	FActorContainerInstance& MainContainerInstance = *ActorClusterContext.GetClusterInstance(WorldPartition);
 
 	TArray<TArray<const FActorClusterInstance*>> GridsClusters;
 	GridsClusters.InsertDefaulted(0, Grids.Num());
 
-	for (const FActorClusterInstance& ClusterInstance : ClusterContext.GetClusterInstances())
+	for (const FActorClusterInstance& ClusterInstance : ActorClusterContext.GetClusterInstances())
 	{
 		const FActorCluster* ActorCluster = ClusterInstance.Cluster;
 		check(ActorCluster);

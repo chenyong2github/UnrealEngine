@@ -374,6 +374,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 		SourceMips,
 		AssociatedNormalSourceMips,
 		BuildSettings,
+		Context.GetName(),
 		CompressedMips,
 		NumMipsInTail,
 		ExtData);

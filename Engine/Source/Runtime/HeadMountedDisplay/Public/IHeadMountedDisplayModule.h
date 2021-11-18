@@ -135,6 +135,11 @@ public:
 	virtual FString GetAudioOutputDevice() { return FString(); }
 
 	/**
+	 * Get XR system name
+	 */
+	virtual FString GetDeviceSystemName() { return FString(); }
+
+	/**
 	 * Attempts to create a new head tracking device interface
 	 *
 	 * @return	Interface to the new head tracking device, if we were able to successfully create one

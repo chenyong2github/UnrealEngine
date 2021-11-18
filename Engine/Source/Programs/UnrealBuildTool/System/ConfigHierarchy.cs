@@ -311,10 +311,12 @@ namespace UnrealBuildTool
 		/// <param name="KeyName">Key name</param>
 		/// <param name="Value">Value associated with the specified key. If the key has more than one value, only the first one is returned</param>
 		/// <returns>True if the key exists</returns>
-		public bool GetString(string SectionName, string KeyName, [NotNullWhen(true)] out string? Value)
+		public bool GetString(string SectionName, string KeyName, out string Value)
 		{
-			if(TryGetValue(SectionName, KeyName, out Value))
+			string? RetrievedValue;
+			if(TryGetValue(SectionName, KeyName, out RetrievedValue))
 			{
+				Value = RetrievedValue;
 				return true;
 			}
 			else

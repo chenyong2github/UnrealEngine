@@ -76,7 +76,13 @@ public:
 	FMatrix44f MakeFromRelativeWorldMatrix(const FMatrix& FromWorld) const { return FromWorld; }
 #endif
 
-	FLargeWorldRenderPosition(const FVector& InWorldPosition)
+	FLargeWorldRenderPosition(const FVector3f& InWorldPosition)
+		: X(InWorldPosition.X)
+		, Y(InWorldPosition.Y)
+		, Z(InWorldPosition.Z)
+	{}
+	
+	FLargeWorldRenderPosition(const FVector3d& InWorldPosition)
 		: X(InWorldPosition.X)
 		, Y(InWorldPosition.Y)
 		, Z(InWorldPosition.Z)

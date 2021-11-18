@@ -1241,7 +1241,7 @@ UWorld* UMovieSceneSequencePlayer::GetPlaybackWorld() const
 bool UMovieSceneSequencePlayer::HasAuthority() const
 {
 	AActor* Actor = GetTypedOuter<AActor>();
-	return Actor && Actor->HasAuthority() && !IsPendingKillOrUnreachable();
+	return Actor && Actor->HasAuthority() && IsValidChecked(this) && !IsUnreachable();
 }
 
 FFrameTime UMovieSceneSequencePlayer::UpdateServerTimeSamples()

@@ -4,32 +4,8 @@
 #include "Animation/AnimNode_Root.h"
 #include "PropertyAccess.h"
 
-void UAnimClassData::DynamicClassInitialization(UDynamicClass* InDynamicClass)
-{
-	auto ResolveTransform = [](const TFieldPath<FStructProperty>& InPropertyPath)
-	{ 
-		return InPropertyPath.Get(); 
-	};
-
-	// Copy serialized property paths to resolved paths
-	Algo::Transform(AnimNodeProperties, ResolvedAnimNodeProperties, ResolveTransform);
-	Algo::Transform(LinkedAnimGraphNodeProperties, ResolvedLinkedAnimGraphNodeProperties, ResolveTransform);
-	Algo::Transform(LinkedAnimLayerNodeProperties, ResolvedLinkedAnimLayerNodeProperties, ResolveTransform);
-	Algo::Transform(PreUpdateNodeProperties, ResolvedPreUpdateNodeProperties, ResolveTransform);
-	Algo::Transform(DynamicResetNodeProperties, ResolvedDynamicResetNodeProperties, ResolveTransform);
-	Algo::Transform(StateMachineNodeProperties, ResolvedStateMachineNodeProperties, ResolveTransform);
-	Algo::Transform(InitializationNodeProperties, ResolvedInitializationNodeProperties, ResolveTransform);
-
-	check(AnimBlueprintFunctions.Num() == AnimBlueprintFunctionData.Num());
-
-	for(int32 FunctionIndex = 0; FunctionIndex < AnimBlueprintFunctions.Num(); ++FunctionIndex)
-	{
-		AnimBlueprintFunctions[FunctionIndex].OutputPoseNodeProperty = AnimBlueprintFunctionData[FunctionIndex].OutputPoseNodeProperty.Get();
-		Algo::Transform(AnimBlueprintFunctionData[FunctionIndex].InputPoseNodeProperties, AnimBlueprintFunctions[FunctionIndex].InputPoseNodeProperties, ResolveTransform);
-	}
-}
-
 #if WITH_EDITOR
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UAnimClassData::CopyFrom(UAnimBlueprintGeneratedClass* AnimClass)
 {
 	check(AnimClass);
@@ -72,6 +48,7 @@ void UAnimClassData::CopyFrom(UAnimBlueprintGeneratedClass* AnimClass)
 	GraphNameAssetPlayers = AnimClass->GetGraphAssetPlayerInformation();
 	GraphBlendOptions = AnimClass->GetGraphBlendOptions();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 
 TArrayView<const FAnimNodeData> UAnimClassData::GetNodeData() const

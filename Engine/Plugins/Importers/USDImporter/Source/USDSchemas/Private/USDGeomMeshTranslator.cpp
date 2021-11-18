@@ -66,6 +66,118 @@ static FAutoConsoleVariableRef CVarUsdUseGeometryCache(
 
 namespace UsdGeomMeshTranslatorImpl
 {
+	bool ShouldEnableNanite(
+		const TArray<FMeshDescription>& LODIndexToMeshDescription,
+		const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo,
+		const FUsdSchemaTranslationContext& Context,
+		const UE::FUsdPrim& Prim
+	)
+	{
+		if ( LODIndexToMeshDescription.Num() < 1 )
+		{
+			return false;
+		}
+
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::UsdPrim UsdPrim{ Prim };
+		if ( !UsdPrim )
+		{
+			return false;
+		}
+
+		bool bHasNaniteOverrideEnabled = false;
+
+		// We want Nanite because of an override on Prim
+		if ( pxr::UsdAttribute NaniteOverride = UsdPrim.GetAttribute( UnrealIdentifiers::UnrealNaniteOverride ) )
+		{
+			pxr::TfToken OverrideValue;
+			if ( NaniteOverride.Get( &OverrideValue ) )
+			{
+				if ( OverrideValue == UnrealIdentifiers::UnrealNaniteOverrideEnable )
+				{
+					bHasNaniteOverrideEnabled = true;
+					UE_LOG( LogUsd, Log, TEXT( "Trying to enable Nanite for mesh generated for prim '%s' as the '%s' attribute is set to '%s'" ),
+						*Prim.GetPrimPath().GetString(),
+						*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealNaniteOverride ),
+						*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealNaniteOverrideEnable )
+					);
+
+				}
+				else if ( OverrideValue == UnrealIdentifiers::UnrealNaniteOverrideDisable )
+				{
+					UE_LOG( LogUsd, Log, TEXT( "Not enabling Nanite for mesh generated for prim '%s' as the '%s' attribute is set to '%s'" ),
+						*Prim.GetPrimPath().GetString(),
+						*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealNaniteOverride ),
+						*UsdToUnreal::ConvertToken( UnrealIdentifiers::UnrealNaniteOverrideDisable )
+					);
+					return false;
+				}
+			}
+		}
+
+		// We want Nanite because the mesh is large enough for the threshold, which is set to something valid
+		if ( !bHasNaniteOverrideEnabled )
+		{
+			const int32 NumTriangles = LODIndexToMeshDescription[ 0 ].Triangles().Num();
+			if ( NumTriangles >= Context.NaniteTriangleThreshold )
+			{
+				UE_LOG( LogUsd, Log, TEXT( "Trying to enable Nanite for mesh generated for prim '%s' as it has '%d' triangles, and the threshold is '%d'" ),
+					*Prim.GetPrimPath().GetString(),
+					NumTriangles,
+					Context.NaniteTriangleThreshold
+				);
+			}
+			else
+			{
+				UE_LOG( LogUsd, Log, TEXT( "Not enabling Nanite for mesh generated for prim '%s' as it has '%d' triangles, and the threshold is '%d'" ),
+					*Prim.GetPrimPath().GetString(),
+					NumTriangles,
+					Context.NaniteTriangleThreshold
+				);
+				return false;
+			}
+		}
+
+		// Don't enable Nanite if we have more than one LOD. This means the Mesh came from the LOD variant set setup, and
+		// we're considering the LOD setup "stronger" than the Nanite override: If you have all that LOD variant set situation you
+		// likely don't want Nanite for one of the LOD meshes anyway, as that doesn't really make any sense.
+		// If the user wants to have Nanite within the variant set all he would otherwise need is to name the variant set something
+		// else other than LOD.
+		if ( LODIndexToMeshDescription.Num() > 1 )
+		{
+			UE_LOG( LogUsd, Warning, TEXT( "Not enabling Nanite for mesh generated for prim '%s' as it has more than one generated LOD (and so came from a LOD variant set setup)" ),
+				*Prim.GetPrimPath().GetString()
+			);
+			return false;
+		}
+
+		// We cannot enable Nanite here due to a limit on the number of material slots
+		if ( LODIndexToMaterialInfo.Num() > 0 )
+		{
+			const int32 NumSections = LODIndexToMaterialInfo[0].Slots.Num();
+			const int32 MaxNumSections = 64; // There is no define for this, but it's checked for on NaniteBuilder.cpp, FBuilderModule::Build
+			if ( NumSections > MaxNumSections )
+			{
+				UE_LOG( LogUsd, Warning, TEXT( "Not enabling Nanite for mesh generated for prim '%s' as LOD0 has '%d' material slots, which is above the Nanite limit of '%d'" ),
+					*Prim.GetPrimPath().GetString(),
+					NumSections,
+					MaxNumSections
+				);
+				return false;
+			}
+		}
+
+#if !WITH_EDITOR
+		UE_LOG( LogUsd, Warning, TEXT( "Not enabling Nanite for mesh generated for prim '%s' as we can't setup Nanite during runtime" ),
+			*Prim.GetPrimPath().GetString()
+		);
+		return false;
+#endif
+
+		return true;
+	}
+
 	bool IsAnimated( const pxr::UsdPrim& Prim )
 	{
 		FScopedUsdAllocs UsdAllocs;
@@ -429,26 +541,46 @@ namespace UsdGeomMeshTranslatorImpl
 		}
 	}
 
-	UStaticMesh* CreateStaticMesh( TArray<FMeshDescription>& LODIndexToMeshDescription, FUsdSchemaTranslationContext& Context, const FString& PrimPath, bool& bOutIsNew )
+	UStaticMesh* CreateStaticMesh( TArray<FMeshDescription>& LODIndexToMeshDescription, FUsdSchemaTranslationContext& Context, const FString& PrimPath, const bool bShouldEnableNanite, bool& bOutIsNew )
 	{
 		UStaticMesh* StaticMesh = nullptr;
 
 		bool bHasValidMeshDescription = false;
 
 		FSHAHash AllLODHash;
-		FSHA1 SHA1;
-		for (const FMeshDescription& MeshDescription : LODIndexToMeshDescription )
 		{
-			FSHAHash LODHash = FStaticMeshOperations::ComputeSHAHash( MeshDescription );
-			SHA1.Update( &LODHash.Hash[0], sizeof(LODHash.Hash) );
+			FSHA1 SHA1;
 
-			if ( !MeshDescription.IsEmpty() )
+			for (const FMeshDescription& MeshDescription : LODIndexToMeshDescription )
 			{
-				bHasValidMeshDescription = true;
+				FSHAHash LODHash = FStaticMeshOperations::ComputeSHAHash( MeshDescription );
+				SHA1.Update( &LODHash.Hash[0], sizeof(LODHash.Hash) );
+
+				if ( !MeshDescription.IsEmpty() )
+				{
+					bHasValidMeshDescription = true;
+				}
 			}
+
+			// Put whether we want Nanite or not within the hash, so that the user could have one instance of the mesh without Nanite and another
+			// with Nanite if he wants to (using the override parameters). This also nicely handles a couple of edge cases:
+			//	- What if we change a mesh from having Nanite disabled to enabled, or vice-versa (e.g. by changing the threshold)? We'd reuse the mesh from the asset cache
+			//    in that case, so we'd need to rebuild it;
+			//  - What if multiple meshes on the scene hash the same, but only one of them has a Nanite override attribute?
+			// If we always enabled Nanite when either the mesh from the asset cache or the new prim wanted it, we wouldn't be able to turn Nanite off from
+			// a single mesh that once had it enabled: It would always find the old Nanite-enabled mesh on the cache and leave it enabled.
+			// If we always set Nanite to whatever the current prim wants, we could handle a single mesh turning Nanite on/off alright, but then we can't handle
+			// the case where multiple meshes on the scene hash the same and only one of them has the override: The last prim would win, and they'd all be randomly either
+			// enabled or disabled.
+			// Note that we could also fix these problems by trying to check if a mesh is reused due to being in the cache from an old instance of the stage, or due to being used by
+			// another prim, but that doesn't seem like a good path to go down
+			// Additionally, hashing this bool also prevents us from having to force-rebuild a mesh to switch its Nanite flag, which could be tricky to do since some of
+			// these build steps are async/thread-pool based.
+			SHA1.Update( reinterpret_cast< const uint8* >( &bShouldEnableNanite ), sizeof( bShouldEnableNanite ) );
+
+			SHA1.Final();
+			SHA1.GetHash(&AllLODHash.Hash[0]);
 		}
-		SHA1.Final();
-		SHA1.GetHash(&AllLODHash.Hash[0]);
 
 		StaticMesh = Cast< UStaticMesh >( Context.AssetCache->GetCachedAsset( AllLODHash.ToString() ) );
 
@@ -743,7 +875,7 @@ namespace UsdGeomMeshTranslatorImpl
 		TVertexInstanceAttributesConstRef< FVector3f > VertexInstanceTangents = MeshDescriptionAttributes.GetVertexInstanceTangents();
 		TVertexInstanceAttributesConstRef< float > VertexInstanceBinormalSigns = MeshDescriptionAttributes.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesConstRef< FVector4f > VertexInstanceColors = MeshDescriptionAttributes.GetVertexInstanceColors();
-		TVertexInstanceAttributesConstRef< FVector2D > VertexInstanceUVs = MeshDescriptionAttributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesConstRef< FVector2f > VertexInstanceUVs = MeshDescriptionAttributes.GetVertexInstanceUVs();
 
 		const int32 NumVertices = MeshDescription.Vertices().Num();
 		const int32 NumTriangles = MeshDescription.Triangles().Num();
@@ -834,13 +966,16 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 
 			bool bIsNew = true;
 			const FString PrimPathString = PrimPath.GetString();
-			StaticMesh = UsdGeomMeshTranslatorImpl::CreateStaticMesh( LODIndexToMeshDescription, *Context, PrimPathString, bIsNew );
+			const bool bShouldEnableNanite = UsdGeomMeshTranslatorImpl::ShouldEnableNanite( LODIndexToMeshDescription, LODIndexToMaterialInfo, *Context, GetPrim() );
+			StaticMesh = UsdGeomMeshTranslatorImpl::CreateStaticMesh( LODIndexToMeshDescription, *Context, PrimPathString, bShouldEnableNanite, bIsNew );
 
 			if ( StaticMesh )
 			{
 				Context->AssetCache->LinkAssetToPrim( PrimPathString, StaticMesh );
 
 #if WITH_EDITOR
+				StaticMesh->NaniteSettings.bEnabled = bShouldEnableNanite;
+
 				if ( bIsNew )
 				{
 					UUsdAssetImportData* ImportData = NewObject<UUsdAssetImportData>( StaticMesh, TEXT( "UUSDAssetImportData" ) );

@@ -1159,10 +1159,10 @@ void UWorld::PostLoad()
 	// Add the garbage collection callbacks
 	FLevelStreamingGCHelper::AddGarbageCollectorCallback();
 
-#if WITH_EDITOR
-	// Initially set up the parameter collection list. This may be run again in UWorld::InitWorld.
+	// Initially set up the parameter collection list. This may be run again in UWorld::InitWorld but it's required here for some editor and streaming cases
 	SetupParameterCollectionInstances();
 
+#if WITH_EDITOR
 	if (GIsEditor)
 	{
 		if (!GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
@@ -1951,11 +1951,11 @@ void UWorld::MarkObjectsPendingKill()
 {
 	auto MarkObjectPendingKill = [](UObject* Object)
 	{
-		Object->MarkPendingKill();
+		Object->MarkAsGarbage();
 	};
 	ForEachObjectWithOuter(this, MarkObjectPendingKill, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 
-	MarkPendingKill();
+	MarkAsGarbage();
 	bMarkedObjectsPendingKill = true;
 }
 
@@ -3151,7 +3151,7 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 				Packages.Add(Package, &bIsAlreadyInSet);
 				if (!bIsAlreadyInSet)
 				{
-					ForEachObjectWithPackage(Package, [](UObject* PackageObject) { PackageObject->MarkPendingKill(); return true; }, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
+					ForEachObjectWithPackage(Package, [](UObject* PackageObject) { PackageObject->MarkAsGarbage(); return true; }, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 				}
 			}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
 		}
@@ -3241,6 +3241,26 @@ void UWorld::RenameToPIEWorld(int32 PIEInstanceID)
 
 	PersistentLevel->FixupForPIE(PIEInstanceID);
 #endif
+}
+
+bool UWorld::GetSoftObjectPathMapping(FString& OutSourceWorldPath, FString& OutRemappedWorldPath) const
+{
+	UPackage* Package = GetPackage();
+	if (Package->GetFName() != Package->GetLoadedPath().GetPackageFName())
+	{
+		const FString SourcePackageName = Package->GetLoadedPath().GetPackageName();
+		const FString SourceWorldName = FPaths::GetBaseFilename(SourcePackageName);
+		const FString RemmappedPackageName = Package->GetName();
+		const FString RemappedWorldName = GetName();
+
+		OutSourceWorldPath = SourcePackageName + TEXT(".") + SourceWorldName;
+
+		OutRemappedWorldPath = RemmappedPackageName + TEXT(".") + RemappedWorldName;
+
+		return true;
+	}
+
+	return false;
 }
 
 FString UWorld::ConvertToPIEPackageName(const FString& PackageName, int32 PIEInstanceID)
@@ -3674,7 +3694,7 @@ void UWorld::BlockTillLevelStreamingCompleted()
 	}
 
 	const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
-	UE_LOG(LogWorld, Log, TEXT("BlockTillLevelStreamingCompleted took %s seconds (MatchStarted %d)"), *FText::AsNumber(ElapsedTime).ToString(), bMatchStarted);
+	UE_LOG(LogWorld, Verbose, TEXT("BlockTillLevelStreamingCompleted took %s seconds (MatchStarted %d)"), *FText::AsNumber(ElapsedTime).ToString(), bMatchStarted);
 }
 
 void UWorld::InternalUpdateStreamingState()

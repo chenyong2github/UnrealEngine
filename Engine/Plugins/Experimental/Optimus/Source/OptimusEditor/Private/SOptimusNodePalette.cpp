@@ -2,6 +2,7 @@
 
 #include "SOptimusNodePalette.h"
 
+#include "OptimusDeformer.h"
 #include "OptimusEditor.h"
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphSchema.h"
@@ -82,6 +83,16 @@ FText SOptimusNodePaletteItem::GetItemTooltip() const
 }
 
 
+SOptimusNodePalette::~SOptimusNodePalette()
+{
+	const TSharedPtr<FOptimusEditor> Editor = OwningEditor.Pin();
+	if (Editor && Editor->GetDeformer())
+	{
+		Editor->GetDeformer()->GetNotifyDelegate().RemoveAll(this);
+	}
+}
+
+
 void SOptimusNodePalette::Construct(const FArguments& InArgs, TWeakPtr<FOptimusEditor> InEditor)
 {
 	OwningEditor = InEditor;
@@ -99,6 +110,12 @@ void SOptimusNodePalette::Construct(const FArguments& InArgs, TWeakPtr<FOptimusE
 			.AutoExpandActionMenu(true)
 		]
 	];
+
+	const TSharedPtr<FOptimusEditor> Editor = OwningEditor.Pin();
+	if (ensure(Editor) && Editor->GetDeformer())
+	{
+		Editor->GetDeformer()->GetNotifyDelegate().AddSP(this, &SOptimusNodePalette::GraphCollectionNotify);
+	}
 }
 
 
@@ -110,12 +127,22 @@ TSharedRef<SWidget> SOptimusNodePalette::OnCreateWidgetForAction(FCreateWidgetFo
 
 void SOptimusNodePalette::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 {
-	TSharedPtr<FOptimusEditor> Editor = OwningEditor.Pin();
-
-	if (Editor)
+	if (const TSharedPtr<FOptimusEditor> Editor = OwningEditor.Pin())
 	{
 		const UOptimusEditorGraphSchema* Schema = Cast<UOptimusEditorGraphSchema>(Editor->GetGraph()->GetSchema());
 
 		Schema->GetGraphActions(OutAllActions, nullptr, nullptr);
+	}
+}
+
+
+void SOptimusNodePalette::GraphCollectionNotify(
+	EOptimusGlobalNotifyType InType,
+	UObject* InObject
+	)
+{
+	if (InType == EOptimusGlobalNotifyType::NodeTypeAdded || InType == EOptimusGlobalNotifyType::NodeTypeRemoved)
+	{
+		RefreshActionsList(true);
 	}
 }

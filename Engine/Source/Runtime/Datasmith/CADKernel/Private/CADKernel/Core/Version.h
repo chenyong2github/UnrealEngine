@@ -2,8 +2,8 @@
 #pragma once
 
 //** ** Version du Toolkit** **//
-#define TOOLKIT_VERSION 0, 0, 5
-#define TOOLKIT_VERSION_ASCII TEXT("0.0.5")
+#define TOOLKIT_VERSION 0, 2, 18230756
+#define TOOLKIT_VERSION_ASCII "0.2.18230756"
 
 #define RELEASE_DATE	 __DATE__
 

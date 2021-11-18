@@ -121,6 +121,11 @@ namespace UnrealBuildTool
 		/// True if any libraries produced by this action should be considered 'import libraries'
 		/// </summary>
 		bool bProducesImportLibrary { get; }
+
+		/// <summary>
+		/// Whether changes in the command line used to generate these produced items should invalidate the action
+		/// </summary>
+		bool bUseActionHistory { get; }
 	}
 
 	/// <summary>
@@ -213,6 +218,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bProducesImportLibrary { get; set; } = false;
 
+		/// <inheritdoc/>
+		public bool bUseActionHistory { get; set; } = true;
+
 		IEnumerable<FileItem> IExternalAction.PrerequisiteItems => PrerequisiteItems;
 		IEnumerable<FileItem> IExternalAction.ProducedItems => ProducedItems;
 		IEnumerable<FileItem> IExternalAction.DeleteItems => DeleteItems;
@@ -246,6 +254,7 @@ namespace UnrealBuildTool
 			bIsGCCCompiler = InOther.bIsGCCCompiler;
 			bShouldOutputStatusDescription = InOther.bShouldOutputStatusDescription;
 			bProducesImportLibrary = InOther.bProducesImportLibrary;
+			bUseActionHistory = InOther.bUseActionHistory;
 		}
 
 		public Action(BinaryArchiveReader Reader)
@@ -253,19 +262,20 @@ namespace UnrealBuildTool
 			ActionType = (ActionType)Reader.ReadByte();
 			WorkingDirectory = Reader.ReadDirectoryReferenceNotNull();
 			CommandPath = Reader.ReadFileReference();
-			CommandArguments = Reader.ReadString();
-			CommandVersion = Reader.ReadString();
-			CommandDescription = Reader.ReadString();
-			StatusDescription = Reader.ReadString();
+			CommandArguments = Reader.ReadString()!;
+			CommandVersion = Reader.ReadString()!;
+			CommandDescription = Reader.ReadString()!;
+			StatusDescription = Reader.ReadString()!;
 			bCanExecuteRemotely = Reader.ReadBool();
 			bCanExecuteRemotelyWithSNDBS = Reader.ReadBool();
 			bIsGCCCompiler = Reader.ReadBool();
 			bShouldOutputStatusDescription = Reader.ReadBool();
 			bProducesImportLibrary = Reader.ReadBool();
-			PrerequisiteItems = Reader.ReadList(() => Reader.ReadFileItem());
-			ProducedItems = Reader.ReadList(() => Reader.ReadFileItem());
-			DeleteItems = Reader.ReadList(() => Reader.ReadFileItem());
+			PrerequisiteItems = Reader.ReadList(() => Reader.ReadFileItem())!;
+			ProducedItems = Reader.ReadList(() => Reader.ReadFileItem())!;
+			DeleteItems = Reader.ReadList(() => Reader.ReadFileItem())!;
 			DependencyListFile = Reader.ReadFileItem();
+			bUseActionHistory = Reader.ReadBool();
 		}
 
 		/// <summary>
@@ -289,6 +299,7 @@ namespace UnrealBuildTool
 			Writer.WriteList(ProducedItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteList(DeleteItems, Item => Writer.WriteFileItem(Item));
 			Writer.WriteFileItem(DependencyListFile);
+			Writer.WriteBool(bUseActionHistory);
 		}
 
 		/// <summary>
@@ -299,37 +310,37 @@ namespace UnrealBuildTool
 		{
 			Action Action = new Action(Object.GetEnumField<ActionType>("Type"));
 
-			string WorkingDirectory;
+			string? WorkingDirectory;
 			if(Object.TryGetStringField("WorkingDirectory", out WorkingDirectory))
 			{
 				Action.WorkingDirectory = new DirectoryReference(WorkingDirectory);
 			}
 
-			string CommandPath;
+			string? CommandPath;
 			if(Object.TryGetStringField("CommandPath", out CommandPath))
 			{
 				Action.CommandPath = new FileReference(CommandPath);
 			}
 			
-			string CommandArguments;
+			string? CommandArguments;
 			if(Object.TryGetStringField("CommandArguments", out CommandArguments))
 			{
 				Action.CommandArguments = CommandArguments;
 			}
 
-			string CommandVersion;
+			string? CommandVersion;
 			if (Object.TryGetStringField("CommandVersion", out CommandVersion))
 			{
 				Action.CommandVersion = CommandVersion;
 			}
 
-			string CommandDescription;
+			string? CommandDescription;
 			if(Object.TryGetStringField("CommandDescription", out CommandDescription))
 			{
 				Action.CommandDescription = CommandDescription;
 			}
 			
-			string StatusDescription;
+			string? StatusDescription;
 			if(Object.TryGetStringField("StatusDescription", out StatusDescription))
 			{
 				Action.StatusDescription = StatusDescription;
@@ -365,19 +376,19 @@ namespace UnrealBuildTool
 				Action.bProducesImportLibrary = bProducesImportLibrary;
 			}
 
-			string[] PrerequisiteItems;
+			string[]? PrerequisiteItems;
 			if (Object.TryGetStringArrayField("PrerequisiteItems", out PrerequisiteItems))
 			{
 				Action.PrerequisiteItems.AddRange(PrerequisiteItems.Select(x => FileItem.GetItemByPath(x)));
 			}
 
-			string[] ProducedItems;
+			string[]? ProducedItems;
 			if (Object.TryGetStringArrayField("ProducedItems", out ProducedItems))
 			{
 				Action.ProducedItems.AddRange(ProducedItems.Select(x => FileItem.GetItemByPath(x)));
 			}
 
-			string[] DeleteItems;
+			string[]? DeleteItems;
 			if (Object.TryGetStringArrayField("DeleteItems", out DeleteItems))
 			{
 				Action.DeleteItems.AddRange(DeleteItems.Select(x => FileItem.GetItemByPath(x)));
@@ -492,6 +503,11 @@ namespace UnrealBuildTool
 		public IExternalAction Inner;
 
 		/// <summary>
+		/// A target that this action contributes to
+		/// </summary>
+		public TargetDescriptor? Target;
+
+		/// <summary>
 		/// Set of other actions that this action depends on. This set is built when the action graph is linked.
 		/// </summary>
 		public HashSet<LinkedAction> PrerequisiteActions = null!;
@@ -524,6 +540,7 @@ namespace UnrealBuildTool
 		public bool bIsGCCCompiler => Inner.bIsGCCCompiler;
 		public bool bShouldOutputStatusDescription => Inner.bShouldOutputStatusDescription;
 		public bool bProducesImportLibrary => Inner.bProducesImportLibrary;
+		public bool bUseActionHistory => Inner.bUseActionHistory;
 
 		#endregion
 
@@ -531,9 +548,11 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Inner">The inner action instance</param>
-		public LinkedAction(IExternalAction Inner)
+		/// <param name="Target"></param>
+		public LinkedAction(IExternalAction Inner, TargetDescriptor? Target)
 		{
 			this.Inner = Inner;
+			this.Target = Target;
 		}
 
 		/// <summary>

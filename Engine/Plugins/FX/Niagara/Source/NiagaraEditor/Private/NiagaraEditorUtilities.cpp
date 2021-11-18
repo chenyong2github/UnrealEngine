@@ -908,7 +908,7 @@ void FNiagaraEditorUtilities::CompileExistingEmitters(const TArray<UNiagaraEmitt
 		for (UNiagaraEmitter* Emitter : AffectedEmitters)
 		{
 			// If we've already compiled this emitter, or it's invalid skip it.
-			if (Emitter == nullptr || CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
+			if (Emitter == nullptr || CompiledEmitters.Contains(Emitter) || !IsValidChecked(Emitter) || Emitter->IsUnreachable())
 			{
 				continue;
 			}
@@ -2774,7 +2774,7 @@ void FNiagaraEditorUtilities::RefreshAllScriptsFromExternalChanges(FRefreshAllSc
 
 	for (TObjectIterator<UNiagaraScript> It; It; ++It)
 	{
-		if (*It == OriginatingScript || It->IsPendingKillOrUnreachable())
+		if (*It == OriginatingScript || !IsValidChecked(*It))
 		{
 			continue;
 		}

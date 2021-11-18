@@ -32,10 +32,6 @@ const FName UOptimusNode::PropertyMeta::Output("Output");
 const FName UOptimusNode::PropertyMeta::Resource("Resource");
 
 
-// Cached list of node classes
-TArray<UClass*> UOptimusNode::CachedNodesClasses;
-
-
 UOptimusNode::UOptimusNode()
 {
 	// TODO: Clean up properties (i.e. remove EditAnywhere, VisibleAnywhere for outputs).
@@ -240,20 +236,20 @@ UOptimusNodePin* UOptimusNode::FindPinFromProperty(
 
 TArray<UClass*> UOptimusNode::GetAllNodeClasses()
 {
-	if (CachedNodesClasses.IsEmpty())
+	TArray<UClass*> NodeClasses;
+	
+	for (TObjectIterator<UClass> It; It; ++It)
 	{
-		for (TObjectIterator<UClass> It; It; ++It)
+		UClass* Class = *It;
+		
+		if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_Hidden) &&
+			Class->IsChildOf(StaticClass()) &&
+			Class->GetPackage() != GetTransientPackage())
 		{
-			UClass* Class = *It;
-			
-			if (!Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_Hidden) &&
-				Class->IsChildOf(StaticClass()))
-			{
-				CachedNodesClasses.Add(Class);
-			}
+			NodeClasses.Add(Class);
 		}
 	}
-	return CachedNodesClasses;
+	return NodeClasses;
 }
 
 
@@ -473,7 +469,7 @@ bool UOptimusNode::RemovePinDirect(UOptimusNodePin* InPin)
 		ExpandedPins.Remove(Pin->GetUniqueName());
 		
 		Pin->Rename(nullptr, GetTransientPackage());
-		Pin->MarkPendingKill();
+		Pin->MarkAsGarbage();
 	}
 
 	CachedPinLookup.Reset();

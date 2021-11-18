@@ -6,14 +6,14 @@
 #include "LevelSnapshotsModule.h"
 #include "Components/ActorComponent.h"
 
-FRemoveComponentScope::FRemoveComponentScope(UActorComponent* RemovedComponent)
+UE::LevelSnapshots::Private::FRemoveComponentScope::FRemoveComponentScope(UActorComponent* RemovedComponent)
 	:
 	Params({ RemovedComponent->GetOwner(), RemovedComponent->GetFName(), RemovedComponent })
 {
 	FLevelSnapshotsModule::GetInternalModuleInstance().OnPreRemoveComponent(RemovedComponent);
 }
 
-FRemoveComponentScope::~FRemoveComponentScope()
+UE::LevelSnapshots::Private::FRemoveComponentScope::~FRemoveComponentScope()
 {
 	FLevelSnapshotsModule::GetInternalModuleInstance().OnPostRemoveComponent(Params);
 }

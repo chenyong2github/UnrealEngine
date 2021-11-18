@@ -77,10 +77,10 @@ FCluster::FCluster(
 					GetColor( NewIndex ) = InVert.Color.ReinterpretAsLinear();
 				}
 
-				FVector2D* UVs = GetUVs( NewIndex );
+				FVector2f* UVs = GetUVs( NewIndex );
 				for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 				{
-					UVs[ UVIndex ] = InVert.UVs[ UVIndex ].ContainsNaN() ? FVector2D::ZeroVector : InVert.UVs[ UVIndex ];
+					UVs[ UVIndex ] = InVert.UVs[ UVIndex ].ContainsNaN() ? FVector2f::ZeroVector : InVert.UVs[ UVIndex ];
 				}
 
 				float* Attributes = GetAttributes( NewIndex );
@@ -237,14 +237,14 @@ float FCluster::Simplify( uint32 TargetNumTris, float TargetError, uint32 Target
 
 		SurfaceArea += 0.5f * ( Edge1 ^ Edge2 ).Size();
 
-		FVector2D* UV0 = GetUVs( Index0 );
-		FVector2D* UV1 = GetUVs( Index1 );
-		FVector2D* UV2 = GetUVs( Index2 );
+		FVector2f* UV0 = GetUVs( Index0 );
+		FVector2f* UV1 = GetUVs( Index1 );
+		FVector2f* UV2 = GetUVs( Index2 );
 
 		for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 		{
-			FVector2D EdgeUV1 = UV1[ UVIndex ] - UV0[ UVIndex ];
-			FVector2D EdgeUV2 = UV2[ UVIndex ] - UV0[ UVIndex ];
+			FVector2f EdgeUV1 = UV1[ UVIndex ] - UV0[ UVIndex ];
+			FVector2f EdgeUV2 = UV2[ UVIndex ] - UV0[ UVIndex ];
 			float SignedArea = 0.5f * ( EdgeUV1 ^ EdgeUV2 );
 			UVArea[ UVIndex ] += FMath::Abs( SignedArea );
 
@@ -735,7 +735,7 @@ void FCluster::Bound()
 
 		Cluster.ConeAxis = -NormalCone.Axis;
 		Cluster.ConeCosAngle = SinAngle;
-		Cluster.ConeStart = FVector2D( -MAX_FLT, MAX_FLT );
+		Cluster.ConeStart = FVector2f( -MAX_FLT, MAX_FLT );
 		
 		// Push half space cone outside of every triangle's half space.
 		for( int i = 0; i < Cluster.Indexes.Num(); i += 3 )
@@ -763,7 +763,7 @@ void FCluster::Bound()
 		// No valid region to backface cull
 		Cluster.ConeAxis = FVector3f( 0.0f, 0.0f, 1.0f );
 		Cluster.ConeCosAngle = 2.0f;
-		Cluster.ConeStart = FVector2D::ZeroVector;
+		Cluster.ConeStart = FVector2f:ZeroVector;
 	}
 #endif
 }

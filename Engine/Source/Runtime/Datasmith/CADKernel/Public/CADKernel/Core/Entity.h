@@ -60,6 +60,11 @@ namespace CADKernel
 	public:
 		virtual ~FEntity();
 
+		virtual void Delete()
+		{
+			SetDeleted();
+		}
+
 		template<typename OtherEntity, typename... InArgTypes>
 		static TSharedRef<OtherEntity> MakeShared(InArgTypes&&... Args)
 		{

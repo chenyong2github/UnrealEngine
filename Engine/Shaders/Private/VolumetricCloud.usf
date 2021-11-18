@@ -32,13 +32,6 @@
 #define CLOUD_SAMPLE_LOCAL_LIGHTS 0
 #endif
 
-#if CLOUD_SAMPLE_LOCAL_LIGHTS
-#define ForwardLightData RenderVolumetricCloudParameters.ForwardLightData
-#include "LightGridCommon.ush"
-#define SUPPORT_CONTACT_SHADOWS 0
-#include "DeferredLightingCommon.ush"
-#endif
-
 #if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
@@ -114,6 +107,13 @@ float SampleAmbientOcclusion(in FPixelMaterialInputs PixelMaterialInputs)
 
 #endif
 
+#endif
+
+#if CLOUD_SAMPLE_LOCAL_LIGHTS
+#define ForwardLightData RenderVolumetricCloudParameters.ForwardLightData
+#include "LightGridCommon.ush"
+#define SUPPORT_CONTACT_SHADOWS 0
+#include "DeferredLightingCommon.ush"
 #endif
 
 

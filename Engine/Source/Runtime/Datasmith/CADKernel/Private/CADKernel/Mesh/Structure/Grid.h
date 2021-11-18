@@ -70,6 +70,8 @@ namespace CADKernel
 
 		const TSharedRef<FTopologicalFace> Face;
 		const FSurfacicTolerance FaceTolerance;
+		const double Tolerance3D;
+		const double MinimumElementSize;
 
 		TSharedRef<FModelMesh> MeshModel;
 
@@ -209,6 +211,12 @@ namespace CADKernel
 		void ScaleLoops();
 
 		/**
+		 * After the loops have been scaled, the distance between two consecutive vertices is verified to avoid degenerated mesh elements
+		 * @ return false if the external loop is degenerated after the process
+		 */
+		bool RemoveCoincidentNodes();
+
+		/**
 		 * Convert Coordinate of "DefaultParametric" space into a scaled parametric space
 		 * @see ScaleLoops
 		 */
@@ -255,7 +263,7 @@ namespace CADKernel
 		 * Gets the cutting coordinates of the existing mesh of bordering edges (loop's edges)
 		 * @see DefineCuttingParameters (called in DefineCuttingParameters)
 		 */
-		void GetPreferredUVCoordinatesFromNeighbours(FCuttingGrid& NeighboursCutting);
+		void GetPreferredUVCuttingParametersFromLoops(FCuttingGrid& CuttingFromLoops);
 
 		void ComputeMaxElementSize();
 		void ComputeMaxDeltaUV();
@@ -347,6 +355,11 @@ namespace CADKernel
 		const FPoint2D& GetInner2DPoint(EGridSpace Space, int32 Index) const
 		{
 			return Points2D[(int32)Space][Index];
+		}
+
+		void SetInner2DPoint(EGridSpace Space, int32 Index, const FPoint2D& NewCoordinate)
+		{
+			Points2D[(int32)Space][Index] = NewCoordinate;
 		}
 
 		/**
@@ -456,6 +469,11 @@ namespace CADKernel
 			return FaceLoops2D[(int32)Space][LoopIndex][Index];
 		}
 
+		void SetLoop2DPoint(EGridSpace Space, int32 LoopIndex, int32 Index, const FPoint2D& NewCoordinate)
+		{
+			FaceLoops2D[(int32)Space][LoopIndex][Index] = NewCoordinate;
+		}
+
 		const FPoint& GetLoop3DPoint(int32 LoopIndex, int32 Index) const
 		{
 			return FaceLoops3D[LoopIndex][Index];
@@ -515,11 +533,11 @@ namespace CADKernel
 		}
 
 		/**
-		 * @return the minimal size of the mesh elements in the grid
+		 * @return the minimal size of the mesh elements according to 3d geometric tolerance
 		 */
 		double GetMinElementSize() const
 		{
-			return MinOfMaxElementSize;
+			return MinimumElementSize;
 		}
 
 		// ======================================================================================================================================================================================================================

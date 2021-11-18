@@ -472,10 +472,10 @@ public:
 		{
 			if (CardBuildData.LODLevel == LODLevel)
 			{
-				const FVector3f AxisX = InstanceToMerged.TransformVector(CardBuildData.OBB.AxisX);
-				const FVector3f AxisY = InstanceToMerged.TransformVector(CardBuildData.OBB.AxisY);
-				const FVector3f AxisZ = InstanceToMerged.TransformVector(CardBuildData.OBB.AxisZ);
-				const FVector3f Extent = CardBuildData.OBB.Extent * FVector(AxisX.Length(), AxisY.Length(), AxisZ.Length());
+				const FVector3f AxisX = FVector4f(InstanceToMerged.TransformVector(CardBuildData.OBB.AxisX));
+				const FVector3f AxisY = FVector4f(InstanceToMerged.TransformVector(CardBuildData.OBB.AxisY));
+				const FVector3f AxisZ = FVector4f(InstanceToMerged.TransformVector(CardBuildData.OBB.AxisZ));
+				const FVector3f Extent = CardBuildData.OBB.Extent * FVector3f(AxisX.Length(), AxisY.Length(), AxisZ.Length());
 
 				const float InstanceCardArea = Extent.X * Extent.Y;
 				const FVector3f CardDirection = AxisZ.GetUnsafeNormal();

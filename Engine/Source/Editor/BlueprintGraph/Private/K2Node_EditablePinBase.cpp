@@ -119,7 +119,7 @@ void UK2Node_EditablePinBase::RemoveUserDefinedPinByName(const FName PinName)
 			Pin->Modify();
 
 			Pins.Remove(Pin);
-			Pin->MarkPendingKill();
+			Pin->MarkAsGarbage();
 
 			if (UBlueprint* Blueprint = GetBlueprint())
 			{

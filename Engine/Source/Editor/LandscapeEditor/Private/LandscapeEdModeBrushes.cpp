@@ -50,7 +50,7 @@ class FLandscapeBrushCircle : public FLandscapeBrush
 	TArray<UMaterialInstanceDynamic*> BrushMaterialFreeInstances;
 
 protected:
-	FVector2D LastMousePosition;
+	FVector2f LastMousePosition;
 	UMaterialInterface* BrushMaterial;
 	TMap<ULandscapeComponent*, UMaterialInstanceDynamic*> BrushMaterialInstanceMap;
 	bool bCanPaint;
@@ -1230,7 +1230,7 @@ public:
 class FLandscapeBrushAlpha : public FLandscapeBrushAlphaBase
 {
 	float LastMouseAngle;
-	FVector2D OldMousePosition;	// a previous mouse position, kept until we move a certain distance away, for smoothing deltas
+	FVector2f OldMousePosition;	// a previous mouse position, kept until we move a certain distance away, for smoothing deltas
 	double LastMouseSampleTime;
 
 protected:
@@ -1348,12 +1348,12 @@ public:
 		if (EdMode->UISettings->bAlphaBrushAutoRotate)
 		{
 			// don't do anything with the angle unless we move at least 0.1 units.
-			FVector2D MouseDelta = LastMousePosition - OldMousePosition;
+			FVector2f MouseDelta = LastMousePosition - OldMousePosition;
 			if (MouseDelta.SizeSquared() >= FMath::Square(0.5f))
 			{
 				double SampleTime = FPlatformTime::Seconds();
 				float DeltaTime = (float)(SampleTime - LastMouseSampleTime);
-				FVector2D MouseDirection = MouseDelta.GetSafeNormal();
+				FVector2f MouseDirection = MouseDelta.GetSafeNormal();
 				float MouseAngle = FMath::Lerp(LastMouseAngle, FMath::Atan2(-MouseDirection.Y, MouseDirection.X), FMath::Min<float>(10.0f * DeltaTime, 1.0f));		// lerp over 100ms
 				LastMouseAngle = MouseAngle;
 				LastMouseSampleTime = SampleTime;

@@ -100,6 +100,9 @@ FSlateProvider::FSlateProvider(TraceServices::IAnalysisSession& InSession)
 	, ApplicationTickedTimeline(Session.GetLinearAllocator())
 	, WidgetUpdatedTimeline(Session.GetLinearAllocator())
 	, WidgetInvalidatedTimeline(Session.GetLinearAllocator())
+	, WidgetPaintTimelines(Session.GetLinearAllocator())
+	, WidgetUpdateStepsBufferNumber(0)
+	, bAcceptWidgetUpdateStepsComand(true)
 {
 }
 
@@ -167,6 +170,114 @@ void FSlateProvider::ProcessInvalidationCallstack(Message::FInvalidationCallstac
 	Session.WriteAccessCheck();
 
 	InvalidationCallstacks.Add(CallstackMessage.SourceCycle, CallstackMessage.Callstack);
+}
+
+void FSlateProvider::ProcessWidgetUpdateSteps(const UE::Trace::IAnalyzer::FEventTime& EventTime, const UE::Trace::IAnalyzer::FEventData& EventData)
+{
+	Session.WriteAccessCheck();
+
+	const UE::Trace::IAnalyzer::TArrayReader<uint8>& EventBuffer = EventData.GetArray<uint8>("Buffer");
+	uint32 BufferIndex = 0;
+
+	auto Readuint8 = [&EventBuffer, &BufferIndex]() -> uint8
+	{
+		uint8 Result = EventBuffer[BufferIndex];
+		++BufferIndex;
+		return Result;
+	};
+
+	auto Readuint32 = [&EventBuffer, &BufferIndex]() -> uint32
+	{
+		uint32 Result = *reinterpret_cast<const uint32*>(EventBuffer.GetData() + BufferIndex);
+#if !PLATFORM_LITTLE_ENDIAN
+		Algo::Reverse(&Result, sizeof(uint32));
+#endif
+		BufferIndex += sizeof(uint32);
+		return Result;
+	};
+
+	auto Readuint64 = [&EventBuffer, &BufferIndex]() -> uint64
+	{
+		uint64 Result = *reinterpret_cast<const uint64*>(EventBuffer.GetData() + BufferIndex);
+#if !PLATFORM_LITTLE_ENDIAN
+		Algo::Reverse(&Result, sizeof(uint64));
+#endif
+		BufferIndex += sizeof(uint64);
+		return Result;
+	};
+
+	auto HandleError = [this]()
+	{
+		while (WidgetUpdateStepsEventIndexes.Num())
+		{
+			const TTuple<uint64, Message::FWidgetId> LastEntry = WidgetUpdateStepsEventIndexes.Pop(false);
+			WidgetPaintTimelines.EndEvent(LastEntry.Get<0>(), std::numeric_limits<double>::max());
+		}
+		bAcceptWidgetUpdateStepsComand = false;
+	};
+
+	uint8 kWidgetUpdateStepsCommand_NewRootPaint = 0xE0;
+	uint8 kWidgetUpdateStepsCommand_StartPaint = 0xE1;	//[cycle][widgetid]
+	uint8 kWidgetUpdateStepsCommand_EndPaint = 0xE2;	//[cycle]
+	uint8 kWidgetUpdateStepsCommand_NewBuffer = 0xE7;	//[buffer index]
+
+	const uint8* Buffer = EventBuffer.GetData();
+
+	if (EventBuffer.Num())
+	{
+		// the start of the buffer should be an increasing number
+		if (EventBuffer[0] == kWidgetUpdateStepsCommand_NewBuffer)
+		{
+			const uint8 CommandId = Readuint8();
+			check(CommandId == kWidgetUpdateStepsCommand_NewBuffer);
+			uint32 NewBufferIndex = Readuint32();
+			if (NewBufferIndex != WidgetUpdateStepsBufferNumber + 1)
+			{
+				HandleError();
+			}
+			WidgetUpdateStepsBufferNumber = NewBufferIndex;
+		}
+	}
+
+	while(BufferIndex < EventBuffer.Num())
+	{
+		const uint8 CommandId = Readuint8();
+		if (CommandId == kWidgetUpdateStepsCommand_StartPaint)
+		{
+			const uint64 Cycle = Readuint64();
+			const uint64 WidgetId = Readuint64();
+			const double Seconds = EventTime.AsSeconds(Cycle);
+
+			if (bAcceptWidgetUpdateStepsComand)
+			{
+				Message::FWidgetUpdateStep WidgetUpdate;
+				WidgetUpdate.WidgetId = WidgetId;
+				WidgetUpdate.Depth = WidgetUpdateStepsEventIndexes.Num();
+				WidgetUpdate.UpdateStep = Message::FWidgetUpdateStep::EUpdateStepType::Paint;
+				uint64 EventIndex = WidgetPaintTimelines.EmplaceBeginEvent(Seconds, WidgetUpdate);
+				WidgetUpdateStepsEventIndexes.Emplace(EventIndex, WidgetId);
+			}
+		}
+		else if (CommandId == kWidgetUpdateStepsCommand_EndPaint)
+		{
+			const uint64 Cycle = Readuint64();
+			const double Seconds = EventTime.AsSeconds(Cycle);
+			if (bAcceptWidgetUpdateStepsComand)
+			{
+				const TTuple<uint64, Message::FWidgetId> LastEntry = WidgetUpdateStepsEventIndexes.Pop(false);
+				WidgetPaintTimelines.EndEvent(LastEntry.Get<0>(), Seconds);
+			}
+		}
+		else if (CommandId == kWidgetUpdateStepsCommand_NewRootPaint)
+		{
+			HandleError();
+			bAcceptWidgetUpdateStepsComand = true;
+		}
+		else
+		{
+			HandleError();
+		}
+	}
 }
 
 } //namespace SlateInsights

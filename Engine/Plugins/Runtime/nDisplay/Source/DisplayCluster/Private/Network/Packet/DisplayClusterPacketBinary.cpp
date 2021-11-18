@@ -13,11 +13,11 @@ bool FDisplayClusterPacketBinary::SendPacket(FDisplayClusterSocketOperations& So
 
 	if (!SocketOps.IsOpen())
 	{
-		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s not connected"), *SocketOps.GetSocket()->GetDescription());
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s not connected"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - sending binary..."), *SocketOps.GetSocket()->GetDescription());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - sending binary..."), *SocketOps.GetConnectionName());
 
 	// We'll be working with internal buffer to save some time on memcpy operation
 	TArray<uint8>& DataBuffer = SocketOps.GetPersistentBuffer();
@@ -29,7 +29,7 @@ bool FDisplayClusterPacketBinary::SendPacket(FDisplayClusterSocketOperations& So
 	// Fill packet header with data and write to the buffer
 	FPacketHeader PacketHeader;
 	PacketHeader.PacketBodyLength = static_cast<uint32>(PacketData.Num());
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - Outgoing packet body length %d"), *SocketOps.GetSocket()->GetDescription(), PacketHeader.PacketBodyLength);
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - Outgoing packet body length %d"), *SocketOps.GetConnectionName(), PacketHeader.PacketBodyLength);
 	FMemory::Memcpy(DataBuffer.GetData() + WriteOffset, &PacketHeader, sizeof(FPacketHeader));
 	WriteOffset += sizeof(FPacketHeader);
 
@@ -40,11 +40,11 @@ bool FDisplayClusterPacketBinary::SendPacket(FDisplayClusterSocketOperations& So
 	// Send packet
 	if (!SocketOps.SendChunk(DataBuffer, WriteOffset, FString("send-binary")))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Warning, TEXT("%s - couldn't send binary data"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s - couldn't send binary data"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - Binary packet sent"), *SocketOps.GetConnectionName());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - Binary packet sent"), *SocketOps.GetConnectionName());
 	return true;
 }
 
@@ -65,25 +65,25 @@ bool FDisplayClusterPacketBinary::RecvPacket(FDisplayClusterSocketOperations& So
 	DataBuffer.Reset();
 	if (!SocketOps.RecvChunk(DataBuffer, sizeof(FPacketHeader), FString("recv-binary-chunk-header")))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - couldn't receive binary packet header. Remote host has disconnected."), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s - couldn't receive binary packet header. Remote host has disconnected."), *SocketOps.GetConnectionName());
 		return false;
 	}
 
 	// Now we can extract header data
 	FPacketHeader PacketHeader;
 	FMemory::Memcpy(&PacketHeader, DataBuffer.GetData(), sizeof(FPacketHeader));
-	UE_LOG(LogDisplayClusterNetworkMsg, VeryVerbose, TEXT("%s - binary header received: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - binary header received: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
 	check(PacketHeader.PacketBodyLength > 0);
 
 	// Read packet body
 	DataBuffer.Reset();
 	if (!SocketOps.RecvChunk(PacketData, PacketHeader.PacketBodyLength, FString("recv-binary-chunk-data")))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Warning, TEXT("%s - couldn't receive binary packet body"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s - couldn't receive binary packet body"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterNetworkMsg, VeryVerbose, TEXT("%s - binary body received"), *SocketOps.GetConnectionName());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - binary body received"), *SocketOps.GetConnectionName());
 
 	return true;
 }

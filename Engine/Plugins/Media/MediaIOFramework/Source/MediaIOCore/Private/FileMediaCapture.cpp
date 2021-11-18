@@ -65,7 +65,7 @@ namespace FileMediaCaptureAnalytics
 }
 #endif
 
-void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height)
+void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow)
 {
 	IImageWriteQueueModule* ImageWriteQueueModule = FModuleManager::Get().GetModulePtr<IImageWriteQueueModule>("ImageWriteQueue");
 	if (ImageWriteQueueModule == nullptr)
@@ -84,12 +84,18 @@ void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& 
 	EPixelFormat PixelFormat = GetDesiredPixelFormat();
 	if (PixelFormat == PF_B8G8R8A8)
 	{
+		// We only support tightly packed rows without padding
+		check((BytesPerRow == 0) || (BytesPerRow == (Width * 4)));
+
 		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(Width, Height),
 			TArray<FColor, FDefaultAllocator64>(reinterpret_cast<FColor*>(InBuffer), Width * Height));
 		ImageTask->PixelData = MoveTemp(PixelData);
 	}
 	else if (PixelFormat == PF_FloatRGBA)
 	{
+		// We only support tightly packed rows without padding
+		check((BytesPerRow == 0) || (BytesPerRow == (Width * 16)));
+
 		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(Width, Height), 
 			TArray<FFloat16Color, FDefaultAllocator64>(reinterpret_cast<FFloat16Color*>(InBuffer), Width * Height));
 		ImageTask->PixelData = MoveTemp(PixelData);

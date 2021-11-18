@@ -274,6 +274,13 @@ FArchive& operator<<(FArchive& Ar, FMeshToMeshVertData& V)
 	return Ar;
 }
 
+FArchive& operator<<(FArchive& Ar, FClothBufferIndexMapping& ClothBufferIndexMapping)
+{
+	return Ar
+		<< ClothBufferIndexMapping.BaseVertexIndex
+		<< ClothBufferIndexMapping.MappingOffset
+		<< ClothBufferIndexMapping.LODBiasStride;
+}
 
 /*-----------------------------------------------------------------------------
 FreeSkeletalMeshBuffersSinkCallback
@@ -1400,6 +1407,25 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	
+	if (GIsEditor &&
+		PropertyThatChanged &&
+		(PropertyThatChanged->GetFName() == FName(TEXT("bSupportRayTracing")) ||
+		 PropertyThatChanged->GetFName() == FName(TEXT("RayTracingMinLOD")) ||
+		 PropertyThatChanged->GetFName() == FName(TEXT("ClothLODBiasMode"))))
+	{
+		// Update the extra cloth deformer mapping LOD bias using this cloth entry
+		for (UClothingAssetBase* const ClothingAsset : GetMeshClothingAssets())
+		{
+			if (ClothingAsset)
+			{
+				ClothingAsset->UpdateAllLODBiasMappings(this);
+			}
+		}
+
+		// Invalidate the DDC, since the bias mappings are cached with the mesh sections, this needs to be done before the call to Build()
+		InvalidateDeriveDataCacheGUID();
+	}
+
 	bool bWasBuilt = false;
 	bool bHasToReregisterComponent = false;
 	// Don't invalidate render data when dragging sliders, too slow
@@ -1985,6 +2011,15 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 	*/
 }
 
+void USkeletalMesh::DeclareCustomVersions(FArchive& Ar)
+{
+	Super::DeclareCustomVersions(Ar);
+	FSkeletalMaterial::DeclareCustomVersions(Ar);
+#if WITH_EDITORONLY_DATA
+	FSkeletalMeshLODModel::DeclareCustomVersions(Ar);
+#endif
+}
+
 void USkeletalMesh::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 {
 	Super::GetPreloadDependencies(OutDeps);
@@ -2512,10 +2547,11 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 						// Mapping data for clothing could be built either on the source or the
 						// duplicated section and has changed a few times, so check here for
 						// where to get our data from
-						if(DuplicatedSection.ClothMappingData.Num() > 0)
+						constexpr int32 ClothLODBias = 0;  // There isn't any cloth LOD bias on legacy sections
+						if (DuplicatedSection.ClothMappingDataLODs.Num() && DuplicatedSection.ClothMappingDataLODs[ClothLODBias].Num())
 						{
 							Section.ClothingData = DuplicatedSection.ClothingData;
-							Section.ClothMappingData = DuplicatedSection.ClothMappingData;
+							Section.ClothMappingDataLODs = DuplicatedSection.ClothMappingDataLODs;
 						}
 
 						Section.CorrespondClothAssetIndex = GetMeshClothingAssets().IndexOfByPredicate([&Section](const UClothingAssetBase* CurrAsset)
@@ -2543,7 +2579,7 @@ void USkeletalMesh::RemoveLegacyClothingSections()
 						Section.CorrespondClothAssetIndex = INDEX_NONE;
 						Section.ClothingData.AssetGuid = FGuid();
 						Section.ClothingData.AssetLodIndex = INDEX_NONE;
-						Section.ClothMappingData.Empty();
+						Section.ClothMappingDataLODs.Empty();
 					}
 				}
 
@@ -4305,6 +4341,12 @@ FArchive& operator<<(FArchive& Ar, FMeshUVChannelInfo& ChannelData)
 	}
 
 	return Ar;
+}
+
+void FSkeletalMaterial::DeclareCustomVersions(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	Ar.UsingCustomVersion(FCoreObjectVersion::GUID);
 }
 
 FArchive& operator<<(FArchive& Ar, FSkeletalMaterial& Elem)
@@ -6611,9 +6653,9 @@ void FSkeletalMeshSceneProxy::GetShadowShapes(TArray<FCapsuleShape3f>& CapsuleSh
 
 		FCapsuleShape3f& NewCapsule = CapsuleShapes[CapsuleIndex++];
 
-		NewCapsule.Center = ReferenceToWorld.TransformPosition(CapsuleData.Value.Center);
+		NewCapsule.Center = (FVector4f)ReferenceToWorld.TransformPosition(CapsuleData.Value.Center);
 		NewCapsule.Radius = CapsuleData.Value.Radius * MaxScale;
-		NewCapsule.Orientation = ReferenceToWorld.TransformVector(CapsuleData.Value.Orientation).GetSafeNormal();
+		NewCapsule.Orientation = (FVector4f)ReferenceToWorld.TransformVector(CapsuleData.Value.Orientation).GetSafeNormal();
 		NewCapsule.Length = CapsuleData.Value.Length * MaxScale;
 	}
 }
@@ -7037,9 +7079,9 @@ void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSec
 	const int32 BufferVertIndex = Section.GetVertexBufferIndex() + VertIndex;
 	const int32 MaxBoneInfluences = SkinWeightVertexBuffer.GetMaxBoneInfluences();
 
-	const FVector VertexTangentX = StaticVertexBuffer.VertexTangentX(BufferVertIndex);
-	const FVector VertexTangentY = StaticVertexBuffer.VertexTangentY(BufferVertIndex);
-	const FVector VertexTangentZ = StaticVertexBuffer.VertexTangentZ(BufferVertIndex);
+	const FVector3f VertexTangentX = StaticVertexBuffer.VertexTangentX(BufferVertIndex);
+	const FVector3f VertexTangentY = StaticVertexBuffer.VertexTangentY(BufferVertIndex);
+	const FVector3f VertexTangentZ = StaticVertexBuffer.VertexTangentZ(BufferVertIndex);
 
 #if !PLATFORM_LITTLE_ENDIAN
 	// uint8[] elements in LOD.VertexBufferGPUSkin have been swapped for VET_UBYTE4 vertex stream use
@@ -7049,7 +7091,7 @@ void GetRefTangentBasisTyped(const USkeletalMesh* Mesh, const FSkelMeshRenderSec
 #endif
 	{
 		const float	Weight = (float)SkinWeightVertexBuffer.GetBoneWeight(BufferVertIndex, InfluenceIndex) / 255.0f;
-		const FMatrix BoneTransformMatrix = FMatrix::Identity;
+		const FMatrix44f BoneTransformMatrix = FMatrix44f::Identity;
 		OutTangentX += BoneTransformMatrix.TransformVector(VertexTangentX) * Weight;
 		OutTangentY += BoneTransformMatrix.TransformVector(VertexTangentY) * Weight;
 		OutTangentZ += BoneTransformMatrix.TransformVector(VertexTangentZ) * Weight;

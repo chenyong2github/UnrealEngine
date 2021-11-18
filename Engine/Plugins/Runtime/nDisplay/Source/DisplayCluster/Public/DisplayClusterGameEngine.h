@@ -12,7 +12,7 @@
 
 
 class IPDisplayClusterClusterManager;
-class IDisplayClusterNodeController;
+class IDisplayClusterClusterNodeController;
 class IDisplayClusterClusterSyncObject;
 class UDisplayClusterConfigurationData;
 
@@ -64,12 +64,10 @@ private:
 private:
 	IPDisplayClusterClusterManager* ClusterMgr = nullptr;
 
-	IDisplayClusterNodeController* NodeController = nullptr;
-
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
 	EDisplayClusterOperationMode OperationMode = EDisplayClusterOperationMode::Disabled;
-	EDisplayClusterRunningMode  RunningMode = EDisplayClusterRunningMode::Startup;
+	EDisplayClusterRunningMode   RunningMode = EDisplayClusterRunningMode::Startup;
 
 	TMap<FString, TSet<FString>> SyncMap;
 };

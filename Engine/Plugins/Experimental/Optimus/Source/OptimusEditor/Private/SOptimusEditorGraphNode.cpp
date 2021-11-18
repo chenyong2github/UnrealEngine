@@ -516,7 +516,7 @@ void SOptimusEditorGraphNode::Tick(
 		// These will be deleted on the next tick.
 		for (UEdGraphPin *PinToDelete: PinsToDelete)
 		{
-			PinToDelete->MarkPendingKill();
+			PinToDelete->MarkAsGarbage();
 		}
 		PinsToDelete.Reset();
 	}

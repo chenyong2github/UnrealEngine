@@ -94,7 +94,7 @@ public:
 
 	/** Returns current session. If one doesn't exist, it gets created. */
 	virtual UMLAdapterSession& GetSession();
-	bool HasSession() const { return Session && (Session->IsPendingKillOrUnreachable() == false); }
+	bool HasSession() const { return IsValid(Session) && (Session->IsUnreachable() == false); }
 
 	void RegisterSensorClass(const TSubclassOf<UMLAdapterSensor>& Class) { Librarian.RegisterSensorClass(Class); }
 	void RegisterActuatorClass(const TSubclassOf<UMLAdapterActuator>& Class) { Librarian.RegisterActuatorClass(Class); }

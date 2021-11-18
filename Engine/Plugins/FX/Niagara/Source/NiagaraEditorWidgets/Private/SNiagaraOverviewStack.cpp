@@ -857,11 +857,11 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				ContentBox->AddSlot()
 					.VAlign(VAlign_Center)
 					.AutoWidth()
-					.Padding(3, 0, 0, 0)
+					.Padding(3, 0, 3, 1)
 					[					
 						SNew(SImage)
 						.ToolTipText(LOCTEXT("ScratchPadOverviewTooltip", "This module is a scratch pad script."))
-						.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
+						.Image(FNiagaraEditorStyle::Get().GetBrush("Tab.ScratchPad"))
 					];
 			}
 			

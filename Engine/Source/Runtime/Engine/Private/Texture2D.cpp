@@ -64,9 +64,6 @@
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PrivatePlatformData(nullptr)
-	, PlatformData(
-		[this]()-> FTexturePlatformData* { return GetPlatformData(); },
-		[this](FTexturePlatformData* InPlatformData) { SetPlatformData(InPlatformData); })
 {
 	PendingUpdate = nullptr;
 	SRGB = true;
@@ -370,8 +367,8 @@ int32 UTexture2D::GetMipTailBaseIndex() const
 			return GetDefaultTexture2D(this)->GetMipTailBaseIndex();
 		}
 #endif
-		const int32 NumMipsInTail = PlatformData->GetNumMipsInTail();
-		return FMath::Max(0, NumMipsInTail > 0 ? (PlatformData->Mips.Num() - NumMipsInTail) : (PlatformData->Mips.Num() - 1));
+		const int32 NumMipsInTail = GetPlatformData()->GetNumMipsInTail();
+		return FMath::Max(0, NumMipsInTail > 0 ? (GetPlatformData()->Mips.Num() - NumMipsInTail) : (GetPlatformData()->Mips.Num() - 1));
 	}
 	return 0;
 }
@@ -917,7 +914,7 @@ bool UTexture2D::HasAlphaChannel() const
 bool UTexture2D::GetStreamableRenderResourceState(FTexturePlatformData* InPlatformData, FStreamableRenderResourceState& OutState) const
 {
 	TGuardValue<FTexturePlatformData*> Guard(const_cast<UTexture2D*>(this)->PrivatePlatformData, InPlatformData);
-	if (PlatformData)
+	if (GetPlatformData())
 	{
 		if (IsCurrentlyVirtualTextured())
 		{
@@ -925,11 +922,11 @@ bool UTexture2D::GetStreamableRenderResourceState(FTexturePlatformData* InPlatfo
 		}
 
 		const EPixelFormat PixelFormat = GetPixelFormat();
-		const int32 NumMips = FMath::Min3<int32>(PlatformData->Mips.Num(), GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
+		const int32 NumMips = FMath::Min3<int32>(GetPlatformData()->Mips.Num(), GMaxTextureMipCount, FStreamableRenderResourceState::MAX_LOD_COUNT);
 		if (NumMips && GPixelFormats[PixelFormat].Supported &&
 			(NumMips > 1 || FMath::Max(GetSizeX(), GetSizeY()) <= (int32)GetMax2DTextureDimension()))
 		{
-			OutState = GetResourcePostInitState(PlatformData, true, 0, NumMips, /*bSkipCanBeLoaded*/ true);
+			OutState = GetResourcePostInitState(GetPlatformData(), true, 0, NumMips, /*bSkipCanBeLoaded*/ true);
 			return true;
 		}
 	}
@@ -991,7 +988,7 @@ FTextureResource* UTexture2D::CreateResource()
 			else
 			{
 				// Should be as big as the mips we have already directly loaded into GPU mem
-				const FStreamableRenderResourceState PostInitState = GetResourcePostInitState(PlatformData, !bTemporarilyDisableStreaming, ResourceMem ? ResourceMem->GetNumMips() : 0, NumMips);
+				const FStreamableRenderResourceState PostInitState = GetResourcePostInitState(GetPlatformData(), !bTemporarilyDisableStreaming, ResourceMem ? ResourceMem->GetNumMips() : 0, NumMips);
 				FTexture2DResource* Texture2DResource = new FTexture2DResource(this, PostInitState);
 				// preallocated memory for the UTexture2D resource is now owned by this resource
 				// and will be freed by the RHI resource or when the FTexture2DResource is deleted

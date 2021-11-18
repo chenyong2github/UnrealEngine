@@ -445,7 +445,14 @@ namespace SubdividePolyLocal
 				}
 			}
 
-			UVOverlay->SetTriangle(TriangleIndex, UVTri);
+			if (UVTri[0] == FDynamicMesh3::InvalidID || UVTri[1] == FDynamicMesh3::InvalidID || UVTri[2] == FDynamicMesh3::InvalidID)
+			{
+				UVOverlay->UnsetTriangle(TriangleIndex);
+			}
+			else
+			{
+				UVOverlay->SetTriangle(TriangleIndex, UVTri);
+			}
 		}
 	}
 

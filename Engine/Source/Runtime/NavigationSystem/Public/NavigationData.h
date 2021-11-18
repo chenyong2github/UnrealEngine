@@ -226,7 +226,9 @@ struct NAVIGATIONSYSTEM_API FNavigationPath : public TSharedFromThis<FNavigation
 	  * This function will NOT reset setup variables like goal actor, filter, observer, etc */
 	virtual void ResetForRepath();
 
+	UE_DEPRECATED(5.0, "Use version that takes LifeTime instead.")
 	virtual void DebugDraw(const ANavigationData* NavData, FColor PathColor, class UCanvas* Canvas, bool bPersistent, const uint32 NextPathPointIndex = 0) const;
+	virtual void DebugDraw(const ANavigationData* NavData, const FColor PathColor, class UCanvas* Canvas, const bool bPersistent, const float LifeTime, const uint32 NextPathPointIndex = 0) const;
 	
 #if ENABLE_VISUAL_LOG
 	virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
@@ -695,11 +697,11 @@ public:
 		ObservedPaths.Add(SharedPath);
 	}
 
-    void RequestRePath(FNavPathSharedPtr Path, ENavPathUpdateType::Type Reason)
-    {
-	    check(IsInGameThread());
-	    RepathRequests.AddUnique(FNavPathRecalculationRequest(Path, Reason)); 
-    }
+	void RequestRePath(FNavPathSharedPtr Path, ENavPathUpdateType::Type Reason)
+	{
+		check(IsInGameThread());
+		RepathRequests.AddUnique(FNavPathRecalculationRequest(Path, Reason)); 
+	}
 
 protected:
 	/** removes from ActivePaths all paths that no longer have shared references (and are invalid in fact) */
@@ -725,7 +727,9 @@ public:
 	//----------------------------------------------------------------------//
 	// Debug                                                                
 	//----------------------------------------------------------------------//
-	void DrawDebugPath(FNavigationPath* Path, FColor PathColor = FColor::White, class UCanvas* Canvas = NULL, bool bPersistent = true, const uint32 NextPathPointIndex = 0) const;
+	UE_DEPRECATED(5.0, "Use version that takes LifeTime instead.")
+	void DrawDebugPath(FNavigationPath* Path, const FColor PathColor, class UCanvas* Canvas, const bool bPersistent, const uint32 NextPathPointIndex) const;
+	void DrawDebugPath(FNavigationPath* Path, const FColor PathColor = FColor::White, class UCanvas* Canvas = nullptr, const bool bPersistent = true, const float LifeTime = -1.f, const uint32 NextPathPointIndex = 0) const;
 
 	FORCEINLINE bool IsDrawingEnabled() const { return bEnableDrawing; }
 

@@ -9,12 +9,15 @@ class FDisplayClusterViewport;
 enum class EDisplayClusterViewport_CustomFrustumMode: uint8
 {
 	Percent,
-	Pixels
+	Pixels,
+	Disabled,
 };
 
 struct FImplDisplayClusterViewport_CustomFrustumSettings
 {
-	EDisplayClusterViewport_CustomFrustumMode Mode = EDisplayClusterViewport_CustomFrustumMode::Percent;
+	EDisplayClusterViewport_CustomFrustumMode Mode = EDisplayClusterViewport_CustomFrustumMode::Disabled;
+	
+	bool bAdaptResolution;
 
 	float Left = 0;
 	float Right = 0;

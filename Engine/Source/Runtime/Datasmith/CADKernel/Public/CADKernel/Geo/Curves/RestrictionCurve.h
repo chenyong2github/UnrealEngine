@@ -143,6 +143,11 @@ namespace CADKernel
 			Polyline.ProjectCoincidentalPolyline(InPointsToProject, bSameOrientation, OutProjectedPointCoords);
 		}
 
+		void ComputeIntersectionsWithIsos(const FLinearBoundary& InBoundary, const TArray<double>& InIsoCoordinates, const EIso InTypeIso, const FSurfacicTolerance& ToleranceIso, TArray<double>& OutIntersection) const
+		{
+			Polyline.ComputeIntersectionsWithIsos(InBoundary, InIsoCoordinates, InTypeIso, ToleranceIso, OutIntersection);
+		}
+
 		/**
 		 * A check is done to verify that:
 		 * - the curve is degenerated in the parametric space of the carrier surface i.e. the 2D length of the curve is not nearly equal to zero

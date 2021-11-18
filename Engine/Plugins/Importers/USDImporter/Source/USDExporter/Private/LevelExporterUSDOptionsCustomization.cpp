@@ -169,6 +169,7 @@ void FLevelExporterUSDOptionsCustomization::CustomizeDetails(IDetailLayoutBuilde
 	TStrongObjectPtr<UObject> OptionsPtr;
 	FName LevelFilterPropName;
 	FName ExportSublayersPropName;
+	FName TexturesDirPropName;
 	FName SublayersCategoryName;
 	TAttribute<bool> SublayersEditCondition;
 
@@ -183,6 +184,7 @@ void FLevelExporterUSDOptionsCustomization::CustomizeDetails(IDetailLayoutBuilde
 		PickerTree = SNew( LevelExporterUSDImpl::SLevelPickerList, &Options->Inner, World );
 		LevelFilterPropName = TEXT( "Inner.LevelsToIgnore" );
 		ExportSublayersPropName = TEXT( "Inner.bExportSublayers" );
+		TexturesDirPropName = TEXT( "Inner.AssetOptions.MaterialBakingOptions.TexturesDir" );
 		SublayersCategoryName = TEXT( "Sublayers" );
 
 		SublayersEditCondition = true;
@@ -201,6 +203,7 @@ void FLevelExporterUSDOptionsCustomization::CustomizeDetails(IDetailLayoutBuilde
 		PickerTree = SNew( LevelExporterUSDImpl::SLevelPickerList, &LevelSequenceOptions->LevelExportOptions, LevelSequenceOptions->Level->GetWorld() );
 		LevelFilterPropName = TEXT( "LevelExportOptions.LevelsToIgnore" );
 		ExportSublayersPropName = TEXT( "LevelExportOptions.bExportSublayers" );
+		TexturesDirPropName = TEXT( "LevelExportOptions.AssetOptions.MaterialBakingOptions.TexturesDir" );
 		SublayersCategoryName = TEXT( "Level Export" );
 
 		// Refresh the dialog whenever we pick a new world to export, so that we can show this world's sublevels in the sublevel picker
@@ -231,14 +234,30 @@ void FLevelExporterUSDOptionsCustomization::CustomizeDetails(IDetailLayoutBuilde
 	// Touch these properties and categories to enforce this ordering
 	DetailLayoutBuilder.EditCategory( TEXT( "Stage options" ) );
 	DetailLayoutBuilder.EditCategory( TEXT( "Export settings" ) );
-	DetailLayoutBuilder.EditCategory( TEXT( "Mesh options" ) );
+	IDetailCategoryBuilder& AssetOptionsCategory = DetailLayoutBuilder.EditCategory( TEXT( "Asset options" ) );
+
+	// Promote all AssetOptions up a level on LevelExportUsdOptions or else we'll end up with a property named AssetOptions inside the AssetOptions category
+	// This is the same effect as ShowOnlyInnerProperties, but in this case we need to do it manually as it doesn't work recursively
+	if ( TSharedPtr<IPropertyHandle> AssetOptionsProperty = DetailLayoutBuilder.GetProperty( TEXT( "Inner.AssetOptions" ) ) )
+	{
+		DetailLayoutBuilder.HideProperty( AssetOptionsProperty );
+
+		uint32 NumChildren = 0;
+		if ( AssetOptionsProperty->GetNumChildren( NumChildren ) == FPropertyAccess::Result::Success )
+		{
+			for ( uint32 Index = 0; Index < NumChildren; ++Index )
+			{
+				TSharedPtr<IPropertyHandle> ChildProperty = AssetOptionsProperty->GetChildHandle( Index );
+				AssetOptionsCategory.AddProperty( ChildProperty );
+			}
+		}
+	}
 
 	// Hide the textures dir property because we'll add multiple textures folders (one next to each exported material)
-	DetailLayoutBuilder.EditCategory( TEXT( "Material options" ) );
-	TSharedPtr<IPropertyHandle> PropertyHandle = DetailLayoutBuilder.GetProperty( TEXT( "AssetOptions.MaterialBakingOptions.TexturesDir" ) );
-	if ( PropertyHandle->IsValidHandle() )
+	TSharedPtr<IPropertyHandle> TexturesDirProperty = DetailLayoutBuilder.GetProperty( TexturesDirPropName );
+	if ( TexturesDirProperty->IsValidHandle() )
 	{
-		DetailLayoutBuilder.HideProperty( PropertyHandle );
+		DetailLayoutBuilder.HideProperty( TexturesDirProperty );
 	}
 
 	DetailLayoutBuilder.EditCategory( TEXT( "Landscape options" ) );

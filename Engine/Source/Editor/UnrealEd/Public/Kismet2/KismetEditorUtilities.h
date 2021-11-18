@@ -601,8 +601,11 @@ public:
 	/** Returns true if the given property name has any bound component events in any blueprint graphs */
 	static bool PropertyHasBoundEvents(const UBlueprint* Blueprint, FName PropertyName);
 
-	/** Checks to see if a given class implements a blueprint-accesable interface */
-	static bool IsClassABlueprintInterface (const UClass* Class);
+	/** Checks to see if the class is an interface class of any type, including native interfaces that are blueprint accessible */
+	static bool IsClassABlueprintInterface(const UClass* Class);
+
+	/** Checks to see if a given class is implementable by any blueprints, if false a native class needs to implement it */
+	static bool IsClassABlueprintImplementableInterface(const UClass* Class);
 
 	/** Checks to see if a blueprint can implement the specified class as an interface */
 	static bool CanBlueprintImplementInterface(UBlueprint const* Blueprint, UClass const* Class);

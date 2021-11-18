@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
-
 #include "Render/Viewport/Containers/DisplayClusterViewport_OverscanSettings.h"
 
 class FDisplayClusterRenderTargetResource;
@@ -14,6 +13,7 @@ class FDisplayClusterViewportManagerProxy;
 class FDisplayClusterViewport;
 class IDisplayClusterShaders;
 class IDisplayClusterProjectionPolicy;
+class FDisplayClusterRender_MeshComponent;
 
 class FDisplayClusterViewportProxy
 	: public IDisplayClusterViewportProxy
@@ -82,12 +82,13 @@ public:
 
 	bool ImplResolveResources(FRHICommandListImmediate& RHICmdList, FDisplayClusterViewportProxy const* SourceProxy, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const;
 
+	void ImplViewportRemap_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
 	inline bool FindContext_RenderThread(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum)
 	{
 		check(IsInRenderingThread());
 
-		for (int ContextNum = 0; ContextNum < Contexts.Num(); ContextNum++)
+		for (int32 ContextNum = 0; ContextNum < Contexts.Num(); ContextNum++)
 		{
 			if (StereoPassType == Contexts[ContextNum].StereoscopicPass)
 			{
@@ -117,6 +118,8 @@ protected:
 
 	// Additional parameters
 	FDisplayClusterViewport_OverscanSettings     OverscanSettings;
+
+	TSharedPtr<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> RemapMesh;
 
 	// Projection policy instance that serves this viewport
 	TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> ProjectionPolicy;

@@ -27,18 +27,9 @@ UMaterialExpressionLandscapeLayerSample::UMaterialExpressionLandscapeLayerSample
 		}
 	};
 	static FConstructorStatics ConstructorStatics;
-
-	bIsParameterExpression = true;
-
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Landscape);
 #endif
-}
-
-
-FGuid& UMaterialExpressionLandscapeLayerSample::GetParameterExpressionId()
-{
-	return ExpressionGUID;
 }
 
 #if WITH_EDITOR
@@ -83,18 +74,10 @@ bool UMaterialExpressionLandscapeLayerSample::MatchesSearchQuery(const TCHAR* Se
 	return Super::MatchesSearchQuery(SearchQuery);
 }
 
-#endif // WITH_EDITOR
-
-void UMaterialExpressionLandscapeLayerSample::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+void UMaterialExpressionLandscapeLayerSample::GetLandscapeLayerNames(TArray<FName>& OutLayers) const
 {
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-	OutParameterInfo.AddUnique(NewParameter);
-
-	if (CurrentSize != OutParameterInfo.Num())
-	{
-		OutParameterIds.Add(ExpressionGUID);
-	}
+	OutLayers.AddUnique(ParameterName);
 }
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

@@ -686,7 +686,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMobileAmbientOcclusionParameters, RENDERER_API)
 
 	SHADER_PARAMETER_SAMPLER(SamplerState, SSAO_Sampler)
 
-	SHADER_PARAMETER(FVector2D, SSAO_DownsampledAOInverseSize)
+	SHADER_PARAMETER(FVector2f, SSAO_DownsampledAOInverseSize)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RandomNormalTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, RandomNormalTextureSampler)

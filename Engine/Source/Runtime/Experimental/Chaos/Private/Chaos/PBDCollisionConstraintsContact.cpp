@@ -253,7 +253,7 @@ namespace Chaos
 		
 		void ApplySweptImpl(FPBDCollisionConstraint& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
-			check(Constraint.GetType() == ECollisionConstraintType::Swept);
+			check(Constraint.GetCCDType() == ECollisionCCDType::Enabled);
 
 			FSolverBody& Body0 = *Constraint.GetSolverBody0();
 			FSolverBody& Body1 = *Constraint.GetSolverBody1();
@@ -285,7 +285,7 @@ namespace Chaos
 			if (IterationParameters.SolverType == EConstraintSolverType::GbfPbd)
 			{
 				// Advance P to end of frame from TOI, and Apply
-				if (IterationParameters.Iteration + 1 < IterationParameters.NumIterations)
+				if (CCDAlwaysSweepRemainingDT || IterationParameters.Iteration + 1 < IterationParameters.NumIterations)
 				{
 					Body0.SetP(Body0.P() + Body0.V() * RemainingDT); // If we are tunneling through something else due to this, it will be resolved in the next iteration
 					ApplyImpl(Constraint, IterationParametersRemainingDT, CCDParticleParamaters);
@@ -312,11 +312,11 @@ namespace Chaos
 
 		void Apply(FPBDCollisionConstraint& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
-			if (Constraint.GetType() == ECollisionConstraintType::Standard)
+			if (Constraint.GetCCDType() == ECollisionCCDType::Disabled)
 			{
 				ApplyImpl(Constraint, IterationParameters, ParticleParameters);
 			}
-			else if (Constraint.GetType() == ECollisionConstraintType::Swept)
+			else if (Constraint.GetCCDType() == ECollisionCCDType::Enabled)
 			{
 				ApplySweptImpl(Constraint, IterationParameters, ParticleParameters);
 			}
@@ -341,7 +341,7 @@ namespace Chaos
 				}
 
 				// @todo(chaos): is this supposed to run for swept contacts as well?
-				if (Constraint.GetType() == ECollisionConstraintType::Standard)
+				if (Constraint.GetCCDType() == ECollisionCCDType::Disabled)
 				{
 					switch (IterationParameters.SolverType)
 					{

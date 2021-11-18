@@ -233,9 +233,9 @@ void USocialManager::ShutdownSocialManager()
 			{
 				for (UPartyMember* PartyMember : TypeIdPartyPair.Value->GetPartyMembers())
 				{
-					PartyMember->MarkPendingKill();
+					PartyMember->MarkAsGarbage();
 				}
-				TypeIdPartyPair.Value->MarkPendingKill();
+				TypeIdPartyPair.Value->MarkAsGarbage();
 			}
 			PartiesByTypeId.Reset();
 		};
@@ -1010,7 +1010,7 @@ void USocialManager::HandleLocalPlayerRemoved(int32 LocalUserNum)
 		if (USocialToolkit* Toolkit = SocialToolkits[LocalUserNum])
 		{
 			SocialToolkits.Remove(Toolkit);
-			Toolkit->MarkPendingKill();
+			Toolkit->MarkAsGarbage();
 		}
 	}
 }
@@ -1244,7 +1244,7 @@ void USocialManager::HandlePartyDisconnected(USocialParty* DisconnectingParty)
 	{
 		const FOnlinePartyTypeId& PartyTypeId = DisconnectingParty->GetPartyTypeId();
 		JoinedPartiesByTypeId.Remove(PartyTypeId);
-		DisconnectingParty->MarkPendingKill();
+		DisconnectingParty->MarkAsGarbage();
 	}
 }
 
@@ -1276,7 +1276,7 @@ void USocialManager::HandlePartyLeft(EMemberExitedReason Reason, USocialParty* L
 		}
 
 		OnPartyLeftInternal(*LeftParty, Reason);
-		LeftParty->MarkPendingKill();
+		LeftParty->MarkAsGarbage();
 
 		if (FJoinPartyAttempt* JoinAttempt = JoinAttemptsByTypeId.Find(PartyTypeId))
 		{

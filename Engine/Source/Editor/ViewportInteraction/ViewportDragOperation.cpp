@@ -35,7 +35,7 @@ void UViewportDragOperationComponent::ClearDragOperation()
 {
 	if (DragOperation)
 	{
-		DragOperation->MarkPendingKill();
+		DragOperation->MarkAsGarbage();
 	}
 
 	DragOperation = nullptr;

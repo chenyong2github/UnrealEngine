@@ -2,19 +2,14 @@
 
 #pragma once
 
-#include "Delegates/IDelegateInstance.h"
 #include "IOptimusDeveloperModule.h"
 
 class FOptimusDeveloperModule : public IOptimusDeveloperModule
 {
 public:
 	/** IModuleInterface implementation */
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-
-public:
-
-private:
+	void StartupModule() override;
+	void ShutdownModule() override;
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOptimusDeveloper, Log, All);

@@ -7,6 +7,7 @@
 #include "Misc/CoreDelegates.h"
 #include "GameFramework/Actor.h"
 #include "Templates/SubclassOf.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionHandle.h"
@@ -32,8 +33,6 @@ struct IWorldPartitionStreamingSourceProvider;
 
 enum class EWorldPartitionRuntimeCellState : uint8;
 enum class EWorldPartitionStreamingPerformance : uint8;
-
-DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartition, Log, All);
 
 enum class EWorldPartitionInitState
 {
@@ -82,6 +81,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FCancelWorldPartitionUpdateEditorCellsDelegate, UWorldPartition*);
 	FCancelWorldPartitionUpdateEditorCellsDelegate OnCancelWorldPartitionUpdateEditorCells;
 
+	TArray<FName> GetUserLoadedEditorGridCells() const;
 private:
 
 	void SavePerUserSettings();
@@ -117,7 +117,7 @@ public:
 	//~ End UObject Interface
 
 #if WITH_EDITOR
-	FName GetWorldPartitionEditorName();
+	FName GetWorldPartitionEditorName() const;
 
 	void LoadEditorCells(const FBox& Box, bool bIsFromUserChange);
 	void UnloadEditorCells(const FBox& Box, bool bIsFromUserChange);
@@ -142,6 +142,9 @@ public:
 	void DumpActorDescs(const FString& Path);
 
 	void CheckForErrors() const;
+
+	uint32 GetWantedEditorCellSize() const;
+	void SetEditorWantedCellSize(uint32 InCellSize);
 #endif
 
 public:
@@ -209,6 +212,8 @@ private:
 #if WITH_EDITORONLY_DATA
 	FLinkerInstancingContext InstancingContext;
 	TUniquePtr<FSoftObjectPathFixupArchive> InstancingSoftObjectPathFixupArchive;
+
+	FWorldPartitionReference WorldDataLayersActor;
 #endif
 
 	bool IsMainWorldPartition() const;

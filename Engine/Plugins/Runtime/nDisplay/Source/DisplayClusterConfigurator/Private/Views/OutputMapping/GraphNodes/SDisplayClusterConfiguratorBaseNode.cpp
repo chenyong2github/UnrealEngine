@@ -336,6 +336,12 @@ TArray<FOverlayWidgetInfo> SDisplayClusterConfiguratorBaseNode::GetOverlayWidget
 
 void SDisplayClusterConfiguratorBaseNode::BeginUserInteraction() const
 {
+	// If the user isn't attempting to click on the node, do not mark the node as being interacted
+	if (!FSlateApplication::Get().GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
+	{
+		return;
+	}
+
 	UDisplayClusterConfiguratorBaseNode* EdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorBaseNode>();
 
 	bool bIsInteractingDirectly = false;

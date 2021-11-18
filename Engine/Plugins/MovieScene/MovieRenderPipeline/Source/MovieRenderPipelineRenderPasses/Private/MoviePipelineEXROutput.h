@@ -8,16 +8,15 @@
 
 #if WITH_UNREALEXR
 THIRD_PARTY_INCLUDES_START
-#include "openexr/ImfIO.h"
-#include "openexr/ImathBox.h"
-#include "openexr/ImfChannelList.h"
-#include "openexr/ImfInputFile.h"
-#include "openexr/ImfOutputFile.h"
-#include "openexr/ImfArray.h"
-#include "openexr/ImfHeader.h"
-#include "openexr/ImfStdIO.h"
-#include "openexr/ImfChannelList.h"
-#include "openexr/ImfRgbaFile.h"
+#include "Imath/ImathBox.h"
+#include "OpenEXR/ImfArray.h"
+#include "OpenEXR/ImfChannelList.h"
+#include "OpenEXR/ImfHeader.h"
+#include "OpenEXR/ImfIO.h"
+#include "OpenEXR/ImfInputFile.h"
+#include "OpenEXR/ImfOutputFile.h"
+#include "OpenEXR/ImfRgbaFile.h"
+#include "OpenEXR/ImfStdIO.h"
 THIRD_PARTY_INCLUDES_END
 #endif // WITH_UNREALEXR
 

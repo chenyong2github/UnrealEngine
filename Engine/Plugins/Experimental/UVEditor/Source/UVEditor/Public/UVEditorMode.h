@@ -114,6 +114,9 @@ public:
 	UPROPERTY()
 	TObjectPtr<UUVEditorBackgroundPreview> BackgroundVisualization;
 
+	// Our UV tools use contexts that are set up at asset editor level, so scope needs to be higher level than mode
+	EToolsContextScope GetDefaultToolScope() const override { return EToolsContextScope::Editor; }
+
 protected:
 
 	// UEdMode overrides

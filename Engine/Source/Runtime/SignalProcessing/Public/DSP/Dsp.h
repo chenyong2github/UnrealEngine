@@ -320,7 +320,7 @@ namespace Audio
 		}
 
 		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), BIG_NUMBER));
-		const float FreqLinear = FMath::GetMappedRangeValueUnclamped(Domain, RangeLog, InValue);
+		const float FreqLinear = (float)FMath::GetMappedRangeValueUnclamped(Domain, RangeLog, (FVector2D::FReal)InValue);
 		return FMath::Exp(FreqLinear);
 	}
 
@@ -345,7 +345,7 @@ namespace Audio
 		}
 
 		const FVector2D RangeLog(FMath::Max(FMath::Loge(Range.X), SMALL_NUMBER), FMath::Min(FMath::Loge(Range.Y), BIG_NUMBER));
-		const float FrequencyLog = FMath::Loge(InFrequencyValue);
+		const FVector2D::FReal FrequencyLog = FMath::Loge(InFrequencyValue);
 		return FMath::GetMappedRangeValueUnclamped(RangeLog, Domain, FrequencyLog);
 	}
 

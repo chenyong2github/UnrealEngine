@@ -16,6 +16,7 @@
 class AUsdStageActor;
 class FLevelCollectionModel;
 class FMenuBuilder;
+class ISceneOutliner;
 enum class EMapChangeType : uint8;
 enum class EUsdInitialLoadSet : uint8;
 struct FSlateBrush;
@@ -46,6 +47,7 @@ protected:
 	void FillRenderContextSubMenu( FMenuBuilder& MenuBuilder );
 	void FillCollapsingSubMenu( FMenuBuilder& MenuBuilder );
 	void FillSelectionSubMenu( FMenuBuilder& MenuBuilder );
+	void FillNaniteThresholdSubMenu( FMenuBuilder& MenuBuilder );
 
 	void OnNew();
 	void OnOpen();
@@ -70,6 +72,10 @@ protected:
 
 	void OnViewportSelectionChanged( UObject* NewSelection );
 
+	int32 GetNaniteTriangleThresholdValue() const;
+	void OnNaniteTriangleThresholdValueChanged( int32 InValue );
+	void OnNaniteTriangleThresholdValueCommitted( int32 InValue, ETextCommit::Type InCommitType );
+
 protected:
 	TSharedPtr< class SUsdStageTreeView > UsdStageTreeView;
 	TSharedPtr< class SUsdPrimInfo > UsdPrimInfoWidget;
@@ -91,6 +97,13 @@ protected:
 
 	// True while we're in the middle of setting the viewport selection from the prim selection
 	bool bUpdatingViewportSelection;
+
+	// We keep this menu alive instead of recreating it every time because it doesn't expose
+	// setting/getting/responding to the picked world, which resets every time it is reconstructed (see UE-127879)
+	// By keeping it alive it will keep its own state and we just do a full refresh when needed
+	TSharedPtr<ISceneOutliner> ActorPickerMenu;
+
+	int32 CurrentNaniteThreshold = INT32_MAX;
 };
 
 #endif // #if USE_USD_SDK

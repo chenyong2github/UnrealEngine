@@ -5,6 +5,8 @@
 #include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/Database.h"
 
+class FArchive;
+
 namespace CADKernel
 {
 	class FEntity;
@@ -20,7 +22,7 @@ namespace CADKernel
 		int32 LastHostId;
 
 	public:
-#ifdef CADKERNEL_DEV
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
 		static FSession Session;
 #endif
 

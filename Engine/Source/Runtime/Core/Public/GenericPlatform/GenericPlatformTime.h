@@ -117,6 +117,17 @@ struct CORE_API FGenericPlatformTime
 		return false;
 	}
 
+	/** Updates current thread CPU utilization, calling is user defined per-thread (unused float parameter, is for FTicker compatibility). */
+	static bool UpdateThreadCPUTime(float = 0.0)
+	{
+		return false;
+	}
+
+	/** Registers automatic updates of Game Thread CPU utilization */
+	static void AutoUpdateGameThreadCPUTime(double UpdateInterval)
+	{
+	}
+
 	/**
 	 * @return structure that contains CPU utilization data.
 	 */
@@ -126,11 +137,31 @@ struct CORE_API FGenericPlatformTime
 	}
 
 	/**
+	 * Gets current threads CPU Utilization
+	 *
+	 * @return	Current threads CPU Utilization
+	 */
+	static FCPUTime GetThreadCPUTime()
+	{
+		return FCPUTime(0.0f, 0.0f);
+	}
+
+	/**
 	 * @return the cpu processing time (kernel + user time of all threads) from the last update
 	 */
 	static double GetLastIntervalCPUTimeInSeconds()
 	{
 		return LastIntervalCPUTimeInSeconds;
+	}
+
+	/**
+	 * Gets the per-thread CPU processing time (kernel + user) from the last update
+	 *
+	 * @return	The per-thread CPU processing time from the last update
+	 */
+	static double GetLastIntervalThreadCPUTimeInSeconds()
+	{
+		return 0.0;
 	}
 
 	/**

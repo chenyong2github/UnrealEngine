@@ -67,7 +67,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 		if (IsTexture())
 		{
-			if (!ensureMsgf(FMath::IsWithin<int32>(LODGroup, 0, TEXTUREGROUP_MAX), TEXT("Invalid LODGroup %d for %s"), LODGroup, *RenderAsset->GetName()))
+			if (!ensureMsgf(FMath::IsWithin(LODGroup, 0, (int32)TEXTUREGROUP_MAX), TEXT("Invalid LODGroup %d for %s"), LODGroup, *RenderAsset->GetName()))
 			{
 				LODGroup = 0;
 			}

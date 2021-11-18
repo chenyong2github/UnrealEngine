@@ -454,6 +454,8 @@ ULevel* UActorFactory::ValidateSpawnActorLevel(ULevel* InLevel, const FActorSpaw
 
 bool UActorFactory::PreSpawnActor( UObject* Asset, FTransform& InOutLocation)
 {
+	UE_LOG(LogActorFactory, Log, TEXT("Actor Factory attempting to spawn %s"), *Asset->GetFullName());
+
 	// Subclasses may implement this to set up a spawn or to adjust the spawn location or rotation.
 	return true;
 }
@@ -493,6 +495,7 @@ AActor* UActorFactory::SpawnActor(UObject* InAsset, ULevel* InLevel, const FTran
 
 void UActorFactory::PostSpawnActor( UObject* Asset, AActor* NewActor)
 {
+	UE_LOG(LogActorFactory, Log, TEXT("Actor Factory spawned %s as actor: %s"), *Asset->GetFullName(), *NewActor->GetFullName());
 }
 
 void UActorFactory::PostCreateBlueprint( UObject* Asset, AActor* CDO )
@@ -528,8 +531,6 @@ void UActorFactoryStaticMesh::PostSpawnActor( UObject* Asset, AActor* NewActor)
 	Super::PostSpawnActor(Asset, NewActor);
 
 	UStaticMesh* StaticMesh = CastChecked<UStaticMesh>(Asset);
-
-	UE_LOG(LogActorFactory, Log, TEXT("Actor Factory created %s"), *StaticMesh->GetName());
 
 	// Change properties
 	AStaticMeshActor* StaticMeshActor = CastChecked<AStaticMeshActor>( NewActor );
@@ -1537,7 +1538,7 @@ bool UActorFactoryClass::PreSpawnActor( UObject* Asset, FTransform& InOutLocatio
 
 	if ( (nullptr != ActualClass) && ActualClass->IsChildOf(AActor::StaticClass()) )
 	{
-		return true;
+		return Super::PreSpawnActor(Asset, InOutLocation);
 	}
 
 	return false;
@@ -1652,6 +1653,8 @@ bool UActorFactoryBlueprint::PreSpawnActor( UObject* Asset, FTransform& InOutLoc
 	{
 		return false;
 	}
+
+	UE_LOG(LogActorFactory, Log, TEXT("Actor Factory attempting to spawn %s"), *Blueprint->GeneratedClass->GetFullName());
 
 	return true;
 }

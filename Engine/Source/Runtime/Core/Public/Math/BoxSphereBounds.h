@@ -9,6 +9,7 @@
 #include "Math/Vector.h"
 #include "Math/Sphere.h"
 #include "Math/Box.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 
 /**
  * Structure for a combined axis aligned bounding box and bounding sphere with the same origin. (28 bytes).
@@ -121,6 +122,9 @@ public:
 	explicit TBoxSphereBounds(const TBoxSphereBounds<FArg>& From) : TBoxSphereBounds<T>(TVector<T>(From.Origin), TVector<T>(From.BoxExtent), (T)From.SphereRadius) {}
 
 public:
+
+	bool Serialize(FArchive &Ar);
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive &Ar);
 
 	/**
 	 * Constructs a bounding volume containing both this and B.
@@ -399,6 +403,13 @@ FORCEINLINE bool TBoxSphereBounds<T>::operator!=(const TBoxSphereBounds<T>& Othe
 }
 
 template<typename T>
+FORCEINLINE bool TBoxSphereBounds<T>::Serialize(FArchive &Ar)
+{
+	Ar << *this;
+	return true;
+}
+
+template<typename T>
 FORCEINLINE FString TBoxSphereBounds<T>::ToString() const
 {
 	return FString::Printf(TEXT("Origin=%s, BoxExtent=(%s), SphereRadius=(%f)"), *Origin.ToString(), *BoxExtent.ToString(), SphereRadius);
@@ -479,3 +490,16 @@ template <> struct TIsPODType<FBoxSphereBounds3f> { enum { Value = true }; };
 template <> struct TIsPODType<FBoxSphereBounds3d> { enum { Value = true }; };
 template <> struct TIsUECoreVariant<FBoxSphereBounds3f> { enum { Value = true }; };
 template <> struct TIsUECoreVariant<FBoxSphereBounds3d> { enum { Value = true }; };
+
+template<>
+inline bool FBoxSphereBounds3f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, BoxSphereBounds, BoxSphereBounds3f, BoxSphereBounds3d);
+}
+
+template<>
+inline bool FBoxSphereBounds3d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, BoxSphereBounds, BoxSphereBounds3d, BoxSphereBounds3f);
+
+}

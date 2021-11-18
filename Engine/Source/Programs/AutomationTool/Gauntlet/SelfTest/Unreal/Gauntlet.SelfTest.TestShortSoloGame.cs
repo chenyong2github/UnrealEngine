@@ -60,17 +60,18 @@ namespace Gauntlet.SelfTest
 			}
 
 			// Create devices to run the client and server
-			ITargetDevice ServerDevice = new TargetDeviceWindows("PC Server", Gauntlet.Globals.TempDir);
+			IDeviceFactory HostFactory = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDeviceFactory>()
+					.Where(F => F.CanSupportPlatform(BuildHostPlatform.Current.Platform))
+					.FirstOrDefault();
+			ITargetDevice ServerDevice = HostFactory.CreateDevice(BuildHostPlatform.Current.Platform.ToString() + " Server", Gauntlet.Globals.TempDir);
 			ITargetDevice ClientDevice = null;
 
-			if (Platform == UnrealTargetPlatform.PS4)
-			{
-				//ClientDevice = new TargetDevicePS4(this.PS4Name);
-			}
-			else
-			{
-				ClientDevice = new TargetDeviceWindows("PC Client", Gauntlet.Globals.TempDir);
-			}
+			string DeviceName = Gauntlet.Globals.Params.ParseValue("device", "default");
+			IDeviceFactory Factory = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IDeviceFactory>()
+					.Where(F => F.CanSupportPlatform(Platform))
+					.FirstOrDefault();
+
+			ClientDevice = Factory.CreateDevice(DeviceName, Gauntlet.Globals.TempDir);
 
 			UnrealAppConfig ServerConfig = Build.CreateConfiguration(new UnrealSessionRole(UnrealTargetRole.Server, ServerDevice.Platform, UnrealTargetConfiguration.Development));
 			UnrealAppConfig ClientConfig = Build.CreateConfiguration(new UnrealSessionRole(UnrealTargetRole.Client, ClientDevice.Platform, UnrealTargetConfiguration.Development));
@@ -128,9 +129,8 @@ namespace Gauntlet.SelfTest
 
 		public override void TickTest()
 		{
-			TestClientPlatform(UnrealTargetPlatform.PS4);
-			// Win64 requires auth...
-			///TestClientPlatform(UnrealTargetPlatform.Win64);
+			string PlatformString = Gauntlet.Globals.Params.ParseValue("Platform", "Win64");
+			TestClientPlatform(UnrealTargetPlatform.Parse(PlatformString));
 
 			MarkComplete();
 		}

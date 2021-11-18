@@ -5,7 +5,10 @@
 #include "CADKernel/Utils/Util.h"
 #include "CADKernel/Core/System.h"
 
-void CADKernel::FProgressManager::SetCurrentProgress(FProgress* InNewCurrent)
+namespace CADKernel
+{
+
+void FProgressManager::SetCurrentProgress(FProgress* InNewCurrent)
 {
 	if (!RootProgress)
 	{
@@ -22,7 +25,7 @@ void CADKernel::FProgressManager::SetCurrentProgress(FProgress* InNewCurrent)
 	Update();
 }
 
-double CADKernel::FProgressManager::GetProgression() const
+double FProgressManager::GetProgression() const
 {
 	if (!RootProgress) 
 	{
@@ -31,7 +34,7 @@ double CADKernel::FProgressManager::GetProgression() const
 	return RootProgress->GetProgression();
 }
 
-FString CADKernel::FProgressManager::GetCurrentStep() const
+FString FProgressManager::GetCurrentStep() const
 {
 	FString CurrentStepStr;
 
@@ -47,7 +50,7 @@ FString CADKernel::FProgressManager::GetCurrentStep() const
 }
 
 
-CADKernel::FProgress::FProgress(int32 InStepCount, const FString& InStepName)
+FProgress::FProgress(int32 InStepCount, const FString& InStepName)
 : Name(InStepName)
 , StepCount(InStepCount)
 {
@@ -61,7 +64,7 @@ CADKernel::FProgress::FProgress(int32 InStepCount, const FString& InStepName)
 	FSystem::Get().GetProgressManager().SetCurrentProgress(this);
 }
 
-CADKernel::FProgress::~FProgress()
+FProgress::~FProgress()
 {
 	if (Parent)
 	{
@@ -72,8 +75,10 @@ CADKernel::FProgress::~FProgress()
 	FSystem::Get().GetProgressManager().Update();
 }
 
-void CADKernel::FProgress::Increase(int32 StepSize)
+void FProgress::Increase(int32 StepSize)
 {
 	Progression += StepSize;
 	FSystem::Get().GetProgressManager().Update();
+}
+
 }

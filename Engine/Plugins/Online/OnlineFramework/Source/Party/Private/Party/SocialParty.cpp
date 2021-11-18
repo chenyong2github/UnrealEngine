@@ -1070,7 +1070,7 @@ void USocialParty::HandleRemoveLocalPlayerComplete(const FUniqueNetId& LocalUser
 		if (LocalUserId == *PartyMember->GetPrimaryNetId())
 		{
 			PartyMember->NotifyRemovedFromParty(EMemberExitedReason::Unknown);
-			PartyMember->MarkPendingKill();
+			PartyMember->MarkAsGarbage();
 			PartyMembersById.Remove(PartyMember->GetPrimaryNetId());
 			break;
 		}
@@ -1171,7 +1171,7 @@ void USocialParty::HandlePartyMemberExited(const FUniqueNetId& LocalUserId, cons
 					UpdatePlatformSessionLeader(SessionType.GetValue());
 				}
 				LeftMember.NotifyRemovedFromParty(ExitReason);
-				LeftMember.MarkPendingKill();
+				LeftMember.MarkAsGarbage();
 
 				RemovePlayerFromReservationBeacon(LocalUserId, MemberId);
 
@@ -1803,7 +1803,7 @@ void USocialParty::FinalizePartyLeave(EMemberExitedReason Reason)
 	for (UPartyMember* PartyMember : GetPartyMembers())
 	{
 		PartyMember->NotifyRemovedFromParty(EMemberExitedReason::Unknown);
-		PartyMember->MarkPendingKill();
+		PartyMember->MarkAsGarbage();
 	}
 
 	OnLeftPartyInternal(Reason);

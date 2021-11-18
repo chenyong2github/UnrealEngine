@@ -41,5 +41,5 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MPCDI")
 	TArray<int32>   Triangles;
 
-	void PostAddFace(int f0, int f1, int f2);
+	void PostAddFace(int32 f0, int32 f1, int32 f2);
 };

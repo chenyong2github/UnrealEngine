@@ -17,6 +17,7 @@ namespace Electra
 {
 	//
 	class IPlayerSessionServices;
+	class IHTTPResponseCache;
 
 
 	namespace HTTP
@@ -141,6 +142,7 @@ namespace Electra
 			bool								bWasAborted;						//!< true if transfer was aborted.
 			bool								bHasFinished;						//!< true once the connection is closed regardless of state.
 			bool								bResponseNotRanged;					//!< true if the response is not a range as was requested.
+			bool								bIsCachedResponse;					//!< true if the response came from the cache.
 			FStatusInfo							StatusInfo;
 			TSharedPtrTS<FRetryInfo>			RetryInfo;
 
@@ -161,6 +163,7 @@ namespace Electra
 				bWasAborted = false;
 				bHasFinished = false;
 				bResponseNotRanged = false;
+				bIsCachedResponse = false;
 			}
 
 			FConnectionInfo& CopyFrom(const FConnectionInfo& rhs)
@@ -185,6 +188,7 @@ namespace Electra
 				bWasAborted = rhs.bWasAborted;
 				bHasFinished = rhs.bHasFinished;
 				bResponseNotRanged = rhs.bResponseNotRanged;
+				bIsCachedResponse = rhs.bIsCachedResponse;
 				StatusInfo = rhs.StatusInfo;
 				Throughput = rhs.Throughput;
 				if (rhs.RetryInfo.IsValid())
@@ -262,6 +266,10 @@ namespace Electra
 				bool IsSet() const
 				{
 					return Start != -1 || EndIncluding != -1;
+				}
+				bool Equals(const FRange& Other)
+				{
+					return Start == Other.Start && EndIncluding == Other.EndIncluding;
 				}
 				//! Check if the range would result in "0-" for the entire file in which case we don't need to use range request.
 				bool IsEverything() const
@@ -429,6 +437,7 @@ namespace Electra
 			HTTP::FConnectionInfo				ConnectionInfo;
 			TWeakPtrTS<FReceiveBuffer>			ReceiveBuffer;
 			TWeakPtrTS<FProgressListener>		ProgressListener;
+			TSharedPtrTS<IHTTPResponseCache>	ResponseCache;
 			bool								bAutoRemoveWhenComplete = false;
 		};
 

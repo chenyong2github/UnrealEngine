@@ -166,18 +166,38 @@ private:
 			FPreAnimatedToken(UObject& Object, const AccessorType& InAccessor)
 				: Accessor(InAccessor)
 				, Material(Accessor.GetMaterialForObject(Object))
-			{}
+			{
+				// If the current material we're overriding is already a material instance dynamic, copy it since we will be modifying the data. 
+				// The copied material will be used to restore the values in RestoreState.
+				UMaterialInstanceDynamic* DynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(Material);
+				if (DynamicMaterialInstance)
+				{
+					UObject* DuplicatedObject = StaticDuplicateObject(DynamicMaterialInstance, &Object);
+					if (DuplicatedObject)
+					{
+						CopiedDynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(DuplicatedObject);
+					}
+				}
+			}
 
 			virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
 			{
 				if (UMaterialInterface* PinnedMaterial = Material.Get())
 				{
+					// If the original material was a material instance dynamic, copy the material parameters back since we modified it in place.
+					UMaterialInstanceDynamic* DynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(PinnedMaterial);
+					if (DynamicMaterialInstance && CopiedDynamicMaterialInstance.IsValid())
+					{
+						DynamicMaterialInstance->CopyMaterialUniformParameters(CopiedDynamicMaterialInstance.Get());
+					}
+
 					Accessor.SetMaterialForObject(Object, *PinnedMaterial);
 				}
 			}
 
 			AccessorType Accessor;
 			TWeakObjectPtr<UMaterialInterface> Material;
+			TWeakObjectPtr<UMaterialInstanceDynamic> CopiedDynamicMaterialInstance;
 		};
 
 		FPreAnimatedTokenProducer(const AccessorType& InAccessor) : Accessor(InAccessor) {}

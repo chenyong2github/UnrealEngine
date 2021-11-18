@@ -252,7 +252,7 @@ void FMeshMergeDataTracker::ProcessRawMeshes()
 
 		FStaticMeshConstAttributes Attributes(RawMesh);
 		TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+		TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 		// hash vertex color buffer so we can see if instances have unique vertex data
 		if(VertexInstanceColors.GetNumElements() > 0)

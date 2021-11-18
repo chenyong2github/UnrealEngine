@@ -266,7 +266,7 @@ public:
 	// Vertices Group
 	TManagedArray<FVector3f>		 Vertex;
 	// Outer array is the array of vertices, inner array is the uv channels
-	TManagedArray<TArray<FVector2D>> UVs;
+	TManagedArray<TArray<FVector2f>> UVs;
 	TManagedArray<FLinearColor>      Color;
 	TManagedArray<FVector3f>         TangentU;
 	TManagedArray<FVector3f>         TangentV;

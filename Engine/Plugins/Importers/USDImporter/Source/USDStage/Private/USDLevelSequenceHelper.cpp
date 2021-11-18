@@ -803,7 +803,7 @@ void FUsdLevelSequenceHelperImpl::CreateSubSequenceSection( ULevelSequence& Sequ
 	const FString* LayerIdentifier = LayerIdentifierByLevelSequenceName.Find( Sequence.GetFName() );
 	const FString* SubLayerIdentifier = LayerIdentifierByLevelSequenceName.Find( SubSequence.GetFName() );
 
-	if ( !LayerIdentifier || !SubLayerIdentifier )
+  	if ( !LayerIdentifier || !SubLayerIdentifier )
 	{
 		return;
 	}
@@ -860,12 +860,19 @@ void FUsdLevelSequenceHelperImpl::CreateSubSequenceSection( ULevelSequence& Sequ
 	const double SubEndTimeSeconds = SubStartTimeSeconds + SubDurationSeconds;
 
 	const FFrameNumber StartFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber( TickResolution, SubStartTimeSeconds );
-	const int32 Duration = UsdLevelSequenceHelperImpl::RoundAsFrameNumber( TickResolution, SubEndTimeSeconds ).Value - StartFrame.Value;
+	const FFrameNumber EndFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber( TickResolution, SubEndTimeSeconds );
 
-	TRange< FFrameNumber > SubSectionRange( StartFrame, StartFrame + Duration );
+	// Don't clip subsections with their duration, so that the root layer's [startTimeCode, endTimeCode] range is the only thing clipping
+	// anything, as this is how USD seems to behave. Even if a middle sublayer has startTimeCode == endTimeCode, its animations
+	// (or its child sublayers') won't be clipped by it and play according to the stage's range
+	const double StageEndTimeSeconds = UsdStage.GetEndTimeCode() / UsdStage.GetTimeCodesPerSecond();
+	const FFrameNumber StageEndFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber( TickResolution, StageEndTimeSeconds );
+
+	// Max here because StartFrame can theoretically be larger than StageEndFrame, which would generate a range where the upper bound is smaller
+	// than the lower bound, which can trigger asserts
+	TRange< FFrameNumber > SubSectionRange{ StartFrame, FMath::Max( StageEndFrame, EndFrame ) };
 
 	UMovieSceneSubSection* SubSection = FindSubSequenceSection( Sequence, SubSequence );
-
 	if ( SubSection )
 	{
 		SubSection->SetRange( SubSectionRange );
@@ -874,11 +881,11 @@ void FUsdLevelSequenceHelperImpl::CreateSubSequenceSection( ULevelSequence& Sequ
 	{
 		SubSection = SubTrack->AddSequence( &SubSequence, SubSectionRange.GetLowerBoundValue(), SubSectionRange.Size< FFrameNumber >().Value );
 
-		UE_LOG(LogUsd, Verbose, TEXT("Adding subsection '%s' to sequence '%s'. StartFrame: '%d', Duration: '%d'"),
+		UE_LOG(LogUsd, Verbose, TEXT("Adding subsection '%s' to sequence '%s'. StartFrame: '%d'"),
 			*SubSection->GetName(),
 			*Sequence.GetName(),
-			StartFrame.Value,
-			Duration);
+			StartFrame.Value
+		);
 	}
 
 	const double TimeCodesPerSecondDifference = TimeCodesPerSecond / SubLayer.GetTimeCodesPerSecond();

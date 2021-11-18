@@ -79,6 +79,10 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboards(const TArray<FUniqueNetIdRef>& Pla
 {
 	if (Players.Num() == 0)
 	{
+		EOSSubsystem->ExecuteNextTick([this]()
+			{
+				TriggerOnLeaderboardReadCompleteDelegates(false);
+			});
 		return true;
 	}
 
@@ -204,6 +208,10 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsForFriends(int32 LocalUserNum, FOnl
 	EOSSubsystem->UserManager->GetFriendsList(LocalUserNum, FString(), Friends);
 	if (Friends.Num() == 0)
 	{
+		EOSSubsystem->ExecuteNextTick([this]()
+			{
+				TriggerOnLeaderboardReadCompleteDelegates(false);
+			});
 		return true;
 	}
 
@@ -225,8 +233,13 @@ bool FOnlineLeaderboardsEOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 	if (Rank > EOS_MAX_NUM_RANKINGS)
 	{
 		UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("ReadLeaderboardsAroundRank() - Rank (%d) must be <= 1000"), Rank);
-		return false;
+		EOSSubsystem->ExecuteNextTick([this]()
+			{
+				TriggerOnLeaderboardReadCompleteDelegates(false);
+			});
+		return true;
 	}
+
 	// Calculate the range that we'll copy out of the full results
 	uint32 StartIndex = (uint32)FMath::Clamp<int32>(Rank - (int32)Range, 0, EOS_MAX_NUM_RANKINGS);
 	uint32 EndIndex = FMath::Clamp<uint32>(Rank + (int32)Range, 0, EOS_MAX_NUM_RANKINGS - 1);
@@ -343,7 +356,13 @@ bool FOnlineLeaderboardsEOS::WriteLeaderboards(const FName& SessionName, const F
 
 bool FOnlineLeaderboardsEOS::FlushLeaderboards(const FName& SessionName)
 {
-	TriggerOnLeaderboardFlushCompleteDelegates(SessionName, true);
+	UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("FlushLeaderboards() is not supported"));
+
+	EOSSubsystem->ExecuteNextTick([this, SessionName]()
+		{
+			TriggerOnLeaderboardFlushCompleteDelegates(SessionName, false);
+		});
+	
 	return true;
 }
 

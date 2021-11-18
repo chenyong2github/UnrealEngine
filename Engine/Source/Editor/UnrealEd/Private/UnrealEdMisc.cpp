@@ -879,7 +879,7 @@ bool FUnrealEdMisc::EnableWorldComposition(UWorld* InWorld, bool bEnable)
 		if (InWorld->WorldComposition != nullptr)
 		{
 			InWorld->FlushLevelStreaming();
-			InWorld->WorldComposition->MarkPendingKill();
+			InWorld->WorldComposition->MarkAsGarbage();
 			InWorld->WorldComposition = nullptr;
 			UWorldComposition::WorldCompositionChangedEvent.Broadcast(InWorld);
 		}
@@ -920,7 +920,7 @@ bool FUnrealEdMisc::EnableWorldComposition(UWorld* InWorld, bool bEnable)
 			auto AppResult = FMessageDialog::Open(EAppMsgType::OkCancel, Message);
 			if (AppResult != EAppReturnType::Ok)
 			{
-				WorldCompostion->MarkPendingKill();
+				WorldCompostion->MarkAsGarbage();
 				return false;
 			}
 		}

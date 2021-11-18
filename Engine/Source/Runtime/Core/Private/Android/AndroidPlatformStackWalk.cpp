@@ -32,18 +32,6 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeExit.h"
 
-bool FAndroidPlatformStackWalk::InitStackWalking()
-{
-#if HAS_LIBUNWIND
-	// first call to unw_backtrace will trigger some initial large allocations and if it happens during stack capturing on an exception we might get another out of memory exception
-	const uint32 Depth = 16;
-	void* Stack[Depth];
-	unw_backtrace((void**)Stack, Depth);
-#endif
-
-	return 1;
-}
-
 void FAndroidPlatformStackWalk::NotifyPlatformVersionInit()
 {
 #if HAS_LIBUNWIND
@@ -54,6 +42,13 @@ void FAndroidPlatformStackWalk::NotifyPlatformVersionInit()
 	{
 		// prevent libunwind attempting to deref IP during signal frame test. (this will make backtrace called from a signal less useful.)
 		unw_disable_signal_frame_test(1);
+	}
+	else
+	{
+		// first call to unw_backtrace will trigger some initial large allocations and if it happens during stack capturing on an exception we might get another out of memory exception
+		const uint32 Depth = 16;
+		void* Stack[Depth];
+		unw_backtrace((void**)Stack, Depth);
 	}
 #endif
 }

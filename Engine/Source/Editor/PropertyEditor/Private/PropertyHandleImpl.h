@@ -601,6 +601,18 @@ public:
 	virtual FPropertyAccess::Result SetObjectValueFromSelection() override;
 };
 
+// LWC_TODO: Replace with FPropertyHandleDouble once all types support it
+class FPropertyHandleMixed : public FPropertyHandleBase
+{
+public:
+	FPropertyHandleMixed(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities);
+	static bool Supports(TSharedRef<FPropertyNode> PropertyNode);
+	virtual FPropertyAccess::Result GetValue(float& OutValue) const override;
+	virtual FPropertyAccess::Result GetValue(double& OutValue) const override;
+	virtual FPropertyAccess::Result SetValue(const float& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
+	virtual FPropertyAccess::Result SetValue(const double& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
+};
+
 class FPropertyHandleVector : public FPropertyHandleBase
 {
 public:
@@ -623,17 +635,6 @@ public:
 	virtual FPropertyAccess::Result SetZ(double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags);
 	virtual FPropertyAccess::Result SetW(double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags);
 private:
-	// LWC_TODO: Replace with FPropertyHandleDouble once all types support it
-	class FPropertyHandleMixed: public FPropertyHandleBase
-	{
-	public:
-		FPropertyHandleMixed(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities);
-		static bool Supports(TSharedRef<FPropertyNode> PropertyNode);
-		virtual FPropertyAccess::Result GetValue(float& OutValue) const override;
-		virtual FPropertyAccess::Result GetValue(double& OutValue) const override;
-		virtual FPropertyAccess::Result SetValue(const float& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
-		virtual FPropertyAccess::Result SetValue(const double& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
-	};
 	TArray< TSharedPtr<FPropertyHandleMixed> > VectorComponents;	
 };
 
@@ -645,13 +646,13 @@ public:
 	virtual FPropertyAccess::Result GetValue( FRotator& OutValue ) const override;
 	virtual FPropertyAccess::Result SetValue( const FRotator& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags ) override;
 
-	virtual FPropertyAccess::Result SetRoll( float InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
-	virtual FPropertyAccess::Result SetPitch( float InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
-	virtual FPropertyAccess::Result SetYaw( float InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
+	virtual FPropertyAccess::Result SetRoll( double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
+	virtual FPropertyAccess::Result SetPitch( double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
+	virtual FPropertyAccess::Result SetYaw( double InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags );
 private:
-	TSharedPtr<FPropertyHandleFloat> RollValue;
-	TSharedPtr<FPropertyHandleFloat> PitchValue;
-	TSharedPtr<FPropertyHandleFloat> YawValue;
+	TSharedPtr<FPropertyHandleMixed> RollValue;
+	TSharedPtr<FPropertyHandleMixed> PitchValue;
+	TSharedPtr<FPropertyHandleMixed> YawValue;
 };
 
 class FPropertyHandleColor : public FPropertyHandleBase

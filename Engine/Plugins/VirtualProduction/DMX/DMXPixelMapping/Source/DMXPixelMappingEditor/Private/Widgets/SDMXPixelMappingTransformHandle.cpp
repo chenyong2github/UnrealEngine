@@ -78,21 +78,33 @@ FReply SDMXPixelMappingTransformHandle::OnMouseButtonUp(const FGeometry& MyGeome
 	{
 		Action = EDMXPixelMappingTransformAction::None;
 		
-		// Delete components no longer over the resized component
 		if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = DesignerViewWeakPtr.Pin()->GetToolkit())
-		{
+		{		
 			const FDMXPixelMappingComponentReference& ComponentReference = DesignerViewWeakPtr.Pin()->GetSelectedComponent();
 			if (UDMXPixelMappingOutputComponent* ResizedComponent = Cast<UDMXPixelMappingOutputComponent>(ComponentReference.GetComponent()))
-				{
+			{			
+				// Delete the component if it's no longer over its parent
 				if (ResizedComponent->HasValidParent() &&
 					!ResizedComponent->IsOverParent())
-					{
+				{
 					ResizedComponent->SetFlags(RF_Transactional);
 					ResizedComponent->Modify();
 
 					ResizedComponent->GetParent()->RemoveChild(ResizedComponent);
+				}
+
+				// Delete childs if they're no longer over their parent
+				for (UDMXPixelMappingBaseComponent* Child : TArray<UDMXPixelMappingBaseComponent*>(ResizedComponent->Children))
+				{
+					if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(Child))
+					{
+						if (OutputComponent && !OutputComponent->IsOverParent())
+						{
+							ResizedComponent->RemoveChild(Child);
 						}
 					}
+				}
+			}
 		}
 
 		// Set the final size transacted

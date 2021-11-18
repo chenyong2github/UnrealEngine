@@ -133,6 +133,7 @@ FScopedCurveEditorTreeEventGuard::~FScopedCurveEditorTreeEventGuard()
 FCurveEditorTree::FCurveEditorTree()
 {
 	NextTreeItemID.Value = 1;
+	bIsDoingDirectSelection = false;
 }
 
 FCurveEditorTreeItem& FCurveEditorTree::GetItem(FCurveEditorTreeItemID ItemID)
@@ -444,6 +445,7 @@ void FCurveEditorTree::SortTreeItems(FSortedCurveEditorTreeItems& TreeItemIDsToS
 void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeItems, FCurveEditor* InCurveEditor)
 {
 	FScopedCurveEditorTreeEventGuard EventGuard(this);
+	TGuardValue<bool> Guard(bIsDoingDirectSelection, true);
 
 	TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> PreviousSelection = MoveTemp(Selection);
 	Selection.Reset();

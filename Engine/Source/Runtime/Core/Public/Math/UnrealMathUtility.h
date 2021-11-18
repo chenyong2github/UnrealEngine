@@ -25,17 +25,18 @@
 -----------------------------------------------------------------------------*/
 
 // Forward declarations.
+UE_DECLARE_LWC_TYPE(Vector2,, FVector2D);
 UE_DECLARE_LWC_TYPE(Vector, 3);
 UE_DECLARE_LWC_TYPE(Vector4);
 UE_DECLARE_LWC_TYPE(Plane, 4);
 UE_DECLARE_LWC_TYPE(Box, 3);
-struct  FRotator;
+UE_DECLARE_LWC_TYPE(Rotator, 3);
 UE_DECLARE_LWC_TYPE(Matrix, 44);
 UE_DECLARE_LWC_TYPE(Quat, 4);
 struct  FTwoVectors;
 UE_DECLARE_LWC_TYPE(Transform, 3);
 UE_DECLARE_LWC_TYPE(Sphere, 3);
-struct FVector2D;
+
 struct FLinearColor;
 template<typename ElementType>
 class TRange;
@@ -149,15 +150,15 @@ class TRange;
 
 /**
  * Template helper for FMath::Lerp<>() and related functions.
- * By default, any type T is assumed to not need a custom Lerp implementation (IsRequired=false).
- * However a class that requires custom functionality (eg FQuat) can specialize the template to define IsRequired=true and
+ * By default, any type T is assumed to not need a custom Lerp implementation (Value=false).
+ * However a class that requires custom functionality (eg FQuat) can specialize the template to define Value=true and
  * implement the Lerp() function and other similar functions and provide a custom implementation.
  * Example:
  * 
  *	template<> struct TCustomLerp< MyClass >
  *	{
  *		// Required to use our custom Lerp() function below.
- *		enum { IsRequired = true };
+ *		enum { Value = true };
  *
  *		// Implements for float Alpha param. You could also add overrides or make it a template param.
  *		static inline MyClass Lerp(const MyClass& A, const MyClass& B, const float& Alpha)
@@ -169,7 +170,7 @@ class TRange;
 template <typename T>
 struct TCustomLerp
 {
-	enum { IsRequired = false };
+	enum { Value = false };
 };
 
 /**
@@ -231,6 +232,8 @@ struct FMath : public FPlatformMath
 		return InMin + (InMax - InMin) * FRand();	// LWC_TODO: Implement FRandDbl() for increased precision
 	}
 
+	RESOLVE_FLOAT_AMBIGUITY_2_ARGS(FRandRange);
+
 	/** Util to generate a random boolean. */
 	static FORCEINLINE bool RandBool()
 	{
@@ -272,15 +275,16 @@ struct FMath : public FPlatformMath
 	// Predicates
 
 	/** Checks if value is within a range, exclusive on MaxValue) */
-	template< class U > 
-	static FORCEINLINE bool IsWithin(const U& TestValue, const U& MinValue, const U& MaxValue)
+	template< class T, class U> 
+	static FORCEINLINE bool IsWithin(const T& TestValue, const U& MinValue, const U& MaxValue)
 	{
 		return ((TestValue >= MinValue) && (TestValue < MaxValue));
 	}
 
+
 	/** Checks if value is within a range, inclusive on MaxValue) */
-	template< class U > 
-	static FORCEINLINE bool IsWithinInclusive(const U& TestValue, const U& MinValue, const U& MaxValue)
+	template< class T, class U> 
+	static FORCEINLINE bool IsWithinInclusive(const T& TestValue, const U& MinValue, const U& MaxValue)
 	{
 		return ((TestValue>=MinValue) && (TestValue <= MaxValue));
 	}
@@ -294,19 +298,16 @@ struct FMath : public FPlatformMath
 	 */
 	static FORCEINLINE bool IsNearlyEqual(float A, float B, float ErrorTolerance = SMALL_NUMBER)
 	{
-		return Abs( A - B ) <= ErrorTolerance;
+		return Abs<float>( A - B ) <= ErrorTolerance;
 	}
 
 	static FORCEINLINE bool IsNearlyEqual(double A, double B, double ErrorTolerance = DOUBLE_SMALL_NUMBER)
 	{
-		return Abs(A - B) <= ErrorTolerance;
+		return Abs<double>(A - B) <= ErrorTolerance;
 	}
 
-	// Overload to resolve common scenario with the first value from a variable and 2 hard-coded constants.
-	static FORCEINLINE bool IsNearlyEqual(double A, float B, float ErrorTolerance = SMALL_NUMBER)
-	{
-		return Abs(A - (double)B) <= (double)ErrorTolerance;
-	}
+	RESOLVE_FLOAT_PREDICATE_AMBIGUITY_2_ARGS(IsNearlyEqual);
+	RESOLVE_FLOAT_PREDICATE_AMBIGUITY_3_ARGS(IsNearlyEqual);
 
 	/**
 	 *	Checks if a floating point number is nearly zero.
@@ -325,10 +326,13 @@ struct FMath : public FPlatformMath
 	 *	@param ErrorTolerance	Maximum allowed difference for considering Value as 'nearly zero'
 	 *	@return					true if Value is nearly zero
 	 */
-	static FORCEINLINE bool IsNearlyZero(double Value, double ErrorTolerance = SMALL_NUMBER)
+	static FORCEINLINE bool IsNearlyZero(double Value, double ErrorTolerance = DOUBLE_SMALL_NUMBER)
 	{
 		return Abs<double>( Value ) <= ErrorTolerance;
 	}
+
+	RESOLVE_FLOAT_PREDICATE_AMBIGUITY(IsNearlyZero);
+	RESOLVE_FLOAT_PREDICATE_AMBIGUITY_2_ARGS(IsNearlyZero);
 
 private:
 	template<typename FloatType, typename IntegralType, IntegralType SignedBit>
@@ -486,16 +490,12 @@ public:
 	}
 
 	/** Clamps X to be between Min and Max, inclusive */
-	template< class T > 
-	UE_NODISCARD static FORCEINLINE T Clamp( const T X, const T Min, const T Max )
+	template< class T >
+	UE_NODISCARD static FORCEINLINE T Clamp(const T X, const T Min, const T Max)
 	{
-		return X<Min ? Min : X<Max ? X : Max;
+		return (X < Min) ? Min : (X < Max) ? X : Max;
 	}
-	// LWC_TODO: Simplify code refactoring to avoid double/float mismatches. Should not ship? UE_DEPRECATED warning?
-	UE_NODISCARD static FORCEINLINE double Clamp(const double X, const float Min, const float Max)
-	{
-		return X < Min ? Min : X < Max ? X : Max;
-	}
+	MIX_TYPES_3_ARGS(Clamp);
 
 	/** Wraps X to be between Min and Max, inclusive. */
 	/** When X can wrap to both Min and Max, it will wrap to Min if it lies below the range and wrap to Max if it is above the range. */
@@ -528,6 +528,7 @@ public:
 	{
 		return (Grid == T{}) ? Location : (Floor((Location + (Grid/(T)2)) / Grid) * Grid);
 	}
+	MIX_TYPES_2_ARGS(GridSnap);
 
 	/** Divides two integers and rounds up */
 	template <class T>
@@ -631,6 +632,19 @@ public:
 		*ScalarCos = sign*p;
 	}
 
+	static FORCEINLINE void SinCos(double* ScalarSin, double* ScalarCos, double Value)
+	{
+		// No approximations for doubles
+		*ScalarSin = FMath::Sin(Value);
+		*ScalarCos = FMath::Cos(Value);
+	}
+
+	template<typename T, typename U, TEMPLATE_REQUIRES(!TIsSame<T, U>::Value)>
+	static FORCEINLINE void SinCos(T* ScalarSin, T* ScalarCos, U Value)
+	{
+		SinCos(ScalarSin, ScalarCos, T(Value));
+	}
+
 
 	// Note:  We use FASTASIN_HALF_PI instead of HALF_PI inside of FastASin(), since it was the value that accompanied the minimax coefficients below.
 	// It is important to use exactly the same value in all places inside this function to ensure that FastASin(0.0f) == 0.0f.
@@ -682,6 +696,9 @@ public:
 		return RadVal * (180.f / PI);
 	}
 
+	static FORCEINLINE float RadiansToDegrees(float const& RadVal) { return RadVal * (180.f / PI); }
+	static FORCEINLINE double RadiansToDegrees(double const& RadVal) { return RadVal * (180.0 / DOUBLE_PI); }
+
 	/** 
 	 * Converts degrees to radians.
 	 * @param	DegVal			Value in degrees.
@@ -693,6 +710,9 @@ public:
 		return DegVal * (PI / 180.f);
 	}
 
+	static FORCEINLINE float DegreesToRadians(float const& DegVal) { return DegVal * (PI / 180.f); }
+	static FORCEINLINE double DegreesToRadians(double const& DegVal) { return DegVal * (DOUBLE_PI / 180.0); }
+
 	/** 
 	 * Clamps an arbitrary angle to be between the given angles.  Will clamp to nearest boundary.
 	 * 
@@ -703,11 +723,11 @@ public:
 	static CORE_API float ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees);
 
 	/** Find the smallest angle between two headings (in degrees) */
-	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
-	static T FindDeltaAngleDegrees(T A1, T A2)
+	template<typename T, typename T2, TEMPLATE_REQUIRES(TOr<TIsFloatingPoint<T>, TIsFloatingPoint<T2>>::Value)>
+	static auto FindDeltaAngleDegrees(T A1, T2 A2) -> decltype(A1 * A2)
 	{
 		// Find the difference
-		T Delta = A2 - A1;
+		auto Delta = A2 - A1;
 
 		// If change is larger than 180
 		if (Delta > 180.0f)
@@ -727,11 +747,11 @@ public:
 	}
 
 	/** Find the smallest angle between two headings (in radians) */
-	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
-	static T FindDeltaAngleRadians(T A1, T A2)
+	template<typename T, typename T2, TEMPLATE_REQUIRES(TOr<TIsFloatingPoint<T>, TIsFloatingPoint<T2>>::Value)>
+	static auto FindDeltaAngleRadians(T A1, T2 A2) -> decltype(A1 * A2)
 	{
 		// Find the difference
-		T Delta = A2 - A1;
+		auto Delta = A2 - A1;
 
 		// If change is larger than PI
 		if (Delta > PI)
@@ -810,13 +830,18 @@ public:
 	static CORE_API float FixedTurn(float InCurrent, float InDesired, float InDeltaRate);
 
 	/** Converts given Cartesian coordinate pair to Polar coordinate system. */
-	static FORCEINLINE void CartesianToPolar(const float X, const float Y, float& OutRad, float& OutAng)
+	template<typename T>
+	static FORCEINLINE void CartesianToPolar(const T X, const T Y, T& OutRad, T& OutAng)
 	{
 		OutRad = Sqrt(Square(X) + Square(Y));
 		OutAng = Atan2(Y, X);
 	}
 	/** Converts given Cartesian coordinate pair to Polar coordinate system. */
-	static FORCEINLINE void CartesianToPolar(const FVector2D InCart, FVector2D& OutPolar);
+	template<typename T>
+	static FORCEINLINE void CartesianToPolar(const UE::Math::TVector2<T> InCart, UE::Math::TVector2<T>& OutPolar)
+	{
+		CartesianToPolar(InCart.X, InCart.Y, OutPolar.X, OutPolar.Y);
+	}
 
 	/** Converts given Polar coordinate pair to Cartesian coordinate system. */
 	template<typename T>
@@ -826,7 +851,11 @@ public:
 		OutY = Rad * Sin(Ang);
 	}
 	/** Converts given Polar coordinate pair to Cartesian coordinate system. */
-	static FORCEINLINE void PolarToCartesian(const FVector2D InPolar, FVector2D& OutCart);
+	template<typename T>
+	static FORCEINLINE void PolarToCartesian(const UE::Math::TVector2<T> InPolar, UE::Math::TVector2<T>& OutCart)
+	{
+		PolarToCartesian(InPolar.X, InPolar.Y, OutCart.X, OutCart.Y);
+	}
 
 	/**
 	 * Calculates the dotted distance of vector 'Direction' to coordinate system O(AxisX,AxisY,AxisZ).
@@ -868,35 +897,47 @@ public:
 	// Interpolation Functions
 
 	/** Calculates the percentage along a line from MinValue to MaxValue that Value is. */
-	template<typename T>
-	static FORCEINLINE typename TEnableIf<TIsFloatingPoint<T>::Value, T>::Type GetRangePct(T MinValue, T MaxValue, T Value)
+	template<typename T, typename T2, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
+	static FORCEINLINE auto GetRangePct(T MinValue, T MaxValue, T2 Value)
 	{
 		// Avoid Divide by Zero.
 		// But also if our range is a point, output whether Value is before or after.
 		const T Divisor = MaxValue - MinValue;
 		if (FMath::IsNearlyZero(Divisor))
 		{
-			return (Value >= MaxValue) ? (T)1 : (T)0;
+			using RetType = decltype(T() / T2());
+			return (Value >= MaxValue) ? (RetType)1 : (RetType)0;
 		}
 
 		return (Value - MinValue) / Divisor;
 	}
 
 	/** Same as above, but taking a 2d vector as the range. */
-	static float GetRangePct(FVector2D const& Range, float Value);
+	template<typename T, typename T2, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
+	static auto GetRangePct(UE::Math::TVector2<T> const& Range, T2 Value)
+	{
+		return GetRangePct(Range.X, Range.Y, Value);
+	}
 	
 	/** Basically a Vector2d version of Lerp. */
-	static float GetRangeValue(FVector2D const& Range, float Pct);
+	template<typename T, typename T2, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
+	static auto GetRangeValue(UE::Math::TVector2<T> const& Range, T2 Pct)
+	{
+		return Lerp(Range.X, Range.Y, Pct);
+	}
 
 	/** For the given Value clamped to the [Input:Range] inclusive, returns the corresponding percentage in [Output:Range] Inclusive. */
-	static FORCEINLINE float GetMappedRangeValueClamped(const FVector2D& InputRange, const FVector2D& OutputRange, const float Value)
+	template<typename T, typename T2>
+	static FORCEINLINE auto GetMappedRangeValueClamped(const UE::Math::TVector2<T>& InputRange, const UE::Math::TVector2<T>& OutputRange, const T2 Value)
 	{
-		const float ClampedPct = Clamp<float>(GetRangePct(InputRange, Value), 0.f, 1.f);
+		using RangePctType = decltype(T() * T2());
+		const RangePctType ClampedPct = Clamp<RangePctType>(GetRangePct(InputRange, Value), 0.f, 1.f);
 		return GetRangeValue(OutputRange, ClampedPct);
 	}
 
 	/** Transform the given Value relative to the input range to the Output Range. */
-	static FORCEINLINE float GetMappedRangeValueUnclamped(const FVector2D& InputRange, const FVector2D& OutputRange, const float Value)
+	template<typename T, typename T2>
+	static FORCEINLINE auto GetMappedRangeValueUnclamped(const UE::Math::TVector2<T>& InputRange, const UE::Math::TVector2<T>& OutputRange, const T2 Value)
 	{
 		return GetRangeValue(OutputRange, GetRangePct(InputRange, Value));
 	}
@@ -921,17 +962,32 @@ public:
 	}
 
 	/** Performs a linear interpolation between two values, Alpha ranges from 0-1 */
-	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::IsRequired && (TIsFloatingPoint<U>::Value || TIsSame<T,U>::Value)) >
+	template< class T, class U, TEMPLATE_REQUIRES(TAnd<
+													TNot<TCustomLerp<T>>,
+													TOr<TIsFloatingPoint<U>, TIsSame<T, U>>
+													>::Value)>
 	static FORCEINLINE_DEBUGGABLE T Lerp( const T& A, const T& B, const U& Alpha )
 	{
 		return (T)(A + Alpha * (B-A));
 	}
 
 	/** Custom lerps defined for those classes not suited to the default implemenation. */
-	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::IsRequired) >
+	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::Value) >
 	static FORCEINLINE_DEBUGGABLE T Lerp(const T& A, const T& B, const U& Alpha)
 	{
 		return TCustomLerp<T>::Lerp(A, B, Alpha);
+	}
+
+	// Allow passing of differing A/B types.
+	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TAnd<
+																		TNot<TIsSame<T1, T2>>,
+																		TNot<TCustomLerp<T1>>,
+																		TNot<TCustomLerp<T2>>
+																		>::Value)>
+	static auto Lerp( const T1& A, const T2& B, const T3& Alpha ) -> decltype(A * B)
+	{
+		using ABType = decltype(A * B);
+		return Lerp(ABType(A), ABType(B), Alpha);
 	}
 
 	/** Performs a linear interpolation between two values, Alpha ranges from 0-1. Handles full numeric range of T */
@@ -948,8 +1004,19 @@ public:
 		return (T)((A * (1.0f - Alpha)) + (B * Alpha));
 	}
 
+	// Allow passing of differing A/B types.
+	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(!TIsSame<T1, T2>::Value)>
+	static auto LerpStable( const T1& A, const T2& B, const T3& Alpha ) -> decltype(A * B)
+	{
+		using ABType = decltype(A * B);
+		return LerpStable(ABType(A), ABType(B), Alpha);
+	}
+	
 	/** Performs a 2D linear interpolation between four values values, FracX, FracY ranges from 0-1 */
-	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::IsRequired && (TIsFloatingPoint<U>::Value || TIsSame<T, U>::Value)) >
+	template< class T, class U, TEMPLATE_REQUIRES(TAnd<
+													TNot<TCustomLerp<T>>,
+													TOr<TIsFloatingPoint<U>, TIsSame<T, U>>
+													>::Value)>
 	static FORCEINLINE_DEBUGGABLE T BiLerp(const T& P00,const T& P10,const T& P01,const T& P11, const U& FracX, const U& FracY)
 	{
 		return Lerp(
@@ -960,7 +1027,7 @@ public:
 	}
 
 	/** Custom lerps defined for those classes not suited to the default implemenation. */
-	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::IsRequired) >
+	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::Value) >
 	static FORCEINLINE_DEBUGGABLE T BiLerp(const T& P00, const T& P10, const T& P01, const T& P11, const U& FracX, const U& FracY)
 	{
 		return TCustomLerp<T>::BiLerp(P00, P10, P01, P11, FracX, FracY);
@@ -975,7 +1042,10 @@ public:
 	 *
 	 * @return  Interpolated value
 	 */
-	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::IsRequired && (TIsFloatingPoint<U>::Value || TIsSame<T, U>::Value)) >
+	template< class T, class U, TEMPLATE_REQUIRES(TAnd<
+													TNot<TCustomLerp<T>>,
+													TOr<TIsFloatingPoint<U>, TIsSame<T, U>>
+													>::Value)>
 	static FORCEINLINE_DEBUGGABLE T CubicInterp( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{
 		const U A2 = A * A;
@@ -985,7 +1055,7 @@ public:
 	}
 
 	/** Custom lerps defined for those classes not suited to the default implemenation. */
-	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::IsRequired) >
+	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::Value) >
 	static FORCEINLINE_DEBUGGABLE T CubicInterp(const T& P0, const T& T0, const T& P1, const T& T1, const U& A)
 	{
 		return TCustomLerp<T>::CubicInterp(P0, T0, P1, T1, A);
@@ -1151,8 +1221,9 @@ public:
 	}
 
 	// Rotator specific interpolation
-	static FRotator LerpRange(const FRotator& A, const FRotator& B, float Alpha);
-	static FRotator LerpRange(const FRotator& A, const FRotator& B, double Alpha);
+	// Similar to Lerp, but does not take the shortest path. Allows interpolation over more than 180 degrees.
+	template< typename T, typename U >
+	static UE::Math::TRotator<T> LerpRange(const UE::Math::TRotator<T>& A, const UE::Math::TRotator<T>& B, U Alpha);
 
 	/*
 	 *	Cubic Catmull-Rom Spline interpolation. Based on http://www.cemyuksel.com/research/catmullrom_param/catmullrom.pdf 
@@ -1240,18 +1311,48 @@ public:
 	static CORE_API FRotator RInterpTo( const FRotator& Current, const FRotator& Target, float DeltaTime, float InterpSpeed);
 
 	/** Interpolate float from Current to Target with constant step */
-	static CORE_API float FInterpConstantTo( float Current, float Target, float DeltaTime, float InterpSpeed );
+	template<typename T1, typename T2 = T1, typename T3 = T2, typename T4 = T3>
+	static auto FInterpConstantTo( T1 Current, T2 Target, T3 DeltaTime, T4 InterpSpeed )
+	{
+		using RetType = decltype(T1() * T2() * T3() * T4());
+	
+		const RetType Dist = Target - Current;
+
+		// If distance is too small, just set the desired location
+		if( FMath::Square(Dist) < SMALL_NUMBER )
+		{
+			return static_cast<RetType>(Target);
+		}
+
+		const RetType Step = InterpSpeed * DeltaTime;
+		return Current + FMath::Clamp(Dist, -Step, Step);
+	}
 
 	/** Interpolate float from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
-	static CORE_API float FInterpTo( float Current, float Target, float DeltaTime, float InterpSpeed );
-
-	/** Interpolate double from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
-	static CORE_API double FInterpTo(double Current, double Target, double DeltaTime, double InterpSpeed);
-	
-	/** Overload to resolve type ambiguity */
-	static FORCEINLINE double FInterpTo(double Current, double Target, float DeltaTime, double InterpSpeed)
+	template<typename T1, typename T2 = T1, typename T3 = T2, typename T4 = T3>
+	static auto FInterpTo( T1  Current, T2 Target, T3 DeltaTime, T4 InterpSpeed )
 	{
-		return FInterpTo(Current, Target, (double)DeltaTime, InterpSpeed);
+		using RetType = decltype(T1() * T2() * T3() * T4());
+	
+		// If no interp speed, jump to target value
+		if( InterpSpeed <= 0.f )
+		{
+			return static_cast<RetType>(Target);
+		}
+
+		// Distance to reach
+		const RetType Dist = Target - Current;
+
+		// If distance is too small, just set the desired location
+		if( FMath::Square(Dist) < SMALL_NUMBER )
+		{
+			return static_cast<RetType>(Target);
+		}
+
+		// Delta Move, Clamp so we do not over shoot.
+		const RetType DeltaMove = Dist * FMath::Clamp<RetType>(DeltaTime * InterpSpeed, 0.f, 1.f);
+
+		return Current + DeltaMove;				
 	}
 
 	/** Interpolate Linear Color from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
@@ -2219,14 +2320,10 @@ public:
 	// A call is considered ambiguous if it passes no float types, any long double, or multiple mismatched float/double types.
 	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE float Log2(T&& Value) { return Log2((float)Value); }
-	//template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	//static FORCEINLINE bool IsNearlyEqual(T1 A, T2 B, T3 ErrorTolerance = SMALL_NUMBER) { return IsNearlyEqual((float)A, (float)B, (float)ErrorTolerance); }
-	//template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	//static FORCEINLINE bool IsNearlyEqualByULP(T1 A, T2 B, int32 MaxUlps = 4) { return IsNearlyEqualByULP((float)A, (float)B, MaxUlps); }
-	//template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	//static FORCEINLINE bool IsNearlyZero(T1 Value, T2 ErrorTolerance = SMALL_NUMBER) { return IsNearlyZero((float)Value, (float)ErrorTolerance); }
 	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE void PolarToCartesian(const T1 Rad, const T2 Ang, T3& OutX, T3& OutY) { float OX, OY; PolarToCartesian((float)Rad, (float)Ang, OX, OY); OutX = OX; OutY = OY; }
+	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE void CartesianToPolar(const T1 X, const T2 Y, T3& OutRad, T3& OutAng) { float ORad, OAng; CartesianToPolar((float)X, (float)Y, ORad, OAng); OutRad = ORad; OutAng = OAng; }
 
 	template<typename T1, typename T2, typename T3, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE float SmoothStep(T1&& A, T2&& B, T3&& C) { return SmoothStep((float)A, (float)B, (float)C); }
@@ -2234,15 +2331,6 @@ public:
 	static FORCEINLINE float WeightedMovingAverage(T1&& CurrentSample, T2&& PreviousSample, T3&& Weight) { return WeightedMovingAverage((float)CurrentSample, (float)PreviousSample, (float)Weight); }
 	template<typename T1, typename T2, typename T3, typename T4, typename T5, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2, T3, T4, T5>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE float DynamicWeightedMovingAverage(T1&& CurrentSample, T2&& PreviousSample, T3&& MaxDistance, T4&& MinWeight, T5&& MaxWeight) { return DynamicWeightedMovingAverage((float)CurrentSample, (float)PreviousSample, (float)MaxDistance, (float)MinWeight, (float)MaxWeight); }
-
-	template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float FRandRange(T1&& A, T2&& B) { return FRandRange((float)A, (float)B); }
-
-	// Catch LWC type mismatch issues. TODO: Too verbose
-	UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float GridSnap(float Location, double Grid) { return GridSnap(Location, (float)Grid); }
-	UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float GridSnap(double Location, float Grid) { return GridSnap((float)Location, Grid); }
 };
 
 // LWC Conversion helpers - LWC_TODO: These are temporary and should be removed for UE5.0 final.

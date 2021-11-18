@@ -302,23 +302,30 @@ namespace Electra
 			Authority += UserInfo;
 			Authority += TEXT("@");
 		}
-		// Is the host an IPv6 address that needs to be enclosed in square brackets?
-		int32 DummyPos = 0;
-		if (Host.FindChar(TCHAR(':'), DummyPos))
+		if (Scheme.Equals(TEXT("file")))
 		{
-			Authority += TEXT("[");
 			Authority += Host;
-			Authority += TEXT("]");
 		}
 		else
 		{
-			Authority += Host;
-		}
-		// Need to append a port?
-		if (Port.Len())
-		{
-			Authority += TEXT(":");
-			Authority += Port;
+			// Is the host an IPv6 address that needs to be enclosed in square brackets?
+			int32 DummyPos = 0;
+			if (Host.FindChar(TCHAR(':'), DummyPos))
+			{
+				Authority += TEXT("[");
+				Authority += Host;
+				Authority += TEXT("]");
+			}
+			else
+			{
+				Authority += Host;
+			}
+			// Need to append a port?
+			if (Port.Len())
+			{
+				Authority += TEXT(":");
+				Authority += Port;
+			}
 		}
 		return Authority;
 	}
@@ -370,35 +377,47 @@ namespace Electra
 			return true;
 		}
 		Host.Empty();
-		// IPv6 adress in [xxx:xxx:xxx] notation?
-		if (*it == TCHAR('['))
+		if (Scheme.Equals(TEXT("file")))
 		{
-			++it;
-			while(it && *it != TCHAR(']'))
+			// For file:// scheme we have to consider Windows drive letters with a colon, eg. file://D:/
+			// We must not stop parsing at the colon since it will not indicate a port for the file scheme anyway.
+			while(it)
 			{
 				Host += *it++;
 			}
-			if (!it)
-			{
-				// Need to have at least the closing ']'
-				return false;
-			}
-			++it;
 		}
 		else
 		{
-			while(it && !IsColonSeparator(*it))
+			// IPv6 adress in [xxx:xxx:xxx] notation?
+			if (*it == TCHAR('['))
 			{
-				Host += *it++;
+				++it;
+				while(it && *it != TCHAR(']'))
+				{
+					Host += *it++;
+				}
+				if (!it)
+				{
+					// Need to have at least the closing ']'
+					return false;
+				}
+				++it;
 			}
-		}
-		if (it && IsColonSeparator(*it))
-		{
-			++it;
-			Port.Empty();
-			while(it)
+			else
 			{
-				Port += *it++;
+				while(it && !IsColonSeparator(*it))
+				{
+					Host += *it++;
+				}
+			}
+			if (it && IsColonSeparator(*it))
+			{
+				++it;
+				Port.Empty();
+				while(it)
+				{
+					Port += *it++;
+				}
 			}
 		}
 		return true;

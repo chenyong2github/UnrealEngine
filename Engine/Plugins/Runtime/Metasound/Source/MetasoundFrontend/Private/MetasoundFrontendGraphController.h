@@ -72,6 +72,8 @@ namespace Metasound
 			virtual FVariableHandle AddVariable(const FName& InDataType) override;
 			virtual FVariableHandle FindVariable(const FGuid& InVariableID) override;
 			virtual FConstVariableHandle FindVariable(const FGuid& InVariableID) const override;
+			virtual FVariableHandle FindVariableContainingNode(const FGuid& InNodeID) override;
+			virtual FConstVariableHandle FindVariableContainingNode(const FGuid& InNodeID) const override;
 			virtual bool RemoveVariable(const FGuid& InVariableID) override;
 			virtual TArray<FVariableHandle> GetVariables() override;
 			virtual TArray<FConstVariableHandle> GetVariables() const override;
@@ -174,10 +176,13 @@ namespace Metasound
 
 		private:
 
+			FGuid FindVariableIDOfVariableContainingNode(const FGuid& InNodeID) const;
 			FMetasoundFrontendVariable* FindFrontendVariable(const FGuid& InVariableID);
 			const FMetasoundFrontendVariable* FindFrontendVariable(const FGuid& InVariableID) const;
 			FNodeHandle FindHeadNodeInVariableStack(const FGuid& InVariableID);
 			FNodeHandle FindTailNodeInVariableStack(const FGuid& InVariableID);
+
+			void RemoveNodeIDFromAssociatedVariable(const INodeController& InNode);
 			// Remove variable node from variable stack, and reconnect variable to remaining nodes.
 			void SpliceVariableNodeFromVariableStack(INodeController& InNode);
 

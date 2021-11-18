@@ -25,7 +25,7 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "StaticMeshResources.h"
 
-static const int32 DrawCollisionSides = 16;
+static const int32 DrawCollisionSides = 32;
 static const int32 DrawConeLimitSides = 40;
 
 static const float DebugJointPosSize = 5.0f;
@@ -255,8 +255,8 @@ void FKSphylElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D,
 	// Then rotate this arc NumSides+1 times.
 	for (int32 SideIdx = 0; SideIdx < NumSides + 1; SideIdx++)
 	{
-		const FRotator ArcRotator(0, 360.f * ((float)SideIdx / NumSides), 0);
-		const FRotationMatrix ArcRot(ArcRotator);
+		const FRotator3f ArcRotator(0, 360.f * ((float)SideIdx / NumSides), 0);
+		const FRotationMatrix44f ArcRot(ArcRotator);
 		const float XTexCoord = ((float)SideIdx / NumSides);
 
 		for (int32 VertIdx = 0; VertIdx < NumRings + 1; VertIdx++)
@@ -358,8 +358,8 @@ void FKSphylElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform& 
 	// Then rotate this arc NumSides+1 times.
 	for (int32 SideIdx = 0; SideIdx < NumSides + 1; SideIdx++)
 	{
-		const FRotator ArcRotator(0, 360.f * ((float)SideIdx / NumSides), 0);
-		const FRotationMatrix ArcRot(ArcRotator);
+		const FRotator3f ArcRotator(0, 360.f * ((float)SideIdx / NumSides), 0);
+		const FRotationMatrix44f ArcRot(ArcRotator);
 		const float XTexCoord = ((float)SideIdx / NumSides);
 
 		for (int32 VertIdx = 0; VertIdx < NumRings + 1; VertIdx++)
@@ -603,8 +603,8 @@ struct FScopedTaperedCapsuleBuilder
 		// Then rotate this arc NumSides+1 times.
 		for (int32 SideIdx = 0; SideIdx < NumSides + 1; SideIdx++)
 		{
-			const FRotator ArcRotator(0, 360.f * ((float)SideIdx / NumSides), 0);
-			const FRotationMatrix ArcRot(ArcRotator);
+			const FRotator3f ArcRotator(0, 360.f * ((float)SideIdx / NumSides), 0);
+			const FRotationMatrix44f ArcRot(ArcRotator);
 			const float XTexCoord = ((float)SideIdx / NumSides);
 
 			for (int32 VertIdx = 0; VertIdx < NumRings + 1; VertIdx++)

@@ -6,6 +6,7 @@ using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swconst;
 using System.Linq;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace DatasmithSolidworks
 {
@@ -290,58 +291,79 @@ namespace DatasmithSolidworks
 			return ComponentMaterials;
 		}
 
-		public static Dictionary<string, FObjectMaterials> LoadDocumentMaterials(FDocument InDoc, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
+		public static ConcurrentDictionary<string, FObjectMaterials> LoadAssemblyMaterials(FAssemblyDocument InAsmDoc, HashSet<string> InComponentsSet, swDisplayStateOpts_e InDisplayState, string[] InDisplayStateNames)
 		{
-			IModelDocExtension Ext = InDoc.SwDoc.Extension;
+			IModelDocExtension Ext = InAsmDoc.SwDoc.Extension;
 			int NumMaterials = Ext.GetRenderMaterialsCount2((int)InDisplayState, InDisplayStateNames);
 
-			if (NumMaterials == 0)
+			ConcurrentDictionary<string, FObjectMaterials> DocMaterials = new ConcurrentDictionary<string, FObjectMaterials>();
+
+			if (NumMaterials > 0)
 			{
-				return null;
-			}
+				object[] ObjMaterials = Ext.GetRenderMaterials2((int)InDisplayState, InDisplayStateNames);
 
-			Dictionary<string, FObjectMaterials> DocMaterials = new Dictionary<string, FObjectMaterials>();
-
-			object[] ObjMaterials = Ext.GetRenderMaterials2((int)InDisplayState, InDisplayStateNames);
-
-			foreach (object ObjMat in ObjMaterials)
-			{
-				RenderMaterial RenderMat = ObjMat as RenderMaterial;
-				int NumUsers = RenderMat.GetEntitiesCount();
-
-				if (NumUsers == 0)
+				foreach (object ObjMat in ObjMaterials)
 				{
-					continue;
-				}
+					RenderMaterial RenderMat = ObjMat as RenderMaterial;
+					int NumUsers = RenderMat.GetEntitiesCount();
 
-				object[] ObjUsers = RenderMat.GetEntities();
-				foreach (object ObjUser in ObjUsers)
-				{
-					if (ObjUser is Component2 Comp)
+					if (NumUsers == 0)
 					{
-						PartDoc CompDoc = Comp.GetModelDoc2() as PartDoc;
-						if (CompDoc != null)
-						{
-							FObjectMaterials ComponentMaterials = new FObjectMaterials(InDoc, CompDoc, ref InDoc.ExportedMaterialsMap);
-							ComponentMaterials.SetComponentMaterial(RenderMat, InDoc.SwDoc);
-							DocMaterials[Comp.Name2] = ComponentMaterials;
-						}
 						continue;
 					}
 
-					if (ObjUser is IPartDoc Doc)
+					object[] ObjUsers = RenderMat.GetEntities();
+					foreach (object ObjUser in ObjUsers)
 					{
-						FObjectMaterials PartMaterials = LoadPartMaterials(InDoc, Doc as PartDoc, InDisplayState, InDisplayStateNames);
-						if (PartMaterials != null)
+						if (ObjUser is Component2 Comp)
 						{
-							DocMaterials[(Doc as ModelDoc2).GetPathName()] = PartMaterials;
+							PartDoc CompDoc = Comp.GetModelDoc2() as PartDoc;
+							if (CompDoc != null)
+							{
+								FObjectMaterials ComponentMaterials = new FObjectMaterials(InAsmDoc, CompDoc, ref InAsmDoc.ExportedMaterialsMap);
+								ComponentMaterials.SetComponentMaterial(RenderMat, InAsmDoc.SwDoc);
+								DocMaterials[Comp.Name2] = ComponentMaterials;
+							}
+							continue;
 						}
-						continue;
+
+						if (ObjUser is IPartDoc Doc)
+						{
+							FObjectMaterials PartMaterials = LoadPartMaterials(InAsmDoc, Doc as PartDoc, InDisplayState, InDisplayStateNames);
+							if (PartMaterials != null)
+							{
+								DocMaterials[(Doc as ModelDoc2).GetPathName()] = PartMaterials;
+							}
+							continue;
+						}
 					}
 				}
 			}
 
-			return DocMaterials;
+			// Check for materials that are not per component (but instead per face, feature, part etc.)
+			Parallel.ForEach(InComponentsSet, CompName =>
+			{
+				Component2 Comp = InAsmDoc.SwAsmDoc.GetComponentByName(CompName);
+
+				if (Comp != null)
+				{
+					if (!DocMaterials.ContainsKey(CompName))
+					{
+						FObjectMaterials ComponentMaterials = FObjectMaterials.LoadComponentMaterials(InAsmDoc, Comp, swDisplayStateOpts_e.swThisDisplayState, null);
+
+						if (ComponentMaterials == null && Comp.GetModelDoc2() is PartDoc)
+						{
+							ComponentMaterials = FObjectMaterials.LoadPartMaterials(InAsmDoc, Comp.GetModelDoc2() as PartDoc, swDisplayStateOpts_e.swThisDisplayState, null);
+						}
+						if (ComponentMaterials != null)
+						{
+							DocMaterials.TryAdd(CompName, ComponentMaterials);
+						}
+					}
+				}
+			});
+
+			return DocMaterials.Count > 0 ? DocMaterials : null;
 		}
 	}
 }

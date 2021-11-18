@@ -28,7 +28,7 @@ namespace DatasmithSolidworks
 	{
 		private Dictionary<string, Tuple<EActorType, FDatasmithFacadeActor>> ExportedActorsMap = new Dictionary<string, Tuple<EActorType, FDatasmithFacadeActor>>();
 		private ConcurrentDictionary<string, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>> ExportedMeshesMap = new ConcurrentDictionary<string, Tuple<FDatasmithFacadeMeshElement, FDatasmithFacadeMesh>>();
-		private ConcurrentDictionary<int, FDatasmithFacadeUEPbrMaterial> ExportedMaterialsMap = new ConcurrentDictionary<int, FDatasmithFacadeUEPbrMaterial>();
+		private ConcurrentDictionary<int, FDatasmithFacadeMasterMaterial> ExportedMaterialsMap = new ConcurrentDictionary<int, FDatasmithFacadeMasterMaterial>();
 		private ConcurrentDictionary<string, FDatasmithFacadeTexture> ExportedTexturesMap = new ConcurrentDictionary<string, FDatasmithFacadeTexture>();
 		private Dictionary<string, FDatasmithFacadeActorBinding> ExportedActorBindingsMap = new Dictionary<string, FDatasmithFacadeActorBinding>();
 
@@ -37,6 +37,16 @@ namespace DatasmithSolidworks
 		public FDatasmithExporter(FDatasmithFacadeScene InScene)
 		{
 			DatasmithScene = InScene;
+		}
+
+		public EActorType? GetExportedActorType(string InActorName)
+		{
+			Tuple<EActorType, FDatasmithFacadeActor> ActorInfo = null;
+			if (ExportedActorsMap.TryGetValue(InActorName, out ActorInfo))
+			{
+				return ActorInfo.Item1;
+			}
+			return null;
 		}
 
 		public void ExportOrUpdateActor(FDatasmithActorExportInfo InExportInfo)
@@ -155,7 +165,7 @@ namespace DatasmithSolidworks
 				{
 					if (!MeshAddedMaterials.Contains(Triangle.MaterialID))
 					{
-						FDatasmithFacadeUEPbrMaterial Material = null;
+						FDatasmithFacadeMasterMaterial Material = null;
 						ExportedMaterialsMap.TryGetValue(Triangle.MaterialID, out Material);
 
 						if (Material != null)
@@ -336,169 +346,14 @@ namespace DatasmithSolidworks
 			}
 		}
 
-		private bool CreateAndCacheMaterial(FMaterial InMaterial, out List<FDatasmithFacadeTexture> OutCreatedTextures, out FDatasmithFacadeUEPbrMaterial OutCreatedMaterial)
-		{
-			OutCreatedTextures = null;
-			OutCreatedMaterial = null;
-
-			if (ExportedMaterialsMap.ContainsKey(InMaterial.ID))
-			{
-				return false;
-			}
-
-            FMaterial.EMaterialType TType = FMaterial.GetMaterialType(InMaterial.ShaderName);
-
-			float Roughness = (float)InMaterial.Roughness;
-			float Metallic = 0f;
-
-            if (TType != FMaterial.EMaterialType.TYPE_LIGHTWEIGHT)
-            {
-                if (TType == FMaterial.EMaterialType.TYPE_METAL)
-                {
-                    Metallic = 1f;
-                    //roughness = (float)MetallicRoughness;
-                }
-                else if (TType == FMaterial.EMaterialType.TYPE_METALLICPAINT)
-				{
-					Metallic = 0.7f;
-				}
-
-                if (InMaterial.BlurryReflections)
-				{
-					Roughness = (float)InMaterial.SpecularSpread;
-				}
-                else
-                {
-                    if (InMaterial.Reflectivity > 0.0)
-                    {
-						Roughness = (1f - (float) InMaterial.Reflectivity) * 0.2f;
-					}
-                    else
-                    {
-						Roughness = 1f;
-					}
-                }
-            }
-
-            FDatasmithFacadeUEPbrMaterial PBR = new FDatasmithFacadeUEPbrMaterial(InMaterial.Name);
-
-			OutCreatedTextures = new List<FDatasmithFacadeTexture>();
-			OutCreatedMaterial = PBR;
-
-			double Mult = (TType == FMaterial.EMaterialType.TYPE_LIGHTWEIGHT) ? InMaterial.Diffuse : 1.0;
-
-			double fR = Mult * InMaterial.PrimaryColor.R * 1.0 / 255.0;
-			double fG = Mult * InMaterial.PrimaryColor.G * 1.0 / 255.0;
-			double fB = Mult * InMaterial.PrimaryColor.B * 1.0 / 255.0;
-
-			FDatasmithFacadeMaterialExpressionColor ColorExpr = PBR.AddMaterialExpressionColor();
-			ColorExpr.SetColor((float) fR, (float) fG, (float) fB, 1f);
-            ColorExpr.SetName("Diffuse Color");
-            ColorExpr.ConnectExpression(PBR.GetBaseColor());
-
-            FDatasmithFacadeMaterialExpressionScalar RoughExpr = PBR.AddMaterialExpressionScalar();
-			RoughExpr.SetName("Roughness");
-            RoughExpr.SetScalar(Roughness);
-            RoughExpr.ConnectExpression(PBR.GetRoughness());
-
-            FDatasmithFacadeMaterialExpressionScalar MetalExpr = PBR.AddMaterialExpressionScalar();
-			MetalExpr.SetName("Metallic");
-            MetalExpr.SetScalar(Metallic);
-            MetalExpr.ConnectExpression(PBR.GetMetallic());
-
-            if (InMaterial.Emission > 0.0)
-            {
-                FDatasmithFacadeMaterialExpressionColor EmissionExpr = PBR.AddMaterialExpressionColor();
-				EmissionExpr.SetColor((float) fR, (float) fG, (float) fB, 1f);
-                EmissionExpr.SetName("Emissive Color");
-                EmissionExpr.ConnectExpression(PBR.GetEmissiveColor());
-            }
-
-            if (InMaterial.Transparency > 0.0)
-            {
-                FDatasmithFacadeMaterialExpressionScalar OpacityExpr = PBR.AddMaterialExpressionScalar();
-				OpacityExpr.SetName("Opacity");
-                OpacityExpr.SetScalar(1f - (float)InMaterial.Transparency);
-				OpacityExpr.ConnectExpression(PBR.GetOpacity());
-                //PBR.SetBlendMode()
-            }
-
-            if (!string.IsNullOrEmpty(InMaterial.Texture) && !File.Exists(InMaterial.Texture))
-            {
-                InMaterial.Texture = MaterialUtils.ComputeAssemblySideTexturePath(InMaterial.Texture);
-            }
-
-            if (!string.IsNullOrEmpty(InMaterial.Texture) && File.Exists(InMaterial.Texture))
-            {
-                string TextureName = Path.GetFileNameWithoutExtension(InMaterial.Texture);
-
-				FDatasmithFacadeTexture TextureElement = null;
-                if (!ExportedTexturesMap.TryGetValue(InMaterial.Texture, out TextureElement))
-                {
-                    TextureElement = new FDatasmithFacadeTexture(TextureName);
-					TextureElement.SetFile(InMaterial.Texture);
-                    TextureElement.SetTextureFilter(FDatasmithFacadeTexture.ETextureFilter.Default);
-                    TextureElement.SetRGBCurve(1);
-                    TextureElement.SetTextureAddressX(FDatasmithFacadeTexture.ETextureAddress.Wrap);
-                    TextureElement.SetTextureAddressY(FDatasmithFacadeTexture.ETextureAddress.Wrap);
-                    FDatasmithFacadeTexture.ETextureMode TextureMode = FDatasmithFacadeTexture.ETextureMode.Diffuse;
-					TextureElement.SetTextureMode(TextureMode);
-					OutCreatedTextures.Add(TextureElement);
-					ExportedTexturesMap.TryAdd(InMaterial.Texture, TextureElement);
-				}
-
-                FDatasmithFacadeMaterialsUtils.FWeightedMaterialExpressionParameters WeightedExpressionParameters = new FDatasmithFacadeMaterialsUtils.FWeightedMaterialExpressionParameters(1f);
-				FDatasmithFacadeMaterialsUtils.FUVEditParameters UVParameters = new FDatasmithFacadeMaterialsUtils.FUVEditParameters();
-				//TextureName = DatasmithExporter.SanitizeName(textureName);
-                FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(PBR, "Diffuse Map", TextureName, UVParameters);
-				WeightedExpressionParameters.SetColorsRGB(InMaterial.PrimaryColor.R, InMaterial.PrimaryColor.G, InMaterial.PrimaryColor.B, 255);
-                WeightedExpressionParameters.SetExpression(TextureExpression);
-                FDatasmithFacadeMaterialExpression Expression = FDatasmithFacadeMaterialsUtils.CreateWeightedMaterialExpression(PBR, "Diffuse Color", WeightedExpressionParameters);
-				PBR.GetBaseColor().SetExpression(Expression);
-            }
-
-            if (!string.IsNullOrEmpty(InMaterial.BumpTextureFileName) && !File.Exists(InMaterial.BumpTextureFileName))
-            {
-                InMaterial.BumpTextureFileName = MaterialUtils.ComputeAssemblySideTexturePath(InMaterial.BumpTextureFileName);
-            }
-
-            if (!string.IsNullOrEmpty(InMaterial.BumpTextureFileName) && File.Exists(InMaterial.BumpTextureFileName))
-            {
-                string TextureName = Path.GetFileNameWithoutExtension(InMaterial.BumpTextureFileName);
-
-				FDatasmithFacadeTexture TextureElement = null;
-                if (!ExportedTexturesMap.TryGetValue(InMaterial.BumpTextureFileName, out TextureElement))
-                {
-                    TextureElement = new FDatasmithFacadeTexture(TextureName);
-					TextureElement.SetFile(InMaterial.BumpTextureFileName);
-                    TextureElement.SetTextureFilter(FDatasmithFacadeTexture.ETextureFilter.Default);
-                    TextureElement.SetRGBCurve(1);
-                    TextureElement.SetTextureAddressX(FDatasmithFacadeTexture.ETextureAddress.Wrap);
-                    TextureElement.SetTextureAddressY(FDatasmithFacadeTexture.ETextureAddress.Wrap);
-                    FDatasmithFacadeTexture.ETextureMode TextureMode = FDatasmithFacadeTexture.ETextureMode.Normal;
-					TextureElement.SetTextureMode(TextureMode);
-					OutCreatedTextures.Add(TextureElement);
-                    ExportedTexturesMap.TryAdd(InMaterial.BumpTextureFileName, TextureElement);
-                }
-
-                FDatasmithFacadeMaterialsUtils.FUVEditParameters UVParameters = new FDatasmithFacadeMaterialsUtils.FUVEditParameters();
-				FDatasmithFacadeMaterialExpression TextureExpression = FDatasmithFacadeMaterialsUtils.CreateTextureExpression(PBR, "Bump Map", TextureName, UVParameters);
-				PBR.GetNormal().SetExpression(TextureExpression);
-            }
-
-			ExportedMaterialsMap[InMaterial.ID] = PBR;
-
-			return true;
-		}
-
 		public void ExportMaterials(ConcurrentDictionary<int, FMaterial> InMaterialsMap)
 		{
 			ConcurrentBag<FDatasmithFacadeTexture> CreatedTextures = new ConcurrentBag<FDatasmithFacadeTexture>();
-			ConcurrentBag<FDatasmithFacadeUEPbrMaterial> CreatedMaterials = new ConcurrentBag<FDatasmithFacadeUEPbrMaterial>();
+			ConcurrentBag<FDatasmithFacadeMasterMaterial> CreatedMaterials = new ConcurrentBag<FDatasmithFacadeMasterMaterial>();
 			Parallel.ForEach(InMaterialsMap, MatKVP =>
 			{
 				List<FDatasmithFacadeTexture> NewMaterialTextures = null;
-				FDatasmithFacadeUEPbrMaterial NewMaterial = null;
+				FDatasmithFacadeMasterMaterial NewMaterial = null;
 				if (CreateAndCacheMaterial(MatKVP.Value, out NewMaterialTextures, out NewMaterial))
 				{
 					CreatedMaterials.Add(NewMaterial);
@@ -510,7 +365,7 @@ namespace DatasmithSolidworks
 				}
 			});
 			// Adding stuff to a datasmith scene cannot be multithreaded!
-			foreach (FDatasmithFacadeUEPbrMaterial Mat in CreatedMaterials)
+			foreach (FDatasmithFacadeMasterMaterial Mat in CreatedMaterials)
 			{
 				DatasmithScene.AddMaterial(Mat);
 			}
@@ -520,9 +375,16 @@ namespace DatasmithSolidworks
 			}
 		}
 
-#if false // this is for 5.0
-		public void ExportMaterial(FMaterial InMaterial)
+		private bool CreateAndCacheMaterial(FMaterial InMaterial, out List<FDatasmithFacadeTexture> OutCreatedTextures, out FDatasmithFacadeMasterMaterial OutCreatedMaterial)
 		{
+			OutCreatedTextures = null;
+			OutCreatedMaterial = null;
+
+			if (ExportedMaterialsMap.ContainsKey(InMaterial.ID))
+			{
+				return false;
+			}
+
 			FMaterial.EMaterialType Type = FMaterial.GetMaterialType(InMaterial.ShaderName);
 
 			float Roughness = (float)InMaterial.Roughness;
@@ -533,7 +395,6 @@ namespace DatasmithSolidworks
 				if (Type == FMaterial.EMaterialType.TYPE_METAL)
 				{
 					Metallic = 1f;
-					//roughness = (float)MetallicRoughness;
 				}
 				else if (Type == FMaterial.EMaterialType.TYPE_METALLICPAINT)
 				{
@@ -565,6 +426,9 @@ namespace DatasmithSolidworks
 
 			FDatasmithFacadeMasterMaterial MasterMaterial = new FDatasmithFacadeMasterMaterial(InMaterial.Name);
 
+			OutCreatedTextures = new List<FDatasmithFacadeTexture>();
+			OutCreatedMaterial = MasterMaterial;
+
 			MasterMaterial.SetMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 			MasterMaterial.AddColor("TintColor", R, G, B, 1.0F);
 			MasterMaterial.AddFloat("RoughnessAmount", Roughness);
@@ -581,7 +445,12 @@ namespace DatasmithSolidworks
 					1f - (float)InMaterial.Transparency // Fresnel Opacity
 				);
 
-				SetNormalMap(InMaterial, MasterMaterial, "NormalMap");
+				FDatasmithFacadeTexture NormalMap = ExportNormalMap(InMaterial, MasterMaterial, "NormalMap");
+
+				if (NormalMap != null)
+				{
+					OutCreatedTextures.Add(NormalMap);
+				}
 			}
 			else
 			{
@@ -593,15 +462,23 @@ namespace DatasmithSolidworks
 					MasterMaterial.AddColor("LuminanceFilter", R, G, B, 1.0f);
 				}
 
-				SetDiffuseMap(InMaterial, MasterMaterial, "ColorMap");
-				SetNormalMap(InMaterial, MasterMaterial, "NormalMap");
+				FDatasmithFacadeTexture DiffuseMap = ExportDiffuseMap(InMaterial, MasterMaterial, "ColorMap");
+				FDatasmithFacadeTexture NormalMap = ExportNormalMap(InMaterial, MasterMaterial, "NormalMap");
+
+				if (DiffuseMap != null)
+				{
+					OutCreatedTextures.Add(DiffuseMap);
+				}
+				if (NormalMap != null)
+				{
+					OutCreatedTextures.Add(NormalMap);
+				}
 			}
 
-			DatasmithScene.AddMaterial(MasterMaterial);
-
 			ExportedMaterialsMap[InMaterial.ID] = MasterMaterial;
+
+			return true;
 		}
-#endif
 
 		public void ExportAnimation(FAnimation InAnim)
 		{
@@ -654,18 +531,19 @@ namespace DatasmithSolidworks
 #endif
 		}
 
-		private void SetDiffuseMap(FMaterial InMaterial, FDatasmithFacadeMasterMaterial InMasterMaterial, string InParamName)
+		private FDatasmithFacadeTexture ExportDiffuseMap(FMaterial InMaterial, FDatasmithFacadeMasterMaterial InMasterMaterial, string InParamName)
 		{
 			if (!string.IsNullOrEmpty(InMaterial.Texture) && !File.Exists(InMaterial.Texture))
 			{
 				InMaterial.Texture = MaterialUtils.ComputeAssemblySideTexturePath(InMaterial.Texture);
 			}
 
+			FDatasmithFacadeTexture TextureElement = null;
+
 			if (!string.IsNullOrEmpty(InMaterial.Texture) && File.Exists(InMaterial.Texture))
 			{
-				string TextureName = Path.GetFileNameWithoutExtension(InMaterial.Texture);
+				string TextureName = SanitizeName(Path.GetFileNameWithoutExtension(InMaterial.Texture));
 
-				FDatasmithFacadeTexture TextureElement = null;
 				if (!ExportedTexturesMap.TryGetValue(InMaterial.Texture, out TextureElement))
 				{
 					TextureElement = new FDatasmithFacadeTexture(TextureName);
@@ -676,27 +554,28 @@ namespace DatasmithSolidworks
 					TextureElement.SetTextureAddressY(FDatasmithFacadeTexture.ETextureAddress.Wrap);
 					FDatasmithFacadeTexture.ETextureMode TextureMode = FDatasmithFacadeTexture.ETextureMode.Diffuse;
 					TextureElement.SetTextureMode(TextureMode);
-					DatasmithScene.AddTexture(TextureElement);
-
 					ExportedTexturesMap.TryAdd(InMaterial.Texture, TextureElement);
 
 					InMasterMaterial.AddTexture(InParamName, TextureElement);
 				}
 			}
+
+			return TextureElement;
 		}
 
-		private void SetNormalMap(FMaterial InMaterial, FDatasmithFacadeMasterMaterial InMasterMaterial, string InParamName)
+		private FDatasmithFacadeTexture ExportNormalMap(FMaterial InMaterial, FDatasmithFacadeMasterMaterial InMasterMaterial, string InParamName)
 		{
 			if (!string.IsNullOrEmpty(InMaterial.BumpTextureFileName) && !File.Exists(InMaterial.BumpTextureFileName))
 			{
 				InMaterial.BumpTextureFileName = MaterialUtils.ComputeAssemblySideTexturePath(InMaterial.BumpTextureFileName);
 			}
 
+			FDatasmithFacadeTexture TextureElement = null;
+
 			if (!string.IsNullOrEmpty(InMaterial.BumpTextureFileName) && File.Exists(InMaterial.BumpTextureFileName))
 			{
-				string textureName = Path.GetFileNameWithoutExtension(InMaterial.BumpTextureFileName);
+				string textureName = SanitizeName(Path.GetFileNameWithoutExtension(InMaterial.BumpTextureFileName));
 
-				FDatasmithFacadeTexture TextureElement = null;
 				if (!ExportedTexturesMap.TryGetValue(InMaterial.BumpTextureFileName, out TextureElement))
 				{
 					TextureElement = new FDatasmithFacadeTexture(textureName);
@@ -707,13 +586,13 @@ namespace DatasmithSolidworks
 					TextureElement.SetTextureAddressY(FDatasmithFacadeTexture.ETextureAddress.Wrap);
 					FDatasmithFacadeTexture.ETextureMode TextureMode = FDatasmithFacadeTexture.ETextureMode.Normal;
 					TextureElement.SetTextureMode(TextureMode);
-					DatasmithScene.AddTexture(TextureElement);
-
 					ExportedTexturesMap.TryAdd(InMaterial.BumpTextureFileName, TextureElement);
 
 					InMasterMaterial.AddTexture(InParamName, TextureElement);
 				}
 			}
+
+			return TextureElement;
 		}
 
 		public static string SanitizeName(string InStringToSanitize)

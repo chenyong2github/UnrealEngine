@@ -993,7 +993,7 @@ namespace DatasmithEditingOperationsUtils
 		{
 			if(AActor* Actor = Cast<AActor>(Object))
 			{
-				if(!Actor->IsPendingKillOrUnreachable())
+				if(IsValidChecked(Actor))
 				{
 					// Set current world to first world encountered
 					if(World == nullptr)

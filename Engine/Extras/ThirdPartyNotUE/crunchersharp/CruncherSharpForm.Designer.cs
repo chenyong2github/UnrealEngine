@@ -68,6 +68,8 @@
             this.backgroundWorker = new System.ComponentModel.BackgroundWorker();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.checkBoxBitPadding = new System.Windows.Forms.CheckBox();
+            this.checkBoxPadding = new System.Windows.Forms.CheckBox();
             this.checkBoxCacheLines = new System.Windows.Forms.CheckBox();
             this.checkBoxRegularExpressions = new System.Windows.Forms.CheckBox();
             this.checkBoxMatchWholeExpression = new System.Windows.Forms.CheckBox();
@@ -104,8 +106,7 @@
             this.contextMenuStripFunctions = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.ignoreFunctionToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.bindingSourceSymbols = new System.Windows.Forms.BindingSource(this.components);
-            this.checkBoxPadding = new System.Windows.Forms.CheckBox();
-            this.checkBoxBitPadding = new System.Windows.Forms.CheckBox();
+            this.checkBoxEnableProgressBar = new System.Windows.Forms.CheckBox();
             this.mainMenu.SuspendLayout();
             this.statusStripBar.SuspendLayout();
             this.contextMenuStripMembers.SuspendLayout();
@@ -290,8 +291,6 @@
             // chkShowTemplates
             // 
             this.chkShowTemplates.AutoSize = true;
-            this.chkShowTemplates.Checked = true;
-            this.chkShowTemplates.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkShowTemplates.Location = new System.Drawing.Point(403, 35);
             this.chkShowTemplates.Name = "chkShowTemplates";
             this.chkShowTemplates.Size = new System.Drawing.Size(101, 17);
@@ -357,6 +356,7 @@
             // 
             // toolStripProgressBar
             // 
+            this.toolStripProgressBar.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
             this.toolStripProgressBar.Name = "toolStripProgressBar";
             this.toolStripProgressBar.Size = new System.Drawing.Size(800, 16);
             // 
@@ -366,19 +366,19 @@
             this.copyTypeLayoutToClipboardToolStripMenuItem,
             this.setPrefetchStartOffsetToolStripMenuItem});
             this.contextMenuStripMembers.Name = "contextMenuStrip1";
-            this.contextMenuStripMembers.Size = new System.Drawing.Size(241, 48);
+            this.contextMenuStripMembers.Size = new System.Drawing.Size(239, 48);
             // 
             // copyTypeLayoutToClipboardToolStripMenuItem
             // 
             this.copyTypeLayoutToClipboardToolStripMenuItem.Name = "copyTypeLayoutToClipboardToolStripMenuItem";
-            this.copyTypeLayoutToClipboardToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.copyTypeLayoutToClipboardToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.copyTypeLayoutToClipboardToolStripMenuItem.Text = "Copy Type Layout To Clipboard";
             this.copyTypeLayoutToClipboardToolStripMenuItem.Click += new System.EventHandler(this.copyTypeLayoutToClipboardToolStripMenuItem_Click);
             // 
             // setPrefetchStartOffsetToolStripMenuItem
             // 
             this.setPrefetchStartOffsetToolStripMenuItem.Name = "setPrefetchStartOffsetToolStripMenuItem";
-            this.setPrefetchStartOffsetToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.setPrefetchStartOffsetToolStripMenuItem.Size = new System.Drawing.Size(238, 22);
             this.setPrefetchStartOffsetToolStripMenuItem.Text = "Set Prefetch Start Offset";
             this.setPrefetchStartOffsetToolStripMenuItem.Click += new System.EventHandler(this.setPrefetchStartOffsetToolStripMenuItem_Click);
             // 
@@ -435,11 +435,33 @@
             this.panel1.Size = new System.Drawing.Size(1791, 104);
             this.panel1.TabIndex = 4;
             // 
+            // checkBoxBitPadding
+            // 
+            this.checkBoxBitPadding.AutoSize = true;
+            this.checkBoxBitPadding.Location = new System.Drawing.Point(140, 83);
+            this.checkBoxBitPadding.Name = "checkBoxBitPadding";
+            this.checkBoxBitPadding.Size = new System.Drawing.Size(127, 17);
+            this.checkBoxBitPadding.TabIndex = 14;
+            this.checkBoxBitPadding.Text = "Show bitfield padding";
+            this.checkBoxBitPadding.UseVisualStyleBackColor = true;
+            this.checkBoxBitPadding.CheckedChanged += new System.EventHandler(this.checkBoxBitPadding_CheckedChanged);
+            // 
+            // checkBoxPadding
+            // 
+            this.checkBoxPadding.AutoSize = true;
+            this.checkBoxPadding.Checked = true;
+            this.checkBoxPadding.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxPadding.Location = new System.Drawing.Point(11, 83);
+            this.checkBoxPadding.Name = "checkBoxPadding";
+            this.checkBoxPadding.Size = new System.Drawing.Size(94, 17);
+            this.checkBoxPadding.TabIndex = 13;
+            this.checkBoxPadding.Text = "Show padding";
+            this.checkBoxPadding.UseVisualStyleBackColor = true;
+            this.checkBoxPadding.CheckedChanged += new System.EventHandler(this.checkBoxPadding_CheckedChanged);
+            // 
             // checkBoxCacheLines
             // 
             this.checkBoxCacheLines.AutoSize = true;
-            this.checkBoxCacheLines.Checked = true;
-            this.checkBoxCacheLines.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxCacheLines.Location = new System.Drawing.Point(11, 60);
             this.checkBoxCacheLines.Name = "checkBoxCacheLines";
             this.checkBoxCacheLines.Size = new System.Drawing.Size(110, 17);
@@ -462,6 +484,8 @@
             // checkBoxMatchWholeExpression
             // 
             this.checkBoxMatchWholeExpression.AutoSize = true;
+            this.checkBoxMatchWholeExpression.Checked = true;
+            this.checkBoxMatchWholeExpression.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxMatchWholeExpression.Location = new System.Drawing.Point(106, 35);
             this.checkBoxMatchWholeExpression.Name = "checkBoxMatchWholeExpression";
             this.checkBoxMatchWholeExpression.Size = new System.Drawing.Size(140, 17);
@@ -473,6 +497,8 @@
             // checkBoxMatchCase
             // 
             this.checkBoxMatchCase.AutoSize = true;
+            this.checkBoxMatchCase.Checked = true;
+            this.checkBoxMatchCase.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxMatchCase.Location = new System.Drawing.Point(11, 35);
             this.checkBoxMatchCase.Name = "checkBoxMatchCase";
             this.checkBoxMatchCase.Size = new System.Drawing.Size(82, 17);
@@ -723,7 +749,7 @@
             this.tabFunctions.Location = new System.Drawing.Point(4, 22);
             this.tabFunctions.Name = "tabFunctions";
             this.tabFunctions.Padding = new System.Windows.Forms.Padding(3);
-            this.tabFunctions.Size = new System.Drawing.Size(778, 540);
+            this.tabFunctions.Size = new System.Drawing.Size(779, 540);
             this.tabFunctions.TabIndex = 15;
             this.tabFunctions.Text = "Functions";
             this.tabFunctions.UseVisualStyleBackColor = true;
@@ -734,7 +760,7 @@
             this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panel2.Location = new System.Drawing.Point(3, 3);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(772, 534);
+            this.panel2.Size = new System.Drawing.Size(773, 534);
             this.panel2.TabIndex = 14;
             // 
             // dataGridViewFunctionsInfo
@@ -757,7 +783,7 @@
             this.dataGridViewFunctionsInfo.ReadOnly = true;
             this.dataGridViewFunctionsInfo.RowHeadersVisible = false;
             this.dataGridViewFunctionsInfo.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridViewFunctionsInfo.Size = new System.Drawing.Size(772, 534);
+            this.dataGridViewFunctionsInfo.Size = new System.Drawing.Size(773, 534);
             this.dataGridViewFunctionsInfo.TabIndex = 2;
             this.dataGridViewFunctionsInfo.CellFormatting += new System.Windows.Forms.DataGridViewCellFormattingEventHandler(this.dataGridViewFunctionsInfo_CellFormatting);
             this.dataGridViewFunctionsInfo.MouseClick += new System.Windows.Forms.MouseEventHandler(this.dataGridViewFunctionsInfo_MouseClick);
@@ -838,35 +864,25 @@
             this.ignoreFunctionToolStripMenuItem.Text = "Ignore function";
             this.ignoreFunctionToolStripMenuItem.Click += new System.EventHandler(this.ignoreFunctionToolStripMenuItem_Click);
             // 
-            // checkBoxPadding
+            // checkBoxEnableProgressBar
             // 
-            this.checkBoxPadding.AutoSize = true;
-            this.checkBoxPadding.Checked = true;
-            this.checkBoxPadding.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxPadding.Location = new System.Drawing.Point(11, 83);
-            this.checkBoxPadding.Name = "checkBoxPadding";
-            this.checkBoxPadding.Size = new System.Drawing.Size(94, 17);
-            this.checkBoxPadding.TabIndex = 13;
-            this.checkBoxPadding.Text = "Show padding";
-            this.checkBoxPadding.UseVisualStyleBackColor = true;
-            this.checkBoxPadding.CheckedChanged += new System.EventHandler(this.checkBoxPadding_CheckedChanged);
-            // 
-            // checkBoxBitPadding
-            // 
-            this.checkBoxBitPadding.AutoSize = true;
-            this.checkBoxBitPadding.Location = new System.Drawing.Point(140, 83);
-            this.checkBoxBitPadding.Name = "checkBoxBitPadding";
-            this.checkBoxBitPadding.Size = new System.Drawing.Size(127, 17);
-            this.checkBoxBitPadding.TabIndex = 14;
-            this.checkBoxBitPadding.Text = "Show bitfield padding";
-            this.checkBoxBitPadding.UseVisualStyleBackColor = true;
-            this.checkBoxBitPadding.CheckedChanged += new System.EventHandler(this.checkBoxBitPadding_CheckedChanged);
+            this.checkBoxEnableProgressBar.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.checkBoxEnableProgressBar.AutoSize = true;
+            this.checkBoxEnableProgressBar.Checked = true;
+            this.checkBoxEnableProgressBar.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxEnableProgressBar.Location = new System.Drawing.Point(880, 738);
+            this.checkBoxEnableProgressBar.Name = "checkBoxEnableProgressBar";
+            this.checkBoxEnableProgressBar.Size = new System.Drawing.Size(120, 17);
+            this.checkBoxEnableProgressBar.TabIndex = 15;
+            this.checkBoxEnableProgressBar.Text = "Enable progress bar";
+            this.checkBoxEnableProgressBar.UseVisualStyleBackColor = true;
             // 
             // CruncherSharpForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1794, 757);
+            this.Controls.Add(this.checkBoxEnableProgressBar);
             this.Controls.Add(this.tableLayoutPanel1);
             this.Controls.Add(this.statusStripBar);
             this.Controls.Add(this.mainMenu);
@@ -982,6 +998,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn colFieldPadding;
         private System.Windows.Forms.CheckBox checkBoxPadding;
         private System.Windows.Forms.CheckBox checkBoxBitPadding;
-    }
+		private System.Windows.Forms.CheckBox checkBoxEnableProgressBar;
+	}
 }
 

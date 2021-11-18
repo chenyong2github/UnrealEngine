@@ -182,7 +182,7 @@ void FNCPool::Reclaim(UNiagaraComponent* Component, const float CurrentTimeSecon
 		//Ensure a small cull distance doesn't linger to future users.
 		Component->SetCullDistance(FLT_MAX);
 
-		if (Component->IsPendingKillOrUnreachable())
+		if (!IsValidChecked(Component) || Component->IsUnreachable())
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Component is pending kill or unreachable when reclaimed Component(%p %s)"), Component, *Component->GetFullName());
 			return;

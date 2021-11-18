@@ -43,6 +43,9 @@ public:
 	/** Unordered iteration of the all nodes */
 	void IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
 
+	/** Unordered iteration of the all nodes, but I can be stop early by returning true */
+	void BreakableIterateNodes(TFunctionRef<bool(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
+
 	/** Return all nodes that do not have any parent */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
 	void GetRoots(TArray<FString>& RootNodes) const;

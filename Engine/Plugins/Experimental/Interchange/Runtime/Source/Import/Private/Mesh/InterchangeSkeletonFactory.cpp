@@ -136,7 +136,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const FCreateAssetParams& Argu
 	{
 		//The skeleton is not a USkeleton
 		SkeletonObject->RemoveFromRoot();
-		SkeletonObject->MarkPendingKill();
+		SkeletonObject->MarkAsGarbage();
 	}
 	return SkeletonObject;
 #endif

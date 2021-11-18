@@ -4,23 +4,27 @@
 
 #include "CoreMinimal.h"
 
-class FFoliageInfoData;
 class AInstancedFoliageActor;
 class UActorComponent;
 struct FPropertySelectionMap;
 
-/** Tells us whether foliage types should be added / removed / serialized into AInstancedFoliageActor::FoliageInfos */
-class FFoliageRestorationInfo
+namespace UE::LevelSnapshots::Foliage::Private
 {
-	TArray<UActorComponent*> ModifiedComponents;
-	TArray<TWeakObjectPtr<UActorComponent>> EditorWorldComponentsToRemove;
-	TArray<TWeakObjectPtr<UActorComponent>> SnapshotComponentsToAdd;
-
-	bool bWasRecreated = false;
-public:
+	class FFoliageInfoData;
 	
-	static FFoliageRestorationInfo From(AInstancedFoliageActor* Object, const FPropertySelectionMap& SelectionMap, bool bWasRecreated);
+	/** Tells us whether foliage types should be added / removed / serialized into AInstancedFoliageActor::FoliageInfos */
+	class FFoliageRestorationInfo
+	{
+		TArray<UActorComponent*> ModifiedComponents;
+		TArray<TWeakObjectPtr<UActorComponent>> EditorWorldComponentsToRemove;
+		TArray<TWeakObjectPtr<UActorComponent>> SnapshotComponentsToAdd;
 
-	bool ShouldSkipFoliageType(const FFoliageInfoData& SavedData) const;
-	bool ShouldSerializeFoliageType(const FFoliageInfoData& SavedData) const;
-};
+		bool bWasRecreated = false;
+	public:
+	
+		static FFoliageRestorationInfo From(AInstancedFoliageActor* Object, const FPropertySelectionMap& SelectionMap, bool bWasRecreated);
+
+		bool ShouldSkipFoliageType(const FFoliageInfoData& SavedData) const;
+		bool ShouldSerializeFoliageType(const FFoliageInfoData& SavedData) const;
+	};
+}

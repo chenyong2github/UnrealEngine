@@ -48,5 +48,6 @@ private:
 
 private:
 	/** Array of track recorders that will record each of the LiveLink controller's in the Controller Map */
-	TArray<UMovieSceneLiveLinkControllerTrackRecorder*> ControllerRecorders;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMovieSceneLiveLinkControllerTrackRecorder>> ControllerRecorders;
 };

@@ -33,6 +33,7 @@ FParseCandidate ParseCandidates[] = {
 	{ TEXT("Degrees"),				EUnit::Degrees },				{ TEXT("deg"),		EUnit::Degrees },				{ TEXT("\u00B0"),	EUnit::Degrees },
 	{ TEXT("Radians"),				EUnit::Radians },				{ TEXT("rad"),		EUnit::Radians },
 		
+	{ TEXT("CentimetersPerSecond"),	EUnit::CentimetersPerSecond },	{ TEXT("cm/s"),		EUnit::CentimetersPerSecond },
 	{ TEXT("MetersPerSecond"),		EUnit::MetersPerSecond },		{ TEXT("m/s"),		EUnit::MetersPerSecond },
 	{ TEXT("KilometersPerHour"),	EUnit::KilometersPerHour },		{ TEXT("km/h"),		EUnit::KilometersPerHour },		{ TEXT("kmph"),		EUnit::KilometersPerHour },
 	{ TEXT("MilesPerHour"),			EUnit::MilesPerHour },			{ TEXT("mi/h"),		EUnit::MilesPerHour },			{ TEXT("mph"),		EUnit::MilesPerHour },
@@ -94,7 +95,7 @@ const TCHAR* const DisplayStrings[] = {
 
 	TEXT("\u00B0"), TEXT("rad"),
 
-	TEXT("m/s"), TEXT("km/h"), TEXT("mi/h"),
+	TEXT("cm/s"), TEXT("m/s"), TEXT("km/h"), TEXT("mi/h"),
 
 	TEXT("\u00B0C"), TEXT("\u00B0F"), TEXT("K"),
 
@@ -125,7 +126,7 @@ const EUnitType UnitTypes[] = {
 
 	EUnitType::Angle,		EUnitType::Angle,
 
-	EUnitType::Speed,		EUnitType::Speed, 		EUnitType::Speed,
+	EUnitType::Speed,		EUnitType::Speed,		EUnitType::Speed, 		EUnitType::Speed,
 
 	EUnitType::Temperature,	EUnitType::Temperature,	EUnitType::Temperature,
 
@@ -567,9 +568,10 @@ namespace UnitConversion
 		// Convert to km/h
 		switch (From)
 		{
-			case EUnit::MetersPerSecond:	return 3.6;
-			case EUnit::MilesPerHour:		return DistanceUnificationFactor(EUnit::Miles) / 1000;
-			default: 						return 1;
+			case EUnit::CentimetersPerSecond:	return 0.036;
+			case EUnit::MetersPerSecond:		return 3.6;
+			case EUnit::MilesPerHour:			return DistanceUnificationFactor(EUnit::Miles) / 1000;
+			default: 							return 1;
 		}
 	}
 

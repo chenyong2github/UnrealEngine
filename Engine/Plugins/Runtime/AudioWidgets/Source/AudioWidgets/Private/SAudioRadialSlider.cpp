@@ -199,7 +199,7 @@ const float SAudioRadialSlider::GetLinValue(const float OutputValue)
 
 const float SAudioRadialSlider::GetOutputValue(const float LinValue)
 {
-	return FMath::Clamp(LinValue, OutputRange.X, OutputRange.Y);
+	return FMath::GetMappedRangeValueClamped(LinearRange, OutputRange, LinValue);
 }
 
 void SAudioRadialSlider::SetOutputRange(const FVector2D Range)
@@ -263,14 +263,22 @@ void SAudioVolumeRadialSlider::Construct(const SAudioRadialSlider::FArguments& I
 
 const float SAudioVolumeRadialSlider::GetOutputValue(const float LinValue)
 {
-	float OutputValue = Audio::ConvertToDecibels(LinValue);
+	// convert from linear 0-1 space to decibel OutputRange that has been converted to linear 
+	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
+	const float LinearSliderValue = FMath::GetMappedRangeValueClamped(LinearRange, LinearSliderRange, LinValue);
+	// convert from linear to decibels 
+	float OutputValue = Audio::ConvertToDecibels(LinearSliderValue);
 	return FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
 }
 
 const float SAudioVolumeRadialSlider::GetLinValue(const float OutputValue)
 {
 	float ClampedValue = FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
-	return Audio::ConvertToLinear(ClampedValue);
+	// convert from decibels to linear
+	float LinearSliderValue = Audio::ConvertToLinear(ClampedValue);
+	// convert from decibel OutputRange that has been converted to linear to linear 0-1 space 
+	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
+	return FMath::GetMappedRangeValueClamped(LinearSliderRange, LinearRange, LinearSliderValue);
 }
 
 // SAudioFrequencyRadialSlider

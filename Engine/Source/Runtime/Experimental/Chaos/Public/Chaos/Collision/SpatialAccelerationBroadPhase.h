@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Chaos/Collision/BroadPhase.h"
 #include "Chaos/Collision/CollisionConstraintFlags.h"
 #include "Chaos/Collision/StatsData.h"
 #include "Chaos/Collision/NarrowPhase.h"
@@ -13,21 +12,13 @@
 #include "ChaosStats.h"
 #include "Chaos/EvolutionResimCache.h"
 #include "Chaos/GeometryParticlesfwd.h"
+#include "Chaos/AABBTree.h"
 
 namespace Chaos
 {
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::BroadPhase"), STAT_Collisions_SpatialBroadPhase, STATGROUP_ChaosCollision, CHAOS_API);
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::AABBTree"), STAT_Collisions_AABBTree, STATGROUP_ChaosCollision, CHAOS_API);
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Filtering"), STAT_Collisions_Filtering, STATGROUP_ChaosCollision, CHAOS_API);
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::Restore"), STAT_Collisions_Restore, STATGROUP_ChaosCollision, CHAOS_API);
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::ComputeBoundsThickness"), STAT_Collisions_ComputeBoundsThickness, STATGROUP_ChaosCollision, CHAOS_API);
-	DECLARE_CYCLE_STAT_EXTERN(TEXT("Collisions::GenerateCollisions"), STAT_Collisions_GenerateCollisions, STATGROUP_ChaosCollision, CHAOS_API);
-	
 	template <typename TPayloadType, typename T, int d>
 	class ISpatialAcceleration;
-
 	class IResimCacheBase;
-
 
 	/**
 	 *
@@ -78,14 +69,13 @@ namespace Chaos
 	 * A broad phase that iterates over particle and uses a spatial acceleration structure to output
 	 * potentially overlapping SpatialAccelerationHandles.
 	 */
-	class FSpatialAccelerationBroadPhase : public FBroadPhase
+	class FSpatialAccelerationBroadPhase
 	{
 	public:
 		using FAccelerationStructure = ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>;
 
-		FSpatialAccelerationBroadPhase(const FPBDRigidsSOAs& InParticles, const FReal InBoundsExpansion, const FReal InVelocityInflation)
-			: FBroadPhase(InBoundsExpansion, InVelocityInflation)
-			, Particles(InParticles)
+		FSpatialAccelerationBroadPhase(const FPBDRigidsSOAs& InParticles)
+			: Particles(InParticles)
 			, SpatialAcceleration(nullptr)
 		{
 		}
@@ -362,74 +352,27 @@ namespace Chaos
 						continue;
 					}
 
-					// Constraints have a key generated from the Particle IDs and we don't want to have to deal with constraint being created in the two orders.
+					// Constraints have a key generated from the Particle IDs and we don't want to have to deal with constraint being created from particles in the two orders.
 					// Since particles can change type (between Kinematic and Dynamic) we may visit them in different orders at different times, but if we allow
 					// that it would break Resim and constraint re-use. Also, if only one particle is Dynamic, we want it in first position. This isn't a strtct 
-					// requirement but some downstream systems assume this is true.
+					// requirement but some downstream systems assume this is true (e.g., CCD, TriMesh collision).
 					TGeometryParticleHandle<FReal, 3>* ParticleA = Particle1.Handle();
 					TGeometryParticleHandle<FReal, 3>* ParticleB = Particle2.Handle();
-					bool bSwapOrder = !FConstGenericParticleHandle(ParticleA)->IsDynamic() || !bIsParticle1Preferred;
+					const bool bSwapOrder = ShouldSwapParticleOrder(ParticleA, ParticleB);
 					if (bSwapOrder)
 					{
 						Swap(ParticleA, ParticleB);
 					}
 
-					bool bDidRunNarrowPhase = RunNarrowPhaseOrRestore(Dt, ParticleA, ParticleB, NarrowPhase);
-
-					if (bDidRunNarrowPhase)
-					{
-						++NumIntoNarrowPhase;
-					}
+					NarrowPhase.GenerateCollisions(Dt, ParticleA, ParticleB, false);
 				}
 
-				PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumPotentialContacts, NumIntoNarrowPhase, ECsvCustomStatOp::Accumulate);
 				PHYSICS_CSV_CUSTOM_EXPENSIVE(PhysicsCounters, NumFromBroadphase, NumPotentials, ECsvCustomStatOp::Accumulate);
-
 			}
-		}
-
-		bool RunNarrowPhaseOrRestore(
-			const FReal Dt, 
-			TGeometryParticleHandle<FReal, 3>* Particle1,
-			TGeometryParticleHandle<FReal, 3>* Particle2,
-			FNarrowPhase& NarrowPhase)
-		{
-			// Try to restore all the contacts for this pair. This will only succeed if they have not moved (within some threshold)
-			{
-				SCOPE_CYCLE_COUNTER(STAT_Collisions_Restore);
-				PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_RestoreCollision);
-				if (NarrowPhase.TryRestoreCollisions(Dt, Particle1, Particle2))
-				{
-					return false;
-				}
-			}
-
-			// If we get here, we need to run the narrow phase to possibly generate new contacts, or refresh existing ones
-			{
-				SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
-				PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, DetectCollisions_NarrowPhase);
-
-				// We move the bodies during contact resolution and it may be in any direction
-				// NOTE: We use 0 BoundsThickness here - it is already accounted for in CullDistance
-				const FReal CullDistance1 = ComputeBoundsThickness(*Particle1, Dt, FReal(0), BoundsThicknessVelocityInflation).Size();
-				FReal CullDistance2 = 0.0f;
-				if (FKinematicGeometryParticleHandle* KinematicParticle2 = Particle2->CastToKinematicParticle())
-				{
-					CullDistance2 = ComputeBoundsThickness(*KinematicParticle2, Dt, FReal(0), BoundsThicknessVelocityInflation).Size();
-				}
-				const FReal NetCullDistance = GetBoundsThickness() + CullDistance1 + CullDistance2;
-
-				// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
-				// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
-				NarrowPhase.GenerateCollisions(Dt, Particle1, Particle2, NetCullDistance, false);
-			}
-
-			return true;
 		}
 
 		const FPBDRigidsSOAs& Particles;
 		const FAccelerationStructure* SpatialAcceleration;
-		FReal CullDistance;
 
 		FIgnoreCollisionManager IgnoreCollisionManager;
 	};

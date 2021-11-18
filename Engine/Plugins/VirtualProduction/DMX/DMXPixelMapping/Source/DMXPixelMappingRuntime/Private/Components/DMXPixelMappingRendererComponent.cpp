@@ -265,7 +265,7 @@ void UDMXPixelMappingRendererComponent::OnMapChanged(UWorld* InWorld, EMapChange
 {
 	if (UserWidget != nullptr)
 	{
-		UserWidget->MarkPendingKill();
+		UserWidget->MarkAsGarbage();
 		UserWidget = nullptr;
 	}
 }
@@ -404,7 +404,7 @@ void UDMXPixelMappingRendererComponent::UpdateInputWidget(TSubclassOf<UUserWidge
 {
 	if (InInputWidget != nullptr && UserWidget != nullptr)
 	{
-		UserWidget->MarkPendingKill();
+		UserWidget->MarkAsGarbage();
 		UserWidget = nullptr;
 	}
 	else

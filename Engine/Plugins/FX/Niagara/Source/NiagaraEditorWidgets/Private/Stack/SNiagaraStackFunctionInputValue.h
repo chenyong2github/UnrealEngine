@@ -10,6 +10,7 @@
 #include "Widgets/SItemSelector.h"
 #include "Widgets/SNiagaraFilterBox.h"
 
+class FNiagaraHLSLSyntaxHighlighter;
 class UNiagaraStackFunctionInput;
 class UNiagaraScript;
 class SNiagaraParameterEditor;
@@ -179,6 +180,7 @@ private:
 	TSharedPtr<SNiagaraMenuActionSelector> ActionSelector;
 	TSharedPtr<SNiagaraFilterBox> FilterBox;
 	TSharedPtr<SComboButton> SetFunctionInputButton;
+	TSharedPtr<FNiagaraHLSLSyntaxHighlighter> SyntaxHighlighter;
 
 	static bool bLibraryOnly;
 

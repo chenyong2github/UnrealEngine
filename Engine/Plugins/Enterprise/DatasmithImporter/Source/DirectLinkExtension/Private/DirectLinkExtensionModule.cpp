@@ -5,6 +5,7 @@
 #include "DirectLinkExternalSource.h"
 #include "DirectLinkManager.h"
 #include "DirectLinkUriResolver.h"
+#include "UI/DirectLinkExtensionUI.h"
 #include "UI/SDirectLinkAvailableSource.h"
 
 #include "ContentBrowserModule.h"
@@ -26,6 +27,7 @@ namespace UE::DatasmithImporter
 		virtual void StartupModule() override
 		{
 			DirectLinkManager = MakeUnique<FDirectLinkManager>();
+			DirectLinkExtensionUI = MakeUnique<FDirectLinkExtensionUI>();
 
 			IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
 			UriManager.RegisterResolver(DirectLinkUriResolverName, MakeShared<FDirectLinkUriResolver>());
@@ -50,6 +52,7 @@ namespace UE::DatasmithImporter
 
 	private:
 		TUniquePtr<FDirectLinkManager> DirectLinkManager;
+		TUniquePtr<FDirectLinkExtensionUI> DirectLinkExtensionUI;
 	};
 
 	TSharedPtr<FDirectLinkExternalSource> FDirectLinkExtensionModule::DisplayDirectLinkSourcesDialog()

@@ -947,6 +947,17 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 				}
 				break;
 
+				case EMediaTextureSampleFormat::Y416:
+				{
+					TShaderMapRef<FYUVY416ConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
+					FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_A16B16G16R16);
+
+					ConvertShader->SetParameters(CommandList, SRV, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
+				}
+				break;
+
 				case EMediaTextureSampleFormat::CharBGR10A2:
 				case EMediaTextureSampleFormat::CharBGRA:
 				case EMediaTextureSampleFormat::FloatRGB:

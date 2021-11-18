@@ -448,7 +448,7 @@ public class AndroidPlatform : Platform
 
 	public override string GetPlatformPakCommandLine(ProjectParams Params, DeploymentContext SC)
 	{
-		string PakParams = "";
+		string PakParams = " -patchpaddingalign=0";
 
 		string OodleDllPath = DirectoryReference.Combine(SC.ProjectRoot, "Binaries/ThirdParty/Oodle/Win64/UnrealPakPlugin.dll").FullName;
 		if (File.Exists(OodleDllPath))

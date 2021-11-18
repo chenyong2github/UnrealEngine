@@ -99,7 +99,9 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 				const float Radius = FMath::Clamp(BoneLength * 0.05f, 0.1f, 10000.f);
 
 				//Render Sphere for bone end point and a cone between it and its parent.
+				PDI->SetHitProxy(new HPersonaBoneHitProxy(BoneElement->GetIndex(), BoneElement->GetName()));
 				SkeletalDebugRendering::DrawWireBone(PDI, Start, End, LineColor, SDPG_Foreground, Radius);
+				PDI->SetHitProxy(nullptr);
 				return true;
 			});
 		}

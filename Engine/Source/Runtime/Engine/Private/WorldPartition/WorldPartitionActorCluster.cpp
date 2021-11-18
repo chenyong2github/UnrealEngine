@@ -9,9 +9,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
-#include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "Hash/CityHash.h"
 
 template<class LayerNameContainer>
 TSet<const UDataLayer*> GetDataLayers(UWorld* InWorld, const LayerNameContainer& DataLayerNames)
@@ -48,34 +46,18 @@ FActorCluster::FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView
 void FActorCluster::Add(const FActorCluster& InActorCluster, const TMap<FGuid, FWorldPartitionActorDescView>& InActorDescViewMap)
 {
 	// Merge RuntimeGrid
-	RuntimeGrid = RuntimeGrid == InActorCluster.RuntimeGrid ? RuntimeGrid : NAME_None;
+	if (RuntimeGrid != InActorCluster.RuntimeGrid)
+	{
+		RuntimeGrid = NAME_None;
+	}
 
 	// Merge Bounds
 	Bounds += InActorCluster.Bounds;
 
 	// Merge GridPlacement
-	// If currently None, will always stay None
-	if (GridPlacement != EActorGridPlacement::None)
+	if (GridPlacement != EActorGridPlacement::AlwaysLoaded)
 	{
-		// If grid placement differs between the two clusters
-		if (GridPlacement != InActorCluster.GridPlacement)
-		{
-			// If one of the two cluster was always loaded, set to None
-			if (InActorCluster.GridPlacement == EActorGridPlacement::AlwaysLoaded || GridPlacement == EActorGridPlacement::AlwaysLoaded)
-			{
-				GridPlacement = EActorGridPlacement::None;
-			}
-			else
-			{
-				GridPlacement = InActorCluster.GridPlacement;
-			}
-		}
-
-		// If current placement is set to Location, that won't make sense when merging two clusters. Set to Bounds
-		if (GridPlacement == EActorGridPlacement::Location)
-		{
-			GridPlacement = EActorGridPlacement::Bounds;
-		}
+		GridPlacement = (InActorCluster.GridPlacement == EActorGridPlacement::AlwaysLoaded) ? EActorGridPlacement::AlwaysLoaded : EActorGridPlacement::Bounds;
 	}
 
 	if (DataLayersID != InActorCluster.DataLayersID)
@@ -170,27 +152,28 @@ FActorClusterInstance::FActorClusterInstance(const FActorCluster* InCluster, con
 	DataLayers.Append(DataLayerSet.Array());
 }
 
-FActorClusterContext::FActorClusterContext(UWorldPartition* InWorldPartition, const UWorldPartitionRuntimeHash* InRuntimeHash, FFilterActorDescViewFunc InFilterActorDescViewFunc, bool bInIncludeChildContainers)
-	: WorldPartition(InWorldPartition)
-	, RuntimeHash(InRuntimeHash)
-	, FilterActorDescViewFunc(InFilterActorDescViewFunc)
-	, bIncludeChildContainers(bInIncludeChildContainers)
-	, InstanceCountHint(0)
+FActorClusterContext::FActorClusterContext(TArray<FActorContainerInstance>&& InContainerInstances, FFilterActorDescViewFunc InFilterActorDescViewFunc)
+	: FilterActorDescViewFunc(InFilterActorDescViewFunc)
+	, ContainerInstances(MoveTemp(InContainerInstances))
 {
-	CreateActorClusters();
+	TRACE_CPUPROFILER_EVENT_SCOPE(CreateActorClusters);
+
+	for (const FActorContainerInstance& ContainerInstance : ContainerInstances)
+	{
+		const TArray<FActorCluster>& NewClusters = CreateActorClusters(ContainerInstance);
+		for (const FActorCluster& Cluster : NewClusters)
+		{
+			ClusterInstances.Emplace(&Cluster, &ContainerInstance);
+		}
+	}
 }
 
-FActorContainerInstance::FActorContainerInstance(const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap)
-	: FActorContainerInstance(0, FTransform::Identity, FBox(ForceInit), TSet<FName>(), EContainerClusterMode::Partitioned, InContainer, TSet<FGuid>(), InActorDescViewMap)
-{}
-
-FActorContainerInstance::FActorContainerInstance(uint64 InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TSet<FGuid> InChildContainers, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap)
+FActorContainerInstance::FActorContainerInstance(const FActorContainerID& InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap)
 	: ID(InID)
 	, Transform(InTransform)
 	, Bounds(InBounds)
 	, ClusterMode(InClusterMode)
 	, Container(InContainer)
-	, ChildContainers(InChildContainers)
 	, ActorDescViewMap(InActorDescViewMap)
 {
 	DataLayers = GetDataLayers(InContainer->GetWorld(), InDataLayers);
@@ -203,27 +186,13 @@ const FWorldPartitionActorDescView& FActorContainerInstance::GetActorDescView(co
 
 FActorInstance::FActorInstance()
 	: ContainerInstance(nullptr)
-{
-
-}
+{}
 
 FActorInstance::FActorInstance(const FGuid& InActor, const FActorContainerInstance* InContainerInstance)
 	: Actor(InActor)
 	, ContainerInstance(InContainerInstance)
 {
 	check(ContainerInstance);
-}
-
-bool FActorInstance::ShouldStripFromStreaming() const
-{
-	// If this Actor instance is a Container itself we strip it
-	if (ContainerInstance->ChildContainers.Contains(Actor))
-	{
-		return true;
-	}
-
-	const FWorldPartitionActorDescView& ActorDescView = GetActorDescView();
-	return ActorDescView.GetActorIsEditorOnly();
 }
 
 FVector FActorInstance::GetOrigin() const
@@ -238,118 +207,63 @@ const FWorldPartitionActorDescView& FActorInstance::GetActorDescView() const
 
 void CreateActorCluster(const FWorldPartitionActorDescView& ActorDescView, TMap<FGuid, FActorCluster*>& ActorToActorCluster, TSet<FActorCluster*>& ActorClustersSet, UWorld* World, const TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap)
 {
-	// Don't include references from editor-only actors
-	if (!ActorDescView.GetActorIsEditorOnly())
+	const FGuid& ActorGuid = ActorDescView.GetGuid();
+
+	FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorGuid);
+	if (!ActorCluster)
 	{
-		const FGuid& ActorGuid = ActorDescView.GetGuid();
+		ActorCluster = new FActorCluster(World, ActorDescView);
+		ActorClustersSet.Add(ActorCluster);
+		ActorToActorCluster.Add(ActorGuid, ActorCluster);
+	}
 
-		FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorGuid);
-		if (!ActorCluster)
+	for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
+	{
+		if (const FWorldPartitionActorDescView* ReferenceActorDescView = ActorDescViewMap.Find(ReferenceGuid))
 		{
-			ActorCluster = new FActorCluster(World, ActorDescView);
-			ActorClustersSet.Add(ActorCluster);
-			ActorToActorCluster.Add(ActorGuid, ActorCluster);
-		}
-
-		for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
-		{
-			if (const FWorldPartitionActorDescView* ReferenceActorDescView = ActorDescViewMap.Find(ReferenceGuid))
+			FActorCluster* ReferenceCluster = ActorToActorCluster.FindRef(ReferenceGuid);
+			if (ReferenceCluster)
 			{
-				// Don't include references to editor-only actors
-				if (!ReferenceActorDescView->GetActorIsEditorOnly())
+				if (ReferenceCluster != ActorCluster)
 				{
-					FActorCluster* ReferenceCluster = ActorToActorCluster.FindRef(ReferenceGuid);
-					if (ReferenceCluster)
+					// Merge reference cluster in Actor's cluster
+					ActorCluster->Add(*ReferenceCluster, ActorDescViewMap);
+					for (const FGuid& ReferenceClusterActorGuid : ReferenceCluster->Actors)
 					{
-						if (ReferenceCluster != ActorCluster)
-						{
-							// Merge reference cluster in Actor's cluster
-							ActorCluster->Add(*ReferenceCluster, ActorDescViewMap);
-							for (const FGuid& ReferenceClusterActorGuid : ReferenceCluster->Actors)
-							{
-								ActorToActorCluster[ReferenceClusterActorGuid] = ActorCluster;
-							}
-							ActorClustersSet.Remove(ReferenceCluster);
-							delete ReferenceCluster;
-						}
+						ActorToActorCluster[ReferenceClusterActorGuid] = ActorCluster;
 					}
-					else
-					{
-						// Put Reference in Actor's cluster
-						ActorCluster->Add(FActorCluster(World, *ReferenceActorDescView), ActorDescViewMap);
-					}
-
-					// Map its cluster
-					ActorToActorCluster.Add(ReferenceGuid, ActorCluster);
+					ActorClustersSet.Remove(ReferenceCluster);
+					delete ReferenceCluster;
 				}
 			}
+			else
+			{
+				// Put Reference in Actor's cluster
+				ActorCluster->Add(FActorCluster(World, *ReferenceActorDescView), ActorDescViewMap);
+			}
+
+			// Map its cluster
+			ActorToActorCluster.Add(ReferenceGuid, ActorCluster);
 		}
 	}
-}
-
-void FActorClusterContext::CreateContainerInstanceRecursive(uint64 ID, const FTransform& Transform, EContainerClusterMode ClusterMode, const UActorDescContainer* Container, const TSet<FName>& DataLayers, FBox& ParentBounds)
-{
-	InstanceCountHint += Container->GetActorDescCount();
-		
-	TSet<FGuid> ChildContainers;
-	FBox Bounds(ForceInit);
-
-	TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap;
-	RuntimeHash->CreateActorDescViewMap(Container, ActorDescViewMap);
-
-	for (auto& ActorDesViewPair : ActorDescViewMap)
-	{
-		FWorldPartitionActorDescView& ActorDescView = ActorDesViewPair.Value;
-		const UActorDescContainer* OutContainer = nullptr;
-		FTransform OutTransform;
-		EContainerClusterMode OutClusterMode;
-		if (bIncludeChildContainers && ActorDescView.GetContainerInstance(OutContainer, OutTransform, OutClusterMode))
-		{
-			// Add Child Container Guid so we can discard the actor later
-			ChildContainers.Add(ActorDescView.GetGuid());
-
-			FGuid ActorGuid = ActorDescView.GetGuid();
-			uint64 Hash = CityHash64WithSeed((const char*)&ActorGuid, sizeof(ActorGuid), ID);
-			
-			TSet<FName> ChildDataLayers;
-			ChildDataLayers.Reserve(DataLayers.Num() + ActorDescView.GetDataLayers().Num());
-			// Only propagate ActorDesc DataLayers if we are a Root Container (WorldPartition)
-			if (Container->IsA<UWorldPartition>())
-			{
-				ChildDataLayers.Append(ActorDescView.GetDataLayers());
-			}
-			// Always inherite parent container DataLayers
-			ChildDataLayers.Append(DataLayers);
-			CreateContainerInstanceRecursive(Hash, OutTransform * Transform, OutClusterMode, OutContainer, ChildDataLayers, Bounds);
-		}
-		else
-		{
-			switch (ActorDescView.GetGridPlacement())
-			{
-				case EActorGridPlacement::Location:
-				{
-					FVector Location = Transform.TransformPosition(ActorDescView.GetOrigin());
-					Bounds += FBox(Location, Location);
-				}
-				break;
-				case EActorGridPlacement::Bounds:
-				{
-					Bounds += ActorDescView.GetBounds().TransformBy(Transform);
-				}
-				break;
-			}
-		}
-	}
-	
-	ParentBounds += Bounds;
-	
-	UE_LOG(LogWorldPartition, Verbose, TEXT("ContainerInstance (%08x) Bounds (%s) Package (%s)"), ID, *Bounds.ToString(), *Container->GetContainerPackage().ToString());
-	ContainerInstances.Add(FActorContainerInstance(ID, Transform, Bounds, DataLayers, ClusterMode, Container, MoveTemp(ChildContainers), MoveTemp(ActorDescViewMap)));
 }
 
 FActorContainerInstance* FActorClusterContext::GetClusterInstance(const UActorDescContainer* InContainer)
 {
 	for (FActorContainerInstance& ContainerInstance : ContainerInstances)
+	{
+		if (ContainerInstance.Container == InContainer)
+		{
+			return &ContainerInstance;
+		}
+	}
+
+	return nullptr;
+}
+
+const FActorContainerInstance* FActorClusterContext::GetClusterInstance(const UActorDescContainer* InContainer) const
+{
+	for (const FActorContainerInstance& ContainerInstance : ContainerInstances)
 	{
 		if (ContainerInstance.Container == InContainer)
 		{
@@ -398,26 +312,4 @@ const TArray<FActorCluster>& FActorClusterContext::CreateActorClusters(const FAc
 		
 	return ActorClusters;
 }
-
-void FActorClusterContext::CreateActorClusters()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(CreateActorClusters);
-
-	// First Instance is the main WorldPartition
-	FBox WorldBounds(ForceInit);
-	CreateContainerInstanceRecursive(0, FTransform::Identity, EContainerClusterMode::Partitioned, WorldPartition, TSet<FName>(), WorldBounds);
-		
-	ClusterInstances.Reserve(InstanceCountHint);
-	for (FActorContainerInstance& ContainerInstance : ContainerInstances)
-	{
-		RuntimeHash->UpdateActorDescViewMap(WorldBounds, ContainerInstance.ActorDescViewMap);
-
-		const TArray<FActorCluster>& NewClusters = CreateActorClusters(ContainerInstance);
-		for (const FActorCluster& Cluster : NewClusters)
-		{
-			ClusterInstances.Emplace(&Cluster, &ContainerInstance);
-		}
-	}
-}
-
 #endif // #if WITH_EDITOR

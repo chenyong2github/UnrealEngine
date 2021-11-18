@@ -293,7 +293,7 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="Reader">Reader to serialize data from</param>
 		/// <returns>Instance of the serialized file item</returns>
-		public static FileItem ReadFileItem(this BinaryArchiveReader Reader)
+		public static FileItem? ReadFileItem(this BinaryArchiveReader Reader)
 		{
 			return Reader.ReadObjectReference<FileItem>(() => FileItem.GetItemByFileReference(Reader.ReadFileReference()));
 		}
@@ -316,8 +316,8 @@ namespace UnrealBuildBase
 		/// <returns>FileItem read from the archive</returns>
 		static FileItem ReadCompactFileItemData(this BinaryArchiveReader Reader)
 		{
-			DirectoryItem Directory = Reader.ReadDirectoryItem();
-			string Name = Reader.ReadString();
+			DirectoryItem Directory = Reader.ReadDirectoryItem()!;
+			string Name = Reader.ReadString()!;
 
 			FileItem FileItem = FileItem.GetItemByFileReference(FileReference.Combine(Directory.Location, Name));
             FileItem.UpdateCachedDirectory(Directory);
@@ -331,7 +331,7 @@ namespace UnrealBuildBase
 		/// <returns>Instance of the serialized file item</returns>
 		public static FileItem ReadCompactFileItem(this BinaryArchiveReader Reader)
 		{
-			return Reader.ReadObjectReference<FileItem>(() => ReadCompactFileItemData(Reader));
+			return Reader.ReadObjectReference<FileItem>(() => ReadCompactFileItemData(Reader))!;
 		}
 
 		/// <summary>

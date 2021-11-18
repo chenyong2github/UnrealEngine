@@ -984,21 +984,6 @@ void FDataLayerMode::RegisterContextMenu()
 						FCanExecuteAction::CreateLambda([AllDataLayers] { return !AllDataLayers.IsEmpty(); })
 					));
 			}
-
-			{
-				FToolMenuSection& Section = InMenu->AddSection("DataLayerUserSettings", LOCTEXT("DataLayerUserSettings", "User Settings"));
-
-				Section.AddMenuEntry("ResetDataLayerUserSettings", LOCTEXT("ResetDataLayerUserSettings", "Reset User Settings"), FText(), FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateLambda([this,SelectedDataLayers]() {
-							check(!SelectedDataLayers.IsEmpty());
-							{
-								const FScopedDataLayerTransaction Transaction(LOCTEXT("ResetDataLayerUserSettings", "Reset User Settings"), RepresentingWorld.Get());
-								DataLayerEditorSubsystem->ResetUserSettings(SelectedDataLayers);
-							}}),
-						FCanExecuteAction::CreateLambda([SelectedDataLayers] { return !SelectedDataLayers.IsEmpty(); })
-					));
-			}
 		}));
 	}
 
@@ -1046,18 +1031,42 @@ void FDataLayerMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateLambda([this]()
-				{
-					UWorldPartitionEditorPerProjectUserSettings* Settings = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>();
-					Settings->bAllowRuntimeDataLayerEditing = !Settings->bAllowRuntimeDataLayerEditing;
-					Settings->PostEditChange();
-					SceneOutliner->FullRefresh();
-				}),
+			{
+				UWorldPartitionEditorPerProjectUserSettings* Settings = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>();
+				Settings->bAllowRuntimeDataLayerEditing = !Settings->bAllowRuntimeDataLayerEditing;
+				Settings->PostEditChange();
+				SceneOutliner->FullRefresh();
+			}),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateLambda([]() { return !!GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->bAllowRuntimeDataLayerEditing; })
 		),
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
 	);
+
+	TArray<UDataLayer*> AllDataLayers;
+	if (const AWorldDataLayers* WorldDataLayers = RepresentingWorld.IsValid() ? RepresentingWorld->GetWorldDataLayers() : nullptr)
+	{
+		WorldDataLayers->ForEachDataLayer([&AllDataLayers](UDataLayer* DataLayer)
+		{
+			AllDataLayers.Add(DataLayer);
+			return true;
+		});
+	}
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ResetDataLayerUserSettings", "Reset User Settings"),
+		LOCTEXT("ResetDataLayerUserSettingsToolTip", "Resets Data Layers User Settings to their initial values."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				const FScopedDataLayerTransaction Transaction(LOCTEXT("ResetDataLayerUserSettings", "Reset User Settings"), RepresentingWorld.Get());
+				DataLayerEditorSubsystem->ResetUserSettings();
+			})
+		)
+	);
+
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowWorldHeading", "World"));

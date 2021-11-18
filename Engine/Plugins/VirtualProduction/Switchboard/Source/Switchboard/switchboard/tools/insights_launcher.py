@@ -1,25 +1,15 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-import subprocess
-
-from typing import List, Optional
-
 from switchboard.config import CONFIG
-from switchboard.switchboard_logging import LOGGER
+from .application_launcher import ApplicationLauncher
 
-class InsightsLauncher(object):
-    ''' Manages launching UnrealInsights '''
+class InsightsLauncher(ApplicationLauncher):
+    ''' Manages launching Switchboard Listener '''
 
+    def __init__(self, name:str = 'UnrealInsights'):
+        super().__init__(name)
+
+    #~Begin ApplicationLauncher interface
     def exe_path(self):
-        ''' Returns the expected executable path. Extension not included '''
-        
         return CONFIG.engine_exe_path(CONFIG.ENGINE_DIR.get_value(), "UnrealInsights")
-
-    def launch(self, args:Optional[List[str]] = []):
-        ''' Launches this application with the given arguments '''
-
-        args.insert(0, self.exe_path())
-
-        LOGGER.debug(f"Launching '{' '.join(args)}' ...")
-
-        subprocess.Popen(args)
+    #~End ApplicationLauncher interface

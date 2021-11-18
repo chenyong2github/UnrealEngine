@@ -15,10 +15,15 @@ FMemoryProvider::FMemoryProvider(IAnalysisSession& InSession)
 
 void FMemoryProvider::AddEventSpec(FMemoryTagId TagId, const TCHAR* Name, FMemoryTagId ParentTagId)
 {
-	if (TagId == FMemoryTagInfo::InvalidTagId)
+	if (TagId == FMemoryTagInfo::InvalidTagId || TagId == -1)
 	{
 		// invalid tag id
 		return;
+	}
+
+	if (ParentTagId == -1) // backward compatibility with UE 4.27
+	{
+		ParentTagId = FMemoryTagInfo::InvalidTagId;
 	}
 
 	if (TagDescs.Contains(TagId))

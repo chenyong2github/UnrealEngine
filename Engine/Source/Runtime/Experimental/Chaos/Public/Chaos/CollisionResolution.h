@@ -9,6 +9,7 @@
 
 
 extern bool CCDUseInitialRotationForSweptUpdate;
+extern bool CCDAlwaysSweepRemainingDT;
 
 namespace Chaos
 {
@@ -36,6 +37,28 @@ namespace Chaos
 		// Constraint API
 		//
 
+		/**
+		 * @brief Update the contact manifold on the constraint
+		 * @note Transforms are shape world-space transforms (not particle transforms)
+		*/
+		void CHAOS_API UpdateConstraint(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1, const FReal Dt);
+
+		/**
+		 * @brief Update the contact manifold on the constraint
+		 * @note Transforms are shape world-space transforms (not particle transforms)
+		*/
+		void CHAOS_API UpdateConstraintSwept(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1, const FReal Dt);
+
+		/**
+		 * @brief Determine the shape pair type for use in UpdateConstraints
+		*/
+		EContactShapesType CHAOS_API CalculateShapePairType(const FImplicitObject* Implicit0, const FBVHParticles* BVHParticles0, const FImplicitObject* Implicit1, const FBVHParticles* BVHParticles1, bool& bOutSwap);
+
+		/**
+		 * @brief Whether CCD should be enabled for a contact given the current particle velocities etc
+		*/
+		bool CHAOS_API ShouldUseCCD(const FGeometryParticleHandle* Particle0, const FVec3& StartX0, const FGeometryParticleHandle* Particle1, const FVec3& StartX1, FVec3& Dir, FReal& Length, const bool bForceDisableCCD);
+
 		// Update the constraint by re-running collision detection on the shape pair.
 		template<ECollisionUpdateType UpdateType>
 		void CHAOS_API UpdateConstraintFromGeometry(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal Dt);
@@ -47,10 +70,6 @@ namespace Chaos
 
 		// Create constraints for the particle pair. This could create multiple constraints: one for each potentially colliding shape pair in multi-shape particles.
 		void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt,const FCollisionContext& Context);
-
-		// Attempt to restore all constraints for the particle pair. This will fail is the pair were not previously colliding, or if their relative transforms have changed. Return true if constraints were restored.
-		bool CHAOS_API TryRestoreConstraints(FConstGenericParticleHandle Particle0, FConstGenericParticleHandle Particle1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& ParticleWorldTransform1, const FReal Dt, const FCollisionContext& Context);
-
 
 		// @todo(chaos): this is only called in tests - should it really be exposed?
 		template<ECollisionUpdateType UpdateType>

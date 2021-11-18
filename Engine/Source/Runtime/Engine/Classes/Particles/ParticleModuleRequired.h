@@ -110,7 +110,7 @@ struct FParticleRequiredModule
 	uint32 NumBoundingVertices;
 	uint32 NumBoundingTriangles;
 	float AlphaThreshold;
-	TArray<FVector2D> FrameData;
+	TArray<FVector2f> FrameData;
 	FRHIShaderResourceView* BoundingGeometryBufferSRV;
 	uint8 bCutoutTexureIsValid : 1;
 };
@@ -461,7 +461,7 @@ class UParticleModuleRequired : public UParticleModule
 		return BoundingMode == BVC_FourVertices ? 2 : 6;
 	}
 
-	inline const FVector2D* GetFrameData(int32 FrameIndex) const
+	inline const FVector2f* GetFrameData(int32 FrameIndex) const
 	{
 		return &DerivedData.BoundingGeometry[FrameIndex * GetNumBoundingVertices()];
 	}

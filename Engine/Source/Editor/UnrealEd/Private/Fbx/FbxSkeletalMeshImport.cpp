@@ -204,7 +204,7 @@ void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh,
 		VertPosOctree.AddElement(SkinVertex);
 	}
 
-	TMap<int32, FVector> WedgeIndexToNormal;
+	TMap<int32, FVector3f> WedgeIndexToNormal;
 	WedgeIndexToNormal.Reserve(WedgeNumber);
 	for (int32 FaceIndex = 0; FaceIndex < SkelMeshImportData->Faces.Num(); ++FaceIndex)
 	{
@@ -221,8 +221,8 @@ void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh,
 	{
 		SkeletalMeshImportData::FVertex& Wedge = SkelMeshImportData->Wedges[WedgeIndex];
 		const FVector& Position = SkelMeshImportData->Points[Wedge.VertexIndex];
-		const FVector2D UV = Wedge.UVs[0];
-		const FVector& Normal = WedgeIndexToNormal.FindChecked(WedgeIndex);
+		const FVector2f UV = Wedge.UVs[0];
+		const FVector3f& Normal = WedgeIndexToNormal.FindChecked(WedgeIndex);
 
 		TArray<FSoftSkinVertex> PointsToConsider;
 		VertPosOctree.FindNearbyElements(Position, [&PointsToConsider](const FSoftSkinVertex& Vertex)
@@ -239,8 +239,8 @@ void RemapSkeletalMeshVertexColorToImportData(const USkeletalMesh* SkeletalMesh,
 			for (int32 ConsiderationIndex = 0; ConsiderationIndex < PointsToConsider.Num(); ++ConsiderationIndex)
 			{
 				const FSoftSkinVertex& SkinVertex = PointsToConsider[ConsiderationIndex];
-				const FVector2D& SkinVertexUV = SkinVertex.UVs[0];
-				const float UVDistanceSqr = FVector2D::DistSquared(UV, SkinVertexUV);
+				const FVector2f& SkinVertexUV = SkinVertex.UVs[0];
+				const float UVDistanceSqr = FVector2f::DistSquared(UV, SkinVertexUV);
 				if (UVDistanceSqr < MinUVDistance)
 				{
 					MinUVDistance = FMath::Min(MinUVDistance, UVDistanceSqr);
@@ -1948,7 +1948,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 
 		if( !bBuildSuccess )
 		{
-			SkeletalMesh->MarkPendingKill();
+			SkeletalMesh->MarkAsGarbage();
 			return NULL;
 		}
 		
@@ -3435,6 +3435,8 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 	int32 ExistWedgesNum = ImportData.Wedges.Num();
 	SkeletalMeshImportData::FVertex TmpWedges[3];
 
+	bool bUnsupportedSmoothingGroupErrorDisplayed = false;
+	bool bFaceMaterialIndexInconsistencyErrorDisplayed = false;
 	for( int32 TriangleIndex = ExistFaceNum, LocalIndex = 0 ; TriangleIndex < ExistFaceNum+TriangleCount ; TriangleIndex++, LocalIndex++ )
 	{
 
@@ -3454,9 +3456,10 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 					int32 lSmoothingIndex = (SmoothingReferenceMode == FbxLayerElement::eDirect) ? LocalIndex : SmoothingInfo->GetIndexArray().GetAt(LocalIndex);
 					Triangle.SmoothingGroups = SmoothingInfo->GetDirectArray().GetAt(lSmoothingIndex);
 				}
-				else
+				else if(!bUnsupportedSmoothingGroupErrorDisplayed)
 				{
 					AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_Unsupportingsmoothinggroup", "Unsupported Smoothing group mapping mode on mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::Generic_Mesh_UnsupportingSmoothingGroup);
+					bUnsupportedSmoothingGroupErrorDisplayed = true;
 				}
 			}
 		}
@@ -3536,7 +3539,11 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 						int32 Index = LayerElementMaterial->GetIndexArray().GetAt(LocalIndex);							
 						if (!MaterialMapping.IsValidIndex(Index))
 						{
-							AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("FbxSkeletaLMeshimport_MaterialIndexInconsistency", "Face material index inconsistency - forcing to 0")), FFbxErrors::Generic_Mesh_MaterialIndexInconsistency);
+							if (!bFaceMaterialIndexInconsistencyErrorDisplayed)
+							{
+								AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("FbxSkeletaLMeshimport_MaterialIndexInconsistency", "Face material index inconsistency - forcing to 0")), FFbxErrors::Generic_Mesh_MaterialIndexInconsistency);
+								bFaceMaterialIndexInconsistencyErrorDisplayed = true;
+							}
 						}
 						else
 						{
@@ -3551,7 +3558,11 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 			// because we don't import material for morph, so the ImportData.Materials contains zero material
 			if ( !FbxShape && (Triangle.MatIndex < 0 ||  Triangle.MatIndex >= FbxMaterials.Num() ) )
 			{
-				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("FbxSkeletaLMeshimport_MaterialIndexInconsistency", "Face material index inconsistency - forcing to 0")), FFbxErrors::Generic_Mesh_MaterialIndexInconsistency);
+				if (!bFaceMaterialIndexInconsistencyErrorDisplayed)
+				{
+					AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("FbxSkeletaLMeshimport_MaterialIndexInconsistency", "Face material index inconsistency - forcing to 0")), FFbxErrors::Generic_Mesh_MaterialIndexInconsistency);
+					bFaceMaterialIndexInconsistencyErrorDisplayed = true;
+				}
 				Triangle.MatIndex = 0;
 			}
 		}
@@ -3686,7 +3697,7 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 			ImportData.Wedges[w].MatIndex = TmpWedges[VertexIndex].MatIndex;
 			ImportData.Wedges[w].Color = TmpWedges[VertexIndex].Color;
 			ImportData.Wedges[w].Reserved = 0;
-			FMemory::Memcpy( ImportData.Wedges[w].UVs, TmpWedges[VertexIndex].UVs, sizeof(FVector2D)*MAX_TEXCOORDS );
+			FMemory::Memcpy( ImportData.Wedges[w].UVs, TmpWedges[VertexIndex].UVs, sizeof(FVector2f)*MAX_TEXCOORDS );
 			
 			Triangle.WedgeIndex[VertexIndex] = w;
 		}
@@ -4201,7 +4212,7 @@ bool UnFbx::FFbxImporter::ImportSkeletalMeshLOD(USkeletalMesh* InSkeletalMesh, U
 		BaseSkeletalMesh->GetRefSkeleton().EnsureParentsExistAndSort(NewLODModel.ActiveBoneIndices);
 	}
 	// To be extra-nice, we apply the difference between the root transform of the meshes to the verts.
-	FMatrix LODToBaseTransform = InSkeletalMesh->GetRefPoseMatrix(0).InverseFast() * BaseSkeletalMesh->GetRefPoseMatrix(0);
+	FMatrix44f LODToBaseTransform = InSkeletalMesh->GetRefPoseMatrix(0).InverseFast() * BaseSkeletalMesh->GetRefPoseMatrix(0);
 
 	for (int32 SectionIndex = 0; SectionIndex < NewLODModel.Sections.Num(); SectionIndex++)
 	{

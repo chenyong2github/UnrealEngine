@@ -109,7 +109,7 @@ import java.security.NoSuchAlgorithmException;
 	<!-- optional additions to GameActivity class in GameActivity.java -->
 	<gameActivityClassAdditions>
 		<insert>
-	/** Implement this if app wants to handle IAB activity launch. For e.g use DaydreamApi for transitions **/
+	/** Implement this if app wants to handle IAB activity launch. **/
 	GooglePlayStoreHelper.PurchaseLaunchCallback purchaseLaunchCallback = null;
 
 	public GooglePlayStoreHelper.PurchaseLaunchCallback getPurchaseLaunchCallback()

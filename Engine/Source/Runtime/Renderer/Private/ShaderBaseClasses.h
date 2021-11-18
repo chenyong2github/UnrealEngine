@@ -20,7 +20,7 @@ struct FMeshDrawingRenderState;
 // Z is the dither fade value (-1 = just fading in, 0 no fade, 1 = just faded out)
 // W is unused and zero
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDistanceCullFadeUniformShaderParameters,)
-	SHADER_PARAMETER_EX(FVector2D,FadeTimeScaleBias, EShaderPrecisionModifier::Half)
+	SHADER_PARAMETER_EX(FVector2f,FadeTimeScaleBias, EShaderPrecisionModifier::Half)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef< FDistanceCullFadeUniformShaderParameters > FDistanceCullFadeUniformBufferRef;

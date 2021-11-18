@@ -49,7 +49,7 @@ void RayTraceThroughTileCulledDistanceFields(float3 WorldRayStart, float3 WorldR
 			uint MaxMipIndex = DFAssetMipData.NumMips - 1;
 
 			#if !SDF_TRACING_TRAVERSE_MIPS
-				ReversedMipIndex = NumMips - 1;
+				ReversedMipIndex = MaxMipIndex;
 				DFAssetMipData = LoadDFAssetData(DFObjectData.AssetIndex, ReversedMipIndex);
 			#endif
 

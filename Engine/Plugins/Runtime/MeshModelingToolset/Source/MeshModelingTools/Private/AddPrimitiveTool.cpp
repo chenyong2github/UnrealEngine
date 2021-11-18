@@ -425,7 +425,7 @@ void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 		RectGen.Height = RectangleSettings->Width;
 		RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
 		RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
-		RectGen.bSinglePolygroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
+		RectGen.bSinglePolyGroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
 		RectGen.Generate();
 		OutMesh->Copy(&RectGen);
 		break;
@@ -437,7 +437,7 @@ void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 		RectGen.Height = RectangleSettings->Width;
 		RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
 		RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
-		RectGen.bSinglePolygroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
+		RectGen.bSinglePolyGroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
 		RectGen.Radius = RectangleSettings->CornerRadius;
 		RectGen.AngleSamples = RectangleSettings->CornerSlices - 1;
 		RectGen.Generate();

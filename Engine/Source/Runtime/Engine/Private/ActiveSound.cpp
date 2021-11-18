@@ -1355,10 +1355,10 @@ float FActiveSound::GetAttenuationFrequency(const FSoundAttenuationSettings* Set
 	else
 	{
 		// In manual absorption mode, the frequency ranges are interpreted as a true "range"
-		FVector2D ActualFreqRange(FMath::Min(FrequencyRange.X, FrequencyRange.Y), FMath::Max(FrequencyRange.X, FrequencyRange.Y));
+		FVector2f ActualFreqRange(FMath::Min(FrequencyRange.X, FrequencyRange.Y), FMath::Max(FrequencyRange.X, FrequencyRange.Y));
 
 		// Normalize the distance values to a value between 0 and 1
-		FVector2D AbsorptionDistanceRange = { Settings->LPFRadiusMin, Settings->LPFRadiusMax };
+		FVector2f AbsorptionDistanceRange = { Settings->LPFRadiusMin, Settings->LPFRadiusMax };
 		check(AbsorptionDistanceRange.Y != AbsorptionDistanceRange.X);
 		const float Alpha = FMath::Clamp<float>((ListenerData.AttenuationDistance - AbsorptionDistanceRange.X) / (AbsorptionDistanceRange.Y - AbsorptionDistanceRange.X), 0.0f, 1.0f);
 
@@ -1368,12 +1368,12 @@ float FActiveSound::GetAttenuationFrequency(const FSoundAttenuationSettings* Set
 		if (Settings->bEnableLogFrequencyScaling)
 		{
 			// Use the mapped value in the log scale mapping
-			OutputFrequency = Audio::GetLogFrequencyClamped(MappedFrequencyValue, FVector2D(0.0f, 1.0f), ActualFreqRange);
+			OutputFrequency = Audio::GetLogFrequencyClamped(MappedFrequencyValue, FVector2f(0.0f, 1.0f), ActualFreqRange);
 		}
 		else
 		{
 			// Do a straight linear interpolation between the absorption frequency ranges
-			OutputFrequency = FMath::GetMappedRangeValueClamped(FVector2D(0.0f, 1.0f), ActualFreqRange, MappedFrequencyValue);
+			OutputFrequency = FMath::GetMappedRangeValueClamped(FVector2f(0.0f, 1.0f), ActualFreqRange, MappedFrequencyValue);
 		}
 	}
 
@@ -1732,6 +1732,8 @@ void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& Par
 		{
 			ParseParams.SpatializationMethod = Settings->SpatializationAlgorithm;
 		}
+
+		ParseParams.bSpatializationIsExternalSend = AudioDevice->bSpatializationIsExternalSend;
 	}
 
 	// If not overriding from a node, set focus data

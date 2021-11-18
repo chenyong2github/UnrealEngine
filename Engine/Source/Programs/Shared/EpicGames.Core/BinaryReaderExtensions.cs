@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-#nullable disable
-
 namespace EpicGames.Core
 {
 	public static class BinaryReaderExtensions
@@ -18,7 +16,7 @@ namespace EpicGames.Core
 		/// <returns>Object instance.</returns>
 		public static T ReadObject<T>(this BinaryReader Reader) where T : class, IBinarySerializable
 		{
-			return (T)Activator.CreateInstance(typeof(T), Reader);
+			return (T)Activator.CreateInstance(typeof(T), Reader)!;
 		}
 
 		/// <summary>
@@ -26,7 +24,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Reader">Reader to read data from</param>
 		/// <returns>Array of strings, as serialized. May be null.</returns>
-		public static string[] ReadStringArray(this BinaryReader Reader)
+		public static string[]? ReadStringArray(this BinaryReader Reader)
 		{
 			return Reader.ReadArray(() => Reader.ReadString());
 		}
@@ -37,7 +35,7 @@ namespace EpicGames.Core
 		/// <typeparam name="T">The element type for the array</typeparam>
 		/// <param name="Reader">Reader to read data from</param>
 		/// <returns>Array of objects, as serialized. May be null.</returns>
-		public static T[] ReadArray<T>(this BinaryReader Reader) where T : class, IBinarySerializable
+		public static T[]? ReadArray<T>(this BinaryReader Reader) where T : class, IBinarySerializable
 		{
 			return ReadArray<T>(Reader, () => Reader.ReadObject<T>());
 		}
@@ -49,7 +47,7 @@ namespace EpicGames.Core
 		/// <param name="Reader">Reader to read data from</param>
 		/// <param name="ReadElement">Delegate to call to serialize each element</param>
 		/// <returns>Array of objects, as serialized. May be null.</returns>
-		public static T[] ReadArray<T>(this BinaryReader Reader, Func<T> ReadElement)
+		public static T[]? ReadArray<T>(this BinaryReader Reader, Func<T> ReadElement)
 		{
 			int NumItems = Reader.ReadInt32();
 			if (NumItems < 0)
@@ -70,7 +68,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Reader">Reader to read data from</param>
 		/// <returns>Array of strings, as serialized. May be null.</returns>
-		public static List<string> ReadStringList(this BinaryReader Reader)
+		public static List<string>? ReadStringList(this BinaryReader Reader)
 		{
 			return Reader.ReadList(() => Reader.ReadString());
 		}
@@ -82,7 +80,7 @@ namespace EpicGames.Core
 		/// <param name="Reader">Reader to read data from</param>
 		/// <param name="ReadElement">Delegate to call to serialize each element</param>
 		/// <returns>List of objects, as serialized. May be null.</returns>
-		public static List<T> ReadList<T>(this BinaryReader Reader) where T : class, IBinarySerializable
+		public static List<T>? ReadList<T>(this BinaryReader Reader) where T : class, IBinarySerializable
 		{
 			return ReadList<T>(Reader, () => Reader.ReadObject<T>());
 		}
@@ -94,7 +92,7 @@ namespace EpicGames.Core
 		/// <param name="Reader">Reader to read data from</param>
 		/// <param name="ReadElement">Delegate to call to serialize each element</param>
 		/// <returns>List of objects, as serialized. May be null.</returns>
-		public static List<T> ReadList<T>(this BinaryReader Reader, Func<T> ReadElement)
+		public static List<T>? ReadList<T>(this BinaryReader Reader, Func<T> ReadElement)
 		{
 			int NumItems = Reader.ReadInt32();
 			if (NumItems < 0)
@@ -118,7 +116,7 @@ namespace EpicGames.Core
 		/// <param name="ReadKey">Delegate to call to serialize each key</param>
 		/// <param name="ReadValue">Delegate to call to serialize each value</param>
 		/// <returns>List of objects, as serialized. May be null.</returns>
-		public static Dictionary<K, V> ReadDictionary<K, V>(this BinaryReader Reader, Func<K> ReadKey, Func<V> ReadValue)
+		public static Dictionary<K, V>? ReadDictionary<K, V>(this BinaryReader Reader, Func<K> ReadKey, Func<V> ReadValue) where K : notnull
 		{
 			int NumItems = Reader.ReadInt32();
 			if (NumItems < 0)
@@ -143,7 +141,7 @@ namespace EpicGames.Core
 		/// <param name="Reader">Reader to read data from</param>
 		/// <param name="ReadItem">Function to read the payload, if non-null</param>
 		/// <returns>Object instance or null</returns>
-		public static T ReadNullable<T>(this BinaryReader Reader, Func<T> ReadItem) where T : class
+		public static T? ReadNullable<T>(this BinaryReader Reader, Func<T> ReadItem) where T : class
 		{
 			if (Reader.ReadBoolean())
 			{
@@ -161,7 +159,7 @@ namespace EpicGames.Core
 		/// <param name="Reader">Reader for input data</param>
 		/// <param name="ObjectType">Type of value to read</param>
 		/// <returns>The value read from the stream</returns>
-		public static object ReadObject(this BinaryReader Reader, Type ObjectType)
+		public static object? ReadObject(this BinaryReader Reader, Type ObjectType)
 		{
 			if (ObjectType == typeof(string))
 			{

@@ -55,11 +55,11 @@ void UpdatePendingKillState(UObject* InObj, const bool bIsPendingKill)
 {
 	if (bIsPendingKill)
 	{
-		InObj->MarkPendingKill();
+		InObj->MarkAsGarbage();
 	}
 	else
 	{
-		InObj->ClearPendingKill();
+		InObj->ClearGarbage();
 	}
 }
 
@@ -149,7 +149,7 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 					if (UObject* NewObject = StaticFindObject(ObjectClass, NewObjectOuter ? NewObjectOuter : ExistingObjectOuter, *ObjectNameToCreate.ToString(), /*bExactClass*/true))
 					{
 						UE_LOG(LogConcert, Warning, TEXT("Attempted to rename '%s' over '%s'. Re-using the found object instead of performing the rename!"), *ExistingObject->GetPathName(), *NewObject->GetPathName());
-						ExistingObject->MarkPendingKill();
+						ExistingObject->MarkAsGarbage();
 						ResultFlags |= EGetObjectResultFlags::NeedsGC;
 
 						ExistingObject = NewObject;

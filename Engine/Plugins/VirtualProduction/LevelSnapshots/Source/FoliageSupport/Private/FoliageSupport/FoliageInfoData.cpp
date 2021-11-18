@@ -7,7 +7,15 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
-void FFoliageInfoData::Save(FFoliageInfo& DataToReadFrom, const FCustomVersionContainer& VersionInfo)
+FArchive& UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::SerializeInternal(FArchive& Ar)
+{
+	Ar << ImplType;
+	Ar << ComponentName;
+	Ar << SerializedData;
+	return Ar;
+}
+
+void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::Save(FFoliageInfo& DataToReadFrom, const FCustomVersionContainer& VersionInfo)
 {
 	FMemoryWriter MemoryWriter(SerializedData, true);
 	FObjectAndNameAsStringProxyArchive RootArchive(MemoryWriter, false);
@@ -18,7 +26,7 @@ void FFoliageInfoData::Save(FFoliageInfo& DataToReadFrom, const FCustomVersionCo
 	RootArchive << DataToReadFrom;
 }
 
-void FFoliageInfoData::ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const
+void UE::LevelSnapshots::Foliage::Private::FFoliageInfoData::ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const
 {
 	FMemoryReader MemoryReader(SerializedData, true);
 	FObjectAndNameAsStringProxyArchive RootArchive(MemoryReader, false);
@@ -29,12 +37,4 @@ void FFoliageInfoData::ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersi
 	
 	RootArchive << DataToWriteInto;
 	DataToWriteInto.RecomputeHash();
-}
-
-FArchive& operator<<(FArchive& Ar, FFoliageInfoData& Data)
-{
-	Ar << Data.ImplType;
-	Ar << Data.ComponentName;
-	Ar << Data.SerializedData;
-	return Ar;
 }

@@ -22,7 +22,7 @@ DEFINE_STAT(STAT_SlateCachedDrawElementMemory);
 
 static bool IsResourceObjectValid(UObject*& InObject)
 {
-	if (InObject != nullptr && (InObject->IsPendingKillOrUnreachable() || InObject->HasAnyFlags(RF_BeginDestroyed)))
+	if (InObject != nullptr && (!IsValidChecked(InObject) || InObject->IsUnreachable() || InObject->HasAnyFlags(RF_BeginDestroyed)))
 	{
 		UE_LOG(LogSlate, Warning, TEXT("Attempted to access resource for %s which is pending kill, unreachable or pending destroy"), *InObject->GetName());
 		return false;

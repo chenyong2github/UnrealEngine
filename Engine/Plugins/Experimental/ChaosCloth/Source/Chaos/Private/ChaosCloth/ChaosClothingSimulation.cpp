@@ -602,12 +602,15 @@ void FClothingSimulation::GetSimulationData(
 		OutData.Reset();
 	}
 
-	// Get the solver's local space
-	const FVec3& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
-
 	// Retrieve the component transforms
-	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
+	const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InOwnerComponent->GetClothingSimulationContext());
+	check(Context);  // A simuation can't be created without context
+	const FTransform& OwnerTransform = Context->ComponentToWorld;
+
 	const TArray<FTransform>& ComponentSpaceTransforms = InOverrideComponent ? InOverrideComponent->GetComponentSpaceTransforms() : InOwnerComponent->GetComponentSpaceTransforms();
+
+	// Get the solver's local space location
+	const FVec3 LocalSpaceLocation = bUseLocalSpaceSimulation ? OwnerTransform.GetLocation() : FVec3(0.);  // Note: The component could be moving while the simulation is suspended, this means the owner component location needs to be used instead of the solver's local space location
 
 	// Set the simulation data for each of the cloths
 	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
@@ -615,9 +618,22 @@ void FClothingSimulation::GetSimulationData(
 		const int32 AssetIndex = Cloth->GetGroupId();
 		FClothSimulData& Data = OutData.FindOrAdd(AssetIndex);
 
-		if (Cloth->GetLODIndex(Solver.Get()) == INDEX_NONE || Cloth->GetOffset(Solver.Get()) == INDEX_NONE)
+		if (!Cloth->GetMesh())
 		{
-			continue;
+			continue;  // Invalid or empty cloth
+		}
+
+		// If the LOD has changed while the simulation is suspended, the cloth still needs to be updated with the correct LOD data
+		const int32 LODIndex = Cloth->GetMesh()->GetLODIndex();
+		if (LODIndex != Cloth->GetLODIndex(Solver.Get()))
+		{
+			Cloth->PreUpdate(Solver.Get());  // Currently doing colliders' update, not really required here, but this could later change (technically PreUpdates are for any non parallel cloth updates)
+			Cloth->Update(Solver.Get());  // LOD switching
+		}
+
+		if (Cloth->GetOffset(Solver.Get()) == INDEX_NONE || Cloth->GetLODIndex(Solver.Get()) == INDEX_NONE)
+		{
+			continue;  // No valid LOD, there's nothing to write out
 		}
 
 		// Get the reference bone index for this cloth
@@ -668,18 +684,41 @@ void FClothingSimulation::GetSimulationData(
 				Data.Normals[Index] = ReferenceSpaceTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
 			}
 		}
+
+		// Set the current LOD these data apply to, so that the correct deformer mappings can be applied
+		if (const UClothingAssetCommon* const ClothingAsset = Cloth->GetMesh()->GetAsset())
+		{
+			Data.LODIndex = ClothingAsset->LodMap.Find(LODIndex);  // Store the mesh LOD index, which is different to the cloth asset's LOD index
+		}
+		else
+		{
+			Data.LODIndex = 0;
+		}
 	}
 }
 
 FBoxSphereBounds FClothingSimulation::GetBounds(const USkeletalMeshComponent* InOwnerComponent) const
 {
 	check(Solver);
-	const FBoxSphereBounds Bounds = Solver->CalculateBounds();
+	FBoxSphereBounds Bounds = Solver->CalculateBounds();
 
 	if (InOwnerComponent)
 	{
+		const FClothingSimulationContext* const Context = static_cast<const FClothingSimulationContext*>(InOwnerComponent->GetClothingSimulationContext());
+		check(Context);  // A simuation can't be created without context
+		const FTransform& OwnerTransform = Context->ComponentToWorld;
+
+		if (bUseLocalSpaceSimulation)
+		{
+			// The component could be moving while the simulation is suspended so getting the bounds
+			// in world space isn't good enough and the bounds origin needs to be continuously updated
+			const FVec3 CurrentLocalSpaceLocation = OwnerTransform.GetLocation();
+			const FVec3& SolverLocalSpaceLocation = Solver->GetLocalSpaceLocation();
+			Bounds.Origin += FVector(CurrentLocalSpaceLocation - SolverLocalSpaceLocation);
+		}
+
 		// Return local bounds
-		return Bounds.TransformBy(InOwnerComponent->GetComponentTransform().Inverse());
+		return Bounds.TransformBy(OwnerTransform.Inverse());
 	}
 	return Bounds;
 }
@@ -1015,7 +1054,7 @@ static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FL
 		const FMatrix& ViewMatrix = PDI->View->ViewMatrices.GetViewMatrix();
 		const FVector XAxis = ViewMatrix.GetColumn(0); // Just using transpose here (orthogonal transform assumed)
 		const FVector YAxis = ViewMatrix.GetColumn(1);
-		DrawDisc(PDI, Pos, XAxis, YAxis, Color.ToFColor(true), 0.2f, 10, DebugClothMaterialVertex->GetRenderProxy(), SDPG_World);
+		DrawDisc(PDI, Pos, XAxis, YAxis, Color.ToFColor(true), 0.5f, 10, DebugClothMaterialVertex->GetRenderProxy(), SDPG_World);
 	}
 #endif
 }
@@ -1735,6 +1774,14 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 			return FLinearColor::MakeFromHSV8(Seed, 160, 128);
 		};
 
+	auto Darken =
+		[](const FLinearColor& Color) -> FLinearColor
+		{
+			FLinearColor ColorHSV = Color.LinearRGBToHSV();
+			ColorHSV.B *= .5f;
+			return ColorHSV.HSVToLinearRGB();
+		};
+
 	int32 ColorOffset = 0;
 
 	for (const FClothingSimulationCloth* const Cloth : Solver->GetCloths())
@@ -1756,6 +1803,7 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 			for (int32 BatchIndex = 0; BatchIndex < Tethers.Num(); ++BatchIndex)
 			{
 				const FLinearColor Color = PseudoRandomColor(ColorOffset + BatchIndex);
+				const FLinearColor DarkenedColor = Darken(Color);
 
 				const TConstArrayView<FPBDLongRangeConstraints::FTether>& TetherBatch = Tethers[BatchIndex];
 
@@ -1770,13 +1818,17 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 					const FVec3 Pos1 = Positions[DynamicIndex] + LocalSpaceLocation;
 
 					DrawLine(PDI, Pos0, Pos1, Color);
-
+#if WITH_EDITOR
+					DrawPoint(PDI, Pos1, Color, DebugClothMaterialVertex);
+#else
+					DrawPoint(nullptr, Pos1, Color, nullptr);
+#endif
 					FVec3 Direction = Pos1 - Pos0;
 					const float Length = Direction.SafeNormalize();
 					if (Length > SMALL_NUMBER)
 					{
 						const FVec3 Pos2 = Pos1 + Direction * (TargetLength - Length);
-						DrawLine(PDI, Pos1, Pos2, FLinearColor::Black);  // Color.Desaturate(1.f));
+						DrawLine(PDI, Pos1, Pos2, DarkenedColor);
 					}
 				}
 			}

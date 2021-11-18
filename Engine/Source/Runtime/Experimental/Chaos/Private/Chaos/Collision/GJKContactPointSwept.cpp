@@ -44,8 +44,6 @@ namespace Chaos
 
 			const FVec3 WorldLocation = BTOITM.TransformPosition(Location);
 			const FVec3 WorldNormal = BTOITM.TransformVectorNoScale(Normal);
-			Contact.ShapeMargins[0] = 0.0f;
-			Contact.ShapeMargins[1] = 0.0f;
 			Contact.ShapeContactPoints[0] = ATOITM.InverseTransformPosition(WorldLocation);
 			Contact.ShapeContactPoints[1] = Location;
 			Contact.ShapeContactNormal = Normal;

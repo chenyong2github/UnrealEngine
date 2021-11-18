@@ -24,7 +24,7 @@ public:
 	void UpdateDeffered(const UStaticMesh* InStaticMesh);
 	void UpdateDeffered(const FDisplayClusterRender_MeshGeometry& InMeshGeometry);
 
-	const FStaticMeshLODResources* GetStaticMeshLODResource(int LodIndex = 0) const;
+	const FStaticMeshLODResources* GetStaticMeshLODResource(int32 LodIndex = 0) const;
 
 	void Release();
 

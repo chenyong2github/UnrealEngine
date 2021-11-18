@@ -14,9 +14,11 @@
 // UListView
 
 static FTableViewStyle* DefaultListViewStyle = nullptr;
+static FScrollBarStyle* DefaultListViewScrollBarStyle = nullptr;
 
 #if WITH_EDITOR
 static FTableViewStyle* EditorListViewStyle = nullptr;
+static FScrollBarStyle* EditorListViewScrollBarStyle = nullptr;
 #endif 
 
 UListView::UListView(const FObjectInitializer& ObjectInitializer)
@@ -31,7 +33,16 @@ UListView::UListView(const FObjectInitializer& ObjectInitializer)
 		DefaultListViewStyle->UnlinkColors();
 	}
 
+	if (DefaultListViewScrollBarStyle == nullptr)
+	{
+		DefaultListViewScrollBarStyle = new FScrollBarStyle(FUMGCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"));
+
+		// Unlink UMG default colors.
+		DefaultListViewScrollBarStyle->UnlinkColors();
+	}
+
 	WidgetStyle = *DefaultListViewStyle;
+	ScrollBarStyle = *DefaultListViewScrollBarStyle;
 
 #if WITH_EDITOR 
 	if (EditorListViewStyle == nullptr)
@@ -42,9 +53,18 @@ UListView::UListView(const FObjectInitializer& ObjectInitializer)
 		EditorListViewStyle->UnlinkColors();
 	}
 
+	if (EditorListViewScrollBarStyle == nullptr)
+	{
+		EditorListViewScrollBarStyle = new FScrollBarStyle(FCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar"));
+
+		// Unlink UMG default colors.
+		EditorListViewScrollBarStyle->UnlinkColors();
+	}
+
 	if (IsEditorWidget())
 	{
 		WidgetStyle = *EditorListViewStyle;
+		ScrollBarStyle = *EditorListViewScrollBarStyle;
 	}
 #endif // WITH_EDITOR
 }

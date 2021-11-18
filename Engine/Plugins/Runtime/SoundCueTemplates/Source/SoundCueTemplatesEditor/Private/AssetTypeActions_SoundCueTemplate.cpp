@@ -12,6 +12,7 @@
 #include "ContentBrowserMenuContexts.h"
 #include "IContentBrowserSingleton.h"
 #include "ObjectEditorUtils.h"
+#include "Sound/SoundWaveProcedural.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -65,7 +66,7 @@ const TArray<FText>& FAssetTypeActions_SoundCueTemplate::GetSubMenus() const
 	{
 		static const TArray<FText> AssetTypeActionSubMenu
 		{
-			LOCTEXT("AssetSoudnCueSubMenu", "Legacy")
+			LOCTEXT("AssetSoundCueSubMenu", "Legacy")
 		};
 		return AssetTypeActionSubMenu;
 	}
@@ -90,9 +91,17 @@ void FAssetActionExtender_SoundCueTemplate::RegisterMenus()
 	Section.AddDynamicEntry("SoundCueTemplateSoundWaveAsset", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-		if (!Context || Context->SelectedObjects.Num() == 0)
+		if (!Context || Context->SelectedObjects.IsEmpty())
 		{
 			return;
+		}
+
+		for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
+		{
+			if (Object->IsA<USoundWaveProcedural>())
+			{
+				return;
+			}
 		}
 
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateSoundCueTemplate", "Create SoundCueTemplate");

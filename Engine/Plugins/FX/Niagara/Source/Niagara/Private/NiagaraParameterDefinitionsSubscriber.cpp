@@ -157,8 +157,34 @@ void INiagaraParameterDefinitionsSubscriber::SynchronizeWithParameterDefinitions
 		int32 ChangeIdHash;
 	};
 
-	// Note, this is not guaranteed to be all parameter definitions in mounted content directories if asset registry discovery has not completed.
-	TArray<UNiagaraParameterDefinitionsBase*> AllDefinitions = GetAllParameterDefinitions();
+	// Get all available parameter definitions.
+	// Depending on whether asset discovery is complete we will either get all parameter definitions via asset registry or get all in subscriptions, respectively.
+	TArray<FParameterDefinitionsSubscription>& Subscriptions = GetParameterDefinitionsSubscriptions();
+	TArray<UNiagaraParameterDefinitionsBase*> AllDefinitions;
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	if (AssetRegistryModule.Get().IsLoadingAssets() == false)
+	{
+		TArray<FAssetData> ParameterDefinitionsAssetData;
+		AssetRegistryModule.GetRegistry().GetAssetsByClass(TEXT("NiagaraParameterDefinitions"), ParameterDefinitionsAssetData);
+		for (const FAssetData& ParameterDefinitionsAssetDatum : ParameterDefinitionsAssetData)
+		{
+			UNiagaraParameterDefinitionsBase* ParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(ParameterDefinitionsAssetDatum.GetAsset());
+			if (ParameterDefinitions == nullptr)
+			{
+				ensureMsgf(false, TEXT("Failed to load parameter definition from asset registry!"));
+				continue;
+			}
+			AllDefinitions.Add(ParameterDefinitions);
+		}
+	}
+	else
+	{
+		for (const FParameterDefinitionsSubscription& Subscription : Subscriptions)
+		{
+			AllDefinitions.Add(Subscription.Definitions);
+		}
+	}
 
 	// Collect the FGuid ParameterIds for every parameter in every definition asset.
 	TSet<FGuid> DefinitionParameterIds;
@@ -168,7 +194,6 @@ void INiagaraParameterDefinitionsSubscriber::SynchronizeWithParameterDefinitions
 	}
 
 	// Filter out Target Definitions that do not have a subscription associated with their unique id.
-	TArray<FParameterDefinitionsSubscription>& Subscriptions = GetParameterDefinitionsSubscriptions();
 	TArray<FDefinitionAndChangeIdHash> TargetDefinitionAndChangeIdHashes;
 	TArray<UNiagaraParameterDefinitionsBase*> TargetDefinitions;
 
@@ -244,26 +269,6 @@ void INiagaraParameterDefinitionsSubscriber::SynchronizeWithParameterDefinitions
 	}
 
 	OnSubscribedParameterDefinitionsChangedDelegate.Broadcast();
-}
-
-TArray<UNiagaraParameterDefinitionsBase*> INiagaraParameterDefinitionsSubscriber::GetAllParameterDefinitions() const
-{
-	TArray<UNiagaraParameterDefinitionsBase*> OutParameterDefinitions;
-
-	TArray<FAssetData> ParameterDefinitionsAssetData;
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	AssetRegistryModule.GetRegistry().GetAssetsByClass(TEXT("NiagaraParameterDefinitions"), ParameterDefinitionsAssetData);
-	for (const FAssetData& ParameterDefinitionsAssetDatum : ParameterDefinitionsAssetData)
-	{
-		UNiagaraParameterDefinitionsBase* ParameterDefinitions = Cast<UNiagaraParameterDefinitionsBase>(ParameterDefinitionsAssetDatum.GetAsset());
-		if (ParameterDefinitions == nullptr)
-		{
-			ensureMsgf(false, TEXT("Failed to load parameter definition from asset registry!"));
-			continue;
-		}
-		OutParameterDefinitions.Add(ParameterDefinitions);
-	}
-	return OutParameterDefinitions;
 }
 
 void INiagaraParameterDefinitionsSubscriber::MarkParameterDefinitionSubscriptionsSynchronized(TArray<FGuid> SynchronizedParameterDefinitionsIds /*= TArray<FGuid>()*/)

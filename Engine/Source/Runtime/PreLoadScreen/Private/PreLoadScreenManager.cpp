@@ -285,6 +285,13 @@ void FPreLoadScreenManager::HandleEngineLoadingPlay()
 			{
 				VirtualRenderWindow->SetContent(PreLoadScreen->GetWidget().ToSharedRef());
 			}
+
+			//Need to update bIsResponsibleForRendering as a PreLoadScreen may not have updated it before this point
+			if (!bIsResponsibleForRendering && PreLoadScreen->ShouldRender())
+			{
+				bIsResponsibleForRendering = true;
+				IsResponsibleForRenderingDelegate.Broadcast(bIsResponsibleForRendering);
+			}
 		}
 
 		if (WidgetRenderer.IsValid())

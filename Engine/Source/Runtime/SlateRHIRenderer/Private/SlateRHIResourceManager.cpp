@@ -657,7 +657,7 @@ FSlateShaderResourceProxy* FSlateRHIResourceManager::GetShaderResource(const FSl
 	UObject* ResourceObject = InBrush.GetResourceObject();
 	FSlateShaderResourceProxy* Resource = nullptr;
 
-	if (ResourceObject != nullptr && (ResourceObject->IsPendingKillOrUnreachable() || ResourceObject->HasAnyFlags(RF_BeginDestroyed)))
+	if (ResourceObject != nullptr && (!IsValidChecked(ResourceObject) || ResourceObject->IsUnreachable() || ResourceObject->HasAnyFlags(RF_BeginDestroyed)))
 	{
 		UE_LOG(LogSlate, Warning, TEXT("Attempted to access resource for %s which is pending kill, unreachable or pending destroy"), *ResourceObject->GetName());
 	}

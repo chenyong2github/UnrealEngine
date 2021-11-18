@@ -8,6 +8,7 @@
 #include "Containers/UnrealString.h"
 #include "Math/Vector.h"
 #include "Math/Sphere.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 
 /**
  * Implements an axis-aligned box.
@@ -530,6 +531,8 @@ public:
 		Slot << *this;
 		return true;
 	}
+
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
 };
 
 /* TBox<T> inline functions
@@ -804,6 +807,18 @@ template<> struct TIsUECoreVariant<FBox3f> { enum { Value = true }; };
 //template<> struct TCanBulkSerialize<FBox3d> { enum { Value = false }; };	// LWC_TODO: This can be done (via versioning) once LWC is fixed to on.
 template<> struct TIsPODType<FBox3d> { enum { Value = true }; };
 template<> struct TIsUECoreVariant<FBox3d> { enum { Value = true }; };
+
+template<>
+inline bool FBox3f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Box, Box3f, Box3d);
+}
+
+template<>
+inline bool FBox3d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Box, Box3d, Box3f);
+}
 
 /* FMath inline functions
  *****************************************************************************/

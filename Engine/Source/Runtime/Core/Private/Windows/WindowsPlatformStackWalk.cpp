@@ -1156,3 +1156,70 @@ void FWindowsPlatformStackWalk::RegisterOnModulesChanged()
 	// Register for callback so we can reload symbols when new modules are loaded
 	FModuleManager::Get().OnModulesChanged().AddStatic( &OnModulesChanged );
 }
+
+bool FWindowsPlatformStackWalk::GetFunctionDefinitionLocation(const FString& FunctionSymbolName, const FString& FunctionModuleName, FString& OutPathname, uint32& OutLineNumber, uint32& OutColumnNumber)
+{
+#if ON_DEMAND_SYMBOL_LOADING
+	bool bShouldReloadModuleMissingDebugSymbols = !FPlatformProperties::IsMonolithicBuild() && !FunctionModuleName.IsEmpty();
+	if (bShouldReloadModuleMissingDebugSymbols)
+	{
+		HMODULE ModuleHandle = GetModuleHandle(*FunctionModuleName);
+		if (!ModuleHandle)
+		{
+			return false;
+		}
+
+		MODULEINFO ModuleInfo = { 0 };
+		FGetModuleInformation(GProcessHandle, ModuleHandle, &ModuleInfo, sizeof(ModuleInfo));
+
+		// Get the module info containing the debug symbols state.
+		IMAGEHLP_MODULE64 ImageHelpModule = {0};
+		ImageHelpModule.SizeOfStruct = sizeof( ImageHelpModule );
+		if (!SymGetModuleInfo64(GProcessHandle, (DWORD64)ModuleInfo.EntryPoint, &ImageHelpModule))
+		{
+			return false;
+		}
+
+		if (ImageHelpModule.SymType == SymNone)
+		{
+			// The module is already loaded but 'SymNone' means that we are missing debug symbols. The module was likely loaded implicitly while the symbol search path wasn't properly set, so the debug engine did not find the .pdb and
+			// now that 'bad' state is cached. Unloading the module will clear the entry in the debug engine cache and loading it again with the proper symbol search path should pick up the .pdb this time.
+			SymUnloadModule(GProcessHandle, (DWORD64)ModuleInfo.lpBaseOfDll);
+		}
+
+		if (ImageHelpModule.SymType == SymDeferred || ImageHelpModule.SymType == SymNone)
+		{
+			// Load (or reload the module with) the debug symbols.
+			LoadSymbolsForModule(ModuleHandle, GetRemoteStorage(GetDownstreamStorage()));
+		}
+	}
+#endif
+
+	ANSICHAR SymbolInfoBuffer[sizeof(IMAGEHLP_SYMBOL64) + MAX_SYM_NAME];
+	PIMAGEHLP_SYMBOL64 SymbolInfoPtr = reinterpret_cast<IMAGEHLP_SYMBOL64*>(SymbolInfoBuffer);
+	SymbolInfoPtr->SizeOfStruct = sizeof(SymbolInfoBuffer);
+	SymbolInfoPtr->MaxNameLength = MAX_SYM_NAME;
+
+	FString FullyQualifiedSymbolName = FunctionSymbolName;
+	if(!FunctionModuleName.IsEmpty())
+	{
+		FullyQualifiedSymbolName = FString::Printf(TEXT( "%s!%s" ), *FunctionModuleName, *FunctionSymbolName);
+	}
+
+	// Query information about this symbol by name
+	if(::SymGetSymFromName64(GProcessHandle, TCHAR_TO_ANSI(*FullyQualifiedSymbolName ), SymbolInfoPtr))
+	{
+		IMAGEHLP_LINE64 FileAndLineInfo;
+		FileAndLineInfo.SizeOfStruct = sizeof(FileAndLineInfo);
+
+		// Query file and line number information for this symbol.
+		if(::SymGetLineFromAddr64(GProcessHandle, SymbolInfoPtr->Address, (::DWORD*)&OutColumnNumber, &FileAndLineInfo))
+		{
+			OutPathname = (const ANSICHAR*)(FileAndLineInfo.FileName);
+			OutLineNumber = FileAndLineInfo.LineNumber;
+			return true;
+		}
+	}
+
+	return false;
+}

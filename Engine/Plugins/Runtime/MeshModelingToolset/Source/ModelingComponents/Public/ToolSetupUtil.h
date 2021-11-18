@@ -42,6 +42,16 @@ namespace ToolSetupUtil
 	 */
 	MODELINGCOMPONENTS_API UMaterialInterface* GetDefaultWorkingMaterial(UInteractiveToolManager* ToolManager);
 
+	/**
+	 * @return default material instance to use for "Working"/In-Progress animations
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetDefaultWorkingMaterialInstance(UInteractiveToolManager* ToolManager);
+
+	/**
+	 * @return default material instance to use for "Error" animations
+	 */
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetDefaultErrorMaterial(UInteractiveToolManager* ToolManager);
+
 
 	/**
 	 * Get a black-and-white NxN checkerboard material

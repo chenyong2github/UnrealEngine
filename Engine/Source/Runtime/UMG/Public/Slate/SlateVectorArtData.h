@@ -20,26 +20,26 @@ struct FSlateMeshVertex
 
 	FSlateMeshVertex()
 		:
-		Position(FVector2D::ZeroVector)
+		Position(FVector2f::ZeroVector)
 		, Color(ForceInitToZero)
-		, UV0(FVector2D::ZeroVector)
-		, UV1(FVector2D::ZeroVector)
-		, UV2(FVector2D::ZeroVector)
-		, UV3(FVector2D::ZeroVector)
-		, UV4(FVector2D::ZeroVector)
-		, UV5(FVector2D::ZeroVector)
+		, UV0(FVector2f::ZeroVector)
+		, UV1(FVector2f::ZeroVector)
+		, UV2(FVector2f::ZeroVector)
+		, UV3(FVector2f::ZeroVector)
+		, UV4(FVector2f::ZeroVector)
+		, UV5(FVector2f::ZeroVector)
 	{
 	}
 
 	FSlateMeshVertex(
-		  FVector2D InPos
+		  FVector2f InPos
 		, FColor InColor
-		, FVector2D InUV0
-		, FVector2D InUV1
-		, FVector2D InUV2
-		, FVector2D InUV3
-		, FVector2D InUV4
-		, FVector2D InUV5
+		, FVector2f InUV0
+		, FVector2f InUV1
+		, FVector2f InUV2
+		, FVector2f InUV3
+		, FVector2f InUV4
+		, FVector2f InUV5
 		)
 		: Position(InPos)
 		, Color(InColor)
@@ -53,28 +53,28 @@ struct FSlateMeshVertex
 	}
 
 	UPROPERTY()
-	FVector2D Position;
+	FVector2f Position;
 
 	UPROPERTY()
 	FColor Color;
 
 	UPROPERTY()
-	FVector2D UV0;
+	FVector2f UV0;
 
 	UPROPERTY()
-	FVector2D UV1;
+	FVector2f UV1;
 
 	UPROPERTY()
-	FVector2D UV2;
+	FVector2f UV2;
 
 	UPROPERTY()
-	FVector2D UV3;
+	FVector2f UV3;
 
 	UPROPERTY()
-	FVector2D UV4;
+	FVector2f UV4;
 
 	UPROPERTY()
-	FVector2D UV5;
+	FVector2f UV5;
 };
 
 /**

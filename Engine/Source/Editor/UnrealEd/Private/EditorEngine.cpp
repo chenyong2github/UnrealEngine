@@ -5375,7 +5375,7 @@ void UEditorEngine::ConvertLightActors( UClass* ConvertToClass )
 			LayersSubsystem->DisassociateActorFromLayers(ActorToConvert);
 			World->EditorDestroyActor( ActorToConvert, true );
 
-			if (NewActor->IsPendingKillOrUnreachable())
+			if (!IsValidChecked(NewActor) || NewActor->IsUnreachable())
 			{
 				UE_LOG(LogEditor, Log, TEXT("Newly converted actor ('%s') is pending kill"), *NewActor->GetName());
 			}
@@ -7379,7 +7379,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 
 	// If we have specified a MaterialQualityPlatform ensure its feature level matches the requested feature level.
 	EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(NewPreviewPlatform.PreviewShaderFormatName);
-	ERHIFeatureLevel::Type MaxFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+	ERHIFeatureLevel::Type MaxFeatureLevel = NewPreviewPlatform.PreviewShaderFormatName != NAME_None ? (ERHIFeatureLevel::Type)GetMaxSupportedFeatureLevel(ShaderPlatform) : ERHIFeatureLevel::SM5;
 	check(NewPreviewPlatform.PreviewShaderFormatName.IsNone() || MaxFeatureLevel == NewPreviewPlatform.PreviewFeatureLevel);
 
 	const bool bChangedPreviewShaderPlatform = NewPreviewPlatform.PreviewShaderFormatName != PreviewPlatform.PreviewShaderFormatName;

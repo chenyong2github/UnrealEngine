@@ -50,7 +50,10 @@ private:
 class DYNAMICMESH_API FMeshMultiResampleImageEvaluator : public FMeshResampleImageEvaluator
 {
 public:
-	TMap<int32, TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> MultiTextures;
+	/** List of textures indexed by material ID. Entries can be null. */
+	TArray<TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> MultiTextures;
+
+	/** The UV channel used to sample the textures. */
 	int DetailUVLayer = 0;
 
 public:
@@ -64,6 +67,9 @@ public:
 
 private:
 	FVector4f ImageSampleFunction(const FCorrespondenceSample& Sample) const;
+
+	// Cached data
+	int NumMultiTextures = 0;
 };
 
 } // end namespace UE::Geometry

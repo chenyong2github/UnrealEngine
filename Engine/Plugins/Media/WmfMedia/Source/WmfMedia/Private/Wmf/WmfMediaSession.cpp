@@ -119,6 +119,7 @@ void FWmfMediaSession::GetEvents(TArray<EMediaEvent>& OutEvents)
 			if (bHaveSamples == false)
 			{
 				bIsWaitingForEnd = false;
+				TracksPinned->SetSessionState(GetState());
 			}
 		}
 		else
@@ -698,6 +699,15 @@ STDMETHODIMP FWmfMediaSession::Invoke(IMFAsyncResult* AsyncResult)
 			SessionState = EMediaState::Error;
 		}
 	}
+
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	// Tell the tracks about our state.
+	TSharedPtr<FWmfMediaTracks, ESPMode::ThreadSafe> TracksPinned = Tracks.Pin();
+	if (TracksPinned.IsValid())
+	{
+		TracksPinned->SetSessionState(GetState());
+	}
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 
 	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("Session %p: CurrentState: %s, CurrentRate: %f, CurrentTime: %s, SessionState: %s, SessionRate: %f, PendingChanges: %s"),
 		this,

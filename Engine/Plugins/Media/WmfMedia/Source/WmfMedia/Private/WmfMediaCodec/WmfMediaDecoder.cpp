@@ -2,6 +2,7 @@
 
 #include "WmfMediaCodec/WmfMediaDecoder.h"
 
+#include "IWmfMediaModule.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
@@ -18,8 +19,25 @@ WmfMediaDecoder::WmfMediaDecoder()
 	InputImageSize(0),
 	OutputImageSize(0),
 	InternalTimeStamp(0),
-	SampleDuration(0)
+	SampleDuration(0),
+	bIsExternalBufferEnabled(false)
 {
+}
+
+WmfMediaDecoder::~WmfMediaDecoder()
+{
+	RemoveDecoderFromMap();
+
+	// Clean up external buffer pool.
+	for (TArray<uint8>*& pBuffer : ExternalBufferPool)
+	{
+		if (pBuffer != nullptr)
+		{
+			delete pBuffer;
+			pBuffer = nullptr;
+		}
+	}
+
 }
 
 ULONG WmfMediaDecoder::AddRef()
@@ -468,6 +486,170 @@ HRESULT WmfMediaDecoder::OnFlush()
 	return S_OK;
 }
 
+TArray<uint8>* WmfMediaDecoder::AllocateExternalBuffer(uint64 InTimeStamp, int32 InSize)
+{
+	FScopeLock Lock(&BufferCriticalSection);
+
+	// Do we already have this buffer?
+	TArray<uint8>** ppArray = MapTimeStampToExternalBuffer.Find(InTimeStamp);
+	TArray<uint8>* pBuffer = (ppArray != nullptr) ? (*ppArray) : nullptr;
+	if (pBuffer == nullptr)
+	{
+		// No. Do we have any buffers we can reuse?
+		if (ExternalBufferPool.Num() > 0)
+		{
+			// Look for a buffer with the right size.
+			int32 Index = 0;
+			for (Index = 0; Index < ExternalBufferPool.Num(); ++Index)
+			{
+				pBuffer = ExternalBufferPool[Index];
+				if (pBuffer->Num() == InSize)
+				{
+					break;
+				}
+			}
+
+			// If there is none, then just use the first one.
+			if (Index >= ExternalBufferPool.Num())
+			{
+				Index = 0;
+				pBuffer = ExternalBufferPool[Index];
+			}
+
+			// Remove from the pool.
+			ExternalBufferPool.RemoveAtSwap(Index);
+		}
+		else
+		{
+			// No free buffers. Just create a new one.
+			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("WmfMediaDecoder::AllocateExternalBuffer new array."));
+			pBuffer = new TArray<uint8>();
+		}
+
+		// Associate the time stamp wth this buffer.
+		MapTimeStampToExternalBuffer.Emplace(InTimeStamp, pBuffer);
+	}
+
+	// Is this buffer the right size?
+	if (pBuffer->Num() != InSize)
+	{
+		// Nope.
+		// Remove old buffer from map.
+		uint8* pData = pBuffer->GetData();
+		FScopeLock MapLock(&GetMapBufferCriticalSection());
+		TMap<uint8*, WmfMediaDecoder*>& Map = GetMapBufferToDecoder();
+		Map.Remove(pData);
+
+		// Allocate new size.
+		UE_LOG(LogWmfMedia, VeryVerbose, TEXT("WmfMediaDecoder::AllocateExternalBuffer new buffer size:%d old:%d"), InSize, pBuffer->Num());
+		pBuffer->SetNum(InSize);
+
+		// Update map.
+		pData = pBuffer->GetData();
+		Map.Add(pData, this);
+	}
+
+	return pBuffer;
+}
+
+bool WmfMediaDecoder::IsExternalBufferSupported() const
+{
+	return false;
+}
+
+void WmfMediaDecoder::EnableExternalBuffer(bool bInEnable)
+{
+	bIsExternalBufferEnabled = bInEnable;
+}
+
+bool WmfMediaDecoder::GetExternalBuffer(TArray<uint8>& InBuffer, uint64 TimeStamp)
+{
+	FScopeLock Lock(&BufferCriticalSection);
+
+	TArray<uint8>* pBuffer = nullptr;
+	MapTimeStampToExternalBuffer.RemoveAndCopyValue(TimeStamp, pBuffer);
+
+	if (pBuffer != nullptr)
+	{
+		// Move the buffer out.
+		InBuffer = MoveTemp(*pBuffer);
+
+		// Put this array back in the pool.
+		ExternalBufferPool.Add(pBuffer);
+		return true;
+	}
+
+	return false;
+}
+
+void WmfMediaDecoder::ReturnExternalBuffer(TArray<uint8>& InBuffer)
+{
+	// Get the decoder for this buffer.
+	FScopeLock Lock(&GetMapBufferCriticalSection());
+	TMap<uint8*, WmfMediaDecoder*>& Map = GetMapBufferToDecoder();
+	WmfMediaDecoder** ppDecoder = Map.Find(InBuffer.GetData());
+
+	// Return the buffer to the decoder.
+	if ((ppDecoder != nullptr) && ((*ppDecoder)!= nullptr))
+	{
+		(*ppDecoder)->ReturnExternalBufferInternal(InBuffer);
+	}
+}
+
+void WmfMediaDecoder::ReturnExternalBufferInternal(TArray<uint8>& InBuffer)
+{
+	FScopeLock Lock(&BufferCriticalSection);
+
+	/** Find an empty TArray */
+	TArray<uint8>* pEmptyBuffer = nullptr;
+	for (TArray<uint8>* pBuffer : ExternalBufferPool)
+	{
+		if (pBuffer->Num() == 0)
+		{
+			pEmptyBuffer = pBuffer;
+			break;
+		}
+	}
+
+	/** If there is none, then just create a new one. */
+	if (pEmptyBuffer == nullptr)
+	{
+		pEmptyBuffer = new TArray<uint8>();
+		ExternalBufferPool.Add(pEmptyBuffer);
+		UE_LOG(LogWmfMedia, VeryVerbose, TEXT("WmfMediaDecoder::ReturnExternalBufferInternal new array."));
+	}
+
+	// Move the data out to our buffer.
+	*pEmptyBuffer = MoveTemp(InBuffer);
+}
+
+void WmfMediaDecoder::RemoveDecoderFromMap()
+{
+	if (bIsExternalBufferEnabled)
+	{
+		FScopeLock Lock(&GetMapBufferCriticalSection());
+		TMap<uint8*, WmfMediaDecoder*>& Map = GetMapBufferToDecoder();
+		for (TMap<uint8*, WmfMediaDecoder*>::TIterator It = Map.CreateIterator(); It; ++It)
+		{
+			if (It.Value() == this)
+			{
+				It.RemoveCurrent();
+			}
+		}
+	}
+}
+
+FCriticalSection& WmfMediaDecoder::GetMapBufferCriticalSection()
+{
+	static FCriticalSection MapbufferCriticalSection;
+	return MapbufferCriticalSection;
+}
+
+TMap<uint8*, WmfMediaDecoder*>& WmfMediaDecoder::GetMapBufferToDecoder()
+{
+	static TMap<uint8*, WmfMediaDecoder*> Map;
+	return Map;
+}
 
 void WmfMediaDecoder::EmplyQueues()
 {

@@ -277,6 +277,32 @@ struct FAuthCredentials :
 		FMemory::Memset(TokenAnsi, 0, sizeof(TokenAnsi));
 	}
 
+	FAuthCredentials(const FAuthCredentials& Other)
+	{
+		ApiVersion = Other.ApiVersion;
+		Id = IdAnsi;
+		Token = TokenAnsi;
+		Type = Other.Type;
+		SystemAuthCredentialsOptions = Other.SystemAuthCredentialsOptions;
+		ExternalType = Other.ExternalType;
+
+		FCStringAnsi::Strncpy(IdAnsi, Other.IdAnsi, EOS_OSS_STRING_BUFFER_LENGTH);
+		FCStringAnsi::Strncpy(TokenAnsi, Other.TokenAnsi, EOS_MAX_TOKEN_SIZE);
+	}
+
+	FAuthCredentials& operator=(FAuthCredentials& Other)
+	{
+		ApiVersion = Other.ApiVersion;
+		Type = Other.Type;
+		SystemAuthCredentialsOptions = Other.SystemAuthCredentialsOptions;
+		ExternalType = Other.ExternalType;
+
+		FCStringAnsi::Strncpy(IdAnsi, Other.IdAnsi, EOS_OSS_STRING_BUFFER_LENGTH);
+		FCStringAnsi::Strncpy(TokenAnsi, Other.TokenAnsi, EOS_MAX_TOKEN_SIZE);
+
+		return *this;
+	}
+
 	FAuthCredentials(EOS_EExternalCredentialType InExternalType, const FExternalAuthToken& AuthToken) :
 		EOS_Auth_Credentials()
 	{

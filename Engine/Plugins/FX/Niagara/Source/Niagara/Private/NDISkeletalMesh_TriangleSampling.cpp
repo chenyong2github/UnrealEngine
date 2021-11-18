@@ -1007,7 +1007,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordUV(FVectorVMExternalFunctionC
 	checkf(InstData.Get(), TEXT("Skeletal Mesh Interface has invalid instance data. %s"), *GetPathName());
 	checkf(InstData->bMeshValid, TEXT("Skeletal Mesh Interface has invalid mesh. %s"), *GetPathName());
 
-	FNDIOutputParam<FVector2D> OutUV(Context);
+	FNDIOutputParam<FVector2f> OutUV(Context);
 
 	USkeletalMeshComponent* Comp = Cast<USkeletalMeshComponent>(InstData->SceneComponent.Get());
 	if ( const FSkeletalMeshLODRenderData* LODData = InstData->CachedLODData )
@@ -1026,11 +1026,11 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordUV(FVectorVMExternalFunctionC
 				const int32 Idx1 = IndexBuffer->Get(Tri + 1);
 				const int32 Idx2 = IndexBuffer->Get(Tri + 2);
 				const int32 UVSet = FMath::Clamp(UVSetParam.GetAndAdvance(), 0, UVSetMax);
-				const FVector2D UV0 = VertAccessor.GetVertexUV(LODData, Idx0, UVSet);
-				const FVector2D UV1 = VertAccessor.GetVertexUV(LODData, Idx1, UVSet);
-				const FVector2D UV2 = VertAccessor.GetVertexUV(LODData, Idx2, UVSet);
+				const FVector2f UV0 = VertAccessor.GetVertexUV(LODData, Idx0, UVSet);
+				const FVector2f UV1 = VertAccessor.GetVertexUV(LODData, Idx1, UVSet);
+				const FVector2f UV2 = VertAccessor.GetVertexUV(LODData, Idx2, UVSet);
 
-				FVector2D UV = BarycentricInterpolate(BaryParam.GetAndAdvance(), UV0, UV1, UV2);
+				FVector2f UV = BarycentricInterpolate(BaryParam.GetAndAdvance(), UV0, UV1, UV2);
 				OutUV.SetAndAdvance(UV);
 			}
 
@@ -1055,11 +1055,11 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordUV<FSkelMeshVertexAccessorNoo
 	FNDIInputParam<FVector3f> BaryParam(Context);
 	FNDIInputParam<int32> UVSetParam(Context);
 
-	FNDIOutputParam<FVector2D> OutUV(Context);
+	FNDIOutputParam<FVector2f> OutUV(Context);
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		OutUV.SetAndAdvance(FVector2D::ZeroVector);
+		OutUV.SetAndAdvance(FVector2f::ZeroVector);
 	}
 }
 
@@ -1069,7 +1069,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordAtUV(FVectorVMExternalFu
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Sample);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	FNDIInputParam<bool> InEnabled(Context);
-	FNDIInputParam<FVector2D> InUV(Context);
+	FNDIInputParam<FVector2f> InUV(Context);
 	FNDIInputParam<float> InTolerance(Context);
 
 	FNDIOutputParam<int32> OutTriangleIndex(Context);
@@ -1117,7 +1117,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordAtUV<FSkelMeshVertexAcce
 {
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	FNDIInputParam<bool> InEnabled(Context);
-	FNDIInputParam<FVector2D> InUV(Context);
+	FNDIInputParam<FVector2f> InUV(Context);
 	FNDIInputParam<float> InTolerance(Context);
 
 	FNDIOutputParam<int32> OutTriangleIndex(Context);
@@ -1139,8 +1139,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordInAabb(FVectorVMExternal
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Sample);
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	FNDIInputParam<bool> InEnabled(Context);
-	FNDIInputParam<FVector2D> InMinExtent(Context);
-	FNDIInputParam<FVector2D> InMaxExtent(Context);
+	FNDIInputParam<FVector2f> InMinExtent(Context);
+	FNDIInputParam<FVector2f> InMaxExtent(Context);
 
 	FNDIOutputParam<int32> OutTriangleIndex(Context);
 	FNDIOutputParam<FVector3f> OutBaryCoord(Context);
@@ -1185,8 +1185,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriangleCoordInAabb<FSkelMeshVertexAc
 {
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 	FNDIInputParam<bool> InEnabled(Context);
-	FNDIInputParam<FVector2D> InMinExtent(Context);
-	FNDIInputParam<FVector2D> InMaxExtent(Context);
+	FNDIInputParam<FVector2f> InMinExtent(Context);
+	FNDIInputParam<FVector2f> InMaxExtent(Context);
 
 	FNDIOutputParam<int32> OutTriangleIndex(Context);
 	FNDIOutputParam<FVector3f> OutBaryCoord(Context);

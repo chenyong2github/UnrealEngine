@@ -8,7 +8,6 @@
 #include "ExposedValueHandler.generated.h"
 
 struct FPropertyAccessLibrary;
-class UDynamicClass;
 class UClass;
 struct FAnimationBaseContext;
 

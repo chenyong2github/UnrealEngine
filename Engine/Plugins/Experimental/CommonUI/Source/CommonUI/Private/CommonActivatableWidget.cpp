@@ -79,6 +79,8 @@ void UCommonActivatableWidget::ActivateWidget()
 
 void UCommonActivatableWidget::InternalProcessActivation()
 {
+	UE_LOG(LogCommonUI, Verbose, TEXT("[%s] -> Activated"), *GetName());
+
 	bIsActive = true;
 	NativeOnActivated();
 }
@@ -112,6 +114,8 @@ void UCommonActivatableWidget::BindVisibilityToActivation(UCommonActivatableWidg
 
 void UCommonActivatableWidget::InternalProcessDeactivation()
 {
+	UE_LOG(LogCommonUI, Verbose, TEXT("[%s] -> Deactivated"), *GetName());
+
 	bIsActive = false;
 	NativeOnDeactivated();
 }

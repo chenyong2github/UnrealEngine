@@ -150,7 +150,7 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
 	TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 	
@@ -200,9 +200,9 @@ void GetBrushMesh(ABrush* Brush, UModel* Model, FMeshDescription& MeshDescriptio
 		for (int32 VertexIndex = 2; VertexIndex < Polygon.Vertices.Num(); VertexIndex++)
 		{
 			FVector3f Positions[3];
-			Positions[ReverseVertices ? 0 : 2] = ActorToWorld.TransformPosition(Polygon.Vertices[0]) - PostSub;
-			Positions[1] = ActorToWorld.TransformPosition(Polygon.Vertices[VertexIndex - 1]) - PostSub;
-			Positions[ReverseVertices ? 2 : 0] = ActorToWorld.TransformPosition(Polygon.Vertices[VertexIndex]) - PostSub;
+			Positions[ReverseVertices ? 0 : 2] = FVector4f(ActorToWorld.TransformPosition(Polygon.Vertices[0]) - PostSub);
+			Positions[1] = FVector4f(ActorToWorld.TransformPosition(Polygon.Vertices[VertexIndex - 1]) - PostSub);
+			Positions[ReverseVertices ? 2 : 0] = FVector4f(ActorToWorld.TransformPosition(Polygon.Vertices[VertexIndex]) - PostSub);
 			FVertexID VertexID[3] = { INDEX_NONE, INDEX_NONE, INDEX_NONE };
 			for (FVertexID IterVertexID : MeshDescription.Vertices().GetElementIDs())
 			{
@@ -324,7 +324,7 @@ static inline void FTexCoordsToVectors(const FVector3f& V0, const FVector3f& UV0
 	// into a 3x3 matrix , one for  u(t) = TU dot (x(t)-x(o) + u(o) and one for v(t)=  TV dot (.... , 
 	// then the third assumes we're perpendicular to the normal. 
 	//
-	FMatrix TexEqu = FMatrix::Identity;
+	FMatrix44f TexEqu = FMatrix44f::Identity;
 	TexEqu.SetAxis( 0, FVector3f(	V1.X - V0.X, V1.Y - V0.Y, V1.Z - V0.Z ) );
 	TexEqu.SetAxis( 1, FVector3f( V2.X - V0.X, V2.Y - V0.Y, V2.Z - V0.Z ) );
 	TexEqu.SetAxis( 2, FVector3f( PN.X,        PN.Y,        PN.Z        ) );
@@ -339,7 +339,7 @@ static inline void FTexCoordsToVectors(const FVector3f& V0, const FVector3f& UV0
 	//
 	// Adjust the BASE to account for U0 and V0 automatically, and force it into the same plane.
 	//				
-	FMatrix BaseEqu = FMatrix::Identity;
+	FMatrix44f BaseEqu = FMatrix44f::Identity;
 	BaseEqu.SetAxis( 0, TUResult );
 	BaseEqu.SetAxis( 1, TVResult ); 
 	BaseEqu.SetAxis( 2, FVector3f( PN.X, PN.Y, PN.Z ) );
@@ -397,22 +397,6 @@ void CreateModelFromStaticMesh(UModel* Model,AStaticMeshActor* StaticMeshActor)
 	FBSPOps::bspValidateBrush(Model,0,1);
 	Model->BuildBound();
 #endif // #if TODO_STATICMESH
-}
-
-static void TransformPolys(UPolys* Polys,const FMatrix& Matrix)
-{
-	for(int32 PolygonIndex = 0;PolygonIndex < Polys->Element.Num();PolygonIndex++)
-	{
-		FPoly&	Polygon = Polys->Element[PolygonIndex];
-
-		for(int32 VertexIndex = 0;VertexIndex < Polygon.Vertices.Num();VertexIndex++)
-			Polygon.Vertices[VertexIndex] = Matrix.TransformPosition( Polygon.Vertices[VertexIndex] );
-
-		Polygon.Base		= Matrix.TransformPosition( Polygon.Base		);
-		Polygon.TextureU	= Matrix.TransformPosition( Polygon.TextureU );
-		Polygon.TextureV	= Matrix.TransformPosition( Polygon.TextureV	);
-	}
-
 }
 
 #undef LOCTEXT_NAMESPACE

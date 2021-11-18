@@ -2834,7 +2834,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 							&& !Actor->HasAnyFlags(RF_ArchetypeObject) )
 						{
 							UE_LOG(LogEditorServer, Log,  TEXT("Destroying orphan Actor: %s"), *Actor->GetName() );					
-							Actor->MarkPendingKill();
+							Actor->MarkAsGarbage();
 							Actor->MarkComponentsAsPendingKill();
 						}
 					}

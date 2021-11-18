@@ -314,6 +314,12 @@ float3 Diffuse_Gotanda( float3 DiffuseColor, float Roughness, float NoV, float N
 // It has been extended here to fade out retro reflectivity contribution from area light in order to avoid visual artefacts.
 float3 Diffuse_Chan( float3 DiffuseColor, float a2, float NoV, float NoL, float VoH, float NoH, float RetroReflectivityWeight)
 {
+	// We saturate each input to avoid out of range negative values which would result in weird darkening at the edge of meshes (resulting from tangent space interpolation).
+	NoV = saturate(NoV);
+	NoL = saturate(NoL);
+	VoH = saturate(VoH);
+	NoH = saturate(NoH);
+
 	// a2 = 2 / ( 1 + exp2( 18 * g )
 	float g = saturate( (1.0 / 18.0) * log2( 2 / a2 - 1 ) );
 
@@ -596,6 +602,11 @@ void EnvBRDFApproxFullyRough(inout half3 DiffuseColor, inout half SpecularColor)
 {
 	DiffuseColor += SpecularColor * 0.45;
 	SpecularColor = 0;
+}
+void EnvBRDFApproxFullyRough(inout half3 DiffuseColor, inout half3 F0, inout half3 F90)
+{
+	DiffuseColor += F0 * 0.45;
+	F0 = F90 = 0;
 }
 
 

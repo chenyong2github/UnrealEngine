@@ -362,10 +362,10 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewTexture()
 
 	// Transfer data
 	{
-		void* TextureData = PreviewTexture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+		void* TextureData = PreviewTexture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 		const int32 TextureDataSize = SurfData.Num() * 4;
 		FMemory::Memcpy(TextureData, SurfData.GetData(), TextureDataSize);
-		PreviewTexture->PlatformData->Mips[0].BulkData.Unlock();
+		PreviewTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
 		PreviewTexture->UpdateResource();
 	}
 

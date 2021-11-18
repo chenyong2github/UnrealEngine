@@ -106,6 +106,14 @@ struct FInvalidationCallstackMessage
 	FInvalidationCallstackMessage(const Trace::IAnalyzer::FEventData& EventData);
 };
 
+struct FWidgetUpdateStep
+{
+	enum class EUpdateStepType : uint8 { Layout, Paint };
+	FWidgetId WidgetId;
+	int32 Depth;
+	EUpdateStepType UpdateStep = EUpdateStepType::Paint;
+};
+
 } //namespace Message
 
 class FSlateProvider : public TraceServices::IProvider
@@ -125,54 +133,63 @@ public:
 	void AddWidgetUpdatedEvent(double Seconds, Message::FWidgetUpdatedMessage UpdatedMessage);
 	void AddWidgetInvalidatedEvent(double Seconds, Message::FWidgetInvalidatedMessage InvalidatedMessage);
 	void ProcessInvalidationCallstack(Message::FInvalidationCallstackMessage InvalidatedMessage);
+	void ProcessWidgetUpdateSteps(const UE::Trace::IAnalyzer::FEventTime& EventTime, const UE::Trace::IAnalyzer::FEventData& EventData);
 
 	/** */
-	using TApplicationTickedTimeline = TraceServices::TPointTimeline<Message::FApplicationTickedMessage>;
-	const TApplicationTickedTimeline& GetApplicationTickedTimeline() const
+	using FApplicationTickedTimeline = TraceServices::TPointTimeline<Message::FApplicationTickedMessage>;
+	const FApplicationTickedTimeline& GetApplicationTickedTimeline() const
 	{
 		Session.ReadAccessCheck();
 		return ApplicationTickedTimeline;
 	}
 
 	/** */
-	using TWidgetUpdatedTimeline = TraceServices::TPointTimeline<Message::FWidgetUpdatedMessage>;
-	const TWidgetUpdatedTimeline& GetWidgetUpdatedTimeline() const
+	using FWidgetUpdatedTimeline = TraceServices::TPointTimeline<Message::FWidgetUpdatedMessage>;
+	const FWidgetUpdatedTimeline& GetWidgetUpdatedTimeline() const
 	{
 		Session.ReadAccessCheck();
 		return WidgetUpdatedTimeline;
 	}
 	
 	/** */
-	using TWidgetInvalidatedTimeline = TraceServices::TPointTimeline<Message::FWidgetInvalidatedMessage>;
-	const TWidgetInvalidatedTimeline& GetWidgetInvalidatedTimeline() const
+	using FWidgetInvalidatedTimeline = TraceServices::TPointTimeline<Message::FWidgetInvalidatedMessage>;
+	const FWidgetInvalidatedTimeline& GetWidgetInvalidatedTimeline() const
 	{
 		Session.ReadAccessCheck();
 		return WidgetInvalidatedTimeline;
 	}
 
 	/** */
-	using TWidgetTimeline = TraceServices::TIntervalTimeline<Message::FWidgetId>;
-	const TWidgetTimeline& GetWidgetTimeline() const
+	using FWidgetTimeline = TraceServices::TIntervalTimeline<Message::FWidgetId>;
+	const FWidgetTimeline& GetWidgetTimeline() const
 	{
 		Session.ReadAccessCheck();
 		return WidgetTimelines;
 	}
 
 	/** */
-	template<typename T>
-	struct FScopedEnumerateOutsideRange
+	using FWidgetUpdateStepsTimeline = TraceServices::TIntervalTimeline<Message::FWidgetUpdateStep>;
+	const FWidgetUpdateStepsTimeline GetWidgetUpdateStepsTimeline() const
 	{
-		FScopedEnumerateOutsideRange(const T& InTimeline)
+		Session.ReadAccessCheck();
+		return WidgetPaintTimelines;
+	}
+
+	/** */
+	template<typename T>
+	struct TScopedEnumerateOutsideRange
+	{
+		TScopedEnumerateOutsideRange(const T& InTimeline)
 			: Timeline(InTimeline)
 		{
 			const_cast<T&>(Timeline).SetEnumerateOutsideRange(true);
 		}
-		~FScopedEnumerateOutsideRange()
+		~TScopedEnumerateOutsideRange()
 		{
 			const_cast<T&>(Timeline).SetEnumerateOutsideRange(false);
 		}
-		FScopedEnumerateOutsideRange(const FScopedEnumerateOutsideRange&) = delete;
-		FScopedEnumerateOutsideRange& operator= (const FScopedEnumerateOutsideRange&) = delete;
+		TScopedEnumerateOutsideRange(const TScopedEnumerateOutsideRange&) = delete;
+		TScopedEnumerateOutsideRange& operator= (const TScopedEnumerateOutsideRange&) = delete;
 	private:
 		const T& Timeline;
 	};
@@ -195,10 +212,15 @@ private:
 	TMap<Message::FWidgetId, Message::FWidgetInfo> WidgetInfos;
 	TMap<uint64, FString> InvalidationCallstacks;
 
-	TWidgetTimeline WidgetTimelines;
-	TApplicationTickedTimeline ApplicationTickedTimeline;
-	TWidgetUpdatedTimeline WidgetUpdatedTimeline;
-	TWidgetInvalidatedTimeline WidgetInvalidatedTimeline;
+	FWidgetTimeline WidgetTimelines;
+	FApplicationTickedTimeline ApplicationTickedTimeline;
+	FWidgetUpdatedTimeline WidgetUpdatedTimeline;
+	FWidgetInvalidatedTimeline WidgetInvalidatedTimeline;
+	FWidgetUpdateStepsTimeline WidgetPaintTimelines;
+
+	TArray<TTuple<uint64, Message::FWidgetId>> WidgetUpdateStepsEventIndexes;
+	uint32 WidgetUpdateStepsBufferNumber;
+	bool bAcceptWidgetUpdateStepsComand;
 };
 
 } //namespace SlateInsights

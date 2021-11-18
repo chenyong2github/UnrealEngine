@@ -133,6 +133,19 @@ namespace DatasmithRevitExporter
 		}
 	}
 
+	[Transaction(TransactionMode.Manual)]
+	public class DatasmithAutoSyncRevitCommand : DatasmithRevitCommand
+	{
+		public override Result OnExecute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
+		{
+			FDirectLink.bAutoSync = !FDirectLink.bAutoSync;
+
+			DatasmithRevitApplication.Instance.SetAutoSyncButtonToggled(FDirectLink.bAutoSync);
+
+			return Result.Succeeded;
+		}
+	}
+
 	// Add-in external command Export to Unreal Datasmith. 
 	[Transaction(TransactionMode.Manual)]
 	public class DatasmithExportRevitCommand : DatasmithRevitCommand

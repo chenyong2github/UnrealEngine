@@ -102,7 +102,7 @@ float4 GetForwardDynamicShadowFactors(float2 ScreenUV)
 	return DecodeLightAttenuation(Value);
 }
 
-float GetIndirectOcclusion(float2 ScreenUV, FGBufferData GBufferData)
+float GetIndirectOcclusion(float2 ScreenUV, bool bHasDynamicIndirectShadowCasterRepresentation)
 {
 	float IndirectOcclusion;
 
@@ -113,7 +113,7 @@ float GetIndirectOcclusion(float2 ScreenUV, FGBufferData GBufferData)
 	IndirectOcclusion = OpaqueBasePass.IndirectOcclusionTexture.Load(int3(IntScreenUV, 0)).x;
 
 	// Reduce self shadowing intensity on characters (reuse distance field bit, really should be HasCapsuleShadowRepresentation)
-	IndirectOcclusion = lerp(1, IndirectOcclusion, HasDynamicIndirectShadowCasterRepresentation(GBufferData) ? View.IndirectCapsuleSelfShadowingIntensity : 1);
+	IndirectOcclusion = lerp(1, IndirectOcclusion, bHasDynamicIndirectShadowCasterRepresentation ? View.IndirectCapsuleSelfShadowingIntensity : 1);
 
 	return IndirectOcclusion;
 }
@@ -383,14 +383,8 @@ uint MortonCode( uint x )
 #define REFLECTION_COMPOSITE_HAS_SPHERE_CAPTURES 1
 #include "ReflectionEnvironmentComposite.ush"
 
-half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameters, half Roughness, half3 SpecularColor, half IndirectIrradiance, uint GridIndex, int SingleCaptureIndex, uint EyeIndex)
+half3 GetImageBasedReflectionSpecular(FMaterialPixelParameters MaterialParameters, float3 RayDirection, half Roughness, half IndirectIrradiance, uint GridIndex, int SingleCaptureIndex, uint EyeIndex)
 {
-	float3 N = MaterialParameters.WorldNormal;
-	float3 V = MaterialParameters.CameraVector;
-
-	float3 RayDirection = 2 * dot( V, N ) * N - V;
-	half NoV = saturate(dot(N, V));
-
 	float3 SpecularIBL;
 
 #if (TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME) && (MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE)
@@ -492,12 +486,6 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	}
 #endif
 
-#if MATERIAL_USE_PREINTEGRATED_GF
-	SpecularColor = EnvBRDF(SpecularColor, Roughness, NoV);
-#else
-	SpecularColor = EnvBRDFApprox(SpecularColor, Roughness, NoV);
-#endif
-
 	float3 SpecularLighting = SpecularIBL.rgb;
 
 	// Have to opt-in to receiving planar reflections with forward shading
@@ -513,6 +501,24 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	}
 #endif
 
+	return SpecularLighting;
+}
+
+half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameters, half Roughness, half3 SpecularColor, half IndirectIrradiance, uint GridIndex, int SingleCaptureIndex, uint EyeIndex)
+{
+	float3 N = MaterialParameters.WorldNormal;
+	float3 V = MaterialParameters.CameraVector;
+
+	float3 RayDirection = 2 * dot(V, N) * N - V;
+	half NoV = saturate(dot(N, V));
+
+	const float3 SpecularLighting = GetImageBasedReflectionSpecular(MaterialParameters, RayDirection, Roughness, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex);
+		
+#if MATERIAL_USE_PREINTEGRATED_GF
+	SpecularColor = EnvBRDF(SpecularColor, Roughness, NoV);
+#else
+	SpecularColor = EnvBRDFApprox(SpecularColor, Roughness, NoV);
+#endif
 	return SpecularLighting * SpecularColor;
 }
 

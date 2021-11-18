@@ -9,7 +9,10 @@
 #include "CADKernel/Geo/Sampling/SurfacicPolyline.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 
-void CADKernel::FSurfacicCurve::EvaluatePoint(double InCoordinate, FCurvePoint& OutPoint, int32 InDerivativeOrder) const
+namespace CADKernel
+{
+
+void FSurfacicCurve::EvaluatePoint(double InCoordinate, FCurvePoint& OutPoint, int32 InDerivativeOrder) const
 {
 	FCurvePoint2D Point2D;
 	Curve2D->Evaluate2DPoint(InCoordinate, Point2D, InDerivativeOrder);
@@ -20,7 +23,7 @@ void CADKernel::FSurfacicCurve::EvaluatePoint(double InCoordinate, FCurvePoint& 
 	OutPoint.Combine(Point2D, SurfacicPoint);
 }
 
-void CADKernel::FSurfacicCurve::EvaluatePoints(const TArray<double>& InCoordinates, TArray<FCurvePoint>& OutPoints, int32 InDerivativeOrder) const
+void FSurfacicCurve::EvaluatePoints(const TArray<double>& InCoordinates, TArray<FCurvePoint>& OutPoints, int32 InDerivativeOrder) const
 {
 	TArray<FCurvePoint2D> SurfacicCoordinates;
 	Curve2D->Evaluate2DPoints(InCoordinates, SurfacicCoordinates, InDerivativeOrder);
@@ -35,7 +38,7 @@ void CADKernel::FSurfacicCurve::EvaluatePoints(const TArray<double>& InCoordinat
 	}	
 }
 
-void CADKernel::FSurfacicCurve::EvaluateSurfacicPolylineWithNormalAndTangent(FSurfacicPolyline& OutPolyline) const
+void FSurfacicCurve::EvaluateSurfacicPolylineWithNormalAndTangent(FSurfacicPolyline& OutPolyline) const
 {
 	OutPolyline.bWithNormals = true;
 
@@ -44,7 +47,7 @@ void CADKernel::FSurfacicCurve::EvaluateSurfacicPolylineWithNormalAndTangent(FSu
 	CarrierSurface->EvaluatePoints(Points2D, OutPolyline);
 }
 
-void CADKernel::FSurfacicCurve::EvaluateSurfacicPolyline(FSurfacicPolyline& OutPolyline) const
+void FSurfacicCurve::EvaluateSurfacicPolyline(FSurfacicPolyline& OutPolyline) const
 {
 	if (OutPolyline.bWithTangent)
 	{
@@ -55,7 +58,7 @@ void CADKernel::FSurfacicCurve::EvaluateSurfacicPolyline(FSurfacicPolyline& OutP
 	CarrierSurface->EvaluatePoints(OutPolyline);
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FSurfacicCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FSurfacicCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TSharedPtr<FSurface> transformedSurface = StaticCastSharedPtr<FSurface>(CarrierSurface->ApplyMatrix(InMatrix));
 	if (transformedSurface.IsValid())
@@ -66,7 +69,7 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FSurfacicCurve::ApplyMatrix(const 
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FSurfacicCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FSurfacicCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info)
 		.Add(TEXT("Surface"), CarrierSurface)
@@ -74,7 +77,7 @@ CADKernel::FInfoEntity& CADKernel::FSurfacicCurve::GetInfo(FInfoEntity& Info) co
 }
 #endif
 
-void CADKernel::FSurfacicCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const
+void FSurfacicCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const
 {
 	Curve2D->FindNotDerivableCoordinates(InBoundary, DerivativeOrder, OutNotDerivableCoordinates);
 
@@ -105,4 +108,6 @@ void CADKernel::FSurfacicCurve::FindNotDerivableCoordinates(const FLinearBoundar
 
 	double ToleranceGeoEdge = GetBoundary().ComputeMinimalTolerance();
 	ArrayUtils::Complete(OutNotDerivableCoordinates, NotDerivableCurveCoordinates, ToleranceGeoEdge);
+}
+
 }

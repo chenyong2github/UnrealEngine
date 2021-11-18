@@ -17,7 +17,7 @@ public:
 
 	TSharedRef<SWidget> GetOrCreateWidget();
 
-	void RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo = "") const;
+	void RefreshList(const FString& InConsoleCommandToScrollTo = "") const;
 
 	/** Updates the saved values in a UConsoleVariablesAsset so that the command/value map can be saved to disk */
 	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;

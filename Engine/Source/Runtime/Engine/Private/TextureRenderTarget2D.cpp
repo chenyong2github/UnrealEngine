@@ -361,99 +361,147 @@ ETextureSourceFormat UTextureRenderTarget2D::GetTextureFormatForConversionToText
 
 void UTextureRenderTarget2D::UpdateTexture2D(UTexture2D* InTexture2D, ETextureSourceFormat InTextureFormat, uint32 Flags, TArray<uint8>* AlphaOverride)
 {
-#if WITH_EDITOR
-	FRenderTarget* RenderTarget = GameThread_GetRenderTargetResource();
+	UpdateTexture2D(InTexture2D, InTextureFormat, Flags, AlphaOverride, FTextureChangingDelegate());
+}
 
+void UTextureRenderTarget2D::UpdateTexture2D(UTexture2D* InTexture2D, ETextureSourceFormat InTextureFormat, uint32 Flags, TArray<uint8>* AlphaOverride, FTextureChangingDelegate TextureChangingDelegate)
+{
+#if WITH_EDITOR
 	const EPixelFormat PixelFormat = GetFormat();
 	TextureCompressionSettings CompressionSettingsForTexture = PixelFormat == EPixelFormat::PF_FloatRGBA ? TC_HDR : TC_Default;
 
-	// init to the same size as the 2d texture
-	InTexture2D->Source.Init(SizeX, SizeY, 1, 1, InTextureFormat);
+	const int32 NbSlices = 1;
+	const int32 NbMips = 1;
 
-	uint8* TextureData = (uint8*)InTexture2D->Source.LockMip(0);
-	const int32 TextureDataSize = InTexture2D->Source.CalcMipSize(0);
+	bool bTextureChanging = false;
+	
+	bTextureChanging |= InTexture2D->Source.GetSizeX() != SizeX;
+	bTextureChanging |= InTexture2D->Source.GetSizeY() != SizeY;
+	bTextureChanging |= InTexture2D->Source.GetNumSlices() != NbSlices;
+	bTextureChanging |= InTexture2D->Source.GetNumMips() != NbMips;
+	bTextureChanging |= InTexture2D->Source.GetFormat() != InTextureFormat;
+	bTextureChanging |= InTexture2D->CompressionSettings != CompressionSettingsForTexture;
+	
+	uint32 OldDataHash = 0;
+
+	// Hashing the content is only really useful if none of the other texture settings have changed.
+	const bool bHashContent = !bTextureChanging;
+	if (bHashContent)
+	{
+		const uint8* OldData = InTexture2D->Source.LockMipReadOnly(0);
+		const int32 OldDataSize = InTexture2D->Source.CalcMipSize(0);
+		OldDataHash = FCrc::MemCrc32(OldData, OldDataSize);
+		InTexture2D->Source.UnlockMip(0);
+	}
+
+	// Temp storage that will be used for the texture init.
+	TArray<uint8> NewDataGrayscale;
+	TArray<FColor> NewDataColor;
+	TArray<FFloat16Color> NewDataFloat16Color;
+
+	const uint8* NewData = nullptr;
+	int32 NewDataSize = 0;
 
 	// read the 2d surface
+	FRenderTarget* RenderTarget = GameThread_GetRenderTargetResource();
 	if (InTextureFormat == TSF_BGRA8)
 	{
-		TArray<FColor> SurfData;
-		RenderTarget->ReadPixels(SurfData);
+		RenderTarget->ReadPixels(NewDataColor);
+		check(NewDataColor.Num() == SizeX * SizeY);
+
 		// override the alpha if desired
 		if (AlphaOverride)
 		{
-			check(SurfData.Num() == AlphaOverride->Num());
-			for (int32 Pixel = 0; Pixel < SurfData.Num(); Pixel++)
+			check(NewDataColor.Num() == AlphaOverride->Num());
+			for (int32 Pixel = 0; Pixel < NewDataColor.Num(); Pixel++)
 			{
-				SurfData[Pixel].A = (*AlphaOverride)[Pixel];
+				NewDataColor[Pixel].A = (*AlphaOverride)[Pixel];
 			}
 		}
 		else if (Flags & CTF_RemapAlphaAsMasked)
 		{
 			// if the target was rendered with a masked texture, then the depth will probably have been written instead of 0/255 for the
 			// alpha, and the depth when unwritten will be 255, so remap 255 to 0 (masked out area) and anything else as 255 (written to area)
-			for (int32 Pixel = 0; Pixel < SurfData.Num(); Pixel++)
+			for (int32 Pixel = 0; Pixel < NewDataColor.Num(); Pixel++)
 			{
-				SurfData[Pixel].A = (SurfData[Pixel].A == 255) ? 0 : 255;
+				NewDataColor[Pixel].A = (NewDataColor[Pixel].A == 255) ? 0 : 255;
 			}
 		}
 		else if (Flags & CTF_ForceOpaque)
 		{
-			for (int32 Pixel = 0; Pixel < SurfData.Num(); Pixel++)
+			for (int32 Pixel = 0; Pixel < NewDataColor.Num(); Pixel++)
 			{
-				SurfData[Pixel].A = 255;
+				NewDataColor[Pixel].A = 255;
 			}
 		}
-		// copy the 2d surface data to the first mip of the static 2d texture
-		check(TextureDataSize == SurfData.Num() * sizeof(FColor));
-		FMemory::Memcpy(TextureData, SurfData.GetData(), TextureDataSize);
+
+		NewData = (uint8*)NewDataColor.GetData();
+		NewDataSize = NewDataColor.Num() * NewDataColor.GetTypeSize();
 	}
 	else if (InTextureFormat == TSF_RGBA16F)
 	{
-		TArray<FFloat16Color> SurfData;
-		RenderTarget->ReadFloat16Pixels(SurfData);
+		RenderTarget->ReadFloat16Pixels(NewDataFloat16Color);
+		check(NewDataFloat16Color.Num() == SizeX * SizeY);
+
 		// override the alpha if desired
 		if (AlphaOverride)
 		{
-			check(SurfData.Num() == AlphaOverride->Num());
-			for (int32 Pixel = 0; Pixel < SurfData.Num(); Pixel++)
+			check(NewDataFloat16Color.Num() == AlphaOverride->Num());
+			for (int32 Pixel = 0; Pixel < NewDataFloat16Color.Num(); Pixel++)
 			{
-				SurfData[Pixel].A = ((float)(*AlphaOverride)[Pixel]) / 255.0f;
+				NewDataFloat16Color[Pixel].A = ((float)(*AlphaOverride)[Pixel]) / 255.0f;
 			}
 		}
 		else if (Flags & CTF_RemapAlphaAsMasked)
 		{
 			// if the target was rendered with a masked texture, then the depth will probably have been written instead of 0/255 for the
 			// alpha, and the depth when unwritten will be 255, so remap 255 to 0 (masked out area) and anything else as 1 (written to area)
-			for (int32 Pixel = 0; Pixel < SurfData.Num(); Pixel++)
+			for (int32 Pixel = 0; Pixel < NewDataFloat16Color.Num(); Pixel++)
 			{
-				SurfData[Pixel].A = (SurfData[Pixel].A == 255) ? 0.0f : 1.0f;
+				NewDataFloat16Color[Pixel].A = (NewDataFloat16Color[Pixel].A == 255) ? 0.0f : 1.0f;
 			}
 		}
 		else if (Flags & CTF_ForceOpaque)
 		{
-			for (int32 Pixel = 0; Pixel < SurfData.Num(); Pixel++)
+			for (int32 Pixel = 0; Pixel < NewDataFloat16Color.Num(); Pixel++)
 			{
-				SurfData[Pixel].A = 1.0f;
+				NewDataFloat16Color[Pixel].A = 1.0f;
 			}
 		}
-		// copy the 2d surface data to the first mip of the static 2d texture
-		check(TextureDataSize == SurfData.Num() * sizeof(FFloat16Color));
-		FMemory::Memcpy(TextureData, SurfData.GetData(), TextureDataSize);
+
+		NewData = (uint8*)NewDataFloat16Color.GetData();
+		NewDataSize = NewDataFloat16Color.Num() * NewDataFloat16Color.GetTypeSize();
 	}
 	else if (InTextureFormat == TSF_G8)
 	{
-		TArray<FColor> SurfData;
-		RenderTarget->ReadPixels(SurfData);
-		check(TextureDataSize == SurfData.Num() * sizeof(uint8));
-		for (int32 Pixel = 0; Pixel < SurfData.Num(); Pixel++)
+		RenderTarget->ReadPixels(NewDataColor);
+		check(NewDataColor.Num() == SizeX * SizeY);
+		NewDataGrayscale.SetNumUninitialized(NewDataColor.Num());
+
+		for (int32 Pixel = 0; Pixel < NewDataColor.Num(); Pixel++)
 		{
-			TextureData[Pixel] = SurfData[Pixel].R;
+			NewDataGrayscale[Pixel] = NewDataColor[Pixel].R;
 		}
+
+		NewData = (uint8*)NewDataGrayscale.GetData();
+		NewDataSize = NewDataGrayscale.Num() * NewDataGrayscale.GetTypeSize();
 	}
 
-	InTexture2D->Source.UnlockMip(0);
 
-	InTexture2D->CompressionSettings = CompressionSettingsForTexture;
+	if (bHashContent)
+	{
+		uint32 NewDataHash = FCrc::MemCrc32(NewData, NewDataSize);
+		bTextureChanging = OldDataHash != NewDataHash;
+	}
+
+	if (bTextureChanging)
+	{
+		TextureChangingDelegate.ExecuteIfBound(InTexture2D);
+
+		// init to the same size as the 2d texture
+		InTexture2D->Source.Init(SizeX, SizeY, NbSlices, NbMips, InTextureFormat, NewData);
+		InTexture2D->CompressionSettings = CompressionSettingsForTexture;
+	}
 #endif
 }
 

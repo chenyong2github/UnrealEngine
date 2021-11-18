@@ -1180,9 +1180,9 @@ void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene
 		EPixelFormat TextureAerialLUTFormat = (CVarSkyAtmosphereLUT32.GetValueOnAnyThread() != 0) ? PF_A32B32G32R32F : PF_FloatRGBA;
 
 		//
-		// Initialise transient per view resources.
+		// Initialise view resources.
 		//
-
+		
 		FPooledRenderTargetDesc SkyAtmosphereViewLutTextureDesc = FPooledRenderTargetDesc::Create2DDesc(
 			FIntPoint(SkyViewLutWidth, SkyViewLutHeight),
 			TextureLUTFormat, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false);
@@ -1194,7 +1194,18 @@ void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene
 		// Set textures and data that will be needed later on the view.
 		View.SkyAtmosphereUniformShaderParameters = SkyInfo.GetAtmosphereShaderParameters();
 		GRenderTargetPool.FindFreeElement(RHICmdList, SkyAtmosphereViewLutTextureDesc, View.SkyAtmosphereViewLutTexture, TEXT("SkyAtmosphere.SkyViewLut"), ERenderTargetTransience::Transient);
-		GRenderTargetPool.FindFreeElement(RHICmdList, SkyAtmosphereCameraAerialPerspectiveVolumeDesc, View.SkyAtmosphereCameraAerialPerspectiveVolume, TEXT("SkyAtmosphere.CameraAPVolume"), ERenderTargetTransience::Transient);
+
+		if (View.ViewState)
+		{
+			// Per view non transient double buffered resources when needed.
+			View.ViewState->PersistentSkyAtmosphereData.InitialiseOrNextFrame(View.FeatureLevel, SkyAtmosphereCameraAerialPerspectiveVolumeDesc, RHICmdList);
+			View.SkyAtmosphereCameraAerialPerspectiveVolume = View.ViewState->PersistentSkyAtmosphereData.GetCurrentCameraAerialPerspectiveVolume();
+		}
+		else
+		{
+			// Per frame transient resource.
+			GRenderTargetPool.FindFreeElement(RHICmdList, SkyAtmosphereCameraAerialPerspectiveVolumeDesc, View.SkyAtmosphereCameraAerialPerspectiveVolume, TEXT("SkyAtmosphere.CameraAPVolume"), ERenderTargetTransience::Transient);
+		}
 	}
 }
 

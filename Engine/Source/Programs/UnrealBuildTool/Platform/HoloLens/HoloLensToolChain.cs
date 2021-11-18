@@ -11,8 +11,6 @@ using Microsoft.Win32;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	static class Extension
@@ -41,7 +39,7 @@ namespace UnrealBuildTool
 		public HoloLensToolChain(ReadOnlyTargetRules Target)
 		{
 			this.Target = Target;
-			EnvVars = Target.WindowsPlatform.Environment;
+			EnvVars = Target.WindowsPlatform.Environment!;
 
 			if (Target.WindowsPlatform.ObjSrcMapFile != null)
 			{
@@ -248,7 +246,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/MD");
 			}
 
-			DirectoryReference PlatformWinMDLocation = HoloLens.GetCppCXMetadataLocation(EnvVars.Compiler, EnvVars.ToolChainDir);
+			DirectoryReference? PlatformWinMDLocation = HoloLens.GetCppCXMetadataLocation(EnvVars.Compiler, EnvVars.ToolChainDir);
 			if (PlatformWinMDLocation != null)
 			{
 				Arguments.AddFormat(@" /AI""{0}""", PlatformWinMDLocation);
@@ -527,15 +525,14 @@ namespace UnrealBuildTool
 				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 				{
 					// Generate a CPP File that just includes the precompiled header.
-					FileReference PCHCPPPath = CompileEnvironment.PrecompiledHeaderIncludeFilename.ChangeExtension(".cpp");
+					FileReference PCHCPPPath = CompileEnvironment.PrecompiledHeaderIncludeFilename!.ChangeExtension(".cpp");
 					FileItem PCHCPPFile = Graph.CreateIntermediateTextFile(
 						PCHCPPPath,
-						string.Format("#include \"{0}\"\r\n", CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName.Replace('\\', '/')),
-						StringComparison.Ordinal);
+						string.Format("#include \"{0}\"\r\n", CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName.Replace('\\', '/')));
 
 					// Make sure the original source directory the PCH header file existed in is added as an include
 					// path -- it might be a private PCH header and we need to make sure that its found!
-					string OriginalPCHHeaderDirectory = Path.GetDirectoryName(SourceFile.AbsolutePath);
+					string OriginalPCHHeaderDirectory = Path.GetDirectoryName(SourceFile.AbsolutePath)!;
 					FileArguments.AddFormat(" /I \"{0}\"", OriginalPCHHeaderDirectory);
 
 					var PrecompiledFileExtension = UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.HoloLens).GetBinaryExtension(UEBuildBinaryType.PrecompiledHeader);
@@ -573,11 +570,11 @@ namespace UnrealBuildTool
 				{
 					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 					{
-						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile);
+						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile!);
 
-						FileArguments.Add(String.Format("/FI\"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName));
+						FileArguments.Add(String.Format("/FI\"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename!.FullName));
 						FileArguments.Add(String.Format("/Yu\"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName));
-						FileArguments.Add(String.Format("/Fp\"{0}\"", CompileEnvironment.PrecompiledHeaderFile.AbsolutePath));
+						FileArguments.Add(String.Format("/Fp\"{0}\"", CompileEnvironment.PrecompiledHeaderFile!.AbsolutePath));
 					}
 
 					// Add the source file path to the command-line.
@@ -615,12 +612,12 @@ namespace UnrealBuildTool
 					// All files using the same PCH are required to share the same PDB that was used when compiling the PCH
 					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 					{
-						PDBFileName = CompileEnvironment.PrecompiledHeaderIncludeFilename.GetFileName();
+						PDBFileName = CompileEnvironment.PrecompiledHeaderIncludeFilename!.GetFileName();
 					}
 					// Files creating a PCH use a PDB per file.
 					else if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 					{
-						PDBFileName = CompileEnvironment.PrecompiledHeaderIncludeFilename.GetFileName();
+						PDBFileName = CompileEnvironment.PrecompiledHeaderIncludeFilename!.GetFileName();
 						bActionProducesPDB = true;
 					}
 					// Ungrouped C++ files use a PDB per file.
@@ -668,12 +665,12 @@ namespace UnrealBuildTool
 					FileArguments.AddFormat(" /analyze:log \"{0}\"", AnalysisLogFile.AbsolutePath);
 					// Suppress code analysis output
 					FileArguments.Add(" /analyze:quiet");
-					string rulesetFile = Target.HoloLensPlatform.NativeCodeAnalysisRuleset;
+					string? rulesetFile = Target.HoloLensPlatform.NativeCodeAnalysisRuleset;
 					if (!String.IsNullOrEmpty(rulesetFile))
 					{
 						if (!Path.IsPathRooted(rulesetFile))
 						{
-							rulesetFile = FileReference.Combine(Target.ProjectFile.Directory, rulesetFile).FullName;
+							rulesetFile = FileReference.Combine(Target.ProjectFile!.Directory, rulesetFile).FullName;
 						}
 						// A non default ruleset was specified
 						FileArguments.AddFormat(" /analyze:ruleset \"{0}\"", rulesetFile);
@@ -702,7 +699,7 @@ namespace UnrealBuildTool
 				{
 					FileItem TargetFile = CompileAction.ProducedItems[0];
 					FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
-					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, SharedArguments.Concat(FileArguments).Concat(AdditionalArguments).Select(x => Utils.ExpandVariables(x)), StringComparison.InvariantCultureIgnoreCase);
+					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, SharedArguments.Concat(FileArguments).Concat(AdditionalArguments).Select(x => Utils.ExpandVariables(x)));
 					CompileAction.CommandArguments = " @\"" + ResponseFileName + "\"";
 					CompileAction.PrerequisiteItems.Add(ResponseFileItem);
 				}
@@ -931,7 +928,7 @@ namespace UnrealBuildTool
 			// file is not needed for our builds, but there is no way to prevent MSVC from generating it when
 			// linking targets that have exports.  We don't want this to clobber our LIB file and invalidate the
 			// existing timstamp, so instead we simply emit it with a different name
-			FileReference ImportLibraryFilePath = FileReference.Combine(LinkEnvironment.IntermediateDirectory,
+			FileReference ImportLibraryFilePath = FileReference.Combine(LinkEnvironment.IntermediateDirectory!,
 														 LinkEnvironment.OutputFilePath.GetFileNameWithoutExtension() + ".lib");
 
 			if (LinkEnvironment.bIsCrossReferenced && !bBuildImportLibraryOnly)
@@ -1005,7 +1002,7 @@ namespace UnrealBuildTool
 				{
 					// Write the PDB file to the output directory.			
 					{
-						FileReference PDBFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".pdb");
+						FileReference PDBFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory!, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".pdb");
 						FileItem PDBFile = FileItem.GetItemByFileReference(PDBFilePath);
 						Arguments.Add(String.Format("/PDB:\"{0}\"", PDBFilePath));
 						ProducedItems.Add(PDBFile);
@@ -1014,7 +1011,7 @@ namespace UnrealBuildTool
 					// Write the MAP file to the output directory.			
 					if (LinkEnvironment.bCreateMapFile)
 					{
-						FileReference MAPFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".map");
+						FileReference MAPFilePath = FileReference.Combine(LinkEnvironment.OutputDirectory!, Path.GetFileNameWithoutExtension(OutputFile.AbsolutePath) + ".map");
 						FileItem MAPFile = FileItem.GetItemByFileReference(MAPFilePath);
 						Arguments.Add(String.Format("/MAP:\"{0}\"", MAPFilePath));
 						ProducedItems.Add(MAPFile);
@@ -1035,7 +1032,7 @@ namespace UnrealBuildTool
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 			if (!ProjectFileGenerator.bGenerateProjectFiles)
 			{
-				FileItem ResponseFile = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments, StringComparison.InvariantCultureIgnoreCase);
+				FileItem ResponseFile = Graph.CreateIntermediateTextFile(ResponseFileName, Arguments);
 				PrerequisiteItems.Add(ResponseFile);
 			}
 
@@ -1102,7 +1099,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the default include paths for the given platform.
 		/// </summary>
-		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler)
+		public static string? GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler)
 		{
 			Debug.Assert(Platform == UnrealTargetPlatform.HoloLens);
 
@@ -1133,8 +1130,8 @@ namespace UnrealBuildTool
 			Log.TraceInformation(Output);
 		}
 
-		private static DirectoryReference CurrentWindowsSdkBinDir = null;
-		private static Version CurrentWindowsSdkVersion;
+		private static DirectoryReference? CurrentWindowsSdkBinDir = null;
+		private static Version? CurrentWindowsSdkVersion;
 
 		public static bool InitWindowsSdkToolPath(string SdkVersion)
 		{
@@ -1147,7 +1144,7 @@ namespace UnrealBuildTool
 			VersionNumber OutSdkVersion;
 			DirectoryReference OutSdkDir;
 
-			if (!WindowsPlatform.TryGetWindowsSdkDir(SdkVersion, out OutSdkVersion, out OutSdkDir))
+			if (!WindowsPlatform.TryGetWindowsSdkDir(SdkVersion, out OutSdkVersion!, out OutSdkDir!))
 			{
 				Log.TraceError("Failed to find WinSDK " + SdkVersion);
 				return false;
@@ -1166,9 +1163,9 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		public static FileReference GetWindowsSdkToolPath(string ToolName)
+		public static FileReference? GetWindowsSdkToolPath(string ToolName)
 		{
-			FileReference file = FileReference.Combine(CurrentWindowsSdkBinDir, ToolName);
+			FileReference file = FileReference.Combine(CurrentWindowsSdkBinDir!, ToolName);
 
 			if(!FileReference.Exists(file))
 			{
@@ -1180,12 +1177,12 @@ namespace UnrealBuildTool
 
 		public static Version GetCurrentWindowsSdkVersion()
 		{
-			return CurrentWindowsSdkVersion;
+			return CurrentWindowsSdkVersion!;
 		}
 
 		public override string GetSDKVersion()
 		{
-			return CurrentWindowsSdkVersion.ToString();
+			return CurrentWindowsSdkVersion!.ToString();
 		}
 
 		public override void ModifyBuildProducts(ReadOnlyTargetRules Target, UEBuildBinary Binary, List<string> Libraries, List<UEBuildBundleResource> BundleResources, Dictionary<FileReference, BuildProductType> BuildProducts)

@@ -3,7 +3,6 @@ import { IPayload, IPayloads, IPreset, IPresets, IPanel, IView, ICustomStackWidg
 import _ from 'lodash';
 import WebSocket from 'ws';
 import { Notify, Program } from './';
-import request from 'superagent';
 import crypto from 'crypto';
 
 
@@ -192,14 +191,17 @@ export namespace UnrealEngine {
           if (!preset)
             break;
 
+          const changes: any = {};
           for (const field of message.ChangedFields) {
             const property = preset.Exposed[field.Id];
             if (!property)
               continue;
 
             setPayloadValueInternal(payloads, [message.PresetId, property.ID], field.PropertyValue);
-            Notify.emitValueChange(message.PresetId, property.ID, field.PropertyValue);
+            changes[property.ID] = field.PropertyValue;
           }
+
+          Notify.emitValuesChanges(message.PresetId, changes);
           break;
         }
 
@@ -650,8 +652,35 @@ export namespace UnrealEngine {
         Notify.emit('presets', Object.values(presets));
       }
     } catch (err) {
-      console.log(`Failed to set property metadata`);
+      console.log('Failed to set property metadata');
     }
+  }
+
+  export async function rebindProperties(preset: string, properties: string[], target: string) {
+    const body = {
+      objectPath: '/Script/RemoteControlWebInterface.Default__RCWebInterfaceBlueprintLibrary',
+      functionName: 'RebindProperties',
+      parameters: {
+        PresetId: preset,
+        PropertyIds: properties,
+        NewOwner: target,
+      }
+    };
+
+    await put('/remote/object/call', body);
+
+    // We need to fetch values of new owner
+    const changes: any = {};
+    for (const property of properties) {
+      const ret = await get<UnrealApi.PropertyValues>(`/remote/preset/${preset}/property/${property}`);
+      const value = ret.PropertyValues?.[0]?.PropertyValue;
+      if (value !== undefined) {
+        setPayloadValueInternal(payloads, [preset, property], value);
+        changes[property] = value;
+      }
+    }
+
+    Notify.emitValuesChanges(preset, changes);
   }
 
   export async function getView(preset: string): Promise<IView> {

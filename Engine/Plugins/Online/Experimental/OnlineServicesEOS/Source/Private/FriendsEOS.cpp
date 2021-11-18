@@ -57,16 +57,16 @@ void FFriendsEOS::PreShutdown()
 
 TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Params&& InParams)
 {
-	TOnlineAsyncOp<FQueryFriends>& Op = GetJoinableOp<FQueryFriends>(MoveTemp(InParams));
-	if (!Op.IsReady())
+	TOnlineAsyncOpRef<FQueryFriends> Op = GetJoinableOp<FQueryFriends>(MoveTemp(InParams));
+	if (!Op->IsReady())
 	{
 		// Initialize
-		const FQueryFriends::Params& Params = Op.GetParams();
+		const FQueryFriends::Params& Params = Op->GetParams();
 		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
 		{
 			// TODO: Error codes
-			Op.SetError(Errors::Unknown());
-			return Op.GetHandle();
+			Op->SetError(Errors::Unknown());
+			return Op->GetHandle();
 		}
 
 		EOS_Friends_QueryFriendsOptions QueryFriendsOptions = { };
@@ -75,7 +75,7 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 		check(AccountId); // Must be valid if IsLoggedIn succeeded
 		QueryFriendsOptions.LocalUserId = AccountId.GetValue();
 
-		Op.Then([this, QueryFriendsOptions](TOnlineAsyncOp<FQueryFriends>& InAsyncOp) mutable
+		Op->Then([this, QueryFriendsOptions](TOnlineAsyncOp<FQueryFriends>& InAsyncOp) mutable
 			{
 				return EOS_Async<EOS_Friends_QueryFriendsCallbackInfo>(InAsyncOp, EOS_Friends_QueryFriends, FriendsHandle, QueryFriendsOptions);
 			})
@@ -173,9 +173,9 @@ TOnlineAsyncOpHandle<FQueryFriends> FFriendsEOS::QueryFriends(FQueryFriends::Par
 					InAsyncOp.SetError(Errors::Unknown()); // TODO: Error codes
 				}
 			})
-			.Enqueue();
+			.Enqueue(GetSerialQueue());
 	}
-	return Op.GetHandle();
+	return Op->GetHandle();
 }
 
 TOnlineResult<FGetFriends> FFriendsEOS::GetFriends(FGetFriends::Params&& Params)
@@ -191,17 +191,17 @@ TOnlineResult<FGetFriends> FFriendsEOS::GetFriends(FGetFriends::Params&& Params)
 
 TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InParams)
 {
-	TOnlineAsyncOp<FAddFriend>& Op = GetJoinableOp<FAddFriend>(MoveTemp(InParams));
-	if (!Op.IsReady())
+	TOnlineAsyncOpRef<FAddFriend> Op = GetJoinableOp<FAddFriend>(MoveTemp(InParams));
+	if (!Op->IsReady())
 	{
 #if 0 // At present this causes issues due to the EOS function executing the callback immediately, before the future can be bound to
 		// Initialize
-		const FAddFriend::Params& Params = Op.GetParams();
+		const FAddFriend::Params& Params = Op->GetParams();
 		if (!Services.Get<FAuthEOS>()->IsLoggedIn(Params.LocalUserId))
 		{
 			// TODO: Error codes
-			Op.SetError(Errors::UnknownError());
-			return Op.GetHandle();
+			Op->SetError(Errors::UnknownError());
+			return Op->GetHandle();
 		}
 
 		// Target user valid?
@@ -209,10 +209,10 @@ TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InP
 		if (!TargetId)
 		{
 			// TODO: Error codes
-			Op.SetError(Errors::UnknownError());
-			return Op.GetHandle();
+			Op->SetError(Errors::UnknownError());
+			return Op->GetHandle();
 		}
-		Op.Then([this](TOnlineAsyncOp<FAddFriend>& InAsyncOp) mutable
+		Op->Then([this](TOnlineAsyncOp<FAddFriend>& InAsyncOp) mutable
 			{
 				const FAddFriend::Params& Params = InAsyncOp.GetParams();
 				EOS_Friends_SendInviteOptions SendInviteOptions = { };
@@ -227,10 +227,10 @@ TOnlineAsyncOpHandle<FAddFriend> FFriendsEOS::AddFriend(FAddFriend::Params&& InP
 				// TODO:  Handle response
 			}).Enqueue();
 #else
-		Op.SetError(Errors::Unknown());
+		Op->SetError(Errors::Unknown());
 #endif
 	}
-	return Op.GetHandle();
+	return Op->GetHandle();
 }
 
 void FFriendsEOS::OnEOSFriendsUpdate(FAccountId LocalUserId, FAccountId FriendUserId, EOS_EFriendsStatus PreviousStatus, EOS_EFriendsStatus CurrentStatus)

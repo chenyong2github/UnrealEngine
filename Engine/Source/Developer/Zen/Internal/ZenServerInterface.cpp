@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ZenServerInterface.h"
 
-#if UE_WITH_ZEN
 
 #include "ZenBackendUtils.h"
 #include "ZenServerHttp.h"
 #include "ZenSerialization.h"
 
+#include "Dom/JsonValue.h"
 #include "HAL/FileManager.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformMisc.h"
@@ -26,11 +26,310 @@
 #if PLATFORM_WINDOWS
 #	include "Windows/AllowWindowsPlatformTypes.h"
 #	include <shellapi.h>
+#	include <synchapi.h>
 #	include <Windows.h>
 #	include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
-namespace UE::Zen {
+#define ALLOW_SETTINGS_OVERRIDE_FROM_COMMANDLINE			(UE_SERVER || !(UE_BUILD_SHIPPING))
+
+namespace UE::Zen
+{
+
+DEFINE_LOG_CATEGORY_STATIC(LogZenServiceInstance, Log, All);
+
+static bool
+AttemptFileCopyWithRetries(const TCHAR* Dst, const TCHAR* Src, double RetryDurationSeconds)
+{
+	uint32 CopyResult = IFileManager::Get().Copy(Dst, Src, true, true, false);
+	uint64 CopyWaitStartTime = FPlatformTime::Cycles64();
+	while (CopyResult != COPY_OK)
+	{
+		double CopyWaitDuration = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - CopyWaitStartTime);
+		if (CopyWaitDuration < RetryDurationSeconds)
+		{
+			FPlatformProcess::Sleep(0.01f);
+		}
+		else
+		{
+			break;
+		}
+		CopyResult = IFileManager::Get().Copy(Dst, Src, true, true, false);
+	}
+
+	return CopyResult == COPY_OK;
+}
+
+static void
+DetermineLocalDataCachePath(const TCHAR* ConfigSection, FString& DataPath)
+{
+	FString DataPathEnvOverride;
+	if (GConfig->GetString(ConfigSection, TEXT("LocalDataCachePathEnvOverride"), DataPathEnvOverride, GEngineIni))
+	{
+		FString DataPathEnvOverrideValue = FPlatformMisc::GetEnvironmentVariable(*DataPathEnvOverride);
+		if (!DataPathEnvOverrideValue.IsEmpty())
+		{
+			DataPath = DataPathEnvOverrideValue;
+			UE_LOG(LogZenServiceInstance, Log, TEXT("Found environment variable %s=%s"), *DataPathEnvOverride, *DataPathEnvOverrideValue);
+		}
+
+		if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *DataPathEnvOverride, DataPathEnvOverrideValue))
+		{
+			if (!DataPathEnvOverrideValue.IsEmpty())
+			{
+				DataPath = DataPathEnvOverrideValue;
+				UE_LOG(LogZenServiceInstance, Log, TEXT("Found registry key GlobalDataCachePath %s=%s"), *DataPathEnvOverride, *DataPath);
+			}
+		}
+	}
+
+	FString DataPathEditorOverrideSetting;
+	if (GConfig->GetString(ConfigSection, TEXT("LocalDataCachePathEditorOverrideSetting"), DataPathEditorOverrideSetting, GEngineIni))
+	{
+		FString Setting = GConfig->GetStr(TEXT("/Script/UnrealEd.EditorSettings"), *DataPathEditorOverrideSetting, GEditorSettingsIni);
+		if (!Setting.IsEmpty())
+		{
+			FString SettingPath;
+			if (FParse::Value(*Setting, TEXT("Path="), SettingPath))
+			{
+				SettingPath = SettingPath.TrimQuotes();
+				if (!SettingPath.IsEmpty())
+				{
+					DataPath = SettingPath;
+					UE_LOG(LogZenServiceInstance, Log, TEXT("Found editor setting /Script/UnrealEd.EditorSettings.Path=%s"), *DataPath);
+				}
+			}
+		}
+	}
+}
+
+static void
+DetermineDataPath(const TCHAR* ConfigSection, FString& DataPath)
+{
+	auto NormalizeDataPath = [](const FString& InDataPath)
+	{
+		FString FinalPath = FPaths::ConvertRelativePathToFull(InDataPath);
+		FPaths::NormalizeDirectoryName(FinalPath);
+		return FinalPath;
+	};
+
+	// Zen commandline
+	FString CommandLineOverrideValue;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ZenDataPath="), CommandLineOverrideValue))
+	{
+		DataPath = NormalizeDataPath(CommandLineOverrideValue);
+		UE_LOG(LogZenServiceInstance, Log, TEXT("Found command line override ZenDataPath=%s"), *CommandLineOverrideValue);
+		return;
+	}
+
+	// Zen registry/stored
+	FString DataPathEnvOverrideValue;
+	if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("Zen"), TEXT("DataPath"), DataPathEnvOverrideValue))
+	{
+		if (!DataPathEnvOverrideValue.IsEmpty())
+		{
+			DataPath = NormalizeDataPath(DataPathEnvOverrideValue);
+			UE_LOG(LogZenServiceInstance, Log, TEXT("Found registry key Zen DataPath=%s"), *DataPath);
+			return;
+		}
+	}
+
+	ON_SCOPE_EXIT
+	{
+		// Persist the data path so that future runs use the same one.
+		DataPath = NormalizeDataPath(DataPath);
+		FPlatformMisc::SetStoredValue(TEXT("Epic Games"), TEXT("Zen"), TEXT("DataPath"), DataPath);
+	};
+
+	// Zen environment
+	DataPathEnvOverrideValue = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-ZenDataPath"));
+	if (!DataPathEnvOverrideValue.IsEmpty())
+	{
+		DataPath = DataPathEnvOverrideValue;
+		UE_LOG(LogZenServiceInstance, Log, TEXT("Found environment variable UE-ZenDataPath=%s"), *DataPathEnvOverrideValue);
+		return;
+	}
+
+	// Follow local DDC (if outside workspace)
+	FString LocalDataCachePath;
+	DetermineLocalDataCachePath(ConfigSection, LocalDataCachePath);
+	if (!LocalDataCachePath.IsEmpty() && (LocalDataCachePath != TEXT("None")) && !FPaths::IsUnderDirectory(LocalDataCachePath, FPaths::RootDir()))
+	{
+		DataPath = FPaths::Combine(LocalDataCachePath, TEXT("Zen"));
+		return;
+	}
+
+	// Zen config default
+	GConfig->GetString(ConfigSection, TEXT("DataPath"), DataPath, GEngineIni);
+
+	check(!DataPath.IsEmpty())
+}
+
+static void
+ReadUInt16FromConfig(const TCHAR* Section, const TCHAR* Key, uint16& Value, const FString& ConfigFile)
+{
+	int32 ValueInt32 = Value;
+	GConfig->GetInt(Section, Key, ValueInt32, ConfigFile);
+	Value = (uint16)ValueInt32;
+}
+
+void
+FServiceSettings::ReadFromConfig()
+{
+	check(GConfig && GConfig->IsReadyForUse());
+	const TCHAR* ConfigSection = TEXT("Zen");
+	bool bAutoLaunch = true;
+	GConfig->GetBool(ConfigSection, TEXT("AutoLaunch"), bAutoLaunch, GEngineIni);
+
+	if (bAutoLaunch)
+	{
+		if (!TryApplyAutoLaunchOverride())
+		{
+			// AutoLaunch settings
+			const TCHAR* AutoLaunchConfigSection = TEXT("Zen.AutoLaunch");
+			SettingsVariant.Emplace<FServiceAutoLaunchSettings>();
+			FServiceAutoLaunchSettings& AutoLaunchSettings = SettingsVariant.Get<FServiceAutoLaunchSettings>();
+
+			DetermineDataPath(AutoLaunchConfigSection, AutoLaunchSettings.DataPath);
+			GConfig->GetString(AutoLaunchConfigSection, TEXT("ExtraArgs"), AutoLaunchSettings.ExtraArgs, GEngineIni);
+
+			ReadUInt16FromConfig(AutoLaunchConfigSection, TEXT("DesiredPort"), AutoLaunchSettings.DesiredPort, GEngineIni);
+			GConfig->GetBool(AutoLaunchConfigSection, TEXT("ShowConsole"), AutoLaunchSettings.bShowConsole, GEngineIni);
+			GConfig->GetBool(AutoLaunchConfigSection, TEXT("LimitProcessLifetime"), AutoLaunchSettings.bLimitProcessLifetime, GEngineIni);
+		}
+	}
+	else
+	{
+		// ConnectExisting settings
+		const TCHAR* ConnectExistingConfigSection = TEXT("Zen.ConnectExisting");
+		SettingsVariant.Emplace<FServiceConnectSettings>();
+		FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
+
+		GConfig->GetString(ConnectExistingConfigSection, TEXT("HostName"), ConnectExistingSettings.HostName, GEngineIni);
+		ReadUInt16FromConfig(ConnectExistingConfigSection, TEXT("Port"), ConnectExistingSettings.Port, GEngineIni);
+	}
+}
+
+void
+FServiceSettings::ReadFromJson(FJsonObject& JsonObject)
+{
+	if (TSharedPtr<FJsonValue> bAutoLaunchValue = JsonObject.Values.FindRef(TEXT("bAutoLaunch")))
+	{
+		if (bAutoLaunchValue->AsBool())
+		{
+			if (!TryApplyAutoLaunchOverride())
+			{
+				SettingsVariant.Emplace<FServiceAutoLaunchSettings>();
+				FServiceAutoLaunchSettings& AutoLaunchSettings = SettingsVariant.Get<FServiceAutoLaunchSettings>();
+
+				TSharedPtr<FJsonValue> AutoLaunchSettingsValue = JsonObject.Values.FindRef(TEXT("AutoLaunchSettings"));
+				if (AutoLaunchSettingsValue)
+				{
+					TSharedPtr<FJsonObject> AutoLaunchSettingsObject = AutoLaunchSettingsValue->AsObject();
+					AutoLaunchSettings.DataPath = AutoLaunchSettingsObject->Values.FindRef(TEXT("DataPath"))->AsString();
+					AutoLaunchSettings.ExtraArgs = AutoLaunchSettingsObject->Values.FindRef(TEXT("ExtraArgs"))->AsString();
+					AutoLaunchSettingsObject->Values.FindRef(TEXT("DesiredPort"))->TryGetNumber(AutoLaunchSettings.DesiredPort);
+					AutoLaunchSettingsObject->Values.FindRef(TEXT("bShowConsole"))->TryGetBool(AutoLaunchSettings.bShowConsole);
+					AutoLaunchSettingsObject->Values.FindRef(TEXT("bLimitProcessLifetime"))->TryGetBool(AutoLaunchSettings.bLimitProcessLifetime);
+					if (TSharedPtr<FJsonValue> TreatAsBuildMachineValue = AutoLaunchSettingsObject->Values.FindRef(TEXT("TreatAsBuildMachine")))
+					{
+						if (TreatAsBuildMachineValue->AsString() == FPlatformProcess::ComputerName())
+						{
+							AutoLaunchSettings.bLimitProcessLifetime = true;
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			SettingsVariant.Emplace<FServiceConnectSettings>();
+			FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
+
+			TSharedPtr<FJsonValue> ConnectExistingSettingsValue = JsonObject.Values.FindRef(TEXT("ConnectExistingSettings"));
+			if (ConnectExistingSettingsValue)
+			{
+				TSharedPtr<FJsonObject> ConnectExistingSettingsObject = ConnectExistingSettingsValue->AsObject();
+				ConnectExistingSettings.HostName = ConnectExistingSettingsObject->Values.FindRef(TEXT("HostName"))->AsString();
+				ConnectExistingSettingsObject->Values.FindRef(TEXT("Port"))->TryGetNumber(ConnectExistingSettings.Port);
+			}
+		}
+
+	}
+}
+
+void
+FServiceSettings::ReadFromURL(FStringView InstanceURL)
+{
+	SettingsVariant.Emplace<FServiceConnectSettings>();
+	FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
+
+	if (InstanceURL.StartsWith(TEXT("http://")))
+	{
+		InstanceURL.RightChopInline(7);
+	}
+
+	FStringView::SizeType PortDelimIndex = INDEX_NONE;
+	InstanceURL.FindChar(TEXT(':'), PortDelimIndex);
+	if (PortDelimIndex != INDEX_NONE)
+	{
+		ConnectExistingSettings.HostName = InstanceURL.Left(PortDelimIndex);
+		LexFromString(ConnectExistingSettings.Port, InstanceURL.RightChop(PortDelimIndex + 1));
+	}
+	else
+	{
+		ConnectExistingSettings.HostName = InstanceURL;
+		ConnectExistingSettings.Port = 1337;
+	}
+}
+
+void
+FServiceSettings::WriteToJson(TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>& Writer) const
+{
+	bool bAutoLaunch = IsAutoLaunch();
+	Writer.WriteValue(TEXT("bAutoLaunch"), bAutoLaunch);
+	if (bAutoLaunch)
+	{
+		const FServiceAutoLaunchSettings& AutoLaunchSettings = SettingsVariant.Get<FServiceAutoLaunchSettings>();
+		Writer.WriteObjectStart(TEXT("AutoLaunchSettings"));
+		Writer.WriteValue(TEXT("DataPath"), AutoLaunchSettings.DataPath);
+		Writer.WriteValue(TEXT("ExtraArgs"), AutoLaunchSettings.ExtraArgs);
+		Writer.WriteValue(TEXT("DesiredPort"), AutoLaunchSettings.DesiredPort);
+		Writer.WriteValue(TEXT("bShowConsole"), AutoLaunchSettings.bShowConsole);
+		Writer.WriteValue(TEXT("bLimitProcessLifetime"), AutoLaunchSettings.bLimitProcessLifetime);
+		if (GIsBuildMachine)
+		{
+			Writer.WriteValue(TEXT("TreatAsBuildMachine"), FPlatformProcess::ComputerName());
+		}
+		Writer.WriteObjectEnd();
+	}
+	else
+	{
+		const FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
+		Writer.WriteObjectStart(TEXT("ConnectExistingSettings"));
+		Writer.WriteValue(TEXT("HostName"), ConnectExistingSettings.HostName);
+		Writer.WriteValue(TEXT("Port"), ConnectExistingSettings.Port);
+		Writer.WriteObjectEnd();
+	}
+}
+
+bool
+FServiceSettings::TryApplyAutoLaunchOverride()
+{
+#if ALLOW_SETTINGS_OVERRIDE_FROM_COMMANDLINE
+	if (FParse::Param(FCommandLine::Get(), TEXT("NoZenAutoLaunch")))
+	{
+		SettingsVariant.Emplace<FServiceConnectSettings>();
+		FServiceConnectSettings& ConnectExistingSettings = SettingsVariant.Get<FServiceConnectSettings>();
+		ConnectExistingSettings.HostName = TEXT("localhost");
+		ConnectExistingSettings.Port = 1337;
+		return true;
+	}
+#endif
+	return false;
+}
+
+#if UE_WITH_ZEN
 
 static bool
 ReadCbLockFile(FStringView FileName, FCbObject& OutLockObject)
@@ -95,12 +394,18 @@ ReadCbLockFile(FStringView FileName, FCbObject& OutLockObject)
 #endif
 }
 
-DEFINE_LOG_CATEGORY_STATIC(LogZenServiceInstance, Log, All);
+static bool GIsDefaultServicePresent = false;
 
 FZenServiceInstance& GetDefaultServiceInstance()
 {
 	static FZenServiceInstance DefaultServiceInstance;
+	GIsDefaultServicePresent = true;
 	return DefaultServiceInstance;
+}
+
+bool IsDefaultServicePresent()
+{
+	return GIsDefaultServicePresent;
 }
 
 FScopeZenService::FScopeZenService()
@@ -112,7 +417,7 @@ FScopeZenService::FScopeZenService(FStringView InstanceURL)
 {
 	if (!InstanceURL.IsEmpty() && !InstanceURL.Equals(TEXT("<DefaultInstance>")))
 	{
-		UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(Default, InstanceURL);
+		UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(InstanceURL);
 		ServiceInstance = UniqueNonDefaultInstance.Get();
 	}
 	else
@@ -121,115 +426,38 @@ FScopeZenService::FScopeZenService(FStringView InstanceURL)
 	}
 }
 
-FScopeZenService::FScopeZenService(FStringView InstanceHostName, uint16 InstancePort)
+FScopeZenService::FScopeZenService(FServiceSettings&& InSettings)
 {
-	if (!InstanceHostName.IsEmpty() && !InstanceHostName.Equals(TEXT("<DefaultInstance>")))
-	{
-		TStringBuilder<64> URL;
-		URL.AppendAnsi("http://");
-		URL.Append(InstanceHostName);
-		URL.AppendAnsi(":");
-		URL << InstancePort;
-
-		UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(Default, URL);
-		ServiceInstance = UniqueNonDefaultInstance.Get();
-	}
-	else
-	{
-		ServiceInstance = &GetDefaultServiceInstance();
-	}
-}
-
-FScopeZenService::FScopeZenService(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort)
-{
-	UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(ForcedLaunch, AutoLaunchExecutablePath, AutoLaunchArguments, DesiredPort);
+	UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(MoveTemp(InSettings));
 	ServiceInstance = UniqueNonDefaultInstance.Get();
-}
-
-FScopeZenService::FScopeZenService(EServiceMode Mode)
-{
-	switch (Mode)
-	{
-		case Default:
-		{
-			ServiceInstance = &GetDefaultServiceInstance();
-		}
-		break;
-		case DefaultNoLaunch:
-		{
-			UniqueNonDefaultInstance = MakeUnique<FZenServiceInstance>(Mode, FStringView());
-			ServiceInstance = UniqueNonDefaultInstance.Get();
-		}
-		break;
-		default:
-		unimplemented();
-	}
-
 }
 
 FScopeZenService::~FScopeZenService()
 {}
 
 FZenServiceInstance::FZenServiceInstance()
-: FZenServiceInstance(Default, FStringView())
+: FZenServiceInstance(FStringView())
 {
 }
 
-FZenServiceInstance::FZenServiceInstance(EServiceMode Mode, FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort)
+FZenServiceInstance::FZenServiceInstance(FStringView InstanceURL)
 {
-	if (Mode == ForcedLaunch)
+	if (InstanceURL.IsEmpty())
 	{
-		Settings.bAutoLaunch = true;
-		HostName = TEXT("localhost");
-		Port = DesiredPort;
-		bHasLaunchedLocal = AutoLaunch(AutoLaunchExecutablePath, AutoLaunchArguments, Port);
-		
-		if (bHasLaunchedLocal)
-		{
-			AutoLaunchedPort = Port;
-		}
-
-		TStringBuilder<128> URLBuilder;
-		URLBuilder << TEXT("http://") << HostName << TEXT(":") << Port << TEXT("/");
-		URL = URLBuilder.ToString();
+		Settings.ReadFromConfig();
 	}
 	else
 	{
-		unimplemented();
+		Settings.ReadFromURL(InstanceURL);
 	}
+
+	Initialize();
 }
 
-FZenServiceInstance::FZenServiceInstance(EServiceMode Mode, FStringView InstanceURL)
+FZenServiceInstance::FZenServiceInstance(FServiceSettings&& InSettings)
+: Settings(MoveTemp(InSettings))
 {
-	Settings.AutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineVersionAgnosticUserDir(), TEXT("Zen")));
-	Settings.AutoLaunchSettings.WorkspaceDataPath = Settings.AutoLaunchSettings.DataPath;
-	PopulateSettings(InstanceURL);
-
-	if (Settings.bAutoLaunch)
-	{
-		if (Mode == DefaultNoLaunch)
-		{
-			Settings.bAutoLaunch = false;
-			HostName = TEXT("localhost");
-			Port = (AutoLaunchedPort != 0) ? AutoLaunchedPort : Settings.AutoLaunchSettings.DesiredPort;
-		}
-		else
-		{
-			bHasLaunchedLocal = AutoLaunch();
-			if (bHasLaunchedLocal)
-			{
-				AutoLaunchedPort = Port;
-			}
-		}
-	}
-	else
-	{
-		HostName = Settings.ConnectExistingSettings.HostName;
-		Port = Settings.ConnectExistingSettings.Port;
-	}
-	TStringBuilder<128> URLBuilder;
-	URLBuilder << TEXT("http://") << HostName << TEXT(":") << Port << TEXT("/");
-	URL = URLBuilder.ToString();
+	Initialize();
 }
 
 FZenServiceInstance::~FZenServiceInstance()
@@ -239,7 +467,7 @@ FZenServiceInstance::~FZenServiceInstance()
 bool 
 FZenServiceInstance::IsServiceRunning()
 {
-	return !Settings.bAutoLaunch || bHasLaunchedLocal;
+	return !Settings.IsAutoLaunch() || bHasLaunchedLocal;
 }
 
 bool 
@@ -265,144 +493,24 @@ FZenServiceInstance::IsServiceReady()
 	return false;
 }
 
-static void DetermineDataPath(const TCHAR* ConfigSection, FString& DataPath)
+void
+FZenServiceInstance::Initialize()
 {
-	GConfig->GetString(ConfigSection, TEXT("DataPath"), DataPath, GEngineIni);
-
-	bool bUsedEnvOverride = false;
-	bool bUsedEditorOverride = false;
-	// Much of the logic here is meant to mirror the way that DDC backend paths can be specified to allow
-	// us to match behavior and not behave differently in the presence of custom config
-	FString DataPathEnvOverride;
-	if (GConfig->GetString(ConfigSection, TEXT("DataPathEnvOverride"), DataPathEnvOverride, GEngineIni))
+	if (Settings.IsAutoLaunch())
 	{
-		FString DataPathEnvOverrideValue = FPlatformMisc::GetEnvironmentVariable(*DataPathEnvOverride);
-		if(!DataPathEnvOverrideValue.IsEmpty())
+		bHasLaunchedLocal = AutoLaunch(Settings.SettingsVariant.Get<FServiceAutoLaunchSettings>(), ConditionalUpdateLocalInstall(), HostName, Port);
+		if (bHasLaunchedLocal)
 		{
-			DataPath = DataPathEnvOverrideValue;
-			bUsedEnvOverride = true;
-			UE_LOG(LogZenServiceInstance, Log, TEXT("Found environment variable %s=%s"), *DataPathEnvOverride, *DataPathEnvOverrideValue);
+			AutoLaunchedPort = Port;
 		}
-
-		if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *DataPathEnvOverride, DataPathEnvOverrideValue))
-		{
-			if (!DataPathEnvOverrideValue.IsEmpty())
-			{
-				DataPath = DataPathEnvOverrideValue;
-				bUsedEnvOverride = true;
-				UE_LOG(LogZenServiceInstance, Log, TEXT("Found registry key GlobalDataCachePath %s=%s"), *DataPathEnvOverride, *DataPath);
-			}
-		}
-	}
-
-	FString DataPathEditorOverrideSetting;
-	if (GConfig->GetString(ConfigSection, TEXT("DataPathEditorOverrideSetting"), DataPathEditorOverrideSetting, GEngineIni))
-	{
-		FString Setting = GConfig->GetStr(TEXT("/Script/UnrealEd.EditorSettings"), *DataPathEditorOverrideSetting, GEditorSettingsIni);
-		if(!Setting.IsEmpty())
-		{
-			FString SettingPath;
-			if(FParse::Value(*Setting, TEXT("Path="), SettingPath))
-			{
-				SettingPath = SettingPath.TrimQuotes();
-				if(!SettingPath.IsEmpty())
-				{
-					DataPath = SettingPath;
-					bUsedEditorOverride = true;
-					UE_LOG(LogZenServiceInstance, Log, TEXT("Found editor setting /Script/UnrealEd.EditorSettings.Path=%s"), *DataPath);
-				}
-			}
-		}
-	}
-
-	if (bUsedEnvOverride || bUsedEditorOverride)
-	{
-		DataPath = FPaths::Combine(DataPath, TEXT("Zen"));
-	}
-
-	{
-		FString CommandLineOverrideValue;
-		if (FParse::Value(FCommandLine::Get(), TEXT("ZenDataPath="), CommandLineOverrideValue))
-		{
-			DataPath = CommandLineOverrideValue;
-			UE_LOG(LogZenServiceInstance, Log, TEXT("Found command line override ZenDataPath=%s"), *CommandLineOverrideValue);
-		}
-	}
-}
-
-static void
-ReadUInt16FromConfig(const TCHAR* Section, const TCHAR* Key, uint16& Value, const FString& ConfigFile)
-{
-	int32 ValueInt32 = Value;
-	GConfig->GetInt(Section, Key, ValueInt32, ConfigFile);
-	Value = (uint16)ValueInt32;
-}
-
-
-static void
-ParseURLToHostNameAndPort(FStringView URL, FString& OutHostName, uint16& OutPort)
-{
-	if (URL.StartsWith(TEXT("http://")))
-	{
-		URL.RightChopInline(7);
-	}
-
-	FStringView::SizeType PortDelimIndex = INDEX_NONE;
-	URL.FindChar(TEXT(':'), PortDelimIndex);
-	if (PortDelimIndex != INDEX_NONE)
-	{
-		OutHostName = URL.Left(PortDelimIndex);
-		LexFromString(OutPort, URL.RightChop(PortDelimIndex + 1));
 	}
 	else
 	{
-		OutHostName = URL;
-		OutPort = 1337;
+		const FServiceConnectSettings& ConnectExistingSettings = Settings.SettingsVariant.Get<FServiceConnectSettings>();
+		HostName = ConnectExistingSettings.HostName;
+		Port = ConnectExistingSettings.Port;
 	}
-}
-
-void
-FZenServiceInstance::PopulateSettings(FStringView InstanceURL)
-{
-	// Allow a provided InstanceURL to override everything
-	if (!InstanceURL.IsEmpty())
-	{
-		Settings.bAutoLaunch = false;
-		ParseURLToHostNameAndPort(InstanceURL, Settings.ConnectExistingSettings.HostName, Settings.ConnectExistingSettings.Port);
-		return;
-	}
-
-	check(GConfig && GConfig->IsReadyForUse());
-	const TCHAR* ConfigSection = TEXT("Zen");
-	GConfig->GetBool(ConfigSection, TEXT("AutoLaunch"), Settings.bAutoLaunch, GEngineIni);
-
-	// AutoLaunch settings
-	{
-		const TCHAR* AutoLaunchConfigSection = TEXT("Zen.AutoLaunch");
-
-		// Workspace path is for marker files that we don't want in a shared location out of tree.
-		GConfig->GetString(AutoLaunchConfigSection, TEXT("WorkspaceDataPath"), Settings.AutoLaunchSettings.WorkspaceDataPath, GEngineIni);
-		DetermineDataPath(AutoLaunchConfigSection, Settings.AutoLaunchSettings.DataPath);
-		Settings.AutoLaunchSettings.DataPath = FPaths::ConvertRelativePathToFull(Settings.AutoLaunchSettings.DataPath);
-		GConfig->GetString(AutoLaunchConfigSection, TEXT("ExtraArgs"), Settings.AutoLaunchSettings.ExtraArgs, GEngineIni);
-
-		ReadUInt16FromConfig(AutoLaunchConfigSection, TEXT("DesiredPort"), Settings.AutoLaunchSettings.DesiredPort, GEngineIni);
-		GConfig->GetBool(AutoLaunchConfigSection, TEXT("Hidden"), Settings.AutoLaunchSettings.bHidden, GEngineIni);
-
-		FString LogCommandLineOverrideValue;
-		if (FParse::Value(FCommandLine::Get(), TEXT("ZenLogPath="), LogCommandLineOverrideValue))
-		{
-			Settings.AutoLaunchSettings.LogPath = LogCommandLineOverrideValue;
-			UE_LOG(LogZenServiceInstance, Log, TEXT("Found command line override ZenLogPath=%s"), *LogCommandLineOverrideValue);
-		}
-	}
-
-	// ConnectExisting settings
-	{
-		const TCHAR* ConnectExistingConfigSection = TEXT("Zen.ConnectExisting");
-		GConfig->GetString(ConnectExistingConfigSection, TEXT("HostName"), Settings.ConnectExistingSettings.HostName, GEngineIni);
-		ReadUInt16FromConfig(ConnectExistingConfigSection, TEXT("Port"), Settings.ConnectExistingSettings.Port, GEngineIni);
-	}
+	URL = WriteToString<64>(TEXT("http://"), HostName, TEXT(":"), Port, TEXT("/"));
 }
 
 void
@@ -423,8 +531,7 @@ FString
 FZenServiceInstance::ConditionalUpdateLocalInstall()
 {
 	FString InTreeFilePath = FPaths::ConvertRelativePathToFull(FPlatformProcess::GenerateApplicationPath(TEXT("zenserver"), EBuildConfiguration::Development));
-
-	FString InstallFilePath = GetAutoLaunchExecutablePath(FPathViews::GetCleanFilename(InTreeFilePath));
+	FString InstallFilePath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineSavedDir(), TEXT("ZenServer"), FString(FPathViews::GetCleanFilename(InTreeFilePath))));
 
 	IFileManager& FileManager = IFileManager::Get();
 	FDateTime InTreeFileTime;
@@ -434,158 +541,182 @@ FZenServiceInstance::ConditionalUpdateLocalInstall()
 	{
 		if (FPlatformProcess::IsApplicationRunning(*FPaths::GetCleanFilename(InstallFilePath)))
 		{
-			PromptUserToStopRunningServerInstance(InstallFilePath);
+			// TODO: Instead of using the lock file, this could use the shared memory system state named "Global\ZenMap" (see zenserverprocess.{h,cpp} in zen codebase)
+			FString LockFilePath = FPaths::Combine(Settings.SettingsVariant.Get<FServiceAutoLaunchSettings>().DataPath, TEXT(".lock"));
+			FCbObject LockObject;
+			if (ReadCbLockFile(LockFilePath, LockObject))
+			{
+				uint16 RunningPort = LockObject["port"].AsUInt16(0);
+				if (RunningPort != 0)
+				{
+#if PLATFORM_WINDOWS
+					FString ShutdownEventName = *WriteToString<64>(TEXT("Zen_"), RunningPort, TEXT("_Shutdown"));
+					HANDLE Handle = OpenEventW(EVENT_MODIFY_STATE, false, *ShutdownEventName);
+					if (Handle != INVALID_HANDLE_VALUE)
+					{
+						ON_SCOPE_EXIT{ CloseHandle(Handle); };
+						SetEvent(Handle);
+					}
+#else
+					static_assert(false, "Missing implementation for Zen named shutdown events");
+#endif
+
+					uint64 ZenShutdownWaitStartTime = FPlatformTime::Cycles64();
+					while (FileManager.FileExists(*LockFilePath))
+					{
+						double ZenShutdownWaitDuration = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - ZenShutdownWaitStartTime);
+						if (ZenShutdownWaitDuration < 5.0)
+						{
+							FPlatformProcess::Sleep(0.01f);
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+			}
+
+			if (FileManager.FileExists(*LockFilePath))
+			{
+				PromptUserToStopRunningServerInstance(InstallFilePath);
+			}
 		}
 
-		uint32 CopyResult = FileManager.Copy(*InstallFilePath, *InTreeFilePath, true, true, false);
-		checkf(CopyResult == COPY_OK, TEXT("Failed to copy zenserver to install location '%s'."), *InstallFilePath);
+		// Even after waiting for the lock file to be removed, the executable may have a period where it can't be overwritten as the process shuts down
+		// so any attempt to overwrite it should have some tolerance for retrying.
+		bool bExecutableCopySucceeded = AttemptFileCopyWithRetries(*InstallFilePath, *InTreeFilePath, 5.0);
+		checkf(bExecutableCopySucceeded, TEXT("Failed to copy zenserver to install location '%s'."), *InstallFilePath);
 
 #if PLATFORM_WINDOWS
+		FString InTreeSymbolFilePath = FPaths::ChangeExtension(InTreeFilePath, TEXT("pdb"));
 		FString InstallSymbolFilePath = FPaths::ChangeExtension(InstallFilePath, TEXT("pdb"));
-		CopyResult = FileManager.Copy(*InstallSymbolFilePath, *FPaths::ChangeExtension(InTreeFilePath, TEXT("pdb")), true, true, false);
-		checkf(CopyResult == COPY_OK, TEXT("Failed to copy zenserver symbols to install location '%s'."), *InstallSymbolFilePath);
+		bool bSymbolCopySucceeded = AttemptFileCopyWithRetries(*InstallFilePath, *InTreeFilePath, 1.0);
+		checkf(bSymbolCopySucceeded, TEXT("Failed to copy zenserver symbols to install location '%s'."), *InstallSymbolFilePath);
 #endif
 	}
 
 	return InstallFilePath;
 }
 
-FString
-FZenServiceInstance::GetAutoLaunchExecutablePath(FStringView CleanExecutableFileName) const
-{
-	return FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::EngineSavedDir(), TEXT("ZenServer"), FString(CleanExecutableFileName)));
-}
-
-FString
-FZenServiceInstance::GetAutoLaunchExecutablePath() const
-{
-	FString ExecutableFileName = FPlatformProcess::GenerateApplicationPath(TEXT("zenserver"), EBuildConfiguration::Development);
-
-	return GetAutoLaunchExecutablePath(FPathViews::GetCleanFilename(ExecutableFileName));
-}
-
-FString
-FZenServiceInstance::GetAutoLaunchArguments() const
-{
-	FString Parms;
-
-	Parms.Appendf(TEXT("--port %d --data-dir \"%s\""),
-		Settings.AutoLaunchSettings.DesiredPort,
-		*Settings.AutoLaunchSettings.DataPath);
-
-	if (!Settings.AutoLaunchSettings.LogPath.IsEmpty())
-	{
-		Parms.Appendf(TEXT(" --abslog \"%s\""),
-			*FPaths::ConvertRelativePathToFull(Settings.AutoLaunchSettings.LogPath));
-	}
-
-	if (!Settings.AutoLaunchSettings.ExtraArgs.IsEmpty())
-	{
-		Parms.AppendChar(TEXT(' '));
-		Parms.Append(Settings.AutoLaunchSettings.ExtraArgs);
-	}
-	return Parms;
-}
-
 bool
-FZenServiceInstance::AutoLaunch()
-{
-	// TODO: Install and update will be delegated to be the responsibility of the launched zenserver process in the future.
-	FString MainFilePath = ConditionalUpdateLocalInstall();
-
-	FString Parms = GetAutoLaunchArguments();
-
-	return AutoLaunch(MainFilePath, Parms, Settings.AutoLaunchSettings.DesiredPort);
-}
-
-bool
-FZenServiceInstance::AutoLaunch(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort)
+FZenServiceInstance::AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FString&& ExecutablePath, FString& OutHostName, uint16& OutPort)
 {
 	IFileManager& FileManager = IFileManager::Get();
-	FString LockFilePath = FPaths::Combine(Settings.AutoLaunchSettings.DataPath, TEXT(".lock"));
+	FString LockFilePath = FPaths::Combine(InSettings.DataPath, TEXT(".lock"));
 	FileManager.Delete(*LockFilePath, false, false, true);
 
-	FString FinalExecutablePath(MoveTemp(AutoLaunchExecutablePath));
-	FString FinalParms;
-	FinalParms.Appendf(TEXT("--owner-pid %d "),
-		FPlatformProcess::GetCurrentProcessId());
-	FinalParms += MoveTemp(AutoLaunchArguments);
+	bool bProcessIsLive = FileManager.FileExists(*LockFilePath) && FPlatformProcess::IsApplicationRunning(*FPaths::GetCleanFilename(ExecutablePath));
 
-	FProcHandle Proc;
+	// When limiting process lifetime, always re-launch to add sponsor process IDs.
+	// When not limiting process lifetime, only launch if the process is not already live.
+	if (InSettings.bLimitProcessLifetime || !bProcessIsLive)
+	{
+		FString Parms;
+		Parms.Appendf(TEXT("--port %d --data-dir \"%s\""),
+			InSettings.DesiredPort,
+			*InSettings.DataPath);
+
+		if (InSettings.bLimitProcessLifetime || GIsBuildMachine)
+		{
+			Parms.Appendf(TEXT(" --owner-pid %d"),
+				FPlatformProcess::GetCurrentProcessId());
+		}
+
+		FString LogCommandLineOverrideValue;
+		if (FParse::Value(FCommandLine::Get(), TEXT("ZenLogPath="), LogCommandLineOverrideValue))
+		{
+			if (!LogCommandLineOverrideValue.IsEmpty())
+			{
+				Parms.Appendf(TEXT(" --abslog \"%s\""),
+					*FPaths::ConvertRelativePathToFull(LogCommandLineOverrideValue));
+			}
+		}
+
+		if (!InSettings.ExtraArgs.IsEmpty())
+		{
+			Parms.AppendChar(TEXT(' '));
+			Parms.Append(InSettings.ExtraArgs);
+		}
+
+		FProcHandle Proc;
 #if PLATFORM_WINDOWS
-	{
-		// Attempt non-elevated launch
-		STARTUPINFO StartupInfo = {
-			sizeof(STARTUPINFO),
-			NULL, NULL, NULL,
-			(::DWORD)CW_USEDEFAULT,
-			(::DWORD)CW_USEDEFAULT,
-			(::DWORD)CW_USEDEFAULT,
-			(::DWORD)CW_USEDEFAULT,
-			(::DWORD)0, (::DWORD)0, (::DWORD)0,
-			(::DWORD) STARTF_USESHOWWINDOW,
-			(::WORD)(Settings.AutoLaunchSettings.bHidden ? SW_HIDE : SW_SHOWMINNOACTIVE),
-			0, NULL,
-			HANDLE(nullptr),
-			HANDLE(nullptr),
-			HANDLE(nullptr)
-		};
-
-		FString CommandLine = FString::Printf(TEXT("\"%s\" %s"), *FinalExecutablePath, *FinalParms);
-		PROCESS_INFORMATION ProcInfo;
-		if (CreateProcess(NULL, CommandLine.GetCharArray().GetData(), nullptr, nullptr, false, (::DWORD)(NORMAL_PRIORITY_CLASS | DETACHED_PROCESS), nullptr, nullptr, &StartupInfo, &ProcInfo))
 		{
-			::CloseHandle( ProcInfo.hThread );
-			Proc = FProcHandle(ProcInfo.hProcess);
+			// Attempt non-elevated launch
+			STARTUPINFO StartupInfo = {
+				sizeof(STARTUPINFO),
+				NULL, NULL, NULL,
+				(::DWORD)CW_USEDEFAULT,
+				(::DWORD)CW_USEDEFAULT,
+				(::DWORD)CW_USEDEFAULT,
+				(::DWORD)CW_USEDEFAULT,
+				(::DWORD)0, (::DWORD)0, (::DWORD)0,
+				(::DWORD)STARTF_USESHOWWINDOW,
+				(::WORD)(InSettings.bShowConsole ? SW_SHOWMINNOACTIVE : SW_HIDE),
+				0, NULL,
+				HANDLE(nullptr),
+				HANDLE(nullptr),
+				HANDLE(nullptr)
+			};
+
+			FString CommandLine = FString::Printf(TEXT("\"%s\" %s"), *ExecutablePath, *Parms);
+			PROCESS_INFORMATION ProcInfo;
+			if (CreateProcess(NULL, CommandLine.GetCharArray().GetData(), nullptr, nullptr, false, (::DWORD)(NORMAL_PRIORITY_CLASS | DETACHED_PROCESS), nullptr, nullptr, &StartupInfo, &ProcInfo))
+			{
+				::CloseHandle(ProcInfo.hThread);
+				Proc = FProcHandle(ProcInfo.hProcess);
+			}
+
 		}
-
-	}
-	if (!Proc.IsValid())
-	{
-		// Fall back to elevated launch
-		SHELLEXECUTEINFO ShellExecuteInfo;
-		ZeroMemory(&ShellExecuteInfo, sizeof(ShellExecuteInfo));
-		ShellExecuteInfo.cbSize = sizeof(ShellExecuteInfo);
-		ShellExecuteInfo.fMask = SEE_MASK_UNICODE | SEE_MASK_NOCLOSEPROCESS;
-		ShellExecuteInfo.lpFile = *FinalExecutablePath;
-		ShellExecuteInfo.lpVerb = TEXT("runas");
-		ShellExecuteInfo.nShow = Settings.AutoLaunchSettings.bHidden ? SW_HIDE : SW_SHOWMINNOACTIVE;
-		ShellExecuteInfo.lpParameters = *FinalParms;
-
-		if (ShellExecuteEx(&ShellExecuteInfo))
+		if (!Proc.IsValid())
 		{
-			Proc = FProcHandle(ShellExecuteInfo.hProcess);
+			// Fall back to elevated launch
+			SHELLEXECUTEINFO ShellExecuteInfo;
+			ZeroMemory(&ShellExecuteInfo, sizeof(ShellExecuteInfo));
+			ShellExecuteInfo.cbSize = sizeof(ShellExecuteInfo);
+			ShellExecuteInfo.fMask = SEE_MASK_UNICODE | SEE_MASK_NOCLOSEPROCESS;
+			ShellExecuteInfo.lpFile = *ExecutablePath;
+			ShellExecuteInfo.lpVerb = TEXT("runas");
+			ShellExecuteInfo.nShow = InSettings.bShowConsole ? SW_SHOWMINNOACTIVE : SW_HIDE;
+			ShellExecuteInfo.lpParameters = *Parms;
+
+			if (ShellExecuteEx(&ShellExecuteInfo))
+			{
+				Proc = FProcHandle(ShellExecuteInfo.hProcess);
+			}
 		}
-	}
 #else
-	{
-		bool bLaunchDetached = true;
-		bool bLaunchHidden = true;
-		bool bLaunchReallyHidden = Settings.AutoLaunchSettings.bHidden;
-		uint32* OutProcessID = nullptr;
-		int32 PriorityModifier = 0;
-		const TCHAR* OptionalWorkingDirectory = nullptr;
-		void* PipeWriteChild = nullptr;
-		void* PipeReadChild = nullptr;
-		Proc = FPlatformProcess::CreateProc(
-			*MainFilePath,
-			*Parms,
-			bLaunchDetached,
-			bLaunchHidden,
-			bLaunchReallyHidden,
-			OutProcessID,
-			PriorityModifier,
-			OptionalWorkingDirectory,
-			PipeWriteChild,
-			PipeReadChild);
-	}
+		{
+			bool bLaunchDetached = true;
+			bool bLaunchHidden = true;
+			bool bLaunchReallyHidden = !InSettings.bShowConsole;
+			uint32* OutProcessID = nullptr;
+			int32 PriorityModifier = 0;
+			const TCHAR* OptionalWorkingDirectory = nullptr;
+			void* PipeWriteChild = nullptr;
+			void* PipeReadChild = nullptr;
+			Proc = FPlatformProcess::CreateProc(
+				*MainFilePath,
+				*Parms,
+				bLaunchDetached,
+				bLaunchHidden,
+				bLaunchReallyHidden,
+				OutProcessID,
+				PriorityModifier,
+				OptionalWorkingDirectory,
+				PipeWriteChild,
+				PipeReadChild);
+		}
 #endif
+		bProcessIsLive = Proc.IsValid();
+	}
 
-	HostName = TEXT("localhost");
+
+	OutHostName = TEXT("localhost");
 	// Default to assuming that we get to run on the port we want
-	Port = DesiredPort;
+	OutPort = InSettings.DesiredPort;
 
-	if (Proc.IsValid())
+	if (bProcessIsLive)
 	{
 
 		FScopedSlowTask WaitForZenReadySlowTask(0, NSLOCTEXT("Zen", "Zen_WaitingForReady", "Waiting for ZenServer to be ready"));
@@ -605,7 +736,7 @@ FZenServiceInstance::AutoLaunch(FStringView AutoLaunchExecutablePath, FStringVie
 				bIsReady = LockObject["ready"].AsBool();
 				if (bIsReady)
 				{
-					Port = LockObject["port"].AsUInt16(DesiredPort);
+					OutPort = LockObject["port"].AsUInt16(InSettings.DesiredPort);
 					break;
 				}
 			}
@@ -717,6 +848,7 @@ FZenServiceInstance::GetStats( FZenStats& stats ) const
 			FZenEndPointStats EndPointStats;
 
 			EndPointStats.Name = FString(EndPointView["name"].AsString());
+			EndPointStats.Url = FString(EndPointView["url"].AsString());
 			EndPointStats.Health = FString(EndPointView["health"].AsString());
 			EndPointStats.HitRatio = EndPointView["hit_ratio"].AsDouble();
 			EndPointStats.UploadedMB = EndPointView["uploaded_mb"].AsDouble();
@@ -735,7 +867,7 @@ FZenServiceInstance::GetStats( FZenStats& stats ) const
 	return false;
 }
 
+#endif // UE_WITH_ZEN
 
 }
 
-#endif // UE_WITH_ZEN

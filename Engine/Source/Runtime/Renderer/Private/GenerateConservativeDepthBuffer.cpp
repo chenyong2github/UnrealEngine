@@ -21,8 +21,8 @@ class FGenerateConservativeDepthBufferCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, ConservativeDepthTextureUAV)
 		SHADER_PARAMETER(FIntPoint, ConservativeDepthTextureSize)
 		SHADER_PARAMETER(int32, DestinationPixelSizeAtFullRes)
-		SHADER_PARAMETER(FVector2D, HZBViewSize)
-		SHADER_PARAMETER(FVector2D, HZBSize)
+		SHADER_PARAMETER(FVector2f, HZBViewSize)
+		SHADER_PARAMETER(FVector2f, HZBSize)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
 		END_SHADER_PARAMETER_STRUCT()
@@ -57,7 +57,7 @@ void AddGenerateConservativeDepthBufferPass(FViewInfo& View, FRDGBuilder& GraphB
 		Parameters->HZBTexture = View.HZB;
 		Parameters->HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
 		Parameters->HZBSize = View.HZB->Desc.Extent;
-		Parameters->HZBViewSize = FVector2D(View.ViewRect.Size());
+		Parameters->HZBViewSize = FVector2f(View.ViewRect.Size());
 
 		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(ConservativeDepthTextureSize.X, ConservativeDepthTextureSize.Y, 1), FIntVector(8, 8, 1));
 		FComputeShaderUtils::AddPass(

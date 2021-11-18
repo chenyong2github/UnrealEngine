@@ -39,24 +39,40 @@ namespace CADKernel
 
 #ifdef CADKERNEL_DEV
 	void Wait(bool bMakeWait = true);
+	void Open3DDebugSession(FString name, const TArray<FIdent>& idList = TArray<FIdent>());
+	void Close3DDebugSession(bool bIsDisplayed = true);
 #else
 	inline void Wait(bool bMakeWait = true) {};
+	inline void Open3DDebugSession(FString name, const TArray<FIdent>& idList = TArray<FIdent>()) {};
+	inline void Close3DDebugSession(bool bIsDisplayed = true) {};
 #endif
-
-	void Open3DDebugSession(FString name, const TArray<FIdent>& idList = TArray<FIdent>());
-	void Close3DDebugSession();
 
 	class CADKERNEL_API F3DDebugSession
 	{
+	private:
+		bool bDisplay = true;
+
 	public :
 		F3DDebugSession(FString name, const TArray<FIdent>& Idents = TArray<FIdent>())
 		{
 			Open3DDebugSession(name, Idents);
 		}
 
+		F3DDebugSession(bool bInDisplay, FString name, const TArray<FIdent>& Idents = TArray<FIdent>())
+			: bDisplay(bInDisplay)
+		{
+			if (bDisplay)
+			{
+				Open3DDebugSession(name, Idents);
+			}
+		}
+
 		~F3DDebugSession()
 		{
-			Close3DDebugSession();
+			if (bDisplay)
+			{
+				Close3DDebugSession();
+			}
 		}
 	};
 
@@ -120,49 +136,47 @@ namespace CADKernel
 		DrawPoint(Point, Property);
 	}
 
-	CADKERNEL_API void DisplayProductTree(const TSharedPtr<FEntity>& RootId);
-	CADKERNEL_API void DisplayProductTree(const TSharedPtr<FModel>& Model);
-	CADKERNEL_API void DisplayProductTree(const TSharedPtr<FBody>& Body);
-	CADKERNEL_API void DisplayProductTree(const TSharedPtr<FShell>& Shell);
+	CADKERNEL_API void DisplayProductTree(const FEntity& RootId);
+	CADKERNEL_API void DisplayProductTree(const FModel& Model);
+	CADKERNEL_API void DisplayProductTree(const FBody& Body);
+	CADKERNEL_API void DisplayProductTree(const FShell& Shell);
 
 	CADKERNEL_API void DisplayAABB(const FAABB& aabb, FIdent Ident = 0);
 	CADKERNEL_API void DisplayAABB2D(const FAABB2D& aabb, FIdent Ident = 0);
 
-	CADKERNEL_API void DisplayEntity(const TSharedPtr<FEntity>& Entity);
-	CADKERNEL_API void DisplayEntity2D(const TSharedPtr<FEntity>& Entity);
+	CADKERNEL_API void DisplayEntity(const FEntity& Entity);
+	CADKERNEL_API void DisplayEntity2D(const FEntity& Entity);
 
-	CADKERNEL_API void DisplayLoop(const TSharedPtr<FTopologicalFace>& Entity);
-	CADKERNEL_API void DisplayIsoCurve(const TSharedPtr<FSurface>& CarrierSurface, double Coordinate, EIso Type);
+	CADKERNEL_API void DisplayLoop(const FTopologicalFace& Entity);
+	CADKERNEL_API void DisplayIsoCurve(const FSurface& CarrierSurface, double Coordinate, EIso Type);
 
 	CADKERNEL_API void Display(const FPlane& plane, FIdent Ident = 0);
 
-	CADKERNEL_API void Display(const TSharedPtr<FCurve>& Curve);
-	CADKERNEL_API void Display(const TSharedPtr<FSurface>& CarrierSurface);
+	CADKERNEL_API void Display(const FCurve& Curve);
+	CADKERNEL_API void Display(const FSurface& CarrierSurface);
 
-	CADKERNEL_API void Display(const TSharedPtr<FGroup>& Group);
-	CADKERNEL_API void Display(const TSharedPtr<FModel>& Model);
-	CADKERNEL_API void Display(const TSharedPtr<FBody>& Body);
-	CADKERNEL_API void Display(const TSharedPtr<FShell>& Shell);
-	CADKERNEL_API void Display(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
+	CADKERNEL_API void Display(const FGroup& Group);
+	CADKERNEL_API void Display(const FModel& Model);
+	CADKERNEL_API void Display(const FBody& Body);
+	CADKERNEL_API void Display(const FShell& Shell);
 	CADKERNEL_API void Display(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
-	CADKERNEL_API void Display(const TSharedPtr<FTopologicalFace>& Face);
-	CADKERNEL_API void Display(const TSharedPtr<FTopologicalLoop>& Loop);
-	CADKERNEL_API void Display(const TSharedPtr<FTopologicalVertex>& Vertex);
+	CADKERNEL_API void Display(const FTopologicalFace& Face);
+	CADKERNEL_API void Display(const FTopologicalLoop& Loop);
+	CADKERNEL_API void Display(const FTopologicalVertex& Vertex);
 
-	CADKERNEL_API void Display2D(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
-	CADKERNEL_API void Display2D(const TSharedPtr<FTopologicalFace>& Face);
-	CADKERNEL_API void Display2D(const TSharedPtr<FTopologicalLoop>& Loop);
-	CADKERNEL_API void Display2D(const TSharedPtr<FSurface>& CarrierSurface);
+	CADKERNEL_API void Display2D(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
+	CADKERNEL_API void Display2D(const FTopologicalFace& Face);
+	CADKERNEL_API void Display2D(const FTopologicalLoop& Loop);
+	CADKERNEL_API void Display2D(const FSurface& CarrierSurface);
 
-	CADKERNEL_API void DisplayMesh(const TSharedPtr<FMesh>& Mesh);
-	CADKERNEL_API void DisplayMesh(const TSharedRef<FFaceMesh>& Mesh);
-	CADKERNEL_API void DisplayMesh(const TSharedRef<FEdgeMesh>& Mesh);
-	CADKERNEL_API void DisplayMesh(const TSharedRef<FVertexMesh>& Mesh);
+	CADKERNEL_API void DisplayMesh(const FFaceMesh& Mesh);
+	CADKERNEL_API void DisplayMesh(const FEdgeMesh& Mesh);
+	CADKERNEL_API void DisplayMesh(const FVertexMesh& Mesh);
 
-	CADKERNEL_API void Display(const TSharedPtr<FModelMesh>& MeshModel);
+	CADKERNEL_API void Display(const FModelMesh& MeshModel);
 
-	CADKERNEL_API void DisplayControlPolygon(const TSharedPtr<FCurve>& Entity);
-	CADKERNEL_API void DisplayControlPolygon(const TSharedPtr<FSurface>& Entity);
+	CADKERNEL_API void DisplayControlPolygon(const FCurve& Entity);
+	CADKERNEL_API void DisplayControlPolygon(const FSurface& Entity);
 
 	template<typename TPoint>
 	void DisplaySegment(const TPoint& Point1, const TPoint& Point2, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::Element, bool bWithOrientation = false)
@@ -186,13 +200,13 @@ namespace CADKernel
 	CADKERNEL_API void DrawQuadripode(double Height, double Base, FPoint& Centre, FPoint& Direction);
 
 	CADKERNEL_API void Draw(const FTopologicalEdge& Edge, EVisuProperty Property = EVisuProperty::BlueCurve);
-	CADKERNEL_API void Draw(const TSharedPtr<FTopologicalFace>& Face);
-	CADKERNEL_API void Draw2D(const TSharedPtr<FTopologicalFace>& Face);
-	CADKERNEL_API void Draw(const TSharedPtr<FShell>& Shell);
+	CADKERNEL_API void Draw(const FTopologicalFace& Face);
+	CADKERNEL_API void Draw2D(const FTopologicalFace& Face);
+	CADKERNEL_API void Draw(const FShell& Shell);
 
-	CADKERNEL_API void Draw(const TSharedPtr<FCurve>& Curve, EVisuProperty Property = EVisuProperty::BlueCurve);
-	CADKERNEL_API void Draw(const TSharedPtr<FCurve>& Curve, const FLinearBoundary& Boundary, EVisuProperty Property = EVisuProperty::BlueCurve);
-	CADKERNEL_API void Draw(const FLinearBoundary& Boundary, const TSharedPtr<FRestrictionCurve>& Curve, EVisuProperty Property = EVisuProperty::BlueCurve);
+	CADKERNEL_API void Draw(const FCurve& Curve, EVisuProperty Property = EVisuProperty::BlueCurve);
+	CADKERNEL_API void Draw(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty Property = EVisuProperty::BlueCurve);
+	CADKERNEL_API void Draw(const FLinearBoundary& Boundary, const FRestrictionCurve& Curve, EVisuProperty Property = EVisuProperty::BlueCurve);
 
 	template<typename TPoint>
 	void DrawSegment(const TPoint& Point1, const TPoint& Point2, EVisuProperty Property = EVisuProperty::Element)
@@ -215,7 +229,7 @@ namespace CADKernel
 		DrawQuadripode(Height, Base, Middle, Tangent);
 	}
 
-	CADKERNEL_API void DrawIsoCurves(const TSharedPtr<FTopologicalFace>& Face);
+	CADKERNEL_API void DrawIsoCurves(const FTopologicalFace& Face);
 
 
 } // namespace CADKernel

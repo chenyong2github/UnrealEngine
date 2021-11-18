@@ -2,9 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "Delegates/Delegate.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformMisc.h"
 #include "Interfaces/ITargetDevice.h"
+#include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
+class FConfigCacheIni;
+class IDeviceManagerCustomPlatformWidgetCreator;
+class IPlugin;
 struct FDataDrivenPlatformInfo;
 
 namespace PlatformInfo
@@ -12,8 +24,6 @@ namespace PlatformInfo
 	// Forward declare type from DesktopPlatform rather than add an include dependency to everything using ITargetPlatform
 	struct FTargetPlatformInfo;
 }
-
-class IDeviceManagerCustomPlatformWidgetCreator;
 
 /**
  * Enumerates features that may be supported by target platforms.
@@ -339,6 +349,11 @@ public:
 	virtual bool IsServerOnly() const = 0;
 
 	/**
+	 * Checks whether this platform is enabled for the given plugin in the currently active project.
+	 */
+	virtual bool IsEnabledForPlugin(const IPlugin& Plugin) const = 0;
+
+	/**
 	* Checks whether this platform supports shader compilation over XGE interface.
 	*
 	* @return true if this platform can distribute shader compilation threads with XGE.
@@ -395,6 +410,14 @@ public:
 	 * @return true if the build target is supported, false otherwise.
 	 */
 	virtual bool SupportsBuildTarget( EBuildTargetType TargetType ) const = 0;
+
+	/**
+	 * Return the TargetType this platform uses at runtime.
+	 * Some TargetPlatforms like CookedEditors need to cook with one type, like Client, but then will run as an Editor.
+	 * Decisions made based solely on the cook type may cause data mismatches if the runtime type is different.
+	 * This is also useful for knowing what plugins will be enabled at runtime.
+	 */
+	virtual EBuildTargetType GetRuntimePlatformType() const = 0;
 
 	/**
 	 * Checks whether the target platform supports the specified feature.

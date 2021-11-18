@@ -29,6 +29,15 @@ static FAutoConsoleVariableRef CVarNoRecreateSplineMeshProxy(
 	GNoRecreateSplineMeshProxy,
 	TEXT("Optimization. If true, spline mesh proxies will not be recreated every time they are changed. They are simply updated."));
 
+FSplineMeshInstanceData::FSplineMeshInstanceData(const USplineMeshComponent* SourceComponent)
+	: FStaticMeshComponentInstanceData(SourceComponent)
+{
+	StartPos = SourceComponent->SplineParams.StartPos;
+	EndPos = SourceComponent->SplineParams.EndPos;
+	StartTangent = SourceComponent->SplineParams.StartTangent;
+	EndTangent = SourceComponent->SplineParams.EndTangent;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // FSplineMeshVertexFactoryShaderParameters
 
@@ -987,7 +996,7 @@ void USplineMeshComponent::DestroyBodySetup()
 {
 	if (BodySetup != NULL)
 	{
-		BodySetup->MarkPendingKill();
+		BodySetup->MarkAsGarbage();
 		BodySetup = NULL;
 #if WITH_EDITORONLY_DATA
 		CachedMeshBodySetupGuid.Invalidate();
@@ -1102,12 +1111,7 @@ TStructOnScope<FActorComponentInstanceData> USplineMeshComponent::GetComponentIn
 	TStructOnScope<FActorComponentInstanceData> InstanceData;
 	if (bAllowSplineEditingPerInstance)
 	{
-		InstanceData.InitializeAs<FSplineMeshInstanceData>(this);
-		FSplineMeshInstanceData *SplineMeshInstanceData = InstanceData.Cast<FSplineMeshInstanceData>();
-		SplineMeshInstanceData->StartPos = SplineParams.StartPos;
-		SplineMeshInstanceData->EndPos = SplineParams.EndPos;
-		SplineMeshInstanceData->StartTangent = SplineParams.StartTangent;
-		SplineMeshInstanceData->EndTangent = SplineParams.EndTangent;
+		InstanceData = MakeStructOnScope<FActorComponentInstanceData, FSplineMeshInstanceData>(this);
 	}
 	else
 	{

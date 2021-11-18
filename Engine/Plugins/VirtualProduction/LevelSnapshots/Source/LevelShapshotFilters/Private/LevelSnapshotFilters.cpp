@@ -22,6 +22,16 @@ EFilterResult::Type ULevelSnapshotFilter::IsAddedActorValid(const FIsAddedActorV
 	return EFilterResult::DoNotCare;
 }
 
+EFilterResult::Type ULevelSnapshotFilter::IsDeletedComponentValid(const FIsDeletedComponentValidParams& Params) const
+{
+	return EFilterResult::DoNotCare;
+}
+
+EFilterResult::Type ULevelSnapshotFilter::IsAddedComponentValid(const FIsAddedComponentValidParams& Params) const
+{
+	return EFilterResult::DoNotCare;
+}
+
 EFilterResult::Type ULevelSnapshotBlueprintFilter::IsActorValid_Implementation(const FIsActorValidParams& Params) const
 {
 	return EFilterResult::DoNotCare;
@@ -38,6 +48,16 @@ EFilterResult::Type ULevelSnapshotBlueprintFilter::IsDeletedActorValid_Implement
 }
 
 EFilterResult::Type ULevelSnapshotBlueprintFilter::IsAddedActorValid_Implementation(const FIsAddedActorValidParams& Params) const
+{
+	return EFilterResult::DoNotCare;
+}
+
+EFilterResult::Type ULevelSnapshotBlueprintFilter::IsDeletedComponentValid_Implementation(const FIsDeletedComponentValidParams& Params) const
+{
+	return EFilterResult::DoNotCare;
+}
+
+EFilterResult::Type ULevelSnapshotBlueprintFilter::IsAddedComponentValid_Implementation(const FIsAddedComponentValidParams& Params) const
 {
 	return EFilterResult::DoNotCare;
 }

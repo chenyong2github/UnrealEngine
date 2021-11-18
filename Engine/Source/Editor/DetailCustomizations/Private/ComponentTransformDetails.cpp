@@ -393,10 +393,10 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 	// Rotation
 	if(!bHideRotationField)
 	{
-		TSharedPtr<INumericTypeInterface<float>> TypeInterface;
+		TSharedPtr<INumericTypeInterface<FRotator::FReal>> TypeInterface;
 		if( FUnitConversion::Settings().ShouldDisplayUnits() )
 		{
-			TypeInterface = MakeShareable( new TNumericUnitTypeInterface<float>(EUnit::Degrees) );
+			TypeInterface = MakeShareable( new TNumericUnitTypeInterface<FRotator::FReal>(EUnit::Degrees) );
 		}
 
 		ChildrenBuilder.AddCustomRow( LOCTEXT("RotationFilter", "Rotation") )
@@ -415,7 +415,7 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 		.MaxDesiredWidth(125.0f * 3.0f)
 		.VAlign(VAlign_Center)
 		[
-			SNew( SRotatorInputBox )
+			SNew( SNumericRotatorInputBox<FRotator::FReal> )
 			.AllowSpin( SelectedObjects.Num() == 1 ) 
 			.Roll( this, &FComponentTransformDetails::GetRotationX )
 			.Pitch( this, &FComponentTransformDetails::GetRotationY )
@@ -424,12 +424,12 @@ void FComponentTransformDetails::GenerateChildContent( IDetailChildrenBuilder& C
 			.IsEnabled( this, &FComponentTransformDetails::GetIsEnabled )
 			.OnBeginSliderMovement( this, &FComponentTransformDetails::OnBeginRotationSlider )
 			.OnEndSliderMovement( this, &FComponentTransformDetails::OnEndRotationSlider )
-			.OnRollChanged( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETextCommit::Default, ETransformField::Rotation, EAxisList::X, false )
-			.OnPitchChanged( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETextCommit::Default, ETransformField::Rotation, EAxisList::Y, false )
-			.OnYawChanged( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETextCommit::Default, ETransformField::Rotation, EAxisList::Z, false )
-			.OnRollCommitted( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETransformField::Rotation, EAxisList::X, true )
-			.OnPitchCommitted( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETransformField::Rotation, EAxisList::Y, true )
-			.OnYawCommitted( this, &FComponentTransformDetails::OnSetTransformAxisFloat, ETransformField::Rotation, EAxisList::Z, true )
+			.OnRollChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::X, false )
+			.OnPitchChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Y, false )
+			.OnYawChanged( this, &FComponentTransformDetails::OnSetTransformAxis, ETextCommit::Default, ETransformField::Rotation, EAxisList::Z, false )
+			.OnRollCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::X, true )
+			.OnPitchCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Y, true )
+			.OnYawCommitted( this, &FComponentTransformDetails::OnSetTransformAxis, ETransformField::Rotation, EAxisList::Z, true )
 			.TypeInterface( TypeInterface )
 			.Font( FontInfo )
 		];
@@ -897,9 +897,9 @@ void FComponentTransformDetails::CacheTransform()
 					CachedLocation.Y = Loc.Y == CurLoc.Y && CachedLocation.Y.IsSet() ? Loc.Y : TOptional<FVector::FReal>();
 					CachedLocation.Z = Loc.Z == CurLoc.Z && CachedLocation.Z.IsSet() ? Loc.Z : TOptional<FVector::FReal>();
 
-					CachedRotation.X = Rot.Roll == CurRot.Roll && CachedRotation.X.IsSet() ? Rot.Roll : TOptional<float>();
-					CachedRotation.Y = Rot.Pitch == CurRot.Pitch && CachedRotation.Y.IsSet() ? Rot.Pitch : TOptional<float>();
-					CachedRotation.Z = Rot.Yaw == CurRot.Yaw && CachedRotation.Z.IsSet() ? Rot.Yaw : TOptional<float>();
+					CachedRotation.X = Rot.Roll == CurRot.Roll && CachedRotation.X.IsSet() ? Rot.Roll : TOptional<FRotator::FReal>();
+					CachedRotation.Y = Rot.Pitch == CurRot.Pitch && CachedRotation.Y.IsSet() ? Rot.Pitch : TOptional<FRotator::FReal>();
+					CachedRotation.Z = Rot.Yaw == CurRot.Yaw && CachedRotation.Z.IsSet() ? Rot.Yaw : TOptional<FRotator::FReal>();
 
 					CachedScale.X = Scale.X == CurScale.X && CachedScale.X.IsSet() ? Scale.X : TOptional<FVector::FReal>();
 					CachedScale.Y = Scale.Y == CurScale.Y && CachedScale.Y.IsSet() ? Scale.Y : TOptional<FVector::FReal>();
@@ -1314,12 +1314,6 @@ void FComponentTransformDetails::OnSetTransformAxis(FVector::FReal NewValue, ETe
 	OnSetTransform(TransformField, Axis, NewVector, false, bCommitted);
 }
 
-void FComponentTransformDetails::OnSetTransformAxisFloat(float NewValue, ETextCommit::Type CommitInfo, ETransformField::Type TransformField, EAxisList::Type Axis, bool bCommitted)
-{
-	FVector NewVector = GetAxisFilteredVector(Axis, FVector(NewValue), FVector::ZeroVector);
-	OnSetTransform(ETransformField::Rotation, Axis, NewVector, false, bCommitted);
-}
-
 void FComponentTransformDetails::BeginSliderTransaction(FText ActorTransaction, FText ComponentTransaction) const
 {
 	bool bBeganTransaction = false;
@@ -1397,7 +1391,7 @@ void FComponentTransformDetails::OnBeginRotationSlider()
 	}
 }
 
-void FComponentTransformDetails::OnEndRotationSlider(float NewValue)
+void FComponentTransformDetails::OnEndRotationSlider(FRotator::FReal NewValue)
 {
 	// Commit gets called right before this, only need to end the transaction
 	bEditingRotationInUI = false;

@@ -32,6 +32,7 @@ void FSlateAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_RootInvalidated, "SlateTrace", "RootInvalidated");
 	Builder.RouteEvent(RouteId_RootChildOrderInvalidated, "SlateTrace", "RootChildOrderInvalidated");
 	Builder.RouteEvent(RouteId_InvalidationCallstack, "SlateTrace", "InvalidationCallstack");
+	Builder.RouteEvent(RouteId_WidgetUpdateSteps, "SlateTrace", "WidgetUpdateSteps");
 }
 
 bool FSlateAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -102,6 +103,11 @@ bool FSlateAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 	case RouteId_InvalidationCallstack:
 	{
 		SlateProvider.ProcessInvalidationCallstack(Message::FInvalidationCallstackMessage(EventData));
+		break;
+	}
+	case RouteId_WidgetUpdateSteps:
+	{
+		SlateProvider.ProcessWidgetUpdateSteps(Context.EventTime, EventData);
 		break;
 	}
 	}

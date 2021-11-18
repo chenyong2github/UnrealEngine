@@ -7,8 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -62,7 +60,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ToolName"></param>
 		/// <returns></returns>
-		public static FileReference GetWindowsSdkToolPath(string ToolName)
+		public static FileReference? GetWindowsSdkToolPath(string ToolName)
 		{
 			return HoloLensToolChain.GetWindowsSdkToolPath(ToolName);
 		}

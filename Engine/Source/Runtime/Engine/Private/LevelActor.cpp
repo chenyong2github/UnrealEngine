@@ -603,7 +603,7 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		ActorPath += NewActorName.ToString();
 
 		// @todo FH: needs to handle mark package dirty and asset creation notification
-		ExternalPackage = ULevel::CreateActorPackage(LevelToSpawnIn->GetPackage(), *ActorPath);
+		ExternalPackage = ULevel::CreateActorPackage(LevelToSpawnIn->GetPackage(), LevelToSpawnIn->GetActorPackagingScheme(), *ActorPath);
 	}
 #endif
 
@@ -970,7 +970,7 @@ bool UWorld::DestroyActor( AActor* ThisActor, bool bNetForce, bool bShouldModify
 	ThisActor->UnregisterAllComponents();
 
 	// Mark the actor and its direct components as pending kill.
-	ThisActor->MarkPendingKill();
+	ThisActor->MarkAsGarbage();
 	ThisActor->MarkPackageDirty();
 	ThisActor->MarkComponentsAsPendingKill();
 

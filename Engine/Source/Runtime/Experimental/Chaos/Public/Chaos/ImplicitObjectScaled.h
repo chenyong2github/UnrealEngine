@@ -172,9 +172,9 @@ public:
 	}
 
 	// The support position from the specified direction, if the shape is reduced by the margin
-	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, FReal InMargin) const
+	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta) const
 	{
-		return MObject->SupportCore(Direction, InMargin);
+		return MObject->SupportCore(Direction, InMargin, OutSupportDelta);
 	}
 
 	virtual const TAABB<T, d> BoundingBox() const override 
@@ -832,9 +832,9 @@ public:
 		return Thickness > 0 ? TVector<T, d>(UnthickenedPt + Direction.GetSafeNormal() * Thickness) : UnthickenedPt;
 	}
 
-	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, FReal InMargin) const
+	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta) const
 	{
-		return MObject->SupportCoreScaled(Direction, InMargin, MScale);
+		return MObject->SupportCoreScaled(Direction, InMargin, MScale, OutSupportDelta);
 	}
 
 	void SetScale(const FVec3& Scale)

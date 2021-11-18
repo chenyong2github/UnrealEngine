@@ -40,11 +40,19 @@ struct FExistingMeshLodSectionData
 	bool bDisabled;
 };
 
+struct FSkeletalMeshLodImportDataBackup
+{
+	FSkeletalMeshImportData MeshImportData;
+	ESkeletalMeshGeoImportVersions MeshGeoImportVersion = ESkeletalMeshGeoImportVersions::Before_Versionning;
+	ESkeletalMeshSkinningImportVersions MeshSkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
+};
+
 struct FExistingSkelMeshData
 {
 	TArray<USkeletalMeshSocket*>			ExistingSockets;
 	TArray<FInlineReductionCacheData>		ExistingInlineReductionCacheDatas;
 	TIndirectArray<FSkeletalMeshLODModel>	ExistingLODModels;
+	TArray<FSkeletalMeshLodImportDataBackup>	ExistingLODImportDatas;
 	TArray<FSkeletalMeshLODInfo>			ExistingLODInfo;
 	FReferenceSkeleton						ExistingRefSkeleton;
 	TArray<FSkeletalMaterial>				ExistingMaterials;
@@ -99,6 +107,7 @@ struct FExistingSkelMeshData
 
 	bool bExistingSupportRayTracing;
 	int32 ExistingRayTracingMinLOD;
+	EClothLODBiasMode ExistingClothLODBiasMode;
 };
 
 /** 

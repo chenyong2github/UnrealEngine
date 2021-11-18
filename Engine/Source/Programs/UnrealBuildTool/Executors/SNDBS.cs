@@ -11,15 +11,13 @@ using System.Text.Json;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	sealed class SNDBS : ActionExecutor
 	{
 		public override string Name => "SNDBS";
 
-		private static readonly string SCERoot = Environment.GetEnvironmentVariable("SCE_ROOT_DIR");
+		private static readonly string? SCERoot = Environment.GetEnvironmentVariable("SCE_ROOT_DIR");
 		private static readonly string SNDBSExecutable = Path.Combine(SCERoot ?? string.Empty, "Common", "SN-DBS", "bin", "dbsbuild.exe");
 
 		private static readonly DirectoryReference IntermediateDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "SNDBS");
@@ -118,9 +116,12 @@ namespace UnrealBuildTool
 				var TemplateFile = FileReference.Combine(IntermediateDir, $"{Template.Key}.sn-dbs-tool.ini");
 				var TemplateText = Template.Value;
 
-				foreach (DictionaryEntry Variable in Environment.GetEnvironmentVariables(EnvironmentVariableTarget.Process))
+				foreach (Nullable<DictionaryEntry> Variable in Environment.GetEnvironmentVariables(EnvironmentVariableTarget.Process))
 				{
-					TemplateText = TemplateText.Replace($"{{{Variable.Key}}}", Variable.Value.ToString());
+					if (Variable.HasValue)
+					{
+						TemplateText = TemplateText.Replace($"{{{Variable.Value.Key}}}", Variable.Value.Value!.ToString());
+					}
 				}
 
 				File.WriteAllText(TemplateFile.FullName, TemplateText);

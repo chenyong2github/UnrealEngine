@@ -7,8 +7,6 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using System.Linq;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class AndroidPlatformSDK : UEBuildPlatformSDK
@@ -28,7 +26,7 @@ namespace UnrealBuildTool
 			MaxVersion = "r23a";
 		}
 
-		public override void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion)
+		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			MinVersion = MaxVersion = null;
 		}
@@ -47,9 +45,9 @@ namespace UnrealBuildTool
 		}
 
 
-		public override string GetInstalledSDKVersion()
+		public override string? GetInstalledSDKVersion()
 		{
-			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
+			string? NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
 
 			// don't register if we don't have an NDKROOT specified
 			if (String.IsNullOrEmpty(NDKPath))
@@ -60,7 +58,7 @@ namespace UnrealBuildTool
 			NDKPath = NDKPath.Replace("\"", "");
 
 			// figure out the NDK version
-			string NDKToolchainVersion = null;
+			string? NDKToolchainVersion = null;
 			string SourcePropFilename = Path.Combine(NDKPath, "source.properties");
 			if (File.Exists(SourcePropFilename))
 			{
@@ -96,11 +94,10 @@ namespace UnrealBuildTool
 
 			// return something like r10e, or null if anything went wrong above
 			return NDKToolchainVersion;
-
 		}
 
 
-		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
+		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
 		{
 			// convert r<num>[letter] to hex
 			if (!string.IsNullOrEmpty(StringValue))
@@ -169,7 +166,7 @@ namespace UnrealBuildTool
 
 		public static bool GetPath(ConfigHierarchy Ini, string SectionName, string Key, out string Value)
 		{
-			string temp;
+			string? temp;
 			if (Ini.TryGetValue(SectionName, Key, out temp))
 			{
 				return ExtractPath(temp, out Value);
@@ -190,16 +187,16 @@ namespace UnrealBuildTool
 		{
 			// The Android SDK is not required to build AndroidTargetPlatform. So for installed builds where its expected another machine will have
 			// the SDK setup we can force this to be on to build AndroidTargetPlatform.
-			string ForceAndroidSDK = Environment.GetEnvironmentVariable("FORCE_ANDROID_SDK_ENABLED");
+			string? ForceAndroidSDK = Environment.GetEnvironmentVariable("FORCE_ANDROID_SDK_ENABLED");
 
 			if (!String.IsNullOrEmpty(ForceAndroidSDK))
 			{
 				return true;
 			}
 
-			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
+			string? NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
 			{
-				ConfigHierarchy configCacheIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, (DirectoryReference)null, BuildHostPlatform.Current.Platform);
+				ConfigHierarchy configCacheIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, null, BuildHostPlatform.Current.Platform);
 				Dictionary<string, string> AndroidEnv = new Dictionary<string, string>();
 
 				Dictionary<string, string> EnvVarNames = new Dictionary<string, string> {
@@ -217,7 +214,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						string envValue = Environment.GetEnvironmentVariable(kvp.Key);
+						string? envValue = Environment.GetEnvironmentVariable(kvp.Key);
 						if (!String.IsNullOrEmpty(envValue))
 						{
 							AndroidEnv.Add(kvp.Key, envValue);

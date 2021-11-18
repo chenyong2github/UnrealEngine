@@ -513,20 +513,20 @@ bool FNavMeshPath::IsPathSegmentANavLink(const int32 PathSegmentStartIndex) cons
 		&& FNavMeshNodeFlags(PathPoints[PathSegmentStartIndex].Flags).IsNavLink();
 }
 
-void FNavMeshPath::DebugDraw(const ANavigationData* NavData, FColor PathColor, UCanvas* Canvas, bool bPersistent, const uint32 NextPathPointIndex) const
+void FNavMeshPath::DebugDraw(const ANavigationData* NavData, const FColor PathColor, UCanvas* Canvas, const bool bPersistent, const float LifeTime, const uint32 NextPathPointIndex) const
 {
-	Super::DebugDraw(NavData, PathColor, Canvas, bPersistent, NextPathPointIndex);
+	Super::DebugDraw(NavData, PathColor, Canvas, bPersistent, LifeTime, NextPathPointIndex);
 
 #if WITH_RECAST && ENABLE_DRAW_DEBUG
 	const ARecastNavMesh* RecastNavMesh = Cast<const ARecastNavMesh>(NavData);		
-	const TArray<FNavigationPortalEdge>& Edges = (const_cast<FNavMeshPath*>(this))->GetPathCorridorEdges();	
+	const TArray<FNavigationPortalEdge>& Edges = GetPathCorridorEdges();
 	const int32 CorridorEdgesCount = Edges.Num();
 	const UWorld* World = NavData->GetWorld();
 
 	for (int32 EdgeIndex = 0; EdgeIndex < CorridorEdgesCount; ++EdgeIndex)
 	{
 		DrawDebugLine(World, Edges[EdgeIndex].Left + NavigationDebugDrawing::PathOffset, Edges[EdgeIndex].Right + NavigationDebugDrawing::PathOffset
-			, FColor::Blue, bPersistent, /*LifeTime*/-1.f, /*DepthPriority*/0
+			, FColor::Blue, bPersistent, LifeTime, /*DepthPriority*/0
 			, /*Thickness*/NavigationDebugDrawing::PathLineThickness);
 	}
 
@@ -640,7 +640,7 @@ bool FNavMeshPath::DoesPathIntersectBoxImplementation(const FBox& Box, const FVe
 		// test the last portal->path end line. 
 		if (bIntersects == false)
 		{
-			ensure(PathPoints.Num() == 2);
+			ensure(PathPoints.Num() >= 2);
 			const FVector End = PathPoints.Last().Location + (AgentExtent ? FVector(0.f, 0.f, AgentExtent->Z) : FVector::ZeroVector);
 
 			if (CheckIntersectBetweenPoints(Box, AgentExtent, Start, End))
@@ -686,10 +686,10 @@ bool FNavMeshPath::DoesIntersectBox(const FBox& Box, uint32 StartingIndex, int32
 	{
 		return Super::DoesIntersectBox(Box, StartingIndex, IntersectingSegmentIndex);
 	}
-	
+
 	bool bParametersValid = true;
 	FVector StartLocation = PathPoints[0].Location;
-	
+
 	const TArray<FNavigationPortalEdge>& CorridorEdges = GetPathCorridorEdges();
 	if (StartingIndex < uint32(CorridorEdges.Num()))
 	{

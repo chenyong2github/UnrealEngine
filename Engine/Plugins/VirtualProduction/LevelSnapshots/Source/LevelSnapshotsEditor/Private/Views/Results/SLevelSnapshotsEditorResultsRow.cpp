@@ -100,26 +100,7 @@ void SLevelSnapshotsEditorResultsRow::Construct(const FArguments& InArgs, const 
 			SAssignNew(BorderPtr, SBorder)
 			.ToolTipText(Tooltip)
 			.Padding(FMargin(0, 5))
-			.BorderImage_Lambda([RowType]()
-				{
-					switch (RowType)
-					{							
-						case FLevelSnapshotsEditorResultsRow::ModifiedActorGroup:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ActorGroupBorder");
-
-						case FLevelSnapshotsEditorResultsRow::AddedActorToRemove:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ActorGroupBorder");
-
-						case FLevelSnapshotsEditorResultsRow::RemovedActorToAdd:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ActorGroupBorder");
-
-						case FLevelSnapshotsEditorResultsRow::TreeViewHeader:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.HeaderRowBorder");
-
-						default:
-							return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.DefaultBorder");
-					}
-				})
+			.BorderImage(GetBorderImage(RowType))
 		]
 	];
 
@@ -382,6 +363,27 @@ TSharedRef<SWidget> SLevelSnapshotsEditorResultsRow::GenerateFinalValueWidget(
 	}
 
 	return FinalValueWidget.ToSharedRef();
+}
+
+const FSlateBrush* SLevelSnapshotsEditorResultsRow::GetBorderImage(const FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType InRowType)
+{
+	switch (InRowType)
+	{							
+		case FLevelSnapshotsEditorResultsRow::ModifiedActorGroup:
+			return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ActorGroupBorder");
+
+		case FLevelSnapshotsEditorResultsRow::AddedActorToRemove:
+			return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ActorGroupBorder");
+
+		case FLevelSnapshotsEditorResultsRow::RemovedActorToAdd:
+			return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.ActorGroupBorder");
+
+		case FLevelSnapshotsEditorResultsRow::TreeViewHeader:
+			return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.HeaderRowBorder");
+
+		default:
+			return FLevelSnapshotsEditorStyle::GetBrush("LevelSnapshotsEditor.DefaultBorder");
+	}
 }
 
 float SLevelSnapshotsEditorResultsRow::GetNameColumnSize() const

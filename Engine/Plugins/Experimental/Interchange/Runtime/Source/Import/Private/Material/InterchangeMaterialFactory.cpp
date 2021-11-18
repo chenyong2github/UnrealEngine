@@ -295,7 +295,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const FCreateAssetParams& Argu
 	{
 		//The material is not a UMaterialInterface
 		MaterialObject->RemoveFromRoot();
-		MaterialObject->MarkPendingKill();
+		MaterialObject->MarkAsGarbage();
 	}
 	return MaterialObject;
 #endif

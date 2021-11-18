@@ -310,10 +310,13 @@ void FEditorDomainPackageSegments::OnRecordRequestComplete(UE::DerivedData::FCac
 
 		if (CompositeSize != FileSize)
 		{
-			UE_LOG(LogEditorDomain, Warning, TEXT("Package %s received invalid record from EditorDomainPackage table ")
-				TEXT("with size of all segments %" UINT64_FMT " not equal to FileSize in metadata %" UINT64_FMT)
-				TEXT(". Reading from workspace domain instead."),
-				*PackagePath.GetDebugName(), CompositeSize, FileSize);
+			bool bMetaDataExists = bool(Record.GetMeta());
+			UE_LOG(LogEditorDomain, Warning,
+				TEXT("Package %s received an invalid CacheRecord from DDC: %s. Reading from workspace domain instead."),
+				*PackagePath.GetDebugName(),
+				bMetaDataExists ? *WriteToString<128>(
+					TEXT("size of all segments "), CompositeSize, TEXT(" is not equal to FileSize in metadata "), FileSize
+					) : TEXT("metadata is empty"));
 			Segments.Empty();
 		}
 		else

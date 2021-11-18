@@ -13,6 +13,7 @@ namespace Electra
 		FDelegateHandle									ApplicationResumeDelegate;
 		FCriticalSection								ApplicationBGFGLock;
 		TArray<TWeakPtrTS<FFGBGNotificationHandlers>>	ApplicationBGFGHandlers;
+		volatile bool									bIsInBackground = false;
 	}
 	using namespace Global;
 
@@ -21,6 +22,7 @@ namespace Electra
 	{
 		ApplicationBGFGLock.Lock();
 		TArray<TWeakPtrTS<FFGBGNotificationHandlers>>	CurrentHandlers(ApplicationBGFGHandlers);
+		bIsInBackground = true;
 		ApplicationBGFGLock.Unlock();
 		for(auto &Handler : CurrentHandlers)
 		{
@@ -36,6 +38,7 @@ namespace Electra
 	{
 		ApplicationBGFGLock.Lock();
 		TArray<TWeakPtrTS<FFGBGNotificationHandlers>>	CurrentHandlers(ApplicationBGFGHandlers);
+		bIsInBackground = false;
 		ApplicationBGFGLock.Unlock();
 		for(auto &Handler : CurrentHandlers)
 		{
@@ -90,10 +93,11 @@ namespace Electra
 		}
 	}
 
-	void AddBGFGNotificationHandler(TSharedPtrTS<FFGBGNotificationHandlers> InHandlers)
+	bool AddBGFGNotificationHandler(TSharedPtrTS<FFGBGNotificationHandlers> InHandlers)
 	{
 		FScopeLock lock(&ApplicationBGFGLock);
 		ApplicationBGFGHandlers.Add(InHandlers);
+		return bIsInBackground;
 	}
 
 	void RemoveBGFGNotificationHandler(TSharedPtrTS<FFGBGNotificationHandlers> InHandlers)

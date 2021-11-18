@@ -23,25 +23,26 @@ class MESHMODELINGTOOLSEXP_API USelfUnionMeshesToolProperties : public UInteract
 {
 	GENERATED_BODY()
 public:
-	/** Automatically attempt to fill any holes left by merging (e.g. due to numerical errors) */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bAttemptFixHoles = false;
-
-	/** Try to collapse extra edges created by the Boolean operation */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bCollapseExtraEdges = true;
-
-	/** Show boundary edges created by the union operation (often due to numerical error) */
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bShowNewBoundaryEdges = true;
 
 	/** If true, remove open, visible geometry */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Merge)
 	bool bTrimFlaps = false;
 
-	/** Winding number threshold to determine what is consider inside the mesh */
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	double WindingNumberThreshold = .5;
+	/** Try to fill holes created by the merge, e.g. due to numerical errors */
+	UPROPERTY(EditAnywhere, Category = Merge, AdvancedDisplay)
+	bool bTryFixHoles = false;
+
+	/** Try to collapse extra edges created by the merge */
+	UPROPERTY(EditAnywhere, Category = Merge, AdvancedDisplay)
+	bool bTryCollapseEdges = true;
+
+	/** Threshold to determine whether a triangle in one mesh is inside or outside of the other */
+	UPROPERTY(EditAnywhere, Category = Merge, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
+	float WindingThreshold = 0.5;
+
+	/** Show boundary edges created by the merge (often due to numerical error) */
+	UPROPERTY(EditAnywhere, Category = Display)
+	bool bShowNewBoundaryEdges = true;
 
 	/** If true, only the first mesh will keep its materials assignments; all other triangles will be assigned material 0 */
 	UPROPERTY(EditAnywhere, Category = Materials)
@@ -74,8 +75,8 @@ protected:
 	virtual void SaveProperties() override;
 	virtual void SetPreviewCallbacks() override;
 
-	virtual FString GetCreatedAssetName() const;
-	virtual FText GetActionName() const;
+	virtual FString GetCreatedAssetName() const override;
+	virtual FText GetActionName() const override;
 
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;

@@ -888,7 +888,7 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 		VValues.AddUninitialized(NumClusterVerts);
 		for (uint32 i = 0; i < NumClusterVerts; i++)
 		{
-			const FVector2D& UV = Cluster.GetUVs(i)[ UVIndex ];
+			const FVector2f& UV = Cluster.GetUVs(i)[ UVIndex ];
 			UValues[i] = UV.X;
 			VValues[i] = UV.Y;
 		}
@@ -897,8 +897,8 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 		VValues.Sort();
 
 		// Find largest gap between sorted UVs
-		FVector2D LargestGapStart = FVector2D(UValues[0], VValues[0]);
-		FVector2D LargestGapEnd = FVector2D(UValues[0], VValues[0]);
+		FVector2f LargestGapStart = FVector2f(UValues[0], VValues[0]);
+		FVector2f LargestGapEnd = FVector2f(UValues[0], VValues[0]);
 		for (uint32 i = 0; i < NumClusterVerts - 1; i++)
 		{
 			if (UValues[i + 1] - UValues[i] > LargestGapEnd.X - LargestGapStart.X)
@@ -913,8 +913,8 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 			}
 		}
 
-		const FVector2D UVMin = FVector2D(UValues[0], VValues[0]);
-		const FVector2D UVMax = FVector2D(UValues[NumClusterVerts - 1], VValues[NumClusterVerts - 1]);
+		const FVector2f UVMin = FVector2f(UValues[0], VValues[0]);
+		const FVector2f UVMax = FVector2f(UValues[NumClusterVerts - 1], VValues[NumClusterVerts - 1]);
 		const int32 MaxTexCoordQuantizedValue = (1 << MAX_TEXCOORD_QUANTIZATION_BITS) - 1;
 
 		int TexCoordPrecision = 14;
@@ -971,7 +971,7 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 				}
 				QuantizationScale *= 0.5f;
 				TexCoordPrecision--;
-				check(++Iterations < 100);	// Endless loop?
+				check(++Iterations < 256);	// Endless loop?
 			}
 		}
 	}
@@ -1149,10 +1149,10 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 		BitWriter_Attribute.PutBits(ColorDW, 32);
 
 		// UVs
-		const FVector2D* UVs = Cluster.GetUVs(VertexIndex);
+		const FVector2f* UVs = Cluster.GetUVs(VertexIndex);
 		for (uint32 TexCoordIndex = 0; TexCoordIndex < NumTexCoords; TexCoordIndex++)
 		{
-			const FVector2D& UV = UVs[TexCoordIndex];
+			const FVector2f& UV = UVs[TexCoordIndex];
 			BitWriter_Attribute.PutBits(*(uint32*)&UV.X, 32);
 			BitWriter_Attribute.PutBits(*(uint32*)&UV.Y, 32);
 		}
@@ -1177,7 +1177,7 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 
 		for(uint32 i : UniqueToVertexIndex)
 		{
-			const FVector2D& UV = Cluster.GetUVs(i)[ UVIndex ];
+			const FVector2f& UV = Cluster.GetUVs(i)[ UVIndex ];
 
 			int32 U = (int32)FMath::RoundToFloat(UV.X * QuantizationScale) - UVRange.Min.X;
 			int32 V = (int32)FMath::RoundToFloat(UV.Y * QuantizationScale) - UVRange.Min.Y;

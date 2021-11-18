@@ -6,7 +6,7 @@
 #include "ObjectSnapshotData.h"
 #include "WorldSnapshotData.h"
 
-void FApplyClassDefaulDataArchive::SerializeClassDefaultObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InCDO)
+void UE::LevelSnapshots::Private::FApplyClassDefaulDataArchive::SerializeClassDefaultObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InCDO)
 {
 	check(!FLevelSnapshotsModule::GetInternalModuleInstance().ShouldSkipClassDefaultSerialization(InCDO->GetClass()));
 	
@@ -14,13 +14,13 @@ void FApplyClassDefaulDataArchive::SerializeClassDefaultObject(FObjectSnapshotDa
 	InCDO->Serialize(Archive);
 }
 
-void FApplyClassDefaulDataArchive::RestoreChangedClassDefaults(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore)
+void UE::LevelSnapshots::Private::FApplyClassDefaulDataArchive::RestoreChangedClassDefaults(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore)
 {
 	FApplyClassDefaulDataArchive Archive(InObjectData, InSharedData, InObjectToRestore, ESerialisationMode::RestoringChangedDefaults);
 	InObjectToRestore->Serialize(Archive);
 }
 
-FApplyClassDefaulDataArchive::FApplyClassDefaulDataArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, ESerialisationMode InSerialisationMode)
+UE::LevelSnapshots::Private::FApplyClassDefaulDataArchive::FApplyClassDefaulDataArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InObjectToRestore, ESerialisationMode InSerialisationMode)
 	:
 	Super(InObjectData, InSharedData, true, InObjectToRestore)
 {

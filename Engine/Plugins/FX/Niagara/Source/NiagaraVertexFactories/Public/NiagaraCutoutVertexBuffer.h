@@ -26,7 +26,7 @@ public:
 	FShaderResourceViewRHIRef VertexBufferSRV;
 
 	/** Data to initialize the buffer. */
-	TArray<FVector2D> Data;
+	TArray<FVector2f> Data;
 };
 
 extern NIAGARAVERTEXFACTORIES_API TGlobalResource<FNiagaraCutoutVertexBuffer> GFNiagaraNullCutoutVertexBuffer;

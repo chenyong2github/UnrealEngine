@@ -67,7 +67,7 @@ void UControlRigThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 			if (Pair.Value && Pair.Value->GetOuter())
 			{
 				Pair.Value->Rename(nullptr, GetTransientPackage());
-				Pair.Value->MarkPendingKill();
+				Pair.Value->MarkAsGarbage();
 			}
 		}
 		ShapeActors.Reset();

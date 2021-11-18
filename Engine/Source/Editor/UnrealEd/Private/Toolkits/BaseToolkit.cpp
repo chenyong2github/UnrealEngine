@@ -178,26 +178,30 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost,
 		DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 	}
 
-	FToolkitManager::Get().RegisterNewToolkit(SharedThis(this));
+	GetEditorModeManager().OnEditorModeIDChanged().AddSP(this, &FModeToolkit::OnModeIDChanged);
 }
 
 
 FModeToolkit::~FModeToolkit()
 {
-	if (IsHosted() && OwningEditorMode.IsValid())
+	if (IsHosted())
 	{
-		UInteractiveToolManager* EditorToolManager = OwningEditorMode->GetToolManager(EToolsContextScope::Editor);
-		if (EditorToolManager)
+		GetEditorModeManager().OnEditorModeIDChanged().RemoveAll(this);
+		if (OwningEditorMode.IsValid())
 		{
-			EditorToolManager->OnToolStarted.RemoveAll(this);
-			EditorToolManager->OnToolEnded.RemoveAll(this);
-		}
+			UInteractiveToolManager* EditorToolManager = OwningEditorMode->GetToolManager(EToolsContextScope::Editor);
+			if (EditorToolManager)
+			{
+				EditorToolManager->OnToolStarted.RemoveAll(this);
+				EditorToolManager->OnToolEnded.RemoveAll(this);
+			}
 
-		UInteractiveToolManager* ModeToolManager = OwningEditorMode->GetToolManager(EToolsContextScope::EdMode);
-		if (ModeToolManager)
-		{
-			ModeToolManager->OnToolStarted.RemoveAll(this);
-			ModeToolManager->OnToolEnded.RemoveAll(this);
+			UInteractiveToolManager* ModeToolManager = OwningEditorMode->GetToolManager(EToolsContextScope::EdMode);
+			if (ModeToolManager)
+			{
+				ModeToolManager->OnToolStarted.RemoveAll(this);
+				ModeToolManager->OnToolEnded.RemoveAll(this);
+			}
 		}
 	}
 	if (ModeToolBarContainer)
@@ -292,13 +296,9 @@ class FEdMode* FModeToolkit::GetEditorMode() const
 
 FText FModeToolkit::GetEditorModeDisplayName() const
 {
-	if (FEdMode* EdMode = GetEditorMode())
+	if (const FEditorModeInfo* ModeInfo = GetEditorModeInfo())
 	{
-		return EdMode->GetModeInfo().Name;
-	}
-	else if (OwningEditorMode.IsValid())
-	{
-		return OwningEditorMode->GetModeInfo().Name;
+		return ModeInfo->Name;
 	}
 
 	return FText::GetEmpty();
@@ -306,13 +306,9 @@ FText FModeToolkit::GetEditorModeDisplayName() const
 
 FSlateIcon FModeToolkit::GetEditorModeIcon() const
 {
-	if (FEdMode* EdMode = GetEditorMode())
+	if (const FEditorModeInfo* ModeInfo = GetEditorModeInfo())
 	{
-		return EdMode->GetModeInfo().IconBrush;
-	}
-	else if (OwningEditorMode.IsValid())
-	{
-		return OwningEditorMode->GetModeInfo().IconBrush;
+		return ModeInfo->IconBrush;
 	}
 
 	return FSlateIcon();
@@ -627,6 +623,38 @@ void FModeToolkit::RequestModeUITabs()
 			ModeUILayerPtr->SetModePanelInfo(UAssetEditorUISubsystem::VerticalToolbarID, ToolbarInfo);
 		}
 	}
+}
+
+void FModeToolkit::OnModeIDChanged(const FEditorModeID& InID, bool bIsEntering)
+{
+	if (const FEditorModeInfo* ModeInfo = GetEditorModeInfo())
+	{
+		if (ModeInfo->ID != NAME_None && ModeInfo->ID == InID)
+		{
+			if (bIsEntering)
+			{
+				FToolkitManager::Get().RegisterNewToolkit(SharedThis(this));
+			}
+			else
+			{
+				FToolkitManager::Get().CloseToolkit(SharedThis(this));
+			}
+		}
+	}
+}
+
+const FEditorModeInfo* FModeToolkit::GetEditorModeInfo() const
+{
+	if (const FEdMode* EdMode = GetEditorMode())
+	{
+		return &EdMode->GetModeInfo();
+	}
+	else if (OwningEditorMode.IsValid())
+	{
+		return &OwningEditorMode->GetModeInfo();
+	}
+
+	return nullptr;
 }
 
 bool FModeToolkit::ShouldShowModeToolbar() const

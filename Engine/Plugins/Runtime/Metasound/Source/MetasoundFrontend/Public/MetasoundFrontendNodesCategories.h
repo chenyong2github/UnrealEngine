@@ -13,5 +13,6 @@ namespace Metasound
 		extern const FText METASOUNDFRONTEND_API Graphs;
 		extern const FText METASOUNDFRONTEND_API Inputs;
 		extern const FText METASOUNDFRONTEND_API Outputs;
+		extern const FText METASOUNDFRONTEND_API Variables;
 	} // namespace NodeCategories
 } // namespace Metasound

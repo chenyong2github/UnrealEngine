@@ -266,7 +266,8 @@ TSharedRef<ISequencerTrackEditor> FGroomCacheTrackEditor::CreateTrackEditor(TSha
 
 bool FGroomCacheTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
-	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
+	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneGroomCacheTrack::StaticClass()) : ETrackSupport::NotSupported;    
+	return (InSequence && InSequence->IsA(ULevelSequence::StaticClass())) || TrackSupported == ETrackSupport::Supported; 
 }
 
 bool FGroomCacheTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const

@@ -1186,17 +1186,17 @@ void UGeomModifier_Lathe::Apply( int32 InTotalSegments, int32 InSegments, EAxis:
 
 					// Add the verts from the shape
 
-					FRotator rot = FRotator( 0, AngleStep * InSegments, 0 );
+					FRotator3f rot = FRotator3f( 0, AngleStep * InSegments, 0 );
 					if( Axis == EAxis::X )
 					{
-						rot = FRotator( AngleStep * InSegments, 0, 0 );
+						rot = FRotator3f( AngleStep * InSegments, 0, 0 );
 					}
 					else if( Axis == EAxis::Z )
 					{
-						rot = FRotator( 0, 0, AngleStep * InSegments );
+						rot = FRotator3f( 0, 0, AngleStep * InSegments );
 					}
 
-					FRotationMatrix RotationMatrix( rot );
+					FRotationMatrix44f RotationMatrix( rot );
 
 					for( int32 v = 0 ; v < WindingVerts->Num() ; ++v )
 					{

@@ -298,7 +298,7 @@ private:
 		int32 NumNetGuidsForRecording;
 		FArchivePos NetGuidsCountPos;
 
-		TSet<FString> DeletedNetStartupActors;
+		TArray<FString> CheckpointDeletedNetStartupActors;
 
 		TMap<FName, uint32> NameTableMap;
 
@@ -307,7 +307,9 @@ private:
 			CheckpointAckState.CountBytes(Ar);
 			PendingCheckpointActors.CountBytes(Ar);
 			DeltaCheckpointData.CountBytes(Ar);
+			DeltaChannelCloseKeys.CountBytes(Ar);
 			NetGuidCacheSnapshot.CountBytes(Ar);
+			CheckpointDeletedNetStartupActors.CountBytes(Ar);
 			NameTableMap.CountBytes(Ar);
 		}
 	};
@@ -463,7 +465,10 @@ private:
 	TMap<float, TMap<FString, TArray<uint8>>> PlaybackFrames;
 
 	/** Net startup actors that need to be destroyed after checkpoints are loaded */
-	TSet<FString> DeletedNetStartupActors;
+	TArray<FString> RecordingDeletedNetStartupActors;
+
+	/** Net startup actors that need to be destroyed after checkpoints are loaded */
+	TSet<FString> PlaybackDeletedNetStartupActors;
 
 	TSharedPtr<IAnalyticsProvider> AnalyticsProvider;
 

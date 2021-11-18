@@ -4,11 +4,14 @@
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/UI/Message.h"
 
-#ifdef CADKERNEL_DEV
+namespace CADKernel
+{
+
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
 FSession FSession::Session(0.01);
 #endif
 
-void CADKernel::FSession::SaveDatabase(const TCHAR* FileName)
+void FSession::SaveDatabase(const TCHAR* FileName)
 {
 	TSharedPtr<FCADKernelArchive> Archive = FCADKernelArchive::CreateArchiveWriter(*this, FileName);
 	if (!Archive.IsValid())
@@ -20,13 +23,13 @@ void CADKernel::FSession::SaveDatabase(const TCHAR* FileName)
 	Archive->Close();
 }
 
-TSharedRef<CADKernel::FModel> CADKernel::FSession::GetModel()
+TSharedRef<FModel> FSession::GetModel()
 {
 	return Database.GetModel();
 }
 
 
-void CADKernel::FSession::SaveDatabase(const TCHAR* FileName, const TArray<TSharedPtr<FEntity>>& SelectedEntities)
+void FSession::SaveDatabase(const TCHAR* FileName, const TArray<TSharedPtr<FEntity>>& SelectedEntities)
 {
 	TArray<FIdent> EntityIds;
 	EntityIds.Reserve(SelectedEntities.Num());
@@ -44,7 +47,7 @@ void CADKernel::FSession::SaveDatabase(const TCHAR* FileName, const TArray<TShar
 	Archive->Close();
 }
 
-void CADKernel::FSession::LoadDatabase(const TCHAR* FilePath)
+void FSession::LoadDatabase(const TCHAR* FilePath)
 {
 	TSharedPtr<FCADKernelArchive> Archive = FCADKernelArchive::CreateArchiveReader(*this, FilePath);
 	if (!Archive.IsValid())
@@ -66,14 +69,15 @@ void CADKernel::FSession::LoadDatabase(const TCHAR* FilePath)
 	Archive->Close();
 }
 
-void CADKernel::FSession::AddDatabase(const TArray<uint8>& InRawData)
+void FSession::AddDatabase(const TArray<uint8>& InRawData)
 {
 	FCADKernelArchive Archive = FCADKernelArchive(*this, InRawData);
 	Database.Deserialize(Archive);
 }
 
-void CADKernel::FSession::SetGeometricTolerance(double NewTolerance)
+void FSession::SetGeometricTolerance(double NewTolerance)
 {
 	ensure(Database.GetModel()->EntityCount() == 0);
 	GeometricTolerance = NewTolerance;
 }
+} // namespace CADKernel

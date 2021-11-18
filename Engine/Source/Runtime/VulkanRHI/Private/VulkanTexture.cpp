@@ -272,7 +272,7 @@ void FVulkanSurface::GenerateImageCreateInfo(
 	VkFormat srgbFormat = UEToVkTextureFormat(InFormat, EnumHasAllFlags(UEFlags, TexCreate_SRGB));
 	VkFormat nonSrgbFormat = UEToVkTextureFormat(InFormat, false);
 
-	ImageCreateInfo.format = EnumHasAnyFlags(UEFlags, TexCreate_UAV) ? srgbFormat : nonSrgbFormat;
+	ImageCreateInfo.format = EnumHasAnyFlags(UEFlags, TexCreate_UAV) ? nonSrgbFormat : srgbFormat;
 
 	checkf(ImageCreateInfo.format != VK_FORMAT_UNDEFINED, TEXT("Pixel Format %d not defined!"), (int32)InFormat);
 	if (OutViewFormat)

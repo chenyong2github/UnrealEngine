@@ -167,7 +167,7 @@ void FRayTracingCullPrimitiveInstancesClosure::operator()() const
 
 	if (!RayTracing::ShouldSkipPerInstanceCullingForPrimitive(*CullingParameters, Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds, SceneInfo->CachedRayTracingInstanceWorldBounds[SceneInfo->SmallestRayTracingInstanceWorldBoundsIndex], bIsFarFieldPrimitive))
 	{
-		for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->CachedRayTracingInstanceWorldTransforms.Num(); InstanceIndex++)
+		for (int32 InstanceIndex = 0; InstanceIndex < SceneInfo->CachedRayTracingInstanceWorldBounds.Num(); InstanceIndex++)
 		{
 			if (RayTracing::ShouldCullBounds(*CullingParameters, SceneInfo->CachedRayTracingInstanceWorldBounds[InstanceIndex], bIsFarFieldPrimitive))
 			{

@@ -63,8 +63,12 @@ void UMeshVertexSculptTool::Setup()
 	SetToolDisplayName(LOCTEXT("ToolName", "Sculpt"));
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor());
-	InitializeSculptMeshComponent(DynamicMeshComponent);
+	check(TargetWorld);
+	FActorSpawnParameters SpawnInfo;
+	PreviewMeshActor = TargetWorld->SpawnActor<AInternalToolFrameworkActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
+	DynamicMeshComponent = NewObject<UDynamicMeshComponent>(PreviewMeshActor);
+
+	InitializeSculptMeshComponent(DynamicMeshComponent, PreviewMeshActor);
 
 	// assign materials
 	FComponentMaterialSet MaterialSet;
@@ -283,6 +287,12 @@ void UMeshVertexSculptTool::Shutdown(EToolShutdownType ShutdownType)
 
 	SculptProperties->SaveProperties(this);
 	AlphaProperties->SaveProperties(this);
+
+	if (PreviewMeshActor != nullptr)
+	{
+		PreviewMeshActor->Destroy();
+		PreviewMeshActor = nullptr;
+	}
 
 	// this call will commit result, unregister and destroy DynamicMeshComponent
 	UMeshSculptToolBase::Shutdown(ShutdownType);

@@ -39,8 +39,8 @@ Shaders used for uploading curves to the GPU.
 * Uniform buffer to hold parameters for particle curve injection.
 */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleCurveInjectionParameters, )
-SHADER_PARAMETER(FVector2D, PixelScale)
-SHADER_PARAMETER(FVector2D, CurveOffset)
+SHADER_PARAMETER(FVector2f, PixelScale)
+SHADER_PARAMETER(FVector2f, CurveOffset)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FParticleCurveInjectionParameters, "ParticleCurveInjection");
@@ -143,8 +143,8 @@ public:
 		{
 			int32 Offset = 0;
 			// TexCoord.
-			Elements.Add(FVertexElement(1, Offset, VET_Float2, 1, sizeof(FVector2D), /*bUseInstanceIndex=*/ false));
-			Offset += sizeof(FVector2D);
+			Elements.Add(FVertexElement(1, Offset, VET_Float2, 1, sizeof(FVector2f), /*bUseInstanceIndex=*/ false));
+			Offset += sizeof(FVector2f);
 		}
 
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);

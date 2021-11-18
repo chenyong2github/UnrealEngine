@@ -5,6 +5,7 @@
 #if PLATFORM_MAC || PLATFORM_IOS || PLATFORM_TVOS
 
 #include "PlayerCore.h"
+#include "PlayerRuntimeGlobal.h"
 
 #include "StreamAccessUnitBuffer.h"
 #include "Decoder/AudioDecoderAAC.h"
@@ -102,6 +103,9 @@ private:
 	void StopThread();
 	void WorkerThread();
 
+	void HandleApplicationHasEnteredForeground();
+	void HandleApplicationWillEnterBackground();
+
 	bool InternalDecoderCreate();
 	void InternalDecoderDestroy();
 
@@ -169,6 +173,9 @@ private:
 	FMediaEvent																FlushDecoderSignal;
 	FMediaEvent																DecoderFlushedSignal;
 	bool																	bThreadStarted;
+
+	FMediaEvent																ApplicationRunningSignal;
+	FMediaEvent																ApplicationSuspendConfirmedSignal;
 
 	TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe>							Renderer;
 	int32																	MaxDecodeBufferSize;
@@ -1046,11 +1053,40 @@ void FAudioDecoderAAC::PrepareAU(TSharedPtrTS<FDecoderInput> AU)
 
 //-----------------------------------------------------------------------------
 /**
+ * Application has entered foreground.
+ */
+void FAudioDecoderAAC::HandleApplicationHasEnteredForeground()
+{
+	ApplicationRunningSignal.Signal();
+}
+
+
+//-----------------------------------------------------------------------------
+/**
+ * Application goes into background.
+ */
+void FAudioDecoderAAC::HandleApplicationWillEnterBackground()
+{
+	ApplicationSuspendConfirmedSignal.Reset();
+	ApplicationRunningSignal.Reset();
+}
+
+
+//-----------------------------------------------------------------------------
+/**
  * AAC audio decoder main threaded decode loop
  */
 void FAudioDecoderAAC::WorkerThread()
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
+
+	ApplicationRunningSignal.Signal();
+	ApplicationSuspendConfirmedSignal.Reset();
+
+	TSharedPtrTS<FFGBGNotificationHandlers> FGBGHandlers = MakeSharedTS<FFGBGNotificationHandlers>();
+	FGBGHandlers->WillEnterBackground = [this]() { HandleApplicationWillEnterBackground(); };
+	FGBGHandlers->HasEnteredForeground = [this]() { HandleApplicationHasEnteredForeground(); };
+	AddBGFGNotificationHandler(FGBGHandlers);
 
 	TOptional<int64> SequenceIndex;
 	bool bError = false;
@@ -1066,6 +1102,17 @@ void FAudioDecoderAAC::WorkerThread()
 
 	while(!TerminateThreadSignal.IsSignaled())
 	{
+		// If in background, wait until we get activated again.
+		if (!ApplicationRunningSignal.IsSignaled())
+		{
+			UE_LOG(LogElectraPlayer, Log, TEXT("FAudioDecoderAAC(%p): OnSuspending"), this);
+			ApplicationSuspendConfirmedSignal.Signal();
+			while(!ApplicationRunningSignal.WaitTimeout(100 * 1000) && !TerminateThreadSignal.IsSignaled())
+			{
+			}
+			UE_LOG(LogElectraPlayer, Log, TEXT("FAudioDecoderAAC(%p): OnResuming"), this);
+		}
+	
 		// Notify the buffer listener that we will now be needing an AU for our input buffer.
 		if (!bError && InputBufferListener && NextAccessUnits.IsEmpty())
 		{
@@ -1224,7 +1271,9 @@ void FAudioDecoderAAC::WorkerThread()
 	ConfigRecord.Reset();
 
 	FMemory::Free(PCMBuffer);
-	}
+	
+	RemoveBGFGNotificationHandler(FGBGHandlers);
+}
 
 
 } // namespace Electra

@@ -595,15 +595,18 @@ void UE::FStallDetector::Startup()
 		// Cannot be a global due to clock member
 		Runnable = new FStallDetectorRunnable();
 
-		if (Thread == nullptr)
+		if (FPlatformProcess::SupportsMultithreading())
 		{
-			Thread = FRunnableThread::Create(Runnable, TEXT("StallDetectorThread"));
-			check(Thread);
-
-			// Poll until we have ticked the clock
-			while (!Runnable->GetStartedThread())
+			if (Thread == nullptr)
 			{
-				FPlatformProcess::YieldThread();
+				Thread = FRunnableThread::Create(Runnable, TEXT("StallDetectorThread"));
+				check(Thread);
+
+				// Poll until we have ticked the clock
+				while (!Runnable->GetStartedThread())
+				{
+					FPlatformProcess::YieldThread();
+				}
 			}
 		}
 

@@ -12,9 +12,9 @@
 #include "LargeWorldCoordinates.ush"
 
 #if STRATA_ENABLED
-	#define USE_ENERGY_CONSERVATION 1
-#else
-	#define USE_ENERGY_CONSERVATION 0
+#define STRATA_INLINE_SHADING 0
+#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
+#include "/Engine/Private/Strata/Strata.ush"
 #endif
 
 #include "DeferredShadingCommon.ush"
@@ -36,8 +36,6 @@
 #endif
 
 #if STRATA_ENABLED
-#define STRATA_INLINE_SHADING 0
-#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataDeferredLighting.ush"
 #endif
@@ -172,7 +170,7 @@ float3 GetStableLargeWorldPosition(float2 SVPos, float DeviceZ)
 
 float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, int2 PixelPos)
 {
-	if (!StrataPixelHeader.SkipPrecShadowMask)
+	if (!StrataPixelHeader.bSkipPrecShadowMask)
 	{
 #if ALLOW_STATIC_LIGHTING
 		float4 GBufferE = SceneTexturesStruct.GBufferETexture.Load(int3(PixelPos, 0));
@@ -181,7 +179,7 @@ float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, 
 #endif
 		return GBufferE;
 	}
-	return StrataPixelHeader.ZeroPrecShadowMask ? 0.0f : 1.0f;
+	return StrataPixelHeader.bZeroPrecShadowMask ? 0.0f : 1.0f;
 }
 
 #endif // STRATA_ENABLED

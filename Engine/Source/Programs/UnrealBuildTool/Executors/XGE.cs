@@ -16,8 +16,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using UnrealBuildBase;
-
-#nullable disable
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -51,7 +50,7 @@ namespace UnrealBuildTool
 		/// List of subnets containing IP addresses assigned by VPN
 		/// </summary>
 		[XmlConfigFile(Category = "XGE")]
-		static string[] VpnSubnets = null;
+		static string[]? VpnSubnets = null;
 
 		/// <summary>
 		/// Whether to allow remote linking
@@ -77,12 +76,12 @@ namespace UnrealBuildTool
 			get { return "XGE"; }
 		}
 
-		public static bool TryGetXgConsoleExecutable(out string OutXgConsoleExe)
+		public static bool TryGetXgConsoleExecutable(out string? OutXgConsoleExe)
 		{
 			// Try to get the path from the registry
 			if(BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
-				string XgConsoleExe;
+				string? XgConsoleExe;
 				if(TryGetXgConsoleExecutableFromRegistry(RegistryView.Registry32, out XgConsoleExe))
 				{
 					OutXgConsoleExe = XgConsoleExe;
@@ -107,21 +106,24 @@ namespace UnrealBuildTool
 			}
 
 			// Search the path for it
-			string PathVariable = Environment.GetEnvironmentVariable("PATH");
-			foreach (string SearchPath in PathVariable.Split(Path.PathSeparator))
+			string? PathVariable = Environment.GetEnvironmentVariable("PATH");
+			if (PathVariable != null)
 			{
-				try
+				foreach (string SearchPath in PathVariable.Split(Path.PathSeparator))
 				{
-					string PotentialPath = Path.Combine(SearchPath, XgConsole);
-					if(File.Exists(PotentialPath))
+					try
 					{
-						OutXgConsoleExe = PotentialPath;
-						return true;
+						string PotentialPath = Path.Combine(SearchPath, XgConsole);
+						if (File.Exists(PotentialPath))
+						{
+							OutXgConsoleExe = PotentialPath;
+							return true;
+						}
 					}
-				}
-				catch(ArgumentException)
-				{
-					// PATH variable may contain illegal characters; just ignore them.
+					catch (ArgumentException)
+					{
+						// PATH variable may contain illegal characters; just ignore them.
+					}
 				}
 			}
 
@@ -129,7 +131,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		private static bool TryGetXgConsoleExecutableFromRegistry(RegistryView View, out string OutXgConsoleExe)
+		private static bool TryGetXgConsoleExecutableFromRegistry(RegistryView View, out string? OutXgConsoleExe)
 		{
 			try
 			{
@@ -139,7 +141,7 @@ namespace UnrealBuildTool
 					{
 						if(Key != null)
 						{
-							string Folder = Key.GetValue("Folder", null) as string;
+							string? Folder = Key.GetValue("Folder", null) as string;
 							if(!String.IsNullOrEmpty(Folder))
 							{
 								string FileName = Path.Combine(Folder, "xgConsole.exe");
@@ -162,7 +164,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		static bool TryReadRegistryValue(RegistryHive Hive, RegistryView View, string KeyName, string ValueName, out string OutCoordinator)
+		static bool TryReadRegistryValue(RegistryHive Hive, RegistryView View, string KeyName, string ValueName, [NotNullWhen(true)] out string? OutCoordinator)
 		{
 			using (RegistryKey BaseKey = RegistryKey.OpenBaseKey(Hive, View))
 			{
@@ -170,7 +172,7 @@ namespace UnrealBuildTool
 				{
 					if (SubKey != null)
 					{
-						string Coordinator = SubKey.GetValue(ValueName) as string;
+						string? Coordinator = SubKey.GetValue(ValueName) as string;
 						if (!String.IsNullOrEmpty(Coordinator))
 						{
 							OutCoordinator = Coordinator;
@@ -184,7 +186,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		static bool TryGetCoordinatorHost(out string OutCoordinator)
+		static bool TryGetCoordinatorHost([NotNullWhen(true)] out string? OutCoordinator)
 		{
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
@@ -206,7 +208,7 @@ namespace UnrealBuildTool
 		[DllImport("iphlpapi")]
 		static extern int GetBestInterface(uint dwDestAddr, ref int pdwBestIfIndex);
 
-		static NetworkInterface GetInterfaceForHost(string Host)
+		static NetworkInterface? GetInterfaceForHost(string Host)
 		{
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
@@ -248,7 +250,7 @@ namespace UnrealBuildTool
 			// Check if any network adapters have an IP within one of these subnets
 			try
 			{
-				NetworkInterface Interface = GetInterfaceForHost(HostName);
+				NetworkInterface? Interface = GetInterfaceForHost(HostName);
 				if (Interface != null && Interface.OperationalStatus == OperationalStatus.Up)
 				{
 					IPInterfaceProperties Properties = Interface.GetIPProperties();
@@ -278,7 +280,7 @@ namespace UnrealBuildTool
 
 		public static bool IsAvailable()
 		{
-			string XgConsoleExe;
+			string? XgConsoleExe;
 			if (!TryGetXgConsoleExecutable(out XgConsoleExe))
 			{
 				return false;
@@ -306,7 +308,7 @@ namespace UnrealBuildTool
 			// Check if we're connected over VPN
 			if (!bAllowOverVpn && VpnSubnets != null && VpnSubnets.Length > 0)
 			{
-				string CoordinatorHost;
+				string? CoordinatorHost;
 				if (TryGetCoordinatorHost(out CoordinatorHost) && IsHostOnVpn(CoordinatorHost))
 				{
 					return false;
@@ -378,7 +380,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		static void WriteTaskFile(List<LinkedAction> InActions, string TaskFilePath, bool bProgressMarkup, bool bXGEExport)
 		{
-			bool HostOnVpn = TryGetCoordinatorHost(out string CoordinatorHost) && IsHostOnVpn(CoordinatorHost);
+			bool HostOnVpn = TryGetCoordinatorHost(out string? CoordinatorHost) && IsHostOnVpn(CoordinatorHost);
 
 			Dictionary<string, string> ExportEnv = new Dictionary<string, string>();
 
@@ -386,11 +388,14 @@ namespace UnrealBuildTool
 			if (bXGEExport)
 			{
 				IDictionary CurrentEnvironment = Environment.GetEnvironmentVariables();
-				foreach (System.Collections.DictionaryEntry Pair in CurrentEnvironment)
+				foreach (Nullable<System.Collections.DictionaryEntry> Pair in CurrentEnvironment)
 				{
-					if (!UnrealBuildTool.InitialEnvironment.Contains(Pair.Key) || (string)(UnrealBuildTool.InitialEnvironment[Pair.Key]) != (string)(Pair.Value))
+					if (Pair.HasValue)
 					{
-						ExportEnv.Add((string)(Pair.Key), (string)(Pair.Value));
+						if (!UnrealBuildTool.InitialEnvironment!.Contains(Pair.Value.Key) || (string)(UnrealBuildTool.InitialEnvironment[Pair.Value.Key]!) != (string)(Pair.Value.Value!))
+						{
+							ExportEnv.Add((string)(Pair.Value.Key), (string)(Pair.Value.Value!));
+						}
 					}
 				}
 			}
@@ -582,7 +587,7 @@ namespace UnrealBuildTool
 			// @todo: There is a KB coming that will fix this. Once that KB is available, test if it is present. Stalls will not be a problem if it is.
 			//
 			// Stalls are possible. However there is a workaround in XGE build 1659 and newer that can avoid the issue.
-			string XGEVersion = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? (string)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder", "Version", null) : null;
+			string? XGEVersion = (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? (string)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder", "Version", null) : null;
 			if (XGEVersion != null)
 			{
 				int XGEBuildNumber;
@@ -598,7 +603,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			string XgConsolePath;
+			string? XgConsolePath;
 			if(!TryGetXgConsoleExecutable(out XgConsolePath))
 			{
 				throw new BuildException("Unable to find xgConsole executable.");

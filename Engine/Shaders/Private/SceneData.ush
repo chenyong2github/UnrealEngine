@@ -516,7 +516,7 @@ void ComputeInstanceDerivedData(inout FInstanceSceneData InstanceData, float3 Ti
 }
 
 // Fetch from scene primitive buffer
-FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
+FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bCheckValid = true)
 {
 	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
 
@@ -533,7 +533,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 	InstanceData.ValidInstance		= InstanceData.PrimitiveId != INVALID_PRIMITIVE_ID;
 
 	BRANCH
-	if (InstanceData.ValidInstance)
+	if (!bCheckValid || InstanceData.ValidInstance)
 	{
 		const uint RelativeIdAndCustomDataCount					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).y);
 		InstanceData.RelativeId									= BitFieldExtractU32(RelativeIdAndCustomDataCount, 24, 0); // Max of 16,777,216 instances per primitive

@@ -380,7 +380,7 @@ private:
 
 	/** The IK Rig processor for running IK on the target */
 	UPROPERTY(Transient) // must be property to keep from being GC'd
-	UIKRigProcessor* IKRigProcessor = nullptr;
+	TObjectPtr<UIKRigProcessor> IKRigProcessor = nullptr;
 
 	/** The Source/Target pairs of Bone Chains retargeted using the FK algorithm */
 	TArray<FRetargetChainPairFK> ChainPairsFK;

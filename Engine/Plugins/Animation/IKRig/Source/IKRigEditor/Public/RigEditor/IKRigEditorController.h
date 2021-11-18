@@ -90,7 +90,7 @@ public:
 
 	/** viewport anim instance */
 	UPROPERTY(transient, NonTransactional)
-	TObjectPtr<class UIKRigAnimInstance> AnimInstance;
+	TWeakObjectPtr<class UIKRigAnimInstance> AnimInstance;
 
 	/** asset properties tab */
 	TSharedPtr<class IDetailsView> DetailsView;

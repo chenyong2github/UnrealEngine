@@ -3,7 +3,6 @@
 #include "Rendering/SkeletalMeshVertexClothBuffer.h"
 #include "Rendering/SkeletalMeshVertexBuffer.h"
 #include "EngineUtils.h"
-#include "SkeletalMeshTypes.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 
 /**
@@ -174,7 +173,7 @@ void FSkeletalMeshVertexClothBuffer::SerializeMetaData(FArchive& Ar)
 * Initializes the buffer with the given vertices.
 * @param InVertices - The vertices to initialize the buffer with.
 */
-void FSkeletalMeshVertexClothBuffer::Init(const TArray<FMeshToMeshVertData>& InMappingData, const TArray<uint64>& InClothIndexMapping)
+void FSkeletalMeshVertexClothBuffer::Init(const TArray<FMeshToMeshVertData>& InMappingData, const TArray<FClothBufferIndexMapping>& InClothIndexMapping)
 {
 	// Allocate new data
 	AllocateData();

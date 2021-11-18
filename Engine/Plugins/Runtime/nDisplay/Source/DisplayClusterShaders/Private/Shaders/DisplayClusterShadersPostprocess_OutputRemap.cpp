@@ -39,7 +39,7 @@ enum class EVarOutputRemapShaderType : uint8
 
 static TAutoConsoleVariable<int32> CVarOutputRemapShaderType(
 	TEXT("nDisplay.render.output_remap.shader"),
-	(int)EVarOutputRemapShaderType::Default,
+	(int32)EVarOutputRemapShaderType::Default,
 	TEXT("Select shader for output remap:\n")	
 	TEXT(" 0: default remap shader\n")
 	TEXT(" 1: pass throught shader, test rect mesh\n")

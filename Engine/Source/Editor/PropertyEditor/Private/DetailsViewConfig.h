@@ -7,6 +7,17 @@
 #include "DetailsViewConfig.generated.h"
 
 USTRUCT()
+struct FDetailsSectionSelection
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY()
+	TSet<FName> SectionNames;
+};
+
+USTRUCT()
 struct FDetailsViewConfig
 {
 	GENERATED_BODY()
@@ -45,8 +56,13 @@ public:
 	UPROPERTY()
 	bool bShowSections { true };
 
+	/** Width of the value column in the details view (0.0-1.0). */
 	UPROPERTY()
 	float ValueColumnWidth { 0 };
+
+	/** A map of class name to a set of selected sections for that class. */
+	UPROPERTY()
+	TMap<FName, FDetailsSectionSelection> SelectedSections;
 };
 
 UCLASS(EditorConfig="DetailsView")

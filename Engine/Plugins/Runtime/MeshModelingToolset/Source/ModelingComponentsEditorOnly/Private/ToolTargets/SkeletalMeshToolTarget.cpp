@@ -18,7 +18,7 @@ namespace USkeletalMeshToolTargetLocals
 
 bool USkeletalMeshToolTarget::IsValid() const
 {
-	return SkeletalMesh && !SkeletalMesh->IsPendingKillOrUnreachable() && SkeletalMesh->IsValidLowLevel();
+	return SkeletalMesh && IsValidChecked(SkeletalMesh) && !SkeletalMesh->IsUnreachable() && SkeletalMesh->IsValidLowLevel();
 }
 
 int32 USkeletalMeshToolTarget::GetNumMaterials() const

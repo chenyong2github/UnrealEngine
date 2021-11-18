@@ -2622,7 +2622,8 @@ dtStatus dtBuildTileCacheLayer(dtTileCacheCompressor* comp,
 {
 	const int headerSize = dtAlign(sizeof(dtTileCacheLayerHeader));
 	const int gridSize = (int)header->width * (int)header->height;
-	const int maxDataSize = headerSize + comp->maxCompressedSize(gridSize*3);
+	const int bufferSize = gridSize * 4;
+	const int maxDataSize = headerSize + comp->maxCompressedSize(bufferSize);
 	unsigned char* data = (unsigned char*)dtAlloc(maxDataSize, DT_ALLOC_PERM_TILE_DATA);
 	if (!data)
 		return DT_FAILURE | DT_OUT_OF_MEMORY;
@@ -2632,7 +2633,6 @@ dtStatus dtBuildTileCacheLayer(dtTileCacheCompressor* comp,
 	memcpy(data, header, sizeof(dtTileCacheLayerHeader));
 	
 	// Concatenate grid data for compression.
-	const int bufferSize = gridSize*4;
 	unsigned char* buffer = (unsigned char*)dtAlloc(bufferSize, DT_ALLOC_TEMP);
 	if (!buffer)
 	{

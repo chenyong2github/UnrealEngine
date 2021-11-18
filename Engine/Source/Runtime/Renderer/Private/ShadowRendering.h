@@ -1048,7 +1048,7 @@ public:
 				DeviceZFar = Far.Z / Far.W;
 			}
 
-			FVector2D SliceNearAndFarDepth;
+			FVector2f SliceNearAndFarDepth;
 			SliceNearAndFarDepth.X = DeviceZNear;
 			SliceNearAndFarDepth.Y = DeviceZFar;
 			SetShaderValue(RHICmdList, ShaderRHI, ShadowNearAndFarDepth, SliceNearAndFarDepth);
@@ -1478,10 +1478,10 @@ public:
 		//Near is always 1? // TODO: validate
 		float Near = 1;
 		float Far = LightProxy.GetRadius();
-		FVector2D param = FVector2D(Far / (Far - Near), -Near * Far / (Far - Near));
-		FVector2D projParam = FVector2D(1.0f / param.Y, param.X / param.Y);
+		FVector2f param = FVector2f(Far / (Far - Near), -Near * Far / (Far - Near));
+		FVector2f projParam = FVector2f(1.0f / param.Y, param.X / param.Y);
 		SetShaderValue(RHICmdList, ShaderRHI, PointLightDepthBias, FVector3f(ShadowInfo->GetShaderDepthBias(), ShadowInfo->GetShaderSlopeDepthBias(), ShadowInfo->GetShaderMaxSlopeDepthBias()));
-		SetShaderValue(RHICmdList, ShaderRHI, PointLightProjParameters, FVector2D(projParam.X, projParam.Y));
+		SetShaderValue(RHICmdList, ShaderRHI, PointLightProjParameters, FVector2f(projParam.X, projParam.Y));
 
 		if (HairStrandsParameters.IsBound())
 		{
@@ -1581,7 +1581,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return TShadowProjectionPS<Quality, bUseFadePlane>::ShouldCompilePermutation(Parameters)
-			&& (Parameters.Platform == SP_PCD3D_SM5 || IsVulkanSM5Platform(Parameters.Platform) || Parameters.Platform == SP_METAL_SM5);
+			&& FDataDrivenShaderPlatformInfo::GetSupportsPercentageCloserShadows(Parameters.Platform);
 	}
 
 	void SetParameters(
@@ -1629,9 +1629,8 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-		// TODO: Abstract properly with FDataDrivenShaderPlatformInfo. Platforms like Switch need the below check apparently.
-		//	&& (Parameters.Platform == SP_PCD3D_SM5 || IsVulkanSM5Platform(Parameters.Platform) || Parameters.Platform == SP_METAL_SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
+			&& FDataDrivenShaderPlatformInfo::GetSupportsPercentageCloserShadows(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

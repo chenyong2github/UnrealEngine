@@ -70,7 +70,7 @@ public:
 	virtual FName ResolveEmitterAlias(FName VariableName) const override;
 
 	const FString& GetUniqueEmitterName() const { return EmitterUniqueName; }
-	void FinishPrecompile(const TArray<FNiagaraVariable>& EncounterableVariables, FCompileConstantResolver ConstantResolver, const TArray<ENiagaraScriptUsage>& UsagesToProcess, const TArray<class UNiagaraSimulationStageBase*>* SimStages);
+	void FinishPrecompile(const TArray<FNiagaraVariable>& EncounterableVariables, FCompileConstantResolver ConstantResolver, const TArray<ENiagaraScriptUsage>& UsagesToProcess, const TArray<class UNiagaraSimulationStageBase*>* SimStages, const TArray<FString> EmitterNames);
 	virtual int32 GetDependentRequestCount() const override {
 		return EmitterData.Num();
 	};
@@ -97,6 +97,16 @@ public:
 		mutable bool					PartialParticleUpdate = false;
 	};
 	TArray<FCompileSimStageData> CompileSimStageData;
+
+	struct FCompileDataInterfaceData
+	{
+		FString EmitterName;
+		ENiagaraScriptUsage Usage;
+		FGuid UsageId;
+		FNiagaraVariable Variable;
+		TArray<FString> ReadsEmitterParticleData;
+	};
+	TSharedPtr<TArray<FCompileDataInterfaceData>> SharedCompileDataInterfaceData;
 
 	TArray<FNiagaraVariable> EncounteredVariables;
 	FString EmitterUniqueName;
@@ -564,7 +574,6 @@ public:
 	/** Options is a map from selector values to compiled pin code chunk indices */
 	virtual void Select(class UNiagaraNodeSelect* SelectNode, int32 Selector, const TArray<FNiagaraVariable>& OutputVariables, TMap<int32, TArray<int32>>& Options, TArray<int32>& Outputs);
 	
-
 	void WriteCompilerTag(int32 InputCompileResult, const UEdGraphPin* Pin, bool bEmitMessageOnFailure, FNiagaraCompileEventSeverity FailureSeverity, const FString& Prefix = FString());
 
 	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin, FString ShortDescription = FString(), bool bDismissable = false);
@@ -617,6 +626,8 @@ public:
 
 	/** If Var can be replaced by a another constant variable, or is a constant itself, add the appropriate body chunk and return true. */
 	bool HandleBoundConstantVariableToDataSetRead(FNiagaraVariable InVariable, UNiagaraNode* InNode, int32 InParamMapHistoryIdx, int32& Output, const UEdGraphPin* InDefaultPin);
+
+	static FString GenerateFunctionHlslPrototype(FStringView InVariableName, const FNiagaraFunctionSignature& FunctionSignature);
 private:
 	void InitializeParameterMapDefaults(int32 ParamMapHistoryIdx);
 	void HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& Var, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId, UNiagaraScriptVariable* Variable, bool bTreatAsUnknownParameterMap = false, bool bIgnoreDefaultSetFirst = false);

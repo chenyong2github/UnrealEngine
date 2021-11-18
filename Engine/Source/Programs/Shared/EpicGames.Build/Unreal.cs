@@ -23,7 +23,7 @@ namespace UnrealBuildBase
 			// Programs that use this assembly must be located under "Engine/Binaries/DotNET" and so we look for that sequence of directories in that path of the executing assembly
 			
 			// Use the EntryAssembly (the application path), rather than the ExecutingAssembly (the library path)
-			string AssemblyLocation = Assembly.GetEntryAssembly().GetOriginalLocation();
+			string AssemblyLocation = Assembly.GetEntryAssembly()!.GetOriginalLocation();
 
 			DirectoryReference? FoundRootDirectory = DirectoryReference.FindCorrectCase(DirectoryReference.FromString(AssemblyLocation)!);
 

@@ -7,6 +7,7 @@
 #include "Player/AdaptiveStreamingPlayerInternalConfig.h"
 
 #include "HTTP/HTTPManager.h"
+#include "HTTP/HTTPResponseCache.h"
 #include "Player/PlayerSessionServices.h"
 #include "SynchronizedClock.h"
 
@@ -786,6 +787,7 @@ public:
 
 #if PLATFORM_ANDROID
 	virtual void Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer>& Surface) override;
+	virtual void Android_SuspendOrResumeDecoder(bool bSuspend) override;
 	static FParamDict& Android_Workarounds(FStreamCodecInformation::ECodec InForCodec);
 #endif
 
@@ -807,6 +809,8 @@ private:
 	virtual const FCodecSelectionPriorities& GetCodecSelectionPriorities(EStreamType ForStream) override;
 	virtual	TSharedPtrTS<IPlaylistReader> GetManifestReader() override;
 	virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() override;
+	virtual TSharedPtrTS<IHTTPResponseCache> GetHTTPResponseCache() override;
+
 	virtual IAdaptiveStreamingPlayerAEMSHandler* GetAEMSEventHandler() override;
 	virtual FParamDict& GetOptions() override;
 	virtual TSharedPtrTS<FDRMManager> GetDRMManager() override;
@@ -956,6 +960,25 @@ private:
 				Decoder->AUdataClearEOD();
 			}
 		}
+		void SuspendOrResume(bool bInSuspend)
+		{
+			if (Decoder && ((bInSuspend && !bSuspended) || (!bInSuspend && bSuspended)))
+			{
+#if PLATFORM_ANDROID
+				Decoder->Android_SuspendOrResumeDecoder(bInSuspend);
+#endif
+			}
+			bSuspended = bInSuspend;
+		}
+		void CheckIfNewDecoderMustBeSuspendedImmediately()
+		{
+			if (Decoder && bSuspended)
+			{
+#if PLATFORM_ANDROID
+				Decoder->Android_SuspendOrResumeDecoder(bSuspended);
+#endif
+			}
+		}
 		virtual void DecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats)
 		{
 			if (Parent)
@@ -979,6 +1002,7 @@ private:
 		bool bDrainingForCodecChange = false;
 		bool bDrainingForCodecChangeDone = false;
 		bool bApplyNewLimits = false;
+		bool bSuspended = false;
 	};
 
 	struct FAudioDecoder : public IAccessUnitBufferListener, public IDecoderOutputBufferListener
@@ -1008,6 +1032,25 @@ private:
 				Decoder->AUdataClearEOD();
 			}
 		}
+		void SuspendOrResume(bool bInSuspend)
+		{
+			if (Decoder && ((bInSuspend && !bSuspended) || (!bInSuspend && bSuspended)))
+			{
+#if PLATFORM_ANDROID
+				Decoder->Android_SuspendOrResumeDecoder(bInSuspend);
+#endif
+			}
+			bSuspended = bInSuspend;
+		}
+		void CheckIfNewDecoderMustBeSuspendedImmediately()
+		{
+			if (Decoder && bSuspended)
+			{
+#if PLATFORM_ANDROID
+				Decoder->Android_SuspendOrResumeDecoder(bSuspended);
+#endif
+			}
+		}
 		virtual void DecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats)
 		{
 			if (Parent)
@@ -1028,6 +1071,7 @@ private:
 		TSharedPtrTS<FAccessUnit::CodecData> LastSentAUCodecData;
 		FAdaptiveStreamingPlayer* Parent = nullptr;
 		IAudioDecoderAAC* Decoder = nullptr;
+		bool bSuspended = false;
 	};
 
 	struct FSubtitleDecoder
@@ -1338,11 +1382,17 @@ private:
 
 	struct FPendingStartRequest
 	{
+		enum class EStartType
+		{
+			PlayStart,
+			LoopPoint,
+			Seeking,
+		};
 		FPlayStartPosition										StartAt;
-		IManifest::ESearchType									SearchType;
+		TOptional<int32>										StartingBitrate;
+		IManifest::ESearchType									SearchType = IManifest::ESearchType::Closest;
 		FTimeValue												RetryAtTime;
-		bool													bIsPlayStart = false;
-		bool													bForLooping = false;
+		EStartType												StartType = EStartType::PlayStart;
 		TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>	FinishedRequests;
 	};
 
@@ -1626,6 +1676,8 @@ private:
 
 	void CheckForErrors();
 
+	double GetMinBufferTimeBeforePlayback();
+
 	FTimeValue ClampTimeToCurrentRange(const FTimeValue& InTime, bool bClampToStart, bool bClampToEnd);
 
 	TSharedPtrTS<FMultiTrackAccessUnitBuffer> GetStreamBuffer(EStreamType InStreamType, const TSharedPtrTS<FStreamDataBuffers>& InFromStreamBuffers)
@@ -1709,6 +1761,7 @@ private:
 
 	TSharedPtrTS<IElectraHttpManager>									HttpManager;
 	TSharedPtrTS<IPlayerEntityCache>									EntityCache;
+	TSharedPtrTS<IHTTPResponseCache>									HttpResponseCache;
 
 	TSharedPtrTS<FDRMManager>											DrmManager;
 
@@ -1764,7 +1817,6 @@ private:
 	FPrerollVars														PrerollVars;
 	FPostrollVars														PostrollVars;
 	EPlayerState														LastBufferingState;
-	FSeekParam															StartAtTime;
 	double																PlaybackRate;
 	FTimeValue															RebufferDetectedAtPlayPos;
 	bool																bRebufferPending;

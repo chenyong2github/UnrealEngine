@@ -189,6 +189,13 @@ protected:
 	 */
 	FBPVariableDescription const* GetBlueprintVarDescription() const;
 
+	/**
+	 * Utility function to retrieve actor component for variable property.
+	 *
+	 * @return Found UActorComponent for the FProperty, else nullptr
+	 */
+	const UActorComponent* GetActorComponent(const FProperty* VariableProperty) const;
+
 	/** Returns whether a Function Graph contains a parameter with the given name */
 	static bool FunctionParameterExists(const UEdGraph* InFunctionGraph, const FName InParameterName);
 };

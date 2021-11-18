@@ -428,7 +428,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 			DerivedData->VTData = new FVirtualTextureBuiltData();
 		}
 
-		FVirtualTextureDataBuilder Builder(*DerivedData->VTData, Compressor, ImageWrapper);
+		FVirtualTextureDataBuilder Builder(*DerivedData->VTData, TexturePathName, Compressor, ImageWrapper);
 		Builder.Build(TextureData, CompositeTextureData, &InBuildSettingsPerLayer[0], true);
 
 		DerivedData->SizeX = DerivedData->VTData->Width;
@@ -470,15 +470,14 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 		// Only support single Block/Layer here (Blocks and Layers are intended for VT support)
 		if (TextureData.Blocks.Num() > 1)
 		{
-			// This warning can happen if user attempts to import a UDIM without VT enabled
-			UE_LOG(LogTexture, Warning, TEXT("Texture %s was imported as UDIM with %d blocks but VirtualTexturing is not enabled, only the first block will be available"),
+			// This can happen if user attempts to import a UDIM without VT enabled
+			UE_LOG(LogTexture, Log, TEXT("Texture %s was imported as UDIM with %d blocks but VirtualTexturing is not enabled, only the first block will be available"),
 				*TexturePathName, TextureData.Blocks.Num());
 		}
-
-		// No user-facing way to generated multi-layered textures currently, so this should not occur
 		if (TextureData.Layers.Num() > 1)
 		{
-			UE_LOG(LogTexture, Warning, TEXT("Texture %s has %d layers but VirtualTexturing is not enabled, only the first layer will be available"),
+			// This can happen if user attempts to use lightmaps or other layered VT without VT enabled
+			UE_LOG(LogTexture, Log, TEXT("Texture %s has %d layers but VirtualTexturing is not enabled, only the first layer will be available"),
 				*TexturePathName, TextureData.Layers.Num());
 		}
 
@@ -496,6 +495,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 		if (Compressor->BuildTexture(TextureData.Blocks[0].MipsPerLayer[0],
 			((bool)Texture.CompositeTexture && CompositeTextureData.Blocks.Num() && CompositeTextureData.Blocks[0].MipsPerLayer.Num()) ? CompositeTextureData.Blocks[0].MipsPerLayer[0] : TArray<FImage>(),
 			InBuildSettingsPerLayer[0],
+			TexturePathName,
 			CompressedMips,
 			OptData.NumMipsInTail,
 			OptData.ExtData))
@@ -1275,15 +1275,14 @@ public:
 			// Only support single Block/Layer here (Blocks and Layers are intended for VT support)
 			if (NumBlocks > 1)
 			{
-				// This warning can happen if user attempts to import a UDIM without VT enabled
-				UE_LOG(LogTexture, Warning, TEXT("Texture %s was imported as UDIM with %d blocks but VirtualTexturing is not enabled, only the first block will be available"),
+				// This can happen if user attempts to import a UDIM without VT enabled
+				UE_LOG(LogTexture, Log, TEXT("Texture %s was imported as UDIM with %d blocks but VirtualTexturing is not enabled, only the first block will be available"),
 					*Texture.GetPathName(), NumBlocks);
 			}
-
-			// No user-facing way to generated multi-layered textures currently, so this should not occur
 			if (NumLayers > 1)
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Texture %s has %d layers but VirtualTexturing is not enabled, only the first layer will be available"),
+				// This can happen if user attempts to use lightmaps or other layered VT without VT enabled
+				UE_LOG(LogTexture, Log, TEXT("Texture %s has %d layers but VirtualTexturing is not enabled, only the first layer will be available"),
 					*Texture.GetPathName(), NumLayers);
 			}
 		}

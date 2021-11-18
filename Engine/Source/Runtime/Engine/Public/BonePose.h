@@ -99,30 +99,6 @@ protected:
 	TArray<FTransform, InAllocator> Bones;
 };
 
-struct FCompactPoseBoneIndexIterator
-{
-	int32 Index;
-
-	FCompactPoseBoneIndexIterator(int32 InIndex) : Index(InIndex) {}
-
-	FCompactPoseBoneIndexIterator& operator++() { ++Index; return (*this); }
-	bool operator==(FCompactPoseBoneIndexIterator& Rhs) { return Index == Rhs.Index; }
-	bool operator!=(FCompactPoseBoneIndexIterator& Rhs) { return Index != Rhs.Index; }
-	FCompactPoseBoneIndex operator*() const { return FCompactPoseBoneIndex(Index); }
-};
-
-struct FCompactPoseBoneIndexReverseIterator
-{
-	int32 Index;
-
-	FCompactPoseBoneIndexReverseIterator(int32 InIndex) : Index(InIndex) {}
-
-	FCompactPoseBoneIndexReverseIterator& operator++() { --Index; return (*this); }
-	bool operator==(FCompactPoseBoneIndexReverseIterator& Rhs) { return Index == Rhs.Index; }
-	bool operator!=(FCompactPoseBoneIndexReverseIterator& Rhs) { return Index != Rhs.Index; }
-	FCompactPoseBoneIndex operator*() const { return FCompactPoseBoneIndex(Index); }
-};
-
 template <typename InAllocator>
 struct FBaseCompactPose : FBasePose<FCompactPoseBoneIndex, InAllocator>
 {

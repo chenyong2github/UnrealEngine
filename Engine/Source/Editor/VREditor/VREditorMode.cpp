@@ -413,14 +413,14 @@ void UVREditorMode::Exit(const bool bShouldDisableStereo)
 	if( UISystem != nullptr )
 	{
 		UISystem->Shutdown();
-		UISystem->MarkPendingKill();
+		UISystem->MarkAsGarbage();
 		UISystem = nullptr;
 	}
 
 	if( PlacementSystem != nullptr )
 	{
 		PlacementSystem->Shutdown();
-		PlacementSystem->MarkPendingKill();
+		PlacementSystem->MarkAsGarbage();
 		PlacementSystem = nullptr;
 	}
 
@@ -433,7 +433,7 @@ void UVREditorMode::Exit(const bool bShouldDisableStereo)
 	if( AutoScalerSystem != nullptr )
 	{
 		AutoScalerSystem->Shutdown();
-		AutoScalerSystem->MarkPendingKill();
+		AutoScalerSystem->MarkAsGarbage();
 		AutoScalerSystem = nullptr;
 	}
 
@@ -448,7 +448,7 @@ void UVREditorMode::Exit(const bool bShouldDisableStereo)
 		for (UVREditorInteractor* Interactor : Interactors)
 		{
 			WorldInteraction->RemoveInteractor( Interactor );
-			Interactor->MarkPendingKill();
+			Interactor->MarkAsGarbage();
 		}
 		Interactors.Empty();
 		

@@ -62,7 +62,7 @@ namespace CADKernel
 		 * Specific method for curve family to instantiate the correct derived class of FCurve 
 		 */
 		static TSharedPtr<FEntity> Deserialize(FCADKernelArchive& Archive);
-		
+
 #ifdef CADKERNEL_DEV
 		virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif

@@ -72,7 +72,7 @@ UAnimSequenceExporterUSD::UAnimSequenceExporterUSD()
 		}
 
 		FormatExtension.Add(Extension);
-		FormatDescription.Add(TEXT("USD file"));
+		FormatDescription.Add(TEXT("Universal Scene Description file"));
 	}
 	SupportedClass = UAnimSequence::StaticClass();
 	bText = false;

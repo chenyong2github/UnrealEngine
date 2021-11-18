@@ -70,6 +70,7 @@ public:
 
 private:
 	void Initialize(FSubsystemCollectionBase& Collection) override;
+	void Deinitialize() override;
 	void AddSearchDirectory(FStringView SearchDir);
 	void OnSaveCompleted(TSharedPtr<FEditorConfig> Config);
 	void OnEditorConfigDirtied(const FEditorConfig& Config);
@@ -87,7 +88,7 @@ private:
 		float TimeSinceQueued { 0 };
 	};
 
-	FRWLock SaveLock;
+	FCriticalSection SaveLock;
 	TArray<FPendingSave> PendingSaves;
 	TArray<FString> SearchDirectories;
 	TMap<FString, TSharedPtr<FEditorConfig>> LoadedConfigs;

@@ -22,6 +22,8 @@ public:
 	SLATE_BEGIN_ARGS(SDMXFixtureTypeMatrixFunctionsEditorMatrixRow)
 	{}
 
+		SLATE_EVENT(FSimpleDelegate, OnRequestDelete)
+
 	SLATE_END_ARGS()
 
 	/** Constructs this widget */
@@ -33,6 +35,9 @@ protected:
 	//~ End SMultiColumnTableRow interface
 
 private:
+	/** Called when the delete Cell Attribute Button was clicked */
+	FReply OnDeleteCellAttributeClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+
 	/** Returns true if the Attribute Name exists and is not None */
 	bool HasInvalidCellAttributeName() const;
 
@@ -47,4 +52,7 @@ private:
 
 	/** The Mode Item this row displays */
 	TSharedPtr<FDMXFixtureTypeMatrixFunctionsEditorItem> CellAttributeItem;
+
+	/** Delegate executed when the Matrix Row requests to be deleted */
+	FSimpleDelegate OnRequestDelete;
 };

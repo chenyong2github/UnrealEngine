@@ -265,7 +265,7 @@ void FLevelSnapshotsEditorResultsRow::GenerateModifiedActorGroupChildren(FProper
 	WorldRowGeneratorInfo.Pin()->GetGeneratorObject().Pin()->SetObjects({ WorldObject.Get() });
 
 	// Get Added and removed components
-	const FAddedAndRemovedComponentInfo* AddedAndRemovedComponents = PropertySelectionMap.GetObjectSelection(WorldActorLocal).GetComponentSelection();
+	const UE::LevelSnapshots::FAddedAndRemovedComponentInfo* AddedAndRemovedComponents = PropertySelectionMap.GetObjectSelection(WorldActorLocal).GetComponentSelection();
 
 	TSet<UActorComponent*> WorldComponentsToRemove;
 	if (AddedAndRemovedComponents)
@@ -486,9 +486,9 @@ FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType FLevelSnaps
 		return ReturnRowType;
 	}
 	
-	if (FPropertyInfoHelpers::IsPropertyContainer(InProperty))
+	if (UE::LevelSnapshots::IsPropertyContainer(InProperty))
 	{
-		if (FPropertyInfoHelpers::IsPropertyCollection(InProperty))
+		if (UE::LevelSnapshots::IsPropertyCollection(InProperty))
 		{
 			ReturnRowType = CollectionGroup;
 		}
@@ -497,11 +497,11 @@ FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType FLevelSnaps
 			ReturnRowType = StructGroup;
 
 			// If this struct's parent is a collection
-			if (FPropertyInfoHelpers::IsPropertyInCollection(InProperty))
+			if (UE::LevelSnapshots::IsPropertyInCollection(InProperty))
 			{
 				ReturnRowType = StructInSetOrArray;
 
-				if (FPropertyInfoHelpers::IsPropertyInMap(InProperty))
+				if (UE::LevelSnapshots::IsPropertyInMap(InProperty))
 				{
 					ReturnRowType = StructInMap;
 				}
@@ -519,7 +519,7 @@ FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType FLevelSnaps
 					// but we do need to know if a 'single property' is in a struct
 					ReturnRowType = SingleProperty;
 
-					if (FPropertyInfoHelpers::IsPropertyInStruct(InProperty))
+					if (UE::LevelSnapshots::IsPropertyInStruct(InProperty))
 					{
 						ReturnRowType = SinglePropertyInStruct;
 					}
@@ -539,20 +539,20 @@ FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType FLevelSnaps
 			}
 		}
 	}
-	else if (FPropertyInfoHelpers::IsPropertyComponentOrSubobject(InProperty))
+	else if (UE::LevelSnapshots::IsPropertyComponentOrSubobject(InProperty))
 	{
 		// Components are handled separately, so if this is true we can assume it's a subobject
 		ReturnRowType = SubObjectGroup;
 	}
 	else // Single Property Row. If it's in a collection it needs a custom widget.
 	{
-		if (FPropertyInfoHelpers::IsPropertyInContainer(InProperty))
+		if (UE::LevelSnapshots::IsPropertyInContainer(InProperty))
 		{
-			if (FPropertyInfoHelpers::IsPropertyInStruct(InProperty))
+			if (UE::LevelSnapshots::IsPropertyInStruct(InProperty))
 			{
 				ReturnRowType = SinglePropertyInStruct;
 			}
-			else if (FPropertyInfoHelpers::IsPropertyInMap(InProperty))
+			else if (UE::LevelSnapshots::IsPropertyInMap(InProperty))
 			{
 				ReturnRowType = SinglePropertyInMap;
 			}

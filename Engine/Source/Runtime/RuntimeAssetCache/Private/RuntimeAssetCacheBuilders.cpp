@@ -118,9 +118,9 @@ void UExampleTextureCacheBuilder::OnAssetCacheMiss_Implementation()
 
 void UExampleTextureCacheBuilder::SerializeAsset(FArchive& Ar)
 {
-	if (Texture && Texture->PlatformData)
+	if (Texture && Texture->GetPlatformData())
 	{
-		FTexturePlatformData* PlatformData = Texture->PlatformData;
+		FTexturePlatformData* PlatformData = Texture->GetPlatformData();
 		UEnum* PixelFormatEnum = UTexture::GetPixelFormatEnum();
 
 		Ar << PlatformData->SizeX;
@@ -225,7 +225,7 @@ void UExampleTextureCacheBuilder::OnAssetPreLoad()
 {
 	// Create an object to load the data into
 	UTexture2D* NewTexture = NewObject<UTexture2D>();
-	NewTexture->PlatformData = new FTexturePlatformData();
+	NewTexture->SetPlatformData(new FTexturePlatformData());
 	NewTexture->NeverStream = true;
 
 	SetAsset(NewTexture);

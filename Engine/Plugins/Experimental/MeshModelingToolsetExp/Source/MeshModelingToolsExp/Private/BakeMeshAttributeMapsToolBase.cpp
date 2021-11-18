@@ -75,6 +75,11 @@ void UBakeMeshAttributeMapsToolBase::PostSetup()
 	VisualizationProps->RestoreProperties(this);
 	AddToolPropertySource(VisualizationProps);
 
+	// Initialize background compute
+	Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
+	Compute->Setup(this);
+	Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
+
 	GatherAnalytics(BakeAnalytics.MeshSettings);
 }
 
@@ -99,10 +104,12 @@ void UBakeMeshAttributeMapsToolBase::OnTick(float DeltaTime)
 	{
 		Compute->Tick(DeltaTime);
 
-		float ElapsedComputeTime = Compute->GetElapsedComputeTime();
+		const float ElapsedComputeTime = Compute->GetElapsedComputeTime();
 		if (!CanAccept() && ElapsedComputeTime > SecondsBeforeWorkingMaterial)
 		{
-			PreviewMesh->SetOverrideRenderMaterial(WorkingPreviewMaterial);
+			UMaterialInstanceDynamic* ProgressMaterial =
+				static_cast<bool>(OpState & EBakeOpState::Invalid) ? ErrorPreviewMaterial : WorkingPreviewMaterial;
+			PreviewMesh->SetOverrideRenderMaterial(ProgressMaterial);
 		}
 	}
 }
@@ -112,10 +119,14 @@ void UBakeMeshAttributeMapsToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UpdateResult();
 	
-	float GrayLevel = VisualizationProps->BaseGrayLevel;
-	PreviewMaterial->SetVectorParameterValue(TEXT("BaseColor"), FVector(GrayLevel, GrayLevel, GrayLevel) );
-	float AOWeight = VisualizationProps->OcclusionMultiplier;
-	PreviewMaterial->SetScalarParameterValue(TEXT("AOWeight"), AOWeight );
+	const float Brightness = VisualizationProps->Brightness;
+	const FVector BrightnessColor(Brightness, Brightness, Brightness);
+	const float AOMultiplier = VisualizationProps->AOMultiplier;
+	
+	PreviewMaterial->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor );
+	PreviewMaterial->SetScalarParameterValue(TEXT("AOMultiplier"), AOMultiplier );
+	BentNormalPreviewMaterial->SetVectorParameterValue(TEXT("Brightness"), BrightnessColor );
+	BentNormalPreviewMaterial->SetScalarParameterValue(TEXT("AOMultiplier"), AOMultiplier );
 }
 
 
@@ -137,18 +148,7 @@ void UBakeMeshAttributeMapsToolBase::UpdateVisualization()
 
 void UBakeMeshAttributeMapsToolBase::InvalidateCompute()
 {
-	const bool bInvalidate = static_cast<bool>(OpState & EBakeOpState::Evaluate);
-	if (!Compute)
-	{
-		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshMapBaker>>();
-		Compute->Setup(this);
-		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshMapBaker>& NewResult) { OnMapsUpdated(NewResult); });
-		Compute->InvalidateResult();
-	}
-	else if (bInvalidate)
-	{
-		Compute->InvalidateResult();
-	}
+	Compute->InvalidateResult();
 	OpState = EBakeOpState::Clean;
 }
 
@@ -231,18 +231,18 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMap
 void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult)
 {
 	const FImageDimensions BakeDimensions = NewResult->GetDimensions();
-	const EBakeTextureFormat Format = CachedBakeCacheSettings.SourceFormat;
+	const EBakeTextureBitDepth Format = CachedBakeCacheSettings.BitDepth;
 	const int32 NumEval = NewResult->NumEvaluators();
 	for (int32 EvalIdx = 0; EvalIdx < NumEval; ++EvalIdx)
 	{
 		FMeshMapEvaluator* Eval = NewResult->GetEvaluator(EvalIdx);
 
-		auto UpdateCachedMap = [this, &NewResult, &EvalIdx, &BakeDimensions](const EBakeMapType MapType, const EBakeTextureFormat MapFormat, const int32 ResultIdx) -> void
+		auto UpdateCachedMap = [this, &NewResult, &EvalIdx, &BakeDimensions](const EBakeMapType MapType, const EBakeTextureBitDepth MapFormat, const int32 ResultIdx) -> void
 		{
 			// For 8-bit color textures, ensure that the source data is in sRGB.
 			const FTexture2DBuilder::ETextureType TexType = GetTextureType(MapType, MapFormat);
 			const bool bConvertToSRGB = TexType == FTexture2DBuilder::ETextureType::Color;
-			const ETextureSourceFormat SourceDataFormat = MapFormat == EBakeTextureFormat::ChannelBits16 ? TSF_RGBA16F : TSF_BGRA8;
+			const ETextureSourceFormat SourceDataFormat = MapFormat == EBakeTextureBitDepth::ChannelBits16 ? TSF_RGBA16F : TSF_BGRA8;
 			
 			FTexture2DBuilder TextureBuilder;
 			TextureBuilder.Initialize(TexType, BakeDimensions);
@@ -360,7 +360,7 @@ EBakeMapType UBakeMeshAttributeMapsToolBase::GetMapTypes(const int32& MapTypes)
 }
 
 
-FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(const EBakeMapType MapType, const EBakeTextureFormat MapFormat)
+FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(const EBakeMapType MapType, const EBakeTextureBitDepth MapFormat)
 {
 	FTexture2DBuilder::ETextureType TexType = FTexture2DBuilder::ETextureType::Color;
 	switch (MapType)
@@ -389,7 +389,7 @@ FTexture2DBuilder::ETextureType UBakeMeshAttributeMapsToolBase::GetTextureType(c
 	case EBakeMapType::Texture:
 	case EBakeMapType::MultiTexture:
 		// For texture output with 16-bit source data, output HDR texture
-		if (MapFormat == EBakeTextureFormat::ChannelBits16)
+		if (MapFormat == EBakeTextureBitDepth::ChannelBits16)
 		{
 			TexType = FTexture2DBuilder::ETextureType::EmissiveHDR;
 		}
@@ -480,7 +480,7 @@ void UBakeMeshAttributeMapsToolBase::GatherAnalytics(const FMeshMapBaker& Result
 	Data.TotalBakeDuration = Result.BakeAnalytics.TotalBakeDuration;
 	Data.WriteToImageDuration = Result.BakeAnalytics.WriteToImageDuration;
 	Data.WriteToGutterDuration = Result.BakeAnalytics.WriteToGutterDuration;
-	Data.NumBakedPixels = Result.BakeAnalytics.NumBakedPixels;
+	Data.NumSamplePixels = Result.BakeAnalytics.NumSamplePixels;
 	Data.NumGutterPixels = Result.BakeAnalytics.NumGutterPixels;
 	Data.BakeSettings = Settings;
 
@@ -529,7 +529,7 @@ void UBakeMeshAttributeMapsToolBase::RecordAnalytics(const FBakeAnalytics& Data,
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Duration.Total.Seconds"), Data.TotalBakeDuration));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Duration.WriteToImage.Seconds"), Data.WriteToImageDuration));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Duration.WriteToGutter.Seconds"), Data.WriteToGutterDuration));
-	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Stats.NumBakedPixels"), Data.NumBakedPixels));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Stats.NumSamplePixels"), Data.NumSamplePixels));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Bake.Stats.NumGutterPixels"), Data.NumGutterPixels));
 
 	// Mesh data
@@ -540,10 +540,10 @@ void UBakeMeshAttributeMapsToolBase::RecordAnalytics(const FBakeAnalytics& Data,
 	// Bake settings
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Image.Width"), Data.BakeSettings.Dimensions.GetWidth()));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Image.Height"), Data.BakeSettings.Dimensions.GetHeight()));
-	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Multisampling"), Data.BakeSettings.Multisampling));
-	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Thickness"), Data.BakeSettings.Thickness));
-	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.UVLayer"), Data.BakeSettings.UVLayer));
-	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.UseWorldSpace"), Data.BakeSettings.bUseWorldSpace));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.SamplesPerPixel"), Data.BakeSettings.SamplesPerPixel));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.ProjectionDistance"), Data.BakeSettings.ProjectionDistance));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.ProjectionInWorldSpace"), Data.BakeSettings.bProjectionInWorldSpace));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.TargetUVLayer"), Data.BakeSettings.TargetUVLayer));
 
 	// Map types
 	const bool bTangentSpaceNormal = static_cast<bool>(Data.BakeSettings.SourceBakeMapTypes & EBakeMapType::TangentSpaceNormal);

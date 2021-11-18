@@ -154,7 +154,7 @@ public:
 
 		SetShaderValue(RHICmdList, ShaderRHI, ViewDimensionsParameter, View.ViewRect);
 
-		SetShaderValue(RHICmdList, ShaderRHI, NumGroups, NumGroupsValue);
+		SetShaderValue(RHICmdList, ShaderRHI, NumGroups, FVector2f(NumGroupsValue));
 	}
 
 private:
@@ -260,7 +260,7 @@ public:
 
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 
-		SetShaderValue(RHICmdList, ShaderRHI, NumGroups, NumGroupsValue);
+		SetShaderValue(RHICmdList, ShaderRHI, NumGroups, FVector2f(NumGroupsValue));
 	}
 
 private:
@@ -436,7 +436,7 @@ void BuildTileObjectLists(
 				{
 					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
-					ComputeShader->SetParameters(RHICmdList, View, Scene, FVector2D(TileListGroupSize.X, TileListGroupSize.Y), Parameters);
+					ComputeShader->SetParameters(RHICmdList, View, Scene, FVector2f(TileListGroupSize.X, TileListGroupSize.Y), Parameters);
 					SetShaderParameters(RHICmdList, ComputeShader, ComputeShader.GetComputeShader(), *PassParameters);
 
 					DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), TileListGroupSize.X, TileListGroupSize.Y, 1);

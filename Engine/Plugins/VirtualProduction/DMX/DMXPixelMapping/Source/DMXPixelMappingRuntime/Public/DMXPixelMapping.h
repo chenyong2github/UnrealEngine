@@ -143,7 +143,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Holds the Thumbnail for asset */
-	UPROPERTY(Transient)
+	UPROPERTY()
 	UTexture* ThumbnailImage;
 
 	/** DEPRECATED 4.27. Use FDMXPixelMappingMatrixComponent::GetOnMatrixChanged() instead */

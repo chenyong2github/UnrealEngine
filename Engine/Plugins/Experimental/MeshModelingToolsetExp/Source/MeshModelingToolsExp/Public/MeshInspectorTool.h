@@ -63,6 +63,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bUVBowties = false;
 
+	/** Toggle visibility of triangles with missing UVs */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bMissingUVs = false;
+
 	/** Toggle visibility of Normal seam edges */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bNormalSeams = false;
@@ -142,6 +146,7 @@ protected:
 	TArray<int> UVBowties;
 	TArray<int> NormalSeamEdges;
 	TArray<int> GroupBoundaryEdges;
+	TArray<int> MissingUVTriangleEdges;
 
 	void UpdateVisualization();
 	void Precompute();

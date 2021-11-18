@@ -329,12 +329,16 @@ void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 
 void FPixelStreamingModule::UnfreezeFrame()
 {
+	if (!Streamer.IsValid())
+	{
+		return;
+	}
+
 	Streamer->SendUnfreezeFrame();
-	
+
 	// Resume streaming.
 	bFrozen = false;
 }
-
 void FPixelStreamingModule::AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject)
 {
 	checkf(InputDevice.IsValid(), TEXT("No Input Device available when populating Player Config"));
@@ -356,11 +360,21 @@ void FPixelStreamingModule::AddPlayerConfig(TSharedRef<FJsonObject>& JsonObject)
 
 void FPixelStreamingModule::SendResponse(const FString& Descriptor)
 {
+	if (!Streamer.IsValid())
+	{
+		return;
+	}
+
 	Streamer->SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg::Response, Descriptor);
 }
 
 void FPixelStreamingModule::SendCommand(const FString& Descriptor)
 {
+	if (!Streamer.IsValid())
+	{
+		return;
+	}
+
 	Streamer->SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg::Command, Descriptor);
 }
 
@@ -376,6 +390,11 @@ void FPixelStreamingModule::OnGameModeLogout(AGameModeBase* GameMode, AControlle
 
 void FPixelStreamingModule::SendJpeg(TArray<FColor> RawData, const FIntRect& Rect)
 {
+	if (!Streamer.IsValid())
+	{
+		return;
+	}
+
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::GetModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
 	bool bSuccess = ImageWrapper->SetRaw(RawData.GetData(), RawData.Num() * sizeof(FColor), Rect.Width(), Rect.Height(), ERGBFormat::BGRA, 8);

@@ -61,8 +61,8 @@ void UE::Conversion::RenderBuffersToDynamicMesh(
 
 		for (int32 ui = 0; ui < NumUVChannels; ++ui)
 		{
-			FVector2D UV = (bHasUVs) ? VertexBuffer.GetVertexUV(vi, ui) : FVector2D::ZeroVector;
-			int32 uvid = UVs[ui]->AppendElement((FVector2f)UV);
+			FVector2f UV = (bHasUVs) ? VertexBuffer.GetVertexUV(vi, ui) : FVector2f::ZeroVector;
+			int32 uvid = UVs[ui]->AppendElement(UV);
 			ensure(uvid == vi);
 		}
 	}

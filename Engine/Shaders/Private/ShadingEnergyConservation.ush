@@ -5,12 +5,12 @@
 // If EnergyConservation flag is not enabled explicitly then:
 // * If strata is enabled: ON by default
 // * If strata is disnabled: OFF by default
-#ifndef USE_ENERGY_CONSERVATION
-	#if PROJECT_STRATA
-		#define USE_ENERGY_CONSERVATION 1
-	#else
-		#define USE_ENERGY_CONSERVATION 0
-	#endif
+#if PROJECT_STRATA || MATERIAL_ENERGYCONSERVATION
+	#undef USE_ENERGY_CONSERVATION
+	#define USE_ENERGY_CONSERVATION 1
+#else
+	#undef USE_ENERGY_CONSERVATION
+	#define USE_ENERGY_CONSERVATION 0
 #endif
 
 // Energy compensation/preservation for the various BxDFs. This file provides utility functions to tweak lobe weights
@@ -86,7 +86,11 @@ float2 ClothEnergyLookup(float Roughness, float NoV)
 float DiffuseEnergyLookup(float Roughness, float NoV)
 {
 #if USE_ENERGY_CONSERVATION == 1
-	return View.ShadingEnergyDiffuseTexture.SampleLevel(View.ShadingEnergySampler, float2(NoV, Roughness), 0);
+	//return View.ShadingEnergyDiffuseTexture.SampleLevel(View.ShadingEnergySampler, float2(NoV, Roughness), 0);
+	// For now we do not apply Chan diffuse energy preservation on diffuse ambiant.
+	// This is because Chan is built for F=0.04 and unfortunately this causes ambient to darken a grazing angles.
+	// STRATA_TODO Apply the inverse of Fresnel with F=0.04 on Chan when building the table.
+	return 1.0f;
 #elif USE_ENERGY_CONSERVATION == 2
 	// TODO
 	return 1.f;
@@ -102,12 +106,12 @@ struct FBxDFEnergyTerms {
 
 // Given a split-sum approximation of directional albedo for a BxDF, compute multiple scattering weight and multiple scattering directional albedo
 // while taking into account the fresnel term (assumed to be F_Schlick)
-FBxDFEnergyTerms ComputeFresnelEnergyTerms(float2 E, float3 F0, float3 F90)
+FBxDFEnergyTerms ComputeFresnelEnergyTerms(float2 E, float3 F0, float3 F90) 
 {
 	FBxDFEnergyTerms Result;
 	// [2] Eq 16: this restores the missing energy of the bsdf, while also accounting for the fact that the fresnel term causes some energy to be absorbed
 	// NOTE: using F0 here is an approximation, but for schlick fresnel Favg is almost exactly equal to F0
-	Result.W = 1.0 + F0 * ((1 - E.x) / E.x);
+	Result.W = View.bShadingEnergyConservation ? (1.0 + F0 * ((1 - E.x) / E.x)) : 1.0f;
 	// Now estimate the amount of energy reflected off this specular lobe so that we can remove it from underlying BxDF layers (like diffuse)
 	// This relies on the split-sum approximation as in [3] Sec 4.
 	// This term can also be useful to compute the probability of choosing among lobes
@@ -119,16 +123,15 @@ FBxDFEnergyTerms ComputeGGXSpecEnergyTerms(float Roughness, float NoV, float3 F0
 {
 	FBxDFEnergyTerms Out;
 #if USE_ENERGY_CONSERVATION > 0
-	if (View.bShadingEnergyConservation)
 	{
 		Out = ComputeFresnelEnergyTerms(GGXEnergyLookup(Roughness, NoV), F0, F90);
 	}
-	else
-#endif
+#else
 	{
 		Out.W = 1.0f;
 		Out.E = F0;
 	}
+#endif
 	return Out;
 }
 
@@ -142,16 +145,15 @@ FBxDFEnergyTerms ComputeClothEnergyTerms(float Roughness, float NoV, float3 F0, 
 {
 	FBxDFEnergyTerms Out;
 #if USE_ENERGY_CONSERVATION > 0
-	if (View.bShadingEnergyConservation)
 	{
 		Out = ComputeFresnelEnergyTerms(ClothEnergyLookup(Roughness, NoV), F0, F90);
 	}
-	else
-#endif
+#else
 	{
 		Out.W = 1.0f;
 		Out.E = F0;
 	}
+#endif
 	return Out;
 }
 
@@ -165,15 +167,14 @@ FBxDFEnergyTerms ComputeDiffuseEnergyTerms(float Roughness, float NoV)
 {
 	FBxDFEnergyTerms Out;
 #if USE_ENERGY_CONSERVATION > 0
-	if (View.bShadingEnergyConservation)
 	{
 		Out.E = DiffuseEnergyLookup(Roughness, NoV);
 	}
-	else
-#endif
+#else
 	{
 		Out.E = 1.0f;
 	}
+#endif
 	Out.W = 1.0f;
 	return Out;
 }
@@ -182,7 +183,8 @@ FBxDFEnergyTerms ComputeDiffuseEnergyTerms(float Roughness, float NoV)
 float3 ComputeEnergyPreservation(FBxDFEnergyTerms EnergyTerms)
 {
 #if USE_ENERGY_CONSERVATION > 0
-	return View.bShadingEnergyPreservation ? (1 - EnergyTerms.E) : 1.0f;
+	// Use the directional albedo luminance to avoid color-shift due to metallic specular (for which the energy should be absorbed, not transmitted)
+	return View.bShadingEnergyPreservation ? (1 - Luminance(EnergyTerms.E)) : 1.0f;
 #else
 	return 1.0f;
 #endif

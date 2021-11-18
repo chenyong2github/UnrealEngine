@@ -773,15 +773,8 @@ bool FHLSLMaterialTranslator::Translate()
 			Chunk[MP_FrontMaterial]					= Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial			,this);
 		}
 
-		// Get shading models from material.
-		FMaterialShadingModelField MaterialShadingModels = Material->GetShadingModels(); 
-
-		// If the material gets its shading model from material expressions and we have compiled one or more shading model expressions, 
-		// then use that shading model field instead. It's the most optimal set of shading models
-		if (Material->IsShadingModelFromMaterialExpression() && ShadingModelsFromCompilation.IsValid())
-		{
-			MaterialShadingModels = ShadingModelsFromCompilation;
-		}
+		// Get shading models from compilation (or material).
+		FMaterialShadingModelField MaterialShadingModels = GetCompiledShadingModels(); 
 		
 		ValidateShadingModelsForFeatureLevel(MaterialShadingModels);
 		
@@ -1338,7 +1331,7 @@ bool FHLSLMaterialTranslator::Translate()
 				// If the unlit node is used, it must be the only one used
 				if (!StrataIsSingleLayerWaterOnly(this, StrataCompilationInfo))
 				{
-					FString ErrorMsg = FString::Printf(TEXT("Material %s contains hair BSDF but it is not the only representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+					FString ErrorMsg = FString::Printf(TEXT("Material %s contains water BSDF but it is not the only representing the material asset: %s. It must be the single BSDF.\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 					Error(*ErrorMsg);
 				}
 			}
@@ -3439,6 +3432,20 @@ EShaderFrequency FHLSLMaterialTranslator::GetCurrentShaderFrequency() const
 FMaterialShadingModelField FHLSLMaterialTranslator::GetMaterialShadingModels() const
 {
 	check(Material);
+	return Material->GetShadingModels();
+}
+
+FMaterialShadingModelField FHLSLMaterialTranslator::GetCompiledShadingModels() const
+{
+	check(Material);
+
+	// If the material gets its shading model from material expressions and we have compiled one or more shading model expressions already, 
+	// then use that shading model field instead. It's the most optimal set of shading models
+	if (Material->IsShadingModelFromMaterialExpression() && ShadingModelsFromCompilation.IsValid())
+	{
+		return ShadingModelsFromCompilation;
+	}
+
 	return Material->GetShadingModels();
 }
 
@@ -6855,7 +6862,7 @@ bool FHLSLMaterialTranslator::GetStaticBoolValue(int32 BoolIndex, bool& bSucceed
 	return false;
 }
 
-int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName ParameterName,int32 Default)
+int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName LayerName,int32 Default)
 {
 	if (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && ShaderFrequency != SF_Pixel)
 	{
@@ -6867,9 +6874,6 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName ParameterName,int3
 	bool bFoundParameter = false;
 	bool bAtLeastOneWeightBasedBlend = false;
 
-	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
-	ParameterInfo.Name = ParameterName;
-
 	int32 NumActiveTerrainLayerWeightParameters = 0;
 	for(int32 ParameterIndex = 0;ParameterIndex < StaticParameters.TerrainLayerWeightParameters.Num(); ++ParameterIndex)
 	{
@@ -6878,7 +6882,7 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName ParameterName,int3
 		{
 			NumActiveTerrainLayerWeightParameters++;
 		}
-		if(Parameter.ParameterInfo == ParameterInfo)
+		if(Parameter.LayerName == LayerName)
 		{
 			WeightmapIndex = Parameter.WeightmapIndex;
 			bFoundParameter = true;
@@ -6916,7 +6920,7 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName ParameterName,int3
 			WeightmapCode = TextureSample(TextureCodeIndex, TextureCoordinate(3, false, false), SamplerType);
 		}
 
-		FString LayerMaskName = FString::Printf(TEXT("LayerMask_%s"),*ParameterName.ToString());
+		FString LayerMaskName = FString::Printf(TEXT("LayerMask_%s"),*LayerName.ToString());
 		return Dot(WeightmapCode,VectorParameter(FName(*LayerMaskName), FLinearColor(1.f,0.f,0.f,0.f)));
 	}
 }
@@ -8160,6 +8164,18 @@ static FString MultiplyMatrix(const TCHAR* Vector, const TCHAR* Matrix, int AWCo
 	}
 }
 
+static FString MultiplyTransposeMatrix(const TCHAR* Matrix, const TCHAR* Vector, int AWComponent)
+{
+	if (AWComponent)
+	{
+		return FString::Printf(TEXT("mul(%s, MaterialFloat4(%s, 1.0f)).xyz"), Matrix, Vector);
+	}
+	else
+	{
+		return FString::Printf(TEXT("mul((MaterialFloat3x3)(%s), %s)"), Matrix, Vector);
+	}
+}
+
 static FString LWCMultiplyMatrix(const TCHAR* Vector, const TCHAR* Matrix, int AWComponent)
 {
 	if (AWComponent)
@@ -8271,7 +8287,7 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 		{
 			if (DestCoordBasis == MCB_Tangent)
 			{
-				CodeStr = MultiplyMatrix(TEXT("<A>"), TEXT("Parameters.TangentToWorld"), AWComponent);
+				CodeStr = MultiplyTransposeMatrix(TEXT("Parameters.TangentToWorld"), TEXT("<A>"), AWComponent);
 			}
 			else if (DestCoordBasis == MCB_Local)
 			{
@@ -9508,7 +9524,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro)
 {
 	const FString NormalCode = GetParameterCode(Normal);
-
+	const FString TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE");
 	return AddCodeChunk(
 		MCT_Strata, TEXT("GetStrataSlabBSDF(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */"),
 		* GetParameterCode(UseMetalness),
@@ -9525,7 +9541,48 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 		*GetParameterCode(Thickness),
 		*SharedLocalBasisIndexMacro,
 		*NormalCode,
-		Tangent!=INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE")
+		*TangentCode
+	);
+}
+
+int32 FHLSLMaterialTranslator::StrataConversionFromLegacy(
+	int32 BaseColor, int32 Specular, int32 Metallic,
+	int32 Roughness, int32 Anisotropy,
+	int32 SubSurfaceColor, int32 SubSurfaceProfileId,
+	int32 ClearCoat, int32 ClearCoatRoughness,
+	int32 EmissiveColor,
+	int32 Opacity,
+	int32 TransmittanceColor,
+	int32 WaterScatteringCoefficients, int32 WaterAbsorptionCoefficients, int32 WaterPhaseG, int32 ColorScaleBehindWater,
+	int32 ShadingModel,
+	int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
+	int32 ClearCoat_Normal, int32 ClearCoat_Tangent, const FString& ClearCoat_SharedLocalBasisIndexMacro)
+{
+	const FString NormalCode = GetParameterCode(Normal);
+	const FString TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(Tangent) : TEXT("NONE");
+
+	const FString ClearCoat_NormalCode = GetParameterCode(ClearCoat_Normal);
+	const FString ClearCoat_TangentCode = Tangent != INDEX_NONE ? *GetParameterCode(ClearCoat_Tangent) : TEXT("NONE");
+
+	return AddCodeChunk(
+		MCT_Strata, TEXT("StrataConvertLegacyMaterial(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s ; ClearCoat_Normal = %s ; ClearCoat_Tangent = %s */"),
+		*GetParameterCode(BaseColor), *GetParameterCode(Specular), *GetParameterCode(Metallic),
+		*GetParameterCode(Roughness), *GetParameterCode(Anisotropy),
+		*GetParameterCode(SubSurfaceColor), *GetParameterCode(SubSurfaceProfileId),
+		*GetParameterCode(ClearCoat), *GetParameterCode(ClearCoatRoughness),
+		*GetParameterCode(EmissiveColor),
+		*GetParameterCode(Opacity),
+		*GetParameterCode(TransmittanceColor),
+		*GetParameterCode(WaterScatteringCoefficients), *GetParameterCode(WaterAbsorptionCoefficients), *GetParameterCode(WaterPhaseG), *GetParameterCode(ColorScaleBehindWater),
+		*GetParameterCode(ShadingModel),
+		*SharedLocalBasisIndexMacro,
+		*ClearCoat_SharedLocalBasisIndexMacro,
+		// Regular normal basis
+		*NormalCode,
+		*TangentCode,
+		// Clear coat bottom layer normal basis
+		*ClearCoat_NormalCode,
+		*ClearCoat_TangentCode
 	);
 }
 

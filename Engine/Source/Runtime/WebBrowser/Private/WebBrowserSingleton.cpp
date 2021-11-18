@@ -543,6 +543,10 @@ TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateBrowserWindow(const FC
 		if (WindowSettings.OSWindowHandle != nullptr)
 		{
 			RECT ClientRect = { 0, 0, 0, 0 };
+			if (!GetClientRect((HWND)WindowSettings.OSWindowHandle, &ClientRect))
+			{
+				UE_LOG(LogWebBrowser, Error, TEXT("Failed to get client rect"));
+			}
 			WindowInfo.SetAsChild((CefWindowHandle)WindowSettings.OSWindowHandle, ClientRect);
 		}
 		else

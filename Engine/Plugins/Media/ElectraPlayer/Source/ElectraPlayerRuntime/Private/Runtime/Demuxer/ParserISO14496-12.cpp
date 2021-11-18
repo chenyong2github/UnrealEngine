@@ -6309,6 +6309,13 @@ private:
 								AssignFrom(Best);
 								return UEMEDIA_ERROR_OK;
 							}
+							// It is possible for the PTS to be offset. Check against the DTS.
+							if (Best.GetDTS() <= localTime)
+							{
+								// Yes, get the best values back into this instance and return.
+								AssignFrom(Best);
+								return UEMEDIA_ERROR_OK;
+							}
 							// Didn't find what we're looking for.
 							return UEMEDIA_ERROR_INSUFFICIENT_DATA;
 						}
@@ -6906,15 +6913,13 @@ private:
 									if (ee.MediaTime == -1)
 									{
 										// An empty edit means to insert blank, nonexistent material into the timeline.
-										// Essentially this means that everything from the media track will come after this blank and the best way
-										// to do this is to add the duration of the blank to the timestamps.
-										// However, this means that there will be no _real_ samples for this blank duration and thus nothing in
-										// any of the receive buffers. This should not be a huge blank period since we expect data to arrive in all buffers.
 										if (!bHaveEmptyEdit)
 										{
 											// We can only have a single empty edit.
 											bHaveEmptyEdit = true;
-											Track->EmptyEditDurationInMediaTimeUnits = Track->MDHDBox->GetTimescale() == Timescale ? ee.SegmentDuration : FTimeFraction(ee.SegmentDuration, Timescale).GetAsTimebase(Track->MDHDBox->GetTimescale());
+										// Removed for now since this is not correct. This only means to say that there is empty content on the timeline
+										// but NOT that the content that does exist is delayed by that much.
+										//	Track->EmptyEditDurationInMediaTimeUnits = Track->MDHDBox->GetTimescale() == Timescale ? ee.SegmentDuration : FTimeFraction(ee.SegmentDuration, Timescale).GetAsTimebase(Track->MDHDBox->GetTimescale());
 										}
 										else if (!bHaveEmptyEditWarned)
 										{

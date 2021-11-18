@@ -38,8 +38,6 @@ void SFilterConfiguratorRow::Construct(const FArguments& InArgs, const TSharedRe
 
 TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName& InColumnName)
 {
-	TSharedRef<SHorizontalBox> GeneratedWidget = SNew(SHorizontalBox);
-
 	TSharedRef<SHorizontalBox> LeftBox = SNew(SHorizontalBox);
 	TSharedRef<SHorizontalBox> RightBox = SNew(SHorizontalBox);
 
@@ -48,7 +46,8 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 		LeftBox->AddSlot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
+			.VAlign(VAlign_Fill)
+			.Padding(FMargin(0.0f))
 			[
 				SNew(SExpanderArrow, SharedThis(this))
 				.ShouldDrawWires(true)
@@ -59,21 +58,15 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(2.0f)
+			.Padding(FMargin(0.0f, 2.0f))
 			[
-				SNew(SBorder)
-				.Padding(0)
-				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
-				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+				SAssignNew(FilterTypeComboBox, SComboBox<TSharedPtr<FFilter>>)
+				.OptionsSource(GetAvailableFilters())
+				.OnSelectionChanged(this, &SFilterConfiguratorRow::AvailableFilters_OnSelectionChanged)
+				.OnGenerateWidget(this, &SFilterConfiguratorRow::AvailableFilters_OnGenerateWidget)
 				[
-					SAssignNew(FilterTypeComboBox, SComboBox<TSharedPtr<FFilter>>)
-					.OptionsSource(GetAvailableFilters())
-					.OnSelectionChanged(this, &SFilterConfiguratorRow::AvailableFilters_OnSelectionChanged)
-					.OnGenerateWidget(this, &SFilterConfiguratorRow::AvailableFilters_OnGenerateWidget)
-					[
-						SNew(STextBlock)
-						.Text(this, &SFilterConfiguratorRow::AvailableFilters_GetSelectionText)
-					]
+					SNew(STextBlock)
+					.Text(this, &SFilterConfiguratorRow::AvailableFilters_GetSelectionText)
 				]
 			];
 
@@ -82,22 +75,16 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.FillWidth(1.0)
-			.Padding(2.0f)
+			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 			.AutoWidth()
 			[
-				SNew(SBorder)
-				.Padding(0)
-				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
-				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+				SAssignNew(FilterOperatorComboBox, SComboBox<TSharedPtr<IFilterOperator>>)
+				.OptionsSource(GetAvailableFilterOperators())
+				.OnSelectionChanged(this, &SFilterConfiguratorRow::AvailableFilterOperators_OnSelectionChanged)
+				.OnGenerateWidget(this, &SFilterConfiguratorRow::AvailableFilterOperators_OnGenerateWidget)
 				[
-					SAssignNew(FilterOperatorComboBox, SComboBox<TSharedPtr<IFilterOperator>>)
-					.OptionsSource(GetAvailableFilterOperators())
-					.OnSelectionChanged(this, &SFilterConfiguratorRow::AvailableFilterOperators_OnSelectionChanged)
-					.OnGenerateWidget(this, &SFilterConfiguratorRow::AvailableFilterOperators_OnGenerateWidget)
-					[
-						SNew(STextBlock)
-						.Text(this, &SFilterConfiguratorRow::AvailableFilterOperators_GetSelectionText)
-					]
+					SNew(STextBlock)
+					.Text(this, &SFilterConfiguratorRow::AvailableFilterOperators_GetSelectionText)
 				]
 			];
 
@@ -109,11 +96,11 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Left)
-				.Padding(2.0f)
+				.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
 				[
 					SNew(SSuggestionTextBox)
 					.MinDesiredWidth(50.0f)
-					.ForegroundColor(FLinearColor::White)
+					.ForegroundColor(FSlateColor::UseForeground())
 					.OnTextCommitted(this, &SFilterConfiguratorRow::SuggestionTextBox_OnValueCommitted)
 					.OnTextChanged(this, &SFilterConfiguratorRow::SuggestionTextBox_OnValueChanged)
 					.Text(this, &SFilterConfiguratorRow::SuggestionTextBox_GetValue)
@@ -129,7 +116,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Left)
 				.FillWidth(1.0)
-				.Padding(2.0f)
+				.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f))
 				[
 					SNew(SEditableTextBox)
 					.MinDesiredWidth(50.0f)
@@ -140,11 +127,12 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 					.OnVerifyTextChanged(this, &SFilterConfiguratorRow::TextBox_OnVerifyTextChanged)
 				];
 		}
-			
+
 		RightBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			.AutoWidth()
+			.Padding(FMargin(2.0f, 0.0f))
 			[
 				SNew(SButton)
 				.ToolTipText(LOCTEXT("DeleteFilterTooptip", "Delete Filter"))
@@ -161,8 +149,8 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 		LeftBox->AddSlot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.Padding(2.0f)
+			.VAlign(VAlign_Fill)
+			.Padding(FMargin(0.0f))
 			[
 				SNew(SExpanderArrow, SharedThis(this))
 				.ShouldDrawWires(true)
@@ -172,29 +160,24 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(2.0f)
+			.Padding(FMargin(0.0f, 2.0f))
 			[
-				SNew(SBorder)
-				.Padding(0)
-				.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
-				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
+				SAssignNew(FilterGroupOperatorComboBox, SComboBox<TSharedPtr<FFilterGroupOperator>>)
+				.OptionsSource(GetFilterGroupOperators())
+				.OnSelectionChanged(this, &SFilterConfiguratorRow::FilterGroupOperators_OnSelectionChanged)
+				.OnGenerateWidget(this, &SFilterConfiguratorRow::FilterGroupOperators_OnGenerateWidget)
 				[
-					SAssignNew(FilterGroupOperatorComboBox, SComboBox<TSharedPtr<FFilterGroupOperator>>)
-					.OptionsSource(GetFilterGroupOperators())
-					.OnSelectionChanged(this, &SFilterConfiguratorRow::FilterGroupOperators_OnSelectionChanged)
-					.OnGenerateWidget(this, &SFilterConfiguratorRow::FilterGroupOperators_OnGenerateWidget)
-					[
-						SNew(STextBlock)
-						.Text(this, &SFilterConfiguratorRow::FilterGroupOperators_GetSelectionText)
-					]
+					SNew(STextBlock)
+					.Text(this, &SFilterConfiguratorRow::FilterGroupOperators_GetSelectionText)
+					.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
 				]
 			];
-		
+
 		RightBox->AddSlot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(2.0f)
+			.Padding(FMargin(2.0f, 0.0f))
 			[
 				SNew(SButton)
 				.ToolTipText(LOCTEXT("AddFilterDesc", "Add a filter node as a child to this group node."))
@@ -213,20 +196,20 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 					]
 
 					+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Margin(FMargin(2.0, 0.0f, 0.0f, 0.0f))
-							.Text(LOCTEXT("AddFilter", "Add Filter"))
-						]
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Margin(FMargin(2.0, 0.0f, 0.0f, 0.0f))
+						.Text(LOCTEXT("AddFilter", "Add Filter"))
 					]
+				]
 			];
 
 		RightBox->AddSlot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(2.0f)
+			.Padding(FMargin(2.0f, 0.0f))
 			[
 				SNew(SButton)
 				.ToolTipText(LOCTEXT("AddGroupDesc", "Add a group node as a child to this group node."))
@@ -260,6 +243,7 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			.AutoWidth()
+			.Padding(FMargin(2.0f, 0.0f))
 			[
 				SNew(SButton)
 				.ToolTipText(LOCTEXT("DeleteGroupTooptip", "Delete Group"))
@@ -274,6 +258,8 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 			];
 	}
 
+	TSharedRef<SHorizontalBox> GeneratedWidget = SNew(SHorizontalBox);
+
 	GeneratedWidget->AddSlot()
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Left)
@@ -287,23 +273,10 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 		.HAlign(HAlign_Right)
 		.FillWidth(1.0f)
 		[
-			SNew(SBorder)
-			.Padding(FMargin(2.0f, 0.0f, 0.0f, 0.0f))
-			.HAlign(EHorizontalAlignment::HAlign_Fill)
-			.BorderBackgroundColor(FLinearColor::Black)
-			.BorderImage(FAppStyle::Get().GetBrush("Border"))
-			[
-				RightBox
-			]
+			RightBox
 		];
 
-	return SNew(SBorder)
-		.Padding(FMargin(2))
-		.BorderBackgroundColor(FLinearColor::Black)
-		.BorderImage(FAppStyle::Get().GetBrush("Border"))
-		[
-			GeneratedWidget
-		];
+	return GeneratedWidget;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -447,7 +420,6 @@ FReply SFilterConfiguratorRow::DeleteFilter_OnClicked()
 	Insights::FBaseTreeNodeWeak GroupWeakPtr = FilterConfiguratorNodePtr->GetGroupPtr();
 	if (GroupWeakPtr.IsValid())
 	{
-		
 		FFilterConfiguratorNodePtr GroupPtr = StaticCastSharedPtr<FFilterConfiguratorNode>(GroupWeakPtr.Pin());
 		GroupPtr->DeleteChildNode(FilterConfiguratorNodePtr);
 	}
@@ -479,7 +451,6 @@ FReply SFilterConfiguratorRow::DeleteGroup_OnClicked()
 	Insights::FBaseTreeNodeWeak GroupWeakPtr = FilterConfiguratorNodePtr->GetGroupPtr();
 	if (GroupWeakPtr.IsValid())
 	{
-
 		FFilterConfiguratorNodePtr GroupPtr = StaticCastSharedPtr<FFilterConfiguratorNode>(GroupWeakPtr.Pin());
 		GroupPtr->DeleteChildNode(FilterConfiguratorNodePtr);
 	}
@@ -547,7 +518,7 @@ bool SFilterConfiguratorRow::TextBox_OnVerifyTextChanged(const FText& InText, FT
 void SFilterConfiguratorRow::SuggestionTextBox_GetSuggestions(const FString& Text, TArray<FString>& Suggestions)
 {
 	TSharedPtr<FFilter> Filter = FilterConfiguratorNodePtr->GetSelectedFilter();
-	
+
 	if (Filter->Is<FFilterWithSuggestions>())
 	{
 		TSharedPtr<FFilterWithSuggestions> FilterWithSuggestions = StaticCastSharedPtr<FFilterWithSuggestions>(Filter);

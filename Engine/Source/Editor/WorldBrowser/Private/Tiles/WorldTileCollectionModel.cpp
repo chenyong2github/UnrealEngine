@@ -1191,7 +1191,7 @@ bool FWorldTileCollectionModel::AreAnySelectedLevelsHaveLandscape() const
 	return false;
 }
 
-FVector2D FWorldTileCollectionModel::SnapTranslationDelta(const FLevelModelList& InLevels, FVector2D InTranslationDelta, bool bBoundsSnapping, float InSnappingValue)
+FVector2D FWorldTileCollectionModel::SnapTranslationDelta(const FLevelModelList& InLevels, FVector2D InTranslationDelta, bool bBoundsSnapping, FVector2D::FReal InSnappingValue)
 {
 	for (auto It = InLevels.CreateConstIterator(); It; ++It)
 	{
@@ -1315,7 +1315,7 @@ FVector2D FWorldTileCollectionModel::SnapTranslationDeltaLandscape(const TShared
 																	float SnappingDistance)
 {
 	ALandscapeProxy* Landscape = LandscapeTile->GetLandscape();
-	FVector3f ComponentScale = Landscape->GetRootComponent()->GetRelativeScale3D()*Landscape->ComponentSizeQuads;
+	FVector ComponentScale = Landscape->GetRootComponent()->GetRelativeScale3D()*Landscape->ComponentSizeQuads;
 	
 	return FVector2D(	FMath::GridSnap(InAbsoluteDelta.X, ComponentScale.X),
 						FMath::GridSnap(InAbsoluteDelta.Y, ComponentScale.Y));

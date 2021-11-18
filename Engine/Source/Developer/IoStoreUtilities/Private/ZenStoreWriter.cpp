@@ -186,13 +186,8 @@ FZenStoreWriter::FZenStoreWriter(
 
 #if UE_WITH_ZEN
 	const UE::Zen::FZenServiceInstance& ZenServiceInstance = HttpClient->GetZenServiceInstance();
-	ZenServerInfo.bAutoLaunch = ZenServiceInstance.IsAutoLaunch();
-	ZenServerInfo.AutoLaunchExecutablePath = ZenServiceInstance.GetAutoLaunchExecutablePath();
-	ZenServerInfo.AutoLaunchArguments = ZenServiceInstance.GetAutoLaunchArguments();
+	ZenServerInfo.Settings = ZenServiceInstance.GetServiceSettings();
 #endif
-
-	ZenServerInfo.HostName = HttpClient->GetHostName();
-	ZenServerInfo.Port = HttpClient->GetPort();
 	ZenServerInfo.ProjectId = ProjectId;
 	ZenServerInfo.OplogId = OplogId;
 

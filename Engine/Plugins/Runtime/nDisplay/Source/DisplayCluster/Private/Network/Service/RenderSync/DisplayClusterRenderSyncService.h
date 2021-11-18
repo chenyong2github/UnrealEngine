@@ -9,8 +9,7 @@
 #include "Network/Protocol/IDisplayClusterProtocolRenderSync.h"
 #include "Network/Packet/DisplayClusterPacketInternal.h"
 
-#include "Misc/DisplayClusterBarrier.h"
-
+class IDisplayClusterBarrier;
 struct FIPv4Endpoint;
 
 
@@ -27,33 +26,41 @@ public:
 	virtual ~FDisplayClusterRenderSyncService();
 
 public:
-	virtual bool Start(const FString& Address, int32 Port) override;
-	virtual void Shutdown() override;
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterServer
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool Start(const FString& Address, const uint16 Port) override;
+	virtual bool Start(TSharedPtr<FDisplayClusterTcpListener>& ExternalListener) override;
+	virtual void Shutdown() override final;
+	virtual FString GetProtocolName() const override;
+	virtual void KillSession(const FString& NodeId) override;
 
 protected:
 	// Creates session instance for this service
-	virtual TUniquePtr<IDisplayClusterSession> CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId) override;
+	virtual TSharedPtr<IDisplayClusterSession> CreateSession(FDisplayClusterSessionInfo& SessionInfo) override;
 
-protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterSessionStatusListener
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void NotifySessionClose(uint64 SessionId) override;
+	// Callback when a session is closed
+	void ProcessSessionClosed(const FDisplayClusterSessionInfo& SessionInfo);
+
+	// Callback on barrier timeout
+	void ProcessBarrierTimeout(const FString& BarrierName, const TArray<FString>& NodesTimedOut);
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterSessionPacketHandler
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual TSharedPtr<FDisplayClusterPacketInternal> ProcessPacket(const TSharedPtr<FDisplayClusterPacketInternal>& Request) override;
+	virtual TSharedPtr<FDisplayClusterPacketInternal> ProcessPacket(const TSharedPtr<FDisplayClusterPacketInternal>& Request, const FDisplayClusterSessionInfo& SessionInfo) override;
 
 private:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolRenderSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForSwapSync() override;
-
+	virtual EDisplayClusterCommResult WaitForSwapSync() override;
 
 private:
 	// Swap sync barrier
-	FDisplayClusterBarrier BarrierSwap;
+	TUniquePtr<IDisplayClusterBarrier> BarrierSwap;
+
+	// Auxiliary container that keeps all the barriers
+	TMap<FString, TUniquePtr<IDisplayClusterBarrier>*> ServiceBarriers;
 };

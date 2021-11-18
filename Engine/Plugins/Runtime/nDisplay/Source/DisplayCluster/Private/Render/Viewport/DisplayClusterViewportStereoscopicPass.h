@@ -39,7 +39,7 @@ struct FDisplayClusterViewportStereoscopicPass
 	}
 
 	// Unique stereoscopic pass (ndisplay viewports hack)
-	// EStereoscopicPass enum used as int value range
+	// EStereoscopicPass enum used as uint32 value range
 	// Use to encode sceneview in viewFamily
 	inline static EStereoscopicPass EncodeStereoscopicPass(const uint32 ViewIndex)
 	{
@@ -53,7 +53,7 @@ struct FDisplayClusterViewportStereoscopicPass
 		}
 		else
 		{
-			EncodedPass = EStereoscopicPass(int(EStereoscopicPass::eSSP_RIGHT_EYE) + ViewIndex - 1);
+			EncodedPass = EStereoscopicPass(uint32(EStereoscopicPass::eSSP_RIGHT_EYE) + ViewIndex - 1);
 		}
 
 		return EncodedPass;

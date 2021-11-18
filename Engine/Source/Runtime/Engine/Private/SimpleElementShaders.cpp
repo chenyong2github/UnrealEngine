@@ -190,7 +190,7 @@ void FSimpleElementDistanceFieldGammaPS::SetParameters(
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),EnableShadow,bEnableShadowValueUInt);
 	if (bEnableShadowValue)
 	{
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ShadowDirection,ShadowDirectionValue);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ShadowDirection,FVector2f(ShadowDirectionValue));
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ShadowColor,ShadowColorValue);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),ShadowSmoothWidth,ShadowSmoothWidthValue);
 	}
@@ -198,8 +198,8 @@ void FSimpleElementDistanceFieldGammaPS::SetParameters(
 	if (GlowInfo.bEnableGlow)
 	{
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),GlowColor,GlowInfo.GlowColor);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),GlowOuterRadius,GlowInfo.GlowOuterRadius);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),GlowInnerRadius,GlowInfo.GlowInnerRadius);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),GlowOuterRadius,FVector2f(GlowInfo.GlowOuterRadius));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(),GlowInnerRadius,FVector2f(GlowInfo.GlowInnerRadius));
 	}
 
 	// This shader does not use editor compositing

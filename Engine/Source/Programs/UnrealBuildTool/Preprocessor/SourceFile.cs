@@ -109,12 +109,12 @@ namespace UnrealBuildTool
 		/// <param name="Reader">The reader to serialize from</param>
 		public SourceFile(BinaryArchiveReader Reader)
 		{
-			File = Reader.ReadFileItem();
+			File = Reader.ReadFileItem()!;
 			Hash = Reader.ReadContentHash()!;
 			LastWriteTimeUtc = Reader.ReadLong();
-			Markup = Reader.ReadArray(() => new SourceFileMarkup(Reader));
+			Markup = Reader.ReadArray(() => new SourceFileMarkup(Reader))!;
 			HeaderGuardMacro = Reader.ReadIdentifier();
-			Fragments = Reader.ReadArray(() => new SourceFileFragment(this, Reader));
+			Fragments = Reader.ReadArray(() => new SourceFileFragment(this, Reader))!;
 		}
 
 		/// <summary>

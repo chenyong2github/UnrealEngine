@@ -182,7 +182,7 @@ void ExtractAttribList(const FMeshDescription* Mesh, AttribSetType& AttribSet, E
 		{
 			AttribInfo.DataType = EAttributeEditorAttribType::Boolean;
 		}
-		else if (AttribSet.template HasAttributeOfType<FVector2D>(AttributeName))
+		else if (AttribSet.template HasAttributeOfType<FVector2f>(AttributeName))
 		{
 			AttribInfo.DataType = EAttributeEditorAttribType::Vector2;
 		}
@@ -276,7 +276,7 @@ static bool AddAttribute(FMeshDescription* Mesh, EAttributeEditorElementType Ele
 			AttribSetBase->RegisterAttribute<float>(AttributeName, 1, 0.0f, EMeshAttributeFlags::Lerpable);
 			return true;
 		case EAttributeEditorAttribType::Vector2:
-			AttribSetBase->RegisterAttribute<FVector2D>(AttributeName, 1, FVector2D::ZeroVector, EMeshAttributeFlags::Lerpable);
+			AttribSetBase->RegisterAttribute<FVector2f>(AttributeName, 1, FVector2f::ZeroVector, EMeshAttributeFlags::Lerpable);
 			return true;
 		case EAttributeEditorAttribType::Vector3:
 			AttribSetBase->RegisterAttribute<FVector3f>(AttributeName, 1, FVector3f::ZeroVector, EMeshAttributeFlags::Lerpable);
@@ -308,8 +308,8 @@ void UAttributeEditorTool::InitializeAttributeLists()
 {
 	const FMeshDescription* Mesh = UE::ToolTarget::GetMeshDescription(Targets[0]);
 
-	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs =
-		Mesh->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+	TVertexInstanceAttributesConstRef<FVector2f> InstanceUVs =
+		Mesh->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 
 	UVActions->UVLayerNamesList.Reset();
 	for ( int32 k = 0; k < InstanceUVs.GetNumChannels(); ++k )
@@ -471,8 +471,8 @@ void UAttributeEditorTool::ClearUVs()
 	{
 		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			TVertexInstanceAttributesRef<FVector2f> InstanceUVs =
+				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 			int32 NumChannels = InstanceUVs.GetNumChannels();
 			const FVertexInstanceArray& Instances = CommitParams.MeshDescriptionOut->VertexInstances();
 			for (int LayerIndex = NumChannels-1; LayerIndex >= 0; LayerIndex--)
@@ -519,8 +519,8 @@ void UAttributeEditorTool::DeleteSelectedUVSet()
 	{
 		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			TVertexInstanceAttributesRef<FVector2f> InstanceUVs =
+				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 			if (!FStaticMeshOperations::RemoveUVChannel(*CommitParams.MeshDescriptionOut, DeleteIndex))
 			{
 				const FVertexInstanceArray& Instances = CommitParams.MeshDescriptionOut->VertexInstances();
@@ -549,8 +549,8 @@ void UAttributeEditorTool::AddUVSet()
 	{
 		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			TVertexInstanceAttributesRef<FVector2f> InstanceUVs =
+				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 			int32 NewChannelIndex = InstanceUVs.GetNumChannels();
 			if (!FStaticMeshOperations::AddUVChannel(*CommitParams.MeshDescriptionOut))
 			{
@@ -588,8 +588,8 @@ void UAttributeEditorTool::DuplicateSelectedUVSet()
 	{
 		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			TVertexInstanceAttributesRef<FVector2f> InstanceUVs =
+				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 			int32 NewChannelIndex = InstanceUVs.GetNumChannels();
 			if (!FStaticMeshOperations::AddUVChannel(*CommitParams.MeshDescriptionOut))
 			{
@@ -774,8 +774,8 @@ void UAttributeEditorTool::ResetLightmapUVsChannels()
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("ResetLightmapUVs", "Reset Lightmap UVs"));
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = 
-			TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription()->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+		TVertexInstanceAttributesConstRef<FVector2f> InstanceUVs = 
+			TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription()->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 		int32 SetChannel = FMath::Max(InstanceUVs.GetNumChannels(), 1);
 
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponentInterface(ComponentIdx)->GetOwnerComponent());

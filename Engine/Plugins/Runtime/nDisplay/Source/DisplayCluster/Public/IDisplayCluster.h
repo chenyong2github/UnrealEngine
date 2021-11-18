@@ -12,6 +12,7 @@ class IDisplayClusterRenderManager;
 class IDisplayClusterClusterManager;
 class IDisplayClusterConfigManager;
 class IDisplayClusterGameManager;
+class IDisplayClusterCallbacks;
 
 
 /**
@@ -104,40 +105,10 @@ public:
 	*/
 	virtual IDisplayClusterGameManager* GetGameMgr() const = 0;
 
-
-	/** Called on session start **/
-	DECLARE_EVENT(IDisplayCluster, FDisplayClusterStartSessionEvent);
-	virtual FDisplayClusterStartSessionEvent& OnDisplayClusterStartSession() = 0;
-
-	/** Called on session end **/
-	DECLARE_EVENT(IDisplayCluster, FDisplayClusterEndSessionEvent);
-	virtual FDisplayClusterEndSessionEvent& OnDisplayClusterEndSession() = 0;
-
-	/** Called on start scene **/
-	DECLARE_EVENT(IDisplayCluster, FDisplayClusterStartSceneEvent);
-	virtual FDisplayClusterStartSceneEvent& OnDisplayClusterStartScene() = 0;
-
-	/** Called on end scene **/
-	DECLARE_EVENT(IDisplayCluster, FDisplayClusterEndSceneEvent);
-	virtual FDisplayClusterEndSceneEvent& OnDisplayClusterEndScene() = 0;
-
-	/** Called on DisplayCluster StartFrame **/
-	DECLARE_EVENT_OneParam(IDisplayCluster, FDisplayClusterStartFrameEvent, uint64);
-	virtual FDisplayClusterStartFrameEvent& OnDisplayClusterStartFrame() = 0;
-
-	/** Called on DisplayCluster EndFrame **/
-	DECLARE_EVENT_OneParam(IDisplayCluster, FDisplayClusterEndFrameEvent, uint64);
-	virtual FDisplayClusterEndFrameEvent& OnDisplayClusterEndFrame() = 0;
-
-	/** Called on DisplayCluster PreTick **/
-	DECLARE_EVENT(IDisplayCluster, FDisplayClusterPreTickEvent);
-	virtual FDisplayClusterPreTickEvent& OnDisplayClusterPreTick() = 0;
-
-	/** Called on DisplayCluster Tick **/
-	DECLARE_EVENT(IDisplayCluster, FDisplayClusterTickEvent);
-	virtual FDisplayClusterTickEvent& OnDisplayClusterTick() = 0;
-
-	/** Called on DisplayCluster PostTick **/
-	DECLARE_EVENT(IDisplayCluster, FDisplayClusterPostTickEvent);
-	virtual FDisplayClusterPostTickEvent& OnDisplayClusterPostTick() = 0;
+	/**
+	* Access to the DisplayCluster callbacks API
+	*
+	* @return Callbacks API
+	*/
+	virtual IDisplayClusterCallbacks& GetCallbacks() = 0;
 };

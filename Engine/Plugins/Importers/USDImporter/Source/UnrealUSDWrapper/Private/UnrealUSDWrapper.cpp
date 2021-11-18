@@ -100,6 +100,10 @@ namespace UnrealIdentifiers
 	const TfToken MaterialAssignment = TfToken("unrealMaterial");
 	const TfToken Unreal = TfToken("unreal");
 
+	const TfToken UnrealNaniteOverride = TfToken("unrealNanite");
+	const TfToken UnrealNaniteOverrideEnable = TfToken("enable");
+	const TfToken UnrealNaniteOverrideDisable = TfToken("disable");
+
 	const TfToken DiffuseColor = TfToken("diffuseColor");
 	const TfToken EmissiveColor = TfToken("emissiveColor");
 	const TfToken Metallic = TfToken("metallic");

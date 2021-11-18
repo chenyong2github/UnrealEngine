@@ -63,7 +63,6 @@ namespace HLODOutliner
 	SHLODOutliner::SHLODOutliner()		
 	{
 		bNeedsRefresh = true;
-		ToolBarButtonCurrentState = GenerateClusters;
 		CurrentWorld = nullptr;
 		CurrentWorldSettings = nullptr;
 		ForcedLODLevel = LOD_AUTO;
@@ -336,21 +335,31 @@ namespace HLODOutliner
 
 		ToolBarBuilder.AddToolBarButton(
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SHLODOutliner::OnToolBarButtonClicked),
-				FCanExecuteAction::CreateSP(this, &SHLODOutliner::IsToolBarButtonEnabled)),
+				FExecuteAction::CreateLambda([this](){ GenerateClustersFromUI(); })),
 			NAME_None,
-			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SHLODOutliner::GetToolBarButtonLabel)),
-			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SHLODOutliner::GetToolBarButtonToolTip)),
-			TAttribute<FSlateIcon>::Create(TAttribute<FSlateIcon>::FGetter::CreateSP(this, &SHLODOutliner::GetToolBarButtonIcon))
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SHLODOutliner::GetRegenerateClustersText)),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SHLODOutliner::GetRegenerateClustersTooltip)),
+			TAttribute<FSlateIcon>()
 		);
 
-		ToolBarBuilder.AddComboButton(
-			FUIAction(),
-			FOnGetContent::CreateRaw(this, &SHLODOutliner::GetToolBarButtonMenu),
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			TAttribute<FSlateIcon>(),
-			true);
+		ToolBarBuilder.AddToolBarButton(
+			FUIAction(
+				FExecuteAction::CreateLambda([this](){ GenerateProxyMeshesFromUI(); }),
+				FCanExecuteAction::CreateSP(this, &SHLODOutliner::CanBuildLODActors)),
+			NAME_None,
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SHLODOutliner::GetBuildText)),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SHLODOutliner::GetBuildLODActorsTooltipText)),
+			TAttribute<FSlateIcon>()
+		);
+
+		ToolBarBuilder.AddToolBarButton(
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { BuildClustersAndMeshesFromUI(); })),
+			NAME_None,
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SHLODOutliner::GetForceBuildText)),
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SHLODOutliner::GetForceBuildToolTip)),
+			TAttribute<FSlateIcon>()
+		);
 
 		ToolBarBuilder.AddToolBarButton(
 			FUIAction(FExecuteAction::CreateLambda([this]() { HandleSaveAll(); })),
@@ -433,13 +442,7 @@ namespace HLODOutliner
 						.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 						.ContentPadding(0)
 						.HAlign(HAlign_Center)
-						.OnClicked_Lambda([this]() {
-							// Transition out of the generate proxy meshes state if we were in it.
-							if(ToolBarButtonCurrentState == GenerateProxyMeshes)
-								ToolBarButtonCurrentState = GenerateClusters;
-
-							return HandleDeleteHLODs();
-							})
+						.OnClicked_Lambda([this]() { return HandleDeleteHLODs(); })
 						.IsEnabled(this, &SHLODOutliner::CanDeleteHLODs)
 						.ToolTipText(LOCTEXT("DeleteClusterToolTip", "Deletes all clusters in the level"))
 						[
@@ -690,7 +693,7 @@ namespace HLODOutliner
 
 	FText SHLODOutliner::GetForceBuildText() const
 	{
-		return HasHLODActors() ? LOCTEXT("RebuildAllClustersAndMeshes", "Rebuild All") : LOCTEXT("BuildClustersAndMeshes", "Build Meshes");
+		return LOCTEXT("RebuildAllClustersAndMeshes", "Build All");
 	}
 
 	FText SHLODOutliner::GetForceBuildToolTip() const
@@ -816,165 +819,21 @@ namespace HLODOutliner
 
 		return FReply::Handled();
 	}
-
-	TSharedRef<SWidget> SHLODOutliner::GetToolBarButtonMenu()
-	{
-		const bool bInShouldCloseWindowAfterMenuSelection = true;
-		FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, nullptr);
-
-		if (HasHLODActors())
-		{
-			MenuBuilder.AddMenuEntry(
-				GetRegenerateClustersText(),
-				GetRegenerateClustersTooltip(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCommands.Redo"),
-				FUIAction(FExecuteAction::CreateLambda([this]() { RegenerateClustersFromUI(); })));
-		}
-		else
-		{
-			MenuBuilder.AddMenuEntry(
-				GetGenerateClustersText(),
-				GetRegenerateClustersTooltip(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.PlusCircle"),
-				FUIAction(FExecuteAction::CreateLambda([this]() { GenerateClustersFromUI(); })));
-		}
-
-		MenuBuilder.AddMenuEntry(
-			GetBuildText(),
-			GetBuildLODActorsTooltipText(),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this](){ GenerateProxyMeshesFromUI(); }),
-				FCanExecuteAction::CreateSP(this, &SHLODOutliner::CanBuildLODActors)));
-
-		MenuBuilder.AddMenuEntry(
-			GetForceBuildText(),
-			GetForceBuildToolTip(),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([this] { BuildClustersAndMeshesFromUI(); })));
-
-		return MenuBuilder.MakeWidget();
-	}
-
-	FText SHLODOutliner::GetToolBarButtonLabel()
-	{
-		switch (ToolBarButtonCurrentState)
-		{
-		default:
-		case GenerateClusters:
-			if (HasHLODActors())
-			{
-				return GetRegenerateClustersText();
-			}
-			else
-			{
-				return GetGenerateClustersText();
-			}
-
-		case GenerateProxyMeshes:
-			return GetBuildText();
-
-		case RebuildAll:
-			return GetForceBuildText();
-		}
-	}
-
-	FText SHLODOutliner::GetToolBarButtonToolTip()
-	{
-		switch (ToolBarButtonCurrentState)
-		{
-		default:
-		case GenerateClusters:
-			if (HasHLODActors())
-			{
-				return GetRegenerateClustersText();
-			}
-			else
-			{
-				return GetGenerateClustersText();
-			}
-
-		case GenerateProxyMeshes:
-			return GetBuildLODActorsTooltipText();
-
-		case RebuildAll:
-			return GetForceBuildToolTip();
-		}
-	}
-
-	FSlateIcon SHLODOutliner::GetToolBarButtonIcon()
-	{
-		switch (ToolBarButtonCurrentState)
-		{
-		case GenerateClusters:
-			if (HasHLODActors())
-			{
-				return FSlateIcon(FEditorStyle::GetStyleSetName(), "GenericCommands.Redo");
-			}
-			else
-			{
-				return FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.PlusCircle");
-			}
-
-		case GenerateProxyMeshes:
-		case RebuildAll:
-		default:
-			return FSlateIcon();
-		}
-	}
-
-	void SHLODOutliner::OnToolBarButtonClicked()
-	{
-		switch (ToolBarButtonCurrentState)
-		{
-		default:
-		case GenerateClusters:
-			if (HasHLODActors())
-			{
-				RegenerateClustersFromUI();
-			}
-			else
-			{
-				GenerateClustersFromUI();
-			}
-			break;
-		case GenerateProxyMeshes:
-			GenerateProxyMeshesFromUI();
-			break;
-		case RebuildAll:
-			BuildClustersAndMeshesFromUI();
-			break;
-		}
-	}
-
-	bool SHLODOutliner::IsToolBarButtonEnabled()
-	{
-		return (ToolBarButtonCurrentState != GenerateProxyMeshes) || CanBuildLODActors();
-	}
-
+	
 	END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-	FReply SHLODOutliner::RegenerateClustersFromUI()
-	{
-		ToolBarButtonCurrentState = GenerateClusters;
-		return HandlePreviewHLODs();
-	}
 
 	FReply SHLODOutliner::GenerateClustersFromUI()
 	{
-		ToolBarButtonCurrentState = GenerateProxyMeshes;
 		return HandlePreviewHLODs();
 	}
 
 	FReply SHLODOutliner::GenerateProxyMeshesFromUI()
 	{
-		ToolBarButtonCurrentState = GenerateProxyMeshes;
 		return HandleBuildLODActors();
 	}
 
 	FReply SHLODOutliner::BuildClustersAndMeshesFromUI()
 	{
-		ToolBarButtonCurrentState = RebuildAll;
 		return HandleForceBuildLODActors();
 	}
 

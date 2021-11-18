@@ -104,7 +104,7 @@ public:
 		TVertexInstanceAttributesConstRef<FVector3f> InVertexTangents = InMeshAttribute.GetVertexInstanceTangents();
 		TVertexInstanceAttributesConstRef<float> InVertexBinormalSigns = InMeshAttribute.GetVertexInstanceBinormalSigns();
 		TVertexInstanceAttributesConstRef<FVector4f> InVertexColors = InMeshAttribute.GetVertexInstanceColors();
-		TVertexInstanceAttributesConstRef<FVector2D> InVertexUVs = InMeshAttribute.GetVertexInstanceUVs();
+		TVertexInstanceAttributesConstRef<FVector2f> InVertexUVs = InMeshAttribute.GetVertexInstanceUVs();
 		TPolygonGroupAttributesConstRef<FName> InPolygonGroupMaterialNames = InMeshAttribute.GetPolygonGroupMaterialSlotNames();
 
 		TPolygonGroupAttributesRef<FName> OutPolygonGroupMaterialNames = OutReducedMesh.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
@@ -167,7 +167,7 @@ public:
 					}
 					else
 					{
-						NewVert.TexCoords[UVIndex] = FVector2D::ZeroVector;
+						NewVert.TexCoords[UVIndex] = FVector2f::ZeroVector;
 					}
 				}
 
@@ -272,7 +272,7 @@ public:
 						float YMin = FLT_MAX;
 						for (const TVertSimp< NumTexCoords >& SimpVert : Verts)
 						{
-							const FVector2D& UVs = SimpVert.TexCoords[TexCoordId];
+							const FVector2f& UVs = SimpVert.TexCoords[TexCoordId];
 							XMax = FMath::Max(XMax, UVs.X);
 							XMin = FMath::Min(XMin, UVs.X);
 
@@ -473,7 +473,7 @@ public:
 			TVertexInstanceAttributesRef<FVector3f> OutVertexTangents = Attributes.GetVertexInstanceTangents();
 			TVertexInstanceAttributesRef<float> OutVertexBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 			TVertexInstanceAttributesRef<FVector4f> OutVertexColors = Attributes.GetVertexInstanceColors();
-			TVertexInstanceAttributesRef<FVector2D> OutVertexUVs = Attributes.GetVertexInstanceUVs();
+			TVertexInstanceAttributesRef<FVector2f> OutVertexUVs = Attributes.GetVertexInstanceUVs();
 
 			//Specify the number of texture coords in this mesh description
 			OutVertexUVs.SetNumChannels(InMeshNumTexCoords);

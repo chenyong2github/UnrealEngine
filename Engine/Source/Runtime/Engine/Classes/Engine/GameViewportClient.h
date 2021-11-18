@@ -833,6 +833,13 @@ public:
 		return ToggleFullscreenDelegate;
 	}
 
+	/** 
+	 * Applies requested changes to display configuration 
+	 * @param Dimensions Pointer to new dimensions of the display. nullptr for no change.
+	 * @param WindowMode What window mode do we want to st the display to.
+	 */
+	bool SetDisplayConfiguration( const FIntPoint* Dimensions, EWindowMode::Type WindowMode);
+
 	void SetVirtualCursorWidget(EMouseCursor::Type Cursor, class UUserWidget* Widget);
 
 	/** Add a cursor to the set based on the enum and a slate widget */
@@ -967,13 +974,6 @@ private:
 
 	/* Function that handles bug screen-shot requests w/ or w/o extra HUD info (project-specific) */
 	bool RequestBugScreenShot(const TCHAR* Cmd, bool bDisplayHUDInfo);
-
-	/** 
-	 * Applies requested changes to display configuration 
-	 * @param Dimensions Pointer to new dimensions of the display. nullptr for no change.
-	 * @param WindowMode What window mode do we want to st the display to.
-	 */
-	bool SetDisplayConfiguration( const FIntPoint* Dimensions, EWindowMode::Type WindowMode);
 
 #if WITH_EDITOR
 	/** Delegate called when game viewport client received input key */

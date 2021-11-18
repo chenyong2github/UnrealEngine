@@ -198,6 +198,11 @@ namespace AnimationEditorUtils
 	UNREALED_API void RemovePoseWatch(UPoseWatch* PoseWatch, UAnimBlueprint* AnimBlueprintIfKnown=nullptr);
 	UNREALED_API void UpdatePoseWatchColour(UPoseWatch* PoseWatch, FColor NewPoseWatchColour);
 	UNREALED_API TArrayView<const FColor> GetPoseWatchColorPalette();
+
+	// Delegate fired when a pose watch is added or removed
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPoseWatchesChanged, UAnimBlueprint* /*InAnimBlueprint*/, UEdGraphNode* /*InNode*/);
+	UNREALED_API FOnPoseWatchesChanged& OnPoseWatchesChanged();
+
 	UNREALED_API void SetupDebugLinkedAnimInstances(UAnimBlueprint* InAnimBlueprint, UObject* InRootObjectBeingDebugged);
 
 	//////////////////////////////////////////////////////////////////////////////////////////
@@ -246,7 +251,7 @@ namespace AnimationEditorUtils
 							{
 								ObjectToDelete->ClearFlags(RF_Standalone | RF_Public);
 								ObjectToDelete->RemoveFromRoot();
-								ObjectToDelete->MarkPendingKill();
+								ObjectToDelete->MarkAsGarbage();
 							}
 							CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 						}

@@ -7,6 +7,7 @@
 #include "AuthEOS.h"
 #include "FriendsEOS.h"
 #include "PresenceEOS.h"
+#include "ExternalUIEOS.h"
 
 namespace UE::Online {
 
@@ -41,6 +42,7 @@ void FOnlineServicesEOS::RegisterComponents()
 	Components.Register<FAuthEOS>(*this);
 	Components.Register<FFriendsEOS>(*this);
 	Components.Register<FPresenceEOS>(*this);
+	Components.Register<FExternalUIEOS>(*this);
 	FOnlineServicesCommon::RegisterComponents();
 }
 

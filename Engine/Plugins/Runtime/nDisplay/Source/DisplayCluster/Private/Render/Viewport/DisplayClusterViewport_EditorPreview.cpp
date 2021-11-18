@@ -134,7 +134,7 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 		View->EndFinalPostprocessSettings(ViewInitOptions);
 
 		// Setup view extension for this view
-		for (int ViewExt = 0; ViewExt < InOutViewFamily.ViewExtensions.Num(); ViewExt++)
+		for (int32 ViewExt = 0; ViewExt < InOutViewFamily.ViewExtensions.Num(); ViewExt++)
 		{
 			InOutViewFamily.ViewExtensions[ViewExt]->SetupView(InOutViewFamily, *View);
 		}
@@ -229,7 +229,7 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 
 	// Decode current eye type	
 	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicEye);
-	const int   EyeIndex = (int)EyeType;
+	const int32 EyeIndex = (int32)EyeType;
 
 	float PassOffset = 0.f;
 	float PassOffsetSwap = 0.f;
@@ -240,7 +240,7 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 		// * Force left (-1) ==> 0 left eye
 		// * Force right (1) ==> 2 right eye
 		// * Default (0) ==> 1 mono
-		const int EyeOffsetIdx =
+		const int32 EyeOffsetIdx =
 			(CfgEyeOffset == EDisplayClusterEyeStereoOffset::None ? 0 :
 				(CfgEyeOffset == EDisplayClusterEyeStereoOffset::Left ? -1 : 1));
 

@@ -178,34 +178,34 @@ FIntRect GetRectFromExtent(FIntPoint Extent);
 // Describes the set of shader parameters for a screen pass texture viewport.
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, )
 	// Texture extent in pixels.
-	SHADER_PARAMETER(FVector2D, Extent)
-	SHADER_PARAMETER(FVector2D, ExtentInverse)
+	SHADER_PARAMETER(FVector2f, Extent)
+	SHADER_PARAMETER(FVector2f, ExtentInverse)
 
 	// Scale / Bias factor to convert from [-1, 1] to [ViewportMin, ViewportMax]
-	SHADER_PARAMETER(FVector2D, ScreenPosToViewportScale)
-	SHADER_PARAMETER(FVector2D, ScreenPosToViewportBias)
+	SHADER_PARAMETER(FVector2f, ScreenPosToViewportScale)
+	SHADER_PARAMETER(FVector2f, ScreenPosToViewportBias)
 
 	// Texture viewport min / max in pixels.
 	SHADER_PARAMETER(FIntPoint, ViewportMin)
 	SHADER_PARAMETER(FIntPoint, ViewportMax)
 
 	// Texture viewport size in pixels.
-	SHADER_PARAMETER(FVector2D, ViewportSize)
-	SHADER_PARAMETER(FVector2D, ViewportSizeInverse)
+	SHADER_PARAMETER(FVector2f, ViewportSize)
+	SHADER_PARAMETER(FVector2f, ViewportSizeInverse)
 
 	// Texture viewport min / max in normalized UV coordinates, with respect to the texture extent.
-	SHADER_PARAMETER(FVector2D, UVViewportMin)
-	SHADER_PARAMETER(FVector2D, UVViewportMax)
+	SHADER_PARAMETER(FVector2f, UVViewportMin)
+	SHADER_PARAMETER(FVector2f, UVViewportMax)
 
 	// Texture viewport size in normalized UV coordinates, with respect to the texture extent.
-	SHADER_PARAMETER(FVector2D, UVViewportSize)
-	SHADER_PARAMETER(FVector2D, UVViewportSizeInverse)
+	SHADER_PARAMETER(FVector2f, UVViewportSize)
+	SHADER_PARAMETER(FVector2f, UVViewportSizeInverse)
 
 	// Texture viewport min / max in normalized UV coordinates, with respect to the texture extent,
 	// adjusted by a half pixel offset for bilinear filtering. Useful for clamping to avoid sampling
 	// pixels on viewport edges; e.g. clamp(UV, UVViewportBilinearMin, UVViewportBilinearMax);
-	SHADER_PARAMETER(FVector2D, UVViewportBilinearMin)
-	SHADER_PARAMETER(FVector2D, UVViewportBilinearMax)
+	SHADER_PARAMETER(FVector2f, UVViewportBilinearMin)
+	SHADER_PARAMETER(FVector2f, UVViewportBilinearMax)
 END_SHADER_PARAMETER_STRUCT()
 
 FScreenPassTextureViewportParameters RENDERER_API GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport);
@@ -213,28 +213,28 @@ FScreenPassTextureViewportParameters RENDERER_API GetScreenPassTextureViewportPa
 /** Generic affine 2D texture coordinate transformation x * S + B.
  *
  * Construct:
- *		FVector2D PointInA = ...;
- *		FVector2D PointInB = PointInA * Scale0 + Bias0;
+ *		FVector2f PointInA = ...;
+ *		FVector2f PointInB = PointInA * Scale0 + Bias0;
  * 
  *		FScreenTransform AToB(Scale0, Bias0);
- *		FVector2D PointInB = PointInA * AToB;
+ *		FVector2f PointInB = PointInA * AToB;
  * 
  * Associativity:
- *		FVector2D PointInA = ...;
+ *		FVector2f PointInA = ...;
  *		FScreenTransform AToB = ...;
  *		FScreenTransform BToC = ...;
- *		FVector2D PointInC = (PointInA * AToB) * BToC;
+ *		FVector2f PointInC = (PointInA * AToB) * BToC;
  *
  *		FScreenTransform AToC = AToB * BToC;
- *		FVector2D PointInC = PointInA * AToC;
+ *		FVector2f PointInC = PointInA * AToC;
  * 
  * Explicit construction by factorization:
- *		FVector2D PointInA = ...;
- *		FVector2D PointInB = PointInA * Scale0 + Bias0;
- *		FVector2D PointInC = PointInB * Scale1 + Bias1;
+ *		FVector2f PointInA = ...;
+ *		FVector2f PointInB = PointInA * Scale0 + Bias0;
+ *		FVector2f PointInC = PointInB * Scale1 + Bias1;
  * 
  *		FScreenTransform AToC = (FScreenTransform::Identity * Scale0 + Bias0) * Scale1 + Bias1;
- *		FVector2D PointInC = PointInA * AToC;
+ *		FVector2f PointInC = PointInA * AToC;
  *
  * Shader code:
  *		#include "/Engine/Private/ScreenPass.ush"
@@ -249,13 +249,13 @@ FScreenPassTextureViewportParameters RENDERER_API GetScreenPassTextureViewportPa
  */
 struct FScreenTransform
 {
-	FVector2D Scale;
-	FVector2D Bias;
+	FVector2f Scale;
+	FVector2f Bias;
 
 	inline FScreenTransform()
 	{ }
 
-	inline FScreenTransform(const FVector2D& InScale, const FVector2D& InBias)
+	inline FScreenTransform(const FVector2f& InScale, const FVector2f& InBias)
 		: Scale(InScale)
 		, Bias(InBias)
 	{ }
@@ -279,8 +279,8 @@ struct FScreenTransform
 
 	/** Change of coordinate to map from a rectangle to another. */
 	static FScreenTransform ChangeRectFromTo(
-		FVector2D SourceOffset, FVector2D SourceExtent,
-		FVector2D DestinationOffset, FVector2D DestinationExtent);
+		FVector2f SourceOffset, FVector2f SourceExtent,
+		FVector2f DestinationOffset, FVector2f DestinationExtent);
 	static FScreenTransform ChangeRectFromTo(const FIntRect& SrcViewport, const FIntRect& DestViewport);
 
 	/** Different texture coordinate basis. */

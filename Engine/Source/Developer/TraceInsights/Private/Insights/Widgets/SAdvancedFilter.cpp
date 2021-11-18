@@ -57,14 +57,14 @@ void SAdvancedFilter::Construct(const FArguments& InArgs, TSharedPtr<FFilterConf
 		// Tree view
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 		[
 			SAssignNew(FilterConfigurator, SFilterConfigurator, FilterConfiguratorViewModel)
 		]
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0.0f, 5.0f, 0.0f, 5.0f)
+		.Padding(4.0f, 4.0f, 4.0f, 4.0f)
 		.HAlign(EHorizontalAlignment::HAlign_Right)
 		.VAlign(EVerticalAlignment::VAlign_Bottom)
 		[
@@ -74,7 +74,7 @@ void SAdvancedFilter::Construct(const FArguments& InArgs, TSharedPtr<FFilterConf
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(1.0f)
+			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
 				.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("PrimaryButton"))
@@ -87,7 +87,7 @@ void SAdvancedFilter::Construct(const FArguments& InArgs, TSharedPtr<FFilterConf
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
-			.Padding(1.0f)
+			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("Cancel", "Cancel"))

@@ -395,8 +395,10 @@ public:
 
 	void AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
 
-	void SetMaxInstanceCount(uint32 InInstanceCount) { MaxInstanceCount = InInstanceCount; }
+	void SetMaxInstanceCount(uint32 InMaxInstanceCount) { MaxInstanceCount = InMaxInstanceCount; }
+	void SetMaxAllocationCount(uint32 InMaxAllocationCount) { MaxAllocationCount = InMaxAllocationCount; }
 	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
+	uint32 GetMaxAllocationCount() const { return MaxAllocationCount; }
 
 	const FNiagaraDataSetCompiledData& GetCompiledData() const { check(CompiledData.Get() != nullptr); return *CompiledData.Get(); }
 
@@ -463,7 +465,10 @@ private:
 	*/
 	TArray<FNiagaraDataBuffer*, TInlineAllocator<2>> Data;
 
+	/* Max instance count is the maximum number of instances we allow. */
 	uint32 MaxInstanceCount;
+	/* Max allocation couns it eh maximum number of instances we can allocate which can be > MaxInstanceCount due to rounding. */
+	uint32 MaxAllocationCount;
 
 	bool bInitialized;
 };

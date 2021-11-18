@@ -4,6 +4,7 @@
 	WorldPartition.cpp: UWorldPartition implementation
 =============================================================================*/
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionEditorCell.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
@@ -31,7 +32,6 @@
 #include "Misc/ScopeExit.h"
 #include "ScopedTransaction.h"
 #include "UnrealEdMisc.h"
-#include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
@@ -42,8 +42,6 @@
 #include "Modules/ModuleManager.h"
 #include "GameDelegates.h"
 #endif //WITH_EDITOR
-
-DEFINE_LOG_CATEGORY(LogWorldPartition);
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
@@ -346,7 +344,7 @@ void UWorldPartition::OnEndPlay()
 	StreamingPolicy = nullptr;
 }
 
-FName UWorldPartition::GetWorldPartitionEditorName()
+FName UWorldPartition::GetWorldPartitionEditorName() const
 {
 	return EditorHash->GetWorldPartitionEditorName();
 }
@@ -408,26 +406,13 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		// Currently known Instancing use cases:
 		// - World Partition map template (New Level)
 		// - PIE World Travel
-		bool bIsInstanced = LevelPackage->GetFName() != PackageName;
-
-		FString ReplaceFrom;
-		FString ReplaceTo;
-
+		FString SourceWorldPath, RemappedWorldPath;
+		const bool bIsInstanced = World->GetSoftObjectPathMapping(SourceWorldPath, RemappedWorldPath);
+	
 		if (bIsInstanced)
 		{
 			InstancingContext.AddMapping(PackageName, LevelPackage->GetFName());
-			
-			const FString SourcePackageName = LevelPackage->GetLoadedPath().GetPackageName();
-			const FString SourceWorldName = FPaths::GetBaseFilename(SourcePackageName);
-			const FString DestPackageName = LevelPackage->GetName();
-			const FString DestWorldName = FPaths::GetBaseFilename(DestPackageName);
-
-			ReplaceFrom = SourcePackageName + TEXT(".") + SourceWorldName;
-
-			// In PIE UWorld::PostLoad will not rename the world to match its package name so use SourceWorldName instead
-			ReplaceTo = DestPackageName + TEXT(".") + (bPIEWorldTravel ? SourceWorldName : DestWorldName);
-
-			InstancingSoftObjectPathFixupArchive.Reset(new FSoftObjectPathFixupArchive(ReplaceFrom, ReplaceTo));
+			InstancingSoftObjectPathFixupArchive.Reset(new FSoftObjectPathFixupArchive(SourceWorldPath, RemappedWorldPath));
 		}
 
 		{
@@ -443,7 +428,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 					InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
-					ActorDesc->TransformInstance(ReplaceFrom, ReplaceTo);
+					ActorDesc->TransformInstance(SourceWorldPath, RemappedWorldPath);
 				}
 
 				if (bEditorOnly)
@@ -452,6 +437,16 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				}
 			});
 			check(bContainerInitialized);
+		}
+	}
+
+	// Make sure to preload only AWorldDataLayers actor first (ShouldActorBeLoadedByEditorCells requires it)
+	for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	{
+		if (ActorDescIterator->GetActorClass()->IsChildOf<AWorldDataLayers>())
+		{
+			WorldDataLayersActor = FWorldPartitionReference(this, ActorDescIterator->GetGuid());
+			break;
 		}
 	}
 
@@ -464,25 +459,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		// Skipped when running from a commandlet
 		if (!IsRunningCommandlet())
 		{
-			// Autoload all cells if the world is smaller than the project setting's value
-			IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-			const float AutoCellLoadingMaxWorldSize = WorldPartitionEditorModule.GetAutoCellLoadingMaxWorldSize();
-			FVector WorldSize = GetEditorWorldBounds().GetSize();
-			const bool bItsASmallWorld = WorldSize.X <= AutoCellLoadingMaxWorldSize && WorldSize.Y <= AutoCellLoadingMaxWorldSize && WorldSize.Z <= AutoCellLoadingMaxWorldSize;
-			
-			// When considered as a small world, load all actors
-			if (bItsASmallWorld)
-			{
-				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
-				{
-					UpdateLoadingEditorCell(Cell, true, false);
-				});
-			}
-
 			// Load last loaded cells
 			if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEnableLoadingOfLastLoadedCells())
 			{
-				const TArray<FName>& EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
+				TArray<FName> EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
 
 				for (FName EditorGridLastLoadedCell : EditorGridLastLoadedCells)
 				{
@@ -576,6 +556,8 @@ void UWorldPartition::Uninitialize()
 				});
 			}
 		}
+
+		WorldDataLayersActor = FWorldPartitionReference();
 
 		EditorHash = nullptr;
 #endif		
@@ -1232,20 +1214,6 @@ void UWorldPartition::DrawRuntimeHashPreview()
 	RuntimeHash->DrawPreview();
 }
 
-bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
-{
-	check(!StreamingPolicy);
-	StreamingPolicy = NewObject<UWorldPartitionStreamingPolicy>(const_cast<UWorldPartition*>(this), WorldPartitionStreamingPolicyClass.Get());
-
-	check(RuntimeHash);
-	bool Result = RuntimeHash->GenerateStreaming(StreamingPolicy, OutPackagesToGenerate);
-
-	// Prepare actor to cell remapping
-	StreamingPolicy->PrepareActorToCellRemapping();
-
-	return Result;
-}
-
 bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath)
 {
 	check(RuntimeHash);
@@ -1264,38 +1232,38 @@ bool UWorldPartition::FinalizeGeneratorPackageForCook(const TArray<ICookPackageS
 	return false;
 }
 
+TArray<FName> UWorldPartition::GetUserLoadedEditorGridCells() const
+{
+	// Save last loaded cells settings
+	TArray<FName> LastEditorGridLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(GetWorld());
+
+	TArray<FName> EditorGridLastLoadedCells;
+	EditorHash->ForEachCell([this, &LastEditorGridLoadedCells, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
+	{
+		FName CellName = Cell->GetFName();
+
+		if (Cell != EditorHash->GetAlwaysLoadedCell())
+		{
+			if (Cell->IsLoaded() && Cell->IsLoadedChangedByUserOperation())
+			{
+				EditorGridLastLoadedCells.Add(CellName);
+			}
+			else if (!Cell->IsLoaded() && !Cell->IsLoadedChangedByUserOperation() && LastEditorGridLoadedCells.Contains(CellName))
+			{
+				EditorGridLastLoadedCells.Add(CellName);
+			}
+		}
+	});
+
+	return EditorGridLastLoadedCells;
+}
+
 void UWorldPartition::SavePerUserSettings()
 {
 	if (GIsEditor && !World->IsGameWorld() && !IsRunningCommandlet() && !IsEngineExitRequested())
 	{
-		// Save last loaded cells settings
-		const TArray<FName>& LastEditorGridLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(GetWorld());
-
-		TArray<FName> EditorGridLastLoadedCells;
-		EditorHash->ForEachCell([this, &LastEditorGridLoadedCells, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
-		{
-			FName CellName = Cell->GetFName();
-
-			if (Cell != EditorHash->GetAlwaysLoadedCell())
-			{
-				if (Cell->IsLoaded() && Cell->IsLoadedChangedByUserOperation())
-				{
-					EditorGridLastLoadedCells.Add(CellName);
-				}
-				else if (!Cell->IsLoaded() && !Cell->IsLoadedChangedByUserOperation() && LastEditorGridLoadedCells.Contains(CellName))
-				{
-					EditorGridLastLoadedCells.Add(CellName);
-				}
-			}
-		});
-
-		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(GetWorld(), EditorGridLastLoadedCells);
+		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(GetWorld(), GetUserLoadedEditorGridCells());
 	}
-}
-
-void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
-{
-	RuntimeHash->GenerateHLOD(SourceControlHelper, bCreateActorsOnly);
 }
 
 void UWorldPartition::GenerateNavigationData(const FBox& LoadedBounds)
@@ -1337,6 +1305,16 @@ void UWorldPartition::CheckForErrors() const
 	{
 		RuntimeHash->CheckForErrors();
 	}
+}
+
+uint32 UWorldPartition::GetWantedEditorCellSize() const
+{
+	return EditorHash->GetWantedEditorCellSize();
+}
+
+void UWorldPartition::SetEditorWantedCellSize(uint32 InCellSize)
+{
+	EditorHash->SetEditorWantedCellSize(InCellSize);
 }
 
 void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)

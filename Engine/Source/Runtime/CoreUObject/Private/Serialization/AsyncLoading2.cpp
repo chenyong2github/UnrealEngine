@@ -114,7 +114,7 @@ FArchive& operator<<(FArchive& Ar, FExportMapEntry& ExportMapEntry)
 	Ar << ExportMapEntry.ClassIndex;
 	Ar << ExportMapEntry.SuperIndex;
 	Ar << ExportMapEntry.TemplateIndex;
-	Ar << ExportMapEntry.ExportHash;
+	Ar << ExportMapEntry.PublicExportHash;
 
 	uint32 ObjectFlags = uint32(ExportMapEntry.ObjectFlags);
 	Ar << ObjectFlags;
@@ -444,7 +444,7 @@ using FUnreachablePublicExports = TArray<FUnreachablePublicExport>;
 struct FGlobalImportStore
 {
 	TMap<FPackageObjectIndex, UObject*> ScriptObjects;
-	TMap<FPublicExportKey, UObject*> PublicExportObjects;
+	TMap<FPublicExportKey, int32> PublicExportToObjectIndex;
 	TMap<int32, FPublicExportKey> ObjectIndexToPublicExport;
 	// Temporary initial load data
 	TArray<FScriptObjectEntry> ScriptObjectEntries;
@@ -453,7 +453,7 @@ struct FGlobalImportStore
 
 	FGlobalImportStore()
 	{
-		PublicExportObjects.Reserve(32768);
+		PublicExportToObjectIndex.Reserve(32768);
 		ObjectIndexToPublicExport.Reserve(32768);
 	}
 
@@ -510,7 +510,7 @@ struct FGlobalImportStore
 					UObject* GCObject = Item.Value;
 
 					checkf(GCObject->HasAllFlags(RF_WasLoaded | RF_Public),
-						TEXT("The serialized GC Object '%s' with (ObjectFlags=%x, InternalObjectFlags=%x)and id 0x%llX:%u is currently missing RF_WasLoaded or RF_Public. ")
+						TEXT("The serialized GC Object '%s' with (ObjectFlags=%x, InternalObjectFlags=%x)and id 0x%llX:0x%llX is currently missing RF_WasLoaded or RF_Public. ")
 						TEXT("The flags must have been altered incorrectly by a higher level system after the object was loaded. ")
 						TEXT("This may cause memory corruption."),
 						*GCObject->GetFullName(),
@@ -518,9 +518,9 @@ struct FGlobalImportStore
 						GCObject->GetInternalFlags(),
 						PublicExportKey.GetPackageId().Value(), PublicExportKey.GetExportHash());
 
-					UObject* ExistingObject = PublicExportObjects.FindRef(PublicExportKey);
+					UObject* ExistingObject = FindPublicExportObjectUnchecked(PublicExportKey);
 					checkf(ExistingObject,
-						TEXT("The serialized GC object '%s' with flags (ObjectFlags=%x, InternalObjectFlags=%x) and id 0x%llX:%u is missing in ImportStore. ")
+						TEXT("The serialized GC object '%s' with flags (ObjectFlags=%x, InternalObjectFlags=%x) and id 0x%llX:0x%llX is missing in ImportStore. ")
 						TEXT("Reason unknown. Double delete? Bug or hash collision?"),
 						*GCObject->GetFullName(),
 						GCObject->GetFlags(),
@@ -529,7 +529,7 @@ struct FGlobalImportStore
 						PublicExportKey.GetExportHash());
 
 					checkf(ExistingObject && ExistingObject == GCObject,
-						TEXT("The serialized GC Object '%s' with flags (ObjectFlags=%x, InternalObjectFlags=%x) and id 0x%llX:%u is not matching the object '%s' in ImportStore. "),
+						TEXT("The serialized GC Object '%s' with flags (ObjectFlags=%x, InternalObjectFlags=%x) and id 0x%llX:0x%llX is not matching the object '%s' in ImportStore. "),
 						TEXT("Reason unknown. Overwritten after it was added? Bug or hash collision?"),
 						*GCObject->GetFullName(),
 						GCObject->GetFlags(),
@@ -545,7 +545,7 @@ struct FGlobalImportStore
 		FPackageId LastPackageId;
 		for (const FPublicExportKey& PublicExportKey : PublicExportKeys)
 		{
-			PublicExportObjects.Remove(PublicExportKey);
+			PublicExportToObjectIndex.Remove(PublicExportKey);
 			FPackageId PackageId = PublicExportKey.GetPackageId();
 			if (!(PackageId == LastPackageId)) // fast approximation of Contains()
 			{
@@ -556,9 +556,24 @@ struct FGlobalImportStore
 		return PackageIds;
 	}
 
+	inline UObject* FindPublicExportObjectUnchecked(const FPublicExportKey& Key)
+	{
+		int32* FindObjectIndex = PublicExportToObjectIndex.Find(Key);
+		if (!FindObjectIndex)
+		{
+			return nullptr;
+		}
+		FUObjectItem* ObjectItem = GUObjectArray.IndexToObject(*FindObjectIndex);
+		if (!ObjectItem)
+		{
+			return nullptr;
+		}
+		return static_cast<UObject*>(ObjectItem->Object);
+	}
+
 	inline UObject* FindPublicExportObject(const FPublicExportKey& Key)
 	{
-		UObject* Object = PublicExportObjects.FindRef(Key);
+		UObject* Object = FindPublicExportObjectUnchecked(Key);
 		checkf(!Object || !Object->IsUnreachable(), TEXT("%s"), Object ? *Object->GetFullName() : TEXT("null"));
 		return Object;
 	}
@@ -580,7 +595,7 @@ struct FGlobalImportStore
 		return Object;
 	}
 
-	void StoreGlobalObject(FPackageId PackageId, uint32 ExportHash, UObject* Object)
+	void StoreGlobalObject(FPackageId PackageId, uint64 ExportHash, UObject* Object)
 	{
 		check(PackageId.IsValid());
 		check(ExportHash != 0);
@@ -588,11 +603,11 @@ struct FGlobalImportStore
 		FPublicExportKey Key = FPublicExportKey::MakeKey(PackageId, ExportHash);
 #if DO_CHECK
 		{
-			UObject* ExistingObject = PublicExportObjects.FindRef(Key);
+			UObject* ExistingObject = FindPublicExportObjectUnchecked(Key);
 			if (ExistingObject)
 			{
 				checkf(ExistingObject == Object,
-					TEXT("The constructed serialized object '%s' with index %d and id 0x%llX:%u collides with the object '%s' in ImportStore. ")
+					TEXT("The constructed serialized object '%s' with index %d and id 0x%llX:0x%llX collides with the object '%s' in ImportStore. ")
 					TEXT("Reason unknown. Bug or hash collision?"),
 					Object ? *Object->GetFullName() : TEXT("null"),
 					ObjectIndex,
@@ -604,7 +619,7 @@ struct FGlobalImportStore
 			if (ExistingKey)
 			{
 				checkf(*ExistingKey == Key,
-					TEXT("The constructed serialized object '%s' with index %d and id 0x%llX:%u collides with the object '%s' in ImportStore. ")
+					TEXT("The constructed serialized object '%s' with index %d and id 0x%llX:0x%llX collides with the object '%s' in ImportStore. ")
 					TEXT("Reason unknown. Bug or hash collision?"),
 					Object ? *Object->GetFullName() : TEXT("null"),
 					ObjectIndex,
@@ -613,7 +628,7 @@ struct FGlobalImportStore
 			}
 		}
 #endif
-		PublicExportObjects.Add(Key, Object);
+		PublicExportToObjectIndex.Add(Key, ObjectIndex);
 		ObjectIndexToPublicExport.Add(ObjectIndex, Key);
 	}
 
@@ -861,6 +876,7 @@ struct FPackageImportStore
 	FLoadedPackageStore& LoadedPackageStore;
 	const FAsyncPackageDesc2& Desc;
 	const TArrayView<const FPackageId>& ImportedPackageIds;
+	TArrayView<const uint64> ImportedPublicExportHashes;
 	TArrayView<const FPackageObjectIndex> ImportMap;
 
 	FPackageImportStore(IPackageStore& InPackageStore, FGlobalImportStore& InGlobalImportStore, FLoadedPackageStore& InLoadedPackageStore, const FAsyncPackageDesc2& InDesc, const TArrayView<const FPackageId>& InImportedPackageIds)
@@ -903,7 +919,7 @@ struct FPackageImportStore
 		}
 		else if (GlobalIndex.IsPackageImport())
 		{
-			Object = GlobalImportStore.FindPublicExportObject(FPublicExportKey::FromPackageImport(GlobalIndex, ImportedPackageIds));
+			Object = GlobalImportStore.FindPublicExportObject(FPublicExportKey::FromPackageImport(GlobalIndex, ImportedPackageIds, ImportedPublicExportHashes));
 		}
 		else
 		{
@@ -943,7 +959,7 @@ struct FPackageImportStore
 		return Classes.Num() > 0;
 	}
 
-	inline void StoreGlobalObject(FPackageId PackageId, uint32 ExportHash, UObject* Object)
+	inline void StoreGlobalObject(FPackageId PackageId, uint64 ExportHash, UObject* Object)
 	{
 		GlobalImportStore.StoreGlobalObject(PackageId, ExportHash, Object);
 	}
@@ -1048,12 +1064,6 @@ public:
 
 	~FExportArchive()
 	{
-#if WITH_EDITOR
-		// Detach all lazy loaders.
-		const bool bEnsureAllBulkDataIsLoaded = false;
-		DetachAllBulkData(bEnsureAllBulkDataIsLoaded);
-#endif
-
 	}
 	void ExportBufferBegin(UObject* Object, uint64 InExportCookedFileSerialOffset, uint64 InExportSerialSize)
 	{
@@ -1133,6 +1143,12 @@ public:
 	virtual bool IsUsingEventDrivenLoader() const override
 	{
 		return true;
+	}
+
+	/** FExportArchive will be created on the stack so we do not want BulkData objects caching references to it. */
+	virtual FArchive* GetCacheableArchive()
+	{
+		return nullptr;
 	}
 
 	//~ Begin FArchive::FArchiveUObject Interface
@@ -1259,56 +1275,6 @@ public:
 		return *this;
 	}
 	//~ End FArchive::FLinkerLoad Interface
-
-#if WITH_EDITOR
-	/**
-	 * Attaches/ associates the passed in bulk data object with the linker.
-	 *
-	 * @param	Owner		UObject owning the bulk data
-	 * @param	BulkData	Bulk data object to associate
-	 */
-	virtual void AttachBulkData(UObject* Owner, FUntypedBulkData* BulkData) override
-	{
-		check(BulkDataLoaders.Find(BulkData) == INDEX_NONE);
-		BulkDataLoaders.Add(BulkData);
-	}
-
-	/**
-	 * Detaches the passed in bulk data object from the linker.
-	 *
-	 * @param	BulkData	Bulk data object to detach
-	 * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
-	 */
-	virtual void DetachBulkData(FUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded) override
-	{
-		int32 RemovedCount = BulkDataLoaders.Remove(BulkData);
-		if (RemovedCount != 1)
-		{
-			UE_LOG(LogStreaming, Fatal, TEXT("Detachment inconsistency: %i (%s)"), RemovedCount, *PackageDesc->PackageNameToLoad.ToString());
-		}
-		BulkData->DetachFromArchive(this, bEnsureBulkDataIsLoaded);
-	}
-
-	/**
-	 * Detaches all attached bulk  data objects.
-	 *
-	 * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
-	 */
-	void DetachAllBulkData(bool bEnsureAllBulkDataIsLoaded)
-	{
-		auto BulkDataToDetach = BulkDataLoaders;
-		for (auto BulkData : BulkDataToDetach)
-		{
-			check(BulkData);
-			BulkData->DetachFromArchive(this, bEnsureAllBulkDataIsLoaded);
-		}
-		BulkDataLoaders.Empty();
-	}
-
-	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
-	TArray<FUntypedBulkData*> BulkDataLoaders;
-
-#endif // WITH_EDITOR
 
 private:
 	friend FAsyncPackage2;
@@ -1697,7 +1663,7 @@ private:
 
 	struct FExportToBundleMapping
 	{
-		uint32 ExportHash;
+		uint64 ExportHash;
 		int32 BundleIndex[FExportBundleEntry::ExportCommandType_Count];
 	};
 
@@ -1835,7 +1801,8 @@ private:
 	const uint8* CurrentExportDataPtr = nullptr;
 	uint32 CookedHeaderSize = 0;
 
-	const FExportMapEntry* ExportMap = nullptr;
+	TArrayView<const FExportMapEntry> ExportMap;
+	TArrayView<const uint64> PublicExportHashes;
 	TArrayView<const uint8> ArcsData;
 	FNameMap NameMap;
 	TArray<FExportToBundleMapping> ExportToBundleMappings;
@@ -3167,9 +3134,10 @@ void FAsyncPackage2::SetupSerializedArcs()
 				
 				FPackageObjectIndex GlobalImportIndex = ImportStore.ImportMap[FromImportIndex];
 				FPackageImportReference PackageImportRef = GlobalImportIndex.ToPackageImportRef();
+				const uint64 ImportedPublicExportHash = ImportStore.ImportedPublicExportHashes[PackageImportRef.GetImportedPublicExportHashIndex()];
 				for (const FExportToBundleMapping& ExportToBundleMapping : ImportedPackage->ExportToBundleMappings)
 				{
-					if (ExportToBundleMapping.ExportHash == PackageImportRef.GetExportHash())
+					if (ExportToBundleMapping.ExportHash == ImportedPublicExportHash)
 					{
 						int32 FromExportBundleIndex = ExportToBundleMapping.BundleIndex[FromCommandType];
 						if (PreviousFromExportBundleIndex != FromExportBundleIndex || PreviousToExportBundleIndex != ToExportBundleIndex)
@@ -3488,10 +3456,16 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncLoadi
 		}
 
 		Package->CookedHeaderSize = PackageSummary->CookedHeaderSize;
+		Package->ImportStore.ImportedPublicExportHashes = TArrayView<const uint64>(
+			reinterpret_cast<const uint64*>(PackageHeaderData + PackageSummary->ImportedPublicExportHashesOffset),
+			(PackageSummary->ImportMapOffset - PackageSummary->ImportedPublicExportHashesOffset) / sizeof(uint64));
 		Package->ImportStore.ImportMap = TArrayView<const FPackageObjectIndex>(
-				reinterpret_cast<const FPackageObjectIndex*>(PackageHeaderData + PackageSummary->ImportMapOffset),
-				(PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(FPackageObjectIndex));
-		Package->ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageHeaderData + PackageSummary->ExportMapOffset);
+			reinterpret_cast<const FPackageObjectIndex*>(PackageHeaderData + PackageSummary->ImportMapOffset),
+			(PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(FPackageObjectIndex));
+		Package->ExportMap = TArrayView<const FExportMapEntry>(
+			reinterpret_cast<const FExportMapEntry*>(PackageHeaderData + PackageSummary->ExportMapOffset),
+			(PackageSummary->ExportBundleEntriesOffset - PackageSummary->ExportMapOffset) / sizeof(FExportMapEntry));
+		check(Package->ExportMap.Num() == Package->Data.ExportInfo.ExportCount);
 
 		uint64 ExportBundleHeadersOffset = PackageSummary->GraphDataOffset;
 		uint64 ArcsDataOffset = ExportBundleHeadersOffset + Package->Data.ExportBundleHeadersSize;
@@ -3515,7 +3489,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncLoadi
 			{
 				const FExportMapEntry& ExportMapEntry = Package->ExportMap[BundleEntry->LocalExportIndex];
 				FExportToBundleMapping& ExportToBundleMapping = Package->ExportToBundleMappings[BundleEntry->LocalExportIndex];
-				ExportToBundleMapping.ExportHash = ExportMapEntry.ExportHash;
+				ExportToBundleMapping.ExportHash = ExportMapEntry.PublicExportHash;
 				ExportToBundleMapping.BundleIndex[BundleEntry->CommandType] = ExportBundleIndex;
 				++BundleEntry;
 			}
@@ -3617,7 +3591,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoading
 			Ar.NameMap = &Package->NameMap;
 			Ar.ImportStore = &Package->ImportStore;
 			Ar.Exports = Package->Data.Exports;
-			Ar.ExportMap = Package->ExportMap;
+			Ar.ExportMap = Package->ExportMap.GetData();
 			Ar.ExternalReadDependencies = &Package->ExternalReadDependencies;
 		}
 		const FExportBundleEntry* BundleEntries = Package->Data.ExportBundleEntries + ExportBundle->FirstEntryIndex;
@@ -3778,8 +3752,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	}
 
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
-	// LLM_SCOPED_TAG_WITH_OBJECT_IN_SET((Export.DynamicType == FObjectExport::EDynamicType::DynamicType) ? UDynamicClass::StaticClass() : 
-	// 	CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
+	// LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
 
 	bool bIsCompleteyLoaded = false;
 	UClass* LoadClass = Export.ClassIndex.IsNull() ? UClass::StaticClass() : CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, true);
@@ -3929,13 +3902,13 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	check(Object);
 	PinObjectForGC(Object, bIsNewObject);
 
-	if (Desc.bCanBeImported && Export.ExportHash)
+	if (Desc.bCanBeImported && Export.PublicExportHash)
 	{
 		check(Object->HasAnyFlags(RF_Public));
-		ImportStore.StoreGlobalObject(Desc.UPackageId, Export.ExportHash, Object);
+		ImportStore.StoreGlobalObject(Desc.UPackageId, Export.PublicExportHash, Object);
 
 		UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("CreateExport"),
-			TEXT("Created public export %s. Tracked as 0x%llX:%d"), *Object->GetPathName(), Desc.UPackageId.Value(), Export.ExportHash);
+			TEXT("Created public export %s. Tracked as 0x%llX:0x%llX"), *Object->GetPathName(), Desc.UPackageId.Value(), Export.PublicExportHash);
 	}
 	else
 	{
@@ -3990,8 +3963,7 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 	}
 
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
-	// LLM_SCOPED_TAG_WITH_OBJECT_IN_SET((Export.DynamicType == FObjectExport::EDynamicType::DynamicType) ? UDynamicClass::StaticClass() :
-	// 	CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
+	// LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(CastEventDrivenIndexToObject<UClass>(Export.ClassIndex, false), ELLMTagSet::AssetClasses);
 
 	// cache archetype
 	// prevents GetArchetype from hitting the expensive GetArchetypeFromRequiredInfoImpl
@@ -4654,27 +4626,8 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 				UObject* Object = Export.Object;
 
-				// CDO need special handling, no matter if it's listed in DeferredFinalizeObjects or created here for DynamicClass
-				UObject* CDOToHandle = nullptr;
-
-				// Dynamic Class doesn't require/use pre-loading (or post-loading). 
-				// The CDO is created at this point, because now it's safe to solve cyclic dependencies.
-				if (UDynamicClass* DynamicClass = Cast<UDynamicClass>(Object))
-				{
-					check((DynamicClass->ClassFlags & CLASS_Constructed) != 0);
-
-					//native blueprint 
-
-					check(DynamicClass->HasAnyClassFlags(CLASS_TokenStreamAssembled));
-					// this block should be removed entirely when and if we add the CDO to the fake export table
-					CDOToHandle = DynamicClass->GetDefaultObject(false);
-					UE_CLOG(!CDOToHandle, LogStreaming, Fatal, TEXT("EDL did not create the CDO for %s before it finished loading."), *DynamicClass->GetFullName());
-					CDOToHandle->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
-				}
-				else
-				{
-					CDOToHandle = ((Object != nullptr) && Object->HasAnyFlags(RF_ClassDefaultObject)) ? Object : nullptr;
-				}
+				// CDO need special handling, no matter if it's listed in DeferredFinalizeObjects
+				UObject* CDOToHandle = ((Object != nullptr) && Object->HasAnyFlags(RF_ClassDefaultObject)) ? Object : nullptr;
 
 				// Clear AsyncLoading in CDO's subobjects.
 				if (CDOToHandle != nullptr)
@@ -5445,13 +5398,13 @@ void FAsyncLoadingThread2::NotifyUnreachableObjects(const TArrayView<FUObjectIte
 	if (PackageCount > 0 || PublicExportCount > 0)
 	{
 		const int32 OldLoadedPackageCount = LoadedPackageStore.NumTracked();
-		const int32 OldPublicExportCount = GlobalImportStore.PublicExportObjects.Num();
+		const int32 OldPublicExportCount = GlobalImportStore.PublicExportToObjectIndex.Num();
 
 		const double RemoveStartTime = FPlatformTime::Seconds();
 		RemoveUnreachableObjects(PublicExports, Packages);
 
 		const int32 NewLoadedPackageCount = LoadedPackageStore.NumTracked();
-		const int32 NewPublicExportCount = GlobalImportStore.PublicExportObjects.Num();
+		const int32 NewPublicExportCount = GlobalImportStore.PublicExportToObjectIndex.Num();
 		const int32 RemovedLoadedPackageCount = OldLoadedPackageCount - NewLoadedPackageCount;
 		const int32 RemovedPublicExportCount = OldPublicExportCount - NewPublicExportCount;
 
@@ -5886,7 +5839,7 @@ void FAsyncPackage2::FinishUPackage()
 			if (bCreatedLinkerRoot && !LinkerRoot->IsRooted())
 			{
 				LinkerRoot->ClearFlags(RF_NeedPostLoad | RF_NeedLoad | RF_NeedPostLoadSubobjects);
-				LinkerRoot->MarkPendingKill();
+				LinkerRoot->MarkAsGarbage();
 				LinkerRoot->Rename(*MakeUniqueObjectName(GetTransientPackage(), UPackage::StaticClass()).ToString(), nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_ForceNoResetLoaders | REN_NonTransactional);
 			}
 		}

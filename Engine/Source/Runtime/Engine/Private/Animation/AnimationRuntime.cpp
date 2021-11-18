@@ -561,14 +561,13 @@ void FAnimationRuntime::BlendPosesTogetherPerBone(TArrayView<const FCompactPose>
 	FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
 	UE::Anim::FStackAttributeContainer& OutAttributes = OutAnimationPoseData.GetAttributes();
 
-	const TArray<FBoneIndexType>& RequiredBoneIndices = OutPose.GetBoneContainer().GetBoneIndicesArray();
-
+	const FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
 	TArray<int32> PerBoneIndices;
 	PerBoneIndices.AddUninitialized(OutPose.GetNumBones());
-	TSharedPtr<IInterpolationIndexProvider::FPerBoneInterpolationData> Data = InterpolationIndexProvider->GetPerBoneInterpolationData(OutPose.GetBoneContainer().GetSkeletonAsset());
-	for (int32 BoneIndex = 0; BoneIndex < PerBoneIndices.Num(); ++BoneIndex)
+	TSharedPtr<IInterpolationIndexProvider::FPerBoneInterpolationData> Data = InterpolationIndexProvider->GetPerBoneInterpolationData(RequiredBones.GetSkeletonAsset());
+	for(FCompactPoseBoneIndex BoneIndex : OutPose.ForEachBoneIndex())
 	{
-		PerBoneIndices[BoneIndex] = InterpolationIndexProvider->GetPerBoneInterpolationIndex(RequiredBoneIndices[BoneIndex], OutPose.GetBoneContainer(), Data.Get());
+		PerBoneIndices[BoneIndex.GetInt()] = InterpolationIndexProvider->GetPerBoneInterpolationIndex(BoneIndex, RequiredBones, Data.Get());
 	}
 
 	BlendPosePerBone<ETransformBlendMode::Overwrite>(PerBoneIndices, BlendSampleDataCache[0], OutPose, SourcePoses[0]);
@@ -622,14 +621,13 @@ void FAnimationRuntime::BlendPosesTogetherPerBone(TArrayView<const FCompactPose>
 	FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
 	UE::Anim::FStackAttributeContainer& OutAttributes = OutAnimationPoseData.GetAttributes();
 
-	const TArray<FBoneIndexType>& RequiredBoneIndices = OutPose.GetBoneContainer().GetBoneIndicesArray();
-
+	const FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
 	TArray<int32> PerBoneIndices;
 	PerBoneIndices.AddUninitialized(OutPose.GetNumBones());
 	TSharedPtr<IInterpolationIndexProvider::FPerBoneInterpolationData> Data = InterpolationIndexProvider->GetPerBoneInterpolationData(OutPose.GetBoneContainer().GetSkeletonAsset());
-	for (int32 BoneIndex = 0; BoneIndex < PerBoneIndices.Num(); ++BoneIndex)
+	for(FCompactPoseBoneIndex BoneIndex : OutPose.ForEachBoneIndex())
 	{
-		PerBoneIndices[BoneIndex] = InterpolationIndexProvider->GetPerBoneInterpolationIndex(RequiredBoneIndices[BoneIndex], OutPose.GetBoneContainer(), Data.Get());
+		PerBoneIndices[BoneIndex.GetInt()] = InterpolationIndexProvider->GetPerBoneInterpolationIndex(BoneIndex, RequiredBones, Data.Get());
 	}
 
 	BlendPosePerBone<ETransformBlendMode::Overwrite>(PerBoneIndices, BlendSampleDataCache[BlendSampleDataCacheIndices[0]], OutPose, SourcePoses[0]);
@@ -1312,11 +1310,11 @@ void FAnimationRuntime::MirrorPose(FCompactPose& Pose, const UMirrorDataTable& M
 	USkeleton* Skeleton = BoneContainer.GetSkeletonAsset();
 	if (Skeleton)
 	{
-		TArray<int32> MirrorBoneIndexes;
+		TCustomBoneIndexArray<FSkeletonPoseBoneIndex, FSkeletonPoseBoneIndex> MirrorBoneIndexes;
 		MirrorDataTable.FillMirrorBoneIndexes(BoneContainer.GetReferenceSkeleton(), MirrorBoneIndexes);
 
 		// Compact pose format of Mirror Bone Map
-		TArray<FCompactPoseBoneIndex> CompactPoseMirrorBones;
+		TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;
 		MirrorDataTable.FillCompactPoseMirrorBones(BoneContainer, MirrorBoneIndexes, CompactPoseMirrorBones);
 
 		const int32 NumBones = BoneContainer.GetCompactPoseNumBones();
@@ -1463,18 +1461,17 @@ void FAnimationRuntime::FillWithRefPose(TArray<FTransform>& OutAtoms, const FBon
 		// Only do this if we have a mesh. otherwise we're not retargeting animations.
 		if( RequiredBones.GetSkeletalMeshAsset() )
 		{
-			TArray<int32> const& PoseToSkeletonBoneIndexArray = RequiredBones.GetPoseToSkeletonBoneIndexArray();
 			TArray<FBoneIndexType> const& RequireBonesIndexArray = RequiredBones.GetBoneIndicesArray();
 			TArray<FTransform> const& SkeletonRefPose = RequiredBones.GetSkeletonAsset()->GetRefLocalPoses();
 
 			for (int32 ArrayIndex = 0; ArrayIndex<RequireBonesIndexArray.Num(); ArrayIndex++)
 			{
-				int32 const& PoseBoneIndex = RequireBonesIndexArray[ArrayIndex];
-				int32 const& SkeletonBoneIndex = PoseToSkeletonBoneIndexArray[PoseBoneIndex];
+				int32 const PoseBoneIndex = RequireBonesIndexArray[ArrayIndex];
+				FSkeletonPoseBoneIndex const SkeletonBoneIndex = RequiredBones.GetSkeletonPoseIndexFromMeshPoseIndex(FMeshPoseBoneIndex(PoseBoneIndex));
 
 				// Pose bone index should always exist in Skeleton
-				checkSlow(SkeletonBoneIndex != INDEX_NONE);
-				OutAtoms[PoseBoneIndex] = SkeletonRefPose[SkeletonBoneIndex];
+				checkSlow(SkeletonBoneIndex.IsValid());
+				OutAtoms[PoseBoneIndex] = SkeletonRefPose[SkeletonBoneIndex.GetInt()];
 			}
 		}
 	}
@@ -2768,3 +2765,7 @@ void FA2CSPose::ConvertToLocalPoses(FA2Pose& LocalPoses)  const
 	}
 }
 
+int32 IInterpolationIndexProvider::GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones, const FPerBoneInterpolationData* Data) const
+{
+	return GetPerBoneInterpolationIndex(RequiredBones.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneIndex)), RequiredBones, Data);
+}

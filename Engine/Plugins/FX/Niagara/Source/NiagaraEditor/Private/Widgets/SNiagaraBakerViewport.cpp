@@ -456,7 +456,7 @@ public:
 			{
 				CheckerboardTexture->ReleaseResource();
 			}
-			CheckerboardTexture->MarkPendingKill();
+			CheckerboardTexture->MarkAsGarbage();
 			CheckerboardTexture = nullptr;
 		}
 	}

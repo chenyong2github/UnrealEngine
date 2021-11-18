@@ -248,19 +248,18 @@ public:
 
 	SLATE_BEGIN_ARGS(SControlRigPoseAnimSelectionToolbar) {}
 	SLATE_ARGUMENT(SControlRigBaseListWidget*, OwningControlRigWidget)
-		SLATE_END_ARGS()
+	SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs);
-
+	void Construct(const FArguments& InArgs);
 
 	void MakeControlRigAssetDialog(FControlRigAssetType Type, bool bSelectAll);
+	bool CanExecuteMakeControlRigAsset();
 	
 	//void ToggleFilter(FControlRigAssetType Type);
 	//bool IsOnToggleFilter(FControlRigAssetType Type) const;
 
 	//It's parent so will always be there..
 	SControlRigBaseListWidget* OwningControlRigWidget;
-
 };
 
 
@@ -281,7 +280,8 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 	FToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Visible);
 	FUIAction CreatePoseDialog(
-		FExecuteAction::CreateRaw(this, &SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog, FControlRigAssetType::ControlRigPose,false));
+		FExecuteAction::CreateRaw(this, &SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog, FControlRigAssetType::ControlRigPose,false),
+		FCanExecuteAction::CreateRaw(this, &SControlRigPoseAnimSelectionToolbar::CanExecuteMakeControlRigAsset));
 	/*
 	FUIAction CreatePoseFromAllDialog(
 		FExecuteAction::CreateRaw(this, &SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog, FControlRigAssetType::ControlRigPose,true));
@@ -413,28 +413,33 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 void SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog(FControlRigAssetType Type, bool bSelectAll)
 {
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(true))
+	if (!ControlRigEditMode)
 	{
-		UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true);
-		if (ControlRig)
+		return;
+	}
+	
+	UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true);
+	if (!ControlRig)
+	{
+		return;
+	}
+
+	TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
+	if (SelectedControls.Num() <= 0)
+	{
+		FText ConfirmDelete = LOCTEXT("ConfirmNoSelectedControls", "You are saving a Pose with no selected Controls - are you sure?");
+
+		FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("SavePose", "Save Pose"), "SavePose_Warning");
+		Info.ConfirmText = LOCTEXT("SavePose_Yes", "Yes");
+		Info.CancelText = LOCTEXT("SavePose_No", "No");
+
+		FSuppressableWarningDialog SavePose(Info);
+		if (SavePose.ShowModal() == FSuppressableWarningDialog::Cancel)
 		{
-			TArray<FName> SelectedControls = ControlRig->CurrentControlSelection();
-			if (SelectedControls.Num() <= 0)
-			{
-				FText ConfirmDelete = LOCTEXT("ConfirmNoSelectedControls", "You are saving a Pose with no selected Controls - are you sure?");
-
-				FSuppressableWarningDialog::FSetupInfo Info(ConfirmDelete, LOCTEXT("SavePose", "Save Pose"), "SavePose_Warning");
-				Info.ConfirmText = LOCTEXT("SavePose_Yes", "Yes");
-				Info.CancelText = LOCTEXT("SavePose_No", "No");
-
-				FSuppressableWarningDialog SavePose(Info);
-				if (SavePose.ShowModal() == FSuppressableWarningDialog::Cancel)
-				{
-					return;
-				}
-			}
+			return;
 		}
 	}
+
 	FCreateControlAssetDelegate GetNameCallback = FCreateControlAssetDelegate::CreateLambda([this, Type, bSelectAll](FString AssetName)
 	{
 		if (OwningControlRigWidget)
@@ -468,6 +473,23 @@ void SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog(FControlRigA
 	});
 
 	FCreateControlAssetRigDialog::GetControlAssetParams(Type, GetNameCallback);
+}
+
+bool SControlRigPoseAnimSelectionToolbar::CanExecuteMakeControlRigAsset()
+{
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	if (!ControlRigEditMode)
+	{
+		return false;
+	}
+	
+	UControlRig* ControlRig = ControlRigEditMode->GetControlRig(true);
+	if (!ControlRig)
+	{
+		return false;
+	}
+
+	return true;
 }
 /*
 void SControlRigPoseAnimSelectionToolbar::ToggleFilter(FControlRigAssetType Type)

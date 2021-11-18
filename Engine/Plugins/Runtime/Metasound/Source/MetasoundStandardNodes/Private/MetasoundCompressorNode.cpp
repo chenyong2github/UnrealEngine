@@ -6,6 +6,7 @@
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundEnumRegistrationMacro.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundEnvelopeFollowerTypes.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundParamHelper.h"
@@ -35,23 +36,7 @@ namespace Metasound
 		METASOUND_PARAM(OutputEnvelope, "Gain Envelope", "The compressor's gain being applied to the signal.");
 	}
 
-	enum class EEnvelopePeakMode
-	{
-		Peak = 0,
-		MeanSquared,
-		RootMeanSquared,
-	};
-
-	DECLARE_METASOUND_ENUM(EEnvelopePeakMode, EEnvelopePeakMode::Peak, METASOUNDSTANDARDNODES_API,
-	FEnumEnvelopePeakMode, FEnumEnvelopePeakModeInfo, FEnvelopePeakModeReadRef, FEnumEnvelopePeakModeWriteRef);
-
-	DEFINE_METASOUND_ENUM_BEGIN(EEnvelopePeakMode, FEnumEnvelopePeakMode, "EnvelopePeakMode")
-		DEFINE_METASOUND_ENUM_ENTRY(EEnvelopePeakMode::MeanSquared, LOCTEXT("EnvelopePeakModeMSDescription", "MS"), LOCTEXT("EnvelopePeakModeMSDescriptionTT", "Envelope follows a running Mean Squared of the audio signal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EEnvelopePeakMode::RootMeanSquared, LOCTEXT("EnvelopePeakModeRMSDescription", "RMS"), LOCTEXT("EnvelopePeakModeRMSDescriptionTT", "Envelope follows a running Root Mean Squared of the audio signal.")),
-		DEFINE_METASOUND_ENUM_ENTRY(EEnvelopePeakMode::Peak, LOCTEXT("EnvelopePeakModePeakDescription", "Peak"), LOCTEXT("EnvelopePeakModePeakDescriptionTT", "Envelope follows the peaks in the audio signal.")),
-	DEFINE_METASOUND_ENUM_END()
-
-		// Operator Class
+	// Operator Class
 	class FCompressorOperator : public TExecutableOperator<FCompressorOperator>
 	{
 	public:

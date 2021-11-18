@@ -115,6 +115,7 @@ public:
 	/** @return true if HitProxy rendering will be allowed in ::Render() */
 	bool GetEnableRenderingDuringHitProxyPass() const { return bEnableRenderingDuringHitProxyPass; }
 
+protected:
 	/**
 	 * Called upon Level Editor Created in order to bind to EditorElementSelectionPtr changed
 	 * event since global selection set is not initialized before the tools context.
@@ -128,7 +129,6 @@ public:
 	 */
 	virtual void OnEditorSelectionSetChanged(const UTypedElementSelectionSet* InSelectionSet);
 
-protected:
 	// we hide these 
 	virtual void Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI) override;
 	virtual void Shutdown() override;
@@ -141,15 +141,6 @@ public:
 	TObjectPtr<UMaterialInterface> StandardVertexColorMaterial;
 
 protected:
-	// called when PIE is about to start, shuts down active tools
-	FDelegateHandle BeginPIEDelegateHandle;
-	// called before a Save starts. This currently shuts down active tools.
-	FDelegateHandle PreSaveWorldDelegateHandle;
-	// called when a map is changed
-	FDelegateHandle WorldTearDownDelegateHandle;
-	// called when viewport clients change
-	FDelegateHandle ViewportClientListChangedHandle;
-
 	// EdMode implementation of InteractiveToolFramework APIs - see ToolContextInterfaces.h
 	IToolsContextQueriesAPI* QueriesAPI;
 	IToolsContextTransactionsAPI* TransactionAPI;
@@ -228,9 +219,20 @@ public:
 	virtual FRay GetLastWorldRay() const override;
 
 protected:
+	virtual void DeactivateAllActiveTools(EToolShutdownType ShutdownType) override;
+	virtual void Initialize(IToolsContextQueriesAPI* QueriesAPIIn, IToolsContextTransactionsAPI* TransactionsAPIIn) override;
+	virtual void Shutdown() override;
 
 	/** Input event instance used to keep track of various button states, etc, that we cannot directly query on-demand */
 	FInputDeviceState CurrentMouseState;
+	// called when PIE is about to start, shuts down active tools
+	FDelegateHandle BeginPIEDelegateHandle;
+	// called before a Save starts. This currently shuts down active tools.
+	FDelegateHandle PreSaveWorldDelegateHandle;
+	// called when a map is changed
+	FDelegateHandle WorldTearDownDelegateHandle;
+	// called when viewport clients change
+	FDelegateHandle ViewportClientListChangedHandle;
 
 private:
 	bool bIsTrackingMouse;
@@ -253,10 +255,16 @@ public:
 	UEdModeInteractiveToolsContext* CreateNewChildEdModeToolsContext();
 
 	/**
+	 * Call to add a child EdMode ToolsContext created using the above function
+	 * @return true if child was added
+	 */
+	bool OnChildEdModeActivated(UEdModeInteractiveToolsContext* ChildToolsContext);
+
+	/**
 	 * Call to release a child EdMode ToolsContext created using the above function
 	 * @return true if child was found and removed
 	 */
-	bool OnChildEdModeToolsContextShutdown(UEdModeInteractiveToolsContext* ChildToolsContext);
+	bool OnChildEdModeDeactivated(UEdModeInteractiveToolsContext* ChildToolsContext);
 
 };
 
@@ -268,6 +276,8 @@ public:
 UCLASS(Transient)
 class EDITORINTERACTIVETOOLSFRAMEWORK_API UEdModeInteractiveToolsContext : public UEditorInteractiveToolsContext
 {
+	friend class UModeManagerInteractiveToolsContext;
+
 	GENERATED_BODY()
 public:
 	/**

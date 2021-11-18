@@ -38,6 +38,13 @@ FRigUnit_MathTransformMakeAbsolute_Execute()
 	Global.NormalizeRotation();
 }
 
+FString FRigUnit_MathTransformAccumulateArray::GetUnitLabel() const
+{
+	static const FString RelativeLabel = TEXT("Make Transform Array Relative");
+	static const FString AbsoluteLabel = TEXT("Make Transform Array Absolute");
+	return (TargetSpace == EBoneGetterSetterMode::GlobalSpace) ? AbsoluteLabel : RelativeLabel;
+}
+
 FRigUnit_MathTransformAccumulateArray_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

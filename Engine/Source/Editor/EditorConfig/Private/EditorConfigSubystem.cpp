@@ -19,13 +19,33 @@ void UEditorConfigSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	AddSearchDirectory(FPaths::Combine(FPlatformProcess::UserSettingsDir(), *FApp::GetEpicProductIdentifier(), TEXT("Editor"))); // AppData
 }
 
-void UEditorConfigSubsystem::Tick(float DeltaTime)
+void UEditorConfigSubsystem::Deinitialize()
 {
-	SaveLock.WriteLock();
-	ON_SCOPE_EXIT { SaveLock.WriteUnlock(); };
+	SaveLock.Lock();
+	ON_SCOPE_EXIT { SaveLock.Unlock(); };
 
+	// Synchronously save all Pending Saves on exit
 	for (FPendingSave& Save : PendingSaves)
 	{
+		const FString* FilePath = LoadedConfigs.FindKey(Save.Config);
+		check(FilePath != nullptr);
+
+		Save.Config->SaveToFile(*FilePath);
+		Save.Config->OnSaved();
+	}
+}
+
+void UEditorConfigSubsystem::Tick(float DeltaTime)
+{
+	SaveLock.Lock();
+	ON_SCOPE_EXIT { SaveLock.Unlock(); };
+
+	// Allows PendingSaves to be modified while iterating as
+	// the Async below might execute the task immediately
+	// when running in -nothreading mode.
+	for (int Index = 0; Index < PendingSaves.Num(); ++Index)
+	{
+		FPendingSave& Save = PendingSaves[Index];
 		Save.TimeSinceQueued += DeltaTime;
 
 		const float SaveDelaySeconds = 3.0f;
@@ -208,8 +228,8 @@ void UEditorConfigSubsystem::SaveConfig(TSharedRef<FEditorConfig> Config)
 		return;
 	}
 
-	SaveLock.WriteLock();
-	ON_SCOPE_EXIT { SaveLock.WriteUnlock(); };
+	SaveLock.Lock();
+	ON_SCOPE_EXIT{ SaveLock.Unlock(); };
 
 	FPendingSave* Existing = PendingSaves.FindByPredicate([Config](const FPendingSave& Element)
 		{
@@ -235,8 +255,8 @@ void UEditorConfigSubsystem::SaveConfig(TSharedRef<FEditorConfig> Config)
 
 void UEditorConfigSubsystem::OnSaveCompleted(TSharedPtr<FEditorConfig> Config)
 {
-	SaveLock.WriteLock();
-	ON_SCOPE_EXIT { SaveLock.WriteUnlock(); };
+	SaveLock.Lock();
+	ON_SCOPE_EXIT{ SaveLock.Unlock(); };
 
 	const int32 Index = PendingSaves.IndexOfByPredicate([Config](const FPendingSave& Element)
 		{

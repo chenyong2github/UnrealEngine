@@ -118,15 +118,19 @@ public:
 	 */
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
 
-	/** Access profiling info relating to payload activity. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
-	virtual FPayloadActivityInfo GetPayloadActivityInfo() const override;
+	/** Access profiling info relating to accumulated payload activity for all backends. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
+	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const override;
 
+	/** Access profiling info relating to payload activity per backend. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
+	virtual void GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef ) const override;
+	
 private:
 	
 	void ApplySettingsFromConfigFiles(const FConfigFile& PlatformEngineIni);
 	void ApplySettingsFromCmdline();
-
+	
 	void ApplyDebugSettingsFromConfigFiles(const FConfigFile& PlatformEngineIni);
+	void ApplyDebugSettingsFromFromCmdline();
 
 	void MountBackends();
 	void ParseHierarchy(const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
@@ -137,7 +141,7 @@ private:
 	void CachePayload(const FPayloadId& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource);
 
 	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
-	bool TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
+	bool TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext);
 	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id);
 
 	/** 
@@ -172,19 +176,15 @@ private:
 	/** Debugging option: When enabled all public operations will be performed as single threaded. This is intended to aid debugging and not for production use.*/
 	bool bForceSingleThreaded;
 	
-	/** 
-	 * Debugging option: When enabled all pull operations will fail so we can see which systems cannot survive ::PullData failing to find the virtualization 
-	 * data at all. If ::PullData failures become fatal errors at some point then this option will cease to be useful.
-	 * This is intended to aid debugging and not for production use.
-	 */
-	bool bFailPayloadPullOperations;
-
 	/**
 	 * Debugging option: When enabled we will immediately 'pull' each payload after it has been 'pushed' and compare it to the original payload source to make 
 	 * sure that it can be pulled correctly.
 	 * This is intended to aid debugging and not for production use.
 	 */
 	bool bValidateAfterPushOperation;
+
+	/** Array of backend names that should have their pull operation disabled */
+	TArray<FString> BackendsToDisablePulls;
 
 	/** The critical section used to force single threaded access if bForceSingleThreaded is true */
 	FCriticalSection ForceSingleThreadedCS;

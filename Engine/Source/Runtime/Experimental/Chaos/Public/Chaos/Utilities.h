@@ -513,6 +513,7 @@ namespace Chaos
 			const FReal C = FVec3::DotProduct(D1, R);
 			const FReal E = FVec3::DotProduct(D2, D2);
 			const FReal F = FVec3::DotProduct(D2, R);
+			constexpr FReal Min = 0, Max = 1;
 
 			S = 0.0f;
 			T = 0.0f;
@@ -524,12 +525,12 @@ namespace Chaos
 			else if (A <= Epsilon)
 			{
 				// First segment (only) is a point
-				T = FMath::Clamp<FReal>(F / E, 0., 1.);
+				T = FMath::Clamp<FReal>(F / E, Min, Max);
 			}
 			else if (E <= Epsilon)
 			{
 				// Second segment (only) is a point
-				S = FMath::Clamp<FReal>(-C / A, 0., 1.);
+				S = FMath::Clamp<FReal>(-C / A, Min, Max);
 			}
 			else
 			{
@@ -537,18 +538,18 @@ namespace Chaos
 				const FReal Denom = A * E - B * B;
 				if (Denom != 0.0f)
 				{
-					S = FMath::Clamp<FReal>((B * F - C * E) / Denom, 0., 1.);
+					S = FMath::Clamp<FReal>((B * F - C * E) / Denom, Min, Max);
 				}
 				T = (B * S + F) / E;
 
 				if (T < 0.0f)
 				{
-					S = FMath::Clamp<FReal>(-C / A, 0., 1.);
+					S = FMath::Clamp<FReal>(-C / A, Min, Max);
 					T = 0.0f;
 				}
 				else if (T > 1.0f)
 				{
-					S = FMath::Clamp<FReal>((B - C) / A, 0., 1.);
+					S = FMath::Clamp<FReal>((B - C) / A, Min, Max);
 					T = 1.0f;
 				}
 			}

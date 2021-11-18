@@ -702,7 +702,7 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER(FVector3f, DirectionalLightColor) \
 	SHADER_PARAMETER(float, DirectionalLightVolumetricScatteringIntensity) \
 	SHADER_PARAMETER(uint32, DirectionalLightShadowMapChannelMask) \
-	SHADER_PARAMETER(FVector2D, DirectionalLightDistanceFadeMAD) \
+	SHADER_PARAMETER(FVector2f, DirectionalLightDistanceFadeMAD) \
 	SHADER_PARAMETER(uint32, NumDirectionalLightCascades) \
 	SHADER_PARAMETER(int32, DirectionalLightVSM) \
 	SHADER_PARAMETER(FVector4f, CascadeEndDepths) \
@@ -774,7 +774,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FVolumetricFogGlobalData,)
 	SHADER_PARAMETER(FIntVector, GridSizeInt)
 	SHADER_PARAMETER(FVector3f, GridSize)
 	SHADER_PARAMETER(FVector3f, GridZParams)
-	SHADER_PARAMETER(FVector2D, SVPosToVolumeUV)
+	SHADER_PARAMETER(FVector2f, SVPosToVolumeUV)
 	SHADER_PARAMETER(FIntPoint, FogGridToPixelXY)
 	SHADER_PARAMETER(float, MaxDistance)
 	SHADER_PARAMETER(FVector3f, HeightFogInscatteringColor)
@@ -1320,7 +1320,7 @@ public:
 	FVector3f ExponentialFogColor;
 	float FogMaxOpacity;
 	FVector4f ExponentialFogParameters3;
-	FVector2D SinCosInscatteringColorCubemapRotation;
+	FVector2f SinCosInscatteringColorCubemapRotation;
 
 	UTexture* FogInscatteringColorCubemap;
 	FVector FogInscatteringTextureParameters;
@@ -1590,12 +1590,10 @@ public:
 	/** Allocates and returns the current eye adaptation texture. */
 	using FSceneView::GetEyeAdaptationTexture;
 	IPooledRenderTarget* GetEyeAdaptationTexture(FRHICommandList& RHICmdList) const;
-	IPooledRenderTarget* GetLastEyeAdaptationTexture(FRHICommandList& RHICmdList) const;
 
 	/** Allocates and returns the current eye adaptation buffer. */
 	using FSceneView::GetEyeAdaptationBuffer;
 	FRDGPooledBuffer* GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const;
-	FRDGPooledBuffer* GetLastEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const;
 
 #if WITH_MGPU
 	void BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList);
@@ -1609,8 +1607,16 @@ public:
 	float GetLastAverageSceneLuminance() const;
 
 	/**Swap the order of the two eye adaptation targets in the double buffer system */
-	void SwapEyeAdaptationTextures(FRDGBuilder& GraphBuilder) const;
-	void SwapEyeAdaptationBuffers(FRDGBuilder& GraphBuilder) const;
+	void SwapEyeAdaptationTextures() const;
+	void SwapEyeAdaptationBuffers() const;
+
+	/** Update Last Exposure with the most recent available value */
+	void UpdateEyeAdaptationLastExposureFromTexture() const;
+	void UpdateEyeAdaptationLastExposureFromBuffer() const;
+
+	/** Enqueue a pass to readback current exposure */
+	void EnqueueEyeAdaptationExposureTextureReadback(FRDGBuilder& GraphBuilder) const;
+	void EnqueueEyeAdaptationExposureBufferReadback(FRDGBuilder& GraphBuilder) const;
 	
 	/** Returns the load action to use when overwriting all pixels of a target that you intend to read from. Takes into account the HMD hidden area mesh. */
 	ERenderTargetLoadAction GetOverwriteLoadAction() const;
@@ -1987,9 +1993,6 @@ public:
 
 	/** Sets the stereo-compatible RHI viewport. If the view doesn't requires stereo rendering, the standard viewport is set. */
 	void SetStereoViewport(FRHICommandList& RHICmdList, const FViewInfo& View, float ViewportScale = 1.0f) const;
-
-	/** Cache the FXSystem value from the Scene. Must be ran on the renderthread to ensure it is valid throughout rendering. */
-	void InitFXSystem();
 
 	/** Whether distance field global data structures should be prepared for features that use it. */
 	bool ShouldPrepareForDistanceFieldShadows() const;

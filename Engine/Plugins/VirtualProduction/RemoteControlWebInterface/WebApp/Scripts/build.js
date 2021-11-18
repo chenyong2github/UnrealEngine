@@ -2,6 +2,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const exec = require('child_process').exec;
 const util = require('util');
+const package = require('../package.json');
 
 const execute = util.promisify(exec);
 
@@ -21,6 +22,7 @@ async function build() {
     ])
     
     await fs.copy(client.build, server.public);
+    await fs.writeJSON(path.join(server.public, 'version.json'), { date: new Date(), version: package.version });
   
   } catch (err) {
     let message = err.stdout;

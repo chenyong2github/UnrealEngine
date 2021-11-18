@@ -776,7 +776,7 @@ void FFbxExporter::ExportModel(UModel* Model, FbxNode* Node, const char* Name)
 	for (uint32 VertexIdx = 0; VertexIdx < VertCount; ++VertexIdx)
 	{
 		FModelVertex& Vertex = Model->VertexBuffer.Vertices[VertexIdx];
-		FVector Normal = Vertex.TangentZ;
+		FVector Normal = (FVector4)Vertex.TangentZ;
 
 		// If the vertex is outside of the world extent, snap it to the origin.  The faces associated with
 		// these vertices will be removed before exporting.  We leave the snapped vertex in the buffer so
@@ -1075,7 +1075,7 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 			//Get the Attributes
 			FStaticMeshAttributes MeshAttributes(Mesh);
 			TVertexAttributesRef<FVector3f> VertexPositions = MeshAttributes.GetVertexPositions();
-			TVertexInstanceAttributesRef<FVector2D> UVs = MeshAttributes.GetVertexInstanceUVs();
+			TVertexInstanceAttributesRef<FVector2f> UVs = MeshAttributes.GetVertexInstanceUVs();
 			TVertexInstanceAttributesRef<FVector4f> Colors = MeshAttributes.GetVertexInstanceColors();
 			TVertexInstanceAttributesRef<FVector3f> Normals = MeshAttributes.GetVertexInstanceNormals();
 			TEdgeAttributesRef<bool> EdgeHardnesses = MeshAttributes.GetEdgeHardnesses();
@@ -1894,7 +1894,7 @@ float FLevelSequenceAnimTrackAdapter::GetAnimTime(int32 LocalFrame) const
 	{
 		if (UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section))
 		{
-			return AnimSection->MapTimeToAnimation(LocalTime, TickResolution);
+			return static_cast<float>(AnimSection->MapTimeToAnimation(LocalTime, TickResolution));
 		}
 	}
 
@@ -1991,7 +1991,7 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 
 	// If this actor has attached actors, and the bound component isn't the root component, skip the 3d transform track because we don't want the 
 	// component transform to be assigned to the actor, which would subsequently apply to the attached children 
-	if (Actor && Actor->GetRootComponent() != BoundComponent)
+	if (Actor && BoundComponent && Actor->GetRootComponent() != BoundComponent)
 	{
 		TArray<AActor*> AttachedActors;
 		Actor->GetAttachedActors(AttachedActors);
@@ -4035,8 +4035,8 @@ private:
 		// Then rotate this arc SpherNumSides+1 times.
 		for (int32 s = 0; s < SpherNumSides + 1; s++)
 		{
-			FRotator ArcRotator(0, 360.f * (float)s / SpherNumSides, 0);
-			FRotationMatrix ArcRot(ArcRotator);
+			FRotator3f ArcRotator(0, 360.f * (float)s / SpherNumSides, 0);
+			FRotationMatrix44f ArcRot(ArcRotator);
 
 			for (int32 v = 0; v < SphereNumRings + 1; v++)
 			{
@@ -4193,8 +4193,8 @@ private:
 		// Then rotate this arc NumSides+1 times.
 		for (int32 SideIdx = 0; SideIdx < CapsuleNumSides + 1; SideIdx++)
 		{
-			const FRotator ArcRotator(0, 360.f * ((float)SideIdx / CapsuleNumSides), 0);
-			const FRotationMatrix ArcRot(ArcRotator);
+			const FRotator3f ArcRotator(0, 360.f * ((float)SideIdx / CapsuleNumSides), 0);
+			const FRotationMatrix44f ArcRot(ArcRotator);
 
 			for (int32 VertIdx = 0; VertIdx < CapsuleNumRings + 1; VertIdx++)
 			{

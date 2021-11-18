@@ -328,8 +328,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurFilterParameters, )
 
 	SHADER_PARAMETER(FScreenTransform, ColorToVelocity)
 
-	SHADER_PARAMETER(FVector2D, ScreenPosToPostMotionBlurTranslucencyUV)
-	SHADER_PARAMETER(FVector2D, PostMotionBlurTranslucencyUVMax)
+	SHADER_PARAMETER(FVector2f, ScreenPosToPostMotionBlurTranslucencyUV)
+	SHADER_PARAMETER(FVector2f, PostMotionBlurTranslucencyUVMax)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityFlatTexture)
@@ -708,15 +708,15 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	if (bPostMotionBlurTranslucency)
 	{
 		const bool bScaleTranslucency = Viewports.Color.Rect.Size() != PostMotionBlurTranslucencySize;
-		const FVector2D OutputSize(Viewports.Color.Rect.Size());
-		const FVector2D OutputSizeInv = FVector2D(1.0f, 1.0f) / OutputSize;
-		const FVector2D PostMotionBlurTranslucencyExtent(PostMotionBlurTranslucency->Desc.Extent);
-		const FVector2D PostMotionBlurTranslucencyExtentInv = FVector2D(1.0f, 1.0f) / PostMotionBlurTranslucencyExtent;
+		const FVector2f OutputSize(Viewports.Color.Rect.Size());
+		const FVector2f OutputSizeInv = FVector2f(1.0f, 1.0f) / OutputSize;
+		const FVector2f PostMotionBlurTranslucencyExtent(PostMotionBlurTranslucency->Desc.Extent);
+		const FVector2f PostMotionBlurTranslucencyExtentInv = FVector2f(1.0f, 1.0f) / PostMotionBlurTranslucencyExtent;
 
 		MotionBlurFilterParameters.PostMotionBlurTranslucencyTexture = PostMotionBlurTranslucency;
 		MotionBlurFilterParameters.PostMotionBlurTranslucencySampler = GetPostMotionBlurTranslucencySampler(bScaleTranslucency);
-		MotionBlurFilterParameters.ScreenPosToPostMotionBlurTranslucencyUV = OutputSizeInv * FVector2D(PostMotionBlurTranslucencySize) * PostMotionBlurTranslucencyExtentInv;
-		MotionBlurFilterParameters.PostMotionBlurTranslucencyUVMax = (FVector2D(PostMotionBlurTranslucencySize) - FVector2D(0.5f, 0.5f)) * PostMotionBlurTranslucencyExtentInv;
+		MotionBlurFilterParameters.ScreenPosToPostMotionBlurTranslucencyUV = OutputSizeInv * FVector2f(PostMotionBlurTranslucencySize) * PostMotionBlurTranslucencyExtentInv;
+		MotionBlurFilterParameters.PostMotionBlurTranslucencyUVMax = (FVector2f(PostMotionBlurTranslucencySize) - FVector2f(0.5f, 0.5f)) * PostMotionBlurTranslucencyExtentInv;
 	}
 
 	FRDGTextureDesc OutColorDesc = FRDGTextureDesc::Create2D(

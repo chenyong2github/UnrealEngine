@@ -3,18 +3,19 @@
 #include "FoliageSupport/InstancedFoliageActorData.h"
 
 #include "FoliageRestorationInfo.h"
-#include "InstancedFoliageActor.h"
 #include "LevelSnapshotsLog.h"
-#include "PropertySelectionMap.h"
+#include "Selection/PropertySelectionMap.h"
 
-namespace
+#include "InstancedFoliageActor.h"
+
+namespace UE::LevelSnapshots::Foliage::Private::Internal
 {
-	void SaveAsset(UFoliageType* FoliageType, FFoliageInfo& FoliageInfo, TMap<TSoftObjectPtr<UFoliageType>, FFoliageInfoData>& FoliageAssets, const FCustomVersionContainer& VersionInfo)
+	static void SaveAsset(UFoliageType* FoliageType, FFoliageInfo& FoliageInfo, TMap<TSoftObjectPtr<UFoliageType>, FFoliageInfoData>& FoliageAssets, const FCustomVersionContainer& VersionInfo)
 	{
 		FoliageAssets.Add(FoliageType).Save(FoliageInfo, VersionInfo);
 	}
 	
-	void SaveSubobject(UFoliageType* FoliageType, FFoliageInfo& FoliageInfo,TArray<FSubobjectFoliageInfoData>& SubobjectData, const FCustomVersionContainer& VersionInfo)
+	static void SaveSubobject(UFoliageType* FoliageType, FFoliageInfo& FoliageInfo,TArray<FSubobjectFoliageInfoData>& SubobjectData, const FCustomVersionContainer& VersionInfo)
 	{
 		FSubobjectFoliageInfoData Data;
 		Data.Save(FoliageType, FoliageInfo, VersionInfo);
@@ -23,7 +24,14 @@ namespace
 }
 
 
-void FInstancedFoliageActorData::Save(const FCustomVersionContainer& VersionInfo, AInstancedFoliageActor* FoliageActor)
+FArchive& UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::SerializeInternal(FArchive& Ar)
+{
+	Ar << FoliageAssets;
+	Ar << SubobjectData;
+	return Ar;
+}
+
+void UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::Save(const FCustomVersionContainer& VersionInfo, AInstancedFoliageActor* FoliageActor)
 {
 	FoliageActor->ForEachFoliageInfo([this, &VersionInfo, FoliageActor](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 	{
@@ -36,18 +44,18 @@ void FInstancedFoliageActorData::Save(const FCustomVersionContainer& VersionInfo
 		const bool bIsSubobject = FoliageType->IsIn(FoliageActor);
 		if (bIsSubobject)
 		{
-			SaveSubobject(FoliageType, FoliageInfo, SubobjectData, VersionInfo);
+			Internal::SaveSubobject(FoliageType, FoliageInfo, SubobjectData, VersionInfo);
 		}
 		else
 		{
-			SaveAsset(FoliageType, FoliageInfo, FoliageAssets, VersionInfo);
+			Internal::SaveAsset(FoliageType, FoliageInfo, FoliageAssets, VersionInfo);
 		}
 		
 		return true;
 	});
 }
 
-namespace InstancedFoliageActorData
+namespace UE::LevelSnapshots::Foliage::Private::Internal
 {
 	static FFoliageInfo* FindOrAddFoliageInfo(UFoliageType* FoliageType, AInstancedFoliageActor* FoliageActor)
 	{
@@ -183,19 +191,10 @@ namespace InstancedFoliageActorData
 	}
 }
 
-void FInstancedFoliageActorData::ApplyTo(const FCustomVersionContainer& VersionInfo, AInstancedFoliageActor* FoliageActor, const FPropertySelectionMap& SelectedProperties, bool bWasRecreated) const
+void UE::LevelSnapshots::Foliage::Private::FInstancedFoliageActorData::ApplyTo(const FCustomVersionContainer& VersionInfo, AInstancedFoliageActor* FoliageActor, const FPropertySelectionMap& SelectedProperties, bool bWasRecreated) const
 {
-	using namespace InstancedFoliageActorData;
-
 	const FFoliageRestorationInfo RestorationInfo = FFoliageRestorationInfo::From(FoliageActor, SelectedProperties, bWasRecreated);
-	const TMap<FName, UFoliageType*> PreexistingComponentToFoliageType = BuildComponentToFoliageType(FoliageActor);
-	ApplyAssets(VersionInfo, FoliageActor, RestorationInfo, FoliageAssets, PreexistingComponentToFoliageType);
-	ApplySubobjects(VersionInfo, FoliageActor, RestorationInfo, SubobjectData, PreexistingComponentToFoliageType);
-}
-
-FArchive& operator<<(FArchive& Ar, FInstancedFoliageActorData& FoliagInfoData)
-{
-	Ar << FoliagInfoData.FoliageAssets;
-	Ar << FoliagInfoData.SubobjectData;
-	return Ar;
+	const TMap<FName, UFoliageType*> PreexistingComponentToFoliageType = Internal::BuildComponentToFoliageType(FoliageActor);
+	Internal::ApplyAssets(VersionInfo, FoliageActor, RestorationInfo, FoliageAssets, PreexistingComponentToFoliageType);
+	Internal::ApplySubobjects(VersionInfo, FoliageActor, RestorationInfo, SubobjectData, PreexistingComponentToFoliageType);
 }

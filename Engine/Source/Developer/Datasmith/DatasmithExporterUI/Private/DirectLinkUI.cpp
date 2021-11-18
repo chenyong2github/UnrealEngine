@@ -12,7 +12,7 @@
 #include "Delegates/Delegate.h"
 #include "Framework/Application/SWindowTitleBar.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Hal/Platform.h"
+#include "HAL/Platform.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "Styling/CoreStyle.h"

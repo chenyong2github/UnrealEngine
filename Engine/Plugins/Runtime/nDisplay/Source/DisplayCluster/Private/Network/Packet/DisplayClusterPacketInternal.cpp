@@ -16,6 +16,9 @@ bool FDisplayClusterPacketInternal::Serialize(FMemoryWriter& Arch)
 	Arch << Type;
 	Arch << Protocol;
 
+	// Comm result
+	Arch << CommResult;
+
 	// Arguments
 	Arch << TextArguments;
 	Arch << BinaryArguments;
@@ -34,6 +37,9 @@ bool FDisplayClusterPacketInternal::Deserialize(FMemoryReader& Arch)
 	Arch << Type;
 	Arch << Protocol;
 
+	// Comm result
+	Arch << CommResult;
+
 	// Arguments
 	Arch << TextArguments;
 	Arch << BinaryArguments;
@@ -47,7 +53,8 @@ bool FDisplayClusterPacketInternal::Deserialize(FMemoryReader& Arch)
 
 FString FDisplayClusterPacketInternal::ToString() const
 {
-	return FString::Printf(TEXT("<prot=%s type=%s name=%s args={%s} tobjects=%d bobjects=%d>"), *GetProtocol(), *GetType(), *GetName(), *ArgsToString(), TextObjects.Num(), BinaryObjects.Num());
+	return FString::Printf(TEXT("<Protocol=%s, Type=%s, Name=%s, CommErr=%d Args={%s} Text_Objects=%d Bin_Objects=%d>"),
+		*GetProtocol(), *GetType(), *GetName(), CommResult, *ArgsToString(), TextObjects.Num(), BinaryObjects.Num());
 }
 
 FString FDisplayClusterPacketInternal::ArgsToString() const
@@ -80,7 +87,7 @@ bool FDisplayClusterPacketInternal::SendPacket(FDisplayClusterSocketOperations& 
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - sending internal packet..."), *SocketOps.GetConnectionName());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - sending internal packet..."), *SocketOps.GetConnectionName());
 
 	TArray<uint8> DataBuffer;
 	FMemoryWriter MemoryWriter(DataBuffer);
@@ -91,14 +98,14 @@ bool FDisplayClusterPacketInternal::SendPacket(FDisplayClusterSocketOperations& 
 	// Serialize the packet body
 	if (!Serialize(MemoryWriter))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("%s - couldn't serialize a packet"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s - couldn't serialize a packet"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
 	// Initialize the packet header
 	FPacketHeader PacketHeader;
 	PacketHeader.PacketBodyLength = static_cast<uint32>(DataBuffer.Num() - sizeof(FPacketHeader));
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - Outgoing packet header: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - Outgoing packet header: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
 
 	// Fill packet header with packet data length
 	FMemory::Memcpy(DataBuffer.GetData(), &PacketHeader, sizeof(FPacketHeader));
@@ -106,11 +113,11 @@ bool FDisplayClusterPacketInternal::SendPacket(FDisplayClusterSocketOperations& 
 	// Send the header
 	if (!SocketOps.SendChunk(DataBuffer, DataBuffer.Num(), FString("send-internal-msg")))
 	{
-		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s - Couldn't send a packet"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s - Couldn't send a packet"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterNetworkMsg, Verbose, TEXT("%s - Packet sent"), *SocketOps.GetConnectionName());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - Packet sent"), *SocketOps.GetConnectionName());
 
 	return true;
 }
@@ -132,7 +139,7 @@ bool FDisplayClusterPacketInternal::RecvPacket(FDisplayClusterSocketOperations& 
 	DataBuffer.Reset();
 	if (!SocketOps.RecvChunk(DataBuffer, sizeof(FPacketHeader), FString("recv-internal-chunk-header")))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("%s couldn't receive packet header"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s couldn't receive packet header"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
@@ -141,26 +148,26 @@ bool FDisplayClusterPacketInternal::RecvPacket(FDisplayClusterSocketOperations& 
 	FMemory::Memcpy(&PacketHeader, DataBuffer.GetData(), sizeof(FPacketHeader));
 	DataBuffer.Reset();
 
-	UE_LOG(LogDisplayClusterNetworkMsg, VeryVerbose, TEXT("%s - packet header received: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - packet header received: %s"), *SocketOps.GetConnectionName(), *PacketHeader.ToString());
 	check(PacketHeader.PacketBodyLength > 0);
 
 	// Read packet body
 	if (!SocketOps.RecvChunk(DataBuffer, PacketHeader.PacketBodyLength, FString("recv-internal-chunk-body")))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("%s couldn't receive packet body"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("%s couldn't receive packet body"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
 	// We need to set a correct value for array size before deserialization
 	DataBuffer.SetNumUninitialized(PacketHeader.PacketBodyLength, false);
 
-	UE_LOG(LogDisplayClusterNetworkMsg, VeryVerbose, TEXT("%s - packet body received"), *SocketOps.GetConnectionName());
+	UE_LOG(LogDisplayClusterNetwork, VeryVerbose, TEXT("%s - packet body received"), *SocketOps.GetConnectionName());
 
 	// Deserialize packet from buffer
 	FMemoryReader Arch = FMemoryReader(DataBuffer, false);
 	if (!Deserialize(Arch))
 	{
-		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("%s couldn't deserialize a packet"), *SocketOps.GetConnectionName());
+		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s couldn't deserialize a packet"), *SocketOps.GetConnectionName());
 		return false;
 	}
 
@@ -170,12 +177,5 @@ bool FDisplayClusterPacketInternal::RecvPacket(FDisplayClusterSocketOperations& 
 
 FString FDisplayClusterPacketInternal::ToLogString(bool bDetailed) const
 {
-	if (bDetailed)
-	{
-		return ToString();
-	}
-	else
-	{
-		return FString::Printf(TEXT("<Protocol=%s, Type=%s, Name=%s>"), *Protocol, *Type, *Name);
-	}
+	return bDetailed ? ToString() : FString::Printf(TEXT("<Protocol=%s, Type=%s, Name=%s, CommErr=%d>"), *Protocol, *Type, *Name, CommResult);
 }

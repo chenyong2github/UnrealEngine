@@ -804,8 +804,13 @@ void FStaticMeshLODResources::Serialize(FArchive& Ar, UObject* Owner, int32 Inde
 				{
 					TmpBuff.Empty(BulkDataSize);
 					TmpBuff.AddUninitialized(BulkDataSize);
+					
 					void* Dest = TmpBuff.GetData();
+#if USE_BULKDATA_STREAMING_TOKEN	
 					TmpBulkData.GetCopy(&Dest);
+#else
+					StreamingBulkData.GetCopy(&Dest);
+#endif //#if USE_BULKDATA_STREAMING_TOKEN
 				}
 #endif
 			}
@@ -2370,7 +2375,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("3590ADE1085140A68202E37A3EACED95")
+#define STATICMESH_DERIVEDDATA_VER TEXT("3006d21f867648a68cf4edee185446b7")
 
 const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -4697,12 +4702,12 @@ bool UStaticMesh::SetUVChannel(int32 LODIndex, int32 UVChannelIndex, const TMap<
 
 	FStaticMeshAttributes Attributes(*MeshDescription);
 
-	TMeshAttributesRef<FVertexInstanceID, FVector2D> UVs = Attributes.GetVertexInstanceUVs();
+	TMeshAttributesRef<FVertexInstanceID, FVector2f> UVs = Attributes.GetVertexInstanceUVs();
 	for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 	{
 		if (const FVector2D* UVCoord = TexCoords.Find(VertexInstanceID))
 		{
-			UVs.Set(VertexInstanceID, UVChannelIndex, *UVCoord);
+			UVs.Set(VertexInstanceID, UVChannelIndex, (FVector2f)*UVCoord);		// LWC_TODO: Precision loss? TexCoords should probably be passed as FVector2f.
 		}
 		else
 		{
@@ -5837,7 +5842,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents = MeshDescriptionAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns = MeshDescriptionAttributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors = MeshDescriptionAttributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = MeshDescriptionAttributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = MeshDescriptionAttributes.GetVertexInstanceUVs();
 
 	for (FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 	{
@@ -6878,7 +6883,7 @@ void UStaticMesh::EnforceLightmapRestrictions(bool bUseRenderData)
 			{
 				if (const FMeshDescription* MeshDescription = GetMeshDescription(SourceLOD))
 				{
-					TVertexInstanceAttributesConstRef<FVector2D> UVChannels = FStaticMeshConstAttributes(*MeshDescription).GetVertexInstanceUVs();
+					TVertexInstanceAttributesConstRef<FVector2f> UVChannels = FStaticMeshConstAttributes(*MeshDescription).GetVertexInstanceUVs();
 
 					// skip empty/stripped LODs
 					if (UVChannels.GetNumElements() > 0)

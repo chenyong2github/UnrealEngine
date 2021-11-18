@@ -16,29 +16,35 @@
 FDisplayClusterClusterEventsBinaryService::FDisplayClusterClusterEventsBinaryService()
 	: FDisplayClusterService(FString("SRV_CEB"))
 {
+	// Subscribe for SessionClosed events
+	OnSessionClosed().AddRaw(this, &FDisplayClusterClusterEventsBinaryService::ProcessSessionClosed);
 }
 
 FDisplayClusterClusterEventsBinaryService::~FDisplayClusterClusterEventsBinaryService()
 {
+	// Unsubscribe from SessionClosed notifications
+	OnSessionClosed().RemoveAll(this);
+
 	Shutdown();
 }
 
 
-TUniquePtr<IDisplayClusterSession> FDisplayClusterClusterEventsBinaryService::CreateSession(FSocket* Socket, const FIPv4Endpoint& Endpoint, uint64 SessionId)
+FString FDisplayClusterClusterEventsBinaryService::GetProtocolName() const
 {
-	return MakeUnique<FDisplayClusterSession<FDisplayClusterPacketBinary, false, false>>(
-		Socket,
-		this,
-		this,
-		SessionId,
-		FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionId, *Endpoint.ToString()),
-		FDisplayClusterService::GetThreadPriority());
+	static const FString ProtocolName("ClusterEventsBinary");
+	return ProtocolName;
+}
+
+TSharedPtr<IDisplayClusterSession> FDisplayClusterClusterEventsBinaryService::CreateSession(FDisplayClusterSessionInfo& SessionInfo)
+{
+	SessionInfo.SessionName = FString::Printf(TEXT("%s_session_%lu_%s"), *GetName(), SessionInfo.SessionId, *SessionInfo.Endpoint.ToString());
+	return MakeShared<FDisplayClusterSession<FDisplayClusterPacketBinary, false>>(SessionInfo, *this, *this, FDisplayClusterService::GetThreadPriority());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterSessionListener
 //////////////////////////////////////////////////////////////////////////////////////////////
-typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketBinary, false>::ReturnType FDisplayClusterClusterEventsBinaryService::ProcessPacket(const TSharedPtr<FDisplayClusterPacketBinary>& Request)
+typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketBinary, false>::ReturnType FDisplayClusterClusterEventsBinaryService::ProcessPacket(const TSharedPtr<FDisplayClusterPacketBinary>& Request, const FDisplayClusterSessionInfo& SessionInfo)
 {
 	// Check the pointer
 	if (!Request.IsValid())
@@ -66,7 +72,28 @@ typename IDisplayClusterSessionPacketHandler<FDisplayClusterPacketBinary, false>
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolEventsBinary
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterEventsBinaryService::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event)
+EDisplayClusterCommResult FDisplayClusterClusterEventsBinaryService::EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(nD SRV_CEB::EmitClusterEventBinary);
+
 	GDisplayCluster->GetPrivateClusterMgr()->EmitClusterEventBinary(Event, true);
+	return EDisplayClusterCommResult::Ok;
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterClusterEventsBinaryService
+//////////////////////////////////////////////////////////////////////////////////////////////
+void FDisplayClusterClusterEventsBinaryService::ProcessSessionClosed(const FDisplayClusterSessionInfo& SessionInfo)
+{
+	if (!SessionInfo.IsTerminatedByServer())
+	{
+		// Get node ID
+		const FString NodeId = SessionInfo.NodeId.Get(FString());
+		if (!NodeId.IsEmpty())
+		{
+			// Notify others about node fail
+			OnNodeFailed().Broadcast(NodeId, ENodeFailType::ConnectionLost);
+		}
+	}
 }

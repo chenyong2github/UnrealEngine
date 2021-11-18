@@ -82,8 +82,8 @@ void UEditorUtilitySubsystem::HandleStartup()
 {
 	for (const FSoftObjectPath& ObjectPath : StartupObjects)
 	{
-		UObject* Object = ObjectPath.TryLoad();
-		if (!Object || Object->IsPendingKillOrUnreachable())
+		UObject* Object = GetValid(ObjectPath.TryLoad());
+		if (!Object || Object->IsUnreachable())
 		{
 			UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Could not load: %s"), *ObjectPath.ToString());
 			continue;
@@ -95,7 +95,7 @@ void UEditorUtilitySubsystem::HandleStartup()
 
 bool UEditorUtilitySubsystem::TryRun(UObject* Asset)
 {
-	if (!Asset || Asset->IsPendingKillOrUnreachable())
+	if (!Asset || !IsValidChecked(Asset) || Asset->IsUnreachable())
 	{
 		UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Could not run: %s"), Asset ? *Asset->GetPathName() : TEXT("None"));
 		return false;

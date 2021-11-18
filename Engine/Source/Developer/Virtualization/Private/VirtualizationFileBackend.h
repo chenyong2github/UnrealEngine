@@ -31,27 +31,23 @@ namespace UE::Virtualization
 class FFileSystemBackend : public IVirtualizationBackend
 {
 public:
-	FFileSystemBackend(FStringView ConfigName);
+	FFileSystemBackend(FStringView ConfigName, FStringView DebugName);
 	virtual ~FFileSystemBackend() = default;
 
 protected:
 
 	virtual bool Initialize(const FString& ConfigEntry) override;
 
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override;
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext) override;
 
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
-
-	virtual FString GetDebugString() const override;
 
 	bool DoesExist(const FPayloadId& Id);
 	
 	void CreateFilePath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath);
 
 	TUniquePtr<FArchive> OpenFileForReading(const TCHAR* FilePath);
-	
-	/** Debug name used to identify the backend. */
-	FString DebugName;
+
 	/** The root directory where the payload files should be located. */
 	FString RootDirectory;
 

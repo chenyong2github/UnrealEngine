@@ -99,7 +99,7 @@ void FPyReferenceCollector::PurgeUnrealGeneratedTypes()
 		{
 			if (bMarkPendingKill)
 			{
-				InObject->MarkPendingKill();
+				InObject->MarkAsGarbage();
 			}
 			WeakReferencesToPurgedObjects.Add(InObject);
 		}

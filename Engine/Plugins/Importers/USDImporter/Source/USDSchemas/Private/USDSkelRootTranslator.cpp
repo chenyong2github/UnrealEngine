@@ -901,7 +901,7 @@ namespace UsdSkelRootTranslatorImpl
 							}
 							else
 							{
-								AnimSequence->MarkPendingKill();
+								AnimSequence->MarkAsGarbage();
 							}
 						}
 

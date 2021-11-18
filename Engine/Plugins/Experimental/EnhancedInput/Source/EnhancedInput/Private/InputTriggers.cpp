@@ -12,6 +12,45 @@ ETriggerState UInputTrigger::UpdateState_Implementation(const UEnhancedPlayerInp
 	return IsActuated(ModifiedValue) ? ETriggerState::Triggered : ETriggerState::None;
 };
 
+bool UInputTrigger::IsSupportedTriggerEvent(const ETriggerEventsSupported SupportedEvents, const ETriggerEvent Event)
+{
+	if(SupportedEvents == ETriggerEventsSupported::All)
+	{
+		return true;
+	}
+	else if(SupportedEvents == ETriggerEventsSupported::None)
+	{
+		return false;
+	}
+	
+	// Check the bitmask of SupportedEvent types for each ETriggerEvent
+	switch (Event)
+	{
+	case ETriggerEvent::Started:
+		return EnumHasAnyFlags(SupportedEvents, ETriggerEventsSupported::Uninterruptible | ETriggerEventsSupported::Ongoing);
+		break;
+	case ETriggerEvent::Ongoing:
+		return EnumHasAnyFlags(SupportedEvents, ETriggerEventsSupported::Uninterruptible | ETriggerEventsSupported::Ongoing);
+		break;
+	case ETriggerEvent::Canceled:
+		return EnumHasAnyFlags(SupportedEvents, ETriggerEventsSupported::Ongoing);
+		break;
+	// Triggered can happen from Instant, Overtime, or Cancelable trigger events.
+	case ETriggerEvent::Triggered:
+		return EnumHasAnyFlags(SupportedEvents, (ETriggerEventsSupported::Instant | ETriggerEventsSupported::Uninterruptible | ETriggerEventsSupported::Ongoing));
+		break;
+		// Completed is supported by every UInputTrigger
+	case ETriggerEvent::Completed:
+		return EnumHasAnyFlags(SupportedEvents, ETriggerEventsSupported::All);
+		break;
+	case ETriggerEvent::None:
+	default:
+		return false;
+	}	
+	
+	return false;
+}
+
 ETriggerState UInputTriggerTimedBase::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
 {
 	ETriggerState State = ETriggerState::None;
@@ -33,11 +72,15 @@ ETriggerState UInputTriggerTimedBase::UpdateState_Implementation(const UEnhanced
 
 float UInputTriggerTimedBase::CalculateHeldDuration(const UEnhancedPlayerInput* const PlayerInput, const float DeltaTime) const
 {
-	check(PlayerInput && PlayerInput->GetOuterAPlayerController());
-	const float TimeDilation = PlayerInput->GetOuterAPlayerController()->GetActorTimeDilation();
+	if(ensureMsgf(PlayerInput && PlayerInput->GetOuterAPlayerController(), TEXT("No Player Input was given to Calculate with! Returning 1.0")))
+	{
+		const float TimeDilation = PlayerInput->GetOuterAPlayerController()->GetActorTimeDilation();
 	
-	// Calculates the new held duration, applying time dilation if desired
-	return HeldDuration + (!bAffectedByTimeDilation ? DeltaTime : DeltaTime * TimeDilation);
+		// Calculates the new held duration, applying time dilation if desired
+		return HeldDuration + (!bAffectedByTimeDilation ? DeltaTime : DeltaTime * TimeDilation);
+	}
+
+	return 1.0f;
 }
 
 

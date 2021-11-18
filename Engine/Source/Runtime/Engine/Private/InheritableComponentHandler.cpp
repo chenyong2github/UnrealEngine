@@ -68,7 +68,7 @@ void UInheritableComponentHandler::PostLoad()
 
 				if (!CastChecked<UActorComponent>(Record.ComponentTemplate->GetArchetype())->IsEditableWhenInherited())
 				{
-					Record.ComponentTemplate->MarkPendingKill(); // hack needed to be able to identify if NewObject returns this back to us in the future
+					Record.ComponentTemplate->MarkAsGarbage(); // hack needed to be able to identify if NewObject returns this back to us in the future
 					Records.RemoveAtSwap(Index);
 				}
 			}
@@ -129,7 +129,7 @@ UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(
 		if (ensure(ExistingComp) && ensure(UnnecessaryComponents.RemoveSwap(ExistingComp) > 0))
 		{
 			ExistingObj->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-			ExistingObj->MarkPendingKill();
+			ExistingObj->MarkAsGarbage();
 		}
 	}
 
@@ -140,7 +140,7 @@ UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(
 	//       kill so we can identify that situation here (see UE-13987/UE-13990)
 	if (!::IsValid(NewComponentTemplate))
 	{
-		NewComponentTemplate->ClearPendingKill();
+		NewComponentTemplate->ClearGarbage();
 		UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
 		CopyParams.bDoDelta = false;
 		// No good can come of replacing references to BestArchetype with references to NewComponentTemplate
@@ -181,7 +181,7 @@ void UInheritableComponentHandler::RemoveOverridenComponentTemplate(const FCompo
 		const FComponentOverrideRecord& Record = Records[Index];
 		if (Record.ComponentKey.Match(Key))
 		{
-			Record.ComponentTemplate->MarkPendingKill(); // hack needed to be able to identify if NewObject returns this back to us in the future
+			Record.ComponentTemplate->MarkAsGarbage(); // hack needed to be able to identify if NewObject returns this back to us in the future
 			Records.RemoveAtSwap(Index);
 			break;
 		}

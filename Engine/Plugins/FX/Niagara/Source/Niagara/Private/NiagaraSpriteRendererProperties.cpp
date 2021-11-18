@@ -624,16 +624,16 @@ void UNiagaraSpriteRendererProperties::CacheDerivedData()
 		if (GetDerivedDataCacheRef().GetSynchronous(*KeyString, Data, GetPathName()))
 		{
 			COOK_STAT(Timer.AddHit(Data.Num()));
-			DerivedData.BoundingGeometry.Empty(Data.Num() / sizeof(FVector2D));
-			DerivedData.BoundingGeometry.AddUninitialized(Data.Num() / sizeof(FVector2D));
+			DerivedData.BoundingGeometry.Empty(Data.Num() / sizeof(FVector2f));
+			DerivedData.BoundingGeometry.AddUninitialized(Data.Num() / sizeof(FVector2f));
 			FPlatformMemory::Memcpy(DerivedData.BoundingGeometry.GetData(), Data.GetData(), Data.Num() * Data.GetTypeSize());
 		}
 		else
 		{
 			DerivedData.Build(CutoutTexture, (int32)SubImageSize.X, (int32)SubImageSize.Y, BoundingMode, AlphaThreshold, OpacitySourceMode);
 
-			Data.Empty(DerivedData.BoundingGeometry.Num() * sizeof(FVector2D));
-			Data.AddUninitialized(DerivedData.BoundingGeometry.Num() * sizeof(FVector2D));
+			Data.Empty(DerivedData.BoundingGeometry.Num() * sizeof(FVector2f));
+			Data.AddUninitialized(DerivedData.BoundingGeometry.Num() * sizeof(FVector2f));
 			FPlatformMemory::Memcpy(Data.GetData(), DerivedData.BoundingGeometry.GetData(), DerivedData.BoundingGeometry.Num() * DerivedData.BoundingGeometry.GetTypeSize());
 			GetDerivedDataCacheRef().Put(*KeyString, Data, GetPathName());
 			COOK_STAT(Timer.AddMiss(Data.Num()));

@@ -12,24 +12,27 @@ ULevelSnapshotsSettings* ULevelSnapshotsSettings::Get()
 
 void ULevelSnapshotsSettings::PostInitProperties()
 {
+	using namespace UE::LevelSnapshots;
 	UObject::PostInitProperties();
 	
-	FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
-	SnapshotUtil::GHashSettings = HashSettings;
+	UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
+	Private::GHashSettings = HashSettings;
 }
 
 #if WITH_EDITOR
 void ULevelSnapshotsSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	using namespace UE::LevelSnapshots;
+	
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULevelSnapshotsSettings, FloatComparisonPrecision)
 		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULevelSnapshotsSettings, DoubleComparisonPrecision))
 	{
-		FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
+		UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
 	}
 
 	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ULevelSnapshotsSettings, HashSettings))
 	{
-		SnapshotUtil::GHashSettings = HashSettings;
+		Private::GHashSettings = HashSettings;
 	}
 	
 	UObject::PostEditChangeProperty(PropertyChangedEvent);

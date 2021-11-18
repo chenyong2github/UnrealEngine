@@ -1051,7 +1051,7 @@ void FRenderTargetPool::TickPoolElements()
 			//   * Ignore (editor case, might start using slow memory which can be ok)
 			if (!bCurrentlyOverBudget)
 			{
-				UE_CLOG(IsRunningClientOnly(), LogRenderTargetPool, Warning, TEXT("r.RenderTargetPoolMin exceeded %d/%d MB (ok in editor, bad on fixed memory platform)"), (AllocationLevelInKB + 1023) / 1024, MinimumPoolSizeInKB / 1024);
+				UE_CLOG(IsRunningClientOnly() && MinimumPoolSizeInKB != 0, LogRenderTargetPool, Warning, TEXT("r.RenderTargetPoolMin exceeded %d/%d MB (ok in editor, bad on fixed memory platform)"), (AllocationLevelInKB + 1023) / 1024, MinimumPoolSizeInKB / 1024);
 				bCurrentlyOverBudget = true;
 			}
 			// at this point we need to give up
@@ -1063,7 +1063,7 @@ void FRenderTargetPool::TickPoolElements()
 	{
 		if (bCurrentlyOverBudget)
 		{
-			UE_LOG(LogRenderTargetPool, Display, TEXT("r.RenderTargetPoolMin resolved %d/%d MB"), (AllocationLevelInKB + 1023) / 1024, MinimumPoolSizeInKB / 1024);
+			UE_CLOG(MinimumPoolSizeInKB != 0, LogRenderTargetPool, Display, TEXT("r.RenderTargetPoolMin resolved %d/%d MB"), (AllocationLevelInKB + 1023) / 1024, MinimumPoolSizeInKB / 1024);
 			bCurrentlyOverBudget = false;
 		}
 	}

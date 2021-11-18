@@ -45,9 +45,9 @@ public class DatasmithWireTranslator : ModuleRules
 			);
 		}
 
-		if (System.Type.GetType("OpenModel") != null)
+		if (System.Type.GetType("OpenModel2021_3") != null)
 		{
-			PrivateDependencyModuleNames.Add("OpenModel");
+			PrivateDependencyModuleNames.Add("OpenModel2021_3");
 		}
 
 		if (System.Type.GetType("CoreTech") != null)

@@ -75,7 +75,7 @@ void ALandscapeSplineActor::PostRegisterAllComponents()
 
 void ALandscapeSplineActor::UnregisterAllComponents(bool bForReregister)
 {
-	if (GetWorld() && !GetWorld()->IsPendingKillOrUnreachable() && LandscapeGuid.IsValid())
+	if (GetWorld() && IsValidChecked(GetWorld()) && !GetWorld()->IsUnreachable() && LandscapeGuid.IsValid())
 	{
 		if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
 		{

@@ -330,7 +330,7 @@ void UIKRigController::SortRetargetChains() const
 // SKELETON
 //
 
-bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh) const
+bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransact) const
 {
 	if (!SkeletalMesh)
 	{
@@ -345,9 +345,13 @@ bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh) const
 		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. %s"), *GetAsset()->GetName());
 		return false;
 	}
-	
+
 	FScopedTransaction Transaction(LOCTEXT("SetSkeletalMesh_Label", "Set Skeletal Mesh"));
-	Asset->Modify();
+	
+	if (bTransact)
+	{	
+		Asset->Modify();
+	}
 
 	// update stored skeletal mesh used for previewing results
 	Asset->PreviewSkeletalMesh = SkeletalMesh;
@@ -356,7 +360,11 @@ bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh) const
 	// update goal's initial transforms to reflect new
 	for (UIKRigEffectorGoal* Goal : Asset->Goals)
 	{
-		Goal->Modify();
+		if (bTransact)
+		{
+			Goal->Modify();
+		}
+		
 		const FTransform InitialTransform = GetRefPoseTransformOfBone(Goal->BoneName);
 		Goal->InitialTransform = InitialTransform;
 	}
@@ -373,7 +381,7 @@ const FIKRigSkeleton& UIKRigController::GetIKRigSkeleton() const
 
 USkeleton* UIKRigController::GetSkeleton() const
 {
-	if (Asset->PreviewSkeletalMesh.IsNull())
+	if (!Asset->PreviewSkeletalMesh)
     {
         return nullptr;
     }

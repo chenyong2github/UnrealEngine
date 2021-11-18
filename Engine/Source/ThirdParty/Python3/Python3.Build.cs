@@ -26,7 +26,8 @@ public class Python3 : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			// Check for an explicit version before using the auto-detection logic
+			// Check if an explicit version of Python was set by the user before using the auto-detection logic. This allow building the engine against
+			// a user specified Python SDK. WARNING: Ensure to specify a 64-bit version of Python, especially on Windows where the 32-bit version is still available.
 			var PythonRoot = System.Environment.GetEnvironmentVariable("UE_PYTHON_DIR");
 			if (PythonRoot != null)
 			{
@@ -41,32 +42,15 @@ public class Python3 : ModuleRules
 		// Perform auto-detection to try and find the Python SDK
 		if (PythonSDK == null)
 		{
+			// Get a list of installed Python SDKs from a set of known installation paths and use the first valid one in the returned list. By default, the first SDK in the returned
+			// list is the one shipped with the engine. Note: It is preferred to set UE_PYTHON_DIR environment variable to use a custom version of Python.
 			var PotentialSDKs = GetPotentialPythonSDKs(Target);
-
 			foreach (var PotentialSDK in PotentialSDKs)
 			{
 				if (PotentialSDK.IsValid())
 				{
 					PythonSDK = PotentialSDK;
 					break;
-				}
-			}
-		}
-
-		// Make sure the Python SDK is the correct architecture
-		if (PythonSDK != null)
-		{
-			string ExpectedPointerSizeResult = "8";
-
-			// Invoke Python to query the pointer size of the interpreter so we can work out whether it's 32-bit or 64-bit
-			// todo: We probably need to do this for all platforms, but right now it's only an issue on Windows
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				string Result = InvokePython(PythonSDK.PythonRoot, "-c \"import struct; print(struct.calcsize('P'))\"");
-				Result = Result != null ? Result.Replace("\r", "").Replace("\n", "") : null;
-				if (Result == null || Result != ExpectedPointerSizeResult)
-				{
-					PythonSDK = null;
 				}
 			}
 		}
@@ -110,10 +94,23 @@ public class Python3 : ModuleRules
 		}
 	}
 
+	/// <summary>
+	/// Returns a list of existing PythonSDK by scanning a set of known paths for the specified target. By default, the
+	/// function puts the Python SDK shipped with the engine first (as the preferred SDK). If a user wants to build against
+	/// another Python SDK, the list below can be manually modified. The preferred way to override the Python SDK would be
+	/// to set the UE_PYTHON_DIR environment variable though it might be move convenient for some users to auto-discover
+	/// from a common install path. Ensure to install, link and use the 64-bit version of Python with Unreal Engine.
+	/// </summary>
+	/// <param name="Target"></param>
+	/// <returns>
+	/// The list of potential SDKs. The first valid one in the list is going to be used. This is typically the one
+	/// shipped with the engine.
+	/// </returns>
 	private List<PythonSDKPaths> GetPotentialPythonSDKs(ReadOnlyTargetRules Target)
 	{
 		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-		
+
+		// The Python SDK shipped with the Engine.
 		var PythonBinaryTPSDir = Path.Combine(EngineDir, "Binaries", "ThirdParty", "Python3");
 		var PythonSourceTPSDir = Path.Combine(EngineDir, "Source", "ThirdParty", "Python3");
 
@@ -127,8 +124,10 @@ public class Python3 : ModuleRules
 			PotentialSDKs.AddRange(
 				new PythonSDKPaths[] {
 					new PythonSDKPaths(Path.Combine(PythonBinaryTPSDir, PlatformDir), new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "include") }, new List<string>() { Path.Combine(PythonSourceTPSDir, PlatformDir, "libs", "python39.lib") }),
+
+					// If you uncomment/add a discovery path here, ensure to discover the 64-bit version of Python. As of Python 3.9.7, the 32-bit version still available on Windows (and will crash the engine if used). To avoid editing this file, use UE_PYTHON_DIR environment variable.
 					//DiscoverPythonSDK("C:/Program Files/Python39"),
-					DiscoverPythonSDK("C:/Python39"),
+					//DiscoverPythonSDK("C:/Python39"),
 				}
 			);
 		}
@@ -182,31 +181,6 @@ public class Python3 : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64 && Target.LinkType == TargetLinkType.Monolithic && IsEnginePython)
 		{
 			RuntimeDependencies.Add("$(ProjectDir)/Binaries/Win64/python39.dll", "$(EngineDir)/Binaries/ThirdParty/Python3/Win64/python39.dll", StagedFileType.NonUFS);
-		}
-	}
-
-	private string InvokePython(string InPythonRoot, string InPythonArgs)
-	{
-		ProcessStartInfo ProcStartInfo = new ProcessStartInfo();
-		ProcStartInfo.FileName = Path.Combine(InPythonRoot, "python");
-		ProcStartInfo.WorkingDirectory = InPythonRoot;
-		ProcStartInfo.Arguments = InPythonArgs;
-		ProcStartInfo.UseShellExecute = false;
-		ProcStartInfo.RedirectStandardOutput = true;
-
-		try
-		{
-			using (Process Proc = Process.Start(ProcStartInfo))
-			{
-				using (StreamReader StdOutReader = Proc.StandardOutput)
-				{
-					return StdOutReader.ReadToEnd();
-				}
-			}
-		}
-		catch
-		{
-			return null;
 		}
 	}
 

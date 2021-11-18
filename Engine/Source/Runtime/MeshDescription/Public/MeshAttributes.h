@@ -148,14 +148,14 @@ public:
 	}
 
 	/** Accessors for UV coordinates */
-	TUVAttributesRef<FVector2D> GetUVCoordinates(int32 UVChannel)
+	TUVAttributesRef<FVector2f> GetUVCoordinates(int32 UVChannel)
 	{
-		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2f>(MeshAttribute::UV::UVCoordinate);
 	}
 
-	TUVAttributesConstRef<FVector2D> GetUVCoordinates(int32 UVChannel) const
+	TUVAttributesConstRef<FVector2f> GetUVCoordinates(int32 UVChannel) const
 	{
-		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2f>(MeshAttribute::UV::UVCoordinate);
 	}
 
 	/** Accessors for array of polygon group IDs for triangles */
@@ -233,9 +233,9 @@ public:
 	}
 
 	/** Accessors for UV coordinates */
-	TUVAttributesConstRef<FVector2D> GetUVCoordinates(int32 UVChannel) const
+	TUVAttributesConstRef<FVector2f> GetUVCoordinates(int32 UVChannel) const
 	{
-		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+		return MeshDescription.UVAttributes(UVChannel).GetAttributesRef<FVector2f>(MeshAttribute::UV::UVCoordinate);
 	}
 
 	/** Accessors for array of polygon group IDs for triangles */

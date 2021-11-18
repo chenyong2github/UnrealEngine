@@ -245,7 +245,7 @@ void SIKRigSolverStack::Construct(const FArguments& InArgs, TSharedRef<FIKRigEdi
         .Padding(0.0f)
         [
 			SAssignNew( ListView, SSolverStackListViewType )
-			.SelectionMode(ESelectionMode::Multi)
+			.SelectionMode(ESelectionMode::Single)
 			.IsEnabled(this, &SIKRigSolverStack::IsAddSolverEnabled)
 			.ListItemsSource( &ListViewItems )
 			.OnGenerateRow( this, &SIKRigSolverStack::MakeListRowWidget )

@@ -37,17 +37,8 @@ public:
 	{ return MediaAsset.IsValid() ? MediaAsset->GetTimeRange() : FTimeRange(); }
 	virtual FTimeRange GetSeekableTimeRange() const override
 	{
-		FTimeRange tr = GetTotalTimeRange();
-		// FIXME: This would need to be the time of the last sync frame of video (if it exists) or audio.
-		//        For now it does not need to be precise since the nearest sync frame is searched for when seeking.
-		//        It doesn't seem to make a lot of sense to seek very close to the end and play from there so we
-		//        allow only to go as close to the end as we deem feasible.
-		tr.End -= FTimeValue().SetFromSeconds(2.0);
-		if (tr.End < FTimeValue::GetZero())
-		{
-			tr.End = FTimeValue::GetZero();
-		}
-		return tr;
+		// For the time being the seekable range equals the total range.
+		return GetTotalTimeRange();
 	}
 	virtual FTimeRange GetPlaybackRange() const override;
 	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override

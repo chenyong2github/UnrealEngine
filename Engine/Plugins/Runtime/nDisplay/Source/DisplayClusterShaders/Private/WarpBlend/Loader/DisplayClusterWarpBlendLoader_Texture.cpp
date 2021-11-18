@@ -114,7 +114,7 @@ IDisplayClusterRenderTexture* FDisplayClusterWarpBlendLoader_Texture::CreateWarp
 	return FDisplayClusterWarpBlendLoader_WarpMap::Load(WarpMapData, InProfileType, SourcePFM, PFMScale, bIsUnrealGameSpace) ? ImplCreateWarpMap(WarpMapData) : nullptr;
 }
 
-IDisplayClusterRenderTexture* FDisplayClusterWarpBlendLoader_Texture::CreateWarpMap(EDisplayClusterWarpProfileType InProfileType, const TArray<FVector>& InPoints, int WarpX, int WarpY, float WorldScale, bool bIsUnrealGameSpace)
+IDisplayClusterRenderTexture* FDisplayClusterWarpBlendLoader_Texture::CreateWarpMap(EDisplayClusterWarpProfileType InProfileType, const TArray<FVector>& InPoints, uint32 WarpX, uint32 WarpY, float WorldScale, bool bIsUnrealGameSpace)
 {
 	FLoadedWarpMapData WarpMapData;
 	return FDisplayClusterWarpBlendLoader_WarpMap::Load(WarpMapData, InProfileType, InPoints, WarpX, WarpY, WorldScale, bIsUnrealGameSpace) ? ImplCreateWarpMap(WarpMapData) : nullptr;

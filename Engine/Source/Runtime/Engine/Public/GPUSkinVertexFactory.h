@@ -17,6 +17,7 @@
 #include "LocalVertexFactory.h"
 #include "ResourcePool.h"
 #include "Matrix3x4.h"
+#include "SkeletalMeshTypes.h"
 
 template <class T> class TConsoleVariableData;
 
@@ -323,6 +324,10 @@ public:
 	ENGINE_API static bool UseUnlimitedBoneInfluences(uint32 MaxBoneInfluences);
 	ENGINE_API static bool GetUnlimitedBoneInfluences();
 
+	/** Morph vertex factory functions */
+	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) {}
+	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const { return nullptr; }
+
 	virtual const FShaderResourceViewRHIRef GetPositionsSRV() const = 0;
 	virtual const FShaderResourceViewRHIRef GetTangentsSRV() const = 0;
 	virtual const FShaderResourceViewRHIRef GetTextureCoordinatesSRV() const = 0;
@@ -561,6 +566,8 @@ public:
 		FVertexStreamComponent DeltaPositionComponent;
 		/** stream which has the TangentZ deltas to add to the vertex normals */
 		FVertexStreamComponent DeltaTangentZComponent;
+		/** Morph vertex buffer pool double buffering delta data  */
+		class FMorphVertexBufferPool* MorphVertexBufferPool = nullptr;
 	};
 
 	/**
@@ -587,6 +594,10 @@ public:
 		this->TangentStreamComponents[1] = InData.TangentBasisComponents[1];
 		FGPUBaseSkinVertexFactory::UpdateRHI();
 	}
+
+	/** FGPUBaseSkinVertexFactory overrides */
+	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) override;
+	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const override;
 
 	// FRenderResource interface.
 
@@ -648,7 +659,7 @@ protected:
 private:
 	/** stream component data bound to this vertex factory */
 	FDataType MorphData;
-
+	int32 MorphDeltaStreamIndex = -1;
 };
 
 /** Vertex factory with vertex stream components for GPU-skinned and morph target streams */
@@ -865,7 +876,7 @@ public:
 	{
 		FShaderResourceViewRHIRef ClothBuffer;
 		// Packed Map: u32 Key, u32 Value
-		TArray<uint64> ClothIndexMapping;
+		TArray<FClothBufferIndexMapping> ClothIndexMapping;
 	};
 
 	inline FShaderResourceViewRHIRef GetClothBuffer()
@@ -878,14 +889,13 @@ public:
 		return MeshMappingData.ClothBuffer;
 	}
 
-	inline uint32 GetClothIndexOffset(uint64 VertexIndex) const
+	inline uint32 GetClothIndexOffset(uint32 VertexIndex, uint32 LODBias = 0) const
 	{
-		for (uint64 Mapping : MeshMappingData.ClothIndexMapping)
+		for (const FClothBufferIndexMapping& Mapping : MeshMappingData.ClothIndexMapping)
 		{
-			uint64 CurrentVertexIndex = Mapping >> (uint64)32;
-			if ((CurrentVertexIndex & (uint64)0xffffffff) == VertexIndex)
+			if (Mapping.BaseVertexIndex == VertexIndex)
 			{
-				return (uint32)(Mapping & (uint64)0xffffffff);
+				return Mapping.MappingOffset + Mapping.LODBiasStride * LODBias;
 			}
 		}
 

@@ -38,6 +38,11 @@ namespace CADKernel
 		EVerboseLevel LogLevel;
 		TSharedPtr<FArchive> SpyFile;
 
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+		TSharedPtr<FArchive> QaDataFile;
+		TSharedPtr<FArchive> QaHeaderFile;
+#endif
+
 		EVerboseLevel VerboseLevel;
 
 	public:
@@ -100,25 +105,38 @@ namespace CADKernel
 			VerboseLevel = Level;
 		}
 
-		void DefineLogFile(const FString& LogFilePath, EVerboseLevel Level = Log);
-		void DefineSpyFile(const FString& SpyFilePath);
-
 		void InitializeCADKernel();
-
-		TSharedPtr<FArchive> GetLogFile() const
-		{
-			return LogFile;
-		}
 
 		EVerboseLevel GetLogLevel() const
 		{
 			return LogLevel;
 		}
 
+		void DefineLogFile(const FString& LogFilePath, EVerboseLevel Level = Log);
+		TSharedPtr<FArchive> GetLogFile() const
+		{
+			return LogFile;
+		}
+
+		void DefineSpyFile(const FString& SpyFilePath);
 		TSharedPtr<FArchive> GetSpyFile() const
 		{
 			return SpyFile;
 		}
+
+
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+		void DefineQaDataFile(const FString& InLogFilePath);
+		TSharedPtr<FArchive> GetQaDataFile() const
+		{
+			return QaDataFile;
+		}
+
+		TSharedPtr<FArchive> GetQaHeaderFile() const
+		{
+			return QaHeaderFile;
+		}
+#endif
 
 		static FSystem& Get()
 		{

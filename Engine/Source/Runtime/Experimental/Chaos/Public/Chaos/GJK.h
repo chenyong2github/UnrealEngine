@@ -14,7 +14,6 @@
 
 namespace Chaos
 {
-
 	
 	/** Determines if two convex geometries overlap.
 	 @A The first geometry
@@ -53,9 +52,9 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 			const TVector<T, 3> NegV = -V;
-			const TVector<T, 3> SupportA = A.SupportCore(NegV, A.GetMargin());
+			const TVector<T, 3> SupportA = A.SupportCore(NegV, A.GetMargin(), nullptr);
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, B.GetMargin());
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), nullptr);
 			const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 			const TVector<T, 3> W = SupportA - SupportB;
 
@@ -186,6 +185,7 @@ namespace Chaos
 	 * @param OutNormalA The contact normal pointing away from A in A-local space
 	 * @param OutNormalB The contact normal pointing away from A in B-local space
 	 * @param SimplexData In/out simplex data used to initialize and update GJK. Can be stored to improve convergence on subsequent calls for "small" changes in relative rotation.
+	 * @param OutMaxContactDelta The maximum error in the contact position as a result of using a margin. This is the difference between the core shape + margin and the outer shape on the supporting vertices
 	 * @param Epsilon The separation distance below which GJK aborts and switches to EPA
 	 * @return true if the results are populated (always for this implementation, but @see EPA())
 	 *
@@ -199,21 +199,25 @@ namespace Chaos
 	 *
 	*/
 	template <bool bFindSeparationDistance = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetrationWarmStartable(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA, const T InThicknessB, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormalA, TVec3<T>& OutNormalB, TGJKSimplexData<T>& InOutSimplexData, const T Epsilon = T(1.e-3))
+	bool GJKPenetrationWarmStartable(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA, const T InThicknessB, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormalA, TVec3<T>& OutNormalB, TGJKSimplexData<T>& InOutSimplexData, T& OutMaxSupportDelta, const T Epsilon = T(1.e-3))
 	{
+		T SupportDeltaA = 0;
+		T SupportDeltaB = 0;
+		T MaxSupportDelta = 0;
+
 		// Return the support vertex in A-local space for a vector V in A-local space
-		auto SupportAFunc = [&A](const TVec3<T>& V)
+		auto SupportAFunc = [&A, &SupportDeltaA](const TVec3<T>& V)
 		{
-			return A.SupportCore(V, A.GetMargin());
+			return A.SupportCore(V, A.GetMargin(), &SupportDeltaA);
 		};
 
 		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
 
 		// Return the support point on B, in B-local space, for a vector V in A-local space
-		auto SupportBFunc = [&B, &AToBRotation](const TVec3<T>& V)
+		auto SupportBFunc = [&B, &AToBRotation, &SupportDeltaB](const TVec3<T>& V)
 		{
 			const TVec3<T> VInB = AToBRotation * V;
-			return B.SupportCore(VInB, B.GetMargin());
+			return B.SupportCore(VInB, B.GetMargin(), &SupportDeltaB);
 		};
 
 		// V and Simplex are in A-local space
@@ -244,6 +248,7 @@ namespace Chaos
 			const TVec3<T> SupportB = SupportBFunc(V);
 			const TVec3<T> SupportBInA = BToATM.TransformPositionNoScale(SupportB);
 			const TVec3<T> W = SupportA - SupportBInA;
+			MaxSupportDelta = FMath::Max(SupportDeltaA, SupportDeltaB);
 
 			// If we didn't move to at least ConvergedDistance or closer, assume we have reached a minimum
 			const T ConvergenceTolerance = 1.e-4f;
@@ -297,10 +302,10 @@ namespace Chaos
 				VertsB.Add(BToATM.TransformPositionNoScale(InOutSimplexData.Bs[i]));
 			}
 
-			auto SupportBInAFunc = [&B, &BToATM, &AToBRotation](const TVec3<T>& V)
+			auto SupportBInAFunc = [&B, &BToATM, &AToBRotation, &SupportDeltaB](const TVec3<T>& V)
 			{
 				const TVec3<T> VInB = AToBRotation * V;
-				const TVec3<T> SupportBLocal = B.SupportCore(VInB, B.GetMargin());
+				const TVec3<T> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), &SupportDeltaB);
 				return BToATM.TransformPositionNoScale(SupportBLocal);
 			};
 
@@ -320,6 +325,7 @@ namespace Chaos
 				OutPenetration = Penetration + ThicknessA + ThicknessB;
 				OutClosestA = ClosestA + MTD * ThicknessA;
 				OutClosestB = BToATM.InverseTransformPositionNoScale(ClosestBInA - MTD * ThicknessB);
+				OutMaxSupportDelta = MaxSupportDelta;
 				return true;
 			case EEPAResult::BadInitialSimplex:
 				// The origin is outside the simplex. Must be a touching contact and EPA setup will have calculated the normal
@@ -356,6 +362,8 @@ namespace Chaos
 			OutClosestA = ClosestA + OutNormalA * ThicknessA;
 			OutClosestB = ClosestB - OutNormalB * ThicknessB;
 
+			OutMaxSupportDelta = MaxSupportDelta;
+
 			// If we don't care about separation distance/normal, the return value is true if we are overlapping, false otherwise.
 			// If we do care about seperation distance/normal, the return value is true if we found a solution.
 			// @todo(chaos): we should pass back failure for the degenerate case so we can decide how to handle it externally.
@@ -364,30 +372,8 @@ namespace Chaos
 	}
 
 
-	// Calculate the penetration depth (or separating distance) of two geometries.
-	//
-	// Set bNegativePenetrationAllowed to false (default) if you do not care about the normal and distance when the shapes are separated. The return value
-	// will be false if the shapes are separated, and the function will be faster because it does not need to determine the closest point.
-	// If the shapes are overlapping, the function will return true and populate the output parameters with the contact information.
-	//
-	// Set bNegativePenetrationAllowed to true if you need to know the closest point on the shapes, even when they are separated. In this case,
-	// we need to iterate to find the best solution even when objects are separated which is more expensive. The return value will be true as long 
-	// as the algorithm was able to find a solution (i.e., the return value is not related to whether the shapes are overlapping) and the output 
-	// parameters will be populated with the contact information.
-	//
-	// In all cases, if the function returns false the output parameters are undefined.
-	//
-	// OutClosestA and OutClosestB are the closest or deepest-penetrating points on the two core geometries, both in the space of A and ignoring the margin.
-	//
-	// Epsilon is the separation at which GJK considers the objects to be in contact or penetrating and then runs EPA. If this is
-	// too small, then the renormalization of the separating vector can lead to arbitrarily wrong normals for almost-touching objects.
-	//
-	// NOTE: OutPenetration is the penetration including the Thickness (i.e., the actual penetration depth), but the closest points
-	// returned are on the core shapes (i.e., ignoring the Thickness). If you want the closest positions on the shape surface (including
-	// the Thickness) use GJKPenetration().
-	//
-	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0.0f, const T InThicknessB = 0.0f, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T Epsilon = 1.e-3f)
+	template <typename TGeometryA, typename TGeometryB, bool bNegativePenetrationAllowed = false, typename T>
+	bool GJKPenetrationImpl(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0.0f, const T InThicknessB = 0.0f, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T Epsilon = 1.e-3f)
 	{
 		int32 VertexIndexA = INDEX_NONE;
 		int32 VertexIndexB = INDEX_NONE;
@@ -395,7 +381,7 @@ namespace Chaos
 		auto SupportAFunc = [&A, &VertexIndexA](const TVec3<T>& V)
 		{
 			VertexIndexA = INDEX_NONE;
-			return A.SupportCore(V, A.GetMargin());
+			return A.SupportCore(V, A.GetMargin(), nullptr);
 		};
 
 		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
@@ -404,7 +390,7 @@ namespace Chaos
 		{
 			VertexIndexB = INDEX_NONE;
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, B.GetMargin());
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), nullptr);
 			return BToATM.TransformPositionNoScale(SupportBLocal);
 		};
 
@@ -552,8 +538,33 @@ namespace Chaos
 		}
 	}
 
-
-
+	// Calculate the penetration depth (or separating distance) of two geometries.
+	//
+	// Set bNegativePenetrationAllowed to false (default) if you do not care about the normal and distance when the shapes are separated. The return value
+	// will be false if the shapes are separated, and the function will be faster because it does not need to determine the closest point.
+	// If the shapes are overlapping, the function will return true and populate the output parameters with the contact information.
+	//
+	// Set bNegativePenetrationAllowed to true if you need to know the closest point on the shapes, even when they are separated. In this case,
+	// we need to iterate to find the best solution even when objects are separated which is more expensive. The return value will be true as long 
+	// as the algorithm was able to find a solution (i.e., the return value is not related to whether the shapes are overlapping) and the output 
+	// parameters will be populated with the contact information.
+	//
+	// In all cases, if the function returns false the output parameters are undefined.
+	//
+	// OutClosestA and OutClosestB are the closest or deepest-penetrating points on the two core geometries, both in the space of A and ignoring the margin.
+	//
+	// Epsilon is the separation at which GJK considers the objects to be in contact or penetrating and then runs EPA. If this is
+	// too small, then the renormalization of the separating vector can lead to arbitrarily wrong normals for almost-touching objects.
+	//
+	// NOTE: OutPenetration is the penetration including the Thickness (i.e., the actual penetration depth), but the closest points
+	// returned are on the core shapes (i.e., ignoring the Thickness). If you want the closest positions on the shape surface (including
+	// the Thickness) use GJKPenetration().
+	//
+	template <bool bNegativePenetrationAllowed = false, typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKPenetration(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormal, int32& OutClosestVertexIndexA, int32& OutClosestVertexIndexB, const T InThicknessA = 0.0f, const T InThicknessB = 0.0f, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T Epsilon = 1.e-3f)
+	{
+		return GJKPenetrationImpl<TGeometryA, TGeometryB, bNegativePenetrationAllowed, T>(A, B, BToATM, OutPenetration, OutClosestA, OutClosestB, OutNormal, OutClosestVertexIndexA, OutClosestVertexIndexB, InThicknessA, InThicknessB, InitialDir, Epsilon);
+	}
 	/** Sweeps one geometry against the other
 	 @A The first geometry
 	 @B The second geometry
@@ -691,26 +702,9 @@ namespace Chaos
 
 		return true;
 	}
-
-
-	/** Sweeps one geometry against the other
-	 @A The first geometry
-	 @B The second geometry
-	 @StartTM B's starting configuration in A's local space
-	 @RayDir The ray's direction (normalized)
-	 @RayLength The ray's length
-	 @OutTime The time along the ray when the objects first overlap
-	 @OutPosition The first point of impact (in A's local space) when the objects first overlap. Invalid if time of impact is 0
-	 @OutNormal The impact normal (in A's local space) when the objects first overlap. Invalid if time of impact is 0
-	 @ThicknessA The amount of geometry inflation for Geometry A (for example a capsule with radius 5 could pass in its core segnment and a thickness of 5)
-	 @InitialDir The first direction we use to search the CSO
-	 @ThicknessB The amount of geometry inflation for Geometry B (for example a sphere with radius 5 could pass in its center point and a thickness of 5)
-	 @return True if the geometries overlap during the sweep, False otherwise 
-	 @note If A overlaps B at the start of the ray ("initial overlap" condition) then this function returns true, and sets OutTime = 0, but does not set any other output variables.
-	 */
-
-	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKRaycast2(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& RayDir, const T RayLength,
+	
+	template <typename TGeometryA, typename TGeometryB, typename T>
+	bool GJKRaycast2Impl(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& RayDir, const T RayLength,
 		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T GivenThicknessA = 0, bool bComputeMTD = false, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T GivenThicknessB = 0)
 	{
 		ensure(FMath::IsNearlyEqual(RayDir.SizeSquared(), (T)1, (T)KINDA_SMALL_NUMBER));
@@ -752,14 +746,21 @@ namespace Chaos
 
 		auto SupportAFunc = [&A, MarginA](const TVec3<T>& V)
 		{
-			return A.SupportCore(V, MarginA);
+			return A.SupportCore(V, MarginA, nullptr);
 		};
 
 		auto SupportBFunc = [&B, MarginB, &AToBRotation, &BToARotation](const TVec3<T>& V)
 		{
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB, nullptr);
 			return BToARotation * SupportBLocal;
+		};
+		
+		auto SupportBAtOriginFunc = [&B, MarginB, &StartTM, &AToBRotation](const TVec3<T>& Dir)
+		{
+			const TVector<T, 3> DirInB = AToBRotation * Dir;
+			const TVector<T, 3> SupportBLocal = B.SupportCore(DirInB, MarginB, nullptr);
+			return StartTM.TransformPositionNoScale(SupportBLocal);
 		};
 
 		TVector<T, 3> SupportA = SupportAFunc(InitialDir);
@@ -940,14 +941,6 @@ namespace Chaos
 						VertsB.Add(BAtOrigin);
 					}
 
-
-					auto SupportBAtOriginFunc = [&](const TVec3<T>& Dir)
-					{
-						const TVector<T, 3> DirInB = AToBRotation * Dir;
-						const TVector<T, 3> SupportBLocal = B.SupportCore(DirInB, MarginB);
-						return StartTM.TransformPositionNoScale(SupportBLocal);
-					};
-
 					T Penetration;
 					TVec3<T> MTD, ClosestA, ClosestBInA;
 					const EEPAResult EPAResult = EPA(VertsA, VertsB, SupportAFunc, SupportBAtOriginFunc, Penetration, MTD, ClosestA, ClosestBInA);
@@ -988,6 +981,28 @@ namespace Chaos
 		return true;
 	}
 
+	/** Sweeps one geometry against the other
+	 @A The first geometry
+	 @B The second geometry
+	 @StartTM B's starting configuration in A's local space
+	 @RayDir The ray's direction (normalized)
+	 @RayLength The ray's length
+	 @OutTime The time along the ray when the objects first overlap
+	 @OutPosition The first point of impact (in A's local space) when the objects first overlap. Invalid if time of impact is 0
+	 @OutNormal The impact normal (in A's local space) when the objects first overlap. Invalid if time of impact is 0
+	 @ThicknessA The amount of geometry inflation for Geometry A (for example a capsule with radius 5 could pass in its core segnment and a thickness of 5)
+	 @InitialDir The first direction we use to search the CSO
+	 @ThicknessB The amount of geometry inflation for Geometry B (for example a sphere with radius 5 could pass in its center point and a thickness of 5)
+	 @return True if the geometries overlap during the sweep, False otherwise
+	 @note If A overlaps B at the start of the ray ("initial overlap" condition) then this function returns true, and sets OutTime = 0, but does not set any other output variables.
+	 */
+
+	template <typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKRaycast2(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T, 3>& RayDir, const T RayLength,
+		T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, const T GivenThicknessA = 0, bool bComputeMTD = false, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0), const T GivenThicknessB = 0)
+	{
+		return GJKRaycast2Impl(A, B, StartTM, RayDir, RayLength, OutTime, OutPosition, OutNormal, GivenThicknessA, bComputeMTD, InitialDir, GivenThicknessB);
+	}
 	/**
 	 * Used by GJKDistance. It must return a vector in the Minkowski sum A - B. In principle this can be the vector of any point
 	 * in A to any point in B, but some choices will cause GJK to minimize faster (e.g., for two spheres, we can easily calculate
@@ -997,9 +1012,9 @@ namespace Chaos
 	TVector<T, 3> GJKDistanceInitialV(const TGeometryA& A, T MarginA, const TGeometryB& B, T MarginB, const TRigidTransform<T, 3>& BToATM)
 	{
 		const TVec3<T> V = -BToATM.GetTranslation();
-		const TVector<T, 3> SupportA = A.SupportCore(-V, MarginA);
+		const TVector<T, 3> SupportA = A.SupportCore(-V, MarginA, nullptr);
 		const TVector<T, 3> VInB = BToATM.GetRotation().Inverse() * V;
-		const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB);
+		const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB, nullptr);
 		const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 		return SupportA - SupportB;
 	}
@@ -1068,9 +1083,9 @@ namespace Chaos
 			// Find a new point in A-B that is closer to the origin
 			// NOTE: we do not use support thickness here. Thickness is used when separating objects
 			// so that GJK can find a solution, but that can be added in a later step.
-			const TVector<T, 3> SupportA = A.SupportCore(-V, AMargin);
+			const TVector<T, 3> SupportA = A.SupportCore(-V, AMargin, nullptr);
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, BMargin);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, BMargin, nullptr);
 			const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 			const TVector<T, 3> W = SupportA - SupportB;
 

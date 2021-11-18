@@ -13,6 +13,7 @@
 #include "Detour/DetourNode.h"
 #include "Detour/DetourNavMesh.h"
 #include "Recast/RecastAlloc.h"
+#include "DetourTileCache/DetourTileCacheBuilder.h"
 #include "NavAreas/NavArea.h"
 #include "NavMesh/RecastNavMeshGenerator.h"
 #include "NavMesh/RecastQueryFilter.h"
@@ -478,13 +479,115 @@ void FPImplRecastNavMesh::ReleaseDetourNavMesh()
 #endif
 }
 
+// LWC_TODO_AI: Remove prior to UE5 5.0 Release.
+// Currenlty floats are serialized as doubles for the navigation data so it can be loaded in LWC and non LWC builds (mainly used for regression testing).
+class FSerializeFloatAsDoubleHack
+{
+public:
+	FSerializeFloatAsDoubleHack(FArchive& InArchive)
+		: Archive(InArchive)
+	{}
+
+	/** Returns true if this archive is for loading data. */
+	FORCEINLINE bool IsLoading() const
+	{
+		return Archive.IsLoading();
+	}
+
+	/** Returns true if this archive is for saving data, this can also be a pre-save preparation archive. */
+	FORCEINLINE bool IsSaving() const
+	{
+		return Archive.IsSaving();
+	}
+
+	operator FArchive&() const { return Archive; }
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, uint8& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, int8& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, uint16& Value)
+	{
+		 Ar.Archive << Value;
+		 return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, int16& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, uint32& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, bool& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, int32& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, float& Value)
+	{
+		double DoubleValue = Value;
+		Ar.Archive << DoubleValue;
+		Value = DoubleValue;
+		return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, double& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	FORCEINLINE friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, uint64& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	friend FSerializeFloatAsDoubleHack& operator<<(FSerializeFloatAsDoubleHack& Ar, int64& Value)
+	{
+		Ar.Archive << Value;
+		return Ar;
+	}
+
+	virtual void Serialize(void* Value, int64 Length)
+	{
+		Archive.Serialize(Value, Length);
+	}
+
+protected:
+	FArchive& Archive;
+};
+
 /**
  * Serialization.
  * @param Ar - The archive with which to serialize.
  * @returns true if serialization was successful.
  */
-void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
+void FPImplRecastNavMesh::Serialize( FArchive& ArWrapped, int32 NavMeshVersion )
 {
+	FSerializeFloatAsDoubleHack Ar(ArWrapped); // LWC_TODO_AI: Remove prior to UE5 5.0 Release.
+
 	//@todo: How to handle loading nav meshes saved w/ recast when recast isn't present????
 
 	if (!Ar.IsLoading() && DetourNavMesh == NULL)
@@ -666,10 +769,12 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 	}
 }
 
-void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVersion, unsigned char*& TileData, int32& TileDataSize)
+void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& ArWrapped, int32 NavMeshVersion, unsigned char*& TileData, int32& TileDataSize)
 {
 	// The strategy here is to serialize the data blob that is passed into addTile()
 	// @see dtCreateNavMeshData() for details on how this data is laid out
+
+	FSerializeFloatAsDoubleHack Ar(ArWrapped); // LWC_TODO_AI: Remove prior to UE5 5.0 Release.
 
 	FDetourTileSizeInfo SizeInfo;
 
@@ -871,9 +976,9 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVer
 			Ar << Seg.rad << Seg.firstPoly << Seg.npolys << Seg.flags << Seg.userId;
 #else
 			FVector::FReal DummySegmentConReal;
-			int DummySegmentConInt;
-			short DummySegmentConShort;
-			char DummySegmentConChar;
+			unsigned int DummySegmentConInt;
+			unsigned short DummySegmentConShort;
+			unsigned char DummySegmentConChar;
 			Ar << DummySegmentConReal << DummySegmentConReal << DummySegmentConReal; // real startA[3];	///< Start point of segment A
 			Ar << DummySegmentConReal << DummySegmentConReal << DummySegmentConReal; // real endA[3];	///< End point of segment A
 			Ar << DummySegmentConReal << DummySegmentConReal << DummySegmentConReal; // real startB[3];	///< Start point of segment B
@@ -913,23 +1018,88 @@ void FPImplRecastNavMesh::SerializeRecastMeshTile(FArchive& Ar, int32 NavMeshVer
 	}
 }
 
-void FPImplRecastNavMesh::SerializeCompressedTileCacheData(FArchive& Ar, int32 NavMeshVersion, unsigned char*& CompressedData, int32& CompressedDataSize)
+void FPImplRecastNavMesh::SerializeCompressedTileCacheData(FArchive& ArWrapped, int32 NavMeshVersion, unsigned char*& CompressedData, int32& CompressedDataSize)
 {
-	Ar << CompressedDataSize;
+	// LWC_TODO_AI: Remove prior to UE5 5.0 Release.
+	FSerializeFloatAsDoubleHack Ar(ArWrapped);
+	constexpr int32 EmptyDataValue = -1;
 
-	if (CompressedDataSize > 0)
+	// Note when saving the CompressedDataSize is either 0 or it must be big enough to include the size of the uncompressed dtTileCacheLayerHeader.
+	checkf((Ar.IsSaving() == false) || CompressedDataSize == 0 || CompressedDataSize >= dtAlign(sizeof(dtTileCacheLayerHeader)), TEXT("When saving CompressedDataSize must either be zero or large enough to hold dtTileCacheLayerHeader!"));
+	checkf((Ar.IsSaving() == false) || CompressedDataSize == 0 || CompressedData != nullptr, TEXT("When saving CompressedDataSize must either be zero or CompressedData must be != nullptr"));
+
+	if (Ar.IsLoading())
 	{
-		if (Ar.IsLoading())
+		// Initialize to 0 if we are loading as this is calculated and used duiring processing.
+		CompressedDataSize = 0;
+	}
+	
+	// There are 3 cases that need to be serialized here, no header no compresseed data, header only no compressed data or header and compressed data.
+	// CompressedDataSizeNoHeader == NoHeaderValue, indicates we have no header and no compressed data.
+	// CompressedDataSizeNoHeader == 0, indicates we have a header only no compressed data.
+	// CompressedDataSizeNoHeader > 0, indicates we have a header and compressed data.
+	int32 CompressedDataSizeNoHeader = 0;
+	if (Ar.IsSaving())
+	{
+		// Handle invalid CompressedDataSize ( i.e. CompressedDataSize > 0 and CompressedDataSize < dtAlign(sizeof(dtTileCacheLayerHeader))
+		// as well as valid CompressedDataSize == 0, to make this function atleast as robust as it was.
+		if (CompressedDataSize < dtAlign(sizeof(dtTileCacheLayerHeader)))
 		{
-			CompressedData = (unsigned char*)dtAlloc(sizeof(unsigned char)*CompressedDataSize, DT_ALLOC_PERM_TILE_DATA);
-			if (!CompressedData)
-			{
-				UE_LOG(LogNavigation, Error, TEXT("Failed to alloc tile compressed data"));
-			}
-			FMemory::Memset(CompressedData, 0, CompressedDataSize);
+			CompressedDataSizeNoHeader = EmptyDataValue;
 		}
+		else
+		{
+			CompressedDataSizeNoHeader = CompressedDataSize - dtAlign(sizeof(dtTileCacheLayerHeader));
+		}
+	}
 
-		Ar.Serialize(CompressedData, CompressedDataSize);
+	Ar << CompressedDataSizeNoHeader;
+
+	const bool bHasHeader = CompressedDataSizeNoHeader >= 0;
+
+	if (!bHasHeader)
+	{
+		return;
+	}
+
+	if (Ar.IsLoading())
+	{
+		CompressedDataSize = CompressedDataSizeNoHeader + dtAlign(sizeof(dtTileCacheLayerHeader));
+		CompressedData = (unsigned char*)dtAlloc(sizeof(unsigned char)*CompressedDataSize, DT_ALLOC_PERM_TILE_DATA);
+		if (!CompressedData)
+		{
+			UE_LOG(LogNavigation, Error, TEXT("Failed to alloc tile compressed data"));
+		}
+		FMemory::Memset(CompressedData, 0, CompressedDataSize);
+	}
+
+	check(CompressedData != nullptr);
+
+	// Serialize dtTileCacheLayerHeader by hand so we can account for the FReals always being serialized as doubles
+	dtTileCacheLayerHeader* Header = (dtTileCacheLayerHeader*)CompressedData;
+	Ar << Header->magic;
+	Ar << Header->version;
+	Ar << Header->tx;
+	Ar << Header->ty;
+	Ar << Header->tlayer;
+	for (int i = 0; i < 3; ++i)
+	{
+		Ar << Header->bmin[i];
+		Ar << Header->bmax[i];
+	}
+	Ar << Header->hmin;
+	Ar << Header->hmax;
+	Ar << Header->width;
+	Ar << Header->height;
+	Ar << Header->minx;
+	Ar << Header->maxx;
+	Ar << Header->miny;
+	Ar << Header->maxy;
+
+	if (CompressedDataSizeNoHeader > 0)
+	{
+		// @todo this does not appear to be accounting for potential endian differences!
+		Ar.Serialize(CompressedData + dtAlign(sizeof(dtTileCacheLayerHeader)), CompressedDataSizeNoHeader);
 	}
 }
 

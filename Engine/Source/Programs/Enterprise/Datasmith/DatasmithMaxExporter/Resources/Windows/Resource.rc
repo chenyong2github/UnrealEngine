@@ -129,6 +129,27 @@ END
 // remains consistent on all systems.
 IDI_ICONUE              ICON                    "UE.ico"
 
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDS_SYNC_NAME    "Sync"
+    IDS_SYNC_DESC    "Synchronize with Direct Link"
+    IDS_CONNECTIONS_NAME    "Connections"
+    IDS_CONNECTIONS_DESC    "Manage Connections"
+    IDS_AUTOSYNC_NAME    "AutoSync"
+    IDS_AUTOSYNC_DESC    "Toggle Direct Link Auto Sync"
+    IDS_EXPORT_NAME    "Export"
+    IDS_EXPORT_DESC    "Export to Datasmith file"
+    IDS_SHOWLOG_NAME    "Log"
+    IDS_SHOWLOG_DESC    "Show Messages"
+    IDS_DATASMITH_CATEGORY "Datasmith"
+END
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 

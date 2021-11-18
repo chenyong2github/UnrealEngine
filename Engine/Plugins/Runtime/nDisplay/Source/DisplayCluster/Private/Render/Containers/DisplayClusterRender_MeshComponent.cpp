@@ -63,7 +63,7 @@ void FDisplayClusterRender_MeshComponent::AssignMeshRefs(UStaticMeshComponent* M
 	UpdateDefferedRef();
 }
 
-const FStaticMeshLODResources* FDisplayClusterRender_MeshComponent::GetStaticMeshLODResource(int LodIndex) const
+const FStaticMeshLODResources* FDisplayClusterRender_MeshComponent::GetStaticMeshLODResource(int32 LodIndex) const
 {
 	check(IsInGameThread());
 

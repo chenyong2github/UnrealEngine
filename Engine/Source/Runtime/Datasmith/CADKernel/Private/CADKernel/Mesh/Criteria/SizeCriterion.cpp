@@ -6,9 +6,10 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 
-using namespace CADKernel;
+namespace CADKernel
+{
 
-void CADKernel::FMinSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
+void FMinSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
 {
 	double NumericPrecision = Edge.GetTolerance3D();
 	if (Edge.Length() <= NumericPrecision)
@@ -26,7 +27,7 @@ void CADKernel::FMinSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge,
 }
 
 
-void CADKernel::FMaxSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
+void FMaxSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge, const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points) const
 {
 	double NumericPrecision = Edge.GetTolerance3D();
 	if (Edge.Length() <= NumericPrecision)
@@ -43,7 +44,7 @@ void CADKernel::FMaxSizeCriterion::ApplyOnEdgeParameters(FTopologicalEdge& Edge,
 		});
 }
 
-void CADKernel::FSizeCriterion::ApplyOnParameters(const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points, TArray<double>& DeltaUArray, TFunction<void(double, double&)> Compare) const
+void FSizeCriterion::ApplyOnParameters(const TArray<double>& Coordinates, const TArray<FCurvePoint>& Points, TArray<double>& DeltaUArray, TFunction<void(double, double&)> Compare) const
 {
 	double DeltaUMax = Coordinates[Coordinates.Num() - 1] - Coordinates[0];
 
@@ -57,7 +58,7 @@ void CADKernel::FSizeCriterion::ApplyOnParameters(const TArray<double>& Coordina
 	}
 }
 
-void CADKernel::FMinSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
+void FMinSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
 {
 	if (ChordLength < KINDA_SMALL_NUMBER)
 	{
@@ -71,7 +72,7 @@ void CADKernel::FMinSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, d
 	}
 }
 
-void CADKernel::FMaxSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
+void FMaxSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& SurfaceCurvature) const
 {
 	if (ChordLength < KINDA_SMALL_NUMBER)
 	{
@@ -85,3 +86,4 @@ void CADKernel::FMaxSizeCriterion::UpdateDelta(double InDeltaU, double InUSag, d
 	}
 }
 
+} // namespace CADKernel

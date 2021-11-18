@@ -12,12 +12,34 @@
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
-TMap<FName, TWeakObjectPtr<UActorDescContainer>> FLevelInstanceActorDesc::ActorDescContainers;
+static int32 GLevelInstanceDebugForceLevelStreaming = 0;
+static FAutoConsoleVariableRef CVarUpdateStreamingSources(
+	TEXT("levelinstance.debug.forcelevelstreaming"),
+	GLevelInstanceDebugForceLevelStreaming,
+	TEXT("Set to 1 to force Level Instance to be streamed instead of embedded in World Partition grid."));
+
+struct FActorDescContainerInstance
+{
+	FActorDescContainerInstance()
+	: Container(nullptr)
+	, RefCount(0)
+	{}
+
+	UActorDescContainer* Container;
+	uint32 RefCount;
+};
+
+static TMap<FName, FActorDescContainerInstance> ActorDescContainers;
 
 FLevelInstanceActorDesc::FLevelInstanceActorDesc()
 	: DesiredRuntimeBehavior(ELevelInstanceRuntimeBehavior::Partitioned)
 	, LevelInstanceContainer(nullptr)
 {}
+
+FLevelInstanceActorDesc::~FLevelInstanceActorDesc()
+{
+	check(!LevelInstanceContainer);
+}
 
 void FLevelInstanceActorDesc::Init(const AActor* InActor)
 {
@@ -43,7 +65,7 @@ void FLevelInstanceActorDesc::OnRegister(UWorld* InWorld)
 
 	check(!LevelInstanceContainer);
 
-	if (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned)
+	if (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned && !GLevelInstanceDebugForceLevelStreaming)
 	{
 		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
 		{
@@ -75,6 +97,15 @@ bool FLevelInstanceActorDesc::GetContainerInstance(const UActorDescContainer*& O
 	}
 
 	return false;
+}
+
+void FLevelInstanceActorDesc::TransferFrom(const FWorldPartitionActorDesc* From)
+{
+	FWorldPartitionActorDesc::TransferFrom(From);
+
+	FLevelInstanceActorDesc* FromLevelInstanceActorDesc = (FLevelInstanceActorDesc*)From;
+	LevelInstanceContainer = FromLevelInstanceActorDesc->LevelInstanceContainer;
+	FromLevelInstanceActorDesc->LevelInstanceContainer = nullptr;
 }
 
 void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
@@ -118,34 +149,30 @@ void FLevelInstanceActorDesc::AddReferencedObjects(FReferenceCollector& Collecto
 
 UActorDescContainer* FLevelInstanceActorDesc::RegisterActorDescContainer(FName PackageName, UWorld* InWorld)
 {
-	TWeakObjectPtr<UActorDescContainer>* ExistingContainerPtr = ActorDescContainers.Find(PackageName);
-	if (ExistingContainerPtr)
+	FActorDescContainerInstance& ExistingContainerInstance = ActorDescContainers.FindOrAdd(PackageName);
+	UActorDescContainer* ActorDescContainer = ExistingContainerInstance.Container;
+	
+	if (ExistingContainerInstance.RefCount++ == 0)
 	{
-		if (UActorDescContainer* LevelContainer = ExistingContainerPtr->Get())
-		{
-			return LevelContainer;
-		}
-	}
+		ActorDescContainer = NewObject<UActorDescContainer>(GetTransientPackage());
+		ExistingContainerInstance.Container = ActorDescContainer;
 		
-	UActorDescContainer* NewContainer = NewObject<UActorDescContainer>(GetTransientPackage());
-	NewContainer->Initialize(InWorld, PackageName);
-	ActorDescContainers.Add(PackageName, TWeakObjectPtr<UActorDescContainer>(NewContainer));
+		// This will potentially invalidate ExistingContainerInstance due to ActorDescContainers reallocation
+		ActorDescContainer->Initialize(InWorld, PackageName);
+	}
 
-	return NewContainer;
+	return ActorDescContainer;
 }
 
-bool FLevelInstanceActorDesc::UnregisterActorDescContainer(UActorDescContainer* Container)
+void FLevelInstanceActorDesc::UnregisterActorDescContainer(UActorDescContainer* Container)
 {
-	TWeakObjectPtr<UActorDescContainer> ExistingContainerPtr;
-	if (ActorDescContainers.RemoveAndCopyValue(Container->GetContainerPackage(), ExistingContainerPtr))
-	{
-		if (UActorDescContainer* LevelContainer = ExistingContainerPtr.Get())
-		{
-			LevelContainer->Uninitialize();
-			return true;
-		}
-	}
+	FName PackageName = Container->GetContainerPackage();
+	FActorDescContainerInstance& ExistingContainerInstance = ActorDescContainers.FindChecked(PackageName);
 
-	return false;
+	if (ExistingContainerInstance.RefCount-- == 1)
+	{
+		ExistingContainerInstance.Container->Uninitialize();
+		ActorDescContainers.FindAndRemoveChecked(PackageName);
+	}
 }
 #endif

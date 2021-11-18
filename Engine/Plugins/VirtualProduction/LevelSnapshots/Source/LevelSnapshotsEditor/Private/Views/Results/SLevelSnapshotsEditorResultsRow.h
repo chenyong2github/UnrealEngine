@@ -30,6 +30,8 @@ public:
 	TSharedRef<SWidget> GenerateFinalValueWidget(
 	const ELevelSnapshotsObjectType InObjectType, FLevelSnapshotsEditorResultsRowPtr PinnedItem, const bool bIsHeaderRow, const bool bNeedsNullWidget) const;
 
+	static const FSlateBrush* GetBorderImage(const FLevelSnapshotsEditorResultsRow::ELevelSnapshotsEditorResultsRowType InRowType);
+
 	float GetNameColumnSize() const;
 
 	float CalculateAndReturnNestedColumnSize();

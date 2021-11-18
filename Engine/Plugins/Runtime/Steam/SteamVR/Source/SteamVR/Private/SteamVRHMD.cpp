@@ -909,10 +909,10 @@ bool FSteamVRHMD::GetFloorToEyeTrackingTransform(FTransform& OutStandingToSeated
 
 FVector2D FSteamVRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
 {
-	FVector2D Bounds;
+	FVector2f Bounds;// LWC_TODO: Precision loss
 	if (Origin == EHMDTrackingOrigin::Stage && VRChaperone->GetPlayAreaSize(&Bounds.X, &Bounds.Y))
 	{
-		return Bounds;
+		return FVector2D(Bounds);
 	}
 	return FVector2D::ZeroVector;
 }

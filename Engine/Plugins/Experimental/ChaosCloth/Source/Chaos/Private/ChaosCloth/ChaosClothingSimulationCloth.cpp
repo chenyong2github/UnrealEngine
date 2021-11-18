@@ -32,6 +32,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 {
 	check(Solver);
 	check(Cloth);
+	check(Cloth->Mesh);
 
 	if (!NumParticles)
 	{
@@ -202,11 +203,13 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	{
 		const TConstArrayView<FRealSingle>& TetherScaleMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::TetherScale];
 
+		const FReal MeshScale = Cloth->Mesh->GetReferenceBoneTransform().GetScale3D().GetMax();
+
 		ClothConstraints.SetLongRangeConstraints(
 			Tethers,
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
-			FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]),
+			FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]) * MeshScale,
 			Cloth->bUseXPBDConstraints);
 	}
 
@@ -271,6 +274,8 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 	const int32 Offset = SolverData.FindChecked(Solver).Offset;
 	check(Offset != INDEX_NONE);
 
+	const FReal MeshScale = Cloth->Mesh->GetReferenceBoneTransform().GetScale3D().GetMax();
+
 	// Update the animatable constraint parameters
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 	ClothConstraints.SetMaximumDistanceProperties((FReal)Cloth->MaxDistancesMultiplier);
@@ -279,7 +284,7 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 	ClothConstraints.SetAreaProperties(FVec2((FReal)Cloth->AreaStiffness[0], (FReal)Cloth->AreaStiffness[1]));
 	ClothConstraints.SetLongRangeAttachmentProperties(
 		FVec2((FReal)Cloth->TetherStiffness[0], (FReal)Cloth->TetherStiffness[1]),
-		FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]));
+		FVec2((FReal)Cloth->TetherScale[0], (FReal)Cloth->TetherScale[1]) * MeshScale);
 	ClothConstraints.SetSelfCollisionProperties((FReal)Cloth->SelfCollisionThickness);
 	ClothConstraints.SetAnimDriveProperties(
 		FVec2((FReal)Cloth->AnimDriveStiffness[0], (FReal)Cloth->AnimDriveStiffness[1]),

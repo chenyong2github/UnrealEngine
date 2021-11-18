@@ -1026,7 +1026,7 @@ bool FRigTransformElementDetails::IsCurrentLocalEnabled() const
 	return true;
 }
 
-void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
 {
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
@@ -1034,7 +1034,6 @@ void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCa
 	const FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue((int64)InValueType).ToString();
 	const FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s Value"), *ValueTypeName));
 	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
-	const FRigElementKey Key = InControlElement->GetKey();
 
 	InCategory.AddCustomRow(PropertyLabel)
 	.NameContent()
@@ -1049,11 +1048,11 @@ void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCa
 		+ SVerticalBox::Slot()
 	    [
 	        SNew(SCheckBox)
-	        .IsChecked_Lambda([HierarchyPtr, Key, InValueType]() -> ECheckBoxState
+	        .IsChecked_Lambda([HierarchyPtr, InKey, InValueType]() -> ECheckBoxState
 	        {
 	        	if(HierarchyPtr.IsValid())
 	        	{
-	        		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+	        		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
 	        		{
                         bool Value = HierarchyPtr->GetControlValue(ControlElement, InValueType).Get<bool>();
 						return Value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -1061,11 +1060,11 @@ void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCa
 	        	}
 	        	return ECheckBoxState::Unchecked;
 	        })
-	        .OnCheckStateChanged_Lambda([HierarchyPtr, Key, InValueType](ECheckBoxState NewState)
+	        .OnCheckStateChanged_Lambda([HierarchyPtr, InKey, InValueType](ECheckBoxState NewState)
 	        {
 	        	if(HierarchyPtr.IsValid())
 	        	{
-	        		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+	        		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
 	        		{
                         const FRigControlValue Value = FRigControlValue::Make<bool>(NewState == ECheckBoxState::Checked);
 						HierarchyPtr->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
@@ -1081,11 +1080,11 @@ void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCa
 	        })
 	    ]
 	]
-	.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, Key, InValueType]()->bool
+	.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, InKey, InValueType]()->bool
     {
 		if(HierarchyPtr.IsValid())
 		{
-			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
 			{
 				return ControlElement->Settings.IsValueTypeEnabled(InValueType);
 			}
@@ -1094,21 +1093,26 @@ void FRigControlElementDetails_SetupBoolValueWidget(IDetailCategoryBuilder& InCa
     })));
 }
 
-void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
 {
+	FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InKey);
+	if(ControlElement == nullptr)
+	{
+		return;
+	}
+
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
 
 	const FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue((int64)InValueType).ToString();
 	const FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s Value"), *ValueTypeName));
 	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
-	const FRigElementKey Key = InControlElement->GetKey();
 
-	const TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, Key, InValueType]()->bool
+	const TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, InKey, InValueType]()->bool
     {
 		if(HierarchyPtr.IsValid())
 		{
-            if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+            if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
             {
                 return ControlElement->Settings.IsValueTypeEnabled(InValueType);
             }
@@ -1121,7 +1125,7 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& I
 		return EnabledAttribute.Get() ? EVisibility::Visible : EVisibility::Hidden;
 	}));
 
-	if (InControlElement->Settings.ControlEnum)
+	if (ControlElement->Settings.ControlEnum)
 	{
 		InCategory.AddCustomRow(PropertyLabel)
 		.Visibility(VisibilityAttribute)
@@ -1138,23 +1142,23 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& I
             SNew(SVerticalBox)
             + SVerticalBox::Slot()
             [
-                SNew(SEnumComboBox, InControlElement->Settings.ControlEnum)
-                .CurrentValue_Lambda([HierarchyPtr, Key, InValueType]() -> int32
+                SNew(SEnumComboBox, ControlElement->Settings.ControlEnum)
+                .CurrentValue_Lambda([HierarchyPtr, InKey, InValueType]() -> int32
                 {
                 	if(HierarchyPtr.IsValid())
                 	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
                 		{
                             return HierarchyPtr->GetControlValue(ControlElement, InValueType).Get<int32>();
                         }
                 	}
                 	return 0;
                 })
-                .OnEnumSelectionChanged_Lambda([HierarchyPtr, Key, InValueType](int32 NewSelection, ESelectInfo::Type)
+                .OnEnumSelectionChanged_Lambda([HierarchyPtr, InKey, InValueType](int32 NewSelection, ESelectInfo::Type)
                 {
                 	if(HierarchyPtr.IsValid())
                 	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
                 		{
                             const FRigControlValue Value = FRigControlValue::Make<int32>(NewSelection);
                             HierarchyPtr->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
@@ -1193,13 +1197,13 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& I
                 SNew(SNumericEntryBox<int32>)
                 .Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
                 .AllowSpin(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
-                .MinSliderValue_Lambda([HierarchyPtr, Key, InValueType]() -> TOptional<int32>
+                .MinSliderValue_Lambda([HierarchyPtr, InKey, InValueType]() -> TOptional<int32>
 				{
 				    if(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
 				    {
 				    	if(HierarchyPtr.IsValid())
 				    	{
-				    		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+				    		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
 				    		{
                                 return ControlElement->Settings.MinimumValue.Get<int32>();
                             }
@@ -1207,13 +1211,13 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& I
 				    }
 				    return TOptional<int32>();
 				})
-				.MaxSliderValue_Lambda([HierarchyPtr, Key, InValueType]() -> TOptional<int32>
+				.MaxSliderValue_Lambda([HierarchyPtr, InKey, InValueType]() -> TOptional<int32>
 				{
 				    if(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
 				    {
 				    	if(HierarchyPtr.IsValid())
 				    	{
-				    		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+				    		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
 				    		{
                                 return ControlElement->Settings.MaximumValue.Get<int32>();
                             }
@@ -1221,24 +1225,24 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& I
 				    }
 				    return TOptional<int32>();
 				})
-                .Value_Lambda([HierarchyPtr, Key, InValueType]() -> int32
+                .Value_Lambda([HierarchyPtr, InKey, InValueType]() -> int32
                 {
                 	if(HierarchyPtr.IsValid())
                 	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
                 		{
                             return HierarchyPtr->GetControlValue(ControlElement, InValueType).Get<int32>();
                         }
                 	}
                 	return 0;
                 })
-                .OnValueChanged_Lambda([HierarchyPtr, Key, InValueType](TOptional<int32> InNewSelection)
+                .OnValueChanged_Lambda([HierarchyPtr, InKey, InValueType](TOptional<int32> InNewSelection)
                 {
                 	if(InNewSelection.IsSet())
                 	{
                 		if(HierarchyPtr.IsValid())
                 		{
-                			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+                			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
                 			{
                                 const FRigControlValue Value = FRigControlValue::Make<int32>(InNewSelection.GetValue());
 								HierarchyPtr->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
@@ -1259,7 +1263,7 @@ void FRigControlElementDetails_SetupIntegerValueWidget(IDetailCategoryBuilder& I
 	}
 }
 
-void FRigControlElementDetails_SetupFloatValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupFloatValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
 {
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
@@ -1267,13 +1271,12 @@ void FRigControlElementDetails_SetupFloatValueWidget(IDetailCategoryBuilder& InC
 	const FString ValueTypeName = ValueTypeEnum->GetDisplayNameTextByValue((int64)InValueType).ToString();
 	const FText PropertyLabel = FText::FromString(FString::Printf(TEXT("%s Value"), *ValueTypeName));
 	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
-	const FRigElementKey Key = InControlElement->GetKey();
 
-	const TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, Key, InValueType]()->bool
+	const TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, InKey, InValueType]()->bool
     {
         if(HierarchyPtr.IsValid())
         {
-            if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+            if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
             {
                 return ControlElement->Settings.IsValueTypeEnabled(InValueType);
             }
@@ -1304,24 +1307,24 @@ void FRigControlElementDetails_SetupFloatValueWidget(IDetailCategoryBuilder& InC
             SNew(SNumericEntryBox<float>)
             .Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
             .AllowSpin(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
-            .Value_Lambda([HierarchyPtr, Key, InValueType]() -> float
+            .Value_Lambda([HierarchyPtr, InKey, InValueType]() -> float
             {
             	if(HierarchyPtr.IsValid())
             	{
-            		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+            		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
             		{
                         return HierarchyPtr->GetControlValue(ControlElement, InValueType).Get<float>();
                     }
             	}
             	return 0.f;
             })
-            .MinSliderValue_Lambda([HierarchyPtr, Key, InValueType]() -> TOptional<float>
+            .MinSliderValue_Lambda([HierarchyPtr, InKey, InValueType]() -> TOptional<float>
             {
                 if(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
                 {
                 	if(HierarchyPtr.IsValid())
                 	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
                 		{
                             return ControlElement->Settings.MinimumValue.Get<float>();
                         }
@@ -1329,13 +1332,13 @@ void FRigControlElementDetails_SetupFloatValueWidget(IDetailCategoryBuilder& InC
                 }
                 return TOptional<float>();
             })
-            .MaxSliderValue_Lambda([HierarchyPtr, Key, InValueType]() -> TOptional<float>
+            .MaxSliderValue_Lambda([HierarchyPtr, InKey, InValueType]() -> TOptional<float>
             {
                 if(InValueType == ERigControlValueType::Current || InValueType == ERigControlValueType::Initial)
                 {
                 	if(HierarchyPtr.IsValid())
                 	{
-                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+                		if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
                 		{
                             return ControlElement->Settings.MaximumValue.Get<float>();
                         }
@@ -1343,13 +1346,13 @@ void FRigControlElementDetails_SetupFloatValueWidget(IDetailCategoryBuilder& InC
                 }
                 return TOptional<float>();
             })
-            .OnValueChanged_Lambda([HierarchyPtr, Key, InValueType](TOptional<float> InNewSelection)
+            .OnValueChanged_Lambda([HierarchyPtr, InKey, InValueType](TOptional<float> InNewSelection)
             {
             	if(InNewSelection.IsSet())
             	{
             		if(HierarchyPtr.IsValid())
             		{
-            			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+            			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
             			{
                             const FRigControlValue Value = FRigControlValue::Make<float>(InNewSelection.GetValue());
                             HierarchyPtr->SetControlValue(ControlElement->GetKey(), Value, InValueType, true);
@@ -1456,7 +1459,7 @@ FRigControlValue FRigControlElementDetails_PackageValue(const FEulerTransform& I
 }
 
 template<typename T>
-void FRigControlElementDetails_SetupStructValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupStructValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
 {
 	UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	UEnum* ValueTypeEnum = StaticEnum<ERigControlValueType>();
@@ -1468,13 +1471,12 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailCategoryBuilder& In
 	const TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(ValueStruct));
 
 	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
-	const FRigElementKey Key = InControlElement->GetKey();
 
-	const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([HierarchyPtr, Key, InValueType, StructToDisplay, ValueStruct]()->EVisibility
+	const TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([HierarchyPtr, InKey, InValueType, StructToDisplay, ValueStruct]()->EVisibility
     {
 		if(HierarchyPtr.IsValid())
 		{
-			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
+			if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(InKey))
 			{
 				// update the struct with the current control value
 				uint8* StructMemory = StructToDisplay->GetStructMemory();
@@ -1499,17 +1501,17 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailCategoryBuilder& In
 	TSharedPtr<SWidget> NameWidget, ValueWidget;
 	Row->GetDefaultWidgets(NameWidget, ValueWidget);
 	
-	const FSimpleDelegate OnStructContentsChangedDelegate = FSimpleDelegate::CreateLambda([HierarchyPtr, Key, StructToDisplay, InValueType]()
+	const FSimpleDelegate OnStructContentsChangedDelegate = FSimpleDelegate::CreateLambda([HierarchyPtr, InKey, StructToDisplay, InValueType]()
 	{
 		if(HierarchyPtr.IsValid())
 		{
             const FRigControlValue ControlValue = FRigControlElementDetails_PackageValue(*(T*)StructToDisplay->GetStructMemory());
-			HierarchyPtr->SetControlValue(Key, ControlValue, InValueType, true, true);
+			HierarchyPtr->SetControlValue(InKey, ControlValue, InValueType, true, true);
 			if(InValueType == ERigControlValueType::Initial)
 			{
                 if(UControlRigBlueprint* Blueprint = RigElementDetails_GetBlueprintFromHierarchy(HierarchyPtr.Get()))
                 {
-                    Blueprint->Hierarchy->SetControlValue(Key, ControlValue, InValueType, true);
+                    Blueprint->Hierarchy->SetControlValue(InKey, ControlValue, InValueType, true);
                 }
             }
 		}
@@ -1520,9 +1522,15 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailCategoryBuilder& In
 	Handle->SetOnChildPropertyValueChanged(OnStructContentsChangedDelegate);
 }
 
-void FRigControlElementDetails_SetupValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
+void FRigControlElementDetails_SetupValueWidget(IDetailCategoryBuilder& InCategory, const TSharedRef<IPropertyUtilities>& InPropertyUtilities, ERigControlValueType InValueType, const FRigElementKey& InKey, URigHierarchy* InHierarchy)
 {
-	switch(InControlElement->Settings.ControlType)
+	const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InKey);
+	if(ControlElement == nullptr)
+	{
+		return;
+	}
+	
+	switch(ControlElement->Settings.ControlType)
 	{
 		case ERigControlType::Bool:
 		{
@@ -1530,48 +1538,48 @@ void FRigControlElementDetails_SetupValueWidget(IDetailCategoryBuilder& InCatego
 			{
 				return;
 			}
-			FRigControlElementDetails_SetupBoolValueWidget(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupBoolValueWidget(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		case ERigControlType::Integer:
 		{
-			FRigControlElementDetails_SetupIntegerValueWidget(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupIntegerValueWidget(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		case ERigControlType::Float:
 		{
-			FRigControlElementDetails_SetupFloatValueWidget(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupFloatValueWidget(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		case ERigControlType::Vector2D:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FVector2D>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FVector2D>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		case ERigControlType::Position:
 		case ERigControlType::Scale:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FVector>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FVector>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		case ERigControlType::Rotator:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FRotator>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FRotator>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		case ERigControlType::TransformNoScale:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FTransformNoScale>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FTransformNoScale>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		case ERigControlType::EulerTransform:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FEulerTransform>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FEulerTransform>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		case ERigControlType::Transform:
 		{
-			FRigControlElementDetails_SetupStructValueWidget<FTransform>(InCategory, InPropertyUtilities, InValueType, InControlElement, InHierarchy);
+			FRigControlElementDetails_SetupStructValueWidget<FTransform>(InCategory, InPropertyUtilities, InValueType, InKey, InHierarchy);
 			break;
 		}
 		default:
@@ -1840,6 +1848,12 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		ControlCategory.AddProperty(PrimaryAxisHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Primary Axis")));
 	}
 
+	if (bNeedsShapeProperties)
+	{
+		const TSharedPtr<IPropertyHandle> DrawLimitsHandle = SettingsHandle->GetChildHandle(TEXT("bDrawLimits"));
+		LimitsCategory.AddProperty(DrawLimitsHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Draw Limits")));
+	}
+
 	TArray<FRigControlElement> ControlElements;
 	TArray<UDetailsViewWrapperObject*> ObjectPerControl;
 	for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
@@ -1857,7 +1871,17 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 	// only setup value widgets if there is only ony control selected
 	if(ControlElements.Num() == 1)
 	{
-		FRigControlElementDetails_SetupValueWidget(ControlCategory, PropertyUtilities, ERigControlValueType::Current, &ControlElements[0], HierarchyBeingCustomized);
+		URigHierarchy* HierarchyBeingDebugged = HierarchyBeingCustomized;
+		
+		if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+		{
+			if(!DebuggedRig->IsSetupModeEnabled())
+			{
+				HierarchyBeingDebugged = DebuggedRig->GetHierarchy();
+			}
+		}
+		
+		FRigControlElementDetails_SetupValueWidget(ControlCategory, PropertyUtilities, ERigControlValueType::Current, ControlElements[0].GetKey(), HierarchyBeingDebugged);
 
 		switch (ControlElements[0].Settings.ControlType)
 		{
@@ -1866,7 +1890,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 			case ERigControlType::Integer:
 			case ERigControlType::Vector2D:
 			{
-				FRigControlElementDetails_SetupValueWidget(ControlCategory, PropertyUtilities, ERigControlValueType::Initial,&ControlElements[0], HierarchyBeingCustomized);
+				FRigControlElementDetails_SetupValueWidget(ControlCategory, PropertyUtilities, ERigControlValueType::Initial,ControlElements[0].GetKey(), HierarchyBeingCustomized);
 				break;
 			}
 			default:
@@ -1876,8 +1900,8 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		}
 		
 		
-		FRigControlElementDetails_SetupValueWidget(LimitsCategory, PropertyUtilities, ERigControlValueType::Minimum, &ControlElements[0], HierarchyBeingCustomized);
-		FRigControlElementDetails_SetupValueWidget(LimitsCategory, PropertyUtilities, ERigControlValueType::Maximum, &ControlElements[0], HierarchyBeingCustomized);
+		FRigControlElementDetails_SetupValueWidget(LimitsCategory, PropertyUtilities, ERigControlValueType::Minimum, ControlElements[0].GetKey(), HierarchyBeingCustomized);
+		FRigControlElementDetails_SetupValueWidget(LimitsCategory, PropertyUtilities, ERigControlValueType::Maximum, ControlElements[0].GetKey(), HierarchyBeingCustomized);
 	}
 
 	if (bNeedsShapeProperties)

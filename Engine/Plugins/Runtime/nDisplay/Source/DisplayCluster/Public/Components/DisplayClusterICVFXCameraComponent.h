@@ -36,7 +36,7 @@ public:
 #if WITH_EDITOR
 	virtual bool GetEditorPreviewInfo(float DeltaTime, FMinimalViewInfo& ViewOut) override;
 #endif
-	
+
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
 

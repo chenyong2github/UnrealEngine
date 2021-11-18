@@ -84,18 +84,6 @@ private:
 	 */
 	void OnSetTransformAxis(FVector::FReal NewValue, ETextCommit::Type CommitInfo, ETransformField::Type TransformField, EAxisList::Type Axis, bool bCommitted);
 
-	/**
-	 * Sets a single axis float value, called from UI
-	 *
-	 * @param TransformField	The field (location/rotation/scale) to modify
-	 * @param NewValue			The new translation value
-	 * @param CommitInfo		Whether or not this was committed from pressing enter or losing focus
-	 * @param Axis				Bitfield of which axis to set, can be multiple
-	 * @param bCommittted		true if the value was committed, false is the value comes from the slider
-	 */
-	void OnSetTransformAxisFloat(float NewValue, ETextCommit::Type CommitInfo, ETransformField::Type TransformField, EAxisList::Type Axis, bool bCommitted);
-
-
 	/** 
 	 * Helper to begin a new transaction for a slider interaction. 
 	 * @param ActorTransaction		The name to give the transaction when changing an actor transform.
@@ -107,7 +95,7 @@ private:
 	void OnBeginRotationSlider();
 
 	/** Called when the one of the axis sliders for object rotation is released */
-	void OnEndRotationSlider(float NewValue);
+	void OnEndRotationSlider(FRotator::FReal NewValue);
 
 	/** Called when one of the axis sliders for object location begins to change */
 	void OnBeginLocationSlider();
@@ -229,11 +217,11 @@ private:
 	bool GetLocationResetVisibility() const;
 
 	/** @return The X component of rotation */
-	TOptional<float> GetRotationX() const { return CachedRotation.X; }
+	TOptional<FRotator::FReal> GetRotationX() const { return CachedRotation.X; }
 	/** @return The Y component of rotation */
-	TOptional<float> GetRotationY() const { return CachedRotation.Y; }
+	TOptional<FRotator::FReal> GetRotationY() const { return CachedRotation.Y; }
 	/** @return The Z component of rotation */
-	TOptional<float> GetRotationZ() const { return CachedRotation.Z; }
+	TOptional<FRotator::FReal> GetRotationZ() const { return CachedRotation.Z; }
 	/** @return The visibility of the "Reset to Default" button for the rotation component */
 	bool GetRotationResetVisibility() const;
 
@@ -299,8 +287,7 @@ private:
 	/** Cache translation value of the selected set */
 	FOptionalVector<FVector::FReal> CachedLocation;
 	/** Cache rotation value of the selected set */
-	// LWC_TODO: Use FRotator::FReal
-	FOptionalVector<float> CachedRotation;
+	FOptionalVector<FRotator::FReal> CachedRotation;
 	/** Cache scale value of the selected set */
 	FOptionalVector<FVector::FReal> CachedScale;
 	/** Notify hook to use */

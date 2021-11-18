@@ -633,7 +633,7 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 	}
 }
 
-float FMovieSceneSkeletalAnimationSectionTemplateParameters::MapTimeToAnimation(FFrameTime InPosition, FFrameRate InFrameRate) const
+double FMovieSceneSkeletalAnimationSectionTemplateParameters::MapTimeToAnimation(FFrameTime InPosition, FFrameRate InFrameRate) const
 {
 	// Get Animation Length and frame time
 	const FFrameTime AnimationLength = GetSequenceLength() * InFrameRate;
@@ -649,20 +649,20 @@ float FMovieSceneSkeletalAnimationSectionTemplateParameters::MapTimeToAnimation(
 	const float SectionPlayRate = PlayRate * Animation->RateScale;
 	const float AnimPlayRate = FMath::IsNearlyZero(SectionPlayRate) ? 1.0f : SectionPlayRate;
 	const float FirstLoopSeqLength = GetSequenceLength() - InFrameRate.AsSeconds(FirstLoopStartFrameOffset + StartFrameOffset + EndFrameOffset);
-	const float SeqLength = GetSequenceLength() - InFrameRate.AsSeconds(StartFrameOffset + EndFrameOffset);
+	const double SeqLength = GetSequenceLength() - InFrameRate.AsSeconds(StartFrameOffset + EndFrameOffset);
 
 	// The Time from the beginning of SectionStartTime to InPosition in seconds
-	float SecondsFromSectionStart = FFrameTime::FromDecimal((InPosition - SectionStartTime).AsDecimal() * AnimPlayRate) / InFrameRate;
+	double SecondsFromSectionStart = FFrameTime::FromDecimal((InPosition - SectionStartTime).AsDecimal() * AnimPlayRate) / InFrameRate;
 
 	// Logic for reversed animation
 	if (bReverse)
 	{
 		// Duration of this section 
-		float SectionDuration = (((SectionEndTime - SectionStartTime) * AnimPlayRate) / InFrameRate);
+		double SectionDuration = (((SectionEndTime - SectionStartTime) * AnimPlayRate) / InFrameRate);
 		SecondsFromSectionStart = SectionDuration - SecondsFromSectionStart;
 	}
 	// Make sure Seconds is in range
-	if (SeqLength > 0.f && (bLooping || !FMath::IsNearlyEqual(SecondsFromSectionStart, SeqLength,1e-4f)))
+	if (SeqLength > 0.0 && (bLooping || !FMath::IsNearlyEqual(SecondsFromSectionStart, SeqLength, 1e-4)))
 	{
 		SecondsFromSectionStart = FMath::Fmod(SecondsFromSectionStart, SeqLength);
 	}

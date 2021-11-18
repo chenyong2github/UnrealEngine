@@ -194,7 +194,7 @@ void UE::Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread,
 					Asset->ClearFlags(RF_Standalone | RF_Public | RF_Transactional);
 					Asset->ClearInternalFlags(EInternalObjectFlags::Async);
 					Asset->SetFlags(RF_Transient);
-					Asset->MarkPendingKill();
+					Asset->MarkAsGarbage();
 				}
 			}
 		}

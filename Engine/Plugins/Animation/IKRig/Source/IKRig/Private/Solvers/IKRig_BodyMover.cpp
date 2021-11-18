@@ -8,7 +8,7 @@
 
 void UIKRig_BodyMover::Initialize(const FIKRigSkeleton& IKRigSkeleton)
 {
-	BodyBoneIndex = IKRigSkeleton.GetBoneIndexFromName(BodyBone);
+	BodyBoneIndex = IKRigSkeleton.GetBoneIndexFromName(RootBone);
 }
 
 void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalContainer& Goals)
@@ -78,6 +78,7 @@ void UIKRig_BodyMover::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		// Q is normalized vector from CURRENT centroid to CURRENT point
 		FVector P = (InitialEffector.GetTranslation() - InitialCentroid).GetSafeNormal();
 		FVector Q = (Goal->FinalBlendedPosition - CurrentCentroid).GetSafeNormal();
+		Q = FMath::Lerp(P,Q, Effector->InfluenceMultiplier);
 		// PQ^T is the outer product of P and Q which is a 3x3 matrix
 		// https://en.m.wikipedia.org/wiki/Outer_product
 		DX += FVector(P[0]*Q[0], P[0]*Q[1], P[0]*Q[2]);
@@ -162,7 +163,7 @@ void UIKRig_BodyMover::UpdateSolverSettings(UIKRigSolver* InSettings)
 			{
 				if (Effector->GoalName == InEffector->GoalName)
 				{
-					Effector->RotationMultiplier = InEffector->RotationMultiplier;
+					Effector->InfluenceMultiplier = InEffector->InfluenceMultiplier;
 					break;
 				}
 			}
@@ -177,7 +178,7 @@ FText UIKRig_BodyMover::GetNiceName() const
 
 bool UIKRig_BodyMover::GetWarningMessage(FText& OutWarningMessage) const
 {
-	if (BodyBone == NAME_None)
+	if (RootBone == NAME_None)
 	{
 		OutWarningMessage = LOCTEXT("MissingRoot", "Missing root bone.");
 		return true;
@@ -257,12 +258,12 @@ UObject* UIKRig_BodyMover::GetGoalSettings(const FName& GoalName) const
 
 bool UIKRig_BodyMover::IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const
 {
-	return IKRigSkeleton.IsBoneInDirectLineage(BoneName, BodyBone);
+	return IKRigSkeleton.IsBoneInDirectLineage(BoneName, RootBone);
 }
 
 void UIKRig_BodyMover::SetRootBone(const FName& RootBoneName)
 {
-	BodyBone = RootBoneName;
+	RootBone = RootBoneName;
 }
 
 int32 UIKRig_BodyMover::GetIndexOfGoal(const FName& OldName) const

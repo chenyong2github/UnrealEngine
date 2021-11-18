@@ -10,8 +10,6 @@ using System.IO;
 using Ionic.Zip;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	class UEDeployMac : UEBuildDeploy
@@ -32,7 +30,7 @@ namespace UnrealBuildTool
 				SrcPListFile = InEngineDir + "/Source/Runtime/Launch/Resources/Mac/Info.plist";
 			}
 
-			string PListData = null;
+			string PListData;
 			if (File.Exists(SrcPListFile))
 			{
 				PListData = File.ReadAllText(SrcPListFile);
@@ -44,7 +42,7 @@ namespace UnrealBuildTool
 
             // bundle identifier
             // plist replacements
-            DirectoryReference DirRef = bIsUnrealGame ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()) : null) : new DirectoryReference(ProjectDirectory);
+            DirectoryReference? DirRef = bIsUnrealGame ? (!string.IsNullOrEmpty(UnrealBuildTool.GetRemoteIniPath()) ? new DirectoryReference(UnrealBuildTool.GetRemoteIniPath()!) : null) : new DirectoryReference(ProjectDirectory);
             ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirRef, UnrealTargetPlatform.IOS);
 
             string BundleIdentifier;

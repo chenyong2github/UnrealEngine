@@ -21,7 +21,7 @@
 /** Uniform buffer for rendering deferred lights. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct,)
 	SHADER_PARAMETER(FVector4f,ShadowMapChannelMask)
-	SHADER_PARAMETER(FVector2D,DistanceFadeMAD)
+	SHADER_PARAMETER(FVector2f,DistanceFadeMAD)
 	SHADER_PARAMETER(float, ContactShadowLength)
 	SHADER_PARAMETER(float, ContactShadowNonShadowCastingIntensity)
 	SHADER_PARAMETER(float, VolumetricScatteringIntensity)
@@ -157,11 +157,11 @@ namespace StencilingGeometry
 			TResourceArray<VectorType, VERTEXBUFFER_ALIGNMENT> Verts;
 			Verts.Empty(NumVerts);
 			// Then rotate this arc NumSides + 1 times.
-			const FVector Center = FVector(0,0,0);
+			const FVector3f Center = FVector(0,0,0);
 			for (int32 s = 0; s < NumSides + 1; s++)
 			{
-				FRotator ArcRotator(0, 360.f * ((float)s / NumSides), 0);
-				FRotationMatrix ArcRot( ArcRotator );
+				FRotator3f ArcRotator(0, 360.f * ((float)s / NumSides), 0);
+				FRotationMatrix44f ArcRot( ArcRotator );
 
 				for (int32 v = 0; v < NumRings + 1; v++)
 				{

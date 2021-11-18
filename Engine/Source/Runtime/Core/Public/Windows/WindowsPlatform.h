@@ -14,6 +14,8 @@
 	#error "Windows Vista and earlier are no longer supported"
 #endif
 
+#define PLATFORM_TCHAR_IS_UTF8CHAR				0
+
 /**
 * Windows specific types
 **/
@@ -25,6 +27,10 @@ struct FWindowsPlatformTypes : public FGenericPlatformTypes
 #else
 	typedef unsigned long		SIZE_T;
 	typedef long				SSIZE_T;
+#endif
+
+#if PLATFORM_TCHAR_IS_UTF8CHAR
+	typedef UTF8CHAR TCHAR;
 #endif
 };
 
@@ -68,6 +74,7 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 //#define PLATFORM_TCHAR_IS_4_BYTES							0
 #define PLATFORM_HAS_BSD_TIME								0
 #define PLATFORM_USE_PTHREADS								0
+#define PLATFORM_USES_UNFAIR_LOCKS							1
 #define PLATFORM_MAX_FILEPATH_LENGTH_DEPRECATED				WINDOWS_MAX_PATH
 #define PLATFORM_HAS_BSD_IPV6_SOCKETS						1
 #define PLATFORM_HAS_BSD_SOCKET_FEATURE_WINSOCKETS			1
@@ -79,7 +86,7 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define PLATFORM_COMPILER_HAS_TCHAR_WMAIN					1
 #define PLATFORM_SUPPORTS_EARLY_MOVIE_PLAYBACK				(!WITH_EDITOR) // movies will start before engine is initalized
 #define PLATFORM_RHITHREAD_DEFAULT_BYPASS					0
-#define PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION			0
+#define PLATFORM_USE_GENERIC_STRING_IMPLEMENTATION			0 // Can set this to 1 if you need to debug FGenericWidePlatformString::GetVarArgs on Windows
 #define PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING			1
 #define PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING				1
 #define PLATFORM_SUPPORTS_MESH_SHADERS						1

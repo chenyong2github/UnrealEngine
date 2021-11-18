@@ -109,7 +109,7 @@ namespace UnrealBuildTool
 		/// <returns>New action</returns>
 		public static IExternalAction ReadAction(this BinaryArchiveReader Reader)
 		{
-			IActionSerializer Serializer = Reader.ReadObjectReference(() => ReadSerializer(Reader));
+			IActionSerializer Serializer = Reader.ReadObjectReference(() => ReadSerializer(Reader))!;
 			return Serializer.Read(Reader);
 		}
 
@@ -120,7 +120,7 @@ namespace UnrealBuildTool
 		/// <returns>New constructor info</returns>
 		static IActionSerializer ReadSerializer(BinaryArchiveReader Reader)
 		{
-			string Name = Reader.ReadString();
+			string Name = Reader.ReadString()!;
 
 			IActionSerializer? Serializer;
 			if (!NameToSerializer.TryGetValue(Name, out Serializer))

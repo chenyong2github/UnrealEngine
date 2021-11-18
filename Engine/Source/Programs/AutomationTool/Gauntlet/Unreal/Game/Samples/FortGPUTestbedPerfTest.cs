@@ -22,10 +22,10 @@ namespace UnrealGame
 		{
 		}
 
-		public override UE4TestConfig GetConfiguration()
+		public override UnrealTestConfig GetConfiguration()
 		{
 			// just need a single client
-			UE4TestConfig Config = base.GetConfiguration();
+			UnrealTestConfig Config = base.GetConfiguration();
 
 			UnrealTestRole ClientRole = Config.RequireRole(UnrealTargetRole.Client);
 			ClientRole.Controllers.Add("FortGPUtestbedPerfTest");

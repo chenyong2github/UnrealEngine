@@ -384,28 +384,6 @@
   display: grid;
   grid-template-columns: auto auto;
 }
-.gnt-text-button--variant-primary:hover:not(:active) .gnt-text-button__icon {
-  --icon-color: #fff;
-}
-.gnt-text-button--variant-primary:hover:not(:active) .gnt-text-button__icon path {
-  transition: fill 60ms, stroke 60ms;
-  will-change: fill, stroke;
-}
-.gnt-text-button--variant-primary:hover:not(:active) .gnt-text-button__caption {
-  transition: color 60ms;
-  will-change: color;
-  color: #fff;
-}
-.gnt-text-button--variant-secondary:hover:not(:active) .gnt-text-button__icon {
-  transition: opacity 60ms;
-  will-change: opacity;
-  opacity: 1;
-}
-.gnt-text-button--variant-secondary:hover:not(:active) .gnt-text-button__caption {
-  transition: color 60ms;
-  will-change: color;
-  color: #fff;
-}
 .gnt-text-button--is-disabled {
   pointer-events: none;
 }
@@ -426,9 +404,17 @@
   column-gap: 4px;
 }
 
-.gnt-text-button__icon {
-  transition: opacity 120ms, color 120ms;
-  will-change: opacity, color;
+.gnt-text-button:hover:not(:active) .gnt-text-button__icon {
+  --icon-color: #fff;
+}
+.gnt-text-button:hover:not(:active) .gnt-text-button__icon path {
+  transition: fill 60ms, stroke 60ms;
+  will-change: fill, stroke;
+}
+.gnt-text-button:hover:not(:active) .gnt-text-button__caption {
+  transition: color 60ms;
+  will-change: color;
+  color: #fff;
 }
 
 .gnt-text-button__icon path {
@@ -1189,6 +1175,7 @@
   border-radius: 4px;
   border-style: none;
   color: rgba(255, 255, 255, 0.5);
+  font-family: Roboto;
   grid-area: main;
   padding: 0 12px;
 }
@@ -1201,6 +1188,7 @@
   letter-spacing: 0.5px;
   line-height: 18px;
   height: 24px;
+  padding: 0 8px;
 }
 .gnt-input--size-large {
   font-size: 14px;
@@ -1219,7 +1207,6 @@
   color: #fff;
 }
 .gnt-input--is-multiline {
-  font-family: Roboto;
   height: auto;
   padding: 6px 12px;
   resize: none;
@@ -1263,8 +1250,18 @@
 
 .gnt-input__helper {
   grid-area: error;
-  padding-left: 12px;
   padding-top: 8px;
+}
+
+.gnt-input::-webkit-credentials-auto-fill-button {
+  transition: background-color 120ms;
+  will-change: background-color;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+.gnt-input::-webkit-credentials-auto-fill-button:hover {
+  transition: background-color 60ms;
+  will-change: background-color;
+  background-color: #fff;
 }
 /**
  * Color palette choices
@@ -1794,42 +1791,58 @@
  * Timing choices
  */
 .gnt-tabcontrol__list {
-  align-items: center;
+  align-items: stretch;
   column-gap: 24px;
   display: inline-grid;
   font-size: 0;
   grid-auto-flow: column;
-  height: 48px;
   justify-content: center;
   padding: 0 24px;
+}
+.gnt-tabcontrol__list--size-large {
+  height: 48px;
+}
+.gnt-tabcontrol__list--size-medium {
+  height: 40px;
+}
+.gnt-tabcontrol__list--size-small {
+  height: 32px;
 }
 
 .gnt-tabcontrol__tab {
   cursor: default;
-  height: 48px;
-}
-
-.gnt-tabcontrol__tab__labelwrap {
-  align-items: center;
   display: grid;
-  height: 100%;
-  justify-content: center;
+  place-items: center;
 }
-.gnt-tabcontrol__tab__labelwrap:focus {
+.gnt-tabcontrol__tab:focus {
   outline: none;
 }
 
-.gnt-tabcontrol__tab:hover .gnt-tabcontrol__tab__label {
+.gnt-tabcontrol__label {
+  transition: color 120ms;
+  will-change: color;
+}
+.gnt-tabcontrol__tab:focus .gnt-tabcontrol__label, .gnt-tabcontrol__tab:hover .gnt-tabcontrol__label {
+  transition: color 60ms;
+  will-change: color;
   color: #fff;
 }
 
 .gnt-tabcontrol__cursor {
-  transition: left 120ms;
-  will-change: left;
+  transition: left 120ms, width 120ms;
+  will-change: left, width;
   background-color: #26bbff;
   height: 2px;
   position: absolute;
-  transform: translate(0, 48px);
+}
+.gnt-tabcontrol__cursor--size-large {
+  transform: translate(0, 46px);
+}
+.gnt-tabcontrol__cursor--size-medium {
+  transform: translate(0, 38px);
+}
+.gnt-tabcontrol__cursor--size-small {
+  transform: translate(0, 30px);
 }
 /**
  * Color palette choices
@@ -2096,7 +2109,7 @@
 .gnt-progressbutton__start-button--state-initial {
   opacity: 1;
 }
-.gnt-progressbutton:hover .gnt-progressbutton__start-button--state-completed {
+.gnt-progressbutton .gnt-progressbutton__start-button--state-completed:hover, .gnt-progressbutton .gnt-progressbutton__start-button--state-failed:hover {
   transition: opacity 60ms;
   will-change: opacity;
   opacity: 1;
@@ -2109,7 +2122,10 @@
   opacity: 0;
   pointer-events: none;
 }
-.gnt-progressbutton--size-small:hover .gnt-progressbutton__stop-button--state-running, .gnt-progressbutton--size-large .gnt-progressbutton__stop-button--state-running {
+.gnt-progressbutton--size-small .gnt-progressbutton__stop-button--state-running {
+  pointer-events: initial;
+}
+.gnt-progressbutton--size-small .gnt-progressbutton__stop-button--state-running:hover, .gnt-progressbutton--size-large .gnt-progressbutton__stop-button--state-running {
   transition: opacity 60ms;
   will-change: opacity;
   opacity: 1;
@@ -2121,7 +2137,7 @@
   will-change: opacity;
   grid-area: main;
 }
-.gnt-progressbutton__progress--state-initial, .gnt-progressbutton:hover .gnt-progressbutton__progress--state-completed {
+.gnt-progressbutton__progress--state-initial, .gnt-progressbutton .gnt-progressbutton__progress--state-completed:hover, .gnt-progressbutton .gnt-progressbutton__progress--state-failed:hover {
   transition: opacity 60ms;
   will-change: opacity;
   opacity: 0;
@@ -2131,7 +2147,7 @@
   grid-area: main;
   opacity: 0;
 }
-.gnt-progressbutton:not(:hover) .gnt-progressbutton__icon--state-completed {
+.gnt-progressbutton .gnt-progressbutton__icon--state-completed:not(:hover), .gnt-progressbutton .gnt-progressbutton__icon--state-failed:not(:hover) {
   transition: opacity 60ms;
   will-change: opacity;
   opacity: 1;
@@ -2403,7 +2419,7 @@
 
 .gnt-menu-item--is-checkable {
   grid-template-areas: "check main chevron";
-  grid-template-columns: 24px 1fr auto;
+  grid-template-columns: 12px 1fr auto;
 }
 
 .gnt-menu-item--has-icon {
@@ -2413,7 +2429,7 @@
 
 .gnt-menu-item--has-icon.gnt-menu-item--is-checkable {
   grid-template-areas: "icon check main chevron";
-  grid-template-columns: 24px 24px 1fr auto;
+  grid-template-columns: 24px 12px 1fr auto;
 }
 
 .gnt-menu-item__icon {

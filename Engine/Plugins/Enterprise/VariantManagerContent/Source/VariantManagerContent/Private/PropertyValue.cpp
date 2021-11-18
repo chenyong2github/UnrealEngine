@@ -561,7 +561,8 @@ bool UPropertyValue::HasValidResolve() const
 			if (this == nullptr ||
 				!GUObjectArray.IsValid(this) ||
 				!Container->GetClass() ||
-				Container->IsPendingKillOrUnreachable() ||
+				!IsValidChecked(Container) || 
+				Container->IsUnreachable() ||
 				Container->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
 			{
 				return false;

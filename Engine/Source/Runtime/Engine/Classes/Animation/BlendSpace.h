@@ -475,10 +475,7 @@ public:
 	* Get PerBoneInterpolationIndex for the input BoneIndex
 	* If nothing found, return INDEX_NONE
 	*/
-	virtual int32 GetPerBoneInterpolationIndex(
-		int32                                                         BoneIndex, 
-		const FBoneContainer&                                         RequiredBones, 
-		const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const override;	
+	virtual int32 GetPerBoneInterpolationIndex(const FCompactPoseBoneIndex& InCompactPoseBoneIndex, const FBoneContainer& RequiredBones, const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const override;
 	// End IInterpolationIndexProvider Overrides
 
 	/** Returns whether or not the given additive animation type is compatible with the blendspace type */

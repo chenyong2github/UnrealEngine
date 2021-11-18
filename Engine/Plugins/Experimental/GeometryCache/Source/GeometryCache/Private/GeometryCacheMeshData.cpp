@@ -105,7 +105,7 @@ uint64 FGeometryCacheMeshData::GetHash() const
 
 	if (TextureCoordinates.Num() > 0)
 	{
-		Hash = CityHash64WithSeed((char*) TextureCoordinates.GetData(), TextureCoordinates.Num() * sizeof(FVector2D), Hash);
+		Hash = CityHash64WithSeed((char*) TextureCoordinates.GetData(), TextureCoordinates.Num() * sizeof(FVector2f), Hash);
 	}
 
 	if (TangentsZ.Num() > 0)

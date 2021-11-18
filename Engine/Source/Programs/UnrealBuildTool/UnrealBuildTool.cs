@@ -126,7 +126,7 @@ namespace UnrealBuildTool
 						if (RulesManifest != null)
 						{
 							JsonObject Manifest = JsonObject.Read(RulesManifest);
-							if (Manifest.TryGetStringArrayField("SourceFiles", out string[] SourceFiles))
+							if (Manifest.TryGetStringArrayField("SourceFiles", out string[]? SourceFiles))
 							{
 								FileReference? SourceFile = FileReference.FromString(SourceFiles.FirstOrDefault());
 								if (SourceFile != null && !SourceFile.IsUnderDirectory(Unreal.EngineDirectory))
@@ -267,6 +267,12 @@ namespace UnrealBuildTool
 			/// </summary>
 			[CommandLine(Prefix = "-Log", Description = "Specify a log file location instead of the default Engine/Programs/UnrealBuildTool/Log.txt")]
 			public FileReference? LogFileName = null;
+
+			/// <summary>
+			/// Log all attempts to write to the specified file
+			/// </summary>
+			[CommandLine(Prefix = "-TraceWrites", Description = "Trace writes requested to the specified file")]
+			public FileReference? TraceWrites = null;
 
 			/// <summary>
 			/// Whether to include timestamps in the log
@@ -469,6 +475,12 @@ namespace UnrealBuildTool
 				Log.IncludeTimestamps = Options.bLogTimestamps;
 				Log.IncludeProgramNameWithSeverityPrefix = Options.bLogFromMsBuild;
 
+				if (Options.TraceWrites != null)
+				{
+					Log.TraceInformation($"All attempts to write to \"{Options.TraceWrites}\" via WriteFileIfChanged() will be logged");
+					Utils.WriteFileIfChangedTrace = Options.TraceWrites;
+				}
+
 				// Always start capturing logs as early as possible to later copy to a log file if the ToolMode desires it (we have to start capturing before we get the ToolModeOptions below)
 				StartupTraceListener StartupTrace = new StartupTraceListener();
 				Log.AddTraceListener(StartupTrace);
@@ -477,7 +489,7 @@ namespace UnrealBuildTool
 				ProgressWriter.bWriteMarkup = Options.bWriteProgressMarkup;
 
 				// Ensure we can resolve any external assemblies that are not in the same folder as our assembly.
-				AssemblyUtils.InstallAssemblyResolver(Path.GetDirectoryName(Assembly.GetEntryAssembly().GetOriginalLocation()));
+				AssemblyUtils.InstallAssemblyResolver(Path.GetDirectoryName(Assembly.GetEntryAssembly()!.GetOriginalLocation())!);
 
 				// Change the working directory to be the Engine/Source folder. We are likely running from Engine/Binaries/DotNET
 				// This is critical to be done early so any code that relies on the current directory being Engine/Source will work.
@@ -612,6 +624,8 @@ namespace UnrealBuildTool
 				{
 					FileMetadataPrefetch.Stop();
 				}
+
+				Utils.LogWriteFileIfChangedActivity();
 
 				// Print out all the performance info
 				Timeline.Print(TimeSpan.FromMilliseconds(20.0), LogEventType.Log);

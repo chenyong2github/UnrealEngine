@@ -59,7 +59,6 @@ public class UnrealEd : ModuleRules
 				"MessagingRpc",
 				"PortalRpc",
 				"PortalServices",
-				"BlueprintNativeCodeGen",
 				"ViewportInteraction",
 				"VREditor",
 				"Persona",
@@ -213,8 +212,6 @@ public class UnrealEd : ModuleRules
 				"AnimationBlueprintLibrary",
 				"MaterialBaking",
 				"CookOnTheFly",
-				"RemoteExecution",
-				"HordeExecutor",
 				"Zen",
 			}
 		);
@@ -262,7 +259,6 @@ public class UnrealEd : ModuleRules
 				"HotReload",
 				"PortalProxies",
 				"PortalServices",
-				"BlueprintNativeCodeGen",
 				"OverlayEditor",
 				"ClothPainter",
 				"Media",

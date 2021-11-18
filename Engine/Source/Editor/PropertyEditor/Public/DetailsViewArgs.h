@@ -75,7 +75,7 @@ struct FDetailsViewArgs
 	/** True if you want to show the 'Show Only Differing Properties' option. Only valid in conjunction with bShowOptions. */
 	bool bShowDifferingPropertiesOption : 1;
 	/** True if you want to show the 'Show Hidden Properties While Playing' option. Only valid in conjunction with bShowOptions. */
-	bool bShowHiddenPropertiesWhilePlayingOption : 1;
+	bool bShowHiddenPropertiesWhilePlayingOption : 1;	
 	/** If true, the name area will be created but will not be displayed so it can be placed in a custom location.  */
 	bool bCustomNameAreaLocation : 1;
 	/** If true, the filter area will be created but will not be displayed so it can be placed in a custom location.  */

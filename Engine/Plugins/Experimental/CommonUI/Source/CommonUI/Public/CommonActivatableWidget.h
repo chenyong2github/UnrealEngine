@@ -28,7 +28,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWidgetActivationChanged);
  *
  * TODO: ADD MORE INFO ON INPUTS
  */
-UCLASS()
+UCLASS(meta = (DisableNativeTick))
 class COMMONUI_API UCommonActivatableWidget : public UCommonUserWidget
 {
 	GENERATED_BODY()

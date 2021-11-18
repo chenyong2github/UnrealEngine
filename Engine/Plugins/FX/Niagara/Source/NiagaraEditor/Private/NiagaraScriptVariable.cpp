@@ -56,7 +56,7 @@ void UNiagaraScriptVariable::Init(const FNiagaraVariable& InVar, const FNiagaraV
 	}
 }
 
-void UNiagaraScriptVariable::InitFrom(UNiagaraScriptVariable* Value)
+void UNiagaraScriptVariable::InitFrom(const UNiagaraScriptVariable* Value, bool bCreateNewGuid)
 {
 	for (TFieldIterator<FProperty> PropertyIt(GetClass(), EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
@@ -65,6 +65,12 @@ void UNiagaraScriptVariable::InitFrom(UNiagaraScriptVariable* Value)
 		uint8* DestinationAddr = Property->ContainerPtrToValuePtr<uint8>(this);
 
 		Property->CopyCompleteValue(DestinationAddr, SourceAddr);
+	}
+
+	// we generally want to create a new metadata guid as that is used to identify variables for renames, unless we specifically want to copy the entire variable
+	if(bCreateNewGuid)
+	{
+		Metadata.CreateNewGuid();
 	}
 }
 

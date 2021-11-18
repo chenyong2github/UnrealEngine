@@ -117,6 +117,12 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="ButtonAutoSync" xml:space="preserve">
+    <value>自動同期の切り替え</value>
+  </data>
+  <data name="ButtonAutoSyncHint" xml:space="preserve">
+    <value>自動同期の切り替え</value>
+  </data>
   <data name="ButtonConnections" xml:space="preserve">
     <value>接続</value>
   </data>
@@ -137,6 +143,9 @@
   </data>
   <data name="ButtonSettings" xml:space="preserve">
     <value>Settings</value>
+  </data>
+  <data name="ButtonSettingsHint" xml:space="preserve">
+    <value>Show Settings</value>
   </data>
   <data name="ButtonSync" xml:space="preserve">
     <value>同期</value>

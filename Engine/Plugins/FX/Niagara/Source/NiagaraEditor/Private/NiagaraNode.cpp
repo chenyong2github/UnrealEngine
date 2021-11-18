@@ -307,7 +307,7 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 		}
 		else
 		{
-			OldPin->MarkPendingKill();
+			OldPin->MarkAsGarbage();
 		}
 	}
 

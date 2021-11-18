@@ -24,23 +24,23 @@ void FScreenRectangleVertexBuffer::InitRHI()
 	Vertices.SetNumUninitialized(6);
 
 	Vertices[0].Position = FVector4f(1, 1, 0, 1);
-	Vertices[0].UV = FVector2D(1, 1);
+	Vertices[0].UV = FVector2f(1, 1);
 
 	Vertices[1].Position = FVector4f(0, 1, 0, 1);
-	Vertices[1].UV = FVector2D(0, 1);
+	Vertices[1].UV = FVector2f(0, 1);
 
 	Vertices[2].Position = FVector4f(1, 0, 0, 1);
-	Vertices[2].UV = FVector2D(1, 0);
+	Vertices[2].UV = FVector2f(1, 0);
 
 	Vertices[3].Position = FVector4f(0, 0, 0, 1);
-	Vertices[3].UV = FVector2D(0, 0);
+	Vertices[3].UV = FVector2f(0, 0);
 
 	//The final two vertices are used for the triangle optimization (a single triangle spans the entire viewport )
 	Vertices[4].Position = FVector4f(-1, 1, 0, 1);
-	Vertices[4].UV = FVector2D(-1, 1);
+	Vertices[4].UV = FVector2f(-1, 1);
 
 	Vertices[5].Position = FVector4f(1, -1, 0, 1);
-	Vertices[5].UV = FVector2D(1, -1);
+	Vertices[5].UV = FVector2f(1, -1);
 
 	// Create vertex buffer. Fill buffer with initial data upon creation
 	FRHIResourceCreateInfo CreateInfo(TEXT("FScreenRectangleVertexBuffer"), &Vertices);

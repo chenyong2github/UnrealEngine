@@ -302,6 +302,11 @@ FPackageStoreOptimizer::FPackageStoreHeaderData FPackageStoreOptimizer::LoadPack
 		PackageStoreHeaderData.ImportedPackageIds.Add(PackageId);
 	}
 
+	PackageStoreHeaderData.ImportedPublicExportHashes =
+		MakeArrayView<const uint64>(
+			reinterpret_cast<const uint64*>(HeaderData + Summary.ImportedPublicExportHashesOffset),
+			(Summary.ImportMapOffset - Summary.ImportedPublicExportHashesOffset) / sizeof(uint64));
+
 	PackageStoreHeaderData.Imports =
 		MakeArrayView<const FPackageObjectIndex>(
 			reinterpret_cast<const FPackageObjectIndex*>(HeaderData + Summary.ImportMapOffset),
@@ -396,6 +401,13 @@ void FPackageStoreOptimizer::ResolveImport(FPackageStorePackage::FUnresolvedImpo
 	}
 }
 
+uint64 FPackageStoreOptimizer::GetPublicExportHash(FStringView PackageRelativeExportPath)
+{
+	check(PackageRelativeExportPath.Len() > 1);
+	check(PackageRelativeExportPath[0] == '/');
+	return CityHash64(reinterpret_cast<const char*>(PackageRelativeExportPath.GetData() + 1), (PackageRelativeExportPath.Len() - 1) * sizeof(TCHAR));
+}
+
 void FPackageStoreOptimizer::ProcessImports(const FCookedHeaderData& CookedHeaderData, FPackageStorePackage* Package) const
 {
 	int32 ImportCount = CookedHeaderData.ObjectImports.Num();
@@ -437,9 +449,10 @@ void FPackageStoreOptimizer::ProcessImports(const FCookedHeaderData& CookedHeade
 				{
 					FStringView PackageRelativeName = FStringView(UnresolvedImport.FullName).RightChop(UnresolvedImport.FromPackageNameLen);
 					check(PackageRelativeName.Len());
-					uint32 ExportHash = GetTypeHash(PackageRelativeName);
-					FPackageImportReference PackageImportRef(PackageIndex, ExportHash);
+					FPackageImportReference PackageImportRef(PackageIndex, Package->ImportedPublicExportHashes.Num());
 					Package->Imports[ImportIndex] = FPackageObjectIndex::FromPackageImportRef(PackageImportRef);
+					uint64 ExportHash = GetPublicExportHash(PackageRelativeName);
+					Package->ImportedPublicExportHashes.Add(ExportHash);
 					bFoundPackageIndex = true;
 					break;
 				}
@@ -452,6 +465,7 @@ void FPackageStoreOptimizer::ProcessImports(const FCookedHeaderData& CookedHeade
 void FPackageStoreOptimizer::ProcessImports(const FPackageStoreHeaderData& PackageStoreHeaderData, FPackageStorePackage* Package) const
 {
 	Package->ImportedPackageIds = PackageStoreHeaderData.ImportedPackageIds;
+	Package->ImportedPublicExportHashes = PackageStoreHeaderData.ImportedPublicExportHashes;
 	Package->Imports = PackageStoreHeaderData.Imports;
 }
 
@@ -540,6 +554,7 @@ void FPackageStoreOptimizer::ProcessExports(const FCookedHeaderData& CookedHeade
 	};
 
 	FString PackageNameStr = Package->Name.ToString();
+	TMap<uint64, const FPackageStorePackage::FExport*> SeenPublicExportHashes;
 	for (int32 ExportIndex = 0; ExportIndex < ExportCount; ++ExportIndex)
 	{
 		const FObjectExport& ObjectExport = CookedHeaderData.ObjectExports[ExportIndex];
@@ -560,7 +575,13 @@ void FPackageStoreOptimizer::ProcessExports(const FCookedHeaderData& CookedHeade
 			check(Export.FullName.Len() > 0);
 			FStringView PackageRelativeName = FStringView(Export.FullName).RightChop(PackageNameStr.Len());
 			check(PackageRelativeName.Len());
-			Export.ExportHash = GetTypeHash(PackageRelativeName);
+			Export.PublicExportHash = GetPublicExportHash(PackageRelativeName);
+			const FPackageStorePackage::FExport* FindCollidingExport = SeenPublicExportHashes.FindRef(Export.PublicExportHash);
+			if (FindCollidingExport)
+			{
+				UE_LOG(LogPackageStoreOptimizer, Fatal, TEXT("Export hash collision in package \"%s\": \"%s\" and \"%s"), *PackageNameStr, PackageRelativeName.GetData(), *FindCollidingExport->FullName.RightChop(PackageNameStr.Len()));
+			}
+			SeenPublicExportHashes.Add(Export.PublicExportHash, &Export);
 		}
 
 		Export.OuterIndex = PackageObjectIdFromPackageIndex(Package->Imports, ObjectExport.OuterIndex);
@@ -587,6 +608,7 @@ void FPackageStoreOptimizer::ProcessExports(const FPackageStoreHeaderData& Packa
 
 	const TArray<FNameEntryId>& NameMap = PackageStoreHeaderData.NameMap;
 
+	Package->ImportedPublicExportHashes = PackageStoreHeaderData.ImportedPublicExportHashes;
 	for (int32 ExportIndex = 0; ExportIndex < ExportCount; ++ExportIndex)
 	{
 		const FExportMapEntry& ExportEntry =  PackageStoreHeaderData.Exports[ExportIndex];
@@ -594,7 +616,7 @@ void FPackageStoreOptimizer::ProcessExports(const FPackageStoreHeaderData& Packa
 
 		FPackageStorePackage::FExport& Export = Package->Exports[ExportIndex];
 		Export.ObjectName = FName::CreateFromDisplayId(NameMap[ExportEntry.ObjectName.GetIndex()], ExportEntry.ObjectName.GetNumber());
-		Export.ExportHash = ExportEntry.ExportHash;
+		Export.PublicExportHash = ExportEntry.PublicExportHash;
 		Export.OuterIndex = ExportEntry.OuterIndex;
 		Export.ClassIndex = ExportEntry.ClassIndex;
 		Export.SuperIndex = ExportEntry.SuperIndex;
@@ -812,6 +834,7 @@ void FPackageStoreOptimizer::OptimizeExportBundles(const TMap<FPackageId, FPacka
 					check(FromImport.IsPackageImport());
 					FPackageImportReference FromPackageImportRef = FromImport.ToPackageImportRef();
 					FPackageId FromPackageId = Package->ImportedPackageIds[FromPackageImportRef.GetImportedPackageIndex()];
+					uint64 FromPublicExportHash = Package->ImportedPublicExportHashes[FromPackageImportRef.GetImportedPublicExportHashIndex()];
 					FPackageStorePackage* FindFromPackage = PackagesMap.FindRef(FromPackageId);
 					if (FindFromPackage)
 					{
@@ -819,7 +842,7 @@ void FPackageStoreOptimizer::OptimizeExportBundles(const TMap<FPackageId, FPacka
 						for (int32 ExportIndex = 0; ExportIndex < FindFromPackage->Exports.Num(); ++ExportIndex)
 						{
 							FPackageStorePackage::FExport& FromExport = FindFromPackage->Exports[ExportIndex];
-							if (FromExport.ExportHash == FromPackageImportRef.GetExportHash())
+							if (FromExport.PublicExportHash == FromPublicExportHash)
 							{
 								FPackageStorePackage::FExportGraphNode* FromExportGraphNode = FromExport.Nodes[ExternalDependency.ExportBundleCommandType];
 								check(FromExportGraphNode->ExportBundleIndex >= 0);
@@ -1369,6 +1392,13 @@ void FPackageStoreOptimizer::SerializeGraphData(const TArray<FPackageId>& Import
 
 void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package) const
 {
+	FBufferWriter ImportedPublicExportHashesArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
+	for (uint64 ImportedPublicExportHash : Package->ImportedPublicExportHashes)
+	{
+		ImportedPublicExportHashesArchive << ImportedPublicExportHash;
+	}
+	Package->ImportedPublicExportHashesSize = ImportedPublicExportHashesArchive.Tell();
+
 	FBufferWriter ImportMapArchive(nullptr, 0, EBufferWriterFlags::AllowResize | EBufferWriterFlags::TakeOwnership);
 	for (FPackageObjectIndex Import : Package->Imports)
 	{
@@ -1384,7 +1414,7 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 		ExportMapEntry.CookedSerialSize = Export.SerialSize;
 		Package->NameMapBuilder.MarkNameAsReferenced(Export.ObjectName);
 		ExportMapEntry.ObjectName = Package->NameMapBuilder.MapName(Export.ObjectName);
-		ExportMapEntry.ExportHash = Export.ExportHash;
+		ExportMapEntry.PublicExportHash = Export.PublicExportHash;
 		ExportMapEntry.OuterIndex = Export.OuterIndex;
 		ExportMapEntry.ClassIndex = Export.ClassIndex;
 		ExportMapEntry.SuperIndex = Export.SuperIndex;
@@ -1436,6 +1466,7 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 		sizeof(FZenPackageSummary)
 		+ Package->VersioningInfoSize
 		+ Package->NameMapSize
+		+ Package->ImportedPublicExportHashesSize
 		+ Package->ImportMapSize
 		+ Package->ExportMapSize
 		+ Package->ExportBundleEntriesSize
@@ -1463,6 +1494,8 @@ void FPackageStoreOptimizer::FinalizePackageHeader(FPackageStorePackage* Package
 	}
 
 	HeaderArchive.Serialize(NameMapArchive.GetWriterData(), NameMapArchive.Tell());
+	PackageSummary->ImportedPublicExportHashesOffset = HeaderArchive.Tell();
+	HeaderArchive.Serialize(ImportedPublicExportHashesArchive.GetWriterData(), ImportedPublicExportHashesArchive.Tell());
 	PackageSummary->ImportMapOffset = HeaderArchive.Tell();
 	HeaderArchive.Serialize(ImportMapArchive.GetWriterData(), ImportMapArchive.Tell());
 	PackageSummary->ExportMapOffset = HeaderArchive.Tell();

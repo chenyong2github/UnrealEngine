@@ -462,129 +462,92 @@ void FSourceCodeNavigationImpl::NavigateToFunctionSource( const FString& Functio
 	ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
 
 #if PLATFORM_WINDOWS
-	// We'll need the current process handle in order to call into DbgHelp.  This must be the same
-	// process handle that was passed to SymInitialize() earlier.
-	const HANDLE ProcessHandle = ::GetCurrentProcess();
-
-	// Setup our symbol info structure so that DbgHelp can write to it
-	ANSICHAR SymbolInfoBuffer[ sizeof( IMAGEHLP_SYMBOL64 ) + MAX_SYM_NAME ];
-	PIMAGEHLP_SYMBOL64 SymbolInfoPtr = reinterpret_cast< IMAGEHLP_SYMBOL64*>( SymbolInfoBuffer );
-	SymbolInfoPtr->SizeOfStruct = sizeof( SymbolInfoBuffer );
-	SymbolInfoPtr->MaxNameLength = MAX_SYM_NAME;
-
-	FString FullyQualifiedSymbolName = FunctionSymbolName;
-	if( !FunctionModuleName.IsEmpty() )
+	FString SourceFileName;
+	uint32 SourceLineNumber = 1;
+	uint32 SourceColumnNumber = 0;
+	if (FPlatformStackWalk::GetFunctionDefinitionLocation(FunctionSymbolName, FunctionModuleName, SourceFileName, SourceLineNumber, SourceColumnNumber))
 	{
-		FullyQualifiedSymbolName = FString::Printf( TEXT( "%s!%s" ), *FunctionModuleName, *FunctionSymbolName );
-	}
-
-	// Ask DbgHelp to locate information about this symbol by name
-	// NOTE:  Careful!  This function is not thread safe, but we're calling it from a separate thread!
-	if( SymGetSymFromName64( ProcessHandle, TCHAR_TO_ANSI( *FullyQualifiedSymbolName ), SymbolInfoPtr ) )
-	{
-		// Setup our file and line info structure so that DbgHelp can write to it
-		IMAGEHLP_LINE64 FileAndLineInfo;
-		FileAndLineInfo.SizeOfStruct = sizeof( FileAndLineInfo );
-
-		// Query file and line number information for this symbol from DbgHelp
-		uint32 SourceColumnNumber = 0;
-		if( SymGetLineFromAddr64( ProcessHandle, SymbolInfoPtr->Address, (::DWORD *)&SourceColumnNumber, &FileAndLineInfo ) )
+		// If the file cannot be found, we are likely in a case of an Installed Build or a Project that was relocated post compilation. Try to rebuild the path from known roots.
+		if (FPaths::FileExists(SourceFileName) == false)
 		{
-			FString SourceFileName( (const ANSICHAR*)(FileAndLineInfo.FileName) );
-			int32 SourceLineNumber = 1;
-			if( bIgnoreLineNumber )
+			bool bFoundSource = false;
+			TArray<FString> Tokens;
+
+			//Split path from the PDB on backslashes 
+			SourceFileName.ParseIntoArray(Tokens, TEXT("\\"));
+
+			auto PathSearch = [&Tokens, &SourceFileName](const FString& BasePath) {
+				FString PathTail;
+				PathTail.Reserve(SourceFileName.Len());
+				FString TempPath;
+				TempPath.Reserve(SourceFileName.Len());
+
+				int32 index = Tokens.Num() - 1;
+
+				//Add the file name
+				PathTail = Tokens[index--];
+
+				//Successively prepend the folders until the file is found on disk or the full path is consumed.
+				do
+				{
+					TempPath = BasePath + PathTail;
+						
+					if (FPaths::FileExists(TempPath) == true)
+					{
+						//Resolve the path to an absolute path.
+						SourceFileName = IFileManager::Get().GetFilenameOnDisk(*TempPath);
+						return true;
+					}
+
+					//Prepend another folder to the current tail
+					PathTail = Tokens[index] + TEXT("\\") + PathTail;
+				} while (--index > 0);
+
+				return false;
+			};
+
+			const FString EnginePath = FPaths::EngineDir();
+			const FString ProjectPath = FPaths::ProjectDir();
+				
+			if((PathSearch(EnginePath) == false) && (PathSearch(ProjectPath) == false))
 			{
-				SourceColumnNumber = 1;
+				UE_LOG(LogSelectionDetails, Warning, TEXT("NavigateToFunctionSource:  Didn't find source file for [%s] - File [%s], Line [%i], Column [%i]"),
+					*FunctionSymbolName,
+					*SourceFileName,
+					SourceLineNumber,
+					SourceColumnNumber);
 			}
 			else
 			{
-				SourceLineNumber = FileAndLineInfo.LineNumber;
+				UE_LOG(LogSelectionDetails, Verbose, TEXT("NavigateToFunctionSource:  Found symbol file in renamed or moved code base."));
 			}
-
-			//If the file cannot be found, we are likely in a case of an Installed Build or a Project that was relocated post compilation. Try to rebuild the path from known roots.
- 			if (FPaths::FileExists(SourceFileName) == false)
-			{
-				bool bFoundSource = false;
-				TArray<FString> Tokens;
-
-				//Split path from the PDB on backslashes 
-				SourceFileName.ParseIntoArray(Tokens, TEXT("\\"));
-
-				auto PathSearch = [&Tokens, &SourceFileName](const FString& BasePath) {
-					FString PathTail;
-					PathTail.Reserve(SourceFileName.Len());
-					FString TempPath;
-					TempPath.Reserve(SourceFileName.Len());
-
-					int32 index = Tokens.Num() - 1;
-
-					//Add the file name
-					PathTail = Tokens[index--];
-
-					//Successively prepend the folders until the file is found on disk or the full path is consumed.
-					do
-					{
-						TempPath = BasePath + PathTail;
-						
-						if (FPaths::FileExists(TempPath) == true)
-						{
-							//Resolve the path to an absolute path.
-							SourceFileName = IFileManager::Get().GetFilenameOnDisk(*TempPath);
-							return true;
-						}
-
-						//Prepend another folder to the current tail
-						PathTail = Tokens[index] + TEXT("\\") + PathTail;
-					} while (--index > 0);
-
-					return false;
-				};
-
-				const FString EnginePath = FPaths::EngineDir();
-				const FString ProjectPath = FPaths::ProjectDir();
-				
-				if((PathSearch(EnginePath) == false) && (PathSearch(ProjectPath) == false))
-				{
-					UE_LOG(LogSelectionDetails, Warning, TEXT("NavigateToFunctionSource:  Didn't find source file for [%s] - File [%s], Line [%i], Column [%i]"),
-						*FunctionSymbolName,
-						*SourceFileName,
-						(uint32)FileAndLineInfo.LineNumber,
-						SourceColumnNumber);
-				}
-				else
-				{
-					UE_LOG(LogSelectionDetails, Verbose, TEXT("NavigateToFunctionSource:  Found symbol file in renamed or moved code base."));
-				}
-			}
-
-			UE_LOG(LogSelectionDetails, Verbose, TEXT( "NavigateToFunctionSource:  Found symbols for [%s] - File [%s], Line [%i], Column [%i]" ),
-				*FunctionSymbolName,
-				*SourceFileName,
-				(uint32)FileAndLineInfo.LineNumber,
-				SourceColumnNumber );
-
-			// Open this source file in our IDE and take the user right to the line number
-			SourceCodeAccessor.OpenFileAtLine( SourceFileName, SourceLineNumber, SourceColumnNumber );
 		}
-#if !NO_LOGGING
-		else
+
+		UE_LOG(LogSelectionDetails, Verbose, TEXT( "NavigateToFunctionSource:  Found symbols for [%s] - File [%s], Line [%i], Column [%i]" ),
+			*FunctionSymbolName,
+			*SourceFileName,
+			SourceLineNumber,
+			SourceColumnNumber );
+
+		if (bIgnoreLineNumber)
 		{
-			TCHAR ErrorBuffer[ MAX_SPRINTF ];
-			UE_LOG(LogSelectionDetails, Warning, TEXT( "NavigateToFunctionSource:  Unable to find source file and line number for '%s' [%s]" ),
-				*FunctionSymbolName,
-				FPlatformMisc::GetSystemErrorMessage( ErrorBuffer, MAX_SPRINTF, 0 ) );
+			SourceLineNumber = 1;
+			SourceColumnNumber = 1;
 		}
-#endif // !NO_LOGGING
+
+		// Open this source file in our IDE and take the user right to the line number
+		SourceCodeAccessor.OpenFileAtLine( SourceFileName, SourceLineNumber, SourceColumnNumber );
 	}
 #if !NO_LOGGING
 	else
 	{
 		TCHAR ErrorBuffer[ MAX_SPRINTF ];
-		UE_LOG(LogSelectionDetails, Warning, TEXT( "NavigateToFunctionSource:  Unable to find symbols for '%s' [%s]" ),
+		UE_LOG(LogSelectionDetails, Warning, TEXT( "NavigateToFunctionSource:  Unable to find source file and line number for '%s' [%s]" ),
 			*FunctionSymbolName,
 			FPlatformMisc::GetSystemErrorMessage( ErrorBuffer, MAX_SPRINTF, 0 ) );
 	}
 #endif // !NO_LOGGING
+
 #elif PLATFORM_MAC
 	
 	for(uint32 Index = 0; Index < _dyld_image_count(); Index++)
@@ -1509,7 +1472,7 @@ void FSourceCodeNavigation::RemoveNavigationHandler(ISourceCodeNavigationHandler
 
 void FSourceCodeNavigation::SetPreferredAccessor(const TCHAR* Name)
 {
-	GConfig->SetString(TEXT("/Script/SourceCodeAccess.SourceCodeAccessSettings"), TEXT("PreferredAccessor"), Name, GEngineIni);
+	GConfig->SetString(TEXT("/Script/SourceCodeAccess.SourceCodeAccessSettings"), TEXT("PreferredAccessor"), Name, GEditorSettingsIni);
 
 	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>(TEXT("SourceCodeAccess"));
 	SourceCodeAccessModule.SetAccessor(Name);

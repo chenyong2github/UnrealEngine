@@ -7,6 +7,7 @@
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_CameraMotionBlur.h"
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_CustomFrustum.h"
 #include "Render/Viewport/Containers/ImplDisplayClusterViewport_Overscan.h"
+#include "Render/Viewport/Containers/DisplayClusterViewportRemap.h"
 
 #include "Render/Viewport/DisplayClusterViewport_CustomPostProcessSettings.h"
 #include "Render/Viewport/DisplayClusterViewport_TextureShare.h"
@@ -125,7 +126,7 @@ public:
 	{
 		check(IsInGameThread());
 
-		for (int ContextNum = 0; ContextNum < Contexts.Num(); ContextNum++)
+		for (int32 ContextNum = 0; ContextNum < Contexts.Num(); ContextNum++)
 		{
 			if (StereoPassType == Contexts[ContextNum].StereoscopicPass)
 			{
@@ -189,6 +190,9 @@ public:
 	FImplDisplayClusterViewport_Overscan         OverscanRendering;
 	FImplDisplayClusterViewport_CustomFrustum    CustomFrustumRendering;
 
+	// viewport OutputRemap feature
+	FDisplayClusterViewportRemap ViewportRemap;
+
 protected:
 	friend FDisplayClusterViewportProxy;
 	friend FDisplayClusterViewportProxyData;
@@ -205,6 +209,8 @@ protected:
 	friend FDisplayClusterViewportConfigurationHelpers_OpenColorIO;
 	friend FDisplayClusterViewportConfigurationHelpers_Postprocess;
 	friend FDisplayClusterViewportConfigurationProjectionPolicy;
+
+	friend FDisplayClusterViewportRemap;
 
 	// viewport render thread data
 	FDisplayClusterViewportProxy* ViewportProxy = nullptr;

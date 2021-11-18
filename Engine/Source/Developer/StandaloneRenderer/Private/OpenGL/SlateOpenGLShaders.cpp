@@ -334,7 +334,7 @@ void FSlateOpenGLElementProgram::SetViewProjectionMatrix( const FMatrix& InVP )
 	CHECK_GL_ERRORS;
 }
 
-void FSlateOpenGLElementProgram::SetVertexShaderParams( const FVector4& ShaderParams )
+void FSlateOpenGLElementProgram::SetVertexShaderParams( const FVector4f& ShaderParams )
 {
 	glUniform4f( VertexShaderParam, ShaderParams.X, ShaderParams.Y, ShaderParams.Z, ShaderParams.W );
 	CHECK_GL_ERRORS;
@@ -365,7 +365,7 @@ void FSlateOpenGLElementProgram::SetShaderParams(const FShaderParams& InShaderPa
 	CHECK_GL_ERRORS;
 }
 
-void FSlateOpenGLElementProgram::SetGammaValues(const FVector2D& InGammaValues)
+void FSlateOpenGLElementProgram::SetGammaValues(const FVector2f& InGammaValues)
 {
 	glUniform2f(GammaValuesParam, InGammaValues.X, InGammaValues.Y);
 	CHECK_GL_ERRORS;

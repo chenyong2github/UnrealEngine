@@ -446,7 +446,7 @@ void UMovieSceneSkeletalAnimationTrack::FindBestBlendPoint(USkeletalMeshComponen
 					if (BeginOfSecond < EndOfFirst)
 					{
 						FFrameRate TickResolution = MovieScene->GetTickResolution();
-						FirstFrameTime = FirstSection->MapTimeToAnimation(FFrameTime(BeginOfSecond), TickResolution);
+						FirstFrameTime = static_cast<float>(FirstSection->MapTimeToAnimation(FFrameTime(BeginOfSecond), TickResolution));
 					}
 					TArray<TArray<float>> OutDistanceDifferences;
 					FFrameRate DisplayRate = MovieScene->GetDisplayRate();
@@ -924,9 +924,9 @@ void UMovieSceneSkeletalAnimationTrack::MatchSectionByBoneTransform(bool bMatchW
 
 		if (FirstAnimSequence && SecondAnimSequence)
 		{
-			float FirstSectionTime = FirstSection->MapTimeToAnimation(CurrentFrame, FrameRate);
+			float FirstSectionTime = static_cast<float>(FirstSection->MapTimeToAnimation(CurrentFrame, FrameRate));
 			FTransform  FirstTransform = GetWorldTransformForBone(FirstAnimSequence, SkelMeshComp, BoneName, FirstSectionTime);
-			float SecondSectionTime = CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate);
+			float SecondSectionTime = static_cast<float>(CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate));
 			FTransform  SecondTransform = GetWorldTransformForBone(SecondAnimSequence, SkelMeshComp, BoneName, SecondSectionTime);
 
 			//Need to match the translations and rotations here 
@@ -988,9 +988,9 @@ void UMovieSceneSkeletalAnimationTrack::MatchSectionByBoneTransform(bool bMatchW
 
 		if (FirstAnimSequence && SecondAnimSequence)
 		{
-			float FirstSectionTime = CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate);
+			float FirstSectionTime = static_cast<float>(CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate));
 			FTransform  FirstTransform = GetWorldTransformForBone(FirstAnimSequence, SkelMeshComp, BoneName, FirstSectionTime);
-			float SecondSectionTime = SecondSection->MapTimeToAnimation(CurrentFrame, FrameRate);
+			float SecondSectionTime = static_cast<float>(SecondSection->MapTimeToAnimation(CurrentFrame, FrameRate));
 			FTransform  SecondTransform = GetWorldTransformForBone(SecondAnimSequence, SkelMeshComp, BoneName, SecondSectionTime);
 
 			//Need to match the translations and rotations here 

@@ -13,6 +13,7 @@
 class UAnimGraphNode_Base;
 class IDetailTreeNode;
 class IPropertyRowGenerator;
+class UAnimBlueprint;
 
 class ANIMATIONBLUEPRINTEDITOR_API SAnimationGraphNode : public SGraphNodeK2Base
 {
@@ -47,6 +48,8 @@ protected:
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle) override;
 	virtual void GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGraphInformationPopupInfo>& Popups) const override;
 	virtual void CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox) override;
+	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
+	virtual bool IsHidingPinWidgets() const override { return UseLowDetailNodeContent(); }
 	// End of SGraphNode interface
 
 private:
@@ -58,6 +61,13 @@ private:
 	// Handle the node informing us that the title has changed
 	void HandleNodeTitleChanged();
 
+	// LOD related functions for content area
+	bool UseLowDetailNodeContent() const;
+	FVector2D GetLowDetailDesiredSize() const;
+
+	// Handler for pose watches changing
+	void HandlePoseWatchesChanged(UAnimBlueprint* InAnimBlueprint, UEdGraphNode* InNode);
+
 	/** Keep a reference to the indicator widget handing around */
 	TSharedPtr<SWidget> IndicatorWidget;
 
@@ -68,4 +78,10 @@ private:
 	TSharedPtr<SNodeTitle> NodeTitle;
 
 	TWeakObjectPtr<class UPoseWatch> PoseWatch;
+
+	/** Cached size from when we last drew at high detail */
+	FVector2D LastHighDetailSize;
+
+	/** Cached content area widget (used to derive LastHighDetailSize) */
+	TSharedPtr<SWidget> CachedContentArea;
 };

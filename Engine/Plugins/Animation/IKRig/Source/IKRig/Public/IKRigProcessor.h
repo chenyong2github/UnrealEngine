@@ -106,7 +106,7 @@ private:
 
 	/** the stack of solvers to run in order */
 	UPROPERTY(Transient)
-	TArray<UIKRigSolver*> Solvers;
+	TArray<TObjectPtr<UIKRigSolver>> Solvers;
 
 	/** the named transforms that solvers use as end effectors */
 	FIKRigGoalContainer GoalContainer;

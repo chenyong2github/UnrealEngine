@@ -448,7 +448,7 @@ void UMaterialEditingLibrary::DeleteMaterialExpression(UMaterial* Material, UMat
 
 		Material->Expressions.Remove(Expression);
 
-		Expression->MarkPendingKill();
+		Expression->MarkAsGarbage();
 
 		Material->MarkPackageDirty();
 	}
@@ -851,7 +851,7 @@ void UMaterialEditingLibrary::DeleteMaterialExpressionInFunction(UMaterialFuncti
 
 		MaterialFunction->FunctionExpressions.Remove(Expression);
 
-		Expression->MarkPendingKill();
+		Expression->MarkAsGarbage();
 
 		MaterialFunction->MarkPackageDirty();
 	}

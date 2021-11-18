@@ -32,6 +32,7 @@ public:
 	void ShutdownModule() override;
 
 	virtual bool IsHMDConnected() override { return true; }
+	virtual FString GetDeviceSystemName() override;
 	virtual bool IsStandaloneStereoOnlyDevice() override;
 	virtual bool IsExtensionAvailable(const FString& Name) const override { return AvailableExtensions.Contains(Name); }
 	virtual bool IsExtensionEnabled(const FString& Name) const override { return EnabledExtensions.Contains(Name); }

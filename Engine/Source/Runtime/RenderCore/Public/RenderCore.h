@@ -303,11 +303,11 @@ struct RENDERCORE_API FVirtualTextureUniformData
 	float PageTableSize;
 	float vPageSize;
 	float pPageBorder;
-	FVector2D pTextureSize; // The size of the cache texture
+	FVector2f pTextureSize; // The size of the cache texture
 	float MaxAnisotropic;
 	int MaxAssetLevel;
 	FVector4f Transform;
-	FVector2D vOneMinusOneOverTextureSize; // 1 - (1/TextureSize) this rather specific value is needed for clamp texturing.
+	FVector2f vOneMinusOneOverTextureSize; // 1 - (1/TextureSize) this rather specific value is needed for clamp texturing.
 										   // We could store something more generically useful at the cost of a few shader ALU instructions?
 
 	FMatrix Pack() const
@@ -335,6 +335,6 @@ struct RENDERCORE_API FVirtualTextureUniformData
 		return Data;
 	}
 
-	static FMatrix Invalid;
+	static FMatrix44f Invalid;
 };
-static_assert(sizeof(FVirtualTextureUniformData) <= sizeof(FMatrix), "FVirtualTextureUniformData is unable to pack");
+static_assert(sizeof(FVirtualTextureUniformData) <= sizeof(FMatrix44f), "FVirtualTextureUniformData is unable to pack");

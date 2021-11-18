@@ -1071,7 +1071,7 @@ void UNiagaraGraph::ReleaseCompilationCopy()
 
 	// clear script variables and kill this object to surface any invalid access after it's released
 	VariableToScriptVariable.Empty();
-	MarkPendingKill();
+	MarkAsGarbage();
 }
 
 UNiagaraNodeOutput* UNiagaraGraph::FindOutputNode(ENiagaraScriptUsage TargetUsageType, FGuid TargetUsageId) const

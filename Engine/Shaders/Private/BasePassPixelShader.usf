@@ -20,9 +20,11 @@
 		#define SceneColorCopySampler	TranslucentBasePass.SceneColorCopySampler
 	#endif
 	#define UseBasePassSkylight TranslucentBasePass.Shared.UseBasePassSkylight
+	#define StrataStruct TranslucentBasePass.Strata
 #else
 	#define EyeAdaptationStruct OpaqueBasePass
 	#define UseBasePassSkylight OpaqueBasePass.Shared.UseBasePassSkylight
+	#define StrataStruct OpaqueBasePass.Strata
 #endif
 
 // Material setting to allow forward shading (including mobile) to use preintegrated GF lut for simple IBL.
@@ -118,7 +120,7 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #define FORCE_FULLY_ROUGH (SIMPLE_FORWARD_SHADING || MATERIAL_FULLY_ROUGH)
 #define EDITOR_ALPHA2COVERAGE (USE_EDITOR_COMPOSITING && SUPPORTS_PIXEL_COVERAGE)
 #define POST_PROCESS_SUBSURFACE ((MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE) && USES_GBUFFER)
-#define MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || STRATA_TRANSLUCENT_ENABLED)
+#define MATERIAL_WORKS_WITH_DUAL_SOURCE_COLOR_BLENDING (MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT || STRATA_TRANSLUCENT_MATERIAL )
 
 #if  MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
@@ -145,11 +147,11 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 
 #include "ThinTranslucentCommon.ush"
 
-#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER || STRATA_TRANSLUCENT_ENABLED
+#if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER || STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
 #include "ForwardLightingCommon.ush"
 #endif
 
-#if STRATA_TRANSLUCENT_ENABLED
+#if STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
 #define STRATA_USE_ENV_BRDF_APPROX (MATERIAL_USE_PREINTEGRATED_GF == 0)
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataForwardLighting.ush"
@@ -299,7 +301,7 @@ float3 GetTranslucencyVolumeLighting(
 #endif
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
-void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResult LightmapVTPageTableResult, FGBufferData GBuffer, float3 WorldNormal, float2 LightmapUV, uint LightmapDataIndex, float3 SkyOcclusionUV3D, out float3 OutDiffuseLighting, out float3 OutSubsurfaceLighting)
+void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResult LightmapVTPageTableResult, bool bEvaluateBackface, float3 WorldNormal, float2 LightmapUV, uint LightmapDataIndex, float3 SkyOcclusionUV3D, out float3 OutDiffuseLighting, out float3 OutSubsurfaceLighting)
 {
 	OutDiffuseLighting = 0;
 	OutSubsurfaceLighting = 0;
@@ -325,8 +327,8 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 			FTwoBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH(WorldNormal, 1);
 			OutDiffuseLighting += max(half3(0,0,0), DotSH(TranslucencyGISH, DiffuseTransferSH)) / PI;
 
-			#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-			if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+			#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+			if (bEvaluateBackface)
 			{
 				FTwoBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH(-WorldNormal, 1);
 				OutSubsurfaceLighting += max(half3(0,0,0), DotSH(TranslucencyGISH, SubsurfaceTransferSH)) / PI;
@@ -402,8 +404,8 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 		// Apply AO to the sky diffuse
 		OutDiffuseLighting += DiffuseLookup * (SkyVisibility * GeometryTerm);
 
-		#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-		if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+		#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+		if (bEvaluateBackface)
 		{
 			float3 BackfaceDiffuseLookup = GetEffectiveSkySHDiffuse(-WorldNormal) * ResolvedView.SkyLightColor.rgb;
 			OutSubsurfaceLighting += BackfaceDiffuseLookup * SkyVisibility;
@@ -427,7 +429,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	FVertexFactoryInterpolantsVSToPS Interpolants,
 	FBasePassInterpolantsVSToPS BasePassInterpolants,
 	VTPageTableResult LightmapVTPageTableResult,
-	FGBufferData GBuffer,
+	bool bEvaluateBackface,
 	float3 DiffuseDir,
 	float3 VolumetricLightmapBrickTextureUVs,
 	out float3 OutDiffuseLighting,
@@ -478,8 +480,8 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 			FThreeBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH3(DiffuseDir, 1);
 			OutDiffuseLighting = max(float3(0,0,0), DotSH3(IrradianceSH, DiffuseTransferSH)) / PI;
 
-			#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-			if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+			#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+			if (bEvaluateBackface)
 			{
 				FThreeBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH3(-DiffuseDir, 1);
 				OutSubsurfaceLighting += max(float3(0,0,0), DotSH3(IrradianceSH, SubsurfaceTransferSH)) / PI;
@@ -522,8 +524,8 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 				FTwoBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH(DiffuseDir, 1);
 				OutDiffuseLighting = max(half3(0,0,0), DotSH(CachedSH, DiffuseTransferSH)) / PI;
 
-				#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-				if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+				#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+				if (bEvaluateBackface)
 				{
 					FTwoBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH(-DiffuseDir, 1);
 					OutSubsurfaceLighting += max(half3(0,0,0), DotSH(CachedSH, SubsurfaceTransferSH)) / PI;
@@ -547,8 +549,8 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 			FOneBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH1(1);
 			OutDiffuseLighting = DotSH1(PointIndirectLighting, DiffuseTransferSH);
 
-			#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-			if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+			#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+			if (bEvaluateBackface)
 			{
 				FOneBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH1(1);
 				OutSubsurfaceLighting += DotSH1(PointIndirectLighting, SubsurfaceTransferSH);
@@ -574,8 +576,8 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 			// Compute diffuse lighting which takes the normal into account
 			OutDiffuseLighting = max(half3(0,0,0), DotSH3(PointIndirectLighting, DiffuseTransferSH));
 
-			#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-			if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+			#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+			if (bEvaluateBackface)
 			{
 				FThreeBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH3(-DiffuseDir, 1);
 				OutSubsurfaceLighting += max(half3(0, 0, 0), DotSH3(PointIndirectLighting, SubsurfaceTransferSH));
@@ -593,7 +595,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		GetLightMapCoordinates(Interpolants, LightmapUV0, LightmapUV1, LightmapDataIndex);
 		SkyOcclusionUV = LightmapUV0;
 		SkyOcclusionDataIndex = LightmapDataIndex;
-		GetLightMapColorHQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, MaterialParameters.SvPosition.xy, GBuffer.ShadingModelID, OutDiffuseLighting, OutSubsurfaceLighting);
+		GetLightMapColorHQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, MaterialParameters.SvPosition.xy, bEvaluateBackface, OutDiffuseLighting, OutSubsurfaceLighting);
 
 	// Low quality texture lightmaps
 	#elif LQ_TEXTURE_LIGHTMAP
@@ -611,7 +613,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 
 	float3 SkyDiffuseLighting;
 	float3 SkySubsurfaceLighting;
-	GetSkyLighting(MaterialParameters, LightmapVTPageTableResult, GBuffer, DiffuseDir, SkyOcclusionUV, SkyOcclusionDataIndex, VolumetricLightmapBrickTextureUVs, SkyDiffuseLighting, SkySubsurfaceLighting);
+	GetSkyLighting(MaterialParameters, LightmapVTPageTableResult, bEvaluateBackface, DiffuseDir, SkyOcclusionUV, SkyOcclusionDataIndex, VolumetricLightmapBrickTextureUVs, SkyDiffuseLighting, SkySubsurfaceLighting);
 
 	OutSubsurfaceLighting += SkySubsurfaceLighting;
 
@@ -766,17 +768,28 @@ float DotSpecularSG( float Roughness, float3 N, float3 V, FSphericalGaussian Lig
 #endif
 }
 
-void ApplyBentNormal( in FMaterialPixelParameters MaterialParameters, in float Roughness, inout float3 BentNormal, inout float DiffOcclusion, inout float SpecOcclusion )
+float3 GetBentNormalZero(in FMaterialPixelParameters MaterialParameters)
+{
+#if NUM_MATERIAL_OUTPUTS_GETBENTNORMAL > 0
+	return GetBentNormal0(MaterialParameters);
+#else
+	return MaterialParameters.WorldNormal;
+#endif
+}
+
+void ApplyBentNormal(
+	in float3 CameraVector, in float3 WorldNormal, in float3x3 TangentToWorld, in float3 BentNormal0, 
+	in float Roughness, inout float3 BentNormal, inout float DiffOcclusion, inout float SpecOcclusion)
 {
 #if NUM_MATERIAL_OUTPUTS_GETBENTNORMAL > 0
 	#if MATERIAL_TANGENTSPACENORMAL
-		BentNormal = normalize( TransformTangentVectorToWorld( MaterialParameters.TangentToWorld, GetBentNormal0(MaterialParameters) ) );
+		BentNormal = normalize( TransformTangentVectorToWorld(TangentToWorld, BentNormal0) );
 	#else
-		BentNormal = GetBentNormal0(MaterialParameters);
+		BentNormal = BentNormal0;
 	#endif
 
-	FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian( MaterialParameters.WorldNormal );
-	FSphericalGaussian NormalSG = ClampedCosine_ToSphericalGaussian( MaterialParameters.WorldNormal );
+	FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(WorldNormal);
+	FSphericalGaussian NormalSG = ClampedCosine_ToSphericalGaussian(WorldNormal);
 	FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian( BentNormal, DiffOcclusion );
 	FSphericalGaussian DiffuseSG = Mul( NormalSG, VisibleSG );
 	
@@ -788,8 +801,8 @@ void ApplyBentNormal( in FMaterialPixelParameters MaterialParameters, in float R
 	DiffOcclusion = saturate( Integral( DiffuseSG ) * 0.42276995 );
 #endif
 
-	float3 N = MaterialParameters.WorldNormal;
-	float3 V = MaterialParameters.CameraVector;
+	float3 N = WorldNormal;
+	float3 V = CameraVector;
 
 	SpecOcclusion  = DotSpecularSG( Roughness, N, V, VisibleSG );
 	SpecOcclusion /= DotSpecularSG( Roughness, N, V, HemisphereSG );
@@ -987,15 +1000,20 @@ void FPixelShaderInOut_MainPS(
 	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
 
 #if !GBUFFER_HAS_PRECSHADOWFACTOR
-	StrataPixelHeader.SkipPrecShadowMask = true;
+	StrataPixelHeader.bSkipPrecShadowMask = true;
 #endif
 #if (GBUFFER_HAS_PRECSHADOWFACTOR && WRITES_PRECSHADOWFACTOR_ZERO)
-	StrataPixelHeader.ZeroPrecShadowMask = true;
+	StrataPixelHeader.bZeroPrecShadowMask = true;
 #endif
+
+	StrataPixelHeader.MaterialAO = MaterialAO;
+
+	StrataPixelHeader.bCastContactShadow = GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW;
+	StrataPixelHeader.bHasDynamicIndirectShadowCasterRepresentation = GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION;
 #endif
 
 #if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
-	StrataPixelHeader.IsSingleLayerWater = true;
+	StrataPixelHeader.bIsSingleLayerWater = true;
 
 	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
 	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)
@@ -1168,7 +1186,7 @@ void FPixelShaderInOut_MainPS(
 	
 	float DiffOcclusion = MaterialAO;
 	float SpecOcclusion = MaterialAO;
-	ApplyBentNormal( MaterialParameters, GBuffer.Roughness, BentNormal, DiffOcclusion, SpecOcclusion );
+	ApplyBentNormal(MaterialParameters.CameraVector, MaterialParameters.WorldNormal, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), GBuffer.Roughness, BentNormal, DiffOcclusion, SpecOcclusion);
 	// FIXME: ALLOW_STATIC_LIGHTING == 0 expects this to be AO
 	GBuffer.GBufferAO = AOMultiBounce( Luminance( GBuffer.SpecularColor ), SpecOcclusion ).g;
 
@@ -1178,9 +1196,9 @@ void FPixelShaderInOut_MainPS(
 		float3 N = GBuffer.WorldNormal;
 
 		#if MATERIAL_TANGENTSPACENORMAL
-			float3 BentNormal = normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, GetBentNormal0(MaterialParameters)));
+			float3 BentNormal = normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters)));
 		#else
-			float3 BentNormal = GetBentNormal0(MaterialParameters);
+			float3 BentNormal = GetBentNormalZero(MaterialParameters);
 		#endif
 
 		float VisibleCosAngle = sqrt(1 - MaterialAO);
@@ -1262,8 +1280,8 @@ void FPixelShaderInOut_MainPS(
 		}
 		#endif
 
-		GetPrecomputedIndirectLightingAndSkyLight(MaterialParameters, Interpolants, BasePassInterpolants, LightmapVTPageTableResult, GBuffer, DiffuseDir, VolumetricLightmapBrickTextureUVs, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance);
-		
+		const bool bEvaluateBackface = GetShadingModelRequiresBackfaceLighting(GBuffer.ShadingModelID);
+		GetPrecomputedIndirectLightingAndSkyLight(MaterialParameters, Interpolants, BasePassInterpolants, LightmapVTPageTableResult, bEvaluateBackface, DiffuseDir, VolumetricLightmapBrickTextureUVs, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance);
 
 		float IndirectOcclusion = 1.0f;
 		float2 NearestResolvedDepthScreenUV = 0;
@@ -1274,7 +1292,7 @@ void FPixelShaderInOut_MainPS(
 			float2 ScreenUV = NDC * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz;
 			NearestResolvedDepthScreenUV = CalculateNearestResolvedDepthScreenUV(ScreenUV, MaterialParameters.ScreenPosition.w);
 
-			IndirectOcclusion = GetIndirectOcclusion(NearestResolvedDepthScreenUV, GBuffer);
+			IndirectOcclusion = GetIndirectOcclusion(NearestResolvedDepthScreenUV, HasDynamicIndirectShadowCasterRepresentation(GBuffer));
 			DiffuseIndirectLighting *= IndirectOcclusion;
 			SubsurfaceIndirectLighting *= IndirectOcclusion;
 			IndirectIrradiance *= IndirectOcclusion;
@@ -1361,7 +1379,6 @@ void FPixelShaderInOut_MainPS(
 
 #else // !STRATA_ENABLED
 
-	// STRATA_TODO forward shadow and occlusion
 	float DirectionalLightShadow = 1.0f; 
 	float IndirectOcclusion = 1.0f;
 					
@@ -1561,7 +1578,7 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
-#if STRATA_OPAQUE_ENABLED
+#if STRATA_OPAQUE_DEFERRED
 
 #if STRATA_INLINE_SINGLELAYERWATER==0
 	// Need to reset color to make sure strata material are only lit using Strata lighting passes.
@@ -1584,49 +1601,55 @@ void FPixelShaderInOut_MainPS(
 		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance);
 
 	Color += EmissiveLuminance;
-#endif // STRATA_OPAQUE_ENABLED
+#endif // STRATA_OPAQUE_DEFERRED
 
-#if STRATA_TRANSLUCENT_ENABLED
+#if (STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING) && !STRATA_INLINE_SINGLELAYERWATER
 	//FORWARD_SHADING
 	if (StrataData.LayerCount > 0)
 	{
 		float2 ScreenUV = ScreenPositionToBufferUV(MaterialParameters.ScreenPosition);
-		float2 NearestResolvedDepthScreenUV = CalculateNearestResolvedDepthScreenUV(ScreenUV, MaterialParameters.ScreenPosition.w);
 
 		float3 L = ResolvedView.DirectionalLightDirection;
-		float3 V = MaterialParameters.CameraVector;
 		float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
 
 		float3 Throughput = 1.0f;
 		Color = StrataForwardLighting(
-			In.SvPosition.xy,
-			LWCToFloat(MaterialParameters.AbsoluteWorldPosition),
+			EyeIndex,
+			In.SvPosition,
+			BasePassInterpolants,
+			Interpolants,
+			LightmapVTPageTableResult,
+			VolumetricLightmapBrickTextureUVs,
+			MaterialParameters,
 			GBuffer.Depth,
-			NearestResolvedDepthScreenUV,
-			V,
+			ScreenUV,
 			L,
-			LightColor,
-			DirectionalLightShadow,
-			IndirectOcclusion,
 			StrataPixelHeader,
 			StrataData,
 			Throughput);
 
+	#if STRATA_TRANSLUCENT_MATERIAL
 		DualBlendColorCov = GetMaterialOpacity(PixelMaterialInputs); // Opacity represent coverage STRATA_TODO after validation, rename everything
 		DualBlendColorAdd = Color;
 		DualBlendColorMul = Throughput;
 		Color = 0.0f;
 		Opacity = 1.0f; // nullify following operation
+	#elif STRATA_FORWARD_SHADING
+		// Color unchanged
+		Opacity = 1.0f;
+	#else
+		#error Unhandled Strata forward shading mode
+	#endif
 	}
-#endif // STRATA_TRANSLUCENT_ENABLED
+#endif // STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
 
 #elif STRATA_ENABLED && MATERIAL_SHADINGMODEL_UNLIT
 
 	// Unlit forces a single BSDF
 	FStrataBSDF UnlitBSDF = PixelMaterialInputs.FrontMaterial.Layers[0].BSDFs[0];
-#if STRATA_OPAQUE_ENABLED
+#if STRATA_OPAQUE_DEFERRED || STRATA_FORWARD_SHADING
 	Color = BSDF_GETEMISSIVE(UnlitBSDF);
-#else // STRATA_TRANSLUCENT_ENABLED
+#else // STRATA_TRANSLUCENT_FORWARD
 	DualBlendColorCov = GetMaterialOpacity(PixelMaterialInputs); // Opacity represent coverage STRATA_TODO after validation, rename everything
 	DualBlendColorAdd = BSDF_GETEMISSIVE(UnlitBSDF);
 	DualBlendColorMul = UNLIT_TRANSMITTANCE(UnlitBSDF);
@@ -1842,7 +1865,7 @@ void FPixelShaderInOut_MainPS(
 }
 
 // If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
-#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || STRATA_OPAQUE_ENABLED
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || STRATA_OPAQUE_DEFERRED
 	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
 		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE

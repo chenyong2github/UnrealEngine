@@ -52,7 +52,7 @@ struct FAbcMeshSample
 	TArray<FVector3f> Normals;
 	TArray<FVector3f> TangentX;
 	TArray<FVector3f> TangentY;
-	TArray<FVector2D> UVs[MAX_TEXCOORDS];
+	TArray<FVector2f> UVs[MAX_TEXCOORDS];
 
 	TArray<FLinearColor> Colors;
 	/*TArray<FVector2D> Visibility;

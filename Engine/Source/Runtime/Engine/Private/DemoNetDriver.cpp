@@ -3011,7 +3011,7 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 
 	for (auto It = RollbackNetStartupActors.CreateIterator(); It; ++It)
 	{
-		if (ReplayHelper.DeletedNetStartupActors.Contains(It.Key()))
+		if (ReplayHelper.PlaybackDeletedNetStartupActors.Contains(It.Key()))
 		{
 			// We don't want to re-create these since they should no longer exist after the current checkpoint
 			continue;
@@ -3050,7 +3050,7 @@ void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedAc
 		AActor* ExistingActor = FindObjectFast<AActor>(RollbackActor.Level, RollbackActor.Name);
 		if (ExistingActor)
 		{
-			ensureMsgf(ExistingActor->IsPendingKillOrUnreachable(), TEXT("RespawnNecessaryNetStartupActors: Renaming rollback actor that wasn't destroyed: %s"), *GetFullNameSafe(ExistingActor));
+			ensureMsgf((!IsValidChecked(ExistingActor) || ExistingActor->IsUnreachable()), TEXT("RespawnNecessaryNetStartupActors: Renaming rollback actor that wasn't destroyed: %s"), *GetFullNameSafe(ExistingActor));
 			ExistingActor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 		}
 
@@ -3334,7 +3334,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 	} ReadPacketsHelper(*this, LastProcessedPacketTime);
 
-	ReplayHelper.DeletedNetStartupActors.Empty();
+	ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
 
 	PlaybackDeltaCheckpointData.Empty();
 
@@ -3387,17 +3387,16 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 						TUniquePtr<FDeltaCheckpointData>& CheckpointData = PlaybackDeltaCheckpointData.Emplace_GetRef(new FDeltaCheckpointData());
 
 						ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, CheckpointData->DestroyedNetStartupActors);
-
-						ReplayHelper.DeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
+						ReplayHelper.PlaybackDeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
 
 						*CheckpointArchive << CheckpointData->DestroyedDynamicActors;
 						*CheckpointArchive << CheckpointData->ChannelsToClose;
 					}
 					else
 					{
-						ReplayHelper.DeletedNetStartupActors.Empty();
+						ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
 
-						ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, ReplayHelper.DeletedNetStartupActors);
+						ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, ReplayHelper.PlaybackDeletedNetStartupActors);
 					}
 				}
 
@@ -3476,7 +3475,7 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 			{
 				continue;
 			}
-			else if (ReplayHelper.DeletedNetStartupActors.Contains(Actor->GetFullName()))
+			else if (ReplayHelper.PlaybackDeletedNetStartupActors.Contains(Actor->GetFullName()))
 			{
 				// Put this actor on the rollback list so we can undelete it during future scrubbing,
 				// then delete it.
@@ -3932,7 +3931,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	if (GotoCheckpointArchive->TotalSize() == 0 || GotoCheckpointArchive->TotalSize() == INDEX_NONE)
 	{
 		// Make sure this is empty so that RespawnNecessaryNetStartupActors will respawn them
-		ReplayHelper.DeletedNetStartupActors.Empty();
+		ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
 
 		// Re-create all startup actors that were destroyed but should exist beyond this point
 		TArray<AActor*> SpawnedActors;
@@ -3958,7 +3957,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 	GotoCheckpointArchive->Seek(0);
 
-	ReplayHelper.DeletedNetStartupActors.Empty();
+	ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
 
 	PlaybackDeltaCheckpointData.Empty();
 
@@ -3996,24 +3995,20 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		{
 			if (bDeltaCheckpoint)
 			{
-				TSet<FString> DeltaActors;
-
-				ReplayHelper.DeletedNetStartupActors.Append(DeltaActors);
-
 				TUniquePtr<FDeltaCheckpointData>& CheckpointData = PlaybackDeltaCheckpointData.Emplace_GetRef(new FDeltaCheckpointData());
 
 				ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, CheckpointData->DestroyedNetStartupActors);
 
-				ReplayHelper.DeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
+				ReplayHelper.PlaybackDeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
 
 				*GotoCheckpointArchive << CheckpointData->DestroyedDynamicActors;
 				*GotoCheckpointArchive << CheckpointData->ChannelsToClose;
 			}
 			else
 			{
-				ReplayHelper.DeletedNetStartupActors.Empty();
+				ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
 
-				ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, ReplayHelper.DeletedNetStartupActors);
+				ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, ReplayHelper.PlaybackDeletedNetStartupActors);
 			}
 		}
 
@@ -4130,7 +4125,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		{
 			const FString FullName = It->GetFullName();
 
-			if (ReplayHelper.DeletedNetStartupActors.Contains(FullName))
+			if (ReplayHelper.PlaybackDeletedNetStartupActors.Contains(FullName))
 			{
 				if (It->bReplayRewindable)
 				{
@@ -4720,8 +4715,8 @@ void UDemoNetDriver::InitDestroyedStartupActors()
 
 	if (World)
 	{
-		check(ReplayHelper.DeletedNetStartupActors.Num() == 0);
-		check(ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Num() == 0);
+		check(ReplayHelper.RecordingDeletedNetStartupActors.Num() == 0);
+		check(ReplayHelper.RecordingDeltaCheckpointData.RecordingDeletedNetStartupActors.Num() == 0);
 
 		// add startup actors destroyed before the creation of this net driver
 		for (auto LevelIt(World->GetLevelIterator()); LevelIt; ++LevelIt)
@@ -4732,8 +4727,8 @@ void UDemoNetDriver::InitDestroyedStartupActors()
 				const TArray<FReplicatedStaticActorDestructionInfo>& DestroyedReplicatedStaticActors = Level->GetDestroyedReplicatedStaticActors();
 				for (const FReplicatedStaticActorDestructionInfo& Info : DestroyedReplicatedStaticActors)
 				{
-					ReplayHelper.DeletedNetStartupActors.Add(Info.FullName);
-					ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Add(Info.FullName);
+					ReplayHelper.RecordingDeletedNetStartupActors.Add(Info.FullName);
+					ReplayHelper.RecordingDeltaCheckpointData.RecordingDeletedNetStartupActors.Add(Info.FullName);
 				}
 			}
 		}
@@ -4804,11 +4799,11 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 			UE_CLOG(bActorRewindable, LogDemo, Warning, TEXT("Replay Rewindable Actor destroyed during recording. Replay may show artifacts (%s)"), *FullName);
 
 			UE_LOG(LogDemo, VeryVerbose, TEXT("NotifyActyorDestroyed: adding actor to deleted startup list: %s"), *FullName);
-			ReplayHelper.DeletedNetStartupActors.Add(FullName);
+			ReplayHelper.RecordingDeletedNetStartupActors.Add(FullName);
 
 			if (bDeltaCheckpoint)
 			{
-				ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Add(FullName);
+				ReplayHelper.RecordingDeltaCheckpointData.RecordingDeletedNetStartupActors.Add(FullName);
 			}
 		}
 	}

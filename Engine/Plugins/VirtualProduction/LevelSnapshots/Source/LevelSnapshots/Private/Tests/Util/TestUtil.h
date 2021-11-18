@@ -6,12 +6,12 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
-namespace TestUtil
+namespace UE::LevelSnapshots::Private::Tests
 {
 	template<typename T>
 	static T* Spawn(UWorld* World, FName Name)
 	{
-		return Cast<T>(TestUtil::Spawn(World, Name, T::StaticClass()));
+		return Cast<T>(Tests::Spawn(World, Name, T::StaticClass()));
 	}
 
 	static AActor* Spawn(UWorld* World, FName Name, UClass* Class);

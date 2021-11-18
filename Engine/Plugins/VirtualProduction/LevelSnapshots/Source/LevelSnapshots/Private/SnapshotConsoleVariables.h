@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 
-namespace SnapshotCVars
+namespace UE::LevelSnapshots::ConsoleVariables
 {
 	/** Hit a debug break point when an actor with the given name is snapshot */
 	extern TAutoConsoleVariable<FString> CVarBreakOnSnapshotActor;

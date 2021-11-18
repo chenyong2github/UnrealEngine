@@ -93,9 +93,6 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PrivateResource(nullptr)
 	, PrivateResourceRenderThread(nullptr)
-	, Resource(
-		[this]()-> FTextureResource* { return GetResource(); },
-		[this](FTextureResource* InTextureResource) { SetResource(InTextureResource); })
 {
 	SRGB = true;
 	Filter = TF_Default;
@@ -1025,7 +1022,7 @@ bool UTexture::IsCandidateForTextureStreaming(const ITargetPlatform* InTargetPla
 }
 #endif
 
-FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount, int32 MaxMipCount, bool bSkipCanBeLoaded) const
+FStreamableRenderResourceState UTexture::GetResourcePostInitState(const FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount, int32 MaxMipCount, bool bSkipCanBeLoaded) const
 {
 	// Create the resource with a mip count limit taking in consideration the asset LODBias.
 	// This ensures that the mip count stays constant when toggling asset streaming at runtime.

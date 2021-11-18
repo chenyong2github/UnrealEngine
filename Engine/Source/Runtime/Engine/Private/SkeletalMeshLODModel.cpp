@@ -21,6 +21,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "GPUSkinVertexFactory.h"
 #include "UObject/AnimObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Misc/ScopeLock.h"
 #include "MeshDescription.h"
 #include "SkeletalMeshAttributes.h"
@@ -181,11 +182,11 @@ uint8 FSoftSkinVertex::GetMaximumWeight() const
 /** Legacy 'rigid' skin vertex */
 struct FLegacyRigidSkinVertex
 {
-	FVector			Position;
-	FVector			TangentX;	// Tangent, U-direction
-	FVector			TangentY;	// Binormal, V-direction
-	FVector			TangentZ;	// Normal
-	FVector2D		UVs[MAX_TEXCOORDS]; // UVs
+	FVector3f		Position;
+	FVector3f		TangentX;	// Tangent, U-direction
+	FVector3f		TangentY;	// Binormal, V-direction
+	FVector3f		TangentZ;	// Normal
+	FVector2f		UVs[MAX_TEXCOORDS]; // UVs
 	FColor			Color;		// Vertex color.
 	uint8			Bone;
 
@@ -230,7 +231,10 @@ struct FLegacyRigidSkinVertex
 		DestVertex.TangentZ.W = GetBasisDeterminantSign(TangentX, TangentY, TangentZ);
 
 		// copy all texture coordinate sets
-		FMemory::Memcpy(DestVertex.UVs, UVs, sizeof(FVector2D)*MAX_TEXCOORDS);
+		for(int32 i = 0; i < MAX_TEXCOORDS; ++i)
+		{
+			DestVertex.UVs[i] = FVector2f(UVs[i]);
+		}
 
 		DestVertex.Color = Color;
 		DestVertex.InfluenceBones[0] = Bone;
@@ -320,6 +324,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
 	Ar.UsingCustomVersion(FOverlappingVerticesCustomVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	// When data is cooked for server platform some of the
 	// variables are not serialized so that they're always
@@ -497,7 +502,16 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 		}
 #endif
 
-		Ar << S.ClothMappingData;
+		if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::AddClothMappingLODBias)
+		{
+			constexpr int32 ClothLODBias = 0;  // There isn't any cloth LOD bias prior to this version
+			S.ClothMappingDataLODs.SetNum(1);
+			Ar << S.ClothMappingDataLODs[ClothLODBias];
+		}
+		else
+		{
+			Ar << S.ClothMappingDataLODs;
+		}
 
 		// We no longer need the positions and normals for a clothing sim mesh to be stored in sections, so throw that data out
 		if(Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::RemoveDuplicatedClothingSections)
@@ -552,6 +566,20 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 	}
 
 	return Ar;
+}
+
+void FSkelMeshSection::DeclareCustomVersions(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
+	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
+	Ar.UsingCustomVersion(FOverlappingVerticesCustomVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 }
 
 // Serialization.
@@ -626,7 +654,11 @@ struct FLegacySkelMeshChunk
 	{
 		Section.BaseVertexIndex = BaseVertexIndex;
 		Section.SoftVertices = SoftVertices;
-		Section.ClothMappingData = ApexClothMappingData;
+
+		constexpr int32 ClothLODBias = 0;  // There isn't any cloth LOD bias on legacy sections
+		Section.ClothMappingDataLODs.SetNum(1);
+		Section.ClothMappingDataLODs[ClothLODBias] = ApexClothMappingData;
+
 		Section.BoneMap = BoneMap;
 		Section.MaxBoneInfluences = MaxBoneInfluences;
 		Section.CorrespondClothAssetIndex = CorrespondClothAssetIndex;
@@ -935,6 +967,14 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 	}
 }
 
+void FSkeletalMeshLODModel::DeclareCustomVersions(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+	FSkelMeshSection::DeclareCustomVersions(Ar);
+}
+
 int32 FSkeletalMeshLODModel::FindMeshInfoIndex(FName Name) const
 {
 	for (int32 Index = 0; Index < ImportedMeshInfos.Num(); ++Index)
@@ -1004,20 +1044,30 @@ void FSkeletalMeshLODModel::GetVertices(TArray<FSoftSkinVertex>& Vertices) const
 	}
 }
 
-void FSkeletalMeshLODModel::GetClothMappingData(TArray<FMeshToMeshVertData>& MappingData, TArray<uint64>& OutClothIndexMapping) const
+void FSkeletalMeshLODModel::GetClothMappingData(TArray<FMeshToMeshVertData>& MappingData, TArray<FClothBufferIndexMapping>& OutClothIndexMapping) const
 {
 	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
 	{
 		const FSkelMeshSection& Section = Sections[SectionIndex];
-		if (Section.ClothMappingData.Num())
+		constexpr int32 ClothLODBias = 0;  // Use the default cloth LOD bias of 0 for calculations, this means the same LOD as the current section
+		if (Section.ClothMappingDataLODs.Num() && Section.ClothMappingDataLODs[ClothLODBias].Num())
 		{
-			uint64 KeyValue = ((uint64)Section.BaseVertexIndex << (uint32)32) | (uint64)MappingData.Num();
-			OutClothIndexMapping.Add(KeyValue);
-			MappingData += Section.ClothMappingData;
+			FClothBufferIndexMapping ClothBufferIndexMapping;
+			ClothBufferIndexMapping.BaseVertexIndex = Section.BaseVertexIndex;
+			ClothBufferIndexMapping.MappingOffset = (uint32)MappingData.Num();
+			ClothBufferIndexMapping.LODBiasStride = (uint32)Section.ClothMappingDataLODs[ClothLODBias].Num();
+
+			OutClothIndexMapping.Add(ClothBufferIndexMapping);
+
+			// Append all mapping LODs to the output array for this section
+			for (const TArray<FMeshToMeshVertData>& ClothMappingDataLOD : Section.ClothMappingDataLODs)
+			{
+				MappingData += ClothMappingDataLOD;
+			}
 		}
 		else
 		{
-			OutClothIndexMapping.Add(0);
+			OutClothIndexMapping.Add({ 0, 0, 0 });
 		}
 	}
 }
@@ -1321,7 +1371,7 @@ void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription
 	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = MeshAttributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = MeshAttributes.GetVertexInstanceBinormalSigns();
 	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = MeshAttributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshAttributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = MeshAttributes.GetVertexInstanceUVs();
 
 	TPolygonGroupAttributesRef<FName> PolygonGroupMaterialSlotNames = MeshAttributes.GetPolygonGroupMaterialSlotNames();
 	
@@ -1399,9 +1449,9 @@ void FSkeletalMeshLODModel::GetMeshDescription(FMeshDescription& MeshDescription
 				VertexInstanceNormals.Set(VertexInstanceID, SourceVertex.TangentZ);
 				VertexInstanceTangents.Set(VertexInstanceID, SourceVertex.TangentX);
 				VertexInstanceBinormalSigns.Set(VertexInstanceID, FMatrix(
-					SourceVertex.TangentX.GetSafeNormal(),
-					SourceVertex.TangentY.GetSafeNormal(),
-					SourceVertex.TangentZ.GetSafeNormal(),
+					(FVector)SourceVertex.TangentX.GetSafeNormal(),
+					(FVector)SourceVertex.TangentY.GetSafeNormal(),
+					(FVector)SourceVertex.TangentZ.GetSafeNormal(),
 					FVector::ZeroVector).Determinant() < 0.0f ? -1.0f : +1.0f);
 
 				for (int32 UVIndex = 0; UVIndex < int32(NumTexCoords); UVIndex++)

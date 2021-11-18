@@ -813,6 +813,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				{
 					HTTP->Parameters.Range = Request->Range;
 				}
+				HTTP->ResponseCache = PlayerSessionService->GetHTTPResponseCache();
 
 				ProgressReportCount = 0;
 				DownloadCompleteSignal.Reset();
@@ -905,7 +906,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 
 										// Offset the AU's DTS and PTS to the time mapping of the segment.
 										AccessUnit->DTS = DTS;
-										AccessUnit->PTS = DTS;
+										AccessUnit->PTS = PTS;
 										AccessUnit->SequenceIndex = Request->TimestampSequenceIndex;
 										AccessUnit->DTS.SetSequenceIndex(Request->TimestampSequenceIndex);
 										AccessUnit->PTS.SetSequenceIndex(Request->TimestampSequenceIndex);
@@ -1242,6 +1243,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	{
 		ds.ThroughputBps = ds.TimeToDownload > 0.0 ? 8 * ds.NumBytesDownloaded / ds.TimeToDownload : 0;
 	}
+	ds.bIsCachedResponse = CurrentRequest->ConnectionInfo.bIsCachedResponse;
 
 	if (!bSilentCancellation)
 	{

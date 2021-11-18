@@ -91,11 +91,14 @@ public:
 	 *  @param InBoneName Name of the bone to retrieve
 	 */
 	float GetBoneBlendScale(const FName& InBoneName) const;
+	
+	UE_DEPRECATED(5.0, "Please use the overload that takes a skeleton bone index")
+	int32 GetEntryIndex(const int32 InBoneIdx) const;
 
 	/** Get the index of the entry for the specified bone
-	 *  @param InBoneIdx Index of the bone
+	 *  @param InBoneIdx Skeleton index of the bone
 	 */
-	int32 GetEntryIndex(const int32 InBoneIdx) const;
+	int32 GetEntryIndex(const FSkeletonPoseBoneIndex InBoneIdx) const;
 
 	/** Get the index of the entry for the specified bone
 	 *  @param InBoneIdx Index of the bone
@@ -136,7 +139,7 @@ public:
 	void FillBoneScalesArray(TArray<float>& OutBoneBlendProfileFactors, const FBoneContainer& BoneContainer) const;
 
 	// IInterpolationIndexProvider
-	virtual int32 GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones, const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const override;
+	virtual int32 GetPerBoneInterpolationIndex(const FCompactPoseBoneIndex& InCompactPoseBoneIndex, const FBoneContainer& BoneContainer, const IInterpolationIndexProvider::FPerBoneInterpolationData* Data) const override;
 	// End IInterpolationIndexProvider
 
 	// UObject

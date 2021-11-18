@@ -81,7 +81,7 @@ void FWinHttpHttpManager::HandleApplicationSuspending()
 {
 	SCOPED_ENTER_BACKGROUND_EVENT(FWinHttpHttpManager_HandleApplicationSuspending);
 
-	Flush(false);
+	Flush(EHttpFlushReason::Background);
 	ActiveSessions.Reset();
 }
 

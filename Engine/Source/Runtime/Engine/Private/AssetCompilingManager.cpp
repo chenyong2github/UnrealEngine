@@ -204,7 +204,7 @@ FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const
 {
 #if WITH_EDITOR
 	static FQueuedThreadPoolWrapper* GAssetThreadPool = nullptr;
-	if (GAssetThreadPool == nullptr)
+	if (GAssetThreadPool == nullptr && GLargeThreadPool != nullptr)
 	{
 		AssetCompilingManagerImpl::EnsureInitializedCVars();
 

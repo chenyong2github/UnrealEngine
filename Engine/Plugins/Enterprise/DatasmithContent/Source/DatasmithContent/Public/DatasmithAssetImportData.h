@@ -8,6 +8,44 @@
 
 #include "DatasmithAssetImportData.generated.h"
 
+/**
+ * Structure that fill the same role as FAssetImportInfo, but for SourceUri.
+ * Eventually, the SourceUri should be directly added to FAssetImportInfo and replace the "RelativeFilename".
+ */
+USTRUCT()
+struct DATASMITHCONTENT_API FDatasmithImportInfo
+{
+	GENERATED_BODY()
+
+#if WITH_EDITORONLY_DATA
+
+	FDatasmithImportInfo() {}
+
+
+	explicit FDatasmithImportInfo(const FString& InSourceUri, FString InSourceHashString = FString())
+		: SourceUri(InSourceUri)
+		, SourceHash(InSourceHashString)
+	{}
+
+	FDatasmithImportInfo(const FString& InSourceUri, FMD5Hash InSourceHash)
+		: SourceUri(InSourceUri)
+		, SourceHash(LexToString(InSourceHash))
+	{}
+
+	/** The Uri of to the source that this asset was imported from. */
+	UPROPERTY()
+	FString SourceUri;
+
+	/**
+	 * The MD5 hash of the source when it was imported. Should be updated alongside the SourceUri
+	 */
+	UPROPERTY()
+	FString SourceHash;
+
+	void GetAssetRegistryTags(TArray<UObject::FAssetRegistryTag>& OutTags) const;
+#endif // WITH_EDITORONLY_DATA
+};
+
 UCLASS()
 class DATASMITHCONTENT_API UDatasmithAssetImportData : public UAssetImportData
 {
@@ -21,8 +59,8 @@ public:
 	UPROPERTY(EditAnywhere, Instanced, Category = Asset, meta = (ShowOnlyInnerProperties))
 	TArray<TObjectPtr<class UDatasmithAdditionalData>> AdditionalData;
 
-	UPROPERTY(EditAnywhere, Category = "External Source URI")
-	FString SourceUri;
+	UPROPERTY(EditAnywhere, Category = "External Source")
+	FDatasmithImportInfo DatasmithImportInfo;
 #endif		// WITH_EDITORONLY_DATA
 };
 
@@ -95,8 +133,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Options", meta = (ShowOnlyInnerProperties))
 	FDatasmithImportBaseOptions BaseOptions;
 
-	UPROPERTY(EditAnywhere, Category = "External Source URI")
-	FString SourceUri;
+	UPROPERTY(EditAnywhere, Category = "External Source")
+	FDatasmithImportInfo DatasmithImportInfo;
 
 	//~ UObject interface
 #if WITH_EDITOR

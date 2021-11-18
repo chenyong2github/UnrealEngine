@@ -34,6 +34,6 @@ public:
 	virtual void OnCleared()
 	{
 		Modify();
-		MarkPendingKill();
+		MarkAsGarbage();
 	}
 };

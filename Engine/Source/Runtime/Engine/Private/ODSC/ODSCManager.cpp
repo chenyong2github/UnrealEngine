@@ -44,7 +44,7 @@ bool FODSCManager::Tick(float DeltaSeconds)
 		for (FODSCMessageHandler* CompletedRequest : CompletedThreadedRequests)
 		{
 			check(CompletedRequest);
-			ProcessCookOnTheFlyShaders(CompletedRequest->ReloadGlobalShaders(), CompletedRequest->GetMeshMaterialMaps(), CompletedRequest->GetMaterialsToLoad());
+			ProcessCookOnTheFlyShaders(CompletedRequest->ReloadGlobalShaders(), CompletedRequest->GetMeshMaterialMaps(), CompletedRequest->GetMaterialsToLoad(), CompletedRequest->GetGlobalShaderMap());
 			delete CompletedRequest;
 		}
 	}
@@ -53,10 +53,10 @@ bool FODSCManager::Tick(float DeltaSeconds)
 	return true;
 }
 
-void FODSCManager::AddThreadedRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, bool bCompileChangedShaders)
+void FODSCManager::AddThreadedRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType)
 {
 	check(Thread);
-	Thread->AddRequest(MaterialsToCompile, ShaderPlatform, bCompileChangedShaders);
+	Thread->AddRequest(MaterialsToCompile, ShaderPlatform, RecompileCommandType);
 }
 
 void FODSCManager::AddThreadedShaderPipelineRequest(EShaderPlatform ShaderPlatform, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames)

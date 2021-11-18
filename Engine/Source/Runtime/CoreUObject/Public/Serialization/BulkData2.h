@@ -12,10 +12,10 @@
 #include "Misc/PackageSegment.h"
 
 struct FOwnedBulkDataPtr;
-class IMappedFileHandle;
-class IMappedFileRegion;
 class FBulkDataBase;
 class FLinkerLoad;
+class IMappedFileHandle;
+class IMappedFileRegion;
 
 /** A loose hash value that can be created from either a filenames or a FIoChunkId */
 using FIoFilenameHash = uint32;
@@ -46,6 +46,14 @@ public:
 
 	virtual void Cancel() = 0;
 };
+
+namespace UE::BulkData::Private
+{
+
+IAsyncReadFileHandle* CreateAsyncReadHandle(const FIoChunkId& InChunkID);
+
+} // namespace UE::BulkData::Private
+
 
 struct FBulkDataOrId
 {

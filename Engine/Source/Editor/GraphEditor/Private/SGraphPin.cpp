@@ -831,7 +831,7 @@ void SGraphPin::Tick( const FGeometry& AllottedGeometry, const double InCurrentT
 		ValueInspectorTooltip = FPinValueInspectorTooltip::SummonTooltip(GetPinObj());
 		TSharedPtr<FPinValueInspectorTooltip> ValueTooltip = ValueInspectorTooltip.Pin();
 
-		if (ensure(ValueTooltip.IsValid()))
+		if (ValueTooltip.IsValid())
 		{
 			FVector2D TooltipLocation;
 			GetInteractiveTooltipLocation(TooltipLocation);

@@ -392,10 +392,16 @@ namespace GeometryCollectionTest
 		FVec3 ZeroVec(0);
 		CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density, ZeroVec, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
 
+		FVector RotationEulerClamped = MassProperties.RotationOfMass.Euler();
+		if (RotationEulerClamped[0] < 0.)
+		{
+			RotationEulerClamped[0] += 180.f;
+		}
+		
 		// rotational alignment.
-		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[0], -45., KINDA_SMALL_NUMBER);
-		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[1], 0., KINDA_SMALL_NUMBER);
-		EXPECT_NEAR(MassProperties.RotationOfMass.Euler()[2], 0., KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(RotationEulerClamped[0], 135., KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(RotationEulerClamped[1], 0., KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(RotationEulerClamped[2], 0., KINDA_SMALL_NUMBER);
 		// X dominate inertia tensor
 		EXPECT_GT(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[2][2]);
 		EXPECT_GT(MassProperties.InertiaTensor.M[0][0], MassProperties.InertiaTensor.M[1][1]);

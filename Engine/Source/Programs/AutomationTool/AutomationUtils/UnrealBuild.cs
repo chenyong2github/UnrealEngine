@@ -74,7 +74,7 @@ namespace AutomationTool
 			{
 				if (!CommandUtils.FileExists_NoExceptions(Item) && !CommandUtils.DirectoryExists_NoExceptions(Item))
 				{
-					throw new UnrealBuildException("{0} was in manifest but was not produced.", Item);
+					throw new UnrealBuildException($"AddBuildProductsFromManifest: {Item} was in manifest \"{ManifestFile}\" but could not be found.");
 				}
 				AddBuildProduct(Item);
 			}
@@ -91,6 +91,7 @@ namespace AutomationTool
 
 		public class XGEItem
 		{
+			public FileReference ManifestFile;
 			public BuildManifest Manifest;
 			public UnrealTargetPlatform Platform;
 			public UnrealTargetConfiguration Config;
@@ -126,6 +127,7 @@ namespace AutomationTool
 			Result.Config = Config;
 			Result.TargetName = TargetName;
 			Result.UProjectPath = UprojectPath;
+			Result.ManifestFile = ManifestFile;
 			Result.Manifest = CommandUtils.ReadManifest(ManifestFile);
 			Result.OutputCaption = String.Format("{0}-{1}-{2}", TargetName, Platform.ToString(), Config.ToString());
 			CommandUtils.DeleteFile(ManifestFile);
@@ -168,7 +170,7 @@ namespace AutomationTool
 			{
 				if (!CommandUtils.FileExists_NoExceptions(ManifestItem))
 				{
-					throw new UnrealBuildException("{0} was in manifest but was not produced.", ManifestItem);
+					throw new UnrealBuildException($"XGEFinishBuildWithUBT: \"{ManifestItem}\" was in manifest \"{Item.ManifestFile}\" but could not be found");
 				}
 				AddBuildProduct(ManifestItem);
 			}

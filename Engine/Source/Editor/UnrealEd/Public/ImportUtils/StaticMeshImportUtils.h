@@ -11,6 +11,7 @@
 #include "Engine/MeshMerging.h"
 #include "Engine/StaticMesh.h"
 #include "PerPlatformProperties.h"
+#include "PerQualityLevelProperties.h"
 
 struct FMeshDescription;
 class UStaticMeshSocket;
@@ -63,6 +64,7 @@ struct FExistingStaticMeshData
 	bool						bHasNavigationData;
 	FName						LODGroup;
 	FPerPlatformInt				MinLOD;
+	FPerQualityLevelInt			QualityLevelMinLOD;
 
 	int32						ImportVersion;
 

@@ -38,7 +38,7 @@ public:
 
 		if (InQuadAdjust.IsBound())
 		{
-			SetShaderValue(RHICmdList, VS, InQuadAdjust, QuadSize);
+			SetShaderValue(RHICmdList, VS, InQuadAdjust, FVector2f(QuadSize));
 		}
 
 		if (InUVAdjust.IsBound())

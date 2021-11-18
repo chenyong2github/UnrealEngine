@@ -1358,7 +1358,7 @@ namespace Metasound
 				}
 			}
 
-			Value = FMath::GetMappedRangeValueClamped({ -1.0f, 1.0f }, { *MinValue, *MaxValue }, Value);
+			Value = FMath::GetMappedRangeValueClamped(FVector2f{ -1.0f, 1.0f }, FVector2f{ *MinValue, *MaxValue }, Value);
 
 			*Output = Value;
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SViewportToolBarComboMenu.h"
+#include "SEditorViewportToolBarMenuButton.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
@@ -38,35 +39,27 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 
 
 	{
-		TSharedRef<SWidget> ButtonContents =
-			SNew(SButton)
-			.ButtonStyle(&ButtonStyle)
-			.ToolTipText(InArgs._MenuButtonToolTip)
-			.OnClicked(this, &SViewportToolBarComboMenu::OnMenuClicked)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
-			[
-				SNew(STextBlock)
-				.TextStyle(&LabelStyle)
-				.Text(InArgs._Label)
-			];
-		
-		if (InArgs._MinDesiredButtonWidth > 0.0f)
-		{
-			ButtonContents =
-				SNew(SBox)
-				.MinDesiredWidth(InArgs._MinDesiredButtonWidth)
-				[
-					ButtonContents
-				];
-		}
-
 		MenuAnchor = SNew(SMenuAnchor)
 		.Placement( MenuPlacement_BelowAnchor )
-		[
-			ButtonContents
-		]
 		.OnGetMenuContent( InArgs._OnGetMenuContent );
+
+		MenuAnchor->SetContent(
+			SNew(SBox)
+			.MinDesiredWidth(InArgs._MinDesiredButtonWidth > 0.0f ? InArgs._MinDesiredButtonWidth : FOptionalSize())
+			[
+				SNew(SEditorViewportToolBarMenuButton, MenuAnchor.ToSharedRef())
+				.ButtonStyle(&ButtonStyle)
+				.ToolTipText(InArgs._MenuButtonToolTip)
+				.OnClicked(this, &SViewportToolBarComboMenu::OnMenuClicked)
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(STextBlock)
+					.TextStyle(&LabelStyle)
+					.Text(InArgs._Label)
+				]
+			]
+		);
 	}
 
 

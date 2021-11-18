@@ -500,7 +500,7 @@ void ANavigationData::CleanUpAndMarkPendingKill()
 
 	// do NOT destroy here! it can be called from PostLoad and will crash in DestroyActor()
 	GetWorld()->RemoveNetworkActor(this);
-	MarkPendingKill();
+	MarkAsGarbage();
 	MarkComponentsAsPendingKill();
 }
 
@@ -636,9 +636,9 @@ TArray<FBox> ANavigationData::GetNavigableBoundsInLevel(ULevel* InLevel) const
 	return Result;
 }
 
-void ANavigationData::DrawDebugPath(FNavigationPath* Path, FColor PathColor, UCanvas* Canvas, bool bPersistent, const uint32 NextPathPointIndex) const
+void ANavigationData::DrawDebugPath(FNavigationPath* Path, const FColor PathColor, UCanvas* Canvas, const bool bPersistent, const float LifeTime, const uint32 NextPathPointIndex) const
 {
-	Path->DebugDraw(this, PathColor, Canvas, bPersistent, NextPathPointIndex);
+	Path->DebugDraw(this, PathColor, Canvas, bPersistent, LifeTime, NextPathPointIndex);
 }
 
 float ANavigationData::GetWorldTimeStamp() const
@@ -839,4 +839,12 @@ uint32 ANavigationData::LogMemUsed() const
 	}
 
 	return MemUsed;
+}
+
+//------------------------------------------------------------------------//
+// deprecated functions
+//------------------------------------------------------------------------//
+void ANavigationData::DrawDebugPath(FNavigationPath* Path, FColor PathColor, UCanvas* Canvas, bool bPersistent, const uint32 NextPathPointIndex) const
+{
+	DrawDebugPath(Path, PathColor, Canvas, bPersistent, -1.f, NextPathPointIndex);
 }

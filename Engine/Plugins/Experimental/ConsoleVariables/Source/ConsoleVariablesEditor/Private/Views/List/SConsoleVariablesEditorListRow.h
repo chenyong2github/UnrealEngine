@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ConsoleVariablesEditorListRow.h"
 #include "SConsoleVariablesEditorList.h"
 
 #include "CoreMinimal.h"
@@ -14,7 +15,7 @@
 class SConsoleVariablesEditorListValueInput;
 class SConsoleVariablesEditorListRowHoverWidgets;
 
-class SConsoleVariablesEditorListRow : public SCompoundWidget
+class SConsoleVariablesEditorListRow : public SMultiColumnTableRow<FConsoleVariablesEditorListRowPtr>
 {
 public:
 	
@@ -23,27 +24,29 @@ public:
 
 	SLATE_END_ARGS()
 	
-	void Construct(const FArguments& InArgs, const TWeakPtr<FConsoleVariablesEditorListRow> InRow, const FConsoleVariablesEditorListSplitterManagerPtr& InSplitterManagerPtr);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTable, const TWeakPtr<FConsoleVariablesEditorListRow> InRow);
 
-	void FlashRow() const;
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override;
 	
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
 
 	virtual ~SConsoleVariablesEditorListRow() override;
+	
+	void FlashRow();
+	
+	EVisibility GetFlashImageVisibility() const;
+	FSlateColor GetFlashImageColorAndOpacity() const;
 
-	float GetNameColumnSize() const;
+	static const FSlateBrush* GetBorderImage(const FConsoleVariablesEditorListRow::EConsoleVariablesEditorListRowType InRowType);
 
-	float CalculateAndReturnNestedColumnSize();
+	TSharedRef<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem);
 
-	float GetSourceColumnSize() const;
+	ECheckBoxState GetCheckboxState() const;
+	void OnCheckboxStateChange(const ECheckBoxState InNewState) const;
 
-	float GetValueColumnSize() const;
-
-	void SetNestedColumnSize(const float InWidth) const;
-
-	void SetSourceColumnSize(const float InWidth) const;
+	TSharedRef<SWidget> GenerateValueCellWidget(const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem);
 
 private:
 	
@@ -52,7 +55,7 @@ private:
 	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item;
 
-	TSharedPtr<SBorder> BorderPtr;
+	TArray<TSharedPtr<SImage>> FlashImages;
 
 	TSharedPtr<SConsoleVariablesEditorListValueInput> ValueChildInputWidget;
 
@@ -65,6 +68,11 @@ private:
 	FConsoleVariablesEditorListSplitterManagerPtr SplitterManagerPtr;
 
 	TSharedPtr<SConsoleVariablesEditorListRowHoverWidgets> HoverableWidgetsPtr;
+
+	FCurveSequence FlashAnimation;
+
+	const float FlashAnimationDuration = 0.75f;
+	const FLinearColor FlashColor = FLinearColor::White;
 };
 
 class SConsoleVariablesEditorListRowHoverWidgets : public SCompoundWidget

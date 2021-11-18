@@ -7,7 +7,7 @@
 #include "Containers/ArrayView.h"
 #include "Types/SlateEnums.h"
 #include "Animation/AnimBlueprint.h"
-#include "PersonaSelectionComponent.h"
+#include "PersonaSelectionProxies.h"
 
 class UAnimationAsset;
 class UDebugSkelMeshComponent;
@@ -300,15 +300,6 @@ public:
 	virtual void FlagTickable() = 0;
 	/** Handle syncing selection with the skeleton tree */
 	virtual void HandleSkeletonTreeSelectionChanged(const TArrayView<TSharedPtr<ISkeletonTreeItem>>& InSelectedItems, ESelectInfo::Type InSelectInfo) = 0;
-
-	/** Get whether bones can be selected by their physics bodies */
-	virtual bool UsePhysicsBodiesForBoneSelection() const = 0;
-
-	/** Set whether bones can be selected by their physics bodies */
-	virtual void SetUsePhysicsBodiesForBoneSelection(bool bUsePhysicsBodies) = 0;
-
-	/** Returns the persona selection component (or nullptr) */
-	virtual UPersonaSelectionComponent* GetSelectionComponent() = 0;
 
 	/** Replaces the current editable skeleton. This is not a safe operation unless you're working
 	 * detached from other Persona components (eg. skeleton list).

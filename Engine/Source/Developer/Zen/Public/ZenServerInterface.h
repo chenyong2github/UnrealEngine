@@ -3,6 +3,13 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "Dom/JsonObject.h"
+#include "Misc/TVariant.h"
+#include "Policies/PrettyJsonPrintPolicy.h"
+#include "Serialization/JsonWriter.h"
+#include "Templates/UniquePtr.h"
 
 #ifndef UE_WITH_ZEN
 #	if PLATFORM_WINDOWS
@@ -12,20 +19,53 @@
 #	endif
 #endif
 
-#if UE_WITH_ZEN
-
-#include "Containers/StringView.h"
-#include "Containers/UnrealString.h"
-#include "Templates/UniquePtr.h"
-#include "ZenStatistics.h"
-
 #define UE_API ZEN_API
 
-namespace UE::Zen {
+namespace UE::Zen
+{
+
+struct FServiceConnectSettings
+{
+	FString HostName;
+	uint16 Port = 1337;
+};
+
+struct FServiceAutoLaunchSettings
+{
+	FString DataPath;
+	FString ExtraArgs;
+	uint16 DesiredPort = 1337;
+	bool bShowConsole = false;
+	bool bLimitProcessLifetime = false;
+};
+
+struct FServiceSettings
+{
+	TVariant<FServiceAutoLaunchSettings, FServiceConnectSettings> SettingsVariant;
+
+	inline bool IsAutoLaunch() const { return SettingsVariant.IsType<FServiceAutoLaunchSettings>(); }
+	inline bool IsConnectExisting() const { return SettingsVariant.IsType<FServiceConnectSettings>(); }
+
+	UE_API void ReadFromConfig();
+	UE_API void ReadFromJson(FJsonObject& JsonObject);
+	UE_API void ReadFromURL(FStringView InstanceURL);
+
+	UE_API void WriteToJson(TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>& Writer) const;
+
+private:
+	bool TryApplyAutoLaunchOverride();
+};
+
+};
+
+#if UE_WITH_ZEN
+
+#include "ZenStatistics.h"
+
+namespace UE::Zen
+{
 
 class FZenServiceInstance;
-
-enum EServiceMode {Default, DefaultNoLaunch, ForcedLaunch};
 
 /**
  * Type used to declare usage of a Zen server instance whether the shared default instance or a unique non-default instance.
@@ -38,9 +78,7 @@ class FScopeZenService
 public:
 	UE_API FScopeZenService();
 	UE_API FScopeZenService(FStringView InstanceURL);
-	UE_API FScopeZenService(FStringView InstanceHostName, uint16 InstancePort);
-	UE_API FScopeZenService(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort);
-	UE_API FScopeZenService(EServiceMode Mode);
+	UE_API FScopeZenService(FServiceSettings&& InSettings);
 	UE_API ~FScopeZenService();
 
 
@@ -67,6 +105,7 @@ private:
  * instance as needed.
  */
 UE_API FZenServiceInstance& GetDefaultServiceInstance();
+UE_API bool IsDefaultServicePresent();
 
 /**
  * A representation of a Zen service instance.  Generally not accessed directly, but via FScopeZenService.
@@ -76,52 +115,28 @@ class FZenServiceInstance
 public:
 
 	UE_API FZenServiceInstance();
-	UE_API FZenServiceInstance(EServiceMode Mode, FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort);
-	UE_API FZenServiceInstance(EServiceMode Mode, FStringView InstanceURL);
+	UE_API FZenServiceInstance(FStringView InstanceURL);
+	UE_API FZenServiceInstance(FServiceSettings&& InSettings);
 	UE_API ~FZenServiceInstance();
 
 	inline const TCHAR* GetURL() const { return *URL; }
 	inline const TCHAR* GetHostName() const { return *HostName; }
 	inline uint16 GetPort() const { return Port; }
-	inline bool IsAutoLaunch() const { return Settings.bAutoLaunch; }
-	UE_API FString GetAutoLaunchExecutablePath() const;
-	UE_API FString GetAutoLaunchArguments() const;
+	inline const FServiceSettings& GetServiceSettings() const { return Settings; }
 	UE_API bool GetStats(FZenStats& stats) const;
 	UE_API bool IsServiceRunning();
 	UE_API bool IsServiceReady();
 
+	static uint16 GetAutoLaunchedPort() { return AutoLaunchedPort; }
+
 private:
-	struct FZenConnectSettings
-	{
-		FString HostName;
-		uint16 Port = 1337;
-	};
 
-	struct FSettings
-	{
-		bool bAutoLaunch = true;
-
-		struct FAutoLaunchSettings
-		{
-			FString WorkspaceDataPath;
-			FString DataPath;
-			FString LogPath;
-			FString ExtraArgs;
-			uint16 DesiredPort = 1337;
-			bool bHidden = true;
-		} AutoLaunchSettings;
-
-		FZenConnectSettings ConnectExistingSettings;
-	};
-
-	void PopulateSettings(FStringView InstanceURL);
+	void Initialize();
 	void PromptUserToStopRunningServerInstance(const FString& ServerFilePath);
 	FString ConditionalUpdateLocalInstall();
-	FString GetAutoLaunchExecutablePath(FStringView CleanExecutableFileName) const;
-	bool AutoLaunch();
-	bool AutoLaunch(FStringView AutoLaunchExecutablePath, FStringView AutoLaunchArguments, uint16 DesiredPort);
+	static bool AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FString&& ExecutablePath, FString& OutHostName, uint16& OutPort);
 
-	FSettings Settings;
+	FServiceSettings Settings;
 	FString URL;
 	FString HostName;
 	uint16 Port;
@@ -131,14 +146,6 @@ private:
 
 } // namespace UE::Zen
 
-#undef UE_API
-
-#else
-
-namespace UE::Zen {
-
-enum EServiceMode {Default, DefaultNoLaunch};
-
-} // namespace UE::Zen
-
 #endif // UE_WITH_ZEN
+
+#undef UE_API

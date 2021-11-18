@@ -71,9 +71,9 @@ public:
 		}
 
 		double Scale = double(1) / TriNum;
-		for (int32 i = 0; i < 3; i++)
+		for (int32 AxisIndex = 0; AxisIndex < 3; AxisIndex++)
 		{
-			Nxyz[i] *= Scale;
+			Nxyz[AxisIndex] *= Scale;
 		}
 
 		OutSurfaceViewNormal = FVector(Nxyz[0], Nxyz[1], Nxyz[2]).GetSafeNormal();

@@ -9,8 +9,6 @@ using System.Xml.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -81,7 +79,7 @@ namespace UnrealBuildTool
 			}
 
 			WindowsCompiler Compiler = WindowsPlatform.GetDefaultCompiler(TargetFilePath);
-			DirectoryReference PlatformWinMDLocation = HoloLens.GetCppCXMetadataLocation(Compiler, "Latest");
+			DirectoryReference? PlatformWinMDLocation = HoloLens.GetCppCXMetadataLocation(Compiler, "Latest");
 			if (PlatformWinMDLocation == null || !FileReference.Exists(FileReference.Combine(PlatformWinMDLocation, "platform.winmd")))
 			{
 				throw new BuildException("Unable to find platform.winmd for {0} toolchain; '{1}' is an invalid version", WindowsPlatform.GetCompilerName(Compiler), "Latest");
@@ -107,8 +105,8 @@ namespace UnrealBuildTool
 			//string SDKFolder = "";
 			string SDKVersion = "";
 
-			DirectoryReference folder;
-			VersionNumber version;
+			DirectoryReference? folder;
+			VersionNumber? version;
 			if(WindowsPlatform.TryGetWindowsSdkDir("Latest", out version, out folder))
 			{
 				//SDKFolder = folder.FullName;

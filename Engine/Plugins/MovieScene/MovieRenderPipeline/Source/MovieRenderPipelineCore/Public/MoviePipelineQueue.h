@@ -326,7 +326,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline", meta = (AllowedClasses = "World"))
 	FSoftObjectPath Map;
 
-	/** (Optional) Name of the person who submitted the job. Can be shown in burn in as a first point of contact about the content. */
+	/** (Optional) If left blank, will default to system username. Can be shown in burn in as a first point of contact about the content. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	FString Author;
 

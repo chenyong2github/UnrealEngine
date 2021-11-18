@@ -108,7 +108,7 @@ public:
 		return DataStoreCollection.GetDataStore<TAsyncModelDataStore_Internal<AsyncModelDef>, AsyncModelDef>();
 	}
 
-	void OnContactModification_Internal(const TArrayView<Chaos::FPBDCollisionConstraintHandleModification>& Modifications) final override { }
+	void OnContactModification_Internal(Chaos::FCollisionContactModifier& Modifications) final override { }
 
 	int32 LatestFrame = -1; // Highest frame we've simmed. Used to detect resim
 	UWorld* World = nullptr;

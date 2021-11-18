@@ -31,7 +31,7 @@ void FDisplayClusterClusterEventHandler::HandleClusterEvent(const FDisplayCluste
 			if (InEvent.Name.Equals(DisplayClusterStrings::cluster_events::EvtQuitName, ESearchCase::IgnoreCase))
 			{
 				// QUIT event
-				FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("QUIT requested on a system cluster event"));
+				FDisplayClusterAppExit::ExitApplication(FString("QUIT requested on a system cluster event"));
 			}
 			else if (InEvent.Name.Equals(DisplayClusterStrings::cluster_events::EvtConsoleExecName, ESearchCase::IgnoreCase))
 			{

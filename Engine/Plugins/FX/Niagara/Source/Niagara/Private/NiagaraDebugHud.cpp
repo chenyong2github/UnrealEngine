@@ -730,7 +730,7 @@ void FNiagaraDebugHud::GatherSystemInfo()
 	for (TObjectIterator<UNiagaraComponent> It; It; ++It)
 	{
 		UNiagaraComponent* NiagaraComponent = *It;
-		if (NiagaraComponent->IsPendingKillOrUnreachable() || NiagaraComponent->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
+		if (!IsValidChecked(NiagaraComponent) || NiagaraComponent->IsUnreachable() || NiagaraComponent->HasAnyFlags(EObjectFlags::RF_ClassDefaultObject))
 		{
 			continue;
 		}

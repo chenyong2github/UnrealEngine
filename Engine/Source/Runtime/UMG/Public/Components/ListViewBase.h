@@ -220,6 +220,7 @@ protected:
 		bool bReturnFocusToSelection = false;
 		EOrientation Orientation = Orient_Vertical;
 		const FTableViewStyle* ListViewStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("ListView");
+		const FScrollBarStyle* ScrollBarStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar");
 	};
 
 	template <template<typename> class ListViewT = SListView, typename UListViewBaseT>
@@ -238,6 +239,7 @@ protected:
 			.ReturnFocusToSelection(Args.bReturnFocusToSelection)
 			.Orientation(Args.Orientation)
 			.ListViewStyle(Args.ListViewStyle)
+			.ScrollBarStyle(Args.ScrollBarStyle)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)
@@ -254,6 +256,7 @@ protected:
 		TAttribute<float> EntryHeight;
 		TAttribute<float> EntryWidth;
 		bool bWrapDirectionalNavigation = false;
+		const FScrollBarStyle* ScrollBarStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar");
 	};
 
 	template <template<typename> class TileViewT = STileView, typename UListViewBaseT>
@@ -274,6 +277,7 @@ protected:
 			.ItemWidth(Args.EntryWidth)
 			.ItemAlignment(Args.TileAlignment)
 			.Orientation(Args.Orientation)
+			.ScrollBarStyle(Args.ScrollBarStyle)
 			.OnGenerateTile_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnTileReleased_UObject(Implementer, &UListViewBaseT::HandleRowReleased)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
@@ -291,6 +295,7 @@ protected:
 		EConsumeMouseWheel ConsumeMouseWheel = EConsumeMouseWheel::WhenScrollingPossible;
 		bool bReturnFocusToSelection = false;
 		const FTableViewStyle* TreeViewStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FTableViewStyle>("TreeView");
+		const FScrollBarStyle* ScrollBarStyle = &FUMGCoreStyle::Get().GetWidgetStyle<FScrollBarStyle>("ScrollBar");
 	};
 
 	template <template<typename> class TreeViewT = STreeView, typename UListViewBaseT>
@@ -307,6 +312,7 @@ protected:
 			.SelectionMode(Args.SelectionMode)
 			.ReturnFocusToSelection(Args.bReturnFocusToSelection)
 			.TreeViewStyle(Args.TreeViewStyle)
+			.ScrollBarStyle(Args.ScrollBarStyle)
 			.OnGenerateRow_UObject(Implementer, &UListViewBaseT::HandleGenerateRow)
 			.OnSelectionChanged_UObject(Implementer, &UListViewBaseT::HandleSelectionChanged)
 			.OnIsSelectableOrNavigable_UObject(Implementer, &UListViewBaseT::HandleIsSelectableOrNavigable)

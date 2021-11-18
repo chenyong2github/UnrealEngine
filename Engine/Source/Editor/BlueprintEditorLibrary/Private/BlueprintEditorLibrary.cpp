@@ -592,4 +592,13 @@ int32 UBlueprintEditorLibrary::RemoveUnusedVariables(UBlueprint* Blueprint)
 	return NumRemovedVars;
 }
 
+UClass* UBlueprintEditorLibrary::GeneratedClass(UBlueprint* BlueprintObj)
+{
+	if (BlueprintObj)
+	{
+		return BlueprintObj->GeneratedClass->GetAuthoritativeClass();
+	}
+	return nullptr;
+}
+
 #undef LOCTEXT_NAMESPACE	// "BlueprintEditorLibrary"

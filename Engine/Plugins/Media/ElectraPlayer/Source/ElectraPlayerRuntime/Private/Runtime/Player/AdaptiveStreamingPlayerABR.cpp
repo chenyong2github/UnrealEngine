@@ -57,7 +57,9 @@ namespace Electra
 			if (SimpleMovingAverage.Capacity())
 			{
 				if (SimpleMovingAverage.Num() >= MaxSamples)
+				{
 					SimpleMovingAverage.Pop();
+				}
 				check(!SimpleMovingAverage.IsFull());
 				SimpleMovingAverage.Push(LastSample);
 			}
@@ -126,7 +128,7 @@ namespace Electra
 		virtual void SetCanSwitchToAlternateStreams(bool bCanSwitch) override;
 		virtual void SetCurrentPlaybackPeriod(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod) override;
 		virtual void SetBandwidth(int64 bitsPerSecond) override;
-		virtual void SetForcedNextBandwidth(int64 bitsPerSecond) override;
+		virtual void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) override;
 		virtual void MarkStreamAsUnavailable(const FBlacklistedStream& BlacklistedStream) override;
 		virtual void MarkStreamAsAvailable(const FBlacklistedStream& NoLongerBlacklistedStream) override;
 		virtual int64 GetLastBandwidth() override;
@@ -159,8 +161,8 @@ namespace Electra
 		virtual void ReportPrerollEnd() override {}
 		virtual void ReportPlaybackStart() override {}
 		virtual void ReportPlaybackPaused() override {}
-		virtual void ReportPlaybackResumed() override {}
-		virtual void ReportPlaybackEnded() override {}
+		virtual void ReportPlaybackResumed() override;
+		virtual void ReportPlaybackEnded() override;
 		virtual void ReportJumpInPlayPosition(const FTimeValue& ToNewTime, const FTimeValue& FromTime, Metrics::ETimeJumpReason TimejumpReason) override {}
 		virtual void ReportPlaybackStopped() override {}
 		virtual void ReportError(const FString& ErrorReason) override {}
@@ -231,6 +233,8 @@ namespace Electra
 
 		int32												BandwidthCeiling;
 		int32												ForcedInitialBandwidth;
+		double												ForcedInitialBandwidthUntilSecondsBuffered;
+		bool												bForcePlaystartBitrate;
 		FStreamCodecInformation::FResolution				MaxStreamResolution;
 
 		TSimpleMovingAverage<double>						AverageBandwidth;
@@ -310,6 +314,8 @@ namespace Electra
 		, bPlayerIsRebuffering(false)
 		, BandwidthCeiling(0x7fffffff)
 		, ForcedInitialBandwidth(0)
+		, ForcedInitialBandwidthUntilSecondsBuffered(0.0)
+		, bForcePlaystartBitrate(false)
 	{
 		AverageBandwidth.SetMaxSMASampleCount(Config.MaxBandwidthHistorySize);
 		AverageLatency.SetMaxSMASampleCount(Config.MaxBandwidthHistorySize);
@@ -472,19 +478,22 @@ namespace Electra
 		AverageBandwidth.InitializeTo((double)bitsPerSecond);
 		AverageLatency.InitializeTo((double)0.1);
 		AverageThroughput.InitializeTo(bitsPerSecond);
+		bForcePlaystartBitrate = true;
 	}
 
 
 	//-----------------------------------------------------------------------------
 	/**
-	 * Sets a forced bitrate for the next segment fetch only.
+	 * Sets a forced bitrate for the next segment fetches until the given duration of playable content has been received.
 	 *
 	 * @param bitsPerSecond
+	 * @param minBufferTimeBeforePlayback
 	 */
-	void FAdaptiveStreamSelector::SetForcedNextBandwidth(int64 bitsPerSecond)
+	void FAdaptiveStreamSelector::SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback)
 	{
 		FMediaCriticalSection::ScopedLock lock(AccessMutex);
 		ForcedInitialBandwidth = (int32)bitsPerSecond;
+		ForcedInitialBandwidthUntilSecondsBuffered = minBufferTimeBeforePlayback;
 	}
 
 
@@ -701,22 +710,107 @@ namespace Electra
 		return Decision;
 	}
 
+
+	void FAdaptiveStreamSelector::ReportPlaybackResumed()
+	{
+		// When playback resumes there must be enough data buffered to do that, so we are no longer
+		// constrained to a forced buffered bandwidth
+		ForcedInitialBandwidth = 0;
+		ForcedInitialBandwidthUntilSecondsBuffered = 0.0;
+		bForcePlaystartBitrate = false;
+	}
+	void FAdaptiveStreamSelector::ReportPlaybackEnded()
+	{
+		// When playback ends we are no longer constrained to a forced buffered bandwidth
+		ForcedInitialBandwidth = 0;
+		ForcedInitialBandwidthUntilSecondsBuffered = 0.0;
+		bForcePlaystartBitrate = false;
+	}
+
 	void FAdaptiveStreamSelector::ReportDownloadEnd(const Metrics::FSegmentDownloadStats& SegmentDownloadStats)
 	{
-		if (SegmentDownloadStats.SegmentType == Metrics::ESegmentType::Media &&
-			SegmentDownloadStats.StreamType == EStreamType::Video &&
+		if (SegmentDownloadStats.SegmentType == Metrics::ESegmentType::Media && SegmentDownloadStats.StreamType == EStreamType::Video &&
 			(SegmentDownloadStats.bWasSuccessful || SegmentDownloadStats.NumBytesDownloaded))	// any number of bytes received counts!
 		{
-			// At the end of the segment download, successful or otherwise, we clear the forced bitrate and let nature take its course.
-			ForcedInitialBandwidth = 0;
-			// Add bandwidth sample if it can be calculated.
-			if (SegmentDownloadStats.NumBytesDownloaded && SegmentDownloadStats.TimeToDownload > 0.0)
+			if (!SegmentDownloadStats.bIsCachedResponse)
 			{
+				// Add bandwidth sample if it can be calculated.
+				if (SegmentDownloadStats.NumBytesDownloaded && SegmentDownloadStats.TimeToDownload > 0.0)
+				{
+					FMediaCriticalSection::ScopedLock lock(AccessMutex);
+					double v = SegmentDownloadStats.NumBytesDownloaded * 8 / SegmentDownloadStats.TimeToDownload;
+					AverageBandwidth.AddSample(v);
+					AverageLatency.AddSample(SegmentDownloadStats.TimeToFirstByte);
+					AverageThroughput.AddSample(SegmentDownloadStats.ThroughputBps > 0 ? SegmentDownloadStats.ThroughputBps : (int64)v);
+				}
+			}
+			else
+			{
+				// When we hit the cache we cannot calculate a meaningful bandwidth. We need to update the averages nonetheless
+				// to make a quality upswitch possible on one of the next uncached segments.
 				FMediaCriticalSection::ScopedLock lock(AccessMutex);
-				double v = SegmentDownloadStats.NumBytesDownloaded * 8 / SegmentDownloadStats.TimeToDownload;
-				AverageBandwidth.AddSample(v);
-				AverageLatency.AddSample(SegmentDownloadStats.TimeToFirstByte);
-				AverageThroughput.AddSample(SegmentDownloadStats.ThroughputBps > 0 ? SegmentDownloadStats.ThroughputBps : (int64)v);
+				int32 ThisBitrate = SegmentDownloadStats.Bitrate;
+				// Get the index of this video stream. This requires the stream information to be sorted by bitrate, which it is.
+				int32 nQualityIndex = 0;
+				for(int32 i=0; i<StreamInformationVideo.Num(); ++i)
+				{
+					if (ThisBitrate >= StreamInformationVideo[i]->Bitrate)
+					{
+						nQualityIndex = i;
+					}
+				}
+				int64 LastAddedBandwidth = (int64)AverageBandwidth.GetLastSample();
+				int32 NextHighestQualityIndex = nQualityIndex + 1 < StreamInformationVideo.Num() ? nQualityIndex + 1 : nQualityIndex;
+				int32 NextHighestBitrate = StreamInformationVideo[NextHighestQualityIndex]->Bitrate;
+				// Last seen bandwidth already higher than what we might want to switch up to next?
+				if (LastAddedBandwidth > NextHighestBitrate)
+				{
+					// We want to bring the average down a bit in preparation for the next uncached segment in case the network
+					// has degraded. This way we are not overshooting the target.
+					ThisBitrate = (LastAddedBandwidth + NextHighestBitrate) / 2;
+					AverageBandwidth.AddSample(ThisBitrate);
+				}
+				else if (LastAddedBandwidth > ThisBitrate)
+				{
+					// The last bandwidth was somewhere between the bitrate of the cached segment and the next quality.
+					// We would love to switch up with the next segment. This might be possible because we got this segment's data
+					// at lightning speed and have its duration worth of time to spend on attempting the next segment download.
+					// If that doesn't finish in time we can downswitch without hurting things too much.
+					ThisBitrate = NextHighestBitrate;
+					AverageBandwidth.InitializeTo(ThisBitrate);
+				}
+				else
+				{
+					// Let's try to bring the average up a bit.
+					ThisBitrate = (int32)(ThisBitrate * 0.2 + NextHighestBitrate * 0.8);
+					AverageBandwidth.AddSample(ThisBitrate);
+				}
+				// We do NOT update the average latency.
+					//  AverageLatency.AddSample()
+				
+				// The throughput is calculated as real time.
+				AverageThroughput.AddSample((int64)(SegmentDownloadStats.NumBytesDownloaded * 8 / SegmentDownloadStats.Duration));
+			}
+		}
+
+		// Check if we can now go back to regular video bitrate selection.
+		if (SegmentDownloadStats.SegmentType == Metrics::ESegmentType::Media && SegmentDownloadStats.StreamType == EStreamType::Video)
+		{
+			// The forced playstart bitrate is intended for the very first video segment only.
+			// The general initial bitrate limit still applies to all segments until enough data is buffered.
+			bForcePlaystartBitrate = false;
+			if (ForcedInitialBandwidth)
+			{
+				FAccessUnitBufferInfo bufStats;
+				PlayerSessionServices->GetStreamBufferStats(bufStats, SegmentDownloadStats.StreamType);
+				bool bBufferedEnough = bufStats.PlayableDuration.GetAsSeconds() >= ForcedInitialBandwidthUntilSecondsBuffered;
+				bBufferedEnough |= bufStats.bEndOfData;
+				bBufferedEnough |= bufStats.bLastPushWasBlocked;
+				if (bBufferedEnough)
+				{
+					ForcedInitialBandwidth = 0;
+					ForcedInitialBandwidthUntilSecondsBuffered = 0.0;
+				}
 			}
 		}
 	}
@@ -1082,8 +1176,15 @@ namespace Electra
 					bool bCond3 = sim.SecondsGained + secondsInVideoBuffer > videoBufferHighWatermark;
 					bool bIsFeasible = (bCond1 || bCond2) && bCond3;
 
-					// If there is an enforced initial bitrate then any stream that is within that bitrate is feasible by default.
-					if (ForcedInitialBandwidth && StreamInformationVideo[nStr]->Bitrate <= ForcedInitialBandwidth)
+					// If there is an enforced initial bitrate then any stream that is outside that bitrate is not feasible.
+					if (ForcedInitialBandwidth && StreamInformationVideo[nStr]->Bitrate > ForcedInitialBandwidth)
+					{
+						bIsFeasible = false;
+					}
+
+					// If there is an initial playstart bitrate set then this stream must be used, regardless of actual
+					// available bandwidth which we do not know anyway.
+					if (bForcePlaystartBitrate && StreamInformationVideo[nStr]->Bitrate <= ForcedInitialBandwidth)
 					{
 						bIsFeasible = true;
 					}

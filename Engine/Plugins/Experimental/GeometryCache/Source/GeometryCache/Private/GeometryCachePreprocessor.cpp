@@ -155,6 +155,7 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 
 	// Don't optimize if we already have an optimization and we forced the system to reuse
 	// the initial optimization.
+	bool bSameTopology = false;
 	if (bForceSingleOptimization == false || NewVerticesReordered.Num() == 0)
 	{
 		// Find the overlapping corners of the first frame. This is not correct final matching list of vertices
@@ -277,13 +278,17 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 			}
 		}
 
+		TArray<int32> OldVerticesReordered(MoveTemp(NewVerticesReordered));
+
 		// We updated the index buffer inline above but still need to update NewVertices ordering
 		NewVerticesReordered.SetNumUninitialized(NewVertices.Num());
-		for (int32 VertId = 0; VertId < NewVertices.Num(); VertId++)
+		bSameTopology = OldVerticesReordered.Num() == NewVerticesReordered.Num();
+
+		for (const auto& Pair : VertexMapping)
 		{
-			int32 *RemappedVertId = VertexMapping.Find(VertId);
-			check(RemappedVertId != nullptr);
-			NewVerticesReordered[*RemappedVertId] = NewVertices[VertId];
+			int32 RemappedVertId = Pair.Value;
+			NewVerticesReordered[RemappedVertId] = NewVertices[Pair.Key];
+			bSameTopology = bSameTopology && (NewVerticesReordered[RemappedVertId] == OldVerticesReordered[RemappedVertId]);
 		}
 	}
 
@@ -384,7 +389,8 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 			NewMesh.Indices.Num()
 		));*/
 
-		DownStreamProcessor->AddMeshSample(NewMesh, BufferedFrames[Frame].Time, (Frame == 0 && !bForceSingleOptimization) ? false : true);
+		bool bIsSameTopologyAsPrevious = (Frame == 0 && !bForceSingleOptimization) ? bSameTopology : true;
+		DownStreamProcessor->AddMeshSample(NewMesh, BufferedFrames[Frame].Time, bIsSameTopologyAsPrevious);
 	}
 
 	NumFramesInBuffer = 0;

@@ -40,10 +40,10 @@ public:
 	FName Goal;
 
 	UPROPERTY(VisibleAnywhere, Category = "Set Transform Settings")
-	FName Bone;
+	FName RootBone;
 	
 	UPROPERTY(Transient)
-	UIKRig_SetTransformEffector* Effector;
+	TObjectPtr<UIKRig_SetTransformEffector> Effector;
 
 	/** UIKRigSolver interface */
 	virtual void Initialize(const FIKRigSkeleton& IKRigSkeleton) override;

@@ -4,9 +4,9 @@
 #include "Modules/ModuleManager.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "openexr/ImfStringAttribute.h"
-#include "openexr/ImfIntAttribute.h"
-#include "openexr/ImfFloatAttribute.h"
+#include "OpenEXR/ImfFloatAttribute.h"
+#include "OpenEXR/ImfIntAttribute.h"
+#include "OpenEXR/ImfStringAttribute.h"
 THIRD_PARTY_INCLUDES_END
 
 

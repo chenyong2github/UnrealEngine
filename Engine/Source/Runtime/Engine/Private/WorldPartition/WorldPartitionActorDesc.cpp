@@ -300,7 +300,7 @@ AActor* FWorldPartitionActorDesc::Load() const
 			{
 				if (SoftObjectPathFixupArchive)
 				{
-					Actor->Serialize(*SoftObjectPathFixupArchive);
+					SoftObjectPathFixupArchive->Fixup(Actor);
 				}
 			}
 			else

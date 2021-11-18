@@ -6,8 +6,10 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/BSpline.h"
 
+namespace CADKernel
+{
 
-void CADKernel::FBezierSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
+void FBezierSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	TArray<FPoint> VCurvePoles;
 	TArray<FPoint> VCurveUGradient;
@@ -161,12 +163,12 @@ void CADKernel::FBezierSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfac
 	}
 }
 
-void CADKernel::FBezierSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
+void FBezierSurface::Presample(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates)
 {
 	ensureCADKernel(false);
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FBezierSurface::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FBezierSurface::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TArray<FPoint> TransformedPoles;
 	TransformedPoles.Reserve(Poles.Num());
@@ -178,10 +180,12 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FBezierSurface::ApplyMatrix(const 
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FBezierSurface::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FBezierSurface::GetInfo(FInfoEntity& Info) const
 {
 	return FSurface::GetInfo(Info).Add(TEXT("degre U"), UDegre)
 		.Add(TEXT("degre V"), VDegre)
 		.Add(TEXT("poles"), Poles);
 }
 #endif
+
+}

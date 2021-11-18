@@ -220,44 +220,10 @@ public:
 	~FScopedDurationTimeCustomLogger()
 	{
 		Timer.Stop();
-		Func(*FString::Printf(TEXT("%s took %s"), *Title, *SecondsToString(Accumulator)));
+		Func(*FString::Printf(TEXT("%s took %s"), *Title, *FPlatformTime::PrettyTime(Accumulator)));
 	}
 
 private:
-	inline FString SecondsToString(double InSeconds)
-	{
-		if (InSeconds < 0.001)
-		{
-			uint64 MicroSeconds = (uint64)(InSeconds * 1000000.0);
-			return FString::Printf(TEXT("%lluus"), MicroSeconds);
-		}
-		else if (InSeconds < 1.0)
-		{
-			uint64 MilliSeconds = (uint64)(InSeconds * 1000.0);
-			return FString::Printf(TEXT("%llums"), MilliSeconds);
-		}
-		else if (InSeconds < 60.0)
-		{
-			return FString::Printf(TEXT("%.2fs"), InSeconds);
-		}
-
-		const int32 Hours = (int32)(InSeconds / 3600.0);
-		InSeconds -= Hours * 3600;
-
-		const int32 Minutes = (int32)(InSeconds / 60.0);
-		InSeconds -= Minutes * 60;
-
-		const int32 Seconds = (int32)InSeconds;
-		InSeconds -= Seconds;
-
-		if (Hours)
-		{
-			return FString::Printf(TEXT("%02dh %02dm %02ds"), Hours, Minutes, Seconds);
-		}
-
-		return FString::Printf(TEXT("%02dm %02ds"), Minutes, Seconds);
-	}
-
 	FString Title;
 	F Func;
 	double Accumulator;

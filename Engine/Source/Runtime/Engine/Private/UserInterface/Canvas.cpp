@@ -1736,6 +1736,11 @@ void UCanvas::StrLen(const UFont* InFont, const FString& InText, float& XL, floa
 {
 	UCanvas::StrLen(InFont, InText, XL, YL, bDPIAware, Canvas);
 }
+void UCanvas::StrLen(const UFont* InFont, const FString& InText, double& XL, double& YL, bool bDPIAware)
+{
+	UCanvas::StrLen(InFont, InText, XL, YL, bDPIAware, Canvas);
+}
+
 
 void UCanvas::StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware, FCanvas* InCanvas)
 {
@@ -1763,6 +1768,15 @@ void UCanvas::StrLen(const UFont* InFont, const FString& InText, float& XL, floa
 	}
 }
 
+void UCanvas::StrLen(const UFont* InFont, const FString& InText, double& XL, double& YL, bool bDPIAware, FCanvas* InCanvas)
+{
+	float XLF = static_cast<float>(XL);
+	float YLF = static_cast<float>(YL);
+	StrLen(InFont, InText, XLF, YLF, bDPIAware, InCanvas);
+	XL = XLF;
+	YL = YLF;
+}
+
 void UCanvas::TextSize(const UFont* InFont, const FString& InText, float& XL, float& YL, float ScaleX, float ScaleY)
 {
 	int32 XLi, YLi;
@@ -1777,6 +1791,14 @@ void UCanvas::TextSize(const UFont* InFont, const FString& InText, float& XL, fl
 
 	XL = XLi;
 	YL = YLi;
+}
+void UCanvas::TextSize(const UFont* InFont, const FString& InText, double& XL, double& YL, double ScaleX, double ScaleY)
+{
+	float XLF = static_cast<float>(XL);
+	float YLF = static_cast<float>(YL);
+	TextSize(InFont, InText, XLF, YLF, (float)ScaleX, (float)ScaleY);
+	XL = XLF;
+	YL = YLF;
 }
 
 FVector UCanvas::Project(FVector Location, bool bClampToZeroPlane) const 
@@ -1950,7 +1972,13 @@ void UCanvas::GetCenter(float& outX, float& outY) const
 	outX = OrgX + ClipX/2;
 	outY = OrgY + ClipY/2;
 }
-
+void UCanvas::GetCenter(double& outX, double& outY) const
+{
+	float X, Y;
+	GetCenter(X, Y);
+	outX = X;
+	outY = Y;
+}
 
 void UCanvas::DrawItem( class FCanvasItem& Item )
 {
@@ -2156,9 +2184,9 @@ FVector2D UCanvas::K2_StrLen(UFont* RenderFont, const FString& RenderText)
 {
 	if (!RenderText.IsEmpty())
 	{
-		FVector2D OutTextSize;
+		FVector2f OutTextSize;
 		StrLen(RenderFont, RenderText, OutTextSize.X, OutTextSize.Y);
-		return OutTextSize;
+		return (FVector2D)OutTextSize;
 	}
 
 	return FVector2D::ZeroVector;

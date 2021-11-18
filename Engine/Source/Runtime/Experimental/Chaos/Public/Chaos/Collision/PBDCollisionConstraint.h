@@ -5,6 +5,7 @@
 
 #include "Chaos/Core.h"
 #include "Chaos/CollisionResolutionTypes.h"
+#include "Chaos/Collision/CollisionKeys.h"
 #include "Chaos/Collision/ContactPoint.h"
 #include "Chaos/Collision/PBDCollisionConstraintHandle.h"
 #include "Chaos/GJK.h"
@@ -18,10 +19,11 @@ namespace Chaos
 	class FCollisionConstraintAllocator;
 	class FConstGenericParticleHandle;
 	class FImplicitObject;
-	class FParticlePairCollisionConstraints;
+	class FParticlePairMidPhase;
 	class FPBDCollisionConstraint;
 	class FPBDCollisionConstraints;
 	class FPBDCollisionSolver;
+	class FSingleShapePairCollisionDetector;
 	class FSolverBody;
 	class FSolverBodyContainer;
 	class FPBDCollisionSolverContainer;
@@ -31,125 +33,32 @@ namespace Chaos
 
 	CHAOS_API bool ContactConstraintSortPredicate(const FPBDCollisionConstraint& L, const FPBDCollisionConstraint& R);
 
-	class FRigidBodyContactKey
-	{
-	public:
-		FRigidBodyContactKey()
-			: Key(0)
-		{
-		}
-
-		FRigidBodyContactKey(const FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1)
-			: Key(0)
-		{
-			GenerateHash(Particle0, Implicit0, Simplicial0, Particle1, Implicit1, Simplicial1);
-		}
-
-		uint32 GetKey() const
-		{
-			return Key;
-		}
-
-		friend bool operator==(const FRigidBodyContactKey& L, const FRigidBodyContactKey& R)
-		{
-			return L.Key == R.Key;
-		}
-
-		friend bool operator!=(const FRigidBodyContactKey& L, const FRigidBodyContactKey& R)
-		{
-			return !(L == R);
-		}
-
-		friend bool operator<(const FRigidBodyContactKey& L, const FRigidBodyContactKey& R)
-		{
-			return L.Key < R.Key;
-		}
-
-	private:
-		void GenerateHash(const FGeometryParticleHandle* Particle0, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FGeometryParticleHandle* Particle1, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1)
-		{
-			// @todo(chaos): We should use ShapeIndex rather than Implicit/Simplicial pointers
-			const uint32 Particle0Hash = HashCombine(::GetTypeHash(Particle0->ParticleID().GlobalID), ::GetTypeHash(Particle0->ParticleID().LocalID));
-			const uint32 Particle1Hash = HashCombine(::GetTypeHash(Particle1->ParticleID().GlobalID), ::GetTypeHash(Particle1->ParticleID().LocalID));
-			const uint32 ParticlesHash = HashCombine(::GetTypeHash(Particle0Hash), ::GetTypeHash(Particle1Hash));
-			const uint32 ImplicitHash = HashCombine(::GetTypeHash(Implicit0), ::GetTypeHash(Implicit1));
-			const uint32 SimplicialHash = HashCombine(::GetTypeHash(Simplicial0), ::GetTypeHash(Simplicial1));
-			const uint32 ShapesHash = HashCombine(ImplicitHash, SimplicialHash);
-			Key = HashCombine(ParticlesHash, ShapesHash);
-		}
-
-		uint32 Key;
-	};
-
-
 	class CHAOS_API FManifoldPoint
 	{
 	public:
 		FManifoldPoint() 
 			: CoMContactPoints{ FVec3(0), FVec3(0) }
-			, ManifoldContactTangents{ FVec3(0), FVec3(0) }
-			, ManifoldContactNormal(0)
-			, NetImpulse(0)
 			, NetPushOut(0)
-			, NetPushOutImpulseNormal(0)
-			, NetPushOutImpulseTangent(0)
-			, NetPushOutNormal(0)
-			, NetPushOutTangent(0)
-			, NetImpulseNormal(0)
-			, NetImpulseTangent(0)
-			, InitialContactVelocity(0)
-			, InitialPhi(0)
-			, bPotentialRestingContact(false)
-			, bInsideStaticFrictionCone(false)
-			, bRestitutionEnabled(false)
-			, bActive(false)
+			, NetImpulse(0)
 			, StaticFrictionMax(0)
+			, bInsideStaticFrictionCone(false)
 		{}
 
 		FManifoldPoint(const FContactPoint& InContactPoint) 
 			: ContactPoint(InContactPoint)
 			, CoMContactPoints{ FVec3(0), FVec3(0) }
-			, ManifoldContactTangents{ FVec3(0), FVec3(0) }
-			, ManifoldContactNormal(0)
-			, NetImpulse(0)
 			, NetPushOut(0)
-			, NetPushOutImpulseNormal(0)
-			, NetPushOutImpulseTangent(0)
-			, NetPushOutNormal(0)
-			, NetPushOutTangent(0)
-			, NetImpulseNormal(0)
-			, NetImpulseTangent(0)
-			, InitialContactVelocity(0)
-			, InitialPhi(0)
-			, bPotentialRestingContact(false)
-			, bInsideStaticFrictionCone(false)
-			, bRestitutionEnabled(false)
-			, bActive(false)
+			, NetImpulse(0)
 			, StaticFrictionMax(0)
+			, bInsideStaticFrictionCone(false)
 		{}
 
-		// @todo(chaos): Normal and plane owner should be per manifold, not per manifold-point when we are not using incremental manifolds any more
-		FContactPoint ContactPoint;			// Shape-space data from low-level collision detection
-		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies core shapes (not including margin)
-		FVec3 ManifoldContactTangents[2];		// CoM-space or world space (depending on CVAR bChaos_Collision_Manifold_FixNormalsInWorldSpace) contact tangents for friction
-		FVec3 ManifoldContactNormal;				// CoM-space or  world space  (depending on CVAR bChaos_Collision_Manifold_FixNormalsInWorldSpace) contact normal relative to ContactNormalOwner body
-		FVec3 CoMAnchorPoints[2];			// CoM-space contact points on the two bodies core shapes used for static friction
-		FVec3 NetImpulse;					// Total impulse applied by this contact point
+		FContactPoint ContactPoint;			// Contact point results of low-level collision detection
+		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
-		FReal NetPushOutImpulseNormal;		// Total pushout impulse along normal (for final velocity correction) applied at this contact point
-		FReal NetPushOutImpulseTangent;		// Total pushout impulse along tangent (for final velocity correction) applied at this contact point
-		FReal NetPushOutNormal;
-		FReal NetPushOutTangent;
-		FReal NetImpulseNormal;
-		FReal NetImpulseTangent;
-		FReal InitialContactVelocity;		// Contact velocity at start of frame (used for restitution)
-		FReal InitialPhi;					// Contact separation at first contact (used for pushout restitution)
-		bool bPotentialRestingContact;		// Whether this may be a resting contact (used for static friction)
-		bool bInsideStaticFrictionCone;		// Whether we are inside the static friction cone (used in PushOut)
-		bool bRestitutionEnabled;			// Whether restitution was added in the apply step (used in PushOut)
-		bool bActive;						// Whether this contact applied an impulse
-
+		FVec3 NetImpulse;					// Total impulse applied by this contact point
 		FReal StaticFrictionMax;			// A proxy for the normal impulse used to limit static friction correction. Used for smoothing static friction limits
+		bool bInsideStaticFrictionCone;		// Whether we are inside the static friction cone (used in PushOut)
 	};
 
 	/*
@@ -169,6 +78,8 @@ namespace Chaos
 			, Restitution(0)
 			, RestitutionPadding(0)
 			, RestitutionThreshold(0)
+			, InvMassScale0(1.f)
+			, InvMassScale1(1.f)
 			, InvInertiaScale0(1.f)
 			, InvInertiaScale1(1.f)
 			, ContactMoveSQRDistance(0)
@@ -192,6 +103,8 @@ namespace Chaos
 		FReal Restitution;
 		FReal RestitutionPadding; // For PBD implementation of resitution, we pad constraints on initial contact to enforce outward velocity
 		FReal RestitutionThreshold;
+		FReal InvMassScale0;
+		FReal InvMassScale1;
 		FReal InvInertiaScale0;
 		FReal InvInertiaScale1;
 		FReal ContactMoveSQRDistance; // How much the contact position moved after the last update
@@ -223,71 +136,39 @@ namespace Chaos
 	{
 	public:
 		FPBDCollisionConstraintContainerCookie()
-			: Key()
+			: MidPhase(nullptr)
+			, bIsMultiShapePair(false)
 			, CreationEpoch(INDEX_NONE)
 			, LastUsedEpoch(INDEX_NONE)
 			, ConstraintIndex(INDEX_NONE)
 			, SweptConstraintIndex(INDEX_NONE)
-			, bIsInShapePairMap(false)
-			, bIsSleeping(false)
 		{
 		}
 
 		/**
 		 * @brief Used to clear the container data when copying constraints out of the container (see resim cache)
-		 * The constraint index will no be valid when the constraint is copied out of the container, but everything
+		 * The constraint index will not be valid when the constraint is copied out of the container, but everything
 		 * else is ok and should be restorable.
 		*/
 		void ClearContainerData()
 		{
+			MidPhase = nullptr;
 			ConstraintIndex = INDEX_NONE;
 			SweptConstraintIndex = INDEX_NONE;
 		}
 
-		/**
-		 * @brief Called once on creation by the container to initialize the lifetime contants
-		*/
-		void Init(const FRigidBodyContactKey& InKey, const int32 InEpoch)
-		{
-			Key = InKey;
-			CreationEpoch = InEpoch;
-			LastUsedEpoch = INDEX_NONE;
-			bIsSleeping = false;
-		}
+		// The constraint owner - set when the constraint is created
+		FParticlePairMidPhase* MidPhase;
 
-		/**
-		 * @brief Called each tick by the container
-		*/
-		void Update(const int32 InIndex, const int32 InEpoch)
-		{
-			ConstraintIndex = InIndex;
-			LastUsedEpoch = InEpoch;
-			bIsSleeping = false;
-		}
+		// Used by the MidPhase when a constraint is reactivated from a Resim cache
+		// If true, indicates that the constraint was created from the recursive collision detection
+		// path rather than the prefiltered shape-pair loop
+		bool bIsMultiShapePair;
 
-		/**
-		 * @brief Called each tick by the container for swept constraints
-		*/
-		void UpdateSweptIndex(const int32 InIndex)
-		{
-			SweptConstraintIndex = InIndex;
-		}
-
-		/**
-		 * @brief Change the sleeping state (used by the Island Manager)
-		*/
-		void SetIsSleeping(const bool bInIsSleeping)
-		{
-			bIsSleeping = bInIsSleeping;
-		}
-
-		// A hash of the colliding object pair to uniquely identify a contact and allow recovery next tick
-		FRigidBodyContactKey Key;
-
-		// The conatiner Epoch when then constraint was initially created
+		// The Epoch when then constraint was initially created
 		int32 CreationEpoch;
 
-		// The container Epoch when the constraint was last used
+		// The Epoch when the constraint was last used
 		int32 LastUsedEpoch;
 
 		// The index in the container - this changes every tick
@@ -295,12 +176,6 @@ namespace Chaos
 
 		// The index in swept constraints - this changes every tick
 		int32 SweptConstraintIndex;
-
-		// Whether the Constraint is in the container's maps
-		bool bIsInShapePairMap;
-
-		// Whether the constraint is in a sleeping island (this is used to prevent culling because Epoch is not updated for sleepers)
-		bool bIsSleeping;
 	};
 
 
@@ -321,68 +196,52 @@ namespace Chaos
 	class CHAOS_API FPBDCollisionConstraint : public FPBDCollisionConstraintHandle
 	{
 		friend class FCollisionConstraintAllocator;
+		friend class FMultiShapePairCollisionDetector;
+		friend class FParticlePairMidPhase;
 		friend class FPBDCollisionConstraints;
+		friend class FSingleShapePairCollisionDetector;
+
 		friend CHAOS_API bool ContactConstraintSortPredicate(const FPBDCollisionConstraint& L, const FPBDCollisionConstraint& R);
 
 	public:
 		using FConstraintContainerHandle = TIntrusiveConstraintHandle<FPBDCollisionConstraint>;
 
 		/**
-		 * @brief Create a standard (non-swept) contact
+		 * @brief Create a contact constraint
 		 * Allocates a constraint on the heap, with a permanent address.
 		 * May return null if we hit the contact limit for the scene.
 		*/
-		static FPBDCollisionConstraint* Make(
+		static TUniquePtr<FPBDCollisionConstraint> Make(
 			FGeometryParticleHandle* Particle0,
 			const FImplicitObject* Implicit0,
 			const FBVHParticles* Simplicial0,
-			const FRigidTransform3& ParticleWorldTransform0,
 			const FRigidTransform3& ImplicitLocalTransform0,
 			FGeometryParticleHandle* Particle1,
 			const FImplicitObject* Implicit1,
 			const FBVHParticles* Simplicial1,
-			const FRigidTransform3& ParticleWorldTransform1,
 			const FRigidTransform3& ImplicitLocalTransform1,
 			const FReal InCullDistance,
-			const EContactShapesType ShapesType,
 			const bool bInUseManifold,
-			FCollisionConstraintAllocator& Allocator);
+			const EContactShapesType ShapesType);
 
 		/**
-		 * @brief Create a swept contact
-		 * Allocates a constraint on the heap, with a permanent address.
-		 * May return null if we hit the contact limit for the scene.
+		 * @brief Return a constraint copied from the Source constraint, for use in the Resim Cache or other system
+		 * @note Unlike the other factory method, this version returns a constraint by value for emplacing into an array (ther others are by pointer)
 		*/
-		static FPBDCollisionConstraint* MakeSwept(
-			FGeometryParticleHandle* Particle0,
-			const FImplicitObject* Implicit0,
-			const FBVHParticles* Simplicial0,
-			const FRigidTransform3& ParticleWorldTransform0,
-			const FRigidTransform3& ImplicitLocalTransform0,
-			FGeometryParticleHandle* Particle1,
-			const FImplicitObject* Implicit1,
-			const FBVHParticles* Simplicial1,
-			const FRigidTransform3& ParticleWorldTransform1,
-			const FRigidTransform3& ImplicitLocalTransform1,
-			const FReal InCullDistance,
-			EContactShapesType ShapesType,
-			FCollisionConstraintAllocator& Allocator);
-
-		/**
-		 * @brief Return a constraint copied from the Source constraint, for use in the Resim Cache
-		 * This copies everything needed to rehydrate the contact after a rewind
-		 * @note Unlike the other factory methods, this version returns a constraint by value for emplacing into an array (ther others are by pointer)
-		*/
-		static FPBDCollisionConstraint MakeResimCache(
-			const FPBDCollisionConstraint& Source);
-
-		static void Destroy(
-			FPBDCollisionConstraint* Constraint,
-			FCollisionConstraintAllocator& Allocator);
+		static FPBDCollisionConstraint MakeCopy(const FPBDCollisionConstraint& Source);
 
 		FPBDCollisionConstraint();
 
-		ECollisionConstraintType GetType() const { return Type; }
+		/**
+		 * @brief The current CCD state of this constraint
+		 * This may change from tick to tick as an object's velocity changes.
+		*/
+		ECollisionCCDType GetCCDType() const { return CCDType; }
+
+		/**
+		 * @brief Enable or disable CCD for this constraint
+		*/
+		void SetCCDEnabled(const bool bCCDEnabled) { CCDType = bCCDEnabled ? ECollisionCCDType::Enabled : ECollisionCCDType::Disabled; }
 
 		bool ContainsManifold(const FImplicitObject* A, const FBVHParticles* AS, const FImplicitObject* B, const FBVHParticles* BS) const
 		{
@@ -399,6 +258,15 @@ namespace Chaos
 		// API
 		//
 
+		FGeometryParticleHandle* GetParticle0() { return Particle[0]; }
+		const FGeometryParticleHandle* GetParticle0() const { return Particle[0]; }
+		FGeometryParticleHandle* GetParticle1() { return Particle[1]; }
+		const FGeometryParticleHandle* GetParticle1() const { return Particle[1]; }
+		const FImplicitObject* GetImplicit0() const { return Manifold.Implicit[0]; }
+		const FImplicitObject* GetImplicit1() const { return Manifold.Implicit[1]; }
+		const FBVHParticles* GetCollisionParticles0() const { return Manifold.Simplicial[0]; }
+		const FBVHParticles* GetCollisionParticles1() const { return Manifold.Simplicial[1]; }
+
 		// @todo(chaos): half of this API is wrong for the new multi-point manifold constraints. Remove it
 
 		const FCollisionContact& GetManifold() const { return Manifold; }
@@ -412,13 +280,19 @@ namespace Chaos
 		bool GetDisabled() const { return Manifold.bDisabled; }
 
 		virtual void SetIsSleeping(const bool bInIsSleeping) override;
-		virtual bool IsSleeping() const override { return ContainerCookie.bIsSleeping; }
+		//virtual bool IsSleeping() const override { return ContainerCookie.bIsSleeping; }
 
 		void SetNormal(const FVec3& InNormal) { Manifold.Normal = InNormal; }
 		FVec3 GetNormal() const { return Manifold.Normal; }
 
 		void SetLocation(const FVec3& InLocation) { Manifold.Location = InLocation; }
 		FVec3 GetLocation() const { return Manifold.Location; }
+
+		void SetInvMassScale0(const FReal InInvMassScale) { Manifold.InvMassScale0 = InInvMassScale; }
+		FReal GetInvMassScale0() const { return Manifold.InvMassScale0; }
+
+		void SetInvMassScale1(const FReal InInvMassScale) { Manifold.InvMassScale1 = InInvMassScale; }
+		FReal GetInvMassScale1() const { return Manifold.InvMassScale1; }
 
 		void SetInvInertiaScale0(const FReal InInvInertiaScale) { Manifold.InvInertiaScale0 = InInvInertiaScale; }
 		FReal GetInvInertiaScale0() const { return Manifold.InvInertiaScale0; }
@@ -454,13 +328,6 @@ namespace Chaos
 			const FRotation3& Q0,
 			const FVec3& P1,
 			const FRotation3& Q1);
-		void CalculatePrevCoMContactPoints(
-			const FSolverBody& Body0,
-			const FSolverBody& Body1,
-			FManifoldPoint& ManifoldPoint,
-			FReal Dt,
-			FVec3& OutPrevCoMContactPoint0,
-			FVec3& OutPrevCoMContactPoint1) const;
 
 		void AddIncrementalManifoldContact(const FContactPoint& ContactPoint, const FReal Dt);
 		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt);
@@ -470,6 +337,11 @@ namespace Chaos
 		//@ todo(chaos): These are for the collision forwarding system - this should use the collision modifier system (which should be extended to support adding collisions)
 		void SetManifoldPoints(const TArray<FManifoldPoint>& InManifoldPoints) { ManifoldPoints = InManifoldPoints; }
 		void UpdateManifoldPointFromContact(FManifoldPoint& ManifoldPoint);
+
+		// Helpers for interacting with constraint from world space
+		static void GetWorldSpaceContactPositions(const FManifoldPoint& ManifoldPoint, const FVec3& PCoM0, const FRotation3& QCoM0, const FVec3& PCoM1, const FRotation3& QCoM1, FVec3& OutWorldPosition0, FVec3& OutWorldPosition1);
+		static void GetCoMContactPositionsFromWorld(const FManifoldPoint& ManifoldPoint, const FVec3& PCoM0, const FRotation3& QCoM0, const FVec3& PCoM1, const FRotation3& QCoM1, const FVec3& WorldPoint0, const FVec3& WorldPoint1, FVec3& OutCoMPoint0, FVec3& OutCoMPoint1);
+
 
 		// The GJK warm-start data. This is updated directly in the narrow phase
 		FGJKSimplexData& GetGJKWarmStartData() { return GJKWarmStartData; }
@@ -489,7 +361,7 @@ namespace Chaos
 		 * @brief Whether this constraint was newly created this tick (as opposed to restored from a previous tick)
 		 * @see IsRestored()
 		*/
-		bool IsNew() const { return ContainerCookie.CreationEpoch == ContainerCookie.LastUsedEpoch; }
+		//bool IsNew() const { return ContainerCookie.CreationEpoch == ContainerCookie.LastUsedEpoch; }
 
 		/**
 		 * @brief Whether this constraint was fully restored from a previous tick, and the manifold should be reused as-is
@@ -511,7 +383,7 @@ namespace Chaos
 		/**
 		 * @brief The container key for this contact (for internal use only)
 		*/
-		const FRigidBodyContactKey& GetKey() const { return GetContainerCookie().Key; }
+		//const FRigidBodyContactKey& GetKey() const { return GetContainerCookie().Key; }
 
 	public:
 		const FPBDCollisionConstraintHandle* GetConstraintHandle() const { return this; }
@@ -529,7 +401,7 @@ namespace Chaos
 
 		// Set all the data not initialized in the constructor
 		void Setup(
-			const ECollisionConstraintType InType,
+			const ECollisionCCDType InCCDType,
 			const EContactShapesType InShapesType,
 			const FRigidTransform3& InImplicitTransform0,
 			const FRigidTransform3& InImplicitTransform1,
@@ -550,7 +422,7 @@ namespace Chaos
 		void InitManifoldPoint(FManifoldPoint& ManifoldPoint, FReal Dt);
 		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint, const FReal Dt);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
-		void GetWorldSpaceManifoldPoint(const FManifoldPoint& ManifoldPoint, const FVec3& P0, const FRotation3& Q0, const FVec3& P1, const FRotation3& Q1, FVec3& OutContactLocation, FVec3& OutContactNormal, FReal& OutContactPhi);
+		void GetWorldSpaceManifoldPoint(const FManifoldPoint& ManifoldPoint, const FVec3& P0, const FRotation3& Q0, const FVec3& P1, const FRotation3& Q1, FVec3& OutContactLocation, FReal& OutContactPhi);
 
 		/**
 		 * @brief Move the current manifold to the previous manifold, and reset the current manifold ready for it to be rebuilt
@@ -574,7 +446,7 @@ namespace Chaos
 
 	private:
 		FPBDCollisionConstraintContainerCookie ContainerCookie;
-		ECollisionConstraintType Type;
+		ECollisionCCDType CCDType;
 		FReal Stiffness;
 
 		// @todo(chaos): Switching this to inline allocator does not help, but maybe a physics scratchpad would

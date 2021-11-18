@@ -9,8 +9,6 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/** Architecture as stored in the ini. */
@@ -158,7 +156,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Find the default architecture for the given project
 		/// </summary>
-		public override string GetDefaultArchitecture(FileReference ProjectFile)
+		public override string GetDefaultArchitecture(FileReference? ProjectFile)
 		{
 			if (Platform == UnrealTargetPlatform.LinuxArm64)
 			{
@@ -200,7 +198,7 @@ namespace UnrealBuildTool
 
 			if (!Target.IsNameOverriden())
 			{
-				string SanitizerSuffix = null;
+				string? SanitizerSuffix = null;
 
 				if (Target.LinuxPlatform.bEnableAddressSanitizer)
 				{
@@ -442,7 +440,7 @@ namespace UnrealBuildTool
 		public override void SetUpEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
 		{
 			// During the native builds, check the system includes as well (check toolchain when cross-compiling?)
-			string BaseLinuxPath = SDK.GetBaseLinuxPathForArchitecture(Target.Architecture);
+			string? BaseLinuxPath = SDK.GetBaseLinuxPathForArchitecture(Target.Architecture);
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux && String.IsNullOrEmpty(BaseLinuxPath))
 			{
 				CompileEnvironment.SystemIncludePaths.Add(new DirectoryReference("/usr/include"));

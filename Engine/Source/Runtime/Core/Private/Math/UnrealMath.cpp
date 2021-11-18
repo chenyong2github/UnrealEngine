@@ -25,7 +25,8 @@ template<> const FMatrix44d FMatrix44d::Identity(FPlane4d(1, 0, 0, 0), FPlane4d(
 template<> const FQuat4f FQuat4f::Identity(0.f, 0.f, 0.f, 1.f);
 template<> const FQuat4d FQuat4d::Identity(0.0, 0.0, 0.0, 1.0);
 
-const FRotator FRotator::ZeroRotator(0.f, 0.f, 0.f);
+template<> const FRotator3f FRotator3f::ZeroRotator(0, 0, 0);
+template<> const FRotator3d FRotator3d::ZeroRotator(0, 0, 0);
 
 template<> const FVector3f FVector3f::ZeroVector(0, 0, 0);
 template<> const FVector3f FVector3f::OneVector(1, 1, 1);
@@ -50,11 +51,14 @@ template<> const FVector3d FVector3d::XAxisVector(1, 0, 0);
 template<> const FVector3d FVector3d::YAxisVector(0, 1, 0);
 template<> const FVector3d FVector3d::ZAxisVector(0, 0, 1);
 
-const FVector2D FVector2D::ZeroVector(0.0f, 0.0f);
-const FVector2D FVector2D::UnitVector(1.0f, 1.0f);
-const FVector2D FVector2D::Unit45Deg(UE_INV_SQRT_2, UE_INV_SQRT_2);
+template<> const FVector2f FVector2f::ZeroVector(0, 0);
+template<> const FVector2f FVector2f::UnitVector(1, 1);
+template<> const FVector2f FVector2f::Unit45Deg(UE_INV_SQRT_2, UE_INV_SQRT_2);
+template<> const FVector2d FVector2d::ZeroVector(0, 0);
+template<> const FVector2d FVector2d::UnitVector(1, 1);
+template<> const FVector2d FVector2d::Unit45Deg(UE_INV_SQRT_2, UE_INV_SQRT_2);
 
-const uint32 FMath::BitFlag[32] =
+CORE_API const uint32 FMath::BitFlag[32] =
 {
 	(1U << 0),	(1U << 1),	(1U << 2),	(1U << 3),
 	(1U << 4),	(1U << 5),	(1U << 6),	(1U << 7),
@@ -71,21 +75,16 @@ const FIntPoint FIntPoint::NoneValue(INDEX_NONE,INDEX_NONE);
 const FIntVector FIntVector::ZeroValue(0,0,0);
 const FIntVector FIntVector::NoneValue(INDEX_NONE,INDEX_NONE,INDEX_NONE);
 
-bool FVector2D::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
-{
-	Ar << X;
-	Ar << Y;
-	return true;
-}
-
-bool FRotator::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
+template<typename T>
+bool UE::Math::TRotator<T>::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
 	SerializeCompressedShort( Ar );
 	bOutSuccess = true;
 	return true;
 }
 
-void FRotator::SerializeCompressed( FArchive& Ar )
+template<typename T>
+void UE::Math::TRotator<T>::SerializeCompressed( FArchive& Ar )
 {
 	const bool bArLoading = Ar.IsLoading();
 	
@@ -96,9 +95,9 @@ void FRotator::SerializeCompressed( FArchive& Ar )
 	// If saving, we need to compress before writing. If loading we'll just serialize in the data so no need to compress.
 	if( !bArLoading )
 	{
-		BytePitch = FRotator::CompressAxisToByte(Pitch);
-		ByteYaw = FRotator::CompressAxisToByte(Yaw);
-		ByteRoll = FRotator::CompressAxisToByte(Roll);
+		BytePitch = TRotator<T>::CompressAxisToByte(Pitch);
+		ByteYaw = TRotator<T>::CompressAxisToByte(Yaw);
+		ByteRoll = TRotator<T>::CompressAxisToByte(Roll);
 	}
 
 	uint8 B = (BytePitch!=0);
@@ -136,13 +135,14 @@ void FRotator::SerializeCompressed( FArchive& Ar )
 	
 	if( bArLoading )
 	{
-		Pitch = FRotator::DecompressAxisFromByte(BytePitch);
-		Yaw	= FRotator::DecompressAxisFromByte(ByteYaw);
-		Roll = FRotator::DecompressAxisFromByte(ByteRoll);
+		Pitch = TRotator<T>::DecompressAxisFromByte(BytePitch);
+		Yaw	= TRotator<T>::DecompressAxisFromByte(ByteYaw);
+		Roll = TRotator<T>::DecompressAxisFromByte(ByteRoll);
 	}
 }
 
-void FRotator::SerializeCompressedShort( FArchive& Ar )
+template<typename T>
+void UE::Math::TRotator<T>::SerializeCompressedShort( FArchive& Ar )
 {
 	const bool bArLoading = Ar.IsLoading();
 
@@ -153,9 +153,9 @@ void FRotator::SerializeCompressedShort( FArchive& Ar )
 	// If saving, we need to compress before writing. If loading we'll just serialize in the data so no need to compress.
 	if( !bArLoading )
 	{
-		ShortPitch = FRotator::CompressAxisToShort(Pitch);
-		ShortYaw = FRotator::CompressAxisToShort(Yaw);
-		ShortRoll = FRotator::CompressAxisToShort(Roll);
+		ShortPitch = TRotator<T>::CompressAxisToShort(Pitch);
+		ShortYaw = TRotator<T>::CompressAxisToShort(Yaw);
+		ShortRoll = TRotator<T>::CompressAxisToShort(Roll);
 	}
 
 	uint8 B = (ShortPitch!=0);
@@ -193,22 +193,22 @@ void FRotator::SerializeCompressedShort( FArchive& Ar )
 
 	if( bArLoading )
 	{
-		Pitch = FRotator::DecompressAxisFromShort(ShortPitch);
-		Yaw	= FRotator::DecompressAxisFromShort(ShortYaw);
-		Roll = FRotator::DecompressAxisFromShort(ShortRoll);
+		Pitch = TRotator<T>::DecompressAxisFromShort(ShortPitch);
+		Yaw	= TRotator<T>::DecompressAxisFromShort(ShortYaw);
+		Roll = TRotator<T>::DecompressAxisFromShort(ShortRoll);
 	}
 }
 
-template<>
-FRotator FVector3f::ToOrientationRotator() const
+template<typename T>
+UE::Math::TRotator<T> UE::Math::TVector<T>::ToOrientationRotator() const
 {
-	FRotator R;
+	UE::Math::TRotator<T> R;
 
 	// Find yaw.
-	R.Yaw = FMath::Atan2(Y,X) * (180.f / PI);
+	R.Yaw = FMath::RadiansToDegrees(FMath::Atan2(Y, X));
 
 	// Find pitch.
-	R.Pitch = FMath::Atan2(Z,FMath::Sqrt(X*X+Y*Y)) * (180.f / PI);
+	R.Pitch = FMath::RadiansToDegrees(FMath::Atan2(Z, FMath::Sqrt(X*X + Y*Y)));
 
 	// Find roll.
 	R.Roll = 0;
@@ -216,24 +216,25 @@ FRotator FVector3f::ToOrientationRotator() const
 #if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
 	if (R.ContainsNaN())
 	{
-		logOrEnsureNanError(TEXT("FVector::Rotation(): Rotator result %s contains NaN! Input FVector = %s"), *R.ToString(), *this->ToString());
-		R = FRotator::ZeroRotator;
+		logOrEnsureNanError(TEXT("TVector::Rotation(): Rotator result %s contains NaN! Input FVector = %s"), *R.ToString(), *this->ToString());
+		R = UE::Math::TRotator<T>::ZeroRotator;
 	}
 #endif
 
 	return R;
 }
 
-template<>
-FRotator FVector3d::ToOrientationRotator() const
+
+template<typename T>
+UE::Math::TRotator<T> UE::Math::TVector4<T>::ToOrientationRotator() const
 {
-	FRotator R;
+	UE::Math::TRotator<T> R;
 
 	// Find yaw.
-	R.Yaw = static_cast<float>(FMath::Atan2(Y,X) * (180.0 / DOUBLE_PI));
+	R.Yaw = FMath::RadiansToDegrees(FMath::Atan2(Y, X));
 
 	// Find pitch.
-	R.Pitch = static_cast<float>(FMath::Atan2(Z,FMath::Sqrt(X*X+Y*Y)) * (180.0 / DOUBLE_PI));
+	R.Pitch = FMath::RadiansToDegrees(FMath::Atan2(Z, FMath::Sqrt(X*X + Y*Y)));
 
 	// Find roll.
 	R.Roll = 0;
@@ -241,106 +242,31 @@ FRotator FVector3d::ToOrientationRotator() const
 #if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
 	if (R.ContainsNaN())
 	{
-		logOrEnsureNanError(TEXT("FVector::Rotation(): Rotator result %s contains NaN! Input FVector = %s"), *R.ToString(), *this->ToString());
-		R = FRotator::ZeroRotator;
+		logOrEnsureNanError(TEXT("TVector4::Rotation(): Rotator result %s contains NaN! Input FVector4 = %s"), *R.ToString(), *this->ToString());
+		R = UE::Math::TRotator<T>::ZeroRotator;
 	}
 #endif
 
 	return R;
 }
 
-template<>
-FRotator FVector3f::Rotation() const
-{
-	return ToOrientationRotator();
-}
 
-template<>
-FRotator FVector3d::Rotation() const
-{
-	return ToOrientationRotator();
-}
-
-template<>
-FRotator FVector4f::ToOrientationRotator() const
-{
-	FRotator R;
-	using FRotatorReal = decltype(FRotator::Yaw);
-
-	// Find yaw.
-	R.Yaw = FRotatorReal(FMath::Atan2(Y,X) * (180.f / PI));
-
-	// Find pitch.
-	R.Pitch = FRotatorReal(FMath::Atan2(Z,FMath::Sqrt(X*X+Y*Y)) * (180.f / PI));
-
-	// Find roll.
-	R.Roll = FRotatorReal(0);
-
-#if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
-	if (R.ContainsNaN())
-	{
-		logOrEnsureNanError(TEXT("FVector4::Rotation(): Rotator result %s contains NaN! Input FVector4 = %s"), *R.ToString(), *this->ToString());
-		R = FRotator::ZeroRotator;
-	}
-#endif
-
-	return R;
-}
-
-template<>
-FRotator FVector4d::ToOrientationRotator() const
-{
-	FRotator R;
-	using FRotatorReal = decltype(FRotator::Yaw);
-
-	// Find yaw.
-	R.Yaw = FRotatorReal(FMath::Atan2(Y, X) * (180.f / PI));
-
-	// Find pitch.
-	R.Pitch = FRotatorReal(FMath::Atan2(Z, FMath::Sqrt(X * X + Y * Y)) * (180.f / PI));
-
-	// Find roll.
-	R.Roll = FRotatorReal(0);
-
-#if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
-	if (R.ContainsNaN())
-	{
-		logOrEnsureNanError(TEXT("FVector4::Rotation(): Rotator result %s contains NaN! Input FVector4 = %s"), *R.ToString(), *this->ToString());
-		R = FRotator::ZeroRotator;
-	}
-#endif
-
-	return R;
-}
-
-template<>
-FRotator FVector4f::Rotation() const
-{
-	return ToOrientationRotator();
-}
-
-template<>
-FRotator FVector4d::Rotation() const
-{
-	return ToOrientationRotator();
-}
-
-template<>
-FQuat4f FVector3f::ToOrientationQuat() const
+template<typename T>
+UE::Math::TQuat<T> UE::Math::TVector<T>::ToOrientationQuat() const
 {
 	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
 	// This is done to avoid adding any roll (which our API states as a constraint).
-	const float YawRad = FMath::Atan2(Y, X);
-	const float PitchRad = FMath::Atan2(Z, FMath::Sqrt(X*X + Y*Y));
+	const T YawRad = FMath::Atan2(Y, X);
+	const T PitchRad = FMath::Atan2(Z, FMath::Sqrt(X*X + Y*Y));
 
-	const float DIVIDE_BY_2 = 0.5f;
-	float SP, SY;
-	float CP, CY;
+	const T DIVIDE_BY_2 = 0.5;
+	T SP, SY;
+	T CP, CY;
 
 	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
 	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
 
-	FQuat4f RotationQuat;
+	UE::Math::TQuat<T> RotationQuat;
 	RotationQuat.X =  SP*SY;
 	RotationQuat.Y = -SP*CY;
 	RotationQuat.Z =  CP*SY;
@@ -348,68 +274,22 @@ FQuat4f FVector3f::ToOrientationQuat() const
 	return RotationQuat;
 }
 
-template<>
-FQuat4d FVector3d::ToOrientationQuat() const
+template<typename T>
+UE::Math::TQuat<T> UE::Math::TVector4<T>::ToOrientationQuat() const
 {
 	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
 	// This is done to avoid adding any roll (which our API states as a constraint).
-	const double YawRad = FMath::Atan2(Y, X);
-	const double PitchRad = FMath::Atan2(Z, FMath::Sqrt(X * X + Y * Y));
+	const T YawRad = FMath::Atan2(Y, X);
+	const T PitchRad = FMath::Atan2(Z, FMath::Sqrt(X * X + Y * Y));
 
-	const double DIVIDE_BY_2 = 0.5;
-	double SP, SY;
-	double CP, CY;
+	const T DIVIDE_BY_2 = 0.5;
+	T SP, SY;
+	T CP, CY;
 
 	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
 	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
 
-	FQuat4d RotationQuat;
-	RotationQuat.X = static_cast<float>(SP * SY);
-	RotationQuat.Y = static_cast<float>(-SP * CY);
-	RotationQuat.Z = static_cast<float>(CP * SY);
-	RotationQuat.W = static_cast<float>(CP * CY);
-	return RotationQuat;
-}
-
-template<>
-FQuat4f FVector4f::ToOrientationQuat() const
-{
-	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
-	// This is done to avoid adding any roll (which our API states as a constraint).
-	const float YawRad = FMath::Atan2(Y, X);
-	const float PitchRad = FMath::Atan2(Z, FMath::Sqrt(X*X + Y*Y));
-
-	const float DIVIDE_BY_2 = 0.5f;
-	float SP, SY;
-	float CP, CY;
-
-	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
-	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
-
-	FQuat4f RotationQuat;
-	RotationQuat.X =  SP*SY;
-	RotationQuat.Y = -SP*CY;
-	RotationQuat.Z =  CP*SY;
-	RotationQuat.W =  CP*CY;
-	return RotationQuat;
-}
-
-template<>
-FQuat4d FVector4d::ToOrientationQuat() const
-{
-	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
-	// This is done to avoid adding any roll (which our API states as a constraint).
-	const double YawRad = FMath::Atan2(Y, X);
-	const double PitchRad = FMath::Atan2(Z, FMath::Sqrt(X * X + Y * Y));
-
-	const double DIVIDE_BY_2 = 0.5f;
-	double SP, SY;
-	double CP, CY;
-
-	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
-	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
-
-	FQuat4d RotationQuat;
+	UE::Math::TQuat<T> RotationQuat;
 	RotationQuat.X = SP * SY;
 	RotationQuat.Y = -SP * CY;
 	RotationQuat.Z = CP * SY;
@@ -447,20 +327,17 @@ FVector FMath::ClosestPointOnInfiniteLine(const FVector& LineStart, const FVecto
 	return ClosestPoint;
 }
 
-FRotator::FRotator(const FQuat4f& Quat)
+
+template<typename T>
+UE::Math::TRotator<T>::TRotator(const UE::Math::TQuat<T>& Quat)
 {
 	*this = Quat.Rotator();
 	DiagnosticCheckNaN();
 }
 
-FRotator::FRotator(const FQuat4d& Quat)
-{
-	*this = Quat.Rotator();
-	DiagnosticCheckNaN();
-}
 
-
-CORE_API FVector FRotator::Vector() const
+template<typename T>
+UE::Math::TVector<T> UE::Math::TRotator<T>::Vector() const
 {
 	// Extremely large but valid values (or invalid values from uninitialized vars) can cause SinCos to return NaN/Inf, so catch that here. Similar to what is done in FRotator::Quaternion().
 #if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
@@ -473,20 +350,20 @@ CORE_API FVector FRotator::Vector() const
 #endif
 	
 	// Remove winding and clamp to [-360, 360]
-	const float PitchNoWinding = FMath::Fmod(Pitch, 360.0f);
-	const float YawNoWinding = FMath::Fmod(Yaw, 360.0f);
+	const T PitchNoWinding = FMath::Fmod(Pitch, (T)360.0);
+	const T YawNoWinding = FMath::Fmod(Yaw, (T)360.0);
 
-	float CP, SP, CY, SY;
+	T CP, SP, CY, SY;
 	FMath::SinCos( &SP, &CP, FMath::DegreesToRadians(PitchNoWinding) );
 	FMath::SinCos( &SY, &CY, FMath::DegreesToRadians(YawNoWinding) );
-	FVector V = FVector( CP*CY, CP*SY, SP );
+	UE::Math::TVector<T> V = UE::Math::TVector<T>( CP*CY, CP*SY, SP );
 
 	// Error checking
 #if ENABLE_NAN_DIAGNOSTIC || (DO_CHECK && !UE_BUILD_SHIPPING)
 	if (V.ContainsNaN())
 	{
 		logOrEnsureNanError(TEXT("FRotator::Vector() resulted in NaN/Inf with input: %s output: %s"), *ToString(), *V.ToString());
-		V = FVector::ForwardVector;
+		V = UE::Math::TVector<T>::ForwardVector;
 	}
 #endif
 
@@ -494,18 +371,20 @@ CORE_API FVector FRotator::Vector() const
 }
 
 
-FRotator FRotator::GetInverse() const
+template<typename T>
+UE::Math::TRotator<T> UE::Math::TRotator<T>::GetInverse() const
 {
 	return Quaternion().Inverse().Rotator();
 }
 
 
-FQuat FRotator::Quaternion() const
+template<>
+FQuat4f FRotator3f::Quaternion() const
 {
 	DiagnosticCheckNaN();
 
 #if PLATFORM_ENABLE_VECTORINTRINSICS
-	const VectorRegister4Float Angles = MakeVectorRegister(Pitch, Yaw, Roll, 0.0f);
+	const VectorRegister4Float Angles = MakeVectorRegisterFloat(Pitch, Yaw, Roll, 0.0f);
 	const VectorRegister4Float AnglesNoWinding = VectorMod(Angles, GlobalVectorConstants::Float360);
 	const VectorRegister4Float HalfAngles = VectorMultiply(AnglesNoWinding, GlobalVectorConstants::DEG_TO_RAD_HALF);
 
@@ -533,7 +412,7 @@ FQuat FRotator::Quaternion() const
 	const VectorRegister4Float RightTerm = VectorBitwiseXor(SignBitsRight, VectorMultiply(SR, VectorMultiply(CP_CP_SP_SP, CY_SY_CY_SY)));
 
 	const VectorRegister4Float Result = VectorAdd(LeftTerm, RightTerm);	
-	FQuat RotationQuat = FQuat::MakeFromVectorRegister(Result);
+	FQuat4f RotationQuat = FQuat4f::MakeFromVectorRegister(Result);
 #else
 	const float DEG_TO_RAD = PI/(180.f);
 	const float RADS_DIVIDED_BY_2 = DEG_TO_RAD/2.f;
@@ -548,7 +427,7 @@ FQuat FRotator::Quaternion() const
 	FMath::SinCos(&SY, &CY, YawNoWinding * RADS_DIVIDED_BY_2);
 	FMath::SinCos(&SR, &CR, RollNoWinding * RADS_DIVIDED_BY_2);
 
-	FQuat RotationQuat;
+	FQuat4f RotationQuat;
 	RotationQuat.X =  CR*SP*SY - SR*CP*CY;
 	RotationQuat.Y = -CR*SP*CY - SR*CP*SY;
 	RotationQuat.Z =  CR*CP*SY - SR*SP*CY;
@@ -560,36 +439,109 @@ FQuat FRotator::Quaternion() const
 	if (RotationQuat.ContainsNaN())
 	{
 		logOrEnsureNanError(TEXT("Invalid input %s to FRotator::Quaternion - generated NaN output: %s"), *ToString(), *RotationQuat.ToString());
-		RotationQuat = FQuat::Identity;
+		RotationQuat = FQuat4f::Identity;
 	}
 #endif
 
 	return RotationQuat;
 }
 
-FVector FRotator::Euler() const
+
+template<>
+FQuat4d FRotator3d::Quaternion() const
 {
-	return FVector( Roll, Pitch, Yaw );
+	DiagnosticCheckNaN();
+
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+	const VectorRegister4Double Angles = MakeVectorRegisterDouble(Pitch, Yaw, Roll, 0.0);
+	const VectorRegister4Double AnglesNoWinding = VectorMod(Angles, GlobalVectorConstants::Double360);
+	const VectorRegister4Double HalfAngles = VectorMultiply(AnglesNoWinding, GlobalVectorConstants::DOUBLE_DEG_TO_RAD_HALF);
+
+	VectorRegister4Double SinAngles, CosAngles;
+	VectorSinCos(&SinAngles, &CosAngles, &HalfAngles);
+
+	// Vectorized conversion, measured 20% faster than using scalar version after VectorSinCos.
+	// Indices within VectorRegister (for shuffles): P=0, Y=1, R=2
+	const VectorRegister4Double SR = VectorReplicate(SinAngles, 2);
+	const VectorRegister4Double CR = VectorReplicate(CosAngles, 2);
+
+	const VectorRegister4Double SY_SY_CY_CY_Temp = VectorShuffle(SinAngles, CosAngles, 1, 1, 1, 1);
+
+	const VectorRegister4Double SP_SP_CP_CP = VectorShuffle(SinAngles, CosAngles, 0, 0, 0, 0);
+	const VectorRegister4Double SY_CY_SY_CY = VectorShuffle(SY_SY_CY_CY_Temp, SY_SY_CY_CY_Temp, 0, 2, 0, 2);
+
+	const VectorRegister4Double CP_CP_SP_SP = VectorShuffle(CosAngles, SinAngles, 0, 0, 0, 0);
+	const VectorRegister4Double CY_SY_CY_SY = VectorShuffle(SY_SY_CY_CY_Temp, SY_SY_CY_CY_Temp, 2, 0, 2, 0);
+
+	const uint64 Neg = uint64(1) << 63;
+	const uint64 Pos = uint64(0);
+	const VectorRegister4Double SignBitsLeft = MakeVectorRegisterDoubleMask(Pos, Neg, Pos, Pos);
+	const VectorRegister4Double SignBitsRight = MakeVectorRegisterDoubleMask(Neg, Neg, Neg, Pos);
+	const VectorRegister4Double LeftTerm = VectorBitwiseXor(SignBitsLeft, VectorMultiply(CR, VectorMultiply(SP_SP_CP_CP, SY_CY_SY_CY)));
+	const VectorRegister4Double RightTerm = VectorBitwiseXor(SignBitsRight, VectorMultiply(SR, VectorMultiply(CP_CP_SP_SP, CY_SY_CY_SY)));
+
+	const VectorRegister4Double Result = VectorAdd(LeftTerm, RightTerm);
+	FQuat4d RotationQuat = FQuat4d::MakeFromVectorRegister(Result);
+#else
+	const double DEG_TO_RAD = DOUBLE_PI / (180.0);
+	const double RADS_DIVIDED_BY_2 = DEG_TO_RAD / 2.0;
+	double SP, SY, SR;
+	double CP, CY, CR;
+
+	const double PitchNoWinding = FMath::Fmod(Pitch, 360.0);
+	const double YawNoWinding = FMath::Fmod(Yaw, 360.0);
+	const double RollNoWinding = FMath::Fmod(Roll, 360.0);
+
+	FMath::SinCos(&SP, &CP, PitchNoWinding * RADS_DIVIDED_BY_2);
+	FMath::SinCos(&SY, &CY, YawNoWinding * RADS_DIVIDED_BY_2);
+	FMath::SinCos(&SR, &CR, RollNoWinding * RADS_DIVIDED_BY_2);
+
+	FQuat4d RotationQuat;
+	RotationQuat.X = CR * SP * SY - SR * CP * CY;
+	RotationQuat.Y = -CR * SP * CY - SR * CP * SY;
+	RotationQuat.Z = CR * CP * SY - SR * SP * CY;
+	RotationQuat.W = CR * CP * CY + SR * SP * SY;
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+
+#if ENABLE_NAN_DIAGNOSTIC || DO_CHECK
+	// Very large inputs can cause NaN's. Want to catch this here
+	if (RotationQuat.ContainsNaN())
+	{
+		logOrEnsureNanError(TEXT("Invalid input %s to FRotator::Quaternion - generated NaN output: %s"), *ToString(), *RotationQuat.ToString());
+		RotationQuat = FQuat4d::Identity;
+	}
+#endif
+
+	return RotationQuat;
 }
 
-FRotator FRotator::MakeFromEuler(const FVector& Euler)
+
+template<typename T>
+UE::Math::TVector<T> UE::Math::TRotator<T>::Euler() const
 {
-	using FReal = decltype(FRotator::Pitch);
-	return FRotator((FReal)Euler.Y, (FReal)Euler.Z, (FReal)Euler.X);
+	return UE::Math::TVector<T>( Roll, Pitch, Yaw );
 }
 
-FVector FRotator::UnrotateVector(const FVector& V) const
+template<typename T>
+UE::Math::TRotator<T> UE::Math::TRotator<T>::MakeFromEuler(const UE::Math::TVector<T>& Euler)
 {
-	return FRotationMatrix(*this).GetTransposed().TransformVector( V );
+	return UE::Math::TRotator<T>(Euler.Y, Euler.Z, Euler.X);
+}
+
+template<typename T>
+UE::Math::TVector<T> UE::Math::TRotator<T>::UnrotateVector(const UE::Math::TVector<T>& V) const
+{
+	return UE::Math::TRotationMatrix<T>(*this).GetTransposed().TransformVector( V );
 }	
 
-FVector FRotator::RotateVector(const FVector& V) const
+template<typename T>
+UE::Math::TVector<T> UE::Math::TRotator<T>::RotateVector(const UE::Math::TVector<T>& V) const
 {
-	return FRotationMatrix(*this).TransformVector( V );
+	return UE::Math::TRotationMatrix<T>(*this).TransformVector( V );
 }	
 
-
-void FRotator::GetWindingAndRemainder(FRotator& Winding, FRotator& Remainder) const
+template<typename T>
+void UE::Math::TRotator<T>::GetWindingAndRemainder(UE::Math::TRotator<T>& Winding, UE::Math::TRotator<T>& Remainder) const
 {
 	//// YAW
 	Remainder.Yaw = NormalizeAxis(Yaw);
@@ -608,43 +560,24 @@ void FRotator::GetWindingAndRemainder(FRotator& Winding, FRotator& Remainder) co
 }
 
 
-template<>
-FRotator FMatrix44f::Rotator() const
+template<typename T>
+UE::Math::TRotator<T> UE::Math::TMatrix<T>::Rotator() const
 {
-	using TVector = FVector3f;
+	using TRotator = UE::Math::TRotator<T>;
+	using TVector = UE::Math::TVector<T>;
 	const TVector		XAxis	= GetScaledAxis( EAxis::X );
 	const TVector		YAxis	= GetScaledAxis( EAxis::Y );
 	const TVector		ZAxis	= GetScaledAxis( EAxis::Z );
+	const T RadToDeg = T(180.0 / DOUBLE_PI);
 
-	FRotator	Rotator	= FRotator( 
-									FMath::Atan2( XAxis.Z, FMath::Sqrt(FMath::Square(XAxis.X)+FMath::Square(XAxis.Y)) ) * 180.f / PI, 
-									FMath::Atan2( XAxis.Y, XAxis.X ) * 180.f / PI, 
+	TRotator Rotator	= TRotator(
+									FMath::Atan2( XAxis.Z, FMath::Sqrt(FMath::Square(XAxis.X)+FMath::Square(XAxis.Y)) ) * RadToDeg,
+									FMath::Atan2( XAxis.Y, XAxis.X ) * RadToDeg,
 									0 
 								);
 	
-	const TVector	SYAxis	= (TVector)FRotationMatrix( Rotator ).GetScaledAxis( EAxis::Y );
-	Rotator.Roll		= FMath::Atan2( ZAxis | SYAxis, YAxis | SYAxis ) * 180.f / PI;
-
-	Rotator.DiagnosticCheckNaN();
-	return Rotator;
-}
-
-template<>
-FRotator FMatrix44d::Rotator() const
-{
-	using TVector = FVector3d;
-	const TVector		XAxis = GetScaledAxis(EAxis::X);
-	const TVector		YAxis = GetScaledAxis(EAxis::Y);
-	const TVector		ZAxis = GetScaledAxis(EAxis::Z);
-
-	FRotator	Rotator = FRotator(
-		(float)FMath::Atan2(XAxis.Z, FMath::Sqrt(FMath::Square(XAxis.X) + FMath::Square(XAxis.Y))) * 180.f / PI,
-		(float)FMath::Atan2(XAxis.Y, XAxis.X) * 180.f / PI,
-		0
-	);
-
-	const TVector	SYAxis = FRotationMatrix(Rotator).GetScaledAxis(EAxis::Y);
-	Rotator.Roll = (float)FMath::Atan2(ZAxis | SYAxis, YAxis | SYAxis) * 180.f / PI;
+	const TVector	SYAxis	= (TVector)UE::Math::TRotationMatrix<T>( Rotator ).GetScaledAxis( EAxis::Y );
+	Rotator.Roll		= FMath::Atan2( ZAxis | SYAxis, YAxis | SYAxis ) * RadToDeg;
 
 	Rotator.DiagnosticCheckNaN();
 	return Rotator;
@@ -670,13 +603,13 @@ namespace Math
 	//////////////////////////////////////////////////////////////////////////
 	// FQuat
 
-	template<typename T>
-	FRotator TQuat<T>::Rotator() const
+	template<>
+	FRotator3f FQuat4f::Rotator() const
 	{
 		DiagnosticCheckNaN();
-		const T SingularityTest = Z * X - W * Y;
-		const T YawY = 2.f * (W * Z + X * Y);
-		const T YawX = (1.f - 2.f * (FMath::Square(Y) + FMath::Square(Z)));
+		const float SingularityTest = Z * X - W * Y;
+		const float YawY = 2.f * (W * Z + X * Y);
+		const float YawX = (1.f - 2.f * (FMath::Square(Y) + FMath::Square(Z)));
 
 		// reference 
 		// http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
@@ -685,36 +618,80 @@ namespace Math
 		// this value was found from experience, the above websites recommend different values
 		// but that isn't the case for us, so I went through different testing, and finally found the case 
 		// where both of world lives happily. 
-		const T SINGULARITY_THRESHOLD = 0.4999995f;
-		const T RAD_TO_DEG = (T)(180.f / PI);
+		const float SINGULARITY_THRESHOLD = 0.4999995f;
+		const float RAD_TO_DEG = (180.f / PI);
 		float Pitch, Yaw, Roll;
 
 		if (SingularityTest < -SINGULARITY_THRESHOLD)
 		{
 			Pitch = -90.f;
-			Yaw = float(FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
-			Roll = FRotator::NormalizeAxis(-Yaw - float(2.f * FMath::Atan2(X, W) * RAD_TO_DEG));
+			Yaw = (FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = FRotator3f::NormalizeAxis(-Yaw - (2.f * FMath::Atan2(X, W) * RAD_TO_DEG));
 		}
 		else if (SingularityTest > SINGULARITY_THRESHOLD)
 		{
 			Pitch = 90.f;
-			Yaw = float(FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
-			Roll = FRotator::NormalizeAxis(Yaw - float(2.f * FMath::Atan2(X, W) * RAD_TO_DEG));
+			Yaw = (FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = FRotator3f::NormalizeAxis(Yaw - (2.f * FMath::Atan2(X, W) * RAD_TO_DEG));
 		}
 		else
 		{
-			Pitch = float(FMath::FastAsin(2.f * SingularityTest) * RAD_TO_DEG);
-			Yaw = float(FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
-			Roll = float(FMath::Atan2(-2.f * (W*X + Y*Z), (1.f - 2.f * (FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG);
+			Pitch = (FMath::FastAsin(2.f * SingularityTest) * RAD_TO_DEG);
+			Yaw = (FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = (FMath::Atan2(-2.f * (W*X + Y*Z), (1.f - 2.f * (FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG);
 		}
 
-		FRotator RotatorFromQuat = FRotator(Pitch, Yaw, Roll);
+		FRotator3f RotatorFromQuat = FRotator3f(Pitch, Yaw, Roll);
 
 #if ENABLE_NAN_DIAGNOSTIC
 		if (RotatorFromQuat.ContainsNaN())
 		{
 			logOrEnsureNanError(TEXT("TQuat<T>::Rotator(): Rotator result %s contains NaN! Quat = %s, YawY = %.9f, YawX = %.9f"), *RotatorFromQuat.ToString(), *this->ToString(), YawY, YawX);
-			RotatorFromQuat = FRotator::ZeroRotator;
+			RotatorFromQuat = FRotator3f::ZeroRotator;
+		}
+#endif
+
+		return RotatorFromQuat;
+	}
+
+	template<>
+	FRotator3d FQuat4d::Rotator() const
+	{
+		DiagnosticCheckNaN();
+		const double SingularityTest = Z * X - W * Y;
+		const double YawY = 2.0 * (W * Z + X * Y);
+		const double YawX = (1.0 - 2.0 * (FMath::Square(Y) + FMath::Square(Z)));
+
+		const double SINGULARITY_THRESHOLD = 0.4999995;
+		const double RAD_TO_DEG = (180.0 / DOUBLE_PI);
+		double Pitch, Yaw, Roll;
+
+		if (SingularityTest < -SINGULARITY_THRESHOLD)
+		{
+			Pitch = -90.0;
+			Yaw = (FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = FRotator3d::NormalizeAxis(-Yaw - (2.0 * FMath::Atan2(X, W) * RAD_TO_DEG));
+		}
+		else if (SingularityTest > SINGULARITY_THRESHOLD)
+		{
+			Pitch = 90.0;
+			Yaw = (FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = FRotator3d::NormalizeAxis(Yaw - (2.0 * FMath::Atan2(X, W) * RAD_TO_DEG));
+		}
+		else
+		{
+			Pitch = (FMath::Asin(2.0 * SingularityTest) * RAD_TO_DEG); // Note: not FastAsin like float implementation
+			Yaw = (FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = (FMath::Atan2(-2.0 * (W * X + Y * Z), (1.0 - 2.0 * (FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG);
+		}
+
+		FRotator3d RotatorFromQuat = FRotator3d(Pitch, Yaw, Roll);
+
+#if ENABLE_NAN_DIAGNOSTIC
+		if (RotatorFromQuat.ContainsNaN())
+		{
+			logOrEnsureNanError(TEXT("TQuat<T>::Rotator(): Rotator result %s contains NaN! Quat = %s, YawY = %.9f, YawX = %.9f"), *RotatorFromQuat.ToString(), *this->ToString(), YawY, YawX);
+			RotatorFromQuat = FRotator3d::ZeroRotator;
 		}
 #endif
 
@@ -724,7 +701,7 @@ namespace Math
 	template<typename T>
 	TQuat<T> TQuat<T>::MakeFromEuler(const TVector<T>& Euler)
 	{
-		return TQuat<T>(FRotator::MakeFromEuler(Euler));
+		return TQuat<T>(TRotator<T>::MakeFromEuler(Euler));
 	}
 
 	template<typename T>
@@ -878,18 +855,18 @@ bool FMath::LineExtentBoxIntersection(const FBox& inBox,
 	{	
 		if(Time.Y > Time.Z)
 		{
-			HitTime = (decltype(HitTime))Time.Y;	// LWC_TODO: Remove decltype
+			HitTime = static_cast<std::remove_reference_t<decltype(HitTime)>>(Time.Y);	// LWC_TODO: Remove decltype
 			HitNormal = FVector(0, faceDir[1], 0);
 		}
 		else
 		{
-			HitTime = (decltype(HitTime))Time.Z;
+			HitTime = static_cast<std::remove_reference_t<decltype(HitTime)>>(Time.Z);
 			HitNormal = FVector(0, 0, faceDir[2]);
 		}
 		
 		if(Time.X > HitTime)
 		{
-			HitTime = (decltype(HitTime))Time.X;
+			HitTime = static_cast<std::remove_reference_t<decltype(HitTime)>>(Time.X);
 			HitNormal = FVector(faceDir[0], 0, 0);
 		}
 		
@@ -1297,7 +1274,7 @@ void CORE_API CurveVector2DFindIntervalBounds( const FInterpCurvePoint<FVector2D
 {
 	const bool bIsCurve = Start.IsCurveKey();
 
-	float OutMin, OutMax;
+	FVector2D::FReal OutMin, OutMax;
 
 	FindBounds(OutMin, OutMax, Start.OutVal.X, Start.LeaveTangent.X, Start.InVal, End.OutVal.X, End.ArriveTangent.X, End.InVal, bIsCurve);
 	CurrentMin.X = FMath::Min( CurrentMin.X, OutMin );
@@ -1426,14 +1403,14 @@ FVector2D FMath::ClosestPointOnSegment2D(const FVector2D &Point, const FVector2D
 	const FVector2D VectToPoint = Point - StartPoint;
 
 	// See if closest point is before StartPoint
-	const float Dot1 = VectToPoint | Segment;
+	const FVector2D::FReal Dot1 = VectToPoint | Segment;
 	if (Dot1 <= 0)
 	{
 		return StartPoint;
 	}
 
 	// See if closest point is beyond EndPoint
-	const float Dot2 = Segment | Segment;
+	const FVector2D::FReal Dot2 = Segment | Segment;
 	if (Dot2 <= Dot1)
 	{
 		return EndPoint;
@@ -1934,8 +1911,8 @@ FVector FMath::GetBaryCentric2D(const FVector& Point, const FVector& A, const FV
 
 FVector FMath::GetBaryCentric2D(const FVector2D& Point, const FVector2D& A, const FVector2D& B, const FVector2D& C)
 {
-	float a = ((B.Y - C.Y) * (Point.X - C.X) + (C.X - B.X) * (Point.Y - C.Y)) / ((B.Y - C.Y) * (A.X - C.X) + (C.X - B.X) * (A.Y - C.Y));
-	float b = ((C.Y - A.Y) * (Point.X - C.X) + (A.X - C.X) * (Point.Y - C.Y)) / ((B.Y - C.Y) * (A.X - C.X) + (C.X - B.X) * (A.Y - C.Y));
+	FVector2D::FReal a = ((B.Y - C.Y) * (Point.X - C.X) + (C.X - B.X) * (Point.Y - C.Y)) / ((B.Y - C.Y) * (A.X - C.X) + (C.X - B.X) * (A.Y - C.Y));
+	FVector2D::FReal b = ((C.Y - A.Y) * (Point.X - C.X) + (A.X - C.X) * (Point.Y - C.Y)) / ((B.Y - C.Y) * (A.X - C.X) + (C.X - B.X) * (A.Y - C.Y));
 
 	return FVector(a, b, 1.0f - a - b);
 }
@@ -2286,7 +2263,7 @@ CORE_API FVector FMath::VInterpTo( const FVector& Current, const FVector& Target
 CORE_API FVector2D FMath::Vector2DInterpConstantTo( const FVector2D& Current, const FVector2D& Target, float DeltaTime, float InterpSpeed )
 {
 	const FVector2D Delta = Target - Current;
-	const float DeltaM = Delta.Size();
+	const FVector2D::FReal DeltaM = Delta.Size();
 	const float MaxStep = InterpSpeed * DeltaTime;
 
 	if( DeltaM > MaxStep )
@@ -2373,66 +2350,6 @@ CORE_API FRotator FMath::RInterpTo( const FRotator& Current, const FRotator& Tar
 	// Delta Move, Clamp so we do not over shoot.
 	const FRotator DeltaMove = Delta * FMath::Clamp<float>(DeltaInterpSpeed, 0.f, 1.f);
 	return (Current + DeltaMove).GetNormalized();
-}
-
-CORE_API float FMath::FInterpTo( float Current, float Target, float DeltaTime, float InterpSpeed )
-{
-	// If no interp speed, jump to target value
-	if( InterpSpeed <= 0.f )
-	{
-		return Target;
-	}
-
-	// Distance to reach
-	const float Dist = Target - Current;
-
-	// If distance is too small, just set the desired location
-	if( FMath::Square(Dist) < SMALL_NUMBER )
-	{
-		return Target;
-	}
-
-	// Delta Move, Clamp so we do not over shoot.
-	const float DeltaMove = Dist * FMath::Clamp<float>(DeltaTime * InterpSpeed, 0.f, 1.f);
-
-	return Current + DeltaMove;
-}
-
-CORE_API double FMath::FInterpTo( double Current, double Target, double DeltaTime, double InterpSpeed )
-{
-	// If no interp speed, jump to target value
-	if( InterpSpeed <= 0.0 )
-	{
-		return Target;
-	}
-
-	// Distance to reach
-	const double Dist = Target - Current;
-
-	// If distance is too small, just set the desired location
-	if( FMath::Square(Dist) < SMALL_NUMBER )
-	{
-		return Target;
-	}
-
-	// Delta Move, Clamp so we do not over shoot.
-	const double DeltaMove = Dist * FMath::Clamp<double>(DeltaTime * InterpSpeed, 0.0, 1.0);
-
-	return Current + DeltaMove;
-}
-
-CORE_API float FMath::FInterpConstantTo( float Current, float Target, float DeltaTime, float InterpSpeed )
-{
-	const float Dist = Target - Current;
-
-	// If distance is too small, just set the desired location
-	if( FMath::Square(Dist) < SMALL_NUMBER )
-	{
-		return Target;
-	}
-
-	const float Step = InterpSpeed * DeltaTime;
-	return Current + FMath::Clamp<float>(Dist, -Step, Step);
 }
 
 /** Interpolate Linear Color from Current to Target. Scaled by distance to Target, so it has a strong start speed and ease out. */
@@ -2676,7 +2593,7 @@ FVector FMath::VRandCone(FVector const& Dir, float HorizontalConeHalfAngleRad, f
 FVector2D FMath::RandPointInCircle(float CircleRadius)
 {
 	FVector2D Point;
-	float L;
+	FVector2D::FReal L;
 
 	do
 	{
@@ -3227,17 +3144,17 @@ float FMath::FixedTurn(float InCurrent, float InDesired, float InDeltaRate)
 {
 	if (InDeltaRate == 0.f)
 	{
-		return FRotator::ClampAxis(InCurrent);
+		return FRotator3f::ClampAxis(InCurrent);
 	}
 
 	if (InDeltaRate >= 360.f)
 	{
-		return FRotator::ClampAxis(InDesired);
+		return FRotator3f::ClampAxis(InDesired);
 	}
 
-	float result = FRotator::ClampAxis(InCurrent);
+	float result = FRotator3f::ClampAxis(InCurrent);
 	InCurrent = result;
-	InDesired = FRotator::ClampAxis(InDesired);
+	InDesired = FRotator3f::ClampAxis(InDesired);
 
 	if (InCurrent > InDesired)
 	{
@@ -3253,27 +3170,27 @@ float FMath::FixedTurn(float InCurrent, float InDesired, float InDeltaRate)
 		else
 			result -= FMath::Min((InCurrent + 360.f - InDesired), FMath::Abs(InDeltaRate));
 	}
-	return FRotator::ClampAxis(result);
+	return FRotator3f::ClampAxis(result);
 }
 
 float FMath::ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees)
 {
-	float const MaxDelta = FRotator::ClampAxis(MaxAngleDegrees - MinAngleDegrees) * 0.5f;			// 0..180
-	float const RangeCenter = FRotator::ClampAxis(MinAngleDegrees + MaxDelta);						// 0..360
-	float const DeltaFromCenter = FRotator::NormalizeAxis(AngleDegrees - RangeCenter);				// -180..180
+	float const MaxDelta = FRotator3f::ClampAxis(MaxAngleDegrees - MinAngleDegrees) * 0.5f;			// 0..180
+	float const RangeCenter = FRotator3f::ClampAxis(MinAngleDegrees + MaxDelta);						// 0..360
+	float const DeltaFromCenter = FRotator3f::NormalizeAxis(AngleDegrees - RangeCenter);				// -180..180
 
 	// maybe clamp to nearest edge
 	if (DeltaFromCenter > MaxDelta)
 	{
-		return FRotator::NormalizeAxis(RangeCenter + MaxDelta);
+		return FRotator3f::NormalizeAxis(RangeCenter + MaxDelta);
 	}
 	else if (DeltaFromCenter < -MaxDelta)
 	{
-		return FRotator::NormalizeAxis(RangeCenter - MaxDelta);
+		return FRotator3f::NormalizeAxis(RangeCenter - MaxDelta);
 	}
 
 	// already in range, just return it
-	return FRotator::NormalizeAxis(AngleDegrees);
+	return FRotator3f::NormalizeAxis(AngleDegrees);
 }
 
 void FMath::ApplyScaleToFloat(float& Dst, const FVector& DeltaScale, float Magnitude)
@@ -3281,18 +3198,6 @@ void FMath::ApplyScaleToFloat(float& Dst, const FVector& DeltaScale, float Magni
 	const float Multiplier = ( DeltaScale.X > 0.0f || DeltaScale.Y > 0.0f || DeltaScale.Z > 0.0f ) ? Magnitude : -Magnitude;
 	Dst += Multiplier * (float)DeltaScale.Size();
 	Dst = FMath::Max( 0.0f, Dst );
-}
-
-void FMath::CartesianToPolar(const FVector2D InCart, FVector2D& OutPolar)
-{
-	OutPolar.X = Sqrt(Square(InCart.X) + Square(InCart.Y));
-	OutPolar.Y = Atan2(InCart.Y, InCart.X);
-}
-
-void FMath::PolarToCartesian(const FVector2D InPolar, FVector2D& OutCart)
-{
-	OutCart.X = InPolar.X * Cos(InPolar.Y);
-	OutCart.Y = InPolar.X * Sin(InPolar.Y);
 }
 
 bool FRandomStream::ExportTextItem(FString& ValueStr, FRandomStream const& DefaultValue, class UObject* Parent, int32 PortFlags, class UObject* ExportRootScope) const
@@ -3410,12 +3315,12 @@ float FMath::PerlinNoise2D(const FVector2D& Location)
 {
 	using namespace FMathPerlinHelpers;
 
-	float Xfl = FMath::FloorToFloat(Location.X);
-	float Yfl = FMath::FloorToFloat(Location.Y);
+	float Xfl = FMath::FloorToFloat((float)Location.X);		// LWC_TODO: Precision loss
+	float Yfl = FMath::FloorToFloat((float)Location.Y);
 	int32 Xi = (int32)(Xfl) & 255;
 	int32 Yi = (int32)(Yfl) & 255;
-	float X = Location.X - Xfl;
-	float Y = Location.Y - Yfl;
+	float X = (float)Location.X - Xfl;
+	float Y = (float)Location.Y - Yfl;
 	float Xm1 = X - 1.0f;
 	float Ym1 = Y - 1.0f;
 
@@ -3480,5 +3385,13 @@ float FMath::PerlinNoise3D(const FVector& Location)
 
 
 // Instantiate for linker
+template struct UE::Math::TRotator<float>;
+template struct UE::Math::TRotator<double>;
 template struct UE::Math::TQuat<float>;
 template struct UE::Math::TQuat<double>;
+template struct UE::Math::TVector<float>;
+template struct UE::Math::TVector<double>;
+template struct UE::Math::TVector4<float>;
+template struct UE::Math::TVector4<double>;
+template struct UE::Math::TMatrix<float>;
+template struct UE::Math::TMatrix<double>;

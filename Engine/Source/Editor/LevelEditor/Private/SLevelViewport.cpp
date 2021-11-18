@@ -85,7 +85,7 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
 #include "SInViewportDetails.h"
-
+#include "Viewports/InViewportUIDragOperation.h"
 
 static const FName LevelEditorName("LevelEditor");
 static FAutoConsoleCommand EnableInViewportMenu(TEXT("Editor.EnableInViewportMenu"), TEXT("Enables the new in-viewport property menu"), FConsoleCommandDelegate::CreateStatic(&SLevelViewport::EnableInViewportMenu));
@@ -991,8 +991,7 @@ FReply SLevelViewport::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent
 	if (DragDropEvent.GetOperation()->IsOfType<FInViewportUIDragOperation>())
 	{
 		FVector2D ScreenSpaceDropLocation = DragDropEvent.GetScreenSpacePosition() - DragDropEvent.GetOperationAs<FInViewportUIDragOperation>()->GetDecoratorOffsetFromCursor();
-		UpdateInViewportMenuLocation(MyGeometry.AbsoluteToLocal(ScreenSpaceDropLocation));
-		ToggleInViewportContextMenu();
+		DragDropEvent.GetOperationAs<FInViewportUIDragOperation>()->BroadcastDropEvent(MyGeometry.AbsoluteToLocal(ScreenSpaceDropLocation));
 	}
 	else
 	{

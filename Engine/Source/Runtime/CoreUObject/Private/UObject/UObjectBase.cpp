@@ -552,12 +552,6 @@ void UObjectForceRegistration(UObjectBase* Object, bool bCheckForModuleRelease)
 
 // UScriptStruct deferred registration
 
-TMap<FName, UScriptStruct *(*)()>& GetDynamicStructMap()
-{
-	static TMap<FName, UScriptStruct *(*)()> DynamicStructMap;
-	return DynamicStructMap;
-}
-
 void RegisterCompiledInInfo(class UScriptStruct* (*InOuterRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FStructRegistrationInfo& InInfo, const FStructReloadVersionInfo& InVersionInfo)
 {
 	check(InOuterRegister);
@@ -565,30 +559,12 @@ void RegisterCompiledInInfo(class UScriptStruct* (*InOuterRegister)(), const TCH
 	NotifyRegistrationEvent(InPackageName, InName, ENotifyRegistrationType::NRT_Struct, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InOuterRegister), false);
 }
 
-void RegisterCompiledInInfo(class UScriptStruct* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName)
+// [DEPRECATED] - Legacy implementation that will be removed later. Also note that dynamic struct types are no longer supported here.
+void UObjectCompiledInDeferStruct(class UScriptStruct* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, bool /*bDynamic*/, const TCHAR* /*DynamicPathName*/)
 {
-	if (DynamicPackageName != nullptr)
-	{
-		GetConvertedDynamicPackageNameToTypeName().Add(FName(DynamicPackageName), FName(ObjectName));
-	}
-
-	GetDynamicStructMap().Add(DynamicPathName, InRegister);
-	NotifyRegistrationEvent(PackageName, ObjectName, ENotifyRegistrationType::NRT_Struct, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InRegister), true);
-}
-
-
-void UObjectCompiledInDeferStruct(class UScriptStruct* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, bool bDynamic, const TCHAR* DynamicPathName)
-{
-	if (!bDynamic)
-	{
-		FStructDeferredRegistry& Registry = FStructDeferredRegistry::Get();
-		FStructRegistrationInfo& Info = Registry.MakeDeprecatedInfo(PackageName, ObjectName);
-		Registry.AddRegistration(nullptr, InRegister, PackageName, ObjectName, Info, FStructReloadVersionInfo{}, nullptr);
-	}
-	else
-	{
-		RegisterCompiledInInfo(InRegister, PackageName, ObjectName, nullptr, DynamicPathName);
-	}
+	FStructDeferredRegistry& Registry = FStructDeferredRegistry::Get();
+	FStructRegistrationInfo& Info = Registry.MakeDeprecatedInfo(PackageName, ObjectName);
+	Registry.AddRegistration(nullptr, InRegister, PackageName, ObjectName, Info, FStructReloadVersionInfo{}, nullptr);
 }
 
 class UScriptStruct *GetStaticStruct(class UScriptStruct *(*InRegister)(), UObject* StructOuter, const TCHAR* StructName)
@@ -601,12 +577,6 @@ class UScriptStruct *GetStaticStruct(class UScriptStruct *(*InRegister)(), UObje
 
 // UEnum deferred registration
 
-TMap<FName, UEnum *(*)()>& GetDynamicEnumMap()
-{
-	static TMap<FName, UEnum *(*)()> DynamicEnumMap;
-	return DynamicEnumMap;
-}
-
 void RegisterCompiledInInfo(class UEnum* (*InOuterRegister)(), const TCHAR* InPackageName, const TCHAR* InName, FEnumRegistrationInfo& InInfo, const FEnumReloadVersionInfo& InVersionInfo)
 {
 	check(InOuterRegister);
@@ -614,29 +584,12 @@ void RegisterCompiledInInfo(class UEnum* (*InOuterRegister)(), const TCHAR* InPa
 	NotifyRegistrationEvent(InPackageName, InName, ENotifyRegistrationType::NRT_Enum, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InOuterRegister), false);
 }
 
-void RegisterCompiledInInfo(class UEnum* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName)
+// [DEPRECATED] - Legacy implementation that will be removed later. Also note that dynamic enum types are no longer supported here.
+void UObjectCompiledInDeferEnum(class UEnum* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, bool /*bDynamic*/, const TCHAR* /*DynamicPathName*/)
 {
-	if (DynamicPackageName != nullptr)
-	{
-		GetConvertedDynamicPackageNameToTypeName().Add(FName(DynamicPackageName), FName(ObjectName));
-	}
-
-	GetDynamicEnumMap().Add(DynamicPathName, InRegister);
-	NotifyRegistrationEvent(PackageName, ObjectName, ENotifyRegistrationType::NRT_Enum, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InRegister), true);
-}
-
-void UObjectCompiledInDeferEnum(class UEnum* (*InRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, bool bDynamic, const TCHAR* DynamicPathName)
-{
-	if (!bDynamic)
-	{
-		FEnumDeferredRegistry& Registry = FEnumDeferredRegistry::Get();
-		FEnumRegistrationInfo& Info = Registry.MakeDeprecatedInfo(PackageName, ObjectName);
-		Registry.AddRegistration(InRegister, InRegister, PackageName, ObjectName, Info, FEnumReloadVersionInfo{}, nullptr);
-	}
-	else
-	{
-		RegisterCompiledInInfo(InRegister, PackageName, ObjectName, nullptr, DynamicPathName);
-	}
+	FEnumDeferredRegistry& Registry = FEnumDeferredRegistry::Get();
+	FEnumRegistrationInfo& Info = Registry.MakeDeprecatedInfo(PackageName, ObjectName);
+	Registry.AddRegistration(InRegister, InRegister, PackageName, ObjectName, Info, FEnumReloadVersionInfo{}, nullptr);
 }
 
 class UEnum *GetStaticEnum(class UEnum *(*InRegister)(), UObject* EnumOuter, const TCHAR* EnumName)
@@ -649,11 +602,15 @@ class UEnum *GetStaticEnum(class UEnum *(*InRegister)(), UObject* EnumOuter, con
 
 // UClass deferred registration
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer in use; will be removed later.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TMap<FName, FDynamicClassStaticData>& GetDynamicClassMap()
 {
 	static TMap<FName, FDynamicClassStaticData> DynamicClassMap;
 	return DynamicClassMap;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** Removes prefix from the native class name */
 FString UObjectBase::RemoveClassPrefix(const TCHAR* ClassName)
@@ -685,32 +642,6 @@ void RegisterCompiledInInfo(class UClass* (*InOuterRegister)(), class UClass* (*
 	NotifyRegistrationEvent(InPackageName, *(FString(DEFAULT_OBJECT_PREFIX) + NoPrefix), ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InOuterRegister), false);
 }
 
-void RegisterCompiledInInfo(UClass* (*InOuterRegister)(), UClass* (*InInnerRegister)(), const TCHAR* PackageName, const TCHAR* ObjectName, const TCHAR* DynamicPackageName, const TCHAR* DynamicPathName, void (*InInitSearchableValues)(TMap<FName, FName>&))
-{
-	if (DynamicPackageName != nullptr)
-	{
-		GetConvertedDynamicPackageNameToTypeName().Add(FName(DynamicPackageName), FName(ObjectName));
-	}
-
-	FDynamicClassStaticData ClassFunctions;
-	ClassFunctions.ZConstructFn = InOuterRegister;
-	ClassFunctions.StaticClassFn = InInnerRegister;
-	if (InInitSearchableValues)
-	{
-		InInitSearchableValues(ClassFunctions.SelectedSearchableValues);
-	}
-	GetDynamicClassMap().Add(FName(DynamicPathName), ClassFunctions);
-
-	FString OriginalPackageName = DynamicPathName;
-	check(OriginalPackageName.EndsWith(ObjectName));
-	OriginalPackageName.RemoveFromEnd(FString(ObjectName));
-	check(OriginalPackageName.EndsWith(TEXT(".")));
-	OriginalPackageName.RemoveFromEnd(FString(TEXT(".")));
-
-	NotifyRegistrationEvent(*OriginalPackageName, ObjectName, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InOuterRegister), true);
-	NotifyRegistrationEvent(*OriginalPackageName, *(FString(DEFAULT_OBJECT_PREFIX) + ObjectName), ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InOuterRegister), true);
-}
-
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UClassCompiledInDefer(FFieldCompiledInInfo* ClassInfo, const TCHAR* Name, SIZE_T ClassSize, uint32 Crc)
 {
@@ -720,36 +651,30 @@ void UClassCompiledInDefer(FFieldCompiledInInfo* ClassInfo, const TCHAR* Name, S
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-void UObjectCompiledInDefer(UClass *(*InRegister)(), UClass *(*InStaticClass)(), const TCHAR* Name, const TCHAR* PackageName, bool bDynamic, const TCHAR* DynamicPathName, void (*InInitSearchableValues)(TMap<FName, FName>&))
+// [DEPRECATED] - Legacy implementation that will be removed later. Also note that dynamic class types are no longer supported here.
+void UObjectCompiledInDefer(UClass *(*InRegister)(), UClass *(*InStaticClass)(), const TCHAR* Name, const TCHAR* PackageName, bool /*bDynamic*/, const TCHAR* /*DynamicPathName*/, void (*InInitSearchableValues)(TMap<FName, FName>&))
 {
-	if (!bDynamic)
-	{
-		// Either add all classes if not hot-reloading, or those which have changed
-		FClassDeferredRegistry& ClassRegistry = FClassDeferredRegistry::Get();
-		FClassRegistrationInfo& Info = ClassRegistry.MakeDeprecatedInfo(PackageName, Name);
+	// Either add all classes if not hot-reloading, or those which have changed
+	FClassDeferredRegistry& ClassRegistry = FClassDeferredRegistry::Get();
+	FClassRegistrationInfo& Info = ClassRegistry.MakeDeprecatedInfo(PackageName, Name);
 
-		// This is slow, but is deprecated.
-		for (FClassDeferredRegistry::FRegistrant& Registrant : ClassRegistry.GetRegistrations())
-		{
-			if (Registrant.Info == &Info)
-			{
-#if WITH_RELOAD
-				if (Registrant.bHasChanged)
-#endif
-				{
-					// This will probably need to be moved
-					FString NoPrefix(UObjectBase::RemoveClassPrefix(Name));
-					NotifyRegistrationEvent(PackageName, *NoPrefix, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InRegister), false);
-					NotifyRegistrationEvent(PackageName, *(FString(DEFAULT_OBJECT_PREFIX) + NoPrefix), ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InRegister), false);
-				}
-				Registrant.OuterRegisterFn = InRegister;
-				break;
-			}
-		}
-	}
-	else
+	// This is slow, but is deprecated.
+	for (FClassDeferredRegistry::FRegistrant& Registrant : ClassRegistry.GetRegistrations())
 	{
-		RegisterCompiledInInfo(InRegister, InStaticClass, PackageName, Name, nullptr, DynamicPathName, InInitSearchableValues);
+		if (Registrant.Info == &Info)
+		{
+#if WITH_RELOAD
+			if (Registrant.bHasChanged)
+#endif
+			{
+				// This will probably need to be moved
+				FString NoPrefix(UObjectBase::RemoveClassPrefix(Name));
+				NotifyRegistrationEvent(PackageName, *NoPrefix, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InRegister), false);
+				NotifyRegistrationEvent(PackageName, *(FString(DEFAULT_OBJECT_PREFIX) + NoPrefix), ENotifyRegistrationType::NRT_ClassCDO, ENotifyRegistrationPhase::NRP_Added, (UObject * (*)())(InRegister), false);
+			}
+			Registrant.OuterRegisterFn = InRegister;
+			break;
+		}
 	}
 }
 
@@ -1119,6 +1044,9 @@ void UObjectBaseInit()
 	GUObjectAllocator.AllocatePermanentObjectPool(SizeOfPermanentObjectPool);
 	GUObjectArray.AllocateObjectPool(MaxUObjects, MaxObjectsNotConsideredByGC, bPreAllocateUObjectArray);
 
+	void InitNoPendingKill();
+	InitNoPendingKill();
+
 	void InitAsyncThread();
 	InitAsyncThread();
 
@@ -1239,117 +1167,45 @@ const TCHAR* DebugFullName(UObject* Object)
 	}
 }
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer implemented or in use; will be removed later.
 UScriptStruct* FindExistingStructIfHotReloadOrDynamic(UObject* Outer, const TCHAR* StructName, SIZE_T Size, uint32 Crc, bool bIsDynamic)
 {
-#if WITH_RELOAD
-	UScriptStruct* Result = FStructDeferredRegistry::Get().FindMatchingObject(*Outer->GetName(), StructName, CONSTRUCT_RELOAD_VERSION_INFO(FStructReloadVersionInfo, Size, Crc));
-#else
-	UScriptStruct* Result = nullptr;
-#endif
-	if (!Result && bIsDynamic)
-	{
-		Result = Cast<UScriptStruct>(StaticFindObjectFast(UScriptStruct::StaticClass(), Outer, StructName));
-	}
-	return Result;
+	return nullptr;
 }
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer implemented or in use; will be removed later.
 UEnum* FindExistingEnumIfHotReloadOrDynamic(UObject* Outer, const TCHAR* EnumName, SIZE_T Size, uint32 Crc, bool bIsDynamic)
 {
-#if WITH_RELOAD
-	UEnum* Result = FEnumDeferredRegistry::Get().FindMatchingObject(*Outer->GetName(), EnumName, CONSTRUCT_RELOAD_VERSION_INFO(FEnumReloadVersionInfo, Crc));
-#else
-	UEnum* Result = nullptr;
-#endif
-	if (!Result && bIsDynamic)
-	{
-		Result = Cast<UEnum>(StaticFindObjectFast(UEnum::StaticClass(), Outer, EnumName));
-	}
-	return Result;
+	return nullptr;
 }
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer implemented or in use; will be removed later.
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UObject* ConstructDynamicType(FName TypePathName, EConstructDynamicType ConstructionSpecifier)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 {
-	UObject* Result = nullptr;
-	if (FDynamicClassStaticData* ClassConstructFn = GetDynamicClassMap().Find(TypePathName))
-	{
-		if (ConstructionSpecifier == EConstructDynamicType::CallZConstructor)
-		{
-			UClass* DynamicClass = ClassConstructFn->ZConstructFn();
-			check(DynamicClass);
-			DynamicClass->AssembleReferenceTokenStream();
-			Result = DynamicClass;
-		}
-		else if (ConstructionSpecifier == EConstructDynamicType::OnlyAllocateClassObject)
-		{
-			Result = ClassConstructFn->StaticClassFn();
-			check(Result);
-		}
-	}
-	else if (UScriptStruct *(**StaticStructFNPtr)() = GetDynamicStructMap().Find(TypePathName))
-	{
-		Result = (*StaticStructFNPtr)();
-	}
-	else if (UEnum *(**StaticEnumFNPtr)() = GetDynamicEnumMap().Find(TypePathName))
-	{
-		Result = (*StaticEnumFNPtr)();
-	}
-	return Result;
+	return nullptr;
 }
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer implemented or in use; will be removed later.
 FName GetDynamicTypeClassName(FName TypePathName)
 {
-	FName Result = NAME_None;
-	if (GetDynamicClassMap().Find(TypePathName))
-	{
-		Result = UDynamicClass::StaticClass()->GetFName();
-	}
-	else if (GetDynamicStructMap().Find(TypePathName))
-	{
-		Result = UScriptStruct::StaticClass()->GetFName();
-	}
-	else if (GetDynamicEnumMap().Find(TypePathName))
-	{
-		Result = UEnum::StaticClass()->GetFName();
-	}
-	if (false && Result == NAME_None)
-	{
-		UE_LOG(LogUObjectBase, Warning, TEXT("GetDynamicTypeClassName %s not found."), *TypePathName.ToString());
-		UE_LOG(LogUObjectBase, Warning, TEXT("---- classes"));
-		for (auto& Pair : GetDynamicClassMap())
-		{
-			UE_LOG(LogUObjectBase, Warning, TEXT("    %s"), *Pair.Key.ToString());
-		}
-		UE_LOG(LogUObjectBase, Warning, TEXT("---- structs"));
-		for (auto& Pair : GetDynamicStructMap())
-		{
-			UE_LOG(LogUObjectBase, Warning, TEXT("    %s"), *Pair.Key.ToString());
-		}
-		UE_LOG(LogUObjectBase, Warning, TEXT("---- enums"));
-		for (auto& Pair : GetDynamicEnumMap())
-		{
-			UE_LOG(LogUObjectBase, Warning, TEXT("    %s"), *Pair.Key.ToString());
-		}
-		UE_LOG(LogUObjectBase, Fatal, TEXT("GetDynamicTypeClassName %s not found."), *TypePathName.ToString());
-	}
-	UE_CLOG(Result == NAME_None, LogUObjectBase, Warning, TEXT("GetDynamicTypeClassName %s not found."), *TypePathName.ToString());
-	return Result;
+	return NAME_None;
 }
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer implemented or in use; will be removed later.
 UPackage* FindOrConstructDynamicTypePackage(const TCHAR* PackageName)
 {
-	UPackage* Package = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, PackageName));
-	if (!Package)
-	{
-		Package = CreatePackage(PackageName);
-		if (!GEventDrivenLoaderEnabled)
-		{
-			Package->SetPackageFlags(PKG_CompiledIn);
-		}
-	}
-	check(Package);
-	return Package;
+	return nullptr;
 }
 
+// @todo: BP2CPP_remove
+// [DEPRECATED] - No longer in use; will be removed later.
 TMap<FName, FName>& GetConvertedDynamicPackageNameToTypeName()
 {
 	static TMap<FName, FName> ConvertedDynamicPackageNameToTypeName;

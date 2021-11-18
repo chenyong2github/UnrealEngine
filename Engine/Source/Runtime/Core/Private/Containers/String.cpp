@@ -170,6 +170,173 @@ void AppendCharacters(TArray<TCHAR>& Out, const CharType* Str, int32 Count)
 	*NewEnd = '\0';
 }
 
+namespace UE::String::Private
+{
+
+template<typename CharType>
+FORCEINLINE void ConstructFromCString(/* Out */ TArray<TCHAR>& Data, const CharType* Src)
+{
+	if (Src && *Src)
+	{
+		int32 SrcLen  = TCString<CharType>::Strlen(Src) + 1;
+		int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(Src, SrcLen);
+		Data.Reserve(DestLen);
+		Data.AddUninitialized(DestLen);
+
+		FPlatformString::Convert(Data.GetData(), DestLen, Src, SrcLen);
+	}
+}
+
+template<typename CharType>
+FORCEINLINE void ConstructWithLength(/* Out */ TArray<TCHAR>& Data, int32 InCount, const CharType* InSrc)
+{
+	if (InSrc)
+	{
+		int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(InSrc, InCount);
+		if (DestLen > 0 && *InSrc)
+		{
+			Data.Reserve(DestLen + 1);
+			Data.AddUninitialized(DestLen + 1);
+
+			FPlatformString::Convert(Data.GetData(), DestLen, InSrc, InCount);
+			*(Data.GetData() + Data.Num() - 1) = TEXT('\0');
+		}
+	}
+}
+
+template<typename CharType>
+FORCEINLINE void ConstructWithSlack(/* Out */ TArray<TCHAR>& Data, const CharType* Src, int32 ExtraSlack)
+{
+	if (Src && *Src)
+	{
+		int32 SrcLen = TCString<CharType>::Strlen(Src) + 1;
+		int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(Src, SrcLen);
+		Data.Reserve(DestLen + ExtraSlack);
+		Data.AddUninitialized(DestLen);
+
+		FPlatformString::Convert(Data.GetData(), DestLen, Src, SrcLen);
+	}
+	else if (ExtraSlack > 0)
+	{
+		Data.Reserve(ExtraSlack + 1); 
+	}
+}
+
+} // namespace UE::String::Private
+
+FString::FString(const ANSICHAR* Str)								{ UE::String::Private::ConstructFromCString(Data, Str); }
+FString::FString(const WIDECHAR* Str)								{ UE::String::Private::ConstructFromCString(Data, Str); }
+FString::FString(const UTF8CHAR* Str)								{ UE::String::Private::ConstructFromCString(Data, Str); }
+FString::FString(const UCS2CHAR* Str)								{ UE::String::Private::ConstructFromCString(Data, Str); }
+FString::FString(int32 Len, const ANSICHAR* Str)					{ UE::String::Private::ConstructWithLength(Data, Len, Str); }
+FString::FString(int32 Len, const WIDECHAR* Str)					{ UE::String::Private::ConstructWithLength(Data, Len, Str); }
+FString::FString(int32 Len, const UTF8CHAR* Str)					{ UE::String::Private::ConstructWithLength(Data, Len, Str); }
+FString::FString(int32 Len, const UCS2CHAR* Str)					{ UE::String::Private::ConstructWithLength(Data, Len, Str); }
+FString::FString(const ANSICHAR* Str, int32 ExtraSlack)				{ UE::String::Private::ConstructWithSlack(Data, Str, ExtraSlack); }
+FString::FString(const WIDECHAR* Str, int32 ExtraSlack)				{ UE::String::Private::ConstructWithSlack(Data, Str, ExtraSlack); }
+FString::FString(const UTF8CHAR* Str, int32 ExtraSlack)				{ UE::String::Private::ConstructWithSlack(Data, Str, ExtraSlack); }
+FString::FString(const UCS2CHAR* Str, int32 ExtraSlack)				{ UE::String::Private::ConstructWithSlack(Data, Str, ExtraSlack); }
+
+FString& FString::operator=( const TCHAR* Other )
+{
+	if (Data.GetData() != Other)
+	{
+		int32 Len = (Other && *Other) ? FCString::Strlen(Other)+1 : 0;
+		Data.Empty(Len);
+		Data.AddUninitialized(Len);
+			
+		if( Len )
+		{
+			FMemory::Memcpy( Data.GetData(), Other, Len * sizeof(TCHAR) );
+		}
+	}
+	return *this;
+}
+
+
+void FString::AssignRange(const TCHAR* OtherData, int32 OtherLen)
+{
+	if (OtherLen == 0)
+	{
+		Empty();
+	}
+	else
+	{
+		const int32 ThisLen = Len();
+		if (OtherLen <= ThisLen)
+		{
+			// Unless the input is longer, this might be assigned from a view of itself.
+			TCHAR* DataPtr = Data.GetData();
+			FMemory::Memmove(DataPtr, OtherData, OtherLen * sizeof(TCHAR));
+			DataPtr[OtherLen] = TEXT('\0');
+			Data.RemoveAt(OtherLen + 1, ThisLen - OtherLen);
+		}
+		else
+		{
+			Data.Empty(OtherLen + 1);
+			Data.AddUninitialized(OtherLen + 1);
+			TCHAR* DataPtr = Data.GetData();
+			FMemory::Memcpy(DataPtr, OtherData, OtherLen * sizeof(TCHAR));
+			DataPtr[OtherLen] = TEXT('\0');
+		}
+	}
+}
+
+void FString::Reserve(int32 CharacterCount)
+{
+	checkSlow(CharacterCount >= 0 && CharacterCount < MAX_int32);
+	if (CharacterCount > 0)
+	{
+		Data.Reserve(CharacterCount + 1);
+	}	
+}
+
+void FString::Empty(int32 Slack)
+{
+	Data.Empty(Slack ? Slack + 1 : 0);
+}
+
+void FString::Empty()
+{
+	Data.Empty(0);
+}
+
+void FString::Reset(int32 NewReservedSize)
+{
+	const int32 NewSizeIncludingTerminator = (NewReservedSize > 0) ? (NewReservedSize + 1) : 0;
+	Data.Reset(NewSizeIncludingTerminator);
+	if (TCHAR* DataPtr = Data.GetData())
+	{
+		*DataPtr = TEXT('\0');
+	}
+}
+
+void FString::Shrink()
+{
+	Data.Shrink();
+}
+
+FString& FString::AppendChar(TCHAR InChar)
+{
+	CheckInvariants();
+
+	if ( InChar != 0 )
+	{
+		// position to insert the character.  
+		// At the end of the string if we have existing characters, otherwise at the 0 position
+		int32 InsertIndex = (Data.Num() > 0) ? Data.Num()-1 : 0;	
+
+		// number of characters to add.  If we don't have any existing characters, 
+		// we'll need to append the terminating zero as well.
+		int32 InsertCount = (Data.Num() > 0) ? 1 : 2;
+
+		Data.AddUninitialized(InsertCount);
+		Data[InsertIndex] = InChar;
+		Data[InsertIndex+1] = TEXT('\0');
+	}
+	return *this;
+}
+
 void FString::AppendChars(const ANSICHAR* Str, int32 Count)
 {
 	CheckInvariants();
@@ -263,6 +430,41 @@ int32 FString::Find(const TCHAR* SubStr, ESearchCase::Type SearchCase, ESearchDi
 			return INDEX_NONE;
 		}
 	}
+}
+
+bool FString::Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase, ESearchDir::Type SearchDir) const
+{
+	check(LeftS != RightS || LeftS == nullptr);
+
+	int32 InPos = Find(InS, SearchCase, SearchDir);
+
+	if (InPos < 0) { return false; }
+
+	if (LeftS)
+	{
+		if (LeftS != this)
+		{
+			*LeftS = Left(InPos);
+			if (RightS) { *RightS = Mid(InPos + InS.Len()); }
+		}
+		else
+		{
+			// we know that RightS can't be this so we can safely modify it before we deal with LeftS
+			if (RightS) { *RightS = Mid(InPos + InS.Len()); }
+			*LeftS = Left(InPos);
+		}
+	}
+	else if (RightS)
+	{
+		*RightS = Mid(InPos + InS.Len());
+	}
+
+	return true;
+}
+
+bool FString::Split(const FString& InS, FString* LeftS, FString* RightS) const
+{
+	return Split(InS, LeftS, RightS, ESearchCase::IgnoreCase);
 }
 
 FString FString::ToUpper() const &
@@ -404,6 +606,41 @@ bool FString::EndsWith(const FString& InSuffix, ESearchCase::Type SearchCase ) c
 	}
 }
 
+void FString::InsertAt(int32 Index, TCHAR Character)
+{
+	if (Character != 0)
+	{
+		if (Data.Num() == 0)
+		{
+			*this += Character;
+		}
+		else
+		{
+			Data.Insert(Character, Index);
+		}
+	}
+}
+
+void FString::InsertAt(int32 Index, const FString& Characters)
+{
+	if (Characters.Len())
+	{
+		if (Data.Num() == 0)
+		{
+			*this += Characters;
+		}
+		else
+		{
+			Data.Insert(Characters.Data.GetData(), Characters.Len(), Index);
+		}
+	}
+}
+
+void FString::RemoveAt(int32 Index, int32 Count, bool bAllowShrinking)
+{
+	Data.RemoveAt(Index, FMath::Clamp(Count, 0, Len()-Index), bAllowShrinking);
+}
+
 bool FString::RemoveFromStart( const TCHAR* InPrefix, ESearchCase::Type SearchCase )
 {
 	if ( *InPrefix == 0 )
@@ -469,6 +706,109 @@ bool FString::RemoveFromEnd( const FString& InSuffix, ESearchCase::Type SearchCa
 	return false;
 }
 
+namespace UE::String::Private
+{
+
+template <typename LhsType, typename RhsType>
+UE_NODISCARD FORCEINLINE FString ConcatFStrings(LhsType&& Lhs, RhsType&& Rhs)
+{
+	Lhs.CheckInvariants();
+	Rhs.CheckInvariants();
+
+	if (Lhs.IsEmpty())
+	{
+		return Forward<RhsType>(Rhs);
+	}
+
+	int32 RhsLen = Rhs.Len();
+
+	FString Result(Forward<LhsType>(Lhs), /* extra slack */ RhsLen);
+	Result.AppendChars(Rhs.GetCharArray().GetData(), RhsLen);
+		
+	return Result;
+}
+
+template <typename RhsType>
+UE_NODISCARD FORCEINLINE FString ConcatRangeFString(const TCHAR* Lhs, int32 LhsLen, RhsType&& Rhs)
+{
+	checkSlow(LhsLen >= 0);
+	Rhs.CheckInvariants();
+	if (LhsLen == 0)
+	{
+		return Forward<RhsType>(Rhs);
+	}
+
+	int32 RhsLen = Rhs.Len();
+
+	// This is not entirely optimal, as if the Rhs is an rvalue and has enough slack space to hold Lhs, then
+	// the memory could be reused here without constructing a new object.  However, until there is proof otherwise,
+	// I believe this will be relatively rare and isn't worth making the code a lot more complex right now.
+	FString Result;
+	Result.GetCharArray().Reserve(LhsLen + RhsLen + 1);
+	Result.GetCharArray().AddUninitialized(LhsLen + RhsLen + 1);
+
+	TCHAR* ResultData = Result.GetCharArray().GetData();
+	CopyAssignItems(ResultData, Lhs, LhsLen);
+	CopyAssignItems(ResultData + LhsLen, Rhs.GetCharArray().GetData(), RhsLen);
+	*(ResultData + LhsLen + RhsLen) = TEXT('\0');
+		
+	return Result;
+}
+
+template <typename LhsType>
+UE_NODISCARD FORCEINLINE FString ConcatFStringRange(LhsType&& Lhs, const TCHAR* Rhs, int32 RhsLen)
+{
+	Lhs.CheckInvariants();
+	checkSlow(RhsLen >= 0);
+	if (RhsLen == 0)
+	{
+		return Forward<LhsType>(Lhs);
+	}
+
+	FString Result(Forward<LhsType>(Lhs), /* extra slack */ RhsLen);
+	Result.AppendChars(Rhs, RhsLen);
+		
+	return Result;
+}
+
+template <typename RhsType>
+UE_NODISCARD FORCEINLINE FString ConcatCStringFString(const TCHAR* Lhs, RhsType&& Rhs)
+{
+	checkSlow(Lhs);
+	if (!Lhs)
+	{
+		return Forward<RhsType>(Rhs);
+	}
+
+	return ConcatRangeFString(Lhs, FCString::Strlen(Lhs), Forward<RhsType>(Rhs));
+}
+
+template <typename LhsType>
+UE_NODISCARD FORCEINLINE FString ConcatFStringCString(LhsType&& Lhs, const TCHAR* Rhs)
+{
+	checkSlow(Rhs);
+	if (!Rhs)
+	{
+		return Forward<LhsType>(Lhs);
+	}
+	return ConcatFStringRange(Forward<LhsType>(Lhs), Rhs, FCString::Strlen(Rhs));
+}
+
+} // namespace UE::String::Private
+
+FString FString::ConcatFF(const FString& Lhs, const FString& Rhs)				{ return UE::String::Private::ConcatFStrings(Lhs, Rhs); }
+FString FString::ConcatFF(FString&& Lhs, const FString& Rhs)					{ return UE::String::Private::ConcatFStrings(MoveTemp(Lhs), Rhs); }
+FString FString::ConcatFF(const FString& Lhs, FString&& Rhs)					{ return UE::String::Private::ConcatFStrings(Lhs, MoveTemp(Rhs)); }
+FString FString::ConcatFF(FString&& Lhs, FString&& Rhs)							{ return UE::String::Private::ConcatFStrings(MoveTemp(Lhs), MoveTemp(Rhs)); }
+FString FString::ConcatFC(const FString& Lhs, const TCHAR* Rhs)					{ return UE::String::Private::ConcatFStringCString(Lhs, Rhs); }
+FString FString::ConcatFC(FString&& Lhs, const TCHAR* Rhs)						{ return UE::String::Private::ConcatFStringCString(MoveTemp(Lhs), Rhs); }
+FString FString::ConcatCF(const TCHAR* Lhs,	const FString& Rhs)					{ return UE::String::Private::ConcatCStringFString(Lhs, Rhs); }
+FString FString::ConcatCF(const TCHAR* Lhs,	FString&& Rhs)						{ return UE::String::Private::ConcatCStringFString(Lhs, MoveTemp(Rhs)); }
+FString FString::ConcatFR(const FString& Lhs, const TCHAR* Rhs, int32 RhsLen)	{ return UE::String::Private::ConcatFStringRange(Lhs, Rhs, RhsLen); }
+FString FString::ConcatFR(FString&& Lhs, const TCHAR* Rhs, int32 RhsLen)		{ return UE::String::Private::ConcatFStringRange(MoveTemp(Lhs), Rhs, RhsLen); }
+FString FString::ConcatRF(const TCHAR* Lhs, int32 LhsLen, const FString& Rhs)	{ return UE::String::Private::ConcatRangeFString(Lhs, LhsLen, Rhs); }
+FString FString::ConcatRF(const TCHAR* Lhs, int32 LhsLen, FString&& Rhs)		{ return UE::String::Private::ConcatRangeFString(Lhs, LhsLen, MoveTemp(Rhs)); }
+
 /**
  * Concatenate this path with given path ensuring the / character is used between them
  *
@@ -505,6 +845,33 @@ void FString::PathAppend(const TCHAR* Str, int32 StrLength)
 		Data.Append(Str, StrLength);
 		Data.Add(TEXT('\0'));
 	}
+}
+
+FString FString::RightChop(int32 Count) const &
+{
+	const int32 Length = Len();
+	const int32 Skip = FMath::Clamp(Count, 0, Length);
+	return FString(Length - Skip, **this + Skip);
+}
+
+FString FString::Mid(int32 Start, int32 Count) const &
+{
+	if (Count >= 0)
+	{
+		const int32 Length = Len();
+		const int32 RequestedStart = Start;
+		Start = FMath::Clamp(Start, 0, Length);
+		const int32 End = (int32)FMath::Clamp((int64)Count + RequestedStart, (int64)Start, (int64)Length);
+		return FString(End-Start, **this + Start);
+	}
+
+	return FString();
+}
+
+FString FString::Mid(int32 Start, int32 Count) &&
+{
+	MidInline(Start, Count, false);
+	return MoveTemp(*this);
 }
 
 void FString::ReplaceCharInlineCaseSensitive(const TCHAR SearchChar, const TCHAR ReplacementChar)

@@ -4,8 +4,8 @@
 
 #include "Containers/UnrealString.h"
 #include "IUriResolver.h"
+#include "Misc/Guid.h"
 
-struct FGuid;
 namespace DirectLink
 {
 	using FSourceHandle = FGuid;
@@ -19,6 +19,7 @@ namespace UE::DatasmithImporter
 		FString ExecutableName;
 		FString EndpointName;
 		FString SourceName;
+		TOptional<FGuid> SourceId;
 	};
 
 	class DIRECTLINKEXTENSION_API FDirectLinkUriResolver : public IUriResolver
@@ -40,5 +41,10 @@ namespace UE::DatasmithImporter
 		 * Return the scheme used for DirectLink URIs : "directlink"
 		 */
 		static const FString& GetDirectLinkScheme();
+
+		/**
+		 * Return the string "SourceId" used in URI queries for specifying the handle of the directlink source.
+		 */
+		static const FString& GetSourceIdPropertyName();
 	};
 }

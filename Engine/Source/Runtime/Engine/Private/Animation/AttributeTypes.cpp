@@ -2,6 +2,7 @@
 
 #include "Animation/AttributeTypes.h"
 #include "Animation/BuiltInAttributeTypes.h"
+#include "Misc/DelayedAutoRegister.h"
 
 namespace UE
 {
@@ -21,7 +22,12 @@ namespace UE
 			RegisterType<FIntegerAnimationAttribute>();
 			RegisterType<FStringAnimationAttribute>();
 			RegisterType<FTransformAnimationAttribute>();
-		}		
+		}
+		
+		static FDelayedAutoRegisterHelper DelayedAttributeTypesInitializationHelper(EDelayedRegisterRunPhase::ObjectSystemReady, []()
+		{
+			UE::Anim::AttributeTypes::Initialize();
+		});
 	}
 }
 

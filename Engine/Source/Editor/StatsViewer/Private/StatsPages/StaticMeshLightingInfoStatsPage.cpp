@@ -23,6 +23,7 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Engine/LevelStreaming.h"
+#include "Engine/MapBuildDataRegistry.h"
 
 #define LOCTEXT_NAMESPACE "Editor.StatsViewer.StaticMeshLightingInfo"
 
@@ -131,6 +132,19 @@ struct StaticMeshLightingInfoStatsGenerator
 			Entry->StaticMeshComponent = InComponent;
 			Entry->StaticMesh = InComponent->GetStaticMesh();
 			
+			// Show all of the lightmap texture names so we can correlate meshes with the actual texture data
+			// for debugging encoding concerns.
+			const FMeshMapBuildData* MeshMapBuildData = InComponent->GetMeshMapBuildData(InComponent->LODData[0]);
+			if (MeshMapBuildData)
+			{
+				TArray<UTexture2D*> Textures;
+				MeshMapBuildData->LightMap->GetLightMap2D()->GetReferencedTextures(Textures);
+				for (UTexture2D* Texture : Textures)
+				{
+					Entry->LightmapTextureNames.Add(Texture->GetName());
+				}
+			}
+
 			Entry->TextureLightMapMemoryUsage = (float)TextureLightMapMemoryUsage / 1024.0f;
 			Entry->TextureShadowMapMemoryUsage = (float)TextureShadowMapMemoryUsage / 1024.0f;
 			Entry->VertexLightMapMemoryUsage = (float)VertexLightMapMemoryUsage / 1024.0f;

@@ -383,7 +383,7 @@ void UViewportWorldInteraction::Shutdown()
 	for ( UViewportInteractor* Interactor : Interactors )
 	{
 		Interactor->Shutdown();
-		Interactor->MarkPendingKill();
+		Interactor->MarkAsGarbage();
 	}
 
 	Interactors.Empty();
@@ -3076,7 +3076,7 @@ void UViewportWorldInteraction::DestroyActors()
 
 	if(SnapGridMID != nullptr)
 	{
-		SnapGridMID->MarkPendingKill();
+		SnapGridMID->MarkAsGarbage();
 		SnapGridMID = nullptr;
 	}
 }
@@ -3741,7 +3741,7 @@ void UViewportWorldInteraction::UseLegacyInteractions()
 	for (UViewportInteractor* Interactor : Interactors)
 	{
 		Interactor->Shutdown();
-		Interactor->MarkPendingKill();
+		Interactor->MarkAsGarbage();
 	}
 
 	Interactors.Empty();

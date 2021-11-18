@@ -297,7 +297,7 @@ void MicropolyRasterize(
 
 	// Should be all scalar.
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
-	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId );
+	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
 #if CLUSTER_PER_PAGE
@@ -536,7 +536,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	// Should be all scalar.
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
-	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId );
+	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
@@ -631,7 +631,7 @@ void HWRasterizeMS(
 	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex;
 
 	FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleIndex, VIRTUAL_TEXTURE_TARGET);
-	FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId);
+	FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster.InstanceId, false);
 
 	FNaniteView NaniteView = GetNaniteView(VisibleCluster.ViewId);
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
@@ -704,7 +704,7 @@ VSOut HWRasterizeVS(
 #endif
 
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
-	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId );
+	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
 
 	FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);

@@ -99,7 +99,7 @@ void UAbilitySystemComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	{
 		if (Set)
 		{
-			Set->MarkPendingKill();
+			Set->MarkAsGarbage();
 		}
 	}
 
@@ -494,7 +494,7 @@ void UAbilitySystemComponent::OnRemoveAbility(FGameplayAbilitySpec& Spec)
 				{
 					// Only destroy if we're the server or this isn't replicated. Can't destroy on the client or replication will fail when it replicates the end state
 					AllReplicatedInstancedAbilities.Remove(Instance);
-					Instance->MarkPendingKill();
+					Instance->MarkAsGarbage();
 				}
 			}
 		}
@@ -806,13 +806,13 @@ void UAbilitySystemComponent::NotifyAbilityEnded(FGameplayAbilitySpecHandle Hand
 			{
 				Spec->ReplicatedInstances.Remove(Ability);
 				AllReplicatedInstancedAbilities.Remove(Ability);
-				Ability->MarkPendingKill();
+				Ability->MarkAsGarbage();
 			}
 		}
 		else
 		{
 			Spec->NonReplicatedInstances.Remove(Ability);
-			Ability->MarkPendingKill();
+			Ability->MarkAsGarbage();
 		}
 	}
 
@@ -943,7 +943,7 @@ void UAbilitySystemComponent::DestroyActiveState()
 			{
 				if (InstanceAbility)
 				{
-					InstanceAbility->MarkPendingKill();
+					InstanceAbility->MarkAsGarbage();
 				}
 			}
 

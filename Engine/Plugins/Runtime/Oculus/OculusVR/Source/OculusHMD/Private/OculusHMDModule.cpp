@@ -286,7 +286,7 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe >  FOculusH
 	return nullptr;
 }
 
-FString FOculusHMDModule::GetDeviceProfileName()
+FString FOculusHMDModule::GetDeviceSystemName()
 {
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	ovrpSystemHeadset SystemHeadset;
@@ -295,10 +295,10 @@ FString FOculusHMDModule::GetDeviceProfileName()
 		switch (SystemHeadset)
 		{
 		case ovrpSystemHeadset_Oculus_Quest:
-			return FString("Oculus_Quest");
+			return FString("Oculus Quest");
 
 		case ovrpSystemHeadset_Oculus_Quest_2:
-			return FString("Oculus_Quest2");
+			return FString("Oculus Quest2");
 
 		default:
 			return FString("Oculus_Quest");

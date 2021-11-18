@@ -39,7 +39,7 @@ FHairStrandsTilePassVS::FParameters GetHairStrandsTileParameters(const FViewInfo
 	Out.TileType				= uint32(TileType);
 	Out.bRectPrimitive			= InTile.bRectPrimitive ? 1 : 0;
 	Out.ViewMin					= InView.ViewRect.Min;
-	Out.ViewInvSize				= FVector2D(1.f / InView.ViewRect.Width(), 1.f / InView.ViewRect.Height());
+	Out.ViewInvSize				= FVector2f(1.f / InView.ViewRect.Width(), 1.f / InView.ViewRect.Height());
 	Out.TileDataBuffer			= InTile.IsValid() ? InTile.GetTileBufferSRV(TileType) : nullptr;
 	Out.TileIndirectBuffer		= InTile.TileIndirectDrawBuffer;
 	return Out;

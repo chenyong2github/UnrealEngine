@@ -595,7 +595,7 @@ bool ADisplayClusterRootActor::IsBlueprint() const
 {
 	for (UClass* Class = GetClass(); Class; Class = Class->GetSuperClass())
 	{
-		if (Cast<UBlueprintGeneratedClass>(Class) != nullptr || Cast<UDynamicClass>(Class) != nullptr)
+		if (Cast<UBlueprintGeneratedClass>(Class) != nullptr)
 		{
 			return true;
 		}
@@ -668,7 +668,7 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 				{
 					if (CurPlayerController->WasInputKeyJustPressed(EKeys::Escape))
 					{
-						FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Exit on ESC requested"));
+						FDisplayClusterAppExit::ExitApplication(FString("Exit on ESC requested"));
 					}
 				}
 			}
@@ -798,12 +798,12 @@ static void PropagateDefaultMapToInstancedMap(const FMapProperty* MapProperty, U
 		
 		if (UObject** InstancedObjectPtr = (UObject**)MapInstanceHelper.FindValueFromHash(Key))
 		{
-			UObject* InstancedObject = *InstancedObjectPtr;
-			check(InstancedObject);
-			
-			if (ensure(DefaultObject == InstancedObject->GetArchetype()))
+			if (const UObject* InstancedObject = *InstancedObjectPtr)
 			{
-				continue;
+				if (ensure(DefaultObject == InstancedObject->GetArchetype()))
+				{
+					continue;
+				}
 			}
 		}
 		

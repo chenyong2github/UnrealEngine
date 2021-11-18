@@ -340,7 +340,7 @@ UTexture2D* UTexturePaintToolset::CreateTempUncompressedTexture(UTexture2D* Sour
 	UTexture2D* NewTexture2D = UTexture2D::CreateTransient(Width, Height, GetTempUncompressedTexturePixelFormat());
 
 	// Fill in the base mip for the texture we created
-	uint8* MipData = (uint8*)NewTexture2D->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+	uint8* MipData = (uint8*)NewTexture2D->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 	for (int32 y = 0; y < Height; y++)
 	{
 		uint8* DestPtr = &MipData[(Height - 1 - y) * Width * sizeof(FColor)];
@@ -354,7 +354,7 @@ UTexture2D* UTexturePaintToolset::CreateTempUncompressedTexture(UTexture2D* Sour
 			SrcPtr++;
 		}
 	}
-	NewTexture2D->PlatformData->Mips[0].BulkData.Unlock();
+	NewTexture2D->GetPlatformData()->Mips[0].BulkData.Unlock();
 
 	// Set options
 	NewTexture2D->SRGB = bUseSRGB;

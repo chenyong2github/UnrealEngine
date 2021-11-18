@@ -59,7 +59,7 @@ namespace
 	{
 		SnapshotAsset->ClearFlags(RF_Public | RF_Standalone);
 		SnapshotAsset->Rename(nullptr, GetTransientPackage());
-		SnapshotAsset->MarkPendingKill();
+		SnapshotAsset->MarkAsGarbage();
 		SnapshotAsset->RemoveFromRoot();
 	}
 }

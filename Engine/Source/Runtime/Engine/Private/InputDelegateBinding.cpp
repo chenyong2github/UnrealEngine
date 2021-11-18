@@ -18,7 +18,7 @@ UInputDelegateBinding::UInputDelegateBinding(const FObjectInitializer& ObjectIni
 
 bool UInputDelegateBinding::SupportsInputDelegate(const UClass* InClass)
 {
-	return Cast<UDynamicClass>(InClass) || Cast<UBlueprintGeneratedClass>(InClass);
+	return !!Cast<UBlueprintGeneratedClass>(InClass);
 }
 
 void UInputDelegateBinding::BindInputDelegates(const UClass* InClass, UInputComponent* InputComponent)

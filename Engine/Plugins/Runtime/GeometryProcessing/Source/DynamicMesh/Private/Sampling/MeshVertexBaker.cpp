@@ -23,13 +23,13 @@ void FMeshVertexBaker::Bake()
 
 	// Convert Bake mode into internal list of bakers.
 	Bakers.Reset();
-	if (BakeMode == EBakeMode::Color)
+	if (BakeMode == EBakeMode::RGBA)
 	{
 		FMeshMapEvaluator* Evaluator = ColorEvaluator.Get();
 		Bakers.Add(Evaluator ? Evaluator : &ZeroEvaluator);
-		BakeInternal = &BakeImpl<EBakeMode::Color>;
+		BakeInternal = &BakeImpl<EBakeMode::RGBA>;
 	}
-	else // Mode == EBakeMode::Channel
+	else // Mode == EBakeMode::PerChannel
 	{
 		for (int Idx = 0; Idx < 4; ++Idx)
 		{
@@ -38,7 +38,7 @@ void FMeshVertexBaker::Bake()
 			FMeshMapEvaluator* Evaluator = ChannelEvaluators[Idx].Get();
 			Bakers.Add(Evaluator ? Evaluator : DefaultEvaluator);
 		}
-		BakeInternal = &BakeImpl<EBakeMode::Channel>;
+		BakeInternal = &BakeImpl<EBakeMode::PerChannel>;
 	}
 
 	const int NumBakers = Bakers.Num();
@@ -180,7 +180,7 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 		}
 		else // Fall back to raycast strategy
 		{
-			const double SampleThickness = Baker->GetThickness(); // could modulate w/ a map here...
+			const double SampleThickness = Baker->GetProjectionDistance(); // could modulate w/ a map here...
 
 			// Find detail mesh triangle point
 			ValueOut.DetailMesh = GetDetailMeshTrianglePoint_Raycast(Baker->DetailSampler, SurfacePoint, SurfaceNormal,
@@ -223,7 +223,7 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 			}
 
 			// For color bakes, ask our evaluators to convert the float data to color.
-			if constexpr(ComputeMode == EBakeMode::Color)
+			if constexpr(ComputeMode == EBakeMode::RGBA)
 			{
 				// TODO: Use a separate buffer rather than R/W from the same pixel.
 				BufferPtr = &Pixel[0];

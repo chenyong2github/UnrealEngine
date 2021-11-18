@@ -17,8 +17,8 @@
 
 struct FScreenVertex
 {
-	FVector2D Position;
-	FVector2D UV;
+	FVector2f Position;
+	FVector2f UV;
 };
 
 inline bool operator== (const FScreenVertex &a, const FScreenVertex &b)

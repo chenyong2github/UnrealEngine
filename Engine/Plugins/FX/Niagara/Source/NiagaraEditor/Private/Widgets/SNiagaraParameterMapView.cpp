@@ -1686,7 +1686,7 @@ void SNiagaraParameterMapView::OnCopyParameterMetadata()
 					if (ParameterScriptVariable != nullptr)
 					{
 						UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
-						ClipboardContent->ScriptVariables.Add(ParameterScriptVariable);
+						ClipboardContent->ScriptVariables.Add({*ParameterScriptVariable});
 						FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
 						break;
 					}
@@ -1738,7 +1738,7 @@ void SNiagaraParameterMapView::OnPasteParameterMetadata()
 			for (UNiagaraScriptVariable* TargetScriptVariable : TargetScriptVariables)
 			{
 				TargetScriptVariable->Modify();
-				TargetScriptVariable->Metadata.CopyUserEditableMetaData(ClipboardContent->ScriptVariables[0]->Metadata);
+				TargetScriptVariable->Metadata.CopyUserEditableMetaData(ClipboardContent->ScriptVariables[0].ScriptVariable->Metadata);
 				TargetScriptVariable->PostEditChange();
 			}
 		}

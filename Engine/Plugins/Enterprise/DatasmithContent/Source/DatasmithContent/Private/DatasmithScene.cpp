@@ -44,7 +44,7 @@ void UDatasmithScene::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 	{
 		OutTags.Add(FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden));
 
-		OutTags.Add(FAssetRegistryTag(TEXT("SourceUri"), AssetImportData->SourceUri, FAssetRegistryTag::TT_Hidden));
+		AssetImportData->DatasmithImportInfo.GetAssetRegistryTags(OutTags);
 	}
 #endif
 }

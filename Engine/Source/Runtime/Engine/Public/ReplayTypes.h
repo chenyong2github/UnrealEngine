@@ -244,7 +244,10 @@ typedef int64 FArchivePos;
 struct FDeltaCheckpointData
 {
 	/** Net startup actors that were destroyed */
+	TArray<FString> RecordingDeletedNetStartupActors;
+	/** Net startup actors that were destroyed */
 	TSet<FString> DestroyedNetStartupActors;
+
 	/** Destroyed dynamic actors that were active in the previous checkpoint */
 	TSet<FNetworkGUID> DestroyedDynamicActors;
 	/** Channels closed that were open in the previous checkpoint, and the reason why */
@@ -252,6 +255,7 @@ struct FDeltaCheckpointData
 
 	void CountBytes(FArchive& Ar) const
 	{
+		RecordingDeletedNetStartupActors.CountBytes(Ar);
 		DestroyedNetStartupActors.CountBytes(Ar);
 		DestroyedDynamicActors.CountBytes(Ar);
 		ChannelsToClose.CountBytes(Ar);
@@ -416,6 +420,7 @@ public:
 class FScopedForceUnicodeInArchive
 {
 public:
+	FScopedForceUnicodeInArchive() = delete;
 	FScopedForceUnicodeInArchive(FScopedForceUnicodeInArchive&&) = delete;
 	FScopedForceUnicodeInArchive(const FScopedForceUnicodeInArchive&) = delete;
 	FScopedForceUnicodeInArchive& operator=(const FScopedForceUnicodeInArchive&) = delete;
@@ -462,6 +467,7 @@ private:
 class FScopedStoreArchiveOffset
 {
 public:
+	FScopedStoreArchiveOffset() = delete;
 	FScopedStoreArchiveOffset(FScopedStoreArchiveOffset&&) = delete;
 	FScopedStoreArchiveOffset(const FScopedStoreArchiveOffset&) = delete;
 	FScopedStoreArchiveOffset& operator=(const FScopedStoreArchiveOffset&) = delete;

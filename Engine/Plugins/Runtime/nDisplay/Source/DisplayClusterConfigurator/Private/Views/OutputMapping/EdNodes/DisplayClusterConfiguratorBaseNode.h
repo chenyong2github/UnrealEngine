@@ -150,6 +150,9 @@ protected:
 
 	virtual float GetViewScale() const;
 
+	/** Remove invalid nodes. */
+	void CleanupChildrenNodes();
+	
 	template<class TObjectType>
 	TObjectType* GetObjectChecked() const
 	{
@@ -171,6 +174,8 @@ protected:
 	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
 	TWeakObjectPtr<UDisplayClusterConfiguratorBaseNode> Parent;
+
+	UPROPERTY(Transient, NonTransactional)
 	TArray<UDisplayClusterConfiguratorBaseNode*> Children;
 
 	FString NodeName;

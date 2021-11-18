@@ -2,6 +2,8 @@
 
 #include "Network/Service/DisplayClusterService.h"
 
+#include "Network/DisplayClusterNetworkTypes.h"
+
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterConfigurationTypes.h"
 
@@ -10,6 +12,7 @@
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/RunnableThread.h"
 
 
 // nDisplay service threads priority
@@ -64,31 +67,56 @@ EThreadPriority FDisplayClusterService::GetThreadPriority()
 	return FDisplayClusterService::ConvertThreadPriorityFromCvarValue(CVarServiceThreadsPriority.GetValueOnAnyThread());
 }
 
-bool FDisplayClusterService::IsClusterIP(const FIPv4Endpoint& Endpoint)
+EDisplayClusterCommResult FDisplayClusterService::TranslateBarrierWaitResultIntoCommResult(EDisplayClusterBarrierWaitResult WaitResult)
 {
-	// Get configuration data
-	const UDisplayClusterConfigurationData* ConfigData = GDisplayCluster->GetPrivateConfigMgr()->GetConfig();
-	if (!ConfigData)
+	// Translate BarrierWaitResult into CommResult
+	switch (WaitResult)
 	{
-		UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Couldn't get configuration data"));
-		return false;
-	}
+	case EDisplayClusterBarrierWaitResult::Ok:
+	case EDisplayClusterBarrierWaitResult::NotActive:
+		return EDisplayClusterCommResult::Ok;
 
-	const FString Address = Endpoint.Address.ToString();
-	for (const auto& Node : ConfigData->Cluster->Nodes)
-	{
-		//@todo IP + Hostname comparison
-		if (Node.Value->Host.Equals(Address, ESearchCase::IgnoreCase))
-		{
-			return true;
-		}
-	}
+	case EDisplayClusterBarrierWaitResult::NotAllowed:
+	case EDisplayClusterBarrierWaitResult::TimeOut:
+		return EDisplayClusterCommResult::NotAllowed;
 
-	return false;
+	default:
+		return EDisplayClusterCommResult::NotImplemented;
+	}
 }
 
-bool FDisplayClusterService::IsConnectionAllowed(FSocket* Socket, const FIPv4Endpoint& Endpoint)
+void FDisplayClusterService::SetSessionInfoCache(const FDisplayClusterSessionInfo& SessionInfo)
 {
-	// By default only cluster node IP addresses are allowed
-	return FDisplayClusterService::IsClusterIP(Endpoint);
+	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+
+	// Cache new data if there is no record for this thread
+	{
+		FScopeLock Lock(&SessionInfoCacheCS);
+		if (!SessionInfoCache.Contains(ThreadId))
+		{
+			SessionInfoCache.Emplace(ThreadId, SessionInfo);
+		}
+	}
+}
+
+const FDisplayClusterSessionInfo& FDisplayClusterService::GetSessionInfoCache() const
+{
+	static const FDisplayClusterSessionInfo DataNotAvailableDefaultResponse;
+
+	const FDisplayClusterSessionInfo* FoundData = nullptr;
+
+	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+
+	{
+		FScopeLock Lock(&SessionInfoCacheCS);
+		FoundData = SessionInfoCache.Find(ThreadId);
+	}
+
+	return FoundData ? *FoundData : DataNotAvailableDefaultResponse;
+}
+
+void FDisplayClusterService::ClearCache()
+{
+	FScopeLock Lock(&SessionInfoCacheCS);
+	SessionInfoCache.Reset();
 }

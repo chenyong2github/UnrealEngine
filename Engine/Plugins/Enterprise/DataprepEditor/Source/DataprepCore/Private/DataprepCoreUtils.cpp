@@ -148,7 +148,7 @@ void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> InObjects)
 		}
 
 		InObject->ClearFlags( RF_Public | RF_Standalone );
-		InObject->MarkPendingKill();
+		InObject->MarkAsGarbage();
 		ObjectsToPurge.Add( InObject );
 	};
 
@@ -377,6 +377,11 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 		}
 
 		DataprepCorePrivateUtils::Analytics::RecipeExecuted( DataprepAssetInterface );
+
+		// Destroy transient world
+		GEngine->DestroyWorldContext(TransientWorld.Get());
+		TransientWorld->DestroyWorld(true);
+		TransientWorld.Reset();
 
 		return bSuccessfulExecute;
 	}

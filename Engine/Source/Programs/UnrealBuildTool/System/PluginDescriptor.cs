@@ -253,7 +253,7 @@ namespace UnrealBuildTool
 			RawObject.TryGetStringArrayField("SupportedPrograms", out SupportedPrograms);
 			RawObject.TryGetBoolField("bIsPluginExtension", out bIsPluginExtension);
 
-			string[] SupportedTargetPlatformNames;
+			string[]? SupportedTargetPlatformNames;
 			if (RawObject.TryGetStringArrayField("SupportedTargetPlatforms", out SupportedTargetPlatformNames))
 			{
 				SupportedTargetPlatforms = new List<UnrealTargetPlatform>();
@@ -271,13 +271,13 @@ namespace UnrealBuildTool
 				}
 			}
 
-			JsonObject[] ModulesArray;
+			JsonObject[]? ModulesArray;
 			if (RawObject.TryGetObjectArrayField("Modules", out ModulesArray))
 			{
 				Modules = Array.ConvertAll(ModulesArray, x => ModuleDescriptor.FromJsonObject(x, PluginPath)).ToList();
 			}
 
-			JsonObject[] LocalizationTargetsArray;
+			JsonObject[]? LocalizationTargetsArray;
 			if (RawObject.TryGetObjectArrayField("LocalizationTargets", out LocalizationTargetsArray))
 			{
 				LocalizationTargets = Array.ConvertAll(LocalizationTargetsArray, x => LocalizationTargetDescriptor.FromJsonObject(x));
@@ -308,7 +308,7 @@ namespace UnrealBuildTool
 			CustomBuildSteps.TryRead(RawObject, "PreBuildSteps", out PreBuildSteps);
 			CustomBuildSteps.TryRead(RawObject, "PostBuildSteps", out PostBuildSteps);
 
-			JsonObject[] PluginsArray;
+			JsonObject[]? PluginsArray;
 			if(RawObject.TryGetObjectArrayField("Plugins", out PluginsArray))
 			{
 				Plugins = Array.ConvertAll(PluginsArray, x => PluginReferenceDescriptor.FromJsonObject(x)).ToList();

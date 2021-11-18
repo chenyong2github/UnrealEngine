@@ -14,9 +14,9 @@ FPresenceCommon::FPresenceCommon(FOnlineServicesCommon& InServices)
 
 TOnlineAsyncOpHandle<FQueryPresence> FPresenceCommon::QueryPresence(FQueryPresence::Params&& Params)
 {
-	TOnlineAsyncOp<FQueryPresence>& Operation = GetOp<FQueryPresence>(MoveTemp(Params));
-	Operation.SetError(Errors::NotImplemented());
-	return Operation.GetHandle();
+	TOnlineAsyncOpRef<FQueryPresence> Operation = GetOp<FQueryPresence>(MoveTemp(Params));
+	Operation->SetError(Errors::NotImplemented());
+	return Operation->GetHandle();
 }
 
 TOnlineResult<FGetPresence> FPresenceCommon::GetPresence(FGetPresence::Params&& Params)
@@ -26,9 +26,9 @@ TOnlineResult<FGetPresence> FPresenceCommon::GetPresence(FGetPresence::Params&& 
 
 TOnlineAsyncOpHandle<FUpdatePresence> FPresenceCommon::UpdatePresence(FUpdatePresence::Params&& Params)
 {
-	TOnlineAsyncOp<FUpdatePresence>& Operation = GetMergeableOp<FUpdatePresence>(MoveTemp(Params));
-	Operation.SetError(Errors::NotImplemented());
-	return Operation.GetHandle();
+	TOnlineAsyncOpRef<FUpdatePresence> Operation = GetOp<FUpdatePresence>(MoveTemp(Params));
+	Operation->SetError(Errors::NotImplemented());
+	return Operation->GetHandle();
 }
 
 TOnlineEvent<void(const FPresenceUpdated&)> FPresenceCommon::OnPresenceUpdated()

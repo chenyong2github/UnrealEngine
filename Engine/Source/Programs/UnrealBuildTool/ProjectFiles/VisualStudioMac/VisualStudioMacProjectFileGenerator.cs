@@ -8,8 +8,6 @@ using System.Linq;
 using System.Xml.Linq;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
     
@@ -24,7 +22,7 @@ namespace UnrealBuildTool
         /// </summary>
         /// <param name="InOnlyGameProject">The single project to generate project files for, or null</param>
         /// <param name="InArguments">Additional command line arguments</param>
-        public VCMacProjectFileGenerator(FileReference InOnlyGameProject, CommandLineArguments InArguments)
+        public VCMacProjectFileGenerator(FileReference? InOnlyGameProject, CommandLineArguments InArguments)
 			: base(InOnlyGameProject, VCProjectFileFormat.Default, InArguments)
         {
 			// no suo file, requires ole32
@@ -71,13 +69,13 @@ namespace UnrealBuildTool
                             from AutomationProject in AutomationProjectFiles
                             select new XElement(NS + "ProjectReference",
                                 new XAttribute("Include", AutomationProject.ProjectFilePath.MakeRelativeTo(AutomationToolDir)),
-                                new XElement(NS + "Project", (AutomationProject as VCSharpProjectFile).ProjectGUID.ToString("B")),
+                                new XElement(NS + "Project", (AutomationProject as VCSharpProjectFile)!.ProjectGUID.ToString("B")),
                                 new XElement(NS + "Name", AutomationProject.ProjectFilePath.GetFileNameWithoutExtension()),
                                 new XElement(NS + "Private", "false")
                             )
                         )
                     )
-                ).Save(FileReference.Combine(AutomationToolDir, "AutomationTool.csproj.References").FullName);
+                ).Save(FileReference.Combine(IntermediateProjectFilesPath, "AutomationTool.csproj.References").FullName);
             }
 
             return true;

@@ -8,14 +8,18 @@
 
 struct FPropertySelectionMap;
 
-/**
- * Convenience type that calls FLevelSnaphshotsModule::OnPreApplySnapshot and FLevelSnaphshotsModule::OnPostApplySnapshot.
- */
-class FApplySnapshotToActorScope : public FNoncopyable
+namespace UE::LevelSnapshots::Private
 {
-	const FApplySnapshotToActorParams Params;
-public:
+	/**
+	 * Convenience type that calls FLevelSnaphshotsModule::OnPreApplySnapshot and FLevelSnaphshotsModule::OnPostApplySnapshot.
+	 */
+	class FApplySnapshotToActorScope : public FNoncopyable
+	{
+		const FApplySnapshotToActorParams Params;
+	public:
 
-	FApplySnapshotToActorScope(const FApplySnapshotToActorParams& Params);
-	~FApplySnapshotToActorScope();
-};
+		FApplySnapshotToActorScope(const FApplySnapshotToActorParams& Params);
+		~FApplySnapshotToActorScope();
+	};
+}
+

@@ -10,6 +10,7 @@ FDisplayClusterConfiguratorViewportViewModel::FDisplayClusterConfiguratorViewpor
 	ViewportPtr = Viewport;
 
 	INIT_PROPERTY_HANDLE(UDisplayClusterConfigurationViewport, Viewport, Region);
+	INIT_PROPERTY_HANDLE(UDisplayClusterConfigurationViewport, Viewport, ViewportRemap);
 }
 
 void FDisplayClusterConfiguratorViewportViewModel::SetRegion(const FDisplayClusterConfigurationRectangle& NewRegion)
@@ -59,6 +60,54 @@ void FDisplayClusterConfiguratorViewportViewModel::SetRegion(const FDisplayClust
 		check(HHandle);
 
 		HHandle->SetValue(NewRegion.H, EPropertyValueSetFlags::NotTransactable);
+	}
+
+	if (bViewportChanged)
+	{
+		Viewport->MarkPackageDirty();
+	}
+}
+
+void FDisplayClusterConfiguratorViewportViewModel::SetRemap(const FDisplayClusterConfigurationViewport_RemapData& NewRemap)
+{
+	UDisplayClusterConfigurationViewport* Viewport = ViewportPtr.Get();
+	check(Viewport);
+	Viewport->Modify();
+
+	TSharedPtr<IPropertyHandle> BaseRemapHandle = ViewportRemapHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_Remap, BaseRemap));
+	check(BaseRemapHandle);
+
+	const FDisplayClusterConfigurationViewport_RemapData& CurrentBaseRemap = Viewport->ViewportRemap.BaseRemap;
+	bool bViewportChanged = false;
+
+	if (CurrentBaseRemap.Angle != NewRemap.Angle)
+	{
+		bViewportChanged = true;
+
+		TSharedPtr<IPropertyHandle> AngleHandle = BaseRemapHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_RemapData, Angle));
+		check(AngleHandle);
+
+		AngleHandle->SetValue(NewRemap.Angle, EPropertyValueSetFlags::NotTransactable);
+	}
+
+	if (CurrentBaseRemap.bFlipH != NewRemap.bFlipH)
+	{
+		bViewportChanged = true;
+
+		TSharedPtr<IPropertyHandle> FlipHHandle = BaseRemapHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_RemapData, bFlipH));
+		check(FlipHHandle);
+
+		FlipHHandle->SetValue(NewRemap.bFlipH, EPropertyValueSetFlags::NotTransactable);
+	}
+
+	if (CurrentBaseRemap.bFlipV != NewRemap.bFlipV)
+	{
+		bViewportChanged = true;
+
+		TSharedPtr<IPropertyHandle> FlipVHandle = BaseRemapHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationViewport_RemapData, bFlipV));
+		check(FlipVHandle);
+
+		FlipVHandle->SetValue(NewRemap.bFlipV, EPropertyValueSetFlags::NotTransactable);
 	}
 
 	if (bViewportChanged)

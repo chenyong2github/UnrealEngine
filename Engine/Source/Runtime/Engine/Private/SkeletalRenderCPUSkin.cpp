@@ -782,7 +782,8 @@ static void SkinVertexSection(
 			const FMeshToMeshVertData* ClothVertData = nullptr;
 			if (bLODUsesCloth)
 			{
-				ClothVertData = &Section.ClothMappingData[VertexIndex];
+				constexpr int32 ClothLODBias = 0;  // Use base Cloth LOD mapping data (biased mappings are only required for GPU skinning of raytraced elements)
+				ClothVertData = &Section.ClothMappingDataLODs[ClothLODBias][VertexIndex];
 				FPlatformMisc::Prefetch(ClothVertData, PLATFORM_CACHE_LINE_SIZE);	// Prefetch next cloth vertex
 			}
 
@@ -1014,7 +1015,7 @@ static void SkinVertexSection(
 				FVector SimulatedPositionWorld = ClothCPU::ClothingPosition(*ClothVertData, *ClothSimData);
 
 				// transform back to local space
-				FVector3f SimulatedPosition = WorldToLocal.TransformPosition(SimulatedPositionWorld);
+				FVector3f SimulatedPosition = (FVector4f)WorldToLocal.TransformPosition(SimulatedPositionWorld);
 
 				const float VertexBlend = ClothBlendWeight * (1.0f - (ClothVertData->SourceMeshVertIndices[3] / 65535.0f));
 				

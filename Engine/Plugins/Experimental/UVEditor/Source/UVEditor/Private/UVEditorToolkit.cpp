@@ -220,7 +220,11 @@ bool FUVEditorToolkit::OnRequestClose()
 	// issues if the editor close sequence is interrupted due to some other asset editor.
 
 	UUVEditorMode* UVMode = Cast<UUVEditorMode>(EditorModeManager->GetActiveScriptableMode(UUVEditorMode::EM_UVEditorModeId));
-	check(UVMode);
+	if (!UVMode) {
+		// If we don't have a valid mode, because the OnRequestClose is currently being called multiple times,
+		// simply return true because there's nothing left to do.
+		return true; 
+	}
 
 	bool bAllowClose = true;
 	// Warn the user of any unapplied changes.

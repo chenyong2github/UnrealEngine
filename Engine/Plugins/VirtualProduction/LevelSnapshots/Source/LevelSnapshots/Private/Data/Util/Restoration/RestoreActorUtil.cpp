@@ -1,0 +1,175 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "ApplySnapshotToEditorArchive.h"
+#include "Data/Util/Restoration/ActorUtil.h"
+
+#include "Data/ActorSnapshotData.h"
+#include "Data/WorldSnapshotData.h"
+#include "CustomSerialization/CustomObjectSerializationWrapper.h"
+#include "LevelSnapshotsLog.h"
+#include "LevelSnapshotsModule.h"
+#include "Selection/PropertySelectionMap.h"
+#include "Util/EquivalenceUtil.h"
+#include "Util/Component/SnapshotComponentUtil.h"
+
+#include "Components/ActorComponent.h"
+#include "Engine/Engine.h"
+#include "GameFramework/Actor.h"
+#include "RestorationEvents/ApplySnapshotToActorScope.h"
+#include "Templates/NonNullPointer.h"
+#include "UObject/Package.h"
+
+#if USE_STABLE_LOCALIZATION_KEYS
+#include "Internationalization/TextPackageNamespaceUtil.h"
+#endif
+
+namespace UE::LevelSnapshots::Private::Internal::Restore
+{
+	using FSerializeActor = TFunctionRef<void(AActor* OriginalActor, AActor* DerserializedActor)>;
+	using FSerializeComponent = TFunctionRef<void(FSubobjectSnapshotData& SerializedCompData, UActorComponent* Original, UActorComponent* Deserialized)>;
+	using FHandleFoundComponent = TFunctionRef<void(FSubobjectSnapshotData& SerializedCompData, UActorComponent* ActorComp)>;
+
+	static void DeserializeComponents(
+		AActor* IntoActor,
+		const FActorSnapshotData& ActorData,
+		FWorldSnapshotData& WorldData,
+		FHandleFoundComponent HandleComponent
+		)
+	{
+		for (auto CompIt = ActorData.ComponentData.CreateConstIterator(); CompIt; ++CompIt)
+		{
+			const EComponentCreationMethod CreationMethod = CompIt->Value.CreationMethod;
+			if (CreationMethod == EComponentCreationMethod::UserConstructionScript)	// Construction script components are not supported 
+				{
+				continue;
+				}
+
+			const int32 SubobjectIndex = CompIt->Key;
+			const FSoftObjectPath& OriginalComponentPath = WorldData.SerializedObjectReferences[SubobjectIndex];
+			if (UActorComponent* ComponentToRestore = UE::LevelSnapshots::Private::FindMatchingComponent(IntoActor, OriginalComponentPath))
+			{
+				FSubobjectSnapshotData& SnapshotData = WorldData.Subobjects[SubobjectIndex];
+				HandleComponent(SnapshotData, ComponentToRestore);
+			}
+		}
+	}
+	
+	static void DeserializeIntoEditorWorldActor(AActor* OriginalActor, FActorSnapshotData& ActorData, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UPackage* InLocalisationSnapshotPackage, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent)
+	{
+		const TOptional<TNonNullPtr<AActor>> Deserialized = UE::LevelSnapshots::Private::GetDeserializedActor(OriginalActor, WorldData, Cache, InLocalisationSnapshotPackage);
+		if (!Deserialized)
+		{
+			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to serialize into actor %s. Skipping..."), *OriginalActor->GetName());
+			return;
+		}
+
+		const AActor* AttachParentBeforeRestore = OriginalActor->GetAttachParentActor();
+		SerializeActor(OriginalActor, Deserialized.GetValue());
+#if WITH_EDITOR
+		UE_LOG(LogLevelSnapshots, Verbose, TEXT("ActorLabel is \"%s\" for \"%s\""), *OriginalActor->GetActorLabel(), *OriginalActor->GetPathName());
+#endif
+
+		TInlineComponentArray<UActorComponent*> DeserializedComponents;
+		Deserialized.GetValue()->GetComponents(DeserializedComponents);
+		Internal::Restore::DeserializeComponents(OriginalActor, ActorData, WorldData,
+			[&SerializeComponent, &DeserializedComponents](
+				FSubobjectSnapshotData& SerializedCompData,
+				UActorComponent* Comp
+				)
+		    {
+		        const FName OriginalCompName = Comp->GetFName();
+		        UActorComponent** DeserializedCompCounterpart = DeserializedComponents.FindByPredicate([OriginalCompName](UActorComponent* Other)
+		        {
+		            return Other->GetFName() == OriginalCompName;
+		        });
+				
+				UE_CLOG(!DeserializedCompCounterpart, LogLevelSnapshots, Warning, TEXT("Failed to find component called %s on temp deserialized snapshot actor. Skipping component..."), *OriginalCompName.ToString())
+		        if (DeserializedCompCounterpart)
+		        {
+	        		SerializeComponent(SerializedCompData, Comp, *DeserializedCompCounterpart);
+				
+					// We may have modified render information, e.g. for lights we may have changed intensity or colour
+					// It may be more efficient to track whether we actually changed render state
+					Comp->ReregisterComponent();
+		        }
+		    }
+		);
+
+		// Fixes up restored attachments
+		OriginalActor->UpdateComponentTransforms();
+
+#if WITH_EDITOR
+		// Update World Outliner. Usually called by USceneComponent::AttachToComponent.
+		const AActor* AttachParentAfterRestore = OriginalActor->GetAttachParentActor();
+		const bool bAttachParentChanged = AttachParentBeforeRestore != AttachParentAfterRestore;
+		if (bAttachParentChanged)
+		{
+			GEngine->BroadcastLevelActorAttached(OriginalActor, AttachParentAfterRestore);
+		}
+#endif
+	}
+
+	static void PreventAttachParentInfiniteRecursion(UActorComponent* Original, const FPropertySelection& PropertySelection)
+	{
+		static const FProperty* AttachParent = USceneComponent::StaticClass()->FindPropertyByName(FName("AttachParent"));
+
+		// Suppose snapshot contains Root > Child and now the hierarchy is Child > Root.
+		// Root's AttachChildren still contains Child after we apply snapshot since that property is transient.
+		// Solution: Detach now, then serialize AttachParent, and OnRegister will automatically call AttachToComponent and update everything.
+		USceneComponent* SceneComponent = Cast<USceneComponent>(Original);
+		if (Original && PropertySelection.IsPropertySelected(nullptr, AttachParent))
+		{
+			SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+		}
+	}
+}
+
+void UE::LevelSnapshots::Private::RestoreIntoExistingWorldActor(AActor* OriginalActor, FActorSnapshotData& ActorData, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties)
+{
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("========== Apply existing %s =========="), *OriginalActor->GetPathName());
+	const bool bWasRecreated = false;
+	const FApplySnapshotToActorScope NotifyExternalListeners({ OriginalActor, SelectedProperties, bWasRecreated });
+	
+	UE::LevelSnapshots::Private::AddAndRemoveComponentsSelectedForRestore(OriginalActor, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
+
+	auto DeserializeActor = [&ActorData, &WorldData, &Cache, InLocalisationSnapshotPackage, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
+	{
+		const FRestoreObjectScope FinishRestore = PreActorRestore_EditorWorld(OriginalActor, ActorData.CustomActorSerializationData, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
+		if (SelectedProperties.GetObjectSelection(OriginalActor).GetPropertySelection() != nullptr)
+		{
+			FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(ActorData.SerializedActorData, WorldData, Cache, OriginalActor, DeserializedActor, SelectedProperties);
+		}
+	};
+	auto DeserializeComponent = [&WorldData, &Cache, &SelectedProperties, InLocalisationSnapshotPackage](FSubobjectSnapshotData& SerializedCompData, UActorComponent* Original, UActorComponent* Deserialized)
+	{
+		const FRestoreObjectScope FinishRestore = PreSubobjectRestore_EditorWorld(Deserialized, Original, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
+		const FPropertySelection* ComponentSelectedProperties = SelectedProperties.GetObjectSelection(Original).GetPropertySelection();
+		if (ComponentSelectedProperties)
+		{
+			Internal::Restore::PreventAttachParentInfiniteRecursion(Original, *ComponentSelectedProperties);
+			FApplySnapshotToEditorArchive::ApplyToExistingEditorWorldObject(SerializedCompData, WorldData, Cache, Original, Deserialized, SelectedProperties);
+		};
+	};
+	Internal::Restore::DeserializeIntoEditorWorldActor(OriginalActor, ActorData, WorldData, Cache, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);
+}
+
+void UE::LevelSnapshots::Private::RestoreIntoRecreatedEditorWorldActor(AActor* OriginalActor, FActorSnapshotData& ActorData, FWorldSnapshotData& WorldData, FSnapshotDataCache& Cache, UPackage* InLocalisationSnapshotPackage, const FPropertySelectionMap& SelectedProperties)
+{
+	UE_LOG(LogLevelSnapshots, Verbose, TEXT("========== Apply recreated %s =========="), *OriginalActor->GetPathName());
+	const bool bWasRecreated = true;
+	const FApplySnapshotToActorScope NotifyExternalListeners({ OriginalActor, SelectedProperties, bWasRecreated });
+	
+	UE::LevelSnapshots::Private::AllocateMissingComponentsForRecreatedActor(OriginalActor, WorldData, Cache);
+
+	auto DeserializeActor = [&ActorData, &WorldData, &Cache, InLocalisationSnapshotPackage, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
+	{
+		const FRestoreObjectScope FinishRestore = PreActorRestore_EditorWorld(OriginalActor, ActorData.CustomActorSerializationData, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
+		FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(ActorData.SerializedActorData, WorldData, Cache, OriginalActor, SelectedProperties);
+	};
+	auto DeserializeComponent = [&WorldData, &Cache, &SelectedProperties, InLocalisationSnapshotPackage](FSubobjectSnapshotData& SerializedCompData, UActorComponent* Original, UActorComponent* Deserialized)
+	{
+		const FRestoreObjectScope FinishRestore = PreSubobjectRestore_EditorWorld(Deserialized, Original, WorldData, Cache, SelectedProperties, InLocalisationSnapshotPackage);
+		FApplySnapshotToEditorArchive::ApplyToRecreatedEditorWorldObject(SerializedCompData, WorldData, Cache, Original, SelectedProperties); 
+	};
+	Internal::Restore::DeserializeIntoEditorWorldActor(OriginalActor, ActorData, WorldData, Cache, InLocalisationSnapshotPackage, DeserializeActor, DeserializeComponent);
+}

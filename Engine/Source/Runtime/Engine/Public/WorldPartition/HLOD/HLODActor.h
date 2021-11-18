@@ -64,6 +64,10 @@ protected:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void RerunConstructionScripts() override;
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const { return false; }
+	virtual bool CanEditChangeComponent(const UActorComponent* Component, const FProperty* InProperty) const { return false; }
+#endif
 	//~ End UObject Interface.
 
 	//~ Begin AActor Interface.
@@ -75,6 +79,10 @@ protected:
 
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
 	virtual FBox GetStreamingBounds() const override;
+
+	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override { return false; }
+	virtual bool IsLockLocation() const { return true; }
+	virtual bool IsUserManaged() const override { return false; }
 #endif
 	//~ End AActor Interface.
 

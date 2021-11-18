@@ -157,6 +157,91 @@ namespace Electra
 			return RawBuffer;
 		}
 
+		template<typename ReturnType>
+		ReturnType CallMethodNoVerify(FJavaClassMethod Method, ...);
+
+		template<>
+		void CallMethodNoVerify<void>(FJavaClassMethod Method, ...)
+		{
+			JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+			va_list Params;
+			va_start(Params, Method);
+			JEnv->CallVoidMethodV(Object, Method.Method, Params);
+			va_end(Params);
+		}
+
+		template<>
+		bool CallMethodNoVerify<bool>(FJavaClassMethod Method, ...)
+		{
+			JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+			va_list Params;
+			va_start(Params, Method);
+			bool RetVal = JEnv->CallBooleanMethodV(Object, Method.Method, Params);
+			va_end(Params);
+			return RetVal;
+		}
+
+		template<>
+		int CallMethodNoVerify<int>(FJavaClassMethod Method, ...)
+		{
+			JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+			va_list Params;
+			va_start(Params, Method);
+			int RetVal = JEnv->CallIntMethodV(Object, Method.Method, Params);
+			va_end(Params);
+			return RetVal;
+		}
+
+		template<>
+		jobject CallMethodNoVerify<jobject>(FJavaClassMethod Method, ...)
+		{
+			JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+			va_list Params;
+			va_start(Params, Method);
+			jobject val = JEnv->CallObjectMethodV(Object, Method.Method, Params);
+			va_end(Params);
+			jobject RetVal = JEnv->NewGlobalRef(val);
+			JEnv->DeleteLocalRef(val);
+			return RetVal;
+		}
+
+		template<>
+		jobjectArray CallMethodNoVerify<jobjectArray>(FJavaClassMethod Method, ...)
+		{
+			JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+			va_list Params;
+			va_start(Params, Method);
+			jobject val = JEnv->CallObjectMethodV(Object, Method.Method, Params);
+			va_end(Params);
+			jobjectArray RetVal = (jobjectArray)JEnv->NewGlobalRef(val);
+			JEnv->DeleteLocalRef(val);
+			return RetVal;
+		}
+
+		template<>
+		int64 CallMethodNoVerify<int64>(FJavaClassMethod Method, ...)
+		{
+			JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+			va_list Params;
+			va_start(Params, Method);
+			int64 RetVal = JEnv->CallLongMethodV(Object, Method.Method, Params);
+			va_end(Params);
+			return RetVal;
+		}
+
+		template<>
+		FString CallMethodNoVerify<FString>(FJavaClassMethod Method, ...)
+		{
+			JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
+			va_list Params;
+			va_start(Params, Method);
+			jstring RetVal = static_cast<jstring>(
+				JEnv->CallObjectMethodV(Object, Method.Method, Params));
+			va_end(Params);
+			auto Result = FJavaHelper::FStringFromLocalRef(JEnv, RetVal);
+			return Result;
+		}
+
 		void SetupDecoderInformation();
 
 		int32 release();
@@ -387,7 +472,7 @@ namespace Electra
 		CurrentDecoderInformation.Reset();
 
 		// Create and initialize a decoder instance.
-		result = CallMethod<int>(CreateDecoderFN);
+		result = CallMethodNoVerify<int>(CreateDecoderFN);
 		GClearException();
 		if (result != 0)
 		{
@@ -442,7 +527,7 @@ namespace Electra
 			JEnv->SetBooleanField(CreateParams, FCreateParameters_bSurfaceIsView, InCreateParams.bSurfaceIsView);
 
 			// Create and initialize a decoder instance.
-			result = CallMethod<int>(ConfigureDecoderFN, CreateParams);
+			result = CallMethodNoVerify<int>(ConfigureDecoderFN, CreateParams);
 			JEnv->DeleteLocalRef(CreateParams);
 			GClearException(JEnv);
 			if (result != 0)
@@ -473,7 +558,7 @@ namespace Electra
 		if (bHaveDecoder)
 		{
 			int32 result = -1;
-			result = CallMethod<int>(SetOutputSurfaceFN, InNewOutputSurface);
+			result = CallMethodNoVerify<int>(SetOutputSurfaceFN, InNewOutputSurface);
 			GClearException();
 			if (result != 0)
 			{
@@ -499,7 +584,7 @@ namespace Electra
 		FMediaCriticalSection::ScopedLock Lock(MutexLock);
 		if (bHaveDecoder)
 		{
-			int32 result = CallMethod<int>(ReleaseDecoderFN);
+			int32 result = CallMethodNoVerify<int>(ReleaseDecoderFN);
 			GClearException();
 			bHaveDecoder = false;
 			return result ? 1 : 0;
@@ -518,7 +603,7 @@ namespace Electra
 	{
 		Stop();
 
-		int32 result = CallMethod<int>(ReleaseFN);
+		int32 result = CallMethodNoVerify<int>(ReleaseFN);
 		GClearException();
 		return result ? 1 : 0;
 	}
@@ -547,7 +632,7 @@ namespace Electra
 		FMediaCriticalSection::ScopedLock Lock(MutexLock);
 		if (bHaveDecoder && !bIsStarted)
 		{
-			int32 result = CallMethod<int>(StartFN);
+			int32 result = CallMethodNoVerify<int>(StartFN);
 			GClearException();
 			if (result)
 			{
@@ -571,7 +656,7 @@ namespace Electra
 		FMediaCriticalSection::ScopedLock Lock(MutexLock);
 		if (bHaveDecoder && bIsStarted)
 		{
-			int32 result = CallMethod<int>(StopFN);
+			int32 result = CallMethodNoVerify<int>(StopFN);
 			GClearException();
 			if (result)
 			{
@@ -601,7 +686,7 @@ namespace Electra
 		// Synchronously operating decoders must be in the started state to be flushed.
 		if (bHaveDecoder && bIsStarted)
 		{
-			int32 result = CallMethod<int>(FlushFN);
+			int32 result = CallMethodNoVerify<int>(FlushFN);
 			GClearException();
 			return result;
 		}
@@ -621,7 +706,7 @@ namespace Electra
 		// Synchronously operating decoders should (must?) be in the stopped state to be reset.
 		if (bHaveDecoder && !bIsStarted)
 		{
-			int32 result = CallMethod<int>(ResetFN);
+			int32 result = CallMethodNoVerify<int>(ResetFN);
 			GClearException();
 			return result ? 1 : 0;
 		}
@@ -642,7 +727,7 @@ namespace Electra
 		FMediaCriticalSection::ScopedLock Lock(MutexLock);
 		if (bHaveDecoder)
 		{
-			int32 result = CallMethod<int>(DequeueInputBufferFN, InTimeoutUsec);
+			int32 result = CallMethodNoVerify<int>(DequeueInputBufferFN, InTimeoutUsec);
 			GClearException();
 			return result;
 		}
@@ -668,7 +753,7 @@ namespace Electra
 		{
 			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 			jbyteArray  InData = MakeJavaByteArray((const uint8*)InAccessUnitData, InAccessUnitSize);
-			int32 result = CallMethod<int>(QueueInputBufferFN, InBufferIndex, (jlong)InTimestampUSec, InData);
+			int32 result = CallMethodNoVerify<int>(QueueInputBufferFN, InBufferIndex, (jlong)InTimestampUSec, InData);
 			JEnv->DeleteLocalRef(InData);
 			GClearException(JEnv);
 			return result ? 1 : 0;
@@ -695,7 +780,7 @@ namespace Electra
 		{
 			JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
 			jbyteArray  InData = MakeJavaByteArray((const uint8*)InCSDData, InCSDSize);
-			int32 result = CallMethod<int>(QueueCSDInputBufferFN, InBufferIndex, (jlong)InTimestampUSec, InData);
+			int32 result = CallMethodNoVerify<int>(QueueCSDInputBufferFN, InBufferIndex, (jlong)InTimestampUSec, InData);
 			JEnv->DeleteLocalRef(InData);
 			GClearException(JEnv);
 			return result ? 1 : 0;
@@ -718,7 +803,7 @@ namespace Electra
 		FMediaCriticalSection::ScopedLock Lock(MutexLock);
 		if (bHaveDecoder)
 		{
-			int32 result = CallMethod<int>(QueueEOSInputBufferFN, InBufferIndex, (jlong)InTimestampUSec);
+			int32 result = CallMethodNoVerify<int>(QueueEOSInputBufferFN, InBufferIndex, (jlong)InTimestampUSec);
 			GClearException();
 			return result ? 1 : 0;
 		}
@@ -863,7 +948,7 @@ namespace Electra
 			if (ValidCount == CurrentValidCount)
 			{
 				// Yes...
-				int32 result = CallMethod<int>(ReleaseOutputBufferFN, BufferIndex, bRender, (long)releaseAt);
+				int32 result = CallMethodNoVerify<int>(ReleaseOutputBufferFN, BufferIndex, bRender, (long)releaseAt);
 				GClearException();
 				return result ? 1 : 0;
 			}

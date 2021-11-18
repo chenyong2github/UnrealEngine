@@ -13,6 +13,17 @@
 class UAssetManager;
 class FMetasoundAssetBase;
 
+struct FDirectoryPath;
+
+
+USTRUCT(BlueprintType)
+struct METASOUNDENGINE_API FMetaSoundAssetDirectory
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Directories, meta = (RelativePath, LongPackageName))
+	FDirectoryPath Directory;
+};
 
 /** The subsystem in charge of the MetaSound asset registry */
 UCLASS()
@@ -39,10 +50,17 @@ public:
 	virtual FMetasoundAssetBase* TryLoadAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& RegistryKey) const override;
 	virtual bool TryLoadReferencedAssets(const FMetasoundAssetBase& InAssetBase, TArray<FMetasoundAssetBase*>& OutReferencedAssets) const override;
 
+	UFUNCTION(BlueprintCallable, Category = "MetaSounds|Registration")
+	void RegisterAssetClassesInDirectories(const TArray<FMetaSoundAssetDirectory>& Directories);
+
+	UFUNCTION(BlueprintCallable, Category = "MetaSounds|Registration")
+	void UnregisterAssetClassesInDirectories(const TArray<FMetaSoundAssetDirectory>& Directories);
+
 protected:
 	void PostEngineInit();
 	void PostInitAssetScan();
 	void RebuildDenyListCache(const UAssetManager& InAssetManager);
+	void SearchAndIterateDirectoryAssets(const TArray<FDirectoryPath>& InDirectories, TFunctionRef<void(const FAssetData&)> InFunction);
 	void SynchronizeAssetClassDisplayName(const FAssetData& InAssetData);
 
 private:

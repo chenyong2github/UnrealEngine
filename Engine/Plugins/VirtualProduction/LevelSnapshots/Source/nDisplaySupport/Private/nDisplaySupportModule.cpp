@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "FnDisplaySupportForLevelSnapshotsModule"
 
-void FnDisplaySupportModule::StartupModule()
+void UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule::StartupModule()
 {
 	FModuleManager& ModuleManager = FModuleManager::Get();
 	const bool bIsNDisplayLoaded = ModuleManager.IsModuleLoaded("DisplayCluster");
@@ -24,9 +24,9 @@ void FnDisplaySupportModule::StartupModule()
 		FDisplayClusterConfigurationClusterNodeSerializer::Register(LevelSnapshotsModule);
 	}
 }
-void FnDisplaySupportModule::ShutdownModule()
+void UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule::ShutdownModule()
 {}
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FnDisplaySupportModule, nDisplaySupportForLevelSnapshots)
+IMPLEMENT_MODULE(UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule, nDisplaySupportForLevelSnapshots)

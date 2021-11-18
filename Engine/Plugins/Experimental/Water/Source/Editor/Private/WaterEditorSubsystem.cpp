@@ -22,12 +22,12 @@
 
 #define LOCTEXT_NAMESPACE "WaterEditorSubsystem"
 
-void UpdateSingleTexture(UTexture2D*& DestTexure, UTextureRenderTarget2D* SrcRenderTarget, UObject* Outer, const TCHAR* TextureName)
+void UpdateSingleTexture(UTexture2D*& DestTexture, UTextureRenderTarget2D* SrcRenderTarget, UObject* Outer, const TCHAR* TextureName)
 {
 	uint32 TextureFlags = CTF_Default;
-	if (!DestTexure)
+	if (!DestTexture)
 	{
-		DestTexure = SrcRenderTarget->ConstructTexture2D(Outer, TextureName, RF_NoFlags, TextureFlags);
+		DestTexture = SrcRenderTarget->ConstructTexture2D(Outer, TextureName, RF_NoFlags, TextureFlags);
 	}
 
 	const EPixelFormat PixelFormat = SrcRenderTarget->GetFormat();
@@ -42,13 +42,49 @@ void UpdateSingleTexture(UTexture2D*& DestTexure, UTextureRenderTarget2D* SrcRen
 		break;
 	}
 
-	DestTexure->Modify();
-	DestTexure->PreEditChange(nullptr); // Ensures synchronization with TextureCompilingManager.
-	DestTexure->LODGroup = GetDefault<UWaterEditorSettings>()->TextureGroupForGeneratedTextures;
-	DestTexure->MipGenSettings = TMGS_NoMipmaps;
-	DestTexure->MaxTextureSize = GetDefault<UWaterEditorSettings>()->MaxWaterVelocityAndHeightTextureSize;
-	SrcRenderTarget->UpdateTexture2D(DestTexure, TextureFormat, TextureFlags);
-	DestTexure->PostEditChange();
+	bool bTextureModified = false;
+
+	UTextureRenderTarget2D::FTextureChangingDelegate OnTextureChanging;
+	OnTextureChanging.BindLambda([&bTextureModified](UTexture* InTexture)
+	{
+		if (!bTextureModified)
+		{
+			InTexture->Modify();
+			InTexture->PreEditChange(nullptr);
+			bTextureModified = true;
+		}
+	});
+	
+	// Verify if we need to update the destination texture
+	bool bMustUpdateTexture = false;
+
+	// Compare LOD group
+	TEnumAsByte<TextureGroup> TexLODGroup = GetDefault<UWaterEditorSettings>()->TextureGroupForGeneratedTextures;
+	bMustUpdateTexture |= DestTexture->LODGroup != TexLODGroup;
+	
+	// Compare mip gen settings
+	TEnumAsByte<TextureMipGenSettings> TexMipGenSetting = TMGS_NoMipmaps;
+	bMustUpdateTexture |= DestTexture->MipGenSettings != TexMipGenSetting;
+
+	// Compare max texture size
+	int32 TexMaxSize = GetDefault<UWaterEditorSettings>()->MaxWaterVelocityAndHeightTextureSize;
+	bMustUpdateTexture |= DestTexture->MaxTextureSize != TexMaxSize;
+
+	// Update the texture if needed
+	if (bMustUpdateTexture)
+	{
+		OnTextureChanging.Execute(DestTexture);
+	}
+
+	DestTexture->LODGroup = TexLODGroup;
+	DestTexture->MipGenSettings = TexMipGenSetting;
+	DestTexture->MaxTextureSize = TexMaxSize;
+	SrcRenderTarget->UpdateTexture2D(DestTexture, TextureFormat, TextureFlags, nullptr, OnTextureChanging);
+
+	if (bTextureModified)
+	{
+		DestTexture->PostEditChange();
+	}
 }
 
 UWaterEditorSubsystem::UWaterEditorSubsystem()

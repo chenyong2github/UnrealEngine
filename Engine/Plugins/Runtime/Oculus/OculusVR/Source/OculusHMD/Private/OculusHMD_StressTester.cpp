@@ -50,7 +50,7 @@ namespace OculusHMD
 struct FTextureVertex
 {
 	FVector4f	Position;
-	FVector2D	UV;
+	FVector2f	UV;
 };
 
 inline FBufferRHIRef CreateTempOcculusVertexBuffer()
@@ -120,14 +120,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (Parameters.Platform == EShaderPlatform::SP_METAL || Parameters.Platform == EShaderPlatform::SP_METAL_MRT)
-		{
-			return false;
-		}
-		else
-		{
-			return true;
-		}
+		return !IsMetalMobilePlatform(Parameters.Platform);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override

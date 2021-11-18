@@ -465,21 +465,41 @@ void SAnimSegmentsPanel::OnTrackDragDrop( TSharedPtr<FDragDropOperation> DragDro
 		TSharedPtr<FAssetDragDropOp> AssetOp = StaticCastSharedPtr<FAssetDragDropOp>(DragDropOp);
 		if (AssetOp->HasAssets())
 		{
-			UAnimSequenceBase* DroppedSequence = FAssetData::GetFirstAsset<UAnimSequenceBase>(AssetOp->GetAssets());
-			if (IsValidToAdd(DroppedSequence))
+			bool bFailedToAdd = false; 
+		
+			if(bChildAnimMontage)
 			{
-				if (bChildAnimMontage)
+				UAnimSequenceBase* DroppedSequence = FAssetData::GetFirstAsset<UAnimSequenceBase>(AssetOp->GetAssets());
+				if (IsValidToAdd(DroppedSequence))
 				{
 					ReplaceAnimSegment(DroppedSequence, DataPos);
 				}
 				else
 				{
-					AddAnimSegment(DroppedSequence, DataPos);
+					bFailedToAdd = true;
 				}
 			}
 			else
 			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FailedToAdd", "Make sure the target animation is valid. Check to make sure if it's same additive type if additive."));
+				const FScopedTransaction Transaction( LOCTEXT("AnimSegmentPanel_AddSegments", "Add Segments") );
+			
+				for(const FAssetData& DroppedAssetData : AssetOp->GetAssets())
+				{
+					UAnimSequenceBase* DroppedSequence = Cast<UAnimSequenceBase>(DroppedAssetData.GetAsset());
+					if (IsValidToAdd(DroppedSequence))
+					{
+						AddAnimSegment(DroppedSequence, DataPos);
+					}
+					else
+					{
+						bFailedToAdd = true;
+					}
+				}
+			}
+
+			if(bFailedToAdd)
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("FailedToAdd", "Make sure the target animations are valid. Check to make sure if they are the same additive type if additive."));
 			}
 		}
 	}

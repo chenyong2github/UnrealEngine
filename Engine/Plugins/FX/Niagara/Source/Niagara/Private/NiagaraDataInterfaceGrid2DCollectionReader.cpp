@@ -60,9 +60,9 @@ public:
 		if (Grid2DProxyData == nullptr)
 		{			
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, FIntPoint(0, 0));
-			SetShaderValue(RHICmdList, ComputeShaderRHI, UnitToUVParam, FVector2D::ZeroVector);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, FVector2D::ZeroVector);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, FVector2D::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, UnitToUVParam, FVector2f::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, FVector2f::ZeroVector);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, FVector2f::ZeroVector);
 
 			FRHISamplerState* SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			SetSamplerParameter(RHICmdList, ComputeShaderRHI, SamplerParam, SamplerState);
@@ -76,10 +76,10 @@ public:
 		check(Grid2DProxyData);
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, Grid2DProxyData->NumCells);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, UnitToUVParam, FVector2D(1.0f) / FVector2D(Grid2DProxyData->NumCells));
-		SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, Grid2DProxyData->CellSize);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, UnitToUVParam, FVector2f(1.0f) / FVector2f(Grid2DProxyData->NumCells));
+		SetShaderValue(RHICmdList, ComputeShaderRHI, CellSizeParam, FVector2f(Grid2DProxyData->CellSize));
 			
-		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, Grid2DProxyData->WorldBBoxSize);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, FVector2f(Grid2DProxyData->WorldBBoxSize));
 
 		FRHISamplerState *SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		SetSamplerParameter(RHICmdList, ComputeShaderRHI, SamplerParam, SamplerState);

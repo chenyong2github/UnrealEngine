@@ -204,11 +204,16 @@ FCardRepresentationAsyncQueue::FCardRepresentationAsyncQueue()
 
 	const int32 MaxConcurrency = -1;
 	// In Editor, we allow faster compilation by letting the asset compiler's scheduler organize work.
-	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(FAssetCompilingManager::Get().GetThreadPool(), MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+	FQueuedThreadPool* InnerThreadPool = FAssetCompilingManager::Get().GetThreadPool();
 #else
 	const int32 MaxConcurrency = 1;
-	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(GThreadPool, MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+	FQueuedThreadPool* InnerThreadPool = GThreadPool;
 #endif
+
+	if (InnerThreadPool != nullptr)
+	{
+		ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(InnerThreadPool, MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
+	}
 
 	FAssetCompilingManager::Get().RegisterManager(this);
 
@@ -713,7 +718,7 @@ void FCardRepresentationAsyncQueue::Shutdown()
 	CancelAllOutstandingBuilds();
 
 	UE_LOG(LogStaticMesh, Log, TEXT("Abandoning remaining async card representation tasks for shutdown"));
-	ThreadPool->Destroy();
+	ThreadPool.Reset();
 }
 
 #undef LOCTEXT_NAMESPACE

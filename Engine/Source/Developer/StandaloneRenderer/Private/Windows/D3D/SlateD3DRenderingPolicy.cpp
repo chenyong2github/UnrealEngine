@@ -328,11 +328,11 @@ void FSlateD3D11RenderingPolicy::DrawElements(const FMatrix& ViewProjectionMatri
 
 		if (EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma))
 		{
-			PixelShader->SetGammaValues(FVector2D(1.0f, 1.0f));
+			PixelShader->SetGammaValues(FVector2f(1.0f, 1.0f));
 		}
 		else
 		{
-			PixelShader->SetGammaValues(FVector2D(1, 1 / 2.2f));
+			PixelShader->SetGammaValues(FVector2f(1, 1 / 2.2f));
 		}
 
 		const FSlateClippingState* ClippingState = RenderBatch.GetClippingState();

@@ -31,7 +31,7 @@ public:
 	FName SocketName;
 
 private:
-	int32 CachedSocketMeshBoneIndex;
+	FMeshPoseBoneIndex CachedSocketMeshBoneIndex;
 	FCompactPoseBoneIndex CachedSocketCompactBoneIndex;
 	
 public:
@@ -56,12 +56,12 @@ public:
 	 * Although the expected behavior is ambiguous, I'll still split these two, and use it accordingly */
 	bool HasValidSetup() const
 	{
-		return (CachedSocketMeshBoneIndex != INDEX_NONE);
+		return (CachedSocketMeshBoneIndex.IsValid());
 	}
 
 	bool IsValidToEvaluate() const
 	{
-		return (CachedSocketCompactBoneIndex != INDEX_NONE);
+		return (CachedSocketCompactBoneIndex.IsValid());
 	}
 
 	FCompactPoseBoneIndex GetCachedSocketCompactBoneIndex() const
@@ -73,7 +73,7 @@ public:
 	FTransform GetAnimatedSocketTransform(struct FCSPose<poseType>& InPose) const
 	{
 		// current LOD has valid index (FCompactPoseBoneIndex is valid if current LOD supports)
-		if (CachedSocketCompactBoneIndex != INDEX_NONE)
+		if (CachedSocketCompactBoneIndex.IsValid())
 		{
 			FTransform BoneTransform = InPose.GetComponentSpaceTransform(CachedSocketCompactBoneIndex);
 			return CachedSocketLocalTransform * BoneTransform;
@@ -84,7 +84,7 @@ public:
 
 	void InvalidateCachedBoneIndex()
 	{
-		CachedSocketMeshBoneIndex = INDEX_NONE;
+		CachedSocketMeshBoneIndex = FMeshPoseBoneIndex(INDEX_NONE);
 		CachedSocketCompactBoneIndex = FCompactPoseBoneIndex(INDEX_NONE);
 	}
 };

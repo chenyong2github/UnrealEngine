@@ -22,7 +22,7 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterNodeController
+	// IDisplayClusterClusterNodeController
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual EDisplayClusterNodeRole GetClusterRole() const override
 	{
@@ -33,31 +33,31 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolClusterSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForGameStart() override final;
-	virtual void WaitForFrameStart() override final;
-	virtual void WaitForFrameEnd() override final;
-	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override;
-	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
-	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) override;
+	virtual EDisplayClusterCommResult WaitForGameStart() override final;
+	virtual EDisplayClusterCommResult WaitForFrameStart() override final;
+	virtual EDisplayClusterCommResult WaitForFrameEnd() override final;
+	virtual EDisplayClusterCommResult GetTimeData(double& OutDeltaTime, double& OutGameTime, TOptional<FQualifiedFrameTime>& OutFrameTime) override;
+	virtual EDisplayClusterCommResult GetObjectsData(const EDisplayClusterSyncGroup InSyncGroup, TMap<FString, FString>& OutObjectsData) override;
+	virtual EDisplayClusterCommResult GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& OutJsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& OutBinaryEvents) override;
+	virtual EDisplayClusterCommResult GetNativeInputData(TMap<FString, FString>& OutNativeInputData) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolRenderSync
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForSwapSync() override final;
+	virtual EDisplayClusterCommResult WaitForSwapSync() override final;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolEventsJson
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event) override;
+	virtual EDisplayClusterCommResult EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolEventsBinary
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event) override;
+	virtual EDisplayClusterCommResult EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event) override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////

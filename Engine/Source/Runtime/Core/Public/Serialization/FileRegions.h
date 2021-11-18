@@ -25,7 +25,7 @@ enum class EFileRegionType : uint8
 // Regions are used to improve data compression and patching on some platforms.
 struct FFileRegion
 {
-	static constexpr TCHAR RegionsFileExtension[] = TEXT(".uregs");
+	static CORE_API const TCHAR* RegionsFileExtension;
 
 	uint64 Offset;
 	uint64 Length;

@@ -315,7 +315,12 @@ private:
 	float WeightMapQuery(const FVector3d& Position, const UE::Geometry::FIndexedWeightMap& WeightMap) const;
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> SubdividedMesh = nullptr;
-	UDynamicMeshComponent* DynamicMeshComponent = nullptr;
+	
+	UPROPERTY()
+	TObjectPtr<AInternalToolFrameworkActor> PreviewMeshActor = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UDynamicMeshComponent> DynamicMeshComponent = nullptr;
 
 	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> Subdivider = nullptr;
 	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> Displacer = nullptr;

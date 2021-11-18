@@ -194,10 +194,6 @@ int32 FWidgetProxy::Repaint(const FPaintArgs& PaintArgs, FSlateWindowElementList
 	SWidget* WidgetPtr = GetWidget();
 	check(WidgetPtr);
 
-#if WITH_SLATE_DEBUGGING
-	SCOPED_NAMED_EVENT_FSTRING(FReflectionMetaData::GetWidgetDebugInfo(WidgetPtr), WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsRepaint) ? FColor::Orange : FColor::Red);
-#endif
-
 	const FSlateWidgetPersistentState& MyState = WidgetPtr->GetPersistentState();
 
 	const int32 StartingClipIndex = OutDrawElements.GetClippingIndex();

@@ -21,7 +21,7 @@ namespace CADKernel
 		int32 InnerLoopCount = 0;
 
 		TArray<int32> LoopIndexToIndex;
-		TArray<TArray<FLoopNode*>> Loops;
+		TArray<TArray<FLoopNode*>> SubLoops;
 
 		// the outer loop is subdivide into connected (in the cell) nodes
 		TArray<TArray<FLoopNode*>> OuterLoopSubdivision;
@@ -59,13 +59,13 @@ namespace CADKernel
 					}
 				}
 
-				Loops.SetNum(LoopCount);
+				SubLoops.SetNum(LoopCount);
 				int32 Index = 0;
 				for (int32 LoopIndex = 0; LoopIndex < FaceLoopCount; ++LoopIndex)
 				{
 					if (LoopVertexCount[LoopIndex] > 0)
 					{
-						Loops[Index].Reserve(LoopVertexCount[LoopIndex]);
+						SubLoops[Index].Reserve(LoopVertexCount[LoopIndex]);
 						LoopVertexCount[LoopIndex] = Index;
 						Index++;
 					}
@@ -76,16 +76,16 @@ namespace CADKernel
 			for (FLoopNode* Node : InNodes)
 			{
 				int32 Index = LoopIndexToIndex[Node->GetLoopIndex()];
-				Loops[Index].Add(Node);
+				SubLoops[Index].Add(Node);
 			}
 
-			bHasOuterLoop = (Loops[0][0]->GetLoopIndex() == 0);
-			InnerLoopCount = bHasOuterLoop ? (Loops.Num() - 1): Loops.Num();
+			bHasOuterLoop = (SubLoops[0][0]->GetLoopIndex() == 0);
+			InnerLoopCount = bHasOuterLoop ? (SubLoops.Num() - 1): SubLoops.Num();
 
 			if (bHasOuterLoop)
 			{
 				// Subdivide Loop0 in SubLoop
-				TArray<FLoopNode*>& Loop0 = Loops[0];
+				TArray<FLoopNode*>& Loop0 = SubLoops[0];
 				Algo::Sort(Loop0, [&](const FLoopNode* LoopNode1, const FLoopNode* LoopNode2)
 					{
 						return LoopNode1->GetIndex() < LoopNode2->GetIndex();
@@ -117,6 +117,12 @@ namespace CADKernel
 			for (FIsoSegment* Segment : CandidateSegments)
 			{
 				if (IntersectionTool.DoesIntersect(*Segment))
+				{
+					SegmentFactory.DeleteEntity(Segment);
+					continue;
+				}
+
+				if (FIsoSegment::IsItAlreadyDefined(&Segment->GetFirstNode(), &Segment->GetSecondNode()))
 				{
 					SegmentFactory.DeleteEntity(Segment);
 					continue;

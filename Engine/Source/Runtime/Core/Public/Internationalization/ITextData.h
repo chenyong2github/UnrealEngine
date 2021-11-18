@@ -9,51 +9,27 @@ class FTextHistory;
 
 /** 
  * Interface to the internal data for an FText.
- * Various derived types are optimized to reduce memory allocation overhead.
  */
 class ITextData
 {
 public:
-	virtual ~ITextData()
-	{
-	}
+	virtual ~ITextData() = default;
 
 	/**
-	 * True if this text data owns its localized string pointer, and allows you to call GetMutableLocalizedString on it
+	 * Get the source string for this text.
 	 */
-	virtual bool OwnsLocalizedString() const = 0;
+	virtual const FString& GetSourceString() const = 0;
 
 	/**
 	 * Get the string to use for display purposes.
-	 * This may have come from the localization manager, or may been generated at runtime (eg, via FText::AsNumber).
+	 * This may be a shared display string from the localization manager, or may been generated at runtime.
 	 */
 	virtual const FString& GetDisplayString() const = 0;
 
-	/** 
-	 * Get the string pointer that was retrieved from the text localization manager.
-	 * Text that was generated at runtime by default will not have one of these, and you must call Persist() to generate one.
-	 */
-	virtual FTextDisplayStringPtr GetLocalizedString() const = 0;
-
-	/** 
-	 * Get a mutable reference to the localized string associated with this text (used when loading/saving text).
-	 */
-	virtual FTextDisplayStringPtr& GetMutableLocalizedString() = 0;
-
 	/**
-	 * Get the history associated with this text.
+	 * Get the shared display string (if any).
 	 */
-	virtual const FTextHistory& GetTextHistory() const = 0;
-
-	/**
-	 * Get a mutable reference to the history associated with this text (used when loading/saving text).
-	 */
-	virtual FTextHistory& GetMutableTextHistory() = 0;
-
-	/**
-	 * Persist this text so that it can be stored in the localization manager.
-	 */
-	virtual void PersistText() = 0;
+	virtual FTextConstDisplayStringPtr GetLocalizedString() const = 0;
 
 	/**
 	 * Get the global history revision associated with this text instance.
@@ -66,13 +42,12 @@ public:
 	virtual uint16 GetLocalHistoryRevision() const = 0;
 
 	/**
-	 * Assign a new history object to this instance.
-	 * @note: There is no RTTI on these types, so it is your responsibility to make sure that the history object you're assigning is of the correct type!
+	 * Get the history associated with this text instance.
 	 */
-	template <typename THistoryType>
-	void SetTextHistory(THistoryType&& InHistory)
-	{
-		// Need to cast to avoid slicing data
-		static_cast<THistoryType&>(GetMutableTextHistory()) = Forward<THistoryType>(InHistory);
-	}
+	virtual const FTextHistory& GetTextHistory() const = 0;
+
+	/**
+	 * Get a mutable reference to the history associated with this text instance (used when loading/saving text).
+	 */
+	virtual FTextHistory& GetMutableTextHistory() = 0;
 };

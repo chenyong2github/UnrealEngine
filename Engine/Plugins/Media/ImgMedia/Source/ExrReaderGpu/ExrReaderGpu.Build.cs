@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "Imath");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "UEOpenExr");
 				PrivateDependencyModuleNames.Add("OpenExrWrapper");
 				PrivateIncludePaths.Add("ExrReaderGpu/Private");

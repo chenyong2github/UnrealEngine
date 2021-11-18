@@ -95,7 +95,7 @@ void USoundCueGraphNode::RemoveInputPin(UEdGraphPin* InGraphPin)
 	{
 		if (InGraphPin == InputPins[InputIndex])
 		{
-			InGraphPin->MarkPendingKill();
+			InGraphPin->MarkAsGarbage();
 			Pins.Remove(InGraphPin);
 			// also remove the SoundNode child node so ordering matches
 			SoundNode->Modify();

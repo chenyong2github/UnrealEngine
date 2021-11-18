@@ -12,23 +12,33 @@
 #include "EditorReimportHandler.h"
 #include "UObject/UObjectGlobals.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif //WITH_EDITOR
 
 #define LOCTEXT_NAMESPACE "DirectLinkManager"
+
+DEFINE_LOG_CATEGORY(LogDirectLinkManager);
 
 
 namespace UE::DatasmithImporter
 {
+	/**
+	 * #ueent_todo: The AutoReimport feature should be generalize to all FExternalSource, not just DirectLink ones.
+	 */
 	struct FAutoReimportInfo
 	{
-		FAutoReimportInfo(UObject* InTargetObject, const TSharedRef<FDirectLinkExternalSource>& InExternalSource, FDelegateHandle InImportDelegateHandle)
+		FAutoReimportInfo(UObject* InTargetObject, const TSharedRef<FExternalSource>& InExternalSource, FDelegateHandle InImportDelegateHandle)
 			: TargetObject(InTargetObject)
 			, ExternalSource(InExternalSource)
 			, ImportDelegateHandle(InImportDelegateHandle)
+			, bChangedDuringPIE(false)
 		{}
 
 		TSoftObjectPtr<UObject> TargetObject;
-		TSharedRef<FDirectLinkExternalSource> ExternalSource;
+		TSharedRef<FExternalSource> ExternalSource;
 		FDelegateHandle ImportDelegateHandle;
+		bool bChangedDuringPIE;
 	};
 
 	FDirectLinkManager::FDirectLinkManager()
@@ -36,6 +46,10 @@ namespace UE::DatasmithImporter
 		, AssetObserver(MakeUnique<FDirectLinkAssetObserver>(*this))
 	{
 		Endpoint->AddEndpointObserver(this);
+
+#if WITH_EDITOR
+		OnPIEEndHandle = FEditorDelegates::EndPIE.AddRaw(this, &FDirectLinkManager::OnEndPIE);
+#endif //WITH_EDITOR
 	}
 
 	FDirectLinkManager::~FDirectLinkManager()
@@ -47,6 +61,10 @@ namespace UE::DatasmithImporter
 		{
 			UriExternalSourcePair.Value->Invalidate();
 		}
+
+#if WITH_EDITOR
+		FEditorDelegates::EndPIE.Remove(OnPIEEndHandle);
+#endif //WITH_EDITOR
 	}
 
 	TSharedPtr<FDirectLinkExternalSource> FDirectLinkManager::GetOrCreateExternalSource(const DirectLink::FSourceHandle& SourceHandle)
@@ -93,36 +111,52 @@ namespace UE::DatasmithImporter
 
 	TSharedPtr<FDirectLinkExternalSource> FDirectLinkManager::GetOrCreateExternalSource(const FSourceUri& Uri)
 	{
-		DirectLink::FSourceHandle SourceHandle = GetSourceHandleFromUri(Uri);
+		DirectLink::FSourceHandle SourceHandle;
+		TSharedPtr<FDirectLinkExternalSource> ExternalSource;
 
-		if (SourceHandle.IsValid())
-		{
-			return GetOrCreateExternalSource(SourceHandle);
-		}
-
-		return nullptr;
-	}
-
-	DirectLink::FSourceHandle FDirectLinkManager::GetSourceHandleFromUri(const FSourceUri& Uri) const
-	{
 		if (TOptional<FDirectLinkSourceDescription> SourceDescription = FDirectLinkUriResolver::TryParseDirectLinkUri(Uri))
 		{
-			FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
-
-			for (const auto& EndpointKeyValue : RawInfoCache.EndpointsInfo)
+			// Try getting the external source with the explicit id first.
+			if (SourceDescription->SourceId)
 			{
-				// Try to find a matching DirectLink source.
-				if (EndpointKeyValue.Value.ComputerName == SourceDescription->ComputerName
-					&& EndpointKeyValue.Value.ExecutableName == SourceDescription->ExecutableName
-					&& EndpointKeyValue.Value.Name == SourceDescription->EndpointName)
+				SourceHandle = SourceDescription->SourceId.GetValue();
+				if (SourceHandle.IsValid())
 				{
-					for (const DirectLink::FRawInfo::FDataPointId& SourceInfo : EndpointKeyValue.Value.Sources)
+					ExternalSource = GetOrCreateExternalSource(SourceHandle);
+				}
+			}
+			
+			// Could not retrieve the external source from the id, fall back on the first source matching the source description.
+			if (!ExternalSource)
+			{
+				SourceHandle = ResolveSourceHandleFromDescription(SourceDescription.GetValue());
+				if (SourceHandle.IsValid())
+				{
+					ExternalSource = GetOrCreateExternalSource(SourceHandle);
+				}
+			}
+		}
+
+		return ExternalSource;
+	}
+
+	DirectLink::FSourceHandle FDirectLinkManager::ResolveSourceHandleFromDescription(const FDirectLinkSourceDescription& SourceDescription) const
+	{
+		FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
+
+		for (const auto& EndpointKeyValue : RawInfoCache.EndpointsInfo)
+		{
+			// Try to find a matching DirectLink source.
+			if (EndpointKeyValue.Value.ComputerName == SourceDescription.ComputerName
+				&& EndpointKeyValue.Value.ExecutableName == SourceDescription.ExecutableName
+				&& EndpointKeyValue.Value.Name == SourceDescription.EndpointName)
+			{
+				for (const DirectLink::FRawInfo::FDataPointId& SourceInfo : EndpointKeyValue.Value.Sources)
+				{
+					if (SourceInfo.Name == SourceDescription.SourceName)
 					{
-						if (SourceInfo.Name == SourceDescription->SourceName)
-						{
-							// Source found, returning the handle.
-							return SourceInfo.Id;
-						}
+						// Source found, returning the handle.
+						return SourceInfo.Id;
 					}
 				}
 			}
@@ -235,19 +269,18 @@ namespace UE::DatasmithImporter
 
 		if (bIsValidDirectLinkUri && !RegisteredAutoReimportObjectMap.Contains(InAsset))
 		{
-			if (TSharedRef<FDirectLinkExternalSource>* ExternalSource = UriToExternalSourceMap.Find(Uri))
+			if (TSharedPtr<FDirectLinkExternalSource> ExternalSource = GetOrCreateExternalSource(Uri))
 			{
 				// Register a delegate triggering a reimport task on the external source snapshotupdate event.
 				// That way the asset will be auto-reimported and kept up-to-date.
-				FDelegateHandle DelegateHandle = (*ExternalSource)->OnExternalSourceChanged.AddLambda([this, AssetData = MoveTemp(AssetData)](const TSharedRef<FExternalSource>& ExternalSource) {
-					TriggerAutoReimportOnAsset(AssetData);
-				});
+				FDelegateHandle DelegateHandle = ExternalSource->OnExternalSourceChanged.AddRaw(this, &FDirectLinkManager::OnExternalSourceChanged);
 
-				TSharedRef<FAutoReimportInfo> AutoReimportInfo = MakeShared<FAutoReimportInfo>(InAsset, *ExternalSource, DelegateHandle);
+				TSharedRef<FDirectLinkExternalSource> ExternalSourceRef = ExternalSource.ToSharedRef();
+				TSharedRef<FAutoReimportInfo> AutoReimportInfo = MakeShared<FAutoReimportInfo>(InAsset, ExternalSourceRef, DelegateHandle);
 
 				RegisteredAutoReimportObjectMap.Add(InAsset, AutoReimportInfo);
-				RegisteredAutoReimportExternalSourceMap.Add(*ExternalSource, AutoReimportInfo);
-				(*ExternalSource)->OpenStream();
+				RegisteredAutoReimportExternalSourceMap.Add(ExternalSourceRef, AutoReimportInfo);
+				ExternalSource->OpenStream();
 
 				return true;
 			}
@@ -320,32 +353,98 @@ namespace UE::DatasmithImporter
 			{
 				const FString EndpointName(EndpointInfo->Name);
 				const FString UriPath(EndpointInfo->ComputerName / EndpointInfo->ExecutableName / EndpointInfo->Name / SourceName);
+				TMap<FString, FString> UriQuery = { {FDirectLinkUriResolver::GetSourceIdPropertyName(), LexToString(SourceHandle)} };
 
-				return FSourceUri(FDirectLinkUriResolver::GetDirectLinkScheme(), UriPath);
+				return FSourceUri(FDirectLinkUriResolver::GetDirectLinkScheme(), UriPath, UriQuery);
 			}
 		}
 
 		return FSourceUri();
 	}
 
-	void FDirectLinkManager::TriggerAutoReimportOnAsset(const FAssetData& AssetData)
+	void FDirectLinkManager::OnExternalSourceChanged(const TSharedRef<FExternalSource>& ExternalSource)
 	{
-		FSourceUri Uri = FSourceUri::FromAssetData(AssetData);
+		Async(EAsyncExecution::TaskGraphMainThread, [this, ExternalSource]() {
+
+			TArray<TSharedRef<FAutoReimportInfo>> AutoReimportInfos;
+			RegisteredAutoReimportExternalSourceMap.MultiFind(ExternalSource, AutoReimportInfos);
+			if (AutoReimportInfos.Num() == 0)
+			{
+				return;
+			}
+
+			for (const TSharedRef<FAutoReimportInfo>& AutoReimportInfo : AutoReimportInfos)
+			{
+#if WITH_EDITOR
+				// If we're in PIE, delay the callbacks until we exit that mode.
+				if (GIsEditor && FApp::IsGame())
+				{
+					AutoReimportInfo->bChangedDuringPIE = true;
+					UE_LOG(LogDirectLinkManager, Warning, TEXT("The DirectLink source \"%s\" received an update while in PIE mode. The reimport will be triggered when exiting PIE."), *ExternalSource->GetSourceName());
+					continue;
+				}
+#endif //WITH_EDITOR
+
+				if (UObject* Asset = AutoReimportInfo->TargetObject.Get())
+				{
+					TriggerAutoReimportOnAsset(AutoReimportInfo->TargetObject.Get());
+				}
+			}
+		});
+	}
+
+	void FDirectLinkManager::TriggerAutoReimportOnAsset(UObject* Asset)
+	{
+		const FAssetData AssetData(Asset);
+		const FSourceUri Uri = FSourceUri::FromAssetData(AssetData);
 		const bool bIsStillValidDirectLinkUri = Uri.IsValid() && Uri.HasScheme(FDirectLinkUriResolver::GetDirectLinkScheme());
 
-		if (UObject* AssetToReimport = AssetData.GetAsset())
+		// Make sure we are not triggering a reimport on an asset that doesn't have a DirectLink source.
+		if (bIsStillValidDirectLinkUri)
 		{
-			// Make sure we are not triggering a reimport on an asset that doesn't have a DirectLink source.
-			if (bIsStillValidDirectLinkUri)
+			FReimportManager::Instance()->Reimport(Asset, /*bAskForNewFileIfMissing*/ false, /*bShowNotification*/ true, /*PreferredReimportFile*/ TEXT(""), /*SpecifiedReimportHandler */ nullptr, /*SourceFileIndex*/ INDEX_NONE, /*bForceNewFile*/ false, /*bAutomated*/ true);
+		}
+		else
+		{
+			DisableAssetAutoReimport(Asset);
+		}
+	}
+
+#if WITH_EDITOR
+	void FDirectLinkManager::OnEndPIE(bool bIsSimulating)
+	{
+		TArray<UObject*> AssetsToReimport;
+		TArray<UObject*> InvalidAssets;
+
+		// We can't call TriggerOnExternalSourceChanged() directly as it may remove items in RegisteredAutoReimportObjectMap while we iterate.
+		for (TPair<UObject*, TSharedRef<FAutoReimportInfo>>& AutoReimportEntry : RegisteredAutoReimportObjectMap)
+		{
+			if (AutoReimportEntry.Value->TargetObject.IsValid())
 			{
-				FReimportManager::Instance()->Reimport(AssetToReimport, /*bAskForNewFileIfMissing*/ false, /*bShowNotification*/ true, /*PreferredReimportFile*/ TEXT(""), /*SpecifiedReimportHandler */ nullptr, /*SourceFileIndex*/ INDEX_NONE, /*bForceNewFile*/ false, /*bAutomated*/ true);
+				if (AutoReimportEntry.Value->bChangedDuringPIE)
+				{
+					AutoReimportEntry.Value->bChangedDuringPIE = false;
+					AssetsToReimport.Add(AutoReimportEntry.Key);
+				}
 			}
 			else
 			{
-				DisableAssetAutoReimport(AssetToReimport);
+				InvalidAssets.Add(AutoReimportEntry.Key);
 			}
 		}
+
+		for (UObject* CurrentAsset : AssetsToReimport)
+		{
+			// Trigger the event held off during PIE.
+			TriggerAutoReimportOnAsset(CurrentAsset);
+		}
+
+		for (UObject* CurrentAsset : InvalidAssets)
+		{
+			DisableAssetAutoReimport(CurrentAsset);
+		}
 	}
+#endif //WITH_EDITOR
 }
 
 #undef LOCTEXT_NAMESPACE

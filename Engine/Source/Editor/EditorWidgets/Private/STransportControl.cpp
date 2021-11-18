@@ -87,7 +87,7 @@ TSharedPtr<SWidget> STransportControl::MakeTransportControlWidget(ETransportCont
 		return SAssignNew(LoopButton, SButton)
 			. OnClicked(TransportControlArgs.OnToggleLooping)
 			. Visibility(TransportControlArgs.OnGetLooping.IsBound() ? EVisibility::Visible : EVisibility::Collapsed)
-			. ToolTipText( LOCTEXT("Loop", "Loop") )
+			. ToolTipText( this, &STransportControl::GetLoopStatusTooltip )
 			. ButtonStyle( FEditorStyle::Get(), "NoBorder" )
 			. ContentPadding(2.0f)
 			. IsFocusable(bAreButtonsFocusable)
@@ -272,6 +272,17 @@ const FSlateBrush* STransportControl::GetLoopStatusIcon() const
 	return LoopButton.IsValid() && LoopButton->IsPressed() ? 
 		&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Disabled").Pressed : 
 		&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Loop.Disabled").Normal;
+}
+
+FText STransportControl::GetLoopStatusTooltip() const
+{
+	if (TransportControlArgs.OnGetLooping.IsBound() &&
+		TransportControlArgs.OnGetLooping.Execute())
+	{
+		return LOCTEXT("Looping", "Looping");
+	}
+
+	return LOCTEXT("NoLooping", "No Looping");
 }
 
 EActiveTimerReturnType STransportControl::TickPlayback( double InCurrentTime, float InDeltaTime )

@@ -274,7 +274,7 @@ void UBehaviorTreeGraph::UpdateVersion_RunBehaviorInSeparateGraph()
 
 				Node->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
 				Node->SetFlags(RF_Transient);
-				Node->MarkPendingKill();
+				Node->MarkAsGarbage();
 			}
 		}
 	}

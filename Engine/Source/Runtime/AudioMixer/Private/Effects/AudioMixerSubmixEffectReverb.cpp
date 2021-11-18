@@ -186,17 +186,17 @@ bool FSubmixEffectReverb::SetParameters(const FAudioEffectParameters& InParams)
 	NewSettings.bEnableLateReflections = !ReverbEffectParams.bBypassLateReflections;
 
 	// Early Reflections
-	NewSettings.EarlyReflections.Gain = FMath::GetMappedRangeValueClamped({ 0.0f, 3.16f }, { 0.0f, 1.0f }, ReverbEffectParams.ReflectionsGain);
-	NewSettings.EarlyReflections.PreDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.3f }, { 0.0f, 300.0f }, ReverbEffectParams.ReflectionsDelay);
-	NewSettings.EarlyReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, 1.0f - ReverbEffectParams.GainHF);
+	NewSettings.EarlyReflections.Gain = FMath::GetMappedRangeValueClamped(FVector2f{ 0.0f, 3.16f }, FVector2f{ 0.0f, 1.0f }, ReverbEffectParams.ReflectionsGain);
+	NewSettings.EarlyReflections.PreDelayMsec = FMath::GetMappedRangeValueClamped(FVector2f{ 0.0f, 0.3f }, FVector2f{ 0.0f, 300.0f }, ReverbEffectParams.ReflectionsDelay);
+	NewSettings.EarlyReflections.Bandwidth = FMath::GetMappedRangeValueClamped(FVector2f{ 0.0f, 1.0f }, FVector2f{ 0.0f, 1.0f }, 1.0f - ReverbEffectParams.GainHF);
 
 	// LateReflections
-	NewSettings.LateReflections.LateDelayMsec = FMath::GetMappedRangeValueClamped({ 0.0f, 0.1f }, { 0.0f, 100.0f }, ReverbEffectParams.LateDelay);
-	NewSettings.LateReflections.LateGainDB = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.0f, 1.0f }, ReverbEffectParams.Gain);
-	NewSettings.LateReflections.Bandwidth = FMath::GetMappedRangeValueClamped({ 0.0f, 1.0f }, { 0.1f, 0.6f }, ReverbEffectParams.AirAbsorptionGainHF);
-	NewSettings.LateReflections.Diffusion = FMath::GetMappedRangeValueClamped({ 0.05f, 1.0f }, { 0.0f, 0.95f }, ReverbEffectParams.Diffusion);
-	NewSettings.LateReflections.Dampening = FMath::GetMappedRangeValueClamped({ 0.05f, 1.95f }, { 0.0f, 0.999f }, ReverbEffectParams.DecayHFRatio);
-	NewSettings.LateReflections.Density = FMath::GetMappedRangeValueClamped({ 0.0f, 0.95f }, { 0.06f, 1.0f }, ReverbEffectParams.Density);
+	NewSettings.LateReflections.LateDelayMsec = FMath::GetMappedRangeValueClamped(FVector2f{ 0.0f, 0.1f }, FVector2f{ 0.0f, 100.0f }, ReverbEffectParams.LateDelay);
+	NewSettings.LateReflections.LateGainDB = FMath::GetMappedRangeValueClamped(FVector2f{ 0.0f, 1.0f }, FVector2f{ 0.0f, 1.0f }, ReverbEffectParams.Gain);
+	NewSettings.LateReflections.Bandwidth = FMath::GetMappedRangeValueClamped(FVector2f{ 0.0f, 1.0f }, FVector2f{ 0.1f, 0.6f }, ReverbEffectParams.AirAbsorptionGainHF);
+	NewSettings.LateReflections.Diffusion = FMath::GetMappedRangeValueClamped(FVector2f{ 0.05f, 1.0f }, FVector2f{ 0.0f, 0.95f }, ReverbEffectParams.Diffusion);
+	NewSettings.LateReflections.Dampening = FMath::GetMappedRangeValueClamped(FVector2f{ 0.05f, 1.95f }, FVector2f{ 0.0f, 0.999f }, ReverbEffectParams.DecayHFRatio);
+	NewSettings.LateReflections.Density = FMath::GetMappedRangeValueClamped(FVector2f{ 0.0f, 0.95f }, FVector2f{ 0.06f, 1.0f }, ReverbEffectParams.Density);
 
 	// Use mapping function to get decay time in seconds to internal linear decay scale value
 	const float DecayValue = DecayCurve.Eval(ReverbEffectParams.DecayTime);

@@ -126,7 +126,6 @@ private:
 	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
 
 	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy);
-	FOptionalCacheRecord GetCacheRecord(const FCacheKey& Key, FStringView Context, const FCacheRecordPolicy& Policy) const;
 
 	bool IsServiceReady();
 	static FString MakeLegacyZenKey(const TCHAR* CacheKey);
@@ -136,21 +135,6 @@ private:
 
 	static bool ShouldRetryOnError(int64 ResponseCode);
 	static uint64 MeasureCacheRecord(const FCacheRecord& Record);
-
-	// Legacy CacheRecord endpoint
-	bool LegacyPutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy);
-	bool LegacyPutCachePayload(const FCacheKey& Key, FStringView Context, const FPayload& Payload, FCbWriter& Writer);
-	FOptionalCacheRecord LegacyGetCacheRecord(const FCacheKey& Key, FStringView Context,
-		const FCacheRecordPolicy& Policy, bool bAlwaysLoadInlineData = false) const;
-	void LegacyMakeZenKey(const FCacheKey& CacheKey, FStringBuilderBase& Out) const;
-	void LegacyMakePayloadKey(const FCacheKey& CacheKey, const FIoHash& RawHash, FStringBuilderBase& Out) const;
-	FPayload LegacyGetCachePayload(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, const FPayload& Payload) const;
-	FOptionalCacheRecord LegacyCreateRecord(FSharedBuffer&& RecordBytes, const FCacheKey& Key, FStringView Context,
-		const FCacheRecordPolicy& Policy, bool bAlwaysLoadInlineData) const;
-	FPayload LegacyGetCachePayload(const FCacheKey& Key, FStringView Context, const FCacheRecordPolicy& Policy,
-		ECachePolicy PolicyMask, const FCbObject& Object, bool bAlwaysLoadInlineData = false) const;
-	FPayload LegacyValidateCachePayload(const FCacheKey& Key, FStringView Context, const FPayload& Payload,
-		const FIoHash& CompressedHash, FSharedBuffer&& CompressedData) const;
 
 	/* Debug helpers */
 	bool ShouldSimulateMiss(const TCHAR* InKey);
@@ -163,7 +147,8 @@ private:
 	bool bIsUsable = false;
 	uint32 FailedLoginAttempts = 0;
 	uint32 MaxAttempts = 4;
-	bool bCacheRecordEndpointEnabled = false;
+	int32 CacheRecordBatchSize = 8;
+	int32 CacheChunksBatchSize = 8;
 
 	/** Debug Options */
 	FBackendDebugOptions DebugOptions;

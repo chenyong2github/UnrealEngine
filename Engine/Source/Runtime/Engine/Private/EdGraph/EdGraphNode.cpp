@@ -226,6 +226,13 @@ void UEdGraphNode::Serialize(FArchive& Ar)
 #endif
 }
 
+void UEdGraphNode::DeclareCustomVersions(FArchive& Ar)
+{
+	Super::DeclareCustomVersions(Ar);
+	UEdGraphPin::DeclareCustomVersions(Ar);
+}
+
+
 bool UEdGraphNode::GetCanRenameNode() const
 {
 #if WITH_EDITORONLY_DATA
@@ -413,7 +420,7 @@ bool UEdGraphNode::RemovePin(UEdGraphPin* Pin)
 	
 	Modify();
 	UEdGraphPin* RootPin = (Pin->ParentPin != nullptr) ? Pin->ParentPin : Pin;
-	RootPin->MarkPendingKill();
+	RootPin->MarkAsGarbage();
 
 	if (Pins.Remove( RootPin ))
 	{
@@ -421,7 +428,7 @@ bool UEdGraphNode::RemovePin(UEdGraphPin* Pin)
 		for (UEdGraphPin* ChildPin : RootPin->SubPins)
 		{
 			Pins.Remove(ChildPin);
-			ChildPin->MarkPendingKill();
+			ChildPin->MarkAsGarbage();
 		}
 		OnPinRemoved(Pin);
 		return true;
@@ -682,7 +689,7 @@ void UEdGraphNode::PostLoad()
 		{
 			LegacyPin->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders|REN_NonTransactional);
 			LegacyPin->SetFlags(RF_Transient);
-			LegacyPin->MarkPendingKill();
+			LegacyPin->MarkAsGarbage();
 		}
 
 		DeprecatedPins.Empty();
@@ -743,7 +750,7 @@ void UEdGraphNode::BeginDestroy()
 {
 	for (UEdGraphPin* Pin : Pins)
 	{
-		Pin->MarkPendingKill();
+		Pin->MarkAsGarbage();
 	}
 
 	Pins.Empty();
@@ -774,7 +781,7 @@ void UEdGraphNode::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResults& Resul
 
 void UEdGraphNode::DestroyPin(UEdGraphPin* Pin)
 {
-	Pin->MarkPendingKill();
+	Pin->MarkAsGarbage();
 }
 
 bool UEdGraphNode::CanDuplicateNode() const

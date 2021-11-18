@@ -7,8 +7,6 @@
 #include "Math/Plane.h"
 #include "Math/Matrix.h"
 
-// LWC_TODO: FRotator -> TRotator<T>
-
 namespace UE {
 namespace Math {
  	
@@ -23,11 +21,11 @@ public:
 	 *
 	 * @param Rot rotation
 	 */
-	TInverseRotationMatrix(const FRotator& Rot);
+	TInverseRotationMatrix(const TRotator<T>& Rot);
 };
 
 template<typename T>
-FORCEINLINE TInverseRotationMatrix<T>::TInverseRotationMatrix(const FRotator& Rot)
+FORCEINLINE TInverseRotationMatrix<T>::TInverseRotationMatrix(const TRotator<T>& Rot)
 	: TMatrix<T>(
 		TMatrix<T>( // Yaw
 			TPlane<T>(+FMath::Cos(Rot.Yaw * PI / 180.f), -FMath::Sin(Rot.Yaw * PI / 180.f), 0.0f, 0.0f),

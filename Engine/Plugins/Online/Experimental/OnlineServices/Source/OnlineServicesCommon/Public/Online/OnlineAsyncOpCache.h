@@ -246,20 +246,22 @@ public:
 
 	// Create an operation
 	template <typename OpType>
-	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
+	TOnlineAsyncOpRef<OpType> GetOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
 	{
-		TSharedRef<TOnlineAsyncOp<OpType>> Op = CreateOp<OpType, TJoinableOpParamsFuncs<OpType>>(MoveTemp(Params));
-		FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<OpType>&)
-			{
-				
-			});
+		TSharedRef<TOnlineAsyncOp<OpType>> Op = MakeShared<TOnlineAsyncOp<OpType>>(Services, MoveTemp(Params));
 
-		return *Op;
+		if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+		{
+			// add LocalUserId to the Op Data
+			Op->Data.template Set<decltype(Params.LocalUserId)>(TEXT("LocalUserId"), Op->GetParams().LocalUserId);
+		}
+
+		return Op;
 	}
 
 	// Join an existing operation or use a non-expired cached result, or create an operation that can later be joined
 	template <typename OpType, typename ParamsFuncsType /*= TJoinableOpParamsFuncs<OpType>*/>
-	TOnlineAsyncOp<OpType>& GetJoinableOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
+	TOnlineAsyncOpRef<OpType> GetJoinableOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
 	{
 		TSharedPtr<TOnlineAsyncOp<OpType>> Op;
 
@@ -292,18 +294,29 @@ public:
 			LoadConfigFn(Config, ConfigSectionHeiarchy);
 			
 			Op = CreateOp<OpType, ParamsFuncsType>(MoveTemp(Params));
-			FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<OpType>&)
+			FOnlineEventDelegateHandle Handle = Op->OnComplete().Add(GetSharedThis(), [this](const TOnlineAsyncOp<OpType>& ThisOp, const TOnlineResult<OpType>&)
 				{
-
+					// remove from cache if operation was canceled
+					if (ThisOp.GetState() == EAsyncOpState::Cancelled)
+					{
+						if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+						{
+							UserOperations.FindOrAdd(ThisOp.GetParams().LocalUserId).Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
+						}
+						else
+						{
+							Operations.Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
+						}
+					}
 				});
 		}
 
-		return *Op;
+		return Op.ToSharedRef();
 	}
 
 	// Merge with a pending operation, or create an operation
 	template <typename OpType, typename ParamsFuncsType /*= TMergeableOpParamsFuncs<OpType>*/>
-	TOnlineAsyncOp<OpType>& GetMergeableOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
+	TOnlineAsyncOpRef<OpType> GetMergeableOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
 	{
 		TSharedPtr<TOnlineAsyncOp<OpType>> Op;
 
@@ -312,20 +325,14 @@ public:
 		{
 			if (TUniquePtr<IWrappedOperation>* OpPtr = UserOperations.FindOrAdd(Params.LocalUserId).Find(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Params)))
 			{
-				if (!(*OpPtr)->IsExpired())
-				{
-					Op = (*OpPtr)->GetRef<TSharedRef<TOnlineAsyncOp<OpType>>>();
-				}
+				Op = (*OpPtr)->GetRef<TSharedRef<TOnlineAsyncOp<OpType>>>();
 			}
 		}
 		else
 		{
 			if (TUniquePtr<IWrappedOperation>* OpPtr = Operations.Find(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Params)))
 			{
-				if (!(*OpPtr)->IsExpired())
-				{
-					Op = (*OpPtr)->GetRef<TSharedRef<TOnlineAsyncOp<OpType>>>();
-				}
+				Op = (*OpPtr)->GetRef<TSharedRef<TOnlineAsyncOp<OpType>>>();
 			}
 		}
 		
@@ -340,13 +347,21 @@ public:
 			LoadConfigFn(Config, ConfigSectionHeiarchy);
 
 			Op = CreateOp<OpType, ParamsFuncsType>(MoveTemp(Params));
-			FOnlineEventDelegateHandle Handle = Op->OnCompleteEvent.Add(GetSharedThis(), [this](const TOnlineResult<OpType>&)
+			// remove from cache once operation has started. It is no longer mergeable at that point
+			FOnlineEventDelegateHandle Handle = Op->OnStart().Add(GetSharedThis(), [this](const TOnlineAsyncOp<OpType>& ThisOp)
 				{
-
+					if constexpr (TModels<CLocalUserIdDefined, typename OpType::Params>::Value)
+					{
+						UserOperations.FindOrAdd(ThisOp.GetParams().LocalUserId).Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
+					}
+					else
+					{
+						Operations.Remove(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(ThisOp.GetParams()));
+					}
 				});
 		}
 
-		return *Op;
+		return Op.ToSharedRef();
 	}
 
 	void SetLoadConfigFn(TUniqueFunction<bool(FOperationConfig&, const TArray<FString>&)>&& InLoadConfigFn)
@@ -362,7 +377,7 @@ private:
 	TUniqueFunction<bool(FOperationConfig&, const TArray<FString>&)> LoadConfigFn;
 
 	template <typename OpType, typename ParamsFuncsType>
-	TSharedRef<TOnlineAsyncOp<OpType>> CreateOp(typename OpType::Params&& Params)
+	TOnlineAsyncOpRef<OpType> CreateOp(typename OpType::Params&& Params)
 	{
 		TUniquePtr<TWrappedOperation<OpType>> WrappedOp = MakeUnique<TWrappedOperation<OpType>>(Services, MoveTemp(Params));
 
@@ -373,12 +388,10 @@ private:
 			// add LocalUserId to the Op Data
 			Op->Data.template Set<decltype(Params.LocalUserId)>(TEXT("LocalUserId"), Op->GetParams().LocalUserId);
 
-			// TODO: This needs to be aware of operation cache expiry policy
 			UserOperations.FindOrAdd(Op->GetParams().LocalUserId).Add(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Op->GetParams()), MoveTemp(WrappedOp));
 		}
 		else
 		{
-			// TODO: This needs to be aware of operation cache expiry policy
 			Operations.Add(FWrappedOperationKey::Create<OpType, ParamsFuncsType>(Op->GetParams()), MoveTemp(WrappedOp));
 		}
 
@@ -401,7 +414,17 @@ private:
 		{
 		}
 
-		virtual bool IsExpired() override { return false; }
+		virtual bool IsExpired() override
+		{
+			if (this->GetDataRef()->GetState() == EAsyncOpState::Cancelled)
+			{
+				return true;
+			}
+
+			// other expiry conditions
+
+			return false;
+		}
 	};
 
 	class FWrappedOperationKey
@@ -470,7 +493,6 @@ private:
 
 	friend uint32 GetTypeHash(const FWrappedOperationKey& Key);
 
-	TArray<TUniquePtr<IWrappedOperation>> NonCachedOperations;
 	TMap<FWrappedOperationKey, TUniquePtr<IWrappedOperation>> Operations;
 	TMap<FAccountId, TMap<FWrappedOperationKey, TUniquePtr<IWrappedOperation>>> UserOperations;
 };

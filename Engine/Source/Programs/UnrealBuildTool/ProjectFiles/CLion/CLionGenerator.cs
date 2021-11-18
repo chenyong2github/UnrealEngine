@@ -16,7 +16,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates a new instance of the <see cref="CMakefileGenerator"/> class.
 		/// </summary>
-		public CLionGenerator(FileReference InOnlyGameProject)
+		public CLionGenerator(FileReference? InOnlyGameProject)
 			: base(InOnlyGameProject)
 		{
 		}

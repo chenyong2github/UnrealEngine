@@ -17,7 +17,10 @@
 #include "CADKernel/UI/Message.h"
 #include "CADKernel/Utils/Util.h"
 
-CADKernel::FJoiner::FJoiner(FSession& InSession, const TSharedRef<FModel>& InModel, double InTolerance)
+namespace CADKernel
+{
+
+FJoiner::FJoiner(FSession& InSession, const TSharedRef<FModel>& InModel, double InTolerance)
 	: Session(InSession)
 	, JoiningTolerance(InTolerance* UE_SQRT_2)
 	, JoiningToleranceSquare(FMath::Square(JoiningTolerance))
@@ -37,7 +40,7 @@ CADKernel::FJoiner::FJoiner(FSession& InSession, const TSharedRef<FModel>& InMod
 	InitFaces();
 }
 
-CADKernel::FJoiner::FJoiner(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& InFaces, double InTolerance)
+FJoiner::FJoiner(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& InFaces, double InTolerance)
 	: Session(InSession)
 	, Faces(InFaces)
 	, JoiningTolerance(InTolerance * UE_SQRT_2)
@@ -45,7 +48,7 @@ CADKernel::FJoiner::FJoiner(FSession& InSession, const TArray<TSharedPtr<FTopolo
 {
 }
 
-CADKernel::FJoiner::FJoiner(FSession& InSession, const TArray<TSharedPtr<FShell>>& InShells, double InTolerance)
+FJoiner::FJoiner(FSession& InSession, const TArray<TSharedPtr<FShell>>& InShells, double InTolerance)
 	: Session(InSession)
 	, Shells(InShells)
 	, JoiningTolerance(InTolerance)
@@ -54,7 +57,7 @@ CADKernel::FJoiner::FJoiner(FSession& InSession, const TArray<TSharedPtr<FShell>
 	InitFaces();
 }
 
-void CADKernel::FJoiner::InitFaces()
+void FJoiner::InitFaces()
 {
 	int32 FaceCount = 0;
 	for (const TSharedPtr<FShell>& Shell : Shells)
@@ -84,7 +87,7 @@ void CADKernel::FJoiner::InitFaces()
 }
 
 
-void CADKernel::FJoiner::RemoveFacesFromShell()
+void FJoiner::RemoveFacesFromShell()
 {
 	// remove faces from their shells
 	TSet<TWeakPtr<FShell>> ShellSet;
@@ -122,7 +125,7 @@ void CADKernel::FJoiner::RemoveFacesFromShell()
 	}
 }
 
-void CADKernel::FJoiner::EmptyShells()
+void FJoiner::EmptyShells()
 {
 	for (const TSharedPtr<FShell>& Shell : Shells)
 	{
@@ -130,7 +133,7 @@ void CADKernel::FJoiner::EmptyShells()
 	}
 }
 
-void CADKernel::FJoiner::JoinFaces()
+void FJoiner::JoinFaces()
 {
 	FTimePoint StartJoinTime = FChrono::Now();
 
@@ -160,7 +163,7 @@ void CADKernel::FJoiner::JoinFaces()
 	SplitIntoConnectedShell();
 }
 
-void CADKernel::FJoiner::GetVertices(TArray<TSharedPtr<FTopologicalVertex>>& Vertices)
+void FJoiner::GetVertices(TArray<TSharedPtr<FTopologicalVertex>>& Vertices)
 {
 	Vertices.Empty(10 * Faces.Num());
 
@@ -190,7 +193,7 @@ void CADKernel::FJoiner::GetVertices(TArray<TSharedPtr<FTopologicalVertex>>& Ver
 	}
 }
 
-void CADKernel::FJoiner::GetBorderVertices(TArray<TSharedPtr<FTopologicalVertex>>& BorderVertices)
+void FJoiner::GetBorderVertices(TArray<TSharedPtr<FTopologicalVertex>>& BorderVertices)
 {
 	TArray<TSharedPtr<FTopologicalVertex>> Vertices;
 	GetVertices(Vertices);
@@ -206,7 +209,7 @@ void CADKernel::FJoiner::GetBorderVertices(TArray<TSharedPtr<FTopologicalVertex>
 	}
 }
 
-void CADKernel::FJoiner::MergeCoincidentVertices(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToMerge)
+void FJoiner::MergeCoincidentVertices(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToMerge)
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -302,7 +305,7 @@ void CADKernel::FJoiner::MergeCoincidentVertices(TArray<TSharedPtr<FTopologicalV
 
 }
 
-void CADKernel::FJoiner::MergeBorderVerticesWithCoincidentOtherVertices(TArray<TSharedPtr<FTopologicalVertex>>& Vertices)
+void FJoiner::MergeBorderVerticesWithCoincidentOtherVertices(TArray<TSharedPtr<FTopologicalVertex>>& Vertices)
 {
 	int32 VertexNum = (int32)Vertices.Num();
 
@@ -393,7 +396,7 @@ void CADKernel::FJoiner::MergeBorderVerticesWithCoincidentOtherVertices(TArray<T
 	Swap(NewVertices, Vertices);
 }
 
-void CADKernel::FJoiner::MergeCoincidentEdges(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToProcess)
+void FJoiner::MergeCoincidentEdges(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToProcess)
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -463,7 +466,7 @@ void CADKernel::FJoiner::MergeCoincidentEdges(TArray<TSharedPtr<FTopologicalVert
 
 }
 
-TSharedPtr<CADKernel::FTopologicalVertex> CADKernel::FJoiner::SplitAndLink(FTopologicalVertex& StartVertex, FTopologicalEdge& EdgeToLink, FTopologicalEdge& EdgeToSplit)
+TSharedPtr<FTopologicalVertex> FJoiner::SplitAndLink(FTopologicalVertex& StartVertex, FTopologicalEdge& EdgeToLink, FTopologicalEdge& EdgeToSplit)
 {
 	FTopologicalVertex* VertexToLink = EdgeToLink.GetOtherVertex(StartVertex);
 
@@ -506,7 +509,7 @@ TSharedPtr<CADKernel::FTopologicalVertex> CADKernel::FJoiner::SplitAndLink(FTopo
 
 int32 CountSplit = 0;
 
-void CADKernel::FJoiner::StitchParallelEdges(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToProcess)
+void FJoiner::StitchParallelEdges(TArray<TSharedPtr<FTopologicalVertex>>& VerticesToProcess)
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -611,7 +614,7 @@ void CADKernel::FJoiner::StitchParallelEdges(TArray<TSharedPtr<FTopologicalVerte
 	FChrono::PrintClockElapse(EVerboseLevel::Log, TEXT("    "), TEXT("Stitch Parallel Edges"), Duration);
 }
 
-void CADKernel::FJoiner::MergeUnconnectedAdjacentEdges()
+void FJoiner::MergeUnconnectedAdjacentEdges()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -766,7 +769,7 @@ void CADKernel::FJoiner::MergeUnconnectedAdjacentEdges()
 
 }
 
-void CADKernel::FJoiner::RemoveIsolatedEdges()
+void FJoiner::RemoveIsolatedEdges()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -808,7 +811,7 @@ void CADKernel::FJoiner::RemoveIsolatedEdges()
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
 
-void CADKernel::FJoiner::CheckSelfConnectedEdge()
+void FJoiner::CheckSelfConnectedEdge()
 {
 	FTimePoint StartTime = FChrono::Now();
 
@@ -836,7 +839,7 @@ void CADKernel::FJoiner::CheckSelfConnectedEdge()
 	FChrono::PrintClockElapse(EVerboseLevel::Log, TEXT("    "), TEXT("Unconnect Self connected edges"), Duration);
 }
 
-void CADKernel::FJoiner::SplitIntoConnectedShell()
+void FJoiner::SplitIntoConnectedShell()
 {
 	// Processed1 : Surfaces added in CandidateSurfacesForMesh
 
@@ -1153,3 +1156,4 @@ for (TSharedPtr<FTopologicalVertex> Vertex : AllVertices)
 */
 
 
+}

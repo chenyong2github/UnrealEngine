@@ -6,6 +6,7 @@
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
 #include "RemoteControlLogger.h"
+#include "RemoteControlProtocolDMXSettings.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXPortManager.h"
@@ -19,14 +20,6 @@
 
 const FName FRemoteControlProtocolDMX::ProtocolName = TEXT("DMX");
 
-FRemoteControlDMXProtocolEntity::~FRemoteControlDMXProtocolEntity()
-{
-	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-	if (PortsChangedHandle.IsValid())
-	{
-		FDMXPortManager::Get().OnPortsChanged.Remove(PortsChangedHandle);
-	}
-}
 
 uint8 FRemoteControlDMXProtocolEntity::GetRangePropertySize() const
 {
@@ -83,10 +76,12 @@ const FString& FRemoteControlDMXProtocolEntity::GetRangePropertyMaxValue() const
 
 void FRemoteControlDMXProtocolEntity::Initialize()
 {
-	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	// Handle port changes
+	FDMXPortManager::Get().OnPortsChanged.AddRaw(this, &FRemoteControlDMXProtocolEntity::UpdateInputPort);
 
-	// Add Delegates
-	PortsChangedHandle = FDMXPortManager::Get().OnPortsChanged.AddRaw(this, &FRemoteControlDMXProtocolEntity::UpdateInputPort);
+	// Handle project setting changes
+	const URemoteControlProtocolDMXSettings* ProtocolDMXSettings = GetDefault<URemoteControlProtocolDMXSettings>();
+	ProtocolDMXSettings->GetOnRemoteControlProtocolDMXSettingsChanged().AddRaw(this, &FRemoteControlDMXProtocolEntity::UpdateInputPort);
 
     // Assign InputPortReference
 	UpdateInputPort();
@@ -94,29 +89,17 @@ void FRemoteControlDMXProtocolEntity::Initialize()
 
 void FRemoteControlDMXProtocolEntity::UpdateInputPort()
 {
-	// Reset port Id;
-	InputPortId = FGuid();
-	
-	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
-	
-	const TArray<FDMXInputPortSharedRef>& InputPorts = FDMXPortManager::Get().GetInputPorts();
-	for (const FDMXInputPortConfig& PortConfig : ProtocolSettings->InputPortConfigs)
+	if (bUseDefaultInputPort || !InputPortId.IsValid() || !FDMXPortManager::Get().FindInputPortByGuid(InputPortId))
 	{
-		const FGuid& InputPortGuid = PortConfig.GetPortGuid();
-
-		const FDMXInputPortSharedRef* InputPortPtr = InputPorts.FindByPredicate([&InputPortGuid](const FDMXInputPortSharedRef& InputPort) {
-            return InputPort->GetPortGuid() == InputPortGuid;
-            });
-
-		if (InputPortPtr == nullptr)
+		const URemoteControlProtocolDMXSettings* RemoteControlDMXSettings = GetDefault<URemoteControlProtocolDMXSettings>();
+		if (RemoteControlDMXSettings)
 		{
-			break;
-		}
-
-		const FDMXInputPortSharedRef& InputPort = *InputPortPtr;
-		if (InputPort->IsLocalUniverseInPortRange(Universe))
-		{
-			InputPortId = InputPortGuid;
+			const FGuid& DefaultInputPortId = RemoteControlDMXSettings->DefaultInputPortId;
+			FDMXInputPortSharedPtr DefaultInputPort = FDMXPortManager::Get().FindInputPortByGuid(DefaultInputPortId);
+			if (DefaultInputPort.IsValid())
+			{
+				InputPortId = DefaultInputPortId;
+			}
 		}
 	}
 }

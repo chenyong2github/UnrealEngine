@@ -350,7 +350,7 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_SPRITE_SIZE, TEXT("X=50.0 Y=50.0"));
 		Var = SYS_PARAM_PARTICLES_SPRITE_SIZE;
-		Var.SetValue<FVector2D>(FVector2D(50.0f, 50.0f));
+		Var.SetValue<FVector2f>(FVector2f(50.0f, 50.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_SPRITE_SIZE, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_SPRITE_FACING, TEXT("1.0,0.0,0.0"));
@@ -415,12 +415,12 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, TEXT("X=1.0 Y=1.0"));
 		Var = SYS_PARAM_PARTICLES_UV_SCALE;
-		Var.SetValue<FVector2D>(FVector2D(1.0f, 1.0f));
+		Var.SetValue<FVector2f>(FVector2f(1.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_UV_SCALE, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_PIVOT_OFFSET, TEXT("X=0.5 Y=0.5"));
 		Var = SYS_PARAM_PARTICLES_PIVOT_OFFSET;
-		Var.SetValue<FVector2D>(FVector2D(0.5f, 0.5f));
+		Var.SetValue<FVector2f>(FVector2f(0.5f, 0.5f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_PIVOT_OFFSET, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_MATERIAL_RANDOM, TEXT("0.0"));
@@ -495,7 +495,7 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, TEXT("0.0, 1.0"));
 		Var = SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE;
-		Var.SetValue<FVector2D>(FVector2D(0.0f, 1.0f));
+		Var.SetValue<FVector2f>(FVector2f(0.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, TEXT("0"));
@@ -505,7 +505,7 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE, TEXT("0.0, 1.0"));
 		Var = SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE;
-		Var.SetValue<FVector2D>(FVector2D(0.0f, 1.0f));
+		Var.SetValue<FVector2f>(FVector2f(0.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE, Var);
 	}
 

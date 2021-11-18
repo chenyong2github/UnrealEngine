@@ -5,11 +5,14 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class FFoliageSupportModule : public IModuleInterface
+namespace UE::LevelSnapshots::Foliage::Private
 {
-public:
+	class FFoliageSupportModule : public IModuleInterface
+	{
+	public:
 
-	/** IModuleInterface implementation */
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-};
+		/** IModuleInterface implementation */
+		virtual void StartupModule() override;
+		virtual void ShutdownModule() override;
+	};
+}

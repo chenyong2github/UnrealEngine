@@ -246,12 +246,12 @@ namespace ConvexHull2D
 	}
 
 	/** Returns <0 if C is left of A-B */
-	inline float ComputeDeterminant2D(const FVector2D& A, const FVector2D& B, const FVector2D& C)
+	inline FVector2D::FReal ComputeDeterminant2D(const FVector2D& A, const FVector2D& B, const FVector2D& C)
 	{
-		const float u1 = B.X - A.X;
-		const float v1 = B.Y - A.Y;
-		const float u2 = C.X - A.X;
-		const float v2 = C.Y - A.Y;
+		const FVector2D::FReal u1 = B.X - A.X;
+		const FVector2D::FReal v1 = B.Y - A.Y;
+		const FVector2D::FReal u2 = C.X - A.X;
+		const FVector2D::FReal v2 = C.Y - A.Y;
 
 		return u1 * v2 - v1 * u2;
 	}

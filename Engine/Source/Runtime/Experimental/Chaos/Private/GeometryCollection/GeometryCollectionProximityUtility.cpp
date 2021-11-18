@@ -172,26 +172,26 @@ bool FGeometryCollectionProximityUtility::DoFacesOverlap(int32 Idx0, int32 Idx1)
 
 	FVector3f Origin = TransformedVertices[Indices[Idx0].X];
 	
-	TStaticArray<FVector2D,3> T0; 
+	TStaticArray<FVector2f,3> T0; 
 	// T0[0] is the origin of the system
-	T0[0] = FVector2D(0.f, 0.f);
+	T0[0] = FVector2f(0.f, 0.f);
 
-	T0[1] = FVector2D(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y] - Origin, Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y] - Origin, Basis1));
-	T0[2] = FVector2D(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z] - Origin, Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z] - Origin, Basis1));
+	T0[1] = FVector2f(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y] - Origin, Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y] - Origin, Basis1));
+	T0[2] = FVector2f(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z] - Origin, Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z] - Origin, Basis1));
 
 	// Project the second triangle into these coordinates. We reverse the winding order to flip the normal.
 	FVector3f Point0 = TransformedVertices[Indices[Idx1].Z] - Origin;
 	FVector3f Point1 = TransformedVertices[Indices[Idx1].Y] - Origin;
 	FVector3f Point2 = TransformedVertices[Indices[Idx1].X] - Origin;
-	TStaticArray<FVector2D,3> T1;
-	T1[0] = FVector2D(FVector3f::DotProduct(Point0, Basis0), FVector3f::DotProduct(Point0, Basis1));
-	T1[1] = FVector2D(FVector3f::DotProduct(Point1, Basis0), FVector3f::DotProduct(Point1, Basis1));
-	T1[2] = FVector2D(FVector3f::DotProduct(Point2, Basis0), FVector3f::DotProduct(Point2, Basis1));
+	TStaticArray<FVector2f,3> T1;
+	T1[0] = FVector2f(FVector3f::DotProduct(Point0, Basis0), FVector3f::DotProduct(Point0, Basis1));
+	T1[1] = FVector2f(FVector3f::DotProduct(Point1, Basis0), FVector3f::DotProduct(Point1, Basis1));
+	T1[2] = FVector2f(FVector3f::DotProduct(Point2, Basis0), FVector3f::DotProduct(Point2, Basis1));
 
 	return IdenticalTriangles(T0, T1) || TrianglesIntersect(T0, T1);
 }
 
-bool FGeometryCollectionProximityUtility::IdenticalTriangles(const TStaticArray<FVector2D, 3>& T0, const TStaticArray<FVector2D, 3>& T1)
+bool FGeometryCollectionProximityUtility::IdenticalTriangles(const TStaticArray<FVector2f, 3>& T0, const TStaticArray<FVector2f, 3>& T1)
 {
 	int32 FirstMatch = 0;
 	for (; FirstMatch < 3; ++FirstMatch)
@@ -220,7 +220,7 @@ bool FGeometryCollectionProximityUtility::IdenticalTriangles(const TStaticArray<
 	return true;
 }
 
-bool FGeometryCollectionProximityUtility::TrianglesIntersect(const TStaticArray<FVector2D,3>& T0, const TStaticArray<FVector2D,3>& T1)
+bool FGeometryCollectionProximityUtility::TrianglesIntersect(const TStaticArray<FVector2f,3>& T0, const TStaticArray<FVector2f,3>& T1)
 {
 	// Test if one of the triangles has a side with all of the other triangle's points on the outside.
 	float Normal0 = (T0[1].X - T0[0].X) * (T0[2].Y - T0[0].Y) - (T0[1].Y - T0[0].Y) * (T0[2].X - T0[0].X);
@@ -234,13 +234,13 @@ bool FGeometryCollectionProximityUtility::TrianglesIntersect(const TStaticArray<
 		Cross(T0, T1[1], T1[0], Normal1));
 }
 
-bool FGeometryCollectionProximityUtility::Cross(const TStaticArray<FVector2D,3>& Points, const FVector2D& B, const FVector2D& C, float Normal)
+bool FGeometryCollectionProximityUtility::Cross(const TStaticArray<FVector2f,3>& Points, const FVector2f& B, const FVector2f& C, float Normal)
 {
 	float CyBy = C.Y - B.Y;
 	float CxBx = C.X - B.X;
-	const FVector2D& Pa = Points[0];
-	const FVector2D& Pb = Points[1];
-	const FVector2D& Pc = Points[2];
+	const FVector2f& Pa = Points[0];
+	const FVector2f& Pb = Points[1];
+	const FVector2f& Pc = Points[2];
 
 	return !(
 		(((Pa.X - B.X) * CyBy - (Pa.Y - B.Y) * CxBx) * Normal < 0) ||

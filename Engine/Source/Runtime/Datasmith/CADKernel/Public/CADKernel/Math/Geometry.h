@@ -20,6 +20,88 @@ namespace CADKernel
 		Side30,
 	};
 	
+	/**
+	 * https://en.wikipedia.org/wiki/Circumscribed_circle#Cartesian_coordinates_2
+	 * With A = (0, 0)
+	 */
+	CADKERNEL_API inline FPoint2D ComputeCircumCircleCenter(const FPoint2D& InPoint0, const FPoint2D& InPoint1, const FPoint2D& InPoint2)
+	{
+		FPoint2D Segment_P0_P1 = InPoint1 - InPoint0;
+		FPoint2D Segment_P0_P2 = InPoint2 - InPoint0;
+
+		// D = 2(BuCv - BvCu)
+		double D = 2 * Segment_P0_P1 ^ Segment_P0_P2;
+		if (FMath::IsNearlyZero(D, SMALL_NUMBER_SQUARE))
+		{
+			return FPoint2D::ZeroPoint;
+		}
+
+		// CenterU  = 1/D * (Cv.|B|.|B| - By.|C|.|C|) = 1/D * CBv ^ SquareNorms 
+		// CenterV  = 1/D * (Bu.|B|.|B| - Cu.|C|.|C|) = -1/D * SquareNorms ^ CBu
+		double SquareNormB = Segment_P0_P1.SquareLength();
+		double SquareNormC = Segment_P0_P2.SquareLength();
+		double CenterU = (SquareNormB * Segment_P0_P2.V - SquareNormC * Segment_P0_P1.V) / D;
+		double CenterV = (SquareNormC * Segment_P0_P1.U - SquareNormB * Segment_P0_P2.U) / D;
+
+		return FPoint2D(CenterU, CenterV) + InPoint0;
+	}
+
+	CADKERNEL_API inline FPoint ComputeCircumCircleCenter(const FPoint& Point0, const FPoint& Point1, const FPoint& Point2)
+	{
+		FPoint AxisZ = (Point1 - Point0) ^ (Point2 - Point0);
+		AxisZ.Normalize();
+
+		FPoint AxisX = Point1 - Point0;
+		AxisX.Normalize();
+		FPoint AxisY = AxisZ ^ AxisX;
+
+		FMatrixH Matrix(Point0, AxisX, AxisY, AxisZ);
+		FMatrixH MatrixInverse = Matrix;
+		MatrixInverse.Inverse();
+
+		FPoint2D D2Point1 = MatrixInverse * Point1;
+		FPoint2D D2Point2 = MatrixInverse * Point2;
+
+		double D = 2 * D2Point1 ^ D2Point2;
+		if (FMath::IsNearlyZero(D, SMALL_NUMBER_SQUARE))
+		{
+			return FPoint::ZeroPoint;
+		}
+
+		double SquareNormB = D2Point1.SquareLength();
+		double SquareNormC = D2Point2.SquareLength();
+
+		double CenterU = (SquareNormB * D2Point2.V - SquareNormC * D2Point1.V) / D;
+		double CenterV = (SquareNormC * D2Point1.U - SquareNormB * D2Point2.U) / D;
+
+		FPoint Center2D(CenterU, CenterV, 0);
+		return Matrix * Center2D;
+	}
+
+
+	CADKERNEL_API inline FPoint2D ComputeCircumCircleCenterAndSquareRadius(const FPoint2D& InPoint0, const FPoint2D& InPoint1, const FPoint2D& InPoint2, double& OutSquareRadius)
+	{
+		FPoint2D Segment_P0_P1 = InPoint1 - InPoint0;
+		FPoint2D Segment_P0_P2 = InPoint2 - InPoint0;
+
+		double D = 2 * Segment_P0_P1 ^ Segment_P0_P2;
+		if (FMath::IsNearlyZero(D, SMALL_NUMBER_SQUARE))
+		{
+			OutSquareRadius = 0;
+			return FPoint2D::ZeroPoint;
+		}
+
+		double SquareNormB = Segment_P0_P1.SquareLength();
+		double SquareNormC = Segment_P0_P2.SquareLength();
+		double CenterU = (SquareNormB * Segment_P0_P2.V - SquareNormC * Segment_P0_P1.V) / D;
+		double CenterV = (SquareNormC * Segment_P0_P1.U - SquareNormB * Segment_P0_P2.U) / D;
+
+		FPoint2D Center(CenterU, CenterV);
+		OutSquareRadius = Center.SquareLength();
+
+		return Center + InPoint0;
+	}
+
 	template<class PointType>
 	struct CADKERNEL_API TSegment
 	{
@@ -164,7 +246,10 @@ namespace CADKernel
 			return ProjectedPoint;
 		}
 
-		virtual PointType CircumCircleCenter() const  = 0;
+		virtual PointType CircumCircleCenter() const
+		{
+			return ComputeCircumCircleCenter(Point0, Point1, Point2);
+		}
 	};
 
 	struct CADKERNEL_API FTriangle : public TTriangle<FPoint>
@@ -180,43 +265,6 @@ namespace CADKernel
 			Normal.Normalize();
 			return Normal;
 		}
-
-		virtual FPoint CircumCircleCenter() const override
-		{
-			FMatrixH Matrix;
-			FPoint Trans;
-
-			FPoint TriangleNormal = ComputeNormal();
-			Matrix(0, 0) = TriangleNormal[0];
-			Matrix(1, 0) = TriangleNormal[1];
-			Matrix(2, 0) = TriangleNormal[2];
-
-			Trans[0] = TriangleNormal * Point0;
-
-			FPoint Segment01 = Point1 - Point0;
-			Segment01.Normalize();
-			Matrix(0, 1) = Segment01[0];
-			Matrix(1, 1) = Segment01[1];
-			Matrix(2, 1) = Segment01[2];
-
-			FPoint Passage = (Point1 + Point0) / 2;
-
-			Trans[1] = Segment01 * Passage;
-
-			FPoint Segment02 = Point2 - Point0;
-			Segment02.Normalize();
-			Matrix(0, 2) = Segment02[0];
-			Matrix(1, 2) = Segment02[1];
-			Matrix(2, 2) = Segment02[2];
-
-			Passage = (Point2 + Point0) / 2;
-			Trans[2] = Segment02 * Passage;
-
-			Matrix.Inverse();
-
-			FPoint Center = Matrix * Trans;
-			return Center;
-		}
 	};
 
 	struct CADKERNEL_API FTriangle2D : public TTriangle<FPoint2D>
@@ -226,65 +274,9 @@ namespace CADKernel
 		{
 		}
 
-		/**
-		 * https://en.wikipedia.org/wiki/Circumscribed_circle#Cartesian_coordinates_2
-		 * With A = (0, 0)
-		 */
-		virtual FPoint2D CircumCircleCenter() const override
-		{
-			FPoint2D A = FPoint2D::ZeroPoint;
-			FPoint2D B = Point1 - Point0;
-			FPoint2D C = Point2 - Point0;
-
-			// D = 2(BuCv - BvCu)
-			double D = 2. * B ^ C;
-			if (FMath::IsNearlyZero(D, SMALL_NUMBER_SQUARE))
-			{
-				ensureCADKernel(false);
-			}
-
-			// CenterU  = 1/D * (Cv.|B|.|B| - By.|C|.|C|) = 1/D * CBv ^ SquareNorms 
-			// CenterV  = 1/D * (Bu.|B|.|B| - Cu.|C|.|C|) = -1/D * SquareNorms ^ CBu 
-			// with CBu = (Cu, Bu), CBv = (Cv, Bv), SquareNorms = (|B|.|B|, |C|.|C|)
-			FPoint2D CBu(C.U, B.U);
-			FPoint2D CBv(C.V, B.V);
-			FPoint2D SquareNorms(B.SquareLength(), C.SquareLength());
-
-			double CenterU = CBu ^ SquareNorms / D;
-			double CenterV = SquareNorms ^ CBu / D;
-			return FPoint2D(CenterU, CenterV) + Point0;
-		}
-
-		/**
-		 * Based on 
-		 * https://en.wikipedia.org/wiki/Circumscribed_circle#Cartesian_coordinates_2
-		 * With A = (0, 0)
-		 */
 		FPoint2D CircumCircleCenterWithSquareRadius(double& SquareRadius) const
 		{
-			FPoint2D B = Point1 - Point0;
-			FPoint2D C = Point2 - Point0;
-
-			// D = 2(BuCv - BvCu)
-			double D = 2. * B ^ C;
-			if (FMath::IsNearlyZero(D, SMALL_NUMBER_SQUARE))
-			{
-				SquareRadius = -1;
-				return FPoint2D::ZeroPoint;
-			}
-
-			// CenterU  = 1/D * (Cv.|B|.|B| - Bv.|C|.|C|) = 1/D * CBv ^ SquareNorms 
-			// CenterV  = 1/D * (Bu.|C|.|C| - Cu.|B|.|B|) = 1/D * SquareNorms ^ CBu  
-			// with CBu = (Cu, Bu), CBv = (Cv, Bv), SquareNorms = (|B|.|B|, |C|.|C|)
-			FPoint2D CBu(C.U, B.U);
-			FPoint2D CBv(C.V, B.V);
-			FPoint2D SquareNorms(C.SquareLength(), B.SquareLength());
-
-			double CenterU = CBv ^ SquareNorms / D;
-			double CenterV = SquareNorms ^ CBu / D;
-			FPoint2D Center(CenterU, CenterV);
-			SquareRadius = Center.SquareLength();
-			return FPoint2D(CenterU, CenterV) + Point0;
+			return ComputeCircumCircleCenterAndSquareRadius(this->Point0, this->Point1, this->Point2, SquareRadius);
 		}
 	};
 
@@ -384,6 +376,17 @@ namespace CADKernel
 	}
 
 	/**
+	 * @return the distance between the point and the segment. If the projection of the point on the segment
+	 * is not inside it, return the distance of the point to nearest the segment extremity
+	 */
+	template<class PointType>
+	inline double SquareDistanceOfPointToSegment(const PointType& Point, const PointType& SegmentPoint1, const PointType& SegmentPoint2)
+	{
+		double Coordinate;
+		return ProjectPointOnSegment(Point, SegmentPoint1, SegmentPoint2, Coordinate, /*bRestrictCoodinateToInside*/ true).SquareDistance(Point);
+	}
+
+	/**
 	 * @return the distance between the point and the line i.e. the distance between the point and its projection on the line 
 	 */
 	template<class PointType>
@@ -446,7 +449,7 @@ namespace CADKernel
 	{
 		PointType Segment = InSegmentB - InSegmentA;
 
-		double SquareLength = FMath::Square(Segment);
+		double SquareLength = Segment * Segment;
 
 		if (SquareLength <= 0.0)
 		{
@@ -508,10 +511,39 @@ namespace CADKernel
 	}
 
 	/**
+	 * The segments must intersect because no check is done
+	 */
+	inline FPoint2D FindIntersectionOfSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD)
+	{
+		constexpr const double Min = -SMALL_NUMBER;
+		constexpr const double Max = 1. + SMALL_NUMBER;
+
+		FPoint2D AB = SegmentAB[1] - SegmentAB[0];
+		FPoint2D CD = SegmentCD[1] - SegmentCD[0];
+		FPoint2D CA = SegmentAB[0] - SegmentCD[0];
+
+		double ParallelCoef = CD ^ AB;
+		double ABIntersectionCoordinate = (CA ^ CD) / ParallelCoef;
+
+		return SegmentAB[0] + AB * ABIntersectionCoordinate;
+	}
+
+	/**
 	 * Similar as FastIntersectSegments2D but check intersection if both segment are carried by the same line.
 	 * This method is 50% slower than FastIntersectSegments2D even if the segments tested are never carried by the same line
 	 */
 	CADKERNEL_API bool IntersectSegments2D(const TSegment<FPoint2D>&SegmentAB, const TSegment<FPoint2D>&SegmentCD);
+
+	inline double ComputeCosinus(FVector Vector, FVector OtherVector)
+	{
+		Vector.Normalize();
+		OtherVector.Normalize();
+
+		double Cosinus = Vector.X * OtherVector.X + Vector.Y * OtherVector.Y + Vector.Z * OtherVector.Z;
+
+		return FMath::Max(-1.0, FMath::Min(Cosinus, 1.0));
+	}
+
 
 } // namespace CADKernel
 

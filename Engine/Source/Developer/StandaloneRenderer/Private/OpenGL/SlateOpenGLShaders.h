@@ -66,12 +66,12 @@ class FSlateOpenGLElementProgram : public FSlateOpenGLShaderProgram
 public:
 	virtual void CreateProgram( const FSlateOpenGLVS& VertexShader, const FSlateOpenGLPS& PixelShader );
 	void SetViewProjectionMatrix( const FMatrix& InVP ); 
-	void SetVertexShaderParams( const FVector4& ShaderParams );
+	void SetVertexShaderParams( const FVector4f& ShaderParams );
 	void SetTexture( FSlateOpenGLTexture *Texture, uint32 AddressU, uint32 AddressV  );
 	void SetDrawEffects(ESlateDrawEffect InDrawEffects );
 	void SetShaderType( uint32 InShaderType );
 	void SetShaderParams(const FShaderParams& InShaderParams);
-	void SetGammaValues(const FVector2D& InGammaValues);
+	void SetGammaValues(const FVector2f& InGammaValues);
 private:
 	GLint ViewProjectionMatrixParam;
 	GLint VertexShaderParam;

@@ -9,6 +9,7 @@
 #include "CustomSerializationData.h"
 #include "SnapshotVersion.h"
 #include "SubobjectSnapshotData.h"
+#include "Templates/NonNullPointer.h"
 #include "UObject/Class.h"
 #include "WorldSnapshotData.generated.h"
 
@@ -17,68 +18,23 @@ class FSnapshotArchive;
 struct FPropertySelectionMap;
 struct FActorSnapshotData;
 
-/* Holds saved world data and handles all logic related to writing to the existing world. */
+/** Holds saved world data. See WorldDataUtil for operations. */
 USTRUCT()
 struct LEVELSNAPSHOTS_API FWorldSnapshotData
 {
 	GENERATED_BODY()
-	friend FSnapshotArchive;
-	friend FActorSnapshotData;
 
-	void OnCreateSnapshotWorld(UWorld* NewTempActorWorld);
-	void OnDestroySnapshotWorld();
-	
-	/* Records the actor in this snapshot */
-	void SnapshotWorld(UWorld* World);
-	/* Applies the saved properties to WorldActor */
-	void ApplyToWorld(UWorld* WorldToApplyTo, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
-
-	int32 GetNumSavedActors() const;
-	void ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath, const FActorSnapshotData& SavedData)> HandleOriginalActorPath) const;
+	void ForEachOriginalActor(TFunctionRef<void(const FSoftObjectPath& ActorPath, const FActorSnapshotData& SavedData)> HandleOriginalActorPath) const;
 	bool HasMatchingSavedActor(const FSoftObjectPath& OriginalObjectPath) const;
-
-	/** Gets the actor's display label */
-	FString GetActorLabel(const FSoftObjectPath& OriginalObjectPath) const;
-	
-	/** Same as GetPreallocatedActor, only that all data will be serialized into it. */
-	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalObjectPath, UPackage* LocalisationSnapshotPackage);
-	/* Gets the state of the CDO from when the snapshot was taken. CDO is saved when a snapshot is taken so CDO changes can be detected. */
-	TOptional<FObjectSnapshotData*> GetSerializedClassDefaults(UClass* Class);  
-	
-public: /* Serialisation functions */
-	
-	void AddClassDefault(UClass* Class);
-	UObject* GetClassDefault(UClass* Class);
-	
-	/* Gets the Object's class and serializes the saved CDO into it.
-	* This is intended for cases where you cannot specify a template object for new objects. Components are one such use case.
-	*/
-	void SerializeClassDefaultsInto(UObject* Object);
-
-
-	const FSnapshotVersionInfo& GetSnapshotVersionInfo() const;
 	
 	//~ Begin TStructOpsTypeTraits Interface
 	bool Serialize(FArchive& Ar);
 	void PostSerialize(const FArchive& Ar);
 	//~ End TStructOpsTypeTraits Interface
-
-	void CollectReferencesAndNames(FArchive& Ar);
-	void CollectActorReferences(FArchive& Ar);
-	void CollectClassDefaultReferences(FArchive& Ar);
-	
-public:
-
-	void PreloadClassesForRestore(const FPropertySelectionMap& SelectionMap);
-	void ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyTo, const FPropertySelectionMap& PropertiesToSerialize);
-	void ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
-	void ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize);
-
-	
 	
 	/* The world we will be adding temporary actors to */
 	UPROPERTY(Transient)
-	TWeakObjectPtr<UWorld> TempActorWorld;
+	TWeakObjectPtr<UWorld> SnapshotWorld;
 
 	/**
 	 * Stores versioning information we inject into archives.

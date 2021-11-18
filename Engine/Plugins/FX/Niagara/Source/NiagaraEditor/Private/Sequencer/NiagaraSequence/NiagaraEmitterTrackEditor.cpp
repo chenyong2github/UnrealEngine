@@ -86,13 +86,18 @@ public:
 				SAssignNew(RenderersBox, SHorizontalBox)
 			];
 		ConstructRendererWidgets();
+
 		// We refresh the renderer widgets when renderers changed.
 		// The OnRenderersChanged delegate will cause the renderer items to be created that are used for widget creation,
 		// Due to delegate bind order, the item creation happens after the refresh. To solve this, we just wait a frame. 
-		EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter()->OnRenderersChanged().AddLambda([this]()
-		{			
-			bShouldRefreshRenderers = true;
-		});
+		UNiagaraEmitter* NiagaraEmitter = EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter();
+		WeakNiagaraEmitter = NiagaraEmitter;
+		NiagaraEmitter->OnRenderersChanged().AddLambda(
+			[this]()
+			{
+				bShouldRefreshRenderers = true;
+			}
+		);
 
 		// Enabled checkbox.
 		TrackBox->AddSlot()
@@ -115,13 +120,9 @@ public:
 
 	~SEmitterTrackWidget()
 	{
-		if (EmitterTrack.IsValid() && EmitterTrack->GetEmitterHandleViewModel().IsValid())
+		if ( UNiagaraEmitter* NiagaraEmitter = WeakNiagaraEmitter.Get() )
 		{
-			UNiagaraEmitter* Emitter = EmitterTrack->GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEmitter();
-			if (Emitter != nullptr)
-			{
-				Emitter->OnRenderersChanged().RemoveAll(this);
-			}
+			NiagaraEmitter->OnRenderersChanged().RemoveAll(this);
 		}
 	}
 
@@ -258,6 +259,7 @@ private:
 
 private:
 	TWeakObjectPtr<UMovieSceneNiagaraEmitterTrack> EmitterTrack;
+	TWeakObjectPtr<UNiagaraEmitter> WeakNiagaraEmitter;
 	mutable TOptional<FText> TrackErrorIconToolTip;
 	TSharedPtr<SHorizontalBox> RenderersBox;
 	bool bShouldRefreshRenderers = false;

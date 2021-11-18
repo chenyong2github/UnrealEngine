@@ -50,7 +50,7 @@ namespace UnrealBuildTool
 		{
 			Name = Reader.ReadIdentifier();
 			Parameters = Reader.ReadList(() => Reader.ReadIdentifier());
-			Tokens = Reader.ReadList(() => Reader.ReadToken());
+			Tokens = Reader.ReadList(() => Reader.ReadToken())!;
 		}
 
 		/// <summary>

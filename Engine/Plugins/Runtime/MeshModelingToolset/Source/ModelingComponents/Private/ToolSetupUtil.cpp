@@ -52,6 +52,35 @@ UMaterialInterface* ToolSetupUtil::GetDefaultWorkingMaterial(UInteractiveToolMan
 }
 
 
+UMaterialInstanceDynamic* ToolSetupUtil::GetDefaultWorkingMaterialInstance(UInteractiveToolManager* ToolManager)
+{
+	UMaterialInstanceDynamic* ResultMaterial = nullptr;
+	if (UMaterialInterface* Material = GetDefaultWorkingMaterial(ToolManager))
+	{
+		ResultMaterial = UMaterialInstanceDynamic::Create(Material, ToolManager);
+	}
+	return ResultMaterial;
+}
+
+
+UMaterialInstanceDynamic* ToolSetupUtil::GetDefaultErrorMaterial(UInteractiveToolManager* ToolManager)
+{
+	UMaterialInstanceDynamic* ResultMaterial = nullptr;
+	if (UMaterialInterface* Material = GetDefaultWorkingMaterial(ToolManager))
+	{
+		static constexpr FLinearColor ErrorBrightColor(0.8f, 0.01552f, 0.01552f);
+		static constexpr FLinearColor ErrorDarkColor(0.3386144f, 0.0141136f, 0.0141136f);
+		static constexpr float ErrorTimeFactor = 2.0f;
+
+		ResultMaterial = UMaterialInstanceDynamic::Create(Material, ToolManager);
+		ResultMaterial->SetVectorParameterValue(TEXT("BrightColor"), ErrorBrightColor);
+		ResultMaterial->SetVectorParameterValue(TEXT("DarkColor"), ErrorDarkColor);
+		ResultMaterial->SetScalarParameterValue(TEXT("TimeFactor"), ErrorTimeFactor);
+	}
+	return ResultMaterial;
+}
+
+
 UMaterialInstanceDynamic* ToolSetupUtil::GetUVCheckerboardMaterial(double CheckerDensity)
 {
 	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/CheckerMaterial"));

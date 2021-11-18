@@ -36,7 +36,13 @@ void UCurveBase::GetTimeRange(float& MinTime, float& MaxTime) const
 		}
 	}
 }
-
+void UCurveBase::GetTimeRange(double& MinTime, double& MaxTime) const
+{
+	float Min = MinTime, Max = MaxTime;
+	GetTimeRange(Min, Max);
+	MinTime = Min;
+	MaxTime = Max;
+}
 
 void UCurveBase::GetValueRange(float& MinValue, float& MaxValue) const
 {
@@ -58,7 +64,13 @@ void UCurveBase::GetValueRange(float& MinValue, float& MaxValue) const
 		}
 	}
 }
-
+void UCurveBase::GetValueRange(double& MinValue, double& MaxValue) const
+{
+	float Min = MinValue, Max = MaxValue;
+	GetValueRange(Min, Max);
+	MinValue = Min;
+	MaxValue = Max;
+}
 
 void UCurveBase::ModifyOwner() 
 {

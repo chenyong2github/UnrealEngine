@@ -448,7 +448,7 @@ namespace EpicGames.Core
 		/// <returns>New DirectoryReference object</returns>
 		public static DirectoryReference ReadDirectoryReferenceNotNull(this BinaryReader Reader)
 		{
-			return BinaryArchiveReader.NotNull(ReadDirectoryReference(Reader));
+			return BinaryArchiveReader.NotNull<DirectoryReference>(ReadDirectoryReference(Reader));
 		}
 
 		/// <summary>
@@ -468,7 +468,7 @@ namespace EpicGames.Core
 		/// <returns>New directory reference instance</returns>
 		public static DirectoryReference? ReadDirectoryReference(this BinaryArchiveReader Reader)
 		{
-			string FullName = Reader.ReadString();
+			string? FullName = Reader.ReadString();
 			if (FullName == null)
 			{
 				return null;

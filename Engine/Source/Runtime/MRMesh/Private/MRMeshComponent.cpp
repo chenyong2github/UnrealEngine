@@ -191,13 +191,13 @@ static void InitVertexFactory(FLocalVertexFactory* VertexFactory, const FMRMeshP
 
 		{
 			NewData.PositionComponentSRV = MRMeshSection.PositionBufferSRV;
-			NewData.PositionComponent = FVertexStreamComponent(&MRMeshSection.PositionBuffer, 0, sizeof(FVector), VET_Float3, EVertexStreamUsage::Default);
+			NewData.PositionComponent = FVertexStreamComponent(&MRMeshSection.PositionBuffer, 0, sizeof(FVector3f), VET_Float3, EVertexStreamUsage::Default);
 		}
 
 		if (MRMeshSection.UVBuffer.NumVerts != 0)
 		{
 			NewData.TextureCoordinatesSRV = MRMeshSection.UVBufferSRV;
-			NewData.TextureCoordinates.Add(FVertexStreamComponent(&MRMeshSection.UVBuffer, 0, sizeof(FVector2D), VET_Float2, EVertexStreamUsage::ManualFetch));
+			NewData.TextureCoordinates.Add(FVertexStreamComponent(&MRMeshSection.UVBuffer, 0, sizeof(FVector2f), VET_Float2, EVertexStreamUsage::ManualFetch));
 			NewData.NumTexCoords = 1;
 		}
 

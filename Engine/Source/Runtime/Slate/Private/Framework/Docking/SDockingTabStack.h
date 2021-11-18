@@ -71,9 +71,9 @@ public:
 
 	// TabStack methods
 
-	void OpenTab( const TSharedRef<SDockTab>& InTab, int32 InsertAtLocation = INDEX_NONE );
+	void OpenTab(const TSharedRef<SDockTab>& InTab, int32 InsertAtLocation = INDEX_NONE, bool bKeepInactive = false);
 
-	void AddTabWidget( const TSharedRef<SDockTab>& InTab, int32 AtLocation = INDEX_NONE);
+	void AddTabWidget(const TSharedRef<SDockTab>& InTab, int32 AtLocation = INDEX_NONE, bool bKeepInactive = false);
 
 	void AddSidebarTab(const TSharedRef<SDockTab>& InTab);
 

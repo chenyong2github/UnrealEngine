@@ -600,7 +600,7 @@ public:
 	template<typename ShaderRHIParamRef>
 	FORCEINLINE_DEBUGGABLE void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FDistanceFieldSceneData* ParameterData) const
 	{
-		if (IsBound())
+		if (IsBound() && ParameterData->GetCurrentObjectBuffers() != nullptr)
 		{
 			SetSRVParameter(RHICmdList, ShaderRHI, SceneObjectBounds, ParameterData->GetCurrentObjectBuffers()->Bounds.SRV);
 			SetSRVParameter(RHICmdList, ShaderRHI, SceneObjectData, ParameterData->GetCurrentObjectBuffers()->Data.SRV);

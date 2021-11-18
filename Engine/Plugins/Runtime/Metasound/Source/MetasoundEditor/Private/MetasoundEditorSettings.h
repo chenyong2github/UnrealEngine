@@ -82,6 +82,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = NodeTitleColors)
 	FLinearColor OutputNodeTitleColor;
 
+	/** Variable node title color */
+	UPROPERTY(EditAnywhere, config, Category = NodeTitleColors)
+	FLinearColor VariableNodeTitleColor;
+
 	/** Determines which details view to show in Metasounds Editor */
 	UPROPERTY(Transient)
 	EMetasoundActiveDetailView DetailView = EMetasoundActiveDetailView::Metasound;

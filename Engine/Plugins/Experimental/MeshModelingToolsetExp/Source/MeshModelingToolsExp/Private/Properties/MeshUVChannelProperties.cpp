@@ -33,8 +33,8 @@ const TArray<FString>& UMeshUVChannelProperties::GetUVChannelNamesFunc()
 
 void UMeshUVChannelProperties::Initialize(const FMeshDescription* MeshDescription, bool bInitializeSelection)
 {
-	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs =
-		MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+	TVertexInstanceAttributesConstRef<FVector2f> InstanceUVs =
+		MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2f>(MeshAttribute::VertexInstance::TextureCoordinate);
 	Initialize(InstanceUVs.GetNumChannels(), bInitializeSelection);
 }
 

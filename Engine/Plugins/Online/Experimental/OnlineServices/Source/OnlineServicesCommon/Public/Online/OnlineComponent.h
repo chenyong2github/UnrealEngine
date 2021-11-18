@@ -24,6 +24,7 @@ public:
 		: Services(InServices)
 		, WeakThis(TSharedPtr<ComponentType>(InServices.AsShared(), static_cast<ComponentType*>(this)))
 		, InterfaceName(ComponentName)
+		, SerialQueue(InServices.GetParallelQueue())
 		{
 		}
 
@@ -47,26 +48,45 @@ public:
 	const FString& GetConfigName() const { return InterfaceName; }
 
 	template <typename OpType>
-	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params)
+	TOnlineAsyncOpRef<OpType> GetOp(typename OpType::Params&& Params)
 	{
 		return Services.template GetOp<OpType>(MoveTemp(Params), GetConfigSectionHeiarchy(OpType::Name));
 	}
 
 	template <typename OpType, typename ParamsFuncsType = TJoinableOpParamsFuncs<OpType>>
-	TOnlineAsyncOp<OpType>& GetJoinableOp(typename OpType::Params&& Params)
+	TOnlineAsyncOpRef<OpType> GetJoinableOp(typename OpType::Params&& Params)
 	{
 		return Services.template GetJoinableOp<OpType, ParamsFuncsType>(MoveTemp(Params), GetConfigSectionHeiarchy(OpType::Name));
 	}
 
 	template <typename OpType, typename ParamsFuncsType = TMergeableOpParamsFuncs<OpType>>
-	TOnlineAsyncOp<OpType>& GetMergeableOp(typename OpType::Params&& Params)
+	TOnlineAsyncOpRef<OpType> GetMergeableOp(typename OpType::Params&& Params)
 	{
 		return Services.template GetMergeableOp<OpType, ParamsFuncsType>(MoveTemp(Params), GetConfigSectionHeiarchy(OpType::Name));
 	}
 
-	FOnlineServicesCommon& GetServices()
+	template <typename ServicesType = FOnlineServicesCommon>
+	ServicesType& GetServices()
 	{
-		return Services;
+		return static_cast<ServicesType&>(Services);
+	}
+
+	/* Queue for executing tasks in serial */
+	FOnlineAsyncOpQueue& GetSerialQueue()
+	{
+		return SerialQueue;
+	}
+
+	/* Queues for executing per-user tasks in serial */
+	FOnlineAsyncOpQueue& GetSerialQueue(FAccountId& AccountId)
+	{
+		TUniquePtr<FOnlineAsyncOpQueueSerial>* Queue = PerUserSerialQueue.Find(AccountId);
+		if (Queue == nullptr)
+		{
+			Queue = &PerUserSerialQueue.Emplace(AccountId, MakeUnique<FOnlineAsyncOpQueueSerial>(GetServices().GetParallelQueue()));
+		}
+
+		return **Queue;
 	}
 
 	TArray<FString> GetConfigSectionHeiarchy(const FString& OperationName = FString())
@@ -155,6 +175,9 @@ private:
 	TWeakPtr<ComponentType> WeakThis;
 	FString InterfaceName;
 	TMap<FString, TUniquePtr<IOnlineExecHandler>> ExecCommands;
+
+	FOnlineAsyncOpQueueSerial SerialQueue;
+	TMap<FAccountId, TUniquePtr<FOnlineAsyncOpQueueSerial>> PerUserSerialQueue;
 };
 
 /* UE::Online */ }

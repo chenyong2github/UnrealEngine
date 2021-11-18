@@ -10,8 +10,6 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -37,12 +35,17 @@ namespace UnrealBuildTool
 		{
 			this.Document = Document;
 
-			foreach(XmlElement KeyElement in Document.SelectNodes("/plist/dict/key"))
+			foreach(XmlElement? KeyElement in Document.SelectNodes("/plist/dict/key"))
 			{
+				if (KeyElement == null)
+				{
+					continue;
+				}
+
 				XmlNode ValueNode = KeyElement.NextSibling;
 				while(ValueNode != null)
 				{
-					XmlElement ValueElement = ValueNode as XmlElement;
+					XmlElement? ValueElement = ValueNode as XmlElement;
 					if(ValueElement != null)
 					{
 						NameToValue[KeyElement.InnerText] = ValueElement;
@@ -58,7 +61,7 @@ namespace UnrealBuildTool
 		/// <returns>UUID for the provision</returns>
 		public string GetUniqueId()
 		{
-			XmlElement UniqueIdElement;
+			XmlElement? UniqueIdElement;
 			if(!NameToValue.TryGetValue("UUID", out UniqueIdElement))
 			{
 				throw new BuildException("Missing UUID in MobileProvision");
@@ -72,14 +75,20 @@ namespace UnrealBuildTool
 		/// <returns>Bundle Identifier for the provision</returns>
 		public string GetBundleIdentifier()
 		{
-			XmlElement UniqueIdElement = null, UniqueIdEntitlement;
+			XmlElement? UniqueIdElement = null;
+			XmlElement? UniqueIdEntitlement;
 			if (!NameToValue.TryGetValue("Entitlements", out UniqueIdEntitlement) || UniqueIdEntitlement.Name != "dict")
 			{
 				throw new BuildException("Missing Entitlements in MobileProvision");
 			}
 
-			foreach (XmlElement KeyElement in UniqueIdEntitlement.SelectNodes("key"))
+			foreach (XmlElement? KeyElement in UniqueIdEntitlement.SelectNodes("key"))
 			{
+				if (KeyElement == null)
+				{
+					continue;
+				}
+
 				Console.WriteLine("Found entitlement node:" + KeyElement.InnerText);
 				if (!KeyElement.InnerText.Equals("application-identifier"))
 				{
@@ -102,16 +111,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="UniqueId">Receives the team unique id</param>
 		/// <returns>True if the team unique ID was found, false otherwise</returns>
-		public bool TryGetTeamUniqueId(out string UniqueId)
+		public bool TryGetTeamUniqueId(out string? UniqueId)
 		{
-			XmlElement UniqueIdElement;
+			XmlElement? UniqueIdElement;
 			if(!NameToValue.TryGetValue("TeamIdentifier", out UniqueIdElement) || UniqueIdElement.Name != "array")
 			{
 				UniqueId = null;
 				return false;
 			}
 
-			XmlElement ValueElement = UniqueIdElement.SelectSingleNode("string") as XmlElement;
+			XmlElement? ValueElement = UniqueIdElement.SelectSingleNode("string") as XmlElement;
 			if(ValueElement == null)
 			{
 				UniqueId = null;

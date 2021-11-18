@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Selection/PropertySelectionMap.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "PropertySelectionMap.h"
 #include "LevelSnapshotsFunctionLibrary.generated.h"
 
 class ULevelSnapshot;
@@ -16,13 +16,13 @@ class LEVELSNAPSHOTS_API ULevelSnapshotsFunctionLibrary : public UBlueprintFunct
 	GENERATED_BODY()
 public:
 
-	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (WorldContext = "WorldContextObject"))
+	UFUNCTION(BlueprintCallable, Category = "Level Snapshots", meta = (WorldContext = "WorldContextObject"))
 	static ULevelSnapshot* TakeLevelSnapshot(const UObject* WorldContextObject, const FName NewSnapshotName = "NewLevelSnapshot", const FString Description = "");
 	
 	static ULevelSnapshot* TakeLevelSnapshot_Internal(const UObject* WorldContextObject, const FName NewSnapshotName = "NewLevelSnapshot", UPackage* InPackage = nullptr, const FString Description = "");
 
 	/* Applies the snapshot to the world. If no filter is specified, the entire snapshot is applied. */
-	UFUNCTION(BlueprintCallable, Category = "LevelSnapshots", meta = (WorldContext = "WorldContextObject"))
+	UFUNCTION(BlueprintCallable, Category = "Level Snapshots", meta = (WorldContext = "WorldContextObject"))
 	static void ApplySnapshotToWorld(const UObject* WorldContextObject, ULevelSnapshot* Snapshot, ULevelSnapshotFilter* OptionalFilter);
 	
 	/**

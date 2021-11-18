@@ -13,28 +13,18 @@ extern int32 GCapsuleShadows;
 extern int32 GCapsuleDirectShadows;
 extern int32 GCapsuleIndirectShadows;
 
-inline bool DoesPlatformSupportCapsuleShadows(const FStaticShaderPlatform Platform)
-{
-	// Hasn't been tested elsewhere yet
-	return Platform == SP_PCD3D_SM5
-		|| IsMetalSM5Platform(Platform)
-		|| IsVulkanSM5Platform(Platform)
-		|| FDataDrivenShaderPlatformInfo::GetSupportsCapsuleShadows(Platform);
-}
-
-inline bool SupportsCapsuleShadows(ERHIFeatureLevel::Type FeatureLevel, FStaticShaderPlatform ShaderPlatform)
+inline bool SupportsCapsuleShadows(FStaticShaderPlatform ShaderPlatform)
 {
 	return GCapsuleShadows
-		&& FeatureLevel >= ERHIFeatureLevel::SM5
-		&& DoesPlatformSupportCapsuleShadows(ShaderPlatform);
+		&& FDataDrivenShaderPlatformInfo::GetSupportsCapsuleShadows(ShaderPlatform);
 }
 
-inline bool SupportsCapsuleDirectShadows(ERHIFeatureLevel::Type FeatureLevel, FStaticShaderPlatform ShaderPlatform)
+inline bool SupportsCapsuleDirectShadows(FStaticShaderPlatform ShaderPlatform)
 {
-	return GCapsuleDirectShadows && SupportsCapsuleShadows(FeatureLevel, ShaderPlatform);
+	return GCapsuleDirectShadows && SupportsCapsuleShadows(ShaderPlatform);
 }
 
-inline bool SupportsCapsuleIndirectShadows(ERHIFeatureLevel::Type FeatureLevel, FStaticShaderPlatform ShaderPlatform)
+inline bool SupportsCapsuleIndirectShadows(FStaticShaderPlatform ShaderPlatform)
 {
-	return GCapsuleIndirectShadows && SupportsCapsuleShadows(FeatureLevel, ShaderPlatform);
+	return GCapsuleIndirectShadows && SupportsCapsuleShadows(ShaderPlatform);
 }

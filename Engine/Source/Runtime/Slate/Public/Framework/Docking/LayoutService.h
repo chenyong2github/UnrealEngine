@@ -78,9 +78,10 @@ struct SLATE_API FLayoutSaveRestore
 	/**
 	 * It checks whether a file is a valid layout config file.
 	 * @param InConfigFileName file to be read.
+	 * @param bAllowFallback Whether a config should be considered valid if EditorLayoutsSectionName is missing but DefaultEditorLayoutsSectionName is found
 	 * @return Whether the file is a valid layout config file.
 	 */
-	static bool IsValidConfig(const FString& InConfigFileName);
+	static bool IsValidConfig(const FString& InConfigFileName, bool bAllowFallback = true);
 
 private:
 

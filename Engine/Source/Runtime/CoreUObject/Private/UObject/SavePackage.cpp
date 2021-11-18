@@ -124,30 +124,6 @@ private:
 	TSet<FNameEntryId> ReferencedNames;
 };
 
-#if WITH_EDITOR
-static void AddReplacementsNames(FPackageNameMapSaver& NameMapSaver, UObject* Obj, const ITargetPlatform* TargetPlatform)
-{
-	if (TargetPlatform)
-	{
-		if (const IBlueprintNativeCodeGenCore* Coordinator = IBlueprintNativeCodeGenCore::Get())
-		{
-			const FCompilerNativizationOptions& NativizationOptions = Coordinator->GetNativizationOptionsForPlatform(TargetPlatform);
-			if (const UClass* ReplObjClass = Coordinator->FindReplacedClassForObject(Obj, NativizationOptions))
-			{
-				NameMapSaver.MarkNameAsReferenced(ReplObjClass->GetFName());
-			}
-
-			FName ReplacedName;
-			Coordinator->FindReplacedNameAndOuter(Obj, ReplacedName, NativizationOptions); //TODO: should we care about replaced outer ?
-			if (ReplacedName != NAME_None)
-			{
-				NameMapSaver.MarkNameAsReferenced(ReplacedName);
-			}
-		}
-	}
-}
-#endif //WITH_EDITOR
-
 /**
  * Archive for tagging objects and names that must be exported
  * to the file.  It tags the objects passed to it, and recursively
@@ -536,24 +512,10 @@ FArchive& FArchiveSaveTagImports::operator<<( UObject*& Obj )
 							*this << ObjTemplate;
 						}
 					}
-#if WITH_EDITOR
-					AddReplacementsNames(NameMapSaver, Obj, CookingTarget());
-#endif //WITH_EDITOR
 				}
 
 				// Recurse into parent
 				UObject* Parent = Obj->GetOuter();
-#if WITH_EDITOR
-				if (IsCooking() && CookingTarget())
-				{
-					if (const IBlueprintNativeCodeGenCore* Coordinator = IBlueprintNativeCodeGenCore::Get())
-					{
-						FName UnusedName;
-						UObject* ReplacedOuter = Coordinator->FindReplacedNameAndOuter(Obj, /*out*/UnusedName, Coordinator->GetNativizationOptionsForPlatform(CookingTarget()));
-						Parent = ReplacedOuter ? ReplacedOuter : Obj->GetOuter();
-					}
-				}
-#endif //WITH_EDITOR
 				if( Parent )
 				{
 					*this << Parent;
@@ -2294,7 +2256,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		TSet<FName> SoftPackagesUsedInGame;
 
 		// Size of serialized out package in bytes. This is before compression.
-		int32 PackageSize = INDEX_NONE;
+		int64 PackageSize = INDEX_NONE;
 		TPimplPtr<FLinkerSave> Linker = nullptr;
 		uint32 SerializedPackageFlags = 0;
 		{
@@ -2535,37 +2497,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						UE_CLOG(!(SaveFlags & SAVE_NoError), LogSavePackage, Verbose, TEXT("No exports found (or all exports are editor-only) for %s. Package will not be saved."), *BaseFilename);
 						return ESavePackageResult::ContainsEditorOnlyData;
 					}
-
-#if WITH_EDITOR
-					if (bIsCooking && TargetPlatform)
-					{
-						if (const IBlueprintNativeCodeGenCore* Coordinator = IBlueprintNativeCodeGenCore::Get())
-						{
-							EReplacementResult ReplacmentResult = Coordinator->IsTargetedForReplacement(InOuter, Coordinator->GetNativizationOptionsForPlatform(TargetPlatform));
-							if (ReplacmentResult == EReplacementResult::ReplaceCompletely)
-							{
-								if (IsEventDrivenLoaderEnabledInCookedBuilds() && TargetPlatform)
-								{
-									// the package isn't actually in the export map, but that is ok, we add it as export anyway for error checking
-									EDLCookChecker.AddExport(InOuter);
-
-									for (UObject* ObjExport : TagExpObjects)
-									{
-										// Register exports, these will exist at runtime because they are compiled in
-										EDLCookChecker.AddExport(ObjExport);
-									}
-								}
-
-								UE_LOG(LogSavePackage, Verbose, TEXT("Package %s contains assets that are being converted to native code."), *InOuter->GetName());
-								return ESavePackageResult::ReplaceCompletely;
-							}
-							else if (ReplacmentResult == EReplacementResult::GenerateStub)
-							{
-								bRequestStub = true;
-							}
-						}
-					}
-#endif
 				}
 
 				// Import objects & names.
@@ -2808,9 +2739,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						check(Obj->HasAnyMarks(EObjectMark(OBJECTMARK_TagExp|OBJECTMARK_TagImp)));
 
 						NameMapSaver.MarkNameAsReferenced(Obj->GetFName());
-#if WITH_EDITOR
-						AddReplacementsNames(NameMapSaver, Obj, TargetPlatform);
-#endif //WITH_EDITOR
 						if( Obj->GetOuter() )
 						{
 							NameMapSaver.MarkNameAsReferenced(Obj->GetOuter()->GetFName());
@@ -3173,23 +3101,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						check(Obj->HasAnyMarks(OBJECTMARK_TagImp));
 						UClass* ObjClass = Obj->GetClass();
 #if WITH_EDITOR
-						FName ReplacedName = NAME_None;
-						if (bIsCooking && TargetPlatform)
-						{
-							if (const IBlueprintNativeCodeGenCore* Coordinator = IBlueprintNativeCodeGenCore::Get())
-							{
-								const FCompilerNativizationOptions& NativizationOptions = Coordinator->GetNativizationOptionsForPlatform(TargetPlatform);
-								if (UClass* ReplacedClass = Coordinator->FindReplacedClassForObject(Obj, NativizationOptions))
-								{
-									ObjClass = ReplacedClass;
-								}
-								if (UObject* ReplacedOuter = Coordinator->FindReplacedNameAndOuter(Obj, /*out*/ReplacedName, NativizationOptions))
-								{
-									ReplacedImportOuters.Add(Obj, ReplacedOuter);
-								}
-							}
-						}
-
 						bool bExcludePackageFromCook = FCoreUObjectDelegates::ShouldCookPackageForPlatform.IsBound() ? !FCoreUObjectDelegates::ShouldCookPackageForPlatform.Execute(Obj->GetOutermost(), TargetPlatform) : false;			
 						if (bExcludePackageFromCook)
 						{
@@ -3202,12 +3113,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						{
 							LocObjectImport->ClassName = SavePackageUtilities::NAME_PrestreamPackage;
 						}
-#if WITH_EDITOR
-						if (ReplacedName != NAME_None)
-						{
-							LocObjectImport->ObjectName = ReplacedName;
-						}
-#endif //WITH_EDITOR
 					}
 				}
 
@@ -4206,7 +4111,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			
 				if (PackageWriter)
 				{
-					int32 ExportsSize = Linker->Tell();
+					const int64 ExportsSize = Linker->Tell();
 					ESavePackageResult AdditionalFilesResult = WriteAdditionalFiles(ExportsSize);
 					checkf(Linker->Tell() == ExportsSize, TEXT("The writing of additional files is not allowed to append to the LinkerSave when using a PackageWriter."));
 					if (AdditionalFilesResult != ESavePackageResult::Success)

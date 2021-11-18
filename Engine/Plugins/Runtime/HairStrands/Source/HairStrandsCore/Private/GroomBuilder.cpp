@@ -120,10 +120,10 @@ namespace HairStrandsBuilder
 
 		// Find the minimal UV space cover by root point, and 
 		// offsets/scales it to maximize UV space
-		const FVector2D UVScale(1 / (MaxUV.X - MinUV.X), 1 / (MaxUV.Y - MinUV.Y));
-		const FVector2D UVOffset(-MinUV.X, -MinUV.Y);
+		const FVector2f UVScale(1 / (MaxUV.X - MinUV.X), 1 / (MaxUV.Y - MinUV.Y));
+		const FVector2f UVOffset(-MinUV.X, -MinUV.Y);
 		uint32 Index = 0;
-		for (FVector2D& RootUV : Curves.CurvesRootUV)
+		for (FVector2f& RootUV : Curves.CurvesRootUV)
 		{
 			RootUV = (RootUVs[Index++] + UVOffset) * UVScale;
 		}
@@ -1482,7 +1482,7 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 	TVertexAttributesConstRef<float> VertexWidths = HairDescription.VertexAttributes().GetAttributesRef<float>(HairAttribute::Vertex::Width);
 	TStrandAttributesConstRef<float> StrandWidths = HairDescription.StrandAttributes().GetAttributesRef<float>(HairAttribute::Strand::Width);
 
-	TStrandAttributesConstRef<FVector2D> StrandRootUV = HairDescription.StrandAttributes().GetAttributesRef<FVector2D>(HairAttribute::Strand::RootUV);
+	TStrandAttributesConstRef<FVector2f> StrandRootUV = HairDescription.StrandAttributes().GetAttributesRef<FVector2f>(HairAttribute::Strand::RootUV);
 	const bool bHasUVData = StrandRootUV.IsValid();
 
 	TStrandAttributesConstRef<int> StrandGuides = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::Guide);

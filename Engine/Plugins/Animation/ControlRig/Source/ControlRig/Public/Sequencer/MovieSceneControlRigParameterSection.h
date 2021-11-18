@@ -372,7 +372,7 @@ public:
 	/** Adds a a key for a specific color parameter. */
 	void AddColorParameter(FName InParameterName, TOptional<FLinearColor> DefaultValue, bool bReconstructChannel);
 
-	/** Adds a a key for a specific color parameter*/
+	/** Adds a a key for a specific transform parameter*/
 	void AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue, bool bReconstructChannel);
 
 	/** Add Space Parameter for a specified Control, no Default since that is Parent space*/
@@ -380,6 +380,34 @@ public:
 
 	/** Clear Everything Out*/
 	void ClearAllParameters();
+
+	/** Evaluates specified scalar parameter. Will not get set if not found */
+	TOptional<float> EvaluateScalarParameter(const  FFrameTime& InTime, FName InParameterName);
+
+	/** Evaluates specified bool parameter. Will not get set if not found */
+	TOptional<bool> EvaluateBoolParameter(const  FFrameTime& InTime, FName InParameterName);
+
+	/** Evaluates specified enum parameter. Will not get set if not found */
+	TOptional<uint8> EvaluateEnumParameter(const  FFrameTime& InTime, FName InParameterName);
+
+	/** Evaluates specified int parameter. Will not get set if not found */
+	TOptional<int32> EvaluateIntegerParameter(const  FFrameTime& InTime, FName InParameterName);
+
+	/** Evaluates a a key for a specific vector parameter. Will not get set if not found */
+	TOptional<FVector> EvaluateVectorParameter(const FFrameTime& InTime, FName InParameterName);
+
+	/** Evaluates a a key for a specific vector2D parameter. Will not get set if not found */
+	TOptional<FVector2D> EvaluateVector2DParameter(const  FFrameTime& InTime, FName InParameterName);
+
+	/** Evaluates a a key for a specific color parameter. Will not get set if not found */
+	TOptional<FLinearColor> EvaluateColorParameter(const  FFrameTime& InTime, FName InParameterName);
+
+	/** Evaluates a a key for a specific transform parameter. Will not get set if not found */
+	TOptional<FTransform> EvaluateTransformParameter(const  FFrameTime& InTime, FName InParameterName);
+
+	/** Evaluates a a key for a specific space parameter. Will not get set if not found */
+	TOptional<FMovieSceneControlRigSpaceBaseKey> EvaluateSpaceChannel(const  FFrameTime& InTime, FName InParameterName);
+
 public:
 	/**
 	* Access the interrogation key for control rig data 

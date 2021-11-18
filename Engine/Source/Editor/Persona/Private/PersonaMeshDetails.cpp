@@ -2678,7 +2678,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 			for (ULODInfoUILayout* LODInfoUILayout : LODInfoUILayouts)
 			{
 				LODInfoUILayout->RemoveFromRoot();
-				LODInfoUILayout->MarkPendingKill();
+				LODInfoUILayout->MarkAsGarbage();
 				LODInfoUILayout = nullptr;
 			}
 			LODInfoUILayouts.Reset(SkelMeshLODCount);

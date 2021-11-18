@@ -262,6 +262,19 @@ void YUVv210ConvertPS(
 }
 
 
+// shader to convert YUV Y416 to RGB
+void YUVY416ConvertPS(
+	float4 InPosition : SV_POSITION,
+	float2 InUV : TEXCOORD0,
+	out float4 OutColor : SV_Target0)
+{
+	float4 AVYU = YUVY416ConvertUB.SRV_Y.Sample(YUVY416ConvertUB.BilinearClampedSamplerUV, InUV);
+	
+	OutColor.xyz = YuvToRgb(AVYU.yzw, YUVY416ConvertUB.ColorTransform, YUVY416ConvertUB.SrgbToLinear);
+	OutColor.w = AVYU.x;
+}
+
+
 // shader to convert three Y, U, and V textures to RGBA
 void YUVConvertPS(
 	float4 InPosition : SV_POSITION,

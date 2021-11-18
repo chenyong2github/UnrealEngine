@@ -427,6 +427,7 @@ namespace Metasound
 			}
 			else
 			{
+				bDidEdit |= !NodesToUpdate.IsEmpty();
 				for (const TPair<FNodeHandle, FMetasoundFrontendVersionNumber>& Pair : NodesToUpdate)
 				{
 					FNodeHandle ExistingNode = Pair.Key;
@@ -435,8 +436,6 @@ namespace Metasound
 					FMetasoundFrontendNodeStyle Style = NewNode->GetNodeStyle();
 					Style.bMessageNodeUpdated = NewNode->GetClassMetadata().GetVersion() > InitialVersion;
 					NewNode->SetNodeStyle(Style);
-
-					bDidEdit |= NewNode->GetID() != ExistingNode->GetID();
 				}
 			}
 

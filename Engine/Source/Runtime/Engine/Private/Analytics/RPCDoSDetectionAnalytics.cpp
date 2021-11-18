@@ -27,6 +27,32 @@ TAutoConsoleVariable<int32> CVarRPCDoSAnalyticsMaxRPCs(
 	TEXT("The top 'x' number of RPC's to include in RPC DoS analytics, ranked by RPC rate per Second."));
 
 
+namespace UE
+{
+	namespace Net
+	{
+		/**
+		 * For Grafana template variable dropdown, restrict CPU values (including overshoot) to:
+		 * 0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100, 105, 110 etc.
+		 *
+		 * @param InVal		The CPU Usage value to quantize
+		 * @return			The quantized CPU Usage value
+		 */
+		uint8 GetQuantizedCPUUsage(uint8 InVal)
+		{
+			if (InVal >= 10 && InVal <= 90)
+			{
+				return (InVal / 10) * 10;
+			}
+			else
+			{
+				return (InVal / 5) * 5;
+			}
+		}
+	}
+}
+
+
 /**
  * FRPCDoSAnalyticsVars
  */
@@ -103,6 +129,8 @@ void FRPCDoSAnalyticsVars::CommitAnalytics(FRPCDoSAnalyticsVars& AggregatedData)
 
 void FRPCDoSAnalyticsData::SendAnalytics()
 {
+	using namespace UE::Net;
+
 	FRPCDoSAnalyticsVars NullVars;
 	const TSharedPtr<IAnalyticsProvider>& AnalyticsProvider = Aggregator->GetAnalyticsProvider();
 
@@ -162,6 +190,7 @@ void FRPCDoSAnalyticsData::SendAnalytics()
 		UE_LOG(LogNet, Log, TEXT(" - MaxAnalyticsSeverityCategory: %s"), *MaxAnalyticsSeverityCategory);
 		UE_LOG(LogNet, Log, TEXT(" - RPCs: %i"), RPCTrackingAnalytics.Num());
 
+		// NOTE: Game thread CPU must be in analytics, even if GTrackGameThreadCPUUsage == 0, as it's used for filtering.
 		for (int32 RPCIdx=0; RPCIdx<RPCTrackingAnalytics.Num(); RPCIdx++)
 		{
 			const FRPCAnalytics& CurRPC = *RPCTrackingAnalytics[RPCIdx].Get();
@@ -170,8 +199,10 @@ void FRPCDoSAnalyticsData::SendAnalytics()
 			UE_LOG(LogNet, Log, TEXT("   - Name: %s"), *CurRPC.RPCName.ToString());
 			UE_LOG(LogNet, Log, TEXT("   - MaxCountPerSec: %i"), CurRPC.MaxCountPerSec);
 			UE_LOG(LogNet, Log, TEXT("   - MaxTimePerSec: %f"), CurRPC.MaxTimePerSec);
+			UE_LOG(LogNet, Log, TEXT("   - MaxTimeGameThreadCPU: %i"), CurRPC.MaxTimeGameThreadCPU);
 			UE_LOG(LogNet, Log, TEXT("   - MaxSinglePacketRPCTime: %f"), CurRPC.MaxSinglePacketRPCTime);
 			UE_LOG(LogNet, Log, TEXT("   - SinglePacketRPCCount: %i"), CurRPC.SinglePacketRPCCount);
+			UE_LOG(LogNet, Log, TEXT("   - SinglePacketGameThreadCPU: %i"), CurRPC.SinglePacketGameThreadCPU);
 			UE_LOG(LogNet, Log, TEXT("   - BlockedCount: %i"), CurRPC.BlockedCount);
 			UE_LOG(LogNet, Log, TEXT("   - PlayerIP: %s"), *CurRPC.PlayerIP);
 			UE_LOG(LogNet, Log, TEXT("   - PlayerUID: %s"), *CurRPC.PlayerUID);
@@ -187,8 +218,10 @@ void FRPCDoSAnalyticsData::SendAnalytics()
 			UE_LOG(LogNet, Log, TEXT("   - Name: (*) %s"), *CurRPC.RPCName.ToString());
 			UE_LOG(LogNet, Log, TEXT("   - MaxCountPerSec: %i"), CurRPC.MaxCountPerSec);
 			UE_LOG(LogNet, Log, TEXT("   - MaxTimePerSec: %f"), CurRPC.MaxTimePerSec);
+			UE_LOG(LogNet, Log, TEXT("   - MaxTimeGameThreadCPU: %i"), CurRPC.MaxTimeGameThreadCPU);
 			UE_LOG(LogNet, Log, TEXT("   - MaxSinglePacketRPCTime: %f"), CurRPC.MaxSinglePacketRPCTime);
 			UE_LOG(LogNet, Log, TEXT("   - SinglePacketRPCCount: %i"), CurRPC.SinglePacketRPCCount);
+			UE_LOG(LogNet, Log, TEXT("   - SinglePacketGameThreadCPU: %i"), CurRPC.SinglePacketGameThreadCPU);
 			UE_LOG(LogNet, Log, TEXT("   - BlockedCount: %i"), CurRPC.BlockedCount);
 			UE_LOG(LogNet, Log, TEXT("   - PlayerIP: %s"), *CurRPC.PlayerIP);
 			UE_LOG(LogNet, Log, TEXT("   - PlayerUID: %s"), *CurRPC.PlayerUID);
@@ -220,8 +253,10 @@ void FRPCDoSAnalyticsData::SendAnalytics()
 		static const FString EZAttrib_RPCName							= TEXT("RPCName");
 		static const FString EZAttrib_MaxCountPerSec					= TEXT("MaxCountPerSec");
 		static const FString EZAttrib_MaxTimePerSec						= TEXT("MaxTimePerSec");
+		static const FString EZAttrib_MaxTimeGameThreadCPU				= TEXT("MaxTimeGameThreadCPU");
 		static const FString EZAttrib_MaxSinglePacketRPCTime			= TEXT("MaxSinglePacketRPCTime");
 		static const FString EZAttrib_SinglePacketRPCCount				= TEXT("SinglePacketRPCCount");
+		static const FString EZAttrib_SinglePacketGameThreadCPU			= TEXT("SinglePacketGameThreadCPU");
 		static const FString EZAttrib_BlockedCount						= TEXT("BlockedCount");
 		static const FString EZAttrib_PlayerIP							= TEXT("PlayerIP");
 		static const FString EZAttrib_PlayerUID							= TEXT("PlayerUID");
@@ -252,8 +287,10 @@ void FRPCDoSAnalyticsData::SendAnalytics()
 			RPCsJsonWriter.WriteValue(EZAttrib_RPCName, CurRPC.RPCName.ToString());
 			RPCsJsonWriter.WriteValue(EZAttrib_MaxCountPerSec, CurRPC.MaxCountPerSec);
 			RPCsJsonWriter.WriteValue(EZAttrib_MaxTimePerSec, CurRPC.MaxTimePerSec);
+			RPCsJsonWriter.WriteValue(EZAttrib_MaxTimeGameThreadCPU, GetQuantizedCPUUsage(CurRPC.MaxTimeGameThreadCPU));
 			RPCsJsonWriter.WriteValue(EZAttrib_MaxSinglePacketRPCTime, CurRPC.MaxSinglePacketRPCTime);
 			RPCsJsonWriter.WriteValue(EZAttrib_SinglePacketRPCCount, CurRPC.SinglePacketRPCCount);
+			RPCsJsonWriter.WriteValue(EZAttrib_SinglePacketGameThreadCPU, GetQuantizedCPUUsage(CurRPC.SinglePacketGameThreadCPU));
 			RPCsJsonWriter.WriteValue(EZAttrib_BlockedCount, CurRPC.BlockedCount);
 			RPCsJsonWriter.WriteValue(EZAttrib_PlayerIP, CurRPC.PlayerIP);
 			RPCsJsonWriter.WriteValue(EZAttrib_PlayerUID, CurRPC.PlayerUID);
@@ -285,8 +322,10 @@ void FRPCDoSAnalyticsData::SendAnalytics()
 				FilteredRPCsJsonWriter.WriteValue(EZAttrib_RPCName, RPCName.ToString());
 				FilteredRPCsJsonWriter.WriteValue(EZAttrib_MaxCountPerSec, CurRPC.MaxCountPerSec);
 				FilteredRPCsJsonWriter.WriteValue(EZAttrib_MaxTimePerSec, CurRPC.MaxTimePerSec);
+				FilteredRPCsJsonWriter.WriteValue(EZAttrib_MaxTimeGameThreadCPU, GetQuantizedCPUUsage(CurRPC.MaxTimeGameThreadCPU));
 				FilteredRPCsJsonWriter.WriteValue(EZAttrib_MaxSinglePacketRPCTime, CurRPC.MaxSinglePacketRPCTime);
 				FilteredRPCsJsonWriter.WriteValue(EZAttrib_SinglePacketRPCCount, CurRPC.SinglePacketRPCCount);
+				FilteredRPCsJsonWriter.WriteValue(EZAttrib_SinglePacketGameThreadCPU, GetQuantizedCPUUsage(CurRPC.SinglePacketGameThreadCPU));
 				FilteredRPCsJsonWriter.WriteValue(EZAttrib_BlockedCount, CurRPC.BlockedCount);
 				FilteredRPCsJsonWriter.WriteValue(EZAttrib_PlayerIP, CurRPC.PlayerIP);
 				FilteredRPCsJsonWriter.WriteValue(EZAttrib_PlayerUID, CurRPC.PlayerUID);
@@ -344,6 +383,8 @@ void FRPCDoSAnalyticsData::FireEvent_ServerRPCDoSEscalation(int32 SeverityIndex,
 															double WorstTimePerSec, const FString& InPlayerIP, const FString& InPlayerUID,
 															const TArray<FName>& InRPCGroup, double InRPCGroupTime/*=0.0*/)
 {
+	using namespace UE::Net;
+
 	const TSharedPtr<IAnalyticsProvider>& AnalyticsProvider = Aggregator->GetAnalyticsProvider();
 
 	if (AnalyticsProvider.IsValid())
@@ -355,6 +396,7 @@ void FRPCDoSAnalyticsData::FireEvent_ServerRPCDoSEscalation(int32 SeverityIndex,
 		static const FString EZAttrib_WorstTimePerSec				= TEXT("WorstTimePerSec");
 		static const FString EZAttrib_PlayerIP						= TEXT("PlayerIP");
 		static const FString EZAttrib_PlayerUID						= TEXT("PlayerUID");
+		static const FString EZAttrib_GameThreadCPU					= TEXT("GameThreadCPU");
 		static const FString EZAttrib_RPCGroup						= TEXT("RPCGroup");
 		static const FString EZAttrib_RPCGroupTime					= TEXT("RPCGroupTime");
 
@@ -365,7 +407,9 @@ void FRPCDoSAnalyticsData::FireEvent_ServerRPCDoSEscalation(int32 SeverityIndex,
 				EZAttrib_WorstCountPerSec, WorstCountPerSec,
 				EZAttrib_WorstTimePerSec, WorstTimePerSec,
 				EZAttrib_PlayerIP, InPlayerIP,
-				EZAttrib_PlayerUID, InPlayerUID);
+				EZAttrib_PlayerUID, InPlayerUID,
+				// NOTE: Game thread CPU must be in analytics, even if GTrackGameThreadCPUUsage == 0, as it's used for filtering.
+				EZAttrib_GameThreadCPU, GetQuantizedCPUUsage(static_cast<uint8>(FPlatformTime::GetThreadCPUTime().CPUTimePctRelative)));
 
 		if (InRPCGroup.Num() > 0)
 		{

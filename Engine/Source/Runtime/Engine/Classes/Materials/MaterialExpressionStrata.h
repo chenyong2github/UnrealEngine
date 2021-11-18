@@ -33,6 +33,155 @@ class UMaterialExpressionStrataBSDF : public UMaterialExpression
 #endif
 };
 
+
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Slab")
+class UMaterialExpressionStrataLegacyConversion : public UMaterialExpressionStrataBSDF
+{
+	GENERATED_UCLASS_BODY()
+
+	/**
+	 * Defines the overall color of the Material. (type = float3, unit = unitless, defaults to 0.18)
+	 */
+	UPROPERTY()
+	FExpressionInput BaseColor;
+
+	/**
+	 * Controls how \"metal-like\" your surface looks like. 0 means dielectric, 1 means conductor (type = float, unit = unitless, defaults to 0)
+	 */
+	UPROPERTY()
+	FExpressionInput Metallic;
+
+	/**
+	 * Used to scale the current amount of specularity on non-metallic surfaces and is a value between 0 and 1 (type = float, unit = unitless, defaults to plastic 0.5)
+	 */
+	UPROPERTY()
+	FExpressionInput Specular;
+	
+	/**
+	 * Controls how rough the Material is. Roughness of 0 (smooth) is a mirror reflection and 1 (rough) is completely matte or diffuse. When using anisotropy, it is the roughness used along the Tangent axis. (type = float, unit = unitless, defaults to 0.5)
+	 */
+	UPROPERTY()
+	FExpressionInput Roughness;
+		
+	/**
+	 * Controls the anisotropy factor of the roughness. Positive value elongates the specular lobe along the Tangent vector, Negative value elongates the specular lobe along the perpendicular of the Tangent. (type = float, unit = unitless).
+	 */
+	UPROPERTY()
+	FExpressionInput Anisotropy;
+
+	/**
+	 * Emissive color on top of the surface (type = float3, unit = luminance, default = 0)
+	 */
+	UPROPERTY()
+	FExpressionInput EmissiveColor;
+
+	/**
+	 * Take the surface normal as input. The normal is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless, defaults to vertex normal)
+	 */
+	UPROPERTY()
+	FExpressionInput Normal;
+
+	/**
+	* Take a surface tangent as input. The tangent is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless, defaults to vertex tangent)
+	*/
+	UPROPERTY()
+	FExpressionInput Tangent;
+
+	/**
+	 * Scale the mean free path radius of the SSS profile according to a value between 0 and 1. Always used, when a subsurface profile is provided or not. (type = float, unitless, defaults to 1)
+	 */
+	UPROPERTY()
+	FExpressionInput SubSurfaceColor;
+
+	/**
+	 * Emissive color on top of the surface (type = float3, unit = luminance, default = 0)
+	 */
+	UPROPERTY()
+	FExpressionInput ClearCoat;
+
+	/**
+	 * The amount of fuzz on top of the surface used to simulate cloth-like appearance.
+	 */
+	UPROPERTY()
+	FExpressionInput ClearCoatRoughness;
+
+	/**
+	 * Opacity of the material
+	 */
+	UPROPERTY()
+	FExpressionInput Opacity;
+
+	/**
+	 * The amount of transmitted light from the back side of the surface to the front side of the surface (type = float3, unit = unitless, defaults to 1)
+	 */
+	UPROPERTY()
+	FExpressionInput TransmittanceColor;
+
+		/**
+	* The single scattering Albedo defining the overall color of the Material (type = float3, unit = unitless, default = 0)
+	 */
+	UPROPERTY()
+	FExpressionInput WaterScatteringCoefficients;
+
+	/**
+	 * The rate at which light is absorbed or out-scattered by the medium. Mean Free Path = 1 / Extinction. (type = float3, unit = 1/cm, default = 0)
+	 */
+	UPROPERTY()
+	FExpressionInput WaterAbsorptionCoefficients;
+
+	/**
+	 * Anisotropy of the volume with values lower than 0 representing back-scattering, equal 0 representing isotropic scattering and greater than 0 representing forward scattering. (type = float, unit = unitless, defaults to 0)
+	 */
+	UPROPERTY()
+	FExpressionInput WaterPhaseG;
+
+	/**
+	 * A scale to apply on the scene color behind the water surface. It can be used to approximate caustics for instance. (type = float3, unit = unitless, defaults to 1)
+	 */
+	UPROPERTY()
+	FExpressionInput ColorScaleBehindWater;
+
+	/**
+	 * Take the bottom clear coat surface normal as input. The normal is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless, defaults to vertex normal)
+	 */
+	UPROPERTY()
+	FExpressionInput ClearCoatNormal;
+
+	/**
+	 * Shading models
+	 */
+	UPROPERTY()
+	FExpressionInput ShadingModel;
+	
+	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
+	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
+
+	/** Store converted material models. */
+	UPROPERTY()
+	FStrataMaterialInfo ConvertedStrataMaterialInfo;
+
+	//~ Begin UMaterialExpression Interface
+#if WITH_EDITOR
+	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual int32 CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual uint32 GetOutputType(int32 OutputIndex) override;
+	virtual uint32 GetInputType(int32 InputIndex) override;
+	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
+	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
+	virtual FName GetInputName(int32 InputIndex) const override;
+	virtual void GetConnectorToolTip(int32 InputIndex, int32 OutputIndex, TArray<FString>& OutToolTip) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual const TArray<FExpressionInput*> GetInputs() override;
+
+	bool HasSSS() const;
+	bool HasAnisotropy() const;
+
+#endif
+	//~ End UMaterialExpression Interface
+};
+
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Slab")
 class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 {

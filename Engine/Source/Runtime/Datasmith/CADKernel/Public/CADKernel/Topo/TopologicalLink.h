@@ -36,14 +36,28 @@ namespace CADKernel
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
+#ifdef CADKERNEL_DEV
+			if (Ar.IsSaving())
+			{
+				ensureCADKernel(ActiveEntity != nullptr);
+				ensureCADKernel(!ActiveEntity->IsDeleted());
+			}
+#endif
 			FEntity::Serialize(Ar);
 			SerializeIdent(Ar, &ActiveEntity, false);
 			SerializeIdents(Ar, TwinsEntities, false);
 		}
 
-		TWeakPtr<const EntityType>& GetActiveEntity() const
+		virtual void Delete()
 		{
-			ensureCADKernel(ActiveEntity.IsValid());
+			TwinsEntities.Empty();
+			ActiveEntity = nullptr;
+			SetDeleted();
+		}
+
+		const EntityType* GetActiveEntity() const
+		{
+			ensureCADKernel(ActiveEntity);
 			return ActiveEntity;
 		}
 
@@ -98,7 +112,7 @@ namespace CADKernel
 			if (TwinsEntities.Num() == 0)
 			{
 				ActiveEntity = nullptr;
-				SetDeleted();
+				Delete();
 			}
 		}
 

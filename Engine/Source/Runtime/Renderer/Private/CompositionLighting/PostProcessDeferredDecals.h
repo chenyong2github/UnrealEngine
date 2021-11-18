@@ -53,7 +53,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredDecalUniformParameters, )
 	SHADER_PARAMETER(float, NormalReprojectionThresholdLow)
 	SHADER_PARAMETER(float, NormalReprojectionThresholdHigh)
 	SHADER_PARAMETER(float, NormalReprojectionThresholdScaleHelper)
-	SHADER_PARAMETER(FVector2D, NormalReprojectionJitter)
+	SHADER_PARAMETER(FVector2f, NormalReprojectionJitter)
 END_SHADER_PARAMETER_STRUCT()
 
 TUniformBufferRef<FDeferredDecalUniformParameters> CreateDeferredDecalUniformBuffer(const FViewInfo& View);

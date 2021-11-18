@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-#nullable disable
-
 namespace EpicGames.Core
 {
 	/// <summary>
@@ -131,7 +129,7 @@ namespace EpicGames.Core
 		/// <param name="WriteKey">Delegate to call to serialize each key</param>
 		/// <param name="WriteKey">Delegate to call to serialize each value</param>
 		/// <returns>Dictionary of objects, as serialized. May be null.</returns>
-		public static void Write<K, V>(this BinaryWriter Writer, Dictionary<K, V> Items, Action<K> WriteKey, Action<V> WriteValue)
+		public static void Write<K, V>(this BinaryWriter Writer, Dictionary<K, V> Items, Action<K> WriteKey, Action<V> WriteValue) where K : notnull
 		{
 			if (Items == null)
 			{

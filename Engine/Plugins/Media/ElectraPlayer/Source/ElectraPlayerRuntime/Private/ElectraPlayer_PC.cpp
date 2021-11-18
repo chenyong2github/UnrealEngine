@@ -263,9 +263,6 @@ bool PlatformEarlyStartup()
 	HRESULT Res = MFStartup(MF_VERSION);
 	checkf(SUCCEEDED(Res), TEXT("MFStartup failed: %d"), Res);
 
-	//SetEnvironmentVariable(L"http_proxy", L"10.29.4.18:8888");
-	//_putenv_s("http_proxy", "10.29.4.18:8888");
-
 	return true;
 }
 
@@ -311,6 +308,10 @@ bool FElectraPlayerPlatform::StartupPlatformResources(const Electra::FParamDict&
 }
 
 void FElectraPlayer::PlatformNotifyOfOptionChange()
+{
+}
+
+void FElectraPlayer::PlatformSuspendOrResumeDecoders(bool /*bSuspend*/)
 {
 }
 

@@ -54,8 +54,6 @@ private:
 	float GetViewScale() const;
 	FText GetViewScaleText() const;
 
-	void ZoomToFit();
-
 	float GetDPIScale() const;
 
 private:

@@ -3,11 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/NonNullPointer.h"
 
 class AActor;
 struct FActorSnapshotData;
 
-namespace SnapshotUtil
+namespace UE::LevelSnapshots::Private
 {
 	/** Finds the last subobject name in the path */
 	FString ExtractLastSubobjectName(const FSoftObjectPath& ObjectPath);
@@ -22,7 +23,7 @@ namespace SnapshotUtil
 	 * If Path contains a path to an actor, returns that actor.
 	 * Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent returns StaticMeshActor_42's data
 	 */
-	TOptional<FActorSnapshotData*> FindSavedActorDataUsingObjectPath(TMap<FSoftObjectPath, FActorSnapshotData>& ActorData, const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject);
+	TOptional<TNonNullPtr<FActorSnapshotData>> FindSavedActorDataUsingObjectPath(TMap<FSoftObjectPath, FActorSnapshotData>& ActorData, const FSoftObjectPath& OriginalObjectPath, bool& bIsPathToActorSubobject);
 
 	/**
 	 * Takes an existing path to an actor's subobjects and replaces the actor bit with the path to another actor.

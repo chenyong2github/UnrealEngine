@@ -46,7 +46,7 @@ public:
 		UVOverlay = UVOverlayIn;
 	}
 
-	int FindOrAddUnique(const FVector2D& UV, int VertexID)
+	int FindOrAddUnique(const FVector2f& UV, int VertexID)
 	{
 		FVertexUV VertUV = { VertexID, UV.X, UV.Y };
 
@@ -190,7 +190,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	// look up vertex-instance UVs and normals
 	// @todo: does the MeshDescription always have UVs and Normals?
 	FSkeletalMeshConstAttributes Attributes(*MeshIn);
-	TVertexInstanceAttributesConstRef<FVector2D> InstanceUVs = Attributes.GetVertexInstanceUVs();
+	TVertexInstanceAttributesConstRef<FVector2f> InstanceUVs = Attributes.GetVertexInstanceUVs();
 	TVertexInstanceAttributesConstRef<FVector3f> InstanceNormals = Attributes.GetVertexInstanceNormals();
 	TVertexInstanceAttributesConstRef<FVector3f> InstanceTangents = Attributes.GetVertexInstanceTangents();
 	TVertexInstanceAttributesConstRef<float> InstanceBiTangentSign = Attributes.GetVertexInstanceBinormalSigns();
@@ -498,7 +498,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 						FIndex3i TriUV;
 						for (int j = 0; j < 3; ++j)
 						{
-							FVector2D UV = InstanceUVs.Get(TriData.TriInstances[j], UVLayerIndex);
+							FVector2f UV = InstanceUVs.Get(TriData.TriInstances[j], UVLayerIndex);
 							TriUV[j] = UVWelder.FindOrAddUnique(UV, Tri[j]);
 						}
 						UVOverlay->SetTriangle(TriangleID, TriUV);
@@ -509,7 +509,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 					// copy uv "vertex buffer"
 					const FUVArray& UVs = MeshIn->UVs(UVLayerIndex);
-					TUVAttributesRef<const FVector2D> UVCoordinates = UVs.GetAttributes().GetAttributesRef<FVector2D>(MeshAttribute::UV::UVCoordinate);
+					TUVAttributesRef<const FVector2f> UVCoordinates = UVs.GetAttributes().GetAttributesRef<FVector2f>(MeshAttribute::UV::UVCoordinate);
 						
 					// map to translate UVIds from FUVID::int32() to DynamicOverlay Index.
 					TArray<int32> UVIndexMap;
@@ -524,7 +524,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 					}
 					for (FUVID UVID : UVs.GetElementIDs())
 					{
-						const FVector2D UVvalue = UVCoordinates[UVID];
+						const FVector2f UVvalue = UVCoordinates[UVID];
 						int32 NewIndex = UVOverlay->AppendElement(FVector2f(UVvalue));
 						UVIndexMap[UVID.GetValue()] = NewIndex;
 					}
@@ -566,7 +566,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 								}
 								else
 								{
-									const FVector2D UVvalue = UVCoordinates[UVIndices[Idx]];
+									const FVector2f UVvalue = UVCoordinates[UVIndices[Idx]];
 									int NewUVEl = UVOverlay->AppendElement(FVector2f(UVvalue));
 									TriUV[Idx] = NewUVEl;
 									SplitUVMapping.Add(SplitUVID, NewUVEl);
@@ -591,7 +591,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 							if (TriUV[0] == TriUV[1] && TriUV[0] == TriUV[2])
 							{
-								const FVector2D UVvalue = UVCoordinates[UVIndices[1]];
+								const FVector2f UVvalue = UVCoordinates[UVIndices[1]];
 								SplitVertexUV(ParentTriangle[1], TriUV, 1);
 								SplitVertexUV(ParentTriangle[2], TriUV, 2);
 							}
@@ -634,7 +634,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 							FIndex3i TriUV;
 							for (int j = 0; j < 3; ++j)
 							{
-								const FVector2D UV = InstanceUVs.Get(TriData.TriInstances[j], UVLayerIndex);
+								const FVector2f UV = InstanceUVs.Get(TriData.TriInstances[j], UVLayerIndex);
 								TriUV[j] = UVWelder.FindOrAddUnique(UV, Tri[j]);
 							}
 							UVOverlay->SetTriangle(TriangleID, TriUV);

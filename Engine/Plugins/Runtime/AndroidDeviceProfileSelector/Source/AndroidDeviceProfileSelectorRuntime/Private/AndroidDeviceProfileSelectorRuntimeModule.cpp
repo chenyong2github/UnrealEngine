@@ -8,6 +8,7 @@
 #include "AndroidDeviceProfileSelectorRuntime.h"
 #include "AndroidDeviceProfileSelector.h"
 #include "AndroidJavaSurfaceViewDevices.h"
+#include "IHeadMountedDisplayModule.h"
 
 IMPLEMENT_MODULE(FAndroidDeviceProfileSelectorRuntimeModule, AndroidDeviceProfileSelectorRuntime);
 
@@ -57,6 +58,12 @@ static const TMap<FName,FString>& GetDeviceSelectorParams()
 #endif
 		uint32 TotalPhysicalGB = (uint32)((Stats.TotalPhysical + MemoryBucketRoundingAddition * 1024 * 1024 - 1) / 1024 / 1024 / 1024);
 
+		FString HMDRequestedProfileName;
+		if (IHeadMountedDisplayModule::IsAvailable())
+		{
+			HMDRequestedProfileName = IHeadMountedDisplayModule::Get().GetDeviceSystemName();
+		}
+
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_GPUFamily, GetParam(FAndroidMisc::GetGPUFamily(), TEXT("gpu")));
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_GLVersion, FAndroidMisc::GetGLVersion());
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_VulkanAvailable, FAndroidMisc::IsVulkanAvailable() ? TEXT("true") : TEXT("false"));
@@ -68,6 +75,7 @@ static const TMap<FName,FString>& GetDeviceSelectorParams()
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_UsingHoudini, bUsingHoudini ? TEXT("true") : TEXT("false"));
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_Hardware, GetParam(FString(TEXT("unknown")), TEXT("hardware")));
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_Chipset, GetParam(FString(TEXT("unknown")), TEXT("chipset")));
+		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_HMDSystemName, HMDRequestedProfileName);
 		AndroidParams.Add(FAndroidProfileSelectorSourceProperties::SRC_TotalPhysicalGB, FString::Printf(TEXT("%d"), TotalPhysicalGB));
 	}
 	return AndroidParams;

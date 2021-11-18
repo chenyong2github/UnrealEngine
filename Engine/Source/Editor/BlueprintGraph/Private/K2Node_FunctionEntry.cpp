@@ -398,7 +398,7 @@ void UK2Node_FunctionEntry::RemoveOutputPin(UEdGraphPin* PinToRemove)
 	UK2Node_FunctionEntry* OwningSeq = Cast<UK2Node_FunctionEntry>( PinToRemove->GetOwningNode() );
 	if (OwningSeq)
 	{
-		PinToRemove->MarkPendingKill();
+		PinToRemove->MarkAsGarbage();
 		OwningSeq->Pins.Remove(PinToRemove);
 	}
 }

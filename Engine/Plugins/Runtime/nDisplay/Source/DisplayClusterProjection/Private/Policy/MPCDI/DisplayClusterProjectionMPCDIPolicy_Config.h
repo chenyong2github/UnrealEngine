@@ -145,11 +145,11 @@ private:
 			MPCDIType = EDisplayClusterWarpProfileType::Invalid;
 
 			static const TArray<FString> Profiles({ "2d","3d","a3d","sl" });
-			for (int i = 0; i < Profiles.Num(); ++i)
+			for (int32 ProfileIndex = 0; ProfileIndex < Profiles.Num(); ++ProfileIndex)
 			{
-				if (!MPCDITypeStr.Compare(Profiles[i], ESearchCase::IgnoreCase))
+				if (!MPCDITypeStr.Compare(Profiles[ProfileIndex], ESearchCase::IgnoreCase))
 				{
-					MPCDIType = (EDisplayClusterWarpProfileType)i;
+					MPCDIType = (EDisplayClusterWarpProfileType)ProfileIndex;
 					break;
 				}
 			}

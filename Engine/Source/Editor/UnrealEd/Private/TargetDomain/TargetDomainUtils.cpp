@@ -398,7 +398,11 @@ bool IsIterativeEnabled(FName PackageName)
 TArray<const UTF8CHAR*> FEditorDomainOplog::ReservedOplogKeys;
 
 FEditorDomainOplog::FEditorDomainOplog()
-: HttpClient(UE::Zen::DefaultNoLaunch)
+#if UE_WITH_ZEN
+: HttpClient(TEXT("localhost"), UE::Zen::FZenServiceInstance::GetAutoLaunchedPort() > 0 ? UE::Zen::FZenServiceInstance::GetAutoLaunchedPort() : 1337)
+#else
+: HttpClient(TEXT("localhost"), 1337)
+#endif
 {
 	StaticInit();
 
@@ -416,8 +420,13 @@ FEditorDomainOplog::FEditorDomainOplog()
 	FString AbsEngineDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*EngineDir);
 	FString AbsProjectDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*ProjectDir);
 
-	HttpClient.TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir);
-	HttpClient.TryCreateOplog(ProjectId, OplogId, false /* bFullBuild */);
+#if UE_WITH_ZEN
+	if (UE::Zen::IsDefaultServicePresent())
+	{
+		HttpClient.TryCreateProject(ProjectId, OplogId, AbsServerRoot, AbsEngineDir, AbsProjectDir);
+		HttpClient.TryCreateOplog(ProjectId, OplogId, false /* bFullBuild */);
+	}
+#endif
 }
 
 void FEditorDomainOplog::InitializeRead()

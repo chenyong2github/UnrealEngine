@@ -11,16 +11,16 @@ struct FMeshChart
 	uint32		FirstTri;
 	uint32		LastTri;
 	
-	FVector2D	MinUV;
-	FVector2D	MaxUV;
+	FVector2f	MinUV;
+	FVector2f	MaxUV;
 	
 	float		UVArea;
-	FVector2D	UVScale;
-	FVector2D	WorldScale;
+	FVector2f	UVScale;
+	FVector2f	WorldScale;
 	
-	FVector2D	PackingScaleU;
-	FVector2D	PackingScaleV;
-	FVector2D	PackingBias;
+	FVector2f	PackingScaleU;
+	FVector2f	PackingScaleV;
+	FVector2f	PackingBias;
 
 	int32		Join[4];
 
@@ -47,10 +47,10 @@ public:
 		virtual uint32      GetNumIndices() const = 0;
 		virtual FVector3f   GetPosition(uint32 Index) const = 0;
 		virtual FVector3f   GetNormal(uint32 Index) const = 0;
-		virtual FVector2D   GetInputTexcoord(uint32 Index) const = 0;
+		virtual FVector2f   GetInputTexcoord(uint32 Index) const = 0;
 
 		virtual void        InitOutputTexcoords(uint32 Num) = 0;
-		virtual void        SetOutputTexcoord(uint32 Index, const FVector2D& Value) = 0;
+		virtual void        SetOutputTexcoord(uint32 Index, const FVector2f& Value) = 0;
 	};
 
 	FLayoutUV( IMeshView& InMeshView );
@@ -65,7 +65,7 @@ private:
 	IMeshView& MeshView;
 	ELightmapUVVersion LayoutVersion;
 
-	TArray< FVector2D > MeshTexCoords;
+	TArray< FVector2f > MeshTexCoords;
 	TArray< uint32 > MeshSortedTris;
 	TArray< FMeshChart > MeshCharts;
 	uint32 PackedTextureResolution;

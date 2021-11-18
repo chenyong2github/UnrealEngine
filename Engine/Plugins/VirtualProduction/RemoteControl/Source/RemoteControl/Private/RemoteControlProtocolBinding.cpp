@@ -654,6 +654,12 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 		return false;
 	}
 
+	if(!RemoteControlProperty->IsBound())
+	{
+		UE_LOG(LogRemoteControl, Warning, TEXT("Entity isn't bound to any objects."));
+		return true;
+	}
+
 	FProperty* Property = RemoteControlProperty->GetProperty();
 	if (!Property)
 	{

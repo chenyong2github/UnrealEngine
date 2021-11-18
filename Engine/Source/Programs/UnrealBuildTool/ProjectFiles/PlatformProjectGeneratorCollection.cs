@@ -9,8 +9,6 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -28,7 +26,7 @@ namespace UnrealBuildTool
 		public void RegisterPlatformProjectGenerator(UnrealTargetPlatform InPlatform, PlatformProjectGenerator InProjectGenerator)
 		{
 			// Make sure the build platform is legal
-			UEBuildPlatform BuildPlatform;
+			UEBuildPlatform? BuildPlatform;
 			if(UEBuildPlatform.TryGetBuildPlatform(InPlatform, out BuildPlatform))
 			{
 				if (ProjectGeneratorDictionary.ContainsKey(InPlatform) == true)
@@ -54,7 +52,7 @@ namespace UnrealBuildTool
 		/// <param name="InPlatform">    The UnrealTargetPlatform being built</param>
 		/// <param name="bInAllowFailure">   If true, do not throw an exception and return null</param>
 		/// <returns>UEPlatformProjectGenerator The instance of the project generator</returns>
-		public PlatformProjectGenerator GetPlatformProjectGenerator(UnrealTargetPlatform InPlatform, bool bInAllowFailure = false)
+		public PlatformProjectGenerator? GetPlatformProjectGenerator(UnrealTargetPlatform InPlatform, bool bInAllowFailure = false)
 		{
 			if (ProjectGeneratorDictionary.ContainsKey(InPlatform) == true)
 			{

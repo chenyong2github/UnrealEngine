@@ -4,19 +4,22 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Math/MatrixH.h"
 
-#include <math.h>
+namespace CADKernel
+{
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FParabolaCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FParabolaCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	FMatrixH NewMatrix = InMatrix * Matrix;
 	return FEntity::MakeShared<FParabolaCurve>(NewMatrix, FocalDistance, Boundary, Dimension);
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FParabolaCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FParabolaCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info)
 		.Add(TEXT("Matrix"), Matrix)
 		.Add(TEXT("focal dist"), FocalDistance);
 }
 #endif
+
+}

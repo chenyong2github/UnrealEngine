@@ -36,7 +36,7 @@ void FNiagaraGpuReadbackManager::TickInternal(bool bAssumeGpuIdle)
 		// Gather data an execute the callback
 		for (const TPair<FStagingBufferRHIRef, uint32>& StagingBuffer : Readback->StagingBuffers)
 		{
-			void* DataPtr = StagingBuffer.Key->Lock(0, StagingBuffer.Value);
+			void* DataPtr = RHILockStagingBuffer(StagingBuffer.Key, Readback->Fence.GetReference(), 0, StagingBuffer.Value);
 			ensureMsgf(DataPtr || (StagingBuffer.Value == 0), TEXT("NiagaraGpuReadbackManager StagingBuffer returned nullptr and size is %d bytes, bAssumeGpuIdle(%d)"), StagingBuffer.Value, bAssumeGpuIdle);
 			ReadbackData.Emplace(DataPtr, StagingBuffer.Value);
 		}
@@ -45,7 +45,7 @@ void FNiagaraGpuReadbackManager::TickInternal(bool bAssumeGpuIdle)
 
 		for (const TPair<FStagingBufferRHIRef, uint32>& StagingBuffer : Readback->StagingBuffers)
 		{
-			StagingBuffer.Key->Unlock();
+			RHIUnlockStagingBuffer(StagingBuffer.Key);
 		}
 
 		ReadbackData.Reset();
@@ -104,6 +104,28 @@ void FNiagaraGpuReadbackManager::EnqueueReadbacks(FRHICommandList& RHICmdList, T
 	{
 		const auto& ReadbackData = Readback.StagingBuffers.Emplace_GetRef(RHICreateStagingBuffer(), Buffer->GetSize());
 		RHICmdList.CopyToStagingBuffer(Buffer, ReadbackData.Key, 0, ReadbackData.Value);
+	}
+	Readback.Fence = RHICreateGPUFence(FenceName);
+	Readback.Callback = Callback;
+
+	Readback.Fence->Clear();
+	RHICmdList.WriteGPUFence(Readback.Fence);
+
+	PendingReadbacks.Enqueue(Readback);
+}
+
+void FNiagaraGpuReadbackManager::EnqueueReadbacks(FRHICommandList& RHICmdList, TConstArrayView<FBufferRequest> BufferRequests, FCompletionCallback Callback)
+{
+	static const FName FenceName(TEXT("NiagaraGpuReadback"));
+
+	check(IsInRenderingThread());
+
+	FPendingReadback Readback;
+	for (const FBufferRequest& BufferRequest : BufferRequests)
+	{
+		check(BufferRequest.Size > 0);
+		const auto& ReadbackData = Readback.StagingBuffers.Emplace_GetRef(RHICreateStagingBuffer(), BufferRequest.Size);
+		RHICmdList.CopyToStagingBuffer(BufferRequest.Buffer, ReadbackData.Key, BufferRequest.Offset, BufferRequest.Size);
 	}
 	Readback.Fence = RHICreateGPUFence(FenceName);
 	Readback.Callback = Callback;

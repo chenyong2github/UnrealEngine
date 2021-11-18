@@ -4941,10 +4941,10 @@ static void	RemoveSimulatedNetConnections(const TArray<FString>& Args, UWorld* W
 	for (TObjectIterator<USimulatedClientNetConnection> SimulatedNetConnectionIt; SimulatedNetConnectionIt; ++SimulatedNetConnectionIt)
 	{
 		USimulatedClientNetConnection* Connection = *SimulatedNetConnectionIt;
-		if (Connection && !Connection->IsPendingKillOrUnreachable())
+		if (Connection && IsValidChecked(Connection) && !Connection->IsUnreachable())
 		{
 			Connection->Close();
-			Connection->MarkPendingKill();
+			Connection->MarkAsGarbage();
 
 			RemovedConnections++;
 			if (ConnectionCount > 0 && RemovedConnections >= ConnectionCount)

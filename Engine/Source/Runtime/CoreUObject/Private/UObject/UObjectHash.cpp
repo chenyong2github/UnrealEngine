@@ -286,7 +286,7 @@ public:
 
 	/** Hash sets */
 	TMap<int32, FHashBucket> Hash;
-	TMultiMap<int32, class UObjectBase*> HashOuter;
+	TMultiMap<int32, uint32> HashOuter;
 
 	/** Map of object to their outers, used to avoid an object iterator to find such things. **/
 	TMap<UObjectBase*, FHashBucket> ObjectOuterMap;
@@ -646,9 +646,10 @@ UObject* StaticFindObjectFastInternalThreadSafe(FUObjectHashTables& ThreadHash, 
 	{
 		int32 Hash = GetObjectOuterHash(ObjectName, (PTRINT)ObjectPackage);
 		FHashTableLock HashLock(ThreadHash);
-		for (TMultiMap<int32, class UObjectBase*>::TConstKeyIterator HashIt(ThreadHash.HashOuter, Hash); HashIt; ++HashIt)
+		for (TMultiMap<int32, uint32>::TConstKeyIterator HashIt(ThreadHash.HashOuter, Hash); HashIt; ++HashIt)
 		{
-			UObject *Object = (UObject *)HashIt.Value();
+			uint32 InternalIndex = HashIt.Value();
+			UObject* Object = static_cast<UObject*>(GUObjectArray.IndexToObject(InternalIndex)->Object);
 			if
 				/* check that the name matches the name we're searching for */
 				((Object->GetFName() == ObjectName)
@@ -1315,12 +1316,12 @@ void HashObject(UObjectBase* Object)
 		if (PTRINT Outer = (PTRINT)Object->GetOuter())
 		{
 			Hash = GetObjectOuterHash(Name, Outer);
-			checkSlow(!ThreadHash.HashOuter.FindPair(Hash, Object));  
+			checkSlow(!ThreadHash.HashOuter.FindPair(Hash, Object->GetUniqueID()));
 #if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
 			// if it already exists, something is wrong with the external code
-			UE_CLOG(ThreadHash.HashOuter.FindPair(Hash, Object), LogUObjectHash, Fatal, TEXT("%s already exists in UObject Outer hash!"), *GetFullNameSafe((UObjectBaseUtility*)Object));
+			UE_CLOG(ThreadHash.HashOuter.FindPair(Hash, Object->GetUniqueID()), LogUObjectHash, Fatal, TEXT("%s already exists in UObject Outer hash!"), *GetFullNameSafe((UObjectBaseUtility*)Object));
 #endif
-			ThreadHash.HashOuter.Add(Hash, Object);
+			ThreadHash.HashOuter.Add(Hash, Object->GetUniqueID());
 
 			AddToOuterMap(ThreadHash, Object);
 		}
@@ -1357,7 +1358,7 @@ void UnhashObject(UObjectBase* Object)
 		if (PTRINT Outer = (PTRINT)Object->GetOuter())
 		{
 			Hash = GetObjectOuterHash(Name, Outer);
-			NumRemoved = ThreadHash.HashOuter.RemoveSingle(Hash, Object);
+			NumRemoved = ThreadHash.HashOuter.RemoveSingle(Hash, Object->GetUniqueID());
 
 			// must have existed, else something is wrong with the external code
 			UE_CLOG(NumRemoved != 1, LogUObjectHash, Fatal, TEXT("Internal Error: Remove from HashOuter NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe((UObjectBaseUtility*)Object));
@@ -1439,7 +1440,7 @@ void UnlockUObjectHashTables()
 #endif
 }
 
-void LogHashStatisticsInternal(TMultiMap<int32, UObjectBase*>& Hash, FOutputDevice& Ar, const bool bShowHashBucketCollisionInfo)
+void LogHashStatisticsInternal(TMultiMap<int32, uint32>& Hash, FOutputDevice& Ar, const bool bShowHashBucketCollisionInfo)
 {
 	TArray<int32> HashBuckets;
 	// Get the set of keys in use, which is the number of hash buckets
@@ -1458,7 +1459,7 @@ void LogHashStatisticsInternal(TMultiMap<int32, UObjectBase*>& Hash, FOutputDevi
 	{
 		int32 Collisions = 0;
 
-		for (TMultiMap<int32, UObjectBase*>::TConstKeyIterator HashIt(Hash, HashBucket); HashIt; ++HashIt)
+		for (TMultiMap<int32, uint32>::TConstKeyIterator HashIt(Hash, HashBucket); HashIt; ++HashIt)
 		{
 			// There's one collision per object in a given bucket
 			Collisions++;
@@ -1484,9 +1485,9 @@ void LogHashStatisticsInternal(TMultiMap<int32, UObjectBase*>& Hash, FOutputDevi
 	// Dump the first 30 objects in the worst bin for inspection
 	Ar.Logf(TEXT("Worst hash bucket contains:"));
 	int32 Count = 0;
-	for (TMultiMap<int32, UObjectBase*>::TConstKeyIterator HashIt(Hash, MaxBin); HashIt && Count < 30; ++HashIt)
+	for (TMultiMap<int32, uint32>::TConstKeyIterator HashIt(Hash, MaxBin); HashIt && Count < 30; ++HashIt)
 	{
-		UObject* Object = (UObject*)HashIt.Value();
+		UObject* Object = static_cast<UObject*>(GUObjectArray.IndexToObject(HashIt.Value())->Object);
 		Ar.Logf(TEXT("\tObject is %s (%s)"), *Object->GetName(), *Object->GetFullName());
 		Count++;
 	}

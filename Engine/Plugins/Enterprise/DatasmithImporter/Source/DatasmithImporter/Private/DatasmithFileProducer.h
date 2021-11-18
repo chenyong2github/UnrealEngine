@@ -164,7 +164,6 @@ public:
 	// Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostLoad() override;
 	// End of UObject interface
 
 	UE_DEPRECATED(4.26, "SetFolderName was renamed to SetFolderPath")

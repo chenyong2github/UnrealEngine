@@ -74,7 +74,7 @@ protected:
 		// specify the path to the editor exe if necessary
 		if(EditorExe.Len() > 0)
 		{
-			UATCommandLine += FString::Printf(TEXT(" -ue4exe=\"%s\""), *EditorExe);
+			UATCommandLine += FString::Printf(TEXT(" -unrealexe=\"%s\""), *EditorExe);
 		}
 
 		// specialized command arguments for this particular task

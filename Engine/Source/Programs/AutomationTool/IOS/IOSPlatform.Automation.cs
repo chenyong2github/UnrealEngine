@@ -1741,7 +1741,7 @@ public class IOSPlatform : Platform
 
 		if (CachedDevices.Where(CachedDevice => CachedDevice.Id == UDID && CachedDevice.SubType == "Network").Count() > 0)
 		{
-			return "-n " + EntryArguments;
+			return EntryArguments + " -n";
 		}
 		return EntryArguments;
 	}
@@ -1920,42 +1920,13 @@ public class IOSPlatform : Platform
 	}
 	public override IProcessResult RunClient(ERunOptions ClientRunFlags, string ClientApp, string ClientCmdLine, ProjectParams Params)
 	{
-		if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+		if (UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 		{
 			if (Params.Devices.Count != 1)
 			{
 				throw new AutomationException("Can only run on a single specified device, but {0} were specified", Params.Devices.Count);
 			}
 
-			// This code only cares about connected devices so just call the run loop a few times to get the existing connected devices
-			// 			MobileDeviceInstanceManager.Initialize(MobileDeviceConnected, MobileDeviceDisconnected);
-			// 			for(int i = 0; i < 4; ++i)
-			// 			{
-			// 				System.Threading.Thread.Sleep(1);
-			// 				CoreFoundationRunLoop.RunLoopRunInMode(CoreFoundationRunLoop.kCFRunLoopDefaultMode(), 0.25, 0);
-			// 			}
-			// 			
-			/*			string AppDirectory = string.Format("{0}/Payload/{1}.app",
-				Path.GetDirectoryName(Params.ProjectGameExeFilename), 
-				Path.GetFileNameWithoutExtension(Params.ProjectGameExeFilename));
-			string GameName = Path.GetFileNameWithoutExtension (ClientApp);
-			if (GameName.Contains ("-IOS-"))
-			{
-				GameName = GameName.Substring (0, GameName.IndexOf ("-IOS-"));
-			}
-			string GameApp = AppDirectory + "/" + GameName;
-			bWasGenerated = false;
-			XcodeProj = EnsureXcodeProjectExists (Params.RawProjectPath, CmdEnv.LocalRoot, Params.ShortProjectName, GetDirectoryName(Params.RawProjectPath), Params.IsCodeBasedProject, out bWasGenerated);
-			string Arguments = "UBT_NO_POST_DEPLOY=true /usr/bin/xcrun xcodebuild test -project \"" + XcodeProj + "\"";
-			Arguments += " -scheme '";
-			Arguments += GameName;
-			Arguments += " - iOS'";
-			Arguments += " -configuration " + Params.ClientConfigsToBuild [0].ToString();
-			Arguments += " -destination 'platform=iOS,id=" + Params.Device.Substring(Params.Device.IndexOf("@")+1) + "'";
-			Arguments += " TEST_HOST=\"";
-			Arguments += GameApp;
-			Arguments += "\" BUNDLE_LOADER=\"";
-			Arguments += GameApp + "\"";*/
 			string BundleIdentifier = "";
 			if (File.Exists(Params.BaseStageDirectory + "/" + PlatformName + "/Info.plist"))
 			{
@@ -1965,12 +1936,22 @@ public class IOSPlatform : Platform
 				int EndPos = Contents.IndexOf("</string>", Pos);
 				BundleIdentifier = Contents.Substring(Pos, EndPos - Pos);
 			}
-			string Arguments = "/usr/bin/instruments";
-			Arguments += " -w '" + Params.DeviceNames[0] + "'";
-			Arguments += " -t 'Activity Monitor'";
-			Arguments += " -D \"" + Params.BaseStageDirectory + "/" + PlatformName + "/launch.trace\"";
-			Arguments += " '" + BundleIdentifier + "'";
-			IProcessResult ClientProcess = Run("/usr/bin/env", Arguments, null, ClientRunFlags | ERunOptions.NoWaitForExit);
+
+			string Program = GetPathToLibiMobileDeviceTool("idevicedebug"); ;
+			string Arguments = " -u '" + Params.DeviceNames[0] + "'";
+			Arguments = GetLibimobileDeviceNetworkedArgument(Arguments, Params.DeviceNames[0]);
+			Arguments += " run '" + BundleIdentifier + "'";
+
+			IProcessResult ClientProcess = Run(Program, Arguments, null, ClientRunFlags | ERunOptions.NoWaitForExit);
+			if (ClientProcess.ExitCode == -1)
+			{
+				Console.WriteLine("The application {0} has been installed on the device {1} but it cannot be launched automatically because the device does not contain the required developer software. You can launch {0} the manually by clicking its icon on the device.", BundleIdentifier, Params.DeviceNames[0]);
+				Console.WriteLine("To install the developer software tools, connect it to a Mac running Xcode, open the Devices and Simulators window and wait for the tools to be installed.");
+				IProcessResult Result = new ProcessResult("DummyApp", null, false);
+				Result.ExitCode = 0;
+				return Result;
+
+			}
 			return new IOSClientProcess(ClientProcess, Params.DeviceNames[0]);
 		}
 		else

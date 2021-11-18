@@ -6,8 +6,6 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-#nullable disable
-
 namespace EpicGames.Core
 {
 	/// <summary>
@@ -20,7 +18,7 @@ namespace EpicGames.Core
 		/// </summary>
 		class ReferenceComparer : IEqualityComparer<object>
 		{
-			bool IEqualityComparer<object>.Equals(object A, object B)
+			bool IEqualityComparer<object>.Equals(object? A, object? B)
 			{
 				return A == B;
 			}
@@ -39,7 +37,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The output stream being written to
 		/// </summary>
-		Stream Stream;
+		Stream? Stream;
 
 		/// <summary>
 		/// Buffer for data to be written to the stream
@@ -96,7 +94,7 @@ namespace EpicGames.Core
 		{
 			if (BufferPos > 0)
 			{
-				Stream.Write(Buffer, 0, BufferPos);
+				Stream!.Write(Buffer, 0, BufferPos);
 				BufferPos = 0;
 			}
 		}
@@ -238,9 +236,9 @@ namespace EpicGames.Core
 		/// Writes a string to the output
 		/// </summary>
 		/// <param name="Value">Value to write</param>
-		public void WriteString(string Value)
+		public void WriteString(string? Value)
 		{
-			byte[] Bytes;
+			byte[]? Bytes;
 			if (Value == null)
 			{
 				Bytes = null;
@@ -256,7 +254,7 @@ namespace EpicGames.Core
 		/// Writes an array of bytes to the output
 		/// </summary>
 		/// <param name="Data">Data to write. May be null.</param>
-		public void WriteByteArray(byte[] Data)
+		public void WriteByteArray(byte[]? Data)
 		{
 			WritePrimitiveArray(Data, sizeof(byte));
 		}
@@ -283,7 +281,7 @@ namespace EpicGames.Core
 		/// Writes an array of primitive types to the output.
 		/// </summary>
 		/// <param name="Data">Data to write. May be null.</param>
-		private void WritePrimitiveArray<T>(T[] Data, int ElementSize) where T : struct
+		private void WritePrimitiveArray<T>(T[]? Data, int ElementSize) where T : struct
 		{
 			if (Data == null)
 			{
@@ -365,7 +363,7 @@ namespace EpicGames.Core
 		/// <typeparam name="T">Type of the element</typeparam>
 		/// <param name="Items">Array of items</param>
 		/// <param name="WriteElement">Writes an individual element to the archive</param>
-		public void WriteArray<T>(T[] Items, Action<T> WriteElement)
+		public void WriteArray<T>(T[]? Items, Action<T> WriteElement)
 		{
 			if (Items == null)
 			{
@@ -387,7 +385,7 @@ namespace EpicGames.Core
 		/// <typeparam name="T">Type of the element</typeparam>
 		/// <param name="Items">List of items</param>
 		/// <param name="WriteElement">Writes an individual element to the archive</param>
-		public void WriteList<T>(IReadOnlyList<T> Items, Action<T> WriteElement)
+		public void WriteList<T>(IReadOnlyList<T>? Items, Action<T> WriteElement)
 		{
 			if (Items == null)
 			{
@@ -433,7 +431,7 @@ namespace EpicGames.Core
 		/// <param name="Dictionary">The dictionary to write</param>
 		/// <param name="WriteKey">Delegate used to read a single key</param>
 		/// <param name="WriteValue">Delegate used to read a single value</param>
-		public void WriteDictionary<K, V>(IReadOnlyDictionary<K, V> Dictionary, Action<K> WriteKey, Action<V> WriteValue)
+		public void WriteDictionary<K, V>(IReadOnlyDictionary<K, V> Dictionary, Action<K> WriteKey, Action<V> WriteValue) where K : notnull
 		{
 			if (Dictionary == null)
 			{
@@ -501,7 +499,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Object">The object to serialize</param>
 		/// <param name="WriteObject">Delegate used to write the object</param>
-		public void WriteObjectReference(object Object, Action WriteObject)
+		public void WriteObjectReference(object? Object, Action WriteObject)
 		{
 			if (Object == null)
 			{
@@ -527,9 +525,9 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Object">The object to serialize</param>
 		/// <param name="WriteObject">Delegate used to write the object</param>
-		public void WriteObjectReference<T>(T Object, Action WriteObject) where T : class
+		public void WriteObjectReference<T>(T Object, Action WriteObject) where T : class?
 		{
-			WriteObjectReference((object)Object, WriteObject);
+			WriteObjectReference((object?)Object, WriteObject);
 		}
 	}
 }

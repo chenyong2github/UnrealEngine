@@ -3074,7 +3074,7 @@ void FSlateApplication::ProcessExternalReply(const FWidgetPath& CurrentEventPath
 void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const FReply& TheReply, const FWidgetPath* WidgetsUnderMouse, const FPointerEvent* InMouseEvent, const uint32 UserIndex )
 {
 	const TSharedPtr<FDragDropOperation> ReplyDragDropContent = TheReply.GetDragDropContent();
-	const bool bStartingDragDrop = ReplyDragDropContent.IsValid();
+	const bool bStartingDragDrop = ReplyDragDropContent.IsValid() && WidgetsUnderMouse && WidgetsUnderMouse->IsValid();
 	const bool bIsVirtualInteraction = CurrentEventPath.IsValid() ? CurrentEventPath.GetWindow()->IsVirtualWindow() : false;
 
 	// Release mouse capture if requested or if we are starting a drag and drop.

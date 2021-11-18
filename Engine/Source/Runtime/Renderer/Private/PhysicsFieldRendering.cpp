@@ -72,7 +72,7 @@ class FPhysicsFieldRayMarchingCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, BoundsSize)
 		SHADER_PARAMETER(uint32, LocalTarget)
 		SHADER_PARAMETER(uint32, GlobalTarget)
-		SHADER_PARAMETER(FVector2D, OutputResolution)
+		SHADER_PARAMETER(FVector2f, OutputResolution)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture)
 	END_SHADER_PARAMETER_STRUCT()
 

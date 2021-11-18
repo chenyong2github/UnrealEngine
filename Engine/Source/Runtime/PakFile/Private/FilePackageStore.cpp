@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "FilePackageStore.h"
 #include "IO/IoContainerId.h"
-#include "Internationalization/Culture.h"
-#include "Internationalization/Internationalization.h"
 #include "Misc/CommandLine.h"
 #include "IO/IoContainerHeader.h"
 #include "Misc/ScopeRWLock.h"
@@ -12,6 +10,8 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
+DEFINE_LOG_CATEGORY_STATIC(LogFilePackageStore, Log, All);
+
 thread_local bool FFilePackageStore::bIsLockedOnThread = false;
 
 FFilePackageStore::FFilePackageStore()
@@ -20,11 +20,6 @@ FFilePackageStore::FFilePackageStore()
 
 void FFilePackageStore::Initialize()
 {
-	FInternationalization::Get().OnCultureChanged().AddLambda([this]
-	{
-		FWriteScopeLock Lock(EntriesLock);
-		bNeedsUpdate = true;
-	});
 }
 
 void FFilePackageStore::Lock()
@@ -76,15 +71,27 @@ bool FFilePackageStore::GetPackageRedirectInfo(FPackageId PackageId, FName& OutS
 	{
 		OutSourcePackageName = FindRedirect->Get<0>();
 		OutRedirectedToPackageId = FindRedirect->Get<1>();
-
-		UE_LOG(LogCore, Display, TEXT("Redirecting from %s to 0x%llx"), *OutSourcePackageName.ToString(), OutRedirectedToPackageId.Value());
-
+		UE_LOG(LogFilePackageStore, Verbose, TEXT("Redirecting from %s to 0x%llx"), *OutSourcePackageName.ToString(), OutRedirectedToPackageId.Value());
 		return true;
 	}
-	else
+	
+	const FName* FindLocalizedPackageSourceName = LocalizedPackages.Find(PackageId);
+	if (FindLocalizedPackageSourceName)
 	{
-		return false;
+		FName LocalizedPackageName = FPackageLocalizationManager::Get().FindLocalizedPackageName(*FindLocalizedPackageSourceName);
+		if (!LocalizedPackageName.IsNone())
+		{
+			FPackageId LocalizedPackageId = FPackageId::FromName(LocalizedPackageName);
+			if (StoreEntriesMap.Find(LocalizedPackageId))
+			{
+				OutSourcePackageName = *FindLocalizedPackageSourceName;
+				OutRedirectedToPackageId = LocalizedPackageId;
+				UE_LOG(LogFilePackageStore, Verbose, TEXT("Redirecting from localized package %s to 0x%llx"), *OutSourcePackageName.ToString(), OutRedirectedToPackageId.Value());
+				return true;
+			}
+		}
 	}
+	return false;
 }
 
 void FFilePackageStore::Mount(const FIoContainerHeader* ContainerHeader, uint32 Order)
@@ -125,6 +132,7 @@ void FFilePackageStore::Update()
 	}
 
 	StoreEntriesMap.Empty();
+	LocalizedPackages.Empty();
 	RedirectsPackageMap.Empty();
 
 	uint32 TotalPackageCount = 0;
@@ -134,7 +142,6 @@ void FFilePackageStore::Update()
 	}
 
 	StoreEntriesMap.Reserve(TotalPackageCount);
-	TMap<FPackageId, FName> AllLocalizedPackages;
 	for (const FMountedContainer& MountedContainer : MountedContainers)
 	{
 		const FIoContainerHeader* ContainerHeader = MountedContainer.ContainerHeader;
@@ -150,40 +157,21 @@ void FFilePackageStore::Update()
 
 		for (const FIoContainerHeaderLocalizedPackage& LocalizedPackage : ContainerHeader->LocalizedPackages)
 		{
-			FName& SourcePackageName = AllLocalizedPackages.FindOrAdd(LocalizedPackage.SourcePackageId);
-			if (SourcePackageName.IsNone())
+			FName& LocalizedPackageSourceName = LocalizedPackages.FindOrAdd(LocalizedPackage.SourcePackageId);
+			if (LocalizedPackageSourceName.IsNone())
 			{
 				FNameEntryId NameEntry = ContainerHeader->RedirectsNameMap[LocalizedPackage.SourcePackageName.GetIndex()];
-				SourcePackageName = FName::CreateFromDisplayId(NameEntry, LocalizedPackage.SourcePackageName.GetNumber());
+				LocalizedPackageSourceName = FName::CreateFromDisplayId(NameEntry, LocalizedPackage.SourcePackageName.GetNumber());
 			}
 		}
 
+		for (const FIoContainerHeaderPackageRedirect& Redirect : ContainerHeader->PackageRedirects)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreRedirects);
-			for (const FIoContainerHeaderPackageRedirect& Redirect : ContainerHeader->PackageRedirects)
-			{
-				FNameEntryId NameEntry = ContainerHeader->RedirectsNameMap[Redirect.SourcePackageName.GetIndex()];
-				FName SourcePackageName = FName::CreateFromDisplayId(NameEntry, Redirect.SourcePackageName.GetNumber());
-				RedirectsPackageMap.Emplace(Redirect.SourcePackageId, MakeTuple(SourcePackageName, Redirect.TargetPackageId));
-			}
+			FNameEntryId NameEntry = ContainerHeader->RedirectsNameMap[Redirect.SourcePackageName.GetIndex()];
+			FName SourcePackageName = FName::CreateFromDisplayId(NameEntry, Redirect.SourcePackageName.GetNumber());
+			RedirectsPackageMap.Emplace(Redirect.SourcePackageId, MakeTuple(SourcePackageName, Redirect.TargetPackageId));
 		}
 	}
-
-	for (const auto& KV : AllLocalizedPackages)
-	{
-		const FPackageId& SourcePackageId = KV.Key;
-		const FName& SourcePackageName = KV.Value;
-		FName LocalizedPackageName = FPackageLocalizationManager::Get().FindLocalizedPackageName(SourcePackageName);
-		if (!LocalizedPackageName.IsNone())
-		{
-			FPackageId RedirectedToPackageId = FPackageId::FromName(LocalizedPackageName);
-			if (StoreEntriesMap.Find(RedirectedToPackageId))
-			{
-				RedirectsPackageMap.Emplace(SourcePackageId, MakeTuple(SourcePackageName, RedirectedToPackageId));
-			}
-		}
-	}
-	
 	bNeedsUpdate = false;
 }
 

@@ -82,6 +82,8 @@ class OscServer:
         LOGGER.warning(f'Received unhandled OSC message: {command} {args}.')
 
 
+MultiUserServerInstance = None
+
 class MultiUserApplication:
     def __init__(self):
         self.lock = threading.Lock()
@@ -95,6 +97,20 @@ class MultiUserApplication:
 
     def exe_name(self):
         return os.path.split(self.exe_path())[1]
+
+    def get_mu_server_multicast_arg(self):
+        multicast = CONFIG.MUSERVER_MULTICAST_ENDPOINT.get_value().strip()
+        if multicast:
+            return f'-UDPMESSAGING_TRANSPORT_MULTICAST={multicast}'
+        return ''
+
+    def get_mu_server_endpoint_arg(self):
+        setting_val = CONFIG.MUSERVER_ENDPOINT.strip()
+        if setting_val:
+            converted_ip = sb_utils.expand_endpoint(setting_val,
+                                                    SETTINGS.IP_ADDRESS.strip())
+            return f'-UDPMESSAGING_TRANSPORT_UNICAST="{converted_ip}"'
+        return ''
 
     def poll_process(self):
         # Aside from this task_name, PollProcess is stateless,
@@ -115,8 +131,10 @@ class MultiUserApplication:
                 return
 
             cmdline = f'start "Multi User Server" "{self.exe_path()}"'
-            cmdline += f' -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME}'
+            cmdline += f' -CONCERTSERVER="{CONFIG.MUSERVER_SERVER_NAME}"'
             cmdline += f' {CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS}'
+            cmdline += f' {self.get_mu_server_endpoint_arg()}'
+            cmdline += f' {self.get_mu_server_multicast_arg()}'
 
             if self.concert_ignore_cl:
                 cmdline += " -ConcertIgnore"
@@ -134,8 +152,8 @@ class MultiUserApplication:
 
             return True
 
-    def terminate(self):
-        if self.process:
+    def terminate(self, bypolling=False):
+        if not bypolling and self.process:
             self.process.terminate()
         else:
             self.poll_process().kill()
@@ -148,6 +166,11 @@ class MultiUserApplication:
 
         return False
 
+def get_multi_user_server_instance():
+    global MultiUserServerInstance
+    if not MultiUserServerInstance:
+        MultiUserServerInstance = MultiUserApplication()
+    return MultiUserServerInstance
 
 class RsyncServer:
     DEFAULT_PORT = 873

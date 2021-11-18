@@ -647,7 +647,7 @@ void UNiagaraStackEntry::RefreshChildren()
 	// they weren't reused.
 	for (UNiagaraStackEntry* Child : Children)
 	{
-		if (!NewChildren.Contains(Child) && Child->GetOuter() == this && !Child->IsA<UNiagaraStackItemGroup>())
+		if (!NewChildren.Contains(Child) && Child->GetOuter() == this)
 		{
 			Child->Finalize();
 		}

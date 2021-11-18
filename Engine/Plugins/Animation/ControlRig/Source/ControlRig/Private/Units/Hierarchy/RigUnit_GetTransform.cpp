@@ -21,6 +21,7 @@ FRigUnit_GetTransform_Execute()
 			case EControlRigState::Init:
 			{
 				CachedIndex.Reset();
+				break;
 			}
 			case EControlRigState::Update:
 			{

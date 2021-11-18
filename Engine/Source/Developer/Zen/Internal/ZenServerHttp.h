@@ -156,6 +156,8 @@ public:
 	ZEN_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload);
 	ZEN_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload, EContentType ContentType);
 
+	ZEN_API Result PerformRpc(FStringView Uri, FCbObjectView Request, FCbPackage &OutResponse);
+
 	/** Returns the response buffer as a string. Note that is the request is performed
 		with an external buffer as target buffer this string will be empty.
 	 */

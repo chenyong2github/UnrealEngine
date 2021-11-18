@@ -558,7 +558,10 @@ public:
 
 	/* Returns the number of max expected particles for memory allocations. */
 	NIAGARA_API int32 GetMaxParticleCountEstimate();
-	NIAGARA_API uint32 GetMaxInstanceCount() const;
+	NIAGARA_API uint32 GetMaxInstanceCount() { return MaxInstanceCount; }
+
+	/* Returns the maximum size we can allocate and hold for instances */
+	uint32 GetMaxAllocationCount() const { return MaxAllocationCount; }
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
@@ -695,6 +698,9 @@ private:
 
 	/** Maximum number of instances we can create for this emitter. */
 	uint32 MaxInstanceCount = 0;
+
+	/** Maximum instance allocations size for the emitter, can be larger than MaxInstanceCount */
+	uint32 MaxAllocationCount = 0;
 
 	/** Optional list of bounds calculators. */
 	TArray<TUniquePtr<FNiagaraBoundsCalculator>, TInlineAllocator<1>> BoundsCalculators;

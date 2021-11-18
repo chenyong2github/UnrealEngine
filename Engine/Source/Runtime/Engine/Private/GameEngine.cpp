@@ -167,8 +167,9 @@ void GenerateConvenientWindowedResolutions(const struct FDisplayMetrics& InDispl
 		else
 		{
 			//Force a resolution even if its smaller then the minimum height and width to avoid a bigger window then the desktop
-			float TargetWidth = FMath::RoundToFloat(InDisplayMetrics.PrimaryDisplayWidth) * Scales[NumScales - 1];
-			float TargetHeight = FMath::RoundToFloat(InDisplayMetrics.PrimaryDisplayHeight) * Scales[NumScales - 1];
+			// LWC_TODO: revisit. Seems like the round should be done after the multiply, otherwise the int was going to float and no rounding at all occured here.
+			float TargetWidth = FMath::RoundToFloat((float)InDisplayMetrics.PrimaryDisplayWidth) * Scales[NumScales - 1];
+			float TargetHeight = FMath::RoundToFloat((float)InDisplayMetrics.PrimaryDisplayHeight) * Scales[NumScales - 1];
 			OutResolutions.Add(FIntPoint(TargetWidth, TargetHeight));
 		}
 	}

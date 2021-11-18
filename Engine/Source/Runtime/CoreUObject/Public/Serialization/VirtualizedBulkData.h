@@ -379,7 +379,15 @@ private:
 	void Unregister();
 
 	/** Utility to return an apt error message if a payload loaded from this object is considered corrupt. Handles the formatting depending on the various payload flags etc. */
-	FString GetCorruptedPayloadErrorMessage() const;
+	FString GetCorruptedPayloadErrorMsgForLoad() const;
+
+	/** 
+	 * Utility to return an apt error message if the payload is invalid when trying to save the bulkdata. It will try to provide the best info from the given options.
+	 * 
+	 * @param Linker	The FLinkerSave being used to save the bulkdata at the point of error. This can be nullptr if the bulkdata is not being saved to a package on disk.
+	 * @return			The formatted error message.
+	 */
+	FText GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) const;
 
 	/** Unique identifier for the bulkdata object itself */
 	FGuid BulkDataId;

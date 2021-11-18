@@ -29,7 +29,7 @@ UObject* UIKRetargetFactory::FactoryCreateNew(
 	UObject* Context,
 	FFeedbackContext* Warn)
 {
-	if (!SourceIKRig)
+	if (!SourceIKRig.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Unable to create IK Retargter. No source IK Rig asset supplied."));
 		return nullptr;
@@ -43,7 +43,7 @@ UObject* UIKRetargetFactory::FactoryCreateNew(
 	
 	UIKRetargeter* Retargeter = NewObject<UIKRetargeter>(InParent, Class, Name, Flags);
 	UIKRetargeterController* Controller = UIKRetargeterController::GetController(Retargeter);
-	Controller->SetSourceIKRig(SourceIKRig);
+	Controller->SetSourceIKRig(SourceIKRig.Get());
 	return Retargeter;
 }
 

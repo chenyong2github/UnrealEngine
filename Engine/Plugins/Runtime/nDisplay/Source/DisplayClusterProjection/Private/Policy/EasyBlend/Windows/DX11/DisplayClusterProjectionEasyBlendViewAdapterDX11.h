@@ -29,7 +29,7 @@ public:
 
 protected:
 	void ImplInitializeResources_RenderThread();
-	bool ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int ContextNum, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures);
+	bool ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 ContextNum, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures);
 
 private:
 	float ZNear;

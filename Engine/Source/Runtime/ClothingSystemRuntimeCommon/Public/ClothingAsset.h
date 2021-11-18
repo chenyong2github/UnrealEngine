@@ -116,6 +116,12 @@ public:
 	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh) override;
 	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex) override;
 
+	/**
+	 * Update all extra LOD deformer mappings.
+	 * This should be called whenever the raytracing LOD bias has changed.
+	 */
+	virtual void UpdateAllLODBiasMappings(USkeletalMesh* SkeletalMesh) override;
+
 	/** 
 	 * Callback envoked after weights have been edited.
 	 * Calls \c PushWeightsToMesh() on each \c ClothLodData, and invalidates cached data. 
@@ -124,9 +130,9 @@ public:
 	void ApplyParameterMasks(bool bUpdateFixedVertData = false);
 
 	/**
-	 *	Builds the LOD transition data.
-	 *	When we transition between LODs we skin the incoming mesh to the outgoing mesh
-	 *	in exactly the same way the render mesh is skinned to create a smooth swap
+	 * Builds the LOD transition data.
+	 * When we transition between LODs we skin the incoming mesh to the outgoing mesh
+	 * in exactly the same way the render mesh is skinned to create a smooth swap
 	 */
 	void BuildLodTransitionData();
 
@@ -311,6 +317,12 @@ private:
 	}
 
 #if WITH_EDITOR
+	// Add extra cloth deformer mappings to cope with a different raytracing LOD than the one currently rendered.
+	void UpdateLODBiasMappings(const USkeletalMesh* SkeletalMesh, int32 UpdatedLODIndex, int32 SectionIndex);
+
+	// Clear all defomer section that relies on the specified cloth sim data bound to the specified LOD section 
+	void ClearLODBiasMappings(const USkeletalMesh* SkeletalMesh, int32 UpdatedLODIndex, int32 SectionIndex);
+
 	// Helper functions used in PostPropertyChangeCb
 	void ReregisterComponentsUsingClothing();
 	void ForEachInteractorUsingClothing(TFunction<void (UClothingSimulationInteractor*)> Func);

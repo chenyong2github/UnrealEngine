@@ -37,6 +37,45 @@ bool UJsonBlueprintFunctionLibrary::FromFile(
 	return FromString(WorldContextObject, JsonString, OutJsonObject);
 }
 
+bool UJsonBlueprintFunctionLibrary::ToString(const FJsonObjectWrapper& JsonObject, FString& OutJsonString)
+{
+	if (!JsonObject.JsonObjectToString(OutJsonString))
+	{
+		FFrame::KismetExecutionMessage(TEXT("Failed to convert JSON Object to string"), ELogVerbosity::Error);
+		return false;
+	}
+
+	return true;
+}
+
+bool UJsonBlueprintFunctionLibrary::ToFile(const FJsonObjectWrapper& JsonObject, const FFilePath& File)
+{
+	if (!FPaths::DirectoryExists(FPaths::GetPath(File.FilePath)))
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Directory not found: %s"), *FPaths::GetPath(File.FilePath)), ELogVerbosity::Error);
+		return false;
+	}
+
+	if (File.FilePath.IsEmpty())
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("FileName cannot be empty")), ELogVerbosity::Error);
+		return false;
+	}
+
+	if (FString JsonString; ToString(JsonObject, JsonString))
+	{
+		const bool& bResult = FFileHelper::SaveStringToFile(JsonString, *File.FilePath);
+		if (!bResult)
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Failed to save JSON to file. %s"), *JsonString), ELogVerbosity::Error);
+		}
+
+		return bResult;
+	}
+
+	return false;
+}
+
 DEFINE_FUNCTION(UJsonBlueprintFunctionLibrary::execGetField)
 {
 	P_GET_STRUCT_REF(FJsonObjectWrapper, JsonObject);
@@ -58,10 +97,20 @@ DEFINE_FUNCTION(UJsonBlueprintFunctionLibrary::execGetField)
 	}
 
 	bool bResult;
-	if(FieldName.IsEmpty())
+	if (FieldName.IsEmpty())
 	{
-		bResult = false;
-		*static_cast<bool*>(RESULT_PARAM) = bResult;
+		FStructProperty* StructProperty = static_cast<FStructProperty*>(ValueProp);
+		if (!StructProperty)
+		{
+			bResult = false;
+			*StaticCast<bool*>(RESULT_PARAM) = bResult;
+			return;
+		}
+		
+		P_NATIVE_BEGIN
+		bResult = FJsonObjectConverter::JsonObjectToUStruct(JsonObject.JsonObject.ToSharedRef(), StructProperty->Struct, ValuePtr);
+		P_NATIVE_END
+		*StaticCast<bool*>(RESULT_PARAM) = bResult;
 		return;
 	}
 
@@ -93,27 +142,56 @@ DEFINE_FUNCTION(UJsonBlueprintFunctionLibrary::execSetField)
 	}
 
 	bool bResult;
-	if(FieldName.IsEmpty())
+	if (FieldName.IsEmpty())
 	{
-		bResult = false;
-		*static_cast<bool*>(RESULT_PARAM) = bResult;
-		return;
+		FStructProperty* StructProperty = CastField<FStructProperty>(SourceProperty);
+		if (!StructProperty)
+		{
+			bResult = false;
+			*StaticCast<bool*>(RESULT_PARAM) = bResult;
+			return;
+		}
+
+		P_NATIVE_BEGIN
+		bResult = FJsonObjectConverter::UStructToJsonObject(StructProperty->Struct, SourceValuePtr, JsonObject.JsonObject.ToSharedRef());
+		P_NATIVE_END
+	}
+	else
+	{
+		P_NATIVE_BEGIN
+		bResult = PropertyToJsonField(FieldName, SourceProperty, SourceValuePtr, JsonObject);
+		P_NATIVE_END
 	}
 
-	P_NATIVE_BEGIN
-	bResult = PropertyToJsonField(FieldName, SourceProperty, SourceValuePtr, JsonObject);
 	// If successful, refresh the stored JsonString
-	if(bResult)
+	P_NATIVE_BEGIN
+	if (bResult)
 	{
-		if(!FJsonSerializer::Serialize(JsonObject.JsonObject.ToSharedRef(), TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&JsonObject.JsonString)))
+		if (!FJsonSerializer::Serialize(JsonObject.JsonObject.ToSharedRef(), TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&JsonObject.JsonString)))
 		{
-			FFrame::KismetExecutionMessage(TEXT("Error serializing Json Object."), ELogVerbosity::Error);
+			FFrame::KismetExecutionMessage(TEXT("Error serializing JSON Object."), ELogVerbosity::Error);
 			bResult = false;
 		}
 	}
 	P_NATIVE_END
+	
+	*StaticCast<bool*>(RESULT_PARAM) = bResult;
+}
 
-	*static_cast<bool*>(RESULT_PARAM) = bResult;
+bool UJsonBlueprintFunctionLibrary::HasField(const FJsonObjectWrapper& JsonObject, const FString& FieldName)
+{
+	return JsonObject.JsonObject->HasField(FieldName);
+}
+
+bool UJsonBlueprintFunctionLibrary::GetFieldNames(const FJsonObjectWrapper& JsonObject, TArray<FString>& FieldNames)
+{
+	FieldNames.Reserve(JsonObject.JsonObject->Values.Num());
+	for (const TPair<FString, TSharedPtr<FJsonValue>>& Field : JsonObject.JsonObject->Values)
+	{
+		FieldNames.Add(Field.Key);
+	}
+
+	return true;
 }
 
 bool UJsonBlueprintFunctionLibrary::JsonFieldToProperty(
@@ -129,7 +207,7 @@ bool UJsonBlueprintFunctionLibrary::JsonFieldToProperty(
 	const TSharedPtr<FJsonValue> JsonValue = SourceObject.JsonObject->TryGetField(FieldName);
 	if(!JsonValue.IsValid())
 	{
-		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Field '%s' was not found on the provided Json object."), *FieldName), ELogVerbosity::Warning);
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Field '%s' was not found on the provided JSON object."), *FieldName), ELogVerbosity::Warning);
 		return false;
 	}
 	

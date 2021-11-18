@@ -60,6 +60,16 @@ public:
 	}
 
 	virtual void PostEditUndo() override;
+
+	const UMetasoundEditorGraphMember* GetParentMember() const
+	{
+		return Cast<UMetasoundEditorGraphMember>(GetOuter());
+	}
+
+	UMetasoundEditorGraphMember* GetParentMember()
+	{
+		return Cast<UMetasoundEditorGraphMember>(GetOuter());
+	}
 };
 
 /** UMetasoundEditorGraphMember is a base class for non-node graph level members 
@@ -78,36 +88,44 @@ public:
 	FOnMetasoundMemberNameChanged NameChanged;
 
 	/** Return the section of where this member belongs. */
-	virtual Metasound::Editor::ENodeSection GetSectionID() const;
+	virtual Metasound::Editor::ENodeSection GetSectionID() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetSectionID, return Metasound::Editor::ENodeSection::None; );
+
 	/** If true, this member cannot be removed by the user. */
-	virtual bool IsRequired() const;
+	virtual bool IsRequired() const PURE_VIRTUAL(UMetasoundEditorGraphMember::IsRequired, return false; );
+
 	/** Return the nodes associated with this member */
-	virtual TArray<UMetasoundEditorGraphNode*> GetNodes() const;
+	virtual TArray<UMetasoundEditorGraphNode*> GetNodes() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetNodes, return TArray<UMetasoundEditorGraphNode*>(); );
 
 	/** Sets the datatype on the member. */
-	virtual void SetDataType(FName InNewType, bool bPostTransaction = true, bool bRegisterParentGraph = true);
+	virtual void SetDataType(FName InNewType, bool bPostTransaction = true, bool bRegisterParentGraph = true) PURE_VIRTUAL(UMetasoundEditorGraphMember::SetDataType, );
 	
 	/** If the Member Name can be changed to InNewName, returns true,
 	 * otherwise returns false with an error. */
-	virtual bool CanRename(const FText& InNewName, FText& OutError) const;
+	virtual bool CanRename(const FText& InNewName, FText& OutError) const PURE_VIRTUAL(UMetasoundEditorGraphMember::CanRename, return false; );
 
 	/** Set the display name */
-	virtual void SetDisplayName(const FText& InNewName);
+	virtual void SetDisplayName(const FText& InNewName, bool bPostTransaction) PURE_VIRTUAL(UMetasoundEditorGraphMember::SetDisplayName, );
+
 	/** Get the member display name */
-	virtual FText GetDisplayName() const;
+	virtual FText GetDisplayName() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetDisplayName, return FText::GetEmpty(); );
 
 	/** Set the member name */
-	virtual void SetMemberName(const FName& InNewName);
+	virtual void SetMemberName(const FName& InNewName, bool bPostTransaction) PURE_VIRTUAL(UMetasoundEditorGraphMember::SetMemberName, );
+
 	/** Gets the members name */
-	virtual FName GetMemberName() const;
+	virtual FName GetMemberName() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetMemberName, return FName(); );
+
+	/** Get ID for this member */
+	virtual FGuid GetMemberID() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetMemberID, return FGuid(); );
 
 	/** Set the member description */
-	virtual void SetDescription(const FText& InDescription);
+	virtual void SetDescription(const FText& InDescription, bool bPostTransaction) PURE_VIRTUAL(UMetasoundEditorGraphMember::SetDescription, );
+
 	/** Get the member description */
-	virtual FText GetDescription() const;
+	virtual FText GetDescription() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetDescription, return FText::GetEmpty(); );
 
 	/** Returns the label of the derived member type (e.g. Input/Output/Variable) */
-	virtual const FText& GetGraphMemberLabel() const;
+	virtual const FText& GetGraphMemberLabel() const PURE_VIRTUAL(UMetasoundEditorGraphMember::GetGraphMemberLabel, return FText::GetEmpty(); );
 
 	/** Returns the parent MetaSound Graph. If the Outer object of the member is non
 	 * a UMetasoundEditorGraph, returns a nullptr. */
@@ -116,6 +134,8 @@ public:
 	/** Returns the parent MetaSound Graph. If the Outer object of the member is non
 	 * a UMetasoundEditorGraph, returns a nullptr. */
 	const UMetasoundEditorGraph* GetOwningGraph() const;
+
+	void MarkNodesForRefresh();
 };
 
 /** Base class for an input or output of the graph. */
@@ -143,6 +163,7 @@ public:
 	FMetasoundFrontendClassName ClassName;
 
 	/* ~Begin UMetasoundEditorGraphMember interface */
+	virtual FGuid GetMemberID() const override;
 	virtual FName GetMemberName() const override; 
 	virtual FText GetDescription() const override;
 	virtual FText GetDisplayName() const override;
@@ -150,9 +171,9 @@ public:
 	virtual bool CanRename(const FText& InNewName, FText& OutError) const override;
 	virtual bool IsRequired() const override;
 	virtual TArray<UMetasoundEditorGraphNode*> GetNodes() const override;
-	virtual void SetDescription(const FText& InDescription) override;
-	virtual void SetMemberName(const FName& InNewName) override;
-	virtual void SetDisplayName(const FText& InNewName) override;
+	virtual void SetDescription(const FText& InDescription, bool bPostTransaction) override;
+	virtual void SetMemberName(const FName& InNewName, bool bPostTransaction) override;
+	virtual void SetDisplayName(const FText& InNewName, bool bPostTransaction) override;
 	virtual void SetDataType(FName InNewType, bool bPostTransaction = true, bool bRegisterParentGraph = true) override;
 	/* ~End UMetasoundEditorGraphMember interface */
 
@@ -164,6 +185,7 @@ public:
 
 	/** Returns the node handle associated with the vertex. */
 	Metasound::Frontend::FNodeHandle GetNodeHandle();
+
 	/** Returns the node handle associated with the vertex. */
 	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
 };
@@ -176,7 +198,7 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInput : public UMetasoundEditorGr
 protected:
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Input; }
-	virtual const FText& GetGraphMemberLabel() const override;
+
 public:
 	UPROPERTY(VisibleAnywhere, Category = DefaultValue)
 	UMetasoundEditorGraphInputLiteral* Literal;
@@ -186,11 +208,16 @@ public:
 	void OnDataTypeChanged() override;
 
 	void UpdateDocumentInput(bool bPostTransaction = true);
-	virtual Metasound::Editor::ENodeSection GetSectionID() const override; 
+
+	virtual const FText& GetGraphMemberLabel() const override;
+	virtual Metasound::Editor::ENodeSection GetSectionID() const override;
 
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif // WITH_EDITOR
+private:
+
+	void UpdateEditorLiteralType();
 };
 
 
@@ -199,11 +226,13 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphOutput : public UMetasoundEditorG
 {
 	GENERATED_BODY()
 
+public:
+	virtual const FText& GetGraphMemberLabel() const override;
+
 protected:
 	virtual Metasound::Frontend::FNodeHandle AddNodeHandle(const FName& InNodeName, FName InDataType) override;
 	virtual EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Output; }
-	virtual const FText& GetGraphMemberLabel() const override;
-	virtual Metasound::Editor::ENodeSection GetSectionID() const override; 
+	virtual Metasound::Editor::ENodeSection GetSectionID() const override;
 };
 
 UCLASS()
@@ -224,14 +253,15 @@ public:
 	virtual void SetDataType(FName InNewType, bool bPostTransaction = true, bool bRegisterParentGraph = false) override;
 
 	virtual FText GetDescription() const override;
-	virtual void SetDescription(const FText& InDescription) override;
+	virtual void SetDescription(const FText& InDescription, bool bPostTransaction) override;
 
+	virtual FGuid GetMemberID() const override;
 	virtual bool CanRename(const FText& InNewName, FText& OutError) const override;
-	virtual void SetMemberName(const FName& InNewName) override; 
-	virtual FName GetMemberName() const override; 
+	virtual void SetMemberName(const FName& InNewName, bool bPostTransaction) override;
+	virtual FName GetMemberName() const override;
 
 	virtual FText GetDisplayName() const override;
-	virtual void SetDisplayName(const FText& InNewName) override;
+	virtual void SetDisplayName(const FText& InNewName, bool bPostTransaction) override;
 
 	virtual bool IsRequired() const override;
 	virtual TArray<UMetasoundEditorGraphNode*> GetNodes() const override;
@@ -298,10 +328,9 @@ public:
 	bool IsPreviewing() const;
 	bool IsEditable() const;
 
-	virtual bool Validate(bool bInClearUpdateNotes) override;
-
+	// UMetasoundEditorGraphBase Implementation
 	virtual void RegisterGraphWithFrontend() override;
-
+	virtual void SetSynchronizationRequired(bool bInClearUpdateNotes = false) override;
 
 private:
 

@@ -532,17 +532,19 @@ private:
 
 		TArray<FString> RecompileModifiedFiles;
 		TArray<uint8> MeshMaterialMaps;
+		TArray<uint8> GlobalShaderMap;
 
 		FShaderRecompileData RecompileData;
 		RecompileData.PlatformName = Client.PlatformName.ToString();
 		RecompileData.ModifiedFiles = &RecompileModifiedFiles;
 		RecompileData.MeshMaterialMaps = &MeshMaterialMaps;
+		RecompileData.GlobalShaderMap = &GlobalShaderMap;
 
 		{
 			TUniquePtr<FArchive> Ar = Request.ReadBody();
 			*Ar << RecompileData.MaterialsToLoad;
 			*Ar << RecompileData.ShaderPlatform;
-			*Ar << RecompileData.bCompileChangedShaders;
+			*Ar << RecompileData.CommandType;
 			*Ar << RecompileData.ShadersToRecompile;
 		}
 
@@ -551,6 +553,7 @@ private:
 		{
 			TUniquePtr<FArchive> Ar = Response.WriteBody();
 			*Ar << MeshMaterialMaps;
+			*Ar << GlobalShaderMap;
 		}
 
 		Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);
@@ -573,8 +576,9 @@ private:
 			RecompileData.MaterialsToLoad,
 			RecompileData.ShadersToRecompile,
 			RecompileData.MeshMaterialMaps,
+			RecompileData.GlobalShaderMap,
 			RecompileData.ModifiedFiles,
-			RecompileData.bCompileChangedShaders,
+			RecompileData.CommandType,
 			MoveTemp(RecompileCompleted)
 		});
 		check(bEnqueued);

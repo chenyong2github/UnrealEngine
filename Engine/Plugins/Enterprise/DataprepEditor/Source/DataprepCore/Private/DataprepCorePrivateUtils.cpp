@@ -32,7 +32,7 @@ void DataprepCorePrivateUtils::DeleteRegisteredAsset(UObject* Asset)
 
 		Asset->ClearFlags(RF_Standalone | RF_Public);
 		Asset->RemoveFromRoot();
-		Asset->MarkPendingKill();
+		Asset->MarkAsGarbage();
 
 		FAssetRegistryModule::AssetDeleted( Asset ) ;
 	}
@@ -120,7 +120,7 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 					FStaticMeshAttributes Attributes(*MeshDescription);
 					if(SourceModel.BuildSettings.DstLightmapIndex != -1)
 					{
-						TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+						TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 						//If the importer have enabled lightmap generation, disabling it may interfere with the build process, so we only allow enabling it.
 						SourceModel.BuildSettings.bGenerateLightmapUVs |= VertexInstanceUVs.IsValid() && VertexInstanceUVs.GetNumChannels() > SourceModel.BuildSettings.SrcLightmapIndex;
 					}

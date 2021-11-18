@@ -100,8 +100,8 @@ namespace GLTF
 		virtual void GetUnsignedIntArray(uint32* Buffer) const;
 		void         GetFloatArray(TArray<float>& Buffer) const;
 		virtual void GetFloatArray(float* Buffer) const;
-		void         GetVec2Array(TArray<FVector2D>& Buffer) const;
-		virtual void GetVec2Array(FVector2D* Buffer) const;
+		void         GetVec2Array(TArray<FVector2f>& Buffer) const;
+		virtual void GetVec2Array(FVector2f* Buffer) const;
 		void         GetVec3Array(TArray<FVector3f>& Buffer) const;
 		virtual void GetVec3Array(FVector3f* Buffer) const;
 		///@note Performs axis conversion for vec3s(i.e. from glTF right-handed and Y-up to left-handed and Z-up).
@@ -135,7 +135,7 @@ namespace GLTF
 
 		void GetUnsignedIntArray(uint32* Buffer) const override;
 		void GetFloatArray(float* Buffer) const override;
-		void GetVec2Array(FVector2D* Buffer) const override;
+		void GetVec2Array(FVector2f* Buffer) const override;
 		void GetVec3Array(FVector3f* Buffer) const override;
 		void GetVec4Array(FVector4f* Buffer) const override;
 		void GetMat4Array(FMatrix44f* Buffer) const override;
@@ -176,7 +176,7 @@ namespace GLTF
 		GetFloatArray(Buffer.GetData());
 	}
 
-	inline void FAccessor::GetVec2Array(TArray<FVector2D>& Buffer) const
+	inline void FAccessor::GetVec2Array(TArray<FVector2f>& Buffer) const
 	{
 		if (IsValid())
 			Buffer.SetNumUninitialized(Count, false);

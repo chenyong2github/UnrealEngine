@@ -10,7 +10,7 @@
 #include "GPUSkinCache.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
-
+#include "SkeletalRenderGPUSkin.h"
 #include "PlatformInfo.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -190,7 +190,7 @@ FVertexBufferAndSRV FClothBufferPoolPolicy::CreateResource(CreationArguments Arg
 	FVertexBufferAndSRV Buffer;
 	FRHIResourceCreateInfo CreateInfo(TEXT("FClothBufferPoolPolicy"));
 	Buffer.VertexBufferRHI = RHICreateVertexBuffer( BufferSize, (BUF_Dynamic | BUF_ShaderResource), CreateInfo );
-	Buffer.VertexBufferSRV = RHICreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector2D), PF_G32R32F );
+	Buffer.VertexBufferSRV = RHICreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector2f), PF_G32R32F );
 	return Buffer;
 }
 
@@ -899,6 +899,61 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FGPUSkinPassthroughVertexFactory, "/Engine/Private
 	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
 
+
+/*-----------------------------------------------------------------------------
+	TGPUSkinMorphVertexFactoryShaderParameters
+-----------------------------------------------------------------------------*/
+/** Shader parameters for use with TGPUSkinMorphVertexFactory */
+class FGPUSkinMorphVertexFactoryShaderParameters : public FGPUSkinVertexFactoryShaderParameters
+{
+	DECLARE_TYPE_LAYOUT(FGPUSkinMorphVertexFactoryShaderParameters, NonVirtual);
+public:
+
+	/**
+	* Bind shader constants by name
+	* @param	ParameterMap - mapping of named shader constants to indices
+	*/
+	void Bind(const FShaderParameterMap& ParameterMap)
+	{
+		FGPUSkinVertexFactoryShaderParameters::Bind(ParameterMap);
+		PreviousMorphBufferParameter.Bind(ParameterMap, TEXT("PreviousMorphBuffer"));
+	}
+
+	void GetElementShaderBindings(
+		const FSceneInterface* Scene,
+		const FSceneView* View,
+		const FMeshMaterialShader* Shader,
+		const EVertexInputStreamType InputStreamType,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FVertexFactory* VertexFactory,
+		const FMeshBatchElement& BatchElement,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const
+	{
+		FGPUSkinVertexFactoryShaderParameters::GetElementShaderBindings(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams);
+
+		// Mobile doesn't support motion blur, don't use previous frame morph delta for mobile.
+		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+		const bool bIsMobile = IsMobilePlatform(ShaderPlatform) || ShaderPlatform == SP_PCD3D_ES3_1;
+		if (!bIsMobile)
+		{
+			const FMorphVertexBuffer* MorphVertexBuffer = nullptr;
+			const auto* GPUSkinVertexFactory = (const FGPUBaseSkinVertexFactory*)VertexFactory;
+			MorphVertexBuffer = GPUSkinVertexFactory->GetMorphVertexBuffer(!View->Family->bWorldIsPaused_IncludingSimulatingInEditor, View->Family->FrameNumber);
+			if (MorphVertexBuffer)
+			{
+				ShaderBindings.Add(PreviousMorphBufferParameter, MorphVertexBuffer->GetSRV());
+			}
+		}
+	}
+
+protected:
+	LAYOUT_FIELD(FShaderResourceParameter, PreviousMorphBufferParameter);
+};
+
+IMPLEMENT_TYPE_LAYOUT(FGPUSkinMorphVertexFactoryShaderParameters);
+
+
 /*-----------------------------------------------------------------------------
 TGPUSkinMorphVertexFactory
 -----------------------------------------------------------------------------*/
@@ -912,6 +967,9 @@ void TGPUSkinMorphVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment
 {
 	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_BLEND"),TEXT("1"));
+	// Mobile doesn't support motion blur, don't use previous frame morph delta for mobile.
+	const bool bIsMobile = IsMobilePlatform(Parameters.Platform) || Parameters.Platform == SP_PCD3D_ES3_1;
+	OutEnvironment.SetDefine(TEXT("GPUSKIN_MORPH_USE_PREVIOUS"), !bIsMobile);
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
@@ -932,8 +990,11 @@ void TGPUSkinMorphVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType&
 	// add the base gpu skin elements
 	TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(InData,OutElements);
 	// add the morph delta elements
-	OutElements.Add(FVertexFactory::AccessStreamComponent(InData.DeltaPositionComponent,9));
-	OutElements.Add(FVertexFactory::AccessStreamComponent(InData.DeltaTangentZComponent,10));
+	FVertexElement DeltaPositionElement = FVertexFactory::AccessStreamComponent(InData.DeltaPositionComponent, 9);
+	// Cache delta stream index (position & tangentZ share the same stream)
+	MorphDeltaStreamIndex = DeltaPositionElement.StreamIndex;
+	OutElements.Add(DeltaPositionElement);
+	OutElements.Add(FVertexFactory::AccessStreamComponent(InData.DeltaTangentZComponent, 10));
 }
 
 /**
@@ -951,7 +1012,25 @@ void TGPUSkinMorphVertexFactory<BoneInfluenceType>::InitRHI()
 	FVertexFactory::InitDeclaration(Elements);
 }
 
-IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinMorphVertexFactory, SF_Vertex, FGPUSkinVertexFactoryShaderParameters);
+/**
+* Update morph delta stream with the updated morph vertex buffer
+*/
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinMorphVertexFactory<BoneInfluenceType>::UpdateMorphVertexStream(const FMorphVertexBuffer* MorphVertexBuffer)
+{
+	if (MorphVertexBuffer && this->Streams.IsValidIndex(MorphDeltaStreamIndex))
+	{
+		this->Streams[MorphDeltaStreamIndex].VertexBuffer = MorphVertexBuffer;
+	}
+}
+
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+const FMorphVertexBuffer* TGPUSkinMorphVertexFactory<BoneInfluenceType>::GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const
+{
+	return MorphData.MorphVertexBufferPool ? &MorphData.MorphVertexBufferPool->GetMorphVertexBufferForReading(bPrevious, FrameNumber) : nullptr;
+}
+
+IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinMorphVertexFactory, SF_Vertex, FGPUSkinMorphVertexFactoryShaderParameters);
 
 /** bind morph target gpu skin vertex factory to its shader file and its shader parameters */
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_TYPE(TGPUSkinMorphVertexFactory, "/Engine/Private/GpuSkinVertexFactory.ush",

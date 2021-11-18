@@ -883,7 +883,7 @@ struct TShaderParameterTypeInfo<float>
 };
 
 template<>
-struct TShaderParameterTypeInfo<FVector2D>
+struct TShaderParameterTypeInfo<FVector2f>
 {
 	static constexpr EUniformBufferBaseType BaseType = UBMT_FLOAT32;
 	static constexpr int32 NumRows = 1;
@@ -892,7 +892,7 @@ struct TShaderParameterTypeInfo<FVector2D>
 	static constexpr int32 Alignment = 8;
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
-	using TAlignedType = TAlignedTypedef<FVector2D, Alignment>::Type;
+	using TAlignedType = TAlignedTypedef<FVector2f, Alignment>::Type;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };

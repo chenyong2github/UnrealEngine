@@ -11,7 +11,7 @@
 //*************************************************************************
 //* FDisaplyClusterMeshComponentProxyData
 //*************************************************************************
-void FDisplayClusterRender_MeshComponentProxyData::ImplInitializeMesh(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int InUVChromakeyIndex)
+void FDisplayClusterRender_MeshComponentProxyData::ImplInitializeMesh(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int32 InUVChromakeyIndex)
 {
 	if (InStaticMesh.bAllowCPUAccess == false)
 	{
@@ -44,7 +44,7 @@ void FDisplayClusterRender_MeshComponentProxyData::ImplInitializeMesh(const FDis
 	UpdateData(InDataFunc);
 }
 
-FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMeshComponent& InMeshComponent, const int InUVChromakeyIndex)
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMeshComponent& InMeshComponent, const int32 InUVChromakeyIndex)
 {
 	check(IsInGameThread());
 
@@ -55,7 +55,7 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	}
 }
 
-FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int InUVChromakeyIndex)
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int32 InUVChromakeyIndex)
 {
 	check(IsInGameThread());
 
@@ -74,11 +74,11 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 		VertexData[VertexIdx].UV_Chromakey = bUseChromakeyUV ? InMeshGeometry.ChromakeyUV[VertexIdx] : InMeshGeometry.UV[VertexIdx];
 	}
 
-	int Idx = 0;
+	int32 IndexDataIt = 0;
 	IndexData.AddZeroed(InMeshGeometry.Triangles.Num());
-	for (const int32& It : InMeshGeometry.Triangles)
+	for (const int32& MeshGeometryIt : InMeshGeometry.Triangles)
 	{
-		IndexData[Idx++] = (uint32)It;
+		IndexData[IndexDataIt++] = (uint32)MeshGeometryIt;
 	}
 
 	UpdateData(InDataFunc);

@@ -50,8 +50,10 @@ namespace Gauntlet.SelfTest
 			string ClientArgs = string.Format(" -ExecCmds=\"open {0}\"", LocalIP);
 
 			// create a new session with client & server roles
+			string PlatformString = Gauntlet.Globals.Params.ParseValue("Platform", "Win64");
+			UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(PlatformString);
 			UnrealSession Session = new UnrealSession(Build, new[] {
-				new UnrealSessionRole(UnrealTargetRole.Client, UnrealTargetPlatform.PS4, UnrealTargetConfiguration.Development, ClientArgs, Options)
+				new UnrealSessionRole(UnrealTargetRole.Client, Platform, UnrealTargetConfiguration.Development, ClientArgs, Options)
 				, new UnrealSessionRole(UnrealTargetRole.Server, UnrealTargetPlatform.Win64, UnrealTargetConfiguration.Development, ServerArgs, Options)
 			});
 

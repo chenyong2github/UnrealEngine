@@ -202,10 +202,10 @@ uint32 FVirtualTextureBuiltData::GetTileOffset(uint32 vLevel, uint32 vAddress, u
 		if (BaseOffsetPerMip.IsValidIndex(vLevel) && TileOffsetData.IsValidIndex(vLevel))
 		{
 			// If the tile offset is ~0u there is no data present so we return ~0u to indicate that.
+			const uint32 BaseOffset = BaseOffsetPerMip[vLevel];
 			const uint32 TileOffset = TileOffsetData[vLevel].GetTileOffset(vAddress);
-			if (TileOffset != ~0u)
+			if (BaseOffset != ~0u && TileOffset != ~0u)
 			{
-				const uint32 BaseOffset = BaseOffsetPerMip[vLevel];
 				const uint32 TileDataSize = TileDataOffsetPerLayer.Last();
 				const uint32 LayerDataOffset = LayerIndex == 0 ? 0 : TileDataOffsetPerLayer[LayerIndex - 1];
 				

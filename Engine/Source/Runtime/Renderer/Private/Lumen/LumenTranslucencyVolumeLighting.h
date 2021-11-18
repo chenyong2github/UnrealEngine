@@ -53,7 +53,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenTranslucencyLightingVolumeParameters, )
 	SHADER_PARAMETER(uint32, TranslucencyVolumeTracingOctahedronResolution)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 	SHADER_PARAMETER(float, HZBMipLevel)
-	SHADER_PARAMETER(FVector2D, ViewportUVToHZBBufferUV)
+	SHADER_PARAMETER(FVector2f, ViewportUVToHZBBufferUV)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenTranslucencyLightingVolumeTraceSetupParameters, )

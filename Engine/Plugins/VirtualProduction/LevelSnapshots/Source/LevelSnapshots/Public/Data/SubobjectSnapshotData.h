@@ -6,6 +6,7 @@
 #include "ObjectSnapshotData.h"
 #include "SubobjectSnapshotData.generated.h"
 
+/** Data saved for subobjects, such as components. */
 USTRUCT()
 struct LEVELSNAPSHOTS_API FSubobjectSnapshotData : public FObjectSnapshotData
 {
@@ -18,7 +19,7 @@ struct LEVELSNAPSHOTS_API FSubobjectSnapshotData : public FObjectSnapshotData
 		return Result;
 	}
 
-	/* Index to FWorldSnapshotData::SerializedObjectReferences */
+	/** Index to FWorldSnapshotData::SerializedObjectReferences */
 	UPROPERTY()
 	int32 OuterIndex = INDEX_NONE;
 
@@ -28,12 +29,4 @@ struct LEVELSNAPSHOTS_API FSubobjectSnapshotData : public FObjectSnapshotData
 	/** Whether this class was marked as unsupported when the snapshot was taken */
 	UPROPERTY()
 	bool bWasSkippedClass = false;
-
-	/** Allocated in snapshot world */
-	UPROPERTY(Transient)
-	TWeakObjectPtr<UObject> SnapshotObject;
-
-	/** Allocated in editor world */
-	UPROPERTY(Transient)
-	TWeakObjectPtr<UObject> EditorObject;
 };

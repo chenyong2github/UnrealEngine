@@ -562,7 +562,7 @@ void UK2Node::PinConnectionListChanged(UEdGraphPin* Pin)
 					}
 				}
 
-				NestedPin->MarkPendingKill();
+				NestedPin->MarkAsGarbage();
 			};
 
 			RemoveNestedPin(Pin);
@@ -1211,7 +1211,7 @@ void UK2Node::RewireOldPinsToNewPins(TArray<UEdGraphPin*>& InOldPins, TArray<UEd
 							if (!SubPin->bOrphanedPin)
 							{
 								OldPin->SubPins.RemoveAt(SubPinIndex, 1, false);
-								SubPin->MarkPendingKill();
+								SubPin->MarkAsGarbage();
 							}
 						}
 					}
@@ -1351,7 +1351,7 @@ UK2Node* UK2Node::ExpandSplitPin(FKismetCompilerContext* CompilerContext, UEdGra
 		{
 			Pins.Remove(SubPin);
 			SubPin->ParentPin = nullptr;
-			SubPin->MarkPendingKill();
+			SubPin->MarkAsGarbage();
 		}
 		Pin->SubPins.Empty();
 	}

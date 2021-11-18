@@ -6,6 +6,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Linq;
 using EpicGames.Core;
+using System.Diagnostics.CodeAnalysis;
 
 namespace JsonExtensions
 {
@@ -22,7 +23,7 @@ namespace JsonExtensions
 		/// <param name="DeprecatedFieldName">Backup field name to check</param>
 		/// <param name="Result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public static bool TryGetStringArrayFieldWithDeprecatedFallback(this JsonObject Obj, string FieldName, string DeprecatedFieldName, out string[] Result)
+		public static bool TryGetStringArrayFieldWithDeprecatedFallback(this JsonObject Obj, string FieldName, string DeprecatedFieldName, [NotNullWhen(true)] out string[]? Result)
 		{
 			if (Obj.TryGetStringArrayField(FieldName, out Result))
 			{
@@ -47,7 +48,7 @@ namespace JsonExtensions
 		/// <param name="DeprecatedFieldName">Backup field name to check</param>
 		/// <param name="Result">On success, receives the field value</param>
 		/// <returns>True if the field could be read, false otherwise</returns>
-		public static bool TryGetEnumArrayFieldWithDeprecatedFallback<T>(this JsonObject Obj, string FieldName, string DeprecatedFieldName, out T[] Result) where T : struct
+		public static bool TryGetEnumArrayFieldWithDeprecatedFallback<T>(this JsonObject Obj, string FieldName, string DeprecatedFieldName, [NotNullWhen(true)] out T[]? Result) where T : struct
 		{
 			if (Obj.TryGetEnumArrayField<T>(FieldName, out Result))
 			{

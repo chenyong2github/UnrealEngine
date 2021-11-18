@@ -132,7 +132,7 @@ class GEOMETRYCACHE_API UGeometryCacheCodecBase : public UObject
 	virtual int32 GetEncoderFrameNumer() { return EncoderBaseData.FrameId; }
 #endif
 
-	static bool IsSameTopology(const TArray<int32> TopologyRanges, int32 FrameA, int32 FrameB);
+	static bool IsSameTopology(const TArray<int32>& TopologyRanges, int32 FrameA, int32 FrameB);
 	virtual bool IsSameTopology(int32 FrameA, int32 FrameB) { return IsSameTopology(TopologyRanges, FrameA, FrameB); }
 
 protected:

@@ -342,23 +342,23 @@ public:
 		VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 		FScreenVertex* DestVertex = (FScreenVertex*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 
-		DestVertex[0].Position = FVector2D(1, 1);
-		DestVertex[0].UV = FVector2D(1, 1);
+		DestVertex[0].Position = FVector2f(1, 1);
+		DestVertex[0].UV = FVector2f(1, 1);
 
-		DestVertex[1].Position = FVector2D(0, 1);
-		DestVertex[1].UV = FVector2D(0, 1);
+		DestVertex[1].Position = FVector2f(0, 1);
+		DestVertex[1].UV = FVector2f(0, 1);
 
-		DestVertex[2].Position = FVector2D(1, 0);
-		DestVertex[2].UV = FVector2D(1, 0);
+		DestVertex[2].Position = FVector2f(1, 0);
+		DestVertex[2].UV = FVector2f(1, 0);
 
-		DestVertex[3].Position = FVector2D(1, 0);
-		DestVertex[3].UV = FVector2D(1, 0);
+		DestVertex[3].Position = FVector2f(1, 0);
+		DestVertex[3].UV = FVector2f(1, 0);
 
-		DestVertex[4].Position = FVector2D(0, 1);
-		DestVertex[4].UV = FVector2D(0, 1);
+		DestVertex[4].Position = FVector2f(0, 1);
+		DestVertex[4].UV = FVector2f(0, 1);
 
-		DestVertex[5].Position = FVector2D(0, 0);
-		DestVertex[5].UV = FVector2D(0, 0);
+		DestVertex[5].Position = FVector2f(0, 0);
+		DestVertex[5].UV = FVector2f(0, 0);
 
 		RHIUnlockBuffer(VertexBufferRHI);
 	}
@@ -457,7 +457,7 @@ void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& Vie
 					for (int32 ComponentIndex = 0; ComponentIndex < HeightfieldDescriptions.Num(); ComponentIndex++)
 					{
 						FIntPoint RelativeAtlasOffset = HeightfieldDescriptions[ComponentIndex].HeightfieldRect.Min - Heightfield.Rect.Min;
-						HeightfieldDescriptions[ComponentIndex].LightingAtlasLocation = FVector2D(RelativeAtlasOffset.X, RelativeAtlasOffset.Y) / Heightfield.DownsampleFactor;
+						HeightfieldDescriptions[ComponentIndex].LightingAtlasLocation = FVector2f(RelativeAtlasOffset.X, RelativeAtlasOffset.Y) / Heightfield.DownsampleFactor;
 					}
 				}
 
@@ -811,7 +811,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, WorldToShadow, WorldToShadowMatrixValue);
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowmapMinMax, ShadowmapMinMaxValue);
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowDepthBias, ProjectedShadowInfo->GetShaderDepthBias());
-		SetShaderValue(RHICmdList, ShaderRHI, CascadeDepthMinMax, FVector2D(ProjectedShadowInfo->CascadeSettings.SplitNear, ProjectedShadowInfo->CascadeSettings.SplitFar));
+		SetShaderValue(RHICmdList, ShaderRHI, CascadeDepthMinMax, FVector2f(ProjectedShadowInfo->CascadeSettings.SplitNear, ProjectedShadowInfo->CascadeSettings.SplitFar));
 
 		FRHITexture* ShadowDepthTextureValue = ProjectedShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
 		FRHISamplerState* DepthSamplerState = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

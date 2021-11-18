@@ -2,8 +2,10 @@
 
 #include "Render/Device/DisplayClusterDeviceBase.h"
 
+#include "IPDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
 #include "Cluster/IPDisplayClusterClusterManager.h"
-#include "Cluster/Controller/IDisplayClusterNodeController.h"
+#include "Cluster/Controller/IDisplayClusterClusterNodeController.h"
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 #include "Render/IPDisplayClusterRenderManager.h"
@@ -105,7 +107,7 @@ void FDisplayClusterDeviceBase::PreTick(float DeltaSeconds)
 			{
 				MainViewportRHI->SetCustomPresent(CustomPresentHandler);
 				bIsCustomPresentSet = true;
-				OnDisplayClusterRenderCustomPresentCreated().Broadcast();
+				GDisplayCluster->GetCallbacks().OnDisplayClusterCustomPresentSet().Broadcast();
 			}
 			else
 			{
@@ -155,7 +157,7 @@ void FDisplayClusterDeviceBase::InitCanvasFromView(class FSceneView* InView, cla
 
 			MainViewport->GetViewportRHI()->SetCustomPresent(CustomPresentHandler);
 
-			OnDisplayClusterRenderCustomPresentCreated().Broadcast();
+			GDisplayCluster->GetCallbacks().OnDisplayClusterCustomPresentSet().Broadcast();
 		}
 
 		bIsCustomPresentSet = true;
@@ -166,14 +168,16 @@ void FDisplayClusterDeviceBase::AdjustViewRect(EStereoscopicPass StereoPassType,
 {
 	check(IsInGameThread());
 
-	if (ViewportManagerPtr ==nullptr || ViewportManagerPtr->IsSceneOpened() == false)
-		{ return; }
+	if (ViewportManagerPtr == nullptr || ViewportManagerPtr->IsSceneOpened() == false)
+	{
+		return;
+	}
 
 	uint32 ViewportContextNum = 0;
 	IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType, &ViewportContextNum);
 	if (ViewportPtr == nullptr)
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int(StereoPassType));
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int32(StereoPassType));
 		return;
 	}
 
@@ -243,7 +247,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType, &ViewportContextNum);
 	if (ViewportPtr == nullptr)
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int(StereoPassType));
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int32(StereoPassType));
 		return;
 	}
 
@@ -313,7 +317,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 
 	// Decode current eye type	
 	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicEye);
-	const int   EyeIndex = (int)EyeType;
+	const int32 EyeIndex = (int32)EyeType;
 
 	float PassOffset = 0.f;
 	float PassOffsetSwap = 0.f;
@@ -324,7 +328,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 		// * Force left (-1) ==> 0 left eye
 		// * Force right (1) ==> 2 right eye
 		// * Default (0) ==> 1 mono
-		const int EyeOffsetIdx = 
+		const int32 EyeOffsetIdx = 
 			(CfgEyeOffset == EDisplayClusterEyeStereoOffset::None ? 0 :
 			(CfgEyeOffset == EDisplayClusterEyeStereoOffset::Left ? -1 : 1));
 
@@ -379,7 +383,7 @@ FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereos
 		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType, &ViewportContextNum);
 		if (ViewportPtr == nullptr)
 		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int(StereoPassType));
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int32(StereoPassType));
 		}
 		else
 		if (ViewportPtr->GetProjectionMatrix(ViewportContextNum, PrjMatrix) == false)

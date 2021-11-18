@@ -145,6 +145,7 @@ public class ModifyStageContext
 
 		// maps can't be cooked and loaded by the editor, so make sure no cooked ones exist
 		UncookMaps(SC);
+		UnUFSFiles(SC);
 
 		// anything we want to be NonUFS make sure is not alreay UFS
 		UFSFilesToStage.RemoveAll(x => NonUFSFilesToStage.Contains(x));
@@ -179,7 +180,7 @@ public class ModifyStageContext
 
 		// stage the filtered UFSFiles
 		SC.StageFiles(StagedFileType.UFS, StagedUFSFiles.Values);
-		
+
 		// stage the Uncooked files now that any cooked ones are removed from SC
 		SC.StageFiles(StagedFileType.UFS, StagedUncookFiles.Values);
 
@@ -189,8 +190,10 @@ public class ModifyStageContext
 		// now remove or allow restricted files
 		HandleRestrictedFiles(SC, ref SC.FilesToStage.UFSFiles);
 		HandleRestrictedFiles(SC, ref SC.FilesToStage.NonUFSFiles);
-	}
 
+		// remove UFS files if they are also in NonUFS - no need to duplicate
+		SC.FilesToStage.UFSFiles = SC.FilesToStage.UFSFiles.Where(x => !SC.FilesToStage.NonUFSFiles.ContainsKey(x.Key)).ToDictionary(x => x.Key, x => x.Value);
+	}
 	#region Private implementation
 
 	private StagedFileReference MakeRelativeStagedReference(DeploymentContext SC, FileSystemReference Ref)
@@ -292,11 +295,27 @@ public class ModifyStageContext
 		}
 	}
 
+	private void AddUFSFilesToList(List<FileReference> FileList, string Extension, DeploymentContext SC)
+	{
+		// look in SC and UFSFiles
+		FileList.AddRange(SC.FilesToStage.UFSFiles.Keys.Where(x => x.HasExtension(Extension)).Select(y => UnmakeRelativeStagedReference(SC, y)));
+		FileList.AddRange(UFSFilesToStage.Where(x => x.GetExtension().Equals(Extension, StringComparison.InvariantCultureIgnoreCase)));
+	}
+
 	private void UncookMaps(DeploymentContext SC)
 	{
 		// remove maps from SC and Context (SC has path to the cooked map, so we have to come back from Staged refernece that doesn't have the Cooked dir in it)
-		FilesToUncook.AddRange(SC.FilesToStage.UFSFiles.Keys.Where(x => x.HasExtension("umap")).Select(y => UnmakeRelativeStagedReference(SC, y)));
-		FilesToUncook.AddRange(UFSFilesToStage.Where(x => x.GetExtension() == ".umap"));
+		AddUFSFilesToList(FilesToUncook, ".umap", SC);
+	}
+
+	private void UnUFSFiles(DeploymentContext SC)
+	{
+		if (bStageUAT)
+		{
+			// UAT needs uplugin and ini files, so make sure they are not in the .pak
+			AddUFSFilesToList(NonUFSFilesToStage, ".uplugin", SC);
+			AddUFSFilesToList(NonUFSFilesToStage, ".ini", SC);
+		}
 	}
 
 	#endregion
@@ -426,31 +445,81 @@ public class MakeCookedEditor : BuildCommand
 		// now look in the .json file that UAT made that lists its script files
 		DirectoryReference AutomationToolBinaryDir = DirectoryReference.Combine(Context.EngineDirectory, "Binaries", "DotNET", "AutomationTool");
 		DirectoryReference UnrealBuildToolBinaryDir = DirectoryReference.Combine(Context.EngineDirectory, "Binaries", "DotNET", "UnrealBuildTool");
-		FileReference ScriptModuleManifestPath = FileReference.Combine(AutomationToolBinaryDir, "ScriptModuleManifest.json");
 		DirectoryReference ProjectAutomationToolBinaryDir = DirectoryReference.Combine(Context.ProjectDirectory, "Binaries", "DotNET", "AutomationTool");
 
 		// some netcore dependencies in the tool directories can't be discovered with CsProjectInfo, so just stage the enture UBT and UAT directories
 		Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(UnrealBuildToolBinaryDir, "*", SearchOption.AllDirectories));
 		Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(AutomationToolBinaryDir, "*", SearchOption.AllDirectories));
-		Context.NonUFSFilesToStage.AddRange(DirectoryReference.EnumerateFiles(ProjectAutomationToolBinaryDir, "*", SearchOption.AllDirectories));
 
-		// read in the list of modules that UAT needs to run from a json file
-		HashSet<string> ScriptModuleAssemblyPaths = JsonSerializer.Deserialize<HashSet<string>>(FileReference.ReadAllText(ScriptModuleManifestPath));
+		StagedDirectoryReference StagedBinariesDir = new StagedDirectoryReference("Engine/Binaries/DotNET/AutomationTool");
 
-		// some of the references may be for other projects, so remove them
-		HashSet<FileReference> ScriptModuleAssemblyFiles = ScriptModuleAssemblyPaths.Select(x => FileReference.Combine(AutomationToolBinaryDir, x)).ToHashSet();
-		ScriptModuleAssemblyFiles.RemoveWhere(x => !x.IsUnderDirectory(Context.EngineDirectory) && !x.IsUnderDirectory(Context.ProjectDirectory));
+		// look in Engine/Intermediate/ScriptModules and Project/Intermediate/ScriptModules
+		DirectoryReference EngineScriptModulesDir = DirectoryReference.Combine(Context.EngineDirectory, "Intermediate", "ScriptModules");
+		DirectoryReference ProjectScriptModulesDir = DirectoryReference.Combine(Context.ProjectDirectory, "Intermediate", "ScriptModules");
+		IEnumerable<FileReference> JsonFiles = DirectoryReference.EnumerateFiles(EngineScriptModulesDir);
+		if (DirectoryReference.Exists(ProjectScriptModulesDir))
+		{
+			JsonFiles = JsonFiles.Concat(DirectoryReference.EnumerateFiles(ProjectScriptModulesDir));
+		}
+		foreach (FileReference JsonFile in JsonFiles)
+		{
+			try
+			{
+				// load build info 
+				CsProjBuildRecord BuildRecord = JsonSerializer.Deserialize<CsProjBuildRecord>(FileReference.ReadAllText(JsonFile));
 
-		// stage the remaining files
-		Context.NonUFSFilesToStage.AddRange(ScriptModuleAssemblyFiles);
+				Context.NonUFSFilesToStage.Add(JsonFile);
+
+				// get location of the project where the other paths are relative to
+				DirectoryReference RecordRoot = FileReference.Combine(JsonFile.Directory, BuildRecord.ProjectPath).Directory;
+				string FullPath = RecordRoot.FullName;
+				Console.WriteLine(FullPath);
+
+				// stage the output and everything it pulled in next to it
+				foreach (FileReference TargetDirFile in DirectoryReference.EnumerateFiles(FileReference.Combine(RecordRoot, BuildRecord.TargetPath).Directory, "*", SearchOption.AllDirectories))
+				{
+					Context.NonUFSFilesToStage.Add(TargetDirFile);
+				}
+
+				// now pull in any dependencies in case something loads it by path
+				foreach (string Dep in BuildRecord.Dependencies)
+				{
+					if (Path.GetExtension(Dep).ToLower() == ".dll")
+					{
+						FileReference DepFile = FileReference.Combine(RecordRoot, Dep);
+						// if ht's not in the engine or the project, we will just stage it next to the .exe, in a last ditch effort
+						if (!DepFile.IsUnderDirectory(Context.EngineDirectory) && !DepFile.IsUnderDirectory(Context.ProjectDirectory))
+						{
+							SC.StageFile(StagedFileType.NonUFS, DepFile, StagedFileReference.Combine(StagedBinariesDir, DepFile.GetFileName()));
+						}
+						else
+						{
+							Context.NonUFSFilesToStage.Add(DepFile);
+						}
+					}
+				}
+			}
+			catch(Exception)
+			{
+				// skip json files that fail
+			}
+		}
+
+		if (Context.IniPlatformName == "Linux")
+		{
+			// linux needs dotnet runtime
+			SC.StageFiles(StagedFileType.NonUFS, DirectoryReference.Combine(Context.EngineDirectory, "Binaries", "ThirdParty", "DotNet", Context.IniPlatformName), StageFilesSearch.AllDirectories);
+		}
+
+		// not sure if we need this or not now
 
 		// ask each platform if they need extra files
-		foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
-		{
-			List<FileReference> Files = new List<FileReference>();
-			AutomationTool.Platform.GetPlatform(Platform).GetPlatformUATDependencies(Context.ProjectDirectory, Files);
-			Context.NonUFSFilesToStage.AddRange(Files.Where(x => FileReference.Exists(x)));
-		}
+		//foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
+		//{
+		//	List<FileReference> Files = new List<FileReference>();
+		//	AutomationTool.Platform.GetPlatform(Platform).GetPlatformUATDependencies(Context.ProjectDirectory, Files);
+		//	Context.NonUFSFilesToStage.AddRange(Files.Where(x => FileReference.Exists(x)));
+		//}
 	}
 
 	protected virtual void StagePluginDirectory(DirectoryReference PluginDir, ModifyStageContext Context, bool bStageUncookedContent)
@@ -566,7 +635,8 @@ public class MakeCookedEditor : BuildCommand
 		}
 
 
-		List<string> RootFoldersToStrip = new List<string> { "Source" };//, "Binaries" };
+		// plugins are already handled in the Plugins staging code
+		List<string> RootFoldersToStrip = new List<string> { "Source", "Plugins" };//, "Binaries" };
 		List<string> SubFoldersToStrip = new List<string> { "Source", "Intermediate", "Tests", "Binaries" + Path.DirectorySeparatorChar + HostPlatform.Current.HostEditorPlatform.ToString() };
 		if (!Context.bStageShaderDirs)
 		{
@@ -581,31 +651,27 @@ public class MakeCookedEditor : BuildCommand
 			RootFoldersToStrip.Add("Extras");
 		}
 
-		foreach (DirectoryReference PlatformsDir in Unreal.GetExtensionDirs(RootDir, true, false, false))
+		foreach (DirectoryReference PlatformDir in Unreal.GetExtensionDirs(RootDir, true, false, false))
 		{
-
-			foreach (DirectoryReference PlatformDir in DirectoryReference.EnumerateDirectories(PlatformsDir, "*", SearchOption.TopDirectoryOnly))
+			foreach (DirectoryReference Subdir in DirectoryReference.EnumerateDirectories(PlatformDir, "*", SearchOption.TopDirectoryOnly))
 			{
-				foreach (DirectoryReference Subdir in DirectoryReference.EnumerateDirectories(PlatformDir, "*", SearchOption.TopDirectoryOnly))
+				// Remvoe some unnecessary folders that can be large
+				List<FileReference> ContextFileList = Context.UFSFilesToStage;
+
+				if (Subdir.GetDirectoryName() == "Shaders" || Subdir.GetDirectoryName() == "Binaries")
 				{
-					// Remvoe some unnecessary folders that can be large
-					List<FileReference> ContextFileList = Context.UFSFilesToStage;
+					ContextFileList = Context.NonUFSFilesToStage;
+				}
 
-					if (Subdir.GetDirectoryName() == "Shaders" || Subdir.GetDirectoryName() == "Binaries")
-					{
-						ContextFileList = Context.NonUFSFilesToStage;
-					}
+				List<FileReference> FilesToStage = new List<FileReference>();
+				// if we aren't in a bad subdir, add files
+				if (!RootFoldersToStrip.Contains(Subdir.GetDirectoryName(), StringComparer.InvariantCultureIgnoreCase))
+				{
+					FilesToStage.AddRange(DirectoryReference.EnumerateFiles(Subdir, "*", SearchOption.AllDirectories));
 
-					List<FileReference> FilesToStage = new List<FileReference>();
-					// if we aren't in a bad subdir, add files
-					if (!RootFoldersToStrip.Contains(Subdir.GetDirectoryName(), StringComparer.InvariantCultureIgnoreCase))
-					{
-						FilesToStage.AddRange(DirectoryReference.EnumerateFiles(Subdir, "*", SearchOption.AllDirectories));
-
-						// now remove files in subdirs we want to skip
-						FilesToStage.RemoveAll(x => x.ContainsAnyNames(SubFoldersToStrip, Subdir));
-						ContextFileList.AddRange(FilesToStage);
-					}
+					// now remove files in subdirs we want to skip
+					FilesToStage.RemoveAll(x => x.ContainsAnyNames(SubFoldersToStrip, Subdir));
+					ContextFileList.AddRange(FilesToStage);
 				}
 			}
 		}
@@ -776,7 +842,6 @@ public class MakeCookedEditor : BuildCommand
 		//Params.ClientCookedTargets.Add("CrashReportClientEditor");
 
 		// control the server/client taregts
-		Params.EditorTargets.Clear();
 		Params.ServerCookedTargets.Clear();
 		Params.ClientCookedTargets.Clear();
 		if (bIsCookedCooker)

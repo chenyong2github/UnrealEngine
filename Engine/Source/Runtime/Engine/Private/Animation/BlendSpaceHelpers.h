@@ -51,7 +51,7 @@ struct FVertex
 		Triangles.Remove(TriangleToRemove);
 	}
 
-	float GetDistance(const FVertex& Other)
+	double GetDistance(const FVertex& Other)
 	{
 		return (Other.Position-Position).Size();
 	}
@@ -89,7 +89,7 @@ struct FTriangle
 	// 3 vertices in CCW order
 	FVertex* Vertices[3]; 
 	// average points for Vertices
-	FVector2D	Center;
+	FVector2D Center;
 	// FEdges
 	FHalfEdge Edges[3];
 
@@ -186,12 +186,12 @@ struct FTriangle
 		return (Other == *Vertices[0] || Other == *Vertices[1] || Other == *Vertices[2]);
 	}
 
-	float GetDistance(const FVertex& Other) const
+	double GetDistance(const FVertex& Other) const
 	{
 		return (Other.Position-Center).Size();
 	}
 
-	float GetDistance(const FVector2D& Other) const
+	double GetDistance(const FVector2D& Other) const
 	{
 		return (Other-Center).Size();
 	}
@@ -258,7 +258,7 @@ private:
 		FVector2D Diff1 = Vertices[1]->Position-Vertices[0]->Position;
 		FVector2D Diff2 = Vertices[2]->Position-Vertices[0]->Position;
 
-		float Result = Diff1.X*Diff2.Y - Diff1.Y*Diff2.X;
+		double Result = Diff1.X*Diff2.Y - Diff1.Y*Diff2.X;
 
 		check (Result != 0.f);
 

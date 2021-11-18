@@ -687,7 +687,7 @@ void FMaterialPropertyHelpers::ResetLayerAssetToDefault(UDEditorParameterValue* 
 	
 }
 
-bool FMaterialPropertyHelpers::ShouldLayerAssetShowResetToDefault(TSharedPtr<FSortedParamData> InParameterData, UMaterialInterface* InMaterial)
+bool FMaterialPropertyHelpers::ShouldLayerAssetShowResetToDefault(TSharedPtr<FSortedParamData> InParameterData, UMaterialInstanceConstant* InMaterialInstance)
 {
 	if (!InParameterData->Parameter)
 	{
@@ -702,7 +702,8 @@ bool FMaterialPropertyHelpers::ShouldLayerAssetShowResetToDefault(TSharedPtr<FSo
 	if (LayersParam)
 	{
 		FMaterialLayersFunctions LayersValue;
-		if (InMaterial->GetMaterialLayers(LayersValue))
+		UMaterialInterface* Parent = InMaterialInstance->Parent;
+		if (Parent && Parent->GetMaterialLayers(LayersValue))
 		{
 			FMaterialLayersFunctions StoredValue = LayersParam->ParameterValue;
 

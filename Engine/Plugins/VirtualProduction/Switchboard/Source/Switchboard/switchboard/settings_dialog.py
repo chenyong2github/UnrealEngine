@@ -245,6 +245,12 @@ class SettingsDialog(QtCore.QObject):
     def set_mu_server_name(self, value):
         self.ui.mu_server_name_line_edit.setText(value)
 
+    def mu_server_multicast_endpoint(self):
+        return self.ui.mu_server_multicast_endpoint_line_edit.text()
+
+    def set_mu_server_multicast_endpoint(self, endpoint):
+        self.ui.mu_server_multicast_endpoint_line_edit.setText(str(endpoint))
+
     def mu_server_endpoint(self):
         return self.ui.mu_server_endpoint_line_edit.text()
 

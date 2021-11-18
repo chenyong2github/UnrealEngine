@@ -272,19 +272,7 @@ void FUncontrolledChangelistsModule::MoveFilesToControlledChangelist(const TArra
 		{
 			FilesToAdd.Add(Filestate->GetFilename());
 		}
-		else if (!Filestate->CanCheckout())
-		{
-			FString PackageName;
-			FPackageName::TryConvertFilenameToLongPackageName(Filestate->GetFilename(), PackageName);
-			UPackage* FoundPackage = FindOrConstructDynamicTypePackage(*PackageName);
-
-			if (FoundPackage != nullptr)
-			{
-				PackageConflicts.Add(FoundPackage);
-				FilesToCheckout.Add(Filestate->GetFilename());
-			}
-		}
-		else
+		else if(Filestate->CanCheckout())
 		{
 			FilesToCheckout.Add(Filestate->GetFilename());
 		}

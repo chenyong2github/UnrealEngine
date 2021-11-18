@@ -19,8 +19,7 @@
 // FEdMode
 
 FEdMode::FEdMode()
-	: bPendingDeletion(false)
-	, CurrentTool(nullptr)
+	: CurrentTool(nullptr)
 {
 	bDrawKillZ = true;
 }
@@ -211,14 +210,16 @@ void FEdMode::Enter()
 		SelectedActor->MarkComponentsRenderStateDirty();
 	}
 
-	bPendingDeletion = false;
-
-	FEditorDelegates::EditorModeIDEnter.Broadcast( GetID() );
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FEditorDelegates::EditorModeIDEnter.Broadcast(GetID());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FEdMode::Exit()
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 UTexture2D* FEdMode::GetVertexTexture()
@@ -293,9 +294,14 @@ UWorld* FEdMode::GetWorld() const
 	return Owner->GetWorld();
 }
 
-class FEditorModeTools* FEdMode::GetModeManager() const
+FEditorModeTools* FEdMode::GetModeManager() const
 {
 	return Owner;
+}
+
+void FEdMode::RequestDeletion()
+{
+	Owner->DeactivateMode(GetID());
 }
 
 bool FEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)

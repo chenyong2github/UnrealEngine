@@ -9,9 +9,9 @@
 #include "ObjectEditorUtils.h"
 #include "EditorStyleSet.h"
 #include "Sound/SoundWave.h"
+#include "Sound/SoundWaveProcedural.h"
 #include "MotoSynthSourceFactory.h"
 #include "MotoSynthSourceAsset.h"
-//#include "ConvolutionReverbComponent.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -28,6 +28,20 @@ void FMotoSynthExtension::RegisterMenus()
 
 	Section.AddDynamicEntry("SoundWaveAssetConversion", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
+		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+		if (!Context || Context->SelectedObjects.IsEmpty())
+		{
+			return;
+		}
+
+		for (const TWeakObjectPtr<UObject>& Object : Context->SelectedObjects)
+		{
+			if (Object->IsA<USoundWaveProcedural>())
+			{
+				return;
+			}
+		}
+
 		const TAttribute<FText> Label = LOCTEXT("SoundWave_CreateMotoSource", "Create MotoSynth Source");
 		const TAttribute<FText> ToolTip = LOCTEXT("SoundWave_CreateMotoSynthSourceTooltip", "Creates a MotoSynth Source asset using the selected sound wave.");
 		const FSlateIcon Icon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.MotoSynthSource");

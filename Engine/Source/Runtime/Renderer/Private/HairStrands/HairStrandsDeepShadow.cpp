@@ -24,7 +24,7 @@ static FAutoConsoleVariableRef CVarDeepShadowInjectVoxelDepth(TEXT("r.HairStrand
 BEGIN_SHADER_PARAMETER_STRUCT(FHairStransShadowDepthInjectionParameters, )
 	SHADER_PARAMETER(FMatrix44f, CPU_WorldToClip)
 
-	SHADER_PARAMETER(FVector2D, OutputResolution)
+	SHADER_PARAMETER(FVector2f, OutputResolution)
 	SHADER_PARAMETER(uint32, AtlasSlotIndex)
 	SHADER_PARAMETER(uint32, bIsGPUDriven)
 

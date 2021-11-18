@@ -19,6 +19,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "ActorSequenceEditorStyle.h"
 #include "UObject/ObjectSaveContext.h"
+#include "SSubobjectEditor.h"
 
 #define LOCTEXT_NAMESPACE "ActorSequenceEditorSummoner"
 
@@ -198,6 +199,15 @@ public:
 	{
 		if (Sequencer.IsValid())
 		{
+			if (OnGlobalTimeChangedHandle.IsValid())
+			{
+				Sequencer->OnGlobalTimeChanged().Remove(OnGlobalTimeChangedHandle);
+			}
+			if (OnSelectionChangedHandle.IsValid())
+			{
+				Sequencer->GetSelectionChangedObjectGuids().Remove(OnSelectionChangedHandle);
+			}
+
 			FLevelEditorSequencerIntegration::Get().RemoveSequencer(Sequencer.ToSharedRef());
 			Sequencer->Close();
 			Sequencer = nullptr;
@@ -395,12 +405,76 @@ public:
 		Sequencer = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer").CreateSequencer(SequencerInitParams);
 		Content->SetContent(Sequencer->GetSequencerWidget());
 
+		OnGlobalTimeChangedHandle = Sequencer->OnGlobalTimeChanged().AddSP(this, &SActorSequenceEditorWidgetImpl::OnGlobalTimeChanged);
+		OnSelectionChangedHandle = Sequencer->GetSelectionChangedObjectGuids().AddSP(this, &SActorSequenceEditorWidgetImpl::OnSelectionChanged);
+
 		FLevelEditorSequencerIntegrationOptions Options;
 		Options.bRequiresLevelEvents = true;
 		Options.bRequiresActorEvents = false;
 		Options.bForceRefreshDetails = false;
 
 		FLevelEditorSequencerIntegration::Get().AddSequencer(Sequencer.ToSharedRef(), Options);
+	}
+
+	void Refresh()
+	{
+		TSharedPtr<FBlueprintEditor> BlueprintEditor = WeakBlueprintEditor.Pin();
+		if (!BlueprintEditor.IsValid() || !BlueprintEditor->GetSubobjectViewport().IsValid() || !BlueprintEditor->GetSubobjectEditor().IsValid())
+		{
+			return;
+		}
+
+		UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+		if (!MovieScene)
+		{
+			return;
+		}
+
+		AActor* PreviewActor = GetPreviewActor();
+
+		bool bNeedsUpdate = false;
+		for (int32 Index = 0; Index < MovieScene->GetPossessableCount(); ++Index)
+		{
+			FMovieScenePossessable& Possessable = MovieScene->GetPossessable(Index);
+			for (TWeakObjectPtr<> WeakObject : Sequencer->FindBoundObjects(Possessable.GetGuid(), Sequencer->GetFocusedTemplateID()))
+			{
+				if (UObject* Object = WeakObject.Get())
+				{
+					FSubobjectEditorTreeNodePtrType TreeNode = BlueprintEditor->GetSubobjectEditor()->FindSlateNodeForObject(Object);
+
+					if (TreeNode.IsValid())
+					{
+						const FSubobjectData* Data = TreeNode->GetDataSource();
+				
+						const USceneComponent* Instance = Cast<USceneComponent>(Data->FindComponentInstanceInActor(PreviewActor));
+						USceneComponent* Template = const_cast<USceneComponent*>(Cast<USceneComponent>(Data->GetObject()));
+
+						if (Instance && Template)
+						{
+							Template->SetRelativeLocation_Direct(Instance->GetRelativeLocation());
+							Template->SetRelativeRotation_Direct(Instance->GetRelativeRotation());
+							Template->SetRelativeScale3D_Direct(Instance->GetRelativeScale3D());
+							bNeedsUpdate = true;
+						}
+					}
+				}
+			}
+		}
+
+		if (bNeedsUpdate)
+		{
+			BlueprintEditor->UpdateSubobjectPreview(true);
+		}
+	}
+
+	void OnSelectionChanged(TArray<FGuid> GuidsChanged)
+	{
+		Refresh();
+	}
+
+	void OnGlobalTimeChanged()
+	{
+		Refresh();
 	}
 
 	void OnSequencerReceivedFocus()
@@ -547,6 +621,9 @@ private:
 	FDelegateHandle OnObjectSavedHandle;
 
 	FDelegateHandle OnSequenceChangedHandle;
+
+	FDelegateHandle OnSelectionChangedHandle;
+	FDelegateHandle OnGlobalTimeChangedHandle;
 };
 
 void SActorSequenceEditorWidget::Construct(const FArguments&, TWeakPtr<FBlueprintEditor> InBlueprintEditor)

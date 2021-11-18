@@ -78,7 +78,8 @@ namespace EKismetCompileType
 		Full,
 		StubAfterFailure, 
 		BytecodeOnly,
-		Cpp,
+		// @todo: BP2CPP_remove
+		Cpp UE_DEPRECATED(5.0, "Cpp is no longer a supported compile type and will be removed."),
 	};
 };
 
@@ -99,8 +100,9 @@ enum class EBlueprintCompileMode : uint8
 	FinalRelease UMETA(ToolTip="Always compile in final release mode.")
 };
 
+// @todo: BP2CPP_remove
 USTRUCT()
-struct FCompilerNativizationOptions
+struct UE_DEPRECATED(5.0, "This type is no longer in use and will be removed.") FCompilerNativizationOptions
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -149,6 +151,8 @@ struct FBlueprintMacroCosmeticInfo
 	}
 };
 
+// @todo: BP2CPP_remove - remove disable/enable deprecation warning once NativizationOptions is removed
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FKismetCompilerOptions
 {
 public:
@@ -178,18 +182,22 @@ public:
 
 	TSharedPtr<FString> OutHeaderSourceCode;
 	TSharedPtr<FString> OutCppSourceCode;
+
+	// @todo: BP2CPP_remove
+	UE_DEPRECATED(5.0, "This member is no longer in use and will be removed.")
 	FCompilerNativizationOptions NativizationOptions;
 
+	// @todo: BP2CPP_remove
+	UE_DEPRECATED(5.0, "This API is no longer in use and will be removed.")
 	bool DoesRequireCppCodeGeneration() const
 	{
-		return (CompileType == EKismetCompileType::Cpp);
+		return false;
 	}
 
 	bool DoesRequireBytecodeGeneration() const
 	{
 		return (CompileType == EKismetCompileType::Full) 
-			|| (CompileType == EKismetCompileType::BytecodeOnly) 
-			|| (CompileType == EKismetCompileType::Cpp);
+			|| (CompileType == EKismetCompileType::BytecodeOnly);
 	}
 
 	FKismetCompilerOptions()
@@ -203,7 +211,7 @@ public:
 	{
 	};
 };
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** One metadata entry for a variable */
 USTRUCT()

@@ -197,6 +197,15 @@ namespace CADKernel
 
 		void Get2DSampling(TArray<FPoint2D>& LoopSampling);
 
+		/**
+		 * The idea is to remove degenerated edges of the loop i.e. where the surface is degenerated 
+		 * - so where projections on these area are hazardous
+		 * - so where 2d curve computation based on hazardous projection is hazardous...
+		 * - so where the sampling could be in self-intersecting
+		 * @return false if the loop is degenerated
+		 */
+		bool Get2DSamplingWithoutDegeneratedEdges(TArray<FPoint2D>& LoopSampling);
+
 		void FindSurfaceCorners(TArray<TSharedPtr<FTopologicalVertex>>& OutCorners, TArray<int32>& OutStartSideIndex) const;
 		void FindBreaks(TArray<TSharedPtr<FTopologicalVertex>>& Ruptures, TArray<int32>& OutStartSideIndex, TArray<double>& RuptureValues) const;
 

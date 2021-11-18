@@ -2,6 +2,9 @@
 
 #include "NiagaraDataInterfaceArrayImpl.h"
 
+const TCHAR* FNiagaraDataInterfaceArrayImplHelper::HLSLReadTemplateFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceArrayTemplate.ush");
+const TCHAR* FNiagaraDataInterfaceArrayImplHelper::HLSLReadWriteTemplateFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceArrayRWTemplate.ush");
+
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_LengthName(TEXT("Length"));
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_IsValidIndexName(TEXT("IsValidIndex"));
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_LastIndexName(TEXT("LastIndex"));
@@ -13,15 +16,13 @@ const FName FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName(TEXT
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_AddName(TEXT("Add"));
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_RemoveLastElemName(TEXT("RemoveLastElem"));
 
-FString FNiagaraDataInterfaceArrayImplHelper::GetBufferName(const FString& InterfaceName)
-{
-	return TEXT("ArrayBuffer_") + InterfaceName;
-}
-
-FString FNiagaraDataInterfaceArrayImplHelper::GetBufferSizeName(const FString& InterfaceName)
-{
-	return TEXT("ArrayBufferSize_") + InterfaceName;
-}
+int32 GNiagaraArraySupportRW = 0;
+static FAutoConsoleVariableRef CVarNiagaraArraySupportRW(
+	TEXT("fx.NiagaraArraySupportRW"),
+	GNiagaraArraySupportRW,
+	TEXT("Allows the GPU to RW to the array, this comes with the caveat that all arrays will use a UAV slot."),
+	ECVF_Default
+);
 
 #if WITH_EDITORONLY_DATA
 bool FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
@@ -55,16 +56,17 @@ bool FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FNiagaraFunctionS
 		}
 
 		FunctionSignature.bExperimental = false;
-
-		if ( FunctionSignature.Name == FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName )
-		{
-			FunctionSignature.Inputs.EmplaceAt(1, FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipSet"));
-		}
 	}
+
 	FunctionSignature.FunctionVersion = FFunctionVersion::LatestVersion;
 
 	return true;
 }
 #endif
+
+bool FNiagaraDataInterfaceArrayImplHelper::SupportsGpuRW()
+{
+	return GNiagaraArraySupportRW != 0;
+}
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ArrayImpl);

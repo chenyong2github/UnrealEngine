@@ -25,12 +25,12 @@ public:
 	 *
 	 * @param Rot rotation
 	 */
-	TRotationMatrix(const FRotator& Rot)
+	TRotationMatrix(const TRotator<T>& Rot)
 		: TRotationTranslationMatrix<T>(Rot, TVector<T>::ZeroVector)
 	{ }
 
 	/** Matrix factory. Return an TMatrix<T> so we don't have type conversion issues in expressions. */
-	static TMatrix<T> Make(FRotator const& Rot)
+	static TMatrix<T> Make(TRotator<T> const& Rot)
 	{
 		return TRotationMatrix(Rot);
 	}

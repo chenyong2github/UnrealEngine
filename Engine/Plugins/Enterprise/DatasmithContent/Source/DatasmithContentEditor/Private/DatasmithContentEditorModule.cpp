@@ -4,9 +4,11 @@
 
 #include "AssetTypeActions_DatasmithScene.h"
 #include "DatasmithContentEditorStyle.h"
+#include "DatasmithImportInfoCustomization.h"
 #include "DatasmithSceneActorDetailsPanel.h"
 #include "DatasmithAreaLightActorDetailsPanel.h"
 
+#include "DatasmithAssetImportData.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
 #include "Engine/Blueprint.h"
@@ -41,6 +43,8 @@ public:
 
 		FDatasmithContentEditorStyle::Initialize();
 
+		RegisterDetailCustomization();
+
 		OnMapChangeHandle = FEditorDelegates::MapChange.AddRaw(this, &FDatasmithContentEditorModule::OnMapChange);
 	}
 
@@ -67,6 +71,8 @@ public:
 
 		// Shutdown style set associated with datasmith content
 		FDatasmithContentEditorStyle::Shutdown();
+
+		UnregisterDetailCustomization();
 
 		ClearAutoReimportAssets();
 		FEditorDelegates::MapChange.Remove(OnMapChangeHandle);
@@ -232,6 +238,25 @@ private:
 		}
 
 		AutoReimportingAssets.Empty();
+	}
+
+	void RegisterDetailCustomization()
+	{
+		const FName PropertyEditor("PropertyEditor");
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
+		PropertyModule.RegisterCustomPropertyTypeLayout(FDatasmithImportInfo::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDatasmithImportInfoCustomization::MakeInstance));
+	}
+
+	void UnregisterDetailCustomization()
+	{
+		const FName PropertyEditor("PropertyEditor");
+
+		if (FModuleManager::Get().IsModuleLoaded(PropertyEditor))
+		{
+			FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
+			PropertyModule.UnregisterCustomPropertyTypeLayout(FDatasmithImportInfo::StaticStruct()->GetFName());
+		}
 	}
 
 private:

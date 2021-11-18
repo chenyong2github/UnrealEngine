@@ -49,7 +49,7 @@ void UK2Node_GetDMXAttributeValues::RemovePinsRecursive(UEdGraphPin* PinToRemove
 	if (Pins.Find(PinToRemove, PinRemovalIndex))
 	{
 		Pins.RemoveAt(PinRemovalIndex);
-		PinToRemove->MarkPendingKill();
+		PinToRemove->MarkAsGarbage();
 	}
 }
 

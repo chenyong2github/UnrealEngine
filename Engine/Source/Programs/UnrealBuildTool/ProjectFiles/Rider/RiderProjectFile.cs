@@ -9,8 +9,6 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using UnrealBuildBase;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	internal class RiderProjectFile : ProjectFile
@@ -22,10 +20,15 @@ namespace UnrealBuildTool
 		public CommandLineArguments Arguments;
 
 		private ToolchainInfo RootToolchainInfo = new ToolchainInfo();
-		private UEBuildTarget CurrentTarget;
+		private UEBuildTarget? CurrentTarget;
 
-		public RiderProjectFile(FileReference InProjectFilePath) : base(InProjectFilePath)
+		public RiderProjectFile(FileReference InProjectFilePath, DirectoryReference BaseDir, 
+			DirectoryReference RootPath, HashSet<TargetType> TargetTypes, CommandLineArguments Arguments)
+			: base(InProjectFilePath, BaseDir)
 		{
+			this.RootPath = RootPath;
+			this.TargetTypes = TargetTypes;
+			this.Arguments = Arguments;
 		}
 
 		/// <summary>
@@ -61,12 +64,12 @@ namespace UnrealBuildTool
 				
 				foreach (UnrealTargetConfiguration Configuration in InConfigurations)
 				{
-					foreach (ProjectTarget ProjectTarget in ProjectTargets)
+					foreach (ProjectTarget ProjectTarget in ProjectTargets.OfType<ProjectTarget>())
 					{
-						if (TargetTypes.Any() && !TargetTypes.Contains(ProjectTarget.TargetRules.Type)) continue;
+						if (TargetTypes.Any() && !TargetTypes.Contains(ProjectTarget.TargetRules!.Type)) continue;
 
 						// Skip Programs for all configs except for current platform + Development & Debug configurations
-						if (ProjectTarget.TargetRules.Type == TargetType.Program &&
+						if (ProjectTarget.TargetRules!.Type == TargetType.Program &&
 						    (BuildHostPlatform.Current.Platform != Platform ||
 						     !(Configuration == UnrealTargetConfiguration.Development || Configuration == UnrealTargetConfiguration.Debug)))
 						{
@@ -190,7 +193,7 @@ namespace UnrealBuildTool
 					{
 						Writer.WriteObjectStart(Module.Name);
 						ExportModule(Module, Binary.OutputDir, Target.GetExecutableDir(), Writer);
-						UEBuildModuleCPP ModuleCpp = Module as UEBuildModuleCPP;
+						UEBuildModuleCPP? ModuleCpp = Module as UEBuildModuleCPP;
 						if (ModuleCpp != null)
 						{
 							CppCompileEnvironment ModuleCompileEnvironment = ModuleCpp.CreateCompileEnvironmentForIntellisense(Target.Rules, BinaryCompileEnvironment);
@@ -215,7 +218,7 @@ namespace UnrealBuildTool
 			if (!ModuleToolchainInfo.Equals(RootToolchainInfo))
 			{
 				Writer.WriteObjectStart("ToolchainInfo");
-				foreach (Tuple<string,object> Field in ModuleToolchainInfo.GetDiff(RootToolchainInfo))
+				foreach (Tuple<string,object?> Field in ModuleToolchainInfo.GetDiff(RootToolchainInfo))
 				{
 					WriteField(ModuleCPP.Name, Writer, Field);
 				}
@@ -237,7 +240,7 @@ namespace UnrealBuildTool
 			{
 				using (StreamReader Reader = new StreamReader(FileRef.FullName))
 				{
-					string Line = Reader.ReadLine();
+					string? Line = Reader.ReadLine();
 					if (Line != null)
 					{
 						CorrectFilePathPch = Line.Substring("// PCH for ".Length).Trim();
@@ -357,7 +360,7 @@ namespace UnrealBuildTool
 		/// <param name="Writer">Writer for the array data</param>
 		/// <param name="ArrayName">Name of the array property</param>
 		/// <param name="Modules">Sequence of Modules to write. May be null.</param>
-		private static void ExportJsonModuleArray(JsonWriter Writer, string ArrayName, IEnumerable<UEBuildModule> Modules)
+		private static void ExportJsonModuleArray(JsonWriter Writer, string ArrayName, IEnumerable<UEBuildModule>? Modules)
 		{
 			if (Modules == null || !Modules.Any()) return;
 			
@@ -421,7 +424,7 @@ namespace UnrealBuildTool
 			if (!Target.BuildPlugins.Any()) return;
 			
 			Writer.WriteObjectStart("Plugins");
-			foreach (UEBuildPlugin plugin in Target.BuildPlugins)
+			foreach (UEBuildPlugin plugin in Target.BuildPlugins!)
 			{
 				ExportPlugin(plugin, Writer);
 			}
@@ -458,7 +461,7 @@ namespace UnrealBuildTool
 			RootToolchainInfo = GenerateToolchainInfo(GlobalCompileEnvironment);
 			
 			Writer.WriteObjectStart("ToolchainInfo");
-			foreach (Tuple<string, object> Field in RootToolchainInfo.GetFields())
+			foreach (Tuple<string, object?> Field in RootToolchainInfo.GetFields())
 			{
 				WriteField(Target.TargetName, Writer, Field);
 			}
@@ -476,7 +479,7 @@ namespace UnrealBuildTool
 			
 			if (UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Windows))
 			{
-				foreach (DirectoryReference Path in Target.Rules.WindowsPlatform.Environment.IncludePaths)
+				foreach (DirectoryReference Path in Target.Rules.WindowsPlatform.Environment!.IncludePaths)
 				{
 					Writer.WriteValue(Path.FullName);
 				}
@@ -496,7 +499,7 @@ namespace UnrealBuildTool
 			{
 				var EngineDirectory = Unreal.EngineDirectory.ToString();
 
-				string UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE4_LINUX_USE_LIBCXX");
+				string? UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE4_LINUX_USE_LIBCXX");
 				if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
 				{
 					if (Target.Architecture.StartsWith("x86_64") ||
@@ -524,10 +527,10 @@ namespace UnrealBuildTool
 					throw new ArgumentException("Wrong Target.Architecture: {0}", Target.Architecture);
 				}
 
-				string PlatformSdkVersionString = UEBuildPlatformSDK.GetSDKForPlatform(BuildPlatform.GetPlatformName()).GetInstalledSDKVersion();
+				string PlatformSdkVersionString = UEBuildPlatformSDK.GetSDKForPlatform(BuildPlatform.GetPlatformName())!.GetInstalledSDKVersion()!;
 				var Version = GetLinuxToolchainVersionFromFullString(PlatformSdkVersionString);
 
-				var InternalSdkPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux).GetInternalSDKPath();
+				string? InternalSdkPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)!.GetInternalSDKPath();
 				if (InternalSdkPath != null)
 				{
 					Writer.WriteValue(Path.Combine(InternalSdkPath, "include"));
@@ -546,7 +549,7 @@ namespace UnrealBuildTool
 			Writer.WriteArrayEnd();
 		}
 
-		private static void WriteField(string ModuleOrTargetName, JsonWriter Writer, Tuple<string, object> Field)
+		private static void WriteField(string ModuleOrTargetName, JsonWriter Writer, Tuple<string, object?> Field)
 		{
 			if (Field.Item2 == null) return;
 			string Name = Field.Item1;
@@ -629,7 +632,7 @@ namespace UnrealBuildTool
 				ForceIncludeFiles = CompileEnvironment.ForceIncludeFiles.Select(Item => Item.ToString()).ToList()
 			};
 
-			if (CurrentTarget.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+			if (CurrentTarget!.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				ToolchainInfo.Architecture = WindowsExports.GetArchitectureSubpath(CurrentTarget.Rules.WindowsPlatform.Architecture);
 				
@@ -640,10 +643,10 @@ namespace UnrealBuildTool
 			else
 			{
 				string PlatformName = $"{CurrentTarget.Platform}Platform";
-				object Value = typeof(ReadOnlyTargetRules).GetProperty(PlatformName)?.GetValue(CurrentTarget.Rules);
-				object CompilerField = Value?.GetType().GetProperty("Compiler")?.GetValue(Value);
+				object? Value = typeof(ReadOnlyTargetRules).GetProperty(PlatformName)?.GetValue(CurrentTarget.Rules);
+				object? CompilerField = Value?.GetType().GetProperty("Compiler")?.GetValue(Value);
 				if (CompilerField != null)
-					ToolchainInfo.Compiler = CompilerField.ToString();
+					ToolchainInfo.Compiler = CompilerField.ToString()!;
 			}
 				
 			return ToolchainInfo; 
@@ -681,7 +684,7 @@ namespace UnrealBuildTool
 				new Dictionary<string, IList<string>>();
 
 			private string CurrentlyProcessedSDK = string.Empty;
-			private Process XcrunProcess;
+			private Process? XcrunProcess;
 			private bool IsReadingIncludesSection;
 
 			public IList<string> GetAppleSystemIncludePaths(string Architecture, UnrealTargetPlatform Platform)
@@ -744,7 +747,7 @@ namespace UnrealBuildTool
 						if (Args.Data.StartsWith("End of search"))
 						{
 							IsReadingIncludesSection = false;
-							XcrunProcess.Kill();
+							XcrunProcess!.Kill();
 						}
 						else
 						{

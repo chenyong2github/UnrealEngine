@@ -40,7 +40,7 @@ bool FDisplayClusterConfigManager::StartSession(UDisplayClusterConfigurationData
 void FDisplayClusterConfigManager::EndSession()
 {
 	ClusterNodeId.Empty();
-	ConfigData.Reset(nullptr);
+	ConfigData.Reset();
 }
 
 

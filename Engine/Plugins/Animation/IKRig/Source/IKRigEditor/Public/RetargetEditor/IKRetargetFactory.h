@@ -15,7 +15,7 @@ class UIKRetargetFactory : public UFactory
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TObjectPtr<class UIKRigDefinition>	SourceIKRig;
+	TWeakObjectPtr<class UIKRigDefinition>	SourceIKRig;
 
 public:
 

@@ -12,6 +12,7 @@
 #include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
 #include "IDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
 #include "IMessageBus.h"
 #include "IMessagingModule.h"
 
@@ -50,8 +51,8 @@ public:
 	virtual void StartupModule() override
 	{
 		// Register for Cluster StartSession callback so everything is setup before launching interception
-		IDisplayCluster::Get().OnDisplayClusterStartSession().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnDisplayClusterStartSession);
-		IDisplayCluster::Get().OnDisplayClusterStartScene().AddRaw(this,&FDisplayClusterMessageInterceptionModule::OnNewSceneEvent);
+		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartSession().AddRaw(this, &FDisplayClusterMessageInterceptionModule::OnDisplayClusterStartSession);
+		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartScene().AddRaw(this,&FDisplayClusterMessageInterceptionModule::OnNewSceneEvent);
 
 		// Setup console command to start/stop interception
 		StartMessageSyncCommand = MakeUnique<FAutoConsoleCommand>(
@@ -110,9 +111,9 @@ public:
 			}
 
 			// Unregister cluster session events
-			IDisplayCluster::Get().OnDisplayClusterStartSession().RemoveAll(this);
-			IDisplayCluster::Get().OnDisplayClusterEndSession().RemoveAll(this);
-			IDisplayCluster::Get().OnDisplayClusterPreTick().RemoveAll(this);
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterStartSession().RemoveAll(this);
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterEndSession().RemoveAll(this);
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreTick().RemoveAll(this);
 		}
 		Interceptor.Reset();
 		StartMessageSyncCommand.Reset();
@@ -311,8 +312,8 @@ private:
 			bStartInterceptionRequested = true;
 
 			// Register cluster session events
-			IDisplayCluster::Get().OnDisplayClusterEndSession().AddRaw(this, &FDisplayClusterMessageInterceptionModule::StopInterception);
-			IDisplayCluster::Get().OnDisplayClusterPreTick().AddRaw(this, &FDisplayClusterMessageInterceptionModule::HandleClusterPreTick);
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterEndSession().AddRaw(this, &FDisplayClusterMessageInterceptionModule::StopInterception);
+			IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreTick().AddRaw(this, &FDisplayClusterMessageInterceptionModule::HandleClusterPreTick);
 
 			SetupForMultiUser();
 		}

@@ -528,7 +528,26 @@ void FFileHelper::GenerateDateTimeBasedBitmapFilename(const FString& Pattern, co
  *
  * @return true if success
  */
-bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 SourceHeight, const FColor* Data, struct FIntRect* SubRectangle, IFileManager* FileManager /*= &IFileManager::Get()*/, FString* OutFilename /*= NULL*/, bool bInWriteAlpha /*= false*/, EChannelMask ChannelMask /*= All */ )
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+bool FFileHelper::CreateBitmap(const TCHAR* Pattern, int32 SourceWidth, int32 SourceHeight, const FColor* Data, struct FIntRect* SubRectangle, IFileManager* FileManager /*= &IFileManager::Get()*/, FString* OutFilename /*= NULL*/, bool bInWriteAlpha /*= false*/, EChannelMask ChannelMask /*= All */)
+{
+	EColorChannel ColorChannel = EColorChannel::All;
+	if (ChannelMask != EChannelMask::All)
+	{
+		switch (ChannelMask)
+		{
+		case EChannelMask::R:	ColorChannel = EColorChannel::R;	break;
+		case EChannelMask::G:	ColorChannel = EColorChannel::G;	break;
+		case EChannelMask::B:	ColorChannel = EColorChannel::B;	break;
+		case EChannelMask::A:	ColorChannel = EColorChannel::A;	break;
+		}
+	}
+
+	return CreateBitmap(Pattern, SourceWidth, SourceHeight, Data, SubRectangle, FileManager, OutFilename, bInWriteAlpha, ColorChannel);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 SourceHeight, const FColor* Data, struct FIntRect* SubRectangle, IFileManager* FileManager, FString* OutFilename, bool bInWriteAlpha, EColorChannel ColorChannel)
 {
 	FIntRect Src(0, 0, SourceWidth, SourceHeight);
 	if (SubRectangle == NULL || SubRectangle->Area() == 0)
@@ -659,7 +678,7 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 		{
 			for( int32 j = SubRectangle->Min.X; j < SubRectangle->Max.X; j++ )
 			{
-				if (ChannelMask == EChannelMask::All)
+				if (ColorChannel == EColorChannel::All)
 				{
 					Ar->Serialize((void*)&Data[i * SourceWidth + j].B, 1);
 					Ar->Serialize((void*)&Data[i * SourceWidth + j].G, 1);
@@ -675,18 +694,18 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 					const uint8 Max = 255;
 					uint8 ChannelValue = 0;
 					// When using Channel mask write the masked channel to all channels (except alpha).
-					switch (ChannelMask)
+					switch (ColorChannel)
 					{
-					case EChannelMask::B:
+					case EColorChannel::B:
 						ChannelValue = Data[i * SourceWidth + j].B;
 						break;
-					case EChannelMask::G:
+					case EColorChannel::G:
 						ChannelValue = Data[i * SourceWidth + j].G;
 						break;
-					case EChannelMask::R:
+					case EColorChannel::R:
 						ChannelValue = Data[i * SourceWidth + j].R;
 						break;
-					case EChannelMask::A:
+					case EColorChannel::A:
 						ChannelValue = Data[i * SourceWidth + j].A;
 						break;
 					}

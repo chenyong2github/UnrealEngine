@@ -77,47 +77,13 @@ float FGenericPlatformMath::Atan2(float Y, float X)
 
 double FGenericPlatformMath::Atan2(double Y, double X)
 {
-	//return atan2(Y,X);
-	// Potential for NaN generation from valid inputs. See Atan2(float, float) comment above.
-
-	const double absX = FMath::Abs(X);
-	const double absY = FMath::Abs(Y);
-	const bool yAbsBigger = (absY > absX);
-	double t0 = yAbsBigger ? absY : absX; // Max(absY, absX)
-	double t1 = yAbsBigger ? absX : absY; // Min(absX, absY)
-
-	if (t0 == 0.0)
+	if (X == 0.0 && Y == 0.0)
+	{
 		return 0.0;
+	}
 
-	double t3 = t1 / t0;
-	double t4 = t3 * t3;
-
-	static const double c[7] = {
-		+7.2128853633444123e-03,
-		-3.5059680836411644e-02,
-		+8.1675882859940430e-02,
-		-1.3374657325451267e-01,
-		+1.9856563505717162e-01,
-		-3.3324998579202170e-01,
-		+1.0
-	};
-
-	t0 = c[0];
-	t0 = t0 * t4 + c[1];
-	t0 = t0 * t4 + c[2];
-	t0 = t0 * t4 + c[3];
-	t0 = t0 * t4 + c[4];
-	t0 = t0 * t4 + c[5];
-	t0 = t0 * t4 + c[6];
-	t3 = t0 * t3;
-
-	t3 = yAbsBigger ? (0.5 * DOUBLE_PI) - t3 : t3;
-	t3 = (X < 0.0) ? DOUBLE_PI - t3 : t3;
-	t3 = (Y < 0.0) ? -t3 : t3;
-
-	return t3;
+	return atan2(Y,X);
 }
-
 
 float FGenericPlatformMath::Fmod(float X, float Y)
 {

@@ -27,10 +27,10 @@
 #include "SCommentBubble.h"
 #include "ScopedTransaction.h"
 #include "SGraphNode.h"
-#include "SGraphPin.h"
 #include "SGraphPinComboBox.h"
 #include "SLevelOfDetailBranchNode.h"
-#include "SMetasoundEnumPin.h"
+#include "SMetasoundGraphEnumPin.h"
+#include "SMetasoundGraphPin.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateColor.h"
 #include "Styling/SlateStyleRegistry.h"
@@ -184,69 +184,57 @@ TSharedPtr<SGraphPin> SMetasoundGraphNode::CreatePinWidget(UEdGraphPin* InPin) c
 		// Don't show default value field for container types
 		if (InPin->PinType.ContainerType != EPinContainerType::None)
 		{
-			PinWidget = SNew(SGraphPin, InPin)
+			PinWidget = SNew(SMetasoundGraphPin, InPin)
 				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
 		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
 		{
-			PinWidget = SNew(SGraphPin, InPin)
+			PinWidget = SNew(SMetasoundGraphPin, InPin)
 				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
 		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryBoolean)
 		{
-			PinWidget = SNew(SGraphPinBool, InPin)
+			PinWidget = SNew(SMetasoundGraphPinBool, InPin)
 				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
-		//else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryDouble)
-		//{
-		//	PinWidget = SNew(SGraphPinNum<double>, InPin)
-		//		.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
-		//}
-
 		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryFloat)
 		{
-			PinWidget = SNew(SGraphPinNum<float>, InPin)
+			PinWidget = SNew(SMetasoundGraphPinFloat, InPin)
 				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
 		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt32)
 		{
-			if (SMetasoundEnumPin::FindEnumInterfaceFromPin(InPin))
+			if (SMetasoundGraphEnumPin::FindEnumInterfaceFromPin(InPin))
 			{
-				PinWidget = SNew(SMetasoundEnumPin, InPin)
+				PinWidget = SNew(SMetasoundGraphEnumPin, InPin)
 					.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 			}
 			else
 			{
-				PinWidget = SNew(SGraphPinInteger, InPin)
+				PinWidget = SNew(SMetasoundGraphPinInteger, InPin)
 					.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 			}
 		}
 
-		//if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryInt64)
-		//{
-		//	PinWidget = SNew(SGraphPinNum<int64>, InPin)
-		//		.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
-		//}
-
 		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryObject)
 		{
-			PinWidget = SNew(SGraphPinObject, InPin)
+			PinWidget = SNew(SMetasoundGraphPinObject, InPin)
 				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
 		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryString)
 		{
-			PinWidget = SNew(SGraphPinString, InPin)
+			PinWidget = SNew(SMetasoundGraphPinString, InPin)
 				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 		}
 
 		else if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryTrigger)
 		{
-			PinWidget = SNew(SGraphPin, InPin)
+			PinWidget = SNew(SMetasoundGraphPin, InPin)
 				.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 
 			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
@@ -260,7 +248,7 @@ TSharedPtr<SGraphPin> SMetasoundGraphNode::CreatePinWidget(UEdGraphPin* InPin) c
 
 	if (!PinWidget.IsValid())
 	{
-		PinWidget = SNew(SGraphPin, InPin)
+		PinWidget = SNew(SMetasoundGraphPin, InPin)
 			.ToolTipText(this, &SMetasoundGraphNode::GetPinTooltip, InPin);
 	}
 

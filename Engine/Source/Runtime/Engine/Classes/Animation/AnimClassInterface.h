@@ -296,7 +296,7 @@ public:
 	static bool IsAnimBlueprintFunction(IAnimClassInterface* InAnimClassInterface, const UFunction* InFunction);
 
 	// Get the object ptr given an anim node
-	static const UObject* GetObjectPtrFromAnimNode(IAnimClassInterface* InAnimClassInterface, const FAnimNode_Base* InNode);
+	static const UObject* GetObjectPtrFromAnimNode(const IAnimClassInterface* InAnimClassInterface, const FAnimNode_Base* InNode);
 	
 	UE_DEPRECATED(4.23, "Please use GetAnimBlueprintFunctions()")
 	virtual int32 GetRootAnimNodeIndex() const { return INDEX_NONE; }

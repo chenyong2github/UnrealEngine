@@ -14,12 +14,14 @@
 #include "Templates/Decay.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Templates/ResolveTypeAmbiguity.h"
 
 /**
  * Generic implementation for most platforms
  */
 struct FGenericPlatformMath
 {
+
 	//https://gist.github.com/rygorous/2156668
 	static FORCEINLINE float LoadHalf(const uint16* Ptr)
 	{
@@ -171,7 +173,7 @@ struct FGenericPlatformMath
 	static inline float AsFloat(uint32 U)
 	{
 		float F{};
-		static_assert(sizeof(F) == sizeof(U), "The float and uint sizes must be equal");
+		static_assert(sizeof(F) == sizeof(U), "The float and uint32 sizes must be equal");
 		::memcpy(&F, &U, sizeof(U));
 		return F;
 	}
@@ -184,7 +186,7 @@ struct FGenericPlatformMath
 	static inline double AsFloat(uint64 U)
 	{
 		double F{};
-		static_assert(sizeof(F) == sizeof(U), "The float and uint sizes must be equal");
+		static_assert(sizeof(F) == sizeof(U), "The double and uint64 sizes must be equal");
 		::memcpy(&F, &U, sizeof(F));
 		return F;
 	}
@@ -203,6 +205,7 @@ struct FGenericPlatformMath
 	{
 		return (int32)F;
 	}
+	RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(TruncToInt, int32);
 
 	/**
 	 * Converts a float to an integer value with truncation towards zero.
@@ -224,6 +227,13 @@ struct FGenericPlatformMath
 		return trunc(F);
 	}
 
+	static FORCEINLINE double TruncToFloat(double F)
+	{
+		return TruncToDouble(F);
+	}
+	
+	RESOLVE_FLOAT_AMBIGUITY(TruncToFloat);
+
 	/**
 	 * Converts a float to a nearest less or equal integer.
 	 * @param F		Floating point value to convert
@@ -241,6 +251,8 @@ struct FGenericPlatformMath
 		I -= ((float)I > F);
 		return I;
 	}
+	RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(FloorToInt, int32);
+
 	static FORCEINLINE int64 FloorToInt64(double F)
 	{
 		int64 I = (int64)F;
@@ -267,6 +279,13 @@ struct FGenericPlatformMath
 	{
 		return floor(F);
 	}
+
+	static FORCEINLINE double FloorToFloat(double F)
+	{
+		return FloorToDouble(F);
+	}
+
+	RESOLVE_FLOAT_AMBIGUITY(FloorToFloat);
 
 	/**
 	 * Converts a float to the nearest integer. Rounds up when the fraction is .5
@@ -298,6 +317,13 @@ struct FGenericPlatformMath
 		return FloorToDouble(F + 0.5);
 	}
 
+	static FORCEINLINE double RoundToFloat(double F)
+	{
+		return RoundToDouble(F);
+	}
+
+	RESOLVE_FLOAT_AMBIGUITY(RoundToFloat);
+
 	/**
 	* Converts a float to the nearest greater or equal integer.
 	* @param F		Floating point value to convert
@@ -316,6 +342,8 @@ struct FGenericPlatformMath
 		I += ((float)I < F);
 		return I;
 	}
+
+	RESOLVE_FLOAT_TO_TYPE_AMBIGUITY(CeilToInt, int32);
 
 	/**
 	* Converts a float to the nearest greater or equal integer.
@@ -337,6 +365,13 @@ struct FGenericPlatformMath
 		return ceil(F);
 	}
 
+	static FORCEINLINE double CeilToFloat(double F)
+	{
+		return CeilToDouble(F);
+	}
+
+	RESOLVE_FLOAT_AMBIGUITY(CeilToFloat);
+
 	/**
 	* Returns signed fractional part of a float.
 	* @param Value	Floating point value to convert
@@ -347,6 +382,13 @@ struct FGenericPlatformMath
 		return Value - TruncToFloat(Value);
 	}
 
+	static FORCEINLINE double Fractional(double Value)
+	{
+		return Value - TruncToDouble(Value);
+	}
+
+	RESOLVE_FLOAT_AMBIGUITY(Fractional);
+
 	/**
 	* Returns the fractional part of a float.
 	* @param Value	Floating point value to convert
@@ -356,6 +398,14 @@ struct FGenericPlatformMath
 	{
 		return Value - FloorToFloat(Value);
 	}
+	
+
+	static FORCEINLINE double Frac(double Value)
+	{
+		return Value - FloorToDouble(Value);
+	}
+
+	RESOLVE_FLOAT_AMBIGUITY(Frac);
 
 	/**
 	* Breaks the given value into an integral and a fractional part.
@@ -382,58 +432,89 @@ struct FGenericPlatformMath
 	// Returns e^Value
 	static FORCEINLINE float Exp( float Value ) { return expf(Value); }
 	static FORCEINLINE double Exp(double Value) { return exp(Value); }
+	RESOLVE_FLOAT_AMBIGUITY(Exp);
+
 	// Returns 2^Value
 	static FORCEINLINE float Exp2( float Value ) { return powf(2.f, Value); /*exp2f(Value);*/ }
 	static FORCEINLINE double Exp2(double Value) { return pow(2.0, Value); /*exp2(Value);*/ }
+	RESOLVE_FLOAT_AMBIGUITY(Exp2);
+
 	static FORCEINLINE float Loge( float Value ) {	return logf(Value); }
 	static FORCEINLINE double Loge(double Value) { return log(Value); }
+	RESOLVE_FLOAT_AMBIGUITY(Loge);
+
 	static FORCEINLINE float LogX( float Base, float Value ) { return Loge(Value) / Loge(Base); }
 	static FORCEINLINE double LogX(double Base, double Value) { return Loge(Value) / Loge(Base); }
+	RESOLVE_FLOAT_AMBIGUITY_2_ARGS(LogX);
+
 	// 1.0 / Loge(2) = 1.4426950f
 	static FORCEINLINE float Log2( float Value ) { return Loge(Value) * 1.4426950f; }	
 	// 1.0 / Loge(2) = 1.442695040888963387
 	static FORCEINLINE double Log2(double Value) { return Loge(Value) * 1.442695040888963387; }
+	RESOLVE_FLOAT_AMBIGUITY(Log2);
 
-	/** 
-	* Returns the floating-point remainder of X / Y
-	* Warning: Always returns remainder toward 0, not toward the smaller multiple of Y.
-	*			So for example Fmod(2.8f, 2) gives .8f as you would expect, however, Fmod(-2.8f, 2) gives -.8f, NOT 1.2f 
-	* Use Floor instead when snapping positions that can be negative to a grid
-	*
-	* This is forced to *NOT* inline so that divisions by constant Y does not get optimized in to an inverse scalar multiply,
-	* which is not consistent with the intent nor with the vectorized version.
-	*/
+	/**
+	 * Returns the floating-point remainder of X / Y
+	 * Warning: Always returns remainder toward 0, not toward the smaller multiple of Y.
+	 *			So for example Fmod(2.8f, 2) gives .8f as you would expect, however, Fmod(-2.8f, 2) gives -.8f, NOT 1.2f
+	 * Use Floor instead when snapping positions that can be negative to a grid
+	 *
+	 * This is forced to *NOT* inline so that divisions by constant Y does not get optimized in to an inverse scalar multiply,
+	 * which is not consistent with the intent nor with the vectorized version.
+	 */
+
 	static CORE_API FORCENOINLINE float Fmod(float X, float Y);
 	static CORE_API FORCENOINLINE double Fmod(double X, double Y);
+	RESOLVE_FLOAT_AMBIGUITY_2_ARGS(Fmod);
 
 	static FORCEINLINE float Sin( float Value ) { return sinf(Value); }
 	static FORCEINLINE double Sin( double Value ) { return sin(Value); }
+
 	static FORCEINLINE float Asin( float Value ) { return asinf( (Value<-1.f) ? -1.f : ((Value<1.f) ? Value : 1.f) ); }
 	static FORCEINLINE double Asin( double Value ) { return asin( (Value<-1.0) ? -1.0 : ((Value<1.0) ? Value : 1.0) ); }
+	RESOLVE_FLOAT_AMBIGUITY(Asin);
+
 	static FORCEINLINE float Sinh(float Value) { return sinhf(Value); }
 	static FORCEINLINE double Sinh(double Value) { return sinh(Value); }
+	RESOLVE_FLOAT_AMBIGUITY(Sinh);
+
 	static FORCEINLINE float Cos( float Value ) { return cosf(Value); }
 	static FORCEINLINE double Cos( double Value ) { return cos(Value); }
+	RESOLVE_FLOAT_AMBIGUITY(Cos);
+
 	static FORCEINLINE float Acos( float Value ) { return acosf( (Value<-1.f) ? -1.f : ((Value<1.f) ? Value : 1.f) ); }
 	static FORCEINLINE double Acos( double Value ) { return acos( (Value<-1.0) ? -1.0 : ((Value<1.0) ? Value : 1.0) ); }
+	RESOLVE_FLOAT_AMBIGUITY(Acos);
+
 	static FORCEINLINE float Tan( float Value ) { return tanf(Value); }
 	static FORCEINLINE double Tan( double Value ) { return tan(Value); }
+	RESOLVE_FLOAT_AMBIGUITY(Tan);
+
 	static FORCEINLINE float Atan( float Value ) { return atanf(Value); }
 	static FORCEINLINE double Atan( double Value ) { return atan(Value); }
+	RESOLVE_FLOAT_AMBIGUITY(Atan);
+
 	static CORE_API float Atan2( float Y, float X );
 	static CORE_API double Atan2( double Y, double X );
+	RESOLVE_FLOAT_AMBIGUITY_2_ARGS(Atan2);
+
 	static FORCEINLINE float Sqrt( float Value ) { return sqrtf(Value); }
 	static FORCEINLINE double Sqrt( double Value ) { return sqrt(Value); }
+	RESOLVE_FLOAT_AMBIGUITY(Sqrt);
+
 	static FORCEINLINE float Pow( float A, float B ) { return powf(A,B); }
 	static FORCEINLINE double Pow( double A, double B ) { return pow(A,B); }
+	RESOLVE_FLOAT_AMBIGUITY_2_ARGS(Pow);
 
 	/** Computes a fully accurate inverse square root */
 	static FORCEINLINE float InvSqrt( float F ) { return 1.0f / sqrtf( F ); }
 	static FORCEINLINE double InvSqrt( double F ) { return 1.0 / sqrt( F ); }
+	RESOLVE_FLOAT_AMBIGUITY(InvSqrt);
 
 	/** Computes a faster but less accurate inverse square root */
 	static FORCEINLINE float InvSqrtEst( float F ) { return InvSqrt( F ); }
 	static FORCEINLINE double InvSqrtEst( double F ) { return InvSqrt( F ); }
+	RESOLVE_FLOAT_AMBIGUITY(InvSqrtEst);
 
 	/** Return true if value is NaN (not a number). */
 	static FORCEINLINE bool IsNaN( float A ) 
@@ -933,50 +1014,6 @@ struct FGenericPlatformMath
 											TOr<TIsSame<long double, typename TDecay<Ts>::Type>...>::Value ||
 											(TOr<TIsSame<float, typename TDecay<Ts>::Type>...>::Value && !TAnd<TIsSameOrNotFP<float, typename TDecay<Ts>::Type>...>::Value);
 
-
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Exp(T&& Value) { return Exp((float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Exp2(T&& Value) { return Exp2((float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Loge(T&& Value) { return Loge((float)Value); }
-	template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float LogX(T1&& Base, T2&& Value) { return LogX((float)Base, (float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Log2(T&& Value) { return Log2((float)Value); }
-	template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Fmod(T1&& X, T2&& Y) { return Fmod((float)X, (float)Y); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Sin( T&& Value ) { return Sin((float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Asin( T&& Value ) { return Asin((float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Sinh(T&& Value) { return Sinh((float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Cos( T&& Value ) { return Cos((float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Acos( T&& Value ) { return Acos((float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Tan( T&& Value ) { return Tan((float)Value); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Atan( T&& Value ) { return Atan((float)Value); }
-	template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Atan2( T1&& Y, T2&& X ) { return Atan2((float)Y, (float)X); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Sqrt( T&& Value ) { return Sqrt((float)Value); }
-	template<typename T1, typename T2, TEMPLATE_REQUIRES(TIsAmbiguous<T1, T2>)> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float Pow( T1&& A, T2&& B ) { return Pow((float)A, (float)B); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float InvSqrt( T&& F ) { return InvSqrt((float)F); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE float InvSqrtEst(T&& F) { return InvSqrt((float)F); }
-
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE int32 FloorToInt(T F) { return FloorToInt((float)F); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static FORCEINLINE int32 CeilToInt(T F) { return CeilToInt((float)F); }
-	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
-	static CONSTEXPR FORCEINLINE int32 TruncToInt(T F) { return TruncToInt((float)F); }
 private:
 
 	/** Error reporting for Fmod. Not inlined to avoid compilation issues and avoid all the checks and error reporting at all callsites. */

@@ -2,6 +2,7 @@
 
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
+#include "ConcertMessages.h"
 #include "ConsoleVariablesAsset.h"
 #include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorCommandInfo.h"
@@ -11,9 +12,30 @@
 #include "FileHelpers.h"
 #include "Framework/Application/SlateApplication.h"
 
+
 FConsoleVariablesEditorMainPanel::FConsoleVariablesEditorMainPanel()
 {
 	EditorList = MakeShared<FConsoleVariablesEditorList>();
+
+	MultiUserManager.OnConnectionChange().AddLambda([] (EConcertConnectionStatus Status)
+		{
+			switch(Status) {
+			case EConcertConnectionStatus::Connected:
+				UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user has connected to a session."));
+				break;
+			case EConcertConnectionStatus::Disconnected:
+				UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user has disconnect from session."));
+				break;
+			default:
+				break;
+			};
+
+		});
+
+	MultiUserManager.OnRemoteCVarChange().AddLambda([] (FString InName, FString InValue)
+		{
+			UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
+		});
 }
 
 TSharedRef<SWidget> FConsoleVariablesEditorMainPanel::GetOrCreateWidget()
@@ -31,7 +53,7 @@ FConsoleVariablesEditorModule& FConsoleVariablesEditorMainPanel::GetConsoleVaria
 	return FConsoleVariablesEditorModule::Get();
 }
 
-TWeakObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorMainPanel::GetEditingAsset()
+TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorMainPanel::GetEditingAsset()
 {
 	return GetConsoleVariablesModule().GetEditingAsset();
 }
@@ -47,15 +69,15 @@ void FConsoleVariablesEditorMainPanel::AddConsoleVariable(
 
 		Asset->AddOrSetConsoleVariableSavedValue(InConsoleCommand, InValue);
 
-		RefreshList(Asset, bScrollToNewRow ? InConsoleCommand : "");
+		RefreshList(bScrollToNewRow ? InConsoleCommand : "");
 	}
 }
 
-void FConsoleVariablesEditorMainPanel::RefreshList(TObjectPtr<UConsoleVariablesAsset> InAsset, const FString& InConsoleCommandToScrollTo) const
+void FConsoleVariablesEditorMainPanel::RefreshList(const FString& InConsoleCommandToScrollTo) const
 {
 	if (EditorList.IsValid())
 	{
-		EditorList->RefreshList(InAsset, InConsoleCommandToScrollTo);
+		EditorList->RefreshList(InConsoleCommandToScrollTo);
 	}
 }
 
@@ -115,19 +137,19 @@ void FConsoleVariablesEditorMainPanel::SavePresetAs()
 void FConsoleVariablesEditorMainPanel::ImportPreset(const FAssetData& InPresetAsset)
 {
 	FSlateApplication::Get().DismissAllMenus();
-	const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
+	const TObjectPtr<UConsoleVariablesAsset> EditingAsset = GetEditingAsset();
 
-	if (EditingAsset.IsValid() && ImportPreset_Impl(InPresetAsset, EditingAsset))
+	if (EditingAsset && ImportPreset_Impl(InPresetAsset, EditingAsset))
 	{
-		EditorList->RefreshList(EditingAsset.Get());
+		EditorList->RefreshList();
 	}
 }
 
-bool FConsoleVariablesEditorMainPanel::ImportPreset_Impl(const FAssetData& InPresetAsset, const TWeakObjectPtr<UConsoleVariablesAsset> EditingAsset)
+bool FConsoleVariablesEditorMainPanel::ImportPreset_Impl(const FAssetData& InPresetAsset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset)
 {
 	if (UConsoleVariablesAsset* Preset = CastChecked<UConsoleVariablesAsset>(InPresetAsset.GetAsset()))
 	{
-		if (EditingAsset.IsValid())
+		if (EditingAsset)
 		{
 			ReferenceAssetOnDisk = Preset;
 

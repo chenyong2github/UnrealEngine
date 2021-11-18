@@ -34,7 +34,7 @@ public:
 	{
 		Inner->WriteLinkerAdditionalData(Info, Data, FileRegions);
 	}
-	virtual void AddToExportsSize(int32& ExportsSize) override
+	virtual void AddToExportsSize(int64& ExportsSize) override
 	{
 		Inner->AddToExportsSize(ExportsSize);
 	}

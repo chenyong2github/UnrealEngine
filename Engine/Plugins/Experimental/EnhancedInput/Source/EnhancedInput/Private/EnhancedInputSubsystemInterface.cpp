@@ -44,7 +44,7 @@ void IEnhancedInputSubsystemInterface::ClearAllMappings()
 	}
 }
 
-void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority)
+void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const bool bIgnoreAllPressedKeysUntilRelease /* = true */)
 {
 	// Layer mappings on top of existing mappings
 	if (MappingContext)
@@ -52,26 +52,28 @@ void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingCont
 		if (UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
 		{
 			PlayerInput->AppliedInputContexts.Add(MappingContext, Priority);
-			RequestRebuildControlMappings(false);
+			RequestRebuildControlMappings(false, bIgnoreAllPressedKeysUntilRelease);
 		}
 	}
 }
 
-void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingContext* MappingContext)
+void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingContext* MappingContext, const bool bIgnoreAllPressedKeysUntilRelease /* = true */)
 {
 	if (MappingContext)
 	{
 		if (UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
 		{
 			PlayerInput->AppliedInputContexts.Remove(MappingContext);
-			RequestRebuildControlMappings(false);
+			RequestRebuildControlMappings(false, bIgnoreAllPressedKeysUntilRelease);
 		}
 	}
 }
 
-void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(bool bForceImmediately)
+void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(bool bForceImmediately, const bool bIgnoreAllPressedKeysUntilRelease /* = true */)
 {
 	bMappingRebuildPending = true;
+	bIgnoreAllPressedKeysUntilReleaseOnRebuild &= bIgnoreAllPressedKeysUntilRelease;
+
 	if (bForceImmediately)
 	{
 		RebuildControlMappings();
@@ -538,12 +540,33 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	{
 		RemovedActions.Add(ActionInstance.Key);
 	}
+
+	// Return true if the given FKey was in the old Player Input mappings
+	auto WasInOldMapping = [&OldMappings](const FKey& InKey) -> bool
+	{
+		return OldMappings.ContainsByPredicate(
+			[&InKey](const FEnhancedActionKeyMapping& OldMapping){ return OldMapping.Key == InKey; }
+			);
+	};
+	
 	for (FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
 	{
 		RemovedActions.Remove(Mapping.Action);
 
+		// Was this key pressed last frame? If so, then we need to mark it to be ignored by the PlayerInput
+		// until it is released to avoid re-processing a triggered event when it. This is only a problem if
+		// the key was in the old mapping and the new one
+		if(bIgnoreAllPressedKeysUntilReleaseOnRebuild && Mapping.Key.IsDigital() && WasInOldMapping(Mapping.Key))
+		{				
+			const FKeyState* KeyState = PlayerInput->GetKeyState(Mapping.Key);
+			if(KeyState && KeyState->bDown)
+			{
+				Mapping.bShouldBeIgnored = true;
+			}
+		}
+
 		// Retain old mapping trigger/modifier state for identical key -> action mappings.
-		TArray<FEnhancedActionKeyMapping>::SizeType Idx = OldMappings.IndexOfByPredicate([&Mapping](const FEnhancedActionKeyMapping& Other) {return Mapping.Action == Other.Action && Mapping.Key == Other.Key; });
+		TArray<FEnhancedActionKeyMapping>::SizeType Idx = OldMappings.IndexOfByPredicate([&Mapping](const FEnhancedActionKeyMapping& Other) {return Mapping == Other; });
 		if (Idx != INDEX_NONE)
 		{
 			Mapping = MoveTemp(OldMappings[Idx]);
@@ -556,6 +579,7 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	}
 
 	bMappingRebuildPending = false;
+	bIgnoreAllPressedKeysUntilReleaseOnRebuild = true;
 }
 
 template<typename T>

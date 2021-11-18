@@ -28,6 +28,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 
 #include "GPUSkinPublicDefs.h"
 #include "GPUSkinVertexFactory.h"
@@ -169,7 +170,7 @@ void ClothingAssetUtils::ClearSectionClothingData(FSkelMeshSection& InSection)
 	InSection.ClothingData.AssetLodIndex = INDEX_NONE;
 	InSection.CorrespondClothAssetIndex = INDEX_NONE;
 
-	InSection.ClothMappingData.Empty();
+	InSection.ClothMappingDataLODs.Empty();
 }
 #endif
 
@@ -193,9 +194,9 @@ UClothingAssetCommon::UClothingAssetCommon(const FObjectInitializer& ObjectIniti
 
 void Warn(const FText& Error)
 {
-	FNotificationInfo Info(Error);
-	Info.ExpireDuration = 5.0f;
-	FSlateNotificationManager::Get().AddNotification(Info);
+	FNotificationInfo* const NotificationInfo = new FNotificationInfo(Error);
+	NotificationInfo->ExpireDuration = 5.0f;
+	FSlateNotificationManager::Get().QueueNotification(NotificationInfo);
 
 	UE_LOG(LogClothingAsset, Warning, TEXT("%s"), *Error.ToString());
 }
@@ -325,37 +326,17 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 		}
 	}
 
-	const ClothingMeshUtils::ClothMeshDesc TargetMesh(RenderPositions, RenderNormals, RenderIndices);
-
-	TArray<FVector3f> RecomputedVertexNormals;
-	ClothLodData.PhysicalMeshData.ComputeFaceAveragedVertexNormals(RecomputedVertexNormals);
+	const ClothingMeshUtils::ClothMeshDesc TargetMesh(RenderPositions, RenderNormals, RenderTangents, RenderIndices);
 
 	const ClothingMeshUtils::ClothMeshDesc SourceMesh(
-		ClothLodData.PhysicalMeshData.Vertices, 
-		RecomputedVertexNormals,
+		ClothLodData.PhysicalMeshData.Vertices,
+		ClothLodData.PhysicalMeshData.Normals,
 		ClothLodData.PhysicalMeshData.Indices);
 
-	TArray<float> MaxEdgeLength;
-	ClothingMeshUtils::ComputeMaxEdgeLength(TargetMesh, MaxEdgeLength);
-
-	ClothingMeshUtils::GenerateMeshToMeshSkinningData(MeshToMeshData, TargetMesh, &RenderTangents, SourceMesh, MaxEdgeLength,
-		ClothLodData.bUseMultipleInfluences, ClothLodData.SkinningKernelRadius);
-
-	if(MeshToMeshData.Num() == 0)
-	{
-		// Failed to generate skinning data, the function above will have notified
-		// with the cause of the failure, so just exit
-		return false;
-	}
-
-	// Calculate the vertex contribution alpha
 	const FPointWeightMap* const MaxDistances = ClothLodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
-	ClothingMeshUtils::ComputeVertexContributions(MeshToMeshData, MaxDistances, ClothLodData.bSmoothTransition);
 
-	if (ClothLodData.bUseMultipleInfluences)
-	{
-		ClothingMeshUtils::FixZeroWeightVertices(MeshToMeshData, TargetMesh, &RenderTangents, SourceMesh, MaxEdgeLength);
-	}
+	ClothingMeshUtils::GenerateMeshToMeshVertData(MeshToMeshData, TargetMesh, SourceMesh, MaxDistances,
+		ClothLodData.bSmoothTransition, ClothLodData.bUseMultipleInfluences, ClothLodData.SkinningKernelRadius);
 
 	// We have to copy the bone map to verify we don't exceed the maximum while adding the clothing bones
 	TArray<FBoneIndexType> TempBoneMap = OriginalSection.BoneMap;
@@ -401,7 +382,8 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	OriginalSection.CorrespondClothAssetIndex = AssetIndex;
 
 	// sim properties
-	OriginalSection.ClothMappingData = MeshToMeshData;
+	OriginalSection.ClothMappingDataLODs.SetNum(1);
+	OriginalSection.ClothMappingDataLODs[0] = MeshToMeshData;
 	OriginalSection.ClothingData.AssetGuid = AssetGuid;
 	OriginalSection.ClothingData.AssetLodIndex = InAssetLodIndex;
 
@@ -440,9 +422,265 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	LodMap[InMeshLodIndex] = InAssetLodIndex;
 
+	// Update the extra cloth deformer mapping LOD bias using this cloth entry
+	if (InSkelMesh->GetSupportRayTracing())
+	{
+		check(LodMap[InMeshLodIndex] == InAssetLodIndex);  // UpdateLODBiasMappings relies on the LodMap being up to date
+		UpdateLODBiasMappings(InSkelMesh, InMeshLodIndex, InSectionIndex);
+	}
+
 	return true;
 
 	// FScopedSkeletalMeshPostEditChange goes out of scope, causing postedit change and components to be re-registered
+}
+
+void UClothingAssetCommon::UpdateAllLODBiasMappings(USkeletalMesh* SkeletalMesh)
+{
+	check(SkeletalMesh);
+
+	FSkeletalMeshModel* const SkeletalMeshModel = SkeletalMesh->GetImportedModel();
+	if (!SkeletalMeshModel)
+	{
+		return;
+	}
+
+	// Iterate through all source LODs with cloth that could lead to upper (raytraced) sections needing some additional mapping
+	TIndirectArray<FSkeletalMeshLODModel>& LODModels = SkeletalMesh->GetImportedModel()->LODModels;
+
+	for (int32 LODIndex = LODModels.Num() - 1; LODIndex >= 0; --LODIndex)  // Iterate in reverse order to allow shrinking the mapping array first
+	{
+		// Go through all sections to find the one(s?) that uses this cloth asset and clear the existing bias mappings
+		TArray<FSkelMeshSection>& Sections = LODModels[LODIndex].Sections;
+		
+		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+		{
+			if (Sections[SectionIndex].ClothingData.AssetGuid == GetAssetGuid())
+			{
+				Sections[SectionIndex].ClothMappingDataLODs.SetNum(1);  // Only keep ClothMappingDataLODs[0] that is the same LOD mapping to remove LOD bias mappings
+
+				if (SkeletalMesh->GetSupportRayTracing())
+				{
+					UpdateLODBiasMappings(SkeletalMesh, LODIndex, SectionIndex);  // Updates the upper LODs mappings of the specified section from this LODIndex
+				}
+			}
+		}
+	}
+}
+
+void UClothingAssetCommon::UpdateLODBiasMappings(const USkeletalMesh* SkeletalMesh, int32 UpdatedLODIndex, int32 SectionIndex)
+{
+	check(SkeletalMesh);
+	check(UpdatedLODIndex >= 0);
+	
+	FSkeletalMeshModel* const SkeletalMeshModel = SkeletalMesh->GetImportedModel();
+	check(SkeletalMeshModel);
+
+	const bool bAddMappingsToAnyLOD = (SkeletalMesh->GetClothLODBiasMode() == EClothLODBiasMode::MappingsToAnyLOD);
+	const bool bAddMappingsToMinLOD = (SkeletalMesh->GetClothLODBiasMode() == EClothLODBiasMode::MappingsToMinLOD && SkeletalMesh->GetRayTracingMinLOD() > 0);
+
+	TIndirectArray<FSkeletalMeshLODModel>& LODModels = SkeletalMeshModel->LODModels;
+
+	TArray<FVector3f> RenderPositions;
+	TArray<FVector3f> RenderNormals;
+	TArray<FVector3f> RenderTangents;
+	TArray<uint32> RenderIndices;
+
+	auto PrepareDeformerTargetDescriptor = [&LODModels, &RenderPositions, &RenderNormals, &RenderTangents, &RenderIndices](int32 LODIndex, int32 SectionIndex)
+	{
+		FSkeletalMeshLODModel& LODModel = LODModels[LODIndex];
+		FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+		RenderPositions.Reset(Section.SoftVertices.Num());
+		RenderNormals.Reset(Section.SoftVertices.Num());
+		RenderTangents.Reset(Section.SoftVertices.Num());
+
+		for (const FSoftSkinVertex& SoftSkinVertex : Section.SoftVertices)
+		{
+			RenderPositions.Add(SoftSkinVertex.Position);
+			RenderNormals.Add(SoftSkinVertex.TangentZ);
+			RenderTangents.Add(SoftSkinVertex.TangentX);
+		}
+
+		const TConstArrayView<uint32> Indices = TConstArrayView<uint32>(LODModel.IndexBuffer).Slice(Section.BaseIndex, Section.NumTriangles * 3);
+
+		RenderIndices.Reset(Section.NumTriangles * 3);
+		for (uint32 VertexIndex : Indices)
+		{
+			RenderIndices.Add(VertexIndex - Section.BaseVertexIndex);
+		}
+
+		return ClothingMeshUtils::ClothMeshDesc(RenderPositions, RenderNormals, RenderTangents, RenderIndices);
+	};
+
+	// Get the min and max LODs that might be affected by LOD bias and update other sections' bias with this LOD section
+	int32 MinLOD = 0;
+	int32 MaxLOD = 0;
+	
+	if (bAddMappingsToAnyLOD)
+	{
+		MinLOD = UpdatedLODIndex + 1;
+		MaxLOD = LODModels.Num() - 1;
+	}
+	else if (bAddMappingsToMinLOD)
+	{
+		MinLOD = MaxLOD = SkeletalMesh->GetRayTracingMinLOD();
+	}
+
+	if (UpdatedLODIndex < MinLOD && MinLOD <= MaxLOD)
+	{
+		// Prepare the deformer source (simulation) mesh descriptor
+		const FClothLODDataCommon& ClothLodData = LodData[LodMap[UpdatedLODIndex]];
+		const ClothingMeshUtils::ClothMeshDesc SourceMesh(
+			ClothLodData.PhysicalMeshData.Vertices, 
+			ClothLodData.PhysicalMeshData.Normals,
+			ClothLodData.PhysicalMeshData.Indices);
+
+		// Retrieve max distance mask
+		const FPointWeightMap* const MaxDistances = ClothLodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
+
+		// Iterate through all deformer target (render) mesh sections
+		for (int32 LODIndex = MinLOD; LODIndex <= MaxLOD; ++LODIndex)
+		{
+			FSkeletalMeshLODModel& LODModel = LODModels[LODIndex];  // Note that the section LOD being updated here is the biased (raytraced) section LOD, not the UpdatedLODIndex which is done in the second loop below
+
+			if (!LODModel.Sections.IsValidIndex(SectionIndex))
+			{
+				continue;
+			}
+
+			FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+			if (!Section.HasClothingData())
+			{
+				continue;  // This LOD section won't render clothing and therefore can be skipped as it won't ever need mappings
+			}
+
+			// Update bias mapping to the newly updated LOD index
+			const int32 LODBias = LODIndex - UpdatedLODIndex;
+			check(LODBias > 0);
+
+			Section.ClothMappingDataLODs.SetNum(FMath::Max(LODBias + 1, Section.ClothMappingDataLODs.Num()));
+
+			TArray<FMeshToMeshVertData>& MeshToMeshData = Section.ClothMappingDataLODs[LODBias];
+			MeshToMeshData.Reset();
+
+			// Prepare the deformer target (render) mesh descriptor
+			const ClothingMeshUtils::ClothMeshDesc TargetMesh = PrepareDeformerTargetDescriptor(LODIndex, SectionIndex);
+
+			// Generate the missing bias mapping data
+			ClothingMeshUtils::GenerateMeshToMeshVertData(MeshToMeshData, TargetMesh, SourceMesh, MaxDistances,
+				ClothLodData.bSmoothTransition, ClothLodData.bUseMultipleInfluences, ClothLodData.SkinningKernelRadius);
+
+			UE_LOG(LogClothingAsset, Verbose, TEXT("Added deformer data for [%s/%s], section %d, LODBias = %d, render mesh LOD = %d, sim mesh LOD = %d"),
+				*SkeletalMesh->GetName(),
+				*GetName(),
+				SectionIndex,
+				LODBias,
+				LODIndex,
+				UpdatedLODIndex);
+		}
+	}
+
+	// Update this LOD section bias mappings that didn't get setup since there weren't no cloth attached to it yet
+	if (bAddMappingsToAnyLOD || (bAddMappingsToMinLOD && UpdatedLODIndex == SkeletalMesh->GetRayTracingMinLOD()))
+	{
+		FSkeletalMeshLODModel& LODModel = LODModels[UpdatedLODIndex];  // Note that the section LOD being updated here is the UpdatedLODIndex, not the biased (raytraced) section LOD  which is done in the first loop above
+		FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+		check(Section.HasClothingData());
+
+		// Prepare the deformer target (render) mesh descriptor
+		const ClothingMeshUtils::ClothMeshDesc TargetMesh = PrepareDeformerTargetDescriptor(UpdatedLODIndex, SectionIndex);
+
+		// Iterate through all the LOD that could be rendered and need this source LOD to be raytraced
+		for (int32 LODIndex = 0; LODIndex < UpdatedLODIndex; ++LODIndex)
+		{
+			FSkeletalMeshLODModel& SourceLODModel = LODModels[LODIndex];
+
+			if (!SourceLODModel.Sections.IsValidIndex(SectionIndex))
+			{
+				continue;
+			}
+
+			FSkelMeshSection& SourceSection = SourceLODModel.Sections[SectionIndex];
+
+			// Locate the deformer's source (simulation) cloth asset, since it could be a different cloth asset.
+			const UClothingAssetCommon* const ClothingAsset = Cast<UClothingAssetCommon>(SkeletalMesh->GetClothingAsset(SourceSection.ClothingData.AssetGuid));
+
+			if (!ClothingAsset)
+			{
+				const FText Error = FText::Format(
+					LOCTEXT("Error_DifferentAsset", "Incomplete raytracing cloth LOD bias mappings generation on [{0}/{1}], section {2}, LOD {3} due to missing cloth asset at LOD {4}."),
+					FText::FromString(SkeletalMesh->GetName()),
+					FText::FromString(GetName()),
+					SectionIndex,
+					UpdatedLODIndex, 
+					LODIndex);
+				Warn(Error);
+				continue;
+			}
+
+			// Prepare the deformer source (simulation) mesh descriptor
+			const FClothLODDataCommon& ClothLodData = ClothingAsset->LodData[LodMap[LODIndex]];
+			const ClothingMeshUtils::ClothMeshDesc SourceMesh(
+				ClothLodData.PhysicalMeshData.Vertices,
+				ClothLodData.PhysicalMeshData.Normals,
+				ClothLodData.PhysicalMeshData.Indices);
+
+			// Retrieve max distance mask
+			const FPointWeightMap* const MaxDistances = ClothLodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
+
+			// Update bias mapping for the updated LOD section
+			const int32 LODBias = UpdatedLODIndex - LODIndex;
+			check(LODBias > 0);
+
+			Section.ClothMappingDataLODs.SetNum(FMath::Max(LODBias + 1, Section.ClothMappingDataLODs.Num()));
+			TArray<FMeshToMeshVertData>& MeshToMeshData = Section.ClothMappingDataLODs[LODBias];
+			MeshToMeshData.Reset();
+
+			ClothingMeshUtils::GenerateMeshToMeshVertData(MeshToMeshData, TargetMesh, SourceMesh, MaxDistances,
+				ClothLodData.bSmoothTransition, ClothLodData.bUseMultipleInfluences, ClothLodData.SkinningKernelRadius);
+
+			UE_LOG(LogClothingAsset, Verbose, TEXT("Added deformer data for [%s/%s], section %d, LODBias = %d, render mesh LOD = %d, sim mesh LOD = %d"),
+				*SkeletalMesh->GetName(),
+				*GetName(),
+				SectionIndex,
+				LODBias,
+				UpdatedLODIndex,
+				LODIndex);
+		}
+	}
+}
+
+void UClothingAssetCommon::ClearLODBiasMappings(const USkeletalMesh* SkeletalMesh, int32 UpdatedLODIndex, int32 SectionIndex)
+{
+	check(SkeletalMesh);
+	check(UpdatedLODIndex >= 0);
+
+	FSkeletalMeshModel* const SkeletalMeshModel = SkeletalMesh->GetImportedModel();
+	check(SkeletalMeshModel);
+
+	for (int32 LODIndex = UpdatedLODIndex + 1; LODIndex < SkeletalMeshModel->LODModels.Num(); ++LODIndex)
+	{
+		FSkeletalMeshLODModel& BiasLodModel = SkeletalMeshModel->LODModels[LODIndex];
+		if (BiasLodModel.Sections.IsValidIndex(SectionIndex))
+		{
+			FSkelMeshSection& BiasSection = BiasLodModel.Sections[SectionIndex];
+			const int32 LODBias = LODIndex - UpdatedLODIndex;
+
+			if (BiasSection.ClothMappingDataLODs.IsValidIndex(LODBias))
+			{
+				BiasSection.ClothMappingDataLODs[LODBias].Empty();
+
+				UE_LOG(LogClothingAsset, Verbose, TEXT("Removed deformer data for [%s/%s], section %d LODBias = %d, render mesh LOD = %d, sim mesh LOD = %d"),
+					*SkeletalMesh->GetName(),
+					*GetName(),
+					SectionIndex,
+					LODBias,
+					LODIndex,
+					UpdatedLODIndex);
+			}
+		}
+	}
 }
 
 void UClothingAssetCommon::UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh)
@@ -485,6 +723,22 @@ void UClothingAssetCommon::UnbindFromSkeletalMesh(
 			if(Section.HasClothingData() && Section.ClothingData.AssetGuid == AssetGuid)
 			{
 				InSkelMesh->PreEditChange(nullptr);
+
+				// Log the LOD bias mapping data that will be removed through the call to ClearSectionClothingData
+				for (int32 LodIndex = 0; LodIndex < InMeshLodIndex; ++LodIndex)
+				{
+					const int32 LODBias = InMeshLodIndex - LodIndex;
+
+					UE_CLOG(Section.ClothMappingDataLODs.IsValidIndex(LODBias) && Section.ClothMappingDataLODs[LODBias].Num(),
+						LogClothingAsset, Verbose, TEXT("Removed deformer data for [%s/%s], section %d LODBias = %d, render mesh LOD = %d, sim mesh LOD = %d"),
+						*InSkelMesh->GetName(),
+						*GetName(),
+						SectionIdx,
+						LODBias,
+						InMeshLodIndex,
+						LodIndex);
+				}
+
 				ClothingAssetUtils::ClearSectionClothingData(Section);
 				if (FSkelMeshSourceSectionUserData* UserSectionData = LodModel.UserSectionsData.Find(Section.OriginalDataSectionIndex))
 				{
@@ -492,6 +746,10 @@ void UClothingAssetCommon::UnbindFromSkeletalMesh(
 					UserSectionData->ClothingData.AssetLodIndex = INDEX_NONE;
 					UserSectionData->ClothingData.AssetGuid = FGuid();
 				}
+				
+				// Clear all remaining LOD bias mapping data from other LODs that relied on this section
+				ClearLODBiasMappings(InSkelMesh, InMeshLodIndex, SectionIdx);
+
 				bChangedMesh = true;
 			}
 		}
@@ -580,7 +838,10 @@ void UClothingAssetCommon::ApplyParameterMasks(bool bUpdateFixedVertData)
 				const FClothLODDataCommon& LodDatum = LodData[Section.ClothingData.AssetLodIndex];
 				const FPointWeightMap* const MaxDistances = LodDatum.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
 
-				ClothingMeshUtils::ComputeVertexContributions(Section.ClothMappingData, MaxDistances, LodDatum.bSmoothTransition);
+				for (TArray<FMeshToMeshVertData>& ClothMappingData : Section.ClothMappingDataLODs)
+				{
+					ClothingMeshUtils::ComputeVertexContributions(ClothMappingData, MaxDistances, LodDatum.bSmoothTransition, LodDatum.bUseMultipleInfluences);
+				}
 			}
 		}
 		// We must always dirty the DDC key unless previewing
@@ -605,25 +866,28 @@ void UClothingAssetCommon::BuildLodTransitionData()
 		const int32 CurrentLodNumVerts = CurrentPhysMesh.Vertices.Num();
 
 		ClothingMeshUtils::ClothMeshDesc CurrentMeshDesc(CurrentPhysMesh.Vertices, CurrentPhysMesh.Normals, CurrentPhysMesh.Indices);
-		static const bool bUseMultipleInfluences = false;  // Multiple influences must not be used for LOD transitions
 
-		TArray<float> MaxEdgeLength;
-		ClothingMeshUtils::ComputeMaxEdgeLength(CurrentMeshDesc, MaxEdgeLength);
+		const FPointWeightMap* MaxDistances = nullptr; // No need to update the vertex contribution on the transition maps
+		constexpr bool bUseSmoothTransitions = false;  // Smooth transitions are only used at rendering for now and not during LOD transitions
+		constexpr bool bUseMultipleInfluences = false;  // Multiple influences must not be used for LOD transitions
+		constexpr float SkinningKernelRadius = 0.f;  // KernelRadius is only required when using multiple influences
+
 		if(PrevLod)
 		{
 			FClothPhysicalMeshData& PrevPhysMesh = PrevLod->PhysicalMeshData;
 			CurrentLod.TransitionUpSkinData.Empty(CurrentLodNumVerts);
 			ClothingMeshUtils::ClothMeshDesc PrevMeshDesc(PrevPhysMesh.Vertices, PrevPhysMesh.Normals, PrevPhysMesh.Indices);
-			ClothingMeshUtils::GenerateMeshToMeshSkinningData(CurrentLod.TransitionUpSkinData, CurrentMeshDesc, nullptr, 
-				PrevMeshDesc, MaxEdgeLength, bUseMultipleInfluences, CurrentLod.SkinningKernelRadius);
+
+			ClothingMeshUtils::GenerateMeshToMeshVertData(CurrentLod.TransitionUpSkinData, CurrentMeshDesc, PrevMeshDesc,
+				MaxDistances, bUseSmoothTransitions, bUseMultipleInfluences, SkinningKernelRadius);
 		}
 		if(NextLod)
 		{
 			FClothPhysicalMeshData& NextPhysMesh = NextLod->PhysicalMeshData;
 			CurrentLod.TransitionDownSkinData.Empty(CurrentLodNumVerts);
 			ClothingMeshUtils::ClothMeshDesc NextMeshDesc(NextPhysMesh.Vertices, NextPhysMesh.Normals, NextPhysMesh.Indices);
-			ClothingMeshUtils::GenerateMeshToMeshSkinningData(CurrentLod.TransitionDownSkinData, CurrentMeshDesc, 
-				nullptr, NextMeshDesc, MaxEdgeLength, bUseMultipleInfluences, CurrentLod.SkinningKernelRadius);
+			ClothingMeshUtils::GenerateMeshToMeshVertData(CurrentLod.TransitionDownSkinData, CurrentMeshDesc, NextMeshDesc,
+				MaxDistances, bUseSmoothTransitions, bUseMultipleInfluences, SkinningKernelRadius);
 		}
 	}
 }
@@ -796,6 +1060,16 @@ void UClothingAssetCommon::PostLoad()
 		}
 	}
 	ClothLodData_DEPRECATED.Empty();
+
+	// Re-calulate normals
+	const int32 UE5ReleaseStreamObjectVersion = GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	if (UE5ReleaseStreamObjectVersion < FUE5ReleaseStreamObjectVersion::AddClothMappingLODBias)
+	{
+		for (FClothLODDataCommon& Lod : LodData)
+		{
+			Lod.PhysicalMeshData.CalculateNormals();
+		}
+	}
 
 	const int32 AnimPhysCustomVersion = GetLinkerCustomVersion(FAnimPhysObjectVersion::GUID);
 	if (AnimPhysCustomVersion < FAnimPhysObjectVersion::AddedClothingMaskWorkflow)

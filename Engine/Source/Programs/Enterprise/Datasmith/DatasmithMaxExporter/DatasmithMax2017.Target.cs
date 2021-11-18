@@ -5,8 +5,6 @@ using UnrealBuildTool;
 [SupportedPlatforms("Win64")]
 public abstract class DatasmithMaxBaseTarget : TargetRules
 {
-	// todo: duplicated in ModuleRules
-	bool bBuildExporterPlugin = true;
 	public DatasmithMaxBaseTarget(TargetInfo Target)
 		: base(Target)
 	{
@@ -18,21 +16,7 @@ public abstract class DatasmithMaxBaseTarget : TargetRules
 		bShouldCompileAsDLL = true;
 		LinkType = TargetLinkType.Monolithic;
 
-		// todo: duplicated in ModuleRules
-		string BuildDirectLinkEnvVar = System.Environment.GetEnvironmentVariable("DATASMITH_3DSMAX_PLUGIN_WITH_DIRECTLINK");
-		if (BuildDirectLinkEnvVar != null && BuildDirectLinkEnvVar != "")
-		{
-			bBuildExporterPlugin = false;
-		}
-
-		if (bBuildExporterPlugin)
-		{
-			WindowsPlatform.ModuleDefinitionFile = "Programs/Enterprise/Datasmith/DatasmithMaxExporter/DatasmithMaxExporter.def";
-		}
-		else
-		{
-			WindowsPlatform.ModuleDefinitionFile = "Programs/Enterprise/Datasmith/DatasmithMaxExporter/DatasmithMaxExporterWithDirectLink.def";
-		}
+		WindowsPlatform.ModuleDefinitionFile = "Programs/Enterprise/Datasmith/DatasmithMaxExporter/DatasmithMaxExporterWithDirectLink.def";
 
 		WindowsPlatform.bStrictConformanceMode = false;
 
@@ -47,10 +31,7 @@ public abstract class DatasmithMaxBaseTarget : TargetRules
 		bHasExports = true;
 		bForceEnableExceptions = true;
 
-		if (!bBuildExporterPlugin)
-		{
-			GlobalDefinitions.Add("UE_EXTERNAL_PROFILING_ENABLED=0"); // For DirectLinkUI (see FDatasmithExporterManager::FInitOptions)
-		}
+		GlobalDefinitions.Add("UE_EXTERNAL_PROFILING_ENABLED=0"); // For DirectLinkUI (see FDatasmithExporterManager::FInitOptions)
 
 		// todo: remove?
 		// bSupportEditAndContinue = true;
@@ -69,14 +50,8 @@ public abstract class DatasmithMaxBaseTarget : TargetRules
 
 		string DstOutputFileName;
 
-		if (bBuildExporterPlugin)
-		{
-			DstOutputFileName = string.Format(@"$(EngineDir)\Binaries\Win64\{0}\{1}.dle", ExeBinariesSubFolder, OutputName);
-		}
-        else
-        {
-			DstOutputFileName = string.Format(@"$(EngineDir)\Binaries\Win64\{0}\{1}.gup", ExeBinariesSubFolder, OutputName);
-        }
+		DstOutputFileName = string.Format(@"$(EngineDir)\Binaries\Win64\{0}\{1}.gup", ExeBinariesSubFolder, OutputName);
+
 		PostBuildSteps.Add(string.Format("echo Copying {0} to {1}...", SrcOutputFileName, DstOutputFileName));
 		PostBuildSteps.Add(string.Format("copy /Y \"{0}\" \"{1}\" 1>nul", SrcOutputFileName, DstOutputFileName));
 	}

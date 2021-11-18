@@ -86,12 +86,6 @@ bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj
 			UObject* ObjOuter = Obj->GetOuter();
 			UClass* ObjClass = Obj->GetClass();
 
-			if (TargetPlatform)
-			{
-				FName UnusedName;
-				SavePackageUtilities::GetBlueprintNativeCodeGenReplacement(Obj, ObjClass, ObjOuter, UnusedName, TargetPlatform);
-			}
-
 			if (ConditionallyExcludeObjectForTarget(SaveContext, ObjClass))
 			{
 				// If the object class is excluded, the object must be excluded too
@@ -343,10 +337,6 @@ void FPackageHarvester::TryHarvestImport(UObject* InObject)
 					}
 				}
 			}
-			
-			// @todo FH: Why no code gen replacement here in the old save?
-			UClass* DummyClassPtr = nullptr;
-			SavePackageUtilities::GetBlueprintNativeCodeGenReplacement(InObject, DummyClassPtr, ObjOuter, ObjName, CookingTarget());
 		}
 
 		// Harvest the import name

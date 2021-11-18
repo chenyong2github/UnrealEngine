@@ -81,7 +81,7 @@ void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 /**
  * Contact modification currently unused
  */
-void FChaosVehicleManagerAsyncCallback::OnContactModification_Internal(const TArrayView<Chaos::FPBDCollisionConstraintHandleModification>& Modifications)
+void FChaosVehicleManagerAsyncCallback::OnContactModification_Internal(Chaos::FCollisionContactModifier& Modifications)
 {
 
 }

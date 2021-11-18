@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NiagaraHLSLSyntaxHighlighter.h"
+#include "Widgets/NiagaraHLSLSyntaxHighlighter.h"
 #include "SNiagaraGraphNode.h"
 
 class SMultiLineEditableTextBox;

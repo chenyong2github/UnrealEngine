@@ -108,7 +108,7 @@ struct FRasterContext
 {
 	FGlobalShaderMap*	ShaderMap;
 
-	FVector2D			RcpViewSize;
+	FVector2f			RcpViewSize;
 	FIntPoint			TextureSize;
 	ERasterTechnique	RasterTechnique;
 	ERasterScheduling	RasterScheduling;

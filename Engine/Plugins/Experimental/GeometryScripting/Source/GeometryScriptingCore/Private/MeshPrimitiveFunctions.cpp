@@ -670,7 +670,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRectangle(
 	RectGenerator.Height = DimensionY / 2;
 	RectGenerator.WidthVertexCount = FMath::Max(0, StepsWidth);
 	RectGenerator.HeightVertexCount = FMath::Max(0, StepsHeight);
-	RectGenerator.bSinglePolygroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
+	RectGenerator.bSinglePolyGroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	RectGenerator.Generate();
 
 	AppendPrimitive(TargetMesh, &RectGenerator, Transform, PrimitiveOptions);
@@ -708,7 +708,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshPrimitiveFunctions::AppendRoundRectangl
 	RectGenerator.HeightVertexCount = FMath::Max(0, StepsHeight);
 	RectGenerator.Radius = FMath::Max(FMathf::ZeroTolerance, CornerRadius);
 	RectGenerator.AngleSamples = FMath::Max(StepsRound, 3);
-	RectGenerator.bSinglePolygroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
+	RectGenerator.bSinglePolyGroup = (PrimitiveOptions.PolygroupMode != EGeometryScriptPrimitivePolygroupMode::PerQuad);
 	RectGenerator.Generate();
 
 	AppendPrimitive(TargetMesh, &RectGenerator, Transform, PrimitiveOptions);

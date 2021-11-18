@@ -80,7 +80,7 @@ public:
 		SHADER_PARAMETER(FIntPoint, OutputTextureSize)
 		SHADER_PARAMETER(FVector4f, PixelFactor)
 		SHADER_PARAMETER(FIntVector4, InvertPixel)
-		SHADER_PARAMETER(FVector2D, UVCellSize)
+		SHADER_PARAMETER(FVector2f, UVCellSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }

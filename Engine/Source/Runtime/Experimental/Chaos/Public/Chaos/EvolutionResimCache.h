@@ -50,7 +50,7 @@ namespace Chaos
 			SavedConstraints.Reset(CollisionsArray.Num());
 			for (const FPBDCollisionConstraint* Collision : CollisionsArray)
 			{
-				SavedConstraints.Emplace(FPBDCollisionConstraint::MakeResimCache(*Collision));
+				SavedConstraints.Emplace(FPBDCollisionConstraint::MakeCopy(*Collision));
 			}
 
 			//Create weak handles so we can make sure everything is alive later

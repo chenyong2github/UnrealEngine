@@ -248,6 +248,9 @@ private:
 	 * due to the tree selection changing.
 	 */
 	bool bSequencerSelectionChangeBroadcastWasSupressed;
+
+	/** When true update the tree selection based on sequencer selection*/
+	bool bSynchronizeTreeSelectionWithSequencerSelection;
 };
 
 /** Widget that represents a row in the sequencer's tree control. */

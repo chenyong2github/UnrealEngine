@@ -360,7 +360,7 @@ struct FParticleSpriteVertex
 	/** Value that remains constant over the lifetime of a particle. */
 	float ParticleId;
 	/** The size of the particle. */
-	FVector2D Size;
+	FVector2f Size;
 	/** The rotation of the particle. */
 	float Rotation;
 	/** The sub-image index for the particle. */
@@ -375,7 +375,7 @@ struct FParticleSpriteVertex
 struct FParticleSpriteVertexNonInstanced
 {
 	/** The texture UVs. */
-	FVector2D UV;
+	FVector2f UV;
 	/** The position of the particle. */
 	FVector3f Position;
 	/** The relative time of the particle. */
@@ -385,7 +385,7 @@ struct FParticleSpriteVertexNonInstanced
 	/** Value that remains constant over the lifetime of a particle. */
 	float ParticleId;
 	/** The size of the particle. */
-	FVector2D Size;
+	FVector2f Size;
 	/** The rotation of the particle. */
 	float Rotation;
 	/** The sub-image index for the particle. */
@@ -414,7 +414,7 @@ struct FParticleBeamTrailVertex
 	/** Value that remains constant over the lifetime of a particle. */
 	float ParticleId;
 	/** The size of the particle. */
-	FVector2D Size;
+	FVector2f Size;
 	/** The rotation of the particle. */
 	float Rotation;
 	/** The sub-image index for the particle. */
@@ -1405,7 +1405,7 @@ struct FDynamicSpriteEmitterReplayDataBase
 	uint8						LockAxisFlag;
 	uint8						EmitterRenderMode;
 	uint8						EmitterNormalsMode;
-	FVector2D					PivotOffset;
+	FVector2f					PivotOffset;
 	bool						bRemoveHMDRoll;
 	float						MinFacingCameraBlendDistance;
 	float						MaxFacingCameraBlendDistance;

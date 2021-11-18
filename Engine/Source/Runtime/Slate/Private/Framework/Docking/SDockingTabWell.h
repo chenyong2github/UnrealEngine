@@ -53,7 +53,7 @@ public:
 	 * @param InTab     TheTab to add
 	 * @param AtIndex   Add at this index or at the end if INDEX_NONE(default)
 	 */
-	void AddTab( const TSharedRef<SDockTab>& InTab, int32 AtIndex = INDEX_NONE );
+	void AddTab(const TSharedRef<SDockTab>& InTab, int32 AtIndex = INDEX_NONE, bool bKeepInactive = false);
 	
 	/** Activate the tab specified by TabToActivate index. */
 	void BringTabToFront( int32 TabIndexToActivate );

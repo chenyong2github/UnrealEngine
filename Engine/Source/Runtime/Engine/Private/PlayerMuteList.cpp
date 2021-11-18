@@ -142,6 +142,26 @@ void FPlayerMuteList::GameplayUnmutePlayer(APlayerController* OwningPC, const FU
 	}
 }
 
+void FPlayerMuteList::GameplayUnmuteAllPlayers(APlayerController* OwningPC)
+{
+	TArray<FUniqueNetIdRepl> PlayersToUnmute;
+
+	for (TTuple<FUniqueNetIdRef, EVoiceBlockReasons>& PacketFilterEntry : VoicePacketFilterMap)
+	{
+		if (RemoveVoiceBlockReason(PacketFilterEntry.Key, EVoiceBlockReasons::Gameplay))
+		{
+			// If there's no reason left to block comms, add it to the array of ids to unmute.
+			PlayersToUnmute.Add(PacketFilterEntry.Key);
+		}
+	}
+
+	if (PlayersToUnmute.Num() > 0)
+	{
+		// Now process all unmutes on the client
+		OwningPC->ClientUnmutePlayers(PlayersToUnmute);
+	}
+}
+
 void FPlayerMuteList::ServerBlockPlayer(APlayerController* OwningPC, const FUniqueNetIdRepl& BlockId)
 {
 	// Add block to the list of reasons to block comms.

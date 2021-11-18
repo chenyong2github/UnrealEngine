@@ -17,23 +17,30 @@ class FArrangedChildren;
 /**
  * FRotator Slate control
  */
-class SLATE_API SRotatorInputBox : public SCompoundWidget
+template<typename NumericType>
+class SNumericRotatorInputBox : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS( SRotatorInputBox )
+	/** Notification for float value change */
+	DECLARE_DELEGATE_OneParam(FOnNumericValueChanged, NumericType);
+
+	/** Notification for float value committed */
+	DECLARE_DELEGATE_TwoParams(FOnNumericValueCommitted, NumericType, ETextCommit::Type);
+	
+	SLATE_BEGIN_ARGS( SNumericRotatorInputBox<NumericType> )
 		: _bColorAxisLabels(false)
 		, _Font(FAppStyle::Get().GetFontStyle("NormalFont"))
 		, _AllowSpin(true)
 		{}
 
 		/** Roll component of the rotator */
-		SLATE_ATTRIBUTE( TOptional<float>, Roll )
+		SLATE_ATTRIBUTE( TOptional<NumericType>, Roll )
 
 		/** Pitch component of the rotator */
-		SLATE_ATTRIBUTE( TOptional<float>, Pitch )
+		SLATE_ATTRIBUTE( TOptional<NumericType>, Pitch )
 
 		/** Yaw component of the rotator */
-		SLATE_ATTRIBUTE( TOptional<float>, Yaw )
+		SLATE_ATTRIBUTE( TOptional<NumericType>, Yaw )
 
 		/** Should the axis labels be colored */
 		SLATE_ARGUMENT( bool, bColorAxisLabels )		
@@ -41,7 +48,7 @@ public:
 		UE_DEPRECATED(5.0, "AllowResponsiveLayout unused as it is no longer necessary.")
 		FArguments& AllowResponsiveLayout(bool bAllow)
 		{
-			return Me();
+			return TSlateBaseNamedArgs<SNumericRotatorInputBox<NumericType>>::Me();
 		}
 
 		/** Font to use for the text in this box */
@@ -51,31 +58,31 @@ public:
 		SLATE_ARGUMENT( bool, AllowSpin )
 
 		/** Called when the pitch value is changed */
-		SLATE_EVENT( FOnFloatValueChanged, OnPitchChanged )
+		SLATE_EVENT( FOnNumericValueChanged, OnPitchChanged )
 
 		/** Called when the yaw value is changed */
-		SLATE_EVENT( FOnFloatValueChanged, OnYawChanged )
+		SLATE_EVENT( FOnNumericValueChanged, OnYawChanged )
 
 		/** Called when the roll value is changed */
-		SLATE_EVENT( FOnFloatValueChanged, OnRollChanged )
+		SLATE_EVENT( FOnNumericValueChanged, OnRollChanged )
 
 		/** Called when the pitch value is committed */
-		SLATE_EVENT( FOnFloatValueCommitted, OnPitchCommitted )
+		SLATE_EVENT( FOnNumericValueCommitted, OnPitchCommitted )
 
 		/** Called when the yaw value is committed */
-		SLATE_EVENT( FOnFloatValueCommitted, OnYawCommitted )
+		SLATE_EVENT( FOnNumericValueCommitted, OnYawCommitted )
 
 		/** Called when the roll value is committed */
-		SLATE_EVENT( FOnFloatValueCommitted, OnRollCommitted )
+		SLATE_EVENT( FOnNumericValueCommitted, OnRollCommitted )
 
 		/** Called when the slider begins to move on any axis */
 		SLATE_EVENT( FSimpleDelegate, OnBeginSliderMovement )
 
 		/** Called when the slider for any axis is released */
-		SLATE_EVENT( FOnFloatValueChanged, OnEndSliderMovement )
+		SLATE_EVENT( FOnNumericValueChanged, OnEndSliderMovement )
 
 		/** Provide custom type functionality for the rotator */
-		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<float> >, TypeInterface )
+		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface )
 
 	SLATE_END_ARGS()
 
@@ -84,5 +91,101 @@ public:
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct( const FArguments& InArgs );
+	void Construct( const FArguments& InArgs )
+	{
+		this->ChildSlot
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			[
+				SNew(SNumericEntryBox<NumericType>)
+				.AllowSpin(InArgs._AllowSpin)
+				.MinSliderValue(0.0f)
+				.MaxSliderValue(359.999f)
+				.LabelPadding(FMargin(3.0f))
+				.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
+				.Label()
+				[
+					InArgs._bColorAxisLabels ? SNumericEntryBox<NumericType>::BuildNarrowColorLabel(SNumericEntryBox<NumericType>::RedLabelBackgroundColor) : SNullWidget::NullWidget
+				]
+				.Font( InArgs._Font )
+				.Value( InArgs._Roll )
+				.OnValueChanged( InArgs._OnRollChanged )
+				.OnValueCommitted( InArgs._OnRollCommitted )
+				.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
+				.OnEndSliderMovement( InArgs._OnEndSliderMovement )
+				.UndeterminedString( NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values") )
+				.ToolTipText_Lambda([RollAttr = InArgs._Roll]
+				{
+					const TOptional<NumericType>& RollValue = RollAttr.Get();
+					return RollValue.IsSet() 
+						? FText::Format(NSLOCTEXT("SRotatorInputBox", "Roll_ToolTip", "X(Roll): {0}"), RollValue.GetValue())
+						: NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values");
+				})
+				.TypeInterface(InArgs._TypeInterface)
+			]
+			+SHorizontalBox::Slot()
+			[
+				SNew(SNumericEntryBox<NumericType>)
+				.AllowSpin(InArgs._AllowSpin)
+				.MinSliderValue(0.0f)
+				.MaxSliderValue(359.999f)
+				.LabelPadding(FMargin(3.0f))
+				.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
+				.Label()
+				[
+					InArgs._bColorAxisLabels ? SNumericEntryBox<NumericType>::BuildNarrowColorLabel(SNumericEntryBox<NumericType>::GreenLabelBackgroundColor) : SNullWidget::NullWidget
+				]
+				.Font( InArgs._Font )
+				.Value( InArgs._Pitch )
+				.OnValueChanged( InArgs._OnPitchChanged )
+				.OnValueCommitted( InArgs._OnPitchCommitted )
+				.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
+				.OnEndSliderMovement( InArgs._OnEndSliderMovement )
+				.UndeterminedString( NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values") )
+				.ToolTipText_Lambda([PitchAttr = InArgs._Pitch]
+				{
+					const TOptional<NumericType>& PitchValue = PitchAttr.Get();
+					return PitchValue.IsSet()
+						? FText::Format(NSLOCTEXT("SRotatorInputBox", "Pitch_ToolTip", "Y(Pitch): {0}"), PitchValue.GetValue())
+						: NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values");
+				})
+				.TypeInterface(InArgs._TypeInterface)
+			]
+			+SHorizontalBox::Slot()
+			[
+				SNew(SNumericEntryBox<NumericType>)
+				.AllowSpin(InArgs._AllowSpin)
+				.MinSliderValue(0.0f)
+				.MaxSliderValue(359.999f)
+				.LabelPadding(FMargin(3.0f))
+				.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
+				.Label()
+				[
+					InArgs._bColorAxisLabels ? SNumericEntryBox<NumericType>::BuildNarrowColorLabel(SNumericEntryBox<NumericType>::BlueLabelBackgroundColor) : SNullWidget::NullWidget
+				]
+				.Font( InArgs._Font )
+				.Value( InArgs._Yaw )
+				.OnValueChanged( InArgs._OnYawChanged )
+				.OnValueCommitted( InArgs._OnYawCommitted )
+				.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
+				.OnEndSliderMovement( InArgs._OnEndSliderMovement )
+				.UndeterminedString( NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values") )
+				.ToolTipText_Lambda([YawAttr = InArgs._Yaw]
+				{
+					const TOptional<NumericType>& YawValue = YawAttr.Get();
+					return YawValue.IsSet()
+						? FText::Format(NSLOCTEXT("SRotatorInputBox", "Yaw_ToolTip", "Z(Yaw): {0}"), YawValue.GetValue())
+						: NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values");
+				})
+				.TypeInterface(InArgs._TypeInterface)
+			]
+		];
+
+	}	
 };
+
+/**
+ * For backward compatibility
+ */
+using SRotatorInputBox = SNumericRotatorInputBox<float>;

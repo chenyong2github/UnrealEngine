@@ -3,9 +3,11 @@
 #include "SDMXFixtureTypeMatrixFunctionsEditorMatrixRow.h"
 
 #include "DMXEditor.h"
+#include "DMXEditorStyle.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Widgets/SNameListPicker.h"
 #include "Widgets/FixtureType/DMXFixtureTypeMatrixFunctionsEditorItem.h"
+#include "Widgets/FixtureType/SDMXFixtureTypeMatrixFunctionsEditor.h"
 
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Notifications/SPopUpErrorText.h"
@@ -16,6 +18,7 @@
 void SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FDMXFixtureTypeMatrixFunctionsEditorItem> InCellAttributeItem)
 {
 	CellAttributeItem = InCellAttributeItem;
+	OnRequestDelete = InArgs._OnRequestDelete;
 
 	SMultiColumnTableRow<TSharedPtr<FDMXFixtureTypeMatrixFunctionsEditorItem>>::Construct(
 		FSuperRowType::FArguments(),
@@ -25,7 +28,7 @@ void SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::Construct(const FArguments& 
 
 TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
-	if (ColumnName == "Status")
+	if (ColumnName == FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Status)
 	{
 		return
 			SNew(SBorder)
@@ -62,7 +65,7 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 					})
 			];
 	}
-	else if (ColumnName == "Channel")
+	else if (ColumnName == FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Channel)
 	{
 		return
 			SNew(SBorder)
@@ -74,7 +77,7 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
 			];
 	}
-	else if (ColumnName == "Attribute")
+	else if (ColumnName == FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::Attribute)
 	{
 		return
 			SNew(SNameListPicker)
@@ -86,8 +89,29 @@ TSharedRef<SWidget> SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::GenerateWidge
 			.bDisplayWarningIcon(true)
 			.OnValueChanged(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::SetCellAttributeName);
 	}
+	else if (ColumnName == FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs::DeleteAttribute)
+	{
+		return
+			SNew(SBorder)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			[
+				SNew(SImage)
+				.Image(FDMXEditorStyle::Get().GetBrush("DMXEditor.FixtureTypesEditor.DeleteCellAttribute"))
+				.DesiredSizeOverride(FVector2D(20.f, 20.f))
+				.OnMouseButtonDown(this, &SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::OnDeleteCellAttributeClicked)
+			];
+	}
 
 	return SNullWidget::NullWidget;
+}
+
+FReply SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::OnDeleteCellAttributeClicked(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	OnRequestDelete.ExecuteIfBound();
+
+	return FReply::Handled();
 }
 
 bool SDMXFixtureTypeMatrixFunctionsEditorMatrixRow::HasInvalidCellAttributeName() const

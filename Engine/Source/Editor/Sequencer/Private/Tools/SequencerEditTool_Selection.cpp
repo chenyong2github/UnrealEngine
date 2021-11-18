@@ -59,11 +59,11 @@ struct FSelectionPreviewVisitor final
 	virtual void VisitSection(UMovieSceneSection* Section, TSharedRef<FSequencerDisplayNode> Node) const
 	{
 		// If key selection has priority then we check to see if there are any keys selected. If there are key selected, we don't add this section.
-		// Otherwise, we bypass this check and only care that the range isn't infinite (those are selectable via right click)
+		// Otherwise, we bypass this check
 		bool bKeySelectionHasPriority = !FSlateApplication::Get().GetModifierKeys().IsControlDown();
 		bool bKeyStateCheck = bKeySelectionHasPriority ? SelectionPreview.GetDefinedKeyStates().Num() == 0 : true;
 
-		if (bKeyStateCheck && Section->GetRange() != TRange<FFrameNumber>::All())
+		if (bKeyStateCheck)
 		{
 			SelectionPreview.SetSelectionState(Section, SetStateTo);
 			SelectionPreview.SetSelectionState(Node, SetStateTo);
@@ -124,7 +124,9 @@ public:
 			PreviewState = ESelectionPreviewState::Selected;
 
 			// @todo: selection in transactions
-			Sequencer.GetSelection().Empty();
+			//leave selections in the tree view alone so that dragging operations act similarly to click operations which don't change treeview selection state.
+			Sequencer.GetSelection().EmptySelectedKeys();
+			Sequencer.GetSelection().EmptySelectedSections();
 		}
 	}
 

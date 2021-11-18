@@ -80,7 +80,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData          = GetInstanceSceneData(VisibleCluster);
+		FInstanceSceneData InstanceData          = GetInstanceSceneData(VisibleCluster, false);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 		FPrimitiveSceneData PrimitiveData        = GetPrimitiveData(InstanceData.PrimitiveId);
 		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);

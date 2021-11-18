@@ -67,6 +67,7 @@ namespace
 	static const FName NAME_EditInline(TEXT("EditInline"));
 	static const FName NAME_IncludePath(TEXT("IncludePath"));
 	static const FName NAME_ModuleRelativePath(TEXT("ModuleRelativePath"));
+	static const FName NAME_IsBlueprintBase(TEXT("IsBlueprintBase"));
 	static const FName NAME_CannotImplementInterfaceInBlueprint(TEXT("CannotImplementInterfaceInBlueprint"));
 	static const FName NAME_UIMin(TEXT("UIMin"));
 	static const FName NAME_UIMax(TEXT("UIMax"));
@@ -210,9 +211,9 @@ namespace
 	 */
 	void ParseNetServiceIdentifiers(FHeaderParser& HeaderParser, FFuncInfo& FuncInfo, const TArray<FString>& Identifiers)
 	{
-		static const TCHAR IdTag         [] = TEXT("Id");
-		static const TCHAR ResponseIdTag [] = TEXT("ResponseId");
-		static const TCHAR JSBridgePriTag[] = TEXT("Priority");
+		static const auto& IdTag          = TEXT("Id");
+		static const auto& ResponseIdTag  = TEXT("ResponseId");
+		static const auto& JSBridgePriTag = TEXT("Priority");
 
 		for (const FString& Identifier : Identifiers)
 		{
@@ -1601,9 +1602,9 @@ TMap<FName, FString> FHeaderParser::GetParameterToolTipsFromFunctionComment(cons
 	}
 	
 	TArray<FString> Params;
-	static const TCHAR ParamTag[] = TEXT("@param");
-	static const TCHAR ReturnTag[] = TEXT("@return");
-	static const TCHAR ReturnParamPrefix[] = TEXT("ReturnValue ");
+	static const auto& ParamTag = TEXT("@param");
+	static const auto& ReturnTag = TEXT("@return");
+	static const auto& ReturnParamPrefix = TEXT("ReturnValue ");
 
 	/**
 	 * Search for @param / @return followed by a section until a line break.
@@ -1653,7 +1654,7 @@ TMap<FName, FString> FHeaderParser::GetParameterToolTipsFromFunctionComment(cons
 		Param.TrimStartAndEndInline();
 
 		int32 FirstSpaceIndex = -1;
-		if (!Param.FindChar(' ', FirstSpaceIndex))
+		if (!Param.FindChar(TEXT(' '), FirstSpaceIndex))
 		{
 			continue;
 		}
@@ -2588,7 +2589,7 @@ void FHeaderParser::VerifyPropertyMarkups(FUnrealClassDefinitionInfo& TargetClas
 				// Since the function map is not valid yet, we have to iterate over the fields to look for the function
 				for (TSharedRef<FUnrealFunctionDefinitionInfo> FunctionDef : SearchClassDef->GetFunctions())
 				{
-					if (FNativeClassHeaderGenerator::GetOverriddenFName(*FunctionDef) == FuncName)
+					if (FunctionDef->GetFName() == FuncName)
 					{
 						return &*FunctionDef;
 					}
@@ -2764,7 +2765,7 @@ void FHeaderParser::CompileDirective()
 	// Skip to end of line (or end of multiline #define).
 	if (LineAtStartOfDirective == InputLine)
 	{
-		TCHAR LastCharacter = '\0';
+		TCHAR LastCharacter = TEXT('\0');
 		TCHAR c;
 		do
 		{			
@@ -6108,11 +6109,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileDelegateDeclaration(const F
 		}
 
 		DelegateMacro = FString(Token.Value);
-
-		//Workaround for UE-28897
-		const FStructScope* CurrentStructScope = TopNest->GetScope() ? TopNest->GetScope()->AsStructScope() : nullptr;
-		const bool bDynamicClassScope = CurrentStructScope && CurrentStructScope->GetStructDef().IsDynamic();
-		CheckAllow(CurrentScopeName, bDynamicClassScope ? ENestAllowFlags::ImplicitDelegateDecl : ENestAllowFlags::TypeDecl);
+		CheckAllow(CurrentScopeName, ENestAllowFlags::TypeDecl);
 	}
 	else
 	{
@@ -6374,8 +6371,6 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 
 	ProcessFunctionSpecifiers(*this, FuncInfo, SpecifiersFound, MetaData);
 
-	const bool bClassGeneratedFromBP = GetCurrentClassDef().IsDynamic();
-
 	if ((0 != (FuncInfo.FunctionExportFlags & FUNCEXPORT_CustomThunk)) && !MetaData.Contains(NAME_CustomThunk))
 	{
 		MetaData.Add(NAME_CustomThunk, TEXT("true"));
@@ -6434,25 +6429,37 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 	// Verify interfaces with respect to their blueprint accessible functions
 	if (OuterClassDef.HasAnyClassFlags(CLASS_Interface))
 	{
+		// Interface with blueprint data should declare explicitly Blueprintable or NotBlueprintable to be clear
+		// In the backward compatible case where they declare neither, both of these bools are false
+		const bool bCanImplementInBlueprints = OuterClassDef.GetBoolMetaData(NAME_IsBlueprintBase);
+		const bool bCannotImplementInBlueprints = (!bCanImplementInBlueprints && OuterClassDef.HasMetaData(NAME_IsBlueprintBase))
+			|| OuterClassDef.HasMetaData(NAME_CannotImplementInterfaceInBlueprint);
+
 		if((FuncInfo.FunctionFlags & FUNC_BlueprintEvent) != 0 && !bInternalOnly)
 		{
-			const bool bCanImplementInBlueprints = !OuterClassDef.HasMetaData(NAME_CannotImplementInterfaceInBlueprint);  //FBlueprintMetadata::MD_CannotImplementInterfaceInBlueprint
-
 			// Ensure that blueprint events are only allowed in implementable interfaces. Internal only functions allowed
+			if (bCannotImplementInBlueprints)
+			{
+				LogError(TEXT("Interfaces that are not implementable in blueprints cannot have Blueprint Event members."));
+			}
 			if (!bCanImplementInBlueprints)
 			{
-				LogError(TEXT("Interfaces that are not implementable in blueprints cannot have BlueprintImplementableEvent members."));
+				// We do not currently warn about this case as there are a large number of existing interfaces that do not specify
+				// LogWarning(TEXT("Interfaces with Blueprint Events should declare Blueprintable on the interface."));
 			}
 		}
 		
 		if (((FuncInfo.FunctionFlags & FUNC_BlueprintCallable) != 0) && (((~FuncInfo.FunctionFlags) & FUNC_BlueprintEvent) != 0))
 		{
-			const bool bCanImplementInBlueprints = !OuterClassDef.HasMetaData(NAME_CannotImplementInterfaceInBlueprint);  //FBlueprintMetadata::MD_CannotImplementInterfaceInBlueprint
-
 			// Ensure that if this interface contains blueprint callable functions that are not blueprint defined, that it must be implemented natively
 			if (bCanImplementInBlueprints)
 			{
-				LogError(TEXT("Blueprint implementable interfaces cannot contain BlueprintCallable functions that are not BlueprintImplementableEvents.  Use CannotImplementInterfaceInBlueprint on the interface if you wish to keep this function."));
+				LogError(TEXT("Blueprint implementable interfaces cannot contain BlueprintCallable functions that are not BlueprintImplementableEvents. Add NotBlueprintable to the interface if you wish to keep this function."));
+			}
+			if (!bCannotImplementInBlueprints)
+			{
+				// Lowered this case to a warning instead of error, they will not show up as blueprintable unless they also have events
+				LogWarning(TEXT("Interfaces with BlueprintCallable functions but no events should explicitly declare NotBlueprintable on the interface."));
 			}
 		}
 	}
@@ -6672,12 +6679,7 @@ FUnrealFunctionDefinitionInfo& FHeaderParser::CompileFunctionDeclaration()
 
 	if (!bHasAnyOutputs && FuncDef.HasAnyFunctionFlags(FUNC_BlueprintPure))
 	{
-		// This bad behavior would be treated as a warning in the Blueprint editor, so when converted assets generates these bad functions
-		// we don't want to prevent compilation:
-		if (!bClassGeneratedFromBP)
-		{
-			LogError(TEXT("BlueprintPure specifier is not allowed for functions with no return value and no output parameters."));
-		}
+		LogError(TEXT("BlueprintPure specifier is not allowed for functions with no return value and no output parameters."));
 	}
 
 
@@ -8027,7 +8029,7 @@ void FHeaderParser::SimplifiedClassParse(FUnrealSourceFile& SourceFile, const TC
 			}
 
 			// Find the first '/' and check for '//' or '/*' or '*/'
-			if (StrLine.FindChar('/', Pos))
+			if (StrLine.FindChar(TEXT('/'), Pos))
 			{
 				if (Pos >= 0)
 				{

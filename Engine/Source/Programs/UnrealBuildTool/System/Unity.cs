@@ -262,7 +262,7 @@ namespace UnrealBuildTool
 				}
 
 				// Write the unity file to the intermediate folder.
-				FileItem UnityCPPFile = Graph.CreateIntermediateTextFile(UnityCPPFilePath, OutputUnityCPPWriter.ToString(), StringComparison.Ordinal);
+				FileItem UnityCPPFile = Graph.CreateIntermediateTextFile(UnityCPPFilePath, OutputUnityCPPWriter.ToString());
 				NewCPPFiles.Add(UnityCPPFile);
 
 				// Store the mapping of source files to unity files in the makefile
@@ -352,7 +352,7 @@ namespace UnrealBuildTool
 					string HeaderCPPFileName = string.Format($"{ModulePrefix}{BaseName}.Header.{Path.GetFileNameWithoutExtension(HeaderFile.AbsolutePath)}.cpp");
 					FileReference HeaderCPPFilePath = FileReference.Combine(IntermediateDirectory, HeaderCPPFileName);
 
-					FileItem HeaderCPPFile = Graph.CreateIntermediateTextFile(HeaderCPPFilePath, OutputHeaderCPPWriter.ToString(), StringComparison.Ordinal);
+					FileItem HeaderCPPFile = Graph.CreateIntermediateTextFile(HeaderCPPFilePath, OutputHeaderCPPWriter.ToString());
 					AdaptiveFiles.Add(HeaderCPPFile);
 				}
 			}

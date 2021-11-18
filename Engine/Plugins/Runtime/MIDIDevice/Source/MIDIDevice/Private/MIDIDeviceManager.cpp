@@ -106,7 +106,7 @@ void UMIDIDeviceManager::ReinitializeDeviceManager()
 			if (!bStartedSuccessfully)
 			{
 				// Kill it
-				MIDIDeviceController->MarkPendingKill();
+				MIDIDeviceController->MarkAsGarbage();
 				MIDIDeviceController = nullptr;
 
 				UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI Device Controller re-initialization failed."));
@@ -305,7 +305,7 @@ UMIDIDeviceController* UMIDIDeviceManager::CreateMIDIDeviceController(const int3
 		if (!bStartedSuccessfully)
 		{
 			// Kill it
-			NewMIDIDeviceController->MarkPendingKill();
+			NewMIDIDeviceController->MarkAsGarbage();
 			NewMIDIDeviceController = nullptr;
 
 			UE_LOG(LogMIDIDevice, Warning, TEXT("Create MIDI Device Controller wasn't able to create the controller successfully. Returning a null reference."));
@@ -332,7 +332,7 @@ UMIDIDeviceInputController* UMIDIDeviceManager::CreateMIDIDeviceInputController(
 	if (!bStartedSuccessfully)
 	{
 		// Kill it
-		NewMIDIDeviceController->MarkPendingKill();
+		NewMIDIDeviceController->MarkAsGarbage();
 		NewMIDIDeviceController = nullptr;
 
 		UE_LOG(LogMIDIDevice, Warning, TEXT("Create MIDI Device Controller wasn't able to create the controller successfully. Returning a null reference."));
@@ -356,7 +356,7 @@ UMIDIDeviceOutputController* UMIDIDeviceManager::CreateMIDIDeviceOutputControlle
 	if (!bStartedSuccessfully)
 	{
 		// Kill it
-		NewMIDIDeviceController->MarkPendingKill();
+		NewMIDIDeviceController->MarkAsGarbage();
 		NewMIDIDeviceController = nullptr;
 
 		UE_LOG(LogMIDIDevice, Warning, TEXT("Create MIDI Device Controller wasn't able to create the controller successfully. Returning a null reference."));

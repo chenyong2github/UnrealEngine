@@ -52,6 +52,15 @@ FText UK2Node_Message::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	return CachedNodeTitles.GetCachedTitle(TitleType);
 }
 
+FText UK2Node_Message::GetTooltipText() const
+{
+	if (CachedTooltip.IsOutOfDate(this))
+	{
+		CachedTooltip.SetCachedText(FText::Format(LOCTEXT("MessageTooltip", "{0}\nMessage. This does nothing if the target does not implement the required interface."), Super::GetTooltipText()), this);
+	}
+	return CachedTooltip;
+}
+
 void UK2Node_Message::AllocateDefaultPins()
 {
 	UFunction* MessageNodeFunction = GetTargetFunction();

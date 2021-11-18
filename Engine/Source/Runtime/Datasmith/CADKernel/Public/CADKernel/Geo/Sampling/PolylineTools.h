@@ -47,8 +47,19 @@ namespace CADKernel
 			return (Coordinate - Array[Index]) / DeltaU;
 		}
 
+		template<typename PointType>
+		double ComputeLength(TArray<PointType>& Polyline)
+		{
+			double Length = 0;
+			for (int32 Index = 1; Index < Polyline.Num(); ++Index)
+			{
+				Length += Polyline[Index - 1].Distance(Polyline[Index]);
+			}
+			return Length;
+		}
+
 		/**
-		 * Progressively deforms a polyline (or a control polygon) so that its end is in the desired position 
+		 * Progressively deforms a polyline (or a control polygon) so that its end is in the desired position
 		 */
 		template<typename PointType>
 		void ExtendTo(TArray<PointType>& Polyline, const PointType& DesiredEnd)
@@ -56,41 +67,28 @@ namespace CADKernel
 			double DistanceStart = Polyline[0].SquareDistance(DesiredEnd);
 			double DistanceEnd = Polyline.Last().SquareDistance(DesiredEnd);
 
-			if (DistanceStart > DistanceEnd)
+			if (DistanceStart < DistanceEnd)
 			{
-				PointType Factor;
-				for (int32 Index = 0; Index < PointType::Dimension; ++Index)
-				{
-					Factor[Index] = FMath::Abs(Polyline.Last()[Index] - Polyline[0][Index]) > SMALL_NUMBER_SQUARE ? (DesiredEnd[Index] - Polyline[0][Index]) / (Polyline.Last()[Index] - Polyline[0][Index]) : 1.;
-				}
-
-				Algo::ForEach(Polyline, [&, Factor](PointType& Pole)
-					{
-						for (int32 Index = 0; Index < PointType::Dimension; ++Index)
-						{
-							Pole[Index] = Polyline[0][Index] + (Pole[Index] - Polyline[0][Index]) * Factor[Index];
-						}
-					}
-				);
-			}
-			else
-			{
-				PointType Factor;
-				for (int32 Index = 0; Index < PointType::Dimension; ++Index)
-				{
-					Factor[Index] = FMath::Abs(Polyline[0][Index] - Polyline.Last()[Index]) > SMALL_NUMBER_SQUARE ? (DesiredEnd[Index] - Polyline.Last()[Index]) / (Polyline[0][Index] - Polyline.Last()[Index]) : 1.;
-				}
-
 				Algo::Reverse(Polyline);
-				Algo::ForEach(Polyline, [&, Factor](PointType& Pole)
-					{
-						for (int32 Index = 0; Index < PointType::Dimension; ++Index)
-						{
-							Pole[Index] = Polyline[0][Index] + (Pole[Index] - Polyline[0][Index]) * Factor[Index];
-						}
-					}
-				);
+			}
 
+			double PolylineLength = ComputeLength(Polyline);
+
+			PointType Delta = DesiredEnd - Polyline.Last();
+			Delta /= PolylineLength;
+
+			PolylineLength = 0;
+			PolylineLength = Polyline[1].Distance(Polyline[0]);
+			for (int32 Index = 1; Index < Polyline.Num() - 1; ++Index)
+			{
+				double LengthNextSegment = Polyline[Index].Distance(Polyline[Index + 1]);
+				Polyline[Index] += Delta * PolylineLength;
+				PolylineLength += LengthNextSegment;
+			}
+			Polyline.Last() = DesiredEnd;
+
+			if (DistanceStart < DistanceEnd)
+			{
 				Algo::Reverse(Polyline);
 			}
 		}
@@ -566,12 +564,7 @@ namespace CADKernel
 
 		double ComputeLength() const
 		{
-			double Length = 0;
-			for (int32 Index = 1; Index < PolylinePoints.Num(); ++Index)
-			{
-				Length += PolylinePoints[Index-1].Distance(PolylinePoints[Index]);
-			}
-			return Length;
+			return PolylineTools::ComputeLength(PolylinePoints);
 		}
 
 		double ComputeLengthOfSubPolyline(const int BoundaryIndex[2], const FLinearBoundary& InBoundary) const

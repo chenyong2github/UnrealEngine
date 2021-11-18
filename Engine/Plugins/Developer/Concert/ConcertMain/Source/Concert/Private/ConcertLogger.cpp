@@ -209,7 +209,7 @@ struct FActiveLoggers
 	{
 		if ( Args.Num() < 1 )
 		{
-			UE_LOG(LogConcert, Log, TEXT("Usage: Concert.ChangeLogVerbosity VerbosityLevel"));
+			UE_LOG(LogConcert, Log, TEXT("Usage: Concert.SetLoggingLevel VerbosityLevel"));
 			return;
 		}
 		if ( Args[0] == TEXT("VeryVerbose") )

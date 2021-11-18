@@ -532,6 +532,8 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual bool GetParameterValue(FMaterialParameterMetadata& OutMeta) const { return false; }
 	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta, EMaterialExpressionSetParameterValueFlags Flags = EMaterialExpressionSetParameterValueFlags::None) { return false; }
 
+	virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const {}
+
 	/**
 	 * Called after a node copy, once the Material and Function properties are set correctly and that all new expressions are added to Material->Expressions
 	 * @param	CopiedExpressions	The expressions copied in this copy

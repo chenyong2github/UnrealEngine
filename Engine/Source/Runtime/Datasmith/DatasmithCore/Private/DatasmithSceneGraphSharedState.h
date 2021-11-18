@@ -103,6 +103,6 @@ public:
 	const TArray<TSharedPtr<T>>& View() const { return Inner; }
 	      TArray<TSharedPtr<T>>& Edit()       { return Inner; }
 
-public:
+private:
 	TArray<TSharedPtr<T>> Inner;
 };

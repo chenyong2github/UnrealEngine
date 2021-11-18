@@ -118,7 +118,7 @@ namespace CADKernel
 	}
 
 	/**
-	 * Compute the positive slope of a segment according to a reference slope
+	 * Compute the positive slope between the segments [StartPoint, EndPoint1] and [StartPoint, EndPoint2]
 	 * @return a slop between [0, 8] i.e. an equivalent angle between [0, 2Pi]
 	 */
 	inline double ComputePositiveSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint1, const FPoint2D& EndPoint2)
@@ -148,6 +148,15 @@ namespace CADKernel
 	inline double ComputeOrientedSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint, double ReferenceSlope)
 	{
 		return TransformIntoOrientedSlope(ComputePositiveSlope(StartPoint, EndPoint, ReferenceSlope));
+	}
+
+	/**
+	 * Compute the positive slope between the segments [StartPoint, EndPoint1] and [StartPoint, EndPoint2]
+	 * @return a slop between [-4, 4] i.e. an equivalent angle between [-Pi, Pi]
+	 */
+	inline double ComputeOrientedSlope(const FPoint2D& StartPoint, const FPoint2D& EndPoint1, const FPoint2D& EndPoint2)
+	{
+		return TransformIntoOrientedSlope(ComputePositiveSlope(StartPoint, EndPoint1, EndPoint2));
 	}
 
 	/**

@@ -102,7 +102,7 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 		FPlatformApplicationMisc::ClipboardPaste(OriginalClipboardContent);
 
 		// The final list of actors to move after invalid actors were removed
-		TArray<AActor*> FinalMoveList;
+		TArray<TWeakObjectPtr<AActor>> FinalMoveList;
 		FinalMoveList.Reserve(ActorsToMove.Num());
 
 		bool bIsDestLevelLocked = FLevelUtils::IsLevelLocked(DestLevel);
@@ -153,8 +153,10 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 
 			USelection* ActorSelection = GEditor->GetSelectedActors();
 			ActorSelection->BeginBatchSelectOperation();
-			for (AActor* Actor : FinalMoveList)
+			for (TWeakObjectPtr<AActor> ActorPtr : FinalMoveList)
 			{
+				AActor* Actor = ActorPtr.Get();
+				check(Actor);
 				check(Actor->CopyPasteId == INDEX_NONE);
 				Actor->CopyPasteId = ActorPathMapping.Add(TTuple<FSoftObjectPath, FSoftObjectPath>(FSoftObjectPath(Actor), FSoftObjectPath()));
 				GEditor->SelectActor(Actor, true, false);
@@ -246,11 +248,15 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 			// The moved (pasted) actors will now be selected
 			NumMovedActors += FinalMoveList.Num();
 
-			for (AActor* Actor : FinalMoveList)
+			for (TWeakObjectPtr<AActor> ActorPtr : FinalMoveList)
 			{
-				check(Actor->CopyPasteId != INDEX_NONE);
-				// Reset CopyPasteId on source actors 
-				Actor->CopyPasteId = INDEX_NONE;
+				// It is possible a GC happens because of RenameAssets being called so here we want to update the CopyPasteId only on reachable actors
+				if (AActor* Actor = ActorPtr.Get(/*bEvenIfPendingKill=*/true))
+				{
+					check(Actor->CopyPasteId != INDEX_NONE);
+					// Reset CopyPasteId on source actors 
+					Actor->CopyPasteId = INDEX_NONE;
+				}
 			}
 		}
 
@@ -848,7 +854,7 @@ void UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 	if (ULevelStreaming* StreamingLevel = ULevelStreaming::FindStreamingLevel(InLevel))
 	{
 		bIsTransientLevelStreaming = StreamingLevel->HasAnyFlags(RF_Transient);
-		StreamingLevel->MarkPendingKill();
+		StreamingLevel->MarkAsGarbage();
 		InLevel->OwningWorld->RemoveStreamingLevel(StreamingLevel);
 		InLevel->OwningWorld->RefreshStreamingLevels({});
 	}
@@ -885,7 +891,7 @@ void UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 	{
 		if (ModelComponent != nullptr)
 		{
-			ModelComponent->MarkPendingKill();
+			ModelComponent->MarkAsGarbage();
 		}
 	}
 
@@ -895,7 +901,7 @@ void UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 		if (Actor != nullptr)
 		{
 			Actor->MarkComponentsAsPendingKill();
-			Actor->MarkPendingKill();
+			Actor->MarkAsGarbage();
 		}
 	}
 
@@ -919,8 +925,8 @@ void UEditorLevelUtils::PrivateDestroyLevel(ULevel* InLevel)
 		OuterWorld->CleanupWorld();
 	}
 
-	Outer->MarkPendingKill();
-	InLevel->MarkPendingKill();
+	Outer->MarkAsGarbage();
+	InLevel->MarkAsGarbage();
 	Outer->ClearFlags(RF_Public | RF_Standalone);
 
 	UPackage* Package = InLevel->GetOutermost();

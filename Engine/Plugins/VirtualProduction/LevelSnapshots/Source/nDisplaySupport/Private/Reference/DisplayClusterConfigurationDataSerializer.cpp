@@ -5,18 +5,18 @@
 #include "ILevelSnapshotsModule.h"
 #include "UObject/UnrealType.h"
 
-namespace
+namespace UE::LevelSnapshots::nDisplay::Private::Internal
 {
 	const FName ClusterPropertyName("Cluster");
 }
 
-UClass* FDisplayClusterConfigurationDataSerializer::GetSupportedClass()
+UClass* UE::LevelSnapshots::nDisplay::Private::FDisplayClusterConfigurationDataSerializer::GetSupportedClass()
 {
 	static const FSoftClassPath ClassPath("/Script/DisplayClusterConfiguration.DisplayClusterConfigurationData");
 	return ClassPath.ResolveClass();
 }
 
-void FDisplayClusterConfigurationDataSerializer::MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module)
+void UE::LevelSnapshots::nDisplay::Private::FDisplayClusterConfigurationDataSerializer::MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module)
 {
 	const FName ExportedObjectsPropertyName("ExportedObjects");
 	
@@ -25,23 +25,23 @@ void FDisplayClusterConfigurationDataSerializer::MarkPropertiesAsExplicitlyUnsup
 	check(ConfigDataBaseClass);
 	const FProperty* ExportedObjectsProperty = ConfigDataBaseClass->FindPropertyByName(ExportedObjectsPropertyName);
 	
-	const FProperty* ClusterProperty = GetSupportedClass()->FindPropertyByName(ClusterPropertyName);
+	const FProperty* ClusterProperty = GetSupportedClass()->FindPropertyByName(Internal::ClusterPropertyName);
 	if (ensure(ClusterProperty && ExportedObjectsProperty))
 	{
 		Module.AddExplicitlyUnsupportedProperties( { ClusterProperty, ExportedObjectsProperty} );
 	}
 }
 
-void FDisplayClusterConfigurationDataSerializer::Register(ILevelSnapshotsModule& Module)
+void UE::LevelSnapshots::nDisplay::Private::FDisplayClusterConfigurationDataSerializer::Register(ILevelSnapshotsModule& Module)
 {
 	MarkPropertiesAsExplicitlyUnsupported(Module);
 	Module.RegisterCustomObjectSerializer(GetSupportedClass(), MakeShared<FDisplayClusterConfigurationDataSerializer>());
 }
 
-UObject* FDisplayClusterConfigurationDataSerializer::FindSubobject(UObject* Owner) const
+UObject* UE::LevelSnapshots::nDisplay::Private::FDisplayClusterConfigurationDataSerializer::FindSubobject(UObject* Owner) const
 {
-	const FObjectProperty* ObjectProp = CastField<FObjectProperty>(GetSupportedClass()->FindPropertyByName(ClusterPropertyName));
-	checkf(ObjectProp, TEXT("Expected class %s to have object property %s"), *GetSupportedClass()->GetName(), *ClusterPropertyName.ToString());
+	const FObjectProperty* ObjectProp = CastField<FObjectProperty>(GetSupportedClass()->FindPropertyByName(Internal::ClusterPropertyName));
+	checkf(ObjectProp, TEXT("Expected class %s to have object property %s"), *GetSupportedClass()->GetName(), *Internal::ClusterPropertyName.ToString());
 	check(Owner->GetClass()->IsChildOf(GetSupportedClass()));
 
 	return ObjectProp->GetObjectPropertyValue(ObjectProp->ContainerPtrToValuePtr<void>(Owner));

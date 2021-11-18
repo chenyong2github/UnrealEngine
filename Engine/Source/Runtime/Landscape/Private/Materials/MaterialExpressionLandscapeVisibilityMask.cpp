@@ -30,16 +30,9 @@ UMaterialExpressionLandscapeVisibilityMask::UMaterialExpressionLandscapeVisibili
 	};
 	static FConstructorStatics ConstructorStatics;
 
-	bIsParameterExpression = true;
-
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_Landscape);
 #endif
-}
-
-FGuid& UMaterialExpressionLandscapeVisibilityMask::GetParameterExpressionId()
-{
-	return ExpressionGUID;
 }
 
 #if WITH_EDITOR
@@ -55,19 +48,12 @@ UObject* UMaterialExpressionLandscapeVisibilityMask::GetReferencedTexture() cons
 	return GEngine->WeightMapPlaceholderTexture;
 }
 
-void UMaterialExpressionLandscapeVisibilityMask::GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const
+#if WITH_EDITOR
+void UMaterialExpressionLandscapeVisibilityMask::GetLandscapeLayerNames(TArray<FName>& OutLayers) const
 {
-	int32 CurrentSize = OutParameterInfo.Num();
-	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
-	OutParameterInfo.AddUnique(NewParameter);
-
-	if (CurrentSize != OutParameterInfo.Num())
-	{
-		OutParameterIds.Add(ExpressionGUID);
-	}
+	OutLayers.AddUnique(ParameterName);
 }
 
-#if WITH_EDITOR
 void UMaterialExpressionLandscapeVisibilityMask::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(FString(TEXT("Landscape Visibility Mask")));

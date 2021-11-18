@@ -139,7 +139,7 @@ FCurveModelID FCurveEditor::AddCurve(TUniquePtr<FCurveModel>&& InCurve)
 	++ActiveCurvesSerialNumber;
 	if (IsBroadcasting())
 	{
-		OnCurveArrayChanged.Broadcast(Curve, true);
+		OnCurveArrayChanged.Broadcast(Curve, true, this);
 	}
 	return NewID;
 }
@@ -148,7 +148,7 @@ void FCurveEditor::BroadcastCurveChanged(FCurveModel* InCurve)
 {
 	if (IsBroadcasting())
 	{
-		OnCurveArrayChanged.Broadcast(InCurve, true);
+		OnCurveArrayChanged.Broadcast(InCurve, true, this);
 	}
 }
 
@@ -159,7 +159,7 @@ FCurveModelID FCurveEditor::AddCurveForTreeItem(TUniquePtr<FCurveModel>&& InCurv
 
 	if(IsBroadcasting())
 	{
-		OnCurveArrayChanged.Broadcast(InCurve.Get(), true);
+		OnCurveArrayChanged.Broadcast(InCurve.Get(), true, this);
 	}
 
 	CurveData.Add(NewID, MoveTemp(InCurve));
@@ -180,7 +180,7 @@ void FCurveEditor::RemoveCurve(FCurveModelID InCurveID)
 
 	if(IsBroadcasting())
 	{
-		OnCurveArrayChanged.Broadcast(FindCurve(InCurveID), false);
+		OnCurveArrayChanged.Broadcast(FindCurve(InCurveID), false,this);
 	}
 
 

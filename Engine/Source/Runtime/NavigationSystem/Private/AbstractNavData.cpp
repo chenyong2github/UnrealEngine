@@ -46,7 +46,7 @@ void AAbstractNavData::PostLoad()
 	// marking as pending kill might seem an overkill, but one of the things 
 	// this changes aims to achieve is to get rig of the excess number of 
 	// AAbstractNavData instances. "There should be only one!"
-	MarkPendingKill();
+	MarkAsGarbage();
 }
 
 FPathFindingResult AAbstractNavData::FindPathAbstract(const FNavAgentProperties& AgentProperties, const FPathFindingQuery& Query)

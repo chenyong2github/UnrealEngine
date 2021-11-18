@@ -18,7 +18,6 @@
 #include "TextureResource.h"
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
-#include "Misc/FieldAccessor.h"
 #if WITH_EDITORONLY_DATA
 #include "Misc/TVariant.h"
 #include "DerivedDataCacheKeyProxy.h"
@@ -1214,9 +1213,6 @@ private:
 	class FTextureResource* PrivateResourceRenderThread;
 
 public:
-	UE_DEPRECATED(5.00, "Use GetResource() / SetResource() accessors instead.")
-	TFieldPtrAccessor<FTextureResource> Resource;
-
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ENGINE_API virtual ~UTexture() {};
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1618,7 +1614,7 @@ protected:
 	 * @param	MaxMipCount - optional limitation on the max mip count.
 	 * @return  The state to be passed to FStreamableTextureResource.
 	 */
-	FStreamableRenderResourceState GetResourcePostInitState(FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount = 0, int32 MaxMipCount = 0, bool bSkipCanBeLoaded = false) const;
+	FStreamableRenderResourceState GetResourcePostInitState(const FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount = 0, int32 MaxMipCount = 0, bool bSkipCanBeLoaded = false) const;
 };
 
 /** 

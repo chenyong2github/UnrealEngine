@@ -35,7 +35,7 @@ enum class EVarIcvfxMPCDIShaderType : uint8
 
 static TAutoConsoleVariable<int32> CVarIcvfxMPCDIShaderType(
 	TEXT("nDisplay.render.icvfx.shader"),
-	(int)EVarIcvfxMPCDIShaderType::Default,
+	(int32)EVarIcvfxMPCDIShaderType::Default,
 	TEXT("Select shader for icvfx:\n")
 	TEXT(" 0: Warp shader (used by default)\n")
 	TEXT(" 1: Warp shader with disabled blend maps\n")
@@ -198,7 +198,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FIcvfxPixelShaderParameters, )
 
 	SHADER_PARAMETER(float, ChromakeyMarkerScale)
 	SHADER_PARAMETER(float, ChromakeyMarkerDistance)
-	SHADER_PARAMETER(FVector2D, ChromakeyMarkerOffset)
+	SHADER_PARAMETER(FVector2f, ChromakeyMarkerOffset)
 END_SHADER_PARAMETER_STRUCT()
 
 class FIcvfxWarpVS : public FGlobalShader
@@ -278,7 +278,7 @@ private:
 
 	bool bIsBlendDisabled = false;
 	bool bForceMultiCameraPass = false;
-	int CameraIndex = 0;
+	int32 CameraIndex = 0;
 
 private:
 	inline bool IsMultiPassRender() const
@@ -293,7 +293,7 @@ private:
 
 	inline bool IsLastPass() const
 	{
-		int TotalUsedCameras = ICVFXParameters.Cameras.Num();
+		int32 TotalUsedCameras = ICVFXParameters.Cameras.Num();
 
 		if (bForceMultiCameraPass)
 		{
@@ -337,7 +337,7 @@ private:
 		return ICVFXParameters.IsLightcardOverUsed();
 	}
 
-	inline int GetUsedCameraIndex() const
+	inline int32 GetUsedCameraIndex() const
 	{
 		if (bForceMultiCameraPass)
 		{
@@ -363,12 +363,12 @@ private:
 
 	FIntRect GetViewportRect() const
 	{
-		int vpPosX = WarpBlendParameters.Dest.Rect.Min.X;
-		int vpPosY = WarpBlendParameters.Dest.Rect.Min.Y;
-		int vpSizeX = WarpBlendParameters.Dest.Rect.Width();
-		int vpSizeY = WarpBlendParameters.Dest.Rect.Height();
+		const int32 PosX = WarpBlendParameters.Dest.Rect.Min.X;
+		const int32 PosY = WarpBlendParameters.Dest.Rect.Min.Y;
+		const int32 SizeX = WarpBlendParameters.Dest.Rect.Width();
+		const int32 SizeY = WarpBlendParameters.Dest.Rect.Height();
 
-		return FIntRect(FIntPoint(vpPosX, vpPosY), FIntPoint(vpPosX + vpSizeX, vpPosY + vpSizeY));
+		return FIntRect(FIntPoint(PosX, PosY), FIntPoint(PosX + SizeX, PosY + SizeY));
 	}
 
 	EIcvfxShaderType GetPixelShaderType()
@@ -528,7 +528,7 @@ public:
 
 	bool GetCameraParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		int CurrentCameraIndex = GetUsedCameraIndex();
+		const int32 CurrentCameraIndex = GetUsedCameraIndex();
 		if (!ICVFXParameters.IsCameraUsed(CurrentCameraIndex))
 		{
 			return false;
@@ -567,7 +567,7 @@ public:
 
 	bool GetCameraChromakeyParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		int CurrentCameraIndex = GetUsedCameraIndex();
+		const int32 CurrentCameraIndex = GetUsedCameraIndex();
 		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[CurrentCameraIndex];
 		
 		switch (Camera.ChromakeySource)
@@ -601,7 +601,7 @@ public:
 
 	bool GetCameraChromakeyMarkerParameters(FIcvfxRenderPassData& RenderPassData)
 	{
-		int CurrentCameraIndex = GetUsedCameraIndex();
+		const int32 CurrentCameraIndex = GetUsedCameraIndex();
 		const FDisplayClusterShaderParameters_ICVFX::FCameraSettings& Camera = ICVFXParameters.Cameras[CurrentCameraIndex];
 
 		if (Camera.IsChromakeyMarkerUsed())

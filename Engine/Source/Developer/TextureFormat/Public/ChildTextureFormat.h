@@ -158,6 +158,7 @@ public:
 	bool CompressBaseImage(
 		const FImage& InImage,
 		const FTextureBuildSettings& BuildSettings,
+		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		FCompressedImage2D& OutCompressedImage
 	) const
@@ -165,7 +166,7 @@ public:
 		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
 		// pass along the compression to the base format
-		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImage(InImage, BaseSettings, bImageHasAlphaChannel, OutCompressedImage) == false)
+		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImage(InImage, BaseSettings, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage) == false)
 		{
 			UE_LOG(LogTemp, Error, TEXT("Failed to compress with base compressor [format %s]"), *BaseSettings.TextureFormatName.ToString());
 			return false;
@@ -177,6 +178,7 @@ public:
 		const FImage* Images,
 		uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
+		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		TSharedPtr<FTilerSettings>& TilerSettings,
 		FCompressedImage2D& OutCompressedImage
@@ -185,7 +187,7 @@ public:
 		FTextureBuildSettings BaseSettings = GetBaseTextureBuildSettings(BuildSettings);
 
 		// pass along the compression to the base format
-		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImageTiled(Images, NumImages, BaseSettings, bImageHasAlphaChannel, TilerSettings, OutCompressedImage) == false)
+		if (GetBaseFormatObject(BuildSettings.TextureFormatName)->CompressImageTiled(Images, NumImages, BaseSettings, DebugTexturePathName, bImageHasAlphaChannel, TilerSettings, OutCompressedImage) == false)
 		{
 			UE_LOG(LogTemp, Error, TEXT("Failed to compress with base tiled compressor [format %s]"), *BaseSettings.TextureFormatName.ToString());
 			return false;

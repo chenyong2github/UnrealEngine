@@ -225,7 +225,7 @@ namespace DatasmithMeshHelper
 
 	int32 GetNumUVChannel(const FMeshDescription& Mesh)
 	{
-		TVertexInstanceAttributesConstRef<FVector2D> UVChannels = FStaticMeshConstAttributes(Mesh).GetVertexInstanceUVs();
+		TVertexInstanceAttributesConstRef<FVector2f> UVChannels = FStaticMeshConstAttributes(Mesh).GetVertexInstanceUVs();
 		return UVChannels.GetNumChannels();
 	}
 
@@ -238,7 +238,7 @@ namespace DatasmithMeshHelper
 	{
 		if (HasUVChannel(Mesh, ChannelIndex))
 		{
-			TVertexInstanceAttributesConstRef<FVector2D> UVChannels = FStaticMeshConstAttributes(Mesh).GetVertexInstanceUVs();
+			TVertexInstanceAttributesConstRef<FVector2f> UVChannels = FStaticMeshConstAttributes(Mesh).GetVertexInstanceUVs();
 			const FVector2D DefValue = UVChannels.GetDefaultValue();
 			for (FVertexInstanceID InstanceID : Mesh.VertexInstances().GetElementIDs())
 			{
@@ -260,7 +260,7 @@ namespace DatasmithMeshHelper
 
 		if (!HasUVChannel(Mesh, ChannelIndex))
 		{
-			TVertexInstanceAttributesRef<FVector2D> UVChannels = FStaticMeshAttributes(Mesh).GetVertexInstanceUVs();
+			TVertexInstanceAttributesRef<FVector2f> UVChannels = FStaticMeshAttributes(Mesh).GetVertexInstanceUVs();
 			UVChannels.SetNumChannels(ChannelIndex + 1);
 		}
 		return true;
@@ -320,7 +320,7 @@ namespace DatasmithMeshHelper
 		TMap<FVertexInstanceID, FVector2D> TexCoords;
 		FStaticMeshOperations::GenerateBoxUV(MeshDescription, UVParameters, TexCoords);
 
-		TVertexInstanceAttributesRef<FVector2D> UVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
+		TVertexInstanceAttributesRef<FVector2f> UVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
 		if (UVs.GetNumChannels() == 0)
 		{
 			UVs.SetNumChannels(1);

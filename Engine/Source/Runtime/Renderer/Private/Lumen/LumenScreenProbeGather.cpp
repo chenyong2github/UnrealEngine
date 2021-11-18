@@ -639,7 +639,7 @@ class FMarkRadianceProbesUsedByHairStrandsCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, HairStrandsResolution)
-		SHADER_PARAMETER(FVector2D, HairStrandsInvResolution)
+		SHADER_PARAMETER(FVector2f, HairStrandsInvResolution)
 		SHADER_PARAMETER(uint32, HairStrandsMip)
 		SHADER_PARAMETER(uint32, VisualizeLumenScene)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -800,7 +800,7 @@ class FScreenProbeTemporalReprojectionDepthRejectionCS : public FGlobalShader
 		SHADER_PARAMETER(float,PrevInvPreExposure)
 		SHADER_PARAMETER(float,InvFractionOfLightingMovingForFastUpdateMode)
 		SHADER_PARAMETER(float,MaxFastUpdateModeAmount)
-		SHADER_PARAMETER(FVector2D,InvDiffuseIndirectBufferSize)
+		SHADER_PARAMETER(FVector2f,InvDiffuseIndirectBufferSize)
 		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER(FIntVector4,HistoryViewportMinMax)

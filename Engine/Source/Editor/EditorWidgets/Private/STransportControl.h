@@ -46,6 +46,7 @@ private:
 	FText GetRecordStatusTooltip() const;
 	const FSlateBrush* GetBackwardStatusIcon() const;
 	const FSlateBrush* GetLoopStatusIcon() const;
+	FText GetLoopStatusTooltip() const;
 
 	/** Executes the OnTickPlayback delegate */
 	EActiveTimerReturnType TickPlayback( double InCurrentTime, float InDeltaTime );

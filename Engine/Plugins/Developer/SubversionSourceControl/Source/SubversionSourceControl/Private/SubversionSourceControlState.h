@@ -40,7 +40,7 @@ namespace ELockState
 	};
 }
 
-class FSubversionSourceControlState : public ISourceControlState, public TSharedFromThis<FSubversionSourceControlState, ESPMode::ThreadSafe>
+class FSubversionSourceControlState : public ISourceControlState
 {
 public:
 	FSubversionSourceControlState( const FString& InLocalFilename )

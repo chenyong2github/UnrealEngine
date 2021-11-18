@@ -9,8 +9,6 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -26,12 +24,12 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Exponent
 			/// </summary>
-			public byte[] Exponent { get; set; }
+			public byte[]? Exponent { get; set; }
 
 			/// <summary>
 			/// Modulus
 			/// </summary>
-			public byte[] Modulus { get; set; }
+			public byte[]? Modulus { get; set; }
 
 			/// <summary>
 			/// Determine if this key is valid
@@ -70,10 +68,10 @@ namespace UnrealBuildTool
 			/// </summary>
 			public bool IsUnsecureLegacyKey()
 			{
-				int LongestKey = PublicKey.Exponent.Length;
-				LongestKey = Math.Max(LongestKey, PublicKey.Modulus.Length);
-				LongestKey = Math.Max(LongestKey, PrivateKey.Exponent.Length);
-				LongestKey = Math.Max(LongestKey, PrivateKey.Modulus.Length);
+				int LongestKey = PublicKey.Exponent!.Length;
+				LongestKey = Math.Max(LongestKey, PublicKey.Modulus!.Length);
+				LongestKey = Math.Max(LongestKey, PrivateKey.Exponent!.Length);
+				LongestKey = Math.Max(LongestKey, PrivateKey.Modulus!.Length);
 				return LongestKey <= 64;
 			}
 		}
@@ -86,15 +84,15 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// Optional name for this encryption key
 			/// </summary>
-			public string Name { get; set; }
+			public string? Name { get; set; }
 			/// <summary>
 			/// Optional guid for this encryption key
 			/// </summary>
-			public string Guid { get; set; }
+			public string? Guid { get; set; }
 			/// <summary>
 			/// AES key
 			/// </summary>
-			public byte[] Key { get; set; }
+			public byte[]? Key { get; set; }
 			/// <summary>
 			/// Determine if this key is valid
 			/// </summary>
@@ -112,12 +110,12 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// AES encyption key
 			/// </summary>
-			public EncryptionKey EncryptionKey { get; set; } = null;
+			public EncryptionKey? EncryptionKey { get; set; } = null;
 
 			/// <summary>
 			/// RSA public/private key
 			/// </summary>
-			public SigningKeyPair SigningKey { get; set; } = null;
+			public SigningKeyPair? SigningKey { get; set; } = null;
 
 			/// <summary>
 			/// Enable pak signature checking
@@ -163,7 +161,7 @@ namespace UnrealBuildTool
 			/// <summary>
 			/// A set of named encryption keys that can be used to encrypt different sets of data with a different key that is delivered dynamically (i.e. not embedded within the game executable)
 			/// </summary>
-			public EncryptionKey[] SecondaryEncryptionKeys { get; set; }
+			public EncryptionKey[]? SecondaryEncryptionKeys { get; set; }
 
 			/// <summary>
 			/// 
@@ -227,7 +225,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Parse crypto settings from INI file
 		/// </summary>
-		public static CryptoSettings ParseCryptoSettings(DirectoryReference InProjectDirectory, UnrealTargetPlatform InTargetPlatform)
+		public static CryptoSettings ParseCryptoSettings(DirectoryReference? InProjectDirectory, UnrealTargetPlatform InTargetPlatform)
 		{
 			CryptoSettings Settings = new CryptoSettings();
 			
@@ -248,21 +246,16 @@ namespace UnrealBuildTool
 				Ini.GetBool("Core.Encryption", "SignPak", out bool bEnablePakSigning);
 				Settings.bEnablePakSigning = bEnablePakSigning;
 
-				string[] SigningKeyStrings = new string[3];
-				Ini.GetString("Core.Encryption", "rsa.privateexp", out SigningKeyStrings[0]);
-				Ini.GetString("Core.Encryption", "rsa.modulus", out SigningKeyStrings[1]);
-				Ini.GetString("Core.Encryption", "rsa.publicexp", out SigningKeyStrings[2]);
+				Ini.GetString("Core.Encryption", "rsa.privateexp", out string PrivateExponent);
+				Ini.GetString("Core.Encryption", "rsa.modulus", out string Modulus);
+				Ini.GetString("Core.Encryption", "rsa.publicexp", out string PublicExponent);
 
-				if (String.IsNullOrEmpty(SigningKeyStrings[0]) || String.IsNullOrEmpty(SigningKeyStrings[1]) || String.IsNullOrEmpty(SigningKeyStrings[2]))
-				{
-					SigningKeyStrings = null;
-				}
-				else
+				if (PrivateExponent.Length > 0 && Modulus.Length > 0 && PublicExponent.Length > 0)
 				{
 					Settings.SigningKey = new SigningKeyPair();
-					Settings.SigningKey.PrivateKey.Exponent = ParseHexStringToByteArray(ProcessSigningKeyInputStrings(SigningKeyStrings[0]), 64);
-					Settings.SigningKey.PrivateKey.Modulus = ParseHexStringToByteArray(ProcessSigningKeyInputStrings(SigningKeyStrings[1]), 64);
-					Settings.SigningKey.PublicKey.Exponent = ParseHexStringToByteArray(ProcessSigningKeyInputStrings(SigningKeyStrings[2]), 64);
+					Settings.SigningKey.PrivateKey.Exponent = ParseHexStringToByteArray(ProcessSigningKeyInputStrings(PrivateExponent), 64);
+					Settings.SigningKey.PrivateKey.Modulus = ParseHexStringToByteArray(ProcessSigningKeyInputStrings(Modulus), 64);
+					Settings.SigningKey.PublicKey.Exponent = ParseHexStringToByteArray(ProcessSigningKeyInputStrings(PublicExponent), 64);
 					Settings.SigningKey.PublicKey.Modulus = Settings.SigningKey.PrivateKey.Modulus;
 
 					if ((Settings.SigningKey.PrivateKey.Exponent.Length > 64) ||
@@ -335,7 +328,7 @@ namespace UnrealBuildTool
 
 				// Parse secondary encryption keys
 				List<EncryptionKey> SecondaryEncryptionKeys = new List<EncryptionKey>();
-				List<string> SecondaryEncryptionKeyStrings;
+				List<string>? SecondaryEncryptionKeyStrings;
 
 				if (Ini.GetArray(SectionName, "SecondaryEncryptionKeys", out SecondaryEncryptionKeyStrings))
 				{
@@ -417,8 +410,8 @@ namespace UnrealBuildTool
 									NewKey.Guid = KeyParts[2];
 									NewKey.Key = System.Convert.FromBase64String(KeyParts[3]);
 
-									EncryptionKey ExistingKey = EncryptionKeys.Find((EncryptionKey OtherKey) => { return OtherKey.Guid == NewKey.Guid; });
-									if (ExistingKey != null && !CompareKey(ExistingKey.Key, NewKey.Key))
+									EncryptionKey? ExistingKey = EncryptionKeys.Find((EncryptionKey OtherKey) => { return OtherKey.Guid == NewKey.Guid; });
+									if (ExistingKey != null && !CompareKey(ExistingKey.Key!, NewKey.Key))
 									{
 										throw new Exception("Found multiple encryption keys with the same guid but different AES keys while merging secondary keys from the project key-chain!");
 									}

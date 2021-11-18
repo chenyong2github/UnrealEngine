@@ -216,7 +216,7 @@ void INiagaraImmutableParameterPanelViewModel::CopyParameterMetaData(const FNiag
 	for (const UNiagaraScriptVariable* ScriptVariable : GetEditableScriptVariablesWithName(ItemToCopy.GetVariable().GetName()))
 	{
 		UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
-		ClipboardContent->ScriptVariables.Add(ScriptVariable);
+		ClipboardContent->ScriptVariables.Add({*ScriptVariable});
 		FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
 		break;
 	}
@@ -292,7 +292,7 @@ void INiagaraParameterPanelViewModel::PasteParameterMetaData(const TArray<FNiaga
 		for (UNiagaraScriptVariable* TargetScriptVariable : TargetScriptVariables)
 		{
 			TargetScriptVariable->Modify();
-			TargetScriptVariable->Metadata.CopyUserEditableMetaData(ClipboardContent->ScriptVariables[0]->Metadata);
+			TargetScriptVariable->Metadata.CopyUserEditableMetaData(ClipboardContent->ScriptVariables[0].ScriptVariable->Metadata);
 			TargetScriptVariable->PostEditChange();
 		}
 	}

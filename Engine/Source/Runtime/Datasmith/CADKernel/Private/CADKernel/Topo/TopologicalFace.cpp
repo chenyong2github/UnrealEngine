@@ -12,7 +12,10 @@
 #include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 
-void CADKernel::FTopologicalFace::ComputeBoundary() const
+namespace CADKernel
+{
+
+void FTopologicalFace::ComputeBoundary() const
 {
 	Boundary->Init();
 	TArray<TArray<FPoint2D>> TmpLoops;
@@ -33,19 +36,19 @@ void CADKernel::FTopologicalFace::ComputeBoundary() const
 	Boundary.SetReady();
 }
 
-void CADKernel::FTopologicalFace::Presample()
+void FTopologicalFace::Presample()
 {
 	const FSurfacicBoundary& FaceBoundaries = GetBoundary();
 	CarrierSurface->Presample(FaceBoundaries, CrossingCoordinates);
 }
 
-void CADKernel::FTopologicalFace::ApplyNaturalLoops()
+void FTopologicalFace::ApplyNaturalLoops()
 {
 	const FSurfacicBoundary& Boundaries = CarrierSurface->GetBoundary();
 	ApplyNaturalLoops(Boundaries);
 }
 
-void CADKernel::FTopologicalFace::ApplyNaturalLoops(const FSurfacicBoundary& Boundaries)
+void FTopologicalFace::ApplyNaturalLoops(const FSurfacicBoundary& Boundaries)
 {
 	ensureCADKernel(Loops.Num() == 0);
 
@@ -98,7 +101,7 @@ void CADKernel::FTopologicalFace::ApplyNaturalLoops(const FSurfacicBoundary& Bou
 	AddLoop(Loop);
 }
 
-void CADKernel::FTopologicalFace::AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& InLoops)
+void FTopologicalFace::AddLoops(const TArray<TSharedPtr<FTopologicalLoop>>& InLoops)
 {
 	for (TSharedPtr<FTopologicalLoop> Loop : InLoops)
 	{
@@ -111,7 +114,7 @@ void CADKernel::FTopologicalFace::AddLoops(const TArray<TSharedPtr<FTopologicalL
 	}
 }
 
-void CADKernel::FTopologicalFace::AddLoop(const TSharedPtr<FTopologicalLoop>& InLoop)
+void FTopologicalFace::AddLoop(const TSharedPtr<FTopologicalLoop>& InLoop)
 {
 	TSharedRef<FTopologicalFace> Face = StaticCastSharedRef<FTopologicalFace>(AsShared());
 	InLoop->SetSurface(Face);
@@ -122,7 +125,7 @@ void CADKernel::FTopologicalFace::AddLoop(const TSharedPtr<FTopologicalLoop>& In
 	Loops.Add(InLoop);
 }
 
-void CADKernel::FTopologicalFace::RemoveLoop(const TSharedPtr<FTopologicalLoop>& Loop)
+void FTopologicalFace::RemoveLoop(const TSharedPtr<FTopologicalLoop>& Loop)
 {
 	int32 Index = Loops.Find(Loop);
 	if (Index != INDEX_NONE)
@@ -137,7 +140,7 @@ void CADKernel::FTopologicalFace::RemoveLoop(const TSharedPtr<FTopologicalLoop>&
 	}
 }
 
-void CADKernel::FTopologicalFace::RemoveLinksWithNeighbours()
+void FTopologicalFace::RemoveLinksWithNeighbours()
 {
 	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
 	{
@@ -148,7 +151,7 @@ void CADKernel::FTopologicalFace::RemoveLinksWithNeighbours()
 	}
 }
 
-bool CADKernel::FTopologicalFace::HasSameBoundariesAs(const TSharedPtr<FTopologicalFace>& OtherFace) const
+bool FTopologicalFace::HasSameBoundariesAs(const TSharedPtr<FTopologicalFace>& OtherFace) const
 {
 	int32 EdgeCount = 0;
 	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
@@ -201,7 +204,7 @@ bool CADKernel::FTopologicalFace::HasSameBoundariesAs(const TSharedPtr<FTopologi
 	return bSameBoundary;
 }
 
-const CADKernel::FTopologicalEdge* CADKernel::FTopologicalFace::GetLinkedEdge(const FTopologicalEdge& LinkedEdge) const
+const FTopologicalEdge* FTopologicalFace::GetLinkedEdge(const FTopologicalEdge& LinkedEdge) const
 {
 	for (FTopologicalEdge* TwinEdge : LinkedEdge.GetTwinsEntities())
 	{
@@ -214,7 +217,7 @@ const CADKernel::FTopologicalEdge* CADKernel::FTopologicalFace::GetLinkedEdge(co
 	return nullptr;
 }
 
-void CADKernel::FTopologicalFace::GetEdgeIndex(const FTopologicalEdge& Edge, int32& OutBoundaryIndex, int32& OutEdgeIndex) const
+void FTopologicalFace::GetEdgeIndex(const FTopologicalEdge& Edge, int32& OutBoundaryIndex, int32& OutEdgeIndex) const
 {
 	OutEdgeIndex = INDEX_NONE;
 	for (OutBoundaryIndex = 0; OutBoundaryIndex < Loops.Num(); ++OutBoundaryIndex)
@@ -228,12 +231,12 @@ void CADKernel::FTopologicalFace::GetEdgeIndex(const FTopologicalEdge& Edge, int
 	OutBoundaryIndex = INDEX_NONE;
 }
 
-void CADKernel::FTopologicalFace::EvaluateGrid(FGrid& Grid) const
+void FTopologicalFace::EvaluateGrid(FGrid& Grid) const
 {
 	CarrierSurface->EvaluateGrid(Grid);
 }
 
-const void CADKernel::FTopologicalFace::Get2DLoopSampling(TArray<TArray<FPoint2D>>& LoopSamplings) const
+const void FTopologicalFace::Get2DLoopSampling(TArray<TArray<FPoint2D>>& LoopSamplings) const
 {
 	LoopSamplings.Empty(GetLoops().Num());
 
@@ -244,7 +247,7 @@ const void CADKernel::FTopologicalFace::Get2DLoopSampling(TArray<TArray<FPoint2D
 	}
 }
 
-void CADKernel::FTopologicalFace::SpawnIdent(FDatabase& Database)
+void FTopologicalFace::SpawnIdent(FDatabase& Database)
 {
 	if (!FEntity::SetId(Database))
 	{
@@ -260,7 +263,7 @@ void CADKernel::FTopologicalFace::SpawnIdent(FDatabase& Database)
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FTopologicalFace::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FTopologicalFace::GetInfo(FInfoEntity& Info) const
 {
 	return FTopologicalEntity::GetInfo(Info)
 		.Add(TEXT("Hosted by"), (TWeakPtr<FEntity>&) HostedBy)
@@ -273,7 +276,7 @@ CADKernel::FInfoEntity& CADKernel::FTopologicalFace::GetInfo(FInfoEntity& Info) 
 }
 #endif
 
-TSharedRef<CADKernel::FFaceMesh> CADKernel::FTopologicalFace::GetOrCreateMesh(const TSharedRef<FModelMesh>& MeshModel)
+TSharedRef<FFaceMesh> FTopologicalFace::GetOrCreateMesh(const TSharedRef<FModelMesh>& MeshModel)
 {
 	if (!Mesh.IsValid())
 	{
@@ -282,7 +285,7 @@ TSharedRef<CADKernel::FFaceMesh> CADKernel::FTopologicalFace::GetOrCreateMesh(co
 	return Mesh.ToSharedRef();
 }
 
-void CADKernel::FTopologicalFace::InitDeltaUs()
+void FTopologicalFace::InitDeltaUs()
 {
 	CrossingPointDeltaMins[EIso::IsoU].Init(SMALL_NUMBER, CrossingCoordinates[EIso::IsoU].Num() - 1);
 	CrossingPointDeltaMaxs[EIso::IsoU].Init(HUGE_VALUE, CrossingCoordinates[EIso::IsoU].Num() - 1);
@@ -291,7 +294,7 @@ void CADKernel::FTopologicalFace::InitDeltaUs()
 	CrossingPointDeltaMaxs[EIso::IsoV].Init(HUGE_VALUE, CrossingCoordinates[EIso::IsoV].Num() - 1);
 }
 
-void CADKernel::FTopologicalFace::ChooseFinalDeltaUs()
+void FTopologicalFace::ChooseFinalDeltaUs()
 {
 	TFunction<void(const TArray<double>&, TArray<double>&)> ChooseFinalDeltas = [](const TArray<double>& DeltaUMins, TArray<double>& DeltaUMaxs)
 	{
@@ -321,7 +324,7 @@ void CADKernel::FTopologicalFace::ChooseFinalDeltaUs()
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FTopologicalFace::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FTopologicalFace::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	NOT_IMPLEMENTED;
 	return TSharedPtr<FEntityGeom>();
@@ -329,7 +332,7 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FTopologicalFace::ApplyMatrix(cons
 
 // Quad ==============================================================================================================================================================================================================================
 
-double CADKernel::FTopologicalFace::GetQuadCriteria()
+double FTopologicalFace::GetQuadCriteria()
 {
 	if (GetQuadType() == EQuadType::Unset)
 	{
@@ -338,7 +341,7 @@ double CADKernel::FTopologicalFace::GetQuadCriteria()
 	return QuadCriteria;
 }
 
-void CADKernel::FTopologicalFace::ComputeQuadCriteria()
+void FTopologicalFace::ComputeQuadCriteria()
 {
 	if (GetQuadType() != EQuadType::Unset)
 	{
@@ -346,7 +349,7 @@ void CADKernel::FTopologicalFace::ComputeQuadCriteria()
 	}
 }
 
-void CADKernel::FTopologicalFace::ComputeSurfaceSideProperties()
+void FTopologicalFace::ComputeSurfaceSideProperties()
 {
 	TFunction<double(const int32)> GetSideLength = [&](const int32 SideIndex)
 	{
@@ -381,7 +384,7 @@ void CADKernel::FTopologicalFace::ComputeSurfaceSideProperties()
 	}
 }
 
-void CADKernel::FTopologicalFace::DefineSurfaceType()
+void FTopologicalFace::DefineSurfaceType()
 {
 	const double Tolerance3D = CarrierSurface->Get3DTolerance();
 	const double GeometricTolerance = 20.0 * Tolerance3D;
@@ -496,3 +499,4 @@ void CADKernel::FTopologicalFace::DefineSurfaceType()
 	}
 }
 
+}

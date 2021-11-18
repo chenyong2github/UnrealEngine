@@ -19,7 +19,7 @@
 #include "MoviePipelineUtils.h"
 
 THIRD_PARTY_INCLUDES_START
-#include "openexr/ImfChannelList.h"
+#include "OpenEXR/ImfChannelList.h"
 THIRD_PARTY_INCLUDES_END
 
 #if WITH_UNREALEXR
@@ -59,7 +59,7 @@ public:
 	// returns 0.
 	//---------------------------------------------------------
 
-	virtual Imf::Int64 tellp()
+	uint64_t tellp() override
 	{
 		return Pos;
 	}
@@ -70,7 +70,7 @@ public:
 	// After calling seekp(i), tellp() returns i.
 	//-------------------------------------------
 
-	virtual void seekp(Imf::Int64 pos)
+	void seekp(uint64_t pos) override
 	{
 		Pos = pos;
 	}

@@ -26,6 +26,6 @@ public:
 	static IDisplayClusterRenderTexture* CreateWarpMap(EDisplayClusterWarpProfileType ProfileType, const FString& InPFMFile, float PFMScale, bool bIsUnrealGameSpace);
 	static IDisplayClusterRenderTexture* CreateWarpMap(EDisplayClusterWarpProfileType InProfileType, mpcdi::GeometryWarpFile* SourceWarpMap);
 	static IDisplayClusterRenderTexture* CreateWarpMap(EDisplayClusterWarpProfileType InProfileType, mpcdi::PFM* SourcePFM, float PFMScale, bool bIsUnrealGameSpace);
-	static IDisplayClusterRenderTexture* CreateWarpMap(EDisplayClusterWarpProfileType InProfileType, const TArray<FVector>& InPoints, int WarpX, int WarpY, float WorldScale, bool bIsUnrealGameSpace);
+	static IDisplayClusterRenderTexture* CreateWarpMap(EDisplayClusterWarpProfileType InProfileType, const TArray<FVector>& InPoints, uint32 WarpX, uint32 WarpY, float WorldScale, bool bIsUnrealGameSpace);
 	static IDisplayClusterRenderTexture* CreateWarpMap(EDisplayClusterWarpProfileType InProfileType, const struct FMPCDIGeometryImportData& Src);
 };

@@ -411,15 +411,12 @@ struct FReplicatedStaticActorDestructionInfo
 };
 
 #if WITH_EDITORONLY_DATA
-/** Enum defining how Actors are loaded/saved */
+/** Enum defining how external actors are saved on disk */
 UENUM()
-enum class EActorsLoadingStrategy: uint8
+enum class EActorPackagingScheme : uint8
 {
-	None,
-	Internal,
-	ExternalAutoLoad,
-	ExternalDynamicLoad,
-	Count
+	Original,	// Original scheme: ZZ/ZZ/... (maximum 1679616 folders,  ~0.6 files per folder with 1000000 files)
+	Reduced		//  Reduced scheme:  Z/ZZ/... (maximum   46656 folders, ~21.4 files per folder with 1000000 files)
 };
 #endif
 
@@ -709,6 +706,9 @@ public:
 
 	UPROPERTY(transient)
 	bool bLevelOkayForPlacementWhileCheckedIn;
+
+	UPROPERTY()
+	EActorPackagingScheme ActorPackagingScheme;
 
 	/** Returns true if the current level is a partitioned level */
 	ENGINE_API bool IsPartitionedLevel() const;
@@ -1033,12 +1033,13 @@ public:
 	/** Creates UMapBuildDataRegistry entries for legacy lightmaps from components loaded for this level. */
 	ENGINE_API void HandleLegacyMapBuildData();
 
+#if WITH_EDITOR
 	/**
 	 * Get the package name for this actor
 	 * @param InActorPath the fully qualified actor path, in the format: 'Outermost.Outer.Name'
 	 * @return the package name
 	 */
-	static ENGINE_API FString GetActorPackageName(UPackage* InLevelPackage, const FString& InActorPath);
+	static ENGINE_API FString GetActorPackageName(UPackage* InLevelPackage, EActorPackagingScheme ActorPackagingScheme, const FString& InActorPath);
 
 	/**
 	 * Get the folder containing the external actors for this level path
@@ -1062,7 +1063,6 @@ public:
 	 */
 	static ENGINE_API const TCHAR* GetExternalActorsFolderName();
 
-#if WITH_EDITOR
 	/** Returns true if the level uses external actors mode. */
 	ENGINE_API bool IsUsingExternalActors() const;
 
@@ -1071,6 +1071,9 @@ public:
 
 	/** Returns true if the level wants newly spawned actors to be external */
 	ENGINE_API bool ShouldCreateNewExternalActors() const;
+
+	/** Returns the level's actor packaging scheme */
+	ENGINE_API EActorPackagingScheme GetActorPackagingScheme() const { return ActorPackagingScheme; }
 
 	/** 
 	 * Convert this level actors to the specified loading strategy
@@ -1109,7 +1112,7 @@ public:
 	 * @param InActorPath the fully qualified actor path, in the format: 'Outermost.Outer.Name'
 	 * @return the created package
 	 */
-	static ENGINE_API UPackage* CreateActorPackage(UPackage* InLevelPackage, const FString& InActorPath);
+	static ENGINE_API UPackage* CreateActorPackage(UPackage* InLevelPackage, EActorPackagingScheme ActorPackagingScheme, const FString& InActorPath);
 
 	/**
 	 * Detach or reattach all level actors to from/to their external package

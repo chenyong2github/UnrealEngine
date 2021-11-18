@@ -613,7 +613,7 @@ void UNiagaraDataInterfaceSimpleCounter::GetNextValue_Deprecated(FVectorVMExtern
 
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		OutValue.SetAndAdvance(InstanceData->Counter.fetch_add(1));
+		OutValue.SetAndAdvance(InstanceData->Counter.fetch_add(1) + 1);
 	}
 
 	if (FNiagaraUtilities::ShouldSyncCpuToGpu(GpuSyncMode))

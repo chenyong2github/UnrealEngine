@@ -31,9 +31,11 @@ namespace DatasmithMaxDirectLink
 
 void LogDebug(const TCHAR* Msg)
 {
+#ifdef LOG_DEBUG_ENABLE
 	mprintf(L"[%s]%s\n", *FDateTime::UtcNow().ToString(TEXT("%Y.%m.%d-%H.%M.%S:%s")), Msg);
 	UE_LOG(LogDatasmithMaxExporter, Error, TEXT("%s"), Msg);
 	LogFlush();
+#endif
 }
 
 void LogInfo(const TCHAR* Msg)

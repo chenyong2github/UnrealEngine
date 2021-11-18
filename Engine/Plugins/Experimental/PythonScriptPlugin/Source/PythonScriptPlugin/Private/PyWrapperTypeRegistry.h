@@ -59,12 +59,11 @@ struct TPyWrapperTypeFactoryConversion
 
 /** Type conversion specialization for FPyWrapperTextFactory */
 template <>
-struct TPyWrapperTypeFactoryConversion<FText, FString*>
+struct TPyWrapperTypeFactoryConversion<FText, const void*>
 {
-	static FString* UnrealTypeToKeyType(FText InUnrealInstance)
+	static const void* UnrealTypeToKeyType(FText InUnrealInstance)
 	{
-		FTextDisplayStringPtr DisplayString = FTextInspector::GetSharedDisplayString(InUnrealInstance);
-		return DisplayString.Get();
+		return FTextInspector::GetSharedDataId(InUnrealInstance);
 	}
 };
 
@@ -230,7 +229,7 @@ public:
 };
 
 /** Factory for wrapped FText instances */
-class FPyWrapperTextFactory : public TPyWrapperTypeFactory<FText, FPyWrapperText, FString*>
+class FPyWrapperTextFactory : public TPyWrapperTypeFactory<FText, FPyWrapperText, const void*>
 {
 public:
 	/** Access the singleton instance */

@@ -265,7 +265,7 @@ bool UOptimusDeformer::RemoveVariableDirect(
 	Notify(EOptimusGlobalNotifyType::VariableRemoved, InVariableDesc);
 
 	InVariableDesc->Rename(nullptr, GetTransientPackage());
-	InVariableDesc->MarkPendingKill();
+	InVariableDesc->MarkAsGarbage();
 
 	MarkPackageDirty();
 
@@ -451,7 +451,7 @@ bool UOptimusDeformer::RemoveResourceDirect(
 	Notify(EOptimusGlobalNotifyType::ResourceRemoved, InResourceDesc);
 
 	InResourceDesc->Rename(nullptr, GetTransientPackage());
-	InResourceDesc->MarkPendingKill();
+	InResourceDesc->MarkAsGarbage();
 
 	MarkPackageDirty();
 
@@ -525,9 +525,9 @@ static void CollectNodes(
 				for (const UOptimusNodePin* ConnectedPin: InGraph->GetConnectedPins(Pin))
 				{
 					const UOptimusNode *NextNode = ConnectedPin->GetNode();
+					WorkingSet.Enqueue(NextNode);
 					if (!VisitedNodes.Contains(NextNode))
 					{
-						WorkingSet.Enqueue(NextNode);
 						VisitedNodes.Add(NextNode);
 						OutCollectedNodes.Add(NextNode);
 					}
@@ -960,7 +960,7 @@ UOptimusNode* UOptimusDeformer::ResolveNodePath(
 }
 
 
-void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* InObject)
+void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* InObject) const
 {
 	switch (InNotifyType)
 	{
@@ -983,7 +983,7 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	case EOptimusGlobalNotifyType::VariableRemoved:
 	case EOptimusGlobalNotifyType::VariableIndexChanged:
 	case EOptimusGlobalNotifyType::VariableRenamed:
-	case EOptimusGlobalNotifyType::VariabelTypeChanged:
+	case EOptimusGlobalNotifyType::VariableTypeChanged:
 		checkSlow(Cast<UOptimusVariableDescription>(InObject) != nullptr);
 		break;
 	default:
@@ -1119,7 +1119,7 @@ UOptimusNodeGraph* UOptimusDeformer::CreateGraph(
 		else
 		{
 			Graph->Rename(nullptr, GetTransientPackage());
-			Graph->MarkPendingKill();
+			Graph->MarkAsGarbage();
 
 			return nullptr;
 		}
@@ -1222,7 +1222,7 @@ bool UOptimusDeformer::RemoveGraph(
 	{
 		// Un-parent this graph to a temporary storage and mark it for kill.
 		InGraph->Rename(nullptr, GetTransientPackage());
-		InGraph->MarkPendingKill();
+		InGraph->MarkAsGarbage();
 	}
 
 	return true;

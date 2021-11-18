@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundSource.h"
 
+#include "Algo/Transform.h"
 #include "AssetRegistryModule.h"
-#include "CoreMinimal.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAudioFormats.h"
@@ -87,7 +87,7 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 void UMetaSoundSource::PostEditUndo()
 {
 	Super::PostEditUndo();
-	Metasound::PostAssetUndo(*this);
+	SetSynchronizationRequired();
 }
 
 void UMetaSoundSource::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
@@ -327,12 +327,6 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 
 		const Audio::FProxyDataInitParams ProxyInitParams { FeatureName };
 
-		if (!IsParameterValid(OutParamToInit))
-		{
-			UE_LOG(LogMetaSound, Error, TEXT("Failed to set invalid parameter '%s': Either does not exist or is invalid type"), *OutParamToInit.ParamName.ToString());
-			return;
-		}
-
 		switch (OutParamToInit.ParamType)
 		{
 			case EAudioParameterType::Object:
@@ -371,10 +365,24 @@ void UMetaSoundSource::InitParameters(TArray<FAudioParameter>& InParametersToIni
 		}
 	};
 
+	TMap<FName, FName> InputNameTypeMap;
+	Algo::Transform(GetDocumentChecked().RootGraph.Interface.Inputs, InputNameTypeMap, [](const FMetasoundFrontendClassInput& Input)
+	{
+		return TPair<FName, FName>(Input.Name, Input.TypeName);
+	});
+
 	for (FAudioParameter& Parameter : InParametersToInit)
 	{
 		Sanitize(Parameter);
-		ConstructProxies(Parameter);
+
+		if (IsParameterValid(Parameter, InputNameTypeMap))
+		{
+			ConstructProxies(Parameter);
+		}
+		else
+		{
+			UE_LOG(LogMetaSound, Error, TEXT("Failed to set invalid parameter '%s': Either does not exist or is unsupported type"), *Parameter.ParamName.ToString());
+		}
 	}
 }
 
@@ -456,137 +464,136 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 
 bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter) const
 {
+	TMap<FName, FName> InputNameTypeMap;
+	Algo::Transform(GetDocumentChecked().RootGraph.Interface.Inputs, InputNameTypeMap, [] (const FMetasoundFrontendClassInput& Input)
+	{
+		return TPair<FName, FName>(Input.Name, Input.TypeName);
+	});
+	return IsParameterValid(InParameter, InputNameTypeMap);
+}
+
+bool UMetaSoundSource::IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FName>& InInputNameTypeMap) const
+{
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	bool bIsValid = false;
-
-	GetRootGraphHandle()->IterateConstNodes([Param = &InParameter, bValid = &bIsValid](FConstNodeHandle NodeHandle)
+	const FName* TypeName = InInputNameTypeMap.Find(InParameter.ParamName);
+	if (!TypeName)
 	{
-		using namespace Metasound;
-		using namespace Metasound::Frontend;
+		return false;
+	}
 
-		if (Param->ParamName == NodeHandle->GetNodeName())
+	bool bIsValid = false;
+	switch (InParameter.ParamType)
+	{
+		case EAudioParameterType::Boolean:
 		{
-			TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputs();
-			if (InputHandles.IsEmpty())
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsBoolParsable;
+		}
+		break;
+
+		case EAudioParameterType::BooleanArray:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsBoolArrayParsable;
+		}
+		break;
+
+		case EAudioParameterType::Float:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsFloatParsable;
+		}
+		break;
+
+		case EAudioParameterType::FloatArray:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsFloatArrayParsable;
+		}
+		break;
+
+		case EAudioParameterType::Integer:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsIntParsable;
+		}
+		break;
+
+		case EAudioParameterType::IntegerArray:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsIntArrayParsable;
+
+		}
+		break;
+
+		case EAudioParameterType::Object:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(InParameter.ObjectParam, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsProxyParsable;
+			bIsValid &= DataTypeInfo.DataTypeName == *TypeName;
+		}
+		break;
+
+		case EAudioParameterType::ObjectArray:
+		{
+			bIsValid = true;
+
+			for (UObject* Object : InParameter.ArrayObjectParam)
 			{
-				return;
-			}
+				FDataTypeRegistryInfo DataTypeInfo;
+				bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(InParameter.ObjectParam, DataTypeInfo);
+				bIsValid &= DataTypeInfo.bIsProxyParsable;
+				bIsValid &= DataTypeInfo.DataTypeName == *TypeName;
 
-			const FName DataTypeName = InputHandles[0]->GetDataType();
-			switch (Param->ParamType)
-			{
-				case EAudioParameterType::Boolean:
+				if (!bIsValid)
 				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsBoolParsable;
+					break;
 				}
-				break;
-
-				case EAudioParameterType::BooleanArray:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsBoolArrayParsable;
-				}
-				break;
-
-				case EAudioParameterType::Float:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsFloatParsable;
-				}
-				break;
-
-				case EAudioParameterType::FloatArray:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsFloatArrayParsable;
-				}
-				break;
-
-				case EAudioParameterType::Integer:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsIntParsable;
-				}
-				break;
-
-				case EAudioParameterType::IntegerArray:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsIntArrayParsable;
-
-				}
-				break;
-
-				case EAudioParameterType::Object:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(Param->ObjectParam, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsProxyParsable;
-					*bValid &= DataTypeInfo.DataTypeName == DataTypeName;
-				}
-				break;
-
-				case EAudioParameterType::ObjectArray:
-				{
-					*bValid = true;
-
-					for (UObject* Object : Param->ArrayObjectParam)
-					{
-						FDataTypeRegistryInfo DataTypeInfo;
-						*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(Param->ObjectParam, DataTypeInfo);
-						*bValid &= DataTypeInfo.bIsProxyParsable;
-						*bValid &= DataTypeInfo.DataTypeName == DataTypeName;
-
-						if (!*bValid)
-						{
-							break;
-						}
-					}
-				}
-				break;
-
-				case EAudioParameterType::String:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsStringParsable;
-				}
-				break;
-
-				case EAudioParameterType::StringArray:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsStringArrayParsable;
-				}
-				break;
-
-				case EAudioParameterType::NoneArray:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsDefaultArrayParsable;
-				}
-				case EAudioParameterType::None:
-				default:
-				{
-					FDataTypeRegistryInfo DataTypeInfo;
-					*bValid = IDataTypeRegistry::Get().GetDataTypeInfo(DataTypeName, DataTypeInfo);
-					*bValid &= DataTypeInfo.bIsDefaultParsable;
-				}
-				break;
 			}
 		}
-	}, EMetasoundFrontendClassType::Input);
+		break;
+
+		case EAudioParameterType::String:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsStringParsable;
+		}
+		break;
+
+		case EAudioParameterType::StringArray:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsStringArrayParsable;
+		}
+		break;
+
+		case EAudioParameterType::NoneArray:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsDefaultArrayParsable;
+		}
+		case EAudioParameterType::None:
+		default:
+		{
+			FDataTypeRegistryInfo DataTypeInfo;
+			bIsValid = IDataTypeRegistry::Get().GetDataTypeInfo(*TypeName, DataTypeInfo);
+			bIsValid &= DataTypeInfo.bIsDefaultParsable;
+		}
+		break;
+	}
 
 	return bIsValid;
 }

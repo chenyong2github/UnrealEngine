@@ -5,18 +5,26 @@
 #include "CoreMinimal.h"
 #include "Helpers/ReferenceSubobjectSerializer.h"
 
-class ILevelSnapshotsModule;
-
-class FDisplayClusterRootActorSerializer : public TReferenceSubobjectSerializer<FDisplayClusterRootActorSerializer>
+namespace UE::LevelSnapshots
 {
-	static UClass* GetSupportedClass();
-	static void MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module);
+	class ILevelSnapshotsModule;
+}
 
-public:
+namespace UE::LevelSnapshots::nDisplay::Private
+{
+	class FDisplayClusterRootActorSerializer : public TReferenceSubobjectSerializer<FDisplayClusterRootActorSerializer>
+	{
+		static UClass* GetSupportedClass();
+		static void MarkPropertiesAsExplicitlyUnsupported(ILevelSnapshotsModule& Module);
 
-	static void Register(ILevelSnapshotsModule& Module);
+	public:
 
-	//~ Begin FDisplayClusterRootActorSerializer Interface
-	UObject* FindSubobject(UObject* Owner) const;
-	//~ End FDisplayClusterRootActorSerializer Interface
-};
+		static void Register(ILevelSnapshotsModule& Module);
+
+		//~ Begin FDisplayClusterRootActorSerializer Interface
+		UObject* FindSubobject(UObject* Owner) const;
+		//~ End FDisplayClusterRootActorSerializer Interface
+	};
+}
+
+

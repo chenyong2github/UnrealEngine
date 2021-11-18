@@ -204,7 +204,6 @@ public:
 	static bool ShouldUseVulkan();
 	static bool ShouldUseDesktopVulkan();
 	static FString GetVulkanVersion();
-	static bool IsDaydreamApplication();
 	typedef TFunction<void(void* NewNativeHandle)> ReInitWindowCallbackType;
 	static ReInitWindowCallbackType GetOnReInitWindowCallback();
 	static void SetOnReInitWindowCallback(ReInitWindowCallbackType InOnReInitWindowCallback);

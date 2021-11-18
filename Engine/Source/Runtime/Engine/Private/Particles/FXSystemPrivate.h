@@ -98,7 +98,7 @@ struct FNewParticle
 	/** The time scale for the particle. */
 	float TimeScale;
 	/** Initial size of the particle. */
-	FVector2D Size;
+	FVector2f Size;
 	/** Initial rotation of the particle. */
 	float Rotation;
 	/** Relative rotation rate of the particle. */
@@ -116,7 +116,7 @@ struct FNewParticle
 	/** Random selection of orbit attributes. */
 	float RandomOrbit;
 	/** The offset at which to inject the new particle. */
-	FVector2D Offset;
+	FVector2f Offset;
 };
 
 /*-----------------------------------------------------------------------------

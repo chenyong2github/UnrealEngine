@@ -315,6 +315,10 @@ public:
 	UPROPERTY(EditAnywhere, Category="Behavior", meta=(InlineEditConditionToggle))
 	uint8 bOverride_Cursor : 1;
 
+	/** Allows you to set a new flow direction */
+	UPROPERTY(EditAnywhere, Category = "Localization")
+	EFlowDirectionPreference FlowDirectionPreference;
+
 #if WITH_EDITORONLY_DATA
 	// These editor-only properties exist for two reasons:
 	//   1. To make details customization easier to write, specifically in regards to the binding extension widget
@@ -423,10 +427,6 @@ public:
 	 */
 	UPROPERTY(Instanced, EditAnywhere, BlueprintReadOnly, Category="Navigation")
 	TObjectPtr<class UWidgetNavigation> Navigation;
-
-	/** Allows you to set a new flow direction */
-	UPROPERTY(EditAnywhere, Category = "Localization")
-	EFlowDirectionPreference FlowDirectionPreference;
 
 #if WITH_EDITORONLY_DATA
 

@@ -609,10 +609,10 @@ UEdGraphNode* FEdGraphSchemaAction_K2AddCustomEvent::PerformAction(class UEdGrap
 UEdGraphNode* FEdGraphSchemaAction_K2AddCallOnActor::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
 {
 	// Snap the node placement location to the grid, ensures calculations later match up better
-	const float GridSnapSize = (float)GetDefault<UEditorStyleSettings>()->GridSnapSize;
-	FVector2D LocalLocation;
-	LocalLocation.X = FMath::GridSnap( Location.X, GridSnapSize);
-	LocalLocation.Y = FMath::GridSnap( Location.Y, GridSnapSize);
+	const float  GridSnapSize = (float)GetDefault<UEditorStyleSettings>()->GridSnapSize;
+	FVector2f LocalLocation;	// LWC_TODO: Precision loss
+	LocalLocation.X = FMath::GridSnap( (float)Location.X, GridSnapSize);
+	LocalLocation.Y = FMath::GridSnap( (float)Location.Y, GridSnapSize);
 
 	// First use the base functionality to spawn the 'call function' node
 	UEdGraphNode* CallNode = FEdGraphSchemaAction_K2NewNode::PerformAction(ParentGraph, FromPin, LocalLocation);

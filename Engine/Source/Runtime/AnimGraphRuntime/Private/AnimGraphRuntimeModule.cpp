@@ -15,10 +15,6 @@ class FAnimGraphRuntimeModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
-		FCoreDelegates::OnPostEngineInit.AddLambda([]()
-		{			
-			UE::Anim::AttributeTypes::Initialize();
-		});
 	}
 
 	virtual void ShutdownModule() override

@@ -280,6 +280,7 @@ TSharedRef<SWidget> SDMXPixelMappingPreviewView::CreateOverlayUI()
 			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
+				.ButtonColorAndOpacity(FLinearColor::Transparent)
 				.ButtonStyle(FEditorStyle::Get(), "ViewportMenu.Button")
 				.ToolTipText(LOCTEXT("ZoomToFit_ToolTip", "Zoom To Fit"))
 				.OnClicked(this, &SDMXPixelMappingPreviewView::HandleZoomToFitClicked)

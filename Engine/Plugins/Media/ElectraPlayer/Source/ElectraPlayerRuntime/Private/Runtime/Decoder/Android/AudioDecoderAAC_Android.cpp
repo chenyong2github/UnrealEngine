@@ -70,6 +70,8 @@ public:
 	virtual void AUdataClearEOD() override;
 	virtual void AUdataFlushEverything() override;
 
+	virtual void Android_SuspendOrResumeDecoder(bool bSuspend) override;
+
 private:
 	struct FDecoderInput
 	{
@@ -136,6 +138,7 @@ private:
 	void GetAndPrepareInputAU();
 	bool ParseConfigRecord();
 
+	bool CheckForFlush();
 	EOutputResult GetOutput();
 	EDecodeResult Decode();
 	EDecodeResult DecodeDummy();
@@ -154,6 +157,7 @@ private:
 
 	FMediaEvent																ApplicationRunningSignal;
 	FMediaEvent																ApplicationSuspendConfirmedSignal;
+	int32																	ApplicationSuspendCount = 0;
 
 	FMediaEvent																TerminateThreadSignal;
 	FMediaEvent																FlushDecoderSignal;
@@ -176,6 +180,7 @@ private:
 	IAndroidJavaAACAudioDecoder::FOutputFormatInfo							CurrentOutputFormatInfo;
 	EDecodingState															DecodingState = EDecodingState::Regular;
 	int64																	LastPushedPresentationTimeUs = 0;
+	bool																	bGotEOS = false;
 
 	TArray<TSharedPtrTS<FDecoderInput>>										InDecoderInput;
 	TSharedPtrTS<FDecoderInput>												CurrentAccessUnit;
@@ -1173,13 +1178,31 @@ bool FAudioDecoderAAC::ParseConfigRecord()
 }
 
 
+void FAudioDecoderAAC::Android_SuspendOrResumeDecoder(bool bSuspend)
+{
+	if (bSuspend)
+	{
+		HandleApplicationWillEnterBackground();
+		ApplicationSuspendConfirmedSignal.Wait();
+	}
+	else
+	{
+		HandleApplicationHasEnteredForeground();
+	}
+}
+
+
 //-----------------------------------------------------------------------------
 /**
  * Application has entered foreground.
  */
 void FAudioDecoderAAC::HandleApplicationHasEnteredForeground()
 {
-	ApplicationRunningSignal.Signal();
+	int32 Count = FPlatformAtomics::InterlockedDecrement(&ApplicationSuspendCount);
+	if (Count == 0)
+	{
+		ApplicationRunningSignal.Signal();
+	}
 }
 
 
@@ -1189,8 +1212,44 @@ void FAudioDecoderAAC::HandleApplicationHasEnteredForeground()
  */
 void FAudioDecoderAAC::HandleApplicationWillEnterBackground()
 {
-	ApplicationSuspendConfirmedSignal.Reset();
-	ApplicationRunningSignal.Reset();
+	int32 Count = FPlatformAtomics::InterlockedIncrement(&ApplicationSuspendCount);
+	if (Count == 1)
+	{
+		ApplicationRunningSignal.Reset();
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+/**
+ * Checks if the decoder needs to be flushed.
+ */
+bool FAudioDecoderAAC::CheckForFlush()
+{
+	// Flush?
+	if (FlushDecoderSignal.IsSignaled())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
+		CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
+		ReturnUnusedOutputBuffer();
+		NextAccessUnits.Empty();
+		InDecoderInput.Empty();
+		CurrentSequenceIndex.Reset();
+		LastPushedPresentationTimeUs = 0;
+		DecodingState = EDecodingState::Regular;
+		bGotEOS = false;
+
+		InternalDecoderDestroy();
+		ReturnUnusedOutputBuffer();
+		ConfigRecord.Reset();
+		CurrentCodecData.Reset();
+		ChannelMapper.Reset();
+
+		FlushDecoderSignal.Reset();
+		DecoderFlushedSignal.Signal();
+		return true;
+	}
+	return false;
 }
 
 
@@ -1208,11 +1267,14 @@ void FAudioDecoderAAC::WorkerThread()
 	TSharedPtrTS<FFGBGNotificationHandlers> FGBGHandlers = MakeSharedTS<FFGBGNotificationHandlers>();
 	FGBGHandlers->WillEnterBackground = [this]() { HandleApplicationWillEnterBackground(); };
 	FGBGHandlers->HasEnteredForeground = [this]() { HandleApplicationHasEnteredForeground(); };
-	AddBGFGNotificationHandler(FGBGHandlers);
+	if (AddBGFGNotificationHandler(FGBGHandlers))
+	{
+		HandleApplicationWillEnterBackground();
+	}
 
 	bool bError = false;
-	bool bGotEOS = false;
 
+	bGotEOS = false;
 	CurrentOutputBuffer = nullptr;
 	LastPushedPresentationTimeUs = 0;
 	DecodingState = EDecodingState::Regular;
@@ -1234,8 +1296,21 @@ void FAudioDecoderAAC::WorkerThread()
 			ApplicationSuspendConfirmedSignal.Signal();
 			while(!ApplicationRunningSignal.WaitTimeout(100 * 1000) && !TerminateThreadSignal.IsSignaled())
 			{
+				// Check if there is a decoder flush pending. While we cannot flush right now we
+				// have to at least pretend we do
+				if (FlushDecoderSignal.IsSignaled())
+				{
+					DecoderFlushedSignal.Signal();
+				}
 			}
 			UE_LOG(LogElectraPlayer, Log, TEXT("FAudioDecoderAAC(%p): OnResuming"), this);
+			ApplicationSuspendConfirmedSignal.Reset();
+			continue;
+		}
+
+		// Is there a pending flush? If so, execute the flush and go back to the top to check if we must terminate now.
+		if (CheckForFlush())
+		{
 			continue;
 		}
 
@@ -1497,29 +1572,6 @@ void FAudioDecoderAAC::WorkerThread()
 				bGotEOS = true;
 				InDecoderInput.Empty();
 			}
-		}
-
-		// Flush?
-		if (FlushDecoderSignal.IsSignaled())
-		{
-			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
-			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
-			ReturnUnusedOutputBuffer();
-			NextAccessUnits.Empty();
-			InDecoderInput.Empty();
-			CurrentSequenceIndex.Reset();
-			LastPushedPresentationTimeUs = 0;
-			DecodingState = EDecodingState::Regular;
-			bGotEOS = false;
-
-			InternalDecoderDestroy();
-			ReturnUnusedOutputBuffer();
-			ConfigRecord.Reset();
-			CurrentCodecData.Reset();
-			ChannelMapper.Reset();
-
-			FlushDecoderSignal.Reset();
-			DecoderFlushedSignal.Signal();
 		}
 	}
 

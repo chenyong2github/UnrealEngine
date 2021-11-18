@@ -5,8 +5,10 @@
 #include "CADKernel/Geo/Sampling/PolylineTools.h"
 #include "CADKernel/Math/BSpline.h"
 
+namespace CADKernel
+{
 
-void CADKernel::FBezierCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder) const
+void FBezierCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder) const
 {
 	OutPoint.DerivativeOrder = DerivativeOrder;
 	OutPoint.Init();
@@ -39,7 +41,7 @@ void CADKernel::FBezierCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutP
 	}
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FBezierCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FBezierCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TArray<FPoint> TransformedPoles;
 	TransformedPoles.Reserve(Poles.Num());
@@ -53,7 +55,7 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FBezierCurve::ApplyMatrix(const FM
 }
 
 #ifdef CADKERNEL_DEV
-FInfoEntity& CADKernel::FBezierCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FBezierCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info)
 		.Add(TEXT("degre"), Poles.Num() - 1)
@@ -61,7 +63,10 @@ FInfoEntity& CADKernel::FBezierCurve::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-void CADKernel::FBezierCurve::ExtendTo(const FPoint& Point)
+void FBezierCurve::ExtendTo(const FPoint& Point)
 {
 	PolylineTools::ExtendTo(Poles, Point);
 }
+
+} // namespace CADKernel
+

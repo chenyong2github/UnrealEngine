@@ -488,7 +488,7 @@ bool FGoogleARCoreXRTrackingSystem::OnAddRuntimeCandidateImage(UARSessionConfig*
 	if (PixelFormat == EPixelFormat::PF_B8G8R8A8 || PixelFormat == EPixelFormat::PF_G8)
 	{
 		ensure(CandidateTexture->GetNumMips() > 0);
-		FTexture2DMipMap* Mip0 = &CandidateTexture->PlatformData->Mips[0];
+		FTexture2DMipMap* Mip0 = &CandidateTexture->GetPlatformData()->Mips[0];
 		FByteBulkData* RawImageData = &Mip0->BulkData;
 
 		int ImageWidth = CandidateTexture->GetSizeX();

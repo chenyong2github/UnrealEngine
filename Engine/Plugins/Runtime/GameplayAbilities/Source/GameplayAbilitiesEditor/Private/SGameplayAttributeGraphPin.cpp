@@ -42,11 +42,19 @@ TSharedRef<SWidget>	SGameplayAttributeGraphPin::GetDefaultValueWidget()
 			FString PackageNameString;
 			WorkingString.Split(TEXT("Attribute="), nullptr, &PackageNameString);
 
+			// class redirector check
 			const FCoreRedirect* ClassValueRedirect = nullptr;
 			FCoreRedirectObjectName OldClassName(FName(*ClassNameString, FNAME_Find), NAME_None, FName(PackageNameString, FNAME_Find));
 			FCoreRedirectObjectName NewClassName;
+			bool bFoundClassRedirector = FCoreRedirects::RedirectNameAndValues(ECoreRedirectFlags::Type_Class, OldClassName, NewClassName, &ClassValueRedirect);
 
-			if (FCoreRedirects::RedirectNameAndValues(ECoreRedirectFlags::Type_Class, OldClassName, NewClassName, &ClassValueRedirect))
+			// property redirector check
+			const FCoreRedirect* PropertyRedirect = nullptr;
+			FCoreRedirectObjectName OldPropertyName(FName(*AttributeNameString, FNAME_Find), FName(*ClassNameString, FNAME_Find), FName(PackageNameString, FNAME_Find));
+			FCoreRedirectObjectName NewPropertyName;
+			bool bFoundPropertyRedirector = FCoreRedirects::RedirectNameAndValues(ECoreRedirectFlags::Type_Property, OldPropertyName, NewPropertyName, &PropertyRedirect);
+
+			if (bFoundClassRedirector || bFoundPropertyRedirector)
 			{
 				// we found a redirector
 				// now we need to find the matching property for the new attribute
@@ -60,11 +68,17 @@ TSharedRef<SWidget>	SGameplayAttributeGraphPin::GetDefaultValueWidget()
 					{
 						if (Class->GetFName() == NewClassName.ObjectName)
 						{
-							FName AttributeName(AttributeNameString, FNAME_Find);
+							FName PropertyNameToFind(AttributeNameString, FNAME_Find);
+
+							if (bFoundPropertyRedirector)
+							{
+								PropertyNameToFind = NewPropertyName.ObjectName;
+							}
+
 							for (TFieldIterator<FProperty> PropertyIt(Class, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 							{
 								FProperty* Property = *PropertyIt;
-								if (Property->GetFName() == AttributeName)
+								if (Property->GetFName() == PropertyNameToFind)
 								{
 									FGameplayAttribute Attribute;
 									Attribute.SetUProperty(Property);

@@ -2586,6 +2586,152 @@ void UMovieSceneControlRigParameterSection::ClearAllParameters()
 	IntegerParameterNamesAndCurves.SetNum(0);
 }
 
+TOptional<float> UMovieSceneControlRigParameterSection::EvaluateScalarParameter(const  FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<float> OptValue;	
+	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
+	{
+		TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy->GetChannels<FMovieSceneFloatChannel>();
+		float Value = 0.0f;
+		FloatChannels[ChannelInfo->ChannelIndex]->Evaluate(InTime, Value);
+		OptValue = Value;
+	}
+	return OptValue;
+}
+
+TOptional<bool> UMovieSceneControlRigParameterSection::EvaluateBoolParameter(const  FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<bool> OptValue;
+	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
+	{
+		TArrayView<FMovieSceneBoolChannel*> BoolChannels = GetChannelProxy().GetChannels<FMovieSceneBoolChannel>();
+		bool Value = false;
+		BoolChannels[ChannelInfo->ChannelIndex]->Evaluate(InTime, Value);
+		OptValue = Value;
+	}
+	return OptValue;
+}
+
+TOptional<uint8> UMovieSceneControlRigParameterSection::EvaluateEnumParameter(const  FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<uint8> OptValue;
+	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
+	{
+		TArrayView<FMovieSceneByteChannel*> EnumChannels = GetChannelProxy().GetChannels<FMovieSceneByteChannel>();
+		uint8 Value = 0;
+		EnumChannels[ChannelInfo->ChannelIndex]->Evaluate(InTime, Value);
+		OptValue = Value;
+	}
+	return OptValue;
+}
+
+TOptional<int32> UMovieSceneControlRigParameterSection::EvaluateIntegerParameter(const  FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<int32> OptValue;
+	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
+	{
+		TArrayView<FMovieSceneIntegerChannel*> IntChannels = GetChannelProxy().GetChannels<FMovieSceneIntegerChannel>();
+		int32 Value = 0;
+		IntChannels[ChannelInfo->ChannelIndex]->Evaluate(InTime, Value);
+		OptValue = Value;
+	}
+	return OptValue;
+}
+
+TOptional<FVector> UMovieSceneControlRigParameterSection::EvaluateVectorParameter(const FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<FVector> OptValue;
+	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
+	{
+		TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy->GetChannels<FMovieSceneFloatChannel>();
+		FVector3f Value(0.0f, 0.0f, 0.0f);
+		FloatChannels[ChannelInfo->ChannelIndex]->Evaluate(InTime, Value.X);
+		FloatChannels[ChannelInfo->ChannelIndex + 1]->Evaluate(InTime, Value.Y);
+		FloatChannels[ChannelInfo->ChannelIndex + 2]->Evaluate(InTime, Value.Z);
+		OptValue = (FVector)Value;
+	}
+	return OptValue;
+}
+
+TOptional<FVector2D> UMovieSceneControlRigParameterSection::EvaluateVector2DParameter(const  FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<FVector2D> OptValue;
+	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
+	{
+		TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy->GetChannels<FMovieSceneFloatChannel>();
+		FVector2f Value(0.0f, 0.0f);
+		FloatChannels[ChannelInfo->ChannelIndex]->Evaluate(InTime, Value.X);
+		FloatChannels[ChannelInfo->ChannelIndex + 1]->Evaluate(InTime, Value.Y);
+		OptValue = Value;
+	}
+	return OptValue;
+}
+
+TOptional<FLinearColor>UMovieSceneControlRigParameterSection:: EvaluateColorParameter(const  FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<FLinearColor> OptValue;
+	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
+	{
+		TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy->GetChannels<FMovieSceneFloatChannel>();
+		FLinearColor Value(0.0f, 0.0f, 0.0f, 1.0f);
+		FloatChannels[ChannelInfo->ChannelIndex]->Evaluate(InTime, Value.R);
+		FloatChannels[ChannelInfo->ChannelIndex + 1]->Evaluate(InTime, Value.G);		
+		FloatChannels[ChannelInfo->ChannelIndex + 2]->Evaluate(InTime, Value.B);
+		FloatChannels[ChannelInfo->ChannelIndex + 3]->Evaluate(InTime, Value.A);
+		OptValue = Value;
+	}
+	return OptValue;
+}
+
+TOptional<FTransform> UMovieSceneControlRigParameterSection::EvaluateTransformParameter(const  FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<FTransform> OptValue;
+	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
+	{
+		TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy->GetChannels<FMovieSceneFloatChannel>();
+		FTransform Value = FTransform::Identity;
+		FVector3f Translation(ForceInitToZero), Scale(FVector3f::OneVector);
+		FRotator3f Rotator(0.0f, 0.0f, 0.0f);
+
+		FloatChannels[ChannelInfo->ChannelIndex    ]->Evaluate(InTime, Translation.X);
+		FloatChannels[ChannelInfo->ChannelIndex + 1]->Evaluate(InTime, Translation.Y);
+		FloatChannels[ChannelInfo->ChannelIndex + 2]->Evaluate(InTime, Translation.Z);
+
+		FloatChannels[ChannelInfo->ChannelIndex + 3]->Evaluate(InTime, Rotator.Roll);
+		FloatChannels[ChannelInfo->ChannelIndex + 4]->Evaluate(InTime, Rotator.Pitch);
+		FloatChannels[ChannelInfo->ChannelIndex + 5]->Evaluate(InTime, Rotator.Yaw);
+		if (ControlRig)
+		{
+			if (FRigControlElement* ControlElement = ControlRig->FindControl(InParameterName))
+			{
+				if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
+					ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+				{
+					FloatChannels[ChannelInfo->ChannelIndex + 6]->Evaluate(InTime, Scale.X);
+					FloatChannels[ChannelInfo->ChannelIndex + 7]->Evaluate(InTime, Scale.Y);
+					FloatChannels[ChannelInfo->ChannelIndex + 8]->Evaluate(InTime, Scale.Z);
+				}
+
+			}
+		}
+		Value = FTransform(FRotator(Rotator), Translation, Scale);
+		OptValue = Value;
+	}
+	return OptValue;
+}
+
+TOptional<FMovieSceneControlRigSpaceBaseKey> UMovieSceneControlRigParameterSection::EvaluateSpaceChannel(const  FFrameTime& InTime, FName InParameterName)
+{
+	TOptional<FMovieSceneControlRigSpaceBaseKey> OptValue;
+	if (FSpaceControlNameAndChannel* Channel = GetSpaceChannel(InParameterName))
+	{
+		FMovieSceneControlRigSpaceBaseKey Value;
+		using namespace UE::MovieScene;
+		EvaluateChannel(&(Channel->SpaceCurve),InTime, Value);
+		OptValue = Value;
+	}
+	return OptValue;
+}
 
 UObject* UMovieSceneControlRigParameterSection::GetImplicitObjectOwner()
 {

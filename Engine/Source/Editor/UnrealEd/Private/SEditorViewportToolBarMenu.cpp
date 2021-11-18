@@ -2,6 +2,7 @@
 
 
 #include "SEditorViewportToolBarMenu.h"
+#include "SEditorViewportToolBarMenuButton.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
@@ -82,21 +83,20 @@ void SEditorViewportToolbarMenu::Construct( const FArguments& Declaration )
 	[
 		SAssignNew( MenuAnchor, SMenuAnchor )
 		.Placement( MenuPlacement_BelowAnchor )
-		[
-			SNew( SButton )
-			// Allows users to drag with the mouse to select options after opening the menu */
-			.ClickMethod( EButtonClickMethod::MouseDown )
-			.ContentPadding( FMargin(0.0f, 0.0f) )
-			.VAlign(VAlign_Center)
-			.ButtonStyle(Declaration._MenuStyle)
-			.OnClicked( this, &SEditorViewportToolbarMenu::OnMenuClicked )
-			.ForegroundColor(Declaration._ForegroundColor)
-			[
-				ButtonContent.ToSharedRef()
-			]
-		]
 		.OnGetMenuContent( Declaration._OnGetMenuContent )
 	];
+
+	MenuAnchor->SetContent(
+		SNew( SEditorViewportToolBarMenuButton, MenuAnchor.ToSharedRef() )
+		.ContentPadding( FMargin(0.0f, 0.0f) )
+		.VAlign(VAlign_Center)
+		.ButtonStyle(Declaration._MenuStyle)
+		.OnClicked( this, &SEditorViewportToolbarMenu::OnMenuClicked )
+		.ForegroundColor(Declaration._ForegroundColor)
+		[
+			ButtonContent.ToSharedRef()
+		]
+	);
 }
 
 FReply SEditorViewportToolbarMenu::OnMenuClicked()

@@ -55,6 +55,14 @@
 
 #define LOCTEXT_NAMESPACE "TakeRecorderSources"
 
+namespace TakeRecorderSources
+{
+#if WITH_EDITOR
+	static bool AllowMenuExtensions = true;
+	FAutoConsoleVariableRef CVarAllowMenuExtensions(TEXT("TakeRecorder.AllowMenuExtensions"), AllowMenuExtensions, TEXT(""), ECVF_Cheat);
+#endif // WITH_EDITOR
+}
+
 static void AddActorSources(UTakeRecorderSources* Sources, TArrayView<AActor* const> InActors)
 {
 	if (InActors.Num() > 0)
@@ -402,7 +410,7 @@ public:
 	void RegisterMenuExtensions()
 	{
 #if WITH_EDITOR
-		if (GEditor)
+		if (GEditor && TakeRecorderSources::AllowMenuExtensions)
 		{
 			// Register level editor menu extender
 			LevelEditorMenuExtenderDelegate = FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateRaw(this, &FTakeRecorderSourcesModule::ExtendLevelViewportContextMenu);

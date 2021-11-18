@@ -109,7 +109,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::CalculateView(IDisp
 
 bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const uint32 Channel, FMatrix& OutPrjMatrix)
 {
-	check(Views.Num() > (int)InContextNum);
+	check(Views.Num() > (int32)InContextNum);
 
 	// Build Projection matrix:
 	const float Left   = Views[InContextNum].Camera.tanLeft;
@@ -123,7 +123,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::GetProjectionMatrix
 	return true;
 }
 
-bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, int InContextNum, const uint32 Channel, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures)
+bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::ImplApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 InContextNum, const uint32 Channel, FRHITexture2D* InputTextures, FRHITexture2D* OutputTextures)
 {
 	if (GD3D11RHI == nullptr)
 	{
@@ -214,7 +214,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::ApplyWarpBlend_Rend
 	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay EasyBlend::Render);
-	for (int ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
+	for (int32 ContextNum = 0; ContextNum < InputTextures.Num(); ContextNum++)
 	{
 		if (!ImplApplyWarpBlend_RenderThread(RHICmdList, ContextNum, Channel, InputTextures[ContextNum], OutputTextures[ContextNum]))
 		{

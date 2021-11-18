@@ -109,7 +109,7 @@ public:
 	}
 
 	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
-	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth) override;
+	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow = 0) override;
 	virtual bool SetAnimationInfo(int32 InNumFrames, int32 InFramerate) override;
 
 protected:
@@ -121,6 +121,9 @@ protected:
 	/** Format of the raw data */
 	ERGBFormat RawFormat;
 	int8 RawBitDepth;
+
+	/** Bytes per row for the raw data */
+	int32 RawBytesPerRow;
 
 	/** Format of the image */
 	ERGBFormat Format;

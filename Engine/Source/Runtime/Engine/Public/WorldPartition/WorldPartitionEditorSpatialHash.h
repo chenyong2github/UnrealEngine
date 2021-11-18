@@ -206,10 +206,14 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 public:
 	virtual ~UWorldPartitionEditorSpatialHash() {}
 
+	// UObject interface begin
+	virtual void PostLoad() override;
+	// UObject interface end
+
 	// UWorldPartitionEditorHash interface begin
 	virtual void Initialize() override;
 	virtual void SetDefaultValues() override;
-	virtual FName GetWorldPartitionEditorName() override;
+	virtual FName GetWorldPartitionEditorName() const override;
 	virtual FBox GetEditorWorldBounds() const override;
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -223,6 +227,9 @@ public:
 	virtual int32 ForEachIntersectingCell(const FBox& Box, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation) override;
 	virtual int32 ForEachCell(TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation) override;
 	virtual UWorldPartitionEditorCell* GetAlwaysLoadedCell() override;
+
+	virtual uint32 GetWantedEditorCellSize() const override;
+	virtual void SetEditorWantedCellSize(uint32 InCellSize) override;
 	// UWorldPartitionEditorHash interface end
 #endif
 
@@ -237,6 +244,9 @@ private:
 
 	UPROPERTY(Config)
 	int32 CellSize;
+
+	UPROPERTY()
+	int32 WantedCellSize;
 
 	TMap<FCellCoord, FCellNode> HashNodes;
 	TMap<FCellCoord, UWorldPartitionEditorCell*> HashCells;

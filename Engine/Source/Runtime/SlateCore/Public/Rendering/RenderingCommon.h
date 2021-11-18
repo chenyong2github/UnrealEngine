@@ -204,10 +204,10 @@ struct SLATECORE_API FSlateVertex
 	float TexCoords[4]; 
 
 	/** Texture coordinates used as pass through to materials for custom texturing. */
-	FVector2D MaterialTexCoords;
+	FVector2f MaterialTexCoords;
 
 	/** Position of the vertex in window space */
-	FVector2D Position;
+	FVector2f Position;
 
 	/** Vertex color */
 	FColor Color;

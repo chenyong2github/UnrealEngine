@@ -50,7 +50,7 @@ private:
 
 public:
 	// for huge warp mesh geometry, change this value, and use LOD geometry in frustum math
-	int WarpMeshLODIndex = 0;
+	int32 WarpMeshLODIndex = 0;
 
 	bool bIsGeometryCacheValid = false;
 	bool bIsGeometryValid = false;
@@ -84,7 +84,7 @@ public:
 		FVector    SurfaceViewNormal;
 		FVector    SurfaceViewPlane;
 
-		TArray<int> IndexLOD;
+		TArray<int32> IndexLOD;
 	};
 
 	FDisplayClusterWarpBlend_GeometryCache GeometryCache;

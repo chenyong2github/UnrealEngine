@@ -21,16 +21,18 @@
 namespace UE::Virtualization
 {
 
-void CreateDescription(TStringBuilder<512>& OutDescription)
+/** Builds a changelist description to be used when submitting a payload to source control */
+void CreateDescription(const FPackagePath& PackageContext, TStringBuilder<512>& OutDescription)
 {
 	// TODO: Maybe make writing out the project name an option or allow for a codename to be set via ini file?
-	OutDescription << TEXT("Submitted for: Project: ");
+	OutDescription << TEXT("Submitted for project: ");
 	OutDescription << FApp::GetProjectName();
 
-	// TODO: When we start passing in the context to ::Push we can write out the PackageName here for 
-	// debugging purposes
-	//OutDescription << TEXT("\nPackage ");
-	//OutDescription << PackageName;
+	if (PackageContext.IsMountedPath())
+	{
+		OutDescription << TEXT("\nPackage: ");
+		PackageContext.AppendPackageName(OutDescription);
+	}
 }
 
 /**
@@ -48,8 +50,8 @@ void CreateDescription(TStringBuilder<512>& OutDescription)
 class FSourceControlBackend : public IVirtualizationBackend
 {
 public:
-	FSourceControlBackend(FStringView ConfigName)
-		: IVirtualizationBackend(EOperations::Both)
+	FSourceControlBackend(FStringView ConfigName, FStringView InDebugName)
+		: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
 	{
 	}
 
@@ -122,7 +124,7 @@ public:
 		return true;
 	}
 
-	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload, const FPackagePath& PackageContext) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PushData);
 
@@ -155,7 +157,7 @@ public:
 
 		// Write the payload to Disk
 		{
-			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Writing payload to '%s' for submission"), *GetDebugString(), *PayloadFilePath);
+			UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Writing payload to '%s' for submission"), *GetDebugName(), *PayloadFilePath);
 
 			TUniquePtr<FArchive> FileAr(IFileManager::Get().CreateFileWriter(*PayloadFilePath));
 			if (!FileAr)
@@ -163,8 +165,11 @@ public:
 				TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
 				Utils::GetFormattedSystemError(SystemErrorMsg);
 
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
-					*GetDebugString(), *Id.ToString(), *PayloadFilePath, SystemErrorMsg.ToString());
+				UE_LOG(	LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
+						*GetDebugName(), 
+						*Id.ToString(), 
+						*PayloadFilePath, 
+						SystemErrorMsg.ToString());
 
 				return EPushResult::Failed;
 			}
@@ -176,8 +181,12 @@ public:
 				TStringBuilder<MAX_SPRINTF> SystemErrorMsg;
 				Utils::GetFormattedSystemError(SystemErrorMsg);
 
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
-					*GetDebugString(), *Id.ToString(), *PayloadFilePath, SystemErrorMsg.ToString());
+				UE_LOG(	LogVirtualization, Error, TEXT("[%s] Failed to write payload '%s' contents to '%s' due to system error: %s"),
+						*GetDebugName(), 
+					*Id.ToString(),
+					*PayloadFilePath,
+					SystemErrorMsg.
+					ToString());
 
 				return EPushResult::Failed;
 			}
@@ -202,8 +211,10 @@ public:
 
 			if (SCCProvider.Execute(CreateWorkspaceCommand) != ECommandResult::Succeeded)
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to create temp workspace '%s' to submit payload '%s' from"), 
-					*GetDebugString(), WorkspaceName.ToString(), *Id.ToString());
+				UE_LOG(	LogVirtualization, Error, TEXT("[%s] Failed to create temp workspace '%s' to submit payload '%s' from"), 
+						*GetDebugName(), 
+						WorkspaceName.ToString(), 
+						*Id.ToString());
 
 				return EPushResult::Failed;
 			}
@@ -214,7 +225,7 @@ public:
 			// Remove the temp workspace mapping
 			if (SCCProvider.Execute(ISourceControlOperation::Create<FDeleteWorkspace>(WorkspaceName)) != ECommandResult::Succeeded)
 			{
-				UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to remove temp workspace '%s' please delete manually"), *GetDebugString(), WorkspaceName.ToString());
+				UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to remove temp workspace '%s' please delete manually"), *GetDebugName(), WorkspaceName.ToString());
 			}
 		};
 
@@ -222,8 +233,10 @@ public:
 		FString OriginalWorkspace;
 		if (SCCProvider.SwitchWorkspace(WorkspaceName, SwitchToNewWorkspaceInfo, &OriginalWorkspace) != ECommandResult::Succeeded)
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to switch to temp workspace '%s' when trying to submit payload '%s'"), 
-				*GetDebugString(), WorkspaceName.ToString(), *Id.ToString());
+			UE_LOG(	LogVirtualization, Error, TEXT("[%s] Failed to switch to temp workspace '%s' when trying to submit payload '%s'"), 
+					*GetDebugName(), 
+					WorkspaceName.ToString(), 
+					*Id.ToString());
 
 			return EPushResult::Failed;
 		}
@@ -236,15 +249,16 @@ public:
 				// Failing to restore the old workspace could result in confusing editor issues and data loss, so for now it is fatal.
 				// The medium term plan should be to refactor the SourceControlModule so that we could use an entirely different 
 				// ISourceControlProvider so as not to affect the rest of the editor.
-				UE_LOG(LogVirtualization, Fatal, TEXT("[%s] Failed to restore the original workspace to temp workspace '%s' continuing would risk editor instability and potential data loss"), 
-					*GetDebugString(), *OriginalWorkspace);
+				UE_LOG(	LogVirtualization, Fatal, TEXT("[%s] Failed to restore the original workspace to temp workspace '%s' continuing would risk editor instability and potential data loss"), 
+						*GetDebugName(), 
+						*OriginalWorkspace);
 			}
 		};
 
 		FSourceControlStatePtr FileState = SCCProvider.GetState(PayloadFilePath, EStateCacheUsage::ForceUpdate);
 		if (!FileState.IsValid())
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to find the current file state for '%s'"), *GetDebugString(), *PayloadFilePath);
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to find the current file state for '%s'"), *GetDebugName(), *PayloadFilePath);
 			return EPushResult::Failed;
 		}
 
@@ -258,13 +272,13 @@ public:
 		{
 			if (SCCProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), PayloadFilePath) != ECommandResult::Succeeded)
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to mark the payload file '%s' for Add in source control"), *GetDebugString(), *PayloadFilePath);
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to mark the payload file '%s' for Add in source control"), *GetDebugName(), *PayloadFilePath);
 				return EPushResult::Failed;
 			}
 		}
 		else
 		{
-			UE_LOG(LogVirtualization, Error, TEXT("[%s] The the payload file '%s' is not in source control but also cannot be marked for Add"), *GetDebugString(), *PayloadFilePath);
+			UE_LOG(LogVirtualization, Error, TEXT("[%s] The the payload file '%s' is not in source control but also cannot be marked for Add"), *GetDebugName(), *PayloadFilePath);
 			return EPushResult::Failed;
 		}
 
@@ -273,13 +287,13 @@ public:
 			TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
 
 			TStringBuilder<512> Description;
-			CreateDescription(Description);
+			CreateDescription(PackageContext, Description);
 
 			CheckInOperation->SetDescription(FText::FromString(Description.ToString()));
 
 			if (SCCProvider.Execute(CheckInOperation, PayloadFilePath) != ECommandResult::Succeeded)
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to submit the payload file '%s' to source control"), *GetDebugString(), *PayloadFilePath);
+				UE_LOG(LogVirtualization, Error, TEXT("[%s] Failed to submit the payload file '%s' to source control"), *GetDebugName(), *PayloadFilePath);
 				return EPushResult::Failed;
 			}
 		}
@@ -314,11 +328,6 @@ public:
 		// as a FCompressedBuffer.
 		FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPath);
 		return FCompressedBuffer::FromCompressed(Buffer);
-	}
-
-	virtual FString GetDebugString() const override
-	{
-		return FString(TEXT("SourceControl"));
 	}
 
 	void CreateDepotPath(const FPayloadId& PayloadId, FStringBuilderBase& OutPath)

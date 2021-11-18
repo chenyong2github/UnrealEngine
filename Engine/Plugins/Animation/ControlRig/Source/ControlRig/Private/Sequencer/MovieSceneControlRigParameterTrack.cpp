@@ -478,7 +478,7 @@ void UMovieSceneControlRigParameterTrack::GetSelectedNodes(TArray<FName>& Select
 	}
 }
 
-TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChannelMappings()
+TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChannelMappings(UMovieSceneSection* InSection )
 {
 #if WITH_EDITOR
 	if (GetControlRig() == nullptr)
@@ -486,8 +486,12 @@ TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChan
 		return nullptr;
 	}
 	bool bSectionAdded;
-
-	UMovieSceneControlRigParameterSection* CurrentSectionToKey = Cast<UMovieSceneControlRigParameterSection>(FindOrAddSection(0, bSectionAdded));
+	//use passed in section if available, else section to key if available, else first section or create one.
+	UMovieSceneControlRigParameterSection* CurrentSectionToKey = InSection ? Cast<UMovieSceneControlRigParameterSection>(InSection) : Cast<UMovieSceneControlRigParameterSection>(GetSectionToKey());
+	if (CurrentSectionToKey == nullptr)
+	{
+		CurrentSectionToKey = Cast<UMovieSceneControlRigParameterSection>(FindOrAddSection(0, bSectionAdded));
+	} 
 	if (!CurrentSectionToKey)
 	{
 		return nullptr;

@@ -26,7 +26,7 @@ namespace CADKernel
 		{
 			this->Coordinates = InCoordinates;
 			this->Points = InPoints;
-			ensureCADKernel(Coordinates[0] < Coordinates.Last());
+			ensureCADKernel(this->Coordinates[0] < this->Coordinates.Last());
 			Boundary.Set(this->Coordinates.HeapTop(), this->Coordinates.Last());
 		}
 

@@ -27,9 +27,9 @@ namespace Chaos
 		return *GetConstraint();
 	}
 
-	ECollisionConstraintType FPBDCollisionConstraintHandle::GetType() const
+	ECollisionCCDType FPBDCollisionConstraintHandle::GetCCDType() const
 	{
-		return GetContact().GetType();
+		return GetContact().GetCCDType();
 	}
 
 	void FPBDCollisionConstraintHandle::SetEnabled(bool InEnabled)

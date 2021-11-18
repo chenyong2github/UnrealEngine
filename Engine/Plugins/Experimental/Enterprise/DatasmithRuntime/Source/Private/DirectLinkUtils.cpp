@@ -165,7 +165,7 @@ namespace DatasmithRuntime
 
 
 #if !NO_LOGGING
-		LogDatasmith.SetVerbosity( ELogVerbosity::Error );
+		LogDatasmith.SetVerbosity( ELogVerbosity::Warning );
 #ifndef DIRECTLINK_LOG
 		LogDirectLink.SetVerbosity( ELogVerbosity::Warning );
 		LogDirectLinkNet.SetVerbosity( ELogVerbosity::Warning );

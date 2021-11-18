@@ -13,6 +13,7 @@
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/RevolveProperties.h"
 #include "ToolContextInterfaces.h" // FToolBuilderState
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 
 #include "RevolveBoundaryTool.generated.h"
 
@@ -97,6 +98,10 @@ protected:
 	// Support for Ctrl+Clicking a boundary to align the revolution axis to that segment
 	bool bAlignAxisOnClick = false;
 	int32 AlignAxisModifier = 2;
+
+	/** Property set for type of output object (StaticMesh, Volume, etc) */
+	UPROPERTY()
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
 	TObjectPtr<URevolveBoundaryToolProperties> Settings = nullptr;

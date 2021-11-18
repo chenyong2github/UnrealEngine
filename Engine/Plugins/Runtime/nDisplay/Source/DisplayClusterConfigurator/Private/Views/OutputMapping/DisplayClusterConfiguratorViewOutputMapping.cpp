@@ -3,10 +3,10 @@
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
-#include "DisplayClusterConfiguratorCommands.h"
 #include "Interfaces/IDisplayClusterConfigurator.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorGraph.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorGraphSchema.h"
+#include "Views/OutputMapping/DisplayClusterConfiguratorOutputMappingCommands.h"
 #include "Views/OutputMapping/SDisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/OutputMapping/SDisplayClusterConfiguratorGraphEditor.h"
 
@@ -110,7 +110,7 @@ void FDisplayClusterConfiguratorViewOutputMapping::BindCommands()
 {
 	CommandList = MakeShareable(new FUICommandList);
 
-	const FDisplayClusterConfiguratorCommands& Commands = IDisplayClusterConfigurator::Get().GetCommands();
+	const FDisplayClusterConfiguratorOutputMappingCommands& Commands = FDisplayClusterConfiguratorOutputMappingCommands::Get();
 
 	MAP_TOGGLE_COMMAND(Commands.ToggleWindowInfo, OutputMappingSettings.bShowWindowInfo);
 	MAP_TOGGLE_COMMAND(Commands.ToggleWindowCornerImage, OutputMappingSettings.bShowWindowCornerImage);

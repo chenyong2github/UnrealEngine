@@ -66,10 +66,10 @@ namespace UnrealBuildTool
 				bRequireTopmostActive = Reader.ReadBool();
 			}
 
-			RequiredBranches = Reader.ReadList(() => (PreprocessorBranch)Reader.ReadByte());
-			RequiredMacros = Reader.ReadDictionary(() => Reader.ReadIdentifier(), () => (PreprocessorMacro?)Reader.ReadObjectReference(() => new PreprocessorMacro(Reader)));
-			NewBranches = Reader.ReadList(() => (PreprocessorBranch)Reader.ReadByte());
-			NewMacros = Reader.ReadDictionary(() => Reader.ReadIdentifier(), () => (PreprocessorMacro?)Reader.ReadObjectReference(() => new PreprocessorMacro(Reader)));
+			RequiredBranches = Reader.ReadList(() => (PreprocessorBranch)Reader.ReadByte())!;
+			RequiredMacros = Reader.ReadDictionary(() => Reader.ReadIdentifier(), () => (PreprocessorMacro?)Reader.ReadObjectReference(() => new PreprocessorMacro(Reader)))!;
+			NewBranches = Reader.ReadList(() => (PreprocessorBranch)Reader.ReadByte())!;
+			NewMacros = Reader.ReadDictionary(() => Reader.ReadIdentifier(), () => (PreprocessorMacro?)Reader.ReadObjectReference(() => new PreprocessorMacro(Reader)))!;
 			bHasPragmaOnce = Reader.ReadBool();
 		}
 

@@ -46,7 +46,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingGeometryCache(
 */
 struct FNoPositionVertex
 {
-	FVector2D TextureCoordinate[MAX_STATIC_TEXCOORDS];
+	FVector2f TextureCoordinate[MAX_STATIC_TEXCOORDS];
 	FPackedNormal TangentX;
 	FPackedNormal TangentZ;
 	FColor Color;
@@ -926,9 +926,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 					check(TrackProxy->MeshData->TextureCoordinates.Num() >= NumVerts);
 					check(TrackProxy->NextFrameMeshData->TextureCoordinates.Num() >= NumVerts);
 					check(Scratch.InterpolatedUVs.Num() >= NumVerts);
-					const FVector2D* UVAPtr = TrackProxy->MeshData->TextureCoordinates.GetData();
-					const FVector2D* UVBPtr = TrackProxy->NextFrameMeshData->TextureCoordinates.GetData();
-					FVector2D* InterpolatedUVsPtr = Scratch.InterpolatedUVs.GetData();
+					const FVector2f* UVAPtr = TrackProxy->MeshData->TextureCoordinates.GetData();
+					const FVector2f* UVBPtr = TrackProxy->NextFrameMeshData->TextureCoordinates.GetData();
+					FVector2f* InterpolatedUVsPtr = Scratch.InterpolatedUVs.GetData();
 
 					// Unroll 2x so we can use 4 wide ops. OOP will hopefully take care of the rest.
 					{
@@ -1260,7 +1260,7 @@ void FGeomCacheTrackProxy::InitRenderResources(int32 NumVertices, int32 NumIndic
 	// Allocate verts
 	TangentXBuffer.Init(NumVertices * sizeof(FPackedNormal));
 	TangentZBuffer.Init(NumVertices * sizeof(FPackedNormal));
-	TextureCoordinatesBuffer.Init(NumVertices * sizeof(FVector2D));
+	TextureCoordinatesBuffer.Init(NumVertices * sizeof(FVector2f));
 	ColorBuffer.Init(NumVertices * sizeof(FColor));
 
 	PositionBuffers[0].Init(NumVertices * sizeof(FVector3f));
@@ -1347,7 +1347,7 @@ void FGeomCacheVertexFactory::Init_RenderThread(const FVertexBuffer* PositionBuf
 	FDataType NewData;
 	NewData.PositionComponent = FVertexStreamComponent(PositionBuffer, 0, sizeof(FVector3f), VET_Float3);
 
-	NewData.TextureCoordinates.Add(FVertexStreamComponent(TextureCoordinateBuffer, 0, sizeof(FVector2D), VET_Float2));
+	NewData.TextureCoordinates.Add(FVertexStreamComponent(TextureCoordinateBuffer, 0, sizeof(FVector2f), VET_Float2));
 	NewData.TangentBasisComponents[0] = FVertexStreamComponent(TangentXBuffer, 0, sizeof(FPackedNormal), VET_PackedNormal);
 	NewData.TangentBasisComponents[1] = FVertexStreamComponent(TangentZBuffer, 0, sizeof(FPackedNormal), VET_PackedNormal);
 	NewData.ColorComponent = FVertexStreamComponent(ColorBuffer, 0, sizeof(FColor), VET_Color);

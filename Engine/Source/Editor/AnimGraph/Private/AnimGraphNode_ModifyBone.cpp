@@ -13,7 +13,6 @@
 UAnimGraphNode_ModifyBone::UAnimGraphNode_ModifyBone(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	CurWidgetMode = (int32)UE::Widget::WM_Rotate;
 }
 
 void UAnimGraphNode_ModifyBone::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)

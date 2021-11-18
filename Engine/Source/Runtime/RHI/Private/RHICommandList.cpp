@@ -516,7 +516,7 @@ static FAutoConsoleTaskPriority CPrio_RHIThreadOnTaskThreads(
 
 
 static FCriticalSection GRHIThreadOnTasksCritical;
-
+static std::atomic<int32> GRHIThreadStallRequestCount;
 
 class FExecuteRHIThreadTask
 {
@@ -1944,20 +1944,25 @@ double TotalTime = 0.0;
 int32 TotalStalls = 0;
 #endif
 
-int32 StallCount = 0;
 bool FRHICommandListImmediate::IsStalled()
 {
-	return StallCount > 0;
+	return GRHIThreadStallRequestCount.load() > 0;
 }
 
 bool FRHICommandListImmediate::StallRHIThread()
 {
+	if (GRHIThreadStallRequestCount.load() > 0)
+	{
+		return false;
+	}
 	CSV_SCOPED_TIMING_STAT(RHITStalls, Total);
 
 	check(IsInRenderingThread() && IsRunningRHIInSeparateThread());
 	bool bAsyncSubmit = CVarRHICmdAsyncRHIThreadDispatch.GetValueOnRenderThread() > 0;
 	if (bAsyncSubmit)
 	{
+		SCOPED_NAMED_EVENT(StallRHIThread, FColor::Red);
+
 		if (RenderThreadSublistDispatchTask.GetReference() && RenderThreadSublistDispatchTask->IsComplete())
 		{
 #if NEEDS_DEBUG_INFO_ON_PRESENT_HANG
@@ -1978,13 +1983,31 @@ bool FRHICommandListImmediate::StallRHIThread()
 				return false;
 			}
 		}
-		FPlatformAtomics::InterlockedIncrement(&StallCount);
+		const int32 OldStallCount = GRHIThreadStallRequestCount.fetch_add(1);
+		if (OldStallCount > 0)
+		{
+			return true;
+		}
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SpinWaitRHIThreadStall);
 #if TIME_RHIT_STALLS
 			double StartTime = FPlatformTime::Seconds();
 #endif
-			GRHIThreadOnTasksCritical.Lock();
+
+			{
+				SCOPED_NAMED_EVENT(RHIThreadLock_Wait, FColor::Red);
+#if PLATFORM_USES_UNFAIR_LOCKS
+				// When we have unfair locks, we're not guaranteed to get the lock between the RHI tasks if our thread goes to sleep,
+				// so we need to be more aggressive here as this is time critical.
+				while (!GRHIThreadOnTasksCritical.TryLock())
+				{
+					FPlatformProcess::YieldThread();
+				}
+#else
+				GRHIThreadOnTasksCritical.Lock();
+#endif
+			}
+
 #if TIME_RHIT_STALLS
 			TotalTime += FPlatformTime::Seconds() - StartTime;
 			TotalStalls++;
@@ -2013,8 +2036,12 @@ bool FRHICommandListImmediate::StallRHIThread()
 void FRHICommandListImmediate::UnStallRHIThread()
 {
 	check(IsInRenderingThread() && IsRunningRHIInSeparateThread());
-	GRHIThreadOnTasksCritical.Unlock();
-	FPlatformAtomics::InterlockedDecrement(&StallCount);
+	const int32 NewStallCount = GRHIThreadStallRequestCount.fetch_sub(1) - 1;
+	check(NewStallCount >= 0);
+	if (NewStallCount == 0)
+	{
+		GRHIThreadOnTasksCritical.Unlock();
+	}
 }
 
 void FRHICommandListBase::WaitForRHIThreadTasks()

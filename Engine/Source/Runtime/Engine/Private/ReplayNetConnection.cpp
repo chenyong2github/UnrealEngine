@@ -272,11 +272,11 @@ void UReplayNetConnection::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTr
 			UE_CLOG(bActorRewindable, LogDemo, Warning, TEXT("Replay Rewindable Actor destroyed during recording. Replay may show artifacts (%s)"), *FullName);
 
 			UE_LOG(LogDemo, VeryVerbose, TEXT("NotifyActorDestroyed: adding actor to deleted startup list: %s"), *FullName);
-			ReplayHelper.DeletedNetStartupActors.Add(FullName);
+			ReplayHelper.RecordingDeletedNetStartupActors.Add(FullName);
 
 			if (bDeltaCheckpoint)
 			{
-				ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Add(FullName);
+				ReplayHelper.RecordingDeltaCheckpointData.RecordingDeletedNetStartupActors.Add(FullName);
 			}
 		}
 	}

@@ -9622,7 +9622,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	}
 	else if (FParse::Command(&Cmd, TEXT("LONGLOG")))
 	{
-		UE_LOG(LogEngine, Log, TEXT("This is going to be a really long log message to test the code to resize the buffer used to log with. %02048s"), TEXT("HAHA, this isn't really a long string, but it sure has a lot of zeros!"));
+		UE_LOG(LogEngine, Log, TEXT("This is going to be a really long log message to test the code to resize the buffer used to log with. %2048s"), TEXT("HAHA, this isn't really a long string, but it sure has a lot of spaces!"));
 	}
 	else if (FParse::Command(&Cmd, TEXT("RECURSE")))
 	{
@@ -10280,6 +10280,16 @@ bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 
 		const FColor LineColor = Verbosity <= ELogVerbosity::Error ? FColor::Red : FColor::Yellow;
 		GEngine->AddOnScreenDebugMessage(-1, DisplayTime, LineColor, Msg);
+
+		// Prune the list so we get new errors instead of ones from minutes ago
+		const float MaxTimeToKeep = 30.f;
+		const int32 MaxNumToKeep = FMath::TruncToInt(MaxTimeToKeep / DisplayTime);
+
+		if (BufferedLines.Num() > MaxNumToKeep)
+		{
+			BufferedLines.RemoveAt(0, BufferedLines.Num() - MaxNumToKeep);
+		}
+
 	}
 
 	return true;
@@ -10320,8 +10330,8 @@ void UEngine::ClearOnScreenDebugMessages()
 	{	
 		// Because some components add their message in concurrent work, we need a CS here.
 		FScopeLock ScopeLock(&GOnScreenMessageCS);
-	ScreenMessages.Empty();
-	PriorityScreenMessages.Empty();
+		ScreenMessages.Empty();
+		PriorityScreenMessages.Empty();
 	}
 #endif // !UE_BUILD_SHIPPING
 }
@@ -13479,6 +13489,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 
 	// send a callback message
+	FCoreUObjectDelegates::PreLoadMapWithContext.Broadcast(WorldContext, URL.Map);
 	FCoreUObjectDelegates::PreLoadMap.Broadcast(URL.Map);
 	FMoviePlayerProxy::BlockingTick();
 

@@ -81,22 +81,17 @@ void UWorldPartitionLevelStreamingPolicy::PrepareActorToCellRemapping()
 		check(StreamingCell);
 		for (const FWorldPartitionRuntimeCellObjectMapping& CellObjectMap : StreamingCell->GetPackages())
 		{
-			ActorToCellRemapping.Add(CellObjectMap.Path, StreamingCell->GetFName());
+			// Add actor container id to actor path so that we can distinguish between actors of different Level Instances
+			const FString Path = FWorldPartitionLevelHelper::AddActorContainerIDToActorPath(CellObjectMap.ContainerID, CellObjectMap.Path.ToString());
+						
+			ActorToCellRemapping.Add(FName(*Path), StreamingCell->GetFName());
 
-			FString SubObjectName;
-			FString SubObjectContext;
-			verify(CellObjectMap.Path.ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName));
-
-			int32 DotPos = SubObjectName.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-			check(DotPos != INDEX_NONE);
-			SubObjectsToCellRemapping.Add(*SubObjectName.Right(SubObjectName.Len() - DotPos - 1), StreamingCell->GetFName());
+			const int32 LastDotPos = Path.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+			check(LastDotPos != INDEX_NONE);
+			
+			SubObjectsToCellRemapping.Add(FName(*Path.Mid(LastDotPos+1)), StreamingCell->GetFName());
 		}
 	}
-}
-
-void UWorldPartitionLevelStreamingPolicy::ClearActorToCellRemapping()
-{
-	ActorToCellRemapping.Empty();
 }
 
 void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
@@ -109,30 +104,27 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 	if (!CellName)
 	{
 		const FString& SubPathString = ObjectPath.GetSubPathString();
-		if (SubPathString.StartsWith(TEXT("PersistentLevel.")))
+		constexpr const TCHAR PersistenLevelName[] = TEXT("PersistentLevel.");
+		constexpr const int32 DotPos = UE_ARRAY_COUNT(PersistenLevelName);
+		if (SubPathString.StartsWith(PersistenLevelName))
 		{
-			int32 DotPos = ObjectPath.GetSubPathString().Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart);
-			if (DotPos != INDEX_NONE)
+			const int32 SubObjectPos = SubPathString.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, DotPos);
+			if (SubObjectPos != INDEX_NONE)
 			{
-				DotPos = ObjectPath.GetSubPathString().Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromStart, DotPos + 1);
-				if (DotPos != INDEX_NONE)
-				{
-					FString ActorSubPathString = ObjectPath.GetSubPathString().Left(DotPos);
-					FString ActorPath = FString::Printf(TEXT("%s:%s"), *ObjectPath.GetAssetPathName().ToString(), *ActorSubPathString);
-					CellName = ActorToCellRemapping.Find(FName(*ActorPath));
-				}
+				const FString ActorSubPathString = SubPathString.Left(SubObjectPos);
+				FSoftObjectPath ActorObjectPath(ObjectPath);
+				ActorObjectPath.SetSubPathString(ActorSubPathString);
+				CellName = ActorToCellRemapping.Find(FName(*ActorObjectPath.ToString()));
 			}
 		}
 	}
 
 	if (CellName)
 	{
-		const FString ShortPackageOuterAndName = FPackageName::GetLongPackageAssetName(*SrcPath);
-		int32 DelimiterIdx;
-		if (ShortPackageOuterAndName.FindChar('.', DelimiterIdx))
+		const FSoftObjectPath SrcObjectPath(SrcPath);
+		if (!SrcObjectPath.GetSubPathString().IsEmpty())
 		{
 			UWorld* World = WorldPartition->GetWorld();
-			const FString ObjectNameWithoutPackage = ShortPackageOuterAndName.Mid(DelimiterIdx + 1);
 			const FString PackagePath = UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(*CellName, World);
 			FString PrefixPath;
 			if (IsRunningCookCommandlet())
@@ -141,8 +133,10 @@ void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& O
 				const UPackage* Package = GetOuterUWorldPartition()->GetWorld()->GetPackage();
 				PrefixPath = FString::Printf(TEXT("%s/%s/_Generated_"), *FPackageName::GetLongPackagePath(Package->GetPathName()), *FPackageName::GetShortName(Package->GetName()));
 			}
-			FString NewPath = FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *ObjectNameWithoutPackage);
-			ObjectPath.SetPath(MoveTemp(NewPath));
+
+			// Use the WorldPartition world name here instead of using the world name from the path to support converting level instance paths to main world paths.
+			ObjectPath.SetAssetPathName(FName(*FString::Printf(TEXT("%s%s.%s"), *PrefixPath, *PackagePath, *World->GetName())));
+			ObjectPath.SetSubPathString(SrcObjectPath.GetSubPathString());
 			// Put back PIE prefix
 			if (World->IsPlayInEditor() && (PIEInstanceID != INDEX_NONE))
 			{

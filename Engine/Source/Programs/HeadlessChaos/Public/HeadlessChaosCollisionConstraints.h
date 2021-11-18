@@ -5,6 +5,7 @@
 #include "Math/Vector.h"
 #include "Chaos/Box.h"
 #include "Chaos/Evolution/SolverBodyContainer.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDCollisionConstraintsContact.h"
@@ -37,8 +38,9 @@ public:
 	FPBDCollisionConstraintAccessor()
 		: EmptyParticles(UniqueIndices)
 		, SpatialAcceleration(EmptyParticles.GetNonDisabledView())
-		, BroadPhase(EmptyParticles, (FReal)1, (FReal)0)
 		, CollisionConstraints(EmptyParticles, EmptyCollided, EmptyPhysicsMaterials, EmptyUniquePhysicsMaterials, 1, 1)
+		, NarrowPhase((FReal)1, (FReal)0, CollisionConstraints.GetConstraintAllocator())
+		, BroadPhase(EmptyParticles)
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{
 		CollisionConstraints.SetSolverType(EConstraintSolverType::QuasiPbd);
@@ -50,8 +52,9 @@ public:
 		const int32 PushOutIterations, const int32 PushOutPairIterations) 
 		: EmptyParticles(UniqueIndices)
 		, SpatialAcceleration(InParticles.GetNonDisabledView())
-		, BroadPhase(InParticles, (FReal)1, (FReal)0)
 		, CollisionConstraints(InParticles, Collided, PerParticleMaterials, PerParticleUniqueMaterials, 1, 1)
+		, NarrowPhase((FReal)1, (FReal)0, CollisionConstraints.GetConstraintAllocator())
+		, BroadPhase(InParticles)
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{
 		CollisionConstraints.SetSolverType(EConstraintSolverType::QuasiPbd);
@@ -67,14 +70,13 @@ public:
 		CollisionDetector.GetNarrowPhase().GetContext().bFilteringEnabled = true;
 		CollisionDetector.GetNarrowPhase().GetContext().bDeferUpdate = false;
 		CollisionDetector.GetNarrowPhase().GetContext().bAllowManifolds = true;
-		CollisionDetector.GetNarrowPhase().GetContext().CollisionAllocator = &CollisionConstraints.GetConstraintAllocator();
 		CollisionDetector.DetectCollisions(Dt, nullptr);
 		CollisionDetector.GetCollisionContainer().GetConstraintAllocator().SortConstraintsHandles();
 	}
 
 	void Update(FPBDCollisionConstraint& Constraint)
 	{
-		if (Constraint.GetType() == ECollisionConstraintType::Standard)
+		if (Constraint.GetCCDType() == ECollisionCCDType::Disabled)
 		{
 			// Dt is not important for the tests that use this function
 			const FReal Dt = FReal(1) / FReal(30);
@@ -165,9 +167,9 @@ public:
 	TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> EmptyUniquePhysicsMaterials;
 
 	FAccelerationStructure SpatialAcceleration;
-	FSpatialAccelerationBroadPhase BroadPhase;
-	FNarrowPhase NarrowPhase;
 	FCollisionConstraints CollisionConstraints;
+	FNarrowPhase NarrowPhase;
+	FSpatialAccelerationBroadPhase BroadPhase;
 	FCollisionDetector CollisionDetector;
 	FPBDIslandSolverData SolverData;
 };

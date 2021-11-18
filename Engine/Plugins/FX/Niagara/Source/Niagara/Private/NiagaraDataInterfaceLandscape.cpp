@@ -1428,10 +1428,10 @@ public:
 		}
 
 		FMatrix44f WorldToUvTransform(
-			FVector3f(ProxyData.NormalVirtualTextureWorldToUvParameters[0]),
-			FVector3f(ProxyData.NormalVirtualTextureWorldToUvParameters[1]),
-			FVector3f(ProxyData.NormalVirtualTextureWorldToUvParameters[2]),
-			FVector4(0.0f, 0.0f, 0.0f, 1.0f));
+			FPlane4f(ProxyData.NormalVirtualTextureWorldToUvParameters[0]),
+			FPlane4f(ProxyData.NormalVirtualTextureWorldToUvParameters[1]),
+			FPlane4f(ProxyData.NormalVirtualTextureWorldToUvParameters[2]),
+			FPlane4f(0.0f, 0.0f, 0.0f, 1.0f));
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, NormalVirtualTexture0Param, PhysicalTextureSrv[0]);
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, NormalVirtualTexture1Param, PhysicalTextureSrv[1]);
@@ -1478,7 +1478,7 @@ public:
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureWorldToUvTransformParam, (FMatrix44f)ProxyData.CachedHeightTextureWorldToUvTransform);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvToWorldTransformParam, (FMatrix44f)ProxyData.CachedHeightTextureUvToWorldTransform);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvScaleBiasParam, (FVector4f)ProxyData.CachedHeightTextureUvScaleBias);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureGridSizeParam, ProxyData.CachedHeightTextureGridSize);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureGridSizeParam, (FVector2f)ProxyData.CachedHeightTextureGridSize);
 
 				if (HeightTextureSrv)
 				{

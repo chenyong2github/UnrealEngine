@@ -685,7 +685,7 @@ void UNiagaraDataInterfaceCamera::GetTAAJitter(FVectorVMExternalFunctionContext&
 	VectorVM::FUserPtrHandler<FCameraDataInterface_InstanceData> InstData(Context);
 	TArray<VectorVM::FExternalFuncRegisterHandler<float>> OutParams;
 
-	constexpr int32 ElementCount = 2 * sizeof(FVector2D) / sizeof(float);
+	constexpr int32 ElementCount = 2 * sizeof(FVector2f) / sizeof(float);
 	OutParams.Reserve(ElementCount);
 	for (int i = 0; i < ElementCount; i++)
 	{

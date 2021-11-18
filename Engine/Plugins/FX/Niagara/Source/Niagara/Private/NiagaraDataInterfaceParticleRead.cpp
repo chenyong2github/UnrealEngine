@@ -1581,7 +1581,7 @@ void UNiagaraDataInterfaceParticleRead::ReadFloat(FVectorVMExternalFunctionConte
 
 void UNiagaraDataInterfaceParticleRead::ReadVector2(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
-	ReadWithCheck<FVector2D>(Context, AttributeToRead, FVector2D::ZeroVector);
+	ReadWithCheck<FVector2f>(Context, AttributeToRead, FVector2f::ZeroVector);
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadVector3(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
@@ -1702,7 +1702,7 @@ void UNiagaraDataInterfaceParticleRead::ReadFloatByIndex(FVectorVMExternalFuncti
 
 void UNiagaraDataInterfaceParticleRead::ReadVector2ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
-	ReadByIndexWithCheck<FVector2D>(Context, AttributeToRead, FVector2D::ZeroVector);
+	ReadByIndexWithCheck<FVector2f>(Context, AttributeToRead, FVector2f::ZeroVector);
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadVector3ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)

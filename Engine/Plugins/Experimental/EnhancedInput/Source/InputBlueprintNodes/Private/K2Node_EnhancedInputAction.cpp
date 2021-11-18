@@ -50,12 +50,22 @@ void UK2Node_EnhancedInputAction::AllocateDefaultPins()
 {
 	PreloadObject((UObject*)InputAction);
 
-	ForEachEventPinName([this](ETriggerEvent Event, FName PinName)
+	const ETriggerEventsSupported SupportedTriggerEvents = InputAction ? InputAction->GetSupportedTriggerEvents() : ETriggerEventsSupported::None;
+	
+	ForEachEventPinName([this, SupportedTriggerEvents](ETriggerEvent Event, FName PinName)
 	{
 		static const UEnum* EventEnum = StaticEnum<ETriggerEvent>();
 
 		UEdGraphPin* NewPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
 		NewPin->PinToolTip = EventEnum->GetToolTipTextByIndex((int32)Event).ToString();
+
+		// Add a special tooltip and display name for pins that are unsupported
+		if(!UInputTrigger::IsSupportedTriggerEvent(SupportedTriggerEvents, Event))
+		{
+			static const FText UnsuportedTooltip = LOCTEXT("UnsupportedTooltip", "\n\nThis trigger event is not supported by the action! Add a supported trigger to enable this pin.");
+			NewPin->PinToolTip += UnsuportedTooltip.ToString();
+			NewPin->PinFriendlyName = FText::Format(LOCTEXT("UnsupportedPinFriendlyName", "(Unsupported) {0}"), FText::FromName(NewPin->GetFName()));
+		}
 	});
 	
 	HideEventPins(nullptr);
@@ -81,26 +91,30 @@ void UK2Node_EnhancedInputAction::AllocateDefaultPins()
 void UK2Node_EnhancedInputAction::HideEventPins(UEdGraphPin* RetainPin)
 {
 	// Gather pins
-	int32 NumActivePins = 0;
-	TMap<UEdGraphPin*, bool> EventPins;
-	ForEachEventPinName([this, &NumActivePins, &EventPins](ETriggerEvent Event, FName PinName)
+	const ETriggerEventsSupported SupportedTriggerEvents = InputAction ? InputAction->GetSupportedTriggerEvents() : ETriggerEventsSupported::None;
+
+	// Hide any event pins that are not supported by this Action's triggers in the advanced view
+	ForEachEventPinName([this, SupportedTriggerEvents](ETriggerEvent Event, FName PinName)
 	{
 		if (UEdGraphPin* Pin = FindPin(PinName))
 		{
-			NumActivePins += Pin->LinkedTo.Num() ? 1 : 0;
-			EventPins.Emplace(Pin, Event == ETriggerEvent::Triggered);
+			const bool bIsSupported = UInputTrigger::IsSupportedTriggerEvent(SupportedTriggerEvents, Event);
+			
+			Pin->bAdvancedView = !bIsSupported;
 		}
 	});
+}
 
-
-	for (TPair<UEdGraphPin*, bool> PinData : EventPins)
+const ETriggerEvent UK2Node_EnhancedInputAction::GetTriggerTypeFromExecPin(const UEdGraphPin* ExecPin) const
+{
+	static const UEnum* EventEnum = StaticEnum<ETriggerEvent>();
+	
+	if(ensure(ExecPin && ExecPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec))
 	{
-		UEdGraphPin* Pin = PinData.Key;
-		bool bIsTriggeredPin = PinData.Value;
-		// Triggered pin is shown if there are no active links, unless we just disconnected a pin in which case we continue to show that. Any other pins are only shown if connected.
-		bool bVisible = (Pin == RetainPin && NumActivePins == 0) || (bIsTriggeredPin && NumActivePins == 0 && !RetainPin);
-		Pin->bAdvancedView = !bVisible;
+		return (ETriggerEvent)(EventEnum->GetValueByName(ExecPin->PinName));		
 	}
+	
+	return ETriggerEvent::None;
 }
 
 void UK2Node_EnhancedInputAction::PostReconstructNode()
@@ -113,6 +127,26 @@ void UK2Node_EnhancedInputAction::PinConnectionListChanged(UEdGraphPin* Pin)
 {
 	Super::PinConnectionListChanged(Pin);
 	HideEventPins(Pin);
+}
+
+bool UK2Node_EnhancedInputAction::IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const
+{
+	if(MyPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec && InputAction)
+	{
+		const ETriggerEvent Event = GetTriggerTypeFromExecPin(MyPin);
+		const ETriggerEventsSupported SupportedEvents = InputAction->GetSupportedTriggerEvents();
+
+		if(!UInputTrigger::IsSupportedTriggerEvent(SupportedEvents, Event))
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("ActionName"), FText::FromName(InputAction->GetFName()));
+			Args.Add(TEXT("PinName"), FText::FromName(MyPin->PinName));
+
+			OutReason = FText::Format(LOCTEXT("UnsupportedEventType_DragTooltip", "WARNING: '{ActionName}' does not support the '{PinName}' trigger event."), Args).ToString();		
+		}
+	}
+	
+	return Super::IsConnectionDisallowed(MyPin, OtherPin, OutReason);
 }
 
 FLinearColor UK2Node_EnhancedInputAction::GetNodeTitleColor() const
@@ -151,7 +185,7 @@ FText UK2Node_EnhancedInputAction::GetTooltipText() const
 	{
 		// FText::Format() is slow, so we cache this to save on performance
 		FString ActionPath = InputAction ? InputAction->GetFullName() : TEXT("");
-		CachedTooltip.SetCachedText(FText::Format(LOCTEXT("EnhancedInputAction_Tooltip", "Event for when {0} triggers."), FText::FromString(ActionPath)), this);
+		CachedTooltip.SetCachedText(FText::Format(LOCTEXT("EnhancedInputAction_Tooltip", "Event for when '{0}' triggers.\n\nNOTE: This is not guaranteed to fire every frame, only when the Action is triggered."), FText::FromString(ActionPath)), this);
 	}
 	return CachedTooltip;
 }
@@ -197,6 +231,17 @@ void UK2Node_EnhancedInputAction::ValidateNodeDuringCompilation(class FCompilerR
 	if (!InputAction)
 	{
 		MessageLog.Error(*LOCTEXT("EnhancedInputAction_ErrorFmt", "EnhancedInputActionEvent references invalid 'null' action for @@").ToString(), this);
+		return;
+	}
+	
+	// There are no supported triggers on this action, we should put a note down
+	// This would only be the case if the user has added a custom UInputTrigger that uses ETriggeredEventsSupported::None
+	if(InputAction->GetSupportedTriggerEvents() == ETriggerEventsSupported::None)
+	{
+		MessageLog.Warning(
+			*LOCTEXT("EnhancedInputAction_NoTriggersOnAction",
+				"@@ may not be triggered. There are no triggers supported on this action! Add a trigger to this action to resolve this warning.").ToString(),
+				this);
 	}
 }
 
@@ -204,6 +249,13 @@ void UK2Node_EnhancedInputAction::ExpandNode(FKismetCompilerContext& CompilerCon
 {
 	Super::ExpandNode(CompilerContext, SourceGraph);
 
+	if(!InputAction)
+	{
+		static const FText InvalidActionWarning = LOCTEXT("InvalidInputActionDuringExpansion", "@@ does not have a valid Input Action asset!!");
+		CompilerContext.MessageLog.Warning(*InvalidActionWarning.ToString(), this);
+		return;
+	}
+	
 	// Establish active pins
 	struct ActivePinData
 	{
@@ -212,13 +264,20 @@ void UK2Node_EnhancedInputAction::ExpandNode(FKismetCompilerContext& CompilerCon
 		ETriggerEvent TriggerEvent;
 	};
 
+	const ETriggerEventsSupported SupportedTriggerEvents = InputAction->GetSupportedTriggerEvents();
+	
 	TArray<ActivePinData> ActivePins;
-	ForEachEventPinName([this, &ActivePins](ETriggerEvent Event, FName PinName) 
+	ForEachEventPinName([this, &ActivePins, &SupportedTriggerEvents, &CompilerContext](ETriggerEvent Event, FName PinName) 
 	{
 		UEdGraphPin* InputActionPin = FindPin(PinName, EEdGraphPinDirection::EGPD_Output);
 		if (InputActionPin && InputActionPin->LinkedTo.Num() > 0)
 		{
 			ActivePins.Add(ActivePinData(InputActionPin, Event));
+			// Check if this exec pin is supported!
+			if(!UInputTrigger::IsSupportedTriggerEvent(SupportedTriggerEvents, Event))
+			{
+				CompilerContext.MessageLog.Warning(*FText::Format(LOCTEXT("UnsuportedEventTypeOnAction", "'{0}'on @@ may not be executed because it is not a supported trigger on this action!"), InputActionPin->GetDisplayName()).ToString(), this);
+			}
 		}
 	});
 

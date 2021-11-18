@@ -19,6 +19,7 @@ namespace Electra
 	class IPlaylistReader;
 	class IAdaptiveStreamingPlayerAEMSHandler;
 	class FDRMManager;
+	class IHTTPResponseCache;
 
 
 	class IPlayerMessage
@@ -113,6 +114,10 @@ namespace Electra
 		 */
 		virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() = 0;
 
+		/**
+		 * Returns the HTTP response cache of this player.
+		 */
+		virtual TSharedPtrTS<IHTTPResponseCache> GetHTTPResponseCache() = 0;
 
 		/**
 		 * Returns the manifest reader instance. The reader is responsible for reading additionally required

@@ -6,7 +6,7 @@
 // Select mpcdi frustum calc method
 static TAutoConsoleVariable<int32> CVarMPCDIFrustumMethod(
 	TEXT("nDisplay.render.mpcdi.Frustum"),
-	(int)EDisplayClusterWarpBlendFrustumType::LOD,
+	(int32)EDisplayClusterWarpBlendFrustumType::LOD,
 	TEXT("Frustum computation method:\n")
 	TEXT(" 0: mesh AABB based, lower quality but fast\n")
 	TEXT(" 1: mesh vertices based, best quality but slow\n")
@@ -17,7 +17,7 @@ static TAutoConsoleVariable<int32> CVarMPCDIFrustumMethod(
 // Select mpcdi stereo mode
 static TAutoConsoleVariable<int32> CVarMPCDIStereoMode(
 	TEXT("nDisplay.render.mpcdi.StereoMode"),
-	(int)EDisplayClusterWarpBlendStereoMode::AsymmetricAABB,
+	(int32)EDisplayClusterWarpBlendStereoMode::AsymmetricAABB,
 	TEXT("Stereo mode:\n")
 	TEXT(" 0: Asymmetric to AABB center\n")
 	TEXT(" 1: Symmetric to AABB center\n"),
@@ -27,7 +27,7 @@ static TAutoConsoleVariable<int32> CVarMPCDIStereoMode(
 // Select mpcdi projection mode
 static TAutoConsoleVariable<int32> CVarMPCDIProjectionMode(
 	TEXT("nDisplay.render.mpcdi.Projection"),
-	(int)EDisplayClusterWarpBlendProjectionType::StaticSurfaceNormal,
+	(int32)EDisplayClusterWarpBlendProjectionType::StaticSurfaceNormal,
 	TEXT("Projection method:\n")
 	TEXT(" 0: Static, aligned to average region surface normal\n")
 	TEXT(" 1: Static, aligned to average region surface corners plane\n")
@@ -74,7 +74,7 @@ bool FDisplayClusterWarpBlend::CalcFrustumContext(class IDisplayClusterViewport*
 	bool bShouldUseFrustumCache = GeometryContext.GeometryProxy.GeometryType == EDisplayClusterWarpGeometryType::WarpMap;
 	if (bShouldUseFrustumCache)
 	{
-		FrustumCache.SetFrustumCacheDepth((int)CVarMPCDIFrustumCacheDepth.GetValueOnAnyThread());
+		FrustumCache.SetFrustumCacheDepth((int32)CVarMPCDIFrustumCacheDepth.GetValueOnAnyThread());
 		FrustumCache.SetFrustumCachePrecision((float)CVarMPCDIFrustumCachePrecision.GetValueOnAnyThread());
 
 		if (FrustumCache.GetCachedFrustum(InEye, OutWarpContext))

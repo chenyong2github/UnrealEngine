@@ -98,7 +98,17 @@ namespace Metasound
 				YesWithConverterNode
 			};
 
+			enum class EReason : uint8
+			{
+				None,
+				IncompatibleDataTypes,
+				CausesLoop
+			};
+
 			EConnectable Connectable = EConnectable::No;
+
+			EReason Reason = EReason::None;
+
 
 			// If Connectable is EConnectable::YesWithConverterNode,
 			// this will be a populated list of nodes we can use 

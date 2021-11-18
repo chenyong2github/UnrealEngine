@@ -52,7 +52,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 
 	const bool bDestIsGammaCorrected = DestImage.IsGammaCorrected();
 	const int64 NumTexels = int64(SrcImage.SizeX) * SrcImage.SizeY * SrcImage.NumSlices;
-	const int64 NumJobs = FTaskGraphInterface::Get().GetNumWorkerThreads();
+	const int64 NumJobs = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
 	int64 TexelsPerJob = NumTexels / NumJobs;
 	if (TexelsPerJob * NumJobs < NumTexels)
 	{

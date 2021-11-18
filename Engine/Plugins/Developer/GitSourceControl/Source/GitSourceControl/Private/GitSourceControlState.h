@@ -25,7 +25,7 @@ namespace EWorkingCopyState
 	};
 }
 
-class FGitSourceControlState : public ISourceControlState, public TSharedFromThis<FGitSourceControlState, ESPMode::ThreadSafe>
+class FGitSourceControlState : public ISourceControlState
 {
 public:
 	FGitSourceControlState( const FString& InLocalFilename )

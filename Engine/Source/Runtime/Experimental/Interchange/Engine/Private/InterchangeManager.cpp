@@ -156,7 +156,7 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 		if (SourceData)
 		{
 			SourceData->RemoveFromRoot();
-			SourceData->MarkPendingKill();
+			SourceData->MarkAsGarbage();
 		}
 	}
 	SourceDatas.Empty();
@@ -167,7 +167,7 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 		{
 			Translator->ImportFinish();
 			Translator->RemoveFromRoot();
-			Translator->MarkPendingKill();
+			Translator->MarkAsGarbage();
 		}
 	}
 	Translators.Empty();
@@ -177,7 +177,7 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 		if(Pipeline)
 		{
 			Pipeline->RemoveFromRoot();
-			Pipeline->MarkPendingKill();
+			Pipeline->MarkAsGarbage();
 		}
 	}
 	Pipelines.Empty();
@@ -187,7 +187,7 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 		if (FactoryKeyAndValue.Value)
 		{
 			FactoryKeyAndValue.Value->RemoveFromRoot();
-			FactoryKeyAndValue.Value->MarkPendingKill();
+			FactoryKeyAndValue.Value->MarkAsGarbage();
 		}
 	}
 	CreatedFactories.Empty();
@@ -606,7 +606,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 	{
 		PackageBasePath = FPaths::GetPath(ImportAssetParameters.ReimportAsset->GetPathName());
 		TArray<UObject*> SubObjects;
-		ImportAssetParameters.ReimportAsset->CollectDefaultSubobjects(SubObjects, false);
+		GetObjectsWithOuter(ImportAssetParameters.ReimportAsset, SubObjects);
 		for (UObject* SubObject : SubObjects)
 		{
 			OriginalAssetImportData = Cast<UInterchangeAssetImportData>(SubObject);
@@ -708,11 +708,15 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				}
 			}
 
-			if (RegisteredPipelineConfiguration && (bShowPipelineStacksConfigurationDialog || (!DefaultPipelineStacks.Contains(DefaultPipelineStackName) && !bIsUnattended)))
-			{
+			// Simply move the existing pipeline for now. To be revisited for the MVP release.
+			AsyncHelper->Pipelines = MoveTemp(PipelineStack);
+
+			//if (RegisteredPipelineConfiguration && (bShowPipelineStacksConfigurationDialog || (!DefaultPipelineStacks.Contains(DefaultPipelineStackName) && !bIsUnattended)))
+			//{
 				//Show the re-import dialog to let the user make change in the pipelines
 				//PipelineStackName = RegisteredPipelineConfiguration->ScriptedShowReimportPipelineConfigurationDialog(PipelineStack);
-			}
+			//}
+
 
 			//If the Stack name is empty it mean we want to use the re-import stack (PipelineStack). If there is a name we will
 			//extract the pipeline stack the user want to use.

@@ -136,6 +136,7 @@ public:
 	virtual void RemoveViewportOverlayWidget(TSharedRef<SWidget>, TSharedPtr<IAssetViewport> InViewport = nullptr) override; 
 
 
+	virtual FVector2D GetActiveViewportSize() override;
 	/* Tick to check the ActiveViewport */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 

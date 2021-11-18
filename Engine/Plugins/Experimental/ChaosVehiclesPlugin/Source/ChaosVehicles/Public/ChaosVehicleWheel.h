@@ -320,7 +320,8 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.SteeringEnabled = this->bAffectedBySteering;
 			PWheelConfig.BrakeEnabled = this->bAffectedByBrake;
 			PWheelConfig.HandbrakeEnabled = this->bAffectedByHandbrake;
-			PWheelConfig.EngineEnabled = this->bAffectedByEngine;
+			PWheelConfig.EngineEnabled = this->bAffectedByEngine;	// may be modified later by vehicle differential override setup
+			PWheelConfig.TorqueRatio = 0.f;							// calculated later after all wheel info is known
 			PWheelConfig.ABSEnabled = this->bABSEnabled;
 			PWheelConfig.TractionControlEnabled = this->bTractionControlEnabled;
 			PWheelConfig.AxleType = static_cast<Chaos::FSimpleWheelConfig::EAxleType>(this->AxleType);

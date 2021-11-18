@@ -211,6 +211,12 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		return MSM_MAX;
 	}
 
+	virtual FMaterialShadingModelField GetCompiledShadingModels() const override
+	{
+		// not used by Lightmass
+		return MSM_MAX;
+	}
+
 	virtual int32 WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets) override
 	{
 #if WITH_EDITOR
@@ -1440,7 +1446,7 @@ UMaterialInstanceConstant* FMaterialUtilities::CreateInstancedMaterial(UMaterial
 #if WITH_AUTOMATION_TESTS
 		FAutomationEditorCommonUtils::NullReferencesToObject(ExistingPackage);		
 #endif // WITH_AUTOMATION_TESTS
-		ExistingPackage->MarkPendingKill();
+		ExistingPackage->MarkAsGarbage();
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
 	}
 

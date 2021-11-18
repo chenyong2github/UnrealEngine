@@ -265,15 +265,9 @@ public:
 public:
 
 	/** Request that this mode be deleted at the next convenient opportunity (FEditorModeTools::Tick) */
-	void RequestDeletion() { bPendingDeletion = true; }
-	
-	/** returns true if this mode is to be deleted at the next convenient opportunity (FEditorModeTools::Tick) */
-	bool IsPendingDeletion() const { return bPendingDeletion; }
+	void RequestDeletion();
 
 private:
-	/** true if this mode is pending removal from its owner */
-	bool bPendingDeletion;
-
 	/** Called whenever a mode type is unregistered */
 	void OnModeUnregistered(FEditorModeID ModeID);
 

@@ -203,6 +203,11 @@ public:
 		LogOutput = InOutputDevice;
 	}
 
+	/* Returns an output Device that can be used to log info, warnings and errors etc. */
+	FOutputDevice* GetOutputDevice() const 
+	{
+		return LogOutput;
+	}
 protected:
 	/** Set the filename being saved to */
 	void SetFilename(FStringView InFilename);

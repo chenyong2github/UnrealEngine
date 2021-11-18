@@ -1737,12 +1737,12 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 					// Soft Object property
 					else if (SoftObjProp)
 					{
-						const UObject* OldPropertyValue = SoftObjProp->GetObjectPropertyValue(RowData);
-						UObject* NewPropertyValue = LoadObject<UObject>(nullptr, *NewValue);
-						SoftObjProp->SetObjectPropertyValue(RowData, NewPropertyValue);
-						OnHotfixTableValueObject(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
+						FSoftObjectPtr OldPropertyValue = SoftObjProp->GetPropertyValue(RowData);
+						FSoftObjectPtr NewPropertyValue(NewValue);
+						SoftObjProp->SetPropertyValue(RowData, NewPropertyValue);
+						OnHotfixTableValueSoftObject(*Asset, RowName, ColumnName, OldPropertyValue, NewPropertyValue);
 						bWasDataTableChanged = true;
-						UE_LOG(LogHotfixManager, Log, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue->GetFullName(), *NewPropertyValue->GetFullName());
+						UE_LOG(LogHotfixManager, Log, TEXT("Data table %s row %s updated column %s from %s to %s."), *AssetPath, *RowName, *ColumnName, *OldPropertyValue.ToString(), *NewPropertyValue.ToString());
 					}
 					// Not an expected property.
 					else

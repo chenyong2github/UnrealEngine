@@ -420,7 +420,7 @@ void UDataprepOverlappingActorsSelectionTransform::OnExecution_Implementation(co
 			if (Actor)
 			{
 				// Skip actors that are present in the input.
-				if (TargetActors.Contains(Actor) || Actor->IsPendingKillOrUnreachable())
+				if (TargetActors.Contains(Actor) || !IsValidChecked(Actor) || Actor->IsUnreachable())
 				{
 					continue;
 				}

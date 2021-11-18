@@ -133,6 +133,7 @@ public:
 	NIAGARA_API static FNiagaraTypeDefinition ToNiagaraType(FProperty* Property);
 	static FNiagaraTypeDefinition GetFColorDef();
 	static FNiagaraTypeDefinition GetFRotatorDef();
+	static FNiagaraTypeDefinition GetFVector2DDef();
 	static FNiagaraTypeDefinition GetFVectorDef();
 	static FNiagaraTypeDefinition GetFVector4Def();
 	static FNiagaraTypeDefinition GetFQuatDef();

@@ -59,7 +59,7 @@ namespace UnrealBuildTool
 			this.File = File;
 			this.MarkupMin = Reader.ReadInt();
 			this.MarkupMax = Reader.ReadInt();
-			this.Transforms = Reader.ReadArray(() => new PreprocessorTransform(Reader));
+			this.Transforms = Reader.ReadArray(() => new PreprocessorTransform(Reader))!;
 		}
 
 		/// <summary>

@@ -26,6 +26,9 @@ public:
 	/** Sets the Attribut Name */
 	void SetCellAttributeName(const FDMXAttributeName& CellAtributeName);
 
+	/** Removes the Cell Attribute from the Fixture type */
+	void RemoveFromFixtureType();
+
 	/** The channel number displayed for the row */
 	FText ChannelNumberText;
 

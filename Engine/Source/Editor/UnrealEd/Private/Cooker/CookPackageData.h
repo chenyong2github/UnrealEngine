@@ -852,6 +852,9 @@ namespace UE::Cook
 		FPackageDatas(UCookOnTheFlyServer& InCookOnTheFlyServer);
 		~FPackageDatas();
 
+		/** Called each time BeginCook is called, for deferred intialization steps. */
+		void BeginCook();
+
 		/** FGCObject interface function - return a debug name describing this FGCObject. */
 		virtual FString GetReferencerName() const override;
 		/**
@@ -984,6 +987,9 @@ namespace UE::Cook
 		/** Get/Set whether to log newly discovered packages to debug missing transitive references. */
 		void SetLogDiscoveredPackages(bool bLog) { bLogDiscoveredPackages = bLog; }
 		bool GetLogDiscoveredPackages() const { return bLogDiscoveredPackages; }
+
+		/** Called when a PackageData assigns its instigator, for debugging. */
+		void DebugInstigator(FPackageData& PackageData);
 	private:
 		/**
 		 * Construct a new FPackageData with the given PackageName and FileName and store references to it in the maps.
@@ -1003,6 +1009,7 @@ namespace UE::Cook
 		FPackageDataQueue LoadReadyQueue;
 		FPackageDataQueue SaveQueue;
 		UCookOnTheFlyServer& CookOnTheFlyServer;
+		FPackageData* ShowInstigatorPackageData = nullptr;
 		double LastPollAsyncTime;
 		bool bLogDiscoveredPackages = false;
 	};

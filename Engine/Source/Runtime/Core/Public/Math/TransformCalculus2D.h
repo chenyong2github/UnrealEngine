@@ -28,6 +28,7 @@ class FMatrix2x2;
 
 class FMatrix2x2;
 
+
 //////////////////////////////////////////////////////////////////////////
 // Adapters for FVector2D. 
 // 
@@ -35,11 +36,19 @@ class FMatrix2x2;
 // template that calls member functions. Instead, we provide direct overloads.
 //////////////////////////////////////////////////////////////////////////
 
+namespace UE
+{
+namespace Math
+{
+
 /** Specialization for concatenating two 2D Translations. */
 inline FVector2D Concatenate(const FVector2D& LHS, const FVector2D& RHS)
 {
 	return LHS + RHS;
 }
+
+}	// namespace UE::Math
+}	// namespace UE
 
 /** Specialization for inverting a 2D translation. */
 inline FVector2D Inverse(const FVector2D& Transform)
@@ -67,20 +76,21 @@ inline const FVector2D& TransformVector(const FVector2D& Transform, const FVecto
 //////////////////////////////////////////////////////////////////////////
 
 /**
- * Specialization for uniform Scale.
- */
+* Specialization for uniform Scale.
+*/
 inline FVector2D TransformPoint(float Transform, const FVector2D& Point)
 {
 	return Transform * Point;
 }
 
 /**
- * Specialization for uniform Scale.
- */
+* Specialization for uniform Scale.
+*/
 inline FVector2D TransformVector(float Transform, const FVector2D& Vector)
 {
 	return Transform * Vector;
 }
+
 
 /** Represents a 2D non-uniform scale (to disambiguate from an FVector2D, which is used for translation) */
 class FScale2D
@@ -93,7 +103,7 @@ public:
 	/** Ctor. initialize from a non-uniform scale. */
 	explicit FScale2D(float InScaleX, float InScaleY) :Scale(InScaleX, InScaleY) {}
 	/** Ctor. initialize from an FVector defining the 3D scale. */
-	explicit FScale2D(const FVector2D& InScale) :Scale(InScale) {}
+	explicit FScale2D(const FVector2D& InScale) :Scale((FVector2f)InScale) {}
 	
 	/** Transform 2D Point */
 	FVector2D TransformPoint(const FVector2D& Point) const
@@ -114,7 +124,7 @@ public:
 	/** Invert the scale. */
 	FScale2D Inverse() const
 	{
-		return FScale2D(FVector2D(1.0f / Scale.X, 1.0f / Scale.Y));
+		return FScale2D(FVector2f(1.0f / Scale.X, 1.0f / Scale.Y));
 	}
 
 	/** Equality. */
@@ -130,10 +140,10 @@ public:
 	}
 
 	/** Access to the underlying FVector2D that stores the scale. */
-	const FVector2D& GetVector() const { return Scale; }
+	const FVector2f& GetVector() const { return Scale; }
 private:
 	/** Underlying storage of the 2D scale. */
-	FVector2D Scale;
+	FVector2f Scale;
 };
 
 /** concatenation rules for 2D scales. */
@@ -155,8 +165,9 @@ public:
 	/** Ctor. initialize from a set of shears parallel to the X and Y axis, respectively. */
 	explicit FShear2D(float ShearX, float ShearY) :Shear(ShearX, ShearY) {}
 	/** Ctor. initialize from a 2D vector representing a set of shears parallel to the X and Y axis, respectively. */
-	explicit FShear2D(const FVector2D& InShear) :Shear(InShear) {}
-	
+	explicit FShear2D(const FVector2f& InShear) :Shear(InShear) {}
+	explicit FShear2D(const FVector2d& InShear) :Shear((FVector2f)InShear) {}
+
 	/**
 	 * Generates a shear structure based on angles instead of slope.
 	 * @param InShearAngles The angles of shear.
@@ -167,8 +178,8 @@ public:
 		// Compute the M (Shear Slot) = CoTan(90 - SlopeAngle)
 
 		// 0 is a special case because Tan(90) == infinity
-		float ShearX = InShearAngles.X == 0 ? 0 : ( 1.0f / FMath::Tan(FMath::DegreesToRadians(90 - FMath::Clamp(InShearAngles.X, -89.0f, 89.0f))) );
-		float ShearY = InShearAngles.Y == 0 ? 0 : ( 1.0f / FMath::Tan(FMath::DegreesToRadians(90 - FMath::Clamp(InShearAngles.Y, -89.0f, 89.0f))) );
+		float ShearX = InShearAngles.X == 0 ? 0 : ( 1.0f / FMath::Tan(FMath::DegreesToRadians(90 - FMath::Clamp((float)InShearAngles.X, -89.0f, 89.0f))) );
+		float ShearY = InShearAngles.Y == 0 ? 0 : ( 1.0f / FMath::Tan(FMath::DegreesToRadians(90 - FMath::Clamp((float)InShearAngles.Y, -89.0f, 89.0f))) );
 
 		return FShear2D(ShearX, ShearY);
 	}
@@ -218,10 +229,10 @@ public:
 	}
 
 	/** Access to the underlying FVector2D that stores the scale. */
-	const FVector2D& GetVector() const { return Shear; }
+	const FVector2f& GetVector() const { return Shear; }
 private:
 	/** Underlying storage of the 2D shear. */
-	FVector2D Shear;
+	FVector2f Shear;
 };
 
 /** 
@@ -239,7 +250,8 @@ public:
 	/** Ctor. initialize from a rotation in radians. */
 	explicit FQuat2D(float RotRadians) :Rot(FMath::Cos(RotRadians), FMath::Sin(RotRadians)) {}
 	/** Ctor. initialize from an FVector2D, representing a complex number. */
-	explicit FQuat2D(const FVector2D& InRot) :Rot(InRot) {}
+	explicit FQuat2D(const FVector2f& InRot) :Rot(InRot) {}
+	explicit FQuat2D(const FVector2d& InRot) :Rot((FVector2f)InRot) {}
 
 	/**
 	 * Transform a 2D point by the 2D complex number representing the rotation:
@@ -290,7 +302,7 @@ public:
 	 */
 	FQuat2D Inverse() const
 	{
-		return FQuat2D(FVector2D(Rot.X, -Rot.Y));
+		return FQuat2D(FVector2f(Rot.X, -Rot.Y));
 	}
 
 	/** Equality. */
@@ -306,10 +318,10 @@ public:
 	}
 
 	/** Access to the underlying FVector2D that stores the complex number. */
-	const FVector2D& GetVector() const { return Rot; }
+	const FVector2f& GetVector() const { return Rot; }
 private:
 	/** Underlying storage of the rotation (X = cos(theta), Y = sin(theta). */
-	FVector2D Rot;
+	FVector2f Rot;
 };
 
 /**
@@ -344,8 +356,8 @@ public:
 	/** Ctor. initialize from a scale. */
 	explicit FMatrix2x2(const FScale2D& Scale)
 	{
-		float ScaleX = Scale.GetVector().X;
-		float ScaleY = Scale.GetVector().Y;
+		float ScaleX = (float)Scale.GetVector().X;
+		float ScaleY = (float)Scale.GetVector().Y;
 		M[0][0] = ScaleX; M[0][1] = 0;
 		M[1][0] = 0; M[1][1] = ScaleY;
 	}
@@ -353,8 +365,8 @@ public:
 	/** Factory function. initialize from a 2D shear. */
 	explicit FMatrix2x2(const FShear2D& Shear)
 	{
-		float XX = Shear.GetVector().X;
-		float YY = Shear.GetVector().Y;
+		float XX = (float)Shear.GetVector().X;
+		float YY = (float)Shear.GetVector().Y;
 		M[0][0] = 1; M[0][1] =YY;
 		M[1][0] =XX; M[1][1] = 1;
 	}
@@ -362,8 +374,8 @@ public:
 	/** Ctor. initialize from a rotation. */
 	explicit FMatrix2x2(const FQuat2D& Rotation)
 	{
-		float CosAngle = Rotation.GetVector().X;
-		float SinAngle = Rotation.GetVector().Y;
+		float CosAngle = (float)Rotation.GetVector().X;
+		float SinAngle = (float)Rotation.GetVector().Y;
 		M[0][0] = CosAngle; M[0][1] = SinAngle;
 		M[1][0] = -SinAngle; M[1][1] = CosAngle;
 	}
@@ -499,10 +511,10 @@ private:
 
 inline FMatrix2x2 FShear2D::Concatenate(const FShear2D& RHS) const
 {
-	float XXA = Shear.X;
-	float YYA = Shear.Y;
-	float XXB = RHS.Shear.X;
-	float YYB = RHS.Shear.Y;
+	float XXA = (float)Shear.X;
+	float YYA = (float)Shear.Y;
+	float XXB = (float)RHS.Shear.X;
+	float YYB = (float)RHS.Shear.Y;
 	return FMatrix2x2(
 		1+YYA*XXB, YYB*YYA,
 		XXA+XXB, XXA*XXB+1);
@@ -510,10 +522,10 @@ inline FMatrix2x2 FShear2D::Concatenate(const FShear2D& RHS) const
 
 inline FMatrix2x2 FShear2D::Inverse() const
 {
-	float InvDet = 1.0f / (1.0f - Shear.X*Shear.Y);
+	float InvDet = 1.0f / float(1.0f - Shear.X*Shear.Y);
 	return FMatrix2x2(
-		InvDet, -Shear.Y * InvDet,
-		-Shear.X * InvDet, InvDet);
+		InvDet, float(-Shear.Y * InvDet),
+		float(-Shear.X * InvDet), InvDet);
 }
 
 /** Partial specialization of ConcatenateRules for 2x2 and any other type via Upcast to 2x2 first. Requires a conversion ctor on FMatrix2x2. Funky template logic so we don't hide the default rule for NULL conversions. */

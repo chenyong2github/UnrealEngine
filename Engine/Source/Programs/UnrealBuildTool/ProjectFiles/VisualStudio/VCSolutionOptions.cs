@@ -14,8 +14,7 @@ using System.Diagnostics;
 using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
 using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
 using UnrealBuildBase;
-
-#nullable disable
+using System.Diagnostics.CodeAnalysis;
 
 namespace UnrealBuildTool
 {
@@ -30,10 +29,11 @@ namespace UnrealBuildTool
 		public string Name;
 		public ValueType Type;
 		public bool BoolValue;
-		public string StringValue;
+		public string? StringValue;
 
-		public VCBinarySetting()
+		public VCBinarySetting(string Name)
 		{
+			this.Name = Name;
 		}
 
 		public VCBinarySetting(string InName, bool InValue)
@@ -52,10 +52,10 @@ namespace UnrealBuildTool
 
 		public static VCBinarySetting Read(BinaryReader Reader)
 		{
-			VCBinarySetting Setting = new VCBinarySetting();
-
 			// Read the key
-			Setting.Name = new string(Reader.ReadChars(Reader.ReadInt32())).TrimEnd('\0');
+			string Name = new string(Reader.ReadChars(Reader.ReadInt32())).TrimEnd('\0');
+
+			VCBinarySetting Setting = new VCBinarySetting(Name);
 
 			// Read an equals sign
 			if (Reader.ReadChar() != '=')
@@ -105,7 +105,7 @@ namespace UnrealBuildTool
 			}
 			else if (Type == ValueType.String)
 			{
-				Writer.Write(StringValue.Length);
+				Writer.Write(StringValue!.Length);
 				Writer.Write(StringValue.ToCharArray());
 			}
 			else
@@ -215,7 +215,7 @@ namespace UnrealBuildTool
 		static extern int StgCreateDocfile([MarshalAs(UnmanagedType.LPWStr)]string pwcsName, STGM grfMode, uint reserved, out IOleStorage ppstgOpen);
 
 		[DllImport("ole32.dll")]
-		static extern int StgOpenStorage([MarshalAs(UnmanagedType.LPWStr)] string pwcsName, IOleStorage pstgPriority, STGM grfMode, IntPtr snbExclude, uint reserved, out IOleStorage ppstgOpen);
+		static extern int StgOpenStorage([MarshalAs(UnmanagedType.LPWStr)] string pwcsName, IOleStorage? pstgPriority, STGM grfMode, IntPtr snbExclude, uint reserved, out IOleStorage ppstgOpen);
 
 		public List<KeyValuePair<string, byte[]>> Sections = new List<KeyValuePair<string, byte[]>>();
 
@@ -225,11 +225,11 @@ namespace UnrealBuildTool
 
 		public VCOleContainer(string InputFileName)
 		{
-			IOleStorage Storage = null;
+			IOleStorage? Storage = null;
 			StgOpenStorage(InputFileName, null, STGM.Direct | STGM.Read | STGM.ShareExclusive, IntPtr.Zero, 0, out Storage);
 			try
 			{
-				IOleEnumSTATSTG Enumerator = null;
+				IOleEnumSTATSTG? Enumerator = null;
 				Storage.EnumElements(0, IntPtr.Zero, 0, out Enumerator);
 				try
 				{
@@ -267,13 +267,13 @@ namespace UnrealBuildTool
 
 		public void Write(string OutputFileName)
 		{
-			IOleStorage OleStorage = null;
+			IOleStorage? OleStorage = null;
 			StgCreateDocfile(OutputFileName, STGM.Direct | STGM.Create | STGM.Write | STGM.ShareExclusive, 0, out OleStorage);
 			try
 			{
 				foreach (KeyValuePair<string, byte[]> Section in Sections)
 				{
-					IOleStream OleStream = null;
+					IOleStream? OleStream = null;
 					OleStorage.CreateStream(Section.Key, STGM.Write | STGM.ShareExclusive, 0, 0, out OleStream);
 					try
 					{
@@ -313,7 +313,7 @@ namespace UnrealBuildTool
 
 		public byte[] GetSection(string Name)
 		{
-			byte[] Data;
+			byte[]? Data;
 			if (!TryGetSection(Name, out Data))
 			{
 				throw new KeyNotFoundException();
@@ -321,7 +321,7 @@ namespace UnrealBuildTool
 			return Data;
 		}
 
-		public bool TryGetSection(string Name, out byte[] Data)
+		public bool TryGetSection(string Name, [NotNullWhen(true)] out byte[]? Data)
 		{
 			int Idx = FindIndex(Name);
 			if (Idx == -1)
@@ -550,7 +550,7 @@ namespace UnrealBuildTool
 
 		public IEnumerable<VCBinarySetting> GetConfiguration()
 		{
-			byte[] Data;
+			byte[]? Data;
 			if (TryGetSection("SolutionConfiguration", out Data))
 			{
 				using (MemoryStream InputStream = new MemoryStream(Data, false))
@@ -577,9 +577,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public VCSolutionExplorerState GetExplorerState()
+		public VCSolutionExplorerState? GetExplorerState()
 		{
-			byte[] Data;
+			byte[]? Data;
 			if (TryGetSection("ProjExplorerState", out Data))
 			{
 				VCSolutionExplorerState State = new VCSolutionExplorerState();

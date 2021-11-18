@@ -213,11 +213,11 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 
 		if (EnumHasAllFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma))
 		{
-			ElementProgram.SetGammaValues(FVector2D(1.0f, 1.0f));
+			ElementProgram.SetGammaValues(FVector2f(1.0f, 1.0f));
 		}
 		else
 		{
-			ElementProgram.SetGammaValues(FVector2D(1, 1 / 2.2f));
+			ElementProgram.SetGammaValues(FVector2f(1, 1 / 2.2f));
 		}
 
 		ElementProgram.SetShaderType( static_cast<uint8>(RenderBatch.GetShaderType()) );

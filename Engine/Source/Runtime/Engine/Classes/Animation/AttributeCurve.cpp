@@ -330,31 +330,32 @@ bool FAttributeCurve::Serialize(FArchive& Ar)
 	Ar << Keys;
 	Ar << ScriptStructPath;
 
-	if (Ar.IsSaving())
+	if (!ScriptStructPath.IsNull())
 	{
-		ensure(ScriptStruct);
-		ensure(!ScriptStructPath.IsNull());
-
-		for (FAttributeKey& Key : Keys)
+		if (Ar.IsSaving())
 		{
-			ScriptStruct->SerializeItem(Ar, Key.Value.GetPtr<void>(), nullptr);
+			ensure(ScriptStruct);
+			for (FAttributeKey& Key : Keys)
+			{
+				ScriptStruct->SerializeItem(Ar, Key.Value.GetPtr<void>(), nullptr);
+			}
 		}
-	}
-	else if (Ar.IsLoading())
-	{
-		ScriptStruct = Cast<UScriptStruct>(ScriptStructPath.ResolveObject());
-		ensure(ScriptStruct);
-
-		for (FAttributeKey& Key : Keys)
+		else if (Ar.IsLoading())
 		{
-			Key.Value.Allocate(ScriptStruct);
-			ScriptStruct->SerializeItem(Ar, Key.Value.GetPtr<void>(), nullptr);
+			ScriptStruct = Cast<UScriptStruct>(ScriptStructPath.ResolveObject());
+			ensure(ScriptStruct);
+
+			for (FAttributeKey& Key : Keys)
+			{
+				Key.Value.Allocate(ScriptStruct);
+				ScriptStruct->SerializeItem(Ar, Key.Value.GetPtr<void>(), nullptr);
+			}
+
+			Operator = UE::Anim::AttributeTypes::GetTypeOperator(ScriptStruct);
+			ensure(Operator);
+
+			bShouldInterpolate = UE::Anim::AttributeTypes::CanInterpolateType(ScriptStruct);
 		}
-
-		Operator = UE::Anim::AttributeTypes::GetTypeOperator(ScriptStruct);
-		ensure(Operator);
-
-		bShouldInterpolate = UE::Anim::AttributeTypes::CanInterpolateType(ScriptStruct);
 	}	
 
 	return true;

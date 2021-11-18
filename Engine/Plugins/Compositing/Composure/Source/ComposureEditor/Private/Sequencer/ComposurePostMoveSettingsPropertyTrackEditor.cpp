@@ -188,10 +188,10 @@ void FComposurePostMoveSettingsPropertyTrackEditor::GenerateKeysFromPropertyChan
 	const bool bKeyRotation    = ChannelName == NAME_None || ChannelName == GET_MEMBER_NAME_CHECKED(FComposurePostMoveSettings, RotationAngle);
 	const bool bKeyScale       = ChannelName == NAME_None || ChannelName == GET_MEMBER_NAME_CHECKED(FComposurePostMoveSettings, Scale);
 
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, PostMoveSettings.Pivot.X,       bKeyPivot));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(1, PostMoveSettings.Pivot.Y,       bKeyPivot));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(2, PostMoveSettings.Translation.X, bKeyTranslation));
-	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(3, PostMoveSettings.Translation.Y, bKeyTranslation));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(0, PostMoveSettings.Pivot.X,       bKeyPivot));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(1, PostMoveSettings.Pivot.Y,       bKeyPivot));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(2, PostMoveSettings.Translation.X, bKeyTranslation));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel, float>(3, PostMoveSettings.Translation.Y, bKeyTranslation));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(4, PostMoveSettings.RotationAngle, bKeyRotation));
 	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(5, PostMoveSettings.Scale,         bKeyScale));
 }

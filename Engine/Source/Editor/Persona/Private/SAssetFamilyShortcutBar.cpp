@@ -226,7 +226,7 @@ public:
 			{
 				for (UObject* Object : *Objects)
 				{
-					if (FAssetData(Object) == AssetData)
+					if (Object->GetPathName().Compare(AssetData.ObjectPath.ToString(), ESearchCase::IgnoreCase) == 0)
 					{
 						return ECheckBoxState::Checked;
 					}

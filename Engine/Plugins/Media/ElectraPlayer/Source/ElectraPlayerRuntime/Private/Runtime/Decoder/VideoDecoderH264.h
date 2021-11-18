@@ -122,6 +122,8 @@ namespace Electra
 #if PLATFORM_ANDROID
 		virtual void Android_UpdateSurface(const TSharedPtr<IOptionPointerValueContainer, ESPMode::ThreadSafe>& Surface) = 0;
 
+		virtual void Android_SuspendOrResumeDecoder(bool bSuspend) = 0;
+
 		/**
 		 * Workarounds may be needed for certain devices that are known to have some issues with decoders.
 		 * Which device is affected is outside the scope of this module and must be provided by your application.

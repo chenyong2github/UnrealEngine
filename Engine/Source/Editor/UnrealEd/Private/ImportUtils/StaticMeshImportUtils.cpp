@@ -727,6 +727,7 @@ TSharedPtr<FExistingStaticMeshData> StaticMeshImportUtils::SaveExistingStaticMes
 	ExistingMeshDataPtr->bHasNavigationData = ExistingMesh->bHasNavigationData;
 	ExistingMeshDataPtr->LODGroup = ExistingMesh->LODGroup;
 	ExistingMeshDataPtr->MinLOD = ExistingMesh->GetMinLOD();
+	ExistingMeshDataPtr->QualityLevelMinLOD = ExistingMesh->GetQualityLevelMinLOD();
 
 	ExistingMeshDataPtr->ExistingGenerateMeshDistanceField = ExistingMesh->bGenerateMeshDistanceField;
 	ExistingMeshDataPtr->ExistingLODForCollision = ExistingMesh->LODForCollision;
@@ -787,6 +788,7 @@ void StaticMeshImportUtils::RestoreExistingMeshSettings(const FExistingStaticMes
 	}
 	NewMesh->LODGroup = ExistingMesh->LODGroup;
 	NewMesh->SetMinLOD(ExistingMesh->MinLOD);
+	NewMesh->SetQualityLevelMinLOD(ExistingMesh->QualityLevelMinLOD);
 	int32 ExistingNumLods = ExistingMesh->ExistingLODData.Num();
 	int32 CurrentNumLods = NewMesh->GetNumSourceModels();
 	if (LODIndex == INDEX_NONE)

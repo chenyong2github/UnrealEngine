@@ -48,7 +48,39 @@ namespace CameraCalibrationTestUtil
 
 		return nullptr;
 	}
-	
+
+
+	template<typename T>
+	void TestEvaluationResult(FAutomationTestBase& Test, TConstArrayView<T> InExpected, TConstArrayView<T> InResult)
+	{
+		for(int32 Index = 0; Index < InResult.Num(); ++Index)
+		{
+			Test.TestEqual(FString::Printf(TEXT("Parameter[%d] should be equal to %0.2f"), Index, InExpected[Index]), InResult[Index], InExpected[Index]);
+		}	
+	}
+
+	template<typename T>
+	void  TestDualCurveEvaluationResult(FAutomationTestBase& Test, TConstArrayView<T> InResult, T InBlendingFactor, TConstArrayView<T> InLerpSource1, TConstArrayView<T> InLerpSource2, TConstArrayView<T> InLerpSource3, TConstArrayView<T> InLerpSource4)
+	{
+		for(int32 Index = 0; Index < InResult.Num(); ++Index)
+		{
+			const T CurveOneBlending = FMath::Lerp(InLerpSource1[Index], InLerpSource2[Index], InBlendingFactor);
+			const T CurveTwoBlending = FMath::Lerp(InLerpSource3[Index], InLerpSource4[Index], InBlendingFactor);
+			const T ExpectedValue = FMath::Lerp(CurveOneBlending, CurveTwoBlending, InBlendingFactor);
+			Test.TestEqual(FString::Printf(TEXT("Parameter[%d] should be equal to %0.2f"), Index, ExpectedValue), InResult[Index], ExpectedValue);
+		}
+	}
+
+	template<typename T>
+	void TestSingleCurveEvaluationResult(FAutomationTestBase& Test, TConstArrayView<T> InResult, T InBlendingFactor, TConstArrayView<T> InLerpSource1, TConstArrayView<T> InLerpSource2)
+	{
+		for(int32 Index = 0; Index < InResult.Num(); ++Index)
+		{
+			const T ExpectedValue = FMath::Lerp(InLerpSource1[Index], InLerpSource2[Index], InBlendingFactor);
+			Test.TestEqual(FString::Printf(TEXT("Parameter[%d] should be equal to %0.2f"), Index, ExpectedValue), InResult[Index], ExpectedValue);
+		}
+	}
+
 	void TestDistortionParameterCurveBlending(FAutomationTestBase& Test)
 	{
 		UWorld* ValidWorld = GetFirstWorld();
@@ -69,35 +101,7 @@ namespace CameraCalibrationTestUtil
 		{
 			return;
 		}
-
-		const auto TestDualCurveEvaluationResult = [&Test](TConstArrayView<float> InResult, float InBlendingFactor, TConstArrayView<float> InLerpSource1, TConstArrayView<float> InLerpSource2, TConstArrayView<float> InLerpSource3, TConstArrayView<float> InLerpSource4)
-		{
-			for(int32 Index = 0; Index < InResult.Num(); ++Index)
-			{
-				const float CurveOneBlending = FMath::Lerp(InLerpSource1[Index], InLerpSource2[Index], InBlendingFactor);
-				const float CurveTwoBlending = FMath::Lerp(InLerpSource3[Index], InLerpSource4[Index], InBlendingFactor);
-				const float ExpectedValue = FMath::Lerp(CurveOneBlending, CurveTwoBlending, InBlendingFactor);
-				Test.TestEqual(FString::Printf(TEXT("Parameter[%d] should be equal to %0.2f"), Index, ExpectedValue), InResult[Index], ExpectedValue);
-			}
-		};
-
-		const auto TestSingleCurveEvaluationResult = [&Test](TConstArrayView<float> InResult, float InBlendingFactor, TConstArrayView<float> InLerpSource1, TConstArrayView<float> InLerpSource2)
-		{
-			for(int32 Index = 0; Index < InResult.Num(); ++Index)
-			{
-				const float ExpectedValue = FMath::Lerp(InLerpSource1[Index], InLerpSource2[Index], InBlendingFactor);
-				Test.TestEqual(FString::Printf(TEXT("Parameter[%d] should be equal to %0.2f"), Index, ExpectedValue), InResult[Index], ExpectedValue);
-			}
-		};
-
-		const auto TestEvaluationResult = [&Test](TConstArrayView<float> InExpected, TConstArrayView<float> InResult)
-		{
-			for(int32 Index = 0; Index < InResult.Num(); ++Index)
-			{
-				Test.TestEqual(FString::Printf(TEXT("Parameter[%d] should be equal to %0.2f"), Index, InExpected[Index]), InResult[Index], InExpected[Index]);
-			}	
-		};
-
+		
 		struct FLensData
 		{
 			FLensData() = default;
@@ -142,93 +146,93 @@ namespace CameraCalibrationTestUtil
 		LensFile->EvaluateDistortionParameters(Input0.Focus, Input0.Zoom, EvaluatedData.Distortion);
 		LensFile->EvaluateFocalLength(Input0.Focus, Input0.Zoom, EvaluatedData.FocalLength);
 		LensFile->EvaluateDistortionData(Input0.Focus, Input0.Zoom, LensFile->LensInfo.SensorDimensions, ProducedLensDistortionHandler);
-		TestEvaluationResult({Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y});
-		TestEvaluationResult({Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y});
-		TestEvaluationResult(Input0.Distortion.Parameters, EvaluatedData.Distortion.Parameters);
-		TestEvaluationResult(Input0.Distortion.Parameters, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters);
-		TestEvaluationResult({Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y});
-		TestEvaluationResult({Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y});
+		TestEvaluationResult<float>(Test, Input0.Distortion.Parameters, EvaluatedData.Distortion.Parameters);
+		TestEvaluationResult<float>(Test, Input0.Distortion.Parameters, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters);
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y});
 
 		LensFile->EvaluateImageCenterParameters(Input1.Focus, Input1.Zoom, EvaluatedData.ImageCenter);
 		LensFile->EvaluateDistortionParameters(Input1.Focus, Input1.Zoom, EvaluatedData.Distortion);
 		LensFile->EvaluateFocalLength(Input1.Focus, Input1.Zoom, EvaluatedData.FocalLength);
 		LensFile->EvaluateDistortionData(Input1.Focus, Input1.Zoom, LensFile->LensInfo.SensorDimensions, ProducedLensDistortionHandler);
-		TestEvaluationResult({Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y}, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y});
-		TestEvaluationResult({Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y}, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y});
-		TestEvaluationResult(Input1.Distortion.Parameters, EvaluatedData.Distortion.Parameters);
-		TestEvaluationResult(Input1.Distortion.Parameters, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters);
-		TestEvaluationResult({Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y});
-		TestEvaluationResult({Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y}, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y}, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y});
+		TestEvaluationResult<float>(Test, Input1.Distortion.Parameters, EvaluatedData.Distortion.Parameters);
+		TestEvaluationResult<float>(Test, Input1.Distortion.Parameters, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters);
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y});
 
 		
 		LensFile->EvaluateImageCenterParameters(Input2.Focus, Input2.Zoom, EvaluatedData.ImageCenter);
 		LensFile->EvaluateDistortionParameters(Input2.Focus, Input2.Zoom, EvaluatedData.Distortion);
 		LensFile->EvaluateFocalLength(Input2.Focus, Input2.Zoom, EvaluatedData.FocalLength);
 		LensFile->EvaluateDistortionData(Input2.Focus, Input2.Zoom, LensFile->LensInfo.SensorDimensions, ProducedLensDistortionHandler);
-		TestEvaluationResult({Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y}, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y});
-		TestEvaluationResult({Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y}, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y});
-		TestEvaluationResult(Input2.Distortion.Parameters, EvaluatedData.Distortion.Parameters);
-		TestEvaluationResult(Input2.Distortion.Parameters, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters);
-		TestEvaluationResult({Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y});
-		TestEvaluationResult({Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y}, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y}, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y});
+		TestEvaluationResult<float>(Test, Input2.Distortion.Parameters, EvaluatedData.Distortion.Parameters);
+		TestEvaluationResult<float>(Test, Input2.Distortion.Parameters, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters);
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y});
 
 		LensFile->EvaluateImageCenterParameters(Input3.Focus, Input3.Zoom, EvaluatedData.ImageCenter);
 		LensFile->EvaluateDistortionParameters(Input3.Focus, Input3.Zoom, EvaluatedData.Distortion);
 		LensFile->EvaluateFocalLength(Input3.Focus, Input3.Zoom, EvaluatedData.FocalLength);
 		LensFile->EvaluateDistortionData(Input3.Focus, Input3.Zoom, LensFile->LensInfo.SensorDimensions, ProducedLensDistortionHandler);
-		TestEvaluationResult({Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y}, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y});
-		TestEvaluationResult({Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y}, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y});
-		TestEvaluationResult(Input3.Distortion.Parameters, EvaluatedData.Distortion.Parameters);
-		TestEvaluationResult(Input3.Distortion.Parameters, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters);
-		TestEvaluationResult({Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y});
-		TestEvaluationResult({Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y}, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y}, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y});
+		TestEvaluationResult<float>(Test, Input3.Distortion.Parameters, EvaluatedData.Distortion.Parameters);
+		TestEvaluationResult<float>(Test, Input3.Distortion.Parameters, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters);
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y});
+		TestEvaluationResult<FVector2D::FReal>(Test, {Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y}, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y});
 
 		//Sin
-		constexpr float BlendFactor = 0.25f;	
+		constexpr FVector2D::FReal BlendFactor = 0.25f;	
 		LensFile->EvaluateImageCenterParameters(Input0.Focus, 0.25f, EvaluatedData.ImageCenter);
 		LensFile->EvaluateDistortionParameters(Input0.Focus, 0.25f, EvaluatedData.Distortion);
 		LensFile->EvaluateFocalLength(Input0.Focus, 0.25f, EvaluatedData.FocalLength);
 		LensFile->EvaluateDistortionData(Input0.Focus, 0.25f, LensFile->LensInfo.SensorDimensions, ProducedLensDistortionHandler);
-		TestSingleCurveEvaluationResult({EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y});
-		TestSingleCurveEvaluationResult({EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y}, BlendFactor, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y});
-		TestSingleCurveEvaluationResult(EvaluatedData.Distortion.Parameters, BlendFactor, Input0.Distortion.Parameters, Input1.Distortion.Parameters);
-		TestSingleCurveEvaluationResult(ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters, BlendFactor, Input0.Distortion.Parameters, Input1.Distortion.Parameters);
-		TestSingleCurveEvaluationResult({ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y});
-		TestSingleCurveEvaluationResult({ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y}, BlendFactor, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y}, BlendFactor, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y});
+		TestSingleCurveEvaluationResult<float>(Test, EvaluatedData.Distortion.Parameters, BlendFactor, Input0.Distortion.Parameters, Input1.Distortion.Parameters);
+		TestSingleCurveEvaluationResult<float>(Test, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters, BlendFactor, Input0.Distortion.Parameters, Input1.Distortion.Parameters);
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y}, BlendFactor, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y});
 
 		
 		LensFile->EvaluateImageCenterParameters(Input2.Focus, 0.25f, EvaluatedData.ImageCenter);
 		LensFile->EvaluateDistortionParameters(Input2.Focus, 0.25f, EvaluatedData.Distortion);
 		LensFile->EvaluateFocalLength(Input2.Focus, 0.25f, EvaluatedData.FocalLength);
 		LensFile->EvaluateDistortionData(Input2.Focus, 0.25f, LensFile->LensInfo.SensorDimensions, ProducedLensDistortionHandler);
-		TestSingleCurveEvaluationResult({EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y}, {Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y});
-		TestSingleCurveEvaluationResult({EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y}, BlendFactor, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y}, {Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y});
-		TestSingleCurveEvaluationResult(EvaluatedData.Distortion.Parameters, BlendFactor, Input2.Distortion.Parameters, Input3.Distortion.Parameters);
-		TestSingleCurveEvaluationResult(ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters, BlendFactor, Input2.Distortion.Parameters, Input3.Distortion.Parameters);
-		TestSingleCurveEvaluationResult({ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y}, {Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y});
-		TestSingleCurveEvaluationResult({ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y}, BlendFactor, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y}, {Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y}, {Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y}, BlendFactor, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y}, {Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y});
+		TestSingleCurveEvaluationResult<float>(Test, EvaluatedData.Distortion.Parameters, BlendFactor, Input2.Distortion.Parameters, Input3.Distortion.Parameters);
+		TestSingleCurveEvaluationResult<float>(Test, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters, BlendFactor, Input2.Distortion.Parameters, Input3.Distortion.Parameters);
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y}, {Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y}, BlendFactor, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y}, {Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y});
 
 		LensFile->EvaluateImageCenterParameters(0.25f, Input0.Zoom, EvaluatedData.ImageCenter);
 		LensFile->EvaluateDistortionParameters(0.25f, Input0.Zoom, EvaluatedData.Distortion);
 		LensFile->EvaluateFocalLength(0.25f, Input0.Zoom, EvaluatedData.FocalLength);
 		LensFile->EvaluateDistortionData(0.25f, Input0.Zoom, LensFile->LensInfo.SensorDimensions, ProducedLensDistortionHandler);
-		TestSingleCurveEvaluationResult({EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y});
-		TestSingleCurveEvaluationResult({EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y}, BlendFactor, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y});
-		TestSingleCurveEvaluationResult(EvaluatedData.Distortion.Parameters, BlendFactor, Input0.Distortion.Parameters, Input2.Distortion.Parameters);
-		TestSingleCurveEvaluationResult(ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters, BlendFactor, Input0.Distortion.Parameters, Input2.Distortion.Parameters);
-		TestSingleCurveEvaluationResult({ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y});
-		TestSingleCurveEvaluationResult({ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y}, BlendFactor, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y}, BlendFactor, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y});
+		TestSingleCurveEvaluationResult<float>(Test, EvaluatedData.Distortion.Parameters, BlendFactor, Input0.Distortion.Parameters, Input2.Distortion.Parameters);
+		TestSingleCurveEvaluationResult<float>(Test, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters, BlendFactor, Input0.Distortion.Parameters, Input2.Distortion.Parameters);
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y}, BlendFactor, {Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y}, {Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y});
+		TestSingleCurveEvaluationResult<FVector2D::FReal>(Test, {ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y}, BlendFactor, {Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y}, {Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y});
 		
 		LensFile->EvaluateImageCenterParameters(0.25f, 0.25f, EvaluatedData.ImageCenter);
 		LensFile->EvaluateDistortionParameters(0.25f, 0.25f, EvaluatedData.Distortion);
 		LensFile->EvaluateFocalLength(0.25f, 0.25f, EvaluatedData.FocalLength);
 		LensFile->EvaluateDistortionData(0.25f, 0.25f, LensFile->LensInfo.SensorDimensions, ProducedLensDistortionHandler);
-		TestDualCurveEvaluationResult({ EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y }, BlendFactor, { Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y }, { Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y }, { Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y }, { Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y });
-		TestDualCurveEvaluationResult({ EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y }, BlendFactor, { Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y }, { Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y }, { Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y }, { Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y });
-		TestDualCurveEvaluationResult(EvaluatedData.Distortion.Parameters, BlendFactor, Input0.Distortion.Parameters, Input1.Distortion.Parameters, Input2.Distortion.Parameters, Input3.Distortion.Parameters);
-		TestDualCurveEvaluationResult(ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters, BlendFactor, Input0.Distortion.Parameters, Input1.Distortion.Parameters, Input2.Distortion.Parameters, Input3.Distortion.Parameters);
-		TestDualCurveEvaluationResult({ ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y }, BlendFactor, { Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y }, { Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y }, { Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y }, { Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y });
-		TestDualCurveEvaluationResult({ ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y }, BlendFactor, { Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y }, { Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y }, { Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y }, { Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y });
+		TestDualCurveEvaluationResult<FVector2D::FReal>(Test, { EvaluatedData.ImageCenter.PrincipalPoint.X, EvaluatedData.ImageCenter.PrincipalPoint.Y }, BlendFactor, { Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y }, { Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y }, { Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y }, { Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y });
+		TestDualCurveEvaluationResult<FVector2D::FReal>(Test, { EvaluatedData.FocalLength.FxFy.X, EvaluatedData.FocalLength.FxFy.Y }, BlendFactor, { Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y }, { Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y }, { Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y }, { Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y });
+		TestDualCurveEvaluationResult<float>(Test, EvaluatedData.Distortion.Parameters, BlendFactor, Input0.Distortion.Parameters, Input1.Distortion.Parameters, Input2.Distortion.Parameters, Input3.Distortion.Parameters);
+		TestDualCurveEvaluationResult<float>(Test, ProducedLensDistortionHandler->GetCurrentDistortionState().DistortionInfo.Parameters, BlendFactor, Input0.Distortion.Parameters, Input1.Distortion.Parameters, Input2.Distortion.Parameters, Input3.Distortion.Parameters);
+		TestDualCurveEvaluationResult<FVector2D::FReal>(Test, { ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.X, ProducedLensDistortionHandler->GetCurrentDistortionState().ImageCenter.PrincipalPoint.Y }, BlendFactor, { Input0.ImageCenter.PrincipalPoint.X, Input0.ImageCenter.PrincipalPoint.Y }, { Input1.ImageCenter.PrincipalPoint.X, Input1.ImageCenter.PrincipalPoint.Y }, { Input2.ImageCenter.PrincipalPoint.X, Input2.ImageCenter.PrincipalPoint.Y }, { Input3.ImageCenter.PrincipalPoint.X, Input3.ImageCenter.PrincipalPoint.Y });
+		TestDualCurveEvaluationResult<FVector2D::FReal>(Test, { ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.X, ProducedLensDistortionHandler->GetCurrentDistortionState().FocalLengthInfo.FxFy.Y }, BlendFactor, { Input0.FocalLength.FxFy.X, Input0.FocalLength.FxFy.Y }, { Input1.FocalLength.FxFy.X, Input1.FocalLength.FxFy.Y }, { Input2.FocalLength.FxFy.X, Input2.FocalLength.FxFy.Y }, { Input3.FocalLength.FxFy.X, Input3.FocalLength.FxFy.Y });
 	}
 
 	void TestLensFileAddPoints(FAutomationTestBase& Test)

@@ -104,6 +104,13 @@ public:
 	void GameplayUnmutePlayer(class APlayerController* OwningPC, const FUniqueNetIdRepl& UnmuteId);
 
 	/**
+	 * Server unmuting all players muted based on gameplay rules
+	 *
+	 * @param OwningPC player controller that would like to unmute all players
+	 */
+	void GameplayUnmuteAllPlayers(class APlayerController* OwningPC);
+
+	/**
 	 * Tell the server to block a given player
 	 *
 	 * @param OwningPC player controller that would like to block another player

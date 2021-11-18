@@ -171,7 +171,6 @@ public:
 	TSharedPtr<SGraphEditor> GetGraphEditorWidget() const { return GraphEditorWidget; }
 
 private:
-	void UpdateCapsules(const USkeleton* InSkeleton);
 	void CreateMessageLog();
 	void HandleMessageTokenClicked(const TSharedRef<class IMessageToken>& InMessageToken);
 	void CreateWidgets();

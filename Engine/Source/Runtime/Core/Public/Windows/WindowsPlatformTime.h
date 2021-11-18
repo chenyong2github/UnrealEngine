@@ -48,7 +48,11 @@ struct CORE_API FWindowsPlatformTime
 	static void UtcTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
 
 	static bool UpdateCPUTime( float DeltaTime );
-	static FCPUTime GetCPUTime();	
+	static bool UpdateThreadCPUTime(float = 0.0);
+	static void AutoUpdateGameThreadCPUTime(double UpdateInterval);
+	static FCPUTime GetCPUTime();
+	static FCPUTime GetThreadCPUTime();
+	static double GetLastIntervalThreadCPUTimeInSeconds();
 
 protected:
 

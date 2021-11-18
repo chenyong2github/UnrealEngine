@@ -410,6 +410,12 @@ bool FGameplayAbilityRepAnimMontage::NetSerialize(FArchive& Ar, class UPackageMa
 	{
 		uint8 bForcePlayBit = 0;
 		Ar.SerializeBits(&bForcePlayBit, 1);
+
+		if (Ar.IsLoading())
+		{
+			// Emulate behavior of ForcePlayBit via PlayInstanceId when reading from older-revision data
+			PlayInstanceId = (bForcePlayBit ? 1 : 0);
+		}
 	}	
 
 	uint8 bIsStopped = IsStopped;

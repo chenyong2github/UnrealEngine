@@ -11,8 +11,8 @@ void FDatasmithFacadeMaterialsUtils::FUVEditParameters::SetUVOffset( float X, fl
 
 void FDatasmithFacadeMaterialsUtils::FUVEditParameters::GetUVOffset( float& OutX, float& OutY ) const
 {
-	OutX = UVEditParameters.UVOffset.X;
-	OutY = UVEditParameters.UVOffset.Y;
+	OutX = (float)UVEditParameters.UVOffset.X;		// LWC_TODO: Precision loss
+	OutY = (float)UVEditParameters.UVOffset.Y;
 }
 
 void FDatasmithFacadeMaterialsUtils::FUVEditParameters::SetUVTiling( float X, float Y )
@@ -22,8 +22,8 @@ void FDatasmithFacadeMaterialsUtils::FUVEditParameters::SetUVTiling( float X, fl
 
 void FDatasmithFacadeMaterialsUtils::FUVEditParameters::GetUVTiling( float& OutX, float& OutY ) const
 {
-	OutX = UVEditParameters.UVTiling.X;
-	OutY = UVEditParameters.UVTiling.Y;
+	OutX = (float)UVEditParameters.UVTiling.X;		// LWC_TODO: Precision loss
+	OutY = (float)UVEditParameters.UVTiling.Y;
 }
 
 void FDatasmithFacadeMaterialsUtils::FUVEditParameters::SetRotationPivot( float X, float Y, float Z )

@@ -13,7 +13,6 @@ public:
 	OPENXRHMD_API static void ReleaseAll();
 #endif
 
-	OPENXRHMD_API static FSoftObjectPath GoogleDaydream;
 	OPENXRHMD_API static FSoftObjectPath HPMixedRealityLeft;
 	OPENXRHMD_API static FSoftObjectPath HPMixedRealityRight;
 	OPENXRHMD_API static FSoftObjectPath HTCVive;

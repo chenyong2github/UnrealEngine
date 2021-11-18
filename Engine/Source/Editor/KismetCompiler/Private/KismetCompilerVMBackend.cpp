@@ -667,7 +667,7 @@ public:
 				{
 					FName TableId;
 					FString Key;
-					FStringTableRegistry::Get().FindTableIdAndKey(Term->TextLiteral, TableId, Key);
+					FTextInspector::GetTableIdAndKey(Term->TextLiteral, TableId, Key);
 
 					UStringTable* StringTableAsset = FStringTableRegistry::Get().FindStringTableAsset(TableId);
 
@@ -683,21 +683,20 @@ public:
 				}
 				else
 				{
-					bool bIsLocalized = false;
-					FString Namespace;
-					FString Key;
+					FTextId TextId;
 					const FString* SourceString = FTextInspector::GetSourceString(Term->TextLiteral);
 
 					if (SourceString && Term->TextLiteral.ShouldGatherForLocalization())
 					{
-						bIsLocalized = FTextLocalizationManager::Get().FindNamespaceAndKeyFromDisplayString(FTextInspector::GetSharedDisplayString(Term->TextLiteral), Namespace, Key);
+						TextId = FTextInspector::GetTextId(Term->TextLiteral);
 					}
 
-					if (bIsLocalized)
+					if (!TextId.IsEmpty())
 					{
 						// BP bytecode always removes the package localization ID to match how text works at runtime
 						// If we're gathering editor-only text then we'll pick up the version with the package localization ID from the property/pin rather than the bytecode
-						Namespace = TextNamespaceUtil::StripPackageNamespace(Namespace);
+						const FString Namespace = TextNamespaceUtil::StripPackageNamespace(TextId.GetNamespace().GetChars());
+						const FString Key = TextId.GetKey().GetChars();
 
 						Writer << EBlueprintTextLiteralType::LocalizedText;
 						EmitStringLiteral(*SourceString);

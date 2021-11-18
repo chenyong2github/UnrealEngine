@@ -43,7 +43,10 @@ private:
 	void UnwatchDirectoryTree(const FString& RootAbsolutePath);
 
 	void Shutdown();
-	void ProcessChanges(TArray<TPair<FFileChangeData, bool>>& FileChanges);
+
+	void ProcessNotifyChanges(const FString& FolderName, const struct inotify_event* Event);
+
+	static void ProcessAllINotifyChanges();
 
 	static void SetINotifyErrorMsg(const FString &ErrorMsg);
 	static void DumpINotifyErrorDetails(TMap<FString, FDirectoryWatchRequestLinux*>& RequestMap);
@@ -56,14 +59,8 @@ private:
 	/** EndWatchRequest called? */
 	bool bEndWatchRequestInvoked;
 
-	/** INotify file descriptor */
-	int FileDescriptor;
-
 	/** Absolute path to our root watch directory */
 	FString WatchDirectory;
-
-	/** Mapping from watch descriptors to watched directory names */
-	TMap<int32, FString> WatchDescriptorsToPaths;
 
 	/** Set of hashed directory names we're watching */
 	TSet<uint32> PathNameHashSet;
@@ -71,5 +68,20 @@ private:
 	/** A delegate with its corresponding IDirectoryWatcher::WatchOptions flags */
 	typedef TPair<IDirectoryWatcher::FDirectoryChanged, uint32> FWatchDelegate;
 	TArray<FWatchDelegate> Delegates;
+
+	TArray<TPair<FFileChangeData, bool>> FileChanges;
+
+private:
+
+	/** INotify file descriptor */
+	static int GFileDescriptor;
+
+	/** Mapping from inotify watch descriptors to watched directory names + watch request */
+	struct FWatchInfo
+	{
+		FString FolderName;
+		FDirectoryWatchRequestLinux &WatchRequest;
+	};
+	static TMultiMap<int32, FWatchInfo> GWatchDescriptorsToWatchInfo;
 };
 

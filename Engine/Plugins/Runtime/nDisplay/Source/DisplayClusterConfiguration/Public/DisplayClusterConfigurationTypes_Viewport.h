@@ -12,6 +12,7 @@
 #include "DisplayClusterConfigurationTypes_Postprocess.h"
 
 #include "DisplayClusterConfigurationTypes_TextureShare.h"
+#include "DisplayClusterConfigurationTypes_ViewportRemap.h"
 
 #include "OpenColorIOColorSpace.h"
 #include "Engine/Scene.h"
@@ -173,6 +174,10 @@ public:
 	/** Define the Viewport 2D coordinates */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	FDisplayClusterConfigurationRectangle Region;
+
+	/** Define the Viewport Remap settings */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Remapping"))
+	FDisplayClusterConfigurationViewport_Remap ViewportRemap;
 
 	/** Allows Viewports to overlap and sets Viewport overlapping order priority */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")

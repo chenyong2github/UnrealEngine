@@ -18,11 +18,11 @@ class DYNAMICMESH_API FMeshVertexBaker : public FMeshBaseBaker
 public:
 	enum class EBakeMode
 	{
-		Channel,	// Bake scalar data into color channels
-		Color		// Bake color data to RGBA
+		RGBA,       // Bake color data to RGBA
+		PerChannel  // Bake scalar data into color channels
 	};
 
-	EBakeMode BakeMode = EBakeMode::Color;
+	EBakeMode BakeMode = EBakeMode::RGBA;
 
 	/** Evaluator to use for full color bakes */
 	TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe> ColorEvaluator;

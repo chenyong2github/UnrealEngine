@@ -1205,7 +1205,7 @@ public:
 		Writer.WriteValue("noP4", true);
 		Writer.WriteValue("nocompile", !IsBuildingUAT());
 		Writer.WriteValue("nocompileeditor", FApp::IsEngineInstalled());
-		Writer.WriteValue("ue4exe", GetEditorExe());
+		Writer.WriteValue("unrealexe", GetEditorExe());
 		Writer.WriteValue("utf8output", true);
 
 		// client configurations
@@ -1560,7 +1560,7 @@ public:
 		"runautomationtest", ""
 		"runautomationtests", "true/false"
 		"skipserver", "true/false"
-		"ue4exe", ""
+		"unrealexe", ""
 		"unattended", "true/false"
 		"deviceuser", ""
 		"devicepass", ""

@@ -19,14 +19,16 @@ USoundNodeLooping::USoundNodeLooping(const FObjectInitializer& ObjectInitializer
 
 void USoundNodeLooping::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances )
 {
-	RETRIEVE_SOUNDNODE_PAYLOAD(sizeof(int32));
-	DECLARE_SOUNDNODE_ELEMENT(int32, CurrentLoopCount);
-
-	if (*RequiresInitialization)
 	{
-		CurrentLoopCount = 0;
+		RETRIEVE_SOUNDNODE_PAYLOAD(sizeof(int32));
+		DECLARE_SOUNDNODE_ELEMENT(int32, CurrentLoopCount);
 
-		*RequiresInitialization = false;
+		if (*RequiresInitialization)
+		{
+			CurrentLoopCount = 0;
+
+			*RequiresInitialization = false;
+		}
 	}
 
 #if !(NO_LOGGING || UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -50,6 +52,9 @@ void USoundNodeLooping::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT Nod
 
 	if (ActiveSound.bFinished)
 	{
+		RETRIEVE_SOUNDNODE_PAYLOAD(sizeof(int32));
+		DECLARE_SOUNDNODE_ELEMENT(int32, CurrentLoopCount);
+		
 		if (bLoopIndefinitely || CurrentLoopCount < LoopCount)
 		{
 			// We did not find a sound to play in our children but we are set to looping.

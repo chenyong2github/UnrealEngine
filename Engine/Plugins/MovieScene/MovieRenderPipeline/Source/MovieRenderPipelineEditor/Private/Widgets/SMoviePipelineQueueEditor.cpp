@@ -242,22 +242,50 @@ public:
 			UMoviePipelineOutputSetting* OutputSetting = Job->GetConfiguration()->FindSetting<UMoviePipelineOutputSetting>();
 			check(OutputSetting);
 
-			// @ToDo: We should resolve the exact path (as much as we can) through the config.
-			// For now, we'll just split off any format strings and go to the base folder.
-			FString OutputFolderPath = FPaths::ConvertRelativePathToFull(OutputSetting->OutputDirectory.Path);
+			// Set up as many parameters as we can to try and resolve most of the string.
+			FString FormatString = OutputSetting->OutputDirectory.Path / OutputSetting->FileNameFormat;
 
-			FString TrimmedPath;
-			if (OutputFolderPath.Split(TEXT("{"), &TrimmedPath, nullptr))
+			// If they've set up any folders within the filename portion of it, let's be nice and resolve that.
+			FPaths::NormalizeFilename(FormatString);
+			int32 LastSlashIndex;
+			if(FormatString.FindLastChar(TEXT('/'), LastSlashIndex))
 			{
-				FPaths::NormalizeDirectoryName(TrimmedPath);
-				OutputFolderPath = TrimmedPath;
+				FormatString.LeftInline(LastSlashIndex + 1);
+			}
+
+			FMoviePipelineFilenameResolveParams Params;
+			Params.Job = Job;
+
+			FString OutResolvedPath;
+			FMoviePipelineFormatArgs Dummy;
+			UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(FormatString, Params, OutResolvedPath, Dummy);
+
+			// Drop the .{ext} resolving always puts on.
+			OutResolvedPath.LeftChopInline(6);
+
+			if (FPaths::IsRelative(OutResolvedPath))
+			{
+				OutResolvedPath = FPaths::ConvertRelativePathToFull(OutResolvedPath);
+			}
+			
+			// In the event that they used a {format_string} we couldn't resolve (such as shot name), then
+			// we'll trim off anything after the format string.
+			int32 FormatStringToken;
+			if(OutResolvedPath.FindChar(TEXT('{'), FormatStringToken))
+			{
+				// Just as a last bit of saftey, we'll trim anything between the { and the preceeding /. This is
+				// in case they did something like Render_{Date}, we wouldn't want to make a folder named Render_.
+				if (OutResolvedPath.FindLastChar(TEXT('/'), LastSlashIndex))
+				{
+					OutResolvedPath.LeftInline(LastSlashIndex);
+				}
 			}
 
 			// Attempt to make the directory. The user can see the output folder before they render so the folder
 			// may not have been created yet and the ExploreFolder call will fail.
-			IFileManager::Get().MakeDirectory(*OutputFolderPath, true);
+			IFileManager::Get().MakeDirectory(*OutResolvedPath, true);
 
-			FPlatformProcess::ExploreFolder(*OutputFolderPath);
+			FPlatformProcess::ExploreFolder(*OutResolvedPath);
 		}
 	}
 

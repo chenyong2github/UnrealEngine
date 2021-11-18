@@ -166,7 +166,7 @@ void FEditableSkeleton::RemoveBlendProfile(UBlendProfile* InBlendProfile)
 
 		Skeleton->Modify();
 		Skeleton->BlendProfiles.Remove(InBlendProfile);
-		InBlendProfile->MarkPendingKill();
+		InBlendProfile->MarkAsGarbage();
 	}
 }
 

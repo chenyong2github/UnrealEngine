@@ -6,7 +6,10 @@
 
 using namespace std;
 
-FString CADKernel::FParameterValue::ToString() const
+namespace CADKernel 
+{ 
+
+FString FParameterValue::ToString() const
 {
 	switch (Type)
 	{
@@ -29,7 +32,7 @@ FString CADKernel::FParameterValue::ToString() const
 	return TEXT("");
 }
 
-FString CADKernel::FParameter::GetTypeString() const
+FString FParameter::GetTypeString() const
 {
 	switch (GetType())
 	{
@@ -51,7 +54,7 @@ FString CADKernel::FParameter::GetTypeString() const
 	return TEXT("");
 }
 
-bool CADKernel::FParameterValue::operator==(const FParameterValue& Other) const
+bool FParameterValue::operator==(const FParameterValue& Other) const
 {
 	if (Type != Other.Type) 
 	{
@@ -78,12 +81,12 @@ bool CADKernel::FParameterValue::operator==(const FParameterValue& Other) const
 	return false;
 }
 
-void CADKernel::FParameter::AddToParameterMap(FParameter& Parameter, FParameters& Parameters)
+void FParameter::AddToParameterMap(FParameter& Parameter, FParameters& Parameters)
 {
 	Parameters.Add(Parameter);
 }
 
-void CADKernel::FParameter::SetFromString(const FString& String)
+void FParameter::SetFromString(const FString& String)
 {
 	switch (GetType())
 	{
@@ -134,7 +137,7 @@ void CADKernel::FParameter::SetFromString(const FString& String)
 	}
 }
 
-void CADKernel::FParameters::SetFromString(const FString& ParameterStr)
+void FParameters::SetFromString(const FString& ParameterStr)
 {
 	if (ParameterStr.Len() > 0 && ParameterStr[0] == TEXT('?')) 
 	{
@@ -160,7 +163,7 @@ void CADKernel::FParameters::SetFromString(const FString& ParameterStr)
 	}
 }
 
-void CADKernel::FParameters::PrintParameterList()
+void FParameters::PrintParameterList()
 {
 	FMessage::Printf(Log, TEXT("Extra parameters:\n"));
 	for (const TPair<FString, FParameter*>& Parameter : Map)
@@ -169,7 +172,7 @@ void CADKernel::FParameters::PrintParameterList()
 	}
 }
 
-FString CADKernel::FParameters::ToString(bool bOnlyChanged) const
+FString FParameters::ToString(bool bOnlyChanged) const
 {
 	FString String;
 	bool bIsFirst = true;
@@ -192,7 +195,9 @@ FString CADKernel::FParameters::ToString(bool bOnlyChanged) const
 	return String;
 }
 
-FString CADKernel::FParameter::ToString() const
+FString FParameter::ToString() const
 {
 	return GetName() + FString(TEXT("=")) + GetValue().ToString();
+}
+
 }

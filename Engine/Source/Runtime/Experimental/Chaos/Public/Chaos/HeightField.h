@@ -265,6 +265,28 @@ namespace Chaos
 				OutPts[3] = {(FReal)X + 1, (FReal)Y + 1, H3};
 			}
 
+			FORCEINLINE void GetPointsAndBounds(int32 Index, FVec3 OutPts[4], FAABB3& OutBounds) const
+			{
+				const FReal H0 = MinValue + Heights[Index] * HeightPerUnit;
+				const FReal H1 = MinValue + Heights[Index + 1] * HeightPerUnit;
+				const FReal H2 = MinValue + Heights[Index + NumCols] * HeightPerUnit;
+				const FReal H3 = MinValue + Heights[Index + NumCols + 1] * HeightPerUnit;
+
+				const int32 X = Index % (NumCols);
+				const int32 Y = Index / (NumCols);
+
+				OutPts[0] = { (FReal)X, (FReal)Y, H0 };
+				OutPts[1] = { (FReal)X + 1, (FReal)Y, H1 };
+				OutPts[2] = { (FReal)X, (FReal)Y + 1, H2 };
+				OutPts[3] = { (FReal)X + 1, (FReal)Y + 1, H3 };
+
+				// use MinHeight this assume the heightfield is a halfspace
+				const FReal MinZ = GetMinHeight();
+				const FReal MaxZ = FMath::Max<FReal>(H0, FMath::Max<FReal>(H1, FMath::Max<FReal>(H2, H3)));
+
+				OutBounds = FAABB3(FVec3((FReal)X, (FReal)Y, MinZ), FVec3((FReal)X + 1, (FReal)Y + 1, MaxZ));
+			}
+
 			FORCEINLINE void GetPointsScaled(int32 Index, FVec3 OutPts[4]) const
 			{
 				GetPoints(Index, OutPts);
@@ -273,6 +295,18 @@ namespace Chaos
 				OutPts[1] *= Scale;
 				OutPts[2] *= Scale;
 				OutPts[3] *= Scale;
+			}
+
+			FORCEINLINE void GetPointsAndBoundsScaled(int32 Index, FVec3 OutPts[4], FAABB3& OutBounds) const
+			{
+				GetPointsAndBounds(Index, OutPts, OutBounds);
+
+				OutPts[0] *= Scale;
+				OutPts[1] *= Scale;
+				OutPts[2] *= Scale;
+				OutPts[3] *= Scale;
+
+				OutBounds.Scale(FVec3(Scale));
 			}
 
 			FORCEINLINE FReal GetMinHeight() const

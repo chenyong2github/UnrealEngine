@@ -413,10 +413,10 @@ static UTexture2D* CreateCardTexture(FIntPoint Resolution)
 	// Pass NAME_None as name to ensure an unique name is picked, so GC dont delete the new texture when it wants to delete the old one 
 	Out = NewObject<UTexture2D>(GetTransientPackage(), NAME_None /*TEXT("ProceduralFollicleMaskTexture")*/, RF_Transient);
 	Out->AddToRoot();
-	Out->PlatformData = new FTexturePlatformData();
-	Out->PlatformData->SizeX = Resolution.X;
-	Out->PlatformData->SizeY = Resolution.Y;
-	Out->PlatformData->PixelFormat = PF_R32_FLOAT;
+	Out->SetPlatformData(new FTexturePlatformData());
+	Out->GetPlatformData()->SizeX = Resolution.X;
+	Out->GetPlatformData()->SizeY = Resolution.Y;
+	Out->GetPlatformData()->PixelFormat = PF_R32_FLOAT;
 	Out->SRGB = false;
 
 	const uint32 MipCount = 1; // FMath::Min(FMath::FloorLog2(Resolution), 5u);// Don't need the full chain
@@ -427,7 +427,7 @@ static UTexture2D* CreateCardTexture(FIntPoint Resolution)
 		const uint32 SizeInBytes = sizeof(float) * MipResolutionX * MipResolutionY;
 
 		FTexture2DMipMap* MipMap = new FTexture2DMipMap();
-		Out->PlatformData->Mips.Add(MipMap);
+		Out->GetPlatformData()->Mips.Add(MipMap);
 		MipMap->SizeX = MipResolutionX;
 		MipMap->SizeY = MipResolutionY;
 		MipMap->BulkData.Lock(LOCK_READ_WRITE);

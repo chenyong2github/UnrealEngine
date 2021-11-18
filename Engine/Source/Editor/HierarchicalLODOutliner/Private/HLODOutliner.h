@@ -136,18 +136,7 @@ namespace HLODOutliner
 		/** Builds the toolbar */
 		TSharedRef<SWidget> MakeToolBar();
 
-		/** Builds the toolbar combo menu */
-		TSharedRef<SWidget> GetToolBarButtonMenu();
-
-		/** Delegates to build the toolbar combo button */
-		FText GetToolBarButtonLabel();
-		FText GetToolBarButtonToolTip();
-		FSlateIcon GetToolBarButtonIcon();
-		void OnToolBarButtonClicked();
-		bool IsToolBarButtonEnabled();
-
 		/** Callbacks to make interaction from UI uniform vs. UI updates*/
-		FReply RegenerateClustersFromUI();
 		FReply GenerateClustersFromUI();
 		FReply GenerateProxyMeshesFromUI();
 		FReply BuildClustersAndMeshesFromUI();
@@ -469,16 +458,6 @@ namespace HLODOutliner
 		TSharedPtr<SVerticalBox> MainContentPanel;
 		/** Attribute determining if the outliner UI is enabled*/
 		TAttribute<bool> EnabledAttribute;
-
-		enum ToolBarButtonState
-		{
-			GenerateClusters,
-			GenerateProxyMeshes,
-			RebuildAll
-		};
-
-		/** Dialog state to determine which button to display in the toolbar */
-		ToolBarButtonState ToolBarButtonCurrentState;
 
 		/** Map containing all the nodes with their corresponding keys */
 		TMultiMap<FTreeItemID, FTreeItemPtr> TreeItemsMap;

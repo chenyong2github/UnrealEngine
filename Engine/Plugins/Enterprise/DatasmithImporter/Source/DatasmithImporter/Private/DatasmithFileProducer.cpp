@@ -894,6 +894,8 @@ UDatasmithDirProducer::UDatasmithDirProducer()
 	, bRecursive(true)
 	, bHasWildCardSearch(true)
 {
+	TessellationOptions = CreateDefaultSubobject<UDatasmithCommonTessellationOptions>(FName(TEXT("TessellationOptions")));
+
 	if( !HasAnyFlags( RF_ClassDefaultObject ) && SupportedFormats.Num() == 0 )
 	{
 		const TArray<FString>& Formats = FDatasmithTranslatorManager::Get().GetSupportedFormats();
@@ -1203,16 +1205,6 @@ void UDatasmithDirProducer::Serialize( FArchive& Ar )
 	if( Ar.IsLoading() )
 	{
 		UpdateExtensions();
-	}
-}
-
-void UDatasmithDirProducer::PostLoad()
-{
-	Super::PostLoad();
-
-	if (!TessellationOptions)
-	{
-		TessellationOptions = NewObject<UDatasmithCommonTessellationOptions>(this);
 	}
 }
 

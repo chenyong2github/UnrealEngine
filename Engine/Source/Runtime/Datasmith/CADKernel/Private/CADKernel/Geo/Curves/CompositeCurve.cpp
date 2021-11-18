@@ -8,9 +8,10 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/UI/Message.h"
 
-#include <math.h>
+namespace CADKernel
+{
 
-double CADKernel::FCompositeCurve::LocalToGlobalCoordinate(int32 CurveIndex, double Coordinate) const
+double FCompositeCurve::LocalToGlobalCoordinate(int32 CurveIndex, double Coordinate) const
 {
 	ensureCADKernel(Curves.IsValidIndex(CurveIndex));
 
@@ -33,7 +34,7 @@ double CADKernel::FCompositeCurve::LocalToGlobalCoordinate(int32 CurveIndex, dou
 	return GlobalCoord;
 }
 
-double CADKernel::FCompositeCurve::GlobalToLocalCoordinate(int32 CurveIndex, double Coordinate) const
+double FCompositeCurve::GlobalToLocalCoordinate(int32 CurveIndex, double Coordinate) const
 {
 	ensureCADKernel(Curves.IsValidIndex(CurveIndex));
 
@@ -53,7 +54,7 @@ double CADKernel::FCompositeCurve::GlobalToLocalCoordinate(int32 CurveIndex, dou
 	return LocalCoord;
 }
 
-void CADKernel::FCompositeCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder) const
+void FCompositeCurve::EvaluatePoint(double Coordinate, FCurvePoint& OutPoint, int32 DerivativeOrder) const
 {
 	ensure(Dimension == 3);
 
@@ -86,7 +87,7 @@ void CADKernel::FCompositeCurve::EvaluatePoint(double Coordinate, FCurvePoint& O
 	}
 }
 
-void CADKernel::FCompositeCurve::Evaluate2DPoint(double Coordinate, FCurvePoint2D& OutPoint, int32 DerivativeOrder) const
+void FCompositeCurve::Evaluate2DPoint(double Coordinate, FCurvePoint2D& OutPoint, int32 DerivativeOrder) const
 {
 	ensure(Dimension == 2);
 
@@ -119,7 +120,7 @@ void CADKernel::FCompositeCurve::Evaluate2DPoint(double Coordinate, FCurvePoint2
 	}
 }
 
-void CADKernel::FCompositeCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const
+void FCompositeCurve::FindNotDerivableCoordinates(const FLinearBoundary& InBoundary, int32 DerivativeOrder, TArray<double>& OutNotDerivableCoordinates) const
 {
 	TArray<double> NotDerivableCoordinates;
 	OutNotDerivableCoordinates.Empty();
@@ -161,7 +162,7 @@ void CADKernel::FCompositeCurve::FindNotDerivableCoordinates(const FLinearBounda
 	}
 }
 
-TSharedPtr<CADKernel::FEntityGeom> CADKernel::FCompositeCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+TSharedPtr<FEntityGeom> FCompositeCurve::ApplyMatrix(const FMatrixH& InMatrix) const
 {
 	TArray<TSharedPtr<FCurve>> TransformedCurves;
 
@@ -184,7 +185,7 @@ TSharedPtr<CADKernel::FEntityGeom> CADKernel::FCompositeCurve::ApplyMatrix(const
 }
 
 #ifdef CADKERNEL_DEV
-CADKernel::FInfoEntity& CADKernel::FCompositeCurve::GetInfo(FInfoEntity& Info) const
+FInfoEntity& FCompositeCurve::GetInfo(FInfoEntity& Info) const
 {
 	return FCurve::GetInfo(Info).Add(TEXT("Nb curves"), (int32)Curves.Num())
 		.Add(TEXT("curves"), (TArray<TOrientedEntity<FEntity>>&) Curves)
@@ -205,7 +206,7 @@ CADKernel::FInfoEntity& CADKernel::FCompositeCurve::GetInfo(FInfoEntity& Info) c
 // =========================================================================================================================================================================================================
 // =========================================================================================================================================================================================================
 
-CADKernel::FCompositeCurve::FCompositeCurve(const TArray<TSharedPtr<FCurve>>& CurveList, bool bDoInversions)
+FCompositeCurve::FCompositeCurve(const TArray<TSharedPtr<FCurve>>& CurveList, bool bDoInversions)
 {
 	ensureCADKernel(false);
 
@@ -259,4 +260,6 @@ CADKernel::FCompositeCurve::FCompositeCurve(const TArray<TSharedPtr<FCurve>>& Cu
 
 	Boundary.Set(Coordinates[0], Coordinates[Coordinates.Num() - 1]);
 #endif
+}
+
 }

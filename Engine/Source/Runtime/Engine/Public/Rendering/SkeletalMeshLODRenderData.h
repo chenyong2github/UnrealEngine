@@ -47,8 +47,18 @@ struct FSkelMeshRenderSection
 	uint32 BaseVertexIndex;
 
 	/** The extra vertex data for mapping to an APEX clothing simulation mesh. */
-	TArray<FMeshToMeshVertData> ClothMappingData;
+	TArray<FMeshToMeshVertData> ClothMappingData_DEPRECATED;
 
+	/**
+	 * The cloth deformer mapping data to each of the required cloth LOD.
+	 * Raytracing may require a different deformer LOD to the one being simulated/rendered.
+	 * The outer array index represents the LOD bias. The inner array indexes the vertex data.
+	 * If this LODModel is LOD3, ClothMappingDataLODs[1] will point to defomer data using LOD2,
+	 * and ClothMappingDataLODs[2] will point to defomer data that are using cloth LOD1, ...etc.
+	 * ClothMappingDataLODs[0] always point to defomer data of the same cloth LOD, this is
+	 * convenient for cases where the cloth LOD bias is not known or required.
+	 */
+	TArray<TArray<FMeshToMeshVertData>> ClothMappingDataLODs;
 
 	/** The bones which are used by the vertices of this section. Indices of bones in the USkeletalMesh::RefSkeleton array */
 	TArray<FBoneIndexType> BoneMap;
@@ -88,7 +98,8 @@ struct FSkelMeshRenderSection
 
 	FORCEINLINE bool HasClothingData() const
 	{
-		return (ClothMappingData.Num() > 0);
+		constexpr int32 ClothLODBias = 0;  // Must at least have the mapping for the matching cloth LOD
+		return ClothMappingDataLODs.Num() && ClothMappingDataLODs[ClothLODBias].Num();
 	}
 
 	FORCEINLINE int32 GetVertexBufferIndex() const

@@ -8,7 +8,7 @@
 #include "Misc/DisplayClusterLog.h"
 
 
-bool FDisplayClusterClientBase::Connect(const FString& InAddr, const int32 InPort, const int32 TriesAmount, const float TryDelay)
+bool FDisplayClusterClientBase::Connect(const FString& InAddr, const uint16 InPort, const uint32 ConnectRetriesAmount, const uint32 ConnectRetryDelay)
 {
 	FScopeLock Lock(&GetSyncObj());
 
@@ -26,18 +26,18 @@ bool FDisplayClusterClientBase::Connect(const FString& InAddr, const int32 InPor
 	InternetAddr->SetPort(InPort);
 
 	// Start connection loop
-	int32 TryIdx = 0;
-	while(GetSocket()->Connect(*InternetAddr) == false)
+	uint32 TryIdx = 0;
+	while(ConnectSocket(*InternetAddr) == false)
 	{
 		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("%s couldn't connect to the server %s [%d]"), *GetName(), *(InternetAddr->ToString(true)), TryIdx);
-		if (TriesAmount > 0 && ++TryIdx >= TriesAmount)
+		if (ConnectRetriesAmount > 0 && ++TryIdx >= ConnectRetriesAmount)
 		{
-			UE_LOG(LogDisplayClusterNetwork, Error, TEXT("%s connection attempts limit reached"), *GetName());
+			UE_LOG(LogDisplayClusterNetwork, Log, TEXT("%s connection attempts limit reached"), *GetName());
 			return false;
 		}
 
 		// Sleep some time before next try
-		FPlatformProcess::Sleep(TryDelay / 1000.f);
+		FPlatformProcess::Sleep(ConnectRetryDelay / 1000.f);
 	}
 
 	return IsOpen();
@@ -49,19 +49,18 @@ void FDisplayClusterClientBase::Disconnect()
 
 	UE_LOG(LogDisplayClusterNetwork, Log, TEXT("%s disconnecting..."), *GetName());
 
-	if (IsOpen())
-	{
-		GetSocket()->Close();
-	}
+	CloseSocket();
 }
 
 FSocket* FDisplayClusterClientBase::CreateSocket(const FString& InName)
 {
-	FSocket* NewSocket = FTcpSocketBuilder(*InName).AsBlocking();
+	FSocket* NewSocket = FTcpSocketBuilder(*InName).AsBlocking().Lingering(0);
 	check(NewSocket);
 
-	// Set TCP_NODELAY=1
+	// Set socket properties (non-blocking, no delay)
 	NewSocket->SetNoDelay(true);
+	NewSocket->SetLinger(true, 0);
+	NewSocket->SetNonBlocking(false);
 
 	return NewSocket;
 }

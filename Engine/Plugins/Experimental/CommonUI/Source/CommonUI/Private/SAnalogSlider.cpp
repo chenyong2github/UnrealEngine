@@ -68,7 +68,7 @@ FReply SAnalogSlider::OnAnalogValueChanged(const FGeometry& MyGeometry, const FA
 		const float AbsAnalogValue = FMath::Abs(AnalogValue);
 		if (AbsAnalogValue > AnalogStepThreshold)
 		{
-			const float NormalizedStepSpeed = FMath::GetMappedRangeValueClamped(FVector2D(AnalogStepThreshold, 1), FVector2D(0, 1), AbsAnalogValue);
+			const float NormalizedStepSpeed = FMath::GetMappedRangeValueClamped(FVector2f(AnalogStepThreshold, 1), FVector2f(0, 1), AbsAnalogValue);
 			const float NormalizedEase = FMath::CubicInterp<float>(0.0f, 1.0f, 1.0f, .0f, NormalizedStepSpeed);
 			const float EasedStepSpeed = FMath::Lerp(SlowestStepTime, FastestStepTime, NormalizedEase);
 			const float RepeatTime = EasedStepSpeed;

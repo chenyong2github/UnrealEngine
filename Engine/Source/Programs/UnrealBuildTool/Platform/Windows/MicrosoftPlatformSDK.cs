@@ -59,7 +59,7 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
+		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
 		{
 			OutValue = 0;
 
@@ -233,7 +233,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the directory was found, false otherwise</returns>
 		public static bool TryGetNetFxSdkInstallDir([NotNullWhen(true)] out DirectoryReference? OutInstallDir)
 		{
-			DirectoryReference HostAutoSdkDir;
+			DirectoryReference? HostAutoSdkDir;
 			if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out HostAutoSdkDir))
 			{
 				DirectoryReference NetFxDir_4_6 = DirectoryReference.Combine(HostAutoSdkDir, "Win64", "Windows Kits", "NETFXSDK", "4.6");
@@ -385,7 +385,7 @@ namespace UnrealBuildTool
 				RootDirs.Add(RootDir);
 			}
 
-			DirectoryReference HostAutoSdkDir;
+			DirectoryReference? HostAutoSdkDir;
 			if (UEBuildPlatformSDK.TryGetHostPlatformAutoSDKDir(out HostAutoSdkDir))
 			{
 				DirectoryReference RootDirAutoSdk = DirectoryReference.Combine(HostAutoSdkDir, "Win64", "Windows Kits", "10");

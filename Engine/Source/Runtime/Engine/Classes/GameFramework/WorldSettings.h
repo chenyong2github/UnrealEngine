@@ -12,6 +12,7 @@
 #include "GameFramework/Info.h"
 #include "Sound/AudioVolume.h"
 #include "UObject/ConstructorHelpers.h"
+#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "WorldSettings.generated.h"
 
 class UWorldPartition;
@@ -735,7 +736,7 @@ public:
 
 	// ************************************
 
-	protected:
+protected:
 
 	/** Array of user data stored with the asset */
 	UPROPERTY()
@@ -744,6 +745,11 @@ public:
 	// If paused, PlayerState of person pausing the game.
 	UPROPERTY(transient, replicated)
 	TObjectPtr<class APlayerState> PauserPlayerState;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FWorldPartitionPerWorldSettings DefaultWorldPartitionSettings;
+#endif
 
 public:
 	//~ Begin UObject Interface.
@@ -834,6 +840,10 @@ public:
 	int32 GetNumHierarchicalLODLevels() const;
 	UMaterialInterface* GetHierarchicalLODBaseMaterial() const;
 	void ResetHierarchicalLODSetup();
+
+	void SaveDefaultWorldPartitionSettings();
+	void ResetDefaultWorldPartitionSettings();
+	const FWorldPartitionPerWorldSettings* GetDefaultWorldPartitionSettings() const;
 #endif // WITH EDITOR
 
 	FORCEINLINE class APlayerState* GetPauserPlayerState() const { return PauserPlayerState; }

@@ -415,8 +415,12 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraC
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Custom Frustum"))
 	bool bEnable = false;
 
+	/** Enable Custom Frustum Frustum. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Adapt resolution", EditCondition = "bEnable"))
+	bool bAdaptResolution = false;
+
 	/** Enable/disable inner camera custom frustum and specify units as percent or pixel values. */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mode"), EditCondition = "bEnable")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mode", EditCondition = "bEnable"))
 	EDisplayClusterConfigurationViewportCustomFrustumMode Mode = EDisplayClusterConfigurationViewportCustomFrustumMode::Percent;
 
 	/** Pixel/Percent value to alter the frustum to the left side */

@@ -148,12 +148,14 @@ void USoundNodeConcatenator::ParseNodes( FAudioDevice* AudioDevice, const UPTRIN
 			// Check to see if we actually added any wave instances when parsing the concat node.
 			if (WaveInstances.Num() > NumWaveInstancesBeforeParse)
 			{
+				const int32 NumChildSounds = ChildNode->GetNumSounds(ChildNodeWaveInstanceHash, ActiveSound);
+				
 				// Update the payload with the number of sounds played and update our local copy
 				RETRIEVE_SOUNDNODE_PAYLOAD(sizeof(FSoundNodeConcatenatorPayload));
 				DECLARE_SOUNDNODE_ELEMENT(FSoundNodeConcatenatorPayload, ConcatenatorPayload);
 
 				ConcatenatorPayload = LocalPayload;
-				ConcatenatorPayload.CurrentChildNodeNumSound = ChildNode->GetNumSounds(ChildNodeWaveInstanceHash, ActiveSound);
+				ConcatenatorPayload.CurrentChildNodeNumSound = NumChildSounds;
 
 				break;
 			}

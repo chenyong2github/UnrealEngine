@@ -54,6 +54,9 @@ void SGraphNodeComment::Construct(const FArguments& InArgs, UEdGraphNode_Comment
 	UserSize.X = InNode->NodeWidth;
 	UserSize.Y = InNode->NodeHeight;
 
+	// Cache desired size so we cull correctly. We can do this as our ComputeDesiredSize ignores the layout scale.
+	CacheDesiredSize(1.0f);
+
 	MouseZone = CRWZ_NotInWindow;
 	bUserIsDragging = false;
 }

@@ -8,8 +8,6 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using System.Diagnostics;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	internal class ApplePlatformSDK : UEBuildPlatformSDK
@@ -34,12 +32,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public override void GetValidSoftwareVersionRange(out string MinVersion, out string MaxVersion)
+		public override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			MinVersion = MaxVersion = null;
 		}
 
-		public override bool TryConvertVersionToInt(string StringValue, out UInt64 OutValue)
+		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue)
 		{
 			// 8 bits per component, with high getting extra from high 32
 			Match Result = Regex.Match(StringValue, @"^(\d+).(\d+)(.(\d+))?(.(\d+))?$");
@@ -60,7 +58,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		public override string GetInstalledSDKVersion()
+		public override string? GetInstalledSDKVersion()
 		{
 			return UnrealBuildBase.ApplePlatformSDK.InstalledSDKVersion;
 		}

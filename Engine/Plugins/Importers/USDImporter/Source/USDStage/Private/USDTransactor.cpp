@@ -1036,7 +1036,7 @@ void UUsdTransactor::Update( const UsdUtils::FObjectChangesByPath& NewInfoChange
 	// In case we close a stage in the same transaction where the actor is destroyed - our UE::FUsdStage could turn invalid at any point otherwise
 	// Not much else we can do as this will get to us before the StageActor's destructor/Destroyed are called
 	AUsdStageActor* StageActorPtr = StageActor.Get();
-	if ( !StageActorPtr || StageActorPtr->IsActorBeingDestroyed() || StageActorPtr->IsPendingKillOrUnreachable() )
+	if ( !StageActorPtr || StageActorPtr->IsActorBeingDestroyed() )
 	{
 		return;
 	}

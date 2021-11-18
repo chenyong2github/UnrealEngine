@@ -11,7 +11,7 @@
  * JSON cluster events TCP client
  */
 class FDisplayClusterClusterEventsJsonClient
-	: public FDisplayClusterClient<FDisplayClusterPacketJson, false>
+	: public FDisplayClusterClient<FDisplayClusterPacketJson>
 	, public IDisplayClusterProtocolEventsJson
 {
 public:
@@ -22,5 +22,5 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolEventsJson
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	void EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event) override;
+	EDisplayClusterCommResult EmitClusterEventJson(const FDisplayClusterClusterEventJson& Event) override;
 };

@@ -38,7 +38,7 @@ enum class EVarMPCDIShaderType : uint8
 
 static TAutoConsoleVariable<int32> CVarMPCDIShaderType(
 	TEXT("nDisplay.render.mpcdi.shader"),
-	(int)EVarMPCDIShaderType::Default,
+	(int32)EVarMPCDIShaderType::Default,
 	TEXT("Select shader for mpcdi:\n")
 	TEXT(" 0: Warp shader (used by default)\n")
 	TEXT(" 1: Warp shader with disabled blend maps\n")
@@ -197,12 +197,12 @@ private:
 
 	FIntRect GetViewportRect() const
 	{
-		int vpPosX  = WarpBlendParameters.Dest.Rect.Min.X;
-		int vpPosY  = WarpBlendParameters.Dest.Rect.Min.Y;
-		int vpSizeX = WarpBlendParameters.Dest.Rect.Width();
-		int vpSizeY = WarpBlendParameters.Dest.Rect.Height();
+		const int32 PosX  = WarpBlendParameters.Dest.Rect.Min.X;
+		const int32 PosY  = WarpBlendParameters.Dest.Rect.Min.Y;
+		const int32 SizeX = WarpBlendParameters.Dest.Rect.Width();
+		const int32 SizeY = WarpBlendParameters.Dest.Rect.Height();
 
-		return FIntRect(FIntPoint(vpPosX, vpPosY), FIntPoint(vpPosX + vpSizeX, vpPosY + vpSizeY));
+		return FIntRect(FIntPoint(PosX, PosY), FIntPoint(PosX + SizeX, PosY + SizeY));
 	}
 
 	EMpcdiShaderType GetPixelShaderType()

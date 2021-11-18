@@ -250,7 +250,7 @@ TSharedRef<SWidgetSwitcher> SAudioSliderBase::CreateWidgetLayout()
 			// Text Label
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.HAlign(HAlign_Center)
+			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Center)
 			.Padding(Style->LabelPadding, 0.0f, 0.0f, 0.0f)
 			[
@@ -348,7 +348,8 @@ const float SAudioSlider::GetOutputValue(const float LinValue)
 {
 	if (LinToOutputCurve.IsValid())
 	{
-		return LinToOutputCurve->GetFloatValue(LinValue);
+		const float CurveOutputValue = LinToOutputCurve->GetFloatValue(LinValue);
+		return FMath::Clamp(CurveOutputValue, OutputRange.X, OutputRange.Y);
 	}
 	return FMath::GetMappedRangeValueClamped(LinearRange, OutputRange, LinValue);
 }
@@ -357,7 +358,8 @@ const float SAudioSlider::GetLinValue(const float OutputValue)
 {
 	if (OutputToLinCurve.IsValid())
 	{
-		return OutputToLinCurve->GetFloatValue(OutputValue);
+		const float CurveLinValue = OutputToLinCurve->GetFloatValue(OutputValue);
+		return FMath::Clamp(CurveLinValue, OutputRange.X, OutputRange.Y);
 	}
 	return FMath::GetMappedRangeValueClamped(OutputRange, LinearRange, OutputValue);
 }
@@ -369,12 +371,29 @@ SAudioVolumeSlider::SAudioVolumeSlider()
 
 void SAudioVolumeSlider::Construct(const SAudioSlider::FArguments& InArgs)
 {
-	SAudioSlider::Construct(InArgs);
-
-	SetOutputRange(FVector2D(-100.0f, 12.0f));
-	SetLinToOutputCurve(LoadObject<UCurveFloat>(NULL, TEXT("/AudioWidgets/AudioControlCurves/AudioControl_LinDbCurveDefault"), NULL, LOAD_None, NULL));
-	SetOutputToLinCurve(LoadObject<UCurveFloat>(NULL, TEXT("/AudioWidgets/AudioControlCurves/AudioControl_DbLinCurveDefault"), NULL, LOAD_None, NULL));
+	SAudioSliderBase::Construct(InArgs);
+	SetOutputRange(FVector2D(-100.0f, 0.0f));
 	Label->SetUnitsText(FText::FromString("dB"));
+}
+
+const float SAudioVolumeSlider::GetOutputValue(const float LinValue)
+{
+	// convert from linear 0-1 space to decibel OutputRange that has been converted to linear 
+	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
+	const float LinearSliderValue = FMath::GetMappedRangeValueClamped(LinearRange, LinearSliderRange, LinValue);
+	// convert from linear to decibels 
+	float OutputValue = Audio::ConvertToDecibels(LinearSliderValue);
+	return FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
+}
+
+const float SAudioVolumeSlider::GetLinValue(const float OutputValue)
+{
+	float ClampedValue = FMath::Clamp(OutputValue, OutputRange.X, OutputRange.Y);
+	// convert from decibels to linear
+	float LinearSliderValue = Audio::ConvertToLinear(ClampedValue);
+	// convert from decibel OutputRange that has been converted to linear to linear 0-1 space 
+	const FVector2D LinearSliderRange = FVector2D(Audio::ConvertToLinear(OutputRange.X), Audio::ConvertToLinear(OutputRange.Y));
+	return FMath::GetMappedRangeValueClamped(LinearSliderRange, LinearRange, LinearSliderValue);
 }
 
 // SAudioFrequencySlider

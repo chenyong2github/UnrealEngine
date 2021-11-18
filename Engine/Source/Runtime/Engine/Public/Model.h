@@ -45,10 +45,10 @@ public:
 	int32		iSide;		// If shared, index of unique side. Otherwise INDEX_NONE.
 
 	/** The vertex's shadow map coordinate. */
-	FVector2D ShadowTexCoord;
+	FVector2f ShadowTexCoord;
 
 	/** The vertex's shadow map coordinate for the backface of the node. */
-	FVector2D BackfaceShadowTexCoord;
+	FVector2f BackfaceShadowTexCoord;
 
 	// Functions.
 	friend FArchive& operator<< (FArchive &Ar, FVert &Vert)
@@ -274,8 +274,8 @@ struct FModelVertex
 	FVector3f Position;
 	FVector3f TangentX;
 	FVector4f TangentZ;
-	FVector2D TexCoord;
-	FVector2D ShadowTexCoord;
+	FVector2f TexCoord;
+	FVector2f ShadowTexCoord;
 
 	FVector3f GetTangentY() const
 	{
@@ -300,8 +300,8 @@ struct FDepecatedModelVertex
 	FVector3f Position;
 	FDeprecatedSerializedPackedNormal TangentX;
 	FDeprecatedSerializedPackedNormal TangentZ;
-	FVector2D TexCoord;
-	FVector2D ShadowTexCoord;
+	FVector2f TexCoord;
+	FVector2f ShadowTexCoord;
 
 	operator FModelVertex() const
 	{

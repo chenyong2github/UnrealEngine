@@ -176,12 +176,14 @@ UTexture* FPhysicalMaterialMaskImport::ImportMaskTextureFile(UPhysicalMaterialMa
 		Texture = (UTexture*)TextureFactory->FactoryCreateBinary(UTexture2D::StaticClass(), PhysMatMask->GetOuter(), *TextureName, RF_NoFlags, NULL, *Extension, PtrTexture, PtrTexture + TextureData.Num(), GWarn);
 		if (Texture != NULL)
 		{
+			Texture->PreEditChange(nullptr);
 			Texture->SRGB = false;
 			Texture->CompressionNone = true;
 			Texture->CompressionSettings = TC_Masks;
 			Texture->MipGenSettings = TMGS_NoMipmaps;
 			Texture->Filter = TF_Nearest;
 			Texture->AssetImportData->Update(TextureFilename);
+			Texture->PostEditChange();
 		}
 
 		TextureFactory->RemoveFromRoot();

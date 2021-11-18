@@ -3,12 +3,15 @@
 #include "VT/RuntimeVirtualTextureSceneProxy.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "Misc/CoreDelegates.h"
 #include "VirtualTextureSystem.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureProducer.h"
 #include "VT/VirtualTexture.h"
 #include "VT/VirtualTextureBuilder.h"
 #include "VT/VirtualTextureScalability.h"
+
+#define LOCTEXT_NAMESPACE "VirtualTexture"
 
 int32 FRuntimeVirtualTextureSceneProxy::ProducerIdGenerator = 1;
 
@@ -53,18 +56,34 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		// This is bound with the main producer so that one allocated VT can use both runtime or streaming producers dependent on mip level.
 		if (InComponent->IsStreamingLowMips())
 		{
-			UVirtualTexture2D* StreamingTexture = InComponent->GetStreamingTexture()->Texture;
+			if (InComponent->IsStreamingTextureInvalid())
+			{
+#if !UE_BUILD_SHIPPING
+				// Notify that streaming texture is invalid since this can cause performance regression.
+				const FString Name = InComponent->GetPathName();
+				OnScreenWarningDelegateHandle = FCoreDelegates::OnGetOnScreenMessages.AddLambda([Name](FCoreDelegates::FSeverityMessageMap& OutMessages)
+				{
+					OutMessages.Add(
+						FCoreDelegates::EOnScreenMessageSeverity::Warning,
+						FText::Format(LOCTEXT("SVTInvalid", "Runtime Virtual Texture '{0}' streaming mips needs to be rebuilt."), FText::FromString(Name)));
+				});
+#endif
+			}
+			else
+			{
+				UVirtualTexture2D* StreamingTexture = InComponent->GetStreamingTexture()->Texture;
 
-			FVTProducerDescription StreamingProducerDesc;
-			IVirtualTexture* StreamingProducer = RuntimeVirtualTexture::CreateStreamingTextureProducer(StreamingTexture, ProducerDesc, StreamingProducerDesc);
+				FVTProducerDescription StreamingProducerDesc;
+				IVirtualTexture* StreamingProducer = RuntimeVirtualTexture::CreateStreamingTextureProducer(StreamingTexture, ProducerDesc, StreamingProducerDesc);
 
-			ensure(ProducerDesc.MaxLevel >= StreamingProducerDesc.MaxLevel);
-			const int32 TransitionLevel = ProducerDesc.MaxLevel - StreamingProducerDesc.MaxLevel;
+				ensure(ProducerDesc.MaxLevel >= StreamingProducerDesc.MaxLevel);
+				const int32 TransitionLevel = ProducerDesc.MaxLevel - StreamingProducerDesc.MaxLevel;
 
-			Producer = RuntimeVirtualTexture::BindStreamingTextureProducer(Producer, StreamingProducer, TransitionLevel);
+				Producer = RuntimeVirtualTexture::BindStreamingTextureProducer(Producer, StreamingProducer, TransitionLevel);
 
-			// Any dirty flushes don't need to flush the streaming mips (they only change with a build step).
-			MaxDirtyLevel = TransitionLevel - 1;
+				// Any dirty flushes don't need to flush the streaming mips (they only change with a build step).
+				MaxDirtyLevel = TransitionLevel - 1;
+			}
 		}
 
 		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
@@ -75,6 +94,10 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 FRuntimeVirtualTextureSceneProxy::~FRuntimeVirtualTextureSceneProxy()
 {
 	checkSlow(IsInRenderingThread());
+
+#if !UE_BUILD_SHIPPING
+	FCoreDelegates::OnGetOnScreenMessages.Remove(OnScreenWarningDelegateHandle);
+#endif
 }
 
 void FRuntimeVirtualTextureSceneProxy::Release()
@@ -153,3 +176,5 @@ void FRuntimeVirtualTextureSceneProxy::FlushDirtyPages()
 	DirtyRects.Reset();
 	CombinedDirtyRect = FIntRect(0, 0, 0, 0);
 }
+
+#undef LOCTEXT_NAMESPACE

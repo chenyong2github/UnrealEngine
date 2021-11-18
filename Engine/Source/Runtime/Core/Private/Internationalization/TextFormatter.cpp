@@ -4,7 +4,6 @@
 #include "Misc/ScopeLock.h"
 #include "Internationalization/TextFormatArgumentModifier.h"
 #include "Internationalization/TextHistory.h"
-#include "Internationalization/TextData.h"
 #include "Misc/ExpressionParser.h"
 #include "Stats/Stats.h"
 #include "HAL/PlatformProcess.h"
@@ -951,7 +950,7 @@ FText FTextFormatter::Format(FTextFormat&& InFmt, FFormatNamedArguments&& InArgu
 {
 	FString ResultString = FormatStr(InFmt, InArguments, bInRebuildText, bInRebuildAsSource);
 
-	FText Result = FText(MakeShared<TGeneratedTextData<FTextHistory_NamedFormat>, ESPMode::ThreadSafe>(MoveTemp(ResultString), FTextHistory_NamedFormat(MoveTemp(InFmt), MoveTemp(InArguments))));
+	FText Result = FText(MakeShared<FTextHistory_NamedFormat, ESPMode::ThreadSafe>(MoveTemp(ResultString), MoveTemp(InFmt), MoveTemp(InArguments)));
 	if (!GIsEditor)
 	{
 		Result.Flags |= ETextFlag::Transient;
@@ -963,7 +962,7 @@ FText FTextFormatter::Format(FTextFormat&& InFmt, FFormatOrderedArguments&& InAr
 {
 	FString ResultString = FormatStr(InFmt, InArguments, bInRebuildText, bInRebuildAsSource);
 
-	FText Result = FText(MakeShared<TGeneratedTextData<FTextHistory_OrderedFormat>, ESPMode::ThreadSafe>(MoveTemp(ResultString), FTextHistory_OrderedFormat(MoveTemp(InFmt), MoveTemp(InArguments))));
+	FText Result = FText(MakeShared<FTextHistory_OrderedFormat, ESPMode::ThreadSafe>(MoveTemp(ResultString), MoveTemp(InFmt), MoveTemp(InArguments)));
 	if (!GIsEditor)
 	{
 		Result.Flags |= ETextFlag::Transient;
@@ -975,7 +974,7 @@ FText FTextFormatter::Format(FTextFormat&& InFmt, TArray<FFormatArgumentData>&& 
 {
 	FString ResultString = FormatStr(InFmt, InArguments, bInRebuildText, bInRebuildAsSource);
 
-	FText Result = FText(MakeShared<TGeneratedTextData<FTextHistory_ArgumentDataFormat>, ESPMode::ThreadSafe>(MoveTemp(ResultString), FTextHistory_ArgumentDataFormat(MoveTemp(InFmt), MoveTemp(InArguments))));
+	FText Result = FText(MakeShared<FTextHistory_ArgumentDataFormat, ESPMode::ThreadSafe>(MoveTemp(ResultString), MoveTemp(InFmt), MoveTemp(InArguments)));
 	if (!GIsEditor)
 	{
 		Result.Flags |= ETextFlag::Transient;

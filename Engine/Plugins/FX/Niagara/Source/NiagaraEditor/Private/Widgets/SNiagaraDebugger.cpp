@@ -791,7 +791,7 @@ void SNiagaraDebugger::RegisterTabSpawner()
 	.SetDisplayName(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTab", "Niagara Debugger"))
 	.SetTooltipText(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTooltipText", "Open the Niagara Debugger Tab."))
 	.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
-	.SetIcon(FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Debugger.TabIcon"));
+	.SetIcon(FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Tab.Debugger"));
 }
 
 void SNiagaraDebugger::UnregisterTabSpawner()

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraMessages.h"
+#include "NiagaraScriptVariable.h"
 #include "NiagaraTypes.h"
 #include "Engine/UserDefinedEnum.h"
 #include "UObject/GCObject.h"
@@ -129,6 +130,31 @@ public:
 	TArray<FNiagaraStackMessage> Messages;
 };
 
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraClipboardScriptVariable
+{
+	GENERATED_BODY()
+
+	FNiagaraClipboardScriptVariable() : ScriptVariable(nullptr)
+	{}
+	FNiagaraClipboardScriptVariable(const UNiagaraScriptVariable& InScriptVariable) : ScriptVariable(&InScriptVariable), OriginalChangeId(InScriptVariable.GetChangeId())
+	{}
+
+	UPROPERTY();
+	TObjectPtr<const UNiagaraScriptVariable> ScriptVariable;
+
+	/** We cache the original change Id here since deserialization of the clipboard will cause the change id to update.
+	 *  Using the original change id, we can identify during pasting whether we have already pasted this script variable before. 
+	 */
+	UPROPERTY()
+	FGuid OriginalChangeId;
+
+	// since the contained variables are typically copies, we compare their change IDs instead
+	bool operator==(const FNiagaraClipboardScriptVariable& OtherVariable) const
+	{
+		return OriginalChangeId == OtherVariable.OriginalChangeId;
+	}
+};
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraClipboardContent : public UObject
 {
@@ -150,7 +176,11 @@ public:
 	TArray<TObjectPtr<const UNiagaraScript>> Scripts;
 
 	UPROPERTY()
-	TArray<TObjectPtr<const UNiagaraScriptVariable>> ScriptVariables;
+	TArray<FNiagaraClipboardScriptVariable> ScriptVariables;
+
+	/** We expect nodes to be exported into this string using FEdGraphUtilities::ExportNodesToText */
+	UPROPERTY()
+	FString ExportedNodes;
 };
 
 class NIAGARAEDITOR_API FNiagaraClipboard

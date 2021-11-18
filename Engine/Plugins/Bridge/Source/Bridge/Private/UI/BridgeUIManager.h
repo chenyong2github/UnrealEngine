@@ -13,7 +13,7 @@ class FBridgeUIManagerImpl;
 class FArguments;
 class SCompoundWidget;
 
-class FBridgeUIManagerImpl
+class FBridgeUIManagerImpl : public TSharedFromThis<FBridgeUIManagerImpl>
 {
 public:
 	void Initialize();

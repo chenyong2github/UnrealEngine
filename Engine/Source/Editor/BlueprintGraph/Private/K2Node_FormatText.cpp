@@ -155,7 +155,7 @@ void UK2Node_FormatText::PinConnectionListChanged(UEdGraphPin* Pin)
 			if(CheckPin != FormatPin && CheckPin->Direction == EGPD_Input)
 			{
 				CheckPin->Modify();
-				CheckPin->MarkPendingKill();
+				CheckPin->MarkAsGarbage();
 				Pins.Remove(CheckPin);
 				--It;
 			}
@@ -200,7 +200,7 @@ void UK2Node_FormatText::PinDefaultValueChanged(UEdGraphPin* Pin)
 
 				if(!bIsValidArgPin)
 				{
-					CheckPin->MarkPendingKill();
+					CheckPin->MarkAsGarbage();
 					It.RemoveCurrent();
 				}
 			}
@@ -602,7 +602,7 @@ void UK2Node_FormatText::RemoveArgument(int32 InIndex)
 	if (UEdGraphPin* ArgumentPin = FindArgumentPin(PinNames[InIndex]))
 	{
 		Pins.Remove(ArgumentPin);
-		ArgumentPin->MarkPendingKill();
+		ArgumentPin->MarkAsGarbage();
 	}
 	PinNames.RemoveAt(InIndex);
 

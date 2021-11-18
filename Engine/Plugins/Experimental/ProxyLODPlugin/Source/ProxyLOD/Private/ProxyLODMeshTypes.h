@@ -116,7 +116,7 @@ struct FVertexDataMesh
 	// 1 = right handed.  -1 left handed
 	TArray<int32>     TangentHanded;
 
-	TArray<FVector2D> UVs;
+	TArray<FVector2f> UVs;
 
 	// Per-face frequency
 	TArray<FColor>    FaceColors;
@@ -366,7 +366,7 @@ public:
 		TVertexInstanceAttributesConstRef<FVector3f> VertexInstanceTangents;
 		TVertexInstanceAttributesConstRef<float> VertexInstanceBinormalSigns;
 		TVertexInstanceAttributesConstRef<FVector4f> VertexInstanceColors;
-		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs;
+		TVertexInstanceAttributesConstRef<FVector2f> VertexInstanceUVs;
 		int32 TriangleCount;
 		TArray<uint32> FaceSmoothingMasks;
 	};

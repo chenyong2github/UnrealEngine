@@ -57,7 +57,16 @@ public:
 	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override
 	{
 		// Only use sample converter for Win8+
-		return FPlatformMisc::VerifyWindowsVersion(6, 2) ? this : nullptr;
+		if (FPlatformMisc::VerifyWindowsVersion(6, 2))
+		{
+			// Are we using an external buffer?
+			// D3D12 will use a CPU buffer and has no use for this convertor.
+			if (bIsBufferExternal == false)
+			{
+				return this;
+			}
+		}
+		return nullptr;
 	}
 
 	/**

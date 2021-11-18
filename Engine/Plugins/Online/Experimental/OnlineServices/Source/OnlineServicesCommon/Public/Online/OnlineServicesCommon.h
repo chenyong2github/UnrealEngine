@@ -6,15 +6,15 @@
 
 #include "Online/OnlineComponentRegistry.h"
 #include "Online/OnlineAsyncOpCache.h"
+#include "Online/OnlineAsyncOpQueue.h"
 #include "Online/OnlineConfig.h"
 #include "Online/OnlineExecHandler.h"
 #include "Online/OnlineServicesLog.h"
 
-#include "Containers/Ticker.h"
-#include "Templates/SharedPointer.h"
-#include "Misc/CoreMisc.h"
-
 #include "Async/Async.h"
+#include "Containers/Ticker.h"
+#include "Misc/CoreMisc.h"
+#include "Templates/SharedPointer.h"
 
 namespace UE::Online {
 
@@ -39,6 +39,7 @@ public:
 	virtual IAuthPtr GetAuthInterface() override;
 	virtual IFriendsPtr GetFriendsInterface() override;
 	virtual IPresencePtr GetPresenceInterface() override;
+	virtual IExternalUIPtr GetExternalUIInterface() override;
 
 	// FOnlineServicesCommon
 
@@ -256,46 +257,52 @@ public:
 
 	/* Get op (OnlineServices) */
 	template <typename OpType>
-	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params)
+	TOnlineAsyncOpRef<OpType> GetOp(typename OpType::Params&& Params)
 	{
 		return OpCache.GetOp<OpType>(MoveTemp(Params), GetConfigSectionHeiarchy());
 	}
 
 	template <typename OpType, typename ParamsFuncsType = TJoinableOpParamsFuncs<OpType>>
-	TOnlineAsyncOp<OpType>& GetJoinableOp(typename OpType::Params&& Params)
+	TOnlineAsyncOpRef<OpType> GetJoinableOp(typename OpType::Params&& Params)
 	{
 		return OpCache.GetJoinableOp<OpType, ParamsFuncsType>(MoveTemp(Params), GetConfigSectionHeiarchy());
 	}
 
 	template <typename OpType, typename ParamsFuncsType = TMergeableOpParamsFuncs<OpType>>
-	TOnlineAsyncOp<OpType>& GetMergeableOp(typename OpType::Params&& Params)
+	TOnlineAsyncOpRef<OpType> GetMergeableOp(typename OpType::Params&& Params)
 	{
 		return OpCache.GetMergeableOp<OpType, ParamsFuncsType>(MoveTemp(Params), GetConfigSectionHeiarchy());
 	}
 
 	/* Get op (Interface) */
 	template <typename OpType>
-	TOnlineAsyncOp<OpType>& GetOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	TOnlineAsyncOpRef<OpType> GetOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
 	{
 		return OpCache.GetOp<OpType>(MoveTemp(Params), ConfigSectionHeiarchy);
 	}
 
 	template <typename OpType, typename ParamsFuncsType /*= TJoinableOpParamsFuncs<OpType>*/>
-	TOnlineAsyncOp<OpType>& GetJoinableOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	TOnlineAsyncOpRef<OpType> GetJoinableOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
 	{
 		return OpCache.GetJoinableOp<OpType, ParamsFuncsType>(MoveTemp(Params), ConfigSectionHeiarchy);
 	}
 
 	template <typename OpType, typename ParamsFuncsType /*= TMergeableOpParamsFuncs<OpType>*/>
-	TOnlineAsyncOp<OpType>& GetMergeableOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	TOnlineAsyncOpRef<OpType> GetMergeableOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
 	{
 		return OpCache.GetMergeableOp<OpType, ParamsFuncsType>(MoveTemp(Params), ConfigSectionHeiarchy);
 	}
 
-	void RegisterExecHandler(const FString& Name, TUniquePtr<IOnlineExecHandler>&& Handler)
-	{
-		ExecCommands.Emplace(Name, MoveTemp(Handler));
-	}
+	/* Queue for executing tasks in parallel. Serial queues feed into this */
+	FOnlineAsyncOpQueueParallel& GetParallelQueue();
+
+	/* Queue for executing tasks in serial */
+	FOnlineAsyncOpQueue& GetSerialQueue();
+
+	/* Queues for executing per-user tasks in serial */
+	FOnlineAsyncOpQueue& GetSerialQueue(FAccountId& AccountId);
+	
+	void RegisterExecHandler(const FString& Name, TUniquePtr<IOnlineExecHandler>&& Handler);
 
 	virtual bool Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
@@ -313,6 +320,10 @@ protected:
 	/* Config section overrides */
 	TArray<FString> ConfigSectionOverrides;
 	FString ConfigName;
+
+	FOnlineAsyncOpQueueParallel ParallelQueue;
+	FOnlineAsyncOpQueueSerial SerialQueue;
+	TMap<FAccountId, TUniquePtr<FOnlineAsyncOpQueueSerial>> PerUserSerialQueue;
 };
 
 /* UE::Online */ }

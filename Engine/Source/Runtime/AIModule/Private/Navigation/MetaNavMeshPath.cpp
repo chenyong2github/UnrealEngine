@@ -251,12 +251,12 @@ void FMetaNavMeshPath::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 }
 #endif
 
-void FMetaNavMeshPath::DebugDraw(const ANavigationData* NavData, FColor PathColor, UCanvas* Canvas, bool bPersistent, const uint32 NextPathPointIndex) const
+void FMetaNavMeshPath::DebugDraw(const ANavigationData* NavData, const FColor PathColor, UCanvas* Canvas, const bool bPersistent, const float LifeTime, const uint32 NextPathPointIndex) const
 {
 #if ENABLE_DRAW_DEBUG
 	if (Waypoints.Num() > 0)
 	{
-		Super::DebugDraw(NavData, PathColor, Canvas, bPersistent, NextPathPointIndex);
+		Super::DebugDraw(NavData, PathColor, Canvas, bPersistent, LifeTime, NextPathPointIndex);
 
 		static const FVector DrawingOffset(0, 0, 50);
 		const UWorld* World = NavData->GetWorld();
@@ -266,7 +266,7 @@ void FMetaNavMeshPath::DebugDraw(const ANavigationData* NavData, FColor PathColo
 		{
 			const FVector NextWaypoint = Waypoints[WaypointIndex];
 			DrawDebugLine(World, WaypointLocation + NavigationDebugDrawing::PathOffset, NextWaypoint + NavigationDebugDrawing::PathOffset
-				, FColor::Orange, bPersistent, /*LifeTime*/-1.f, /*DepthPriority*/0
+				, FColor::Orange, bPersistent, LifeTime, /*DepthPriority*/0
 				, /*Thickness*/NavigationDebugDrawing::PathLineThickness + 1);
 			WaypointLocation = NextWaypoint;
 		}

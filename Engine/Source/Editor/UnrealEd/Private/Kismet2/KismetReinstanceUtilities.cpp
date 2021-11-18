@@ -2021,7 +2021,7 @@ static void ReplaceObjectHelper(UObject*& OldObject, UClass* OldClass, UObject*&
 	}
 
 	OldObject->RemoveFromRoot();
-	OldObject->MarkPendingKill();
+	OldObject->MarkAsGarbage();
 
 	OldToNewInstanceMap.Add(OldObject, NewUObject);
 

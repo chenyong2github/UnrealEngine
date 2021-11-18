@@ -16,6 +16,7 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"ImageWriteQueue",
                 "SignalProcessing", // Needed for wave writer.
 				"AudioMixer",
+				"Imath",
 				"UEOpenExr", // Needed for multilayer EXRs
 				"UEOpenExrRTTI", // Needed for EXR metadata
 				"ImageWrapper",				

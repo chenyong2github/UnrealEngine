@@ -249,7 +249,7 @@ FMD5Hash FDatasmithUEPbrMaterialElementImpl::CalculateElementHash(bool bForce)
 	MD5.Update(reinterpret_cast<const uint8*>(&OpacityMaskClipValue), sizeof(OpacityMaskClipValue));
 	MD5.Update(reinterpret_cast<const uint8*>(&ShadingModel), sizeof(ShadingModel));
 
-	const FString& NativeParentLabel = ParentLabel.Get(Store);
+	const FString& NativeParentLabel = ParentLabel;
 	if (!NativeParentLabel.IsEmpty())
 	{
 		MD5.Update(reinterpret_cast<const uint8*>(*NativeParentLabel), NativeParentLabel.Len() * sizeof(TCHAR));
@@ -372,14 +372,7 @@ void FDatasmithUEPbrMaterialElementImpl::ResetExpressionGraph( bool bRemoveAllEx
 
 const TCHAR* FDatasmithUEPbrMaterialElementImpl::GetParentLabel() const
 {
-	if ( ParentLabel.Get( Store ).IsEmpty() )
-	{
-		return GetLabel();
-	}
-	else
-	{
-		return *ParentLabel.Get( Store );
-	}
+	return ParentLabel.Get().IsEmpty() ? GetLabel() : *ParentLabel.Get();
 }
 
 
@@ -438,7 +431,7 @@ void FDatasmithMaterialExpressionCustomImpl::SetArgumentName(int32 ArgIndex, con
 		return;
 	}
 
-	auto& Names = ArgNames.Edit(Store);
+	TArray<FString>& Names = ArgNames;
 	while (!Names.IsValidIndex(ArgIndex))
 	{
 		int32 CurrentIndex = Names.Num();

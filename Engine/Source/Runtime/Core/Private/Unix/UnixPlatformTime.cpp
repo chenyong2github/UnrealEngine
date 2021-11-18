@@ -7,7 +7,9 @@
 #include "Unix/UnixPlatformTime.h"
 #include "Containers/StringConv.h"
 #include "Logging/LogMacros.h"
+#include "GenericPlatform/GenericPlatformTime.h"
 #include "CoreGlobals.h"
+#include "Containers/Ticker.h"
 #include <sys/resource.h>
 
 int FUnixTime::ClockSource = -1;
@@ -40,6 +42,40 @@ namespace FUnixTimeInternal
 	static float CurrentCpuUtilization = 0.0f;
 	// last CPU utilization (per core)
 	static float CurrentCpuUtilizationNormalized = 0.0f;
+
+	struct FThreadCPUStats
+	{
+		/** Per-Thread CPU Utilization */
+		float ThreadCPUUtilization = 0.f;
+
+		/** Per-Thread CPU Utilization (per Core) */
+		float ThreadCPUUtilizationNormalized = 0.f;
+
+		/** The per-thread CPU processing time (kernel + user) from the last update */
+		uint64 LastIntervalThreadTimeNS = 0;
+	};
+
+	/** Per-Thread CPU Stats */
+	thread_local FThreadCPUStats CurrentThreadCPUStats = {};
+
+
+	/** Process lifetime Soft Page Fault count */
+	static uint64 SoftPageFaultCount = 0;
+
+	/** Process lifetime Hard Page Fault count */
+	static uint64 HardPageFaultCount = 0;
+
+	/** Process lifetime Blocking Input count */
+	static uint64 BlockingInputCount = 0;
+
+	/** Process lifetime Blocking Output count */
+	static uint64 BlockingOutputCount = 0;
+
+	/** Process lifetime Voluntary Context Switch count */
+	static uint64 VoluntaryContextSwitchCount = 0;
+
+	/** Process lifetime Involuntary Context Switch count */
+	static uint64 InvoluntaryContextSwitchCount = 0;
 }
 
 double FUnixTime::InitTiming()
@@ -83,18 +119,27 @@ FCPUTime FUnixTime::GetCPUTime()
 	return FCPUTime(FUnixTimeInternal::CurrentCpuUtilizationNormalized, FUnixTimeInternal::CurrentCpuUtilization);
 }
 
+FCPUTime FUnixTime::GetThreadCPUTime()
+{
+	return FCPUTime(FUnixTimeInternal::CurrentThreadCPUStats.ThreadCPUUtilizationNormalized,
+					FUnixTimeInternal::CurrentThreadCPUStats.ThreadCPUUtilization);
+}
+
 bool FUnixTime::UpdateCPUTime(float DeltaTimeInMs)
 {
-	struct rusage Usage;
-	if (0 == getrusage(RUSAGE_SELF, &Usage))
+	rusage Usage;
+
+	if (getrusage(RUSAGE_SELF, &Usage) == 0)
 	{
 		// Get delta between last two calls if the passed DeltaTime is zero
 		if (DeltaTimeInMs <= 0.0)
 		{
-			struct timespec ts;
-			if (0 == clock_gettime(ClockSource, &ts))
+			timespec ts;
+
+			if (clock_gettime(ClockSource, &ts) == 0)
 			{
 				const double CurrentTimeNanoSec = static_cast<double>(FUnixTimeInternal::TimeSpecToNanoSec(ts));
+
 				DeltaTimeInMs = (CurrentTimeNanoSec - FUnixTimeInternal::PreviousUpdateTimeNanoSec) / 1e6;
 				FUnixTimeInternal::PreviousUpdateTimeNanoSec = CurrentTimeNanoSec;
 			}
@@ -114,9 +159,76 @@ bool FUnixTime::UpdateCPUTime(float DeltaTimeInMs)
 		FUnixTimeInternal::PreviousSystemAndUserProcessTimeMicroSec = CurrentSystemAndUserProcessTimeMicroSec;
 		
 		LastIntervalCPUTimeInSeconds = FUnixTimeInternal::MicroSecondsToSeconds(CpuTimeDuringPeriodMicroSec);
+
+
+		// Free performance stats
+		FUnixTimeInternal::SoftPageFaultCount = Usage.ru_minflt;
+		FUnixTimeInternal::HardPageFaultCount = Usage.ru_majflt;
+		FUnixTimeInternal::BlockingInputCount = Usage.ru_inblock;
+		FUnixTimeInternal::BlockingOutputCount = Usage.ru_oublock;
+		FUnixTimeInternal::VoluntaryContextSwitchCount = Usage.ru_nvcsw;
+		FUnixTimeInternal::InvoluntaryContextSwitchCount = Usage.ru_nivcsw;
 	}
 
 	return true;
+}
+
+bool FUnixTime::UpdateThreadCPUTime(float/*= 0.0*/)
+{
+	bool bReturnVal = false;
+
+#ifdef PLATFORM_HAS_BSD_THREAD_CPUTIME
+	timespec SystemTime;
+	timespec ThreadTime;
+
+	if (clock_gettime(ClockSource, &SystemTime) == 0 && clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ThreadTime) == 0)
+	{
+		struct FThreadCPUTime
+		{
+			uint64 LastThreadCPUTimeUpdateNS = 0;
+			uint64 LastThreadTimeNS = 0;
+		};
+
+		thread_local FThreadCPUTime ThreadTimeInfo = {};
+
+		const uint64 SystemTimeNS = FUnixTimeInternal::TimeSpecToNanoSec(SystemTime);
+		const uint64 ThreadTimeNS = FUnixTimeInternal::TimeSpecToNanoSec(ThreadTime);
+		const uint64 DeltaTimeNS = SystemTimeNS - ThreadTimeInfo.LastThreadCPUTimeUpdateNS;
+
+		ThreadTimeInfo.LastThreadCPUTimeUpdateNS = SystemTimeNS;
+
+		const uint64 ElapsedThreadCPUTimeNS = ThreadTimeNS - ThreadTimeInfo.LastThreadTimeNS;
+		const double ThreadCPUUtilizationHighPrec = (static_cast<double>(ElapsedThreadCPUTimeNS) / static_cast<double>(DeltaTimeNS)) * 100.0;
+
+		FUnixTimeInternal::CurrentThreadCPUStats.ThreadCPUUtilization = ThreadCPUUtilizationHighPrec;
+		FUnixTimeInternal::CurrentThreadCPUStats.ThreadCPUUtilizationNormalized =
+																ThreadCPUUtilizationHighPrec / FPlatformMisc::NumberOfCoresIncludingHyperthreads();
+
+		ThreadTimeInfo.LastThreadTimeNS = ThreadTimeNS;
+		FUnixTimeInternal::CurrentThreadCPUStats.LastIntervalThreadTimeNS = ElapsedThreadCPUTimeNS;
+
+		bReturnVal = true;
+	}
+#endif
+
+	return bReturnVal;
+}
+
+void FUnixTime::AutoUpdateGameThreadCPUTime(double UpdateInterval)
+{
+	static bool bEnabledGameThreadTiming = false;
+
+	if (!bEnabledGameThreadTiming)
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateStatic(&FPlatformTime::UpdateThreadCPUTime), (float)UpdateInterval);
+
+		bEnabledGameThreadTiming = true;
+	}
+}
+
+double FUnixTime::GetLastIntervalThreadCPUTimeInSeconds()
+{
+	return static_cast<double>(FUnixTimeInternal::CurrentThreadCPUStats.LastIntervalThreadTimeNS) / 1e9;
 }
 
 uint64 FUnixTime::CallsPerSecondBenchmark(clockid_t BenchClockId, const char * BenchClockIdName)
@@ -274,3 +386,39 @@ void FUnixTime::PrintCalibrationLog()
 		UE_LOG(LogCore, Log, TEXT("%s"), *Line);
 	}
 }
+
+bool FUnixPlatformMisc::GetPageFaultStats(FPageFaultStats& OutStats, EPageFaultFlags Flags/*=EPageFaultFlags::All*/)
+{
+	// Ignore flags since all stats are free
+	OutStats.SoftPageFaults = FUnixTimeInternal::SoftPageFaultCount;
+	OutStats.HardPageFaults = FUnixTimeInternal::HardPageFaultCount;
+	OutStats.TotalPageFaults = FUnixTimeInternal::SoftPageFaultCount + FUnixTimeInternal::HardPageFaultCount;
+
+	return true;
+}
+
+bool FUnixPlatformMisc::GetBlockingIOStats(FProcessIOStats& OutStats, EInputOutputFlags Flags/*=EInputOutputFlags::All*/)
+{
+	bool bSuccess = false;
+
+	if (EnumHasAnyFlags(Flags, EInputOutputFlags::BlockingInput | EInputOutputFlags::BlockingOutput))
+	{
+		OutStats.BlockingInput = FUnixTimeInternal::BlockingInputCount;
+		OutStats.BlockingOutput = FUnixTimeInternal::BlockingOutputCount;
+
+		bSuccess = true;
+	}
+
+	return bSuccess;
+}
+
+bool FUnixPlatformMisc::GetContextSwitchStats(FContextSwitchStats& OutStats, EContextSwitchFlags Flags/*=EContextSwitchFlags::All*/)
+{
+	// Ignore flags since all stats are free
+	OutStats.VoluntaryContextSwitches = FUnixTimeInternal::VoluntaryContextSwitchCount;
+	OutStats.InvoluntaryContextSwitches = FUnixTimeInternal::InvoluntaryContextSwitchCount;
+	OutStats.TotalContextSwitches = FUnixTimeInternal::VoluntaryContextSwitchCount + FUnixTimeInternal::InvoluntaryContextSwitchCount;
+
+	return true;
+}
+

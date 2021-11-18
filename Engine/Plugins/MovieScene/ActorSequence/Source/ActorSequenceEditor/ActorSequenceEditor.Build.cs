@@ -22,6 +22,8 @@ public class ActorSequenceEditor : ModuleRules
 				"EditorStyle",
 				"Slate",
 				"SlateCore",
+				"SubobjectEditor",
+				"SubobjectDataInterface",
 				"UnrealEd",
 				"TimeManagement"
 			}

@@ -33,3 +33,8 @@ void FAnimNode_BlendSpaceEvaluator::GatherDebugData(FNodeDebugData& DebugData)
 	DebugLine += FString::Printf(TEXT("('%s' Play Time: %.3f)"), *GetBlendSpace()->GetName(), InternalTimeAccumulator);
 	DebugData.AddDebugItem(DebugLine, true);
 }
+
+float FAnimNode_BlendSpaceEvaluator::GetPlayRate() const
+{
+	return 0.0f;
+}

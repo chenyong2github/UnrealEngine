@@ -25,7 +25,7 @@ using AttributeTypes = TTuple
 <
 	FVector4f,
 	FVector3f,
-	FVector2D,
+	FVector2f,
 	float,
 	int32,
 	bool,
@@ -1484,10 +1484,10 @@ public:
 	 *
 	 * Example of use:
 	 *
-	 *		VertexInstanceAttributes().RegisterAttribute<FVector2D>( "UV", 8 );
+	 *		VertexInstanceAttributes().RegisterAttribute<FVector2f>( "UV", 8 );
 	 *                        . . .
-	 *		TVertexInstanceAttributeArray<FVector2D>& UV0 = VertexInstanceAttributes().GetAttributes<FVector2D>( "UV", 0 );
-	 *		UV0[ VertexInstanceID ] = FVector2D( 1.0f, 1.0f );
+	 *		TVertexInstanceAttributeArray<FVector2f>& UV0 = VertexInstanceAttributes().GetAttributes<FVector2f>( "UV", 0 );
+	 *		UV0[ VertexInstanceID ] = FVector2f( 1.0f, 1.0f );
 	 */
 
 	template <typename T>
@@ -2057,9 +2057,9 @@ public:
  *            const uint32 Type = MapEntry.Value->GetType();
  *            switch (Type)
  *            {
- *                case 0: Func(static_cast<TMeshAttributeArraySet<FVector>*>(MapEntry.Value.Get()); break;
- *                case 1: Func(static_cast<TMeshAttributeArraySet<FVector4>*>(MapEntry.Value.Get()); break;
- *                case 2: Func(static_cast<TMeshAttributeArraySet<FVector2D>*>(MapEntry.Value.Get()); break;
+ *                case 0: Func(static_cast<TMeshAttributeArraySet<FVector3f>*>(MapEntry.Value.Get()); break;
+ *                case 1: Func(static_cast<TMeshAttributeArraySet<FVector4f>*>(MapEntry.Value.Get()); break;
+ *                case 2: Func(static_cast<TMeshAttributeArraySet<FVector2f>*>(MapEntry.Value.Get()); break;
  *                case 3: Func(static_cast<TMeshAttributeArraySet<float>*>(MapEntry.Value.Get()); break;
  *                      ....
  *            }

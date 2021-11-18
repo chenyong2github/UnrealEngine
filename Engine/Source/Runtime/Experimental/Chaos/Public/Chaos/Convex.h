@@ -378,6 +378,8 @@ namespace Chaos
 		// Returns the number of planes found.
 		int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const;
 
+		int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const;
+
 		// The number of vertices that make up the corners of the specified face
 		int32 NumPlaneVertices(int32 PlaneIndex) const;
 
@@ -445,16 +447,13 @@ namespace Chaos
 			int32 MaxVIdx = INDEX_NONE;
 			const int32 NumVertices = Vertices.Num();
 
-			if (ensure(NumVertices > 0))
+			for (int32 Idx = 0; Idx < NumVertices; ++Idx)
 			{
-				for (int32 Idx = 0; Idx < NumVertices; ++Idx)
+				const FReal Dot = FVec3::DotProduct(Vertices[Idx], Direction);
+				if (Dot > MaxDot)
 				{
-					const FReal Dot = FVec3::DotProduct(Vertices[Idx], Direction);
-					if (Dot > MaxDot)
-					{
-						MaxDot = Dot;
-						MaxVIdx = Idx;
-					}
+					MaxDot = Dot;
+					MaxVIdx = Idx;
 				}
 			}
 
@@ -463,40 +462,64 @@ namespace Chaos
 
 	public:
 
-		FVec3 GetMarginAdjustedVertex(int32 VertexIndex, FReal InMargin) const
+		// @todo(chaos): Move to utils
+		inline bool IntersectPlanes3(const FVec3& X1, const FVec3& N1, const FVec3& X2, const FVec3& N2, const FVec3& X3, const FVec3& N3, FVec3& OutX, const FReal EpsilonSq = FReal(1.e-6)) const
+		{
+			// Compute determinant, the triple product P1|(P2^P3)==(P1^P2)|P3.
+			const FVec3 N1CrossN2 = FVec3::CrossProduct(N1, N2);
+			const FReal Det = FVec3::DotProduct(N1CrossN2, N3);
+			if (FMath::Square(Det) < EpsilonSq)
+			{
+				// Degenerate.
+				OutX = FVec3(0);
+				return false;
+			}
+			else
+			{
+				// Compute the intersection point, guaranteed valid if determinant is nonzero.
+				const FVec3 N2CrossN3 = FVec3::CrossProduct(N2, N3);
+				const FVec3 N3CrossN1 = FVec3::CrossProduct(N3, N1);
+				const FReal D1 = FVec3::DotProduct(X1, N1);
+				const FReal D2 = FVec3::DotProduct(X2, N2);
+				const FReal D3 = FVec3::DotProduct(X3, N3);
+				OutX = (D1 * N2CrossN3 + D2 * N3CrossN1 + D3 * N1CrossN2) / Det;
+			}
+			return true;
+		}
+
+		FVec3 GetMarginAdjustedVertex(const int32 VertexIndex, const FReal InMargin, FReal* OutSupportDelta) const
 		{
 			// @chaos(todo): moving the vertices this way based on margin is only valid for small margins. If the margin
 			// is large enough to cause a face to reduce to zero size, vertices should be merged and the path is non-linear.
 			// This can be fixed with some extra data in the convex structure, but for now we accept the fact that large 
 			// margins on convexes with small faces can cause non-convex core shapes.
 
-			if (InMargin == 0.0f)
+			if (InMargin == FReal(0))
 			{
 				return GetVertex(VertexIndex);
 			}
 
 			// Get any 3 planes that contribute to this vertex
-			int32 PlaneIndices[3];
-			int32 NumVertexPlanes = FindVertexPlanes(VertexIndex, PlaneIndices, 3);
+			int32 PlaneIndex0 = INDEX_NONE;
+			int32 PlaneIndex1 = INDEX_NONE;
+			int32 PlaneIndex2 = INDEX_NONE;
+			const int32 NumVertexPlanes = GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
 
 			// Move the planes by the margin and recalculate the interection
-			// @todo(chaos): calculate dV/dm per vertex and store it in StructureData
 			if (NumVertexPlanes >= 3)
 			{
-				const int32 PlaneIndex0 = PlaneIndices[0];
-				const int32 PlaneIndex1 = PlaneIndices[1];
-				const int32 PlaneIndex2 = PlaneIndices[2];
-
-				FVec3 PlanesPos;
-				UE::Math::TPlane<FReal> NewPlanes[3] =
+				FVec3 VertexPos = Vertices[VertexIndex];
+				if (IntersectPlanes3(
+					VertexPos - InMargin * Planes[PlaneIndex0].Normal(), Planes[PlaneIndex0].Normal(),
+					VertexPos - InMargin * Planes[PlaneIndex1].Normal(), Planes[PlaneIndex1].Normal(),
+					VertexPos - InMargin * Planes[PlaneIndex2].Normal(), Planes[PlaneIndex2].Normal(),
+					VertexPos))
 				{
-					UE::Math::TPlane<FReal>(Planes[PlaneIndex0].X() - InMargin * Planes[PlaneIndex0].Normal(), Planes[PlaneIndex0].Normal()),
-					UE::Math::TPlane<FReal>(Planes[PlaneIndex1].X() - InMargin * Planes[PlaneIndex1].Normal(), Planes[PlaneIndex1].Normal()),
-					UE::Math::TPlane<FReal>(Planes[PlaneIndex2].X() - InMargin * Planes[PlaneIndex2].Normal(), Planes[PlaneIndex2].Normal()),
-				};
-				if (FMath::IntersectPlanes3(PlanesPos, NewPlanes[0], NewPlanes[1], NewPlanes[2]))
-				{
-					return PlanesPos;
+					if (OutSupportDelta != nullptr)
+					{
+						*OutSupportDelta = (Vertices[VertexIndex] - VertexPos).Size() - InMargin;
+					}
+					return VertexPos;
 				}
 			}
 
@@ -505,8 +528,6 @@ namespace Chaos
 
 			if (NumVertexPlanes == 2)
 			{
-				const int32 PlaneIndex0 = PlaneIndices[0];
-				const int32 PlaneIndex1 = PlaneIndices[1];
 				const FVec3 NewPlaneX = GetVertex(VertexIndex);
 				const FVec3 NewPlaneN0 = Planes[PlaneIndex0].Normal();
 				const FVec3 NewPlaneN1 = Planes[PlaneIndex1].Normal();
@@ -516,7 +537,6 @@ namespace Chaos
 
 			if (NumVertexPlanes == 1)
 			{
-				const int32 PlaneIndex0 = PlaneIndices[0];
 				const FVec3 NewPlaneX = GetVertex(VertexIndex);
 				const FVec3 NewPlaneN = Planes[PlaneIndex0].Normal();
 				return NewPlaneX - (InMargin * NewPlaneN);
@@ -526,7 +546,7 @@ namespace Chaos
 			return GetVertex(VertexIndex);
 		}
 
-		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, FReal InMargin, const FVec3& Scale) const
+		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta) const
 		{
 			if (InMargin == 0.0f)
 			{
@@ -534,40 +554,32 @@ namespace Chaos
 			}
 
 			// Get any 3 planes that contribute to this vertex
-			int32 PlaneIndices[3];
-			int32 NumVertexPlanes = FindVertexPlanes(VertexIndex, PlaneIndices, 3);
+			int32 PlaneIndex0 = INDEX_NONE;
+			int32 PlaneIndex1 = INDEX_NONE;
+			int32 PlaneIndex2 = INDEX_NONE;
+			const int32 NumVertexPlanes = GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
+			const FVec3 InvScale = FVec3(FReal(1) / Scale.X, FReal(1) / Scale.Y, FReal(1) / Scale.Z);
 
 			// Move the planes by the margin and recalculate the interection
-			// @todo(chaos): calculate dV/dm per vertex and store it in StructureData (but see todo above)
 			if (NumVertexPlanes >= 3)
 			{
-				const int32 PlaneIndex0 = PlaneIndices[0];
-				const int32 PlaneIndex1 = PlaneIndices[1];
-				const int32 PlaneIndex2 = PlaneIndices[2];
+				const FVec3 VertexPos = Scale * Vertices[VertexIndex];
 
-				const FVec3 NewPlaneX = Scale * GetVertex(VertexIndex);
-				const FVec3 NewPlaneNs[3] = 
-				{
-					(Planes[PlaneIndex0].Normal() / Scale).GetUnsafeNormal(),
-					(Planes[PlaneIndex1].Normal() / Scale).GetUnsafeNormal(),
-					(Planes[PlaneIndex2].Normal() / Scale).GetUnsafeNormal(),
-				};
-				FReal NewPlaneDs[3] = 
-				{
-					FVec3::DotProduct(NewPlaneX, NewPlaneNs[0]) - InMargin,
-					FVec3::DotProduct(NewPlaneX, NewPlaneNs[1]) - InMargin,
-					FVec3::DotProduct(NewPlaneX, NewPlaneNs[2]) - InMargin,
-				};
-				UE::Math::TPlane<FReal> NewPlanes[3] =
-				{
-					UE::Math::TPlane<FReal>(NewPlaneNs[0], NewPlaneDs[0]),
-					UE::Math::TPlane<FReal>(NewPlaneNs[1], NewPlaneDs[1]),
-					UE::Math::TPlane<FReal>(NewPlaneNs[2], NewPlaneDs[2]),
-				};
+				const FVec3 NewPlaneN0 = (Planes[PlaneIndex0].Normal() * InvScale).GetUnsafeNormal();
+				const FVec3 NewPlaneN1 = (Planes[PlaneIndex1].Normal() * InvScale).GetUnsafeNormal();
+				const FVec3 NewPlaneN2 = (Planes[PlaneIndex2].Normal() * InvScale).GetUnsafeNormal();
 
-				FVec3 AdjustedVertexPos;
-				if (FMath::IntersectPlanes3(AdjustedVertexPos, NewPlanes[0], NewPlanes[1], NewPlanes[2]))
+				FVec3 AdjustedVertexPos = VertexPos;
+				if (IntersectPlanes3(
+					VertexPos - InMargin * NewPlaneN0, NewPlaneN0,
+					VertexPos - InMargin * NewPlaneN1, NewPlaneN1,
+					VertexPos - InMargin * NewPlaneN2, NewPlaneN2,
+					AdjustedVertexPos))
 				{
+					if (OutSupportDelta != nullptr)
+					{
+						*OutSupportDelta = (VertexPos - AdjustedVertexPos).Size() - InMargin;
+					}
 					return AdjustedVertexPos;
 				}
 			}
@@ -577,20 +589,17 @@ namespace Chaos
 
 			if (NumVertexPlanes == 2)
 			{
-				const int32 PlaneIndex0 = PlaneIndices[0];
-				const int32 PlaneIndex1 = PlaneIndices[1];
 				const FVec3 NewPlaneX = Scale * GetVertex(VertexIndex);
-				const FVec3 NewPlaneN0 = (Planes[PlaneIndex0].Normal() / Scale).GetUnsafeNormal();
-				const FVec3 NewPlaneN1 = (Planes[PlaneIndex1].Normal() / Scale).GetUnsafeNormal();
+				const FVec3 NewPlaneN0 = (Planes[PlaneIndex0].Normal() * InvScale).GetUnsafeNormal();
+				const FVec3 NewPlaneN1 = (Planes[PlaneIndex1].Normal() * InvScale).GetUnsafeNormal();
 				const FVec3 NewPlaneN = (NewPlaneN0 + NewPlaneN1).GetSafeNormal();
 				return NewPlaneX - (InMargin * NewPlaneN);
 			}
 
 			if (NumVertexPlanes == 1)
 			{
-				const int32 PlaneIndex0 = PlaneIndices[0];
 				const FVec3 NewPlaneX = Scale * GetVertex(VertexIndex);
-				const FVec3 NewPlaneN = (Planes[PlaneIndex0].Normal() / Scale).GetUnsafeNormal();
+				const FVec3 NewPlaneN = (Planes[PlaneIndex0].Normal() * InvScale).GetUnsafeNormal();
 				return NewPlaneX - (InMargin * NewPlaneN);
 			}
 
@@ -600,44 +609,32 @@ namespace Chaos
 
 	public:
 		// Return support point on the core shape (the convex shape with all planes moved inwards by margin).
-		FVec3 SupportCore(const FVec3& Direction, FReal InMargin) const
+		FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta) const
 		{
 			const int32 SupportVertexIndex = GetSupportVertex(Direction);
 			if (SupportVertexIndex != INDEX_NONE)
 			{
-				if (InMargin > SMALL_NUMBER)
-				{
-					return GetMarginAdjustedVertex(SupportVertexIndex, InMargin);
-				}
-				return Vertices[SupportVertexIndex];
+				return GetMarginAdjustedVertex(SupportVertexIndex, InMargin, OutSupportDelta);
 			}
 			return FVec3(0);
 		}
 
 		// SupportCore with non-uniform scale support. This is required for the margin in scaled
 		// space to by uniform. Note in this version all the inputs are in outer container's (scaled shape) space
-		FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale) const
+		FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta) const
 		{
 			// Find the supporting vertex index
 			const FVec3 DirectionScaled = Scale * Direction;	// does not need to be normalized
 			const int32 SupportVertexIndex = GetSupportVertex(DirectionScaled);
 
 			// Adjust the vertex position based on margin
-			FVec3 VertexPosition = FVec3(0);
 			if (SupportVertexIndex != INDEX_NONE)
 			{
 				// Note: Shapes wrapped in a non-uniform scale should not have their own margin and we assume that here
 				// @chaos(todo): apply an upper limit to the margin to prevent a non-convex or null shape (also see comments in GetMarginAdjustedVertex)
-				if (InMargin > SMALL_NUMBER)
-				{
-					VertexPosition = GetMarginAdjustedVertexScaled(SupportVertexIndex, InMargin, Scale);
-				}
-				else
-				{
-					VertexPosition = Scale * Vertices[SupportVertexIndex];
-				}
+				return GetMarginAdjustedVertexScaled(SupportVertexIndex, InMargin, Scale, OutSupportDelta);
 			}
-			return VertexPosition;
+			return FVec3(0);
 		}
 
 		// Return support point on the shape

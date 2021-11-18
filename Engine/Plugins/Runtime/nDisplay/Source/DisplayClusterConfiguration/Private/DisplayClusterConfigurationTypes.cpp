@@ -288,7 +288,6 @@ void UDisplayClusterConfigurationScene::GetObjectsToExport(TArray<UObject*>& Out
 
 FDisplayClusterConfigurationMasterNodePorts::FDisplayClusterConfigurationMasterNodePorts()
 	: ClusterSync(41001)
-	, RenderSync (41002)
 	, ClusterEventsJson  (41003)
 	, ClusterEventsBinary(41004)
 {

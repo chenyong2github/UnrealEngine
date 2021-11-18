@@ -67,8 +67,8 @@ namespace UnrealBuildTool
 			Type = (ConfigHierarchyType)Reader.ReadInt();
 			ProjectDir = Reader.ReadDirectoryReference();
 			Platform = Reader.ReadUnrealTargetPlatform();
-			SectionName = Reader.ReadString();
-			KeyName = Reader.ReadString();
+			SectionName = Reader.ReadString()!;
+			KeyName = Reader.ReadString()!;
 		}
 
 		/// <summary>
@@ -144,7 +144,7 @@ namespace UnrealBuildTool
 		/// <param name="Reader">Archive to read from</param>
 		public ConfigValueTracker(BinaryArchiveReader Reader)
 		{
-			Dependencies = Reader.ReadDictionary(() => new ConfigDependencyKey(Reader), () => (IReadOnlyList<string>?)Reader.ReadList(() => Reader.ReadString()));
+			Dependencies = Reader.ReadDictionary(() => new ConfigDependencyKey(Reader), () => (IReadOnlyList<string>?)Reader.ReadList(() => Reader.ReadString()))!;
 		}
 
 		/// <summary>

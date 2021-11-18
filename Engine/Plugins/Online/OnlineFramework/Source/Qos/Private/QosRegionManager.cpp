@@ -274,7 +274,7 @@ void UQosRegionManager::OnQosEvaluationComplete(EQosCompletionResult Result, con
 	if (Evaluator != nullptr)
 	{
 		Evaluator->RemoveFromRoot();
-		Evaluator->MarkPendingKill();
+		Evaluator->MarkAsGarbage();
 		Evaluator = nullptr;
 	}
 	QosEvalResult = Result;

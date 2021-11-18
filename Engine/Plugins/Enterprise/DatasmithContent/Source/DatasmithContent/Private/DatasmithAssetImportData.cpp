@@ -13,6 +13,13 @@
 #include "UObject/EnterpriseObjectVersion.h"
 
 #if WITH_EDITORONLY_DATA
+void FDatasmithImportInfo::GetAssetRegistryTags(TArray<UObject::FAssetRegistryTag>& OutTags) const
+{
+	using FAssetRegistryTag = UObject::FAssetRegistryTag;
+
+	OutTags.Add(FAssetRegistryTag(TEXT("SourceUri"), SourceUri, FAssetRegistryTag::TT_Hidden));
+	OutTags.Add(FAssetRegistryTag(TEXT("SourceHash"), SourceHash, FAssetRegistryTag::TT_Hidden));
+}
 
 #if WITH_EDITOR
 bool UDatasmithSceneImportData::CanEditChange(const FProperty* InProperty) const

@@ -28,8 +28,6 @@ namespace Chaos
 		if (GJKPenetration<true>(A, B, BToATM, Penetration, ClosestA, ClosestBInA, Normal, ClosestVertexIndexA, ClosestVertexIndexB, ThicknessA, ThicknessB, InitialDir, Epsilon))
 		{
 			// GJK output is all in the local space of A. We need to transform the B-relative position and the normal in to B-space
-			Contact.ShapeMargins[0] = 0.0f;
-			Contact.ShapeMargins[1] = 0.0f;
 			Contact.ShapeContactPoints[0] = ClosestA;
 			Contact.ShapeContactPoints[1] = BToATM.InverseTransformPosition(ClosestBInA);
 			Contact.ShapeContactNormal = -BToATM.InverseTransformVector(Normal);

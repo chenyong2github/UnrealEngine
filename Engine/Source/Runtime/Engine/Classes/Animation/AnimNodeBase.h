@@ -890,6 +890,13 @@ struct ENGINE_API FAnimNode_Base
 		return NodeData->GetNodeIndex();
 	}
 
+	// Get the anim class that this node is hosted within
+	const IAnimClassInterface* GetAnimClassInterface() const
+	{
+		check(NodeData);
+		return &NodeData->GetAnimClassInterface();
+	}
+	
 protected:
 	// Get anim node constant/folded data of the specified type given the identifier. Do not use directly - use GET_ANIM_NODE_DATA
 	template<typename DataType>

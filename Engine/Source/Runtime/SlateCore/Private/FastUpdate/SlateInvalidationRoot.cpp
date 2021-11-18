@@ -1259,7 +1259,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 
 				UE_SLATE_LOG_ERROR_IF_FALSE(Widget.GetProxyHandle().GetWidgetSortOrder() == HittestGridSortDatas[FoundHittestIndex].SecondarySort
 					, GSlateInvalidationRootVerifyHittestGrid
-					, TEXT("The SecondarySort of widget '%s' doesn't match the SecondarySort inside the hittestgrid.")
+					, TEXT("The SecondarySort of widget '%s' doesn't match the SecondarySort inside the HittestGrid.")
 					, *FReflectionMetaData::GetWidgetPath(Widget));
 
 				LastWidget = &Widget;
@@ -1278,10 +1278,37 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 		HittestGridSortDatas.RemoveAtSwap(FoundHittestIndex);
 	}
 
-	UE_SLATE_LOG_ERROR_IF_FALSE(HittestGridSortDatas.Num() == 0
-		, GSlateInvalidationRootVerifyHittestGrid
-		, TEXT("The hittest grid of Root '%s' has widgets that are not inside the InvalidationRoot's widget list")
-		, *FReflectionMetaData::GetWidgetPath(InvalidationRootWidget));
+	// New Widget could be added with an ChildOrder invalidation while Painting or SlatePrepass.
+	//They wouldn't be in the WidgetList yet. Make sure a parent has the ChildOrder Invalidation (so they get repainted to the hittest grid).
+	for (const FHittestWidgetSortData& HittestGridSortData : HittestGridSortDatas)
+	{
+		UE_SLATE_LOG_ERROR_IF_FALSE(HittestGridSortData.Widget != nullptr
+			, GSlateInvalidationRootVerifyHittestGrid
+			, TEXT("A widget in the HittestGrid is invalid and shouldn't be in the HittestGrid."));
+
+		if (!HittestGridSortData.Widget->GetProxyHandle().IsValid(HittestGridSortData.Widget))
+		{
+			// Is the parent have ChildOrder invalidation
+			FSlateInvalidationWidgetIndex ParentWidetIndex = FSlateInvalidationWidgetIndex::Invalid;
+			SWidget* ParentWidget = HittestGridSortData.Widget->GetParentWidget().Get();
+			while(ParentWidget)
+			{
+				if (ParentWidget->GetProxyHandle().IsValid(ParentWidget))
+				{
+					ParentWidetIndex = ParentWidget->GetProxyHandle().GetWidgetIndex();
+					break;
+				}
+				ParentWidget = ParentWidget->GetParentWidget().Get();
+			}
+
+			if (ParentWidetIndex != FSlateInvalidationWidgetIndex::Invalid)
+			{
+				UE_SLATE_LOG_ERROR_IF_FALSE(WidgetList.IsValidIndex(ParentWidetIndex) && EnumHasAllFlags(WidgetList[ParentWidetIndex].CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder)
+					, GSlateInvalidationRootVerifyHittestGrid
+					, TEXT("The parent widget doesn't has ChildOrder invaldiation. The hittest grid has an invalid widget."));
+			}
+		}
+	}
 }
 
 void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)

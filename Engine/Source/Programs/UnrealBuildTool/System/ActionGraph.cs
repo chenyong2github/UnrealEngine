@@ -621,7 +621,7 @@ namespace UnrealBuildTool
 			{
 				// Check if the command-line of the action previously used to produce the item is outdated.
 				string NewProducingAttributes = $"{RootAction.CommandPath.FullName} {RootAction.CommandArguments} (ver {RootAction.CommandVersion})";
-				if (ActionHistory.UpdateProducingAttributes(ProducedItem, NewProducingAttributes))
+				if (ActionHistory.UpdateProducingAttributes(ProducedItem, NewProducingAttributes) && RootAction.bUseActionHistory)
 				{
 					if (ProducedItem.Exists)
 					{

@@ -12,7 +12,7 @@ class FDatasmithLevelSequenceElementImpl : public FDatasmithElementImpl< IDatasm
 public:
 	explicit FDatasmithLevelSequenceElementImpl(const TCHAR* InName);
 
-	virtual const TCHAR* GetFile() const override { return *File; }
+	virtual const TCHAR* GetFile() const override { return *File.Get(); }
 	virtual void SetFile(const TCHAR* InFile) override { File = InFile; };
 
 	virtual FMD5Hash GetFileHash() const override { return FileHash; }
@@ -32,10 +32,11 @@ public:
 	virtual void RemoveAnimation(const TSharedRef< IDatasmithBaseAnimationElement >& InAnimation) override { Animations.Remove(InAnimation); }
 
 private:
-	FString File;
-	FMD5Hash FileHash;
+	TReflected<FString> File;
+	TReflected<FMD5Hash> FileHash;
+	TReflected<float> FrameRate;
+
 	TArray< TSharedRef< IDatasmithBaseAnimationElement > > Animations;
-	float FrameRate;
 };
 
 template< typename InterfaceType >

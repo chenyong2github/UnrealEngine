@@ -51,7 +51,7 @@ void FDatasmithSceneReceiver::FinalSnapshot(const DirectLink::FSceneSnapshot& Sc
 	FSceneHashTable OldHashTable = MoveTemp(Current->HashTable);
 	DirectLink::FSceneIdentifier OldSceneId = Current->SceneId;
 	Current = ParseSnapshot(SceneSnapshot);
-	
+
 	if (!Current->Scene)
 	{
 		return;
@@ -158,7 +158,7 @@ TUniquePtr<FDatasmithSceneReceiver::FSceneState> FDatasmithSceneReceiver::ParseS
 	Nodes.Reserve(SceneSnapshot.Elements.Num());
 
 	TSharedPtr<FDatasmithSceneGraphSharedState> SceneSharedState = MakeShared<FDatasmithSceneGraphSharedState>(SceneSnapshot.SceneId);
-	
+
 	const EDatasmithElementType UnsupportedTypes = EDatasmithElementType::Material;
 	EDatasmithElementType FoundUnsupportedTypes =  EDatasmithElementType::None;
 
@@ -170,21 +170,21 @@ TUniquePtr<FDatasmithSceneReceiver::FSceneState> FDatasmithSceneReceiver::ParseS
 		FString Name;
 		if (!ElementSnapshot.GetValueAs("Name", Name))
 		{
-			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element name for node #%d"), NodeId);
+			UE_LOG(LogDatasmith, Error, TEXT("Directlink snapshot parsing failed: missing element name for node #%d."), NodeId);
 			return NewSceneState;
 		}
 
 		uint64 Type = 0;
 		if (!ElementSnapshot.GetValueAs("Type", Type))
 		{
-			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element type info for node '%s'"), *Name);
+			UE_LOG(LogDatasmith, Error, TEXT("Directlink snapshot parsing failed: missing element type info for node '%s'"), *Name);
 			return NewSceneState;
 		}
 
 		uint64 Subtype = 0;
 		if (!ElementSnapshot.GetValueAs("Subtype", Subtype))
 		{
-			UE_LOG(LogDatasmith, Display, TEXT("OnAddElement failed: missing element subtype info for node '%s'"), *Name);
+			UE_LOG(LogDatasmith, Error, TEXT("Directlink snapshot parsing failed: missing element subtype info for node '%s'"), *Name);
 			return NewSceneState;
 		}
 
@@ -203,14 +203,17 @@ TUniquePtr<FDatasmithSceneReceiver::FSceneState> FDatasmithSceneReceiver::ParseS
 		}
 
 		TSharedPtr<IDatasmithElement> Element = FDatasmithSceneFactory::CreateElement(PureType, Subtype, *Name);
-		check(Element);
+		if (!Element)
+		{
+			UE_LOG(LogDatasmith, Error, TEXT("Directlink snapshot parsing failed: cannot create element '%s' of type %d"), *Name, Type);
+			return NewSceneState;
+		}
+
 		Element->SetSharedState(SceneSharedState);
 		Element->SetNodeId(NodeId); // #ue_directlink_design nope, only the Scene SharedState has this right
 		NewSceneState->Elements.Add(NodeId, Element);
 
 		const TCHAR* ElementTypeName = GetElementTypeName(Element.Get());
-// 		UE_LOG(LogDatasmith, Display, TEXT("OnAddElement -> %s'%s' id=%d"), ElementTypeName, *Name, NodeId);
-		check(Element);
 
 		FFinalizableNode& Node = Nodes.AddDefaulted_GetRef();
 		Node.Element = Element;
@@ -242,6 +245,12 @@ TUniquePtr<FDatasmithSceneReceiver::FSceneState> FDatasmithSceneReceiver::ParseS
 			}
 			break;
 		}
+	}
+
+	if (!NewSceneState->Scene)
+	{
+		UE_LOG(LogDatasmith, Error, TEXT("Directlink snapshot parsing failed: cannot find the scene root element."));
+		return NewSceneState;
 	}
 
 	if (FoundUnsupportedTypes != EDatasmithElementType::None && NewSceneState->Scene)

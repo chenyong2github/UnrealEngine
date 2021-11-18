@@ -96,4 +96,12 @@ void FElectraPlayer::PlatformNotifyOfOptionChange()
 	}
 }
 
+void FElectraPlayer::PlatformSuspendOrResumeDecoders(bool bSuspend)
+{
+	if (CurrentPlayer.IsValid() && CurrentPlayer->AdaptivePlayer.IsValid())
+	{
+		CurrentPlayer->AdaptivePlayer->Android_SuspendOrResumeDecoder(bSuspend);
+	}
+}
+
 #endif

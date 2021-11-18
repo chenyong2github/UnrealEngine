@@ -84,6 +84,7 @@ public:
 	
 	EGLDisplay GetDisplay() const;
 	EGLSurface GetSurface() const;
+	EGLConfig GetConfig() const;
 	ANativeWindow* GetNativeWindow() const;
 	void GetSwapIntervalRange(EGLint& OutMinSwapInterval, EGLint& OutMaxSwapInterval) const;
 

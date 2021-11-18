@@ -58,7 +58,7 @@ struct FVertexStreamHeader
 struct FUVStreamHeader
 {
 	uint32 QuantizationBits;
-	FVector2D Range;
+	FVector2f Range;
 };
 
 // At start of UV stream
@@ -140,22 +140,22 @@ public:
 
 	/** Initialize with a range and a number of bits. NumBits determines the number of bins we have,
 		and Range determines the sizes of the bins. */
-	FQuantizerVector2(const FVector2D& Range, int32 Bits) : QuantizerX(Range.GetMax(), Bits), QuantizerY(Range.GetMax(), Bits)
+	FQuantizerVector2(const FVector2f& Range, int32 Bits) : QuantizerX(Range.GetMax(), Bits), QuantizerY(Range.GetMax(), Bits)
 	{
 	}
 
 #if WITH_EDITOR
 	/** Quantize a value */
-	FORCEINLINE FIntVector Quantize(const FVector2D& Value)
+	FORCEINLINE FIntVector Quantize(const FVector2f& Value)
 	{
 		return FIntVector(QuantizerX.QuantizeFloat(Value.X), QuantizerY.QuantizeFloat(Value.Y), 0);
 	}
 #endif // WITH_EDITOR
 
 	/** Dequantize a quantized value */
-	FORCEINLINE FVector2D Dequantize(const FIntVector& Value)
+	FORCEINLINE FVector2f Dequantize(const FIntVector& Value)
 	{
-		return FVector2D(QuantizerX.DequantizeFloat(Value.X), QuantizerY.DequantizeFloat(Value.Y));
+		return FVector2f(QuantizerX.DequantizeFloat(Value.X), QuantizerY.DequantizeFloat(Value.Y));
 	}
 
 private:
@@ -404,7 +404,7 @@ void FCodecV1Encoder::EncodeNormalStream(const FPackedNormal* Stream, uint64 Ele
 	Stats = FStreamEncodingStatistics(ByteCounter.Read(), ElementCount * sizeof(FPackedNormal), Quality);
 }
 
-void FCodecV1Encoder::EncodeUVStream(const FVector2D* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats)
+void FCodecV1Encoder::EncodeUVStream(const FVector2f* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats)
 {
 	FBitstreamWriterByteCounter ByteCounter(EncodingContext.Writer);
 	
@@ -412,7 +412,7 @@ void FCodecV1Encoder::EncodeUVStream(const FVector2D* Stream, uint64 ElementOffs
 	// to avoid jittering of coordinates over frames. Note that out of range values (e.g., [0-6]) will quantize fine, but will take 
 	// 'UVQuantizationBitRange' bits for their fraction part
 	const int32 BitRange = Config.UVQuantizationBitRange;
-	FVector2D Range(1.0f, 1.0f);	
+	FVector2f Range(1.0f, 1.0f);	
 	FQuantizerVector2 Quantizer(Range, BitRange);
 
 	// Write header
@@ -430,7 +430,7 @@ void FCodecV1Encoder::EncodeUVStream(const FVector2D* Stream, uint64 ElementOffs
 	for (uint32 ElementIdx = 0; ElementIdx < ElementCount; ++ElementIdx, RawElementData += ElementOffsetBytes)
 	{
 		// Load data
-		FVector2D& UVValue = *(FVector2D*)RawElementData;
+		FVector2f& UVValue = *(FVector2f*)RawElementData;
 
 		FIntVector Encoded = Quantizer.Quantize(UVValue);
 
@@ -446,12 +446,12 @@ void FCodecV1Encoder::EncodeUVStream(const FVector2D* Stream, uint64 ElementOffs
 		ReconstructedHistory.Push(Reconstructed);
 
 		// Calculate error
-		FVector2D DequantReconstructed = Quantizer.Dequantize(Reconstructed);
+		FVector2f DequantReconstructed = Quantizer.Dequantize(Reconstructed);
 		QualityMetric.Register(UVValue, DequantReconstructed);
 	}
 
 	// Gather rate and quality statistics
-	Stats = FStreamEncodingStatistics(ByteCounter.Read(), ElementCount * sizeof(FVector2D), QualityMetric.ReadMSE());
+	Stats = FStreamEncodingStatistics(ByteCounter.Read(), ElementCount * sizeof(FVector2f), QualityMetric.ReadMSE());
 }
 
 void FCodecV1Encoder::EncodeMotionVectorStream(const FVector3f* Stream, uint64 ElementOffsetBytes, uint32 ElementCount, FStreamEncodingStatistics& Stats)
@@ -497,7 +497,7 @@ void FCodecV1Encoder::EncodeMotionVectorStream(const FVector3f* Stream, uint64 E
 	}
 
 	// Gather rate and quality statistics
-	Stats = FStreamEncodingStatistics(ByteCounter.Read(), ElementCount * sizeof(FVector2D), QualityMetric.ReadMSE());
+	Stats = FStreamEncodingStatistics(ByteCounter.Read(), ElementCount * sizeof(FVector2f), QualityMetric.ReadMSE());
 }
 void FCodecV1Encoder::WriteCodedStreamDescription()
 {
@@ -582,7 +582,7 @@ bool FCodecV1Encoder::EncodeFrameData(FMemoryWriter& Writer, const FGeometryCach
 	}
 
 	const TArray<FVector3f>& Positions = MeshData.Positions;
-	const TArray<FVector2D>& TextureCoordinates = MeshData.TextureCoordinates;
+	const TArray<FVector2f>& TextureCoordinates = MeshData.TextureCoordinates;
 	const TArray<FPackedNormal>& TangentsX = MeshData.TangentsX;
 	const TArray<FPackedNormal>& TangentsZ = MeshData.TangentsZ;
 	const TArray<FColor>& Colors = MeshData.Colors;
@@ -691,7 +691,7 @@ bool FCodecV1Encoder::EncodeFrameData(FMemoryWriter& Writer, const FGeometryCach
 		+ sizeof(FColor) * Colors.Num() // Colors
 		+ sizeof(FPackedNormal) * TangentsX.Num() // TangentX
 		+ sizeof(FPackedNormal) * TangentsZ.Num() // TangentY
-		+ sizeof(FVector2D) * TextureCoordinates.Num(); // UVs
+		+ sizeof(FVector2f) * TextureCoordinates.Num(); // UVs
 	Statistics.All = FStreamEncodingStatistics(TotalByteCounter.Read() + sizeof(FCodedFrameHeader), TotalRawSize, 0.0f);
 		
 	return true;
@@ -900,7 +900,7 @@ void FCodecV1Decoder::DecodeMotionVectorStream(FHuffmanBitStreamReader& Reader, 
 	}
 }
 
-void FCodecV1Decoder::DecodeUVStream(FHuffmanBitStreamReader& Reader, FVector2D* Stream, uint64 ElementOffset, uint32 ElementCount)
+void FCodecV1Decoder::DecodeUVStream(FHuffmanBitStreamReader& Reader, FVector2f* Stream, uint64 ElementOffset, uint32 ElementCount)
 {
 	// Read header
 	FUVStreamHeader Header;
@@ -920,7 +920,7 @@ void FCodecV1Decoder::DecodeUVStream(FHuffmanBitStreamReader& Reader, FVector2D*
 		DecodedResidual.Y = ReadInt32(Reader, DecodingContext.ResidualUVTable);
 
 		QuantizedValue += DecodedResidual;
-		*(FVector2D*)RawElementData = Quantizer.Dequantize(QuantizedValue);
+		*(FVector2f*)RawElementData = Quantizer.Dequantize(QuantizedValue);
 	}
 }
 

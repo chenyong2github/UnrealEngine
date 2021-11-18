@@ -139,8 +139,6 @@ namespace Gauntlet
 
 			bool InitializedDevices = false;
 
-			HashSet<UnrealTargetPlatform> UsedPlatforms = new HashSet<UnrealTargetPlatform>();
-			
 			// for all platforms we want to test...
 			foreach (ArgumentWithParams PlatformWithParams in ContextOptions.PlatformList)
 			{
@@ -260,8 +258,6 @@ namespace Gauntlet
 					Gauntlet.Log.Verbose("Mapped Role {0} to RoleContext {1}", Type, Role);
 
 					RoleContexts[Type] = Role;
-
-					UsedPlatforms.Add(Role.Platform);
 				}
 
 				UnrealTestContext Context = new UnrealTestContext(BuildInfo, RoleContexts, ContextOptions);
@@ -279,26 +275,8 @@ namespace Gauntlet
 			// Generate Horde summary for CIS test (maybe want to use a delegate here)
 			Horde.GenerateSummary();
 
-			DoCleanup(UsedPlatforms);
-
 			return AllTestsPassed ? ExitCode.Success : ExitCode.Error_TestFailure;
 		}
-
-		void DoCleanup(IEnumerable<UnrealTargetPlatform> UsedPlatforms)
-		{
-			if (!Globals.Params.ParseParam("removedevices"))
-			{
-				return;
-			}
-
-			if (UsedPlatforms.Contains(UnrealTargetPlatform.PS4))
-			{
-				String DevKitUtilPath = Path.Combine(Environment.CurrentDirectory, "Engine/Platforms/PS4/Binaries/DotNET/PS4DevKitUtil.exe");
-				Gauntlet.Log.Verbose("PS4DevkitUtil executing 'removeall'");
-				IProcessResult BootResult = CommandUtils.Run(DevKitUtilPath, "removeall");
-			}
-		}
-
 
 		bool ExecuteTests(UnrealTestOptions Options, IEnumerable<ITestNode> TestList)
 		{

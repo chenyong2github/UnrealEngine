@@ -105,6 +105,7 @@ private:
 	ENiagaraSpriteFacingMode FacingMode;
 	ENiagaraSortMode SortMode;
 	FVector2D PivotInUVSpace;
+	float MacroUVRadius;
 	FVector2D SubImageSize;
 
 	uint32 NumIndicesPerInstance;

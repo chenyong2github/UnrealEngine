@@ -256,6 +256,26 @@ namespace Metasound
 			return MakeShared<FVariableController>(FVariableController::FInitParams{ConstCastAccessPtr<FVariableAccessPtr>(ConstVariablePtr), ConstCastSharedRef<IGraphController>(this->AsShared())});
 		}
 
+		FVariableHandle FGraphController::FindVariableContainingNode(const FGuid& InNodeID)
+		{
+			FGuid VariableID = FindVariableIDOfVariableContainingNode(InNodeID);
+			if (VariableID.IsValid())
+			{
+				return FindVariable(VariableID);
+			}
+			return IVariableController::GetInvalidHandle();
+		}
+
+		FConstVariableHandle FGraphController::FindVariableContainingNode(const FGuid& InNodeID) const
+		{
+			FGuid VariableID = FindVariableIDOfVariableContainingNode(InNodeID);
+			if (VariableID.IsValid())
+			{
+				return FindVariable(VariableID);
+			}
+			return IVariableController::GetInvalidHandle();
+		}
+
 		bool FGraphController::RemoveVariable(const FGuid& InVariableID)
 		{
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
@@ -268,13 +288,17 @@ namespace Metasound
 					NodeHandle = GetNodeWithID(Variable->MutatorNodeID);
 					RemoveNode(*NodeHandle);
 
-					for (const FGuid& NodeID : Variable->AccessorNodeIDs)
+					// Copy ids as node removal will update variable node IDs
+					TArray<FGuid> AccessorNodeIDs = Variable->AccessorNodeIDs;
+					for (const FGuid& NodeID : AccessorNodeIDs)
 					{
 						NodeHandle = GetNodeWithID(NodeID);
 						RemoveNode(*NodeHandle);
 					}
 
-					for (const FGuid& NodeID : Variable->DeferredAccessorNodeIDs)
+					// Copy ids as node removal will update variable node IDs
+					TArray<FGuid> DeferredAccessorNodeIDs = Variable->DeferredAccessorNodeIDs;
+					for (const FGuid& NodeID : DeferredAccessorNodeIDs)
 					{
 						NodeHandle = GetNodeWithID(NodeID);
 						RemoveNode(*NodeHandle);
@@ -330,7 +354,7 @@ namespace Metasound
 				if (!SetNode->IsValid())
 				{
 					FMetasoundFrontendClass SetNodeClass;
-					if (IDataTypeRegistry::Get().GetFrontendSetVariableClass(Variable->TypeName, SetNodeClass))
+					if (IDataTypeRegistry::Get().GetFrontendVariableMutatorClass(Variable->TypeName, SetNodeClass))
 					{
 						SetNode = AddNode(SetNodeClass.Metadata, FGuid::NewGuid());
 						if (SetNode->IsValid())
@@ -383,7 +407,7 @@ namespace Metasound
 			if (FMetasoundFrontendVariable* Variable = FindFrontendVariable(InVariableID))
 			{
 				FMetasoundFrontendClass NodeClass;
-				if (IDataTypeRegistry::Get().GetFrontendGetVariableClass(Variable->TypeName, NodeClass))
+				if (IDataTypeRegistry::Get().GetFrontendVariableAccessorClass(Variable->TypeName, NodeClass))
 				{
 					FNodeHandle NewNode = AddNode(NodeClass.Metadata, FGuid::NewGuid());
 
@@ -430,7 +454,7 @@ namespace Metasound
 			if (FMetasoundFrontendVariable* Variable = FindFrontendVariable(InVariableID))
 			{
 				FMetasoundFrontendClass NodeClass;
-				if (IDataTypeRegistry::Get().GetFrontendGetDelayedVariableClass(Variable->TypeName, NodeClass))
+				if (IDataTypeRegistry::Get().GetFrontendVariableDeferredAccessorClass(Variable->TypeName, NodeClass))
 				{
 					FNodeHandle NewNode = AddNode(NodeClass.Metadata, FGuid::NewGuid());
 
@@ -498,6 +522,27 @@ namespace Metasound
 			return nullptr;
 		}
 
+		FGuid FGraphController::FindVariableIDOfVariableContainingNode(const FGuid& InNodeID) const
+		{
+			if (InNodeID.IsValid())
+			{
+				if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+				{
+					auto ContainsNodeWithID = [&InNodeID](const FMetasoundFrontendVariable& InVariable)
+					{
+						return (InNodeID == InVariable.VariableNodeID) || (InNodeID == InVariable.MutatorNodeID) || InVariable.AccessorNodeIDs.Contains(InNodeID) || InVariable.DeferredAccessorNodeIDs.Contains(InNodeID);
+
+					};
+					if (const FMetasoundFrontendVariable* Variable = GraphClass->Graph.Variables.FindByPredicate(ContainsNodeWithID))
+					{
+						return Variable->ID;
+					}
+				}
+			}
+
+			return FGuid();
+		}
+
 		FNodeHandle FGraphController::FindHeadNodeInVariableStack(const FGuid& InVariableID)
 		{
 			// The variable "stack" is [GetDelayedNodes, SetNode, GetNodes].
@@ -544,6 +589,38 @@ namespace Metasound
 			}
 
 			return INodeController::GetInvalidHandle();
+		}
+
+		void FGraphController::RemoveNodeIDFromAssociatedVariable(const INodeController& InNode)
+		{
+			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
+			{
+				const FGuid NodeID = InNode.GetID();
+				
+				for (FMetasoundFrontendVariable& Variable : GraphClass->Graph.Variables)
+				{
+					if (NodeID == Variable.VariableNodeID)
+					{
+						Variable.VariableNodeID = FGuid();
+						break;
+					}
+
+					if (NodeID == Variable.MutatorNodeID)
+					{
+						Variable.MutatorNodeID = FGuid();
+					}
+
+					if (Variable.AccessorNodeIDs.Remove(NodeID) > 0)
+					{
+						break;
+					}
+
+					if (Variable.DeferredAccessorNodeIDs.Remove(NodeID) > 0)
+					{
+						break;
+					}
+				}
+			}
 		}
 
 		void FGraphController::SpliceVariableNodeFromVariableStack(INodeController& InNode)
@@ -1134,14 +1211,22 @@ namespace Metasound
 		bool FGraphController::RemoveNode(INodeController& InNode)
 		{
 			const EMetasoundFrontendClassType NodeClassType = InNode.GetClassMetadata().GetType();
-			const bool bIsVariableNodeClassType = (NodeClassType == EMetasoundFrontendClassType::Variable) || (NodeClassType == EMetasoundFrontendClassType::VariableAccessor) || (NodeClassType == EMetasoundFrontendClassType::VariableMutator);
+			const bool bIsVariableNodeClassType = (NodeClassType == EMetasoundFrontendClassType::Variable) 
+				|| (NodeClassType == EMetasoundFrontendClassType::VariableAccessor) 
+				|| (NodeClassType == EMetasoundFrontendClassType::VariableDeferredAccessor) 
+				|| (NodeClassType == EMetasoundFrontendClassType::VariableMutator);
 
 			if (bIsVariableNodeClassType)
 			{
+				// Variables hold on to related node IDs. These need to be removed
+				// from the variable definition. 
+				RemoveNodeIDFromAssociatedVariable(InNode);
+
 				// Variable nodes of the same variable are connected serially. 
 				// Special care is taken to ensure the stack is connected when
 				// removing a node from the stack.
 				SpliceVariableNodeFromVariableStack(InNode);
+
 			}
 			
 			if (FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
@@ -1164,7 +1249,9 @@ namespace Metasound
 
 						case EMetasoundFrontendClassType::Variable:
 						case EMetasoundFrontendClassType::VariableAccessor:
+						case EMetasoundFrontendClassType::VariableDeferredAccessor:
 						case EMetasoundFrontendClassType::VariableMutator:
+							// TODO: remove node from variable.7
 						case EMetasoundFrontendClassType::Literal:
 						case EMetasoundFrontendClassType::External:
 						case EMetasoundFrontendClassType::Graph:
@@ -1175,7 +1262,7 @@ namespace Metasound
 						default:
 						case EMetasoundFrontendClassType::Invalid:
 						{
-							static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 8, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
+							static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
 							checkNoEntry();
 						}
 					}
@@ -1635,6 +1722,7 @@ namespace Metasound
 
 					case EMetasoundFrontendClassType::Variable:
 					case EMetasoundFrontendClassType::VariableAccessor:
+					case EMetasoundFrontendClassType::VariableDeferredAccessor:
 					case EMetasoundFrontendClassType::VariableMutator:
 						{
 							FVariableNodeController::FInitParams InitParams
@@ -1676,6 +1764,7 @@ namespace Metasound
 
 					default:
 						checkNoEntry();
+						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
 				}
 			}
 
@@ -1732,6 +1821,7 @@ namespace Metasound
 
 					case EMetasoundFrontendClassType::Variable:
 					case EMetasoundFrontendClassType::VariableAccessor:
+					case EMetasoundFrontendClassType::VariableDeferredAccessor:
 					case EMetasoundFrontendClassType::VariableMutator:
 						{
 							FVariableNodeController::FInitParams InitParams
@@ -1773,6 +1863,7 @@ namespace Metasound
 
 					default:
 						checkNoEntry();
+						static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 9, "Possible missing switch case coverage for EMetasoundFrontendClassType.");
 				}
 			}
 

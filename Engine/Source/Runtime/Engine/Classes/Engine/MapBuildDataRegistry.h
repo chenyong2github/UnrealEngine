@@ -24,8 +24,8 @@ struct FAssetCompileData;
 
 struct ENGINE_API FPerInstanceLightmapData
 {
-	FVector2D LightmapUVBias;
-	FVector2D ShadowmapUVBias;
+	FVector2f LightmapUVBias;
+	FVector2f ShadowmapUVBias;
 
 	FPerInstanceLightmapData()
 		: LightmapUVBias(ForceInit)

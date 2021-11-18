@@ -1020,19 +1020,6 @@ void FLevelEditorSequencerIntegration::AttachOutlinerColumn()
 	SceneOutlinerModule.RegisterDefaultColumnType< Sequencer::FSequencerSpawnableColumn >(SpawnColumnInfo);
 	AcquiredResources.Add([=]{ this->DetachOutlinerColumn(); });
 
-	// Register Info (Level Sequence) Column only if the preference is turned on
-	for (const FSequencerAndOptions& SequencerAndOptions : BoundSequencers)
-	{
-		TSharedPtr<FSequencer> Pinned = SequencerAndOptions.Sequencer.Pin();
-		if (Pinned.IsValid())
-		{
-			if (!Pinned.Get()->GetSequencerSettings()->GetShowOutlinerInfoColumn())
-			{
-				return;
-			}
-		}
-	}
-
 	FSceneOutlinerColumnInfo ColumnInfo(ESceneOutlinerColumnVisibility::Visible, 15, 
 		FCreateSceneOutlinerColumn::CreateRaw( this, &FLevelEditorSequencerIntegration::CreateSequencerInfoColumn));
 

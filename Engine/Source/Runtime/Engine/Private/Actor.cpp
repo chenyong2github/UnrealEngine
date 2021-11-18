@@ -113,6 +113,8 @@ void AActor::InitializeDefaults()
 	SetRole(ROLE_Authority);
 	RemoteRole = ROLE_None;
 	bReplicates = false;
+	bCallPreReplication = true;
+	bCallPreReplicationForReplay = true;
 	NetPriority = 1.0f;
 	NetUpdateFrequency = 100.0f;
 	MinNetUpdateFrequency = 2.0f;
@@ -180,7 +182,7 @@ void AActor::InitializeDefaults()
 
 void FActorTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
-	if (Target && !Target->IsPendingKillOrUnreachable())
+	if (Target && IsValidChecked(Target) && !Target->IsUnreachable())
 	{
 		if (TickType != LEVELTICK_ViewportsOnly || Target->ShouldTickIfViewportsOnly())
 		{
@@ -1361,32 +1363,54 @@ void AActor::CallPreReplication(UNetDriver* NetDriver)
 	{
 		return;
 	}
-
-	IRepChangedPropertyTracker* const ActorChangedPropertyTracker = NetDriver->FindOrCreateRepChangedPropertyTracker(this).Get();
-
-	const ENetRole LocalRole = GetLocalRole();
-	const UWorld* World = GetWorld();
 	
-	// PreReplication is only called on the server, except when we're recording a Client Replay.
-	// In that case we call PreReplication on the locally controlled Character as well.
-	if ((LocalRole == ROLE_Authority) || ((LocalRole == ROLE_AutonomousProxy) && World && World->IsRecordingClientReplay()))
-	{
-		PreReplication(*ActorChangedPropertyTracker);
-	}
+	const bool bPreReplication = ShouldCallPreReplication();
+	const bool bPreReplicationForReplay = ShouldCallPreReplicationForReplay();
 
-	// If we're recording a replay, call this for everyone (includes SimulatedProxies).
-	if (Cast<UDemoNetDriver>(NetDriver) || NetDriver->HasReplayConnection())
-	{
-		PreReplicationForReplay(*ActorChangedPropertyTracker);
-	}
+	IRepChangedPropertyTracker* ActorChangedPropertyTracker = nullptr;
 
-	// Call PreReplication on all owned components that are replicated
-	for (UActorComponent* Component : ReplicatedComponents)
+	if (bPreReplication)
 	{
-		// Only call on components that aren't pending kill
-		if (IsValid(Component))
+		const ENetRole LocalRole = GetLocalRole();
+		const UWorld* World = GetWorld();
+
+		// PreReplication is only called on the server, except when we're recording a Client Replay.
+		// In that case we call PreReplication on the locally controlled Character as well.
+		if ((LocalRole == ROLE_Authority) || ((LocalRole == ROLE_AutonomousProxy) && World && World->IsRecordingClientReplay()))
 		{
-			Component->PreReplication(*NetDriver->FindOrCreateRepChangedPropertyTracker(Component).Get());
+			if (ActorChangedPropertyTracker == nullptr)
+			{
+				ActorChangedPropertyTracker = NetDriver->FindOrCreateRepChangedPropertyTracker(this).Get();
+			}
+
+			PreReplication(*ActorChangedPropertyTracker);
+		}
+	}
+
+	if (bPreReplicationForReplay)
+	{
+		// If we're recording a replay, call this for everyone (includes SimulatedProxies).
+		if (Cast<UDemoNetDriver>(NetDriver) || NetDriver->HasReplayConnection())
+		{
+			if (ActorChangedPropertyTracker == nullptr)
+			{
+				ActorChangedPropertyTracker = NetDriver->FindOrCreateRepChangedPropertyTracker(this).Get();
+			}
+
+			PreReplicationForReplay(*ActorChangedPropertyTracker);
+		}
+	}
+
+	if (bPreReplication)
+	{
+		// Call PreReplication on all owned components that are replicated
+		for (UActorComponent* Component : ReplicatedComponents)
+		{
+			// Only call on components that aren't pending kill
+			if (IsValid(Component))
+			{
+				Component->PreReplication(*NetDriver->FindOrCreateRepChangedPropertyTracker(Component).Get());
+			}
 		}
 	}
 }
@@ -2520,6 +2544,28 @@ void AActor::Destroyed()
 	OnDestroyed.Broadcast(this);
 }
 
+void AActor::SetCallPreReplication(bool bCall)
+{
+	bCallPreReplication = bCall;
+}
+
+bool AActor::ShouldCallPreReplication() const
+{
+	// The extra conditions here are related to custom property conditions and GatherMovement
+	return bCallPreReplication || bReplicateMovement || (RootComponent && !RootComponent->GetIsReplicated());
+}
+
+void AActor::SetCallPreReplicationForReplay(bool bCall)
+{
+	bCallPreReplicationForReplay = bCall;
+}
+
+bool AActor::ShouldCallPreReplicationForReplay() const
+{
+	// The extra conditions here are related to custom property conditions and GatherMovement
+	return bCallPreReplicationForReplay || bReplicateMovement || (RootComponent && !RootComponent->GetIsReplicated());
+}
+
 void AActor::TearOff()
 {
 	const ENetMode NetMode = GetNetMode();
@@ -3335,45 +3381,11 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 	{
 		check(SceneRootComponent->GetOwner() == this);
 
-		// Determine if the native root component's archetype originates from a converted (nativized) Blueprint class.
-		UObject* RootComponentArchetype = SceneRootComponent->GetArchetype();
-		UClass* ArchetypeOwnerClass = RootComponentArchetype->GetOuter()->GetClass();
-		if (UBlueprintGeneratedClass* ArchetypeOwnerClassAsBPGC = Cast<UBlueprintGeneratedClass>(ArchetypeOwnerClass))
-		{
-			// In this case, the Actor CDO is a non-nativized Blueprint class (e.g. a child class) and the component's archetype
-			// is an instanced default subobject within the non-nativized Blueprint's CDO. If the owner class also has a nativized
-			// parent class somewhere in its inheritance hierarchy, we must redirect the query by walking up the archetype chain.
-			if (ArchetypeOwnerClassAsBPGC->bHasNativizedParent)
-			{
-				do 
-				{
-					RootComponentArchetype = RootComponentArchetype->GetArchetype();
-					ArchetypeOwnerClass = RootComponentArchetype->GetOuter()->GetClass();
-				} while (Cast<UBlueprintGeneratedClass>(ArchetypeOwnerClass) != nullptr);
-			}
-		}
-
-		if (Cast<UDynamicClass>(ArchetypeOwnerClass) != nullptr)
-		{
-			// For native root components either belonging to or inherited from a converted (nativized) Blueprint class, we currently do not use
-			// the transformation that's set on the root component in the CDO. The reason is that in the non-nativized case, we ignore the default
-			// transform when we instance a Blueprint-owned scene component that will also become the root (see USCS_Node::ExecuteNodeOnActor; in
-			// the case of dynamically-spawned Blueprint instances, 'bIsDefaultTransform' will be false, and the scale from the SCS node's template
-			// will not be applied in that code path in that case). Once a Blueprint class is nativized, we no longer run through that code path
-			// when we spawn new instances of that class dynamically, but for consistency, we need to keep the same transform as in the non-
-			// nativized case. We used to ignore any non-default transform value set on the root component at cook (nativization) time, but that 
-			// doesn't work because existing placements of the Blueprint component in a scene may rely on the value that's stored in the CDO,
-			// and as a result the instance-specific override value doesn't get serialized out to the instance as a result of delta serialization.
-			SceneRootComponent->SetWorldTransform(UserSpawnTransform, false, nullptr, ETeleportType::ResetPhysics);
-		}
-		else
-		{
-			// In the "normal" case we do respect any non-default transform value that the root component may have received from the archetype
-			// that's owned by the native CDO, so the final transform might not always necessarily equate to the passed-in UserSpawnTransform.
-			const FTransform RootTransform(SceneRootComponent->GetRelativeRotation(), SceneRootComponent->GetRelativeLocation(), SceneRootComponent->GetRelativeScale3D());
-			const FTransform FinalRootComponentTransform = RootTransform * UserSpawnTransform;
-			SceneRootComponent->SetWorldTransform(FinalRootComponentTransform, false, nullptr, ETeleportType::ResetPhysics);
-		}
+		// Respect any non-default transform value that the root component may have received from the archetype that's owned
+		// by the native CDO, so the final transform might not always necessarily equate to the passed-in UserSpawnTransform.
+		const FTransform RootTransform(SceneRootComponent->GetRelativeRotation(), SceneRootComponent->GetRelativeLocation(), SceneRootComponent->GetRelativeScale3D());
+		const FTransform FinalRootComponentTransform = RootTransform * UserSpawnTransform;
+		SceneRootComponent->SetWorldTransform(FinalRootComponentTransform, false, nullptr, ETeleportType::ResetPhysics);
 	}
 
 	// Call OnComponentCreated on all default (native) components
@@ -3581,9 +3593,9 @@ void AActor::PostActorConstruction()
 		// Set IsPendingKill() to true so that when the initial undo record is made,
 		// the actor will be treated as destroyed, in that undo an add will
 		// actually work
-		MarkPendingKill();
+		MarkAsGarbage();
 		Modify(false);
-		ClearPendingKill();
+		ClearGarbage();
 	}
 }
 
@@ -5010,7 +5022,7 @@ void AActor::MarkComponentsAsPendingKill()
 			Component->Modify();
 		}
 		Component->OnComponentDestroyed(true);
-		Component->MarkPendingKill();
+		Component->MarkAsGarbage();
 	}
 }
 

@@ -6,27 +6,32 @@
 #include "Interfaces/ISnapshotRestorabilityOverrider.h"
 #include "Settings/SkippedClassList.h"
 
-/* Disallows provided classes. Uses callback to obtain class list so the logic is reusable outside the module. */
-class LEVELSNAPSHOTS_API FClassRestorationSkipper : public ISnapshotRestorabilityOverrider
+namespace UE::LevelSnapshots
 {
-public:
-
-	DECLARE_DELEGATE_RetVal(const FSkippedClassList&, FGetSkippedClassList)
-	
-	FClassRestorationSkipper(FGetSkippedClassList SkippedClassListCallback)
-		:
-		GetSkippedClassListCallback(SkippedClassListCallback)
+	/* Disallows provided classes. Uses callback to obtain class list so the logic is reusable outside the module. */
+	class LEVELSNAPSHOTS_API FClassRestorationSkipper : public ISnapshotRestorabilityOverrider
 	{
-		check(SkippedClassListCallback.IsBound());
-	}
+	public:
+
+		DECLARE_DELEGATE_RetVal(const FSkippedClassList&, FGetSkippedClassList)
+		
+		FClassRestorationSkipper(FGetSkippedClassList SkippedClassListCallback)
+			:
+			GetSkippedClassListCallback(SkippedClassListCallback)
+		{
+			check(SkippedClassListCallback.IsBound());
+		}
+		
+		//~ Begin ISnapshotRestorabilityOverrider Interface
+		virtual ERestorabilityOverride IsActorDesirableForCapture(const AActor* Actor) override;
+		virtual ERestorabilityOverride IsComponentDesirableForCapture(const UActorComponent* Component) override;
+		//~ End ISnapshotRestorabilityOverrider Interface
 	
-	//~ Begin ISnapshotRestorabilityOverrider Interface
-	virtual ERestorabilityOverride IsActorDesirableForCapture(const AActor* Actor) override;
-	virtual ERestorabilityOverride IsComponentDesirableForCapture(const UActorComponent* Component) override;
-	//~ End ISnapshotRestorabilityOverrider Interface
+	private:
 
-private:
+		FGetSkippedClassList GetSkippedClassListCallback;
 
-	FGetSkippedClassList GetSkippedClassListCallback;
+	};
+}
 
-};
+

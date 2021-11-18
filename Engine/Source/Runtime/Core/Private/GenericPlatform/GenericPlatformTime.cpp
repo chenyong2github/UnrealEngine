@@ -126,7 +126,11 @@ const TCHAR* FGenericPlatformTime::StrTimestamp()
  */
 FString FGenericPlatformTime::PrettyTime( double Seconds )
 {
-	if ( Seconds < 1.0 )
+	if (Seconds < 0.001)
+	{
+		return FString::Printf( TEXT("%d us"), FMath::TruncToInt((float)(Seconds*1000000)) );
+	}
+	else if ( Seconds < 1.0 )
 	{
 		return FString::Printf( TEXT("%d ms"), FMath::TruncToInt((float)(Seconds*1000)) );
 	}

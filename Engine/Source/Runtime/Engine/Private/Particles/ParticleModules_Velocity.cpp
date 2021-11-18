@@ -269,7 +269,7 @@ void UParticleModuleVelocityOverLifetime::Update(FParticleEmitterInstance* Owner
 				BEGIN_UPDATE_LOOP;
 				{
 					Vel = VelOverLife.GetValue(Particle.RelativeTime, Owner->Component);
-					Particle.Velocity = LocalToWorld.TransformVector(Vel) * OwnerScale;
+					Particle.Velocity = FVector4f(LocalToWorld.TransformVector(Vel) * OwnerScale);
 				}
 				END_UPDATE_LOOP;
 			}
@@ -300,7 +300,7 @@ void UParticleModuleVelocityOverLifetime::Update(FParticleEmitterInstance* Owner
 				BEGIN_UPDATE_LOOP;
 				{
 					Vel = VelOverLife.GetValue(Particle.RelativeTime, Owner->Component);
-					Particle.Velocity = InvMat.TransformVector(Vel) * OwnerScale;
+					Particle.Velocity = FVector4f(InvMat.TransformVector(Vel) * OwnerScale);
 				}
 				END_UPDATE_LOOP;
 			}
@@ -317,7 +317,7 @@ void UParticleModuleVelocityOverLifetime::Update(FParticleEmitterInstance* Owner
 				BEGIN_UPDATE_LOOP;
 				{
 					Vel = VelOverLife.GetValue(Particle.RelativeTime, Owner->Component);
-					Particle.Velocity *= LocalToWorld.TransformVector(Vel) * OwnerScale;
+					Particle.Velocity *= FVector4f(LocalToWorld.TransformVector(Vel) * OwnerScale);
 				}
 				END_UPDATE_LOOP;
 			}
@@ -348,7 +348,7 @@ void UParticleModuleVelocityOverLifetime::Update(FParticleEmitterInstance* Owner
 				BEGIN_UPDATE_LOOP;
 				{
 					Vel = VelOverLife.GetValue(Particle.RelativeTime, Owner->Component);
-					Particle.Velocity *= InvMat.TransformVector(Vel) * OwnerScale;
+					Particle.Velocity *= FVector4f(InvMat.TransformVector(Vel) * OwnerScale);
 				}
 				END_UPDATE_LOOP;
 			}

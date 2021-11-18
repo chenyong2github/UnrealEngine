@@ -651,7 +651,7 @@ class FPixelInspectorRequest
 public:
 	FPixelInspectorRequest()
 	{
-		SourceViewportUV = FVector2D(-1, -1);
+		SourceViewportUV = FVector2f(-1, -1);
 		BufferIndex = -1;
 		RenderingCommandSend = false;
 		RequestComplete = true;
@@ -663,7 +663,7 @@ public:
 		PreExposure = 1;
 	}
 
-	void SetRequestData(FVector2D SrcViewportUV, int32 TargetBufferIndex, int32 ViewUniqueId, int32 GBufferFormat, bool StaticLightingEnable, float InPreExposure)
+	void SetRequestData(FVector2f SrcViewportUV, int32 TargetBufferIndex, int32 ViewUniqueId, int32 GBufferFormat, bool StaticLightingEnable, float InPreExposure)
 	{
 		SourceViewportUV = SrcViewportUV;
 		BufferIndex = TargetBufferIndex;
@@ -687,7 +687,7 @@ public:
 	int32 FrameCountAfterRenderingCommandSend;
 	int32 RequestTickSinceCreation;
 	bool RequestComplete;
-	FVector2D SourceViewportUV;
+	FVector2f SourceViewportUV;
 	int32 BufferIndex;
 	int32 ViewId;
 

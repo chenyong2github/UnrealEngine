@@ -36,6 +36,16 @@ public:
 	TArray<FDirectoryPath> AdditionalPaths;
 
 	/**
+	 * Should the embedded interpreter be run in isolation mode. In isolation, the standard PYTHON* environment variables (PYTHONPATH,
+	 * PYTHONHOME, etc), the script's directory and the user's site-packages directory are ignored by the interpreter. This
+	 * prevents incompabible software to crash the engine. Consider turning this option off if you tightly control your Python
+	 * environment and you are sure everything is compatible. Note that the UE_PYTHONPATH environment variable is added to 'sys.path'
+	 * whether the interpreter runs in insolation mode or not.
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true))
+	bool bIsolateInterpreterEnvironment = true;
+
+	/**
 	 * Should Developer Mode be enabled on the Python interpreter *for all users of the project*
 	 * Note: Most of the time you want to enable bDeveloperMode in the Editor Preferences instead!
 	 *

@@ -82,7 +82,7 @@ bool FDisplayClusterRenderSyncPolicyEthernet::SynchronizeClusterRendering(int32&
 		}
 		else
 		{
-			// Run advanced syncrhonization procedure
+			// Run advanced synchronization procedure
 			Procedure_SynchronizePresent();
 			// No need to present frame, we already did that
 			bNeedEnginePresent = false;

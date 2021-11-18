@@ -10,6 +10,7 @@
 #include "DatasmithMaxMeshExporter.h"
 #include "DatasmithMaxSceneExporter.h"
 #include "DatasmithMaxAttributes.h"
+#include "DatasmithMaxLogger.h"
 
 #include "Logging/LogMacros.h"
 
@@ -40,19 +41,14 @@ public:
 	}
 };
 
-
 FRenderMeshForConversion GetMeshForGeomObject(INode* Node, Object* Obj)
 {
 	// todo: baseline exporter uses GetBaseObject which takes result of EvalWorldState
 	// and searched down DerivedObject pipeline(by taking GetObjRef) 
 	// This is STRANGE as EvalWorldState shouldn't return DerivedObject in the first place(it should return result of pipeline evaluation)
 
-	GeomObject* GeomObj = dynamic_cast<GeomObject*>(Obj);
-
-	FNullView View;
-	TimeValue Time = GetCOREInterface()->GetTime();
 	BOOL bNeedsDelete;
-	Mesh* RenderMesh = GeomObj->GetRenderMesh(Time, Node, View, bNeedsDelete);
+	Mesh* RenderMesh = GetMeshFromRenderMesh(Node, bNeedsDelete, GetCOREInterface()->GetTime());
 
 	return FRenderMeshForConversion(Node, RenderMesh, bNeedsDelete);
 }
@@ -91,8 +87,6 @@ FRenderMeshForConversion GetMeshForCollision(INode* Node)
 	FTransform CollisionPivot;
 	if (CollisionNode)
 	{
-
-		TSet<uint16> CollisionSupportedChannels;
 
 		bool bBakePivot = false; // todo: bake collision pivot if render mesh pivot is baked
 
@@ -140,7 +134,7 @@ FRenderMeshForConversion GetMeshForCollision(INode* Node)
 
 
 // todo: copied from baseline plugin(it has dependencies on converters that are not static in FDatasmithMaxMeshExporter)
-void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, INode* ExportedNode, bool bForceSingleMat, TSet<uint16>& SupportedChannels, const TCHAR* MeshName, FTransform Pivot)
+void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, INode* ExportedNode, bool bForceSingleMat, TSet<uint16>& SupportedChannels, TMap<int32, int32>& UVChannelsMap, FTransform Pivot)
 {
 	FDatasmithConverter Converter;
 
@@ -175,7 +169,6 @@ void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, 
 	}
 
 	// UVs
-	TMap<int32, int32> UVChannelsMap;
 	TMap<uint32, int32> HashToChannel;
 	bool bIsFirstUVChannelValid = true;
 
@@ -235,11 +228,6 @@ void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, 
 		//	, static_cast<const TCHAR*>(ExportedNode->GetName())));
 	}
 
-	if (MeshName != nullptr)
-	{
-		//MeshNamesToUVChannels.Add(MeshName, MoveTemp(UVChannelsMap));
-	}
-
 	// Faces
 	for (int i = 0; i < NumFaces; i++)
 	{
@@ -286,7 +274,114 @@ void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, 
 	}
 }
 
-bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, TSet<uint16>& SupportedChannels)
+void SetNormalForAFace(FDatasmithMesh& DatasmithMesh, int32 Index, const FVector& NormalVector)
+{
+	DatasmithMesh.SetNormal(Index * 3, NormalVector.X, NormalVector.Y, NormalVector.Z);
+	DatasmithMesh.SetNormal(Index * 3 + 1, NormalVector.X, NormalVector.Y, NormalVector.Z);
+	DatasmithMesh.SetNormal(Index * 3 + 2, NormalVector.X, NormalVector.Y, NormalVector.Z);
+}
+
+bool FillDatasmithMeshFromBoundingBox(FDatasmithMesh& DatasmithMesh, INode* ExportNode, FTransform Pivot)
+{
+	if (!ExportNode)
+	{
+		return false;
+	}
+	FDatasmithConverter Converter;
+
+	BOOL bNeedsDelete;
+
+	Mesh* MaxMesh = GetMeshFromRenderMesh(ExportNode, bNeedsDelete, GetCOREInterface()->GetTime());
+
+	if (!MaxMesh)
+	{
+		return false;
+	}
+
+	if (MaxMesh->getBoundingBox().IsEmpty())
+	{
+		MaxMesh->buildBoundingBox();
+	}
+
+	Box3 BoundingBox = MaxMesh->getBoundingBox();
+
+	DatasmithMesh.SetVerticesCount(8);
+	DatasmithMesh.SetFacesCount(12);
+
+	for (int32 i = 0; i < 8; i++)
+	{
+		FVector Vertex = Converter.toDatasmithVector(BoundingBox[i]);
+		Vertex = Pivot.TransformPosition(Vertex);
+		DatasmithMesh.SetVertex(i, Vertex.X, Vertex.Y, Vertex.Z);
+	}
+
+	// Make a cube from the vertices
+
+	Matrix3 RotationMatrix;
+	RotationMatrix.IdentityMatrix();
+	Quat ObjectOffsetRotation = ExportNode->GetObjOffsetRot();
+	RotateMatrix(RotationMatrix, ObjectOffsetRotation);
+	Point3 Point;
+	FVector NormalVector;
+
+	// Points toward negative z (without a transform and in max coordinates)
+	DatasmithMesh.SetFace(0, 1, 0, 2);
+	DatasmithMesh.SetFace(1, 1, 2, 3);
+	Point = Point3(0.f, 0.f, -1.f) * RotationMatrix;
+	NormalVector = Converter.toDatasmithNormal(Point);
+	SetNormalForAFace(DatasmithMesh, 0, NormalVector);
+	SetNormalForAFace(DatasmithMesh, 1, NormalVector);
+
+	// Points toward positive y (without a transform and in max coordinates)
+	DatasmithMesh.SetFace(2, 3, 2, 7);
+	DatasmithMesh.SetFace(3, 2, 6, 7);
+	Point = Point3(0.f, 1.f, 0.f) * RotationMatrix;
+	NormalVector = Converter.toDatasmithNormal(Point);
+	SetNormalForAFace(DatasmithMesh, 2, NormalVector);
+	SetNormalForAFace(DatasmithMesh, 3, NormalVector);
+	
+	// Points toward positive x (without a transform and in max coordinates)
+	DatasmithMesh.SetFace(4, 1, 3, 7);
+	DatasmithMesh.SetFace(5, 5, 1, 7);
+	Point = Point3(1.f, 0.f, 0.f) * RotationMatrix;
+	NormalVector = Converter.toDatasmithNormal(Point);
+	SetNormalForAFace(DatasmithMesh, 4, NormalVector);
+	SetNormalForAFace(DatasmithMesh, 5, NormalVector);
+
+	// Points toward negative x (without a transform and in max coordinates)
+	DatasmithMesh.SetFace(6, 2, 0, 6);
+	DatasmithMesh.SetFace(7, 0, 4, 6);
+	Point = Point3(-1.f, 0.f, 0.f) * RotationMatrix;
+	NormalVector = Converter.toDatasmithNormal(Point);
+	SetNormalForAFace(DatasmithMesh, 6, NormalVector);
+	SetNormalForAFace(DatasmithMesh, 7, NormalVector);
+
+	// Points toward negative y (without a transform and in max coordinates)
+	DatasmithMesh.SetFace(8, 0, 1, 5);
+	DatasmithMesh.SetFace(9, 4, 0, 5);
+	Point = Point3(0.f, -1.f, 0.f) * RotationMatrix;
+	NormalVector = Converter.toDatasmithNormal(Point);
+	SetNormalForAFace(DatasmithMesh, 8, NormalVector);
+	SetNormalForAFace(DatasmithMesh, 9, NormalVector);
+
+	// Points toward positive z (without a transform and in max coordinates)
+	DatasmithMesh.SetFace(10, 4, 5, 6);
+	DatasmithMesh.SetFace(11, 6, 5, 7);
+	Point = Point3(0.f, 0.f, 1.f) * RotationMatrix;
+	NormalVector = Converter.toDatasmithNormal(Point);
+	SetNormalForAFace(DatasmithMesh, 10, NormalVector);
+	SetNormalForAFace(DatasmithMesh, 11, NormalVector);
+
+	if (bNeedsDelete)
+	{
+		MaxMesh->DeleteThis();
+	}
+
+	return true;
+}
+
+
+bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, TSet<uint16>& SupportedChannels, TMap<int32, int32>& UVChannelsMap)
 {
 	bool bResult = false;
 	if (RenderMesh.GetMesh()->getNumFaces())
@@ -306,7 +401,7 @@ bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, 
 		if (CachedMesh.getNumFaces() > 0)
 		{
 			// todo: pivot
-			FillDatasmithMeshFromMaxMesh(DatasmithMesh, CachedMesh, Node, false, SupportedChannels, MeshName, RenderMesh.GetPivot());
+			FillDatasmithMeshFromMaxMesh(DatasmithMesh, CachedMesh, Node, false, SupportedChannels, UVChannelsMap, RenderMesh.GetPivot());
 
 			bResult = true; // Set to true, don't care what ExportToUObject does here - we need to move it to a thread anyway
 		}
@@ -314,8 +409,6 @@ bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, 
 	}
 	return bResult;
 }
-
-
 
 // todo: paralelize calls to ExportToUObject 
 bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, TSet<uint16>& SupportedChannels, const FRenderMeshForConversion& CollisionMesh)
@@ -327,19 +420,53 @@ bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshEl
 		Scene.ReleaseMeshElement(DatasmithMeshElement);
 	}
 
+	TOptional<FDatasmithMaxStaticMeshAttributes> DatasmithAttributes = FDatasmithMaxStaticMeshAttributes::ExtractStaticMeshAttributes(Node);
+
+	DatasmithMeshElement = FDatasmithSceneFactory::CreateMesh(MeshName);
+
+	if (DatasmithAttributes && DatasmithAttributes->GetExportMode() == EStaticMeshExportMode::BoundingBox)
+	{
+		FDatasmithMesh DatasmithMesh;
+		FillDatasmithMeshFromBoundingBox(DatasmithMesh, Node, FTransform::Identity);
+		Scene.AddMeshElement(DatasmithMeshElement, DatasmithMesh, nullptr);
+		return true;
+	}
+
 	FDatasmithMesh DatasmithMesh;
-	if (!CreateDatasmithMeshFromMaxMesh(DatasmithMesh, Node, MeshName, RenderMesh, SupportedChannels))
+	TMap<int32, int32> UVChannelsMap;
+	if (!CreateDatasmithMeshFromMaxMesh(DatasmithMesh, Node, MeshName, RenderMesh, SupportedChannels, UVChannelsMap))
 	{
 		return false;
 	}
 
-	DatasmithMeshElement = FDatasmithSceneFactory::CreateMesh(MeshName);
+	// Mapping between the 3ds max channel and the exported mesh channel
+	if (DatasmithAttributes)
+	{
+		constexpr int32 MaxToUnrealUVOffset = -1;
+		constexpr int32 DefaultValue = -1;
+		const int32 SelectedLightmapUVChannel = DatasmithAttributes->GetLightmapUVChannel();
+		const int32* ExportedSelectedChannel = UVChannelsMap.Find(SelectedLightmapUVChannel + MaxToUnrealUVOffset);
+
+		if (ExportedSelectedChannel)
+		{
+			DatasmithMeshElement->SetLightmapCoordinateIndex(*ExportedSelectedChannel);
+		}
+		else if (SelectedLightmapUVChannel != DefaultValue)
+		{
+			DatasmithMaxLogger::Get().AddGeneralError(*FString::Printf(TEXT("%s won't use the channel %i for its lightmap because it's not supported by the mesh. A new channel will be generated.")
+				, static_cast<const TCHAR*>(Node->GetName())
+				, SelectedLightmapUVChannel));
+		}
+	}
+
 
 	FDatasmithMesh* DatasmithCollisionMeshPtr = nullptr;
 	FDatasmithMesh DatasmithCollisionMesh;
 	if (CollisionMesh.IsValid())
 	{
-		if (CreateDatasmithMeshFromMaxMesh(DatasmithCollisionMesh, CollisionMesh.GetNode(), nullptr, CollisionMesh, SupportedChannels))
+		TSet<uint16> SupportedChannelsDummy; // ignore map channels for collision mesh
+		TMap<int32, int32> UVChannelsMapDummy;
+		if (CreateDatasmithMeshFromMaxMesh(DatasmithCollisionMesh, CollisionMesh.GetNode(), nullptr, CollisionMesh, SupportedChannelsDummy, UVChannelsMapDummy))
 		{
 			DatasmithCollisionMeshPtr = &DatasmithCollisionMesh;
 		}

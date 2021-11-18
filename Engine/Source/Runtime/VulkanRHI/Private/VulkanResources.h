@@ -83,7 +83,6 @@ public:
 		: ShaderKey(0)
 		, StageFlag(InStageFlag)
 		, Frequency(InFrequency)
-		, SpirvSize(0)
 		, Device(InDevice)
 	{
 	}
@@ -129,7 +128,7 @@ public:
 	// Name should be pointing to "main_"
 	void GetEntryPoint(ANSICHAR* Name, int32 NameLength)
 	{
-		FCStringAnsi::Snprintf(Name, NameLength, "main_%0.8x_%0.8x", SpirvSize, CodeHeader.SpirvCRC);
+		FCStringAnsi::Snprintf(Name, NameLength, "main_%0.8x_%0.8x", SpirvContainer.GetSizeBytes(), CodeHeader.SpirvCRC);
 	}
 
 	FORCEINLINE const FVulkanShaderHeader& GetCodeHeader() const
@@ -142,6 +141,22 @@ public:
 		return ShaderKey;
 	}
 
+	// This provides a view of the raw spirv bytecode.
+	// If it is stored compressed then the result of GetSpirvCode will contain the decompressed spirv.
+	class FSpirvCode
+	{
+		friend class FVulkanShader;
+		explicit FSpirvCode(TArray<uint32>&& UncompressedCodeIn) : UncompressedCode(MoveTemp(UncompressedCodeIn))
+		{
+			CodeView = UncompressedCode;
+		}
+		explicit FSpirvCode(TArrayView<uint32> UncompressedCodeView) : CodeView(UncompressedCodeView)	{	}
+		TArrayView<uint32> CodeView;
+		TArray<uint32> UncompressedCode;
+	public:
+		TArrayView<uint32> GetCodeView() {return CodeView;}
+	};
+	FSpirvCode GetSpirvCode();
 protected:
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	FString							DebugEntryPoint;
@@ -156,9 +171,22 @@ protected:
 
 	TArray<FUniformBufferStaticSlot> StaticSlots;
 
-	TArray<uint32>					Spirv;
-	// this is size of unmodified spriv code
-	uint32							SpirvSize;
+private:
+	class FSpirvContainer
+	{
+		friend class FVulkanShader;
+		TArray<uint8>	SpirvCode;
+		int32 UncompressedSizeBytes = -1;
+	public:
+		bool IsCompressed() const {	return UncompressedSizeBytes != -1;	}
+		int32 GetSizeBytes() const { return UncompressedSizeBytes >= 0 ? UncompressedSizeBytes : SpirvCode.Num(); }
+		friend FArchive& operator<<(FArchive& Ar, class FVulkanShader::FSpirvContainer& SpirvContainer);
+	} SpirvContainer;
+
+	friend FArchive& operator<<(FArchive& Ar, class FVulkanShader::FSpirvContainer& SpirvContainer);
+	static FSpirvCode PatchSpirvInputAttachments(FSpirvCode& SpirvCode);
+
+protected:
 
 	FVulkanDevice*					Device;
 
@@ -1041,7 +1069,6 @@ struct FVkRtAllocation
 	VkDevice Device = VK_NULL_HANDLE;
 	VkDeviceMemory Memory = VK_NULL_HANDLE;
 	VkBuffer Buffer = VK_NULL_HANDLE;
-	VkDeviceAddress Address = 0;
 };
 
 class FVulkanAccelerationStructureBuffer : public FRHIBuffer

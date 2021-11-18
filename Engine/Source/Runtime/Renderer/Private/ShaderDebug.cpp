@@ -148,7 +148,7 @@ namespace ShaderDrawDebug
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 			SHADER_PARAMETER(FIntPoint, DepthTextureResolution)
-			SHADER_PARAMETER(FVector2D, DepthTextureInvResolution)
+			SHADER_PARAMETER(FVector2f, DepthTextureInvResolution)
 			SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
 			RENDER_TARGET_BINDING_SLOTS()
 		END_SHADER_PARAMETER_STRUCT()

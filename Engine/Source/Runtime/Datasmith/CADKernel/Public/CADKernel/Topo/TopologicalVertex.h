@@ -34,9 +34,14 @@ namespace CADKernel
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
+			if(Ar.IsSaving())
+			{
+				ensureCADKernel(ConnectedEdges.Num());
+			}
+
 			TLinkable<FTopologicalVertex, FVertexLink>::Serialize(Ar);
 			Ar.Serialize(Coordinates);
-			SerializeIdents(Ar, /*(TArray<TSharedPtr<FEntity>>&)*/ ConnectedEdges);
+			SerializeIdents(Ar, ConnectedEdges);
 		}
 
 		virtual void SpawnIdent(FDatabase& Database) override;
@@ -136,7 +141,6 @@ namespace CADKernel
 			}
 		}
 
-
 		void DeleteIfIsolated()
 		{
 			if (ConnectedEdges.Num() == 0)
@@ -144,7 +148,10 @@ namespace CADKernel
 				if (TopologicalLink.IsValid())
 				{
 					TopologicalLink->RemoveEntity(*this);
-					TopologicalLink->ComputeBarycenter();
+					if(!TopologicalLink->IsDeleted())
+					{
+						TopologicalLink->ComputeBarycenter();
+					}
 					TopologicalLink.Reset();
 				}
 				SetDeleted();

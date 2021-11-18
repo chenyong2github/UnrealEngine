@@ -9,29 +9,31 @@
 #include "CADKernel/Utils/Util.h"
 
 #include "HAL/FileManager.h"
+#include "Misc/Paths.h"
 
 #ifdef CADKERNEL_DEV
 #include <stdlib.h>
 #include <signal.h>
 #endif 
 
-TUniquePtr<CADKernel::FSystem> CADKernel::FSystem::Instance = nullptr;
+namespace CADKernel
+{
 
-CADKernel::FSystem::FSystem()
+TUniquePtr<FSystem> FSystem::Instance = nullptr;
+
+FSystem::FSystem()
 	: Parameters(MakeShared<FKernelParameters>())
 	, DefaultVisu()
 	, Viewer(&DefaultVisu)
 	, Console(&DefaultConsole)
 	, ProgressManager(&DefaultProgressManager)
-{
-	LogFile = nullptr;
-	LogLevel = Log;
-	SpyFile = nullptr;
 
+{
+	LogLevel = Log;
 	VerboseLevel = Log;
 }
 
-void CADKernel::FSystem::Initialize(bool bIsDll, const FString& LogFilePath, const FString& SpyFilePath)
+void FSystem::Initialize(bool bIsDll, const FString& LogFilePath, const FString& SpyFilePath)
 {
 	SetVerboseLevel(Log);
 
@@ -58,7 +60,7 @@ void CADKernel::FSystem::Initialize(bool bIsDll, const FString& LogFilePath, con
 	}
 }
 
-void CADKernel::FSystem::CloseLogFiles()
+void FSystem::CloseLogFiles()
 {
 	if (LogFile)
 	{
@@ -72,13 +74,13 @@ void CADKernel::FSystem::CloseLogFiles()
 	}
 }
 
-void CADKernel::FSystem::Shutdown()
+void FSystem::Shutdown()
 {
 	CloseLogFiles();
 	Instance.Reset();
 }
 
-void CADKernel::FSystem::DefineLogFile(const FString& InLogFilePath, EVerboseLevel InLevel)
+void FSystem::DefineLogFile(const FString& InLogFilePath, EVerboseLevel InLevel)
 {
 	if(LogFile) 
 	{
@@ -90,7 +92,7 @@ void CADKernel::FSystem::DefineLogFile(const FString& InLogFilePath, EVerboseLev
 	LogLevel = InLevel;
 }
 
-void CADKernel::FSystem::DefineSpyFile(const FString& InSpyFilePath)
+void FSystem::DefineSpyFile(const FString& InSpyFilePath)
 {
 	if(SpyFile) 
 	{
@@ -100,23 +102,56 @@ void CADKernel::FSystem::DefineSpyFile(const FString& InSpyFilePath)
 	SpyFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*InSpyFilePath, IO_WRITE));
 }
 
-void CADKernel::FSystem::InitializeCADKernel()
+
+#if defined(CADKERNEL_DEV) || defined(CADKERNEL_STDA)
+void FSystem::DefineQaDataFile(const FString& InQaDataFilePath)
+{
+	if (QaDataFile.IsValid())
+	{
+		QaDataFile->Close();
+		QaDataFile.Reset();
+
+		if (QaHeaderFile.IsValid())
+		{
+			QaHeaderFile->Close();
+			QaHeaderFile.Reset();
+		}
+	}
+
+	FString QualifPath = FPaths::GetPath(InQaDataFilePath);
+	if (!FPaths::DirectoryExists(QualifPath))
+	{
+		IFileManager::Get().MakeDirectory(*QualifPath, true);
+	}
+
+	QaDataFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*InQaDataFilePath, IO_WRITE));
+
+	QualifPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::GetPath(QualifPath), TEXT("QualifHeader.txt")));
+
+	if (!IFileManager::Get().FileExists(*QualifPath))
+	{
+		QaHeaderFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*QualifPath, IO_WRITE));
+	}
+}
+#endif
+
+void FSystem::InitializeCADKernel()
 {
 	FSystem::Get().Initialize();
 	FSystem::Get().SetVerboseLevel(EVerboseLevel::Log);
 }
 
-FString CADKernel::FSystem::GetToolkitVersion() const
+FString FSystem::GetToolkitVersion() const
 {
-	return TOOLKIT_VERSION_ASCII;
+	return UTF8_TO_TCHAR(TOOLKIT_VERSION_ASCII);
 }
 
-FString CADKernel::FSystem::GetCompilationDate() const
+FString FSystem::GetCompilationDate() const
 {
 	return UTF8_TO_TCHAR(__DATE__);
 }
 
-void CADKernel::FSystem::PrintHeader()
+void FSystem::PrintHeader()
 {
 	FMessage::Printf(Log, TEXT("_______________________________________________________________________________\n"));
 	FMessage::Printf(Log, TEXT("\n"));
@@ -125,4 +160,7 @@ void CADKernel::FSystem::PrintHeader()
 	FMessage::Printf(Log, TEXT("\n"));
 	FMessage::Printf(Log, TEXT("_______________________________________________________________________________\n"));
 	FMessage::Printf(Log, TEXT("\n"));
+}
+
+
 }

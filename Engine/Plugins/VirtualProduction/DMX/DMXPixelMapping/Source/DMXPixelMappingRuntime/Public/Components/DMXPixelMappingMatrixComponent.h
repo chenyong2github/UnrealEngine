@@ -83,6 +83,9 @@ protected:
 	/** Called when the fixture type in use changed */
 	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
 
+	/** Called when the fixture patch in use changed */
+	void OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch);
+
 #if WITH_EDITORONLY_DATA
 	/** Children available PreEditUndo, useful to hide all removed ones in post edit undo */
 	TArray<UDMXPixelMappingBaseComponent*> PreEditUndoMatrixCellChildren;

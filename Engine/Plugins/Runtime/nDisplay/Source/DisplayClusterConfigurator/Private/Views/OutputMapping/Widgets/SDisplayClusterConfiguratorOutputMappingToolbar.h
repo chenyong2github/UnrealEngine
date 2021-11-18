@@ -32,6 +32,8 @@ public:
 	TSharedRef< SWidget > MakeToolBar(const TSharedPtr< FExtender > InExtenders);
 
 private:
+	TSharedRef<SWidget> MakeTransformMenu();
+
 	TSharedRef<SWidget> MakePositioningMenu();
 
 	TSharedRef<SWidget> MakeSnappingMenu();

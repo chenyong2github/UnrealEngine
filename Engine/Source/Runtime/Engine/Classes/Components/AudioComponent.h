@@ -650,7 +650,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool HasCookedFFTData() const;
 
-	/** Queries whether or not the targeted Audio Component instance’s sound has Envelope Data, returns FALSE if none found. */
+	/** Queries whether or not the targeted Audio Component instance’s sound has Amplitude Envelope Data, returns FALSE if none found. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool HasCookedAmplitudeEnvelopeData() const;
 
@@ -663,7 +663,7 @@ public:
 	bool GetCookedFFTData(const TArray<float>& FrequenciesToGet, TArray<FSoundWaveSpectralData>& OutSoundWaveSpectralData);
 
 	/**
-	* Retrieves the current-time cooked spectral data of the sounds playing audio component.
+	* Retrieves the current-time cooked spectral data of the sounds playing on the audio component.
 	* Spectral data is not averaged or interpolated. Instead an array of data with all playing sound waves with cooked data is returned.
 	* Returns true if there is data and the audio component is playing.
 	*/
@@ -671,19 +671,19 @@ public:
 	bool GetCookedFFTDataForAllPlayingSounds(TArray<FSoundWaveSpectralDataPerSound>& OutSoundWaveSpectralData);
 
 	/**
-	 * Retrieves Cooked Envelope Data at the current playback time. If there are multiple
+	 * Retrieves Cooked Amplitude Envelope Data at the current playback time. If there are multiple
 	 * SoundWaves playing, data is interpolated and averaged across all playing sound waves.
 	 * Returns FALSE if no data was found.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", DisplayName = "Get Cooked Amplitude Envelope Data")
 	bool GetCookedEnvelopeData(float& OutEnvelopeData);
 
 	/**
-	* Retrieves the current-time envelope data of the sounds playing audio component.
+	* Retrieves the current-time amplitude envelope data of the sounds playing on the audio component.
 	* Envelope data is not averaged or interpolated. Instead an array of data with all playing sound waves with cooked data is returned.
 	* Returns true if there is data and the audio component is playing.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", DisplayName="Get Cooked Amplitude Envelope Data For All Playing Sounds")
 	bool GetCookedEnvelopeDataForAllPlayingSounds(TArray<FSoundWaveEnvelopeDataPerSound>& OutEnvelopeData);
 
 	static void PlaybackCompleted(uint64 AudioComponentID, bool bFailedToStart);

@@ -134,7 +134,24 @@ static FAutoConsoleVariableRef GVulkanPSOForceSingleThreadedCVar(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+static int32 GVulkanPSOLRUEvictAfterUnusedFrames = 0;
+static FAutoConsoleVariableRef GVulkanPSOLRUEvictAfterUnusedFramesCVar(
+	TEXT("r.Vulkan.PSOLRUEvictAfterUnusedFrames"),
+	GVulkanPSOLRUEvictAfterUnusedFrames,
+	TEXT("0: unused PSOs are not removed from the PSO LRU cache. (default)\n")
+	TEXT(">0: The number of frames an unused PSO can remain in the PSO LRU cache. When this is exceeded the PSO is destroyed and memory returned to the system. This can save memory with the risk of increased hitching.")
+	, ECVF_RenderThreadSafe
+);
 
+
+static int32 GVulkanReleaseShaderModuleWhenEvictingPSO = 0;
+static FAutoConsoleVariableRef GVulkanReleaseShaderModuleWhenEvictingPSOCVar(
+	TEXT("r.Vulkan.ReleaseShaderModuleWhenEvictingPSO"),
+	GVulkanReleaseShaderModuleWhenEvictingPSO,
+	TEXT("0: shader modules remain when a PSO is removed from the PSO LRU cache. (default)\n")
+	TEXT("1: shader modules are destroyed when a PSO is removed from the PSO LRU cache. This can save memory at the risk of increased hitching and cpu cost.")
+	,ECVF_RenderThreadSafe
+);
 
 template <typename TRHIType, typename TVulkanType>
 static inline FSHAHash GetShaderHash(TRHIType* RHIShader)
@@ -1842,8 +1859,9 @@ FVulkanRHIGraphicsPipelineState* FVulkanPipelineStateCacheManager::RHICreateGrap
 			else
 			{
 				GraphicsPSOLockedMap.Add(MoveTemp(Key), NewPSO);
-				if (bUseLRU)
+				if (bUseLRU && NewPSO->VulkanPipeline != VK_NULL_HANDLE)
 				{
+					// we add only created pipelines to the LRU
 					FScopeLock LockRU(&LRUCS);
 					NewPSO->bIsRegistered = true;
 					LRUTrim(NewPSO->PipelineCacheSize);
@@ -2065,6 +2083,34 @@ void GetVulkanShaders(FVulkanDevice* Device, const FVulkanRHIGraphicsPipelineSta
 	Device->GetShaderFactory().LookupShaders(GfxPipelineState.ShaderKeys, OutShaders);
 }
 
+void FVulkanPipelineStateCacheManager::TickLRU()
+{
+	if (!bUseLRU || GVulkanPSOLRUEvictAfterUnusedFrames == 0)
+	{
+		return;
+	}
+
+	FScopeLock Lock(&LRUCS);
+	const int MaxEvictsPerTick = 5;
+	for(int i = 0 ; i<MaxEvictsPerTick; i++)
+	{
+		uint32 tid = FPlatformTLS::GetCurrentThreadId();
+		FVulkanRHIGraphicsPipelineStateLRUNode* Node = LRU.GetTail();
+		check(Node != 0);
+		TRefCountPtr<FVulkanRHIGraphicsPipelineState> PSO = Node->GetValue();
+
+		bool bTimeToDie = PSO->LRUFrame + GVulkanPSOLRUEvictAfterUnusedFrames < GFrameNumberRenderThread;
+		if (bTimeToDie)
+		{
+			LRUPRINT_DEBUG(TEXT("Evicting after %d frames of unuse (%d : %d) %d\n"), GVulkanPSOLRUEvictAfterUnusedFrames, PSO->LRUFrame, GFrameNumberRenderThread, PSO->PipelineCacheSize);
+			LRURemove(PSO);
+		}
+		else
+		{
+			return;
+		}
+	}
+}
 
 
 void FVulkanPipelineStateCacheManager::LRUDump()
@@ -2144,7 +2190,7 @@ void FVulkanPipelineStateCacheManager::LRUAdd(FVulkanRHIGraphicsPipelineState* P
 	LRU.AddHead(PSO);
 	PSO->LRUNode = LRU.GetHead();
 	PSO->LRUFrame = GFrameNumberRenderThread;
-	LRUPRINT_DEBUG(TEXT("LRUADD %p .. Frame %d :: %d    VKPSO %08x\n"), PSO, PSO->LRUFrame, GFrameNumberRenderThread, PSO->GetVulkanPipeline());
+	LRUPRINT_DEBUG(TEXT("LRUADD %p .. Frame %d :: %d    VKPSO %08x, cache size %d\n"), PSO, PSO->LRUFrame, GFrameNumberRenderThread, PSO->GetVulkanPipeline(), PSOSize);
 
 }
 
@@ -2256,6 +2302,16 @@ void FVulkanPipelineStateCacheManager::LRURemove(FVulkanRHIGraphicsPipelineState
 		LRUUsedPipelineCount--;
 
 		PSO->DeleteVkPipeline(bImmediate);
+		if (GVulkanReleaseShaderModuleWhenEvictingPSO)
+		{
+	        for (int ShaderStageIndex = 0; ShaderStageIndex < ShaderStage::NumStages; ShaderStageIndex++)
+	        {
+				if (PSO->VulkanShaders[ShaderStageIndex] != nullptr)
+				{
+					PSO->VulkanShaders[ShaderStageIndex]->PurgeShaderModules();
+				}
+			}
+		}
 		SET_DWORD_STAT(STAT_VulkanNumPSOLRUSize, LRUUsedPipelineSize);
 		SET_DWORD_STAT(STAT_VulkanNumPSOLRU, LRUUsedPipelineCount);
 	}

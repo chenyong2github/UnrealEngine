@@ -74,7 +74,7 @@ namespace GLTF
 		bool HasTangents() const;
 		void GetTangents(TArray<FVector3f>& Buffer) const;
 		bool HasTexCoords(uint32 Index) const;
-		void GetTexCoords(uint32 Index, TArray<FVector2D>& Buffer) const;
+		void GetTexCoords(uint32 Index, TArray<FVector2f>& Buffer) const;
 		void GetColors(TArray<FVector4f>& Buffer) const;
 		bool HasColors() const;
 		bool HasJointWeights() const;
@@ -158,7 +158,7 @@ namespace GLTF
 		Normal.GetCoordArray(Buffer);
 	}
 
-	inline void FPrimitive::GetTexCoords(uint32 Index, TArray<FVector2D>& Buffer) const
+	inline void FPrimitive::GetTexCoords(uint32 Index, TArray<FVector2f>& Buffer) const
 	{
 		switch (Index)
 		{

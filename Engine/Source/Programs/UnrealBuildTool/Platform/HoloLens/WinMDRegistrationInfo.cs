@@ -8,8 +8,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -44,7 +42,7 @@ namespace UnrealBuildTool
 			public string ThreadingModelName { get; private set; }
 		}
 
-		private static Version FindLatestVersionDirectory(string InDirectory, Version NoLaterThan)
+		private static Version FindLatestVersionDirectory(string InDirectory, Version? NoLaterThan)
 		{
 			Version LatestVersion = new Version(0, 0, 0, 0);
 			if (Directory.Exists(InDirectory))
@@ -53,7 +51,7 @@ namespace UnrealBuildTool
 				foreach (string Dir in VersionDirectories)
 				{
 					string VersionString = Path.GetFileName(Dir);
-					Version FoundVersion;
+					Version? FoundVersion;
 					if (Version.TryParse(VersionString, out FoundVersion) && FoundVersion > LatestVersion)
 					{
 						if (NoLaterThan == null || FoundVersion <= NoLaterThan)
@@ -73,8 +71,8 @@ namespace UnrealBuildTool
 			// These are files that look like References/10.0.98765.0/AMadeUpWindowsApiContract/5.0.0.0/AMadeUpWindowsApiContract.winmd
 			List<string> ExpandedWinMDReferences = new List<string>();
 
-			VersionNumber OutSdkVersion;
-			DirectoryReference OutSdkDir;
+			VersionNumber? OutSdkVersion;
+			DirectoryReference? OutSdkDir;
 			if (!WindowsPlatform.TryGetWindowsSdkDir(SdkVersion, out OutSdkVersion, out OutSdkDir))
 			{
 				Log.TraceError("Failed to find WinSDK " + SdkVersion);
@@ -158,12 +156,12 @@ namespace UnrealBuildTool
 						else if (Attr.AttributeType.FullName == "Windows.Foundation.Metadata.ThreadingAttribute")
 						{
 							CustomAttributeTypedArgument Argument = Attr.ConstructorArguments[0];
-							ThreadingModelName = Enum.GetName(Argument.ArgumentType, Argument.Value).ToLowerInvariant();
+							ThreadingModelName = Enum.GetName(Argument.ArgumentType, Argument.Value!)!.ToLowerInvariant();
 						}
 					}
 					if (IsActivatable)
 					{
-						ActivatableTypesList.Add(new ActivatableType(WinMDType.FullName, ThreadingModelName));
+						ActivatableTypesList.Add(new ActivatableType(WinMDType.FullName!, ThreadingModelName));
 					}
 				}
 			}

@@ -64,6 +64,7 @@ enum EDebugPages : uint8
 UENUM()
 enum class EVehicleDifferential : uint8
 {
+	Undefined,
 	AllWheelDrive,
 	FrontWheelDrive,
 	RearWheelDrive,
@@ -173,7 +174,7 @@ struct FVehicleDifferentialConfig
 	UPROPERTY(EditAnywhere, Category=Setup)
 	EVehicleDifferential DifferentialType;
 	
-	/** Ratio of torque split between front and rear (>0.5 means more to front, <0.5 means more to rear, works only with 4W type) */
+	/** Ratio of torque split between front and rear (<0.5 means more to front, >0.5 means more to rear, works only with 4W type) */
 	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 	float FrontRearSplit;
 
@@ -611,7 +612,6 @@ public:
 	TArray<FOverlapResult> OverlapResults;
 	bool bOverlapHit;
 	FBox QueryBox;
-
 };
 
 //////////////////////////////////////////////////////////////////////////

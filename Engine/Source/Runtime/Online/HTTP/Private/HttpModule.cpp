@@ -118,7 +118,7 @@ void FHttpModule::ShutdownModule()
 	if (HttpManager != nullptr)
 	{
 		// block on any http requests that have already been queued up
-		HttpManager->Flush(true);
+		HttpManager->Flush(EHttpFlushReason::Shutdown);
 	}
 
 	// at least on Linux, the code in HTTP manager (e.g. request destructors) expects platform to be initialized yet
@@ -156,7 +156,7 @@ bool FHttpModule::HandleHTTPCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	}
 	else if (FParse::Command(&Cmd, TEXT("FLUSH")))
 	{
-		GetHttpManager().Flush(false);
+		GetHttpManager().Flush(EHttpFlushReason::Default);
 	}
 #if !UE_BUILD_SHIPPING
 	else if (FParse::Command(&Cmd, TEXT("FILEUPLOAD")))

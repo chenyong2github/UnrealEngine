@@ -1021,7 +1021,13 @@ bool FUnixPlatformFile::DirectoryExists(const TCHAR* Directory)
 
 bool FUnixPlatformFile::CreateDirectory(const TCHAR* Directory)
 {
-	return mkdir(TCHAR_TO_UTF8(*NormalizeFilename(Directory, true)), 0775) == 0 || (errno == EEXIST);
+	FString NormalizedPath = NormalizeFilename(Directory, true);
+	if (!CreateDirectoriesFromPath(*NormalizedPath))
+	{
+		return false;
+	}
+
+	return mkdir(TCHAR_TO_UTF8(*NormalizedPath), 0775) == 0 || (errno == EEXIST);
 }
 
 bool FUnixPlatformFile::DeleteDirectory(const TCHAR* Directory)

@@ -50,7 +50,7 @@ public:
 	*/
 	FArchive& operator<<( UObject*& Object )
 	{
-		if (Object != NULL && !(Object->HasAnyMarks(OBJECTMARK_TagExp) || Object->IsPendingKillOrUnreachable()) )
+		if (Object != NULL && !(Object->HasAnyMarks(OBJECTMARK_TagExp) || !IsValidChecked(Object) || Object->IsUnreachable()) )
 		{
 			Object->Mark(OBJECTMARK_TagExp);
 

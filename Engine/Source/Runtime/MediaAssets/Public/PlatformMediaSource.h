@@ -54,6 +54,7 @@ public:
 
 	//~ IMediaOptions interface
 
+	virtual FName GetDesiredPlayerName() const override;
 	virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
 	virtual double GetMediaOption(const FName& Key, double DefaultValue) const override;
 	virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;

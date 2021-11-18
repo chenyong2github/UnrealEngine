@@ -273,17 +273,17 @@ namespace UnrealBuildTool
 
 		public UHTModuleInfo(BinaryArchiveReader Reader)
 		{
-			ModuleName = Reader.ReadString();
+			ModuleName = Reader.ReadString()!;
 			ModuleRulesFile = Reader.ReadFileReference();
-			ModuleDirectories = Reader.ReadArray<DirectoryReference>(Reader.ReadDirectoryReferenceNotNull);
-			ModuleType = Reader.ReadString();
-			OverrideModuleType = Reader.ReadString();
-			PublicUObjectClassesHeaders = Reader.ReadList(() => Reader.ReadFileItem());
-			PublicUObjectHeaders = Reader.ReadList(() => Reader.ReadFileItem());
-			InternalUObjectHeaders = Reader.ReadList(() => Reader.ReadFileItem());
-			PrivateUObjectHeaders = Reader.ReadList(() => Reader.ReadFileItem());
+			ModuleDirectories = Reader.ReadArray<DirectoryReference>(Reader.ReadDirectoryReferenceNotNull)!;
+			ModuleType = Reader.ReadString()!;
+			OverrideModuleType = Reader.ReadString()!;
+			PublicUObjectClassesHeaders = Reader.ReadList(() => Reader.ReadFileItem())!;
+			PublicUObjectHeaders = Reader.ReadList(() => Reader.ReadFileItem())!;
+			InternalUObjectHeaders = Reader.ReadList(() => Reader.ReadFileItem())!;
+			PrivateUObjectHeaders = Reader.ReadList(() => Reader.ReadFileItem())!;
 			GeneratedCPPFilenameBase = Reader.ReadString();
-			GeneratedCodeDirectory = Reader.ReadDirectoryItem();
+			GeneratedCodeDirectory = Reader.ReadDirectoryItem()!;
 			GeneratedCodeVersion = (EGeneratedCodeVersion)Reader.ReadInt();
 			bIsReadOnly = Reader.ReadBool();
 		}
@@ -411,8 +411,8 @@ namespace UnrealBuildTool
 
 		public UHTModuleHeaderInfo(BinaryArchiveReader Reader)
 		{
-			SourceFolder = Reader.ReadDirectoryItem();
-			HeaderFiles = Reader.ReadList(() => Reader.ReadFileItem());
+			SourceFolder = Reader.ReadDirectoryItem()!;
+			HeaderFiles = Reader.ReadList(() => Reader.ReadFileItem())!;
 			bUsePrecompiled = Reader.ReadBool();
 		}
 

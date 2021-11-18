@@ -15,7 +15,7 @@ namespace EpicGame
 	/// <summary>
 	/// An additional set of options that pertain to internal epic games.
 	/// </summary>
-	public class EpicGameTestConfig : UnrealGame.UE4TestConfig, IAutoParamNotifiable
+	public class EpicGameTestConfig : UnrealGame.UnrealTestConfig, IAutoParamNotifiable
 	{
 		/// <summary>
 		/// Should this test skip mcp?
@@ -27,7 +27,7 @@ namespace EpicGame
 		/// Tell the server not to authenticate u
 		/// </summary>
 		[AutoParam]
-		public bool XboxAuthSkip = false;
+		public bool DeviceAuthSkip = false;
 
 		[AutoParam]
 		public bool FastCook = false;

@@ -344,7 +344,7 @@ void FIKRigEditorController::AddNewRetargetChain(const FName ChainName, const FN
 
 void FIKRigEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
 {
-	if (AssetToPlay && AnimInstance)
+	if (AssetToPlay && AnimInstance.IsValid())
 	{
 		AnimInstance->SetAnimationAsset(AssetToPlay);
 	}

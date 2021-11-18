@@ -213,7 +213,7 @@ namespace UnrealBuildTool
 						}
 
 						// print out SDK info for only the platforms that are being compiled
-						UEBuildPlatformSDK.GetSDKForPlatform(TargetDesc.Platform.ToString()).PrintSDKInfoAndReturnValidity();
+						UEBuildPlatformSDK.GetSDKForPlatform(TargetDesc.Platform.ToString())?.PrintSDKInfoAndReturnValidity();
 					}
 
 					// Get all the build options
@@ -309,7 +309,7 @@ namespace UnrealBuildTool
 				List<LinkedAction>[] QueuedActions = new List<LinkedAction>[Makefiles.Length];
 				for(int Idx = 0; Idx < Makefiles.Length; Idx++)
 				{
-					QueuedActions[Idx] = Makefiles[Idx].Actions.ConvertAll(x => new LinkedAction(x));
+					QueuedActions[Idx] = Makefiles[Idx].Actions.ConvertAll(x => new LinkedAction(x, TargetDescriptors[Idx]));
 				}
 
 				// Clean up any previous hot reload runs, and reapply the current state if it's already active
@@ -430,7 +430,7 @@ namespace UnrealBuildTool
 								ICppCompileAction CppModulesAction = (ICppCompileAction)PrerequisiteAction.Inner;
 
 								List<string>? ImportedModules;
-								if(ModuleImports.TryGetValue(CppModulesAction.CompiledModuleInterfaceFile, out ImportedModules))
+								if(ModuleImports.TryGetValue(CppModulesAction.CompiledModuleInterfaceFile!, out ImportedModules))
 								{
 									foreach (string ImportedModule in ImportedModules)
 									{
@@ -511,6 +511,17 @@ namespace UnrealBuildTool
 						}
 						HotReloadTargetIdx = Idx;
 					}
+				}	
+
+				if (HotReloadTargetIdx != -1)
+				{
+					Log.TraceLog("Re-evaluating action graph");
+					// Re-check the graph to remove any LiveCoding actions added by PatchActionsForTarget() that are already up to date.
+					Dictionary<LinkedAction, bool> LiveActionToOutdatedFlag = new Dictionary<LinkedAction, bool>(MergedActionsToExecute.Count);
+					ActionGraph.GatherAllOutdatedActions(MergedActionsToExecute, History, LiveActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+					List<LinkedAction> LiveCodingActionsToExecute = LiveActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
+					ActionGraph.Link(LiveCodingActionsToExecute);
+					MergedActionsToExecute = LiveCodingActionsToExecute;
 				}
 
 				// Make sure we're not modifying any engine files
@@ -836,7 +847,7 @@ namespace UnrealBuildTool
 					LinkedAction? ExistingAction;
 					if(!OutputItemToProducingAction.TryGetValue(ProducedItem, out ExistingAction))
 					{
-						ExistingAction = new LinkedAction(TargetAction);
+						ExistingAction = new LinkedAction(TargetAction, TargetDescriptors[TargetIdx]);
 						OutputItemToProducingAction[ProducedItem] = ExistingAction;
 					}
 					ExistingAction.GroupNames.Add(GroupPrefix);

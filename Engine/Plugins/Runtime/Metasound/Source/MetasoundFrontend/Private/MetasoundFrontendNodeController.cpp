@@ -742,6 +742,7 @@ namespace Metasound
 				FOutputHandle ConnectedOutput;
 				FName DataType;
 				FMetasoundFrontendLiteral DefaultValue;
+				bool bLiteralSet = false;
 			};
 
 			// Cache input/output connections by name to try so they can be
@@ -749,14 +750,17 @@ namespace Metasound
 			TMap<FConnectionKey, FInputConnectionInfo> InputConnections;
 			IterateInputs([Connections = &InputConnections](FInputHandle InputHandle)
 			{
+				bool bLiteralSet = false;
 				FMetasoundFrontendLiteral DefaultLiteral;
 				if (const FMetasoundFrontendLiteral* Literal = InputHandle->GetLiteral())
 				{
-					DefaultLiteral = *Literal;
-				}
-				else if (const FMetasoundFrontendLiteral* ClassLiteral = InputHandle->GetClassDefaultLiteral())
-				{
-					DefaultLiteral = *ClassLiteral;
+					// Array literals are not supported in UX, so don't pass along to referencing graph
+					// TODO: Add UX in inspector to set literals (including arrays).
+					if (!Literal->IsArray())
+					{
+						DefaultLiteral = *Literal;
+						bLiteralSet = true;
+					}
 				}
 
 				const FConnectionKey ConnectionKey(InputHandle->GetName(), InputHandle->GetDataType());
@@ -764,7 +768,8 @@ namespace Metasound
 				{
 					InputHandle->GetConnectedOutput(),
 					InputHandle->GetDataType(),
-					MoveTemp(DefaultLiteral)
+					MoveTemp(DefaultLiteral),
+					bLiteralSet
 				});
 			});
 
@@ -811,7 +816,11 @@ namespace Metasound
 				const FConnectionKey ConnectionKey(InputHandle->GetName(), InputHandle->GetDataType());
 				if (FInputConnectionInfo* ConnectionInfo = Connections->Find(ConnectionKey))
 				{
-					InputHandle->SetLiteral(ConnectionInfo->DefaultValue);
+					if (ConnectionInfo->bLiteralSet)
+					{
+						InputHandle->SetLiteral(ConnectionInfo->DefaultValue);
+					}
+
 					if (ConnectionInfo->ConnectedOutput->IsValid())
 					{
 						ensure(InputHandle->Connect(*ConnectionInfo->ConnectedOutput));
@@ -1598,6 +1607,7 @@ namespace Metasound
 		{
 			const bool bIsVariableNode = (InClassType == EMetasoundFrontendClassType::Variable)
 				|| (InClassType == EMetasoundFrontendClassType::VariableAccessor)
+				|| (InClassType == EMetasoundFrontendClassType::VariableDeferredAccessor)
 				|| (InClassType == EMetasoundFrontendClassType::VariableMutator);
 			return bIsVariableNode;
 		}

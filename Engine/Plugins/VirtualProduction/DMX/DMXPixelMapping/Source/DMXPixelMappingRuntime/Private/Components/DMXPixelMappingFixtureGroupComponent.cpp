@@ -4,6 +4,7 @@
 
 #include "IDMXPixelMappingRenderer.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
+#include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Library/DMXLibrary.h"
 
@@ -77,6 +78,15 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditUndo()
 
 	// Update last position, so the next will be set correctly on children
 	LastPosition = GetPosition();
+
+	// Restore Matrices 
+	for (UDMXPixelMappingBaseComponent* Child : Children)
+	{
+		if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Child))
+		{
+			MatrixComponent->HandleMatrixChanged();
+		}
+	}
 }
 #endif // WITH_EDITOR
 
@@ -84,6 +94,32 @@ const FName& UDMXPixelMappingFixtureGroupComponent::GetNamePrefix()
 {
 	static FName NamePrefix = TEXT("Fixture Group");
 	return NamePrefix;
+}
+
+void UDMXPixelMappingFixtureGroupComponent::AddChild(UDMXPixelMappingBaseComponent* InComponent)
+{
+	Super::AddChild(InComponent);
+
+	// Make sure newly added childs are meaningfully smaller than this group
+	if (UDMXPixelMappingOutputComponent* OutputComponent = Cast<UDMXPixelMappingOutputComponent>(InComponent))
+	{
+		const FVector2D MySize = GetSize();
+		const FVector2D ChildSize = OutputComponent->GetSize();
+		if (MySize.X < ChildSize.X || MySize.Y < ChildSize.Y)
+		{
+			FVector2D DesiredChildSize = MySize / 2.f;
+			DesiredChildSize.X = FMath::Max(1.f, DesiredChildSize.X);
+			DesiredChildSize.Y = FMath::Max(1.f, DesiredChildSize.Y);
+
+			OutputComponent->SetSize(DesiredChildSize);
+		}
+	}
+
+	// Update Matrices once they were added
+	if (UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(InComponent))
+	{
+		MatrixComponent->HandleMatrixChanged();
+	}
 }
 
 void UDMXPixelMappingFixtureGroupComponent::ResetDMX()

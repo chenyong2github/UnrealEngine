@@ -336,7 +336,7 @@ namespace Metasound
 				{
 					if (DataTypeEntry.IsValid())
 					{
-						SetFrontendClass(DataTypeEntry->GetFrontendSetVariableClass());
+						SetFrontendClass(DataTypeEntry->GetFrontendVariableMutatorClass());
 					}
 				}
 
@@ -376,7 +376,7 @@ namespace Metasound
 				{
 					if (DataTypeEntry.IsValid())
 					{
-						SetFrontendClass(DataTypeEntry->GetFrontendGetVariableClass());
+						SetFrontendClass(DataTypeEntry->GetFrontendVariableAccessorClass());
 					}
 				}
 
@@ -416,7 +416,7 @@ namespace Metasound
 				{
 					if (DataTypeEntry.IsValid())
 					{
-						SetFrontendClass(DataTypeEntry->GetFrontendGetDelayedVariableClass());
+						SetFrontendClass(DataTypeEntry->GetFrontendVariableDeferredAccessorClass());
 					}
 				}
 
@@ -487,9 +487,9 @@ namespace Metasound
 				virtual bool GetFrontendLiteralClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
-				virtual bool GetFrontendSetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
-				virtual bool GetFrontendGetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
-				virtual bool GetFrontendGetDelayedVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendVariableMutatorClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendVariableAccessorClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendVariableDeferredAccessorClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 
 				// Create a new instance of a C++ implemented node from the registry.
 				virtual TUniquePtr<INode> CreateInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams) const override;
@@ -830,34 +830,34 @@ namespace Metasound
 				return false;
 			}
 
-			bool FDataTypeRegistry::GetFrontendSetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+			bool FDataTypeRegistry::GetFrontendVariableMutatorClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
 
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					OutClass = Entry->GetFrontendSetVariableClass();
+					OutClass = Entry->GetFrontendVariableMutatorClass();
 					return true;
 				}
 				return false;
 			}
 
-			bool FDataTypeRegistry::GetFrontendGetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+			bool FDataTypeRegistry::GetFrontendVariableAccessorClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
 
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					OutClass = Entry->GetFrontendGetVariableClass();
+					OutClass = Entry->GetFrontendVariableAccessorClass();
 					return true;
 				}
 				return false;
 			}
 
-			bool FDataTypeRegistry::GetFrontendGetDelayedVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+			bool FDataTypeRegistry::GetFrontendVariableDeferredAccessorClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
 
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					OutClass = Entry->GetFrontendGetDelayedVariableClass();
+					OutClass = Entry->GetFrontendVariableDeferredAccessorClass();
 					return true;
 				}
 				return false;

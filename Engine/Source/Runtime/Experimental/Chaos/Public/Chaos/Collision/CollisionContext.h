@@ -5,7 +5,7 @@
 
 namespace Chaos
 {
-	class FCollisionConstraintAllocator;
+	class FMultiShapePairCollisionDetector;
 
 	/**
 	 * Data passed down into the collision detection functions.
@@ -36,6 +36,9 @@ namespace Chaos
 		// Force disable CCD
 		bool bForceDisableCCD;
 
-		FCollisionConstraintAllocator* CollisionAllocator;
+		// This is used in the older collision detection path which is still used for particles that do not flatten their implicit hierrarchies
+		// into the Particle's ShapesArray. Currently this is only Clusters.
+		// @todo(chaos): remove thsi from here and make it a parameter on ConstructCollisions and all inner functions.
+		FMultiShapePairCollisionDetector* CollisionAllocator;
 	};
 }

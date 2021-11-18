@@ -8,6 +8,7 @@
 #include "TraceServices/Model/AnalysisSession.h"
 
 #include "SlateFrameGraphTrack.h"
+#include "SlateWidgetUpdateStepsTimingTrack.h"
 #include "SlateInsightsModule.h"
 #include "SlateProvider.h"
 #include "SlateTimingViewExtender.h"
@@ -26,6 +27,7 @@ namespace SlateInsights
 FSlateTimingViewSession::FSlateTimingViewSession()
 	: AnalysisSession(nullptr)
 	, bApplicationTracksEnabled(true)
+	, bWidgetUpdateStepsTracksEnabled(false)
 {
 }
 
@@ -57,14 +59,26 @@ void FSlateTimingViewSession::Tick(Insights::ITimingViewSession& InTimingViewSes
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(GetAnalysisSession());
 
+		// Add "prepass/paint/add element" track
+		const FSlateProvider::FWidgetUpdateStepsTimeline& StepsTimeline = SlateProvider->GetWidgetUpdateStepsTimeline();
+		if (StepsTimeline.GetEventCount() > 0 && !WidgetUpdateStepsGraphTrack.IsValid())
+		{
+			WidgetUpdateStepsGraphTrack = MakeShared<FSlateWidgetUpdateStepsTimingTrack>(*this);
+			WidgetUpdateStepsGraphTrack->SetVisibilityFlag(bWidgetUpdateStepsTracksEnabled);
+
+			InTimingViewSession.AddScrollableTrack(WidgetUpdateStepsGraphTrack);
+			InTimingViewSession.InvalidateScrollableTracksOrder();
+		}
+
 		// Add "stat" track
-		const FSlateProvider::TApplicationTickedTimeline& TickedTimeline = SlateProvider->GetApplicationTickedTimeline();
+		const FSlateProvider::FApplicationTickedTimeline& TickedTimeline = SlateProvider->GetApplicationTickedTimeline();
 		if (TickedTimeline.GetEventCount() > 0 && !SlateFrameGraphTrack.IsValid())
 		{
 			SlateFrameGraphTrack = MakeShared<FSlateFrameGraphTrack>(*this);
 			SlateFrameGraphTrack->SetVisibilityFlag(bApplicationTracksEnabled);
 
 			InTimingViewSession.AddScrollableTrack(SlateFrameGraphTrack);
+			InTimingViewSession.InvalidateScrollableTracksOrder();
 
 			const bool bInvoke = false;
 			if (TSharedPtr<SSlateFrameSchematicView> SchematicView = FSlateInsightsModule::Get().GetSlateFrameSchematicViewTab(bInvoke))
@@ -72,6 +86,7 @@ void FSlateTimingViewSession::Tick(Insights::ITimingViewSession& InTimingViewSes
 				SchematicView->SetSession(&InTimingViewSession, &InAnalysisSession);
 			}
 		}
+
 	}
 }
 
@@ -80,14 +95,26 @@ void FSlateTimingViewSession::ExtendFilterMenu(FMenuBuilder& InMenuBuilder)
 	InMenuBuilder.BeginSection("SlateTracks", LOCTEXT("SlateHeader", "Slate"));
 	{
 		InMenuBuilder.AddMenuEntry(
-			LOCTEXT("SlateTimingTracks", "Slate Tracks"),
-			LOCTEXT("SlateTimingTracks_Tooltip", "Show/hide the Slate track"),
+			LOCTEXT("SlateTickTracks", "Frame Info"),
+			LOCTEXT("SlateTickTracks_Tooltip", "Show/hide the Slate Frame Info track"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateRaw(this, &FSlateTimingViewSession::ToggleSlateTrack),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this]() { return bApplicationTracksEnabled; })
 				),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("SlateUpdateStepsTracks", "Update Steps"),
+			LOCTEXT("SlateUpdateStepsTracks_Tooltip", "Show/hide the Layout/Paint track"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FSlateTimingViewSession::ToggleWidgetUpdateTrack),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return bWidgetUpdateStepsTracksEnabled; })
+			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
@@ -102,6 +129,16 @@ void FSlateTimingViewSession::ToggleSlateTrack()
 	if (SlateFrameGraphTrack)
 	{
 		SlateFrameGraphTrack->SetVisibilityFlag(bApplicationTracksEnabled);
+	}
+}
+
+void FSlateTimingViewSession::ToggleWidgetUpdateTrack()
+{
+	bWidgetUpdateStepsTracksEnabled = !bWidgetUpdateStepsTracksEnabled;
+
+	if (WidgetUpdateStepsGraphTrack)
+	{
+		WidgetUpdateStepsGraphTrack->SetVisibilityFlag(bWidgetUpdateStepsTracksEnabled);
 	}
 }
 

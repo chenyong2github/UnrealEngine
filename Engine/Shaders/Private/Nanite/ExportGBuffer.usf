@@ -67,7 +67,7 @@ void EmitMaterialDepthPS(
 	if (IsNanitePixel)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster );
+		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster, false );
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 	}
@@ -113,7 +113,7 @@ void EmitSceneDepthPS(
 	{
 #if VELOCITY_EXPORT || MATERIAL_RESOLVE
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 #endif
 
 #if MATERIAL_RESOLVE
@@ -200,7 +200,7 @@ void EmitSceneDepthStencilPS
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+		const FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 		const FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 		const uint MaterialSlot = GetMaterialSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
@@ -288,7 +288,7 @@ void EmitHitProxyIdPS(
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		float4 HitProxyId = float4(
@@ -351,7 +351,7 @@ void EmitEditorLevelInstanceDepthPS(
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		if (BinarySearch(View.EditorVisualizeLevelInstanceIds, EDITOR_LEVELINSTANCE_BUFFER_COUNT, MaterialHitProxyId))
@@ -388,7 +388,7 @@ void EmitEditorSelectionDepthPS(
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
 		FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
-		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster);
+		FInstanceSceneData InstanceData = GetInstanceSceneData(VisibleCluster, false);
 		FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 		const uint MaterialHitProxyId = GetMaterialHitProxyId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialHitProxyTable);
 		if (BinarySearch(View.EditorSelectedHitProxyIds, EDITOR_SELECTED_BUFFER_COUNT, MaterialHitProxyId))

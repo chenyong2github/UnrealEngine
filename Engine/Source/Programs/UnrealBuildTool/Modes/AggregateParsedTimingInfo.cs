@@ -12,8 +12,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
-#nullable disable
-
 namespace UnrealBuildTool
 {
 	/// <summary>
@@ -22,7 +20,7 @@ namespace UnrealBuildTool
 	[ToolMode("AggregateParsedTimingInfo", ToolModeOptions.None)]
 	class AggregateParsedTimingInfo : ToolMode
 	{
-		private TimingData FileTimingData;
+		private TimingData? FileTimingData;
 		private ConcurrentDictionary<string, int> DecompressedFileSizes = new ConcurrentDictionary<string, int>();
 		private ConcurrentDictionary<string, byte[]> CompressedFiles = new ConcurrentDictionary<string, byte[]>();
 		private ConcurrentBag<TimingData> AggregateIncludes = new ConcurrentBag<TimingData>();
@@ -177,7 +175,7 @@ namespace UnrealBuildTool
 
 				lock (AddFileLock)
 				{
-					FileTimingData.AddChild(SummarizedTimingData);
+					FileTimingData!.AddChild(SummarizedTimingData);
 				}
 			}
 		}
@@ -188,7 +186,7 @@ namespace UnrealBuildTool
 		{
 			foreach (TimingData Include in IncludeData)
 			{
-				TimingData AggregatedInclude;
+				TimingData? AggregatedInclude;
 				if (Includes.TryGetValue(Include.Name, out AggregatedInclude))
 				{
 					AggregatedInclude.ExclusiveDuration += Include.ExclusiveDuration;

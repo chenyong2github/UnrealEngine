@@ -21,7 +21,7 @@
 #include "Metasound.generated.h"
 
 
-UCLASS()
+UCLASS(Abstract)
 class METASOUNDENGINE_API UMetasoundEditorGraphBase : public UEdGraph
 {
 	GENERATED_BODY()
@@ -30,8 +30,8 @@ public:
 	virtual bool IsEditorOnly() const override { return true; }
 	virtual bool NeedsLoadForEditorGame() const override { return false; }
 
-	virtual bool Validate(bool bInClearUpdateNotes) { return false; }
-	virtual void RegisterGraphWithFrontend() { }
+	virtual void SetSynchronizationRequired(bool bInClearUpdateNotes = false) PURE_VIRTUAL(UMetasoundEditorGraphBase::Synchronize, )
+	virtual void RegisterGraphWithFrontend() PURE_VIRTUAL(UMetasoundEditorGraphBase::RegisterGraphWithFrontend(), )
 };
 
 
@@ -46,18 +46,6 @@ namespace Metasound
 	template <typename TMetaSoundObject>
 	void PostEditChangeProperty(TMetaSoundObject& InMetaSound, FPropertyChangedEvent& InEvent)
 	{
-	}
-
-	template <typename TMetaSoundObject>
-	void PostAssetUndo(TMetaSoundObject& InMetaSound)
-	{
-		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
-		{
-			if (MetaSoundGraph->Validate(false /* bClearUpdateNotes */))
-			{
-				MetaSoundGraph->RegisterGraphWithFrontend();
-			}
-		}
 	}
 
 	template <typename TMetaSoundObject>
@@ -91,7 +79,6 @@ namespace Metasound
 #if WITH_EDITORONLY_DATA
 		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
-			// When cooking, validate after registration to avoid reporting false errors
 			if (InSaveContext.IsCooking())
 			{
 				// Non-editor builds use explicit options above as opposed to using
@@ -104,14 +91,12 @@ namespace Metasound
 				{
 					InMetaSound.RegisterGraphWithFrontend(NonEditorCookRegistrationOptions);
 				}
-				MetaSoundGraph->Validate(false /* bInClearUpdateNotes */);
+				MetaSoundGraph->SetSynchronizationRequired(false /* bInClearUpdateNotes */);
 			}
 			else
 			{
-				if (MetaSoundGraph->Validate(true /* bInClearUpdateNotes */))
-				{
-					MetaSoundGraph->RegisterGraphWithFrontend();
-				}
+				MetaSoundGraph->RegisterGraphWithFrontend();
+				MetaSoundGraph->SetSynchronizationRequired(true /* bInClearUpdateNotes */);
 			}
 		}
 #else

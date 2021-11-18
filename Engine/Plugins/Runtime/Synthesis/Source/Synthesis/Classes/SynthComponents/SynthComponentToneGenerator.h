@@ -16,8 +16,8 @@
 class FToneGenerator : public ISoundGenerator
 {
 public:
-	FToneGenerator(int32 InSampleRate, int32 InNumChannels, int32 InFrequency, float InVolume, const Audio::FAudioBufferDistanceAttenuation::FSettings& InAttenuationSettings);
-	virtual ~FToneGenerator();
+	FToneGenerator(int32 InSampleRate, int32 InNumChannels, int32 InFrequency, float InVolume, const Audio::FAudioBufferDistanceAttenuationSettings& InAttenuationSettings);
+	virtual ~FToneGenerator() = default;
 
 	//~ Begin FSoundGenerator 
 	virtual int32 GetNumChannels() { return NumChannels; };
@@ -34,8 +34,8 @@ private:
 	Audio::FAlignedFloatBuffer Buffer;
 
 	float CurrentDistance = 0.0f;
-
-	Audio::FAudioBufferDistanceAttenuation AudioBufferDistanceAttenuation;
+	float CurrentAttenuation = 1.0f;
+	Audio::FAudioBufferDistanceAttenuationSettings DistanceAttenuationSettings;
 };
 
 UCLASS(ClassGroup = Synth, meta = (BlueprintSpawnableComponent))
@@ -83,6 +83,6 @@ public:
 public:
 
 private:
-	Audio::FAudioBufferDistanceAttenuation::FSettings DistanceAttenuationSettings;
+	Audio::FAudioBufferDistanceAttenuationSettings DistanceAttenuationSettings;
 	ISoundGeneratorPtr ToneGenerator;
 };

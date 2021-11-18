@@ -799,7 +799,7 @@ public:
 	virtual void GetSelectedTracks(TArray<UMovieSceneTrack*>& OutSelectedTracks) override;
 	virtual void GetSelectedSections(TArray<UMovieSceneSection*>& OutSelectedSections) override;
 	virtual void GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders) override;
-	virtual void GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyAreas)  override;
+	virtual void GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyAreas, bool bIncludeSelectedKeys = true)  override;
 	virtual void GetSelectedObjects(TArray<FGuid>& OutObjects) override;
 	virtual void SelectObject(FGuid ObjectBinding) override;
 	virtual void SelectTrack(UMovieSceneTrack* Track) override;
@@ -1391,7 +1391,7 @@ private:
 	FOnActivateSequence OnActivateSequenceEvent;
 
 	/** Delegate for Curve Display Changed Event from the Curve Editor, which we than pass to the FOnCurveDisplayChanged delegate */
-	void OnCurveModelDisplayChanged(FCurveModel *InCurveModel, bool bDisplayed);
+	void OnCurveModelDisplayChanged(FCurveModel *InCurveModel, bool bDisplayed, const FCurveEditor* InCurveEditor);
 
 	int32 SilentModeCount;
 

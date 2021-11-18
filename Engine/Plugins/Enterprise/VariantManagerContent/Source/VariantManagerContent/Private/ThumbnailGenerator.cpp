@@ -112,13 +112,13 @@ namespace ThumbnailGeneratorImpl
 			else
 #endif // WITH_EDITOR
 			{
-				void* Data = Texture->PlatformData->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
+				void* Data = Texture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
 				{
 					FMemory::Memcpy(Data, Bytes, NumBytes);
 				}
-				Texture->PlatformData->Mips[0].BulkData.Unlock();
+				Texture->GetPlatformData()->Mips[0].BulkData.Unlock();
 
-				Texture->PlatformData->SetNumSlices(1);
+				Texture->GetPlatformData()->SetNumSlices(1);
 				Texture->UpdateResource();
 			}
 		}

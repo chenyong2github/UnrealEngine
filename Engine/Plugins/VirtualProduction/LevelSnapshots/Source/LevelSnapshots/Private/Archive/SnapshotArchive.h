@@ -11,51 +11,54 @@ class UPackage;
 struct FObjectSnapshotData;
 struct FWorldSnapshotData;
 
-/* Handles shared logic for saving and loading data for snapshots. */
-class FSnapshotArchive : public FArchiveUObject
+namespace UE::LevelSnapshots::Private
 {
-	using Super = FArchiveUObject;
+	/* Handles shared logic for saving and loading data for snapshots. */
+	class FSnapshotArchive : public FArchiveUObject
+	{
+		using Super = FArchiveUObject;
 	
-public:
+	public:
 	
-	//~ Begin FArchive Interface
-	virtual FString GetArchiveName() const override;
-	virtual int64 TotalSize() override;
-	virtual int64 Tell() override;
-	virtual void Seek(int64 InPos) override;
-	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
+		//~ Begin FArchive Interface
+		virtual FString GetArchiveName() const override;
+		virtual int64 TotalSize() override;
+		virtual int64 Tell() override;
+		virtual void Seek(int64 InPos) override;
+		virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 	
-	virtual FArchive& operator<<(FName& Value) override;
-	virtual FArchive& operator<<(UObject*& Value) override;
-	virtual void Serialize(void* Data, int64 Length) override;
-	//~ End FArchive Interface
+		virtual FArchive& operator<<(FName& Value) override;
+		virtual FArchive& operator<<(UObject*& Value) override;
+		virtual void Serialize(void* Data, int64 Length) override;
+		//~ End FArchive Interface
 
-protected:
+		protected:
 	
-	/* Allocates and serializes an object dependency, or gets the object, if it already exists. */
-	virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const = 0;
+		/* Allocates and serializes an object dependency, or gets the object, if it already exists. */
+		virtual UObject* ResolveObjectDependency(int32 ObjectIndex) const = 0;
 	
-	FWorldSnapshotData& GetSharedData() const { return SharedData;}
-	UObject* GetSerializedObject() const { return SerializedObject; }
+		FWorldSnapshotData& GetSharedData() const { return SharedData;}
+		UObject* GetSerializedObject() const { return SerializedObject; }
 
-	EPropertyFlags ExcludedPropertyFlags;
+		EPropertyFlags ExcludedPropertyFlags;
 
-	/**
-	 * @param InObjectData Holds the array we're loading from or saving to
-	 * @param InSharedData Used to store shared data, e.g. references
-	 * @param bIsLoading Whether to load or save
-	 */
-	FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InSerializedObject);
+		/**
+		* @param InObjectData Holds the array we're loading from or saving to
+		* @param InSharedData Used to store shared data, e.g. references
+		* @param bIsLoading Whether to load or save
+		*/
+		FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InSerializedObject);
 	
-private:
+	private:
 	
-	UObject* SerializedObject;
+		UObject* SerializedObject;
 	
-	/*  Where in ObjectData we're currently writing to. */
-	int64 DataIndex = 0;
+		/*  Where in ObjectData we're currently writing to. */
+		int64 DataIndex = 0;
 
-	/* The object's serialized data */
-	FObjectSnapshotData& ObjectData;
-	/* Stores shared data, e.g. FNames and FSoftObjectPaths */
-	FWorldSnapshotData& SharedData;
-};
+		/* The object's serialized data */
+		FObjectSnapshotData& ObjectData;
+		/* Stores shared data, e.g. FNames and FSoftObjectPaths */
+		FWorldSnapshotData& SharedData;
+	};
+}

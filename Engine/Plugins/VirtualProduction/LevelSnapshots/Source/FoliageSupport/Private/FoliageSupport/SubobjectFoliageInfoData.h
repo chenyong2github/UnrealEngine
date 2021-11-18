@@ -8,20 +8,30 @@
 
 class UFoliageType;
 
-class FSubobjectFoliageInfoData : public FFoliageInfoData
+namespace UE::LevelSnapshots::Foliage::Private
 {
-	TSubclassOf<UFoliageType> Class;
-	FName SubobjectName;
-	TArray<uint8> SerializedSubobjectData;
+	class FSubobjectFoliageInfoData;
+	FArchive& operator<<(FArchive& Ar, FSubobjectFoliageInfoData& Data);
 	
-public:
+	class FSubobjectFoliageInfoData : public FFoliageInfoData
+	{
+		TSubclassOf<UFoliageType> Class;
+		FName SubobjectName;
+		TArray<uint8> SerializedSubobjectData;
 
-	void Save(UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo, const FCustomVersionContainer& VersionInfo);
+		FArchive& SerializeInternal(FArchive& Ar);
 	
-	UFoliageType* FindOrRecreateSubobject(AInstancedFoliageActor* Outer) const;
-	void ApplyTo(UFoliageType* FoliageSubobject, const FCustomVersionContainer& VersionInfo) const;
-	void ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const;
+	public:
 
+		void Save(UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo, const FCustomVersionContainer& VersionInfo);
 	
-	friend FArchive& operator<<(FArchive& Ar, FSubobjectFoliageInfoData& Data);
-};
+		UFoliageType* FindOrRecreateSubobject(AInstancedFoliageActor* Outer) const;
+		void ApplyTo(UFoliageType* FoliageSubobject, const FCustomVersionContainer& VersionInfo) const;
+		void ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const;
+		
+		friend FArchive& operator<<(FArchive& Ar, FSubobjectFoliageInfoData& Data)
+		{
+			return Data.SerializeInternal(Ar);
+		}
+	};
+}

@@ -469,6 +469,22 @@ void FPhysicsAssetEditor::OnFinishedChangingProperties(const FPropertyChangedEve
 		SharedData->PhysicsAsset->UpdateBodySetupIndexMap();
 	}
 
+	// if we updated the array of shapes we should make sure we update the selection
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UBodySetup, AggGeom))
+	{
+		// reselect all the bodies that were selected when the array changed, because selection keeps a primitive type that may have changed since
+		TArray<int32> SelectedBodyIndices;
+		for (const FPhysicsAssetEditorSharedData::FSelection& selectedBody : SharedData->SelectedBodies)
+		{
+			SelectedBodyIndices.AddUnique(selectedBody.Index);
+		}
+		{ // bulk update
+			FScopedBulkSelection BulkSelection(SharedData);
+			SharedData->ClearSelectedBody();
+			SharedData->SetSelectedBodiesAnyPrim(SelectedBodyIndices, true);
+		}
+	}
+
 	RecreatePhysicsState();
 
 	RefreshPreviewViewport();
@@ -3289,7 +3305,6 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	InPersonaPreviewScene->SetPreviewMeshComponent(SharedData->EditorSkelComp);
 	InPersonaPreviewScene->AddComponent(SharedData->EditorSkelComp, FTransform::Identity);
 	InPersonaPreviewScene->SetAdditionalMeshesSelectable(false);
-	InPersonaPreviewScene->SetUsePhysicsBodiesForBoneSelection(false);
 	// set root component, so we can attach to it. 
 	Actor->SetRootComponent(SharedData->EditorSkelComp);
 

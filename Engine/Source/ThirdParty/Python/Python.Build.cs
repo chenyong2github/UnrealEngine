@@ -44,24 +44,6 @@ public class Python : ModuleRules
 			}
 		}
 
-		// Make sure the Python SDK is the correct architecture
-		if (PythonSDK != null)
-		{
-			string ExpectedPointerSizeResult = "8";
-
-			// Invoke Python to query the pointer size of the interpreter so we can work out whether it's 32-bit or 64-bit
-			// todo: We probably need to do this for all platforms, but right now it's only an issue on Windows
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				string Result = InvokePython(PythonSDK.PythonRoot, "-c \"import struct; print(struct.calcsize('P'))\"");
-				Result = Result != null ? Result.Replace("\r", "").Replace("\n", "") : null;
-				if (Result == null || Result != ExpectedPointerSizeResult)
-				{
-					PythonSDK = null;
-				}
-			}
-		}
-
 		if (PythonSDK == null)
 		{
 			PublicDefinitions.Add("WITH_PYTHON=0");
@@ -159,31 +141,6 @@ public class Python : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Linux && IsEnginePython)
 		{
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Python/Linux/lib/libpython2.7.so.1.0");
-		}
-	}
-
-	private string InvokePython(string InPythonRoot, string InPythonArgs)
-	{
-		ProcessStartInfo ProcStartInfo = new ProcessStartInfo();
-		ProcStartInfo.FileName = Path.Combine(InPythonRoot, "python");
-		ProcStartInfo.WorkingDirectory = InPythonRoot;
-		ProcStartInfo.Arguments = InPythonArgs;
-		ProcStartInfo.UseShellExecute = false;
-		ProcStartInfo.RedirectStandardOutput = true;
-
-		try
-		{
-			using (Process Proc = Process.Start(ProcStartInfo))
-			{
-				using (StreamReader StdOutReader = Proc.StandardOutput)
-				{
-					return StdOutReader.ReadToEnd();
-				}
-			}
-		}
-		catch
-		{
-			return null;
 		}
 	}
 

@@ -3,7 +3,7 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyBase.h"
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
-#include "Cluster/Controller/IDisplayClusterNodeController.h"
+#include "Cluster/Controller/IDisplayClusterClusterNodeController.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
@@ -21,11 +21,9 @@ void FDisplayClusterRenderSyncPolicyBase::SyncBarrierRenderThread()
 		return;
 	}
 
-	IDisplayClusterNodeController* const pController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
-	if (pController)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(nDisplay SyncPolicyBase::SyncBarrier);
-		pController->WaitForSwapSync();
+		GDisplayCluster->GetPrivateClusterMgr()->GetClusterNodeController()->WaitForSwapSync();
 	}
 }
 

@@ -123,9 +123,10 @@ void FGpuProfilerTrace::BeginEventByName(const FName& Name, uint32 FrameNumber, 
 	}
 
 	// Prevent buffer overrun
-	if ((GCurrentFrame.EventBufferSize + 10 + sizeof(uint32)) >= GCurrentFrame.MaxEventBufferSize) // 10 is the max size that FTraceUtils::Encode7bit might use + some space for the FName index (uint32)
+	if (GCurrentFrame.EventBufferSize + 10 + sizeof(uint32) > GCurrentFrame.MaxEventBufferSize) // 10 is the max size that FTraceUtils::Encode7bit might use + some space for the FName index (uint32)
 	{
 		UE_LOG(LogRHI, Error, TEXT("GpuProfiler's scratch buffer is out of space for this frame (current size : %d kB). Dropping this frame. The size can be increased dynamically with the console variable r.GpuProfilerMaxEventBufferSizeKB"), GCurrentFrame.MaxEventBufferSize / 1024);
+
 		// Deactivate for the current frame to avoid errors while decoding an incomplete trace
 		GCurrentFrame.bActive = false;
 		return;
@@ -159,7 +160,7 @@ void FGpuProfilerTrace::EndEvent(uint64 TimestampMicroseconds)
 	}
 
 	// Prevent buffer overrun
-	if (GCurrentFrame.EventBufferSize + 10 >= GCurrentFrame.MaxEventBufferSize) // 10 is the max size that FTraceUtils::Encode7bit might use + 4 for the FName (index == uint32)
+	if (GCurrentFrame.EventBufferSize + 10 > GCurrentFrame.MaxEventBufferSize) // 10 is the max size that FTraceUtils::Encode7bit might use
 	{
 		UE_LOG(LogRHI, Error, TEXT("GpuProfiler's scratch buffer is out of space for this frame (current size : %d kB). Dropping this frame. The size can be increased dynamically with the console variable r.GpuProfilerMaxEventBufferSizeKB"), GCurrentFrame.MaxEventBufferSize / 1024);
 
@@ -186,11 +187,11 @@ void FGpuProfilerTrace::EndFrame(uint32 GPUIndex)
 
 		if (GPUIndex == 0)
 		{
-		UE_TRACE_LOG(GpuProfiler, Frame, GpuChannel)
-			<< Frame.CalibrationBias(Bias)
-			<< Frame.TimestampBase(GCurrentFrame.TimestampBase)
-			<< Frame.RenderingFrameNumber(GCurrentFrame.RenderingFrameNumber)
-			<< Frame.Data(GCurrentFrame.EventBuffer, GCurrentFrame.EventBufferSize);
+			UE_TRACE_LOG(GpuProfiler, Frame, GpuChannel)
+				<< Frame.CalibrationBias(Bias)
+				<< Frame.TimestampBase(GCurrentFrame.TimestampBase)
+				<< Frame.RenderingFrameNumber(GCurrentFrame.RenderingFrameNumber)
+				<< Frame.Data(GCurrentFrame.EventBuffer, GCurrentFrame.EventBufferSize);
 		}
 		else if (GPUIndex == 1)
 		{

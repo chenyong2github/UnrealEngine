@@ -34,6 +34,7 @@ namespace UE::DatasmithImporter
 		virtual FString GetSourceName() const override { return SourceName; }
 		virtual bool IsAvailable() const override { return SourceHandle.IsValid(); };
 		virtual bool IsOutOfSync() const override { return !(IsStreamOpen() && GetDatasmithScene()); }
+		virtual FMD5Hash GetSourceHash() const override { return CachedHash; }
 		virtual FExternalSourceCapabilities GetCapabilities() const override;
 	protected:
 		virtual TSharedPtr<IDatasmithScene> LoadImpl() override { return nullptr; }
@@ -83,6 +84,8 @@ namespace UE::DatasmithImporter
 		bool bIsStreamOpen = false;
 
 		TSharedPtr<class FInternalDirectLinkSceneReceiverWrapper> InternalSceneReceiver;
+
+		FMD5Hash CachedHash;
 
 		friend class FInternalDirectLinkSceneReceiverWrapper;
 	};

@@ -287,12 +287,12 @@ namespace UE
 						if ( NewTexture )
 						{
 							NewTexture->bNotOfflineProcessed = true;
-							uint8* MipData = static_cast< uint8* >( NewTexture->PlatformData->Mips[ 0 ].BulkData.Lock( LOCK_READ_WRITE ) );
+							uint8* MipData = static_cast< uint8* >( NewTexture->GetPlatformData()->Mips[ 0 ].BulkData.Lock( LOCK_READ_WRITE ) );
 
 							// Bulk data was already allocated for the correct size when we called CreateTransient above
-							FMemory::Memcpy( MipData, UncompressedData.GetData(), NewTexture->PlatformData->Mips[ 0 ].BulkData.GetBulkDataSize() );
+							FMemory::Memcpy( MipData, UncompressedData.GetData(), NewTexture->GetPlatformData()->Mips[ 0 ].BulkData.GetBulkDataSize() );
 
-							NewTexture->PlatformData->Mips[ 0 ].BulkData.Unlock();
+							NewTexture->GetPlatformData()->Mips[ 0 ].BulkData.Unlock();
 
 							NewTexture->UpdateResource();
 						}

@@ -172,6 +172,8 @@ private:
 	void ConvertNumericPinToTypeAll(UNiagaraNode* InPin, FNiagaraTypeDefinition TypeDef);
 	void ConvertPinToType(UEdGraphPin* InPin, FNiagaraTypeDefinition TypeDef) const;
 
+	void GenerateDataInterfacePinMenu(UToolMenu* ToolMenu, const FName SectionName, const UEdGraphPin* GraphPin, FNiagaraTypeDefinition TypeDef) const;
+
 	static bool CheckCircularConnection(TSet<const UEdGraphNode*>& VisitedNodes, const UEdGraphNode* InNode, const UEdGraphNode* InTestNode);
 };
 

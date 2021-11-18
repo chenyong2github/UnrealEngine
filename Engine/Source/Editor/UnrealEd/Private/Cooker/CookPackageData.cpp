@@ -14,7 +14,10 @@
 #include "Engine/Console.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/CommandLine.h"
 #include "Misc/CoreMiscDefines.h"
+#include "Misc/PackageName.h"
+#include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/PreloadableFile.h"
 #include "ShaderCompiler.h"
@@ -236,6 +239,7 @@ namespace UE::Cook
 		if (Instigator.Category == EInstigator::NotYetRequested)
 		{
 			Instigator = MoveTemp(InInstigator);
+			PackageDatas.DebugInstigator(*this);
 		}
 	}
 
@@ -1536,6 +1540,36 @@ namespace UE::Cook
 	{
 	}
 
+	void FPackageDatas::BeginCook()
+	{
+		FString FileOrPackageName;
+		ShowInstigatorPackageData = nullptr;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-CookShowInstigator="), FileOrPackageName))
+		{
+			FString LocalPath;
+			FString PackageName;
+			if (!FPackageName::TryConvertToMountedPath(FileOrPackageName, &LocalPath, &PackageName, nullptr, nullptr, nullptr))
+			{
+				UE_LOG(LogCook, Fatal, TEXT("-CookShowInstigator argument %s is not a mounted filename or packagename"),
+					*FileOrPackageName);
+			}
+			else
+			{
+				FName PackageFName(*PackageName);
+				FName FileName = PackageNameCache.GetCachedStandardFileName(PackageFName);
+				if (FileName.IsNone())
+				{
+					UE_LOG(LogCook, Fatal, TEXT("-CookShowInstigator argument %s could not be found on disk"),
+						*FileOrPackageName);
+				}
+				else
+				{
+					ShowInstigatorPackageData = &FindOrAddPackageData(PackageFName, FileName);
+				}
+			}
+		}
+	}
+
 	FPackageDatas::~FPackageDatas()
 	{
 		Clear();
@@ -1701,7 +1735,6 @@ namespace UE::Cook
 		return *PackageData;
 	}
 
-
 	void FPackageDatas::AddExistingPackageDatasForPlatform(const TArray<FName>& ExistingPackages,
 		const ITargetPlatform* TargetPlatform)
 	{
@@ -1750,7 +1783,6 @@ namespace UE::Cook
 			}
 		}
 	}
-
 
 	FPackageData* FPackageDatas::UpdateFileName(const FName& PackageName)
 	{
@@ -1840,6 +1872,7 @@ namespace UE::Cook
 			delete PackageData;
 		}
 		PackageDatas.Empty();
+		ShowInstigatorPackageData = nullptr;
 	}
 
 	void FPackageDatas::ClearCookedPlatforms()
@@ -1917,6 +1950,29 @@ namespace UE::Cook
 		{
 			CookedPlatformData.RemapTargetPlatforms(Remap);
 		}
+	}
+
+	void FPackageDatas::DebugInstigator(FPackageData& PackageData)
+	{
+		if (ShowInstigatorPackageData != &PackageData)
+		{
+			return;
+		}
+
+		TArray<FInstigator> Chain = CookOnTheFlyServer.GetInstigatorChain(PackageData.GetPackageName());
+		TStringBuilder<256> ChainText;
+		if (Chain.Num() == 0)
+		{
+			ChainText << TEXT("<NoInstigator>");
+		}
+		bool bFirst = true;
+		for (FInstigator& Instigator : Chain)
+		{
+			if (!bFirst) ChainText << TEXT(" <- ");
+			ChainText << TEXT("{ ") << Instigator.ToString() << TEXT(" }");
+			bFirst = false;
+		}
+		UE_LOG(LogCook, Display, TEXT("Instigator chain of %s: %s"), *PackageData.GetPackageName().ToString(), ChainText.ToString());
 	}
 
 	void FRequestQueue::Empty()

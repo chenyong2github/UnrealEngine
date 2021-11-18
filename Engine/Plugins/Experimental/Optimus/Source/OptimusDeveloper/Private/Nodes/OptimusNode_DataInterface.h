@@ -5,6 +5,7 @@
 #include "OptimusComputeDataInterface.h"
 
 #include "OptimusNode.h"
+#include "Templates/SubclassOf.h"
 
 #include "OptimusNode_DataInterface.generated.h"
 

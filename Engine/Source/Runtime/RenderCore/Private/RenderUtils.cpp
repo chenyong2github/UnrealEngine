@@ -1070,7 +1070,7 @@ public:
 	virtual void InitRHI() override
 	{
 		FVertexDeclarationElementList Elements;
-		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, sizeof(FVector2D)));
+		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, sizeof(FVector2f)));
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
 	virtual void ReleaseRHI() override
@@ -1747,4 +1747,10 @@ RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
 {
 	extern RENDERCORE_API uint64 GDBufferPlatformMask;
 	return !!(GDBufferPlatformMask & (1ull << Platform));
+}
+
+RENDERCORE_API bool AreSkinCacheShadersEnabled(EShaderPlatform Platform)
+{
+	static FShaderPlatformCachedIniValue<bool> PerPlatformCVar(TEXT("/Script/Engine.RendererSettings"), TEXT("r.SkinCache.CompileShaders"));
+	return (PerPlatformCVar.Get(Platform) != 0);
 }

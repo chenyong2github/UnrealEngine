@@ -17,7 +17,7 @@ struct FFilterVertex
 {
 public:
 	FVector4f Position;
-	FVector2D UV;
+	FVector2f UV;
 };
 
 /** The filter vertex declaration resource type. */

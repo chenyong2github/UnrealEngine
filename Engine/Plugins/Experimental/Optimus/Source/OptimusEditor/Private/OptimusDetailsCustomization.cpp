@@ -169,6 +169,10 @@ void FOptimusDataDomainCustomization::CustomizeHeader(
 		SNew(SComboBox<FName>)
 			.ToolTipText(LOCTEXT("ContextListerToolTip", "Select a resource context from the list of available contexts."))
 			.OptionsSource(&ContextNames)
+			.IsEnabled_Lambda([InPropertyHandle]() -> bool
+			{
+				return InPropertyHandle->IsEditable();
+			})
 			.OnGenerateWidget_Lambda([](FName InName)
 			{
 				return SNew(STextBlock)
@@ -246,6 +250,10 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 		SNew(SComboBox<TSharedRef<TArray<FName>>>)
 			.ToolTipText(LOCTEXT("ContextListerToolTip", "Select a nested resource context from the list of available contexts."))
 			.OptionsSource(&NestedContextNames)
+			.IsEnabled_Lambda([InPropertyHandle]() -> bool
+			{
+				return InPropertyHandle->IsEditable();
+			})
 			.OnGenerateWidget_Lambda([FormatNames](TSharedRef<TArray<FName>> InNames)
 			{
 				return SNew(STextBlock)

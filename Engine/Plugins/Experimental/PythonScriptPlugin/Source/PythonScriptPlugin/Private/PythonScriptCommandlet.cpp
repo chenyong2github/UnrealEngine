@@ -43,12 +43,17 @@ int32 UPythonScriptCommandlet::Main(const FString& Params)
 		FPythonCommandEx PythonCommand;
 		PythonCommand.Flags |= EPythonCommandFlags::Unattended;
 		PythonCommand.Command = PythonScript;
-		IPythonScriptPlugin::Get()->ExecPythonCommandEx(PythonCommand);
+		if (!IPythonScriptPlugin::Get()->ExecPythonCommandEx(PythonCommand))
+		{
+			UE_LOG(LogPythonScriptCommandlet, Error, TEXT("Python script executed with errors"));
+			return -1;
+		}
 	}
 #else	// WITH_PYTHON
 	UE_LOG(LogPythonScriptCommandlet, Error, TEXT("Python script cannot run as the plugin was built as a stub!"));
 	return -1;
 #endif	// WITH_PYTHON
 
+	UE_LOG(LogPythonScriptCommandlet, Display, TEXT("Python script executed successfully"));
 	return 0;
 }

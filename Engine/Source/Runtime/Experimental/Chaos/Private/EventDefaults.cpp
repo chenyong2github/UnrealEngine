@@ -80,46 +80,43 @@ namespace Chaos
 						break;
 					}
 
-					if (ContactHandle->GetType() != ECollisionConstraintType::None)
+					const FPBDCollisionConstraint& Constraint = ContactHandle->GetContact();
+
+					if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 					{
-						const FPBDCollisionConstraint& Constraint = ContactHandle->GetContact();
+						FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
+						FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
+						FKinematicGeometryParticleHandle* Body0 = Particle0->CastToKinematicParticle();
 
-						if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
+						// presently when a rigidbody or kinematic hits static geometry then Body1 is null
+						FKinematicGeometryParticleHandle* Body1 = Particle1->CastToKinematicParticle();
+
+						const FImplicitObject* Implicit0 = Constraint.Manifold.Implicit[0];
+						const FImplicitObject* Implicit1 = Constraint.Manifold.Implicit[1];
+
+						const FPerShapeData* Shape0 = Particle0->GetImplicitShape(Implicit0);
+						const FPerShapeData* Shape1 = Particle1->GetImplicitShape(Implicit1);
+
+						// If we don't have a filter - allow the notify, otherwise obey the filter flag
+						const bool bFilter0Notify = Shape0 ? Shape0->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
+						const bool bFilter1Notify = Shape1 ? Shape1->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
+
+						if(!bFilter0Notify && !bFilter1Notify)
 						{
-							FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
-							FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
-							FKinematicGeometryParticleHandle* Body0 = Particle0->CastToKinematicParticle();
+							// No need to notify - engine didn't request notifications for either shape.
+							continue;
+						}
 
-							// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-							FKinematicGeometryParticleHandle* Body1 = Particle1->CastToKinematicParticle();
-
-							const FImplicitObject* Implicit0 = Constraint.Manifold.Implicit[0];
-							const FImplicitObject* Implicit1 = Constraint.Manifold.Implicit[1];
-
-							const FPerShapeData* Shape0 = Particle0->GetImplicitShape(Implicit0);
-							const FPerShapeData* Shape1 = Particle1->GetImplicitShape(Implicit1);
-
-							// If we don't have a filter - allow the notify, otherwise obey the filter flag
-							const bool bFilter0Notify = Shape0 ? Shape0->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
-							const bool bFilter1Notify = Shape1 ? Shape1->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
-
-							if(!bFilter0Notify && !bFilter1Notify)
+						if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
+						{
+							if (ensure(!Constraint.GetLocation().ContainsNaN() &&
+								!Constraint.GetNormal().ContainsNaN()) &&
+								!Body0->V().ContainsNaN() &&
+								!Body0->W().ContainsNaN() &&
+								(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
 							{
-								// No need to notify - engine didn't request notifications for either shape.
-								continue;
-							}
-
-							if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
-							{
-								if (ensure(!Constraint.GetLocation().ContainsNaN() &&
-									!Constraint.GetNormal().ContainsNaN()) &&
-									!Body0->V().ContainsNaN() &&
-									!Body0->W().ContainsNaN() &&
-									(Body1 == nullptr || ((!Body1->V().ContainsNaN()) && !Body1->W().ContainsNaN())))
-								{
-									ValidCollisionHandles[NumValidCollisions] = ContactHandle;
-									NumValidCollisions++;
-								}
+								ValidCollisionHandles[NumValidCollisions] = ContactHandle;
+								NumValidCollisions++;
 							}
 						}
 					}
@@ -131,91 +128,88 @@ namespace Chaos
 				{
 					for (int32 IdxCollision = 0; IdxCollision < ValidCollisionHandles.Num(); ++IdxCollision)
 					{
-						if (ValidCollisionHandles[IdxCollision]->GetType() != ECollisionConstraintType::None)
+						const FPBDCollisionConstraint& Constraint = ValidCollisionHandles[IdxCollision]->GetContact();
+
+						FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
+						FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
+
+						FCollidingData Data;
+						Data.Location = Constraint.GetLocation();
+						Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
+						Data.Normal = Constraint.GetNormal();
+						Data.PenetrationDepth = Constraint.GetPhi();
+							
+						Data.Proxy1 = Particle0 ? Particle0->PhysicsProxy() : nullptr;
+						Data.Proxy2 = Particle1 ? Particle1->PhysicsProxy() : nullptr;
+
+						// Collision constraints require both proxies are valid. If either is not, we needn't record the collision event.
+						if (Data.Proxy1 == nullptr || Data.Proxy2 == nullptr)
 						{
-							const FPBDCollisionConstraint& Constraint = ValidCollisionHandles[IdxCollision]->GetContact();
+							continue;
+						}
 
-							FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
-							FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
+						if (FPBDRigidParticleHandle * Rigid0 = Particle0->CastToRigidParticle())
+						{
+							Data.DeltaVelocity1 = Rigid0->V() - Rigid0->PreV();
+						}
+						if (FPBDRigidParticleHandle * Rigid1 = Particle1->CastToRigidParticle())
+						{
+							Data.DeltaVelocity2 = Rigid1->V() - Rigid1->PreV();
+						}
 
-							FCollidingData Data;
-							Data.Location = Constraint.GetLocation();
-							Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
-							Data.Normal = Constraint.GetNormal();
-							Data.PenetrationDepth = Constraint.GetPhi();
+						// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
+						// do we still need these now we have pointers to particles returned?
+						FPBDRigidParticleHandle* PBDRigid0 = Particle0->CastToRigidParticle();
+						if (PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
+						{
+							Data.Velocity1 = PBDRigid0->V();
+							Data.AngularVelocity1 = PBDRigid0->W();
+							Data.Mass1 = PBDRigid0->M();
+						}
+
+						FPBDRigidParticleHandle* PBDRigid1 = Particle1->CastToRigidParticle();
+						if (PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
+						{
+							Data.Velocity2 = PBDRigid1->V();
+							Data.AngularVelocity2 = PBDRigid1->W();
+							Data.Mass2 = PBDRigid1->M();
+						}
+
+						IPhysicsProxyBase* const PhysicsProxy = Particle0->PhysicsProxy();
+						IPhysicsProxyBase* const OtherPhysicsProxy = Particle1->PhysicsProxy();
 							
-							Data.Proxy1 = Particle0 ? Particle0->PhysicsProxy() : nullptr;
-							Data.Proxy2 = Particle1 ? Particle1->PhysicsProxy() : nullptr;
+						const FSolverCollisionEventFilter* SolverCollisionEventFilter = Solver->GetEventFilters()->GetCollisionFilter();
+						if (!SolverCollisionEventFilter->Enabled() || SolverCollisionEventFilter->Pass(Data))
 
-							// Collision constraints require both proxies are valid. If either is not, we needn't record the collision event.
-							if (Data.Proxy1 == nullptr || Data.Proxy2 == nullptr)
-							{
-								continue;
-							}
+						{
+							const int32 NewIdx = AllCollisionsDataArray.Add(FCollidingData());
+							FCollidingData& CollisionDataArrayItem = AllCollisionsDataArray[NewIdx];
 
-							if (FPBDRigidParticleHandle * Rigid0 = Particle0->CastToRigidParticle())
-							{
-								Data.DeltaVelocity1 = Rigid0->V() - Rigid0->PreV();
-							}
-							if (FPBDRigidParticleHandle * Rigid1 = Particle1->CastToRigidParticle())
-							{
-								Data.DeltaVelocity2 = Rigid1->V() - Rigid1->PreV();
-							}
-
-							// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
-							// do we still need these now we have pointers to particles returned?
-							FPBDRigidParticleHandle* PBDRigid0 = Particle0->CastToRigidParticle();
-							if (PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
-							{
-								Data.Velocity1 = PBDRigid0->V();
-								Data.AngularVelocity1 = PBDRigid0->W();
-								Data.Mass1 = PBDRigid0->M();
-							}
-
-							FPBDRigidParticleHandle* PBDRigid1 = Particle1->CastToRigidParticle();
-							if (PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
-							{
-								Data.Velocity2 = PBDRigid1->V();
-								Data.AngularVelocity2 = PBDRigid1->W();
-								Data.Mass2 = PBDRigid1->M();
-							}
-
-							IPhysicsProxyBase* const PhysicsProxy = Particle0->PhysicsProxy();
-							IPhysicsProxyBase* const OtherPhysicsProxy = Particle1->PhysicsProxy();
-							
-							const FSolverCollisionEventFilter* SolverCollisionEventFilter = Solver->GetEventFilters()->GetCollisionFilter();
-							if (!SolverCollisionEventFilter->Enabled() || SolverCollisionEventFilter->Pass(Data))
-
-							{
-								const int32 NewIdx = AllCollisionsDataArray.Add(FCollidingData());
-								FCollidingData& CollisionDataArrayItem = AllCollisionsDataArray[NewIdx];
-
-								CollisionDataArrayItem = Data;
+							CollisionDataArrayItem = Data;
 
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
-								// If Constraint.ParticleIndex is a cluster store an index for a mesh in this cluster
-								if (ClusterIdsArray[Constraint.ParticleIndex].NumChildren > 0)
-								{
-									int32 ParticleIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.ParticleIndex);
-									ensure(ParticleIndexMesh != INDEX_NONE);
-									CollisionDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
-								}
-								// If Constraint.LevelsetIndex is a cluster store an index for a mesh in this cluster
-								if (ClusterIdsArray[Constraint.LevelsetIndex].NumChildren > 0)
-								{
-									int32 LevelsetIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.LevelsetIndex);
-									ensure(LevelsetIndexMesh != INDEX_NONE);
-									CollisionDataArrayItem.LevelsetIndexMesh = LevelsetIndexMesh;
-								}
+							// If Constraint.ParticleIndex is a cluster store an index for a mesh in this cluster
+							if (ClusterIdsArray[Constraint.ParticleIndex].NumChildren > 0)
+							{
+								int32 ParticleIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.ParticleIndex);
+								ensure(ParticleIndexMesh != INDEX_NONE);
+								CollisionDataArrayItem.ParticleIndexMesh = ParticleIndexMesh;
+							}
+							// If Constraint.LevelsetIndex is a cluster store an index for a mesh in this cluster
+							if (ClusterIdsArray[Constraint.LevelsetIndex].NumChildren > 0)
+							{
+								int32 LevelsetIndexMesh = GetParticleIndexMesh(ParentToChildrenMap, Constraint.LevelsetIndex);
+								ensure(LevelsetIndexMesh != INDEX_NONE);
+								CollisionDataArrayItem.LevelsetIndexMesh = LevelsetIndexMesh;
+							}
 #endif
 
-								// Add to AllCollisionsIndicesByPhysicsProxy
-								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
+							// Add to AllCollisionsIndicesByPhysicsProxy
+							AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
 
-								if (OtherPhysicsProxy && OtherPhysicsProxy != PhysicsProxy)
-								{
-									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, true));
-								}
+							if (OtherPhysicsProxy && OtherPhysicsProxy != PhysicsProxy)
+							{
+								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, true));
 							}
 						}
 					}

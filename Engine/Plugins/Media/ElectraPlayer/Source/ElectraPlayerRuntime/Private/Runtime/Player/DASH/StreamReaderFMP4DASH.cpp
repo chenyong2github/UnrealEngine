@@ -936,6 +936,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			HTTP->Parameters.URL   = RequestURL;
 			HTTP->ReceiveBuffer    = ReadBuffer.ReceiveBuffer;
 			HTTP->ProgressListener = ProgressListener;
+			HTTP->ResponseCache = PlayerSessionService->GetHTTPResponseCache();
 			HTTP->Parameters.Range.Set(Request->Segment.MediaURL.Range);
 			HTTP->Parameters.AcceptEncoding.Set(TEXT("identity"));
 			if (Request->Segment.MediaURL.CustomHeader.Len())
@@ -1468,6 +1469,8 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 	{
 		ds.ThroughputBps = ds.TimeToDownload > 0.0 ? 8 * ds.NumBytesDownloaded / ds.TimeToDownload : 0;
 	}
+	ds.bIsCachedResponse = CurrentRequest->ConnectionInfo.bIsCachedResponse;
+
 
 	// Was this request for a segment that might potentially be missing and it did?
 	if (Request->Segment.bMayBeMissing && (ds.HTTPStatusCode == 404 || ds.HTTPStatusCode == 416))

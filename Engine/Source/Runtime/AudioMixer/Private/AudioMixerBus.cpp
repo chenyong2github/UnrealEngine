@@ -121,8 +121,8 @@ namespace Audio
 					SourceBufferPtr = SourceManager->GetPreEffectBuffer(AudioBusSend.SourceId);
 				}
 
-				// It's possible we may not have a source buffer ptr here, so protect against it
-				if (ensure(SourceBufferPtr))
+				// It's possible we may not have a source buffer ptr here if the sound is not playing
+				if (SourceBufferPtr)
 				{
 					const int32 NumSourceChannels = SourceManager->GetNumChannels(AudioBusSend.SourceId);
 					const int32 NumSourceSamples = NumSourceChannels * NumOutputFrames;
@@ -139,7 +139,6 @@ namespace Audio
 					{
 						MixInBufferFast(SourceBufferPtr, BusDataBufferPtr, NumOutputFrames * NumChannels, AudioBusSend.SendLevel);
 					}
-
 				}
 			}
 		}

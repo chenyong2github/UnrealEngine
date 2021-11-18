@@ -14,6 +14,7 @@ struct FClothSimulData
 	{
 		Positions.Reset();
 		Normals.Reset();
+		LODIndex = INDEX_NONE;
 	}
 
 	// Positions of the simulation mesh particles
@@ -27,6 +28,9 @@ struct FClothSimulData
 
 	// Transform relative to the component to update clothing root transform when not ticking clothing but rendering a component
 	FTransform ComponentRelativeTransform;
+
+	// Current LOD index the data is valid for
+	int32 LODIndex;
 };
 
 enum class EClothingTeleportMode : uint8

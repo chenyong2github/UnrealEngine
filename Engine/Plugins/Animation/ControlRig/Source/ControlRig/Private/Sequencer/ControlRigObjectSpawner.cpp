@@ -54,7 +54,7 @@ void FControlRigObjectSpawner::DestroySpawnedObject(UObject& Object)
 	if (UControlRig* ControlRig = Cast<UControlRig>(&Object))
 	{
 		ControlRig->Rename(nullptr, GetTransientPackage());
-		ControlRig->MarkPendingKill();
+		ControlRig->MarkAsGarbage();
 		ObjectHolderPtr->Objects.Remove(&Object);
 	}
 }

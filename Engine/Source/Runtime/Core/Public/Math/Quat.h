@@ -11,6 +11,7 @@
 #include "Math/VectorRegister.h"
 #include "Math/Rotator.h"
 #include "Math/Matrix.h"
+#include "Misc/LargeWorldCoordinatesSerializer.h"
 
 class Error;
 
@@ -62,7 +63,7 @@ public:
 public:
 
 	/** Default constructor (no initialization). */
-	FORCEINLINE TQuat();
+	FORCEINLINE TQuat() { }
 
 	/**
 	 * Creates and initializes a new quaternion, with the W component either 0 or 1.
@@ -108,9 +109,9 @@ public:
 	 *
 	 * @param R The rotator to initialize from.
 	 */
-	explicit TQuat(const FRotator& R);
+	explicit TQuat(const TRotator<T>& R);
 
-	FORCEINLINE static TQuat<T> MakeFromRotator(const FRotator& R) { return TQuat<T>(R); }
+	FORCEINLINE static TQuat<T> MakeFromRotator(const TRotator<T>& R) { return TQuat<T>(R); }
 
 	/**
 	 * Creates and initializes a new quaternion from the given matrix.
@@ -247,7 +248,23 @@ public:
 	 * @param Scale The scaling factor.
 	 * @return a reference to this after scaling.
 	 */
-	FORCEINLINE TQuat<T> operator*=(const T Scale);
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
+	FORCEINLINE TQuat<T> operator*=(const FArg Scale)
+	{
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+		QuatVectorRegister A = VectorLoadAligned(this);
+		QuatVectorRegister B = VectorSetFloat1(Scale);
+		VectorStoreAligned(VectorMultiply(A, B), this);
+#else
+		X *= Scale;
+		Y *= Scale;
+		Z *= Scale;
+		W *= Scale;
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+
+		DiagnosticCheckNaN();
+		return *this;
+	}
 
 	/**
 	 * Get the result of scaling this quaternion.
@@ -255,7 +272,17 @@ public:
 	 * @param Scale The scaling factor.
 	 * @return The result of scaling.
 	 */
-	FORCEINLINE TQuat<T> operator*(const T Scale) const;
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
+	FORCEINLINE TQuat<T> operator*(const FArg Scale) const
+	{
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+		QuatVectorRegister A = VectorLoadAligned(this);
+		QuatVectorRegister B = VectorSetFloat1((T)Scale);
+		return TQuat(VectorMultiply(A, B));
+#else
+		return TQuat(Scale * X, Scale * Y, Scale * Z, Scale * W);
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+	}
 	
 	/**
 	 * Divide this quaternion by scale.
@@ -263,7 +290,24 @@ public:
 	 * @param Scale What to divide by.
 	 * @return a reference to this after scaling.
 	 */
-	FORCEINLINE TQuat<T> operator/=(const T Scale);
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
+	FORCEINLINE TQuat<T> operator/=(const FArg Scale)
+	{
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+		QuatVectorRegister A = VectorLoadAligned(this);
+		QuatVectorRegister B = VectorSetFloat1((T)Scale);
+		VectorStoreAligned(VectorDivide(A, B), this);
+#else
+		const T Recip = T(1.0f) / Scale;
+		X *= Recip;
+		Y *= Recip;
+		Z *= Recip;
+		W *= Recip;
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+
+		DiagnosticCheckNaN();
+		return *this;
+	}
 
 	/**
 	 * Divide this quaternion by scale.
@@ -271,7 +315,18 @@ public:
 	 * @param Scale What to divide by.
 	 * @return new Quaternion of this after division by scale.
 	 */
-	FORCEINLINE TQuat<T> operator/(const T Scale) const;
+	template<typename FArg, TEMPLATE_REQUIRES(std::is_arithmetic<FArg>::value)>
+	FORCEINLINE TQuat<T> operator/(const FArg Scale) const
+	{
+#if PLATFORM_ENABLE_VECTORINTRINSICS
+		QuatVectorRegister A = VectorLoadAligned(this);
+		QuatVectorRegister B = VectorSetFloat1(Scale);
+		return TQuat(VectorDivide(A, B));
+#else
+		const T Recip = 1.0f / Scale;
+		return TQuat(X * Recip, Y * Recip, Z * Recip, W * Recip);
+#endif // PLATFORM_ENABLE_VECTORINTRINSICS
+	}
 
 	/**
 	 * Identical implementation for TQuat properties. 
@@ -445,8 +500,8 @@ public:
 	/** Convert a rotation into a unit vector facing in its direction. Equivalent to GetForwardVector(). */
 	FORCEINLINE TVector<T> Vector() const;
 
-	/** Get the FRotator representation of this Quaternion. */
-	CORE_API FRotator Rotator() const;
+	/** Get the TRotator<T> representation of this Quaternion. */
+	CORE_API TRotator<T> Rotator() const;
 
 	/**
 	 * Get the axis of rotation of the Quaternion.
@@ -616,6 +671,8 @@ public:
 		return true;
 	}
 
+	bool SerializeFromMismatchedTag(FName StructTag, FArchive& Ar);
+
 	// Conversion to other type.
 	template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
 	explicit TQuat(const TQuat<FArg>& From) : TQuat<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
@@ -736,13 +793,9 @@ inline TQuat<T>::TQuat(const UE::Math::TMatrix<T>& M)
 
 
 template<typename T>
-FORCEINLINE TQuat<T>::TQuat(const FRotator& R)
+FORCEINLINE TQuat<T>::TQuat(const TRotator<T>& R)
 {
-	FQuat Quat = R.Quaternion();
-	X = T(Quat.X);
-	Y = T(Quat.Y);
-	Z = T(Quat.Z);
-	W = T(Quat.W);
+	*this = R.Quaternion();
 	DiagnosticCheckNaN();
 }
 
@@ -775,10 +828,6 @@ inline UE::Math::TMatrix<T> TQuat<T>::operator*(const UE::Math::TMatrix<T>& M) c
 
 /* TQuat inline functions
  *****************************************************************************/
-
-template<typename T>
-FORCEINLINE TQuat<T>::TQuat()
-{}
 
 template<typename T>
 FORCEINLINE TQuat<T>::TQuat(EForceInit ZeroOrNot)
@@ -975,38 +1024,6 @@ FORCEINLINE TQuat<T> TQuat<T>::operator*=(const TQuat<T>& Q)
 }
 
 
-template<typename T>
-FORCEINLINE TQuat<T> TQuat<T>::operator*=(const T Scale)
-{
-#if PLATFORM_ENABLE_VECTORINTRINSICS
-	QuatVectorRegister A = VectorLoadAligned(this);
-	QuatVectorRegister B = VectorSetFloat1(Scale);
-	VectorStoreAligned(VectorMultiply(A, B), this);
-#else
-	X *= Scale;
-	Y *= Scale;
-	Z *= Scale;
-	W *= Scale;
-#endif // PLATFORM_ENABLE_VECTORINTRINSICS
-
-	DiagnosticCheckNaN();
-
-	return *this;
-}
-
-
-template<typename T>
-FORCEINLINE TQuat<T> TQuat<T>::operator*(const T Scale) const
-{
-#if PLATFORM_ENABLE_VECTORINTRINSICS
-	QuatVectorRegister A = VectorLoadAligned(this);
-	QuatVectorRegister B = VectorSetFloat1(Scale);
-	return TQuat(VectorMultiply(A, B));
-#else
-	return TQuat(Scale * X, Scale * Y, Scale * Z, Scale * W);
-#endif // PLATFORM_ENABLE_VECTORINTRINSICS
-}
-
 // Global operator for (float * Quat)
 template<typename T>
 FORCEINLINE TQuat<T> operator*(const float Scale, const TQuat<T>& Q)
@@ -1019,40 +1036,6 @@ template<typename T>
 FORCEINLINE TQuat<T> operator*(const double Scale, const TQuat<T>& Q)
 {
 	return Q.operator*(Scale);
-}
-
-template<typename T>
-FORCEINLINE TQuat<T> TQuat<T>::operator/=(const T Scale)
-{
-#if PLATFORM_ENABLE_VECTORINTRINSICS
-	QuatVectorRegister A = VectorLoadAligned(this);
-	QuatVectorRegister B = VectorSetFloat1(Scale);
-	VectorStoreAligned(VectorDivide(A, B), this);
-#else
-	const T Recip = T(1.0f) / Scale;
-	X *= Recip;
-	Y *= Recip;
-	Z *= Recip;
-	W *= Recip;
-#endif // PLATFORM_ENABLE_VECTORINTRINSICS
-
-	DiagnosticCheckNaN();
-
-	return *this;
-}
-
-
-template<typename T>
-FORCEINLINE TQuat<T> TQuat<T>::operator/(const T Scale) const
-{
-#if PLATFORM_ENABLE_VECTORINTRINSICS
-	QuatVectorRegister A = VectorLoadAligned(this);
-	QuatVectorRegister B = VectorSetFloat1(Scale);
-	return TQuat(VectorDivide(A, B));
-#else
-	const T Recip = 1.0f / Scale;
-	return TQuat(X * Recip, Y * Recip, Z * Recip, W * Recip);
-#endif // PLATFORM_ENABLE_VECTORINTRINSICS
 }
 
 template<typename T>
@@ -1377,14 +1360,33 @@ template<> struct TCanBulkSerialize<FQuat4d> { enum { Value = false }; }; // LWC
 DECLARE_INTRINSIC_TYPE_LAYOUT(FQuat4f);
 DECLARE_INTRINSIC_TYPE_LAYOUT(FQuat4d);
 
+// Forward declare all explicit specializations (in UnrealMath.cpp)
+template<> CORE_API FRotator3f FQuat4f::Rotator() const;
+template<> CORE_API FRotator3d FQuat4d::Rotator() const;
+
+
+
+template<>
+inline bool FQuat4f::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Quat, Quat4f, Quat4d);
+}
+
+template<>
+inline bool FQuat4d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
+{
+	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Quat, Quat4d, Quat4f);
+}
+
+
 /* FMath inline functions
  *****************************************************************************/
  
  // TCustomLerp for FMath::Lerp()
-template<class T>
+template<typename T>
 struct TCustomLerp< UE::Math::TQuat<T> >
 {
-	enum { IsRequired = true };
+	enum { Value = true };
 	using QuatType = UE::Math::TQuat<T>;
 
 	template<class U>

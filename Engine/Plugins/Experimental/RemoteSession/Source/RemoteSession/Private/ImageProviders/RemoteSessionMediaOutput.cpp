@@ -35,11 +35,11 @@ void URemoteSessionMediaOutput::SetImageChannel(TWeakPtr<FRemoteSessionImageChan
 	ImageChannel = InImageChannel;
 }
 
-void URemoteSessionMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height)
+void URemoteSessionMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height, int32 BytesPerRow)
 {
 	if (ImageChannel)
 	{
-		ImageChannel->GetImageSender()->SendRawImageToClients(Width, Height, InBuffer, Width * Height * sizeof(FColor));
+		ImageChannel->GetImageSender()->SendRawImageToClients(Width, Height, InBuffer, BytesPerRow * Height, BytesPerRow);
 	}
 }
 

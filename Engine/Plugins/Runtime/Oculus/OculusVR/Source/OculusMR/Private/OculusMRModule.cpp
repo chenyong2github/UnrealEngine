@@ -324,7 +324,7 @@ void FOculusMRModule::SetupInGameCapture()
 	// Don't add another actor if there's already a MRC camera actor
 	for (TActorIterator<AOculusMR_CastingCameraActor> ActorIt(CurrentWorld); ActorIt; ++ActorIt)
 	{
-		if (!ActorIt->IsPendingKillOrUnreachable() && ActorIt->IsValidLowLevel())
+		if (IsValidChecked(*ActorIt) && !ActorIt->IsUnreachable() && ActorIt->IsValidLowLevel())
 		{
 			MRActor = *ActorIt;
 			return;

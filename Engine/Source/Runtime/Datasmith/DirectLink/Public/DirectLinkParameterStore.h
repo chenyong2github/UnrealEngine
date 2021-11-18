@@ -23,19 +23,15 @@ public:
 		: NativeValue(InitialValue)
 	{}
 
-	const T& Get(const FParameterStore& InStore) const { return NativeValue; }
-	T& Edit(const FParameterStore& InStore) { return NativeValue; }
+	const T& Get() const { return NativeValue; }
+	T& Get() { return NativeValue; }
 	operator const T&() const { return NativeValue; }
+	operator T&() { return NativeValue; }
 
 	T& operator=(const T& InValue)
 	{
 		NativeValue = InValue;
 		return NativeValue;
-	}
-
-	void Set(FParameterStore& InStore, const T& InValue)
-	{
-		NativeValue = InValue;
 	}
 
 private:

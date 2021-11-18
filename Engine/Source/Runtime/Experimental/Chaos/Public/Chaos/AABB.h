@@ -313,7 +313,7 @@ namespace Chaos
 		}
 
 		// Support vertex in the specified direction, assuming each face has been moved inwards by InMargin
-		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, FReal InMargin) const
+		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta) const
 		{
 			FVec3 ChosenPt;
 			for (int Axis = 0; Axis < d; ++Axis)
@@ -321,8 +321,35 @@ namespace Chaos
 				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] + InMargin : MMax[Axis] - InMargin;
 			}
 
+			// Maximum distance between the Core+Margin position and the original outer vertex
+			constexpr FReal RootThreeMinusOne = FReal(1.7320508075688772935274463415059 - 1.0);
+			if (OutSupportDelta != nullptr)
+			{
+				*OutSupportDelta = RootThreeMinusOne * InMargin;
+			}
+
 			return ChosenPt;
 		}
+
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const T InMargin, const TVector<T, d>& Scale, T* OutSupportDelta) const
+		{
+			const TVector<T, d> ScaledDirection = Direction * Scale;
+
+			TVector<T, d> ChosenPt;
+			for (int Axis = 0; Axis < d; ++Axis)
+			{
+				ChosenPt[Axis] = ScaledDirection[Axis] < 0 ? Scale[Axis] * MMin[Axis] + InMargin : Scale[Axis] * MMax[Axis] - InMargin;
+			}
+
+			constexpr T RootThreeMinusOne = T(1.7320508075688772935274463415059 - 1.0);
+			if (OutSupportDelta != nullptr)
+			{
+				*OutSupportDelta = RootThreeMinusOne * InMargin;
+			}
+
+			return ChosenPt;
+		}
+
 
 		FORCEINLINE void GrowToInclude(const TVector<T, d>& V)
 		{

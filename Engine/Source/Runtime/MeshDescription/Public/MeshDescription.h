@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreFwd.h"
 #include "CoreTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -13,7 +13,13 @@
 #include "Algo/Accumulate.h"
 #include "Algo/Copy.h"
 #include "Algo/Find.h"
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/CoreMiscDefines.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Guid.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "Serialization/CustomVersion.h"
@@ -1314,6 +1320,9 @@ public:
 
 	/** Gets the size of the serialized bulk data */
 	int64 GetBulkDataSize() { return BulkData.GetPayloadSize(); }
+
+	/** Returns all of the CustomVersions that can be used when serializing an FMeshDescription. */
+	static TConstArrayView<FGuid> GetMeshDescriptionCustomVersions();
 
 private:
 #if WITH_EDITOR

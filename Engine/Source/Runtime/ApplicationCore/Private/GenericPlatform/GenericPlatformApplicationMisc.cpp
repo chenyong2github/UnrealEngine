@@ -76,7 +76,7 @@ bool FGenericPlatformApplicationMisc::IsThisApplicationForeground()
 	return false;
 }
 
-FLinearColor FGenericPlatformApplicationMisc::GetScreenPixelColor(const struct FVector2D& InScreenPos, float InGamma)
+FLinearColor FGenericPlatformApplicationMisc::GetScreenPixelColor(const FVector2D& InScreenPos, float InGamma)
 { 
 	return FLinearColor::Black;
 }
@@ -111,40 +111,6 @@ EScreenPhysicalAccuracy FGenericPlatformApplicationMisc::GetPhysicalScreenDensit
 
 	ScreenDensity = CachedPhysicalScreenDensity;
 	return CachedPhysicalScreenAccuracy;
-}
-
-EScreenPhysicalAccuracy FGenericPlatformApplicationMisc::ConvertInchesToPixels(float Inches, float& OutPixels)
-{
-	int32 ScreenDensity = 0;
-	const EScreenPhysicalAccuracy Accuracy = GetPhysicalScreenDensity(ScreenDensity);
-
-	if (ScreenDensity != 0)
-	{
-		OutPixels = Inches * ScreenDensity;
-	}
-	else
-	{
-		OutPixels = 0;
-	}
-
-	return Accuracy;
-}
-
-EScreenPhysicalAccuracy FGenericPlatformApplicationMisc::ConvertPixelsToInches(float Pixels, float& OutInches)
-{
-	int32 ScreenDensity = 0;
-	const EScreenPhysicalAccuracy Accuracy = GetPhysicalScreenDensity(ScreenDensity);
-
-	if (ScreenDensity != 0)
-	{
-		OutInches = Pixels / (float)ScreenDensity;
-	}
-	else
-	{
-		OutInches = 0;
-	}
-
-	return Accuracy;
 }
 
 EScreenPhysicalAccuracy FGenericPlatformApplicationMisc::ComputePhysicalScreenDensity(int32& ScreenDensity)

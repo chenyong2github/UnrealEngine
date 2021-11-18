@@ -1009,10 +1009,10 @@ void UGameplayStatics::GetAllActorsOfClass(const UObject* WorldContextObject, TS
 	if (ActorClass)
 	{
 		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
-	{
-		for(TActorIterator<AActor> It(World, ActorClass); It; ++It)
 		{
-			AActor* Actor = *It;
+			for (TActorIterator<AActor> It(World, ActorClass); It; ++It)
+			{
+				AActor* Actor = *It;
 				OutActors.Add(Actor);
 			}
 		}
@@ -1025,20 +1025,22 @@ void UGameplayStatics::GetAllActorsWithInterface(const UObject* WorldContextObje
 	OutActors.Reset();
 
 	// We do nothing if no interface provided, rather than giving ALL actors!
-	if (Interface)
+	if (!Interface)
 	{
-		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+		return;
+	}
+
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
-		for(FActorIterator It(World); It; ++It)
+		for (FActorIterator It(World); It; ++It)
 		{
 			AActor* Actor = *It;
-				if (Actor->GetClass()->ImplementsInterface(Interface))
+			if (Actor->GetClass()->ImplementsInterface(Interface))
 			{
 				OutActors.Add(Actor);
 			}
 		}
 	}
-}
 }
 
 void UGameplayStatics::GetAllActorsWithTag(const UObject* WorldContextObject, FName Tag, TArray<AActor*>& OutActors)
@@ -1047,17 +1049,19 @@ void UGameplayStatics::GetAllActorsWithTag(const UObject* WorldContextObject, FN
 	OutActors.Reset();
 
 	// We do nothing if no tag is provided, rather than giving ALL actors!
-	if (!Tag.IsNone())
+	if (Tag.IsNone())
 	{
-		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+		return;
+	}
+	
+	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+	{
+		for (FActorIterator It(World); It; ++It)
 		{
-			for (FActorIterator It(World); It; ++It)
+			AActor* Actor = *It;
+			if (Actor->ActorHasTag(Tag))
 			{
-				AActor* Actor = *It;
-				if (Actor->ActorHasTag(Tag))
-				{
-					OutActors.Add(Actor);
-				}
+				OutActors.Add(Actor);
 			}
 		}
 	}
@@ -2304,12 +2308,12 @@ bool UGameplayStatics::DeleteGameInSlot(const FString& SlotName, const int32 Use
 }
 
 USaveGame* UGameplayStatics::LoadGameFromMemory(const TArray<uint8>& InSaveData)
-	{
+{
 	if (InSaveData.Num() == 0)
-		{
+	{
 		// Empty buffer, return instead of causing a bad serialize that could crash
-	return nullptr;
-}
+		return nullptr;
+	}
 
 	USaveGame* OutSaveGameObject = nullptr;
 
@@ -3135,10 +3139,5 @@ void UGameplayStatics::AnnounceAccessibleString(const FString& AnnouncementStrin
 	}
 #endif
 }
-
-/**
- * Calculate projection matrices from a specified view target
- */
-static void GetProjectionMatricesFromViewTarget(AActor* InViewTarget, FMatrix& OutViewProjectionMatrix, FMatrix& OutInvViewProjectionMatrix);
 
 #undef LOCTEXT_NAMESPACE

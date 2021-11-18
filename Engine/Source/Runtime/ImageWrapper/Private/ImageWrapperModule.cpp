@@ -13,6 +13,7 @@
 #include "Formats/JpegImageWrapper.h"
 #include "Formats/PngImageWrapper.h"
 #include "Formats/TgaImageWrapper.h"
+#include "Formats/TiffImageWrapper.h"
 
 #include "IImageWrapperModule.h"
 
@@ -31,6 +32,10 @@ namespace
 
 	// Binary for #?RADIANCE
 	static const uint8 IMAGE_MAGIC_HDR[] = {0x23, 0x3f, 0x52, 0x41, 0x44, 0x49, 0x41, 0x4e, 0x43, 0x45, 0x0a};
+
+	// Tiff has two magic bytes sequence
+	static const uint8 IMAGE_MAGIC_TIFF_LITTLE_ENDIAN[] = {0x49, 0x49, 0x2A, 0x00};
+	static const uint8 IMAGE_MAGIC_TIFF_BIG_ENDIAN[] = {0x4D, 0x4D, 0x00, 0x2A};
 
 	/** Internal helper function to verify image signature. */
 	template <int32 MagicCount> bool StartsWith(const uint8* Content, int64 ContentSize, const uint8 (&Magic)[MagicCount])
@@ -108,6 +113,13 @@ public:
 			break;
 		case EImageFormat::HDR:
 			ImageWrapper = MakeShared<FHdrImageWrapper>();
+			break;
+
+#if WITH_LIBTIFF
+		case EImageFormat::TIFF:
+			ImageWrapper = MakeShared<UE::ImageWrapper::Private::FTiffImageWrapper>();
+			break;
+#endif // WITH_LIBTIFF
 
 		default:
 			break;
@@ -146,6 +158,14 @@ public:
 		else if (StartsWith((uint8*)CompressedData, CompressedSize, IMAGE_MAGIC_HDR))
 		{
 			Format = EImageFormat::HDR;
+		}
+		else if (StartsWith((uint8*)CompressedData, CompressedSize, IMAGE_MAGIC_TIFF_LITTLE_ENDIAN))
+		{
+			Format = EImageFormat::TIFF;
+		}
+		else if (StartsWith((uint8*)CompressedData, CompressedSize, IMAGE_MAGIC_TIFF_BIG_ENDIAN))
+		{
+			Format = EImageFormat::TIFF;
 		}
 
 		return Format;

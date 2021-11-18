@@ -2,7 +2,7 @@
 
 #include "LevelSnapshotsFunctionLibrary.h"
 
-#include "ApplySnapshotFilter.h"
+#include "Selection/ApplySnapshotFilter.h"
 #include "ConstantFilter.h"
 #include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
@@ -75,7 +75,7 @@ namespace
             if (ensureAlwaysMsgf(WorldActor, TEXT("A path that was previously associated with an actor no longer refers to an actor. Something is wrong."))
 				&& Snapshot->HasChangedSinceSnapshotWasTaken(WorldActor))
             {
-            	TOptional<AActor*> DeserializedSnapshotActor = Snapshot->GetDeserializedActor(OriginalActorPath);
+            	const TOptional<TNonNullPtr<AActor>> DeserializedSnapshotActor = Snapshot->GetDeserializedActor(OriginalActorPath);
             	if (!ensureMsgf(DeserializedSnapshotActor.Get(nullptr), TEXT("Failed to get TMap value for key %s. Is the snapshot corrupted?"), *OriginalActorPath.ToString()))
             	{
             		// Engine issue. Take snapshot. Rename actor. Update references. Value is updated correctly in TMap but look ups no longer work.
@@ -138,7 +138,7 @@ void ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(
 		Filter = GetMutableDefault<UConstantFilter>();
 	}
 	
-	FApplySnapshotFilter::Make(Snapshot, DeserializedSnapshotActor, WorldActor, Filter)
+	UE::LevelSnapshots::Private::FApplySnapshotFilter::Make(Snapshot, DeserializedSnapshotActor, WorldActor, Filter)
 		.AllowUnchangedProperties(bAllowUnchangedProperties)
 		.AllowNonEditableProperties(bAllowNonEditableProperties)
 		.ApplyFilterToFindSelectedProperties(MapToAddTo);
@@ -151,5 +151,5 @@ void ULevelSnapshotsFunctionLibrary::ForEachMatchingCustomSubobjectPair(
 	TFunction<void(UObject* SnapshotSubobject, UObject* EditorWorldSubobject)> HandleCustomSubobjectPair,
 	TFunction<void(UObject* UnmatchedSnapshotSubobject)> HandleUnmatchedSnapshotSubobject)
 {
-	FCustomObjectSerializationWrapper::ForEachMatchingCustomSubobjectPair(Snapshot->GetSerializedData(), SnapshotRootObject, WorldRootObject, HandleCustomSubobjectPair, HandleUnmatchedSnapshotSubobject);
+	UE::LevelSnapshots::Private::ForEachMatchingCustomSubobjectPair(Snapshot->GetSerializedData(), SnapshotRootObject, WorldRootObject, HandleCustomSubobjectPair, HandleUnmatchedSnapshotSubobject);
 }

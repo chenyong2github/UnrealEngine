@@ -83,8 +83,14 @@ static FAutoConsoleVariableRef CVarDistanceFieldAtlasLogStats(
 	ECVF_RenderThreadSafe
 	);
 
+static int32 GDistanceFieldBlockAllocatorSizeInBricks = 16;
+static FAutoConsoleVariableRef CVarDistanceFieldBlockAllocatorSizeInBricks(
+	TEXT("r.DistanceFields.BlockAllocatorSizeInBricks"),
+	GDistanceFieldBlockAllocatorSizeInBricks,
+	TEXT("Allocation granularity of the distance field block allocator. Higher number may cause more memory wasted on padding but allocation may be faster."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 static const int32 MaxStreamingRequests = 4095;
-static const int32 DistanceFieldBlockAllocatorSizeInBricks = 16;
 static const float IndirectionAtlasGrowMult = 2.0f;
 
 class FCopyDistanceFieldAtlasCS : public FGlobalShader
@@ -463,8 +469,8 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 
 #if WITH_EDITOR
 		if (ReadRequest.BulkData)
-		{
-			check(ReadRequest.BulkData->IsBulkDataLoaded() && ReadRequest.BulkData->GetBulkDataSize() > 0);
+		{	
+			check((ReadRequest.BulkData->IsBulkDataLoaded() ||ReadRequest.BulkData->CanLoadFromDisk()) && ReadRequest.BulkData->GetBulkDataSize() > 0);
 			BulkDataReadPtr = (const uint8*)ReadRequest.BulkData->LockReadOnly() + ReadRequest.BulkOffset;
 		}
 #endif
@@ -503,11 +509,11 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 
 			if (BrickIndex != DistanceField::InvalidBrickIndex)
 			{
-				const int32 BlockIndex = BrickIndex / DistanceFieldBlockAllocatorSizeInBricks;
+				const int32 BlockIndex = BrickIndex / GDistanceFieldBlockAllocatorSizeInBricks;
 
 				if (BlockIndex < MipState.AllocatedBlocks.Num())
 				{
-					GlobalBrickIndex = BrickIndex % DistanceFieldBlockAllocatorSizeInBricks + GlobalBlockOffsets[BlockIndex] * DistanceFieldBlockAllocatorSizeInBricks;
+					GlobalBrickIndex = BrickIndex % GDistanceFieldBlockAllocatorSizeInBricks + GlobalBlockOffsets[BlockIndex] * GDistanceFieldBlockAllocatorSizeInBricks;
 
 					const FIntVector BrickTextureCoordinate = GetBrickCoordinate(GlobalBrickIndex, BrickTextureDimensionsInBricks);
 					BrickOffset.X = BrickTextureCoordinate.X * InvMaxIndirectionDimensionMinusOne;
@@ -552,7 +558,7 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 
 		for (int32 BrickIndex = 0; BrickIndex < MipState.NumBricks; BrickIndex++)
 		{
-			const int32 GlobalBrickIndex = BrickIndex % DistanceFieldBlockAllocatorSizeInBricks + GlobalBlockOffsets[BrickIndex / DistanceFieldBlockAllocatorSizeInBricks] * DistanceFieldBlockAllocatorSizeInBricks;
+			const int32 GlobalBrickIndex = BrickIndex % GDistanceFieldBlockAllocatorSizeInBricks + GlobalBlockOffsets[BrickIndex / GDistanceFieldBlockAllocatorSizeInBricks] * GDistanceFieldBlockAllocatorSizeInBricks;
 			const FIntVector BrickTextureCoordinate = GetBrickCoordinate(GlobalBrickIndex, BrickTextureDimensionsInBricks);
 			UpdateParameters.BrickUploadCoordinatesPtr[BrickUploadIndex + BrickIndex] = FIntVector4(BrickTextureCoordinate.X, BrickTextureCoordinate.Y, BrickTextureCoordinate.Z, 0);
 		}
@@ -658,7 +664,7 @@ void FDistanceFieldSceneData::ProcessStreamingRequestsFromGPU(
 
 	const int32 BrickAtlasSizeXYInBricks = CVarBrickAtlasSizeXYInBricks.GetValueOnRenderThread();
 	const int32 NumBricksBeforeDroppingMips = FMath::Max((CVarMaxAtlasDepthInBricks.GetValueOnRenderThread() - 1) * BrickAtlasSizeXYInBricks * BrickAtlasSizeXYInBricks, 0);
-	int32 NumAllocatedDistanceFieldBricks = DistanceFieldAtlasBlockAllocator.GetAllocatedSize() * DistanceFieldBlockAllocatorSizeInBricks;
+	int32 NumAllocatedDistanceFieldBricks = DistanceFieldAtlasBlockAllocator.GetAllocatedSize() * GDistanceFieldBlockAllocatorSizeInBricks;
 
 	for (const FDistanceFieldReadRequest& ReadRequest : ReadRequests)
 	{
@@ -842,7 +848,7 @@ void FDistanceFieldSceneData::ProcessReadRequests(
 void FDistanceFieldSceneData::ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap)
 {
 	const int32 BrickAtlasSizeXYInBricks = CVarBrickAtlasSizeXYInBricks.GetValueOnRenderThread();
-	int32 DesiredZSizeInBricks = FMath::DivideAndRoundUp(DistanceFieldAtlasBlockAllocator.GetMaxSize() * DistanceFieldBlockAllocatorSizeInBricks, BrickAtlasSizeXYInBricks * BrickAtlasSizeXYInBricks);
+	int32 DesiredZSizeInBricks = FMath::DivideAndRoundUp(DistanceFieldAtlasBlockAllocator.GetMaxSize() * GDistanceFieldBlockAllocatorSizeInBricks, BrickAtlasSizeXYInBricks * BrickAtlasSizeXYInBricks);
 
 	if (DesiredZSizeInBricks <= CVarMaxAtlasDepthInBricks.GetValueOnRenderThread())
 	{
@@ -1352,7 +1358,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 		const FSparseDistanceFieldMip& MipBuiltData = AssetState.BuiltData->Mips[MipIndex];
 		FDistanceFieldAssetMipState NewMipState;
 		NewMipState.NumBricks = MipBuiltData.NumDistanceFieldBricks;
-		DistanceFieldAtlasBlockAllocator.Allocate(FMath::DivideAndRoundUp(MipBuiltData.NumDistanceFieldBricks, DistanceFieldBlockAllocatorSizeInBricks), NewMipState.AllocatedBlocks);
+		DistanceFieldAtlasBlockAllocator.Allocate(FMath::DivideAndRoundUp(MipBuiltData.NumDistanceFieldBricks, GDistanceFieldBlockAllocatorSizeInBricks), NewMipState.AllocatedBlocks);
 		NewMipState.IndirectionDimensions = MipBuiltData.IndirectionDimensions;
 		const int32 NumIndirectionEntries = NewMipState.IndirectionDimensions.X * NewMipState.IndirectionDimensions.Y * NewMipState.IndirectionDimensions.Z;
 		
@@ -1633,7 +1639,7 @@ void FDistanceFieldSceneData::ListMeshDistanceFields(bool bDumpAssetStats) const
 			const FDistanceFieldAssetMipState& MipState = AssetState.ReversedMips[ReversedMipIndex];
 			const SIZE_T MipBrickBytes = MipState.NumBricks * BrickSizeBytes;
 
-			BlockAllocatorWasteBytes += MipState.AllocatedBlocks.Num() * DistanceFieldBlockAllocatorSizeInBricks * BrickSizeBytes - MipBrickBytes;
+			BlockAllocatorWasteBytes += MipState.AllocatedBlocks.Num() * GDistanceFieldBlockAllocatorSizeInBricks * BrickSizeBytes - MipBrickBytes;
 			MipStats[ReversedMipIndex].BrickMemoryBytes += MipBrickBytes;
 			Stats.BrickMemoryBytes += MipBrickBytes;
 
@@ -1657,7 +1663,7 @@ void FDistanceFieldSceneData::ListMeshDistanceFields(bool bDumpAssetStats) const
 
 	const FIntVector AtlasDimensions = BrickTextureDimensionsInBricks * DistanceField::BrickSize;
 	const SIZE_T AtlasSizeBytes = AtlasDimensions.X * AtlasDimensions.Y * AtlasDimensions.Z * GPixelFormats[DistanceField::DistanceFieldFormat].BlockBytes;
-	const SIZE_T AtlasUsedBytes = DistanceFieldAtlasBlockAllocator.GetAllocatedSize() * DistanceFieldBlockAllocatorSizeInBricks * BrickSizeBytes;
+	const SIZE_T AtlasUsedBytes = DistanceFieldAtlasBlockAllocator.GetAllocatedSize() * GDistanceFieldBlockAllocatorSizeInBricks * BrickSizeBytes;
 	const float BlockAllocatorWasteMb = BlockAllocatorWasteBytes / 1024.0f / 1024.0f;
 	const SIZE_T IndirectionTableBytes = IndirectionTable.NumBytes;
 	const FIntVector IndirectionAtlasSize = IndirectionAtlas ? IndirectionAtlas->GetDesc().GetSize() : FIntVector::ZeroValue;

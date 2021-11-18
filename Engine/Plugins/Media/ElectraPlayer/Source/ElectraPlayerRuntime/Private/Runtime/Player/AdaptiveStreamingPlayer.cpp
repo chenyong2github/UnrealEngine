@@ -93,7 +93,6 @@ FAdaptiveStreamingPlayer::FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlaye
 	bIsPlayStart   			= true;
 	bIsClosing 				= false;
 
-	StartAtTime.Reset();
 	bHaveVideoReader.Reset();
 	bHaveAudioReader.Reset();
 	bHaveTextReader.Reset();
@@ -294,6 +293,9 @@ void FAdaptiveStreamingPlayer::Initialize(const FParamDict& Options)
 
 	// Create an entity cache.
 	EntityCache = IPlayerEntityCache::Create(this, PlayerOptions);
+
+	// Create an HTTP response cache.
+	HttpResponseCache = IHTTPResponseCache::Create(this, PlayerOptions);
 
 	// Create the ABR stream selector.
 	PlayerConfig.StreamSelectorConfig.bRebufferingJustResumesLoading = PlayerOptions.GetValue(OptionRebufferingContinuesLoading).SafeGetBool(false);
@@ -1123,6 +1125,11 @@ TSharedPtrTS<IPlayerEntityCache> FAdaptiveStreamingPlayer::GetEntityCache()
 	return EntityCache;
 }
 
+TSharedPtrTS<IHTTPResponseCache> FAdaptiveStreamingPlayer::GetHTTPResponseCache()
+{
+	return HttpResponseCache;
+}
+
 IAdaptiveStreamingPlayerAEMSHandler* FAdaptiveStreamingPlayer::GetAEMSEventHandler()
 {
 	return AEMSEventHandler;
@@ -1142,6 +1149,7 @@ TSharedPtrTS<FDRMManager> FAdaptiveStreamingPlayer::GetDRMManager()
 
 void FAdaptiveStreamingPlayer::GetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream)
 {
+	UpdateDiagnostics();
 	FMediaCriticalSection::ScopedLock lock(DiagnosticsCriticalSection);
 	switch(ForStream)
 	{
@@ -1309,6 +1317,11 @@ void FAdaptiveStreamingPlayer::InternalHandleOnce()
 		{
 			EntityCache->HandleEntityExpiration();
 		}
+		// Handle HTTP response cache expirations.
+		if (HttpResponseCache.IsValid())
+		{
+			HttpResponseCache->HandleEntityExpiration();
+		}
 		// Handle completed DRM requests.
 		if (DrmManager.IsValid())
 		{
@@ -1356,7 +1369,7 @@ bool FAdaptiveStreamingPlayer::InternalHandleThreadMessages()
 			}
 			case FWorkerThreadMessages::FMessage::EType::Seek:
 			{
-				StartAtTime = msg.Data.StartPlay.Position;
+				FSeekParam StartAtTime = msg.Data.StartPlay.Position;
 
 				if (bIsPlayStart)
 				{
@@ -1815,6 +1828,22 @@ void FAdaptiveStreamingPlayer::HandleSessionMessage(TSharedPtrTS<IPlayerMessage>
 
 //-----------------------------------------------------------------------------
 /**
+ * Returns the required duration to be available in the buffer before playback can begin.
+ */
+double FAdaptiveStreamingPlayer::GetMinBufferTimeBeforePlayback()
+{
+	// Yes. Check if we have enough data buffered up to begin handing off data to the decoders.
+	double kMinBufferBeforePlayback = LastBufferingState == EPlayerState::eState_Seeking ? PlayerConfig.SeekBufferMinTimeAvailBeforePlayback :
+										LastBufferingState == EPlayerState::eState_Rebuffering ? PlayerConfig.RebufferMinTimeAvailBeforePlayback : PlayerConfig.InitialBufferMinTimeAvailBeforePlayback;
+
+	// The buffer times may not always exactly align with segment durations, especially when different timescales are involved.
+	// For the time being we tweak the buffering value a bit to account for rounding errors.
+	kMinBufferBeforePlayback *= 0.98;
+	return kMinBufferBeforePlayback;
+}
+
+//-----------------------------------------------------------------------------
+/**
  * Checks if buffers have enough data to advance the play state.
  */
 void FAdaptiveStreamingPlayer::HandleNewBufferedData()
@@ -1826,12 +1855,8 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 		{
 			check(LastBufferingState == EPlayerState::eState_Buffering || LastBufferingState == EPlayerState::eState_Rebuffering || LastBufferingState == EPlayerState::eState_Seeking);
 			// Yes. Check if we have enough data buffered up to begin handing off data to the decoders.
-			double kMinBufferBeforePlayback = LastBufferingState == EPlayerState::eState_Seeking ? PlayerConfig.SeekBufferMinTimeAvailBeforePlayback :
-											  LastBufferingState == EPlayerState::eState_Rebuffering ? PlayerConfig.RebufferMinTimeAvailBeforePlayback : PlayerConfig.InitialBufferMinTimeAvailBeforePlayback;
+			double kMinBufferBeforePlayback = GetMinBufferTimeBeforePlayback();
 
-			// The buffer times may not always exactly align with segment durations, especially when different timescales are involved.
-			// For the time being we tweak the buffering value a bit to account for rounding errors.
-			kMinBufferBeforePlayback *= 0.98;
 			DiagnosticsCriticalSection.Lock();
 
 			bool bHaveEnoughVideo = false;
@@ -2213,6 +2238,12 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 					if (RangeEnd.IsValid() && PendingStartRequest->StartAt.Time > RangeEnd)
 					{
 						PendingStartRequest->StartAt.Time = RangeEnd;
+						// Going to the end will of course result in an 'end reached' and end of playback.
+						// If the player is set to loop then we should start from the beginning.
+						if (CurrentLoopParam.bEnableLooping)
+						{
+							PendingStartRequest->StartAt.Time = RangeStart;
+						}
 					}
 
 					IManifest::FResult Result = Manifest->FindPlayPeriod(InitialPlayPeriod, PendingStartRequest->StartAt, PendingStartRequest->SearchType);
@@ -2292,24 +2323,52 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 					{
 						// Period is loaded and configured according to the stream preferences.
 						// Prepare the initial quality/bitrate for playback.
-						int64 StartingBitrate = StreamSelector->GetAverageBandwidth();
-						if (StartingBitrate <= 0)
+						int64 StartingBitrate = -1;
+						bool bForceInitial = false;
+						bool bForceStartRate = false;
+						if (PendingStartRequest->StartingBitrate.IsSet())
 						{
-							StartingBitrate = PlayerOptions.GetValue(OptionKeyInitialBitrate).SafeGetInt64(0);
+							// This is used for rebuffering in which case we enforce the starting bitrate limits.
+							StartingBitrate = PendingStartRequest->StartingBitrate.GetValue();
+							bForceInitial = true;
+							bForceStartRate = true;
 						}
+						else
+						{
+							StartingBitrate = StreamSelector->GetAverageBandwidth();
+							if (PendingStartRequest->StartType == FPendingStartRequest::EStartType::PlayStart)
+							{
+								StartingBitrate = PlayerOptions.GetValue(OptionKeyInitialBitrate).SafeGetInt64(StartingBitrate);
+								bForceInitial = true;
+								bForceStartRate = true;
+							}
+							else if (PendingStartRequest->StartType == FPendingStartRequest::EStartType::Seeking)
+							{
+								if (PlayerOptions.HaveKey(OptionKeySeekStartBitrate))
+								{
+									StartingBitrate = PlayerOptions.GetValue(OptionKeySeekStartBitrate).SafeGetInt64(StartingBitrate);
+									bForceInitial = true;
+								}
+							}
+						}
+						// If not set or set to an invalid value try to use defaults.
 						if (StartingBitrate <= 0)
 						{
+							// Ask the manifest for the default starting bitrate, which is usually the first stream listed.
 							StartingBitrate = InitialPlayPeriod->GetDefaultStartingBitrate();
+							// If still nothing for whatever reason use a reasonable value.
 							if (StartingBitrate <= 0)
 							{
 								StartingBitrate = 1000000;
 							}
 						}
-						StreamSelector->SetBandwidth(StartingBitrate);
-						// On the very first playback enforce the starting bitrate.
-						if (PendingStartRequest->bIsPlayStart)
+						if (bForceStartRate)
 						{
-							StreamSelector->SetForcedNextBandwidth(StartingBitrate);
+							StreamSelector->SetBandwidth(StartingBitrate);
+						}
+						if (bForceInitial)
+						{
+							StreamSelector->SetForcedNextBandwidth(StartingBitrate, GetMinBufferTimeBeforePlayback());
 						}
 
 						// Set the current average video bitrate in the player options for the period to retrieve if necessary.
@@ -2410,7 +2469,7 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 						{
 							TSharedPtrTS<IStreamSegment> FirstSegmentRequest;
 							IManifest::FResult Result;
-							if (!PendingStartRequest->bForLooping)
+							if (PendingStartRequest->StartType != FPendingStartRequest::EStartType::LoopPoint)
 							{
 								Result = InitialPlayPeriod->GetStartingSegment(FirstSegmentRequest, CurrentPlaybackSequenceState, PendingStartRequest->StartAt, PendingStartRequest->SearchType);
 								bFirstSegmentRequestIsForLooping = false;
@@ -2537,6 +2596,14 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingFirstSegmentRequest(const FT
 					NewPlayPos.SetToZero();
 				}
 				PlaybackState.SetPlayPosition(NewPlayPos);
+				if (CurrentState == EPlayerState::eState_Seeking)
+				{
+					// Get the current loop state to fetch the last published loop count.
+					// The internal counter in CurrentLoopState may be some iterations ahead since it could have fetched segments from the loop point.
+					FInternalLoopState LoopStateNow;
+					PlaybackState.GetLoopState(LoopStateNow);
+					CurrentLoopState.Count = LoopStateNow.Count;
+				}
 				PlaybackState.SetLoopState(CurrentLoopState);
 
 				check(CurrentState == EPlayerState::eState_Buffering || CurrentState == EPlayerState::eState_Rebuffering || CurrentState == EPlayerState::eState_Seeking);
@@ -2683,7 +2750,7 @@ void FAdaptiveStreamingPlayer::InternalHandleCompletedSegmentRequests(const FTim
 					// the time will be clamped to that. The in-point cannot be before the start point.
 					PendingStartRequest->SearchType = IManifest::ESearchType::Closest;
 					PendingStartRequest->StartAt.Time = Seekable.Start;
-					PendingStartRequest->bForLooping = true;
+					PendingStartRequest->StartType = FPendingStartRequest::EStartType::LoopPoint;
 					PendingStartRequest->FinishedRequests = MoveTemp(LocalFinishedRequests);
 					// Increase the internal loop count
 					++CurrentLoopState.Count;
@@ -3658,6 +3725,9 @@ void FAdaptiveStreamingPlayer::CheckForStreamEnd()
 				if (!CurrentLoopParam.bEnableLooping)
 				{
 					InternalSetPlaybackEnded();
+					DataBuffersCriticalSection.Lock();
+					NextDataBuffers.Empty();
+					DataBuffersCriticalSection.Unlock();
 				}
 				else
 				{
@@ -3782,7 +3852,8 @@ void FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	PendingStartRequest = MakeSharedTS<FPendingStartRequest>();
 	PendingStartRequest->SearchType = IManifest::ESearchType::Closest;
 	PendingStartRequest->StartAt.Time = NewPosition.Time;
-	PendingStartRequest->bIsPlayStart = bIsPlayStart;
+	PendingStartRequest->StartingBitrate = NewPosition.StartingBitrate;
+	PendingStartRequest->StartType = bIsPlayStart ? FPendingStartRequest::EStartType::PlayStart : FPendingStartRequest::EStartType::Seeking;
 
 
 	// The fragment should be the closest to the time stamp unless we are rebuffering in which case it should be the one we failed on.
@@ -3965,6 +4036,8 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 	AudioDecoder.Flush();
 	VideoDecoder.Flush();
 	SubtitleDecoder.Flush();
+	// Decoders are no longer at end of data now.
+	ClearAllDecoderEODs();
 
 	// Flush the renderers again, this time to discard everything the decoders may have emitted while being flushed.
 	AudioRender.Flush();
@@ -3998,6 +4071,8 @@ void FAdaptiveStreamingPlayer::InternalClose()
 
 	HttpManager.Reset();
 	EntityCache.Reset();
+	HttpResponseCache.Reset();
+
 	RemoveMetricsReceiver(StreamSelector.Get());
 	StreamSelector.Reset();
 
@@ -4007,7 +4082,6 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	StreamState		= EStreamState::eStream_Running;
 	bRebufferPending   = false;
 	LastBufferingState = EPlayerState::eState_Buffering;
-	StartAtTime.Reset();
 	RebufferDetectedAtPlayPos.SetToInvalid();
 	PrerollVars.Clear();
 	PostrollVars.Clear();
@@ -4048,10 +4122,35 @@ void FAdaptiveStreamingPlayer::InternalSetLoop(const FLoopParam& LoopParam)
 	// The only issue with this is that until a manifest is loaded querying loop enable will return true.
 	if (!Manifest || Manifest->GetPresentationType() == IManifest::EType::OnDemand)
 	{
+		bool bStartOver = false;
+		// When looping is to be enabled we need to check if we can do this without having to start over.
+		if (!CurrentLoopParam.bEnableLooping && LoopParam.bEnableLooping)
+		{
+			// If there are any completed segment requests the loop state will be checked when all reach
+			// the end. Otherwise, if any of the receive buffers has the end-of-data flag set that
+			// that streams reached the end and will not loop, so we need to start over.
+			if (CompletedSegmentRequests.Num() == 0)
+			{
+				TSharedPtrTS<FMultiTrackAccessUnitBuffer> RcvBuffer;
+				bool bAnyReceiveBufferAtEOD = false;
+				RcvBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Video);
+				bAnyReceiveBufferAtEOD |= RcvBuffer.IsValid() ? RcvBuffer->IsEODFlagSet() : false;
+				RcvBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Audio);
+				bAnyReceiveBufferAtEOD |= RcvBuffer.IsValid() ? RcvBuffer->IsEODFlagSet() : false;
+				RcvBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Subtitle);
+				bAnyReceiveBufferAtEOD |= RcvBuffer.IsValid() ? RcvBuffer->IsEODFlagSet() : false;
+
+				bStartOver = bAnyReceiveBufferAtEOD;
+			}
+		}
 		CurrentLoopParam = LoopParam;
 		// For the lack of better knowledge update the current state immediately.
 		CurrentLoopState.bIsEnabled = LoopParam.bEnableLooping;
 		PlaybackState.SetLoopStateEnable(LoopParam.bEnableLooping);
+		if (bStartOver)
+		{
+			InternalStartoverAtCurrentPosition();
+		}
 	}
 }
 
@@ -4093,6 +4192,7 @@ void FAdaptiveStreamingPlayer::InternalRebuffer()
 		{
 			// We do not wait on the current segment that caused the rebuffering to complete.
 			// Instead we perform a seek to that time and start over from scratch.
+			FSeekParam StartAtTime;
 			if (Manifest->GetPresentationType() == IManifest::EType::Live)
 			{
 				// A Live presentation shall implicitly go to the Live edge.
@@ -4101,13 +4201,25 @@ void FAdaptiveStreamingPlayer::InternalRebuffer()
 			}
 			else
 			{
-				check(RebufferDetectedAtPlayPos.IsValid());
+				if (!RebufferDetectedAtPlayPos.IsValid())
+				{
+					RebufferDetectedAtPlayPos = PlaybackState.GetPlayPosition();
+				}
 				StartAtTime.Time = RebufferDetectedAtPlayPos;
 				PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Info, FString::Printf(TEXT("Rebuffering on-demand stream at current position")));
 			}
 			RebufferDetectedAtPlayPos.SetToInvalid();
 			InternalStop(PlayerConfig.bHoldLastFrameDuringSeek);
 			CurrentState = EPlayerState::eState_Rebuffering;
+			if (PlayerOptions.HaveKey(OptionKeyRebufferStartBitrate))
+			{
+				int64 StartingBitrate = PlayerOptions.GetValue(OptionKeyRebufferStartBitrate).SafeGetInt64(0);
+				if (StartingBitrate > 0)
+				{
+					StartAtTime.StartingBitrate = (int32)StartingBitrate;
+				}
+			}
+
 			InternalStartAt(StartAtTime);
 		}
 	}
@@ -4132,6 +4244,13 @@ void FAdaptiveStreamingPlayer::Android_UpdateSurface(const TSharedPtr<IOptionPoi
 		VideoDecoder.Decoder->Android_UpdateSurface(Surface);
 	}
 }
+
+void FAdaptiveStreamingPlayer::Android_SuspendOrResumeDecoder(bool bSuspend)
+{
+	VideoDecoder.SuspendOrResume(bSuspend);
+	AudioDecoder.SuspendOrResume(bSuspend);
+}
+
 
 FParamDict& FAdaptiveStreamingPlayer::Android_Workarounds(FStreamCodecInformation::ECodec InForCodec)
 {

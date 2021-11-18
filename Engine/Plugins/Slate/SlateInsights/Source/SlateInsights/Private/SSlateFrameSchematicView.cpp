@@ -907,8 +907,8 @@ void SSlateFrameSchematicView::RefreshNodes()
 				if (FMath::IsNearlyEqual(StartTime, EndTime))
 				{
 					// Find the Application and its delta time
-					const FSlateProvider::TApplicationTickedTimeline& ApplicationTimeline = SlateProvider->GetApplicationTickedTimeline();
-					FSlateProvider::FScopedEnumerateOutsideRange<FSlateProvider::TApplicationTickedTimeline> ScopedRange(ApplicationTimeline);
+					const FSlateProvider::FApplicationTickedTimeline& ApplicationTimeline = SlateProvider->GetApplicationTickedTimeline();
+					FSlateProvider::TScopedEnumerateOutsideRange<FSlateProvider::FApplicationTickedTimeline> ScopedRange(ApplicationTimeline);
 
 					ApplicationTimeline.EnumerateEvents(StartTime, EndTime,
 						[this](double EventStartTime, double EventEndTime, uint32 /*Depth*/, const Message::FApplicationTickedMessage& Message)
@@ -952,7 +952,7 @@ void SSlateFrameSchematicView::RefreshNodes_Invalidation(const FSlateProvider* S
 	TMap<Message::FWidgetId, TSharedPtr<Private::FWidgetUniqueInvalidatedInfo>> InvalidationMap;
 
 	// Build a flat list of all the invalidation
-	const FSlateProvider::TWidgetInvalidatedTimeline& InvalidatedTimeline = SlateProvider->GetWidgetInvalidatedTimeline();
+	const FSlateProvider::FWidgetInvalidatedTimeline& InvalidatedTimeline = SlateProvider->GetWidgetInvalidatedTimeline();
 	InvalidatedTimeline.EnumerateEvents(StartTime, EndTime,
 		[&InvalidationMap, &SlateProvider](double EventStartTime, double EventEndTime, uint32 /*Depth*/, const Message::FWidgetInvalidatedMessage& Message)
 		{
@@ -1014,7 +1014,7 @@ void SSlateFrameSchematicView::RefreshNodes_Invalidation(const FSlateProvider* S
 void SSlateFrameSchematicView::RefreshNodes_Update(const FSlateProvider* SlateProvider)
 {
 	TMap<Message::FWidgetId, TSharedPtr<Private::FWidgetUpdateInfo>> WidgetUpdateInfosMap;
-	const FSlateProvider::TWidgetUpdatedTimeline& UpdatedTimeline = SlateProvider->GetWidgetUpdatedTimeline();
+	const FSlateProvider::FWidgetUpdatedTimeline& UpdatedTimeline = SlateProvider->GetWidgetUpdatedTimeline();
 	UpdatedTimeline.EnumerateEvents(StartTime, EndTime,
 		[&WidgetUpdateInfosMap](double EventStartTime, double EventEndTime, uint32 /*Depth*/, const Message::FWidgetUpdatedMessage& Message)
 		{

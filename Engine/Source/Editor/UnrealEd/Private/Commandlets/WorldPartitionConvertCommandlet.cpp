@@ -1314,7 +1314,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	// Clear streaming levels
 	for (ULevelStreaming* LevelStreaming: MainWorld->GetStreamingLevels())
 	{
-		LevelStreaming->MarkPendingKill();
+		LevelStreaming->MarkAsGarbage();
 		ULevelStreaming::RemoveLevelAnnotation(LevelStreaming->GetLoadedLevel());
 		MainWorld->RemoveLevel(LevelStreaming->GetLoadedLevel());
 	}

@@ -54,6 +54,14 @@ bool FPaperJSONHelpers::ReadBoolean(const TSharedPtr<class FJsonObject> Item, co
 bool FPaperJSONHelpers::ReadFloatNoDefault(const TSharedPtr<class FJsonObject> Item, const FString& Key, float& Out_Value)
 {
 	double DoubleOutValue;
+	const bool bResult = ReadFloatNoDefault(Item, Key, DoubleOutValue);
+	Out_Value = DoubleOutValue;
+	return bResult;
+}
+
+bool FPaperJSONHelpers::ReadFloatNoDefault(const TSharedPtr<class FJsonObject> Item, const FString& Key, double& Out_Value)
+{
+	double DoubleOutValue;
 	if (Item->TryGetNumberField(Key, /*out*/ DoubleOutValue))
 	{
 		Out_Value = DoubleOutValue;

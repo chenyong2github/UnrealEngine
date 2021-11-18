@@ -668,6 +668,15 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 	InstanceData->bPreviewTexture = bPreviewRenderTarget;
 #endif
 
+	//-TEMP: Until we prune data interface on cook this will avoid consuming memory
+	{
+		extern int32 GNiagaraRenderTargetIgnoreCookedOut;
+		if (GNiagaraRenderTargetIgnoreCookedOut && !IsUsedWithGPUEmitter())
+		{
+			return false;
+		}
+	}
+
 	if (!bInheritUserParameterSettings && (InstanceData->TargetTexture == nullptr))
 	{
 		InstanceData->TargetTexture = NewObject<UTextureRenderTarget2DArray>(this);

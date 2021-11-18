@@ -618,7 +618,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDOFCocModelShaderParameters, )
 	SHADER_PARAMETER(FVector4f, CocModelParameters)
-	SHADER_PARAMETER(FVector2D, DepthBlurParameters)
+	SHADER_PARAMETER(FVector2f, DepthBlurParameters)
 END_SHADER_PARAMETER_STRUCT()
 
 void SetCocModelParameters(
@@ -699,7 +699,7 @@ class FDiaphragmDOFSetupCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCocModelShaderParameters, CocModel)
 
 		SHADER_PARAMETER(FIntRect, ViewportRect)
-		SHADER_PARAMETER(FVector2D, CocRadiusBasis) // TODO: decompose
+		SHADER_PARAMETER(FVector2f, CocRadiusBasis) // TODO: decompose
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
@@ -721,8 +721,8 @@ class FDiaphragmDOFCocFlattenCS : public FDiaphragmDOFShader
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntRect, ViewportRect)
-		SHADER_PARAMETER(FVector2D, ThreadIdToBufferUV)
-		SHADER_PARAMETER(FVector2D, MaxBufferUV)
+		SHADER_PARAMETER(FVector2f, ThreadIdToBufferUV)
+		SHADER_PARAMETER(FVector2f, MaxBufferUV)
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT(FDOFGatherInputTextures, GatherInput)
@@ -772,7 +772,7 @@ class FDiaphragmDOFDownsampleCS : public FDiaphragmDOFShader
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntRect, ViewportRect)
-		SHADER_PARAMETER(FVector2D, MaxBufferUV)
+		SHADER_PARAMETER(FVector2f, MaxBufferUV)
 		SHADER_PARAMETER(float, OutputCocRadiusMultiplier)
 
 		SHADER_PARAMETER(FVector4f, GatherInputSize)
@@ -856,7 +856,7 @@ class FDiaphragmDOFReduceCS : public FDiaphragmDOFShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntRect, ViewportRect)
-		SHADER_PARAMETER(FVector2D, MaxInputBufferUV)
+		SHADER_PARAMETER(FVector2f, MaxInputBufferUV)
 		SHADER_PARAMETER(int32, MaxScatteringGroupCount)
 		SHADER_PARAMETER(float, PreProcessingToProcessingCocRadiusFactor)
 		SHADER_PARAMETER(float, MinScatteringCocRadius)
@@ -1078,12 +1078,12 @@ class FDiaphragmDOFGatherCS : public FDiaphragmDOFShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector4f, ViewportSize)
 		SHADER_PARAMETER(FIntRect, ViewportRect)
-		SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
-		SHADER_PARAMETER(FVector2D, DispatchThreadIdToInputBufferUV)
-		SHADER_PARAMETER(FVector2D, ConsiderCocRadiusAffineTransformation0)
-		SHADER_PARAMETER(FVector2D, ConsiderCocRadiusAffineTransformation1)
-		SHADER_PARAMETER(FVector2D, ConsiderAbsCocRadiusAffineTransformation)
-		SHADER_PARAMETER(FVector2D, InputBufferUVToOutputPixel)
+		SHADER_PARAMETER(FVector2f, TemporalJitterPixels)
+		SHADER_PARAMETER(FVector2f, DispatchThreadIdToInputBufferUV)
+		SHADER_PARAMETER(FVector2f, ConsiderCocRadiusAffineTransformation0)
+		SHADER_PARAMETER(FVector2f, ConsiderCocRadiusAffineTransformation1)
+		SHADER_PARAMETER(FVector2f, ConsiderAbsCocRadiusAffineTransformation)
+		SHADER_PARAMETER(FVector2f, InputBufferUVToOutputPixel)
 		SHADER_PARAMETER(float, MipBias)
 		SHADER_PARAMETER(float, MaxRecombineAbsCocRadius)
 
@@ -1091,7 +1091,7 @@ class FDiaphragmDOFGatherCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
 
 		SHADER_PARAMETER(FVector4f, GatherInputSize)
-		SHADER_PARAMETER(FVector2D, GatherInputViewportSize)
+		SHADER_PARAMETER(FVector2f, GatherInputViewportSize)
 		SHADER_PARAMETER_STRUCT(FDOFGatherInputTextures, GatherInput)
 
 		SHADER_PARAMETER_STRUCT(FDOFTileClassificationTextures, TileClassification)
@@ -1133,7 +1133,7 @@ class FDiaphragmDOFPostfilterCS : public FDiaphragmDOFShader
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntRect, ViewportRect)
-		SHADER_PARAMETER(FVector2D, MaxInputBufferUV)
+		SHADER_PARAMETER(FVector2f, MaxInputBufferUV)
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFTileDecisionParameters, TileDecisionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDOFCommonShaderParameters, CommonParameters)
@@ -1256,8 +1256,8 @@ class FDiaphragmDOFRecombineCS : public FDiaphragmDOFShader
 
 		SHADER_PARAMETER(FIntRect, ViewportRect)
 		SHADER_PARAMETER(FVector4f, ViewportSize)
-		SHADER_PARAMETER(FVector2D, TemporalJitterPixels)
-		SHADER_PARAMETER(FVector2D, DOFBufferUVMax)
+		SHADER_PARAMETER(FVector2f, TemporalJitterPixels)
+		SHADER_PARAMETER(FVector2f, DOFBufferUVMax)
 		SHADER_PARAMETER(FVector4f, SeparateTranslucencyBilinearUVMinMax)
 		SHADER_PARAMETER(int32, SeparateTranslucencyUpscaling)
 		
@@ -1278,7 +1278,7 @@ class FDiaphragmDOFRecombineCS : public FDiaphragmDOFShader
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, ForegroundHoleFillingConvolution)
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, SlightOutOfFocusConvolution)
 		SHADER_PARAMETER_STRUCT(FDOFConvolutionTextures, BackgroundConvolution)
-		SHADER_PARAMETER(FVector2D, SeparateTranslucencyTextureLowResExtentInverse)
+		SHADER_PARAMETER(FVector2f, SeparateTranslucencyTextureLowResExtentInverse)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, SceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, DebugOutput)

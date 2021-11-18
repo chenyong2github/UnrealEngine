@@ -124,7 +124,6 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("GraphEditor", "Kismet"),
 			new KeyValuePair<string, string>("HierarchicalLODOutliner", "UnrealEd"),
 			new KeyValuePair<string, string>("Kismet", "BlueprintGraph"),
-			new KeyValuePair<string, string>("Kismet", "BlueprintNativeCodeGen"),
 			new KeyValuePair<string, string>("Kismet", "UMGEditor"),
 			new KeyValuePair<string, string>("Kismet", "Merge"),
 			new KeyValuePair<string, string>("KismetWidgets", "BlueprintGraph"),
@@ -1055,7 +1054,7 @@ namespace UnrealBuildTool
 
 				// Write the PCH header
 				FileReference DedicatedPchLocation = FileReference.Combine(IntermediateDirectory, String.Format("PCH.Dedicated.{0}.h", File.Location.GetFileNameWithoutExtension()));
-				FileItem DedicatedPchFile = Graph.CreateIntermediateTextFile(DedicatedPchLocation, WrapperContents.ToString(), StringComparison.Ordinal);
+				FileItem DedicatedPchFile = Graph.CreateIntermediateTextFile(DedicatedPchLocation, WrapperContents.ToString());
 
 				// Create a new C++ environment to compile the PCH
 				CppCompileEnvironment PchEnvironment = new CppCompileEnvironment(CompileEnvironment);
@@ -1140,7 +1139,7 @@ namespace UnrealBuildTool
 							}
 
 							WriteDefinitions(CompileEnvironment.Definitions, Writer);
-							PrivateDefinitionsFileItem = Graph.CreateIntermediateTextFile(PrivateDefinitionsFile, Writer.ToString(), StringComparison.Ordinal);
+							PrivateDefinitionsFileItem = Graph.CreateIntermediateTextFile(PrivateDefinitionsFile, Writer.ToString());
 						}
 
 						CompileEnvironment = new CppCompileEnvironment(CompileEnvironment);
@@ -1183,7 +1182,7 @@ namespace UnrealBuildTool
 					WriteDefinitions(CompileEnvironment.Definitions, Writer);
 					CompileEnvironment.Definitions.Clear();
 
-					FileItem PrivateDefinitionsFileItem = Graph.CreateIntermediateTextFile(PrivateDefinitionsFile, Writer.ToString(), StringComparison.Ordinal);
+					FileItem PrivateDefinitionsFileItem = Graph.CreateIntermediateTextFile(PrivateDefinitionsFile, Writer.ToString());
 					CompileEnvironment.ForceIncludeFiles.Add(PrivateDefinitionsFileItem);
 				}
 			}
@@ -1233,7 +1232,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the item
-			FileItem WrapperFile = Graph.CreateIntermediateTextFile(OutputFile, WrapperContents.ToString(), StringComparison.Ordinal);
+			FileItem WrapperFile = Graph.CreateIntermediateTextFile(OutputFile, WrapperContents.ToString());
 
 			// Touch it if the included file is newer, to make sure our timestamp dependency checking is accurate.
 			if (IncludedFile.LastWriteTimeUtc > WrapperFile.LastWriteTimeUtc)

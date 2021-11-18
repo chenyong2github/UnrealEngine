@@ -90,7 +90,7 @@ public:
 	* @param Duration	How long the text will be on screen, if 0 then it will stay indefinitely
 	* @param DisplayOffset	A position offset that the message should use when displayed. 
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Viewport Stats Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Viewport Stats Subsystem", meta = (AutoCreateRefTerm = "DisplayOffset"))
 	void AddTimedDisplay(FText Text, FLinearColor Color = FLinearColor::White, float Duration = 0.0f, const FVector2D& DisplayOffset = FVector2D::ZeroVector);
 
 	/**

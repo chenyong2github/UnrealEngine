@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
 #include "UObject/NameTypes.h"
@@ -36,8 +37,8 @@ namespace UE::Cook
 	CallbackMacro(StartupSoftObjectPath, true) \
 	CallbackMacro(PackagingSettingsMapToCook, true) \
 	CallbackMacro(CookModificationDelegate, true) \
-	CallbackMacro(AssetRegistryModifyCook, true) \
-	CallbackMacro(AssetRegistryModifyDLCCook, true) \
+	CallbackMacro(AssetManagerModifyCook, true) \
+	CallbackMacro(AssetManagerModifyDLCCook, true) \
 	CallbackMacro(TargetPlatformExtraPackagesToCook, true) \
 	CallbackMacro(ConsoleCommand, true) \
 	CallbackMacro(CookOnTheFly, true) \
@@ -85,6 +86,11 @@ public:
 	 * Returns category EInstigator::NotYetRequested if package is not yet known to the cook.
 	 */
 	virtual FInstigator GetInstigator(FName PackageName) = 0;
+	/**
+	 * Return the chain of instigators that caused the package to be requested by the cook.
+	 * First element is the direct instigator of the package, last is the root instigator that started the chain.
+	 */
+	virtual TArray<FInstigator> GetInstigatorChain(FName PackageName) = 0;
 };
 
 }

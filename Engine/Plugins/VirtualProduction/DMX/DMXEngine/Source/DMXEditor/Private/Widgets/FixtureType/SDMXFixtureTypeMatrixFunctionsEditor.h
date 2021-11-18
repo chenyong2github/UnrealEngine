@@ -16,6 +16,16 @@ class STableViewBase;
 class SVerticalBox;
 
 
+/** Collumn IDs in the Matrix Functions Editor */
+struct FDMXFixtureTypeMatrixFunctionsEditorCollumnIDs
+{
+	static const FName Status;
+	static const FName Channel;
+	static const FName Attribute;
+	static const FName DeleteAttribute;
+};
+
+
 /** Editor for the Cell Attributes Array of the Modes in a Fixture Type */
 class SDMXFixtureTypeMatrixFunctionsEditor
 	: public SCompoundWidget
@@ -35,6 +45,9 @@ private:
 
 	/** Called when a Cell Attributes List View row is generated */
 	TSharedRef<ITableRow> OnGenerateCellAttributeRow(TSharedPtr<FDMXFixtureTypeMatrixFunctionsEditorItem> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+
+	/** Called when a Cell Attribute Row wants to be deleted */
+	void OnCellAttributeRowRequestDelete(TSharedPtr<FDMXFixtureTypeMatrixFunctionsEditorItem> RowItem);
 
 	/** Called when a fixture type changed */
 	void OnFixtureTypeChanged(const UDMXEntityFixtureType* ChangedFixtureType);

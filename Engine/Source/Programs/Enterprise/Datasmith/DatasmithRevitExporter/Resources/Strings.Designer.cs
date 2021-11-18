@@ -61,6 +61,24 @@ namespace DatasmithRevitResources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Toggle Direct Link Auto Sync.
+        /// </summary>
+        public static string ButtonAutoSync {
+            get {
+                return ResourceManager.GetString("ButtonAutoSync", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Toggle Direct Link Auto Sync.
+        /// </summary>
+        public static string ButtonAutoSyncHint {
+            get {
+                return ResourceManager.GetString("ButtonAutoSyncHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Connections.
         /// </summary>
         public static string ButtonConnections {
@@ -120,6 +138,15 @@ namespace DatasmithRevitResources {
         public static string ButtonSettings {
             get {
                 return ResourceManager.GetString("ButtonSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Show Settings.
+        /// </summary>
+        public static string ButtonSettingsHint {
+            get {
+                return ResourceManager.GetString("ButtonSettingsHint", resourceCulture);
             }
         }
         

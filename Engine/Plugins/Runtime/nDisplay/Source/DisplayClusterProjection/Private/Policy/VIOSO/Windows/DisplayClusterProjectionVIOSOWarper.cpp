@@ -66,9 +66,9 @@ bool FViosoWarper::Initialize(void* pDxDevice, const FViosoPolicyConfiguration& 
 			// the transformation matrix to go from VIOSO coordinates to IG coordinates, defaults to indentity
 			// note VIOSO maps are always right-handed, to use with a left-handed world like DirectX, invert the z!
 			FMatrix TransMatrix = InConfigData.BaseMatrix.GetTransposed();
-			for (int i = 0; i < 16; i++)
+			for (uint32 MatrixElementIndex = 0; MatrixElementIndex < 16; MatrixElementIndex++)
 			{
-				pWarper->trans[i] = (&TransMatrix.M[0][0])[i];
+				pWarper->trans[MatrixElementIndex] = (&TransMatrix.M[0][0])[MatrixElementIndex];
 			}
 		}
 		else

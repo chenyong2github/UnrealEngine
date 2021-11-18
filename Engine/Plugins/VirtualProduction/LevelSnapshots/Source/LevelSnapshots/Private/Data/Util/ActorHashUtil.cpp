@@ -12,9 +12,9 @@
 #include "Serialization/MemoryHasher.h"
 #include "Stats/StatsMisc.h"
 
-FHashSettings SnapshotUtil::GHashSettings;
+FHashSettings UE::LevelSnapshots::Private::GHashSettings;
 
-void SnapshotUtil::PopulateActorHash(FActorSnapshotHash& ActorData, AActor* WorldActor)
+void UE::LevelSnapshots::Private::PopulateActorHash(FActorSnapshotHash& ActorData, AActor* WorldActor)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(PopulateActorHash);
 
@@ -48,7 +48,7 @@ void SnapshotUtil::PopulateActorHash(FActorSnapshotHash& ActorData, AActor* Worl
 	}
 }
 
-namespace
+namespace UE::LevelSnapshots::Private::Internal
 {
 	enum class EHashAlgorithm
 	{
@@ -57,15 +57,15 @@ namespace
 		MD5
 	};
 
-	EHashAlgorithm GetCRC32Algorithm(const FActorSnapshotHash& ActorData)
+	static EHashAlgorithm GetCRC32Algorithm(const FActorSnapshotHash& ActorData)
 	{
 		return ActorData.HasCrc32() ? EHashAlgorithm::CRC32 : EHashAlgorithm::None;
 	}
-	EHashAlgorithm GetMD5Algorithm(const FActorSnapshotHash& ActorData)
+	static EHashAlgorithm GetMD5Algorithm(const FActorSnapshotHash& ActorData)
 	{
 		return ActorData.HasMD5() ? EHashAlgorithm::MD5 : EHashAlgorithm::None;
 	}
-	EHashAlgorithm GetFastestAlgorithm(const FActorSnapshotHash& ActorData)
+	static EHashAlgorithm GetFastestAlgorithm(const FActorSnapshotHash& ActorData)
 	{
 		const bool bCrcIsFaster = ActorData.MicroSecondsForCrc < ActorData.MicroSecondsForMD5;
 		return bCrcIsFaster ?
@@ -75,14 +75,14 @@ namespace
 	}
 	
 	
-	EHashAlgorithm DetermineHashAlgorithm(const FActorSnapshotHash& ActorData)
+	static EHashAlgorithm DetermineHashAlgorithm(const FActorSnapshotHash& ActorData)
 	{
-		if (!SnapshotUtil::GHashSettings.bUseHashForLoading)
+		if (!GHashSettings.bUseHashForLoading)
 		{
 			return EHashAlgorithm::None;
 		}
 		
-		switch (SnapshotUtil::GHashSettings.SnapshotDiffAlgorithm)
+		switch (GHashSettings.SnapshotDiffAlgorithm)
 		{
 			case EHashAlgorithmChooseBehavior::UseCrc32:
 				return GetCRC32Algorithm(ActorData);
@@ -96,13 +96,13 @@ namespace
 	}
 }
 
-bool SnapshotUtil::HasMatchingHash(const FActorSnapshotHash& ActorData, AActor* WorldActor)
+bool UE::LevelSnapshots::Private::HasMatchingHash(const FActorSnapshotHash& ActorData, AActor* WorldActor)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(HasMatchingHash);
 	
-	switch (DetermineHashAlgorithm(ActorData))
+	switch (Internal::DetermineHashAlgorithm(ActorData))
 	{
-		case EHashAlgorithm::CRC32:
+		case Internal::EHashAlgorithm::CRC32:
 			if (ActorData.MicroSecondsForCrc < GHashSettings.HashCutoffSeconds)
 			{
 				FArchiveComputeFullCrc32 Archive;
@@ -111,7 +111,7 @@ bool SnapshotUtil::HasMatchingHash(const FActorSnapshotHash& ActorData, AActor* 
 			}
 			return false;
 			
-		case EHashAlgorithm::MD5:
+		case Internal::EHashAlgorithm::MD5:
 			if (ActorData.MicroSecondsForCrc < GHashSettings.HashCutoffSeconds)
 			{
 				FArchiveComputeFullMD5 Archive;
@@ -120,7 +120,7 @@ bool SnapshotUtil::HasMatchingHash(const FActorSnapshotHash& ActorData, AActor* 
 			}
 			return false;
 		
-		case EHashAlgorithm::None:
+		case Internal::EHashAlgorithm::None:
 		default:
 			return false;
 	}

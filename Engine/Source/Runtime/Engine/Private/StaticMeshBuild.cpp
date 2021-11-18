@@ -57,9 +57,9 @@ static bool HasBadNTB(UStaticMesh* Mesh, bool &bZeroNormals, bool &bZeroTangents
 			int32 NumVerts = LOD.VertexBuffers.PositionVertexBuffer.GetNumVertices();
 			for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
 			{
-				const FVector TangentX = LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertIndex);
-				const FVector TangentY = LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(VertIndex);
-				const FVector TangentZ = LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex);
+				const FVector3f TangentX = LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(VertIndex);
+				const FVector3f TangentY = LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(VertIndex);
+				const FVector3f TangentZ = LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(VertIndex);
 				
 				if (TangentX.IsNearlyZero(KINDA_SMALL_NUMBER))
 				{
@@ -753,7 +753,7 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 		FVector CurNormal = FVector::ZeroVector;
 		if (OptionalVertexBuffer)
 		{
-			CurNormal = OptionalVertexBuffer->VertexTangentZ( NewVertIndex );
+			CurNormal = FVector4(OptionalVertexBuffer->VertexTangentZ( NewVertIndex ));
 		}
 
 		// Iterate through the octree attempting to find the vertices closest to the current new point
@@ -806,17 +806,17 @@ void RemapPaintedVertexColors(const TArray<FPaintedVertex>& InPaintedVertices,
 
 struct FStaticMeshTriangle
 {
-	FVector		Vertices[3];
-	FVector2D	UVs[3][8];
+	FVector3f	Vertices[3];
+	FVector2f	UVs[3][8];
 	FColor		Colors[3];
-	int32			MaterialIndex;
-	int32			FragmentIndex;
+	int32		MaterialIndex;
+	int32		FragmentIndex;
 	uint32		SmoothingMask;
-	int32			NumUVs;
+	int32		NumUVs;
 
-	FVector		TangentX[3]; // Tangent, U-direction
-	FVector		TangentY[3]; // Binormal, V-direction
-	FVector		TangentZ[3]; // Normal
+	FVector3f	TangentX[3]; // Tangent, U-direction
+	FVector3f	TangentY[3]; // Binormal, V-direction
+	FVector3f	TangentZ[3]; // Normal
 
 	uint32		bOverrideTangentBasis;
 	uint32		bExplicitNormals;

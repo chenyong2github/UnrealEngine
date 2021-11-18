@@ -9,6 +9,7 @@
 #include "NetworkPredictionAsyncPersistentStorage.h"
 #include "NetworkPredictionAsyncDefines.h"
 #include "Misc/EnumClassFlags.h"
+#include "Containers/Queue.h"
 
 namespace UE_NP {
 

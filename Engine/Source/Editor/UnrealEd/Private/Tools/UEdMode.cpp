@@ -17,8 +17,7 @@
 // UEdMode
 
 UEdMode::UEdMode()
-	: bPendingDeletion(false)
-	, Owner(nullptr)
+	: Owner(nullptr)
 {
 	EditorToolsContext = nullptr;
 	ModeToolsContext = nullptr;
@@ -48,14 +47,9 @@ void UEdMode::Enter()
 			return true;
 		});
 
-	bPendingDeletion = false;
-
 	// Editor-scope ToolsContext is provided by the Mode Manager
 	EditorToolsContext = Owner->GetInteractiveToolsContext();
 	check(EditorToolsContext.IsValid());
-
-	EditorToolsContext->ToolManager->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
-	EditorToolsContext->ToolManager->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
 
 	// Mode-scope ToolsContext is created derived from the Editor-Scope ToolsContext so that the UInputRouter can be shared
 	ModeToolsContext = EditorToolsContext->CreateNewChildEdModeToolsContext();
@@ -90,7 +84,11 @@ void UEdMode::Enter()
 		}
 	}
 
+	Owner->OnEditorModeIDChanged().AddUObject(this, &UEdMode::OnModeActivated);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FEditorDelegates::EditorModeIDEnter.Broadcast(GetID());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIdentifier, UInteractiveToolBuilder* Builder, EToolsContextScope ToolScope)
@@ -141,12 +139,16 @@ void UEdMode::Exit()
 		SettingsObject->SaveConfig();
 	}
 
-	// Shutdown the Mode-scope ToolsContext, and notify the EditorToolsContext so it can release the reference it holds.
-	// Do this before shutting down the Toolkit as if a Mode-scope Tool is still active it will need to clean up
-	if (UObjectInitialized() && ModeToolsContext != nullptr)
+	if (UObjectInitialized())
 	{
-		ModeToolsContext->ShutdownContext();
-		EditorToolsContext->OnChildEdModeToolsContextShutdown(ModeToolsContext);
+		Owner->OnEditorModeIDChanged().RemoveAll(this);
+
+		// Shutdown the Mode-scope ToolsContext, and notify the EditorToolsContext so it can release the reference it holds.
+		// Do this before shutting down the Toolkit as if a Mode-scope Tool is still active it will need to clean up
+		if (ModeToolsContext != nullptr)
+		{
+			ModeToolsContext->ShutdownContext();
+		}
 	}
 
 	if (Toolkit.IsValid())
@@ -157,18 +159,18 @@ void UEdMode::Exit()
 			CommandList->UnmapAction(RegisteredTool.Key);
 			EditorToolsContext->ToolManager->UnregisterToolType(RegisteredTool.Value);
 		}
-		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
+
 		Toolkit.Reset();
 	}
 	RegisteredEditorTools.SetNum(0);
 
 	// disconnect from the Mode Manager's shared ToolsContext
-	EditorToolsContext->ToolManager->OnToolStarted.RemoveAll(this);
-	EditorToolsContext->ToolManager->OnToolEnded.RemoveAll(this);
 	EditorToolsContext = nullptr;
 	ModeToolsContext = nullptr;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool UEdMode::UsesToolkits() const
@@ -184,16 +186,6 @@ UWorld* UEdMode::GetWorld() const
 class FEditorModeTools* UEdMode::GetModeManager() const
 {
 	return Owner;
-}
-
-void UEdMode::RequestDeletion()
-{
-	bPendingDeletion = true;
-	
-	if (UsesToolkits() && Toolkit)
-	{
-		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
-	}
 }
 
 AActor* UEdMode::GetFirstSelectedActorInstance() const
@@ -248,6 +240,27 @@ void UEdMode::CreateToolkit()
 
 	check(!Toolkit.IsValid())
 	Toolkit = MakeShareable(new FModeToolkit);
+}
+
+void UEdMode::OnModeActivated(const FEditorModeID& InID, bool bIsActive)
+{
+	if (InID == GetID())
+	{
+		if (bIsActive)
+		{
+			Owner->GetInteractiveToolsContext()->OnChildEdModeActivated(ModeToolsContext);
+
+			EditorToolsContext->ToolManager->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
+			EditorToolsContext->ToolManager->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
+		}
+		else
+		{
+			EditorToolsContext->ToolManager->OnToolStarted.RemoveAll(this);
+			EditorToolsContext->ToolManager->OnToolEnded.RemoveAll(this);
+
+			Owner->GetInteractiveToolsContext()->OnChildEdModeDeactivated(ModeToolsContext);
+		}
+	}
 }
 
 bool UEdMode::IsSnapRotationEnabled()

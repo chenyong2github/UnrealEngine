@@ -191,7 +191,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 
 				// Ports
 				Config->Cluster->MasterNode.Ports.ClusterSync         = CfgNode.Port_CS;
-				Config->Cluster->MasterNode.Ports.RenderSync          = CfgNode.Port_SS;
 				Config->Cluster->MasterNode.Ports.ClusterEventsJson   = CfgNode.Port_CE;
 				Config->Cluster->MasterNode.Ports.ClusterEventsBinary = CfgNode.Port_CEB;
 			}

@@ -470,8 +470,8 @@ void FSlateFrameGraphTrack::UpdateSeries(const FTimingTrackViewport& InViewport,
 		}
 
 		{
-			const FSlateProvider::TApplicationTickedTimeline& ApplicationTimeline = SlateProvider->GetApplicationTickedTimeline();
-			FSlateProvider::FScopedEnumerateOutsideRange<FSlateProvider::TApplicationTickedTimeline> ScopedRange(ApplicationTimeline);
+			const FSlateProvider::FApplicationTickedTimeline& ApplicationTimeline = SlateProvider->GetApplicationTickedTimeline();
+			FSlateProvider::TScopedEnumerateOutsideRange<FSlateProvider::FApplicationTickedTimeline> ScopedRange(ApplicationTimeline);
 
 			ApplicationTimeline.EnumerateEvents(InViewport.GetStartTime(), InViewport.GetEndTime(),
 				[&Series](double StartTime, double EndTime, uint32 /*Depth*/, const Message::FApplicationTickedMessage& Message)

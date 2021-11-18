@@ -18,7 +18,7 @@ namespace CADKernel
 	enum ECoordinateType : uint8
 	{
 		VertexCoordinate,
-		ImposedCoordinate,
+		ImposedCoordinate, // imposted cutting point by thin zone meshing process
 		IsoUCoordinate,
 		IsoVCoordinate,
 		IsoUVCoordinate,
@@ -96,7 +96,6 @@ namespace CADKernel
 		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve, const TSharedRef<FTopologicalVertex>& InVertex1, const TSharedRef<FTopologicalVertex>& InVertex2, const FLinearBoundary& InBoundary);
 		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve, const TSharedRef<FTopologicalVertex>& InVertex1, const TSharedRef<FTopologicalVertex>& InVertex2);
 		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve, const FLinearBoundary& InBoundary);
-		FTopologicalEdge(const TSharedRef<FRestrictionCurve>& InCurve);
 		FTopologicalEdge(const TSharedRef<FSurface>& InSurface, const FPoint2D& InCoordinateVertex1, const TSharedRef<FTopologicalVertex>& InVertex1, const FPoint2D& InCoordinateVertex2, const TSharedRef<FTopologicalVertex>& InVertex2);
 
 		FTopologicalEdge() = default;
@@ -125,11 +124,20 @@ namespace CADKernel
 		static TSharedPtr<FTopologicalEdge> Make(const TSharedRef<FRestrictionCurve>& InCurve, const TSharedRef<FTopologicalVertex>& InVertex1, const TSharedRef<FTopologicalVertex>& InVertex2);
 		static TSharedPtr<FTopologicalEdge> Make(const TSharedRef<FRestrictionCurve>& InCurve, const FLinearBoundary& InBoundary);
 		static TSharedPtr<FTopologicalEdge> Make(const TSharedRef<FRestrictionCurve>& InCurve);
+
+		/**
+		 * Build an edge to connect two vertices carried by a 2d segment
+		 */
 		static TSharedPtr<FTopologicalEdge> Make(const TSharedRef<FSurface>& InSurface, const FPoint2D& InCoordinateVertex1, const TSharedRef<FTopologicalVertex>& InVertex1, const FPoint2D& InCoordinateVertex2, const TSharedRef<FTopologicalVertex>& InVertex2);
+
+		/**
+		 * To check the build edge before returning it or return TSharedPtr<FTopologicalEdge>() if the edge is not valid
+		 */
+		static TSharedPtr<FTopologicalEdge> ReturnIfValid(TSharedRef<FTopologicalEdge>& InEdge, bool bCheckVertices);
 
 		virtual ~FTopologicalEdge() = default;
 
-		void Delete();
+		virtual void Delete() override;
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
@@ -223,6 +231,26 @@ namespace CADKernel
 		}
 
 		/**
+		 * This function is used to :
+		 *   - sew exactly two edges of the same loop
+		 *   - prepare to disconnect two edges connected by the same vertex
+		 * 
+		 * OldVertex = bStartVertex ? StartVertex : EndVertex
+		 * OldVertex can be an extremity of other edges
+		 * OldVertex can be link to other vertices (TopologicalLink can be valid or not)
+		 * 
+		 * NewVertex can be an extremity of other edges
+		 * NewVertex can be linked to other vertices (TopologicalLink can be valid or not)
+		 * NewVertex can be not linked to OldVertex
+		 * 
+		 * After the process:
+		 * OldVertex is no more connected to this edge but stay connected to its other linked edges
+		 * If OldVertex is isolated (not connected to any edge), OldVertex is deleted
+		 * otherwise OldVertex is linked to NewVertex
+		 */
+		void ReplaceEdgeVertex(bool bIsStartVertex, TSharedRef<FTopologicalVertex>& NewVertex);
+
+		/**
 		 * @return the containing boundary
 		 */
 		const FTopologicalLoop* GetLoop() const
@@ -241,7 +269,7 @@ namespace CADKernel
 		/**
 		 * @return the carrier topological face
 		 */
-		TSharedRef<FTopologicalFace> GetFace() const;
+		TSharedPtr<FTopologicalFace> GetFace() const;
 
 		// ======   Vertex Functions (Get, Set, ...)   ======
 
@@ -311,15 +339,7 @@ namespace CADKernel
 		void SetStartVertex(const double NewCoordinate, const FPoint& NewPoint3D);
 		void SetEndVertex(const double NewCoordinate, const FPoint& NewPoint3D);
 
-		void DeleteStartVertex()
-		{
-			StartVertex.Reset();
-		}
-
-		void DeleteEndVertex()
-		{
-			EndVertex.Reset();
-		}
+		// ======   Boundary Function   ======
 
 		const FLinearBoundary& GetBoundary() const
 		{
@@ -576,6 +596,11 @@ namespace CADKernel
 		 */
 		void ProjectTwinEdgePointsOn2DCurve(const TSharedRef<FTopologicalEdge>& InTwinEdge, const TArray<double>& InTwinEdgePointCoords, TArray<FPoint2D>& OutPoints2D);
 
+		void ComputeIntersectionsWithIsos(const TArray<double>& InIsoCoordinates, const EIso InTypeIso, const FSurfacicTolerance& ToleranceIso, TArray<double>& OutIntersection) const
+		{
+			Curve->ComputeIntersectionsWithIsos(Boundary, InIsoCoordinates, InTypeIso, ToleranceIso, OutIntersection);
+		}
+
 		/**
 		 * Get the discretization points of the edge and add them to the outpoints TArray
 		 */
@@ -617,7 +642,7 @@ namespace CADKernel
 		 * Extend the Edge to the NewVertex. 
 		 * NewVertex become the new extremity of the edge. The old vertex is unconnected of the edge.
 		 */
-		bool ExtendTo(bool bStartExtremity, const FPoint2D& NewExtremityCoordinate, TSharedRef<FTopologicalVertex> NewVertex);
+		bool ExtendTo(bool bStartExtremity, const FPoint2D& NewExtremityCoordinate, TSharedRef<FTopologicalVertex>& NewVertex);
 
 		bool IsSharpEdge();
 

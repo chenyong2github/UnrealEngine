@@ -39,8 +39,8 @@ public:
 	/** Retrieves the Class Viewer node this data is associated with. */
 	const TWeakPtr<FClassViewerNode>& GetClassViewerNode() const;
 
-	/** Adds the name of an interface that this blueprint implements directly. */
-	void AddImplementedInterface(const FString& InterfaceName);
+	/** Adds the path of an interface that this blueprint implements directly. */
+	void AddImplementedInterface(const FString& InterfacePath);
 
 private:
 	/** Flags for the class. */
@@ -49,7 +49,7 @@ private:
 	/** Is this a normal blueprint type? */
 	bool bNormalBlueprintType;
 
-	/** The implemented interfaces for this class. */
+	/** The full paths for all directly implemented interfaces for this class. */
 	TArray<FString> ImplementedInterfaces;
 
 	/** The node this class is contained in, used to gather hierarchical data as needed. */

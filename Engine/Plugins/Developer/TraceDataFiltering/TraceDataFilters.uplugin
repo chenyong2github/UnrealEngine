@@ -10,7 +10,7 @@
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
-	"EnabledByDefault": false,
+	"EnabledByDefault": true,
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
@@ -23,6 +23,11 @@
 			"ProgramAllowList": [
 				"UnrealInsights"
 			]
+		},
+		{
+			"Name": "UnrealInsightsInterface",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }

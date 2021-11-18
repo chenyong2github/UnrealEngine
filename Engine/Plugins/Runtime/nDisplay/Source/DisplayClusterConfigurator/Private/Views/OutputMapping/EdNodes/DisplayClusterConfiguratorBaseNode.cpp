@@ -32,6 +32,8 @@ void UDisplayClusterConfiguratorBaseNode::PostEditUndo()
 	// before attempting to update the object or its children
 	if (IsObjectValid())
 	{
+		CleanupChildrenNodes();
+		
 		UpdateObject();
 
 		// Don't update the child nodes if this node is auto-positioned because this node is probably in the undo stack as part of
@@ -394,12 +396,7 @@ bool UDisplayClusterConfiguratorBaseNode::IsOutsideParentBoundary() const
 
 void UDisplayClusterConfiguratorBaseNode::UpdateChildNodes()
 {
-	// In rare cases, the child pointer may be in the process of being killed (such as if the user undoes an add operation)
-	// so remove any dead or dying children nodes.
-	Children.RemoveAll([](UDisplayClusterConfiguratorBaseNode* Child)
-	{
-		return !IsValid(Child);
-	});
+	CleanupChildrenNodes();
 
 	for (UDisplayClusterConfiguratorBaseNode* ChildNode : Children)
 	{
@@ -949,4 +946,14 @@ float UDisplayClusterConfiguratorBaseNode::GetViewScale() const
 	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
 
 	return OutputMapping->GetOutputMappingSettings().ViewScale;
+}
+
+void UDisplayClusterConfiguratorBaseNode::CleanupChildrenNodes()
+{
+	// In rare cases, the child pointer may be in the process of being killed (such as if the user undoes an add operation)
+	// so remove any dead or dying children nodes.
+	Children.RemoveAll([](UDisplayClusterConfiguratorBaseNode* Child)
+	{
+		return !IsValid(Child);
+	});
 }

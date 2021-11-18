@@ -183,7 +183,7 @@ static inline bool DoesPlatformSupportGPUSkinCache(const FStaticShaderPlatform P
 
 ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform)
 {
-	return (GEnableGPUSkinCacheShaders != 0 || GForceRecomputeTangents != 0) && DoesPlatformSupportGPUSkinCache(Platform);
+	return (AreSkinCacheShadersEnabled(Platform) != 0 || GForceRecomputeTangents != 0) && DoesPlatformSupportGPUSkinCache(Platform);
 }
 
 ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices()
@@ -421,8 +421,18 @@ public:
 		}
 	}
 
-	void SetupSection(int32 SectionIndex, FGPUSkinCache::FRWBuffersAllocation* InPositionAllocation, FSkelMeshRenderSection* Section, const FMorphVertexBuffer* MorphVertexBuffer, const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer,
-		uint32 NumVertices, uint32 InputStreamStart, FGPUBaseSkinVertexFactory* InSourceVertexFactory, FGPUSkinPassthroughVertexFactory* InTargetVertexFactory, uint32 InIntermediateAccumulatedTangentBufferOffset)
+	void SetupSection(
+		int32 SectionIndex,
+		FGPUSkinCache::FRWBuffersAllocation* InPositionAllocation,
+		FSkelMeshRenderSection* Section,
+		const FMorphVertexBuffer* MorphVertexBuffer,
+		const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer,
+		uint32 NumVertices,
+		uint32 InputStreamStart,
+		FGPUBaseSkinVertexFactory* InSourceVertexFactory,
+		FGPUSkinPassthroughVertexFactory* InTargetVertexFactory,
+		uint32 InIntermediateAccumulatedTangentBufferOffset,
+		const FClothSimulData* SimData)
 	{
 		//UE_LOG(LogSkinCache, Warning, TEXT("*** SetupSection E %p Alloc %p Sec %d(%p) LOD %d"), this, InAllocation, SectionIndex, Section, LOD);
 		FSectionDispatchData& Data = DispatchData[SectionIndex];
@@ -449,9 +459,21 @@ public:
 
 			Data.MorphBufferOffset = Section->BaseVertexIndex;
 		}
+
 		if (ClothVertexBuffer && ClothVertexBuffer->GetClothIndexMapping().Num() > SectionIndex)
 		{
-			Data.ClothBufferOffset = (ClothVertexBuffer->GetClothIndexMapping()[SectionIndex] & 0xFFFFFFFF);
+			const FClothBufferIndexMapping& ClothBufferIndexMapping = ClothVertexBuffer->GetClothIndexMapping()[SectionIndex];
+
+			check(SimData->LODIndex != INDEX_NONE && SimData->LODIndex <= LOD);
+			const uint32 ClothLODBias = (uint32)(LOD - SimData->LODIndex);
+
+			const uint32 ClothBufferOffset = ClothBufferIndexMapping.MappingOffset + ClothBufferIndexMapping.LODBiasStride * ClothLODBias;
+
+			// Set the buffer offset depending on whether enough deformer mapping data exists (RaytracingMinLOD/RaytracingLODBias/ClothLODBiasMode settings)
+			const uint32 NumInfluences = NumVertices ? ClothBufferIndexMapping.LODBiasStride / NumVertices : 1;
+			Data.ClothBufferOffset = (ClothBufferOffset + NumVertices * NumInfluences <= ClothVertexBuffer->GetNumVertices()) ?
+				ClothBufferOffset :                     // If the offset is valid, set the calculated LODBias offset
+				ClothBufferIndexMapping.MappingOffset;  // Otherwise fallback to a 0 ClothLODBias to prevent from reading pass the buffer (but still raytrace broken shadows/reflections/etc.)
 		}
 
 		//INC_DWORD_STAT(STAT_GPUSkinCache_TotalNumChunks);
@@ -1552,7 +1574,7 @@ bool FGPUSkinCache::ProcessEntry(
 			{
 				// This section might not be valid yet, so set it up
 				InOutEntry->SetupSection(Section, InOutEntry->PositionAllocation, &LodData.RenderSections[Section], MorphVertexBuffer, ClothVertexBuffer, NumVertices, InputStreamStart, 
-											VertexFactory, TargetVertexFactory, CurrInterAccumTangentBufferOffset);
+											VertexFactory, TargetVertexFactory, CurrInterAccumTangentBufferOffset, SimData);
 			}
 		}
 	}
@@ -1596,7 +1618,7 @@ bool FGPUSkinCache::ProcessEntry(
 		InOutEntry->GPUSkin = Skin;
 
 		InOutEntry->SetupSection(Section, NewPositionAllocation, &LodData.RenderSections[Section], MorphVertexBuffer, ClothVertexBuffer, NumVertices, InputStreamStart, 
-									VertexFactory, TargetVertexFactory, CurrInterAccumTangentBufferOffset);
+									VertexFactory, TargetVertexFactory, CurrInterAccumTangentBufferOffset, SimData);
 		Entries.Add(InOutEntry);
 	}
 
@@ -1641,10 +1663,21 @@ bool FGPUSkinCache::ProcessEntry(
         // Copy the vertices into the buffer.
         checkSlow(Stride*VertexAndNormalData.GetNumVertices() == sizeof(FClothSimulEntry) * SimData->Positions.Num());
         check(sizeof(FClothSimulEntry) == 6 * sizeof(float));
-		
+
 		if (ClothVertexBuffer && ClothVertexBuffer->GetClothIndexMapping().Num() > Section)
 		{
-			InOutEntry->DispatchData[Section].ClothBufferOffset = (ClothVertexBuffer->GetClothIndexMapping()[Section] & 0xFFFFFFFF);
+			const FClothBufferIndexMapping& ClothBufferIndexMapping = ClothVertexBuffer->GetClothIndexMapping()[Section];
+
+			check(SimData->LODIndex != INDEX_NONE && SimData->LODIndex <= LODIndex);
+			const uint32 ClothLODBias = (uint32)(LODIndex - SimData->LODIndex);
+
+			const uint32 ClothBufferOffset = ClothBufferIndexMapping.MappingOffset + ClothBufferIndexMapping.LODBiasStride * ClothLODBias;
+
+			// Set the buffer offset depending on whether enough deformer mapping data exists (RaytracingMinLOD/RaytracingLODBias/ClothLODBiasMode settings)
+			const uint32 NumInfluences = NumVertices ? ClothBufferIndexMapping.LODBiasStride / NumVertices : 1;
+			InOutEntry->DispatchData[Section].ClothBufferOffset = (ClothBufferOffset + NumVertices * NumInfluences <= ClothVertexBuffer->GetNumVertices()) ?
+				ClothBufferOffset :                     // If the offset is valid, set the calculated LODBias offset
+				ClothBufferIndexMapping.MappingOffset;  // Otherwise fallback to a 0 ClothLODBias to prevent from reading pass the buffer (but still raytrace broken shadows/reflections/etc.)
 		}
 
         for (int32 Index = 0;Index < SimData->Positions.Num();Index++)
@@ -1660,7 +1693,7 @@ bool FGPUSkinCache::ProcessEntry(
 
         FRHIResourceCreateInfo CreateInfo(TEXT("ClothPositionAndNormalsBuffer"), ResourceArray);
         ClothPositionAndNormalsBuffer.VertexBufferRHI = RHICreateVertexBuffer( ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-        ClothPositionAndNormalsBuffer.VertexBufferSRV = RHICreateShaderResourceView(ClothPositionAndNormalsBuffer.VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
+        ClothPositionAndNormalsBuffer.VertexBufferSRV = RHICreateShaderResourceView(ClothPositionAndNormalsBuffer.VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
         InOutEntry->DispatchData[Section].ClothPositionsAndNormalsBuffer = ClothPositionAndNormalsBuffer.VertexBufferSRV;
 
         InOutEntry->DispatchData[Section].ClothBlendWeight = ClothBlendWeight;
@@ -1993,7 +2026,8 @@ void FGPUSkinCache::DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList,
 	FGPUBaseSkinVertexFactory::FShaderDataType& ShaderData = DispatchData.SourceVertexFactory->GetShaderData();
 	const FString RayTracingTag = (Entry->Mode == EGPUSkinCacheEntryMode::RayTracing ? TEXT("[RT]") : TEXT(""));
 	
-	const uint32 NumWrapDeformerWeights = DispatchData.Section->ClothMappingData.Num();
+	constexpr int32 ClothLODBias = 0;  // Use the same cloth LOD mapping (= 0 bias) to get the number of deformer weights
+	const uint32 NumWrapDeformerWeights = DispatchData.Section->ClothMappingDataLODs.Num() ? DispatchData.Section->ClothMappingDataLODs[ClothLODBias].Num(): 0;
 	const bool bMultipleWrapDeformerInfluences = (DispatchData.NumVertices < NumWrapDeformerWeights);
 
 	SCOPED_DRAW_EVENTF(RHICmdList, SkinCacheDispatch,

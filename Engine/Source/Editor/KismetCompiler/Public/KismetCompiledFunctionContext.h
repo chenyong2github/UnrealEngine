@@ -65,7 +65,9 @@ public:
 	// Goto fixup requests (each statement (key) wants to goto the first statement attached to the exec out-pin (value))
 	TMap< FBlueprintCompiledStatement*, UEdGraphPin* > GotoFixupRequestMap;
 
+	// @todo: BP2CPP_remove
 	// Used to split uber graph into subfunctions by C++ backend
+	UE_DEPRECATED(5.0, "This member is no longer in use and will be removed.")
 	TArray<TSet<UEdGraphNode*>> UnsortedSeparateExecutionGroups;
 
 	// Map from a net to an term (either a literal or a storage location)
@@ -98,13 +100,24 @@ public:
 	struct FNetNameMapping* NetNameMap;
 	bool bAllocatedNetNameMap;
 
+	// @todo: BP2CPP_remove
 	//Skip some optimization. C++ code will be generated in this pass. 
+	UE_DEPRECATED(5.0, "This member is no longer in use and will be removed.")
 	bool bGeneratingCpp;
 
 	//Does this function use requires FlowStack ?
 	bool bUseFlowStack;
 public:
-	FKismetFunctionContext(FCompilerResultsLog& InMessageLog, const UEdGraphSchema_K2* InSchema, UBlueprintGeneratedClass* InNewClass, UBlueprint* InBlueprint, bool bInGeneratingCpp);
+	FKismetFunctionContext(FCompilerResultsLog& InMessageLog, const UEdGraphSchema_K2* InSchema, UBlueprintGeneratedClass* InNewClass, UBlueprint* InBlueprint);
+
+	// @todo: BP2CPP_remove
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.0, "Please use the version that does not include the Cpp generation flag as a parameter.")
+	FKismetFunctionContext(FCompilerResultsLog& InMessageLog, const UEdGraphSchema_K2* InSchema, UBlueprintGeneratedClass* InNewClass, UBlueprint* InBlueprint, bool bInGeneratingCpp)
+		:FKismetFunctionContext(InMessageLog, InSchema, InNewClass, InBlueprint)
+	{
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	~FKismetFunctionContext();
 
@@ -309,7 +322,9 @@ public:
 		return (SourceStatementList != NULL) && (SourceStatementList->Num() > 0);
 	}
 
-	KISMETCOMPILER_API bool MustUseSwitchState(const FBlueprintCompiledStatement* ExcludeThisOne) const;
+	// @todo: BP2CPP_remove
+	UE_DEPRECATED(5.0, "This API is no longer in use and will be removed.")
+	bool MustUseSwitchState(const FBlueprintCompiledStatement* ExcludeThisOne) const { return false; }
 
 private:
 	// Optimize out any useless jumps (jump to the very next statement, where the control flow can just fall through)
@@ -322,7 +337,9 @@ private:
 	void ResolveGotoFixups();
 
 public:
-	static bool DoesStatementRequiresSwitch(const FBlueprintCompiledStatement* Statement);
+	// @todo: BP2CPP_remove
+	UE_DEPRECATED(5.0, "This API is no longer in use and will be removed.")
+	static bool DoesStatementRequiresSwitch(const FBlueprintCompiledStatement* Statement) { return false; }
 	static bool DoesStatementRequiresFlowStack(const FBlueprintCompiledStatement* Statement);
 	// The function links gotos, sorts statments, and merges adjacent ones. 
 	void ResolveStatements();

@@ -396,6 +396,7 @@ public:
 	* ICookInfo interface
 	*/
 	virtual UE::Cook::FInstigator GetInstigator(FName PackageName) override;
+	virtual TArray<UE::Cook::FInstigator> GetInstigatorChain(FName PackageName) override;
 
 	/**
 	 * Dumps cooking stats to the log
@@ -1035,6 +1036,10 @@ private:
 
 	/** Loads the platform-independent asset registry for use by the cooker */
 	void GenerateAssetRegistry();
+	/** Waits for the AssetRegistry to complete so that we know any missing assets are missing on disk */
+	void BlockOnAssetRegistry();
+	/** Setup necessary only once for CookOnTheFly, but that are not required until the first request. */
+	void CookOnTheFlyDeferredInitialize();
 
 	/** Construct or refresh-for-filechanges the platform-specific asset registry for the given platforms */
 	void RefreshPlatformAssetRegistries(const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
@@ -1082,7 +1087,7 @@ private:
 	void FindOrCreateSaveContexts(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
 	UE::Cook::FCookSavePackageContext& FindOrCreateSaveContext(const ITargetPlatform* TargetPlatform);
 	/** Allocate a new FCookSavePackageContext and ICookedPackageWriter for the given platform. */
-	UE::Cook::FCookSavePackageContext* CreateSaveContext(const ITargetPlatform* TargetPlatform) const;
+	UE::Cook::FCookSavePackageContext* CreateSaveContext(const ITargetPlatform* TargetPlatform);
 
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
@@ -1101,6 +1106,9 @@ private:
 	bool bPreexploreDependenciesEnabled = true;
 	/** Test mode for the debug of hybrid iterative dependencies. */
 	bool bHybridIterativeDebug = false;
+	bool bHasBlockedOnAssetRegistry = false;
+	bool bHasDeferredInitializeCookOnTheFly = false;
+
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	float SaveBusyTimeLastRetry = 0.f;

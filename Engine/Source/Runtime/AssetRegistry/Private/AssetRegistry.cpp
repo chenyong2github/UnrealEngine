@@ -2910,23 +2910,6 @@ void FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventContext, const d
 		HighestPending = FMath::Max(this->HighestPending, NumPending);
 
 		bOutIdle = !bInterrupted && !bIsSearching && NumPending == 0;
-		// Temp
-		// Temporary instrumentation for debugging "Processing Asset Data" UI hangs without info provided in the log
-		if ((0 < NumPending && NumPending < 10) || (bOutIdle && !bGatherIdle))
-		{
-			static int DisplayCount = 0;
-			if (++DisplayCount <= 100)
-			{
-				UE_LOG(LogAssetRegistry, Display, TEXT("AssetRegistryFileLoadProgress nearly complete.")
-					TEXT("\nbInterrupted=%s, bIsSearching=%s, NumPending=%d, NumFilesToSearch=%d, NumPathsToSearch=%d")
-					TEXT("\nBackgroundPathResults.Num()=%d, BackgroundAssetResults.Num()=%d, BackgroundDependencyResults.Num()=%d, BackgroundCookedPackageNamesWithoutAssetDataResults.Num()=%d")
-					TEXT("\nbOutIdle=%s, bGatherIdle=%s"),
-					bInterrupted ? TEXT("true") : TEXT("false"), bIsSearching ? TEXT("true") : TEXT("false"), NumPending, NumFilesToSearch, NumPathsToSearch, BackgroundPathResults.Num(),
-					BackgroundAssetResults.Num(), BackgroundDependencyResults.Num(), BackgroundCookedPackageNamesWithoutAssetDataResults.Num(),
-					bOutIdle ? TEXT("true") : TEXT("false"), bGatherIdle ? TEXT("true") : TEXT("false"));
-			}
-		}
-		// EndTemp
 		// Notify the status change, only when something changed, or when sending the final result before going idle
 		if (bIsSearching || bHadAssetsToProcess || (bOutIdle && !this->bGatherIdle))
 		{
@@ -3845,10 +3828,11 @@ bool FAssetRegistryImpl::RemoveAssetPath(Impl::FEventContext& EventContext, FNam
 		}
 	}
 
-	return CachedPathTree.RemovePath(PathToRemove, [this, &EventContext](FName RemovedPath)
+	CachedPathTree.RemovePath(PathToRemove, [this, &EventContext](FName RemovedPath)
 	{
 		EventContext.PathEvents.Emplace(RemovedPath.ToString(), Impl::FEventContext::EEvent::Removed);
 	});
+	return true;
 }
 
 namespace Utils
@@ -4056,28 +4040,41 @@ void FAssetRegistryImpl::OnDirectoryChanged(Impl::FEventContext& EventContext, T
 		const bool bIsPackageFile = FPackageName::IsPackageExtension(*FPaths::GetExtension(File, true));
 		const bool bIsValidPackageName = FPackageName::TryConvertFilenameToLongPackageName(File, LongPackageName);
 		const bool bIsValidPackage = bIsPackageFile && bIsValidPackageName;
+		FName LongPackageFName(*LongPackageName);
 
 		if (bIsValidPackage)
 		{
+			bool bAddedOrCreated = false;
 			switch (FileChangesProcessed[FileIdx].Action)
 			{
 			case FFileChangeData::FCA_Added:
 				// This is a package file that was created on disk. Mark it to be scanned for asset data.
 				NewFiles.AddUnique(File);
+				bAddedOrCreated = true;
 				UE_LOG(LogAssetRegistry, Verbose, TEXT("File was added to content directory: %s"), *File);
 				break;
 
 			case FFileChangeData::FCA_Modified:
 				// This is a package file that changed on disk. Mark it to be scanned immediately for new or removed asset data.
 				ModifiedFiles.AddUnique(File);
+				bAddedOrCreated = true;
 				UE_LOG(LogAssetRegistry, Verbose, TEXT("File changed in content directory: %s"), *File);
 				break;
 
 			case FFileChangeData::FCA_Removed:
 				// This file was deleted. Remove all assets in the package from the registry.
-				RemovePackageData(EventContext, *LongPackageName);
+				RemovePackageData(EventContext, LongPackageFName);
+				// If the package was a package we were tracking as empty (due to e.g. a rename in editor), remove it.
+				// Disk now matches editor
+				RemoveEmptyPackage(LongPackageFName);
 				UE_LOG(LogAssetRegistry, Verbose, TEXT("File was removed from content directory: %s"), *File);
 				break;
+			}
+			if (bAddedOrCreated && CachedEmptyPackages.Contains(LongPackageFName))
+			{
+				UE_LOG(LogAssetRegistry, Warning, TEXT("%s: package was marked as deleted in editor, but has been modified on disk. It will once again be returned from AssetRegistry queries."),
+					*File);
+				RemoveEmptyPackage(LongPackageFName);
 			}
 		}
 		else if (bIsValidPackageName)

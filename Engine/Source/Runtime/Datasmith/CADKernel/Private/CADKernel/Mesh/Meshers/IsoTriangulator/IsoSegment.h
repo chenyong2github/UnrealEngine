@@ -91,7 +91,7 @@ namespace CADKernel
 			{
 				if(IsItAlreadyDefined(FirstNode, SecondNode))
 				{
-					Wait();
+					//Wait();
 					return false;
 				}
 				return true;
@@ -235,6 +235,32 @@ namespace CADKernel
 		FIsoNode& GetSecondNode()
 		{
 			return *SecondNode;
+		}
+
+		void SetFirstNode(FIsoNode& NewNode)
+		{
+			FirstNode = &NewNode;
+
+			((FLoopNode*)SecondNode)->SetPreviousConnectedNode((FLoopNode*)FirstNode);
+			((FLoopNode*)FirstNode)->SetNextConnectedNode((FLoopNode*)SecondNode);
+		}
+
+		void SetSecondNode(FIsoNode& NewNode)
+		{
+			SecondNode = &NewNode;
+			
+			((FLoopNode*)SecondNode)->SetPreviousConnectedNode((FLoopNode*)FirstNode);
+			((FLoopNode*)FirstNode)->SetNextConnectedNode((FLoopNode*)SecondNode);
+		}
+
+		void SwapOrientation()
+		{
+			FIsoNode* TempNode = SecondNode;
+			SecondNode = FirstNode;
+			FirstNode = TempNode;
+
+			((FLoopNode*)FirstNode)->SetNextConnectedNode((FLoopNode*)SecondNode);
+			((FLoopNode*)SecondNode)->SetPreviousConnectedNode((FLoopNode*)FirstNode);
 		}
 
 		const FIsoNode& GetOtherNode(const FIsoNode* Node) const

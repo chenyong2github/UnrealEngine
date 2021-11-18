@@ -279,14 +279,14 @@ private:
 	* @param UVBounds - Resulting UV bounds
 	*/
 	void ComputeUVBounds( const SkeletalSimplifier::FSkinnedSkeletalMesh& Mesh,
-		                  FVector2D(&UVBounds)[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs] ) const;
+		                  FVector2f(&UVBounds)[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs] ) const;
 
 	/**
 	* Clamp the UVs on the mesh
 	* @param UVBounds - per channel bounds for UVs
 	* @param Mesh     - Mesh to update. 
 	*/
-	void ClampUVBounds( const FVector2D(&UVBounds)[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs],
+	void ClampUVBounds( const FVector2f(&UVBounds)[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs],
 		                SkeletalSimplifier::FSkinnedSkeletalMesh& Mesh ) const;
 
 	/**
@@ -488,7 +488,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 		bool bHasBadNTB =  ( Vertex.TangentX.ContainsNaN() || Vertex.TangentY.ContainsNaN() || Vertex.TangentZ.ContainsNaN() );
 
 		// transform position
-		FVector3f WeightedPosition = XForm.TransformPosition(Vertex.Position);
+		FVector3f WeightedPosition = (FVector4f)XForm.TransformPosition(Vertex.Position);
 
 		// transform tangent space
 		FVector3f WeightedTangentX(1.f, 0.f, 0.f);
@@ -497,9 +497,9 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkinnedSkeletalMesh( const FSkelet
 
 		if (!bHasBadNTB)
 		{
-			WeightedTangentX = XForm.TransformVector(Vertex.TangentX);
-			WeightedTangentY = XForm.TransformVector(Vertex.TangentY);
-			WeightedTangentZ = XForm.TransformVector(Vertex.TangentZ);
+			WeightedTangentX = (FVector4f)XForm.TransformVector(Vertex.TangentX);
+			WeightedTangentY = (FVector4f)XForm.TransformVector(Vertex.TangentY);
+			WeightedTangentZ = (FVector4f)XForm.TransformVector((FVector4)Vertex.TangentZ);
 		}
 		
 		Vertex.TangentX   = WeightedTangentX.GetSafeNormal();
@@ -871,7 +871,7 @@ void FQuadricSkeletalMeshReduction::TrimBonesPerVert( SkeletalSimplifier::FSkinn
 
 
 void FQuadricSkeletalMeshReduction::ComputeUVBounds( const SkeletalSimplifier::FSkinnedSkeletalMesh& Mesh,
-	                                                 FVector2D(&UVBounds)[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs] ) const
+	                                                 FVector2f(&UVBounds)[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs] ) const
 {
 	// Zero the bounds
 	{
@@ -879,7 +879,7 @@ void FQuadricSkeletalMeshReduction::ComputeUVBounds( const SkeletalSimplifier::F
 
 		for (int32 i = 0; i < 2 * NumUVs; ++i)
 		{
-			UVBounds[i] = FVector2D(ForceInitToZero);
+			UVBounds[i] = FVector2f(ForceInitToZero);
 		}
 	}
 
@@ -888,8 +888,8 @@ void FQuadricSkeletalMeshReduction::ComputeUVBounds( const SkeletalSimplifier::F
 		const int32 NumValidUVs = Mesh.TexCoordCount();
 		for (int32 i = 0; i < NumValidUVs; ++i)
 		{
-			UVBounds[2 * i] = FVector2D(FLT_MAX, FLT_MAX);
-			UVBounds[2 * i + 1] = FVector2D(-FLT_MAX, -FLT_MAX);
+			UVBounds[2 * i] = FVector2f(FLT_MAX, FLT_MAX);
+			UVBounds[2 * i + 1] = FVector2f(-FLT_MAX, -FLT_MAX);
 		}
 
 		for (int32 i = 0; i < Mesh.NumVertices(); ++i)
@@ -907,7 +907,7 @@ void FQuadricSkeletalMeshReduction::ComputeUVBounds( const SkeletalSimplifier::F
 	}
 }
 
-void FQuadricSkeletalMeshReduction::ClampUVBounds( const FVector2D(&UVBounds)[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs],
+void FQuadricSkeletalMeshReduction::ClampUVBounds( const FVector2f(&UVBounds)[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs],
 	                                               SkeletalSimplifier::FSkinnedSkeletalMesh& Mesh ) const
 {
 	const int32 NumValidUVs = Mesh.TexCoordCount();
@@ -1007,7 +1007,7 @@ float FQuadricSkeletalMeshReduction::SimplifyMesh( const FSkeletalMeshOptimizati
 	// Number of UV coords allocated.
 	const int32 NumUVs = SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs;
 
-	FVector2D  UVBounds[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs];
+	FVector2f  UVBounds[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs];
 	ComputeUVBounds(Mesh, UVBounds);
 	
 	// Set up weights for the Basic Attributes (e.g. not the bones)
@@ -1042,8 +1042,8 @@ float FQuadricSkeletalMeshReduction::SimplifyMesh( const FSkeletalMeshOptimizati
 		const int32 NumValidUVs = Mesh.TexCoordCount();
 		for (int32 i = 0; i < NumValidUVs; ++i)
 		{
-			FVector2D&  UVMin = UVBounds[2 * i];
-			FVector2D&  UVMax = UVBounds[2 * i + 1];
+			FVector2f&  UVMin = UVBounds[2 * i];
+			FVector2f&  UVMax = UVBounds[2 * i + 1];
 
 			double URange = UVMax.X - UVMin.X;
 			double VRange = UVMax.Y - UVMin.Y;
@@ -1731,7 +1731,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 
 			// Capture the UV bounds from the source mesh.
 
-			FVector2D  UVBounds[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs];
+			FVector2f  UVBounds[2 * SkeletalSimplifier::MeshVertType::BasicAttrContainerType::NumUVs];
 			ComputeUVBounds(SkinnedSkeletalMesh, UVBounds);
 
 			{
@@ -2027,14 +2027,14 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	if (const UAnimSequence* BakePoseAnim = SkeletalMesh.GetLODInfo(LODIndex)->BakePose)
 	{
 		FMemMark Mark(FMemStack::Get());
-
+		
 		const FReferenceSkeleton& RefSkeleton = SkeletalMesh.GetRefSkeleton();
 		const TArray<FTransform>& RefPoseInLocal = RefSkeleton.GetRefBonePose();
 
 		// Get component space retarget base pose, will be equivalent of ref-pose if not edited
 		TArray<FTransform> ComponentSpaceRefPose;
 		FAnimationRuntime::FillUpComponentSpaceTransformsRetargetBasePose(&SkeletalMesh, ComponentSpaceRefPose); 
-
+		
 		// Retrieve bone indices which will be removed
 		if (MeshBoneReductionInterface != nullptr)
 		{
@@ -2074,23 +2074,23 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 				if (BonesToRemove.Contains(BoneIndex))
 				{
 					ComponentSpaceAnimatedPose[BoneIndex] = Pose[PoseBoneIndex].ToMatrixWithScale() * ComponentSpaceAnimatedPose[ParentIndex];
-			}
+				}
 				// Otherwise use the component-space retarget base pose transform
+				else
+				{
+					ComponentSpaceAnimatedPose[BoneIndex] = ComponentSpaceRefPose[BoneIndex].ToMatrixWithScale();
+				}
+			}
 			else
 			{
-					ComponentSpaceAnimatedPose[BoneIndex] = ComponentSpaceRefPose[BoneIndex].ToMatrixWithScale();
-			}
-		}
-			else
-		{
 				// If the bone will be removed, get the retarget-ed animation bone transform
 				if (BonesToRemove.Contains(BoneIndex))
 				{
 					ComponentSpaceAnimatedPose[BoneIndex] = Pose[PoseBoneIndex].ToMatrixWithScale();
-		}
+				}
 				// Otherwise use the retarget base pose transform
-	else
-	{
+				else
+				{
 					ComponentSpaceAnimatedPose[BoneIndex] = ComponentSpaceRefPose[BoneIndex].ToMatrixWithScale();
 				}
 			}

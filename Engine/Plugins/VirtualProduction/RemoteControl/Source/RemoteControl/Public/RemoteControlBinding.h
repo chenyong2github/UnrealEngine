@@ -106,6 +106,8 @@ public:
 	 */
 	void InitializeForNewLevel();
 
+	/** Get the current world. */
+	static UWorld* GetCurrentWorld();
 private:
 	TSoftObjectPtr<UObject> ResolveForCurrentWorld() const;
 
@@ -130,8 +132,4 @@ private:
 	 */
 	UPROPERTY()
 	mutable TSoftObjectPtr<ULevel> LevelWithLastSuccessfulResolve;
-
-private:
-	/** Get the current world. */
-	UWorld* GetCurrentWorld() const;
 };

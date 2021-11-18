@@ -194,6 +194,7 @@ struct FMaterialCachedParameters
 struct FMaterialCachedExpressionContext
 {
 	const UMaterialFunctionInterface* CurrentFunction = nullptr;
+	const FMaterialLayersFunctions* LayerOverrides = nullptr;
 	bool bUpdateFunctionExpressions = true;
 };
 
@@ -214,15 +215,20 @@ struct FMaterialCachedExpressionData
 	{}
 
 #if WITH_EDITOR
-	/** Returns 'false' if update is incomplete, due to missing expression data (stripped from non-editor build) */
-	bool UpdateForExpressions(const FMaterialCachedExpressionContext& Context, const TArray<TObjectPtr<UMaterialExpression>>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex);
-	bool UpdateForFunction(const FMaterialCachedExpressionContext& Context, UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex);
-	bool UpdateForLayerFunctions(const FMaterialCachedExpressionContext& Context, const FMaterialLayersFunctions& LayerFunctions);
+	void UpdateForExpressions(const FMaterialCachedExpressionContext& Context, const TArray<TObjectPtr<UMaterialExpression>>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex);
+	void UpdateForFunction(const FMaterialCachedExpressionContext& Context, UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex);
+	void UpdateForLayerFunctions(const FMaterialCachedExpressionContext& Context, const FMaterialLayersFunctions& LayerFunctions);
 #endif // WITH_EDITOR
 
 	void Reset();
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
+
+	/** Returns an array of the guids of functions used, with the call hierarchy flattened. */
+	void AppendReferencedFunctionIdsTo(TArray<FGuid>& OutIds) const;
+
+	/** Returns an array of the guids of parameter collections used. */
+	void AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& OutIds) const;
 
 	bool IsMaterialAttributePropertyConnected(EMaterialProperty Property) const
 	{
@@ -282,6 +288,11 @@ struct FMaterialCachedExpressionData
 	/** Each bit corresponds to EMaterialProperty connection status. */
 	UPROPERTY()
 	uint32 MaterialAttributesPropertyConnectedBitmask = 0;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<FName> LandscapeLayerNames;
+#endif // WITH_EDITORONLY_DATA
 };
 
 USTRUCT()
@@ -289,22 +300,13 @@ struct FMaterialInstanceCachedData
 {
 	GENERATED_USTRUCT_BODY()
 
+	ENGINE_API static const FMaterialInstanceCachedData EmptyData;
+
 #if WITH_EDITOR
-	void InitializeForConstant(FMaterialCachedExpressionData&& InCachedExpressionData, const FMaterialLayersFunctions* Layers, const FMaterialLayersFunctions* ParentLayers);
+	void InitializeForConstant(const FMaterialLayersFunctions* Layers, const FMaterialLayersFunctions* ParentLayers);
 #endif // WITH_EDITOR
 	void InitializeForDynamic(const FMaterialLayersFunctions* ParentLayers);
 
-	void AddReferencedObjects(FReferenceCollector& Collector);
-
-	UPROPERTY()
-	FMaterialCachedParameters LayerParameters;
-
-	UPROPERTY()
-	TArray<TObjectPtr<UObject>> ReferencedTextures;
-
 	UPROPERTY()
 	TArray<int32> ParentLayerIndexRemap;
-
-	UPROPERTY()
-	int32 NumParentLayers = 0;
 };

@@ -13,20 +13,6 @@
 #include "HAL/PlatformAtomics.h"
 #include "Engine/RendererSettings.h"
 
-struct FRHICommandProcessDeferredDeletionQueue final : public FRHICommand<FRHICommandProcessDeferredDeletionQueue>
-{
-	FVulkanDevice* Device;
-	FORCEINLINE_DEBUGGABLE FRHICommandProcessDeferredDeletionQueue(FVulkanDevice* InDevice)
-		: Device(InDevice)
-	{
-	}
-
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		Device->GetDeferredDeletionQueue().ReleaseResources();
-	}
-};
-
 
 FVulkanBackBuffer::FVulkanBackBuffer(FVulkanDevice& Device, FVulkanViewport* InViewport, EPixelFormat Format, uint32 SizeX, uint32 SizeY, ETextureCreateFlags UEFlags)
 	: FVulkanTexture2D(Device, Format, SizeX, SizeY, 1, 1, VK_NULL_HANDLE, UEFlags, FRHIResourceCreateInfo(TEXT("FVulkanBackBuffer")))
@@ -1105,17 +1091,6 @@ void FVulkanDynamicRHI::RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Vi
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	Viewport->AdvanceBackBufferFrame(RHICmdList);
-
-	if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
-	{
-		FRHICommandProcessDeferredDeletionQueue Cmd(Device);
-		Cmd.Execute(RHICmdList);
-	}
-	else
-	{
-		check(IsInRenderingThread());
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandProcessDeferredDeletionQueue)(Device);
-	}
 }
 
 void FVulkanCommandListContext::RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ)

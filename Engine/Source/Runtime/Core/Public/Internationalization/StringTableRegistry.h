@@ -35,13 +35,11 @@ public:
 	void EnumerateStringTables(const TFunctionRef<bool(const FName&, const FStringTableConstRef&)>& InEnumerator) const;
 
 	/** Given an FText, try and find the table ID and key for it */
+	UE_DEPRECATED(5.0, "FindTableIdAndKey is deprecated. Use FTextInspector::GetTableIdAndKey instead.")
 	bool FindTableIdAndKey(const FText& InText, FName& OutTableId, FString& OutKey) const;
 
-	/** Given an FText display string, try and find the table ID and key for it */
-	bool FindTableIdAndKey(const FTextDisplayStringRef& InDisplayString, FName& OutTableId, FString& OutKey) const;
-
 	/** Log a missing string table entry (will only log each missing entry once to avoid spam) */
-	void LogMissingStringTableEntry(const FName InTableId, const FString& InKey);
+	void LogMissingStringTableEntry(const FName InTableId, const FTextKey& InKey);
 
 	/** Internal function called by LOCTABLE_NEW to create and register a new FStringTable instance */
 	void Internal_NewLocTable(const FName InTableId, const FString& InNamespace);
@@ -70,7 +68,7 @@ private:
 	mutable FCriticalSection RegisteredStringTablesCS;
 
 	/** Mapping from a table ID to a set of keys that we've logged warnings for */
-	typedef TSet<FString, FLocKeySetFuncs> FLocKeySet;
+	typedef TSet<FTextKey> FLocKeySet;
 	TMap<FName, FLocKeySet> LoggedMissingEntries;
 
 	/** Critical section preventing concurrent modification of LoggedMissingEntries */

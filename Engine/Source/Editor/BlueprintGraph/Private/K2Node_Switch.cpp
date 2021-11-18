@@ -263,7 +263,7 @@ void UK2Node_Switch::RemovePinFromSwitchNode(UEdGraphPin* TargetPin)
 	{
 		RemovePin(TargetPin);
 
-		TargetPin->MarkPendingKill();
+		TargetPin->MarkAsGarbage();
 		Pins.Remove(TargetPin);
 	}
 }

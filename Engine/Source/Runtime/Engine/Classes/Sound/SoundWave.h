@@ -333,7 +333,6 @@ struct FSoundWave
 
 	int32 ResourceSize;
 	FBulkDataBuffer<uint8> ResourceData;
-	FOwnedBulkDataPtr* OwnedBulkDataPtr{ nullptr };
 
 	ESoundWaveLoadingBehavior LoadingBehavior = ESoundWaveLoadingBehavior::Uninitialized;
 
@@ -391,80 +390,25 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Format")
 	uint8 bUseBinkAudio : 1;
 
-	// Loading behavior members are lazily initialized in const getters
-	/** Specifies how and when compressed audio data is loaded for asset if stream caching is enabled. */
-	UPROPERTY(EditAnywhere, Category = "Loading", meta = (DisplayName = "Loading Behavior Override"))
-	mutable ESoundWaveLoadingBehavior LoadingBehavior;
+	/** the number of sounds currently playing this sound wave. */
+	FThreadSafeCounter NumSourcesPlaying;
 
-	/** Set to true for programmatically generated audio. */
-	uint8 bProcedural : 1;
+	void AddPlayingSource()
+	{
+		NumSourcesPlaying.Increment();
+	}
 
-	/** Set to true if fade is required when sound is abruptly stopped. */
-	uint8 bRequiresStopFade:1;
+	void RemovePlayingSource()
+	{
+		check(NumSourcesPlaying.GetValue() > 0);
+		NumSourcesPlaying.Decrement();
+	}
 
-	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
-	uint8 bIsSourceBus : 1;
 
-	/** Set to true for procedural waves that can be processed asynchronously. */
-	uint8 bCanProcessAsync : 1;
-
-	/** Whether to free the resource data after it has been uploaded to the hardware */
-	uint8 bDynamicResource : 1;
-
-	/** If set to true if this sound is considered to contain mature/adult content. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles, AssetRegistrySearchable)
-	uint8 bMature : 1;
-
-	/** If set to true will disable automatic generation of line breaks - use if the subtitles have been split manually. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
-	uint8 bManualWordWrap : 1;
-
-	/** If set to true the subtitles display as a sequence of single lines as opposed to multiline. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
-	uint8 bSingleLine : 1;
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	uint8 bVirtualizeWhenSilent_DEPRECATED : 1;
-#endif // WITH_EDITORONLY_DATA
-
-	/** Whether or not this source is ambisonics file format. If set, sound always uses the
-	  * 'Master Ambisonics Submix' as set in the 'Audio' category of Project Settings'
-	  * and ignores submix if provided locally or in the referenced SoundClass. */
-	UPROPERTY(EditAnywhere, Category = Format)
-	uint8 bIsAmbisonics : 1;
-
-	/** Whether this SoundWave was decompressed from OGG. */
-	uint8 bDecompressedFromOgg : 1;
 
 private:
-	// This is set to false on initialization, then set to true on non-editor platforms when we cache appropriate sample rate.
-	uint8 bCachedSampleRateFromPlatformSettings : 1;
-
-	// This is set when SetSampleRate is called to invalidate our cached sample rate while not re-parsing project settings.
-	uint8 bSampleRateManuallyReset : 1;
-
-#if WITH_EDITOR
-	// Whether or not the thumbnail supports generation
-	uint8 bNeedsThumbnailGeneration : 1;
-
-	// Whether this was previously cooked with stream caching enabled.
-	uint8 bWasStreamCachingEnabledOnLastCook : 1;
-	// Whether this asset is loaded from cooked data.
-	uint8 bLoadedFromCookedData : 1;
-#endif // !WITH_EDITOR
-
 	// cached proxy
 	FSoundWaveProxyPtr InternalProxy{ nullptr };
-
-	enum class ESoundWaveResourceState : uint8
-	{
-		NeedsFree,
-		Freeing,
-		Freed
-	};
-
-	volatile ESoundWaveResourceState ResourceState;
 
 public:
 
@@ -593,6 +537,85 @@ private:
 
 public:
 
+	/** Set to true for programmatically generated audio. */
+	uint8 bProcedural : 1;
+
+	/** Set to true if fade is required when sound is abruptly stopped. */
+	uint8 bRequiresStopFade:1;
+
+	/** Set to true of this is a bus sound source. This will result in the sound wave not generating audio for itself, but generate audio through instances. Used only in audio mixer. */
+	uint8 bIsSourceBus : 1;
+
+	/** Set to true for procedural waves that can be processed asynchronously. */
+	uint8 bCanProcessAsync : 1;
+
+	/** Whether to free the resource data after it has been uploaded to the hardware */
+	uint8 bDynamicResource : 1;
+
+	/** If set to true if this sound is considered to contain mature/adult content. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles, AssetRegistrySearchable)
+	uint8 bMature : 1;
+
+	/** If set to true will disable automatic generation of line breaks - use if the subtitles have been split manually. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
+	uint8 bManualWordWrap : 1;
+
+	/** If set to true the subtitles display as a sequence of single lines as opposed to multiline. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
+	uint8 bSingleLine : 1;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	uint8 bVirtualizeWhenSilent_DEPRECATED : 1;
+#endif // WITH_EDITORONLY_DATA
+
+	/** Whether or not this source is ambisonics file format. If set, sound always uses the
+	  * 'Master Ambisonics Submix' as set in the 'Audio' category of Project Settings'
+	  * and ignores submix if provided locally or in the referenced SoundClass. */
+	UPROPERTY(EditAnywhere, Category = Format)
+	uint8 bIsAmbisonics : 1;
+
+	/** Whether this SoundWave was decompressed from OGG. */
+	uint8 bDecompressedFromOgg : 1;
+
+#if WITH_EDITOR
+	/** The current revision of our compressed audio data. Used to tell when a chunk in the cache is stale. */
+	TSharedPtr<FThreadSafeCounter> CurrentChunkRevision{ MakeShared<FThreadSafeCounter>() };
+#endif
+
+private:
+
+	// This is set to false on initialization, then set to true on non-editor platforms when we cache appropriate sample rate.
+	uint8 bCachedSampleRateFromPlatformSettings : 1;
+
+	// This is set when SetSampleRate is called to invalidate our cached sample rate while not re-parsing project settings.
+	uint8 bSampleRateManuallyReset : 1;
+
+#if WITH_EDITOR
+	// Whether or not the thumbnail supports generation
+	uint8 bNeedsThumbnailGeneration : 1;
+
+	// Whether this was previously cooked with stream caching enabled.
+	uint8 bWasStreamCachingEnabledOnLastCook : 1;
+	// Whether this asset is loaded from cooked data.
+	uint8 bLoadedFromCookedData : 1;
+#endif // !WITH_EDITOR
+
+	enum class ESoundWaveResourceState : uint8
+	{
+		NeedsFree,
+		Freeing,
+		Freed
+	};
+
+	ESoundWaveResourceState ResourceState : 2;
+
+public:
+	// Loading behavior members are lazily initialized in const getters
+	/** Specifies how and when compressed audio data is loaded for asset if stream caching is enabled. */
+	UPROPERTY(EditAnywhere, Category = "Loading", meta = (DisplayName = "Loading Behavior Override"))
+	mutable ESoundWaveLoadingBehavior LoadingBehavior;
+
 	/** A localized version of the text that is actually spoken phonetically in the audio. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Subtitles)
 	FString SpokenText;
@@ -711,7 +734,6 @@ public:
 	/** Memory containing the data copied from the compressed bulk data */
 
 public:
-	FOwnedBulkDataPtr* GetOwnedBulkData() { check(SoundWaveDataPtr);  return SoundWaveDataPtr->OwnedBulkDataPtr; }
 	const uint8* GetResourceData() { check(SoundWaveDataPtr);  return SoundWaveDataPtr->ResourceData.GetView().GetData(); }
 
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
@@ -781,20 +803,6 @@ public:
 
 	void AddPlayingSource(const FSoundWaveClientPtr& Source);
 	void RemovePlayingSource(const FSoundWaveClientPtr& Source);
-
-	/** the number of sounds currently playing this sound wave. */
-	FThreadSafeCounter NumSourcesPlaying;
-
-	void AddPlayingSource()
-	{
-		NumSourcesPlaying.Increment();
-	}
-
-	void RemovePlayingSource()
-	{
-		check(NumSourcesPlaying.GetValue() > 0);
-		NumSourcesPlaying.Decrement();
-	}
 
 	bool IsGeneratingAudio() const
 	{

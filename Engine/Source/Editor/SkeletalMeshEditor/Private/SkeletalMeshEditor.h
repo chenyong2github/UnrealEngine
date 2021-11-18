@@ -79,7 +79,6 @@ public:
 	
 	//~ Begin FAssetEditorToolkit Interface.
 	virtual bool OnRequestClose() override;
-	virtual void OnClose() override;
 	//~ End FAssetEditorToolkit Interface.
 
 	/** FEditorUndoClient interface */
@@ -214,22 +213,4 @@ private:
 
 	// The toolbox widget
 	TSharedPtr<SSkeletalMeshEditorToolbox> ToolboxWidget;
-
-	enum ECapsuleType
-	{
-		Bone,
-		VirtualBone,
-		Socket
-	};
-	
-	struct FCapsuleInfo
-	{
-		ECapsuleType Type;
-		FName Name;
-		int32 Index;
-	};
-
-	TArray<FCapsuleInfo> CapsuleInfos;
-
-	void UpdateCapsules();
 };

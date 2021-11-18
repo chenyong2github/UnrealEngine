@@ -21,6 +21,8 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "TargetInterfaces/SkeletalMeshBackedTarget.h"
 #include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 #include "AssetUtils/Texture2DUtil.h"
@@ -78,8 +80,6 @@ public:
 	TUniquePtr<FMeshVertexBaker> Baker;
 
 	UBakeMeshAttributeVertexTool::FBakeSettings BakeSettings;
-	UBakeMeshAttributeVertexTool::FBakeColorSettings ColorSettings;
-	UBakeMeshAttributeVertexTool::FBakeChannelSettings ChannelSettings;
 	FOcclusionMapSettings OcclusionSettings;
 	FCurvatureMapSettings CurvatureSettings;
 	FTexture2DImageSettings TextureSettings;
@@ -88,7 +88,7 @@ public:
 	using ImagePtr = TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>;
 	const FDynamicMeshUVOverlay* UVOverlay = nullptr;
 	ImagePtr TextureImage;
-	TMap<int32, ImagePtr> MaterialToTextureImageMap;
+	TArray<ImagePtr> MaterialIDTextures;
 
 	// Begin TGenericDataOperator interface
 	virtual void CalculateResult(FProgressCancel* Progress) override
@@ -100,8 +100,8 @@ public:
 		};
 		Baker->SetTargetMesh(BaseMesh);
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
-		Baker->SetThickness(BakeSettings.Thickness);
-		Baker->BakeMode = BakeSettings.VertexMode == EBakeVertexMode::Color ? FMeshVertexBaker::EBakeMode::Color : FMeshVertexBaker::EBakeMode::Channel;
+		Baker->SetProjectionDistance(BakeSettings.ProjectionDistance);
+		Baker->BakeMode = BakeSettings.OutputMode == EBakeVertexOutput::RGBA ? FMeshVertexBaker::EBakeMode::RGBA : FMeshVertexBaker::EBakeMode::PerChannel;
 		
 		FMeshBakerDynamicMeshSampler DetailSampler(DetailMesh.Get(), DetailSpatial.Get());
 		Baker->SetDetailSampler(&DetailSampler);
@@ -124,20 +124,20 @@ public:
 			CurvatureEval->UseClampMode = static_cast<FMeshCurvatureMapEvaluator::EClampMode>(CurvatureSettings.ClampMode);
 		};
 
-		if (BakeSettings.VertexMode == EBakeVertexMode::PerChannel)
+		if (BakeSettings.OutputMode == EBakeVertexOutput::PerChannel)
 		{
 			for(int ChannelIdx = 0; ChannelIdx < 4; ++ChannelIdx)
 			{
-				switch(ChannelSettings.BakeType[ChannelIdx])
+				switch(BakeSettings.OutputTypePerChannel[ChannelIdx])
 				{
-				case EBakeVertexTypeChannel::AmbientOcclusion:
+				case EBakeMapType::AmbientOcclusion:
 				{
 					TSharedPtr<FMeshOcclusionMapEvaluator, ESPMode::ThreadSafe> OcclusionEval = MakeShared<FMeshOcclusionMapEvaluator, ESPMode::ThreadSafe>();
 					InitOcclusionEvaluator(OcclusionEval.Get(), EMeshOcclusionMapType::AmbientOcclusion);
 					Baker->ChannelEvaluators[ChannelIdx] = OcclusionEval;
 					break;				
 				}
-				case EBakeVertexTypeChannel::Curvature:
+				case EBakeMapType::Curvature:
 				{
 					TSharedPtr<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe> CurvatureEval = MakeShared<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe>();
 					InitCurvatureEvaluator(CurvatureEval.Get());
@@ -145,7 +145,7 @@ public:
 					break;
 				}
 				default:
-				case EBakeVertexTypeChannel::None:
+				case EBakeMapType::None:
 				{
 					Baker->ChannelEvaluators[ChannelIdx] = nullptr;
 					break;
@@ -153,79 +153,81 @@ public:
 				}
 			}
 		}
-		else // EBakeVertexMode::Color
+		else // EBakeVertexOutput::RGBA
 		{
-			switch (ColorSettings.BakeType)
+			switch (BakeSettings.OutputType)
 			{
-			case EBakeVertexTypeColor::TangentSpaceNormal:
+			case EBakeMapType::TangentSpaceNormal:
 			{
 				Baker->ColorEvaluator = MakeShared<FMeshNormalMapEvaluator, ESPMode::ThreadSafe>();
 				break;
 			}
-			case EBakeVertexTypeColor::AmbientOcclusion:
+			case EBakeMapType::AmbientOcclusion:
 			{
 				TSharedPtr<FMeshOcclusionMapEvaluator, ESPMode::ThreadSafe> OcclusionEval = MakeShared<FMeshOcclusionMapEvaluator, ESPMode::ThreadSafe>();
 				InitOcclusionEvaluator(OcclusionEval.Get(), EMeshOcclusionMapType::AmbientOcclusion);
 				Baker->ColorEvaluator = OcclusionEval;
 				break;
 			}
-			case EBakeVertexTypeColor::BentNormal:
+			case EBakeMapType::BentNormal:
 			{
 				TSharedPtr<FMeshOcclusionMapEvaluator, ESPMode::ThreadSafe> OcclusionEval = MakeShared<FMeshOcclusionMapEvaluator, ESPMode::ThreadSafe>();
 				InitOcclusionEvaluator(OcclusionEval.Get(), EMeshOcclusionMapType::BentNormal);
 				Baker->ColorEvaluator = OcclusionEval;
 				break;
 			}
-			case EBakeVertexTypeColor::Curvature:
+			case EBakeMapType::Curvature:
 			{
 				TSharedPtr<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe> CurvatureEval = MakeShared<FMeshCurvatureMapEvaluator, ESPMode::ThreadSafe>();
 				InitCurvatureEvaluator(CurvatureEval.Get());
 				Baker->ColorEvaluator = CurvatureEval;
 				break;
 			}
-			case EBakeVertexTypeColor::Position:
+			case EBakeMapType::Position:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyEval->Property = EMeshPropertyMapType::Position;
 				Baker->ColorEvaluator = PropertyEval;
 				break;
 			}
-			case EBakeVertexTypeColor::ObjectSpaceNormal:
+			case EBakeMapType::ObjectSpaceNormal:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyEval->Property = EMeshPropertyMapType::Normal;
 				Baker->ColorEvaluator = PropertyEval;
 				break;
 			}
-			case EBakeVertexTypeColor::FaceNormal:
+			case EBakeMapType::FaceNormal:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyEval->Property = EMeshPropertyMapType::FacetNormal;
 				Baker->ColorEvaluator = PropertyEval;
 				break;
 			}
-			case EBakeVertexTypeColor::MaterialID:
+			case EBakeMapType::MaterialID:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyEval = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyEval->Property = EMeshPropertyMapType::MaterialID;
 				Baker->ColorEvaluator = PropertyEval;
 				break;
 			}
-			case EBakeVertexTypeColor::Texture:
+			case EBakeMapType::Texture:
 			{
 				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
 				DetailSampler.SetColorMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
 				Baker->ColorEvaluator = TextureEval;
 				break;
 			}
-			case EBakeVertexTypeColor::MultiTexture:
+			case EBakeMapType::MultiTexture:
 			{
 				TSharedPtr<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe>();
 				TextureEval->DetailUVLayer = TextureSettings.UVLayer;
-				TextureEval->MultiTextures = MaterialToTextureImageMap;
+				TextureEval->MultiTextures = MaterialIDTextures;
 				Baker->ColorEvaluator = TextureEval;
 				break;
 			}
+			default:
+				break;
 			}
 		}
 
@@ -283,32 +285,40 @@ void UBakeMeshAttributeVertexTool::Setup()
 		BaseMeshTangents->CopyTriVertexTangents(Mesh);
 	});
 
+	UToolTarget* Target = Targets[0];
+	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
+
 	// Setup tool property sets
+
+	MeshProps = NewObject<UBakeInputMeshProperties>(this);
+	MeshProps->RestoreProperties(this);
+	AddToolPropertySource(MeshProps);
+	SetToolPropertySourceEnabled(MeshProps, true);
+	MeshProps->bHasTargetUVLayer = false;
+	MeshProps->bHasSourceNormalMap = false;
+	MeshProps->TargetStaticMesh = GetStaticMeshTarget(Target);
+	MeshProps->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
+	MeshProps->TargetDynamicMesh = GetDynamicMeshTarget(Target);
+	MeshProps->SourceStaticMesh = GetStaticMeshTarget(DetailTarget);
+	MeshProps->SourceSkeletalMesh = GetSkeletalMeshTarget(DetailTarget);
+	MeshProps->SourceDynamicMesh = GetDynamicMeshTarget(DetailTarget);
+	MeshProps->SourceNormalMap = nullptr;
+	MeshProps->WatchProperty(MeshProps->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	MeshProps->WatchProperty(MeshProps->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
+	
 	Settings = NewObject<UBakeMeshAttributeVertexToolProperties>(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
-	Settings->WatchProperty(Settings->VertexMode, [this](EBakeVertexMode) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	Settings->WatchProperty(Settings->VertexChannelPreview, [this](EBakeVertexChannel) { UpdateVisualization(); });
-	Settings->WatchProperty(Settings->Thickness, [this](float) { OpState |= EBakeOpState::Evaluate; });
-	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool)	{ OpState |= EBakeOpState::EvaluateDetailMesh; });
+	Settings->WatchProperty(Settings->OutputMode, [this](EBakeVertexOutput) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputType, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeR, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeG, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeB, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->OutputTypeA, [this](EBakeMapType) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->PreviewMode, [this](EBakeVertexChannel) { UpdateVisualization(); });
 	Settings->WatchProperty(Settings->bSplitAtNormalSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->bSplitAtUVSeams, [this](bool) { bColorTopologyValid = false; OpState |= EBakeOpState::Evaluate; });
-
-	ColorSettings = NewObject<UBakeMeshAttributeVertexToolColorProperties>(this);
-	ColorSettings->RestoreProperties(this);
-	AddToolPropertySource(ColorSettings);
-	SetToolPropertySourceEnabled(ColorSettings, false);
-	ColorSettings->WatchProperty(ColorSettings->BakeType, [this](EBakeVertexTypeColor) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-
-	PerChannelSettings = NewObject<UBakeMeshAttributeVertexToolChannelProperties>(this);
-	PerChannelSettings->RestoreProperties(this);
-	AddToolPropertySource(PerChannelSettings);
-	SetToolPropertySourceEnabled(PerChannelSettings, false);
-	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeR, [this](EBakeVertexTypeChannel) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeG, [this](EBakeVertexTypeChannel) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeB, [this](EBakeVertexTypeChannel) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
-	PerChannelSettings->WatchProperty(PerChannelSettings->BakeTypeA, [this](EBakeVertexTypeChannel) { OpState |= EBakeOpState::Evaluate; UpdateOnModeChange(); });
 
 	OcclusionSettings = NewObject<UBakedOcclusionMapToolProperties>(this);
 	OcclusionSettings->RestoreProperties(this);
@@ -323,10 +333,10 @@ void UBakeMeshAttributeVertexTool::Setup()
 	CurvatureSettings->RestoreProperties(this);
 	AddToolPropertySource(CurvatureSettings);
 	SetToolPropertySourceEnabled(CurvatureSettings, false);
-	CurvatureSettings->WatchProperty(CurvatureSettings->RangeMultiplier, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureSettings->WatchProperty(CurvatureSettings->ColorRangeMultiplier, [this](float) { OpState |= EBakeOpState::Evaluate; });
 	CurvatureSettings->WatchProperty(CurvatureSettings->MinRangeMultiplier, [this](float) { OpState |= EBakeOpState::Evaluate; });
 	CurvatureSettings->WatchProperty(CurvatureSettings->CurvatureType, [this](EBakedCurvatureTypeMode) { OpState |= EBakeOpState::Evaluate; });
-	CurvatureSettings->WatchProperty(CurvatureSettings->ColorMode, [this](EBakedCurvatureColorMode) { OpState |= EBakeOpState::Evaluate; });
+	CurvatureSettings->WatchProperty(CurvatureSettings->ColorMapping, [this](EBakedCurvatureColorMode) { OpState |= EBakeOpState::Evaluate; });
 	CurvatureSettings->WatchProperty(CurvatureSettings->Clamping, [this](EBakedCurvatureClampMode) { OpState |= EBakeOpState::Evaluate; });
 
 	TextureSettings = NewObject<UBakedTexture2DImageProperties>(this);
@@ -340,10 +350,11 @@ void UBakeMeshAttributeVertexTool::Setup()
 	MultiTextureSettings->RestoreProperties(this);
 	AddToolPropertySource(MultiTextureSettings);
 	SetToolPropertySourceEnabled(MultiTextureSettings, false);
-	auto SetDirtyCallback = [this](decltype(MultiTextureSettings->MaterialIDSourceTextureMap)) { OpState |= EBakeOpState::Evaluate; };
-	auto NotEqualsCallback = [](const decltype(MultiTextureSettings->MaterialIDSourceTextureMap)& A, const decltype(MultiTextureSettings->MaterialIDSourceTextureMap)& B) -> bool { return !(A.OrderIndependentCompareEqual(B)); };
-	MultiTextureSettings->WatchProperty(MultiTextureSettings->MaterialIDSourceTextureMap, SetDirtyCallback, NotEqualsCallback);
+	auto SetDirtyCallback = [this](decltype(MultiTextureSettings->MaterialIDSourceTextures)) { OpState |= EBakeOpState::Evaluate; };
+	auto NotEqualsCallback = [](const decltype(MultiTextureSettings->MaterialIDSourceTextures)& A, const decltype(MultiTextureSettings->MaterialIDSourceTextures)& B) -> bool { return A != B; };
+	MultiTextureSettings->WatchProperty(MultiTextureSettings->MaterialIDSourceTextures, SetDirtyCallback, NotEqualsCallback);
 	MultiTextureSettings->WatchProperty(MultiTextureSettings->UVLayer, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	UpdateMultiTextureMaterialIDs(DetailTarget, MultiTextureSettings->AllSourceTextures, MultiTextureSettings->MaterialIDSourceTextures);
 
 	UpdateOnModeChange();
 
@@ -355,6 +366,14 @@ void UBakeMeshAttributeVertexTool::Setup()
 		        "Bake Vertex Colors. Select Bake Mesh (LowPoly) first, then (optionally) Detail Mesh second."),
 		EToolMessageLevel::UserNotification);
 
+	// Initialize background compute
+	Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshVertexBaker>>();
+	Compute->Setup(this);
+	Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshVertexBaker>& NewResult)
+	{
+		OnResultUpdated(NewResult);
+	});
+
 	GatherAnalytics(BakeAnalytics.MeshSettings);
 }
 
@@ -363,8 +382,7 @@ void UBakeMeshAttributeVertexTool::Shutdown(EToolShutdownType ShutdownType)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMeshAttributeVertexTool::Shutdown);
 	
 	Settings->SaveProperties(this);
-	ColorSettings->SaveProperties(this);
-	PerChannelSettings->SaveProperties(this);
+	MeshProps->SaveProperties(this);
 	OcclusionSettings->SaveProperties(this);
 	CurvatureSettings->SaveProperties(this);
 	TextureSettings->SaveProperties(this);
@@ -411,7 +429,9 @@ void UBakeMeshAttributeVertexTool::OnTick(float DeltaTime)
 		const float ElapsedComputeTime = Compute->GetElapsedComputeTime();
 		if (!CanAccept() && ElapsedComputeTime > SecondsBeforeWorkingMaterial)
 		{
-			PreviewMesh->SetOverrideRenderMaterial(WorkingPreviewMaterial);
+			UMaterialInstanceDynamic* ProgressMaterial =
+				static_cast<bool>(OpState & EBakeOpState::Invalid) ? ErrorPreviewMaterial : WorkingPreviewMaterial;
+			PreviewMesh->SetOverrideRenderMaterial(ProgressMaterial);
 		}
 	}
 }
@@ -435,15 +455,13 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshVertexBaker>> UBakeMeshAttrib
 	Op->BaseMesh = &BaseMesh;
 	Op->BaseMeshTangents = BaseMeshTangents;
 	Op->BakeSettings = CachedBakeSettings;
-	Op->ColorSettings = CachedColorSettings;
-	Op->ChannelSettings = CachedChannelSettings;
 	Op->OcclusionSettings = CachedOcclusionMapSettings;
 	Op->CurvatureSettings = CachedCurvatureMapSettings;
 	Op->TextureSettings = CachedTexture2DImageSettings;
 
 	// Texture2DImage & MultiTexture settings
 	Op->TextureImage = CachedTextureImage;
-	Op->MaterialToTextureImageMap = CachedMultiTextures;
+	Op->MaterialIDTextures = CachedMultiTextures;
 	Op->UVOverlay = DetailMesh->Attributes()->GetUVLayer(CachedTexture2DImageSettings.UVLayer);
 	return Op;
 }
@@ -457,7 +475,7 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 	DetailMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(DetailMeshProvider->GetMeshDescription(), *DetailMesh);
-	if (Settings->bUseWorldSpace && bIsBakeToSelf == false)
+	if (MeshProps->bProjectionInWorldSpace && bIsBakeToSelf == false)
 	{
 		const UE::Geometry::FTransform3d DetailToWorld(DetailComponent->GetWorldTransform());
 		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
@@ -468,36 +486,6 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 	DetailSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();
 	DetailSpatial->SetMesh(DetailMesh.Get(), true);
 
-	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
-	ProcessComponentTextures(UE::ToolTarget::GetTargetComponent(DetailTarget), [this](const int MaterialID, const TArray<UTexture*>& Textures)
-	{
-		for (UTexture* Tex : Textures)
-		{
-			UTexture2D* Tex2D = Cast<UTexture2D>(Tex);
-			if (Tex2D)
-			{
-				MultiTextureSettings->AllSourceTextures.Add(Tex2D);
-			}
-		}
-
-		constexpr bool bGuessAtTextures = true;
-		if (bGuessAtTextures)
-		{
-			const int SelectedTextureIndex = SelectColorTextureToBake(Textures);
-			if (SelectedTextureIndex >= 0)
-			{
-				UTexture2D* Tex2D = Cast<UTexture2D>(Textures[SelectedTextureIndex]);
-
-				// if cast fails, this will set the value to nullptr, which is fine
-				MultiTextureSettings->MaterialIDSourceTextureMap.Add(MaterialID, Tex2D);	
-			}
-		}
-		else
-		{
-			MultiTextureSettings->MaterialIDSourceTextureMap.Add(MaterialID, nullptr);
-		}
-	});
-
 	OpState &= ~EBakeOpState::EvaluateDetailMesh;
 	OpState |= EBakeOpState::Evaluate;
 	DetailMeshTimestamp++;
@@ -505,29 +493,26 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 
 void UBakeMeshAttributeVertexTool::UpdateOnModeChange()
 {
-	const bool bIsColorMode = Settings->VertexMode == EBakeVertexMode::Color;
-	SetToolPropertySourceEnabled(ColorSettings, bIsColorMode);
-	SetToolPropertySourceEnabled(PerChannelSettings, !bIsColorMode);
 	SetToolPropertySourceEnabled(OcclusionSettings, false);
 	SetToolPropertySourceEnabled(CurvatureSettings, false);
 	SetToolPropertySourceEnabled(TextureSettings, false);
 	SetToolPropertySourceEnabled(MultiTextureSettings, false);
 
-	if (Settings->VertexMode == EBakeVertexMode::Color)
+	if (Settings->OutputMode == EBakeVertexOutput::RGBA)
 	{
-		switch (ColorSettings->BakeType)
+		switch (Settings->OutputType)
 		{
-			case EBakeVertexTypeColor::AmbientOcclusion:
-			case EBakeVertexTypeColor::BentNormal:
+			case EBakeMapType::AmbientOcclusion:
+			case EBakeMapType::BentNormal:
 				SetToolPropertySourceEnabled(OcclusionSettings, true);
 				break;
-			case EBakeVertexTypeColor::Curvature:
+			case EBakeMapType::Curvature:
 				SetToolPropertySourceEnabled(CurvatureSettings, true);
 				break;
-			case EBakeVertexTypeColor::Texture:
+			case EBakeMapType::Texture:
 				SetToolPropertySourceEnabled(TextureSettings, true);
 				break;
-			case EBakeVertexTypeColor::MultiTexture:
+			case EBakeMapType::MultiTexture:
 				SetToolPropertySourceEnabled(MultiTextureSettings, true);
 				break;
 			default:
@@ -535,25 +520,25 @@ void UBakeMeshAttributeVertexTool::UpdateOnModeChange()
 				break;
 		}
 	}
-	else // Settings->VertexMode == EBakeVertexMode::PerChannel
+	else // Settings->VertexMode == EBakeVertexOutput::PerChannel
 	{
-		EBakeVertexTypeChannel PerChannelTypes[4] = {
-			PerChannelSettings->BakeTypeR,
-			PerChannelSettings->BakeTypeG,
-			PerChannelSettings->BakeTypeB,
-			PerChannelSettings->BakeTypeA
+		EBakeMapType PerChannelTypes[4] = {
+			Settings->OutputTypeR,
+			Settings->OutputTypeG,
+			Settings->OutputTypeB,
+			Settings->OutputTypeA
 		};
 		for(int Idx = 0; Idx < 4; ++Idx)
 		{
 			switch(PerChannelTypes[Idx])
 			{
-				case EBakeVertexTypeChannel::AmbientOcclusion:
+				case EBakeMapType::AmbientOcclusion:
 					SetToolPropertySourceEnabled(OcclusionSettings, true);
 					break;
-				case EBakeVertexTypeChannel::Curvature:
+				case EBakeMapType::Curvature:
 					SetToolPropertySourceEnabled(CurvatureSettings, true);
 					break;
-				case EBakeVertexTypeChannel::None:
+				case EBakeMapType::None:
 				default:
 					break;
 			}
@@ -563,14 +548,14 @@ void UBakeMeshAttributeVertexTool::UpdateOnModeChange()
 
 void UBakeMeshAttributeVertexTool::UpdateVisualization()
 {
-	if (Settings->VertexChannelPreview == EBakeVertexChannel::A)
+	if (Settings->PreviewMode == EBakeVertexChannel::A)
 	{
 		PreviewMesh->SetOverrideRenderMaterial(PreviewAlphaMaterial);
 	}
 	else
 	{
 		FLinearColor Mask(FLinearColor::Black);
-		switch(Settings->VertexChannelPreview)
+		switch(Settings->PreviewMode)
 		{
 		case EBakeVertexChannel::R:
 			Mask.R = 1.0f;
@@ -656,69 +641,56 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 	GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
 
 	FBakeSettings BakeSettings;
-	BakeSettings.VertexMode = Settings->VertexMode;
+	BakeSettings.OutputMode = Settings->OutputMode;
+	BakeSettings.OutputType = Settings->OutputType;
+	BakeSettings.OutputTypePerChannel[0] = Settings->OutputTypeR;
+	BakeSettings.OutputTypePerChannel[1] = Settings->OutputTypeG;
+	BakeSettings.OutputTypePerChannel[2] = Settings->OutputTypeB;
+	BakeSettings.OutputTypePerChannel[3] = Settings->OutputTypeA;
 	BakeSettings.bSplitAtNormalSeams = Settings->bSplitAtNormalSeams;
 	BakeSettings.bSplitAtUVSeams = Settings->bSplitAtUVSeams;
-	BakeSettings.bUseWorldSpace = Settings->bUseWorldSpace;
-	BakeSettings.Thickness = Settings->Thickness;
+	BakeSettings.bProjectionInWorldSpace = MeshProps->bProjectionInWorldSpace;
+	BakeSettings.ProjectionDistance = MeshProps->ProjectionDistance;
 	if (!(BakeSettings == CachedBakeSettings))
 	{
 		CachedBakeSettings = BakeSettings;
-
-		CachedColorSettings = FBakeColorSettings();
-		CachedChannelSettings = FBakeChannelSettings();
-	}
-
-	FBakeColorSettings BakeColorSettings;
-	BakeColorSettings.BakeType = ColorSettings->BakeType;
-	if (!(BakeColorSettings == CachedColorSettings))
-	{
-		CachedColorSettings = BakeColorSettings;
-	}
-
-	FBakeChannelSettings BakeChannelSettings;
-	BakeChannelSettings.BakeType[0] = PerChannelSettings->BakeTypeR;
-	BakeChannelSettings.BakeType[1] = PerChannelSettings->BakeTypeG;
-	BakeChannelSettings.BakeType[2] = PerChannelSettings->BakeTypeB;
-	BakeChannelSettings.BakeType[3] = PerChannelSettings->BakeTypeA;
-	if (!(BakeChannelSettings == CachedChannelSettings))
-	{
-		CachedChannelSettings = BakeChannelSettings;
 	}
 
 	// Clear our invalid bitflag to check again for valid inputs.
 	OpState &= ~EBakeOpState::Invalid;
 
 	// Validate bake inputs
-	if (CachedBakeSettings.VertexMode == EBakeVertexMode::Color)
+	if (CachedBakeSettings.OutputMode == EBakeVertexOutput::RGBA)
 	{
-		switch(CachedColorSettings.BakeType)
+		switch(BakeSettings.OutputType)
 		{
-		case EBakeVertexTypeColor::TangentSpaceNormal:
+		case EBakeMapType::TangentSpaceNormal:
 			OpState |= UpdateResult_Normal();
 			break;
-		case EBakeVertexTypeColor::AmbientOcclusion:
-		case EBakeVertexTypeColor::BentNormal:
+		case EBakeMapType::AmbientOcclusion:
+		case EBakeMapType::BentNormal:
 			OpState |= UpdateResult_Occlusion();
 			break;
-		case EBakeVertexTypeColor::Curvature:
+		case EBakeMapType::Curvature:
 			OpState |= UpdateResult_Curvature();
 			break;
-		case EBakeVertexTypeColor::ObjectSpaceNormal:
-		case EBakeVertexTypeColor::FaceNormal:
-		case EBakeVertexTypeColor::Position:
-		case EBakeVertexTypeColor::MaterialID:
+		case EBakeMapType::ObjectSpaceNormal:
+		case EBakeMapType::FaceNormal:
+		case EBakeMapType::Position:
+		case EBakeMapType::MaterialID:
 			OpState |= UpdateResult_MeshProperty();
 			break;
-		case EBakeVertexTypeColor::Texture:
+		case EBakeMapType::Texture:
 			OpState |= UpdateResult_Texture2DImage();
 			break;
-		case EBakeVertexTypeColor::MultiTexture:
+		case EBakeMapType::MultiTexture:
 			OpState |= UpdateResult_MultiTexture();
+			break;
+		default:
 			break;
 		}
 	}
-	else // CachedBakeSettings.VertexMode == EBakeVertexMode::PerChannel
+	else // CachedBakeSettings.VertexMode == EBakeVertexOutput::PerChannel
 	{
 		// The enabled state of these settings are precomputed in UpdateOnModeChange().
 		if (OcclusionSettings->IsPropertySetEnabled())
@@ -737,15 +709,6 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 		return;
 	}
 
-	if (!Compute)
-	{
-		Compute = MakeUnique<TGenericDataBackgroundCompute<FMeshVertexBaker>>();
-		Compute->Setup(this);
-		Compute->OnResultUpdated.AddLambda([this](const TUniquePtr<FMeshVertexBaker>& NewResult)
-		{
-			OnResultUpdated(NewResult);
-		});
-	}
 	Compute->InvalidateResult();
 	OpState = EBakeOpState::Clean;
 }
@@ -772,7 +735,7 @@ void UBakeMeshAttributeVertexTool::OnResultUpdated(const TUniquePtr<FMeshVertexB
 	PreviewMesh->NotifyDeferredEditCompleted(UPreviewMesh::ERenderUpdateMode::FastUpdate, EMeshRenderAttributeFlags::VertexColors, false);
 	UpdateVisualization();
 
-	GatherAnalytics(*NewResult, CachedBakeSettings, CachedColorSettings, CachedChannelSettings, BakeAnalytics);
+	GatherAnalytics(*NewResult, CachedBakeSettings, BakeAnalytics);
 }
 
 EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Normal()
@@ -804,7 +767,7 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Curvature()
 	EBakeOpState ResultState = EBakeOpState::Clean;
 
 	FCurvatureMapSettings CurvatureMapSettings;
-	CurvatureMapSettings.RangeMultiplier = CurvatureSettings->RangeMultiplier;
+	CurvatureMapSettings.RangeMultiplier = CurvatureSettings->ColorRangeMultiplier;
 	CurvatureMapSettings.MinRangeMultiplier = CurvatureSettings->MinRangeMultiplier;
 	switch (CurvatureSettings->CurvatureType)
 	{
@@ -822,7 +785,7 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Curvature()
 		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapEvaluator::ECurvatureType::MinPrincipal;
 		break;
 	}
-	switch (CurvatureSettings->ColorMode)
+	switch (CurvatureSettings->ColorMapping)
 	{
 	default:
 	case EBakedCurvatureColorMode::Grayscale:
@@ -841,10 +804,10 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_Curvature()
 	case EBakedCurvatureClampMode::None:
 		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapEvaluator::EClampMode::FullRange;
 		break;
-	case EBakedCurvatureClampMode::Positive:
+	case EBakedCurvatureClampMode::OnlyPositive:
 		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapEvaluator::EClampMode::Positive;
 		break;
-	case EBakedCurvatureClampMode::Negative:
+	case EBakedCurvatureClampMode::OnlyNegative:
 		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapEvaluator::EClampMode::Negative;
 		break;
 	}
@@ -915,35 +878,24 @@ EBakeOpState UBakeMeshAttributeVertexTool::UpdateResult_MultiTexture()
 		return EBakeOpState::Invalid;
 	}
 
-	for (auto& InputTexture : MultiTextureSettings->MaterialIDSourceTextureMap)
-	{
-		if (InputTexture.Value == nullptr)
-		{
-			GetToolManager()->DisplayMessage(LOCTEXT("InvalidTextureWarning", "The Source Texture is not valid"), EToolMessageLevel::UserWarning);
-			return EBakeOpState::Invalid;
-		}
-	}
-
+	const int NumMaterialIDs = MultiTextureSettings->MaterialIDSourceTextures.Num();
 	CachedMultiTextures.Reset();
-
-	for (auto& InputTexture : MultiTextureSettings->MaterialIDSourceTextureMap)
+	CachedMultiTextures.SetNum(NumMaterialIDs);
+	int NumValidTextures = 0;
+	for ( int MaterialID = 0; MaterialID < NumMaterialIDs; ++MaterialID)
 	{
-		UTexture2D* Texture = InputTexture.Value;
-		if (!ensure(Texture != nullptr))
+		if (UTexture2D* Texture = MultiTextureSettings->MaterialIDSourceTextures[MaterialID])
 		{
-			GetToolManager()->DisplayMessage(LOCTEXT("InvalidTextureWarning", "The Source Texture is not valid"), EToolMessageLevel::UserWarning);
-			return EBakeOpState::Invalid;
-		}
-
-		int32 MaterialID = InputTexture.Key;
-		CachedMultiTextures.Add(MaterialID, MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>());
-		if (!UE::AssetUtils::ReadTexture(Texture, *CachedMultiTextures[MaterialID], bPreferPlatformData))
-		{
-			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
-			return EBakeOpState::Invalid;
+			CachedMultiTextures[MaterialID] = MakeShared<TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();
+			if (!UE::AssetUtils::ReadTexture(Texture, *CachedMultiTextures[MaterialID], bPreferPlatformData))
+			{
+				GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
+				return EBakeOpState::Invalid;
+			}
+			++NumValidTextures;
 		}
 	}
-	if (CachedMultiTextures.Num() == 0)
+	if (NumValidTextures == 0)
 	{
 		GetToolManager()->DisplayMessage(LOCTEXT("InvalidTextureWarning", "The Source Texture is not valid"), EToolMessageLevel::UserWarning);
 		return EBakeOpState::Invalid;
@@ -975,8 +927,6 @@ void UBakeMeshAttributeVertexTool::GatherAnalytics(FBakeAnalytics::FMeshSettings
 void UBakeMeshAttributeVertexTool::GatherAnalytics(
 	const FMeshVertexBaker& Result,
 	const FBakeSettings& Settings,
-	const FBakeColorSettings& ColorSettings,
-	const FBakeChannelSettings& ChannelSettings,
 	FBakeAnalytics& Data)
 {
 	if (!FEngineAnalytics::IsAvailable())
@@ -986,8 +936,6 @@ void UBakeMeshAttributeVertexTool::GatherAnalytics(
 	
 	Data.TotalBakeDuration = Result.TotalBakeDuration;
 	Data.BakeSettings = Settings;
-	Data.BakeColorSettings = ColorSettings;
-	Data.BakeChannelSettings = ChannelSettings;
 
 	auto GatherEvaluatorData = [&Data](const FMeshMapEvaluator* Eval)
 	{
@@ -1020,7 +968,7 @@ void UBakeMeshAttributeVertexTool::GatherAnalytics(
 		}
 	};
 
-	if (Result.BakeMode == FMeshVertexBaker::EBakeMode::Color)
+	if (Result.BakeMode == FMeshVertexBaker::EBakeMode::RGBA)
 	{
 		GatherEvaluatorData(Result.ColorEvaluator.Get());
 	}
@@ -1053,13 +1001,12 @@ void UBakeMeshAttributeVertexTool::RecordAnalytics(const FBakeAnalytics& Data, c
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Input.DetailMesh.NumTriangles"), Data.MeshSettings.NumDetailMeshTris));
 
 	// Bake settings
-	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Thickness"), Data.BakeSettings.Thickness));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Split.NormalSeams"), Data.BakeSettings.bSplitAtNormalSeams));
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Split.UVSeams"), Data.BakeSettings.bSplitAtUVSeams));
-	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Thickness"), Data.BakeSettings.Thickness));
-	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.UseWorldSpace"), Data.BakeSettings.bUseWorldSpace));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.ProjectionDistance"), Data.BakeSettings.ProjectionDistance));
+	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.ProjectionInWorldSpace"), Data.BakeSettings.bProjectionInWorldSpace));
 
-	const FString OutputType = Data.BakeSettings.VertexMode == EBakeVertexMode::Color ? TEXT("RGBA") : TEXT("PerChannel");
+	const FString OutputType = Data.BakeSettings.OutputMode == EBakeVertexOutput::RGBA ? TEXT("RGBA") : TEXT("PerChannel");
 	Attributes.Add(FAnalyticsEventAttribute(TEXT("Settings.Output.Type"), OutputType));
 
 	auto RecordAmbientOcclusionSettings = [&Attributes, &Data](const FString& ModeName)
@@ -1086,22 +1033,22 @@ void UBakeMeshAttributeVertexTool::RecordAnalytics(const FBakeAnalytics& Data, c
 		Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.Output.%s.Curvature.ColorMode"), *ModeName), Data.CurvatureSettings.ColorMode));
 	};
 
-	if (Data.BakeSettings.VertexMode == EBakeVertexMode::Color)
+	if (Data.BakeSettings.OutputMode == EBakeVertexOutput::RGBA)
 	{
 		const FString OutputName(TEXT("RGBA"));
 
-		FString OutputTypeName = StaticEnum<EBakeVertexTypeColor>()->GetNameStringByIndex(static_cast<int>(Data.BakeColorSettings.BakeType));
+		FString OutputTypeName = StaticEnum<EBakeMapType>()->GetNameStringByValue(static_cast<int>(Data.BakeSettings.OutputType));
 		Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.Output.%s.Type"), *OutputName), OutputTypeName));
 
-		switch (Data.BakeColorSettings.BakeType)
+		switch (Data.BakeSettings.OutputType)
 		{
-		case EBakeVertexTypeColor::AmbientOcclusion:
+		case EBakeMapType::AmbientOcclusion:
 			RecordAmbientOcclusionSettings(OutputName);
 			break;
-		case EBakeVertexTypeColor::BentNormal:
+		case EBakeMapType::BentNormal:
 			RecordBentNormalSettings(OutputName);
 			break;
-		case EBakeVertexTypeColor::Curvature:
+		case EBakeMapType::Curvature:
 			RecordCurvatureSettings(OutputName);
 			break;
 		default:
@@ -1110,19 +1057,19 @@ void UBakeMeshAttributeVertexTool::RecordAnalytics(const FBakeAnalytics& Data, c
 	}
 	else
 	{
-		ensure(Data.BakeSettings.VertexMode == EBakeVertexMode::PerChannel);
+		ensure(Data.BakeSettings.OutputMode == EBakeVertexOutput::PerChannel);
 		for (int EvalId = 0; EvalId < 4; ++EvalId)
 		{
 			FString OutputName = StaticEnum<EBakeVertexChannel>()->GetNameStringByIndex(EvalId);
-			FString OutputTypeName = StaticEnum<EBakeVertexTypeChannel>()->GetNameStringByIndex(static_cast<int>(Data.BakeChannelSettings.BakeType[EvalId]));
+			FString OutputTypeName = StaticEnum<EBakeMapType>()->GetNameStringByValue(static_cast<int>(Data.BakeSettings.OutputTypePerChannel[EvalId]));
 			Attributes.Add(FAnalyticsEventAttribute(FString::Printf(TEXT("Settings.Output.%s.Type"), *OutputName), OutputTypeName));
 
-			switch (Data.BakeChannelSettings.BakeType[EvalId])
+			switch (Data.BakeSettings.OutputTypePerChannel[EvalId])
 			{
-			case EBakeVertexTypeChannel::AmbientOcclusion:
+			case EBakeMapType::AmbientOcclusion:
 				RecordAmbientOcclusionSettings(OutputName);
 				break;
-			case EBakeVertexTypeChannel::Curvature:
+			case EBakeMapType::Curvature:
 				RecordCurvatureSettings(OutputName);
 				break;
 			default:

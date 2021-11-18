@@ -585,14 +585,14 @@ static bool FillSkelMeshImporterFromApexDestructibleAsset(FSkeletalMeshImportDat
 		}
 
 		// UVs
-		TArray<FVector2D> UVs[apex::VertexFormat::MAX_UV_COUNT];
+		TArray<FVector2f> UVs[apex::VertexFormat::MAX_UV_COUNT];
 		for (uint32 UVNum = 0; UVNum < ImportData.NumTexCoords; ++UVNum)
 		{
 			const PxI32 UVBufferIndex = VBFormat.getBufferIndexFromID(VBFormat.getSemanticID((apex::RenderVertexSemantic::Enum)(apex::RenderVertexSemantic::TEXCOORD0 + UVNum)));
 			UVs[UVNum].AddUninitialized(SubmeshVertexCount);
-			if (!VB.getBufferData(&UVs[UVNum][0].X, apex::RenderDataFormat::FLOAT2, sizeof(FVector2D), UVBufferIndex, 0, SubmeshVertexCount))
+			if (!VB.getBufferData(&UVs[UVNum][0].X, apex::RenderDataFormat::FLOAT2, sizeof(FVector2f), UVBufferIndex, 0, SubmeshVertexCount))
 			{
-				FMemory::Memset(&UVs[UVNum][0].X, 0, SubmeshVertexCount*sizeof(FVector2D));	// Fill with zeros
+				FMemory::Memset(&UVs[UVNum][0].X, 0, SubmeshVertexCount*sizeof(FVector2f));	// Fill with zeros
 			}
 		}
 
@@ -651,11 +651,11 @@ static bool FillSkelMeshImporterFromApexDestructibleAsset(FSkeletalMeshImportDat
 					Wedge.Reserved = 0;
 					for (uint32 UVNum = 0; UVNum < ImportData.NumTexCoords; ++UVNum)
 					{
-						const FVector2D& UV = UVs[UVNum][SubmeshVertexIndex[V]];
+						const FVector2f& UV = UVs[UVNum][SubmeshVertexIndex[V]];
 #if !INVERT_Y_AND_V
 						Wedge.UVs[UVNum] = UV;
 #else
-						Wedge.UVs[UVNum] = FVector2D(UV.X, 1.0f-UV.Y);
+						Wedge.UVs[UVNum] = FVector2f(UV.X, 1.0f-UV.Y);
 #endif
 					}
 				}
@@ -918,7 +918,7 @@ bool SetApexDestructibleAsset(UDestructibleMesh& DestructibleMesh, apex::Destruc
 		// Create actual rendering data.
 		if (!MeshUtilities.BuildSkeletalMesh(DestructibleMeshResource.LODModels[0], DestructibleMesh.GetPathName(), DestructibleMesh.RefSkeleton, LODInfluences,LODWedges,LODFaces,LODPoints,LODPointToRawMap,BuildOptions))
 		{
-			DestructibleMesh.MarkPendingKill();
+			DestructibleMesh.MarkAsGarbage();
 
 			return false;
 		}

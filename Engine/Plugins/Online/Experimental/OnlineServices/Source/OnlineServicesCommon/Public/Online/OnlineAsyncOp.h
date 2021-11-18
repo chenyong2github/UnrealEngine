@@ -27,7 +27,6 @@ enum class EOnlineAsyncExecutionPolicy : uint8
 	RunImmediately		// Call immediately, in the current thread
 };
 
-// TODO
 class FOnlineAsyncExecutionPolicy
 {
 public:
@@ -547,12 +546,11 @@ public:
 		return *this;
 	}
 
-	// placeholder
-	template <typename... U>
-	void Enqueue(U&&...)
+	template <typename QueueType>
+	void Enqueue(QueueType& Queue)
 	{
 		static_assert(std::is_same_v<T, void>, "Continuation result discarded. Continuation prior to calling Enqueue must have a void or TFuture<void> return type.");
-		OwningOperation.Enqueue();
+		OwningOperation.Enqueue(Queue);
 	}
 
 	TOnlineAsyncOp<OpType>& GetOwningOperation()
@@ -606,6 +604,11 @@ public:
 		return SharedState->State >= EAsyncOpState::Complete;
 	}
 
+	EAsyncOpState GetState() const
+	{
+		return SharedState->State;
+	}
+
 	const ParamsType& GetParams() const
 	{
 		return SharedState->Params;
@@ -625,34 +628,33 @@ public:
 
 	void Cancel(const FOnlineError& Reason)
 	{
-		SetError(Reason);
-		SharedState->State = EAsyncOpState::Cancelled;
+		SetResultAndState(TOnlineResult<OpType>(Reason), EAsyncOpState::Cancelled);
 	}
 
 	void SetResult(ResultType&& InResult)
 	{
-		SharedState->Result = TOnlineResult<OpType>(MoveTemp(InResult));
-		SharedState->State = EAsyncOpState::Complete;
-
-		TriggerOnComplete(SharedState->Result);
+		SetResultAndState(TOnlineResult<OpType>(MoveTemp(InResult)), EAsyncOpState::Complete);
 	}
 
 	virtual void SetError(FOnlineError&& Error)
 	{
-		SharedState->Result = TOnlineResult<OpType>(MoveTemp(Error));
-		SharedState->State = EAsyncOpState::Complete;
-
-		TriggerOnComplete(SharedState->Result);
+		SetResultAndState(TOnlineResult<OpType>(MoveTemp(Error)), EAsyncOpState::Complete);
 	}
 
 	FOnlineServicesCommon& GetServices() { return Services; }
 
-	template <typename... U>
-	void Enqueue(U&&...)
+	template <typename QueueType>
+	void Enqueue(QueueType& Queue)
 	{
-		// placeholder
+		check(SharedState->State < EAsyncOpState::Queued);
 		SharedState->State = EAsyncOpState::Queued;
+		Queue.Enqueue(*this);
+	}
+
+	void Start()
+	{
 		SharedState->State = EAsyncOpState::Running;
+		OnStartEvent.Broadcast(*this);
 		ExecuteNextStep();
 	}
 
@@ -716,8 +718,24 @@ public:
 		}
 	}
 
+	TOnlineEvent<void(const TOnlineAsyncOp<OpType>&)> OnStart() { return OnStartEvent; }
+	TOnlineEvent<void(const TOnlineAsyncOp<OpType>&, const TOnlineResult<OpType>&)> OnComplete() { return OnCompleteEvent; }
+
 protected:
 	FOnlineServicesCommon& Services;
+
+	void SetResultAndState(TOnlineResult<OpType>&& Result, EAsyncOpState State)
+	{
+		if (SharedState->State <= EAsyncOpState::Queued)
+		{
+			OnStartEvent.Broadcast(*this);
+		}
+
+		SharedState->Result = MoveTemp(Result);
+		SharedState->State = State;
+
+		TriggerOnComplete(SharedState->Result);
+	}
 
 	void TriggerOnComplete(const TOnlineResult<OpType>& Result)
 	{
@@ -727,7 +745,7 @@ protected:
 			SharedHandleState->TriggerOnComplete(Result);
 		}
 
-		OnCompleteEvent.Broadcast(Result);
+		OnCompleteEvent.Broadcast(*this, Result);
 	}
 
 	class FAsyncOpSharedState
@@ -843,11 +861,15 @@ protected:
 	TSharedRef<FAsyncOpSharedState> SharedState;
 	TArray<TSharedRef<FAsyncOpSharedHandleState>> SharedHandleStates;
 	TArray<TUniquePtr<Private::IStep>> Steps;
-	TOnlineEventCallable<void(const TOnlineResult<OpType>&)> OnCompleteEvent;
+	TOnlineEventCallable<void(const TOnlineAsyncOp<OpType>&)> OnStartEvent;
+	TOnlineEventCallable<void(const TOnlineAsyncOp<OpType>&, const TOnlineResult<OpType>&)> OnCompleteEvent;
 	int NextStep = 0;
 
 	friend class FOnlineAsyncOpCache;
 };
+
+template <typename OpType>
+using TOnlineAsyncOpRef = TSharedRef<TOnlineAsyncOp<OpType>>;
 
 namespace Private {
 

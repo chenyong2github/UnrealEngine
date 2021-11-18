@@ -182,8 +182,8 @@ void FVPUtilitiesEditorModule::InitializeOSCServer()
 	{
 		if (ListenerPath.IsValid())
 		{
-			UObject* Object = ListenerPath.TryLoad();
-			if (Object && !Object->IsPendingKillOrUnreachable() && GEditor)
+			UObject* Object = GetValid(ListenerPath.TryLoad());
+			if (Object && GEditor)
 			{
 				GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>()->TryRun(Object);
 			}

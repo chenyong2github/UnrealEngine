@@ -128,7 +128,7 @@ namespace CADKernel
 			Segments.Emplace(StartPoint, EndPoint);
 		}
 
-		bool DoesIntersect(const FIsoSegment& Segment) const;
+		const FIsoSegment* DoesIntersect(const FIsoSegment& Segment) const;
 
 		/**
 		 * WARNING StartPoint, EndPoint must be defined in EGridSpace::UniformScaled
@@ -144,7 +144,7 @@ namespace CADKernel
 		/**
 		 * Allow StartNode and EndNode to be connected to one segment
 		 */
-		bool DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const;
+		const FIsoSegment* DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const;
 
 		/**
 		 * segments are sorted by DMin increasing

@@ -9,7 +9,16 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
-void FSubobjectFoliageInfoData::Save(UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo, const FCustomVersionContainer& VersionInfo)
+FArchive& UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::SerializeInternal(FArchive& Ar)
+{
+	Ar << static_cast<FFoliageInfoData&>(*this);
+	Ar << Class;
+	Ar << SubobjectName;
+	Ar << SerializedSubobjectData;
+	return Ar;
+}
+
+void UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::Save(UFoliageType* FoliageSubobject, FFoliageInfo& FoliageInfo, const FCustomVersionContainer& VersionInfo)
 {
 	FFoliageInfoData::Save(FoliageInfo, VersionInfo);
 
@@ -22,7 +31,7 @@ void FSubobjectFoliageInfoData::Save(UFoliageType* FoliageSubobject, FFoliageInf
 	FoliageSubobject->Serialize(RootArchive);
 }
 
-UFoliageType* FSubobjectFoliageInfoData::FindOrRecreateSubobject(AInstancedFoliageActor* Outer) const
+UFoliageType* UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::FindOrRecreateSubobject(AInstancedFoliageActor* Outer) const
 {
 	if (UObject* FoundObject = StaticFindObjectFast(nullptr, Outer, SubobjectName))
 	{
@@ -33,7 +42,7 @@ UFoliageType* FSubobjectFoliageInfoData::FindOrRecreateSubobject(AInstancedFolia
 	return NewObject<UFoliageType>(Outer, Class, SubobjectName);
 }
 
-void FSubobjectFoliageInfoData::ApplyTo(UFoliageType* FoliageSubobject, const FCustomVersionContainer& VersionInfo) const
+void UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::ApplyTo(UFoliageType* FoliageSubobject, const FCustomVersionContainer& VersionInfo) const
 {
 	FMemoryReader MemoryReader(SerializedSubobjectData, true);
 	constexpr bool bLoadIfFindFails = true;
@@ -41,16 +50,7 @@ void FSubobjectFoliageInfoData::ApplyTo(UFoliageType* FoliageSubobject, const FC
 	FoliageSubobject->Serialize(RootArchive);
 }
 
-void FSubobjectFoliageInfoData::ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const
+void UE::LevelSnapshots::Foliage::Private::FSubobjectFoliageInfoData::ApplyTo(FFoliageInfo& DataToWriteInto, const FCustomVersionContainer& VersionInfo) const
 {
 	FFoliageInfoData::ApplyTo(DataToWriteInto, VersionInfo);
-}
-
-FArchive& operator<<(FArchive& Ar, FSubobjectFoliageInfoData& Data)
-{
-	Ar << static_cast<FFoliageInfoData&>(Data);
-	Ar << Data.Class;
-	Ar << Data.SubobjectName;
-	Ar << Data.SerializedSubobjectData;
-	return Ar;
 }

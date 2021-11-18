@@ -25,6 +25,14 @@ struct USDEXPORTER_API FLevelExporterUSDOptionsInner
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export options" )
     bool bExportActorFolders = false;
 
+	/** If true, and if we have a level sequence animating the level during export, it will revert any actor or component to its unanimated state before writing to USD */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export options" )
+	bool bIgnoreSequencerAnimations = false;
+
+	/** Where to place all the generated asset files */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Asset options" )
+	FDirectoryPath AssetFolder;
+
 	/** Options to use for all exported assets when appropriate (e.g. static and skeletal meshes, materials, etc.) */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Asset options", meta = ( ShowOnlyInnerProperties ) )
 	FUsdMeshAssetOptions AssetOptions;
@@ -43,10 +51,6 @@ struct USDEXPORTER_API FLevelExporterUSDOptionsInner
 	/** Resolution to use when baking landscape materials into textures  */
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Landscape options", meta = ( ClampMin = "1" ) )
 	FIntPoint LandscapeBakeResolution = FIntPoint( 1024, 1024 );
-
-	/** If true, and if we have a level sequence animating the level during export, it will revert any actor or component to its unanimated state before writing to USD */
-	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
-	bool bIgnoreSequencerAnimations = false;
 
 	/** If true, will export sub-levels as separate layers (referenced as sublayers). If false, will collapse all sub-levels in a single exported root layer */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Sublayers" )
@@ -72,11 +76,11 @@ public:
 
 	/** StartTimeCode to be used for all exported layers */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options" )
-    float StartTimeCode;
+    float StartTimeCode = 0.0f;
 
 	/** EndTimeCode to be used for all exported layers */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Stage options" )
-    float EndTimeCode;
+    float EndTimeCode = 0.0f;
 
 	/** Inner struct that actually contains most of the export options */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( ShowOnlyInnerProperties ) )

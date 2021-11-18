@@ -10,6 +10,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "Internationalization/Text.h"
+#include "IMediaControls.h"
 #include "IMediaSamples.h"
 #include "IMediaTracks.h"
 #include "Math/IntPoint.h"
@@ -178,6 +179,13 @@ public:
 	 * @see Initialize, IsInitialized
 	 */
 	void Shutdown();
+
+	/**
+	 * Call this to pass on the session state to us.
+	 *
+	 * @param InState State of session.
+	 */
+	void SetSessionState(EMediaState InState);
 
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	/**
@@ -362,6 +370,9 @@ private:
 
 	/** Caches the value from GetDuration. */
 	FTimespan CachedDuration;
+
+	/** Current state of the session. */
+	EMediaState SessionState;
 
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	/** If set, then discard samples until we get this sample. */

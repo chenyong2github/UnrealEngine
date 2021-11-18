@@ -147,8 +147,8 @@ public:
 	* @param OutTexCoords - New set of UV coordinates
 	* @return bool - whether or not generating the UVs succeeded
 	*/
-	virtual bool GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, TArray<FVector2D>& OutTexCoords) const = 0;
-	virtual bool GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords) const = 0;
+	virtual bool GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, TArray<FVector2f>& OutTexCoords) const = 0;
+	virtual bool GenerateUniqueUVsForStaticMesh(const FRawMesh& RawMesh, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2f>& OutTexCoords) const = 0;
 	
 	/** Returns the mesh reduction plugin if available. */
 	virtual IMeshReduction* GetStaticMeshReductionInterface() = 0;
@@ -345,7 +345,7 @@ public:
 	* @param OutTexCoords - New set of UV coordinates
 	* @return bool - whether or not generating the UVs succeeded
 	*/
-	virtual bool GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODModel& LODModel, int32 TextureResolution, TArray<FVector2D>& OutTexCoords) const = 0;
+	virtual bool GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODModel& LODModel, int32 TextureResolution, TArray<FVector2f>& OutTexCoords) const = 0;
 	
 	/**
 	 * Remove Bones based on LODInfo setting
@@ -370,7 +370,7 @@ public:
 	 * @param OutTangentY Array to hold calculated Bitangents
 	 * @param OutNormals Array to hold calculated normals (if already contains normals will use those instead for the tangent calculation)	
 	 */
-	virtual void CalculateTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY, TArray<FVector3f>& OutNormals) const = 0;
+	virtual void CalculateTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2f>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY, TArray<FVector3f>& OutNormals) const = 0;
 
 	/**
 	 * Calculates MikkTSpace Tangents for a given set of vertex data with normals provided
@@ -383,7 +383,7 @@ public:
 	 * @param OutTangentX Array to hold calculated Tangents
 	 * @param OutTangentY Array to hold calculated Bitangents
 	 */
-	virtual void CalculateMikkTSpaceTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<FVector3f>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY) const = 0;
+	virtual void CalculateMikkTSpaceTangents(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2f>& InUVs, const TArray<FVector3f>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector3f>& OutTangentX, TArray<FVector3f>& OutTangentY) const = 0;
 
 	/** 
 	 * Calculates Normals for a given set of vertex data
@@ -395,7 +395,7 @@ public:
 	 * @param InTangentOptions Flags for Tangent calculation
 	 * @param OutNormals Array to hold calculated normals	
 	 */
-	virtual void CalculateNormals(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutNormals) const = 0;
+	virtual void CalculateNormals(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2f>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector3f>& OutNormals) const = 0;
 
 	/** 
 	 * Calculates the overlapping corners for a given set of vertex data

@@ -68,7 +68,7 @@ struct FPackedView
 	FVector3f	MatrixTilePosition;
 	uint32		Padding1;
 
-	FVector2D	LODScales;
+	FVector2f	LODScales;
 	float		MinBoundsRadiusSq;
 	uint32		StreamingPriorityCategory_AndFlags;
 
