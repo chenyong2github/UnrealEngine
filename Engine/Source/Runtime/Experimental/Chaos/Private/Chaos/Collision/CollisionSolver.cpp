@@ -532,6 +532,7 @@ namespace Chaos
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters)
 		{
+#if 0
 			FSolverBody& Body0 = *Constraint.GetSolverBody0();
 			FSolverBody& Body1 = *Constraint.GetSolverBody1();
 
@@ -604,6 +605,7 @@ namespace Chaos
 				Body1.ApplyTransformDelta(DX1, DR1);
 				Body1.UpdateRotationDependentState();
 			}
+#endif
 		}
 
 

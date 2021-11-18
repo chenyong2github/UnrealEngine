@@ -322,12 +322,6 @@ namespace Chaos
 
 		TArrayView<FManifoldPoint> GetManifoldPoints() { return MakeArrayView(ManifoldPoints); }
 		TArrayView<const FManifoldPoint> GetManifoldPoints() const { return MakeArrayView(ManifoldPoints); }
-		FManifoldPoint& SetActiveManifoldPoint(
-			int32 ManifoldPointIndex,
-			const FVec3& P0,
-			const FRotation3& Q0,
-			const FVec3& P1,
-			const FRotation3& Q1);
 
 		void AddIncrementalManifoldContact(const FContactPoint& ContactPoint, const FReal Dt);
 		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt);
@@ -336,7 +330,7 @@ namespace Chaos
 
 		//@ todo(chaos): These are for the collision forwarding system - this should use the collision modifier system (which should be extended to support adding collisions)
 		void SetManifoldPoints(const TArray<FManifoldPoint>& InManifoldPoints) { ManifoldPoints = InManifoldPoints; }
-		void UpdateManifoldPointFromContact(FManifoldPoint& ManifoldPoint);
+		void UpdateManifoldPointFromContact(const int32 ManifoldPointIndex);
 
 		// Helpers for interacting with constraint from world space
 		static void GetWorldSpaceContactPositions(const FManifoldPoint& ManifoldPoint, const FVec3& PCoM0, const FRotation3& QCoM0, const FVec3& PCoM1, const FRotation3& QCoM1, FVec3& OutWorldPosition0, FVec3& OutWorldPosition1);
@@ -419,7 +413,7 @@ namespace Chaos
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;
 		int32 AddManifoldPoint(const FContactPoint& ContactPoint, const FReal Dt);
-		void InitManifoldPoint(FManifoldPoint& ManifoldPoint, FReal Dt);
+		void InitManifoldPoint(const int32 ManifoldPointIndex, FReal Dt);
 		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint, const FReal Dt);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 		void GetWorldSpaceManifoldPoint(const FManifoldPoint& ManifoldPoint, const FVec3& P0, const FRotation3& Q0, const FVec3& P1, const FRotation3& Q1, FVec3& OutContactLocation, FReal& OutContactPhi);
@@ -432,7 +426,7 @@ namespace Chaos
 		/**
 		 * @brief Restore data used for static friction from the previous point(s) to the current
 		*/
-		bool TryRestoreFrictionData(FManifoldPoint& ManifoldPoint);
+		bool TryRestoreFrictionData(const int32 ManifoldPointIndex);
 
 	public:
 		//@todo(chaos): make this stuff private
