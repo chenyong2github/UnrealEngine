@@ -3313,14 +3313,6 @@ namespace AutomationScripts
 		{
 			LogInformation("Executing {0} UnrealPak command{1}...", Commands.Count, (Commands.Count > 1)? "s" : "");
 
-			// Stash these off and restore later.  We most likely cannot spawn the max number of threads to run UnrealPak.
-			ThreadPool.GetMaxThreads(out int MaxWorkerThreads, out int MaxCompletionPortThreads);
-			if (MaxWorkerThreads > Environment.ProcessorCount || MaxCompletionPortThreads > Environment.ProcessorCount)
-			{
-				ThreadPool.SetMaxThreads(Environment.ProcessorCount, Environment.ProcessorCount);
-				LogInformation($"Lowering ThreadPool.MaxThreads: {Environment.ProcessorCount} Workers / {Environment.ProcessorCount} IO");
-			}
-
 			// Spawn tasks for each command
 			IProcessResult[] Results = new IProcessResult[Commands.Count];
 			using(ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
@@ -3362,9 +3354,6 @@ namespace AutomationScripts
 					NumFailed++;
 				}
 			}
-
-			// Restore the ThreadPool values
-			ThreadPool.SetMaxThreads(MaxWorkerThreads, MaxCompletionPortThreads);
 
 			// Abort if any instance failed
 			if(NumFailed > 0)
