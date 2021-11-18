@@ -6,7 +6,6 @@
 #include "Properties/MeshMaterialProperties.h"
 #include "Util/RevolveUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& MaterialProperties,

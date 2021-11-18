@@ -6,7 +6,6 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "DynamicMesh/MeshIndexUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FExtrudeMesh::FExtrudeMesh(FDynamicMesh3* mesh) : Mesh(mesh)

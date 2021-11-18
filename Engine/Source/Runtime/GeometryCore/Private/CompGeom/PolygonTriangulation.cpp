@@ -3,7 +3,6 @@
 #include "CompGeom/PolygonTriangulation.h"
 #include "TriangleTypes.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 // explicit instantiations

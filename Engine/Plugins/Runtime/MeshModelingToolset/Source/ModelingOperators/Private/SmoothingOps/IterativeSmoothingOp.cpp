@@ -3,7 +3,6 @@
 #include "SmoothingOps/IterativeSmoothingOp.h"
 #include "Solvers/MeshSmoothing.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FIterativeSmoothingOp::FIterativeSmoothingOp(const FDynamicMesh3* Mesh, const FSmoothingOpBase::FOptions& OptionsIn) :

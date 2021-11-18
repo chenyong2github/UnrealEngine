@@ -12,7 +12,6 @@
 #include "ModelingToolTargetUtil.h"
 #include "Curves/RichCurve.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDeformMeshPolygonsTool"

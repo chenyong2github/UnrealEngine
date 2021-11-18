@@ -3,7 +3,6 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Async/ParallelFor.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FIndex2i FDynamicMesh3::GetEdgeOpposingV(int eID) const

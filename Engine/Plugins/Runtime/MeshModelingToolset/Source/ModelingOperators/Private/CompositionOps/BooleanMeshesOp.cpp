@@ -6,7 +6,6 @@
 #include "MeshBoundaryLoops.h"
 #include "Operations/MinimalHoleFiller.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FBooleanMeshesOp::SetTransform(const FTransform& Transform) {

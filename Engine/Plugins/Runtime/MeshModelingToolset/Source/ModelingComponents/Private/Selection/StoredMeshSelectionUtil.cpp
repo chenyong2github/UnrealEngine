@@ -8,7 +8,6 @@
 #include "InteractiveToolManager.h"
 #include "GroupTopology.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 

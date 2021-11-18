@@ -5,7 +5,6 @@
 
 #include "Util/ProgressCancel.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FGroupEdgeInsertionOp::SetTransform(const FTransform& Transform) {

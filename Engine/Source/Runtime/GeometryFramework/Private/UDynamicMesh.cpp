@@ -13,7 +13,6 @@
 #include "Engine/Engine.h"
 #include "Generators/MinimalBoxMeshGenerator.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 

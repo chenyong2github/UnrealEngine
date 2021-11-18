@@ -4,7 +4,6 @@
 #include "Sampling/MeshMapBaker.h"
 #include "Util/ColorConstants.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)

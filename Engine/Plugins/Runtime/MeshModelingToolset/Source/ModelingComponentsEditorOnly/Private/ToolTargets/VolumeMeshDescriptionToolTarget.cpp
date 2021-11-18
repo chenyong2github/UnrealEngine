@@ -11,7 +11,6 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "StaticMeshAttributes.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 const FMeshDescription* UVolumeMeshDescriptionToolTarget::GetMeshDescription()

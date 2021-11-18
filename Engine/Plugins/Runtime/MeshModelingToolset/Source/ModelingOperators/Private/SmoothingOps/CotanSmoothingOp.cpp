@@ -5,7 +5,6 @@
 #include "Solvers/ConstrainedMeshSmoother.h"
 #include "DynamicMesh/MeshNormals.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FCotanSmoothingOp::FCotanSmoothingOp(const FDynamicMesh3* Mesh, const FSmoothingOpBase::FOptions& OptionsIn) :

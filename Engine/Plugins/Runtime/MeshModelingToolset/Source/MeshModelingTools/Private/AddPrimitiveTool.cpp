@@ -27,7 +27,6 @@
 #include "UObject/PropertyIterator.h"
 #include "UObject/UnrealType.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UAddPrimitiveTool"

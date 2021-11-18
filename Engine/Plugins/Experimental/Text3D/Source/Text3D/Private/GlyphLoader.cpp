@@ -7,7 +7,6 @@
 #include "Curve/DynamicGraph2.h"
 #include "Polygon2.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FGlyphLoader::FGlyphLoader(const FT_GlyphSlot Glyph) :

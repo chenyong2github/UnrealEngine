@@ -8,7 +8,6 @@
 #include "Operations/MeshPlaneCut.h"
 #include "ConstrainedDelaunay2.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 const FName FPlaneCutOp::ObjectIndexAttribute = "ObjectIndexAttribute";

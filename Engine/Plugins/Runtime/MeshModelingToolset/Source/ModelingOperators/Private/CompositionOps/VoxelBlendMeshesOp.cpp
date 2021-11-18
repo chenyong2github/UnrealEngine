@@ -12,7 +12,6 @@
 #include "Implicit/Solidify.h"
 #include "Implicit/Blend.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FVoxelBlendMeshesOp::SetTransform(const FTransform& Transform) {

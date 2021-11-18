@@ -18,7 +18,6 @@
 #include "Engine/Classes/Engine/Polys.h"
 #endif
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 namespace UE {

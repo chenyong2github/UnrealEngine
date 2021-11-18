@@ -8,7 +8,6 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 static bool ReadTexture_PlatformData(

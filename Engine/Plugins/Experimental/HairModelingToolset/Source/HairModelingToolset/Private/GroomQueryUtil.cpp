@@ -8,7 +8,6 @@
 #include "FaceGroupUtil.h"
 #include "HairCardsBuilder.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 const UE::GroomQueries::FMeshCardStrip& UE::GroomQueries::FMeshCardStripSet::FindStripForGroup(int32 GroupIdx) const

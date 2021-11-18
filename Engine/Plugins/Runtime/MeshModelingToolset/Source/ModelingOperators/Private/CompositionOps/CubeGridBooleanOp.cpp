@@ -9,7 +9,6 @@
 #include "MeshSimplification.h"
 #include "Operations/MeshBoolean.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 namespace CubeGridBooleanOpLocals

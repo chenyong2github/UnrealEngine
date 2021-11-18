@@ -7,7 +7,6 @@
 #include "Selections/MeshFaceSelection.h"
 #include "Selections/MeshVertexSelection.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 // convert vertex selection to edge selection. Require at least minCount verts of edge to be selected

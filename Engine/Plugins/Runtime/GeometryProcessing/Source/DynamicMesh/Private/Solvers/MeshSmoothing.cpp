@@ -5,7 +5,6 @@
 #include "Solvers/Internal/ConstrainedMeshSmoothers.h"
 #include "MeshWeights.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void UE::MeshDeformation::ComputeSmoothing_BiHarmonic(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& OriginalMesh,

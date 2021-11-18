@@ -8,7 +8,6 @@
 #include "ThirdParty/GTEngine/Mathematics/GteUIntegerAP32.h"
 #include "ThirdParty/GTEngine/Mathematics/GteMinimumVolumeSphere3.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 using namespace UE::Math;
 

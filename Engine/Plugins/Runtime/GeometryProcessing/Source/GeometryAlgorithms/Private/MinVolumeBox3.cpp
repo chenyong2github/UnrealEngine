@@ -24,7 +24,6 @@ THIRD_PARTY_INCLUDES_END
 #include "Util/ProgressCancel.h"
 #include "Util/IteratorUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 using namespace UE::Math;
 

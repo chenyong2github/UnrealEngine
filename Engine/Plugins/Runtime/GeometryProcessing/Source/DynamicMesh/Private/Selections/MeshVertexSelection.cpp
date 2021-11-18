@@ -6,7 +6,6 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 // convert face selection to vertex selection. 

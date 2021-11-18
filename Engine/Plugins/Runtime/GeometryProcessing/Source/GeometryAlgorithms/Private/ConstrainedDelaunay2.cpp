@@ -7,7 +7,6 @@
 #include "Async/ParallelFor.h"
 #include <vector>
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 //namespace

@@ -23,7 +23,6 @@
 
 #include "EngineAnalytics.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 #include "Sampling/MeshCurvatureMapEvaluator.h"
 #include "Sampling/MeshResampleImageEvaluator.h"
 using namespace UE::Geometry;

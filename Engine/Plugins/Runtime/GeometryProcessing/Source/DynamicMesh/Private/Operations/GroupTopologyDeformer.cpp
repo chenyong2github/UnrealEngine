@@ -8,7 +8,6 @@
 #include "Containers/BitArray.h"
 #include "DynamicMesh/MeshNormals.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FGroupTopologyDeformer::Initialize(const FDynamicMesh3* MeshIn, const FGroupTopology* TopologyIn)

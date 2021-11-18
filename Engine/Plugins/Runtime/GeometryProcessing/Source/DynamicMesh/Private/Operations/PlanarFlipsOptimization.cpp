@@ -6,7 +6,6 @@
 #include "MathUtil.h"
 #include "VectorTypes.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 namespace UE {

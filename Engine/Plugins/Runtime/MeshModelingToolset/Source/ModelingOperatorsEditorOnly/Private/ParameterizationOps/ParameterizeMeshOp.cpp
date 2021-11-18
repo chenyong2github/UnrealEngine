@@ -24,7 +24,6 @@
 #include "ProxyLODParameterization.h"
 #endif
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "ParameterizeMeshOp"

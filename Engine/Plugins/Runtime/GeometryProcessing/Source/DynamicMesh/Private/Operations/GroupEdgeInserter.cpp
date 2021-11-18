@@ -18,7 +18,6 @@
 #include "Util/ProgressCancel.h"
 #include "Util/IndexUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 // Forward declarations of local helper functions. Normally these would be marked as static or

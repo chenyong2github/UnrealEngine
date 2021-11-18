@@ -4,7 +4,6 @@
 #include "ThirdParty/GTEngine/Mathematics/GteCapsule.h"
 #include "ThirdParty/GTEngine/Mathematics/GteContCapsule3.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 using namespace UE::Math;
 

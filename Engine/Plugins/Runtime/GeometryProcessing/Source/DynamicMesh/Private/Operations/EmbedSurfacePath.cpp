@@ -7,9 +7,7 @@
 #include "SegmentTypes.h"
 #include "Distance/DistPoint3Triangle3.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FVector3d FMeshSurfacePoint::Pos(const FDynamicMesh3 *Mesh) const

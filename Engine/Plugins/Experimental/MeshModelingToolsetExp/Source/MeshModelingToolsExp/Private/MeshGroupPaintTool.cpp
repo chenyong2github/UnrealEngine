@@ -32,8 +32,6 @@
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
 
-
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshGroupPaintTool"

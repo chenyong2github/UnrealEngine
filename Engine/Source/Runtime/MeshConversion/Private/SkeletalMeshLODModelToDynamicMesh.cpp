@@ -4,7 +4,6 @@
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "ToDynamicMesh.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #if WITH_EDITOR
