@@ -1076,6 +1076,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 	const FString& ShaderBindingName,
 	int32 ReflectionOffset,
 	int32 ReflectionSize,
+	bool bPlatformSupportsPrecisionModifier,
 	FShaderCompilerOutput& CompilerOutput) const
 {
 	const FShaderParameterParser::FParsedShaderParameter& ParsedParameter = FindParameterInfos(ShaderBindingName);
@@ -1089,12 +1090,10 @@ void FShaderParameterParser::ValidateShaderParameterType(
 		check(ReflectionOffset == ParsedParameter.ConstantBufferOffset);
 	}
 
-	EShaderPlatform ShaderPlatform = EShaderPlatform(CompilerInput.Target.Platform);
-
 	// Validate the shader type.
 	{
 		FString ExpectedShaderType;
-		ParsedParameter.Member->GenerateShaderParameterType(ExpectedShaderType, ShaderPlatform);
+		ParsedParameter.Member->GenerateShaderParameterType(ExpectedShaderType, bPlatformSupportsPrecisionModifier);
 
 		const bool bShouldBeInt = ParsedParameter.Member->GetBaseType() == UBMT_INT32;
 		const bool bShouldBeUint = ParsedParameter.Member->GetBaseType() == UBMT_UINT32;
@@ -1187,6 +1186,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 
 void FShaderParameterParser::ValidateShaderParameterTypes(
 	const FShaderCompilerInput& CompilerInput,
+	bool bPlatformSupportsPrecisionModifier,
 	FShaderCompilerOutput& CompilerOutput) const
 {
 	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
@@ -1238,7 +1238,7 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 			BoundSize = ParameterAllocation->Size;
 		}
 
-		ValidateShaderParameterType(CompilerInput, ShaderBindingName, BoundOffset, BoundSize, CompilerOutput);
+		ValidateShaderParameterType(CompilerInput, ShaderBindingName, BoundOffset, BoundSize, bPlatformSupportsPrecisionModifier, CompilerOutput);
 	});
 }
 

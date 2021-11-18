@@ -2188,7 +2188,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, Frequency, CompilerInfo, Output, BindingTable, bStripReflect);
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 	
-	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
+	ShaderParameterParser.ValidateShaderParameterTypes(Input, bIsMobile, Output);
 	
 	if (bDirectCompile)
 	{
