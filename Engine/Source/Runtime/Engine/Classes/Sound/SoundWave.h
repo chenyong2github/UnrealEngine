@@ -915,6 +915,7 @@ public:
 	 * This function can be called before playing or using a SoundWave to check if any cook settings have been modified since this SoundWave was last cooked.
 	 */
 	void InvalidateSoundWaveIfNeccessary();
+
 #endif //WITH_EDITOR
 
 
@@ -922,6 +923,9 @@ public:
 
 private:
 #if WITH_EDITOR
+	// Removes any in-progress async loading data formats. 
+	void FlushAsyncLoadingDataFormats();
+
 	void BakeFFTAnalysis();
 	void BakeEnvelopeAnalysis();
 #endif //WITH_EDITOR
