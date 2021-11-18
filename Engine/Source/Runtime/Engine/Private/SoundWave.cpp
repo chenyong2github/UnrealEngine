@@ -1034,9 +1034,17 @@ void USoundWave::InvalidateCompressedData(bool bFreeResources, bool bRebuildStre
 	}
 
 #if WITH_EDITOR
+	if (bFreeResources)
+	{
+		// Flush any in-flight async loading data formats to make sure their results
+		// are not during the next call to GetCompressedData
+		FlushAsyncLoadingDataFormats();
+	}
+
 	if (bRebuildStreamingChunks)
 	{
 		CachePlatformData();
+
 		SoundWaveDataPtr->CurrentChunkRevision += 1;
 	}
 
@@ -1049,6 +1057,25 @@ void USoundWave::InvalidateCompressedData(bool bFreeResources, bool bRebuildStre
 	}
 #endif
 }
+
+#if WITH_EDITOR
+void USoundWave::FlushAsyncLoadingDataFormats()
+{
+	// Flush any async results so we don't leak them in the DDC
+	if (GetDerivedDataCache() && AsyncLoadingDataFormats.Num() > 0)
+	{
+		TArray<uint8> OutData;
+		for (auto AsyncLoadIt = AsyncLoadingDataFormats.CreateConstIterator(); AsyncLoadIt; ++AsyncLoadIt)
+		{
+			uint32 AsyncHandle = AsyncLoadIt.Value();
+			GetDerivedDataCacheRef().WaitAsynchronousCompletion(AsyncHandle);
+			GetDerivedDataCacheRef().GetAsynchronousResults(AsyncHandle, OutData);
+		}
+
+		AsyncLoadingDataFormats.Empty();
+	}
+}
+#endif
 
 bool USoundWave::HasStreamingChunks()
 {
@@ -1313,18 +1340,7 @@ void USoundWave::BeginDestroy()
 
 #if WITH_EDITOR
 	// Flush any async results so we don't leak them in the DDC
-	if (GetDerivedDataCache() && AsyncLoadingDataFormats.Num() > 0)
-	{
-		TArray<uint8> OutData;
-		for (auto AsyncLoadIt = AsyncLoadingDataFormats.CreateConstIterator(); AsyncLoadIt; ++AsyncLoadIt)
-		{
-			uint32 AsyncHandle = AsyncLoadIt.Value();
-			GetDerivedDataCacheRef().WaitAsynchronousCompletion(AsyncHandle);
-			GetDerivedDataCacheRef().GetAsynchronousResults(AsyncHandle, OutData);
-		}
-
-		AsyncLoadingDataFormats.Empty();
-	}
+	FlushAsyncLoadingDataFormats();
 #endif
 
 	ReleaseCompressedAudio();
