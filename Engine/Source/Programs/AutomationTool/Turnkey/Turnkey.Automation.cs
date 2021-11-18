@@ -102,21 +102,12 @@ namespace Turnkey
 
 		#region Visuals
 
-		[System.Runtime.InteropServices.DllImport("user32.dll")]
-		private static extern bool SetProcessDPIAware();
-
 		private static void SetupVisuals()
 		{
-			// make the form look good on modern displays!
-			if (RuntimePlatform.IsWindows && Environment.OSVersion.Version.Major >= 6)
+			if (RuntimePlatform.IsWindows)
 			{
-				SetProcessDPIAware();
+				UnrealWindowsForms.Utils.SetupVisuals();
 			}
-
-#if WINDOWS
-			System.Windows.Forms.Application.EnableVisualStyles();
-			System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
-#endif
 		}
 
 		#endregion
