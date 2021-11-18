@@ -99,7 +99,7 @@ void STableViewBase::ConstructChildren( const TAttribute<float>& InItemWidth, co
 				.AutoWidth()
 				[
 					SNew(SBox)
-					.WidthOverride( FOptionalSize( 16 ) )
+					.WidthOverride(ScrollBarSize)
 					[
 						ScrollBar.ToSharedRef()
 					]

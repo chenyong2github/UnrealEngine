@@ -18,6 +18,8 @@ void SScrollBar::Construct(const FArguments& InArgs)
 	check(InArgs._Style);
 	SetStyle(InArgs._Style);
 
+	const TAttribute<FVector2D> Thickness = InArgs._Thickness.IsSet() ? InArgs._Thickness : FVector2D(InArgs._Style->Thickness, InArgs._Style->Thickness);
+
 	EHorizontalAlignment HorizontalAlignment = Orientation == Orient_Vertical ? HAlign_Center : HAlign_Fill;
 	EVerticalAlignment VerticalAlignment = Orientation == Orient_Vertical ? VAlign_Fill : VAlign_Center;
 
@@ -60,7 +62,7 @@ void SScrollBar::Construct(const FArguments& InArgs)
 						.Padding(0.f)
 						[
 							SAssignNew(ThicknessSpacer, SSpacer)
-							.Size(InArgs._Thickness)
+							.Size(Thickness)
 						]
 					]
 					.BottomSlot()
