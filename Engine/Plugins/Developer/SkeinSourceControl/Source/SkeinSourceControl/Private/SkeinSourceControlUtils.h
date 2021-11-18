@@ -41,11 +41,16 @@ FString GetIntermediateMetadataPath(const FString& InPath, const FString& InInte
 FString GetIntermediateThumbnailPath(const FString& InPath, const FString& InIntermediateRoot = FString());
 
 /**
- * Finds out if the Skein environment is available.
- * In practice this checks if the Skein CLI application is installed at the expected location.
- * @returns true if the Skein environment can be used for source control operations.
+ * Finds out if the Skein application is installed.
+  * @returns true if the Skein application is installed.
  */
-bool IsSkeinAvailable();
+bool IsSkeinBinaryFound();
+
+/**
+ * Finds out if the Skein application is running or not.
+ * @returns true if the Skein application is idle.
+ */
+bool IsSkeinBinaryIdle();
 
 /**
   * Finds out if the given directory is part of a Skein project

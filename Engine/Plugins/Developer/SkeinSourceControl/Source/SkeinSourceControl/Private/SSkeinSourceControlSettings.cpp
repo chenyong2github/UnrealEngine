@@ -25,10 +25,10 @@ void SSkeinSourceControlSettings::Construct(const FArguments& InArgs)
 			.FillWidth(1.0f)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("SkeinCLINotFound", "The Skein Command Line application could not be found."))
+				.Text(LOCTEXT("SkeinCLINotFound", "The Skein environment is not available."))
 				.ColorAndOpacity(FLinearColor::Red)
 				.WrapTextAt(450.0f)
-				.ToolTipText(LOCTEXT("SkeinCLINotFound_Tooltip", "Without the Skein Command Line application the Unreal Editor cannot communicate to the Skein cloud server. Please make sure it's installed at the correct location."))
+				.ToolTipText(LOCTEXT("SkeinCLINotFound_Tooltip", "Without the Skein environment the Unreal Editor cannot communicate to the Skein cloud server. Please make sure it's installed at the correct location and that no other instances of the application are running."))
 			]
 		]
 		// Explanation text for missing Skein project

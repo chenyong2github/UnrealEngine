@@ -92,12 +92,20 @@ private:
 	ECommandResult::Type IssueCommand(FSkeinSourceControlCommand& InCommand);
 
 private:
+	/** Is Skein.exe not obstructing us */
+	mutable bool bSkeinBinaryIdle;
 
-	/** Is Skein service available */
+	/** Is Skein.exe binary found */
 	mutable bool bSkeinBinaryFound;
 
 	/** Is Skein project found */
 	mutable bool bSkeinProjectFound;
+
+	/** Is Skein server available */
+	mutable bool bSkeinServerUp;
+
+	/** Is Skein logged in */
+	mutable bool bSkeinLoggedIn;
 
 	/** Skein project root */
 	mutable FString ProjectRoot;

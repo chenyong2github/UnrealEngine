@@ -18,8 +18,11 @@
 
 void FSkeinSourceControlProvider::Init(bool bForceConnection)
 {
-	bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinAvailable();
+	bSkeinBinaryIdle = SkeinSourceControlUtils::IsSkeinBinaryIdle();
+	bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinBinaryFound();
 	bSkeinProjectFound = SkeinSourceControlUtils::IsSkeinProjectFound(FPaths::ProjectDir(), ProjectRoot, ProjectName);
+	bSkeinServerUp = true;
+	bSkeinLoggedIn = false;
 	BinaryPath = SkeinSourceControlUtils::FindSkeinBinaryPath();
 }
 
@@ -28,38 +31,56 @@ void FSkeinSourceControlProvider::Close()
 	BinaryPath.Empty();
 	ProjectName.Empty();
 	ProjectRoot.Empty();
+	bSkeinLoggedIn = false;
+	bSkeinServerUp = false;
 	bSkeinProjectFound = false;
 	bSkeinBinaryFound = false;
+	bSkeinBinaryIdle = false;
 }
 
 FText FSkeinSourceControlProvider::GetStatusText() const
 {
+	if (!bSkeinServerUp)
+	{
+		return FText(LOCTEXT("SkeinServerDown", "The Skein server is not available."));
+	}
+	if (!bSkeinBinaryFound)
+	{
+		return FText(LOCTEXT("SkeinBinaryMissing", "The 'skein' binary is missing on your system.\nPlease install it."));
+	}
+	if (!bSkeinBinaryIdle)
+	{
+		return FText(LOCTEXT("SkeinBinaryRunning", "There is already a 'skein' binary running on your system.\nPlease kill it."));
+	}
+	if (!bSkeinLoggedIn)
+	{
+		return FText(LOCTEXT("SkeinLoggedOut", "The Skein environment is not logged in.\nPlease reauthenticate."));
+	}
+
 	FFormatNamedArguments Args;
-	Args.Add(TEXT("IsAvailable"), IsAvailable() ? LOCTEXT("Yes", "Yes") : LOCTEXT("No", "No"));
-	Args.Add(TEXT("IsEnabled"), IsEnabled() ? LOCTEXT("Yes", "Yes") : LOCTEXT("No", "No"));
 	Args.Add(TEXT("ProjectName"), FText::FromString(ProjectName));
 	Args.Add(TEXT("ProjectRoot"), FText::FromString(ProjectRoot));
 
-	return FText::Format(LOCTEXT("SkeinStatusText", "Available: {IsAvailable}\nEnabled: {IsEnabled}\nProjectName: {ProjectName}\nProjectRoot: {ProjectRoot}"), Args);
+	return FText::Format(LOCTEXT("SkeinStatusText", "ProjectName: {ProjectName}\nProjectRoot: {ProjectRoot}"), Args);
 }
 
 bool FSkeinSourceControlProvider::IsAvailable() const
 {
 	if (!bSkeinBinaryFound)
 	{
-		bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinAvailable();
+		bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinBinaryFound();
 	}
 
-	return bSkeinBinaryFound;
+	if (!bSkeinBinaryIdle)
+	{
+		bSkeinBinaryIdle = SkeinSourceControlUtils::IsSkeinBinaryIdle();
+	}
+
+	return bSkeinBinaryFound && bSkeinBinaryIdle && bSkeinServerUp && bSkeinLoggedIn;
 }
 
 bool FSkeinSourceControlProvider::IsEnabled() const
 {
-	if (!bSkeinBinaryFound)
-	{
-		bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinAvailable();
-	}
-
 	if (!bSkeinProjectFound)
 	{
 		bSkeinProjectFound = SkeinSourceControlUtils::IsSkeinProjectFound(FPaths::ProjectDir(), ProjectRoot, ProjectName);
@@ -208,6 +229,20 @@ void FSkeinSourceControlProvider::Tick()
 		{
 			// Remove command from the queue
 			CommandQueue.RemoveAt(CommandIndex);
+
+			// Update binary state
+			if (Command.bCommandSuccessful)
+			{
+				bSkeinBinaryIdle = true;
+				bSkeinServerUp = true;
+				bSkeinLoggedIn = true;
+			}
+			else
+			{
+				bSkeinBinaryIdle = !Command.ErrorMessages.Contains("Another instance of 'skein' is already running.");
+				bSkeinServerUp = !Command.ErrorMessages.Contains("Skein server is not available.");
+				bSkeinLoggedIn = !Command.ErrorMessages.Contains("Skein is not logged in (or session has expired).");
+			}
 
 			// Let command update the states of any files
 			bStatesUpdated |= Command.Worker->UpdateStates();

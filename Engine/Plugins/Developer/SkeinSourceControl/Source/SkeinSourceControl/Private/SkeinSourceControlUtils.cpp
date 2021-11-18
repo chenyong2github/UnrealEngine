@@ -343,13 +343,24 @@ FString GetIntermediateThumbnailPath(const FString& InPath, const FString& InInt
 	return FString();
 }
 
-bool IsSkeinAvailable()
+bool IsSkeinBinaryFound()
 {
 	FString SkeinBinaryPath = FindSkeinBinaryPath();
 	if (SkeinBinaryPath.IsEmpty())
 		return false;
 
 	return true;
+}
+
+bool IsSkeinBinaryIdle()
+{
+	FString SkeinBinaryPath = FindSkeinBinaryPath();
+	if (SkeinBinaryPath.IsEmpty())
+		return false;
+
+	FString SkeinBinaryFile = FPaths::GetCleanFilename(SkeinBinaryPath);
+
+	return !FPlatformProcess::IsApplicationRunning(*SkeinBinaryFile);
 }
 
 bool IsSkeinProjectFound(const FString& InPath, FString& OutProjectRoot, FString& OutProjectName)
