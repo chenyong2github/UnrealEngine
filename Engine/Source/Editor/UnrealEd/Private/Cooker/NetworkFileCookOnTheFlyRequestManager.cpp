@@ -92,14 +92,7 @@ private:
 
 		const bool bEnqueued = CookOnTheFlyServer.EnqueueRecompileShaderRequest(UE::Cook::FRecompileShaderRequest
 		{
-			FName(*RecompileData.PlatformName),
-			RecompileData.ShaderPlatform,
-			RecompileData.MaterialsToLoad,
-			RecompileData.ShadersToRecompile,
-			RecompileData.MeshMaterialMaps,
-			RecompileData.GlobalShaderMap,
-			RecompileData.ModifiedFiles,
-			RecompileData.CommandType,
+			RecompileData,
 			MoveTemp(RecompileCompleted)
 		});
 		check(bEnqueued);

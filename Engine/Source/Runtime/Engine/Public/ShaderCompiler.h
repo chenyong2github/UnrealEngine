@@ -1287,28 +1287,66 @@ enum class ODSCRecompileCommand
 	Material
 };
 
+struct FShaderRecompileData
+{
+	/** The platform name to compile for. */
+	FString PlatformName;
+
+	/** Shader platform */
+	EShaderPlatform ShaderPlatform = SP_NumPlatforms;
+
+	/** All filenames that have been changed during the shader compilation. */
+	TArray<FString>* ModifiedFiles = nullptr;
+
+	/** Mesh materials, returned to the caller.  */
+	TArray<uint8>* MeshMaterialMaps = nullptr;
+
+	/** Materials to load. */
+	TArray<FString> MaterialsToLoad;
+
+	/** What type of shaders to recompile. All, Changed, Global, or Material? */
+	ODSCRecompileCommand CommandType = ODSCRecompileCommand::Changed;
+
+	/** Global shader map, returned to the caller.  */
+	TArray<uint8>* GlobalShaderMap = nullptr;
+
+	/** On-demand shader compiler payload.  */
+	TArray<FODSCRequestPayload> ShadersToRecompile;
+
+	/** Default constructor. */
+	ENGINE_API FShaderRecompileData() {};
+
+	/** Recompile all the changed shaders for the current platform. */
+	ENGINE_API FShaderRecompileData(const FString& InPlatformName, TArray<FString>* OutModifiedFiles, TArray<uint8>* OutMeshMaterialMaps, TArray<uint8>* OutGlobalShaderMap);
+
+	/** For recompiling just global shaders. */
+	ENGINE_API FShaderRecompileData(const FString& InPlatformName, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InCommandType, TArray<FString>* OutModifiedFiles, TArray<uint8>* OutMeshMaterialMaps, TArray<uint8>* OutGlobalShaderMap);
+
+	FShaderRecompileData& operator=(const FShaderRecompileData& Other)
+	{
+		PlatformName = Other.PlatformName;
+		ShaderPlatform = Other.ShaderPlatform;
+		ModifiedFiles = Other.ModifiedFiles;
+		MeshMaterialMaps = Other.MeshMaterialMaps;
+		MaterialsToLoad = Other.MaterialsToLoad;
+		CommandType = Other.CommandType;
+		GlobalShaderMap = Other.GlobalShaderMap;
+
+		ShadersToRecompile = Other.ShadersToRecompile;
+
+		return *this;
+	}
+};
+
 #if WITH_EDITOR
 
 /**
 * Recompiles global shaders
 *
-* @param PlatformName					Name of the Platform the shaders are compiled for
-* @param OutputDirectory				The directory the compiled data will be stored to
-* @param MaterialsToLoad				List of Materials that need to be loaded and compiled
-* @param MeshMaterialMaps				Mesh material maps
-* @param ModifiedFiles					Returns the list of modified files if not NULL
-* @param bCompileChangedShaders		Whether to compile all changed shaders or the specific material that is passed
+* @param Args					Arguments and configuration for issuing recompiles.
+* @param OutputDirectory		The directory the compiled data will be stored to
 **/
-extern ENGINE_API void RecompileShadersForRemote(
-	const FString& PlatformName,
-	EShaderPlatform ShaderPlatform,
-	const FString& OutputDirectory,
-	const TArray<FString>& MaterialsToLoad,
-	const TArray<FODSCRequestPayload>& ShadersToRecompile,
-	TArray<uint8>* MeshMaterialMaps,
-	TArray<uint8>* GlobalShaderMap,
-	TArray<FString>* ModifiedFiles,
-	ODSCRecompileCommand RecompileCommandType = ODSCRecompileCommand::Changed);
+extern ENGINE_API void RecompileShadersForRemote(FShaderRecompileData& Args, const FString& OutputDirectory);
 
 #endif // WITH_EDITOR
 

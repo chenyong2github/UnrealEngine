@@ -16,40 +16,6 @@ class INetworkFileServer;
  */
 DECLARE_DELEGATE_ThreeParams(FFileRequestDelegate, FString&, const FString&, TArray<FString>&);
 
-struct FShaderRecompileData
-{
-	FString PlatformName;
-	/** The platform to compile shaders for, corresponds to EShaderPlatform, but a value of -1 indicates to compile for all target shader platforms. */
-	int32 ShaderPlatform;
-	TArray<FString>* ModifiedFiles = nullptr;
-	TArray<uint8>* MeshMaterialMaps = nullptr;
-	TArray<FString> MaterialsToLoad;
-	ODSCRecompileCommand CommandType = ODSCRecompileCommand::Changed;
-	TArray<uint8>* GlobalShaderMap = nullptr;
-
-	TArray<FODSCRequestPayload> ShadersToRecompile;
-
-	FShaderRecompileData() :
-		ShaderPlatform(-1)
-	{}
-
-	FShaderRecompileData& operator=(const FShaderRecompileData& Other)
-	{
-		PlatformName = Other.PlatformName;
-		ShaderPlatform = Other.ShaderPlatform;
-		ModifiedFiles = Other.ModifiedFiles;
-		MeshMaterialMaps = Other.MeshMaterialMaps;
-		MaterialsToLoad = Other.MaterialsToLoad;
-		CommandType = Other.CommandType;
-		GlobalShaderMap = Other.GlobalShaderMap;
-
-		ShadersToRecompile = Other.ShadersToRecompile;
-
-		return *this;
-	}
-};
-
-
 /**
  * Delegate type for handling shader recompilation requests from a network client.
  */
