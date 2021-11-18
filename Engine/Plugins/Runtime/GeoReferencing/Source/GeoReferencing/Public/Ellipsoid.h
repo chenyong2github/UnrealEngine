@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 
-// Using double precision maths from the Geometry plugin. 
-#include "VectorTypes.h"
 #include "GeographicCoordinates.h"
 #include "CartesianCoordinates.h"
 
@@ -19,13 +17,13 @@ struct GEOREFERENCING_API FEllipsoid
 public:
 	FEllipsoid();
 	FEllipsoid(double RadiusX, double RadiusY, double RadiusZ);
-	FEllipsoid(const FVector3d& InRadii);
+	FEllipsoid(const FVector& InRadii);
 
-	FVector3d Radii;
-	FVector3d RadiiSquared;
-	FVector3d OneOverRadii;
-	FVector3d OneOverRadiiSquared;
+	FVector Radii;
+	FVector RadiiSquared;
+	FVector OneOverRadii;
+	FVector OneOverRadiiSquared;
 
-	FVector3d GeodeticSurfaceNormal(const FCartesianCoordinates& ECEFLocation) const;
-	FVector3d GeodeticSurfaceNormal(const FGeographicCoordinates& GeographicCoordinates) const;    
+	FVector GeodeticSurfaceNormal(const FCartesianCoordinates& ECEFLocation) const;
+	FVector GeodeticSurfaceNormal(const FGeographicCoordinates& GeographicCoordinates) const;    
 };

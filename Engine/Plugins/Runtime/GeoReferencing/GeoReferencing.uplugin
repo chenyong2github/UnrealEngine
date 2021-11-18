@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "GeoReferencing",
-	"Description": "GeoReferencing tools for UE4 worlds",
+	"Description": "GeoReferencing tools for UE worlds",
 	"Category": "Other",
 	"CreatedBy": "Epic Games, Inc.",
 	"CreatedByURL": "",
@@ -43,10 +43,6 @@
 		}
 	],
 	"Plugins": [
-		{
-			"Name": "GeometryProcessing",
-			"Enabled": true
-		},
 		{
 			"Name": "SQLiteCore",
 			"Enabled": true
