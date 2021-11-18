@@ -390,7 +390,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
 	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
 	const bool bPostProcessUsesSceneDepth = PostProcessUsesSceneDepth(Views[0]);
-    const bool bIsSimulatedLDR = (!IsMobileHDR() && IsSimulatedPlatform(ShaderPlatform));
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
 	bKeepDepthContent = 
 		bRequiresMultiPass || 
@@ -400,12 +399,17 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		Views[0].bIsReflectionCapture ||
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
 		bShouldRenderVelocities ||
-		bIsFullPrepassEnabled ||
-        bIsSimulatedLDR;
+		bIsFullPrepassEnabled;
     
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
+	// In the editor RHIs may split a render-pass into several cmd buffer submissions, so all targets need to Store
+	if (IsSimulatedPlatform(ShaderPlatform))
+	{
+		bKeepDepthContent = true;
+	}
+    
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
