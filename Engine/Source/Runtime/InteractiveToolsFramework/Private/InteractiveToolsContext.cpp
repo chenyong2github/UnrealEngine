@@ -159,6 +159,10 @@ void UInteractiveToolsContext::DeactivateActiveTool(EToolSide WhichSide, EToolSh
 
 void UInteractiveToolsContext::DeactivateAllActiveTools(EToolShutdownType ShutdownType)
 {
+	if (!ensureMsgf(ToolManager, TEXT("Trying to deactivate all tools on a ToolManager that has already been deleted.")))
+	{
+		return;
+	}
 	auto DeactivateTool = [this, ShutdownType](EToolSide WhichSide) {
 		if (ToolManager->HasActiveTool(WhichSide))
 		{
