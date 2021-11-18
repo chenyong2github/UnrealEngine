@@ -431,7 +431,7 @@ public:
 			else
 			{
 				FVector3d WorldPos = LocalToWorldTransform.TransformPosition(UseRay.PointAt(RayHitT));
-				WorldHitResultOut.RayDistance = WorldRay.Project(WorldPos);
+				WorldHitResultOut.RayDistance = WorldRay.GetParameter(WorldPos);
 			}
 			WorldHitResultOut.HitMeshBaryCoords = HitBaryCoords;
 			return true;
@@ -762,7 +762,7 @@ public:
 			WorldHitResultOut.HitMeshTriIndex = HitTID;
 			WorldHitResultOut.HitMeshSpatialWrapper = this;
 			FVector3d WorldPos = LocalToWorldTransform.TransformPosition(LocalRay.PointAt(LocalHitT));
-			WorldHitResultOut.RayDistance = WorldRay.Project(WorldPos);
+			WorldHitResultOut.RayDistance = WorldRay.GetParameter(WorldPos);
 			WorldHitResultOut.HitMeshBaryCoords = HitBaryCoords;
 			return true;
 		}

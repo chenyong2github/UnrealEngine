@@ -78,7 +78,7 @@ void UDynamicMeshBrushTool::Shutdown(EToolShutdownType ShutdownType)
 
 bool UDynamicMeshBrushTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
-	return PreviewMesh->FindRayIntersection(UE::Geometry::FRay3d(Ray), OutHit);
+	return PreviewMesh->FindRayIntersection(FRay3d(Ray), OutHit);
 }
 
 

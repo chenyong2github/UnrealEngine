@@ -6,7 +6,6 @@
 
 #include "VectorTypes.h"
 #include "LineTypes.h"
-#include "RayTypes.h"
 
 namespace UE
 {
@@ -24,7 +23,7 @@ class TDistLine3Ray3
 public:
 	// Input
 	TLine3<Real> Line;
-	TRay3<Real> Ray;
+	TRay<Real> Ray;
 
 	// Results
 	Real DistanceSquared = -1.0;
@@ -35,7 +34,7 @@ public:
 	Real RayParameter;
 
 
-	TDistLine3Ray3(const TLine3<Real>& LineIn, const TRay3<Real>& RayIn)
+	TDistLine3Ray3(const TLine3<Real>& LineIn, const TRay<Real>& RayIn)
 	{
 		Line = LineIn;
 		Ray = RayIn;

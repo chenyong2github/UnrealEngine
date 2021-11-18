@@ -57,7 +57,6 @@ UCLASS(Transient)
 class MODELINGCOMPONENTS_API UPreviewMesh : public UObject, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget, public IMeshReplacementCommandChangeTarget
 {
 	GENERATED_BODY()
-	using FRay3d = UE::Geometry::FRay3d;
 public:
 	UPreviewMesh();
 	virtual ~UPreviewMesh();

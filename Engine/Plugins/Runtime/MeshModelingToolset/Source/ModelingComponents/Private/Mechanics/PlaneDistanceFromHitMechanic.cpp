@@ -52,7 +52,7 @@ void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 	bCurrentHitIsWorldHit = false;
 
 	// cast ray at target object
-	UE::Geometry::FRay3d LocalRay = PreviewHeightFrame.ToFrame(WorldRay);
+	FRay3d LocalRay = PreviewHeightFrame.ToFrame((FRay3d)WorldRay);
 	int HitTID = PreviewHeightTargetAABB.FindNearestHitTriangle(LocalRay);
 	if (HitTID >= 0)
 	{
@@ -94,7 +94,7 @@ void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 
 	if (bFoundHit == false && bFallbackToLineAxisPoint)
 	{
-		FDistLine3Ray3d Distance(FLine3d(PreviewHeightFrame.Origin, PreviewHeightFrame.Z()), UE::Geometry::FRay3d(WorldRay));
+		FDistLine3Ray3d Distance(FLine3d(PreviewHeightFrame.Origin, PreviewHeightFrame.Z()), FRay3d(WorldRay));
 		float WorldHitDist = WorldRay.GetParameter( (FVector)Distance.RayClosestPoint );
 		NearestHitFrameWorld = FFrame3d(Distance.RayClosestPoint, UE::Geometry::Normalized(Distance.RayClosestPoint - Distance.LineClosestPoint) );
 		FVector3d HitPosLocal = PreviewHeightFrame.ToFramePoint(Distance.RayClosestPoint);

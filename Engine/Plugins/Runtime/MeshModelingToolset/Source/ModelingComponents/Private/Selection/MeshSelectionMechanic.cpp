@@ -889,9 +889,9 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		int32 HitTid = IndexConstants::InvalidID;
 		for (int32 MeshIndex = 0; MeshIndex < MeshSpatials.Num(); ++MeshIndex)
 		{
-			FRay LocalRay(
-				MeshTransforms[MeshIndex].InverseTransformPosition(ClickPos.WorldRay.Origin),
-				MeshTransforms[MeshIndex].InverseTransformVector(ClickPos.WorldRay.Direction));
+			FRay3d LocalRay(
+				(FVector3d)MeshTransforms[MeshIndex].InverseTransformPosition(ClickPos.WorldRay.Origin),
+				(FVector3d)MeshTransforms[MeshIndex].InverseTransformVector(ClickPos.WorldRay.Direction));
 
 			double RayT = 0; 
 			if (MeshSpatials[MeshIndex]->FindNearestHitTriangle(LocalRay, RayT, HitTid))
@@ -932,7 +932,7 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 					GeometrySet.AddCurve(Eids[i], Polyline);
 				}
 				FGeometrySet3::FNearest Result;
-				if (GeometrySet.FindNearestCurveToRay(ClickPos.WorldRay, Result, 
+				if (GeometrySet.FindNearestCurveToRay((FRay3d)ClickPos.WorldRay, Result, 
 					[this](const FVector3d& Position1, const FVector3d& Position2) {
 						return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
 							Position1, Position2,
@@ -955,7 +955,7 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 					GeometrySet.AddPoint(Vids[i], CurrentSelection.Mesh->GetTriVertex(HitTid, i));
 				}
 				FGeometrySet3::FNearest Result;
-				if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Result,
+				if (GeometrySet.FindNearestPointToRay((FRay3d)ClickPos.WorldRay, Result,
 					[this](const FVector3d& Position1, const FVector3d& Position2) {
 						return ToolSceneQueriesUtil::PointSnapQuery(CameraState,
 							Position1, Position2,

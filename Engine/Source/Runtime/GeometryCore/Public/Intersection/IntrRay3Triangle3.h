@@ -5,7 +5,6 @@
 #pragma once
 
 #include "VectorTypes.h"
-#include "RayTypes.h"
 #include "TriangleTypes.h"
 #include "VectorUtil.h"
 
@@ -24,7 +23,7 @@ class TIntrRay3Triangle3
 {
 public:
 	// Input
-	TRay3<Real> Ray;
+	TRay<Real> Ray;
 	TTriangle3<Real> Triangle;
 
 	// Output
@@ -33,7 +32,7 @@ public:
 	EIntersectionType IntersectionType;
 
 
-	TIntrRay3Triangle3(const TRay3<Real>& RayIn, const TTriangle3<Real>& TriangleIn)
+	TIntrRay3Triangle3(const TRay<Real>& RayIn, const TTriangle3<Real>& TriangleIn)
 	{
 		Ray = RayIn;
 		Triangle = TriangleIn;

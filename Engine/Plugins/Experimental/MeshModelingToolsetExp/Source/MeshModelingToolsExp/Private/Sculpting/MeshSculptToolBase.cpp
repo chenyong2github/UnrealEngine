@@ -579,7 +579,7 @@ void UMeshSculptToolBase::OnEndDrag(const FRay& Ray)
 
 
 
-UE::Geometry::FRay3d UMeshSculptToolBase::GetLocalRay(const FRay& WorldRay) const
+FRay3d UMeshSculptToolBase::GetLocalRay(const FRay& WorldRay) const
 {
 	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
 		CurTargetTransform.InverseTransformVector((FVector3d)WorldRay.Direction));

@@ -84,7 +84,6 @@ class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMech
 	using FFrame3d = UE::Geometry::FFrame3d;
 	using FTransform3d = UE::Geometry::FTransform3d;	
 	using FAxisAlignedBox3d = UE::Geometry::FAxisAlignedBox3d;
-	using FRay3d = UE::Geometry::FRay3d;
 public:
 
 	virtual ~UPolygonSelectionMechanic();

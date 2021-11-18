@@ -772,7 +772,7 @@ void UCubeGridTool::Setup()
 	};
 	MiddleClickDragBehavior->OnClickPressFunc = [this](const FInputDeviceRay& ClickPos) {
 		PrepForSelectionChange();
-		RayCastSelectionPlane(ClickPos.WorldRay, MiddleClickDragStart);
+		RayCastSelectionPlane((FRay3d)ClickPos.WorldRay, MiddleClickDragStart);
 	};
 	MiddleClickDragBehavior->OnClickDragFunc = [this](const FInputDeviceRay& ClickPos) {
 		OnMiddleClickDrag(ClickPos);
@@ -1055,13 +1055,13 @@ void UCubeGridTool::OnCtrlMiddleClick(const FInputDeviceRay& ClickPos)
 	FVector3d GridSpaceRayOrigin = CubeGrid->ToGridPoint(ClickPos.WorldRay.Origin);
 	FVector3d GridSpaceRayDirection = CubeGrid->GetFrame().ToFrameVector(FVector3d(ClickPos.WorldRay.Direction));
 	GridSpaceRayDirection.Normalize();
-	UE::Geometry::FRay3d GizmoSpaceRay(GridSpaceRayOrigin, GridSpaceRayDirection);
+	FRay3d GizmoSpaceRay(GridSpaceRayOrigin, GridSpaceRayDirection);
 
-	double MinDistSquared = GizmoSpaceRay.DistanceSquared(Corners[0]);
+	double MinDistSquared = GizmoSpaceRay.DistSquared(Corners[0]);
 	int32 ClosestCornerIndex = 0;
 	for (int32 i = 1; i < 4; ++i)
 	{
-		double DistSquared = GizmoSpaceRay.DistanceSquared(Corners[i]);
+		double DistSquared = GizmoSpaceRay.DistSquared(Corners[i]);
 		if (DistSquared < MinDistSquared)
 		{
 			MinDistSquared = DistSquared;
@@ -1101,7 +1101,7 @@ void UCubeGridTool::OnCtrlMiddleClick(const FInputDeviceRay& ClickPos)
 }
 
 // Tries to intersect the selected box. Used for middle mouse dragging the selection.
-FInputRayHit UCubeGridTool::RayCastSelectionPlane(const UE::Geometry::FRay3d& WorldRay,
+FInputRayHit UCubeGridTool::RayCastSelectionPlane(const FRay3d& WorldRay,
 	FVector3d& HitPointOut)
 {
 	FVector3d Normal = CubeGrid->GetFrame().FromFrameVector(
@@ -1115,7 +1115,7 @@ FInputRayHit UCubeGridTool::RayCastSelectionPlane(const UE::Geometry::FRay3d& Wo
 	if (HitResult.bHit)
 	{
 		HitPointOut = HitPoint;
-		HitResult = FInputRayHit(WorldRay.Project(HitPointOut));
+		HitResult = FInputRayHit(WorldRay.GetParameter(HitPointOut));
 	}
 	return HitResult;
 }
@@ -1129,7 +1129,7 @@ FInputRayHit UCubeGridTool::CanBeginMiddleClickDrag(const FInputDeviceRay& Click
 	}
 
 	FVector3d WorldHitPoint;
-	HitResult = RayCastSelectionPlane(ClickPos.WorldRay, WorldHitPoint);
+	HitResult = RayCastSelectionPlane((FRay3d)ClickPos.WorldRay, WorldHitPoint);
 
 	int FlatDim = FCubeGrid::DirToFlatDim(Selection.Direction);
 
@@ -1148,7 +1148,7 @@ void UCubeGridTool::OnMiddleClickDrag(const FInputDeviceRay& DragPos)
 	}
 
 	FVector3d MiddleClickDragEnd;
-	RayCastSelectionPlane(DragPos.WorldRay, MiddleClickDragEnd);
+	RayCastSelectionPlane((FRay3d)DragPos.WorldRay, MiddleClickDragEnd);
 	FVector3d DisplacementInGridFrame = CubeGrid->GetFrame().ToFrameVector(MiddleClickDragEnd - MiddleClickDragStart); 
 	
 	// Clamp the relevant dimension in the displacement vector
@@ -1256,7 +1256,7 @@ bool UCubeGridTool::GetHitGridFace(const FRay& WorldRay, FCubeGrid::FCubeFace& F
 
 	if (MeshSpatial)
 	{
-		UE::Geometry::FRay3d LocalRay(CurrentMeshTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		FRay3d LocalRay(CurrentMeshTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
 			CurrentMeshTransform.InverseTransformVectorNoScale((FVector3d)WorldRay.Direction));
 
 		int32 Tid;
@@ -1300,7 +1300,7 @@ void UCubeGridTool::OnClickPress(const FInputDeviceRay& PressPos)
 		{
 			PreDragCornerSelectedFlags[i] = CornerSelectedFlags[i];
 		}
-		AttemptToSelectCorner(PressPos.WorldRay);
+		AttemptToSelectCorner((FRay3d)PressPos.WorldRay);
 		return;
 	}
 
@@ -1309,10 +1309,10 @@ void UCubeGridTool::OnClickPress(const FInputDeviceRay& PressPos)
 		MouseState = EMouseState::DraggingExtrudeDistance;
 		if (bHaveSelection)
 		{
-			DragProjectionAxis = UE::Geometry::FRay3d(CubeGrid->GetFrame().FromFramePoint(Selection.Box.Center()),
+			DragProjectionAxis = FRay3d(CubeGrid->GetFrame().FromFramePoint(Selection.Box.Center()),
 				CubeGrid->GetFrame().FromFrameVector(FCubeGrid::DirToNormal(Selection.Direction)), true);
 
-			FDistLine3Ray3d DistanceCalculator(UE::Geometry::FLine3d(DragProjectionAxis.Origin, DragProjectionAxis.Direction), PressPos.WorldRay);
+			FDistLine3Ray3d DistanceCalculator(UE::Geometry::FLine3d(DragProjectionAxis.Origin, DragProjectionAxis.Direction), (FRay3d)PressPos.WorldRay);
 			DistanceCalculator.ComputeResult();
 			DragProjectedStartParam = DistanceCalculator.LineParameter;
 		}
@@ -1367,7 +1367,7 @@ void UCubeGridTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		}
 
 		FDistLine3Ray3d DistanceCalculator(
-			UE::Geometry::FLine3d(DragProjectionAxis.Origin, DragProjectionAxis.Direction), DragPos.WorldRay);
+			UE::Geometry::FLine3d(DragProjectionAxis.Origin, DragProjectionAxis.Direction), (FRay3d)DragPos.WorldRay);
 		DistanceCalculator.ComputeResult();
 
 		double ParamDelta = DistanceCalculator.LineParameter - DragProjectedStartParam;
@@ -1382,7 +1382,7 @@ void UCubeGridTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	}
 	else if (MouseState == EMouseState::DraggingCornerSelection)
 	{
-		AttemptToSelectCorner(DragPos.WorldRay);
+		AttemptToSelectCorner((FRay3d)DragPos.WorldRay);
 		return;
 	}
 	else // Grid selection
@@ -1424,7 +1424,7 @@ void UCubeGridTool::OnTerminateDragSequence()
 	MouseState = EMouseState::NotDragging;
 }
 
-void UCubeGridTool::AttemptToSelectCorner(const UE::Geometry::FRay3d& WorldRay)
+void UCubeGridTool::AttemptToSelectCorner(const FRay3d& WorldRay)
 {
 	TArray<FGeometrySet3::FNearest> HitCorners;
 	CornersGeometrySet.CollectPointsNearRay(WorldRay, HitCorners, [this](const FVector3d& Position1, const FVector3d& Position2) {

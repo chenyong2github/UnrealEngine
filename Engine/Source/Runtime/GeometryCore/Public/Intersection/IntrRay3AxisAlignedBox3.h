@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "RayTypes.h"
 #include "BoxTypes.h"
 #include "VectorUtil.h"
 
@@ -34,7 +33,7 @@ public:
 	 * @param ExpandExtents box is expanded by this amount in each direction, useful for dealing with float imprecision
 	 * @return true if ray intersects box
 	 */
-	static bool TestIntersection(const TRay3<RealType>& Ray, const TAxisAlignedBox3<RealType>& Box, RealType ExpandExtents = 0)
+	static bool TestIntersection(const TRay<RealType>& Ray, const TAxisAlignedBox3<RealType>& Box, RealType ExpandExtents = 0)
 	{
 		TVector<RealType> WdU = TVector<RealType>::Zero();
 		TVector<RealType> AWdU = TVector<RealType>::Zero();
@@ -108,7 +107,7 @@ public:
 	 * @param RayParamOut ray intersect T-value, or TNumericLimits::Max()
 	 * @return true if ray intersects box
 	 */
-	static bool FindIntersection(const TRay3<RealType>& Ray, const TAxisAlignedBox3<RealType>& Box, RealType& RayParamOut)
+	static bool FindIntersection(const TRay<RealType>& Ray, const TAxisAlignedBox3<RealType>& Box, RealType& RayParamOut)
 	{
 		RealType RayParam0 = 0.0;
 		RealType RayParam1 = TNumericLimits<RealType>::Max();

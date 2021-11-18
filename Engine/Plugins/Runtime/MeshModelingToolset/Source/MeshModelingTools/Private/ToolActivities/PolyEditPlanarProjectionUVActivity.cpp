@@ -256,7 +256,7 @@ FInputRayHit UPolyEditPlanarProjectionUVActivity::IsHitByClick(const FInputDevic
 
 void UPolyEditPlanarProjectionUVActivity::OnClicked(const FInputDeviceRay& ClickPos)
 {
-	if (bIsRunning && SurfacePathMechanic->TryAddPointFromRay(ClickPos.WorldRay))
+	if (bIsRunning && SurfacePathMechanic->TryAddPointFromRay((FRay3d)ClickPos.WorldRay))
 	{
 		if (SurfacePathMechanic->IsDone())
 		{
@@ -274,7 +274,7 @@ FInputRayHit UPolyEditPlanarProjectionUVActivity::BeginHoverSequenceHitTest(cons
 
 bool UPolyEditPlanarProjectionUVActivity::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
-	SurfacePathMechanic->UpdatePreviewPoint(DevicePos.WorldRay);
+	SurfacePathMechanic->UpdatePreviewPoint((FRay3d)DevicePos.WorldRay);
 	bPreviewUpdatePending = true;
 	return bIsRunning;
 }

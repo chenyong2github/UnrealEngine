@@ -105,8 +105,8 @@ bool FGeometrySet3::FindNearestPointToRay(const FRay3d& Ray, FNearest& ResultOut
 	ParallelFor(NumPoints, [&](int pi)
 	{
 		const FPoint& Point = Points[pi];
-		double RayT = Ray.Project(Point.Position);
-		FVector3d RayPt = Ray.NearestPoint(Point.Position);
+		double RayT = Ray.GetParameter(Point.Position);
+		FVector3d RayPt = Ray.ClosestPoint(Point.Position);
 		if (PointWithinToleranceTest(RayPt, Point.Position))
 		{
 			Critical.Lock();
@@ -150,8 +150,8 @@ bool FGeometrySet3::CollectPointsNearRay(const FRay3d& Ray, TArray<FNearest>& Re
 	ParallelFor(NumPoints, [&](int pi)
 	{
 		const FPoint& Point = Points[pi];
-		double RayT = Ray.Project(Point.Position);
-		FVector3d RayPt = Ray.NearestPoint(Point.Position);
+		double RayT = Ray.GetParameter(Point.Position);
+		FVector3d RayPt = Ray.ClosestPoint(Point.Position);
 		if (PointWithinToleranceTest(RayPt, Point.Position))
 		{
 			WithinTolerance[pi] = true;

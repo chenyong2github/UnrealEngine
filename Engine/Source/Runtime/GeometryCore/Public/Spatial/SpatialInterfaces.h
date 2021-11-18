@@ -5,7 +5,6 @@
 #pragma once
 
 #include "VectorTypes.h"
-#include "RayTypes.h"
 
 namespace UE
 {

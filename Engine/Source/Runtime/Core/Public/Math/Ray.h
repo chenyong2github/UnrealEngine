@@ -100,6 +100,17 @@ public:
 	}
 
 	/**
+	 * Find minimum distance from query point to ray
+	 *
+	 * @param Point query Point
+	 * @return distance to Ray
+	 */
+	T Dist(const TVector<T>& Point) const
+	{
+		return FMath::Sqrt(DistSquared(Point));
+	}
+
+	/**
 	 * Find closest point on ray to query point
 	 * @param Point query point
 	 * @return closest point on Ray

@@ -149,8 +149,6 @@ class MESHMODELINGTOOLSEXP_API UDeformMeshPolygonsTool : public UMeshSurfacePoin
 {
 	GENERATED_BODY()
 
-	using FRay3d = UE::Geometry::FRay3d;	// allows usage of FRay3d in cpp without fully-qualified name, to be removed after LWC conversion
-
 public:
 	UDeformMeshPolygonsTool();
 

@@ -351,7 +351,7 @@ FInputRayHit UPolyEditInsertEdgeLoopActivity::HitTest(const FRay& WorldRay)
 	FInputRayHit Hit;
 
 	// See if we hit an edge
-	UE::Geometry::FRay3d LocalRay((FVector3d)TargetTransform.InverseTransformPosition(WorldRay.Origin),
+	FRay3d LocalRay((FVector3d)TargetTransform.InverseTransformPosition(WorldRay.Origin),
 		(FVector3d)TargetTransform.InverseTransformVector(WorldRay.Direction), false);
 	FGroupTopologySelection Selection;
 	FVector3d Position, Normal;
@@ -365,7 +365,7 @@ FInputRayHit UPolyEditInsertEdgeLoopActivity::HitTest(const FRay& WorldRay)
 		const FGroupTopology::FGroupEdge& GroupEdge = ActivityContext->CurrentTopology->Edges[GroupEdgeID];
 		if (GroupEdge.EndpointCorners.A != FDynamicMesh3::InvalidID)
 		{
-			Hit = FInputRayHit(LocalRay.Project(Position));
+			Hit = FInputRayHit(LocalRay.GetParameter(Position));
 		}
 	}
 
@@ -375,7 +375,7 @@ FInputRayHit UPolyEditInsertEdgeLoopActivity::HitTest(const FRay& WorldRay)
 bool UPolyEditInsertEdgeLoopActivity::UpdateHoveredItem(const FRay& WorldRay)
 {
 	// Check that we hit an edge
-	UE::Geometry::FRay3d LocalRay((FVector3d)TargetTransform.InverseTransformPosition(WorldRay.Origin),
+	FRay3d LocalRay((FVector3d)TargetTransform.InverseTransformPosition(WorldRay.Origin),
 		(FVector3d)TargetTransform.InverseTransformVector(WorldRay.Direction), false);
 
 	FGroupTopologySelection Selection;

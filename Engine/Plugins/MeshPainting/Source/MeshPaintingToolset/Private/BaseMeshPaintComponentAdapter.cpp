@@ -188,7 +188,7 @@ bool FBaseMeshPaintComponentAdapter::RayIntersectAdapter(UE::Geometry::FIndex3i&
 	double NearestT;
 	FVector3d Direction((FVector3d)End - (FVector3d)Start);
 	UE::Geometry::Normalize(Direction);
-	UE::Geometry::FRay3d Ray((FVector3d)Start, Direction);
+	FRay3d Ray((FVector3d)Start, Direction);
 	bool bHit = AABBTree->FindNearestHitTriangle(Ray, NearestT, HitTriangleID);
 	if (bHit)
 	{

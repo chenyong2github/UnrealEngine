@@ -279,9 +279,9 @@ bool UDrawPolyPathTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 	if (SurfacePathMechanic != nullptr)
 	{
 		FFrame3d HitPoint;
-		if (SurfacePathMechanic->IsHitByRay(UE::Geometry::FRay3d(Ray), HitPoint))
+		if (SurfacePathMechanic->IsHitByRay(FRay3d(Ray), HitPoint))
 		{
-			OutHit.Distance = UE::Geometry::FRay3d(Ray).Project(HitPoint.Origin);
+			OutHit.Distance = FRay3d(Ray).GetParameter(HitPoint.Origin);
 			OutHit.ImpactPoint = (FVector)HitPoint.Origin;
 			OutHit.ImpactNormal = (FVector)HitPoint.Z();
 			return true;
@@ -323,7 +323,7 @@ void UDrawPolyPathTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	if (SurfacePathMechanic != nullptr)
 	{
-		if (SurfacePathMechanic->TryAddPointFromRay(ClickPos.WorldRay))
+		if (SurfacePathMechanic->TryAddPointFromRay((FRay3d)ClickPos.WorldRay))
 		{
 			if (SurfacePathMechanic->IsDone())
 			{
@@ -368,7 +368,7 @@ bool UDrawPolyPathTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	if (SurfacePathMechanic != nullptr)
 	{
-		SurfacePathMechanic->UpdatePreviewPoint(DevicePos.WorldRay);
+		SurfacePathMechanic->UpdatePreviewPoint((FRay3d)DevicePos.WorldRay);
 	} 
 	else if (CurveDistMechanic != nullptr)
 	{
