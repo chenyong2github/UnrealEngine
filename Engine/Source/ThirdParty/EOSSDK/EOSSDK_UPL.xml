@@ -59,12 +59,10 @@
       import com.epicgames.mobile.eossdk.EOSSDK;
     </insert>
   </gameActivityImportAdditions>
-  
-  <gameActivityClassAdditions>
-    <insert>
-      static { System.loadLibrary("EOSSDK"); }
-    </insert>
-  </gameActivityClassAdditions>
+
+  <soLoadLibrary>
+    <loadLibrary name="EOSSDK" failmsg="EOSSDK library not loaded and required!" />
+  </soLoadLibrary>
 
   <!-- optional additions to GameActivity onCreate in GameActivity.java -->
   <gameActivityOnCreateAdditions>
