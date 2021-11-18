@@ -54,7 +54,7 @@ public:
 
 protected:
 
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 

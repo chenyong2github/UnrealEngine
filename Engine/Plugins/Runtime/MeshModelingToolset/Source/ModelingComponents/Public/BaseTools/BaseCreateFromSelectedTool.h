@@ -33,7 +33,7 @@ public:
 	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const { check(false); return nullptr; }
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 

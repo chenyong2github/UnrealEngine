@@ -24,7 +24,7 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 UENUM()

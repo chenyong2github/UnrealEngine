@@ -46,7 +46,7 @@ public:
 	virtual void InitializeNewTool(UMeshSurfacePointTool* Tool, const FToolBuilderState& SceneState) const;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 

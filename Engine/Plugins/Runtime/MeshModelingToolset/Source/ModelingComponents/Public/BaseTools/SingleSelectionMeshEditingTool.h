@@ -36,7 +36,7 @@ public:
 	virtual bool WantsInputSelectionIfAvailable() const { return false; }
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 

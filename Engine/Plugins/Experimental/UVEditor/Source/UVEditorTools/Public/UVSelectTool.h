@@ -47,7 +47,7 @@ public:
 	const TArray<TObjectPtr<UUVEditorToolMeshInput>>* Targets = nullptr;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 UENUM()

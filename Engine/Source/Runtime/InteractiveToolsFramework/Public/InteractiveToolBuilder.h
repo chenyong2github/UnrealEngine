@@ -67,15 +67,4 @@ public:
 	{
 		return;
 	}
-
-protected:
-	/**
-	 * Gives the target requirements of the associated tool. Usually, it is the tool builder
-	 * will use this function in CanBuildTool and BuildTool to find and create any necessary targets.
-	 */
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const
-	{
-		static FToolTargetTypeRequirements TypeRequirements; // Default initialized to no requirements.
-		return TypeRequirements;
-	}
 };
