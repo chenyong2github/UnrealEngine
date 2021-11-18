@@ -503,10 +503,10 @@ public:
 	bool CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const;
 	bool CanObtainUserVariable(const FNiagaraVariableBase& InVar) const;
 
-#if UE_BUILD_SHIPPING
-	const TCHAR* GetDebugSimName() const { return TEXT(""); }
-#else
+#if WITH_NIAGARA_DEBUG_EMITTER_NAME
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
+#else
+	const TCHAR* GetDebugSimName() const { return TEXT(""); }
 #endif
 
 	NIAGARA_API const FString& GetUniqueEmitterName() const;
@@ -637,7 +637,7 @@ private:
 
 	bool bFullyLoaded = false;
 
-#if !UE_BUILD_SHIPPING
+#if WITH_NIAGARA_DEBUG_EMITTER_NAME
 	FString DebugSimName;
 #endif
 

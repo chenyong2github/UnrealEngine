@@ -66,7 +66,7 @@ static FAutoConsoleVariableRef CVarNiagaraEmitterMaxGPUBufferElements(
 	TEXT("Maximum elements per GPU buffer, for example 4k elements would restrict a float buffer to be 16k maximum per buffer.\n")
 	TEXT("Note: If you request something smaller than what will satisfy a single unit of work it will be increased to that size.\n")
 	TEXT("Default 0 which will allow the buffer to be the maximum allowed by the RHI.\n"),
-	ECVF_Default
+	ECVF_Scalability
 );
 
 FNiagaraDetailsLevelScaleOverrides::FNiagaraDetailsLevelScaleOverrides()
@@ -1259,15 +1259,19 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 	}
 #endif
 
-#if !UE_BUILD_SHIPPING
+#if WITH_NIAGARA_DEBUG_EMITTER_NAME
 	// Ensure our debug simulation name is up to date
-	DebugSimName.Empty();
-	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+	// Only required on uncooked as it can change due to compilation
+	if ( !FPlatformProperties::RequiresCookedData() )
 	{
-		DebugSimName = SystemOwner->GetName();
-		DebugSimName.AppendChar(':');
+		DebugSimName.Empty();
+		if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+		{
+			DebugSimName = SystemOwner->GetName();
+			DebugSimName.AppendChar(':');
+		}
+		DebugSimName.Append(GetName());
 	}
-	DebugSimName.Append(GetName());
 #endif
 }
 
@@ -1376,7 +1380,7 @@ void UNiagaraEmitter::UpdateEmitterAfterLoad()
 
 	ResolveScalabilitySettings();
 
-#if !UE_BUILD_SHIPPING
+#if WITH_NIAGARA_DEBUG_EMITTER_NAME
 	DebugSimName.Empty();
 	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
 	{

@@ -3514,6 +3514,8 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 
 void UNiagaraSystem::OnScalabilityCVarChanged()
 {
+	CacheFromCompiledData();
+
 	ResolveScalabilitySettings();
 
 	for (FNiagaraEmitterHandle& Handle : EmitterHandles)

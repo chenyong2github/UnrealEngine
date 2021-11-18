@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraCommon.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraSimStageData.h"
 #include "RHIGPUReadback.h"
@@ -118,7 +119,7 @@ struct FNiagaraComputeExecutionContext
 		uint32 CPUCount = 0;
 	}  EmitterInstanceReadback;
 	
-#if 1//!UE_BUILD_SHIPPING
+#if WITH_NIAGARA_DEBUG_EMITTER_NAME
 	FName GetDebugSimFName() const { return DebugSimFName; }
 	const TCHAR* GetDebugSimName() const { return *DebugSimName; }
 	void SetDebugSimName(const TCHAR* InDebugSimName)
@@ -138,7 +139,7 @@ struct FNiagaraComputeExecutionContext
 public:
 	static uint32 TickCounter;
 
-#if 1//!UE_BUILD_SHIPPING
+#if WITH_NIAGARA_DEBUG_EMITTER_NAME
 	FName DebugSimFName;
 	FString DebugSimName;
 #endif
