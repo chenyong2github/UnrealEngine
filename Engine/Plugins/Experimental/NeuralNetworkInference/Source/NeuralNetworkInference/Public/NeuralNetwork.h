@@ -131,12 +131,11 @@ public:
 	bool SetBackEnd(const ENeuralBackEnd InBackEnd);
 	
 	/**
-	 * IsGPUConfigCompatible will always return true for ENeuralBackEnd::UEOnly. For ENeuralBackEnd::UEAndORT, IsGPUConfigCompatible() and IsGPUConfigCompatibleForUEAndORTBackEnd() will return the same value:
+	 * IsGPUCompatible will always return true for ENeuralBackEnd::UEOnly. For ENeuralBackEnd::UEAndORT, it will return:
 	 * - True if DX12 is enabled, meaning UEAndORT can run on both the CPU and GPU. Also true if the current platform is not Windows.
 	 * - False if DX12 is disabled, meaning UEAndORT can run only run on the CPU. The user will need to enable DX12 to be able to run GPU, switch to CPU, or switch to the UEOnly back end.
 	 */
-	static bool IsGPUConfigCompatibleForUEAndORTBackEnd();
-	bool IsGPUConfigCompatibleForCurrentBackEnd() const;
+	bool IsGPUSupported() const;
 
 	/**
 	 * Functions to get/fill input.

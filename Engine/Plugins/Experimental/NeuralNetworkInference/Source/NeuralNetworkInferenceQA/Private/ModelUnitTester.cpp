@@ -205,8 +205,13 @@ bool FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 		// UEAndORT (if WITH_UE_AND_ORT_SUPPORT)
 #ifdef WITH_UE_AND_ORT_SUPPORT
 		bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::CPU, ENeuralBackEnd::UEAndORT, InCPURepetitionsForUEAndORTBackEnd[ModelIndex]);
-#ifdef PLATFORM_WIN64
-		if (UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd())
+		UNeuralNetwork* Network = NetworkUassetLoadTest(UAssetModelFilePath);
+		if (Network->GetBackEndForCurrentPlatform() != ENeuralBackEnd::UEAndORT)
+		{
+			UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("-------------------- Default UAsset BackEnd should be UEAndORT."));
+			return false;
+		}
+		else if (Network->IsGPUSupported())
 		{
 			bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::GPU, ENeuralBackEnd::UEAndORT, InGPURepetitionsForUEAndORTBackEnd[ModelIndex]);
 		}
@@ -214,9 +219,6 @@ bool FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 		{
 			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- ModelSpeedTest-UEAndORT-GPU skipped (DX12 not enabled)."));
 		}
-#else //PLATFORM_WIN64
-		bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, ENeuralDeviceType::GPU, ENeuralBackEnd::UEAndORT, 0);
-#endif //PLATFORM_WIN64
 #endif //WITH_UE_AND_ORT_SUPPORT
 
 		// UEOnly
@@ -254,11 +256,6 @@ UNeuralNetwork* FModelUnitTester::NetworkUassetLoadTest(const FString& InUAssetP
 		ensureMsgf(false, TEXT("UNeuralNetwork is a nullptr. Path: \"%s\"."), *InUAssetPath);
 		return nullptr;
 	}
-	if (!UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd())
-	{
-		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("NetworkUassetLoadTest-UEAndORT: Set to CPU (DX12 not enabled)."));
-		Network->SetDeviceType(ENeuralDeviceType::CPU);
-	}
 	if (!Network->IsLoaded())
 	{
 		ensureMsgf(false, TEXT("UNeuralNetwork could not be loaded from uasset disk location. Path: \"%s\"."), *InUAssetPath);
@@ -275,11 +272,6 @@ UNeuralNetwork* FModelUnitTester::NetworkONNXOrORTLoadTest(const FString& InMode
 	{
 		ensureMsgf(false, TEXT("UNeuralNetwork is a nullptr. Path: \"%s\"."), *InModelFilePath);
 		return nullptr;
-	}
-	if (!UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd())
-	{
-		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("NetworkONNXOrORTLoadTest-UEAndORT: Set to CPU (DX12 not enabled)."));
-		Network->SetDeviceType(ENeuralDeviceType::CPU);
 	}
 	if (!Network->Load(InModelFilePath))
 	{
@@ -344,7 +336,7 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 		CPUOutputs.Emplace(InOutNetwork->GetOutputTensor().GetArrayCopy<float>());
 	}
 	
-	if (UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd())
+	if (InOutNetwork->IsGPUSupported())
 	{
 		// Input CPU + Network GPU + Output CPU
 		for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
@@ -382,9 +374,9 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	
 	for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 	{
-		const TArray<float>& GPUGPUCPUOutput = (UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd() ? GPUGPUCPUOutputs[Index] : CPUOutputs[Index]);
-		const TArray<float>& CPUGPUCPUOutput = (UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd() ? CPUGPUCPUOutputs[Index] : CPUOutputs[Index]);
-		const TArray<float>& CPUGPUGPUOutput = (UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd() ? CPUGPUGPUOutputs[Index] : CPUOutputs[Index]);
+		const TArray<float>& GPUGPUCPUOutput = (InOutNetwork->IsGPUSupported() ? GPUGPUCPUOutputs[Index] : CPUOutputs[Index]);
+		const TArray<float>& CPUGPUCPUOutput = (InOutNetwork->IsGPUSupported() ? CPUGPUCPUOutputs[Index] : CPUOutputs[Index]);
+		const TArray<float>& CPUGPUGPUOutput = (InOutNetwork->IsGPUSupported() ? CPUGPUGPUOutputs[Index] : CPUOutputs[Index]);
 		// Prepare verbose
 		const double CPUAvgL1Norm = GetAveragedL1Norm(CPUOutputs[Index]);
 		const double CPUGPUCPUAvgL1Norm = GetAveragedL1Norm(CPUGPUCPUOutput);

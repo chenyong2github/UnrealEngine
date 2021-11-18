@@ -209,18 +209,12 @@ void UNeuralNetwork::ResetStats()
 	InputMemoryTransferStatsModule.ResetStats();
 }
 
-
-bool UNeuralNetwork::IsGPUConfigCompatibleForUEAndORTBackEnd()
-{
-	return FImplBackEndUEAndORT::IsGPUConfigCompatible();
-}
-
-bool UNeuralNetwork::IsGPUConfigCompatibleForCurrentBackEnd() const
+bool UNeuralNetwork::IsGPUSupported() const
 {
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		return IsGPUConfigCompatibleForUEAndORTBackEnd();
+		return FImplBackEndUEAndORT::IsGPUConfigCompatible();
 	}
 
 	// UEOnly
@@ -560,7 +554,7 @@ bool UNeuralNetwork::Load()
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType);
+		UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType, /*bShouldOpenMessageLog*/true);
 		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, OnAsyncRunCompletedDelegate, bIsBackgroundThreadRunning, ResoucesCriticalSection, AreInputTensorSizesVariable,
 			ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType(), GetInputDeviceType(), GetOutputDeviceType());
 	}
@@ -661,10 +655,9 @@ void UNeuralNetwork::PostLoad()
 	if (ModelReadFromFileInBytes.Num() > 0)
 	{
 		// If GPU selected but not compatible, set to CPU
-		if (DeviceType == ENeuralDeviceType::GPU && !IsGPUConfigCompatibleForCurrentBackEnd())
+		if (BackEnd == ENeuralBackEnd::UEAndORT)
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::PostLoad(): IsGPUConfigCompatibleForCurrentBackEnd() returned false, setting DeviceType to CPU."));
-			DeviceType = ENeuralDeviceType::CPU;
+			FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(DeviceType, /*bShouldOpenMessageLog*/false);
 		}
 		// Load
 		if (!Load())
