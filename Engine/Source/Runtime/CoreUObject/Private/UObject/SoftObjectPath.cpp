@@ -40,7 +40,7 @@ FString FSoftObjectPath::ToString() const
 	// Preallocate to correct size and then append strings
 	FullPathString.Reserve(AssetPathString.Len() + SubPathString.Len() + 1);
 	FullPathString += AssetPathString;
-	FullPathString += ':';
+	FullPathString += SUBOBJECT_DELIMITER_CHAR;
 	FullPathString += SubPathString;
 	return FullPathString;
 }
@@ -54,7 +54,7 @@ void FSoftObjectPath::ToString(FStringBuilderBase& Builder) const
 
 	if (SubPathString.Len() > 0)
 	{
-		Builder << ':' << SubPathString;
+		Builder << SUBOBJECT_DELIMITER_CHAR << SubPathString;
 	}
 }
 
@@ -94,7 +94,7 @@ void FSoftObjectPath::SetPath(FWideStringView Path)
 		}
 
 		int32 ColonIndex;
-		if (Path.FindChar(':', ColonIndex))
+		if (Path.FindChar(SUBOBJECT_DELIMITER_CHAR, ColonIndex))
 		{
 			// Has a subobject, split on that then create a name from the temporary path
 			AssetPathName = FName(Path.Left(ColonIndex));
@@ -143,7 +143,7 @@ void FSoftObjectPath::SetPath(FName PathName)
 			}
 
 			int32 ColonIndex;
-			if (Path.FindChar(':', ColonIndex))
+			if (Path.FindChar(SUBOBJECT_DELIMITER_CHAR, ColonIndex))
 			{
 				// Has a subobject, split on that then create a name from the temporary path
 				AssetPathName = FName(Path.Left(ColonIndex));
