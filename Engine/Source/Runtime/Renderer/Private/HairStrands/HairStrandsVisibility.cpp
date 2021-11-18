@@ -3467,6 +3467,12 @@ void DrawHitProxies(
 // Check if any simulated/skinned-bound groom has its positions updated (e.g. for invalidating the path-tracer accumulation)
 bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
+	if (View.HairStrandsMeshElements.IsEmpty())
+	{
+		// there are no hair strands in the scene
+		return false;
+	}
+
 	FHairStrandsViewStateData* HairStrandsViewStateData = const_cast<FHairStrandsViewStateData*>(&View.ViewState->HairStrandsViewStateData);
 	if (!HairStrandsViewStateData->IsInit())
 	{
@@ -3486,6 +3492,11 @@ bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 		{
 			GroupDatas.Add(HairGroupPublicData);
 		}
+	}
+	if (GroupDatas.IsEmpty())
+	{
+		// there are no strands currently being simulated or skinned
+		return false;
 	}
 
 	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1);
