@@ -125,14 +125,13 @@ public:
 		PackageManager = ICookedEditorPackageManager::FactoryForTargetPlatform(this, true);
 	}
 
-	TCookedCookerTargetPlatform(ICookedEditorPackageManager* ExistingManager)
+	TCookedCookerTargetPlatform(TUniquePtr<ICookedEditorPackageManager>&& ExistingManager)
 	{
 		PackageManager = MoveTemp(ExistingManager);
 	}
 
 	~TCookedCookerTargetPlatform()
 	{
-		delete PackageManager;
 	}
 
 
@@ -227,6 +226,6 @@ public:
 		return false;
 	}
 
-	ICookedEditorPackageManager* PackageManager;
+	TUniquePtr<ICookedEditorPackageManager> PackageManager;
 
 };
