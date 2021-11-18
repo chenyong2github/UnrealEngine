@@ -58,3 +58,12 @@ struct STATETREEMODULE_API FStateTreeConditionBase
 	UPROPERTY()
 	uint16 DataViewIndex = 0;
 };
+
+template<>
+struct TStructOpsTypeTraits<FStateTreeConditionBase> : public TStructOpsTypeTraitsBase2<FStateTreeConditionBase>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};
