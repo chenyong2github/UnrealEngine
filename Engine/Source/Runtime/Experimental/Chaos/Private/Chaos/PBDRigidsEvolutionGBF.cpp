@@ -100,6 +100,7 @@ namespace Chaos
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ComputeIntermediateSpatialAcceleration"), STAT_Evolution_ComputeIntermediateSpatialAcceleration, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CreateConstraintGraph"), STAT_Evolution_CreateConstraintGraph, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::CreateIslands"), STAT_Evolution_CreateIslands, STATGROUP_Chaos);
+		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UpdateAccelerationStructures"), STAT_Evolution_UpdateAccelerationStructures, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::AddSleepingContacts"), STAT_Evolution_AddSleepingContacts, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::PreApplyCallback"), STAT_Evolution_PreApplyCallback, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ParallelSolve"), STAT_Evolution_ParallelSolve, STATGROUP_Chaos);
@@ -282,11 +283,17 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_CreateConstraintGraph);
 		CreateConstraintGraph();
 	}
-	//CollisionDetector.GetCollisionContainer().GetConstraintAllocator().SortConstraintsHandles();
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CreateIslands);
 		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_CreateIslands);
 		CreateIslands();
+	}
+	{
+		// We keep the graph color stat name for now to compare with previous implementation
+		// @todo : change the name to sort constraints
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_GraphColor);
+		CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_GraphColor);
+		SortConstraints();
 	}
 	if (PreApplyCallback != nullptr)
 	{
@@ -333,8 +340,8 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 			{
 				// Update constraint graphs, coloring etc as required by the different constraint types in this island
 				{
-					SCOPE_CYCLE_COUNTER(STAT_Evolution_GraphColor);
-					CSV_SCOPED_TIMING_STAT(PhysicsVerbose, StepSolver_GraphColor);
+					SCOPE_CYCLE_COUNTER(STAT_Evolution_UpdateAccelerationStructures);
+					CSV_SCOPED_TIMING_STAT(PhysicsVerbose, STAT_Evolution_UpdateAccelerationStructures);
 					UpdateAccelerationStructures(Dt, Island);
 				}
 

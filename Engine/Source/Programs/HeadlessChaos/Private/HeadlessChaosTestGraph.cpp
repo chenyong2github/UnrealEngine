@@ -524,6 +524,12 @@ namespace ChaosTest {
 			// Check the number of islands
 			EXPECT_EQ(IterData.ExpectedIslandParticleIndices.Num(), Graph.NumIslands());
 
+			// Compute levels and colors
+			Graph.GetIslandGraph()->InitSorting();
+
+			Graph.GetIslandGraph()->ComputeLevels(ContainerId);
+			Graph.GetIslandGraph()->ComputeColors(ContainerId, INT32_MAX);
+
 			// Assign color to constraints
 			GraphColor.InitializeColor(Graph);
 			for (int32 IslandIndex = 0; IslandIndex < Graph.NumIslands(); ++IslandIndex)
@@ -575,7 +581,10 @@ namespace ChaosTest {
 
 				EXPECT_EQ(IterData.MaxLevel[Index], MaxLevel);
 				EXPECT_EQ(IterData.MaxColor[Index], MaxColor);
-
+				
+				EXPECT_EQ(FMath::Max(0,IterData.MaxLevel[Index]), FMath::Max(0,Graph.GetIslandGraph()->GraphIslands[Graph.GetGraphIndex(Island)].MaxLevels));
+				EXPECT_EQ(FMath::Max(0,IterData.MaxColor[Index]), FMath::Max(0,Graph.GetIslandGraph()->GraphIslands[Graph.GetGraphIndex(Island)].MaxColors));
+				
 				++Index;
 			}
 		}
