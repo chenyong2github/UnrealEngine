@@ -57,7 +57,7 @@ private:
 	void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** Delegate to refresh the drop down when the selected type changes */
-	void OnTypeChanged();
+	void OnTypeChanged(bool bClearInvalid);
 
 	/** Change value and forward to delegates */
 	void OnNameSelected(const FString& NameString);
@@ -75,6 +75,7 @@ private:
 	/** Slate accessors */
 	FString OnGetNameValueString() const;
 	FText OnGetNameValueText() const;
+	EVisibility GetWarningVisibility() const;
 
 	/** This will never be bad while engine is running */
 	class UDataRegistrySubsystem* Subsystem = nullptr;
