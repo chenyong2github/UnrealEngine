@@ -548,7 +548,10 @@ TSharedRef<SWidget> SMetasoundGraphNode::CreateNodeContentArea()
 						{
 							float Output = InputWidget->GetOutputValue(Value);
 							InputFloat->SetDefault(Output);
-							GraphInput->UpdateDocumentInput();
+							if (UMetasoundEditorGraphInputLiteral* InputLiteral = GraphInput->Literal)
+							{
+								InputLiteral->UpdateDocumentInputLiteral();
+							}
 						}
 					};
 					if (InputFloat->InputWidgetType == EMetasoundInputWidget::Slider)

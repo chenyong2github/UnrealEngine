@@ -60,7 +60,10 @@ void UMetasoundEditorGraphInputNode::UpdatePreviewInstance(const Metasound::FVer
 {
 	if (Input)
 	{
-		Input->UpdatePreviewInstance(InParameterName, InParameterInterface);
+		if (UMetasoundEditorGraphInputLiteral* InputLiteral = Input->Literal)
+		{
+			Input->Literal->UpdatePreviewInstance(InParameterName, InParameterInterface);
+		}
 	}
 }
 
@@ -97,7 +100,10 @@ void UMetasoundEditorGraphInputNode::PostEditUndo()
 
 	if (Input)
 	{
-		Input->UpdateDocumentInput(false /* bPostTransaction */);
+		if (UMetasoundEditorGraphInputLiteral* InputLiteral = Input->Literal)
+		{
+			Input->Literal->UpdateDocumentInputLiteral(false /* bPostTransaction */);
+		}
 	}
 }
 #endif // WITH_EDITORONLY_DATA
