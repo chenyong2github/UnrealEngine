@@ -120,7 +120,7 @@ void FControlRigGraphSchemaAction_LocalVar::ChangeVariableType(const FEdGraphPin
 	{
 		FString NewCPPType;
 		UObject* NewCPPTypeObject = nullptr;
-		FRigVMGraphVariableDescription::CPPTypeFromPinType(NewPinType, NewCPPType, NewCPPTypeObject);
+		RigVMTypeUtils::CPPTypeFromPinType(NewPinType, NewCPPType, &NewCPPTypeObject);
 		Graph->GetController()->SetLocalVariableType(GetVariableName(), NewCPPType, NewCPPTypeObject, true, true);
 	}
 }
@@ -1292,7 +1292,7 @@ UEdGraphPin* UControlRigGraphSchema::DropPinOnNode(UEdGraphNode* InTargetNode, c
 				{
 					ensure(!Model->IsTopLevelGraph());
 
-					FRigVMExternalVariable ExternalVar = UControlRig::GetExternalVariableFromPinType(InSourcePinName, InSourcePinType);
+					FRigVMExternalVariable ExternalVar = RigVMTypeUtils::ExternalVariableFromPinType(InSourcePinName, InSourcePinType);
 					if (ExternalVar.IsValid(true /* allow null memory */))
 					{
 						if (URigVMController* Controller = RigBlueprint->GetController(Model))

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMMemoryDeprecated.h"
-#include "RigVMCore/RigVMUtilities.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/PropertyPortFlags.h"
@@ -1691,7 +1690,7 @@ void FRigVMMemoryContainer::SetRegisterValueFromString(const FRigVMOperand& InOp
 	}
 
 	FString CPPType = InCPPType;
-	if (RigVMUtilities::IsArrayType(CPPType))
+	if (RigVMTypeUtils::IsArrayType(CPPType))
 	{
 		CPPType = CPPType.Mid(7, CPPType.Len() - 8);
 	}

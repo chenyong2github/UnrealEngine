@@ -128,7 +128,7 @@ FLinearColor SControlRigVariableBinding::GetBindingColor() const
 
 				if (ExternalVariable.Name == BoundVariable)
 				{
-					const FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(ExternalVariable);
+					const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(ExternalVariable);
 					return Schema->GetPinTypeColor(PinType);
 				}
 			}
@@ -289,7 +289,7 @@ void SControlRigVariableBinding::FillLocalVariableMenu(FMenuBuilder& MenuBuilder
 				continue;
 			}
 			
-			const FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(ExternalVariable);
+			const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(ExternalVariable);
 
 			MenuBuilder.AddMenuEntry(
 				FUIAction(FExecuteAction::CreateSP(this, &SControlRigVariableBinding::HandleBindToLocalVariable, LocalVariable)),

@@ -130,7 +130,7 @@ void UAnimGraphNode_ControlRig::CreateCustomPins(TArray<UEdGraphPin*>* OldPins)
 		{
 			FRigVMExternalVariable& Variable = VariablePair.Value;
 
-			FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(Variable);
+			FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(Variable);
 			if (!PinType.PinCategory.IsValid())
 			{
 				continue;

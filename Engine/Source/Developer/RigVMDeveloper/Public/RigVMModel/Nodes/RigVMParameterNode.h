@@ -4,7 +4,7 @@
 
 #include "RigVMCore/RigVMExternalVariable.h"
 #include "RigVMModel/RigVMNode.h"
-#include "RigVMCore/RigVMUtilities.h"
+#include "RigVMTypeUtils.h"
 #include "RigVMParameterNode.generated.h"
 
 /**
@@ -51,7 +51,7 @@ public:
 		FRigVMExternalVariable ExternalVariable;
 		ExternalVariable.Name = Name;
 
-		if (RigVMUtilities::IsArrayType(CPPType))
+		if (RigVMTypeUtils::IsArrayType(CPPType))
 		{
 			ExternalVariable.bIsArray = true;
 			ExternalVariable.TypeName = *CPPType.Mid(7, CPPType.Len() - 8);

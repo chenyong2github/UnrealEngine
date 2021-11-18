@@ -402,7 +402,7 @@ void FControlRigArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinType)
 		{
 			if (URigVMController* Controller = Blueprint->GetController(LibraryNode->GetContainedGraph()))
 			{
-				FRigVMExternalVariable ExternalVariable = UControlRig::GetExternalVariableFromPinType(Pin->GetFName(), PinType, true, false);
+				FRigVMExternalVariable ExternalVariable = RigVMTypeUtils::ExternalVariableFromPinType(Pin->GetFName(), PinType, true, false);
 				if (!ExternalVariable.IsValid(true /* allow nullptr memory */))
 				{
 					return;

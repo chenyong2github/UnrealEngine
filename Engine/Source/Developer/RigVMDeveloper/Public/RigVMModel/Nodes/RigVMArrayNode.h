@@ -36,7 +36,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMArrayNode)
 	ERigVMOpCode GetOpCode() const;
 
-	// Returns the C++ data type of the array
+	// Returns the C++ data type of the element
 	UFUNCTION(BlueprintCallable, Category = RigVMArrayNode)
 	FString GetCPPType() const;
 
