@@ -435,6 +435,18 @@ public:
 	virtual void RevokeAuthToken(const FUniqueNetId& LocalUserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate) = 0;
 
 	/**
+	 * Clear an auth token associated with the user, if one was cached.
+	 *
+	 * If an auth token is obtained for some other purpose than user account login, it would
+	 * be ignored an replaced with another when an actual login attempt is made, wasting the
+	 * previously obtained one.  Caching avoids that potential waste, but must be manually
+	 * cleared client-side when the login completes due to the remote side has consuming it.
+	 *
+	 * @param UserId the unique net of the associated user
+	 */
+	virtual void ClearCachedAuthToken(const FUniqueNetId& UserId) {};
+
+	/**
 	 * Delegate executed when the user's auth ticket has arrived
 	 *
 	 * @param LocalUserNum the controller number of the associated user
