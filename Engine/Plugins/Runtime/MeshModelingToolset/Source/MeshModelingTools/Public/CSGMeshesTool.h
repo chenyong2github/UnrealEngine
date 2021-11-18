@@ -78,6 +78,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Operation)
 	ETrimSide TrimSide = ETrimSide::RemoveInside;
 
+	/** Threshold to determine whether a triangle in one mesh is inside or outside of the other */
+	UPROPERTY(EditAnywhere, Category = Operation, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1"))
+	float WindingThreshold = 0.5;
+
 	/** Whether to show a translucent version of the trimming mesh, to help visualize what is being cut */
 	UPROPERTY(EditAnywhere, Category = Display)
 	bool bShowTrimmingMesh = true;
