@@ -35,6 +35,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #ifdef WITH_UE_AND_ORT_SUPPORT
 	#ifdef PLATFORM_WIN64
 	#include "core/providers/dml/dml_provider_factory.h"
+	//#include "core/framework/allocator.h"
 	#endif
 	#ifdef WITH_NNI_CPU_NOT_RECOMMENDED
 	#include "core/providers/nni_cpu/nni_cpu_provider_factory.h"
@@ -303,12 +304,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 				InModelReadFromFileInBytes.Num(), *InOutImplBackEndUEAndORT->SessionOptions);
 
 #ifdef PLATFORM_WIN64
-			// Check if resource allocator is properly initialized
-			if (InOutImplBackEndUEAndORT->DmlGPUAllocator.IsValid() && !InOutImplBackEndUEAndORT->DmlGPUAllocator->IsValid())
-			{
-				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Load() DirectML GPU resource allocator has failed to initialize."));
-				return false;
-			}
+			InOutImplBackEndUEAndORT->DmlGPUMemoryInfo = MakeUnique<Ort::MemoryInfo>(/*onnxruntime::DML*/ "DML", OrtAllocatorType::OrtDeviceAllocator, /*deviceId*/ 0, OrtMemType::OrtMemTypeDefault);
 #endif
 		}
 		// Else
@@ -376,16 +372,16 @@ void UNeuralNetwork::FImplBackEndUEAndORT::IsAsyncTaskDone() const
 void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
 {
 #ifdef PLATFORM_WIN64
-	if (DmlGPUAllocator.IsValid() && DmlGPUAllocator->IsValid())
+	if (DmlApi)
 	{
 		const int32 Num = DmlGPUResources.Num();
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
-			DmlGPUAllocator->FreeGPUAllocation(DmlGPUResources[Index]);
+			DmlApi->FreeGPUAllocation(DmlGPUResources[Index]);
 		}
 
 		DmlGPUResources.Reset(0);
-		DmlGPUAllocator.Reset(nullptr);
+		DmlApi = nullptr;
 	}
 #endif //PLATFORM_WIN64
 }
@@ -635,19 +631,22 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 		// ORT GPU (Direct ML)
 		SessionOptions->SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL); // ORT_ENABLE_ALL, ORT_ENABLE_EXTENDED, ORT_ENABLE_BASIC, ORT_DISABLE_ALL
 
-		DmlGPUAllocator = MakeUnique<Ort::DMLGPUResourceAllocator>();
-
-		// Set DirectML execution provider options
-		DmlProviderOptions.Reset(new OrtDMLProviderOptions());
-		DmlProviderOptions->dml_device = DmlDevice;
-		DmlProviderOptions->cmd_queue = NativeCmdQ;
-		DmlProviderOptions->resource_allocator = DmlGPUAllocator->GetAllocatorAddressOf();
-
-		// OrtSessionOptionsAppendExecutionProvider_DML(*SessionOptions, 0) without sharing
-		if (OrtSessionOptionsAppendExecutionProviderWithOptions_DML(*SessionOptions, DmlProviderOptions.Get()))
+		// Get DML API
+		const OrtApi* OrtApi = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+		
+		OrtApi->GetExecutionProviderApi(/*onnxruntime::DML*/ "DML", ORT_API_VERSION, (const void**) &DmlApi);
+		if (!DmlApi)
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning,
-				TEXT("FImplBackEndUEAndORT::ConfigureMembers(): Some error occurred when using OrtSessionOptionsAppendExecutionProviderEx_DML()."));
+				TEXT("FImplBackEndUEAndORT::ConfigureMembers(): Failed to obtain OrtDmlApi."));
+			return false;
+		}
+
+		// Set session options
+		if (DmlApi->SessionOptionsAppendExecutionProvider_DML1(*SessionOptions.Get(), DmlDevice, NativeCmdQ))
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning,
+				TEXT("FImplBackEndUEAndORT::ConfigureMembers(): Some error occurred when using OrtDmlApi::SessionOptionsAppendExecutionProvider_DML1."));
 			return false;
 		}
 		return true; // @todo: Remove this line when NNI_HLSL is working
@@ -944,13 +943,16 @@ void UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorToONNXRuntime(TArray<FNeura
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(FNeuralTensor& InOutTensor, Ort::Value& InOutOrtTensor, void* D3DResource)
 {
-	if (!DmlGPUAllocator.IsValid() || !DmlGPUAllocator->IsValid())
+	if (!DmlApi)
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(): DmlGPUAllocator is not valid"));
 		return false;
 	}
 
-	void* DmlGPUAllocation = DmlGPUAllocator->GPUAllocationFromD3DResource(D3DResource);
+	void* DmlGPUAllocation = nullptr;
+	
+	DmlApi->CreateGPUAllocationFromD3DResource(reinterpret_cast<ID3D12Resource*>(D3DResource), &DmlGPUAllocation);
+
 	if (!DmlGPUAllocation)
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(): DmlGPUAllocation is NULL"));
@@ -975,7 +977,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorResourceToONNXRuntime(FNeur
 			SizesInt64t.SetNumUninitialized(ArrayDimensions);
 			FMemory::Memcpy(SizesInt64t.GetData(), (int64_t*)Sizes.GetData(), sizeof(int64_t) * ArrayDimensions);
 #endif //_WIN32
-			InOutOrtTensor = Ort::Value::CreateTensor(DmlGPUAllocator->GetProviderMemoryInfo(), DmlGPUAllocation, InOutTensor.NumInBytes(), SizesInt64t.GetData(),
+			InOutOrtTensor = Ort::Value::CreateTensor(*DmlGPUMemoryInfo.Get(), DmlGPUAllocation, InOutTensor.NumInBytes(), SizesInt64t.GetData(),
 				ArrayDimensions, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT);
 		}
 		//else if (NeuralDataType == ENeuralDataType::Double)

@@ -28,11 +28,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #ifdef WITH_UE_AND_ORT_SUPPORT
 #include "core/session/onnxruntime_cxx_api.h"
 #ifdef PLATFORM_WIN64
-struct OrtDMLProviderOptions;
-namespace Ort
-{
-	class DMLGPUResourceAllocator;
-}
+struct OrtDmlApi;
 #endif
 #endif //WITH_UE_AND_ORT_SUPPORT
 NNI_THIRD_PARTY_INCLUDES_END
@@ -132,8 +128,8 @@ private:
 	/** Tensor-related variables */
 	TUniquePtr<Ort::MemoryInfo> AllocatorInfo; /* Memory allocator information */
 #ifdef PLATFORM_WIN64
-	TUniquePtr<OrtDMLProviderOptions> DmlProviderOptions; /* DirectML execution provider options */
-	TUniquePtr<Ort::DMLGPUResourceAllocator> DmlGPUAllocator; /* DirectML GPU allocator */
+	const OrtDmlApi* DmlApi;
+	TUniquePtr<Ort::MemoryInfo> DmlGPUMemoryInfo; /* DirectML GPU memory information */
 	TArray<void*> DmlGPUResources; /* Shared D3D12 resources with DirectML GPU execution provider */
 #endif
 	TArray<Ort::Value> InputOrtTensors; /* Actual ONNXRuntime tensors */

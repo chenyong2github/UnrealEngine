@@ -228,7 +228,6 @@ namespace Dml
             IDMLDevice* dmlDevice,
             ID3D12CommandQueue* commandQueue,
             bool enableMetacommands = true
-            , OrtDMLGPUResourceAllocator** resourceAllocator = nullptr // WITH_UE: Added resourceAllocator
         );
         
         std::unique_ptr<onnxruntime::IDataTransfer> GetDataTransfer() const final override
@@ -292,7 +291,6 @@ namespace Dml
 
     private:
         ComPtr<ExecutionProviderImpl> m_impl;
-        std::unique_ptr<class OrtDMLGPUResourceAllocatorWrapper> m_resourceAlloc; // WITH_UE
     };
 
 } // namespace Dml
