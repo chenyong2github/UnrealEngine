@@ -94,6 +94,9 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 {
 	VULKAN_TRACK_OBJECT_CREATE(FVulkanResourceMultiBuffer, this);
 
+	// Always include TRANSFER_SRC since hardware vendors confirmed it wouldn't have any performance cost and we need it for some debug functionalities.
+	BufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
 	if (EnumHasAnyFlags(InUEUsage, BUF_VertexBuffer))
 	{
 		BufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -117,14 +120,12 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 		const bool bUAV = EnumHasAnyFlags(InUEUsage, BUF_UnorderedAccess);
 		const bool bIndirect = EnumHasAllFlags(InUEUsage, BUF_DrawIndirect);
 		const bool bCPUReadable = EnumHasAnyFlags(InUEUsage, BUF_KeepCPUAccessible);
-		const bool bCopySource = EnumHasAnyFlags(InUEUsage, BUF_SourceCopy);
 
 		BufferUsageFlags |= bVolatile ? 0 : VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 		BufferUsageFlags |= (bShaderResource && !bIsUniformBuffer) ? VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT : 0;
 		BufferUsageFlags |= bUAV ? VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT : 0;
 		BufferUsageFlags |= bIndirect ? VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT : 0;
 		BufferUsageFlags |= bCPUReadable ? (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT) : 0;
-		BufferUsageFlags |= bCopySource ? VK_BUFFER_USAGE_TRANSFER_SRC_BIT : 0;
 
 #if VULKAN_RHI_RAYTRACING
 		BufferUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;

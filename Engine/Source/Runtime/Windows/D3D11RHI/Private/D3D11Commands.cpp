@@ -1994,8 +1994,6 @@ void FD3D11DynamicRHI::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIS
 		ensureMsgf(!StagingBuffer->bIsLocked, TEXT("Attempting to Copy to a locked staging buffer. This may have undefined behavior"));
 		if (SourceBuffer)
 		{
-			ensureMsgf(EnumHasAnyFlags(SourceBufferRHI->GetUsage(), BUF_SourceCopy), TEXT("Buffers used as copy source need to be created with BUF_SourceCopy"));
-
 			if (!StagingBuffer->StagedRead || StagingBuffer->ShadowBufferSize < NumBytes)
 			{
 				// Free previously allocated buffer.

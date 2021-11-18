@@ -645,9 +645,6 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, F
 	FD3D12Buffer* VertexBuffer = RetrieveObject<FD3D12Buffer>(SourceBufferRHI);
 	check(VertexBuffer);
 
-	ensureMsgf(EnumHasAnyFlags(SourceBufferRHI->GetUsage(), BUF_SourceCopy), TEXT("Buffers used as copy source need to be created with BUF_SourceCopy"));
-
-
 	// Ensure our shadow buffer is large enough to hold the readback.
 	if (!StagingBuffer->ResourceLocation.IsValid() || StagingBuffer->ShadowBufferSize < NumBytes)
 	{
