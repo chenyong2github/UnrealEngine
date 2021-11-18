@@ -61,6 +61,7 @@ public:
 		if (GConfig->GetBool(TEXT("CookedEditorSettings"), TEXT("bSupportCookedEditor"), bSupportCookedEditor, GGameIni) && bSupportCookedEditor)
 		{
 			TargetPlatforms.Add(new TCookedEditorTargetPlatform<FWindowsEditorTargetPlatformParent>());
+			TargetPlatforms.Add(new TCookedCookerTargetPlatform<FWindowsEditorTargetPlatformParent>());
 		}
 #endif
 	}
