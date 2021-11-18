@@ -2,7 +2,6 @@
 
 #include "Sampling/MeshImageBakingCache.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FMeshImageBakingCache::SetDetailMesh(const FDynamicMesh3* Mesh, const FDynamicMeshAABBTree3* Spatial)

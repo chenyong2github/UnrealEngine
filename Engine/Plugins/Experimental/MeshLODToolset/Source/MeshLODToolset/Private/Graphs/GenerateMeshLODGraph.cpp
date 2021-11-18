@@ -31,7 +31,6 @@
 #include "MeshDecompositionNodes/MakeTriangleSetsNode.h"
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 

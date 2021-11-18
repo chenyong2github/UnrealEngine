@@ -10,7 +10,6 @@
 #include "Operations/SimpleHoleFiller.h"
 #include "Operations/PlanarHoleFiller.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FCurveSweepOp::CalculateResult(FProgressCancel* Progress)

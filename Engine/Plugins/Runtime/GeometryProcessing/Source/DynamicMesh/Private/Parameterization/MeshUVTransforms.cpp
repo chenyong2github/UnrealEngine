@@ -4,7 +4,6 @@
 #include "Parameterization/MeshUVTransforms.h"
 #include "Math/RandomStream.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void UE::MeshUVTransforms::RecenterScale(FDynamicMeshUVOverlay* UVOverlay, const TArray<int32>& UVElementIDs,

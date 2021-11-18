@@ -6,7 +6,6 @@
 #include "DynamicMesh/MeshTransforms.h"
 #include "Distance/DistRay3Segment3.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void USpatialCurveDistanceMechanic::Setup(UInteractiveTool* ParentToolIn)

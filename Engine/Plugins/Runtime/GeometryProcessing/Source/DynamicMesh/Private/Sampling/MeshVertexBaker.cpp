@@ -5,7 +5,6 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FMeshConstantMapEvaluator FMeshVertexBaker::ZeroEvaluator(0.0f);

@@ -9,7 +9,6 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "Operations/RemoveOccludedTriangles.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FVoxelBaseOp::PostProcessResult(FProgressCancel* Progress, double MeshCellSize)

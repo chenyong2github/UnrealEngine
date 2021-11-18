@@ -15,7 +15,6 @@
 
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 // TODO: Commented out below is a custom thick triangle intersection.

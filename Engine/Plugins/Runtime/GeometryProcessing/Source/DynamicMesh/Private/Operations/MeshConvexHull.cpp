@@ -7,7 +7,6 @@
 #include "CompGeom/ConvexHull3.h"
 #include "Util/GridIndexing3.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 bool FMeshConvexHull::Compute(FProgressCancel* Progress)

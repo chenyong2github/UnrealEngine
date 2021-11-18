@@ -10,8 +10,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/DynamicMeshComponent.h"
 
-
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_SceneUtilityFunctions"

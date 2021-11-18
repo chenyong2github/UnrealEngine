@@ -6,7 +6,6 @@
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 // TODO: Need to test both conversions some more with meshes that only have instanced UVs.

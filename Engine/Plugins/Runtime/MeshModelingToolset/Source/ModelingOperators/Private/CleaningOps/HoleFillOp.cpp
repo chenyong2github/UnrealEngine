@@ -9,7 +9,6 @@
 #include "CompGeom/PolygonTriangulation.h"
 #include "Selections/MeshConnectedComponents.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 namespace 

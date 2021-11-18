@@ -6,7 +6,6 @@
 #include "DynamicMesh/DynamicMeshOverlay.h"
 #include "Async/ParallelFor.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void MeshTransforms::Translate(FDynamicMesh3& Mesh, const FVector3d& Translation)

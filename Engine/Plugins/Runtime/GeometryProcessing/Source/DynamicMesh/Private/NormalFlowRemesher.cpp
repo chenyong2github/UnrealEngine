@@ -5,7 +5,6 @@
 #include "DynamicMesh/InfoTypes.h"
 #include "Async/ParallelTransformReduce.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FNormalFlowRemesher::RemeshWithFaceProjection()

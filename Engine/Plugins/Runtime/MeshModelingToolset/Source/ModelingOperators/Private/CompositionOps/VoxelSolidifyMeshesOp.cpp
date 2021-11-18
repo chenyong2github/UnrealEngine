@@ -11,7 +11,6 @@
 
 #include "Implicit/Solidify.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FVoxelSolidifyMeshesOp::SetTransform(const FTransform& Transform) {

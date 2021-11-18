@@ -2,7 +2,6 @@
 
 #include "DynamicMesh/MeshAdapterUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FPointSetAdapterd UE::Geometry::MakePointsAdapter(const FDynamicPointSet3d* PointSet)

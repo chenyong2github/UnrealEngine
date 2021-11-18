@@ -3,7 +3,6 @@
 #include "Transforms/MultiTransformer.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 

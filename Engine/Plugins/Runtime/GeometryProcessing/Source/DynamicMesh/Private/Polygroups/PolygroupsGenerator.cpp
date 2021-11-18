@@ -11,9 +11,6 @@
 
 #include "Curve/DynamicGraph3.h"
 
-
-
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FPolygroupsGenerator::FPolygroupsGenerator(FDynamicMesh3* MeshIn)

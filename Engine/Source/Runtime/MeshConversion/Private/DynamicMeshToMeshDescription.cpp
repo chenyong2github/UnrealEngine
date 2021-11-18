@@ -9,7 +9,6 @@
 #include "DynamicMesh/MeshTangents.h"
 #include "Util/ColorConstants.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 

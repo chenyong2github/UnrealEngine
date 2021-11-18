@@ -5,7 +5,6 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMeshEditor.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 // Forward declarations of local functions

@@ -5,7 +5,6 @@
 #include "Operations/MeshPlaneCut.h"
 #include "Operations/MeshMirror.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FMirrorOp::SetTransform(const FTransform& Transform) {

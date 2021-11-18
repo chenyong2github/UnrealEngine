@@ -6,7 +6,6 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Async/ParallelFor.h"
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 #include "Util/ProgressCancel.h"
 
 using namespace UE::Geometry;

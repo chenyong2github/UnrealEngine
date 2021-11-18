@@ -12,7 +12,6 @@
 #include "ToolDataVisualizer.h"
 #include "ToolSceneQueriesUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)

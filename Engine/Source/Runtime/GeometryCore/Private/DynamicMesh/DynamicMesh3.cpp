@@ -5,7 +5,6 @@
 #include "Generators/MeshShapeGenerator.h"
 #include "Templates/UniquePtr.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 // NB: These have to be here until C++17 allows inline variables

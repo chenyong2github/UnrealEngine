@@ -5,7 +5,6 @@
 #include "LineTypes.h"
 #include "Distance/DistLine3Ray3.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FBasePositionSnapSolver3::FBasePositionSnapSolver3()

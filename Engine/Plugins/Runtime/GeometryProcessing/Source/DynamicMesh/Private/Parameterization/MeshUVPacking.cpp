@@ -8,7 +8,6 @@
 // the generic GeometricObjects version
 #include "Parameterization/UVPacking.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 struct FUVOverlayView : public FUVPacker::IUVMeshView

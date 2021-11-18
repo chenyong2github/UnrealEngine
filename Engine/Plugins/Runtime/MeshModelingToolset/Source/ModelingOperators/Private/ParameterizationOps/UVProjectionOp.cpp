@@ -6,7 +6,6 @@
 #include "DynamicMeshEditor.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 

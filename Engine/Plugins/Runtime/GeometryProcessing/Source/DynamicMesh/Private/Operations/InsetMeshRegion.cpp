@@ -13,7 +13,6 @@
 #include "DynamicMesh/MeshTransforms.h"
 #include "Operations/PolyEditingEdgeUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FInsetMeshRegion::FInsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)

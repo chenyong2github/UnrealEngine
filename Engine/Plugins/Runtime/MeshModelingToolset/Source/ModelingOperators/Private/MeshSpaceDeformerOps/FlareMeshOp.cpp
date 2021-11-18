@@ -4,7 +4,6 @@
 #include "Async/ParallelFor.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 //Some simple non-linear interpolation functions to play with.

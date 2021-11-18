@@ -15,7 +15,6 @@
 #include "Operations/MeshBoolean.h"
 #include "ConstrainedDelaunay2.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void CollapseDegenerateEdgesOnVertexPath(FDynamicMesh3& Mesh, TArray<int>& VertexIDsIO, TArray<int>& PathVertCorrespondIO)

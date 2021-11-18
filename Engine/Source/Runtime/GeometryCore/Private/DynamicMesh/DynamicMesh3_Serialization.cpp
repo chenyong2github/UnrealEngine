@@ -5,7 +5,6 @@
 #include "HAL/PlatformTime.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 namespace FDynamicMesh3Serialization_Local

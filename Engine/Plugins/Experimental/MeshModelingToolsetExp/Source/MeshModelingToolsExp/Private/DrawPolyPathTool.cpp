@@ -21,7 +21,6 @@
 #include "MeshBoundaryLoops.h"
 #include "ToolDataVisualizer.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UDrawPolyPathTool"

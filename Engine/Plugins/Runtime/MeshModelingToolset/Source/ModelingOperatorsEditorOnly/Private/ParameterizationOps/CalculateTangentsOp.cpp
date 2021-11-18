@@ -9,7 +9,6 @@
 #include "mikktspace.h"
 #endif //WITH_MIKKTSPACE
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FCalculateTangentsOp::CalculateResult(FProgressCancel* Progress)

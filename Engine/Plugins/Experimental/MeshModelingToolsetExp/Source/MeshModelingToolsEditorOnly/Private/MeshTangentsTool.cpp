@@ -22,7 +22,6 @@
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ModelingToolTargetUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshTangentsTool"

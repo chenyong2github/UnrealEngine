@@ -13,7 +13,6 @@
 #include "DynamicMesh/MeshTransforms.h"
 #include "DynamicSubmesh3.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USplitMeshesTool"

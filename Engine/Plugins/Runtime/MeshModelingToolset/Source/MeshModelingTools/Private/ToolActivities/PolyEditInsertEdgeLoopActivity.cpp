@@ -14,7 +14,6 @@
 #include "Selection/PolygonSelectionMechanic.h"
 #include "ToolActivities/PolyEditActivityContext.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPolyEditInsertEdgeLoopActivity"

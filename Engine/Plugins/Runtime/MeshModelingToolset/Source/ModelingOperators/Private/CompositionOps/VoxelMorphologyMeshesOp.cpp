@@ -12,7 +12,6 @@
 #include "Implicit/Morphology.h"
 #include "Implicit/Solidify.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FVoxelMorphologyMeshesOp::SetTransform(const FTransform& Transform) {

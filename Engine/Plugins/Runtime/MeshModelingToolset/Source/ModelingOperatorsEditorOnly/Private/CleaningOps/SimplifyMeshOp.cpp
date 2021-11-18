@@ -21,7 +21,6 @@
 #include "OverlappingCorners.h"
 #include "StaticMeshOperations.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 template <typename SimplificationType>

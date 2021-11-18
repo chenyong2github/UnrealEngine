@@ -20,7 +20,6 @@
 
 #define LOCTEXT_NAMESPACE "UPolyEditExtrudeActivity"
 
-#include "ExplicitUseGeometryMathTypes.h" // using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 namespace PolyEditExtrudeActivityLocals

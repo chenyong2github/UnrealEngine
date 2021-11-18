@@ -33,7 +33,6 @@
 
 #define LOCTEXT_NAMESPACE "UGroomCardsEditorTool"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 /*

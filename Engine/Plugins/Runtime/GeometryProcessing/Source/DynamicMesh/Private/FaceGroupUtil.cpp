@@ -2,7 +2,6 @@
 
 #include "FaceGroupUtil.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FaceGroupUtil::SetGroupID(FDynamicMesh3& Mesh, int32 to)

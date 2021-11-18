@@ -3,7 +3,6 @@
 #include "MeshDiffusionIntegrator.h"
 #include "MatrixSolver.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 FMeshDiffusionIntegrator::FMeshDiffusionIntegrator(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme Scheme)

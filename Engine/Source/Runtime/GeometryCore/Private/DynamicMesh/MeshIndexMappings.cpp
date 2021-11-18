@@ -4,7 +4,6 @@
 #include "DynamicMesh/MeshIndexMappings.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FMeshIndexMappings::Initialize(FDynamicMesh3* Mesh)

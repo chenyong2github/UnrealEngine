@@ -8,8 +8,6 @@
 #include "Properties/UVLayoutProperties.h"
 #include "Selections/MeshConnectedComponents.h"
 
-
-#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 void FUVLayoutOp::SetTransform(const FTransform& Transform) {
