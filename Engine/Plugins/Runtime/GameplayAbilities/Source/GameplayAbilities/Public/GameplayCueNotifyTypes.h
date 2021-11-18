@@ -352,6 +352,24 @@ public:
 	uint32 bCastShadow : 1;
 };
 
+/**
+ * FGameplayCueNotify_SoundParameterInterfaceInfo
+ *
+ *	Properties that specify how to interface with the ISoundGeneratorParameterInterface
+ */
+USTRUCT(BlueprintType)
+struct FGameplayCueNotify_SoundParameterInterfaceInfo
+{
+	GENERATED_BODY()
+
+public:
+
+	FGameplayCueNotify_SoundParameterInterfaceInfo();
+
+	// The name of the stop trigger set via the parameter interface
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
+	FName StopTriggerName = TEXT("OnStop");
+};
 
 /**
  * FGameplayCueNotify_SoundInfo
@@ -381,7 +399,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (EditCondition = "bOverridePlacementInfo"))
 	FGameplayCueNotify_PlacementInfo PlacementInfoOverride;
 
-	// Sound cue to play.
+	// Sound to play.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
 	USoundBase* SoundCue;
 
@@ -395,6 +413,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify)
 	float LoopingFadeVolumeLevel;
 
+	// Defines how to interface with the sound.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (EditCondition = "bUseSoundParameterInterface"))
+	FGameplayCueNotify_SoundParameterInterfaceInfo SoundParameterInterfaceInfo;
+
 	// If enabled, use the spawn condition override and not the default one.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (InlineEditConditionToggle))
 	uint32 bOverrideSpawnCondition : 1;
@@ -402,6 +424,11 @@ public:
 	// If enabled, use the placement info override and not the default one.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (InlineEditConditionToggle))
 	uint32 bOverridePlacementInfo : 1;
+
+	// If enabled, use the placement info override and not the default one.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = GameplayCueNotify, Meta = (InlineEditConditionToggle))
+	uint32 bUseSoundParameterInterface : 1;
+
 };
 
 
