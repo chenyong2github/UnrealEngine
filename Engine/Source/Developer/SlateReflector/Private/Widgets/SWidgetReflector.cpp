@@ -37,6 +37,7 @@
 #include "Widgets/SWidgetReflectorToolTipWidget.h"
 #include "Widgets/SWidgetEventLog.h"
 #include "Widgets/SWidgetHittestGrid.h"
+#include "Widgets/SWidgetList.h"
 #include "Widgets/SInvalidationPanel.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -109,6 +110,7 @@ namespace WidgetReflectorTabID
 	static const FName SlateOptions = "WidgetReflector.SlateOptionsTab";
 	static const FName WidgetEvents = "WidgetReflector.WidgetEventsTab";
 	static const FName HittestGrid = "WidgetReflector.HittestGridTab";
+	static const FName WidgetList = "WidgetReflector.WidgetList";
 }
 
 namespace WidgetReflectorText
@@ -175,8 +177,12 @@ private:
 
 #if WITH_SLATE_DEBUGGING
 	TSharedRef<SDockTab> SpawnWidgetEvents(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnWidgeHittestGrid(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnWidgetHittestGrid(const FSpawnTabArgs& Args);
 #endif
+
+	TSharedRef<SDockTab> SpawnWidgetList(const FSpawnTabArgs& Args);
+
+public:
 
 	void HandleTabManagerPersistLayout(const TSharedRef<FTabManager::FLayout>& LayoutToSave);
 	void OnTabSpawned(const FName& TabIdentifier, const TSharedRef<SDockTab>& SpawnedTab);
@@ -533,6 +539,7 @@ void SWidgetReflector::Construct( const FArguments& InArgs )
 					->AddTab(WidgetReflectorTabID::WidgetEvents, ETabState::ClosedTab)
 					->AddTab(WidgetReflectorTabID::HittestGrid, ETabState::ClosedTab)
 #endif
+					->AddTab(WidgetReflectorTabID::WidgetList, ETabState::ClosedTab)
 				)
 			)
 #if WITH_EDITOR
@@ -581,9 +588,12 @@ void SWidgetReflector::Construct( const FArguments& InArgs )
 #if WITH_SLATE_DEBUGGING
 	RegisterTrackedTabSpawner(WidgetReflectorTabID::WidgetEvents, FOnSpawnTab::CreateSP(this, &SWidgetReflector::SpawnWidgetEvents))
 		.SetDisplayName(LOCTEXT("WidgetEventsTab", "Widget Events"));
-	RegisterTrackedTabSpawner(WidgetReflectorTabID::HittestGrid, FOnSpawnTab::CreateSP(this, &SWidgetReflector::SpawnWidgeHittestGrid))
+	RegisterTrackedTabSpawner(WidgetReflectorTabID::HittestGrid, FOnSpawnTab::CreateSP(this, &SWidgetReflector::SpawnWidgetHittestGrid))
 		.SetDisplayName(LOCTEXT("HitTestGridTab", "Hit Test Grid"));
 #endif
+
+	RegisterTrackedTabSpawner(WidgetReflectorTabID::WidgetList, FOnSpawnTab::CreateSP(this, &SWidgetReflector::SpawnWidgetList))
+		.SetDisplayName(LOCTEXT("WidgetListTab", "Widget List"));
 
 #if WITH_EDITOR
 	if (GIsEditor)
@@ -1017,7 +1027,7 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetEvents(const FSpawnTabArgs& Ar
 		];
 }
 
-TSharedRef<SDockTab> SWidgetReflector::SpawnWidgeHittestGrid(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetHittestGrid(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
 		.Label(LOCTEXT("HitTestGridTab", "Hit Test Grid"))
@@ -1030,6 +1040,17 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgeHittestGrid(const FSpawnTabArgs
 
 #endif //WITH_SLATE_DEBUGGING
 
+TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetList(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("WidgetListTab", "Widget List"))
+		[
+			SNew(SWidgetList)
+			.OnAccessSource(SourceAccessDelegate)
+			.OnAccessAsset(AsseetAccessDelegate)
+		];
+}
+
 void SWidgetReflector::HandleTabManagerPersistLayout(const TSharedRef<FTabManager::FLayout>& LayoutToSave)
 {
 #if WITH_EDITOR
@@ -1039,7 +1060,6 @@ void SWidgetReflector::HandleTabManagerPersistLayout(const TSharedRef<FTabManage
 	}
 #endif //WITH_EDITOR
 }
-
 
 void SWidgetReflector::SaveSettings()
 {

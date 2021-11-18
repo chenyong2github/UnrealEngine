@@ -7,6 +7,7 @@
 #include "FastUpdate/WidgetUpdateFlags.h"
 #include "Input/Reply.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Types/SlateAttribute.h"
 #include "Widgets/InvalidateWidgetReason.h"
 
 #include "SlateDebugging.generated.h"
@@ -17,6 +18,11 @@
 
 #ifndef SLATE_CSV_TRACKER
 	#define SLATE_CSV_TRACKER CSV_PROFILER
+#endif
+
+// Enabled to build a list of all the SWidget currently constructed
+#ifndef UE_WITH_SLATE_DEBUG_WIDGETLIST
+	#define UE_WITH_SLATE_DEBUG_WIDGETLIST UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
 #endif
 
 class SWindow;
@@ -389,10 +395,13 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FUICommandRun, const FName& /*CommandName*/, const FText& /*CommandLabel*/);
 	static FUICommandRun CommandRun;
 
+	static const TArray<const SWidget*>& GetAllWidgets();
+	static void ExportWidgetList(FStringView Filename);
+
 private:
 
 	// This class is only for namespace use
-	FSlateDebugging() = default;
+	FSlateDebugging() = delete;
 
 	struct FLastCursorQuery
 	{

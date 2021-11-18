@@ -320,6 +320,29 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice ConsoleCommandLogAllWidgets(
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(&LogAllWidgetsDebugInfo)
 );
 
+void FWidgetList::ExportToCSV(FStringView OutputFilename)
+{
+	if (OutputFilename.Len() == 0)
+	{
+		return;
+	}
+
+	FLogAllWidgetsDebugInfoFlags Flags;
+	Flags.bDebug = true;
+	Flags.bPaint = true;
+	Flags.bProxy = true;
+	Flags.bChildren = true;
+	Flags.bParent = true;
+	Flags.bToolTip = true;
+	Flags.bCursor = true;
+	Flags.bSlateAttribute = true;
+	Flags.bMouseEventsHandler = true;
+
+	FOutputDeviceFile OutputDeviceFile(*WriteToString<256>(OutputFilename), true /*bDisableBackup*/);
+	OutputDeviceFile.SetSuppressEventTag(true);
+
+	LogAllWidgetsDebugInfoImpl(OutputDeviceFile, Flags);
+}
 
 } //Slate
 } //UE
