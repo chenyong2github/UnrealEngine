@@ -199,11 +199,11 @@ namespace HordeServer.Collections
 		/// Marks a batch as skipped
 		/// </summary>
 		/// <param name="Job">The job to update</param>
-		/// <param name="BatchIdx">The batch to mark as skipped</param>
+		/// <param name="BatchId">The batch to mark as skipped</param>
 		/// <param name="Graph">Graph for the job</param>
 		/// <param name="Reason">Reason for this batch being failed</param>
 		/// <returns>Updated version of the job</returns>
-		Task<IJob?> SkipBatchAsync(IJob? Job, int BatchIdx, IGraph Graph, JobStepBatchError Reason);
+		Task<IJob?> SkipBatchAsync(IJob? Job, SubResourceId BatchId, IGraph Graph, JobStepBatchError Reason);
 
 		/// <summary>
 		/// Abort an agent's lease, and update the payload accordingly
