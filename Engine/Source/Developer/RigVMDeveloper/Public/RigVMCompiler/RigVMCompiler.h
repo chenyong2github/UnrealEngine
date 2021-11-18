@@ -92,6 +92,14 @@ public:
 	TMap<int32, FRigVMOperand> IntegerLiterals;
 	FRigVMOperand ComparisonOperand;
 
+	using FRigVMASTProxyArray = TArray<FRigVMASTProxy, TInlineAllocator<3>>; 
+	using FRigVMASTProxySourceMap = TMap<FRigVMASTProxy, FRigVMASTProxy>;
+	using FRigVMASTProxyTargetsMap =
+		TMap<FRigVMASTProxy, FRigVMASTProxyArray>;
+	TMap<FRigVMASTProxy, FRigVMASTProxyArray> CachedProxiesWithSharedOperand;
+	const FRigVMASTProxySourceMap* ProxySources;
+	FRigVMASTProxyTargetsMap ProxyTargets;
+
 #if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 
 	TArray<URigVMPin*> WatchedPins;
@@ -173,7 +181,7 @@ private:
 	void InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 
 	FRigVMOperand FindOrAddRegister(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData, bool bIsDebugValue = false);
-	TArray<FRigVMASTProxy> FindProxiesWithSharedOperand(const FRigVMVarExprAST* InVarExpr);
+	const FRigVMCompilerWorkData::FRigVMASTProxyArray& FindProxiesWithSharedOperand(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData);
 
 	bool ValidateNode(URigVMNode* InNode);
 	
