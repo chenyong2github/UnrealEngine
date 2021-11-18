@@ -411,10 +411,10 @@ void SKismetDebuggingView::Tick(const FGeometry& AllottedGeometry, const double 
 				continue;
 			}
 
-			// only include actors in current world
-			if (AActor* Actor = Cast<AActor>(Instance))
+			// only include instances of objects in a PIE world
+			if (UWorld* World = Instance->GetTypedOuter<UWorld>())
 			{
-				if (!GEditor->PlayWorld->ContainsActor(Actor))
+				if (!World || World->WorldType != EWorldType::PIE)
 				{
 					continue;
 				}
