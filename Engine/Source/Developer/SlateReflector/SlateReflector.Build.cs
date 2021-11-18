@@ -22,7 +22,9 @@ public class SlateReflector : ModuleRules
 				"EditorStyle",
 				"Json",
 				"AssetRegistry",
-                "MessageLog"
+                "MessageLog",
+				"ToolWidgets",
+				"DesktopPlatform"
             }
 		);
 

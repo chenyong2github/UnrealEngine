@@ -6,13 +6,8 @@
 #include "Types/SlateAttribute.h"
 #include "Debugging/SlateDebugging.h"
 
-// Enabled to build a list of all the SWidget currently constructed
-#ifndef UE_WITH_SLATE_DEBUG_WIDGETLIST
-	#define UE_WITH_SLATE_DEBUG_WIDGETLIST 0 || UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
-#endif
-
 #if UE_WITH_SLATE_DEBUG_WIDGETLIST && (UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	#error "UE_WITH_SLATE_DEBUG_WIDGETLIST is defined in a none debug build"
+	#error "UE_WITH_SLATE_DEBUG_WIDGETLIST is defined in a non-debug build"
 #endif
 
 #if UE_WITH_SLATE_DEBUG_WIDGETLIST
@@ -31,6 +26,8 @@ public:
 	static void RemoveWidget(const SWidget* Widget) { AllWidgets.RemoveSingleSwap(Widget); }
 
 	static const TArray<const SWidget*>& GetAllWidgets() { return AllWidgets; }
+
+	static void ExportToCSV(FStringView FileName);
 
 private:
 	FWidgetList() = delete;

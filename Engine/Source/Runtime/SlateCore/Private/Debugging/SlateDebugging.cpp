@@ -2,17 +2,19 @@
 
 #include "Debugging/SlateDebugging.h"
 
-#include "SlateGlobals.h"
-#include "FastUpdate/WidgetProxy.h"
 #include "Animation/CurveSequence.h"
+#include "Application/SlateApplicationBase.h"
+#include "Debugging/WidgetList.h"
+#include "FastUpdate/WidgetProxy.h"
 #include "Layout/WidgetPath.h"
+#include "Misc/StringBuilder.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Rendering/DrawElements.h"
+#include "SlateGlobals.h"
 #include "Styling/CoreStyle.h"
 #include "Types/ReflectionMetadata.h"
-#include "Widgets/SWidget.h"
 #include "Widgets/SNullWidget.h"
-#include "Application/SlateApplicationBase.h"
-#include "ProfilingDebugging/CsvProfiler.h"
+#include "Widgets/SWidget.h"
 
 #if UE_BUILD_SHIPPING
 CSV_DEFINE_CATEGORY_MODULE(SLATECORE_API, Slate, false);
@@ -660,6 +662,23 @@ void FSlateDebugging::BroadcastWidgetUpdatedByPaint(const SWidget* Invalidated, 
 	{
 		WidgetUpdatedEvent.Broadcast(FSlateDebuggingWidgetUpdatedEventArgs(Invalidated, UpdateFlags, true));
 	}
+}
+
+const TArray<const SWidget*>& FSlateDebugging::GetAllWidgets()
+{
+#if UE_WITH_SLATE_DEBUG_WIDGETLIST
+	return UE::Slate::FWidgetList::GetAllWidgets();
+#else
+	static const TArray<const SWidget*> EmptyArray;
+	return EmptyArray;
+#endif
+}
+
+void FSlateDebugging::ExportWidgetList(FStringView Filename)
+{
+#if UE_WITH_SLATE_DEBUG_WIDGETLIST
+	UE::Slate::FWidgetList::ExportToCSV(*WriteToString<256>(Filename));
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE
