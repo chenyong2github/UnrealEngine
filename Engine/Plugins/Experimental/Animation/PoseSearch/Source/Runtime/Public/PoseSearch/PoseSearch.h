@@ -35,25 +35,24 @@ DECLARE_LOG_CATEGORY_EXTERN(LogPoseSearch, Log, All);
 UENUM()
 enum class EPoseSearchFeatureType : int32
 {
-	Invalid			= -1,
+	Position,	
+	Rotation,
+	LinearVelocity,
+	AngularVelocity,
+	ForwardVector,
 
-	Position		= 0,	
-	Rotation		= 1,
-	LinearVelocity	= 2,
-	AngularVelocity	= 3,
-
-	Num
+	Num UMETA(Hidden),
+	Invalid = Num UMETA(Hidden)
 };
 
 UENUM()
 enum class EPoseSearchFeatureDomain : int32
 {
-	Invalid		= -1,
+	Time,
+	Distance,
 
-	Time		= 0,
-	Distance	= 1,
-
-	Num
+	Num UMETA(Hidden),
+	Invalid = Num UMETA(Hidden)
 };
 
 /** Describes each feature of a vector, including data type, sampling options, and buffer offset. */
@@ -119,12 +118,13 @@ struct POSESEARCH_API FPoseSearchFeatureVectorLayout
 UENUM()
 enum class EPoseSearchDataPreprocessor : int32
 {
-	None			= 0,
-	Automatic		= 1,
-	Normalize		= 2,
-	Sphere			= 3 UMETA(Hidden),
+	None,
+	Automatic,
+	Normalize,
+	Sphere UMETA(Hidden),
 
-	Invalid = -1 UMETA(Hidden)
+	Num UMETA(Hidden),
+	Invalid = Num UMETA(Hidden)
 };
 
 /**
@@ -156,6 +156,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	bool bUseTrajectoryPositions = true;
+
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	bool bUseTrajectoryForwardVectors = false;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TArray<FBoneReference> Bones;
@@ -190,7 +193,7 @@ public:
 
 	bool IsValid () const;
 
-	int32 NumBones () const { return BoneIndices.Num(); }
+	int32 GetNumBones () const { return BoneIndices.Num(); }
 
 	// Returns farthest future sample time >= 0.0f.
 	// Returns a negative value when there are no future sample times.
@@ -672,6 +675,7 @@ public:
 	bool GetTransform(FPoseSearchFeatureDesc Feature, FTransform* OutTransform) const;
 	bool GetPosition(FPoseSearchFeatureDesc Feature, FVector* OutPosition) const;
 	bool GetRotation(FPoseSearchFeatureDesc Feature, FQuat* OutRotation) const;
+	bool GetForwardVector(FPoseSearchFeatureDesc Feature, FVector* OutForwardVector) const;
 	bool GetLinearVelocity(FPoseSearchFeatureDesc Feature, FVector* OutLinearVelocity) const;
 	bool GetAngularVelocity(FPoseSearchFeatureDesc Feature, FVector* OutAngularVelocity) const;
 	bool GetVector(FPoseSearchFeatureDesc Feature, FVector* OutVector) const;
