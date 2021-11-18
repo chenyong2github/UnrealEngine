@@ -42,6 +42,9 @@ public:
 	static const FName PlacementBrowser;
 	static const FName LevelEditorBuildAndSubmit;
 	static const FName LevelEditorSceneOutliner;
+	static const FName LevelEditorSceneOutliner2;
+	static const FName LevelEditorSceneOutliner3;
+	static const FName LevelEditorSceneOutliner4;
 	static const FName LevelEditorStatsViewer;
 	static const FName LevelEditorLayerBrowser;
 	static const FName LevelEditorDataLayerBrowser;

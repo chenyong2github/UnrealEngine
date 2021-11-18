@@ -63,6 +63,9 @@ const FName LevelEditorTabIds::LevelEditorSelectionDetails4(TEXT("LevelEditorSel
 const FName LevelEditorTabIds::PlacementBrowser(TEXT("PlacementBrowser"));
 const FName LevelEditorTabIds::LevelEditorBuildAndSubmit(TEXT("LevelEditorBuildAndSubmit"));
 const FName LevelEditorTabIds::LevelEditorSceneOutliner(TEXT("LevelEditorSceneOutliner"));
+const FName LevelEditorTabIds::LevelEditorSceneOutliner2(TEXT("LevelEditorSceneOutliner2"));
+const FName LevelEditorTabIds::LevelEditorSceneOutliner3(TEXT("LevelEditorSceneOutliner3"));
+const FName LevelEditorTabIds::LevelEditorSceneOutliner4(TEXT("LevelEditorSceneOutliner4"));
 const FName LevelEditorTabIds::LevelEditorStatsViewer(TEXT("LevelEditorStatsViewer"));
 const FName LevelEditorTabIds::LevelEditorLayerBrowser(TEXT("LevelEditorLayerBrowser"));
 const FName LevelEditorTabIds::LevelEditorDataLayerBrowser(TEXT("LevelEditorDataLayerBrowser"));

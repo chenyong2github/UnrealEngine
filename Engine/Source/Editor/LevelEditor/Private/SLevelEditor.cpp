@@ -730,7 +730,7 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 
 		return NewTab;
 	}
-	else if( TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner)
+	else if (TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner || TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner2 || TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner3 || TabIdentifier == LevelEditorTabIds::LevelEditorSceneOutliner4)
 	{
 		FSceneOutlinerInitializationOptions InitOptions;
 		InitOptions.bShowTransient = true;
@@ -1200,12 +1200,32 @@ TSharedRef<SWidget> SLevelEditor::RestoreContentArea( const TSharedRef<SDockTab>
 		}
 
 		{
+			const FText OutlinerTooltip = NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutlinerTooltipText", "Open the Outliner tab, which provides a searchable and filterable list of all actors in the world.");
 			const FSlateIcon OutlinerIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Outliner");
-		    LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner, FString()) )
-				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner", "Outliner"))
-				.SetTooltipText(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutlinerTooltipText", "Open the Outliner tab, which provides a searchable and filterable list of all actors in the world."))
-				.SetGroup( MenuStructure.GetLevelEditorCategory() )	
-				.SetIcon( OutlinerIcon );	
+
+			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner, FString()))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner", "Outliner 1"))
+				.SetTooltipText(OutlinerTooltip)
+				.SetGroup(MenuStructure.GetLevelEditorOutlinerCategory())
+				.SetIcon(OutlinerIcon);
+
+			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner2, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner2, FString()))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner2", "Outliner 2"))
+				.SetTooltipText(OutlinerTooltip)
+				.SetGroup(MenuStructure.GetLevelEditorOutlinerCategory())
+				.SetIcon(OutlinerIcon);
+
+			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner3, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner3, FString()))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner3", "Outliner 3"))
+				.SetTooltipText(OutlinerTooltip)
+				.SetGroup(MenuStructure.GetLevelEditorOutlinerCategory())
+				.SetIcon(OutlinerIcon);
+
+			LevelEditorTabManager->RegisterTabSpawner(LevelEditorTabIds::LevelEditorSceneOutliner4, FOnSpawnTab::CreateSP<SLevelEditor, FName, FString>(this, &SLevelEditor::SpawnLevelEditorTab, LevelEditorTabIds::LevelEditorSceneOutliner4, FString()))
+				.SetDisplayName(NSLOCTEXT("LevelEditorTabs", "LevelEditorSceneOutliner4", "Outliner 4"))
+				.SetTooltipText(OutlinerTooltip)
+				.SetGroup(MenuStructure.GetLevelEditorOutlinerCategory())
+				.SetIcon(OutlinerIcon);
 		}
 
 		{

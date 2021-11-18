@@ -51,6 +51,9 @@ public:
 
 	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetLevelEditorWorldPartitionCategory() const = 0;
+	
+	/** See diagram above */
+	virtual TSharedRef<FWorkspaceItem> GetLevelEditorOutlinerCategory() const = 0;
 
 	/** See diagram above */
 	virtual TSharedRef<FWorkspaceItem> GetLevelEditorModesCategory() const = 0;
