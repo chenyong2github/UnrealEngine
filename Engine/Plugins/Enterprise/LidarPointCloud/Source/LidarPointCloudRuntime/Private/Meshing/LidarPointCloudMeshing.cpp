@@ -42,7 +42,7 @@ void LidarPointCloudMeshing::CalculateNormals(FLidarPointCloudOctree* Octree, FT
 
 	TQueue<FSamplingUnit*> Q;
 	{
-		FSamplingUnit* Root = new FSamplingUnit(FVector::ZeroVector, Octree->SharedData[0].Extent, &Octree->Root);
+		FSamplingUnit* Root = new FSamplingUnit(FVector::ZeroVector, Octree->SharedData[0].Extent, Octree->Root);
 		if (InPointSelection.Num() == 0)
 		{
 			Octree->GetPoints(Root->Points);

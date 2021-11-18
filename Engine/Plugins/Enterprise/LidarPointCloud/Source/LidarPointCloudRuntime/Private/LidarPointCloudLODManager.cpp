@@ -424,14 +424,14 @@ void FLidarPointCloudLODManager::Tick(float DeltaTime)
 	bProcessing = true;
 
 	Time += DeltaTime;
+	
+	LastPointBudget = GetPointBudget(NumPointsInFrustum.GetValue());
 
-	const uint32 PointBudget = GetPointBudget(NumPointsInFrustum.GetValue());
-
-	SET_DWORD_STAT(STAT_PointBudget, PointBudget);
+	SET_DWORD_STAT(STAT_PointBudget, LastPointBudget);
 
 	PrepareProxies();
 
-	Async(EAsyncExecution::ThreadPool, [this, CurrentRegisteredProxies = RegisteredProxies, PointBudget, ClippingVolumes = GetClippingVolumes()]
+	Async(EAsyncExecution::ThreadPool, [this, CurrentRegisteredProxies = RegisteredProxies, PointBudget = LastPointBudget, ClippingVolumes = GetClippingVolumes()]
 	{
 		NumPointsInFrustum.Set(ProcessLOD(CurrentRegisteredProxies, Time, PointBudget, ClippingVolumes));
 		bProcessing = false;
@@ -447,15 +447,20 @@ void FLidarPointCloudLODManager::RegisterProxy(ULidarPointCloudComponent* Compon
 {
 	if (IsValid(Component))
 	{
-		static FLidarPointCloudLODManager Instance;
 		static FCriticalSection ProxyLock;
 
 		if (TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapperShared = SceneProxyWrapper.Pin())
 		{
 			FScopeLock Lock(&ProxyLock);
-			Instance.RegisteredProxies.Emplace(Component, SceneProxyWrapper);
+			Get().RegisteredProxies.Emplace(Component, SceneProxyWrapper);
+			Get().ForceProcessLOD();
 		}
 	}
+}
+
+void FLidarPointCloudLODManager::RefreshLOD()
+{
+	Get().ForceProcessLOD();
 }
 
 int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODManager::FRegisteredProxy>& InRegisteredProxies, const float CurrentTime, const uint32 PointBudget, const TArray<FLidarPointCloudClippingVolumeParams>& ClippingVolumes)
@@ -647,11 +652,8 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 		}
 	}
 
-	// Set when to release the BulkData, if no longer visible
-	const float BulkDataLifetime = CurrentTime + GetDefault<ULidarPointCloudSettings>()->CachedNodeLifetime;
-
 	// Perform data streaming in a separate thread
-	Async(EAsyncExecution::ThreadPool, [OctreeStreamingMap = MoveTemp(OctreeStreamingMap), CurrentTime, BulkDataLifetime]() mutable
+	Async(EAsyncExecution::ThreadPool, [OctreeStreamingMap = MoveTemp(OctreeStreamingMap), CurrentTime]() mutable
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
 
@@ -668,7 +670,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 	// Update Render Data
 	if (TotalPointsSelected > 0)
 	{
-		ENQUEUE_RENDER_COMMAND(ProcessLidarPointCloudLOD)([PointBudget, TotalPointsSelected, ProxyUpdateData](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(ProcessLidarPointCloudLOD)([ProxyUpdateData](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			SCOPE_CYCLE_COUNTER(STAT_UpdateRenderData);
 
@@ -679,18 +681,18 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 			const float RenderDataSmoothingMaxFrametime = GetDefault<ULidarPointCloudSettings>()->RenderDataSmoothingMaxFrametime;
 
 			// Iterate over proxies and, if valid, update their data
-			for (const FLidarPointCloudProxyUpdateData& UpdateData : ProxyUpdateData)
+			for (FLidarPointCloudProxyUpdateData& UpdateData : ProxyUpdateData)
 			{
 				// Check for proxy's validity, in case it has been destroyed since the update was issued
 				if (TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper = UpdateData.SceneProxyWrapper.Pin())
 				{
 					if (SceneProxyWrapper->Proxy)
 					{
-						for (const FLidarPointCloudProxyUpdateDataNode& Node : UpdateData.SelectedNodes)
+						for (FLidarPointCloudProxyUpdateDataNode& Node : UpdateData.SelectedNodes)
 						{
-							if (Node.DataNode->BuildDataCache(UpdateData.bUseStaticBuffers))
+							if (Node.BuildDataCache(UpdateData.bUseStaticBuffers))
 							{
-								MaxPointsPerNode = FMath::Max(MaxPointsPerNode, Node.DataNode->GetNumVisiblePoints());
+								MaxPointsPerNode = FMath::Max(MaxPointsPerNode, (uint32)Node.NumVisiblePoints);
 							}
 
 							// Split building render data across multiple frames, to avoid stuttering
@@ -713,6 +715,14 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 	}
 
 	return NewNumPointsInFrustum;
+}
+
+void FLidarPointCloudLODManager::ForceProcessLOD()
+{
+	check(IsInGameThread());
+	
+	PrepareProxies();
+	ProcessLOD(RegisteredProxies, Time, LastPointBudget, GetClippingVolumes());
 }
 
 void FLidarPointCloudLODManager::PrepareProxies()
@@ -761,6 +771,13 @@ void FLidarPointCloudLODManager::PrepareProxies()
 
 							// Recreate the Traversal Octree
 							RegisteredProxy.TraversalOctree = MakeShareable(new FLidarPointCloudTraversalOctree(&PointCloud->Octree, Component->GetComponentTransform()));
+
+							// If the recreation of the Traversal Octree was unsuccessful, skip further processing
+							if (!RegisteredProxy.TraversalOctree->bValid)
+							{
+								continue;
+							}
+							
 							RegisteredProxy.PointCloud->Octree.RegisterTraversalOctree(RegisteredProxy.TraversalOctree);
 						}
 
@@ -844,6 +861,12 @@ TArray<FLidarPointCloudClippingVolumeParams> FLidarPointCloudLODManager::GetClip
 	ClippingVolumes.Sort();
 
 	return ClippingVolumes;
+}
+
+FLidarPointCloudLODManager& FLidarPointCloudLODManager::Get()
+{
+	static FLidarPointCloudLODManager Instance;
+	return Instance;
 }
 
 FLidarPointCloudLODManager::FRegisteredProxy::FRegisteredProxy(TWeakObjectPtr<ULidarPointCloudComponent> Component, TWeakPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> SceneProxyWrapper)

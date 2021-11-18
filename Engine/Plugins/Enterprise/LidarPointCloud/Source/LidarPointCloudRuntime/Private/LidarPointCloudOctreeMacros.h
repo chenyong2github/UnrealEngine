@@ -14,7 +14,7 @@
 {\
 	TQueue<Const FLidarPointCloudOctreeNode*> Nodes;\
 	Const FLidarPointCloudOctreeNode* CurrentNode = nullptr;\
-	Nodes.Enqueue(&Root);\
+	Nodes.Enqueue(Root);\
 	while (Nodes.Dequeue(CurrentNode))\
 	{\
 		{ Action } \

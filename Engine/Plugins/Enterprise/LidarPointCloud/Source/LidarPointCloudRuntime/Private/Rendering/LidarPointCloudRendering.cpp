@@ -16,6 +16,19 @@
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("Draw Calls"), STAT_DrawCallCount, STATGROUP_LidarPointCloud)
 
+bool FLidarPointCloudProxyUpdateDataNode::BuildDataCache(bool bUseStaticBuffers)
+{
+	if(DataNode && DataNode->BuildDataCache(bUseStaticBuffers))
+	{
+		VertexFactory = DataNode->GetVertexFactory();
+		DataCache = DataNode->GetDataCache();
+		DataNode = nullptr;
+		return  true;
+	}
+	
+	return false;
+}
+
 FLidarPointCloudProxyUpdateData::FLidarPointCloudProxyUpdateData()
 	: NumElements(0)
 	, VDMultiplier(1)
@@ -205,13 +218,13 @@ public:
 
 					for (const FLidarPointCloudProxyUpdateDataNode& Node : RenderData.SelectedNodes)
 					{
-						if (Node.DataNode && ((RenderData.bUseStaticBuffers && Node.DataNode->GetVertexFactory()) || (!RenderData.bUseStaticBuffers && Node.DataNode->GetDataCache())))
+						if ((RenderData.bUseStaticBuffers && Node.VertexFactory.IsValid() && Node.VertexFactory->IsInitialized()) || (!RenderData.bUseStaticBuffers && Node.DataCache.IsValid()))
 						{
 							FMeshBatch& MeshBatch = Collector.AllocateMesh();
 
 							MeshBatch.Type = bUsesSprites ? PT_TriangleList : PT_PointList;
 							MeshBatch.LODIndex = 0;
-							MeshBatch.VertexFactory = RenderData.bUseStaticBuffers ? Node.DataNode->GetVertexFactory() : (FVertexFactory*)&GLidarPointCloudSharedVertexFactory;
+							MeshBatch.VertexFactory = RenderData.bUseStaticBuffers ? Node.VertexFactory.Get() : (FVertexFactory*)&GLidarPointCloudSharedVertexFactory;
 							MeshBatch.bWireframe = false;
 							MeshBatch.MaterialRenderProxy = RenderData.RenderParams.Material->GetRenderProxy();
 							MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
@@ -348,7 +361,7 @@ public:
 			UserDataElement.bStartClipped |= ClippingVolume.Mode == ELidarClippingVolumeMode::ClipOutside;
 		}
 
-		UserDataElement.DataBuffer = Node.DataNode->GetDataCache() ? Node.DataNode->GetDataCache()->SRV : nullptr;
+		UserDataElement.DataBuffer = Node.DataCache ? Node.DataCache->SRV : nullptr;
 		UserDataElement.TreeBuffer = TreeBuffer->SRV;
 
 		return UserDataElement;
