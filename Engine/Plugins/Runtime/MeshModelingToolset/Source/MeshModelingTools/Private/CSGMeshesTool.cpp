@@ -291,9 +291,9 @@ TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 	TUniquePtr<FBooleanMeshesOp> BooleanOp = MakeUnique<FBooleanMeshesOp>();
 	
 	BooleanOp->bTrimMode = bTrimMode;
-	BooleanOp->WindingThreshold = CSGProperties->WindingThreshold;
 	if (bTrimMode)
 	{
+		BooleanOp->WindingThreshold = TrimProperties->WindingThreshold;
 		BooleanOp->TrimOperation = TrimProperties->WhichMesh;
 		BooleanOp->TrimSide = TrimProperties->TrimSide;
 		BooleanOp->bAttemptFixHoles = false;
@@ -301,6 +301,7 @@ TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 	}
 	else
 	{
+		BooleanOp->WindingThreshold = CSGProperties->WindingThreshold;
 		BooleanOp->CSGOperation = CSGProperties->Operation;
 		BooleanOp->bAttemptFixHoles = CSGProperties->bTryFixHoles;
 		BooleanOp->bTryCollapseExtraEdges = CSGProperties->bTryCollapseEdges;
