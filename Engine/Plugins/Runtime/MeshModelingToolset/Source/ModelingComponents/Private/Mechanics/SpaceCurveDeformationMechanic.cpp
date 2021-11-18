@@ -416,7 +416,7 @@ void USpaceCurveDeformationMechanic::UpdateCurve(const TArray<FFrame3d>& NewPosi
 bool USpaceCurveDeformationMechanic::HitTest(const FInputDeviceRay& ClickPos, FInputRayHit& ResultOut)
 {
 	FGeometrySet3::FNearest Nearest;
-	if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
+	if (GeometrySet.FindNearestPointToRay((FRay3d)ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		ResultOut = FInputRayHit(Nearest.RayParam);
 		return true;
@@ -435,7 +435,7 @@ void USpaceCurveDeformationMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	FGeometrySet3::FNearest Nearest;
 
-	if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
+	if (GeometrySet.FindNearestPointToRay((FRay3d)ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		ParentTool->GetToolManager()->BeginUndoTransaction(SpaceCurvePointSelectionTransactionText);
 
@@ -786,7 +786,7 @@ void USpaceCurveDeformationMechanic::ClearHover()
 bool USpaceCurveDeformationMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	FGeometrySet3::FNearest Nearest;
-	if (GeometrySet.FindNearestPointToRay(DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
+	if (GeometrySet.FindNearestPointToRay((FRay3d)DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		HoveredPointID = Nearest.ID;
 		return true;

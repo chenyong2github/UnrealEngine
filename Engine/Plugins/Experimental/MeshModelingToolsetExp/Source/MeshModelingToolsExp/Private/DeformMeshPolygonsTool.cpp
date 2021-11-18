@@ -1041,13 +1041,13 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 	if (Selection.SelectedCornerIDs.Num() > 0)
 	{
 		OutHit.FaceIndex   = Selection.GetASelectedCornerID();
-		OutHit.Distance    = LocalRay.Project(LocalPosition);
+		OutHit.Distance    = LocalRay.GetParameter(LocalPosition);
 		OutHit.ImpactPoint = (FVector)WorldTransform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
 	else if (Selection.SelectedEdgeIDs.Num() > 0)
 	{
 		OutHit.FaceIndex   = Selection.GetASelectedEdgeID();
-		OutHit.Distance    = LocalRay.Project(LocalPosition);
+		OutHit.Distance    = LocalRay.GetParameter(LocalPosition);
 		OutHit.ImpactPoint = (FVector)WorldTransform.TransformPosition(LocalRay.PointAt(OutHit.Distance));
 	}
 	else

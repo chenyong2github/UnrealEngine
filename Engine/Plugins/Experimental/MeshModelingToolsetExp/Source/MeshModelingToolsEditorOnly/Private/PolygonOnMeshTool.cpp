@@ -424,9 +424,9 @@ bool UPolygonOnMeshTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 	if (DrawPolygonMechanic != nullptr)
 	{
 		FFrame3d HitPoint;
-		if (DrawPolygonMechanic->IsHitByRay(UE::Geometry::FRay3d(Ray), HitPoint))
+		if (DrawPolygonMechanic->IsHitByRay(FRay3d(Ray), HitPoint))
 		{
-			OutHit.Distance = UE::Geometry::FRay3d(Ray).Project(HitPoint.Origin);
+			OutHit.Distance = FRay3d(Ray).GetParameter(HitPoint.Origin);
 			OutHit.ImpactPoint = (FVector)HitPoint.Origin;
 			OutHit.ImpactNormal = (FVector)HitPoint.Z();
 			return true;
@@ -452,7 +452,7 @@ void UPolygonOnMeshTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
 	if (DrawPolygonMechanic != nullptr)
 	{
-		if (DrawPolygonMechanic->TryAddPointFromRay(ClickPos.WorldRay))
+		if (DrawPolygonMechanic->TryAddPointFromRay((FRay3d)ClickPos.WorldRay))
 		{
 			if (DrawPolygonMechanic->IsDone())
 			{
@@ -486,7 +486,7 @@ bool UPolygonOnMeshTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	if (DrawPolygonMechanic != nullptr)
 	{
-		DrawPolygonMechanic->UpdatePreviewPoint(DevicePos.WorldRay);
+		DrawPolygonMechanic->UpdatePreviewPoint((FRay3d)DevicePos.WorldRay);
 	}
 	return true;
 }

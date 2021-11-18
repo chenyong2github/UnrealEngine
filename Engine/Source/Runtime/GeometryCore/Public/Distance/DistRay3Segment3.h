@@ -6,7 +6,6 @@
 
 #include "VectorTypes.h"
 #include "SegmentTypes.h"
-#include "RayTypes.h"
 
 namespace UE
 {
@@ -23,7 +22,7 @@ class TDistRay3Segment3
 {
 public:
 	// Input
-	TRay3<Real> Ray;
+	TRay<Real> Ray;
 	TSegment3<Real> Segment;
 
 	// Results
@@ -35,7 +34,7 @@ public:
 	Real SegmentParameter;
 
 
-	TDistRay3Segment3(const TRay3<Real>& RayIn, const TSegment3<Real>& SegmentIn)
+	TDistRay3Segment3(const TRay<Real>& RayIn, const TSegment3<Real>& SegmentIn)
 	{
 		Ray = RayIn;
 		Segment = SegmentIn;
@@ -223,7 +222,7 @@ public:
 
 
 
-	static double SquaredDistance(const TRay3<Real>& Ray, const TSegment3<Real>& Segment,
+	static double SquaredDistance(const TRay<Real>& Ray, const TSegment3<Real>& Segment,
 		Real& RayParam, Real& SegParam)
 	{
 		TVector<Real> diff = Ray.Origin - Segment.Center;

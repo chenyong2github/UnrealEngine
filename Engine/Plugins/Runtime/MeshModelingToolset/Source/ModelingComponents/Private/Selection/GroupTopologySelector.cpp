@@ -148,7 +148,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 	// if we have both corner and edge, want to keep the one we are closer to
 	if (bHaveCornerHit && bHaveEdgeHit)
 	{
-		if (PointsWithinToleranceTest(CornerPosition, Ray.NearestPoint(CornerPosition), 0.75))
+		if (PointsWithinToleranceTest(CornerPosition, Ray.ClosestPoint(CornerPosition), 0.75))
 		{
 			bHaveEdgeHit = false;
 		}
@@ -162,7 +162,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 	if ((bHaveCornerHit || bHaveEdgeHit) && bHaveFaceHit)
 	{
 		FVector3d TestPos = (bHaveCornerHit) ? CornerPosition : EdgePosition;
-		if (!PointsWithinToleranceTest(TestPos, Ray.NearestPoint(TestPos), 0.15))
+		if (!PointsWithinToleranceTest(TestPos, Ray.ClosestPoint(TestPos), 0.15))
 		{
 			bHaveEdgeHit = bHaveCornerHit = false;
 		}
@@ -573,7 +573,7 @@ bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& 
 bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial)
 {
 	// Shoot ray backwards to see if we hit something. 
-	UE::Geometry::FRay3d ToEyeRay(Point, UE::Geometry::Normalized(ViewOrigin - Point), true);
+	FRay3d ToEyeRay(Point, UE::Geometry::Normalized(ViewOrigin - Point), true);
 	ToEyeRay.Origin += (double)(100 * FMathf::ZeroTolerance) * ToEyeRay.Direction;
 	if (Spatial->FindNearestHitTriangle(ToEyeRay) >= 0)
 	{

@@ -194,7 +194,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshSpatial::FindNearestRayIntersectionWith
 					bHaveValidBVH = true;
 					IMeshSpatial::FQueryOptions QueryOptions;
 					QueryOptions.MaxDistance = (Options.MaxDistance == 0) ? TNumericLimits<float>::Max() : Options.MaxDistance;
-					UE::Geometry::FRay3d Ray((FVector3d)RayOrigin, Normalized((FVector3d)RayDirection));
+					FRay3d Ray((FVector3d)RayOrigin, Normalized((FVector3d)RayDirection));
 					int HitTID = QueryBVH.Spatial->FindNearestHitTriangle(Ray, QueryOptions);
 					if (HitTID >= 0)
 					{

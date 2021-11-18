@@ -166,7 +166,7 @@ static void BakeTexturesFromPhotoCapture(
 		FVector3d RayDir = ImagePosWorld - SurfPos;
 		double Dist = Normalize(RayDir);
 		FVector3d RayOrigin = SurfPos + RayOffsetHackDist * RayDir;
-		int32 HitTID = Spatial.FindNearestHitTriangle(UE::Geometry::FRay3d(RayOrigin, RayDir), IMeshSpatial::FQueryOptions(Dist));
+		int32 HitTID = Spatial.FindNearestHitTriangle(FRay3d(RayOrigin, RayDir), IMeshSpatial::FQueryOptions(Dist));
 		return (HitTID == IndexConstants::InvalidID);
 	};
 

@@ -5,7 +5,6 @@
 #include "VectorTypes.h"
 #include "SegmentTypes.h"
 #include "LineTypes.h"
-#include "RayTypes.h"
 #include "BoxTypes.h"
 #include "SegmentTypes.h"
 

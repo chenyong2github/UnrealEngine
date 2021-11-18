@@ -229,7 +229,7 @@ FInputRayHit UPolyEditCutFacesActivity::IsHitByClick(const FInputDeviceRay& Clic
 
 void UPolyEditCutFacesActivity::OnClicked(const FInputDeviceRay& ClickPos)
 {
-	if (bIsRunning && SurfacePathMechanic->TryAddPointFromRay(ClickPos.WorldRay))
+	if (bIsRunning && SurfacePathMechanic->TryAddPointFromRay((FRay3d)ClickPos.WorldRay))
 	{
 		if (SurfacePathMechanic->IsDone())
 		{
@@ -247,7 +247,7 @@ FInputRayHit UPolyEditCutFacesActivity::BeginHoverSequenceHitTest(const FInputDe
 
 bool UPolyEditCutFacesActivity::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
-	SurfacePathMechanic->UpdatePreviewPoint(DevicePos.WorldRay);
+	SurfacePathMechanic->UpdatePreviewPoint((FRay3d)DevicePos.WorldRay);
 	return bIsRunning;
 }
 

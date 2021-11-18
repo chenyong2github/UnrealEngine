@@ -188,7 +188,7 @@ bool UCollectSurfacePathMechanic::RayToPathPoint(const FRay3d& Ray, FFrame3d& Po
 			FIntrRay3Triangle3d Hit = TMeshQueries<FDynamicMesh3>::RayTriangleIntersection(TargetSurface, HitTri, Ray);
 			NearestHitFrame = TargetSurface.GetTriFrame(HitTri);
 			NearestHitFrame.Origin = Hit.Triangle.BarycentricPoint(Hit.TriangleBaryCoords);
-			NearestHitDistSqr = Ray.Project(NearestHitFrame.Origin);
+			NearestHitDistSqr = Ray.GetParameter(NearestHitFrame.Origin);
 			bHaveHit = true;
 		}
 	}
@@ -198,7 +198,7 @@ bool UCollectSurfacePathMechanic::RayToPathPoint(const FRay3d& Ray, FFrame3d& Po
 		FFrame3d PlaneHit(TargetPlane);
 		if (TargetPlane.RayPlaneIntersection(Ray.Origin, Ray.Direction, 2, PlaneHit.Origin))
 		{
-			double HitDistSqr = Ray.Project(PlaneHit.Origin);
+			double HitDistSqr = Ray.GetParameter(PlaneHit.Origin);
 			if (HitDistSqr < NearestHitDistSqr)
 			{
 				NearestHitFrame = PlaneHit;

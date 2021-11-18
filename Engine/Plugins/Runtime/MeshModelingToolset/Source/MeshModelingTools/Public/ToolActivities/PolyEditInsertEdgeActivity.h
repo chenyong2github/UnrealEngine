@@ -57,7 +57,6 @@ class MESHMODELINGTOOLS_API UPolyEditInsertEdgeActivity : public UInteractiveToo
 
 	using FGroupEdgeInserter = UE::Geometry::FGroupEdgeInserter;
 	using FDynamicMesh3 = UE::Geometry::FDynamicMesh3;
-	using FRay3d = UE::Geometry::FRay3d;
 
 	enum class EState
 	{

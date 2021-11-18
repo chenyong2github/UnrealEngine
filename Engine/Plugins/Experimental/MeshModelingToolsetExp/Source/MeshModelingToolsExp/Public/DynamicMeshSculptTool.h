@@ -223,7 +223,6 @@ class MESHMODELINGTOOLSEXP_API UDynamicMeshSculptTool : public UMeshSurfacePoint
 
 public:
 	using FFrame3d = UE::Geometry::FFrame3d;
-	using FRay3d = UE::Geometry::FRay3d;
 
 	UDynamicMeshSculptTool();
 

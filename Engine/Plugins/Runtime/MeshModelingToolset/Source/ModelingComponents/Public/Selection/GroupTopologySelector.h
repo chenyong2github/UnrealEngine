@@ -5,7 +5,6 @@
 #include "GroupTopology.h"
 #include "Spatial/GeometrySet3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
-#include "RayTypes.h"
 
 struct FCameraRectangle;
 class FToolDataVisualizer;
@@ -35,7 +34,6 @@ using UE::Geometry::FGeometrySet3;
  */
 class MODELINGCOMPONENTS_API FGroupTopologySelector
 {
-	using FRay3d = UE::Geometry::FRay3d;
 	using FTransform3d = UE::Geometry::FTransform3d;
 public:
 

@@ -219,7 +219,7 @@ bool FMeshPaintStaticMeshComponentAdapter::LineTraceComponent(struct FHitResult&
 		if (TriNormal.SquaredLength() > (double)SMALL_NUMBER)
 		{
 			FVector3d RayDirection = ((FVector3d)LocalEnd - (FVector3d)LocalStart);
-			UE::Geometry::FRay3d LocalRay((FVector3d)LocalStart, UE::Geometry::Normalized(RayDirection));
+			FRay3d LocalRay((FVector3d)LocalStart, UE::Geometry::Normalized(RayDirection));
 			UE::Geometry::FIntrRay3Triangle3d RayTriIntersection(LocalRay, Triangle);
 			if (RayTriIntersection.Find())
 			{

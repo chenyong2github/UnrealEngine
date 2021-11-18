@@ -382,7 +382,7 @@ bool ULatticeControlPointsMechanic::HitTest(const FInputDeviceRay& ClickPos, FIn
 	FGeometrySet3::FNearest Nearest;
 
 	// See if we hit a point for selection
-	if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
+	if (GeometrySet.FindNearestPointToRay((FRay3d)ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		ResultOut = FInputRayHit(Nearest.RayParam);
 		return true;
@@ -411,7 +411,7 @@ void ULatticeControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 	const TSet<int32> PreClickSelection = SelectedPointIDs;
 	
 	FGeometrySet3::FNearest Nearest;
-	if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
+	if (GeometrySet.FindNearestPointToRay((FRay3d)ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		if (ShouldAddToSelectionFunc())
 		{
@@ -549,7 +549,7 @@ bool ULatticeControlPointsMechanic::OnUpdateHover(const FInputDeviceRay& DeviceP
 	FGeometrySet3::FNearest Nearest;
 
 	// see if we're hovering a point for selection
-	if (GeometrySet.FindNearestPointToRay(DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
+	if (GeometrySet.FindNearestPointToRay((FRay3d)DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		// Only need to update the hover if we changed the point
 		if (Nearest.ID != HoveredPointID)

@@ -90,7 +90,7 @@ void FRaySpatialSnapSolver::UpdateSnappedPoint(const FRay3d& RayIn)
 
 	TFunction<FVector3d(const FVector3d&)> GetSnapFromPointFunc = [&RayIn](const FVector3d& Point)
 	{
-		return RayIn.NearestPoint(Point);
+		return RayIn.ClosestPoint(Point);
 	};
 
 	const FSnapTargetPoint* BestPointTarget = FindBestSnapInSet(TargetPoints, MinMetric, BestPriority, GetSnapFromPointFunc);
@@ -120,7 +120,7 @@ void FRaySpatialSnapSolver::UpdateSnappedPoint(const FRay3d& RayIn)
 		// used for grid+line snapping for example. We want to snap to the grid *after* we snap to the
 		// line, otherwise things snap to weird unexpected places.
 		FVector3d UseSnapPosition = (BestSnapTarget->bHaveConstrainedPosition) ? BestSnapTarget->ConstrainedPosition : BestSnapTarget->Position;
-		SetActiveSnapData(*BestSnapTarget, RayIn.NearestPoint(BestSnapTarget->Position), UseSnapPosition, MinMetric);
+		SetActiveSnapData(*BestSnapTarget, RayIn.ClosestPoint(BestSnapTarget->Position), UseSnapPosition, MinMetric);
 	}
 	else
 	{

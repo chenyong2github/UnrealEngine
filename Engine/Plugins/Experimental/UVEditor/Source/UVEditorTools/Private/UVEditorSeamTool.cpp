@@ -1007,9 +1007,9 @@ int32 UUVEditorSeamTool::Get3DHitVertex(const FRay& WorldRayIn, int32* IndexOf3D
 		for (int32 i = 0; i < Spatials3D.Num(); ++i)
 		{
 			FTransform Transform = Targets[i]->AppliedPreview->PreviewMesh->GetTransform();
-			FRay LocalRay(
-				Transform.InverseTransformPosition(WorldRayIn.Origin),
-				Transform.InverseTransformVector(WorldRayIn.Direction));
+			FRay3d LocalRay(
+				(FVector3d)Transform.InverseTransformPosition(WorldRayIn.Origin),
+				(FVector3d)Transform.InverseTransformVector(WorldRayIn.Direction));
 
 			int32 Tid = IndexConstants::InvalidID;
 			double RayT = TNumericLimits<double>::Max();
@@ -1050,9 +1050,9 @@ int32 UUVEditorSeamTool::Get3DHitVertex(const FRay& WorldRayIn, int32* IndexOf3D
 	{
 		// Only need to hit test the mesh we've already started on, and we always snap to nearest vert
 		FTransform Transform = Targets[ClickedMeshIndex]->AppliedPreview->PreviewMesh->GetTransform();
-		FRay LocalRay(
-			Transform.InverseTransformPosition(WorldRayIn.Origin),
-			Transform.InverseTransformVector(WorldRayIn.Direction));
+		FRay3d LocalRay(
+			(FVector3d)Transform.InverseTransformPosition(WorldRayIn.Origin),
+			(FVector3d)Transform.InverseTransformVector(WorldRayIn.Direction));
 
 		double RayT = TNumericLimits<double>::Max();
 		int32 Tid = IndexConstants::InvalidID;

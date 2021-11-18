@@ -561,14 +561,14 @@ bool UCurveControlPointsMechanic::HitTest(const FInputDeviceRay& ClickPos, FInpu
 	// Otherwise, see if we are in insert mode and hitting a segment
 	else if (bInsertPointToggle)
 	{
-		if (GeometrySet.FindNearestCurveToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
+		if (GeometrySet.FindNearestCurveToRay((FRay3d)ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 		{
 			ResultOut = FInputRayHit(Nearest.RayParam);
 			return true;
 		}
 	}
 	// See if we hit a point for selection
-	else if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
+	else if (GeometrySet.FindNearestPointToRay((FRay3d)ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		ResultOut = FInputRayHit(Nearest.RayParam);
 		return true;
@@ -649,7 +649,7 @@ void UCurveControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 	else if (bInsertPointToggle)
 	{
 		// Adding on an existing edge takes priority to adding to the end.
-		if (GeometrySet.FindNearestCurveToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
+		if (GeometrySet.FindNearestCurveToRay((FRay3d)ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 		{
 			ParentTool->GetToolManager()->BeginUndoTransaction(PointAdditionTransactionText);
 
@@ -704,7 +704,7 @@ void UCurveControlPointsMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		}
 	}
 	// Otherwise, check for plain old selection
-	else if (GeometrySet.FindNearestPointToRay(ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
+	else if (GeometrySet.FindNearestPointToRay((FRay3d)ClickPos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		ParentTool->GetToolManager()->BeginUndoTransaction(PointSelectionTransactionText);
 
@@ -907,7 +907,7 @@ bool UCurveControlPointsMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos
 	FGeometrySet3::FNearest Nearest;
 
 	// In edit mode, point insertion on an edge has priority.
-	if (!bInteractiveInitializationMode && bInsertPointToggle && GeometrySet.FindNearestCurveToRay(DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
+	if (!bInteractiveInitializationMode && bInsertPointToggle && GeometrySet.FindNearestCurveToRay((FRay3d)DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		ClearHover();
 		FRenderablePoint RenderablePoint((FVector)Nearest.NearestGeoPoint, PreviewColor, PointsSize);
@@ -966,7 +966,7 @@ bool UCurveControlPointsMechanic::OnUpdateHover(const FInputDeviceRay& DevicePos
 	}
 
 	// Otherwise, see if we're hovering a point for selection
-	else if (!bInsertPointToggle && GeometrySet.FindNearestPointToRay(DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
+	else if (!bInsertPointToggle && GeometrySet.FindNearestPointToRay((FRay3d)DevicePos.WorldRay, Nearest, GeometrySetToleranceTest))
 	{
 		// Only need to update the hover if we changed the point
 		if (Nearest.ID != HoveredPointID)

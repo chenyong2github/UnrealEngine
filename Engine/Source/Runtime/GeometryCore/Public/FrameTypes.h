@@ -5,7 +5,6 @@
 
 #include "VectorTypes.h"
 #include "VectorUtil.h"
-#include "RayTypes.h"
 #include "Quaternion.h"
 #include "TransformTypes.h"
 
@@ -232,14 +231,14 @@ struct TFrame3
 
 
 	/** @return input Ray transformed into local coordinate system of Frame */
-	TRay3<RealType> ToFrame(const TRay3<RealType>& Ray) const
+	TRay<RealType> ToFrame(const TRay<RealType>& Ray) const
 	{
-		return TRay3<RealType>(ToFramePoint(Ray.Origin), ToFrameVector(Ray.Direction));
+		return TRay<RealType>(ToFramePoint(Ray.Origin), ToFrameVector(Ray.Direction));
 	}
 	/** @return input Ray transformed from local coordinate system of Frame into "World" coordinate system */
-	TRay3<RealType> FromFrame(const TRay3<RealType>& Ray) const
+	TRay<RealType> FromFrame(const TRay<RealType>& Ray) const
 	{
-		return TRay3<RealType>(FromFramePoint(Ray.Origin), FromFrameVector(Ray.Direction));
+		return TRay<RealType>(FromFramePoint(Ray.Origin), FromFrameVector(Ray.Direction));
 	}
 
 

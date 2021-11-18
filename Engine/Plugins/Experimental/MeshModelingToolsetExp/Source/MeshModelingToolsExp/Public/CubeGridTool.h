@@ -428,7 +428,7 @@ protected:
 	bool bSelectionToggle = false;
 	bool bChangeSideToggle = false;
 	bool bMouseDragShouldPushPull = false;
-	UE::Geometry::FRay3d DragProjectionAxis;
+	FRay3d DragProjectionAxis;
 	double DragProjectedStartParam;
 
 	void ApplyFlipSelection();
@@ -480,7 +480,7 @@ protected:
 	bool bInGizmoDrag = false;
 
 	FVector3d MiddleClickDragStart;
-	FInputRayHit RayCastSelectionPlane(const UE::Geometry::FRay3d& WorldRay, 
+	FInputRayHit RayCastSelectionPlane(const FRay3d& WorldRay, 
 		FVector3d& HitPointOut);
 	FInputRayHit CanBeginMiddleClickDrag(const FInputDeviceRay& ClickPos);
 	void OnMiddleClickDrag(const FInputDeviceRay& DragPos);
@@ -502,7 +502,7 @@ protected:
 	void StartCornerMode();
 	void ApplyCornerMode(bool bDontWaitForTick = false);
 	void CancelCornerMode();
-	void AttemptToSelectCorner(const UE::Geometry::FRay3d& WorldRay);
+	void AttemptToSelectCorner(const FRay3d& WorldRay);
 
 	// Used to see if we need to update the asset that we've been modifying
 	bool bChangesMade = false;

@@ -101,7 +101,6 @@ class MODELINGCOMPONENTS_API UBaseCreateFromSelectedTool : public UMultiSelectio
 protected:
 	using FTransform3d = UE::Geometry::FTransform3d;
 	using FFrame3d = UE::Geometry::FFrame3d;
-	using FRay3d = UE::Geometry::FRay3d;
 public:
 	UBaseCreateFromSelectedTool() = default;
 

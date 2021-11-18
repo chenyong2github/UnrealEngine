@@ -596,7 +596,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 		for (int tid : TriangleROI)
 		{
 			FVector3d Centroid = Mesh->GetTriCentroid(tid);
-			int HitTID = GetOctree()->FindNearestHitObject(UE::Geometry::FRay3d(LocalEyePosition, UE::Geometry::Normalized(Centroid - LocalEyePosition)));
+			int HitTID = GetOctree()->FindNearestHitObject(FRay3d(LocalEyePosition, UE::Geometry::Normalized(Centroid - LocalEyePosition)));
 			if (HitTID == tid)
 			{
 				LocalROI.Add(HitTID);

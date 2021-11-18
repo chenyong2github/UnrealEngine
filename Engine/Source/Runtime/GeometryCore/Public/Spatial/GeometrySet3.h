@@ -4,7 +4,6 @@
 
 #include "Async/ParallelFor.h"
 #include "BoxTypes.h"
-#include "RayTypes.h"
 #include "Polyline3.h"
 
 namespace UE
