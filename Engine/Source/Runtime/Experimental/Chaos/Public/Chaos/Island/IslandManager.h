@@ -197,6 +197,14 @@ public:
 	{
 		return IslandGraph.Get();
 	}
+	/**
+	* Get the island graph
+	* @return Island graph of the manager
+	*/
+	FORCEINLINE GraphType* GetIslandGraph()
+	{
+		return IslandGraph.Get();
+	}
 
 	/**
 	 * Get Max UniqueIdx of the particles.

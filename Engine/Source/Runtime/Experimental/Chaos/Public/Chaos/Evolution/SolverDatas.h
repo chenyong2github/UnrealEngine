@@ -32,7 +32,7 @@ public :
 	FORCEINLINE FSolverBodyContainer& GetBodyContainer() { return *BodyContainer.Get(); };
 
 	/**
-	 * @brief The number of constraint containers registsred
+	 * @brief The number of constraint containers registered
 	*/
 	int32 NumConstraintContainerIds() const { return ConstraintDatas.Num(); }
 

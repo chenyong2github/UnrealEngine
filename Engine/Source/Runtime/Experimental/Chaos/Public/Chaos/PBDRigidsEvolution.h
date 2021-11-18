@@ -888,6 +888,24 @@ protected:
 		}
 	}
 	
+	/** Sort constraints if necessary */
+	void SortConstraints()
+	{
+		bool bNeedsSorting = false;
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			bNeedsSorting |= ConstraintRule->IsSortingEnabled();
+		}
+		if(bNeedsSorting)
+		{
+			ConstraintGraph.GetIslandGraph()->InitSorting();
+			for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+			{
+				ConstraintRule->SortConstraints();
+			}
+		}
+	}
+	
 	void FlushInternalAccelerationQueue();
 	void FlushAsyncAccelerationQueue();
 	void WaitOnAccelerationStructure();

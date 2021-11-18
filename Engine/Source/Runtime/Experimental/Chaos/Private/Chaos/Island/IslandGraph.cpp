@@ -375,6 +375,187 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::MergeIslands()
 }
 
 template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::InitSorting()
+{
+	// Reset nodes levels and colors
+	for(auto& GraphNode : GraphNodes)
+	{
+		GraphNode.LevelIndex = INDEX_NONE;
+		GraphNode.ColorIndices.Reset();
+	}
+	// Reset edges levels and colors
+	for(auto& GraphEdge : GraphEdges)
+	{
+		GraphEdge.LevelIndex = INDEX_NONE;
+		GraphEdge.ColorIndex = INDEX_NONE;
+	}
+	// Reset island max number of levels and colors
+	for(auto& GraphIsland : GraphIslands)
+	{
+		GraphIsland.MaxLevels = INDEX_NONE;
+		GraphIsland.MaxColors = INDEX_NONE;
+	}
+}
+	
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateLevels(const int32 NodeIndex, const int32 ContainerId, TQueue<int32>& NodeQueue)
+{
+	if(GraphNodes.IsValidIndex(NodeIndex))
+	{
+		FGraphNode& GraphNode = GraphNodes[NodeIndex];
+		for (int32 EdgeIndex : GraphNode.NodeEdges)
+		{
+			FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
+
+			// Do nothing if the edge is not coming from the same container or if the island is sleeping 
+			if (GraphEdge.ItemContainer == ContainerId && GraphEdge.LevelIndex == INDEX_NONE && !GraphIslands[GraphEdge.IslandIndex].bIsSleeping)
+			{
+				const int32 OtherIndex = (NodeIndex == GraphEdge.FirstNode) ?
+							GraphEdge.SecondNode : GraphEdge.FirstNode;
+
+				GraphEdge.LevelIndex = GraphNode.LevelIndex;
+					
+				GraphIslands[GraphEdge.IslandIndex].MaxLevels = FGenericPlatformMath::Max(
+					GraphIslands[GraphEdge.IslandIndex].MaxLevels, GraphEdge.LevelIndex);
+
+				// If we have another node, append it to our queue on the next level
+				if (GraphNodes.IsValidIndex(OtherIndex) && GraphNodes[OtherIndex].bValidNode && GraphNodes[OtherIndex].LevelIndex == INDEX_NONE)
+				{
+					GraphNodes[OtherIndex].LevelIndex = GraphEdge.LevelIndex+1;
+					NodeQueue.Enqueue(OtherIndex);
+				}
+			}
+		}
+	}
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::ComputeLevels(const int32 ContainerId)
+{
+	// First enqueue all the static/kinematic nodes for levels 0
+	TQueue<int32> NodeQueue;
+	for (int32 NodeIndex = 0, NumNodes = GraphNodes.GetMaxIndex(); NodeIndex < NumNodes; ++NodeIndex)
+	{
+		if(GraphNodes.IsValidIndex(NodeIndex))
+		{
+			FGraphNode& GraphNode = GraphNodes[NodeIndex];
+			if(!GraphNode.bValidNode)
+			{
+				GraphNode.LevelIndex = 0;
+				UpdateLevels(NodeIndex, ContainerId, NodeQueue);
+			}
+		}
+	}
+
+	// Then iteratively loop over these root nodes and propagate the levels through connectivity
+	int32 NodeIndex = INDEX_NONE;
+	while(!NodeQueue.IsEmpty())
+	{
+		NodeQueue.Dequeue(NodeIndex);
+		UpdateLevels(NodeIndex, ContainerId, NodeQueue);
+	}
+
+	// An isolated island that is only dynamics will not have been processed above, put everything without a level into level zero
+	for(auto& GraphEdge : GraphEdges)
+	{
+		if(GraphEdge.ItemContainer == ContainerId)
+		{
+			GraphEdge.LevelIndex = FGenericPlatformMath::Max(GraphEdge.LevelIndex, 0);
+		}
+	}
+}
+	
+template<typename NodeType, typename EdgeType, typename IslandType>
+int32 FIslandGraph<NodeType, EdgeType, IslandType>::PickColor(const FGraphNode& GraphNode, const int32 OtherIndex, TQueue<int32>& NodeQueue)
+{
+	int32 ColorToUse = 0;
+	if (GraphNodes.IsValidIndex(OtherIndex) && GraphNodes[OtherIndex].bValidNode)
+	{
+		FGraphNode& OtherNode = GraphNodes[OtherIndex];
+		// Pick the first color not used by the 2 edge nodes
+		while (OtherNode.ColorIndices.Contains(ColorToUse) || GraphNode.ColorIndices.Contains(ColorToUse))
+		{
+			ColorToUse++;
+		}
+		// The color will be added to the graph node in the UpdateColors function
+		OtherNode.ColorIndices.Add(ColorToUse);
+		if (OtherNode.NodeCounter != GraphCounter)
+		{
+			NodeQueue.Enqueue(OtherIndex);
+		}
+	}
+	else
+	{
+		// If only one node, only iterate over that node available color
+		while (GraphNode.ColorIndices.Contains(ColorToUse))
+		{
+			ColorToUse++;
+		}
+	}
+	return ColorToUse;
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::UpdateColors(const int32 NodeIndex, const int32 ContainerId, TQueue<int32>& NodeQueue, const int32 MinEdges)
+{
+	if (GraphNodes.IsValidIndex(NodeIndex))
+	{
+		FGraphNode& GraphNode = GraphNodes[NodeIndex];
+		GraphNode.NodeCounter = GraphCounter;
+		
+		for (int32 EdgeIndex : GraphNode.NodeEdges)
+		{
+			FGraphEdge& GraphEdge = GraphEdges[EdgeIndex];
+
+			// Do nothing if the edge is not coming from the same container or if the island is sleeping 
+			if (GraphEdge.ItemContainer == ContainerId && GraphEdge.ColorIndex == INDEX_NONE &&
+				!GraphIslands[GraphEdge.IslandIndex].bIsSleeping && (GraphIslands[GraphEdge.IslandIndex].NumEdges > MinEdges) )
+			{
+				// Get the opposite node index for the given edge
+				const int32 OtherIndex = (NodeIndex == GraphEdge.FirstNode) ?
+					GraphEdge.SecondNode : GraphEdge.FirstNode;
+
+				// Get the first available color to be used by the edge
+				const int32 ColorToUse = PickColor(GraphNode, OtherIndex, NodeQueue);
+				
+				GraphNode.ColorIndices.Add(ColorToUse);
+				GraphEdge.ColorIndex = ColorToUse;
+				
+				GraphIslands[GraphEdge.IslandIndex].MaxColors = FGenericPlatformMath::Max(
+					GraphIslands[GraphEdge.IslandIndex].MaxColors, ColorToUse);
+			}
+		}
+	}
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType>
+void FIslandGraph<NodeType, EdgeType, IslandType>::ComputeColors(const int32 ContainerId, const int32 MinEdges)
+{
+	GraphCounter = (GraphCounter + 1) % MaxCount;
+
+	TQueue<int32> NodeQueue;
+	int32 NodeIndex = INDEX_NONE;
+
+	// We first loop over all the nodes that have not been processed and valid (dynamic/sleeping)
+	for (int32 RootIndex = 0, NumNodes = GraphNodes.GetMaxIndex(); RootIndex < NumNodes; ++RootIndex)
+	{
+		if (GraphNodes.IsValidIndex(RootIndex))
+		{
+			FGraphNode& GraphNode = GraphNodes[RootIndex];
+			if (GraphNode.NodeCounter != GraphCounter && GraphNode.bValidNode)
+			{
+				NodeQueue.Enqueue(RootIndex);
+				while (!NodeQueue.IsEmpty())
+				{
+					NodeQueue.Dequeue(NodeIndex);
+					UpdateColors(NodeIndex, ContainerId, NodeQueue, MinEdges);
+				}
+			}
+		}
+	}
+}
+
+template<typename NodeType, typename EdgeType, typename IslandType>
 void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIsland(TQueue<int32>& NodeQueue, const int32 RootIndex, const int32 IslandIndex)
 {
 	NodeQueue.Enqueue(RootIndex);
@@ -412,7 +593,7 @@ void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIsland(TQueue<int32>& No
 		}
 	}
 }
-	
+
 template<typename NodeType, typename EdgeType, typename IslandType>
 void FIslandGraph<NodeType, EdgeType, IslandType>::SplitIslands()
 {

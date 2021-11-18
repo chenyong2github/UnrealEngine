@@ -142,6 +142,12 @@ public:
 
 		/** Node item that is stored per node */
 		NodeType NodeItem;
+		
+		/** Node level index */
+		int32 LevelIndex = INDEX_NONE;
+
+		/** Set of used colors */
+		TSet<int32> ColorIndices;
 	};
 
 	/** Graph edge structure */
@@ -170,6 +176,12 @@ public:
 
 		/** Item Container Id  */
 		int32 ItemContainer = 0;
+
+		/** Edge level index */
+		int32 LevelIndex = INDEX_NONE;
+
+		/** Edge Color index */
+		int32 ColorIndex = INDEX_NONE;
 	};
 
 	/** Graph island structure */
@@ -198,6 +210,12 @@ public:
 		
 		/** Island Item that is stored per island*/
 		IslandType IslandItem;
+
+		/** Max levels per island */
+		int32 MaxLevels = INDEX_NONE;
+
+		/** Max color per island */
+		int32 MaxColors = INDEX_NONE;
 	};
 
 	/**
@@ -242,8 +260,53 @@ public:
 	* Reassign the updated island index from the merging phase to the nodes/edges
 	*/
 	void ReassignIslands();
-	
 
+	/**
+	* Init all the islands/edges/nodes levels and colors for sorting
+	*/
+	void InitSorting();
+
+	/**
+	* Given a constraint containerId compute all the islands/edges/nodes levels
+	* @param ContainerId Constraint container id that will be compared to the item container
+	*/
+	void ComputeLevels(const int32 ContainerId);
+	
+	/**
+	* Given a constraint containerId and a node index update all the islands/edges/nodes levels and push the connected nodes
+	* into the node queue
+	* @param NodeIndex Node index that we are currently iterating over
+	* @param ContainerId Constraint container id that will be compared to the item container
+	* @param NodeQueue Node queue in which all the connected nodes not processed yet will be added
+	*/
+	void UpdateLevels(const int32 NodeIndex, const int32 ContainerId, TQueue<int32>& NodeQueue);
+
+	/**
+	* Given a constraint containerId compute all the islands/edges/nodes colors
+	* @param ContainerId Constraint container id that will be compared to the item container
+	* @param MinEdges Minimum number of edges to compute coloring
+	*/
+	void ComputeColors(const int32 ContainerId, const int32 MinEdges);
+
+	/**
+	* Given a constraint containerId and a node index update all the islands/edges/nodes colors and push the connected nodes
+	* into the node queue
+	* @param NodeIndex Node index that we are currently iterating over
+	* @param ContainerId Constraint container id that will be compared to the item container
+	* @param NodeQueue Node queue in which all the connected nodes not processed yet will be added
+	* @param MinEdges Minimum number of edges to compute coloring
+	*/
+	void UpdateColors(const int32 NodeIndex, const int32 ContainerId, TQueue<int32>& NodeQueue, const int32 MinEdges);
+
+	/**
+	* Pick the first available color that is not used yet by the current graph node and the edge opposite one
+	* @param GraphNode Graph node that we currently iterate over
+	* @param OtherIndex Index of the edge opposite node
+	* @param NodeQueue Node queue in which all the connected nodes not processed yet will be added
+	* @return First available color 
+	*/
+	int32 PickColor(const FGraphNode& GraphNode, const int32 OtherIndex, TQueue<int32>& NodeQueue);
+	
 	/** List of graph nodes */
 	TSparseArray<FGraphNode> GraphNodes;
 
