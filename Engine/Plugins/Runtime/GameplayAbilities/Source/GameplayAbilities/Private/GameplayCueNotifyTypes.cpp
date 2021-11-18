@@ -18,6 +18,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/Character.h"
+#include "Sound/SoundWaveProcedural.h"
 
 
 DEFINE_LOG_CATEGORY(LogGameplayCueNotify);
@@ -455,6 +456,12 @@ void FGameplayCueNotify_ParticleInfo::ValidateBurstAssets(UObject* ContainingAss
 //////////////////////////////////////////////////////////////////////////
 // FGameplayCueNotify_SoundInfo
 //////////////////////////////////////////////////////////////////////////
+
+FGameplayCueNotify_SoundParameterInterfaceInfo::FGameplayCueNotify_SoundParameterInterfaceInfo()
+{
+	StopTriggerName = TEXT("OnStop");
+}
+
 FGameplayCueNotify_SoundInfo::FGameplayCueNotify_SoundInfo()
 {
 	SoundCue = nullptr;
@@ -462,6 +469,7 @@ FGameplayCueNotify_SoundInfo::FGameplayCueNotify_SoundInfo()
 	LoopingFadeVolumeLevel = 0.0f;
 	bOverrideSpawnCondition = false;
 	bOverridePlacementInfo = false;
+	bUseSoundParameterInterface = false;
 }
 
 bool FGameplayCueNotify_SoundInfo::PlaySound(const FGameplayCueNotify_SpawnContext& SpawnContext, FGameplayCueNotify_SpawnResult& OutSpawnResult) const
@@ -526,7 +534,7 @@ void FGameplayCueNotify_SoundInfo::ValidateBurstAssets(UObject* ContainingAsset,
 #if WITH_EDITORONLY_DATA
 	if (SoundCue != nullptr)
 	{
-		if (SoundCue->IsLooping())
+		if (SoundCue->IsLooping() && (!SoundCue->IsA<USoundWaveProcedural>()))
 		{
 			ValidationErrors.Add(FText::Format(
 				LOCTEXT("SoundCue_ShouldNotLoop", "Sound [{0}] used in slot [{1}] for asset [{2}] is set to looping, but the slot is a one-shot (the instance will leak)."),
@@ -1093,10 +1101,16 @@ void FGameplayCueNotify_LoopingEffects::StopEffects(FGameplayCueNotify_SpawnResu
 		UAudioComponent* AudioComponent = SpawnResult.AudioComponents[SoundIndex];
 		if (AudioComponent)
 		{
+			const FGameplayCueNotify_SoundInfo* SoundInfo = &LoopingSounds[SoundIndex];
+
+			if(SoundInfo->bUseSoundParameterInterface)
+			{
+				// Call the Stop Trigger by Name
+				AudioComponent->SetTriggerParameter(SoundInfo->SoundParameterInterfaceInfo.StopTriggerName);
+			}
+
 			if (LoopingSounds.IsValidIndex(SoundIndex))
 			{
-				const FGameplayCueNotify_SoundInfo* SoundInfo = &LoopingSounds[SoundIndex];
-
 				if (SoundInfo->LoopingFadeOutDuration > 0.0f)
 				{
 					AudioComponent->FadeOut(SoundInfo->LoopingFadeOutDuration, SoundInfo->LoopingFadeVolumeLevel);
