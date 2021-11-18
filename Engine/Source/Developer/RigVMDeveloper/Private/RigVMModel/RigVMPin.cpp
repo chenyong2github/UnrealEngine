@@ -1149,7 +1149,7 @@ FRigVMExternalVariable URigVMPin::ToExternalVariable() const
 	}
 	ExternalVariable.Name = *VariableName;
 
-	if (RigVMUtilities::IsArrayType(CPPType))
+	if (RigVMTypeUtils::IsArrayType(CPPType))
 	{
 		ExternalVariable.bIsArray = true;
 		ExternalVariable.TypeName = *CPPType.Mid(7, CPPType.Len() - 8);

@@ -7,6 +7,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "UObject/Package.h"
+#include "RigVMTypeUtils.h"
 
 URigVMGraph::URigVMGraph()
 : DiagnosticsAST(nullptr)

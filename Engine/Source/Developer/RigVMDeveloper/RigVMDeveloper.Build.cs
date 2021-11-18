@@ -27,6 +27,7 @@ public class RigVMDeveloper : ModuleRules
 					"SlateCore",
 					"EditorStyle",
 					"MessageLog",
+					"BlueprintGraph"
 				}
 			);
         }

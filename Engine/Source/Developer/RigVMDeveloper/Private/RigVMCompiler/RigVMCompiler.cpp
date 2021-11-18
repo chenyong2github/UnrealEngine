@@ -6,6 +6,7 @@
 #include "RigVMDeveloperModule.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Stats/StatsHierarchical.h"
+#include "RigVMTypeUtils.h"
 
 class FRigVMCompilerImportErrorContext : public FOutputDevice
 {

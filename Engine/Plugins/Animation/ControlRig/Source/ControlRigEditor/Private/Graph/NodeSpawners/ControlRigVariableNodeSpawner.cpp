@@ -37,7 +37,7 @@ UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromExtern
 	MenuSignature.Category = InCategory;
 	MenuSignature.Keywords = FText::FromString(TEXT("Variable"));
 
-	FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(InExternalVariable);
+	FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(InExternalVariable);
 	MenuSignature.Icon = UK2Node_Variable::GetVarIconFromPinType(PinType, MenuSignature.IconTint);
 
 	return NodeSpawner;

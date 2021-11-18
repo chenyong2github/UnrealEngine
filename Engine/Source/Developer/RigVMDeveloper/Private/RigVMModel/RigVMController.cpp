@@ -16,6 +16,7 @@
 #include "Misc/CoreMisc.h"
 #include "Algo/Sort.h"
 #include "RigVMPythonUtils.h"
+#include "RigVMTypeUtils.h"
 
 #if WITH_EDITOR
 #include "Exporters/Exporter.h"
@@ -765,6 +766,16 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 							*GraphName,
 							*PinPath,
 							*Pin->GetDefaultValue()));
+			}
+
+			if (!Pin->GetBoundVariablePath().IsEmpty())
+			{
+				const FString PinPath = GetSanitizedPinPath(Pin->GetPinPath());
+
+				Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').bind_pin_to_variable('%s', '%s')"),
+							*GraphName,
+							*PinPath,
+							*Pin->GetBoundVariablePath()));
 			}
 		}
 	}

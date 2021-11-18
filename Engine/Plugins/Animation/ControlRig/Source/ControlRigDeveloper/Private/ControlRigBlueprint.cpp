@@ -26,6 +26,7 @@
 #include "Misc/CoreDelegates.h"
 #include "AssetRegistryModule.h"
 #include "RigVMPythonUtils.h"
+#include "RigVMTypeUtils.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -55,7 +56,7 @@ FEdGraphPinType FControlRigPublicFunctionArg::GetPinType() const
 		Variable.TypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
 	}
 
-	return UControlRig::GetPinTypeFromExternalVariable(Variable);
+	return RigVMTypeUtils::PinTypeFromExternalVariable(Variable);
 }
 
 bool FControlRigPublicFunctionData::IsMutable() const
@@ -1479,12 +1480,25 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 	// Add variables
 	for (const FBPVariableDescription& Variable : NewVariables)
 	{
-		const FRigVMExternalVariable ExternalVariable = UControlRig::GetExternalVariableFromDescription(Variable);
-
+		const FRigVMExternalVariable ExternalVariable = RigVMTypeUtils::ExternalVariableFromBPVariableDescription(Variable);
+		FString CPPType;
+		UObject* CPPTypeObject = nullptr;
+		RigVMTypeUtils::CPPTypeFromExternalVariable(ExternalVariable, CPPType, &CPPTypeObject);
+		if (CPPTypeObject)
+		{
+			if (ExternalVariable.bIsArray)
+			{
+				CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPTypeObject->GetPathName());
+			}
+			else
+			{
+				CPPType = CPPTypeObject->GetPathName();
+			}
+		}
 		// FName AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false, FString InDefaultValue = TEXT(""));
 		Commands.Add(FString::Printf(TEXT("blueprint.add_member_variable('%s', '%s', %s, %s)"),
 					*ExternalVariable.Name.ToString(),
-					ExternalVariable.TypeObject ? *ExternalVariable.TypeObject->GetPathName() : *ExternalVariable.TypeName.ToString(),
+					*CPPType,
 					ExternalVariable.bIsPublic ? TEXT("True") : TEXT("False"),
 					ExternalVariable.bIsReadOnly ? TEXT("True") : TEXT("False")));	
 	}
@@ -2052,67 +2066,7 @@ TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
 
 FName UControlRigBlueprint::AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic, bool bIsReadOnly, FString InDefaultValue)
 {
-	FRigVMExternalVariable Variable;
-	Variable.Name = InName;
-	Variable.bIsPublic = bIsPublic;
-	Variable.bIsReadOnly = bIsReadOnly;
-
-	FString CPPType = InCPPType;
-	if (CPPType.StartsWith(TEXT("TMap<")))
-	{
-		UE_LOG(LogControlRigDeveloper, Warning, TEXT("TMap Variables are not supported."));
-		return NAME_None;
-	}
-
-	Variable.bIsArray = RigVMUtilities::IsArrayType(CPPType);
-	if (Variable.bIsArray)
-	{
-		CPPType = CPPType.RightChop(7).LeftChop(1);
-	}
-
-	if (CPPType == TEXT("bool"))
-	{
-		Variable.TypeName = *CPPType;
-		Variable.Size = sizeof(bool);
-	}
-	else if (CPPType == TEXT("float"))
-	{
-		Variable.TypeName = *CPPType;
-		Variable.Size = sizeof(float);
-	}
-	else if (CPPType == TEXT("double"))
-	{
-		Variable.TypeName = *CPPType;
-		Variable.Size = sizeof(double);
-	}
-	else if (CPPType == TEXT("int32"))
-	{
-		Variable.TypeName = *CPPType;
-		Variable.Size = sizeof(int32);
-	}
-	else if (CPPType == TEXT("FString"))
-	{
-		Variable.TypeName = *CPPType;
-		Variable.Size = sizeof(FString);
-	}
-	else if (CPPType == TEXT("FName"))
-	{
-		Variable.TypeName = *CPPType;
-		Variable.Size = sizeof(FName);
-	}
-	else if(UScriptStruct* ScriptStruct = URigVMPin::FindObjectFromCPPTypeObjectPath<UScriptStruct>(CPPType))
-	{
-		Variable.TypeName = *ScriptStruct->GetStructCPPName();
-		Variable.TypeObject = ScriptStruct;
-		Variable.Size = ScriptStruct->GetStructureSize();
-	}
-	else if (UEnum* Enum= URigVMPin::FindObjectFromCPPTypeObjectPath<UEnum>(CPPType))
-	{
-		Variable.TypeName = *Enum->CppType;
-		Variable.TypeObject = Enum;
-		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
-	}
-
+	FRigVMExternalVariable Variable = RigVMTypeUtils::ExternalVariableFromCPPType(InName, InCPPType, bIsPublic, bIsReadOnly);
 	FName Result = AddCRMemberVariableFromExternal(Variable, InDefaultValue);
 	if (!Result.IsNone())
 	{
@@ -2173,7 +2127,7 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 		return false;
 	}
 
-	Variable.bIsArray = RigVMUtilities::IsArrayType(CPPType);
+	Variable.bIsArray = RigVMTypeUtils::IsArrayType(CPPType);
 	if (Variable.bIsArray)
 	{
 		CPPType = CPPType.RightChop(7).LeftChop(1);
@@ -2222,7 +2176,7 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 		Variable.Size = Enum->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal);
 	}
 
-	FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(Variable);
+	FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(Variable);
 	if (!PinType.PinCategory.IsValid())
 	{
 		return false;
@@ -3278,7 +3232,7 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 					continue;
 				}
 
-				FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(Description.ToExternalVariable());
+				FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(Description.ToExternalVariable());
 				if (!PinType.PinCategory.IsValid())
 				{
 					continue;
@@ -3309,7 +3263,7 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 					continue;
 				}
 
-				FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(Description.ToExternalVariable());
+				FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(Description.ToExternalVariable());
 				if (!PinType.PinCategory.IsValid())
 				{
 					continue;
@@ -3402,7 +3356,7 @@ int32 UControlRigBlueprint::AddCRMemberVariable(UControlRigBlueprint* InBlueprin
 
 FName UControlRigBlueprint::AddCRMemberVariableFromExternal(FRigVMExternalVariable InVariableToCreate, FString InDefaultValue)
 {
-	FEdGraphPinType PinType = UControlRig::GetPinTypeFromExternalVariable(InVariableToCreate);
+	FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromExternalVariable(InVariableToCreate);
 	if (!PinType.PinCategory.IsValid())
 	{
 		return NAME_None;
@@ -3875,12 +3829,25 @@ void UControlRigBlueprint::OnVariableAdded(const FName& InVarName)
 		}
 	}
 
-	FRigVMExternalVariable ExternalVariable = UControlRig::GetExternalVariableFromDescription(Variable);
-
-	RigVMPythonUtils::Print(GetFName().ToString(),
+	const FRigVMExternalVariable ExternalVariable = RigVMTypeUtils::ExternalVariableFromBPVariableDescription(Variable);
+    FString CPPType;
+    UObject* CPPTypeObject = nullptr;
+    RigVMTypeUtils::CPPTypeFromExternalVariable(ExternalVariable, CPPType, &CPPTypeObject);
+	if (CPPTypeObject)
+	{
+		if (ExternalVariable.bIsArray)
+		{
+			CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPTypeObject->GetPathName());
+		}
+		else
+		{
+			CPPType = CPPTypeObject->GetPathName();
+		}
+	}
+    RigVMPythonUtils::Print(GetFName().ToString(),
 		FString::Printf(TEXT("blueprint.add_member_variable('%s', '%s', %s, %s, '%s')"),
 			*InVarName.ToString(),
-			*ExternalVariable.TypeName.ToString(),
+			*CPPType,
 			(ExternalVariable.bIsPublic) ? TEXT("False") : TEXT("True"), 
 			(ExternalVariable.bIsReadOnly) ? TEXT("True") : TEXT("False"), 
 			*Variable.DefaultValue)); 
@@ -3938,8 +3905,8 @@ void UControlRigBlueprint::OnVariableRenamed(const FName& InOldVarName, const FN
 void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGraphPinType InOldPinType, FEdGraphPinType InNewPinType)
 {
 	FString CPPType;
-	UObject* CPPTypeObject;
-	FRigVMGraphVariableDescription::CPPTypeFromPinType(InNewPinType, CPPType, CPPTypeObject);
+	UObject* CPPTypeObject = nullptr;
+	RigVMTypeUtils::CPPTypeFromPinType(InNewPinType, CPPType, &CPPTypeObject);
 	
 	TArray<URigVMGraph*> AllGraphs = GetAllModels();
 	for (URigVMGraph* Graph : AllGraphs)

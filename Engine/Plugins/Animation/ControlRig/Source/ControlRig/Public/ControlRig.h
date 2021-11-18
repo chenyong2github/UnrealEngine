@@ -23,6 +23,7 @@
 
 #if WITH_EDITOR
 #include "RigVMModel/RigVMPin.h"
+#include "RigVMTypeUtils.h"
 #endif
 
 #if WITH_EDITOR
@@ -629,15 +630,6 @@ private:
 	void HandleInteractionRigExecuted(UControlRig* Subject, EControlRigState State, const FName& EventName);
 	void HandleInteractionRigControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected, bool bInverted);
 
-#if WITH_EDITOR
-
-public:
-
-	static FEdGraphPinType GetPinTypeFromExternalVariable(const FRigVMExternalVariable& InExternalVariable);
-	static FRigVMExternalVariable GetExternalVariableFromPinType(const FName& InName, const FEdGraphPinType& InPinType, bool bInPublic = false, bool bInReadonly = false);
-	static FRigVMExternalVariable GetExternalVariableFromDescription(const FBPVariableDescription& InVariableDescription);
-
-#endif
 
 protected:
 	bool bRequiresInitExecution;
