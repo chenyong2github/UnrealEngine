@@ -10,7 +10,6 @@
 #include "MeshOpPreviewHelpers.h"
 #include "ToolDataVisualizer.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "BaseTools/SingleClickTool.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/MeshUVChannelProperties.h"
 #include "Drawing/UVLayoutPreview.h"
@@ -18,7 +17,7 @@
 #include "UVLayoutTool.generated.h"
 
 
-// predeclarations
+// Forward declarations
 struct FMeshDescription;
 class UDynamicMeshComponent;
 class UUVLayoutProperties;
@@ -68,10 +67,7 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
-
-public:
 	int32 GetSelectedUVChannel() const;
-
 
 protected:
 
@@ -90,7 +86,6 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UUVLayoutOperatorFactory>> Factories;
 
-protected:
 	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 
 	UWorld* TargetWorld = nullptr;
@@ -105,8 +100,6 @@ protected:
 
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 
-
-protected:
 	UPROPERTY()
 	TObjectPtr<UUVLayoutPreview> UVLayoutView = nullptr;
 };

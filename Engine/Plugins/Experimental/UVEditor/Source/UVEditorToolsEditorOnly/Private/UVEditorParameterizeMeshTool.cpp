@@ -78,7 +78,7 @@ void UUVEditorParameterizeMeshTool::Setup()
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
 	MaterialSettings->MaterialMode = ESetMeshMaterialMode::Checkerboard;
 	MaterialSettings->RestoreProperties(this, TEXT("ModelingUVTools"));
-	MaterialSettings->UVChannel = 0; // We only ever have one UV layer for the applied preview.
+	MaterialSettings->UpdateUVChannels(0, {TEXT("UV 0")}); // We only ever have one UV layer for the applied preview.
 	AddToolPropertySource(MaterialSettings);
 	// force update
 	MaterialSettings->UpdateMaterials();

@@ -17,17 +17,16 @@ class MESHMODELINGTOOLSEXP_API UMeshUVChannelProperties : public UInteractiveToo
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category = UVChannel, meta = (DisplayName = "UV Channel", GetOptions = GetUVChannelNamesFunc))
+	/** Select UV channel in the mesh */
+	UPROPERTY(EditAnywhere, Category = "UV Channel", meta = (DisplayName = "UV Channel", GetOptions = GetUVChannelNamesFunc, NoResetToDefault))
 	FString UVChannel;
 
 	UFUNCTION()
-	const TArray<FString>& GetUVChannelNamesFunc();
+	const TArray<FString>& GetUVChannelNamesFunc() const;
 
 	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> UVChannelNamesList;
 
-
-public:
 	void Initialize(int32 NumUVChannels, bool bInitializeSelection = true);
 	void Initialize(const FMeshDescription* MeshDescription, bool bInitializeSelection = true);
 	void Initialize(const FDynamicMesh3* Mesh, bool bInitializeSelection = true);

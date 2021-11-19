@@ -5,7 +5,6 @@
 #include "ToolBuilderUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Polygroups/PolygroupUtil.h"
-#include "FaceGroupUtil.h"
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 #include "ParameterizationOps/RecomputeUVsOp.h"
@@ -52,7 +51,8 @@ void URecomputeUVsTool::Setup()
 	UVChannelProperties->ValidateSelection(true);
 	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue)
 		{
-			MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+			MaterialSettings->UpdateUVChannels(UVChannelProperties->UVChannelNamesList.IndexOfByKey(UVChannelProperties->UVChannel),
+			                                   UVChannelProperties->UVChannelNamesList);
 		});
 	AddToolPropertySource(UVChannelProperties);
 
@@ -100,7 +100,7 @@ void URecomputeUVsTool::Setup()
 		UVLayoutView->CreateInWorld(TargetWorld);
 		UVLayoutView->SetSourceMaterials(MaterialSet);
 		UVLayoutView->SetSourceWorldPosition(TargetTransform, UE::ToolTarget::GetTargetActor(Target)->GetComponentsBoundingBox());
-		UVLayoutView->Settings->bVisible = false;
+		UVLayoutView->Settings->bEnabled = false;
 		UVLayoutView->Settings->bShowWireframe = false;
 		UVLayoutView->Settings->RestoreProperties(this, TEXT("RecomputeUVsTool"));
 		AddToolPropertySource(UVLayoutView->Settings);

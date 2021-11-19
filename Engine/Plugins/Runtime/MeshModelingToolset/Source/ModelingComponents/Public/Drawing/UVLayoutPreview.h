@@ -16,8 +16,11 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 UENUM()
 enum class EUVLayoutPreviewSide
 {
-	Left = 0,
-	Right = 1
+	/** On the left side of the object center relative to the camera */
+	Left,
+
+	/** On the right side of the object center relative to the camera */
+	Right
 };
 
 
@@ -29,24 +32,26 @@ class MODELINGCOMPONENTS_API UUVLayoutPreviewProperties : public UInteractiveToo
 {
 	GENERATED_BODY()
 public:
-	/** Should be UV Layout be shown */
-	UPROPERTY(EditAnywhere, Category = UVLayoutPreview)
-	bool bVisible = true;
+	/** Enable the preview UV layout */
+	UPROPERTY(EditAnywhere, Category = "Preview UV Layout")
+	bool bEnabled = true;
 
-	/** World-space scaling factor on the UV Layout */
-	UPROPERTY(EditAnywhere, Category = UVLayoutPreview, meta = (UIMin = "0.1", UIMax = "10.0", ClampMin = "0.0001", ClampMax = "1000"))
-	float ScaleFactor = 1.0;
+	/** Which side of the selected object the preview UV layout is shown */
+	UPROPERTY(EditAnywhere, Category = "Preview UV Layout", meta = (EditCondition = "bEnabled"))
+	EUVLayoutPreviewSide Side = EUVLayoutPreviewSide::Right;
 
-	/** Where should the UV layout be positioned relative to the target object, relative to camera */
-	UPROPERTY(EditAnywhere, Category = UVLayoutPreview)
-	EUVLayoutPreviewSide WhichSide = EUVLayoutPreviewSide::Right;
+	/** Uniform scaling factor */
+	UPROPERTY(EditAnywhere, Category = "Preview UV Layout",
+		meta = (UIMin = "0.1", UIMax = "10.0", ClampMin = "0.0001", ClampMax = "1000", EditCondition = "bEnabled"))
+	float Scale = 1.0;
 
-	/** If true, wireframe is shown for the UV layout */
-	UPROPERTY(EditAnywhere, Category = UVLayoutPreview)
+	/** Offset relative to the center of the selected object */
+	UPROPERTY(EditAnywhere, Category = "Preview UV Layout", meta = (EditCondition = "bEnabled"))
+	FVector2D Offset = FVector2D(1.0, 0.5);
+
+	/** Show wireframe mesh in the preview UV layout */
+	UPROPERTY(EditAnywhere, Category = "Preview UV Layout", meta = (EditCondition = "bEnabled"))
 	bool bShowWireframe = true;
-
-	UPROPERTY(EditAnywhere, Category = UVLayoutPreview)
-	FVector2D Shift = FVector2D(1.0, 0.5);
 };
 
 
@@ -62,7 +67,7 @@ class MODELINGCOMPONENTS_API UUVLayoutPreview : public UObject
 	GENERATED_BODY()
 
 public:
-	virtual ~UUVLayoutPreview();
+	virtual ~UUVLayoutPreview() override;
 
 
 	/**
@@ -98,12 +103,12 @@ public:
 	void UpdateUVMesh(const FDynamicMesh3* SourceMesh, int32 SourceUVLayer = 0);
 
 	/**
-	 * Tick the UV Layout Preview, allowing it to upodate various settings
+	 * Tick the UV Layout Preview, allowing it to update various settings
 	 */
 	void OnTick(float DeltaTime);
 
 	/**
-	 * Render the UV Layout Preview, allowing it to upodate various settings
+	 * Render the UV Layout Preview, allowing it to update various settings
 	 */
 	void Render(IToolsContextRenderAPI* RenderAPI);
 

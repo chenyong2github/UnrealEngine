@@ -114,8 +114,8 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 	Op->UVLayerIndex = GetSelectedUVChannel();
 	Op->TextureResolution = Settings->TextureResolution;
 	Op->bAllowFlips = Settings->bAllowFlips;
-	Op->UVScaleFactor = Settings->UVScaleFactor;
-	Op->UVTranslation = FVector2f(Settings->UVTranslate);
+	Op->UVScaleFactor = Settings->Scale;
+	Op->UVTranslation = FVector2f(Settings->Translation);
 	Op->SetTransform(TargetTransform);
 
 	return Op;

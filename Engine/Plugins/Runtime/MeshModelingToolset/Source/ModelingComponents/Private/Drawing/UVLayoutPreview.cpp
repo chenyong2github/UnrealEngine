@@ -22,7 +22,7 @@ void UUVLayoutPreview::CreateInWorld(UWorld* World)
 	TriangleComponent->RegisterComponent();
 
 	Settings = NewObject<UUVLayoutPreviewProperties>(this);
-	Settings->WatchProperty(Settings->bVisible, [this](bool) { bSettingsModified = true; });
+	Settings->WatchProperty(Settings->bEnabled, [this](bool) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->bShowWireframe, [this](bool) { bSettingsModified = true; });
 	//Settings->WatchProperty(Settings->bWireframe, [this](bool) { bSettingsModified = true; });
 	bSettingsModified = true;
@@ -82,7 +82,7 @@ void UUVLayoutPreview::Render(IToolsContextRenderAPI* RenderAPI)
 
 	RecalculatePosition();
 
-	if (Settings->bVisible)
+	if (Settings->bEnabled)
 	{
 		float ScaleFactor = GetCurrentScale();
 		FVector Origin = (FVector)CurrentWorldFrame.Origin;
@@ -106,7 +106,7 @@ void UUVLayoutPreview::OnTick(float DeltaTime)
 {
 	if (bSettingsModified)
 	{
-		SetVisible(Settings->bVisible);
+		SetVisible(Settings->bEnabled);
 
 		PreviewMesh->EnableWireframe(Settings->bShowWireframe);
 
@@ -117,7 +117,7 @@ void UUVLayoutPreview::OnTick(float DeltaTime)
 
 float UUVLayoutPreview::GetCurrentScale()
 {
-	return Settings->ScaleFactor * SourceObjectWorldBounds.Height();
+	return Settings->Scale * SourceObjectWorldBounds.Height();
 }
 
 
@@ -203,15 +203,13 @@ void UUVLayoutPreview::RecalculatePosition()
 
 	double UseScale = GetCurrentScale();
 
-	double ShiftRight = Settings->Shift.X * (ProjectedBounds.Max.X + (ProjectedBounds.Width() * 0.1));
-	//double ShiftRight = Settings->Shift.X * (0.5 * SourceObjectWorldBounds.DiagonalLength());
-	if (Settings->WhichSide == EUVLayoutPreviewSide::Left)
+	double ShiftRight = Settings->Offset.X * (ProjectedBounds.Max.X + (ProjectedBounds.Width() * 0.1));
+	if (Settings->Side == EUVLayoutPreviewSide::Left)
 	{
-		ShiftRight = ProjectedBounds.Min.X - Settings->Shift.X * (UseScale + (ProjectedBounds.Width() * 0.1));
+		ShiftRight = ProjectedBounds.Min.X - Settings->Offset.X * (UseScale + (ProjectedBounds.Width() * 0.1));
 	}
 
-	//double ShiftUp = ProjectedBounds.Max.Y + Settings->ShiftY * (ProjectedBounds.Height() + Settings->ScaleFactor);
-	double ShiftUp = Settings->Shift.Y * UseScale;
+	double ShiftUp = Settings->Offset.Y * UseScale;
 	ObjFrame.Origin += ShiftRight * ObjFrame.X() - ShiftUp * ObjFrame.Y();
 
 	CurrentWorldFrame = ObjFrame;
