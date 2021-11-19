@@ -18,6 +18,23 @@
 #include "DetailWidgetRow.h"
 #include "SEnumCombo.h"
 
+
+void UControlRigControlsProxy::SetIsMultiple(bool bIsVal)
+{ 
+	bIsMultiple = bIsVal; 
+	if (bIsMultiple)
+	{
+		FString DisplayString = TEXT("Multiple");
+		FName DisplayName(*DisplayString);
+		Name = DisplayName;
+	}
+	else
+	{
+		Name = ControlName;
+	}
+}
+
+
 void FControlRigEnumControlProxyValueDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	TArray<UObject*> Objects;
@@ -151,7 +168,8 @@ void UControlRigTransformControlProxy::PostEditChangeProperty(struct FPropertyCh
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
-			ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, Transform, true, EControlRigSetKey::DoNotCare,false);
+			FTransform RealTransform = Transform; //Transform is FEulerTransform
+			ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
 		}
@@ -167,7 +185,8 @@ void UControlRigTransformControlProxy::ValueChanged()
 		const FName PropertyName("Transform");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
 		const FTransform NewTransform = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
-		Binding.CallFunction<FTransform>(*this, NewTransform);
+		const FEulerTransform EulerTransform = NewTransform;
+		Binding.CallFunction<FEulerTransform>(*this, EulerTransform);
 	}
 }
 
@@ -182,7 +201,8 @@ void UControlRigTransformControlProxy::PostEditUndo()
 			CheckEditModeOnSelectionChange(ControlRig.Get());
 		}
 		ControlRig->SelectControl(ControlName, bSelected);
-		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, Transform, true, EControlRigSetKey::Never,false);
+		FTransform RealTransform = Transform; //Transform is FEulerTransform
+		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::Never,false);
 	}
 }
 #endif
@@ -192,7 +212,8 @@ void UControlRigTransformControlProxy::SetKey(const IPropertyHandle& KeyedProper
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
-		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, Transform, true, EControlRigSetKey::Always,false);
+		FTransform RealTransform = Transform; //Transform is FEulerTransform
+		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::Always,false);
 	}
 }
 

@@ -31,7 +31,17 @@ public:
 	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditModeToolkit> InOwningToolkit, FControlRigEditMode& InEditMode, UWorld* InWorld);
 
 	/** Set the objects to be displayed in the details panel */
-	void SetDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetSettingsDetailsObject(const TWeakObjectPtr<>& InObject);
+	void SetEulerTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetTransformDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetTransformNoScaleDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetFloatDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetBoolDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetIntegerDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetEnumDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetVectorDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+	void SetVector2DDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects);
+
 
 	/** Set the sequencer we are bound to */
 	void SetSequencer(TWeakPtr<ISequencer> InSequencer);
@@ -51,8 +61,17 @@ private:
 	/** Sequencer we are currently bound to */
 	TWeakPtr<ISequencer> WeakSequencer;
 
-	/** The details view we do most of our work within */
-	TSharedPtr<IDetailsView> ControlDetailsView;
+	/** The details views we do most of our work within */
+	TSharedPtr<IDetailsView> SettingsDetailsView;
+	TSharedPtr<IDetailsView> ControlEulerTransformDetailsView;
+	TSharedPtr<IDetailsView> ControlTransformDetailsView;
+	TSharedPtr<IDetailsView> ControlTransformNoScaleDetailsView;
+	TSharedPtr<IDetailsView> ControlFloatDetailsView;
+	TSharedPtr<IDetailsView> ControlBoolDetailsView;
+	TSharedPtr<IDetailsView> ControlIntegerDetailsView;
+	TSharedPtr<IDetailsView> ControlEnumDetailsView;
+	TSharedPtr<IDetailsView> ControlVector2DDetailsView;
+	TSharedPtr<IDetailsView> ControlVectorDetailsView;
 
 	/** Expander to interact with the options of the rig  */
 	TSharedPtr<SExpandableArea> RigOptionExpander;

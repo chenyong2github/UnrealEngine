@@ -24,8 +24,8 @@ class UControlRigControlsProxy : public UObject
 
 public:
 	UControlRigControlsProxy() : bSelected(false) {}
-	virtual void SetName(const FName& InName)  { ControlName = InName; }
-	virtual FName GetName() const { return ControlName; }
+	virtual void SetName(const FName& InName) { Name = ControlName = InName; }
+	virtual FName GetName() const { return Name; }
 	virtual void ValueChanged() {}
 	virtual void SelectionChanged(bool bInSelected);
 	virtual void SetKey(const IPropertyHandle& KeyedPropertyHandle) {};
@@ -35,7 +35,7 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
-
+	void SetIsMultiple(bool bIsVal); 
 public:
 
 	FRigControlElement* GetControlElement() const;
@@ -46,6 +46,8 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Control")
 	FName ControlName;
 protected:
+	bool bIsMultiple = 0;
+	FName Name;
 	void CheckEditModeOnSelectionChange(UControlRig* InControlRig);
 };
 
@@ -68,7 +70,7 @@ class UControlRigTransformControlProxy : public UControlRigControlsProxy
 public:
 	
 	UPROPERTY(EditAnywhere, Interp, Category = "Control")
-	FTransform Transform;
+	FEulerTransform Transform; //FTransform doesn't work with multiple values for some reason, so for now using eulertransform which does work
 };
 
 
