@@ -42,11 +42,22 @@ class DeviceListWidget(QtWidgets.QListWidget):
         pass
 
     def contextMenuEvent(self, event):
-        if self.itemAt(event.pos()):
-            device_context_menu = QtWidgets.QMenu(self)
-            device_context_menu.addAction("Remove Device", lambda: self.ask_to_confirm_device_removal(event.pos()))
-            device_context_menu.exec_(event.globalPos())
-            event.accept()
+
+        item = self.itemAt(event.pos())
+
+        if not item:
+            return
+
+        item_widget = self.itemWidget(item)
+        assert item_widget
+
+        device_context_menu = QtWidgets.QMenu(self)
+
+        device_context_menu.addAction("Remove device", lambda: self.ask_to_confirm_device_removal(event.pos()))
+        item_widget.populate_context_menu(device_context_menu)
+
+        device_context_menu.exec_(event.globalPos())
+        event.accept()
 
     def ask_to_confirm_device_removal(self, pos):
         item = self.itemAt(pos)

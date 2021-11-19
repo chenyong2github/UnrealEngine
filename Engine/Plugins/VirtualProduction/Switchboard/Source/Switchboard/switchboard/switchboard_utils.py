@@ -1,12 +1,15 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 from .switchboard_logging import LOGGER
 
 from enum import Enum
+
 import datetime
 import subprocess
 import os
 import threading
 import sys
+import pathlib
 
 
 class PriorityModifier(Enum):
@@ -181,3 +184,24 @@ def explore_path(path:str):
         subprocess.Popen(f'open {path}')
     else:
         LOGGER.error(f"explore_path not supported in platform '{sys.platform}'")
+
+def copy2clipboard(text:str):
+    if sys.platform.startswith('win'):
+        subprocess.Popen(f'echo[{text.strip()}|clip', shell=True)
+    else:
+        LOGGER.error(f"copy2clipboard not supported in platform '{sys.platform}'")
+
+def openfile_with_default_app(path:str):
+
+    if not pathlib.Path(path).is_file():
+        LOGGER.error(f"openfile_with_default_app could not find '{path}'")
+        return
+
+    if sys.platform.startswith('win'):
+        os.startfile(path)
+    elif sys.platform.startswith('linux'):
+        subprocess.Popen(f'xdg-open {path}')
+    elif sys.platform.startswith('darwin'):
+        subprocess.Popen(f'open {path}')
+    else:
+        LOGGER.error(f"openfile_with_default_app not supported in platform '{sys.platform}'")

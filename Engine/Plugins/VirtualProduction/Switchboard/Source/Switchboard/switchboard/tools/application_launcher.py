@@ -24,7 +24,7 @@ class ApplicationLauncher(object):
     def exe_name(self):
         return os.path.split(self.exe_path())[1]
 
-    def launch(self, args:Optional[List[str]] = []):
+    def launch(self, args:Optional[List[str]] = [], allow_duplicate:bool = False):
         ''' Launches this application with the given arguments '''
 
         args.insert(0, self.exe_path())
@@ -32,7 +32,7 @@ class ApplicationLauncher(object):
 
         with self.lock:
 
-            if self.is_running():
+            if (not allow_duplicate) and self.is_running():
                 return False
 
             if not os.path.exists(self.exe_path()):

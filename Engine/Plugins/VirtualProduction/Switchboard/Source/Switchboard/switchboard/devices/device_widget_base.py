@@ -304,6 +304,10 @@ class DeviceWidget(QtWidgets.QWidget):
         self.assign_button_to_name(name, button)
         return button
 
+    def populate_context_menu(self, cmenu: QtWidgets.QMenu):
+        ''' Called to populate the given context menu with any desired actions'''
+        pass
+
 
 class AddDeviceDialog(QtWidgets.QDialog):
     def __init__(self, device_type, existing_devices, parent=None):
