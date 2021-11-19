@@ -577,6 +577,17 @@ FSimpleCurve& UCurveTable::AddSimpleCurve(FName RowName)
 	return *Result;
 }
 
+void UCurveTable::RenameRow(FName& CurveName, FName& NewCurveName)
+{
+	if (CurveName != NewCurveName && !RowMap.Contains(NewCurveName))
+	{
+		if (FRealCurve** Curve = RowMap.Find(CurveName))
+		{
+			RowMap.Add(NewCurveName, *Curve);
+			RowMap.Remove(CurveName);
+		}
+	}
+}
 
 /** */
 void GetCurveValues(const TArray<const TCHAR*>& Cells, TArray<float>& Values)

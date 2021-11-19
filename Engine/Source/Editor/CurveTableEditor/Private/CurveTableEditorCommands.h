@@ -20,4 +20,5 @@ public:
 
 	// Command to allow users to toggle the view mode
 	TSharedPtr<FUICommandInfo> CurveViewToggle;
+	TSharedPtr<FUICommandInfo> AppendKeyColumn;
 };

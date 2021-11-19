@@ -58,6 +58,9 @@ class UCurveTable
 	ENGINE_API FRichCurve& AddRichCurve(FName RowName);
 	ENGINE_API FSimpleCurve& AddSimpleCurve(FName RowName);
 
+	/** Move the curve to another FName in the table */
+	ENGINE_API void RenameRow(FName& CurveName, FName& NewCurveName);
+
 protected:
 	/** 
 	 * Map of name of row to row data structure. 
@@ -228,6 +231,7 @@ protected:
 	static FName MakeValidName(const FString& InString);
 
 	ENGINE_API static int32 GlobalCachedCurveID;
+
 
 private:
 
