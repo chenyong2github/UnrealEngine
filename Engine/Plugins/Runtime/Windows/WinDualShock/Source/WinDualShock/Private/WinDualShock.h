@@ -6,6 +6,14 @@
 
 enum ESonyControllerType : unsigned int;
 
+namespace Audio
+{
+	/**
+	 * Typed identifier for Audio Device Id
+	 */
+	using FDeviceId = uint32;
+}
+
 /**
  * Supported endpoint types
  */
