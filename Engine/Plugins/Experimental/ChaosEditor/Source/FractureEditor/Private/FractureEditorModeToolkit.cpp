@@ -1129,6 +1129,7 @@ void FFractureEditorModeToolkit::UpdateHideForComponent(UGeometryCollectionCompo
 			{
 				GeometryCollection->RemoveAttribute("Hide", FGeometryCollection::TransformGroup);
 			}
+			Comp->RefreshEmbeddedGeometry();
 		}
 	}
 }
