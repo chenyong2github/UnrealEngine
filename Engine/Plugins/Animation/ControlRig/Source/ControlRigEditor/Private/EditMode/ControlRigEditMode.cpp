@@ -230,18 +230,78 @@ void FControlRigEditMode::SetUpDetailPanel()
 {
 	if (IsInLevelEditor())
 	{
-		TArray<TWeakObjectPtr<>> SelectedObjects;
+		TArray<TWeakObjectPtr<>> Eulers;
+		TArray<TWeakObjectPtr<>> Transforms;
+		TArray<TWeakObjectPtr<>> TransformNoScales;
+		TArray<TWeakObjectPtr<>> Floats;
+		TArray<TWeakObjectPtr<>> Vectors;
+		TArray<TWeakObjectPtr<>> Vector2Ds;
+		TArray<TWeakObjectPtr<>> Bools;
+		TArray<TWeakObjectPtr<>> Integers;
+		TArray<TWeakObjectPtr<>> Enums;
 		if (UControlRig* ControlRig = GetControlRig(true))
 		{
 			const TArray<UControlRigControlsProxy*>& Proxies = ControlProxy->GetSelectedProxies();
 			for (UControlRigControlsProxy* Proxy : Proxies)
 			{
-				SelectedObjects.Add(Proxy);
+				if (Proxy->GetClass() == UControlRigTransformControlProxy::StaticClass())
+				{
+					Transforms.Add(Proxy);
+				}
+				else if (Proxy->GetClass() == UControlRigTransformNoScaleControlProxy::StaticClass())
+				{
+					TransformNoScales.Add(Proxy);
+				}
+				else if (Proxy->GetClass() == UControlRigEulerTransformControlProxy::StaticClass())
+				{
+					Eulers.Add(Proxy);
+				}
+				else if (Proxy->GetClass() == UControlRigFloatControlProxy::StaticClass())
+				{
+					Floats.Add(Proxy);
+				}
+				else if (Proxy->GetClass() == UControlRigVectorControlProxy::StaticClass())
+				{
+					Vectors.Add(Proxy);
+				}
+				else if (Proxy->GetClass() == UControlRigVector2DControlProxy::StaticClass())
+				{
+					Vector2Ds.Add(Proxy);
+				}
+				else if (Proxy->GetClass() == UControlRigBoolControlProxy::StaticClass())
+				{
+					Bools.Add(Proxy);
+				}
+				else if (Proxy->GetClass() == UControlRigEnumControlProxy::StaticClass())
+				{
+					Enums.Add(Proxy);
+				}
+				else if (Proxy->GetClass() == UControlRigIntegerControlProxy::StaticClass())
+				{
+					Integers.Add(Proxy);
+				}
 			}
-			SelectedObjects.Add(GetMutableDefault<UControlRigEditModeSettings>());
 		}
 		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSequencer(WeakSequencer.Pin());
-		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetDetailsObjects(SelectedObjects);
+		for (TWeakObjectPtr<>& Object : Transforms)
+		{
+			UControlRigControlsProxy* Proxy = Cast<UControlRigControlsProxy>(Object.Get());
+			if (Proxy)
+			{
+				Proxy->SetIsMultiple(Transforms.Num() > 1);
+			}
+		}
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetTransformDetailsObjects(Transforms);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetTransformNoScaleDetailsObjects(TransformNoScales);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetEulerTransformDetailsObjects(Eulers);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetFloatDetailsObjects(Floats);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetVectorDetailsObjects(Vectors);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetVector2DDetailsObjects(Vector2Ds);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetBoolDetailsObjects(Bools);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetIntegerDetailsObjects(Integers);
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetEnumDetailsObjects(Enums);
+
+		StaticCastSharedPtr<SControlRigEditModeTools>(Toolkit->GetInlineContent())->SetSettingsDetailsObject(GetMutableDefault<UControlRigEditModeSettings>());
 	}
 }
 
