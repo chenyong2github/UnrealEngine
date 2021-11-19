@@ -66,6 +66,24 @@ static FAutoConsoleVariableRef CVarNiagaraEmitterMaxGPUBufferElements(
 	TEXT("Maximum elements per GPU buffer, for example 4k elements would restrict a float buffer to be 16k maximum per buffer.\n")
 	TEXT("Note: If you request something smaller than what will satisfy a single unit of work it will be increased to that size.\n")
 	TEXT("Default 0 which will allow the buffer to be the maximum allowed by the RHI.\n"),
+	FConsoleVariableDelegate::CreateLambda(
+		[](IConsoleVariable*)
+		{
+			FNiagaraSystemUpdateContext UpdateCtx;
+			UpdateCtx.SetDestroyOnAdd(true);
+			UpdateCtx.SetOnlyActive(true);
+
+			for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+			{
+				UNiagaraSystem* System = *It;
+				if ( IsValid(System) )
+				{
+					UpdateCtx.Add(System, true);
+					System->CacheFromCompiledData();
+				}
+			}
+		}
+	),
 	ECVF_Scalability
 );
 
