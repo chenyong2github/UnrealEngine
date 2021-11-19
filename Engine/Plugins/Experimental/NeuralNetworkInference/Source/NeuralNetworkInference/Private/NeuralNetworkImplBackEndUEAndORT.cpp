@@ -35,7 +35,6 @@ NNI_THIRD_PARTY_INCLUDES_START
 #ifdef WITH_UE_AND_ORT_SUPPORT
 	#ifdef PLATFORM_WIN64
 	#include "core/providers/dml/dml_provider_factory.h"
-	//#include "core/framework/allocator.h"
 	#endif
 	#ifdef WITH_NNI_CPU_NOT_RECOMMENDED
 	#include "core/providers/nni_cpu/nni_cpu_provider_factory.h"
@@ -230,7 +229,7 @@ IDMLDevice* FPrivateImplBackEndUEAndORT::FDMLDeviceList::Add(ID3D12Device* Devic
 /* UNeuralNetwork public functions
  *****************************************************************************/
 
-void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType)
+void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType, const bool bInShouldOpenMessageLog)
 {
 	if (InOutDeviceType != ENeuralDeviceType::CPU)
 	{
@@ -245,12 +244,14 @@ void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled
 					"\t\t - Go to \"Project Settings\", \"Platforms\", \"Windows\", \"Default RHI\".\n"
 					"\t\t - Select \"DirectX 12\".\n"
 					"\t\t - Restart Unreal Engine.\n"
-					"\t2. Alternatively, switch the network to CPU with UNeuralNetwork::SetDeviceType().\n"
-					"\t3. (Not recommended) You could also switch the network to UEOnly with UNeuralNetwork::SetBackEnd().\n\n"
+					"\t2. Alternatively, switch the network to CPU with UNeuralNetwork::SetDeviceType().\n\n"
 					"Network set to CPU provisionally.");
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(): %s"), *ErrorMessage);
 #if WITH_EDITOR
-			FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ErrorMessage));
+			if (bInShouldOpenMessageLog)
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(ErrorMessage));
+			}
 #endif //WITH_EDITOR
 		}
 	}
