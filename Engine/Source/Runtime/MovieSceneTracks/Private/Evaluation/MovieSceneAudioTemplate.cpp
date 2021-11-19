@@ -380,6 +380,21 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 		}
 	}
 
+	// Helper template to pair channel evaluation and parameter application.
+	template<typename ChannelType, typename ValueType>
+	void EvaluateAllAndSetParameters(IAudioParameterInterface& InParamaterInterface, const FFrameTime& InTime) const
+	{
+		AudioSection->ForEachInput([&InParamaterInterface, &InTime](FName InName, const ChannelType& InChannel)
+		{
+			using namespace UE::MovieScene;
+			ValueType OutValue{};
+			if (EvaluateChannel(&InChannel, InTime, OutValue))
+			{
+				InParamaterInterface.SetParameter(InName, MoveTempIfPossible(OutValue));
+			}
+		});
+	}
+
 	void EnsureAudioIsPlaying(UAudioComponent& AudioComponent, FPersistentEvaluationData& PersistentData, const FMovieSceneContext& Context, bool bAllowSpatialization, IMovieScenePlayer& Player) const
 	{
 		Player.SavePreAnimatedState(AudioComponent, FStopAudioPreAnimatedToken::GetAnimTypeID(), FStopAudioPreAnimatedToken::FProducer());
@@ -399,6 +414,12 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			AudioComponent.SetPitchMultiplier(PitchMultiplier);
 		}
 
+		// Evaluate inputs and apply the params.
+		EvaluateAllAndSetParameters<FMovieSceneFloatChannel, float>(AudioComponent, Context.GetTime());
+		EvaluateAllAndSetParameters<FMovieSceneBoolChannel, bool> (AudioComponent, Context.GetTime());
+		EvaluateAllAndSetParameters<FMovieSceneIntegerChannel, int32>(AudioComponent, Context.GetTime());
+		EvaluateAllAndSetParameters<FMovieSceneStringChannel, FString>(AudioComponent, Context.GetTime());
+		
 		float SectionStartTimeSeconds = (AudioSection->HasStartFrame() ? AudioSection->GetInclusiveStartFrame() : 0) / AudioSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
 		FCachedAudioTrackData& TrackData = PersistentData.GetOrAddTrackData<FCachedAudioTrackData>();

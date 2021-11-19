@@ -436,4 +436,12 @@ public:
 
 	// Sets an array of parameters as a batch
 	virtual void SetParameters(TArray<FAudioParameter>&& InValues) = 0;
+
+	// Template Specialization for non-script clients.
+	template<typename DataType> void SetParameter(FName InName, DataType&&) = delete;	
+	template<> void SetParameter(FName InName, bool&& InBool)			{ SetBoolParameter(InName, InBool); }
+	template<> void SetParameter(FName InName, float&& InFloat)			{ SetFloatParameter(InName, InFloat); }
+	template<> void SetParameter(FName InName, int32&& InInteger)		{ SetIntParameter(InName, InInteger); }
+	template<> void SetParameter(FName InName, FString&& InString)		{ SetStringParameter(InName, InString); }
+	// Do the rest jim
 };

@@ -8,6 +8,9 @@
 #include "Runtime/Engine/Classes/Components/AudioComponent.h"
 #include "Sound/SoundAttenuation.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
+#include "Channels/MovieSceneBoolChannel.h"
+#include "Channels/MovieSceneIntegerChannel.h"
 #include "Sections/MovieSceneActorReferenceSection.h"
 #include "MovieSceneAudioSection.generated.h"
 
@@ -26,7 +29,7 @@ public:
 
 	/** Sets this section's sound */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Section")
-	void SetSound(class USoundBase* InSound) {Sound = InSound;}
+	void SetSound(class USoundBase* InSound);
 
 	/** Gets the sound for this section */
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
@@ -158,6 +161,12 @@ public:
 	{
 		return OnAudioPlaybackPercent;
 	}
+	
+	/** Overloads for each input type, const */
+	void ForEachInput(TFunction<void(FName, const FMovieSceneBoolChannel&)> InFunction) const { ForEachInternal(InFunction, Inputs_Bool); }
+	void ForEachInput(TFunction<void(FName, const FMovieSceneStringChannel&)> InFunction) const { ForEachInternal(InFunction, Inputs_String); }
+	void ForEachInput(TFunction<void(FName, const FMovieSceneIntegerChannel&)> InFunction) const  { ForEachInternal(InFunction, Inputs_Int); }
+	void ForEachInput(TFunction<void(FName, const FMovieSceneFloatChannel&)> InFunction) const { ForEachInternal(InFunction, Inputs_Float); }
 
 public:
 
@@ -171,6 +180,16 @@ public:
 	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
 
 private:
+	template<typename ChannelType, typename ForEachFunction>
+	FORCEINLINE static void ForEachInternal(ForEachFunction InFuncton, const TMap<FName, ChannelType>& InMapToIterate) 
+	{
+		for (auto& Item : InMapToIterate)
+		{
+			InFuncton(Item.Key, Item.Value);
+		}	
+	}
+
+	void SetupSoundInputParameters(const USoundBase* InSoundBase);
 
 	/** The sound cue or wave that this section plays */
 	UPROPERTY(EditAnywhere, Category="Audio")
@@ -203,6 +222,16 @@ private:
 	/** The pitch multiplier the sound will be played with. */
 	UPROPERTY( )
 	FMovieSceneFloatChannel PitchMultiplier;
+
+	/** Generic inputs for the sound  */
+	UPROPERTY()
+	TMap<FName, FMovieSceneFloatChannel> Inputs_Float;
+	UPROPERTY()
+	TMap<FName, FMovieSceneStringChannel> Inputs_String;
+	UPROPERTY()
+	TMap<FName, FMovieSceneBoolChannel> Inputs_Bool;
+	UPROPERTY()
+	TMap<FName, FMovieSceneIntegerChannel> Inputs_Int;
 
 	UPROPERTY()
 	FMovieSceneActorReferenceData AttachActorData;

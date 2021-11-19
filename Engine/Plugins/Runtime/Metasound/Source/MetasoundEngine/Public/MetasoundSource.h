@@ -174,6 +174,9 @@ public:
 
 
 protected:
+	/** Gets all the default parameters for this Asset.  */
+	virtual bool GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const override;
+
 	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) override;
 
 	bool IsParameterValid(const FAudioParameter& InParameter, const TMap<FName, FName>& InInputNameTypePairs) const;

@@ -100,6 +100,15 @@ public:
 	bool TryGet(UObject*& OutValue) const;
 	bool TryGet(TArray<UObject*>& OutValue) const;
 
+	bool TryGet(bool& OutValue) const;
+	bool TryGet(TArray<bool>& OutValue) const;
+	bool TryGet(int32& OutValue) const;
+	bool TryGet(TArray<int32>& OutValue) const;
+	bool TryGet(float& OutValue) const;
+	bool TryGet(TArray<float>& OutValue) const;
+	bool TryGet(FString& OutValue) const;
+	bool TryGet(TArray<FString>& OutValue) const;
+
 	// Sets the literal to the given type and value to default;
 	void SetType(EMetasoundFrontendLiteralType InType);
 
