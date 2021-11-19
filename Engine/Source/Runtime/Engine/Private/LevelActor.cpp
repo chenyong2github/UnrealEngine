@@ -1720,7 +1720,7 @@ void UWorld::IssueEditorLoadWarnings()
 #endif // WITH_EDITOR
 
 
-AAudioVolume* UWorld::GetAudioSettings( const FVector& ViewLocation, FReverbSettings* OutReverbSettings, FInteriorSettings* OutInteriorSettings )
+AAudioVolume* UWorld::GetAudioSettings( const FVector& ViewLocation, FReverbSettings* OutReverbSettings, FInteriorSettings* OutInteriorSettings ) const
 {
 	// Find the highest priority volume encompassing the current view location.
 	for (AAudioVolume* Volume : AudioVolumes)

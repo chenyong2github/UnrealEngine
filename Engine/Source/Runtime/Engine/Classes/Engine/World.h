@@ -2798,7 +2798,7 @@ public:
 	 *
 	 * @return true if level load requests are allowed, false otherwise.
 	 */
-	bool AllowLevelLoadRequests();
+	bool AllowLevelLoadRequests() const;
 
 	/** Creates instances for each parameter collection in memory.  Called when a world is created. */
 	void SetupParameterCollectionInstances();
@@ -2807,7 +2807,7 @@ public:
 	void AddParameterCollectionInstance(class UMaterialParameterCollection* Collection, bool bUpdateScene);
 
 	/** Gets this world's instance for a given collection. */
-	UMaterialParameterCollectionInstance* GetParameterCollectionInstance(const UMaterialParameterCollection* Collection);
+	UMaterialParameterCollectionInstance* GetParameterCollectionInstance(const UMaterialParameterCollection* Collection) const;
 
 	/** Updates this world's scene with the list of instances, and optionally updates each instance's uniform buffer. */
 	void UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffers, bool bRecreateUniformBuffer);
@@ -3566,10 +3566,10 @@ public:
 	FOnBeginTearingDownEvent& OnBeginTearingDown() { return BeginTearingDownEvent; }
 
 	/** Returns the actor count. */
-	int32 GetProgressDenominator();
+	int32 GetProgressDenominator() const;
 	
 	/** Returns the actor count. */
-	int32 GetActorCount();
+	int32 GetActorCount() const;
 	
 public:
 
@@ -3582,14 +3582,14 @@ public:
 	 * @param	OutInteriorSettings		[out] Upon return, the interior settings for a camera at ViewLocation.
 	 * @return							If the settings came from an audio volume, the audio volume object is returned.
 	 */
-	class AAudioVolume* GetAudioSettings( const FVector& ViewLocation, struct FReverbSettings* OutReverbSettings, struct FInteriorSettings* OutInteriorSettings );
+	class AAudioVolume* GetAudioSettings( const FVector& ViewLocation, struct FReverbSettings* OutReverbSettings, struct FInteriorSettings* OutInteriorSettings ) const;
 
 	void SetAudioDevice(const FAudioDeviceHandle& InHandle);
 
 	/**
 	 * Get the audio device used by this world.
 	 */
-	FAudioDeviceHandle GetAudioDevice();
+	FAudioDeviceHandle GetAudioDevice() const;
 
 	/**
 	* Returns the audio device associated with this world.
@@ -3597,7 +3597,7 @@ public:
 	*
 	* @return Audio device to use with this world.
 	*/
-	class FAudioDevice* GetAudioDeviceRaw();
+	class FAudioDevice* GetAudioDeviceRaw() const;
 
 	/** Return the URL of this level on the local machine. */
 	FString GetLocalURL() const;
@@ -3695,7 +3695,7 @@ public:
 	}
 
 	/** @return whether we're currently in a seamless transition */
-	bool IsInSeamlessTravel();
+	bool IsInSeamlessTravel() const;
 
 	/** this function allows pausing the seamless travel in the middle,
 	 * right before it starts loading the destination (i.e. while in the transition level)
@@ -3706,7 +3706,7 @@ public:
 	void SetSeamlessTravelMidpointPause(bool bNowPaused);
 
 	/** @return the current detail mode, like EDetailMode but can be outside of the range */
-	int32 GetDetailMode();
+	int32 GetDetailMode() const;
 
 	/** asynchronously loads the given levels in preparation for a streaming map transition.
 	 * This codepath is designed for worlds that heavily use level streaming and GameModes where the game state should
@@ -3716,10 +3716,10 @@ public:
 	void PrepareMapChange(const TArray<FName>& LevelNames);
 
 	/** @return true if there's a map change currently in progress */
-	bool IsPreparingMapChange();
+	bool IsPreparingMapChange() const;
 
 	/** @return true if there is a map change being prepared, returns whether that change is ready to be committed, otherwise false */
-	bool IsMapChangeReady();
+	bool IsMapChangeReady() const;
 
 	/** cancels pending map change (@note: we can't cancel pending async loads, so this won't immediately free the memory) */
 	void CancelPendingMapChange();
