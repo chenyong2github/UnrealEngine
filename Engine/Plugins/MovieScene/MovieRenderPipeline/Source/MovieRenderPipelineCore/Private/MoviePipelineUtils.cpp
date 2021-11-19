@@ -147,6 +147,8 @@ namespace MoviePipeline
 
 	void BuildCompleteSequenceHierarchyRecursive(UMovieSceneSequence* InSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InNode)
 	{
+		InNode->MovieScene = InSequence->GetMovieScene();
+
 		if (UMovieSceneCameraCutTrack* CameraCutTrack = Cast<UMovieSceneCameraCutTrack>(InSequence->GetMovieScene()->GetCameraCutTrack()))
 		{
 			// We create leaf nodes for each section. This kind of makes duplicate leafs but since this is separate from the evaluation tree
