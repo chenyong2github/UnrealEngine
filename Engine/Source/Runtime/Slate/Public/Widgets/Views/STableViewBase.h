@@ -170,6 +170,9 @@ public:
 	/** Sets whether the list should lerp between scroll offsets or jump instantly between them. */
 	void SetIsScrollAnimationEnabled(bool bInEnableScrollAnimation);
 
+	/** Sets whether to permit overscroll on this list view */
+	void SetAllowOverscroll(EAllowOverscroll InAllowOverscroll);
+
 	/** Enables/disables being able to scroll with the right mouse button. */
 	void SetIsRightClickScrollingEnabled(const bool bInEnableRightClickScrolling);
 

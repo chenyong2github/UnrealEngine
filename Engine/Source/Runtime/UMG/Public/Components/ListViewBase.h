@@ -694,6 +694,10 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Scrolling)
 	bool bEnableScrollAnimation = false;
 
+	/**  Disable to stop scrollbars from activating inertial overscrolling */
+	UPROPERTY(EditAnywhere, Category = Scrolling)
+	bool AllowOverscroll = true;
+
 	/** True to allow right click drag scrolling. */
 	UPROPERTY(EditAnywhere, Category = Scrolling)
 	bool bEnableRightClickScrolling = true;

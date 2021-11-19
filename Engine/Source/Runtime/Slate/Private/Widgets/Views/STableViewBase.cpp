@@ -618,14 +618,16 @@ FReply STableViewBase::OnTouchMoved( const FGeometry& MyGeometry, const FPointer
 				RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &STableViewBase::UpdateInertialScroll));
 			}
 
-			const float AmountScrolled = this->ScrollBy( MyGeometry, -ScrollByAmount, EAllowOverscroll::Yes );
+			const float AmountScrolled = this->ScrollBy( MyGeometry, -ScrollByAmount, AllowOverscroll );
+			if (AmountScrolled != 0)
+			{
+				ScrollBar->BeginScrolling();
 
-			ScrollBar->BeginScrolling();
-
-			// The user has moved the list some amount; they are probably
-			// trying to scroll. From now on, the list assumes the user is scrolling
-			// until they lift their finger.
-			return HasMouseCapture() ? FReply::Handled() : FReply::Handled().CaptureMouse(AsShared());
+				// The user has moved the list some amount; they are probably
+				// trying to scroll. From now on, the list assumes the user is scrolling
+				// until they lift their finger.
+				return HasMouseCapture() ? FReply::Handled() : FReply::Handled().CaptureMouse(AsShared());
+			}
 		}
 
 		return FReply::Unhandled();
@@ -863,6 +865,11 @@ void STableViewBase::SetFixedLineScrollOffset(TOptional<double> InFixedLineScrol
 void STableViewBase::SetIsScrollAnimationEnabled(bool bInEnableScrollAnimation)
 {
 	bEnableAnimatedScrolling = bInEnableScrollAnimation;
+}
+
+void STableViewBase::SetAllowOverscroll(EAllowOverscroll InAllowOverscroll)
+{
+	AllowOverscroll = InAllowOverscroll;
 }
 
 void STableViewBase::SetIsRightClickScrollingEnabled(const bool bInEnableRightClickScrolling)
