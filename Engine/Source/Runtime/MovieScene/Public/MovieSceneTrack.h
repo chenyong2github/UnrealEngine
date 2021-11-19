@@ -430,7 +430,7 @@ public:
 	 *
 	 * @return Display name text.
 	 */
-	virtual FText GetTrackRowDisplayName(int32 RowIndex) const PURE_VIRTUAL(UMovieSceneTrack::GetTrackRowDisplayName, return FText::FromString(TEXT("Unnamed Track")););
+	virtual FText GetTrackRowDisplayName(int32 RowIndex) const { return FText::FromString(TEXT("Unnamed Track")); }
 
 	/**
 	 * Get the track's display tooltip text to be shown on the track's name.
