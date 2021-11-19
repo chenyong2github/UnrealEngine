@@ -2449,10 +2449,32 @@ bool UnrealToUsd::CreateComponentPropertyBaker( UE::FUsdPrim& Prim, const UScene
 				if ( Component.bHiddenInGame || Component.GetOwner()->IsHidden() )
 				{
 					Imageable.MakeInvisible( UsdTimeCode );
+
+					if ( pxr::UsdAttribute Attr = Imageable.CreateVisibilityAttr() )
+					{
+						if ( !Attr.HasAuthoredValue() )
+						{
+							Attr.Set<pxr::TfToken>( pxr::UsdGeomTokens->invisible, UsdTimeCode );
+						}
+					}
 				}
 				else
 				{
 					Imageable.MakeVisible( UsdTimeCode );
+
+					// Imagine our visibility track has a single key that switches to hidden at frame 60.
+					// If our prim is visible by default, MakeVisible will author absolutely nothing, and we'll end up
+					// with a timeSamples that just has '60: "invisible"'. Weirdly enough, in USD that means the prim
+					// will be invisible throughout *the entire duration of the animation* though, which is not what we want.
+					// This check will ensure that if we're visible we should have a value here and not rely on the
+					// fallback value of 'visible', as that doesn't behave how we want.
+					if ( pxr::UsdAttribute Attr = Imageable.CreateVisibilityAttr() )
+					{
+						if ( !Attr.HasAuthoredValue() )
+						{
+							Attr.Set<pxr::TfToken>( pxr::UsdGeomTokens->inherited, UsdTimeCode );
+						}
+					}
 				}
 			};
 		}
