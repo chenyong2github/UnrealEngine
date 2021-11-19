@@ -158,6 +158,7 @@ FControlRigEditMode::~FControlRigEditMode()
 	CommandBindings = nullptr;
 
 	DestroyShapesActors();
+	OnControlRigAddedOrRemovedDelegate.Clear();
 
 	TArray<TWeakObjectPtr<UControlRig>> PreviousRuntimeRigs = RuntimeControlRigs;
 	for (int32 PreviousRuntimeRigIndex = 0; PreviousRuntimeRigIndex < PreviousRuntimeRigs.Num(); PreviousRuntimeRigIndex++)
@@ -179,7 +180,6 @@ FControlRigEditMode::~FControlRigEditMode()
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 #endif
 
-	OnControlRigAddedOrRemovedDelegate.Clear();
 }
 
 void FControlRigEditMode::SetObjects(const TWeakObjectPtr<>& InSelectedObject,  UObject* BindingObject, TWeakPtr<ISequencer> InSequencer)
@@ -436,6 +436,7 @@ void FControlRigEditMode::Exit()
 	}
 
 	DestroyShapesActors();
+	OnControlRigAddedOrRemovedDelegate.Clear();
 
 	TArray<TWeakObjectPtr<UControlRig>> PreviousRuntimeRigs = RuntimeControlRigs;
 	for (int32 PreviousRuntimeRigIndex = 0; PreviousRuntimeRigIndex < PreviousRuntimeRigs.Num(); PreviousRuntimeRigIndex++)
@@ -452,7 +453,6 @@ void FControlRigEditMode::Exit()
 		DelegateHelper->RemoveDelegates();
 		DelegateHelper.Reset();
 	}
-	OnControlRigAddedOrRemovedDelegate.Clear();
 
 	//clear delegates
 	FEditorModeTools* ModeManager = GetModeManager();
