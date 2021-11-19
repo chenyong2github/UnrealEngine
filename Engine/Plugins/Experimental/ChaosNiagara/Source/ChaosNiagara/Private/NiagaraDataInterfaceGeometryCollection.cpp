@@ -29,6 +29,8 @@ static const FName GetClosestPointNoNormalName(TEXT("GetClosestPointNoNormal"));
 
 //------------------------------------------------------------------------------------------------------------
 
+const FString UNiagaraDataInterfaceGeometryCollection::BoundsMinName(TEXT("BoundsMin_"));
+const FString UNiagaraDataInterfaceGeometryCollection::BoundsMaxName(TEXT("BoundsMax_"));
 const FString UNiagaraDataInterfaceGeometryCollection::NumPiecesName(TEXT("NumPieces_"));
 const FString UNiagaraDataInterfaceGeometryCollection::WorldTransformBufferName(TEXT("WorldTransformBuffer_"));
 const FString UNiagaraDataInterfaceGeometryCollection::PrevWorldTransformBufferName(TEXT("PrevWorldTransformBuffer_"));
@@ -43,6 +45,8 @@ struct FNDIGeometryCollectionParametersName
 {
 	FNDIGeometryCollectionParametersName(const FString& Suffix)
 	{
+		BoundsMinName = UNiagaraDataInterfaceGeometryCollection::BoundsMinName + Suffix;
+		BoundsMaxName = UNiagaraDataInterfaceGeometryCollection::BoundsMaxName + Suffix;
 		NumPiecesName = UNiagaraDataInterfaceGeometryCollection::NumPiecesName + Suffix;
 		WorldTransformBufferName = UNiagaraDataInterfaceGeometryCollection::WorldTransformBufferName + Suffix;
 		PrevWorldTransformBufferName = UNiagaraDataInterfaceGeometryCollection::PrevWorldTransformBufferName + Suffix;
@@ -50,6 +54,9 @@ struct FNDIGeometryCollectionParametersName
 		PrevWorldInverseTransformBufferName = UNiagaraDataInterfaceGeometryCollection::PrevWorldInverseTransformBufferName + Suffix;
 		BoundsBufferName = UNiagaraDataInterfaceGeometryCollection::BoundsBufferName + Suffix;
 	}
+
+	FString BoundsMinName;
+	FString BoundsMaxName;
 
 	FString NumPiecesName;
 	FString WorldTransformBufferName;
@@ -147,7 +154,14 @@ void FNDIGeometryCollectionData::Init(UNiagaraDataInterfaceGeometryCollection* I
 			AssetBuffer = new FNDIGeometryCollectionBuffer();
 			AssetBuffer->SetNumPieces(NumPieces);
 			BeginInitResource(AssetBuffer);
-			
+
+			FVector Origin;
+			FVector Extents;
+			Interface->GeometryCollectionActor->GetActorBounds(false, Origin, Extents, true);
+
+			BoundsOrigin = Origin;
+			BoundsExtent = Extents;
+
 			for (int i = 0; i < NumPieces; ++i)
 			{
 				FBox CurrBox = BoundingBoxes[i];
@@ -198,6 +212,13 @@ void FNDIGeometryCollectionData::Update(UNiagaraDataInterfaceGeometryCollection*
 			{
 				Init(Interface, SystemInstance);
 			}
+			
+			FVector Origin;
+			FVector Extents;
+			Interface->GeometryCollectionActor->GetActorBounds(false, Origin, Extents, true);
+
+			BoundsOrigin = Origin;
+			BoundsExtent = Extents;
 
 			for (int i = 0; i < NumPieces; ++i)
 			{
@@ -245,6 +266,9 @@ public:
 	{
 		FNDIGeometryCollectionParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
 
+		BoundsMin.Bind(ParameterMap, *ParamNames.BoundsMinName);
+		BoundsMax.Bind(ParameterMap, *ParamNames.BoundsMaxName);
+
 		NumPieces.Bind(ParameterMap, *ParamNames.NumPiecesName);
 		WorldTransformBuffer.Bind(ParameterMap, *ParamNames.WorldTransformBufferName);
 		PrevWorldTransformBuffer.Bind(ParameterMap, *ParamNames.PrevWorldTransformBufferName);
@@ -278,6 +302,9 @@ public:
 			};
 			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));		
 			
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundsMin, ProxyData->BoundsOrigin - ProxyData->BoundsExtent);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundsMax, ProxyData->BoundsOrigin + ProxyData->BoundsExtent);
+
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumPieces, ProxyData->AssetBuffer->NumPieces);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldTransformBuffer, ProxyData->AssetBuffer->WorldTransformBuffer.SRV);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, PrevWorldTransformBuffer, ProxyData->AssetBuffer->PrevWorldTransformBuffer.SRV);
@@ -287,6 +314,9 @@ public:
 		}
 		else
 		{
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundsMin, FVector3f(0, 0, 0));
+			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundsMax, FVector3f(0, 0, 0));
+
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumPieces, 0);
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldTransformBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, PrevWorldTransformBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
@@ -301,6 +331,9 @@ public:
 	}
 
 private:
+
+	LAYOUT_FIELD(FShaderParameter, BoundsMin);
+	LAYOUT_FIELD(FShaderParameter, BoundsMax);
 
 	LAYOUT_FIELD(FShaderParameter, NumPieces);
 
@@ -331,6 +364,8 @@ void FNDIGeometryCollectionProxy::ConsumePerInstanceDataFromGameThread(void* Per
 		TargetData->AssetBuffer = SourceData->AssetBuffer;		
 		TargetData->AssetArrays = SourceData->AssetArrays;
 		TargetData->TickingGroup = SourceData->TickingGroup;
+		TargetData->BoundsOrigin = SourceData->BoundsOrigin;
+		TargetData->BoundsExtent = SourceData->BoundsExtent;
 	}
 	else
 	{
@@ -574,6 +609,8 @@ void UNiagaraDataInterfaceGeometryCollection::ProvidePerInstanceDataForRenderThr
 		RenderThreadData->AssetArrays = new FNDIGeometryCollectionArrays();
 		RenderThreadData->AssetArrays->CopyFrom(GameThreadData->AssetArrays);		
 		RenderThreadData->TickingGroup = GameThreadData->TickingGroup;
+		RenderThreadData->BoundsOrigin = GameThreadData->BoundsOrigin;
+		RenderThreadData->BoundsExtent = GameThreadData->BoundsExtent;
 	}
 	check(Proxy);
 }

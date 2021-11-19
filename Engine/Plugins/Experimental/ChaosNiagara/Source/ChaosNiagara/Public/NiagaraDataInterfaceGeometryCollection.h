@@ -107,6 +107,11 @@ struct FNDIGeometryCollectionData
 	/** The instance ticking group */
 	ETickingGroup TickingGroup;
 
+	/** Geometry Collection Bounds */
+	FVector3f BoundsOrigin;
+
+	FVector3f BoundsExtent;
+
 	/** Physics asset Gpu buffer */
 	FNDIGeometryCollectionBuffer* AssetBuffer = nullptr;
 
@@ -155,6 +160,8 @@ public:
 #endif
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
+	static const FString BoundsMinName;
+	static const FString BoundsMaxName;
 	static const FString NumPiecesName;
 	static const FString WorldTransformBufferName;
 	static const FString PrevWorldTransformBufferName;
