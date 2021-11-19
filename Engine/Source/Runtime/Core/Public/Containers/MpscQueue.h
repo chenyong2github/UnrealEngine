@@ -82,5 +82,5 @@ private:
 
 private:
 	std::atomic<FNode*> Head; // accessed only by producers
-	alignas(PLATFORM_CACHE_LINE_SIZE) FNode* Tail; // accessed only by consumer, hence should be on a different cache line than `Head`
+	/*alignas(PLATFORM_CACHE_LINE_SIZE) */FNode* Tail; // accessed only by consumer, hence should be on a different cache line than `Head`
 };

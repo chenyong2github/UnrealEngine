@@ -118,7 +118,7 @@ private:
 private:
 	// consumer part 
 	// accessed mainly by consumer, infrequently by producer 
-	alignas(PLATFORM_CACHE_LINE_SIZE) std::atomic<FNode*> Tail; // tail of the queue 
+	/*alignas(PLATFORM_CACHE_LINE_SIZE) */std::atomic<FNode*> Tail; // tail of the queue 
 	// producer part 
 	// accessed only by producer 
 	FNode* Head; // head of the queue
