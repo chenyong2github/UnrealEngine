@@ -252,7 +252,7 @@ bool UsdToUnreal::ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr:
 
 	// Computed (effective) visibility
 	const bool bIsHidden = ( Xformable.ComputeVisibility( EvalTime ) == pxr::UsdGeomTokens->invisible );
-	SceneComponent.SetVisibility( !bIsHidden );
+	SceneComponent.SetHiddenInGame( bIsHidden );
 
 	// Per-prim visibility
 	bool bIsInvisible = false; // Default to 'inherited'
@@ -1918,7 +1918,7 @@ bool UnrealToUsd::ConvertSceneComponent( const pxr::UsdStageRefPtr& Stage, const
 		else if ( !SceneComponent->ComponentTags.Contains( UnrealIdentifiers::Inherited ) )
 		{
 			// We don't have visible nor inherited tags: We're probably exporting a pure UE component, so write out component visibility instead
-			Value = SceneComponent->IsVisible() ? pxr::UsdGeomTokens->inherited : pxr::UsdGeomTokens->invisible;
+			Value = SceneComponent->bHiddenInGame ? pxr::UsdGeomTokens->invisible : pxr::UsdGeomTokens->inherited;
 		}
 
 		VisibilityAttr.Set<pxr::TfToken>( Value );

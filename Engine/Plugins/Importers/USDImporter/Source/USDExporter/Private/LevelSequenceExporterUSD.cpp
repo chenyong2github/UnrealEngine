@@ -67,7 +67,7 @@ namespace UE
 						if ( AActor* Actor = Cast<AActor>( Object ) )
 						{
 							const bool bIsHidden = false;
-							Actor->SetHidden( bIsHidden );
+							Actor->SetActorHiddenInGame( bIsHidden );
 
 							Component = Actor->GetRootComponent();
 						}
@@ -78,8 +78,8 @@ namespace UE
 
 						if ( Component )
 						{
-							const bool bNewVisibility = true;
-							Component->SetVisibility( bNewVisibility );
+							const bool bNewHidden = false;
+							Component->SetHiddenInGame( bNewHidden );
 						}
 					}
 
@@ -95,7 +95,7 @@ namespace UE
 						if ( AActor* Actor = Cast<AActor>( &Object ) )
 						{
 							const bool bIsHidden = true;
-							Actor->SetHidden( bIsHidden );
+							Actor->SetActorHiddenInGame( bIsHidden );
 
 							Component = Actor->GetRootComponent();
 						}
@@ -109,8 +109,8 @@ namespace UE
 						// by default
 						if ( Component )
 						{
-							const bool bNewVisibility = false;
-							Component->SetVisibility( bNewVisibility );
+							const bool bNewHidden = true;
+							Component->SetHiddenInGame( bNewHidden );
 						}
 					}
 					else

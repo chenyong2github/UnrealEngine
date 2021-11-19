@@ -474,7 +474,7 @@ struct FUsdStageActorImpl
 			const bool bPrimIsVisible = bPrimHasInheritedVisibility && !bPrimHasInvisibleParent;
 
 			const bool bComponentHasInvisibleTag = Component->ComponentTags.Contains( UnrealIdentifiers::Invisible );
-			const bool bComponentIsVisible = Component->IsVisible();
+			const bool bComponentIsVisible = !Component->bHiddenInGame;
 
 			const bool bTagIsCorrect = bComponentHasInvisibleTag == !bPrimHasInheritedVisibility;
 			const bool bComputedVisibilityIsCorrect = bPrimIsVisible == bComponentIsVisible;
@@ -503,7 +503,7 @@ struct FUsdStageActorImpl
 			{
 				const bool bPropagateToChildren = false;
 				Component->Modify();
-				Component->SetVisibility( bPrimIsVisible, bPropagateToChildren );
+				Component->SetHiddenInGame( !bPrimIsVisible, bPropagateToChildren );
 			}
 
 			for ( const TPair<FString, UUsdPrimTwin*>& ChildPair : PrimTwin.GetChildren() )
@@ -536,8 +536,8 @@ struct FUsdStageActorImpl
 		PrimSceneComponent->ComponentTags.Remove( UnrealIdentifiers::Inherited );
 
 		const bool bPropagateToChildren = true;
-		const bool bVisible = false;
-		PrimSceneComponent->SetVisibility( bVisible, bPropagateToChildren );
+		const bool bNewHidden = true;
+		PrimSceneComponent->SetHiddenInGame( bNewHidden, bPropagateToChildren );
 	}
 
 	static void SendAnalytics( AUsdStageActor* StageActor, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
@@ -2252,14 +2252,13 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 				{
 					PrimSceneComponent->Modify();
 
-					const bool bVisible = PrimSceneComponent->GetVisibleFlag();
-					if ( bVisible )
+					if ( PrimSceneComponent->bHiddenInGame )
 					{
-						FUsdStageActorImpl::MakeVisible( *UsdPrimTwin, UsdStage );
+						FUsdStageActorImpl::MakeInvisible( *UsdPrimTwin );
 					}
 					else
 					{
-						FUsdStageActorImpl::MakeInvisible( *UsdPrimTwin );
+						FUsdStageActorImpl::MakeVisible( *UsdPrimTwin, UsdStage );
 					}
 				}
 
