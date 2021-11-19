@@ -138,7 +138,7 @@ static void AddHairStrandsClearTransmittanceMaskPass(
 	TShaderMapRef<FHairStrandsClearTransmittanceMaskCS> ComputeShader(ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsClearTransmittanceMask"),
+		RDG_EVENT_NAME("HairStrands::ClearTransmittanceMask"),
 		ComputeShader,
 		Parameters,
 		FComputeShaderUtils::GetGroupCount(Parameters->ElementCount, 64));
@@ -271,7 +271,7 @@ static FRDGBufferRef AddHairStrandsVoxelTransmittanceMaskPass(
 	TShaderMapRef<FHairStrandsVoxelTransmittanceMaskCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsTransmittanceMask(Voxel,%s)", PassType == EHairTransmittancePassType::OnePass ? TEXT("OnePass") : TEXT("PerLight")),
+		RDG_EVENT_NAME("HairStrands::TransmittanceMask(Voxel,%s)", PassType == EHairTransmittancePassType::OnePass ? TEXT("OnePass") : TEXT("PerLight")),
 		ComputeShader,
 		Parameters,
 		IndirectArgsBuffer,
@@ -402,7 +402,7 @@ static FRDGBufferRef AddHairStrandsDeepShadowTransmittanceMaskPass(
 	TShaderMapRef<FHairStrandsDeepShadowTransmittanceMaskCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsTransmittanceMask(DeepShadow)"),
+		RDG_EVENT_NAME("HairStrands::TransmittanceMask(DeepShadow)"),
 		ComputeShader,
 		Parameters,
 		IndirectArgsBuffer,
@@ -513,7 +513,7 @@ static void AddHairStrandsVoxelShadowMaskPass(
 	FIntPoint Resolution = OutShadowMask->Desc.Extent;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrandsShadowMask(Voxel)"),
+		RDG_EVENT_NAME("HairStrands::ShadowMask(Voxel)"),
 		Parameters,
 		ERDGPassFlags::Raster,
 		[Parameters, VertexShader, PixelShader, Viewport, Resolution](FRHICommandList& RHICmdList)
@@ -671,7 +671,7 @@ static void AddHairStrandsDeepShadowMaskPass(
 	FIntPoint Resolution = OutShadowMask->Desc.Extent;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrandsShadowMask"),
+		RDG_EVENT_NAME("HairStrands::ShadowMask"),
 		Parameters,
 		ERDGPassFlags::Raster,
 		[Parameters, VertexShader, PixelShader, Viewport, Resolution](FRHICommandList& RHICmdList)
@@ -961,6 +961,41 @@ void RenderHairStrandsShadowMask(
 	FRDGTextureRef OutShadowMask)
 {
 	if (Views.Num() == 0 || OutShadowMask == nullptr)
+	{
+		return;
+	}
+
+	for (const FViewInfo& View : Views)
+	{
+		if (HairStrands::HasViewHairStrandsData(View))
+		{
+			check(View.HairStrandsViewData.VisibilityData.CoverageTexture);
+			InternalRenderHairStrandsShadowMask(
+				GraphBuilder,
+				View,
+				LightSceneInfo,
+				View.HairStrandsViewData.VisibilityData,
+				View.HairStrandsViewData.MacroGroupDatas,
+				View.HairStrandsViewData.DeepShadowResources,
+				View.HairStrandsViewData.VirtualVoxelResources,
+				OutShadowMask);
+		}
+	}
+}
+
+void RenderHairStrandsDeepShadowMask(
+	FRDGBuilder& GraphBuilder,
+	const TArray<FViewInfo>& Views,
+	const FLightSceneInfo* LightSceneInfo,
+	FRDGTextureRef OutShadowMask)
+{
+	if (Views.Num() == 0 || OutShadowMask == nullptr)
+	{
+		return;
+	}
+
+	// Render only light with deep shadow
+	if (!LightSceneInfo || !LightSceneInfo->Proxy->CastsHairStrandsDeepShadow())
 	{
 		return;
 	}
