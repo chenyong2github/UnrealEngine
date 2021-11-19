@@ -478,6 +478,85 @@ bool FMetasoundFrontendLiteral::TryGet(TArray<UObject*>& OutValue) const
 	return false;
 }
 
+bool FMetasoundFrontendLiteral::TryGet(bool& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::Boolean)
+	{
+		OutValue = AsBoolean[0];
+		return true;
+	}
+	return false;
+}
+
+bool FMetasoundFrontendLiteral::TryGet(TArray<bool>& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::BooleanArray)
+	{
+		OutValue = AsBoolean;
+		return true;
+	}
+	return false;
+}
+
+bool FMetasoundFrontendLiteral::TryGet(int32& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::Integer)
+	{
+		OutValue = AsInteger[0];
+		return true;
+	}
+	return false;
+}
+
+bool FMetasoundFrontendLiteral::TryGet(TArray<int32>& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::Integer)
+	{
+		OutValue = AsInteger;
+		return true;
+	}
+	return false;
+}
+
+bool FMetasoundFrontendLiteral::TryGet(float& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::Float)
+	{
+		OutValue = AsFloat[0];
+		return true;
+	}
+	return false;
+}
+
+bool FMetasoundFrontendLiteral::TryGet(TArray<float>& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::FloatArray)
+	{
+		OutValue = AsFloat;
+		return true;
+	}
+	return false;
+}
+
+bool FMetasoundFrontendLiteral::TryGet(FString& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::String)
+	{
+		OutValue = AsString[0];
+		return true;
+	}
+	return false;
+}
+
+bool FMetasoundFrontendLiteral::TryGet(TArray<FString>& OutValue) const
+{
+	if (Type == EMetasoundFrontendLiteralType::StringArray)
+	{
+		OutValue = AsString;
+		return true;
+	}
+	return false;
+}
 
 Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoundDataTypeName) const
 {

@@ -57,6 +57,26 @@ UMovieSceneAudioSection::UMovieSceneAudioSection( const FObjectInitializer& Obje
 	PitchMultiplier.SetDefault(1.f);
 }
 
+namespace MovieSceneAudioSectionPrivate
+{
+	template<typename ChannelType, typename ValueType>
+	void AddInputChannels(UMovieSceneAudioSection* InSection, FMovieSceneChannelProxyData& InChannelProxyData)
+	{
+		InSection->ForEachInput([&InChannelProxyData](FName InName, const ChannelType& InChannel)
+		{
+#if WITH_EDITOR
+			FMovieSceneChannelMetaData Data;
+			FText TextName = FText::FromName(InName);	
+			Data.SetIdentifiers(InName, TextName, TextName);
+			InChannelProxyData.Add(const_cast<ChannelType&>(InChannel), Data, TMovieSceneExternalValue<ValueType>());
+#else //WITH_EDITOR
+			InChannelProxyData.Add(const_cast<ChannelType&>(InChannel));
+#endif //WITH_EDITOR
+
+		});
+	}
+}
+
 EMovieSceneChannelProxyType  UMovieSceneAudioSection::CacheChannelProxy()
 {
 	// Set up the channel proxy
@@ -86,9 +106,48 @@ EMovieSceneChannelProxyType  UMovieSceneAudioSection::CacheChannelProxy()
 
 #endif
 
+	using namespace MovieSceneAudioSectionPrivate;
+	SetupSoundInputParameters(GetSound());
+	AddInputChannels<FMovieSceneFloatChannel, float>(this, Channels);
+	AddInputChannels<FMovieSceneBoolChannel, bool>(this, Channels);
+	AddInputChannels<FMovieSceneIntegerChannel, int32>(this, Channels);
+	AddInputChannels<FMovieSceneStringChannel, FString>(this, Channels);
+
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
 
 	return EMovieSceneChannelProxyType::Dynamic;
+}
+
+void UMovieSceneAudioSection::SetupSoundInputParameters(const USoundBase* InSoundBase)
+{
+	// Populate with defaults.
+	if (InSoundBase)
+	{
+		TArray<FAudioParameter> DefaultParams;
+		InSoundBase->GetAllDefaultParameters(DefaultParams);
+
+		for (const FAudioParameter& Param : DefaultParams)
+		{
+			switch(Param.ParamType)
+			{
+			case EAudioParameterType::Float:
+				Inputs_Float.FindOrAdd(Param.ParamName, FMovieSceneFloatChannel{}).SetDefault(Param.FloatParam);
+				break;
+			case EAudioParameterType::Boolean:
+				Inputs_Bool.FindOrAdd(Param.ParamName, FMovieSceneBoolChannel{}).SetDefault(Param.BoolParam);
+				break;
+			case EAudioParameterType::Integer:
+				Inputs_Int.FindOrAdd(Param.ParamName, FMovieSceneIntegerChannel{}).SetDefault(Param.IntParam);
+				break;
+			case EAudioParameterType::String:
+				Inputs_String.FindOrAdd(Param.ParamName, FMovieSceneStringChannel{}).SetDefault(Param.StringParam);
+				break;
+			default:
+				// Not supported yet.
+				break;
+			}
+		}
+	}
 }
 
 TOptional<FFrameTime> UMovieSceneAudioSection::GetOffsetTime() const
@@ -212,6 +271,11 @@ UMovieSceneSection* UMovieSceneAudioSection::SplitSection(FQualifiedFrameTime Sp
 	return NewSection;
 }
 
+void UMovieSceneAudioSection::SetSound(USoundBase* InSound)
+{
+	Sound = InSound;
+	CacheChannelProxy();
+}
 
 USceneComponent* UMovieSceneAudioSection::GetAttachComponent(const AActor* InParentActor, const FMovieSceneActorReferenceKey& Key) const
 {

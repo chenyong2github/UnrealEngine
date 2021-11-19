@@ -12,8 +12,9 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"InputCore",
 					"Engine",
+					"AudioExtensions",
 					"AudioMixer"
-                }
+				}
 			);
 		}
 	}

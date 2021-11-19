@@ -303,4 +303,7 @@ public:
 
 	/** Returns whether parameter is valid input for the given sound */
 	virtual bool IsParameterValid(const FAudioParameter& InParameter) const;
+
+	/** Gets all the default parameters for this Asset.  */
+	virtual bool GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const { return false; }
 };
