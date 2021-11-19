@@ -201,6 +201,29 @@ TSharedRef<SUniformGridPanel> MakeHairStrandsInfoGrid(const FSlateFontInfo& Deta
 		.Font(DetailFontInfo)
 		.Text(FText::AsNumber(MaxRadius*2.0f))
 	];
+
+	// Imported Width (mm)
+	Grid->AddSlot(0, 4) // x, y
+	.HAlign(HAlign_Left)
+	[
+		SNew(STextBlock)
+		.Font(DetailFontInfo)
+	.Text(LOCTEXT("HairInfo_ImportedWidth", "Max. Imported Width"))
+	];
+	Grid->AddSlot(1, 4) // x, y
+	.HAlign(HAlign_Right)
+	[
+		SNew(STextBlock)
+		.Font(DetailFontInfo)
+	.Text(LOCTEXT("HairInfo_GuideImportedWidth", ""))
+	];
+	Grid->AddSlot(2, 4) // x, y
+	.HAlign(HAlign_Right)
+	[
+		SNew(STextBlock)
+		.Font(DetailFontInfo)
+		.Text(CurrentAsset.MaxImportedWidth > 0.f ? FText::AsNumber(CurrentAsset.MaxImportedWidth) : LOCTEXT("HairInfo_ImportedWidthDefault", "Not exported"))
+	];
 	return Grid;
 }
 
