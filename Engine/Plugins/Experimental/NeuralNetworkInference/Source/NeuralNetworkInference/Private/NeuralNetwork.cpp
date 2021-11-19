@@ -214,7 +214,7 @@ bool UNeuralNetwork::IsGPUSupported() const
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		return FImplBackEndUEAndORT::IsGPUConfigCompatible();
+		return FImplBackEndUEAndORT::IsGPUSupported();
 	}
 
 	// UEOnly

@@ -233,11 +233,12 @@ void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled
 {
 	if (InOutDeviceType != ENeuralDeviceType::CPU)
 	{
-		if (!IsGPUConfigCompatible())
+		if (!IsGPUSupported())
 		{
 			InOutDeviceType = ENeuralDeviceType::CPU;
 
 			const FString RHIName = GDynamicRHI->GetName();
+#ifdef PLATFORM_WIN64
 			const FString ErrorMessage = TEXT("On Windows, only DirectX 12 rendering (\"D3D12\") is compatible with the UEAndORT back end of NeuralNetworkInference (NNI). Instead, \"")
 				+ RHIName + TEXT("\" was used. You have the following options:\n\n"
 					"\t1. (Recommended) Switch Unreal Engine to DX12. In order to do that:\n"
@@ -246,6 +247,10 @@ void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled
 					"\t\t - Restart Unreal Engine.\n"
 					"\t2. Alternatively, switch the network to CPU with UNeuralNetwork::SetDeviceType().\n\n"
 					"Network set to CPU provisionally.");
+#else //PLATFORM_WIN64
+			const FString ErrorMessage = TEXT("GPU version is not supported for non-Windows platforms yet. Switch the network to CPU with UNeuralNetwork::SetDeviceType() or run from Windows.\n\n"
+					"Network set to CPU provisionally.");
+#endif //PLATFORM_WIN64
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(): %s"), *ErrorMessage);
 #if WITH_EDITOR
 			if (bInShouldOpenMessageLog)
@@ -257,7 +262,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled
 	}
 }
 
-bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUConfigCompatible()
+bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUSupported()
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
 #ifdef PLATFORM_WIN64
@@ -267,8 +272,8 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::IsGPUConfigCompatible()
 #endif //PLATFORM_WIN64
 #endif //WITH_UE_AND_ORT_SUPPORT
 
-	// If not Windows and/or if WITH_UE_AND_ORT_SUPPORT not defined, then this should return true because GPU will always work
-	return true;
+	// If not Windows and/or if WITH_UE_AND_ORT_SUPPORT not defined, then this should return false because GPU will not work
+	return false;
 }
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT,
@@ -596,7 +601,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 	{
 #ifdef PLATFORM_WIN64
 		// To create a DirectML device we need to check that we're using DX12 first
-		if (!IsGPUConfigCompatible())
+		if (!IsGPUSupported())
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::ConfigureMembers(): UEAndORT back end for GPU needs DX12 enabled."));
 			return false;
