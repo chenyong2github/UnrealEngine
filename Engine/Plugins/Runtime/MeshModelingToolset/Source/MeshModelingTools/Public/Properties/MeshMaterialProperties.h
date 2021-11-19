@@ -8,7 +8,7 @@
 #include "MeshMaterialProperties.generated.h"
 
 
-// predeclarations
+// Forward declarations
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 
@@ -49,7 +49,7 @@ UENUM()
 enum class ESetMeshMaterialMode : uint8
 {
 	/** Input material */
-	KeepOriginal,
+	Original,
 
 	/** Checkerboard material */
 	Checkerboard,
@@ -66,18 +66,29 @@ class MESHMODELINGTOOLS_API UExistingMeshMaterialProperties : public UInteractiv
 public:
 
 	/** Material that will be used on the mesh */
-	UPROPERTY(EditAnywhere, Category = MaterialPreview)
-	ESetMeshMaterialMode MaterialMode = ESetMeshMaterialMode::KeepOriginal;
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial)
+	ESetMeshMaterialMode MaterialMode = ESetMeshMaterialMode::Original;
 
-	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0", EditConditionHides, EditCondition = "MaterialMode == ESetMeshMaterialMode::Checkerboard"))
+	/** Number of checkerboard tiles within the 0 to 1 range; only available when Checkerboard is selected as material mode */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial,
+		meta = (UIMin = "1.0", UIMax = "40.0", ClampMin = "0.01", ClampMax = "1000.0", EditConditionHides, EditCondition = "MaterialMode == ESetMeshMaterialMode::Checkerboard"))
 	float CheckerDensity = 20.0f;
 
-	/** Which UV Channel to visualize with checkerboard material */
-	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (DisplayName = "Show UV Channel", EditConditionHides, EditCondition = "MaterialMode == ESetMeshMaterialMode::Checkerboard"))
-	int UVChannel = 0;
-
-	UPROPERTY(EditAnywhere, Category = MaterialPreview, meta = (EditCondition = "MaterialMode == ESetMeshMaterialMode::Override"))
+	/** Material to use instead of the original material; only available when Override is selected as material mode */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial, meta = (EditConditionHides, EditCondition = "MaterialMode == ESetMeshMaterialMode::Override"))
 	TObjectPtr<UMaterialInterface> OverrideMaterial = nullptr;
+
+	/** Which UV channel to use for visualizing the checkerboard material on the mesh; note that this does not affect the preview layout */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial,
+		meta = (DisplayName = "Preview UV Channel", GetOptions = GetUVChannelNamesFunc, EditConditionHides, EditCondition =
+			"MaterialMode == ESetMeshMaterialMode::Checkerboard", NoResetToDefault))
+	FString UVChannel;
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> UVChannelNamesList;
+
+	UFUNCTION()
+	const TArray<FString>& GetUVChannelNamesFunc() const;
 
 	UPROPERTY(meta = (TransientToolProperty))
 	TObjectPtr<UMaterialInstanceDynamic> CheckerMaterial = nullptr;
@@ -89,6 +100,8 @@ public:
 
 	void UpdateMaterials();
 	UMaterialInterface* GetActiveOverrideMaterial() const;
+	
+	void UpdateUVChannels(int32 UVChannelIndex, const TArray<FString>& UVChannelNames, bool bUpdateSelection = true);
 };
 
 UENUM()

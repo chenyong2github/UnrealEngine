@@ -7,12 +7,9 @@
 #include "ToolSetupUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
-#include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
-#include "Selection/SelectClickedAction.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
-#include "Materials/MaterialInstanceDynamic.h"
 
 #include "ParameterizationOps/UVLayoutOp.h"
 #include "Properties/UVLayoutProperties.h"
@@ -94,7 +91,8 @@ void UUVLayoutTool::Setup()
 		AddToolPropertySource(UVChannelProperties);
 		UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue)
 		{
-			MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+			MaterialSettings->UpdateUVChannels(UVChannelProperties->UVChannelNamesList.IndexOfByKey(UVChannelProperties->UVChannel),
+			                                   UVChannelProperties->UVChannelNamesList);
 			UpdateVisualization();
 		});
 	}
@@ -135,8 +133,8 @@ void UUVLayoutTool::Setup()
 
 void UUVLayoutTool::UpdateNumPreviews()
 {
-	int32 CurrentNumPreview = Previews.Num();
-	int32 TargetNumPreview = Targets.Num();
+	const int32 CurrentNumPreview = Previews.Num();
+	const int32 TargetNumPreview = Targets.Num();
 	if (TargetNumPreview < CurrentNumPreview)
 	{
 		for (int32 PreviewIdx = CurrentNumPreview - 1; PreviewIdx >= TargetNumPreview; PreviewIdx--)
@@ -303,7 +301,7 @@ void UUVLayoutTool::UpdateVisualization()
 
 bool UUVLayoutTool::CanAccept() const
 {
-	for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
+	for (const UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 	{
 		if (!Preview->HaveValidResult())
 		{
@@ -325,11 +323,11 @@ void UUVLayoutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 		check(Results[ComponentIdx].Mesh.Get() != nullptr);
 		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&Results, &ComponentIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			FDynamicMesh3* DynamicMesh = Results[ComponentIdx].Mesh.Get();
+			const FDynamicMesh3* DynamicMesh = Results[ComponentIdx].Mesh.Get();
 			FMeshDescription* MeshDescription = CommitParams.MeshDescriptionOut;
 			
-			bool bVerticesOnly = false;
-			bool bAttributesOnly = true;
+			constexpr bool bVerticesOnly = false;
+			constexpr bool bAttributesOnly = true;
 			if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(DynamicMesh, MeshDescription, bVerticesOnly, bAttributesOnly))
 			{
 				FDynamicMeshToMeshDescription Converter;

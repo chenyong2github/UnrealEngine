@@ -13,6 +13,11 @@ UNewMeshMaterialProperties::UNewMeshMaterialProperties()
 	Material = CreateDefaultSubobject<UMaterialInterface>(TEXT("MATERIAL"));
 }
 
+const TArray<FString>& UExistingMeshMaterialProperties::GetUVChannelNamesFunc() const
+{
+	return UVChannelNamesList;
+}
+
 void UExistingMeshMaterialProperties::RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier)
 {
 	Super::RestoreProperties(RestoreToTool, CacheIdentifier);
@@ -28,7 +33,7 @@ void UExistingMeshMaterialProperties::Setup()
 		if (CheckerMaterial != nullptr)
 		{
 			CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
-			CheckerMaterial->SetScalarParameterValue("UVChannel", (float)UVChannel);
+			CheckerMaterial->SetScalarParameterValue("UVChannel", static_cast<float>(UVChannelNamesList.IndexOfByKey(UVChannel)));
 		}
 	}
 }
@@ -38,7 +43,7 @@ void UExistingMeshMaterialProperties::UpdateMaterials()
 	if (CheckerMaterial != nullptr)
 	{
 		CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
-		CheckerMaterial->SetScalarParameterValue("UVChannel", (float)UVChannel);
+		CheckerMaterial->SetScalarParameterValue("UVChannel", static_cast<float>(UVChannelNamesList.IndexOfByKey(UVChannel)));
 	}
 }
 
@@ -54,6 +59,15 @@ UMaterialInterface* UExistingMeshMaterialProperties::GetActiveOverrideMaterial()
 		return OverrideMaterial;
 	}
 	return nullptr;
+}
+
+void UExistingMeshMaterialProperties::UpdateUVChannels(int32 UVChannelIndex, const TArray<FString>& UVChannelNames, bool bUpdateSelection)
+{
+	UVChannelNamesList = UVChannelNames;
+	if (bUpdateSelection)
+	{
+		UVChannel = 0 <= UVChannelIndex && UVChannelIndex < UVChannelNames.Num() ? UVChannelNames[UVChannelIndex] : TEXT("");
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "InteractiveTool.h"
 
 #include "UVLayoutProperties.generated.h"
@@ -14,11 +13,11 @@
 UENUM()
 enum class EUVLayoutType
 {
-	/** Apply Translation and Scale to existing UVs */
+	/** Apply Scale and Translation properties to all UV values */
 	Transform,
-	/** Uniformly scale/translate UV Islands into the standard UV Unit Square */
+	/** Uniformly scale and translate each UV island individually to pack it into the unit square, i.e. fit between 0 and 1 with overlap */
 	Stack,
-	/** Repack all UV Islands to fit inside standard UV unit square */
+	/** Uniformly scale and translate UV islands collectively to pack them into the unit square, i.e. fit between 0 and 1 with no overlap */
 	Repack
 };
 
@@ -32,24 +31,24 @@ class MODELINGOPERATORS_API UUVLayoutProperties : public UInteractiveToolPropert
 	GENERATED_BODY()
 
 public:
-	/** Type of transformation to apply to input UV islands */
-	UPROPERTY(EditAnywhere, Category = UVLayout)
+	/** Type of layout applied to input UVs */
+	UPROPERTY(EditAnywhere, Category = "UV Layout")
 	EUVLayoutType LayoutType = EUVLayoutType::Repack;
 
-	/** Expected resolution of output textures; controls spacing left between charts */
-	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096"))
+	/** Expected resolution of the output textures; this controls spacing left between UV islands to avoid interpolation artifacts */
+	UPROPERTY(EditAnywhere, Category = "UV Layout", meta = (UIMin = "64", UIMax = "2048", ClampMin = "2", ClampMax = "4096"))
 	int TextureResolution = 1024;
 
-	/** Apply this uniform scaling to the UVs after any layout recalculation */
-	UPROPERTY(EditAnywhere, Category = UVLayout, meta = (UIMin = "0.1", UIMax = "5.0", ClampMin = "0.0001", ClampMax = "10000") )
-	float UVScaleFactor = 1;
+	/** Uniform scale applied to UVs after packing */
+	UPROPERTY(EditAnywhere, Category = "UV Layout", meta = (UIMin = "0.1", UIMax = "5.0", ClampMin = "0.0001", ClampMax = "10000") )
+	float Scale = 1;
 
-	/** Apply this 2D translation to the UVs after any layout recalculation, and after scaling */
-	UPROPERTY(EditAnywhere, Category = UVLayout)
-	FVector2D UVTranslate = FVector2D(0,0);
+	/** Translation applied to UVs after packing, and after scaling */
+	UPROPERTY(EditAnywhere, Category = "UV Layout")
+	FVector2D Translation = FVector2D(0,0);
 
-	/** Allow the packer to flip the orientation of UV islands if it save space. May cause problems for downstream operations, not recommended. */
-	UPROPERTY(EditAnywhere, Category = UVLayout, AdvancedDisplay)
+	/** Allow the Repack layout type to flip the orientation of UV islands to save space. Note that this may cause problems for downstream operations, and therefore is disabled by default. */
+	UPROPERTY(EditAnywhere, Category = "UV Layout", meta = (EditCondition = "LayoutType == EUVLayoutType::Repack"))
 	bool bAllowFlips = false;
 
 };

@@ -6,7 +6,6 @@
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "FaceGroupUtil.h"
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 #include "Properties/ParameterizeMeshProperties.h"
 
@@ -61,7 +60,8 @@ void UParameterizeMeshTool::Setup()
 	UVChannelProperties->ValidateSelection(true);
 	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue) 
 	{
-		MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+		MaterialSettings->UpdateUVChannels(UVChannelProperties->UVChannelNamesList.IndexOfByKey(UVChannelProperties->UVChannel),
+		                                   UVChannelProperties->UVChannelNamesList);
 	});
 	AddToolPropertySource(UVChannelProperties);
 
@@ -107,7 +107,7 @@ void UParameterizeMeshTool::Setup()
 		UVLayoutView->CreateInWorld(TargetWorld);
 		UVLayoutView->SetSourceMaterials(MaterialSet);
 		UVLayoutView->SetSourceWorldPosition(InputTransform, UE::ToolTarget::GetTargetActor(Target)->GetComponentsBoundingBox());
-		UVLayoutView->Settings->bVisible = false;
+		UVLayoutView->Settings->bEnabled = false;
 		UVLayoutView->Settings->bShowWireframe = false;
 		UVLayoutView->Settings->RestoreProperties(this, TEXT("ParameterizeMeshTool"));
 		AddToolPropertySource(UVLayoutView->Settings);

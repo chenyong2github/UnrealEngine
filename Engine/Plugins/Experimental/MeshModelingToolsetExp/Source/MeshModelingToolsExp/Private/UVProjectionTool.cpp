@@ -82,7 +82,8 @@ void UUVProjectionTool::Setup()
 	UVChannelProperties->ValidateSelection(true);
 	UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue)
 	{
-		MaterialSettings->UVChannel = UVChannelProperties->GetSelectedChannelIndex(true);
+		MaterialSettings->UpdateUVChannels(UVChannelProperties->UVChannelNamesList.IndexOfByKey(UVChannelProperties->UVChannel),
+		                                   UVChannelProperties->UVChannelNamesList);
 		Preview->InvalidateResult();
 		OnMaterialSettingsChanged();
 	});

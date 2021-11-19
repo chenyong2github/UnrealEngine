@@ -7,8 +7,6 @@
 
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
-#include "StaticMeshOperations.h"
-
 
 
 void UMeshUVChannelProperties::Initialize(int32 NumUVChannels, bool bInitializeSelection)
@@ -16,7 +14,7 @@ void UMeshUVChannelProperties::Initialize(int32 NumUVChannels, bool bInitializeS
 	UVChannelNamesList.Reset();
 	for (int32 k = 0; k < NumUVChannels; ++k)
 	{
-		UVChannelNamesList.Add(FString::Printf(TEXT("UV%d"), k));
+		UVChannelNamesList.Add(FString::Printf(TEXT("UV %d"), k));
 	}
 	if (bInitializeSelection)
 	{
@@ -25,7 +23,7 @@ void UMeshUVChannelProperties::Initialize(int32 NumUVChannels, bool bInitializeS
 }
 
 
-const TArray<FString>& UMeshUVChannelProperties::GetUVChannelNamesFunc()
+const TArray<FString>& UMeshUVChannelProperties::GetUVChannelNamesFunc() const
 {
 	return UVChannelNamesList;
 }
