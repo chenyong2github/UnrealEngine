@@ -796,7 +796,7 @@ void ARecastNavMesh::Serialize( FArchive& Ar )
 	{
 		if (NavMeshVersion < NAVMESHVER_MIN_COMPATIBLE)
 		{
-			UE_LOG(LogNavigation, Warning, TEXT("%s: ARecastNavMesh: Nav mesh version %d < Min compatible %d. Nav mesh must be rebuilt in the editor \n"), *GetName(), NavMeshVersion, NAVMESHVER_MIN_COMPATIBLE);
+			UE_LOG(LogNavigation, Warning, TEXT("%s: ARecastNavMesh: Nav mesh version %d < Min compatible %d. Nav mesh needs to be rebuilt. \n"), *GetFullName(), NavMeshVersion, NAVMESHVER_MIN_COMPATIBLE);
 
 			// incompatible, just skip over this data.  navmesh needs rebuilt.
 			Ar.Seek( RecastNavMeshSizePos + RecastNavMeshSizeBytes );
