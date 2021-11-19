@@ -1334,7 +1334,7 @@ void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collec
 	}
 }
 
-UMaterialParameterCollectionInstance* UWorld::GetParameterCollectionInstance(const UMaterialParameterCollection* Collection)
+UMaterialParameterCollectionInstance* UWorld::GetParameterCollectionInstance(const UMaterialParameterCollection* Collection) const
 {
 	for (int32 InstanceIndex = 0; InstanceIndex < ParameterCollectionInstances.Num(); InstanceIndex++)
 	{
@@ -1346,7 +1346,7 @@ UMaterialParameterCollectionInstance* UWorld::GetParameterCollectionInstance(con
 
 	// Instance should always exist due to SetupParameterCollectionInstances() and UMaterialParameterCollection::PostLoad()
 	check(0);
-	return NULL;
+	return nullptr;
 }
 
 void UWorld::UpdateParameterCollectionInstances(bool bUpdateInstanceUniformBuffers, bool bRecreateUniformBuffer)
@@ -4121,7 +4121,7 @@ void UWorld::AsyncLoadAlwaysLoadedLevelsForSeamlessTravel()
 	}
 }
 
-bool UWorld::AllowLevelLoadRequests()
+bool UWorld::AllowLevelLoadRequests() const
 {
 	// Always allow level load request in the editor or when we do full streaming flush
 	if (IsGameWorld() && FlushLevelStreamingType != EFlushLevelStreamingType::Full)
@@ -6139,14 +6139,14 @@ void UWorld::PrepareMapChange(const TArray<FName>& LevelNames)
 	}
 }
 
-bool UWorld::IsPreparingMapChange()
+bool UWorld::IsPreparingMapChange() const
 {
-	return GEngine->IsPreparingMapChange(this);
+	return GEngine->IsPreparingMapChange(const_cast<UWorld*>(this));
 }
 
-bool UWorld::IsMapChangeReady()
+bool UWorld::IsMapChangeReady() const
 {
-	return GEngine->IsReadyForMapChange(this);
+	return GEngine->IsReadyForMapChange(const_cast<UWorld*>(this));
 }
 
 void UWorld::CancelPendingMapChange()
@@ -7160,9 +7160,9 @@ void UWorld::SeamlessTravel(const FString& SeamlessTravelURL, bool bAbsolute)
 }
 
 /** @return whether we're currently in a seamless transition */
-bool UWorld::IsInSeamlessTravel()
+bool UWorld::IsInSeamlessTravel() const
 {
-	FSeamlessTravelHandler &SeamlessTravelHandler = GEngine->SeamlessTravelHandlerForWorld( this );
+	FSeamlessTravelHandler& SeamlessTravelHandler = GEngine->SeamlessTravelHandlerForWorld(const_cast<UWorld*>(this));
 	return SeamlessTravelHandler.IsInTransition();
 }
 
@@ -7178,7 +7178,7 @@ void UWorld::SetSeamlessTravelMidpointPause(bool bNowPaused)
 	SeamlessTravelHandler.SetPauseAtMidpoint(bNowPaused);
 }
 
-int32 UWorld::GetDetailMode()
+int32 UWorld::GetDetailMode() const
 {
 	return GetCachedScalabilityCVars().DetailMode;
 }
@@ -7202,12 +7202,12 @@ void UWorld::UpdateConstraintActors()
 	}
 }
 
-int32 UWorld::GetProgressDenominator()
+int32 UWorld::GetProgressDenominator() const
 {
 	return GetActorCount();
 }
 
-int32 UWorld::GetActorCount()
+int32 UWorld::GetActorCount() const
 {
 	int32 TotalActorCount = 0;
 	for( int32 LevelIndex=0; LevelIndex<GetNumLevels(); LevelIndex++ )
@@ -8421,7 +8421,7 @@ void UWorld::SetAudioDevice(const FAudioDeviceHandle& InHandle)
 	}
 }
 
-FAudioDeviceHandle UWorld::GetAudioDevice()
+FAudioDeviceHandle UWorld::GetAudioDevice() const
 {
 	if (AudioDeviceHandle)
 	{
@@ -8437,7 +8437,7 @@ FAudioDeviceHandle UWorld::GetAudioDevice()
 	}
 }
 
-FAudioDevice* UWorld::GetAudioDeviceRaw()
+FAudioDevice* UWorld::GetAudioDeviceRaw() const
 {
 	if (AudioDeviceHandle)
 	{
