@@ -216,7 +216,7 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 					// can mark the prototype parent prim as invisible, as an attempt to prevent them from being parsed directly as scene meshes.
 					// We will handle the visibility of all the components we spawn manually
 					bPrototypeRootVisible = UsdUtils::HasInheritedVisibility( PrototypePrim, Context->Time );
-					PrototypeXformComponent->SetVisibility( bPointInstancerVisible && bPrototypeRootVisible );
+					PrototypeXformComponent->SetHiddenInGame( !bPointInstancerVisible || !bPrototypeRootVisible );
 
 					PrototypeParentComponent = PrototypeXformComponent;
 				}
@@ -250,7 +250,7 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 							// Traverse up every time because we have no idea how far deep each UsdGeomMesh prim is
 							const bool bHasInvisibleParent = UsdUtils::HasInvisibleParent( PrototypeTargetPrim, PrototypePrim, Context->Time );
 							const bool bPrototypeMeshVisible = UsdUtils::HasInheritedVisibility( PrototypeTargetPrim, Context->Time );
-							HismComponent->SetVisibility( bPointInstancerVisible && bPrototypeRootVisible && bPrototypeMeshVisible && !bHasInvisibleParent );
+							HismComponent->SetHiddenInGame( !bPointInstancerVisible || !bPrototypeRootVisible || !bPrototypeMeshVisible || bHasInvisibleParent );
 
 							UUsdAssetCache& AssetCache = *Context->AssetCache.Get();
 							UStaticMesh* StaticMesh = UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( PrototypeGeomMesh, *HismComponent, AssetCache );
