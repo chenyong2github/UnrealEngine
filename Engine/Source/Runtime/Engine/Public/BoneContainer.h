@@ -17,6 +17,7 @@ struct FBoneContainer;
 struct FSkeletonRemapping;
 struct FBlendedCurve;
 
+
 /** Struct used to store per-component ref pose override */
 struct FSkelMeshRefPoseOverride
 {
@@ -239,6 +240,12 @@ private:
 	/** Number of valid entries in UIDToArrayIndexLUT. I.e. a count of entries whose value does not equal to  MAX_uint16. */
 	int32 UIDToArrayIndexLUTValidCount;
 
+	/** Look up table of UID to Name UIDToNameLUT[InUID] = Name of curve. If NAME_None, it is invalid.*/	
+	TArray<FName> UIDToNameLUT;
+
+	/** Look up table of UID to FAnimCurveType UIDToNameLUT[InUID] = FAnimCurveType of curve. */	
+	TArray<FAnimCurveType> UIDToCurveTypeLUT;
+	
 	TSharedPtr<FSkelMeshRefPoseOverride> RefPoseOverride;
 	
 	// The serial number of this bone container. This is incremented each time the container is regenerated and can
@@ -257,7 +264,7 @@ private:
 	bool bUseRAWData;
 	/** Use Source Data that is imported that are not compressed. */
 	bool bUseSourceData;
-	
+
 public:
 
 	FBoneContainer();
@@ -371,7 +378,7 @@ public:
 			return RefSkeleton->GetRefBonePose()[BoneIndicesArray[BoneIndex.GetInt()]];
 		}
 	}
-
+	
 	/** Override skeleton ref pose. */
 	void SetRefPoseOverride(const TSharedPtr<FSkelMeshRefPoseOverride>& InRefPoseOverride)
 	{
@@ -427,24 +434,20 @@ public:
 	{
 		return UIDToArrayIndexLUTValidCount;
 	}
+	
 
-	/** DEPRECATED: Get UID To Name look up table */
-	UE_DEPRECATED(5.0, "GetUIDToNameLookupTable is deprecated, please access from the SmartNameMapping directly via GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName)")
+	/** Get UID To Name look up table */
 	TArray<FName> const& GetUIDToNameLookupTable() const
 	{
-		static TArray<FName> Dummy;
-		return Dummy;
+		return UIDToNameLUT;
 	}
 
-	/** DEPRECATED: Get UID To curve type look up table */
-	UE_DEPRECATED(5.0, "GetUIDToCurveTypeLookupTable is deprecated, please access from the SmartNameMapping directly via GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName)")
+	/** Get UID To curve type look up table */
 	TArray<FAnimCurveType> const& GetUIDToCurveTypeLookupTable() const
 	{
-		static TArray<FAnimCurveType> Dummy;
-		return Dummy;
+		return UIDToCurveTypeLUT;
 	}
 
-	
 	/** Get the array that maps UIDs to array indexes. */
 	TArray<SmartName::UID_Type> const& GetUIDToArrayLookupTableBackup() const
 	{

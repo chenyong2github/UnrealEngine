@@ -3047,7 +3047,8 @@ void FAnimInstanceProxy::UpdateCurvesToEvaluationContext(const FAnimationEvaluat
 	if(InContext.Curve.UIDToArrayIndexLUT != nullptr)
 	{
 		const TArray<uint16>& UIDToArrayIndexLookupTable = RequiredBones.GetUIDToArrayLookupTable();
-		const FSmartNameMapping* Mapping = RequiredBones.GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+		const TArray<FName>& UIDToNameLookupTable = RequiredBones.GetUIDToNameLookupTable();
+		const TArray<FAnimCurveType>& UIDToCurveTypeLookupTable = RequiredBones.GetUIDToCurveTypeLookupTable();
 	
 		check(UIDToArrayIndexLookupTable.Num() == InContext.Curve.UIDToArrayIndexLUT->Num());
 
@@ -3059,31 +3060,21 @@ void FAnimInstanceProxy::UpdateCurvesToEvaluationContext(const FAnimationEvaluat
 				ensureAlwaysMsgf(InContext.Curve.CurveWeights.IsValidIndex(ArrayIndex), TEXT("%s Animation Instance contains out of bound UIDList."), *AnimInstanceObject->GetClass()->GetName()) &&
 				InContext.Curve.ValidCurveWeights[ArrayIndex])
 			{
-				FName CurveName;
-				if (Mapping->GetName(CurveUID, CurveName))
+				const FName& CurveName = UIDToNameLookupTable[CurveUID];
+				const FAnimCurveType& CurveType = UIDToCurveTypeLookupTable[CurveUID];
+				const float CurveWeight = InContext.Curve.CurveWeights[ArrayIndex];
+				
+				AnimationCurves[(uint8)EAnimCurveType::AttributeCurve].Add(CurveName, CurveWeight);
+
+				if(CurveType.bMorphtarget)
 				{
-#if !WITH_EDITOR
-					const FCurveMetaData* CurveMetaData = &Mapping->GetCurveMetaData(CurveUID);
-#else
-					if (const FCurveMetaData* CurveMetaData = Mapping->GetCurveMetaData(CurveName))
-#endif
-					{
-						const FAnimCurveType& CurveType = CurveMetaData->Type;
-						const float CurveWeight = InContext.Curve.CurveWeights[ArrayIndex];
-					
-						AnimationCurves[(uint8)EAnimCurveType::AttributeCurve].Add(CurveName, CurveWeight);
+					AnimationCurves[(uint8)EAnimCurveType::MorphTargetCurve].Add(CurveName, CurveWeight);
+				}
 
-						if(CurveType.bMorphtarget)
-						{
-							AnimationCurves[(uint8)EAnimCurveType::MorphTargetCurve].Add(CurveName, CurveWeight);
-						}
-
-						if(CurveType.bMaterial)
-						{
-							MaterialParametersToClear.Remove(CurveName);
-							AnimationCurves[(uint8)EAnimCurveType::MaterialCurve].Add(CurveName, CurveWeight);
-						}
-					}	
+				if(CurveType.bMaterial)
+				{
+					MaterialParametersToClear.Remove(CurveName);
+					AnimationCurves[(uint8)EAnimCurveType::MaterialCurve].Add(CurveName, CurveWeight);
 				}
 			}
 		}
