@@ -261,7 +261,7 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 				// No smart names, nothing to do
 				return;
 			}
-			
+
 			//Init UID LUT to everything unused
 			UIDToArrayIndexLUT.AddUninitialized(MaxUID+1);
 			for (SmartName::UID_Type& Item : UIDToArrayIndexLUT)
@@ -269,13 +269,19 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 				Item = SmartName::MaxUID;
 			}
 
+			// Get Current Names / UIDs
+			Mapping->FillUIDToNameArray(UIDToNameLUT);
+
+			// Get curve types
+			Mapping->FillUIDToCurveTypeArray(UIDToCurveTypeLUT);
+
 			// if the linked joints don't exists in RequiredBones, remove itself
-			int32 NumAvailableUIDs = 0;
-			Mapping->Iterate([this, &CurveEvalOption, &NumAvailableUIDs](const FSmartNameMapping* Mapping, SmartName::UID_Type CurveNameIndex)
+			if (UIDToNameLUT.Num() > 0)
 			{
-				FName CurveName;
-				if (Mapping->GetName(CurveNameIndex, CurveName))
+				int32 NumAvailableUIDs = 0;
+				for (int32 CurveNameIndex = UIDToNameLUT.Num() - 1; CurveNameIndex >=0 ; --CurveNameIndex)
 				{
+					const FName& CurveName = UIDToNameLUT[CurveNameIndex];
 					bool bBeingUsed = true;
 					if (!CurveEvalOption.bAllowCurveEvaluation)
 					{
@@ -295,7 +301,7 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 						}
 						else
 						{
-							const FCurveMetaData* CurveMetaData = Mapping->GetCurveMetaData(CurveName);
+							const FCurveMetaData* CurveMetaData = Mapping->GetCurveMetaData(UIDToNameLUT[CurveNameIndex]);
 							if (CurveMetaData)
 							{
 								if (CurveMetaData->MaxLOD < CurveEvalOption.LODIndex)
@@ -333,7 +339,7 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 					}
 				}
 				UIDToArrayIndexLUTValidCount = NumAvailableUIDs;
-			});
+			}
 		}
 	}
 	else

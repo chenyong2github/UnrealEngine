@@ -643,23 +643,15 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 			}
 			
 			// we just support curves by name only
+			TArray<FName> const& CurveNames = RequiredBones.GetUIDToNameLookupTable();
+			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+			for (uint16 Index = 0; Index < CurveNames.Num(); ++Index)
 			{
-				const FSmartNameMapping* CurveMapping = RequiredBones.GetSkeletonAsset()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
-				URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
-				CurveMapping->Iterate([Hierarchy, this](const FSmartNameMapping* Mapping, SmartName::UID_Type ID)
+				// see if the curve name exists in the control rig
+				if (Hierarchy->GetIndex(FRigElementKey(CurveNames[Index], ERigElementType::Curve)) != INDEX_NONE)
 				{
-					// see if the curve name exists in the control rig
-					FName CurveName;
-					if (Mapping->GetName(ID, CurveName))
-					{
-						if (Hierarchy->GetIndex(FRigElementKey(CurveName, ERigElementType::Curve)) != INDEX_NONE)
-						{
-							ControlRigCurveMappingByName.Add(CurveName, ID);
-						}
-					}
-				});
-				
-					
+					ControlRigCurveMappingByName.Add(CurveNames[Index], Index);
+				}
 			}
 
 			// check if we can switch the bones to an index based mapping.
