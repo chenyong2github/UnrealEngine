@@ -350,18 +350,12 @@ inline void OnPushCSVStat(const FRDGCSVStatScope* Scope)
 {
 #if CSV_PROFILER
 	FCsvProfiler::BeginExclusiveStat(Scope->StatName);
-#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-	FPlatformMisc::BeginNamedEvent(FColor(255, 128, 128), Scope->StatName);
-#endif
 #endif
 }
 
 inline void OnPopCSVStat(const FRDGCSVStatScope* Scope)
 {
 #if CSV_PROFILER
-#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-	FPlatformMisc::EndNamedEvent();
-#endif
 	FCsvProfiler::EndExclusiveStat(Scope->StatName);
 #endif
 }
