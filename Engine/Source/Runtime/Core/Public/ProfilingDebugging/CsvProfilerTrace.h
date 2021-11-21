@@ -6,10 +6,13 @@
 #include "Trace/Config.h"
 #include "ProfilingDebugging/CsvProfilerConfig.h"
 
+// Note: Enabling this adds about 15% to the instrumentation overhead of the CSV profiler, even if Insights is not capturing
+#ifndef CSVPROFILERTRACE_ENABLED
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
 #define CSVPROFILERTRACE_ENABLED (WITH_ENGINE && CSV_PROFILER)
 #else
 #define CSVPROFILERTRACE_ENABLED 0
+#endif
 #endif
 
 class FName;

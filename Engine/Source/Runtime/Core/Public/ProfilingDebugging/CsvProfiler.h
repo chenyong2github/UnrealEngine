@@ -20,12 +20,7 @@
 
 #include <atomic>
 
-
-
 #if CSV_PROFILER
-
-#define CSV_TIMING_STATS_EMIT_NAMED_EVENTS 0
-#define CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS 0
 
 // Helpers
 #define CSV_CATEGORY_INDEX(CategoryName)						(_GCsvCategory_##CategoryName.Index)
@@ -116,6 +111,7 @@
 
 
 #if CSV_PROFILER
+
 class FCsvProfilerFrame;
 class FCsvProfilerThreadData;
 class FCsvProfilerProcessingThread;
@@ -359,16 +355,10 @@ public:
 		, CategoryIndex(InCategoryIndex)
 	{
 		FCsvProfiler::BeginStat(StatName, CategoryIndex);
-#if CSV_TIMING_STATS_EMIT_NAMED_EVENTS
-		FPlatformMisc::BeginNamedEvent(FColor(255, 128, 255), StatName);
-#endif
 	}
 
 	~FScopedCsvStat()
 	{
-#if CSV_TIMING_STATS_EMIT_NAMED_EVENTS
-		FPlatformMisc::EndNamedEvent();
-#endif
 		FCsvProfiler::EndStat(StatName, CategoryIndex);
 	}
 	const char * StatName;
@@ -382,16 +372,10 @@ public:
 		: StatName(InStatName)
 	{
 		FCsvProfiler::BeginExclusiveStat(StatName);
-#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-		FPlatformMisc::BeginNamedEvent(FColor(255, 128, 128), StatName);
-#endif
 	}
 
 	~FScopedCsvStatExclusive()
 	{
-#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-		FPlatformMisc::EndNamedEvent();
-#endif
 		FCsvProfiler::EndExclusiveStat(StatName);
 	}
 	const char * StatName;
@@ -407,9 +391,6 @@ public:
 		if (bCondition)
 		{
 			FCsvProfiler::BeginExclusiveStat(StatName);
-#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-			FPlatformMisc::BeginNamedEvent(FColor(255,128,128),StatName);
-#endif
 		}
 	}
 
@@ -417,9 +398,6 @@ public:
 	{
 		if (bCondition)
 		{
-#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-			FPlatformMisc::EndNamedEvent();
-#endif
 			FCsvProfiler::EndExclusiveStat(StatName);
 		}
 	}
@@ -436,9 +414,6 @@ public:
 		if (bCondition)
 		{
 			FCsvProfiler::BeginWait();
-#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-			FPlatformMisc::BeginNamedEvent(FColor(255, 128, 128), EventWait);
-#endif
 		}
 	}
 
@@ -446,9 +421,6 @@ public:
 	{
 		if (bCondition)
 		{
-#if CSV_EXCLUSIVE_TIMING_STATS_EMIT_NAMED_EVENTS
-			FPlatformMisc::EndNamedEvent();
-#endif
 			FCsvProfiler::EndWait();
 		}
 	}
