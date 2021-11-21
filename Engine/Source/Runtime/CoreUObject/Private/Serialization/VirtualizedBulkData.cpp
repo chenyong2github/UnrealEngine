@@ -1115,7 +1115,7 @@ bool FVirtualizedUntypedBulkData::CanUnloadData() const
 
 bool FVirtualizedUntypedBulkData::IsMemoryOnlyPayload() const
 {
-	return !Payload.IsNull() && !CanUnloadData();
+	return !Payload.IsNull() && !IsDataVirtualized() && PackagePath.IsEmpty();
 }
 
 void FVirtualizedUntypedBulkData::Reset()
