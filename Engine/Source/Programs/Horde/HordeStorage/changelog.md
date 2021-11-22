@@ -1,6 +1,8 @@
 # Unreleased
 
+# 0.34.8
 * Added info to batch request span tags to see the state of each operation
+* Fixes for status endpoint when deployed from Perforce
 
 # 0.34.7
 * Enabled worker deployments in us-west and eu-central
