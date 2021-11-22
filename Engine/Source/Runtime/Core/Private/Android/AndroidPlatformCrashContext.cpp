@@ -20,12 +20,74 @@
 #include "HAL/IConsoleManager.h"
 #include "HAL/ThreadManager.h"
 #include "HAL/RunnableThread.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Android/AndroidJavaEnv.h"
 
 static int64 GetAndroidLibraryBaseAddress();
 
 extern FString AndroidThunkCpp_GetMetaDataString(const FString& Key);
 
 extern FString AndroidRelativeToAbsolutePath(bool bUseInternalBasePath, FString RelPath);
+
+/** Java to native crash context k/v setting API  */
+static void SetCrashContextOnGameThread(const FString KeyIn, const FString ValueIn)
+{
+	if (IsInGameThread())
+	{
+		FGenericCrashContext::SetGameData(KeyIn, ValueIn);
+	}
+	else if (FTaskGraphInterface::IsRunning())
+	{
+		FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Key = KeyIn, Value = ValueIn]()
+			{
+				FGenericCrashContext::SetGameData(Key, Value);
+			}
+		, TStatId(), NULL, ENamedThreads::GameThread);
+	}
+	else
+	{
+		UE_LOG(LogAndroid, Log, TEXT("Failed to set crash context `%s` = '%s'"), *KeyIn, *ValueIn);
+	}
+}
+
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeCrashContextSetStringKey(JNIEnv* jenv, jobject thiz, jstring JavaKey, jstring JavaValue)
+{
+	FString Key, Value;
+	Key = FJavaHelper::FStringFromParam(jenv, JavaKey);
+	Value = FJavaHelper::FStringFromParam(jenv, JavaValue);
+
+	SetCrashContextOnGameThread(Key, Value);
+}
+
+JNI_METHOD void  Java_com_epicgames_unreal_GameActivity_nativeCrashContextSetBooleanKey(JNIEnv* jenv, jobject thiz, jstring JavaKey, jboolean JavaValue)
+{
+	FString Key;
+	Key = FJavaHelper::FStringFromParam(jenv, JavaKey);
+	SetCrashContextOnGameThread(Key, JavaValue ? TEXT("true") : TEXT("false"));
+}
+
+JNI_METHOD void  Java_com_epicgames_unreal_GameActivity_nativeCrashContextSetIntegerKey(JNIEnv* jenv, jobject thiz, jstring JavaKey, jint JavaValue)
+{
+	FString Key;
+	Key = FJavaHelper::FStringFromParam(jenv, JavaKey);
+	SetCrashContextOnGameThread(Key, *TTypeToString<int32>::ToString(JavaValue));
+}
+
+JNI_METHOD void  Java_com_epicgames_unreal_GameActivity_nativeCrashContextSetFloatKey(JNIEnv* jenv, jobject thiz, jstring JavaKey, jfloat JavaValue)
+{
+	FString Key;
+	Key = FJavaHelper::FStringFromParam(jenv, JavaKey);
+	SetCrashContextOnGameThread(Key, *TTypeToString<float>::ToString(JavaValue));
+}
+
+JNI_METHOD void  Java_com_epicgames_unreal_GameActivity_nativeCrashContextSetDoubleKey(JNIEnv* jenv, jobject thiz, jstring JavaKey, jdouble JavaValue)
+{
+	FString Key;
+	Key = FJavaHelper::FStringFromParam(jenv, JavaKey);
+	SetCrashContextOnGameThread(Key, *TTypeToString<double>::ToString(JavaValue));
+}
 
 /** Implement platform specific static cleanup function */
 void FGenericCrashContext::CleanupPlatformSpecificFiles()

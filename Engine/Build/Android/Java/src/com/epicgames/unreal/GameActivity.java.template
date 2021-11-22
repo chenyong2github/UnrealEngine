@@ -2396,6 +2396,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		// update memory stats every 10 seconds
 		memoryRunnable = new Runnable() {
+			boolean showPSSInfo = false;
 			int LastProcessMemoryValue = 0;
 			@Override
 			public void run()
@@ -2433,7 +2434,14 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				{
 					Log.debug("memstat: "+memstatusline);
 				}
-				
+				if( showPSSInfo )
+				{
+					String[] smapsLines = FindLineFromFile("/proc/self/smaps_rollup",new String[] {"SwapPss:","Pss:"});
+				    for(String memstatusline : smapsLines)
+				    {
+					    Log.debug("memstat: "+memstatusline);
+				    }
+				}
 				synchronized(_activity)
 				{
 					if (ProcessMemory > 0)
@@ -6476,6 +6484,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return false;
 	}
 
+	public void SetCrashContextData(String Key, String Value)
+	{
+		nativeCrashContextSetStringKey(Key,Value);
+//$${gameActivitySetCrashContextData}$$
+	}
+
 	public native int nativeGetCPUFamily();
 	public native boolean nativeSupportsNEON();
 	public native void nativeSetAffinityInfo(boolean bEnableAffinity, int bigCoreMask, int littleCoreMask);
@@ -6517,6 +6531,12 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	
 	public native void nativeOnThermalStatusChangedListener(int status);
 	public native void nativeOnTrimMemory(int MemoryTrimValue);
+
+	public native void nativeCrashContextSetStringKey(String Key, String Value);
+	public native void nativeCrashContextSetBooleanKey(String Key, boolean Value);
+	public native void nativeCrashContextSetIntegerKey(String Key, int Value);
+	public native void nativeCrashContextSetFloatKey(String Key, float Value);
+	public native void nativeCrashContextSetDoubleKey(String Key, double Value);
 
 	static
 	{
