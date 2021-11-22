@@ -382,9 +382,6 @@ public:
 	/** Restores all animated state for the current sequence. */
 	TSharedPtr< FUICommandInfo > RestoreAnimatedState;
 
-	/** Attempts to fix broken actor references. */
-	TSharedPtr< FUICommandInfo > FixActorReferences;
-
 	/** Rebinds all possessable references with their current bindings. */
 	TSharedPtr< FUICommandInfo > RebindPossessableReferences;
 

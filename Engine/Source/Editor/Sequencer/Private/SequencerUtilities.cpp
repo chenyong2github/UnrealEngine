@@ -16,6 +16,8 @@
 #include "MovieSceneTrack.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneTimeHelpers.h"
+#include "MovieSceneFolder.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISequencerTrackEditor.h"
 #include "ISequencer.h"
@@ -27,6 +29,8 @@
 #include "AssetRegistryModule.h"
 #include "FileHelpers.h"
 #include "LevelSequence.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 
 
@@ -340,6 +344,226 @@ TArray<FString> FSequencerUtilities::GetAssociatedMapPackages(const ULevelSequen
 
 	AssociatedMaps.Sort([](const FString& One, const FString& Two) { return FPaths::GetBaseFilename(One) < FPaths::GetBaseFilename(Two); });
 	return AssociatedMaps;
+}
+
+FGuid FSequencerUtilities::DoAssignActor(ISequencer * InSequencerPtr, AActor* const* InActors, int32 NumActors, FGuid InObjectBinding)
+{
+	if (NumActors <= 0)
+	{
+		return FGuid();
+	}
+
+	//@todo: this code doesn't work with multiple actors, or when the existing binding is bound to multiple actors
+
+	AActor* Actor = InActors[0];
+
+	if (Actor == nullptr)
+	{
+		return FGuid();
+	}
+
+	UMovieSceneSequence* OwnerSequence = InSequencerPtr->GetFocusedMovieSceneSequence();
+	UMovieScene* OwnerMovieScene = OwnerSequence->GetMovieScene();
+
+	if (OwnerMovieScene->IsReadOnly())
+	{
+		FSequencerUtilities::ShowReadOnlyError();
+		return FGuid();
+	}
+
+	FScopedTransaction AssignActor(LOCTEXT("AssignActor", "Assign Actor"));
+
+	Actor->Modify();
+	OwnerSequence->Modify();
+	OwnerMovieScene->Modify();
+
+	TArrayView<TWeakObjectPtr<>> RuntimeObjects = InSequencerPtr->FindObjectsInCurrentSequence(InObjectBinding);
+
+	UObject* RuntimeObject = RuntimeObjects.Num() ? RuntimeObjects[0].Get() : nullptr;
+
+	// Replace the object itself
+	FMovieScenePossessable NewPossessableActor;
+	FGuid NewGuid;
+	{
+		// Get the object guid to assign, remove the binding if it already exists
+		FGuid ParentGuid = InSequencerPtr->FindObjectId(*Actor, InSequencerPtr->GetFocusedTemplateID());
+		FString NewActorLabel = Actor->GetActorLabel();
+		if (ParentGuid.IsValid())
+		{
+			OwnerMovieScene->RemovePossessable(ParentGuid);
+			OwnerSequence->UnbindPossessableObjects(ParentGuid);
+		}
+
+		// Add this object
+		NewPossessableActor = FMovieScenePossessable(NewActorLabel, Actor->GetClass());
+		NewGuid = NewPossessableActor.GetGuid();
+		OwnerSequence->BindPossessableObject(NewPossessableActor.GetGuid(), *Actor, InSequencerPtr->GetPlaybackContext());
+
+		// Defer replacing this object until the components have been updated
+	}
+
+	auto UpdateComponent = [&](FGuid OldComponentGuid, UActorComponent* NewComponent)
+	{
+		FMovieSceneSequenceIDRef FocusedGuid = InSequencerPtr->GetFocusedTemplateID();
+
+		// Get the object guid to assign, remove the binding if it already exists
+		FGuid NewComponentGuid = InSequencerPtr->FindObjectId(*NewComponent, FocusedGuid);
+		if (NewComponentGuid.IsValid())
+		{
+			OwnerMovieScene->RemovePossessable(NewComponentGuid);
+			OwnerSequence->UnbindPossessableObjects(NewComponentGuid);
+		}
+
+		// Add this object
+		FMovieScenePossessable NewPossessable(NewComponent->GetName(), NewComponent->GetClass());
+		OwnerSequence->BindPossessableObject(NewPossessable.GetGuid(), *NewComponent, Actor);
+
+		// Replace
+		OwnerMovieScene->ReplacePossessable(OldComponentGuid, NewPossessable);
+		OwnerSequence->UnbindPossessableObjects(OldComponentGuid);
+		InSequencerPtr->State.Invalidate(OldComponentGuid, FocusedGuid);
+		InSequencerPtr->State.Invalidate(NewPossessable.GetGuid(), FocusedGuid);
+
+		FMovieScenePossessable* ThisPossessable = OwnerMovieScene->FindPossessable(NewPossessable.GetGuid());
+		if (ensure(ThisPossessable))
+		{
+			ThisPossessable->SetParent(NewGuid);
+		}
+	};
+
+	// Handle components
+	AActor* ActorToReplace = Cast<AActor>(RuntimeObject);
+	if (ActorToReplace != nullptr && ActorToReplace->IsActorBeingDestroyed() == false)
+	{
+		for (UActorComponent* ComponentToReplace : ActorToReplace->GetComponents())
+		{
+			if (ComponentToReplace != nullptr)
+			{
+				FGuid ComponentGuid = InSequencerPtr->FindObjectId(*ComponentToReplace, InSequencerPtr->GetFocusedTemplateID());
+				if (ComponentGuid.IsValid())
+				{
+					bool bComponentWasUpdated = false;
+					for (UActorComponent* NewComponent : Actor->GetComponents())
+					{
+						if (NewComponent->GetFullName(Actor) == ComponentToReplace->GetFullName(ActorToReplace))
+						{
+							UpdateComponent(ComponentGuid, NewComponent);
+							bComponentWasUpdated = true;
+						}
+					}
+
+					// Clear the parent guid since this possessable component doesn't match to any component on the new actor
+					if (!bComponentWasUpdated)
+					{
+						FMovieScenePossessable* ThisPossessable = OwnerMovieScene->FindPossessable(ComponentGuid);
+						ThisPossessable->SetParent(FGuid());
+					}
+				}
+			}
+		}
+	}
+	else // If the actor didn't exist, try to find components who's parent guids were the previous actors guid.
+	{
+		TMap<FString, UActorComponent*> ComponentNameToComponent;
+		for (UActorComponent* Component : Actor->GetComponents())
+		{
+			ComponentNameToComponent.Add(Component->GetName(), Component);
+		}
+		for (int32 i = 0; i < OwnerMovieScene->GetPossessableCount(); i++)
+		{
+			FMovieScenePossessable& OldPossessable = OwnerMovieScene->GetPossessable(i);
+			if (OldPossessable.GetParent() == InObjectBinding)
+			{
+				UActorComponent** ComponentPtr = ComponentNameToComponent.Find(OldPossessable.GetName());
+				if (ComponentPtr != nullptr)
+				{
+					UpdateComponent(OldPossessable.GetGuid(), *ComponentPtr);
+				}
+			}
+		}
+	}
+
+	// Replace the actor itself after components have been updated
+	OwnerMovieScene->ReplacePossessable(InObjectBinding, NewPossessableActor);
+	OwnerSequence->UnbindPossessableObjects(InObjectBinding);
+
+	InSequencerPtr->State.Invalidate(InObjectBinding, InSequencerPtr->GetFocusedTemplateID());
+	InSequencerPtr->State.Invalidate(NewPossessableActor.GetGuid(), InSequencerPtr->GetFocusedTemplateID());
+
+	// Try to fix up folders
+	TArray<UMovieSceneFolder*> FoldersToCheck;
+	FoldersToCheck.Append(InSequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene()->GetRootFolders());
+	bool bFolderFound = false;
+	while (FoldersToCheck.Num() > 0 && bFolderFound == false)
+	{
+		UMovieSceneFolder* Folder = FoldersToCheck[0];
+		FoldersToCheck.RemoveAt(0);
+		if (Folder->GetChildObjectBindings().Contains(InObjectBinding))
+		{
+			Folder->RemoveChildObjectBinding(InObjectBinding);
+			Folder->AddChildObjectBinding(NewGuid);
+			bFolderFound = true;
+		}
+
+		for (UMovieSceneFolder* ChildFolder : Folder->GetChildFolders())
+		{
+			FoldersToCheck.Add(ChildFolder);
+		}
+	}
+
+	InSequencerPtr->RestorePreAnimatedState();
+
+	InSequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+
+	return NewGuid;
+}
+
+void FSequencerUtilities::UpdateBindingIDs(ISequencer* InSequencerPtr, UMovieSceneCompiledDataManager* InCompiledDataManagerPtr, FGuid OldGuid, FGuid NewGuid)
+{
+	FMovieSceneSequenceIDRef FocusedGuid = InSequencerPtr->GetFocusedTemplateID();
+
+	TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID> OldFixedToNewFixedMap;
+	OldFixedToNewFixedMap.Add(UE::MovieScene::FFixedObjectBindingID(OldGuid, FocusedGuid), UE::MovieScene::FFixedObjectBindingID(NewGuid, FocusedGuid));
+
+	const FMovieSceneSequenceHierarchy* Hierarchy = InCompiledDataManagerPtr->FindHierarchy(InSequencerPtr->GetEvaluationTemplate().GetCompiledDataID());
+
+	if (UMovieScene* MovieScene = InSequencerPtr->GetRootMovieSceneSequence()->GetMovieScene())
+	{
+		for (UMovieSceneSection* Section : MovieScene->GetAllSections())
+		{
+			if (Section)
+			{
+				Section->OnBindingIDsUpdated(OldFixedToNewFixedMap, InSequencerPtr->GetRootTemplateID(), Hierarchy, *InSequencerPtr);
+			}
+		}
+	}
+
+	if (Hierarchy)
+	{
+		for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+		{
+			if (UMovieSceneSequence* Sequence = Pair.Value.GetSequence())
+			{
+				if (UMovieScene* MovieScene = Sequence->GetMovieScene())
+				{
+					for (UMovieSceneSection* Section : MovieScene->GetAllSections())
+					{
+						if (Section)
+						{
+							Section->OnBindingIDsUpdated(OldFixedToNewFixedMap, Pair.Key, Hierarchy, *InSequencerPtr);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void FSequencerUtilities::ShowReadOnlyError()
+{
+	FNotificationInfo Info(LOCTEXT("SequenceReadOnly", "Sequence is read only."));
+	Info.ExpireDuration = 5.0f;
+	FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
 }
 
 
