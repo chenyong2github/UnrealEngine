@@ -56,7 +56,7 @@ namespace HordeServerTests
 			Fg.Aggregates = new List<IAggregate>();
 			Fg.Labels = new List<ILabel>();
 
-			Template = await TemplateCollection.AddAsync("Test template", null, false, null, null,
+			Template = await TemplateCollection.AddAsync("Test template", null, false, false, null, null,
 				new List<string>(), new List<Parameter>());
 			Graph = await GraphCollection.AddAsync(Template);
 

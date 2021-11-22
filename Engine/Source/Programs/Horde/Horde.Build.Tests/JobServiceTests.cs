@@ -30,7 +30,7 @@ namespace HordeServerTests
 			IProject? Project = await ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" });
 			Assert.IsNotNull(Project);
 
-			ITemplate Template = await TemplateCollection.AddAsync("Test template", null, false, null, null, new List<string>(), new List<Parameter>());
+			ITemplate Template = await TemplateCollection.AddAsync("Test template", null, false, false, null, null, new List<string>(), new List<Parameter>());
 			IGraph Graph = await GraphCollection.AddAsync(Template);
 
 			TemplateRefId TemplateRefId1 = new TemplateRefId("template1");
@@ -153,7 +153,7 @@ namespace HordeServerTests
 			IStream? Stream = await StreamCollection.GetAsync(StreamId);
 			Stream = await StreamCollection.TryCreateOrReplaceAsync(StreamId, Stream, "", "", Project!.Id, new StreamConfig { Name = "//UE5/Main" });
 
-			ITemplate Template = await TemplateCollection.AddAsync("Test template", null, false, null, null, new List<string>(), new List<Parameter>());
+			ITemplate Template = await TemplateCollection.AddAsync("Test template", null, false, false, null, null, new List<string>(), new List<Parameter>());
 			IGraph Graph = await GraphCollection.AddAsync(Template);
 
 			NewGroup GroupA = new NewGroup("win", new List<NewNode>());

@@ -42,7 +42,7 @@ namespace HordeServerTests
 			IProject ? Project = ProjectService.Collection.AddOrUpdateAsync(ProjectId, "", "", 0, new ProjectConfig { Name = "UE5" }).Result;
 			Assert.IsNotNull(Project);
 
-			Template = TemplateCollection.AddAsync("Test template", null, false, null, null, new List<string>(), new List<Parameter>()).Result;
+			Template = TemplateCollection.AddAsync("Test template", null, false, false, null, null, new List<string>(), new List<Parameter>()).Result;
 
 			InitialJobIds = new HashSet<JobId>(JobCollection.FindAsync().Result.Select(x => x.Id));
 

@@ -806,14 +806,11 @@ export type CreateJobRequest = {
 	/** Whether to automatically submit the preflighted change on completion */
 	autoSubmit?: boolean;
 
+	/** Whether to update issues based on the outcome of this job */
+	updateIssues?: boolean;
+
 	/** Nodes for the new job */
 	groups?: CreateGroupRequest[];
-
-	/** Aggregates for the new job */
-	aggregates?: CreateAggregateRequest[];
-
-	/** Labels for the new job*/
-	labels?: CreateLabelRequest[];
 
 	/** Arguments for the job */
 	arguments?: string[];
@@ -946,6 +943,9 @@ export type GetJobResponse = {
 
 	/**The last update time for this job*/
 	updateTime: Date | string;
+
+	/** Whether to update issues based on the outcome of this job */
+	updateIssues?: boolean;
 
 	/**  Custom permissions for this object */
 	acl?: GetAclResponse;
@@ -1790,6 +1790,9 @@ export type CreateTemplateRequest = {
 	/**Whether to allow preflights of this template */
 	allowPreflights: boolean;
 
+	/**Whether always update issues regardless of how job was created */
+	updateIssues: boolean;
+
 	/**Array of nodes for this job */
 	groups: CreateGroupRequest[];
 
@@ -1952,6 +1955,9 @@ export type GetTemplateResponse = {
 
 	/**Whether to allow preflights of this template */
 	allowPreflights: boolean;
+
+	/**Whether to always update issues on jobs that use this template */
+	updateIssues: boolean;
 
 	/**List of node groups for this job */
 	groups: CreateGroupRequest[];

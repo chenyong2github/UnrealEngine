@@ -331,6 +331,11 @@ namespace HordeServer.Api
 		public DateTimeOffset UpdateTime { get; set; }
 
 		/// <summary>
+		/// Whether issues are being updated by this job
+		/// </summary>
+		public bool UpdateIssues { get; set; }
+
+		/// <summary>
 		/// Per-object permissions
 		/// </summary>
 		public GetAclResponse? Acl { get; set; }
@@ -368,6 +373,7 @@ namespace HordeServer.Api
 			this.Reports = Job.Reports?.ConvertAll(x => new GetReportResponse(x));
 			this.Arguments = Job.Arguments.ToList();
 			this.UpdateTime = new DateTimeOffset(Job.UpdateTimeUtc);
+			this.UpdateIssues = Job.UpdateIssues;
 			this.Acl = AclResponse;
 		}
 	}

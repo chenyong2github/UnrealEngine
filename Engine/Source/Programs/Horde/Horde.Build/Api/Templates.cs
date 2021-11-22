@@ -411,6 +411,11 @@ namespace HordeServer.Api
 		public bool AllowPreflights { get; set; } = true;
 
 		/// <summary>
+		/// Whether issues should be updated for all jobs using this template
+		/// </summary>
+		public bool UpdateIssues { get; set; } = false;
+
+		/// <summary>
 		/// Initial agent type to parse the buildgraph script on
 		/// </summary>
 		public string? InitialAgentType { get; set; }
@@ -452,6 +457,11 @@ namespace HordeServer.Api
 		public bool AllowPreflights { get; set; }
 
 		/// <summary>
+		/// Whether to always update issues on jobs using this template
+		/// </summary>
+		public bool UpdateIssues { get; set; }
+
+		/// <summary>
 		/// The initial agent type to parse the BuildGraph script on
 		/// </summary>
 		public string? InitialAgentType { get; set; }
@@ -491,6 +501,7 @@ namespace HordeServer.Api
 			this.Name = Template.Name;
 			this.Priority = Template.Priority;
 			this.AllowPreflights = Template.AllowPreflights;
+			this.UpdateIssues = Template.UpdateIssues;
 			this.InitialAgentType = Template.InitialAgentType;
 			this.SubmitNewChange = Template.SubmitNewChange;
 			this.Arguments = new List<string>(Template.Arguments);

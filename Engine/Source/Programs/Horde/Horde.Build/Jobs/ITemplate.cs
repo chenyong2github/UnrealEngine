@@ -442,6 +442,11 @@ namespace HordeServer.Models
 		public bool AllowPreflights { get; }
 
 		/// <summary>
+		/// Whether to always issues for jobs using this template
+		/// </summary>
+		public bool UpdateIssues { get; }
+
+		/// <summary>
 		/// Agent type to use for parsing the job state
 		/// </summary>
 		public string? InitialAgentType { get; }
