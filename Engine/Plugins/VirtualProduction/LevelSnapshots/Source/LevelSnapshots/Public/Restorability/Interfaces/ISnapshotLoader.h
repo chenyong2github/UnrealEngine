@@ -22,10 +22,10 @@ namespace UE::LevelSnapshots
 		{}
 	};
 
-		/**
-		* Receives callbacks when an object is loaded into the snapshot world. Gives the opportunity to call custom fix up functions.
-		*/
-		class LEVELSNAPSHOTS_API ISnapshotLoader
+	/**
+	 * Receives callbacks when an object is loaded into the snapshot world. Gives the opportunity to call custom fix up functions.
+	 */
+	class LEVELSNAPSHOTS_API ISnapshotLoader
 	{
 		public:
 
