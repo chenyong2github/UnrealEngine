@@ -135,28 +135,36 @@ const FGameplayTagContainer& UCommonUISettings::GetPlatformTraits() const
 	const FName SimulatedPlatform = UPlatformSettings::GetEditorSimulatedPlatform();
 	if (SimulatedPlatform != NAME_None)
 	{
-		if (FConfigCacheIni* PlatformIni = FConfigCacheIni::ForPlatform(SimulatedPlatform))
+		static FName LastSimulatedPlatform = NAME_None;
+		static FGameplayTagContainer SimulatedPlatformTraitContainer;
+
+		if (SimulatedPlatform != LastSimulatedPlatform)
 		{
-			TArray<FString> Entries;
-			PlatformIni->GetArray(*GetClass()->GetPathName(), GET_MEMBER_NAME_STRING_CHECKED(UCommonUISettings, PlatformTraits), Entries, TEXT("Game"));
+			LastSimulatedPlatform = SimulatedPlatform;
+			SimulatedPlatformTraitContainer.Reset();
 
-			UScriptStruct* GameplayTagStruct = StaticStruct<FGameplayTag>();
-			TArray<FGameplayTag> OtherPlatformTraits;
-			for(FString Entry : Entries)
+			if (FConfigCacheIni* PlatformIni = FConfigCacheIni::ForPlatform(SimulatedPlatform))
 			{
-				FGameplayTag Element;
-				GameplayTagStruct->ImportText(*Entry, &Element, nullptr, EPropertyPortFlags::PPF_None, nullptr, GameplayTagStruct->GetName(), true);
-				OtherPlatformTraits.Add(Element);
-			}
+				TArray<FString> Entries;
+				PlatformIni->GetArray(*GetClass()->GetPathName(), GET_MEMBER_NAME_STRING_CHECKED(UCommonUISettings, PlatformTraits), Entries, TEXT("Game"));
 
-			static FGameplayTagContainer OtherPlatformTraitContainer;
-			OtherPlatformTraitContainer.Reset();
-			for (FGameplayTag Trait : OtherPlatformTraits)
-			{
-				OtherPlatformTraitContainer.AddTag(Trait);
+				UScriptStruct* GameplayTagStruct = StaticStruct<FGameplayTag>();
+				TArray<FGameplayTag> OtherPlatformTraits;
+				for(FString Entry : Entries)
+				{
+					FGameplayTag Element;
+					GameplayTagStruct->ImportText(*Entry, &Element, nullptr, EPropertyPortFlags::PPF_None, nullptr, GameplayTagStruct->GetName(), true);
+					OtherPlatformTraits.Add(Element);
+				}
+
+				for (FGameplayTag Trait : OtherPlatformTraits)
+				{
+					SimulatedPlatformTraitContainer.AddTag(Trait);
+				}
 			}
-			return OtherPlatformTraitContainer;
 		}
+
+		return SimulatedPlatformTraitContainer;
 	}
 #endif
 
