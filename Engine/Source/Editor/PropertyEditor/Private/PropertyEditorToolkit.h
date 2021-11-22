@@ -44,8 +44,6 @@ public:
 
 	bool TableHasCustomColumns() const;
 
-	virtual bool CloseWindow() override;
-
 	virtual bool IsPrimaryEditor() const override{ return false; };
 
 public:
@@ -86,10 +84,6 @@ private:
 
 	EVisibility GetToggleColumnButtonVisibility( const TSharedRef< class IPropertyTreeRow > Row ) const;
 
-	void TickPinColorAndOpacity();
-
-	FSlateColor GetPinColorAndOpacity( const TWeakPtr< IPropertyTreeRow > Row ) const;
-
 	void TableColumnsChanged();
 
 	EVisibility GetAddColumnInstructionsOverlayVisibility() const;
@@ -106,10 +100,6 @@ private:
 
 	TArray< TSharedRef< FPropertyPath > > PropertyPathsAddedAsColumns;
 
-	/** Animation sequence to pulse the pin image */
-	FCurveSequence PinSequence;
-	FTimerHandle TimerHandle_TickPinColor;
-	FSlateColor PinColor;
 	TArray< TWeakPtr<IPropertyTreeRow> > PinRows;
 
 	static const FName ToolkitFName;

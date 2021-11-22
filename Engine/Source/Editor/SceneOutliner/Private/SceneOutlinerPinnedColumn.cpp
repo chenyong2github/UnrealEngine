@@ -70,8 +70,8 @@ public:
             .Image(this, &SPinnedWidget::GetBrush)
         );
 
-		static const FName NAME_PinnedBrush = TEXT("SceneOutliner.PinnedIcon");
-		static const FName NAME_UnpinnedBrush = TEXT("SceneOutliner.UnpinnedIcon");
+		static const FName NAME_PinnedBrush = TEXT("Icons.Pinned");
+		static const FName NAME_UnpinnedBrush = TEXT("Icons.Unpinned");
 
 		PinnedBrush = FAppStyle::Get().GetBrush(NAME_PinnedBrush);
 		UnpinnedBrush = FAppStyle::Get().GetBrush(NAME_UnpinnedBrush);
@@ -221,7 +221,7 @@ bool FSceneOutlinerPinnedColumn::IsItemPinned(const ISceneOutlinerTreeItem& Item
 
 const FSlateBrush* FSceneOutlinerPinnedColumn::GetHeaderIcon() const
 {
-	return FAppStyle::Get().GetBrush("SceneOutliner.UnpinnedIcon");
+	return FAppStyle::Get().GetBrush("Icons.Unpinned");
 }
 
 #undef LOCTEXT_NAMESPACE
