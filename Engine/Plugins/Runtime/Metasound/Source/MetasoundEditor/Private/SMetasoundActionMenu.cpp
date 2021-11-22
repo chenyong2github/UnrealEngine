@@ -215,6 +215,7 @@ void SMetasoundActionMenu::Construct(const FArguments& InArgs)
 						.DraggedFromPins(DraggedFromPins)
 						.GraphObj(Graph)
 						.AlphaSortItems(true)
+						.bAllowPreselectedItemActivation(true)
 				]
 			]
 		]
