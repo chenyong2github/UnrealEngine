@@ -234,7 +234,7 @@ private:
 //////////////////////////////////////////////////////////////////////////
 
 struct FNiagaraDataInterfaceProxyRW;
-struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>
+struct FNiagaraDataInterfaceProxy
 {
 	FNiagaraDataInterfaceProxy() {}
 	virtual ~FNiagaraDataInterfaceProxy() {/*check(IsInRenderingThread());*/}

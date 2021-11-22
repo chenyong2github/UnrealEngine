@@ -20,14 +20,12 @@ UNiagaraDataInterface::UNiagaraDataInterface(FObjectInitializer const& ObjectIni
 
 UNiagaraDataInterface::~UNiagaraDataInterface()
 {
-	// @todo-threadsafety Can there be a UNiagaraDataInterface class itself created? Perhaps by the system?
-	if ( Proxy.IsValid() )
+	if ( FNiagaraDataInterfaceProxy* ReleasedProxy = Proxy.Release() )
 	{
 		ENQUEUE_RENDER_COMMAND(FDeleteProxyRT) (
-			[RT_Proxy=MoveTemp(Proxy)](FRHICommandListImmediate& CmdList) mutable
+			[RT_Proxy= ReleasedProxy](FRHICommandListImmediate& CmdList) mutable
 			{
-				// This will release RT_Proxy on the RT
-				RT_Proxy = nullptr;
+				delete RT_Proxy;
 			}
 		);
 		check(Proxy.IsValid() == false);
