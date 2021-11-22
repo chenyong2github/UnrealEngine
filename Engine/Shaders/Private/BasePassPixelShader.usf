@@ -1592,7 +1592,7 @@ void FPixelShaderInOut_MainPS(
 	// Clear only what should be and keep the rest
 	GBuffer = (FGBufferData)0;						// We should not rely on gbuffer for anything else to make any pass work.
 
-	uint2 PixelPos = In.SvPosition.xy;
+	uint2 PixelPos = uint2(In.SvPosition.xy);
 
 	float3 EmissiveLuminance = 0.0f;
 	PackStrataOut(

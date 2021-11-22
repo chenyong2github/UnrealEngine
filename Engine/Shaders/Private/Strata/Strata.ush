@@ -336,8 +336,8 @@ struct FStrataClassification
 
 uint StrataPackClassificationData(FStrataClassification In)
 {
-	const uint MaterialAO8Bits = sqrt(saturate(In.MaterialAO)) * 255.0f;	// Give more accuracy to the blacks to reduce banding
-	const uint TopLayerRoughness8Bits = In.TopLayerRoughness * 255.0f;
+	const uint MaterialAO8Bits = uint(sqrt(saturate(In.MaterialAO)) * 255.0f);	// Give more accuracy to the blacks to reduce banding
+	const uint TopLayerRoughness8Bits = uint(In.TopLayerRoughness * 255.0f);
 	return 
 		(In.ShadingModels & 0xFF) | 
 		((MaterialAO8Bits & 0xFF)			 << 8  ) |
@@ -408,7 +408,7 @@ uint2 StrataPackSSSData(FStrataSubsurfaceData In)
 uint StrataSubsurfaceProfileIdTo8bits(float In)
 {
 	// Similar encoding than ExtractSubsurfaceProfileInt. Valid profile ID start at 1.
-	return In * 255.0f + 0.5f;
+	return uint(In * 255.0f + 0.5f);
 }
 
 FStrataSubsurfaceData StrataUnpackSSSData(uint2 In)
