@@ -16,7 +16,7 @@ FSkeinSourceControlCommand::FSkeinSourceControlCommand(const TSharedRef<class IS
 	check(IsInGameThread());
 
 	// Grab the providers settings here, so we don't access them once the worker thread is launched
-	FSkeinSourceControlModule& SkeinSourceControl = FModuleManager::LoadModuleChecked<FSkeinSourceControlModule>( "SkeinSourceControl" );
+	FSkeinSourceControlModule& SkeinSourceControl = FModuleManager::LoadModuleChecked<FSkeinSourceControlModule>("SkeinSourceControl");
 	SkeinBinaryPath = SkeinSourceControl.GetProvider().GetSkeinBinaryPath();
 	SkeinProjectRoot = SkeinSourceControl.GetProvider().GetSkeinProjectRoot();
 }
