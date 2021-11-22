@@ -46,6 +46,16 @@ struct FStrataMaterialCompilationInfo
 		LayerCount = 0;
 		memset(Layers, 0, sizeof(Layers));
 	}
+
+	uint32 GetPerLayerMaxBSDFCount() const 
+	{
+		uint32 Count = 0;
+		for (uint32 LayerIt = 0; LayerIt < LayerCount; ++LayerIt)
+		{
+			Count = FMath::Max(Count, Layers[LayerIt].BSDFCount);
+		}
+		return Count;
+	}
 };
 
 FString GetStrataBSDFName(uint8 BSDFType);
@@ -77,6 +87,7 @@ struct FStrataMaterialAnalysisResult
 	FStrataMaterialAnalysisResult();
 	bool bFitInMemoryBudget;
 	uint32 RequestedLayerCount;
+	uint32 RequestedMaxBSDFCountPerLayer;
 	uint32 RequestedBSDFCount;
 	uint32 RequestedByteCount;
 	uint32 ClampedLayerCount;

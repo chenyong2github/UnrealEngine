@@ -344,7 +344,7 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 	Result.RequestedByteCount += Compiler->StrataCompilationInfoGetSharedLocalBasesCount() * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
 	
 	// 2. The list of BSDFs
-
+	Result.RequestedMaxBSDFCountPerLayer = 0;
 	// We process layers from top to bottom to cull the bottom ones in case we run out of pixel bytes
 	for (uint32 LayerIt = 0; LayerIt < Material.LayerCount; LayerIt++)
 	{
@@ -405,6 +405,7 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 			}
 			}
 		}
+		Result.RequestedMaxBSDFCountPerLayer = FMath::Max(Result.RequestedMaxBSDFCountPerLayer, Layer.BSDFCount);
 
 		Result.RequestedLayerCount++;
 		Result.RequestedBSDFCount += Layer.BSDFCount;
