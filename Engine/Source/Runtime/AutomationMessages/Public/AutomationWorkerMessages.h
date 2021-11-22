@@ -444,6 +444,10 @@ public:
 	UPROPERTY(EditAnywhere, Category="Message")
 	int32 ShadowQuality;
 	UPROPERTY(EditAnywhere, Category="Message")
+	int32 GlobalIlluminationQuality;
+	UPROPERTY(EditAnywhere, Category="Message")
+	int32 ReflectionQuality;
+	UPROPERTY(EditAnywhere, Category="Message")
 	int32 PostProcessQuality;
 	UPROPERTY(EditAnywhere, Category="Message")
 	int32 TextureQuality;
@@ -488,6 +492,8 @@ public:
 		, ViewDistanceQuality(0)
 		, AntiAliasingQuality(0)
 		, ShadowQuality(0)
+		, GlobalIlluminationQuality(0)
+		, ReflectionQuality(0)
 		, PostProcessQuality(0)
 		, TextureQuality(0)
 		, EffectsQuality(0)
@@ -543,6 +549,8 @@ public:
 		ViewDistanceQuality = Data.ViewDistanceQuality;
 		AntiAliasingQuality = Data.AntiAliasingQuality;
 		ShadowQuality = Data.ShadowQuality;
+		GlobalIlluminationQuality = Data.GlobalIlluminationQuality;
+		ReflectionQuality = Data.ReflectionQuality;
 		PostProcessQuality = Data.PostProcessQuality;
 		TextureQuality = Data.TextureQuality;
 		EffectsQuality = Data.EffectsQuality;
@@ -637,6 +645,16 @@ public:
 		}
 
 		if (ShadowQuality == OtherMetadata.ShadowQuality)
+		{
+			Score += 10;
+		}
+
+		if (GlobalIlluminationQuality == OtherMetadata.GlobalIlluminationQuality)
+		{
+			Score += 10;
+		}
+
+		if (ReflectionQuality == OtherMetadata.ReflectionQuality)
 		{
 			Score += 10;
 		}

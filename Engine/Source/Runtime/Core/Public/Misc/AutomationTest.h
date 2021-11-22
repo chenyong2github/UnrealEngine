@@ -614,6 +614,8 @@ struct FAutomationScreenshotData
 	int32 ViewDistanceQuality;
 	int32 AntiAliasingQuality;
 	int32 ShadowQuality;
+	int32 GlobalIlluminationQuality;
+	int32 ReflectionQuality;
 	int32 PostProcessQuality;
 	int32 TextureQuality;
 	int32 EffectsQuality;
@@ -646,6 +648,8 @@ struct FAutomationScreenshotData
 		, ViewDistanceQuality(0)
 		, AntiAliasingQuality(0)
 		, ShadowQuality(0)
+		, GlobalIlluminationQuality(0)
+		, ReflectionQuality(0)
 		, PostProcessQuality(0)
 		, TextureQuality(0)
 		, EffectsQuality(0)

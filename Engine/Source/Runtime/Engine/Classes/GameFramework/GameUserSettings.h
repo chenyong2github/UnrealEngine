@@ -199,6 +199,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Settings)
 	int32 GetShadowQuality() const;
 
+	// Sets the global illumination quality (0..4, higher is better)
+	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
+	UFUNCTION(BlueprintCallable, Category=Settings)
+	void SetGlobalIlluminationQuality(int32 Value);
+
+	// Returns the global illumination quality (0..4, higher is better)
+	UFUNCTION(BlueprintCallable, Category=Settings)
+	int32 GetGlobalIlluminationQuality() const;
+
+	// Sets the reflection quality (0..4, higher is better)
+	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
+	UFUNCTION(BlueprintCallable, Category=Settings)
+	void SetReflectionQuality(int32 Value);
+
+	// Returns the reflection quality (0..4, higher is better)
+	UFUNCTION(BlueprintCallable, Category=Settings)
+	int32 GetReflectionQuality() const;
+
 	// Sets the anti-aliasing quality (0..4, higher is better)
 	// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 	UFUNCTION(BlueprintCallable, Category=Settings)
