@@ -594,13 +594,11 @@ void UCommonRichTextBlock::SynchronizeProperties()
 
 void UCommonRichTextBlock::ApplyUpdatedDefaultTextStyle()
 {
+	Super::ApplyUpdatedDefaultTextStyle();
+
 	if (CommonUIUtils::ShouldDisplayMobileUISizes())
 	{
 		ApplyTextBlockScale();
-	}
-	else
-	{
-		Super::ApplyUpdatedDefaultTextStyle();
 	}
 }
 
