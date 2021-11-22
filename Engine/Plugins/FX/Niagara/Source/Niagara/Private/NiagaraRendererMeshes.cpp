@@ -331,6 +331,13 @@ void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderDa
 		}
 		else
 		{
+			//-TODO: Culling and sorting from InitViewsAfterPrePass can not be respected if the culled entries have already been acquired
+			if (ParticleMeshRenderData.bSortCullOnGpu)
+			{
+				//ensureMsgf(false, TEXT("Culling & sorting is not supported once the culled counts have been acquired, sorting & culling will be disabled for these draws."));
+				ParticleMeshRenderData.bSortCullOnGpu &= SceneProxy->GetComputeDispatchInterface()->GetGPUInstanceCounterManager().CanAcquireCulledEntry();
+			}
+
 			// For CPU sims, decide if we should sort / cull on the GPU or not
 			if ( ParticleMeshRenderData.bSortCullOnGpu )
 			{
