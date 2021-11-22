@@ -19,7 +19,6 @@ class FStructOnScope;
 class FMenuBuilder;
 class IStageMonitorSession;
 
-static TAutoConsoleVariable<int32> CVarStageMonitorDefaultMaxMessageAge(TEXT("StageMonitor.DefaultMaxMessageAge"), 30, TEXT("The default value in minutes for the maximum age for which to display messages in the data monitor."));
 
 /** Filter settings used live and also load/saved to ini config */
 USTRUCT()
