@@ -111,14 +111,6 @@ private:
 	int32 NumErrors = 0;
 };
 
-class FUpdateTypeContext
-{
-public:
-	explicit FUpdateTypeContext(FErrors& InErrors) : Errors(InErrors) {}
-
-	FErrors& Errors;
-};
-
 enum class ECastFlags : uint32
 {
 	None = 0u,
@@ -155,6 +147,7 @@ public:
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
 	uint32 UniformPreshaderOffset = 0u;
+	bool bReadMaterialNormal = false;
 
 	int32 NumExpressionLocals = 0;
 	int32 NumLocalPHIs = 0;
@@ -262,7 +255,7 @@ public:
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
-	virtual void RequestTypes(FUpdateTypeContext& Context) const = 0;
+	virtual void PrepareValues(FEmitContext& Context) const = 0;
 	virtual void EmitHLSL(FEmitContext& Context) const = 0;
 
 	FScope* ParentScope = nullptr;
@@ -320,6 +313,25 @@ public:
 	TBitArray<> RequestedComponents;
 };
 
+struct FShaderValue
+{
+	explicit FShaderValue(FStringBuilderBase& InCode) : Code(InCode) {}
+
+	FStringBuilderBase& Code;
+	bool bInline = false;
+	bool bHasDependencies = false;
+};
+
+struct FPrepareValueResult
+{
+	FType Type;
+	EExpressionEvaluationType EvaluationType = EExpressionEvaluationType::None;
+	Shader::FValue ConstantValue;
+
+	inline operator bool() const { return EvaluationType != EExpressionEvaluationType::None; }
+	inline bool operator!() const { return EvaluationType == EExpressionEvaluationType::None; }
+};
+
 /**
  * Represents an HLSL expression.  This is a piece of code that evaluates to a value, but has no side effects.
  * Unlike statements, expressions are not expected to execute in any particular order.  They may be cached (or not) in generated code, without the underlying implementation needing to care.
@@ -330,12 +342,12 @@ public:
 class FExpression : public FNode
 {
 public:
-	const FType& GetType() const { return Type; }
+	const FType& GetType() const { return PrepareValueResult.Type; }
+	EExpressionEvaluationType GetEvaluationType() const { return PrepareValueResult.EvaluationType; }
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
-	friend FType RequestExpressionType(FUpdateTypeContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
-	friend EExpressionEvaluationType PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression);
+	friend FPrepareValueResult PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
 
 	const TCHAR* GetValueShader(FEmitContext& Context);
 	const TCHAR* GetValueShader(FEmitContext& Context, const FType& InType);
@@ -345,46 +357,20 @@ public:
 	FScope* ParentScope = nullptr;
 
 protected:
-	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) = 0;
-	virtual void PrepareValue(FEmitContext& Context) = 0;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) = 0;
+	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const;
+	virtual void EmitShaderDependencies(FEmitContext& Context, const FShaderValue& Shader) const;
+	virtual void EmitValuePreshader(FEmitContext& Context, Shader::FPreshaderData& OutPreshader) const;
 
-	void SetType(FUpdateTypeContext& Context, const FType& InType);
-
-	void InternalSetValueShader(FEmitContext& Context, const TCHAR* InCode, int32 InLength, bool bInline);
-
-	void SetValuePreshader(FEmitContext& Context, Shader::FPreshaderData& InPreshader);
-	void SetValueConstant(FEmitContext& Context, const Shader::FValue& InValue);
-	void SetValueForward(FEmitContext& Context, FExpression* Source);
-
-	void SetValuePreshader(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, Shader::FPreshaderData& InPreshader);
-
-	template<typename FormatType, typename... Types>
-	void SetValueShaderf(FEmitContext& Context, const FormatType& Format, Types... Args)
-	{
-		TStringBuilder<2048> String;
-		String.Appendf(Format, Forward<Types>(Args)...);
-		InternalSetValueShader(Context, String.ToString(), String.Len(), false);
-	}
-
-	template<typename FormatType, typename... Types>
-	void SetValueInlineShaderf(FEmitContext& Context, const FormatType& Format, Types... Args)
-	{
-		TStringBuilder<2048> String;
-		String.Appendf(Format, Forward<Types>(Args)...);
-		InternalSetValueShader(Context, String.ToString(), String.Len(), true);
-	}
-
-	inline void SetValueShader(FEmitContext& Context, const FStringBuilderBase& String) { InternalSetValueShader(Context, String.ToString(), String.Len(), false); }
-	inline void SetValueInlineShader(FEmitContext& Context, const FStringBuilderBase& String) { InternalSetValueShader(Context, String.ToString(), String.Len(), true); }
+	void SetType(FEmitContext& Context, EExpressionEvaluationType InEvaluationType, const FType& InType);
+	void SetForwardValue(FEmitContext& Context, FExpression* InForwardValue, const FRequestedType& RequestedType);
 
 private:
 	const TCHAR* LocalVariableName = nullptr;
 	const TCHAR* Code = nullptr;
-	const Shader::FPreshaderData* Preshader = nullptr;
-	Shader::FValue ConstantValue;
-	EExpressionEvaluationType EvaluationType = EExpressionEvaluationType::None;
-	FType Type;
 	FRequestedType CurrentRequestedType;
+	FPrepareValueResult PrepareValueResult;
+	FExpression* ForwardedValue = nullptr;
 	bool bReentryFlag = false;
 };
 
@@ -397,8 +383,9 @@ private:
 class FExpressionLocalPHI final : public FExpression
 {
 public:
-	virtual void UpdateType(FUpdateTypeContext& Context, const FRequestedType& RequestedType) override;
-	virtual void PrepareValue(FEmitContext& Context) override;
+	virtual void PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType) override;
+	virtual void EmitValueShader(FEmitContext& Context, FShaderValue& OutShader) const override;
+	virtual void EmitShaderDependencies(FEmitContext& Context, const FShaderValue& Shader) const override;
 
 	FName LocalName;
 	FScope* Scopes[MaxNumPreviousScopes];
@@ -420,6 +407,13 @@ public:
 	FTextureDescription Description;
 };
 
+enum class EScopeState : uint8
+{
+	Uninitialized,
+	Live,
+	Dead,
+};
+
 /**
  * Represents an HLSL scope.  A scope contains a single statement, along with any expressions required by that statement
  */
@@ -429,7 +423,8 @@ public:
 	static FScope* FindSharedParent(FScope* Lhs, FScope* Rhs);
 
 	inline FScope* GetParentScope() const { return ParentScope; }
-	inline bool IsLive() const { return bLive; }
+	inline bool IsLive() const { return State == EScopeState::Live; }
+	inline bool IsDead() const { return State == EScopeState::Dead; }
 
 	inline TArrayView<FScope*> GetPreviousScopes() const
 	{
@@ -445,33 +440,34 @@ public:
 
 	void UseExpression(FExpression* Expression);
 
-	friend void RequestScopeTypes(FUpdateTypeContext& Context, const FScope* InScope);
+	friend void PrepareScopeValues(FEmitContext& Context, const FScope* InScope);
 
 	template<typename FormatType, typename... Types>
 	void EmitDeclarationf(FEmitContext& Context, const FormatType& Format, Types... Args)
 	{
-		InternalEmitCodef(Context, Declarations, nullptr, Format, Forward<Types>(Args)...);
+		InternalEmitCodef(Context, Declarations, ENextScopeFormat::None, nullptr, Format, Forward<Types>(Args)...);
 	}
 
 	template<typename FormatType, typename... Types>
 	void EmitStatementf(FEmitContext& Context, const FormatType& Format, Types... Args)
 	{
-		InternalEmitCodef(Context, Statements, nullptr, Format, Forward<Types>(Args)...);
+		InternalEmitCodef(Context, Statements, ENextScopeFormat::None, nullptr, Format, Forward<Types>(Args)...);
 	}
 
-	void EmitNestedScope(FEmitContext& Context, FScope* NestedScope)
+	void EmitNextScope(FEmitContext& Context, FScope* NestedScope)
 	{
-		InternalEmitCode(Context, Statements, NestedScope, nullptr, 0);
+		InternalEmitCode(Context, Statements, ENextScopeFormat::Unscoped, NestedScope, nullptr, 0);
 	}
 
 	template<typename FormatType, typename... Types>
 	void EmitNestedScopef(FEmitContext& Context, FScope* NestedScope, const FormatType& Format, Types... Args)
 	{
-		InternalEmitCodef(Context, Statements, NestedScope, Format, Forward<Types>(Args)...);
+		InternalEmitCodef(Context, Statements, ENextScopeFormat::Scoped, NestedScope, Format, Forward<Types>(Args)...);
 	}
 
 	void MarkLive();
 	void MarkLiveRecursive();
+	void MarkDead();
 
 	void WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const;
 
@@ -480,11 +476,19 @@ private:
 	friend class FExpression;
 	friend class FNodeVisitor_MoveToScope;
 
+	enum class ENextScopeFormat : uint8
+	{
+		None,
+		Unscoped,
+		Scoped,
+	};
+
 	struct FCodeEntry
 	{
 		FCodeEntry* Next;
-		FScope* NestedScope;
+		FScope* NextScope;
 		int32 Length;
+		ENextScopeFormat ScopeFormat;
 		TCHAR String[1];
 	};
 
@@ -495,14 +499,14 @@ private:
 		int32 Num = 0;
 	};
 
-	void InternalEmitCode(FEmitContext& Context, FCodeList& List, FScope* NestedScope, const TCHAR* String, int32 Length);
+	void InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* NextScope, const TCHAR* String, int32 Length);
 
 	template<typename FormatType, typename... Types>
-	void InternalEmitCodef(FEmitContext& Context, FCodeList& List, FScope* NestedScope, const FormatType& Format, Types... Args)
+	void InternalEmitCodef(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* NextScope, const FormatType& Format, Types... Args)
 	{
 		TStringBuilder<2048> String;
 		String.Appendf(Format, Forward<Types>(Args)...);
-		InternalEmitCode(Context, List, NestedScope, String.ToString(), String.Len());
+		InternalEmitCode(Context, List, ScopeFormat, NextScope, String.ToString(), String.Len());
 	}
 
 	FScope* ParentScope = nullptr;
@@ -513,8 +517,21 @@ private:
 	FCodeList Statements;
 	int32 NumPreviousScopes = 0;
 	int32 NestedLevel = 0;
-	bool bLive = false;
+	EScopeState State = EScopeState::Uninitialized;
 };
+
+inline bool IsScopeLive(const FScope* InScope)
+{
+	return (bool)InScope && InScope->IsLive();
+}
+
+inline void MarkScopeDead(FScope* InScope)
+{
+	if (InScope)
+	{
+		InScope->MarkDead();
+	}
+}
 
 /**
  * The HLSL AST.  Basically a wrapper around the root scope, with some helper methods
@@ -585,9 +602,9 @@ private:
 	FStatement* ResultStatement = nullptr;
 };
 
-//Shader::EValueType RequestExpressionType(FUpdateTypeContext& Context, FExpression* InExpression, int8 InRequestedNumComponents); // friend of FExpression
+//Shader::EValueType RequestExpressionType(FEmitContext& Context, FExpression* InExpression, int8 InRequestedNumComponents); // friend of FExpression
 //EExpressionEvaluationType PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression); // friend of FExpression
-//void RequestScopeTypes(FUpdateTypeContext& Context, const FScope* InScope); // friend of FScope
+//void PrepareScopeValues(FEmitContext& Context, const FScope* InScope); // friend of FScope
 
 } // namespace HLSLTree
 } // namespace UE
