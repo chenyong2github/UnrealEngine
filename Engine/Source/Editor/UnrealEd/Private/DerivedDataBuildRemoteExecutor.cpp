@@ -550,7 +550,7 @@ FCbObject FRemoteBuildExecutionRequest::BuildWorkerDescriptor(const FBuildWorker
 
 	WorkerDescriptor.EndObject();
 
-	return std::move(WorkerDescriptor.Save().AsObject());
+	return WorkerDescriptor.Save().AsObject();
 }
 
 bool FRemoteBuildExecutionRequest::ProcessCancellation()
