@@ -108,4 +108,10 @@ private:
 
 	/** Last frame's injected inputs */
 	TSet<const UInputAction*> LastInjectedActions;
+
+	/** The last time of the last frame that was processed in ProcessPlayerInput */
+	float LastFrameTime = 0.0f;
+
+	/** Delta seconds between frames calculated with UWorld::GetRealTimeSeconds */
+	float RealTimeDeltaSeconds = 0.0f;
 };
