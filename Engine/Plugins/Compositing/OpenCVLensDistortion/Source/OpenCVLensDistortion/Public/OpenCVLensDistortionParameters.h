@@ -9,7 +9,6 @@
 OPENCV_INCLUDES_START
 #undef check // the check macro causes problems with opencv headers
 #include "opencv2/core/core.hpp"
-#include "opencv2/imgcodecs.hpp"
 OPENCV_INCLUDES_END
 #endif
 

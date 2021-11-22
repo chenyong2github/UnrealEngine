@@ -42,7 +42,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "OpenCVLensDistortion",
+			"Name": "OpenCV",
 			"Enabled": true
 		}
 	]

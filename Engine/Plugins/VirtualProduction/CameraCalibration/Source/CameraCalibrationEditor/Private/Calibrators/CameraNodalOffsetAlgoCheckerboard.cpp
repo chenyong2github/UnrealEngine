@@ -19,8 +19,9 @@
 #include "OpenCVHelper.h"
 OPENCV_INCLUDES_START
 #undef check 
-#include "opencv2/opencv.hpp"
+#include "opencv2/core/types.hpp"
 #include "opencv2/calib3d.hpp"
+#include "opencv2/imgproc.hpp"
 OPENCV_INCLUDES_END
 
 #endif //WITH_OPENCV
@@ -159,7 +160,7 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 			CvGray,
 			CheckerboardSize,
 			Corners,
-			CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_NORMALIZE_IMAGE
+			cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE
 		);
 
 		if (!bCornersFound)
@@ -175,7 +176,7 @@ bool UCameraNodalOffsetAlgoCheckerboard::PopulatePoints(FText& OutErrorMessage)
 
 		// CV_TERMCRIT_EPS will stop the search when the error is under the given epsilon.
 		// CV_TERMCRIT_ITER will stop after the specified number of iterations regardless of epsilon.
-		cv::TermCriteria Criteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.001);
+		cv::TermCriteria Criteria(cv::TermCriteria::Type::EPS | cv::TermCriteria::Type::COUNT, 30, 0.001);
 		cv::cornerSubPix(CvGray, Corners, cv::Size(11, 11), cv::Size(-1, -1), Criteria);
 
 		Points2d.reserve(Corners.size());
