@@ -181,6 +181,17 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Exports this object as Json
 		/// </summary>
+		/// <param name="FileName">The filename to write to</param>
+		public void WriteIfModified(FileReference FileName)
+		{
+			using StringWriter Writer = new StringWriter();
+			Write(Writer);
+			Utils.WriteFileIfChanged(FileName, Writer.ToString());
+		}
+
+		/// <summary>
+		/// Exports this object as Json
+		/// </summary>
 		/// <param name="Writer">Writer for output text</param>
 		public void Write(TextWriter Writer)
 		{
