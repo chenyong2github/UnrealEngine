@@ -858,7 +858,7 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 			bSuccess = NodeByteSent >= 0;
 			if (!bSuccess)
 			{
-				UE_LOG(LogUdpMessaging, Warning, TEXT("FUdpMessageProcessor::UpdateKnownNodes received negative NodeByteSent (%d) from socket."), NodeByteSent);
+				UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateKnownNodes received negative NodeByteSent (%d) from socket."), NodeByteSent);
 				break;
 			}
 
