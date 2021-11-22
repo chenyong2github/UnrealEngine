@@ -12,8 +12,7 @@ public class ExampleCustomDataInterface : ModuleRules
 			new[]
 			{
 				"Core"
-			}
-			);
+			});
 			
 		
 		PrivateDependencyModuleNames.AddRange(
@@ -26,8 +25,12 @@ public class ExampleCustomDataInterface : ModuleRules
 				"Projects",
 				
 				// Data interface dependencies
-				"Niagara", "NiagaraCore", "VectorVM", "RenderCore", "RHI", "UnrealEd"
-			}
-			);
+				"Niagara", "NiagaraCore", "VectorVM", "RenderCore", "RHI"
+			});
+		
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 	}
 }
