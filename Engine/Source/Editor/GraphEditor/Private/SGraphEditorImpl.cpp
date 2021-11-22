@@ -269,8 +269,8 @@ void SGraphEditorImpl::GetPinContextMenuActionsForSchema(UToolMenu* InMenu) cons
 				UGraphNodeContextMenuContext* NodeContext = InToolMenu->FindContext<UGraphNodeContextMenuContext>();
 				if (NodeContext && NodeContext->Pin)
 				{
-					FText SingleDescFormat = LOCTEXT("BreakDesc", "Break link to {NodeTitle}");
-					FText MultiDescFormat = LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})");
+					FText SingleDescFormat = LOCTEXT("BreakDesc", "Break Link to {NodeTitle}");
+					FText MultiDescFormat = LOCTEXT("BreakDescMulti", "Break Link to {NodeTitle} ({NumberOfNodes})");
 
 					TMap< FString, uint32 > LinkTitleCount;
 					for (UEdGraphPin* TargetPin : NodeContext->Pin->LinkedTo)
@@ -289,6 +289,22 @@ void SGraphEditorImpl::GetPinContextMenuActionsForSchema(UToolMenu* InMenu) cons
 			}),
 			BreakLinksMenuVisibility,
 			EUserInterfaceActionType::Button);
+
+		// Break This Link
+		{
+			FToolUIAction BreakThisLinkAction;
+			BreakThisLinkAction.ExecuteAction = FToolMenuExecuteAction::CreateSP(this, &SGraphEditorImpl::ExecuteBreakPinLinks);
+			BreakThisLinkAction.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateSP(this, &SGraphEditorImpl::IsBreakThisLinkVisible);
+
+			TSharedPtr<FUICommandInfo> BreakThisLinkCommand = FGraphEditorCommands::Get().BreakThisLink;
+			Section.AddMenuEntry(
+				BreakThisLinkCommand->GetCommandName(),
+				BreakThisLinkCommand->GetLabel(),
+				BreakThisLinkCommand->GetDescription(),
+				BreakThisLinkCommand->GetIcon(),
+				BreakThisLinkAction
+			);
+		}
 	}
 
 	FToolUIAction PinActionSubMenuVisibiliity;
@@ -297,7 +313,7 @@ void SGraphEditorImpl::GetPinContextMenuActionsForSchema(UToolMenu* InMenu) cons
 	// Jump to specific connections
 	{
 		Section.AddSubMenu("JumpToConnection",
-			LOCTEXT("JumpToConnection", "Jump To Connection..."),
+			LOCTEXT("JumpToConnection", "Jump to Connection..."),
 			LOCTEXT("JumpToSpecificConnection", "Jump to specific connection..."),
 			FNewToolMenuDelegate::CreateLambda([this, GetMenuEntryForPin](UToolMenu* InToolMenu)
 			{
@@ -356,7 +372,7 @@ void SGraphEditorImpl::GetPinContextMenuActionsForSchema(UToolMenu* InMenu) cons
 
 				// Add individual pin connections
 				FText SingleDescFormat = LOCTEXT("StraightenDesc", "Straighten Connection to {NodeTitle}");
-				FText MultiDescFormat = LOCTEXT("StraightenDescMulti", "Straigten Connection to {NodeTitle} ({NumberOfNodes})");
+				FText MultiDescFormat = LOCTEXT("StraightenDescMulti", "Straighten Connection to {NodeTitle} ({NumberOfNodes})");
 				TMap< FString, uint32 > LinkTitleCount;
 				for (UEdGraphPin* TargetPin : NodeContext->Pin->LinkedTo)
 				{
@@ -400,7 +416,18 @@ bool SGraphEditorImpl::IsBreakPinLinksVisible(const FToolMenuContext& InContext)
 	UGraphNodeContextMenuContext* NodeContext = InContext.FindContext<UGraphNodeContextMenuContext>();
 	if (NodeContext && NodeContext->Pin)
 	{
-		return !NodeContext->bIsDebugging && (NodeContext->Pin->LinkedTo.Num() > 0);
+		return !NodeContext->bIsDebugging && (NodeContext->Pin->LinkedTo.Num() > 1);
+	}
+
+	return false;
+}
+
+bool SGraphEditorImpl::IsBreakThisLinkVisible(const FToolMenuContext& InContext) const
+{
+	UGraphNodeContextMenuContext* NodeContext = InContext.FindContext<UGraphNodeContextMenuContext>();
+	if (NodeContext && NodeContext->Pin)
+	{
+		return !NodeContext->bIsDebugging && (NodeContext->Pin->LinkedTo.Num() == 1);
 	}
 
 	return false;

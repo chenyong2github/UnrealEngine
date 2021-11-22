@@ -102,6 +102,7 @@ public:
 	TSharedPtr< FUICommandInfo > GoToDefinition;
 
 	// Pin-specific actions
+	TSharedPtr< FUICommandInfo > BreakThisLink;
 	TSharedPtr< FUICommandInfo > BreakPinLinks;
 	TSharedPtr< FUICommandInfo > PromoteToVariable;
 	TSharedPtr< FUICommandInfo > PromoteToLocalVariable;
