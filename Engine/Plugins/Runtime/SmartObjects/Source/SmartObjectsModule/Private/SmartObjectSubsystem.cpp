@@ -401,6 +401,13 @@ TOptional<FVector> USmartObjectSubsystem::GetSlotLocation(const FSmartObjectClai
 	return TOptional<FVector>();
 }
 
+bool USmartObjectSubsystem::GetSlotLocation(const FSmartObjectClaimHandle& ClaimHandle, FVector& OutSlotLocation) const
+{
+	const TOptional<FVector> OptionalLocation = GetSlotLocation(ClaimHandle);
+	OutSlotLocation = OptionalLocation.Get(FVector::ZeroVector);
+	return OptionalLocation.IsSet();
+}
+
 TOptional<FVector> USmartObjectSubsystem::GetSlotLocation(const FSmartObjectRequestResult& Result) const
 {
 	if (ensureMsgf(Result.IsValid(), TEXT("Requesting slot location from an invalid request result.")))
@@ -437,6 +444,13 @@ TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObject
 		return GetSlotTransform(ClaimHandle.SmartObjectID, ClaimHandle.SlotIndex);
 	}
 	return TOptional<FTransform>();
+}
+
+bool USmartObjectSubsystem::GetSlotTransform(const FSmartObjectClaimHandle& ClaimHandle, FTransform& OutSlotTransform) const
+{
+	const TOptional<FTransform> OptionalLocation = GetSlotTransform(ClaimHandle);
+	OutSlotTransform = OptionalLocation.Get(FTransform::Identity);
+	return OptionalLocation.IsSet();
 }
 
 TOptional<FTransform> USmartObjectSubsystem::GetSlotTransform(const FSmartObjectRequestResult& Result) const
@@ -600,7 +614,7 @@ FSmartObjectRequestResult USmartObjectSubsystem::FindSmartObject(const FSmartObj
 	return Result;
 }
 
-void USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults)
+bool USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults)
 {
 	FSmartObjectRequestResult Result;
 	const FSmartObjectRequestFilter& Filter = Request.Filter;
@@ -614,6 +628,8 @@ void USmartObjectSubsystem::FindSmartObjects(const FSmartObjectRequest& Request,
 			}
 			return true;
 		});
+
+	return (OutResults.Num() > 0);
 }
 
 FSmartObjectRequestResult USmartObjectSubsystem::FindSlot(const FSmartObjectID ID, const FSmartObjectRequestFilter& Filter) const

@@ -166,7 +166,7 @@ bool ASmartObjectCollection::AddSmartObject(USmartObjectComponent& SOComponent)
 #endif // WITH_EDITOR
 
 	// Compute hash manually from strings since GetTypeHash(FSoftObjectPath) relies on a FName which implements run-dependent hash computations.
-	FSmartObjectID ID = HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString()));
+	FSmartObjectID ID = FSmartObjectID(HashCombine(GetTypeHash(AssetPathString), GetTypeHash(ObjectPath.GetSubPathString())));
 	SOComponent.SetRegisteredID(ID);
 
 	const FSmartObjectCollectionEntry* ExistingEntry = CollectionEntries.FindByPredicate([ID](const FSmartObjectCollectionEntry& Entry)

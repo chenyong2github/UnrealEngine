@@ -21,8 +21,11 @@ DECLARE_MULTICAST_DELEGATE(FOnMainCollectionChanged);
 /**
  * Struct that can be used to filter results of a smart object request when trying to find or claim a smart object
  */
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 {
+	GENERATED_BODY()
+
 	FSmartObjectRequestFilter(const FGameplayTagContainer& InUserTags, const FGameplayTagQuery& InRequirements)
 		: UserTags(InUserTags)
 		, ActivityRequirements(InRequirements)
@@ -42,8 +45,13 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 
 	FSmartObjectRequestFilter() = default;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	FGameplayTagContainer UserTags;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	FGameplayTagQuery ActivityRequirements;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	TSubclassOf<USmartObjectBehaviorConfigBase> BehaviorConfigurationClass;
 
 	TFunction<bool(FSmartObjectID)> Predicate;
@@ -52,25 +60,34 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestFilter
 /**
  * Struct used to find a smart object within a specific search range and with optional filtering
  */
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectRequest
 {
+	GENERATED_BODY()
+
+	FSmartObjectRequest() = default;
 	FSmartObjectRequest(const FBox& InQueryBox, const FSmartObjectRequestFilter& InFilter)
 		: QueryBox(InQueryBox)
 		, Filter(InFilter)
 	{}
 
 	/** Box defining the search range */
-	FBox QueryBox;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
+	FBox QueryBox = FBox(ForceInitToZero);
 
 	/** Struct used to filter out some results (all results allowed by default) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SmartObject)
 	FSmartObjectRequestFilter Filter;
 };
 
 /**
  * Struct that holds the object and slot selected by processing a smart object request.
  */
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectRequestResult
 {
+	GENERATED_BODY()
+
 	FSmartObjectRequestResult(const FSmartObjectID& InSmartObjectID, const FSmartObjectSlotIndex& InSlotIndex)
 		: SmartObjectID(InSmartObjectID)
 		, SlotIndex(InSlotIndex)
@@ -80,12 +97,27 @@ struct SMARTOBJECTSMODULE_API FSmartObjectRequestResult
 
 	bool IsValid() const { return SmartObjectID.IsValid() && SlotIndex.IsValid(); }
 
+	bool operator==(const FSmartObjectRequestResult& Other) const
+	{
+		return IsValid() && Other.IsValid()
+			&& SmartObjectID == Other.SmartObjectID
+			&& SlotIndex == Other.SlotIndex;
+	}
+
+	bool operator!=(const FSmartObjectRequestResult& Other) const
+	{
+		return !(*this == Other);
+	}
+	
 	FString Describe() const
 	{
 		return FString::Printf(TEXT("Object:%s Use:%s"), *SmartObjectID.Describe(), *SlotIndex.Describe());
 	}
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SmartObject)
 	FSmartObjectID SmartObjectID;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SmartObject)
 	FSmartObjectSlotIndex SlotIndex;
 };
 
@@ -115,6 +147,7 @@ public:
 	 * @param ClaimHandle Valid handle to a claimed smart object slot
 	 * @return A pointer to the USmartObjectComponent* associated to the handle.
 	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	USmartObjectComponent* GetSmartObjectComponent(const FSmartObjectClaimHandle& ClaimHandle) const;
 
 	bool RegisterSmartObjectActor(const AActor& SmartObjectActor);
@@ -125,13 +158,15 @@ public:
 	 * @return First valid smart object in range. Not the closest one, just the one
 	 *		that happens to be retrieved first from the octree
 	 */
-	UE_NODISCARD FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request);
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	FSmartObjectRequestResult FindSmartObject(const FSmartObjectRequest& Request);
 
 	/**
 	 * Spatial lookup
 	 * @return All valid smart objects in range.
 	 */
-	void FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults);
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	bool FindSmartObjects(const FSmartObjectRequest& Request, TArray<FSmartObjectRequestResult>& OutResults);
 
 	/**
 	 * Goes through all defined slots of a given smart object and finds the first one matching the filter.
@@ -144,7 +179,8 @@ public:
 	 *	@param RequestResult Valid request result for given smart object and slot index. Ensure when called with an invalid result.
 	 *	@return A claim handle binding the claimed smart object, its use index and a user id.
 	 */
-	UE_NODISCARD FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult);
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	FSmartObjectClaimHandle Claim(const FSmartObjectRequestResult& RequestResult);
 
 	UE_NODISCARD FSmartObjectClaimHandle Claim(FSmartObjectID ID, const FSmartObjectRequestFilter& Filter = {});
 
@@ -154,6 +190,7 @@ public:
 	 *	@param ConfigurationClass The type of behavior configuration the user wants to use.
 	 *	@return The base class pointer of the requested behavior configuration class associated to the slot
 	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	const USmartObjectBehaviorConfigBase* Use(const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorConfigBase>& ConfigurationClass);
 
 	/**
@@ -173,6 +210,7 @@ public:
 	 *	@param ClaimHandle Handle for given pair of user and smart object. Does nothing if the handle is invalid.
 	 *	@return Whether the claim was successfully released or not
 	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
 	bool Release(const FSmartObjectClaimHandle& ClaimHandle);
 
 	/**
@@ -182,6 +220,16 @@ public:
 	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
 	 */
 	TOptional<FVector> GetSlotLocation(const FSmartObjectClaimHandle& ClaimHandle) const;
+
+	/**
+	 * Returns the position (in world space) of the slot associated to the given claim handle.
+	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by ClaimUse or ClaimSmartObject.
+	 * @param OutSlotLocation Position (in world space) of the slot associated to ClaimHandle.
+	 * @return Whether the location was found and assigned to 'OutSlotLocation'
+	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	bool GetSlotLocation(const FSmartObjectClaimHandle& ClaimHandle, FVector& OutSlotLocation) const;
 
 	/**
 	 * Returns the position (in world space) of the slot associated to the given request result.
@@ -208,6 +256,16 @@ public:
 	 */
 	TOptional<FTransform> GetSlotTransform(const FSmartObjectClaimHandle& ClaimHandle) const;
 
+	/**
+	 * Returns the transform (in world space) of the slot associated to the given claim handle.
+	 * @param ClaimHandle A valid handle (ClaimHandle.IsValid() returns true) returned by ClaimUse or ClaimSmartObject.
+	 * @param OutSlotTransform Transform (in world space) of the slot associated to ClaimHandle.
+	 * @return Whether the transform was found and assigned to 'OutSlotTransform'
+	 * @note Method will ensure on invalid FSmartObjectClaimHandle.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	bool GetSlotTransform(const FSmartObjectClaimHandle& ClaimHandle, FTransform& OutSlotTransform) const;
+	
 	/**
 	 * Returns the transform (in world space) of the slot associated to the given request result.
 	 * @param Result A valid request result (Result.IsValid() returns true) returned by FindValidUse or FindSmartObject.

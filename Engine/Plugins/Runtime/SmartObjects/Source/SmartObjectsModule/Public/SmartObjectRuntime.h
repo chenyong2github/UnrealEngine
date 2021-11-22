@@ -23,7 +23,7 @@ enum class ESmartObjectSlotState : uint8
 /**
  * Struct describing a reservation between a user and a smart object slot.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 {
 	GENERATED_BODY()
@@ -41,6 +41,11 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 			&& SmartObjectID == Other.SmartObjectID
 			&& SlotIndex == Other.SlotIndex
 			&& UserID == Other.UserID;
+	}
+
+	bool operator!=(const FSmartObjectClaimHandle& Other) const
+	{
+		return !(*this == Other);
 	}
 
 	FString Describe() const

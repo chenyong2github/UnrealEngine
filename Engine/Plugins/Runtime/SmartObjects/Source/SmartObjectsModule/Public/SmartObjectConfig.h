@@ -74,7 +74,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlot
 /**
  * Helper struct to wrap basic functionalities to store the index of a slot in FSmartObjectConfig
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotIndex
 {
 	GENERATED_BODY()
