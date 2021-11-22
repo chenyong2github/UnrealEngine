@@ -39,7 +39,7 @@ public:
 		FPackagePath* OutUpdatedPath = nullptr) override;
 	virtual FOpenPackageResult OpenReadPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment,
 		FPackagePath* OutUpdatedPath = nullptr) override;
-	virtual IAsyncReadFileHandle* OpenAsyncReadPackage(const FPackagePath& PackagePath,
+	virtual FOpenAsyncPackageResult OpenAsyncReadPackage(const FPackagePath& PackagePath,
 		EPackageSegment PackageSegment) override;
 	virtual IMappedFileHandle* OpenMappedHandleToPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment,
 		FPackagePath* OutUpdatedPath = nullptr) override;
@@ -47,7 +47,7 @@ public:
 
 	virtual TUniquePtr<FArchive> OpenReadExternalResource(EPackageExternalResource ResourceType, FStringView Identifier) override;
 	virtual bool DoesExternalResourceExist(EPackageExternalResource ResourceType, FStringView Identifier) override;
-	virtual IAsyncReadFileHandle* OpenAsyncReadExternalResource(
+	virtual FOpenAsyncPackageResult OpenAsyncReadExternalResource(
 		EPackageExternalResource ResourceType, FStringView Identifier) override;
 
 	virtual void FindPackagesRecursive(TArray<TPair<FPackagePath, EPackageSegment>>& OutPackages,
@@ -194,7 +194,7 @@ int64 FPackageResourceManagerFile::FileSize(const FPackagePath& PackagePath, EPa
 FOpenPackageResult FPackageResourceManagerFile::OpenReadPackage(const FPackagePath& PackagePath,
 	EPackageSegment PackageSegment, FPackagePath* OutUpdatedPath)
 {
-	FOpenPackageResult Result{ nullptr, EPackageFormat::Binary };
+	FOpenPackageResult Result{ nullptr, EPackageFormat::Binary, true /* bNeedsEngineVersionChecks */};
 
 	IFileManager* FileManager = &IFileManager::Get();
 	IteratePossibleFiles(PackagePath, PackageSegment, OutUpdatedPath,
@@ -226,10 +226,10 @@ FOpenPackageResult FPackageResourceManagerFile::OpenReadPackage(const FPackagePa
 	return Result;
 }
 
-IAsyncReadFileHandle* FPackageResourceManagerFile::OpenAsyncReadPackage(const FPackagePath& PackagePath,
+FOpenAsyncPackageResult FPackageResourceManagerFile::OpenAsyncReadPackage(const FPackagePath& PackagePath,
 	EPackageSegment PackageSegment)
 {
-	IAsyncReadFileHandle* Result = nullptr;
+	FOpenAsyncPackageResult Result { nullptr, EPackageFormat::Binary, true /* bNeedsEngineVersionChecks */ };
 
 	EPackageExtension Extension = EPackageExtension::Unspecified;
 	TConstArrayView<EPackageExtension> Extensions = PackagePath.GetPossibleExtensions(PackageSegment);
@@ -255,13 +255,14 @@ IAsyncReadFileHandle* FPackageResourceManagerFile::OpenAsyncReadPackage(const FP
 		{
 			FilePath << ((Extension != EPackageExtension::Custom) ?
 				FStringView(LexToString(Extension)) : PackagePath.GetExtensionString(EPackageSegment::Header));
-			Result = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(FilePath.ToString());
-			check(Result != nullptr); // OpenAsyncRead guarantees a non-null return value
+			Result.Handle.Reset(FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(FilePath.ToString()));
+			check(Result.Handle); // OpenAsyncRead guarantees a non-null return value
+			Result.Format = ExtensionToPackageFormat(Extension);
 		}
 	}
-	if (Result == nullptr)
+	if (!Result.Handle)
 	{
-		Result = new FAsyncReadFileHandleNull();
+		Result.Handle.Reset(new FAsyncReadFileHandleNull());
 	}
 	return Result;
 }
@@ -358,7 +359,7 @@ bool FPackageResourceManagerFile::DoesExternalResourceExist(EPackageExternalReso
 	}
 }
 
-IAsyncReadFileHandle* FPackageResourceManagerFile::OpenAsyncReadExternalResource(EPackageExternalResource ResourceType,
+FOpenAsyncPackageResult FPackageResourceManagerFile::OpenAsyncReadExternalResource(EPackageExternalResource ResourceType,
 	FStringView Identifier)
 {
 	switch (ResourceType)
@@ -368,13 +369,13 @@ IAsyncReadFileHandle* FPackageResourceManagerFile::OpenAsyncReadExternalResource
 		FPackagePath PackagePath;
 		if (!FPackagePath::TryFromPackageName(Identifier, PackagePath))
 		{
-			return new FAsyncReadFileHandleNull();
+			return FOpenAsyncPackageResult{ TUniquePtr<IAsyncReadFileHandle>(new FAsyncReadFileHandleNull()), EPackageFormat::Binary };
 		}
 		return OpenAsyncReadPackage(PackagePath, EPackageSegment::Header);
 	}
 	default:
 		checkNoEntry();
-		return new FAsyncReadFileHandleNull();
+		return FOpenAsyncPackageResult{ TUniquePtr<IAsyncReadFileHandle>(new FAsyncReadFileHandleNull()), EPackageFormat::Binary };
 	}
 }
 

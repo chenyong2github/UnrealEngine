@@ -120,6 +120,7 @@ bool FEditorDomainPackageSegments::Serialize(void* V, int64 Length, bool bIsErro
 			{
 				FMemory::Memcpy(V, static_cast<const uint8*>(MRUSegment->Data.GetData()) + SegmentPos, LengthInSegment);
 				Pos += LengthInSegment;
+				V = static_cast<void*>(static_cast<uint8*>(V) + LengthInSegment);
 			}
 			else
 			{
@@ -675,6 +676,13 @@ EPackageFormat FEditorDomainReadArchive::GetPackageFormat() const
 	return PackageFormat;
 }
 
+FEditorDomain::EPackageSource FEditorDomainReadArchive::GetPackageSource() const
+{
+	WaitForReady();
+	return Segments.GetSource() == FEditorDomainPackageSegments::ESource::Segments ?
+		FEditorDomain::EPackageSource::Editor : FEditorDomain::EPackageSource::Workspace;
+}
+
 /** An IAsyncReadRequest SizeRequest that returns a value known at construction time. */
 class FAsyncSizeRequestConstant : public IAsyncReadRequest
 {
@@ -736,8 +744,9 @@ protected:
 
 
 FEditorDomainAsyncReadFileHandle::FEditorDomainAsyncReadFileHandle(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
-	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
-	: Segments(InLocks, InPackagePath, InPackageSource, UE::DerivedData::EPriority::Normal)
+	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource,
+	UE::DerivedData::EPriority Priority)
+	: Segments(InLocks, InPackagePath, InPackageSource, Priority)
 {
 }
 
@@ -749,16 +758,37 @@ void FEditorDomainAsyncReadFileHandle::OnRecordRequestComplete(UE::DerivedData::
 	);
 }
 
+EPackageFormat FEditorDomainAsyncReadFileHandle::GetPackageFormat() const
+{
+	if (Segments.GetSource() == FEditorDomainPackageSegments::ESource::Uninitialized)
+	{
+		Segments.WaitForReady();
+	}
+	return PackageFormat;
+}
+
+FEditorDomain::EPackageSource FEditorDomainAsyncReadFileHandle::GetPackageSource() const
+{
+	if (Segments.GetSource() == FEditorDomainPackageSegments::ESource::Uninitialized)
+	{
+		Segments.WaitForReady();
+	}
+	return Segments.GetSource() == FEditorDomainPackageSegments::ESource::Segments ?
+		FEditorDomain::EPackageSource::Editor : FEditorDomain::EPackageSource::Workspace;
+}
+
 void FEditorDomainAsyncReadFileHandle::CreateSegmentData(bool bValid)
 {
+	PackageFormat = EPackageFormat::Binary;
 }
 
 bool FEditorDomainAsyncReadFileHandle::TryCreateFallbackData(FEditorDomain& EditorDomain)
 {
 	IPackageResourceManager& Workspace = *EditorDomain.Workspace;
-	IAsyncReadFileHandle* Result = Workspace.OpenAsyncReadPackage(Segments.GetPackagePath(), EPackageSegment::Header);
-	check(Result);
-	InnerArchive.Reset(Result);
+	FOpenAsyncPackageResult Result = Workspace.OpenAsyncReadPackage(Segments.GetPackagePath(), EPackageSegment::Header);
+	check(Result.Handle);
+	InnerArchive = MoveTemp(Result.Handle);
+	PackageFormat = Result.Format;
 	return true;
 }
 

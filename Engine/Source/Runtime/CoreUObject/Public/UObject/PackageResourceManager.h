@@ -32,11 +32,12 @@ DECLARE_DELEGATE_RetVal(IPackageResourceManager*, FSetPackageResourceManager);
  * Format for a package payload reported by the PackageResourceManager.
  * The appropriate ArchiveInputFormatter must be used for each format.
  */
-enum class EPackageFormat
+enum class EPackageFormat : uint8
 {
 	Binary, // Standard UnrealFormat, every field marshalled to bytes with Serialize(void*,int)
 	Text, // Text format, use FJsonArchiveInputFormatter
 };
+COREUOBJECT_API EPackageFormat ExtensionToPackageFormat(EPackageExtension Extension);
 
 struct FOpenPackageResult
 {
@@ -46,7 +47,53 @@ struct FOpenPackageResult
 	 * Format of the archive, binary or text.
 	 * Currently only header segments can have EPackageFormat::Text, all other segments have EPackageFormat::Binary
 	 */
-	EPackageFormat Format;
+	EPackageFormat Format = EPackageFormat::Binary;
+	/**
+	 * True if the package is of unknown version and needs to check for version and corruption.
+	 * False if the package was loaded from a repository specifically for the current binary's versions
+	 * and has already been checked for corruption.
+	 */
+	bool bNeedsEngineVersionChecks = true;
+
+	FOpenPackageResult() = default;
+	FOpenPackageResult(const FOpenPackageResult&) = delete;
+	FOpenPackageResult(FOpenPackageResult&&) = default;
+	FOpenPackageResult& operator=(const FOpenPackageResult&) = delete;
+	FOpenPackageResult& operator=(FOpenPackageResult&&) = default;
+	void CopyMetaData(const FOpenPackageResult& Other)
+	{
+		Format = Other.Format;
+		bNeedsEngineVersionChecks = Other.bNeedsEngineVersionChecks;
+	}
+};
+
+struct FOpenAsyncPackageResult
+{
+	/** AsyncReadFileHandle for the requested Segment bytes, in canceled state if it does not exist. */
+	TUniquePtr<IAsyncReadFileHandle> Handle;
+	/**
+	 * Format of the archive, binary or text.
+	 * Currently only header segments can have EPackageFormat::Text, all other segments have EPackageFormat::Binary
+	 */
+	EPackageFormat Format = EPackageFormat::Binary;
+	/**
+	 * True if the package is of unknown version and needs to check for version and corruption.
+	 * False if the package was loaded from a repository specifically for the current binary's versions
+	 * and has already been checked for corruption.
+	 */
+	bool bNeedsEngineVersionChecks = true;
+
+	FOpenAsyncPackageResult() = default;
+	FOpenAsyncPackageResult(const FOpenAsyncPackageResult&) = delete;
+	FOpenAsyncPackageResult(FOpenAsyncPackageResult&&) = default;
+	FOpenAsyncPackageResult& operator=(const FOpenAsyncPackageResult&) = delete;
+	FOpenAsyncPackageResult& operator=(FOpenAsyncPackageResult&&) = default;
+	COREUOBJECT_API ~FOpenAsyncPackageResult();
+	void CopyMetaData(const FOpenPackageResult& Other)
+	{
+		Format = Other.Format;
+		bNeedsEngineVersionChecks = Other.bNeedsEngineVersionChecks;
+	}
 };
 
 enum class EPackageExternalResource
@@ -132,10 +179,11 @@ public:
 	 * This call will always return a non-null handle, even if the package does not exist
 	 *
 	 * @param PackagePath The package to look for
-	 * @return An IAsyncReadFileHandle that will read from the package if it exists, or will be in the
-	 *         canceled state if the package does not exist
+	 * @return An FOpenAsyncPackageResult, with Handle that will read from the package if it exists,
+	 *         or will be in the canceled state if the package does not exist, and with other data
+	 *         describing the returned archive (see FOpenAsyncPackageResult)
 	 */
-	COREUOBJECT_API IAsyncReadFileHandle* OpenAsyncReadPackage(const FPackagePath& PackagePath);
+	COREUOBJECT_API FOpenAsyncPackageResult OpenAsyncReadPackage(const FPackagePath& PackagePath);
 
 	/**
 	 * Open an IMappedFileHandle to the package, if the PackageResourceManager supports it
@@ -181,10 +229,11 @@ public:
 	 *
 	 * @param ResourceType Id for the method used to map the identifier to an archive.
 	 * @param Identifier Id for which resource to return within the ResourceType's domain.
-	 * @return An IAsyncReadFileHandle that will read from the package if it exists, or will be in the
-	 *         canceled state if the package does not exist
+	 * @return An FOpenAsyncPackageResult, with Handle that will read from the package if it exists,
+	 *         or will be in the canceled state if the package does not exist, and with other data
+	 *         describing the returned archive (see FOpenAsyncPackageResult)
 	 */
-	virtual IAsyncReadFileHandle* OpenAsyncReadExternalResource(
+	virtual FOpenAsyncPackageResult OpenAsyncReadExternalResource(
 		EPackageExternalResource ResourceType, FStringView Identifier) = 0;
 
 	/**
@@ -298,7 +347,7 @@ public:
 		FPackagePath* OutUpdatedPath = nullptr) = 0;
 
 	/** OpenAsyncReadPackage that takes a PackageSegment */
-	virtual IAsyncReadFileHandle* OpenAsyncReadPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment) = 0;
+	virtual FOpenAsyncPackageResult OpenAsyncReadPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment) = 0;
 
 	/* OpenMappedHandleToPackage that takes a PackageSegment */
 	virtual IMappedFileHandle* OpenMappedHandleToPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment,
@@ -346,7 +395,7 @@ public:
 	 *         not be registered or a different archive was already registered
 	 */
 	COREUOBJECT_API static bool TryRegisterPreloadableArchive(const FPackagePath& PackagePath,
-		const TSharedPtr<FPreloadableArchive>& PreloadableArchive, EPackageFormat PackageFormat);
+		const TSharedPtr<FPreloadableArchive>& PreloadableArchive, const FOpenPackageResult& PackageFormat);
 
 	/**
 	 * Look up an FPreloadableFile instance registered for the given PackagePath, and return an FOpenPackageResult from it
@@ -367,7 +416,7 @@ public:
 	COREUOBJECT_API static bool UnRegisterPreloadableArchive(const FPackagePath& PackagePath);
 
 private:
-	static TMap<FName, TPair<TSharedPtr<FPreloadableArchive>, EPackageFormat>> PreloadedPaths;
+	static TMap<FName, TPair<TSharedPtr<FPreloadableArchive>, FOpenPackageResult>> PreloadedPaths;
 	static FCriticalSection PreloadedPathsLock;
 #endif
 };

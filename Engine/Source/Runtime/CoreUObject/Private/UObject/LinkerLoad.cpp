@@ -454,7 +454,7 @@ FLinkerLoad* FLinkerLoad::CreateLinker(FUObjectSerializeContext* LoadContext, UP
 		{
 			// The linker can't have an associated loader here if we have a loader override
 			check(!Linker->Loader);
-			Linker->SetLoader(InLoader);
+			Linker->SetLoader(InLoader, true /* bInLoaderNeedsEngineVersionChecks */);
 			// Set the basic archive flags on the linker
 			Linker->ResetStatusInfo();
 		}
@@ -477,9 +477,10 @@ void FLinkerLoad::SetPackagePath(const FPackagePath& InPackagePath)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-void FLinkerLoad::SetLoader(FArchive* InLoader)
+void FLinkerLoad::SetLoader(FArchive* InLoader, bool bInLoaderNeedsEngineVersionChecks)
 {
 	Loader = InLoader;
+	bLoaderNeedsEngineVersionChecks = bInLoaderNeedsEngineVersionChecks;
 
 	check(StructuredArchive == nullptr);
 	check(!StructuredArchiveRootRecord.IsSet());
@@ -874,6 +875,7 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 , bTimeLimitExceeded(false)
 , bUseTimeLimit(false)
 , bUseFullTimeLimit(false)
+, bLoaderNeedsEngineVersionChecks(true)
 , IsTimeLimitExceededCallCount(0)
 , TimeLimit(0.0f)
 , TickStartTime(0.0)
@@ -1024,29 +1026,32 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 		// If want to be able to load cooked data in the editor we need to use FAsyncArchive which supports EDL cooked packages,
 		// otherwise the generic file reader is faster in the editor so use that
 		bool bCanUseAsyncLoader = FPlatformProperties::RequiresCookedData() || GAllowCookedDataInEditorBuilds;
-#if WITH_TEXT_ARCHIVE_SUPPORT
-		bCanUseAsyncLoader &= !FPackageName::IsTextPackageExtension(PackagePath.GetHeaderExtension());
-#endif //if WITH_TEXT_ARCHIVE_SUPPORT
 
 		if (bCanUseAsyncLoader)
 		{
-			Loader = new FAsyncArchive(GetPackagePath(), this,
-				GEventDrivenLoaderEnabled ? Forward<TFunction<void()>>(InSummaryReadyCallback) : TFunction<void()>([]() {})
-			);
-			if (Loader->IsError())
+			FAsyncArchive* AsyncArchive = new FAsyncArchive(GetPackagePath(), this,
+				GEventDrivenLoaderEnabled ? Forward<TFunction<void()>>(InSummaryReadyCallback) : TFunction<void()>([]() {}));
+			Loader = AsyncArchive; // We're only allowed to delete any FAsyncArchive with this->DestroyLoader
+			bLoaderNeedsEngineVersionChecks = AsyncArchive->NeedsEngineVersionChecks();
+			if (AsyncArchive->IsError())
 			{
+				bool bRetryWithNormalArchive = AsyncArchive->GetLoadError() == FAsyncArchive::ELoadError::UnsupportedFormat;
 				DestroyLoader();
-				UE_LOG(LogLinker, Warning, TEXT("Error opening file '%s'."), *GetDebugName());
-				return LINKER_Failed;
+				bCanUseAsyncLoader = false;
+				if (!bRetryWithNormalArchive)
+				{
+					UE_LOG(LogLinker, Warning, TEXT("Error opening file '%s'."), *GetDebugName());
+					return LINKER_Failed;
+				}
 			}
 		}
-		else
+		if (!Loader)
 		{
 			FOpenPackageResult OpenResult;
 #if WITH_EDITOR
 			if (FLinkerLoad::GetPreloadingEnabled() && FLinkerLoad::TryGetPreloadedLoader(GetPackagePath(), OpenResult))
 			{
-				// Loader set by TryGetPreloadedLoader
+				// OpenResult set by TryGetPreloadedLoader
 			}
 			else
 #endif
@@ -1054,6 +1059,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 				OpenResult = IPackageResourceManager::Get().OpenReadPackage(GetPackagePath());
 			}
 			Loader = OpenResult.Archive.Release();
+			bLoaderNeedsEngineVersionChecks = OpenResult.bNeedsEngineVersionChecks;
 			if (!Loader || Loader->IsError())
 			{
 				if (Loader)
@@ -1125,7 +1131,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 			bIsAsyncLoader = bCanUseAsyncLoader;
 		}
 
-		SetLoader(Loader);
+		SetLoader(Loader, bLoaderNeedsEngineVersionChecks);
 
 		check(Loader);
 		check(!Loader->IsError());
@@ -1226,9 +1232,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 		}
 	}
 
-	bool bLoaderVersionCheck = Loader->NeedsEngineVersionChecks();
 	// Don't load packages that are only compatible with an engine version newer than the current one.
-	if (bLoaderVersionCheck && GEnforcePackageCompatibleVersionCheck && !FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
+	if (bLoaderNeedsEngineVersionChecks && GEnforcePackageCompatibleVersionCheck && !FEngineVersion::Current().IsCompatibleWith(Summary.CompatibleWithEngineVersion))
 	{
 		UE_LOG(LogLinker, Warning, TEXT("Asset '%s' has been saved with a newer engine and can't be loaded. CurrentEngineVersion: %s (Licensee=%d). AssetEngineVersion: %s (Licensee=%d)"),
 			*GetDebugName(),
@@ -1244,7 +1249,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 	Loader->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 
-	if (bLoaderVersionCheck && !FPlatformProperties::RequiresCookedData()
+	if (bLoaderNeedsEngineVersionChecks && !FPlatformProperties::RequiresCookedData()
 		&& !Summary.SavedByEngineVersion.HasChangelist() && FEngineVersion::Current().HasChangelist())
 	{
 		// This warning can be disabled in ini with [Core.System] ZeroEngineVersionWarning=False
@@ -1264,7 +1269,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	}
 
 	// Don't load packages that were saved with package version newer than the current one.
-	if (bLoaderVersionCheck && ((Summary.IsFileVersionTooNew()) || (Summary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion)))
+	if (bLoaderNeedsEngineVersionChecks && ((Summary.IsFileVersionTooNew()) || (Summary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion)))
 	{
 		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s) PackageVersion %i, MaxExpected %i : LicenseePackageVersion %i, MaxExpected %i."),
 			*GetDebugName(), Summary.GetFileVersionUE().ToValue(), GPackageFileUEVersion.ToValue(), Summary.GetFileVersionLicenseeUE(), GPackageFileLicenseeUEVersion);
@@ -1303,7 +1308,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	if (!FPlatformProperties::RequiresCookedData() &&
 		// We can't check the post tag if the file is an EDL cooked package
 		!((Summary.GetPackageFlags() & PKG_FilterEditorOnly) && Summary.PreloadDependencyCount > 0 && Summary.PreloadDependencyOffset > 0)
-		&& !IsTextFormat() && bLoaderVersionCheck)
+		&& !IsTextFormat() && bLoaderNeedsEngineVersionChecks)
 	{
 		// check if this package version stored the 4-byte magic post tag
 		// get the offset of the post tag

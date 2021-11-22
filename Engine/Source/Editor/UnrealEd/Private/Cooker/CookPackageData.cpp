@@ -46,7 +46,7 @@ namespace UE::Cook
 
 	FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName)
 		: GeneratedOwner(nullptr), PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas)
-		, PreloadableFileFormat(EPackageFormat::Binary), Instigator(EInstigator::NotYetRequested), bIsUrgent(0)
+		, Instigator(EInstigator::NotYetRequested), bIsUrgent(0)
 		, bIsVisited(0), bIsPreloadAttempted(0)
 		, bIsPreloaded(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0)
 		, bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
@@ -815,16 +815,18 @@ namespace UE::Cook
 			PreloadableFile.Get()->InitializeAsync([this]()
 				{
 					TStringBuilder<NAME_SIZE> FileNameString;
-					// Note this is an unsynchronized read of this->GetFilename. It is allowed because GetFilename does
-					// not change until this is destructed, and the destructor of this waits for PreloadableFile to
-					// finish initialization
+					// Note this async callback has an read of this->GetFilename and a write of PreloadableFileOpenResult
+					// outside of a critical section. This read and write is allowed because GetFilename does
+					// not change until this is destructed, and the destructor does not run and other threads do not read
+					// or write PreloadableFileOpenResult until after PreloadableFile.Get() has finished initialization
+					// and this callback is therefore complete.
+					// The code that accomplishes that waiting is in TryPreload (IsInitialized) and ClearPreload (ReleaseCache)
 					this->GetFileName().ToString(FileNameString);
 					FPackagePath PackagePath = FPackagePath::FromLocalPath(FileNameString);
 					FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath);
 					if (Result.Archive)
 					{
-						// PreloadableFileFormat is an atomic, so this write is safe with other reads
-						this->PreloadableFileFormat = Result.Format;
+						this->PreloadableFileOpenResult.CopyMetaData(Result);
 					}
 					return Result.Archive.Release();
 				},
@@ -850,19 +852,19 @@ namespace UE::Cook
 			UE_LOG(LogCook, Warning, TEXT("Failed to find file when preloading %s."), *GetFileName().ToString());
 			SetIsPreloadAttempted(true);
 			PreloadableFile.Reset(*this);
-			PreloadableFileFormat = EPackageFormat::Binary;
+			PreloadableFileOpenResult = FOpenPackageResult();
 			return true;
 		}
 
 		TStringBuilder<NAME_SIZE> FileNameString;
 		GetFileName().ToString(FileNameString);
 		if (!IPackageResourceManager::TryRegisterPreloadableArchive(FPackagePath::FromLocalPath(FileNameString),
-			FilePtr, PreloadableFileFormat))
+			FilePtr, PreloadableFileOpenResult))
 		{
 			UE_LOG(LogCook, Warning, TEXT("Failed to register %s for preload."), *GetFileName().ToString());
 			SetIsPreloadAttempted(true);
 			PreloadableFile.Reset(*this);
-			PreloadableFileFormat = EPackageFormat::Binary;
+			PreloadableFileOpenResult = FOpenPackageResult();
 			return true;
 		}
 
@@ -911,7 +913,7 @@ namespace UE::Cook
 		}
 
 		PreloadableFile.Reset(*this);
-		PreloadableFileFormat = EPackageFormat::Binary;
+		PreloadableFileOpenResult = FOpenPackageResult();
 		SetIsPreloaded(false);
 		SetIsPreloadAttempted(false);
 	}

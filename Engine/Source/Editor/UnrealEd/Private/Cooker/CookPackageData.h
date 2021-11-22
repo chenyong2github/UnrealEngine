@@ -543,7 +543,7 @@ namespace UE::Cook
 		FTrackedPreloadableFilePtr PreloadableFile;
 		int32 NumPendingCookedPlatformData = 0;
 		int32 CookedPlatformDataNextIndex = 0;
-		std::atomic<EPackageFormat> PreloadableFileFormat;
+		FOpenPackageResult PreloadableFileOpenResult;
 		FInstigator Instigator;
 
 		uint32 State : int32(EPackageState::BitCount);

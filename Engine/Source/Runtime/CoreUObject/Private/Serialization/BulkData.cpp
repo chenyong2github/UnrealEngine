@@ -1883,15 +1883,17 @@ IAsyncReadFileHandle* FUntypedBulkData::OpenAsyncReadHandle() const
 	}
 #endif //WITH_IOSTORE_IN_EDITOR
 	
+	FOpenAsyncPackageResult OpenResult;
 	if (IsInExternalResource())
 	{
-		return IPackageResourceManager::Get().OpenAsyncReadExternalResource(EPackageExternalResource::WorkspaceDomainFile,
+		OpenResult = IPackageResourceManager::Get().OpenAsyncReadExternalResource(EPackageExternalResource::WorkspaceDomainFile,
 			GetPackagePath().GetPackageName());
 	}
 	else
 	{
-		return IPackageResourceManager::Get().OpenAsyncReadPackage(GetPackagePath(), GetPackageSegment());
+		OpenResult = IPackageResourceManager::Get().OpenAsyncReadPackage(GetPackagePath(), GetPackageSegment());
 	}
+	return OpenResult.Handle.Release();
 }
 
 IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback, uint8* UserSuppliedMemory) const
@@ -1924,16 +1926,17 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *PackagePath.GetDebugName(PackageSegment));
 	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *PackagePath.GetDebugName(PackageSegment));
 
-	IAsyncReadFileHandle* IORequestHandle;
+	FOpenAsyncPackageResult OpenResult;
 	if (IsInExternalResource())
 	{
-		IORequestHandle = IPackageResourceManager::Get().OpenAsyncReadExternalResource(
+		OpenResult = IPackageResourceManager::Get().OpenAsyncReadExternalResource(
 			EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
 	}
 	else
 	{
-		IORequestHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, PackageSegment);
+		OpenResult = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, PackageSegment);
 	}
+	IAsyncReadFileHandle* IORequestHandle = OpenResult.Handle.Release();
 	check(IORequestHandle); // this generally cannot fail because it is async
 
 	if (IORequestHandle == nullptr)
@@ -1989,7 +1992,8 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequestForRange(const FPack
 
 	// TODO: The caller is assuming that their specified PackageSegments are the way in which bulkdata is stored for their package
 	// To allow more flexible bulkdata storage, we will need to eliminate this interface and have them provide an array of bulkdatas.
-	IAsyncReadFileHandle* IORequestHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, PackageSegment);
+	FOpenAsyncPackageResult OpenResult = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, PackageSegment);
+	IAsyncReadFileHandle* IORequestHandle = OpenResult.Handle.Release();
 	check(IORequestHandle); // this generally cannot fail because it is async
 
 	if (IORequestHandle == nullptr)
