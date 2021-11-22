@@ -114,6 +114,7 @@ struct Scope {
  // Anything after it is unreachable.
  bool bWholeScopeReturned;
  unsigned parentScopeIndex;
+ void dump();
 };
 
 class ScopeInfo {
@@ -124,12 +125,13 @@ public:
   void AddSwitch(llvm::BasicBlock *endSwitchBB);
   void AddLoop(llvm::BasicBlock *loopContinue, llvm::BasicBlock *endLoopBB);
   void AddRet(llvm::BasicBlock *bbWithRet);
-  void EndScope(bool bScopeFinishedWithRet);
+  Scope &EndScope(bool bScopeFinishedWithRet);
   Scope &GetScope(unsigned i);
   const llvm::SmallVector<unsigned, 2> &GetRetScopes() { return rets; }
   void LegalizeWholeReturnedScope();
   llvm::SmallVector<Scope, 16> &GetScopes() { return scopes; }
   bool CanSkipStructurize();
+  void dump();
 
 private:
   void AddScope(Scope::ScopeKind k, llvm::BasicBlock *endScopeBB);

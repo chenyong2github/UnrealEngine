@@ -72,8 +72,21 @@ llvm::CallInst *CreateHandleForResource(hlsl::DxilModule &DM,
   unsigned int resourceMetaDataId =
       GetNextRegisterIdForClass(DM, resourceClass);
 
-  // Create handle for the newly-added resource
-  if (IsDynamicResourceShaderModel(DM)) {
+  auto const * shaderModel = DM.GetShaderModel();
+  if (shaderModel->IsLib())
+  {
+    llvm::Constant *object = resource->GetGlobalSymbol();
+    auto * load = Builder.CreateLoad(object);
+    Function *CreateHandleFromBindingOpFunc = HlslOP->GetOpFunc(
+        DXIL::OpCode::CreateHandleForLib, resource->GetHLSLType()->getVectorElementType());
+    Constant *CreateHandleFromBindingOpcodeArg =
+        HlslOP->GetU32Const((unsigned)DXIL::OpCode::CreateHandleForLib);
+    auto *handle =
+        Builder.CreateCall(CreateHandleFromBindingOpFunc,
+        {CreateHandleFromBindingOpcodeArg, load });
+    return handle;
+  }
+  else if (IsDynamicResourceShaderModel(DM)) {
     Function *CreateHandleFromBindingOpFunc = HlslOP->GetOpFunc(
         DXIL::OpCode::CreateHandleFromBinding, Type::getVoidTy(Ctx));
     Constant *CreateHandleFromBindingOpcodeArg =
@@ -134,9 +147,22 @@ llvm::CallInst *CreateUAV(DxilModule &DM, IRBuilder<> &Builder,
   SmallVector<llvm::Type *, 1> Elements{Type::getInt32Ty(Ctx)};
   llvm::StructType *UAVStructTy =
       llvm::StructType::create(Elements, "class.RWStructuredBuffer");
+
   std::unique_ptr<DxilResource> pUAV = llvm::make_unique<DxilResource>();
+
+  auto const *shaderModel = DM.GetShaderModel();
+  if (shaderModel->IsLib()) {
+    GlobalVariable *NewGV = cast<GlobalVariable>(
+        DM.GetModule()->getOrInsertGlobal("PIXUAV", UAVStructTy));
+    NewGV->setConstant(false);
+    NewGV->setLinkage(GlobalValue::ExternalLinkage);
+    NewGV->setThreadLocal(false);
+    pUAV->SetGlobalSymbol(NewGV);
+  }
+  else {
+    pUAV->SetGlobalSymbol(UndefValue::get(UAVStructTy->getPointerTo()));
+  }
   pUAV->SetGlobalName(name);
-  pUAV->SetGlobalSymbol(UndefValue::get(UAVStructTy->getPointerTo()));
   pUAV->SetID(GetNextRegisterIdForClass(DM, DXIL::ResourceClass::UAV));
   pUAV->SetRW(true); // sets UAV class
   pUAV->SetSpaceID(
@@ -172,6 +198,80 @@ llvm::Function* GetEntryFunction(hlsl::DxilModule& DM) {
     }
     return DM.GetPatchConstantFunction();
 }
+
+std::vector<llvm::BasicBlock*> GetAllBlocks(hlsl::DxilModule& DM) {
+    std::vector<llvm::BasicBlock*> ret;
+    auto entryPoints = DM.GetExportedFunctions();
+    for (auto& fn : entryPoints) {
+        auto & blocks = fn->getBasicBlockList();
+        for (auto & block : blocks) {
+            ret.push_back(&block);
+        }
+    }
+    return ret;
+}
+
+ExpandedStruct ExpandStructType(LLVMContext &Ctx,
+                                Type *OriginalPayloadStructType) {
+  SmallVector<Type *, 16> Elements;
+  for (unsigned int i = 0; i < OriginalPayloadStructType->getStructNumElements(); ++i) {
+      Elements.push_back(OriginalPayloadStructType->getStructElementType(i));
+  }
+  Elements.push_back(Type::getInt32Ty(Ctx));
+  Elements.push_back(Type::getInt32Ty(Ctx));
+  Elements.push_back(Type::getInt32Ty(Ctx));
+  ExpandedStruct ret;
+  ret.ExpandedPayloadStructType =
+      StructType::create(Ctx, Elements, "PIX_AS2MS_Expanded_Type");
+  ret.ExpandedPayloadStructPtrType =
+      ret.ExpandedPayloadStructType->getPointerTo();
+  return ret;
+}
+
+void ReplaceAllUsesOfInstructionWithNewValueAndDeleteInstruction(
+    Instruction *Instr, Value *newValue, Type *newType) {
+  std::vector<Value *> users;
+  for (auto u = Instr->user_begin(); u != Instr->user_end(); ++u) {
+    users.push_back(*u);
+  }
+
+  for (auto user : users) {
+    if (auto *instruction = llvm::cast<Instruction>(user)) {
+      for (unsigned int i = 0; i < instruction->getNumOperands(); ++i) {
+        auto *Operand = instruction->getOperand(i);
+        if (Operand == Instr) {
+          instruction->setOperand(i, newValue);
+        }
+      }
+      if (llvm::isa<GetElementPtrInst>(instruction)) {
+        auto *GEP = llvm::cast<GetElementPtrInst>(instruction);
+        GEP->setSourceElementType(newType);
+      }
+      else if (hlsl::OP::IsDxilOpFuncCallInst(instruction, hlsl::OP::OpCode::DispatchMesh)) {
+        DxilModule &DM = instruction->getModule()->GetOrCreateDxilModule();
+        OP *HlslOP = DM.GetOP();
+
+        DxilInst_DispatchMesh DispatchMesh(instruction);
+        IRBuilder<> B(instruction);
+        SmallVector<Value*, 5> args;
+        args.push_back( HlslOP->GetU32Const((unsigned)hlsl::OP::OpCode::DispatchMesh));
+        args.push_back( DispatchMesh.get_threadGroupCountX());
+        args.push_back( DispatchMesh.get_threadGroupCountY());
+        args.push_back( DispatchMesh.get_threadGroupCountZ());
+        args.push_back( newValue );
+
+        B.CreateCall(HlslOP->GetOpFunc(DXIL::OpCode::DispatchMesh, newType->getPointerTo()), args);
+
+        instruction->removeFromParent();
+        delete instruction;
+      }
+    }
+  }
+
+  Instr->removeFromParent();
+  delete Instr;
+}
+
 
 #ifdef PIX_DEBUG_DUMP_HELPER
 

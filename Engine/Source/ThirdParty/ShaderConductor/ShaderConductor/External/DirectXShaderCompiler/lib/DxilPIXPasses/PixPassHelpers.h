@@ -24,6 +24,7 @@ namespace PIXPassHelpers
         hlsl::DxilResourceBase * resource,
         const char* name);
     llvm::Function* GetEntryFunction(hlsl::DxilModule& DM);
+    std::vector<llvm::BasicBlock*> GetAllBlocks(hlsl::DxilModule& DM);
 #ifdef PIX_DEBUG_DUMP_HELPER
     void Log(const char* format, ...);
     void LogPartialLine(const char* format, ...);
@@ -43,4 +44,14 @@ namespace PIXPassHelpers
         ScopedIndenter() { IncreaseLogIndent(); }
         ~ScopedIndenter() { DecreaseLogIndent(); }
     };
-    }
+
+    struct ExpandedStruct {
+      llvm::Type *ExpandedPayloadStructType = nullptr;
+      llvm::Type *ExpandedPayloadStructPtrType = nullptr;
+    };
+
+    ExpandedStruct ExpandStructType(llvm::LLVMContext& Ctx,
+        llvm::Type* OriginalPayloadStructType);
+    void ReplaceAllUsesOfInstructionWithNewValueAndDeleteInstruction(
+        llvm::Instruction* Instr, llvm::Value* newValue, llvm::Type* newType);
+}

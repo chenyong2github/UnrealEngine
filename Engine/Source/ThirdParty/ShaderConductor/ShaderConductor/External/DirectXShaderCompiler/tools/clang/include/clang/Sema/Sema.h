@@ -1254,10 +1254,12 @@ public:
   /// \returns A suitable function type, if there are no errors. The
   /// unqualified type will always be a FunctionProtoType.
   /// Otherwise, returns a NULL type.
-  QualType BuildFunctionType(QualType T,
-                             MutableArrayRef<QualType> ParamTypes,
+  // HLSL Change - FIX - We should move param mods to parameter QualTypes
+  QualType BuildFunctionType(QualType T, MutableArrayRef<QualType> ParamTypes,
                              SourceLocation Loc, DeclarationName Entity,
-                             const FunctionProtoType::ExtProtoInfo &EPI);
+                             const FunctionProtoType::ExtProtoInfo &EPI,
+                             ArrayRef<hlsl::ParameterModifier> ParamMods);
+  // HLSL Change - End
 
   QualType BuildMemberPointerType(QualType T, QualType Class,
                                   SourceLocation Loc,
@@ -5507,7 +5509,8 @@ public:
 
   void LookupTemplateName(LookupResult &R, Scope *S, CXXScopeSpec &SS,
                           QualType ObjectType, bool EnteringContext,
-                          bool &MemberOfUnknownSpecialization);
+                          bool &MemberOfUnknownSpecialization,
+                          bool NextIsLess = false); // HLSL Change - additional special case flag
 
   TemplateNameKind isTemplateName(Scope *S,
                                   CXXScopeSpec &SS,
@@ -5516,7 +5519,8 @@ public:
                                   ParsedType ObjectType,
                                   bool EnteringContext,
                                   TemplateTy &Template,
-                                  bool &MemberOfUnknownSpecialization);
+                                  bool &MemberOfUnknownSpecialization,
+                                  bool NextIsLess = false); // HLSL Change - additional special case flag
 
   bool DiagnoseUnknownTemplateName(const IdentifierInfo &II,
                                    SourceLocation IILoc,

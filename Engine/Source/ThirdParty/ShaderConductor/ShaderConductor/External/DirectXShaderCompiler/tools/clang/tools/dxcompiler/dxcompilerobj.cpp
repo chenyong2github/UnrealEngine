@@ -35,6 +35,7 @@
 #include "dxc/dxcapi.internal.h"
 #include "dxc/DXIL/DxilPDB.h"
 #include "dxc/DXIL/DxilModule.h"
+#include "dxc/DxcBindingTable/DxcBindingTable.h"
 
 #include "dxc/Support/dxcapi.use.h"
 #include "dxc/Support/Global.h"
@@ -548,6 +549,14 @@ static void CreateDefineStrings(
   }
 }
 
+static HRESULT ErrorWithString(const std::string &error, REFIID riid, void **ppResult) {
+  CComPtr<IDxcResult> pResult;
+  IFT(DxcResult::Create(E_FAIL, DXC_OUT_NONE,
+    { DxcOutputObject::ErrorOutput(CP_UTF8, error.data(), error.size()) }, &pResult));
+  IFT(pResult->QueryInterface(riid, ppResult));
+  return S_OK;
+}
+
 class DxcCompiler : public IDxcCompiler3,
                     public IDxcLangExtensions3,
                     public IDxcContainerEvent,
@@ -805,6 +814,69 @@ public:
           compiler.getCodeGenOpts().HLSLEntryFunction = pUtf8EntryPoint;
         compiler.getLangOpts().HLSLProfile =
           compiler.getCodeGenOpts().HLSLProfile = opts.TargetProfile;
+
+        // Parse and apply 
+        if (opts.BindingTableDefine.size()) {
+          // Just pas the define for now because preprocessor is not available yet.
+          struct BindingTableParserImpl : public CodeGenOptions::BindingTableParserType {
+            CompilerInstance &compiler;
+            std::string define;
+            BindingTableParserImpl(CompilerInstance &compiler, StringRef define)
+              :compiler(compiler), define(define.str())
+            {}
+
+            bool Parse(llvm::raw_ostream &os, hlsl::DxcBindingTable *outBindingTable) override {
+              Preprocessor &pp = compiler.getPreprocessor();
+              MacroInfo *macro = MacroExpander::FindMacroInfo(pp, define);
+              if (!macro) {
+                os << Twine("Binding table define'") + define + "' not found.";
+                os.flush();
+                return false;
+              }
+
+              std::string bindingTableStr;
+              // Combine tokens into single string
+              MacroExpander expander(pp, MacroExpander::STRIP_QUOTES);
+              if (!expander.ExpandMacro(macro, &bindingTableStr)) {
+                os << Twine("Binding table define'") + define + "' failed to expand.";
+                os.flush();
+                return false;
+              }
+              return hlsl::ParseBindingTable(
+                define, StringRef(bindingTableStr),
+                os, outBindingTable);
+            }
+          };
+
+          compiler.getCodeGenOpts().BindingTableParser.reset(new BindingTableParserImpl(compiler, opts.BindingTableDefine));
+        }
+        else if (opts.ImportBindingTable.size()) {
+          hlsl::options::StringRefUtf16 wstrRef(opts.ImportBindingTable);
+          CComPtr<IDxcBlob> pBlob;
+          std::string error;
+          llvm::raw_string_ostream os(error);
+          if (!pIncludeHandler) {
+            os << Twine("Binding table binding file '") + opts.ImportBindingTable + "' specified, but no include handler was given.";
+            os.flush();
+            return ErrorWithString(error, riid, ppResult);
+          }
+          else if (SUCCEEDED(pIncludeHandler->LoadSource(wstrRef, &pBlob))) {
+            bool succ = hlsl::ParseBindingTable(
+              opts.ImportBindingTable,
+              StringRef((const char *)pBlob->GetBufferPointer(), pBlob->GetBufferSize()),
+              os, &compiler.getCodeGenOpts().HLSLBindingTable);
+
+            if (!succ) {
+              os.flush();
+              return ErrorWithString(error, riid, ppResult);
+            }
+          }
+          else {
+            os << Twine("Could not load binding table file '") + opts.ImportBindingTable + "'.";
+            os.flush();
+            return ErrorWithString(error, riid, ppResult);
+          }
+        }
 
         if (compiler.getCodeGenOpts().HLSLProfile == "rootsig_1_1") {
           rootSigMajor = 1;
@@ -1306,10 +1378,16 @@ public:
     compiler.getLangOpts().HLSLVersion = (unsigned) Opts.HLSLVersion;
     compiler.getLangOpts().EnableDX9CompatMode = Opts.EnableDX9CompatMode;
     compiler.getLangOpts().EnableFXCCompatMode = Opts.EnableFXCCompatMode;
+    compiler.getLangOpts().EnableTemplates = Opts.EnableTemplates;
+    compiler.getLangOpts().EnableOperatorOverloading =
+        Opts.EnableOperatorOverloading;
+    compiler.getLangOpts().StrictUDTCasting = Opts.StrictUDTCasting;
 
     compiler.getLangOpts().UseMinPrecision = !Opts.Enable16BitTypes;
 
     compiler.getLangOpts().EnablePayloadAccessQualifiers = Opts.EnablePayloadQualifiers;
+    compiler.getLangOpts().EnableShortCircuit = Opts.EnableShortCircuit;
+    compiler.getLangOpts().EnableBitfields = Opts.EnableBitfields;
 
 // SPIRV change starts
 #ifdef ENABLE_SPIRV_CODEGEN

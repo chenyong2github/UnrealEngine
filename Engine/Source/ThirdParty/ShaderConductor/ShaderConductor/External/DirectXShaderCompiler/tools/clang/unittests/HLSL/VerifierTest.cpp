@@ -42,9 +42,12 @@ public:
   TEST_METHOD(RunConstAssign)
   TEST_METHOD(RunConstDefault)
   TEST_METHOD(RunConversionsBetweenTypeShapes)
+  TEST_METHOD(RunConversionsBetweenTypeShapesStrictUDT)
   TEST_METHOD(RunConversionsNonNumericAggregates)
   TEST_METHOD(RunCppErrors)
   TEST_METHOD(RunCppErrorsHV2015)
+  TEST_METHOD(RunOperatorOverloadingForNewDelete)
+  TEST_METHOD(RunOperatorOverloadingNotDefinedBinaryOp)
   TEST_METHOD(RunCXX11Attributes)
   TEST_METHOD(RunEnums)
   TEST_METHOD(RunFunctions)
@@ -71,6 +74,7 @@ public:
   TEST_METHOD(RunSubobjects)
   TEST_METHOD(RunIncompleteArray)
   TEST_METHOD(RunTemplateChecks)
+  TEST_METHOD(RunTemplateLiteralSubstitutionFailure)
   TEST_METHOD(RunVarmodsSyntax)
   TEST_METHOD(RunVectorAssignments)
   TEST_METHOD(RunVectorSyntaxMix)
@@ -87,6 +91,7 @@ public:
   TEST_METHOD(RunBadInclude)
   TEST_METHOD(RunWave)
   TEST_METHOD(RunBinopDims)
+  TEST_METHOD(RunBitfields)
 
   void CheckVerifies(const wchar_t* path) {
     WEX::TestExecution::SetVerifyOutput verifySettings(WEX::TestExecution::VerifyOutputSettings::LogOnlyFailures);
@@ -174,6 +179,10 @@ TEST_F(VerifierTest, RunConversionsBetweenTypeShapes) {
   CheckVerifiesHLSL(L"conversions-between-type-shapes.hlsl");
 }
 
+TEST_F(VerifierTest, RunConversionsBetweenTypeShapesStrictUDT) {
+  CheckVerifiesHLSL(L"conversions-between-type-shapes-strictudt.hlsl");
+}
+
 TEST_F(VerifierTest, RunConversionsNonNumericAggregates) {
   CheckVerifiesHLSL(L"conversions-non-numeric-aggregates.hlsl");
 }
@@ -184,6 +193,14 @@ TEST_F(VerifierTest, RunCppErrors) {
 
 TEST_F(VerifierTest, RunCppErrorsHV2015) {
   CheckVerifiesHLSL(L"cpp-errors-hv2015.hlsl");
+}
+
+TEST_F(VerifierTest, RunOperatorOverloadingForNewDelete) {
+  CheckVerifiesHLSL(L"overloading-new-delete-errors.hlsl");
+}
+
+TEST_F(VerifierTest, RunOperatorOverloadingNotDefinedBinaryOp) {
+  CheckVerifiesHLSL(L"use-undefined-overloaded-operator.hlsl");
 }
 
 TEST_F(VerifierTest, RunCXX11Attributes) {
@@ -290,6 +307,10 @@ TEST_F(VerifierTest, RunTemplateChecks) {
   CheckVerifiesHLSL(L"template-checks.hlsl");
 }
 
+TEST_F(VerifierTest, RunTemplateLiteralSubstitutionFailure) {
+  CheckVerifiesHLSL(L"template-literal-substitution-failure.hlsl");
+}
+
 TEST_F(VerifierTest, RunVarmodsSyntax) {
   CheckVerifiesHLSL(L"varmods-syntax.hlsl");
 }
@@ -352,4 +373,8 @@ TEST_F(VerifierTest, RunWave) {
 
 TEST_F(VerifierTest, RunBinopDims) {
   CheckVerifiesHLSL(L"binop-dims.hlsl");
+}
+
+TEST_F(VerifierTest, RunBitfields) {
+  CheckVerifiesHLSL(L"bitfields.hlsl");
 }

@@ -2240,10 +2240,13 @@ bool Sema::CheckFunctionReturnType(QualType T, SourceLocation Loc) {
   return false;
 }
 
+// HLSL Change - FIX - We should move param mods to parameter QualTypes
 QualType Sema::BuildFunctionType(QualType T,
                                  MutableArrayRef<QualType> ParamTypes,
                                  SourceLocation Loc, DeclarationName Entity,
-                                 const FunctionProtoType::ExtProtoInfo &EPI) {
+                                 const FunctionProtoType::ExtProtoInfo &EPI,
+                                 ArrayRef<hlsl::ParameterModifier> ParamMods) {
+// HLSL Change - End
   bool Invalid = false;
 
   Invalid |= CheckFunctionReturnType(T, Loc);
@@ -2267,8 +2270,9 @@ QualType Sema::BuildFunctionType(QualType T,
   if (Invalid)
     return QualType();
 
-  // HLSL Change - FIX - current contexts specialize templates with always-in parameters
-  return Context.getFunctionType(T, ParamTypes, EPI, None);
+  // HLSL Change - FIX - We should move param mods to parameter QualTypes
+  return Context.getFunctionType(T, ParamTypes, EPI, ParamMods);
+  // HLSL Change End
 }
 
 /// \brief Build a member pointer type \c T Class::*.
@@ -4254,6 +4258,12 @@ static TypeSourceInfo *GetFullTypeForDeclarator(TypeProcessingState &state,
       // Note: core issue 778 clarifies that, if there are any unexpanded
       // parameter packs in the type of the non-type template parameter, then
       // it expands those parameter packs.
+      // HLSL Change Starts
+      if (LangOpts.HLSL) {
+        S.Diag(D.getEllipsisLoc(), diag::err_hlsl_variadic_templates);
+        break;
+      }
+      // HLSL Change Ends
       if (T->containsUnexpandedParameterPack())
         T = Context.getPackExpansionType(T, None);
       else

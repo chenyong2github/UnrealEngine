@@ -189,6 +189,11 @@ void CapabilityVisitor::addCapabilityForType(const SpirvType *type,
   // Pointer type
   else if (const auto *ptrType = dyn_cast<SpirvPointerType>(type)) {
     addCapabilityForType(ptrType->getPointeeType(), loc, sc);
+    if (sc == spv::StorageClass::PhysicalStorageBuffer) {
+      addExtension(Extension::KHR_physical_storage_buffer,
+                   "SPV_KHR_physical_storage_buffer", loc);
+      addCapability(spv::Capability::PhysicalStorageBufferAddresses);
+    }
   }
   // Struct type
   else if (const auto *structType = dyn_cast<StructType>(type)) {
@@ -448,6 +453,17 @@ bool CapabilityVisitor::visitInstruction(SpirvInstruction *instr) {
     addCapability(getNonUniformCapability(resultType));
   }
 
+  if (instr->getKind() == SpirvInstruction::IK_SpirvIntrinsicInstruction) {
+    SpirvIntrinsicInstruction *pSpvInst =
+        dyn_cast<SpirvIntrinsicInstruction>(instr);
+    for (auto &cap : pSpvInst->getCapabilities()) {
+      addCapability(static_cast<spv::Capability>(cap));
+    }
+    for (const auto &ext : pSpvInst->getExtensions()) {
+      spvBuilder.requireExtension(ext, loc);
+    }
+  }
+
   // Add opcode-specific capabilities
   switch (opcode) {
   case spv::Op::OpDPdxCoarse:
@@ -514,8 +530,7 @@ bool CapabilityVisitor::visitInstruction(SpirvInstruction *instr) {
   case spv::Op::OpRayQueryInitializeKHR: {
     auto rayQueryInst = dyn_cast<SpirvRayQueryOpKHR>(instr);
     if (rayQueryInst->hasCullFlags()) {
-      addCapability(
-          spv::Capability::RayTraversalPrimitiveCullingKHR);
+      addCapability(spv::Capability::RayTraversalPrimitiveCullingKHR);
     }
 
     break;
@@ -570,6 +585,7 @@ bool CapabilityVisitor::visit(SpirvEntryPoint *entryPoint) {
     llvm_unreachable("found unknown shader model");
     break;
   }
+
   return true;
 }
 
@@ -584,9 +600,14 @@ bool CapabilityVisitor::visit(SpirvExecutionMode *execMode) {
 }
 
 bool CapabilityVisitor::visit(SpirvExtInstImport *instr) {
-  if (instr->getExtendedInstSetName() == "NonSemantic.DebugPrintf")
+  if (instr->getExtendedInstSetName() == "NonSemantic.DebugPrintf") {
     addExtension(Extension::KHR_non_semantic_info, "DebugPrintf",
                  /*SourceLocation*/ {});
+  } else if (instr->getExtendedInstSetName() ==
+             "NonSemantic.Shader.DebugInfo.100") {
+    addExtension(Extension::KHR_non_semantic_info, "Shader.DebugInfo.100",
+                 /*SourceLocation*/ {});
+  }
   return true;
 }
 
