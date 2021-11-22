@@ -87,7 +87,7 @@ struct FStrataBSDF
 	float4 InlineVGPRs[3];
 #endif
 
-	float4 VGPRs[6];
+	float4 VGPRs[5];
 };
 
 
@@ -341,24 +341,23 @@ uint StrataPackClassificationData(FStrataClassification In)
 {
 	const uint TopLayerRoughness8Bits = uint(In.TopLayerRoughness * 255.0f);
 	return 
-		(In.ShadingModels & 0xFF) | 
-		((TopLayerRoughness8Bits & 0xFF)	 << 16 ) |
-		((In.bIsStrataMaterial		? 1 : 0) << 24 ) |
-		((In.bHasSubsurface			? 1 : 0) << 25 ) | 
-		((In.bHasSubsurfaceProfile	? 1 : 0) << 26 ) |
-		((In.bIsSimple				? 1 : 0) << 27 );
+		(In.ShadingModels & 0x1F) | 
+		((TopLayerRoughness8Bits & 0xFF)	 << 8 ) |
+		((In.bHasSubsurface			? 1 : 0) << 5 ) | 
+		((In.bHasSubsurfaceProfile	? 1 : 0) << 6 ) |
+		((In.bIsSimple				? 1 : 0) << 7 );
 }
 
 FStrataClassification StrataUnpackClassificationData(uint In)
 {
 	uint TopLayerRoughness8Bits = 0;
 	FStrataClassification Out;
-	Out.ShadingModels			= (In >> 0 ) & 0xFF;
-	TopLayerRoughness8Bits		= (In >> 16) & 0xFF;
-	Out.bIsStrataMaterial		= (In >> 24) & 0x1;
-	Out.bHasSubsurface			= (In >> 25) & 0x1;
-	Out.bHasSubsurfaceProfile	= (In >> 26) & 0x1;
-	Out.bIsSimple				= (In >> 27) & 0x1;
+	Out.ShadingModels			= (In >> 0 ) & 0x1F;
+	TopLayerRoughness8Bits		= (In >> 8) & 0xFF;
+	Out.bIsStrataMaterial		= Out.ShadingModels > 0;
+	Out.bHasSubsurface			= (In >> 5) & 0x1;
+	Out.bHasSubsurfaceProfile	= (In >> 6) & 0x1;
+	Out.bIsSimple				= (In >> 7) & 0x1;
 
 	Out.TopLayerRoughness = float(TopLayerRoughness8Bits) * (1.0f / 255.0f);
 	return Out;

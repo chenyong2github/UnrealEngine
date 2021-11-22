@@ -27,7 +27,7 @@
 #define STRATA_BSDF_TYPE_UNLIT				2
 #define STRATA_BSDF_TYPE_HAIR				3
 #define STRATA_BSDF_TYPE_SINGLELAYERWATER	4
-// When more than 8 BSDF must exists, please update STATE_BITS_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
+// When more than 5 BSDF must exists, please update STATE_BIT_COUNT_BSDF and FStrataClassification.ShadingModels packing in Strata.ush
 
 #define STRATA_DATA_TILE_SIZE				8
 #define STRATA_DATA_TILE_SIZE_DIV_AS_SHIFT	3
