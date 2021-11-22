@@ -631,21 +631,15 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::Lev
 	check(ContainerContext.WorldContainer);
 	check(ContainerContext.SnapshotContainer); 
 
-	if (!bSkipEqualityTest
-		&& !bAllowUnchangedProperties
-		&& ArePropertyValuesIdentical(ContainerContext, PropertyInCommon))
-	{
-		return EPropertySearchResult::NoPropertiesFound;
-	}
-
-	// Now we can ask user whether they care about the property
 	TArray<FString> PropertyPath = ContainerContext.AuthoredPathInformation;
 	PropertyPath.Add(PropertyInCommon->GetAuthoredName());
 	const bool bIsPropertyValid = EFilterResult::CanInclude(Filter->IsPropertyValid(
         { DeserializedSnapshotActor, WorldActor, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, PropertyInCommon, PropertyPath }
         ));
-						
-	if (bIsPropertyValid)
+
+	if (bIsPropertyValid
+		&& (bSkipEqualityTest
+			|| TrackChangedProperties(ContainerContext, PropertyInCommon) == EPropertySearchResult::FoundProperties))
 	{
 		ContainerContext.SelectionToAddTo.AddProperty(ContainerContext.PropertyChain.MakeAppended(PropertyInCommon));
 		return EPropertySearchResult::FoundProperties;
@@ -653,19 +647,24 @@ UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::Lev
 	return EPropertySearchResult::NoPropertiesFound;
 }
 
-bool UE::LevelSnapshots::Private::FApplySnapshotFilter::ArePropertyValuesIdentical(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon)
+UE::LevelSnapshots::Private::FApplySnapshotFilter::EPropertySearchResult UE::LevelSnapshots::Private::FApplySnapshotFilter::TrackChangedProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon)
 {
 	const TOptional<EPropertySearchResult> StructResult = HandlePossibleStructProperties(ContainerContext, PropertyInCommon);
 	if (StructResult.IsSet())
 	{
-		return *StructResult == EPropertySearchResult::NoPropertiesFound;
+		return *StructResult;
 	}
 	
 	const TOptional<EPropertySearchResult> SubobjectResult = HandlePossibleSubobjectProperties(ContainerContext, PropertyInCommon);
 	if (SubobjectResult.IsSet())
 	{
-		return *SubobjectResult == EPropertySearchResult::NoPropertiesFound;
+		return *SubobjectResult;
 	}
 
-	return AreSnapshotAndOriginalPropertiesEquivalent(Snapshot, PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor);
+	if (bAllowUnchangedProperties || !AreSnapshotAndOriginalPropertiesEquivalent(Snapshot, PropertyInCommon, ContainerContext.SnapshotContainer, ContainerContext.WorldContainer, DeserializedSnapshotActor, WorldActor))
+	{
+		return EPropertySearchResult::FoundProperties;
+	}
+	
+	return EPropertySearchResult::NoPropertiesFound;
 }
