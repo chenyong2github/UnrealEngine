@@ -45,6 +45,10 @@ public:
 	/** Returns the common actions implementation for this toolkit host */
 	virtual UTypedElementCommonActions* GetCommonActions() const = 0;
 
+	/** Returns the status bar name that can be used with UStatusBarSubsystem to display messages 
+	    in the status bar of this toolkit host. Should return NAME_None if not applicable. */
+	virtual FName GetStatusBarName() const = 0;
+
 	/** Allows Toolkits to push widgets to the viewport.  Passing a nullptr for the Viewport will add  or 
 	    remove the OverlayWidget to or from the ActiveViewport */
 	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InOverlaidWidget, TSharedPtr<IAssetViewport> InViewport = nullptr)  {}

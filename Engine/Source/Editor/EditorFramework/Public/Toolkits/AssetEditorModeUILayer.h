@@ -59,7 +59,7 @@ public:
 	};
 	virtual const FName GetStatusBarName() const
 	{
-		return NAME_None;
+		return ToolkitHost->GetStatusBarName();
 	}
 
 protected:

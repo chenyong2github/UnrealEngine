@@ -44,9 +44,4 @@ public:
 	virtual void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override;
 
 	virtual TSharedPtr<FWorkspaceItem> GetModeMenuCategory() const override;
-	virtual const FName GetStatusBarName() const override
-	{
-		static const FName LevelEditorStatusBarName = "LevelEditor.StatusBar";
-		return LevelEditorStatusBarName;
-	}
 };
