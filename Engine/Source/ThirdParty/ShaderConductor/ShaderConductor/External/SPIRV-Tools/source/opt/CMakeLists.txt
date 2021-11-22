@@ -39,6 +39,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   debug_info_manager.h
   def_use_manager.h
   desc_sroa.h
+  desc_sroa_util.h
   dominator_analysis.h
   dominator_tree.h
   eliminate_dead_constant_pass.h
@@ -101,6 +102,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   relax_float_ops_pass.h
   remove_duplicates_pass.h
   remove_unused_interface_variables_pass.h
+  replace_desc_array_access_using_var_index.h
   replace_invalid_opc.h
   scalar_analysis.h
   scalar_analysis_nodes.h
@@ -149,6 +151,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   debug_info_manager.cpp
   def_use_manager.cpp
   desc_sroa.cpp
+  desc_sroa_util.cpp
   dominator_analysis.cpp
   dominator_tree.cpp
   eliminate_dead_constant_pass.cpp
@@ -207,6 +210,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   relax_float_ops_pass.cpp
   remove_duplicates_pass.cpp
   remove_unused_interface_variables_pass.cpp
+  replace_desc_array_access_using_var_index.cpp
   replace_invalid_opc.cpp
   scalar_analysis.cpp
   scalar_analysis_simplification.cpp

@@ -7141,7 +7141,15 @@ TEST_F(AggressiveDCETest, ShaderDebugInfoKeepInFunctionElimStoreVar) {
     %uint_16 = OpConstant %uint 16
     %uint_17 = OpConstant %uint 17
     %uint_19 = OpConstant %uint 19
+    %uint_20 = OpConstant %uint 20
+    %uint_21 = OpConstant %uint 21
+    %uint_25 = OpConstant %uint 25
     %uint_29 = OpConstant %uint 29
+    %uint_30 = OpConstant %uint 30
+    %uint_35 = OpConstant %uint 35
+    %uint_41 = OpConstant %uint 41
+    %uint_48 = OpConstant %uint 48
+    %uint_53 = OpConstant %uint 53
     %uint_64 = OpConstant %uint 64
          %45 = OpTypeFunction %void
    %PS_INPUT = OpTypeStruct %v2float
@@ -7198,26 +7206,137 @@ TEST_F(AggressiveDCETest, ShaderDebugInfoKeepInFunctionElimStoreVar) {
 ;CHECK: {{%\w+}} = OpExtInst %void %1 DebugDeclare %72 %param_var_i %52
 ;CHECK: {{%\w+}} = OpExtInst %void %1 DebugScope %69
 ;CHECK: {{%\w+}} = OpExtInst %void %1 DebugDeclare %71 %78 %52
+        %300 = OpExtInst %void %1 DebugLine %55 %uint_19 %uint_19 %uint_17 %uint_30
+;CHECK: {{%\w+}} = OpExtInst %void %1 DebugLine %55 %uint_19 %uint_19 %uint_17 %uint_30
          %88 = OpAccessChain %_ptr_Function_v2float %param_var_i %int_0
          %89 = OpLoad %v2float %88
+        %301 = OpExtInst %void %1 DebugLine %55 %uint_19 %uint_19 %uint_12 %uint_35
                OpStore %79 %89
 ;CHECK-NOT:    OpStore %79 %89
+        %302 = OpExtInst %void %1 DebugLine %55 %uint_19 %uint_19 %uint_12 %uint_35
+;CHECK: {{%\w+}} = OpExtInst %void %1 DebugLine %55 %uint_19 %uint_19 %uint_12 %uint_35
         %106 = OpExtInst %void %1 DebugValue %70 %89 %52
 ;CHECK: {{%\w+}} = OpExtInst %void %1 DebugValue %70 %89 %52
+        %303 = OpExtInst %void %1 DebugLine %55 %uint_20 %uint_20 %uint_25 %uint_32
          %91 = OpLoad %type_2d_image %g_tColor
+        %304 = OpExtInst %void %1 DebugLine %55 %uint_20 %uint_20 %uint_41 %uint_48
          %92 = OpLoad %type_sampler %g_sAniso
+        %305 = OpExtInst %void %1 DebugLine %55 %uint_20 %uint_20 %uint_25 %uint_53
          %94 = OpSampledImage %type_sampled_image %91 %92
          %95 = OpImageSampleImplicitLod %v4float %94 %89 None
+        %306 = OpExtInst %void %1 DebugLine %55 %uint_20 %uint_20 %uint_5 %uint_53
          %96 = OpAccessChain %_ptr_Function_v4float %78 %int_0
                OpStore %96 %95
+        %307 = OpExtInst %void %1 DebugLine %55 %uint_21 %uint_21 %uint_12 %uint_20
          %97 = OpLoad %PS_OUTPUT %78
+        %308 = OpExtInst %void %1 DebugLine %55 %uint_21 %uint_21 %uint_5 %uint_20
                OpStore %81 %97
+        %309 = OpExtInst %void %1 DebugNoLine
+;CHECK: {{%\w+}} = OpExtInst %void %1 DebugNoLine
         %111 = OpExtInst %void %1 DebugNoScope
 ;CHECK: {{%\w+}} = OpExtInst %void %1 DebugNoScope
         %100 = OpCompositeExtract %v4float %97 0
                OpStore %out_var_SV_Target0 %100
                OpReturn
                OpFunctionEnd
+)";
+
+  SetTargetEnv(SPV_ENV_VULKAN_1_2);
+  SetAssembleOptions(SPV_TEXT_TO_BINARY_OPTION_PRESERVE_NUMERIC_IDS);
+  SinglePassRunAndMatch<AggressiveDCEPass>(text, true);
+}
+
+TEST_F(AggressiveDCETest, ShaderDebugInfoGlobalDCE) {
+  // Verify that DebugGlobalVariable for eliminated private variable has
+  // variable operand replaced with DebugInfoNone.
+
+  const std::string text = R"(OpCapability Shader
+OpExtension "SPV_KHR_non_semantic_info"
+%1 = OpExtInstImport "NonSemantic.Shader.DebugInfo.100"
+OpMemoryModel Logical GLSL450
+OpEntryPoint Fragment %MainPs "MainPs" %out_var_SV_Target0 %a
+OpExecutionMode %MainPs OriginUpperLeft
+%5 = OpString "source2.hlsl"
+%24 = OpString "float"
+%29 = OpString "vColor"
+%33 = OpString "PS_OUTPUT"
+%37 = OpString "MainPs"
+%38 = OpString ""
+%42 = OpString "ps_output"
+%46 = OpString "a"
+OpName %a "a"
+OpName %out_var_SV_Target0 "out.var.SV_Target0"
+OpName %MainPs "MainPs"
+OpName %PS_OUTPUT "PS_OUTPUT"
+OpMemberName %PS_OUTPUT 0 "vColor"
+OpDecorate %out_var_SV_Target0 Location 0
+%float = OpTypeFloat 32
+%v4float = OpTypeVector %float 4
+%8 = OpConstantNull %v4float
+%float_0 = OpConstant %float 0
+%10 = OpConstantComposite %v4float %float_0 %float_0 %float_0 %float_0
+%int = OpTypeInt 32 1
+%int_0 = OpConstant %int 0
+%uint = OpTypeInt 32 0
+%uint_32 = OpConstant %uint 32
+%_ptr_Private_v4float = OpTypePointer Private %v4float
+%_ptr_Output_v4float = OpTypePointer Output %v4float
+%void = OpTypeVoid
+%uint_1 = OpConstant %uint 1
+%uint_4 = OpConstant %uint 4
+%uint_5 = OpConstant %uint 5
+%uint_3 = OpConstant %uint 3
+%uint_0 = OpConstant %uint 0
+%uint_128 = OpConstant %uint 128
+%uint_12 = OpConstant %uint 12
+%uint_8 = OpConstant %uint 8
+%uint_9 = OpConstant %uint 9
+%uint_10 = OpConstant %uint 10
+%uint_15 = OpConstant %uint 15
+%48 = OpTypeFunction %void
+%PS_OUTPUT = OpTypeStruct %v4float
+%54 = OpTypeFunction %PS_OUTPUT
+%_ptr_Function_PS_OUTPUT = OpTypePointer Function %PS_OUTPUT
+%_ptr_Function_v4float = OpTypePointer Function %v4float
+%a = OpVariable %_ptr_Private_v4float Private
+;CHECK-NOT: %a = OpVariable %_ptr_Private_v4float Private
+%out_var_SV_Target0 = OpVariable %_ptr_Output_v4float Output
+;CHECK: [[dbg_none:%\w+]] = OpExtInst %void %1 DebugInfoNone
+%18 = OpExtInst %void %1 DebugExpression
+%19 = OpExtInst %void %1 DebugSource %5
+%20 = OpExtInst %void %1 DebugCompilationUnit %uint_1 %uint_4 %19 %uint_5
+%25 = OpExtInst %void %1 DebugTypeBasic %24 %uint_32 %uint_3 %uint_0
+%28 = OpExtInst %void %1 DebugTypeVector %25 %uint_4
+%31 = OpExtInst %void %1 DebugTypeMember %29 %28 %19 %uint_5 %uint_12 %uint_0 %uint_128 %uint_3
+%34 = OpExtInst %void %1 DebugTypeComposite %33 %uint_1 %19 %uint_3 %uint_8 %20 %33 %uint_128 %uint_3 %31
+%36 = OpExtInst %void %1 DebugTypeFunction %uint_3 %34
+%39 = OpExtInst %void %1 DebugFunction %37 %36 %19 %uint_8 %uint_1 %20 %38 %uint_3 %uint_9
+%41 = OpExtInst %void %1 DebugLexicalBlock %19 %uint_9 %uint_1 %39
+%43 = OpExtInst %void %1 DebugLocalVariable %42 %34 %19 %uint_10 %uint_15 %41 %uint_4
+%47 = OpExtInst %void %1 DebugGlobalVariable %46 %28 %19 %uint_1 %uint_15 %20 %46 %a %uint_8
+;CHECK: %47 = OpExtInst %void %1 DebugGlobalVariable %46 %28 %19 %uint_1 %uint_15 %20 %46 [[dbg_none]] %uint_8
+%MainPs = OpFunction %void None %48
+%49 = OpLabel
+%65 = OpVariable %_ptr_Function_PS_OUTPUT Function
+%66 = OpVariable %_ptr_Function_PS_OUTPUT Function
+OpStore %a %8
+%72 = OpExtInst %void %1 DebugScope %41
+%69 = OpExtInst %void %1 DebugDeclare %43 %65 %18
+OpLine %5 11 5
+%70 = OpAccessChain %_ptr_Function_v4float %65 %int_0
+OpStore %70 %10
+OpLine %5 12 12
+%71 = OpLoad %PS_OUTPUT %65
+OpLine %5 12 5
+OpStore %66 %71
+%73 = OpExtInst %void %1 DebugNoLine
+%74 = OpExtInst %void %1 DebugNoScope
+%51 = OpLoad %PS_OUTPUT %66
+%53 = OpCompositeExtract %v4float %51 0
+OpStore %out_var_SV_Target0 %53
+OpLine %5 13 1
+OpReturn
+OpFunctionEnd
 )";
 
   SetTargetEnv(SPV_ENV_VULKAN_1_2);
@@ -7889,11 +8008,35 @@ OpFunctionEnd
   EXPECT_EQ(text, std::get<0>(result));
 }
 
-// TODO(greg-lunarg): Add tests to verify handling of these cases:
-//
-//    Check that logical addressing required
-//    Check that function calls inhibit optimization
-//    Others?
+TEST_F(AggressiveDCETest, EmptyContinueWithConditionalBranch) {
+  const std::string text = R"(OpCapability Shader
+%1 = OpExtInstImport "GLSL.std.450"
+OpMemoryModel Logical GLSL450
+OpEntryPoint Fragment %2 "main"
+OpExecutionMode %2 OriginUpperLeft
+%void = OpTypeVoid
+%4 = OpTypeFunction %void
+%bool = OpTypeBool
+%false = OpConstantFalse %bool
+%2 = OpFunction %void None %4
+%9 = OpLabel
+OpBranch %10
+%10 = OpLabel
+OpLoopMerge %11 %12 None
+OpBranch %13
+%13 = OpLabel
+OpKill
+%12 = OpLabel
+OpBranchConditional %false %10 %10
+%11 = OpLabel
+OpUnreachable
+OpFunctionEnd
+)";
+
+  SetTargetEnv(SPV_ENV_VULKAN_1_2);
+  SetAssembleOptions(SPV_TEXT_TO_BINARY_OPTION_PRESERVE_NUMERIC_IDS);
+  SinglePassRunAndCheck<AggressiveDCEPass>(text, text, false);
+}
 
 }  // namespace
 }  // namespace opt
