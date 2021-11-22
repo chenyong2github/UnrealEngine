@@ -8,8 +8,6 @@
 
 namespace UE::LevelSnapshots::nDisplay::Private::Internal
 {
-	const FName ClusterPropertyName("Cluster");
-
 	static UClass* GetDisplayClusterPreviewComponentClass()
 	{
 		static const FSoftClassPath ClassPath("/Script/DisplayCluster.DisplayClusterScreenComponent");
