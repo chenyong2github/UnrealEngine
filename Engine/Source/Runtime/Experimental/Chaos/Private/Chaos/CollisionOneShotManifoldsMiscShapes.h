@@ -94,6 +94,7 @@ namespace Chaos
 			const FReal Dt, 
 			FPBDCollisionConstraint& Constraint);
 
+		template<typename ConvexType = FConvex>
 		void ConstructConvexHeightFieldOneShotManifold(
 			const FImplicitObject& Convex,
 			const FRigidTransform3& ConvexTransform,
@@ -102,7 +103,7 @@ namespace Chaos
 			const FReal Dt,
 			FPBDCollisionConstraint& Constraint);
 
-		template <typename TriMeshType>
+		template <typename ConvexType = FConvex, typename TriMeshType>
 		void ConstructConvexTriMeshOneShotManifold(
 			const FImplicitObject& Convex, 
 			const FRigidTransform3& ConvexTransform, 

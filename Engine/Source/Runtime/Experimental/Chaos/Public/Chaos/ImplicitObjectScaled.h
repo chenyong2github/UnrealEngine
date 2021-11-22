@@ -657,7 +657,7 @@ public:
 		const FReal UnscaledThickness = Thickness;
 
 		auto ScaledA = MakeScaledHelper(A, MInvScale);
-		return MObject->ContactManifold(ScaledA, AToBTMNoScale, UnscaledThickness, ContactPoints);
+		return MObject->ContactManifold(ScaledA, AToBTMNoScale, UnscaledThickness, ContactPoints, MScale);
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */

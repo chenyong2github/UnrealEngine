@@ -373,13 +373,8 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 	auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C,
 		FPBDCollisionConstraint& Constraint)
 	{
-		const FVec3 AB = B - A;
-		const FVec3 AC = C - A;
-
-		const FVec3 Offset = FVec3::CrossProduct(AB, AC);
-
 		FTriangle TriangleConvex(A, B, C);
-		Collisions::ConstructConvexConvexOneShotManifold(QueryGeom, QueryTM, TriangleConvex, FRigidTransform3::Identity, 0, Constraint);
+		Collisions::ConstructConvexConvexOneShotManifold(WorldScaleGeom, WorldScaleQueryTM, TriangleConvex, FRigidTransform3::Identity, 0, Constraint);
 	};
 
 	auto LambdaHelper = [&](const auto& Elements)
