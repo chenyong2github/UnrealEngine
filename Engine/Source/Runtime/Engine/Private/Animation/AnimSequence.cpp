@@ -1482,7 +1482,7 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 
 	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
 
-	const FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
+	FBoneContainer& RequiredBones = OutPose.GetBoneContainer();
 	const bool bUseRawDataForPoseExtraction = (CanEvaluateRawAnimationData() && bForceUseRawData) || UseRawDataForPoseExtraction(RequiredBones);
 
 	const bool bIsBakedAdditive = !bUseRawDataForPoseExtraction && IsValidAdditive();

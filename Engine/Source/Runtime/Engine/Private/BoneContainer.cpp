@@ -15,7 +15,7 @@ DEFINE_LOG_CATEGORY(LogSkeletalControl);
 //////////////////////////////////////////////////////////////////////////
 // FSkeletonRemappingCurve
 
-FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, const FBoneContainer& InBoneContainer, const FSkeletonRemapping* InSkeletonRemapping)
+FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, FBoneContainer& InBoneContainer, const FSkeletonRemapping* InSkeletonRemapping)
 	: Curve(InCurve)
 	, BoneContainer(InBoneContainer)
 	, bIsRemapping(true)
@@ -25,7 +25,7 @@ FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, const F
 	Curve.UIDToArrayIndexLUT = &CurveMapping.UIDToArrayIndices;
 }
 
-FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, const FBoneContainer& InBoneContainer, const USkeleton* SourceSkeleton)
+FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, FBoneContainer& InBoneContainer, const USkeleton* SourceSkeleton)
 	: Curve(InCurve)
 	, BoneContainer(InBoneContainer)
 {
@@ -244,6 +244,11 @@ void FBoneContainer::Initialize(const FCurveEvaluationOption& CurveEvalOption)
 void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& CurveEvalOption)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
+
+	// Clear the skeleton remapping backup LUT.
+	// We will initialize this only when needed, using a lazy approach.
+	UIDToArrayIndexLUTBackup.Reset();
+
 	if (AssetSkeleton.IsValid())
 	{
 		// this is placeholder. In the future, this will change to work with linked joint of curve meta data
@@ -348,9 +353,6 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 		UIDToArrayIndexLUTValidCount = 0;
 	}
 
-	// Make a backup, used for skeleton remapping of curves.
-	UIDToArrayIndexLUTBackup = UIDToArrayIndexLUT;
-
 	// Make sure we regenerate our cached curve mappings next time they are requested.
 	MarkAllCachedCurveMappingsDirty();
 
@@ -377,7 +379,7 @@ void FBoneContainer::MarkAllCachedCurveMappingsDirty()
 	}
 }
 
-const FCachedSkeletonCurveMapping& FBoneContainer::GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping) const
+const FCachedSkeletonCurveMapping& FBoneContainer::GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
 	
@@ -385,6 +387,12 @@ const FCachedSkeletonCurveMapping& FBoneContainer::GetOrCreateCachedCurveMapping
 
 	const USkeleton* SourceSkeleton = SkeletonRemapping->GetSourceSkeleton().Get();
 	check(SourceSkeleton);
+
+	// Make a backup, used for skeleton remapping of curves.
+	if (UIDToArrayIndexLUTBackup.IsEmpty())
+	{
+		UIDToArrayIndexLUTBackup = UIDToArrayIndexLUT;
+	}
 
 	// Check if we already have some cached data for this skeleton.
 	FCachedSkeletonCurveMapping* CachedData = CachedCurveMappingTable.Find(SourceSkeleton);

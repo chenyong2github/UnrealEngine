@@ -139,8 +139,8 @@ public:
 	FSkeletonRemappingCurve() = delete;
 	FSkeletonRemappingCurve(const FSkeletonRemappingCurve&) = delete;
 	FSkeletonRemappingCurve(FSkeletonRemappingCurve&&) = delete;
-	FSkeletonRemappingCurve(FBlendedCurve& InCurve, const FBoneContainer& InBoneContainer, const FSkeletonRemapping* InSkeletonMapping);
-	FSkeletonRemappingCurve(FBlendedCurve& InCurve, const FBoneContainer& InBoneContainer, const USkeleton* SourceSkeleton);
+	FSkeletonRemappingCurve(FBlendedCurve& InCurve, FBoneContainer& InBoneContainer, const FSkeletonRemapping* InSkeletonMapping);
+	FSkeletonRemappingCurve(FBlendedCurve& InCurve, FBoneContainer& InBoneContainer, const USkeleton* SourceSkeleton);
 	~FSkeletonRemappingCurve();
 
 	FSkeletonRemappingCurve& operator = (const FSkeletonRemappingCurve&) = delete;
@@ -151,7 +151,7 @@ public:
 
 private:
 	FBlendedCurve& Curve;
-	const FBoneContainer& BoneContainer;
+	FBoneContainer& BoneContainer;
 	bool bIsRemapping = false;
 };
 
@@ -648,7 +648,7 @@ public:
 #endif
 	
 	// Curve remapping
-	const FCachedSkeletonCurveMapping& GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping) const;
+	const FCachedSkeletonCurveMapping& GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping);
 	void MarkAllCachedCurveMappingsDirty();
 
 	// Get the serial number of this bone container. @see SerialNumber

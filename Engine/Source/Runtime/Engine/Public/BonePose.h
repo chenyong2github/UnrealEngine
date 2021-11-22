@@ -140,6 +140,12 @@ public:
 		return *BoneContainer;
 	}
 
+	FBoneContainer& GetBoneContainer()
+	{
+		checkSlow(BoneContainer && BoneContainer->IsValid());
+		return *const_cast<FBoneContainer*>(BoneContainer);
+	}
+
 	void SetBoneContainer(const FBoneContainer* InBoneContainer)
 	{
 		check(InBoneContainer && InBoneContainer->IsValid());
