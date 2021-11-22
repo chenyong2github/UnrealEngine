@@ -73,11 +73,11 @@ void SPropertyEditorBool::OnCheckStateChanged( ECheckBoxState InNewState )
 	const TSharedRef< IPropertyHandle > PropertyHandle = PropertyEditor->GetPropertyHandle();
 	if( InNewState == ECheckBoxState::Checked || InNewState == ECheckBoxState::Undetermined )
 	{
-		PropertyHandle->SetValue( true, EPropertyValueSetFlags::InteractiveChange );
+		PropertyHandle->SetValue( true );
 	}
 	else
 	{
-		PropertyHandle->SetValue( false, EPropertyValueSetFlags::InteractiveChange );
+		PropertyHandle->SetValue( false );
 	}
 }
 
