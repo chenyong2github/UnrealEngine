@@ -8147,15 +8147,13 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			}
 			else
 			{
-				Ar.Logf( TEXT("%32s %12s %12s %12s %12s %12s %12s %12s %12s %12i"), 
+				Ar.Logf( TEXT("%32s %12s %12s %12s %12s %12s %12s %12i"), 
 					*Class->GetName(), 
 					*FHierarchy::Size(ClassObjects.Max), 
 					*FHierarchy::Size(ClassObjects.Num), 
 					*FHierarchy::Size(ClassObjects.TrueResourceSize.GetTotalMemoryBytes()),
 					*FHierarchy::Size(ClassObjects.TrueResourceSize.GetDedicatedSystemMemoryBytes()),
-					*FHierarchy::Size(ClassObjects.TrueResourceSize.GetSharedSystemMemoryBytes()),
 					*FHierarchy::Size(ClassObjects.TrueResourceSize.GetDedicatedVideoMemoryBytes()),
-					*FHierarchy::Size(ClassObjects.TrueResourceSize.GetSharedVideoMemoryBytes()),
 					*FHierarchy::Size(ClassObjects.TrueResourceSize.GetUnknownMemoryBytes()),
 					ClassObjects.Count 
 				);
@@ -8171,30 +8169,26 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		if( Culled.Count > 0 )
 		{
 			Ar.Logf( TEXT("") );
-			Ar.Logf( TEXT("%32s %12s %12s %12s %12s %12s %12s %12s %12s %12i"), 
+			Ar.Logf( TEXT("%32s %12s %12s %12s %12s %12s %12s %12i"), 
 				TEXT("(Culled)"), 
 				*FHierarchy::Size(Culled.Max), 
 				*FHierarchy::Size(Culled.Num), 
 				*FHierarchy::Size(Culled.TrueResourceSize.GetTotalMemoryBytes()),
 				*FHierarchy::Size(Culled.TrueResourceSize.GetDedicatedSystemMemoryBytes()),
-				*FHierarchy::Size(Culled.TrueResourceSize.GetSharedSystemMemoryBytes()),
 				*FHierarchy::Size(Culled.TrueResourceSize.GetDedicatedVideoMemoryBytes()),
-				*FHierarchy::Size(Culled.TrueResourceSize.GetSharedVideoMemoryBytes()),
 				*FHierarchy::Size(Culled.TrueResourceSize.GetUnknownMemoryBytes()),
 				Culled.Count 
 			);
 		}
 
 		Ar.Logf( TEXT("") );
-		Ar.Logf( TEXT("%32s %12s %12s %12s %12s %12s %12s %12s %12s %12i"), 
+		Ar.Logf( TEXT("%32s %12s %12s %12s %12s %12s %12s %12i"), 
 			TEXT("Total"), 
 			*FHierarchy::Size(Total.Max), 
 			*FHierarchy::Size(Total.Num), 
 			*FHierarchy::Size(Total.TrueResourceSize.GetTotalMemoryBytes()),
 			*FHierarchy::Size(Total.TrueResourceSize.GetDedicatedSystemMemoryBytes()),
-			*FHierarchy::Size(Total.TrueResourceSize.GetSharedSystemMemoryBytes()),
 			*FHierarchy::Size(Total.TrueResourceSize.GetDedicatedVideoMemoryBytes()),
-			*FHierarchy::Size(Total.TrueResourceSize.GetSharedVideoMemoryBytes()),
 			*FHierarchy::Size(Total.TrueResourceSize.GetUnknownMemoryBytes()),
 			Total.Count 
 		);
@@ -8467,6 +8461,7 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		const bool bResourceSizeSort = FParse::Param(Cmd, TEXT("RESOURCESIZESORT"));
 		const bool bCSV = FParse::Param(Cmd, TEXT("CSV"));
 		const bool bShowFullClassName = FParse::Param(Cmd, TEXT("FULLCLASSNAME"));
+		const bool bVerboseObjectOutput = FParse::Param(Cmd, TEXT("VERBOSE"));
 
 		if( Objects.Num() )
 		{
@@ -8496,20 +8491,18 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 
 			if (bCSV)
 			{
-				Ar.Logf(TEXT(", Object, NumKB, MaxKB, ResExcKB, ResExcDedSysKB, ResExcShrSysKB, ResExcDedVidKB, ResExcShrVidKB, ResExcUnkKB"));
+				Ar.Logf(TEXT(", Object, NumKB, MaxKB, ResExcKB, ResExcDedSysKB, ResExcDedVidKB, ResExcUnkKB"));
 			}
 			else
 			{
 				Ar.Logf(
-					TEXT("%140s %10s %10s %10s %15s %15s %15s %15s %15s"),
+					TEXT("%140s %10s %10s %10s %15s %15s %15s"),
 					TEXT("Object"),
 					TEXT("NumKB"),
 					TEXT("MaxKB"),
 					TEXT("ResExcKB"),
 					TEXT("ResExcDedSysKB"),
-					TEXT("ResExcShrSysKB"),
 					TEXT("ResExcDedVidKB"),
-					TEXT("ResExcShrVidKB"),
 					TEXT("ResExcUnkKB")
 				);
 			}
@@ -8519,15 +8512,13 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				if (bCSV)
 				{
 					Ar.Logf(
-						TEXT(", %s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f"),
+						TEXT(", %s, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f"),
 						*ObjItem.Object->GetFullName(),
 						ObjItem.Num / 1024.0f,
 						ObjItem.Max / 1024.0f,
 						ObjItem.TrueResourceSize.GetTotalMemoryBytes() / 1024.0f,
 						ObjItem.TrueResourceSize.GetDedicatedSystemMemoryBytes() / 1024.0f,
-						ObjItem.TrueResourceSize.GetSharedSystemMemoryBytes() / 1024.0f,
 						ObjItem.TrueResourceSize.GetDedicatedVideoMemoryBytes() / 1024.0f,
-						ObjItem.TrueResourceSize.GetSharedVideoMemoryBytes() / 1024.0f,
 						ObjItem.TrueResourceSize.GetUnknownMemoryBytes() / 1024.0f
 					);
 
@@ -8535,17 +8526,20 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 				else
 				{
 					Ar.Logf(
-						TEXT("%140s %10.2f %10.2f %10.2f %15.2f %15.2f %15.2f %15.2f %15.2f"),
+						TEXT("%140s %10.2f %10.2f %10.2f %15.2f %15.2f %15.2f"),
 						*ObjItem.Object->GetFullName(),
 						ObjItem.Num / 1024.0f,
 						ObjItem.Max / 1024.0f,
 						ObjItem.TrueResourceSize.GetTotalMemoryBytes() / 1024.0f,
 						ObjItem.TrueResourceSize.GetDedicatedSystemMemoryBytes() / 1024.0f,
-						ObjItem.TrueResourceSize.GetSharedSystemMemoryBytes() / 1024.0f,
 						ObjItem.TrueResourceSize.GetDedicatedVideoMemoryBytes() / 1024.0f,
-						ObjItem.TrueResourceSize.GetSharedVideoMemoryBytes() / 1024.0f,
 						ObjItem.TrueResourceSize.GetUnknownMemoryBytes() / 1024.0f
 					);
+
+					if (bVerboseObjectOutput)
+					{
+						ObjItem.TrueResourceSize.LogSummary(Ar);
+					}
 				}
 			}
 			Ar.Log(TEXT(""));
@@ -8569,21 +8563,19 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			
 			if (bCSV)
 			{
-				Ar.Logf(TEXT(", Class, Count, NumKB, MaxKB, ResExcKB, ResExcDedSysKB, ResExcShrSysKB, ResExcDedVidKB, ResExcShrVidKB, ResExcUnkKB"));
+				Ar.Logf(TEXT(", Class, Count, NumKB, MaxKB, ResExcKB, ResExcDedSysKB, ResExcDedVidKB, ResExcUnkKB"));
 			}
 			else
 			{
 				Ar.Logf(
-					TEXT(" %100s %8s %10s %10s %10s %15s %15s %15s %15s %15s"),
+					TEXT(" %100s %8s %10s %10s %10s %15s %15s %15s"),
 					TEXT("Class"),
 					TEXT("Count"),
 					TEXT("NumKB"),
 					TEXT("MaxKB"),
 					TEXT("ResExcKB"),
 					TEXT("ResExcDedSysKB"),
-					TEXT("ResExcShrSysKB"),
 					TEXT("ResExcDedVidKB"),
-					TEXT("ResExcShrVidKB"),
 					TEXT("ResExcUnkKB")
 				);
 			}
@@ -8592,31 +8584,27 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			{
 				if (bCSV)
 				{
-					Ar.Logf(TEXT(", %s, %i, %f, %f, %f, %f, %f, %f, %f, %f"),
+					Ar.Logf(TEXT(", %s, %i, %f, %f, %f, %f, %f, %f"),
 						bShowFullClassName ? *List[i].Class->GetFullName() : *List[i].Class->GetName(),
 						(int32)List[i].Count,
 						List[i].Num / 1024.0f,
 						List[i].Max / 1024.0f,
 						List[i].TrueResourceSize.GetTotalMemoryBytes() / 1024.0f,
 						List[i].TrueResourceSize.GetDedicatedSystemMemoryBytes() / 1024.0f,
-						List[i].TrueResourceSize.GetSharedSystemMemoryBytes() / 1024.0f,
 						List[i].TrueResourceSize.GetDedicatedVideoMemoryBytes() / 1024.0f,
-						List[i].TrueResourceSize.GetSharedVideoMemoryBytes() / 1024.0f,
 						List[i].TrueResourceSize.GetUnknownMemoryBytes() / 1024.0f
 					);
 				}
 				else
 				{
-					Ar.Logf(TEXT(" %100s %8i %10.2f %10.2f %10.2f %15.2f %15.2f %15.2f %15.2f %15.2f"),
+					Ar.Logf(TEXT(" %100s %8i %10.2f %10.2f %10.2f %15.2f %15.2f %15.2f"),
 						bShowFullClassName ? *List[i].Class->GetFullName() : *List[i].Class->GetName(),
 						(int32)List[i].Count,
 						List[i].Num / 1024.0f,
 						List[i].Max / 1024.0f,
 						List[i].TrueResourceSize.GetTotalMemoryBytes() / 1024.0f,
 						List[i].TrueResourceSize.GetDedicatedSystemMemoryBytes() / 1024.0f,
-						List[i].TrueResourceSize.GetSharedSystemMemoryBytes() / 1024.0f,
 						List[i].TrueResourceSize.GetDedicatedVideoMemoryBytes() / 1024.0f,
-						List[i].TrueResourceSize.GetSharedVideoMemoryBytes() / 1024.0f,
 						List[i].TrueResourceSize.GetUnknownMemoryBytes() / 1024.0f
 					);
 				}
@@ -8624,15 +8612,13 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 			Ar.Log( TEXT("") );
 		}
 		Ar.Logf( 
-			TEXT("%i Objects (Total: %.3fM / Max: %.3fM / Res: %.3fM | ResDedSys: %.3fM / ResShrSys: %.3fM / ResDedVid: %.3fM / ResShrVid: %.3fM / ResUnknown: %.3fM)"),
+			TEXT("%i Objects (Total: %.3fM / Max: %.3fM / Res: %.3fM | ResDedSys: %.3fM / ResDedVid: %.3fM / ResUnknown: %.3fM)"),
 			Total.Count, 
 			(float)Total.Num/1024.0/1024.0, 
 			(float)Total.Max/1024.0/1024.0, 
 			(float)Total.TrueResourceSize.GetTotalMemoryBytes()/1024.0/1024.0,
 			(float)Total.TrueResourceSize.GetDedicatedSystemMemoryBytes()/1024.0/1024.0, 
-			(float)Total.TrueResourceSize.GetSharedSystemMemoryBytes()/1024.0/1024.0, 
 			(float)Total.TrueResourceSize.GetDedicatedVideoMemoryBytes()/1024.0/1024.0, 
-			(float)Total.TrueResourceSize.GetSharedVideoMemoryBytes()/1024.0/1024.0, 
 			(float)Total.TrueResourceSize.GetUnknownMemoryBytes()/1024.0/1024.0
 		);
 		return true;
