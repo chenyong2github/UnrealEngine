@@ -718,6 +718,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	InitToolbar(Style);
 	InitTabIcons(Style);
 	InitIcons(Style);
+	InitOverview(Style);
 	InitEmitterDetails(Style);
 	InitAssetColors(Style);
 	InitThumbnails(Style);
