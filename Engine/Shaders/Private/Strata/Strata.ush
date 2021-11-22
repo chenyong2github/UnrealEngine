@@ -42,6 +42,10 @@
 #define STRATA_CLAMPED_LAYER_COUNT 1
 #endif
 
+#ifndef STRATA_CLAMPED_MAX_BSDF_COUNT_PER_LAYER
+#define STRATA_CLAMPED_MAX_BSDF_COUNT_PER_LAYER STRATA_MAX_BSDF_COUNT_PER_LAYER
+#endif
+
 #ifndef MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #define MATERIAL_SHADINGMODEL_SINGLELAYERWATER 0 
 #endif
@@ -1749,7 +1753,7 @@ void PackStrataOut(
 		const bool bTopLayer = l == 0;
 		const bool bBottomLayer = l == (Strata.LayerCount - 1);
 
-		STRATA_UNROLL
+		STRATA_UNROLL_N(STRATA_CLAMPED_MAX_BSDF_COUNT_PER_LAYER)
 		for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
 		{
 			// Dither BSDF data to hide more aggressive bit reduction.
@@ -1921,7 +1925,7 @@ void PackStrataOut(
 	{
 		FStrataLayer Layer = Strata.Layers[l];
 
-		STRATA_UNROLL
+		STRATA_UNROLL_N(STRATA_CLAMPED_MAX_BSDF_COUNT_PER_LAYER)
 		for (int i = 0; i < Layer.BSDFCount; ++i)
 		{
 			FStrataBSDF BSDF = Layer.BSDFs[i];

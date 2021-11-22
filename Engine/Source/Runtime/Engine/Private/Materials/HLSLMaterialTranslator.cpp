@@ -1830,6 +1830,11 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 				OutEnvironment.SetDefine(TEXT("STRATA_CLAMPED_LAYER_COUNT"), StrataMaterialAnalysis.ClampedLayerCount);
 			}
 
+			if (StrataMaterialAnalysis.RequestedMaxBSDFCountPerLayer > 0)
+			{
+				OutEnvironment.SetDefine(TEXT("STRATA_CLAMPED_MAX_BSDF_COUNT_PER_LAYER"), StrataMaterialAnalysis.RequestedMaxBSDFCountPerLayer);
+			}
+
 			FString StrataMaterialDescription;
 
 			StrataMaterialDescription += FString::Printf(TEXT("----- STRATA -----\r\n"));
