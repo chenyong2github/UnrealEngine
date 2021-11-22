@@ -7005,7 +7005,9 @@ FAsyncArchive::FAsyncArchive(const FPackagePath& InPackagePath, FLinkerLoad* InO
 	, HeaderSize(0)
 	, HeaderSizeWhenReadingExportsFromSplitFile(0)
 	, LoadPhase(ELoadPhase::WaitingForSize)
+	, LoadError(ELoadError::Unknown)
 	, bCookedForEDLInEditor(false)
+	, bNeedsEngineVersionChecks(true)
 	, PackagePath(InPackagePath)
 	, OpenTime(FPlatformTime::Seconds())
 	, SummaryReadTime(0.0)
@@ -7014,8 +7016,15 @@ FAsyncArchive::FAsyncArchive(const FPackagePath& InPackagePath, FLinkerLoad* InO
 	, OwnerLinker(InOwner)
 {
 	LogItem(TEXT("Open"));
-	Handle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, EPackageSegment::Header);
+	FOpenAsyncPackageResult OpenResult = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, EPackageSegment::Header);
+	Handle = OpenResult.Handle.Release();
 	check(Handle); // OpenAsyncReadPackage guarantees a non-null return value; the handle will fail to read later if the path does not exist
+	if (OpenResult.Format != EPackageFormat::Binary)
+	{
+		SetError();
+		LoadError = ELoadError::UnsupportedFormat;
+	}
+	bNeedsEngineVersionChecks = OpenResult.bNeedsEngineVersionChecks;
 
 	ReadCallbackFunction = [this](bool bWasCancelled, IAsyncReadRequest* Request)
 	{
@@ -7054,6 +7063,10 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 {
 	if (bWasCancelled || IsError())
 	{
+		if (!IsError())
+		{
+			LoadError = ELoadError::Cancelled;
+		}
 		SetError();
 		return; // we don't do much with this, the code on the other thread knows how to deal with my request
 	}
@@ -7064,6 +7077,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 		if (FileSize < 32)
 		{
 			SetError();
+			LoadError = FileSize > 0 ? ELoadError::CorruptData : ELoadError::FileDoesNotExist;
 		}
 		else
 		{
@@ -7101,6 +7115,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 		if (!Mem)
 		{
 			SetError();
+			LoadError = ELoadError::CorruptData;
 			FPlatformMisc::MemoryBarrier();
 			LoadPhase = ELoadPhase::WaitingForHeader;
 		}
@@ -7112,6 +7127,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 			if (Ar.IsError() || Sum.TotalHeaderSize > FileSize || Sum.IsFileVersionTooOld())
 			{
 				SetError();
+				LoadError = ELoadError::CorruptData;
 			}
 			else
 			{
@@ -7320,6 +7336,7 @@ void FAsyncArchive::CompleteRead()
 		if (!Mem)
 		{
 			SetError();
+			LoadError = ELoadError::CorruptData;
 		}
 		else
 		{
@@ -7507,6 +7524,7 @@ bool FAsyncArchive::PrecacheInternal(int64 RequestOffset, int64 RequestSize, boo
 	if (ReadRequestSize <= 0)
 	{
 		SetError();
+		LoadError = ELoadError::CorruptData;
 		return true;
 	}
 	double StartTime = FPlatformTime::Seconds();
@@ -7566,7 +7584,8 @@ void FAsyncArchive::FirstExportStarting()
 
 		HeaderSizeWhenReadingExportsFromSplitFile = HeaderSize;
 
-		Handle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, EPackageSegment::Exports);
+		FOpenAsyncPackageResult OpenResult = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, EPackageSegment::Exports);
+		Handle = OpenResult.Handle.Release();
 		check(Handle); // OpenAsyncReadPackage guarantees a non-null return value; the handle will fail to read later if the path does not exist
 
 		check(!SizeRequestPtr);
@@ -7588,7 +7607,8 @@ IAsyncReadRequest* FAsyncArchive::MakeEventDrivenPrecacheRequest(int64 Offset, i
 		IAsyncReadFileHandle* NewHandle;
 		{
 			double StartTime = FPlatformTime::Seconds();
-			NewHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, EPackageSegment::Exports);
+			FOpenAsyncPackageResult OpenResult = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, EPackageSegment::Exports);
+			NewHandle = OpenResult.Handle.Release();
 			check(NewHandle); // OpenAsyncReadPackage guarantees a non-null return value; the handle will fail to read later if the path does not exist
 			LogItem(TEXT("Open UExp"), Offset - HeaderSizeWhenReadingExportsFromSplitFile, BytesToRead, StartTime);
 		}

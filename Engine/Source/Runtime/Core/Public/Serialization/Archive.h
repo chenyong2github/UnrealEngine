@@ -1910,12 +1910,6 @@ public:
 	 */
 	virtual bool IsUsingEventDrivenLoader() const;
 
-	/**
-	 * Used by LinkerLoad to decide whether it needs to check its Loader for FEngineVersion::Current().IsCompatibleWith.
-	 * EditorDomain Loaders are selected based on CustomVersions and Schema and do not need to check minor version changes.
-	 */
-	virtual bool NeedsEngineVersionChecks() const { return true; }
-
 #if USE_STABLE_LOCALIZATION_KEYS
 	using FArchiveState::SetLocalizationNamespace;
 	using FArchiveState::GetLocalizationNamespace;

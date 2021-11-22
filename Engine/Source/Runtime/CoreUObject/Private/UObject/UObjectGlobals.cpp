@@ -1094,7 +1094,7 @@ public:
 		FOpenPackageResult OtherFile = IPackageResourceManager::Get().OpenReadPackage(DiffPackagePath);
 		checkf(!OtherFile.Archive.IsValid() || OtherFile.Format == EPackageFormat::Binary, TEXT("Text format is not yet supported with DiffPackage"));
 		FDiffFileArchive* DiffArchive = new FDiffFileArchive(GetLoader(), OtherFile.Archive.Release());
-		SetLoader(DiffArchive);
+		SetLoader(DiffArchive, true /* bInLoaderNeedsEngineVersionChecks */);
 	}
 };
 

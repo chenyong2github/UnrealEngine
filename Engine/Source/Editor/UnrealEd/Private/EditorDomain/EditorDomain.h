@@ -45,6 +45,14 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomain, Log, All);
 class FEditorDomain : public IPackageResourceManager, public FTickableEditorObject
 {
 public:
+	/** Different options for which domain a package comes from. */
+	enum class EPackageSource
+	{
+		Undecided,
+		Workspace,
+		Editor
+	};
+
 	FEditorDomain();
 	virtual ~FEditorDomain();
 
@@ -60,14 +68,14 @@ public:
 		FPackagePath* OutUpdatedPath = nullptr) override;
 	virtual FOpenPackageResult OpenReadPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment,
 		FPackagePath* OutUpdatedPath = nullptr) override;
-	virtual IAsyncReadFileHandle* OpenAsyncReadPackage(const FPackagePath& PackagePath,
+	virtual FOpenAsyncPackageResult OpenAsyncReadPackage(const FPackagePath& PackagePath,
 		EPackageSegment PackageSegment) override;
 	virtual IMappedFileHandle* OpenMappedHandleToPackage(const FPackagePath& PackagePath,
 		EPackageSegment PackageSegment, FPackagePath* OutUpdatedPath = nullptr) override;
 	virtual bool TryMatchCaseOnDisk(const FPackagePath& PackagePath, FPackagePath* OutNormalizedPath = nullptr) override;
 	virtual TUniquePtr<FArchive> OpenReadExternalResource(EPackageExternalResource ResourceType, FStringView Identifier) override;
 	virtual bool DoesExternalResourceExist(EPackageExternalResource ResourceType, FStringView Identifier) override;
-	virtual IAsyncReadFileHandle* OpenAsyncReadExternalResource(
+	virtual FOpenAsyncPackageResult OpenAsyncReadExternalResource(
 		EPackageExternalResource ResourceType, FStringView Identifier) override;
 	virtual void FindPackagesRecursive(TArray<TPair<FPackagePath, EPackageSegment>>& OutPackages, FStringView PackageMount,
 		FStringView FileMount, FStringView RootRelPath, FStringView BasenameWildcard) override;
@@ -98,13 +106,6 @@ private:
 		FLocks(FEditorDomain& InOwner);
 		FEditorDomain* Owner;
 		FCriticalSection Lock;
-	};
-	/** Different options for which domain a package comes from. */
-	enum class EPackageSource
-	{
-		Undecided,
-		Workspace,
-		Editor
 	};
 	/**
 	 * Data about which domain a package comes from. Multiple queries of the same

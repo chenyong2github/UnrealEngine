@@ -207,6 +207,7 @@ public:
 	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
 	/** Get the PackageFormat, which depends on the domain the data is read from. */
 	EPackageFormat GetPackageFormat() const;
+	FEditorDomain::EPackageSource GetPackageSource() const;
 
 	// FArchive interface
 	virtual void Seek(int64 InPos) override;
@@ -218,7 +219,6 @@ public:
 	virtual void Flush() override;
 	virtual void FlushCache() override;
 	virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
-	virtual bool NeedsEngineVersionChecks() const override { return false; }
 
 private:
 	void WaitForReady() const;
@@ -238,12 +238,16 @@ class FEditorDomainAsyncReadFileHandle : public IAsyncReadFileHandle
 {
 public:
 	FEditorDomainAsyncReadFileHandle(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
-		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
+		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource,
+		UE::DerivedData::EPriority Priority);
 
 	/** Get the request owner for requests that will feed this archive. */
 	UE::DerivedData::IRequestOwner& GetRequestOwner() { return Segments.GetRequestOwner(); }
 	/** Callback from the request of the Record; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
 	void OnRecordRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
+	/** Get the PackageFormat, which depends on the domain the data is read from. */
+	EPackageFormat GetPackageFormat() const;
+	FEditorDomain::EPackageSource GetPackageSource() const;
 
 	// IAsyncReadFileHandle interface
 	virtual IAsyncReadRequest* SizeRequest(FAsyncFileCallBack* CompleteCallback = nullptr) override;
@@ -258,4 +262,5 @@ private:
 
 	FEditorDomainPackageSegments Segments;
 	TUniquePtr<IAsyncReadFileHandle> InnerArchive;
+	EPackageFormat PackageFormat = EPackageFormat::Binary;
 };

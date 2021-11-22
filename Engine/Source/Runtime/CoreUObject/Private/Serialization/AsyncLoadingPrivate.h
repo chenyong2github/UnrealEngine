@@ -19,6 +19,14 @@ public:
 		WaitingForFirstExport,
 		ProcessingExports,
 	};
+	enum class ELoadError : uint8
+	{
+		Unknown,
+		UnsupportedFormat,
+		FileDoesNotExist,
+		CorruptData,
+		Cancelled,
+	};
 
 	FAsyncArchive(const FPackagePath& InPackagePath, FLinkerLoad* InOwner, TFunction<void()>&& InSummaryReadyCallback);
 	virtual ~FAsyncArchive ();
@@ -58,6 +66,16 @@ public:
 	{
 		return bCookedForEDLInEditor;
 	}
+
+	ELoadError GetLoadError() const
+	{
+		return LoadError;
+	}
+	bool NeedsEngineVersionChecks() const
+	{
+		return bNeedsEngineVersionChecks;
+	}
+
 
 private:
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
@@ -112,9 +130,12 @@ private:
 	int64 HeaderSizeWhenReadingExportsFromSplitFile;
 
 	ELoadPhase LoadPhase;
+	ELoadError LoadError;
 
 	/** If true, this package is a cooked EDL package loaded in uncooked builds */
 	bool bCookedForEDLInEditor;
+	/** True if the linker should do version and corruption checks on bytes of this archive. */
+	bool bNeedsEngineVersionChecks;
 
 	FAsyncFileCallBack ReadCallbackFunction;
 	/** Cached PackagePath for debugging.												*/

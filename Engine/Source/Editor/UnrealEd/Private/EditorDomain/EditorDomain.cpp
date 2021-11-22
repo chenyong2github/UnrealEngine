@@ -345,10 +345,11 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	}
 
 	const EPackageFormat Format = bHasEditorSource ? EPackageFormat::Binary : Result->GetPackageFormat();
-	return FOpenPackageResult{ TUniquePtr<FArchive>(Result), Format };
+	bool bNeedsEngineVersionChecks = bHasEditorSource ? false : (Result->GetPackageSource() != EPackageSource::Editor);
+	return FOpenPackageResult{ TUniquePtr<FArchive>(Result), Format, bNeedsEngineVersionChecks};
 }
 
-IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment)
+FOpenAsyncPackageResult FEditorDomain::OpenAsyncReadPackage(const FPackagePath& PackagePath, EPackageSegment PackageSegment)
 {
 	using namespace UE::EditorDomain;
 	using namespace UE::DerivedData;
@@ -366,9 +367,18 @@ IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& Pa
 		return Workspace->OpenAsyncReadPackage(PackagePath, PackageSegment);
 	}
 
+	// TODO: Change priority to Normal instead of Blocking once we have removed the GetPackageFormat below
+	// and don't need to block on the result before exiting this function
+	EPriority Priority = EPriority::Blocking;
+	FEditorDomainAsyncReadFileHandle* Result =
+		new FEditorDomainAsyncReadFileHandle(Locks, PackagePath, PackageSource, Priority);
+	const bool bHasEditorSource = (PackageSource->Source == EPackageSource::Editor);
+
+	// Unlock before requesting the package because the completion callback takes the lock.
+	ScopeLock.Unlock();
+
 	// Fetch meta-data only in the initial request
 	ECachePolicy SkipFlags = ECachePolicy::SkipData & ~ECachePolicy::SkipMeta;
-	FEditorDomainAsyncReadFileHandle* Result = new FEditorDomainAsyncReadFileHandle(Locks, PackagePath, PackageSource);
 	RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
 		SkipFlags, Result->GetRequestOwner(),
 		[Result](FCacheGetCompleteParams&& Params)
@@ -377,7 +387,9 @@ IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& Pa
 			Result->OnRecordRequestComplete(MoveTemp(Params));
 		});
 
-	return Result;
+	const EPackageFormat Format = bHasEditorSource ? EPackageFormat::Binary : Result->GetPackageFormat();
+	bool bNeedsEngineVersionChecks = bHasEditorSource ? false : (Result->GetPackageSource() != EPackageSource::Editor);
+	return FOpenAsyncPackageResult{ TUniquePtr<IAsyncReadFileHandle>(Result), Format, bNeedsEngineVersionChecks };
 }
 
 IMappedFileHandle* FEditorDomain::OpenMappedHandleToPackage(const FPackagePath& PackagePath,
@@ -402,7 +414,7 @@ bool FEditorDomain::DoesExternalResourceExist(EPackageExternalResource ResourceT
 	return Workspace->DoesExternalResourceExist(ResourceType, Identifier);
 }
 
-IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadExternalResource(
+FOpenAsyncPackageResult FEditorDomain::OpenAsyncReadExternalResource(
 	EPackageExternalResource ResourceType, FStringView Identifier)
 {
 	return Workspace->OpenAsyncReadExternalResource(ResourceType, Identifier);

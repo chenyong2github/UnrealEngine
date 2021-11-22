@@ -2,6 +2,7 @@
 
 #include "UObject/PackageResourceManager.h"
 
+#include "Async/AsyncFileHandle.h"
 #include "Misc/PackageSegment.h"
 #include "Misc/PreloadableFile.h"
 #include "Misc/ScopeLock.h"
@@ -64,7 +65,7 @@ FOpenPackageResult IPackageResourceManager::OpenReadPackage(const FPackagePath& 
 	return OpenReadPackage(PackagePath, EPackageSegment::Header, OutUpdatedPath);
 }
 
-IAsyncReadFileHandle* IPackageResourceManager::OpenAsyncReadPackage(const FPackagePath& PackagePath)
+FOpenAsyncPackageResult IPackageResourceManager::OpenAsyncReadPackage(const FPackagePath& PackagePath)
 {
 	return OpenAsyncReadPackage(PackagePath, EPackageSegment::Header);
 }
@@ -154,11 +155,11 @@ void IPackageResourceManager::IteratePackagesStatInLocalOnlyDirectory(FStringVie
 }
 
 #if WITH_EDITOR
-TMap<FName, TPair<TSharedPtr<FPreloadableArchive>, EPackageFormat>> IPackageResourceManager::PreloadedPaths;
+TMap<FName, TPair<TSharedPtr<FPreloadableArchive>, FOpenPackageResult>> IPackageResourceManager::PreloadedPaths;
 FCriticalSection IPackageResourceManager::PreloadedPathsLock;
 
 bool IPackageResourceManager::TryRegisterPreloadableArchive(const FPackagePath& PackagePath,
-	const TSharedPtr<FPreloadableArchive>& PreloadableArchive, EPackageFormat PackageFormat)
+	const TSharedPtr<FPreloadableArchive>& PreloadableArchive, const FOpenPackageResult& OpenResult)
 {
 	const FName PackageName = PackagePath.GetPackageFName();
 	if (PackageName.IsNone())
@@ -167,14 +168,14 @@ bool IPackageResourceManager::TryRegisterPreloadableArchive(const FPackagePath& 
 	}
 	check(PreloadableArchive.IsValid());
 	FScopeLock ScopeLock(&PreloadedPathsLock);
-	TPair<TSharedPtr<FPreloadableArchive>, EPackageFormat>& ExistingData = PreloadedPaths.FindOrAdd(PackageName);
+	TPair<TSharedPtr<FPreloadableArchive>, FOpenPackageResult>& ExistingData = PreloadedPaths.FindOrAdd(PackageName);
 	TSharedPtr<FPreloadableArchive>& ExistingArchive = ExistingData.Get<0>();
-	EPackageFormat& ExistingFormat = ExistingData.Get<1>();
+	FOpenPackageResult& ExistingResult = ExistingData.Get<1>();
 	if (ExistingArchive)
 	{
 		if (ExistingArchive.Get() == PreloadableArchive.Get())
 		{
-			check(ExistingFormat == PackageFormat);
+			check(ExistingResult.Format == OpenResult.Format && ExistingResult.bNeedsEngineVersionChecks == OpenResult.bNeedsEngineVersionChecks);
 			return true;
 		}
 		else
@@ -185,7 +186,7 @@ bool IPackageResourceManager::TryRegisterPreloadableArchive(const FPackagePath& 
 	else
 	{
 		ExistingArchive = PreloadableArchive;
-		ExistingFormat = PackageFormat;
+		ExistingResult.CopyMetaData(OpenResult);
 		return true;
 	}
 }
@@ -193,6 +194,7 @@ bool IPackageResourceManager::TryRegisterPreloadableArchive(const FPackagePath& 
 bool IPackageResourceManager::TryTakePreloadableArchive(const FPackagePath& PackagePath, FOpenPackageResult& OutResult)
 {
 	OutResult.Format = EPackageFormat::Binary;
+	OutResult.bNeedsEngineVersionChecks = true;
 	OutResult.Archive = nullptr;
 	const FName PackageName = PackagePath.GetPackageFName();
 	if (PackageName.IsNone())
@@ -205,20 +207,20 @@ bool IPackageResourceManager::TryTakePreloadableArchive(const FPackagePath& Pack
 		return false;
 	}
 
-	TPair<TSharedPtr<FPreloadableArchive>, EPackageFormat> ExistingData;
+	TPair<TSharedPtr<FPreloadableArchive>, FOpenPackageResult> ExistingData;
 	if (!PreloadedPaths.RemoveAndCopyValue(PackageName, ExistingData))
 	{
 		return false;
 	}
 	TSharedPtr<FPreloadableArchive>& PreloadableArchive = ExistingData.Get<0>();
-	EPackageFormat PackageFormat = ExistingData.Get<1>();
+	FOpenPackageResult& OpenResult = ExistingData.Get<1>();
 	if (!PreloadableArchive || !PreloadableArchive->IsInitialized())
 	{
 		// Someone has called Close on the Archive already.
 		return false;
 	}
 
-	OutResult.Format = PackageFormat;
+	OutResult.CopyMetaData(OpenResult);
 	OutResult.Archive = TUniquePtr<FArchive>(PreloadableArchive->DetachLowerLevel());
 	// If DetachedLowerLevel returns non-null, the PreloadableArchive is in PreloadHandle mode;
 	// it is not preloading bytes, but instead is only providing a pre-opened (and possibly primed) sync handle
@@ -242,3 +244,18 @@ bool IPackageResourceManager::UnRegisterPreloadableArchive(const FPackagePath& P
 	return NumRemoved > 0;
 }
 #endif
+
+EPackageFormat ExtensionToPackageFormat(EPackageExtension Extension)
+{
+	switch (Extension)
+	{
+	case EPackageExtension::TextAsset: return EPackageFormat::Text;
+	case EPackageExtension::TextMap: return EPackageFormat::Text;
+	default: return EPackageFormat::Binary;
+	}
+}
+
+FOpenAsyncPackageResult::~FOpenAsyncPackageResult()
+{
+	// Defined in CPP so we can forward declare IAsyncReadFileHandle
+}

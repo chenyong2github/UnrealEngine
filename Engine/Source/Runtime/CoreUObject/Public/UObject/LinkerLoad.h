@@ -195,7 +195,7 @@ private:
 
 protected:
 
-	void SetLoader(FArchive* InLoader);
+	void SetLoader(FArchive* InLoader, bool bInLoaderNeedsEngineVersionChecks);
 	FArchive* GetLoader() const { return Loader; }
 
 public:
@@ -362,6 +362,8 @@ private:
 	bool					bUseTimeLimit:1;
 	/** Whether to use the full time limit, even if we're blocked on I/O													*/
 	bool					bUseFullTimeLimit:1;
+	/** Whether the loader needs version and correctness checks (see OpenReadPackage)										*/
+	bool					bLoaderNeedsEngineVersionChecks : 1;
 	/** Call count of IsTimeLimitExceeded.																					*/
 	int32					IsTimeLimitExceededCallCount;
 	/** Current time limit to use if bUseTimeLimit is true.																	*/
