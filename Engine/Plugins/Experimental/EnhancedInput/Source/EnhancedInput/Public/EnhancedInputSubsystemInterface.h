@@ -89,7 +89,7 @@ public:
 	 * @param Priority				Higher priority mappings will be applied first and, if they consume input, will block lower priority mappings.
 	 * @param Options				Options to consider when adding this mapping context.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName="Add Mapping Context", ScriptName="AddMappingContext", AutoCreateRefParm = "Options"))
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName="Add Mapping Context", ScriptName="AddMappingContext", AutoCreateRefTerm = "Options"))
 	virtual void AddInputMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const FModifyContextOptions& Options = FModifyContextOptions());
 	
 	/**
@@ -108,7 +108,7 @@ public:
 	* @param MappingContext		Context to remove from the player
 	* @param Options			Options to consider when removing this input mapping context
 	*/
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName = "Remove Mapping Context", ScriptName = "RemoveMappingContext", AutoCreateRefParm = "Options"))
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName = "Remove Mapping Context", ScriptName = "RemoveMappingContext", AutoCreateRefTerm = "Options"))
 	virtual void RemoveInputMappingContext(const UInputMappingContext* MappingContext, const FModifyContextOptions& Options = FModifyContextOptions());
 	
 	/**
@@ -126,7 +126,7 @@ public:
 	*
 	* @param Options		Options to consider when removing this input mapping context
 	*/
-	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName = "RequestRebuildControlMappings", ScriptName="RequestRebuildControlMappings", AutoCreateRefParm = "Options"))
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Input", meta=(DisplayName = "RequestRebuildControlMappings", ScriptName="RequestRebuildControlMappings", AutoCreateRefTerm = "Options"))
 	virtual void RequestRebuildInputControlMappings(const FModifyContextOptions& Options = FModifyContextOptions());
 
 	/**
