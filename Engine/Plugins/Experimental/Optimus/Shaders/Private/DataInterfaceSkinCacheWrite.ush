@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Engine/Private/ComputeKernelCommon.ush"
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 #include "/Engine/Private/GpuSkinCommon.ush"
 
 uint DI_LOCAL(NumVertices);

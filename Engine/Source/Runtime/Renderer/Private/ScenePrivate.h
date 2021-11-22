@@ -86,7 +86,6 @@ class FRHIGPUTextureReadback;
 class FRuntimeVirtualTextureSceneProxy;
 class FLumenSceneData;
 class FVirtualShadowMapArrayCacheManager;
-class FComputeGraphScheduler;
 struct FHairStrandsInstance;
 struct FPathTracingState;
 
@@ -2981,8 +2980,8 @@ public:
 	/** GPU Skinning cache, if enabled */
 	class FGPUSkinCache* GPUSkinCache;
 
-	/* Root system that handles runtime execution of Compute Framework tasks */
-	FComputeGraphScheduler* ComputeGraphScheduler = nullptr;
+	/* Array of registered compute work schedulers*/
+	TArray<class IComputeTaskWorker*> ComputeTaskWorkers;
 
 	/** Uniform buffers for parameter collections with the corresponding Ids. */
 	TMap<FGuid, FUniformBufferRHIRef> ParameterCollections;
@@ -3195,9 +3194,9 @@ public:
 		return GPUSkinCache;
 	}
 
-	FComputeGraphScheduler* GetComputeGraphScheduler() override
+	virtual void GetComputeTaskWorkers(TArray<class IComputeTaskWorker*>& OutWorkers) const override
 	{
-		return ComputeGraphScheduler;
+		OutWorkers = ComputeTaskWorkers;
 	}
 
 #if RHI_RAYTRACING

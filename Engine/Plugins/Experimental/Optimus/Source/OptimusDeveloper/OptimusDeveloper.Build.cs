@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
                     "Core",
 					"CoreUObject",
 					"Engine",
+					"ComputeFramework",
 					"OptimusCore",
 					"RenderCore",
 				}

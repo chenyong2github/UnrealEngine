@@ -44,6 +44,7 @@ namespace UnrealBuildTool.Rules
 
 					"MLDeformer",
 					"ToolWidgets",
+					"ComputeFramework",
 				}
             );
 

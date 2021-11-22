@@ -1,0 +1,10 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+
+#include "/Engine/Private/Common.ush"
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
+
+[numthreads(32, 1, 1)]
+KERNEL_ENTRY_POINT(ComputeKernelNull)
+{
+}

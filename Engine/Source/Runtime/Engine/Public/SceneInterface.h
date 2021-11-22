@@ -32,7 +32,6 @@ class UStaticMeshComponent;
 class UTextureCube;
 class FViewInfo;
 class FSceneRenderer;
-class FComputeGraphScheduler;
 class FInstanceCullingManager;
 struct FHairStrandsInstance;
 
@@ -432,10 +431,10 @@ public:
 		return nullptr;
 	}
 
-	virtual FComputeGraphScheduler* GetComputeGraphScheduler()
-	{
-		return nullptr;
-	}
+	/**
+	 * Gets the compute work scheduler objects associated with the scene.
+	 */
+	virtual void GetComputeTaskWorkers(TArray<class IComputeTaskWorker*>& OutWorkers) const {}
 
 	/**
 	 * Sets the FX system associated with the scene.

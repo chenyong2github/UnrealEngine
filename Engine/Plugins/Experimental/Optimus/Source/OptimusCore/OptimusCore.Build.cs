@@ -16,19 +16,19 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 				}
-	        );
+			);
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "Core",
+					"ComputeFramework",
+					"Core",
 					"CoreUObject",
 					"Engine",
 					"Projects",
 					"RenderCore",
 				}
 			);
-
         }
     }
 }

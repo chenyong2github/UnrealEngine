@@ -114,8 +114,6 @@
 #include "AssetTypeActions/AssetTypeActions_VectorFieldAnimated.h"
 #include "AssetTypeActions/AssetTypeActions_VectorFieldStatic.h"
 #include "AssetTypeActions/AssetTypeActions_World.h"
-#include "ComputeFramework/ComputeKernelAssetActions.h"
-#include "ComputeFramework/ComputeKernelFromTextAssetActions.h"
 #include "SDiscoveringAssetsDialog.h"
 #include "AssetFixUpRedirectors.h"
 #include "ObjectTools.h"
@@ -237,8 +235,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_BlueprintGeneratedClass));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CameraAnim));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CanvasRenderTarget2D));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ComputeKernel));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ComputeKernelFromText));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Curve));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveFloat));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveTable));
