@@ -501,11 +501,6 @@ struct FMaterialVertexParameters
 	float3 PreSkinnedPosition;
 	float3 PreSkinnedNormal;
 
-#if GPU_SKINNED_MESH_FACTORY
-	float3 PreSkinOffset;
-	float3 PostSkinOffset;
-#endif
-
 	half4 VertexColor;
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
 	float2 TexCoords[NUM_MATERIAL_TEXCOORDS_VERTEX];
@@ -1583,24 +1578,6 @@ float MaterialExpressionVolumeSampleShadowSampleDistance(FMaterialPixelParameter
 	return Parameters.ShadowSampleDistance;
 #else
 	return 0.0f;
-#endif
-}
-
-float3 MaterialExpressionPreSkinOffset(FMaterialVertexParameters Parameters)
-{
-#if GPU_SKINNED_MESH_FACTORY
-	return Parameters.PreSkinOffset;
-#else
-	return 0;
-#endif
-}
-
-float3 MaterialExpressionPostSkinOffset(FMaterialVertexParameters Parameters)
-{
-#if GPU_SKINNED_MESH_FACTORY
-	return Parameters.PostSkinOffset;
-#else
-	return 0;
 #endif
 }
 

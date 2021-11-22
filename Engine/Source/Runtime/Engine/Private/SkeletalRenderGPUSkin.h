@@ -101,9 +101,6 @@ public:
 	/** a weight factor to blend between simulated positions and skinned positions */	
 	float ClothBlendWeight;
 
-	TArray<FVector3f> PreSkinningOffsets;
-	TArray<FVector3f> PostSkinningOffsets;
-
 	/**
 	* Compare the given set of active morph targets with the current list to check if different
 	* @param CompareActiveMorphTargets - array of morphs to compare
@@ -304,82 +301,6 @@ private:
 	FMorphVertexBuffer MorphVertexBuffers[2];
 	/** whether to double buffer. If going through skin cache, then use single buffer; otherwise double buffer. */
 	bool bDoubleBuffer = false;
-};
-
-/**
- * 
- */
-class FVertexOffsetBuffers
-{
-public:
-
-	void Init(uint32 Usage, const TArray<FVector3f>& PreSkinningOffsets, const TArray<FVector3f>& PostSkinningOffsets)
-	{
-		if (Usage & uint32(EVertexOffsetUsageType::PreSkinningOffset))
-		{
-			ensure(PreSkinningOffsets.Num() > 0);
-			PreSkinningOffsetsVertexBuffer.Init(PreSkinningOffsets);
-		}
-
-		if (Usage & uint32(EVertexOffsetUsageType::PostSkinningOffset))
-		{
-			ensure(PostSkinningOffsets.Num() > 0);
-			PostSkinningOffsetsVertexBuffer.Init(PostSkinningOffsets);
-		}
-	}
-
-	/**
-	 * Get Resource Size : mostly copied from InitDynamicRHI - how much they allocate when initialize
-	 */
-	SIZE_T GetResourceSize() const
-	{
-		SIZE_T ResourceSize = sizeof(*this);
-
-		if (PreSkinningOffsetsVertexBuffer.VertexBufferRHI)
-		{
-			ResourceSize += PreSkinningOffsetsVertexBuffer.GetNumVertices() * sizeof(FVector3f);
-		}
-
-		if (PostSkinningOffsetsVertexBuffer.VertexBufferRHI)
-		{
-			ResourceSize += PostSkinningOffsetsVertexBuffer.GetNumVertices() * sizeof(FVector3f);
-		}
-
-		return ResourceSize;
-	}
-
-
-	uint32 GetUsage() const
-	{
-		uint32 Usage = 0;
-
-		if (PreSkinningOffsetsVertexBuffer.GetNumVertices() > 0)
-		{
-			Usage |= uint32(EVertexOffsetUsageType::PreSkinningOffset);
-		}
-
-		if (PostSkinningOffsetsVertexBuffer.GetNumVertices() > 0)
-		{
-			Usage |= uint32(EVertexOffsetUsageType::PostSkinningOffset);
-		}
-
-		return Usage;
-	}
-
-	void BeginInitResource()
-	{
-		::BeginInitResource(&PreSkinningOffsetsVertexBuffer);
-		::BeginInitResource(&PostSkinningOffsetsVertexBuffer);
-	}
-
-	void BeginReleaseResource()
-	{
-		::BeginReleaseResource(&PostSkinningOffsetsVertexBuffer);
-		::BeginReleaseResource(&PreSkinningOffsetsVertexBuffer);
-	}
-
-	FPositionVertexBuffer PreSkinningOffsetsVertexBuffer;
-	FPositionVertexBuffer PostSkinningOffsetsVertexBuffer;
 };
 
 /**
@@ -598,7 +519,7 @@ protected:
 		 * @param MeshLODInfo - information about the state of the bone influence swapping
 		 * @param CompLODInfo - information about this LOD from the skeletal component 
 		 */
-		void InitResources(uint32 VertexOffsetUsage, const FSkelMeshObjectLODInfo& MeshLODInfo, FSkelMeshComponentLODInfo* CompLODInfo, ERHIFeatureLevel::Type FeatureLevel);
+		void InitResources(const FSkelMeshObjectLODInfo& MeshLODInfo, FSkelMeshComponentLODInfo* CompLODInfo, ERHIFeatureLevel::Type FeatureLevel);
 
 		/** 
 		 * Release rendering resources for this LOD 
@@ -623,7 +544,6 @@ protected:
 		void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 		{
 			CumulativeResourceSize.AddUnknownMemoryBytes(MorphVertexBufferPool.GetResourceSize());
-			CumulativeResourceSize.AddUnknownMemoryBytes(VertexOffsetVertexBuffers.GetResourceSize());
 			CumulativeResourceSize.AddUnknownMemoryBytes(GPUSkinVertexFactories.GetResourceSize());
 		}
 
@@ -635,8 +555,6 @@ protected:
 
 		/** Pooled vertex buffers that store the morph target vertex deltas. */
 		FMorphVertexBufferPool	MorphVertexBufferPool;
-
-		FVertexOffsetBuffers VertexOffsetVertexBuffers;
 
 		/** Default GPU skinning vertex factories and matrices */
 		FVertexFactoryData GPUSkinVertexFactories;

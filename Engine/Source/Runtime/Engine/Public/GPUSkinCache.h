@@ -167,7 +167,6 @@ public:
 		FGPUSkinPassthroughVertexFactory* TargetVertexFactory, 
 		const FSkelMeshRenderSection& BatchElement, 
 		FSkeletalMeshObjectGPUSkin* Skin,
-		FVertexOffsetBuffers* VertexOffsetBuffers,
 		const FMorphVertexBuffer* MorphVertexBuffer, 
 		const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer, 
 		const FClothSimulData* SimData,

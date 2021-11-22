@@ -578,28 +578,6 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InDa
 		}
 	}
 
-	// Pre-skinning offsets
-	if (InData.PreSkinningOffsets.VertexBuffer)
-	{
-		OutElements.Add(AccessStreamComponent(InData.PreSkinningOffsets, 11));
-	}
-	else
-	{
-		FVertexStreamComponent NullDeltaComponent(&GNullVertexBuffer, 0, 0, VET_Float3);
-		OutElements.Add(AccessStreamComponent(NullDeltaComponent, 11));
-	}
-
-	// Post-skinning offsets
-	if (InData.PostSkinningOffsets.VertexBuffer)
-	{
-		OutElements.Add(AccessStreamComponent(InData.PostSkinningOffsets, 12));
-	}
-	else
-	{
-		FVertexStreamComponent NullDeltaComponent(&GNullVertexBuffer, 0, 0, VET_Float3);
-		OutElements.Add(AccessStreamComponent(NullDeltaComponent, 12));
-	}
-
 	// Primitive Id
 	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, OutElements, 16, 0xff);
 }

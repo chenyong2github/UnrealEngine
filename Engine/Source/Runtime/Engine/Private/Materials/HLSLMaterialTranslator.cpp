@@ -6946,26 +6946,6 @@ int32 FHLSLMaterialTranslator::VertexColor()
 	}
 }
 
-int32 FHLSLMaterialTranslator::PreSkinVertexOffset()
-{
-	if (ShaderFrequency != SF_Vertex)
-	{
-		return Errorf(TEXT("Pre Skin Offset only available in the vertex shader, pass through custom interpolators if needed."));
-	}
-
-	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionPreSkinOffset(Parameters)"));
-}
-
-int32 FHLSLMaterialTranslator::PostSkinVertexOffset()
-{
-	if (ShaderFrequency != SF_Vertex)
-	{
-		return Errorf(TEXT("Post Skin Offset only available in the vertex shader, pass through custom interpolators if needed."));
-	}
-
-	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionPostSkinOffset(Parameters)"));
-}
-
 int32 FHLSLMaterialTranslator::PreSkinnedPosition()
 {
 	if (ShaderFrequency != SF_Vertex)
