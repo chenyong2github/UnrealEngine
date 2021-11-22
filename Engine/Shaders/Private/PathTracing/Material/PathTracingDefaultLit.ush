@@ -33,6 +33,7 @@ FMaterialEval DefaultLit_EvalMaterial(
 	const float NoV = saturate(V.z);
 	const float NoL = saturate(L.z);
 	const float VoH = saturate(dot(V, H));
+	const float NoH = saturate(H.z);
 
 	const FBxDFEnergyTerms Spec = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor);
 
@@ -40,7 +41,8 @@ FMaterialEval DefaultLit_EvalMaterial(
 	const float LobeSelectionPdf = LobeSelectionProb(Payload.DiffuseColor * (1 - Spec.E), Spec.E);
 
 	// Diffuse Lobe
-	AddLobeWithMIS(Result.Weight, Result.Pdf, (1 - Spec.E) * Payload.DiffuseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeSelectionPdf);
+	const float3 Diffuse = GetPathTracingDiffuseModel(Payload.DiffuseColor, Payload.Roughness, NoV, NoL, VoH, NoH);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, (1 - Spec.E) * Diffuse * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
@@ -111,12 +113,14 @@ FMaterialSample DefaultLit_SampleMaterial(
 
 	const float NoL = saturate(L.z);
 	const float VoH = saturate(dot(V, H));
+	const float NoH = saturate(H.z);
 
 	float3 OutWeight = 0;
 	float OutPdf = 0;
 
 	// Diffuse Lobe
-	AddLobeWithMIS(OutWeight, OutPdf, (1 - Spec.E) * Payload.DiffuseColor * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeSelectionPdf);
+	const float3 Diffuse = GetPathTracingDiffuseModel(Payload.DiffuseColor, Payload.Roughness, NoV, NoL, VoH, NoH);
+	AddLobeWithMIS(OutWeight, OutPdf, (1 - Spec.E) * Diffuse * ShadowTerminatorTerm(L_World, Payload.WorldNormal, Payload.WorldSmoothNormal), NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
