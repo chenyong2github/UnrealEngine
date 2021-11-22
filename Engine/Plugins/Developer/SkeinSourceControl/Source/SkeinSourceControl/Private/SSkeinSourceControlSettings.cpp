@@ -2,6 +2,7 @@
 
 #include "SSkeinSourceControlSettings.h"
 #include "SkeinSourceControlModule.h"
+#include "SkeinSourceControlUtils.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -55,16 +56,16 @@ void SSkeinSourceControlSettings::Construct(const FArguments& InArgs)
 EVisibility SSkeinSourceControlSettings::CanUseSkeinCLI() const
 {
 	FSkeinSourceControlModule& SkeinSourceControl = FModuleManager::LoadModuleChecked<FSkeinSourceControlModule>("SkeinSourceControl");
-	const bool bSkeinAvailable = SkeinSourceControl.GetProvider().IsAvailable();
-	return (!bSkeinAvailable) ? EVisibility::Visible : EVisibility::Collapsed;
+	const bool bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinBinaryFound();
+	return (!bSkeinBinaryFound) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SSkeinSourceControlSettings::CanUseSkeinProject() const
 {
 	FSkeinSourceControlModule& SkeinSourceControl = FModuleManager::LoadModuleChecked<FSkeinSourceControlModule>("SkeinSourceControl");
-	const bool bSkeinAvailable = SkeinSourceControl.GetProvider().IsAvailable();
-	const bool bSkeinEnabled = SkeinSourceControl.GetProvider().IsEnabled();
-	return (bSkeinAvailable && !bSkeinEnabled) ? EVisibility::Visible : EVisibility::Collapsed;
+	const bool bSkeinBinaryFound = SkeinSourceControlUtils::IsSkeinBinaryFound();
+	const bool bSkeinProjectFound = SkeinSourceControlUtils::IsSkeinProjectFound(FPaths::ProjectDir());
+	return (bSkeinBinaryFound && !bSkeinProjectFound) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

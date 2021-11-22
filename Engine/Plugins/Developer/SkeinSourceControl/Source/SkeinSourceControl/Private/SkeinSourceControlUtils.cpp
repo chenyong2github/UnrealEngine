@@ -363,6 +363,13 @@ bool IsSkeinBinaryIdle()
 	return !FPlatformProcess::IsApplicationRunning(*SkeinBinaryFile);
 }
 
+bool IsSkeinProjectFound(const FString& InPath)
+{
+	FString ProjectRootDummy;
+	FString ProjectNameDummy;
+	return IsSkeinProjectFound(InPath, ProjectRootDummy, ProjectNameDummy);
+}
+
 bool IsSkeinProjectFound(const FString& InPath, FString& OutProjectRoot, FString& OutProjectName)
 {
 	OutProjectRoot = FindSkeinProjectRoot(InPath);

@@ -60,6 +60,7 @@ bool IsSkeinBinaryIdle();
   * @param	 OutProjectName		The Skein project name found (if any)
   * @returns true if a Skein project was found.
   */
+bool IsSkeinProjectFound(const FString& InPath);
 bool IsSkeinProjectFound(const FString& InPath, FString& OutProjectRoot, FString& OutProjectName);
 
 /**
