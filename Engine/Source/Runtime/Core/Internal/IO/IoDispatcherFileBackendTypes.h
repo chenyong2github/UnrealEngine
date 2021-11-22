@@ -17,7 +17,7 @@
 #define PLATFORM_IODISPATCHER_MODULE PREPROCESSOR_TO_STRING(PREPROCESSOR_JOIN(PLATFORM_HEADER_NAME, PlatformIoDispatcher))
 #endif
 
-#define IO_DISPATCHER_FILE_STATS (COUNTERSTRACE_ENABLED || CSV_PROFILER)
+#define UE_FILEIOSTORE_STATS_ENABLED (COUNTERSTRACE_ENABLED || CSV_PROFILER)
 
 struct FFileIoStoreCompressionContext;
 
@@ -520,15 +520,23 @@ private:
 	}
 };
 
+class FFileIoStoreStats;
+
 class FFileIoStoreBufferAllocator
 {
 public:
+	FFileIoStoreBufferAllocator(FFileIoStoreStats& InStats)
+		: Stats(InStats)
+	{
+	}
+
 	void Initialize(uint64 MemorySize, uint64 BufferSize, uint32 BufferAlignment);
 	FFileIoStoreBuffer* AllocBuffer();
 	void FreeBuffer(FFileIoStoreBuffer* Buffer);
 	uint64 GetBufferSize() const { return BufferSize; }
 
 private:
+	FFileIoStoreStats& Stats;
 	uint64 BufferSize = 0;
 	uint8* BufferMemory = nullptr;
 	FCriticalSection BuffersCritical;
@@ -538,7 +546,7 @@ private:
 class FFileIoStoreBlockCache
 {
 public:
-	FFileIoStoreBlockCache();
+	FFileIoStoreBlockCache(FFileIoStoreStats& Stats);
 	~FFileIoStoreBlockCache();
 
 	void Initialize(uint64 CacheMemorySize, uint64 ReadBufferSize);
@@ -554,6 +562,7 @@ private:
 		uint8* Buffer = nullptr;
 	};
 
+	FFileIoStoreStats& Stats;
 	uint8* CacheMemory = nullptr;
 	TMap<uint64, FCachedBlock*> CachedBlocks;
 	FCachedBlock CacheLruHead;
@@ -877,76 +886,127 @@ private:
 
 
 // Wrapper for sending stats to both insights and csv profiling from any platform-specific dispatcher.
-struct FFileIoStats
+#if UE_FILEIOSTORE_STATS_ENABLED
+class FFileIoStoreStats
 {
+public:
+	FFileIoStoreStats();
+	~FFileIoStoreStats();
+
+	// Called by the backend when underlying file system reads start
+	void OnFilesystemReadStarted(const FFileIoStoreReadRequest* Request);
+	void OnFilesystemReadsStarted(const FFileIoStoreReadRequestList& Requests);
+	// Called by the backend when underlying filesystem reads complete, possibly already decompressed on some systems
+	void OnFilesystemReadCompleted(const FFileIoStoreReadRequest* Request);
+	void OnFilesystemReadsCompleted(const FFileIoStoreReadRequestList& CompletedRequests);
+
+private:
+	friend class FFileIoStore;
+	friend class FFileIoStoreBlockCache;
+	friend class FFileIoStoreReader;
+	friend class FFileIoStoreBufferAllocator;
+
+#if COUNTERSTRACE_ENABLED
+	FCountersTrace::FCounterInt QueuedReadRequestsSizeCounter;
+	FCountersTrace::FCounterInt CompletedReadRequestsSizeCounter;
+	FCountersTrace::FCounterInt QueuedCompressedSizeCounter;
+	FCountersTrace::FCounterInt QueuedUncompressedSizeCounter;
+	FCountersTrace::FCounterInt CompletedCompressedSizeCounter;
+	FCountersTrace::FCounterInt CompletedUncompressedSizeCounter;
+	FCountersTrace::FCounterInt FileSystemSeeksTotalDistanceCounter;
+	FCountersTrace::FCounterInt FileSystemSeeksForwardCountCounter;
+	FCountersTrace::FCounterInt FileSystemSeeksBackwardCountCounter;
+	FCountersTrace::FCounterInt FileSystemSeeksChangeHandleCountCounter;
+	FCountersTrace::FCounterInt FileSystemCompletedRequestsSizeCounter;
+	FCountersTrace::FCounterInt BlockCacheStoredSizeCounter;
+	FCountersTrace::FCounterInt BlockCacheHitSizeCounter;
+	FCountersTrace::FCounterInt BlockCacheMissedSizeCounter;
+	FCountersTrace::FCounterInt ScatteredSizeCounter;
+	FCountersTrace::FCounterInt TocMemoryCounter;
+	FCountersTrace::FCounterInt AvailableBuffersCounter;
+#endif
+
 #if CSV_PROFILER
-	static uint64 QueuedFilesystemReadBytes;
-	static uint64 QueuedFilesystemReads;
+	uint64 QueuedFilesystemReadBytes = 0;
+	uint64 QueuedFilesystemReads = 0;
 
-	static uint64 QueuedUncompressBytesIn;
-	static uint64 QueuedUncompressBytesOut;
-	static uint64 QueuedUncompressBlocks;
+	uint64 QueuedUncompressBytesIn = 0;
+	uint64 QueuedUncompressBytesOut = 0;
+	uint64 QueuedUncompressBlocks = 0;
 #endif
 
-#if IO_DISPATCHER_FILE_STATS
 	// Used for seek tracking 
-	static uint64 LastHandle;
-	static uint64 LastOffset;
+	uint64 LastHandle = uint64(-1);
+	uint64 LastOffset = uint64(-1);
 
-	static uint32 FileIoStoreThreadId;
-	static uint32 IoDispatcherThreadId;
+	FTSTicker::FDelegateHandle TickerHandle;
 
-	static FTSTicker::FDelegateHandle TickerHandle;
-#endif
-
-	static float BytesToApproxMB(uint64 Bytes) {
+	float BytesToApproxMB(uint64 Bytes)
+	{
 		return float(double(Bytes) / 1024.0 / 1024.0);
 	}
-	static float BytesToApproxKB(uint64 Bytes) {
+
+	float BytesToApproxKB(uint64 Bytes)
+	{
 		return float(double(Bytes) / 1024.0);
 	}
 
-	static void Init();
-	static void Shutdown();
-	static bool CsvTick(float DeltaTime);
+	bool CsvTick(float DeltaTime);
 
-	static bool IsInIoDispatcherThread();
-	static bool IsInFileIoStoreThread();
-	static void SetDispatcherThreadId(uint32 InIoDispatcherThreadId);
-	static void SetFileIoStoreThreadId(uint32 InFileIoStoreThreadId);
-
-	// Adds an underlying filesystem read to the queue to track num reads/bytes in the queue
-	// There is currently no separate stat for in-flight reads, those are still counted in the queued stat
-	static void OnFilesystemReadsQueued(const FFileIoStoreReadRequestList& Requests);
-	static void OnFilesystemReadsQueued(uint64 NumBytes, int32 NumReads);
-	// Called when the backend commits to the next read to check for estimated seek tracking
-	static void OnFilesystemReadStarted(uint64 Handle, uint64 Offset, uint64 NumBytes);
-	// Underlying filesystem read complete, BytesRead is bytes returned from filesystem, possibly already decompressed on some systems
-	static void OnFilesystemReadsComplete(const FFileIoStoreReadRequestList& CompletedRequests);
-	static void OnFilesystemReadsComplete(int64 BytesRead, int32 NumReads=1);
-	// Backend read complete, BytesRead is bytes returned from either block cache or filesystem
-	static void OnReadComplete(int64 BytesRead);
-	// NumBytes of data passed the decompression stage, even if the compression method was none
-	static void OnDecompressQueued(int64 CompressedBytes, int64 UncompressedBytes);
-	static void OnDecompressComplete(int64 CompressedBytes, int64 UncompressedBytes);
+	void OnReadRequestsQueued(const FFileIoStoreReadRequestList& Requests);
+	void OnReadRequestsCompleted(const FFileIoStoreReadRequestList& Requests);
+	void OnDecompressQueued(const FFileIoStoreCompressedBlock* CompressedBlock);
+	void OnDecompressComplete(const FFileIoStoreCompressedBlock* CompressedBlock);
 
 	// Bytes were copied into the buffer provided to users of the io system
-	static void OnBytesScattered(int64 BytesScattered);
+	void OnBytesScattered(int64 BytesScattered);
 	// Record stats for block cache hit/miss rate & data throughput
-	static void OnBlockCacheStore(uint64 NumBytes);
-	static void OnBlockCacheHit(uint64 NumBytes);
-	static void OnBlockCacheMiss(uint64 NumBytes);
+	void OnBlockCacheStore(uint64 NumBytes);
+	void OnBlockCacheHit(uint64 NumBytes);
+	void OnBlockCacheMiss(uint64 NumBytes);
 
-	static void OnCloseHandle(uint64 Handle);
+	// A read was started without seeking
+	void OnSequentialRead();
+	// A read was started and was either a forward or reverse seek
+	void OnSeek(uint64 LastOffset, uint64 NewOffset);
+	// A read was started from a different file handle from the last one we used
+	void OnHandleChangeSeek();
+
+	void OnTocMounted(uint64 AllocatedSize);
+	void OnTocUnmounted(uint64 AllocatedSize);
+
+	void OnBufferReleased();
+	void OnBufferAllocated();
+};
+#else
+class FFileIoStoreStats
+{
+public:
+	void OnFilesystemReadStarted(const FFileIoStoreReadRequest* Request) {}
+	void OnFilesystemReadsStarted(const FFileIoStoreReadRequestList& Requests) {}
+	void OnFilesystemReadCompleted(const FFileIoStoreReadRequest* Request) {}
+	void OnFilesystemReadsCompleted(const FFileIoStoreReadRequestList& CompletedRequests) {}
 
 private:
-	// A read was started which the backend considers sequential
-	static void OnSequentialRead();
-	// A read was started which the backend considers a forward or reverse seek
-	static void OnSeek(uint64 LastOffset, uint64 NewOffset);
-	// A read was started from a different file handle from the last one we used
-	static void OnHandleChangeSeek();
+	friend class FFileIoStore;
+	friend class FFileIoStoreBlockCache;
+	friend class FFileIoStoreReader;
+	friend class FFileIoStoreBufferAllocator;
+
+	void OnReadRequestsQueued(const FFileIoStoreReadRequestList& Requests) {}
+	void OnReadRequestsCompleted(const FFileIoStoreReadRequestList& Requests) {}
+	void OnDecompressQueued(const FFileIoStoreCompressedBlock* CompressedBlock) {}
+	void OnDecompressComplete(const FFileIoStoreCompressedBlock* CompressedBlock) {}
+	void OnBytesScattered(int64 BytesScattered) {}
+	void OnBlockCacheStore(uint64 NumBytes) {}
+	void OnBlockCacheHit(uint64 NumBytes) {}
+	void OnBlockCacheMiss(uint64 NumBytes) {}
+	void OnTocMounted(uint64 AllocatedSize) {}
+	void OnTocUnmounted(uint64 AllocatedSize) {}
+	void OnBufferReleased() {}
+	void OnBufferAllocated() {}
 };
+#endif
 
 struct FInitializePlatformFileIoStoreParams
 {
@@ -954,6 +1014,7 @@ struct FInitializePlatformFileIoStoreParams
 	FFileIoStoreRequestAllocator* RequestAllocator = nullptr;
 	FFileIoStoreBufferAllocator* BufferAllocator = nullptr;
 	FFileIoStoreBlockCache* BlockCache = nullptr;
+	FFileIoStoreStats* Stats = nullptr;
 };
 
 class IPlatformFileIoStore

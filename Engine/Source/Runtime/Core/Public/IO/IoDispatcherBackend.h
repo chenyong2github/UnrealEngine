@@ -6,6 +6,10 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/Optional.h"
 #include "ProfilingDebugging/TagTrace.h"
+#include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+#define UE_IODISPATCHER_STATS_ENABLED (COUNTERSTRACE_ENABLED || CSV_PROFILER)
 
 struct FIoContainerHeader;
 
@@ -62,6 +66,7 @@ private:
 	friend class FIoDispatcherImpl;
 	friend class FIoRequest;
 	friend class FIoBatch;
+	friend class FIoRequestStats;
 
 	void AddRef()
 	{
@@ -81,6 +86,9 @@ private:
 	FIoRequestAllocator& Allocator;
 	struct IIoDispatcherBackend* Backend = nullptr;
 	FIoBatchImpl* Batch = nullptr;
+#if UE_IODISPATCHER_STATS_ENABLED
+	double StartTime = -1.0;
+#endif
 	TOptional<FIoBuffer> Buffer;
 	FIoReadCallback Callback;
 	TAtomic<uint32> RefCount{ 0 };

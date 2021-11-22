@@ -33,6 +33,7 @@ public:
 		WakeUpDispatcherThreadDelegate = Params.WakeUpDispatcherThreadDelegate;
 		BufferAllocator = Params.BufferAllocator;
 		BlockCache = Params.BlockCache;
+		Stats = Params.Stats;
 	}
 	bool OpenContainer(const TCHAR* ContainerFilePath, uint64& ContainerFileHandle, uint64& ContainerFileSize) override;
 	void CloseContainer(uint64 ContainerFileHandle) override;
@@ -56,6 +57,7 @@ private:
 	FGenericFileIoStoreEventQueue EventQueue;
 	FFileIoStoreBufferAllocator* BufferAllocator = nullptr;
 	FFileIoStoreBlockCache* BlockCache = nullptr;
+	FFileIoStoreStats* Stats = nullptr;
 
 	FCriticalSection CompletedRequestsCritical;
 	FFileIoStoreReadRequestList CompletedRequests;

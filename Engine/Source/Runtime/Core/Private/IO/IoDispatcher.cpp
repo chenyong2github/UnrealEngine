@@ -35,7 +35,128 @@ TUniquePtr<FIoDispatcher> GIoDispatcher;
 CSV_DEFINE_CATEGORY(IoDispatcher, true);
 CSV_DEFINE_STAT(IoDispatcher, PendingIoRequests);
 
-TRACE_DECLARE_INT_COUNTER(PendingIoRequests, TEXT("IoDispatcher/PendingIoRequests"));
+#if UE_IODISPATCHER_STATS_ENABLED
+class FIoRequestStats
+{
+public:
+	FIoRequestStats()
+#if COUNTERSTRACE_ENABLED
+		: PendingIoRequestsCounter(TEXT("IoDispatcher/PendingIoRequests"), TraceCounterDisplayHint_None)
+#endif
+	{
+		Categories.Reserve(4);
+		int32 PackageDataIndex = Categories.Emplace(TEXT("PackageData"));
+		int32 BulkDataIndex = Categories.Emplace(TEXT("BulkData"));
+		int32 ShadersIndex = Categories.Emplace(TEXT("Shaders"));
+		int32 MiscIndex = Categories.Emplace(TEXT("Misc"));
+
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(ChunkTypeToCategoryMap); ++Index)
+		{
+			ChunkTypeToCategoryMap[Index] = &Categories[MiscIndex];
+		}
+		ChunkTypeToCategoryMap[static_cast<int32>(EIoChunkType::ExportBundleData)] = &Categories[PackageDataIndex];
+		ChunkTypeToCategoryMap[static_cast<int32>(EIoChunkType::BulkData)] = &Categories[BulkDataIndex];
+		ChunkTypeToCategoryMap[static_cast<int32>(EIoChunkType::OptionalBulkData)] = &Categories[BulkDataIndex];
+		ChunkTypeToCategoryMap[static_cast<int32>(EIoChunkType::MemoryMappedBulkData)] = &Categories[BulkDataIndex];
+		ChunkTypeToCategoryMap[static_cast<int32>(EIoChunkType::ShaderCode)] = &Categories[ShadersIndex];
+
+#if CSV_PROFILER
+		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIoRequestStats::TickCsv));
+#endif
+	}
+
+	~FIoRequestStats()
+	{
+#if CSV_PROFILER
+		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+#endif
+	}
+
+	void OnBatchIssued(FIoBatch& Batch)
+	{
+		double StartTime = FPlatformTime::Seconds();
+		FIoRequestImpl* Request = Batch.HeadRequest;
+		while (Request)
+		{
+			Request->StartTime = StartTime;
+			Request = Request->NextRequest;
+		}
+	}
+
+	void OnRequestStarted(FIoRequestImpl& Request)
+	{
+		++PendingIoRequests;
+#if COUNTERSTRACE_ENABLED
+		PendingIoRequestsCounter.Set(PendingIoRequests);
+#endif
+	}
+
+	void OnRequestCompleted(FIoRequestImpl& Request)
+	{
+		--PendingIoRequests;
+#if COUNTERSTRACE_ENABLED
+		PendingIoRequestsCounter.Set(PendingIoRequests);
+#endif
+		if (!Request.HasBuffer())
+		{
+			return;
+		}
+		FRequestCategory* Category = ChunkTypeToCategoryMap[static_cast<int32>(Request.ChunkId.GetChunkType())];
+		++Category->TotaRequestsCount;
+		Category->TotalRequestsTime += FPlatformTime::Seconds() - Request.StartTime;
+#if COUNTERSTRACE_ENABLED
+		Category->TotalLoadedCounter.Add(Request.GetBuffer().DataSize());
+		Category->AverageDurationCounter.Set(Category->TotalRequestsTime / double(Category->TotaRequestsCount));
+#endif
+	}
+
+private:
+	struct FRequestCategory
+	{
+		FRequestCategory(const TCHAR* Name)
+#if COUNTERSTRACE_ENABLED
+			: TotalLoadedCounter(*FString::Printf(TEXT("IoDispatcher/TotalLoaded (%s)"), Name), TraceCounterDisplayHint_Memory)
+			, AverageDurationCounter(*FString::Printf(TEXT("IoDispatcher/AverageDuration (%s)"), Name), TraceCounterDisplayHint_None)
+#endif
+		{
+
+		}
+
+#if COUNTERSTRACE_ENABLED
+		FCountersTrace::FCounterInt TotalLoadedCounter;
+		FCountersTrace::FCounterFloat AverageDurationCounter;
+#endif
+		uint64 TotaRequestsCount = 0;
+		double TotalRequestsTime = 0.0;
+	};
+
+#if CSV_PROFILER
+	bool TickCsv(float DeltaTime)
+	{
+		CSV_CUSTOM_STAT_DEFINED(PendingIoRequests, static_cast<int32>(PendingIoRequests), ECsvCustomStatOp::Set);
+		return true; // Keep ticking
+	}
+#endif
+
+	int64 PendingIoRequests = 0;
+#if COUNTERSTRACE_ENABLED
+	FCountersTrace::FCounterInt PendingIoRequestsCounter;
+#endif
+	TArray<FRequestCategory> Categories;
+	FRequestCategory* ChunkTypeToCategoryMap[static_cast<int32>(EIoChunkType::MAX)];
+#if CSV_PROFILER
+	FTSTicker::FDelegateHandle TickerHandle;
+#endif
+};
+#else
+class FIoRequestStats
+{
+public:
+	void OnBatchIssued(FIoBatch& Batch) {}
+	void OnRequestStarted(FIoRequestImpl& Request) {}
+	void OnRequestCompleted(FIoRequestImpl& Request) {}
+};
+#endif
 
 template <typename T, uint32 BlockSize = 128>
 class TBlockAllocator
@@ -201,16 +322,10 @@ public:
 			RequestAllocator->Trim();
 			BatchAllocator.Trim();
 		});
-#if CSV_PROFILER
-		TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FIoDispatcherImpl::TickCsv));
-#endif
 	}
 
 	~FIoDispatcherImpl()
 	{
-#if CSV_PROFILER
-		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
-#endif
 		delete Thread;
 		FPlatformProcess::ReturnSynchEventToPool(DispatcherEvent);
 		RequestAllocator->ReleaseRef();
@@ -229,7 +344,6 @@ public:
 			Backend->Initialize(BackendContext);
 		}
 		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal, FPlatformAffinity::GetIoDispatcherThreadMask());
-		FFileIoStats::SetDispatcherThreadId(Thread ? Thread->GetThreadID() : 0);
 		return true;
 	}
 
@@ -367,6 +481,9 @@ public:
 		{
 			BatchImpl->UnfinishedRequestsCount += RequestCount;
 		}
+
+		RequestStats.OnBatchIssued(Batch);
+		
 		{
 			FScopeLock _(&WaitingLock);
 			if (!WaitingRequestsHead)
@@ -449,7 +566,6 @@ private:
 				CompletedRequestsHead->ReleaseRef();
 				CompletedRequestsHead = NextRequest;
 				--PendingIoRequestsCount;
-				TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
 			}
 		}
 	}
@@ -481,6 +597,8 @@ private:
 		{
 			return false;
 		}
+
+		RequestStats.OnRequestCompleted(*Request);
 
 		FIoBatchImpl* Batch = Request->Batch;
 		if (Request->Callback)
@@ -572,6 +690,7 @@ private:
 				RequestsToSubmitTail = nullptr;
 			}
 
+			RequestStats.OnRequestStarted(*Request);
 			if (Request->bCancelled)
 			{
 				CompleteRequest(Request, EIoErrorCode::Cancelled);
@@ -608,7 +727,6 @@ private:
 			}
 			
 			++PendingIoRequestsCount;
-			TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);	
 			ProcessCompletedRequests();
 		}
 	}
@@ -644,14 +762,6 @@ private:
 		DispatcherEvent->Trigger();
 	}
 
-#if CSV_PROFILER
-	bool TickCsv(float DeltaTime)
-	{
-		CSV_CUSTOM_STAT_DEFINED(PendingIoRequests, (int32)PendingIoRequestsCount, ECsvCustomStatOp::Set);
-		return true; // Keep ticking
-	}
-#endif
-
 	using FBatchAllocator = TBlockAllocator<FIoBatchImpl, 4096>;
 
 	TSharedRef<FIoDispatcherBackendContext> BackendContext;
@@ -670,9 +780,7 @@ private:
 	FIoDispatcher::FIoContainerUnmountedEvent ContainerUnmountedEvent;
 	uint64 PendingIoRequestsCount = 0;
 	int64 TotalLoaded = 0;
-#if CSV_PROFILER
-	FTSTicker::FDelegateHandle TickerHandle;
-#endif
+	FIoRequestStats RequestStats;
 };
 
 FIoDispatcher::FIoDispatcher()
