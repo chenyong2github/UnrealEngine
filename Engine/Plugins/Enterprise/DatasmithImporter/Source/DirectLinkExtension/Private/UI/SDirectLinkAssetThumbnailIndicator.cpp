@@ -83,7 +83,7 @@ namespace UE::DatasmithImporter
 
 			const FMD5Hash SourceHash = TryGetSourceHash(AssetData);
 			const FMD5Hash ExternalSourceHash = ExternalSource->GetSourceHash();
-			if (SourceHash.IsValid() && SourceHash != ExternalSourceHash)
+			if (!SourceHash.IsValid() || SourceHash != ExternalSourceHash)
 			{
 				//The source hash in the asset is different from the one in the external source, the asset is out of sync.
 				return EDirectLinkSourceStatus::OutOfSync;
