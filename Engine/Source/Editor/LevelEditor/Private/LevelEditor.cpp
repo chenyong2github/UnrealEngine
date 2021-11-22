@@ -383,7 +383,7 @@ void FLevelEditorModule::SummonWorldBrowserComposition()
 void FLevelEditorModule::AttachSequencer(TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> SequencerAssetEditor)
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
-	if (LevelEditorInstance.IsValid())
+	if (LevelEditorInstance)
 	{
 		LevelEditorInstance->AttachSequencer(SequencerWidget, SequencerAssetEditor);
 	}
