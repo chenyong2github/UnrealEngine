@@ -36,6 +36,10 @@ bool StringFindFirstTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("FindFirst"), UE::String::FindFirst("AbCABCAbCABC", "ABC"), 3);
 
+	TestEqual(TEXT("FindFirst"), UE::String::FindFirst(FStringView(nullptr, 0), TEXT("SearchTerm")), INDEX_NONE);
+	TestEqual(TEXT("FindFirst"), UE::String::FindFirst(FStringView(), TEXT("SearchTerm")), INDEX_NONE);
+	TestEqual(TEXT("FindFirst"), UE::String::FindFirst(FString(), TEXT("SearchTerm")), INDEX_NONE);
+
 	return true;
 }
 
@@ -66,6 +70,10 @@ bool StringFindLastTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("FindLast"), UE::String::FindLast(TEXT("AB"), TEXT("ABC")), INDEX_NONE);
 
 	TestEqual(TEXT("FindLast"), UE::String::FindLast("AbCABCAbCABC", "ABC"), 9);
+
+	TestEqual(TEXT("FindLast"), UE::String::FindLast(FStringView(nullptr, 0), TEXT("SearchTerm")), INDEX_NONE);
+	TestEqual(TEXT("FindLast"), UE::String::FindLast(FStringView(), TEXT("SearchTerm")), INDEX_NONE);
+	TestEqual(TEXT("FindLast"), UE::String::FindLast(FString(), TEXT("SearchTerm")), INDEX_NONE);
 
 	return true;
 }
@@ -100,6 +108,10 @@ bool StringFindFirstOfAnyTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("FindFirstOfAny"), UE::String::FindFirstOfAny("AbCABCAbCABC", {"CABc", "ABC"}), 3);
 
+	TestEqual(TEXT("FindFirstOfAny"), UE::String::FindFirstOfAny(FStringView(nullptr, 0), {TEXT("ABC"), TEXT("ABD")}), INDEX_NONE);
+	TestEqual(TEXT("FindFirstOfAny"), UE::String::FindFirstOfAny(FStringView(), {TEXT("ABC"), TEXT("ABD")}), INDEX_NONE);
+	TestEqual(TEXT("FindFirstOfAny"), UE::String::FindFirstOfAny(FString(), {TEXT("ABC"), TEXT("ABD")}), INDEX_NONE);
+
 	return true;
 }
 
@@ -133,6 +145,10 @@ bool StringFindLastOfAnyTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("FindLastOfAny"), UE::String::FindLastOfAny("AbCABCAbCABC", {"CABc", "ABC"}), 9);
 
+	TestEqual(TEXT("FindLastOfAny"), UE::String::FindLastOfAny(FStringView(nullptr, 0), { TEXT("ABC"), TEXT("ABD") }), INDEX_NONE);
+	TestEqual(TEXT("FindLastOfAny"), UE::String::FindLastOfAny(FStringView(), { TEXT("ABC"), TEXT("ABD") }), INDEX_NONE);
+	TestEqual(TEXT("FindLastOfAny"), UE::String::FindLastOfAny(FString(), { TEXT("ABC"), TEXT("ABD") }), INDEX_NONE);
+
 	return true;
 }
 
@@ -152,6 +168,10 @@ bool StringFindFirstCharTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("FindFirstChar"), UE::String::FindFirstChar(TEXT("A"), TEXT('A'), ESearchCase::IgnoreCase), 0);
 
 	TestEqual(TEXT("FindFirstChar"), UE::String::FindFirstChar("AbCABCAbCABC", 'B'), 4);
+
+	TestEqual(TEXT("FindFirstChar"), UE::String::FindFirstChar(FStringView(nullptr, 0), TEXT('A')), INDEX_NONE);
+	TestEqual(TEXT("FindFirstChar"), UE::String::FindFirstChar(FStringView(), TEXT('A')), INDEX_NONE);
+	TestEqual(TEXT("FindFirstChar"), UE::String::FindFirstChar(FString(), TEXT('A')), INDEX_NONE);
 
 	return true;
 }
@@ -173,6 +193,10 @@ bool StringFindLastCharTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("FindLastChar"), UE::String::FindLastChar("AbCABCAbCABC", 'B'), 10);
 
+	TestEqual(TEXT("FindLastChar"), UE::String::FindLastChar(FStringView(nullptr, 0), TEXT('A')), INDEX_NONE);
+	TestEqual(TEXT("FindLastChar"), UE::String::FindLastChar(FStringView(), TEXT('A')), INDEX_NONE);
+	TestEqual(TEXT("FindLastChar"), UE::String::FindLastChar(FString(), TEXT('A')), INDEX_NONE);
+
 	return true;
 }
 
@@ -193,6 +217,10 @@ bool StringFindFirstOfAnyCharTest::RunTest(const FString& Parameters)
 
 	TestEqual(TEXT("FindFirstOfAnyChar"), UE::String::FindFirstOfAnyChar("AbCABCAbcABC", {'c', 'B'}), 4);
 
+	TestEqual(TEXT("FindFirstOfAnyChar"), UE::String::FindFirstOfAnyChar(FStringView(nullptr, 0), { TEXT('A'), TEXT('B') }), INDEX_NONE);
+	TestEqual(TEXT("FindFirstOfAnyChar"), UE::String::FindFirstOfAnyChar(FStringView(), { TEXT('A'), TEXT('B') }), INDEX_NONE);
+	TestEqual(TEXT("FindFirstOfAnyChar"), UE::String::FindFirstOfAnyChar(FString(), { TEXT('A'), TEXT('B') }), INDEX_NONE);
+
 	return true;
 }
 
@@ -212,6 +240,10 @@ bool StringFindLastOfAnyCharTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("FindLastOfAnyChar"), UE::String::FindLastOfAnyChar(TEXT("A"), {TEXT('A'), TEXT('B')}, ESearchCase::IgnoreCase), 0);
 
 	TestEqual(TEXT("FindLastOfAnyChar"), UE::String::FindLastOfAnyChar("AbCABCAbcABC", {'c', 'B'}), 10);
+
+	TestEqual(TEXT("FindLastOfAnyChar"), UE::String::FindLastOfAnyChar(FStringView(nullptr, 0), { TEXT('A'), TEXT('B') }), INDEX_NONE);
+	TestEqual(TEXT("FindLastOfAnyChar"), UE::String::FindLastOfAnyChar(FStringView(), { TEXT('A'), TEXT('B') }), INDEX_NONE);
+	TestEqual(TEXT("FindLastOfAnyChar"), UE::String::FindLastOfAnyChar(FString(), { TEXT('A'), TEXT('B') }), INDEX_NONE);
 
 	return true;
 }
