@@ -189,7 +189,7 @@ namespace UnrealBuildTool
 			{
 				DirectoryReference.CreateDirectory(TargetInfo.VersionFile.Directory);
 				TargetInfo.Version.BuildId = BuildId;
-				TargetInfo.Version.Write(TargetInfo.VersionFile);
+				TargetInfo.Version.WriteIfModified(TargetInfo.VersionFile);
 			}
 
 			// Write out the receipt
