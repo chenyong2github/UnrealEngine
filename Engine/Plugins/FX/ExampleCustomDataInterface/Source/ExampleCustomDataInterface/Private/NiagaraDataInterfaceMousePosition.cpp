@@ -2,8 +2,11 @@
 
 #include "NiagaraDataInterfaceMousePosition.h"
 
+#if WITH_EDITORONLY_DATA
 #include "Editor.h"
 #include "LevelEditorViewport.h"
+#endif
+
 #include "NiagaraTypes.h"
 #include "ShaderParameterUtils.h"
 #include "Internationalization/Internationalization.h"
