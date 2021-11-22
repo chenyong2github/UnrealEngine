@@ -162,6 +162,8 @@ bool FPerformanceMonitor::WillAutoScalabilityHelp() const
 	IsAutoScaleLower |= NewLevels.ViewDistanceQuality < CurrentLevels.ViewDistanceQuality;
 	IsAutoScaleLower |= NewLevels.AntiAliasingQuality < CurrentLevels.AntiAliasingQuality;
 	IsAutoScaleLower |= NewLevels.ShadowQuality < CurrentLevels.ShadowQuality;
+	IsAutoScaleLower |= NewLevels.GlobalIlluminationQuality < CurrentLevels.GlobalIlluminationQuality;
+	IsAutoScaleLower |= NewLevels.ReflectionQuality < CurrentLevels.ReflectionQuality;
 	IsAutoScaleLower |= NewLevels.PostProcessQuality < CurrentLevels.PostProcessQuality;
 	IsAutoScaleLower |= NewLevels.TextureQuality < CurrentLevels.TextureQuality;
 	IsAutoScaleLower |= NewLevels.EffectsQuality < CurrentLevels.EffectsQuality;
@@ -183,6 +185,8 @@ Scalability::FQualityLevels FPerformanceMonitor::GetAutoScalabilityQualityLevels
 	NewLevels.ViewDistanceQuality	= FMath::Min(NewLevels.ViewDistanceQuality, ExistingLevels.ViewDistanceQuality);
 	NewLevels.AntiAliasingQuality	= FMath::Min(NewLevels.AntiAliasingQuality, ExistingLevels.AntiAliasingQuality);
 	NewLevels.ShadowQuality			= FMath::Min(NewLevels.ShadowQuality, ExistingLevels.ShadowQuality);
+	NewLevels.GlobalIlluminationQuality			= FMath::Min(NewLevels.GlobalIlluminationQuality, ExistingLevels.GlobalIlluminationQuality);
+	NewLevels.ReflectionQuality			= FMath::Min(NewLevels.ReflectionQuality, ExistingLevels.ReflectionQuality);
 	NewLevels.PostProcessQuality	= FMath::Min(NewLevels.PostProcessQuality, ExistingLevels.PostProcessQuality);
 	NewLevels.TextureQuality		= FMath::Min(NewLevels.TextureQuality, ExistingLevels.TextureQuality);
 	NewLevels.EffectsQuality		= FMath::Min(NewLevels.EffectsQuality, ExistingLevels.EffectsQuality);

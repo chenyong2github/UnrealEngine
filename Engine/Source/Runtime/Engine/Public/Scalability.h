@@ -28,6 +28,8 @@ namespace Scalability
 		int32 ViewDistanceQuality;
 		int32 AntiAliasingQuality;
 		int32 ShadowQuality;
+		int32 GlobalIlluminationQuality;
+		int32 ReflectionQuality;
 		int32 PostProcessQuality;
 		int32 TextureQuality;
 		int32 EffectsQuality;
@@ -52,6 +54,8 @@ namespace Scalability
 				ViewDistanceQuality == Other.ViewDistanceQuality &&
 				AntiAliasingQuality == Other.AntiAliasingQuality &&
 				ShadowQuality == Other.ShadowQuality &&
+				GlobalIlluminationQuality == Other.GlobalIlluminationQuality &&
+				ReflectionQuality == Other.ReflectionQuality &&
 				PostProcessQuality == Other.PostProcessQuality &&
 				TextureQuality == Other.TextureQuality &&
 				EffectsQuality == Other.EffectsQuality &&
@@ -71,6 +75,8 @@ namespace Scalability
 				FCrc::TypeCrc32<int32>(ViewDistanceQuality) ^
 				FCrc::TypeCrc32<int32>(AntiAliasingQuality) ^
 				FCrc::TypeCrc32<int32>(ShadowQuality) ^
+				FCrc::TypeCrc32<int32>(GlobalIlluminationQuality) ^
+				FCrc::TypeCrc32<int32>(ReflectionQuality) ^
 				FCrc::TypeCrc32<int32>(PostProcessQuality) ^
 				FCrc::TypeCrc32<int32>(TextureQuality) ^
 				FCrc::TypeCrc32<int32>(EffectsQuality) ^
@@ -105,6 +111,14 @@ namespace Scalability
 		// Sets shadow quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
 		void SetShadowQuality(int32 Value);
+
+		// Sets shadow quality
+		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
+		void SetGlobalIlluminationQuality(int32 Value);
+
+		// Sets shadow quality
+		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)
+		void SetReflectionQuality(int32 Value);
 
 		// Sets the post-processing quality
 		// @param Value 0:low, 1:medium, 2:high, 3:epic, 4:cinematic (gets clamped if needed)

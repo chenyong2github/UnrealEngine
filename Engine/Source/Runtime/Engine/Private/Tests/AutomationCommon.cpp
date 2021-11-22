@@ -138,6 +138,8 @@ namespace AutomationCommon
 		Data.ViewDistanceQuality = QualityLevels.ViewDistanceQuality;
 		Data.AntiAliasingQuality = QualityLevels.AntiAliasingQuality;
 		Data.ShadowQuality = QualityLevels.ShadowQuality;
+		Data.GlobalIlluminationQuality = QualityLevels.GlobalIlluminationQuality;
+		Data.ReflectionQuality = QualityLevels.ReflectionQuality;
 		Data.PostProcessQuality = QualityLevels.PostProcessQuality;
 		Data.TextureQuality = QualityLevels.TextureQuality;
 		Data.EffectsQuality = QualityLevels.EffectsQuality;

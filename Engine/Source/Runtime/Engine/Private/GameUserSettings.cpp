@@ -799,6 +799,26 @@ int32 UGameUserSettings::GetShadowQuality() const
 	return ScalabilityQuality.ShadowQuality;
 }
 
+void UGameUserSettings::SetGlobalIlluminationQuality(int32 Value)
+{
+	ScalabilityQuality.SetGlobalIlluminationQuality(Value);
+}
+
+int32 UGameUserSettings::GetGlobalIlluminationQuality() const
+{
+	return ScalabilityQuality.GlobalIlluminationQuality;
+}
+
+void UGameUserSettings::SetReflectionQuality(int32 Value)
+{
+	ScalabilityQuality.SetReflectionQuality(Value);
+}
+
+int32 UGameUserSettings::GetReflectionQuality() const
+{
+	return ScalabilityQuality.ReflectionQuality;
+}
+
 void UGameUserSettings::SetAntiAliasingQuality(int32 Value)
 {
 	ScalabilityQuality.SetAntiAliasingQuality(Value);

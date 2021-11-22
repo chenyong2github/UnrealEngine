@@ -124,6 +124,8 @@ void UMoviePipelineGameOverrideSetting::BuildNewProcessCommandLineArgsImpl(TArra
 		InOutDeviceProfileCvars.Add(TEXT("sg.ViewDistanceQuality=4"));
 		InOutDeviceProfileCvars.Add(TEXT("sg.AntiAliasingQuality=4"));
 		InOutDeviceProfileCvars.Add(TEXT("sg.ShadowQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.GlobalIlluminationQuality=4"));
+		InOutDeviceProfileCvars.Add(TEXT("sg.ReflectionQuality=4"));
 		InOutDeviceProfileCvars.Add(TEXT("sg.PostProcessQuality=4"));
 		InOutDeviceProfileCvars.Add(TEXT("sg.TextureQuality=4"));
 		InOutDeviceProfileCvars.Add(TEXT("sg.EffectsQuality=4"));

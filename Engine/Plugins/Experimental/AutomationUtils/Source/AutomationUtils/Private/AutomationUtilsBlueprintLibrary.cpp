@@ -148,6 +148,8 @@ FAutomationUtilsGameplayAutomationScreenshotInstance::FAutomationUtilsGameplayAu
 		JsonObject->SetNumberField(TEXT("viewDistanceQuality"), QualityLevels.ViewDistanceQuality);
 		JsonObject->SetNumberField(TEXT("antiAliasingQuality"), QualityLevels.AntiAliasingQuality);
 		JsonObject->SetNumberField(TEXT("shadowQuality"), QualityLevels.ShadowQuality);
+		JsonObject->SetNumberField(TEXT("globalIlluminationQuality"), QualityLevels.GlobalIlluminationQuality);
+		JsonObject->SetNumberField(TEXT("reflectionQuality"), QualityLevels.ReflectionQuality);
 		JsonObject->SetNumberField(TEXT("postProcessQuality"), QualityLevels.PostProcessQuality);
 		JsonObject->SetNumberField(TEXT("textureQuality"), QualityLevels.TextureQuality);
 		JsonObject->SetNumberField(TEXT("effectsQuality"), QualityLevels.EffectsQuality);
