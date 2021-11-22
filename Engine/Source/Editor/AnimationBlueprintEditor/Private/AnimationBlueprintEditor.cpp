@@ -111,6 +111,33 @@ namespace AnimationBlueprintEditorTabs
 };
 
 /////////////////////////////////////////////////////
+// SortedContainerDifference
+
+/** Algorithm to find the difference between two sorted sets of unique values - outputs two sets, all the elements that are in set A but not in set B and all the elements that are in set B but not in set A **/
+template <typename TContainerType, typename TPredicate> void SortedContainerDifference(const TContainerType& LhsContainer, const TContainerType& RhsContainer, TContainerType& OutLhsDifference, TContainerType& OutRhsDifference, const TPredicate& SortPredicate)
+{
+	for (unsigned int LhsIndex = 0, RhsIndex = 0, LhsMax = LhsContainer.Num(), RhsMax = RhsContainer.Num(); (LhsIndex < LhsMax) || (RhsIndex < RhsMax); )
+	{
+		if ((LhsIndex < LhsMax) && (!(RhsIndex < RhsMax) || SortPredicate(LhsContainer[LhsIndex], RhsContainer[RhsIndex])))
+		{
+			OutRhsDifference.Add(LhsContainer[LhsIndex]);
+			++LhsIndex;
+		}
+		else if ((RhsIndex < RhsMax) && (!(LhsIndex < LhsMax) || SortPredicate(RhsContainer[RhsIndex], LhsContainer[LhsIndex])))
+		{
+			OutLhsDifference.Add(RhsContainer[RhsIndex]);
+			++RhsIndex;
+		}
+		else
+		{
+			++LhsIndex;
+			++RhsIndex;
+		}
+	}
+}
+
+
+/////////////////////////////////////////////////////
 // SAnimBlueprintPreviewPropertyEditor
 
 class SAnimBlueprintPreviewPropertyEditor : public SSingleObjectDetailsPanel
@@ -1492,16 +1519,16 @@ void FAnimationBlueprintEditor::ClearSelectedActor()
 	GetPreviewScene()->ClearSelectedActor();
 }
 
-void FAnimationBlueprintEditor::ClearSelectedAnimGraphNode()
+void FAnimationBlueprintEditor::ClearSelectedAnimGraphNodes()
 {
-	SelectedAnimGraphNode.Reset();
+	SelectedAnimGraphNodes.Empty();
 }
 
 void FAnimationBlueprintEditor::DeselectAll()
 {
 	GetSkeletonTree()->DeselectAll();
 	ClearSelectedActor();
-	ClearSelectedAnimGraphNode();
+	ClearSelectedAnimGraphNodes();
 }
 
 void FAnimationBlueprintEditor::PostRedo(bool bSuccess)
@@ -1538,13 +1565,14 @@ void FAnimationBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& Pr
 	FBlueprintEditor::NotifyPostChange(PropertyChangedEvent, PropertyThatChanged);
 
 	// When you change properties on a node, call CopyNodeDataToPreviewNode to allow pushing those to preview instance, for live editing
-	UAnimGraphNode_Base* SelectedNode = SelectedAnimGraphNode.Get();
-	if (SelectedNode)
+	for (TWeakObjectPtr< class UAnimGraphNode_Base > CurrentAnimGraphNode : SelectedAnimGraphNodes)
 	{
-		FAnimNode_Base* PreviewNode = FindAnimNode(SelectedNode);
-		if (PreviewNode)
+		if (UAnimGraphNode_Base* CurrentNode = CurrentAnimGraphNode.Get())
 		{
-			SelectedNode->CopyNodeDataToPreviewNode(PreviewNode);
+			if (FAnimNode_Base* PreviewNode = FindAnimNode(CurrentNode))
+			{
+				CurrentNode->CopyNodeDataToPreviewNode(PreviewNode);
+			}
 		}
 	}
 }
@@ -1652,8 +1680,8 @@ void FAnimationBlueprintEditor::OnBlueprintPostCompile(UBlueprint* InBlueprint)
 			}
 		}
 
-		// reset the selected skeletal control node
-		SelectedAnimGraphNode.Reset();
+		// reset the selected skeletal control nodes
+		ClearSelectedAnimGraphNodes();
 
 		// if the user manipulated Pin values directly from the node, then should copy updated values to the internal node to retain data consistency
 		OnPostCompile();
@@ -1754,32 +1782,67 @@ void FAnimationBlueprintEditor::OnSelectedNodesChangedImpl(const TSet<class UObj
 {
 	FBlueprintEditor::OnSelectedNodesChangedImpl(NewSelection);
 
-	IPersonaEditorModeManager* PersonaEditorModeManager = static_cast<IPersonaEditorModeManager*>(&GetEditorModeManager());
+	IPersonaEditorModeManager* const PersonaEditorModeManager = static_cast<IPersonaEditorModeManager*>(&GetEditorModeManager());
 
-	if (UAnimGraphNode_Base* SelectedAnimGraphNodePtr = SelectedAnimGraphNode.Get())
+	if (PersonaEditorModeManager)
 	{
-		FAnimNode_Base* PreviewNode = FindAnimNode(SelectedAnimGraphNodePtr);
-		if (PersonaEditorModeManager)
+		// Update the list of selected nodes, being careful to maintain the order of the list as this is an important requirement of the UI.
+
+		using FSelectedNodePtr = TWeakObjectPtr< class UAnimGraphNode_Base >;
+
+		TArray< FSelectedNodePtr > AddSelection;	// Nodes that should be added to the current selection.
+		TArray< FSelectedNodePtr > RemSelection;	// Nodes that should be removed from the current selection.
+
+		// Compare the set of nodes in 'NewSelection' with the list of previously selected nodes to identify nodes that should be added / removed from the selection.
 		{
-			SelectedAnimGraphNodePtr->OnNodeSelected(false, *PersonaEditorModeManager, PreviewNode);
+			TArray< FSelectedNodePtr > OldSelectionSorted(SelectedAnimGraphNodes);
+			TArray< FSelectedNodePtr > NewSelectionSorted;
+
+			for (UObject* NewSelectedObject : NewSelection)
+			{
+				if (UAnimGraphNode_Base* NewSelectedAnimGraphNode = Cast<UAnimGraphNode_Base>(NewSelectedObject))
+				{
+					NewSelectionSorted.Add(NewSelectedAnimGraphNode);
+				}
+			}
+
+			auto SortPredicate = [](const FSelectedNodePtr& Lhs, const FSelectedNodePtr& Rhs) { return Lhs.Get() < Rhs.Get();  };
+
+			OldSelectionSorted.Sort(SortPredicate);
+			NewSelectionSorted.Sort(SortPredicate);
+
+			SortedContainerDifference(OldSelectionSorted, NewSelectionSorted, AddSelection, RemSelection, SortPredicate);
 		}
 
-		SelectedAnimGraphNode.Reset();
-	}
-
-	// if we only have one node selected, let it know
-	UAnimGraphNode_Base* NewSelectedAnimGraphNode = nullptr;
-	if (NewSelection.Num() == 1)
-	{
-		NewSelectedAnimGraphNode = Cast<UAnimGraphNode_Base>(*NewSelection.CreateConstIterator());
-		if (NewSelectedAnimGraphNode != nullptr)
+		// Register de-selection with all the previously selected nodes.
+		for (FSelectedNodePtr CurrentAnimGraphNode : SelectedAnimGraphNodes)
 		{
-			SelectedAnimGraphNode = NewSelectedAnimGraphNode;
-
-			FAnimNode_Base* PreviewNode = FindAnimNode(NewSelectedAnimGraphNode);
-			if (PreviewNode && PersonaEditorModeManager)
+			UAnimGraphNode_Base* const CurrentAnimGraphNodePtr = CurrentAnimGraphNode.Get();
+			if (FAnimNode_Base* const PreviewNode = FindAnimNode(CurrentAnimGraphNodePtr))
 			{
-				NewSelectedAnimGraphNode->OnNodeSelected(true, *PersonaEditorModeManager, PreviewNode);
+				CurrentAnimGraphNodePtr->OnNodeSelected(false, *PersonaEditorModeManager, PreviewNode);
+			}
+		}
+
+		// Remove all the nodes that are no longer selected.
+		for (FSelectedNodePtr CurrentAnimGraphNode : RemSelection)
+		{
+			SelectedAnimGraphNodes.Remove(CurrentAnimGraphNode);
+		}
+
+		// Add all the newly selected nodes.
+		for (FSelectedNodePtr CurrentAnimGraphNode : AddSelection)
+		{
+			SelectedAnimGraphNodes.Add(CurrentAnimGraphNode);
+		}
+
+		// Register re-selection with all the currently selected nodes.
+		for (FSelectedNodePtr CurrentAnimGraphNode : SelectedAnimGraphNodes)
+		{
+			UAnimGraphNode_Base* const CurrentAnimGraphNodePtr = CurrentAnimGraphNode.Get();
+			if (FAnimNode_Base* const PreviewNode = FindAnimNode(CurrentAnimGraphNodePtr))
+			{
+				CurrentAnimGraphNodePtr->OnNodeSelected(true, *PersonaEditorModeManager, PreviewNode);
 			}
 		}
 	}
