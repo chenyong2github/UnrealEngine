@@ -99,7 +99,7 @@ private:
 /**
  * Class for audio sections, handles drawing of all waveform previews.
  */
-class FAudioSection
+class MOVIESCENETOOLS_API FAudioSection
 	: public ISequencerSection
 	, public TSharedFromThis<FAudioSection>
 {
