@@ -35,12 +35,12 @@ namespace Metasound
 		/** Injects receive nodes between an graph inputs and the connected internal nodes.
 		 *
 		 * @param InGraph - The graph to manipulate.
-		 * @parma InAddressPolicy - A function which creates unique transmission addresses for each input.
-		 * @param InInputVerticesToSkip - A set of input vertices which should *not* have receive nodes injected.
+		 * @parma InAddressPolicy - Function which creates unique transmission addresses for each input.
+		 * @param InInputVertexNames - Set of input vertices which should have receive nodes injected.
 		 *
-		 * @return True on success, false on failure. 
+		 * @return True on success, false on failure.
 		 */
-		METASOUNDFRONTEND_API bool InjectReceiveNodes(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressPolicy, const TSet<FVertexName>& InInputVerticesToSkip);
+		METASOUNDFRONTEND_API bool InjectReceiveNodes(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressPolicy, const TSet<FVertexName>& InInputVertexNames);
 	}
 }
 

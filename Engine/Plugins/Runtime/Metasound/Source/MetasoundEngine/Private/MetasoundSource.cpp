@@ -3,6 +3,7 @@
 
 #include "Algo/Transform.h"
 #include "AssetRegistryModule.h"
+#include "IAudioGeneratorInterfaceRegistry.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAudioFormats.h"
@@ -93,12 +94,19 @@ void UMetaSoundSource::PostEditUndo()
 void UMetaSoundSource::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
 {
 	Super::PostDuplicate(InDuplicateMode);
-	Metasound::PostDuplicate(*this, InDuplicateMode);
+
+	// Guid is reset as asset may share implementation from
+	// asset duplicated from but should not be registered as such.
+	if (InDuplicateMode == EDuplicateMode::Normal)
+	{
+		Metasound::Frontend::FRegenerateAssetClassName().Transform(GetDocumentHandle());
+	}
 }
 
 void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 {
 	using namespace Metasound;
+	using namespace Metasound::Engine;
 	using namespace Metasound::Frontend;
 
 	Super::PostEditChangeProperty(InEvent);
@@ -113,14 +121,19 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 		{
 			case EMetasoundSourceAudioFormat::Mono:
 			{
-				// TODO: utilize latest version `MetasoudnSourceMono`
-				bDidModifyDocument = Metasound::Frontend::FMatchRootGraphToArchetype(Metasound::Engine::MetasoundSourceMono::GetVersion()).Transform(GetDocumentHandle());
+				bDidModifyDocument = FModifyRootGraphInterfaces(
+					{ MetasoundSourceStereo::GetVersion() },
+					{ MetasoundSourceMono::GetVersion() }
+				).Transform(GetDocumentHandle());
 			}
 			break;
 
 			case EMetasoundSourceAudioFormat::Stereo:
 			{
-				bDidModifyDocument = Metasound::Frontend::FMatchRootGraphToArchetype(Metasound::Engine::MetasoundSourceStereo::GetVersion()).Transform(GetDocumentHandle());
+				bDidModifyDocument = FModifyRootGraphInterfaces(
+					{ MetasoundSourceMono::GetVersion() },
+					{ MetasoundSourceStereo::GetVersion() }
+				).Transform(GetDocumentHandle());
 			}
 			break;
 
@@ -133,7 +146,7 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 
 		if (bDidModifyDocument)
 		{
-			ConformObjectDataToArchetype();
+			ConformObjectDataToInterfaces();
 
 			// Use the editor form of register to ensure other editors'
 			// MetaSounds are auto-updated if they are referencing this graph.
@@ -147,10 +160,10 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 }
 #endif // WITH_EDITOR
 
-bool UMetaSoundSource::ConformObjectDataToArchetype()
+bool UMetaSoundSource::ConformObjectDataToInterfaces()
 {
-	const FMetasoundFrontendVersion& ArchetypeVersion = GetDocumentHandle()->GetArchetypeVersion();
-	if (ArchetypeVersion == Metasound::Engine::MetasoundSourceMono::GetVersion())
+	const TArray<FMetasoundFrontendVersion>& InterfaceVersions = GetDocumentHandle()->GetInterfaceVersions();
+	if (InterfaceVersions.Contains(Metasound::Engine::MetasoundSourceMono::GetVersion()))
 	{
 		if (OutputFormat != EMetasoundSourceAudioFormat::Mono || NumChannels != 1)
 		{
@@ -160,7 +173,7 @@ bool UMetaSoundSource::ConformObjectDataToArchetype()
 		}
 	}
 
-	if (ArchetypeVersion == Metasound::Engine::MetasoundSourceStereo::GetVersion())
+	if (InterfaceVersions.Contains(Metasound::Engine::MetasoundSourceStereo::GetVersion()))
 	{
 		if (OutputFormat != EMetasoundSourceAudioFormat::Stereo || NumChannels != 2)
 		{
@@ -416,7 +429,6 @@ bool UMetaSoundSource::SupportsSubtitles() const
 const FMetasoundFrontendVersion& UMetaSoundSource::GetDefaultArchetypeVersion() const
 {
 	static const FMetasoundFrontendVersion DefaultVersion = Metasound::Engine::MetasoundSourceMono::GetVersion();
-
 	return DefaultVersion;
 }
 
@@ -424,6 +436,17 @@ float UMetaSoundSource::GetDuration()
 {
 	// eh? this is kind of a weird field anyways.
 	return Super::GetDuration();
+}
+
+bool UMetaSoundSource::ImplementsGeneratorInterface(Audio::FGeneratorInterfacePtr InInterface) const
+{
+	const FMetasoundFrontendVersionNumber Number = FMetasoundFrontendVersionNumber{ InInterface->Version.Major, InInterface->Version.Minor };
+	auto ContainsInterface = [Name = InInterface->Name, &Number](FMetasoundFrontendVersion& InVersion)
+	{
+		return InVersion.Name == Name && InVersion.Number == Number;
+	};
+
+	return GetDocumentChecked().InterfaceVersions.ContainsByPredicate(ContainsInterface);
 }
 
 ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorInitParams& InParams)
@@ -697,18 +720,6 @@ Metasound::FOperatorSettings UMetaSoundSource::GetOperatorSettings(Metasound::FS
 	const float BlockRate = FMath::Clamp(Metasound::ConsoleVariables::BlockRate, 1.0f, 1000.0f);
 	return Metasound::FOperatorSettings(InSampleRate, BlockRate);
 }
-
-const TArray<FMetasoundFrontendVersion>& UMetaSoundSource::GetSupportedArchetypeVersions() const 
-{
-	static const TArray<FMetasoundFrontendVersion> Supported(
-	{
-		Metasound::Engine::MetasoundSourceMono::GetVersion(),
-		Metasound::Engine::MetasoundSourceStereo::GetVersion()
-	});
-
-	return Supported;
-}
-
 
 Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment() const
 {

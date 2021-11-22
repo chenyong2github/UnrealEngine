@@ -138,7 +138,7 @@ namespace Metasound
 		class FMetasoundDataTypeSelector : public TSharedFromThis<FMetasoundDataTypeSelector>
 		{
 		public:
-			void AddDataTypeSelector(IDetailLayoutBuilder& InDetailLayoutBuilder, const FText& InRowName, TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember, bool bIsRequired);
+			void AddDataTypeSelector(IDetailLayoutBuilder& InDetailLayoutBuilder, const FText& InRowName, TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember, bool bInIsInterfaceMember);
 			void OnDataTypeArrayChanged(TWeakObjectPtr<UMetasoundEditorGraphMember> InGraphMember, ECheckBoxState InNewState);
 
 		protected:
@@ -245,16 +245,6 @@ namespace Metasound
 				}
 
 				return false;
-			}
-
-			bool IsRequired() const
-			{
-				if (GraphMember.IsValid())
-				{
-					return GraphMember->IsRequired();
-				}
-
-				return true;
 			}
 
 			void OnTooltipCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)

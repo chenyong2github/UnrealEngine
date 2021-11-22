@@ -302,7 +302,7 @@ namespace Metasound
 
 				// Denote a pruned node as a non-fatal error. In the future this
 				// may be simply a warning as some nodes are required to conform
-				// to metasound archetypes even if they are unused.
+				// to metasound interfaces even if they are unused.
 				BuildStatus |= FBuildStatus::NonFatalError;
 			}
 		}

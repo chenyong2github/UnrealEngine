@@ -97,8 +97,7 @@ namespace Metasound
 			const FVertexName& GetRightAudioOutputName();
 		}
 
-		// Register all MetasoundEngine archetypes.
-		void RegisterArchetypes();
+		// Register all interfaces defined in MetaSoundEngine.
+		void RegisterInternalInterfaces();
 	}
 }
-

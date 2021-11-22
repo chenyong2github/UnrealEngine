@@ -219,7 +219,8 @@ namespace Metasound
 
 			virtual const FText& GetDescription() const override { return Invalid::GetInvalidText(); }
 
-			virtual bool IsRequired() const override { return false; }
+			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const { return FMetasoundFrontendVersion::GetInvalid(); }
+			virtual bool IsInterfaceMember() const override { return false; }
 
 			virtual bool DiffAgainstRegistryInterface(FClassInterfaceUpdates& OutInterfaceUpdates, bool bInUseHighestMinorVersion) const override { return false; }
 			virtual bool CanAutoUpdate(FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const override { return false; }
@@ -410,8 +411,10 @@ namespace Metasound
 				virtual FConstClassAccessPtr FindOrAddClass(const FMetasoundFrontendClassMetadata& InMetadata) override{ return FConstClassAccessPtr(); }
 				virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override { return IGraphController::GetInvalidHandle(); }
 
-				virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const override { return FMetasoundFrontendVersion::GetInvalid(); }
-				virtual void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) override { }
+				virtual const TArray<FMetasoundFrontendVersion>& GetInterfaceVersions() const override { static const TArray<FMetasoundFrontendVersion> EmptyArray; return EmptyArray; }
+				virtual void AddInterfaceVersion(const FMetasoundFrontendVersion& InVersion) override { }
+				virtual void RemoveInterfaceVersion(const FMetasoundFrontendVersion& InVersion) override { }
+				virtual void ClearInterfaceVersions() override { }
 
 				virtual void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override { }
 				virtual const FMetasoundFrontendDocumentMetadata& GetMetadata() const override { return Invalid::GetInvalidDocumentMetadata(); }

@@ -5,6 +5,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundEngineArchetypes.h"
+#include "MetasoundInterface.h"
 #include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
@@ -24,20 +25,14 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		FModuleManager::Get().LoadModuleChecked("MetasoundGenerator");
 		FModuleManager::Get().LoadModuleChecked("AudioCodecEngine");
 
-		Metasound::Engine::RegisterArchetypes();
+		// Register interfaces
+		Metasound::Engine::RegisterInternalInterfaces();
+		Metasound::Engine::RegisterExternalInterfaces();
 
-		// If there is no archetype name, use UMetaSound
-		FMetasoundFrontendVersion DefaultVersion;
-		Metasound::IMetasoundUObjectRegistry::RegisterUClassArchetype<UMetaSound>(DefaultVersion);
-
-		// Register preferred archetypes
-		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetaSound>();
-		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetaSoundSource>();
-
-		// flush node registration queue
+		// Flush node registration queue
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
 
-		UE_LOG(LogMetasoundEngine, Log, TEXT("Metasound Engine Initialized"));
+		UE_LOG(LogMetasoundEngine, Log, TEXT("MetaSound Engine Initialized"));
 	}
 };
 

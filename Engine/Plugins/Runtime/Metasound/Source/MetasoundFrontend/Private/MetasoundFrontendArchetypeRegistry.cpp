@@ -9,111 +9,107 @@ namespace Metasound
 	{
 		namespace MetasoundFrontendArchetypeRegistryPrivate
 		{
-			class FArchetypeRegistry : public IArchetypeRegistry
+			class FInterfaceRegistry : public IInterfaceRegistry
 			{
 			public:
-				virtual ~FArchetypeRegistry() = default;
+				virtual ~FInterfaceRegistry() = default;
 
-				virtual FArchetypeRegistryKey RegisterArchetype(TUniquePtr<IArchetypeRegistryEntry>&& InEntry) override
+				virtual void RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) override
 				{
 					if (InEntry.IsValid())
 					{
-						FArchetypeRegistryKey Key = GetArchetypeRegistryKey(InEntry->GetArchetype());
-						if (IsValidArchetypeRegistryKey(Key))
+						FInterfaceRegistryKey Key = GetInterfaceRegistryKey(InEntry->GetInterface());
+						if (IsValidInterfaceRegistryKey(Key))
 						{
-							if (const IArchetypeRegistryEntry* Entry = FindArchetypeRegistryEntry(Key))
+							if (const IInterfaceRegistryEntry* Entry = FindInterfaceRegistryEntry(Key))
 							{
-								UE_LOG(LogMetaSound, Warning, TEXT("Registration of archetype overwriting previously registered archetype [RegistryKey: %s]"), *Key);
+								UE_LOG(LogMetaSound, Warning, TEXT("Registration of interface overwriting previously registered interface [RegistryKey: %s]"), *Key);
 								
-								FArchetypeRegistryTransaction Transaction{FArchetypeRegistryTransaction::ETransactionType::ArchetypeUnregistration, Key, Entry->GetArchetype().Version};
+								FInterfaceRegistryTransaction Transaction{FInterfaceRegistryTransaction::ETransactionType::InterfaceUnregistration, Key, Entry->GetInterface().Version};
 								Transactions.Add(MoveTemp(Transaction));
 							}
 							
-							FArchetypeRegistryTransaction Transaction{FArchetypeRegistryTransaction::ETransactionType::ArchetypeRegistration, Key, InEntry->GetArchetype().Version};
+							FInterfaceRegistryTransaction Transaction{FInterfaceRegistryTransaction::ETransactionType::InterfaceRegistration, Key, InEntry->GetInterface().Version};
 							Transactions.Add(MoveTemp(Transaction));
 
-							Entries.Add(Key, MoveTemp(InEntry));
-
-							return Key;
+							Entries.Add(Key, MoveTemp(InEntry)).Get();
 						}
 					}
-
-					return FArchetypeRegistryKey{};
 				}
 
-				virtual const IArchetypeRegistryEntry* FindArchetypeRegistryEntry(const FArchetypeRegistryKey& InKey) const override
+				virtual const IInterfaceRegistryEntry* FindInterfaceRegistryEntry(const FInterfaceRegistryKey& InKey) const override
 				{
-					if (const TUniquePtr<IArchetypeRegistryEntry>* Entry = Entries.Find(InKey))
+					if (const TUniquePtr<IInterfaceRegistryEntry>* Entry = Entries.Find(InKey))
 					{
 						return Entry->Get();
 					}
 					return nullptr;
 				}
 
-				virtual bool FindArchetype(const FArchetypeRegistryKey& InKey, FMetasoundFrontendArchetype& OutArchetype) const override
+				virtual bool FindInterface(const FInterfaceRegistryKey& InKey, FMetasoundFrontendInterface& OutInterface) const override
 				{
-					if (const IArchetypeRegistryEntry* Entry = FindArchetypeRegistryEntry(InKey))
+					if (const IInterfaceRegistryEntry* Entry = FindInterfaceRegistryEntry(InKey))
 					{
-						OutArchetype = Entry->GetArchetype();
+						OutInterface = Entry->GetInterface();
 						return true;
 					}
 
 					return false;
 				}
 
-				virtual void ForEachRegistryTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const FArchetypeRegistryTransaction&)> InFunc) const override
+				virtual void ForEachRegistryTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const FInterfaceRegistryTransaction&)> InFunc) const override
 				{
 					Transactions.ForEachTransactionSince(InSince, OutCurrentRegistryTransactionID, InFunc);
 				}
 
 			private:
 
-				TMap<FArchetypeRegistryKey, TUniquePtr<IArchetypeRegistryEntry>> Entries;
-				TRegistryTransactionHistory<FArchetypeRegistryTransaction> Transactions;
+				TMap<FInterfaceRegistryKey, TUniquePtr<IInterfaceRegistryEntry>> Entries;
+				TRegistryTransactionHistory<FInterfaceRegistryTransaction> Transactions;
 			};
 		}
 
-		bool IsValidArchetypeRegistryKey(const FArchetypeRegistryKey& InKey)
+		bool IsValidInterfaceRegistryKey(const FInterfaceRegistryKey& InKey)
 		{
 			return !InKey.IsEmpty();
 		}
 
-		FArchetypeRegistryKey GetArchetypeRegistryKey(const FMetasoundFrontendVersion& InArchetypeVersion)
+		FInterfaceRegistryKey GetInterfaceRegistryKey(const FMetasoundFrontendVersion& InInterfaceVersion)
 		{
-			return FString::Format(TEXT("{0}_{1}.{2}"), { InArchetypeVersion.Name.ToString(), InArchetypeVersion.Number.Major, InArchetypeVersion.Number.Minor });
+			return FString::Format(TEXT("{0}_{1}.{2}"), { InInterfaceVersion.Name.ToString(), InInterfaceVersion.Number.Major, InInterfaceVersion.Number.Minor });
 
 		}
 
-		FArchetypeRegistryKey GetArchetypeRegistryKey(const FMetasoundFrontendArchetype& InArchetype)
+		FInterfaceRegistryKey GetInterfaceRegistryKey(const FMetasoundFrontendInterface& InInterface)
 		{
-			return GetArchetypeRegistryKey(InArchetype.Version);
+			return GetInterfaceRegistryKey(InInterface.Version);
 		}
 
-		FArchetypeRegistryTransaction::FArchetypeRegistryTransaction(ETransactionType InType, const FArchetypeRegistryKey& InKey, const FMetasoundFrontendVersion& InArchetypeVersion)
+		FInterfaceRegistryTransaction::FInterfaceRegistryTransaction(ETransactionType InType, const FInterfaceRegistryKey& InKey, const FMetasoundFrontendVersion& InInterfaceVersion)
 		: Type(InType)
 		, Key(InKey)
-		, ArchetypeVersion(InArchetypeVersion)
+		, InterfaceVersion(InInterfaceVersion)
 		{
 		}
 
-		FArchetypeRegistryTransaction::ETransactionType FArchetypeRegistryTransaction::GetTransactionType() const
+		FInterfaceRegistryTransaction::ETransactionType FInterfaceRegistryTransaction::GetTransactionType() const
 		{
 			return Type;
 		}
 
-		const FMetasoundFrontendVersion& FArchetypeRegistryTransaction::GetArchetypeVersion() const
+		const FMetasoundFrontendVersion& FInterfaceRegistryTransaction::GetInterfaceVersion() const
 		{
-			return ArchetypeVersion;
+			return InterfaceVersion;
 		}
 
-		const FArchetypeRegistryKey& FArchetypeRegistryTransaction::GetArchetypeRegistryKey() const
+		const FInterfaceRegistryKey& FInterfaceRegistryTransaction::GetInterfaceRegistryKey() const
 		{
 			return Key;
 		}
 
-		IArchetypeRegistry& IArchetypeRegistry::Get()
+		IInterfaceRegistry& IInterfaceRegistry::Get()
 		{
-			static MetasoundFrontendArchetypeRegistryPrivate::FArchetypeRegistry Registry;
+			static MetasoundFrontendArchetypeRegistryPrivate::FInterfaceRegistry Registry;
 			return Registry;
 		}
 	}

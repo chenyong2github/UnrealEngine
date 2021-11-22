@@ -3,9 +3,15 @@
 #include "MetasoundEngineArchetypes.h"
 
 #include "MetasoundAudioFormats.h"
+#include "MetasoundDataReference.h"
 #include "MetasoundFrontendArchetypeRegistry.h"
 #include "MetasoundFrontendTransform.h"
+#include "MetasoundInterface.h"
+#include "MetasoundRouter.h"
 #include "MetasoundSource.h"
+#include "MetasoundUObjectRegistry.h"
+#include "UObject/Class.h"
+#include "UObject/NoExportTypes.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEngineArchetypes"
 
@@ -13,41 +19,6 @@ namespace Metasound
 {
 	namespace Engine
 	{
-		namespace MetasoundEngineArchetypesPrivate
-		{
-			// Entry for registered archetype.
-			class FArchetypeRegistryEntry : public Frontend::IArchetypeRegistryEntry
-			{
-			public:
-
-				// @param InArchetype - Archetype to register.
-				// @parma InTransform - Transform to convert from prior version of archetype to this version of archetype.
-				FArchetypeRegistryEntry(const FMetasoundFrontendArchetype& InArchetype, TUniquePtr<Frontend::IDocumentTransform>&& InTransform)
-				: Archetype(InArchetype)
-				, Transform(MoveTemp(InTransform))
-				{
-				}
-
-				virtual const FMetasoundFrontendArchetype& GetArchetype() const override
-				{
-					return Archetype;
-				}
-
-				virtual bool UpdateRootGraphArchetype(Frontend::FDocumentHandle InDocument) const override
-				{
-					if (Transform.IsValid())
-					{
-						return Transform->Transform(InDocument);
-					}
-					return false;
-				}
-
-			private:
-				FMetasoundFrontendArchetype Archetype;
-				TUniquePtr<Frontend::IDocumentTransform> Transform;
-			};
-		}
-
 		// MetasoundV1_0 is a metasound without any required inputs or outputs.
 		namespace MetasoundV1_0
 		{
@@ -57,12 +28,12 @@ namespace Metasound
 				return FMetasoundFrontendVersion{ VersionName, FMetasoundFrontendVersionNumber{1, 0} };
 			}
 
-			FMetasoundFrontendArchetype GetArchetype()
+			FMetasoundFrontendInterface GetInterface()
 			{
-				FMetasoundFrontendArchetype Archetype;
-				Archetype.Version = GetVersion();
+				FMetasoundFrontendInterface Interface;
+				Interface.Version = GetVersion();
 
-				return Archetype;
+				return Interface;
 			}
 		}
 
@@ -111,11 +82,11 @@ namespace Metasound
 				return SoundIsPreviewSoundName;
 			}
 
-			FMetasoundFrontendArchetype GetArchetype()
+			FMetasoundFrontendInterface GetInterface()
 			{
-				FMetasoundFrontendArchetype Archetype;
-				Archetype.Version.Name = "MonoSource";
-				Archetype.Version.Number = FMetasoundFrontendVersionNumber{1, 0};
+				FMetasoundFrontendInterface Interface;
+				Interface.Version.Name = "MonoSource";
+				Interface.Version.Number = FMetasoundFrontendVersionNumber{1, 0};
 				
 				// Inputs
 				FMetasoundFrontendClassVertex OnPlayTrigger;
@@ -126,7 +97,7 @@ namespace Metasound
 				OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Inputs.Add(OnPlayTrigger);
+				Interface.Inputs.Add(OnPlayTrigger);
 
 				// Outputs 
 				FMetasoundFrontendClassVertex OnFinished;
@@ -137,7 +108,7 @@ namespace Metasound
 				OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
 				OnFinished.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Outputs.Add(OnFinished);
+				Interface.Outputs.Add(OnFinished);
 
 				FMetasoundFrontendClassVertex GeneratedAudio;
 				GeneratedAudio.Name = GetAudioOutputName();
@@ -146,16 +117,16 @@ namespace Metasound
 				GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
 				GeneratedAudio.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Outputs.Add(GeneratedAudio);
+				Interface.Outputs.Add(GeneratedAudio);
 
 				// Environment 
-				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
+				FMetasoundFrontendClassEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
 				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
-				Archetype.Interface.Environment.Add(AudioDeviceID);
+				Interface.Environment.Add(AudioDeviceID);
 
-				return Archetype;
+				return Interface;
 			}
 		}
 
@@ -209,10 +180,10 @@ namespace Metasound
 				return SoundGraphName;
 			}
 
-			FMetasoundFrontendArchetype GetArchetype()
+			FMetasoundFrontendInterface GetInterface()
 			{
-				FMetasoundFrontendArchetype Archetype;
-				Archetype.Version = GetVersion();
+				FMetasoundFrontendInterface Interface;
+				Interface.Version = GetVersion();
 				
 				// Inputs
 				FMetasoundFrontendClassVertex OnPlayTrigger;
@@ -223,7 +194,7 @@ namespace Metasound
 				OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Inputs.Add(OnPlayTrigger);
+				Interface.Inputs.Add(OnPlayTrigger);
 
 				// Outputs
 				FMetasoundFrontendClassVertex OnFinished;
@@ -234,7 +205,7 @@ namespace Metasound
 				OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
 				OnFinished.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Outputs.Add(OnFinished);
+				Interface.Outputs.Add(OnFinished);
 
 				FMetasoundFrontendClassVertex GeneratedAudio;
 				GeneratedAudio.Name = GetAudioOutputName();
@@ -243,16 +214,16 @@ namespace Metasound
 				GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
 				GeneratedAudio.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Outputs.Add(GeneratedAudio);
+				Interface.Outputs.Add(GeneratedAudio);
 
 				// Environment
-				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
+				FMetasoundFrontendClassEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
 				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
-				Archetype.Interface.Environment.Add(AudioDeviceID);
+				Interface.Environment.Add(AudioDeviceID);
 
-				return Archetype;
+				return Interface;
 			}
 		}
 
@@ -324,10 +295,10 @@ namespace Metasound
 				return GeneratedAudio;
 			}
 
-			FMetasoundFrontendArchetype GetArchetype()
+			FMetasoundFrontendInterface GetInterface()
 			{
-				FMetasoundFrontendArchetype Archetype;
-				Archetype.Version = GetVersion();
+				FMetasoundFrontendInterface Interface;
+				Interface.Version = GetVersion();
 				
 				// Inputs
 				FMetasoundFrontendClassVertex OnPlayTrigger;
@@ -338,7 +309,7 @@ namespace Metasound
 				OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Inputs.Add(OnPlayTrigger);
+				Interface.Inputs.Add(OnPlayTrigger);
 
 				// Outputs
 				FMetasoundFrontendClassVertex OnFinished;
@@ -349,29 +320,28 @@ namespace Metasound
 				OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
 				OnFinished.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Outputs.Add(OnFinished);
+				Interface.Outputs.Add(OnFinished);
 
 				FMetasoundFrontendClassVertex GeneratedAudio = GetClassAudioOutput();
-				Archetype.Interface.Outputs.Add(GeneratedAudio);
+				Interface.Outputs.Add(GeneratedAudio);
 
 				// Environment
-				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
+				FMetasoundFrontendClassEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
 				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
 
-				Archetype.Interface.Environment.Add(AudioDeviceID);
+				Interface.Environment.Add(AudioDeviceID);
 
-				return Archetype;
+				return Interface;
 			}
 
-			// Update from a MetasoundSourceMonoV1_0 to MtasoundSourceMonoV1_1
-			class FUpdateArchetype : public Frontend::IDocumentTransform
+			// Update from a MetasoundSourceMonoV1_0 to MetasoundSourceMonoV1_1
+			class FUpdateInterface : public Frontend::IDocumentTransform
 			{
 			public:
 				virtual bool Transform(Frontend::FDocumentHandle InDocument) const override
 				{
 					// Swap FMonoAudioFormat output node to an FAudioBuffer output node.
-					
 					using namespace Frontend;
 
 					FGraphHandle Graph = InDocument->GetRootGraph();
@@ -380,8 +350,10 @@ namespace Metasound
 						return false;
 					}
 
-					FNodeHandle MonoFormatOutput = Graph->GetOutputNodeWithName(MetasoundSourceMonoV1_0::GetAudioOutputName());
+					InDocument->RemoveInterfaceVersion(MetasoundSourceMonoV1_0::GetInterface().Version);
+					InDocument->AddInterfaceVersion(MetasoundSourceMonoV1_1::GetInterface().Version);
 
+					FNodeHandle MonoFormatOutput = Graph->GetOutputNodeWithName(MetasoundSourceMonoV1_0::GetAudioOutputName());
 					FVector2D MonoFormatLocation;
 
 					FOutputHandle OutputToReconnect = IOutputController::GetInvalidHandle();
@@ -513,10 +485,10 @@ namespace Metasound
 				return GeneratedRightAudio;
 			}
 
-			FMetasoundFrontendArchetype GetArchetype()
+			FMetasoundFrontendInterface GetInterface()
 			{
-				FMetasoundFrontendArchetype Archetype;
-				Archetype.Version = GetVersion();
+				FMetasoundFrontendInterface Interface;
+				Interface.Version = GetVersion();
 				
 				// Inputs
 				FMetasoundFrontendClassVertex OnPlayTrigger;
@@ -527,7 +499,7 @@ namespace Metasound
 				OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
 				OnPlayTrigger.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Inputs.Add(OnPlayTrigger);
+				Interface.Inputs.Add(OnPlayTrigger);
 
 				// Outputs
 				FMetasoundFrontendClassVertex OnFinished;
@@ -538,25 +510,25 @@ namespace Metasound
 				OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
 				OnFinished.VertexID = FGuid::NewGuid();
 
-				Archetype.Interface.Outputs.Add(OnFinished);
+				Interface.Outputs.Add(OnFinished);
 
 				FMetasoundFrontendClassVertex GeneratedLeftAudio = GetClassLeftAudioOutput();
-				Archetype.Interface.Outputs.Add(GeneratedLeftAudio);
+				Interface.Outputs.Add(GeneratedLeftAudio);
 
 				FMetasoundFrontendClassVertex GeneratedRightAudio = GetClassRightAudioOutput();
-				Archetype.Interface.Outputs.Add(GeneratedRightAudio);
+				Interface.Outputs.Add(GeneratedRightAudio);
 
 				// Environment
-				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
+				FMetasoundFrontendClassEnvironmentVariable AudioDeviceID;
 				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
 				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio Device ID");
-				Archetype.Interface.Environment.Add(AudioDeviceID);
+				Interface.Environment.Add(AudioDeviceID);
 
-				return Archetype;
+				return Interface;
 			};
 
 			// Update from MetasoundSourceStereoV1_0 to MetasoundSourceStereoV1_1
-			class FUpdateArchetype : public Frontend::IDocumentTransform
+			class FUpdateInterface : public Frontend::IDocumentTransform
 			{
 			public:
 				virtual bool Transform(Frontend::FDocumentHandle InDocument) const override
@@ -569,6 +541,9 @@ namespace Metasound
 					{
 						return false;
 					}
+
+					InDocument->RemoveInterfaceVersion(MetasoundSourceStereoV1_0::GetInterface().Version);
+					InDocument->AddInterfaceVersion(MetasoundSourceStereoV1_1::GetInterface().Version);
 
 					FNodeHandle StereoFormatOutput = Graph->GetOutputNodeWithName(MetasoundSourceStereoV1_0::GetAudioOutputName());
 					FOutputHandle LeftOutputToReconnect = IOutputController::GetInvalidHandle();
@@ -715,20 +690,20 @@ namespace Metasound
 			}
 		}
 
-		void RegisterArchetypes()
+		void RegisterInternalInterfaces()
 		{
-			using namespace MetasoundEngineArchetypesPrivate;
+			{
+				constexpr bool bIsDefault = false;
+				RegisterInterface<UMetaSoundSource>(MetasoundSourceStereoV1_1::GetInterface(), MakeUnique<MetasoundSourceStereoV1_1::FUpdateInterface>(), bIsDefault, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundSourceStereoV1_0::GetInterface(), nullptr, bIsDefault, IDataReference::RouterName);
+			}
 
-			Frontend::IArchetypeRegistry::Get().RegisterArchetype(MakeUnique<FArchetypeRegistryEntry>(MetasoundV1_0::GetArchetype(), nullptr));
-
-			Frontend::IArchetypeRegistry::Get().RegisterArchetype(MakeUnique<FArchetypeRegistryEntry>(MetasoundSourceMonoV1_0::GetArchetype(), nullptr));
-
-			Frontend::IArchetypeRegistry::Get().RegisterArchetype(MakeUnique<FArchetypeRegistryEntry>(MetasoundSourceStereoV1_0::GetArchetype(), nullptr));
-
-			Frontend::IArchetypeRegistry::Get().RegisterArchetype(MakeUnique<FArchetypeRegistryEntry>(MetasoundSourceMonoV1_1::GetArchetype(), MakeUnique<MetasoundSourceMonoV1_1::FUpdateArchetype>()));
-
-			Frontend::IArchetypeRegistry::Get().RegisterArchetype(MakeUnique<FArchetypeRegistryEntry>(MetasoundSourceStereoV1_1::GetArchetype(), MakeUnique<MetasoundSourceStereoV1_1::FUpdateArchetype>()));
-
+			{
+				constexpr bool bIsDefault = true;
+				RegisterInterface<UMetaSound>(MetasoundV1_0::GetInterface(), nullptr, bIsDefault, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundSourceMonoV1_0::GetInterface(), nullptr, bIsDefault, IDataReference::RouterName);
+				RegisterInterface<UMetaSoundSource>(MetasoundSourceMonoV1_1::GetInterface(), MakeUnique<MetasoundSourceMonoV1_1::FUpdateInterface>(), bIsDefault, IDataReference::RouterName);
+			}
 		}
 	}
 }

@@ -184,7 +184,7 @@ namespace Metasound
 			return true;
 		}
 
-		bool InjectReceiveNodes(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressFunction, const TSet<FVertexName>& InInputVerticesToSkip)
+		bool InjectReceiveNodes(FFrontendGraph& InGraph, const FReceiveNodeAddressFunction& InAddressFunction, const TSet<FVertexName>& InInputVertexNames)
 		{
 			using namespace Metasound::Frontend;
 			bool bSuccess = true;
@@ -202,14 +202,11 @@ namespace Metasound
 				}
 
 				const FVertexName& VertexKey = InputDestination.Vertex.GetVertexName();
-				if (InInputVerticesToSkip.Contains(VertexKey))
+				if (InInputVertexNames.Contains(VertexKey))
 				{
-					// Skip this key as requested by caller.
-					continue;
+					const bool bInjectionSuccess = InjectReceiveNode(InGraph, InAddressFunction, InputDestination);
+					bSuccess = bSuccess || bInjectionSuccess;
 				}
-
-				const bool bInjectionSuccess = InjectReceiveNode(InGraph, InAddressFunction, InputDestination);
-				bSuccess = bSuccess || bInjectionSuccess;
 			}
 
 			return bSuccess;

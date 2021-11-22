@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "Sound/SoundAttenuation.h"
-#include "EngineDefines.h"
+
 #include "AudioDevice.h"
+#include "EngineDefines.h"
+#include "Internationalization/Internationalization.h"
+#include "Sound/SoundBase.h"
 #include "UObject/AnimPhysObjectVersion.h"
 
 /*-----------------------------------------------------------------------------
@@ -141,3 +143,70 @@ USoundAttenuation::USoundAttenuation(const FObjectInitializer& ObjectInitializer
 	: Super(ObjectInitializer)
 {
 }
+
+#define LOCTEXT_NAMESPACE "AudioGeneratorInterface"
+namespace Audio
+{
+	const FName FAttenuationInterface::Name = "UE.Attenuation";
+	const FName FAttenuationInterface::FInputs::Distance = "Distance";
+
+	FAttenuationInterface::FAttenuationInterface()
+		: FGeneratorInterface(Name, USoundBase::StaticClass())
+	{
+		Inputs =
+		{
+			{
+				FText(),
+				NSLOCTEXT("AudioGeneratorInterface_Attenuation", "DistanceDescription", "Distance between listener and sound location in game units."),
+				FName(),
+				{ FInputs::Distance, 0.0f }
+			}
+		};
+	}
+
+	const FName FSpatializationInterface::Name = "UE.Spatialization";
+	const FName FSpatializationInterface::FInputs::Azimuth = "Azimuth";
+	const FName FSpatializationInterface::FInputs::Elevation = "Elevation";
+
+	FSpatializationInterface::FSpatializationInterface()
+		: FGeneratorInterface(Name, USoundBase::StaticClass())
+	{
+		Inputs =
+		{
+			{
+				FText(),
+				NSLOCTEXT("Spatialization", "AzimuthDescription", "Horizontal angle between listener forward and sound location in degrees."),
+				FName(),
+				{ FInputs::Azimuth, 0.0f }
+			},
+			{
+				FText(),
+				NSLOCTEXT("Spatialization", "ElevationDescription", "Vertical angle between listener forward and sound location in degrees."),
+				FName(),
+				{ FInputs::Elevation, 0.0f }
+			}
+		};
+	}
+
+	FGeneratorInterfacePtr GetAttenuationInterface()
+	{
+		static FGeneratorInterfacePtr InterfacePtr;
+		if (!InterfacePtr.IsValid())
+		{
+			InterfacePtr = MakeShared<FAttenuationInterface>();
+		}
+		return InterfacePtr;
+	}
+
+	FGeneratorInterfacePtr GetSpatializationInterface()
+	{
+		static FGeneratorInterfacePtr InterfacePtr;
+		if (!InterfacePtr.IsValid())
+		{
+			InterfacePtr = MakeShared<FSpatializationInterface>();
+		}
+
+		return InterfacePtr;
+	}
+} // namespace Audio
+#undef LOCTEXT_NAMESPACE

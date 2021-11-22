@@ -47,21 +47,6 @@ namespace Metasound
 	void PostEditChangeProperty(TMetaSoundObject& InMetaSound, FPropertyChangedEvent& InEvent)
 	{
 	}
-
-	template <typename TMetaSoundObject>
-	void PostDuplicate(TMetaSoundObject& InMetaSound, EDuplicateMode::Type InDuplicateMode)
-	{
-		if (InDuplicateMode == EDuplicateMode::Normal)
-		{
-			// Guid is reset as asset may share implementation from
-			// asset duplicated from but should not be registered as such.
-			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
-			if (ensure(MetasoundAsset))
-			{
-				Metasound::Frontend::FRegenerateAssetClassName().Transform(MetasoundAsset->GetDocumentHandle());
-			}
-		}
-	}
 #endif // WITH_EDITOR
 
 	template <typename TMetaSoundObject>
@@ -247,7 +232,7 @@ public:
 
 	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const override;
 
-	virtual bool ConformObjectDataToArchetype() override { return false; }
+	virtual bool ConformObjectDataToInterfaces() override { return false; }
 
 	virtual const TSet<FString>& GetReferencedAssetClassKeys() const override
 	{
@@ -263,9 +248,6 @@ public:
 	{
 		return this;
 	}
-
-	// Get the most up to date archetype for metasound sources.
-	const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const override;
 
 protected:
 	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) override;

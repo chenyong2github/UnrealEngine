@@ -41,7 +41,13 @@ UMetaSound::UMetaSound(const FObjectInitializer& ObjectInitializer)
 void UMetaSound::PostDuplicate(EDuplicateMode::Type InDuplicateMode)
 {
 	Super::PostDuplicate(InDuplicateMode);
-	Metasound::PostDuplicate(*this, InDuplicateMode);
+
+	// Guid is reset as asset may share implementation from
+	// asset duplicated from but should not be registered as such.
+	if (InDuplicateMode == EDuplicateMode::Normal)
+	{
+		Metasound::Frontend::FRegenerateAssetClassName().Transform(GetDocumentHandle());
+	}
 }
 
 void UMetaSound::PostEditUndo()
@@ -134,15 +140,5 @@ const FMetasoundFrontendVersion& UMetaSound::GetDefaultArchetypeVersion() const
 {
 	static const FMetasoundFrontendVersion DefaultArchetypeVersion = Metasound::Engine::MetasoundV1_0::GetVersion();
 	return DefaultArchetypeVersion;
-}
-
-const TArray<FMetasoundFrontendVersion>& UMetaSound::GetSupportedArchetypeVersions() const
-{
-	static const TArray<FMetasoundFrontendVersion> Supported
-	{
-		Metasound::Engine::MetasoundV1_0::GetVersion()
-	};
-
-	return Supported;
 }
 #undef LOCTEXT_NAMESPACE // MetaSound

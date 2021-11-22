@@ -294,11 +294,16 @@ Metasound::Frontend::FConstNodeHandle UMetasoundEditorGraphVertex::GetConstNodeH
 	return MetasoundAsset->GetRootGraphHandle()->GetNodeWithID(NodeID);
 }
 
-bool UMetasoundEditorGraphVertex::IsRequired() const
+const FMetasoundFrontendVersion& UMetasoundEditorGraphVertex::GetInterfaceVersion() const
+{
+	return GetConstNodeHandle()->GetInterfaceVersion();
+}
+
+bool UMetasoundEditorGraphVertex::IsInterfaceMember() const
 {
 	using namespace Metasound;
 
-	return GetConstNodeHandle()->IsRequired();
+	return GetConstNodeHandle()->IsInterfaceMember();
 }
 
 bool UMetasoundEditorGraphVertex::CanRename(const FText& InNewName, FText& OutError) const
@@ -311,9 +316,9 @@ bool UMetasoundEditorGraphVertex::CanRename(const FText& InNewName, FText& OutEr
 		return false;
 	}
 
-	if (IsRequired())
+	if (IsInterfaceMember())
 	{
-		OutError = FText::Format(LOCTEXT("GraphVertexRenameInvalid_GraphVertexRequired", "{0} is required and cannot be renamed."), InNewName);
+		OutError = FText::Format(LOCTEXT("GraphVertexRenameInvalid_GraphVertexRequired", "{0} is interface member and cannot be renamed."), InNewName);
 		return false;
 	}
 
@@ -429,11 +434,10 @@ void UMetasoundEditorGraphInput::PostEditUndo()
 			if (UObject* Object = MetasoundGraph->GetMetasound())
 			{
 				Metasound::Editor::FGraphBuilder::RegisterGraphWithFrontend(*Object);
-				if (TSharedPtr<FEditor> MetaSoundEditor = FGraphBuilder::GetEditorForMetasound(*Object))
-				{
-					// Referesh details panel in case current member was selected.
-					MetaSoundEditor->RefreshDetails();
-				}
+
+				FMetasoundAssetBase* MetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
+				check(MetasoundAsset);
+				MetasoundAsset->SetSynchronizationRequired();
 			}
 		}
 		return;
@@ -596,12 +600,6 @@ bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewText, FText& Out
 		OutError = FText::Format(LOCTEXT("GraphVariableRenameInvalid_NameEmpty", "{0} cannot be empty string."), InNewText);
 		return false;
 	}
-
-	if (IsRequired())
-	{
-		OutError = FText::Format(LOCTEXT("GraphVariableRenameInvalid_GraphVariableRequired", "{0} is required and cannot be renamed."), InNewText);
-		return false;
-	}
 	
 	const FName InNewName = FName(*InNewText.ToString());
 	if (!InNewName.IsValid())
@@ -625,11 +623,6 @@ bool UMetasoundEditorGraphVariable::CanRename(const FText& InNewText, FText& Out
 	}
 
 	return true;
-}
-
-bool UMetasoundEditorGraphVariable::IsRequired() const
-{
-	return false;
 }
 
 TArray<UMetasoundEditorGraphNode*> UMetasoundEditorGraphVariable::GetNodes() const

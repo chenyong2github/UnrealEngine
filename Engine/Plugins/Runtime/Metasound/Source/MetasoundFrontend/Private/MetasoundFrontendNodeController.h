@@ -116,7 +116,8 @@ namespace Metasound
 			virtual FOutputHandle GetOutputWithVertexName(const FVertexName& InName) override;
 			virtual FConstOutputHandle GetConstOutputWithVertexName(const FVertexName& InName) const override;
 
-			virtual bool IsRequired() const override;
+			virtual bool IsInterfaceMember() const override;
+			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const override;
 
 			/** Returns an input with the given id. 
 			 *
@@ -279,7 +280,7 @@ namespace Metasound
 			virtual void SetDescription(const FText& InDescription) override;
 			virtual void SetDisplayName(const FText& InText) override;
 			virtual void SetNodeName(const FVertexName& InName) override;
-			virtual bool IsRequired() const override;
+			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const override;
 
 		protected:
 
@@ -337,7 +338,7 @@ namespace Metasound
 			virtual const FText& GetDescription() const override;
 			virtual FText GetDisplayName() const override;
 			virtual const FText& GetDisplayTitle() const override;
-			virtual bool IsRequired() const override;
+			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const override;
 			virtual bool IsValid() const override;
 			virtual void SetDescription(const FText& InDescription) override;
 			virtual void SetDisplayName(const FText& InText) override;

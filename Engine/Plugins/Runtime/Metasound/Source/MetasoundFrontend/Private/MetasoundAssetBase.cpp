@@ -6,6 +6,7 @@
 #include "Algo/Transform.h"
 #include "Containers/Set.h"
 #include "HAL/FileManager.h"
+#include "IAudioParameterTransmitter.h"
 #include "Internationalization/Text.h"
 #include "IStructSerializerBackend.h"
 #include "Logging/LogMacros.h"
@@ -271,75 +272,40 @@ void FMetasoundAssetBase::SetMetadata(FMetasoundFrontendClassMetadata& InMetadat
 	MarkMetasoundDocumentDirty();
 }
 
-bool FMetasoundAssetBase::IsArchetypeSupported(const FMetasoundFrontendVersion& InArchetypeVersion) const
-{
-	return GetSupportedArchetypeVersions().Contains(InArchetypeVersion);
-}
-
-FMetasoundFrontendVersion FMetasoundAssetBase::GetPreferredArchetypeVersion(const FMetasoundFrontendDocument& InDocument) const
-{
-	using namespace Metasound::Frontend;
-
-	// Default to archetype provided in case it is supported.
-	if (IsArchetypeSupported(InDocument.ArchetypeVersion))
-	{
-		return InDocument.ArchetypeVersion;
-	}
-
-	// If existing archetype is not supported, check if an updated version is preferred.
-	auto IsNewVersion = [&](const FMetasoundFrontendVersion& InVersion)
-	{
-		return (InDocument.ArchetypeVersion.Name == InVersion.Name) && (InVersion.Number > InDocument.ArchetypeVersion.Number);
-	};
-	TArray<FMetasoundFrontendVersion> UpdatedVersions = GetSupportedArchetypeVersions().FilterByPredicate(IsNewVersion);
-	if (UpdatedVersions.Num() > 0)
-	{
-		UpdatedVersions.Sort();
-		return UpdatedVersions.Last();
-	}
-	
-	// If existing archetype is not supported, get the most similar that still supports the documents environment.
-	TArray<FMetasoundFrontendArchetype> Archetypes;
-	for (const FMetasoundFrontendVersion& Version : GetSupportedArchetypeVersions())
-	{
-		const FArchetypeRegistryKey Key = GetArchetypeRegistryKey(Version);
-		FMetasoundFrontendArchetype Archetype;
-		if (IArchetypeRegistry::Get().FindArchetype(Key, Archetype))
-		{
-			Archetypes.Add(MoveTemp(Archetype));
-		}
-	}
-	const FMetasoundFrontendArchetype* SimilarArchetype = Metasound::Frontend::FindMostSimilarArchetypeSupportingEnvironment(InDocument, Archetypes);
-
-	if (nullptr != SimilarArchetype)
-	{
-		return SimilarArchetype->Version;
-	}
-
-	// Nothing found. Return the existing archetype for the FMetasoundAssetBase.
-	return GetDefaultArchetypeVersion();
-}
-
-bool FMetasoundAssetBase::GetArchetype(FMetasoundFrontendArchetype& OutArchetype) const
+bool FMetasoundAssetBase::GetDeclaredInterfaces(TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces) const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	bool bFoundArchetype = false;
-
-	const FMetasoundFrontendDocument* Document = GetDocument().Get();
-	if (nullptr != Document)
+	if (const FMetasoundFrontendDocument* Document = GetDocument().Get())
 	{
-		FArchetypeRegistryKey ArchetypeRegistryKey = GetArchetypeRegistryKey(Document->ArchetypeVersion);
-		bFoundArchetype = IArchetypeRegistry::Get().FindArchetype(ArchetypeRegistryKey, OutArchetype);
+		bool bInterfacesFound = true;
 
-		if (!bFoundArchetype)
+		Algo::Transform(Document->InterfaceVersions, OutInterfaces, [&](const FMetasoundFrontendVersion& Version)
 		{
-			UE_LOG(LogMetaSound, Warning, TEXT("No registered archetype matching archetype version on document [ArchetypeVersion:%s]"), *Document->ArchetypeVersion.ToString());
-		}
+			const FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(Version);
+			const IInterfaceRegistryEntry* RegistryEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(InterfaceKey);
+			if (!RegistryEntry)
+			{
+				bInterfacesFound = false;
+				UE_LOG(LogMetaSound, Warning, TEXT("No registered interface matching interface version on document [InterfaceVersion:%s]"), *Version.ToString());
+			}
+
+			return RegistryEntry;
+		});
+	
+		return bInterfacesFound;
 	}
 
-	return bFoundArchetype;
+	return false;
+}
+
+bool FMetasoundAssetBase::IsInterfaceDeclared(FName InName) const
+{
+	return Algo::AnyOf(GetDocumentChecked().InterfaceVersions, [&InName](const FMetasoundFrontendVersion& FrontendVersion)
+	{
+		return FrontendVersion.Name == InName;
+	});
 }
 
 void FMetasoundAssetBase::SetDocument(const FMetasoundFrontendDocument& InDocument)
@@ -349,22 +315,20 @@ void FMetasoundAssetBase::SetDocument(const FMetasoundFrontendDocument& InDocume
 	MarkMetasoundDocumentDirty();
 }
 
-void FMetasoundAssetBase::ConformDocumentToArchetype()
+void FMetasoundAssetBase::AddDefaultInterfaces()
 {
-	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::ConformDocumentToArchetype);
-	FMetasoundFrontendDocument& Doc = GetDocumentChecked();
+	using namespace Metasound::Frontend;
 
-	FMetasoundFrontendVersion PreferredArchetypeVersion = GetPreferredArchetypeVersion(Doc);
+	UObject* OwningAsset = GetOwningAsset();
+	check(OwningAsset);
 
-	if (PreferredArchetypeVersion != Doc.ArchetypeVersion)
-	{
-		Metasound::Frontend::FMatchRootGraphToArchetype Transform(PreferredArchetypeVersion);
-		if (Transform.Transform(GetDocumentHandle()))
-		{
-			ConformObjectDataToArchetype();
-			MarkMetasoundDocumentDirty();
-		}
-	}
+	UClass* AssetClass = OwningAsset->GetClass();
+	check(AssetClass);
+
+	FDocumentHandle DocumentHandle = GetDocumentHandle();
+
+	TArray<FMetasoundFrontendInterface> InitInterfaces = ISearchEngine::Get().FindUClassDefaultInterfaces(AssetClass->GetFName());
+	FModifyRootGraphInterfaces({ }, InitInterfaces).Transform(DocumentHandle);
 }
 
 bool FMetasoundAssetBase::AutoUpdate(bool bInMarkDirty)
@@ -395,18 +359,40 @@ bool FMetasoundAssetBase::VersionAsset()
 		AssetPath = OwningAsset->GetPathName();
 	}
 
-	bool bDidEdit = false;
-	FDocumentHandle DocumentHandle = GetDocumentHandle();
-
-	bDidEdit |= FVersionDocument(AssetName, AssetPath).Transform(DocumentHandle);
-	if (FMetasoundFrontendDocument* Doc = GetDocument().Get())
+	FMetasoundFrontendDocument* Doc = GetDocument().Get();
+	if (!ensure(Doc))
 	{
-		FMetasoundFrontendVersion ArchetypeVersion = GetPreferredArchetypeVersion(*Doc);
-		bDidEdit |= FMatchRootGraphToArchetype(ArchetypeVersion).Transform(DocumentHandle);
-		if (bDidEdit)
+		return false;
+	}
+
+	// Data migration for 5.0 Early Access data. ArchetypeVersion can be removed post 5.0 release.
+	bool bDidEdit = false;
+	if (Doc->ArchetypeVersion.IsValid())
+	{
+		Doc->InterfaceVersions.Add(Doc->ArchetypeVersion);
+		Doc->ArchetypeVersion = FMetasoundFrontendVersion::GetInvalid();
+		bDidEdit = true;
+	}
+
+	FDocumentHandle DocHandle = GetDocumentHandle();
+
+	// Version Document Model
+	{
+		bDidEdit |= FVersionDocument(AssetName, AssetPath).Transform(DocHandle);
+	}
+
+	// Version Interfaces
+	{
+		bool bInterfaceUpdated = false;
+		for (const FMetasoundFrontendVersion& Version : Doc->InterfaceVersions)
 		{
-			ConformObjectDataToArchetype();
+			bInterfaceUpdated |= FUpdateRootGraphInterface(Version).Transform(DocHandle);
 		}
+		if (bInterfaceUpdated)
+		{
+			ConformObjectDataToInterfaces();
+		}
+		bDidEdit |= bInterfaceUpdated;
 	}
 
 	return bDidEdit;
@@ -423,6 +409,11 @@ bool FMetasoundAssetBase::GetSynchronizationClearUpdateNotes() const
 	return bSynchronizationClearUpdateNotes;
 }
 
+bool FMetasoundAssetBase::GetSynchronizationInterfacesUpdated() const
+{
+	return bSynchronizationInterfacesUpdated;
+}
+
 void FMetasoundAssetBase::SetSynchronizationRequired()
 {
 	bSynchronizationRequired = true;
@@ -433,9 +424,15 @@ void FMetasoundAssetBase::SetClearNodeNotesOnSynchronization()
 	bSynchronizationClearUpdateNotes = true;
 }
 
+void FMetasoundAssetBase::SetInterfacesUpdatedOnSynchronization()
+{
+	bSynchronizationInterfacesUpdated = true;
+}
+
 void FMetasoundAssetBase::ResetSynchronizationState()
 {
 	bSynchronizationClearUpdateNotes = false;
+	bSynchronizationInterfacesUpdated = false;
 	bSynchronizationRequired = false;
 }
 #endif // WITH_EDITORONLY_DATA
@@ -447,19 +444,16 @@ TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::BuildMet
 
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundAssetBase::BuildMetasoundDocument);
 
-	const FMetasoundFrontendDocument* Doc = GetDocument().Get();
-	if (nullptr == Doc)
-	{
-		UE_LOG(LogMetaSound, Error, TEXT("Cannot create graph. Null MetaSound document in MetaSound asset [Name:%s]"), *GetOwningAssetName());
-		return TSharedPtr<IGraph, ESPMode::ThreadSafe>(nullptr);
-	}
-
 	// Create graph which can spawn instances. TODO: cache graph.
-	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(*Doc);
+	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(GetDocumentChecked());
 	if (FrontendGraph.IsValid())
 	{
-		TSet<FVertexName> VerticesToSkip = GetNonTransmittableInputVertices(*Doc);
-		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment, VerticesToSkip);
+		const TArray<const FMetasoundFrontendClassInput*> TransmittableInputs = GetTransmittableClassInputs();
+
+		TSet<FVertexName> TransmittableInputNames;
+		Algo::Transform(TransmittableInputs, TransmittableInputNames, [](const FMetasoundFrontendClassInput* Input) { return Input->Name; });
+
+		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment, TransmittableInputNames);
 		if (!bSuccessfullyInjectedReceiveNodes)
 		{
 			UE_LOG(LogMetaSound, Error, TEXT("Error while injecting async communication hooks. Instance communication may not function properly [Name:%s]."), *GetOwningAssetName());
@@ -582,101 +576,6 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 	}
 
 	return SendInfos;
-}
-
-TSet<Metasound::FVertexName> FMetasoundAssetBase::GetNonTransmittableInputVertices(const FMetasoundFrontendDocument& InDoc) const
-{
-	using namespace Metasound;
-	using namespace Metasound::Frontend;
-
-	check(IsInGameThread() || IsInAudioThread());
-
-	TSet<FVertexName> NonTransmittableInputVertices;
-
-	auto GetVertexKey = [](const FMetasoundFrontendClassVertex& InVertex) { return InVertex.Name; };
-
-	// Do not transmit vertices defined in archetype. Those are already accounted
-	// for by owning object.
-	FMetasoundFrontendArchetype Archetype;
-	GetArchetype(Archetype);
-	Algo::Transform(Archetype.Interface.Inputs, NonTransmittableInputVertices, GetVertexKey);
-
-
-	// Do not transmit vertices which are not transmittable. Async communication 
-	// is not supported without transmission.
-	const IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
-
-	auto IsNotTransmittable = [&Registry](const FMetasoundFrontendClassVertex& InVertex) -> bool
-	{	
-		FDataTypeRegistryInfo Info;
-		if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
-		{
-			return !Info.bIsTransmittable;
-		}
-		return true;
-	};
-
-	Algo::TransformIf(InDoc.RootGraph.Interface.Inputs, NonTransmittableInputVertices, IsNotTransmittable, GetVertexKey);
-
-	return NonTransmittableInputVertices;
-}
-
-TArray<Metasound::FVertexName> FMetasoundAssetBase::GetTransmittableInputVertexNames() const
-{
-	using namespace Metasound;
-	using namespace Metasound::Frontend;
-
-	FConstDocumentHandle Document = GetDocumentHandle();
-
-	// Find the archetype for the document.
-	FMetasoundFrontendArchetype Archetype;
-	FArchetypeRegistryKey ArchetypeRegistryKey = Frontend::GetArchetypeRegistryKey(Document->GetArchetypeVersion());
-	bool bFoundArchetype = IArchetypeRegistry::Get().FindArchetype(ArchetypeRegistryKey, Archetype);
-
-	if (!bFoundArchetype)
-	{
-		UE_LOG(LogMetaSound, Warning, TEXT("No registered archetype matching archetype version on document [ArchetypeVersion:%s]"), *Document->GetArchetypeVersion().ToString());
-	}
-
-	// Unused inputs are all input vertices that are not in the archetype.
-	TArray<FVertexName> ArchetypeInputVertexNames;
-	for (const FMetasoundFrontendClassVertex& Vertex : Archetype.Interface.Inputs)
-	{
-		ArchetypeInputVertexNames.Add(Vertex.Name);
-	}
-
-	Frontend::FConstGraphHandle RootGraph = Document->GetRootGraph();
-	TArray<FVertexName> GraphInputVertexNames = RootGraph->GetInputVertexNames();
-
-	// Filter graph inputs by archetype inputs.
-	GraphInputVertexNames = GraphInputVertexNames.FilterByPredicate([&](const FVertexName& InName) { return !ArchetypeInputVertexNames.Contains(InName); });
-
-	auto IsDataTypeTransmittable = [&](const FVertexName& InVertexName)
-	{
-		using namespace Metasound::Frontend;
-
-		Frontend::FConstClassInputAccessPtr ClassInputPtr = RootGraph->FindClassInputWithName(InVertexName);
-		if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
-		{
-			Frontend::FDataTypeRegistryInfo TypeInfo;
-			if (IDataTypeRegistry::Get().GetDataTypeInfo(ClassInput->TypeName, TypeInfo))
-			{
-				if (TypeInfo.bIsTransmittable)
-				{
-					Frontend::FConstNodeHandle InputNode = RootGraph->GetNodeWithID(ClassInput->NodeID);
-					if (InputNode->IsValid())
-					{
-						return true;
-					}
-				}
-			}
-		}
-		return false;
-	};
-
-	GraphInputVertexNames = GraphInputVertexNames.FilterByPredicate(IsDataTypeTransmittable);
-
-	return GraphInputVertexNames;
 }
 
 Metasound::Frontend::FNodeHandle FMetasoundAssetBase::AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
@@ -806,52 +705,50 @@ TSharedPtr<const Metasound::IGraph, ESPMode::ThreadSafe> FMetasoundAssetBase::Ge
 	return FMetasoundAssetBase::GetRuntimeData().Graph;
 }
 
-TArray<FMetasoundFrontendClassInput> FMetasoundAssetBase::GetTransmittableClassInputs() const
+TArray<const FMetasoundFrontendClassInput*> FMetasoundAssetBase::GetTransmittableClassInputs() const
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
+
 	check(IsInGameThread() || IsInAudioThread());
+	TArray<const FMetasoundFrontendClassInput*> Inputs;
 
-	TArray<FMetasoundFrontendClassInput> Inputs;
+	const FMetasoundFrontendDocument& Doc = GetDocumentChecked();
+	auto GetInputName = [](const FMetasoundFrontendClassInput& InInput) { return InInput.Name; };
 
-	if (const FMetasoundFrontendDocument* Doc = GetDocument().Get())
+	// Do not transmit vertices defined in interface marked as non-transmittable
+	TArray<const IInterfaceRegistryEntry*> Interfaces;
+	TSet<FVertexName> NonTransmittableInputs;
+	GetDeclaredInterfaces(Interfaces);
+	for (const IInterfaceRegistryEntry* InterfaceEntry : Interfaces)
 	{
-		TSet<FVertexName> ArchetypeInputs;
-
-		auto GetVertexKey = [](const FMetasoundFrontendClassVertex& InVertex) { return InVertex.Name; };
-
-		// Do not transmit vertices defined in archetype. Those are already accounted
-		// for by owning object.
-		FMetasoundFrontendArchetype Archetype;
-		GetArchetype(Archetype);
-		Algo::Transform(Archetype.Interface.Inputs, ArchetypeInputs, GetVertexKey);
-
-		// Do not transmit vertices which are not transmittable. Async communication 
-		// is not supported without transmission.
-		IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
-
-		auto IsTransmittable = [&Registry, &ArchetypeInputs](const FMetasoundFrontendClassVertex& InVertex) -> bool
-		{	
-			if (!ArchetypeInputs.Contains(InVertex.Name))
-			{
-				FDataTypeRegistryInfo Info;
-				if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
-				{
-					return Info.bIsTransmittable;
-				}
-			}
-			return false;
-		};
-
-
-		for (const FMetasoundFrontendClassInput& Vertex : Doc->RootGraph.Interface.Inputs)
+		if (InterfaceEntry)
 		{
-			if (IsTransmittable(Vertex))
+			if (InterfaceEntry->GetRouterName() != Audio::IParameterTransmitter::RouterName)
 			{
-				Inputs.Add(Vertex);
+				const FMetasoundFrontendInterface& Interface = InterfaceEntry->GetInterface();
+				Algo::Transform(Interface.Inputs, NonTransmittableInputs, GetInputName);
 			}
 		}
 	}
+
+	// Do not transmit vertices which are not transmittable. Async communication
+	// is not supported without transmission.
+	IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
+	auto IsTransmittable = [&Registry, &NonTransmittableInputs](const FMetasoundFrontendClassVertex& InVertex)
+	{
+		if (!NonTransmittableInputs.Contains(InVertex.Name))
+		{
+			FDataTypeRegistryInfo Info;
+			if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
+			{
+				return Info.bIsTransmittable;
+			}
+		}
+
+		return false;
+	};
+	Algo::TransformIf(Doc.RootGraph.Interface.Inputs, Inputs, IsTransmittable, [] (const FMetasoundFrontendClassInput& Input) { return &Input; });
 
 	return Inputs;
 }
@@ -869,7 +766,10 @@ const FMetasoundAssetBase::FRuntimeData& FMetasoundAssetBase::GetRuntimeData() c
 	if (CachedRuntimeData.ChangeID != CurrentCachedRuntimeDataChangeID)
 	{
 		// Update CachedRuntimeData.
-		CachedRuntimeData.TransmittableInputs = GetTransmittableClassInputs();
+		CachedRuntimeData.TransmittableInputs.Reset();
+		TArray<const FMetasoundFrontendClassInput*> ClassInputs = GetTransmittableClassInputs();
+		Algo::Transform(ClassInputs, CachedRuntimeData.TransmittableInputs, [] (const FMetasoundFrontendClassInput* Input) { return *Input; });
+
 		CachedRuntimeData.Graph = BuildMetasoundDocument();
 		CachedRuntimeData.ChangeID = CurrentCachedRuntimeDataChangeID;
 	}

@@ -77,11 +77,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersionNumber
 	GENERATED_BODY()
 
 	// Major version number.
-	UPROPERTY(VisibleAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General)
 	int32 Major = 1;
 
 	// Minor version number.
-	UPROPERTY(VisibleAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, Category = General)
 	int32 Minor = 0;
 
 	static const FMetasoundFrontendVersionNumber& GetInvalid()
@@ -158,11 +158,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersion
 	GENERATED_BODY()
 
 	// Name of version.
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	FName Name;
 
 	// Version number.
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendVersionNumber Number;
 
 	FString ToString() const;
@@ -545,7 +545,7 @@ struct FMetasoundFrontendVertexMetadata
 };
 
 USTRUCT()
-struct FMetasoundFrontendEnvironmentVariableMetadata
+struct FMetasoundFrontendClassEnvironmentVariableMetadata
 {
 	GENERATED_BODY()
 
@@ -656,12 +656,12 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassOutput : public FMetasoundFr
 	virtual ~FMetasoundFrontendClassOutput() = default;
 };
 
-USTRUCT() 
-struct METASOUNDFRONTEND_API FMetasoundFrontendEnvironmentVariable
+USTRUCT()
+struct METASOUNDFRONTEND_API FMetasoundFrontendClassEnvironmentVariable
 {
 	GENERATED_BODY()
 
-	virtual ~FMetasoundFrontendEnvironmentVariable() = default;
+	virtual ~FMetasoundFrontendClassEnvironmentVariable() = default;
 
 	// Name of environment variable.
 	UPROPERTY()
@@ -673,17 +673,10 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendEnvironmentVariable
 
 	// Metadata of environment variable.
 	UPROPERTY()
-	FMetasoundFrontendEnvironmentVariableMetadata Metadata;
-};
+	FMetasoundFrontendClassEnvironmentVariableMetadata Metadata;
 
-USTRUCT() 
-struct METASOUNDFRONTEND_API FMetasoundFrontendClassEnvironmentVariable : public FMetasoundFrontendEnvironmentVariable
-{
-	GENERATED_BODY()
-
-	virtual ~FMetasoundFrontendClassEnvironmentVariable() = default;
-
-	// True if the environment variable is needed in order to instantiate a node instance of the class. 
+	// True if the environment variable is needed in order to instantiate a node instance of the class.
+	// TODO: Should be deprecated?
 	UPROPERTY()
 	bool bIsRequired = true;
 };
@@ -812,6 +805,17 @@ public:
 	{
 		ChangeID = FGuid::NewGuid();
 	}
+};
+
+
+USTRUCT()
+struct METASOUNDFRONTEND_API FMetasoundFrontendInterface : public FMetasoundFrontendClassInterface
+{
+	GENERATED_BODY()
+
+	// Name and version number of the interface
+	UPROPERTY()
+	FMetasoundFrontendVersion Version;
 };
 
 
@@ -1120,41 +1124,6 @@ struct FMetasoundFrontendDocumentMetadata
 
 
 USTRUCT()
-struct FMetasoundFrontendArchetypeInterface
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FGuid TransactionID;
-
-	UPROPERTY()
-	TArray<FMetasoundFrontendClassVertex> Inputs;
-
-	UPROPERTY()
-	TArray<FMetasoundFrontendClassVertex> Outputs;
-
-	UPROPERTY()
-	TArray<FMetasoundFrontendEnvironmentVariable> Environment;
-};
-
-/** Describes the expected minimum interface of a MetaSound root graph. This allows
- * systems to describe the minimum interface for a MetaSound to work within them. */
-USTRUCT()
-struct FMetasoundFrontendArchetype
-{
-	GENERATED_BODY()
-
-	/** Name and version number of the archetype. */
-	UPROPERTY()
-	FMetasoundFrontendVersion Version;
-
-	/** Expected minimum interface for MetaSounds satisfying archetype. */
-	UPROPERTY()
-	FMetasoundFrontendArchetypeInterface Interface;
-};
-
-
-USTRUCT()
 struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 {
 	GENERATED_BODY()
@@ -1169,8 +1138,11 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendDocument
 	UPROPERTY()
 	FMetasoundFrontendEditorData EditorData;
 
-	UPROPERTY()
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "5.0 - ArchetypeVersion has been migrated to InterfaceVersions array."))
 	FMetasoundFrontendVersion ArchetypeVersion;
+
+	UPROPERTY(EditAnywhere, Category = CustomView, meta = (DisplayName = "Interfaces"))
+	TArray<FMetasoundFrontendVersion> InterfaceVersions;
 
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendGraphClass RootGraph;

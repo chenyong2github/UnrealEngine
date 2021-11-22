@@ -117,20 +117,39 @@ namespace Metasound
 			return false;
 		}
 
-		const FMetasoundFrontendVersion& FDocumentController::GetArchetypeVersion() const
+		const TArray<FMetasoundFrontendVersion>& FDocumentController::GetInterfaceVersions() const
 		{
 			if (const FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 			{
-				return Doc->ArchetypeVersion;
+				return Doc->InterfaceVersions;
 			}
-			return FMetasoundFrontendVersion::GetInvalid();
+
+			static const TArray<FMetasoundFrontendVersion> EmptyArray;
+			return EmptyArray;
 		}
 
-		void FDocumentController::SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion)
+		void FDocumentController::AddInterfaceVersion(const FMetasoundFrontendVersion& InVersion)
 		{
 			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
 			{
-				Doc->ArchetypeVersion = InVersion;
+				Doc->InterfaceVersions.Add(InVersion);
+			}
+		}
+
+		void FDocumentController::RemoveInterfaceVersion(const FMetasoundFrontendVersion& InVersion)
+		{
+			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
+			{
+				constexpr bool bAllowShrinking = false;
+				Doc->InterfaceVersions.RemoveAllSwap([&](const FMetasoundFrontendVersion& InterfaceVersion) { return InterfaceVersion == InVersion; }, bAllowShrinking);
+			}
+		}
+
+		void FDocumentController::ClearInterfaceVersions()
+		{
+			if (FMetasoundFrontendDocument* Doc = DocumentPtr.Get())
+			{
+				Doc->InterfaceVersions.Reset();
 			}
 		}
 

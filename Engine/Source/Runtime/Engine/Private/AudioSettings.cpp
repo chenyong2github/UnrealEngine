@@ -4,8 +4,10 @@
 #include "AudioDevice.h"
 #include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
+#include "IAudioGeneratorInterfaceRegistry.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
+#include "Sound/SoundAttenuation.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundConcurrency.h"
@@ -257,6 +259,10 @@ void UAudioSettings::LoadDefaultObjects()
 	{
 		UE_LOG(LogAudio, Display, TEXT("No default SoundConcurrencyObject specified (or failed to load)."));
 	}
+
+	Audio::IGeneratorInterfaceRegistry& InterfaceRegistry = Audio::IGeneratorInterfaceRegistry::Get();
+	InterfaceRegistry.RegisterInterface(Audio::GetAttenuationInterface());
+	InterfaceRegistry.RegisterInterface(Audio::GetSpatializationInterface());
 }
 
 USoundClass* UAudioSettings::GetDefaultMediaSoundClass() const

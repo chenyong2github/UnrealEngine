@@ -2,6 +2,7 @@
 
 #include "MetasoundEditor.h"
 
+#include "Algo/AnyOf.h"
 #include "AudioDevice.h"
 #include "AudioMeterStyle.h"
 #include "Components/AudioComponent.h"
@@ -115,15 +116,6 @@ namespace Metasound
 				return GetMetasoundAssetChecked().GetRootGraphHandle();
 			}
 
-			bool IsRequired() const
-			{
-				if (UMetasoundEditorGraphMember* Member = GetGraphMember())
-				{
-					return Member->IsRequired();
-				}
-				return false;
-			}
-
 			// FEdGraphSchemaAction interface
 			virtual bool IsParentable() const override
 			{
@@ -157,7 +149,6 @@ namespace Metasound
 		{
 		private:
 			TSharedPtr<FMetasoundGraphMemberSchemaAction> MetasoundAction;
-			bool bIsNameInvalid = false;
 
 		public:
 			SLATE_BEGIN_ARGS(SMetaSoundGraphPaletteItem)
@@ -364,7 +355,7 @@ namespace Metasound
 			using namespace Metasound::Frontend;
 
 			check(ObjectToEdit);
-			checkf(IMetasoundUObjectRegistry::Get().IsRegisteredClass(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound archetype!"));
+			checkf(IMetasoundUObjectRegistry::Get().IsRegisteredClass(ObjectToEdit), TEXT("Object passed in was not registered as a valid metasound interface!"));
 			
 			// Support undo/redo
 			ObjectToEdit->SetFlags(RF_Transactional);
@@ -372,6 +363,7 @@ namespace Metasound
 			Metasound = ObjectToEdit;
 
 			FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+			FGraphBuilder::SynchronizeGraph(*Metasound);
 
 			GEditor->RegisterForUndo(this);
 
@@ -760,24 +752,36 @@ namespace Metasound
 
 			if (Frontend::ImportJSONAssetToMetasound(InputPath, MetasoundDoc))
 			{
-				TArray<UClass*> ImportClasses = IMetasoundUObjectRegistry::Get().GetUClassesForArchetype(MetasoundDoc.ArchetypeVersion);
+				TSet<UClass*> ImportClasses;
+
+				for (const FMetasoundFrontendVersion& InterfaceVersion : MetasoundDoc.InterfaceVersions)
+				{
+					TArray<UClass*> InterfaceClasses = IMetasoundUObjectRegistry::Get().FindSupportedInterfaceClasses(InterfaceVersion);
+					ImportClasses.Append(MoveTemp(InterfaceClasses));
+				}
 
 				if (ImportClasses.Num() < 1)
 				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Cannot create UObject from MetaSound document. No UClass supports archetype \"%s\""), *MetasoundDoc.ArchetypeVersion.ToString());
+					TArray<FString> InterfaceNames;
+					Algo::Transform(MetasoundDoc.InterfaceVersions, InterfaceNames, [] (const FMetasoundFrontendVersion& InterfaceVersion) { return InterfaceVersion.ToString(); });
+					UE_LOG(LogMetaSound, Warning, TEXT("Cannot create UObject from MetaSound document. No UClass supports interface(s) \"%s\""), *FString::Join(InterfaceNames, TEXT(",")));
 				}
 				else
 				{
-					if (ImportClasses.Num() > 1)
+					UClass* AnyClass = nullptr;
+					for (UClass* ImportClass : ImportClasses)
 					{
-						for (UClass* Cls : ImportClasses)
+						AnyClass = ImportClass;
+						if (ImportClasses.Num() > 1)
 						{
-							// TODO: could do a modal dialog to give user choice of import type.
-							UE_LOG(LogMetaSound, Warning, TEXT("Duplicate UClass support archetype \"%s\" with UClass \"%s\""), *MetasoundDoc.ArchetypeVersion.ToString(), *Cls->GetName());
+							// TODO: Modal dialog to give user choice of import type.
+							TArray<FString> InterfaceNames;
+							Algo::Transform(MetasoundDoc.InterfaceVersions, InterfaceNames, [](const FMetasoundFrontendVersion& InterfaceVersion) { return InterfaceVersion.ToString(); });
+							UE_LOG(LogMetaSound, Warning, TEXT("Duplicate UClass support interface(s) \"%s\" with UClass \"%s\""), *FString::Join(InterfaceNames, TEXT(",")), *ImportClass->GetName());
 						}
 					}
 
-					IMetasoundUObjectRegistry::Get().NewObject(ImportClasses[0], MetasoundDoc, OutputPath);
+					IMetasoundUObjectRegistry::Get().NewObject(AnyClass, MetasoundDoc, OutputPath);
 				}
 			}
 			else
@@ -1345,14 +1349,20 @@ namespace Metasound
 						if (MetasoundAction.IsValid())
 						{
 							const UMetasoundEditorGraphMember* GraphMember = MetasoundAction->GetGraphMember();
-							
 							if (ensure(nullptr != GraphMember))
 							{
-								if (GraphMember->IsRequired())
+								const FMetasoundFrontendVersion* InterfaceVersion = nullptr;
+								if (const UMetasoundEditorGraphVertex* Vertex = Cast<UMetasoundEditorGraphVertex>(GraphMember))
+								{
+									InterfaceVersion = &Vertex->GetInterfaceVersion();
+								}
+
+								if (InterfaceVersion && InterfaceVersion->IsValid())
 								{
 									if (MetasoundGraphEditor.IsValid())
 									{
-										FNotificationInfo Info(LOCTEXT("CannotDelete_RequiredGraphMember", "Delete failed: Input/Output is required."));
+										const FText Notification = FText::Format(LOCTEXT("CannotDeleteInterfaceMemberNotificationFormat", "Cannot delete individual member of interface '{0}'."), FText::FromName(InterfaceVersion->Name));
+										FNotificationInfo Info(Notification);
 										Info.bFireAndForget = true;
 										Info.bUseSuccessFailIcons = false;
 										Info.ExpireDuration = 5.0f;
@@ -1888,13 +1898,30 @@ namespace Metasound
 			UMetasoundEditorGraph& EdGraph = GetMetaSoundGraphChecked();
 			Frontend::FConstGraphHandle FrontendGraph = MetasoundAsset->GetRootGraphHandle();
 
-			FrontendGraph->IterateConstNodes([this, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Input)
+			auto GetVertexCategory = [](const Frontend::FConstNodeHandle& NodeHandle)
+			{
+				FName InterfaceName;
+				FName MemberName;
+				Audio::IGeneratorInterfaceRegistry::SplitMemberFullName(NodeHandle->GetNodeName(), InterfaceName, MemberName);
+
+				if (InterfaceName.IsNone())
+				{
+					return FText::GetEmpty();
+				}
+
+				FString CategoryString = InterfaceName.ToString();
+				CategoryString.ReplaceInline(*Audio::IGeneratorInterfaceRegistry::NamespaceDelimiter, TEXT("|"));
+				return FText::FromString(CategoryString);
+			};
+
+			FrontendGraph->IterateConstNodes([this, &GetVertexCategory, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Input)
 			{
 				const FText Tooltip = Input->GetDescription();
 				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Input);
 				const FGuid NodeID = Input->GetID();
+				const FText Category = GetVertexCategory(Input);
 
-				TSharedPtr<FMetasoundGraphMemberSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphMemberSchemaAction>(FText::GetEmpty(), MenuDesc, Tooltip, 1, ENodeSection::Inputs);
+				TSharedPtr<FMetasoundGraphMemberSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphMemberSchemaAction>(Category, MenuDesc, Tooltip, 1, ENodeSection::Inputs);
 				NewFuncAction->Graph = &EdGraph;
 				NewFuncAction->MemberID = NodeID;
 
@@ -1911,13 +1938,14 @@ namespace Metasound
 				}
 			}, EMetasoundFrontendClassType::Input);
 
-			FrontendGraph->IterateConstNodes([this, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Output)
+			FrontendGraph->IterateConstNodes([this, &GetVertexCategory, &EdGraph, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Output)
 			{
 				const FText Tooltip = Output->GetDescription();
 				const FText MenuDesc = FGraphBuilder::GetDisplayName(*Output);
 				const FGuid NodeID = Output->GetID();
+				const FText Category = GetVertexCategory(Output);
 
-				TSharedPtr<FMetasoundGraphMemberSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphMemberSchemaAction>(FText::GetEmpty(), MenuDesc, Tooltip, 1, ENodeSection::Outputs);
+				TSharedPtr<FMetasoundGraphMemberSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphMemberSchemaAction>(Category, MenuDesc, Tooltip, 1, ENodeSection::Outputs);
 				NewFuncAction->Graph = &EdGraph;
 				NewFuncAction->MemberID = Output->GetID();
 				ActionList->AddAction(NewFuncAction);
@@ -2065,7 +2093,30 @@ namespace Metasound
 
 			if (MetasoundAsset->GetSynchronizationPending())
 			{
+				// Capture before synchronizing as the flag is cleared therein.
+				const bool bInterfacesUpdated = MetasoundAsset->GetSynchronizationInterfacesUpdated();
+
 				FGraphBuilder::SynchronizeGraph(*Metasound);
+
+				if (MetasoundDetails.IsValid() && bInterfacesUpdated)
+				{
+					// Only refresh the details panel if viewing the graph details
+					auto ContainsMetaSound = [](TWeakObjectPtr<UObject> Obj)
+					{
+						if (!Obj.IsValid())
+						{
+							return false;
+						}
+						
+						return IMetasoundUObjectRegistry::Get().IsRegisteredClass(Obj.Get());
+					};
+
+					const bool bDetailsEditingGraph = Algo::AnyOf(MetasoundDetails->GetSelectedObjects(), ContainsMetaSound);
+					if (bDetailsEditingGraph)
+					{
+						RefreshDetails();
+					}
+				}
 			}
 		}
 

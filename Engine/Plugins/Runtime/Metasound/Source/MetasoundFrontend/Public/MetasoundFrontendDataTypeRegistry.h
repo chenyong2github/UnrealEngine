@@ -202,6 +202,8 @@ namespace Metasound
 			virtual bool GetDataTypeInfo(const UObject* InObject, FDataTypeRegistryInfo& OutInfo) const = 0;
 			virtual bool GetDataTypeInfo(const FName& InDataType, FDataTypeRegistryInfo& OutInfo) const = 0;
 
+			virtual bool IsRegistered(const FName& InDataType) const = 0;
+
 			// Return the enum interface for a data type. If the data type does not have 
 			// an enum interface, returns a nullptr.
 			virtual TSharedPtr<const IEnumDataTypeInterface> GetEnumInterfaceForDataType(const FName& InDataType) const = 0;

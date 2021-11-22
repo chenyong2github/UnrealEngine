@@ -4,6 +4,8 @@
 
 #include "Engine/Attenuation.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioGeneratorInterfaceRegistry.h"
+
 #include "SoundAttenuation.generated.h"
 
 class USoundSubmixBase;
@@ -487,3 +489,34 @@ class USoundAttenuation : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Settings, meta = (CustomizeProperty))
 	FSoundAttenuationSettings Attenuation;
 };
+
+namespace Audio
+{
+	struct ENGINE_API FAttenuationInterface : public FGeneratorInterface
+	{
+		static const FName Name;
+
+		struct FInputs
+		{
+			static const FName Distance;
+		};
+
+		FAttenuationInterface();
+	};
+
+	struct ENGINE_API FSpatializationInterface : public FGeneratorInterface
+	{
+		static const FName Name;
+
+		struct FInputs
+		{
+			static const FName Azimuth;
+			static const FName Elevation;
+		};
+
+		FSpatializationInterface();
+	};
+
+	ENGINE_API FGeneratorInterfacePtr GetAttenuationInterface();
+	ENGINE_API FGeneratorInterfacePtr GetSpatializationInterface();
+} // namespace Audio

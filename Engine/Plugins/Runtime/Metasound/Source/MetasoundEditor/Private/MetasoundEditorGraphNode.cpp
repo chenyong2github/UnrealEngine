@@ -491,7 +491,7 @@ FGuid UMetasoundEditorGraphOutputNode::GetNodeID() const
 
 bool UMetasoundEditorGraphOutputNode::CanUserDeleteNode() const
 {
-	return !GetNodeHandle()->IsRequired();
+	return !GetNodeHandle()->IsInterfaceMember();
 }
 
 void UMetasoundEditorGraphOutputNode::SetNodeID(FGuid InNodeID)

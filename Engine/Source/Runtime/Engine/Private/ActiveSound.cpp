@@ -7,6 +7,7 @@
 #include "AudioThread.h"
 #include "AudioDevice.h"
 #include "IAudioExtensionPlugin.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundCue.h"
@@ -559,6 +560,57 @@ bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
 	}
 
 	return true;
+}
+
+void FActiveSound::UpdateGeneratorParameters(const TArray<FListener>& InListeners)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FActiveSound::UpdateGeneratorParameters);
+
+	using namespace Audio;
+
+	if (!InstanceTransmitter.IsValid())
+	{
+		return;
+	}
+
+	if (!Sound || IsPreviewSound())
+	{
+		return;
+	}
+
+	if (!InListeners.IsValidIndex(ClosestListenerIndex))
+	{
+		return;
+	}
+
+	FGeneratorInterfacePtr AttenuationInterface = GetAttenuationInterface();
+	FGeneratorInterfacePtr SpatializationInterface = GetSpatializationInterface();
+
+	const bool bImplementsAttenuation = Sound->ImplementsGeneratorInterface(AttenuationInterface);
+	const bool bImplementsSpatialization = Sound->ImplementsGeneratorInterface(SpatializationInterface);
+
+	if (!bImplementsAttenuation && !bImplementsSpatialization)
+	{
+		return;
+	}
+
+	const FListener& Listener = InListeners[ClosestListenerIndex];
+	const FVector SourceDirection = Transform.GetLocation() - Listener.Transform.GetLocation();
+	if (bImplementsAttenuation)
+	{
+		const float Distance = SourceDirection.Size();
+		InstanceTransmitter->SetParameter(FAttenuationInterface::Name, { FAttenuationInterface::FInputs::Distance, Distance });
+	}
+
+	if (bImplementsSpatialization)
+	{
+		const FVector SourceDirectionNormal = Listener.Transform.InverseTransformVectorNoScale(SourceDirection).GetSafeNormal();
+		const FVector2D SourceAzimuthAndElevation = FMath::GetAzimuthAndElevation(SourceDirectionNormal, FVector::ForwardVector, FVector::RightVector, FVector::UpVector);
+		const float Azimuth = FMath::RadiansToDegrees(SourceAzimuthAndElevation.X);
+		const float Elevation = FMath::RadiansToDegrees(SourceAzimuthAndElevation.Y);
+		InstanceTransmitter->SetParameter(FSpatializationInterface::Name, { FSpatializationInterface::FInputs::Azimuth, Azimuth });
+		InstanceTransmitter->SetParameter(FSpatializationInterface::Name, { FSpatializationInterface::FInputs::Elevation, Elevation });
+	}
 }
 
 void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, const float DeltaTime)

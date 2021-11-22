@@ -147,7 +147,7 @@ public:
 
 	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const override;
 
-	virtual bool ConformObjectDataToArchetype() override;
+	virtual bool ConformObjectDataToInterfaces() override;
 
 	UObject* GetOwningAsset() override
 	{
@@ -165,13 +165,10 @@ public:
 	virtual bool IsPlayable() const override;
 	virtual bool SupportsSubtitles() const override;
 	virtual float GetDuration() override;
+	virtual bool ImplementsGeneratorInterface(Audio::FGeneratorInterfacePtr InInterface) const override;
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 	virtual TUniquePtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
 	virtual bool IsParameterValid(const FAudioParameter& InParameter) const override;
-
-	// Get the most up to date archetype for metasound sources.
-	const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const override;
-
 
 protected:
 	/** Gets all the default parameters for this Asset.  */

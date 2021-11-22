@@ -15,12 +15,57 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		FSwapGraphArchetype::FSwapGraphArchetype(const FMetasoundFrontendArchetype& InFromArchetype, const FMetasoundFrontendArchetype& InToArchetype) 
+		FModifyRootGraphInterfaces::FModifyRootGraphInterfaces(const TArray<FMetasoundFrontendInterface>& InInterfacesToRemove, const TArray<FMetasoundFrontendInterface>& InInterfacesToAdd)
+			: InterfacesToRemove(InInterfacesToRemove)
+			, InterfacesToAdd(InInterfacesToAdd)
 		{
-			InputsToAdd = InToArchetype.Interface.Inputs;
-			InputsToRemove = InFromArchetype.Interface.Inputs;
-			OutputsToAdd = InToArchetype.Interface.Outputs;
-			OutputsToRemove = InFromArchetype.Interface.Outputs;
+			Init();
+		}
+
+		FModifyRootGraphInterfaces::FModifyRootGraphInterfaces(const TArray<FMetasoundFrontendVersion>& InInterfaceVersionsToRemove, const TArray<FMetasoundFrontendVersion>& InInterfaceVersionsToAdd)
+		{
+			Algo::Transform(InInterfaceVersionsToRemove, InterfacesToRemove, [](const FMetasoundFrontendVersion& Version)
+			{
+				FMetasoundFrontendInterface Interface;
+				const bool bFromInterfaceFound = IInterfaceRegistry::Get().FindInterface(GetInterfaceRegistryKey(Version), Interface);
+				if (!ensureAlways(bFromInterfaceFound))
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to find interface '%s' to remove"), *Version.ToString());
+				}
+				return Interface;
+			});
+
+			Algo::Transform(InInterfaceVersionsToAdd, InterfacesToAdd, [](const FMetasoundFrontendVersion& Version)
+			{
+				FMetasoundFrontendInterface Interface;
+				const bool bToInterfaceFound = IInterfaceRegistry::Get().FindInterface(GetInterfaceRegistryKey(Version), Interface);
+				if (!ensureAlways(bToInterfaceFound))
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to find interface '%s' to add"), *Version.ToString());
+				}
+				return Interface;
+			});
+
+			Init();
+		}
+
+		void FModifyRootGraphInterfaces::SetDefaultNodeLocations(bool bInSetDefaultNodeLocations)
+		{
+			bSetDefaultNodeLocations = bInSetDefaultNodeLocations;
+		}
+
+		void FModifyRootGraphInterfaces::Init()
+		{
+			for (const FMetasoundFrontendInterface& FromInterface : InterfacesToRemove)
+			{
+				InputsToRemove.Append(FromInterface.Inputs);
+				OutputsToRemove.Append(FromInterface.Outputs);
+			}
+			for (const FMetasoundFrontendInterface& ToInterface : InterfacesToAdd)
+			{
+				InputsToAdd.Append(ToInterface.Inputs);
+				OutputsToAdd.Append(ToInterface.Outputs);
+			}
 
 			// Iterate in reverse to allow removal from `InputsToAdd`
 			for (int32 AddIndex = InputsToAdd.Num() - 1; AddIndex >= 0; AddIndex--)
@@ -28,9 +73,9 @@ namespace Metasound
 				const FMetasoundFrontendClassVertex& VertexToAdd = InputsToAdd[AddIndex];
 
 				int32 RemoveIndex = InputsToRemove.IndexOfByPredicate([&](const FMetasoundFrontendClassVertex& VertexToRemove)
-					{
-						return FMetasoundFrontendClassVertex::IsFunctionalEquivalent(VertexToAdd, VertexToRemove);
-					});
+				{
+					return FMetasoundFrontendClassVertex::IsFunctionalEquivalent(VertexToAdd, VertexToRemove);
+				});
 
 				if (INDEX_NONE != RemoveIndex)
 				{
@@ -59,19 +104,35 @@ namespace Metasound
 			}
 		}
 
-		bool FSwapGraphArchetype::Transform(FGraphHandle InGraph) const
+		bool FModifyRootGraphInterfaces::Transform(FDocumentHandle InDocument) const
 		{
 			bool bDidEdit = false;
+
+			FGraphHandle GraphHandle = InDocument->GetRootGraph();
+			if (!ensure(GraphHandle->IsValid()))
+			{
+				return false;
+			}
+
+			for (const FMetasoundFrontendInterface& Interface : InterfacesToRemove)
+			{
+				InDocument->RemoveInterfaceVersion(Interface.Version);
+			}
+
+			for (const FMetasoundFrontendInterface& Interface : InterfacesToAdd)
+			{
+				InDocument->AddInterfaceVersion(Interface.Version);
+			}
 
 			// Remove unsupported inputs
 			for (const FMetasoundFrontendClassVertex& InputToRemove : InputsToRemove)
 			{
-				if (const FMetasoundFrontendClassInput* ClassInput = InGraph->FindClassInputWithName(InputToRemove.Name).Get())
+				if (const FMetasoundFrontendClassInput* ClassInput = GraphHandle->FindClassInputWithName(InputToRemove.Name).Get())
 				{
 					if (FMetasoundFrontendClassInput::IsFunctionalEquivalent(*ClassInput, InputToRemove))
 					{
 						bDidEdit = true;
-						InGraph->RemoveInputVertex(InputToRemove.Name);
+						GraphHandle->RemoveInputVertex(InputToRemove.Name);
 					}
 				}
 			}
@@ -79,12 +140,12 @@ namespace Metasound
 			// Remove unrequired outputs
 			for (const FMetasoundFrontendClassVertex& OutputToRemove : OutputsToRemove)
 			{
-				if (const FMetasoundFrontendClassOutput* ClassOutput = InGraph->FindClassOutputWithName(OutputToRemove.Name).Get())
+				if (const FMetasoundFrontendClassOutput* ClassOutput = GraphHandle->FindClassOutputWithName(OutputToRemove.Name).Get())
 				{
 					if (FMetasoundFrontendClassOutput::IsFunctionalEquivalent(*ClassOutput, OutputToRemove))
 					{
 						bDidEdit = true;
-						InGraph->RemoveOutputVertex(OutputToRemove.Name);
+						GraphHandle->RemoveOutputVertex(OutputToRemove.Name);
 					}
 				}
 			}
@@ -138,27 +199,33 @@ namespace Metasound
 			};
 
 			// Add missing inputs
-			for (const FMetasoundFrontendClassVertex& InputToAdd : InputsToAdd)
+			for (const FMetasoundFrontendClassInput& InputToAdd : InputsToAdd)
 			{
 				bDidEdit = true;
-				FNodeHandle NewInputNode = InGraph->AddInputVertex(InputToAdd);
+				FNodeHandle NewInputNode = GraphHandle->AddInputVertex(InputToAdd);
 
-				FMetasoundFrontendNodeStyle Style = NewInputNode->GetNodeStyle();
-				const FVector2D LastOutputLocation = FindLowestNodeLocationOfClassType(EMetasoundFrontendClassType::Input, InGraph, InputToAdd.TypeName, InputDataTypeCompareFilter);
-				Style.Display.Locations.Add(FGuid(), LastOutputLocation + DisplayStyle::NodeLayout::DefaultOffsetY);
-				NewInputNode->SetNodeStyle(Style);
+				if (bSetDefaultNodeLocations)
+				{
+					FMetasoundFrontendNodeStyle Style = NewInputNode->GetNodeStyle();
+					const FVector2D LastOutputLocation = FindLowestNodeLocationOfClassType(EMetasoundFrontendClassType::Input, GraphHandle, InputToAdd.TypeName, InputDataTypeCompareFilter);
+					Style.Display.Locations.Add(FGuid(), LastOutputLocation + DisplayStyle::NodeLayout::DefaultOffsetY);
+					NewInputNode->SetNodeStyle(Style);
+				}
 			}
 
 			// Add missing outputs
-			for (const FMetasoundFrontendClassVertex& OutputToAdd : OutputsToAdd)
+			for (const FMetasoundFrontendClassOutput& OutputToAdd : OutputsToAdd)
 			{
 				bDidEdit = true;
-				FNodeHandle NewOutputNode = InGraph->AddOutputVertex(OutputToAdd);
+				FNodeHandle NewOutputNode = GraphHandle->AddOutputVertex(OutputToAdd);
 
-				FMetasoundFrontendNodeStyle Style = NewOutputNode->GetNodeStyle();
-				const FVector2D LastOutputLocation = FindLowestNodeLocationOfClassType(EMetasoundFrontendClassType::Output, InGraph, OutputToAdd.TypeName, OutputDataTypeCompareFilter);
-				Style.Display.Locations.Add(FGuid(), LastOutputLocation + DisplayStyle::NodeLayout::DefaultOffsetY);
-				NewOutputNode->SetNodeStyle(Style);
+				if (bSetDefaultNodeLocations)
+				{
+					FMetasoundFrontendNodeStyle Style = NewOutputNode->GetNodeStyle();
+					const FVector2D LastOutputLocation = FindLowestNodeLocationOfClassType(EMetasoundFrontendClassType::Output, GraphHandle, OutputToAdd.TypeName, OutputDataTypeCompareFilter);
+					Style.Display.Locations.Add(FGuid(), LastOutputLocation + DisplayStyle::NodeLayout::DefaultOffsetY);
+					NewOutputNode->SetNodeStyle(Style);
+				}
 			}
 
 			// Swap paired inputs.
@@ -172,21 +239,22 @@ namespace Metasound
 				// Cache off node locations and connections to push to new node
 				TMap<FGuid, FVector2D> Locations;
 				TArray<FInputHandle> ConnectedInputs;
-				if (const FMetasoundFrontendClassInput* ClassInput = InGraph->FindClassInputWithName(OriginalVertex.Name).Get())
+				if (const FMetasoundFrontendClassInput* ClassInput = GraphHandle->FindClassInputWithName(OriginalVertex.Name).Get())
 				{
 					if (FMetasoundFrontendVertex::IsFunctionalEquivalent(*ClassInput, OriginalVertex))
 					{
 						NewVertex.DefaultLiteral = ClassInput->DefaultLiteral;
-						FNodeHandle OriginalInputNode = InGraph->GetInputNodeWithName(OriginalVertex.Name);
+						NewVertex.NodeID = ClassInput->NodeID;
+						FNodeHandle OriginalInputNode = GraphHandle->GetInputNodeWithName(OriginalVertex.Name);
 						Locations = OriginalInputNode->GetNodeStyle().Display.Locations;
 
 						FOutputHandle OriginalInputNodeOutput = OriginalInputNode->GetOutputWithVertexName(OriginalVertex.Name);
 						ConnectedInputs = OriginalInputNodeOutput->GetConnectedInputs();
-						InGraph->RemoveInputVertex(OriginalVertex.Name);
+						GraphHandle->RemoveInputVertex(OriginalVertex.Name);
 					}
 				}
 
-				FNodeHandle NewInputNode = InGraph->AddInputVertex(NewVertex);
+				FNodeHandle NewInputNode = GraphHandle->AddInputVertex(NewVertex);
 				// Copy prior node locations
 				if (!Locations.IsEmpty())
 				{
@@ -210,7 +278,7 @@ namespace Metasound
 				bDidEdit = true;
 
 				const FMetasoundFrontendClassVertex& OriginalVertex = OutputPair.Get<0>();
-				const FMetasoundFrontendClassVertex& NewVertex = OutputPair.Get<1>();
+				FMetasoundFrontendClassVertex NewVertex = OutputPair.Get<1>();
 
 				// Cache off node locations to push to new node
 				TMap<FGuid, FVector2D> Locations;
@@ -218,19 +286,20 @@ namespace Metasound
 
 				// Default add output node to origin.
 				Locations.Add(FGuid(), FVector2D{0.f, 0.f});
-				if (const FMetasoundFrontendClassOutput* ClassOutput = InGraph->FindClassOutputWithName(OriginalVertex.Name).Get())
+				if (const FMetasoundFrontendClassOutput* ClassOutput = GraphHandle->FindClassOutputWithName(OriginalVertex.Name).Get())
 				{
 					if (FMetasoundFrontendVertex::IsFunctionalEquivalent(*ClassOutput, OriginalVertex))
 					{
-						FNodeHandle OriginalOutputNode = InGraph->GetOutputNodeWithName(OriginalVertex.Name);
+						NewVertex.NodeID = ClassOutput->NodeID;
+						FNodeHandle OriginalOutputNode = GraphHandle->GetOutputNodeWithName(OriginalVertex.Name);
 						Locations = OriginalOutputNode->GetNodeStyle().Display.Locations;
 						FInputHandle Input = OriginalOutputNode->GetInputWithVertexName(OriginalVertex.Name);
 						ConnectedOutput = Input->GetConnectedOutput();
-						InGraph->RemoveOutputVertex(OriginalVertex.Name);
+						GraphHandle->RemoveOutputVertex(OriginalVertex.Name);
 					}
 				}
 
-				FNodeHandle NewOutputNode = InGraph->AddOutputVertex(NewVertex);
+				FNodeHandle NewOutputNode = GraphHandle->AddOutputVertex(NewVertex);
 
 				if (Locations.Num() > 0)
 				{
@@ -247,52 +316,41 @@ namespace Metasound
 			return bDidEdit;
 		}
 
-		bool FMatchRootGraphToArchetype::Transform(FDocumentHandle InDocument) const
+		bool FUpdateRootGraphInterface::Transform(FDocumentHandle InDocument) const
 		{
 			bool bDidEdit = false;
 
-			if (!InDocument->IsValid())
+			if (!ensure(InDocument->IsValid()))
 			{
 				return bDidEdit;
 			}
 
-			// Find registered target archetype.
-			FMetasoundFrontendArchetype TargetArchetype;
-			bool bFoundTargetArchetype = IArchetypeRegistry::Get().FindArchetype(GetArchetypeRegistryKey(ArchetypeVersion), TargetArchetype);
-
-			if (!bFoundTargetArchetype)
+			// Find registered target interface.
+			FMetasoundFrontendInterface TargetInterface;
+			bool bFoundTargetInterface = ISearchEngine::Get().FindInterfaceWithHighestVersion(InterfaceVersion.Name, TargetInterface);
+			if (!bFoundTargetInterface)
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("Target archetype is not registered [ArchetypeVersion:%s]"), *ArchetypeVersion.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("Target interface is not registered [InterfaceVersion:%s]"), *InterfaceVersion.ToString());
 				return false;
 			}
 
-			// Get current archetype version on document.
-			const FMetasoundFrontendVersion InitialArchetypeVersion = InDocument->GetArchetypeVersion();
+			if (TargetInterface.Version == InterfaceVersion)
+			{
+				return false;
+			}
 
 			// Attempt to upgrade
-			TArray<const IArchetypeRegistryEntry*> UpgradePath;
-			GetUpgradePathForDocument(InitialArchetypeVersion, ArchetypeVersion, UpgradePath);
-
-			if (UpgradeDocumentArchetype(UpgradePath, InDocument))
-			{
-				bDidEdit = true;
-			}
-
-			// Force archetype to conform
-			if (ConformDocumentToArchetype(TargetArchetype, InDocument))
-			{
-				bDidEdit = true;
-			}
-
-			return bDidEdit;
+			TArray<const IInterfaceRegistryEntry*> UpgradePath;
+			GetUpdatePathForDocument(InterfaceVersion, TargetInterface.Version, UpgradePath);
+			return UpdateDocumentInterface(UpgradePath, InDocument);
 		}
 
-		void FMatchRootGraphToArchetype::GetUpgradePathForDocument(const FMetasoundFrontendVersion& InCurrentVersion, const FMetasoundFrontendVersion& InTargetVersion, TArray<const IArchetypeRegistryEntry*>& OutUpgradePath) const
+		void FUpdateRootGraphInterface::GetUpdatePathForDocument(const FMetasoundFrontendVersion& InCurrentVersion, const FMetasoundFrontendVersion& InTargetVersion, TArray<const IInterfaceRegistryEntry*>& OutUpgradePath) const
 		{
 			if (InCurrentVersion.Name == InTargetVersion.Name)
 			{
-				// Get all associated registered archetypes
-				TArray<FMetasoundFrontendVersion> RegisteredVersions = ISearchEngine::Get().FindAllRegisteredArchetypesWithName(InTargetVersion.Name);
+				// Get all associated registered interfaces
+				TArray<FMetasoundFrontendVersion> RegisteredVersions = ISearchEngine::Get().FindAllRegisteredInterfacesWithName(InTargetVersion.Name);
 
 				// Filter registry entries that exist between current version and target version
 				auto FilterRegistryEntries = [&InCurrentVersion, &InTargetVersion](const FMetasoundFrontendVersion& InVersion)
@@ -310,62 +368,37 @@ namespace Metasound
 				// Get registry entries from registry keys.
 				auto GetRegistryEntry = [](const FMetasoundFrontendVersion& InVersion)
 				{
-					FArchetypeRegistryKey Key = GetArchetypeRegistryKey(InVersion);
-					return IArchetypeRegistry::Get().FindArchetypeRegistryEntry(Key);
+					FInterfaceRegistryKey Key = GetInterfaceRegistryKey(InVersion);
+					return IInterfaceRegistry::Get().FindInterfaceRegistryEntry(Key);
 				};
 				Algo::Transform(RegisteredVersions, OutUpgradePath, GetRegistryEntry);
 			}
 		}
 
-		bool FMatchRootGraphToArchetype::UpgradeDocumentArchetype(const TArray<const IArchetypeRegistryEntry*>& InUpgradePath, FDocumentHandle InDocument) const
+		bool FUpdateRootGraphInterface::UpdateDocumentInterface(const TArray<const IInterfaceRegistryEntry*>& InUpgradePath, FDocumentHandle InDocument) const
 		{
-			bool bDidEdit = false;
-			for (const IArchetypeRegistryEntry* Entry : InUpgradePath)
+			const FMetasoundFrontendVersionNumber* LastVersionUpdated = nullptr;
+			for (const IInterfaceRegistryEntry* Entry : InUpgradePath)
 			{
 				if (ensure(nullptr != Entry))
 				{
-					if (Entry->UpdateRootGraphArchetype(InDocument))
+					if (Entry->UpdateRootGraphInterface(InDocument))
 					{
-						bDidEdit = true;
-						InDocument->SetArchetypeVersion(Entry->GetArchetype().Version);
+						LastVersionUpdated = &Entry->GetInterface().Version.Number;
 					}
 				}
 			}
-			return bDidEdit;
-		}
 
-		bool FMatchRootGraphToArchetype::ConformDocumentToArchetype(const FMetasoundFrontendArchetype& InTargetArchetype, FDocumentHandle InDocument) const
-		{
-			bool bDidEdit = false;
-
-			FMetasoundFrontendArchetype CurrentArchetype;
-			FArchetypeRegistryKey CurrentRegistryKey = GetArchetypeRegistryKey(InDocument->GetArchetypeVersion());
-			const bool bFoundCurrentArchetype = IArchetypeRegistry::Get().FindArchetype(CurrentRegistryKey, CurrentArchetype);
-
-			if (!bFoundCurrentArchetype)
+			if (LastVersionUpdated)
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to find current archetype on document [ArchetypeVersion:%s]"), *InDocument->GetArchetypeVersion().ToString());
+				UE_LOG(LogMetaSound, Display, TEXT("Asset '%s' interface '%s' updated: '%s' --> '%s'"),
+					*InDocument->GetMetadata().Version.ToString(),
+					*InterfaceVersion.Number.ToString(),
+					*LastVersionUpdated->ToString());
+				return true;
 			}
 
-			const bool bIsEqualArchetypeVersion = InDocument->GetArchetypeVersion() == InTargetArchetype.Version;
-			const bool bRequiredInterfaceExists = IsSubsetOfClass(InTargetArchetype, InDocument->GetRootGraphClass());
-
-			if (!bIsEqualArchetypeVersion)
-			{
-				InDocument->SetArchetypeVersion(InTargetArchetype.Version);
-				bDidEdit = true;
-			}
-
-			if (!(bRequiredInterfaceExists && bIsEqualArchetypeVersion))
-			{
-				FGraphHandle Graph = InDocument->GetRootGraph();
-				if (FSwapGraphArchetype(CurrentArchetype, InTargetArchetype).Transform(Graph))
-				{
-					bDidEdit = true;
-				}
-			}
-
-			return bDidEdit;
+			return false;
 		}
 
 		bool FAutoUpdateRootGraph::Transform(FDocumentHandle InDocument) const
@@ -421,7 +454,7 @@ namespace Metasound
 					FMetasoundAssetBase* ParentMetaSoundAsset = IMetaSoundAssetManager::GetChecked().TryLoadAssetFromKey(RegistryKey);
 					if (ensure(ParentMetaSoundAsset))
 					{
-						ParentMetaSoundAsset->ConformObjectDataToArchetype();
+						ParentMetaSoundAsset->ConformObjectDataToInterfaces();
 					}
 				}
 			}
@@ -467,10 +500,6 @@ namespace Metasound
 				return false;
 			}
 
-			// Run transform to ensure preset matches reference archetype
-			const FMetasoundFrontendVersion& RefArchetypeVersion = ReferencedDocument->GetArchetypeVersion();
-			FMatchRootGraphToArchetype(RefArchetypeVersion).Transform(InDocument);
-
 			// Determine the inputs and outputs needed in the wrapping graph. Also
 			// cache any exiting literals that have been set on the wrapping graph.
 			TArray<FMetasoundFrontendClassInput> ClassInputs = GenerateRequiredClassInputs(RootGraphHandle);
@@ -484,6 +513,15 @@ namespace Metasound
 
 			// Clear the root graph so it can be rebuilt.
 			RootGraphHandle->ClearGraph();
+
+			// Ensure preset interfaces match those found in referenced graph.  Referenced graph is assumed to be
+			// well-formed (i.e. all inputs/outputs/environment variables declared by interfaces are present, and
+			// of proper name & data type).
+			const TArray<FMetasoundFrontendVersion>& RefInterfaceVersions = ReferencedDocument->GetInterfaceVersions();
+			for (const FMetasoundFrontendVersion& Version : RefInterfaceVersions)
+			{
+				InDocument->AddInterfaceVersion(Version);
+			}
 
 			// Add referenced node
 			FMetasoundFrontendClassMetadata ReferencedClassMetadata = ReferencedGraphHandle->GetGraphMetadata();
@@ -818,34 +856,33 @@ namespace Metasound
 
 			void TransformInternal(FDocumentHandle InDocument) const override
 			{
-				
 				check(InDocument->GetMetadata().Version.Number.Major == 1);
 				check(InDocument->GetMetadata().Version.Number.Minor == 3);
 
-				FMetasoundFrontendVersion ArchetypeVersion = InDocument->GetArchetypeVersion();
+				const TArray<FMetasoundFrontendVersion>& InterfaceVersions = InDocument->GetInterfaceVersions();
 
-				// Version 1.3 did not have an "ArchetypeVersion" property on the 
+				// Version 1.3 did not have an "InterfaceVersion" property on the 
 				// document, so any document that is being updated should start off
-				// with an "Invalid" archetype version.
-				if (ensure(!ArchetypeVersion.IsValid()))
+				// with an "Invalid" interface version.
+				if (ensure(InterfaceVersions.IsEmpty()))
 				{
-					constexpr bool bIncludeDeprecatedArchetypes = true;
-					TArray<FMetasoundFrontendArchetype> AllArchetypes = ISearchEngine::Get().FindAllArchetypes(bIncludeDeprecatedArchetypes);
+					constexpr bool bIncludeDeprecatedInterfaces = true;
+					TArray<FMetasoundFrontendInterface> AllInterfaces = ISearchEngine::Get().FindAllInterfaces(bIncludeDeprecatedInterfaces);
 
 					const FMetasoundFrontendGraphClass& RootGraph = InDocument->GetRootGraphClass();
 					const TArray<FMetasoundFrontendClass>& Dependencies = InDocument->GetDependencies();
 					const TArray<FMetasoundFrontendGraphClass>& Subgraphs = InDocument->GetSubgraphs();
 
-					if (const FMetasoundFrontendArchetype* Arch = FindMostSimilarArchetypeSupportingEnvironment(RootGraph, Dependencies, Subgraphs, AllArchetypes))
+					if (const FMetasoundFrontendInterface* Interface = FindMostSimilarInterfaceSupportingEnvironment(RootGraph, Dependencies, Subgraphs, AllInterfaces))
 					{
-						UE_LOG(LogMetaSound, Display, TEXT("Assigned archetype [ArchetypeVersion:%s] to document [RootGraphClassName:%s]"),
-							*Arch->Version.ToString(), *RootGraph.Metadata.GetClassName().ToString());
+						UE_LOG(LogMetaSound, Display, TEXT("Assigned interface [InterfaceVersion:%s] to document [RootGraphClassName:%s]"),
+							*Interface->Version.ToString(), *RootGraph.Metadata.GetClassName().ToString());
 
-						InDocument->SetArchetypeVersion(Arch->Version);
+						InDocument->AddInterfaceVersion(Interface->Version);
 					}
 					else
 					{
-						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find archetype for document [RootGraphClassName:%s]"),
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed to find interface for document [RootGraphClassName:%s]"),
 							*RootGraph.Metadata.GetClassName().ToString());
 					}
 				}
@@ -913,7 +950,7 @@ namespace Metasound
 					// unique names and customized display names (ex. 'Audio' for both mono &
 					// L/R output, On Play, & 'On Finished'), so do not replace them by nulling
 					// out the guid as a name and using the converted FName of the FText DisplayName.
-					if (!NodeHandle->IsRequired())
+					if (!NodeHandle->IsInterfaceMember())
 					{
 						const FName NewNodeName = *NodeHandle->GetDisplayName().ToString();
 						NodeHandle->IterateInputs([&](FInputHandle InputHandle)

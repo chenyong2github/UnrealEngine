@@ -21,30 +21,47 @@
 
 namespace Metasound
 {
-
 	class FMetasoundUObjectRegistry : public IMetasoundUObjectRegistry
 	{
 		public:
-			void RegisterUClassArchetype(TUniquePtr<IMetasoundUObjectRegistryEntry>&& InEntry) override
+			FMetasoundUObjectRegistry()
+			{
+				// Set default version to use base UMetaSound class implementation
+				FMetasoundFrontendVersion DefaultVersion;
+
+				using FRegistryEntryType = TMetasoundUObjectRegistryEntry<UMetaSound>;
+				RegisterUClassInterface(MakeUnique<FRegistryEntryType>(DefaultVersion));
+			}
+
+			void RegisterUClassInterface(TUniquePtr<IMetasoundUObjectRegistryEntry>&& InEntry) override
 			{
 				if (InEntry.IsValid())
 				{
-					Frontend::FArchetypeRegistryKey Key = Frontend::GetArchetypeRegistryKey(InEntry->GetArchetypeVersion());
+					Frontend::FInterfaceRegistryKey Key = Frontend::GetInterfaceRegistryKey(InEntry->GetInterfaceVersion());
 
-					EntriesByArchetype.Add(Key, InEntry.Get());
+					EntriesByInterface.Add(Key, InEntry.Get());
+					EntriesByName.Add(InEntry->GetInterfaceVersion().Name, InEntry.Get());
 					Entries.Add(InEntry.Get());
 					Storage.Add(MoveTemp(InEntry));
 				}
 			}
 
-			TArray<UClass*> GetUClassesForArchetype(const FMetasoundFrontendVersion& InArchetypeVersion) const override
+			TArray<const IMetasoundUObjectRegistryEntry*> FindInterfaceEntriesByName(FName InName) const override
+			{
+				TArray<const IMetasoundUObjectRegistryEntry*> EntriesWithName;
+				EntriesByName.MultiFind(InName, EntriesWithName);
+
+				return EntriesWithName;
+			}
+
+			TArray<UClass*> FindSupportedInterfaceClasses(const FMetasoundFrontendVersion& InInterfaceVersion) const override
 			{
 				TArray<UClass*> Classes;
 
-				TArray<const IMetasoundUObjectRegistryEntry*> EntriesForArchetype;
-				EntriesByArchetype.MultiFind(Frontend::GetArchetypeRegistryKey(InArchetypeVersion), EntriesForArchetype);
+				TArray<const IMetasoundUObjectRegistryEntry*> EntriesForInterface;
+				EntriesByInterface.MultiFind(Frontend::GetInterfaceRegistryKey(InInterfaceVersion), EntriesForInterface);
 
-				for (const IMetasoundUObjectRegistryEntry* Entry : EntriesForArchetype)
+				for (const IMetasoundUObjectRegistryEntry* Entry : EntriesForInterface)
 				{
 					if (nullptr != Entry)
 					{
@@ -60,18 +77,21 @@ namespace Metasound
 
 			UObject* NewObject(UClass* InClass, const FMetasoundFrontendDocument& InDocument, const FString& InPath) const override
 			{
-				TArray<const IMetasoundUObjectRegistryEntry*> EntriesForArchetype;
-				EntriesByArchetype.MultiFind(Frontend::GetArchetypeRegistryKey(InDocument.ArchetypeVersion), EntriesForArchetype);
+				TArray<const IMetasoundUObjectRegistryEntry*> AllInterfaceEntries;
+
+				for (const FMetasoundFrontendVersion& InterfaceVersion : InDocument.InterfaceVersions)
+				{
+					TArray<const IMetasoundUObjectRegistryEntry*> EntriesForInterface;
+					EntriesByInterface.MultiFind(Frontend::GetInterfaceRegistryKey(InterfaceVersion), EntriesForInterface);
+					AllInterfaceEntries.Append(MoveTemp(EntriesForInterface));
+				}
 
 				auto IsChildClassOfRegisteredClass = [&](const IMetasoundUObjectRegistryEntry* Entry)
 				{
 					return Entry->IsChildClass(InClass);
 				};
 
-			
-				const IMetasoundUObjectRegistryEntry* const* EntryForClass = EntriesForArchetype.FindByPredicate(IsChildClassOfRegisteredClass);
-
-				if (nullptr != EntryForClass)
+				if (const IMetasoundUObjectRegistryEntry* const* EntryForClass = AllInterfaceEntries.FindByPredicate(IsChildClassOfRegisteredClass))
 				{
 					return NewObject(**EntryForClass, InDocument, InPath);
 				}
@@ -131,7 +151,6 @@ namespace Metasound
 				if (ensure(nullptr != NewAssetBase))
 				{
 					NewAssetBase->SetDocument(InDocument);
-					NewAssetBase->ConformDocumentToArchetype();
 				}
 
 #if WITH_EDITOR
@@ -183,7 +202,8 @@ namespace Metasound
 			}
 
 			TArray<TUniquePtr<IMetasoundUObjectRegistryEntry>> Storage;
-			TMultiMap<Frontend::FArchetypeRegistryKey, const IMetasoundUObjectRegistryEntry*> EntriesByArchetype;
+			TMultiMap<Frontend::FInterfaceRegistryKey, const IMetasoundUObjectRegistryEntry*> EntriesByInterface;
+			TMultiMap<FName, const IMetasoundUObjectRegistryEntry*> EntriesByName;
 			TArray<const IMetasoundUObjectRegistryEntry*> Entries;
 	};
 

@@ -235,10 +235,12 @@ namespace Metasound
 
 			FSlateIcon GetSettingsImage() const;
 
-			/** Toolbar command methods */
+			// TODO: Move import/export out of editor and into import/export asset actions
 			void Import();
-			void ExecuteNode();
 			void Export();
+
+			/** Toolbar command methods */
+			void ExecuteNode();
 			void Play();
 			void Stop();
 

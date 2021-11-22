@@ -1,17 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundAssetSubsystem.h"
 
+#include "Algo/Sort.h"
 #include "Algo/Transform.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/Async.h"
 #include "Engine/AssetManager.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSettings.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
+#include "MetasoundUObjectRegistry.h"
 #include "UObject/NoExportTypes.h"
 
 

@@ -64,7 +64,7 @@ namespace EngineTestMetasoundSourcePrivate
 		using namespace Metasound::Frontend;
 
 		FMetasoundFrontendDocument Document;
-		Document.ArchetypeVersion = FMetasoundFrontendVersion{"MonoSource", {1, 1}};
+		Document.InterfaceVersions.Add(FMetasoundFrontendVersion{"MonoSource", {1, 1}});
 
 		Document.RootGraph.Metadata.SetClassName(FMetasoundFrontendClassName { "Namespace", "Unit Test Node", *LexToString(FGuid::NewGuid()) });
 		Document.RootGraph.Metadata.SetType(EMetasoundFrontendClassType::Graph);

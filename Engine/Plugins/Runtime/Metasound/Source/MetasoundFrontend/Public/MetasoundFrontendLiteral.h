@@ -64,6 +64,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendLiteral
 	struct FDefault {};
 	struct FDefaultArray { int32 Num = 0; };
 
+	FMetasoundFrontendLiteral() = default;
+	FMetasoundFrontendLiteral(const FAudioParameter& InParameter);
+
 private:
 	// The set type of this literal.
 	UPROPERTY()
@@ -143,7 +146,7 @@ public:
 	void Clear();
 
 private:
-	// Remove all values. 
+	// Remove all values.
 	void Empty();
 };
 
