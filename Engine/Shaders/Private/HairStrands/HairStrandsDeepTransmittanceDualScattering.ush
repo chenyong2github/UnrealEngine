@@ -62,14 +62,14 @@ FHairTransmittanceData ComputeDualScatteringTerms(
 
 	// Always shift the hair count by one to remove self-occlusion/shadow aliasing and have smoother transition
 	// This insure the the pow function always starts at 0 for front facing hair
-	const uint HairCount = max(0, TransmittanceMask.HairCount - 1);
+	const float HairCount = max(0, TransmittanceMask.HairCount - 1);
 
 	// This is a coarse approximation of eq. 13. Normally, Beta_f should be weighted by the 'normalized' 
 	// R, TT, and TRT terms 
 	const float3 af_weights = af / (af.r + af.g + af.b);
 	const float3 Beta_f  = dot(float3(Beta_R, Beta_TT, Beta_TRT), af_weights);
 	const float3 Beta_f2 = Beta_f*Beta_f;
-	const float3 sigma_f2 = Beta_f2 * max(1u, HairCount);
+	const float3 sigma_f2 = Beta_f2 * max(1.f, HairCount);
 
 	const float Theta_d = asin(SinThetaL) + asin(SinThetaV);
 	const float Theta_h = Theta_d * 0.5f;
@@ -176,7 +176,7 @@ float3 GetHairTransmittanceOnly(FHairTransmittanceMask TransmittanceMask, FGBuff
 {
 	// Always shift the hair count by one to remove self-occlusion/shadow aliasing and have smoother transition
 	// This insure the the pow function always starts at 0 for front facing hair
-	const uint HairCount = max(0, TransmittanceMask.HairCount - 1);
+	const float HairCount = max(0.f, TransmittanceMask.HairCount - 1.f);
 
 	const FHairAverageScattering AbsorptionData = SampleHairLUT(InHairScatteringLUTTexture, InHairLUTSampler, GBuffer.BaseColor, GBuffer.Roughness, SinLightAngle);
 	return pow(AbsorptionData.A_front, HairCount) * TransmittanceMask.Visibility;
