@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/AssertionMacros.h"
+#include "CoreMinimal.h"
 
 /** Indicate what types of resources should be included for calculating used memory */
 namespace EResourceSizeMode
@@ -27,190 +26,87 @@ public:
 	/**
 	 * Default constructor. 
 	 */
-	explicit FResourceSizeEx()
-		: ResourceSizeMode(EResourceSizeMode::Exclusive)
-		, DedicatedSystemMemoryBytes(0)
-		, SharedSystemMemoryBytes(0)
-		, DedicatedVideoMemoryBytes(0)
-		, SharedVideoMemoryBytes(0)
-		, UnknownMemoryBytes(0)
-	{
-	}
+	CORE_API explicit FResourceSizeEx();
 
 	/**
 	 * Construct using a given mode. 
 	 */
-	explicit FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode)
-		: ResourceSizeMode(InResourceSizeMode)
-		, DedicatedSystemMemoryBytes(0)
-		, SharedSystemMemoryBytes(0)
-		, DedicatedVideoMemoryBytes(0)
-		, SharedVideoMemoryBytes(0)
-		, UnknownMemoryBytes(0)
-	{
-	}
+	CORE_API explicit FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode);
 
 	/**
 	 * Construct from known sizes. 
 	 */
-	FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode, const SIZE_T InDedicatedSystemMemoryBytes, const SIZE_T InSharedSystemMemoryBytes, const SIZE_T InDedicatedVideoMemoryBytes, const SIZE_T InSharedVideoMemoryBytes)
-		: ResourceSizeMode(InResourceSizeMode)
-		, DedicatedSystemMemoryBytes(InDedicatedSystemMemoryBytes)
-		, SharedSystemMemoryBytes(InSharedSystemMemoryBytes)
-		, DedicatedVideoMemoryBytes(InDedicatedVideoMemoryBytes)
-		, SharedVideoMemoryBytes(InSharedVideoMemoryBytes)
-		, UnknownMemoryBytes(0)
-	{
-	}
+	CORE_API FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode, const SIZE_T InDedicatedSystemMemoryBytes, const SIZE_T InDedicatedVideoMemoryBytes);
 
 	/**
 	 * Construct from legacy unknown size.
 	 * Deliberately explicit to avoid accidental use.
 	 */
-	FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode, const SIZE_T InUnknownMemoryBytes)
-		: ResourceSizeMode(InResourceSizeMode)
-		, DedicatedSystemMemoryBytes(0)
-		, SharedSystemMemoryBytes(0)
-		, DedicatedVideoMemoryBytes(0)
-		, SharedVideoMemoryBytes(0)
-		, UnknownMemoryBytes(InUnknownMemoryBytes)
-	{
-	}
+	CORE_API FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode, const SIZE_T InUnknownMemoryBytes);
+
+	CORE_API void LogSummary(FOutputDevice& Ar) const;
 
 	/**
 	 * Get the type of resource size held in this struct.
 	 */
-	EResourceSizeMode::Type GetResourceSizeMode() const
-	{
-		return ResourceSizeMode;
-	}
+	CORE_API EResourceSizeMode::Type GetResourceSizeMode() const;
+
+	CORE_API FResourceSizeEx& AddDedicatedSystemMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
 
 	/**
 	 * Add the given number of bytes to the dedicated system memory count.
 	 * @see DedicatedSystemMemoryBytes for a description of that memory type.
 	 */
-	FResourceSizeEx& AddDedicatedSystemMemoryBytes(const SIZE_T InMemoryBytes)
-	{
-		DedicatedSystemMemoryBytes += InMemoryBytes;
-		return *this;
-	}
+	CORE_API FResourceSizeEx& AddDedicatedSystemMemoryBytes(const SIZE_T InMemoryBytes);
 
 	/**
 	 * Get the number of bytes allocated from dedicated system memory.
 	 * @see DedicatedSystemMemoryBytes for a description of that memory type.
 	 */
-	SIZE_T GetDedicatedSystemMemoryBytes() const
-	{
-		return DedicatedSystemMemoryBytes;
-	}
+	CORE_API SIZE_T GetDedicatedSystemMemoryBytes() const;
 
-	/**
-	 * Add the given number of bytes to the shared system memory count.
-	 * @see SharedSystemMemoryBytes for a description of that memory type.
-	 */
-	FResourceSizeEx& AddSharedSystemMemoryBytes(const SIZE_T InMemoryBytes)
-	{
-		SharedSystemMemoryBytes += InMemoryBytes;
-		return *this;
-	}
-
-	/**
-	 * Get the number of bytes allocated from shared system memory.
-	 * @see SharedSystemMemoryBytes for a description of that memory type.
-	 */
-	SIZE_T GetSharedSystemMemoryBytes() const
-	{
-		return SharedSystemMemoryBytes;
-	}
+	CORE_API FResourceSizeEx& AddDedicatedVideoMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
 
 	/**
 	 * Add the given number of bytes to the dedicated video memory count.
 	 * @see DedicatedVideoMemoryBytes for a description of that memory type.
 	 */
-	FResourceSizeEx& AddDedicatedVideoMemoryBytes(const SIZE_T InMemoryBytes)
-	{
-		DedicatedVideoMemoryBytes += InMemoryBytes;
-		return *this;
-	}
+	CORE_API FResourceSizeEx& AddDedicatedVideoMemoryBytes(const SIZE_T InMemoryBytes);
 
 	/**
 	 * Get the number of bytes allocated from dedicated video memory.
 	 * @see DedicatedVideoMemoryBytes for a description of that memory type.
 	 */
-	SIZE_T GetDedicatedVideoMemoryBytes() const
-	{
-		return DedicatedVideoMemoryBytes;
-	}
+	CORE_API SIZE_T GetDedicatedVideoMemoryBytes() const;
 
-	/**
-	 * Add the given number of bytes to the shared video memory count.
-	 * @see SharedVideoMemoryBytes for a description of that memory type.
-	 */
-	FResourceSizeEx& AddSharedVideoMemoryBytes(const SIZE_T InMemoryBytes)
-	{
-		SharedVideoMemoryBytes += InMemoryBytes;
-		return *this;
-	}
-
-	/**
-	 * Get the number of bytes allocated from shared video memory.
-	 * @see SharedVideoMemoryBytes for a description of that memory type.
-	 */
-	SIZE_T GetSharedVideoMemoryBytes() const
-	{
-		return SharedVideoMemoryBytes;
-	}
+	CORE_API FResourceSizeEx& AddUnknownMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
 
 	/**
 	 * Add the given number of bytes to the unknown memory count.
 	 * @see UnknownMemoryBytes for a description of that memory type.
 	 */
-	FResourceSizeEx& AddUnknownMemoryBytes(const SIZE_T InMemoryBytes)
-	{
-		UnknownMemoryBytes += InMemoryBytes;
-		return *this;
-	}
+	CORE_API FResourceSizeEx& AddUnknownMemoryBytes(const SIZE_T InMemoryBytes);
 
 	/**
 	 * Get the number of bytes allocated from unknown memory.
 	 * @see UnknownMemoryBytes for a description of that memory type.
 	 */
-	SIZE_T GetUnknownMemoryBytes() const
-	{
-		return UnknownMemoryBytes;
-	}
+	CORE_API SIZE_T GetUnknownMemoryBytes() const;
 
 	/**
 	 * Get the total number of bytes allocated from any memory.
 	 */
-	SIZE_T GetTotalMemoryBytes() const
-	{
-		return DedicatedSystemMemoryBytes + SharedSystemMemoryBytes + DedicatedVideoMemoryBytes + SharedVideoMemoryBytes + UnknownMemoryBytes;
-	}
+	CORE_API SIZE_T GetTotalMemoryBytes() const;
 
 	/**
 	 * Add another FResourceSizeEx to this one.
 	 */
-	FResourceSizeEx& operator+=(const FResourceSizeEx& InRHS)
-	{
-		ensureAlwaysMsgf(ResourceSizeMode == InRHS.ResourceSizeMode, TEXT("The two resource sizes use different counting modes. The result of adding them together may be incorrect."));
-
-		DedicatedSystemMemoryBytes += InRHS.DedicatedSystemMemoryBytes;
-		SharedSystemMemoryBytes += InRHS.SharedSystemMemoryBytes;
-		DedicatedVideoMemoryBytes += InRHS.DedicatedVideoMemoryBytes;
-		SharedVideoMemoryBytes += InRHS.SharedVideoMemoryBytes;
-		UnknownMemoryBytes += InRHS.UnknownMemoryBytes;
-		return *this;
-	}
+	CORE_API FResourceSizeEx& operator+=(const FResourceSizeEx& InRHS);
 
 	/**
 	 * Add two FResourceSizeEx instances together and return a copy.
 	 */
-	friend FResourceSizeEx operator+(FResourceSizeEx InLHS, const FResourceSizeEx& InRHS)
-	{
-		InLHS += InRHS;
-		return InLHS;
-	}
+	friend FResourceSizeEx operator+(FResourceSizeEx InLHS, const FResourceSizeEx& InRHS);
 
 private:
 	/**
@@ -222,29 +118,17 @@ private:
 	 * The number of bytes of memory that this resource is using for CPU resources that have been allocated from dedicated system memory.
 	 * On platforms with unified memory, this typically refers to the things allocated in the preferred memory for CPU use.
 	 */
-	SIZE_T DedicatedSystemMemoryBytes;
-
-	/**
-	 * The number of bytes of memory that this resource is using for CPU resources that have been allocated from non-dedicated system memory (typically zero).
-	 * On platforms with unified memory, this typically refers to the things allocated in the memory outside the preferred memory for CPU use.
-	 */
-	SIZE_T SharedSystemMemoryBytes;
+	TMap<FName, SIZE_T> DedicatedSystemMemoryBytesMap;
 
 	/**
 	 * The number of bytes of memory that this resource is using for GPU resources that have been allocated from dedicated video memory.
 	 * On platforms with unified memory, this typically refers to the things allocated in the preferred memory for GPU use.
 	 */
-	SIZE_T DedicatedVideoMemoryBytes;
-
-	/**
-	 * The number of bytes of memory that this resource is using for GPU resources that have been allocated from non-dedicated video memory.
-	 * On platforms with unified memory, this typically refers to the things allocated in the memory outside the preferred memory for GPU use.
-	 */
-	SIZE_T SharedVideoMemoryBytes;
+	TMap<FName, SIZE_T> DedicatedVideoMemoryBytesMap;
 
 	/**
 	 * The number of bytes of memory that this resource is using from an unspecified section of memory.
 	 * This exists so that the legacy GetResourceSize(...) functions can still report back memory usage until they're updated to use FResourceSizeEx, and should not be used in new memory tracking code.
 	 */
-	SIZE_T UnknownMemoryBytes;
+	TMap<FName, SIZE_T> UnknownMemoryBytesMap;
 };
