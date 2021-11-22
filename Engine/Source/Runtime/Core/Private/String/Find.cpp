@@ -29,7 +29,12 @@ static inline typename TStringView<CharType>::SizeType FindFirst(TStringView<Cha
 	}
 	const CharType* const SearchData = Search.GetData();
 	const CharType* const ViewBegin = View.GetData();
-	const CharType* const ViewEnd = ViewBegin + View.Len() - SearchLen;
+	const typename TStringView<CharType>::SizeType ViewLen = View.Len();
+	if (ViewLen < SearchLen)
+	{
+		return INDEX_NONE;
+	}
+	const CharType* const ViewEnd = ViewBegin + ViewLen - SearchLen;
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
 		for (const CharType* ViewIt = ViewBegin; ViewIt <= ViewEnd; ++ViewIt)
@@ -64,7 +69,12 @@ static inline typename TStringView<CharType>::SizeType FindLast(TStringView<Char
 	}
 	const CharType* const SearchData = Search.GetData();
 	const CharType* const ViewBegin = View.GetData();
-	const CharType* const ViewEnd = ViewBegin + View.Len() - SearchLen;
+	const typename TStringView<CharType>::SizeType ViewLen = View.Len();
+	if (ViewLen < SearchLen)
+	{
+		return INDEX_NONE;
+	}
+	const CharType* const ViewEnd = ViewBegin + ViewLen - SearchLen;
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
 		for (const CharType* ViewIt = ViewEnd; ViewIt >= ViewBegin; --ViewIt)
@@ -153,6 +163,10 @@ static inline typename TStringView<CharType>::SizeType FindLastOfAny(TStringView
 
 	const CharType* const ViewBegin = View.GetData();
 	const typename TStringView<CharType>::SizeType ViewLen = View.Len();
+	if (ViewLen == 0)
+	{
+		return INDEX_NONE;
+	}
 	for (typename TStringView<CharType>::SizeType ViewIndex = ViewLen - 1; ViewIndex >= 0; --ViewIndex)
 	{
 		const TStringView<CharType> RemainingView(ViewBegin + ViewIndex, ViewLen - ViewIndex);
@@ -199,6 +213,10 @@ static inline typename TStringView<CharType>::SizeType FindLastChar(TStringView<
 {
 	const CharType* const ViewBegin = View.GetData();
 	const CharType* const ViewEnd = ViewBegin + View.Len();
+	if (ViewEnd == ViewBegin)
+	{
+		return INDEX_NONE;
+	}
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
 		for (const CharType* ViewIt = ViewEnd - 1; ViewIt >= ViewBegin; --ViewIt)
@@ -283,6 +301,10 @@ static inline typename TStringView<CharType>::SizeType FindLastOfAnyChar(TString
 
 	const CharType* const ViewBegin = View.GetData();
 	const CharType* const ViewEnd = ViewBegin + View.Len();
+	if (ViewEnd == ViewBegin)
+	{
+		return INDEX_NONE;
+	}
 	if (SearchCase == ESearchCase::CaseSensitive)
 	{
 		for (const CharType* ViewIt = ViewEnd - 1; ViewIt >= ViewBegin; --ViewIt)
