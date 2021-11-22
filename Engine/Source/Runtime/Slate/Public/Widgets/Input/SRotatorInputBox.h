@@ -11,6 +11,7 @@
 #include "Styling/CoreStyle.h"
 #include "Framework/SlateDelegates.h"
 #include "Widgets/Input/NumericTypeInterface.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 
 class FArrangedChildren;
 
