@@ -651,7 +651,7 @@ namespace HordeServer.Controllers
 			{
 				Jobs = await JobService.FindJobsAsync(JobIdValues, StreamIdValue, Name, TemplateRefIds, MinChange,
 					MaxChange, PreflightChange, PreflightStartedByUserIdValue, StartedByUserIdValue, MinCreateTime?.UtcDateTime, MaxCreateTime?.UtcDateTime, Target, State, Outcome,
-					ModifiedBefore, ModifiedAfter, Index, Count);
+					ModifiedBefore, ModifiedAfter, Index, Count, false);
 			}
 
 			StreamPermissionsCache PermissionsCache = new StreamPermissionsCache();
