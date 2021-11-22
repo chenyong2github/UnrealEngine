@@ -251,9 +251,11 @@
 #ifndef PLATFORM_WCHAR_IS_4_BYTES
 	#define PLATFORM_WCHAR_IS_4_BYTES			0
 #endif
+// The PLATFORM_TCHAR_IS_CHAR16 macro really represents PLATFORM_WIDECHAR_IS_CHAR16 - it should be deprecated
 #ifndef PLATFORM_TCHAR_IS_CHAR16
 	#define PLATFORM_TCHAR_IS_CHAR16			0
 #endif
+#define PLATFORM_WIDECHAR_IS_CHAR16 PLATFORM_TCHAR_IS_CHAR16
 #ifndef PLATFORM_TCHAR_IS_UTF8CHAR
 	#define PLATFORM_TCHAR_IS_UTF8CHAR			0
 #endif
@@ -1071,6 +1073,12 @@ namespace TypeTests
 	static_assert((!TAreTypesEqual<WIDECHAR, UCS2CHAR>::Value),  "WIDECHAR and UCS2CHAR should be different types.");
 	static_assert(TAreTypesEqual<TCHAR, ANSICHAR>::Value || TAreTypesEqual<TCHAR, WIDECHAR>::Value || TAreTypesEqual<TCHAR, UTF8CHAR>::Value, "TCHAR should either be ANSICHAR, WIDECHAR or UTF8CHAR.");
 
+#if PLATFORM_WIDECHAR_IS_CHAR16
+	static_assert(TAreTypesEqual<WIDECHAR, char16_t>::Value, "WIDECHAR should be char16_t");
+#else
+	static_assert(TAreTypesEqual<WIDECHAR, wchar_t>::Value, "WIDECHAR should be wchar_t");
+#endif
+
 	static_assert(sizeof(uint8) == 1, "uint8 type size test failed.");
 	static_assert(int32(uint8(-1)) == 0xFF, "uint8 type sign test failed.");
 
@@ -1122,16 +1130,18 @@ namespace TypeTests
 
 #define UTF8TEXT_PASTE(x)  u8 ## x
 #define UTF16TEXT_PASTE(x) u ## x
-#define WIDETEXT_PASTE(x)  L ## x
+#if PLATFORM_WIDECHAR_IS_CHAR16
+	#define WIDETEXT_PASTE(x)  UTF16TEXT_PASTE(x)
+#else
+	#define WIDETEXT_PASTE(x)  L ## x
+#endif
 
 // If we don't have a platform-specific define for the TEXT macro, define it now.
 #if !defined(TEXT) && !UE_BUILD_DOCS
-	#if PLATFORM_TCHAR_IS_CHAR16
-		#define TEXT_PASTE(x) UTF16TEXT_PASTE(x)
-	#elif PLATFORM_TCHAR_IS_UTF8CHAR
+	#if PLATFORM_TCHAR_IS_UTF8CHAR
 		#define TEXT_PASTE(x) UTF8TEXT(x)
 	#else
-		#define TEXT_PASTE(x) WIDETEXT_PASTE(x)
+		#define TEXT_PASTE(x) WIDETEXT(x)
 	#endif
 	#define TEXT(x) TEXT_PASTE(x)
 #endif
