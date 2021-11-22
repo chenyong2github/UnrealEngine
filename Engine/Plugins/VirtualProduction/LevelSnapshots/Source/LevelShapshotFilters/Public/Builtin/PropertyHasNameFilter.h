@@ -38,9 +38,21 @@ public:
 
 private:
 
+	bool DoesAnyOwningPropertyMatch(const FIsPropertyValidParams& Params) const;
+	EFilterResult::Type GetPropertyMatchResult(const FString& PropertyNName) const;
+	
 	/* How to compare the property name to AllowedNames */
 	UPROPERTY(EditAnywhere, Category = "Config")
 	TEnumAsByte<ENameMatchingRule::Type> NameMatchingRule = ENameMatchingRule::ContainsIgnoreCase;
+
+	/**
+	 * Whether to implicitly include sub-properties of structs.
+	 *
+	 * Example: AllowedNames contains RelativeLocation.
+	 * If bIncludeStructSubproperties == true, then the properties X, Y, and Z are included. Otherwise, you must explicitly add them to AllowedNames.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Config")
+	bool bIncludeStructSubproperties = true;
 
 	/* The names to match the property name against. */
 	UPROPERTY(EditAnywhere, Category = "Config")

@@ -98,7 +98,7 @@ namespace UE::LevelSnapshots::Private
 		
 
 		EPropertySearchResult AnalyseProperty(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon, bool bSkipEqualityTest = false);
-		bool ArePropertyValuesIdentical(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon);
+		EPropertySearchResult TrackChangedProperties(FPropertyContainerContext& ContainerContext, FProperty* PropertyInCommon);
 
 		
 		ULevelSnapshot* Snapshot;
