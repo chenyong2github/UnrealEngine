@@ -69,8 +69,7 @@ namespace UE::LevelSnapshots::Private::Internal::Restore
 		UE_LOG(LogLevelSnapshots, Verbose, TEXT("ActorLabel is \"%s\" for \"%s\""), *OriginalActor->GetActorLabel(), *OriginalActor->GetPathName());
 #endif
 
-		TInlineComponentArray<UActorComponent*> DeserializedComponents;
-		Deserialized.GetValue()->GetComponents(DeserializedComponents);
+		TInlineComponentArray<UActorComponent*> DeserializedComponents(Deserialized.GetValue());
 		Internal::Restore::DeserializeComponents(OriginalActor, ActorData, WorldData,
 			[&SerializeComponent, &DeserializedComponents](
 				FSubobjectSnapshotData& SerializedCompData,
@@ -87,20 +86,23 @@ namespace UE::LevelSnapshots::Private::Internal::Restore
 		        if (DeserializedCompCounterpart)
 		        {
 	        		SerializeComponent(SerializedCompData, Comp, *DeserializedCompCounterpart);
-				
-					// We may have modified render information, e.g. for lights we may have changed intensity or colour
-					// It may be more efficient to track whether we actually changed render state
-					Comp->ReregisterComponent();
 		        }
 		    }
 		);
 
-		// Fixes up restored attachments
-		OriginalActor->UpdateComponentTransforms();
+		// Handle case in which AttachParentAfterRestore is restored after OriginalActor otherwise ReregisterAllComponents will detach OriginalActor again
+		const AActor* AttachParentAfterRestore = OriginalActor->GetAttachParentActor();
+		if (AttachParentAfterRestore && AttachParentAfterRestore->IsAttachedTo(OriginalActor))
+		{
+			AttachParentAfterRestore->GetRootComponent()->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+		}
+
+		OriginalActor->RerunConstructionScripts();
+		// Update component state, e.g. render state if intensity for lights was changed. Also avoids us having to call PostEditChangeProperty on every property.
+		OriginalActor->ReregisterAllComponents();
 
 #if WITH_EDITOR
 		// Update World Outliner. Usually called by USceneComponent::AttachToComponent.
-		const AActor* AttachParentAfterRestore = OriginalActor->GetAttachParentActor();
 		const bool bAttachParentChanged = AttachParentBeforeRestore != AttachParentAfterRestore;
 		if (bAttachParentChanged)
 		{

@@ -13,7 +13,6 @@
 #include "Components/ActorComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include "Misc/ScopeExit.h"
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 #include "UObject/TextProperty.h"
@@ -159,15 +158,11 @@ void UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive::ApplyToExisting
 	UE_LOG(LogLevelSnapshots, Verbose, TEXT("Applying to existing object %s (class %s)"), *InOriginalObject->GetPathName(), *InOriginalObject->GetClass()->GetPathName());
 	const FApplySnapshotPropertiesScope NotifySnapshotListeners({ InOriginalObject, InSelectionMapForResolvingSubobjects, Selection, true });
 #if WITH_EDITOR
-	InOriginalObject->PreEditChange(nullptr);
-	ON_SCOPE_EXIT
-	{
-		InOriginalObject->PostEditChange();
-	};
+	InOriginalObject->Modify();
 #endif
 	
 	// Step 1: Serialise  properties that were different from CDO at time of snapshotting and that are still different from CDO
-	UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive ApplySavedData(InObjectData, InSharedData, InOriginalObject, InSelectionMapForResolvingSubobjects, Selection, Cache);
+	FApplySnapshotToEditorArchive ApplySavedData(InObjectData, InSharedData, InOriginalObject, InSelectionMapForResolvingSubobjects, Selection, Cache);
 	InOriginalObject->Serialize(ApplySavedData);
 	
 	// Step 2: Serialise any remaining properties that were not covered: properties that were equal to the CDO value when the snapshot was taken but now are different from the CDO.
@@ -189,7 +184,7 @@ void UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive::ApplyToRecreate
 	
 	// Apply all properties that we saved into the target actor.
 	// We assume that InOriginalObject was already created with the snapshot CDO as template: we do not need Step 2 from ApplyToExistingWorldObject.
-	UE::LevelSnapshots::Private::FApplySnapshotToEditorArchive ApplySavedData(InObjectData, InSharedData, InOriginalObject, InSelectionMapForResolvingSubobjects, {}, Cache);
+	FApplySnapshotToEditorArchive ApplySavedData(InObjectData, InSharedData, InOriginalObject, InSelectionMapForResolvingSubobjects, {}, Cache);
 	InOriginalObject->Serialize(ApplySavedData);
 }
 
