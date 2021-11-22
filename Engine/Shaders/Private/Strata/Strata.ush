@@ -330,7 +330,6 @@ float3 StrataUnpackNormal(uint PackedNormal);
 struct FStrataClassification
 {
 	uint ShadingModels;
-	float MaterialAO;
 	float TopLayerRoughness;
 	bool bIsStrataMaterial;
 	bool bHasSubsurface;
@@ -340,11 +339,9 @@ struct FStrataClassification
 
 uint StrataPackClassificationData(FStrataClassification In)
 {
-	const uint MaterialAO8Bits = uint(sqrt(saturate(In.MaterialAO)) * 255.0f);	// Give more accuracy to the blacks to reduce banding
 	const uint TopLayerRoughness8Bits = uint(In.TopLayerRoughness * 255.0f);
 	return 
 		(In.ShadingModels & 0xFF) | 
-		((MaterialAO8Bits & 0xFF)			 << 8  ) |
 		((TopLayerRoughness8Bits & 0xFF)	 << 16 ) |
 		((In.bIsStrataMaterial		? 1 : 0) << 24 ) |
 		((In.bHasSubsurface			? 1 : 0) << 25 ) | 
@@ -354,18 +351,15 @@ uint StrataPackClassificationData(FStrataClassification In)
 
 FStrataClassification StrataUnpackClassificationData(uint In)
 {
-	uint MaterialAO8Bits = 0;
 	uint TopLayerRoughness8Bits = 0;
 	FStrataClassification Out;
 	Out.ShadingModels			= (In >> 0 ) & 0xFF;
-	MaterialAO8Bits				= (In >> 8 ) & 0xFF;
 	TopLayerRoughness8Bits		= (In >> 16) & 0xFF;
 	Out.bIsStrataMaterial		= (In >> 24) & 0x1;
 	Out.bHasSubsurface			= (In >> 25) & 0x1;
 	Out.bHasSubsurfaceProfile	= (In >> 26) & 0x1;
 	Out.bIsSimple				= (In >> 27) & 0x1;
 
-	Out.MaterialAO = Square(float(MaterialAO8Bits) * (1.0f / 255.0f));
 	Out.TopLayerRoughness = float(TopLayerRoughness8Bits) * (1.0f / 255.0f);
 	return Out;
 }
