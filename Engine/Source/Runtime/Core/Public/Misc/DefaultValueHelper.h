@@ -142,7 +142,8 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseVector2D(const FString& Source, FVector2D& OutVal);
+	static bool ParseVector2D(const FString& Source, FVector2f& OutVal);
+	static bool ParseVector2D(const FString& Source, FVector2d& OutVal);
 
 	/**
 	* Converts a string into a FVector4. Accepted form: " %f, %f, %f, %f "
