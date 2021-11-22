@@ -57,7 +57,7 @@ foreach(target
     "ClangDiagnosticSema" "ClangDiagnosticSerialization" "ClangStmtNodes"
     "LLVMAnalysis" "LLVMAsmParser" "LLVMBitReader" "LLVMBitWriter" "LLVMCore" "LLVMDxcSupport" "LLVMDXIL" "LLVMDxilContainer"
     "LLVMDxilPIXPasses" "LLVMDxilRootSignature" "LLVMDxrFallback" "LLVMHLSL" "LLVMInstCombine" "LLVMipa" "LLVMipo" "LLVMIRReader"
-    "LLVMLinker" "LLVMLTO" "LLVMMSSupport" "LLVMOption" "LLVMPasses" "LLVMPassPrinters" "LLVMProfileData" "LLVMScalarOpts" "LLVMSupport"
+    "LLVMLinker" "LLVMMSSupport" "LLVMOption" "LLVMPasses" "LLVMPassPrinters" "LLVMProfileData" "LLVMScalarOpts" "LLVMSupport"
     "LLVMTableGen" "LLVMTarget" "LLVMTransformUtils" "LLVMVectorize"
     "ClangDriverOptions" "DxcEtw" "intrinsics_gen" "TablegenHLSLOptions"
     "clang-tblgen" "llvm-tblgen" "hlsl_dxcversion_autogen" "hlsl_version_autogen")
