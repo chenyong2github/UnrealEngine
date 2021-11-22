@@ -320,6 +320,8 @@ public:
 	FORCEINLINE UWorld* GetWorld()const{return World;}
 
 protected:
+	void DumpStalledInfo();
+
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);
 
