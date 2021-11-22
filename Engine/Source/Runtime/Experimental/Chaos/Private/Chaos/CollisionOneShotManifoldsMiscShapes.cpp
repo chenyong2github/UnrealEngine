@@ -257,6 +257,7 @@ namespace Chaos
 			}
 		}
 
+		template<typename ConvexType>
 		void ConstructConvexHeightFieldOneShotManifold(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const FHeightField& HeightField, const FRigidTransform3& HeightFieldTransform, const FReal Dt, FPBDCollisionConstraint& Constraint)
 		{
 			// We only build one shot manifolds once
@@ -268,14 +269,14 @@ namespace Chaos
 			//FContactPoint ContactPoint = ConvexHeightFieldContactPoint(Convex, ConvexTransform, HeightField, HeightFieldTransform, Constraint.GetCullDistance(), 0.0f);
 
 			TArray<FContactPoint> ContactPoints;
-			GJKImplicitManifold<FConvex>(Convex, ConvexTransform, HeightField, HeightFieldTransform, Constraint.GetCullDistance(), 0.0f, ContactPoints);
+			GJKImplicitManifold<ConvexType>(Convex, ConvexTransform, HeightField, HeightFieldTransform, Constraint.GetCullDistance(), 0.0f, ContactPoints);
 			for (FContactPoint& ContactPoint : ContactPoints)
 			{
 				Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
 			}
 		}
 
-		template <typename TriMeshType>
+		template <typename ConvexType, typename TriMeshType>
 		void ConstructConvexTriMeshOneShotManifold(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const TriMeshType& TriangleMesh, const FRigidTransform3& TriMeshTransform, const FReal Dt, FPBDCollisionConstraint& Constraint)
 		{
 			// We only build one shot manifolds once
@@ -285,7 +286,7 @@ namespace Chaos
 			ensure(TriMeshTransform.GetScale3D() == FVec3(1.0f, 1.0f, 1.0f));
 
 			TArray<FContactPoint> ContactPoints;
-			GJKImplicitManifold<FConvex, TriMeshType>(Convex, ConvexTransform, TriangleMesh, TriMeshTransform, Constraint.GetCullDistance(), 0.0f, ContactPoints);
+			GJKImplicitManifold<ConvexType, TriMeshType>(Convex, ConvexTransform, TriangleMesh, TriMeshTransform, Constraint.GetCullDistance(), 0.0f, ContactPoints);
 			for (FContactPoint& ContactPoint : ContactPoints)
 			{
 				Constraint.AddOneshotManifoldContact(ContactPoint, Dt);
@@ -298,8 +299,13 @@ namespace Chaos
 		template void ConstructCapsuleTriMeshOneShotManifold<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FCapsule& Capsule, const FRigidTransform3& CapsuleWorldTransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& TriangleMesh, const FRigidTransform3& TriMeshWorldTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
 		template void ConstructCapsuleTriMeshOneShotManifold<FTriangleMeshImplicitObject>(const FCapsule& Capsule, const FRigidTransform3& CapsuleWorldTransform, const FTriangleMeshImplicitObject& TriangleMesh, const FRigidTransform3& TriMeshWorldTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
 
-		template void ConstructConvexTriMeshOneShotManifold<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& TriangleMesh, const FRigidTransform3& TriMeshTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
-		template void ConstructConvexTriMeshOneShotManifold<FTriangleMeshImplicitObject>(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const FTriangleMeshImplicitObject& TriangleMesh, const FRigidTransform3& TriMeshTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
+		template void ConstructConvexTriMeshOneShotManifold<FConvex, TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& TriangleMesh, const FRigidTransform3& TriMeshTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
+		template void ConstructConvexTriMeshOneShotManifold<FConvex, FTriangleMeshImplicitObject>(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const FTriangleMeshImplicitObject& TriangleMesh, const FRigidTransform3& TriMeshTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
+		template void ConstructConvexTriMeshOneShotManifold<FImplicitBox3, TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& TriangleMesh, const FRigidTransform3& TriMeshTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
+		template void ConstructConvexTriMeshOneShotManifold<FImplicitBox3, FTriangleMeshImplicitObject>(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const FTriangleMeshImplicitObject& TriangleMesh, const FRigidTransform3& TriMeshTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
+
+		template void ConstructConvexHeightFieldOneShotManifold<FConvex>(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const FHeightField& HeightField, const FRigidTransform3& HeightFieldTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
+		template void ConstructConvexHeightFieldOneShotManifold<FImplicitBox3>(const FImplicitObject& Convex, const FRigidTransform3& ConvexTransform, const FHeightField& HeightField, const FRigidTransform3& HeightFieldTransform, const FReal Dt, FPBDCollisionConstraint& Constraint);
 	}
 }
 

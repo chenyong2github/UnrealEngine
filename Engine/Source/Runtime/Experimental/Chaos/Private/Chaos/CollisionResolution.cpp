@@ -567,8 +567,22 @@ namespace Chaos
 
 		void UpdateBoxHeightFieldConstraint(const FImplicitBox3& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FReal Dt, FPBDCollisionConstraint& Constraint)
 		{
-			// @todo(chaos): restitutionpadding
-			UpdateContactPoint(Constraint, BoxHeightFieldContactPoint(A, ATransform, B, BTransform, Constraint.GetCullDistance(), 0.0f), Dt);
+			if(Constraint.GetUseManifold())
+			{
+				if(Constraint.GetManifoldPoints().Num() == 0)
+				{
+					ConstructConvexHeightFieldOneShotManifold<FImplicitBox3>(A, ATransform, B, BTransform, Dt, Constraint);
+				}
+				else
+				{
+					Constraint.UpdateManifoldContacts();
+				}
+			}
+			else
+			{
+				// @todo(chaos): restitutionpadding
+				UpdateContactPoint(Constraint, BoxHeightFieldContactPoint(A, ATransform, B, BTransform, Constraint.GetCullDistance(), 0.0f), Dt);
+			}
 		}
 
 		template<typename T_TRAITS>
@@ -691,8 +705,22 @@ namespace Chaos
 		template <typename TriMeshType>
 		void UpdateBoxTriangleMeshConstraint(const FImplicitBox3& Box0, const FRigidTransform3& WorldTransform0, const TriMeshType& TriangleMesh1, const FRigidTransform3& WorldTransform1, const FReal Dt, FPBDCollisionConstraint& Constraint)
 		{
-			// @toto(chaos): restitutionpadding
-			UpdateContactPoint(Constraint, BoxTriangleMeshContactPoint(Box0, WorldTransform0, TriangleMesh1, WorldTransform1, Constraint.GetCullDistance(), 0.0f), Dt);
+			if(Constraint.GetUseManifold())
+			{
+				if(Constraint.GetManifoldPoints().Num() == 0)
+				{
+					ConstructConvexTriMeshOneShotManifold<FImplicitBox3, TriMeshType>(Box0, WorldTransform0, TriangleMesh1, WorldTransform1, Dt, Constraint);
+				}
+				else
+				{
+					Constraint.UpdateManifoldContacts();
+				}
+			}
+			else
+			{
+				// @toto(chaos): restitutionpadding
+				UpdateContactPoint(Constraint, BoxTriangleMeshContactPoint(Box0, WorldTransform0, TriangleMesh1, WorldTransform1, Constraint.GetCullDistance(), 0.0f), Dt);
+			}
 		}
 
 		template<typename T_TRAITS>
