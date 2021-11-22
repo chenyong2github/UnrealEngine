@@ -106,9 +106,6 @@ struct FVertexFactoryInput
 	float3	DeltaTangentZ	: ATTRIBUTE10;	//NORMAL1;
 #endif
 
-	float3 PreSkinOffset : ATTRIBUTE11;
-	float3 PostSkinOffset : ATTRIBUTE12;
-
 #if GPUSKIN_MORPH_BLEND || GPUSKIN_APEX_CLOTH
 	uint VertexID : SV_VertexID;
 #endif
@@ -332,9 +329,6 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.TangentToWorld = mul(TangentToLocal, LWCToFloat3x3(Intermediates.LocalToWorld));
 	Result.PreSkinnedPosition = Intermediates.UnpackedPosition.xyz;
 	Result.PreSkinnedNormal = Input.TangentZ.xyz;
-
-	Result.PreSkinOffset = Input.PreSkinOffset;
-	Result.PostSkinOffset = Input.PostSkinOffset;
 
 	// Assumes no instacing
 	Result.PrevFrameLocalToWorld = Intermediates.PrevLocalToWorld;
@@ -638,13 +632,9 @@ float3 SkinPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Inte
 	float3 Position = Intermediates.UnpackedPosition;
 #endif
 
-	Position += Input.PreSkinOffset;
-
 	// Note the use of mul(Matrix,Vector), bone matrices are stored transposed
 	// for tighter packing.
 	Position = mul(Intermediates.BlendMatrix, float4(Position, 1));
-
-	Position += Input.PostSkinOffset;
 
 	return Position;
 }
@@ -667,13 +657,9 @@ float3 SkinPreviousPosition( FVertexFactoryInput Input, FVertexFactoryIntermedia
 		BlendMatrix = CalcPreviousBoneMatrix( Input );
 	}
 
-	Position += Input.PreSkinOffset;
-
 	// Note the use of mul(Matrix,Vector), bone matrices are stored transposed
 	// for tighter packing.
 	Position = mul(BlendMatrix, float4(Position, 1));
-
-	Position += Input.PostSkinOffset;
 
 	return Position;
 }

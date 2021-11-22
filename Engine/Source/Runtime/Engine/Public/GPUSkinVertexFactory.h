@@ -377,12 +377,6 @@ public:
 		/** The stream to read the blend stream offset and num of influences from */
 		FVertexStreamComponent BlendOffsetCount;
 
-		/** The stream to read for vertex offsets pre skinning */
-		FVertexStreamComponent PreSkinningOffsets;
-
-		/** The stream to read for vertex offsets post skinning */
-		FVertexStreamComponent PostSkinningOffsets;
-
 		/** Number of bone influences */
 		uint32 NumBoneInfluences = 0;
 

@@ -547,11 +547,8 @@ protected:
 	bool bUse16BitBoneIndex;
 	uint32 InputWeightIndexSize;
 	uint32 InputWeightStride;
-	uint32 VertexOffsetUsage = 0;
 	FShaderResourceViewRHIRef InputWeightStreamSRV;
 	FShaderResourceViewRHIRef InputWeightLookupStreamSRV;
-	FRHIShaderResourceView* PreSkinningVertexOffsetSRV = nullptr;
-	FRHIShaderResourceView* PostSkinningVertexOffsetSRV = nullptr;
 	FRHIShaderResourceView* MorphBuffer;
 	FShaderResourceViewRHIRef ClothBuffer;
 	int32 LOD;
@@ -577,10 +574,6 @@ public:
 		BoneMatrices.Bind(Initializer.ParameterMap, TEXT("BoneMatrices"));
 		TangentInputBuffer.Bind(Initializer.ParameterMap, TEXT("TangentInputBuffer"));
 		PositionInputBuffer.Bind(Initializer.ParameterMap, TEXT("PositionInputBuffer"));
-
-		VertexOffsetUsage.Bind(Initializer.ParameterMap, TEXT("VertexOffsetUsage"));
-		PreSkinOffsets.Bind(Initializer.ParameterMap, TEXT("PreSkinOffsets"));
-		PostSkinOffsets.Bind(Initializer.ParameterMap, TEXT("PostSkinOffsets"));
 
 		InputStreamStart.Bind(Initializer.ParameterMap, TEXT("InputStreamStart"));
 
@@ -624,10 +617,6 @@ public:
 
 		SetSRVParameter(RHICmdList, ShaderRHI, TangentInputBuffer, DispatchData.TangentBufferSRV);
 		SetSRVParameter(RHICmdList, ShaderRHI, PositionInputBuffer, DispatchData.PositionBufferSRV);
-
-		SetShaderValue(RHICmdList, ShaderRHI, VertexOffsetUsage, Entry->VertexOffsetUsage);
-		SetSRVParameter(RHICmdList, ShaderRHI, PreSkinOffsets, Entry->PreSkinningVertexOffsetSRV ? Entry->PreSkinningVertexOffsetSRV : GNullVertexBuffer.VertexBufferSRV.GetReference());
-		SetSRVParameter(RHICmdList, ShaderRHI, PostSkinOffsets, Entry->PostSkinningVertexOffsetSRV ? Entry->PostSkinningVertexOffsetSRV : GNullVertexBuffer.VertexBufferSRV.GetReference());
 
 		SetShaderValue(RHICmdList, ShaderRHI, NumBoneInfluences, DispatchData.NumBoneInfluences);
 		SetShaderValue(RHICmdList, ShaderRHI, InputWeightIndexSize, Entry->InputWeightIndexSize);
@@ -687,10 +676,6 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, PositionInputBuffer)
 	LAYOUT_FIELD(FShaderResourceParameter, PositionBufferUAV)
 	LAYOUT_FIELD(FShaderResourceParameter, TangentBufferUAV)
-
-	LAYOUT_FIELD(FShaderParameter, VertexOffsetUsage)
-	LAYOUT_FIELD(FShaderResourceParameter, PreSkinOffsets)
-	LAYOUT_FIELD(FShaderResourceParameter, PostSkinOffsets)
 
 	LAYOUT_FIELD(FShaderParameter, NumBoneInfluences);
 	LAYOUT_FIELD(FShaderParameter, InputWeightIndexSize);
@@ -1510,7 +1495,6 @@ bool FGPUSkinCache::ProcessEntry(
 	FGPUSkinPassthroughVertexFactory* TargetVertexFactory, 
 	const FSkelMeshRenderSection& BatchElement, 
 	FSkeletalMeshObjectGPUSkin* Skin,
-	FVertexOffsetBuffers* VertexOffsetBuffers,
 	const FMorphVertexBuffer* MorphVertexBuffer,
 	const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer, 
 	const FClothSimulData* SimData,
@@ -1621,10 +1605,6 @@ bool FGPUSkinCache::ProcessEntry(
 									VertexFactory, TargetVertexFactory, CurrInterAccumTangentBufferOffset, SimData);
 		Entries.Add(InOutEntry);
 	}
-
-	InOutEntry->VertexOffsetUsage = VertexOffsetBuffers->GetUsage();
-	InOutEntry->PreSkinningVertexOffsetSRV = VertexOffsetBuffers->PreSkinningOffsetsVertexBuffer.GetSRV();
-	InOutEntry->PostSkinningVertexOffsetSRV = VertexOffsetBuffers->PostSkinningOffsetsVertexBuffer.GetSRV();
 
 	const bool bMorph = MorphVertexBuffer && MorphVertexBuffer->SectionIds.Contains(Section);
 	if (bMorph)

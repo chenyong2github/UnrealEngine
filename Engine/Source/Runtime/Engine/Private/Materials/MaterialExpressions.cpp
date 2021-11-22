@@ -172,7 +172,6 @@
 #include "Materials/MaterialExpressionPixelDepth.h"
 #include "Materials/MaterialExpressionPixelNormalWS.h"
 #include "Materials/MaterialExpressionPower.h"
-#include "Materials/MaterialExpressionSkinningVertexOffsets.h"
 #include "Materials/MaterialExpressionPreSkinnedNormal.h"
 #include "Materials/MaterialExpressionPreSkinnedPosition.h"
 #include "Materials/MaterialExpressionQualitySwitch.h"
@@ -18991,72 +18990,6 @@ int32 UMaterialExpressionSkyAtmosphereDistantLightScatteredLuminance::Compile(cl
 void UMaterialExpressionSkyAtmosphereDistantLightScatteredLuminance::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(TEXT("SkyAtmosphereDistantLightScatteredLuminance"));
-}
-#endif // WITH_EDITOR
-
-///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionSkinningVertexOffsets
-///////////////////////////////////////////////////////////////////////////////
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-UMaterialExpressionSkinningVertexOffsets::UMaterialExpressionSkinningVertexOffsets(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-#if WITH_EDITORONLY_DATA
-	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		FText NAME_Constants;
-		FConstructorStatics()
-			: NAME_Constants(LOCTEXT("Vectors", "Vectors"))
-		{
-		}
-	};
-	static FConstructorStatics ConstructorStatics;
-
-	MenuCategories.Add(ConstructorStatics.NAME_Constants);
-
-	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("Pre Skin Offset"), 1, 1, 1, 1, 0));
-	Outputs.Add(FExpressionOutput(TEXT("Post Skin Offset"), 1, 1, 1, 1, 0));
-	bShaderInputData = true;
-	bShowOutputNameOnPin = true;
-#endif
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-#if WITH_EDITOR
-int32 UMaterialExpressionSkinningVertexOffsets::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	if (Compiler->GetCurrentShaderFrequency() != SF_Vertex)
-	{
-		return Compiler->Errorf(
-			TEXT("%s only available in the vertex shader, pass through custom interpolators if needed."), 
-			(OutputIndex == 0) ? TEXT("Pre Skin Offset") : TEXT("Post Skin Offset")
-			);
-	}
-
-	switch (OutputIndex)
-	{
-	default:
-		return Compiler->Constant3(0, 0, 0);
-
-	case 0:
-		return Compiler->PreSkinVertexOffset();
-
-	case 1:
-		return Compiler->PostSkinVertexOffset();
-	}
-}
-
-void UMaterialExpressionSkinningVertexOffsets::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Skin Vertex Offset"));
-}
-
-void UMaterialExpressionSkinningVertexOffsets::GetExpressionToolTip(TArray<FString>& OutToolTip)
-{
-	ConvertToMultilineToolTip(TEXT("Returns pre or post skinned offset applied to each vertex for a skeletal mesh, usable in vertex shader only."
-		"Returns <0, 0, 0> for non-skeletal meshes or when disabled."), 40, OutToolTip);
 }
 #endif // WITH_EDITOR
 
