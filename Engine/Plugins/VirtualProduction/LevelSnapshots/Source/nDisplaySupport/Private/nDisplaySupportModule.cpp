@@ -5,6 +5,7 @@
 #include "ILevelSnapshotsModule.h"
 #include "Map/DisplayClusterConfigurationClusterNodeSerializer.h"
 #include "Map/DisplayClusterConfigurationClusterSerializer.h"
+#include "Material/DisplayMaterialOverrideFix.h"
 #include "Reference/DisplayClusterConfigurationDataSerializer.h"
 #include "Reference/DisplayClusterRootActorSerializer.h"
 
@@ -22,6 +23,8 @@ void UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule::StartupModul
 		FDisplayClusterConfigurationDataSerializer::Register(LevelSnapshotsModule);
 		FDisplayClusterConfigurationClusterSerializer::Register(LevelSnapshotsModule);
 		FDisplayClusterConfigurationClusterNodeSerializer::Register(LevelSnapshotsModule);
+
+		FDisplayMaterialOverrideFix::Register(LevelSnapshotsModule);
 	}
 }
 void UE::LevelSnapshots::nDisplay::Private::FnDisplaySupportModule::ShutdownModule()
