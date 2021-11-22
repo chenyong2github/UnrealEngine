@@ -174,6 +174,8 @@ namespace UE::DatasmithImporter
 		}
 
 		UpdateSourceCache();
+
+		CancelEmptySourcesLoading();
 	}
 
 	void FDirectLinkManager::UpdateSourceCache()
@@ -208,6 +210,34 @@ namespace UE::DatasmithImporter
 		for (const DirectLink::FSourceHandle& SourceHandle : InvalidExternalSourceIds)
 		{
 			InvalidateSource(SourceHandle);
+		}
+	}
+
+	void FDirectLinkManager::CancelEmptySourcesLoading() const
+	{
+		FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
+
+		for (const DirectLink::FRawInfo::FStreamInfo& StreamInfo : RawInfoCache.StreamsInfo)
+		{
+			if (const TSharedRef<FDirectLinkExternalSource>* ExternalSourcePtr = DirectLinkSourceToExternalSourceMap.Find(StreamInfo.Source))
+			{
+				const TSharedRef<FDirectLinkExternalSource>& ExternalSource = *ExternalSourcePtr;
+				
+				// We can infer that a DirectLink source is empty (no scene synced) by looking at if its stream is planning to send any data.
+				// #ueent_todo: Ideally it would be better to not allow an AsyncLoad to take place in the first time, but we can't know a source is empty 
+				//				before actually connecting to it, so this is the best we can do at the current time.
+				const bool bStreamIsEmpty = StreamInfo.bIsActive
+					&& !StreamInfo.CommunicationStatus.IsTransmitting()
+					&& StreamInfo.CommunicationStatus.TaskTotal == 0;
+
+				if (bStreamIsEmpty
+					&& ExternalSource->IsAsyncLoading()
+					&& !ExternalSource->GetDatasmithScene().IsValid())
+				{
+					ExternalSource->CancelAsyncLoad();
+					UE_LOG(LogDirectLinkManager, Error, TEXT("The DirectLink source \"%s\" could not be loaded: Nothing to synchronize. Make sure to do a DirectLink sync in your exporter."), *ExternalSource->GetSourceName());
+				}
+			}
 		}
 	}
 

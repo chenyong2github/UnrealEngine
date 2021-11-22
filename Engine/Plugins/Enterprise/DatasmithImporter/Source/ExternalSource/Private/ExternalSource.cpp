@@ -176,6 +176,11 @@ namespace UE::DatasmithImporter
 	{
 		OnExternalSourceChanged.Clear();
 
+		CancelAsyncLoad();
+	}
+
+	void FExternalSource::CancelAsyncLoad()
+	{
 		// Set value of all pending TPromise to null, to avoid creating deadlocks.
 		{
 			TSharedPtr<IDatasmithScene> NullScene;

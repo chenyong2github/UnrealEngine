@@ -123,6 +123,16 @@ namespace UE::DatasmithImporter
 		TFuture<TSharedPtr<IDatasmithScene>> AsyncLoad();
 
 		/**
+		 * True when the ExternalSource is currently loading the source asynchronously.
+		 */
+		bool IsAsyncLoading() const { return !PendingPromiseQueue.IsEmpty(); }
+
+		/**
+		 * Cancel any pending AsyncLoad() operation, pending TFuture will return invalid TSharedPtr.
+		 */
+		void CancelAsyncLoad();
+
+		/**
 		 * Delegate called on main thread every time the loaded data is updated.
 		 * Used for registering auto-reimport on assets.
 		 */

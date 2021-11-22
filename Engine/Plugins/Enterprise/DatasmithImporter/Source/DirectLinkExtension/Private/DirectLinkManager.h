@@ -75,6 +75,8 @@ namespace UE::DatasmithImporter
 		 */
 		void UpdateSourceCache();
 
+		void CancelEmptySourcesLoading() const;
+
 		bool EnableAssetAutoReimport(UObject* InAsset);
 
 		bool DisableAssetAutoReimport(UObject* InAsset);
