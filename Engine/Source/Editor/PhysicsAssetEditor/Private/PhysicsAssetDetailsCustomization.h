@@ -21,7 +21,8 @@ public:
 	static TSharedRef<IDetailCustomization> MakeInstance(TWeakPtr<FPhysicsAssetEditor> InPhysicsAssetEditor);
 
 	FPhysicsAssetDetailsCustomization(TWeakPtr<FPhysicsAssetEditor> InPhysicsAssetEditor)
-		: PhysicsAssetEditorPtr(InPhysicsAssetEditor)
+		: PhysicsAssetEditorPtr(InPhysicsAssetEditor),
+		  bIsRenamePending(false)
 	{}
 
 	// IDetailCustomization interface
@@ -38,7 +39,7 @@ private:
 	
 	TSharedRef<SWidget> MakeConstraintProfilesWidget();
 
-	TSharedRef<SWidget> CreateProfileButton(const FText& InGlyph, TSharedPtr<FUICommandInfo> InCommand);
+	TSharedRef<SWidget> CreateProfileButton(const FName& InIconName, TSharedPtr<FUICommandInfo> InCommand);
 
 	void HandlePhysicalAnimationProfileNameCommitted(const FText& InText, ETextCommit::Type InCommitType);
 
@@ -66,6 +67,10 @@ private:
 
 	bool CanRemoveBodyFromPhysicalAnimationProfile() const;
 
+	void SelectAllBodiesInCurrentPhysicalAnimationProfile();
+
+	bool CanSelectAllBodiesInCurrentPhysicalAnimationProfile() const;
+
 	void ApplyConstraintProfile(FName InName);
 
 	bool ConstraintProfileExistsForAny() const;
@@ -90,6 +95,10 @@ private:
 
 	bool CanRemoveConstraintFromCurrentConstraintProfile() const;
 
+	void SelectAllBodiesInCurrentConstraintProfile();
+
+	bool CanSelectAllBodiesInCurrentConstraintProfile() const;
+
 private:
 	TWeakPtr<FPhysicsAssetEditor> PhysicsAssetEditorPtr;
 
@@ -102,4 +111,6 @@ private:
 	TSharedPtr<SEditableTextBox> PhysicalAnimationProfileNameTextBox;
 
 	TSharedPtr<SEditableTextBox> ConstraintProfileNameTextBox;
+
+	bool bIsRenamePending;
 };

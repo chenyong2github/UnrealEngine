@@ -47,6 +47,7 @@ public class PhysicsAssetEditor : ModuleRules
 				"PhysicsUtilities",
 				"MeshUtilitiesCommon",
 				"ApplicationCore",
+				"ToolWidgets"
 			}
         );
 

@@ -23,6 +23,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "PropertyHandle.h"
 #include "PhysicsAssetEditorActions.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetDetailsCustomization"
 
@@ -99,6 +100,12 @@ void FPhysicsAssetDetailsCustomization::BindCommands()
 	);
 
 	CommandList->MapAction(
+		Commands.SelectAllBodiesInCurrentPhysicalAnimationProfile,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetDetailsCustomization::SelectAllBodiesInCurrentPhysicalAnimationProfile),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetDetailsCustomization::CanSelectAllBodiesInCurrentPhysicalAnimationProfile)
+	);
+
+	CommandList->MapAction(
 		Commands.NewConstraintProfile,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetDetailsCustomization::NewConstraintProfile),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetDetailsCustomization::CanCreateNewConstraintProfile)
@@ -127,6 +134,12 @@ void FPhysicsAssetDetailsCustomization::BindCommands()
 		FExecuteAction::CreateSP(this, &FPhysicsAssetDetailsCustomization::RemoveConstraintFromCurrentConstraintProfile),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetDetailsCustomization::CanRemoveConstraintFromCurrentConstraintProfile)
 	);
+
+	CommandList->MapAction(
+		Commands.SelectAllBodiesInCurrentConstraintProfile,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetDetailsCustomization::SelectAllBodiesInCurrentConstraintProfile),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetDetailsCustomization::CanSelectAllBodiesInCurrentConstraintProfile)
+	);
 }
 
 TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillPhysicalAnimationProfileOptions()
@@ -143,13 +156,36 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillPhysicalAnimationPr
 
 	if(SharedData->PhysicsAsset)
 	{
-		MenuBuilder.BeginSection("CurrentProfile", LOCTEXT("PhysicsAssetEditor_CurrentPhysicalAnimationMenu", "Current Profile"));
+		MenuBuilder.BeginSection("NewProfile", LOCTEXT("PhysicsAssetEditor_NewPhysicalAnimationMenu", "New"));
 		{
-			MenuBuilder.AddMenuEntry(Commands.DuplicatePhysicalAnimationProfile);
+			MenuBuilder.AddMenuEntry(Commands.NewPhysicalAnimationProfile);
 		}
 		MenuBuilder.EndSection();
 
-		MenuBuilder.BeginSection("PhysicalAnimationProfile", LOCTEXT("PhysicsAssetEditor_PhysicalAnimationMenu", "Physical Animation Profiles"));
+		MenuBuilder.BeginSection("CurrentProfile", LOCTEXT("PhysicsAssetEditor_CurrentPhysicalAnimationMenu", "Current Profile"));
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("PhysicsAssetEditor_RenameMenu", "Rename"),
+				LOCTEXT("PhysicsAssetEditor_RenameMenuTooltip", "Rename the Current Physical Animation Profile"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this]
+						{
+							bIsRenamePending = true;
+							FSlateApplication::Get().SetKeyboardFocus(PhysicalAnimationProfileNameTextBox);
+							FSlateApplication::Get().SetUserFocus(0, PhysicalAnimationProfileNameTextBox);
+						}),
+					FCanExecuteAction::CreateLambda([this]
+						{
+							return PhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset->CurrentPhysicalAnimationProfileName != NAME_None;
+						}))
+			);
+			MenuBuilder.AddMenuEntry(Commands.DuplicatePhysicalAnimationProfile);
+			MenuBuilder.AddMenuEntry(Commands.DeleteCurrentPhysicalAnimationProfile);
+		}
+		MenuBuilder.EndSection();
+
+		MenuBuilder.BeginSection("PhysicalAnimationProfile", LOCTEXT("PhysicsAssetEditor_PhysicalAnimationMenu", "Animation Profiles"));
 		{
 			TArray<FName> ProfileNames;
 			ProfileNames.Add(NAME_None);
@@ -185,58 +221,10 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillPhysicalAnimationPr
 					return SharedData->PhysicsAsset->CurrentPhysicalAnimationProfileName == ProfileName ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 				});
 
-				auto SearchClickedLambda = [ProfileName, SharedData]()
-				{
-					TArray<int32> NewBodiesSelection;
-					for (int32 BSIndex = 0; BSIndex < SharedData->PhysicsAsset->SkeletalBodySetups.Num(); ++BSIndex)
-					{
-						const USkeletalBodySetup* BS = SharedData->PhysicsAsset->SkeletalBodySetups[BSIndex];
-						if (BS->FindPhysicalAnimationProfile(ProfileName))
-						{
-							NewBodiesSelection.Add(BSIndex);
-						}
-					}
-					SharedData->ClearSelectedBody();	//clear selection
-					SharedData->SetSelectedBodiesAnyPrim(NewBodiesSelection, true);
+				TSharedRef<SWidget> PhysAnimProfileButton = SNew(STextBlock)
+					.Text(FText::FromString(ProfileName.ToString()));
 
-					FSlateApplication::Get().DismissAllMenus();
-
-					return FReply::Handled();
-				};
-					
-				TSharedRef<SWidget> PhysAnimProfileButton = SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(FText::FromString(ProfileName.ToString()))
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(2.f, 0.f, 0.f, 0.f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-						.ToolTipText(LOCTEXT("SelectBodies", "Select all bodies that are assigned to this profile."))
-						.OnClicked_Lambda(SearchClickedLambda)
-						[
-							SNew(SBox)
-							.WidthOverride(MenuIconSize)
-							.HeightOverride(MenuIconSize)
-							.Visibility_Lambda([ProfileName](){ return (ProfileName == NAME_None) ? EVisibility::Collapsed : EVisibility::Visible; })
-							[
-								SNew(SImage)
-								.Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.SearchGlass").GetIcon())
-							]
-								
-						]
-					];
-
-
-				//MenuBuilder.AddMenuEntry( FText::FromString(ProfileName.ToString()), FText::GetEmpty(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::Check);
-				MenuBuilder.AddMenuEntry(Action, PhysAnimProfileButton, NAME_None, TAttribute<FText>(), EUserInterfaceActionType::Check);
+				MenuBuilder.AddMenuEntry(Action, PhysAnimProfileButton, NAME_None, TAttribute<FText>(), EUserInterfaceActionType::RadioButton);
 			}
 		}
 
@@ -261,9 +249,33 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillConstraintProfilesO
 
 	if(SharedData->PhysicsAsset)
 	{
+		MenuBuilder.BeginSection("NewProfile", LOCTEXT("PhysicsAssetEditor_NewConstraintProfileMenu", "New"));
+		{
+			MenuBuilder.AddMenuEntry(Commands.NewConstraintProfile);
+		}
+		MenuBuilder.EndSection();
+
 		MenuBuilder.BeginSection("CurrentProfile", LOCTEXT("PhysicsAssetEditor_CurrentProfileMenu", "Current Profile"));
 		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("PhysicsAssetEditor_RenameMenu", "Rename"),
+				LOCTEXT("PhysicsAssetEditor_RenameMenuTooltip", "Rename the Current Constraint Profile"),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateLambda([this]
+						{
+							bIsRenamePending = true;
+							FSlateApplication::Get().SetKeyboardFocus(ConstraintProfileNameTextBox);
+							FSlateApplication::Get().SetUserFocus(0, ConstraintProfileNameTextBox);
+						}),
+					FCanExecuteAction::CreateLambda([this]
+						{
+							return PhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset->CurrentConstraintProfileName != NAME_None;
+						}))
+			);
+
 			MenuBuilder.AddMenuEntry(Commands.DuplicateConstraintProfile);
+			MenuBuilder.AddMenuEntry(Commands.DeleteCurrentConstraintProfile);
 		}
 		MenuBuilder.EndSection();
 
@@ -302,56 +314,10 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillConstraintProfilesO
 					return SharedData->PhysicsAsset->CurrentConstraintProfileName == ProfileName ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 				});
 
-				auto SearchClickedLambda = [ProfileName, SharedData]()
-				{
-					TArray<int32> NewSelectedConstraints;
-					for (int32 CSIndex = 0; CSIndex < SharedData->PhysicsAsset->ConstraintSetup.Num(); ++CSIndex)
-					{
-						const UPhysicsConstraintTemplate* CS = SharedData->PhysicsAsset->ConstraintSetup[CSIndex];
-						if (CS->ContainsConstraintProfile(ProfileName))
-						{
-							NewSelectedConstraints.AddUnique(CSIndex);
-						}
-					}
-
-					SharedData->ClearSelectedConstraints();	//clear selection
-					SharedData->SetSelectedConstraints(NewSelectedConstraints, true);
-
-					FSlateApplication::Get().DismissAllMenus();
-
-					return FReply::Handled();
-				};
-
-				TSharedRef<SWidget> ConstraintProfileButton = SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(ProfileName.ToString()))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.f, 0.f, 0.f, 0.f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-					.ToolTipText(LOCTEXT("SelectConstraints", "Select all constraints that are assigned to this profile."))
-					.OnClicked_Lambda(SearchClickedLambda)
-					[
-						SNew(SBox)
-						.WidthOverride(MenuIconSize)
-						.HeightOverride(MenuIconSize)
-						.Visibility_Lambda([ProfileName]() { return (ProfileName == NAME_None) ? EVisibility::Collapsed : EVisibility::Visible; })
-						[
-							SNew(SImage)
-							.Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.SearchGlass").GetIcon())
-						]
-					]
-				];
-
-				MenuBuilder.AddMenuEntry(Action, ConstraintProfileButton, NAME_None, TAttribute<FText>(), EUserInterfaceActionType::Check);
+				TSharedRef<SWidget> ConstraintProfileButton = SNew(STextBlock)
+					.Text(FText::FromString(ProfileName.ToString()));
+					
+				MenuBuilder.AddMenuEntry(Action, ConstraintProfileButton, NAME_None, TAttribute<FText>(), EUserInterfaceActionType::RadioButton);
 			}
 		}
 		MenuBuilder.EndSection();
@@ -363,6 +329,7 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillConstraintProfilesO
 void FPhysicsAssetDetailsCustomization::HandlePhysicalAnimationProfileNameCommitted(const FText& InText, ETextCommit::Type InCommitType)
 {
 	PhysicalAnimationProfileNameTextBox->SetError(FText::GetEmpty());
+	bIsRenamePending = false;
 
 	if(InCommitType != ETextCommit::OnCleared)
 	{
@@ -392,6 +359,7 @@ void FPhysicsAssetDetailsCustomization::HandlePhysicalAnimationProfileNameCommit
 void FPhysicsAssetDetailsCustomization::HandleConstraintProfileNameCommitted(const FText& InText, ETextCommit::Type InCommitType)
 {
 	ConstraintProfileNameTextBox->SetError(FText::GetEmpty());
+	bIsRenamePending = false;
 
 	if(InCommitType != ETextCommit::OnCleared)
 	{
@@ -418,47 +386,30 @@ void FPhysicsAssetDetailsCustomization::HandleConstraintProfileNameCommitted(con
 	}
 }
 
-TSharedRef<SWidget> FPhysicsAssetDetailsCustomization::CreateProfileButton(const FText& InGlyph, TSharedPtr<FUICommandInfo> InCommand)
+TSharedRef<SWidget> FPhysicsAssetDetailsCustomization::CreateProfileButton(const FName& InIconName, TSharedPtr<FUICommandInfo> InCommand)
 {
 	check(InCommand.IsValid());
 
 	TWeakPtr<FUICommandInfo> LocalCommandPtr = InCommand;
 
 	return SNew(SButton)
-		.VAlign(EVerticalAlignment::VAlign_Center)
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-		.ForegroundColor(FEditorStyle::GetSlateColor("DefaultForeground"))
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.ToolTipText(InCommand->GetDescription())
 		.IsEnabled_Lambda([this, LocalCommandPtr]()
-		{
-			TSharedPtr<FUICommandList> CommandList = PhysicsAssetEditorPtr.Pin()->GetToolkitCommands();
-			return CommandList->CanExecuteAction(LocalCommandPtr.Pin().ToSharedRef());
-		})
+			{
+				TSharedPtr<FUICommandList> CommandList = PhysicsAssetEditorPtr.Pin()->GetToolkitCommands();
+				return CommandList->CanExecuteAction(LocalCommandPtr.Pin().ToSharedRef());
+			})
 		.OnClicked(FOnClicked::CreateLambda([this, LocalCommandPtr]()
-		{
-			TSharedPtr<FUICommandList> CommandList = PhysicsAssetEditorPtr.Pin()->GetToolkitCommands();
-			return CommandList->ExecuteAction(LocalCommandPtr.Pin().ToSharedRef()) ? FReply::Handled() : FReply::Unhandled();
-		}))
+			{
+				TSharedPtr<FUICommandList> CommandList = PhysicsAssetEditorPtr.Pin()->GetToolkitCommands();
+				return CommandList->ExecuteAction(LocalCommandPtr.Pin().ToSharedRef()) ? FReply::Handled() : FReply::Unhandled();
+			}))
+		.ContentPadding(0)
 		[
-			SNew( SHorizontalBox )
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "PhysicsAssetEditor.Profiles.Font")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-				.Text(InGlyph)
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(4, 0, 0, 0)
-			[
-				SNew(STextBlock)
-				.TextStyle( FEditorStyle::Get(), "PhysicsAssetEditor.Profiles.Font" )
-				.Text(InCommand->GetLabel())
-			]
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush(InIconName))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 }
 
@@ -470,39 +421,49 @@ TSharedRef<SWidget> FPhysicsAssetDetailsCustomization::MakePhysicalAnimationProf
 
 	return SNew(SHorizontalBox)
 		.ToolTipText(LOCTEXT("CurrentPhysicalAnimationProfileWidgetTooltip", "Select and edit the current physical animation profile."))
-		+SHorizontalBox::Slot()
-		.FillWidth(1.0f)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
+		.Padding(0.0f, 0.0f, 2.0f, 3.0f)
 		[
-			SNew(SComboButton)
-			.OnGetMenuContent(this, &FPhysicsAssetDetailsCustomization::FillPhysicalAnimationProfileOptions)
-			.ButtonContent()
+			SNew(STextBlock)
+			.Text(LOCTEXT("CurrentProfile", "Current Profile"))
+		]
+
+		+SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SVerticalBox)
+			
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0, 6, 8, 0)
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.0f, 0.0f, 2.0f, 3.0f)
+				SNew(SBox)
+				.WidthOverride(125.0f)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("CurrentProfile", "Current Profile"))
-				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+					SNew(SComboButton)
+					.OnGetMenuContent(this, &FPhysicsAssetDetailsCustomization::FillPhysicalAnimationProfileOptions)
+					.ButtonContent()
 					[
 						SAssignNew(PhysicalAnimationProfileNameTextBox, SEditableTextBox)
+						.Style(FAppStyle::Get(), "PhysicsAssetEditor.Profiles.EditableTextBoxStyle")
 						.Text_Lambda([LocalPhysicsAssetEditorPtr]()
 						{
 							return FText::FromName(LocalPhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset->CurrentPhysicalAnimationProfileName);
 						})
-						.IsEnabled_Lambda([LocalPhysicsAssetEditorPtr]()
+						.ForegroundColor_Lambda([LocalPhysicsAssetEditorPtr]() -> FSlateColor
 						{
-							return LocalPhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset->CurrentPhysicalAnimationProfileName != NAME_None;
+							FName ProfileName = LocalPhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset->CurrentPhysicalAnimationProfileName;
+
+							return ProfileName == NAME_None ? FStyleColors::Foreground : FStyleColors::White;
+						})
+						.IsEnabled_Lambda([this]()
+						{
+							return bIsRenamePending;
 						})
 						.OnTextChanged_Lambda([this, LocalPhysicsAssetEditorPtr](const FText& InText)
 						{
@@ -521,27 +482,32 @@ TSharedRef<SWidget> FPhysicsAssetDetailsCustomization::MakePhysicalAnimationProf
 					]
 				]
 			]
-		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SUniformGridPanel)
-			.SlotPadding(FMargin(1.0f, 1.0f))
-			+SUniformGridPanel::Slot(0, 0)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0, 2, 0, 7)
 			[
-				CreateProfileButton(FEditorFontGlyphs::File, Commands.NewPhysicalAnimationProfile)
-			]
-			+SUniformGridPanel::Slot(1, 0)
-			[
-				CreateProfileButton(FEditorFontGlyphs::Trash, Commands.DeleteCurrentPhysicalAnimationProfile)
-			]
-			+SUniformGridPanel::Slot(0, 1)
-			[
-				CreateProfileButton(FEditorFontGlyphs::Plus_Circle, Commands.AddBodyToPhysicalAnimationProfile)
-			]
-			+SUniformGridPanel::Slot(1, 1)
-			[
-				CreateProfileButton(FEditorFontGlyphs::Minus_Circle, Commands.RemoveBodyFromPhysicalAnimationProfile)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(0)
+				.AutoWidth()
+				[
+					CreateProfileButton("PhysicsAssetEditor.BoneAssign", Commands.AddBodyToPhysicalAnimationProfile)
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(0)
+				.AutoWidth()
+				[
+					CreateProfileButton("PhysicsAssetEditor.BoneUnassign", Commands.RemoveBodyFromPhysicalAnimationProfile)
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(0)
+				.AutoWidth()
+				[
+					CreateProfileButton("PhysicsAssetEditor.BoneLocate", Commands.SelectAllBodiesInCurrentPhysicalAnimationProfile)
+				]
 			]
 		];
 }
@@ -554,39 +520,49 @@ TSharedRef<SWidget> FPhysicsAssetDetailsCustomization::MakeConstraintProfilesWid
 
 	return SNew(SHorizontalBox)
 		.ToolTipText(LOCTEXT("CurrentConstraintProfileWidgetTooltip", "Select and edit the current constraint profile."))
-		+SHorizontalBox::Slot()
-		.FillWidth(1.0f)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
+		.Padding(0.0f, 0.0f, 2.0f, 3.0f)
 		[
-			SNew(SComboButton)
-			.OnGetMenuContent(this, &FPhysicsAssetDetailsCustomization::FillConstraintProfilesOptions)
-			.ButtonContent()
+			SNew(STextBlock)
+			.Text(LOCTEXT("CurrentProfile", "Current Profile"))
+		]
+
+		+SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SVerticalBox)
+			
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0, 6, 8, 0)
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.0f, 0.0f, 2.0f, 3.0f)
+				SNew(SBox)
+				.WidthOverride(125.0f)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("CurrentProfile", "Current Profile"))
-				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+					SNew(SComboButton)
+					.OnGetMenuContent(this, &FPhysicsAssetDetailsCustomization::FillConstraintProfilesOptions)
+					.ButtonContent()
 					[
 						SAssignNew(ConstraintProfileNameTextBox, SEditableTextBox)
+						.Style(FAppStyle::Get(), "PhysicsAssetEditor.Profiles.EditableTextBoxStyle")
+						.ForegroundColor_Lambda([LocalPhysicsAssetEditorPtr]() -> FSlateColor
+						{
+							FName ProfileName = LocalPhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset->CurrentConstraintProfileName;
+
+							return ProfileName == NAME_None ? FStyleColors::Foreground : FStyleColors::White;
+						})
 						.Text_Lambda([LocalPhysicsAssetEditorPtr]()
 						{
 							return FText::FromName(LocalPhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset->CurrentConstraintProfileName);
 						})
-						.IsEnabled_Lambda([LocalPhysicsAssetEditorPtr]()
+						.IsEnabled_Lambda([this]()
 						{
-							return LocalPhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset->CurrentConstraintProfileName != NAME_None;
+							return bIsRenamePending;
 						})
 						.OnTextChanged_Lambda([this, LocalPhysicsAssetEditorPtr](const FText& InText)
 						{
@@ -605,27 +581,32 @@ TSharedRef<SWidget> FPhysicsAssetDetailsCustomization::MakeConstraintProfilesWid
 					]
 				]
 			]
-		]
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SUniformGridPanel)
-			.SlotPadding(FMargin(1.0f, 1.0f))
-			+SUniformGridPanel::Slot(0, 0)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0, 2, 0, 7)
 			[
-				CreateProfileButton(FEditorFontGlyphs::File, Commands.NewConstraintProfile)
-			]
-			+SUniformGridPanel::Slot(1, 0)
-			[
-				CreateProfileButton(FEditorFontGlyphs::Trash, Commands.DeleteCurrentConstraintProfile)
-			]
-			+SUniformGridPanel::Slot(0, 1)
-			[
-				CreateProfileButton(FEditorFontGlyphs::Plus_Circle, Commands.AddConstraintToCurrentConstraintProfile)
-			]
-			+SUniformGridPanel::Slot(1, 1)
-			[
-				CreateProfileButton(FEditorFontGlyphs::Minus_Circle, Commands.RemoveConstraintFromCurrentConstraintProfile)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(0)
+				.AutoWidth()
+				[
+					CreateProfileButton("PhysicsAssetEditor.BoneAssign", Commands.AddConstraintToCurrentConstraintProfile)
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(0)
+				.AutoWidth()
+				[
+					CreateProfileButton("PhysicsAssetEditor.BoneUnassign", Commands.RemoveConstraintFromCurrentConstraintProfile)
+				]
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.Padding(0)
+				.AutoWidth()
+				[
+					CreateProfileButton("PhysicsAssetEditor.BoneLocate", Commands.SelectAllBodiesInCurrentConstraintProfile)
+				]
 			]
 		];
 }
@@ -801,6 +782,33 @@ bool FPhysicsAssetDetailsCustomization::CanRemoveBodyFromPhysicalAnimationProfil
 
 	const bool bSelectedBodies = SharedData->SelectedBodies.Num() > 0;
 	return (PhysicsAssetEditorPtr.Pin()->IsNotSimulation() && bSelectedBodies && PhysicalAnimationProfileExistsForAny() && PhysicsAsset->CurrentPhysicalAnimationProfileName != NAME_None);
+}
+
+void FPhysicsAssetDetailsCustomization::SelectAllBodiesInCurrentPhysicalAnimationProfile()
+{
+	TArray<int32> NewBodiesSelection;
+	TSharedPtr<FPhysicsAssetEditorSharedData> SharedData = PhysicsAssetEditorPtr.Pin()->GetSharedData();
+
+	for (int32 BSIndex = 0; BSIndex < SharedData->PhysicsAsset->SkeletalBodySetups.Num(); ++BSIndex)
+	{
+		const USkeletalBodySetup* BS = SharedData->PhysicsAsset->SkeletalBodySetups[BSIndex];
+		FName ProfileName = BS->GetCurrentPhysicalAnimationProfileName();
+
+		if (BS->FindPhysicalAnimationProfile(ProfileName))
+		{
+			NewBodiesSelection.Add(BSIndex);
+		}
+	}
+	SharedData->ClearSelectedBody();	//clear selection
+	SharedData->SetSelectedBodiesAnyPrim(NewBodiesSelection, true);
+
+	return;
+}
+
+bool FPhysicsAssetDetailsCustomization::CanSelectAllBodiesInCurrentPhysicalAnimationProfile() const
+{
+	UPhysicsAsset* PhysicsAsset = PhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset;
+	return PhysicsAsset->CurrentPhysicalAnimationProfileName != NAME_None;
 }
 
 void FPhysicsAssetDetailsCustomization::ApplyConstraintProfile(FName InName)
@@ -982,6 +990,34 @@ bool FPhysicsAssetDetailsCustomization::CanRemoveConstraintFromCurrentConstraint
 
 	const bool bSelectedConstraints = SharedData->SelectedConstraints.Num() > 0;
 	return (PhysicsAssetEditorPtr.Pin()->IsNotSimulation() && bSelectedConstraints && PhysicsAsset->CurrentConstraintProfileName != NAME_None && ConstraintProfileExistsForAny());
+}
+
+void FPhysicsAssetDetailsCustomization::SelectAllBodiesInCurrentConstraintProfile()
+{
+	TArray<int32> NewSelectedConstraints;
+	TSharedPtr<FPhysicsAssetEditorSharedData> SharedData = PhysicsAssetEditorPtr.Pin()->GetSharedData();
+
+	for (int32 CSIndex = 0; CSIndex < SharedData->PhysicsAsset->ConstraintSetup.Num(); ++CSIndex)
+	{
+		const UPhysicsConstraintTemplate* CS = SharedData->PhysicsAsset->ConstraintSetup[CSIndex];
+		FName ProfileName = CS->GetCurrentConstraintProfileName();
+
+		if (CS->ContainsConstraintProfile(ProfileName))
+		{
+			NewSelectedConstraints.AddUnique(CSIndex);
+		}
+	}
+
+	SharedData->ClearSelectedConstraints();	//clear selection
+	SharedData->SetSelectedConstraints(NewSelectedConstraints, true);
+
+	return;
+}
+
+bool FPhysicsAssetDetailsCustomization::CanSelectAllBodiesInCurrentConstraintProfile() const
+{
+	UPhysicsAsset* PhysicsAsset = PhysicsAssetEditorPtr.Pin()->GetSharedData()->PhysicsAsset;
+	return PhysicsAsset->CurrentConstraintProfileName != NAME_None;
 }
 
 #undef LOCTEXT_NAMESPACE

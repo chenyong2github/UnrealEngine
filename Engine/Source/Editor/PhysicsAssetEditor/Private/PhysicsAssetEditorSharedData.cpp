@@ -38,7 +38,7 @@
 #include "Exporters/Exporter.h"
 #include "Factories.h"
 #include "HAL/PlatformApplicationMisc.h"
-
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetEditorShared"
 
@@ -2688,7 +2688,7 @@ TSharedRef<SWidget> FPhysicsAssetEditorSharedData::CreateGenerateBodiesWidget(co
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			[
@@ -2697,10 +2697,8 @@ TSharedRef<SWidget> FPhysicsAssetEditorSharedData::CreateGenerateBodiesWidget(co
 				.Padding(2.0f)
 				.AutoWidth()
 				[
-					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-					.ForegroundColor(FLinearColor::White)
-					.ContentPadding(FMargin(6, 2))
+					SNew(SPrimaryButton)
+					.Text(InCreateButtonText)
 					.OnClicked_Lambda([InOnCreate]()
 					{ 
 						GetMutableDefault<UPhysicsAssetGenerationSettings>()->SaveConfig(); 
@@ -2710,11 +2708,6 @@ TSharedRef<SWidget> FPhysicsAssetEditorSharedData::CreateGenerateBodiesWidget(co
 					.ToolTipText(bForNewAsset ? 
 								LOCTEXT("CreateAsset_Tooltip", "Create a new physics asset using these settings.") :
 								LOCTEXT("GenerateBodies_Tooltip", "Generate new bodies and constraints. If bodies are selected then they will be replaced along with their constraints using the new settings, otherwise all bodies and constraints will be re-created"))
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "PhysicsAssetEditor.Tools.Font")
-						.Text(InCreateButtonText)
-					]
 				]
 				+SHorizontalBox::Slot()
 				.Padding(2.0f)
@@ -2722,7 +2715,7 @@ TSharedRef<SWidget> FPhysicsAssetEditorSharedData::CreateGenerateBodiesWidget(co
 				[
 					SNew(SButton)
 					.Visibility_Lambda([bForNewAsset](){ return bForNewAsset ? EVisibility::Visible : EVisibility::Collapsed; })
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.ButtonStyle(FAppStyle::Get(), "FlatButton")
 					.ForegroundColor(FLinearColor::White)
 					.ContentPadding(FMargin(6, 2))
 					.OnClicked_Lambda([InOnCancel](){ InOnCancel.ExecuteIfBound(); return FReply::Handled(); })

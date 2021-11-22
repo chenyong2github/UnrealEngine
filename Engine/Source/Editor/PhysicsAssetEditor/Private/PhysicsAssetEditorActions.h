@@ -113,11 +113,13 @@ public:
 	TSharedPtr<FUICommandInfo> DeleteCurrentPhysicalAnimationProfile;
 	TSharedPtr<FUICommandInfo> AddBodyToPhysicalAnimationProfile;
 	TSharedPtr<FUICommandInfo> RemoveBodyFromPhysicalAnimationProfile;
+	TSharedPtr<FUICommandInfo> SelectAllBodiesInCurrentPhysicalAnimationProfile;
 	TSharedPtr<FUICommandInfo> NewConstraintProfile;
 	TSharedPtr<FUICommandInfo> DuplicateConstraintProfile;
 	TSharedPtr<FUICommandInfo> DeleteCurrentConstraintProfile;
 	TSharedPtr<FUICommandInfo> AddConstraintToCurrentConstraintProfile;
 	TSharedPtr<FUICommandInfo> RemoveConstraintFromCurrentConstraintProfile;
+	TSharedPtr<FUICommandInfo> SelectAllBodiesInCurrentConstraintProfile;
 	TSharedPtr<FUICommandInfo> ShowBodies;
 	TSharedPtr<FUICommandInfo> ShowSimulatedBodies;
 	TSharedPtr<FUICommandInfo> ShowKinematicBodies;

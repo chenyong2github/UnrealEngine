@@ -15,7 +15,7 @@ FPhysicsAssetEditorProfilesSummoner::FPhysicsAssetEditorProfilesSummoner(TShared
 	, PhysicsAssetPtr(InPhysicsAsset)
 {
 	TabLabel = LOCTEXT("PhysicsAssetProfilesTabTitle", "Profiles");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "PhysicsAssetEditor.Tabs.Profiles");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "PhysicsAssetEditor.Tabs.Profiles");
 
 	bIsSingleton = true;
 

@@ -17,7 +17,7 @@ FPhysicsAssetEditorToolsSummoner::FPhysicsAssetEditorToolsSummoner(TSharedPtr<FA
 	: FWorkflowTabFactory("PhysicsAssetTools", InHostingApp)
 {
 	TabLabel = LOCTEXT("PhysicsAssetToolsTabTitle", "Tools");
-	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "PhysicsAssetEditor.Tabs.Tools");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Tools");
 
 	bIsSingleton = true;
 
