@@ -31,6 +31,7 @@ class FStreamableTextureResource;
 class FTexture2DResource;
 class FTexture3DResource;
 class FTexture2DArrayResource;
+class FVirtualTexture2DResource;
 
 /** Maximum number of slices in texture source art. */
 #define MAX_TEXTURE_SOURCE_SLICES 6
@@ -100,11 +101,13 @@ public:
 	ENGINE_API virtual FTexture3DResource* GetTexture3DResource() { return nullptr; }
 	ENGINE_API virtual FTexture2DArrayResource* GetTexture2DArrayResource() { return nullptr; }
 	ENGINE_API virtual FStreamableTextureResource* GetStreamableTextureResource() { return nullptr; }
+	ENGINE_API virtual FVirtualTexture2DResource* GetVirtualTexture2DResource() { return nullptr; }
 	// Dynamic cast methods (const).
 	ENGINE_API virtual const FTexture2DResource* GetTexture2DResource() const { return nullptr; }
 	ENGINE_API virtual const FTexture3DResource* GetTexture3DResource() const { return nullptr; }
 	ENGINE_API virtual const FTexture2DArrayResource* GetTexture2DArrayResource() const { return nullptr; }
 	ENGINE_API virtual const FStreamableTextureResource* GetStreamableTextureResource() const { return nullptr; }
+	ENGINE_API virtual const FVirtualTexture2DResource* GetVirtualTexture2DResource() const { return nullptr; }
 
 	// Current mip count. We use "current" to specify that it is not computed from SizeX() which is the size when fully streamed in.
 	FORCEINLINE int32 GetCurrentMipCount() const
@@ -156,6 +159,11 @@ public:
 
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
+	
+	// Dynamic cast methods.
+	ENGINE_API virtual FVirtualTexture2DResource* GetVirtualTexture2DResource() { return this; }
+	// Dynamic cast methods (const).
+	ENGINE_API virtual const FVirtualTexture2DResource* GetVirtualTexture2DResource() const { return this; }
 
 #if WITH_EDITOR
 	void InitializeEditorResources(class IVirtualTexture* InVirtualTexture);

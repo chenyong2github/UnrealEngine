@@ -3113,37 +3113,43 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 		{
 			continue;
 		}
-		if (!Texture->IsCurrentlyVirtualTextured())
+
+		// GetResource() is safe to call from the render thread.
+		const FTextureResource* TextureResource = Texture->GetResource();
+		if (TextureResource)
 		{
-			// The placeholder used during async texture compilation is expected to be of the wrong type since
-			// no VT infos are available until later in the compilation process. This will be resolved
-			// once the final texture resource is available.
+			const FVirtualTexture2DResource* VirtualTextureResourceForLayer = TextureResource->GetVirtualTexture2DResource();
+
+			if (VirtualTextureResourceForLayer == nullptr)
+			{
+				// The placeholder used during async texture compilation is expected to be of the wrong type since
+				// no VT infos are available until later in the compilation process. This will be resolved
+				// once the final texture resource is available.
 #if WITH_EDITOR
-			if (!Texture->IsDefaultTexture())
+				if (!TextureResource->IsProxy())
 #endif
-			{
-				UE_LOG(LogMaterial, Warning, TEXT("Material '%s' expects texture '%s' to be Virtual"),
-					*GetFriendlyName(), *Texture->GetName());
+				{
+					UE_LOG(LogMaterial, Warning, TEXT("Material '%s' expects texture '%s' to be Virtual"),
+						*GetFriendlyName(), *Texture->GetName());
+				}
+				continue;
 			}
-			continue;
-		}
-
-		const FVirtualTexture2DResource* VirtualTextureResourceForLayer = (FVirtualTexture2DResource*)Texture->GetResource();
-		if (VirtualTextureResourceForLayer != nullptr)
-		{
-			// All tile sizes need to match
-			check(!bFoundValidLayer || VTDesc.TileSize == VirtualTextureResourceForLayer->GetTileSize());
-			check(!bFoundValidLayer || VTDesc.TileBorderSize == VirtualTextureResourceForLayer->GetBorderSize());
-
-			const FVirtualTextureProducerHandle& ProducerHandle = VirtualTextureResourceForLayer->GetProducerHandle();
-			if (ProducerHandle.IsValid())
+			else
 			{
-				VTDesc.TileSize = VirtualTextureResourceForLayer->GetTileSize();
-				VTDesc.TileBorderSize = VirtualTextureResourceForLayer->GetBorderSize();
-				VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
-				VTDesc.ProducerLayerIndex[LayerIndex] = 0u;
-				GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyedCB, const_cast<FMaterialRenderProxy*>(this));
-				bFoundValidLayer = true;
+				// All tile sizes need to match
+				check(!bFoundValidLayer || VTDesc.TileSize == VirtualTextureResourceForLayer->GetTileSize());
+				check(!bFoundValidLayer || VTDesc.TileBorderSize == VirtualTextureResourceForLayer->GetBorderSize());
+
+				const FVirtualTextureProducerHandle& ProducerHandle = VirtualTextureResourceForLayer->GetProducerHandle();
+				if (ProducerHandle.IsValid())
+				{
+					VTDesc.TileSize = VirtualTextureResourceForLayer->GetTileSize();
+					VTDesc.TileBorderSize = VirtualTextureResourceForLayer->GetBorderSize();
+					VTDesc.ProducerHandle[LayerIndex] = ProducerHandle;
+					VTDesc.ProducerLayerIndex[LayerIndex] = 0u;
+					GetRendererModule().AddVirtualTextureProducerDestroyedCallback(ProducerHandle, &OnVirtualTextureDestroyedCB, const_cast<FMaterialRenderProxy*>(this));
+					bFoundValidLayer = true;
+				}
 			}
 		}
 	}
