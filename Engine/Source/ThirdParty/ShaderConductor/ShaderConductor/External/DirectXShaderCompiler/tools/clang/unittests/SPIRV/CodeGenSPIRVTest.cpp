@@ -92,6 +92,9 @@ TEST_F(FileTest, RWBufferTypeStructError) {
   runFileTest("type.rwbuffer.struct.error.hlsl", Expect::Failure);
 }
 TEST_F(FileTest, CBufferType) { runFileTest("type.cbuffer.hlsl"); }
+TEST_F(FileTest, TypeCBufferIncludingResource) {
+  runFileTest("type.cbuffer.including.resource.hlsl");
+}
 TEST_F(FileTest, ConstantBufferType) {
   runFileTest("type.constant-buffer.hlsl");
 }
@@ -149,6 +152,13 @@ TEST_F(FileTest, PointStreamTypes) { runFileTest("type.point-stream.hlsl"); }
 TEST_F(FileTest, LineStreamTypes) { runFileTest("type.line-stream.hlsl"); }
 TEST_F(FileTest, TriangleStreamTypes) {
   runFileTest("type.triangle-stream.hlsl");
+}
+
+TEST_F(FileTest, TemplateFunctionInstance) {
+  runFileTest("type.template.function.template-instance.hlsl");
+}
+TEST_F(FileTest, TemplateStructInstance) {
+  runFileTest("type.template.struct.template-instance.hlsl");
 }
 
 // For constants
@@ -216,6 +226,22 @@ TEST_F(FileTest, GlobalsCBufferError) {
 
 TEST_F(FileTest, VarVFACEInterface) {
   runFileTest("var.vface.interface.hlsl", Expect::Warning);
+}
+
+TEST_F(FileTest, OperatorOverloadingAssign) {
+  runFileTest("operator.overloading.assign.hlsl");
+}
+TEST_F(FileTest, OperatorOverloadingCall) {
+  runFileTest("operator.overloading.call.hlsl");
+}
+TEST_F(FileTest, OperatorOverloadingStar) {
+  runFileTest("operator.overloading.star.hlsl");
+}
+TEST_F(FileTest, OperatorOverloadingMatrixMultiplication) {
+  runFileTest("operator.overloading.mat.mul.hlsl");
+}
+TEST_F(FileTest, OperatorOverloadingCorrectnessOfResourceTypeCheck) {
+  runFileTest("operator.overloading.resource.type.check.hlsl");
 }
 
 // For prefix/postfix increment/decrement
@@ -477,6 +503,9 @@ TEST_F(FileTest, CastFlatConversionDecomposeVector) {
 }
 TEST_F(FileTest, CastExplicitVecToMat) {
   runFileTest("cast.vec-to-mat.explicit.hlsl");
+}
+TEST_F(FileTest, CastImplicitVecToMat) {
+  runFileTest("cast.vec-to-mat.implicit.hlsl");
 }
 TEST_F(FileTest, CastMatrixToVector) { runFileTest("cast.mat-to-vec.hlsl"); }
 TEST_F(FileTest, CastBitwidth) { runFileTest("cast.bitwidth.hlsl"); }
@@ -1313,10 +1342,20 @@ TEST_F(FileTest, IntrinsicsVkInvocationScope) {
 TEST_F(FileTest, IntrinsicsVkQueueFamilyScope) {
   runFileTest("intrinsics.vkqueuefamilyscope.hlsl");
 }
+TEST_F(FileTest, IntrinsicsSpirv) {
+  runFileTest("spv.intrinsicInstruction.hlsl");
+  runFileTest("spv.intrinsicLiteral.hlsl");
+  runFileTest("spv.intrinsicDecorate.hlsl", Expect::Success, false);
+  runFileTest("spv.intrinsicExecutionMode.hlsl", Expect::Success, false);
+  runFileTest("spv.intrinsicStorageClass.hlsl", Expect::Success, false);
+  runFileTest("spv.intrinsic.reference.error.hlsl", Expect::Failure);
+}
 TEST_F(FileTest, IntrinsicsVkReadClock) {
   runFileTest("intrinsics.vkreadclock.hlsl");
 }
-
+TEST_F(FileTest, IntrinsicsVkRawBufferLoad) {
+  runFileTest("intrinsics.vkrawbufferload.hlsl");
+}
 // Intrinsics added in SM 6.6
 TEST_F(FileTest, IntrinsicsSM66PackU8S8) {
   runFileTest("intrinsics.sm6_6.pack_s8u8.hlsl");
@@ -1789,6 +1828,9 @@ TEST_F(FileTest, VulkanAttributeImageFormat) {
 TEST_F(FileTest, VulkanAttributeImageFormatO3) {
   runFileTest("vk.attribute.image-format.o3.hlsl");
 }
+TEST_F(FileTest, VulkanAttributeImageFormatSimple) {
+  runFileTest("vk.attribute.image-format.simple.hlsl", Expect::Success);
+}
 
 TEST_F(FileTest, VulkanCLOptionInvertYVS) {
   runFileTest("vk.cloption.invert-y.vs.hlsl");
@@ -1828,7 +1870,7 @@ TEST_F(FileTest, VulkanLocationPartiallyAssigned) {
 std::string getStageLocationReassignTestShader(const std::string &typeDef,
                                                const std::string &stageVar,
                                                const std::string &check) {
-  const std::string command(R"(// Run: %dxc -T vs_6_0 -E main)");
+  const std::string command(R"(// RUN: %dxc -T vs_6_0 -E main)");
   const std::string shader = command + typeDef + R"(
 [[vk::location(3)]]                   // first use
 float main(
@@ -1964,6 +2006,9 @@ TEST_F(FileTest, FlattenResourceArrayBindings2Optimized) {
 TEST_F(FileTest, FlattenResourceArrayBindings3) {
   runFileTest("vk.binding.cl.flatten-arrays.example3.hlsl");
 }
+TEST_F(FileTest, FlattenResourceArrayAccessedByVarIndex) {
+  runFileTest("vk.binding.flatten-arrays.var-index.hlsl");
+}
 
 // For testing the "-auto-binding-space" command line option which specifies the
 // "default space" for resources.
@@ -2064,11 +2109,24 @@ TEST_F(FileTest, VulkanPushConstantOnConstantBuffer) {
   runFileTest("vk.push-constant.constantbuffer.hlsl");
 }
 
+TEST_F(FileTest, VulkanCombinedImageSampler) {
+  runFileTest("vk.combined-image-sampler.hlsl");
+}
+TEST_F(FileTest, VulkanCombinedImageSamplerTextureArray) {
+  runFileTest("vk.combined-image-sampler.texture-array.hlsl");
+}
+TEST_F(FileTest, VulkanCombinedImageSamplerError) {
+  runFileTest("vk.combined-image-sampler.error.hlsl", Expect::Failure);
+}
+
 TEST_F(FileTest, VulkanSpecConstantInit) {
   runFileTest("vk.spec-constant.init.hlsl");
 }
 TEST_F(FileTest, VulkanSpecConstantUsage) {
   runFileTest("vk.spec-constant.usage.hlsl");
+}
+TEST_F(FileTest, VulkanSpecConstantReuse) {
+  runFileTest("vk.spec-constant.reuse.hlsl");
 }
 TEST_F(FileTest, VulkanSpecConstantError1) {
   runFileTest("vk.spec-constant.error1.hlsl", Expect::Failure);
@@ -2502,6 +2560,9 @@ TEST_F(FileTest, DecorationRelaxedPrecisionBool) {
 TEST_F(FileTest, DecorationRelaxedPrecisionArray) {
   runFileTest("decoration.relaxed-precision.array.hlsl");
 }
+TEST_F(FileTest, DecorationRelaxedPrecisionResourceInStruct) {
+  runFileTest("decoration.relaxed-precision.resource.in.struct.hlsl");
+}
 
 // For NoContraction decorations
 TEST_F(FileTest, DecorationNoContraction) {
@@ -2642,6 +2703,14 @@ TEST_F(FileTest, MeshShadingNVAmplificationError3) {
 TEST_F(FileTest, MeshShadingNVAmplificationError4) {
   runFileTest("meshshading.nv.error3.amplification.hlsl", Expect::Failure);
 }
+
+TEST_F(FileTest, UseRValueForMemberExprOfArraySubscriptExpr) {
+  runFileTest("use.rvalue.for.member-expr.of.array-subscript.hlsl",
+              Expect::Success,
+              /* runValidation */ false);
+}
+
+TEST_F(FileTest, ReduceLoadSize) { runFileTest("reduce.load.size.hlsl"); }
 
 // Test OpEntryPoint in the Vulkan1.2 target environment
 TEST_F(FileTest, Vk1p2EntryPoint) {
@@ -2806,7 +2875,7 @@ TEST_F(FileTest, RichDebugInfoTypeStructuredBuffer) {
 }
 
 TEST_F(FileTest, InlinedCodeTest) {
-  const std::string command(R"(// Run: %dxc -T ps_6_0 -E PSMain)");
+  const std::string command(R"(// RUN: %dxc -T ps_6_0 -E PSMain)");
   const std::string code = command + R"(
 struct PSInput
 {
@@ -2822,7 +2891,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 }
 
 TEST_F(FileTest, InlinedCodeWithErrorTest) {
-  const std::string command(R"(// Run: %dxc -T ps_6_0 -E PSMain)");
+  const std::string command(R"(// RUN: %dxc -T ps_6_0 -E PSMain)");
   const std::string code = command + R"(
 struct PSInput
 {
@@ -2840,7 +2909,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 std::string getVertexPositionTypeTestShader(const std::string &subType,
                                             const std::string &positionType,
                                             const std::string &check) {
-  const std::string command(R"(// Run: %dxc -T vs_6_0 -E main)");
+  const std::string command(R"(// RUN: %dxc -T vs_6_0 -E main)");
   const std::string code = command + subType + R"(
 struct output {
 )" + positionType + R"(
@@ -2902,6 +2971,21 @@ struct validType {
 // CHECK: %validType = OpTypeStruct %v4float
 // CHECK:    %output = OpTypeStruct %validType
 )"));
+}
+TEST_F(FileTest, ShaderDebugInfoFunction) {
+  runFileTest("shader.debug.function.hlsl");
+}
+TEST_F(FileTest, ShaderDebugInfoDebugLexicalBlock) {
+  runFileTest("shader.debug.debuglexicalblock.hlsl");
+}
+TEST_F(FileTest, ShaderDebugInfoSource) {
+  runFileTest("shader.debug.source.hlsl");
+}
+TEST_F(FileTest, ShaderDebugInfoSourceContinued) {
+  runFileTest("shader.debug.sourcecontinued.hlsl");
+}
+TEST_F(FileTest, ShaderDebugInfoLine) {
+  runFileTest("shader.debug.line.hlsl");
 }
 
 } // namespace

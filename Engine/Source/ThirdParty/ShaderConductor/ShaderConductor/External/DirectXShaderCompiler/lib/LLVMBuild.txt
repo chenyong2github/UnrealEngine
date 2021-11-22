@@ -28,7 +28,6 @@ subdirectories =
  Linker
  IR
  IRReader
- LTO
  MC
  Object
  Option
@@ -45,9 +44,10 @@ subdirectories =
  DxilDia
  DxrFallback
  DxilRootSignature
+ DxcBindingTable
  Miniz
 
-; HLSL Change: remove LibDriver, LineEditor, add HLSL, DxrtFallback, DXIL, DxilContainer, DxilDia, DxilPIXPasses, DxilRootSignature
+; HLSL Change: remove LibDriver, LineEditor, add HLSL, DxrtFallback, DXIL, DxilContainer, DxilDia, DxilPIXPasses, DxilRootSignature, DxcBindingTable, LTO
 
 [component_0]
 type = Group

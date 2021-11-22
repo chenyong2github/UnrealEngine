@@ -35,6 +35,18 @@
 
 #include "DeclResultIdMapper.h"
 
+namespace spvtools {
+namespace opt {
+
+// A struct for a pair of descriptor set and binding.
+struct DescriptorSetAndBinding {
+  uint32_t descriptor_set;
+  uint32_t binding;
+};
+
+} // namespace opt
+} // namespace spvtools
+
 namespace clang {
 namespace spirv {
 
@@ -61,7 +73,7 @@ public:
 
   void doDecl(const Decl *decl);
   void doStmt(const Stmt *stmt, llvm::ArrayRef<const Attr *> attrs = {});
-  SpirvInstruction *doExpr(const Expr *expr);
+  SpirvInstruction *doExpr(const Expr *expr, SourceRange rangeOverride = {});
 
   /// Processes the given expression and emits SPIR-V instructions. If the
   /// result is a GLValue, does an additional load.
@@ -82,6 +94,7 @@ private:
   void doFunctionDecl(const FunctionDecl *decl);
   void doVarDecl(const VarDecl *decl);
   void doRecordDecl(const RecordDecl *decl);
+  void doClassTemplateDecl(const ClassTemplateDecl *classTemplateDecl);
   void doEnumDecl(const EnumDecl *decl);
   void doHLSLBufferDecl(const HLSLBufferDecl *decl);
   void doImplicitDecl(const Decl *decl);
@@ -109,7 +122,8 @@ private:
   SpirvInstruction *doExtMatrixElementExpr(const ExtMatrixElementExpr *expr);
   SpirvInstruction *doHLSLVectorElementExpr(const HLSLVectorElementExpr *expr);
   SpirvInstruction *doInitListExpr(const InitListExpr *expr);
-  SpirvInstruction *doMemberExpr(const MemberExpr *expr);
+  SpirvInstruction *doMemberExpr(const MemberExpr *expr,
+                                 SourceRange rangeOverride = {});
   SpirvInstruction *doUnaryOperator(const UnaryOperator *expr);
   SpirvInstruction *
   doUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *expr);
@@ -150,13 +164,15 @@ private:
   /// lhs again.
   SpirvInstruction *processAssignment(const Expr *lhs, SpirvInstruction *rhs,
                                       bool isCompoundAssignment,
-                                      SpirvInstruction *lhsPtr = nullptr);
+                                      SpirvInstruction *lhsPtr = nullptr,
+                                      SourceRange range = {});
 
   /// Generates SPIR-V instructions to store rhsVal into lhsPtr. This will be
   /// recursive if lhsValType is a composite type. rhsExpr will be used as a
   /// reference to adjust the CodeGen if not nullptr.
   void storeValue(SpirvInstruction *lhsPtr, SpirvInstruction *rhsVal,
-                  QualType lhsValType, SourceLocation loc);
+                  QualType lhsValType, SourceLocation loc,
+                  SourceRange range = {});
 
   /// Decomposes and reconstructs the given srcVal of the given valType to meet
   /// the requirements of the dstLR layout rule.
@@ -332,7 +348,7 @@ private:
   turnIntoElementPtr(QualType baseType, SpirvInstruction *base,
                      QualType elemType,
                      const llvm::SmallVector<SpirvInstruction *, 4> &indices,
-                     SourceLocation loc);
+                     SourceLocation loc, SourceRange range = {});
 
 private:
   /// Validates that vk::* attributes are used correctly and returns false if
@@ -578,6 +594,13 @@ private:
   /// Process ray query intrinsics
   SpirvInstruction *processRayQueryIntrinsics(const CXXMemberCallExpr *expr,
                                               hlsl::IntrinsicOp opcode);
+  /// Process spirv intrinsic instruction
+  SpirvInstruction *processSpvIntrinsicCallExpr(const CallExpr *expr);
+
+  /// Custom intrinsic to support basic buffer_reference use case
+  SpirvInstruction *processRawBufferLoad(const CallExpr *callExpr);
+  /// Process vk::ext_execution_mode intrinsic
+  SpirvInstruction *processIntrinsicExecutionMode(const CallExpr *expr);
 
 private:
   /// Returns the <result-id> for constant value 0 of the given type.
@@ -1010,7 +1033,7 @@ private:
                     SpirvInstruction *constOffset, SpirvInstruction *varOffset,
                     SpirvInstruction *constOffsets, SpirvInstruction *sample,
                     SpirvInstruction *minLod, SpirvInstruction *residencyCodeId,
-                    SourceLocation loc);
+                    SourceLocation loc, SourceRange range = {});
 
   /// \brief Returns OpVariable to be used as 'Interface' operands of
   /// OpEntryPoint. entryPoint is the SpirvFunction for the OpEntryPoint.
@@ -1033,9 +1056,14 @@ private:
 
   /// \brief Helper function to run SPIRV-Tools optimizer's legalization passes.
   /// Runs the SPIRV-Tools legalization on the given SPIR-V module |mod|, and
-  /// gets the info/warning/error messages via |messages|.
+  /// gets the info/warning/error messages via |messages|. If
+  /// |dsetbindingsToCombineImageSampler| is not empty, runs
+  /// --convert-to-sampled-image pass.
   /// Returns true on success and false otherwise.
-  bool spirvToolsLegalize(std::vector<uint32_t> *mod, std::string *messages);
+  bool
+  spirvToolsLegalize(std::vector<uint32_t> *mod, std::string *messages,
+                     const std::vector<spvtools::opt::DescriptorSetAndBinding>
+                         *dsetbindingsToCombineImageSampler);
 
   /// \brief Helper function to run the SPIRV-Tools validator.
   /// Runs the SPIRV-Tools validator on the given SPIR-V module |mod|, and

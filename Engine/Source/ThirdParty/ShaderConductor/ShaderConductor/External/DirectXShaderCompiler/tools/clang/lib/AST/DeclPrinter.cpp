@@ -496,9 +496,13 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
   // HLSL Change Begin
   DeclContext *Namespace = D->getEnclosingNamespaceContext();
   DeclContext *Enclosing = D->getLexicalParent();
-  if (!Enclosing->isNamespace() && Namespace->isNamespace()) {
+  if (!Enclosing->isNamespace() && Namespace->isNamespace() &&
+      !Policy.HLSLOnlyDecl) {
     NamespaceDecl* ns = (NamespaceDecl*)Namespace;
     Proto = ns->getName().str() + "::" + Proto;
+  }
+  if (Policy.HLSLNoinlineMethod) {
+    Proto = D->getQualifiedNameAsString();
   }
   // HLSL Change End
 
@@ -685,8 +689,15 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     } else
       Out << ' ';
 
-    if (D->getBody())
-      D->getBody()->printPretty(Out, nullptr, SubPolicy, Indentation);
+    if (D->getBody()) {
+      // HLSL Change Begin - only print decl.
+      if (Policy.HLSLOnlyDecl) {
+        Out << ";";
+      } else {
+        // HLSL Change end.
+        D->getBody()->printPretty(Out, nullptr, SubPolicy, Indentation);
+      }
+    }
     Out << '\n';
   }
 }
@@ -754,8 +765,9 @@ void DeclPrinter::VisitLabelDecl(LabelDecl *D) {
 
 void DeclPrinter::VisitVarDecl(VarDecl *D) {
   // UE Change Begin: Print #line directive
-  DeclContext* DC = D->getDeclContext();
-  if (D->isDefinedOutsideFunctionOrMethod() && (DC == nullptr || dyn_cast<HLSLBufferDecl>(DC) == nullptr))
+  DeclContext *DC = D->getDeclContext();
+  if (D->isDefinedOutsideFunctionOrMethod() &&
+      (DC == nullptr || dyn_cast<HLSLBufferDecl>(DC) == nullptr))
     PrintLineDirective(D);
   // UE Change End: Print #line directive
 
@@ -1114,7 +1126,7 @@ void DeclPrinter::PrintObjCTypeParams(ObjCTypeParamList *Params) {
 }
 
 // UE Change Being: Print #line directive
-void DeclPrinter::PrintLineDirective(Decl* D) {
+void DeclPrinter::PrintLineDirective(Decl *D) {
   const auto Loc = D->getLocation();
   const auto &SM = D->getASTContext().getSourceManager();
   PresumedLoc PLoc = SM.getPresumedLoc(Loc);
