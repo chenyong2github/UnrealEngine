@@ -21,7 +21,7 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "Core",
+					"Core",
 					"CoreUObject",
 					"ApplicationCore",
 					"SlateCore",
@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"RHI", 
 					"ToolMenus",
+					"ComputeFramework",
 					"OptimusCore",
 					"OptimusDeveloper",
 					"BlueprintGraph",		// For the graph pin colors

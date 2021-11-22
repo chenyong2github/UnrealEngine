@@ -65,10 +65,10 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "GPUSkinCache.h"
-#include "ComputeFramework/ComputeGraphScheduler.h"
+#include "ComputeWorkerInterface.h"
 
 #if WITH_EDITOR
-	#include "Editor.h"
+#include "Editor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "ObjectCacheEventSink.h"
 #endif
@@ -977,13 +977,13 @@ struct FSendAllEndOfFrameUpdates
 		if (InScene != nullptr)
 		{
 			GPUSkinCache = InScene->GetGPUSkinCache();
-			ComputeGraphScheduler = InScene->GetComputeGraphScheduler();
+			InScene->GetComputeTaskWorkers(ComputeTaskWorkers);
 			FeatureLevel = InScene->GetFeatureLevel();
 		}
 	}
 	
 	FGPUSkinCache* GPUSkinCache = nullptr;
-	FComputeGraphScheduler* ComputeGraphScheduler = nullptr;
+	TArray<IComputeTaskWorker*> ComputeTaskWorkers;
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
 
 #if WANTS_DRAW_MESH_EVENTS
@@ -1007,11 +1007,11 @@ void BeginSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOf
 
 DECLARE_GPU_STAT(EndOfFrameUpdates);
 DECLARE_GPU_STAT(GPUSkinCacheRayTracingGeometry);
-DECLARE_GPU_STAT(ComputeFrameworkExecuteBatches);
+DECLARE_GPU_STAT(ComputeTaskWorkerUpdates);
 void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFrameUpdates)
 {
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
-		[GPUSkinCache = SendAllEndOfFrameUpdates.GPUSkinCache, ComputeGraphScheduler = SendAllEndOfFrameUpdates.ComputeGraphScheduler, FeatureLevel = SendAllEndOfFrameUpdates.FeatureLevel](FRHICommandListImmediate& RHICmdList)
+		[GPUSkinCache = SendAllEndOfFrameUpdates.GPUSkinCache, ComputeTaskWorkers = SendAllEndOfFrameUpdates.ComputeTaskWorkers, FeatureLevel = SendAllEndOfFrameUpdates.FeatureLevel](FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPED_GPU_STAT(RHICmdList, EndOfFrameUpdates);
 
@@ -1032,10 +1032,13 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates& SendAllEndOfFr
 #endif // RHI_RAYTRACING
 			}
 
-			if (ComputeGraphScheduler != nullptr)
+			if (ComputeTaskWorkers.Num() > 0)
 			{
-				SCOPED_GPU_STAT(RHICmdList, ComputeFrameworkExecuteBatches);
-				ComputeGraphScheduler->ExecuteBatches(RHICmdList, FeatureLevel);
+				SCOPED_GPU_STAT(RHICmdList, ComputeTaskWorkerUpdates);
+				for (IComputeTaskWorker* ComputeTaskWorker : ComputeTaskWorkers)
+				{
+					ComputeTaskWorker->SubmitWork(RHICmdList, FeatureLevel);
+				}
 			}
 		});
 

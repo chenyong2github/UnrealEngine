@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "/Engine/Private/ComputeKernelCommon.ush"
+#include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 
 uint DI_LOCAL(StartOffset);
 uint DI_LOCAL(BufferSize);

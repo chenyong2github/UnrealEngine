@@ -34,6 +34,7 @@ public class MLDeformer : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"ComputeFramework",
 				"CoreUObject",
 				"Engine",
 				"GeometryCache",

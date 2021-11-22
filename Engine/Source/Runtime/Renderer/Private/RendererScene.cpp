@@ -54,8 +54,7 @@
 #include "PlanarReflectionSceneProxy.h"
 #include "Engine/StaticMesh.h"
 #include "GPUSkinCache.h"
-#include "ComputeFramework/ComputeFramework.h"
-#include "ComputeFramework/ComputeGraphScheduler.h"
+#include "ComputeSystemInterface.h"
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -1104,10 +1103,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 		GPUSkinCache = new FGPUSkinCache(InFeatureLevel, bRequiresMemoryLimit, World);
 	}
 
-	if (ComputeFramework::IsEnabled(InFeatureLevel, GetFeatureLevelShaderPlatform(InFeatureLevel)))
-	{
-		ComputeGraphScheduler = new FComputeGraphScheduler();
-	}
+	ComputeSystemInterface::CreateWorkers(this, ComputeTaskWorkers);
 
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
@@ -1165,16 +1161,14 @@ FScene::~FScene()
 	IndirectLightingCache.ReleaseResource();
 	DistanceFieldSceneData.Release();
 
-	if (GPUSkinCache)
-	{
-		delete GPUSkinCache;
-		GPUSkinCache = nullptr;
-	}
+	delete GPUSkinCache;
+	GPUSkinCache = nullptr;
+
+	ComputeSystemInterface::DestroyWorkers(this, ComputeTaskWorkers);
 
 #if RHI_RAYTRACING
-
-		delete RayTracingDynamicGeometryCollection;
-		RayTracingDynamicGeometryCollection = nullptr;
+	delete RayTracingDynamicGeometryCollection;
+	RayTracingDynamicGeometryCollection = nullptr;
 #endif // RHI_RAYTRACING
 
 	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.
