@@ -283,7 +283,7 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 			CvGray, 
 			CheckerboardSize,
 			Corners,
-			CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_NORMALIZE_IMAGE
+			cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE
 		);
 		
 		if (!bCornersFound)
@@ -297,9 +297,9 @@ bool UCameraLensDistortionAlgoCheckerboard::AddCalibrationRow(FText& OutErrorMes
 			return false;
 		}
 		
-		// CV_TERMCRIT_EPS will stop the search when the error is under the given epsilon.
-		// CV_TERMCRIT_ITER will stop after the specified number of iterations regardless of epsilon.
-		cv::TermCriteria Criteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.001);
+		// cv::TermCriteria::Type::EPS will stop the search when the error is under the given epsilon.
+		// cv::TermCriteria::Type::COUNT will stop after the specified number of iterations regardless of epsilon.
+		cv::TermCriteria Criteria(cv::TermCriteria::Type::EPS | cv::TermCriteria::Type::COUNT, 30, 0.001);
 		cv::cornerSubPix(CvGray, Corners, cv::Size(11, 11), cv::Size(-1, -1), Criteria);
 
 		for (cv::Point2f& Corner : Corners)
