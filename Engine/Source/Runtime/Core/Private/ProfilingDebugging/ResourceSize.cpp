@@ -2,8 +2,6 @@
 
 #include "ProfilingDebugging/ResourceSize.h"
 
-#pragma message("Compiling ResourceSize.cpp")
-
 FResourceSizeEx::FResourceSizeEx()
 	: ResourceSizeMode(EResourceSizeMode::Exclusive)
 {
