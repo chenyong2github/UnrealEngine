@@ -422,8 +422,13 @@ include(HandleLLVMOptions)
 
 # Verify that we can find a Python 3 interpreter and force cmake to use it.
 # UE Change Begin: Support Cmake 3.12+ in finding python3
-find_package(Python3 COMPONENTS Interpreter Development)
-#find_package(PythonInterp 3 REQUIRED)
+if(CMAKE_VERSION VERSION_LESS 3.12)
+  find_package(PythonInterp 3 REQUIRED)
+else()
+  find_package(Python3 COMPONENTS Interpreter Development)
+  set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+endif()
+message("Python3=${PYTHON_EXECUTABLE}")
 # UE Change End: Support Cmake 3.12+ in finding python3
 
 ######
