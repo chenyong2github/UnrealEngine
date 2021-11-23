@@ -283,6 +283,13 @@ void FNiagaraRendererSprites::PrepareParticleSpriteRenderData(FParticleSpriteRen
 		}
 		else
 		{
+			//-TODO: Culling and sorting from InitViewsAfterPrePass can not be respected if the culled entries have already been acquired
+			if (ParticleSpriteRenderData.bSortCullOnGpu)
+			{
+				//ensureMsgf(false, TEXT("Culling & sorting is not supported once the culled counts have been acquired, sorting & culling will be disabled for these draws."));
+				ParticleSpriteRenderData.bSortCullOnGpu &= SceneProxy->GetComputeDispatchInterface()->GetGPUInstanceCounterManager().CanAcquireCulledEntry();
+			}
+
 			// Should we GPU sort for CPU systems?
 			if ( ParticleSpriteRenderData.bSortCullOnGpu )
 			{
