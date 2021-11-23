@@ -998,12 +998,15 @@ bool UWaterBodyComponent::IsNavigationRelevant() const
 	return CanAffectNavigation() && (GetCollisionComponents().Num() > 0);
 }
 
-void UWaterBodyComponent::ApplyNavigationSettings() const
+void UWaterBodyComponent::ApplyNavigationSettings()
 {
 	AActor* Owner = GetOwner();
 	if (Owner)
 	{
 		const bool bCanAffectNav = CanAffectNavigation();
+
+		// Make sure the engine's bCanEverAffectionNavigation matches the component's one.
+		SetCanEverAffectNavigation(bCanAffectNav);
 
 		// @todo_water: change this
 		TInlineComponentArray<UActorComponent*> Components;
