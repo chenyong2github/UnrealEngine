@@ -58,6 +58,7 @@ class IExporter
 	// DirectLink
 	virtual void InitializeDirectLinkForScene() = 0;
 	virtual void UpdateDirectLinkScene() = 0;
+	virtual bool ToggleAutoSync() = 0;
 };
 
 

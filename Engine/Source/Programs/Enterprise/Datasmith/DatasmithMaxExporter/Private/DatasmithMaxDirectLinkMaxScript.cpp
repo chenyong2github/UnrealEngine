@@ -22,6 +22,7 @@ MAX_INCLUDES_START
 	#include "maxscript/foundation/numbers.h"
 	#include "maxscript/foundation/arrays.h"
 	#include "maxscript\macros\define_instantiation_functions.h"
+
 MAX_INCLUDES_END
 
 extern HINSTANCE HInstanceMax;
@@ -177,6 +178,19 @@ Value* DirectLinkUpdateScene_cf(Value** arg_list, int count)
 }
 Primitive DirectLinkUpdateScene_pf(_M("Datasmith_DirectLinkUpdateScene"), DirectLinkUpdateScene_cf);
 
+Value* ToggleAutoSync_cf(Value** arg_list, int count) 
+{
+	check_arg_count(ToggleAutoSync, 0, count);
+
+	if (GetExporter())
+	{
+		return bool_result(GetExporter()->ToggleAutoSync());
+	}
+
+	return &false_value;
+}
+Primitive ToggleAutoSync_pf(_M("Datasmith_ToggleAutoSync"), ToggleAutoSync_cf);
+
 Value* OpenDirectlinkUi_cf(Value** arg_list, int count) 
 {
 	check_arg_count(OpenDirectlinkUi, 0, count);
@@ -271,7 +285,7 @@ public:
 			{
 				if (GetExporter())
 				{
-					// todo: GetExporter()->ToggleAutoSync();
+					GetExporter()->ToggleAutoSync();
 				}
 				return true;
 			}

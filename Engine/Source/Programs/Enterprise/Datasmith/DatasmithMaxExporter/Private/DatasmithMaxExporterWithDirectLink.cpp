@@ -1685,6 +1685,51 @@ public:
 		DirectLinkImpl->UpdateScene(ExportedScene.GetDatasmithScene());
 	}
 
+	static VOID AutoSyncTimerProc(HWND, UINT, UINT_PTR TimerIdentifier, DWORD)
+	{
+		reinterpret_cast<FExporter*>(TimerIdentifier)->UpdateAutoSync(); 
+	}
+
+	// Update is user was idle for some time
+	void UpdateAutoSync()
+	{
+		LASTINPUTINFO LastInputInfo;
+		LastInputInfo.cbSize = sizeof(LASTINPUTINFO);
+		LastInputInfo.dwTime = 0;
+		if (GetLastInputInfo(&LastInputInfo))
+		{
+			DWORD CurrentTime = GetTickCount();
+			DWORD IdlePeriod = GetTickCount() - LastInputInfo.dwTime;
+			LogDebug(FString::Printf(TEXT("CurrentTime: %ld, Idle time: %ld, IdlePeriod: %ld"), CurrentTime, LastInputInfo.dwTime, IdlePeriod));
+
+			if (IdlePeriod > 500)
+			{
+				// Don't create progress bar for autosync - it steals focus, closes listener and what else
+				// todo: consider creating progress when a big change in scene is detected, e.g. number of nodes?
+				UpdateScene(true);
+				UpdateDirectLinkScene();
+			}
+		}
+	}
+
+	bool bAutoSyncEnabled = false;
+
+	bool ToggleAutoSync()
+	{
+		if (bAutoSyncEnabled)
+		{
+			KillTimer(GetCOREInterface()->GetMAXHWnd(), reinterpret_cast<UINT_PTR>(this));
+		}
+		else
+		{
+			SetTimer(GetCOREInterface()->GetMAXHWnd(), reinterpret_cast<UINT_PTR>(this), 500, AutoSyncTimerProc);
+		}
+		bAutoSyncEnabled = !bAutoSyncEnabled;
+
+		LogDebug(bAutoSyncEnabled ? TEXT("AutoSync ON") : TEXT("AutoSync OFF"));
+		return bAutoSyncEnabled;
+	}
+
 	FNotifications NotificationsHandler;
 
 	// Install change notification systems
