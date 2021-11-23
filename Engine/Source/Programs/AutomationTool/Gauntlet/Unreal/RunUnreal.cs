@@ -345,9 +345,9 @@ namespace Gauntlet
 					continue;
 				}
 
-				if (Blacklist.Instance.IsTestBlacklisted(Test.TestName, UnrealPlatform, TestContext.BuildInfo.Branch))
+				if (Denylist.Instance.IsTestDenylisted(Test.TestName, UnrealPlatform, TestContext.BuildInfo.Branch))
 				{
-					Gauntlet.Log.Info("Test {0} is currently blacklisted on {1} in branch {2}", Test.TestName, UnrealPlatform, TestContext.BuildInfo.Branch);
+					Gauntlet.Log.Info("Test {0} is currently denylisted on {1} in branch {2}", Test.TestName, UnrealPlatform, TestContext.BuildInfo.Branch);
 					continue;
 				}
 
