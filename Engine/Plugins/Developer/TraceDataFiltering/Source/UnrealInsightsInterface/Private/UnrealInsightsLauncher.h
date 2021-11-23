@@ -11,9 +11,10 @@ public:
 	~FUnrealInsightsLauncher();
 
 	void RegisterMenus();
+	void StartUnrealInsights(const FString& Path);
 
 private:
-	void OpenUnrealInsights();
+	void RunUnrealInsights_Execute();
 
 private:
 	/** The name of the Unreal Insights log listing. */
