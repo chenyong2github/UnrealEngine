@@ -410,6 +410,7 @@ public:
 		D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress = 0;
 		uint64 AllocationSize = 0;
 		FName ResourceName;
+		D3D12_RESOURCE_DESC ResourceDesc = {};
 		uint64 ReleasedFrameID = 0;
 		bool bDefragFree = false;
 		bool bBackBuffer = false;
