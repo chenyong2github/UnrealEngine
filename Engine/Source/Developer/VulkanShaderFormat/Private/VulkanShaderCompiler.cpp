@@ -1999,6 +1999,7 @@ static bool CompileWithShaderConductor(
 
 	// Initialize compilation options for ShaderConductor
 	CrossCompiler::FShaderConductorOptions Options;
+	Options.bDisableScalarBlockLayout = !bIsRayTracingShader;
 
 	if (bRewriteHlslSource)
 	{
