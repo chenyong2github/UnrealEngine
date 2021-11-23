@@ -6,30 +6,46 @@
 #include "PixelStreamingSettings.h"
 #include "Async/Async.h"
 
-#define SUBMIT_RENDERING_TASK_WITH_PARAMS(Func, ...) \
-    if(IsInRenderingThread()) \
-    { \
-        this->Func(__VA_ARGS__); \
-    } \
-    else \
-    { \
-        AsyncTask(ENamedThreads::ActualRenderingThread, [this, __VA_ARGS__](){ this->Func(__VA_ARGS__); } ); \
-    } \
-
 FPixelStreamingVideoSources::FPixelStreamingVideoSources()
     : bMatchFrameBufferResolution(true)
-    , bFixedResolution(PixelStreamingSettings::CVarPixelStreamingWebRTCDisableResolutionChange.GetValueOnAnyThread()){}
+    , bFixedResolution(PixelStreamingSettings::CVarPixelStreamingWebRTCDisableResolutionChange.GetValueOnAnyThread())
+    , ThreadWaiter(FPlatformProcess::GetSynchEventFromPool(false))
+    , bIsThreadRunning(true)
+{
+	this->FrameDelayMs = (1.0f / PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps.GetValueOnAnyThread()) * 1000.0f;
+
+    this->VideoSourcesThread = MakeUnique<FThread>(TEXT("VideoSourcesThread"), [this]() { this->RunVideoSourcesLoop_VideoSourcesThread(); });
+}
 
 FPixelStreamingVideoSources::FPixelStreamingVideoSources(int Width, int Height)
     : StartResolution(FIntPoint(Width, Height))
     , bMatchFrameBufferResolution(false)
-    , bFixedResolution(true){}
+    , bFixedResolution(true)
+    , ThreadWaiter(FPlatformProcess::GetSynchEventFromPool(false))
+    , bIsThreadRunning(true)
+{
+    this->VideoSourcesThread = MakeUnique<FThread>(TEXT("VideoSourcesThread"), [this]() { this->RunVideoSourcesLoop_VideoSourcesThread(); });
+}
+
+FPixelStreamingVideoSources::~FPixelStreamingVideoSources()
+{
+    this->bIsThreadRunning = false;
+    this->ThreadWaiter->Trigger();
+    this->VideoSourcesThread->Join();
+}
+
+void FPixelStreamingVideoSources::QueueTask(TFunction<void()> InTaskToQueue)
+{
+    this->QueuedTasks.Enqueue(InTaskToQueue);
+    // This will wake the VideoSourcesThread if it is sleeping.
+    this->ThreadWaiter->Trigger();
+}
 
 webrtc::VideoTrackSourceInterface* FPixelStreamingVideoSources::CreateVideoSource(FPlayerId PlayerId)
 {
-    if(IsInRenderingThread())
+    if(IsInVideoSourcesThread())
     {
-        return this->CreateVideoSource_RenderThread(PlayerId);
+        return this->CreateVideoSource_VideoSourcesThread(PlayerId);
     }
     else
     {
@@ -39,15 +55,15 @@ webrtc::VideoTrackSourceInterface* FPixelStreamingVideoSources::CreateVideoSourc
         {
             FScopedEvent ThreadBlocker;
 
-            AsyncTask(ENamedThreads::ActualRenderingThread, [this, PlayerId, &VideoSource, &ThreadBlocker]()
+            this->QueueTask([this, PlayerId, &VideoSource, &ThreadBlocker]()
             {
-                VideoSource = this->CreateVideoSource_RenderThread(PlayerId);
+                VideoSource = this->CreateVideoSource_VideoSourcesThread(PlayerId);
 
                 // Unblocks the thread
                 ThreadBlocker.Trigger();
             });
 
-            // Blocks current thread until render thread calls trigger (indicating it is done)
+            // Blocks current thread until video sources thread calls trigger (indicating it is done)
         }
 
         return VideoSource;
@@ -56,61 +72,132 @@ webrtc::VideoTrackSourceInterface* FPixelStreamingVideoSources::CreateVideoSourc
 
 void FPixelStreamingVideoSources::SetQualityController(FPlayerId PlayerId)
 {
-    SUBMIT_RENDERING_TASK_WITH_PARAMS(SetQualityController_RenderThread, PlayerId)
+    this->QueueTask([this, PlayerId](){ this->SetQualityController_VideoSourcesThread(PlayerId); });
 }
 
 void FPixelStreamingVideoSources::DeleteVideoSource(FPlayerId PlayerId)
 {
-    SUBMIT_RENDERING_TASK_WITH_PARAMS(DeleteVideoSource_RenderThread, PlayerId)
+    this->QueueTask([this, PlayerId](){ this->DeleteVideoSource_VideoSourcesThread(PlayerId); });
 }
 
 void FPixelStreamingVideoSources::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 {
     checkf(IsInRenderingThread(), TEXT("This method must be called on the rendering thread."));
 
-    // There is no controlling player, so discard the incoming frame as this implies there are no video sources.
-    if(this->ControllingPlayer == INVALID_PLAYER_ID)
-    {
-        return;
-    }
-
-    // If we have not created video encoder input yet, do it here.
+    // If we have not created video capturer yet, do it here.
     if(!this->VideoCapturerContext.IsValid())
     {
         // Make FVideoEncoderInput at the appropriate resolution based on VideoSource settings
         this->StartResolution = this->bMatchFrameBufferResolution ? FrameBuffer->GetSizeXY() : this->StartResolution;
-        this->VideoCapturerContext = MakeShared<FVideoCapturerContext>(this->StartResolution.X, this->StartResolution.Y, this->bFixedResolution);
+        this->VideoCapturerContext = MakeShared<FVideoCapturerContext, ESPMode::ThreadSafe>(this->StartResolution.X, this->StartResolution.Y, this->bFixedResolution);
     }
 
+    // Copy frame.
+    this->VideoCapturerContext->CaptureFrame(FrameBuffer);
+
+    // Backbuffer now has something captured, thread can wake up (if needed).
+    this->ThreadWaiter->Trigger();
+}
+
+bool FPixelStreamingVideoSources::IsInVideoSourcesThread()
+{
+    if(this->VideoSourcesThread == nullptr)
+    {
+        return false;
+    }
+
+    uint32 VideoSourcesThreadId = this->VideoSourcesThread->GetThreadId();
+    uint32 CurrentThreadId = FPlatformTLS::GetCurrentThreadId();
+
+    return VideoSourcesThreadId == CurrentThreadId;
+}
+
+////////////////////////////////////////////
+// INTERNAL VIDEO SOURCES THREAD FUNCTIONS
+////////////////////////////////////////////
+
+void FPixelStreamingVideoSources::RunVideoSourcesLoop_VideoSourcesThread()
+{
+    uint64 LastFrameSubmittedCycles = 0;
+
+    while(this->bIsThreadRunning)
+    {
+        // Process any queued work
+        while(!this->QueuedTasks.IsEmpty())
+        {
+            TFunction<void()>* Task = this->QueuedTasks.Peek();
+            if(Task != nullptr && *Task)
+            {
+                (*Task)();
+            }
+            this->QueuedTasks.Pop();
+        }
+
+        // Submit Frame if we have a video source
+        if(this->VideoSources.Num() > 0 && this->VideoCapturerContext.IsValid() && this->VideoCapturerContext->IsInitialized())
+        {
+
+            this->SubmitFrame_VideoSourcesThread();
+
+            // Determine how long we should sleep before submitting a frame again
+            uint64 DeltaCycles = FPlatformTime::Cycles64() - LastFrameSubmittedCycles;
+            double DeltaMs = FPlatformTime::ToMilliseconds64(DeltaCycles);
+            LastFrameSubmittedCycles = FPlatformTime::Cycles64();
+
+            if(DeltaMs < this->FrameDelayMs)
+            {
+                // Sleep for DeltaMs or until ThreadWaiter.Trigger() is called.
+                double SleepTimeMs = this->FrameDelayMs - DeltaMs;
+                this->ThreadWaiter->Wait(SleepTimeMs, false);
+            }
+        }
+        // No video sources, we will sleep until we have a video source or some queued work to do
+        else
+        {
+            // Sleep indefinitely until ThreadWaiter.Trigger() is called somewhere.
+            if(this->QueuedTasks.IsEmpty())
+            {
+                this->ThreadWaiter->Wait();
+            }
+        }
+    }
+
+}
+
+void FPixelStreamingVideoSources::SubmitFrame_VideoSourcesThread()
+{
+    checkf(IsInVideoSourcesThread(), TEXT("This method must called on the VideoSourcesThread"));
+
+    // Send the frame from the video source back into WebRTC where it will eventually makes its way into an encoder
     // Iterate each video source and initialize it, if needed.
     for(auto& Entry : this->VideoSources)
     {
         TUniquePtr<FVideoCapturer>& Capturer = Entry.Value;
         if(!Capturer->IsInitialized())
         {
-            Capturer->Initialize(FrameBuffer, this->VideoCapturerContext);
+            FIntPoint StartRes(this->VideoCapturerContext->GetCaptureWidth(), this->VideoCapturerContext->GetCaptureHeight());
+            Capturer->Initialize(StartRes);
         }
     }
 
-    TUniquePtr<FVideoCapturer>& ControllingVideoSource = this->VideoSources.FindChecked(this->ControllingPlayer);
+    TUniquePtr<FVideoCapturer>* ControllingVideoSourcePtr = this->VideoSources.Find(this->ControllingPlayer);
 
-    checkf(ControllingVideoSource.IsValid(), TEXT("Video source was invalid, this indicates a bug and should never happen."));
-
-    // Pass along the frame buffer to the controlling video source
-    if(ControllingVideoSource->IsInitialized())
+    // If there is no controlling player associated with any video source we should not transmit
+    if(ControllingVideoSourcePtr == nullptr || (*ControllingVideoSourcePtr).IsValid() == false)
     {
-        ControllingVideoSource->OnFrameReady(FrameBuffer);
+        return;
     }
 
+    // Pass along the capturer context to the controlling video source
+    if((*ControllingVideoSourcePtr)->IsInitialized())
+    {
+        (*ControllingVideoSourcePtr)->TrySubmitFrame(this->VideoCapturerContext);
+    }
 }
 
-///////////////////////
-// INTERNAL
-///////////////////////
-
-void FPixelStreamingVideoSources::SetQualityController_RenderThread(FPlayerId PlayerId)
+void FPixelStreamingVideoSources::SetQualityController_VideoSourcesThread(FPlayerId PlayerId)
 {
-    checkf(IsInRenderingThread(), TEXT("This method must be called on the rendering thread."));
+    checkf(IsInVideoSourcesThread(), TEXT("This method must called on the VideoSourcesThread"));
 
     if(this->VideoSources.Contains(PlayerId))
     {
@@ -122,9 +209,9 @@ void FPixelStreamingVideoSources::SetQualityController_RenderThread(FPlayerId Pl
     }
 }
 
-webrtc::VideoTrackSourceInterface* FPixelStreamingVideoSources::CreateVideoSource_RenderThread(FPlayerId PlayerId)
+webrtc::VideoTrackSourceInterface* FPixelStreamingVideoSources::CreateVideoSource_VideoSourcesThread(FPlayerId PlayerId)
 {
-    checkf(IsInRenderingThread(), TEXT("This method must be called on the rendering thread."));
+    checkf(IsInVideoSourcesThread(), TEXT("This method must called on the VideoSourcesThread"));
 
     bool bShouldMakeController = this->VideoSources.Num() == 0;
 
@@ -141,15 +228,15 @@ webrtc::VideoTrackSourceInterface* FPixelStreamingVideoSources::CreateVideoSourc
 
     if(bShouldMakeController)
     {
-        this->SetQualityController_RenderThread(PlayerId);
+        this->SetQualityController_VideoSourcesThread(PlayerId);
     }
 
     return WebRTCVideoSource;
 }
 
-void FPixelStreamingVideoSources::DeleteVideoSource_RenderThread(FPlayerId PlayerId)
+void FPixelStreamingVideoSources::DeleteVideoSource_VideoSourcesThread(FPlayerId PlayerId)
 {
-    checkf(IsInRenderingThread(), TEXT("This method must be called on the rendering thread."));
+    checkf(IsInVideoSourcesThread(), TEXT("This method must called on the VideoSourcesThread"));
 
     this->VideoSources.Remove(PlayerId);
 

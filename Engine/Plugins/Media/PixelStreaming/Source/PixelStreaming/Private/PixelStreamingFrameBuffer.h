@@ -7,6 +7,8 @@
 #include "RHI.h"
 #include "PlayerId.h"
 
+using FTextureObtainer = TFunction<const FTexture2DRHIRef(void)>;
+
 /*
 * FPixelStreamingFrameBufferWrapper
 * Wraps the WebRTC VideoFrameBuffer and adds some general Pixel Streaming methods such as an encoder usage hint.
@@ -14,21 +16,19 @@
 
 class FPixelStreamingFrameBufferWrapper : public webrtc::VideoFrameBuffer
 {
-	public:
-
+public:
 	// How the encoder should use this frame buffer.
 	enum class EncoderUsageHint
 	{
 		Initialize,
 		Encode
 	};
-	
-	public:
-		virtual EncoderUsageHint GetUsageHint() const = 0;
 
- protected:
- 	virtual ~FPixelStreamingFrameBufferWrapper() override = default;
+public:
+	virtual EncoderUsageHint GetUsageHint() const = 0;
 
+protected:
+	virtual ~FPixelStreamingFrameBufferWrapper() override = default;
 };
 
 /*
@@ -41,61 +41,62 @@ class FPixelStreamingFrameBufferWrapper : public webrtc::VideoFrameBuffer
 */
 class FPixelStreamingInitFrameBuffer : public FPixelStreamingFrameBufferWrapper
 {
-    public:
-        FPixelStreamingInitFrameBuffer(FPlayerId InPlayerId, int InWidth, int InHeight)
-            : PlayerId(InPlayerId)
-            , Width(InWidth)
-            , Height(InHeight)
-        {}
-        
-        virtual ~FPixelStreamingInitFrameBuffer() = default;
+public:
+	FPixelStreamingInitFrameBuffer(FPlayerId InPlayerId, int InWidth, int InHeight)
+		: PlayerId(InPlayerId)
+		, Width(InWidth)
+		, Height(InHeight)
+	{
+	}
 
-		EncoderUsageHint GetUsageHint() const override
-		{
-			return EncoderUsageHint::Initialize;
-		}
+	virtual ~FPixelStreamingInitFrameBuffer() = default;
 
-        // Begin webrtc::VideoFrameBuffer interface
-        virtual webrtc::VideoFrameBuffer::Type type() const
-        {
-            return webrtc::VideoFrameBuffer::Type::kNative;
-        }
+	EncoderUsageHint GetUsageHint() const override
+	{
+		return EncoderUsageHint::Initialize;
+	}
 
-        virtual int width() const
-        {
-            return this->Width;
-        }
+	// Begin webrtc::VideoFrameBuffer interface
+	virtual webrtc::VideoFrameBuffer::Type type() const
+	{
+		return webrtc::VideoFrameBuffer::Type::kNative;
+	}
 
-        virtual int height() const
-        {
-            return this->Height;
-        }
+	virtual int width() const
+	{
+		return this->Width;
+	}
 
-        virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420()
-        {
-            return webrtc::I420Buffer::Create(this->Width, this->Height);
-        }
+	virtual int height() const
+	{
+		return this->Height;
+	}
 
-        virtual const webrtc::I420BufferInterface* GetI420() const
-        {
-            return nullptr;
-        }
+	virtual rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420()
+	{
+		return webrtc::I420Buffer::Create(this->Width, this->Height);
+	}
 
-        // End webrtc::VideoFrameBuffer interface
+	virtual const webrtc::I420BufferInterface* GetI420() const
+	{
+		return nullptr;
+	}
 
-        FPlayerId GetPlayerId()
-        {
-            return this->PlayerId;
-        }
+	// End webrtc::VideoFrameBuffer interface
 
-	public:
-		DECLARE_DELEGATE(FOnEncoderInitialized)
-	    FOnEncoderInitialized OnEncoderInitialized;
+	FPlayerId GetPlayerId()
+	{
+		return this->PlayerId;
+	}
 
-    private:
-        FPlayerId PlayerId;
-        int Width;
-        int Height;
+public:
+	DECLARE_DELEGATE(FOnEncoderInitialized)
+	FOnEncoderInitialized OnEncoderInitialized;
+
+private:
+	FPlayerId PlayerId;
+	int Width;
+	int Height;
 };
 
 /*
@@ -111,22 +112,25 @@ class FPixelStreamingFrameBuffer : public FPixelStreamingFrameBufferWrapper
 {
 
 public:
-	explicit FPixelStreamingFrameBuffer(FTexture2DRHIRef SourceTexture, AVEncoder::FVideoEncoderInputFrame* InputFrame, TSharedPtr<AVEncoder::FVideoEncoderInput> InputVideoEncoderInput)
-		: TextureRef(SourceTexture)
-		, Frame(InputFrame)
-		, VideoEncoderInput(InputVideoEncoderInput)
+	explicit FPixelStreamingFrameBuffer(FTextureObtainer InTextureObtainer, int InWidth, int InHeight)
+		: TextureObtainer(InTextureObtainer)
+		, Width(InWidth)
+		, Height(InHeight)
 	{
-		Frame->Obtain();
 	}
 
 	~FPixelStreamingFrameBuffer()
 	{
-		Frame->Release();
 	}
 
 	EncoderUsageHint GetUsageHint() const override
 	{
 		return EncoderUsageHint::Encode;
+	}
+
+	FTextureObtainer GetTextureObtainer()
+	{
+		return TextureObtainer;
 	}
 
 	//
@@ -139,12 +143,12 @@ public:
 
 	virtual int width() const override
 	{
-		return Frame->GetWidth();
+		return Width;
 	}
 
 	virtual int height() const override
 	{
-		return Frame->GetHeight();
+		return Height;
 	}
 
 	//////////////////////////////////////////////
@@ -152,7 +156,8 @@ public:
 	//////////////////////////////////////////////
 	rtc::scoped_refptr<webrtc::I420BufferInterface> ToI420() override
 	{
-		rtc::scoped_refptr<webrtc::I420Buffer> Buffer = webrtc::I420Buffer::Create(Frame->GetWidth(), Frame->GetHeight());
+		rtc::scoped_refptr<webrtc::I420Buffer> Buffer = webrtc::I420Buffer::Create(width(), height());
+		FTexture2DRHIRef TextureRef = TextureObtainer();
 
 		// TODO Texture conversion can happen here as we can add a refernce to the Unreal texture to this class rather than doing raw RHI calls
 #if 1
@@ -164,8 +169,8 @@ public:
 			uint32 components = GPixelFormats[TextureRef->GetFormat()].NumComponents;
 
 			// Convert from BGRA to I420
-			uint32 height = Frame->GetHeight();
-			uint32 width = Frame->GetWidth();
+			uint32 height = this->height();
+			uint32 width = this->width();
 
 			uint32 image_size = width * height;
 			uint32 upos = 0;
@@ -183,7 +188,7 @@ public:
 				for (uint32 col = 0; col < TextureRef->GetSizeX(); ++col)
 				{
 					i = row * stride + col * components;
-					Pixel = { TextureData[i+2] , TextureData[i+1], TextureData[i] };
+					Pixel = {TextureData[i + 2], TextureData[i + 1], TextureData[i]};
 					if (row % 2)
 					{
 						DataY[row * width + col] = ((66 * Pixel.R + 129 * Pixel.G + 25 * Pixel.B) >> 8) + 16;
@@ -193,7 +198,7 @@ public:
 
 						col += 1;
 						i = row * stride + col * components;
-						Pixel = { TextureData[i + 2] , TextureData[i + 1], TextureData[i] };
+						Pixel = {TextureData[i + 2], TextureData[i + 1], TextureData[i]};
 						DataY[row * width + col] = ((66 * Pixel.R + 129 * Pixel.G + 25 * Pixel.B) >> 8) + 16;
 					}
 					else
@@ -214,8 +219,6 @@ public:
 		// TODO Write shader that repacks RGBA texture into I420
 		FComputeFenceRHIRef fence = GDynamicRHI->RHICreateComputeFence(TEXT("RGBA_to_YUV420_fence"));
 
-
-
 		fence.wait();
 
 		// Copy data out of I420 packed into RGBA
@@ -234,18 +237,8 @@ public:
 		return Buffer;
 	}
 
-	AVEncoder::FVideoEncoderInputFrame* GetFrame() const
-	{
-		return Frame;
-	}
-
-	TSharedPtr<AVEncoder::FVideoEncoderInput> GetVideoEncoderInput() const
-	{
-		return VideoEncoderInput;
-	}
-
 private:
-	FTexture2DRHIRef TextureRef;
-	AVEncoder::FVideoEncoderInputFrame* Frame;
-	TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput;
+	FTextureObtainer TextureObtainer;
+	int Width;
+	int Height;
 };

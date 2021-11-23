@@ -4,7 +4,6 @@
 
 #include "PixelStreamingPrivate.h"
 #include "WebRTCIncludes.h"
-#include "RHI.h"
 #include "PlayerId.h"
 #include "VideoCapturerContext.h"
 
@@ -17,8 +16,8 @@ public:
 	~FVideoCapturer();
 
 	bool IsInitialized();
-	void Initialize(const FTexture2DRHIRef& FrameBuffer, TSharedPtr<FVideoCapturerContext> CapturerContext);
-	void OnFrameReady(const FTexture2DRHIRef& FrameBuffer);
+	void Initialize(FIntPoint& StartResolution);
+	bool TrySubmitFrame(TSharedPtr<FVideoCapturerContext, ESPMode::ThreadSafe> CapturerContext);
 
 	void AddRef() const override
 	{
@@ -47,7 +46,7 @@ public:
 
 	virtual bool is_screencast() const override
 	{
-		return false;
+		return true;
 	}
 
 	virtual absl::optional<bool> needs_denoising() const override
@@ -56,13 +55,12 @@ public:
 	}
 
 private:
-	bool AdaptCaptureFrame(const int64 TimestampUs, FIntPoint Resolution);
+	bool AdaptCaptureFrame(const int64 TimestampUs, TSharedPtr<FVideoCapturerContext, ESPMode::ThreadSafe> CapturerContext);
 	void SetCaptureResolution(int width, int height);
 	void OnEncoderInitialized();
 
 	bool bInitialized;
 	FPlayerId PlayerId;
-	TSharedPtr<FVideoCapturerContext> CapturerContext;
 	webrtc::MediaSourceInterface::SourceState CurrentState;
 	volatile int32 Count;
 };

@@ -76,6 +76,9 @@ public:
 	// destroy/release any frames that are not currently in use
 	void Flush() override;
 
+	// indicates whether a given frame is a user managed frame or not
+	bool IsUserManagedFrame(const FVideoEncoderInputFrame* InBuffer) const;
+
 	// --- input properties
 
 #if PLATFORM_WINDOWS

@@ -40,6 +40,14 @@ namespace AVEncoder
 		class FAMFLayer : public FLayer
 		{
 		public:
+
+			class FInputOutput
+			{
+				public:
+					void* TextureToCompress;
+					AMFSurfacePtr Surface;
+			};
+
 			FAMFLayer(uint32 layerIdx, FLayerConfig const& config, FVideoEncoderAmf_H264& encoder);
 			~FAMFLayer();
 
@@ -59,39 +67,23 @@ namespace AVEncoder
 			void Shutdown();
 			void UpdateBitrate(uint32 InMaxBitRate, uint32 InTargetBitRate);
 			void UpdateResolution(uint32 InMaxBitRate, uint32 InTargetBitRate);
+			void MaybeReconfigure();
+			void ProcessFrameBlocking();
+			TSharedPtr<FInputOutput> GetOrCreateSurface(const FVideoEncoderInputFrameImpl* InFrame);
+			bool CreateSurface(TSharedPtr<FInputOutput>& OutBuffer, const FVideoEncoderInputFrameImpl* SourceFrame, void* TextureToCompress);
 
 			FVideoEncoderAmf_H264& Encoder;
 			FAmfCommon& Amf;
 			uint32 LayerIndex;
 			AMFComponentPtr AmfEncoder = NULL;
-			FThreadSafeCounter PendingFrames;
 			FDateTime LastKeyFrameTime = 0;
 			bool bForceNextKeyframe = false;
-
-			class FInputOutput
-			{
-			public:
-				void* TextureToCompress;
-				AMFSurfacePtr Surface;
-			};
-
-			void MaybeReconfigure();
-
-			TSharedPtr<FInputOutput> GetOrCreateSurface(const FVideoEncoderInputFrameImpl* InFrame);
-			bool CreateSurface(TSharedPtr<FInputOutput>& OutBuffer, const FVideoEncoderInputFrameImpl* SourceFrame, void* TextureToCompress);
-
 			TArray<TSharedPtr<FInputOutput>> CreatedSurfaces;
 			FThreadSafeBool bUpdateConfig = false;
-
 			uint32 CurrentWidth;
 			uint32 CurrentHeight;
 			uint32 CurrentFrameRate;
-
-			void ProcessFrameThreadFunc();
-			TUniquePtr<FThread> ProcessFrameThread;
-			FThreadSafeBool bShouldRunProcessingThread = true;
-			FThreadSafeBool bWaitingForFrames = true;
-			FEventRef FramesPending;
+			FThreadSafeBool bIsProcessingFrame = false;
 		};
 
 		FAmfCommon& Amf;

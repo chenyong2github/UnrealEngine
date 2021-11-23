@@ -52,18 +52,18 @@ bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)
 {
 	FString ConsoleCommand;
 	bool bSuccess = false;
-	GetJsonStringValue(Descriptor, TEXT("ConsoleCommand"), ConsoleCommand, bSuccess);
+	ExtractJsonFromDescriptor(Descriptor, TEXT("ConsoleCommand"), ConsoleCommand, bSuccess);
 	if (bSuccess)
 	{
-		return GEngine->Exec(GetWorld(), *ConsoleCommand);
+		return GEngine->Exec(GEngine->GetWorld(), *ConsoleCommand);
 	}
 	
 	FString WidthString;
 	FString HeightString;
-	GetJsonStringValue(Descriptor, TEXT("Resolution.Width"), WidthString, bSuccess);
+	ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Width"), WidthString, bSuccess);
 	if (bSuccess)
 	{
-		GetJsonStringValue(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
+		ExtractJsonFromDescriptor(Descriptor, TEXT("Resolution.Height"), HeightString, bSuccess);
 
 		int Width = FCString::Atoi(*WidthString);
 		int Height = FCString::Atoi(*HeightString);
@@ -74,7 +74,7 @@ bool UPixelStreamerInputComponent::OnCommand(const FString& Descriptor)
 		}
 
 		FString ChangeResCommand = FString::Printf(TEXT("r.SetRes %dx%d"), Width, Height);
-		return GEngine->Exec(GetWorld(), *ChangeResCommand);
+		return GEngine->Exec(GEngine->GetWorld(), *ChangeResCommand);
 
 	}
 
@@ -96,6 +96,11 @@ void UPixelStreamerInputComponent::SendPixelStreamingResponse(const FString& Des
 }
 
 void UPixelStreamerInputComponent::GetJsonStringValue(FString Descriptor, FString FieldName, FString& StringValue, bool& Success)
+{
+	ExtractJsonFromDescriptor(Descriptor, FieldName, StringValue, Success);
+}
+
+void UPixelStreamerInputComponent::ExtractJsonFromDescriptor(FString Descriptor, FString FieldName, FString& StringValue, bool& Success)
 {
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 
@@ -129,6 +134,11 @@ void UPixelStreamerInputComponent::GetJsonStringValue(FString Descriptor, FStrin
 }
 
 void UPixelStreamerInputComponent::AddJsonStringValue(const FString& Descriptor, FString FieldName, FString StringValue, FString& NewDescriptor, bool& Success)
+{
+	ExtendJsonWithField(Descriptor, FieldName, StringValue, NewDescriptor, Success);
+}
+
+void UPixelStreamerInputComponent::ExtendJsonWithField(const FString& Descriptor, FString FieldName, FString StringValue, FString& NewDescriptor, bool& Success)
 {
 	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
 

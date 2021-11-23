@@ -42,7 +42,7 @@ public:
 	 * @param Descriptor - The command JSON descriptor.
 	 * @return True if the command was successfully executed.
 	 */
-	bool OnCommand(const FString& Descriptor);
+	static bool OnCommand(const FString& Descriptor);
 
 	/**
 	 * Send a response back to the source of the UI interactions.
@@ -64,6 +64,7 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "PixelStreamer Input")
 	void GetJsonStringValue(FString Descriptor, FString FieldName, FString& StringValue, bool& Success);
+	static void ExtractJsonFromDescriptor(FString Descriptor, FString FieldName, FString& StringValue, bool& Success);
 
 	/**
 	 * Helper function to add a string field to a JSON descriptor. This produces
@@ -76,6 +77,7 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "PixelStreamer Input")
 	void AddJsonStringValue(const FString& Descriptor, FString FieldName, FString StringValue, FString& NewDescriptor, bool& Success);
+	static void ExtendJsonWithField(const FString& Descriptor, FString FieldName, FString StringValue, FString& NewDescriptor, bool& Success);
 
 private:
 	// For convenience we keep a reference to the Pixel Streaming plugin.

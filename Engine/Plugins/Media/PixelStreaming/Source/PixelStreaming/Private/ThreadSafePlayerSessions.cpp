@@ -413,14 +413,14 @@ int FThreadSafePlayerSessions::DeletePlayerSession_SignallingThread(FPlayerId Pl
     Players.Remove(PlayerId);
 	delete Player;
 
+    // Player deleted, tell all our C++ listeners.
+    this->OnPlayerDeleted.Broadcast(PlayerId);
+
 	UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates();
 	if (Delegates)
 	{
 		Delegates->OnClosedConnection.Broadcast(PlayerId, bWasQualityController);
 	}
-
-    // Player deleted, tell all our C++ listeners.
-    this->OnPlayerDeleted.Broadcast(PlayerId);
 
 	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
 	if (Players.Num() == 0)
@@ -531,3 +531,8 @@ void FThreadSafePlayerSessions::SetQualityController_SignallingThread(FPlayerId 
         UE_LOG(PixelStreamer, Log, TEXT("Could not set quality controller for PlayerId=%s - that player does not exist."), *PlayerId);
     }
 }
+
+#undef SUBMIT_TASK_WITH_RETURN
+#undef SUBMIT_TASK_WITH_PARAMS_AND_RETURN
+#undef SUBMIT_TASK_NO_PARAMS
+#undef SUBMIT_TASK_WITH_PARAMS

@@ -9,28 +9,21 @@
 #include "RHI.h"
 #include "RenderResource.h"
 #include "ScreenRendering.h"
+#include "PixelStreamingFrameBuffer.h"
+#include "Containers/TripleBuffer.h"
+
+struct FVideoCaptureFrame
+{
+    FGPUFenceRHIRef CopyFence;
+    FTexture2DRHIRef Texture;
+	uint64 PreWaitingOnCopy;
+};
+
 
 // Context object for `FVideoCapturer`. The context contains backbuffers and the appropriates objects/methods to create frames for submission to 
 // the hardware encoders. The context is split out from the `FVideoCapturer` itself because context can be shared/passed around to capturers as they become active.
 class FVideoCapturerContext
 {
-    public:
-
-        class FCapturerInput
-        {
-            public:
-                FCapturerInput() 
-                    : InputFrame(nullptr)
-                    , Texture(){};
-
-                FCapturerInput(AVEncoder::FVideoEncoderInputFrame* InFrame, FTexture2DRHIRef InTexture)
-                    : InputFrame(InFrame)
-                    , Texture(InTexture){};
-
-            public:
-                AVEncoder::FVideoEncoderInputFrame* InputFrame;
-                TOptional<FTexture2DRHIRef> Texture;
-        };
 
     public:
         FVideoCapturerContext(int InCaptureWidth, int InCaptureHeight, bool bInFixedResolution);
@@ -38,25 +31,32 @@ class FVideoCapturerContext
         int GetCaptureHeight() const;
         bool IsFixedResolution() const;
         void SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight);
-        FVideoCapturerContext::FCapturerInput ObtainCapturerInput();
-        TSharedPtr<AVEncoder::FVideoEncoderInput> GetVideoEncoderInput() const;
+        int32 GetNextFrameId();
+        void CaptureFrame(const FTexture2DRHIRef& FrameBuffer);
+        FTextureObtainer RequestNewestCapturedFrame();
+        bool IsInitialized() const;
 
     private:
-        TSharedPtr<AVEncoder::FVideoEncoderInput> CreateVideoEncoderInput(int InWidth, int InHeight, bool bInFixedResolution);
+        FTexture2DRHIRef MakeTexture();
+        void Shutdown();
         void DeleteBackBuffers();
-        
-#if PLATFORM_WINDOWS        
-        FTexture2DRHIRef SetBackbufferTextureDX11(AVEncoder::FVideoEncoderInputFrame* InputFrame);
-        FTexture2DRHIRef SetBackbufferTextureDX12(AVEncoder::FVideoEncoderInputFrame* InputFrame);
-#endif // PLATFORM_WINDOWS
-
-        FTexture2DRHIRef SetBackbufferTexturePureVulkan(AVEncoder::FVideoEncoderInputFrame* InputFrame);
-        FTexture2DRHIRef SetBackbufferTextureCUDAVulkan(AVEncoder::FVideoEncoderInputFrame* InputFrame);
+		void SwapBackBuffers();
 
     private:
         int CaptureWidth;
         int CaptureHeight;
         bool bFixedResolution;
-        TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput = nullptr;
-        TMap<AVEncoder::FVideoEncoderInputFrame*, FTexture2DRHIRef> BackBuffers;
+
+        FVideoCaptureFrame EvenFrame;
+        FVideoCaptureFrame OddFrame;
+        FTexture2DRHIRef TempTexture;
+        FTexture2DRHIRef EncoderTexture;
+
+		FThreadSafeBool bIsTempDirty;
+
+        FThreadSafeCounter NextFrameID;
+        FThreadSafeBool bIsInitialized;
+        FCriticalSection CriticalSection;
+
+        bool bIsEvenFrame;
 };
