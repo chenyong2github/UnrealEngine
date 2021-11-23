@@ -5,6 +5,7 @@
 #include "Kismet/BlueprintAsyncActionBase.h"
 #include "GameplayEffectTypes.h"
 #include "Abilities/GameplayAbilityTypes.h"
+#include "Engine/CancellableAsyncAction.h"
 #include "AbilityAsync.generated.h"
 
 class UAbilitySystemComponent;
@@ -16,10 +17,12 @@ class UAbilitySystemComponent;
  * EndAction should be called when a one-time action has succeeded or failed, but for longer-lived actions with multiple triggers it can be called from blueprints.
  */
 UCLASS(Abstract, meta = (ExposedAsyncProxy = AsyncAction))
-class GAMEPLAYABILITIES_API UAbilityAsync : public UBlueprintAsyncActionBase
+class GAMEPLAYABILITIES_API UAbilityAsync : public UCancellableAsyncAction
 {
 	GENERATED_BODY()
 public:
+
+	virtual void Cancel() override;
 
 	/** Explicitly end the action, will disable any callbacks and allow action to be destroyed */
 	UFUNCTION(BlueprintCallable, Category = "Ability|Async")

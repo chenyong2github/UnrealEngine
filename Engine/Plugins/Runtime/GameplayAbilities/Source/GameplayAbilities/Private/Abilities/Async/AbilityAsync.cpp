@@ -4,6 +4,12 @@
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
+void UAbilityAsync::Cancel()
+{
+	EndAction();
+	Super::Cancel();
+}
+
 void UAbilityAsync::EndAction()
 {
 	// Child classes should override this if they need to explicitly unbind delegates that aren't just using weak pointers
