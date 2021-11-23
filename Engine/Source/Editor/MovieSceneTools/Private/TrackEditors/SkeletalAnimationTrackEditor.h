@@ -122,7 +122,7 @@ private:
 	FDelegateHandle SequencerSavedHandle;
 	void OnSequencerSaved(ISequencer& InSequence);
 
-
+	void OnPostPropertyChanged(UObject* InObject, struct FPropertyChangedEvent& InPropertyChangedEvent);
 };
 
 
