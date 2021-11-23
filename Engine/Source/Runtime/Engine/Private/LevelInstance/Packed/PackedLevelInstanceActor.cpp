@@ -92,32 +92,19 @@ FName APackedLevelInstance::GetPackedComponentTag()
 	return PackedComponentTag;
 }
 
-void APackedLevelInstance::OnWorldAssetChanged()
+void APackedLevelInstance::UpdateLevelInstance()
 {
-	if (IsLevelInstancePathValid())
+	if (!Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 	{
-		TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
-		Builder->PackActor(this, GetWorldAsset());
-	}
-	else
-	{
-		DestroyPackedComponents();
-	}
-}
-
-void APackedLevelInstance::OnWorldAssetSaved(bool bPromptForSave)
-{
-	TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
-	
-	if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
-	{
-		check(GeneratedBy == BlueprintAsset.Get());
-		const bool bCheckoutAndSave = true;
-		Builder->UpdateBlueprint(GeneratedBy, bCheckoutAndSave, bPromptForSave);
-	}
-	else
-	{
-		Builder->PackActor(this);
+		if (IsLevelInstancePathValid())
+		{
+			TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
+			Builder->PackActor(this, GetWorldAsset());
+		}
+		else
+		{
+			DestroyPackedComponents();
+		}
 	}
 }
 
@@ -168,11 +155,24 @@ void APackedLevelInstance::OnEdit()
 	MarkComponentsRenderStateDirty();
 }
 
-void APackedLevelInstance::OnCommit()
+void APackedLevelInstance::OnCommit(bool bChanged, bool bPromptForSave)
 {
-	Super::OnCommit();
+	Super::OnCommit(bChanged, bPromptForSave);
 	check(bEditing);
 	bEditing = false;
+
+	if (bChanged)
+	{
+		if (UBlueprint* GeneratedBy = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
+		{
+			check(GeneratedBy == BlueprintAsset.Get());
+			const bool bCheckoutAndSave = true;
+			TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
+			Builder->UpdateBlueprint(GeneratedBy, bCheckoutAndSave, bPromptForSave);
+		}
+	}
+	
+	// bEditing flag changed so dirty render state
 	MarkComponentsRenderStateDirty();
 }
 

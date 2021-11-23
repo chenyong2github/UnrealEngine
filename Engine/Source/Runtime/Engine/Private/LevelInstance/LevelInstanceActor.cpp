@@ -230,7 +230,7 @@ void ALevelInstance::OnEdit()
 	bEditLockLocation = true;
 }
 
-void ALevelInstance::OnCommit()
+void ALevelInstance::OnCommit(bool bChanged, bool bPromptForSave)
 {
 	bEditLockLocation = false;
 }

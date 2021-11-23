@@ -102,17 +102,16 @@ public:
 	bool IsLoaded() const;
 	void OnLevelInstanceLoaded();
 	FString GetWorldAssetPackage() const;
-	void UpdateLevelInstance();
 	bool SetWorldAsset(TSoftObjectPtr<UWorld> WorldAsset);
 	bool CheckForLoop(TSoftObjectPtr<UWorld> WorldAsset, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo = nullptr, const ALevelInstance** LoopStart = nullptr) const;
 	AActor* FindEditorInstanceActor() const;
 
 	virtual void OnWorldAssetChanged() { UpdateLevelInstance(); }
-	virtual void OnWorldAssetSaved(bool bPromptForSave) {}
 	virtual void OnEdit();
 	virtual void OnEditChild() {}
-	virtual void OnCommit();
+	virtual void OnCommit(bool bChanged, bool bPromptForSave);
 	virtual void OnCommitChild(bool bChanged) {}
+	virtual void UpdateLevelInstance();
 		
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelInstanceActorPostLoad, ALevelInstance*);
 	static FOnLevelInstanceActorPostLoad OnLevelInstanceActorPostLoad;
