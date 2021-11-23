@@ -2,18 +2,24 @@
 
 #include "SDataProviderActivityFilter.h"
 
+#include "CoreGlobals.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Misc/App.h"
+#include "Misc/ConfigCacheIni.h"
 #include "StageMessages.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "SDataProviderActivityFilter"
 
+
+static TAutoConsoleVariable<int32> CVarStageMonitorDefaultMaxMessageAge(TEXT("StageMonitor.DefaultMaxMessageAge"), 30, TEXT("The default value in minutes for the maximum age for which to display messages in the data monitor."));
 
 
 FDataProviderActivityFilter::FDataProviderActivityFilter(TWeakPtr<IStageMonitorSession> InSession)
