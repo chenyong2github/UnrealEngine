@@ -994,7 +994,8 @@ void FD3D12Adapter::InitializeDevices()
 				{
 					UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing tier 1.0 is supported."));
 
-					GRHISupportsRayTracing = true;
+					GRHISupportsRayTracing = RHISupportsRayTracing(GMaxRHIShaderPlatform);
+					GRHISupportsRayTracingShaders = GRHISupportsRayTracing && RHISupportsRayTracingShaders(GMaxRHIShaderPlatform);
 
 					if (D3D12Caps5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1
 						&& RootDevice7)
@@ -1002,6 +1003,7 @@ void FD3D12Adapter::InitializeDevices()
 						UE_LOG(LogD3D12RHI, Log, TEXT("D3D12 ray tracing tier 1.1 is supported."));
 
 						GRHISupportsRayTracingPSOAdditions = true;
+						GRHISupportsInlineRayTracing = GRHISupportsRayTracing && RHISupportsInlineRayTracing(GMaxRHIShaderPlatform);
 					}
 				}
 				else if (D3D12Caps5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED 

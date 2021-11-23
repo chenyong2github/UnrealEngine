@@ -1002,7 +1002,7 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 	case SF_Compute: Shader = RHICreateComputeShader(ShaderCodeView, ShaderHash); CheckShaderCreation(Shader, Index); break;
 	case SF_RayGen: case SF_RayMiss: case SF_RayHitGroup: case SF_RayCallable:
 #if RHI_RAYTRACING
-		if (GRHISupportsRayTracing)
+		if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
 		{
 			Shader = RHICreateRayTracingShader(ShaderCodeView, ShaderHash, ShaderEntry.GetFrequency());
 			CheckShaderCreation(Shader, Index);
@@ -1375,7 +1375,7 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 Index)
 	case SF_Compute: Shader = RHICreateComputeShader(ShaderCodeView, ShaderHash); break;
 	case SF_RayGen: case SF_RayMiss: case SF_RayHitGroup: case SF_RayCallable:
 #if RHI_RAYTRACING
-		if (GRHISupportsRayTracing)
+		if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
 		{
 			Shader = RHICreateRayTracingShader(ShaderCodeView, ShaderHash, ShaderEntry.GetFrequency());
 		}

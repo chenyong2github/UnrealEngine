@@ -201,12 +201,30 @@ inline bool RHISupportsAbsoluteVertexID(const EShaderPlatform InShaderPlatform)
 	return IsVulkanPlatform(InShaderPlatform) || IsVulkanMobilePlatform(InShaderPlatform);
 }
 
-/** Can this platform compile ray tracing shaders (regardless of project settings).
+/** Whether this platform can build acceleration structures and use full ray tracing pipelines or inline ray tracing (ray queries).
+ *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
+ *  Check GRHISupportsRayTracingShaders before using full ray tracing pipeline state objects.
+ *  Check GRHISupportsInlineRayTracing before using inline ray tracing features in compute and other shaders.
+ **/
+inline RHI_API bool RHISupportsRayTracing(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
+}
+
+/** Whether this platform can compile ray tracing shaders (regardless of project settings).
  *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
  **/
 inline RHI_API bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracingShaders(Platform);
+}
+
+/** Whether this platform can compile shaders with inline ray tracing features.
+ *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
+ **/
+inline RHI_API bool RHISupportsInlineRayTracing(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsInlineRayTracing(Platform);
 }
 
 /** Can this platform compile mesh shaders with tier0 capability.
@@ -577,8 +595,17 @@ extern RHI_API bool GRHISupportsFirstInstance;
 /** Whether or not the RHI can handle dynamic resolution or not. */
 extern RHI_API bool GRHISupportsDynamicResolution;
 
-/** Whether or not the RHI supports ray tracing on current hardware (acceleration structure building and new ray tracing-specific shader types). */
+/**
+* Whether or not the RHI supports ray tracing on current hardware (acceleration structure building and new ray tracing-specific shader types). 
+* GRHISupportsRayTracingShaders and GRHISupportsInlineRayTracing must also be checked before dispatching ray tracing workloads.
+*/
 extern RHI_API bool GRHISupportsRayTracing;
+
+/**
+* Whether or not the RHI supports ray tracing raygen, miss and hit shaders (i.e. full ray tracing pipeline). 
+* The RHI may support inline ray tracing from compute shaders, but not the full pipeline.
+*/
+extern RHI_API bool GRHISupportsRayTracingShaders;
 
 /** Whether or not the RHI supports adding new shaders to an existing RT PSO. */
 extern RHI_API bool GRHISupportsRayTracingPSOAdditions;
@@ -592,7 +619,7 @@ extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 /** Whether or not the RHI supports the AMD Hit Token extension. */
 extern RHI_API bool GRHISupportsRayTracingAMDHitToken;
 
-/** Whether or not the RHI supports inline ray tracing. */
+/** Whether or not the RHI supports inline ray tracing in compute shaders, without a full ray tracing pipeline. */
 extern RHI_API bool GRHISupportsInlineRayTracing;
 
 /** Required alignment for ray tracing acceleration structures. */

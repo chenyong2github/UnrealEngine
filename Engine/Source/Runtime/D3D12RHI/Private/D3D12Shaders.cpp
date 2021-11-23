@@ -174,7 +174,7 @@ FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(TArrayView<const u
 
 FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<const uint8> Code, const FSHAHash& Hash, EShaderFrequency ShaderFrequency)
 {
-	checkf(GRHISupportsRayTracing, TEXT("Tried to create RayTracing shader but RHI doesn't support it!"));
+	checkf(GRHISupportsRayTracing && GRHISupportsRayTracingShaders, TEXT("Tried to create RayTracing shader but RHI doesn't support it!"));
 
 	FShaderCodeReader ShaderCode(Code);
 	FD3D12RayTracingShader* Shader = new FD3D12RayTracingShader(ShaderFrequency);
