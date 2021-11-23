@@ -5,6 +5,7 @@
 #include "ToolBuilderUtil.h"
 
 #include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Polygroups/PolygroupUtil.h"
@@ -38,31 +39,9 @@ using namespace UE::Geometry;
  */
 
 
-const FToolTargetTypeRequirements& URemoveOccludedTrianglesToolBuilder::GetTargetRequirements() const
+UMultiSelectionMeshEditingTool* URemoveOccludedTrianglesToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMaterialProvider::StaticClass(),
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
-}
-
-bool URemoveOccludedTrianglesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
-{
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
-}
-
-UInteractiveTool* URemoveOccludedTrianglesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	URemoveOccludedTrianglesTool* NewTool = NewObject<URemoveOccludedTrianglesTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<URemoveOccludedTrianglesTool>(SceneState.ToolManager);
 }
 
 
@@ -87,11 +66,6 @@ URemoveOccludedTrianglesTool::URemoveOccludedTrianglesTool()
 	SetToolDisplayName(LOCTEXT("ProjectToTargetToolName", "Jacket"));
 }
 
-void URemoveOccludedTrianglesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
-
 void URemoveOccludedTrianglesTool::Setup()
 {
 	UInteractiveTool::Setup();
@@ -99,7 +73,7 @@ void URemoveOccludedTrianglesTool::Setup()
 	// hide input StaticMeshComponent
 	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
-		TargetComponentInterface(Idx)->SetOwnerVisibility(false);
+		UE::ToolTarget::HideSourceObject(Targets[Idx]);
 	}
 
 
@@ -243,7 +217,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 		};
 
 		bool bHasConverted = OriginalDynamicMeshes[PreviewIdx].IsValid();
-
+		
 		if (!bHasConverted)
 		{
 			URemoveOccludedTrianglesOperatorFactory *OpFactory = NewObject<URemoveOccludedTrianglesOperatorFactory>();
@@ -251,26 +225,25 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			OpFactory->PreviewIdx = PreviewIdx;
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 			FMeshDescriptionToDynamicMesh Converter;
-			Converter.Convert(TargetMeshProviderInterface(TargetIdx)->GetMeshDescription(), *OriginalDynamicMeshes[PreviewIdx]);
+			Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[TargetIdx]), *OriginalDynamicMeshes[PreviewIdx]);
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
 			ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 			Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
-			FComponentMaterialSet MaterialSet;
-			TargetMaterialInterface(TargetIdx)->GetMaterialSet(MaterialSet);
+			const FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[TargetIdx]);
 			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
 
-			Preview->PreviewMesh->SetTransform(TargetComponentInterface(TargetIdx)->GetWorldTransform());
+			Preview->PreviewMesh->SetTransform((FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[TargetIdx]));
 			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
 			Preview->SetVisibility(true);
 
 			OccluderTrees[TargetIdx] = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalDynamicMeshes[PreviewIdx].Get());
 			OccluderWindings[TargetIdx] = MakeShared<TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>(OccluderTrees[TargetIdx].Get());
-			OccluderTransforms[TargetIdx] = (UE::Geometry::FTransform3d)TargetComponentInterface(TargetIdx)->GetWorldTransform();
+			OccluderTransforms[TargetIdx] = UE::ToolTarget::GetLocalToWorldTransform(Targets[TargetIdx]);
 
 			// configure secondary render material
 			Preview->SecondaryMaterial = OccludedMaterial;
@@ -290,21 +263,20 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			// already did the conversion for a full UMeshOpPreviewWithBackgroundCompute -- just make a light version of that and hook it up to copy the other's work
 			int CopyIdx = PreviewCopies.Num();
 			UPreviewMesh* PreviewMesh = PreviewCopies.Add_GetRef(NewObject<UPreviewMesh>(this));
-			PreviewMesh->CreateInWorld(this->TargetWorld, TargetComponentInterface(TargetIdx)->GetWorldTransform());
+			PreviewMesh->CreateInWorld(this->TargetWorld, (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[TargetIdx]));
 
 			PreviewToCopyIdx[PreviewIdx].Add(CopyIdx);
 
 			PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
 
-			FComponentMaterialSet MaterialSet;
-			TargetMaterialInterface(TargetIdx)->GetMaterialSet(MaterialSet);
+			const FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[TargetIdx]);
 			PreviewMesh->SetMaterials(MaterialSet.Materials);
 			
 			PreviewMesh->SetVisible(true);
 
 			OccluderTrees[TargetIdx] = OccluderTrees[PreviewToTargetIdx[PreviewIdx]];
 			OccluderWindings[TargetIdx] = OccluderWindings[PreviewToTargetIdx[PreviewIdx]];
-			OccluderTransforms[TargetIdx] = (UE::Geometry::FTransform3d)TargetComponentInterface(TargetIdx)->GetWorldTransform();
+			OccluderTransforms[TargetIdx] = UE::ToolTarget::GetLocalToWorldTransform(Targets[TargetIdx]);
 
 			PreviewMesh->SetSecondaryRenderMaterial(OccludedMaterial);
 			PreviewMesh->EnableSecondaryTriangleBuffers(MoveTemp(IsOccludedGroupFn));
@@ -329,7 +301,7 @@ void URemoveOccludedTrianglesTool::Shutdown(EToolShutdownType ShutdownType)
 	// Restore (unhide) the source meshes
 	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[ComponentIdx]);
 	}
 
 	// clear all the preview copies
@@ -389,7 +361,7 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	Op->WindingIsoValue = Tool->BasicProperties->WindingIsoValue;
 
 	int ComponentIndex = Tool->PreviewToTargetIdx[PreviewIdx];
-	FTransform LocalToWorld = Tool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
+	FTransform LocalToWorld = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Tool->Targets[ComponentIndex]);
 	Op->OriginalMesh = Tool->OriginalDynamicMeshes[PreviewIdx];
 
 	if (Tool->BasicProperties->bOnlySelfOcclude)
@@ -526,14 +498,14 @@ void URemoveOccludedTrianglesTool::GenerateAsset(const TArray<FDynamicMeshOpResu
 				{
 					if (TargetToPreviewIdx[TargetIdx] == PreviewIdx)
 					{
-						TargetComponentInterface(TargetIdx)->GetOwnerComponent()->DestroyComponent();
+						UE::ToolTarget::GetTargetComponent(Targets[TargetIdx])->DestroyComponent();
 					}
 				}
 			}
 			continue;
 		}
 
-		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&Results, &PreviewIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		Cast<IMeshDescriptionCommitter>(Targets[ComponentIdx])->CommitMeshDescription([&Results, &PreviewIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
 			Converter.Convert(Results[PreviewIdx].Mesh.Get(), *CommitParams.MeshDescriptionOut);

@@ -10,6 +10,7 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "InteractiveToolManager.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "ModelingToolTargetUtil.h"
 #include "Misc/MessageDialog.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
@@ -25,33 +26,11 @@ using namespace UE::Geometry;
 #define LOCTEXT_NAMESPACE "UMirrorTool"
 
 
-//Tool builder functions
+// Tool builder functions
 
-const FToolTargetTypeRequirements& UMirrorToolBuilder::GetTargetRequirements() const
+UMultiSelectionMeshEditingTool* UMirrorToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMaterialProvider::StaticClass(),
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
-}
-
-bool UMirrorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
-{
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
-}
-
-UInteractiveTool* UMirrorToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UMirrorTool* NewTool = NewObject<UMirrorTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<UMirrorTool>(SceneState.ToolManager);
 }
 
 
@@ -69,7 +48,7 @@ TUniquePtr<FDynamicMeshOperator> UMirrorOperatorFactory::MakeNewOperator()
 	MirrorOp->PlaneTolerance = MirrorTool->Settings->PlaneTolerance;
 	MirrorOp->bAllowBowtieVertexCreation = MirrorTool->Settings->bAllowBowtieVertexCreation;
 
-	FTransform LocalToWorld = MirrorTool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
+	FTransform LocalToWorld = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(MirrorTool->Targets[ComponentIndex]);
 	MirrorOp->SetTransform(LocalToWorld);
 
 	// We also need WorldToLocal. Threshold the LocalToWorld scaling transform so we can get the inverse.
@@ -124,10 +103,6 @@ bool UMirrorTool::CanAccept() const
 	return Super::CanAccept();
 }
 
-void UMirrorTool::SetWorld(UWorld* World)
-{
-	TargetWorld = World;
-}
 
 void UMirrorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
@@ -136,7 +111,7 @@ void UMirrorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 	{
 		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(!Settings->bShowPreview);
+			UE::ToolTarget::SetSourceObjectVisible(Targets[ComponentIdx], !Settings->bShowPreview);
 		}
 		for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 		{
@@ -200,13 +175,10 @@ void UMirrorTool::Setup()
 	// Fill in the MeshesToMirror array with suitably converted meshes.
 	for (int i = 0; i < Targets.Num(); i++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(i);
-		IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(i);
-
 		// Convert into dynamic mesh
 		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> DynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(TargetMeshProvider->GetMeshDescription(), *DynamicMesh);
+		Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[i]), *DynamicMesh);
 
 		// Wrap the dynamic mesh in a replacement change target
 		UDynamicMeshReplacementChangeTarget* WrappedTarget = MeshesToMirror.Add_GetRef(NewObject<UDynamicMeshReplacementChangeTarget>());
@@ -219,7 +191,7 @@ void UMirrorTool::Setup()
 	// Set the visibility of the StaticMeshComponents depending on whether we are showing them or the preview.
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(!Settings->bShowPreview);
+		UE::ToolTarget::SetSourceObjectVisible(Targets[ComponentIdx], !Settings->bShowPreview);
 	}
 
 	// Initialize the PreviewMesh and BackgroundCompute objects
@@ -230,7 +202,7 @@ void UMirrorTool::Setup()
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		FVector ComponentOrigin, ComponentExtents;
-		TargetComponentInterface(ComponentIdx)->GetOwnerActor()->GetActorBounds(false, ComponentOrigin, ComponentExtents);
+		UE::ToolTarget::GetTargetActor(Targets[ComponentIdx])->GetActorBounds(false, ComponentOrigin, ComponentExtents);
 		CombinedBounds += FBox::BuildAABB(ComponentOrigin, ComponentExtents);
 	}
 
@@ -268,8 +240,7 @@ void UMirrorTool::Setup()
 	// invisible, since we want to be able to reposition the plane onto the original mesh.
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(TargetComponent->GetOwnerComponent());
+		PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
 	}
 
 	// Start the preview calculations
@@ -295,13 +266,12 @@ void UMirrorTool::SetupPreviews()
 		ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, nullptr);
 		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
-		FComponentMaterialSet MaterialSet;
-		TargetMaterialInterface(PreviewIndex)->GetMaterialSet(MaterialSet);
+		const FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[PreviewIndex]);
 		Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 
 		// Set initial preview to unprocessed mesh, so that things don't disappear initially
 		Preview->PreviewMesh->UpdatePreview(MeshesToMirror[PreviewIndex]->GetMesh().Get());
-		Preview->PreviewMesh->SetTransform(TargetComponentInterface(PreviewIndex)->GetWorldTransform());
+		Preview->PreviewMesh->SetTransform((FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[PreviewIndex]));
 		Preview->SetVisibility(Settings->bShowPreview);
 	}
 }
@@ -327,10 +297,11 @@ void UMirrorTool::CheckAndDisplayWarnings()
 	IPrimitiveComponentBackedTarget* NonUniformScalingTarget = nullptr;
 	for (int32 i = 0; i < Targets.Num(); ++i)
 	{
-		FVector Scaling = TargetComponentInterface(i)->GetWorldTransform().GetScale3D();
+		IPrimitiveComponentBackedTarget* Component = Cast<IPrimitiveComponentBackedTarget>(Targets[i]);
+		const FVector Scaling = Component->GetWorldTransform().GetScale3D();
 		if (Scaling.X != Scaling.Y || Scaling.Y != Scaling.Z)
 		{
-			NonUniformScalingTarget = TargetComponentInterface(i);
+			NonUniformScalingTarget = Component;
 			break;
 		}
 	}
@@ -367,7 +338,7 @@ void UMirrorTool::Shutdown(EToolShutdownType ShutdownType)
 	// Restore (unhide) the source meshes
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[ComponentIdx]);
 	}
 
 	// Swap in results, if appropriate
@@ -432,7 +403,6 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 	NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
 	for (int OrigMeshIdx = 0; OrigMeshIdx < NumSourceMeshes; OrigMeshIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(OrigMeshIdx);
 		FDynamicMesh3* Mesh = Results[OrigMeshIdx].Mesh.Get();
 		check(Mesh != nullptr);
 
@@ -440,15 +410,15 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 		{
 			if (bWantToDestroy)
 			{
-				TargetComponent->GetOwnerComponent()->DestroyComponent();
+				UE::ToolTarget::GetTargetComponent(Targets[OrigMeshIdx])->DestroyComponent();
 			}
 			continue;
 		}
 		else if (Settings->SaveMode == EMirrorSaveMode::UpdateAssets)
 		{
-			NewSelection.Actors.Add(TargetComponent->GetOwnerActor());
+			NewSelection.Actors.Add(UE::ToolTarget::GetTargetActor(Targets[OrigMeshIdx]));
 
-			TargetMeshCommitterInterface(OrigMeshIdx)->CommitMeshDescription([&Mesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+			Cast<IMeshDescriptionCommitter>(Targets[OrigMeshIdx])->CommitMeshDescription([&Mesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 				{
 					FDynamicMeshToMeshDescription Converter;
 					Converter.Convert(Mesh, *CommitParams.MeshDescriptionOut);
@@ -458,7 +428,7 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 		{
 			// Build array of materials from the original.
 			TArray<UMaterialInterface*> Materials;
-			IMaterialProvider* TargetMaterial = TargetMaterialInterface(OrigMeshIdx);
+			IMaterialProvider* TargetMaterial = Cast<IMaterialProvider>(Targets[OrigMeshIdx]);
 			for (int MaterialIdx = 0, NumMaterials = TargetMaterial->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
 			{
 				Materials.Add(TargetMaterial->GetMaterial(MaterialIdx));
@@ -477,7 +447,7 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			}
 
 			// Remove the original actor
-			TargetComponent->GetOwnerComponent()->DestroyComponent();
+			UE::ToolTarget::GetTargetComponent(Targets[OrigMeshIdx])->DestroyComponent();
 		}
 	}
 

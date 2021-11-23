@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "Physics/CollisionPropertySets.h"
 #include "PhysicsInspectorTool.generated.h"
@@ -11,16 +11,15 @@
 class UPreviewGeometry;
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPhysicsInspectorToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UPhysicsInspectorToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -30,7 +29,7 @@ protected:
  * Mesh Inspector Tool for visualizing mesh information
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPhysicsInspectorTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEXP_API UPhysicsInspectorTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 public:

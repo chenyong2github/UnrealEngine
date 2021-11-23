@@ -106,9 +106,9 @@ class MESHMODELINGTOOLSEXP_API USelfUnionMeshesToolBuilder : public UBaseCreateF
 	GENERATED_BODY()
 
 public:
-	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override
 	{
-		return NewObject<USelfUnionMeshesTool>(Outer);
+		return NewObject<USelfUnionMeshesTool>(SceneState.ToolManager);
 	}
 };
 

@@ -220,15 +220,10 @@ bool UGenerateStaticMeshLODAssetToolBuilder::CanBuildTool(const FToolBuilderStat
 	return (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1);
 }
 
-UInteractiveTool* UGenerateStaticMeshLODAssetToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UGenerateStaticMeshLODAssetToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	UGenerateStaticMeshLODAssetTool* NewTool = NewObject<UGenerateStaticMeshLODAssetTool>(SceneState.ToolManager);
 	NewTool->SetUseAssetEditorMode(bUseAssetEditorMode);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
 	return NewTool;
 }
 
@@ -247,12 +242,6 @@ void UGenerateStaticMeshLODAssetToolPresetProperties::PostAction(EGenerateLODAss
 /*
  * Tool
  */
-
-
-void UGenerateStaticMeshLODAssetTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 
 void UGenerateStaticMeshLODAssetTool::SetUseAssetEditorMode(bool bEnable)

@@ -15,39 +15,20 @@ using namespace UE::Geometry;
 /*
  * ToolBuilder
  */
-const FToolTargetTypeRequirements& UTransferMeshToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMaterialProvider::StaticClass(),
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
-}
 
 bool UTransferMeshToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 2;
 }
 
-UInteractiveTool* UTransferMeshToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UTransferMeshToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UTransferMeshTool* NewTool = NewObject<UTransferMeshTool>(SceneState.ToolManager);
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-	return NewTool;
+	return NewObject<UTransferMeshTool>(SceneState.ToolManager);
 }
 
 /*
  * Tool
  */
-
-void UTransferMeshTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 void UTransferMeshTool::Setup()
 {

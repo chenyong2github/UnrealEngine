@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "Engine/StaticMesh.h"
 #include "PreviewMesh.h"
@@ -13,21 +13,21 @@
 
 // predeclarations
 class UMaterialInterface;
+class ULODManagerTool;
 
 /**
  *
  */
 UCLASS()
-class MESHLODTOOLSET_API ULODManagerToolBuilder : public UInteractiveToolBuilder
+class MESHLODTOOLSET_API ULODManagerToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -167,7 +167,7 @@ public:
  * Mesh Attribute Editor Tool
  */
 UCLASS()
-class MESHLODTOOLSET_API ULODManagerTool : public UMultiSelectionTool
+class MESHLODTOOLSET_API ULODManagerTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -177,8 +177,6 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void OnTick(float DeltaTime) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override { return false; }
@@ -213,8 +211,6 @@ public:
 	void RemoveUnreferencedMaterials();
 
 protected:
-	UWorld* TargetWorld;
-
 	UStaticMesh* GetSingleStaticMesh();
 
 	ELODManagerToolActions PendingAction = ELODManagerToolActions::NoAction;

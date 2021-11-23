@@ -39,20 +39,9 @@ const FToolTargetTypeRequirements& UTransformMeshesToolBuilder::GetTargetRequire
 	return TypeRequirements;
 }
 
-bool UTransformMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UTransformMeshesToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= 1;
-}
-
-UInteractiveTool* UTransformMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UTransformMeshesTool* NewTool = NewObject<UTransformMeshesTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
-
-	return NewTool;
+	return NewObject<UTransformMeshesTool>(SceneState.ToolManager);
 }
 
 
@@ -64,12 +53,6 @@ UInteractiveTool* UTransformMeshesToolBuilder::BuildTool(const FToolBuilderState
 
 UTransformMeshesTool::UTransformMeshesTool()
 {
-}
-
-void UTransformMeshesTool::SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManagerIn)
-{
-	this->TargetWorld = World;
-	this->GizmoManager = GizmoManagerIn;
 }
 
 
@@ -122,7 +105,7 @@ void UTransformMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 	DragAlignmentMechanic->Shutdown();
 
-	GizmoManager->DestroyAllGizmosByOwner(this);
+	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 }
 
 
@@ -336,7 +319,7 @@ void UTransformMeshesTool::SetActiveGizmos_PerObject()
 
 void UTransformMeshesTool::ResetActiveGizmos()
 {
-	GizmoManager->DestroyAllGizmosByOwner(this);
+	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 	ActiveGizmos.Reset();
 }
 
@@ -357,7 +340,7 @@ FInputRayHit UTransformMeshesTool::CanBeginClickDragSequence(const FInputDeviceR
 
 	for ( int k = 0; k < Targets.Num(); ++k )
 	{
-		IPrimitiveComponentBackedTarget* Target = TargetComponentInterface(k);
+		const IPrimitiveComponentBackedTarget* Target = Cast<IPrimitiveComponentBackedTarget>(Targets[k]);
 
 		FHitResult WorldHit;
 		if (Target->HitTestComponent(PressPos.WorldRay, WorldHit))

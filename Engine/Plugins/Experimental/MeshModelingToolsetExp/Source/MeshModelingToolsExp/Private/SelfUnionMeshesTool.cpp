@@ -5,6 +5,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolSetupUtil.h"
 #include "BaseGizmos/TransformProxy.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMeshEditor.h"
@@ -12,6 +13,8 @@
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
+
+#include "TargetInterfaces/MeshDescriptionProvider.h"
 
 using namespace UE::Geometry;
 
@@ -56,8 +59,7 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	{
 		for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			FComponentMaterialSet ComponentMaterialSet;
-			TargetMaterialInterface(ComponentIdx)->GetMaterialSet(ComponentMaterialSet);
+			const FComponentMaterialSet ComponentMaterialSet = UE::ToolTarget::GetMaterialSet(Targets[ComponentIdx]);
 			for (UMaterialInterface* Mat : ComponentMaterialSet.Materials)
 			{
 				int* FoundMatIdx = KnownMaterials.Find(Mat);
@@ -77,14 +79,14 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	}
 	else
 	{
-		TargetMaterialInterface(0)->GetMaterialSet(AllMaterialSet);
+		AllMaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 		for (int MatIdx = 0; MatIdx < AllMaterialSet.Materials.Num(); MatIdx++)
 		{
 			MaterialRemap[0].Add(MatIdx);
 		}
 		for (int ComponentIdx = 1; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			MaterialRemap[ComponentIdx].Init(0, TargetMaterialInterface(ComponentIdx)->GetNumMaterials());
+			MaterialRemap[ComponentIdx].Init(0, Cast<IMaterialProvider>(Targets[ComponentIdx])->GetNumMaterials());
 		}
 	}
 
@@ -100,7 +102,7 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	{
 		FDynamicMesh3 ComponentMesh;
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription(), ComponentMesh);
+		Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]), ComponentMesh);
 		bNeedColorAttr = bNeedColorAttr || (ComponentMesh.Attributes()->HasPrimaryColors());
 		// ensure materials and attributes are always enabled
 		ComponentMesh.EnableAttributes();

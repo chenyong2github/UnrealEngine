@@ -5,6 +5,7 @@
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "ModelingObjectsCreationAPI.h"
+#include "ModelingToolTargetUtil.h"
 #include "Selection/ToolSelectionUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
@@ -36,20 +37,14 @@ const FToolTargetTypeRequirements& UMergeMeshesToolBuilder::GetTargetRequirement
 
 bool UMergeMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	const int32 MinRequiredComponents = 1;
+	constexpr int32 MinRequiredComponents = 1;
 	const bool bHasComponents = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= MinRequiredComponents;
 	return ( bHasComponents );
 }
 
-UInteractiveTool* UMergeMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UMergeMeshesToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UMergeMeshesTool* NewTool = NewObject<UMergeMeshesTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<UMergeMeshesTool>(SceneState.ToolManager);
 }
 
 
@@ -61,11 +56,6 @@ UInteractiveTool* UMergeMeshesToolBuilder::BuildTool(const FToolBuilderState& Sc
 
 UMergeMeshesTool::UMergeMeshesTool()
 {
-}
-
-void UMergeMeshesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
 }
 
 
@@ -87,7 +77,7 @@ void UMergeMeshesTool::Setup()
 	// Hide the source meshes
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(false);
+		UE::ToolTarget::HideSourceObject(Targets[ComponentIdx]);
 	}
 
 	// save transformed version of input meshes (maybe this could happen in the Operator?)
@@ -128,7 +118,7 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	// Restore (unhide) the source meshes
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[ComponentIdx]);
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -140,7 +130,7 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		TArray<AActor*> Actors;
 		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			Actors.Add(TargetComponentInterface(ComponentIdx)->GetOwnerActor());
+			Actors.Add(UE::ToolTarget::GetTargetActor(Targets[ComponentIdx]));
 		}
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
 
@@ -189,8 +179,8 @@ void UMergeMeshesTool::CacheInputMeshes()
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		UE::Geometry::FVoxelMergeMeshesOp::FInputMesh InputMesh;
-		InputMesh.Mesh = TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription();
-		InputMesh.Transform = TargetComponentInterface(ComponentIdx)->GetWorldTransform();
+		InputMesh.Mesh = UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]);
+		InputMesh.Transform = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
 		InputMeshes.Add(InputMesh);
 	}
 }

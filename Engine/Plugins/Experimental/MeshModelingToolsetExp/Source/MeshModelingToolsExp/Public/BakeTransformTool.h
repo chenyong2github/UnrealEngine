@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh/DynamicMesh3.h"
@@ -21,16 +21,11 @@ class UDynamicMeshComponent;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeTransformToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UBakeTransformToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
-
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -76,7 +71,7 @@ public:
  * Simple tool to bake scene transform on meshes into the mesh assets
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeTransformTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEXP_API UBakeTransformTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -85,8 +80,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -97,8 +90,6 @@ protected:
 	TObjectPtr<UBakeTransformToolProperties> BasicProperties;
 
 protected:
-	UWorld* TargetWorld;
-
 	TArray<int> MapToFirstOccurrences;
 
 	void UpdateAssets();

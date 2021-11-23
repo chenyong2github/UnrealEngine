@@ -13,6 +13,9 @@
 #include "DynamicMesh/MeshTransforms.h"
 #include "DynamicSubmesh3.h"
 
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USplitMeshesTool"
@@ -30,18 +33,9 @@ const FToolTargetTypeRequirements& USplitMeshesToolBuilder::GetTargetRequirement
 	return TypeRequirements;
 }
 
-bool USplitMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* USplitMeshesToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
-}
-
-UInteractiveTool* USplitMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	USplitMeshesTool* NewTool = NewObject<USplitMeshesTool>(SceneState.ToolManager);
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-	return NewTool;
+	return NewObject<USplitMeshesTool>(SceneState.ToolManager);
 }
 
 
@@ -50,11 +44,6 @@ UInteractiveTool* USplitMeshesToolBuilder::BuildTool(const FToolBuilderState& Sc
  * Tool
  */
 
-
-void USplitMeshesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 void USplitMeshesTool::Setup()
 {

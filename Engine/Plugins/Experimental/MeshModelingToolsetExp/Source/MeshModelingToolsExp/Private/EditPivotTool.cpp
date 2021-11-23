@@ -35,31 +35,9 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-
-const FToolTargetTypeRequirements& UEditPivotToolBuilder::GetTargetRequirements() const
+UMultiSelectionMeshEditingTool* UEditPivotToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-	});
-	return TypeRequirements;
-}
-
-bool UEditPivotToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
-{
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= 1;
-}
-
-UInteractiveTool* UEditPivotToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UEditPivotTool* NewTool = NewObject<UEditPivotTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
-
-	return NewTool;
+	return NewObject<UEditPivotTool>(SceneState.ToolManager);
 }
 
 
@@ -82,12 +60,6 @@ void UEditPivotToolActionPropertySet::PostAction(EEditPivotToolActions Action)
 
 UEditPivotTool::UEditPivotTool()
 {
-}
-
-void UEditPivotTool::SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManagerIn)
-{
-	this->TargetWorld = World;
-	this->GizmoManager = GizmoManagerIn;
 }
 
 
@@ -154,7 +126,7 @@ void UEditPivotTool::Shutdown(EToolShutdownType ShutdownType)
 
 	FFrame3d CurPivotFrame(ActiveGizmos[0].TransformProxy->GetTransform());
 
-	GizmoManager->DestroyAllGizmosByOwner(this);
+	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -324,7 +296,7 @@ void UEditPivotTool::SetActiveGizmos_Single(bool bLocalRotations)
 	{
 		Transformable.TransformProxy->AddComponent(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
 	}
-	Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GizmoManager,
+	Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomTransformGizmo(GetToolManager()->GetPairedGizmoManager(),
 		ETransformGizmoSubElements::StandardTranslateRotate, this
 	);
 	Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy, GetToolManager());
@@ -338,7 +310,7 @@ void UEditPivotTool::SetActiveGizmos_Single(bool bLocalRotations)
 
 void UEditPivotTool::ResetActiveGizmos()
 {
-	GizmoManager->DestroyAllGizmosByOwner(this);
+	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 	ActiveGizmos.Reset();
 }
 

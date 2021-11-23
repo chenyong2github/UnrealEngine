@@ -3,8 +3,11 @@
 #include "BaseTools/BaseVoxelTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "Materials/MaterialInstanceDynamic.h"
+
+#include "TargetInterfaces/MeshDescriptionProvider.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 
@@ -45,7 +48,7 @@ void UBaseVoxelTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 	{
 		OriginalDynamicMeshes[ComponentIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription(), *OriginalDynamicMeshes[ComponentIdx]);
+		Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]), *OriginalDynamicMeshes[ComponentIdx]);
 	}
 
 	//if (bSetPreviewMesh)

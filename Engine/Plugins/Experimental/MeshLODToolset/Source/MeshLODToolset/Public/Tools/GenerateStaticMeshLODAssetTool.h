@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "ModelingOperators.h" //IDynamicMeshOperatorFactory
 #include "DynamicMesh/DynamicMesh3.h"
@@ -38,7 +38,7 @@ enum class EGenerateLODAssetOutputMode : uint8
  * Tool builder
  */
 UCLASS()
-class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolBuilder : public UInteractiveToolBuilder
+class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -46,10 +46,10 @@ public:
 	bool bUseAssetEditorMode = false;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -260,7 +260,7 @@ public:
  * Simple tool to combine multiple meshes into a single mesh asset
  */
 UCLASS()
-class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetTool : public UMultiSelectionTool
+class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -271,8 +271,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void OnTick(float DeltaTime);
 
@@ -328,7 +326,6 @@ protected:
 
 protected:
 	bool bIsInAssetEditorMode = false;
-	UWorld* TargetWorld;
 
 	UPROPERTY()
 	TObjectPtr<UGenerateStaticMeshLODProcess> GenerateProcess;

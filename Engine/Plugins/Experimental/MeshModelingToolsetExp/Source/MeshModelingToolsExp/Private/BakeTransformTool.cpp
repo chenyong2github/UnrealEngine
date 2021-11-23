@@ -32,31 +32,9 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-
-const FToolTargetTypeRequirements& UBakeTransformToolBuilder::GetTargetRequirements() const
+UMultiSelectionMeshEditingTool* UBakeTransformToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
-}
-
-bool UBakeTransformToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
-{
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
-}
-
-UInteractiveTool* UBakeTransformToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UBakeTransformTool* NewTool = NewObject<UBakeTransformTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<UBakeTransformTool>(SceneState.ToolManager);
 }
 
 
@@ -71,15 +49,10 @@ UBakeTransformToolProperties::UBakeTransformToolProperties()
 }
 
 
-
 UBakeTransformTool::UBakeTransformTool()
 {
 }
 
-void UBakeTransformTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 void UBakeTransformTool::Setup()
 {

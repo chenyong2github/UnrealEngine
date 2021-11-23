@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh/DynamicMesh3.h"
@@ -19,7 +19,7 @@ struct FMeshDescription;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UCombineMeshesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UCombineMeshesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -27,10 +27,7 @@ public:
 	bool bIsDuplicateTool = false;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -67,7 +64,7 @@ public:
  * Simple tool to combine multiple meshes into a single mesh asset
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UCombineMeshesTool : public UMultiSelectionTool
+class MESHMODELINGTOOLS_API UCombineMeshesTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -76,8 +73,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -92,8 +87,6 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UOnAcceptHandleSourcesPropertiesBase> HandleSourceProperties;
-
-	UWorld* TargetWorld;
 
 	bool bDuplicateMode;
 

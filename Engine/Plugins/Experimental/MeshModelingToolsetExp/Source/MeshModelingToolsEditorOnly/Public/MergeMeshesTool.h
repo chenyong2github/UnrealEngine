@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "Properties/MeshStatisticsProperties.h"
@@ -15,16 +15,16 @@
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMergeMeshesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UMergeMeshesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -59,14 +59,12 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMergeMeshesTool : public UMultiSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLSEDITORONLY_API UMergeMeshesTool : public UMultiSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	UMergeMeshesTool();
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -97,8 +95,6 @@ protected:
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
 
 protected:
-	UWorld* TargetWorld;
-
 	TArray<UE::Geometry::FVoxelMergeMeshesOp::FInputMesh> InputMeshes;
 	/** stash copies of the transforms and pointers to the meshes for consumption by merge Op*/
 	void CacheInputMeshes();

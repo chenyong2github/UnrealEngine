@@ -82,8 +82,7 @@ void UCutMeshWithMeshTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 		TMap<UMaterialInterface*, int> KnownMaterials;
 		for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			FComponentMaterialSet ComponentMaterialSet;
-			TargetMaterialInterface(ComponentIdx)->GetMaterialSet(ComponentMaterialSet);
+			const FComponentMaterialSet ComponentMaterialSet = UE::ToolTarget::GetMaterialSet(Targets[ComponentIdx]);
 			for (UMaterialInterface* Mat : ComponentMaterialSet.Materials)
 			{
 				int* FoundMatIdx = KnownMaterials.Find(Mat);
@@ -103,14 +102,14 @@ void UCutMeshWithMeshTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	}
 	else
 	{
-		TargetMaterialInterface(0)->GetMaterialSet(AllMaterialSet);
+		AllMaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 		for (int MatIdx = 0; MatIdx < AllMaterialSet.Materials.Num(); MatIdx++)
 		{
 			MaterialRemap[0].Add(MatIdx);
 		}
 		for (int ComponentIdx = 1; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			MaterialRemap[ComponentIdx].Init(0, TargetMaterialInterface(ComponentIdx)->GetNumMaterials());
+			MaterialRemap[ComponentIdx].Init(0, Cast<IMaterialProvider>(Targets[ComponentIdx])->GetNumMaterials());
 		}
 	}
 
@@ -118,7 +117,7 @@ void UCutMeshWithMeshTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	{
 		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> Mesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription(), *Mesh);
+		Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]), *Mesh);
 
 		// ensure materials and attributes are always enabled
 		Mesh->EnableAttributes();
@@ -338,7 +337,7 @@ void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	// Restore (unhide) the source meshes
 	for ( int32 ci = 0; ci < Targets.Num(); ++ci)
 	{
-		TargetComponentInterface(ci)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[ci]);
 	}
 
 	if (ShutdownType == EToolShutdownType::Accept)
@@ -351,22 +350,21 @@ void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		MaterialSet.Materials = GetOutputMaterials();
 
 		// update subtract asset
-		IPrimitiveComponentBackedTarget* UpdateTarget = TargetComponentInterface(0);
-		FTransform3d TargetToWorld = (FTransform3d)UpdateTarget->GetWorldTransform();
+		FTransform3d TargetToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 		{
 			if (OpResult.Mesh->TriangleCount() > 0)
 			{
 				MeshTransforms::ApplyTransform(*OpResult.Mesh, OpResult.Transform);
 				MeshTransforms::ApplyTransformInverse(*OpResult.Mesh, TargetToWorld);
-				TargetMeshCommitterInterface(0)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+				Cast<IMeshDescriptionCommitter>(Targets[0])->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 				{
 					FDynamicMeshToMeshDescription Converter;
 					Converter.Convert(OpResult.Mesh.Get(), *CommitParams.MeshDescriptionOut);
 				});
-				TargetMaterialInterface(0)->CommitMaterialSetUpdate(MaterialSet, true);
+				Cast<IMaterialProvider>(Targets[0])->CommitMaterialSetUpdate(MaterialSet, true);
 			}
 		}
-		SelectActors.Add(UpdateTarget->GetOwnerActor());
+		SelectActors.Add(UE::ToolTarget::GetTargetActor(Targets[0]));
 
 		// create intersection asset
 		if ( IntersectionMesh.TriangleCount() > 0)
@@ -375,7 +373,7 @@ void UCutMeshWithMeshTool::Shutdown(EToolShutdownType ShutdownType)
 			MeshTransforms::ApplyTransformInverse(IntersectionMesh, TargetToWorld);
 			FTransform3d NewTransform = TargetToWorld;
 
-			FString CurName = UE::Modeling::GetComponentAssetBaseName(UpdateTarget->GetOwnerComponent());
+			FString CurName = UE::Modeling::GetComponentAssetBaseName(UE::ToolTarget::GetTargetComponent(Targets[0]));
 			FString UseBaseName = FString::Printf(TEXT("%s_%s"), *CurName, TEXT("CutPart") );
 
 			FCreateMeshObjectParams NewMeshObjectParams;

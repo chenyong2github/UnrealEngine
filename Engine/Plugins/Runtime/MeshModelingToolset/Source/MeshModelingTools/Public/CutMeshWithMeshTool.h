@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "InteractiveToolBuilder.h"
 #include "Drawing/LineSetComponent.h"
 #include "BaseTools/BaseCreateFromSelectedTool.h"
 
@@ -118,9 +117,9 @@ public:
 		return 2;
 	}
 
-	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override
 	{
-		return NewObject<UCutMeshWithMeshTool>(Outer);
+		return NewObject<UCutMeshWithMeshTool>(SceneState.ToolManager);
 	}
 };
 

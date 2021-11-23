@@ -4,6 +4,7 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
 #include "Drawing/PreviewGeometryActor.h"
 
 #include "Physics/PhysicsDataCollection.h"
@@ -33,20 +34,10 @@ const FToolTargetTypeRequirements& UPhysicsInspectorToolBuilder::GetTargetRequir
 	return TypeRequirements;
 }
 
-bool UPhysicsInspectorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+
+UMultiSelectionMeshEditingTool* UPhysicsInspectorToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
-}
-
-
-UInteractiveTool* UPhysicsInspectorToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UPhysicsInspectorTool* NewTool = NewObject<UPhysicsInspectorTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-
-	return NewTool;
+	return NewObject<UPhysicsInspectorTool>(SceneState.ToolManager);
 }
 
 
@@ -63,8 +54,7 @@ void UPhysicsInspectorTool::Setup()
 
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(TargetComponent->GetOwnerComponent());
+		const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
 		const UStaticMesh* StaticMesh = Component->GetStaticMesh();
 		if (ensure(StaticMesh && StaticMesh->GetBodySetup()))
 		{
@@ -76,10 +66,10 @@ void UPhysicsInspectorTool::Setup()
 			PhysicsInfos.Add(PhysicsData);
 
 			UPreviewGeometry* PreviewGeom = NewObject<UPreviewGeometry>(this);
-			FTransform TargetTransform = TargetComponent->GetWorldTransform();
+			FTransform TargetTransform = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
 			PhysicsData->ExternalScale3D = TargetTransform.GetScale3D();
 			TargetTransform.SetScale3D(FVector::OneVector);
-			PreviewGeom->CreateInWorld(TargetComponent->GetOwnerActor()->GetWorld(), TargetTransform);
+			PreviewGeom->CreateInWorld(UE::ToolTarget::GetTargetActor(Targets[ComponentIdx])->GetWorld(), TargetTransform);
 			PreviewElements.Add(PreviewGeom);
 
 			InitializeGeometry(*PhysicsData, PreviewGeom);

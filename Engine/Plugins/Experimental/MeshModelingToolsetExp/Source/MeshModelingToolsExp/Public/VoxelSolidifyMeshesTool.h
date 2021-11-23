@@ -83,9 +83,9 @@ class MESHMODELINGTOOLSEXP_API UVoxelSolidifyMeshesToolBuilder : public UBaseCre
 	GENERATED_BODY()
 
 public:
-	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override
 	{
-		return NewObject<UVoxelSolidifyMeshesTool>(Outer);
+		return NewObject<UVoxelSolidifyMeshesTool>(SceneState.ToolManager);
 	}
 };
 

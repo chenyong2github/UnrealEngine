@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InteractiveGizmo.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "DynamicMesh/DynamicMesh3.h"
@@ -13,21 +13,19 @@
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "PlaneCutTool.generated.h"
 
+class UPlaneCutTool;
+
 
 /**
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPlaneCutToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UPlaneCutToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -116,7 +114,7 @@ public:
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPlaneCutTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEXP_API UPlaneCutTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -128,8 +126,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
@@ -189,8 +185,6 @@ protected:
 
 	// UV Scale factor is cached based on the bounding box of the mesh before any cuts are performed, so you don't get inconsistent UVs if you multi-cut the object to smaller sizes
 	TArray<float> MeshUVScaleFactor;
-
-	UWorld* TargetWorld;
 
 	FViewCameraState CameraState;
 

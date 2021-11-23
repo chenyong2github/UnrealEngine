@@ -7,7 +7,7 @@
 #include "BoneContainer.h"
 #include "InteractiveToolBuilder.h"
 #include "ModelingOperators.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
 
 #include "SkinWeightsBindingTool.generated.h"
@@ -22,12 +22,12 @@ struct FOccupancyGrid;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsBindingToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API USkinWeightsBindingToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
-	bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 UENUM()
@@ -79,7 +79,7 @@ public:
  */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API USkinWeightsBindingTool :
-	public UMultiSelectionTool,
+	public UMultiSelectionMeshEditingTool,
 	public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
@@ -87,8 +87,6 @@ class MESHMODELINGTOOLSEXP_API USkinWeightsBindingTool :
 public:
 	USkinWeightsBindingTool();
 	~USkinWeightsBindingTool();
-
-	void SetWorld(UWorld* World);
 	
 	void Setup() override;
 	void Shutdown(EToolShutdownType ShutdownType) override;
@@ -112,8 +110,6 @@ public:
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
 
 protected:
-	UWorld* TargetWorld = nullptr;
-
 	TSharedPtr<FOccupancyGrid> Occupancy;
 	
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;

@@ -22,16 +22,12 @@ class UMaterialInstanceDynamic;
  * Tool Builder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeVertexToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeVertexToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
-
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 

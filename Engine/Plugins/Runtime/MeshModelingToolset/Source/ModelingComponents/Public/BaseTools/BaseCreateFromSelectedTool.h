@@ -3,8 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
+#include "InteractiveToolManager.h"
 #include "MeshOpPreviewHelpers.h"
 #include "PropertySets/OnAcceptProperties.h"
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
@@ -12,28 +13,22 @@
 
 class UCombinedTransformGizmo;
 class UTransformProxy;
+class UBaseCreateFromSelectedTool;
 
 /**
  * ToolBuilder for UBaseCreateFromSelectedTool
  */
 UCLASS()
-class MODELINGCOMPONENTS_API UBaseCreateFromSelectedToolBuilder : public UInteractiveToolBuilder
+class MODELINGCOMPONENTS_API UBaseCreateFromSelectedToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
 public:
 	virtual TOptional<int32> MaxComponentsSupported() const { return TOptional<int32>(); }
 	virtual int32 MinComponentsSupported() const { return 1; }
-	
-	// subclass must override!
-	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const { check(false); return nullptr; }
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 
@@ -95,7 +90,7 @@ public:
  * that provides support for common functionality in tools that create a new mesh from a selection of one or more existing meshes
  */
 UCLASS()
-class MODELINGCOMPONENTS_API UBaseCreateFromSelectedTool : public UMultiSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class MODELINGCOMPONENTS_API UBaseCreateFromSelectedTool : public UMultiSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 protected:
@@ -103,8 +98,6 @@ protected:
 	using FFrame3d = UE::Geometry::FFrame3d;
 public:
 	UBaseCreateFromSelectedTool() = default;
-
-	virtual void SetWorld(UWorld* World);
 
 	//
 	// InteractiveTool API - generally does not need to be modified by subclasses
@@ -205,7 +198,5 @@ protected:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UCombinedTransformGizmo>> TransformGizmos;
-
-	UWorld* TargetWorld = nullptr;
 };
 
