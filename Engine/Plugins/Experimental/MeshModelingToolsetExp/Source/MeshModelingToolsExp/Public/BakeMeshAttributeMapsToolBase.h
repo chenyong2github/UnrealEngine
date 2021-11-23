@@ -422,7 +422,7 @@ inline void UBakeMeshAttributeMapsToolBase::UpdateUVLayerNames(FString& UVLayer,
 	int32 FoundIndex = -1;
 	for (int32 k = 0; k < Mesh.Attributes()->NumUVLayers(); ++k)
 	{
-		UVLayerNamesList.Add(FString::FromInt(k));
+		UVLayerNamesList.Add(FString::Printf(TEXT("UV %d"), k));
 		if (UVLayer == UVLayerNamesList.Last())
 		{
 			FoundIndex = k;

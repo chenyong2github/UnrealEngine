@@ -562,7 +562,7 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 	FBakeCacheSettings BakeCacheSettings;
 	BakeCacheSettings.Dimensions = Dimensions;
 	BakeCacheSettings.BitDepth = Settings->BitDepth;
-	BakeCacheSettings.TargetUVLayer = FCString::Atoi(*InputMeshProps->TargetUVLayer);
+	BakeCacheSettings.TargetUVLayer = InputMeshProps->TargetUVLayerNamesList.IndexOfByKey(InputMeshProps->TargetUVLayer);
 	BakeCacheSettings.ProjectionDistance = InputMeshProps->ProjectionDistance;
 	BakeCacheSettings.bProjectionInWorldSpace = true;  // Always world space
 	BakeCacheSettings.SamplesPerPixel = static_cast<int32>(Settings->SamplesPerPixel);
