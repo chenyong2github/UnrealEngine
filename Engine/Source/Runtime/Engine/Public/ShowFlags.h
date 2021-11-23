@@ -375,6 +375,7 @@ private:
 		SetVectorFields(false);
 		SetGBufferHints(false);
 		SetCompositeEditorPrimitives(InitMode == ESFIM_Editor || InitMode == ESFIM_VREditing);
+		SetOpaqueCompositeEditorPrimitives(false);
 		SetTestImage(false);
 		SetVisualizeDOF(false);
 		SetVertexColors(false);

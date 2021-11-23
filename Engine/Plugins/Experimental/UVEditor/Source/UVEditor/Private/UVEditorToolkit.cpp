@@ -494,6 +494,9 @@ void FUVEditorToolkit::PostInitAssetEditor()
 		// Disable motion blur effects that cause our renders to "fade in" as things are moved
 		Client->EngineShowFlags.SetTemporalAA(false);
 		Client->EngineShowFlags.SetMotionBlur(false);
+
+		// Disable the dithering of occluded portions of gizmos.
+		Client->EngineShowFlags.SetOpaqueCompositeEditorPrimitives(true);
 	};
 	SetCommonViewportClientOptions(ViewportClient.Get());
 

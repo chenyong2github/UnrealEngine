@@ -159,7 +159,6 @@ protected:
 	float LineThickness = 3;
 	float PointThickness = 6;
 	float DepthBias = 0.7;
-	float TriangleDepthBias = -0.1;
 
 	FVector3d CurrentSelectionCentroid;
 	int32 CentroidTimestamp = -1;

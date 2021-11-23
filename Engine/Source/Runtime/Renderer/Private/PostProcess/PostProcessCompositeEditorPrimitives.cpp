@@ -13,12 +13,6 @@
 
 namespace
 {
-TAutoConsoleVariable<float> CVarEditorOpaqueGizmo(
-	TEXT("r.Editor.OpaqueGizmo"),
-	0.0f,
-	TEXT("0..1\n0: occluded gizmo is partly transparent (default), 1:gizmo is never occluded"),
-	ECVF_RenderThreadSafe);
-
 TAutoConsoleVariable<int32> CVarEditorTemporalUpsampleDepth(
 	TEXT("r.Editor.TemporalUpsampleDepth"), 2,
 	TEXT("Temporal upsample factor of the depth buffer for depth testing editor primitives against."),
@@ -534,7 +528,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 	{
 		FRHISamplerState* PointClampSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-		const bool bOpaqueEditorGizmo = CVarEditorOpaqueGizmo.GetValueOnRenderThread() != 0 || View.Family->EngineShowFlags.Wireframe;
+		const bool bOpaqueEditorGizmo = View.Family->EngineShowFlags.OpaqueCompositeEditorPrimitives || View.Family->EngineShowFlags.Wireframe;
 
 		FCompositeEditorPrimitivesPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCompositeEditorPrimitivesPS::FParameters>();
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
