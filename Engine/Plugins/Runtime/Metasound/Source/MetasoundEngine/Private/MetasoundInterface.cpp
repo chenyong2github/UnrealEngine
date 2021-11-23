@@ -68,13 +68,15 @@ namespace Metasound
 				});
 
 				// For now, only support interfaces for UMetaSoundSource type
-				if (ensureAlways(UMetaSoundSource::StaticClass()->IsChildOf(Interface->Type)))
+				const UClass* SourceClass = UMetaSoundSource::StaticClass();
+				check(SourceClass);
+				if (ensureAlways(SourceClass->IsChildOf(Interface->Type)))
 				{
 					// For now, all external interfaces use the ParameterTransmitter and cannot be applied by default to new
 					// MetaSound objects. Could pipe either of these through in the future if required/desired.
 					constexpr bool bIsDefault = false;
 					RegisterInterface<UMetaSoundSource>(FrontendInterface, nullptr, bIsDefault, Audio::IParameterTransmitter::RouterName);
-					UE_LOG(LogMetaSound, Verbose, TEXT("Interface '%s' registered as MetaSoundSource assets."), *Interface->Name.ToString());
+					UE_LOG(LogMetaSound, Verbose, TEXT("Interface '%s' registered for asset type '%s'."), *Interface->Name.ToString(), *SourceClass->GetName());
 				}
 			};
 
