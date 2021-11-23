@@ -82,13 +82,13 @@ struct HAIRSTRANDSCORE_API FHairLODSettings
 	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "If enable this LOD version will use cards representation"))
 	EGroomGeometryType GeometryType = EGroomGeometryType::Strands;
 
-	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "If enable this LOD version will use the provided attachment points"))
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", AdvancedDisplay, meta = (ToolTip = "If enable this LOD version will use the provided attachment points"))
 	EGroomBindingType BindingType = EGroomBindingType::Skinning;
 	
-	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (ToolTip = "Groom simulation"))
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", AdvancedDisplay, meta = (ToolTip = "Groom simulation"))
 	EGroomOverrideType Simulation = EGroomOverrideType::Auto;
 
-	UPROPERTY(EditAnywhere, Category = "DecimationSettings", meta = (DisplayName = "RBF Interpolation", ToolTip = "Global interpolation"))
+	UPROPERTY(EditAnywhere, Category = "DecimationSettings", AdvancedDisplay, meta = (DisplayName = "RBF Interpolation", ToolTip = "Global interpolation"))
 	EGroomOverrideType GlobalInterpolation = EGroomOverrideType::Auto;
 
 	bool operator==(const FHairLODSettings& A) const;

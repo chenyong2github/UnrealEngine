@@ -958,6 +958,40 @@ IDetailPropertyRow& FGroomRenderingDetails::AddPropertyWithCustomReset(TSharedPt
 	return Builder.AddProperty(PropertyHandle.ToSharedRef()).OverrideResetToDefault(ResetOverride);
 }
 
+void FGroomRenderingDetails::ExpandStructForLOD(TSharedRef<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex, bool bOverrideReset)
+{
+
+	uint32 ChildrenCount = 0;
+	PropertyHandle->GetNumChildren(ChildrenCount);
+	for (uint32 ChildIt = 0; ChildIt < ChildrenCount; ++ChildIt)
+	{
+		TSharedPtr<IPropertyHandle> ChildHandle = PropertyHandle->GetChildHandle(ChildIt);
+		const FName ChildPropertyName = ChildHandle->GetProperty()->GetFName();
+
+		// If the geometry type is not strands, then bypass the display of the strands related property
+		if (GroomAsset->GetGeometryType(GroupIndex, LODIndex) != EGroomGeometryType::Strands && 
+			(ChildPropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, CurveDecimation)  ||
+			 ChildPropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, VertexDecimation) ||
+			 ChildPropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, AngularThreshold) ||
+			 ChildPropertyName == GET_MEMBER_NAME_CHECKED(FHairLODSettings, ThicknessScale)))
+		{
+			continue;
+		}
+
+		if (bOverrideReset)
+		{
+			FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FGroomRenderingDetails::ShouldResetToDefault, GroupIndex, LODIndex);
+			FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FGroomRenderingDetails::ResetToDefault, GroupIndex, LODIndex);
+			FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
+			ChildrenBuilder.AddProperty(ChildHandle.ToSharedRef()).OverrideResetToDefault(ResetOverride);
+		}
+		else
+		{
+			ChildrenBuilder.AddProperty(ChildHandle.ToSharedRef());
+		}
+	}
+}
+
 void FGroomRenderingDetails::ExpandStruct(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& ChildrenBuilder, int32 GroupIndex, int32 LODIndex, bool bOverrideReset)
 {
 
@@ -1147,7 +1181,7 @@ void FGroomRenderingDetails::OnGenerateElementForLODs(TSharedRef<IPropertyHandle
 
 	// Rename the array entry name by its group name and adds all its existing properties
 	StructProperty->SetPropertyDisplayName(LOCTEXT("LODProperties", "LOD Properties"));
-	ExpandStruct(StructProperty, ChildrenBuilder, GroupIndex, LODIndex, true);
+	ExpandStructForLOD(StructProperty, ChildrenBuilder, GroupIndex, LODIndex, true); ///
 }
 
 TSharedRef<SWidget> FGroomRenderingDetails::MakeGroupNameButtonCustomization(int32 GroupIndex, FProperty* Property)
