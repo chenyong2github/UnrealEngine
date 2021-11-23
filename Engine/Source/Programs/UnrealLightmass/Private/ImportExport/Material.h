@@ -31,21 +31,21 @@ namespace Lightmass
 		virtual void	Import( class FLightmassImporter& Importer );
 
 		/** Sample the various properties of this material at the given UV */
-		inline void SampleEmissive(const FVector2D& UV, FLinearColor& Emissive, float& OutEmissiveBoost) const
+		inline void SampleEmissive(const FVector2f& UV, FLinearColor& Emissive, float& OutEmissiveBoost) const
 		{
 			Emissive = MaterialEmissive.Sample(UV);
 			OutEmissiveBoost = EmissiveBoost;
 		}
-		inline void SampleDiffuse(const FVector2D& UV, FLinearColor& Diffuse, float& OutDiffuseBoost) const
+		inline void SampleDiffuse(const FVector2f& UV, FLinearColor& Diffuse, float& OutDiffuseBoost) const
 		{
 			Diffuse = MaterialDiffuse.Sample(UV);
 			OutDiffuseBoost = DiffuseBoost;
 		}
-		inline FLinearColor SampleTransmission(const FVector2D& UV) const
+		inline FLinearColor SampleTransmission(const FVector2f& UV) const
 		{
 			return MaterialTransmission.Sample(UV);
 		}
-		inline void SampleNormal(const FVector2D& UV, FVector4& Normal) const
+		inline void SampleNormal(const FVector2f& UV, FVector4f& Normal) const
 		{
 			Normal = MaterialNormal.SampleNormal(UV);
 			Normal.W = 0.0f;

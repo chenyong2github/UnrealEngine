@@ -234,7 +234,7 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 	checkSlow(TextureMapping);
 	FStaticLightingMappingContext MappingContext(TextureMapping->Mesh,*this,&StartupDebugOutput);
 	LIGHTINGSTAT(FScopedRDTSCTimer CachingTime(MappingContext.Stats.RadiositySetupThreadTime));
-	const FBoxSphereBounds ImportanceBounds = Scene.GetImportanceBounds();
+	const FBoxSphereBounds3f ImportanceBounds = Scene.GetImportanceBounds();
 
 	FTexelToVertexMap TexelToVertexMap(TextureMapping->SurfaceCacheSizeX, TextureMapping->SurfaceCacheSizeY);
 
@@ -303,7 +303,7 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 					if (!RadiosityCache.InterpolateLighting(Vertex, true, false, 1.0f, SkyLighting, UnusedSecondLighting, UnusedBackfacingHitsFraction, MappingContext.DebugCacheRecords))
 					{
 						FFinalGatherSample UniformSampledIncomingRadiance;
-						TArray<FVector4> ImportancePhotonDirections;
+						TArray<FVector4f> ImportancePhotonDirections;
 						FLightingCacheGatherInfo GatherInfo;
 						const int32 NumAdaptiveRefinementLevels = GeneralSettings.IndirectLightingQuality <= 10 ? 1 : 2;
 
@@ -345,8 +345,8 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 							IrradianceCachingSettings,
 							GeneralSettings,
 							UniformSampledIncomingRadiance,
-							FVector4(0, 0, 0, 0),
-							FVector4(0, 0, 0, 0)
+							FVector4f(0, 0, 0, 0),
+							FVector4f(0, 0, 0, 0)
 							);
 
 						// Add the incident radiance sample to the cache.
@@ -420,8 +420,8 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 					FGatheredLightSample DirectLighting;
 					FGatheredLightSample Unused;
 					float Unused2;
-					TArray<FVector, TInlineAllocator<1>> VertexOffsets;
-					VertexOffsets.Add(FVector(0, 0, 0));
+					TArray<FVector3f, TInlineAllocator<1>> VertexOffsets;
+					VertexOffsets.Add(FVector3f(0, 0, 0));
 
 					CalculateApproximateDirectLighting(CurrentVertex, TexelToVertex.TexelRadius, VertexOffsets, .1f, true, true, bDebugThisTexel, MappingContext, DirectLighting, Unused, Unused2);
 
@@ -554,7 +554,7 @@ void FStaticLightingSystem::RadiosityIterationTextureMapping(FStaticLightingText
 	checkSlow(TextureMapping);
 	FStaticLightingMappingContext MappingContext(TextureMapping->Mesh,*this,&StartupDebugOutput);
 	LIGHTINGSTAT(FScopedRDTSCTimer CachingTime(MappingContext.Stats.RadiosityIterationThreadTime));
-	const FBoxSphereBounds ImportanceBounds = Scene.GetImportanceBounds();
+	const FBoxSphereBounds3f ImportanceBounds = Scene.GetImportanceBounds();
 
 	FTexelToVertexMap TexelToVertexMap(TextureMapping->SurfaceCacheSizeX, TextureMapping->SurfaceCacheSizeY);
 
@@ -620,7 +620,7 @@ void FStaticLightingSystem::RadiosityIterationTextureMapping(FStaticLightingText
 					{
 						FFinalGatherSample UniformSampledIncomingRadiance;
 						//@todo - find and pass in photons from the appropriate bounce number to improve bUseRadiositySolverForLightMultibounce quality
-						TArray<FVector4> ImportancePhotonDirections;
+						TArray<FVector4f> ImportancePhotonDirections;
 						FLightingCacheGatherInfo GatherInfo;
 
 						// Gather previous iteration results (double buffer)
@@ -658,8 +658,8 @@ void FStaticLightingSystem::RadiosityIterationTextureMapping(FStaticLightingText
 							IrradianceCachingSettings,
 							GeneralSettings,
 							UniformSampledIncomingRadiance,
-							FVector4(0, 0, 0, 0),
-							FVector4(0, 0, 0, 0)
+							FVector4f(0, 0, 0, 0),
+							FVector4f(0, 0, 0, 0)
 							);
 
 						// Add the incident radiance sample to the cache.

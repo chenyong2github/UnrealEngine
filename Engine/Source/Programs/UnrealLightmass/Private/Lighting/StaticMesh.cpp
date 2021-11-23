@@ -25,7 +25,7 @@ static float SmoothStep(float A, float B, float X)
 	return InterpFraction * InterpFraction * (3.0f - 2.0f * InterpFraction);
 }
 
-static FVector SplineEvalPos(const FVector& StartPos, const FVector& StartTangent, const FVector& EndPos, const FVector& EndTangent, float A)
+static FVector3f SplineEvalPos(const FVector3f& StartPos, const FVector3f& StartTangent, const FVector3f& EndPos, const FVector3f& EndTangent, float A)
 {
 	const float A2 = A  * A;
 	const float A3 = A2 * A;
@@ -33,11 +33,11 @@ static FVector SplineEvalPos(const FVector& StartPos, const FVector& StartTangen
 	return (((2*A3)-(3*A2)+1) * StartPos) + ((A3-(2*A2)+A) * StartTangent) + ((A3-A2) * EndTangent) + (((-2*A3)+(3*A2)) * EndPos);
 }
 
-static FVector SplineEvalDir(const FVector& StartPos, const FVector& StartTangent, const FVector& EndPos, const FVector& EndTangent, float A)
+static FVector3f SplineEvalDir(const FVector3f& StartPos, const FVector3f& StartTangent, const FVector3f& EndPos, const FVector3f& EndTangent, float A)
 {
-	const FVector C = (6*StartPos) + (3*StartTangent) + (3*EndTangent) - (6*EndPos);
-	const FVector D = (-6*StartPos) - (4*StartTangent) - (2*EndTangent) + (6*EndPos);
-	const FVector E = StartTangent;
+	const FVector3f C = (6*StartPos) + (3*StartTangent) + (3*EndTangent) - (6*EndPos);
+	const FVector3f D = (-6*StartPos) - (4*StartTangent) - (2*EndTangent) + (6*EndPos);
+	const FVector3f E = StartTangent;
 
 	const float A2 = A  * A;
 
@@ -46,7 +46,7 @@ static FVector SplineEvalDir(const FVector& StartPos, const FVector& StartTangen
 
 /** Calculate full transform that defines frame along spline, given the Z of a vertex. */
 /** Note:  This is mirrored from USplineMeshComponent::CalcSliceTransform() and LocalVertexShader.usf.  If you update one of these, please update them all! */
-static FMatrix CalcSliceTransform(float ZPos, const FSplineMeshParams& SplineParams)
+static FMatrix44f CalcSliceTransform(float ZPos, const FSplineMeshParams& SplineParams)
 {
 	// Find how far 'along' mesh we are
 	const float Alpha = (ZPos - SplineParams.MeshMinZ) / SplineParams.MeshRangeZ;
@@ -55,15 +55,15 @@ static FMatrix CalcSliceTransform(float ZPos, const FSplineMeshParams& SplinePar
 	const float HermiteAlpha = SplineParams.bSmoothInterpRollScale ? SmoothStep(0.0, 1.0, Alpha) : Alpha;
 
 	// Then find the point and direction of the spline at this point along
-	FVector SplinePos = SplineEvalPos( SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha );
-	const FVector SplineDir = SplineEvalDir( SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha );
+	FVector3f SplinePos = SplineEvalPos( SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha );
+	const FVector3f SplineDir = SplineEvalDir( SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha );
 
 	// Find base frenet frame
-	const FVector BaseXVec = (SplineParams.SplineUpDir ^ SplineDir).GetSafeNormal();
-	const FVector BaseYVec = (SplineDir ^ BaseXVec).GetSafeNormal();
+	const FVector3f BaseXVec = (SplineParams.SplineUpDir ^ SplineDir).GetSafeNormal();
+	const FVector3f BaseYVec = (SplineDir ^ BaseXVec).GetSafeNormal();
 
 	// Offset the spline by the desired amount
-	const FVector2D SliceOffset = FMath::Lerp<FVector2D>(SplineParams.StartOffset, SplineParams.EndOffset, HermiteAlpha);
+	const FVector2f SliceOffset = FMath::Lerp<FVector2f>(SplineParams.StartOffset, SplineParams.EndOffset, HermiteAlpha);
 	SplinePos += SliceOffset.X * BaseXVec;
 	SplinePos += SliceOffset.Y * BaseYVec;
 
@@ -71,24 +71,24 @@ static FMatrix CalcSliceTransform(float ZPos, const FSplineMeshParams& SplinePar
 	const float UseRoll = FMath::Lerp(SplineParams.StartRoll, SplineParams.EndRoll, HermiteAlpha);
 	const float CosAng = FMath::Cos(UseRoll);
 	const float SinAng = FMath::Sin(UseRoll);
-	const FVector XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
-	const FVector YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
+	const FVector3f XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
+	const FVector3f YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
 
 	// Find scale at this point along spline
-	const FVector2D UseScale = FMath::Lerp(SplineParams.StartScale, SplineParams.EndScale, HermiteAlpha);
+	const FVector2f UseScale = FMath::Lerp(SplineParams.StartScale, SplineParams.EndScale, HermiteAlpha);
 
 	// Build overall transform
-	FMatrix SliceTransform;
+	FMatrix44f SliceTransform;
 	switch (SplineParams.ForwardAxis)
 	{
 	case ESplineMeshAxis::X:
-		SliceTransform = FMatrix(SplineDir, UseScale.X * XVec, UseScale.Y * YVec, SplinePos);
+		SliceTransform = FMatrix44f(SplineDir, UseScale.X * XVec, UseScale.Y * YVec, SplinePos);
 		break;
 	case ESplineMeshAxis::Y:
-		SliceTransform = FMatrix(UseScale.Y * YVec, SplineDir, UseScale.X * XVec, SplinePos);
+		SliceTransform = FMatrix44f(UseScale.Y * YVec, SplineDir, UseScale.X * XVec, SplinePos);
 		break;
 	case ESplineMeshAxis::Z:
-		SliceTransform = FMatrix(UseScale.X * XVec, UseScale.Y * YVec, SplineDir, SplinePos);
+		SliceTransform = FMatrix44f(UseScale.X * XVec, UseScale.Y * YVec, SplineDir, SplinePos);
 		break;
 	default:
 		check(0);
@@ -99,7 +99,7 @@ static FMatrix CalcSliceTransform(float ZPos, const FSplineMeshParams& SplinePar
 }
 
 /** Calculate rotation matrix that defines frame along spline, given the Z of a vertex. */
-static FMatrix CalcSliceRot(float ZPos, const FSplineMeshParams& SplineParams)
+static FMatrix44f CalcSliceRot(float ZPos, const FSplineMeshParams& SplineParams)
 {
 	// Find how far 'along' mesh we are
 	const float Alpha = (ZPos - SplineParams.MeshMinZ) / SplineParams.MeshRangeZ;
@@ -108,31 +108,31 @@ static FMatrix CalcSliceRot(float ZPos, const FSplineMeshParams& SplineParams)
 	const float HermiteAlpha = SplineParams.bSmoothInterpRollScale ? SmoothStep(0.0, 1.0, Alpha) : Alpha;
 
 	// Then find the point and direction of the spline at this point along
-	const FVector SplineDir = SplineEvalDir( SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha );
+	const FVector3f SplineDir = SplineEvalDir( SplineParams.StartPos, SplineParams.StartTangent, SplineParams.EndPos, SplineParams.EndTangent, Alpha );
 
 	// Find base frenet frame
-	const FVector BaseXVec = (SplineParams.SplineUpDir ^ SplineDir).GetSafeNormal();
-	const FVector BaseYVec = (SplineDir ^ BaseXVec).GetSafeNormal();
+	const FVector3f BaseXVec = (SplineParams.SplineUpDir ^ SplineDir).GetSafeNormal();
+	const FVector3f BaseYVec = (SplineDir ^ BaseXVec).GetSafeNormal();
 
 	// Apply roll to frame around spline
 	const float UseRoll = FMath::Lerp(SplineParams.StartRoll, SplineParams.EndRoll, HermiteAlpha);
 	const float CosAng = FMath::Cos(UseRoll);
 	const float SinAng = FMath::Sin(UseRoll);
-	const FVector XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
-	const FVector YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
+	const FVector3f XVec = (CosAng * BaseXVec) - (SinAng * BaseYVec);
+	const FVector3f YVec = (CosAng * BaseYVec) + (SinAng * BaseXVec);
 
 	// Build rotation transform
-	FMatrix SliceTransform;
+	FMatrix44f SliceTransform;
 	switch (SplineParams.ForwardAxis)
 	{
 	case ESplineMeshAxis::X:
-		SliceTransform = FMatrix(SplineDir, XVec, YVec, FVector(0,0,0));
+		SliceTransform = FMatrix44f(SplineDir, XVec, YVec, FVector3f(0,0,0));
 		break;
 	case ESplineMeshAxis::Y:
-		SliceTransform = FMatrix(YVec, SplineDir, XVec, FVector(0,0,0));
+		SliceTransform = FMatrix44f(YVec, SplineDir, XVec, FVector3f(0,0,0));
 		break;
 	case ESplineMeshAxis::Z:
-		SliceTransform = FMatrix(XVec, YVec, SplineDir, FVector(0,0,0));
+		SliceTransform = FMatrix44f(XVec, YVec, SplineDir, FVector3f(0,0,0));
 		break;
 	default:
 		check(0);
@@ -150,8 +150,8 @@ static FMatrix CalcSliceRot(float ZPos, const FSplineMeshParams& SplineParams)
  */
 static void GetStaticLightingVertex(
 	const FStaticMeshVertex& InVertex,
-	const FMatrix& LocalToWorld,
-	const FMatrix& LocalToWorldInverseTranspose,
+	const FMatrix44f& LocalToWorld,
+	const FMatrix44f& LocalToWorldInverseTranspose,
 	bool bIsSplineMesh,
 	const FSplineMeshParams& SplineParams,
 	FStaticLightingVertex& OutVertex
@@ -160,23 +160,23 @@ static void GetStaticLightingVertex(
 	if (bIsSplineMesh)
 	{
 		// Make transform for this point along spline
-		const FMatrix SliceTransform = CalcSliceTransform(InVertex.Position[SplineParams.ForwardAxis], SplineParams);
+		const FMatrix44f SliceTransform = CalcSliceTransform(InVertex.Position[SplineParams.ForwardAxis], SplineParams);
 
 		// Remove Z (transform will move us along spline)
-		FVector4 SlicePos = InVertex.Position;
+		FVector4f SlicePos = InVertex.Position;
 		SlicePos[SplineParams.ForwardAxis] = 0;
 
 		// Transform into mesh space
-		const FVector4 LocalPos = SliceTransform.TransformPosition(SlicePos);
+		const FVector4f LocalPos = SliceTransform.TransformPosition(SlicePos);
 
 		// Transform from mesh to world space
 		OutVertex.WorldPosition = LocalToWorld.TransformPosition(LocalPos);
 
-		const FMatrix SliceRot = CalcSliceRot(InVertex.Position[SplineParams.ForwardAxis], SplineParams);
+		const FMatrix44f SliceRot = CalcSliceRot(InVertex.Position[SplineParams.ForwardAxis], SplineParams);
 
-		const FVector4 LocalSpaceTangentX = SliceRot.TransformVector(InVertex.TangentX);
-		const FVector4 LocalSpaceTangentY = SliceRot.TransformVector(InVertex.TangentY);
-		const FVector4 LocalSpaceTangentZ = SliceRot.TransformVector(InVertex.TangentZ);
+		const FVector4f LocalSpaceTangentX = SliceRot.TransformVector(InVertex.TangentX);
+		const FVector4f LocalSpaceTangentY = SliceRot.TransformVector(InVertex.TangentY);
+		const FVector4f LocalSpaceTangentZ = SliceRot.TransformVector(InVertex.TangentZ);
 
 		OutVertex.WorldTangentX = LocalToWorld.TransformVector(LocalSpaceTangentX).GetSafeNormal();
 		OutVertex.WorldTangentY = LocalToWorld.TransformVector(LocalSpaceTangentY).GetSafeNormal();
@@ -244,9 +244,9 @@ void FStaticMeshStaticLightingMesh::GetNonTransformedTriangle(int32 TriangleInde
 	const uint32 I2 = LODRenderData.GetIndex(TriangleIndex * 3 + 2);
 
 	// Translate the triangle's static mesh vertices to static lighting vertices.
-	GetStaticLightingVertex(LODRenderData.GetVertex(I0), FMatrix::Identity, FMatrix::Identity, false, SplineParameters, OutV0);
-	GetStaticLightingVertex(LODRenderData.GetVertex(I1), FMatrix::Identity, FMatrix::Identity, false, SplineParameters, OutV1);
-	GetStaticLightingVertex(LODRenderData.GetVertex(I2), FMatrix::Identity, FMatrix::Identity, false, SplineParameters, OutV2);
+	GetStaticLightingVertex(LODRenderData.GetVertex(I0), FMatrix44f::Identity, FMatrix44f::Identity, false, SplineParameters, OutV0);
+	GetStaticLightingVertex(LODRenderData.GetVertex(I1), FMatrix44f::Identity, FMatrix44f::Identity, false, SplineParameters, OutV1);
+	GetStaticLightingVertex(LODRenderData.GetVertex(I2), FMatrix44f::Identity, FMatrix44f::Identity, false, SplineParameters, OutV2);
 
 	const FStaticMeshLOD& MeshLOD = StaticMesh->GetLOD(GetMeshLODIndex());
 	ElementIndex = INDEX_NONE;

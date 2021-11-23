@@ -95,7 +95,7 @@ struct FFinalGatherInfo
 
 struct FTexelCorner
 {
-	FVector4 WorldPosition;
+	FVector4f WorldPosition;
 };
 
 /** Information about a texel's corners */
@@ -104,9 +104,9 @@ struct FTexelToCorners
 	/** The position of each corner */
 	FTexelCorner Corners[NumTexelCorners];
 	/** The tangent basis of the last valid corner to be rasterized */
-	FVector4 WorldTangentX;
-	FVector4 WorldTangentY;
-	FVector4 WorldTangentZ;
+	FVector4f WorldTangentX;
+	FVector4f WorldTangentY;
+	FVector4f WorldTangentZ;
 	/** Whether each corner lies on the mesh */
 	bool bValid[NumTexelCorners];
 };
@@ -159,23 +159,23 @@ class FPhoton
 private:
 
 	/** Position that the photon was deposited at in XYZ, and Id in W for debugging. */
-	FVector4 PositionAndId;
+	FVector4f PositionAndId;
 
 	/** Direction the photon came from in XYZ, and distance that the photon traveled along its last path before being deposited in W. */
-	FVector4 IncidentDirectionAndDistance;
+	FVector4f IncidentDirectionAndDistance;
 
 	/** Normal of the surface the photon was deposited on in XYZ, and fraction of the originating light's power that this photon represents in W. */
-	FVector4 SurfaceNormalAndPower;
+	FVector4f SurfaceNormalAndPower;
 
 public:
 
-	FPhoton(int32 InId, const FVector4& InPosition, float InDistance, const FVector4& InIncidentDirection, const FVector4& InSurfaceNormal, const FLinearColor& InPower)
+	FPhoton(int32 InId, const FVector4f& InPosition, float InDistance, const FVector4f& InIncidentDirection, const FVector4f& InSurfaceNormal, const FLinearColor& InPower)
 	{
-		PositionAndId = FVector4(InPosition, *(float*)&InId);
-		IncidentDirectionAndDistance = FVector4(InIncidentDirection, InDistance);
+		PositionAndId = FVector4f(InPosition, *(float*)&InId);
+		IncidentDirectionAndDistance = FVector4f(InIncidentDirection, InDistance);
 		checkSlow(FLinearColorUtils::AreFloatsValid(InPower));
 		const FColor PowerRGBE = InPower.ToRGBE();
-		SurfaceNormalAndPower = FVector4(InSurfaceNormal, *(float*)&PowerRGBE);
+		SurfaceNormalAndPower = FVector4f(InSurfaceNormal, *(float*)&PowerRGBE);
 	}
 
 	FORCEINLINE int32 GetId() const
@@ -183,14 +183,14 @@ public:
 		return *(int32*)&PositionAndId.W;
 	}
 
-	FORCEINLINE FVector4 GetPosition() const
+	FORCEINLINE FVector4f GetPosition() const
 	{
-		return FVector4(PositionAndId, 0.0f);
+		return FVector4f(PositionAndId, 0.0f);
 	}
 
-	FORCEINLINE FVector4 GetIncidentDirection() const
+	FORCEINLINE FVector4f GetIncidentDirection() const
 	{
-		return FVector4(IncidentDirectionAndDistance, 0.0f);
+		return FVector4f(IncidentDirectionAndDistance, 0.0f);
 	}
 
 	FORCEINLINE float GetDistance() const
@@ -198,9 +198,9 @@ public:
 		return IncidentDirectionAndDistance.W;
 	}
 
-	FORCEINLINE FVector4 GetSurfaceNormal() const
+	FORCEINLINE FVector4f GetSurfaceNormal() const
 	{
-		return FVector4(SurfaceNormalAndPower, 0.0f);
+		return FVector4f(SurfaceNormalAndPower, 0.0f);
 	}
 
 	FORCEINLINE FLinearColor GetPower() const
@@ -239,7 +239,7 @@ struct FPhotonMapOctreeSemantics
 
 	static FBoxCenterAndExtent GetBoundingBox(const FPhotonElement& PhotonElement)
 	{
-		return FBoxCenterAndExtent(PhotonElement.Photon.GetPosition(), FVector4(0,0,0));
+		return FBoxCenterAndExtent(PhotonElement.Photon.GetPosition(), FVector4f(0,0,0));
 	}
 };
 
@@ -247,18 +247,18 @@ struct FPhotonSegmentElement
 {
 	const FPhoton* Photon;
 
-	FVector SegmentCenter;
-	FVector SegmentExtent;
+	FVector3f SegmentCenter;
+	FVector3f SegmentExtent;
 
 	/** Initialization constructor. */
 	FPhotonSegmentElement(const FPhoton* InPhoton, float InStartOffset, float InSegmentLength) :
 		Photon(InPhoton)
 	{
-		const FVector PhotonDirection = Photon->GetIncidentDirection() * Photon->GetDistance();
-		const FVector SegmentStart = Photon->GetPosition() + PhotonDirection * InStartOffset;
-		const FVector SegmentEnd = SegmentStart + PhotonDirection * InSegmentLength;
+		const FVector3f PhotonDirection = Photon->GetIncidentDirection() * Photon->GetDistance();
+		const FVector3f SegmentStart = Photon->GetPosition() + PhotonDirection * InStartOffset;
+		const FVector3f SegmentEnd = SegmentStart + PhotonDirection * InSegmentLength;
 
-		FBox SegmentBounds(ForceInit);
+		FBox3f SegmentBounds(ForceInit);
 		SegmentBounds += SegmentStart;
 		SegmentBounds += SegmentEnd;
 
@@ -267,11 +267,11 @@ struct FPhotonSegmentElement
 		SegmentExtent = SegmentBounds.GetExtent();
 	}
 
-	inline float ComputeSquaredDistanceToPoint(FVector InPoint) const
+	inline float ComputeSquaredDistanceToPoint(FVector3f InPoint) const
 	{
-		float Projection = FVector::DotProduct(InPoint - Photon->GetPosition(), Photon->GetIncidentDirection());
+		float Projection = FVector3f::DotProduct(InPoint - Photon->GetPosition(), Photon->GetIncidentDirection());
 		Projection = FMath::Clamp(Projection, 0.0f, Photon->GetDistance());
-		FVector ProjectedPosition = Photon->GetPosition() + Photon->GetIncidentDirection() * Projection;
+		FVector3f ProjectedPosition = Photon->GetPosition() + Photon->GetIncidentDirection() * Projection;
 		return (InPoint - ProjectedPosition).SizeSquared();
 	}
 };
@@ -299,10 +299,10 @@ class FIrradiancePhoton : public FIrradiancePhotonData
 {
 public:
 
-	FIrradiancePhoton(const FVector4& InPosition, const FVector4& InSurfaceNormal, bool bInHasContributionFromDirectPhotons)
+	FIrradiancePhoton(const FVector4f& InPosition, const FVector4f& InSurfaceNormal, bool bInHasContributionFromDirectPhotons)
 	{
-		PositionAndDirectContribution = FVector4(InPosition, bInHasContributionFromDirectPhotons);
-		SurfaceNormalAndIrradiance = FVector4(InSurfaceNormal, 0.0f);
+		PositionAndDirectContribution = FVector4f(InPosition, bInHasContributionFromDirectPhotons);
+		SurfaceNormalAndIrradiance = FVector4f(InSurfaceNormal, 0.0f);
 	}
 
 	FORCEINLINE bool HasDirectContribution() const
@@ -340,14 +340,14 @@ public:
 		return OutIrradiance;
 	}
 
-	FORCEINLINE FVector4 GetPosition() const
+	FORCEINLINE FVector4f GetPosition() const
 	{
-		return FVector4(PositionAndDirectContribution, 0.0f);
+		return FVector4f(PositionAndDirectContribution, 0.0f);
 	}
 
-	FORCEINLINE FVector4 GetSurfaceNormal() const
+	FORCEINLINE FVector4f GetSurfaceNormal() const
 	{
-		return FVector4(SurfaceNormalAndIrradiance, 0.0f);
+		return FVector4f(SurfaceNormalAndIrradiance, 0.0f);
 	}
 };
 
@@ -383,7 +383,7 @@ struct FIrradiancePhotonMapOctreeSemantics
 
 	static FBoxCenterAndExtent GetBoundingBox(const FIrradiancePhotonElement& PhotonElement)
 	{
-		return FBoxCenterAndExtent(PhotonElement.GetPhoton().GetPosition(), FVector4(0,0,0));
+		return FBoxCenterAndExtent(PhotonElement.GetPhoton().GetPosition(), FVector4f(0,0,0));
 	}
 };
 
@@ -391,7 +391,7 @@ struct FIrradiancePhotonMapOctreeSemantics
 class FVolumeLightingSample : public FVolumeLightingSampleData
 {
 public:
-	FVolumeLightingSample(const FVector4& InPositionAndRadius)
+	FVolumeLightingSample(const FVector4f& InPositionAndRadius)
 	{
 		for (int32 CoefficientIndex = 0; CoefficientIndex < LM_NUM_SH_COEFFICIENTS; CoefficientIndex++)
 		{
@@ -404,9 +404,9 @@ public:
 
 		PositionAndRadius = InPositionAndRadius;
 	}
-	inline FVector4 GetPosition() const
+	inline FVector4f GetPosition() const
 	{
-		return FVector4(PositionAndRadius, 0.0f);
+		return FVector4f(PositionAndRadius, 0.0f);
 	}
 	inline float GetRadius() const
 	{
@@ -446,14 +446,14 @@ struct FVolumeLightingInterpolationOctreeSemantics
 	static FBoxCenterAndExtent GetBoundingBox(const FVolumeSampleInterpolationElement& Element)
 	{
 		const FVolumeLightingSample& Sample = Element.VolumeSamples[Element.SampleIndex];
-		return FBoxCenterAndExtent(FVector4(Sample.PositionAndRadius, 0.0f), FVector4(Sample.PositionAndRadius.W, Sample.PositionAndRadius.W, Sample.PositionAndRadius.W));
+		return FBoxCenterAndExtent(FVector4f(Sample.PositionAndRadius, 0.0f), FVector4f(Sample.PositionAndRadius.W, Sample.PositionAndRadius.W, Sample.PositionAndRadius.W));
 	}
 };
 
 class FPrecomputedVisibilityCell
 {
 public:
-	FBox Bounds;
+	FBox3f Bounds;
 	TArray<uint8> VisibilityData;
 };
 
@@ -1229,18 +1229,18 @@ class FLightingAndOcclusion
 public:
 
 	FLinearColor Lighting;
-	FVector UnoccludedSkyVector;
+	FVector3f UnoccludedSkyVector;
 	FLinearColor StationarySkyLighting;
 	float NumSamplesOccluded;
 
 	FLightingAndOcclusion() :
 		Lighting(ForceInit),
-		UnoccludedSkyVector(FVector(0)),
+		UnoccludedSkyVector(FVector3f(0)),
 		StationarySkyLighting(FLinearColor::Black),
 		NumSamplesOccluded(0)
 	{}
 
-	FLightingAndOcclusion(const FLinearColor& InLighting, FVector InUnoccludedSkyVector, const FLinearColor& InStationarySkyLighting, float InNumSamplesOccluded) : 
+	FLightingAndOcclusion(const FLinearColor& InLighting, FVector3f InUnoccludedSkyVector, const FLinearColor& InStationarySkyLighting, float InNumSamplesOccluded) : 
 		Lighting(InLighting),
 		UnoccludedSkyVector(InUnoccludedSkyVector),
 		StationarySkyLighting(InStationarySkyLighting),
@@ -1263,15 +1263,15 @@ class FRefinementElement
 {
 public:
 	FLightingAndOcclusion Lighting;
-	FVector2D Uniforms;
+	FVector2f Uniforms;
 	int32 HitPointIndex;
 
 	FRefinementElement() :
-		Uniforms(FVector2D(0, 0)),
+		Uniforms(FVector2f(0, 0)),
 		HitPointIndex(-1)
 	{}
 
-	FRefinementElement(FLightingAndOcclusion InLighting, FVector2D InUniforms, int32 InHitPointIndex) :
+	FRefinementElement(FLightingAndOcclusion InLighting, FVector2f InUniforms, int32 InHitPointIndex) :
 		Lighting(InLighting),
 		Uniforms(InUniforms),
 		HitPointIndex(InHitPointIndex)
@@ -1421,11 +1421,11 @@ protected:
 class FDirectPhotonEmittingInput
 {
 public:
-	const FBoxSphereBounds& ImportanceBounds;
+	const FBoxSphereBounds3f& ImportanceBounds;
 	const FSceneLightPowerDistribution& LightDistribution;
 	
 	FDirectPhotonEmittingInput(
-		const FBoxSphereBounds& InImportanceBounds,
+		const FBoxSphereBounds3f& InImportanceBounds,
 		const FSceneLightPowerDistribution& InLightDistribution)
 		:
 		ImportanceBounds(InImportanceBounds),
@@ -1510,12 +1510,12 @@ protected:
 class FIndirectPhotonEmittingInput
 {
 public:
-	const FBoxSphereBounds& ImportanceBounds;
+	const FBoxSphereBounds3f& ImportanceBounds;
 	const FSceneLightPowerDistribution& LightDistribution;
 	const TArray<TArray<FIndirectPathRay> >& IndirectPathRays;
 	
 	FIndirectPhotonEmittingInput(
-		const FBoxSphereBounds& InImportanceBounds,
+		const FBoxSphereBounds3f& InImportanceBounds,
 		const FSceneLightPowerDistribution& InLightDistribution,
 		const TArray<TArray<FIndirectPathRay> >& InIndirectPathRays)
 		:
@@ -1830,7 +1830,7 @@ public:
 class FVisibilityMeshGroup
 {
 public:
-	FBox GroupBounds;
+	FBox3f GroupBounds;
 
 	/** Array of all the meshes contained in the group.  These entries index into VisibilityMeshes. */
 	TArray<int32> VisibilityIds;
@@ -1922,8 +1922,8 @@ public:
 		int32 MaterialIndex,
 		int32 UVIndex, 
 		bool bDebugThisMapping, 
-		FVector2D UVBias, 
-		FVector2D UVScale) const;
+		FVector2f UVBias, 
+		FVector2f UVScale) const;
 
 	FStaticLightingAggregateMeshType& GetAggregateMesh()
 	{
@@ -1940,10 +1940,10 @@ private:
 	int32 GetNumUniformHemisphereSamples(int32 BounceNumber) const;
 	int32 GetNumPhotonImportanceHemisphereSamples() const;
 
-	FBoxSphereBounds GetImportanceBounds(bool bClampToScene = true) const;
+	FBoxSphereBounds3f GetImportanceBounds(bool bClampToScene = true) const;
 
 	/** Returns true if the specified position is inside any of the importance volumes. */
-	bool IsPointInImportanceVolume(const FVector4& Position, float Tolerance = 0.0f) const;
+	bool IsPointInImportanceVolume(const FVector4f& Position, float Tolerance = 0.0f) const;
 
 	/** Changes the scene's settings if necessary so that only valid combinations are used */
 	void ValidateSettings(FScene& InScene);
@@ -1968,7 +1968,7 @@ private:
 
 	/** Gathers direct photons and generates indirect photon paths. */
 	void EmitDirectPhotons(
-		const FBoxSphereBounds& ImportanceBounds, 
+		const FBoxSphereBounds3f& ImportanceBounds, 
 		TArray<TArray<FIndirectPathRay> >& IndirectPathRays,
 		TArray<TArray<FIrradiancePhoton>>& IrradiancePhotons);
 
@@ -1985,7 +1985,7 @@ private:
 
 	/** Gathers indirect photons based on the indirect photon paths. */
 	void EmitIndirectPhotons(
-		const FBoxSphereBounds& ImportanceBounds,
+		const FBoxSphereBounds3f& ImportanceBounds,
 		const TArray<TArray<FIndirectPathRay> >& IndirectPathRays, 
 		TArray<TArray<FIrradiancePhoton>>& IrradiancePhotons);
 
@@ -1999,7 +1999,7 @@ private:
 		FIndirectPhotonEmittingOutput& Output);
 
 	/** Iterates through all irradiance photons, searches for nearby direct photons, and marks the irradiance photon has having direct photon influence if necessary. */
-	void MarkIrradiancePhotons(const FBoxSphereBounds& ImportanceBounds, TArray<TArray<FIrradiancePhoton>>& IrradiancePhotons);
+	void MarkIrradiancePhotons(const FBoxSphereBounds3f& ImportanceBounds, TArray<TArray<FIrradiancePhoton>>& IrradiancePhotons);
 
 	/** Entry point for all threads marking irradiance photons. */
 	void MarkIrradiancePhotonsThreadLoop(
@@ -2012,7 +2012,7 @@ private:
 		FIrradianceMarkingWorkRange WorkRange);
 
 	/** Calculates irradiance for photons randomly chosen to precalculate irradiance. */
-	void CalculateIrradiancePhotons(const FBoxSphereBounds& ImportanceBounds, TArray<TArray<FIrradiancePhoton>>& IrradiancePhotons);
+	void CalculateIrradiancePhotons(const FBoxSphereBounds3f& ImportanceBounds, TArray<TArray<FIrradiancePhoton>>& IrradiancePhotons);
 
 	/** Main loop that all threads access to calculate irradiance photons. */
 	void CalculateIrradiancePhotonsThreadLoop(
@@ -2062,7 +2062,7 @@ private:
 	/** Returns true if a photon was found within MaxPhotonSearchDistance. */
 	bool FindAnyNearbyPhoton(
 		const FPhotonOctree& PhotonMap, 
-		const FVector4& SearchPosition, 
+		const FVector4f& SearchPosition, 
 		float MaxPhotonSearchDistance,
 		bool bDebugThisLookup) const;
 
@@ -2075,8 +2075,8 @@ private:
 	 */
 	float FindNearbyPhotonsIterative(
 		const FPhotonOctree& PhotonMap, 
-		const FVector4& SearchPosition, 
-		const FVector4& SearchNormal, 
+		const FVector4f& SearchPosition, 
+		const FVector4f& SearchNormal, 
 		int32 NumPhotonsToFind,
 		float StartPhotonSearchDistance, 
 		float MaxPhotonSearchDistance,
@@ -2087,7 +2087,7 @@ private:
 
 	float FindNearbyPhotonsInVolumeIterative(
 		const FPhotonSegmentOctree& PhotonSegmentMap,
-		const FVector4& SearchPosition,
+		const FVector4f& SearchPosition,
 		int32 NumPhotonsToFind,
 		float StartPhotonSearchDistance,
 		float MaxPhotonSearchDistance,
@@ -2100,8 +2100,8 @@ private:
 	 */
 	float FindNearbyPhotonsSorted(
 		const FPhotonOctree& PhotonMap, 
-		const FVector4& SearchPosition, 
-		const FVector4& SearchNormal, 
+		const FVector4f& SearchPosition, 
+		const FVector4f& SearchNormal, 
 		int32 NumPhotonsToFind, 
 		float MaxPhotonSearchDistance,
 		bool bDebugSearchResults,
@@ -2144,7 +2144,7 @@ private:
 		const FStaticLightingMesh* Mesh,
 		const FMinimalStaticLightingVertex& Vertex,
 		int32 ElementIndex,
-		const FVector4& OutgoingDirection,
+		const FVector4f& OutgoingDirection,
 		bool bDebugThisDensityEstimation) const;
 
 	/** Places volume lighting samples and calculates lighting for them. */
@@ -2168,7 +2168,7 @@ private:
 	void CalculateApproximateDirectLighting(
 		const FStaticLightingVertex& Vertex,
 		float SampleRadius,
-		const TArray<FVector, TInlineAllocator<1>>& VertexOffsets,
+		const TArray<FVector3f, TInlineAllocator<1>>& VertexOffsets,
 		float LightSampleFraction,
 		/** Whether to composite all direct lighting into OutStaticDirectLighting, regardless of static or toggleable. */
 		bool bCompositeAllLights,
@@ -2180,19 +2180,19 @@ private:
 		float& OutToggleableDirectionalLightShadowing) const;
 
 	void GatherVolumeImportancePhotonDirections(
-		const FVector WorldPosition,
-		FVector FirstHemisphereNormal,
-		FVector SecondHemisphereNormal,
-		TArray<FVector4>& FirstHemisphereImportancePhotonDirections,
-		TArray<FVector4>& SecondHemisphereImportancePhotonDirections,
+		const FVector3f WorldPosition,
+		FVector3f FirstHemisphereNormal,
+		FVector3f SecondHemisphereNormal,
+		TArray<FVector4f>& FirstHemisphereImportancePhotonDirections,
+		TArray<FVector4f>& SecondHemisphereImportancePhotonDirections,
 		bool bDebugThisSample) const;
 
 	/** Calculates incident radiance for a given world space position. */
 	void CalculateVolumeSampleIncidentRadiance(
-		const TArray<FVector4>& UniformHemisphereSamples,
-		const TArray<FVector2D>& UniformHemisphereSampleUniforms,
+		const TArray<FVector4f>& UniformHemisphereSamples,
+		const TArray<FVector2f>& UniformHemisphereSampleUniforms,
 		float MaxUnoccludedLength,
-		const TArray<FVector, TInlineAllocator<1>>& VertexOffsets,
+		const TArray<FVector3f, TInlineAllocator<1>>& VertexOffsets,
 		FVolumeLightingSample& LightingSample,
 		float& OutBackfacingHitsFraction,
 		float& OutMinDistanceToSurface,
@@ -2204,7 +2204,7 @@ private:
 	/** Determines visibility cell placement, called once at startup. */
 	void SetupPrecomputedVisibility();
 
-	int32 GetGroupCellIndex(FVector BoxCenter) const;
+	int32 GetGroupCellIndex(FVector3f BoxCenter) const;
 
 	/** Calculates visibility for a given group of cells, called from all threads. */
 	void CalculatePrecomputedVisibility(int32 BucketIndex);
@@ -2215,8 +2215,8 @@ private:
 		FIntVector CellCoordinate, 
 		int32 TreeDepth, 
 		bool bCoveringDebugPosition,
-		const FBox& TopLevelCellBounds, 
-		const TArray<FVector>& VoxelTestPositions,
+		const FBox3f& TopLevelCellBounds, 
+		const TArray<FVector3f>& VoxelTestPositions,
 		const FGuid& IntersectingLevelGuid,
 		TArray<struct FIrradianceBrickBuildData>& OutBrickBuildData);
 
@@ -2224,13 +2224,13 @@ private:
 
 	bool ProcessVolumetricLightmapTaskIfAvailable();
 
-	void GenerateVoxelTestPositions(TArray<FVector>& VoxelTestPositions) const;
+	void GenerateVoxelTestPositions(TArray<FVector3f>& VoxelTestPositions) const;
 
 	void CalculateAdaptiveVolumetricLightmap(int32 TaskIndex);
 
-	bool DoesVoxelIntersectSceneGeometry(const FBox& CellBounds, FGuid& OutIntersectingLevelGuid) const;
+	bool DoesVoxelIntersectSceneGeometry(const FBox3f& CellBounds, FGuid& OutIntersectingLevelGuid) const;
 
-	bool ShouldRefineVoxel(int32 TreeDepth, const FBox& AABB, const TArray<FVector>& VoxelTestPositions, bool bDebugThisVoxel, FGuid& OutIntersectingLevelGuid) const;
+	bool ShouldRefineVoxel(int32 TreeDepth, const FBox3f& AABB, const TArray<FVector3f>& VoxelTestPositions, bool bDebugThisVoxel, FGuid& OutIntersectingLevelGuid) const;
 
 	/** Computes a shadow depth map for a stationary light. */
 	void CalculateStaticShadowDepthMap(FGuid LightGuid);
@@ -2251,13 +2251,13 @@ private:
 	 */
 	bool CalculatePointShadowing(
 		const FStaticLightingMapping* Mapping,
-		const FVector4& WorldSurfacePoint,
+		const FVector4f& WorldSurfacePoint,
 		const FLight* Light,
 		FStaticLightingMappingContext& MappingContext,
 		bool bDebugThisSample) const;
 
 	/** Calculates area shadowing from a light for the given vertex. */
-	FVector2D CalculatePointAreaShadowing(
+	FVector2f CalculatePointAreaShadowing(
 		const FStaticLightingMapping* Mapping,
 		const FStaticLightingVertex& Vertex,
 		int32 ElementIndex,
@@ -2281,12 +2281,12 @@ private:
 		) const;
 
 	/** Returns environment lighting for the given direction. */
-	FLinearColor EvaluateEnvironmentLighting(const FVector4& IncomingDirection) const;
+	FLinearColor EvaluateEnvironmentLighting(const FVector4f& IncomingDirection) const;
 
 	/** Evaluates the incoming sky lighting from the scene. */
-	void EvaluateSkyLighting(const FVector4& IncomingDirection, float PathSolidAngle, bool bShadowed, bool bForDirectLighting, FLinearColor& OutStaticLighting, FLinearColor& OutStationaryLighting) const;
+	void EvaluateSkyLighting(const FVector4f& IncomingDirection, float PathSolidAngle, bool bShadowed, bool bForDirectLighting, FLinearColor& OutStaticLighting, FLinearColor& OutStationaryLighting) const;
 
-	float EvaluateSkyVariance(const FVector4& IncomingDirection, float PathSolidAngle) const;
+	float EvaluateSkyVariance(const FVector4f& IncomingDirection, float PathSolidAngle) const;
 
 	/** Returns a light sample that represents the material attribute specified by MaterialSettings.ViewMaterialAttribute at the intersection. */
 	FGatheredLightSample GetVisualizedMaterialAttribute(const FStaticLightingMapping* Mapping, const FLightRayIntersection& Intersection) const;
@@ -2297,7 +2297,7 @@ private:
 		const FStaticLightingMesh* HitMesh,
 		const FMinimalStaticLightingVertex& Vertex,
 		int32 ElementIndex,
-		const FVector4& OutgoingDirection,
+		const FVector4f& OutgoingDirection,
 		int32 BounceNumber,
 		EHemisphereGatherClassification GatherClassification,
 		FStaticLightingMappingContext& MappingContext,
@@ -2308,8 +2308,8 @@ private:
 		const FFullStaticLightingVertex& Vertex,
 		float SampleRadius,
 		int32 NumRays,
-		const FVector4* WorldPathDirections,
-		const FVector4* TangentPathDirections,
+		const FVector4f* WorldPathDirections,
+		const FVector4f* TangentPathDirections,
 		EFinalGatherRayBiasMode RayBiasMode,
 		FStaticLightingMappingContext& MappingContext,
 		FLightRay* OutLightRays,
@@ -2319,8 +2319,8 @@ private:
 	FLinearColor FinalGatherSample(
 		const FStaticLightingMapping* Mapping,
 		const FFullStaticLightingVertex& Vertex,
-		const FVector4& WorldPathDirection,
-		const FVector4& TangentPathDirection,
+		const FVector4f& WorldPathDirection,
+		const FVector4f& TangentPathDirection,
 		const FLightRay& PathRay,
 		const FLightRayIntersection& RayIntersection,
 		float PathSolidAngle,
@@ -2333,7 +2333,7 @@ private:
 		FLightingCacheGatherInfo& GatherInfo,
 		FFinalGatherInfo& FinalGatherInfo,
 		FFinalGatherHitPoint& HitPoint,
-		FVector& OutUnoccludedSkyVector,
+		FVector3f& OutUnoccludedSkyVector,
 		FLinearColor& OutStationarySkyLighting) const;
 
 	/** 
@@ -2352,10 +2352,10 @@ private:
 		EHemisphereGatherClassification GatherClassification,
 		int32 NumAdaptiveRefinementLevels,
 		float BrightnessThresholdScale,
-		const TArray<FVector4>& UniformHemisphereSamples,
-		const TArray<FVector2D>& UniformHemisphereSampleUniforms,
+		const TArray<FVector4f>& UniformHemisphereSamples,
+		const TArray<FVector2f>& UniformHemisphereSampleUniforms,
 		float MaxUnoccludedLength,
-		const TArray<FVector4>& ImportancePhotonDirections,
+		const TArray<FVector4f>& ImportancePhotonDirections,
 		FStaticLightingMappingContext& MappingContext,
 		FLMRandomStream& RandomStream,
 		FLightingCacheGatherInfo& GatherInfo,
@@ -2366,8 +2366,8 @@ private:
 	void CalculateIrradianceGradients(
 		int32 BounceNumber,
 		const FLightingCacheGatherInfo& GatherInfo,
-		FVector4& RotationalGradient,
-		FVector4& TranslationalGradient) const;
+		FVector4f& RotationalGradient,
+		FVector4f& TranslationalGradient) const;
 
 	/** 
 	 * Interpolates incoming radiance from the lighting cache if possible,
@@ -2392,9 +2392,9 @@ private:
 
 	/** Traces a ray to the corner of a texel. */
 	void TraceToTexelCorner(
-		const FVector4& TexelCenterOffset, 
+		const FVector4f& TexelCenterOffset, 
 		const FFullStaticLightingVertex& FullVertex, 
-		FVector2D CornerSigns,
+		FVector2f CornerSigns,
 		float TexelRadius, 
 		FStaticLightingMappingContext& MappingContext, 
 		FLightRayIntersection& Intersection,
@@ -2601,7 +2601,7 @@ private:
 	volatile int32 NumVolumeSampleTasksOutstanding;
 	volatile int32 bShouldExportVolumeSampleData;
 	/** Bounds that VolumeLightingSamples were generated in. */
-	FBoxSphereBounds VolumeBounds;
+	FBoxSphereBounds3f VolumeBounds;
 	/** Octree used for interpolating the volume lighting samples if DynamicObjectSettings.bVisualizeVolumeLightInterpolation is true. */
 	FVolumeLightingInterpolationOctree VolumeLightingInterpolationOctree;
 	/** Map from Level Guid to array of volume lighting samples generated. */
@@ -2670,20 +2670,20 @@ private:
 	float MaxRayDistance;
 
 	/** Cached direction samples for hemisphere gathers. */
-	TArray<FVector4> CachedHemisphereSamples;
+	TArray<FVector4f> CachedHemisphereSamples;
 
 	/** Length of all the hemisphere samples averaged, which is also the max length that a bent normal can be. */
 	float CachedSamplesMaxUnoccludedLength;
 
-	TArray<FVector2D> CachedHemisphereSampleUniforms;
+	TArray<FVector2f> CachedHemisphereSampleUniforms;
 
-	TArray<FVector4> CachedHemisphereSamplesForRadiosity[3];
-	TArray<FVector2D> CachedHemisphereSamplesForRadiosityUniforms[3];
+	TArray<FVector4f> CachedHemisphereSamplesForRadiosity[3];
+	TArray<FVector2f> CachedHemisphereSamplesForRadiosityUniforms[3];
 
-	TArray<FVector4> CachedVolumetricLightmapUniformHemisphereSamples;
-	TArray<FVector2D> CachedVolumetricLightmapUniformHemisphereSampleUniforms;
+	TArray<FVector4f> CachedVolumetricLightmapUniformHemisphereSamples;
+	TArray<FVector2f> CachedVolumetricLightmapUniformHemisphereSampleUniforms;
 	float CachedVolumetricLightmapMaxUnoccludedLength;
-	TArray<FVector, TInlineAllocator<1>> CachedVolumetricLightmapVertexOffsets;
+	TArray<FVector3f, TInlineAllocator<1>> CachedVolumetricLightmapVertexOffsets;
 
 	/** The aggregate mesh used for raytracing. */
 	FStaticLightingAggregateMeshType* AggregateMesh;
@@ -2711,7 +2711,7 @@ private:
 	int32 GroupVisibilityGridSizeZ;
 
 	/** World space bounding box of GroupGrid. */
-	FBox VisibilityGridBounds;
+	FBox3f VisibilityGridBounds;
 
 	/** Grid of indices into VisibilityGroups. */
 	TArray<int32> GroupGrid;
@@ -2742,8 +2742,8 @@ private:
 	int32 VolumeSizeX;
 	int32 VolumeSizeY;
 	int32 VolumeSizeZ;
-	FVector4::FReal DistanceFieldVoxelSize;
-	FBox DistanceFieldVolumeBounds;
+	FVector4f::FReal DistanceFieldVoxelSize;
+	FBox3f DistanceFieldVolumeBounds;
 	TArray<FColor> VolumeDistanceField;
 
 	/** */
@@ -2818,7 +2818,7 @@ private:
  * @param Light - The light to classify.
  * @return true if the light is behind the triangle.
  */
-extern bool IsLightBehindSurface(const FVector4& TrianglePoint, const FVector4& TriangleNormal, const FLight* Light);
+extern bool IsLightBehindSurface(const FVector4f& TrianglePoint, const FVector4f& TriangleNormal, const FLight* Light);
 
 /**
  * Culls lights that are behind a triangle.
@@ -2828,7 +2828,7 @@ extern bool IsLightBehindSurface(const FVector4& TrianglePoint, const FVector4& 
  * @param Lights - The lights to cull.
  * @return A map from Lights index to a boolean which is true if the light is in front of the triangle.
  */
-extern TBitArray<> CullBackfacingLights(bool bTwoSidedMaterial, const FVector4& TrianglePoint, const FVector4& TriangleNormal, const TArray<FLight*>& Lights);
+extern TBitArray<> CullBackfacingLights(bool bTwoSidedMaterial, const FVector4f& TrianglePoint, const FVector4f& TriangleNormal, const TArray<FLight*>& Lights);
 
 #include "LightingSystem.inl"
 

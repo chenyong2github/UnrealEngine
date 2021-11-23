@@ -11,11 +11,11 @@ namespace Lightmass
 /** A map from a texel to the world-space surface point which maps the texel. */
 struct FTexelToVertex
 {
-	FVector4 WorldPosition;
-	FVector4 WorldTangentX;
-	FVector4 WorldTangentY;
-	FVector4 WorldTangentZ;
-	FVector4 TriangleNormal;
+	FVector4f WorldPosition;
+	FVector4f WorldTangentX;
+	FVector4f WorldTangentY;
+	FVector4f WorldTangentZ;
+	FVector4f TriangleNormal;
 
 	/** Weight used when combining super sampled attributes and determining if the texel has been mapped. */
 	float TotalSampleWeight;
@@ -35,7 +35,7 @@ struct FTexelToVertex
 	uint16 ElementIndex;
 
 	/** Texture coordinates */
-	FVector2D TextureCoordinates[MAX_TEXCOORDS];
+	FVector2f TextureCoordinates[MAX_TEXCOORDS];
 
 	/** Create a static lighting vertex to represent the texel. */
 	inline FStaticLightingVertex GetVertex() const
@@ -162,7 +162,7 @@ public:
 		const FScene& InScene,
 		FTexelToVertexMap& InTexelToVertexMap,
 		float InSampleWeight,
-		const FVector4& InTriangleNormal,
+		const FVector4f& InTriangleNormal,
 		bool bInDebugThisMapping,
 		bool bInUseMaxWeight
 		) :
@@ -194,7 +194,7 @@ private:
 
 	/** The weight of the current sample. */
 	const float SampleWeight;
-	const FVector4 TriangleNormal;
+	const FVector4f TriangleNormal;
 	const bool bDebugThisMapping;
 	const bool bUseMaxWeight;
 };

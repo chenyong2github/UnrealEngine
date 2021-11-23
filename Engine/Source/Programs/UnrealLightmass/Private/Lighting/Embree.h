@@ -54,8 +54,8 @@ namespace Lightmass
 		// Additional Outputs.
 		// Warning: EmbreeFilterFunc must only modify these!  Nothing else is copied back to FEmbreeRay4.
 		int32 ElementIndex; // Material Index
-		FVector2D TextureCoordinates; // Material Coordinates
-		FVector2D LightmapCoordinates;
+		FVector2f TextureCoordinates; // Material Coordinates
+		FVector2f LightmapCoordinates;
 		FEmbreeTransmissionAccumulator TransmissionAcc;
 	};
 
@@ -138,8 +138,8 @@ namespace Lightmass
 		
 		// Additional Outputs.
 		int32 ElementIndex[4]; // Material Index
-		FVector2D TextureCoordinates[4]; // Material Coordinates
-		FVector2D LightmapCoordinates[4];
+		FVector2f TextureCoordinates[4]; // Material Coordinates
+		FVector2f LightmapCoordinates[4];
 		FEmbreeTransmissionAccumulator TransmissionAcc[4];
 	};
 
@@ -162,7 +162,7 @@ namespace Lightmass
 		FEmbreeGeometry(
 			RTCDevice EmbreeDevice, 
 			RTCScene EmbreeScene, 
-			const FBoxSphereBounds& ImportanceBounds,
+			const FBoxSphereBounds3f& ImportanceBounds,
 			const FStaticLightingMesh* InMesh,
 			const FStaticLightingMapping* InMapping,
 			bool bUseForInstancing
@@ -172,8 +172,8 @@ namespace Lightmass
 		const FStaticLightingMapping* Mapping;
 
 		TArray<FEmbreeTriangleDesc> TriangleDescs; // The material ID of each triangle.
-		TArray<FVector2D> UVs;
-		TArray<FVector2D> LightmapUVs;
+		TArray<FVector2f> UVs;
+		TArray<FVector2f> LightmapUVs;
 
 		uint32 GeomID; // Embree ID for this mesh.
 

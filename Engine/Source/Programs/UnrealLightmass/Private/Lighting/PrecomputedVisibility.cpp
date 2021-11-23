@@ -15,7 +15,7 @@ struct FVisibilitySamplePos
 	 * Min and max world space heights of a single sample on a triangle. 
 	 * This is necessary because supersampling is used during rasterization.
 	 */
-	FVector2D HeightRange;
+	FVector2f HeightRange;
 };
 
 struct FCellHeights
@@ -23,7 +23,7 @@ struct FCellHeights
 	/** Last triangle index that rasterized to this cell. */
 	uint64 TriangleIndex;
 	/** World space X and Y position of this cell. */
-	FVector2D Position;
+	FVector2f Position;
 	/** Array of triangle hits on this cell. */
 	TArray<FVisibilitySamplePos> HitTriangles;
 };
@@ -82,14 +82,14 @@ class FCellPlacementRasterPolicy
 {
 public:
 
-	typedef FVector4 InterpolantType;
+	typedef FVector4f InterpolantType;
 
 	/** Initialization constructor. */
 	FCellPlacementRasterPolicy(
 		FCellToHeightsMap& InHeightsMap,
 		const FScene& InScene, 
 		FStaticLightingSystem& InSystem,
-		const FBoxSphereBounds& InPrecomputedVisibilityBounds,
+		const FBoxSphereBounds3f& InPrecomputedVisibilityBounds,
 		float InCellSize)
 		:
 		HeightsMap(InHeightsMap),
@@ -122,7 +122,7 @@ private:
 	FCellToHeightsMap& HeightsMap;
 	const FScene& Scene;
 	FStaticLightingSystem& System;
-	FBoxSphereBounds PrecomputedVisibilityBounds;
+	FBoxSphereBounds3f PrecomputedVisibilityBounds;
 	float CellSize;
 };
 
@@ -136,10 +136,10 @@ void FCellPlacementRasterPolicy::ProcessPixel(int32 X,int32 Y,const InterpolantT
 		{
 			// If this is the first hit on this cell from the current triangle, add a new sample
 			FVisibilitySamplePos Sample;
-			const FVector GridPosition = PrecomputedVisibilityBounds.Origin - PrecomputedVisibilityBounds.BoxExtent + FVector(X, Y, 0) * CellSize;
-			Sample.HeightRange = FVector2D(WorldPosition.Z, WorldPosition.Z);
+			const FVector3f GridPosition = PrecomputedVisibilityBounds.Origin - PrecomputedVisibilityBounds.BoxExtent + FVector3f(X, Y, 0) * CellSize;
+			Sample.HeightRange = FVector2f(WorldPosition.Z, WorldPosition.Z);
 			Cell.HitTriangles.Add(Sample);
-			Cell.Position = FVector2D(GridPosition.X, GridPosition.Y);
+			Cell.Position = FVector2f(GridPosition.X, GridPosition.Y);
 			Cell.TriangleIndex = TriangleIndex;
 		}
 		else
@@ -152,9 +152,9 @@ void FCellPlacementRasterPolicy::ProcessPixel(int32 X,int32 Y,const InterpolantT
 	}
 }
 
-int32 FStaticLightingSystem::GetGroupCellIndex(FVector BoxCenter) const
+int32 FStaticLightingSystem::GetGroupCellIndex(FVector3f BoxCenter) const
 {
-	const FVector GridPosition = FVector(GroupVisibilityGridSizeXY, GroupVisibilityGridSizeXY, GroupVisibilityGridSizeZ) * (BoxCenter - VisibilityGridBounds.Min) / (VisibilityGridBounds.Max - VisibilityGridBounds.Min);
+	const FVector3f GridPosition = FVector3f(GroupVisibilityGridSizeXY, GroupVisibilityGridSizeXY, GroupVisibilityGridSizeZ) * (BoxCenter - VisibilityGridBounds.Min) / (VisibilityGridBounds.Max - VisibilityGridBounds.Min);
 	const int32 GridX = FMath::TruncToInt(GridPosition.X);
 	const int32 GridY = FMath::TruncToInt(GridPosition.Y);
 	const int32 GridZ = FMath::TruncToInt(GridPosition.Z);
@@ -177,10 +177,10 @@ class FVisibilityMeshSortInfo
 public:
 	float Distance;
 	int32 Index;
-	FBox Bounds;
+	FBox3f Bounds;
 
 	FVisibilityMeshSortInfo() :
-		Bounds(FBox(ForceInit))
+		Bounds(FBox3f(ForceInit))
 	{}
 };
 
@@ -190,8 +190,8 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 	const double StartTime = FPlatformTime::Seconds();
 	FLMRandomStream RandomStream(0);
 
-	const FBoxSphereBounds PrecomputedVisibilityBounds = Scene.GetVisibilityVolumeBounds();
-	const FVector4 VolumeSizes = PrecomputedVisibilityBounds.BoxExtent * 2.0f / PrecomputedVisibilitySettings.CellSize;
+	const FBoxSphereBounds3f PrecomputedVisibilityBounds = Scene.GetVisibilityVolumeBounds();
+	const FVector4f VolumeSizes = PrecomputedVisibilityBounds.BoxExtent * 2.0f / PrecomputedVisibilitySettings.CellSize;
 	const int32 SizeX = FMath::TruncToInt(VolumeSizes.X + DELTA) + 1;
 	const int32 SizeY = FMath::TruncToInt(VolumeSizes.Y + DELTA) + 1;
 
@@ -246,38 +246,38 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 					if (!PrecomputedVisibilitySettings.bPlaceCellsOnOpaqueOnly || bOpaqueMesh
 						|| (!CurrentMesh->IsMasked(ElementIndex) && !CurrentMesh->IsTranslucent(ElementIndex)))
 					{
-						FVector2D XYPositions[3];
+						FVector2f XYPositions[3];
 						for (int32 VertIndex = 0; VertIndex < 3; VertIndex++)
 						{
 							// Transform world space positions from [PrecomputedVisibilityBounds.Origin - PrecomputedVisibilityBounds.BoxExtent, PrecomputedVisibilityBounds.Origin + PrecomputedVisibilityBounds.BoxExtent] into [0,1]
-							const FVector4 TransformedPosition = (Vertices[VertIndex].WorldPosition - PrecomputedVisibilityBounds.Origin + PrecomputedVisibilityBounds.BoxExtent) / (2.0f * PrecomputedVisibilityBounds.BoxExtent);
+							const FVector4f TransformedPosition = (Vertices[VertIndex].WorldPosition - PrecomputedVisibilityBounds.Origin + PrecomputedVisibilityBounds.BoxExtent) / (2.0f * PrecomputedVisibilityBounds.BoxExtent);
 							// Project positions onto the XY plane
-							XYPositions[VertIndex] = FVector2D(TransformedPosition.X * SizeX, TransformedPosition.Y * SizeY);
+							XYPositions[VertIndex] = FVector2f(TransformedPosition.X * SizeX, TransformedPosition.Y * SizeY);
 						}
 
-						const FVector4 TriangleNormal = (Vertices[2].WorldPosition - Vertices[0].WorldPosition) ^ (Vertices[1].WorldPosition - Vertices[0].WorldPosition);
+						const FVector4f TriangleNormal = (Vertices[2].WorldPosition - Vertices[0].WorldPosition) ^ (Vertices[1].WorldPosition - Vertices[0].WorldPosition);
 
 						// Only rasterize upward facing triangles
 						if (TriangleNormal.Z > 0.0f)
 						{
 							Rasterizer.SetTriangleIndex(NextTriangleIndex);
 
-							FVector2D SubsamplePositions[9];
-							SubsamplePositions[0] = FVector2D(.5f, .5f);
-							SubsamplePositions[1] = FVector2D(0, .5f);
-							SubsamplePositions[2] = FVector2D(.5f, 0);
-							SubsamplePositions[3] = FVector2D(1, .5f);
-							SubsamplePositions[4] = FVector2D(.5f, 1);
-							SubsamplePositions[5] = FVector2D(1, 1);
-							SubsamplePositions[6] = FVector2D(0, 1);
-							SubsamplePositions[7] = FVector2D(1, 0);
-							SubsamplePositions[8] = FVector2D(0, 0);
+							FVector2f SubsamplePositions[9];
+							SubsamplePositions[0] = FVector2f(.5f, .5f);
+							SubsamplePositions[1] = FVector2f(0, .5f);
+							SubsamplePositions[2] = FVector2f(.5f, 0);
+							SubsamplePositions[3] = FVector2f(1, .5f);
+							SubsamplePositions[4] = FVector2f(.5f, 1);
+							SubsamplePositions[5] = FVector2f(1, 1);
+							SubsamplePositions[6] = FVector2f(0, 1);
+							SubsamplePositions[7] = FVector2f(1, 0);
+							SubsamplePositions[8] = FVector2f(0, 0);
 
 							const float EdgePullback = .1f;
 
 							for (int32 SampleIndex = 0; SampleIndex < UE_ARRAY_COUNT(SubsamplePositions); SampleIndex++)
 							{
-								const FVector2D SamplePosition = SubsamplePositions[SampleIndex] * (1 - 2 * EdgePullback) + FVector2D(EdgePullback, EdgePullback);
+								const FVector2f SamplePosition = SubsamplePositions[SampleIndex] * (1 - 2 * EdgePullback) + FVector2f(EdgePullback, EdgePullback);
 
 								Rasterizer.DrawTriangle(
 									Vertices[0].WorldPosition,
@@ -299,13 +299,13 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 
 		AllPrecomputedVisibilityCells.Empty(SizeX * SizeY * 2);
 
-		TArray<FVector2D> PlacedHeightRanges;
+		TArray<FVector2f> PlacedHeightRanges;
 		for (int32 Y = 0; Y < SizeY; Y++)
 		{
 			for (int32 X = 0; X < SizeX; X++)
 			{
 				FCellHeights& Cell = HeightsMap(X, Y);
-				const FVector2D CurrentPosition = Cell.Position;
+				const FVector2f CurrentPosition = Cell.Position;
 
 				// Sort the heights from smallest to largest
 				struct FCompareSampleZ
@@ -334,19 +334,19 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 						&& CurrentMaxHeight - LastSampleHeight > PrecomputedVisibilitySettings.PlayAreaHeight))
 					{
 						FPrecomputedVisibilityCell NewCell;
-						NewCell.Bounds = FBox(
-							FVector4(
+						NewCell.Bounds = FBox3f(
+							FVector4f(
 								CurrentPosition.X - PrecomputedVisibilitySettings.CellSize / 2,
 								CurrentPosition.Y - PrecomputedVisibilitySettings.CellSize / 2,
 								CurrentMaxHeight),
-							FVector4(
+							FVector4f(
 								CurrentPosition.X + PrecomputedVisibilitySettings.CellSize / 2,
 								CurrentPosition.Y + PrecomputedVisibilitySettings.CellSize / 2,
 								CurrentMaxHeight + PrecomputedVisibilitySettings.PlayAreaHeight));
 
 						AllPrecomputedVisibilityCells.Add(NewCell);
 						LastSampleHeight = CurrentMaxHeight;
-						PlacedHeightRanges.Add(FVector2D(NewCell.Bounds.Min.Z, NewCell.Bounds.Max.Z));
+						PlacedHeightRanges.Add(FVector2f(NewCell.Bounds.Min.Z, NewCell.Bounds.Max.Z));
 					}
 				}
 
@@ -371,7 +371,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 
 							for (int32 PlacedHeightIndex = 0; PlacedHeightIndex < PlacedHeightRanges.Num(); PlacedHeightIndex++)
 							{
-								FVector2D CellHeightRange = PlacedHeightRanges[PlacedHeightIndex];
+								FVector2f CellHeightRange = PlacedHeightRanges[PlacedHeightIndex];
 
 								if (TestHeight > CellHeightRange.X && TestHeight < CellHeightRange.Y)
 								{
@@ -396,7 +396,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 
 								if (ClosestCellInZIndex >= 0)
 								{
-									const FVector2D NearestCellHeightRange = PlacedHeightRanges[ClosestCellInZIndex];
+									const FVector2f NearestCellHeightRange = PlacedHeightRanges[ClosestCellInZIndex];
 									const float NearestCellCompareHeight = (NearestCellHeightRange.X + NearestCellHeightRange.Y) / 2;
 
 									// Move the bottom of the cell to be placed such that it doesn't overlap the nearest cell
@@ -411,18 +411,18 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 									}
 								}
 
-								NewCell.Bounds = FBox(
-									FVector4(
+								NewCell.Bounds = FBox3f(
+									FVector4f(
 									CurrentPosition.X - PrecomputedVisibilitySettings.CellSize / 2,
 									CurrentPosition.Y - PrecomputedVisibilitySettings.CellSize / 2,
 									DesiredCellBottom),
-									FVector4(
+									FVector4f(
 									CurrentPosition.X + PrecomputedVisibilitySettings.CellSize / 2,
 									CurrentPosition.Y + PrecomputedVisibilitySettings.CellSize / 2,
 									DesiredCellBottom + PrecomputedVisibilitySettings.PlayAreaHeight));
 
 								AllPrecomputedVisibilityCells.Add(NewCell);
-								PlacedHeightRanges.Add(FVector2D(NewCell.Bounds.Min.Z, NewCell.Bounds.Max.Z));
+								PlacedHeightRanges.Add(FVector2f(NewCell.Bounds.Min.Z, NewCell.Bounds.Max.Z));
 							}
 						}
 					}
@@ -435,7 +435,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 	const int32 NumCellsPlacedOnSurfaces = AllPrecomputedVisibilityCells.Num();
 	for (int32 CameraPositionIndex = 0; CameraPositionIndex < Scene.CameraTrackPositions.Num(); CameraPositionIndex++)
 	{
-		const FVector4& CurrentPosition = Scene.CameraTrackPositions[CameraPositionIndex];
+		const FVector4f& CurrentPosition = Scene.CameraTrackPositions[CameraPositionIndex];
 		bool bInsideCell = false;
 		for (int32 CellIndex = 0; CellIndex < AllPrecomputedVisibilityCells.Num(); CellIndex++)
 		{
@@ -452,8 +452,8 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 
 			// Snap the cell min to the nearest factor of CellSize from the visibility bounds min + CellSize / 2
 			// The CellSize / 2 offset is necessary to match up with cells produced by the rasterizer, since pixels are rasterized at cell centers
-			const FVector4 PreSnapTranslation = FVector(PrecomputedVisibilitySettings.CellSize / 2) + PrecomputedVisibilityBounds.Origin - PrecomputedVisibilityBounds.BoxExtent;
-			const FVector4 TranslatedPosition = CurrentPosition - PreSnapTranslation;
+			const FVector4f PreSnapTranslation = FVector3f(PrecomputedVisibilitySettings.CellSize / 2) + PrecomputedVisibilityBounds.Origin - PrecomputedVisibilityBounds.BoxExtent;
+			const FVector4f TranslatedPosition = CurrentPosition - PreSnapTranslation;
 			// FMath::Fmod gives the offset to round up for negative numbers, when we always want the offset to round down
 			const float XOffset = TranslatedPosition.X > 0.0f ? 
 				FMath::Fmod(TranslatedPosition.X, PrecomputedVisibilitySettings.CellSize) : 
@@ -461,14 +461,14 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 			const float YOffset = TranslatedPosition.Y > 0.0f ? 
 				FMath::Fmod(TranslatedPosition.Y, PrecomputedVisibilitySettings.CellSize) : 
 				PrecomputedVisibilitySettings.CellSize - FMath::Fmod(-TranslatedPosition.Y, PrecomputedVisibilitySettings.CellSize);
-			const FVector4 SnappedPosition(CurrentPosition.X - XOffset, CurrentPosition.Y - YOffset, CurrentPosition.Z);
+			const FVector4f SnappedPosition(CurrentPosition.X - XOffset, CurrentPosition.Y - YOffset, CurrentPosition.Z);
 
-			NewCell.Bounds = FBox(
-				FVector4(
+			NewCell.Bounds = FBox3f(
+				FVector4f(
 					SnappedPosition.X,
 					SnappedPosition.Y,
 					SnappedPosition.Z - .5f * PrecomputedVisibilitySettings.PlayAreaHeight),
-				FVector4(
+				FVector4f(
 					SnappedPosition.X + PrecomputedVisibilitySettings.CellSize,
 					SnappedPosition.Y + PrecomputedVisibilitySettings.CellSize,
 					SnappedPosition.Z + .5f * PrecomputedVisibilitySettings.PlayAreaHeight));
@@ -484,7 +484,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 		TArray<FVisibilityMeshSortInfo> SortMeshes;
 		SortMeshes.Empty(VisibilityMeshes.Num());
 
-		FVector CenterPosition(0, 0, 0);
+		FVector3f CenterPosition(0, 0, 0);
 
 		if (VisibilityMeshes.Num() > 0)
 		{
@@ -511,20 +511,20 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 			SortMeshes.Add(NewInfo);
 		}
 
-		FVector CubeCorners[8];
-		CubeCorners[0] = FVector(1, 1, 1);
-		CubeCorners[1] = FVector(-1, 1, 1);
-		CubeCorners[2] = FVector(1, -1, 1);
-		CubeCorners[3] = FVector(-1, -1, 1);
-		CubeCorners[4] = FVector(1, 1, -1);
-		CubeCorners[5] = FVector(-1, 1, -1);
-		CubeCorners[6] = FVector(1, -1, -1);
-		CubeCorners[7] = FVector(-1, -1, -1);
+		FVector3f CubeCorners[8];
+		CubeCorners[0] = FVector3f(1, 1, 1);
+		CubeCorners[1] = FVector3f(-1, 1, 1);
+		CubeCorners[2] = FVector3f(1, -1, 1);
+		CubeCorners[3] = FVector3f(-1, -1, 1);
+		CubeCorners[4] = FVector3f(1, 1, -1);
+		CubeCorners[5] = FVector3f(-1, 1, -1);
+		CubeCorners[6] = FVector3f(1, -1, -1);
+		CubeCorners[7] = FVector3f(-1, -1, -1);
 
 		for (int32 MeshIndex = 0; MeshIndex < SortMeshes.Num(); MeshIndex++)
 		{
-			const FVector BoxCenter = SortMeshes[MeshIndex].Bounds.GetCenter();
-			const FVector BoxExtent = SortMeshes[MeshIndex].Bounds.GetExtent();
+			const FVector3f BoxCenter = SortMeshes[MeshIndex].Bounds.GetCenter();
+			const FVector3f BoxExtent = SortMeshes[MeshIndex].Bounds.GetExtent();
 			float LocalDistance = 0;
 
 			for (int32 CornerIndex = 0; CornerIndex < UE_ARRAY_COUNT(CubeCorners); CornerIndex++)
@@ -545,7 +545,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 		};
 		SortMeshes.Sort(FCompareMeshesByDistance());
 
-		VisibilityGridBounds = FBox(ForceInit);
+		VisibilityGridBounds = FBox3f(ForceInit);
 		// Drop last 10% of meshes which will expand the grid bounds 
 		// This is to handle distant skybox type meshes
 		const int32 MaxMeshIndex = FMath::Min(FMath::Max(FMath::TruncToInt(.9f * SortMeshes.Num()), 1), SortMeshes.Num() - 1);
@@ -565,7 +565,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 		const int32 GridSizeXY = GroupVisibilityGridSizeXY;
 		const int32 GridSizeZ = GroupVisibilityGridSizeZ;
 
-		const FVector CellSize = VisibilityGridBounds.GetExtent() / FVector(GroupVisibilityGridSizeXY, GroupVisibilityGridSizeXY, GroupVisibilityGridSizeZ);
+		const FVector3f CellSize = VisibilityGridBounds.GetExtent() / FVector3f(GroupVisibilityGridSizeXY, GroupVisibilityGridSizeXY, GroupVisibilityGridSizeZ);
 		const float GridCellBoundingRadius = CellSize.Size();
 		const float MeshGroupingCellRadiusThreshold = .5f;
 
@@ -579,7 +579,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 
 		for (int32 VisibilityMeshIndex = 0; VisibilityMeshIndex < VisibilityMeshes.Num(); VisibilityMeshIndex++)
 		{
-			FBox MeshBounds(ForceInit);
+			FBox3f MeshBounds(ForceInit);
 
 			for (int32 OriginalMeshIndex = 0; OriginalMeshIndex < VisibilityMeshes[VisibilityMeshIndex].Meshes.Num(); OriginalMeshIndex++)
 			{
@@ -630,7 +630,7 @@ void FStaticLightingSystem::SetupPrecomputedVisibility()
 		for (int32 GroupIndex = 0; GroupIndex < VisibilityGroups.Num(); GroupIndex++)
 		{
 			FVisibilityMeshGroup& Group = VisibilityGroups[GroupIndex];
-			Group.GroupBounds = FBox(ForceInit);
+			Group.GroupBounds = FBox3f(ForceInit);
 
 			for (int32 EntryIndex = 0; EntryIndex < Group.VisibilityIds.Num(); EntryIndex++)
 			{
@@ -673,28 +673,28 @@ public:
 
 	FAxisAlignedCellFace() {}
 
-	FAxisAlignedCellFace(const FVector4& InFaceDirection, const FVector4& InFaceMin, const FVector4& InFaceExtent) :
+	FAxisAlignedCellFace(const FVector4f& InFaceDirection, const FVector4f& InFaceMin, const FVector4f& InFaceExtent) :
 		FaceDirection(InFaceDirection),
 		FaceMin(InFaceMin),
 		FaceExtent(InFaceExtent)
 	{}
 
-	FVector4 FaceDirection;
-	FVector4 FaceMin;
-	FVector4 FaceExtent;
+	FVector4f FaceDirection;
+	FVector4f FaceMin;
+	FVector4f FaceExtent;
 };
 
 /** Stores information about a single query sample between a visibility cell and a mesh. */
 struct FVisibilityQuerySample
 {
 	/** Sample position generated from the mesh. */
-	FVector4 MeshPosition;
+	FVector4f MeshPosition;
 
 	/** Sample position generated from the cell. */
-	FVector4 CellPosition;
+	FVector4f CellPosition;
 
 	/** Position of the intersection with the scene between the sample positions. */
-	FVector4 IntersectionPosition;
+	FVector4f IntersectionPosition;
 
 	/** Distance along the vector perpendicular to the mesh->cell vector. */
 	float PerpendicularDistance;
@@ -709,7 +709,7 @@ bool ComputeBoxVisibility(
 	FPrecomputedVisibilitySettings& PrecomputedVisibilitySettings,
 	FPrecomputedVisibilityCell& CurrentCell, 
 	FAxisAlignedCellFace* CellFaces,
-	const FBox& MeshBox,
+	const FBox3f& MeshBox,
 	FStaticLightingMappingContext& MappingContext,
 	FLMRandomStream& RandomStream,
 	TArray<int32>& VisibleCellFaces,
@@ -725,18 +725,18 @@ bool ComputeBoxVisibility(
 {
 	const double SampleGenerationStartTime = FPlatformTime::Seconds();
 
-	const FVector4 CenterCellPosition = .5f * (CurrentCell.Bounds.Min + CurrentCell.Bounds.Max);
-	const FVector4 MeshToCellCenter = CenterCellPosition - MeshBox.GetCenter();
+	const FVector4f CenterCellPosition = .5f * (CurrentCell.Bounds.Min + CurrentCell.Bounds.Max);
+	const FVector4f MeshToCellCenter = CenterCellPosition - MeshBox.GetCenter();
 	const float Distance = MeshToCellCenter.Size3();
-	const FVector4 MeshBoxExtent = MeshBox.GetExtent() * 2;
+	const FVector4f MeshBoxExtent = MeshBox.GetExtent() * 2;
 
 	FAxisAlignedCellFace MeshBoxFaces[6];
-	MeshBoxFaces[0] = FAxisAlignedCellFace(FVector4(-1, 0, 0), FVector4(MeshBox.Min.X, MeshBox.Min.Y, MeshBox.Min.Z), FVector4(0, MeshBoxExtent.Y, MeshBoxExtent.Z));
-	MeshBoxFaces[1] = FAxisAlignedCellFace(FVector4(1, 0, 0), FVector4(MeshBox.Min.X + MeshBoxExtent.X, MeshBox.Min.Y, MeshBox.Min.Z), FVector4(0, MeshBoxExtent.Y, MeshBoxExtent.Z));
-	MeshBoxFaces[2] = FAxisAlignedCellFace(FVector4(0, -1, 0), FVector4(MeshBox.Min.X, MeshBox.Min.Y, MeshBox.Min.Z), FVector4(MeshBoxExtent.X, 0, MeshBoxExtent.Z));
-	MeshBoxFaces[3] = FAxisAlignedCellFace(FVector4(0, 1, 0), FVector4(MeshBox.Min.X, MeshBox.Min.Y + MeshBoxExtent.Y, MeshBox.Min.Z), FVector4(MeshBoxExtent.X, 0, MeshBoxExtent.Z));
-	MeshBoxFaces[4] = FAxisAlignedCellFace(FVector4(0, 0, -1), FVector4(MeshBox.Min.X, MeshBox.Min.Y, MeshBox.Min.Z), FVector4(MeshBoxExtent.X, MeshBoxExtent.Y, 0));
-	MeshBoxFaces[5] = FAxisAlignedCellFace(FVector4(0, 0, 1), FVector4(MeshBox.Min.X, MeshBox.Min.Y, MeshBox.Min.Z + MeshBoxExtent.Z), FVector4(MeshBoxExtent.X, MeshBoxExtent.Y, 0));
+	MeshBoxFaces[0] = FAxisAlignedCellFace(FVector4f(-1, 0, 0), FVector4f(MeshBox.Min.X, MeshBox.Min.Y, MeshBox.Min.Z), FVector4f(0, MeshBoxExtent.Y, MeshBoxExtent.Z));
+	MeshBoxFaces[1] = FAxisAlignedCellFace(FVector4f(1, 0, 0), FVector4f(MeshBox.Min.X + MeshBoxExtent.X, MeshBox.Min.Y, MeshBox.Min.Z), FVector4f(0, MeshBoxExtent.Y, MeshBoxExtent.Z));
+	MeshBoxFaces[2] = FAxisAlignedCellFace(FVector4f(0, -1, 0), FVector4f(MeshBox.Min.X, MeshBox.Min.Y, MeshBox.Min.Z), FVector4f(MeshBoxExtent.X, 0, MeshBoxExtent.Z));
+	MeshBoxFaces[3] = FAxisAlignedCellFace(FVector4f(0, 1, 0), FVector4f(MeshBox.Min.X, MeshBox.Min.Y + MeshBoxExtent.Y, MeshBox.Min.Z), FVector4f(MeshBoxExtent.X, 0, MeshBoxExtent.Z));
+	MeshBoxFaces[4] = FAxisAlignedCellFace(FVector4f(0, 0, -1), FVector4f(MeshBox.Min.X, MeshBox.Min.Y, MeshBox.Min.Z), FVector4f(MeshBoxExtent.X, MeshBoxExtent.Y, 0));
+	MeshBoxFaces[5] = FAxisAlignedCellFace(FVector4f(0, 0, 1), FVector4f(MeshBox.Min.X, MeshBox.Min.Y, MeshBox.Min.Z + MeshBoxExtent.Z), FVector4f(MeshBoxExtent.X, MeshBoxExtent.Y, 0));
 
 	VisibleCellFaces.Reset();
 	VisibleCellFacePDFs.Reset();
@@ -798,7 +798,7 @@ bool ComputeBoxVisibility(
 
 	if (!bVisible)
 	{
-		const FVector4 PerpendicularVector = MeshToCellCenter ^ FVector4(0, 0, 1);
+		const FVector4f PerpendicularVector = MeshToCellCenter ^ FVector4f(0, 0, 1);
 		SamplePositions.Reset();
 
 		// Generate samples for explicit visibility sampling of the mesh
@@ -815,15 +815,15 @@ bool ComputeBoxVisibility(
 					Sample1dCDF(VisibleCellFacePDFs, VisibleCellFaceCDFs, UnnormalizedIntegral, RandomStream, PDF, Sample);
 					const int32 ChosenCellFaceIndex = FMath::TruncToInt(Sample * VisibleCellFaces.Num());
 					const FAxisAlignedCellFace& ChosenFace = CellFaces[VisibleCellFaces[ChosenCellFaceIndex]];
-					NewSample.CellPosition = ChosenFace.FaceMin + ChosenFace.FaceExtent * FVector4(RandomStream.GetFraction(), RandomStream.GetFraction(), RandomStream.GetFraction());
+					NewSample.CellPosition = ChosenFace.FaceMin + ChosenFace.FaceExtent * FVector4f(RandomStream.GetFraction(), RandomStream.GetFraction(), RandomStream.GetFraction());
 				}
 				{
 					// Generate a sample on the visible faces of the mesh
 					const int32 ChosenFaceIndex = FMath::TruncToInt(RandomStream.GetFraction() * VisibleMeshFaces.Num());
 					const FAxisAlignedCellFace& ChosenFace = MeshBoxFaces[VisibleMeshFaces[ChosenFaceIndex]];
-					NewSample.MeshPosition = ChosenFace.FaceMin + ChosenFace.FaceExtent * FVector4(RandomStream.GetFraction(), RandomStream.GetFraction(), RandomStream.GetFraction());
+					NewSample.MeshPosition = ChosenFace.FaceMin + ChosenFace.FaceExtent * FVector4f(RandomStream.GetFraction(), RandomStream.GetFraction(), RandomStream.GetFraction());
 				}
-				const FVector4 HalfPosition = .5f * (NewSample.CellPosition + NewSample.MeshPosition);
+				const FVector4f HalfPosition = .5f * (NewSample.CellPosition + NewSample.MeshPosition);
 				NewSample.PerpendicularDistance = Dot3(HalfPosition, PerpendicularVector);
 				SamplePositions.Add(NewSample);
 			}
@@ -850,8 +850,8 @@ bool ComputeBoxVisibility(
 			for (int32 MeshSampleIndex = 0; MeshSampleIndex < NumMeshSamples; MeshSampleIndex++)
 			{
 				FVisibilityQuerySample& CurrentSample = SamplePositions[CellSampleIndex * NumMeshSamples + MeshSampleIndex];
-				const FVector4 CellSamplePosition = CurrentSample.CellPosition;
-				const FVector4 MeshSamplePosition = CurrentSample.MeshPosition;
+				const FVector4f CellSamplePosition = CurrentSample.CellPosition;
+				const FVector4f MeshSamplePosition = CurrentSample.MeshPosition;
 
 				FLightRay Ray(
 					CellSamplePosition,
@@ -930,21 +930,21 @@ bool ComputeBoxVisibility(
 				const int32 SampleIndex = FMath::TruncToInt(RandomStream.GetFraction() * FurthestSamples.Num());
 				const FVisibilityQuerySample& CurrentSample = *FurthestSamples[SampleIndex];
 				const float VectorLength = (CurrentSample.CellPosition - CurrentSample.MeshPosition).Size3();
-				const FVector4 CurrentDirection = (CurrentSample.MeshPosition - CurrentSample.CellPosition).GetSafeNormal();
+				const FVector4f CurrentDirection = (CurrentSample.MeshPosition - CurrentSample.CellPosition).GetSafeNormal();
 
-				FVector4 XAxis;
-				FVector4 YAxis;
+				FVector4f XAxis;
+				FVector4f YAxis;
 				GenerateCoordinateSystem(CurrentDirection, XAxis, YAxis);
 
 				// Generate a new direction in a cone 2 degrees from the original direction, to find cracks nearby
-				const FVector4 SampleDirection = UniformSampleCone(
+				const FVector4f SampleDirection = UniformSampleCone(
 					RandomStream, 
 					FMath::Cos(2.0f * PI / 180.0f), 
 					XAxis, 
 					YAxis, 
 					CurrentDirection);
 
-				const FVector4 EndPoint = CurrentSample.CellPosition + SampleDirection * VectorLength;
+				const FVector4f EndPoint = CurrentSample.CellPosition + SampleDirection * VectorLength;
 
 				FLightRay Ray(
 					CurrentSample.CellPosition,
@@ -988,48 +988,48 @@ bool ComputeBoxVisibility(
 	return bVisible;
 }
 
-void AddMeshDebugLines(TArray<FDebugStaticLightingRay>& DebugVisibilityRays, const TArray<FStaticLightingMesh*>& Meshes, const FBox& MeshBox)
+void AddMeshDebugLines(TArray<FDebugStaticLightingRay>& DebugVisibilityRays, const TArray<FStaticLightingMesh*>& Meshes, const FBox3f& MeshBox)
 {
 	// Draw the bounding boxes of each mesh and the combined bounds
 	if (Meshes.Num() > 1)
 	{
 		for (int32 OriginalMeshIndex = 0; OriginalMeshIndex < Meshes.Num(); OriginalMeshIndex++)
 		{
-			const FVector4 Min = Meshes[OriginalMeshIndex]->BoundingBox.Min;
-			const FVector4 Max = Meshes[OriginalMeshIndex]->BoundingBox.Max;
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Min.X, Max.Y, Min.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Min.Z), FVector4(Min.X, Max.Y, Max.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Min.X, Min.Y, Max.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Max.Z), FVector4(Min.X, Max.Y, Max.Z), false));
+			const FVector4f Min = Meshes[OriginalMeshIndex]->BoundingBox.Min;
+			const FVector4f Max = Meshes[OriginalMeshIndex]->BoundingBox.Max;
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Min.X, Max.Y, Min.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Min.Z), FVector4f(Min.X, Max.Y, Max.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Min.X, Min.Y, Max.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Max.Z), FVector4f(Min.X, Max.Y, Max.Z), false));
 
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Min.Z), FVector4(Max.X, Max.Y, Min.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Max.Y, Min.Z), FVector4(Max.X, Max.Y, Max.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Min.Z), FVector4(Max.X, Min.Y, Max.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Max.Z), FVector4(Max.X, Max.Y, Max.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Min.Z), FVector4f(Max.X, Max.Y, Min.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Max.Y, Min.Z), FVector4f(Max.X, Max.Y, Max.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Min.Z), FVector4f(Max.X, Min.Y, Max.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Max.Z), FVector4f(Max.X, Max.Y, Max.Z), false));
 
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Max.X, Min.Y, Min.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Max.Z), FVector4(Max.X, Min.Y, Max.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Min.Z), FVector4(Max.X, Max.Y, Min.Z), false));
-			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Max.Z), FVector4(Max.X, Max.Y, Max.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Max.X, Min.Y, Min.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Max.Z), FVector4f(Max.X, Min.Y, Max.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Min.Z), FVector4f(Max.X, Max.Y, Min.Z), false));
+			DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Max.Z), FVector4f(Max.X, Max.Y, Max.Z), false));
 		}
 	}
 
-	const FVector4 Min = MeshBox.Min;
-	const FVector4 Max = MeshBox.Max;
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Min.X, Max.Y, Min.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Min.Z), FVector4(Min.X, Max.Y, Max.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Min.X, Min.Y, Max.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Max.Z), FVector4(Min.X, Max.Y, Max.Z), true));
+	const FVector4f Min = MeshBox.Min;
+	const FVector4f Max = MeshBox.Max;
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Min.X, Max.Y, Min.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Min.Z), FVector4f(Min.X, Max.Y, Max.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Min.X, Min.Y, Max.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Max.Z), FVector4f(Min.X, Max.Y, Max.Z), true));
 
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Min.Z), FVector4(Max.X, Max.Y, Min.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Max.Y, Min.Z), FVector4(Max.X, Max.Y, Max.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Min.Z), FVector4(Max.X, Min.Y, Max.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Max.Z), FVector4(Max.X, Max.Y, Max.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Min.Z), FVector4f(Max.X, Max.Y, Min.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Max.Y, Min.Z), FVector4f(Max.X, Max.Y, Max.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Min.Z), FVector4f(Max.X, Min.Y, Max.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Max.Z), FVector4f(Max.X, Max.Y, Max.Z), true));
 
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Max.X, Min.Y, Min.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Max.Z), FVector4(Max.X, Min.Y, Max.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Min.Z), FVector4(Max.X, Max.Y, Min.Z), true));
-	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Max.Z), FVector4(Max.X, Max.Y, Max.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Max.X, Min.Y, Min.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Max.Z), FVector4f(Max.X, Min.Y, Max.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Min.Z), FVector4f(Max.X, Max.Y, Min.Z), true));
+	DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Max.Z), FVector4f(Max.X, Max.Y, Max.Z), true));
 }
 
 /** Calculates visibility for a given group of cells, called from all threads. */
@@ -1090,13 +1090,13 @@ void FStaticLightingSystem::CalculatePrecomputedVisibility(int32 BucketIndex)
 		CurrentCell.VisibilityData.AddZeroed(VisibilityMeshes.Num() / 8 + 1);
 
 		FAxisAlignedCellFace CellFaces[6];
-		const FVector CellBoundsSize = CurrentCell.Bounds.GetSize();
-		CellFaces[0] = FAxisAlignedCellFace(FVector4(-1, 0, 0), FVector4(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Min.Z), FVector4(0, CellBoundsSize.Y, CellBoundsSize.Z));
-		CellFaces[1] = FAxisAlignedCellFace(FVector4(1, 0, 0), FVector4(CurrentCell.Bounds.Max.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Min.Z), FVector4(0, CellBoundsSize.Y, CellBoundsSize.Z));
-		CellFaces[2] = FAxisAlignedCellFace(FVector4(0, -1, 0), FVector4(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Min.Z), FVector4(CellBoundsSize.X, 0, CellBoundsSize.Z));
-		CellFaces[3] = FAxisAlignedCellFace(FVector4(0, 1, 0), FVector4(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Max.Y, CurrentCell.Bounds.Min.Z), FVector4(CellBoundsSize.X, 0, CellBoundsSize.Z));
-		CellFaces[4] = FAxisAlignedCellFace(FVector4(0, 0, -1), FVector4(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Min.Z), FVector4(CellBoundsSize.X, CellBoundsSize.Y, 0));
-		CellFaces[5] = FAxisAlignedCellFace(FVector4(0, 0, 1), FVector4(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Max.Z), FVector4(CellBoundsSize.X, CellBoundsSize.Y, 0));
+		const FVector3f CellBoundsSize = CurrentCell.Bounds.GetSize();
+		CellFaces[0] = FAxisAlignedCellFace(FVector4f(-1, 0, 0), FVector4f(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Min.Z), FVector4f(0, CellBoundsSize.Y, CellBoundsSize.Z));
+		CellFaces[1] = FAxisAlignedCellFace(FVector4f(1, 0, 0), FVector4f(CurrentCell.Bounds.Max.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Min.Z), FVector4f(0, CellBoundsSize.Y, CellBoundsSize.Z));
+		CellFaces[2] = FAxisAlignedCellFace(FVector4f(0, -1, 0), FVector4f(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Min.Z), FVector4f(CellBoundsSize.X, 0, CellBoundsSize.Z));
+		CellFaces[3] = FAxisAlignedCellFace(FVector4f(0, 1, 0), FVector4f(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Max.Y, CurrentCell.Bounds.Min.Z), FVector4f(CellBoundsSize.X, 0, CellBoundsSize.Z));
+		CellFaces[4] = FAxisAlignedCellFace(FVector4f(0, 0, -1), FVector4f(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Min.Z), FVector4f(CellBoundsSize.X, CellBoundsSize.Y, 0));
+		CellFaces[5] = FAxisAlignedCellFace(FVector4f(0, 0, 1), FVector4f(CurrentCell.Bounds.Min.X, CurrentCell.Bounds.Min.Y, CurrentCell.Bounds.Max.Z), FVector4f(CellBoundsSize.X, CellBoundsSize.Y, 0));
 
 		GroupVisibility.Reset();
 		
@@ -1132,7 +1132,7 @@ void FStaticLightingSystem::CalculatePrecomputedVisibility(int32 BucketIndex)
 		{
 			const FVisibilityMesh& VisibilityMesh = VisibilityMeshes[VisibilityMeshIndex];
 
-			FBox OriginalMeshBounds(ForceInit);
+			FBox3f OriginalMeshBounds(ForceInit);
 			// Combine mesh bounds, usually only BSP has multiple meshes per VisibilityId
 			//@todo - could explicitly sample each bounds separately, but they tend to be pretty close together in world space
 			for (int32 OriginalMeshIndex = 0; OriginalMeshIndex < VisibilityMesh.Meshes.Num(); OriginalMeshIndex++)
@@ -1140,7 +1140,7 @@ void FStaticLightingSystem::CalculatePrecomputedVisibility(int32 BucketIndex)
 				OriginalMeshBounds += VisibilityMesh.Meshes[OriginalMeshIndex]->BoundingBox;
 			}
 
-			const FBox MeshBox(
+			const FBox3f MeshBox(
 				OriginalMeshBounds.GetCenter() - OriginalMeshBounds.GetExtent() * PrecomputedVisibilitySettings.MeshBoundsScale,
 				OriginalMeshBounds.GetCenter() + OriginalMeshBounds.GetExtent() * PrecomputedVisibilitySettings.MeshBoundsScale);
 
@@ -1223,22 +1223,22 @@ void FStaticLightingSystem::CalculatePrecomputedVisibility(int32 BucketIndex)
 		if (bDebugThisCell)
 		{
 			// Draw the bounds of each cell processed
-			const FVector4 Min = CurrentCell.Bounds.Min;
-			const FVector4 Max = CurrentCell.Bounds.Max;
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Min.X, Max.Y, Min.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Min.Z), FVector4(Min.X, Max.Y, Max.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Min.X, Min.Y, Max.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Max.Z), FVector4(Min.X, Max.Y, Max.Z), false));
+			const FVector4f Min = CurrentCell.Bounds.Min;
+			const FVector4f Max = CurrentCell.Bounds.Max;
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Min.X, Max.Y, Min.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Min.Z), FVector4f(Min.X, Max.Y, Max.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Min.X, Min.Y, Max.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Max.Z), FVector4f(Min.X, Max.Y, Max.Z), false));
 
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Min.Z), FVector4(Max.X, Max.Y, Min.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Max.Y, Min.Z), FVector4(Max.X, Max.Y, Max.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Min.Z), FVector4(Max.X, Min.Y, Max.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Max.X, Min.Y, Max.Z), FVector4(Max.X, Max.Y, Max.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Min.Z), FVector4f(Max.X, Max.Y, Min.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Max.Y, Min.Z), FVector4f(Max.X, Max.Y, Max.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Min.Z), FVector4f(Max.X, Min.Y, Max.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Max.X, Min.Y, Max.Z), FVector4f(Max.X, Max.Y, Max.Z), false));
 
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Min.Z), FVector4(Max.X, Min.Y, Min.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Min.Y, Max.Z), FVector4(Max.X, Min.Y, Max.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Min.Z), FVector4(Max.X, Max.Y, Min.Z), false));
-			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4(Min.X, Max.Y, Max.Z), FVector4(Max.X, Max.Y, Max.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Min.Z), FVector4f(Max.X, Min.Y, Min.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Min.Y, Max.Z), FVector4f(Max.X, Min.Y, Max.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Min.Z), FVector4f(Max.X, Max.Y, Min.Z), false));
+			DataLink->Element.DebugVisibilityRays.Add(FDebugStaticLightingRay(FVector4f(Min.X, Max.Y, Max.Z), FVector4f(Max.X, Max.Y, Max.Z), false));
 		}
 	}
 	

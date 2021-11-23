@@ -17,15 +17,15 @@ void FStaticLightingSystem::BeginCalculateVolumeDistanceField()
 		DistanceFieldVolumeBounds = AggregateMesh->GetBounds();
 	}
 
-	FBox UnclampedDistanceFieldVolumeBounds = DistanceFieldVolumeBounds;
-	FVector4 DoubleExtent = UnclampedDistanceFieldVolumeBounds.GetExtent() * 2;
-	DoubleExtent.X = DoubleExtent.X - FMath::Fmod(DoubleExtent.X, (FVector4::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
-	DoubleExtent.Y = DoubleExtent.Y - FMath::Fmod(DoubleExtent.Y, (FVector4::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
-	DoubleExtent.Z = DoubleExtent.Z - FMath::Fmod(DoubleExtent.Z, (FVector4::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
+	FBox3f UnclampedDistanceFieldVolumeBounds = DistanceFieldVolumeBounds;
+	FVector4f DoubleExtent = UnclampedDistanceFieldVolumeBounds.GetExtent() * 2;
+	DoubleExtent.X = DoubleExtent.X - FMath::Fmod(DoubleExtent.X, (FVector4f::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
+	DoubleExtent.Y = DoubleExtent.Y - FMath::Fmod(DoubleExtent.Y, (FVector4f::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
+	DoubleExtent.Z = DoubleExtent.Z - FMath::Fmod(DoubleExtent.Z, (FVector4f::FReal)VolumeDistanceFieldSettings.VoxelSize) + VolumeDistanceFieldSettings.VoxelSize;
 	// Round the max up to the next step boundary
 	UnclampedDistanceFieldVolumeBounds.Max = UnclampedDistanceFieldVolumeBounds.Min + DoubleExtent;
 
-	const FVector4 VolumeSizes = UnclampedDistanceFieldVolumeBounds.GetExtent() * 2.0f / VolumeDistanceFieldSettings.VoxelSize;
+	const FVector4f VolumeSizes = UnclampedDistanceFieldVolumeBounds.GetExtent() * 2.0f / VolumeDistanceFieldSettings.VoxelSize;
 	VolumeSizeX = FMath::TruncToFloat(VolumeSizes.X + DELTA);
 	VolumeSizeY = FMath::TruncToFloat(VolumeSizes.Y + DELTA);
 	VolumeSizeZ = FMath::TruncToFloat(VolumeSizes.Z + DELTA);
@@ -42,13 +42,13 @@ void FStaticLightingSystem::BeginCalculateVolumeDistanceField()
 		DistanceFieldVoxelSize = VolumeDistanceFieldSettings.VoxelSize * SingleDimensionScale;
 
 		DoubleExtent = DistanceFieldVolumeBounds.GetExtent() * 2;
-		DoubleExtent.X = DoubleExtent.X - FMath::Fmod(DoubleExtent.X, (FVector4::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
-		DoubleExtent.Y = DoubleExtent.Y - FMath::Fmod(DoubleExtent.Y, (FVector4::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
-		DoubleExtent.Z = DoubleExtent.Z - FMath::Fmod(DoubleExtent.Z, (FVector4::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
+		DoubleExtent.X = DoubleExtent.X - FMath::Fmod(DoubleExtent.X, (FVector4f::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
+		DoubleExtent.Y = DoubleExtent.Y - FMath::Fmod(DoubleExtent.Y, (FVector4f::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
+		DoubleExtent.Z = DoubleExtent.Z - FMath::Fmod(DoubleExtent.Z, (FVector4f::FReal)DistanceFieldVoxelSize) + DistanceFieldVoxelSize;
 		// Round the max up to the next step boundary with the clamped voxel size
 		DistanceFieldVolumeBounds.Max = DistanceFieldVolumeBounds.Min + DoubleExtent;
 
-		const FVector4 ClampedVolumeSizes = DistanceFieldVolumeBounds.GetExtent() * 2.0f / DistanceFieldVoxelSize;
+		const FVector4f ClampedVolumeSizes = DistanceFieldVolumeBounds.GetExtent() * 2.0f / DistanceFieldVoxelSize;
 		VolumeSizeX = FMath::TruncToFloat(ClampedVolumeSizes.X + DELTA);
 		VolumeSizeY = FMath::TruncToFloat(ClampedVolumeSizes.Y + DELTA);
 		VolumeSizeZ = FMath::TruncToFloat(ClampedVolumeSizes.Z + DELTA);
@@ -74,29 +74,29 @@ void FStaticLightingSystem::CalculateVolumeDistanceFieldWorkRange(int32 ZIndex)
 	const double StartTime = FPlatformTime::Seconds();
 	FStaticLightingMappingContext MappingContext(NULL, *this);
 
-	TArray<FVector4> SampleDirections;
-	TArray<FVector2D> SampleDirectionUniforms;
+	TArray<FVector4f> SampleDirections;
+	TArray<FVector2f> SampleDirectionUniforms;
 	const int32 NumThetaSteps = FMath::TruncToInt(FMath::Sqrt(VolumeDistanceFieldSettings.NumVoxelDistanceSamples / (2.0f * (float)PI)));
 	const int32 NumPhiSteps = FMath::TruncToInt(NumThetaSteps * (float)PI);
 	FLMRandomStream RandomStream(0);
 	GenerateStratifiedUniformHemisphereSamples(NumThetaSteps, NumPhiSteps, RandomStream, SampleDirections, SampleDirectionUniforms);
-	TArray<FVector4> OtherHemisphereSamples;
-	TArray<FVector2D> OtherSampleDirectionUniforms;
+	TArray<FVector4f> OtherHemisphereSamples;
+	TArray<FVector2f> OtherSampleDirectionUniforms;
 	GenerateStratifiedUniformHemisphereSamples(NumThetaSteps, NumPhiSteps, RandomStream, OtherHemisphereSamples, OtherSampleDirectionUniforms);
 
 	for (int32 i = 0; i < OtherHemisphereSamples.Num(); i++)
 	{
-		FVector4 Sample = OtherHemisphereSamples[i];
+		FVector4f Sample = OtherHemisphereSamples[i];
 		Sample.Z *= -1;
 		SampleDirections.Add(Sample);
 	}
 
-	const FVector4 CellExtents = FVector4(DistanceFieldVoxelSize / 2, DistanceFieldVoxelSize / 2, DistanceFieldVoxelSize / 2);
+	const FVector4f CellExtents = FVector4f(DistanceFieldVoxelSize / 2, DistanceFieldVoxelSize / 2, DistanceFieldVoxelSize / 2);
 	for (int32 YIndex = 0; YIndex < VolumeSizeY; YIndex++)
 	{
 		for (int32 XIndex = 0; XIndex < VolumeSizeX; XIndex++)
 		{
-			const FVector4 VoxelPosition = FVector4(XIndex, YIndex, ZIndex) * DistanceFieldVoxelSize + DistanceFieldVolumeBounds.Min + CellExtents;
+			const FVector4f VoxelPosition = FVector4f(XIndex, YIndex, ZIndex) * DistanceFieldVoxelSize + DistanceFieldVolumeBounds.Min + CellExtents;
 			const int32 Index = ZIndex * VolumeSizeY * VolumeSizeX + YIndex * VolumeSizeX + XIndex;
 	
 			float MinDistance[2];

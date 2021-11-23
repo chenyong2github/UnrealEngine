@@ -34,9 +34,9 @@ class FLightRay
 {
 public: 
 
-	FVector4 Start;
-	FVector4 End;
-	FVector4 Direction;
+	FVector4f Start;
+	FVector4f End;
+	FVector4f Direction;
 	float Length;
 
 	/** The mapping that the ray originated from, used for conditional intersections. */
@@ -49,7 +49,7 @@ public:
 	FLightRay() {}
 
 	/** Initialization constructor. */
-	FLightRay(const FVector4& InStart, const FVector4& InEnd, const FStaticLightingMapping* InMapping, const FLight* InLight, uint32 InTraceFlags = LIGHTRAY_NONE)
+	FLightRay(const FVector4f& InStart, const FVector4f& InEnd, const FStaticLightingMapping* InMapping, const FLight* InLight, uint32 InTraceFlags = LIGHTRAY_NONE)
 	:	Start(InStart)
 	,	End(InEnd)
 	,	Direction(InEnd - InStart)
@@ -62,14 +62,14 @@ public:
 	}
 
 	/** Clips the light ray from the original start to an intersection point. */
-	void ClipAgainstIntersectionFromStart(const FVector4& IntersectionPoint)
+	void ClipAgainstIntersectionFromStart(const FVector4f& IntersectionPoint)
 	{
 		End = IntersectionPoint;
 		Direction = End - Start;
 	}
 
 	/** Clips the light ray from the original end to an intersection point. */
-	void ClipAgainstIntersectionFromEnd(const FVector4& IntersectionPoint)
+	void ClipAgainstIntersectionFromEnd(const FVector4f& IntersectionPoint)
 	{
 		Start = IntersectionPoint;
 		Direction = End - Start;
@@ -186,7 +186,7 @@ public:
 		check(0);
 	}
 
-	FBox GetBounds() const;
+	FBox3f GetBounds() const;
 
 	/** The total surface area of everything in the aggregate mesh */
 	float GetSurfaceArea() const { return SceneSurfaceArea; }
@@ -201,7 +201,7 @@ protected:
 	bool bHasShadowCastingPrimitives;
 
 	/** The bounding box of everything in the aggregate mesh. */
-	FBox SceneBounds;
+	FBox3f SceneBounds;
 
 	/** The total surface area of everything in the aggregate mesh */
 	float SceneSurfaceArea;
@@ -218,12 +218,12 @@ public:
 
 	virtual ~FDefaultAggregateMesh();
 
-	FORCEINLINE const FVector2D& GetUV(uint32 Index) const
+	FORCEINLINE const FVector2f& GetUV(uint32 Index) const
 	{
 		return UVs[Index];
 	}
 
-	FORCEINLINE const FVector2D& GetLightmapUV(uint32 Index) const
+	FORCEINLINE const FVector2f& GetLightmapUV(uint32 Index) const
 	{
 		return LightmapUVs[Index];
 	}
@@ -248,7 +248,7 @@ public:
 		class FCoherentRayCache& CoherentRayCache,
 		FLightRayIntersection& Intersection) const override;
 
-	const FStaticLightingMesh* IntersectBox(const FBox Box) const;
+	const FStaticLightingMesh* IntersectBox(const FBox3f Box) const;
 
 private:
 
@@ -270,13 +270,13 @@ private:
 	 * The vertices used by the kDOP. 
 	 * @todo - should all of these vertex attributes be stored in the same array? (ArrayOfStructures instead of SoA)
 	 */
-	TArray<FVector4> Vertices;
+	TArray<FVector4f> Vertices;
 
 	/** The texture coordinates used by the kDOP. */
-	TArray<FVector2D> UVs;
+	TArray<FVector2f> UVs;
 
 	/** The lightmap coordinates used by the kDOP. */
-	TArray<FVector2D> LightmapUVs;
+	TArray<FVector2f> LightmapUVs;
 
 	/** Needed to access properties modified by AddMesh. */
 	friend class FEmbreeVerifyAggregateMesh;

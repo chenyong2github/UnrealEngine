@@ -19,41 +19,41 @@ namespace Lightmass
 class FBoxCenterAndExtent
 {
 public:
-	FVector4 Center;
-	FVector4 Extent;
+	FVector4f Center;
+	FVector4f Extent;
 
 	/** Default constructor. */
 	FBoxCenterAndExtent() {}
 
 	/** Initialization constructor. */
-	FBoxCenterAndExtent(const FVector4& InCenter,const FVector4& InExtent)
+	FBoxCenterAndExtent(const FVector4f& InCenter,const FVector4f& InExtent)
 	:	Center(InCenter)
 	,	Extent(InExtent)
 	{}
 
-	/** FBox conversion constructor. */
-	FBoxCenterAndExtent(const FBox& Box)
+	/** FBox3f conversion constructor. */
+	FBoxCenterAndExtent(const FBox3f& Box)
 	{
-		FVector BoxCenter;
-		FVector BoxExtent;
+		FVector3f BoxCenter;
+		FVector3f BoxExtent;
 		Box.GetCenterAndExtents(BoxCenter, BoxExtent);
 		Center = BoxCenter;
 		Extent = BoxExtent;
 		Center.W = Extent.W = 0;
 	}
 
-	/** FBoxSphereBounds conversion constructor. */
-	FBoxCenterAndExtent(const FBoxSphereBounds& BoxSphere)
+	/** FBoxSphereBounds3f conversion constructor. */
+	FBoxCenterAndExtent(const FBoxSphereBounds3f& BoxSphere)
 	{
 		Center = BoxSphere.Origin;
 		Extent = BoxSphere.BoxExtent;
 		Center.W = Extent.W = 0;
 	}
 
-	/** Converts to a FBox. */
-	FORCEINLINE FBox GetBox() const
+	/** Converts to a FBox3f. */
+	FORCEINLINE FBox3f GetBox() const
 	{
-		return FBox(Center - Extent,Center + Extent);
+		return FBox3f(Center - Extent,Center + Extent);
 	}
 
 	/**
@@ -63,12 +63,12 @@ public:
 	friend bool Intersect(const FBoxCenterAndExtent& A,const FBoxCenterAndExtent& B)
 	{
 		// Note: The W component of the bounds center positions is unreliable here, and must not be used in the intersection
-		FVector4 CenterDifference = A.Center - B.Center;
+		FVector4f CenterDifference = A.Center - B.Center;
 		CenterDifference.X = FMath::Abs(CenterDifference.X);
 		CenterDifference.Y = FMath::Abs(CenterDifference.Y);
 		CenterDifference.Z = FMath::Abs(CenterDifference.Z);
 
-		const FVector4 CompositeExtent = A.Extent + B.Extent;
+		const FVector4f CompositeExtent = A.Extent + B.Extent;
 
 		return CenterDifference.X < CompositeExtent.X && CenterDifference.Y < CompositeExtent.Y && CenterDifference.Z < CompositeExtent.Z;
 	}
@@ -215,13 +215,13 @@ public:
 	FORCEINLINE FOctreeNodeContext GetChildContext(FOctreeChildNodeRef ChildRef) const
 	{
 		return FOctreeNodeContext(FBoxCenterAndExtent(
-				FVector4(
+				FVector4f(
 					Bounds.Center.X + ChildCenterOffset * (-1.0f + 2 * ChildRef.X),
 					Bounds.Center.Y + ChildCenterOffset * (-1.0f + 2 * ChildRef.Y),
 					Bounds.Center.Z + ChildCenterOffset * (-1.0f + 2 * ChildRef.Z),
 					0
 					),
-				FVector4(
+				FVector4f(
 					ChildExtent,
 					ChildExtent,
 					ChildExtent,
@@ -607,7 +607,7 @@ public:
 	void GetMemoryUsage(size_t& OutSizeBytes) const;
 
 	/** Initialization constructor. */
-	TOctree(const FVector4& InOrigin, float InExtent);
+	TOctree(const FVector4f& InOrigin, float InExtent);
 
 	void Destroy()
 	{
@@ -887,9 +887,9 @@ void TOctree<ElementType,OctreeSemantics>::GetMemoryUsage(size_t& OutSizeBytes) 
 }
 
 template<typename ElementType,typename OctreeSemantics>
-TOctree<ElementType,OctreeSemantics>::TOctree(const FVector4& InOrigin,float InExtent)
+TOctree<ElementType,OctreeSemantics>::TOctree(const FVector4f& InOrigin,float InExtent)
 :	RootNode(NULL)
-,	RootNodeContext(FBoxCenterAndExtent(InOrigin,FVector4(InExtent,InExtent,InExtent,0)), OctreeSemantics::LoosenessDenominator)
+,	RootNodeContext(FBoxCenterAndExtent(InOrigin,FVector4f(InExtent,InExtent,InExtent,0)), OctreeSemantics::LoosenessDenominator)
 ,	MinLeafExtent(InExtent * FMath::Pow((1.0f + 1.0f / (float)OctreeSemantics::LoosenessDenominator) / 2.0f,OctreeSemantics::MaxNodeDepth))
 {
 }

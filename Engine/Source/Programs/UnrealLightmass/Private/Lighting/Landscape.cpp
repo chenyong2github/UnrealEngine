@@ -62,22 +62,22 @@ namespace Lightmass
 		OutVertex.WorldTangentZ.X = 2.0f / 255.f * (float)Data->B - 1.0f;
 		OutVertex.WorldTangentZ.Y = 2.0f / 255.f * (float)Data->A - 1.0f;
 		OutVertex.WorldTangentZ.Z = FMath::Sqrt(FMath::Max(1.0f - (FMath::Square(OutVertex.WorldTangentZ.X) + FMath::Square(OutVertex.WorldTangentZ.Y)), 0.f));
-		OutVertex.WorldTangentX = FVector4(OutVertex.WorldTangentZ.Z, 0.0f, -OutVertex.WorldTangentZ.X);
+		OutVertex.WorldTangentX = FVector4f(OutVertex.WorldTangentZ.Z, 0.0f, -OutVertex.WorldTangentZ.X);
 		OutVertex.WorldTangentY = OutVertex.WorldTangentZ ^ OutVertex.WorldTangentX;
 
 		// Copied (vaguely) from FLandscapeComponentDataInterface::GetWorldPositionTangents to fix bad lighting when rotated
-		const FMatrix LtWNoScale = LocalToWorld.GetMatrixWithoutScale();
+		const FMatrix44f LtWNoScale = LocalToWorld.GetMatrixWithoutScale();
 		OutVertex.WorldTangentX = LtWNoScale.TransformVector(OutVertex.WorldTangentX);
 		OutVertex.WorldTangentY = LtWNoScale.TransformVector(OutVertex.WorldTangentY);
 		OutVertex.WorldTangentZ = LtWNoScale.TransformVector(OutVertex.WorldTangentZ);
 
 		const uint16 Height = (Data->R << 8) + Data->G;
-		OutVertex.WorldPosition = LocalToWorld.TransformPosition( FVector4( LocalX, LocalY, ((float)Height - 32768.f) * LANDSCAPE_ZSCALE ) );
+		OutVertex.WorldPosition = LocalToWorld.TransformPosition( FVector4f( LocalX, LocalY, ((float)Height - 32768.f) * LANDSCAPE_ZSCALE ) );
 		//UE_LOG(LogLightmass, Log, TEXT("%d, %d, %d, %d, %d, %d, X:%f, Y:%f, Z:%f "), SectionBaseX + LocalX - ExpandQuadsX, SectionBaseY + LocalY - ExpandQuadsY, ClampedLocalX, ClampedLocalY, SectionBaseX, SectionBaseY, WorldPos.X, WorldPos.Y, WorldPos.Z);
 
 		const int32 LightmapUVIndex = 1;
 
-		OutVertex.TextureCoordinates[0] = FVector2D((float)X / NumVertices, (float)Y / NumVertices); 
+		OutVertex.TextureCoordinates[0] = FVector2f((float)X / NumVertices, (float)Y / NumVertices); 
 		OutVertex.TextureCoordinates[LightmapUVIndex].X = X * UVFactor;
 		OutVertex.TextureCoordinates[LightmapUVIndex].Y = Y * UVFactor;
 	}

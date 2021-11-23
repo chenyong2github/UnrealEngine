@@ -421,10 +421,10 @@ FORCEINLINE void LmVectorMatrixMultiply( void *Result, const void* Matrix1, cons
 }
 
 /**
- * Calculate the inverse of an FMatrix.
+ * Calculate the inverse of an FMatrix44f.
  *
- * @param DstMatrix		FMatrix pointer to where the result should be stored
- * @param SrcMatrix		FMatrix pointer to the Matrix to be inversed
+ * @param DstMatrix		FMatrix44f pointer to where the result should be stored
+ * @param SrcMatrix		FMatrix44f pointer to the Matrix to be inversed
  */
 #define LmVectorMatrixInverse( DstMatrix, SrcMatrix ) D3DXMatrixInverse( (D3DXMATRIX*) DstMatrix, NULL, (const D3DXMATRIX*)SrcMatrix )
 

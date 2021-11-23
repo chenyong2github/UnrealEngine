@@ -78,7 +78,7 @@ namespace Lightmass
 			FMemory::Memzero(Data, ElementSize * SizeX * SizeY);
 		}
 
-		inline uint8* SampleRawPtr(const FVector2D& UV) const
+		inline uint8* SampleRawPtr(const FVector2f& UV) const
 		{
 			// Wrapped addressing (uses FMath::FloorToInt and not appFractional, as appFractional causes the
 			// following mapping:
@@ -99,7 +99,7 @@ namespace Lightmass
 			return &Data[DataIndex];
 		}
 
-		inline FLinearColor Sample(const FVector2D& UV) const
+		inline FLinearColor Sample(const FVector2f& UV) const
 		{
 			uint8* RawPtr = SampleRawPtr( UV );
 
@@ -115,7 +115,7 @@ namespace Lightmass
 			return FLinearColor(*(FColor*)RawPtr);
 		}
 
-		inline FVector4 SampleNormal(const FVector2D& UV) const
+		inline FVector4f SampleNormal(const FVector2f& UV) const
 		{
 			uint8* RawPtr = SampleRawPtr( UV );
 
@@ -123,7 +123,7 @@ namespace Lightmass
 			checkSlow(Format == TF_ARGB16F);
 			FFloat16Color* Float16Color = (FFloat16Color*)RawPtr;
 
-			FVector4 Normal( Float16Color->R.GetFloat(), Float16Color->G.GetFloat(), Float16Color->B.GetFloat(), 0.0f );
+			FVector4f Normal( Float16Color->R.GetFloat(), Float16Color->G.GetFloat(), Float16Color->B.GetFloat(), 0.0f );
 			return Normal;
 		}
 	};

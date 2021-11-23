@@ -26,7 +26,7 @@ public:
 	float SHCorrection;
 
 	/** Sky bent normal, points toward the most unoccluded direction, and the length is the visibility amount (0 = occluded, 1 = visible). */
-	FVector SkyOcclusion;
+	FVector3f SkyOcclusion;
 
 	float AOMaterialMask;
 
@@ -35,7 +35,7 @@ public:
 	{
 		SHCorrection = 0.0f;
 		IncidentLighting = FLinearColor(0, 0, 0, 0);
-		SkyOcclusion = FVector(0);
+		SkyOcclusion = FVector3f(0);
 		AOMaterialMask = 0;
 	}
 
@@ -43,7 +43,7 @@ public:
 	{
 		SHCorrection = 0.0f;
 		IncidentLighting = FLinearColor(0, 0, 0, 0);
-		SkyOcclusion = FVector(0);
+		SkyOcclusion = FVector3f(0);
 		AOMaterialMask = 0;
 	}	
 
@@ -56,7 +56,7 @@ public:
 
 	void ApplyOcclusion(float Occlusion);
 
-	inline void SetSkyOcclusion(FVector InSkyOcclusion)
+	inline void SetSkyOcclusion(FVector3f InSkyOcclusion)
 	{
 		SkyOcclusion = InSkyOcclusion;
 	}
@@ -104,7 +104,7 @@ public:
 	* @param Direction - The direction toward the light at the sample point.
 	*/
 	template <int32 SHOrder>
-	static TGatheredLightSample<SHOrder> PointLightWorldSpace(const FLinearColor& Color, const FVector4& TangentDirection, const FVector4& WorldDirection);
+	static TGatheredLightSample<SHOrder> PointLightWorldSpace(const FLinearColor& Color, const FVector4f& TangentDirection, const FVector4f& WorldDirection);
 };
 
 typedef TGatheredLightSample<2> FGatheredLightSample;
@@ -205,12 +205,12 @@ public:
 		Occlusion = InOcclusion;
 	}
 
-	inline void AddIncomingRadiance(const FLinearColor& IncomingRadiance, float Weight, const FVector4& TangentSpaceDirection, const FVector4& WorldSpaceDirection)
+	inline void AddIncomingRadiance(const FLinearColor& IncomingRadiance, float Weight, const FVector4f& TangentSpaceDirection, const FVector4f& WorldSpaceDirection)
 	{
 		AddWeighted(FGatheredLightSampleUtil::PointLightWorldSpace<SHOrder>(IncomingRadiance, TangentSpaceDirection, WorldSpaceDirection), Weight);
 	}
 
-	inline void AddIncomingStationarySkyLight(const FLinearColor& IncomingSkyLight, float Weight, const FVector4& TangentSpaceDirection, const FVector4& WorldSpaceDirection)
+	inline void AddIncomingStationarySkyLight(const FLinearColor& IncomingSkyLight, float Weight, const FVector4f& TangentSpaceDirection, const FVector4f& WorldSpaceDirection)
 	{
 		StationarySkyLighting.AddWeighted(FGatheredLightSampleUtil::PointLightWorldSpace<SHOrder>(IncomingSkyLight, TangentSpaceDirection, WorldSpaceDirection), Weight);
 	}

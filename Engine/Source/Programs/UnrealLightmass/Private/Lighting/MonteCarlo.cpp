@@ -6,14 +6,14 @@ namespace Lightmass
 {
 
 /** Generates valid X and Y axes of a coordinate system, given the Z axis. */
-void GenerateCoordinateSystem(const FVector4& ZAxis, FVector4& XAxis, FVector4& YAxis)
+void GenerateCoordinateSystem(const FVector4f& ZAxis, FVector4f& XAxis, FVector4f& YAxis)
 {
 	// Use the vector perpendicular to ZAxis and the Y axis as the XAxis
-	const FVector4 XAxisCandidate = ZAxis ^ FVector4(0,1,0);
+	const FVector4f XAxisCandidate = ZAxis ^ FVector4f(0,1,0);
 	if (XAxisCandidate.SizeSquared3() < KINDA_SMALL_NUMBER)
 	{
 		// The vector was nearly equal to the Y axis, use the X axis instead
-		XAxis = (ZAxis ^ FVector4(1,0,0)).GetUnsafeNormal3();
+		XAxis = (ZAxis ^ FVector4f(1,0,0)).GetUnsafeNormal3();
 	}
 	else
 	{
@@ -25,18 +25,18 @@ void GenerateCoordinateSystem(const FVector4& ZAxis, FVector4& XAxis, FVector4& 
 }
 
 /** Generates valid X and Y axes of a coordinate system, given the Z axis. */
-void GenerateCoordinateSystem2(const FVector4& ZAxis, FVector4& XAxis, FVector4& YAxis)
+void GenerateCoordinateSystem2(const FVector4f& ZAxis, FVector4f& XAxis, FVector4f& YAxis)
 {
 	// This implementation is based off of the one from 'Physically Based Rendering'
 	if (FMath::Abs(ZAxis.X) > FMath::Abs(ZAxis.Y))
  	{
 		const float InverseLength = FMath::InvSqrt(ZAxis.X * ZAxis.X + ZAxis.Z * ZAxis.Z);
-		XAxis = FVector4(-ZAxis.Z * InverseLength, 0.0f, ZAxis.X * InverseLength);
+		XAxis = FVector4f(-ZAxis.Z * InverseLength, 0.0f, ZAxis.X * InverseLength);
  	}
  	else
  	{
 		const float InverseLength = FMath::InvSqrt(ZAxis.Y * ZAxis.Y + ZAxis.Z * ZAxis.Z);
-		XAxis = FVector4(0.0f, ZAxis.Z * InverseLength, -ZAxis.Y * InverseLength);
+		XAxis = FVector4f(0.0f, ZAxis.Z * InverseLength, -ZAxis.Y * InverseLength);
  	}
 
 	YAxis = ZAxis ^ XAxis;
@@ -47,15 +47,15 @@ void GenerateCoordinateSystem2(const FVector4& ZAxis, FVector4& XAxis, FVector4&
 }
 
 /** Generates a pseudo-random unit vector, uniformly distributed over all directions. */
-FVector4 GetUnitVector(FLMRandomStream& RandomStream)
+FVector4f GetUnitVector(FLMRandomStream& RandomStream)
 {
 	return GetUnitPosition(RandomStream).GetUnsafeNormal3();
 }
 
 /** Generates a pseudo-random position inside the unit sphere, uniformly distributed over the volume of the sphere. */
-FVector4 GetUnitPosition(FLMRandomStream& RandomStream)
+FVector4f GetUnitPosition(FLMRandomStream& RandomStream)
 {
-	FVector4 Result;
+	FVector4f Result;
 	// Use rejection sampling to generate a valid sample
 	do
 	{
@@ -70,7 +70,7 @@ FVector4 GetUnitPosition(FLMRandomStream& RandomStream)
  * Generates a pseudo-random unit vector in the Z > 0 hemisphere whose PDF == 1 / (2 * PI) in solid angles,
  * Or sin(theta) / (2 * PI) in hemispherical coordinates, which is a uniform distribution over the area of the hemisphere.
  */
-FVector4 GetUniformHemisphereVector(FLMRandomStream& RandomStream, float MaxTheta)
+FVector4f GetUniformHemisphereVector(FLMRandomStream& RandomStream, float MaxTheta)
 {
 	const float Theta = FMath::Min(FMath::Acos(RandomStream.GetFraction()), MaxTheta - DELTA);
 	const float Phi = 2.0f * (float)PI * RandomStream.GetFraction();
@@ -78,14 +78,14 @@ FVector4 GetUniformHemisphereVector(FLMRandomStream& RandomStream, float MaxThet
 	checkSlow(Phi >= 0 && Phi <= 2.0f * (float)PI);
 	const float SinTheta = FMath::Sin(Theta);
 	// Convert to Cartesian
-	return FVector4(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, FMath::Cos(Theta));
+	return FVector4f(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, FMath::Cos(Theta));
 }
 
 /** 
  * Generates a pseudo-random unit vector in the Z > 0 hemisphere whose PDF == cos(theta) / PI in solid angles,
  * Which is sin(theta)cos(theta) / PI in hemispherical coordinates.
  */
-FVector4 GetCosineHemisphereVector(FLMRandomStream& RandomStream, float MaxTheta)
+FVector4f GetCosineHemisphereVector(FLMRandomStream& RandomStream, float MaxTheta)
 {
 	const float Theta = FMath::Min(FMath::Acos(FMath::Sqrt(RandomStream.GetFraction())), MaxTheta - DELTA);
 	const float Phi = 2.0f * (float)PI * RandomStream.GetFraction();
@@ -93,7 +93,7 @@ FVector4 GetCosineHemisphereVector(FLMRandomStream& RandomStream, float MaxTheta
 	checkSlow(Phi >= 0 && Phi <= 2.0f * (float)PI);
 	const float SinTheta = FMath::Sin(Theta);
 	// Convert to Cartesian
-	return FVector4(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, FMath::Cos(Theta));
+	return FVector4f(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, FMath::Cos(Theta));
 }
 
 /** 
@@ -101,12 +101,12 @@ FVector4 GetCosineHemisphereVector(FLMRandomStream& RandomStream, float MaxTheta
  * Whose PDF == (SpecularPower + 1) / (2.0f * PI) * cos(Alpha) ^ SpecularPower in solid angles,
  * Where Alpha is the angle between the perfect specular direction and the outgoing direction.
  */
-FVector4 GetModifiedPhongSpecularVector(FLMRandomStream& RandomStream, const FVector4& TangentSpecularDirection, float SpecularPower)
+FVector4f GetModifiedPhongSpecularVector(FLMRandomStream& RandomStream, const FVector4f& TangentSpecularDirection, float SpecularPower)
 {
 	checkSlow(TangentSpecularDirection.Z >= 0.0f);
 	checkSlow(SpecularPower > 0.0f);
 
-	FVector4 GeneratedTangentVector;
+	FVector4f GeneratedTangentVector;
 	do
 	{
 		// Generate hemispherical coordinates in the local frame of the perfect specular direction
@@ -116,26 +116,26 @@ FVector4 GetModifiedPhongSpecularVector(FLMRandomStream& RandomStream, const FVe
 		
 		// Convert to Cartesian, still in the coordinate space of the perfect specular direction
 		const float SinTheta = FMath::Sin(Alpha);
-		const FVector4 GeneratedSpecularTangentVector(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, FMath::Cos(Alpha));
+		const FVector4f GeneratedSpecularTangentVector(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, FMath::Cos(Alpha));
 
 		// Generate the X and Y axes of the coordinate space whose Z is the perfect specular direction
-		FVector4 SpecularTangentX = (TangentSpecularDirection ^ FVector4(0,1,0)).GetUnsafeNormal3();
+		FVector4f SpecularTangentX = (TangentSpecularDirection ^ FVector4f(0,1,0)).GetUnsafeNormal3();
 		if (SpecularTangentX.SizeSquared3() < KINDA_SMALL_NUMBER)
 		{
 			// The specular direction was nearly equal to the Y axis, use the X axis instead
-			SpecularTangentX = (TangentSpecularDirection ^ FVector4(1,0,0)).GetUnsafeNormal3();
+			SpecularTangentX = (TangentSpecularDirection ^ FVector4f(1,0,0)).GetUnsafeNormal3();
 		}
 		else
 		{
 			SpecularTangentX = SpecularTangentX.GetUnsafeNormal3();
 		}
-		const FVector4 SpecularTangentY = TangentSpecularDirection ^ SpecularTangentX;
+		const FVector4f SpecularTangentY = TangentSpecularDirection ^ SpecularTangentX;
 
 		// Rotate the generated coordinates into the local frame of the tangent space normal (0,0,1)
-		const FVector4 SpecularTangentRow0(SpecularTangentX.X, SpecularTangentY.X, TangentSpecularDirection.X);
-		const FVector4 SpecularTangentRow1(SpecularTangentX.Y, SpecularTangentY.Y, TangentSpecularDirection.Y);
-		const FVector4 SpecularTangentRow2(SpecularTangentX.Z, SpecularTangentY.Z, TangentSpecularDirection.Z);
-		GeneratedTangentVector = FVector4(
+		const FVector4f SpecularTangentRow0(SpecularTangentX.X, SpecularTangentY.X, TangentSpecularDirection.X);
+		const FVector4f SpecularTangentRow1(SpecularTangentX.Y, SpecularTangentY.Y, TangentSpecularDirection.Y);
+		const FVector4f SpecularTangentRow2(SpecularTangentX.Z, SpecularTangentY.Z, TangentSpecularDirection.Z);
+		GeneratedTangentVector = FVector4f(
 			Dot3(SpecularTangentRow0, GeneratedSpecularTangentVector),
 			Dot3(SpecularTangentRow1, GeneratedSpecularTangentVector),
 			Dot3(SpecularTangentRow2, GeneratedSpecularTangentVector)
@@ -151,18 +151,18 @@ FVector4 GetModifiedPhongSpecularVector(FLMRandomStream& RandomStream, const FVe
  * Generates a pseudo-random position within a unit disk,
  * Whose PDF == 1 / PI, which is a uniform distribution over the area of the disk.
  */
-FVector2D GetUniformUnitDiskPosition(FLMRandomStream& RandomStream)
+FVector2f GetUniformUnitDiskPosition(FLMRandomStream& RandomStream)
 {
 	const float Theta = 2.0f * (float)PI * RandomStream.GetFraction();
 	const float Radius = FMath::Sqrt(RandomStream.GetFraction());
-	return FVector2D(Radius * FMath::Cos(Theta), Radius * FMath::Sin(Theta));
+	return FVector2f(Radius * FMath::Cos(Theta), Radius * FMath::Sin(Theta));
 }
 
 /** 
  * Generates a pseudo-random direction within a cone,
  * Whose PDF == 1 / (2 * PI * (1 - CosMaxConeTheta)), which is a uniform distribution over the directions in the cone. 
  */
-FVector4 UniformSampleCone(FLMRandomStream& RandomStream, float CosMaxConeTheta, const FVector4& XAxis, const FVector4& YAxis, const FVector4& ZAxis)
+FVector4f UniformSampleCone(FLMRandomStream& RandomStream, float CosMaxConeTheta, const FVector4f& XAxis, const FVector4f& YAxis, const FVector4f& ZAxis)
 {
 	checkSlow(CosMaxConeTheta >= 0.0f && CosMaxConeTheta <= 1.0f);
 	const float CosTheta = FMath::Lerp(CosMaxConeTheta, 1.0f, RandomStream.GetFraction());
@@ -171,7 +171,7 @@ FVector4 UniformSampleCone(FLMRandomStream& RandomStream, float CosMaxConeTheta,
 	return FMath::Cos(Phi) * SinTheta * XAxis + FMath::Sin(Phi) * SinTheta * YAxis + CosTheta * ZAxis;
 }
 
-FVector4 UniformSampleCone(float CosMaxConeTheta, const FVector4& XAxis, const FVector4& YAxis, const FVector4& ZAxis, float Uniform1, float Uniform2)
+FVector4f UniformSampleCone(float CosMaxConeTheta, const FVector4f& XAxis, const FVector4f& YAxis, const FVector4f& ZAxis, float Uniform1, float Uniform2)
 {
 	checkSlow(CosMaxConeTheta >= 0.0f && CosMaxConeTheta <= 1.0f);
 	const float CosTheta = FMath::Lerp(CosMaxConeTheta, 1.0f, Uniform1);
@@ -187,17 +187,17 @@ float UniformConePDF(float CosMaxConeTheta)
 	return 1.0f / (2.0f * (float)PI * (1.0f - CosMaxConeTheta));
 }
 
-FVector4 UniformSampleHemisphere(float Uniform1, float Uniform2)
+FVector4f UniformSampleHemisphere(float Uniform1, float Uniform2)
 {
 	const float R = FMath::Sqrt(1.0f - Uniform1 * Uniform1);
 	const float Phi = 2.0f * (float)PI * Uniform2;
 
 	// Convert to Cartesian
-	return FVector4(FMath::Cos(Phi) * R, FMath::Sin(Phi) * R, Uniform1);
+	return FVector4f(FMath::Cos(Phi) * R, FMath::Sin(Phi) * R, Uniform1);
 }
 
 /** Generates unit length, stratified and uniformly distributed direction samples in a hemisphere. */
-void GenerateStratifiedUniformHemisphereSamples(int32 NumThetaSteps, int32 NumPhiSteps, FLMRandomStream& RandomStream, TArray<FVector4>& Samples, TArray<FVector2D>& Uniforms)
+void GenerateStratifiedUniformHemisphereSamples(int32 NumThetaSteps, int32 NumPhiSteps, FLMRandomStream& RandomStream, TArray<FVector4f>& Samples, TArray<FVector2f>& Uniforms)
 {
 	Samples.Empty(NumThetaSteps * NumPhiSteps);
 	for (int32 ThetaIndex = 0; ThetaIndex < NumThetaSteps; ThetaIndex++)
@@ -214,13 +214,13 @@ void GenerateStratifiedUniformHemisphereSamples(int32 NumThetaSteps, int32 NumPh
 
 			const float Phi = 2.0f * (float)PI * Fraction2;
 			// Convert to Cartesian
-			Samples.Add(FVector4(FMath::Cos(Phi) * R, FMath::Sin(Phi) * R, Fraction1));
-			Uniforms.Add(FVector2D(Fraction1, Fraction2));
+			Samples.Add(FVector4f(FMath::Cos(Phi) * R, FMath::Sin(Phi) * R, Fraction1));
+			Uniforms.Add(FVector2f(Fraction1, Fraction2));
 		}
 	}
 }
 
-void GenerateStratifiedCosineHemisphereSamples(int32 NumThetaSteps, int32 NumPhiSteps, FLMRandomStream& RandomStream, TArray<FVector4>& Samples)
+void GenerateStratifiedCosineHemisphereSamples(int32 NumThetaSteps, int32 NumPhiSteps, FLMRandomStream& RandomStream, TArray<FVector4f>& Samples)
 {
 	Samples.Empty(NumThetaSteps * NumPhiSteps);
 
@@ -240,7 +240,7 @@ void GenerateStratifiedCosineHemisphereSamples(int32 NumThetaSteps, int32 NumPhi
 			checkSlow(Phi >= 0 && Phi <= 2.0f * (float)PI);
 			const float SinTheta = FMath::Sin(Theta);
 			// Convert to Cartesian
-			Samples.Add(FVector4(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, FMath::Cos(Theta)));
+			Samples.Add(FVector4f(FMath::Cos(Phi) * SinTheta, FMath::Sin(Phi) * SinTheta, FMath::Cos(Theta)));
 		}
 	}
 }

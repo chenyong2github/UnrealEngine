@@ -21,11 +21,11 @@ namespace Lightmass
 {
 
 void FStaticLightingSystem::GatherVolumeImportancePhotonDirections(
-	const FVector WorldPosition,
-	FVector FirstHemisphereNormal,
-	FVector SecondHemisphereNormal,
-	TArray<FVector4>& FirstHemisphereImportancePhotonDirections,
-	TArray<FVector4>& SecondHemisphereImportancePhotonDirections,
+	const FVector3f WorldPosition,
+	FVector3f FirstHemisphereNormal,
+	FVector3f SecondHemisphereNormal,
+	TArray<FVector4f>& FirstHemisphereImportancePhotonDirections,
+	TArray<FVector4f>& SecondHemisphereImportancePhotonDirections,
 	bool bDebugThisSample) const
 {
 	if (GeneralSettings.NumIndirectLightingBounces > 0 && PhotonMappingSettings.bUsePhotonMapping && PhotonMappingSettings.bUsePhotonSegmentsForVolumeLighting)
@@ -52,7 +52,7 @@ void FStaticLightingSystem::GatherVolumeImportancePhotonDirections(
 			const FPhoton& CurrentPhoton = *FoundPhotonSegments[PhotonIndex].Photon;
 			// Calculate the direction from the current position to the photon's source
 			// Using the photon's incident direction unmodified produces artifacts proportional to the distance to that photon
-			const FVector4 NewDirection = CurrentPhoton.GetPosition() + CurrentPhoton.GetIncidentDirection() * CurrentPhoton.GetDistance() - WorldPosition;
+			const FVector4f NewDirection = CurrentPhoton.GetPosition() + CurrentPhoton.GetIncidentDirection() * CurrentPhoton.GetDistance() - WorldPosition;
 			// Only use the direction if it is in the hemisphere of the normal
 			// FindNearbyPhotons only returns photons whose incident directions lie in this hemisphere, but the recalculated direction might not.
 			if (Dot3(NewDirection, FirstHemisphereNormal) > 0.0f)
@@ -70,10 +70,10 @@ void FStaticLightingSystem::GatherVolumeImportancePhotonDirections(
 
 /** Calculates incident radiance for a given world space position. */
 void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
-	const TArray<FVector4>& UniformHemisphereSamples,
-	const TArray<FVector2D>& UniformHemisphereSampleUniforms,
+	const TArray<FVector4f>& UniformHemisphereSamples,
+	const TArray<FVector2f>& UniformHemisphereSampleUniforms,
 	float MaxUnoccludedLength,
-	const TArray<FVector, TInlineAllocator<1>>& VertexOffsets,
+	const TArray<FVector3f, TInlineAllocator<1>>& VertexOffsets,
 	FVolumeLightingSample& LightingSample,
 	float& OutBackfacingHitsFraction,
 	float& OutMinDistanceToSurface,
@@ -84,15 +84,15 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 {
 	const double StartTime = FPlatformTime::Seconds();
 
-	const FVector4 Position = LightingSample.GetPosition();
+	const FVector4f Position = LightingSample.GetPosition();
 
-	TArray<FVector4> UpperHemisphereImportancePhotonDirections;
-	TArray<FVector4> LowerHemisphereImportancePhotonDirections;
+	TArray<FVector4f> UpperHemisphereImportancePhotonDirections;
+	TArray<FVector4f> LowerHemisphereImportancePhotonDirections;
 	
 	GatherVolumeImportancePhotonDirections(
 		Position,
-		FVector(0, 0, 1),
-		FVector(0, 0, -1),
+		FVector3f(0, 0, 1),
+		FVector3f(0, 0, -1),
 		UpperHemisphereImportancePhotonDirections,
 		LowerHemisphereImportancePhotonDirections,
 		bDebugThisSample);
@@ -101,7 +101,7 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 	{
 		FScopeLock DebugOutputLock(&DebugOutputSync);
 		FDebugStaticLightingVertex DebugVertex;
-		DebugVertex.VertexNormal = FVector(0, 0, 1);
+		DebugVertex.VertexNormal = FVector3f(0, 0, 1);
 		DebugVertex.VertexPosition = LightingSample.GetPosition();
 		MappingContext.DebugOutput->Vertices.Add(DebugVertex);
 	}
@@ -111,11 +111,11 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 
 	FFullStaticLightingVertex RepresentativeVertex;
 	RepresentativeVertex.WorldPosition = Position;
-	RepresentativeVertex.TextureCoordinates[0] = FVector2D(0,0);
-	RepresentativeVertex.TextureCoordinates[1] = FVector2D(0,0);
+	RepresentativeVertex.TextureCoordinates[0] = FVector2f(0,0);
+	RepresentativeVertex.TextureCoordinates[1] = FVector2f(0,0);
 
 	// Construct a vertex to capture incident radiance for the positive Z hemisphere
-	RepresentativeVertex.WorldTangentZ = RepresentativeVertex.TriangleNormal = FVector4(0,0,1);
+	RepresentativeVertex.WorldTangentZ = RepresentativeVertex.TriangleNormal = FVector4f(0,0,1);
 	RepresentativeVertex.GenerateVertexTangents();
 	RepresentativeVertex.GenerateTriangleTangents();
 
@@ -158,7 +158,7 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 	MappingContext.Stats.VolumetricLightmapFinalGatherTime += EndUpperFinalGatherTime - EndUpperDirectLightingTime;
 
 	// Construct a vertex to capture incident radiance for the negative Z hemisphere
-	RepresentativeVertex.WorldTangentZ = RepresentativeVertex.TriangleNormal = FVector4(0,0,-1);
+	RepresentativeVertex.WorldTangentZ = RepresentativeVertex.TriangleNormal = FVector4f(0,0,-1);
 	RepresentativeVertex.GenerateVertexTangents();
 	RepresentativeVertex.GenerateTriangleTangents();
 
@@ -226,13 +226,13 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 }
 
 /** Returns environment lighting for the given direction. */
-FLinearColor FStaticLightingSystem::EvaluateEnvironmentLighting(const FVector4& IncomingDirection) const
+FLinearColor FStaticLightingSystem::EvaluateEnvironmentLighting(const FVector4f& IncomingDirection) const
 {
 	// Upper hemisphere only
 	return IncomingDirection.Z < 0 ? (MaterialSettings.EnvironmentColor / (float)PI) : FLinearColor::Black;
 }
 
-void FStaticLightingSystem::EvaluateSkyLighting(const FVector4& IncomingDirection, float PathSolidAngle, bool bShadowed, bool bForDirectLighting, FLinearColor& OutStaticLighting, FLinearColor& OutStationaryLighting) const
+void FStaticLightingSystem::EvaluateSkyLighting(const FVector4f& IncomingDirection, float PathSolidAngle, bool bShadowed, bool bForDirectLighting, FLinearColor& OutStaticLighting, FLinearColor& OutStationaryLighting) const
 {
 	for (int32 LightIndex = 0; LightIndex < SkyLights.Num(); LightIndex++)
 	{
@@ -254,7 +254,7 @@ void FStaticLightingSystem::EvaluateSkyLighting(const FVector4& IncomingDirectio
 	}
 }
 
-float FStaticLightingSystem::EvaluateSkyVariance(const FVector4& IncomingDirection, float PathSolidAngle) const
+float FStaticLightingSystem::EvaluateSkyVariance(const FVector4f& IncomingDirection, float PathSolidAngle) const
 {
 	float Variance = 0;
 
@@ -274,7 +274,7 @@ FLinearColor FStaticLightingSystem::CalculateExitantRadiance(
 	const FStaticLightingMesh* HitMesh,
 	const FMinimalStaticLightingVertex& Vertex,
 	int32 ElementIndex,
-	const FVector4& OutgoingDirection,
+	const FVector4f& OutgoingDirection,
 	int32 BounceNumber,
 	EHemisphereGatherClassification GatherClassification,
 	FStaticLightingMappingContext& MappingContext,
@@ -318,8 +318,8 @@ void FStaticLightingSystem::IntersectLightRays(
 	const FFullStaticLightingVertex& Vertex,
 	float SampleRadius,
 	int32 NumRays,
-	const FVector4* WorldPathDirections,
-	const FVector4* TangentPathDirections,
+	const FVector4f* WorldPathDirections,
+	const FVector4f* TangentPathDirections,
 	EFinalGatherRayBiasMode RayBiasMode,
 	FStaticLightingMappingContext& MappingContext,
 	FLightRay* OutLightRays,
@@ -327,10 +327,10 @@ void FStaticLightingSystem::IntersectLightRays(
 {
 	for (int32 RayIndex = 0; RayIndex < NumRays; RayIndex++)
 	{
-		const FVector4 WorldPathDirection = WorldPathDirections[RayIndex];
-		const FVector4 TangentPathDirection = TangentPathDirections[RayIndex];
+		const FVector4f WorldPathDirection = WorldPathDirections[RayIndex];
+		const FVector4f TangentPathDirection = TangentPathDirections[RayIndex];
 
-		FVector4 SampleOffset(0,0,0);
+		FVector4f SampleOffset(0,0,0);
 		if (GeneralSettings.bAccountForTexelSize)
 		{
 			// Offset the sample's starting point in the tangent XY plane based on the sample's area of influence. 
@@ -340,7 +340,7 @@ void FStaticLightingSystem::IntersectLightRays(
 			
 			// Experiment to distribute the starting position over the area of the texel to anti-alias, causes incorrect shadowing at intersections though
 			//@todo - use consistent sample set between irradiance cache samples
-			//const FVector2D DiskPosition = GetUniformUnitDiskPosition(RandomStream);
+			//const FVector2f DiskPosition = GetUniformUnitDiskPosition(RandomStream);
 			//SampleOffset = Vertex.WorldTangentX * DiskPosition.X * SampleRadius * .5f + Vertex.WorldTangentY * DiskPosition.Y * SampleRadius * .5f;
 		}
 
@@ -351,7 +351,7 @@ void FStaticLightingSystem::IntersectLightRays(
 		// Apply various offsets to the start of the ray.
 		// The offset along the ray direction is to avoid incorrect self-intersection due to floating point precision.
 		// The offset along the normal is to push self-intersection patterns (like triangle shape) on highly curved surfaces onto the backfaces.
-		FVector RayStart = Vertex.WorldPosition
+		FVector3f RayStart = Vertex.WorldPosition
 			+ WorldPathDirection * SceneConstants.VisibilityRayOffsetDistance
 			+ Vertex.WorldTangentZ * RayStartNormalBiasScale * SampleRadius
 			+ SampleOffset;
@@ -383,8 +383,8 @@ void FStaticLightingSystem::IntersectLightRays(
 FLinearColor FStaticLightingSystem::FinalGatherSample(
 	const FStaticLightingMapping* Mapping,
 	const FFullStaticLightingVertex& Vertex,
-	const FVector4& WorldPathDirection,
-	const FVector4& TangentPathDirection,
+	const FVector4f& WorldPathDirection,
+	const FVector4f& TangentPathDirection,
 	const FLightRay& PathRay,
 	const FLightRayIntersection& RayIntersection,
 	float PathSolidAngle,
@@ -397,7 +397,7 @@ FLinearColor FStaticLightingSystem::FinalGatherSample(
 	FLightingCacheGatherInfo& RecordGatherInfo,
 	FFinalGatherInfo& FinalGatherInfo,
 	FFinalGatherHitPoint& HitPoint,
-	FVector& OutUnoccludedSkyVector,
+	FVector3f& OutUnoccludedSkyVector,
 	FLinearColor& OutStationarySkyLighting) const
 {
 	FLinearColor Lighting = FLinearColor::Black;
@@ -405,7 +405,7 @@ FLinearColor FStaticLightingSystem::FinalGatherSample(
 
 	bool bPositiveSample = false;
 
-	OutUnoccludedSkyVector = RayIntersection.bIntersects ? FVector(0) : FVector(WorldPathDirection);
+	OutUnoccludedSkyVector = RayIntersection.bIntersects ? FVector3f(0) : FVector3f(WorldPathDirection);
 
 	if (RayIntersection.bIntersects)
 	{
@@ -522,12 +522,12 @@ class FRefinementTraversalContext
 {
 public:
 	FSimpleQuadTreeNode<FRefinementElement>* Node;
-	FVector2D Min;
-	FVector2D Size;
+	FVector2f Min;
+	FVector2f Size;
 	float SolidAngle;
 	EFinalGatherRefinementCause RefinementCause;
 
-	FRefinementTraversalContext(FSimpleQuadTreeNode<FRefinementElement>* InNode, FVector2D InMin, FVector2D InSize, float InSolidAngle, EFinalGatherRefinementCause InRefinementCause) :
+	FRefinementTraversalContext(FSimpleQuadTreeNode<FRefinementElement>* InNode, FVector2f InMin, FVector2f InSize, float InSolidAngle, EFinalGatherRefinementCause InRefinementCause) :
 		Node(InNode),
 		Min(InMin),
 		Size(InSize),
@@ -536,18 +536,18 @@ public:
 	{}
 };
 
-bool SphereIntersectCone(FSphere SphereCenterAndRadius, FVector ConeVertex, FVector ConeAxis, float ConeAngleCos, float ConeAngleSin)
+bool SphereIntersectCone(FSphere3f SphereCenterAndRadius, FVector3f ConeVertex, FVector3f ConeAxis, float ConeAngleCos, float ConeAngleSin)
 {
-	FVector U = ConeVertex - (SphereCenterAndRadius.W / ConeAngleSin) * ConeAxis;
-	FVector D = SphereCenterAndRadius.Center - U;
-	float DSizeSq = FVector::DotProduct(D, D);
-	float E = FVector::DotProduct(ConeAxis, D);
+	FVector3f U = ConeVertex - (SphereCenterAndRadius.W / ConeAngleSin) * ConeAxis;
+	FVector3f D = SphereCenterAndRadius.Center - U;
+	float DSizeSq = FVector3f::DotProduct(D, D);
+	float E = FVector3f::DotProduct(ConeAxis, D);
 
 	if (E > 0 && E * E >= DSizeSq * ConeAngleCos * ConeAngleCos)
 	{
 		D = SphereCenterAndRadius.Center - ConeVertex;
-		DSizeSq = FVector::DotProduct(D, D);
-		E = -FVector::DotProduct(ConeAxis, D);
+		DSizeSq = FVector3f::DotProduct(D, D);
+		E = -FVector3f::DotProduct(ConeAxis, D);
 
 		if (E > 0 && E * E >= DSizeSq * ConeAngleSin * ConeAngleSin)
 		{
@@ -579,7 +579,7 @@ public:
 	 * Fetches a leaf node value at the desired fractional position.
 	 * Expects a UV that is the center of the cell being searched for, not the min. 
 	 */
-	const FLightingAndOcclusion& GetValue(FVector2D UV)
+	const FLightingAndOcclusion& GetValue(FVector2f UV)
 	{
 		// Theta is radius, clamp
 		const int32 ThetaIndex = FMath::Clamp(FMath::FloorToInt(UV.X * NumThetaSteps), 0, NumThetaSteps - 1);
@@ -632,8 +632,8 @@ public:
 		bool bGatheringForCachedDirectLighting,
 		int32 NumAdaptiveRefinementLevels,
 		float BrightnessThresholdScale,
-		const TArray<FVector4, TInlineAllocator<30> >& TangentImportancePhotonDirections,
-		const TArray<FSphere>& PortalBoundingSpheres,
+		const TArray<FVector4f, TInlineAllocator<30> >& TangentImportancePhotonDirections,
+		const TArray<FSphere3f>& PortalBoundingSpheres,
 		FStaticLightingMappingContext& MappingContext,
 		FGatherHitPoints* HitPointRecorder,
 		FLMRandomStream& RandomStream,
@@ -704,8 +704,8 @@ public:
 				{
 					for (int32 PhiIndex = 0; PhiIndex < NumPhiSteps; PhiIndex++)
 					{
-						const FVector4 CellCenterTangentDirection = UniformSampleHemisphere((ThetaIndex + .5f) / (float)NumThetaSteps, (PhiIndex + .5f) / (float)NumPhiSteps);
-						const FVector4 CellCenterWorldDirection = Vertex.TransformTriangleTangentVectorToWorld(CellCenterTangentDirection);
+						const FVector4f CellCenterTangentDirection = UniformSampleHemisphere((ThetaIndex + .5f) / (float)NumThetaSteps, (PhiIndex + .5f) / (float)NumPhiSteps);
+						const FVector4f CellCenterWorldDirection = Vertex.TransformTriangleTangentVectorToWorld(CellCenterTangentDirection);
 						float IntersectingImportanceConeWeight = 0;
 
 						// Accumulate weight of intersecting photon cones
@@ -796,8 +796,8 @@ public:
 
 							NextNodesToRefine->Add(FRefinementTraversalContext(
 								Node, 
-								FVector2D(ThetaIndex / (float)NumThetaSteps, PhiIndex / (float)NumPhiSteps),
-								FVector2D(1 / (float)NumThetaSteps, 1 / (float)NumPhiSteps),
+								FVector2f(ThetaIndex / (float)NumThetaSteps, PhiIndex / (float)NumPhiSteps),
+								FVector2f(1 / (float)NumThetaSteps, 1 / (float)NumPhiSteps),
 								RootSolidAngle,
 								RefinementCause));
 						}
@@ -818,7 +818,7 @@ public:
 				if (CurrentNodesToRefine->Num() > 0)
 				{
 					FRefinementTraversalContext NodeContext = (*CurrentNodesToRefine)[0];
-					const FVector2D HalfSubCellSize = NodeContext.Size / 4;
+					const FVector2f HalfSubCellSize = NodeContext.Size / 4;
 					// Approximate the cone angle of the sub cell
 					const float SubCellAngle = PI * FMath::Sqrt(HalfSubCellSize.X * HalfSubCellSize.X + HalfSubCellSize.Y * HalfSubCellSize.Y);
 					SubCellCombinedAngleThreshold = FMath::Cos(ImportanceConeAngle + SubCellAngle);
@@ -830,7 +830,7 @@ public:
 				for (int32 NodeIndex = 0; NodeIndex < CurrentNodesToRefine->Num(); NodeIndex++)
 				{
 					FRefinementTraversalContext NodeContext = (*CurrentNodesToRefine)[NodeIndex];
-					const FVector2D HalfSubCellSize = NodeContext.Size / 4;
+					const FVector2f HalfSubCellSize = NodeContext.Size / 4;
 
 					for (int32 SubThetaIndex = 0; SubThetaIndex < NumSubsamples; SubThetaIndex++)
 					{
@@ -838,11 +838,11 @@ public:
 						{
 							FSimpleQuadTreeNode<FRefinementElement>* ChildNode = NodeContext.Node->Children[SubThetaIndex * NumSubsamples + SubPhiIndex];
 
-							const FVector4 CellCenterTangentDirection = UniformSampleHemisphere(
+							const FVector4f CellCenterTangentDirection = UniformSampleHemisphere(
 								NodeContext.Min.X + SubThetaIndex * NodeContext.Size.X / 2 + NodeContext.Size.X / 4,
 								NodeContext.Min.Y + SubPhiIndex * NodeContext.Size.Y / 2 + NodeContext.Size.Y / 4);
 
-							const FVector4 CellCenterWorldDirection = Vertex.TransformTriangleTangentVectorToWorld(CellCenterTangentDirection);
+							const FVector4f CellCenterWorldDirection = Vertex.TransformTriangleTangentVectorToWorld(CellCenterTangentDirection);
 
 							float IntersectingImportanceConeWeight = 0;
 
@@ -900,7 +900,7 @@ public:
 									const float NeighborV = NodeContext.Min.Y + (SubPhiIndex + Neighbors[NeighborIndex].Y) * NodeContext.Size.Y / 2;
 
 									// Query must be done on the center of the cell
-									const FVector2D NeighborUV = FVector2D(NeighborU, NeighborV) + NodeContext.Size / 4;
+									const FVector2f NeighborUV = FVector2f(NeighborU, NeighborV) + NodeContext.Size / 4;
 									const FLightingAndOcclusion NeighborLighting = GetValue(NeighborUV);
 									const float NeighborBrightness = (NeighborLighting.Lighting + NeighborLighting.StationarySkyLighting).GetLuminance();
 									const float NeighborRelativeBrightness = NeighborBrightness / AverageBrightness;
@@ -929,7 +929,7 @@ public:
 							{
 								NextNodesToRefine->Add(FRefinementTraversalContext(
 									ChildNode, 
-									FVector2D(NodeContext.Min.X + SubThetaIndex * NodeContext.Size.X / 2, NodeContext.Min.Y + SubPhiIndex * NodeContext.Size.Y / 2),
+									FVector2f(NodeContext.Min.X + SubThetaIndex * NodeContext.Size.X / 2, NodeContext.Min.Y + SubPhiIndex * NodeContext.Size.Y / 2),
 									NodeContext.Size / 2.0f,
 									SubCellSolidAngle,
 									RefinementCause));
@@ -942,8 +942,8 @@ public:
 			// Swap input and output for the next step
 			Swap(CurrentNodesToRefine, NextNodesToRefine);
 
-			FVector4 WorldPathDirections[4];
-			FVector4 TangentPathDirections[4];
+			FVector4f WorldPathDirections[4];
+			FVector4f TangentPathDirections[4];
 			FLightRay LightRays[4];
 			FLightRayIntersection LightRayIntersections[4];
 
@@ -972,7 +972,7 @@ public:
 							FreeNode = new FSimpleQuadTreeNode<FRefinementElement>();
 						}
 
-						const FVector2D ChildMin = NodeContext.Min + FVector2D(SubThetaIndex, SubPhiIndex) * NodeContext.Size / 2;
+						const FVector2f ChildMin = NodeContext.Min + FVector2f(SubThetaIndex, SubPhiIndex) * NodeContext.Size / 2;
 
 						// Reuse the parent sample result in whatever child cell it falls in
 						if (NodeContext.Node->Element.Uniforms.X >= ChildMin.X
@@ -994,7 +994,7 @@ public:
 							const float Fraction1 = NodeContext.Min.X + SubStepFraction1 * NodeContext.Size.X;
 							const float Fraction2 = NodeContext.Min.Y + SubStepFraction2 * NodeContext.Size.Y;
 
-							const FVector4 SampleDirection = UniformSampleHemisphere(Fraction1, Fraction2);
+							const FVector4f SampleDirection = UniformSampleHemisphere(Fraction1, Fraction2);
 
 							Vertex.ComputePathDirections(SampleDirection, WorldPathDirections[0], TangentPathDirections[0]);
 
@@ -1010,7 +1010,7 @@ public:
 								LightRays,
 								LightRayIntersections);
 
-							FVector UnoccludedSkyVector;
+							FVector3f UnoccludedSkyVector;
 							FLinearColor StationarySkyLighting;
 							FFinalGatherInfo SubsampleFinalGatherInfo;
 							FFinalGatherHitPoint HitPoint;
@@ -1044,7 +1044,7 @@ public:
 								SubsampleGatherInfo.HitPointRecorder->GatherHitPointData.Add(HitPoint);
 							}
 
-							FreeNode->Element = FRefinementElement(FLightingAndOcclusion(SubsampleLighting, UnoccludedSkyVector, StationarySkyLighting, SubsampleFinalGatherInfo.NumSamplesOccluded), FVector2D(Fraction1, Fraction2), StoredHitPointIndex);
+							FreeNode->Element = FRefinementElement(FLightingAndOcclusion(SubsampleLighting, UnoccludedSkyVector, StationarySkyLighting, SubsampleFinalGatherInfo.NumSamplesOccluded), FVector2f(Fraction1, Fraction2), StoredHitPointIndex);
 
 							Stats.NumRefiningFinalGatherSamples[RefinementDepth]++;
 
@@ -1146,10 +1146,10 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 	EHemisphereGatherClassification GatherClassification,
 	int32 NumAdaptiveRefinementLevels,
 	float BrightnessThresholdScale,
-	const TArray<FVector4>& UniformHemisphereSamples,
-	const TArray<FVector2D>& UniformHemisphereSampleUniforms,
+	const TArray<FVector4f>& UniformHemisphereSamples,
+	const TArray<FVector2f>& UniformHemisphereSampleUniforms,
 	float MaxUnoccludedLength,
-	const TArray<FVector4>& ImportancePhotonDirections,
+	const TArray<FVector4f>& ImportancePhotonDirections,
 	FStaticLightingMappingContext& MappingContext,
 	FLMRandomStream& RandomStream,
 	FLightingCacheGatherInfo& GatherInfo,
@@ -1174,8 +1174,8 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 
 	const float BaseGridSolidAngle = 2 * PI / (float)UniformHemisphereSamples.Num();
 
-	FVector4 WorldPathDirections[4];
-	FVector4 TangentPathDirections[4];
+	FVector4f WorldPathDirections[4];
+	FVector4f TangentPathDirections[4];
 	FLightRay LightRays[4];
 	FLightRayIntersection LightRayIntersections[4];
 
@@ -1185,7 +1185,7 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 		for (int32 PhiIndex = 0; PhiIndex < NumPhiSteps; PhiIndex++)
 		{
 			const int32 SampleIndex = ThetaIndex * NumPhiSteps + PhiIndex;
-			const FVector4 TriangleTangentPathDirection = UniformHemisphereSamples[SampleIndex];
+			const FVector4f TriangleTangentPathDirection = UniformHemisphereSamples[SampleIndex];
 			
 			Vertex.ComputePathDirections(TriangleTangentPathDirection, WorldPathDirections[0], TangentPathDirections[0]);
 
@@ -1201,7 +1201,7 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 				LightRays,
 				LightRayIntersections);
 
-			FVector UnoccludedSkyVector;
+			FVector3f UnoccludedSkyVector;
 			FLinearColor StationarySkyLighting;
 			FFinalGatherInfo FinalGatherInfo;
 			FFinalGatherHitPoint HitPoint;
@@ -1251,7 +1251,7 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 
 	if (bRefine)
 	{
-		TArray<FVector4, TInlineAllocator<30> > TangentSpaceImportancePhotonDirections;
+		TArray<FVector4f, TInlineAllocator<30> > TangentSpaceImportancePhotonDirections;
 		TangentSpaceImportancePhotonDirections.Empty(ImportancePhotonDirections.Num());
 
 		for (int32 PhotonIndex = 0; PhotonIndex < ImportancePhotonDirections.Num(); PhotonIndex++)
@@ -1290,7 +1290,7 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 #endif
 
 	SampleType IncomingRadiance;
-	FVector CombinedSkyUnoccludedDirection(0);
+	FVector3f CombinedSkyUnoccludedDirection(0);
 	float NumSamplesOccluded = 0;
 
 	// Accumulate lighting from all samples
@@ -1300,14 +1300,14 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 		{
 			const int32 SampleIndex = ThetaIndex * NumPhiSteps + PhiIndex;
 
-			const FVector4 TriangleTangentPathDirection = UniformHemisphereSamples[SampleIndex];
+			const FVector4f TriangleTangentPathDirection = UniformHemisphereSamples[SampleIndex];
 			checkSlow(TriangleTangentPathDirection.Z >= 0.0f);
 			checkSlow(TriangleTangentPathDirection.IsUnit3());
 
-			const FVector4 WorldPathDirection = Vertex.TransformTriangleTangentVectorToWorld(TriangleTangentPathDirection);
+			const FVector4f WorldPathDirection = Vertex.TransformTriangleTangentVectorToWorld(TriangleTangentPathDirection);
 			checkSlow(WorldPathDirection.IsUnit3());
 
-			const FVector4 TangentPathDirection = Vertex.TransformWorldVectorToTangent(WorldPathDirection);
+			const FVector4f TangentPathDirection = Vertex.TransformWorldVectorToTangent(WorldPathDirection);
 			checkSlow(TangentPathDirection.IsUnit3());
 
 			const float UniformPDF = 1.0f / (2.0f * (float)PI);
@@ -1339,7 +1339,7 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 	const float NormalizationConstant = .5f * (AmbientOcclusionSettings.OcclusionExponent + 1);
 	IncomingRadiance.SetOcclusion(FMath::Clamp(NormalizationConstant * FMath::Pow(OcclusionFraction, AmbientOcclusionSettings.OcclusionExponent), 0.0f, 1.0f)); 
 
-	const FVector BentNormal = CombinedSkyUnoccludedDirection / (MaxUnoccludedLength * UniformHemisphereSamples.Num());
+	const FVector3f BentNormal = CombinedSkyUnoccludedDirection / (MaxUnoccludedLength * UniformHemisphereSamples.Num());
 	IncomingRadiance.SetSkyOcclusion(BentNormal);
 
 	RefinementGrid.ReturnToFreeList(MappingContext.RefinementTreeFreePool);
@@ -1351,12 +1351,12 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 void FStaticLightingSystem::CalculateIrradianceGradients(
 	int32 BounceNumber,
 	const FLightingCacheGatherInfo& GatherInfo,
-	FVector4& RotationalGradient,
-	FVector4& TranslationalGradient) const
+	FVector4f& RotationalGradient,
+	FVector4f& TranslationalGradient) const
 {
 	// Calculate rotational and translational gradients as described in the paper "Irradiance Gradients" by Greg Ward and Paul Heckbert
-	FVector4 AccumulatedRotationalGradient(0,0,0);
-	FVector4 AccumulatedTranslationalGradient(0,0,0);
+	FVector4f AccumulatedRotationalGradient(0,0,0);
+	FVector4f AccumulatedTranslationalGradient(0,0,0);
 	if (IrradianceCachingSettings.bUseIrradianceGradients)
 	{
 		// Extract Theta and Phi steps from the number of hemisphere samples requested
@@ -1369,18 +1369,18 @@ void FStaticLightingSystem::CalculateIrradianceGradients(
 		// Calculate the rotational gradient
 		for (int32 PhiIndex = 0; PhiIndex < NumPhiSteps; PhiIndex++)
 		{
-			FVector4 InnerSum(0,0,0);
+			FVector4f InnerSum(0,0,0);
 			for (int32 ThetaIndex = 0; ThetaIndex < NumThetaSteps; ThetaIndex++)
 			{
 				const int32 SampleIndex = ThetaIndex * NumPhiSteps + PhiIndex;
 				const FLinearColor& IncidentRadiance = GatherInfo.PreviousIncidentRadiances[SampleIndex];
 				// Note: These equations need to be re-derived from the paper for a non-uniform PDF
 				const float TangentTerm = -FMath::Tan(ThetaIndex / (float)NumThetaSteps);
-				InnerSum += TangentTerm * FVector4(IncidentRadiance);
+				InnerSum += TangentTerm * FVector4f(IncidentRadiance);
 			}
 			const float CurrentPhi = 2.0f * (float)PI * PhiIndex / (float)NumPhiSteps;
 			// Vector in the tangent plane perpendicular to the current Phi
-			const FVector4 BasePlaneVector = FVector2D((float)HALF_PI, FMath::Fmod(CurrentPhi + (float)HALF_PI, 2.0f * (float)PI)).SphericalToUnitCartesian();
+			const FVector4f BasePlaneVector = FVector2f((float)HALF_PI, FMath::Fmod(CurrentPhi + (float)HALF_PI, 2.0f * (float)PI)).SphericalToUnitCartesian();
 			AccumulatedRotationalGradient += InnerSum * BasePlaneVector;
 		}
 		// Normalize the sum
@@ -1389,7 +1389,7 @@ void FStaticLightingSystem::CalculateIrradianceGradients(
 		// Calculate the translational gradient
 		for (int32 PhiIndex = 0; PhiIndex < NumPhiSteps; PhiIndex++)
 		{
-			FVector4 PolarWallContribution(0,0,0);
+			FVector4f PolarWallContribution(0,0,0);
 			// Starting from 1 since Theta doesn't wrap around (unlike Phi)
 			for (int32 ThetaIndex = 1; ThetaIndex < NumThetaSteps; ThetaIndex++)
 			{
@@ -1402,13 +1402,13 @@ void FStaticLightingSystem::CalculateIrradianceGradients(
 				const float MinDistance = FMath::Min(PreviousThetaDistance, CurrentThetaDistance);
 				checkSlow(MinDistance > 0);
 				const FLinearColor IncomingRadianceDifference = GatherInfo.PreviousIncidentRadiances[SampleIndex] - GatherInfo.PreviousIncidentRadiances[PreviousThetaSampleIndex];
-				PolarWallContribution += FMath::Sin(CurrentTheta) * CosCurrentTheta * CosCurrentTheta / MinDistance * FVector4(IncomingRadianceDifference);
+				PolarWallContribution += FMath::Sin(CurrentTheta) * CosCurrentTheta * CosCurrentTheta / MinDistance * FVector4f(IncomingRadianceDifference);
 				checkSlow(!PolarWallContribution.ContainsNaN());
 			}
 
 			// Wrap Phi around for the first Phi index
 			const int32 PreviousPhiIndex = PhiIndex == 0 ? NumPhiSteps - 1 : PhiIndex - 1;
-			FVector4 RadialWallContribution(0,0,0);
+			FVector4f RadialWallContribution(0,0,0);
 			for (int32 ThetaIndex = 0; ThetaIndex < NumThetaSteps; ThetaIndex++)
 			{
 				const float CurrentTheta = FMath::Acos(ThetaIndex / (float)NumThetaSteps);
@@ -1420,15 +1420,15 @@ void FStaticLightingSystem::CalculateIrradianceGradients(
 				const float MinDistance = FMath::Min(PreviousPhiDistance, CurrentPhiDistance);
 				checkSlow(MinDistance > 0);
 				const FLinearColor IncomingRadianceDifference = GatherInfo.PreviousIncidentRadiances[SampleIndex] - GatherInfo.PreviousIncidentRadiances[PreviousPhiSampleIndex];
-				RadialWallContribution += (FMath::Sin(NextTheta) - FMath::Sin(CurrentTheta)) / MinDistance * FVector4(IncomingRadianceDifference);
+				RadialWallContribution += (FMath::Sin(NextTheta) - FMath::Sin(CurrentTheta)) / MinDistance * FVector4f(IncomingRadianceDifference);
 				checkSlow(!RadialWallContribution.ContainsNaN());
 			}
 
 			const float CurrentPhi = 2.0f * (float)PI * PhiIndex / (float)NumPhiSteps;
 			// Vector in the tangent plane in the direction of the current Phi
-			const FVector4 PhiDirection = SphericalToUnitCartesian(FVector2D((float)HALF_PI, CurrentPhi));
+			const FVector4f PhiDirection = SphericalToUnitCartesian(FVector2f((float)HALF_PI, CurrentPhi));
 			// Vector in the tangent plane perpendicular to the current Phi
-			const FVector4 PerpendicularPhiDirection = FVector2D((float)HALF_PI, FMath::Fmod(CurrentPhi + (float)HALF_PI, 2.0f * (float)PI)).SphericalToUnitCartesian();
+			const FVector4f PerpendicularPhiDirection = FVector2f((float)HALF_PI, FMath::Fmod(CurrentPhi + (float)HALF_PI, 2.0f * (float)PI)).SphericalToUnitCartesian();
 
 			PolarWallContribution = PhiDirection * 2.0f * (float)PI / (float)NumPhiSteps * PolarWallContribution;
 			RadialWallContribution = PerpendicularPhiDirection * RadialWallContribution;
@@ -1553,7 +1553,7 @@ FFinalGatherSample FStaticLightingSystem::CachePointIncomingRadiance(
 		else
 		{
 			// Using final gathering with photon mapping, hemisphere gathering without photon mapping, path tracing and/or just calculating ambient occlusion
-			TArray<FVector4> ImportancePhotonDirections;
+			TArray<FVector4f> ImportancePhotonDirections;
 
 			if (GeneralSettings.NumIndirectLightingBounces > 0)
 			{
@@ -1585,7 +1585,7 @@ FFinalGatherSample FStaticLightingSystem::CachePointIncomingRadiance(
 						const FPhoton& CurrentPhoton = FoundPhotons[PhotonIndex];
 						// Calculate the direction from the current position to the photon's source
 						// Using the photon's incident direction unmodified produces artifacts proportional to the distance to that photon
-						const FVector4 NewDirection = CurrentPhoton.GetPosition() + CurrentPhoton.GetIncidentDirection() * CurrentPhoton.GetDistance() - Vertex.WorldPosition;
+						const FVector4f NewDirection = CurrentPhoton.GetPosition() + CurrentPhoton.GetIncidentDirection() * CurrentPhoton.GetDistance() - Vertex.WorldPosition;
 						// Only use the direction if it is in the hemisphere of the normal
 						// FindNearbyPhotons only returns photons whose incident directions lie in this hemisphere, but the recalculated direction might not.
 						if (Dot3(NewDirection, Vertex.TriangleNormal) > 0.0f)
@@ -1624,8 +1624,8 @@ FFinalGatherSample FStaticLightingSystem::CachePointIncomingRadiance(
 
 			if (IrradianceCachingSettings.bAllowIrradianceCaching)
 			{
-				FVector4 RotationalGradient;
-				FVector4 TranslationalGradient;
+				FVector4f RotationalGradient;
+				FVector4f TranslationalGradient;
 				CalculateIrradianceGradients(BounceNumber, GatherInfo, RotationalGradient, TranslationalGradient);
 
 				float OverrideRadius = 0;
@@ -1646,10 +1646,10 @@ FFinalGatherSample FStaticLightingSystem::CachePointIncomingRadiance(
 						// Trace a ray from one corner of the texel to the other to detect this edge case, 
 						// And set the record radius to the minimum to contain the error.
 						// Center of the texel offset along the normal
-						const FVector4 TexelCenterOffset = Vertex.WorldPosition + Vertex.TriangleNormal * SampleRadius * SceneConstants.VisibilityNormalOffsetSampleRadiusScale;
+						const FVector4f TexelCenterOffset = Vertex.WorldPosition + Vertex.TriangleNormal * SampleRadius * SceneConstants.VisibilityNormalOffsetSampleRadiusScale;
 						// Vector from the center to one of the corners of the texel
 						// The FMath::Sqrt(.5f) is to normalize (Vertex.TriangleTangentX + Vertex.TriangleTangentY), which are orthogonal unit vectors.
-						const FVector4 CornerOffset = FMath::Sqrt(.5f) * (Vertex.TriangleTangentX + Vertex.TriangleTangentY) * SampleRadius * SceneConstants.VisibilityTangentOffsetSampleRadiusScale;
+						const FVector4f CornerOffset = FMath::Sqrt(.5f) * (Vertex.TriangleTangentX + Vertex.TriangleTangentY) * SampleRadius * SceneConstants.VisibilityTangentOffsetSampleRadiusScale;
 						const FLightRay TexelRay(
 							TexelCenterOffset + CornerOffset,
 							TexelCenterOffset - CornerOffset,
@@ -1708,7 +1708,7 @@ FFinalGatherSample FStaticLightingSystem::CachePointIncomingRadiance(
 #if ALLOW_LIGHTMAP_SAMPLE_DEBUGGING
 				if (IrradianceCachingSettings.bVisualizeIrradianceSamples && Mapping == Scene.DebugMapping && GeneralSettings.ViewSingleBounceNumber == BounceNumber)
 				{
-					const float DistanceToDebugTexelSq = FVector(Scene.DebugInput.Position - Vertex.WorldPosition).SizeSquared();
+					const float DistanceToDebugTexelSq = FVector3f(Scene.DebugInput.Position - Vertex.WorldPosition).SizeSquared();
 					FDebugLightingCacheRecord TempRecord;
 					TempRecord.bNearSelectedTexel = DistanceToDebugTexelSq < NewRecord.BoundingRadius * NewRecord.BoundingRadius;
 					TempRecord.Radius = NewRecord.Radius;

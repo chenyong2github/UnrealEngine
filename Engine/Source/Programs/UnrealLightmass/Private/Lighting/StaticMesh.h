@@ -20,7 +20,7 @@ namespace Lightmass
 		FStaticLightingMapping* Mapping;
 
 		/** World to local transform, for box intersection w/ instances. */
-		FMatrix WorldToLocal;
+		FMatrix44f WorldToLocal;
 
 		virtual FStaticMeshStaticLightingMesh* GetInstanceableStaticMesh() override { return !bIsSplineMesh ? this : nullptr; }
 
@@ -73,7 +73,7 @@ namespace Lightmass
 		virtual void Import( class FLightmassImporter& Importer );
 
 		/** The inverse transpose of the primitive's local to world transform. */
-		FMatrix LocalToWorldInverseTranspose;
+		FMatrix44f LocalToWorldInverseTranspose;
 	};
 
 	/** Represents a static mesh primitive with texture mapped static lighting. */

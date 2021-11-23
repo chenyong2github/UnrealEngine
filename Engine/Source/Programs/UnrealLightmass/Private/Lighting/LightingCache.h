@@ -52,7 +52,7 @@ public:
 		QuantizedPhi(0)
 	{}
 
-	FQuantizedHemisphereDirection(const FVector4& UnitTangentSpaceDirection)
+	FQuantizedHemisphereDirection(const FVector4f& UnitTangentSpaceDirection)
 	{
 		checkSlow(UnitTangentSpaceDirection.IsUnit3());
 		checkSlow(UnitTangentSpaceDirection.Z >= 0 && UnitTangentSpaceDirection.Z <= 1);
@@ -65,14 +65,14 @@ public:
 		QuantizedPhi = (uint8)FMath::Clamp<int32>(FMath::RoundToInt(NormalizedPhi * (MAX_uint8 - 1)), 0, MAX_uint8 - 1);
 	}
 
-	FVector4 GetDirection() const
+	FVector4f GetDirection() const
 	{
 		const float Uint8RangeScale = 1.0f / (float)(MAX_uint8 - 1);
 		const float RescaledTheta = QuantizedTheta * Uint8RangeScale * PI;
 		const float RescaledPhi = (QuantizedPhi * Uint8RangeScale - .5f) * 2 * PI;
 
 		const float SinTheta = FMath::Sin(RescaledTheta);
-		return FVector(SinTheta * FMath::Cos(RescaledPhi), SinTheta * FMath::Sin(RescaledPhi), FMath::Cos(RescaledTheta));
+		return FVector3f(SinTheta * FMath::Cos(RescaledPhi), SinTheta * FMath::Sin(RescaledPhi), FMath::Cos(RescaledTheta));
 	}
 
 private:
@@ -172,10 +172,10 @@ public:
 		RecordSampleType Lighting;
 
 		/** The rotational gradient along the vector perpendicular to both the record normal and the normal of the vertex being interpolated to, used for higher order interpolation. */
-		FVector4 RotationalGradient;
+		FVector4f RotationalGradient;
 
 		/** The translational gradient from the record to the point being interpolated to, used for higher order interpolation. */
-		FVector4 TranslationalGradient;
+		FVector4f TranslationalGradient;
 
 		/** For debugging */
 		int32 Id;
@@ -183,7 +183,7 @@ public:
 		float BackfacingHitsFraction;
 
 		/** Initialization constructor. */
-		FRecord(const FFullStaticLightingVertex& InVertex,int32 InElementIndex,const FLightingCacheGatherInfo& GatherInfo,float SampleRadius,float InOverrideRadius,const FIrradianceCachingSettings& IrradianceCachingSettings,const FStaticLightingSettings& GeneralSettings,const RecordSampleType& InLighting, const FVector4& InRotGradient, const FVector4& InTransGradient):
+		FRecord(const FFullStaticLightingVertex& InVertex,int32 InElementIndex,const FLightingCacheGatherInfo& GatherInfo,float SampleRadius,float InOverrideRadius,const FIrradianceCachingSettings& IrradianceCachingSettings,const FStaticLightingSettings& GeneralSettings,const RecordSampleType& InLighting, const FVector4f& InRotGradient, const FVector4f& InTransGradient):
 			Vertex(InVertex),
 			ElementIndex(InElementIndex),
 			Lighting(InLighting),
@@ -220,12 +220,12 @@ public:
 		{
 			return FBoxCenterAndExtent(
 				LightingRecord.Vertex.WorldPosition,
-				FVector4(LightingRecord.BoundingRadius, LightingRecord.BoundingRadius, LightingRecord.BoundingRadius)
+				FVector4f(LightingRecord.BoundingRadius, LightingRecord.BoundingRadius, LightingRecord.BoundingRadius)
 				);
 		}
 	};
 
-	TLightingCache(const FBox& InBoundingBox, const FStaticLightingSystem& System, int32 InBounceNumber) :
+	TLightingCache(const FBox3f& InBoundingBox, const FStaticLightingSystem& System, int32 InBounceNumber) :
 		FLightingCacheBase(System, InBounceNumber),
 		Octree(InBoundingBox.GetCenter(),InBoundingBox.GetExtent().GetMax())
 	{}
@@ -383,7 +383,7 @@ bool TLightingCache<SampleType>::InterpolateLighting(
 	// Iterate over the octree nodes containing the query point.
 	for( typename LightingOctreeType::template TConstElementBoxIterator<> OctreeIt(
 		Octree,
-		FBoxCenterAndExtent(Vertex.WorldPosition, FVector4(0,0,0))
+		FBoxCenterAndExtent(Vertex.WorldPosition, FVector4f(0,0,0))
 		);
 		OctreeIt.HasPendingElements();
 		OctreeIt.Advance())
@@ -401,9 +401,9 @@ bool TLightingCache<SampleType>::InterpolateLighting(
 
 		// Don't use a lighting record if it's in front of the query point.
 		// Query points behind the lighting record may have nearby occluders that the lighting record does not see.
-		const FVector4 RecordToVertexVector = Vertex.WorldPosition - LightingRecord.Vertex.WorldPosition;
+		const FVector4f RecordToVertexVector = Vertex.WorldPosition - LightingRecord.Vertex.WorldPosition;
 		// Use the average normal to handle surfaces with constant concavity
-		const FVector4 AverageNormal = (LightingRecord.Vertex.TriangleNormal + Vertex.TriangleNormal).GetSafeNormal();
+		const FVector4f AverageNormal = (LightingRecord.Vertex.TriangleNormal + Vertex.TriangleNormal).GetSafeNormal();
 		const float PlaneDistance = Dot3(AverageNormal, RecordToVertexVector.GetSafeNormal());
 		// Setup an error metric that goes from 0 if the points are coplanar, to 1 if the point being shaded is at the angle corresponding to MinCosPointBehindPlane behind the plane
 		const float PointBehindPlaneError = FMath::Max(PlaneDistance / MinCosPointBehindPlane, 0.0f);

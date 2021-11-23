@@ -656,19 +656,19 @@ void FLightmassExporter::WriteToChannel( FLightmassStatistics& Stats, FGuid& Deb
 
 			for (int32 VolumeIndex = 0; VolumeIndex < ImportanceVolumes.Num(); VolumeIndex++)
 			{
-				FBox LMBox = ImportanceVolumes[VolumeIndex];
+				FBox3f LMBox(ImportanceVolumes[VolumeIndex]);
 				Swarm.WriteChannel(Channel, &LMBox, sizeof(LMBox));
 			}
 
 			for (int32 VolumeIndex = 0; VolumeIndex < CharacterIndirectDetailVolumes.Num(); VolumeIndex++)
 			{
-				FBox LMBox = CharacterIndirectDetailVolumes[VolumeIndex];
+				FBox3f LMBox(CharacterIndirectDetailVolumes[VolumeIndex]);
 				Swarm.WriteChannel(Channel, &LMBox, sizeof(LMBox));
 			}
 
 			for (int32 PortalIndex = 0; PortalIndex < Portals.Num(); PortalIndex++)
 			{
-				FMatrix Matrix = Portals[PortalIndex];
+				FMatrix44f Matrix(Portals[PortalIndex]);
 				Swarm.WriteChannel(Channel, &Matrix, sizeof(Matrix));
 			}
 
@@ -828,11 +828,16 @@ void FLightmassExporter::WriteVisibilityData( int32 Channel )
 		APrecomputedVisibilityVolume* Volume = *It;
 		if (World->ContainsActor(Volume) && IsValid(Volume))
 		{
-			FBox LMBox = Volume->GetComponentsBoundingBox(true);
+			FBox3f LMBox(Volume->GetComponentsBoundingBox(true));
 			Swarm.WriteChannel(Channel, &LMBox, sizeof(LMBox));
 
-			TArray<FPlane> Planes;
-			Volume->Brush->GetSurfacePlanes(Volume, Planes);
+			TArray<FPlane> Planes4d;
+			Volume->Brush->GetSurfacePlanes(Volume, Planes4d);			
+			TArray<FPlane4f> Planes;
+			for (FPlane Plane4d : Planes4d)
+			{
+				Planes.Add(FPlane4f(Plane4d));
+			}
 			const int32 NumPlanes = Planes.Num();
 			Swarm.WriteChannel( Channel, &NumPlanes, sizeof(NumPlanes) );
 			Swarm.WriteChannel( Channel, Planes.GetData(), Planes.Num() * Planes.GetTypeSize() );
@@ -854,7 +859,7 @@ void FLightmassExporter::WriteVisibilityData( int32 Channel )
 		APrecomputedVisibilityOverrideVolume* Volume = *It;
 		if (World->ContainsActor(Volume) && IsValid(Volume))
 		{
-			FBox LMBox = Volume->GetComponentsBoundingBox(true);
+			FBox3f LMBox(Volume->GetComponentsBoundingBox(true));
 			Swarm.WriteChannel(Channel, &LMBox, sizeof(LMBox));
 
 			TArray<int32> VisibilityIds;
@@ -939,7 +944,7 @@ void FLightmassExporter::WriteVolumetricLightmapData( int32 Channel )
 		AVolumetricLightmapDensityVolume* DetailVolume = VolumetricLightmapDensityVolumes[VolumeIndex];
 
 		Lightmass::FVolumetricLightmapDensityVolumeData VolumeData;
-		VolumeData.Bounds = DetailVolume->GetComponentsBoundingBox(true);
+		VolumeData.Bounds = FBox3f(DetailVolume->GetComponentsBoundingBox(true));
 		VolumeData.AllowedMipLevelRange = FIntPoint(DetailVolume->AllowedMipLevelRange.Min, DetailVolume->AllowedMipLevelRange.Max);
 
 		TArray<FPlane> Planes;
@@ -1555,7 +1560,7 @@ void FLightmassExporter::WriteBaseMeshInstanceData( int32 Channel, int32 MeshInd
 	MeshInstanceData.bCastShadowAsTwoSided = Mesh->Component->bCastShadowAsTwoSided;
 	MeshInstanceData.bMovable = (Mesh->Component->Mobility != EComponentMobility::Static);
 	MeshInstanceData.NumRelevantLights = Mesh->RelevantLights.Num();
-	MeshInstanceData.BoundingBox = Mesh->BoundingBox;
+	MeshInstanceData.BoundingBox = FBox3f(Mesh->BoundingBox);
 	Swarm.WriteChannel( Channel, &MeshInstanceData, sizeof(MeshInstanceData) );
 	const uint32 LightGuidsSize = Mesh->RelevantLights.Num() * sizeof(FGuid);
 	if( LightGuidsSize > 0 )
@@ -3474,9 +3479,9 @@ void FLightmassProcessor::ImportVolumeSamples()
 		const int32 Channel = Swarm.OpenChannel( *ChannelName, LM_VOLUMESAMPLES_CHANNEL_FLAGS );
 		if (Channel >= 0)
 		{
-			FVector4 UnusedVolumeCenter;
+			FVector4f UnusedVolumeCenter;
 			Swarm.ReadChannel(Channel, &UnusedVolumeCenter, sizeof(UnusedVolumeCenter));
-			FVector4 UnusedVolumeExtent;
+			FVector4f UnusedVolumeExtent;
 			Swarm.ReadChannel(Channel, &UnusedVolumeExtent, sizeof(UnusedVolumeExtent));
 
 			int32 NumStreamLevels = System.GetWorld()->GetStreamingLevels().Num();
@@ -3497,17 +3502,17 @@ void FLightmassProcessor::ImportVolumeSamples()
 					UMapBuildDataRegistry* CurrentRegistry = CurrentStorageLevel->GetOrCreateMapBuildData();
 					FPrecomputedLightVolumeData& CurrentLevelData = CurrentRegistry->AllocateLevelPrecomputedLightVolumeBuildData(CurrentLevel->LevelBuildDataId);
 
-					FBox LevelVolumeBounds(ForceInit);
+					FBox3f LevelVolumeBounds(ForceInit);
 
 					for (int32 SampleIndex = 0; SampleIndex < VolumeSamples.Num(); SampleIndex++)
 					{
 						const Lightmass::FVolumeLightingSampleData& CurrentSample = VolumeSamples[SampleIndex];
-						FVector SampleMin = CurrentSample.PositionAndRadius - FVector(CurrentSample.PositionAndRadius.W);
-						FVector SampleMax = CurrentSample.PositionAndRadius + FVector(CurrentSample.PositionAndRadius.W);
-						LevelVolumeBounds += FBox(SampleMin, SampleMax);
+						FVector4f SampleMin = CurrentSample.PositionAndRadius - FVector(CurrentSample.PositionAndRadius.W);
+						FVector4f SampleMax = CurrentSample.PositionAndRadius + FVector(CurrentSample.PositionAndRadius.W);
+						LevelVolumeBounds += FBox3f(SampleMin, SampleMax);
 					}
 
-					CurrentLevelData.Initialize(LevelVolumeBounds);
+					CurrentLevelData.Initialize(FBox(LevelVolumeBounds));
 
 					for (int32 SampleIndex = 0; SampleIndex < VolumeSamples.Num(); SampleIndex++)
 					{
@@ -3599,13 +3604,13 @@ void FLightmassProcessor::ImportPrecomputedVisibility()
 
 			for (int32 CellIndex = 0; CellIndex < NumCells; CellIndex++)
 			{
-				FBox Bounds;
+				FBox3f Bounds;
 				Swarm.ReadChannel(Channel, &Bounds, sizeof(Bounds));
 
 				// Use the same index for this task guid as it has in VisibilityBucketGuids, so that visibility cells are processed in a deterministic order
 				CompletedPrecomputedVisibilityCells[ArrayIndex].AddZeroed();
 				FUncompressedPrecomputedVisibilityCell& CurrentCell = CompletedPrecomputedVisibilityCells[ArrayIndex].Last();
-				CurrentCell.Bounds = Bounds;
+				CurrentCell.Bounds = FBox(Bounds);
 				ReadArray(Channel, CurrentCell.VisibilityData);
 			}
 

@@ -12,17 +12,17 @@ FLinearColor FLinearColorUtils::XYZToLinearRGB(const FLinearColor& InColor)
 {
 	FLinearColor SourceXYZ(InColor);
 	// Inverse of the transform in FLinearColor::LinearRGBToXYZ()
-	const FMatrix XYZToRGB(
-		FVector(3.2404548f, -0.9692664f, 0.0556434f),
-		FVector(-1.5371389f, 1.8760109f, -0.2040259f),
-		FVector(-0.4985315f, 0.0415561f, 1.0572252f),
-		FVector(0,			  0,		  0)); 
+	const FMatrix44f XYZToRGB(
+		FVector3f(3.2404548f, -0.9692664f, 0.0556434f),
+		FVector3f(-1.5371389f, 1.8760109f, -0.2040259f),
+		FVector3f(-0.4985315f, 0.0415561f, 1.0572252f),
+		FVector3f(0,			  0,		  0)); 
 
 	if (FMath::IsNearlyEqual(InColor.R, 0.0f, (float)SMALL_NUMBER) && FMath::IsNearlyEqual(InColor.B, 0.0f, (float)SMALL_NUMBER))
 	{
 		SourceXYZ.G = 0.0f;
 	}
-	const FVector4 LinearRGB = XYZToRGB.TransformVector(FVector(SourceXYZ.R, SourceXYZ.G, SourceXYZ.B));
+	const FVector4f LinearRGB = XYZToRGB.TransformVector(FVector3f(SourceXYZ.R, SourceXYZ.G, SourceXYZ.B));
 	return FLinearColor(FMath::Max(LinearRGB.X, 0.0f), FMath::Max(LinearRGB.Y, 0.0f), FMath::Max(LinearRGB.Z, 0.0f));
 }
 
@@ -103,13 +103,13 @@ FLinearColor FLinearColorUtils::LinearRGBToXYZ(const FLinearColor& InColor)
 {
 	// RGB to XYZ linear transformation used by sRGB
 	//http://www.w3.org/Graphics/Color/sRGB
-	const FMatrix RGBToXYZ(
-		FVector(0.4124564f, 0.2126729f, 0.0193339f),
-		FVector(0.3575761f, 0.7151522f, 0.1191920f),
-		FVector(0.1804375f, 0.0721750f, 0.9503041f),
-		FVector(0,			 0,			 0)); 
+	const FMatrix44f RGBToXYZ(
+		FVector3f(0.4124564f, 0.2126729f, 0.0193339f),
+		FVector3f(0.3575761f, 0.7151522f, 0.1191920f),
+		FVector3f(0.1804375f, 0.0721750f, 0.9503041f),
+		FVector3f(0,			 0,			 0)); 
 
-	const FVector4 ResultVector = RGBToXYZ.TransformVector(FVector(InColor.R, InColor.G, InColor.B));
+	const FVector4f ResultVector = RGBToXYZ.TransformVector(FVector3f(InColor.R, InColor.G, InColor.B));
 	return FLinearColor(ResultVector.X, ResultVector.Y, ResultVector.Z);
 }
 
@@ -135,18 +135,18 @@ FLinearColor FLinearColorUtils::AdjustSaturation(const FLinearColor& InColor, fl
 }
 
 bool GetBarycentricWeights(
-	const FVector4& Position0,
-	const FVector4& Position1,
-	const FVector4& Position2,
-	const FVector4& InterpolatePosition,
+	const FVector4f& Position0,
+	const FVector4f& Position1,
+	const FVector4f& Position2,
+	const FVector4f& InterpolatePosition,
 	float Tolerance,
-	FVector4& BarycentricWeights
+	FVector4f& BarycentricWeights
 	)
 {
-	BarycentricWeights = FVector4(0,0,0);
-	FVector4 TriangleNormal = (Position0 - Position1) ^ (Position2 - Position0);
+	BarycentricWeights = FVector4f(0,0,0);
+	FVector4f TriangleNormal = (Position0 - Position1) ^ (Position2 - Position0);
 	float ParallelogramArea = TriangleNormal.Size3();
-	FVector4 UnitTriangleNormal = TriangleNormal / ParallelogramArea;
+	FVector4f UnitTriangleNormal = TriangleNormal / ParallelogramArea;
 	float PlaneDistance = Dot3(UnitTriangleNormal, (InterpolatePosition - Position0));
 
 	// Only continue if the position to interpolate to is in the plane of the triangle (within some error)
@@ -154,21 +154,21 @@ bool GetBarycentricWeights(
 	{
 		// Move the position to interpolate to into the plane of the triangle along the normal, 
 		// Otherwise there will be error in our barycentric coordinates
-		FVector4 AdjustedInterpolatePosition = InterpolatePosition - UnitTriangleNormal * PlaneDistance;
+		FVector4f AdjustedInterpolatePosition = InterpolatePosition - UnitTriangleNormal * PlaneDistance;
 
-		FVector4 NormalU = (AdjustedInterpolatePosition - Position1) ^ (Position2 - AdjustedInterpolatePosition);
+		FVector4f NormalU = (AdjustedInterpolatePosition - Position1) ^ (Position2 - AdjustedInterpolatePosition);
 		// Signed area, if negative then InterpolatePosition is not in the triangle
 		float ParallelogramAreaU = NormalU.Size3() * (Dot3(NormalU, TriangleNormal) > 0.0f ? 1.0f : -1.0f);
 		float BaryCentricU = ParallelogramAreaU / ParallelogramArea;
 
-		FVector4 NormalV = (AdjustedInterpolatePosition - Position2) ^ (Position0 - AdjustedInterpolatePosition);
+		FVector4f NormalV = (AdjustedInterpolatePosition - Position2) ^ (Position0 - AdjustedInterpolatePosition);
 		float ParallelogramAreaV = NormalV.Size3() * (Dot3(NormalV, TriangleNormal) > 0.0f ? 1.0f : -1.0f);
 		float BaryCentricV = ParallelogramAreaV / ParallelogramArea;
 
 		float BaryCentricW = 1.0f - BaryCentricU - BaryCentricV;
 		if (BaryCentricU > -Tolerance && BaryCentricV > -Tolerance && BaryCentricW > -Tolerance)
 		{
-			BarycentricWeights = FVector4(BaryCentricU, BaryCentricV, BaryCentricW);
+			BarycentricWeights = FVector4f(BaryCentricU, BaryCentricV, BaryCentricW);
 			return true;
 		}
 	}

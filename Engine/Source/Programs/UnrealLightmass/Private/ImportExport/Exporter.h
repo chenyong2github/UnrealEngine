@@ -49,8 +49,8 @@ namespace Lightmass
 		void ExportVolumeLightingSamples(
 			bool bExportVolumeLightingDebugOutput,
 			const struct FVolumeLightingDebugOutput& DebugOutput,
-			const FVector4& VolumeCenter, 
-			const FVector4& VolumeExtent, 
+			const FVector4f& VolumeCenter, 
+			const FVector4f& VolumeExtent, 
 			const TMap<FGuid,TArray<class FVolumeLightingSample> >& VolumeSamples) const;
 
 		/** Exports dominant shadow information to Unreal. */
@@ -63,7 +63,7 @@ namespace Lightmass
 		void ExportMeshAreaLightData(const class TIndirectArray<FMeshAreaLight>& MeshAreaLights, float MeshAreaLightGeneratedDynamicLightSurfaceOffset) const;
 
 		/** Exports the volume distance field. */
-		void ExportVolumeDistanceField(int32 VolumeSizeX, int32 VolumeSizeY, int32 VolumeSizeZ, float VolumeMaxDistance, const FBox& DistanceFieldVolumeBounds, const TArray<FColor>& VolumeDistanceField) const;
+		void ExportVolumeDistanceField(int32 VolumeSizeX, int32 VolumeSizeY, int32 VolumeSizeZ, float VolumeMaxDistance, const FBox3f& DistanceFieldVolumeBounds, const TArray<FColor>& VolumeDistanceField) const;
 
 	private:
 		class FLightmassSwarm*	Swarm;

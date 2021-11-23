@@ -35,9 +35,9 @@ struct FStaticLightingVertex: public FStaticLightingVertexData
 	}
 
 	/** Transforms a world space vector into the tangent space of this vertex. */
-	inline FVector4 TransformWorldVectorToTangent(const FVector4& WorldVector) const
+	inline FVector4f TransformWorldVectorToTangent(const FVector4f& WorldVector) const
 	{
-		const FVector4 TangentVector(
+		const FVector4f TangentVector(
 			Dot3(WorldTangentX, WorldVector),
 			Dot3(WorldTangentY, WorldVector),
 			Dot3(WorldTangentZ, WorldVector)
@@ -46,14 +46,14 @@ struct FStaticLightingVertex: public FStaticLightingVertexData
 	}
 
 	/** Transforms a vector in the tangent space of this vertex into world space. */
-	inline FVector4 TransformTangentVectorToWorld(const FVector4& TangentVector) const
+	inline FVector4f TransformTangentVectorToWorld(const FVector4f& TangentVector) const
 	{
 		checkSlow(TangentVector.IsUnit3());
 		// Assuming the transpose of the tangent basis is also the inverse
-		const FVector4 WorldTangentRow0(WorldTangentX.X, WorldTangentY.X, WorldTangentZ.X);
-		const FVector4 WorldTangentRow1(WorldTangentX.Y, WorldTangentY.Y, WorldTangentZ.Y);
-		const FVector4 WorldTangentRow2(WorldTangentX.Z, WorldTangentY.Z, WorldTangentZ.Z);
-		const FVector4 WorldVector(
+		const FVector4f WorldTangentRow0(WorldTangentX.X, WorldTangentY.X, WorldTangentZ.X);
+		const FVector4f WorldTangentRow1(WorldTangentX.Y, WorldTangentY.Y, WorldTangentZ.Y);
+		const FVector4f WorldTangentRow2(WorldTangentX.Z, WorldTangentY.Z, WorldTangentZ.Z);
+		const FVector4f WorldVector(
 			Dot3(WorldTangentRow0, TangentVector),
 			Dot3(WorldTangentRow1, TangentVector),
 			Dot3(WorldTangentRow2, TangentVector)
@@ -68,11 +68,11 @@ struct FStaticLightingVertex: public FStaticLightingVertexData
 		checkSlow(WorldTangentZ.IsUnit3());
 		// Use the vector perpendicular to the normal and the negative Y axis as the TangentX.  
 		// A WorldTangentZ of (0,0,1) will generate WorldTangentX of (1,0,0) and WorldTangentY of (0,1,0) which can be useful for debugging tangent space issues.
-		const FVector4 TangentXCandidate = WorldTangentZ ^ FVector4(0,-1,0);
+		const FVector4f TangentXCandidate = WorldTangentZ ^ FVector4f(0,-1,0);
 		if (TangentXCandidate.SizeSquared3() < KINDA_SMALL_NUMBER)
 		{
 			// The normal was nearly equal to the Y axis, use the X axis instead
-			WorldTangentX = (WorldTangentZ ^ FVector4(1,0,0)).GetUnsafeNormal3();
+			WorldTangentX = (WorldTangentZ ^ FVector4f(1,0,0)).GetUnsafeNormal3();
 		}
 		else
 		{
@@ -148,14 +148,14 @@ struct FStaticLightingVertex: public FStaticLightingVertexData
  */
 struct FFullStaticLightingVertex : public FStaticLightingVertex
 {
-	FVector4 TriangleTangentX;
-	FVector4 TriangleTangentY;
-	FVector4 TriangleNormal;
+	FVector4f TriangleTangentX;
+	FVector4f TriangleTangentY;
+	FVector4f TriangleNormal;
 
 	/** Transforms a world space vector into the tangent space of this triangle. */
-	inline FVector4 TransformWorldVectorToTriangleTangent(const FVector4& WorldVector) const
+	inline FVector4f TransformWorldVectorToTriangleTangent(const FVector4f& WorldVector) const
 	{
-		const FVector4 TangentVector(
+		const FVector4f TangentVector(
 			Dot3(TriangleTangentX, WorldVector),
 			Dot3(TriangleTangentY, WorldVector),
 			Dot3(TriangleNormal, WorldVector)
@@ -164,14 +164,14 @@ struct FFullStaticLightingVertex : public FStaticLightingVertex
 	}
 
 	/** Transforms a vector in the tangent space of this triangle into world space. */
-	inline FVector4 TransformTriangleTangentVectorToWorld(const FVector4& TriangleTangentVector) const
+	inline FVector4f TransformTriangleTangentVectorToWorld(const FVector4f& TriangleTangentVector) const
 	{
 		checkSlow(TriangleTangentVector.IsUnit3());
 		// Assuming the transpose of the tangent basis is also the inverse
-		const FVector4 WorldTangentRow0(TriangleTangentX.X, TriangleTangentY.X, TriangleNormal.X);
-		const FVector4 WorldTangentRow1(TriangleTangentX.Y, TriangleTangentY.Y, TriangleNormal.Y);
-		const FVector4 WorldTangentRow2(TriangleTangentX.Z, TriangleTangentY.Z, TriangleNormal.Z);
-		const FVector4 WorldVector(
+		const FVector4f WorldTangentRow0(TriangleTangentX.X, TriangleTangentY.X, TriangleNormal.X);
+		const FVector4f WorldTangentRow1(TriangleTangentX.Y, TriangleTangentY.Y, TriangleNormal.Y);
+		const FVector4f WorldTangentRow2(TriangleTangentX.Z, TriangleTangentY.Z, TriangleNormal.Z);
+		const FVector4f WorldVector(
 			Dot3(WorldTangentRow0, TriangleTangentVector),
 			Dot3(WorldTangentRow1, TriangleTangentVector),
 			Dot3(WorldTangentRow2, TriangleTangentVector)
@@ -186,11 +186,11 @@ struct FFullStaticLightingVertex : public FStaticLightingVertex
 		checkSlow(TriangleNormal.IsUnit3());
 		// Use the vector perpendicular to the normal and the negative Y axis as the TangentX.  
 		// A TriangleNormal of (0,0,1) will generate TriangleTangentX of (1,0,0) and TriangleTangentY of (0,1,0) which can be useful for debugging tangent space issues.
-		const FVector4 TangentXCandidate = TriangleNormal ^ FVector4(0,-1,0);
+		const FVector4f TangentXCandidate = TriangleNormal ^ FVector4f(0,-1,0);
 		if (TangentXCandidate.SizeSquared3() < KINDA_SMALL_NUMBER)
 		{
 			// The normal was nearly equal to the Y axis, use the X axis instead
-			TriangleTangentX = (TriangleNormal ^ FVector4(1,0,0)).GetUnsafeNormal3();
+			TriangleTangentX = (TriangleNormal ^ FVector4f(1,0,0)).GetUnsafeNormal3();
 		}
 		else
 		{
@@ -202,7 +202,7 @@ struct FFullStaticLightingVertex : public FStaticLightingVertex
 
 	void ApplyVertexModifications(int32 ElementIndex, bool bUseNormalMapsForLighting, const class FStaticLightingMesh* Mesh);
 
-	inline void ComputePathDirections(const FVector4& TriangleTangentPathDirection, FVector4& WorldPathDirection, FVector4& TangentPathDirection) const
+	inline void ComputePathDirections(const FVector4f& TriangleTangentPathDirection, FVector4f& WorldPathDirection, FVector4f& TangentPathDirection) const
 	{
 		checkSlow(TriangleTangentPathDirection.Z >= 0.0f);
 		checkSlow(TriangleTangentPathDirection.IsUnit3());
@@ -440,21 +440,21 @@ public:
 	FLinearColor EvaluateBRDF(
 		const FStaticLightingVertex& Vertex, 
 		int32 ElementIndex,
-		const FVector4& IncomingDirection, 
-		const FVector4& OutgoingDirection) const;
+		const FVector4f& IncomingDirection, 
+		const FVector4f& OutgoingDirection) const;
 
 	/** Generates an outgoing direction sample and evaluates the BRDF for that direction. */
 	FLinearColor SampleBRDF(
 		const FStaticLightingVertex& Vertex, 
 		int32 ElementIndex,
-		const FVector4& IncomingDirection, 
-		FVector4& OutgoingDirection,
+		const FVector4f& IncomingDirection, 
+		FVector4f& OutgoingDirection,
 		float& DirectionPDF,
 		FLMRandomStream& RandomStream
 		) const;
 
 	/** Evaluates the mesh's emissive at the given UVs */
-	inline FLinearColor EvaluateEmissive(const FVector2D& UVs, int32 ElementIndex) const
+	inline FLinearColor EvaluateEmissive(const FVector2f& UVs, int32 ElementIndex) const
 	{
 		checkSlow(IsEmissive(ElementIndex)); 
 		FLinearColor Emissive(FLinearColor::Black);
@@ -472,7 +472,7 @@ public:
 	}
 
 	/** Evaluates the mesh's diffuse at the given UVs */
-	inline FLinearColor EvaluateDiffuse(const FVector2D& UVs, int32 ElementIndex) const
+	inline FLinearColor EvaluateDiffuse(const FVector2f& UVs, int32 ElementIndex) const
 	{
 		checkSlow(!IsTranslucent(ElementIndex));
 		FLinearColor Diffuse(DebugDiffuse);
@@ -497,7 +497,7 @@ public:
 	}
 
 	/** Evaluates the mesh's transmission at the given UVs */
-	inline FLinearColor EvaluateTransmission(const FVector2D& UVs, int32 ElementIndex) const
+	inline FLinearColor EvaluateTransmission(const FVector2f& UVs, int32 ElementIndex) const
 	{
 		checkSlow(IsTranslucent(ElementIndex));
 		FLinearColor Transmission = MaterialElements[ElementIndex].Material->SampleTransmission(UVs);
@@ -508,7 +508,7 @@ public:
 	}
 
 	/** Evaluates the mesh's transmission at the given UVs */
-	inline bool EvaluateMaskedCollision(const FVector2D& UVs, int32 ElementIndex) const
+	inline bool EvaluateMaskedCollision(const FVector2f& UVs, int32 ElementIndex) const
 	{
 		checkSlow(IsMasked(ElementIndex) || IsCastingShadowsAsMasked(ElementIndex));
 		const FMaterialElement& MaterialElement = MaterialElements[ElementIndex];
@@ -518,9 +518,9 @@ public:
 	}
 
 	/** Evaluates the mesh's tangent space normal at the given UVs */
-	inline FVector4 EvaluateNormal(const FVector2D& UVs, int32 ElementIndex) const
+	inline FVector4f EvaluateNormal(const FVector2f& UVs, int32 ElementIndex) const
 	{
-		FVector4 Normal( 0, 0, 1.0f, 0.0 );
+		FVector4f Normal( 0, 0, 1.0f, 0.0 );
 		const FMaterialElement& MaterialElement = MaterialElements[ElementIndex];
 		if( MaterialElement.Material->NormalSize > 0 )
 		{
@@ -565,7 +565,7 @@ private:
 		const FTexelToCornersMap& TexelToCornersMap, 
 		const struct FTexelToCorners& ComparisonTexel,
 		int32 ComparisonTexelLightIndex,
-		const FVector4& PrimitiveOrigin,
+		const FVector4f& PrimitiveOrigin,
 		TArray<int32>& PrimitiveIndices, 
 		const TArray<int32>& LightIndices, 
 		int32 X, int32 Y, 

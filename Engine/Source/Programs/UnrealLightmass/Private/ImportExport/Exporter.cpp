@@ -34,8 +34,8 @@ namespace Lightmass
 	void FLightmassSolverExporter::ExportVolumeLightingSamples(
 		bool bExportVolumeLightingDebugOutput,
 		const FVolumeLightingDebugOutput& DebugOutput,
-		const FVector4& VolumeCenter, 
-		const FVector4& VolumeExtent, 
+		const FVector4f& VolumeCenter, 
+		const FVector4f& VolumeExtent, 
 		const TMap<FGuid,TArray<FVolumeLightingSample> >& VolumeSamples) const
 	{
 		if (bExportVolumeLightingDebugOutput)
@@ -112,7 +112,7 @@ namespace Lightmass
 				FMeshAreaLightData LightData;
 				LightData.LevelGuid = CurrentLight.LevelGuid;
 
-				FVector4 AverageNormal(0,0,0);
+				FVector4f AverageNormal(0,0,0);
 				for (int32 PrimitiveIndex = 0; PrimitiveIndex < CurrentLight.Primitives.Num(); PrimitiveIndex++)
 				{
 					AverageNormal += CurrentLight.Primitives[PrimitiveIndex].SurfaceNormal * CurrentLight.Primitives[PrimitiveIndex].SurfaceArea;
@@ -123,7 +123,7 @@ namespace Lightmass
 				}
 				else
 				{
-					AverageNormal = FVector4(1,0,0);
+					AverageNormal = FVector4f(1,0,0);
 				}
 				// Offset the position somewhat to reduce the chance of the generated light being inside the mesh
 				LightData.Position = CurrentLight.Position + AverageNormal *MeshAreaLightGeneratedDynamicLightSurfaceOffset;
@@ -150,7 +150,7 @@ namespace Lightmass
 	}
 
 	/** Exports the volume distance field. */
-	void FLightmassSolverExporter::ExportVolumeDistanceField(int32 VolumeSizeX, int32 VolumeSizeY, int32 VolumeSizeZ, float VolumeMaxDistance, const FBox& DistanceFieldVolumeBounds, const TArray<FColor>& VolumeDistanceField) const
+	void FLightmassSolverExporter::ExportVolumeDistanceField(int32 VolumeSizeX, int32 VolumeSizeY, int32 VolumeSizeZ, float VolumeMaxDistance, const FBox3f& DistanceFieldVolumeBounds, const TArray<FColor>& VolumeDistanceField) const
 	{
 		const FString ChannelName = CreateChannelName(VolumeDistanceFieldGuid, LM_MESHAREALIGHTDATA_VERSION, LM_MESHAREALIGHTDATA_EXTENSION);
 		const int32 ErrorCode = Swarm->OpenChannel(*ChannelName, LM_MESHAREALIGHT_CHANNEL_FLAGS, true);

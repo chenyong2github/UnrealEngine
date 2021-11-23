@@ -21,13 +21,13 @@ bool bAllowMeshAreaLights = false;
 FLinearColor FStaticLightingMesh::EvaluateBRDF(
 	const FStaticLightingVertex& Vertex, 
 	int32 ElementIndex,
-	const FVector4& IncomingDirection, 
-	const FVector4& OutgoingDirection) const
+	const FVector4f& IncomingDirection, 
+	const FVector4f& OutgoingDirection) const
 {
 	checkSlow(Vertex.WorldTangentZ.IsUnit3());
 	checkSlow(IncomingDirection.IsUnit3());
 	checkSlow(OutgoingDirection.IsUnit3());
-	const FVector4 ReflectedIncomingVector = IncomingDirection.Reflect3(Vertex.WorldTangentZ);
+	const FVector4f ReflectedIncomingVector = IncomingDirection.Reflect3(Vertex.WorldTangentZ);
 	const float OutgoingDotReflected = FMath::Max(Dot3(OutgoingDirection, ReflectedIncomingVector), 0.0f);
 	const FLinearColor Diffuse = EvaluateDiffuse(Vertex.TextureCoordinates[0], ElementIndex);
 	return Diffuse / (float)PI;
@@ -37,8 +37,8 @@ FLinearColor FStaticLightingMesh::EvaluateBRDF(
 FLinearColor FStaticLightingMesh::SampleBRDF(
 	const FStaticLightingVertex& Vertex, 
 	int32 ElementIndex,
-	const FVector4& IncomingDirection, 
-	FVector4& OutgoingDirection,
+	const FVector4f& IncomingDirection, 
+	FVector4f& OutgoingDirection,
 	float& DirectionPDF,
 	FLMRandomStream& RandomStream
 	) const
@@ -46,15 +46,15 @@ FLinearColor FStaticLightingMesh::SampleBRDF(
 	checkSlow(Vertex.WorldTangentZ.IsUnit3());
 	checkSlow(IncomingDirection.IsUnit3());
 
-	const FVector4 ReflectedIncomingVector = IncomingDirection.Reflect3(Vertex.WorldTangentZ);
-	const FVector4 TangentReflectedIncomingVector = Vertex.TransformWorldVectorToTangent(ReflectedIncomingVector);
+	const FVector4f ReflectedIncomingVector = IncomingDirection.Reflect3(Vertex.WorldTangentZ);
+	const FVector4f TangentReflectedIncomingVector = Vertex.TransformWorldVectorToTangent(ReflectedIncomingVector);
 
 	const FLinearColor Diffuse = EvaluateDiffuse(Vertex.TextureCoordinates[0], ElementIndex);
 
 	const float DiffuseIntensity = Diffuse.GetLuminance();
 	
 	// Generate a direction based on the cosine lobe
-	FVector4 TangentPathDirection = GetCosineHemisphereVector(RandomStream);
+	FVector4f TangentPathDirection = GetCosineHemisphereVector(RandomStream);
 
 	const float CosTheta = FMath::Max(Dot3(IncomingDirection, Vertex.WorldTangentZ), 0.0f);
 	const float CosPDF = CosTheta / (float)PI;
@@ -160,13 +160,13 @@ void FStaticLightingMesh::Import( FLightmassImporter& Importer )
 
 /** Determines whether two triangles overlap each other's AABB's. */
 static bool AxisAlignedTriangleIntersectTriangle2d(
-	const FVector2D& V0, const FVector2D& V1, const FVector2D& V2, 
-	const FVector2D& OtherV0, const FVector2D& OtherV1, const FVector2D& OtherV2)
+	const FVector2f& V0, const FVector2f& V1, const FVector2f& V2, 
+	const FVector2f& OtherV0, const FVector2f& OtherV1, const FVector2f& OtherV2)
 {
-	const FVector2D MinFirst = FMath::Min(V0, FMath::Min(V1, V2));
-	const FVector2D MaxFirst = FMath::Max(V0, FMath::Max(V1, V2));
-	const FVector2D MinSecond = FMath::Min(OtherV0, FMath::Min(OtherV1, OtherV2));
-	const FVector2D MaxSecond = FMath::Max(OtherV0, FMath::Max(OtherV1, OtherV2));
+	const FVector2f MinFirst = FMath::Min(V0, FMath::Min(V1, V2));
+	const FVector2f MaxFirst = FMath::Max(V0, FMath::Max(V1, V2));
+	const FVector2f MinSecond = FMath::Min(OtherV0, FMath::Min(OtherV1, OtherV2));
+	const FVector2f MaxSecond = FMath::Max(OtherV0, FMath::Max(OtherV1, OtherV2));
 
 	return !(MinFirst.X > MaxSecond.X 
 		|| MinSecond.X > MaxFirst.X 
@@ -234,7 +234,7 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 	CalculateUniqueLayers(MeshVertices, ElementIndices, LayeredGroupTriangles);
 
 	// get Min/MaxUV on the mesh for the triangles
-	FVector2D MinUV(FLT_MAX, FLT_MAX), MaxUV(-FLT_MAX, -FLT_MAX);
+	FVector2f MinUV(FLT_MAX, FLT_MAX), MaxUV(-FLT_MAX, -FLT_MAX);
 	for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; TriangleIndex++)
 	{
 		for (int32 VIndex = 0; VIndex < 3; VIndex++)
@@ -258,8 +258,8 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 
 	// calculate the bias and scale needed to map the random UV range into 0 .. NumIterations when rasterizing
 	// into the TexelToCornersMap
-	const FVector2D UVBias(-FMath::FloorToFloat(MinUV.X), -FMath::FloorToFloat(MinUV.Y));
-	const FVector2D UVScale(1.0f / NumIterationsX, 1.0f / NumIterationsY);
+	const FVector2f UVBias(-FMath::FloorToFloat(MinUV.X), -FMath::FloorToFloat(MinUV.Y));
+	const FVector2f UVScale(1.0f / NumIterationsX, 1.0f / NumIterationsY);
 
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialElements.Num(); MaterialIndex++)
 	{
@@ -281,7 +281,7 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 					{
 						FTexelToCorners& CurrentTexelCorners = TexelToCornersMap(X, Y);
 						// Normals need to be unit as their dot product will be used in comparisons later
-						CurrentTexelCorners.WorldTangentZ = CurrentTexelCorners.WorldTangentZ.SizeSquared3() > DELTA ? CurrentTexelCorners.WorldTangentZ.GetUnsafeNormal3() : FVector4(0,0,1);
+						CurrentTexelCorners.WorldTangentZ = CurrentTexelCorners.WorldTangentZ.SizeSquared3() > DELTA ? CurrentTexelCorners.WorldTangentZ.GetUnsafeNormal3() : FVector4f(0,0,1);
 					}
 				}
 
@@ -328,7 +328,7 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 				PrimitiveIndices.AddZeroed(TexelToCornersMap.GetSizeX() * TexelToCornersMap.GetSizeY());
 				FMemory::Memset(PrimitiveIndices.GetData(), UnprocessedIndex, PrimitiveIndices.Num() * PrimitiveIndices.GetTypeSize());
 				int32 NextPrimitiveIndex = 0;
-				const float DistanceThreshold = FBoxSphereBounds(BoundingBox).SphereRadius * Scene.MeshAreaLightSettings.MeshAreaLightSimplifyMeshBoundingRadiusFractionThreshold;
+				const float DistanceThreshold = FBoxSphereBounds3f(BoundingBox).SphereRadius * Scene.MeshAreaLightSettings.MeshAreaLightSimplifyMeshBoundingRadiusFractionThreshold;
 				// The temporary stack of texels that need to be processed
 				TArray<FIntPoint> PendingTexels;
 				// Iterate over all texels and assign a primitive index to each one
@@ -343,7 +343,7 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 						checkSlow(LightIndex != PendingProcessingIndex);
 						const FTexelToCorners& CurrentTexelCorners = TexelToCornersMap(X, Y);
 
-						FVector4 PrimitiveCenter(0,0,0);
+						FVector4f PrimitiveCenter(0,0,0);
 						for (int32 CornerIndex = 0; CornerIndex < NumTexelCorners; CornerIndex++)
 						{
 							PrimitiveCenter += CurrentTexelCorners.Corners[CornerIndex].WorldPosition / (float)NumTexelCorners;
@@ -408,7 +408,7 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 							if (PrimitiveIndex >= 0)
 							{
 								// Calculate the texel's center
-								FVector4 TexelCenter(0,0,0);
+								FVector4f TexelCenter(0,0,0);
 								bool bAllCornersValid = true;
 								for (int32 CornerIndex = 0; CornerIndex < NumTexelCorners; CornerIndex++)
 								{
@@ -429,7 +429,7 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 								}
 
 								const float XFraction = X / (float)CurrentMaterial.EmissiveSize;
-								const FLinearColor CurrentEmissive = EvaluateEmissive(FVector2D(XFraction, YFraction), MaterialIndex);
+								const FLinearColor CurrentEmissive = EvaluateEmissive(FVector2f(XFraction, YFraction), MaterialIndex);
 								checkSlow(CurrentEmissive.R > Scene.MeshAreaLightSettings.EmissiveIntensityThreshold 
 									|| CurrentEmissive.G > Scene.MeshAreaLightSettings.EmissiveIntensityThreshold 
 									|| CurrentEmissive.B > Scene.MeshAreaLightSettings.EmissiveIntensityThreshold);
@@ -465,10 +465,10 @@ void FStaticLightingMesh::CreateMeshAreaLights(
 							{
 								// Draw 4 lines between the primitive corners for debugging
 								// Currently hijacking ShadowRays
-								//LightingSystem.DebugOutput.ShadowRays.Add(FDebugStaticLightingRay(EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[0].WorldPosition - FVector4(0,0,.1f), EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[1].WorldPosition - FVector4(0,0,.1f), true, false));
-								//LightingSystem.DebugOutput.ShadowRays.Add(FDebugStaticLightingRay(EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[1].WorldPosition - FVector4(0,0,.1f), EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[3].WorldPosition - FVector4(0,0,.1f), true, true));
-								//LightingSystem.DebugOutput.ShadowRays.Add(FDebugStaticLightingRay(EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[3].WorldPosition - FVector4(0,0,.1f), EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[2].WorldPosition - FVector4(0,0,.1f), true, false));
-								//LightingSystem.DebugOutput.ShadowRays.Add(FDebugStaticLightingRay(EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[2].WorldPosition - FVector4(0,0,.1f), EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[0].WorldPosition - FVector4(0,0,.1f), true, true));
+								//LightingSystem.DebugOutput.ShadowRays.Add(FDebugStaticLightingRay(EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[0].WorldPosition - FVector4f(0,0,.1f), EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[1].WorldPosition - FVector4f(0,0,.1f), true, false));
+								//LightingSystem.DebugOutput.ShadowRays.Add(FDebugStaticLightingRay(EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[1].WorldPosition - FVector4f(0,0,.1f), EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[3].WorldPosition - FVector4f(0,0,.1f), true, true));
+								//LightingSystem.DebugOutput.ShadowRays.Add(FDebugStaticLightingRay(EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[3].WorldPosition - FVector4f(0,0,.1f), EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[2].WorldPosition - FVector4f(0,0,.1f), true, false));
+								//LightingSystem.DebugOutput.ShadowRays.Add(FDebugStaticLightingRay(EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[2].WorldPosition - FVector4f(0,0,.1f), EmissivePrimitives[LightIndex][PrimitiveIndex].Corners[0].WorldPosition - FVector4f(0,0,.1f), true, true));
 							}
 						}
 					}
@@ -647,13 +647,13 @@ void FStaticLightingMesh::CalculateUniqueLayers(
 				{
 					for (int32 OtherTriangleIndex = 0; OtherTriangleIndex < LayeredGroupTriangles[LayeredGroupIndex].Num(); OtherTriangleIndex++)
 					{
-						const FVector2D& V0 = MeshVertices[GroupedTriangles[GroupIndex][TriangleIndex] * 3 + 0].TextureCoordinates[TextureCoordinateIndex];
-						const FVector2D& V1 = MeshVertices[GroupedTriangles[GroupIndex][TriangleIndex] * 3 + 1].TextureCoordinates[TextureCoordinateIndex];
-						const FVector2D& V2 = MeshVertices[GroupedTriangles[GroupIndex][TriangleIndex] * 3 + 2].TextureCoordinates[TextureCoordinateIndex];
+						const FVector2f& V0 = MeshVertices[GroupedTriangles[GroupIndex][TriangleIndex] * 3 + 0].TextureCoordinates[TextureCoordinateIndex];
+						const FVector2f& V1 = MeshVertices[GroupedTriangles[GroupIndex][TriangleIndex] * 3 + 1].TextureCoordinates[TextureCoordinateIndex];
+						const FVector2f& V2 = MeshVertices[GroupedTriangles[GroupIndex][TriangleIndex] * 3 + 2].TextureCoordinates[TextureCoordinateIndex];
 
-						const FVector2D& OtherV0 = MeshVertices[LayeredGroupTriangles[LayeredGroupIndex][OtherTriangleIndex] * 3 + 0].TextureCoordinates[TextureCoordinateIndex];
-						const FVector2D& OtherV1 = MeshVertices[LayeredGroupTriangles[LayeredGroupIndex][OtherTriangleIndex] * 3 + 1].TextureCoordinates[TextureCoordinateIndex];
-						const FVector2D& OtherV2 = MeshVertices[LayeredGroupTriangles[LayeredGroupIndex][OtherTriangleIndex] * 3 + 2].TextureCoordinates[TextureCoordinateIndex];
+						const FVector2f& OtherV0 = MeshVertices[LayeredGroupTriangles[LayeredGroupIndex][OtherTriangleIndex] * 3 + 0].TextureCoordinates[TextureCoordinateIndex];
+						const FVector2f& OtherV1 = MeshVertices[LayeredGroupTriangles[LayeredGroupIndex][OtherTriangleIndex] * 3 + 1].TextureCoordinates[TextureCoordinateIndex];
+						const FVector2f& OtherV2 = MeshVertices[LayeredGroupTriangles[LayeredGroupIndex][OtherTriangleIndex] * 3 + 2].TextureCoordinates[TextureCoordinateIndex];
 
 						if (AxisAlignedTriangleIntersectTriangle2d(V0, V1, V2, OtherV0, OtherV1, OtherV2))
 						{
@@ -710,7 +710,7 @@ void FStaticLightingMesh::AddLightTexel(
 		{
 			const float XFraction = X / (float)TexSizeX;
 			const float YFraction = Y / (float)TexSizeY;
-			const FLinearColor CurrentEmissive = EvaluateEmissive(FVector2D(XFraction, YFraction), ElementIndex);
+			const FLinearColor CurrentEmissive = EvaluateEmissive(FVector2f(XFraction, YFraction), ElementIndex);
 			if (CurrentEmissive.R > EmissiveThreshold || CurrentEmissive.G > EmissiveThreshold || CurrentEmissive.B > EmissiveThreshold)
 			{
 				Texels.Add(FIntPoint(X, Y));
@@ -729,7 +729,7 @@ void FStaticLightingMesh::AddPrimitiveTexel(
 	const FTexelToCornersMap& TexelToCornersMap, 
 	const FTexelToCorners& ComparisonTexel,
 	int32 ComparisonTexelLightIndex,
-	const FVector4& PrimitiveOrigin,
+	const FVector4f& PrimitiveOrigin,
 	TArray<int32>& PrimitiveIndices, 
 	const TArray<int32>& LightIndices, 
 	int32 X, int32 Y, 
@@ -754,7 +754,7 @@ void FStaticLightingMesh::AddPrimitiveTexel(
 		else if (LightIndex == ComparisonTexelLightIndex)
 		{
 			const FTexelToCorners& CurrentTexelCorners = TexelToCornersMap(X, Y);
-			FVector4 PrimitiveCenter(0,0,0);
+			FVector4f PrimitiveCenter(0,0,0);
 			for (int32 CornerIndex = 0; CornerIndex < NumTexelCorners; CornerIndex++)
 			{
 				PrimitiveCenter += CurrentTexelCorners.Corners[CornerIndex].WorldPosition / (float)NumTexelCorners;
@@ -768,7 +768,7 @@ void FStaticLightingMesh::AddPrimitiveTexel(
 				bool bAnyCornersMatch = false;
 				for (int32 CornerIndex = 0; CornerIndex < NumTexelCorners && !bAnyCornersMatch; CornerIndex++)
 				{
-					const FVector4 CurrentPosition = CurrentTexelCorners.Corners[CornerIndex].WorldPosition;
+					const FVector4f CurrentPosition = CurrentTexelCorners.Corners[CornerIndex].WorldPosition;
 					for (int32 OtherCornerIndex = 0; OtherCornerIndex < NumTexelCorners; OtherCornerIndex++)
 					{
 						if ((CurrentPosition - ComparisonTexel.Corners[OtherCornerIndex].WorldPosition).SizeSquared3() < FMath::Square(Scene.MeshAreaLightSettings.MeshAreaLightSimplifyCornerDistanceThreshold))

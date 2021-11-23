@@ -29,17 +29,17 @@ class FLightSurfaceSample
 {
 public:
 	/** World space position */
-	FVector4 Position;
+	FVector4f Position;
     /** Normal of the light's surface at the sample point */
-	FVector4 Normal;
+	FVector4f Normal;
 	/** Position on the disk for lights modelled by a disk */
-	FVector2D DiskPosition;
+	FVector2f DiskPosition;
 	/** The probability that a sample with this position was generated */
 	float PDF;
 
 	FLightSurfaceSample() {}
 
-	FLightSurfaceSample(const FVector4& InPosition, const FVector4& InNormal, const FVector2D& InDiskPosition, float InPDF) :
+	FLightSurfaceSample(const FVector4f& InPosition, const FVector4f& InNormal, const FVector2f& InDiskPosition, float InPDF) :
 		Position(InPosition),
 		Normal(InNormal),
 		DiskPosition(InDiskPosition),
@@ -51,13 +51,13 @@ public:
 class FIndirectPathRay
 {
 public:
-	FVector4 Start;
-	FVector4 UnitDirection;
-	FVector4 LightSourceNormal;
-	FVector2D LightSurfacePosition;
+	FVector4f Start;
+	FVector4f UnitDirection;
+	FVector4f LightSourceNormal;
+	FVector2f LightSurfacePosition;
 	float Length;
 
-	FIndirectPathRay(const FVector4& InStart, const FVector4& InUnitDirection, const FVector4& InLightSourceNormal, const FVector2D& InLightSurfacePosition, const float& InLength) :
+	FIndirectPathRay(const FVector4f& InStart, const FVector4f& InUnitDirection, const FVector4f& InLightSourceNormal, const FVector2f& InLightSurfacePosition, const float& InLength) :
 		Start(InStart),
 		UnitDirection(InUnitDirection),
 		LightSourceNormal(InLightSourceNormal),
@@ -70,14 +70,14 @@ class FIrradiancePhotonData
 {
 protected:
 	/** XYZ stores world space position, W stores 1 if the photon has contribution from direct photons, and 0 otherwise. */
-	FVector4 PositionAndDirectContribution;
+	FVector4f PositionAndDirectContribution;
 
 	/** 
 	* XYZ stores the world space normal of the receiving surface.
 	* The irradiance photon caching pass stores 1 in W if the photon is actually used. 
 	* This is overwritten with the photon's irradiance in RGBE in the irradiance photon calculating pass.
 	*/
-	FVector4 SurfaceNormalAndIrradiance;
+	FVector4f SurfaceNormalAndIrradiance;
 };
 
 //----------------------------------------------------------------------------
@@ -145,20 +145,20 @@ public:
 	 * @param Bounds - The bounding volume to test.
 	 * @return True if the light affects the bounding volume
 	 */
-	virtual bool AffectsBounds(const FBoxSphereBounds& Bounds) const;
+	virtual bool AffectsBounds(const FBoxSphereBounds3f& Bounds) const;
 
-	virtual FSphere GetBoundingSphere() const;
+	virtual FSphere3f GetBoundingSphere() const;
 
 	/**
 	 * Computes the intensity of the direct lighting from this light on a specific point.
 	 */
-	virtual FLinearColor GetDirectIntensity(const FVector4& Point, bool bCalculateForIndirectLighting) const;
+	virtual FLinearColor GetDirectIntensity(const FVector4f& Point, bool bCalculateForIndirectLighting) const;
 
 	/** Returns an intensity scale based on the receiving point. */
-	virtual float CustomAttenuation(const FVector4& Point, FLMRandomStream& RandomStream, bool bMaintainEvenDensity) const { return 1.0f; }
+	virtual float CustomAttenuation(const FVector4f& Point, FLMRandomStream& RandomStream, bool bMaintainEvenDensity) const { return 1.0f; }
 
 	/** Generates a direction sample from the light's domain */
-	virtual void SampleDirection(FLMRandomStream& RandomStream, class FLightRay& SampleRay, FVector4& LightSourceNormal, FVector2D& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const = 0;
+	virtual void SampleDirection(FLMRandomStream& RandomStream, class FLightRay& SampleRay, FVector4f& LightSourceNormal, FVector2f& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const = 0;
 
 	/** Gives the light an opportunity to precalculate information about the indirect path rays that will be used to generate new directions. */
 	virtual void CachePathRays(const TArray<FIndirectPathRay>& IndirectPathRays) {}
@@ -181,16 +181,16 @@ public:
 	const TArray<FLightSurfaceSample>& GetCachedSurfaceSamples(int32 BounceIndex, bool bPenumbra) const;
 
 	/** Validates a surface sample given the position that sample is affecting.  The sample is unaffected by default. */
-	virtual void ValidateSurfaceSample(const FVector4& Point, FLightSurfaceSample& Sample) const {}
+	virtual void ValidateSurfaceSample(const FVector4f& Point, FLightSurfaceSample& Sample) const {}
 
 	/** Gets a single position which represents the center of the area light source from the ReceivingPosition's point of view. */
-	virtual FVector4 LightCenterPosition(const FVector4& ReceivingPosition, const FVector4& ReceivingNormal) const { return Position; }
+	virtual FVector4f LightCenterPosition(const FVector4f& ReceivingPosition, const FVector4f& ReceivingNormal) const { return Position; }
 
 	/** Returns true if all parts of the light are behind the surface being tested. */
-	virtual bool BehindSurface(const FVector4& TrianglePoint, const FVector4& TriangleNormal) const = 0;
+	virtual bool BehindSurface(const FVector4f& TrianglePoint, const FVector4f& TriangleNormal) const = 0;
 
 	/** Gets a single direction to use for direct lighting that is representative of the whole area light. */
-	virtual FVector4 GetDirectLightingDirection(const FVector4& Point, const FVector4& PointNormal) const = 0;
+	virtual FVector4f GetDirectLightingDirection(const FVector4f& Point, const FVector4f& PointNormal) const = 0;
 
 	/**
 	 * Returns whether static lighting, aka lightmaps, is being used for primitive/ light interaction.
@@ -202,7 +202,7 @@ public:
 		return (LightFlags & GI_LIGHT_HASSTATICLIGHTING) != 0;
 	}
 
-	virtual FVector GetLightTangent() const { return Direction; }
+	virtual FVector3f GetLightTangent() const { return Direction; }
 
 protected:
 	/** Cached samples of the light's surface, indexed first by bounce number, then by whether the shadow ray is a penumbra ray, then by sample index. */
@@ -240,9 +240,9 @@ public:
 	}
 
 	void Initialize(
-		const FBoxSphereBounds& InSceneBounds, 
+		const FBoxSphereBounds3f& InSceneBounds, 
 		bool bInEmitPhotonsOutsideImportanceVolume,
-		const FBoxSphereBounds& InImportanceBounds, 
+		const FBoxSphereBounds3f& InImportanceBounds, 
 		float InIndirectDiskRadius, 
 		int32 InGridSize, 
 		float InDirectPhotonDensity,
@@ -252,7 +252,7 @@ public:
 	virtual int32 GetNumDirectPhotons(float DirectPhotonDensity) const;
 
 	/** Generates a direction sample from the light's domain */
-	virtual void SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4& LightSourceNormal, FVector2D& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const;
+	virtual void SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4f& LightSourceNormal, FVector2f& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const;
 
 	/** Gives the light an opportunity to precalculate information about the indirect path rays that will be used to generate new directions. */
 	virtual void CachePathRays(const TArray<FIndirectPathRay>& IndirectPathRays);
@@ -269,16 +269,16 @@ public:
 	virtual float Power() const;
 
 	/** Validates a surface sample given the position that sample is affecting. */
-	virtual void ValidateSurfaceSample(const FVector4& Point, FLightSurfaceSample& Sample) const;
+	virtual void ValidateSurfaceSample(const FVector4f& Point, FLightSurfaceSample& Sample) const;
 
 	/** Gets a single position which represents the center of the area light source from the ReceivingPosition's point of view. */
-	virtual FVector4 LightCenterPosition(const FVector4& ReceivingPosition, const FVector4& ReceivingNormal) const;
+	virtual FVector4f LightCenterPosition(const FVector4f& ReceivingPosition, const FVector4f& ReceivingNormal) const;
 
 	/** Returns true if all parts of the light are behind the surface being tested. */
-	virtual bool BehindSurface(const FVector4& TrianglePoint, const FVector4& TriangleNormal) const;
+	virtual bool BehindSurface(const FVector4f& TrianglePoint, const FVector4f& TriangleNormal) const;
 
 	/** Gets a single direction to use for direct lighting that is representative of the whole area light. */
-	virtual FVector4 GetDirectLightingDirection(const FVector4& Point, const FVector4& PointNormal) const;
+	virtual FVector4f GetDirectLightingDirection(const FVector4f& Point, const FVector4f& PointNormal) const;
 
 protected:
 
@@ -286,7 +286,7 @@ protected:
 	float GridExtent;
 
 	/** Center of PathRayGrid in the [-1, 1] space of the directional light's disk. */
-	FVector2D GridCenter;
+	FVector2f GridCenter;
 
 	/** Size of PathRayGrid in each dimension. */
 	int32 GridSize;
@@ -295,15 +295,15 @@ protected:
 	TArray<TArray<int32>> PathRayGrid;
 
 	/** Bounds of the scene that the directional light is affecting. */
-	FBoxSphereBounds SceneBounds;
+	FBoxSphereBounds3f SceneBounds;
 
 	bool bEmitPhotonsOutsideImportanceVolume;
 
 	/** Bounds of the importance volume in the scene.  If the radius is 0, there was no importance volume. */
-	FBoxSphereBounds ImportanceBounds;
+	FBoxSphereBounds3f ImportanceBounds;
 
 	/** Center of the importance volume in the [-1,1] space of the directional light's disk */
-	FVector2D ImportanceDiskOrigin;
+	FVector2f ImportanceDiskOrigin;
 
 	/** Radius of the importance volume in the [-1,1] space of the directional light's disk */
 	float LightSpaceImportanceDiskRadius;
@@ -315,10 +315,10 @@ protected:
 	float ImportanceBoundsSampleProbability;
 
 	/** X axis of the directional light, which is unit length and orthogonal to the direction and YAxis. */
-	FVector4 XAxis;
+	FVector4f XAxis;
 
 	/** Y axis of the directional light, which is unit length and orthogonal to the direction and XAxis. */
-	FVector4 YAxis;
+	FVector4f YAxis;
 
 	/** Generates a sample on the light's surface. */
 	virtual void SampleLightSurface(FLMRandomStream& RandomStream, FLightSurfaceSample& Sample) const;
@@ -353,23 +353,23 @@ public:
 	 * @param Bounds - The bounding volume to test.
 	 * @return True if the light affects the bounding volume
 	 */
-	virtual bool AffectsBounds(const FBoxSphereBounds& Bounds) const;
+	virtual bool AffectsBounds(const FBoxSphereBounds3f& Bounds) const;
 
-	virtual FSphere GetBoundingSphere() const
+	virtual FSphere3f GetBoundingSphere() const
 	{
-		return FSphere(Position, Radius);
+		return FSphere3f(Position, Radius);
 	}
 
 	/**
 	 * Computes the intensity of the direct lighting from this light on a specific point.
 	 */
-	virtual FLinearColor GetDirectIntensity(const FVector4& Point, bool bCalculateForIndirectLighting) const;
+	virtual FLinearColor GetDirectIntensity(const FVector4f& Point, bool bCalculateForIndirectLighting) const;
 
 	/** Returns an intensity scale based on the receiving point. */
-	virtual float CustomAttenuation(const FVector4& Point, FLMRandomStream& RandomStream, bool bMaintainEvenDensity) const;
+	virtual float CustomAttenuation(const FVector4f& Point, FLMRandomStream& RandomStream, bool bMaintainEvenDensity) const;
 
 	/** Generates a direction sample from the light's domain */
-	virtual void SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4& LightSourceNormal, FVector2D& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const;
+	virtual void SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4f& LightSourceNormal, FVector2f& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const;
 
 	/** Generates a direction sample from the light based on the given rays */
 	virtual void SampleDirection(
@@ -380,20 +380,20 @@ public:
 		FLinearColor& Power) const;
 
 	/** Validates a surface sample given the position that sample is affecting. */
-	virtual void ValidateSurfaceSample(const FVector4& Point, FLightSurfaceSample& Sample) const;
+	virtual void ValidateSurfaceSample(const FVector4f& Point, FLightSurfaceSample& Sample) const;
 
 	/** Returns the light's radiant power. */
 	virtual float Power() const;
 
-	virtual FVector4 LightCenterPosition(const FVector4& ReceivingPosition, const FVector4& ReceivingNormal) const;
+	virtual FVector4f LightCenterPosition(const FVector4f& ReceivingPosition, const FVector4f& ReceivingNormal) const;
 
 	/** Returns true if all parts of the light are behind the surface being tested. */
-	virtual bool BehindSurface(const FVector4& TrianglePoint, const FVector4& TriangleNormal) const;
+	virtual bool BehindSurface(const FVector4f& TrianglePoint, const FVector4f& TriangleNormal) const;
 
 	/** Gets a single direction to use for direct lighting that is representative of the whole area light. */
-	virtual FVector4 GetDirectLightingDirection(const FVector4& Point, const FVector4& PointNormal) const;
+	virtual FVector4f GetDirectLightingDirection(const FVector4f& Point, const FVector4f& PointNormal) const;
 
-	virtual FVector GetLightTangent() const override;
+	virtual FVector3f GetLightTangent() const override;
 
 protected:
 
@@ -430,20 +430,20 @@ public:
 	 * @param Bounds - The bounding volume to test.
 	 * @return True if the light affects the bounding volume
 	 */
-	virtual bool AffectsBounds(const FBoxSphereBounds& Bounds) const;
+	virtual bool AffectsBounds(const FBoxSphereBounds3f& Bounds) const;
 
-	virtual FSphere GetBoundingSphere() const;
+	virtual FSphere3f GetBoundingSphere() const;
 
 	/**
 	 * Computes the intensity of the direct lighting from this light on a specific point.
 	 */
-	virtual FLinearColor GetDirectIntensity(const FVector4& Point, bool bCalculateForIndirectLighting) const;
+	virtual FLinearColor GetDirectIntensity(const FVector4f& Point, bool bCalculateForIndirectLighting) const;
 
 	/** Returns the number of direct photons to gather required by this light. */
 	virtual int32 GetNumDirectPhotons(float DirectPhotonDensity) const;
 
 	/** Generates a direction sample from the light's domain */
-	virtual void SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4& LightSourceNormal, FVector2D& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const;
+	virtual void SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4f& LightSourceNormal, FVector2f& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const;
 
 	/** Generates a direction sample from the light based on the given rays */
 	virtual void SampleDirection(
@@ -468,15 +468,15 @@ class FRectLight : public FPointLight, public FRectLightData
 public:
 	virtual void			Import( class FLightmassImporter& Importer );
 
-	virtual FLinearColor	GetDirectIntensity(const FVector4& Point, bool bCalculateForIndirectLighting) const override;
+	virtual FLinearColor	GetDirectIntensity(const FVector4f& Point, bool bCalculateForIndirectLighting) const override;
 	virtual int32			GetNumDirectPhotons(float DirectPhotonDensity) const override;
-	virtual void			ValidateSurfaceSample(const FVector4& Point, FLightSurfaceSample& Sample) const override;
-	virtual FVector4		LightCenterPosition(const FVector4& ReceivingPosition, const FVector4& ReceivingNormal) const override;
-	virtual bool			AffectsBounds(const FBoxSphereBounds& Bounds) const override;
-	virtual bool			BehindSurface(const FVector4& TrianglePoint, const FVector4& TriangleNormal) const override;
-	virtual FVector4		GetDirectLightingDirection(const FVector4& Point, const FVector4& PointNormal) const override;
+	virtual void			ValidateSurfaceSample(const FVector4f& Point, FLightSurfaceSample& Sample) const override;
+	virtual FVector4f		LightCenterPosition(const FVector4f& ReceivingPosition, const FVector4f& ReceivingNormal) const override;
+	virtual bool			AffectsBounds(const FBoxSphereBounds3f& Bounds) const override;
+	virtual bool			BehindSurface(const FVector4f& TrianglePoint, const FVector4f& TriangleNormal) const override;
+	virtual FVector4f		GetDirectLightingDirection(const FVector4f& Point, const FVector4f& PointNormal) const override;
 
-	virtual void			SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4& LightSourceNormal, FVector2D& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const override;
+	virtual void			SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4f& LightSourceNormal, FVector2f& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const override;
 	virtual void			SampleDirection(const TArray<FIndirectPathRay>& IndirectPathRays, FLMRandomStream& RandomStream, FLightRay& SampleRay, float& RayPDF, FLinearColor& Power) const override;
 
 protected:
@@ -511,7 +511,7 @@ public:
 	{ checkf(0, TEXT("GetNumDirectPhotons is not supported for skylights")); return 0; }
 
 	/** Generates a direction sample from the light's domain */
-	virtual void SampleDirection(FLMRandomStream& RandomStream, class FLightRay& SampleRay, FVector4& LightSourceNormal, FVector2D& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const
+	virtual void SampleDirection(FLMRandomStream& RandomStream, class FLightRay& SampleRay, FVector4f& LightSourceNormal, FVector2f& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const
 	{ checkf(0, TEXT("SampleDirection is not supported for skylights")); }
 
 	/** Generates a direction sample from the light based on the given rays */
@@ -528,15 +528,15 @@ public:
 	{ checkf(0, TEXT("Power is not supported for skylights")); return 0; }
 
 	/** Returns true if all parts of the light are behind the surface being tested. */
-	virtual bool BehindSurface(const FVector4& TrianglePoint, const FVector4& TriangleNormal) const { return false; }
+	virtual bool BehindSurface(const FVector4f& TrianglePoint, const FVector4f& TriangleNormal) const { return false; }
 
 	/** Gets a single direction to use for direct lighting that is representative of the whole area light. */
-	virtual FVector4 GetDirectLightingDirection(const FVector4& Point, const FVector4& PointNormal) const 
-	{ checkf(0, TEXT("GetDirectLightingDirection is not supported for skylights")); return FVector4(); }
+	virtual FVector4f GetDirectLightingDirection(const FVector4f& Point, const FVector4f& PointNormal) const 
+	{ checkf(0, TEXT("GetDirectLightingDirection is not supported for skylights")); return FVector4f(); }
 
-	FLinearColor GetPathLighting(const FVector4& IncomingDirection, float PathSolidAngle, bool bCalculateForIndirectLighting) const;
+	FLinearColor GetPathLighting(const FVector4f& IncomingDirection, float PathSolidAngle, bool bCalculateForIndirectLighting) const;
 
-	float GetPathVariance(const FVector4& IncomingDirection, float PathSolidAngle) const;
+	float GetPathVariance(const FVector4f& IncomingDirection, float PathSolidAngle) const;
 
 protected:
 
@@ -545,8 +545,8 @@ protected:
 	{ checkf(0, TEXT("SampleLightSurface is not supported for skylights")); }
 
 	float GetMipIndexForSolidAngle(float SolidAngle) const;
-	FLinearColor SampleRadianceCubemap(float MipIndex, int32 CubeFaceIndex, FVector2D FaceUV) const;
-	float SampleVarianceCubemap(float MipIndex, int32 CubeFaceIndex, FVector2D FaceUV) const;
+	FLinearColor SampleRadianceCubemap(float MipIndex, int32 CubeFaceIndex, FVector2f FaceUV) const;
+	float SampleVarianceCubemap(float MipIndex, int32 CubeFaceIndex, FVector2f FaceUV) const;
 
 	void ComputePrefilteredVariance();
 
@@ -560,7 +560,7 @@ class FMeshLightPrimitiveCorner
 {
 public:
 	/** World space corner position, not necessarily coplanar with the other corners. */
-	FVector4 WorldPosition;
+	FVector4f WorldPosition;
 	/** Coordinate in texture space corresponding to the position this corner is storing. */
 	FIntPoint FurthestCoordinates;
 };
@@ -571,7 +571,7 @@ class FMeshLightPrimitive
 public:
 	FMeshLightPrimitiveCorner Corners[NumTexelCorners];
 	/** Average normal of the sub primitives making up this simplified primitive. */
-	FVector4 SurfaceNormal;
+	FVector4f SurfaceNormal;
 	/** Radiant flux of this primitive */
 	FLinearColor Power;
 	/** Surface area of this primitive */
@@ -603,7 +603,7 @@ public:
 		return this;
 	}
 
-	void Initialize(float InIndirectPhotonEmitConeAngle, const FBoxSphereBounds& InImportanceBounds);
+	void Initialize(float InIndirectPhotonEmitConeAngle, const FBoxSphereBounds3f& InImportanceBounds);
 
 	/** Returns the number of direct photons to gather required by this light. */
 	virtual int32 GetNumDirectPhotons(float DirectPhotonDensity) const;
@@ -633,18 +633,18 @@ public:
 	* @param Bounds - The bounding volume to test.
 	* @return True if the light affects the bounding volume
 	*/
-	virtual bool AffectsBounds(const FBoxSphereBounds& Bounds) const;
+	virtual bool AffectsBounds(const FBoxSphereBounds3f& Bounds) const;
 
 	/**
 	 * Computes the intensity of the direct lighting from this light on a specific point.
 	 */
-	virtual FLinearColor GetDirectIntensity(const FVector4& Point, bool bCalculateForIndirectLighting) const;
+	virtual FLinearColor GetDirectIntensity(const FVector4f& Point, bool bCalculateForIndirectLighting) const;
 
 	/** Returns an intensity scale based on the receiving point. */
-	virtual float CustomAttenuation(const FVector4& Point, FLMRandomStream& RandomStream, bool bMaintainEvenDensity) const;
+	virtual float CustomAttenuation(const FVector4f& Point, FLMRandomStream& RandomStream, bool bMaintainEvenDensity) const;
 
 	/** Generates a direction sample from the light's domain */
-	virtual void SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4& LightSourceNormal, FVector2D& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const;
+	virtual void SampleDirection(FLMRandomStream& RandomStream, FLightRay& SampleRay, FVector4f& LightSourceNormal, FVector2f& LightSurfacePosition, float& RayPDF, FLinearColor& Power) const;
 
 	/** Generates a direction sample from the light based on the given rays */
 	virtual void SampleDirection(
@@ -655,16 +655,16 @@ public:
 		FLinearColor& Power) const;
 
 	/** Validates a surface sample given the position that sample is affecting. */
-	void ValidateSurfaceSample(const FVector4& Point, FLightSurfaceSample& Sample) const;
+	void ValidateSurfaceSample(const FVector4f& Point, FLightSurfaceSample& Sample) const;
 
 	/** Returns the light's radiant power. */
 	virtual float Power() const;
 
 	/** Returns true if all parts of the light are behind the surface being tested. */
-	virtual bool BehindSurface(const FVector4& TrianglePoint, const FVector4& TriangleNormal) const;
+	virtual bool BehindSurface(const FVector4f& TrianglePoint, const FVector4f& TriangleNormal) const;
 
 	/** Gets a single direction to use for direct lighting that is representative of the whole area light. */
-	virtual FVector4 GetDirectLightingDirection(const FVector4& Point, const FVector4& PointNormal) const;
+	virtual FVector4f GetDirectLightingDirection(const FVector4f& Point, const FVector4f& PointNormal) const;
 
 protected:
 	/** Radiant flux of all the primitives */
@@ -677,7 +677,7 @@ protected:
 	float InfluenceRadius;
 
 	/** Bounds of the light's primitives */
-	FBoxSphereBounds SourceBounds;
+	FBoxSphereBounds3f SourceBounds;
 
 	/** Falloff of the attenuation function */
 	float FalloffExponent;
@@ -694,13 +694,13 @@ protected:
 	FGuid LevelGuid;
 
 	/** Grid of arrays of primitive normals, used to accelerate PDF calculation once a sample is generated. */
-	TArray<TArray<FVector4> > CachedPrimitiveNormals;
+	TArray<TArray<FVector4f> > CachedPrimitiveNormals;
 
 	/** Entries in CachedPrimitiveNormals that have one or more cached normals. */
 	TArray<FIntPoint> OccupiedCachedPrimitiveNormalCells;
 
 	/** Bounds of the importance volume in the scene.  If the radius is 0, there was no importance volume. */
-	FBoxSphereBounds ImportanceBounds;
+	FBoxSphereBounds3f ImportanceBounds;
 
 	/** Probability of selecting each primitive when sampling. */
 	TArray<float> PrimitivePDFs;
@@ -721,22 +721,22 @@ protected:
 class FPrecomputedVisibilityVolume
 {
 public:
-	FBox Bounds;
-	TArray<FPlane> Planes;
+	FBox3f Bounds;
+	TArray<FPlane4f> Planes;
 };
 
 /** Volume that overrides visibility for a set of Ids. */
 class FPrecomputedVisibilityOverrideVolume
 {
 public:
-	FBox Bounds;
+	FBox3f Bounds;
 	TArray<int32> OverrideVisibilityIds;
 	TArray<int32> OverrideInvisibilityIds;
 };
 
 struct FVolumetricLightmapDensityVolume : public FVolumetricLightmapDensityVolumeData
 {
-	TArray<FPlane> Planes;
+	TArray<FPlane4f> Planes;
 };
 
 //----------------------------------------------------------------------------
@@ -749,16 +749,16 @@ public:
 	virtual ~FScene();
 
 	virtual void			Import( class FLightmassImporter& Importer );
-	FBoxSphereBounds		GetImportanceBounds() const;
+	FBoxSphereBounds3f		GetImportanceBounds() const;
 
-	FBox ImportanceBoundingBox;
-	TArray<FBox> ImportanceVolumes;
-	TArray<FBox> CharacterIndirectDetailVolumes;
+	FBox3f ImportanceBoundingBox;
+	TArray<FBox3f> ImportanceVolumes;
+	TArray<FBox3f> CharacterIndirectDetailVolumes;
 	TArray<FVolumetricLightmapDensityVolume> VolumetricLightmapDensityVolumes;
-	TArray<FSphere> Portals;
+	TArray<FSphere3f> Portals;
 	TArray<FPrecomputedVisibilityVolume> PrecomputedVisibilityVolumes;
 	TArray<FPrecomputedVisibilityOverrideVolume> PrecomputedVisibilityOverrideVolumes;
-	TArray<FVector4> CameraTrackPositions;
+	TArray<FVector4f> CameraTrackPositions;
 
 	TArray<FDirectionalLight>	DirectionalLights;
 	TArray<FPointLight>			PointLights;
@@ -787,19 +787,19 @@ public:
 	const FLight* FindLightByGuid(const FGuid& Guid) const;
 
 	/** Returns true if the specified position is inside any of the importance volumes. */
-	bool IsPointInImportanceVolume(const FVector4& Position, float Tolerance) const;
+	bool IsPointInImportanceVolume(const FVector4f& Position, float Tolerance) const;
 
-	bool IsBoxInImportanceVolume(const FBox& QueryBox) const;
+	bool IsBoxInImportanceVolume(const FBox3f& QueryBox) const;
 
 	/** Returns true if the specified position is inside any of the visibility volumes. */
-	bool IsPointInVisibilityVolume(const FVector4& Position) const;
+	bool IsPointInVisibilityVolume(const FVector4f& Position) const;
 
-	bool DoesBoxIntersectVisibilityVolume(const FBox& TestBounds) const;
+	bool DoesBoxIntersectVisibilityVolume(const FBox3f& TestBounds) const;
 
 	/** Returns accumulated bounds from all the visibility volumes. */
-	FBox GetVisibilityVolumeBounds() const;
+	FBox3f GetVisibilityVolumeBounds() const;
 
-	bool GetVolumetricLightmapAllowedMipRange(const FVector4& Position, FIntPoint& OutRange) const;
+	bool GetVolumetricLightmapAllowedMipRange(const FVector4f& Position, FIntPoint& OutRange) const;
 
 private:
 	/** Searches through all mapping arrays for the mapping matching FindGuid. */

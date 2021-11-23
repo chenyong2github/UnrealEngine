@@ -97,11 +97,11 @@ struct FStaticMeshElementData
 //----------------------------------------------------------------------------
 struct FStaticMeshVertex
 {
-	FVector4		Position;
-	FVector4		TangentX;
-	FVector4		TangentY;
-	FVector4		TangentZ;
-	FVector2D		UVs[MAX_TEXCOORDS];
+	FVector4f		Position;
+	FVector4f		TangentX;
+	FVector4f		TangentY;
+	FVector4f		TangentZ;
+	FVector2f		UVs[MAX_TEXCOORDS];
 };
 
 #if !PLATFORM_MAC && !PLATFORM_LINUX

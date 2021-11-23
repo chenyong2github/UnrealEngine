@@ -103,8 +103,8 @@ FEmbreeRay4::FEmbreeRay4(
 		primID[i] = -1;
 
 		ElementIndex[i] = -1,
-		TextureCoordinates[i] = FVector2D(0, 0);
-		LightmapCoordinates[i] = FVector2D(0, 0);
+		TextureCoordinates[i] = FVector2f(0, 0);
+		LightmapCoordinates[i] = FVector2f(0, 0);
 	}
 }
 
@@ -141,7 +141,7 @@ struct FEmbreeFilterProcessor
 	int32 Index1;
 	int32 Index2;
 
-	FVector2D TextureCoordinates; // Material Coordinates
+	FVector2f TextureCoordinates; // Material Coordinates
 
 	bool bCoordsDirty;
 
@@ -307,9 +307,9 @@ void FEmbreeFilterProcessor::UpdateCoordinates()
 			Mesh->GetInstanceableStaticMesh()->GetNonTransformedTriangleIndices(Ray.primID, Index0, Index1, Index2);
 		}
 
-		const FVector2D& UV1 = Geo.UVs[Index0];
-		const FVector2D& UV2 = Geo.UVs[Index1];
-		const FVector2D& UV3 = Geo.UVs[Index2];
+		const FVector2f& UV1 = Geo.UVs[Index0];
+		const FVector2f& UV2 = Geo.UVs[Index1];
+		const FVector2f& UV3 = Geo.UVs[Index2];
 		TextureCoordinates = UV1 * s + UV2 * Ray.u + UV3 * Ray.v;
 
 		bCoordsDirty = false;
@@ -331,9 +331,9 @@ void FEmbreeFilterProcessor::UpdateRay()
 		Ray.TextureCoordinates = TextureCoordinates;
 
 		// LightmapCoordinates
-		const FVector2D& LightmapUV1 = Geo.LightmapUVs[Index0];
-		const FVector2D& LightmapUV2 = Geo.LightmapUVs[Index1];
-		const FVector2D& LightmapUV3 = Geo.LightmapUVs[Index2];
+		const FVector2f& LightmapUV1 = Geo.LightmapUVs[Index0];
+		const FVector2f& LightmapUV2 = Geo.LightmapUVs[Index1];
+		const FVector2f& LightmapUV3 = Geo.LightmapUVs[Index2];
 		Ray.LightmapCoordinates = LightmapUV1 * s + LightmapUV2 * Ray.u + LightmapUV3 * Ray.v;
 	}
 	else if (bCoordsDirty)
@@ -437,7 +437,7 @@ void EmbreeFilterFunc4(const void* valid, void* UserPtr, RTCRay4& InRay)
 FEmbreeGeometry::FEmbreeGeometry(
 	RTCDevice EmbreeDevice, 
 	RTCScene EmbreeScene, 
-	const FBoxSphereBounds& ImportanceBounds,
+	const FBoxSphereBounds3f& ImportanceBounds,
 	const FStaticLightingMesh* InMesh,
 	const FStaticLightingMapping* InMapping,
 	bool bUseForInstancing
@@ -460,7 +460,7 @@ FEmbreeGeometry::FEmbreeGeometry(
 	UVs.AddZeroed(Mesh->NumVertices);
 	LightmapUVs.AddZeroed(Mesh->NumVertices);
 
-	FVector4* Vertices = (FVector4*) rtcMapBuffer(EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
+	FVector4f* Vertices = (FVector4f*) rtcMapBuffer(EmbreeScene, GeomID, RTC_VERTEX_BUFFER);
 	int32* Indices = (int32*) rtcMapBuffer(EmbreeScene, GeomID, RTC_INDEX_BUFFER);
 
 	for (int32 TriangleIndex = 0;TriangleIndex < Mesh->NumTriangles;TriangleIndex++)
@@ -481,7 +481,7 @@ FEmbreeGeometry::FEmbreeGeometry(
 		}
 
 		// Compute the triangle's normal.
-		const FVector4 TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
+		const FVector4f TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
 		// Compute the triangle area.
 		const float TriangleArea = TriangleNormal.Size3() * 0.5f;
 
@@ -553,7 +553,7 @@ FEmbreeGeometry::FEmbreeGeometry(
 	check(rtcDeviceGetError(EmbreeDevice) == RTC_NO_ERROR);
 }
 
-void CalculateSurfaceArea(const FStaticLightingMesh* Mesh, const FBoxSphereBounds& ImportanceBounds, float& SurfaceArea, float& SurfaceAreaWithinImportanceVolume)
+void CalculateSurfaceArea(const FStaticLightingMesh* Mesh, const FBoxSphereBounds3f& ImportanceBounds, float& SurfaceArea, float& SurfaceAreaWithinImportanceVolume)
 {
 	SurfaceArea = 0.0f;
 	SurfaceAreaWithinImportanceVolume = 0.0f;
@@ -568,7 +568,7 @@ void CalculateSurfaceArea(const FStaticLightingMesh* Mesh, const FBoxSphereBound
 		Mesh->GetTriangle(TriangleIndex, V0, V1, V2, ElementIndex);
 
 		// Compute the triangle's normal.
-		const FVector4 TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
+		const FVector4f TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
 		// Compute the triangle area.
 		const float TriangleArea = TriangleNormal.Size3() * 0.5f;
 
@@ -807,13 +807,13 @@ bool FEmbreeAggregateMesh::IntersectLightRay(
 		if (EmbreeRay.instID == -1)
 		{
 			const FEmbreeGeometry& Geo = *(FEmbreeGeometry*)rtcGetUserData(EmbreeScene, EmbreeRay.geomID);
-			EmbreeVertex.WorldTangentZ = FVector(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]).GetSafeNormal();
+			EmbreeVertex.WorldTangentZ = FVector3f(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]).GetSafeNormal();
 			ClosestIntersection = FLightRayIntersection(true, EmbreeVertex, Geo.Mesh, Geo.Mapping, EmbreeRay.ElementIndex);
 		}
 		else
 		{
 			FStaticLightingMapping* Mapping = (FStaticLightingMapping*)rtcGetUserData(EmbreeScene, EmbreeRay.instID);
-			FVector GeometryNormal(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]);
+			FVector3f GeometryNormal(EmbreeRay.Ng[0], EmbreeRay.Ng[1], EmbreeRay.Ng[2]);
 			EmbreeVertex.WorldTangentZ = Mapping->Mesh->GetInstanceableStaticMesh()->LocalToWorldInverseTranspose.TransformVector(GeometryNormal).GetSafeNormal();
 			ClosestIntersection = FLightRayIntersection(true, EmbreeVertex, Mapping->Mesh, Mapping, EmbreeRay.ElementIndex);
 		}
@@ -882,7 +882,7 @@ void FEmbreeAggregateMesh::IntersectLightRays4(
 
 			FMinimalStaticLightingVertex EmbreeVertex;
 			EmbreeVertex.WorldPosition = LightRays[i].Start + LightRays[i].Direction * EmbreeRay.tfar[i];
-			EmbreeVertex.WorldTangentZ = FVector(EmbreeRay.Ngx[i], EmbreeRay.Ngy[i], EmbreeRay.Ngz[i]).GetSafeNormal();
+			EmbreeVertex.WorldTangentZ = FVector3f(EmbreeRay.Ngx[i], EmbreeRay.Ngy[i], EmbreeRay.Ngz[i]).GetSafeNormal();
 
 			EmbreeVertex.TextureCoordinates[0] = EmbreeRay.TextureCoordinates[i];
 			EmbreeVertex.TextureCoordinates[1] = EmbreeRay.LightmapCoordinates[i];
@@ -977,21 +977,21 @@ bool FEmbreeVerifyAggregateMesh::VerifyChecks(const FLightRayIntersection& Embre
 			return false;
 		}
 
-		const_cast<FVector4::FReal&>(EmbreeIntersection.IntersectionVertex.WorldPosition.W) = const_cast<FVector4::FReal&>(ClosestIntersection.IntersectionVertex.WorldPosition.W) = 1;
+		const_cast<FVector4f::FReal&>(EmbreeIntersection.IntersectionVertex.WorldPosition.W) = const_cast<FVector4f::FReal&>(ClosestIntersection.IntersectionVertex.WorldPosition.W) = 1;
 		if (!EmbreeIntersection.IntersectionVertex.WorldPosition.Equals(ClosestIntersection.IntersectionVertex.WorldPosition, .1f))
 		{
 			return false;
 		}
 
-		const_cast<FVector4::FReal&>(EmbreeIntersection.IntersectionVertex.WorldTangentZ.W) = const_cast<FVector4::FReal&>(ClosestIntersection.IntersectionVertex.WorldTangentZ.W) = 0;
+		const_cast<FVector4f::FReal&>(EmbreeIntersection.IntersectionVertex.WorldTangentZ.W) = const_cast<FVector4f::FReal&>(ClosestIntersection.IntersectionVertex.WorldTangentZ.W) = 0;
 		if (!EmbreeIntersection.IntersectionVertex.WorldTangentZ.Equals(ClosestIntersection.IntersectionVertex.WorldTangentZ, .01f))
 		{
 			return false;
 		}
 
-		FVector4 EmbreeCoord = FVector4(EmbreeIntersection.IntersectionVertex.TextureCoordinates[0].X, EmbreeIntersection.IntersectionVertex.TextureCoordinates[0].Y,
+		FVector4f EmbreeCoord = FVector4f(EmbreeIntersection.IntersectionVertex.TextureCoordinates[0].X, EmbreeIntersection.IntersectionVertex.TextureCoordinates[0].Y,
 								EmbreeIntersection.IntersectionVertex.TextureCoordinates[1].X, EmbreeIntersection.IntersectionVertex.TextureCoordinates[1].Y);
-		FVector4 ClosestCoord = FVector4(ClosestIntersection.IntersectionVertex.TextureCoordinates[0].X, ClosestIntersection.IntersectionVertex.TextureCoordinates[0].Y,
+		FVector4f ClosestCoord = FVector4f(ClosestIntersection.IntersectionVertex.TextureCoordinates[0].X, ClosestIntersection.IntersectionVertex.TextureCoordinates[0].Y,
 								ClosestIntersection.IntersectionVertex.TextureCoordinates[1].X, ClosestIntersection.IntersectionVertex.TextureCoordinates[1].Y);
 
 		if (!EmbreeCoord.Equals(ClosestCoord, .01f))

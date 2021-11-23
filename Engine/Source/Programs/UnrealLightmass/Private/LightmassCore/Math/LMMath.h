@@ -16,12 +16,12 @@ namespace Lightmass
 #endif
 
 bool GetBarycentricWeights(
-	const FVector4& Position0,
-	const FVector4& Position1,
-	const FVector4& Position2,
-	const FVector4& InterpolatePosition,
+	const FVector4f& Position0,
+	const FVector4f& Position1,
+	const FVector4f& Position2,
+	const FVector4f& InterpolatePosition,
 	float Tolerance,
-	FVector4& BarycentricWeights
+	FVector4f& BarycentricWeights
 	);
 
 
@@ -442,7 +442,7 @@ struct FLinearColorUtils
 struct FVectorUtils
 {
 	/** @return >0: point is in front of the plane, <0: behind, =0: on the plane */
-	FORCEINLINE static float PlaneDot( const FVector4 &V, const FVector4 &P )
+	FORCEINLINE static float PlaneDot( const FVector4f &V, const FVector4f &P )
 	{
 		return V.X*P.X + V.Y*P.Y + V.Z*P.Z - V.W;
 	}
@@ -480,10 +480,10 @@ FORCEINLINE uint32 appCountTrailingZeros(uint32 Value)
 #endif // PLATFORM_WINDOWS
 
 /** Converts spherical coordinates on the unit sphere into a cartesian unit length vector. */
-FORCEINLINE FVector4 SphericalToUnitCartesian(const FVector2D& InHemispherical)
+FORCEINLINE FVector4f SphericalToUnitCartesian(const FVector2f& InHemispherical)
 {
 	const float SinTheta = FMath::Sin(InHemispherical.X);
-	return FVector4(FMath::Cos(InHemispherical.Y) * SinTheta, FMath::Sin(InHemispherical.Y) * SinTheta, FMath::Cos(InHemispherical.X));
+	return FVector4f(FMath::Cos(InHemispherical.Y) * SinTheta, FMath::Sin(InHemispherical.Y) * SinTheta, FMath::Cos(InHemispherical.X));
 }
 
 }

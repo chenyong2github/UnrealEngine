@@ -16,11 +16,11 @@ FStaticLightingAggregateMesh::FStaticLightingAggregateMesh(const FScene& InScene
 {
 }
 
-FBox FStaticLightingAggregateMesh::GetBounds() const
+FBox3f FStaticLightingAggregateMesh::GetBounds() const
 {
 	// Expand the bounds slightly to avoid having to handle geometry that is exactly on the bounding box,
 	// Which happens if you create a new level in Unreal with BSP from the default builder brush.
-	return bHasShadowCastingPrimitives ? SceneBounds.ExpandBy(5.0f * Scene.SceneConstants.StaticLightingLevelScale) : FBox(FVector4(0,0,0), FVector4(0,0,0));
+	return bHasShadowCastingPrimitives ? SceneBounds.ExpandBy(5.0f * Scene.SceneConstants.StaticLightingLevelScale) : FBox3f(FVector4f(0,0,0), FVector4f(0,0,0));
 }
 
 FDefaultAggregateMesh::~FDefaultAggregateMesh()
@@ -52,7 +52,7 @@ void FDefaultAggregateMesh::AddMesh(const FStaticLightingMesh* Mesh, const FStat
 		const uint32 MeshLODIndices = Mesh->GetLODIndices();
 		const uint32 MeshHLODRange = Mesh->GetHLODRange();
 
-		const FBoxSphereBounds ImportanceBounds = Scene.GetImportanceBounds();
+		const FBoxSphereBounds3f ImportanceBounds = Scene.GetImportanceBounds();
 		for(int32 TriangleIndex = 0;TriangleIndex < Mesh->NumTriangles;TriangleIndex++)
 		{
 			// Read the triangle from the mesh.
@@ -86,7 +86,7 @@ void FDefaultAggregateMesh::AddMesh(const FStaticLightingMesh* Mesh, const FStat
 			}
 
 			// Compute the triangle's normal.
-			const FVector4 TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
+			const FVector4f TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
 
 			// Compute the triangle area.
 			const float TriangleArea = TriangleNormal.Size3() * 0.5f;
@@ -189,7 +189,7 @@ void FDefaultAggregateMesh::AddMeshForVoxelization(const FStaticLightingMesh* Me
 				}
 
 				// Compute the triangle's normal.
-				const FVector4 TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
+				const FVector4f TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
 
 				// Compute the triangle area.
 				const float TriangleArea = TriangleNormal.Size3() * 0.5f;
@@ -293,17 +293,17 @@ public:
 
 	// kDOP data provider interface.
 
-	FORCEINLINE const FVector4& GetVertex(uint32 Index) const
+	FORCEINLINE const FVector4f& GetVertex(uint32 Index) const
 	{
 		return Mesh->Vertices[Index];
 	}
 
-	FORCEINLINE FVector2D GetUV(uint32 Index) const
+	FORCEINLINE FVector2f GetUV(uint32 Index) const
 	{
 		return Mesh->UVs[Index];
 	}
 
-	FORCEINLINE FVector2D GetLightmapUV(uint32 Index) const
+	FORCEINLINE FVector2f GetLightmapUV(uint32 Index) const
 	{
 		return Mesh->LightmapUVs[Index];
 	}
@@ -323,19 +323,19 @@ public:
 		return Mesh->kDopTree;
 	}
 
-	FORCEINLINE const FMatrix& GetLocalToWorld(void) const
+	FORCEINLINE const FMatrix44f& GetLocalToWorld(void) const
 	{
-		return FMatrix::Identity;
+		return FMatrix44f::Identity;
 	}
 
-	FORCEINLINE const FMatrix& GetWorldToLocal(void) const
+	FORCEINLINE const FMatrix44f& GetWorldToLocal(void) const
 	{
-		return FMatrix::Identity;
+		return FMatrix44f::Identity;
 	}
 
-	FORCEINLINE FMatrix GetLocalToWorldTransposeAdjoint(void) const
+	FORCEINLINE FMatrix44f GetLocalToWorldTransposeAdjoint(void) const
 	{
-		return FMatrix::Identity;
+		return FMatrix44f::Identity;
 	}
 
 	FORCEINLINE float GetDeterminant(void) const
@@ -457,31 +457,31 @@ bool FDefaultAggregateMesh::IntersectLightRay(
 			IntersectionVertex.WorldPosition = ClippedLightRay.Start + ClippedLightRay.Direction * ClippedLightRay.Length * Result.Time;
 			IntersectionVertex.WorldTangentZ = kDOPCheck.LocalHitNormal;
 			const FTriangleSOAPayload& Payload = TrianglePayloads[ Result.Item ];
-			const FVector4& v1 = kDOPDataProvider.GetVertex(Payload.VertexIndex[0]);
-			const FVector4& v2 = kDOPDataProvider.GetVertex(Payload.VertexIndex[1]);
-			const FVector4& v3 = kDOPDataProvider.GetVertex(Payload.VertexIndex[2]);
-			const FVector4 LocalHitPosition = kDOPCheck.LocalStart + kDOPCheck.LocalDir * Result.Time;
-			FVector4 BaryCentricWeights;
+			const FVector4f& v1 = kDOPDataProvider.GetVertex(Payload.VertexIndex[0]);
+			const FVector4f& v2 = kDOPDataProvider.GetVertex(Payload.VertexIndex[1]);
+			const FVector4f& v3 = kDOPDataProvider.GetVertex(Payload.VertexIndex[2]);
+			const FVector4f LocalHitPosition = kDOPCheck.LocalStart + kDOPCheck.LocalDir * Result.Time;
+			FVector4f BaryCentricWeights;
 			//@todo - why is such a huge tolerance needed?  Reuse the barycentric coords calculated by the ray-triangle intersection instead of deriving them from the hit position.
 			//@todo - why does this sometimes fail if there was an intersection?
 			if (bFindClosestIntersection && GetBarycentricWeights(v1, v2, v3, LocalHitPosition, KINDA_SMALL_NUMBER * 100.0f, BaryCentricWeights))
 			{
-				const FVector2D& UV1 = kDOPDataProvider.GetUV(Payload.VertexIndex[0]);
-				const FVector2D& UV2 = kDOPDataProvider.GetUV(Payload.VertexIndex[1]);
-				const FVector2D& UV3 = kDOPDataProvider.GetUV(Payload.VertexIndex[2]);
+				const FVector2f& UV1 = kDOPDataProvider.GetUV(Payload.VertexIndex[0]);
+				const FVector2f& UV2 = kDOPDataProvider.GetUV(Payload.VertexIndex[1]);
+				const FVector2f& UV3 = kDOPDataProvider.GetUV(Payload.VertexIndex[2]);
 				// Interpolate the material texture coordinates to the intersection point
 				//@todo - only lookup and interpolate UV's if needed
 				IntersectionVertex.TextureCoordinates[0] = UV1 * BaryCentricWeights.X + UV2 * BaryCentricWeights.Y + UV3 * BaryCentricWeights.Z;
-				const FVector2D& LightmapUV1 = kDOPDataProvider.GetLightmapUV(Payload.VertexIndex[0]);
-				const FVector2D& LightmapUV2 = kDOPDataProvider.GetLightmapUV(Payload.VertexIndex[1]);
-				const FVector2D& LightmapUV3 = kDOPDataProvider.GetLightmapUV(Payload.VertexIndex[2]);
+				const FVector2f& LightmapUV1 = kDOPDataProvider.GetLightmapUV(Payload.VertexIndex[0]);
+				const FVector2f& LightmapUV2 = kDOPDataProvider.GetLightmapUV(Payload.VertexIndex[1]);
+				const FVector2f& LightmapUV3 = kDOPDataProvider.GetLightmapUV(Payload.VertexIndex[2]);
 				// Interpolate the lightmap texture coordinates to the intersection point
 				IntersectionVertex.TextureCoordinates[1] = LightmapUV1 * BaryCentricWeights.X + LightmapUV2 * BaryCentricWeights.Y + LightmapUV3 * BaryCentricWeights.Z;
 			}
 			else
 			{
-				IntersectionVertex.TextureCoordinates[0] = FVector2D(0,0);
-				IntersectionVertex.TextureCoordinates[1] = FVector2D(0,0);
+				IntersectionVertex.TextureCoordinates[0] = FVector2f(0,0);
+				IntersectionVertex.TextureCoordinates[1] = FVector2f(0,0);
 			}
 
 			ClosestIntersection = FLightRayIntersection(true, IntersectionVertex, Payload.MeshInfo->Mesh, Payload.Mapping, Payload.ElementIndex);
@@ -520,7 +520,7 @@ bool FDefaultAggregateMesh::IntersectLightRay(
 	return ClosestIntersection.bIntersects;
 }
 
-const FStaticLightingMesh* FDefaultAggregateMesh::IntersectBox(const FBox Box)  const
+const FStaticLightingMesh* FDefaultAggregateMesh::IntersectBox(const FBox3f Box)  const
 {
 	FLightRay UnusedRay;
 	FStaticLightingAggregateMeshDataProvider kDOPDataProvider(this, UnusedRay);
