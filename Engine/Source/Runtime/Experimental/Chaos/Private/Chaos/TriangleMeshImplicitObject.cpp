@@ -397,8 +397,9 @@ bool FTriangleMeshImplicitObject::ContactManifoldImp(const GeomType& QueryGeom, 
 			TransformVertsHelper(TriMeshScale, TriIdx, MParticles, Elements, A, B, C);
 			FPBDCollisionConstraint Constraint;
 			OverlapTriangle(A, B, C, Constraint);
-			for (const FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
+			for(FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
 			{
+				ManifoldPoint.ContactPoint.FaceIndex = TriIdx;
 				InsertSorted(ManifoldPoint.ContactPoint);
 			}
 

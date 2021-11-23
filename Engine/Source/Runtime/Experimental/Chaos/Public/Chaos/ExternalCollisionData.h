@@ -5,6 +5,7 @@
 #include "Chaos/PBDConstraintContainer.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/Vector.h"
+#include "Chaos/PhysicalMaterials.h"
 
 
 class UPhysicalMaterial;
@@ -54,11 +55,17 @@ namespace Chaos
 		FVec3 Location;
 		FVec3 AccumulatedImpulse;
 		FVec3 Normal;
-		FVec3 Velocity1, Velocity2;
-		FVec3 DeltaVelocity1, DeltaVelocity2;
-		FVec3 AngularVelocity1, AngularVelocity2;
-		FReal Mass1, Mass2;
+		FVec3 Velocity1;
+		FVec3 Velocity2;
+		FVec3 DeltaVelocity1;
+		FVec3 DeltaVelocity2;
+		FVec3 AngularVelocity1;
+		FVec3 AngularVelocity2;
+		FReal Mass1;
+		FReal Mass2;
 		FReal PenetrationDepth;
+		FMaterialHandle Mat1;
+		FMaterialHandle Mat2;
 
 		// The pointers to the proxies should be used with caution on the Game Thread.
 		// Ideally we only ever use these as table keys when acquiring related structures.

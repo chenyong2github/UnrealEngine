@@ -1351,8 +1351,9 @@ namespace Chaos
 				{
 					FPBDCollisionConstraint Constraint;
 					OverlapTriangle(Points[0], Points[1], Points[3], Constraint);
-					for (const FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
+					for (FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
 					{
+						ManifoldPoint.ContactPoint.FaceIndex = CellIndex * 2;
 						InsertSorted(ManifoldPoint.ContactPoint);
 					}
 				}
@@ -1360,8 +1361,9 @@ namespace Chaos
 				{
 					FPBDCollisionConstraint Constraint;
 					OverlapTriangle(Points[0], Points[3], Points[2], Constraint);
-					for (const FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
+					for (FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
 					{
+						ManifoldPoint.ContactPoint.FaceIndex = CellIndex * 2 + 1;
 						InsertSorted(ManifoldPoint.ContactPoint);
 					}
 				}
