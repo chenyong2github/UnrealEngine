@@ -214,7 +214,7 @@ namespace UnrealBuildTool
 			foreach (FileReference ManifestFileName in FileToManifest.Keys)
 			{
 				ModuleManifest? Manifest;
-				if (TryReadManifest(ManifestFileName, out Manifest) && Manifest.BuildId == BuildId)
+				if (ManifestFileName.IsUnderDirectory(Unreal.EngineDirectory) && TryReadManifest(ManifestFileName, out Manifest) && Manifest.BuildId == BuildId)
 				{
 					DateTime ManifestTime = FileReference.GetLastWriteTimeUtc(ManifestFileName);
 					foreach (string FileName in Manifest.ModuleNameToFileName.Values)
