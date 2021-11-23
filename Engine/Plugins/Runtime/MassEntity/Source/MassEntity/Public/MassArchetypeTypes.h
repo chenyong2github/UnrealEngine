@@ -18,6 +18,7 @@ struct FMassEntityView;
 
 typedef TFunction< void(FMassExecutionContext& /*ExecutionContext*/) > FMassExecuteFunction;
 typedef TFunction< bool(const FMassExecutionContext& /*ExecutionContext*/) > FMassChunkConditionFunction;
+typedef TFunction< bool(const FMassExecutionContext& /*ExecutionContext*/) > FMassArchetypeConditionFunction;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -140,6 +141,8 @@ struct FMassQueryRequirementIndicesMapping
 
 	FMassFragmentIndicesMapping EntityFragments;
 	FMassFragmentIndicesMapping ChunkFragments;
+	FMassFragmentIndicesMapping ConstSharedFragments;
+	FMassFragmentIndicesMapping SharedFragments;
 	FORCEINLINE bool IsEmpty() const
 	{
 		return EntityFragments.Num() == 0 || ChunkFragments.Num() == 0;

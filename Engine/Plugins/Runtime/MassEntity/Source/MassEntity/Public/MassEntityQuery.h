@@ -255,6 +255,58 @@ public:
 		return *this;
 	}
 
+	template<typename T>
+	FMassEntityQuery& AddConstSharedRequirement(const EMassFragmentPresence Presence = EMassFragmentPresence::All)
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived, "Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+		checkf(ConstSharedRequirements.FindByPredicate([](const FMassFragmentRequirement& Item) { return Item.StructType == T::StaticStruct(); }) == nullptr
+			, TEXT("Duplicated requirements are not supported. %s already present"), *T::StaticStruct()->GetName());
+		checkfSlow(Presence != EMassFragmentPresence::Any, TEXT("\'Any\' is not a valid Presence value for AddSharedRequirement."));
+
+		switch (Presence)
+		{
+		case EMassFragmentPresence::All:
+			RequiredAllSharedFragments.Add<T>();
+			ConstSharedRequirements.Emplace(T::StaticStruct(), EMassFragmentAccess::ReadOnly, Presence);
+			break;
+		case EMassFragmentPresence::Optional:
+			RequiredOptionalSharedFragments.Add<T>();
+			ConstSharedRequirements.Emplace(T::StaticStruct(), EMassFragmentAccess::ReadOnly, Presence);
+			break;
+		case EMassFragmentPresence::None:
+			RequiredNoneSharedFragments.Add<T>();
+			break;
+		}
+
+		return *this;
+	}
+
+	template<typename T>
+	FMassEntityQuery& AddSharedRequirement(const EMassFragmentAccess AccessMode, const EMassFragmentPresence Presence = EMassFragmentPresence::All)
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived, "Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+		checkf(SharedRequirements.FindByPredicate([](const FMassFragmentRequirement& Item) { return Item.StructType == T::StaticStruct(); }) == nullptr
+			, TEXT("Duplicated requirements are not supported. %s already present"), *T::StaticStruct()->GetName());
+		checkfSlow(Presence != EMassFragmentPresence::Any, TEXT("\'Any\' is not a valid Presence value for AddSharedRequirement."));
+
+		switch (Presence)
+		{
+		case EMassFragmentPresence::All:
+			RequiredAllSharedFragments.Add<T>();
+			SharedRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
+			break;
+		case EMassFragmentPresence::Optional:
+			RequiredOptionalSharedFragments.Add<T>();
+			SharedRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
+			break;
+		case EMassFragmentPresence::None:
+			RequiredNoneSharedFragments.Add<T>();
+			break;
+		}
+
+		return *this;
+	}
+
 	void Clear()
 	{
 		Requirements.Empty();
@@ -288,6 +340,9 @@ public:
 	const FMassChunkFragmentBitSet& GetRequiredAllChunkFragments() const { return RequiredAllChunkFragments; }
 	const FMassChunkFragmentBitSet& GetRequiredOptionalChunkFragments() const { return RequiredOptionalChunkFragments; }
 	const FMassChunkFragmentBitSet& GetRequiredNoneChunkFragments() const { return RequiredNoneChunkFragments; }
+	const FMassSharedFragmentBitSet& GetRequiredAllSharedFragments() const { return RequiredAllSharedFragments; }
+	const FMassSharedFragmentBitSet& GetRequiredOptionalSharedFragments() const { return RequiredOptionalSharedFragments; }
+	const FMassSharedFragmentBitSet& GetRequiredNoneSharedFragments() const { return RequiredNoneSharedFragments; }
 
 	const TArray<FArchetypeHandle>& GetArchetypes() const
 	{ 
@@ -319,6 +374,16 @@ public:
 
 	bool HasChunkFilter() const { return bool(ChunkCondition); }
 
+	/**
+	 * Sets a archetype filter condition that will applied to each valid archetypes.
+	 * The value returned by InFunction controls whether to allow execution (true) or block it (false).
+	 */
+	void SetArchetypeFilter(const FMassArchetypeConditionFunction& InFunction) { ArchetypeCondition = InFunction; }
+
+	void ClearArchetypeFilter() { ArchetypeCondition.Reset(); }
+
+	bool HasArchetypeFilter() const { return bool(ArchetypeCondition); }
+
 protected:
 	void SortRequirements();
 	void ReadCommandlineParams();
@@ -326,6 +391,8 @@ protected:
 protected:
 	TArray<FMassFragmentRequirement> Requirements;
 	TArray<FMassFragmentRequirement> ChunkRequirements;
+	TArray<FMassFragmentRequirement> ConstSharedRequirements;
+	TArray<FMassFragmentRequirement> SharedRequirements;
 	FMassTagBitSet RequiredAllTags;
 	FMassTagBitSet RequiredAnyTags;
 	FMassTagBitSet RequiredNoneTags;
@@ -336,6 +403,9 @@ protected:
 	FMassChunkFragmentBitSet RequiredAllChunkFragments;
 	FMassChunkFragmentBitSet RequiredOptionalChunkFragments;
 	FMassChunkFragmentBitSet RequiredNoneChunkFragments;
+	FMassSharedFragmentBitSet RequiredAllSharedFragments;
+	FMassSharedFragmentBitSet RequiredOptionalSharedFragments;
+	FMassSharedFragmentBitSet RequiredNoneSharedFragments;
 
 private:
 	/** 
@@ -344,6 +414,13 @@ private:
 	 * ChunkCondition is executed.
 	 */
 	FMassChunkConditionFunction ChunkCondition;
+
+	/**
+	 * This function represents a condition that will be called for every archetype to be processed before the actual
+	 * execution function is called. The shared fragment requirements are already bound and ready to be used by the time
+	 * ArchetypeCondition is executed.
+	 */
+	FMassArchetypeConditionFunction ArchetypeCondition;
 
 	uint32 EntitySubsystemHash = 0;
 	uint32 ArchetypeDataVersion = 0;

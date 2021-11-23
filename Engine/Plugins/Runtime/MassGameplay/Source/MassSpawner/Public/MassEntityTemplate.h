@@ -128,11 +128,11 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		if (!Composition.Fragments.Contains(*FragmentType))
 		{
 			Composition.Fragments.Add(*FragmentType);
-			InitialValues.Fragments.Add(Fragment);
+			InitialValues.AddFragment(Fragment);
 		}
-		else if (!InitialValues.Fragments.ContainsByPredicate(FSameTypeScriptStructPredicate(FragmentType)))
+		else if (!InitialValues.GetFragments().ContainsByPredicate(FSameTypeScriptStructPredicate(FragmentType)))
 		{
-			InitialValues.Fragments.Add(Fragment);
+			InitialValues.AddFragment(Fragment);
 		}
 	}
 
@@ -144,14 +144,13 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		{
 			Composition.Fragments.Add<T>();
 		}
-		else if (FInstancedStruct* Fragment = InitialValues.Fragments.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
+		else if (const FInstancedStruct* Fragment = InitialValues.GetFragments().FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
 		{
 			return Fragment->template GetMutable<T>();
 		}
 
 		// Add a default initial fragment value
-		const int32 Index = InitialValues.Fragments.Add(FInstancedStruct(T::StaticStruct()));
-		return InitialValues.Fragments[Index].template GetMutable<T>();
+		return InitialValues.AddFragment(T());
 	}
 
 	template<typename T>
@@ -183,14 +182,55 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		{
 			Composition.ChunkFragments.Add<T>();
 		}
-		else if (FInstancedStruct* ChunkFragment = InitialValues.ChunkFragments.FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
+		else if (const FInstancedStruct* ChunkFragment = InitialValues.GetChunkFragments().FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
 		{
 			return ChunkFragment->template GetMutable<T>();
 		}
 
 		// Add a default initial chunk fragment value
-		const int32 Index = InitialValues.ChunkFragments.Add(FInstancedStruct(T::StaticStruct()));
-		return InitialValues.ChunkFragments[Index].template GetMutable<T>();
+		return InitialValues.AddChunkFragment(T());
+	}
+
+	void AddConstSharedFragment(const FConstSharedStruct& SharedFragment)
+	{
+		const UScriptStruct* FragmentType = SharedFragment.GetScriptStruct();
+		if(ensureMsgf(FragmentType && FragmentType->IsChildOf(FMassSharedFragment::StaticStruct()), TEXT("Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.")))
+		{
+			if (!Composition.SharedFragments.Contains(*FragmentType))
+			{
+				Composition.SharedFragments.Add(*FragmentType);
+				InitialValues.AddConstSharedFragment(SharedFragment);
+			}
+#if DO_ENSURE
+			else
+			{
+				const FConstSharedStruct* Struct = InitialValues.GetConstSharedFragments().FindByPredicate(FSameTypeScriptStructPredicate(SharedFragment));
+				ensureMsgf(Struct && *Struct == SharedFragment, TEXT("Adding 2 different const shared fragment of the same type is not allowed"));
+
+			}
+#endif // DO_ENSURE
+		}
+	}
+
+	void AddSharedFragment(const FSharedStruct& SharedFragment)
+	{
+		const UScriptStruct* FragmentType = SharedFragment.GetScriptStruct();
+		if(ensureMsgf(FragmentType && FragmentType->IsChildOf(FMassSharedFragment::StaticStruct()), TEXT("Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.")))
+		{
+			if (!Composition.SharedFragments.Contains(*FragmentType))
+			{
+				Composition.SharedFragments.Add(*FragmentType);
+				InitialValues.AddSharedFragment(SharedFragment);
+			}
+	#if DO_ENSURE
+			else
+			{
+				const FSharedStruct* Struct = InitialValues.GetSharedFragments().FindByPredicate(FSameTypeScriptStructPredicate(SharedFragment));
+				ensureMsgf(Struct && *Struct == SharedFragment, TEXT("Adding 2 different shared fragment of the same type is not allowed"));
+
+			}
+	#endif // DO_ENSURE
+		}
 	}
 
 	FString DebugGetDescription(UMassEntitySubsystem* EntitySubsystem = nullptr) const;
@@ -217,6 +257,12 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	bool HasChunkFragment() const
 	{
 		return Composition.ChunkFragments.Contains<T>();
+	}
+
+	template<typename T>
+	bool HasSharedFragment() const
+	{
+		return Composition.SharedFragments.Contains<T>();
 	}
 
 private:
