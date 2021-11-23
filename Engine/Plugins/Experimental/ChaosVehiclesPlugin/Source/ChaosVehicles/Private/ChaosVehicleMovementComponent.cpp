@@ -147,6 +147,11 @@ void UChaosVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, cons
 #endif
 }
 
+void UChaosVehicleSimulation::ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* Handle)
+{
+	DeferredForces.Apply(Handle);
+}
+
 void UChaosVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
 	VehicleState.CaptureState(Handle, InputData.GravityZ, DeltaTime);
@@ -472,119 +477,65 @@ void UChaosVehicleSimulation::DrawDebug3D()
 #endif
 }
 
-void UChaosVehicleSimulation::AddForce(const FVector& Force, bool bAllowSubstepping /*= true*/, bool bAccelChange /*= false*/)
+void UChaosVehicleSimulation::AddForce(const FVector& Force, bool bAllowSubstepping, bool bAccelChange)
 {
-	if (ensure(RigidHandle))
-	{
-		Chaos::EObjectStateType ObjectState = RigidHandle->ObjectState();
-		if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
-		{
-			if (bAccelChange)
-			{
-				const float RigidMass = RigidHandle->M();
-				const Chaos::FVec3 Acceleration = Force * RigidMass;
-				RigidHandle->AddForce(Acceleration, false);
-			}
-			else
-			{
-				RigidHandle->AddForce(Force, false);
-			}
-
-		}
+	DeferredForces.Add(FDeferredForces::FApplyForceData(Force, bAllowSubstepping, bAccelChange));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (GVehicleDebugParams.ShowAllForces)
-		{
-			FVector Position = VehicleState.VehicleWorldCOM;
-			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
-				, 20.f, FColor::Blue, false, 0, 0, 2.f);
-		}
-#endif	
+	if (GVehicleDebugParams.ShowAllForces)
+	{
+		FVector Position = RigidHandle->X();
+		Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
+			, 20.f, FColor::Blue, false, 0, 0, 2.f);
 	}
-
+#endif	
 }
 
-void UChaosVehicleSimulation::AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping /*= true*/, bool bIsLocalForce /*= false*/)
+void UChaosVehicleSimulation::AddForceAtPosition(const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce)
 {
-	if (ensure(RigidHandle))
-	{
-		const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle);
-		const Chaos::FVec3 WorldTorque = Chaos::FVec3::CrossProduct(Position - WorldCOM, Force);
-		RigidHandle->AddForce(Force, false);
-		RigidHandle->AddTorque(WorldTorque, false);
+	DeferredForces.Add(FDeferredForces::FApplyForceAtPositionData(Force, Position, bAllowSubstepping, bIsLocalForce));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (GVehicleDebugParams.ShowAllForces)
-		{
-			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
-				, 20.f, FColor::Blue, false, 0, 0, 2.f);
-		}
-#endif
+	if (GVehicleDebugParams.ShowAllForces)
+	{
+		Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
+			, 20.f, FColor::Blue, false, 0, 0, 2.f);
 	}
+#endif
 }
 
 void UChaosVehicleSimulation::AddImpulse(const FVector& Impulse, bool bVelChange)
 {
-	if (ensure(RigidHandle))
-	{
-		if (bVelChange)
-		{
-			RigidHandle->SetLinearImpulse(RigidHandle->LinearImpulse() + RigidHandle->M() * Impulse, false);
-		}
-		else
-		{
-			RigidHandle->SetLinearImpulse(RigidHandle->LinearImpulse() + Impulse, false);
-		}
+	DeferredForces.Add(FDeferredForces::FAddImpulseData(Impulse, bVelChange));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (GVehicleDebugParams.ShowAllForces)
-		{
-			FVector Position = VehicleState.VehicleWorldCOM;
-			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
-				, 20.f, FColor::Red, false, 0, 0, 2.f);
-		}
-#endif
+	if (GVehicleDebugParams.ShowAllForces)
+	{
+		FVector Position = VehicleState.VehicleWorldCOM;
+		Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
+			, 20.f, FColor::Red, false, 0, 0, 2.f);
 	}
+#endif
+	
 }
 
 void UChaosVehicleSimulation::AddImpulseAtPosition(const FVector& Impulse, const FVector& Position)
 {
-	if (ensure(RigidHandle))
-	{
-		const Chaos::FVec3 WorldCOM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle);
-		const Chaos::FVec3 AngularImpulse = Chaos::FVec3::CrossProduct(Position - WorldCOM, Impulse);
-		RigidHandle->SetLinearImpulse(RigidHandle->LinearImpulse() + Impulse, false);
-		RigidHandle->SetAngularImpulse(RigidHandle->AngularImpulse() + AngularImpulse, false);
-
+	DeferredForces.Add(FDeferredForces::FAddImpulseAtPositionData(Impulse, Position));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (GVehicleDebugParams.ShowAllForces)
-		{
-			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
-				, 20.f, FColor::Red, false, 0, 0, 2.f);
-		}
-#endif
+	if (GVehicleDebugParams.ShowAllForces)
+	{
+		Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
+			, 20.f, FColor::Red, false, 0, 0, 2.f);
 	}
+#endif
 
 }
 
 void UChaosVehicleSimulation::AddTorqueInRadians(const FVector& Torque, bool bAllowSubstepping /*= true*/, bool bAccelChange /*= false*/)
 {
-	if (ensure(RigidHandle))
-	{
-		Chaos::EObjectStateType ObjectState = RigidHandle->ObjectState();
-		if (CHAOS_ENSURE(ObjectState == Chaos::EObjectStateType::Dynamic || ObjectState == Chaos::EObjectStateType::Sleeping))
-		{
-			if (bAccelChange)
-			{
-				RigidHandle->AddTorque(Chaos::FParticleUtilitiesXR::GetWorldInertia(RigidHandle) * Torque, false);
-			}
-			else
-			{
-				RigidHandle->AddTorque(Torque, false);
-			}
-		}
-	}
+	DeferredForces.Add(FDeferredForces::FAddTorqueInRadiansData(Torque, bAllowSubstepping, bAccelChange));
 }
 
 void UChaosVehicleSimulation::InitializeWheel(int WheelIndex, const Chaos::FSimpleWheelConfig* InWheelSetup)
@@ -1704,6 +1655,14 @@ FChaosVehicleDefaultAsyncInput::FChaosVehicleDefaultAsyncInput()
 	: GravityZ(0.f)
 {
 
+}
+
+
+void FChaosVehicleDefaultAsyncInput::ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* RigidHandle) const
+{
+	check(Vehicle);
+	check(Vehicle->VehicleSimulationPT);
+	Vehicle->VehicleSimulationPT->ApplyDeferredForces(RigidHandle);
 }
 
 /************************************************************************/
