@@ -74,6 +74,9 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 void SOpenColorIOColorSpacePicker::SetConfiguration(TWeakObjectPtr<UOpenColorIOConfiguration> NewConfiguration)
 {
 	Configuration = NewConfiguration;
+
+	// Invalidate current color space selection
+	SetCurrentColorSpace(FOpenColorIOColorSpace());
 }
 
 void SOpenColorIOColorSpacePicker::SetRestrictedColorSpace(const FOpenColorIOColorSpace& InRestrictedColorSpace)
