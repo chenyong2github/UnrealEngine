@@ -34,6 +34,21 @@
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationSteps"
 
+void SCameraCalibrationSteps::AddReferencedObjects(FReferenceCollector& Collector)
+{
+ 	if (CurrentOverlayMID)
+ 	{
+		Collector.AddReferencedObject(CurrentOverlayMID);
+	}
+
+	for (TPair<FName, TObjectPtr<UMaterialInstanceDynamic>> Pair : OverlayMIDs)
+	{
+		if (Pair.Value)
+		{
+			Collector.AddReferencedObject(Pair.Value);
+		}
+	}
+}
 
 void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCameraCalibrationStepsController> InCalibrationStepsController)
 {
