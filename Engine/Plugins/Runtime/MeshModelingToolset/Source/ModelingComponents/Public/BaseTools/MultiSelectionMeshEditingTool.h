@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MultiSelectionTool.h"
-#include "InteractiveToolWithToolTargetsBuilder.h"
+#include "InteractiveToolBuilder.h"
 #include "MultiSelectionMeshEditingTool.generated.h"
 
 class UMultiSelectionMeshEditingTool;

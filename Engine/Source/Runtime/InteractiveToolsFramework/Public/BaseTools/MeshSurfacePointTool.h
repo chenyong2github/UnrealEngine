@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SingleSelectionTool.h"
-#include "InteractiveToolWithToolTargetsBuilder.h"
+#include "InteractiveToolBuilder.h"
 #include "InputBehaviorSet.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"

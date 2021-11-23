@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SingleSelectionTool.h"
-#include "InteractiveToolWithToolTargetsBuilder.h"
+#include "InteractiveToolBuilder.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "WeightMapTypes.h"
 #include "MeshOpPreviewHelpers.h"

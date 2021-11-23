@@ -10,7 +10,7 @@
 #include "FrameTypes.h"
 #include "GeometryBase.h"
 #include "InteractiveTool.h"
-#include "InteractiveToolWithToolTargetsBuilder.h"
+#include "InteractiveToolBuilder.h"
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI
 #include "Mechanics/CubeGrid.h"
 #include "ModelingOperators.h"
