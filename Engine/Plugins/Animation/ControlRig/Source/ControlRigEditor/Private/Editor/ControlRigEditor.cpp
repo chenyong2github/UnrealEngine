@@ -537,6 +537,11 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	}, TStatId(), NULL, ENamedThreads::GameThread);
 	
 	CreateRigHierarchyToGraphDragAndDropMenu();
+
+#if WITH_EDITOR
+	FString BlueprintName = InControlRigBlueprint->GetPathName();
+	RigVMPythonUtils::PrintPythonContext(BlueprintName);
+#endif
 }
 
 void FControlRigEditor::BindCommands()
