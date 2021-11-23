@@ -166,5 +166,7 @@ private:
 	FText BuildConfigurationTypeText;
 	FText BuildTargetTypeText;
 	FText CommandLineText;
+
+	TSharedPtr<const TraceServices::IAnalysisSession> AnalysisSession;
 	bool bIsSessionInfoSet = false;
 };

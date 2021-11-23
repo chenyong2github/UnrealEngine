@@ -750,51 +750,24 @@ FReply SLoadingProfilerWindow::OnKeyDown(const FGeometry& MyGeometry, const FKey
 
 FReply SLoadingProfilerWindow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr<FExternalDragOperation> DragDropOp = DragDropEvent.GetOperationAs<FExternalDragOperation>();
-	if (DragDropOp.IsValid())
+	if (FInsightsManager::Get()->OnDragOver(DragDropEvent))
 	{
-		if (DragDropOp->HasFiles())
-		{
-			const TArray<FString>& Files = DragDropOp->GetFiles();
-			if (Files.Num() == 1)
-			{
-				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
-				if (DraggedFileExtension == TEXT(".utrace"))
-				{
-					return FReply::Handled();
-				}
-			}
-		}
+		return FReply::Handled();
 	}
 
-	return SCompoundWidget::OnDragOver(MyGeometry,DragDropEvent);
+	return SCompoundWidget::OnDragOver(MyGeometry, DragDropEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FReply SLoadingProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr<FExternalDragOperation> DragDropOp = DragDropEvent.GetOperationAs<FExternalDragOperation>();
-	if (DragDropOp.IsValid())
+	if (FInsightsManager::Get()->OnDrop(DragDropEvent))
 	{
-		if (DragDropOp->HasFiles())
-		{
-			// For now, only allow a single file.
-			const TArray<FString>& Files = DragDropOp->GetFiles();
-			if (Files.Num() == 1)
-			{
-				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
-				if (DraggedFileExtension == TEXT(".utrace"))
-				{
-					// Enqueue load operation.
-					FInsightsManager::Get()->LoadTraceFile(Files[0]);
-					return FReply::Handled();
-				}
-			}
-		}
+		return FReply::Handled();
 	}
 
-	return SCompoundWidget::OnDrop(MyGeometry,DragDropEvent);
+	return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -527,24 +527,7 @@ void FTraceInsightsModule::InitializeTesting(bool InInitAutomationModules, bool 
 
 void FTraceInsightsModule::UpdateAppTitle()
 {
-#if !WITH_EDITOR
-	TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
-	if (RootWindow)
-	{
-		const FString TraceFilename = FInsightsManager::Get()->GetTraceFilename();
-		if (TraceFilename.IsEmpty())
-		{
-			const FText AppTitle = NSLOCTEXT("TraceInsightsModule", "UnrealInsightsAppName", "Unreal Insights");
-			RootWindow->SetTitle(AppTitle);
-		}
-		else
-		{
-			const FString SessionName = FPaths::GetBaseFilename(TraceFilename);
-			const FText AppTitle = FText::Format(NSLOCTEXT("TraceInsightsModule", "UnrealInsightsAppNameFmt", "{0} - Unreal Insights"), FText::FromString(SessionName));
-			RootWindow->SetTitle(AppTitle);
-		}
-	}
-#endif
+	FInsightsManager::Get()->UpdateAppTitle();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
