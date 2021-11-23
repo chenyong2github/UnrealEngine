@@ -2604,7 +2604,7 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnData(
 		return EStatus::NotEnoughData;
 	}
 
-	return (Reader.GetRemaining() != 0) ? EStatus::Continue : EStatus::EndOfStream;
+	return Reader.CanMeetDemand() ? EStatus::Continue : EStatus::EndOfStream;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

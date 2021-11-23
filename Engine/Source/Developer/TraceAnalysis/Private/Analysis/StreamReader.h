@@ -21,6 +21,7 @@ public:
 	void						Advance(uint32 Size);
 	bool						IsEmpty() const;
 	int32						GetRemaining() const;
+	bool						CanMeetDemand() const;
 	bool						Backtrack(const uint8* To);
 	struct FMark*				SaveMark() const;
 	void						RestoreMark(struct FMark* Mark);
