@@ -3,16 +3,35 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PropertyEditorDelegates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
 
 
 struct FAssetData;
+class SMenuAnchor;
+class SMultiLineEditableTextBox;
 class SSequencerPlaylistItemWidget;
+class SSearchBox;
+class STextBlock;
+template <typename ItemType> class TTextFilter;
 class USequencerPlaylist;
 class USequencerPlaylistItem;
 class USequencerPlaylistPlayer;
+
+
+struct FSequencerPlaylistRowData
+{
+	int32 PlaylistIndex;
+	TWeakObjectPtr<USequencerPlaylistItem> WeakItem;
+
+	FSequencerPlaylistRowData(int32 InPlaylistIndex, USequencerPlaylistItem* InItem)
+		: PlaylistIndex(InPlaylistIndex)
+		, WeakItem(InItem)
+	{
+	}
+};
 
 
 class SSequencerPlaylistPanel : public SCompoundWidget
@@ -22,72 +41,123 @@ class SSequencerPlaylistPanel : public SCompoundWidget
 
 public:
 	static const float DefaultWidth;
+	static const FName ColumnName_HoverTransport;
+	static const FName ColumnName_Items;
+	static const FName ColumnName_Offset;
+	static const FName ColumnName_Hold;
+	static const FName ColumnName_Loop;
+	static const FName ColumnName_HoverDetails;
 
 	void Construct(const FArguments& InArgs, USequencerPlaylistPlayer* InPlayer);
 
 private:
-	void RegenerateSequenceList();
-
-	TSharedRef<SWidget> OnPresetGeneratePresetsMenu();
-	void OnSaveAsPreset();
-	void OnLoadPreset(const FAssetData& InPreset);
-
-	FReply OnClicked_PlayAll();
-	FReply OnClicked_StopAll();
-	FReply OnClicked_ResetAll();
-	FReply OnClicked_AddSequence();
-
-	FReply OnClicked_Item_Play(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
-	FReply OnClicked_Item_Stop(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
-	FReply OnClicked_Item_Reset(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
-	FReply OnClicked_Item_Close(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
+	TSharedRef<SWidget> Construct_Toolbar();
+	TSharedRef<SWidget> Construct_Transport();
+	TSharedRef<SWidget> Construct_AddSearchRow();
+	TSharedRef<SWidget> Construct_ItemListView();
 
 	USequencerPlaylist* GetCheckedPlaylist();
+	void RegenerateRows();
+
+	TSharedRef<SWidget> BuildOpenPlaylistMenu();
+	void OnSavePlaylistAs();
+	void OnLoadPlaylist(const FAssetData& InPreset);
+	void OnNewPlaylist();
+
+	void GetSearchStrings(const FSequencerPlaylistRowData& Item, TArray<FString>& OutSearchStrings);
+	void OnSearchTextChanged(const FText& InFilterText);
+
+	FReply HandleClicked_PlayAll();
+	FReply HandleClicked_StopAll();
+	FReply HandleClicked_ResetAll();
+	FReply HandleClicked_AddSequence();
+
+	FReply HandleClicked_Item_Play(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
+	FReply HandleClicked_Item_Stop(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
+	FReply HandleClicked_Item_Reset(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
+	FReply HandleClicked_Item_Remove(TSharedPtr<SSequencerPlaylistItemWidget> ItemWidget);
+
+	bool HandleItemDetailsIsPropertyVisible(const FPropertyAndParent& PropertyAndParent);
 
 	// Drag and drop handling
-	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot);
-	TOptional<SDragAndDropVerticalBox::EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, SVerticalBox::FSlot* Slot);
-	FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, SDragAndDropVerticalBox::EItemDropZone DropZone, int32 SlotIndex, SVerticalBox::FSlot* Slot);
+	TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FSequencerPlaylistRowData> RowData);
+	FReply HandleAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FSequencerPlaylistRowData> RowData);
 
 private:
 	TWeakObjectPtr<USequencerPlaylistPlayer> WeakPlayer;
-	TSharedPtr<SDragAndDropVerticalBox> ItemList;
+
+	TSharedPtr<SSearchBox> SearchBox;
+	TSharedPtr<TTextFilter<const FSequencerPlaylistRowData&>> SearchTextFilter;
+	TArray<TSharedPtr<FSequencerPlaylistRowData>> ItemRows;
+	TSharedPtr<SListView<TSharedPtr<FSequencerPlaylistRowData>>> ItemListView;
 };
 
 
-class FSequencerPlaylistItemDragDropOp : public FDragAndDropVerticalBoxOp
+class FSequencerPlaylistItemDragDropOp : public FDragDropOperation
 {
 public:
-	DRAG_DROP_OPERATOR_TYPE(FSequencerPlaylistItemDragDropOp, FDragAndDropVerticalBoxOp)
+	DRAG_DROP_OPERATOR_TYPE(FSequencerPlaylistItemDragDropOp, FDragDropOperation)
 
-	TSharedPtr<SWidget> WidgetToShow;
+	TArray<TSharedPtr<FSequencerPlaylistRowData>> SelectedItems;
 
-	static TSharedRef<FSequencerPlaylistItemDragDropOp> New(int32 InSlotIndexBeingDragged, SVerticalBox::FSlot* InSlotBeingDragged, TSharedPtr<SWidget> InWidgetToShow);
+	static TSharedRef<FSequencerPlaylistItemDragDropOp> New(const TArray<TSharedPtr<FSequencerPlaylistRowData>>& InSelectedItems);
 
 public:
 	virtual ~FSequencerPlaylistItemDragDropOp();
 
-	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
+	{
+		return Decorator;
+	}
+
+private:
+	TSharedPtr<SWidget> Decorator;
 };
 
 
 DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnClickedSequencerPlaylistItem, TSharedPtr<SSequencerPlaylistItemWidget> /*ItemWidget*/);
 
 
-class SSequencerPlaylistItemWidget : public SCompoundWidget
+class SSequencerPlaylistItemWidget : public SMultiColumnTableRow<TSharedPtr<FSequencerPlaylistRowData>>
 {
 	SLATE_BEGIN_ARGS(SSequencerPlaylistItemWidget) {}
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnPlayClicked)
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnStopClicked)
 		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnResetClicked)
-		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnCloseClicked)
+		SLATE_EVENT(FOnClickedSequencerPlaylistItem, OnRemoveClicked)
+
+		SLATE_EVENT(FIsPropertyVisible, OnIsPropertyVisible)
+		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
+		SLATE_EVENT(FOnAcceptDrop, OnAcceptDrop)
 	SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs, USequencerPlaylistItem* InItem);
+	void Construct(const FArguments& InArgs, TSharedPtr<FSequencerPlaylistRowData> InRowData, const TSharedRef<STableViewBase>& OwnerTableView);
 
-	USequencerPlaylistItem* GetItem() { return WeakItem.Get(); }
+	const TSharedPtr<FSequencerPlaylistRowData>& GetRowData() { return RowData; }
+	USequencerPlaylistItem* GetItem() { return GetRowData() ? GetRowData()->WeakItem.Get() : nullptr; }
+
+	//~ Begin SMultiColumnTableRow
+	TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override;
+	//~ End SMultiColumnTableRow
+
+	//~ Begin SWidget
+	FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	//~ End SWidget
 
 private:
-	TWeakObjectPtr<USequencerPlaylistItem> WeakItem;
+	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+
+	TSharedRef<SWidget> EnsureSelectedAndBuildContextMenu();
+	TSharedRef<SWidget> BuildContextMenu(const TArray<UObject*>& SelectedItems);
+
+private:
+	TSharedPtr<FSequencerPlaylistRowData> RowData;
+	TSharedPtr<SMenuAnchor> DetailsAnchor;
+
+	FOnClickedSequencerPlaylistItem PlayClickedDelegate;
+	FOnClickedSequencerPlaylistItem StopClickedDelegate;
+	FOnClickedSequencerPlaylistItem ResetClickedDelegate;
+	FOnClickedSequencerPlaylistItem RemoveClickedDelegate;
+	FIsPropertyVisible IsPropertyVisibleDelegate;
 };

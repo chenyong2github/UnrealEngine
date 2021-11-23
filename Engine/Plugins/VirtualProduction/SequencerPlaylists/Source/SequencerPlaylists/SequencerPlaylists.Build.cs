@@ -7,7 +7,7 @@ public class SequencerPlaylists : ModuleRules
 	public SequencerPlaylists(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
+
 		PublicIncludePaths.AddRange(new string[] {
 		});
 
@@ -36,6 +36,7 @@ public class SequencerPlaylists : ModuleRules
 			"MovieScene",
 			"LevelSequenceEditor",
 			"TakesCore",
+			"ToolWidgets",
 		});
 
 		DynamicallyLoadedModuleNames.AddRange(new string[] {
