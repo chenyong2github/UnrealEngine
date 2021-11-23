@@ -170,6 +170,18 @@ void UUserDefinedStructEditorData::PostLoadSubobjects(FObjectInstancingGraph* Ou
 	}
 }
 
+void UUserDefinedStructEditorData::Serialize(FStructuredArchive::FRecord Record)
+{
+	// Prior to saving, ensure that editor data matches up with the default instance data.
+	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
+	if (UnderlyingArchive.IsSaving())
+	{
+		RefreshValuesFromDefaultInstance();
+	}
+
+	Super::Serialize(Record);
+}
+
 const uint8* UUserDefinedStructEditorData::GetDefaultInstance() const
 {
 	return GetOwnerStruct()->GetDefaultInstance();
@@ -231,6 +243,32 @@ void UUserDefinedStructEditorData::CleanDefaultInstance()
 	UUserDefinedStruct* ScriptStruct = GetOwnerStruct();
 	ensure(!ScriptStruct->DefaultStructInstance.IsValid() || ScriptStruct->DefaultStructInstance.GetStruct() == GetOwnerStruct());
 	ScriptStruct->DefaultStructInstance.Destroy();
+}
+
+void UUserDefinedStructEditorData::RefreshValuesFromDefaultInstance()
+{
+	UUserDefinedStruct* ScriptStruct = GetOwnerStruct();
+	if (!ScriptStruct || !ScriptStruct->DefaultStructInstance.IsValid())
+	{
+		return;
+	}
+
+	ensure(ScriptStruct->DefaultStructInstance.GetStruct() == ScriptStruct);
+	if (uint8* StructData = ScriptStruct->DefaultStructInstance.GetStructMemory())
+	{
+		for (TFieldIterator<FProperty> It(ScriptStruct); It; ++It)
+		{
+			if (const FProperty* Property = *It)
+			{
+				const FGuid VarGuid = FStructureEditorUtils::GetGuidFromPropertyName(Property->GetFName());
+				if (FStructVariableDescription* VarDesc = VariablesDescriptions.FindByPredicate(FStructureEditorUtils::FFindByGuidHelper<FStructVariableDescription>(VarGuid)))
+				{
+					FBlueprintEditorUtils::PropertyValueToString(Property, StructData, VarDesc->CurrentDefaultValue, ScriptStruct);
+					VarDesc->DefaultValue = VarDesc->CurrentDefaultValue;
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
