@@ -38,16 +38,16 @@ public:
 
 	void SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation);
 	FPlayerId GetPlayerId() const;
+	bool IsInitialized() const;
 	bool IsRegisteredWithWebRTC();
 
 	void ForceKeyFrame() { ForceNextKeyframe = true; }
 	int32_t GetSmoothedAverageQP() const;
-	
 
 private:
 	void UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& Config);
 	void HandlePendingRateChange();
-	void CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput);
+	void CreateAVEncoder(int Width, int Height);
 	AVEncoder::FVideoEncoder::FLayerConfig CreateEncoderConfigFromCVars(AVEncoder::FVideoEncoder::FLayerConfig BaseEncoderConfig) const;
 
 	// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
@@ -63,7 +63,8 @@ private:
 	// The alternative is encoding separate streams for each peer, which is not tenable while NVENC sessions are limited.
 	FPlayerId OwnerPlayerId;
 
-	bool ForceNextKeyframe = false;
+	// This flag lets us force a keyframe through manually, it also lets us ensure the first encoded frame is a keyframe.
+	bool ForceNextKeyframe = true;
 
 	// USed for checks such as whether a given player id is associated with the quality controlling player.
 	const IPixelStreamingSessions* PixelStreamingSessions;

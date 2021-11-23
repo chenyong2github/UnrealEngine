@@ -20,10 +20,10 @@ namespace AVEncoder
         bool Setup(TSharedRef<FVideoEncoderInput> InputFrameFactory, const FLayerConfig& InitConfig) override;
         void Shutdown() override;
 
-        // query whether or not encoder is supported and available
+        // Query whether or not encoder is supported and available
         static bool GetIsAvailable(const FVideoEncoderInput& InFrameFactory, FVideoEncoderInfo &OutEncoderInfo);
 
-        // register encoder with video encoder factory
+        // Register encoder with video encoder factory
         static void Register(FVideoEncoderFactory &InFactory);
 
         void Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions) override;
@@ -40,9 +40,29 @@ namespace AVEncoder
         {
 
         public:
+
+            struct FInputOutput
+            {
+                const AVEncoder::FVideoEncoderInputFrameImpl* SourceFrame = nullptr;
+                void*  InputTexture = nullptr;
+                uint32 Width = 0;
+                uint32 Height = 0;
+                uint32 Pitch = 0;
+                NV_ENC_BUFFER_FORMAT BufferFormat = NV_ENC_BUFFER_FORMAT_UNDEFINED;
+                NV_ENC_REGISTERED_PTR RegisteredInput = nullptr;
+                NV_ENC_INPUT_PTR MappedInput = nullptr;
+                NV_ENC_PIC_PARAMS PicParams = {};
+                NV_ENC_OUTPUT_PTR OutputBitstream = nullptr;
+                const void *BitstreamData = nullptr;
+                uint32 BitstreamDataSize = 0;
+                NV_ENC_PIC_TYPE PictureType = NV_ENC_PIC_TYPE_UNKNOWN;
+                uint32 FrameAvgQP = 0;
+                uint64 TimeStamp;
+                uint64 SubmitTimeCycles;
+            };
+
             FNVENCLayer(uint32 layerIdx, FLayerConfig const& config, FVideoEncoderNVENC_H264& encoder);
             ~FNVENCLayer();
-
             bool Setup();
             bool CreateSession();
             bool CreateInitialConfig();
@@ -52,66 +72,36 @@ namespace AVEncoder
 			void UpdateConfig();
             void UpdateLastEncodedQP(uint32 InLastEncodedQP);
             void Encode(FVideoEncoderInputFrame const* InFrame, const FEncodeOptions& EncodeOptions);
-            void ProcessFramesFunc();
+            void EncodeBuffer(FInputOutput* Buffer);
+            void ProcessEncodedBuffer(FInputOutput* Buffer);
             void Flush();
             void Shutdown();
             void UpdateBitrate(uint32 InMaxBitRate, uint32 InTargetBitRate);
             void UpdateResolution(uint32 InMaxBitRate, uint32 InTargetBitRate);
+            FInputOutput* GetOrCreateBuffer(const FVideoEncoderInputFrameImpl* InFrame);
+            FInputOutput* CreateBuffer();
+            void DestroyBuffer(FInputOutput* InBuffer);
+            bool RegisterInputTexture(FInputOutput* InBuffer);
+            bool UnregisterInputTexture(FInputOutput* InBuffer);
+            bool MapInputTexture(FInputOutput* InBuffer);
+            bool UnmapInputTexture(FInputOutput* InBuffer);
+            bool LockOutputBuffer(FInputOutput* InBuffer);
+            bool UnlockOutputBuffer(FInputOutput* InBuffer);
+            void CreateResourceDIRECTX(FInputOutput* InBuffer, NV_ENC_REGISTER_RESOURCE &RegisterParam, FIntPoint TextureSize);
+            void CreateResourceCUDAARRAY(FInputOutput* InBuffer, NV_ENC_REGISTER_RESOURCE &RegisterParam, FIntPoint TextureSize);
 
+        public:
             FVideoEncoderNVENC_H264 &Encoder;
             FNVENCCommon &NVENC;
             GUID CodecGUID;
             uint32 LayerIndex;
             void *NVEncoder = nullptr;
-            TUniquePtr<FThread> EncoderThread;
-            FThreadSafeBool bShouldEncoderThreadRun = true;
-            FEventRef FramesPending;
-
             NV_ENC_INITIALIZE_PARAMS EncoderInitParams;
             NV_ENC_CONFIG EncoderConfig;
             FDateTime LastKeyFrameTime = 0;
-			bool bForceNextKeyframe = false;
+            bool bForceNextKeyframe = false;
             uint32 LastEncodedQP = 0;
-
-            struct FInputOutput
-            {
-                const AVEncoder::FVideoEncoderInputFrameImpl* SourceFrame = nullptr;
-
-                void*  InputTexture = nullptr;
-                uint32 Width = 0;
-                uint32 Height = 0;
-                uint32 Pitch = 0;
-                NV_ENC_BUFFER_FORMAT BufferFormat = NV_ENC_BUFFER_FORMAT_UNDEFINED;
-                NV_ENC_REGISTERED_PTR RegisteredInput = nullptr;
-                NV_ENC_INPUT_PTR MappedInput = nullptr;
-
-                NV_ENC_PIC_PARAMS PicParams = {};
-
-                NV_ENC_OUTPUT_PTR OutputBitstream = nullptr;
-                const void *BitstreamData = nullptr;
-                uint32 BitstreamDataSize = 0;
-                NV_ENC_PIC_TYPE PictureType = NV_ENC_PIC_TYPE_UNKNOWN;
-                uint32 FrameAvgQP = 0;
-                uint64 TimeStamp;
-
-                uint64 EncodeStartMs;
-            };
-
-            FInputOutput* GetOrCreateBuffer(const FVideoEncoderInputFrameImpl* InFrame);
-            FInputOutput* CreateBuffer();
-            void DestroyBuffer(FInputOutput *InBuffer);
-            bool RegisterInputTexture(FInputOutput &InBuffer, void *InTexture, FIntPoint TextureSize);
-            bool UnregisterInputTexture(FInputOutput &InBuffer);
-            bool MapInputTexture(FInputOutput &InBuffer);
-            bool UnmapInputTexture(FInputOutput &InBuffer);
-            bool LockOutputBuffer(FInputOutput &InBuffer);
-            bool UnlockOutputBuffer(FInputOutput &InBuffer);
-
-            void CreateResourceDIRECTX(FInputOutput &InBuffer, NV_ENC_REGISTER_RESOURCE &RegisterParam, FIntPoint TextureSize);
-            void CreateResourceCUDAARRAY(FInputOutput &InBuffer, NV_ENC_REGISTER_RESOURCE &RegisterParam, FIntPoint TextureSize);
-
-            TQueue<FInputOutput*> IdleBuffers;
-            TQueue<FInputOutput *> PendingEncodes;
+            TMap<const AVEncoder::FVideoEncoderInputFrame*, FInputOutput*> FrameToBufferMapping;
         };
 
         FNVENCCommon &NVENC;

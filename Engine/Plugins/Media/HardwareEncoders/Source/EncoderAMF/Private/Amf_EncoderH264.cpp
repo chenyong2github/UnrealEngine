@@ -26,10 +26,10 @@ namespace
 	{
 		switch (mode)
 		{
-		case AVEncoder::FVideoEncoder::RateControlMode::CONSTQP: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_CONSTANT_QP;
-		case AVEncoder::FVideoEncoder::RateControlMode::VBR: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_LATENCY_CONSTRAINED_VBR;
-		default:
-		case AVEncoder::FVideoEncoder::RateControlMode::CBR: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_CBR;
+			case AVEncoder::FVideoEncoder::RateControlMode::CONSTQP: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_CONSTANT_QP;
+			case AVEncoder::FVideoEncoder::RateControlMode::VBR: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_LATENCY_CONSTRAINED_VBR;
+			default:
+			case AVEncoder::FVideoEncoder::RateControlMode::CBR: return AMF_VIDEO_ENCODER_RATE_CONTROL_METHOD_CBR;
 		}
 	}
 
@@ -37,13 +37,13 @@ namespace
 	{
 		switch (profile)
 		{
-		case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_BASELINE: return AMF_VIDEO_ENCODER_PROFILE_CONSTRAINED_BASELINE;
-		case AVEncoder::FVideoEncoder::H264Profile::BASELINE: return AMF_VIDEO_ENCODER_PROFILE_BASELINE;
-		case AVEncoder::FVideoEncoder::H264Profile::MAIN: return AMF_VIDEO_ENCODER_PROFILE_MAIN;
-		case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH: return AMF_VIDEO_ENCODER_PROFILE_CONSTRAINED_HIGH;
-		case AVEncoder::FVideoEncoder::H264Profile::HIGH: return AMF_VIDEO_ENCODER_PROFILE_HIGH;
-		default:
-		case AVEncoder::FVideoEncoder::H264Profile::AUTO: return AMF_VIDEO_ENCODER_PROFILE_BASELINE;
+			case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_BASELINE: return AMF_VIDEO_ENCODER_PROFILE_CONSTRAINED_BASELINE;
+			case AVEncoder::FVideoEncoder::H264Profile::BASELINE: return AMF_VIDEO_ENCODER_PROFILE_BASELINE;
+			case AVEncoder::FVideoEncoder::H264Profile::MAIN: return AMF_VIDEO_ENCODER_PROFILE_MAIN;
+			case AVEncoder::FVideoEncoder::H264Profile::CONSTRAINED_HIGH: return AMF_VIDEO_ENCODER_PROFILE_CONSTRAINED_HIGH;
+			case AVEncoder::FVideoEncoder::H264Profile::HIGH: return AMF_VIDEO_ENCODER_PROFILE_HIGH;
+			default:
+			case AVEncoder::FVideoEncoder::H264Profile::AUTO: return AMF_VIDEO_ENCODER_PROFILE_BASELINE;
 		}
 	}
 }
@@ -88,20 +88,10 @@ namespace AVEncoder
 
 	void AMFParseCommandLineFlags()
 	{
-		// CVar changes can only be triggered from the game thread
-		{
-			// We block on our current thread until these CVars are set on the game thread, the settings of these CVars needs to happen before we can proceed.
-            FScopedEvent ThreadBlocker;
-
-			AsyncTask(ENamedThreads::GameThread, [&ThreadBlocker]()
-			{ 
-				AMFCommandLineParseValue(TEXT("-AMFKeyframeInterval="), CVarAMFKeyframeInterval);
-
-				// Unblocks the thread
-                ThreadBlocker.Trigger();
-			});
-            // Blocks current thread until game thread calls trigger (indicating it is done)
-        }
+		AsyncTask(ENamedThreads::GameThread, []()
+		{ 
+			AMFCommandLineParseValue(TEXT("-AMFKeyframeInterval="), CVarAMFKeyframeInterval);
+		});
 	}
 
 	static bool GetEncoderInfo(FAmfCommon& Amf, FVideoEncoderInfo& EncoderInfo);
@@ -135,6 +125,7 @@ namespace AVEncoder
 	FVideoEncoderAmf_H264::FVideoEncoderAmf_H264()
 		: Amf(FAmfCommon::Setup())
 	{
+		AMFParseCommandLineFlags();
 	}
 
 	FVideoEncoderAmf_H264::~FVideoEncoderAmf_H264()
@@ -203,8 +194,6 @@ namespace AVEncoder
 			}
 		}
 
-		AMFParseCommandLineFlags();
-
 		FLayerConfig MutableConfig = config;
 		if (MutableConfig.MaxFramerate == 0)
 		{
@@ -233,16 +222,14 @@ namespace AVEncoder
 
 	void FVideoEncoderAmf_H264::Encode(FVideoEncoderInputFrame const* frame, FEncodeOptions const& options)
 	{
-		// todo: reconfigure encoder
-		auto const amfFrame = static_cast<const FVideoEncoderInputFrameImpl*>(frame);
+		const FVideoEncoderInputFrameImpl* amfFrame = static_cast<const FVideoEncoderInputFrameImpl*>(frame);
 		for (auto& layer : Layers)
 		{
 			FAMFLayer* amfLayer = static_cast<FAMFLayer*>(layer);
 			AMF_RESULT Res = amfLayer->Encode(amfFrame, options);
-
-			if (Res == AMF_OK)
+			if(Res != AMF_OK)
 			{
-				amfLayer->FramesPending->Trigger();
+				UE_LOG(LogEncoderAMF, Error, TEXT("AMF failed to encode frame."));
 			}
 		}
 	}
@@ -266,7 +253,7 @@ namespace AVEncoder
 		}
 
 		Layers.Reset();
-		}
+	}
 
 	// --- Amf_EncoderH264::FLayer ------------------------------------------------------------
 	FVideoEncoderAmf_H264::FAMFLayer::FAMFLayer(uint32 layerIdx, FLayerConfig const& config, FVideoEncoderAmf_H264& encoder)
@@ -291,11 +278,6 @@ namespace AVEncoder
 		if (AmfEncoder == NULL)
 		{
 			Amf.CreateEncoder(AmfEncoder);
-		}
-
-		if (ProcessFrameThread == nullptr)
-		{
-			ProcessFrameThread = MakeUnique<FThread>(TEXT("AmfFrameProcessingThread"), [this]() { ProcessFrameThreadFunc(); });
 		}
 
 		return AmfEncoder != NULL;
@@ -423,7 +405,7 @@ namespace AVEncoder
 			MaybeReconfigure();
 
 			Buffer->Surface->SetPts(frame->GetTimestampRTP());
-			amf_int64 Start_ts = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks();
+			amf_int64 Start_ts = FPlatformTime::Cycles64();
 			Buffer->Surface->SetProperty(AMF_VIDEO_ENCODER_START_TS, Start_ts);
 			Buffer->Surface->SetProperty(AMF_BUFFER_INPUT_FRAME, uintptr_t(frame));
 
@@ -464,7 +446,8 @@ namespace AVEncoder
 				}
 				else
 				{
-					PendingFrames.Increment();
+					// Note from Luke: Testing has shown this is okay to leave blocking on the calling thread.
+					ProcessFrameBlocking();
 				}
 			}
 		}
@@ -482,14 +465,6 @@ namespace AVEncoder
 		Flush();
 		CreatedSurfaces.Empty();
 
-		if (ProcessFrameThread != nullptr)
-		{
-			bShouldRunProcessingThread = false;
-			FramesPending->Trigger();
-			ProcessFrameThread->Join();
-			ProcessFrameThread = nullptr;
-		}
-
 		if (AmfEncoder != NULL)
 		{
 			AmfEncoder->Terminate();
@@ -497,82 +472,73 @@ namespace AVEncoder
 		}
 	}
 
-	void FVideoEncoderAmf_H264::FAMFLayer::ProcessFrameThreadFunc()
+	void FVideoEncoderAmf_H264::FAMFLayer::ProcessFrameBlocking()
 	{
-		bool bHasProcessedFrame = false;
-		while (bShouldRunProcessingThread)
+		checkf(!bIsProcessingFrame, TEXT("There is already a frame being processing in the AMF encoder. Only one thing should call encode at a time."));
+
+		bIsProcessingFrame = true;
+
+		while(bIsProcessingFrame)
 		{
-			if (bWaitingForFrames) {
-				FramesPending->Wait();
+			amf::AMFDataPtr data;
+			AMF_RESULT Result = AmfEncoder->QueryOutput(&data);
+
+			if (Result != AMF_OK)
+			{
+				// No frame ready yet in output.
+				continue;
 			}
 
-			if (PendingFrames.GetValue() > 0)
+			AMFBufferPtr OutBuffer(data);
+
+			// Create packet with buffer contents
+			FCodecPacketImpl Packet;
+
+			Packet.Data = static_cast<const uint8*>(OutBuffer->GetNative());
+			Packet.DataSize = OutBuffer->GetSize();
+			uint32 PictureType = AMF_VIDEO_ENCODER_PICTURE_TYPE_NONE;
+			if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE, &PictureType) != AMF_OK)
 			{
-				PendingFrames.Decrement();
-
-					amf::AMFDataPtr data;
-				AMF_RESULT Result = AmfEncoder->QueryOutput(&data);
-
-				if (Result == AMF_OK)
-					{
-						AMFBufferPtr OutBuffer(data);
-
-						// create packet with buffer contents
-						FCodecPacketImpl Packet;
-
-						Packet.Data = static_cast<const uint8*>(OutBuffer->GetNative());
-						Packet.DataSize = OutBuffer->GetSize();
-						uint32 PictureType = AMF_VIDEO_ENCODER_PICTURE_TYPE_NONE;
-						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE, &PictureType) != AMF_OK)
-						{
-							UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get picture type."));
-						}
-						else if (PictureType == AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE_IDR)
-						{
-							UE_LOG(LogEncoderAMF, Verbose, TEXT("Generated IDR Frame"));
-							Packet.IsKeyFrame = true;
-						}
-
-						if (FString(GDynamicRHI->GetName()) != FString("Vulkan")) // Amf with Vulkan doesn't currently support statistics
-						{
-							if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_STATISTIC_FRAME_QP, &Packet.VideoQP) != AMF_OK)
-							{
-								UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get frame QP."));
-							}
-						}
-
-						amf_int64 StartTs;
-						if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_START_TS, &StartTs) != AMF_OK)
-						{
-							UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get encode start time."));
-						}
-						Packet.Timings.StartTs = FTimespan(StartTs);
-
-						Packet.Timings.FinishTs = FTimespan::FromSeconds(FPlatformTime::Seconds());
-					Packet.Framerate = GetConfig().MaxFramerate;
-
-						FVideoEncoderInputFrameImpl* SourceFrame;
-						if (OutBuffer->GetProperty(AMF_BUFFER_INPUT_FRAME, (intptr_t*)&SourceFrame) != AMF_OK)
-						{
-							UE_LOG(LogEncoderAMF, Fatal, TEXT("Amf failed to get buffer input frame."));
-						}
-
-					if (Encoder.OnEncodedPacket)
-						{
-						Encoder.OnEncodedPacket(LayerIndex, SourceFrame, Packet);
-						}
-
-						bHasProcessedFrame = true;
-					}
-
-			if (!bHasProcessedFrame)
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get picture type."));
+			}
+			else if (PictureType == AMF_VIDEO_ENCODER_OUTPUT_DATA_TYPE_IDR)
 			{
-				bWaitingForFrames = true;
+				UE_LOG(LogEncoderAMF, Verbose, TEXT("Generated IDR Frame"));
+				Packet.IsKeyFrame = true;
 			}
 
-			bHasProcessedFrame = false;
+			if (FString(GDynamicRHI->GetName()) != FString("Vulkan")) // Amf with Vulkan doesn't currently support statistics
+			{
+				if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_STATISTIC_FRAME_QP, &Packet.VideoQP) != AMF_OK)
+				{
+					UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get frame QP."));
+				}
+			}
+
+			amf_int64 StartTs;
+			if (OutBuffer->GetProperty(AMF_VIDEO_ENCODER_START_TS, &StartTs) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Error, TEXT("Amf failed to get encode start time."));
+			}
+
+			Packet.Timings.StartTs = FTimespan::FromSeconds(FPlatformTime::ToSeconds64(StartTs));
+			Packet.Timings.FinishTs = FTimespan::FromSeconds(FPlatformTime::ToSeconds64(FPlatformTime::Cycles64()));
+			Packet.Framerate = GetConfig().MaxFramerate;
+
+			FVideoEncoderInputFrameImpl* SourceFrame;
+			if (OutBuffer->GetProperty(AMF_BUFFER_INPUT_FRAME, (intptr_t*)&SourceFrame) != AMF_OK)
+			{
+				UE_LOG(LogEncoderAMF, Fatal, TEXT("Amf failed to get buffer input frame."));
+			}
+
+			if (Encoder.OnEncodedPacket)
+			{
+				Encoder.OnEncodedPacket(LayerIndex, SourceFrame, Packet);
+			}
+
+			bIsProcessingFrame = false;
 		}
-	}
+		
 	}
 
 	template<class T>

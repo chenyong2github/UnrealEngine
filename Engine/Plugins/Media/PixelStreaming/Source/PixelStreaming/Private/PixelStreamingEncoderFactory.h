@@ -8,6 +8,7 @@
 #include "PlayerId.h"
 #include "IPixelStreamingSessions.h"
 #include "HAL/CriticalSection.h"
+#include "PixelStreamingEncoderFrameFactory.h"
 
 class FPixelStreamingVideoEncoderFactory;
 class FPixelStreamingVideoEncoder;
@@ -23,9 +24,11 @@ class FPixelStreamingVideoEncoder;
 // Note: We could give an encoder per peer; however, this uses up our limited hardware encoder sessions (e.g. typically you can run only 3 encoding sessions on NVIDIA Geforce cards).
 struct FEncoderContext
 {
+	FPixelStreamingEncoderFrameFactory FrameFactory;
 	FPixelStreamingVideoEncoderFactory* Factory;
 	TUniquePtr<AVEncoder::FVideoEncoder> Encoder; // The real underlying encoder.
 	FSmoothedValue<60> SmoothedAvgQP;
+	FCriticalSection EncodingCriticalSection; // Ensures only one encoder is encoding at a time during quality controller swap.
 };
 
 class FPixelStreamingVideoEncoderFactory : public webrtc::VideoEncoderFactory
@@ -43,8 +46,10 @@ public:
 	// Always returns our H264 hardware encoder for now.
 	virtual std::unique_ptr<webrtc::VideoEncoder> CreateVideoEncoder(const webrtc::SdpVideoFormat& format) override;
 
+	void OnPostEncode();
 	void OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation);
-	void ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder);
+	void RegisterVideoEncoder(FPlayerId PlayerId, FPixelStreamingVideoEncoder* Encoder);
+	void UnregisterVideoEncoder(FPlayerId PlayerId);
 	void RemoveStaleEncoders();
 	void ForceKeyFrame();
 	double GetLatestQP();
@@ -53,7 +58,7 @@ private:
 	FEncoderContext EncoderContext;
 
 	// Each encoder is associated with a particular player (peer).
-	TArray<FPixelStreamingVideoEncoder*> ActiveEncoders;
+	TMap<FPlayerId, FPixelStreamingVideoEncoder*> ActiveEncoders;
 	
 	// Used for checks such as whether a given player id is associated with the quality controlling player.
 	IPixelStreamingSessions* PixelStreamingSessions;

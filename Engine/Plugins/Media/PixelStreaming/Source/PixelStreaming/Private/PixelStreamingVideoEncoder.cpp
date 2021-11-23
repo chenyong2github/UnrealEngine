@@ -28,7 +28,7 @@ FPixelStreamingVideoEncoder::FPixelStreamingVideoEncoder(const IPixelStreamingSe
 
 FPixelStreamingVideoEncoder::~FPixelStreamingVideoEncoder()
 {
-	Context->Factory->ReleaseVideoEncoder(this);
+	Context->Factory->UnregisterVideoEncoder(this->OwnerPlayerId);
 }
 
 int FPixelStreamingVideoEncoder::InitEncode(webrtc::VideoCodec const* codec_settings, VideoEncoder::Settings const& settings)
@@ -42,11 +42,13 @@ int FPixelStreamingVideoEncoder::InitEncode(webrtc::VideoCodec const* codec_sett
 
 	EncoderConfig.Width = codec_settings->width;
 	EncoderConfig.Height = codec_settings->height;
-	EncoderConfig.MaxBitrate = codec_settings->maxBitrate;
-	EncoderConfig.TargetBitrate = codec_settings->startBitrate;
-	EncoderConfig.MaxFramerate = codec_settings->maxFramerate;
 
-	WebRtcProposedTargetBitrate = codec_settings->startBitrate;
+	// TODO investigate why codec_settings is not respecting the CVars following code is a bandaid to mitigate a 1 frame quality drop at startup due to this.
+	EncoderConfig.MaxBitrate = PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate.GetValueOnAnyThread(); //codec_settings->maxBitrate;
+	EncoderConfig.TargetBitrate = PixelStreamingSettings::CVarPixelStreamingWebRTCStartBitrate.GetValueOnAnyThread(); //codec_settings->startBitrate;
+	EncoderConfig.MaxFramerate = PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps.GetValueOnAnyThread(); // codec_settings->maxFramerate;
+
+	WebRtcProposedTargetBitrate = PixelStreamingSettings::CVarPixelStreamingWebRTCStartBitrate.GetValueOnAnyThread();
 
 	return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -101,6 +103,10 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	{
 		FPixelStreamingInitFrameBuffer* InitFrameBuffer = static_cast<FPixelStreamingInitFrameBuffer*>(VideoFrameBuffer);
 		this->OwnerPlayerId = InitFrameBuffer->GetPlayerId();
+
+		// Register this encoder with the factory for so it will recieve shared onEncodedCallback
+		this->Context->Factory->RegisterVideoEncoder(this->OwnerPlayerId, this);
+
 		// Let any listener know the encoder is now officially ready to receive frames for encoding.
 		InitFrameBuffer->OnEncoderInitialized.ExecuteIfBound();
 
@@ -111,6 +117,9 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
+
+	// Lock from here on in the case where quality controller is changing mid encode.
+	FScopeLock Lock(&this->Context->EncodingCriticalSection);
 
 	FPixelStreamingFrameBuffer* EncoderFrameBuffer = nullptr;
 
@@ -123,16 +132,26 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	checkf(EncoderFrameBuffer, TEXT("Encoder framebuffer is null, encoding cannot proceed."));
 	checkf(this->OwnerPlayerId != INVALID_PLAYER_ID, TEXT("Encoder is not associated with a player/peer, encoding cannot proceed."));
 
+	if(!this->PixelStreamingSessions->IsQualityController(this->OwnerPlayerId))
+	{
+		UE_LOG(PixelStreamer, Log, TEXT("PixelStreamingVideoEncoder discarding frame - only the quality controlling peer should submit frames for encoding. This can sometimes happen on peer handover, but if you are seeing this continuously this is a bug."));
+	}
+
 	// Record stat for when WebRTC delivered frame, if stats are enabled.
 	FPixelStreamingStats& Stats = FPixelStreamingStats::Get();
 	if(Stats.GetStatsEnabled())
 	{
+		const int64 DeltaMicros = rtc::TimeMicros() - frame.timestamp_us();
+		const double DeltaMillis = (double) DeltaMicros / 1000.0;
+		Stats.SetCaptureToEncodeLatency(DeltaMillis);
 		Stats.OnWebRTCDeliverFrameForEncode();
 	}
 
+	const int FrameWidth = frame.width();
+	const int FrameHeight = frame.height();
 	if (!Context->Encoder)
 	{
-		CreateAVEncoder(EncoderFrameBuffer->GetVideoEncoderInput());
+		CreateAVEncoder(FrameWidth, FrameHeight);
 	}
 
 	// Change rates, if required.
@@ -140,13 +159,12 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 
 	// Detect video frame not matching encoder encoding resolution
 	// Note: This can happen when UE application changes its resolution and the encoder is not programattically updated.
-	int const FrameWidth = frame.width();
-	int const FrameHeight = frame.height();
 	if (EncoderConfig.Width != FrameWidth || EncoderConfig.Height != FrameHeight)
 	{
 		EncoderConfig.Width = FrameWidth;
 		EncoderConfig.Height = FrameHeight;
 		Context->Encoder->UpdateLayerConfig(0, EncoderConfig);
+		Context->FrameFactory.SetResolution(FrameWidth, FrameHeight);
 	}
 	
 	// Make a copy of encoder config from the existing config
@@ -164,8 +182,10 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 		ForceNextKeyframe = false;
 	}
 
-	AVEncoder::FVideoEncoderInputFrame* const EncoderInputFrame = EncoderFrameBuffer->GetFrame();
+	AVEncoder::FVideoEncoderInputFrame* EncoderInputFrame = Context->FrameFactory.GetFrameAndSetTexture(FrameWidth, FrameHeight, EncoderFrameBuffer->GetTextureObtainer());
 	EncoderInputFrame->SetTimestampRTP(frame.timestamp());
+	EncoderInputFrame->SetTimestampUs(frame.timestamp_us());
+
 
 	// If we are running a latency test then record pre-encode timing
 	if (FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::PRE_ENCODE)
@@ -174,7 +194,11 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	}
 
 	// Encode the frame!
+	// TODO technically the encoder can fail here and we should return with WEBRTC_VIDEO_CODEC_ERROR 
 	Context->Encoder->Encode(EncoderInputFrame, EncodeOptions);
+
+	// Let factory know we are now post encode, so it is a safe time to do any cleanup as no one is encoding.
+	Context->Factory->OnPostEncode();
 
 	return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -271,62 +295,18 @@ FPlayerId FPixelStreamingVideoEncoder::GetPlayerId() const
 	return this->OwnerPlayerId;
 }
 
+bool FPixelStreamingVideoEncoder::IsInitialized() const
+{
+	return this->OwnerPlayerId != INVALID_PLAYER_ID;
+}
+
 bool FPixelStreamingVideoEncoder::IsRegisteredWithWebRTC()
 {
 	return OnEncodedImageCallback != nullptr;
 }
 
-void CreateH264FragmentHeader(uint8 const* CodedData, size_t CodedDataSize, webrtc::RTPFragmentationHeader& Fragments)
-{
-	// count the number of nal units
-	for (int pass = 0; pass < 2; ++pass)
-	{
-		size_t num_nal = 0;
-		size_t offset = 0;
-		while (offset < CodedDataSize)
-		{
-			// either a 0,0,1 or 0,0,0,1 sequence indicates a new 'nal'
-			size_t nal_maker_length = 3;
-			if (offset < (CodedDataSize - 3) && CodedData[offset] == 0 &&
-				CodedData[offset + 1] == 0 && CodedData[offset + 2] == 1)
-			{
-			}
-			else if (offset < (CodedDataSize - 4) && CodedData[offset] == 0 &&
-				CodedData[offset + 1] == 0 && CodedData[offset + 2] == 0 &&
-				CodedData[offset + 3] == 1)
-			{
-				nal_maker_length = 4;
-			}
-			else
-			{
-				++offset;
-				continue;
-			}
-			if (pass == 1)
-			{
-				Fragments.fragmentationOffset[num_nal] = offset + nal_maker_length;
-				Fragments.fragmentationLength[num_nal] = 0;
-				if (num_nal > 0)
-				{
-					Fragments.fragmentationLength[num_nal - 1] = offset - Fragments.fragmentationOffset[num_nal - 1];
-				}
-			}
-			offset += nal_maker_length;
-			++num_nal;
-		}
-		if (pass == 0)
-		{
-			Fragments.VerifyAndAllocateFragmentationHeader(num_nal);
-		}
-		else if (pass == 1 && num_nal > 0)
-		{
-			Fragments.fragmentationLength[num_nal - 1] = offset - Fragments.fragmentationOffset[num_nal - 1];
-		}
-	}
-}
-
 //Note: this is a free function on purpose as it is not tied to the object life cycle of a given PixelStreamingVideoEncoder
-void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacketImpl& InPacket)
+void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket, uint64 StartPostEncodeCycles)
 {
 	// During shutdown this can function can sometimes be called by a queued encode if timing is unfortunate and the context is null
 	if(Context == nullptr)
@@ -336,8 +316,17 @@ void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEnco
 
 	webrtc::EncodedImage Image;
 
+	// Create H264 frag header for the encoded frame
 	webrtc::RTPFragmentationHeader FragHeader;
-	CreateH264FragmentHeader(InPacket.Data, InPacket.DataSize, FragHeader);
+	std::vector<webrtc::H264::NaluIndex> NALUIndices = webrtc::H264::FindNaluIndices(InPacket.Data, InPacket.DataSize);
+	FragHeader.VerifyAndAllocateFragmentationHeader(NALUIndices.size());
+	FragHeader.fragmentationVectorSize = static_cast<uint16_t>(NALUIndices.size());
+	for (int I = 0; I != NALUIndices.size(); ++I)
+	{
+		webrtc::H264::NaluIndex const& NALUIndex = NALUIndices[I];
+		FragHeader.fragmentationOffset[I] = NALUIndex.payload_start_offset;
+		FragHeader.fragmentationLength[I] = NALUIndex.payload_size;
+	}
 
 	Image.timing_.packetization_finish_ms = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMilliseconds();
 	Image.timing_.encode_start_ms = InPacket.Timings.StartTs.GetTotalMilliseconds();
@@ -371,6 +360,11 @@ void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEnco
 
 	if (Stats.GetStatsEnabled())
 	{
+		uint64 EndPostEncodeCycles = FPlatformTime::Cycles64();
+		double PostEncodeMs = FPlatformTime::ToMilliseconds64(EndPostEncodeCycles - StartPostEncodeCycles);
+		Stats.SetPostEncodeLatency(PostEncodeMs);
+		//UE_LOG(PixelStreamer, Log, TEXT("Post encode ms %f"), PostEncodeMs);
+
 		Stats.SetEncoderLatency(EncoderLatencyMs);
 		Stats.SetEncoderBitrateMbps(BitrateMbps);
 		Stats.SetEncoderQP(InPacket.VideoQP);
@@ -388,35 +382,19 @@ void OnEncodedPacket(FEncoderContext* Context, uint32 InLayerIndex, const AVEnco
 	}
 }
 
-void FPixelStreamingVideoEncoder::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEncoderInput> EncoderInput)
+void FPixelStreamingVideoEncoder::CreateAVEncoder(int Width, int Height)
 {
 	// TODO: When we have multiple HW encoders do some factory checking and find the best encoder.
 	const TArray<AVEncoder::FVideoEncoderInfo>& Available = AVEncoder::FVideoEncoderFactory::Get().GetAvailable();
 
-	Context->Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, EncoderInput, EncoderConfig);
+	Context->Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, Context->FrameFactory.GetOrCreateVideoEncoderInput(Width, Height), EncoderConfig);
 	checkf(Context->Encoder, TEXT("Pixel Streaming video encoder creation failed, check encoder config."));
 
 	FEncoderContext* ContextPtr = this->Context;
 	Context->Encoder->SetOnEncodedPacket([ContextPtr](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) 
 	{
-
-		// Create a memory copy of the CodecPacket because the encoder will recycle InPacket.Data again after this.
-		AVEncoder::FCodecPacketImpl* CopyPacket = new AVEncoder::FCodecPacketImpl();
-		CopyPacket->DataSize = InPacket.DataSize;
-		CopyPacket->Data = static_cast<const uint8*>(FMemory::Malloc(InPacket.DataSize));
-		FMemory::BigBlockMemcpy(const_cast<uint8*>(CopyPacket->Data), InPacket.Data, InPacket.DataSize);
-		CopyPacket->IsKeyFrame = InPacket.IsKeyFrame;
-		CopyPacket->VideoQP = InPacket.VideoQP;
-		CopyPacket->Timings = InPacket.Timings;
-
-		// We do the actual work somewhere on the task graph so we are not locking up the encoder.
-		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [ContextPtr, InLayerIndex, InFrame, CopyPacket] ()
-		{
-			OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, *CopyPacket);
-			delete[] CopyPacket->Data;
-			delete CopyPacket;
-		}); 
-		
+		uint64 StartPostEncodeCycles = FPlatformTime::Cycles64();
+		OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, InPacket, StartPostEncodeCycles);
 	});
 }
 

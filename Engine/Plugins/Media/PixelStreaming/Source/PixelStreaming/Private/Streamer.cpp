@@ -230,6 +230,7 @@ void FStreamer::HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface*
 					codec_params.max_bitrate_bps = PixelStreamingSettings::CVarPixelStreamingWebRTCMaxBitrate.GetValueOnAnyThread();
 					codec_params.min_bitrate_bps = PixelStreamingSettings::CVarPixelStreamingWebRTCMinBitrate.GetValueOnAnyThread();
 					codec_params.max_framerate = PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps.GetValueOnAnyThread();
+					codec_params.network_priority = webrtc::Priority::kHigh;
 				}
 				
 				// Set the degradation preference based on our CVar for it.
@@ -416,12 +417,17 @@ void FStreamer::DeleteAllPlayerSessions()
 
 void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 {
+	// Note: this is very explicitly the first thing to get called, other ordering is problematic at the time of writing.
+	this->VideoEncoderFactory->UnregisterVideoEncoder(PlayerId);
+
 	int NumRemainingPlayers = this->PlayerSessions.DeletePlayerSession(PlayerId);
 
 	if(NumRemainingPlayers == 0)
 	{
 		this->bStreamingStarted = false;
 	}
+
+	this->VideoSources.DeleteVideoSource(PlayerId);
 }
 
 void FStreamer::AddStreams(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection)

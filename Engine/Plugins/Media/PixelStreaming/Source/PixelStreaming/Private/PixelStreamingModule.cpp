@@ -8,7 +8,6 @@
 #include "PixelStreamerDelegates.h"
 #include "SignallingServerConnection.h"
 #include "PixelStreamingSettings.h"
-#include "PixelStreamingStats.h"
 #include "PixelStreamingPrivate.h"
 #include "PlayerSession.h"
 #include "PixelStreamingAudioSink.h"
@@ -18,6 +17,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Engine/Texture2D.h"
 #include "Slate/SceneViewport.h"
+#include "Utils.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 #include "Windows/WindowsHWrapper.h"
@@ -78,9 +78,6 @@ namespace
 
 void FPixelStreamingModule::InitStreamer()
 {
-	// Cap the engine framerate to what WebRTC
-	GEngine->SetMaxFPS(PixelStreamingSettings::CVarPixelStreamingWebRTCMaxFps.GetValueOnAnyThread());
-
 	FString StreamerId;
 	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), StreamerId);
 
@@ -307,8 +304,10 @@ void FPixelStreamingModule::FreezeFrame(UTexture2D* Texture)
 			// Create empty texture
 			FRHIResourceCreateInfo CreateInfo(TEXT("FreezeFrameTexture"));
 			FTexture2DRHIRef DestTexture = GDynamicRHI->RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Present, CreateInfo);
+			FGPUFenceRHIRef CopyFence = GDynamicRHI->RHICreateGPUFence(*FString::Printf(TEXT("FreezeFrameFence")));
+
 			// Copy freeze frame texture to empty texture
-			CopyTexture(Texture2DRHI, DestTexture);
+			CopyTexture(Texture2DRHI, DestTexture, CopyFence);
 
 			TArray<FColor> Data;
 			FIntRect Rect(0, 0, Width, Height);
@@ -423,8 +422,6 @@ bool FPixelStreamingModule::IsTickableInEditor() const
 
 void FPixelStreamingModule::Tick(float DeltaTime)
 {
-	FPixelStreamingStats::Get().Tick();
-
 	// If we are running a latency test then check if we have timing results and if we do transmit them
 	if(FLatencyTester::IsTestRunning() && FLatencyTester::GetTestStage() == FLatencyTester::ELatencyTestStage::RESULTS_READY)
 	{

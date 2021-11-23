@@ -27,7 +27,7 @@ class FLatencyTester
         // Start latency tester, resets all the internally recorded timings, makes the RecordXXX functions do stuff (otherwise they no-op).
         static void Start(FPlayerId PlayerWhoTriggeredTest);
         static bool RecordReceiptTime();
-        static bool RecordPreCaptureTime(uint32 FrameId);
+        static bool RecordPreCaptureTime();
         static bool RecordPostCaptureTime(uint32 FrameId);
         static bool RecordPreEncodeTime(uint32 FrameId);
         static bool RecordPostEncodeTime(uint32 FrameId);
@@ -40,14 +40,14 @@ class FLatencyTester
 
         //Private constructor, only static methods are exposed.
         FLatencyTester() : TestStage(ELatencyTestStage::INACTIVE) {}
-        unsigned long long EpochMillisNow();
+        double EpochMillisNow();
 
-        unsigned long long ReceiptTimeMs = 0;
-        unsigned long long PreCaptureTimeMs = 0;
-        unsigned long long PostCaptureTimeMs = 0;
-        unsigned long long PreEncodeTimeMs = 0;
-        unsigned long long PostEncodeTimeMs = 0;
-        unsigned long long TransmissionTimeMs = 0;
+        double ReceiptTimeMs = 0;
+        double PreCaptureTimeMs = 0;
+        double PostCaptureTimeMs = 0;
+        double PreEncodeTimeMs = 0;
+        double PostEncodeTimeMs = 0;
+        double TransmissionTimeMs = 0;
         uint32 FrameId = 0;
         FPlayerId PlayerWhoTriggeredTest = FPlayerId();
         std::atomic<ELatencyTestStage> TestStage;

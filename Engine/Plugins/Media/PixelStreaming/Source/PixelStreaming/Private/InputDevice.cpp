@@ -412,17 +412,7 @@ void FInputDevice::Tick(float DeltaTime)
 	FString Command;
 	while (Commands.Dequeue(Command))
 	{
-		for (UPixelStreamerInputComponent* InputComponent : this->PixelStreamingModule->GetInputComponents())
-		{
-			if (InputComponent->OnCommand(Command))
-			{
-				UE_LOG(PixelStreamerInputDevice, Verbose, TEXT("Command = %s"), *Command);
-			}
-			else
-			{
-				UE_LOG(PixelStreamerInputDevice, Warning, TEXT("Failed to run Command = %s"), *Command);
-			}
-		}
+		UPixelStreamerInputComponent::OnCommand(Command);
 	}
 }
 
