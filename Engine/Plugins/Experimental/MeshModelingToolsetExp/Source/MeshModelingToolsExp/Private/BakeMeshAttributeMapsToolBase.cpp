@@ -225,6 +225,8 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMap
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), PreviewMap);
 		break;
 	}
+	PreviewMaterial->SetScalarParameterValue(TEXT("UVChannel"), CachedBakeCacheSettings.TargetUVLayer);
+	BentNormalPreviewMaterial->SetScalarParameterValue(TEXT("UVChannel"), CachedBakeCacheSettings.TargetUVLayer);
 }
 
 
