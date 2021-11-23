@@ -26,7 +26,7 @@ struct FFileIoStoreCompressionContext
 class FFileIoStoreReader
 {
 public:
-	FFileIoStoreReader(IPlatformFileIoStore& InPlatformImpl);
+	FFileIoStoreReader(IPlatformFileIoStore& InPlatformImpl, FFileIoStoreStats& InStats);
 	~FFileIoStoreReader();
 	FIoStatus Initialize(const TCHAR* ContainerPath, int32 Order);
 	uint32 GetContainerInstanceId() const
@@ -51,9 +51,11 @@ public:
 
 private:
 	const FIoOffsetAndLength* FindChunkInternal(const FIoChunkId& ChunkId) const;
+	uint64 GetTocAllocatedSize() const;
 	
 	IPlatformFileIoStore& PlatformImpl;
-	
+	FFileIoStoreStats& Stats;
+
 	struct FPerfectHashMap
 	{
 		TArray<int32> TocChunkHashSeeds;
@@ -166,6 +168,7 @@ private:
 
 	uint64 ReadBufferSize = 0;
 	TSharedPtr<const FIoDispatcherBackendContext> BackendContext;
+	FFileIoStoreStats Stats;
 	FFileIoStoreBlockCache BlockCache;
 	FFileIoStoreBufferAllocator BufferAllocator;
 	FFileIoStoreRequestAllocator RequestAllocator;

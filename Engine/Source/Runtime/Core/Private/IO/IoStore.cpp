@@ -33,7 +33,7 @@ constexpr char FIoStoreTocHeader::TocMagicImg[];
 
 //////////////////////////////////////////////////////////////////////////
 
-TRACE_DECLARE_INT_COUNTER(IoStoreAvailableCompressionBuffers, TEXT("IoStore/AvailableCompressionBuffers"));
+//TRACE_DECLARE_INT_COUNTER(IoStoreAvailableCompressionBuffers, TEXT("IoStore/AvailableCompressionBuffers"));
 
 FString LexToString(const EIoChunkType Type)
 {
@@ -346,7 +346,7 @@ public:
 		{
 			AvailableCompressionBuffers.Add(new FIoBuffer(CompressionBufferSize));
 		}
-		TRACE_COUNTER_SET(IoStoreAvailableCompressionBuffers, AvailableCompressionBuffers.Num());
+		//TRACE_COUNTER_SET(IoStoreAvailableCompressionBuffers, AvailableCompressionBuffers.Num());
 
 		BeginCompressionThread = Async(EAsyncExecution::Thread, [this]() { BeginCompressionThreadFunc(); });
 		BeginEncryptionAndSigningThread = Async(EAsyncExecution::Thread, [this]() { BeginEncryptionAndSigningThreadFunc(); });
@@ -398,7 +398,7 @@ public:
 				if (AvailableCompressionBuffers.Num())
 				{
 					AllocatedBuffer = AvailableCompressionBuffers.Pop();
-					TRACE_COUNTER_DECREMENT(IoStoreAvailableCompressionBuffers);
+					//TRACE_COUNTER_DECREMENT(IoStoreAvailableCompressionBuffers);
 				}
 			}
 			if (!AllocatedBuffer)
@@ -422,7 +422,7 @@ public:
 			FScopeLock Lock(&AvailableCompressionBuffersCritical);
 			bTriggerEvent = AvailableCompressionBuffers.Num() == 0;
 			AvailableCompressionBuffers.Push(Buffer);
-			TRACE_COUNTER_INCREMENT(IoStoreAvailableCompressionBuffers);
+			//TRACE_COUNTER_INCREMENT(IoStoreAvailableCompressionBuffers);
 		}
 		if (bTriggerEvent)
 		{

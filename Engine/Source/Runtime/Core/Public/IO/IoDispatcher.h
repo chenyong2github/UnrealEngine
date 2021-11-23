@@ -885,6 +885,7 @@ class FIoBatch final
 {
 	friend class FIoDispatcher;
 	friend class FIoDispatcherImpl;
+	friend class FIoRequestStats;
 
 public:
 	CORE_API FIoBatch();

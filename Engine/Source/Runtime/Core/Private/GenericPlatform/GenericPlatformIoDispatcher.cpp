@@ -69,7 +69,6 @@ bool FGenericFileIoStoreImpl::OpenContainer(const TCHAR* ContainerFilePath, uint
 void FGenericFileIoStoreImpl::CloseContainer(uint64 ContainerFileHandle)
 {
 	check(ContainerFileHandle);
-	FFileIoStats::OnCloseHandle(ContainerFileHandle);
 	IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(ContainerFileHandle);
 	delete FileHandle;
 }
@@ -106,12 +105,11 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 	{
 		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(NextRequest->FileHandle));
 		 
-		FFileIoStats::OnFilesystemReadStarted(NextRequest->FileHandle, NextRequest->Offset, NextRequest->Size);
+		Stats->OnFilesystemReadStarted(NextRequest);
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ReadBlockFromFile);
 			NextRequest->bFailed = true;
 			int32 RetryCount = 0;
-			TRACE_COUNTER_INCREMENT(IoDispatcherFileBackendFileSystemRequests);
 			while (RetryCount++ < 10)
 			{
 				if (!FileHandle->Seek(NextRequest->Offset))
@@ -125,12 +123,11 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 					continue;
 				}
 				NextRequest->bFailed = false;
-				TRACE_COUNTER_ADD(IoDispatcherFileBackendFileSystemTotalBytesRead, NextRequest->Size);
+				Stats->OnFilesystemReadCompleted(NextRequest);
 				BlockCache->Store(NextRequest);
 				break;
 			}
 		}
-		FFileIoStats::OnFilesystemReadsComplete(NextRequest->Size);
 	}
 	{
 		FScopeLock _(&CompletedRequestsCritical);
