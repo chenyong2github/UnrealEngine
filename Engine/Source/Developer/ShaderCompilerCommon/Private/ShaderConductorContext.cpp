@@ -209,8 +209,9 @@ namespace CrossCompiler
 		TArray<ShaderConductor::MacroDefine> DefineRefs;
 		TArray<TPair<TArray<ANSICHAR>, TArray<ANSICHAR>>> Flags;
 		TArray<ShaderConductor::MacroDefine> FlagRefs;
-		TArray<TArray<ANSICHAR>> ExtraDxcArgs;
-		TArray<ANSICHAR const*> ExtraDxcArgRefs;
+		TArray<TArray<ANSICHAR>> CustomDxcArgs;
+		TArray<ANSICHAR const*> CustomDxcArgRefs;
+		TArray<ANSICHAR const*> DxcArgRefs;
 	};
 
 	static void ConvertScSourceDesc(const FShaderConductorContext::FShaderConductorIntermediates& Intermediates, ShaderConductor::Compiler::SourceDesc& OutSourceDesc)
@@ -388,7 +389,7 @@ namespace CrossCompiler
 		}
 	}
 
-	static void ConvertScOptions(const FShaderConductorOptions& InOptions, ShaderConductor::Compiler::Options& OutOptions, const TArray<ANSICHAR const*>& ExtraDxcArgRefs)
+	static void ConvertScOptions(const FShaderConductorOptions& InOptions, ShaderConductor::Compiler::Options& OutOptions, const TArray<ANSICHAR const*>& CustomDxcArgRefs, TArray<ANSICHAR const*>& DxcArgRefs)
 	{
 		// Validate input shader model with respect to certain language features.
 		checkf(
@@ -410,13 +411,29 @@ namespace CrossCompiler
 			static_cast<uint8>(InOptions.ShaderModel.Minor)
 		};
 
-		if (ExtraDxcArgRefs.Num() > 0)
+		// Add additional DXC arguments that are not exposed by ShaderConductor API directly
+		DxcArgRefs.Empty();
+		if (InOptions.bDisableScalarBlockLayout)
 		{
-			OutOptions.numDXCArgs = ExtraDxcArgRefs.Num();
-			OutOptions.DXCArgs = (const char**)ExtraDxcArgRefs.GetData();
+			DxcArgRefs.Add("-fspv-no-scalar-block-layout");
+		}
+
+		if (DxcArgRefs.Num() > 0)
+		{
+			// Use DXC argument container and append custom arguments
+			DxcArgRefs.Append(CustomDxcArgRefs);
+			OutOptions.numDXCArgs = DxcArgRefs.Num();
+			OutOptions.DXCArgs = (const char**)DxcArgRefs.GetData();
+		}
+		else if (CustomDxcArgRefs.Num() > 0)
+		{
+			// Use custom DXC arguments only
+			OutOptions.numDXCArgs = CustomDxcArgRefs.Num();
+			OutOptions.DXCArgs = (const char**)CustomDxcArgRefs.GetData();
 		}
 		else
 		{
+			// No additional DXC arguments
 			OutOptions.numDXCArgs = 0;
 			OutOptions.DXCArgs = nullptr;
 		}
@@ -499,7 +516,7 @@ namespace CrossCompiler
 
 		if (ExtraDxcArgs && ExtraDxcArgs->Num() > 0)
 		{
-			ConvertStringArrayToAnsiArray(*ExtraDxcArgs, Intermediates->ExtraDxcArgs, Intermediates->ExtraDxcArgRefs);
+			ConvertStringArrayToAnsiArray(*ExtraDxcArgs, Intermediates->CustomDxcArgs, Intermediates->CustomDxcArgRefs);
 		}
 
 		// Convert shader stage
@@ -523,7 +540,7 @@ namespace CrossCompiler
 
 		if (ExtraDxcArgs && ExtraDxcArgs->Num() > 0)
 		{
-			ConvertStringArrayToAnsiArray(*ExtraDxcArgs, Intermediates->ExtraDxcArgs, Intermediates->ExtraDxcArgRefs);
+			ConvertStringArrayToAnsiArray(*ExtraDxcArgs, Intermediates->CustomDxcArgs, Intermediates->CustomDxcArgRefs);
 		}
 
 		// Convert shader stage
@@ -539,7 +556,7 @@ namespace CrossCompiler
 		ConvertScSourceDesc(*Intermediates, ScSourceDesc);
 
 		ShaderConductor::Compiler::Options ScOptions;
-		ConvertScOptions(Options, ScOptions, {});
+		ConvertScOptions(Options, ScOptions, {}, Intermediates->DxcArgRefs);
 
 		// Rewrite HLSL with wrapper function to catch exceptions from ShaderConductor
 		bool bSucceeded = false;
@@ -585,7 +602,7 @@ namespace CrossCompiler
 		ScTargetDesc.language = ShaderConductor::ShadingLanguage::SpirV;
 
 		ShaderConductor::Compiler::Options ScOptions;
-		ConvertScOptions(Options, ScOptions, Intermediates->ExtraDxcArgRefs);
+		ConvertScOptions(Options, ScOptions, Intermediates->CustomDxcArgRefs, Intermediates->DxcArgRefs);
 
 		// Compile HLSL source code to SPIR-V
 		bool bSucceeded = false;
@@ -690,7 +707,7 @@ namespace CrossCompiler
 		ConvertScTargetDesc(*Intermediates, Target, ScTargetDesc);
 
 		ShaderConductor::Compiler::Options ScOptions;
-		ConvertScOptions(Options, ScOptions, Intermediates->ExtraDxcArgRefs);
+		ConvertScOptions(Options, ScOptions, Intermediates->CustomDxcArgRefs, Intermediates->DxcArgRefs);
 
 		ShaderConductor::Compiler::ResultDesc ScBinaryDesc;
 		ScBinaryDesc.target.Reset(InSpirv, InSpirvByteSize);

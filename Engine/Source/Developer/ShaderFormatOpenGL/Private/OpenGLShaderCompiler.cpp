@@ -1509,6 +1509,7 @@ static bool CompileToGlslWithShaderConductor(
 
 	// Initialize compilation options for ShaderConductor
 	CrossCompiler::FShaderConductorOptions Options;
+	Options.bDisableScalarBlockLayout = true;
 	
 	// Convert input strings from FString to ANSI strings
 	std::string SourceData(TCHAR_TO_UTF8(*PreprocessedShader));
