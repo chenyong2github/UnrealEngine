@@ -134,10 +134,13 @@ namespace BuildGraph.Tasks
 				Arguments.Add("--kubeconfig");
 				Arguments.Add(Parameters.KubeConfig);
 			}
-			foreach (string Value in SplitDelimitedList(Parameters.Values))
+			if (!string.IsNullOrEmpty(Parameters.Values))
 			{
-				Arguments.Add("--set");
-				Arguments.Add(Value);
+				foreach (string Value in SplitDelimitedList(Parameters.Values))
+				{
+					Arguments.Add("--set");
+					Arguments.Add(Value);
+				}
 			}
 			if (!String.IsNullOrEmpty(Parameters.ValuesFile))
 			{
