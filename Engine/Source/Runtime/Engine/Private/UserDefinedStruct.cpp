@@ -116,9 +116,9 @@ void UUserDefinedStruct::Serialize(FStructuredArchive::FRecord Record)
 				if (!(UnderlyingArchive.GetPortFlags() & PPF_Duplicate))
 				{
 					if(!DefaultStructInstance.IsValid())
-				{
-					FStructureEditorUtils::RecreateDefaultInstanceInEditorData(this);
-				}
+					{
+						FStructureEditorUtils::RecreateDefaultInstanceInEditorData(this);
+					}
 					else
 					{
 						UUserDefinedStructEditorData* UDSEditorData = Cast<UUserDefinedStructEditorData>(EditorData);

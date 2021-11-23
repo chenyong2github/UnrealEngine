@@ -134,6 +134,7 @@ public:
 	virtual void PostEditUndo() override;
 	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
 	virtual void PostLoadSubobjects(struct FObjectInstancingGraph* OuterInstanceGraph) override;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	// End of UObject interface.
 
 	// FEditorUndoClient interface
@@ -149,6 +150,7 @@ public:
 	void RecreateDefaultInstance(FString* OutLog = nullptr);
 	void ReinitializeDefaultInstance(FString* OutLog = nullptr);
 	void CleanDefaultInstance();
+	void RefreshValuesFromDefaultInstance();
 
 private:
 

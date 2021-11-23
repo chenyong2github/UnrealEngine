@@ -150,6 +150,9 @@ struct FUserDefinedStructureCompilerInner
 
 		if (UUserDefinedStructEditorData* EditorData = Cast<UUserDefinedStructEditorData>(StructToClean->EditorData))
 		{
+			// Ensure that editor data is in sync w/ the current default instance (if valid) so that it can be reinitialized later.
+			EditorData->RefreshValuesFromDefaultInstance();
+
 			EditorData->CleanDefaultInstance();
 		}
 
