@@ -1347,7 +1347,7 @@ bool FLevelEditorActionCallbacks::IsAttachableActor( const AActor* const ParentA
 
 void FLevelEditorActionCallbacks::CreateNewOutlinerFolder_Clicked()
 {
-	const FName NewFolderName = FActorFolders::Get().GetDefaultFolderNameForSelection(*GetWorld());
+	const FFolder NewFolderName = FActorFolders::Get().GetDefaultFolderForSelection(*GetWorld());
 	FActorFolders::Get().CreateFolderContainingSelection(*GetWorld(), NewFolderName);
 }
 

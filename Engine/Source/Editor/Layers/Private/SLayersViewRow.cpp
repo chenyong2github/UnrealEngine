@@ -143,7 +143,7 @@ FReply SLayersViewRow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEv
 	{
 		if (UWorld* World = FolderDragOp->World.Get())
 		{
-			FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, Actors);
+			FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, Actors, FolderDragOp->RootObject);
 		}
 	}
 
@@ -202,7 +202,7 @@ FReply SLayersViewRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent&
 	{
 		if (UWorld* World = FolderDragOp->World.Get())
 		{
-			FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, ActorsToDrop);
+			FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, ActorsToDrop, FolderDragOp->RootObject);
 			bHandled = true;
 		}
 	}
@@ -217,7 +217,7 @@ FReply SLayersViewRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent&
 		{
 			if (UWorld* World = FolderDragOp->World.Get())
 			{
-				FActorFolders::GetWeakActorsFromFolders(*World, FolderSubOp->Folders, ActorsToDrop);
+				FActorFolders::GetWeakActorsFromFolders(*World, FolderSubOp->Folders, ActorsToDrop, FolderDragOp->RootObject);
 				bHandled = true;
 			}
 		}
@@ -274,7 +274,7 @@ FSlateColor SLayersViewRow::GetColorAndOpacity() const
 			auto World = FolderDragOp->World;
 			if (UWorld* WorldPtr = World.Get())
 			{
-				FActorFolders::GetWeakActorsFromFolders(*WorldPtr, FolderDragOp->Folders, DraggedActors);
+				FActorFolders::GetWeakActorsFromFolders(*WorldPtr, FolderDragOp->Folders, DraggedActors, FolderDragOp->RootObject);
 			}
 		}
 

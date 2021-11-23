@@ -123,8 +123,7 @@ void SSceneOutlinerTreeView::FlashHighlightOnItem( FSceneOutlinerTreeItemPtr Fla
 FReply SSceneOutlinerTreeView::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	FSceneOutlinerDragValidationInfo ValidationInfo = FSceneOutlinerDragValidationInfo::Invalid();
-
-	FFolderTreeItem DropTarget(NAME_None);
+	FFolderTreeItem DropTarget(FFolder(NAME_None, nullptr));
 
 	auto Reply = HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, DropTarget, ValidationInfo);
 	if (Reply.IsEventHandled())
@@ -146,7 +145,7 @@ void SSceneOutlinerTreeView::OnDragLeave(const FDragDropEvent& DragDropEvent)
 FReply SSceneOutlinerTreeView::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	FSceneOutlinerDragValidationInfo ValidationInfo = FSceneOutlinerDragValidationInfo::Invalid();
-	FFolderTreeItem DropTarget(NAME_None);
+	FFolderTreeItem DropTarget(FFolder(NAME_None, nullptr));
 
 	return HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, DropTarget, ValidationInfo, true);
 }

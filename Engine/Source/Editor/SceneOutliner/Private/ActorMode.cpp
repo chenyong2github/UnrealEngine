@@ -15,11 +15,14 @@
 #include "ComponentTreeItem.h"
 #include "ActorDescTreeItem.h"
 #include "WorldTreeItem.h"
+#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorMode"
 
 using FActorFilter = TSceneOutlinerPredicateFilter<FActorTreeItem>;
+using FFolderFilter = TSceneOutlinerPredicateFilter<FFolderTreeItem>;
 
 namespace SceneOutliner
 {
@@ -85,6 +88,23 @@ FActorMode::FActorMode(const FActorModeParams& Params)
 	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
 		{
 			return IsActorDisplayable(Actor);
+		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
+
+	SceneOutliner->AddFilter(MakeShared<FFolderFilter>(FFolderTreeItem::FFilterPredicate::CreateLambda([this](const FFolder& Folder)
+		{
+			if (!Folder.HasRootObject())
+			{
+				return true;
+			}
+			if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(Folder.GetRootObjectPtr()))
+			{
+				const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld.IsValid() ? RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>() : nullptr;
+				if (LevelInstanceSubsystem && LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstance))
+				{
+					return true;
+				}
+			}
+			return false;
 		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 

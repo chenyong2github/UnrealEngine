@@ -17,13 +17,13 @@
 
 namespace SceneOutliner
 {
-	bool FFolderPathSelector::operator()(TWeakPtr<ISceneOutlinerTreeItem> Item, FName& DataOut) const
+	bool FFolderPathSelector::operator()(TWeakPtr<ISceneOutlinerTreeItem> Item, FFolder& DataOut) const
 	{
 		if (FFolderTreeItem* FolderItem = Item.Pin()->CastTo<FFolderTreeItem>())
 		{
 			if (FolderItem->IsValid())
 			{
-				DataOut = FolderItem->Path;
+				DataOut = FolderItem->GetFolder();
 				return true;
 			}
 		}
@@ -33,23 +33,48 @@ namespace SceneOutliner
 
 const FSceneOutlinerTreeItemType FFolderTreeItem::Type(&ISceneOutlinerTreeItem::Type);
 
+FFolderTreeItem::FFolderTreeItem(const FFolder& InFolder, FSceneOutlinerTreeItemType InType)
+	: ISceneOutlinerTreeItem(InType)
+	, RootObject(InFolder.GetRootObject())
+{
+	SetPath(InFolder.GetPath());
+}
+
+FFolderTreeItem::FFolderTreeItem(const FFolder& InFolder)
+	: ISceneOutlinerTreeItem(Type)
+	, RootObject(InFolder.GetRootObject())
+{
+	SetPath(InFolder.GetPath());
+}
+
 FFolderTreeItem::FFolderTreeItem(FName InPath)
 	: ISceneOutlinerTreeItem(Type)
 	, Path(InPath)
-	, LeafName(FEditorFolderUtils::GetLeafName(InPath))
 {
+	SetPath(InPath);
 }
 
 FFolderTreeItem::FFolderTreeItem(FName InPath, FSceneOutlinerTreeItemType InType)
 	: ISceneOutlinerTreeItem(InType)
-	, Path(InPath)
-	, LeafName(FEditorFolderUtils::GetLeafName(InPath))
 {
+	SetPath(InPath);
+}
+
+void FFolderTreeItem::SetPath(const FName& InNewPath)
+{
+	Path = InNewPath;
+	LeafName = FEditorFolderUtils::GetLeafName(Path);
 }
 
 FSceneOutlinerTreeItemID FFolderTreeItem::GetID() const
 {
-	return FSceneOutlinerTreeItemID(Path);
+	FFolderKey Key(Path, RootObject);
+	return FSceneOutlinerTreeItemID(Key);
+}
+
+FFolder::FRootObject FFolderTreeItem::GetRootObject() const
+{
+	return RootObject;
 }
 
 FString FFolderTreeItem::GetDisplayString() const

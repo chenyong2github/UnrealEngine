@@ -40,6 +40,7 @@
 #include "EdGraph/EdGraph.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectGlobals.h"
+#include "EditorActorFolders.h"
 #endif
 
 #include "HAL/IConsoleManager.h"
@@ -123,12 +124,34 @@ FLevelInstanceID ULevelInstanceSubsystem::RegisterLevelInstance(ALevelInstance* 
 	ALevelInstance*& Value = RegisteredLevelInstances.FindOrAdd(LevelInstanceID);
 	check(GIsReinstancing || Value == nullptr || Value == LevelInstanceActor);
 	Value = LevelInstanceActor;
+
+#if WITH_EDITOR
+	FObjectKey Level;
+	if (UnregisteringLevelInstances.RemoveAndCopyValue(LevelInstanceActor, Level))
+	{
+		if (ULevel* LevelPtr = Cast<ULevel>(Level.ResolveObjectPtr()))
+		{
+			LevelPtr->bIsEditorBeingRemoved = false;
+		}
+		ensure(UnregisteringLevelInstanceLevels.Remove(Level));
+	}
+#endif
+
 	return LevelInstanceID;
 }
 
 void ULevelInstanceSubsystem::UnregisterLevelInstance(ALevelInstance* LevelInstanceActor)
 {
 	RegisteredLevelInstances.Remove(LevelInstanceActor->GetLevelInstanceID());
+
+#if WITH_EDITOR
+	if (ULevel* Level = GetLevelInstanceLevel(LevelInstanceActor))
+	{
+		Level->bIsEditorBeingRemoved = true;
+		UnregisteringLevelInstanceLevels.Add(Level, LevelInstanceActor);
+		UnregisteringLevelInstances.Add(LevelInstanceActor, Level);
+	}
+#endif
 }
 
 void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInstanceActor, bool bForce /* = false */)
@@ -140,6 +163,13 @@ void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInst
 		if (!IsEditingLevelInstance(LevelInstanceActor))
 #endif
 		{
+#if WITH_EDITOR
+			if (ULevel* Level = GetLevelInstanceLevel(LevelInstanceActor))
+			{
+				Level->bIsEditorBeingRemoved = false;
+			}
+#endif
+			
 			LevelInstancesToUnload.Remove(LevelInstanceActor->GetLevelInstanceID());
 
 			bool* bForcePtr = LevelInstancesToLoadOrUpdate.Find(LevelInstanceActor);
@@ -164,6 +194,13 @@ void ULevelInstanceSubsystem::RequestLoadLevelInstance(ALevelInstance* LevelInst
 
 void ULevelInstanceSubsystem::RequestUnloadLevelInstance(ALevelInstance* LevelInstanceActor)
 {
+#if WITH_EDITOR
+	if (ULevel* Level = GetLevelInstanceLevel(LevelInstanceActor))
+	{
+		Level->bIsEditorBeingRemoved = true;
+	}
+#endif
+
 	const FLevelInstanceID& LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();
 	if (LevelInstances.Contains(LevelInstanceID))
 	{
@@ -196,7 +233,7 @@ void ULevelInstanceSubsystem::UpdateStreamingState()
 	SlowTask.MakeDialogDelayed(1.0f);
 
 	check(!LevelsToRemoveScope);
-	LevelsToRemoveScope.Reset(new FLevelsToRemoveScope());
+	LevelsToRemoveScope.Reset(new FLevelsToRemoveScope(this));
 #endif
 
 	if (LevelInstancesToUnload.Num())
@@ -278,7 +315,7 @@ void ULevelInstanceSubsystem::UnloadLevelInstance(const FLevelInstanceID& LevelI
 	if (!LevelsToRemoveScope)
 	{
 		bReleaseScope = true;
-		LevelsToRemoveScope.Reset(new FLevelsToRemoveScope());
+		LevelsToRemoveScope.Reset(new FLevelsToRemoveScope(this));
 	}
 #endif
 				
@@ -287,6 +324,10 @@ void ULevelInstanceSubsystem::UnloadLevelInstance(const FLevelInstanceID& LevelI
 	{
 		if (ULevel* LoadedLevel = LevelInstance.LevelStreaming->GetLoadedLevel())
 		{
+#if WITH_EDITOR
+			LoadedLevel->bIsEditorBeingRemoved = true;
+#endif
+
 			ForEachActorInLevel(LoadedLevel, [this](AActor* LevelActor)
 			{
 				if (ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(LevelActor))
@@ -734,14 +775,14 @@ bool ULevelInstanceSubsystem::IsCurrent(const ALevelInstance* LevelInstanceActor
 	return false;
 }
 
-bool ULevelInstanceSubsystem::MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel) const
+bool ULevelInstanceSubsystem::MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel, TArray<AActor*>* OutActors /*= nullptr*/) const
 {
 	check(DestinationLevel);
 
 	const bool bWarnAboutReferences = true;
 	const bool bWarnAboutRenaming = true;
 	const bool bMoveAllOrFail = true;
-	if (!EditorLevelUtils::MoveActorsToLevel(ActorsToRemove, DestinationLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail))
+	if (!EditorLevelUtils::MoveActorsToLevel(ActorsToRemove, DestinationLevel, bWarnAboutReferences, bWarnAboutRenaming, bMoveAllOrFail, OutActors))
 	{
 		UE_LOG(LogLevelInstance, Warning, TEXT("Failed to move actors out of Level Instance because not all actors could be moved"));
 		return false;
@@ -760,13 +801,13 @@ bool ULevelInstanceSubsystem::MoveActorsToLevel(const TArray<AActor*>& ActorsToR
 	return true;
 }
 
-bool ULevelInstanceSubsystem::MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove)
+bool ULevelInstanceSubsystem::MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove, TArray<AActor*>* OutActors /*= nullptr*/)
 {
 	check(IsEditingLevelInstance(LevelInstanceActor));
 	ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor);
 	check(LevelInstanceLevel);
 
-	return MoveActorsToLevel(ActorsToMove, LevelInstanceLevel);
+	return MoveActorsToLevel(ActorsToMove, LevelInstanceLevel, OutActors);
 }
 
 ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, const FNewLevelInstanceParams& CreationParams)
@@ -1146,29 +1187,76 @@ bool ULevelInstanceSubsystem::LevelInstanceHasLevelScriptBlueprint(const ALevelI
 	return false;
 }
 
-void ULevelInstanceSubsystem::RemoveLevelFromWorld(ULevel* Level, bool bResetTrans)
+void ULevelInstanceSubsystem::RemoveLevelsFromWorld(const TArray<ULevel*>& InLevels, bool bResetTrans)
 {
-	if (LevelsToRemoveScope)
+	if (LevelsToRemoveScope && LevelsToRemoveScope->IsValid())
+{
+		for (ULevel* Level : InLevels)
 	{
 		LevelsToRemoveScope->Levels.AddUnique(Level);
+		}
 		LevelsToRemoveScope->bResetTrans |= bResetTrans;
 	}
 	else
 	{
+		TSet<ULevel*> LevelInstanceLevels;
+		for (ULevel* Level : InLevels)
+		{
+			bool bIsAlreadyInSet = false;
+			LevelInstanceLevels.Add(Level, &bIsAlreadyInSet);
+
+			if (!bIsAlreadyInSet)
+			{
+				ForEachActorInLevel(Level, [this, &LevelInstanceLevels](AActor* LevelActor)
+				{
+					if (const ALevelInstance* ChildLevelInstanceActor = Cast<ALevelInstance>(LevelActor))
+					{
+						ForEachLevelInstanceChild(ChildLevelInstanceActor, /*bRecursive*/true, [this, &LevelInstanceLevels](const ALevelInstance* ChildLevelInstanceActor)
+						{
+							if (ULevel* ChildLevel = GetLevelInstanceLevel(ChildLevelInstanceActor))
+							{
+								LevelInstanceLevels.Add(ChildLevel);
+							}
+							return true;
+						});
+					}
+					return true;
+				});
+			}
+		}
+
+		// Flag all levels as bEditorBeingDestroyed. This way, even if child level instances are still pending to be unloaded, TActorIterator won't iterate on them.
+		for (ULevel* Level : LevelInstanceLevels)
+		{
+			Level->bIsEditorBeingRemoved = true;
+			FFolder::FRootObject RootObject;
+			if (UnregisteringLevelInstanceLevels.RemoveAndCopyValue(Level, RootObject))
+			{
+				ensure(UnregisteringLevelInstances.Remove(RootObject));
+				FActorFolders::Get().OnFolderRootObjectRemoved(*GetWorld(), RootObject);
+			}
+		}
+
 		// No need to clear the whole editor selection since actor of this level will be removed from the selection by: UEditorEngine::OnLevelRemovedFromWorld
-		const bool bClearSelection = false;
-		EditorLevelUtils::RemoveLevelFromWorld(Level, bClearSelection, bResetTrans);
+		EditorLevelUtils::RemoveLevelsFromWorld(InLevels, /*bClearSelection*/false, bResetTrans);
 	}
+	}
+
+ULevelInstanceSubsystem::FLevelsToRemoveScope::FLevelsToRemoveScope(ULevelInstanceSubsystem* InOwner)
+	: Owner(InOwner)
+	, bIsBeingDestroyed(false)
+{
 }
 
 ULevelInstanceSubsystem::FLevelsToRemoveScope::~FLevelsToRemoveScope()
 {
 	if (Levels.Num() > 0)
 	{
+		bIsBeingDestroyed = true;
 		double StartTime = FPlatformTime::Seconds();
-		const bool bClearSelection = false;
-		// No need to clear the whole editor selection since actor of this level will be removed from the selection by: UEditorEngine::OnLevelRemovedFromWorld
-		EditorLevelUtils::RemoveLevelsFromWorld(Levels, bClearSelection, bResetTrans);
+		ULevelInstanceSubsystem* LevelInstanceSubsystem = Owner.Get();
+		check(LevelInstanceSubsystem);
+		LevelInstanceSubsystem->RemoveLevelsFromWorld(Levels, bResetTrans);
 		double ElapsedTime = FPlatformTime::Seconds() - StartTime;
 		UE_LOG(LogLevelInstance, Log, TEXT("Unloaded %s levels in %s seconds"), *FText::AsNumber(Levels.Num()).ToString(), *FText::AsNumber(ElapsedTime).ToString());
 	}
@@ -1763,6 +1851,8 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 			}
 		}
 	}
+
+	GEngine->BroadcastLevelActorListChanged();
 
 	if (ALevelInstance* Actor = ActorToSelect.Get())
 	{

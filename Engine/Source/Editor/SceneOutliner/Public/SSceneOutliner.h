@@ -18,6 +18,7 @@
 #include "Delegates/DelegateCombinations.h"
 #include "Framework/Views/ITypedTableView.h"
 #include "Types/SlateEnums.h"
+#include "Folder.h"
 
 #include "ISceneOutliner.h"
 #include "SceneOutlinerFwd.h"
@@ -655,9 +656,11 @@ private:
 	FString CacheClipboardContents;
 
 	/** Maps pre-existing children during paste or duplicate */
-	TMap<FName, TArray<FSceneOutlinerTreeItemID>> CachePasteFolderExistingChildrenMap;
+	TMap<FFolder, TArray<FSceneOutlinerTreeItemID>> CachePasteFolderExistingChildrenMap;
 
 private:
+	bool GetCommonRootObjectFromSelection(FFolder::FRootObject& OutCommonRootObject) const;
+
 	/** Miscellaneous bindings required by the UI */
 
 	/** Called by the editable text control when the filter text is changed by the user */
@@ -701,13 +704,13 @@ public:
 	void FillFoldersSubMenu(UToolMenu* Menu) const;
 	void AddMoveToFolderOutliner(UToolMenu* Menu) const;
 	void FillSelectionSubMenu(UToolMenu* Menun) const;
-	TSharedRef<TSet<FName>> GatherInvalidMoveToDestinations() const;
+	TSharedRef<TSet<FFolder>> GatherInvalidMoveToDestinations() const;
 
 	/** Called to select descendants of the currently selected folders */
 	void SelectFoldersDescendants(bool bSelectImmediateChildrenOnly = false);
 
 	/** Moves the current selection to the specified folder path */
-	void MoveSelectionTo(FName NewParent);
+	void MoveSelectionTo(const FFolder& NewParent);
 
 	/** Create a new folder under the specified parent name (NAME_None for root) */
 	void CreateFolder();
@@ -739,7 +742,7 @@ private:
 	FSceneOutlinerTreeItemMap PendingTreeItemMap;
 
 	/** Folders pending selection */
-	TArray<FName> PendingFoldersSelect;
+	TArray<FFolder> PendingFoldersSelect;
 
 	/** Root level tree items */
 	TArray<FSceneOutlinerTreeItemPtr> RootTreeItems;

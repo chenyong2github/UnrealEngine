@@ -2875,6 +2875,15 @@ bool ULevel::IsCurrentLevel() const
 	return bIsCurrent;
 }
 
+bool ULevel::IsBeingRemoved() const
+{
+	bool bResult = bIsBeingRemoved;
+#if WITH_EDITOR
+	bResult |= bIsEditorBeingRemoved;
+#endif
+	return bResult;
+}
+
 bool ULevel::IsInstancedLevel() const
 {
 	UPackage* LevelPackage = GetOutermost();

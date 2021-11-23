@@ -6,7 +6,29 @@
 #include "Misc/Paths.h"
 #include "UObject/ObjectKey.h"
 #include "Templates/MaxSizeof.h"
+#include "Folder.h"
 #include "SceneOutlinerFwd.h"
+
+struct FFolderKey
+{
+	FFolderKey(const FName& InPath, const FFolder::FRootObject& InRootObject)
+		: Path(InPath)
+		, RootObjectKey(InRootObject)
+	{}
+
+	FORCEINLINE bool operator == (const FFolderKey& InOther)
+	{
+		return (Path == InOther.Path) && (RootObjectKey == InOther.RootObjectKey);
+	}
+
+	FName Path;
+	FFolder::FRootObject RootObjectKey;
+};
+
+FORCEINLINE uint32 GetTypeHash(FFolderKey Key)
+{
+	return HashCombine(GetTypeHash(Key.Path), GetTypeHash(Key.RootObjectKey));
+}
 
 /** Variant type that defines an identifier for a tree item. Assumes 'trivial relocatability' as with many unreal containers. */
 struct FSceneOutlinerTreeItemID
@@ -33,11 +55,15 @@ public:
 	}
 
 	/** ID representing a folder */
-	FSceneOutlinerTreeItemID(const FName& InFolder) : Type(EType::Folder)
+	FSceneOutlinerTreeItemID(const FFolderKey& InKey) : Type(EType::Folder)
 	{
-		new (Data) FName(InFolder);
+		new (Data) FFolderKey(InKey);
 		CachedHash = CalculateTypeHash();
 	}
+
+	FSceneOutlinerTreeItemID(const FFolder& InFolder)
+	: FSceneOutlinerTreeItemID(FFolderKey(InFolder.GetPath(), InFolder.GetRootObject()))
+	{}
 
 	/** ID representing a generic tree item */
 	FSceneOutlinerTreeItemID(const FUniqueID& CustomID) : Type(EType::UniqueID)
@@ -63,7 +89,7 @@ public:
 		switch(Type)
 		{
 			case EType::Object:			new (Data) FObjectKey(Other.GetAsObjectKey());		break;
-			case EType::Folder:			new (Data) FName(Other.GetAsFolderRef());			break;
+			case EType::Folder:			new (Data) FFolderKey(Other.GetAsFolderRef());		break;
 			case EType::Guid:			new (Data) FGuid(Other.GetAsGuid());				break;
 			case EType::UniqueID:		new (Data) FUniqueID(Other.GetAsHash());			break;
 			default:																		break;
@@ -89,7 +115,7 @@ public:
 		switch(Type)
 		{
 			case EType::Object:			GetAsObjectKey().~FObjectKey();							break;
-			case EType::Folder:			GetAsFolderRef().~FName();								break;
+			case EType::Folder:			GetAsFolderRef().~FFolderKey();							break;
 			case EType::Guid:			GetAsGuid().~FGuid();									break;
 			case EType::UniqueID:		/* NOP */												break;
 			default:																			break;
@@ -128,7 +154,7 @@ public:
 private:
 
 	FObjectKey& 	GetAsObjectKey() const 		{ return *reinterpret_cast<FObjectKey*>(Data); }
-	FName& 			GetAsFolderRef() const		{ return *reinterpret_cast<FName*>(Data); }
+	FFolderKey& 	GetAsFolderRef() const		{ return *reinterpret_cast<FFolderKey*>(Data); }
 	FGuid&			GetAsGuid() const			{ return *reinterpret_cast<FGuid*>(Data); }
 	FUniqueID&		GetAsHash() const			{ return *reinterpret_cast<FUniqueID*>(Data); }
 
@@ -149,7 +175,7 @@ private:
 	EType Type;
 
 	uint32 CachedHash;
-	static const uint32 MaxSize = TMaxSizeof<FObjectKey, FName, FGuid, FUniqueID>::Value;
+	static const uint32 MaxSize = TMaxSizeof<FObjectKey, FFolderKey, FGuid, FUniqueID>::Value;
 	mutable uint8 Data[MaxSize];
 };
 	
@@ -207,7 +233,7 @@ struct FSceneOutlinerHierarchyChangedData
 
 	TArray<FSceneOutlinerTreeItemID> ItemIDs;
 	// Used for FolderMoved events
-	TArray<FName> NewPaths;
+	TArray<FFolder> NewPaths;
 	/** Actions to apply to items */
 	uint8 ItemActions = 0;
 };

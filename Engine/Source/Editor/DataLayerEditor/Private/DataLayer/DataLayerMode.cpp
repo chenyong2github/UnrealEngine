@@ -375,7 +375,7 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 	{
 		for (AActor* Actor : PayloadActors)
 		{
-			if (!Actor->SupportsDataLayer())
+			if (!DataLayerEditorSubsystem->IsActorValidForDataLayer(Actor))
 			{
 				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("ActorCantBeAssignedToDataLayer", "Can't assign actors to Data Layer"));
 			}
@@ -502,7 +502,7 @@ TArray<AActor*> FDataLayerMode::GetActorsFromOperation(const FDragDropOperation&
 		if (UWorld* World = FolderOp.World.Get())
 		{
 			TArray<TWeakObjectPtr<AActor>> ActorsToDrop;
-			FActorFolders::GetWeakActorsFromFolders(*World, FolderOp.Folders, ActorsToDrop);
+			FActorFolders::GetWeakActorsFromFolders(*World, FolderOp.Folders, ActorsToDrop, FolderOp.RootObject);
 			for (const auto& Actor : ActorsToDrop)
 			{
 				if (AActor* ActorPtr = Actor.Get())
@@ -778,7 +778,7 @@ void FDataLayerMode::RegisterContextMenu()
 			{
 				FToolMenuSection& Section = InMenu->AddSection("DataLayers", LOCTEXT("DataLayers", "Data Layers"));
 				
-				auto CreateNewDataLayer = [this](UDataLayer* ParentDataLayer = nullptr)
+				auto CreateNewDataLayer = [this, SceneOutliner](UDataLayer* ParentDataLayer = nullptr)
 				{
 					const FScopedDataLayerTransaction Transaction(LOCTEXT("CreateNewDataLayer", "Create New Data Layer"), RepresentingWorld.Get());
 					SelectedDataLayersSet.Empty();
@@ -787,10 +787,8 @@ void FDataLayerMode::RegisterContextMenu()
 					{
 						SelectedDataLayersSet.Add(NewDataLayer);
 						DataLayerEditorSubsystem->SetParentDataLayer(NewDataLayer, ParentDataLayer);
-						if (DataLayerBrowser)
-						{
-							DataLayerBrowser->OnSelectionChanged(SelectedDataLayersSet);
-						}
+						// Select it and open a rename when it gets refreshed
+						SceneOutliner->OnItemAdded(NewDataLayer, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
 					}
 				};
 

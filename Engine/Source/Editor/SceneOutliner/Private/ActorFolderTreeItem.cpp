@@ -59,6 +59,7 @@ struct SActorFolderTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWi
 			[
 				SNew(SImage)
 				.Image(this, &SActorFolderTreeLabel::GetIcon)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 			]
 
@@ -78,7 +79,7 @@ private:
 	FText GetDisplayText() const
 	{
 		auto Folder = TreeItemPtr.Pin();
-		return Folder.IsValid() ? FText::FromName(Folder->LeafName) : FText();
+		return Folder.IsValid() ? FText::FromString(Folder->GetDisplayString()) : FText();
 	}
 
 	const FSlateBrush* GetIcon() const
@@ -135,7 +136,7 @@ private:
 		}
 
 		const FString LabelString = TrimmedLabel.ToString();
-		if (TreeItem->LeafName.ToString() == LabelString)
+		if (TreeItem->GetLeafName().ToString() == LabelString)
 		{
 			return true;
 		}
@@ -148,7 +149,8 @@ private:
 		}
 
 		// Validate that this folder doesn't exist already
-		FName NewPath = FEditorFolderUtils::GetParentPath(TreeItem->Path);
+		FFolder Folder = TreeItem->GetFolder();
+		FName NewPath = Folder.GetParent().GetPath();
 		if (NewPath.IsNone())
 		{
 			NewPath = FName(*LabelString);
@@ -157,8 +159,9 @@ private:
 		{
 			NewPath = FName(*(NewPath.ToString() / LabelString));
 		}
+		Folder.SetPath(NewPath);
 
-		if (FActorFolders::Get().GetFolderProperties(*GWorld, NewPath))
+		if (FActorFolders::Get().ContainsFolder(*TreeItem->World.Get(), Folder))
 		{
 			OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "A folder with this name already exists at this level");
 			return false;
@@ -170,10 +173,11 @@ private:
 	void OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo)
 	{
 		auto TreeItem = TreeItemPtr.Pin();
-		if (TreeItem.IsValid() && !InLabel.ToString().Equals(TreeItem->LeafName.ToString(), ESearchCase::CaseSensitive))
+		if (TreeItem.IsValid() && !InLabel.ToString().Equals(TreeItem->GetLeafName().ToString(), ESearchCase::CaseSensitive))
 		{
 			// Rename the item
-			FName NewPath = FEditorFolderUtils::GetParentPath(TreeItem->Path);
+			FFolder Folder = TreeItem->GetFolder();
+			FName NewPath = Folder.GetParent().GetPath();
 			if (NewPath.IsNone())
 			{
 				NewPath = FName(*InLabel.ToString());
@@ -182,8 +186,9 @@ private:
 			{
 				NewPath = FName(*(NewPath.ToString() / InLabel.ToString()));
 			}
+			FFolder TreeItemNewFolder(NewPath, Folder.GetRootObject());
 
-			FActorFolders::Get().RenameFolderInWorld(*GWorld, TreeItem->Path, NewPath);
+			FActorFolders::Get().RenameFolderInWorld(*TreeItem->World.Get(), Folder, TreeItemNewFolder);
 
 			auto Outliner = WeakSceneOutliner.Pin();
 			if (Outliner.IsValid())
@@ -194,8 +199,8 @@ private:
 	}
 };
 
-FActorFolderTreeItem::FActorFolderTreeItem(FName InPath, TWeakObjectPtr<UWorld> InWorld)
-	: FFolderTreeItem(InPath, Type)
+FActorFolderTreeItem::FActorFolderTreeItem(const FFolder& InFolder, const TWeakObjectPtr<UWorld>& InWorld)
+	: FFolderTreeItem(InFolder, Type)
 	, World(InWorld)
 {
 }
@@ -208,19 +213,18 @@ void FActorFolderTreeItem::OnExpansionChanged()
 	}
 
 	// Update the central store of folder properties with this folder's new expansion state
-	if (FActorFolderProps* Props = FActorFolders::Get().GetFolderProperties(*World, Path))
-	{
-		Props->bIsExpanded = Flags.bIsExpanded;
-	}
+	FActorFolders::Get().SetIsFolderExpanded(*World, GetFolder(), Flags.bIsExpanded);
 }
 
-void FActorFolderTreeItem::Delete(FName InNewParentPath)
+void FActorFolderTreeItem::Delete(const FFolder& InNewParentFolder)
 {
 	if (!World.IsValid())
 	{
 		return;
 	}
 	const FScopedTransaction Transaction(LOCTEXT("DeleteFolderTransaction", "Delete Folder"));
+
+	const FFolder::FRootObject& NewParentRootObject = InNewParentFolder.GetRootObject();
 
 	for (const TWeakPtr<ISceneOutlinerTreeItem>& ChildPtr : GetChildren())
 	{
@@ -229,31 +233,28 @@ void FActorFolderTreeItem::Delete(FName InNewParentPath)
 		{
 			if (AActor* Actor = ActorItem->Actor.Get())
 			{
-				Actor->SetFolderPath_Recursively(InNewParentPath);
+				check(Actor->GetFolderRootObject() == NewParentRootObject);
+				Actor->SetFolderPath_Recursively(InNewParentFolder.GetPath());
 			}
 		}
 		else if (FFolderTreeItem* FolderItem = Child->CastTo<FFolderTreeItem>())
 		{
-			FolderItem->MoveTo(InNewParentPath);
+			FolderItem->MoveTo(InNewParentFolder);
 		}
 	}
 
-	FActorFolders::Get().DeleteFolder(*World, Path);
+	FActorFolders::Get().DeleteFolder(*World, GetFolder());
 }
 
-FName FActorFolderTreeItem::MoveTo(const FName& NewParent)
+void FActorFolderTreeItem::MoveTo(const FFolder& InNewParentFolder)
 {
 	if (World.IsValid())
 	{
+		check(InNewParentFolder.GetRootObject() == GetRootObject());
 		// Get unique name
-		const FName NewPath = FActorFolders::Get().GetFolderName(*World, NewParent, LeafName);
-
-		if (FActorFolders::Get().RenameFolderInWorld(*World, Path, NewPath))
-		{
-			return NewPath;
-		}
+		const FFolder NewPath = FActorFolders::Get().GetFolderName(*World, InNewParentFolder, GetLeafName());
+		FActorFolders::Get().RenameFolderInWorld(*World, GetFolder(), NewPath);
 	}
-	return FName();
 }
 
 void FActorFolderTreeItem::CreateSubFolder(TWeakPtr<SSceneOutliner> WeakOutliner)
@@ -264,7 +265,7 @@ void FActorFolderTreeItem::CreateSubFolder(TWeakPtr<SSceneOutliner> WeakOutliner
 	{
 		const FScopedTransaction Transaction(LOCTEXT("UndoAction_CreateFolder", "Create Folder"));
 
-		const FName NewFolderName = FActorFolders::Get().GetDefaultFolderName(*World, Path);
+		const FFolder NewFolderName = FActorFolders::Get().GetDefaultFolderName(*World, GetFolder());
 		FActorFolders::Get().CreateFolder(*World, NewFolderName);
 
 		// At this point the new folder will be in our newly added list, so select it and open a rename when it gets refreshed

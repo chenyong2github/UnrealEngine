@@ -17,12 +17,15 @@ public:
 	TArray<FName> Folders;
 	/** World to which the folders belong */
 	TWeakObjectPtr<UWorld> World;
+	/** Root object of folder (can be invalid) */
+	FFolder::FRootObject RootObject;
 
-	void Init(TArray<FName> InFolders, UWorld* InWorld)
+	void Init(TArray<FName> InFolders, UWorld* InWorld, const FFolder::FRootObject& InRootObject = FFolder::GetDefaultRootObject())
 	{
 		check(InWorld != nullptr);
 		Folders = MoveTemp(InFolders);
 		World = InWorld;
+		RootObject = InRootObject;
 
 		CurrentIconBrush = FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		if (Folders.Num() == 1)

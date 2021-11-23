@@ -144,7 +144,7 @@ protected:
 			{
 				if (UWorld* World = FolderDragOp->World.Get())
 				{
-					FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, Actors);
+					FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, Actors, FolderDragOp->RootObject);
 				}
 			}
 		}
@@ -244,7 +244,7 @@ protected:
 		{
 			if (UWorld* World = FolderDragOp->World.Get())
 			{
-				FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, ActorsToDrop);
+				FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, ActorsToDrop, FolderDragOp->RootObject);
 				bHandled = true;
 			}
 		}

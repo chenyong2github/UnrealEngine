@@ -37,6 +37,7 @@
 #include "FolderTreeItem.h"
 #include "EditorFolderUtils.h"
 #include "SceneOutlinerConfig.h"
+#include "Algo/ForEach.h"
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -556,7 +557,7 @@ void SSceneOutliner::Populate()
 	UE_LOG(LogSceneOutliner, Verbose, TEXT("%d Items Processed"), Index);
 	PendingOperations.RemoveAt(0, Index);
 
-	for (FName Folder : PendingFoldersSelect)
+	for (const FFolder& Folder : PendingFoldersSelect)
 	{
 		if (FSceneOutlinerTreeItemPtr* Item = TreeItemMap.Find(Folder))
 		{
@@ -901,7 +902,10 @@ void SSceneOutliner::GetSelectedFolders(TArray<FFolderTreeItem*>& OutFolders) co
 
 TArray<FName> SSceneOutliner::GetSelectedFolderNames() const
 {
-	return GetSelection().GetData<FName>(SceneOutliner::FFolderPathSelector());
+	TArray<FFolder> Folders = GetSelection().GetData<FFolder>(SceneOutliner::FFolderPathSelector());
+	TArray<FName> FolderPaths;
+	Algo::ForEach(Folders, [&FolderPaths](const FFolder& Folder) { FolderPaths.Add(Folder.GetPath()); });
+	return FolderPaths;
 }
 
 TSharedPtr<SWidget> SSceneOutliner::OnOpenContextMenu()
@@ -1055,7 +1059,7 @@ void SSceneOutliner::RemoveFromSelection(const TArray<FSceneOutlinerTreeItemPtr>
 
 void SSceneOutliner::AddFolderToSelection(const FName& FolderName)
 {
-	if (FSceneOutlinerTreeItemPtr* ItemPtr = TreeItemMap.Find(FolderName))
+	if (FSceneOutlinerTreeItemPtr* ItemPtr = TreeItemMap.Find(FFolder(FolderName)))
 	{
 		OutlinerTreeView->SetItemSelection(*ItemPtr, true);
 	}
@@ -1063,7 +1067,7 @@ void SSceneOutliner::AddFolderToSelection(const FName& FolderName)
 
 void SSceneOutliner::RemoveFolderFromSelection(const FName& FolderName)
 {
-	if (FSceneOutlinerTreeItemPtr* ItemPtr = TreeItemMap.Find(FolderName))
+	if (FSceneOutlinerTreeItemPtr* ItemPtr = TreeItemMap.Find(FFolder(FolderName)))
 	{
 		OutlinerTreeView->SetItemSelection(*ItemPtr, false);
 	}
@@ -1079,6 +1083,12 @@ void SSceneOutliner::ClearSelection()
 
 void SSceneOutliner::FillFoldersSubMenu(UToolMenu* Menu) const
 {
+	FFolder::FRootObject TargetRootObject;
+	if (!GetCommonRootObjectFromSelection(TargetRootObject))
+	{
+		return;
+	}
+
 	FToolMenuSection& Section = Menu->AddSection("Section");
 	Section.AddMenuEntry("CreateNew", LOCTEXT( "CreateNew", "Create New Folder" ), LOCTEXT( "CreateNew_ToolTip", "Move to a new folder" ),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon"), FExecuteAction::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::CreateFolder));
@@ -1086,10 +1096,10 @@ void SSceneOutliner::FillFoldersSubMenu(UToolMenu* Menu) const
 	AddMoveToFolderOutliner(Menu);
 }
 
-TSharedRef<TSet<FName>> SSceneOutliner::GatherInvalidMoveToDestinations() const
+TSharedRef<TSet<FFolder>> SSceneOutliner::GatherInvalidMoveToDestinations() const
 {
 	// We use a pointer here to save copying the whole array for every invocation of the filter delegate
-	TSharedRef<TSet<FName>> ExcludedParents(new TSet<FName>());
+	TSharedRef<TSet<FFolder>> ExcludedParents(new TSet<FFolder>());
 
 	for (const auto& Item : OutlinerTreeView->GetSelectedItems())
 	{
@@ -1117,14 +1127,14 @@ TSharedRef<TSet<FName>> SSceneOutliner::GatherInvalidMoveToDestinations() const
 			
 			if (!bFolderHasSubFolders)
 			{
-				ExcludedParents->Add(ParentFolderItem->Path);
+				ExcludedParents->Add(ParentFolderItem->GetFolder());
 			}
 		}
 			
 		if (FFolderTreeItem* FolderItem = Item->CastTo<FFolderTreeItem>())
 		{
 			// Cannot move into itself, or any child
-			ExcludedParents->Add(FolderItem->Path);
+			ExcludedParents->Add(FolderItem->GetFolder());
 		}
 	}
 
@@ -1139,6 +1149,12 @@ void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 		return;
 	}
 
+	FFolder::FRootObject TargetRootObject;
+	if (!GetCommonRootObjectFromSelection(TargetRootObject))
+	{
+		return;
+	}
+
 	// Add a mini scene outliner for choosing an existing folder
 	FSceneOutlinerInitializationOptions MiniSceneOutlinerInitOptions;
 	MiniSceneOutlinerInitOptions.bShowHeaderRow = false;
@@ -1149,10 +1165,11 @@ void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 	if (ExcludedParents->Num())
 	{
 		// Add a filter if necessary
-		auto FilterOutChildFolders = [](FName Path, TSharedRef<TSet<FName>> ExcludedParents){
+		auto FilterOutChildFolders = [](const FFolder& Folder, TSharedRef<TSet<FFolder>> ExcludedParents)
+		{
 			for (const auto& Parent : *ExcludedParents)
 			{
-				if (Path == Parent || FEditorFolderUtils::PathIsChildOf(Path, Parent))
+				if (Folder == Parent || Folder.IsChildOf(Parent))
 				{
 					return false;
 				}
@@ -1186,7 +1203,7 @@ void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 
 		// Filter in/out root items according to whether it is valid to move to/from the root
 		FSceneOutlinerDragDropPayload DraggedObjects(OutlinerTreeView->GetSelectedItems());
-		const bool bMoveToRootValid = Mode->ValidateDrop(FFolderTreeItem(NAME_None), DraggedObjects).IsValid();
+		const bool bMoveToRootValid = Mode->ValidateDrop(FFolderTreeItem(FFolder(NAME_None, TargetRootObject)), DraggedObjects).IsValid();
 		if (!bMoveToRootValid)
 		{
 			MiniSceneOutlinerInitOptions.Filters->Add(MakeShared<FFilterRoot>(*this));
@@ -1195,7 +1212,7 @@ void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 
 	//Let the mode decide how folder selection is handled
 
-	MiniSceneOutlinerInitOptions.ModeFactory = Mode->CreateFolderPickerMode();
+	MiniSceneOutlinerInitOptions.ModeFactory = Mode->CreateFolderPickerMode(TargetRootObject);
 
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 	TSharedRef< SWidget > MiniSceneOutliner =
@@ -1246,7 +1263,7 @@ void SSceneOutliner::SelectFoldersDescendants(bool bSelectImmediateChildrenOnly)
 	Refresh();
 }
 
-void SSceneOutliner::MoveSelectionTo(FName NewParent)
+void SSceneOutliner::MoveSelectionTo(const FFolder& NewParent)
 {
 	FSlateApplication::Get().DismissAllMenus();
 		
@@ -1277,9 +1294,9 @@ FReply SSceneOutliner::OnCreateFolderClicked()
 
 void SSceneOutliner::CreateFolder()
 {
-	const FName& NewFolderName = Mode->CreateNewFolder();
+	const FFolder& NewFolderName = Mode->CreateNewFolder();
 
-	if (NewFolderName != NAME_None)
+	if (!NewFolderName.IsNone())
 	{
 		// Move any selected folders into the new folder
 		auto PreviouslySelectedItems = OutlinerTreeView->GetSelectedItems();
@@ -1287,7 +1304,12 @@ void SSceneOutliner::CreateFolder()
 		{
 			if (FFolderTreeItem* FolderItem = Item->CastTo<FFolderTreeItem>())
 			{
-				FolderItem->MoveTo(NewFolderName);
+				// New folder root object will be identical if whole selection had a common root object.
+				// If not, new folder won't have a root object (world), so this check is needed to skip folders with a different root object.
+				if (FolderItem->GetRootObject() == NewFolderName.GetRootObject())
+				{
+					FolderItem->MoveTo(NewFolderName);
+				}
 			}
 		}
 
@@ -1339,9 +1361,32 @@ void SSceneOutliner::CopyFoldersToClipboard(const TArray<FName>& InFolders, cons
 	}
 }
 
+bool SSceneOutliner::GetCommonRootObjectFromSelection(FFolder::FRootObject& OutCommonRootObject) const
+{
+	TOptional<FFolder::FRootObject> CommonRootObject;
+
+	for (const TWeakPtr<ISceneOutlinerTreeItem>& Item : GetSelection().SelectedItems)
+	{
+		if (auto TreeItem = Item.Pin())
+		{
+			if (!CommonRootObject.IsSet())
+			{
+				CommonRootObject = TreeItem->GetRootObject();
+			}
+			else if (CommonRootObject.GetValue() != TreeItem->GetRootObject())
+			{
+				OutCommonRootObject = FFolder::GetDefaultRootObject();
+				return false;
+			}
+		}
+	}
+	OutCommonRootObject = CommonRootObject.Get(FFolder::GetDefaultRootObject());
+	return true;
+}
+
 void SSceneOutliner::PasteFoldersBegin(TArray<FName> InFolders)
 {
-	auto CacheExistingChildrenAction = [this](const FSceneOutlinerTreeItemPtr& Item)
+	auto CacheExistingChildrenAction = [this](const FSceneOutlinerTreeItemPtr& Item, const FFolder::FRootObject& InTargetRootObject)
 	{
 		if (FFolderTreeItem* FolderItem = Item->CastTo<FFolderTreeItem>())
 		{
@@ -1354,7 +1399,8 @@ void SSceneOutliner::PasteFoldersBegin(TArray<FName> InFolders)
 				}
 			}
 
-			CachePasteFolderExistingChildrenMap.Add(FolderItem->Path, ExistingChildren);
+			check(FolderItem->GetRootObject() == InTargetRootObject);
+			CachePasteFolderExistingChildrenMap.Add(FolderItem->GetFolder(), ExistingChildren);
 		}
 	};
 
@@ -1368,12 +1414,16 @@ void SSceneOutliner::PasteFoldersBegin(TArray<FName> InFolders)
 	// Sort folder names so parents appear before children
 	CacheFoldersEdit.Sort(FNameLexicalLess());
 
+	// Find common root object from selection
+	FFolder::FRootObject TargetRootObject;
+	GetCommonRootObjectFromSelection(TargetRootObject);
+
 	// Cache existing children
 	for (FName Folder : CacheFoldersEdit)
 	{
-		if (FSceneOutlinerTreeItemPtr* TreeItem = TreeItemMap.Find(Folder))
+		if (FSceneOutlinerTreeItemPtr* TreeItem = TreeItemMap.Find(FFolder(Folder, TargetRootObject)))
 		{
-			CacheExistingChildrenAction(*TreeItem);
+			CacheExistingChildrenAction(*TreeItem, TargetRootObject);
 		}
 	}
 }
@@ -1381,6 +1431,10 @@ void SSceneOutliner::PasteFoldersBegin(TArray<FName> InFolders)
 void SSceneOutliner::PasteFoldersEnd()
 {
 	const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "PasteItems", "Paste Items"));
+
+	// Find common root object from selection
+	FFolder::FRootObject TargetRootObject;
+	GetCommonRootObjectFromSelection(TargetRootObject);
 
 	// Create new folder
 	TMap<FName, FName> FolderMap;
@@ -1395,8 +1449,8 @@ void SSceneOutliner::PasteFoldersEnd()
 				ParentPath = *NewParentPath;
 			}
 
-			FName NewFolderPath = Mode->CreateFolder(ParentPath, LeafName);
-			FolderMap.Add(Folder, NewFolderPath);
+			FFolder NewFolderPath = Mode->CreateFolder(FFolder(ParentPath, TargetRootObject), LeafName);
+			FolderMap.Add(Folder, NewFolderPath.GetPath());
 		}
 	}
 
@@ -1409,20 +1463,23 @@ void SSceneOutliner::PasteFoldersEnd()
 		// Get the new folder that was created from this name
 		if (const FName* NewFolderName = FolderMap.Find(OldFolderName))
 		{
-			if (FSceneOutlinerTreeItemPtr* OldFolderItem = TreeItemMap.Find(OldFolderName))
+			FFolder NewFolder(*NewFolderName, TargetRootObject);
+			FFolder OldFolder(OldFolderName, TargetRootObject);
+
+			if (FSceneOutlinerTreeItemPtr* OldFolderItem = TreeItemMap.Find(OldFolder))
 			{
 				for (const TWeakPtr<ISceneOutlinerTreeItem>& Child : (*OldFolderItem)->GetChildren())
 				{
 					// If this child did not exist in the folder before the paste operation, it should be moved to the new folder
-					TArray<FSceneOutlinerTreeItemID>* ExistingChildren = CachePasteFolderExistingChildrenMap.Find(OldFolderName);
+					TArray<FSceneOutlinerTreeItemID>* ExistingChildren = CachePasteFolderExistingChildrenMap.Find(OldFolder);
 
 					if (ExistingChildren && !ExistingChildren->Contains(Child.Pin()->GetID()))
 					{
-						Mode->ReparentItemToFolder(*NewFolderName, Child.Pin());
+						Mode->ReparentItemToFolder(NewFolder, Child.Pin());
 					}
 				}
 			}
-			PendingFoldersSelect.Add(*NewFolderName);
+			PendingFoldersSelect.Add(NewFolder);
 		}
 	}
 
@@ -1474,16 +1531,16 @@ void SSceneOutliner::DeleteFoldersBegin()
 
 void SSceneOutliner::DeleteFoldersEnd()
 {
-	struct FMatchName
+	struct FMatchFolder
 	{
-		FMatchName(const FName InPathName)
-			: PathName(InPathName) {}
+		FMatchFolder(const FFolder& InFolder)
+			: Folder(InFolder) {}
 
-		const FName PathName;
+		const FFolder Folder;
 
 		bool operator()(const FFolderTreeItem *Entry)
 		{
-			return PathName == Entry->Path;
+			return Folder == Entry->GetFolder();
 		}
 	};
 
@@ -1492,21 +1549,21 @@ void SSceneOutliner::DeleteFoldersEnd()
 		// Sort in descending order so children will be deleted before parents
 		CacheFoldersDelete.Sort([](const FFolderTreeItem& FolderA, const FFolderTreeItem& FolderB)
 		{
-			return FolderB.Path.LexicalLess(FolderA.Path);
+			return FolderB.GetPath().LexicalLess(FolderA.GetPath());
 		});
 
-		for (FFolderTreeItem* Folder : CacheFoldersDelete)
+		for (FFolderTreeItem* FolderItem : CacheFoldersDelete)
 		{
-			if (Folder)
+			if (FolderItem)
 			{
 				// Find lowest parent not being deleted, for reparenting children of current folder
-				FName NewParentPath = FEditorFolderUtils::GetParentPath(Folder->Path);
-				while (!NewParentPath.IsNone() && CacheFoldersDelete.FindByPredicate(FMatchName(NewParentPath)))
+				FFolder NewParentPath = FolderItem->GetFolder().GetParent();
+				while (!NewParentPath.IsNone() && CacheFoldersDelete.FindByPredicate(FMatchFolder(NewParentPath)))
 				{
-					NewParentPath = FEditorFolderUtils::GetParentPath(NewParentPath);
+					NewParentPath = NewParentPath.GetParent();
 				}
 
-				Folder->Delete(NewParentPath);
+				FolderItem->Delete(NewParentPath);
 			}
 		}
 
@@ -1717,6 +1774,10 @@ void SSceneOutliner::OnHierarchyChangedEvent(FSceneOutlinerHierarchyChangedData 
 		for (const auto& TreeItemID : Event.ItemIDs)
 		{
 			FSceneOutlinerTreeItemPtr* Item = TreeItemMap.Find(TreeItemID);
+			if (!Item)
+			{
+				Item = PendingTreeItemMap.Find(TreeItemID);
+			}
 
 			if (Item)
 			{
@@ -1746,8 +1807,8 @@ void SSceneOutliner::OnHierarchyChangedEvent(FSceneOutlinerHierarchyChangedData 
 
 				// Now change the path and put it back in the map with its new ID
 				auto Folder = StaticCastSharedPtr<FFolderTreeItem>(Item);
-				Folder->Path = Event.NewPaths[i];
-				Folder->LeafName = FEditorFolderUtils::GetLeafName(Event.NewPaths[i]);
+				check(Event.NewPaths[i].GetRootObject() == Folder->GetRootObject());
+				Folder->SetPath(Event.NewPaths[i].GetPath());
 
 				TreeItemMap.Add(Item->GetID(), Item);
 

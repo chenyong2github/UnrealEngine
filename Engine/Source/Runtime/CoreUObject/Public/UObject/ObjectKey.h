@@ -75,6 +75,12 @@ public:
 		return ObjectIndex > Other.ObjectIndex || (ObjectIndex == Other.ObjectIndex && ObjectSerialNumber >= Other.ObjectSerialNumber);
 	}
 
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FObjectKey& Key)
+	{
+		check(!Ar.IsPersistent());
+		return Ar << Key.ObjectIndex << Key.ObjectSerialNumber;
+	}
+
 	/**
 	 * Attempt to access the object from which this key was constructed.
 	 * @return The object used to construct this key, or nullptr if it is no longer valid

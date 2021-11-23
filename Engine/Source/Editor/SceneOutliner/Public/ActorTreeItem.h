@@ -39,6 +39,7 @@ public:
 	/* Begin ISceneOutlinerTreeItem Implementation */
 	virtual bool IsValid() const override { return Actor.IsValid(); }
 	virtual FSceneOutlinerTreeItemID GetID() const override;
+	virtual FFolder::FRootObject GetRootObject() const override;
 	virtual FString GetDisplayString() const override;
 	virtual bool CanInteract() const override;
 	virtual TSharedRef<SWidget> GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow) override;
@@ -49,6 +50,7 @@ public:
 	virtual bool HasPinnedStateInfo() const override { return true; };
 	virtual bool GetPinnedState() const override;
 	virtual void OnLabelChanged() override;
+	virtual void GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner) override;
 	/* End ISceneOutlinerTreeItem Implementation */
 public:
 	/** true if this item exists in both the current world and PIE. */
