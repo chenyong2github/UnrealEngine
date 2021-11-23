@@ -293,7 +293,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 		{
 			OpState |= EBakeOpState::EvaluateDetailMesh;
 		}
-		OpState = EBakeOpState::Evaluate;
+		OpState |= EBakeOpState::Evaluate;
 	});
 
 	
