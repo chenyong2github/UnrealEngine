@@ -5,14 +5,21 @@
 #include "SUVEditor3DViewportToolBar.h"
 
 #include "UVEditorCommands.h"
+#include "EditorViewportCommands.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "UVEditorStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
+#include "Editor/UnrealEd/Public/SEditorViewportToolBarMenu.h"
+#include "SEditorViewportViewMenu.h"
+#include "SUVEditor3DViewport.h"
 
-void SUVEditor3DViewportToolBar::Construct(const FArguments& InArgs)
+#define LOCTEXT_NAMESPACE "SUVEditor3DViewportToolBar"
+
+void SUVEditor3DViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class SUVEditor3DViewport> InUVEditor3DViewport)
 {
+	UVEditor3DViewportPtr = InUVEditor3DViewport;
 	CommandList = InArgs._CommandList;
 
 	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
@@ -30,12 +37,28 @@ void SUVEditor3DViewportToolBar::Construct(const FArguments& InArgs)
 
 	MainBoxPtr->AddSlot()
 		.Padding(ToolbarSlotPadding)
+		.HAlign(HAlign_Left)
+		[
+			MakeDisplayToolBar(InArgs._Extenders)
+		];
+
+	MainBoxPtr->AddSlot()
+		.Padding(ToolbarSlotPadding)
 		.HAlign(HAlign_Right)
 		[
 			MakeToolBar(InArgs._Extenders)
 		];
 
 	SViewportToolBar::Construct(SViewportToolBar::FArguments());
+}
+
+TSharedRef<SWidget> SUVEditor3DViewportToolBar::MakeDisplayToolBar(const TSharedPtr<FExtender> InExtenders)
+{
+	TSharedRef<SEditorViewport> ViewportRef = StaticCastSharedPtr<SEditorViewport>(UVEditor3DViewportPtr.Pin()).ToSharedRef();
+
+	return SNew(SEditorViewportViewMenu, ViewportRef, SharedThis(this))
+		.Cursor(EMouseCursor::Default)
+		.MenuExtenders(InExtenders);
 }
 
 TSharedRef<SWidget> SUVEditor3DViewportToolBar::MakeToolBar(const TSharedPtr<FExtender> InExtenders)
@@ -77,3 +100,5 @@ TSharedRef<SWidget> SUVEditor3DViewportToolBar::MakeToolBar(const TSharedPtr<FEx
 
 	return ToolbarBuilder.MakeWidget();
 }
+
+#undef LOCTEXT_NAMESPACE

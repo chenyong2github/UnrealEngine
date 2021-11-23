@@ -21,10 +21,14 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<FExtender>, Extenders)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedPtr<class SUVEditor3DViewport> InUVEditor3DViewport);
 
 private:
+	TSharedRef<SWidget> MakeDisplayToolBar(const TSharedPtr<FExtender> InExtenders);
 	TSharedRef<SWidget> MakeToolBar(const TSharedPtr<FExtender> InExtenders);
+
+	/** The viewport that we are in */
+	TWeakPtr<class SUVEditor3DViewport> UVEditor3DViewportPtr;
 
 	TSharedPtr<FUICommandList> CommandList;
 };
