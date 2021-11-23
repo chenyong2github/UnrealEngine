@@ -791,7 +791,22 @@ void FAnimNode_StateMachine::Evaluate_AnyThread(FPoseContext& Output)
 {
 	if (const FBakedAnimationStateMachine* Machine = GetMachineDescription())
 	{
-		if (Machine->States.Num() == 0 || !Machine->States.IsValidIndex(CurrentState))
+		const bool bCurrentStateIsConduit = IsAConduitState(CurrentState);
+#if WITH_EDITORONLY_DATA
+		if (bCurrentStateIsConduit)
+		{ 
+			UAnimBlueprint* AnimBlueprint = Output.AnimInstanceProxy->GetAnimBlueprint();
+
+			FText Message = FText::Format(LOCTEXT("CurrentStateIsConduitWarning", 
+			"Current state is a conduit and will reset to ref pose. This can happen if a conduit is an entry state and there isn't at least one valid transition to take. Conduit({0}), State Machine({1}), AnimBlueprint({2})."),
+				FText::FromName(Machine->MachineName), FText::FromName(GetCurrentStateName()), FText::FromString(GetPathNameSafe(AnimBlueprint)));
+			Output.LogMessage(EMessageSeverity::Error, Message);
+		}
+#else
+		ensure(!bCurrentStateIsConduit);
+#endif
+
+		if (bCurrentStateIsConduit || Machine->States.Num() == 0 || !Machine->States.IsValidIndex(CurrentState))
 		{
 			Output.Pose.ResetToRefPose();
 			return;
@@ -978,7 +993,7 @@ void FAnimNode_StateMachine::GatherDebugData(FNodeDebugData& DebugData)
 void FAnimNode_StateMachine::SetStateInternal(int32 NewStateIndex)
 {
 	checkSlow(PRIVATE_MachineDescription);
-	ensure(!IsAConduitState(NewStateIndex));
+	ensure(!IsAConduitState(NewStateIndex) || bAllowConduitEntryStates);
 	CurrentState = FMath::Clamp<int32>(NewStateIndex, 0, PRIVATE_MachineDescription->States.Num() - 1);
 	check(CurrentState == NewStateIndex);
 	ElapsedTime = 0.0f;

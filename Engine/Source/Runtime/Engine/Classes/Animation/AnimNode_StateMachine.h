@@ -145,6 +145,11 @@ public:
 	// data has a  slight performance cost.
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bCreateNotifyMetaData;
+
+	// Allows a conduit to be used as this state machine's entry state
+	// If a valid entry state cannot be found at runtime then this will generate a reference pose!
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bAllowConduitEntryStates;
 private:
 	// true if it is the first update.
 	bool bFirstUpdate;
@@ -207,6 +212,7 @@ public:
 		, bSkipFirstUpdateTransition(true)
 		, bReinitializeOnBecomingRelevant(true)
 		, bCreateNotifyMetaData(true)
+		, bAllowConduitEntryStates(false)
 		, bFirstUpdate(true)
 		, CurrentState(INDEX_NONE)
 		, ElapsedTime(0.0f)

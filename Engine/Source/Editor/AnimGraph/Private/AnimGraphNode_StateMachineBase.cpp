@@ -375,10 +375,12 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 			else
 			{
 				// Make sure the entry node is a state and not a conduit
-				if (BakedMachine.States[BakedMachine.InitialState].bIsAConduit)
+				if (BakedMachine.States[BakedMachine.InitialState].bIsAConduit && !StateMachineInstance->GetNode().bAllowConduitEntryStates)
 				{
 					UEdGraphNode* StateNode = GetMachineSpecificDebugData().FindNodeFromStateIndex(BakedMachine.InitialState);
-					CompilationContext.GetMessageLog().Error(*LOCTEXT("BadStateEntryNode", "A conduit (@@) cannot be used as the entry node for a state machine").ToString(), StateNode);
+					CompilationContext.GetMessageLog().Error(*LOCTEXT("BadStateEntryNode", 
+					"A conduit (@@) cannot be used as the entry node for a state machine. To enable this, check the 'Allow conduit entry states' checkbox for StateMachine. Warning, if a valid entry state cannot be found at runtime then this will generate a reference pose!"
+					).ToString(), StateNode);
 				}
 			}
 		}
