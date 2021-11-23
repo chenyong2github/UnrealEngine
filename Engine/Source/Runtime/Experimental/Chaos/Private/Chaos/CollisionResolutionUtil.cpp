@@ -625,7 +625,7 @@ namespace Chaos
 					if (NewPhi < Contact.Phi)
 					{
 						Contact.Phi = NewPhi;
-						Contact.Location = ObjectTransform.TransformPositionNoScale(LocalPoint);
+						Contact.Location = ObjectTransform.TransformPositionNoScale(LocalPoint - FReal(0.5) * NewPhi * LocalNormal);
 						Contact.Normal = ObjectTransform.TransformVectorNoScale(LocalNormal);
 					}
 				}
@@ -640,7 +640,7 @@ namespace Chaos
 				FVec3 LocalPoint = SampleToObjectTM.TransformPositionNoScale(SampleParticles.X(DeepestParticle));
 				FVec3 LocalNormal;
 				Contact.Phi = Object.PhiWithNormal(LocalPoint, LocalNormal);
-				Contact.Location = ObjectTransform.TransformPositionNoScale(LocalPoint);
+				Contact.Location = ObjectTransform.TransformPositionNoScale(LocalPoint - FReal(0.5) * Contact.Phi * LocalNormal);
 				Contact.Normal = ObjectTransform.TransformVectorNoScale(LocalNormal);
 
 			}
