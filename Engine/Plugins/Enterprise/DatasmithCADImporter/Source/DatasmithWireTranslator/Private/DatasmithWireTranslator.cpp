@@ -65,6 +65,40 @@ DEFINE_LOG_CATEGORY_STATIC(LogDatasmithWireTranslator, Log, All);
 
 #ifdef USE_OPENMODEL
 
+const uint64 LibAliasNext_Version = 17881307937833405;
+const uint64 LibAlias2022_2_0_Version = 7881307937833405;
+const uint64 LibAlias2022_1_0_Version = 7881303642865885;
+const uint64 LibAlias2022_0_1_Version = 7881299347964005;
+const uint64 LibAlias2021_3_2_Version = 7599833027117059;
+const uint64 LibAlias2021_3_1_Version = 7599824433840131;
+const uint64 LibAlias2021_3_0_Version = 7599824424206339;
+const uint64 LibAlias2021_Version = 7599824377020416;
+const uint64 LibAlias2020_Version = 7318349414924288;
+const uint64 LibAlias2019_Version = 7300000000000000;
+
+#if defined(OPEN_MODEL_2020)
+const uint64 LibAliasVersionMin = LibAlias2019_Version;
+const uint64 LibAliasVersionMax = LibAlias2021_3_0_Version;
+const FString AliasVersionChar = TEXT("AliasStudio 2020, Model files");
+#elif defined(OPEN_MODEL_2021_3)
+const uint64 LibAliasVersionMin = LibAlias2021_3_0_Version;
+const uint64 LibAliasVersionMax = LibAlias2022_0_1_Version;
+const FString  AliasVersionChar = TEXT("AliasStudio 2021.3, Model files");
+#elif defined(OPEN_MODEL_2022)
+const uint64 LibAliasVersionMin = LibAlias2022_0_1_Version;
+const uint64 LibAliasVersionMax = LibAlias2022_1_0_Version;
+const FString AliasVersionChar = TEXT("AliasStudio 2022, Model files");
+#elif defined(OPEN_MODEL_2022_1)
+const uint64 LibAliasVersionMin = LibAlias2022_1_0_Version;
+const uint64 LibAliasVersionMax = LibAlias2022_2_0_Version;
+const FString AliasVersionChar = TEXT("AliasStudio 2022.1, Model files");
+#elif defined(OPEN_MODEL_2022_2)
+const uint64 LibAliasVersionMin = LibAlias2022_2_0_Version;
+const uint64 LibAliasVersionMax = LibAliasNext_Version;
+const FString AliasVersionChar = TEXT("AliasStudio 2022.2, Model files");
+#endif
+
+
 using namespace CADLibrary;
 
 class BodyData
@@ -136,12 +170,57 @@ public:
 		, NumCRCErrors(0)
 	{
 		// Set ProductName, ProductVersion in DatasmithScene for Analytics purpose
-		// application_name is something like "Catia V5"
+		uint64 AliasFileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
+
 		DatasmithScene->SetHost(TEXT("Alias"));
 		DatasmithScene->SetVendor(TEXT("Autodesk"));
-		DatasmithScene->SetExporterSDKVersion(TEXT("2022"));
 		DatasmithScene->SetProductName(TEXT("Alias Tools"));
-		DatasmithScene->SetProductVersion(TEXT("Alias 2022"));
+
+		if (AliasFileVersion < LibAlias2020_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2019"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2019"));
+		}
+		else if (AliasFileVersion < LibAlias2021_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2020"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2020"));
+		}
+		else if (AliasFileVersion < LibAlias2021_3_0_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2021.0"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2021.0"));
+		}
+		else if (AliasFileVersion < LibAlias2021_3_1_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2021.3.0"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2021.3.0"));
+		}
+		else if (AliasFileVersion < LibAlias2021_3_2_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2021.3.1"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2021.3.1"));
+		}
+		else if (AliasFileVersion < LibAlias2022_0_1_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2021.3.2"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2021.3.2"));
+		}
+		else if (AliasFileVersion < LibAlias2022_1_0_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2022"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2022"));
+		}
+		else if (AliasFileVersion < LibAlias2022_2_0_Version)
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2022.1"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2022.1"));
+		}
+		else
+		{
+			DatasmithScene->SetExporterSDKVersion(TEXT("2022.2"));
+			DatasmithScene->SetProductVersion(TEXT("Alias 2022.2"));
+		}
 
 		FImportParameters ImportParameters(0.01, 1);
 		if(FImportParameters::bGDisableCADKernelTessellation)
@@ -2048,7 +2127,26 @@ void FDatasmithWireTranslator::Initialize(FDatasmithTranslatorCapabilities& OutC
 #ifdef USE_OPENMODEL
 		if (FPlatformProcess::GetDllHandle(TEXT("libalias_api.dll")))
 		{
-			OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("wire"), TEXT("AliasStudio, Model files") });
+			// Check installed version of Alias Tools because binaries before 2021.3 are not compatible with Alias 2022
+			uint64 FileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
+
+#ifdef OPEN_MODEL_2020
+			if (LibAlias2020_Version < FileVersion && FileVersion < LibAlias2021_Version)
+			{
+				UE_LOG(LogDatasmithWireTranslator, Warning, TEXT(WRONG_VERSION_TEXT));
+				OutCapabilities.bIsEnabled = false;
+				return;
+			}
+#endif
+
+			if (LibAliasVersionMin <= FileVersion && FileVersion < LibAliasVersionMax)
+			{
+				OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("wire"), *AliasVersionChar });
+				OutCapabilities.bIsEnabled = true;
+				return;
+			}
+
+			OutCapabilities.bIsEnabled = false;
 			return;
 		}
 #endif
@@ -2070,38 +2168,6 @@ bool FDatasmithWireTranslator::IsSourceSupported(const FDatasmithSceneSource& So
 bool FDatasmithWireTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 {
 #ifdef USE_OPENMODEL
-	// Check installed version of Alias Tools because binaries before 2021.3 are not compatible with lib Alias 2022.0
-	const uint64 LibAlias2021_3Version = 7599833027117059;
-	uint64 FileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
-
-	if (FileVersion < LibAlias2021_3Version)
-	{
-#if WITH_EDITOR
-		// Display message and abort import
-		FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-
-		TSharedPtr<IMessageLogListing> LogListing = MessageLogModule.GetLogListing("DatasmithWireTranslator");
-
-		if (LogListing.IsValid())
-		{
-			LogListing->SetLabel(LOCTEXT("MessageLogging", "Datasmith Wire Translator"));
-
-			FText Message = LOCTEXT("WrongVersion", WRONG_VERSION_TEXT);
-			LogListing->AddMessage(FTokenizedMessage::Create(EMessageSeverity::Error, Message));
-
-			LogListing->NotifyIfAnyMessages(LOCTEXT("LibraryIssue", "There was an issue with the wire import"), EMessageSeverity::Info);
-		}
-		else
-		{
-			UE_LOG(LogDatasmithWireTranslator, Error, TEXT(WRONG_VERSION_TEXT));
-	}
-#else
-		UE_LOG(LogDatasmithWireTranslator, Error, TEXT(WRONG_VERSION_TEXT));
-#endif
-
-		return false;
-}
-
 	const FString& Filename = GetSource().GetSourceFile();
 
 	Translator = MakeShared<FWireTranslatorImpl>(Filename, OutScene);

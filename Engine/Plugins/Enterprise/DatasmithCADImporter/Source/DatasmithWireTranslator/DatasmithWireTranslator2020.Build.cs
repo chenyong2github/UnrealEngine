@@ -3,9 +3,9 @@
 using System.IO;
 using UnrealBuildTool;
 
-public class DatasmithWireTranslator : ModuleRules
+public abstract class DatasmithWireTranslatorBase : ModuleRules
 {
-	public DatasmithWireTranslator(ReadOnlyTargetRules Target) : base(Target)
+	public DatasmithWireTranslatorBase(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -45,14 +45,38 @@ public class DatasmithWireTranslator : ModuleRules
 			);
 		}
 
-		if (System.Type.GetType("OpenModel2021_3") != null)
+		PublicDefinitions.Add(GetAliasDefinition());
+
+		if (System.Type.GetType(GetAliasVersion()) != null)
 		{
-			PrivateDependencyModuleNames.Add("OpenModel2021_3");
+			PrivateDependencyModuleNames.Add(GetAliasVersion());
 		}
 
 		if (System.Type.GetType("CoreTech") != null)
 		{
 			PrivateDependencyModuleNames.Add("CoreTech");
 		}
+	}
+
+	public abstract string GetAliasVersion();
+	public abstract string GetAliasDefinition();
+
+}
+
+public class DatasmithWireTranslator2020 : DatasmithWireTranslatorBase
+{
+	public DatasmithWireTranslator2020(ReadOnlyTargetRules Target) 
+		: base(Target)
+	{
+	}
+
+	public override string GetAliasVersion()
+	{
+		return "OpenModel2020";
+	}
+	
+	public override string GetAliasDefinition()
+	{
+		return "OPEN_MODEL_2020";
 	}
 }
