@@ -61,6 +61,7 @@ TSharedRef<SWidget> SGroomEditorViewportToolbar::GenerateShowMenu() const
 
 		ViewMenuBuilder.AddMenuSeparator();
 
+		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_ControlPoints);
 		ViewMenuBuilder.AddMenuEntry(Commands.ViewMode_VisCluster);
 
 		ViewMenuBuilder.AddMenuSeparator();
