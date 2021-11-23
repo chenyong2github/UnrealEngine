@@ -645,6 +645,7 @@ public:
 					
 					const bool bNeedDebugMaterial = 
 						DebugMode != EHairStrandsDebugMode::NoneDebug &&
+						DebugMode != EHairStrandsDebugMode::RenderHairControlPoints &&
 						DebugMode != EHairStrandsDebugMode::RenderHairTangent;
 
 					if (bNeedDebugMaterial)

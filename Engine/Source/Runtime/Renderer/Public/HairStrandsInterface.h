@@ -70,6 +70,7 @@ enum class EHairStrandsDebugMode : uint8
 	RenderVisCluster,
 	RenderHairGroup,
 	RenderLODColoration,
+	RenderHairControlPoints,
 	Count
 };
 
@@ -445,7 +446,8 @@ struct FHairStrandsBookmarkParameters
 	FHairStrandsInstances* Instances = nullptr;
 	const FSceneView* View = nullptr;// // View 0
 	TArray<const FSceneView*> AllViews;
-	FRDGTextureRef SceneColorTexture{};
+	FRDGTextureRef SceneColorTexture = nullptr;
+	FRDGTextureRef SceneDepthTexture = nullptr; 
 
 	bool bHzbRequest = false;
 	bool bHasElements = false;

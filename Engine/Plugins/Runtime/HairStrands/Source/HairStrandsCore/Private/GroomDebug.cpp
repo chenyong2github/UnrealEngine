@@ -51,6 +51,9 @@ static int32 GHairCardsGuidesDebug_Sim = 0;
 static FAutoConsoleVariableRef CVarHairCardsGuidesDebug_Ren(TEXT("r.HairStrands.Cards.DebugGuides.Render"), GHairCardsGuidesDebug_Ren, TEXT("Draw debug hair cards guides (1: Rest, 2: Deformed)."));
 static FAutoConsoleVariableRef CVarHairCardsGuidesDebug_Sim(TEXT("r.HairStrands.Cards.DebugGuides.Sim"), GHairCardsGuidesDebug_Sim, TEXT("Draw debug hair sim guides (1: Rest, 2: Deformed)."));
 
+static int32 GHairStrandsControlPointDebug = 0;
+static FAutoConsoleVariableRef CVarHairStrandsControlPointDebug(TEXT("r.HairStrands.Strands.DebugControlPoint"), GHairStrandsControlPointDebug, TEXT("Draw debug hair strands control points)."));
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool IsHairStrandsSkinCacheEnable();
@@ -250,7 +253,7 @@ static void AddDebugProjectionMeshPass(
 	PSParameters.Pass = *Parameters;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrandsMeshProjectionMeshDebug"),
+		RDG_EVENT_NAME("HairStrands::MeshProjectionMeshDebug"),
 		Parameters,
 		ERDGPassFlags::Raster,
 		[Parameters, VSParameters, PSParameters, VertexShader, PixelShader, Viewport, Resolution, PrimitiveCount, PrimitiveType](FRHICommandList& RHICmdList)
@@ -426,7 +429,7 @@ static void AddDebugProjectionHairPass(
 	PSParameters.Pass = *Parameters;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("HairStrandsMeshProjectionHairDebug"),
+		RDG_EVENT_NAME("HairStrands::MeshProjectionHairDebug"),
 		Parameters,
 		ERDGPassFlags::Raster,
 		[Parameters, VSParameters, PSParameters, VertexShader, PixelShader, Viewport, Resolution, PrimitiveCount, PrimitiveType](FRHICommandList& RHICmdList)
@@ -537,7 +540,7 @@ static void AddVoxelPlainRaymarchingPass(
 
 		TShaderMapRef<FVoxelPlainRaymarchingCS> ComputeShader(ShaderMap);
 		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(OutputTexture->Desc.Extent.X, OutputTexture->Desc.Extent.Y, 1), FIntVector(8, 8, 1));
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVoxelPlainRaymarching"), ComputeShader, Parameters, DispatchCount);
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VoxelPlainRaymarching"), ComputeShader, Parameters, DispatchCount);
 	}
 #endif
 }
@@ -618,10 +621,76 @@ static void AddDrawDebugCardsAtlasPass(
 
 		ShaderDrawDebug::SetParameters(GraphBuilder, *ShaderDrawData, Parameters->ShaderDrawParameters);
 
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("DrawDebugCardsAtlas"), ComputeShader, Parameters,
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::DrawDebugCardsAtlas"), ComputeShader, Parameters,
 		FIntVector::DivideAndRoundUp(FIntVector(Parameters->OutputResolution.X, Parameters->OutputResolution.Y, 1), FIntVector(8, 8, 1)));
 
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FDrawDebugStrandsCVsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FDrawDebugStrandsCVsCS);
+	SHADER_USE_PARAMETER_STRUCT(FDrawDebugStrandsCVsCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER(uint32, MaxVertexCount)
+		SHADER_PARAMETER(FMatrix44f, LocalToWorld)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, DepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ColorTexture)
+		SHADER_PARAMETER_STRUCT_REF(FHairStrandsVertexFactoryUniformShaderParameters, HairStrandsVF)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_CVS"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FDrawDebugStrandsCVsCS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "MainCS", SF_Compute);
+
+static void AddDrawDebugStrandsCVsPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
+	FGlobalShaderMap* ShaderMap,
+	const FHairGroupInstance* Instance,
+	const FShaderDrawDebugData* ShaderDrawData,
+	FRDGTextureRef ColorTexture,
+	FRDGTextureRef DepthTexture)
+{
+	if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Strands || ShaderDrawData == nullptr)
+	{
+		return;
+	}
+
+	if (!Instance->Strands.IsValid())
+	{
+		return;
+	}
+
+	TShaderMapRef<FDrawDebugStrandsCVsCS> ComputeShader(ShaderMap);
+	FDrawDebugStrandsCVsCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugStrandsCVsCS::FParameters>();
+	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	Parameters->HairStrandsVF = Instance->Strands.UniformBuffer;
+	Parameters->LocalToWorld = Instance->LocalToWorld.ToMatrixWithScale();
+	Parameters->MaxVertexCount = Instance->Strands.Data->PointCount;
+	Parameters->ColorTexture = GraphBuilder.CreateUAV(ColorTexture);
+	Parameters->DepthTexture = DepthTexture;
+	Parameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	const uint32 VertexCount = Instance->HairGroupPublicData->VFInput.Strands.VertexCount;
+	FComputeShaderUtils::AddPass(
+		GraphBuilder, 
+		RDG_EVENT_NAME("HairStrands::DrawCVs"), 
+		ComputeShader, 
+		Parameters,
+		FIntVector::DivideAndRoundUp(FIntVector(VertexCount, 1, 1), FIntVector(256, 1, 1)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -824,6 +893,7 @@ void RunHairStrandsDebug(
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
 	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture,
 	FIntRect Viewport,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
 {
@@ -1091,8 +1161,18 @@ void RunHairStrandsDebug(
 		FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
 
 		if (GHairCardsGuidesDebug_Ren > 0 || Instance->Debug.bDrawCardsGuides)
+		{
 			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, Instance->Debug.bDrawCardsGuides ? false : GHairCardsGuidesDebug_Ren == 1, true);
+		}
+
 		if (GHairCardsGuidesDebug_Sim > 0)
+		{
 			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, GHairCardsGuidesDebug_Sim == 1, false);
+		}
+
+		if (GHairStrandsControlPointDebug || Instance->HairGroupPublicData->DebugMode == EHairStrandsDebugMode::RenderHairControlPoints)
+		{
+			AddDrawDebugStrandsCVsPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, SceneColorTexture, SceneDepthTexture);
+		}
 	}
 }

@@ -4,6 +4,10 @@
 #include "../ColorMap.ush"
 #include "HairStrandsVisibilityCommon.ush"
 
+/////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_DEBUG_MODE
+
 float2 OutputResolution;
 uint FastResolveMask;
 uint DebugMode;
@@ -141,3 +145,60 @@ void MainPS(
 
 	OutColor = float4(Color, Alpha);
 }
+
+#endif // SHADER_DEBUG_MODE
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_CVS
+#include "HairStrandsVertexFactoryCommon.ush"
+
+float4x4 LocalToWorld;
+uint MaxVertexCount;
+
+SamplerState LinearSampler;
+Texture2D<float> DepthTexture;
+RWTexture2D<float4> ColorTexture;
+
+[numthreads(256, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint VertexId = DispatchThreadId.x;
+	if (VertexId > MaxVertexCount)
+		return;
+
+	uint VertexIndex = VertexId;
+	float ScaleR = 1;
+	if (HairStrandsVF.CullingEnable)
+	{
+		ScaleR = HairStrandsVF.CulledVertexRadiusScaleBuffer[VertexIndex];
+		VertexIndex = HairStrandsVF.CulledVertexIdsBuffer[VertexIndex];
+	}
+
+	const float3 P_Local = UnpackHairControlPoint(
+		HairStrandsVF.PositionBuffer[VertexIndex],
+		HairStrandsVF.PositionOffsetBuffer[0].xyz,
+		HairStrandsVF.Radius * ScaleR,
+		HairStrandsVF.RootScale,
+		HairStrandsVF.TipScale).Position;
+
+	const float3 P_World = mul(float4(P_Local, 1), LocalToWorld).xyz;
+	float4 SamplePosition = float4(P_World + LWCHackToFloat(PrimaryView.PreViewTranslation), 1);
+	float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
+	float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
+	float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+	float SampleSceneDepth = ClipPosition.w;
+
+	const float S = 1;
+	const float4 Color = float4(S, S, 0, 1);
+	const float SceneDepth = ConvertFromDeviceZ(DepthTexture.SampleLevel(LinearSampler, ScreenUV, 0));
+	const bool bIsVisible = SampleSceneDepth <= SceneDepth;
+	if (bIsVisible)
+	{
+		int2 OutCoord = ScreenUV * View.BufferSizeAndInvSize.xy;
+		OutCoord = clamp(OutCoord, int2(0, 0), View.BufferSizeAndInvSize.xy);
+		ColorTexture[OutCoord] = Color;
+	}
+}
+
+#endif // SHADER_CVS

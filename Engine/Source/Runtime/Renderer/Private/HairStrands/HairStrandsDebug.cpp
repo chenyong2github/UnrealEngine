@@ -201,6 +201,7 @@ EHairStrandsDebugMode GetHairStrandsDebugStrandsMode()
 	case 10:  return EHairStrandsDebugMode::RenderHairRoughness;
 	case 11:  return EHairStrandsDebugMode::RenderVisCluster;
 	case 12:  return EHairStrandsDebugMode::RenderHairTangent;
+	case 13:  return EHairStrandsDebugMode::RenderHairControlPoints;
 	default:  return EHairStrandsDebugMode::NoneDebug;
 	};
 }
@@ -219,6 +220,7 @@ static const TCHAR* ToString(EHairStrandsDebugMode DebugMode)
 	case EHairStrandsDebugMode::RenderHairDimension			: return TEXT("Hair dimensions");
 	case EHairStrandsDebugMode::RenderHairRadiusVariation	: return TEXT("Hair radius variation");
 	case EHairStrandsDebugMode::RenderHairTangent			: return TEXT("Hair tangent");
+	case EHairStrandsDebugMode::RenderHairControlPoints		: return TEXT("Hair control points");
 	case EHairStrandsDebugMode::RenderHairBaseColor			: return TEXT("Hair vertices color");
 	case EHairStrandsDebugMode::RenderHairRoughness			: return TEXT("Hair vertices roughness");
 	case EHairStrandsDebugMode::RenderVisCluster			: return TEXT("Hair visility clusters");
@@ -335,6 +337,11 @@ class FHairDebugPS : public FGlobalShader
 
 public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Tool, Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEBUG_MODE"), 1);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairDebugPS, "/Engine/Private/HairStrands/HairStrandsDebug.usf", "MainPS", SF_Pixel);
@@ -1079,10 +1086,12 @@ static void InternalRenderHairStrandsDebugInfo(
 	FScene* Scene,
 	FViewInfo& View,
 	const struct FHairStrandClusterData& HairClusterData,
-	FRDGTextureRef SceneColorTexture)
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture)
 {
 	FHairStrandsBookmarkParameters Params = CreateHairStrandsBookmarkParameters(Scene, View);
 	Params.SceneColorTexture = SceneColorTexture;
+	Params.SceneDepthTexture = SceneDepthTexture;
 	if (!Params.bHasElements)
 	{
 		return;
@@ -1427,11 +1436,12 @@ void RenderHairStrandsDebugInfo(
 	FScene* Scene,
 	TArrayView<FViewInfo> Views,
 	const struct FHairStrandClusterData& HairClusterData,
-	FRDGTextureRef SceneColorTexture)
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture)
 {
 	bool bHasHairData = false;
 	for (FViewInfo& View : Views)
 	{
-		InternalRenderHairStrandsDebugInfo(GraphBuilder, Scene, View, HairClusterData, SceneColorTexture);
+		InternalRenderHairStrandsDebugInfo(GraphBuilder, Scene, View, HairClusterData, SceneColorTexture, SceneDepthTexture);
 	}
 }

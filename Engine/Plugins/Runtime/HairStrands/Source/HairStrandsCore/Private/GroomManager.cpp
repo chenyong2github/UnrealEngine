@@ -876,6 +876,7 @@ void RunHairStrandsDebug(
 	const FGPUSkinCache* SkinCache,
 	const FShaderDrawDebugData* ShaderDrawData,
 	FRDGTextureRef SceneColor,
+	FRDGTextureRef SceneDepth,
 	FIntRect Viewport,
 	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer);
 
@@ -981,6 +982,7 @@ void ProcessHairStrandsBookmark(
 			Parameters.SkinCache,
 			Parameters.ShaderDebugData,
 			Parameters.SceneColorTexture,
+			Parameters.SceneDepthTexture,
 			Parameters.View->UnscaledViewRect,
 			Parameters.View->ViewUniformBuffer);
 	}
