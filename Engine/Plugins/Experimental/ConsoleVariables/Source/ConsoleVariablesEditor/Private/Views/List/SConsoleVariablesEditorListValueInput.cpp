@@ -3,6 +3,7 @@
 #include "SConsoleVariablesEditorListValueInput.h"
 
 #include "ConsoleVariablesEditorListRow.h"
+#include "ConsoleVariablesEditorModule.h"
 
 #include "Widgets/Input/SNumericEntryBox.h"
 
@@ -76,9 +77,13 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
 		})
 		.OnValueChanged_Lambda([this] (const float InValue)
 		{
-			if (Item.IsValid() && Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked)
+			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); PinnedItem->GetWidgetCheckedState() == ECheckBoxState::Checked)
 			{
-				Item.Pin()->GetCommandInfo().Pin()->ExecuteCommand(FString::SanitizeFloat(InValue));
+				const FString ValueAsString = FString::SanitizeFloat(InValue);
+				
+				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
+
+				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
 			}
 			
 			SetCachedValue(FString::SanitizeFloat(InValue));
@@ -122,9 +127,13 @@ void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InAr
 		})
 		.OnValueChanged_Lambda([this] (const int32 InValue)
 		{
-			if (Item.IsValid() && Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked)
+			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); PinnedItem->GetWidgetCheckedState() == ECheckBoxState::Checked)
 			{
-				Item.Pin()->GetCommandInfo().Pin()->ExecuteCommand(FString::FromInt(InValue));
+				const FString ValueAsString = FString::FromInt(InValue);
+				
+				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
+
+				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
 			}
 
 			SetCachedValue(FString::FromInt(InValue));
@@ -168,9 +177,13 @@ void SConsoleVariablesEditorListValueInput_String::Construct(const FArguments& I
 		})
 		.OnTextCommitted_Lambda([this] (const FText& InValue, ETextCommit::Type InTextCommitType)
 		{
-			if (InTextCommitType == ETextCommit::OnEnter && Item.IsValid() && Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked)
+			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); PinnedItem->GetWidgetCheckedState() == ECheckBoxState::Checked)
 			{
-				Item.Pin()->GetCommandInfo().Pin()->ExecuteCommand(InValue.ToString());
+				const FString ValueAsString = InValue.ToString();
+				
+				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
+
+				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
 			}
 
 			SetCachedValue(InValue.ToString());
@@ -216,9 +229,13 @@ void SConsoleVariablesEditorListValueInput_Bool::Construct(const FArguments& InA
 		.MaxSliderValue(2)
 		.OnValueChanged_Lambda([this] (const int32 InValue)
 		{
-			if (Item.IsValid() && Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked)
+			if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); PinnedItem->GetWidgetCheckedState() == ECheckBoxState::Checked)
 			{
-				Item.Pin()->GetCommandInfo().Pin()->ExecuteCommand(FString::FromInt(InValue));
+				const FString ValueAsString = FString::FromInt(InValue);
+				
+				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
+
+				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
 			}
 
 			SetCachedValue(FString::FromInt(InValue));

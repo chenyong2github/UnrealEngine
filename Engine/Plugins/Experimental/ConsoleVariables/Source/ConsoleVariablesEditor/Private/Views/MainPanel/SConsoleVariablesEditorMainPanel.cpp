@@ -6,6 +6,7 @@
 #include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorModule.h"
 #include "ConsoleVariablesEditorStyle.h"
+#include "MultiUser/ConsoleVariableSyncData.h"
 #include "Views/List/ConsoleVariablesEditorList.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
@@ -40,7 +41,7 @@ void SConsoleVariablesEditorMainPanel::Construct(const FArguments& InArgs, const
 	check(ConsoleInput.IsValid());
 
 	ConsoleInputEditableTextBox->SetOnKeyDownHandler(FOnKeyDown::CreateRaw(this, &SConsoleVariablesEditorMainPanel::HandleConsoleInputTextCommitted));
-
+	
 	ChildSlot
 	[
 		SNew(SSplitter)
@@ -56,7 +57,15 @@ void SConsoleVariablesEditorMainPanel::Construct(const FArguments& InArgs, const
 		[
 			MainPanel.Pin()->GetEditorList().Pin()->GetOrCreateWidget()
 		]
+
+		+SSplitter::Slot()
+		[
+			SAssignNew(MultiUserDetailsBox, SVerticalBox)
+			.Visibility(EVisibility::Collapsed)
+		]
 	];
+
+	CreateConcertButtonIfNeeded();
 }
 
 SConsoleVariablesEditorMainPanel::~SConsoleVariablesEditorMainPanel()
@@ -95,6 +104,37 @@ FReply SConsoleVariablesEditorMainPanel::HandleConsoleInputTextCommitted(const F
 	return FReply::Handled();
 }
 
+void SConsoleVariablesEditorMainPanel::RefreshMultiUserDetails()
+{
+	UConcertCVarSynchronization* CVarSync = GetMutableDefault<UConcertCVarSynchronization>();
+
+	UConcertCVarConfig* CVarConfig = GetMutableDefault<UConcertCVarConfig>();
+
+	MultiUserDetailsBox->ClearChildren();
+
+	MultiUserDetailsBox->AddSlot()
+	.AutoHeight()
+	[
+		GetConcertDetailsWidget(CVarSync)
+	];
+
+	MultiUserDetailsBox->AddSlot()
+	[
+		GetConcertDetailsWidget(CVarConfig)
+	];
+}
+
+void SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails(ECheckBoxState CheckState)
+{
+	const bool bShouldBeVisible = CheckState == ECheckBoxState::Checked;
+	MultiUserDetailsBox->SetVisibility(bShouldBeVisible ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
+
+	if (bShouldBeVisible)
+	{
+		RefreshMultiUserDetails();
+	}
+}
+
 TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const TSharedRef<SWidget> InConsoleInputWidget)
 {
 	return SNew(SBorder)
@@ -102,7 +142,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const
 	        .BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
 			.HAlign(HAlign_Fill)
 	        [
-				SNew(SHorizontalBox)
+				SAssignNew(ToolbarHBox, SHorizontalBox)
 				
 				// Add Console Variable input
 				+ SHorizontalBox::Slot()
@@ -115,8 +155,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const
 
 				// Presets Management Button
 				+ SHorizontalBox::Slot()
-				.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
-				.HAlign(HAlign_Center)
+				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Fill)
 				.AutoWidth()
 				[
@@ -147,36 +186,38 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GeneratePanelToolbar(const
 						]
 					]
 				]
-
-				// Open Settings
-				+ SHorizontalBox::Slot()
-                .HAlign(HAlign_Right)
-				.VAlign(VAlign_Fill)
-                [
-					SNew(SBox)
-					.WidthOverride(28)
-					.HeightOverride(28)
-					.Visibility(EVisibility::Collapsed)
-					[
-						SAssignNew(SettingsButtonPtr, SCheckBox)
-						.Padding(FMargin(4.f))
-						.ToolTipText(LOCTEXT("ShowSettings_Tip", "Show the general user/project settings for Console Variables"))
-						.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
-						.ForegroundColor(FStyleColors::Foreground)
-						.IsChecked(false)
-						.OnCheckStateChanged_Lambda([this](ECheckBoxState CheckState)
-						{
-							FConsoleVariablesEditorModule::OpenConsoleVariablesSettings();
-							SettingsButtonPtr->SetIsChecked(false);
-						})
-		                [
-							SNew(SImage)
-							.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
-							.ColorAndOpacity(FSlateColor::UseForeground())
-		                ]
-					]
-                ]
         	];
+}
+
+void SConsoleVariablesEditorMainPanel::CreateConcertButtonIfNeeded()
+{
+	if (MainPanel.Pin()->GetMultiUserManager().IsInitialized())
+	{
+		// Toggle Multi-User Details
+		ToolbarHBox->AddSlot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Fill)
+		.AutoWidth()
+		[
+			SNew(SBox)
+			.WidthOverride(28)
+			.HeightOverride(28)
+			[
+				SAssignNew(ConcertButtonPtr, SCheckBox)
+				.Padding(FMargin(4.f))
+				.ToolTipText(LOCTEXT("ShowConcertSettings_Tip", "Show the multi-user controls for Console Variables"))
+				.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
+				.ForegroundColor(FStyleColors::Foreground)
+				.IsChecked(false)
+				.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails)
+				[
+					SNew(SImage)
+					.Image(FConsoleVariablesEditorStyle::Get().GetBrush("Concert.MultiUser"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+		];
+	}
 }
 
 TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
@@ -247,6 +288,23 @@ TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::OnGeneratePresetsMenu()
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SConsoleVariablesEditorMainPanel::GetConcertDetailsWidget(UObject* InObject)
+{
+	FPropertyEditorModule& PropertyEditorModule =
+		FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.bAllowSearch = false;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+	DetailsViewArgs.bHideSelectionTip = true;
+	DetailsViewArgs.bShowScrollBar = false;
+
+	TSharedRef<IDetailsView> Details = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+
+	Details->SetObjects(TArray{InObject});
+
+	return Details;
 }
 
 #undef LOCTEXT_NAMESPACE

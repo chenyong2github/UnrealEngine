@@ -4,13 +4,14 @@
 
 #include "AssetTypeActions/AssetTypeActions_ConsoleVariables.h"
 #include "ConsoleVariablesEditorLog.h"
+#include "ConsoleVariablesEditorProjectSettings.h"
 #include "ConsoleVariablesEditorStyle.h"
+#include "MultiUser/ConsoleVariableSyncData.h"
 #include "Views/MainPanel/ConsoleVariablesEditorMainPanel.h"
 
 #include "Algo/Find.h"
 #include "Framework/Docking/TabManager.h"
 #include "ISettingsModule.h"
-#include "ISettingsSection.h"
 #include "LevelEditor.h"
 #include "ToolMenus.h"
 #include "WorkspaceMenuStructure.h"
@@ -33,7 +34,6 @@ void FConsoleVariablesEditorModule::StartupModule()
 
 	FConsoleVariablesEditorStyle::Initialize();
 
-	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FConsoleVariablesEditorModule::PostEngineInit);
 	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FConsoleVariablesEditorModule::OnFEngineLoopInitComplete);
 }
 
@@ -41,26 +41,28 @@ void FConsoleVariablesEditorModule::ShutdownModule()
 {
 	UToolMenus::UnregisterOwner(this);
 
-	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
 	FConsoleVariablesEditorStyle::Shutdown();
+	
+	MainPanel.Reset();
+
+	ConsoleVariablesMasterReference.Empty();
 
 	// Unregister project settings
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
 		SettingsModule.UnregisterSettings("Project", "Plugins", "Console Variables Editor");
 	}
-	
-	MainPanel.Reset();
-	
-	ProjectSettingsSectionPtr.Reset();
-	ProjectSettingsObjectPtr.Reset();
 
-	ConsoleVariablesMasterReference.Empty();
-
-	IConsoleManager::Get().UnregisterConsoleVariableSink_Handle(VariableChangedSinkHandle);
-	VariableChangedSinkDelegate.Unbind();
+	// Remove all OnChanged delegates
+	for (TSharedPtr<FConsoleVariablesEditorCommandInfo> CommandInfo : ConsoleVariablesMasterReference)
+	{
+		if (CommandInfo.IsValid() && CommandInfo->ConsoleVariablePtr)
+		{
+			CommandInfo->ConsoleVariablePtr->OnChangedDelegate().Remove(CommandInfo->OnVariableChangedCallbackHandle);
+		}
+	}
 }
 
 void FConsoleVariablesEditorModule::OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData)
@@ -76,11 +78,6 @@ void FConsoleVariablesEditorModule::OpenConsoleVariablesDialogWithAssetSelected(
 	}
 }
 
-void FConsoleVariablesEditorModule::OpenConsoleVariablesSettings()
-{
-	FModuleManager::LoadModuleChecked<ISettingsModule>("Settings").ShowViewer("Project", "Plugins", "Console Variables Editor");
-}
-
 void FConsoleVariablesEditorModule::QueryAndBeginTrackingConsoleVariables()
 {
 	const int32 VariableCount = ConsoleVariablesMasterReference.Num();
@@ -92,8 +89,9 @@ void FConsoleVariablesEditorModule::QueryAndBeginTrackingConsoleVariables()
 		{
 			if (IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
 			{
+				const FDelegateHandle Handle = AsVariable->OnChangedDelegate().AddRaw(this, &FConsoleVariablesEditorModule::OnConsoleVariableChanged);
 				ConsoleVariablesMasterReference.Add(
-					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, AsVariable->GetString()));
+					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, AsVariable->GetString(), Handle));
 			}
 		}),
 		TEXT(""));
@@ -111,21 +109,41 @@ TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::Find
 	return Match ? *Match : nullptr;
 }
 
-void FConsoleVariablesEditorModule::PostEngineInit()
+TWeakPtr<FConsoleVariablesEditorCommandInfo> FConsoleVariablesEditorModule::FindCommandInfoByConsoleVariableReference(IConsoleVariable* InVariableReference)
 {
-	RegisterMenuItem();
-	RegisterProjectSettings();
+	TSharedPtr<FConsoleVariablesEditorCommandInfo>* Match = Algo::FindByPredicate(
+	ConsoleVariablesMasterReference,
+	[InVariableReference](const TSharedPtr<FConsoleVariablesEditorCommandInfo> Comparator)
+	{
+		return Comparator->ConsoleVariablePtr == InVariableReference;
+	});
+
+	return Match ? *Match : nullptr;
+}
+
+TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::GetEditingAsset() const
+{
+	return EditingAsset.Get();
+}
+
+void FConsoleVariablesEditorModule::SetEditingAsset(const TObjectPtr<UConsoleVariablesAsset> InEditingAsset)
+{
+	EditingAsset = InEditingAsset;
+}
+
+void FConsoleVariablesEditorModule::SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString)
+{
+	MainPanel->GetMultiUserManager().SendConsoleVariableChange(InVariableName, InValueAsString);
 }
 
 void FConsoleVariablesEditorModule::OnFEngineLoopInitComplete()
 {
+	RegisterMenuItem();
+	RegisterProjectSettings();
 	QueryAndBeginTrackingConsoleVariables();
 	AllocateTransientPreset();
 	
 	MainPanel = MakeShared<FConsoleVariablesEditorMainPanel>();
-
-	VariableChangedSinkDelegate = FConsoleCommandDelegate::CreateRaw(this, &FConsoleVariablesEditorModule::OnConsoleVariableChange);
-	VariableChangedSinkHandle = IConsoleManager::Get().RegisterConsoleVariableSink_Handle(VariableChangedSinkDelegate);
 }
 
 void FConsoleVariablesEditorModule::RegisterMenuItem()
@@ -146,25 +164,42 @@ bool FConsoleVariablesEditorModule::RegisterProjectSettings()
 	ISettingsModule& SettingsModule = FModuleManager::LoadModuleChecked<ISettingsModule>("Settings");
 	{
 		// User Project Settings
-		ProjectSettingsSectionPtr = SettingsModule.RegisterSettings("Project", "Plugins", "Console Variables Editor",
+		const TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr = SettingsModule.RegisterSettings(
+			"Project", "Plugins", "Console Variables Editor",
 			NSLOCTEXT("ConsoleVariables", "ConsoleVariablesSettingsCategoryDisplayName", "Console Variables Editor"),
-			NSLOCTEXT("ConsoleVariables", "ConsoleVariablesSettingsDescription", "Configure the Console Variables Editor user settings"),
+			NSLOCTEXT("ConsoleVariables", "ConsoleVariablesSettingsDescription",
+			          "Configure the Console Variables Editor user settings"),
 			GetMutableDefault<UConsoleVariablesEditorProjectSettings>());
 
-		if (ProjectSettingsSectionPtr.IsValid() && ProjectSettingsSectionPtr->GetSettingsObject().IsValid())
-		{
-			ProjectSettingsObjectPtr = Cast<UConsoleVariablesEditorProjectSettings>(ProjectSettingsSectionPtr->GetSettingsObject());
-
-			ProjectSettingsSectionPtr->OnModified().BindRaw(this, &FConsoleVariablesEditorModule::HandleModifiedProjectSettings);
-		}
+		return true;
 	}
 
-	return ProjectSettingsObjectPtr.IsValid();
+	return false;
 }
 
-bool FConsoleVariablesEditorModule::HandleModifiedProjectSettings()
-{	
-	return true;
+void FConsoleVariablesEditorModule::OnConsoleVariableChanged(IConsoleVariable* ChangedVariable)
+{
+	check(EditingAsset);
+
+	if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
+		FindCommandInfoByConsoleVariableReference(ChangedVariable); CommandInfo.IsValid())
+	{
+		FString OutValue;
+		const FString& Key = CommandInfo.Pin()->Command;
+		if (GetMutableDefault<UConsoleVariablesEditorProjectSettings>()->bAddAllChangedConsoleVariablesToCurrentPreset &&
+			!EditingAsset->FindSavedValueByCommandString(Key, OutValue) &&
+			CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(CommandInfo.Pin()->StartupValueAsString))
+		{
+			EditingAsset->AddOrSetConsoleVariableSavedValue(Key, ChangedVariable->GetString());
+
+			if (MainPanel.IsValid())
+			{
+				MainPanel->RefreshList();
+			}
+
+			SendMultiUserConsoleVariableChange(Key, ChangedVariable->GetString());
+		}
+	}
 }
 
 TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::AllocateTransientPreset()
@@ -194,61 +229,6 @@ TSharedRef<SDockTab> FConsoleVariablesEditorModule::SpawnMainPanelTab(const FSpa
 void FConsoleVariablesEditorModule::OpenConsoleVariablesEditor()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(ConsoleVariablesToolkitPanelTabId);
-}
-
-void FConsoleVariablesEditorModule::OnConsoleVariableChange()
-{
-	check(EditingAsset);
-
-	const int32 StartingTrackedCommandsCount = EditingAsset->GetSavedCommandsAndValues().Num();
-
-	IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda(
-	[this] (const TCHAR* Key, IConsoleObject* ConsoleObject)
-	{
-		if (IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
-		{
-			TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo = FindCommandInfoByName(Key);
-			
-			if (CommandInfo.IsValid())
-			{
-				CommandInfo.Pin()->ConsoleVariablePtr = AsVariable;
-						
-				if (ProjectSettingsObjectPtr->bAddAllChangedConsoleVariablesToCurrentPreset)
-				{
-					FString OutValue;
-					if (!EditingAsset->FindSavedValueByCommandString(Key, OutValue) &&
-						CommandInfo.Pin()->IsCurrentValueDifferentFromInputValue(CommandInfo.Pin()->StartupValueAsString))
-					{
-						EditingAsset->AddOrSetConsoleVariableSavedValue(Key, AsVariable->GetString());
-					}
-				}
-			}
-			else
-			{
-				ConsoleVariablesMasterReference.Add(
-					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, AsVariable->GetString()));
-			}
-		}
-	}),
-	TEXT(""));
-
-	if (StartingTrackedCommandsCount < EditingAsset->GetSavedCommandsAndValues().Num())
-	{
-		if (MainPanel.IsValid())
-		{
-			MainPanel->RefreshList();
-		}
-	}
-}
-
-TObjectPtr<UConsoleVariablesAsset> FConsoleVariablesEditorModule::GetEditingAsset() const
-{
-	return EditingAsset.Get();
-}
-
-void FConsoleVariablesEditorModule::SetEditingAsset(const TObjectPtr<UConsoleVariablesAsset> InEditingAsset)
-{
-	EditingAsset = InEditingAsset;
 }
 
 #undef LOCTEXT_NAMESPACE

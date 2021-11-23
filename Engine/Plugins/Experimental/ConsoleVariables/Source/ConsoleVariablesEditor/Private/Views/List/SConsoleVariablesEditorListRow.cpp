@@ -2,6 +2,7 @@
 
 #include "SConsoleVariablesEditorListRow.h"
 
+#include "ConsoleVariablesEditorModule.h"
 #include "ConsoleVariablesEditorStyle.h"
 #include "SConsoleVariablesEditorListValueInput.h"
 
@@ -241,10 +242,16 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 			if (PinnedItem->IsRowChecked())
 			{
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueChildInputWidget->GetCachedValue());
+
+				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
+					PinnedItem->GetCommandInfo().Pin()->Command, ValueChildInputWidget->GetCachedValue());
 			}
 			else
 			{
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(PinnedItem->GetCommandInfo().Pin()->StartupValueAsString);
+
+				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
+					PinnedItem->GetCommandInfo().Pin()->Command, PinnedItem->GetCommandInfo().Pin()->StartupValueAsString);
 			}
 		}
 

@@ -27,6 +27,9 @@ public:
 	}
 
 private:
+	
+	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
+	
 	static TSharedRef<FSlateStyleSet> Create();
 
 	static TSharedPtr<FSlateStyleSet> StyleInstance;
