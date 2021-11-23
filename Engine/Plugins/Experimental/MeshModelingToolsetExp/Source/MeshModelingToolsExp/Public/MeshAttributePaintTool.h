@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DynamicMeshBrushTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "Changes/ValueWatcher.h"
 #include "Changes/IndexedAttributeChange.h"
 #include "DynamicMesh/DynamicVerticesOctree3.h"
@@ -11,6 +12,7 @@
 
 
 struct FMeshDescription;
+class UMeshAttributePaintTool;
 
 
 /**
@@ -82,7 +84,7 @@ public:
  * Tool Builder for Attribute Paint Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UMeshAttributePaintToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEXP_API UMeshAttributePaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:

@@ -6,6 +6,7 @@
 #include "HAL/Platform.h"
 #include "UObject/NoExportTypes.h"
 #include "BaseTools/BaseBrushTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "Components/DynamicMeshComponent.h"
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "Mechanics/PolyLassoMarqueeMechanic.h"
@@ -47,7 +48,7 @@ DECLARE_CYCLE_STAT(TEXT("GroupPaintTool_Normals_Compute"), GroupPaintTool_Normal
  * Tool Builder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UMeshGroupPaintToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEXP_API UMeshGroupPaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 

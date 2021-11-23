@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseTools/MeshSurfacePointTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
@@ -23,7 +23,7 @@ using UE::Geometry::FDynamicMeshUVOverlay;
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditUVIslandsToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEXP_API UEditUVIslandsToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:

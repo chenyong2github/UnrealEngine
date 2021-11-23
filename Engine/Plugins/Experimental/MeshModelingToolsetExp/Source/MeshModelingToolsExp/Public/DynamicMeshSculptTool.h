@@ -6,7 +6,7 @@
 #include "HAL/Platform.h"
 #include "SubRegionRemesher.h"
 #include "UObject/NoExportTypes.h"
-#include "BaseTools/MeshSurfacePointTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "Components/OctreeDynamicMeshComponent.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMesh/DynamicMeshOctree3.h"
@@ -95,7 +95,7 @@ enum class EDynamicMeshSculptBrushType : uint8
  * Tool Builder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDynamicMeshSculptToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEXP_API UDynamicMeshSculptToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 

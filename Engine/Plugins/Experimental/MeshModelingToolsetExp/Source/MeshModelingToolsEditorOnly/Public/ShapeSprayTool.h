@@ -5,13 +5,14 @@
 #include "CoreMinimal.h"
 #include "InteractiveToolBuilder.h"
 #include "DynamicMeshBrushTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "ShapeSprayTool.generated.h"
 
 /**
- * UMeshSurfacePointToolBuilder override for UShapeSprayTool
+ * UMeshSurfacePointMeshEditingToolBuilder override for UShapeSprayTool
  */
 UCLASS(Transient)
-class MESHMODELINGTOOLSEDITORONLY_API UShapeSprayToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UShapeSprayToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 

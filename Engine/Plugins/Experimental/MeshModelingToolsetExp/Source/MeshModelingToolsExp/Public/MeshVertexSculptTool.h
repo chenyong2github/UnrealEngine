@@ -10,6 +10,7 @@
 #include "DynamicMesh/DynamicMeshOctree3.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "BaseTools/BaseBrushTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "TransformTypes.h"
 #include "Sculpting/MeshSculptToolBase.h"
 #include "Sculpting/MeshBrushOpBase.h"
@@ -29,7 +30,7 @@ class UPreviewMesh;
  * Tool Builder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UMeshVertexSculptToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEXP_API UMeshVertexSculptToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 

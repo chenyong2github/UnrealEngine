@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/PimplPtr.h"
 #include "UObject/NoExportTypes.h"
-#include "BaseTools/MeshSurfacePointTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "ToolDataVisualizer.h"
@@ -27,7 +27,7 @@ struct FDeformerVertexConstraintData;
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UDeformMeshPolygonsToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEXP_API UDeformMeshPolygonsToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
