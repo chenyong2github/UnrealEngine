@@ -54,7 +54,7 @@ float3 StrataForwardLightingCommon(
 		// Evaluate the ShadowTerm that can then be used when integrating the lighting
 		FShadowTerms ShadowTerms = { StrataPixelHeader.MaterialAO, 1.0, 1.0, InitHairTransmittanceData() };
 
-		float4 PrecomputedShadowFactors = StrataPixelHeader.bZeroPrecShadowMask ? 0.0f : 1.0f;
+		float4 PrecomputedShadowFactors = HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
 	#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
 		PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(AbsoluteWorldPosition).x;
 	#else
@@ -342,7 +342,7 @@ float3 StrataForwardLighting(
 				#if FORWARD_SHADING && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED)
 					float2 NearestResolvedDepthScreenUV = CalculateNearestResolvedDepthScreenUV(ScreenUV, MaterialParameters.ScreenPosition.w);
 
-					IndirectOcclusion = GetIndirectOcclusion(NearestResolvedDepthScreenUV, StrataPixelHeader.bHasDynamicIndirectShadowCasterRepresentation);
+					IndirectOcclusion = GetIndirectOcclusion(NearestResolvedDepthScreenUV, HasDynamicIndirectShadowCasterRepresentation(StrataPixelHeader));
 					DiffuseIndirectLighting *= IndirectOcclusion;
 					SubsurfaceIndirectLighting *= IndirectOcclusion;
 					IndirectIrradiance *= IndirectOcclusion;

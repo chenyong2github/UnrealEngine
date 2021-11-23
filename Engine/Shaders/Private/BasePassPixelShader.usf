@@ -1000,20 +1000,19 @@ void FPixelShaderInOut_MainPS(
 	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
 
 #if !GBUFFER_HAS_PRECSHADOWFACTOR
-	StrataPixelHeader.bSkipPrecShadowMask = true;
+	SetSkipPrecShadowMask(StrataPixelHeader, true);
 #endif
 #if (GBUFFER_HAS_PRECSHADOWFACTOR && WRITES_PRECSHADOWFACTOR_ZERO)
-	StrataPixelHeader.bZeroPrecShadowMask = true;
+	SetZeroPrecShadowMask(StrataPixelHeader, true);
 #endif
 
 	StrataPixelHeader.MaterialAO = MaterialAO;
-
-	StrataPixelHeader.bCastContactShadow = GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW;
-	StrataPixelHeader.bHasDynamicIndirectShadowCasterRepresentation = GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION;
+	SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW);
+	SetDynamicIndirectShadowCasterRepresentation(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION);
 #endif
 
 #if STRATA_ENABLED && STRATA_INLINE_SINGLELAYERWATER
-	StrataPixelHeader.bIsSingleLayerWater = true;
+	SetIsSingleLayerWater(StrataPixelHeader, true);
 
 	// Override GBuffer data with Strata SLW water BSDF to run forward shadfing code.
 	// STRATA_TODO: run the shading through a strata path? (by adding a special BSDF?)
