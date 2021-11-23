@@ -1025,6 +1025,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 
 	bWorldInitDone = true;
 	OnNavigationInitDone.Broadcast();
+	UNavigationSystemBase::OnNavigationInitDoneStaticDelegate().Broadcast(*this);
 }
 
 void UNavigationSystemV1::RegisterNavigationDataInstances()

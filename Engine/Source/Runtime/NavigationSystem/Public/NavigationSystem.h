@@ -909,7 +909,10 @@ public:
 	/** */
 	virtual void OnWorldInitDone(FNavigationSystemRunMode Mode);
 
+	/** Returns true if world has been initialized. */
+	FORCEINLINE virtual bool IsWorldInitDone() const override { return bWorldInitDone; }
 	FORCEINLINE bool IsInitialized() const { return bWorldInitDone; }
+
 	FORCEINLINE FNavigationSystemRunMode GetRunMode() const { return OperationMode; }
 
 	/** adds BSP collisions of currently streamed in levels to octree */
