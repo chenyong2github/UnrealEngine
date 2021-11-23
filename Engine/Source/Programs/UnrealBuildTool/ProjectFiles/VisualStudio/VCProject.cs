@@ -1741,7 +1741,7 @@ namespace UnrealBuildTool
 
 					if (TargetRulesObject.Type == TargetType.Game || TargetRulesObject.Type == TargetType.Client || TargetRulesObject.Type == TargetType.Server)
 					{
-						// Allow platforms to add any special properties they require... like aumid override for Xbox One
+						// Allow platforms to add any special properties they require
 						PlatformProjectGenerators.GenerateGamePlatformSpecificProperties(Platform, Configuration, TargetRulesObject.Type, VCProjectFileContent, RootOutputDirectory, TargetFilePath);
 					}
 

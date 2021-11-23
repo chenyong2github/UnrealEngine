@@ -30,7 +30,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Linux-specific target settings
 	/// </summary>
-	public partial class LinuxTargetRules
+	public class LinuxTargetRules
 	{
 		/// <summary>
 		/// Constructor
@@ -84,8 +84,19 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Read-only wrapper for Linux-specific target settings
 	/// </summary>
-	public partial class ReadOnlyLinuxTargetRules
+	public class ReadOnlyLinuxTargetRules
 	{
+		private LinuxTargetRules Inner;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Inner">The settings object to wrap</param>
+		public ReadOnlyLinuxTargetRules(LinuxTargetRules Inner)
+		{
+			this.Inner = Inner;
+		}
+
 		/// <summary>
 		/// Accessors for fields on the inner TargetRules instance
 		/// </summary>
@@ -596,7 +607,6 @@ namespace UnrealBuildTool
 		{
 		}
 	}
-
 
 	class LinuxPlatformFactory : UEBuildPlatformFactory
 	{

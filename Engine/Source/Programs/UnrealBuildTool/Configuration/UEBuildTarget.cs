@@ -261,11 +261,6 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Mac = FindOrAddByName("Mac");
 
 		/// <summary>
-		/// Playstation 4
-		/// </summary>
-		public static UnrealTargetPlatform PS4 = FindOrAddByName("PS4");
-
-		/// <summary>
 		/// iOS
 		/// </summary>
 		public static UnrealTargetPlatform IOS = FindOrAddByName("IOS");
@@ -289,11 +284,6 @@ namespace UnrealBuildTool
 		/// TVOS
 		/// </summary>
 		public static UnrealTargetPlatform TVOS = FindOrAddByName("TVOS");
-
-		/// <summary>
-		/// Nintendo Switch
-		/// </summary>
-		public static UnrealTargetPlatform Switch = FindOrAddByName("Switch");
 	}
 
 	internal class UnrealTargetPlatformTypeConverter : TypeConverter
@@ -564,16 +554,6 @@ namespace UnrealBuildTool
 		/// Android platforms
 		/// </summary>
 		public static UnrealPlatformGroup Android = FindOrAddByName("Android");
-
-		/// <summary>
-		/// Sony platforms
-		/// </summary>
-		public static UnrealPlatformGroup Sony = FindOrAddByName("Sony");
-
-		/// <summary>
-		/// XboxCommon group
-		/// </summary>
-		public static UnrealPlatformGroup XboxCommon = FindOrAddByName("XboxCommon");
 
 		/// <summary>
 		/// Desktop group - used by UnrealPlatformClass.Desktop
