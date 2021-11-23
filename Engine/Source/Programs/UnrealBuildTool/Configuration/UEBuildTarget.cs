@@ -236,6 +236,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Helper that just calls UEBuildPlatform.IsPlatformInGroup
+		/// </summary>
+		/// <param name="Group"></param>
+		/// <returns></returns>
+		public bool IsInGroup(string Group)
+		{
+			return UnrealPlatformGroup.TryParse(Group, out UnrealPlatformGroup ActualGroup) && UEBuildPlatform.IsPlatformInGroup(this, ActualGroup);
+		}
+
+		/// <summary>
 		/// 64-bit Windows
 		/// </summary>
 		public static UnrealTargetPlatform Win64 = FindOrAddByName("Win64");
