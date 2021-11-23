@@ -36,8 +36,8 @@ class SVirtualKeyboardEntry;
 class SSafeZone;
 struct FMarqueeRect;
 
-template <typename NumericType> class SNumericVectorInputBox;
-using SVectorInputBox = SNumericVectorInputBox<float>;
+template <typename NumericType, typename VectorType, int32 NumberOfComponent> class SNumericVectorInputBox;
+using SVectorInputBox = SNumericVectorInputBox<float, UE::Math::TVector<float>, 3>;
 template <typename NumericType> class SNumericRotatorInputBox;
 using SRotatorInputBox = SNumericRotatorInputBox<float>;
 class SVirtualJoystick;
