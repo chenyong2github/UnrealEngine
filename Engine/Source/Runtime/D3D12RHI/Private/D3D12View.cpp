@@ -20,6 +20,14 @@ FD3D12ViewDescriptorHandle::~FD3D12ViewDescriptorHandle()
 	check(!BindlessHandle.IsValid());
 }
 
+void FD3D12ViewDescriptorHandle::SetParentDevice(FD3D12Device* InParent)
+{
+	check(Parent == nullptr);
+	Parent = InParent;
+
+	AllocateDescriptorSlot();
+}
+
 void FD3D12ViewDescriptorHandle::CreateView(const D3D12_RENDER_TARGET_VIEW_DESC& Desc, ID3D12Resource* Resource)
 {
 	check(HeapType == ERHIDescriptorHeapType::RenderTarget);
@@ -75,7 +83,7 @@ void FD3D12ViewDescriptorHandle::CreateView(const D3D12_UNORDERED_ACCESS_VIEW_DE
 
 void FD3D12ViewDescriptorHandle::AllocateDescriptorSlot()
 {
-	if (FD3D12Device* Device = GetParentDevice())
+	if (FD3D12Device* Device = GetParentDevice_Unsafe())
 	{
 		OfflineCpuHandle = Device->GetOfflineDescriptorManager(HeapType).AllocateHeapSlot(OfflineHeapIndex);
 		check(OfflineCpuHandle.ptr != 0);
@@ -89,7 +97,7 @@ void FD3D12ViewDescriptorHandle::AllocateDescriptorSlot()
 
 void FD3D12ViewDescriptorHandle::FreeDescriptorSlot()
 {
-	if (FD3D12Device* Device = GetParentDevice())
+	if (FD3D12Device* Device = GetParentDevice_Unsafe())
 	{
 		Device->GetOfflineDescriptorManager(HeapType).FreeHeapSlot(OfflineCpuHandle, OfflineHeapIndex);
 		OfflineHeapIndex = UINT_MAX;

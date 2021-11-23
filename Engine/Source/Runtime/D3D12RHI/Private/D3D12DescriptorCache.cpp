@@ -61,7 +61,7 @@ FD3D12DescriptorCache::FD3D12DescriptorCache(FRHIGPUMask Node)
 	, CurrentViewHeap(nullptr)
 	, CurrentSamplerHeap(nullptr)
 	, LocalViewHeap(nullptr)
-	, LocalSamplerHeap(nullptr, this)
+	, LocalSamplerHeap(this)
 	, SubAllocatedViewHeap(this)
 	, SamplerMap(271) // Prime numbers for better hashing
 	, bUsingGlobalSamplerHeap(false)
@@ -75,13 +75,12 @@ void FD3D12DescriptorCache::Init(FD3D12Device* InParent, FD3D12CommandContext* I
 	Parent = InParent;
 	CmdContext = InCmdContext;
 
-	LocalSamplerHeap.SetParentDevice(InParent);
 	SubAllocatedViewHeap.Init(InParent);
 
 	// Always Init a local sampler heap as the high level cache will always miss initialy
 	// so we need something to fall back on (The view heap never rolls over so we init that one
 	// lazily as a backup to save memory)
-	LocalSamplerHeap.Init(InNumSamplerDescriptors, ERHIDescriptorHeapType::Sampler);
+	LocalSamplerHeap.Init(InParent, InNumSamplerDescriptors, ERHIDescriptorHeapType::Sampler);
 
 	NumLocalViewDescriptors = InNumLocalViewDescriptors;
 
@@ -732,11 +731,11 @@ bool FD3D12DescriptorCache::SwitchToContextLocalViewHeap(const FD3D12CommandList
 		UE_LOG(LogD3D12RHI, Log, TEXT("This should only happen in the Editor where it doesn't matter as much. If it happens in game you should increase the device global heap size!"));
 		
 		// Allocate the heap lazily
-		LocalViewHeap = new FD3D12LocalOnlineHeap(GetParentDevice(), this);
+		LocalViewHeap = new FD3D12LocalOnlineHeap(this);
 		if (LocalViewHeap)
 		{
 			check(NumLocalViewDescriptors);
-			LocalViewHeap->Init(NumLocalViewDescriptors, ERHIDescriptorHeapType::Standard);
+			LocalViewHeap->Init(GetParentDevice(), NumLocalViewDescriptors, ERHIDescriptorHeapType::Standard);
 		}
 		else
 		{
@@ -969,9 +968,10 @@ FD3D12SubAllocatedOnlineHeap::FD3D12SubAllocatedOnlineHeap(FD3D12DescriptorCache
 FD3D12SubAllocatedOnlineHeap::~FD3D12SubAllocatedOnlineHeap() = default;
 
 /** Initialize the sub allocated online heap */
-void FD3D12SubAllocatedOnlineHeap::Init(FD3D12Device* InDevice)
+void FD3D12SubAllocatedOnlineHeap::Init(FD3D12Device* InParent)
 {
-	SetParentDevice(InDevice);
+	check(Parent == nullptr);
+	Parent = InParent;
 }
 
 /** Handle roll over on the sub allocated online heap - needs a new block */
@@ -1045,8 +1045,8 @@ bool FD3D12SubAllocatedOnlineHeap::AllocateBlock()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FD3D12LocalOnlineHeap
 
-FD3D12LocalOnlineHeap::FD3D12LocalOnlineHeap(FD3D12Device* Device, FD3D12DescriptorCache* InDescriptorCache)
-	: FD3D12OnlineHeap(Device, true)
+FD3D12LocalOnlineHeap::FD3D12LocalOnlineHeap(FD3D12DescriptorCache* InDescriptorCache)
+	: FD3D12OnlineHeap(nullptr, true)
 	, DescriptorCache(InDescriptorCache)
 {
 }
@@ -1056,8 +1056,11 @@ FD3D12LocalOnlineHeap::~FD3D12LocalOnlineHeap() = default;
 /**
 Initialize a thread local online heap
 **/
-void FD3D12LocalOnlineHeap::Init(uint32 InNumDescriptors, ERHIDescriptorHeapType InHeapType)
+void FD3D12LocalOnlineHeap::Init(FD3D12Device* InParent, uint32 InNumDescriptors, ERHIDescriptorHeapType InHeapType)
 {
+	check(Parent == nullptr);
+	Parent = InParent;
+
 	const TCHAR* DebugName = InHeapType == ERHIDescriptorHeapType::Standard ? L"Thread Local - Online View Heap" : L"Thread Local - Online Sampler Heap";
 	Heap = GetParentDevice()->GetDescriptorHeapManager().AllocateHeap(
 		DebugName,

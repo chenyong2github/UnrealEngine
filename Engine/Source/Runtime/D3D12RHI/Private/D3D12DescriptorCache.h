@@ -233,7 +233,7 @@ public:
 	~FD3D12SubAllocatedOnlineHeap();
 
 	// Setup the online heap data
-	void Init(FD3D12Device* InDevice);
+	void Init(FD3D12Device* InParent);
 
 	// Override FD3D12OnlineHeap functions
 	virtual bool RollOver() final override;
@@ -260,11 +260,11 @@ private:
 class FD3D12LocalOnlineHeap : public FD3D12OnlineHeap
 {
 public:
-	FD3D12LocalOnlineHeap(FD3D12Device* Device, FD3D12DescriptorCache* InDescriptorCache);
+	FD3D12LocalOnlineHeap(FD3D12DescriptorCache* InDescriptorCache);
 	~FD3D12LocalOnlineHeap();
 
 	// Allocate the actual overflow heap
-	void Init(uint32 InNumDescriptors, ERHIDescriptorHeapType InHeapType);
+	void Init(FD3D12Device* InParent, uint32 InNumDescriptors, ERHIDescriptorHeapType InHeapType);
 
 	// Override FD3D12OnlineHeap functions
 	virtual bool RollOver() final override;

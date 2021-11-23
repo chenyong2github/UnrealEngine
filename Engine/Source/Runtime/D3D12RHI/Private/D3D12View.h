@@ -626,6 +626,9 @@ public:
 	FD3D12ViewDescriptorHandle(FD3D12Device* InParentDevice, ERHIDescriptorHeapType InHeapType);
 	~FD3D12ViewDescriptorHandle();
 
+	// Called when streaming decides it's ready to actually make a view
+	void SetParentDevice(FD3D12Device* InParent);
+
 	void CreateView(const D3D12_RENDER_TARGET_VIEW_DESC& Desc, ID3D12Resource* Resource);
 	void CreateView(const D3D12_DEPTH_STENCIL_VIEW_DESC& Desc, ID3D12Resource* Resource);
 	void CreateView(const D3D12_CONSTANT_BUFFER_VIEW_DESC& Desc);

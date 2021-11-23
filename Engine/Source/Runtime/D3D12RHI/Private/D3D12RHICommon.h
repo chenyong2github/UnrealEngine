@@ -74,13 +74,6 @@ public:
 	{
 		return Parent;
 	}
-
-	// To be used with delayed setup
-	inline void SetParentDevice(FD3D12Device* InParent)
-	{
-		check(Parent == nullptr);
-		Parent = InParent;
-	}
 };
 
 class FD3D12GPUObject
