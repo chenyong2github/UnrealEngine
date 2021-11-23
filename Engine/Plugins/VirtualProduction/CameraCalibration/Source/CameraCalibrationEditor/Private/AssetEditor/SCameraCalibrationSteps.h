@@ -22,13 +22,22 @@ struct FArguments;
  * UI for the nodal offset calibration.
  * It also holds the UI given by the selected nodal offset algorithm.
  */
-class SCameraCalibrationSteps : public SCompoundWidget
+class SCameraCalibrationSteps : public SCompoundWidget, public FGCObject
 {
 	SLATE_BEGIN_ARGS(SCameraCalibrationSteps) {}
 	SLATE_END_ARGS()
 
 public:
 	void Construct(const FArguments& InArgs, TWeakPtr<FCameraCalibrationStepsController> InCalibrationStepsController);
+
+protected:
+	//~ Begin FGCObject interface
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("SCameraCalibrationSteps");
+	}
+	//~ End FGCObject interface
 
 private:
 
