@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "GeometryBase.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
@@ -28,16 +28,12 @@ PREDECLARE_GEOMETRY(class FDynamicMesh3);
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVLayoutToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UUVLayoutToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -45,7 +41,7 @@ protected:
  * The level editor version of the UV layout tool.
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UUVLayoutTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEXP_API UUVLayoutTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -55,8 +51,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManagerIn);
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -87,8 +81,6 @@ protected:
 	TArray<TObjectPtr<UUVLayoutOperatorFactory>> Factories;
 
 	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
-
-	UWorld* TargetWorld = nullptr;
 
 	FViewCameraState CameraState;
 

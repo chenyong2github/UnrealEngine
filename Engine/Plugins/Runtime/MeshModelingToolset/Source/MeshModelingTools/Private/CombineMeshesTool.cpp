@@ -32,18 +32,6 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-
-const FToolTargetTypeRequirements& UCombineMeshesToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass(),
-		UMaterialProvider::StaticClass()
-		});
-	return TypeRequirements;
-}
-
 bool UCombineMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return (bIsDuplicateTool) ?
@@ -51,15 +39,10 @@ bool UCombineMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState
 		: (SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 1);
 }
 
-UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UCombineMeshesToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	UCombineMeshesTool* NewTool = NewObject<UCombineMeshesTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
 	NewTool->SetDuplicateMode(bIsDuplicateTool);
-
 	return NewTool;
 }
 
@@ -68,11 +51,6 @@ UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& 
  * Tool
  */
 
-
-void UCombineMeshesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 void UCombineMeshesTool::SetDuplicateMode(bool bDuplicateModeIn)
 {

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "SplitMeshesTool.generated.h"
@@ -12,15 +12,14 @@ class UMaterialInterface;
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USplitMeshesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API USplitMeshesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -37,13 +36,11 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USplitMeshesTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEXP_API USplitMeshesTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
 public:
-	virtual void SetWorld(UWorld* World);
-
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -58,8 +55,6 @@ public:
 	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 protected:
-	UWorld* TargetWorld;
-
 	struct FSourceMeshInfo
 	{
 		UE::Geometry::FDynamicMesh3 Mesh;

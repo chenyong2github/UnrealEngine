@@ -6,6 +6,7 @@
 #include "ToolSetupUtil.h"
 #include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -25,30 +26,14 @@ using namespace UE::Geometry;
 /*
  * ToolBuilder
  */
-const FToolTargetTypeRequirements& UVoxelCSGMeshesToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
-}
-
 bool UVoxelCSGMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 2;
 }
 
-UInteractiveTool* UVoxelCSGMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UVoxelCSGMeshesToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UVoxelCSGMeshesTool* NewTool = NewObject<UVoxelCSGMeshesTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<UVoxelCSGMeshesTool>(SceneState.ToolManager);
 }
 
 /*
@@ -57,11 +42,6 @@ UInteractiveTool* UVoxelCSGMeshesToolBuilder::BuildTool(const FToolBuilderState&
 
 UVoxelCSGMeshesTool::UVoxelCSGMeshesTool()
 {
-}
-
-void UVoxelCSGMeshesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
 }
 
 void UVoxelCSGMeshesTool::Setup()
@@ -83,7 +63,7 @@ void UVoxelCSGMeshesTool::Setup()
 	// Hide the source meshes
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(false);
+		UE::ToolTarget::HideSourceObject(Targets[ComponentIdx]);
 	}
 
 	// save transformed version of input meshes (maybe this could happen in the Operator?)
@@ -123,7 +103,7 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	// Restore (unhide) the source meshes
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[ComponentIdx]);
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -135,7 +115,7 @@ void UVoxelCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		TArray<AActor*> Actors;
 		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			Actors.Add(TargetComponentInterface(ComponentIdx)->GetOwnerActor());
+			Actors.Add(UE::ToolTarget::GetTargetActor(Targets[ComponentIdx]));
 		}
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
 
@@ -184,8 +164,8 @@ void UVoxelCSGMeshesTool::CacheInputMeshes()
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		UE::Geometry::FVoxelBooleanMeshesOp::FInputMesh InputMesh;
-		InputMesh.Mesh = TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription();
-		InputMesh.Transform = TargetComponentInterface(ComponentIdx)->GetWorldTransform();
+		InputMesh.Mesh = UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]);
+		InputMesh.Transform = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
 		InputMeshes.Add(InputMesh);
 	}
 }

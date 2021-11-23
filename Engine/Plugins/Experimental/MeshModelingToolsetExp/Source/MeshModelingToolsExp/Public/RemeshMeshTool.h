@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CleaningOps/RemeshMeshOp.h"
@@ -19,7 +19,7 @@ PREDECLARE_GEOMETRY(typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3)
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URemeshMeshToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API URemeshMeshToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
@@ -30,10 +30,7 @@ public:
 	 */
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 /**
@@ -102,15 +99,13 @@ public:
  * that subclasses of this class can work with multiple meshes (see, for example, UProjectToTargetTool.)
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URemeshMeshTool : public UMultiSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLSEXP_API URemeshMeshTool : public UMultiSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 
 	URemeshMeshTool(const FObjectInitializer&);
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -139,9 +134,6 @@ public:
 	TObjectPtr<UMeshElementsVisualizer> MeshElementsDisplay;
 
 protected:
-
-	UWorld* TargetWorld;
-
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 	double InitialMeshArea;

@@ -3,6 +3,7 @@
 #include "ProjectToTargetTool.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "InteractiveToolManager.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -14,31 +15,14 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UProjectToTargetTool"
 
-const FToolTargetTypeRequirements& UProjectToTargetToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass(),
-		UMaterialProvider::StaticClass()
-		});
-	return TypeRequirements;
-}
-
 bool UProjectToTargetToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 2;
 }
 
-UInteractiveTool* UProjectToTargetToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UProjectToTargetToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UProjectToTargetTool* NewTool = NewObject<UProjectToTargetTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<UProjectToTargetTool>(SceneState.ToolManager);
 }
 
 void UProjectToTargetTool::Setup()
@@ -47,7 +31,7 @@ void UProjectToTargetTool::Setup()
 	FMeshDescriptionToDynamicMesh ProjectionConverter;
 	check(Targets.Num() == 2);
 	ProjectionTarget = MakeUnique<FDynamicMesh3>();
-	ProjectionConverter.Convert(TargetMeshProviderInterface(1)->GetMeshDescription(), *ProjectionTarget);
+	ProjectionConverter.Convert(UE::ToolTarget::GetMeshDescription(Targets[1]), *ProjectionTarget);
 	ProjectionTargetSpatial = MakeUnique<FDynamicMeshAABBTree3>(ProjectionTarget.Get(), true);
 
 	// Now setup parent RemeshMeshTool class
@@ -78,8 +62,8 @@ TUniquePtr<FDynamicMeshOperator> UProjectToTargetTool::MakeNewOperator()
 	RemeshOp->ProjectionTargetSpatial = ProjectionTargetSpatial.Get();
 
 	using FTransform3d = UE::Geometry::FTransform3d;
-	RemeshOp->ToolMeshLocalToWorld = FTransform3d(Cast<IPrimitiveComponentBackedTarget>(Targets[0])->GetWorldTransform());
-	RemeshOp->TargetMeshLocalToWorld = FTransform3d(Cast<IPrimitiveComponentBackedTarget>(Targets[1])->GetWorldTransform());
+	RemeshOp->ToolMeshLocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
+	RemeshOp->TargetMeshLocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[1]);
 	RemeshOp->bUseWorldSpace = ProjectProperties->bWorldSpace;
 	RemeshOp->bParallel = ProjectProperties->bParallel;
 

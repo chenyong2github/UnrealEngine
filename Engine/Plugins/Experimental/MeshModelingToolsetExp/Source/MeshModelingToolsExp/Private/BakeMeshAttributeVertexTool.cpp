@@ -37,31 +37,15 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-const FToolTargetTypeRequirements& UBakeMeshAttributeVertexToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionProvider::StaticClass(),
-		UMeshDescriptionCommitter::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass(),
-		UMaterialProvider::StaticClass()
-	});
-	return TypeRequirements;
-}
-
 bool UBakeMeshAttributeVertexToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	const int32 NumTargets = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements());
 	return (NumTargets == 1 || NumTargets == 2);
 }
 
-UInteractiveTool* UBakeMeshAttributeVertexToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UBakeMeshAttributeVertexToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UBakeMeshAttributeVertexTool* NewTool = NewObject<UBakeMeshAttributeVertexTool>(SceneState.ToolManager);
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(
-		SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-	return NewTool;
+	return NewObject<UBakeMeshAttributeVertexTool>(SceneState.ToolManager);
 }
 
 
@@ -468,9 +452,9 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshVertexBaker>> UBakeMeshAttrib
 
 void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 {
-	IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(0);
-	IPrimitiveComponentBackedTarget* DetailComponent = TargetComponentInterface(bIsBakeToSelf ? 0 : 1);
-	IMeshDescriptionProvider* DetailMeshProvider = TargetMeshProviderInterface(bIsBakeToSelf ? 0 : 1);
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Targets[0]);
+	IPrimitiveComponentBackedTarget* DetailComponent = Cast<IPrimitiveComponentBackedTarget>(Targets[bIsBakeToSelf ? 0 : 1]);
+	IMeshDescriptionProvider* DetailMeshProvider = Cast<IMeshDescriptionProvider>(Targets[bIsBakeToSelf ? 0 : 1]);
 
 	DetailMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;

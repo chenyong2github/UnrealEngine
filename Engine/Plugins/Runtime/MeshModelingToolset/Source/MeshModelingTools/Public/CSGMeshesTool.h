@@ -183,9 +183,9 @@ public:
 		return 2;
 	}
 
-	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override
 	{
-		UCSGMeshesTool* Tool = NewObject<UCSGMeshesTool>(Outer);
+		UCSGMeshesTool* Tool = NewObject<UCSGMeshesTool>(SceneState.ToolManager);
 		if (bTrimMode)
 		{
 			Tool->EnableTrimMode();

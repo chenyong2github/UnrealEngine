@@ -20,12 +20,6 @@ void UBakeMeshAttributeTool::Setup()
 }
 
 
-void UBakeMeshAttributeTool::SetWorld(UWorld* World)
-{
-	TargetWorld = World;
-}
-
-
 int UBakeMeshAttributeTool::SelectColorTextureToBake(const TArray<UTexture*>& Textures)
 {
 	TArray<int> TextureVotes;

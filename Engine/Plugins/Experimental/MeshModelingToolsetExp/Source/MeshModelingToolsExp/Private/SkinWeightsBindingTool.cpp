@@ -11,10 +11,15 @@
 #include "SkeletalMeshAttributes.h"
 #include "ToolSetupUtil.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Spatial/FastWinding.h"
 #include "Spatial/MeshWindingNumberGrid.h"
+
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
 
 // #pragma optimize( "", off )
 
@@ -724,15 +729,9 @@ bool USkinWeightsBindingToolBuilder::CanBuildTool(const FToolBuilderState& Scene
 }
 
 
-UInteractiveTool* USkinWeightsBindingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* USkinWeightsBindingToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	USkinWeightsBindingTool* NewTool = NewObject<USkinWeightsBindingTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, FToolTargetTypeRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<USkinWeightsBindingTool>(SceneState.ToolManager);
 }
 
 
@@ -756,12 +755,6 @@ USkinWeightsBindingTool::~USkinWeightsBindingTool()
 }
 
 
-void USkinWeightsBindingTool::SetWorld(UWorld* InWorld)
-{
-	TargetWorld = InWorld;
-}
-
-
 void USkinWeightsBindingTool::Setup()
 {
 	Super::Setup();
@@ -776,11 +769,7 @@ void USkinWeightsBindingTool::Setup()
 		return;
 	}
 	
-	IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(0);
-	IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(0);
-	IMaterialProvider* TargetMaterial = TargetMaterialInterface(0);
-
-	const USkeletalMeshComponent* SkelMeshComponent = Cast<USkeletalMeshComponent>(TargetComponent->GetOwnerComponent());
+	const USkeletalMeshComponent* SkelMeshComponent = Cast<USkeletalMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[0]));
 	
 	if (SkelMeshComponent && SkelMeshComponent->SkeletalMesh)
 	{
@@ -817,7 +806,7 @@ void USkinWeightsBindingTool::Setup()
 		}
 	}
 	
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Targets[0]);
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
 	Preview->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::VertexColors);
@@ -826,8 +815,7 @@ void USkinWeightsBindingTool::Setup()
 		UpdateVisualization();
 	});
 	
-	FComponentMaterialSet MaterialSet;
-	TargetMaterial->GetMaterialSet(MaterialSet);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 
 	UMaterialInterface* VtxColorMaterial = GetToolManager()->GetContextQueriesAPI()->GetStandardMaterial(EStandardToolContextMaterials::VertexColorMaterial);
 	if (VtxColorMaterial != nullptr)
@@ -847,7 +835,7 @@ void USkinWeightsBindingTool::Setup()
 
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(TargetMeshProvider->GetMeshDescription(), *OriginalMesh);
+	Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[0]), *OriginalMesh);
 
 	// Enable or override vertex colors on the original mesh.
 	OriginalMesh->EnableAttributes();
@@ -856,7 +844,7 @@ void USkinWeightsBindingTool::Setup()
 	// Create an overlay that has no split elements, init with zero value.
 	OriginalMesh->Attributes()->PrimaryColors()->CreateFromPredicate([](int ParentVID, int TriIDA, int TriIDB){return true;}, 0.f);
 
-	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
+	Preview->PreviewMesh->SetTransform((FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->SetShadowsEnabled(false);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
@@ -881,7 +869,7 @@ void USkinWeightsBindingTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Properties->SaveProperties(this);
 
-	TargetComponentInterface(0)->SetOwnerVisibility(true);
+	UE::ToolTarget::ShowSourceObject(Targets[0]);
 	
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
@@ -948,7 +936,7 @@ void USkinWeightsBindingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		bool bShowBoundary = true;
 
 		FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-		FTransform Transform = TargetComponentInterface(0)->GetWorldTransform();
+		const FTransform Transform = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 		float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
 
 		for (int32 I = 0; I < Occupancy->Occupancy.Size(); I++)
@@ -1006,7 +994,7 @@ TUniquePtr<UE::Geometry::FDynamicMeshOperator> USkinWeightsBindingTool::MakeNewO
 	Op->OriginalMesh = OriginalMesh;
 	Op->TransformHierarchy = TransformHierarchy;
 
-	const FTransform LocalToWorld = TargetComponentInterface(0)->GetWorldTransform();
+	const FTransform LocalToWorld = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 	Op->SetResultTransform(static_cast<UE::Geometry::FTransform3d>(LocalToWorld));
 	
 	return Op;
@@ -1019,7 +1007,7 @@ void USkinWeightsBindingTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("SkinWeightsBindingToolTransactionName", "Create Rigid Binding"));
 
 	check(Result.Mesh.Get() != nullptr);
-	TargetMeshCommitterInterface(0)->CommitMeshDescription([&Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+	Cast<IMeshDescriptionCommitter>(Targets[0])->CommitMeshDescription([&Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
 

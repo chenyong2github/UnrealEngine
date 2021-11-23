@@ -2,7 +2,6 @@
 
 #include "AlignObjectsTool.h"
 #include "InteractiveToolManager.h"
-#include "InteractiveGizmoManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
@@ -11,6 +10,7 @@
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "Components/PrimitiveComponent.h"
 #include "CollisionQueryParams.h"
@@ -37,15 +37,9 @@ bool UAlignObjectsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState)
 	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= 2;
 }
 
-UInteractiveTool* UAlignObjectsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UAlignObjectsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UAlignObjectsTool* NewTool = NewObject<UAlignObjectsTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
-
-	return NewTool;
+	return NewObject<UAlignObjectsTool>(SceneState.ToolManager);
 }
 
 /*
@@ -54,12 +48,6 @@ UInteractiveTool* UAlignObjectsToolBuilder::BuildTool(const FToolBuilderState& S
 
 UAlignObjectsTool::UAlignObjectsTool()
 {
-}
-
-void UAlignObjectsTool::SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManagerIn)
-{
-	this->TargetWorld = World;
-	this->GizmoManager = GizmoManagerIn;
 }
 
 
@@ -147,13 +135,10 @@ void UAlignObjectsTool::Precompute()
 
 	for (TObjectPtr<UToolTarget>& Target : Targets)
 	{
-		IPrimitiveComponentBackedTarget* Component = Cast<IPrimitiveComponentBackedTarget>(Target);
-		check(Component);
-
 		FAlignInfo AlignInfo;
-		AlignInfo.Component = Component->GetOwnerComponent();
-		AlignInfo.SavedTransform = Component->GetWorldTransform();
-		AlignInfo.WorldTransform = FTransform3d(Component->GetWorldTransform());
+		AlignInfo.Component = UE::ToolTarget::GetTargetComponent(Target);
+		AlignInfo.SavedTransform = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Target);
+		AlignInfo.WorldTransform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 		AlignInfo.WorldBounds = FAxisAlignedBox3d(AlignInfo.Component->Bounds.GetBox());
 		AlignInfo.WorldPivot = AlignInfo.WorldTransform.TransformPosition(FVector3d::Zero());
 		ComponentInfo.Add(AlignInfo);

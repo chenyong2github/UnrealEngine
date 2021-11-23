@@ -32,31 +32,15 @@ using namespace UE::Geometry;
 /*
  * ToolBuilder
  */
-const FToolTargetTypeRequirements& URemeshMeshToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMaterialProvider::StaticClass(),
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
-}
 
 bool URemeshMeshToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
 }
 
-UInteractiveTool* URemeshMeshToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* URemeshMeshToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	URemeshMeshTool* NewTool = NewObject<URemeshMeshTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<URemeshMeshTool>(SceneState.ToolManager);
 }
 
 /*
@@ -91,10 +75,6 @@ URemeshMeshTool::URemeshMeshTool(const FObjectInitializer&)
 	BasicProperties->ClearFlags(RF_Transactional);
 }
 
-void URemeshMeshTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 void URemeshMeshTool::Setup()
 {
@@ -106,17 +86,14 @@ void URemeshMeshTool::Setup()
 
 	check(Targets.Num() > 0);
 	check(Targets[0]);
-	IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(0);
-	IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(0);
-
 
 	// hide component and create + show preview
-	TargetComponent->SetOwnerVisibility(false);
+	UE::ToolTarget::HideSourceObject(Targets[0]);
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
 	Preview->Setup(this->TargetWorld, this);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Targets[0]);
 
-	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
+	const FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 	Preview->ConfigureMaterials( MaterialSet.Materials,
 								 ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
@@ -125,9 +102,9 @@ void URemeshMeshTool::Setup()
 
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(TargetMeshProvider->GetMeshDescription(), *OriginalMesh);
+	Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[0]), *OriginalMesh);
 
-	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
+	Preview->PreviewMesh->SetTransform((FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[0]));
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 

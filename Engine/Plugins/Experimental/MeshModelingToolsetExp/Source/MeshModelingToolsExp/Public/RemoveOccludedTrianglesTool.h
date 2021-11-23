@@ -4,8 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "MultiSelectionTool.h"
-#include "InteractiveToolBuilder.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CleaningOps/RemoveOccludedTrianglesOp.h"
 #include "DynamicMesh/DynamicMesh3.h"
@@ -17,20 +16,17 @@
 
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
+class URemoveOccludedTrianglesTool;
+
 /**
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URemoveOccludedTrianglesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API URemoveOccludedTrianglesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
-
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -158,7 +154,7 @@ public:
  * Simple Mesh Normal Updating Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API URemoveOccludedTrianglesTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEXP_API URemoveOccludedTrianglesTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -170,8 +166,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void OnTick(float DeltaTime) override;
 
@@ -221,8 +215,6 @@ protected:
 	TArray<int32> OccludedGroupIDs;
 	// Selected layer indices for Group IDs, per mesh in the Previews array
 	TArray<int32> OccludedGroupLayers;
-
-	UWorld* TargetWorld;
 
 	FViewCameraState CameraState;
 

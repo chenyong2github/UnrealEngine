@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "TransferMeshTool.generated.h"
 
@@ -11,16 +11,12 @@
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UTransferMeshToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UTransferMeshToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
-
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 /**
@@ -38,13 +34,11 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UTransferMeshTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEXP_API UTransferMeshTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
 public:
-	virtual void SetWorld(UWorld* World);
-
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
@@ -54,7 +48,4 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UTransferMeshToolProperties> BasicProperties;
-
-protected:
-	UWorld* TargetWorld;
 };

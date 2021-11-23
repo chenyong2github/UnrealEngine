@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "InteractiveToolBuilder.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "GameFramework/Actor.h"
 
 #include "AddPivotActorTool.generated.h"
@@ -16,15 +16,15 @@ class UTransformProxy;
 
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAddPivotActorToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UAddPivotActorToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 /** 
@@ -33,12 +33,11 @@ protected:
  * animation.
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UAddPivotActorTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEDITORONLY_API UAddPivotActorTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 public:
 
-	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 	virtual void SetPivotRepositionMode(AActor* PivotActor) { ExistingPivotActor = PivotActor; }
 
 	virtual void Setup() override;
@@ -61,7 +60,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
-	TObjectPtr<UWorld> TargetWorld;
 	TWeakObjectPtr<AActor> ExistingPivotActor = nullptr;
 
 	FTransform ExistingPivotOriginalTransform;

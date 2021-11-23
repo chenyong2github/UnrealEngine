@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
 #include "CleaningOps/EditNormalsOp.h"
@@ -16,21 +16,18 @@
 // predeclarations
 struct FMeshDescription;
 class UDynamicMeshComponent;
+class UEditNormalsTool;
 
 /**
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditNormalsToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UEditNormalsToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -122,7 +119,7 @@ public:
  * Simple Mesh Normal Updating Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditNormalsTool : public UMultiSelectionTool
+class MESHMODELINGTOOLSEXP_API UEditNormalsTool : public UMultiSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -134,8 +131,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -165,8 +160,6 @@ protected:
 
 protected:
 	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
-
-	UWorld* TargetWorld;
 
 	FViewCameraState CameraState;
 

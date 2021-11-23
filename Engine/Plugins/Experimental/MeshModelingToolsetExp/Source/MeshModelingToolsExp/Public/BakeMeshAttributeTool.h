@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/Classes/Engine/Texture2D.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolQueryInterfaces.h" // for UInteractiveToolExclusiveToolAPI
 #include "DynamicMesh/DynamicMesh3.h"
 #include "PreviewMesh.h"
@@ -77,7 +77,7 @@ static constexpr EBakeMapType ALL_BAKE_MAP_TYPES[] =
  * Base Mesh Bake tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeTool : public UMultiSelectionTool, public IInteractiveToolExclusiveToolAPI
+class MESHMODELINGTOOLSEXP_API UBakeMeshAttributeTool : public UMultiSelectionMeshEditingTool, public IInteractiveToolExclusiveToolAPI
 {
 	GENERATED_BODY()
 
@@ -91,8 +91,6 @@ public:
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override { return true; }
 	// End UInteractiveTool interface
-
-	void SetWorld(UWorld* World);
 
 protected:
 	//
@@ -110,9 +108,6 @@ protected:
 	//
 	// Bake parameters
 	//
-	UPROPERTY()
-	TObjectPtr<UWorld> TargetWorld = nullptr;
-
 	EBakeOpState OpState = EBakeOpState::Evaluate;
 
 

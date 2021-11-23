@@ -45,20 +45,9 @@ const FToolTargetTypeRequirements& ULODManagerToolBuilder::GetTargetRequirements
 	return TypeRequirements;
 }
 
-bool ULODManagerToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* ULODManagerToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
-}
-
-UInteractiveTool* ULODManagerToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	ULODManagerTool* NewTool = NewObject<ULODManagerTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<ULODManagerTool>(SceneState.ToolManager);
 }
 
 
@@ -79,10 +68,6 @@ ULODManagerTool::ULODManagerTool()
 {
 }
 
-void ULODManagerTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 void ULODManagerTool::Setup()
 {
@@ -146,7 +131,7 @@ void ULODManagerTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[ComponentIdx]);
 	}
 }
 
@@ -494,8 +479,7 @@ void ULODManagerTool::DeleteHiResSourceModel()
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("DeleteHiResSourceModel", "Delete HiRes Source"));
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponent->GetOwnerComponent());
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
 		if (StaticMeshComponent == nullptr || StaticMeshComponent->GetStaticMesh() == nullptr)
 		{
 			continue;
@@ -527,8 +511,7 @@ void ULODManagerTool::MoveHiResToLOD0()
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RestoreLOD0", "Move HiRes to LOD0"));
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponent->GetOwnerComponent());
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
 		if (StaticMeshComponent == nullptr || StaticMeshComponent->GetStaticMesh() == nullptr)
 		{
 			continue;
@@ -569,8 +552,7 @@ void ULODManagerTool::RemoveUnreferencedMaterials()
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveUnreferencedMaterials", "Remove Unreferenced Materials"));
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponent->GetOwnerComponent());
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
 		if (StaticMeshComponent == nullptr || StaticMeshComponent->GetStaticMesh() == nullptr)
 		{
 			continue;

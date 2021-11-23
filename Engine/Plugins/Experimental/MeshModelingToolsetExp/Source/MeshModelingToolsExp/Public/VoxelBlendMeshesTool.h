@@ -95,9 +95,9 @@ class MESHMODELINGTOOLSEXP_API UVoxelBlendMeshesToolBuilder : public UBaseCreate
 public:
 	virtual int32 MinComponentsSupported() const override { return 2; }
 
-	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override
 	{
-		return NewObject<UVoxelBlendMeshesTool>(Outer);
+		return NewObject<UVoxelBlendMeshesTool>(SceneState.ToolManager);
 	}
 };
 

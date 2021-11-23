@@ -9,22 +9,18 @@
 #include "InteractiveToolBuilder.h"
 #include "Mechanics/ConstructionPlaneMechanic.h"
 #include "MeshOpPreviewHelpers.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "Selection/SelectClickedAction.h"
 #include "ToolContextInterfaces.h"
 
 #include "MirrorTool.generated.h"
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UMirrorToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UMirrorToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 UENUM()
@@ -182,7 +178,7 @@ public:
 
 /** Tool for mirroring one or more meshes across a plane. */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UMirrorTool : public UMultiSelectionTool, public IModifierToggleBehaviorTarget
+class MESHMODELINGTOOLSEXP_API UMirrorTool : public UMultiSelectionMeshEditingTool, public IModifierToggleBehaviorTarget
 {
 	GENERATED_BODY()
 public:
@@ -193,8 +189,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -225,8 +219,6 @@ protected:
 
 	FVector3d MirrorPlaneOrigin = FVector3d::Zero();
 	FVector3d MirrorPlaneNormal = FVector3d::UnitZ();
-
-	UWorld* TargetWorld;
 
 	UPROPERTY()
 	TObjectPtr<UConstructionPlaneMechanic> PlaneMechanic;

@@ -51,12 +51,9 @@ bool USetCollisionGeometryToolBuilder::CanBuildTool(const FToolBuilderState& Sce
 }
 
 
-UInteractiveTool* USetCollisionGeometryToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* USetCollisionGeometryToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	USetCollisionGeometryTool* NewTool = NewObject<USetCollisionGeometryTool>(SceneState.ToolManager);
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	return NewTool;
+	return NewObject<USetCollisionGeometryTool>(SceneState.ToolManager);
 }
 
 

@@ -3,9 +3,13 @@
 #include "CSGMeshesTool.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "CompositionOps/BooleanMeshesOp.h"
 #include "DynamicMesh/DynamicMesh3.h"
+
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
 using namespace UE::Geometry;
 
@@ -178,8 +182,7 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 	{
 		for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			FComponentMaterialSet ComponentMaterialSet;
-			TargetMaterialInterface(ComponentIdx)->GetMaterialSet(ComponentMaterialSet);
+			const FComponentMaterialSet ComponentMaterialSet = UE::ToolTarget::GetMaterialSet(Targets[ComponentIdx]);
 			for (UMaterialInterface* Mat : ComponentMaterialSet.Materials)
 			{
 				int* FoundMatIdx = KnownMaterials.Find(Mat);
@@ -199,14 +202,14 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 	}
 	else
 	{
-		TargetMaterialInterface(0)->GetMaterialSet(AllMaterialSet);
+		AllMaterialSet = UE::ToolTarget::GetMaterialSet(Targets[0]);
 		for (int MatIdx = 0; MatIdx < AllMaterialSet.Materials.Num(); MatIdx++)
 		{
 			MaterialRemap[0].Add(MatIdx);
 		}
 		for (int ComponentIdx = 1; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			MaterialRemap[ComponentIdx].Init(0, TargetMaterialInterface(ComponentIdx)->GetNumMaterials());
+			MaterialRemap[ComponentIdx].Init(0, Cast<IMaterialProvider>(Targets[ComponentIdx])->GetNumMaterials());
 		}
 	}
 
@@ -215,7 +218,7 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 	{
 		OriginalDynamicMeshes[ComponentIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription(), *OriginalDynamicMeshes[ComponentIdx]);
+		Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx]), *OriginalDynamicMeshes[ComponentIdx]);
 
 		// ensure materials and attributes are always enabled
 		OriginalDynamicMeshes[ComponentIdx]->EnableAttributes();
@@ -229,7 +232,7 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 		if (bSetPreviewMesh)
 		{
 			UPreviewMesh* OriginalMeshPreview = OriginalMeshPreviews.Add_GetRef(NewObject<UPreviewMesh>());
-			OriginalMeshPreview->CreateInWorld(TargetWorld, TargetComponentInterface(ComponentIdx)->GetWorldTransform());
+			OriginalMeshPreview->CreateInWorld(TargetWorld, (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]));
 			OriginalMeshPreview->UpdatePreview(OriginalDynamicMeshes[ComponentIdx].Get());
 
 			OriginalMeshPreview->SetMaterial(0, PreviewsGhostMaterial);

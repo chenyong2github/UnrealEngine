@@ -79,9 +79,9 @@ class MESHMODELINGTOOLSEXP_API UVoxelMorphologyMeshesToolBuilder : public UBaseC
 	GENERATED_BODY()
 
 public:
-	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const override
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override
 	{
-		return NewObject<UVoxelMorphologyMeshesTool>(Outer);
+		return NewObject<UVoxelMorphologyMeshesTool>(SceneState.ToolManager);
 	}
 };
 

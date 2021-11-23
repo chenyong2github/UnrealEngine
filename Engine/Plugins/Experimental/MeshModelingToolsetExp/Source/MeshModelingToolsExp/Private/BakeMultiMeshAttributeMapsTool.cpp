@@ -53,13 +53,9 @@ bool UBakeMultiMeshAttributeMapsToolBuilder::CanBuildTool(const FToolBuilderStat
 	return (NumTargets > 1);
 }
 
-UInteractiveTool* UBakeMultiMeshAttributeMapsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UBakeMultiMeshAttributeMapsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	UBakeMultiMeshAttributeMapsTool* NewTool = NewObject<UBakeMultiMeshAttributeMapsTool>(SceneState.ToolManager);
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-	return NewTool;
+	return NewObject<UBakeMultiMeshAttributeMapsTool>(SceneState.ToolManager);
 }
 
 

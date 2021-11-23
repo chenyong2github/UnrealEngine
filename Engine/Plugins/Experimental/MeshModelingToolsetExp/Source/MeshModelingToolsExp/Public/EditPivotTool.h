@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "Changes/TransformChange.h"
@@ -16,21 +16,17 @@ class UBaseAxisTranslationGizmo;
 class UAxisAngleGizmo;
 class UCombinedTransformGizmo;
 class UTransformProxy;
+class UEditPivotTool;
 
 /**
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditPivotToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UEditPivotToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
-
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -151,7 +147,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditPivotTool : public UMultiSelectionTool, public IClickDragBehaviorTarget
+class MESHMODELINGTOOLSEXP_API UEditPivotTool : public UMultiSelectionMeshEditingTool, public IClickDragBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -159,8 +155,6 @@ public:
 	UEditPivotTool();
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
-
-	virtual void SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManager);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -191,9 +185,6 @@ public:
 	virtual void RequestAction(EEditPivotToolActions ActionType);
 
 protected:
-	UWorld* TargetWorld;
-	UInteractiveGizmoManager* GizmoManager;
-
 	TArray<int> MapToFirstOccurrences;
 
 	UE::Geometry::FTransform3d Transform;

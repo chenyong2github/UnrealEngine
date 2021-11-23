@@ -77,21 +77,13 @@ bool UAddPivotActorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState
 	return bAllActorsMovable && ParentActors.Num() == 1;
 }
 
-UInteractiveTool* UAddPivotActorToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UAddPivotActorToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	UAddPivotActorTool* NewTool = NewObject<UAddPivotActorTool>(SceneState.ToolManager);
-
 	if (SceneState.SelectedActors.Num() == 1 && ExactCast<AActor>(SceneState.SelectedActors[0]))
 	{
 		NewTool->SetPivotRepositionMode(SceneState.SelectedActors[0]);
 	}
-	else
-	{
-		NewTool->SetTargets(SceneState.TargetManager->BuildAllSelectedTargetable(
-			SceneState, GetTargetRequirements()));
-		NewTool->SetWorld(SceneState.World);
-	}
-
 	return NewTool;
 }
 

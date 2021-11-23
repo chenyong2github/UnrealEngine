@@ -5,6 +5,7 @@
 #include "ToolBuilderUtil.h"
 
 #include "ToolSetupUtil.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "BaseBehaviors/MultiClickSequenceInputBehavior.h"
@@ -33,30 +34,9 @@ using namespace UE::Geometry;
  */
 
 
-const FToolTargetTypeRequirements& UEditNormalsToolBuilder::GetTargetRequirements() const
+UMultiSelectionMeshEditingTool* UEditNormalsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
-}
-
-bool UEditNormalsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
-{
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
-}
-
-UInteractiveTool* UEditNormalsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UEditNormalsTool* NewTool = NewObject<UEditNormalsTool>(SceneState.ToolManager);
-
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<UEditNormalsTool>(SceneState.ToolManager);
 }
 
 
@@ -86,10 +66,6 @@ UEditNormalsTool::UEditNormalsTool()
 {
 }
 
-void UEditNormalsTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 void UEditNormalsTool::Setup()
 {
@@ -98,8 +74,7 @@ void UEditNormalsTool::Setup()
 	// hide input StaticMeshComponent
 	for (int32 ComponentIdx = 0, NumTargets = Targets.Num(); ComponentIdx < NumTargets; ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		TargetComponent->SetOwnerVisibility(false);
+		UE::ToolTarget::HideSourceObject(Targets[ComponentIdx]);
 	}
 
 	BasicProperties = NewObject<UEditNormalsToolProperties>(this, TEXT("Mesh Normals Settings"));
@@ -150,15 +125,14 @@ void UEditNormalsTool::UpdateNumPreviews()
 			OpFactory->ComponentIndex = PreviewIdx;
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 			FMeshDescriptionToDynamicMesh Converter;
-			Converter.Convert(TargetMeshProviderInterface(PreviewIdx)->GetMeshDescription(), *OriginalDynamicMeshes[PreviewIdx]);
+			Converter.Convert(UE::ToolTarget::GetMeshDescription(Targets[PreviewIdx]), *OriginalDynamicMeshes[PreviewIdx]);
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
 			ToolSetupUtil::ApplyRenderingConfigurationToPreview(Preview->PreviewMesh, Targets[PreviewIdx]);
 			Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 
-			FComponentMaterialSet MaterialSet;
-			TargetMaterialInterface(PreviewIdx)->GetMaterialSet(MaterialSet);
+			const FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Targets[PreviewIdx]);
 			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
@@ -177,8 +151,7 @@ void UEditNormalsTool::Shutdown(EToolShutdownType ShutdownType)
 	// Restore (unhide) the source meshes
 	for (int32 ComponentIdx = 0, NumTargets = Targets.Num(); ComponentIdx < NumTargets; ComponentIdx++)
 	{
-		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
-		TargetComponent->SetOwnerVisibility(true);
+		UE::ToolTarget::ShowSourceObject(Targets[ComponentIdx]);
 	}
 
 	TArray<FDynamicMeshOpResult> Results;
@@ -203,7 +176,7 @@ TUniquePtr<FDynamicMeshOperator> UEditNormalsOperatorFactory::MakeNewOperator()
 	NormalsOp->NormalCalculationMethod = Tool->BasicProperties->NormalCalculationMethod;
 	NormalsOp->NormalSplitThreshold = Tool->BasicProperties->SharpEdgeAngleThreshold;
 
-	FTransform LocalToWorld = Tool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
+	const FTransform LocalToWorld = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Tool->Targets[ComponentIndex]);
 	NormalsOp->OriginalMesh = Tool->OriginalDynamicMeshes[ComponentIndex];
 	
 	NormalsOp->SetTransform(LocalToWorld);
@@ -276,7 +249,7 @@ void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results
 	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		// disable auto-generated normals StaticMesh build setting
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponentInterface(ComponentIdx)->GetOwnerComponent());
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]));
 		if (StaticMeshComponent != nullptr)
 		{
 			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
@@ -290,7 +263,7 @@ void UEditNormalsTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results
 		}
 
 		check(Results[ComponentIdx].Mesh.Get() != nullptr);
-		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&Results, &ComponentIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
+		Cast<IMeshDescriptionCommitter>(Targets[ComponentIdx])->CommitMeshDescription([&Results, &ComponentIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
 			

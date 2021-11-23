@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "Changes/TransformChange.h"
@@ -17,16 +17,16 @@ class UPrimitiveComponent;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UAlignObjectsToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UAlignObjectsToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -99,7 +99,7 @@ public:
  * On cancel the original positions are restored, and on accept the positions are updated with a transaction.
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UAlignObjectsTool : public UMultiSelectionTool, public IClickDragBehaviorTarget
+class MESHMODELINGTOOLSEXP_API UAlignObjectsTool : public UMultiSelectionMeshEditingTool, public IClickDragBehaviorTarget
 {
 	GENERATED_BODY()
 	using FTransform3d = UE::Geometry::FTransform3d;
@@ -108,8 +108,6 @@ public:
 	UAlignObjectsTool();
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
-
-	virtual void SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManager);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -137,9 +135,6 @@ public:
 
 
 protected:
-	UWorld* TargetWorld;
-	UInteractiveGizmoManager* GizmoManager;
-
 
 	struct FAlignInfo
 	{

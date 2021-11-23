@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "Changes/TransformChange.h"
@@ -21,16 +21,15 @@ class UTransformProxy;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UTransformMeshesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UTransformMeshesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -149,7 +148,7 @@ struct FTransformMeshesTarget
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UTransformMeshesTool : public UMultiSelectionTool, public IClickDragBehaviorTarget
+class MESHMODELINGTOOLSEXP_API UTransformMeshesTool : public UMultiSelectionMeshEditingTool, public IClickDragBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -157,8 +156,6 @@ public:
 	UTransformMeshesTool();
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
-
-	virtual void SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManager);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -182,9 +179,6 @@ protected:
 	TObjectPtr<UTransformMeshesToolProperties> TransformProps;
 
 protected:
-	UWorld* TargetWorld;
-	UInteractiveGizmoManager* GizmoManager;
-
 	UPROPERTY()
 	TArray<FTransformMeshesTarget> ActiveGizmos;
 

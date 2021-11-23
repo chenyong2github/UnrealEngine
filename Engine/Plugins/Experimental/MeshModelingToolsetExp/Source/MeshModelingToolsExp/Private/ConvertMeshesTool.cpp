@@ -10,6 +10,9 @@
 #include "ModelingObjectsCreationAPI.h"
 #include "Selection/ToolSelectionUtil.h"
 
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UConvertMeshesTool"
@@ -27,18 +30,9 @@ const FToolTargetTypeRequirements& UConvertMeshesToolBuilder::GetTargetRequireme
 	return TypeRequirements;
 }
 
-bool UConvertMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+UMultiSelectionMeshEditingTool* UConvertMeshesToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
-}
-
-UInteractiveTool* UConvertMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UConvertMeshesTool* NewTool = NewObject<UConvertMeshesTool>(SceneState.ToolManager);
-	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
-	NewTool->SetTargets(MoveTemp(Targets));
-	NewTool->SetWorld(SceneState.World);
-	return NewTool;
+	return NewObject<UConvertMeshesTool>(SceneState.ToolManager);
 }
 
 
@@ -47,11 +41,6 @@ UInteractiveTool* UConvertMeshesToolBuilder::BuildTool(const FToolBuilderState& 
  * Tool
  */
 
-
-void UConvertMeshesTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
 
 void UConvertMeshesTool::Setup()
 {

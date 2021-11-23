@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "InteractiveToolBuilder.h"
 #include "MeshOpPreviewHelpers.h"
-#include "MultiSelectionTool.h"
+#include "BaseTools/MultiSelectionMeshEditingTool.h"
 #include "Properties/MeshStatisticsProperties.h"
 #include "PropertySets/OnAcceptProperties.h"
 #include "CompositionOps/VoxelBooleanMeshesOp.h"
@@ -16,16 +16,13 @@
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -84,14 +81,12 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesTool : public UMultiSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesTool : public UMultiSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	UVoxelCSGMeshesTool();
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -123,8 +118,6 @@ protected:
 	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
 
 protected:
-	UWorld* TargetWorld;
-
 	TArray<UE::Geometry::FVoxelBooleanMeshesOp::FInputMesh> InputMeshes;
 	/** stash copies of the transforms and pointers to the meshes for consumption by the CSG Op*/
 	void CacheInputMeshes();
