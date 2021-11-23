@@ -16,6 +16,14 @@ enum class EForceFlags : uint32
 };
 ENUM_CLASS_FLAGS(EForceFlags);	
 
+
+// Forward declarations
+namespace Chaos
+{ 
+	class FRigidBodyHandle_Internal;
+}
+
+
 class FDeferredForces
 {
 public:
