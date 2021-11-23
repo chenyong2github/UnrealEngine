@@ -239,7 +239,7 @@ void VisualizeMaterialPS(
 
 		PRINTCLASSIFROUGH();
 		NEXTLINE;
-		if (StrataData.bHasSubsurface)
+		if (HasSubsurface(StrataData))
 		{
 			PRINTCLASSIFBASCOL();
 			NEXTLINE;
@@ -278,7 +278,7 @@ void VisualizeMaterialPS(
 		NEXTLINE;
 
 		NEXTLINE;
-		if (StrataData.bHasSubsurface)
+		if (HasSubsurface(StrataData))
 		{
 			NEXTLINE;
 			NEXTLINE;

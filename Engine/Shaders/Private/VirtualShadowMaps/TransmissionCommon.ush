@@ -25,9 +25,9 @@ half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 #if STRATA_ENABLED && 0
 	// TODO: VSM projection shaders are not set up for strata yet, but added a skeleton of the logic
 	const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(PixelPos));
-	if (StrataData.bIsStrataMaterial)
+	if (IsStrataMaterial(StrataData))
 	{
-		if (StrataData.bHasSubsurface)
+		if (HasSubsurface(StrataData))
 		{
 			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
 			if (SSSData.IsValid())
