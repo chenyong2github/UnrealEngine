@@ -316,6 +316,15 @@ struct FVulkanCpuReadbackBuffer
 	uint32 MipSize[MAX_TEXTURE_MIP_COUNT];
 };
 
+
+enum class EImageOwnerType : uint8
+{
+	None,
+	LocalOwner,
+	ExternalOwner,
+	Aliased
+};
+
 /** Texture/RT wrapper. */
 class FVulkanSurface : public FVulkanEvictable
 {
@@ -358,7 +367,7 @@ public:
 	// Constructor for externally owned Image
 	FVulkanSurface(FVulkanDevice& Device, VkImageViewType ResourceType, EPixelFormat Format,
 					uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 ArraySize, uint32 NumMips, uint32 NumSamples,
-					VkImage InImage, ETextureCreateFlags UEFlags, const FRHIResourceCreateInfo& CreateInfo);
+					VkImage InImage, ETextureCreateFlags UEFlags, EImageOwnerType InImageOwnerType, const FRHIResourceCreateInfo& CreateInfo);
 
 	virtual ~FVulkanSurface();
 
@@ -442,7 +451,7 @@ public:
 
 	inline bool IsImageOwner() const
 	{
-		return bIsImageOwner;
+		return (ImageOwnerType == EImageOwnerType::LocalOwner);
 	}
 
 	VULKANRHI_API VkDeviceMemory GetAllocationHandle() const;
@@ -478,7 +487,6 @@ private:
 	VkImageTiling Tiling;
 	VkImageViewType	ViewType;
 
-	bool bIsImageOwner;
 	VulkanRHI::FVulkanAllocation Allocation;
 
 	uint32 NumMips;
@@ -489,6 +497,8 @@ private:
 
 	FVulkanCpuReadbackBuffer* CpuReadbackBuffer;
 	FVulkanTextureBase* OwningTexture = 0;
+
+	EImageOwnerType ImageOwnerType;
 
 	friend struct FVulkanTextureBase;
 };
