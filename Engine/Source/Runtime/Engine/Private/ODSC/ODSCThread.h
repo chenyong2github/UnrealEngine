@@ -7,7 +7,7 @@
 #include "Misc/SingleThreadRunnable.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Containers/Queue.h"
-#include "RecompileShaders.h"
+#include "ShaderCompiler.h"
 #include "RHIDefinitions.h"
 
 class FEvent;

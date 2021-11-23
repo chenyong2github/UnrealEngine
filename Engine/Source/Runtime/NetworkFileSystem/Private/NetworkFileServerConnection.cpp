@@ -15,7 +15,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "HAL/PlatformTime.h"
 #include "Interfaces/IPluginManager.h"
-#include "RecompileShaders.h"
+
 
 /**
  * Helper function for resolving engine and game sandbox paths
