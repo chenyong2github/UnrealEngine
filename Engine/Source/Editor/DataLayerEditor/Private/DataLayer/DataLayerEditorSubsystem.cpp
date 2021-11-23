@@ -776,9 +776,16 @@ bool UDataLayerEditorSubsystem::SetDataLayerIsLoadedInEditorInternal(UDataLayer*
 	check(DataLayer);
 	if (DataLayer->IsLoadedInEditor() != bIsLoadedInEditor)
 	{
+		const bool bWasVisible = DataLayer->IsEffectiveVisible();
+
 		DataLayer->Modify(false);
 		DataLayer->SetIsLoadedInEditor(bIsLoadedInEditor, /*bFromUserChange*/bIsFromUserChange);
 		DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsLoadedInEditor");
+
+		if (DataLayer->IsEffectiveVisible() != bWasVisible)
+		{
+			UpdateAllActorsVisibility(true, true);
+		}
 		return true;
 	}
 	return false;
