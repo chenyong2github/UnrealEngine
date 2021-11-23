@@ -20,6 +20,8 @@ public:
 	[[nodiscard]] const FString& GetCachedValue() const;
 	void SetCachedValue(const FString& CachedValue);
 
+	bool IsRowChecked() const;
+
 protected:
 	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item = nullptr;

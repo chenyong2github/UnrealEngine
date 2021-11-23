@@ -289,9 +289,9 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(cons
 			.ContentPadding(0)
 			.Visibility_Lambda([this]()
 			{
-				if (Item.Pin()->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
+				if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); PinnedItem->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
 				{
-					return Item.Pin()->GetCommandInfo().Pin()->IsCurrentValueDifferentFromInputValue(Item.Pin()->GetPresetValue()) ?
+					return PinnedItem->IsRowChecked() && Item.Pin()->GetCommandInfo().Pin()->IsCurrentValueDifferentFromInputValue(Item.Pin()->GetPresetValue()) ?
 						EVisibility::Visible : EVisibility::Hidden;
 				}
 
