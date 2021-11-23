@@ -329,37 +329,41 @@ float3 StrataUnpackNormal(uint PackedNormal);
 
 struct FStrataClassification
 {
-	uint ShadingModels;
+	uint State;
 	float TopLayerRoughness;
-	bool bIsStrataMaterial;
-	bool bHasSubsurface;
-	bool bHasSubsurfaceProfile;
-	bool bIsSimple;
 };
+
+#define CLAS_MASK_STATE					(0xFF)
+#define CLAS_MASK_SHADINGMODELS			(0x1F)
+#define CLAS_MASK_HASSUBSURFACE			(1u << 5)
+#define CLAS_MASK_HASSUBSURFACEPROFILE	(1u << 6)
+#define CLAS_MASK_ISSIMPLE				(1u << 7)
+
+uint GetShadingModels(const FStrataClassification In)		{ return (In.State & CLAS_MASK_SHADINGMODELS); }
+bool IsStrataMaterial(const FStrataClassification In)		{ return (In.State & CLAS_MASK_SHADINGMODELS) > 0; }
+bool HasSubsurface(const FStrataClassification In)			{ return (In.State & CLAS_MASK_HASSUBSURFACE) != 0; }
+bool HasSubsurfaceProfile(const FStrataClassification In)	{ return (In.State & CLAS_MASK_HASSUBSURFACEPROFILE) != 0; }
+bool IsSimpleMaterial(const FStrataClassification In)		{ return (In.State & CLAS_MASK_ISSIMPLE) != 0; }
+
+void AddShadingModels(inout FStrataClassification Out, uint bIn)		{ Out.State |= (bIn & CLAS_MASK_SHADINGMODELS); }
+void SetHasSubsurface(inout FStrataClassification Out, bool bIn)		{ Out.State |= (bIn ? CLAS_MASK_HASSUBSURFACE : 0u); }
+void SetHasSubsurfaceProfile(inout FStrataClassification Out, bool bIn)	{ Out.State |= (bIn ? CLAS_MASK_HASSUBSURFACEPROFILE : 0u); }
+void SetIsSimpleMaterial(inout FStrataClassification Out, bool bIn)		{ Out.State |= (bIn ? CLAS_MASK_ISSIMPLE : 0u); }
+void AndIsSimpleMaterial(inout FStrataClassification Out, bool bIn)		{ Out.State  = (Out.State & ~CLAS_MASK_ISSIMPLE) | ((Out.State & CLAS_MASK_ISSIMPLE) & (bIn ? CLAS_MASK_ISSIMPLE : 0u)); }
 
 uint StrataPackClassificationData(FStrataClassification In)
 {
 	const uint TopLayerRoughness8Bits = uint(In.TopLayerRoughness * 255.0f);
-	return 
-		(In.ShadingModels & 0x1F) | 
-		((TopLayerRoughness8Bits & 0xFF)	 << 8 ) |
-		((In.bHasSubsurface			? 1 : 0) << 5 ) | 
-		((In.bHasSubsurfaceProfile	? 1 : 0) << 6 ) |
-		((In.bIsSimple				? 1 : 0) << 7 );
+	return
+		(In.State & CLAS_MASK_STATE) |
+		((TopLayerRoughness8Bits & 0xFF) << 8);
 }
 
 FStrataClassification StrataUnpackClassificationData(uint In)
 {
-	uint TopLayerRoughness8Bits = 0;
 	FStrataClassification Out;
-	Out.ShadingModels			= (In >> 0 ) & 0x1F;
-	TopLayerRoughness8Bits		= (In >> 8) & 0xFF;
-	Out.bIsStrataMaterial		= Out.ShadingModels > 0;
-	Out.bHasSubsurface			= (In >> 5) & 0x1;
-	Out.bHasSubsurfaceProfile	= (In >> 6) & 0x1;
-	Out.bIsSimple				= (In >> 7) & 0x1;
-
-	Out.TopLayerRoughness = float(TopLayerRoughness8Bits) * (1.0f / 255.0f);
+	Out.State = In & CLAS_MASK_STATE;
+	Out.TopLayerRoughness = float((In >> 8) & 0xFF) * (1.0f / 255.0f);
 	return Out;
 }
 
@@ -442,6 +446,11 @@ uint StrataShadingModelBit(uint ShadingModel)
 bool StrataHasShadingModel(uint ShadingModels, uint ShadingModel)
 {
 	return (ShadingModels & (1u << ShadingModel)) > 0;
+}
+
+bool StrataHasShadingModel(FStrataClassification In, uint ShadingModel)
+{
+	return StrataHasShadingModel(GetShadingModels(In), ShadingModel);
 }
 
 // Return true if a BSDF has a custom area light integrator

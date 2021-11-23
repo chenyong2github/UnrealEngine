@@ -53,13 +53,13 @@ void ComputePostProcessBSDFData(
 		TopLayer.WorldNormal += N * max(1e-5, BSDFWeightAvg); 
 	}
 
-	Classification.ShadingModels |= StrataShadingModelBit(BSDF_GETTYPE(BSDF));
+	AddShadingModels(Classification, StrataShadingModelBit(BSDF_GETTYPE(BSDF)));
 
 	switch (BSDF_GETTYPE(BSDF))
 	{
 	case STRATA_BSDF_TYPE_SLAB:
 	{
-		Classification.bIsSimple = Classification.bIsSimple && IsStrataSlabFastPathCompatible(BSDF);
+		AndIsSimpleMaterial(Classification, IsStrataSlabFastPathCompatible(BSDF));
 
 		if (bTopLayer)
 		{
@@ -72,11 +72,11 @@ void ComputePostProcessBSDFData(
 		if (!BSDF_GETISTHIN(BSDF) &&					// STRATA_TODO A material cannot have subsurface if using Thin mode. This is because DMFP does not match MFP at all (right now, SSS would just smears thin lighting model details out)
 			BSDF_GETHASSSS(BSDF) && BSDFWeightAvg > 0)
 		{
-			Classification.bHasSubsurface = true;
-			Classification.bHasSubsurfaceProfile = Classification.bHasSubsurfaceProfile || BSDF_GETHASSSSPROFILE(BSDF);;
+			SetHasSubsurface(Classification, true);
+			SetHasSubsurfaceProfile(Classification, BSDF_GETHASSSSPROFILE(BSDF));
 
 			SSS.BaseColor = SLAB_DIFFUSEALBEDO(BSDF);
-			SSS.Specular  = SLAB_F0(BSDF);				// STRATA_TODO: Specular or F0?
+			SSS.Specular  = SLAB_F0(BSDF).x;				// STRATA_TODO: Specular or F0?
 
 			// Profile ID: we only keep the latest ID, and profile will overtake any non-profile based SSS
 			SSS.bIsValid			= true;
@@ -93,7 +93,7 @@ void ComputePostProcessBSDFData(
 
 	case STRATA_BSDF_TYPE_HAIR:
 	{
-		Classification.bIsSimple = false;
+		AndIsSimpleMaterial(Classification, false);
 
 		// No SSR
 		if (bTopLayer)
@@ -106,7 +106,7 @@ void ComputePostProcessBSDFData(
 
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 	{
-		Classification.bIsSimple = false;
+		AndIsSimpleMaterial(Classification, false);
 
 		if (bTopLayer)
 		{
@@ -136,16 +136,15 @@ void MainPS(
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(MaterialLobesBuffer, StrataAddressing);
 
-	ClassificationData.bIsStrataMaterial = Header.BSDFCount > 0;
-	ClassificationData.bIsSimple = true; // non strata material or sky pixels are considered as simple.
-	if (ClassificationData.bIsStrataMaterial)
+	SetIsSimpleMaterial(ClassificationData, true); // non strata material or sky pixels are considered as simple.
+	if (Header.BSDFCount > 0)
 	{
 		float2 ScreenPosition = SvPositionToScreenPosition(SVPos).xy;
 		const float Depth = 1000000.0f;
 		float4 WorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
 		const float3 V = normalize(LWCHackToFloat(PrimaryView.WorldCameraOrigin) - WorldPos.xyz);
 
-		ClassificationData.bIsSimple = Header.BSDFCount == 1;
+		SetIsSimpleMaterial(ClassificationData, Header.BSDFCount == 1);
 
 		float TopLayerRoughness = 0.0f;
 		float TopLayerRoughnessAverageCount = 0.0f;
@@ -212,8 +211,8 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 	{
 		const uint PackClassification = ClassificationTexture.Load(uint3(PixelCoord, 0));
 		FStrataClassification Data = StrataUnpackClassificationData(PackClassification);
-		bContainsComplexMaterial = !Data.bIsSimple;
-		bContainsStrataMaterial = Data.bIsStrataMaterial;
+		bContainsComplexMaterial = !IsSimpleMaterial(Data);
+		bContainsStrataMaterial = IsStrataMaterial(Data);
 	}
 	s_IsComplexIsMaterialTile[LinearIndex] = (bContainsComplexMaterial ? 1 : 0) | (bContainsStrataMaterial ? 2 : 0);
 

@@ -80,7 +80,7 @@ void ScreenSpaceReflectionsStencilPS(
 	const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(uint3(PixelCoord, 0)));
 
 	const float Roughness = StrataData.TopLayerRoughness;
-	const bool bNoMaterial = !StrataData.bIsStrataMaterial;
+	const bool bNoMaterial = !IsStrataMaterial(StrataData);
 
 #else // STRATA_ENABLED
 
@@ -161,7 +161,7 @@ void ScreenSpaceReflections(
 		// STRATA_TODO try stochastic selection
 		N = TopLayerData.WorldNormal;
 		Roughness = StrataData.TopLayerRoughness;
-		bNoMaterial = !StrataData.bIsStrataMaterial;
+		bNoMaterial = !IsStrataMaterial(StrataData);
 	}
 
 	float DeviceZ = SampleDeviceZFromSceneTextures(UV);
