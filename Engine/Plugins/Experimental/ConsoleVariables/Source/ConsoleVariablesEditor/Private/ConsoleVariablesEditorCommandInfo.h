@@ -21,25 +21,27 @@ struct FConsoleVariablesEditorCommandInfo
 		ConsoleVariablePtr = nullptr;
 	}
 
-	FConsoleVariablesEditorCommandInfo(const FString& InCommand, IConsoleVariable* InVariablePtr, const FString& InStartupValue)
+	FConsoleVariablesEditorCommandInfo(
+		const FString& InCommand, IConsoleVariable* InVariablePtr, const FString& InStartupValue, const FDelegateHandle& InOnVariableChangedCallbackHandle)
 	: Command(InCommand)
 	, ConsoleVariablePtr(InVariablePtr)
 	, StartupValueAsString(InStartupValue)
+	, OnVariableChangedCallbackHandle(InOnVariableChangedCallbackHandle)
 	{}
 
 	FORCEINLINE bool operator==(const FConsoleVariablesEditorCommandInfo& Comparator) const
 	{
 		return ConsoleVariablePtr && Comparator.ConsoleVariablePtr &&
-			ConsoleVariablePtr.Get() == Comparator.ConsoleVariablePtr.Get() &&
+			ConsoleVariablePtr == Comparator.ConsoleVariablePtr &&
 			Command.Equals(Comparator.Command);
 	}
 
 	void ExecuteCommand(const FString& NewValueAsString) const
 	{
-		GEngine->Exec(GEditor->GetWorld(), *FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString));
+		GEngine->Exec(GetCurrentWorld(), *FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString));
 	}
 	
-	UWorld* GetCurrentWorld() const
+	static UWorld* GetCurrentWorld()
 	{
 		UWorld* CurrentWorld = nullptr;
 		if (GIsEditor)
@@ -104,7 +106,7 @@ struct FConsoleVariablesEditorCommandInfo
 
 	bool IsCurrentValueDifferentFromInputValue(const FString& InValueToCompare) const
 	{
-		if (ConsoleVariablePtr && !ConsoleVariablePtr.IsNull())
+		if (ConsoleVariablePtr)
 		{
 			return !ConsoleVariablePtr->GetString().Equals(InValueToCompare);
 		}
@@ -116,10 +118,12 @@ struct FConsoleVariablesEditorCommandInfo
 	UPROPERTY()
 	FString Command;
 
-	TObjectPtr<IConsoleVariable> ConsoleVariablePtr;
+	IConsoleVariable* ConsoleVariablePtr;
 
 	/** The value of this command when the module started in this session after it may have been set by an ini file */
 	FString StartupValueAsString;
+	
+	FDelegateHandle OnVariableChangedCallbackHandle;
 };
 
 #undef LOCTEXT_NAMESPACE

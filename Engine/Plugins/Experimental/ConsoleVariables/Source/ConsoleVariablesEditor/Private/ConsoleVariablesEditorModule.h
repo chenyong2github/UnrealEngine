@@ -4,7 +4,7 @@
 
 #include "ConsoleVariablesAsset.h"
 #include "ConsoleVariablesEditorCommandInfo.h"
-#include "ConsoleVariablesEditorProjectSettings.h"
+#include "MultiUser/ConsoleVariableSync.h"
 
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
@@ -29,39 +29,35 @@ public:
 	//~ End IModuleInterface Interface
 
 	void OpenConsoleVariablesDialogWithAssetSelected(const FAssetData& InAssetData);
-	
-	static void OpenConsoleVariablesSettings();
-
-	TWeakObjectPtr<UConsoleVariablesEditorProjectSettings> GetConsoleVariablesUserSettings() const
-	{
-		return ProjectSettingsObjectPtr;
-	}
 
 	/** Find all console variables and cache their startup values */
 	void QueryAndBeginTrackingConsoleVariables();
 
 	/** Find a tracked console variable by the command string with optional case sensitivity. */
 	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByName(const FString& NameToSearch, ESearchCase::Type InSearchCase = ESearchCase::IgnoreCase);
+
+	/** Find a tracked console variable by its variable reference. */
+	TWeakPtr<FConsoleVariablesEditorCommandInfo> FindCommandInfoByConsoleVariableReference(IConsoleVariable* InVariableReference);
 	
 	[[nodiscard]] TObjectPtr<UConsoleVariablesAsset> GetEditingAsset() const;
 	void SetEditingAsset(const TObjectPtr<UConsoleVariablesAsset> InEditingAsset);
+
+	void SendMultiUserConsoleVariableChange(const FString& InVariableName, const FString& InValueAsString);
 	
 private:
 
-	void PostEngineInit();
 	void OnFEngineLoopInitComplete();
 
 	void RegisterMenuItem();
 	bool RegisterProjectSettings();
-	bool HandleModifiedProjectSettings();
+
+	void OnConsoleVariableChanged(IConsoleVariable* ChangedVariable);
 
 	TObjectPtr<UConsoleVariablesAsset> AllocateTransientPreset();
 
 	TSharedRef<SDockTab> SpawnMainPanelTab(const FSpawnTabArgs& Args);
 
 	void OpenConsoleVariablesEditor();
-
-	void OnConsoleVariableChange();
 	
 	static const FName ConsoleVariablesToolkitPanelTabId;
 
@@ -71,14 +67,6 @@ private:
 	// Transient preset that's being edited so we don't affect the reference asset unless we save it
 	TObjectPtr<UConsoleVariablesAsset> EditingAsset = nullptr;
 
-	TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr;
-	TWeakObjectPtr<UConsoleVariablesEditorProjectSettings> ProjectSettingsObjectPtr;
-
 	/** All tracked variables and their default, startup, and current values */
 	TArray<TSharedPtr<FConsoleVariablesEditorCommandInfo>> ConsoleVariablesMasterReference;
-
-	/** A callback registered with the Console Manager that is called when a console variable is changed */
-	FConsoleVariableSinkHandle VariableChangedSinkHandle;
-
-	FConsoleCommandDelegate VariableChangedSinkDelegate;
 };

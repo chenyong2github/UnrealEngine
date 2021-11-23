@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "MultiUser/ConsoleVariableSync.h"
 #include "ConsoleVariablesEditorModule.h"
 #include "Widgets/SWidget.h"
 
@@ -15,6 +14,8 @@ class FConsoleVariablesEditorMainPanel : public TSharedFromThis<FConsoleVariable
 public:
 	FConsoleVariablesEditorMainPanel();
 
+	~FConsoleVariablesEditorMainPanel();
+
 	TSharedRef<SWidget> GetOrCreateWidget();
 
 	static FConsoleVariablesEditorModule& GetConsoleVariablesModule();
@@ -24,6 +25,8 @@ public:
 
 	void RefreshList(const FString& InConsoleCommandToScrollTo = "") const;
 	void UpdatePresetValuesForSave(TObjectPtr<UConsoleVariablesAsset> InAsset) const;
+
+	void RefreshMultiUserDetails() const;
 
 	// Save / Load
 
@@ -41,6 +44,11 @@ public:
 		return EditorList;
 	}
 
+	UE::ConsoleVariables::MultiUser::Private::FManager& GetMultiUserManager()
+	{
+		return MultiUserManager;
+	}
+
 private:
 
 	bool ImportPreset_Impl(const FAssetData& InPresetAsset, const TObjectPtr<UConsoleVariablesAsset> EditingAsset);
@@ -52,5 +60,10 @@ private:
 
 	TSharedPtr<FConsoleVariablesEditorList> EditorList;
 
+	void OnConnectionChanged(EConcertConnectionStatus Status);
+	void OnRemoteCvarChange(const FString InName, const FString InValue);
+
 	UE::ConsoleVariables::MultiUser::Private::FManager MultiUserManager;
+	FDelegateHandle OnConnectionChangedHandle;
+	FDelegateHandle OnRemoteCVarChangeHandle;
 };

@@ -402,7 +402,7 @@ void FConcertConsoleVariableSessionCustomization::CustomizeDetails(IDetailLayout
 				+SHeaderRow::Column(ConsoleVariableSessionUI::DisplayNameColumnName)
 				.DefaultLabel(LOCTEXT("UserDisplayName", "Display Name"))
 				+SHeaderRow::Column(ConsoleVariableSessionUI::TransactColumnName)
-				.DefaultLabel(LOCTEXT("Transact", "Transact"))
+				.DefaultLabel(LOCTEXT("Transact", "Transact Console Variables"))
 			)
 		];
 	}

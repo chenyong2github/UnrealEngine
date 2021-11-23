@@ -39,6 +39,9 @@ struct FManager
 
 	/** Enables / disables multi-user message handling. */
 	void SetEnableMultiUserSupport(bool bIsEnabled);
+
+	bool IsInitialized() const;
+	
 private:
 	TUniquePtr<FManagerImpl> Implementation;
 };

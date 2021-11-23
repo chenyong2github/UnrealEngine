@@ -6,7 +6,10 @@
 #include "Widgets/SCompoundWidget.h"
 
 class FConsoleVariablesEditorMainPanel;
+class SBox;
 class SMultiLineEditableTextBox;
+class SHorizontalBox;
+class SVerticalBox;
 class UConsoleVariablesAsset;
 
 class SConsoleVariablesEditorMainPanel final : public SCompoundWidget
@@ -26,13 +29,18 @@ public:
 	/** A handler for when text is committed to the Console Input Box that appears when clicking the "Add Console Variable" button */
 	FReply HandleConsoleInputTextCommitted(const FGeometry& MyGeometry, const FKeyEvent& KeyPressed);
 
+	void RefreshMultiUserDetails();
+	void ToggleMultiUserDetails(ECheckBoxState CheckState);
+
 private:
 
 	/** A reference to the struct that controls this widget */
 	TWeakPtr<FConsoleVariablesEditorMainPanel> MainPanel;
 
+	TSharedPtr<SHorizontalBox> ToolbarHBox;
+
 	/** A reference to the button which opens the plugin settings */
-	TSharedPtr<SCheckBox> SettingsButtonPtr;
+	TSharedPtr<SCheckBox> ConcertButtonPtr;
 
 	/** A special text box widget that can search console variables as text is typed into it */
 	TSharedPtr<SWidget> ConsoleInput;
@@ -41,6 +49,8 @@ private:
 
 	/** Creates the toolbar at the top of the MainPanel widget */
 	TSharedRef<SWidget> GeneratePanelToolbar(const TSharedRef<SWidget> InConsoleInputWidget);
+	
+	void CreateConcertButtonIfNeeded();
 
 	// Save / Load
 
@@ -53,4 +63,9 @@ private:
 
 	/** Creates a special asset picker widget to display when the Save/Load button is clicked */
 	TSharedRef<SWidget> OnGeneratePresetsMenu();
+
+	TSharedPtr<SVerticalBox> MultiUserDetailsBox;
+
+	/** Generates a customized details widget given an object. Intended for multi-user settings display. */
+	static TSharedRef<SWidget> GetConcertDetailsWidget(UObject* InObject);
 };

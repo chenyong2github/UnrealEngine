@@ -11,31 +11,23 @@
 
 #include "FileHelpers.h"
 #include "Framework/Application/SlateApplication.h"
+#include "MultiUser/ConsoleVariableSyncData.h"
 
 
 FConsoleVariablesEditorMainPanel::FConsoleVariablesEditorMainPanel()
 {
 	EditorList = MakeShared<FConsoleVariablesEditorList>();
+	
+	OnConnectionChangedHandle = MultiUserManager.OnConnectionChange().AddRaw(
+		this, &FConsoleVariablesEditorMainPanel::OnConnectionChanged);
+	OnRemoteCVarChangeHandle = MultiUserManager.OnRemoteCVarChange().AddRaw(
+		this, &FConsoleVariablesEditorMainPanel::OnRemoteCvarChange);
+}
 
-	MultiUserManager.OnConnectionChange().AddLambda([] (EConcertConnectionStatus Status)
-		{
-			switch(Status) {
-			case EConcertConnectionStatus::Connected:
-				UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user has connected to a session."));
-				break;
-			case EConcertConnectionStatus::Disconnected:
-				UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user has disconnect from session."));
-				break;
-			default:
-				break;
-			};
-
-		});
-
-	MultiUserManager.OnRemoteCVarChange().AddLambda([] (FString InName, FString InValue)
-		{
-			UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
-		});
+FConsoleVariablesEditorMainPanel::~FConsoleVariablesEditorMainPanel()
+{
+	MultiUserManager.OnConnectionChange().Remove(OnConnectionChangedHandle);
+	MultiUserManager.OnRemoteCVarChange().Remove(OnRemoteCVarChangeHandle);
 }
 
 TSharedRef<SWidget> FConsoleVariablesEditorMainPanel::GetOrCreateWidget()
@@ -86,6 +78,14 @@ void FConsoleVariablesEditorMainPanel::UpdatePresetValuesForSave(TObjectPtr<UCon
 	if (EditorList.IsValid())
 	{
 		EditorList->UpdatePresetValuesForSave(InAsset);
+	}
+}
+
+void FConsoleVariablesEditorMainPanel::RefreshMultiUserDetails() const
+{
+	if (MainPanelWidget.IsValid())
+	{
+		MainPanelWidget->RefreshMultiUserDetails();
 	}
 }
 
@@ -161,4 +161,30 @@ bool FConsoleVariablesEditorMainPanel::ImportPreset_Impl(const FAssetData& InPre
 	}
 
 	return false;
+}
+
+void FConsoleVariablesEditorMainPanel::OnConnectionChanged(EConcertConnectionStatus Status)
+{
+	switch (Status)
+	{
+		case EConcertConnectionStatus::Connected:
+			UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user has connected to a session."));
+			break;
+		case EConcertConnectionStatus::Disconnected:
+			UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Multi-user has disconnected from session."));
+			break;
+		default:
+			break;
+	}
+}
+
+void FConsoleVariablesEditorMainPanel::OnRemoteCvarChange(const FString InName, const FString InValue)
+{
+	UE_LOG(LogConsoleVariablesEditor, Display, TEXT("Remote set console variable %s = %s"), *InName, *InValue);
+
+	if (GetMutableDefault<UConcertCVarSynchronization>()->bSyncCVarTransactions)
+	{
+		GEngine->Exec(FConsoleVariablesEditorCommandInfo::GetCurrentWorld(),
+					  *FString::Printf(TEXT("%s %s"), *InName, *InValue));
+	}
 }

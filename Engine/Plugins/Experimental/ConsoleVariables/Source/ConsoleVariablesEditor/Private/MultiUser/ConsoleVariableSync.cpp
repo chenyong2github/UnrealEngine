@@ -41,6 +41,8 @@ struct FManagerImpl
 			ConcertClient->OnSessionConnectionChanged().AddRaw(this, &FManagerImpl::OnSessionConnectionChanged);
 
 			RegisterExtensions();
+
+			bIsInitialized = true;
 		}
 	}
 
@@ -423,6 +425,9 @@ struct FManagerImpl
 
 	/** Indicates if the multi-user console synchronization is enabled. */
 	bool bIsEnabled = true;
+
+	/** True if the Concert module was found and customizations have been registered. */
+	bool bIsInitialized = false;
 };
 
 
@@ -453,5 +458,9 @@ void FManager::SetEnableMultiUserSupport(bool bIsEnabled)
 	Implementation->bIsEnabled = bIsEnabled;
 }
 
+bool FManager::IsInitialized() const
+{
+	return Implementation->bIsInitialized;
+}
 };
 

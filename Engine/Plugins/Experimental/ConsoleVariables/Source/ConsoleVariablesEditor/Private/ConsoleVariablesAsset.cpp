@@ -24,6 +24,7 @@ bool UConsoleVariablesAsset::FindSavedValueByCommandString(const FString& InComm
 	if (const bool bMatchFound = KeyArray.Contains(InCommandString))
 	{
 		OutValue = SavedCommandsAndValues[InCommandString];
+		return true;
 	}
 	
 	return false;
