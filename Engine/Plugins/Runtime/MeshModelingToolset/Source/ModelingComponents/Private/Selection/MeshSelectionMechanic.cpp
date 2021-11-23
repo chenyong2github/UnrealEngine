@@ -296,7 +296,7 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	ClearCurrentSelection();
 
 	TriangleSet = NewObject<UTriangleSetComponent>();
-	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(), TriangleColor, TriangleDepthBias, TriangleOpacity);
+	TriangleSetMaterial = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetParentTool()->GetToolManager(), TriangleColor, DepthBias, TriangleOpacity);
 	
 	LineSet = NewObject<ULineSetComponent>();
 	LineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(

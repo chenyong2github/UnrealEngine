@@ -4,6 +4,7 @@
 
 #include "Algo/Unique.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
+#include "BaseGizmos/GizmoBaseComponent.h"
 #include "ContextObjectStore.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/MeshElementsVisualizer.h"
@@ -425,6 +426,19 @@ void UUVSelectTool::Setup()
 	TransformGizmo->bUseContextCoordinateSystem = false;
 	TransformGizmo->SetActiveTarget(TransformProxy, GetToolManager());
 	TransformGizmo->SetVisibility(ViewportButtonsAPI->GetGizmoMode() != UUVToolViewportButtonsAPI::EGizmoMode::Select);
+
+	// Tell the gizmo to be drawn on top even over translucent-mode materials.
+	// Note: this may someday not be necessary, if we get this to work properly by default. Normally we can't
+	// use this approach in modeling mode because it adds dithering to the occluded sections, but we are able
+	// to disable that in the uv editor viewports.
+	for (UActorComponent* Component : TransformGizmo->GetGizmoActor()->GetComponents())
+	{
+		UGizmoBaseComponent* GizmoComponent = Cast<UGizmoBaseComponent>(Component);
+		if (GizmoComponent)
+		{
+			GizmoComponent->bUseEditorCompositing = true;
+		}
+	}
 
 	LivePreviewGeometryActor = Targets[0]->AppliedPreview->GetWorld()->SpawnActor<APreviewGeometryActor>(
 		FVector::ZeroVector, FRotator(0, 0, 0), FActorSpawnParameters());

@@ -86,6 +86,8 @@ SHOWFLAG_FIXED_IN_SHIPPING(0, GBufferHints, SFG_Developer, NSLOCTEXT("UnrealEd",
 SHOWFLAG_ALWAYS_ACCESSIBLE(MotionBlur, SFG_PostProcess, NSLOCTEXT("UnrealEd", "MotionBlurSF", "Motion Blur"))
 /** Whether to render the editor gizmos and other foreground editor widgets off screen and apply them after post process, only needed for the editor */
 SHOWFLAG_FIXED_IN_SHIPPING(0, CompositeEditorPrimitives, SFG_Developer, NSLOCTEXT("UnrealEd", "CompositeEditorPrimitivesSF", "Composite Editor Primitives"))
+/** When CompositeEditorPrimitives is set, determines whether occluded portions are drawn opaquely on top, or dithered when they are occluded */
+SHOWFLAG_FIXED_IN_SHIPPING(0, OpaqueCompositeEditorPrimitives, SFG_Developer, NSLOCTEXT("UnrealEd", "OpaqueCompositeEditorPrimitives", "Make Composite Editor Primitives Opaque"))
 /** Shows a test image that allows to tweak the monitor colors, borders and allows to judge image and temporal aliasing  */
 SHOWFLAG_FIXED_IN_SHIPPING(0, TestImage, SFG_Developer, NSLOCTEXT("UnrealEd", "TestImageSF", "Test Image"))
 /** Helper to tweak depth of field */
