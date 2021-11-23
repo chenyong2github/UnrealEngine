@@ -13,9 +13,7 @@ namespace Audio
 		public:
 			virtual void IterateInterfaces(TFunction<void(FGeneratorInterfacePtr)> InFunction) const override
 			{
-				FGeneratorInterfaceQueryResults GeneratorQuery;
-				QueryInterfacesDelegate.Broadcast(GeneratorQuery);
-				for (const FGeneratorInterfacePtr& InterfacePtr : GeneratorQuery.GetInterfaces())
+				for (const FGeneratorInterfacePtr& InterfacePtr : Interfaces)
 				{
 					InFunction(InterfacePtr);
 				}
@@ -23,11 +21,11 @@ namespace Audio
 
 			virtual void RegisterInterface(FGeneratorInterfacePtr InInterface) override
 			{
-				RegistrationFunction(InInterface);
-				QueryInterfacesDelegate.AddLambda([Interface = InInterface](FGeneratorInterfaceQueryResults& Results)
+				Interfaces.Add(InInterface);
+				if (RegistrationFunction)
 				{
-					Results.AddInterface(Interface);
-				});
+					RegistrationFunction(InInterface);
+				}
 			}
 
 			virtual void OnRegistration(TUniqueFunction<void(FGeneratorInterfacePtr)>&& InFunction) override

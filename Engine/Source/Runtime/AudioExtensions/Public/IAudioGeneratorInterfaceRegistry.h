@@ -2,7 +2,6 @@
 #pragma once
 
 #include "AudioParameterInterface.h"
-#include "Delegates/Delegate.h"
 #include "Templates/Function.h"
 #include "UObject/Class.h"
 
@@ -63,23 +62,6 @@ namespace Audio
 	};
 	using FGeneratorInterfacePtr = TSharedPtr<FGeneratorInterface>;
 
-	struct FGeneratorInterfaceQueryResults
-	{
-	private:
-		TArray<FGeneratorInterfacePtr> Interfaces;
-
-	public:
-		void AddInterface(FGeneratorInterfacePtr InInterfaceToAdd)
-		{
-			Interfaces.Add(InInterfaceToAdd);
-		}
-
-		const TArray<FGeneratorInterfacePtr>& GetInterfaces() const { return Interfaces; }
-	};
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnQueryAudioGeneratorInterface, FGeneratorInterfaceQueryResults&);
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterAudioGeneratorInterface, FGeneratorInterfacePtr);
-
 	class AUDIOEXTENSIONS_API IGeneratorInterfaceRegistry
 	{
 		static TUniquePtr<IGeneratorInterfaceRegistry> Instance;
@@ -98,8 +80,7 @@ namespace Audio
 		virtual void RegisterInterface(FGeneratorInterfacePtr InInterface) = 0;
 
 	protected:
-		mutable FOnQueryAudioGeneratorInterface QueryInterfacesDelegate;
-
+		TSet<FGeneratorInterfacePtr> Interfaces;
 		TUniqueFunction<void(FGeneratorInterfacePtr)> RegistrationFunction;
 	};
 } // namespace Audio
