@@ -33,6 +33,7 @@ namespace HordeServer.Collections.Impl
 			[BsonIgnoreIfNull]
 			public Condition? Condition { get; set; }
 			public List<AgentWorkspace> Workspaces { get; set; } = new List<AgentWorkspace>();
+			public bool UseAutoSdk { get; set; } = true;
 			public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
 			[BsonIgnoreIfDefault(true)]
 			public bool EnableAutoscaling { get; set; } = true;
@@ -56,6 +57,7 @@ namespace HordeServer.Collections.Impl
 				Name = Other.Name;
 				Condition = Other.Condition;
 				Workspaces.AddRange(Other.Workspaces);
+				UseAutoSdk = Other.UseAutoSdk;
 				Properties = new Dictionary<string, string>(Other.Properties);
 				EnableAutoscaling = Other.EnableAutoscaling;
 				MinAgents = Other.MinAgents;
@@ -171,7 +173,7 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<IPool?> TryUpdateAsync(IPool Pool, string? NewName, Condition? NewCondition, bool? NewEnableAutoscaling, int? NewMinAgents, int? NewNumReserveAgents, List<AgentWorkspace>? NewWorkspaces, Dictionary<string, string?>? NewProperties, DateTime? LastScaleUpTime, DateTime? LastScaleDownTime)
+		public Task<IPool?> TryUpdateAsync(IPool Pool, string? NewName, Condition? NewCondition, bool? NewEnableAutoscaling, int? NewMinAgents, int? NewNumReserveAgents, List<AgentWorkspace>? NewWorkspaces, bool? NewUseAutoSdk, Dictionary<string, string?>? NewProperties, DateTime? LastScaleUpTime, DateTime? LastScaleDownTime)
 		{
 			TransactionBuilder<PoolDocument> Transaction = new TransactionBuilder<PoolDocument>();
 			if (NewName != null)
@@ -225,6 +227,10 @@ namespace HordeServer.Collections.Impl
 			if (NewWorkspaces != null)
 			{
 				Transaction.Set(x => x.Workspaces, NewWorkspaces);
+			}
+			if (NewUseAutoSdk != null)
+			{
+				Transaction.Set(x => x.UseAutoSdk, NewUseAutoSdk.Value);
 			}
 			if (NewProperties != null)
 			{

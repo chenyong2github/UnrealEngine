@@ -488,13 +488,13 @@ namespace HordeServer.Tasks.Impl
 					{
 						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.NoAgentsOnline);
 					}
-					else if (!Stream.TryGetAgentWorkspace(AgentType, out AgentWorkspace? Workspace))
+					else if (!Stream.TryGetAgentWorkspace(AgentType, out (AgentWorkspace, bool)? Workspace))
 					{
 						NewJob = await SkipBatchAsync(NewJob, Batch.Id, Graph, JobStepBatchError.UnknownWorkspace);
 					}
 					else
 					{
-						QueueItem NewQueueItem = new QueueItem(Stream, NewJob, BatchIdx, AgentType.Pool, Workspace);
+						QueueItem NewQueueItem = new QueueItem(Stream, NewJob, BatchIdx, AgentType.Pool, Workspace.Value.Item1);
 						NewQueue.Add(NewQueueItem);
 						NewBatchIdToQueueItem[(NewJob.Id, Batch.Id)] = NewQueueItem;
 					}
@@ -672,10 +672,10 @@ namespace HordeServer.Tasks.Impl
 						AgentType? AgentType;
 						if (Stream.AgentTypes.TryGetValue(Group.AgentType, out AgentType))
 						{
-							AgentWorkspace? Workspace;
+							(AgentWorkspace, bool)? Workspace;
 							if (Stream.TryGetAgentWorkspace(AgentType, out Workspace))
 							{
-								InsertQueueItem(Stream, Job, BatchIdx, AgentType.Pool, Workspace);
+								InsertQueueItem(Stream, Job, BatchIdx, AgentType.Pool, Workspace.Value.Item1);
 							}
 						}
 					}

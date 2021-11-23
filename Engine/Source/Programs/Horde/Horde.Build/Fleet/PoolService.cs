@@ -98,7 +98,7 @@ namespace HordeServer.Services
 		{
 			for (; Pool != null; Pool = await Pools.GetAsync(Pool.Id))
 			{
-				IPool? NewPool = await Pools.TryUpdateAsync(Pool, NewName, NewCondition, NewEnableAutoscaling, NewMinAgents, NewNumReserveAgents, null, NewProperties, null, null);
+				IPool? NewPool = await Pools.TryUpdateAsync(Pool, NewName, NewCondition, NewEnableAutoscaling, NewMinAgents, NewNumReserveAgents, NewProperties: NewProperties);
 				if (NewPool != null)
 				{
 					return NewPool;
@@ -134,6 +134,7 @@ namespace HordeServer.Services
 		/// <returns>List of workspaces</returns>
 		public async Task<HashSet<AgentWorkspace>> GetWorkspacesAsync(IAgent Agent, DateTime ValidAtTime)
 		{
+			bool bAddAutoSdkWorkspace = false;
 			HashSet<AgentWorkspace> Workspaces = new HashSet<AgentWorkspace>();
 
 			Dictionary<PoolId, IPool> PoolMapping = await GetPoolLookupAsync(ValidAtTime);
@@ -143,11 +144,15 @@ namespace HordeServer.Services
 				if (PoolMapping.TryGetValue(PoolId, out Pool))
 				{
 					Workspaces.UnionWith(Pool.Workspaces);
+					bAddAutoSdkWorkspace |= Pool.UseAutoSdk;
 				}
 			}
 
-			Globals Globals = await DatabaseService.GetGlobalsAsync();
-			Workspaces.UnionWith(Agent.GetAutoSdkWorkspaces(Globals, Workspaces.ToList()));
+			if (bAddAutoSdkWorkspace)
+			{
+				Globals Globals = await DatabaseService.GetGlobalsAsync();
+				Workspaces.UnionWith(Agent.GetAutoSdkWorkspaces(Globals, Workspaces.ToList()));
+			}
 
 			return Workspaces;
 		}

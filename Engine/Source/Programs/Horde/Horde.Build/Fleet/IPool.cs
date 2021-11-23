@@ -41,6 +41,11 @@ namespace HordeServer.Models
 		public IReadOnlyList<AgentWorkspace> Workspaces { get; }
 
 		/// <summary>
+		/// Whether to sync autosdk alongside the workspaces for this pool
+		/// </summary>
+		public bool UseAutoSdk { get; }
+
+		/// <summary>
 		/// Arbitrary properties related to this pool
 		/// </summary>
 		public IReadOnlyDictionary<string, string> Properties { get; }
