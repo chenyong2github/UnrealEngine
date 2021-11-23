@@ -374,6 +374,11 @@ bool SRigHierarchyTreeView::AddElement(const FRigBaseElement* InElement)
 	return true;
 }
 
+void SRigHierarchyTreeView::AddSpacerElement()
+{
+	AddElement(FRigElementKey(), FRigElementKey());
+}
+
 bool SRigHierarchyTreeView::ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey)
 {
 	if (!InKey.IsValid() || InKey == InParentKey)
@@ -509,6 +514,11 @@ void SRigHierarchyTreeView::RefreshTreeView(bool bRebuildContent)
 					return Delegates.OnCompareKeys.Execute(A->Key, B->Key);
 				});
 			}
+
+			if (RootElements.Num() > 0)
+			{
+				AddSpacerElement();
+			}
 		}
 	}
 	else
@@ -521,6 +531,7 @@ void SRigHierarchyTreeView::RefreshTreeView(bool bRebuildContent)
 			{
 				return InElement.Get()->Key == FRigElementKey();
 			});
+			AddSpacerElement();
 		}
 	}
 
