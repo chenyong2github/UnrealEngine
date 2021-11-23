@@ -602,7 +602,7 @@ public:
 	}
 
 	// Called to signify all allocations have completed. Forfeits all resources / heaps back to the parent system.
-	void Freeze(FRHICommandListImmediate& RHICmdList);
+	void Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats);
 
 	// Called to flush any active allocations prior to Freeze.
 	void Flush();

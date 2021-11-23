@@ -67,6 +67,10 @@ FResourcePacket::FResourcePacket(const UE::Trace::IAnalyzer::FOnEventContext& Co
 	, bCulled(Context.EventData.GetValue<bool>("IsCulled"))
 	, bTransient(Context.EventData.GetValue<bool>("IsTransient"))
 {
+	TransientStats.HeapIndex = Context.EventData.GetValue<uint16>("TransientHeapIndex");
+	TransientStats.HeapOffsetMin = Context.EventData.GetValue<uint64>("TransientHeapOffsetMin");
+	TransientStats.HeapOffsetMax = Context.EventData.GetValue<uint64>("TransientHeapOffsetMax");
+
 	if (Passes.Num())
 	{
 		FirstPass = Passes[0];
@@ -136,6 +140,22 @@ FGraphPacket::FGraphPacket(TraceServices::ILinearAllocator& Allocator, const UE:
 	, PassCount(Context.EventData.GetValue<uint16>("PassCount"))
 {
 	NormalizedPassDuration = (EndTime - StartTime) / double(PassCount);
+
+	TConstArrayView<uint64> WatermarkSizes(Context.EventData.GetArrayView<uint64>("TransientHeapWatermarkSizes"));
+	TConstArrayView<uint64> Capacities(Context.EventData.GetArrayView<uint64>("TransientHeapCapacities"));
+	check(WatermarkSizes.Num() == Capacities.Num());
+
+	uint64 currentOffset = 0;
+
+	for (int32 Index = 0; Index < WatermarkSizes.Num(); ++Index)
+	{
+		auto& Heap = TransientHeapStats.Heaps.AddDefaulted_GetRef();
+		Heap.WatermarkSize = WatermarkSizes[Index];
+		Heap.Capacity = Capacities[Index];
+
+		TransientHeapOffsets.Emplace(currentOffset);
+		currentOffset += Heap.WatermarkSize;
+	}
 }
 
 FRenderGraphProvider::FRenderGraphProvider(TraceServices::IAnalysisSession& InSession)

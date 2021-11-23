@@ -612,8 +612,15 @@ void FRHITransientResourceAllocator::DeallocateMemoryInternal(FRHITransientResou
 	StatsToUpdate.CurrentSizeWithAliasing -= Allocation.Size;
 }
 
-void FRHITransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList)
+void FRHITransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats)
 {
+	for (FRHITransientHeapState& State : Heaps)
+	{
+		auto& Heap = OutHeapStats.Heaps.AddDefaulted_GetRef();
+		Heap.WatermarkSize = State.CommitSize;
+		Heap.Capacity = State.Heap->GetCapacity();
+	}
+
 	ParentSystem.ForfeitHeaps(Heaps);
 
 	RHICmdList.EnqueueLambda([&ParentSystem = ParentSystem, BufferStats = BufferStats, TextureStats = TextureStats](FRHICommandListImmediate&)
@@ -679,7 +686,12 @@ FRHITransientHeapAllocation FRHITransientResourceAllocator::Allocate(FMemoryStat
 
 void FRHITransientResourceAllocator::InitResource(FRHITransientResource* TransientResource, uint32 PassIndex, const FRHITransientHeapAllocation& Allocation, const TCHAR* Name)
 {
-	TransientResource->Init(Name, HeapAllocations.Emplace(Allocation), PassIndex);
+	FRHITransientResourceStats Stats;
+	Stats.HeapIndex = Allocation.HeapIndex;
+	Stats.HeapOffsetMin = Allocation.Offset;
+	Stats.HeapOffsetMax = Allocation.Offset + Allocation.Size;
+
+	TransientResource->Init(Name, HeapAllocations.Emplace(Allocation), PassIndex, Stats);
 
 	HeapAllocators[Allocation.HeapIndex].TrackOverlap(TransientResource, Allocation);
 }

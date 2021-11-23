@@ -14,6 +14,8 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, GraphMessage)
 	UE_TRACE_EVENT_FIELD(uint64, StartCycles)
 	UE_TRACE_EVENT_FIELD(uint64, EndCycles)
 	UE_TRACE_EVENT_FIELD(uint16, PassCount)
+	UE_TRACE_EVENT_FIELD(uint64[], TransientHeapWatermarkSizes)
+	UE_TRACE_EVENT_FIELD(uint64[], TransientHeapCapacities)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(RDGTrace, GraphEndMessage)
@@ -50,6 +52,9 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, BufferMessage)
 	UE_TRACE_EVENT_FIELD(uint16, NextOwnerHandle)
 	UE_TRACE_EVENT_FIELD(uint16, Order)
 	UE_TRACE_EVENT_FIELD(uint16[], Passes)
+	UE_TRACE_EVENT_FIELD(uint16, TransientHeapIndex)
+	UE_TRACE_EVENT_FIELD(uint64, TransientHeapOffsetMin)
+	UE_TRACE_EVENT_FIELD(uint64, TransientHeapOffsetMax)
 	UE_TRACE_EVENT_FIELD(bool, IsExternal)
 	UE_TRACE_EVENT_FIELD(bool, IsExtracted)
 	UE_TRACE_EVENT_FIELD(bool, IsCulled)
@@ -64,6 +69,9 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, TextureMessage)
 	UE_TRACE_EVENT_FIELD(uint16, NextOwnerHandle)
 	UE_TRACE_EVENT_FIELD(uint16, Order)
 	UE_TRACE_EVENT_FIELD(uint16[], Passes)
+	UE_TRACE_EVENT_FIELD(uint16, TransientHeapIndex)
+	UE_TRACE_EVENT_FIELD(uint64, TransientHeapOffsetMin)
+	UE_TRACE_EVENT_FIELD(uint64, TransientHeapOffsetMax)
 	UE_TRACE_EVENT_FIELD(uint64, SizeInBytes)
 	UE_TRACE_EVENT_FIELD(uint64, CreateFlags)
 	UE_TRACE_EVENT_FIELD(uint32, Dimension)
@@ -124,11 +132,22 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 	{
 		const TCHAR* Name = GraphBuilder.BuilderName.GetTCHAR();
 
+		TArray<uint64, TInlineAllocator<8>> TransientHeapWatermarkSizes;
+		TArray<uint64, TInlineAllocator<8>> TransientHeapCapacities;
+
+		for (const auto& Heap : TransientHeapStats.Heaps)
+		{
+			TransientHeapWatermarkSizes.Emplace(Heap.WatermarkSize);
+			TransientHeapCapacities.Emplace(Heap.Capacity);
+		}
+
 		UE_TRACE_LOG(RDGTrace, GraphMessage, RDGChannel)
 			<< GraphMessage.Name(Name, uint16(FCString::Strlen(Name)))
 			<< GraphMessage.StartCycles(GraphStartCycles)
 			<< GraphMessage.EndCycles(FPlatformTime::Cycles64())
-			<< GraphMessage.PassCount(uint16(Passes.Num()));
+			<< GraphMessage.PassCount(uint16(Passes.Num()))
+			<< GraphMessage.TransientHeapWatermarkSizes(TransientHeapWatermarkSizes.GetData(), (uint16)TransientHeapWatermarkSizes.Num())
+			<< GraphMessage.TransientHeapCapacities(TransientHeapCapacities.GetData(), (uint16)TransientHeapCapacities.Num());
 	}
 
 	for (FRDGPassHandle Handle = Passes.Begin(); Handle != Passes.End(); ++Handle)
@@ -239,12 +258,22 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			SizeInBytes = RHIComputeMemorySize(TextureRHI);
 		}
 
+		FRHITransientResourceStats TransientStats;
+
+		if (Texture->bTransient)
+		{
+			TransientStats = Texture->TransientTexture->GetStats();
+		}
+
 		UE_TRACE_LOG(RDGTrace, TextureMessage, RDGChannel)
 			<< TextureMessage.Name(Texture->Name, uint16(FCString::Strlen(Texture->Name)))
 			<< TextureMessage.Handle(Handle.GetIndex())
 			<< TextureMessage.NextOwnerHandle(Texture->NextOwner.GetIndexUnchecked())
 			<< TextureMessage.Order(Texture->TraceOrder)
 			<< TextureMessage.Passes((const uint16*)Texture->TracePasses.GetData(), (uint16)Texture->TracePasses.Num())
+			<< TextureMessage.TransientHeapIndex(TransientStats.HeapIndex)
+			<< TextureMessage.TransientHeapOffsetMin(TransientStats.HeapOffsetMin)
+			<< TextureMessage.TransientHeapOffsetMax(TransientStats.HeapOffsetMax)
 			<< TextureMessage.SizeInBytes(SizeInBytes)
 			<< TextureMessage.CreateFlags(uint32(Texture->Desc.Flags))
 			<< TextureMessage.Dimension(uint32(Texture->Desc.Dimension))
@@ -265,12 +294,22 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 	{
 		const FRDGBuffer* Buffer = Buffers[Handle];
 
+		FRHITransientResourceStats TransientStats;
+
+		if (Buffer->bTransient)
+		{
+			TransientStats = Buffer->TransientBuffer->GetStats();
+		}
+
 		UE_TRACE_LOG(RDGTrace, BufferMessage, RDGChannel)
 			<< BufferMessage.Name(Buffer->Name, uint16(FCString::Strlen(Buffer->Name)))
 			<< BufferMessage.Handle(Buffer->Handle.GetIndex())
 			<< BufferMessage.NextOwnerHandle(Buffer->NextOwner.GetIndexUnchecked())
 			<< BufferMessage.Order(Buffer->TraceOrder)
 			<< BufferMessage.Passes((const uint16*)Buffer->TracePasses.GetData(), (uint16)Buffer->TracePasses.Num())
+			<< BufferMessage.TransientHeapIndex(TransientStats.HeapIndex)
+			<< BufferMessage.TransientHeapOffsetMin(TransientStats.HeapOffsetMin)
+			<< BufferMessage.TransientHeapOffsetMax(TransientStats.HeapOffsetMax)
 			<< BufferMessage.UsageFlags(uint32(Buffer->Desc.Usage))
 			<< BufferMessage.BytesPerElement(Buffer->Desc.BytesPerElement)
 			<< BufferMessage.NumElements(Buffer->Desc.NumElements)

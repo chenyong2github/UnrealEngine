@@ -21,7 +21,7 @@ public:
 	virtual void DeallocateMemory(FRHITransientTexture* InTexture, uint32 InPassIndex) override final;
 	virtual void DeallocateMemory(FRHITransientBuffer* InBuffer, uint32 InPassIndex) override final;
 	virtual void Flush(FRHICommandListImmediate&) override final;
-	virtual void Freeze(FRHICommandListImmediate&) override final;
+	virtual void Freeze(FRHICommandListImmediate&, FRHITransientHeapStats&) override final;
 	virtual void Release(FRHICommandListImmediate&) override final;
 
 private:

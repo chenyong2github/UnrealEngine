@@ -221,7 +221,7 @@ void FD3D12TransientResourceAllocator::DeallocateMemory(FRHITransientBuffer* InB
 	Allocator.DeallocateMemory(InBuffer, InPassIndex);
 }
 
-void FD3D12TransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList)
+void FD3D12TransientResourceAllocator::Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats)
 {
-	Allocator.Freeze(RHICmdList);
+	Allocator.Freeze(RHICmdList, OutHeapStats);
 }

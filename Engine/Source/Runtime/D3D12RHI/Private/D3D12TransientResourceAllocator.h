@@ -50,7 +50,7 @@ public:
 	FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex) override;
 	void DeallocateMemory(FRHITransientTexture* InTexture, uint32 InPassIndex) override;
 	void DeallocateMemory(FRHITransientBuffer* InBuffer, uint32 InPassIndex) override;
-	void Freeze(FRHICommandListImmediate& RHICmdList) override;
+	void Freeze(FRHICommandListImmediate& RHICmdList, FRHITransientHeapStats& OutHeapStats) override;
 
 private:
 

@@ -169,8 +169,13 @@ public:
 
 	// ITimingViewDrawHelper interface
 	virtual const FSlateBrush* GetWhiteBrush() const override { return WhiteBrush; }
+	virtual const FSlateBrush* GetEventBorderBrush() const override { return EventBorderBrush; }
+	virtual const FSlateBrush* GetHoveredEventBorderBrush() const override { return HoveredEventBorderBrush; }
+	virtual const FSlateBrush* GetSelectedEventBorderBrush() const override { return SelectedEventBorderBrush; }
 	virtual const FSlateFontInfo& GetEventFont() const override { return EventFont; }
 	virtual FLinearColor GetEdgeColor() const override { return EdgeColor; }
+	virtual FLinearColor GetValidAreaColor() const override { return ValidAreaColor; }
+	virtual FLinearColor GetInvalidAreaColor() const override { return InvalidAreaColor; }
 	virtual FLinearColor GetTrackNameTextColor(const FBaseTimingTrack& Track) const override;
 	virtual int32 GetHeaderBackgroundLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
 	virtual int32 GetHeaderTextLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }

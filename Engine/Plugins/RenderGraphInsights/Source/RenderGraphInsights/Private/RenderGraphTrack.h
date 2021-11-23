@@ -7,59 +7,74 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "RenderGraphProvider.h"
+#include "RenderGraphTrackDrawHelper.h"
 
 class FMenuBuilder;
 class ITimingTrackDrawContext;
 class ITimingTrackUpdateContext;
 class FTimingTrackViewport;
 
-namespace UE
-{
-namespace RenderGraphInsights
-{
-class FRenderGraphTimingViewSession;
+namespace UE { namespace RenderGraphInsights {
 
-class FGraphPacket;
+class FRenderGraphTimingViewSession;
 class FPacketFilter;
+
+class FBoundingBox
+{
+public:
+	FBoundingBox() = default;
+
+	FBoundingBox(FVector2D InMin, FVector2D InMax)
+		: Min(InMin)
+		, Max(InMax)
+	{}
+
+	FVector2D Min = FVector2D::ZeroVector;
+	FVector2D Max = FVector2D::ZeroVector;
+};
 
 class FVisibleItem
 {
 public:
-	FVisibleItem(const FTimingTrackViewport& InViewport, const FPacket& InPacket, double InStartTime, double InEndTime, uint32 InDepth, uint32 InColor, float InMinY, float InMaxY)
+	FVisibleItem(const FTimingTrackViewport& InViewport, const FPacket& InPacket, uint32 InColor, double InStartTime, double InEndTime, float InDepthY, float InDepthH = 1.0f)
 		: Packet(&InPacket)
 		, Name(*InPacket.Name)
 		, StartTime(InStartTime)
 		, EndTime(InEndTime)
-		, Depth(InDepth)
+		, DepthY(InDepthY)
+		, DepthH(InDepthH)
 		, Color(InColor)
 	{
-		Min.X = InViewport.TimeToSlateUnitsRounded(StartTime);
-		Min.Y = InMinY;
-		Max.X = InViewport.TimeToSlateUnitsRounded(EndTime);
-		Max.Y = InMaxY;
+		SlateX = InViewport.TimeToSlateUnitsRounded(StartTime);
+		SlateW = InViewport.TimeToSlateUnitsRounded(EndTime) - SlateX;
 	}
 
-	virtual bool Intersects(float InPosX, float InPosY, bool& bOutFilterable) const
+	virtual bool Intersects(float InSlateX, float InDepthY, bool& bOutFilterable) const
 	{
 		bOutFilterable = true;
-		return InPosX >= Min.X && InPosX < Max.X&& InPosY > Min.Y && InPosY < Max.Y;
+		return InSlateX >= SlateX && InSlateX < (SlateX + SlateW) && InDepthY > DepthY && InDepthY < (DepthY + DepthH);
 	}
 
-	bool Intersects(float InPosX, float InPosY) const
+	bool Intersects(float InSlateX, float InDepthY) const
 	{
 		bool bFilterable = false;
-		return Intersects(InPosX, InPosY, bFilterable);
+		return Intersects(InSlateX, InDepthY, bFilterable);
 	}
+
+	FBoundingBox GetBoundingBox(const FTimingViewLayout& Layout) const;
+
+	virtual void Draw(FRenderGraphTrackDrawStateBuilder& Builder) const;
 
 	const FPacket* Packet{};
 	const TCHAR* Name{};
 	double StartTime{};
 	double EndTime{};
-	uint32 Depth{};
+	float DepthY{};
+	float DepthH{};
+	float SlateX{};
+	float SlateW{};
 	uint32 Color{};
 	uint32 Index{};
-	FVector2D Min = FVector2D::ZeroVector;
-	FVector2D Max = FVector2D::ZeroVector;
 };
 
 template <typename InPacketType>
@@ -68,16 +83,8 @@ class TVisibleItemHelper : public FVisibleItem
 public:
 	using PacketType = InPacketType;
 
-	TVisibleItemHelper(const FTimingTrackViewport& Viewport, const PacketType& InPacket, double InStartTime, double InEndTime, uint32 InDepth, uint32 InColor)
-		: TVisibleItemHelper(Viewport, InPacket, InStartTime, InEndTime, InDepth, InColor, Viewport.GetLayout().GetLaneY(InDepth))
-	{}
-
-	TVisibleItemHelper(const FTimingTrackViewport& Viewport, const PacketType& InPacket, double InStartTime, double InEndTime, uint32 InDepth, uint32 InColor, float InMinY)
-		: FVisibleItem(Viewport, InPacket, InStartTime, InEndTime, InDepth, InColor, InMinY, InMinY + Viewport.GetLayout().EventH)
-	{}
-
-	TVisibleItemHelper(const FTimingTrackViewport& Viewport, const PacketType& InPacket, double InStartTime, double InEndTime, uint32 InDepth, uint32 InColor, float InMinY, float InMaxY)
-		: FVisibleItem(Viewport, InPacket, InStartTime, InEndTime, InDepth, InColor, InMinY, InMaxY)
+	TVisibleItemHelper(const FTimingTrackViewport& Viewport, const PacketType& InPacket, uint32 InColor, double InStartTime, double InEndTime, float InDepthY, float InDepthH = 1.0f)
+		: FVisibleItem(Viewport, InPacket, InColor, InStartTime, InEndTime, InDepthY, InDepthH)
 	{}
 
 	const PacketType& GetPacket() const
@@ -89,16 +96,16 @@ public:
 class FVisiblePass final : public TVisibleItemHelper<FPassPacket>
 {
 public:
-	FVisiblePass(const FTimingTrackViewport& Viewport, const FPassPacket& InPacket, double InStartTime, double InEndTime, uint32 InDepth, uint32 InColor)
-		: TVisibleItemHelper(Viewport, InPacket, InStartTime, InEndTime, InDepth, InColor)
+	FVisiblePass(const FTimingTrackViewport& Viewport, const FPassPacket& InPacket, uint32 InColor, double InStartTime, double InEndTime, float InDepthY, float InDepthH = 1.0f)
+		: TVisibleItemHelper(Viewport, InPacket, InColor, InStartTime, InEndTime, InDepthY, InDepthH)
 	{}
 
-	bool Intersects(float InPosX, float InPosY, bool& bOutFilterable) const override
+	bool Intersects(float InSlateX, float InDepthY, bool& bOutFilterable) const override
 	{
 		// For hit-testing, treat the pass as unbounded along Y, so that it's a column.
-		if (InPosX >= Min.X && InPosX < Max.X && InPosY >= Min.Y)
+		if (InSlateX >= SlateX && InSlateX < (SlateX + SlateW) && InDepthY >= DepthY)
 		{
-			bOutFilterable = InPosY < Max.Y;
+			bOutFilterable = InDepthY < (DepthY + DepthH);
 			return true;
 		}
 		return false;
@@ -107,38 +114,15 @@ public:
 	using FVisibleItem::Intersects;
 };
 
-class FVisibleScope final : public TVisibleItemHelper<FScopePacket>
-{
-public:
-
-	FVisibleScope(const FTimingTrackViewport& Viewport, const FScopePacket& InPacket, double InStartTime, double InEndTime, uint32 InDepth, uint32 InColor)
-		: TVisibleItemHelper(Viewport, InPacket, InStartTime, InEndTime, InDepth, InColor)
-	{}
-};
-
-class FVisibleTexture final : public TVisibleItemHelper<FTexturePacket>
-{
-public:
-
-	FVisibleTexture(const FTimingTrackViewport& Viewport, const FTexturePacket& InPacket, double InStartTime, double InEndTime, uint32 InDepth, uint32 InColor)
-		: TVisibleItemHelper(Viewport, InPacket, InStartTime, InEndTime, InDepth, InColor)
-	{}
-};
-
-class FVisibleBuffer final : public TVisibleItemHelper<FBufferPacket>
-{
-public:
-
-	FVisibleBuffer(const FTimingTrackViewport& Viewport, const FBufferPacket& InPacket, double InStartTime, double InEndTime, uint32 InDepth, uint32 InColor)
-		: TVisibleItemHelper(Viewport, InPacket, InStartTime, InEndTime, InDepth, InColor)
-	{}
-};
+using FVisibleScope   = TVisibleItemHelper<FScopePacket>;
+using FVisibleTexture = TVisibleItemHelper<FTexturePacket>;
+using FVisibleBuffer  = TVisibleItemHelper<FBufferPacket>;
 
 class FVisibleGraph final : public TVisibleItemHelper<FGraphPacket>
 {
 public:
-	FVisibleGraph(const FTimingTrackViewport& Viewport, const FGraphPacket& InGraph, const uint32 InColor, float InMaxY)
-		: TVisibleItemHelper(Viewport, InGraph, InGraph.StartTime, InGraph.EndTime, 0, InColor, 0.0f, InMaxY)
+	FVisibleGraph(const FTimingTrackViewport& Viewport, const FGraphPacket& InGraph, uint32 InColor, float InDepthH)
+		: TVisibleItemHelper(Viewport, InGraph, InColor, InGraph.StartTime, InGraph.EndTime, 0.0f, InDepthH)
 	{}
 
 	void AddScope(const FVisibleScope& VisibleScope);
@@ -148,7 +132,7 @@ public:
 
 	void Reset();
 
-	const FVisibleItem* FindItem(float InPosX, float InPosY) const;
+	const FVisibleItem* FindItem(float InSlateX, float InDepthY) const;
 
 	const FVisibleScope& GetVisibleScope(const FScopePacket& Scope) const
 	{
@@ -180,43 +164,64 @@ public:
 		return &Buffers[Buffer.VisibleIndex];
 	}
 
+	void Draw(FRenderGraphTrackDrawStateBuilder& Builder) const override;
+
+	bool IsCulled() const
+	{
+		return Passes.IsEmpty();
+	}
+
 	TArray<FVisibleScope> Scopes;
 	TArray<FVisiblePass> Passes;
 	TArray<FVisibleTexture> Textures;
 	TArray<FVisibleBuffer> Buffers;
 	TArray<uint32> AsyncComputePasses;
+	TArray<float, TInlineAllocator<8>> TransientHeapDepths;
+	float HeaderEndDepth{};
+	float HeaderPassBarDepth{};
 };
 
-class FRenderGraphTrack : public FTimingEventsTrack
+class FRenderGraphTrack final : public FBaseTimingTrack
 {
-	INSIGHTS_DECLARE_RTTI(FRenderGraphTrack, FTimingEventsTrack)
-	using Super = FTimingEventsTrack;
+	INSIGHTS_DECLARE_RTTI(FRenderGraphTrack, FBaseTimingTrack)
+	using Super = FBaseTimingTrack;
 
 public:
 	FRenderGraphTrack(const FRenderGraphTimingViewSession& InSharedData);
 
-	//~ Begin FTimingEventsTrack interface
+	//~ Begin FBaseTimingTrack interface
+	void Reset() override;
+	void PreUpdate(const ITimingTrackUpdateContext& Context) override;
 	void Update(const ITimingTrackUpdateContext& Context) override;
+	void PostUpdate(const ITimingTrackUpdateContext& Context) override;
 	void Draw(const ITimingTrackDrawContext& Context) const override;
 	void PostDraw(const ITimingTrackDrawContext& Context) const override;
-	void BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
-	void BuildFilteredDrawState(ITimingEventsTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context) override;
+	void DrawEvent(const ITimingTrackDrawContext& Context, const ITimingEvent& InTimingEvent, EDrawEventMode InDrawMode) const override;
 	const TSharedPtr<const ITimingEvent> GetEvent(float InPosX, float InPosY, const FTimingTrackViewport& Viewport) const override;
 	TSharedPtr<ITimingEventFilter> GetFilterByEvent(const TSharedPtr<const ITimingEvent> InTimingEvent) const;
 	void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 	void InitTooltip(FTooltipDrawState& Tooltip, const ITimingEvent& HoveredTimingEvent) const override;
-	//~ End FTimingEventsTrack interface
+	//~ End FBaseTimingTrack interface
 
 private:
 	const FRenderGraphTimingViewSession& SharedData;
 
+	void BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context);
+	void BuildFilteredDrawState(FRenderGraphTrackDrawStateBuilder& Builder, const ITimingTrackUpdateContext& Context);
+
 	FVisibleGraph& AddVisibleGraph(const FTimingTrackViewport& Viewport, const FGraphPacket& Graph, uint32 Color)
 	{
 		const uint32 VisibleIndex = VisibleGraphs.Num();
-		FVisibleGraph& VisibleGraph = VisibleGraphs.Emplace_GetRef(Viewport, Graph, Color, GetHeight());
+		FVisibleGraph& VisibleGraph = VisibleGraphs.Emplace_GetRef(Viewport, Graph, Color, 1.0f);
 		check(VisibleGraph.Packet->VisibleIndex == kInvalidVisibleIndex);
 		VisibleGraph.Packet->VisibleIndex = VisibleIndex;
 		VisibleGraph.Index = VisibleIndex;
+
+		for (uint64 HeapOffset : Graph.TransientHeapOffsets)
+		{
+			VisibleGraph.TransientHeapDepths.Emplace(FMath::CeilToFloat(TransientHeapOffsetToDepth(HeapOffset)));
+		}
+
 		return VisibleGraph;
 	}
 
@@ -229,10 +234,13 @@ private:
 		return nullptr;
 	}
 
-	bool FilterPacket(const FPacket& Packet) const;
-	bool FilterPacketExact(const FPacket& Packet) const;
+	float TransientHeapOffsetToDepth(uint64 HeapOffset) const;
+	float TransientHeapOffsetToDepthAligned(uint64 HeapOffset) const;
+	float TransientHeapOffsetToSlateY(const FTimingViewLayout& Layout, uint64 HeapOffset) const;
 
-	FVector2D MousePosition = FVector2D::ZeroVector;
+	float MouseSlateX{};
+	float MouseSlateY{};
+	float MouseDepthY{};
 
 	TArray<FVisibleGraph> VisibleGraphs;
 
@@ -247,9 +255,6 @@ private:
 	};
 
 	TArray<FSpline> Splines;
-
-	const FPacketFilter* PacketFilter{};
-	const FPassPacket* SelectedPass{};
 
 	uint32 GetTextureColor(const FTexturePacket& Texture, uint64 MaxSizeInBytes) const;
 	uint32 GetBufferColor(const FBufferPacket& Buffer, uint64 MaxSizeInBytes) const;
@@ -286,16 +291,38 @@ private:
 		Size
 	};
 
+	enum class EVisualizer
+	{
+		Resources,
+		TransientHeaps
+	};
+
 	EResourceShow ResourceShow = EResourceShow::All;
 	EResourceSort ResourceSort = EResourceSort::Creation;
 	EResourceColor ResourceColor = EResourceColor::Type;
+	EVisualizer Visualizer = EVisualizer::Resources;
 	FString FilterText;
 	float FilterSize{};
+	uint64 TransientHeapBytesPerDepthSlot = 1024 * 1024;
 
 	FTooltipDrawState SelectedTooltipState;
+
+	int32 NumLanes;
+	TSharedRef<struct FRenderGraphTrackDrawState> DrawState;
+	TSharedRef<struct FRenderGraphTrackDrawState> FilteredDrawState;
+
+	struct FFilteredDrawStateInfo
+	{
+		double ViewportStartTime = 0.0;
+		double ViewportScaleX = 0.0;
+		double LastBuildDuration = 0.0;
+		TWeakPtr<ITimingEventFilter> LastEventFilter;
+		uint32 Counter = 0;
+		mutable float Opacity = 0.0f;
+	};
+	FFilteredDrawStateInfo FilteredDrawStateInfo;
 };
 
 ENUM_CLASS_FLAGS(FRenderGraphTrack::EResourceShow);
 
-} //namespace RenderGraphInsights
-} //namespace UE
+}} //namespace UE::RenderGraphInsights
