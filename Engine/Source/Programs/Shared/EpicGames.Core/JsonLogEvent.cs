@@ -52,51 +52,55 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public static bool TryParse(ReadOnlyMemory<byte> Data, out JsonLogEvent Event)
 		{
-			LogLevel Level = LogLevel.None;
-			int EventId = 0;
-
-			Utf8JsonReader Reader = new Utf8JsonReader(Data.Span);
-			if (Reader.Read() && Reader.TokenType == JsonTokenType.StartObject)
+			try
 			{
-				ReadOnlySpan<byte> PropertyName;
-				for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+				LogLevel Level = LogLevel.None;
+				int EventId = 0;
+
+				Utf8JsonReader Reader = new Utf8JsonReader(Data.Span);
+				if (Reader.Read() && Reader.TokenType == JsonTokenType.StartObject)
 				{
-					if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, LevelString.Span))
+					ReadOnlySpan<byte> PropertyName;
+					for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
 					{
-						if (!Enum.TryParse(Reader.GetString(), out Level))
+						if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, LevelString.Span))
 						{
-							break;
-						}
-					}
-					else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, PropertiesString.Span) && Reader.TokenType == JsonTokenType.StartObject)
-					{
-						for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
-						{
-							if (Utf8StringComparer.OrdinalIgnoreCase.Equals(EventIdString.Span, PropertyName) && Reader.TokenType == JsonTokenType.StartObject)
+							if (!Enum.TryParse(Reader.GetString(), out Level))
 							{
-								for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+								break;
+							}
+						}
+						else if (Utf8StringComparer.OrdinalIgnoreCase.Equals(PropertyName, PropertiesString.Span) && Reader.TokenType == JsonTokenType.StartObject)
+						{
+							for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
+							{
+								if (Utf8StringComparer.OrdinalIgnoreCase.Equals(EventIdString.Span, PropertyName) && Reader.TokenType == JsonTokenType.StartObject)
 								{
-									if (Utf8StringComparer.OrdinalIgnoreCase.Equals(IdString.Span, PropertyName) && Reader.TryGetInt32(out int NewEventId))
+									for (; ReadNextPropertyName(ref Reader, out PropertyName); Reader.Skip())
 									{
-										EventId = NewEventId;
+										if (Utf8StringComparer.OrdinalIgnoreCase.Equals(IdString.Span, PropertyName) && Reader.TryGetInt32(out int NewEventId))
+										{
+											EventId = NewEventId;
+										}
 									}
 								}
 							}
 						}
 					}
 				}
+
+				if (Reader.TokenType == JsonTokenType.EndObject && Level != LogLevel.None && Reader.BytesConsumed == Data.Length)
+				{
+					Event = new JsonLogEvent(Level, new EventId(EventId), Data);
+					return true;
+				}
+			}
+			catch
+			{
 			}
 
-			if (Reader.TokenType == JsonTokenType.EndObject && Level != LogLevel.None && Reader.BytesConsumed == Data.Length)
-			{
-				Event = new JsonLogEvent(Level, new EventId(EventId), Data);
-				return true;
-			}
-			else
-			{
-				Event = default;
-				return false;
-			}
+			Event = default;
+			return false;
 		}
 
 		static bool ReadNextPropertyName(ref Utf8JsonReader Reader, out ReadOnlySpan<byte> PropertyName)
