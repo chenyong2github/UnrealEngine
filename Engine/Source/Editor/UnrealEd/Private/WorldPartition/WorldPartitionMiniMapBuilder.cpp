@@ -32,7 +32,7 @@ UWorldPartitionMiniMapBuilder::UWorldPartitionMiniMapBuilder(const FObjectInitia
 {
 }
 
-bool UWorldPartitionMiniMapBuilder::OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionMiniMapBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	bAutoSubmit = FParse::Param(FCommandLine::Get(), TEXT("AutoSubmit"));
 	
@@ -73,7 +73,7 @@ bool UWorldPartitionMiniMapBuilder::RunInternal(UWorld* World, const FCellInfo& 
 	return true;
 }
 
-bool UWorldPartitionMiniMapBuilder::OnPartitionBuildCompleted(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess)
+bool UWorldPartitionMiniMapBuilder::PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess)
 {
 	TArray<FTextureSourceBlock> SourceBlocks;
 	TArray<const uint8*>		SourceImageData;

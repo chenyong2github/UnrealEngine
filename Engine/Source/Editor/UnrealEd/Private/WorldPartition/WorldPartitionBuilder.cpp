@@ -33,45 +33,26 @@ UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectI
 	bSubmit = FParse::Param(FCommandLine::Get(), TEXT("Submit"));
 }
 
-bool UWorldPartitionBuilder::RunBuilder(const TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* World)
-{
-	// Create builder instance
-	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(GetTransientPackage(), BuilderClass);
-	if (!Builder)
-	{
-		UE_LOG(LogWorldPartitionBuilder, Error, TEXT("Failed to create builder."));
-		return false;
-	}
-
-	Builder->AddToRoot();
-	ON_SCOPE_EXIT
-	{
-		Builder->RemoveFromRoot();
-	};
-
-	return RunBuilder(Builder, World);
-}
-
-bool UWorldPartitionBuilder::RunBuilder(UWorldPartitionBuilder* Builder, UWorld* World)
+bool UWorldPartitionBuilder::RunBuilder(UWorld* World)
 {
 	// Load configuration file & builder configuration
 	const FString WorldConfigFilename = FPackageName::LongPackageNameToFilename(World->GetPackage()->GetName(), TEXT(".ini"));
 	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
 	{
-		Builder->LoadConfig(Builder->GetClass(), *WorldConfigFilename);
+		LoadConfig(GetClass(), *WorldConfigFilename);
 	}
 
 	// Validate builder settings
-	if (IsRunningCommandlet() && Builder->RequiresCommandletRendering() && !IsAllowCommandletRendering())
+	if (IsRunningCommandlet() && RequiresCommandletRendering() && !IsAllowCommandletRendering())
 	{
-		UE_LOG(LogWorldPartitionBuilder, Error, TEXT("The option \"-AllowCommandletRendering\" must be provided for the %s process to work"), *Builder->GetClass()->GetName());
+		UE_LOG(LogWorldPartitionBuilder, Error, TEXT("The option \"-AllowCommandletRendering\" must be provided for the %s process to work"), *GetClass()->GetName());
 		return false;
 	}
 
 	FPackageSourceControlHelper SCCHelper;
 
 	// Perform builder pre world initialisation
-	if (!Builder->PreWorldInitialization(SCCHelper))
+	if (!PreWorldInitialization(SCCHelper))
 	{
 		UE_LOG(LogWorldPartitionBuilder, Error, TEXT("PreWorldInitialization failed"));
 		return false;
@@ -102,7 +83,7 @@ bool UWorldPartitionBuilder::RunBuilder(UWorldPartitionBuilder* Builder, UWorld*
 		GWorld = World;
 
 		// Run builder
-		bResult = Builder->Run(World, SCCHelper);
+		bResult = Run(World, SCCHelper);
 
 		// Restore previous world
 		WorldContext.SetCurrentWorld(PrevGWorld);
@@ -114,7 +95,7 @@ bool UWorldPartitionBuilder::RunBuilder(UWorldPartitionBuilder* Builder, UWorld*
 			if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename) ||
 				!FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*WorldConfigFilename))
 			{
-				Builder->SaveConfig(CPF_Config, *WorldConfigFilename);
+				SaveConfig(CPF_Config, *WorldConfigFilename);
 			}
 		}
 	}
@@ -139,7 +120,8 @@ static FIntVector GetCellCoord(const FVector& InPos, const int32 InCellSize)
 bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
 	// Notify derived classes that partition building process starts
-	bool bResult = OnPartitionBuildStarted(World, PackageHelper);
+	bool bResult = PreRun(World, PackageHelper);
+
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 
 	// Properly Setup DataLayers for Builder
@@ -269,18 +251,5 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		bResult = RunInternal(World, CellInfo, PackageHelper);
 	}
 
-	return OnPartitionBuildCompleted(World, PackageHelper, bResult);
-}
-
-bool UWorldPartitionBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
-{
-	UWorldPartition*	WorldPartition = World->GetWorldPartition();
-	FCellInfo			CellInfo;
-
-	CellInfo.EditorBounds = WorldPartition->GetEditorWorldBounds();
-	CellInfo.IterativeCellSize = IterativeCellSize;
-	CellInfo.Bounds = Bounds;
-	CellInfo.Location = GetCellCoord(Bounds.Min, IterativeCellSize);
-
-	return RunInternal(World, CellInfo, PackageHelper);
+	return PostRun(World, PackageHelper, bResult);
 }

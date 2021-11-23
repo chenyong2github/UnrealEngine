@@ -14,9 +14,9 @@ UWorldPartitionSmartObjectCollectionBuilder::UWorldPartitionSmartObjectCollectio
 	IterativeCellSize = 51200;
 }
 
-bool UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionSmartObjectCollectionBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
 {
-	Super::OnPartitionBuildStarted(World, PackageHelper);
+	Super::PreRun(World, PackageHelper);
 
 	const USmartObjectSubsystem* SmartObjectSubsystem = UWorld::GetSubsystem<USmartObjectSubsystem>(World);
 	if (SmartObjectSubsystem == nullptr)
@@ -45,7 +45,7 @@ bool UWorldPartitionSmartObjectCollectionBuilder::RunInternal(UWorld* World, con
 {
 	if (MainCollection == nullptr)
 	{
-		// no need to report an error here, was already done in OnPartitionBuildStarted
+		// no need to report an error here, was already done in PreRun
 		return false;
 	}
 
@@ -58,13 +58,13 @@ bool UWorldPartitionSmartObjectCollectionBuilder::RunInternal(UWorld* World, con
 	return true;
 }
 
-bool UWorldPartitionSmartObjectCollectionBuilder::OnPartitionBuildCompleted(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess)
+bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess)
 {
-	Super::OnPartitionBuildCompleted(World, PackageHelper, bInRunSuccess);
+	Super::PostRun(World, PackageHelper, bInRunSuccess);
 
 	if (MainCollection == nullptr)
 	{
-		// no need to report an error here, was already done in OnPartitionBuildStarted
+		// no need to report an error here, was already done in PreRun
 		return false;
 	}
 	MainCollection->SetBuildingForWorldPartition(false);
