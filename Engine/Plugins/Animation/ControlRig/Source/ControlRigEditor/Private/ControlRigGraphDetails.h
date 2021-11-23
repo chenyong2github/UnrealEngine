@@ -22,7 +22,8 @@ class FControlRigArgumentGroupLayout : public IDetailCustomNodeBuilder, public T
 public:
 	FControlRigArgumentGroupLayout(
 		URigVMGraph* InGraph, 
-		UControlRigBlueprint* InBlueprint, 
+		UControlRigBlueprint* InBlueprint,
+		TWeakPtr<IControlRigEditor> InEditor,
 		bool bInputs);
 	virtual ~FControlRigArgumentGroupLayout();
 
@@ -42,6 +43,7 @@ private:
 
 	TWeakObjectPtr<URigVMGraph> GraphPtr;
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
+	TWeakPtr<IControlRigEditor> ControlRigEditorPtr;
 	bool bIsInputGroup;
 	FSimpleDelegate OnRebuildChildren;
 };
@@ -53,10 +55,12 @@ public:
 	FControlRigArgumentLayout(
 		URigVMPin* InPin, 
 		URigVMGraph* InGraph, 
-		UControlRigBlueprint* InBlueprint)
+		UControlRigBlueprint* InBlueprint,
+		TWeakPtr<IControlRigEditor> InEditor)
 		: PinPtr(InPin)
 		, GraphPtr(InGraph)
 		, ControlRigBlueprintPtr(InBlueprint)
+		, ControlRigEditorPtr(InEditor)
 		, NameValidator(InBlueprint, InGraph, InPin->GetFName())
 	{}
 
@@ -101,6 +105,9 @@ private:
 
 	/** The blueprint we are editing */
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
+
+	/** The editor we are editing */
+	TWeakPtr<IControlRigEditor> ControlRigEditorPtr;
 
 	/** Holds a weak pointer to the argument name widget, used for error notifications */
 	TWeakPtr<SEditableTextBox> ArgumentNameWidget;

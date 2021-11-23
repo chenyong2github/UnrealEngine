@@ -30,9 +30,11 @@
 FControlRigArgumentGroupLayout::FControlRigArgumentGroupLayout(
 	URigVMGraph* InGraph, 
 	UControlRigBlueprint* InBlueprint, 
+	TWeakPtr<IControlRigEditor> InEditor,
 	bool bInputs)
 	: GraphPtr(InGraph)
 	, ControlRigBlueprintPtr(InBlueprint)
+	, ControlRigEditorPtr(InEditor)
 	, bIsInputGroup(bInputs)
 {
 	if (ControlRigBlueprintPtr.IsValid())
@@ -65,7 +67,8 @@ void FControlRigArgumentGroupLayout::GenerateChildContent(IDetailChildrenBuilder
 					TSharedRef<class FControlRigArgumentLayout> ControlRigArgumentLayout = MakeShareable(new FControlRigArgumentLayout(
 						Pin,
 						Graph,
-						ControlRigBlueprintPtr.Get()
+						ControlRigBlueprintPtr.Get(),
+						ControlRigEditorPtr
 					));
 					ChildrenBuilder.AddCustomBuilder(ControlRigArgumentLayout);
 					WasContentAdded = true;
@@ -134,6 +137,13 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 	ETypeTreeFilter TypeTreeFilter = ETypeTreeFilter::None;
 	TypeTreeFilter |= ETypeTreeFilter::AllowExec;
 
+	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
+	if (ControlRigEditorPtr.IsValid())
+	{
+		CustomPinTypeFilter = ControlRigEditorPtr.Pin()->GetImportedPinTypeSelectorFilter();
+	}
+	
+
 	NodeRow
 		.NameContent()
 		[
@@ -185,6 +195,7 @@ void FControlRigArgumentLayout::GenerateHeaderRowContent(FDetailWidgetRow& NodeR
 				.TypeTreeFilter(TypeTreeFilter)
 				.bAllowArrays(!ShouldPinBeReadOnly())
 				.IsEnabled(!ShouldPinBeReadOnly(true))
+				.CustomFilter(CustomPinTypeFilter)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 			+ SHorizontalBox::Slot()
@@ -643,7 +654,8 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 	IDetailCategoryBuilder& InputsCategory = DetailLayout.EditCategory("Inputs", LOCTEXT("FunctionDetailsInputs", "Inputs"));
 	TSharedRef<FControlRigArgumentGroupLayout> InputArgumentGroup = MakeShareable(new FControlRigArgumentGroupLayout(
 		Model, 
-		Blueprint, 
+		Blueprint,
+		ControlRigEditorPtr,
 		true));
 	InputsCategory.AddCustomBuilder(InputArgumentGroup);
 
@@ -673,7 +685,8 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 	IDetailCategoryBuilder& OutputsCategory = DetailLayout.EditCategory("Outputs", LOCTEXT("FunctionDetailsOutputs", "Outputs"));
 	TSharedRef<FControlRigArgumentGroupLayout> OutputArgumentGroup = MakeShareable(new FControlRigArgumentGroupLayout(
 		Model, 
-		Blueprint, 
+		Blueprint,
+		ControlRigEditorPtr,
 		false));
 	OutputsCategory.AddCustomBuilder(OutputArgumentGroup);
 
