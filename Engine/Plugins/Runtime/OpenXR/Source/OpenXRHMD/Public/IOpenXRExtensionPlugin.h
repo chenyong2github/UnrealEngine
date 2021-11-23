@@ -275,6 +275,10 @@ public:
 	{
 	}
 
+	virtual void BindExtensionPluginDelegates(class IOpenXRExtensionPluginDelegates& OpenXRHMD)
+	{
+	}
+
 	virtual const void* OnGetSystem(XrInstance InInstance, const void* InNext)
 	{
 		return InNext;

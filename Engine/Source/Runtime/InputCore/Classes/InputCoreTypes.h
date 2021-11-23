@@ -22,6 +22,7 @@ enum class EControllerHand : uint8
 	Pad,
 	ExternalCamera,
 	Gun,
+	HMD,
 	Special_1,
 	Special_2,
 	Special_3,
