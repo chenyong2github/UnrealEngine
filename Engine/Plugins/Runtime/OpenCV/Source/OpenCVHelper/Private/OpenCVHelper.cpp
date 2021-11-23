@@ -189,5 +189,53 @@ UTexture2D* FOpenCVHelper::TextureFromCvMat(cv::Mat& Mat, UTexture2D* InTexture)
 	return InTexture;
 }
 
+double FOpenCVHelper::ComputeReprojectionError(const FTransform& CameraPose, const cv::Mat& CameraIntrinsicMatrix, const std::vector<cv::Point3f>& Points3d, const std::vector<cv::Point2f>& Points2d)
+{
+	// Ensure that the number of point correspondences is valid
+	const int32 NumPoints3d = Points3d.size();
+	const int32 NumPoints2d = Points2d.size();
+	if ((NumPoints3d == 0) || (NumPoints2d == 0) || (NumPoints3d != NumPoints2d))
+	{
+		return -1.0;
+	}
+
+	const FMatrix CameraPoseMatrix = CameraPose.ToMatrixNoScale();
+
+	const cv::Mat Tcam = (cv::Mat_<double>(3, 1) << CameraPoseMatrix.M[3][0], CameraPoseMatrix.M[3][1], CameraPoseMatrix.M[3][2]);
+
+	cv::Mat Rcam = cv::Mat::zeros(3, 3, cv::DataType<double>::type);
+	for (int32 Column = 0; Column < 3; ++Column)
+	{
+		FVector ColVec = CameraPoseMatrix.GetColumn(Column);
+		Rcam.at<double>(Column, 0) = ColVec.X;
+		Rcam.at<double>(Column, 1) = ColVec.Y;
+		Rcam.at<double>(Column, 2) = ColVec.Z;
+	}
+
+	const cv::Mat Robj = Rcam.t();
+
+	cv::Mat Rrod;
+	cv::Rodrigues(Robj, Rrod);
+
+	const cv::Mat Tobj = -Rcam.inv() * Tcam;
+
+	std::vector<cv::Point2f> ReprojectedPoints2d;
+
+	// The 2D points will be compared against the undistorted 2D points, so the distortion coefficients can be ignored
+	cv::projectPoints(Points3d, Rrod, Tobj, CameraIntrinsicMatrix, cv::noArray(), ReprojectedPoints2d);
+
+	// Compute euclidean distance between captured 2D points and reprojected 2D points to measure reprojection error
+	double ReprojectionError = 0.0;
+	for (int32 Index = 0; Index < NumPoints2d; ++Index)
+	{
+		const cv::Point2f& A = Points2d[Index];
+		const cv::Point2f& B = ReprojectedPoints2d[Index];
+		const cv::Point2f Diff = A - B;
+
+		ReprojectionError += (Diff.x * Diff.x) + (Diff.y * Diff.y); // cv::norm with NORM_L2SQR
+	}
+
+	return ReprojectionError;
+}
 
 #endif // WITH_OPENCV

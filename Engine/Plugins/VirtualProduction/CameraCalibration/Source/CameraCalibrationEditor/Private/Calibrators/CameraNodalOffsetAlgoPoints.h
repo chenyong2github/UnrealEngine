@@ -125,6 +125,12 @@ protected:
 		// Normalized 0~1 2d location of the identified calibrator point in the media plate.
 		FVector2D Point2D;
 
+		// Location of Point2D after it has been undistorted
+		FVector2D UndistortedPoint2D;
+
+		// True if this row has had its Point2D undistorted
+		bool bUndistortedIsValid = false;
+
 		// Holds information of the calibrator point data for this sample.
 		FCalibratorPointCache CalibratorPointData;
 
@@ -197,6 +203,9 @@ protected:
 
 	/** Clears the list of calibration sample rows */
 	void ClearCalibrationRows();
+
+	/* Undistort the 2D points in each calibration row using the current distortion displacement map */
+	void UndistortCalibrationRowPoints();
 
 	/** 
 	 * Retrieves by name the calibration point data of the currently selected calibrator.
@@ -340,4 +349,10 @@ protected:
 		const TArray<TSharedPtr<FCalibrationRowData>>& Rows,
 		FTransform& OutTransform,
 		FText& OutErrorMessage);
+
+	/* Refine the input nodal offset by running a minimization algorithm designed to minimize the sum of the reprojection errors for the camera views in the set of input pose groups*/
+	double MinimizeReprojectionError(FTransform& InOutNodalOffset, const TArray<TSharedPtr<TArray<TSharedPtr<FCalibrationRowData>>>>& SamePoseRowGroups) const;
+
+	/* Compute the reprojection error for the rows in the input PoseGroup using the input NodalOffset */
+	double ComputeReprojectionError(const FTransform& NodalOffset, const TArray<TSharedPtr<FCalibrationRowData>>& PoseGroup) const;
 };

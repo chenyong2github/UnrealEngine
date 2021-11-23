@@ -2,7 +2,7 @@
 
 #pragma once
 #include "CoreMinimal.h"
-
+#include <vector>
 /*
 Like many third party headers, OpenCV headers require some care when importing.
 
@@ -47,6 +47,11 @@ class FName;
 namespace cv
 {
 	class Mat;
+	template<typename _Tp> class Point_;
+	template<typename _Tp> class Point3_;
+
+	typedef Point_<float> Point2f;
+	typedef Point3_<float> Point3f;
 };
 
 class OPENCVHELPER_API FOpenCVHelper
@@ -64,6 +69,8 @@ public:
 	 */
 	static UTexture2D* TextureFromCvMat(cv::Mat& Mat, const FString* PackagePath = nullptr, const FName* TextureName = nullptr);
 	static UTexture2D* TextureFromCvMat(cv::Mat& Mat, UTexture2D* InTexture);
+
+	static double ComputeReprojectionError(const FTransform& CameraPose, const cv::Mat& CameraIntrinsicMatrix, const std::vector<cv::Point3f>& Points3d, const std::vector<cv::Point2f>& Points2d);
 };
 
 #endif //WITH_OPENCV
