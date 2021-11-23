@@ -201,6 +201,10 @@ protected:
 	double CurPathLength;
 	double CurOffsetDistance;
 	double CurHeight;
+	bool bHasSavedWidth = false;
+	float SavedWidth;
+	bool bHasSavedExtrudeHeight = false;
+	float SavedExtrudeHeight;
 	bool bPathIsClosed = false;		// If true, CurPathPoints are assumed to define a closed path
 
 	TArray<FVector3d> CurPolyLoop;
@@ -231,7 +235,7 @@ protected:
 	void ClearPreview();
 	void GeneratePathMesh(UE::Geometry::FDynamicMesh3& Mesh);
 	void GenerateExtrudeMesh(UE::Geometry::FDynamicMesh3& PathMesh);
-	void EmitNewObject(EDrawPolyPathExtrudeMode ExtrudeMode);
+	void EmitNewObject();
 
 	// user feedback messages
 	void ShowStartupMessage();

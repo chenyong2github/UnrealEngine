@@ -309,6 +309,8 @@ protected:
 	// extrusion control
 
 	bool bInInteractiveExtrude = false;
+	bool bHasSavedExtrudeHeight = false;
+	float SavedExtrudeHeight;
 
 	void UpdateLivePreview();
 	bool bPreviewUpdatePending;

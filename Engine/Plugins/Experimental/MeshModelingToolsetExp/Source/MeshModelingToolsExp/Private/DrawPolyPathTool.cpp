@@ -227,6 +227,18 @@ void UDrawPolyPathTool::Setup()
 
 void UDrawPolyPathTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (bHasSavedWidth)
+	{
+		TransformProps->Width = SavedWidth;
+		bHasSavedWidth = false;
+	}
+
+	if (bHasSavedExtrudeHeight)
+	{
+		TransformProps->ExtrudeHeight = SavedExtrudeHeight;
+		SavedExtrudeHeight = false;
+	}
+
 	PlaneMechanic->Shutdown();
 	PlaneMechanic = nullptr;
 
@@ -309,6 +321,7 @@ void UDrawPolyPathTool::OnClicked(const FInputDeviceRay& ClickPos)
 	}
 	else if (ExtrudeHeightMechanic != nullptr)
 	{
+		CurHeight = TransformProps->ExtrudeHeight;
 		OnCompleteExtrudeHeight();
 	}
 }
@@ -528,6 +541,9 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 
 void UDrawPolyPathTool::BeginInteractiveOffsetDistance()
 {
+	bHasSavedWidth = true;
+	SavedWidth = TransformProps->Width;
+	
 	// begin setting offset distance
 	CurveDistMechanic = NewObject<USpatialCurveDistanceMechanic>(this);
 	CurveDistMechanic->Setup(this);
@@ -555,6 +571,7 @@ void UDrawPolyPathTool::OnCompleteOffsetDistance()
 
 	if (TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::Flat)
 	{
+		CurHeight = 0.0;
 		OnCompleteExtrudeHeight();
 	}
 	else if (TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::Fixed || TransformProps->ExtrudeMode == EDrawPolyPathExtrudeMode::RampFixed)
@@ -571,12 +588,11 @@ void UDrawPolyPathTool::OnCompleteOffsetDistance()
 
 void UDrawPolyPathTool::OnCompleteExtrudeHeight()
 {
-	CurHeight = TransformProps->ExtrudeHeight;
 	ExtrudeHeightMechanic = nullptr;
 
 	ClearPreview();
 
-	EmitNewObject(TransformProps->ExtrudeMode);
+	EmitNewObject();
 
 	InitializeNewSurfacePath();
 	CurrentCurveTimestamp++;
@@ -620,6 +636,9 @@ void UDrawPolyPathTool::GeneratePathMesh(FDynamicMesh3& Mesh)
 
 void UDrawPolyPathTool::BeginInteractiveExtrudeHeight()
 {
+	bHasSavedExtrudeHeight = true;
+	SavedExtrudeHeight = TransformProps->ExtrudeHeight;
+
 	// begin extrude
 	ExtrudeHeightMechanic = NewObject<UPlaneDistanceFromHitMechanic>(this);
 	ExtrudeHeightMechanic->Setup(this);
@@ -723,7 +742,7 @@ void UDrawPolyPathTool::GenerateExtrudeMesh(FDynamicMesh3& PathMesh)
 }
 
 
-void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathExtrudeMode ExtrudeMode)
+void UDrawPolyPathTool::EmitNewObject()
 {
 	FDynamicMesh3 PathMesh;
 	GeneratePathMesh(PathMesh);
@@ -751,6 +770,18 @@ void UDrawPolyPathTool::EmitNewObject(EDrawPolyPathExtrudeMode ExtrudeMode)
 	}
 
 	GetToolManager()->EndUndoTransaction();
+
+	if (bHasSavedWidth)
+	{		
+		TransformProps->Width = SavedWidth;
+		bHasSavedWidth = false;
+	}
+
+	if (bHasSavedExtrudeHeight)
+	{
+		TransformProps->ExtrudeHeight = SavedExtrudeHeight;
+		bHasSavedExtrudeHeight = false;
+	}
 
 	CurPolyLoop.Reset();
 	SecondPolyLoop.Reset();
