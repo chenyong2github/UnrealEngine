@@ -167,6 +167,7 @@ protected:
 	uint32 LibVersion;
 	FString DateWritten;
 	FString UserDescription;
+	FString Hash;
 
 	TMap<FString, FString> CustomAttributes;
 };

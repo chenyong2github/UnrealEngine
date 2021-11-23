@@ -36,6 +36,12 @@ void FGeometryCacheAbcFileComponentCustomization::CustomizeDetails(IDetailLayout
 	DetailBuilder.HideProperty("SamplingSettings.FrameSteps");
 	DetailBuilder.HideProperty("SamplingSettings.TimeSteps");
 
+	// Streaming Alembic doesn't do optimization nor compression
+	DetailBuilder.HideProperty("GeometryCacheSettings.bApplyConstantTopologyOptimizations");
+	DetailBuilder.HideProperty("GeometryCacheSettings.bOptimizeIndexBuffers");
+	DetailBuilder.HideProperty("GeometryCacheSettings.CompressedPositionPrecision");
+	DetailBuilder.HideProperty("GeometryCacheSettings.CompressedTextureCoordinatesNumberOfBits");
+
 	// Add a button to reload the Alembic file and apply the settings
 	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory("Alembic");
 

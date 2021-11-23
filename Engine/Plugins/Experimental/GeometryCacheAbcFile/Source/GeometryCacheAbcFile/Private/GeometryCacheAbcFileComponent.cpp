@@ -10,6 +10,7 @@
 UGeometryCacheAbcFileComponent::UGeometryCacheAbcFileComponent(const FObjectInitializer& ObjectInitializer)
 {
 	AbcSettings = ObjectInitializer.CreateDefaultSubobject<UAbcImportSettings>(this, TEXT("AbcSettings"));
+	SamplingSettings.bSkipEmpty = true;
 	NormalGenerationSettings.bForceOneSmoothingGroupPerObject = true;
 }
 
@@ -58,6 +59,7 @@ void UGeometryCacheAbcFileComponent::ReloadAbcFile()
 	AbcSettings->MaterialSettings = MaterialSettings;
 	AbcSettings->ConversionSettings = ConversionSettings;
 	AbcSettings->NormalGenerationSettings = NormalGenerationSettings;
+	AbcSettings->GeometryCacheSettings = GeometryCacheSettings;
 
 	FString FilePath(AlembicFilePath.FilePath);
 	if (FPaths::IsRelative(FilePath))

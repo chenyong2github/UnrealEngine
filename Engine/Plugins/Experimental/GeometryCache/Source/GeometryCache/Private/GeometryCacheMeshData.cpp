@@ -6,7 +6,8 @@
 
 DECLARE_CYCLE_STAT(TEXT("Deserialize Vertices"), STAT_DeserializeVertices, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("Deserialize Indices"), STAT_DeserializeIndices, STATGROUP_GeometryCache);
-DECLARE_CYCLE_STAT(TEXT("Deserialize Schnabbels"), STAT_DeserializeSchnabbels, STATGROUP_GeometryCache);
+DECLARE_CYCLE_STAT(TEXT("Deserialize Metadata"), STAT_DeserializeMetadata, STATGROUP_GeometryCache);
+
 
 FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh)
 {
@@ -23,7 +24,7 @@ FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh)
 
 	// Serialize metadata first so we can use it later on
 	{
-		SCOPE_CYCLE_COUNTER(STAT_DeserializeSchnabbels);
+		SCOPE_CYCLE_COUNTER(STAT_DeserializeMetadata);
 		Ar << Mesh.BoundingBox;
 		Ar << Mesh.BatchesInfo;
 		Ar << Mesh.VertexInfo;
@@ -36,30 +37,66 @@ FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh)
 		if (Ar.IsLoading())
 		{
 			Mesh.Positions.SetNumUninitialized(NumVertices);
-			Mesh.TextureCoordinates.SetNumUninitialized(NumVertices);
-			Mesh.TangentsX.SetNumUninitialized(NumVertices);
-			Mesh.TangentsZ.SetNumUninitialized(NumVertices);
-			Mesh.Colors.SetNumUninitialized(NumVertices);
-			Mesh.ImportedVertexNumbers.SetNumUninitialized(NumVertices);
+
+			if (Mesh.VertexInfo.bHasUV0)
+			{
+				Mesh.TextureCoordinates.SetNumUninitialized(NumVertices);
+			}
+
+			if (Mesh.VertexInfo.bHasTangentX)
+			{
+				Mesh.TangentsX.SetNumUninitialized(NumVertices);
+			}
+
+			if (Mesh.VertexInfo.bHasTangentZ)
+			{
+				Mesh.TangentsZ.SetNumUninitialized(NumVertices);
+			}
+
+			if (Mesh.VertexInfo.bHasColor0)
+			{
+				Mesh.Colors.SetNumUninitialized(NumVertices);
+			}
+
+			if (Mesh.VertexInfo.bHasImportedVertexNumbers)
+			{
+				Mesh.ImportedVertexNumbers.SetNumUninitialized(NumVertices);
+			}
 
 			if (Mesh.VertexInfo.bHasMotionVectors)
 			{
 				Mesh.MotionVectors.SetNumUninitialized(NumVertices);
-			}
-			else
-			{
-				Mesh.MotionVectors.Empty();
 			}
 		}
 
 		if (Mesh.Positions.Num() > 0)
 		{				
 			Ar.Serialize(&Mesh.Positions[0], Mesh.Positions.Num() * Mesh.Positions.GetTypeSize());
-			Ar.Serialize(&Mesh.TextureCoordinates[0], Mesh.TextureCoordinates.Num() * Mesh.TextureCoordinates.GetTypeSize());
-			Ar.Serialize(&Mesh.TangentsX[0], Mesh.TangentsX.Num() * Mesh.TangentsX.GetTypeSize());
-			Ar.Serialize(&Mesh.TangentsZ[0], Mesh.TangentsZ.Num() * Mesh.TangentsZ.GetTypeSize());
-			Ar.Serialize(&Mesh.Colors[0], Mesh.Colors.Num() * Mesh.Colors.GetTypeSize());/**/
-			Ar.Serialize(&Mesh.ImportedVertexNumbers, Mesh.ImportedVertexNumbers.Num() * Mesh.ImportedVertexNumbers.GetTypeSize());
+
+			if (Mesh.VertexInfo.bHasUV0)
+			{
+				Ar.Serialize(&Mesh.TextureCoordinates[0], Mesh.TextureCoordinates.Num() * Mesh.TextureCoordinates.GetTypeSize());
+			}
+
+			if (Mesh.VertexInfo.bHasTangentX)
+			{
+				Ar.Serialize(&Mesh.TangentsX[0], Mesh.TangentsX.Num() * Mesh.TangentsX.GetTypeSize());
+			}
+
+			if (Mesh.VertexInfo.bHasTangentZ)
+			{
+				Ar.Serialize(&Mesh.TangentsZ[0], Mesh.TangentsZ.Num() * Mesh.TangentsZ.GetTypeSize());
+			}
+
+			if (Mesh.VertexInfo.bHasColor0)
+			{
+				Ar.Serialize(&Mesh.Colors[0], Mesh.Colors.Num() * Mesh.Colors.GetTypeSize());
+			}
+
+			if (Mesh.VertexInfo.bHasImportedVertexNumbers)
+			{
+				Ar.Serialize(&Mesh.ImportedVertexNumbers, Mesh.ImportedVertexNumbers.Num() * Mesh.ImportedVertexNumbers.GetTypeSize());
+			}
 		  
 			if (Mesh.VertexInfo.bHasMotionVectors)
 			{

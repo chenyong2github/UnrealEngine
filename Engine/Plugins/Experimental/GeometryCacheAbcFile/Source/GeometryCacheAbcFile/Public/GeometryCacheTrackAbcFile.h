@@ -40,6 +40,8 @@ public:
 
 	FAbcFile& GetAbcFile();
 
+	const FString& GetAbcTrackHash() const { return Hash; }
+
 private:
 	void Reset();
 	void ShowNotification(const FText& Text);
@@ -49,6 +51,7 @@ private:
 	FGeometryCacheTrackSampleInfo SampleInfo;
 	TUniquePtr<FAbcFile> AbcFile;
 	FString SourceFile;
+	FString Hash;
 
 	int32 EndFrameIndex;
 };

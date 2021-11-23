@@ -5,10 +5,22 @@
 #include "Containers/Ticker.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GeometryCacheMeshData.h"
+#include "GeometryCacheModule.h"
+#include "GeometryCacheStreamerSettings.h"
 #include "IGeometryCacheStream.h"
+#include "Stats/Stats.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "GeometryCacheStreamer"
+
+DECLARE_DWORD_COUNTER_STAT(TEXT("GeometryCache Streams: Count"), STAT_GeometryCacheStream_Count, STATGROUP_GeometryCache);
+DECLARE_MEMORY_STAT(TEXT("GeometryCache Streams: Memory Used"), STAT_GeometryCacheStream_MemoryUsed, STATGROUP_GeometryCache);
+
+static bool GShowGeometryCacheStreamerNotification = true;
+static FAutoConsoleVariableRef CVarGeometryCacheStreamerShowNotification(
+	TEXT("GeometryCache.Streamer.ShowNotification"),
+	GShowGeometryCacheStreamerNotification,
+	TEXT("Show notification while the GeometryCache streamer is streaming data"));
 
 class FGeometryCacheStreamer : public IGeometryCacheStreamer
 {
@@ -26,6 +38,9 @@ public:
 	virtual bool IsTrackRegistered(UGeometryCacheTrack* AbcTrack) const override;
 	virtual bool TryGetFrameData(UGeometryCacheTrack* AbcTrack, int32 FrameIndex, FGeometryCacheMeshData& OutMeshData) override;
 	//~ End IGeometryCacheStreamer Interface
+
+private:
+	void BalanceStreams();
 
 private:
 	FTSTicker::FDelegateHandle TickHandle;
@@ -67,17 +82,18 @@ FGeometryCacheStreamer::~FGeometryCacheStreamer()
 void FGeometryCacheStreamer::Tick(float Time)
 {
 	// The sole purpose of the Streamer is to schedule the streams for read at every engine loop
+	BalanceStreams();
 
 	// First step is to process the results from the previously scheduled read requests
 	// to figure out the number of reads still in progress
 	int32 NumFramesToStream = 0;
-	for (FTracksToStreams::TIterator Iterator = TracksToStreams.CreateIterator(); Iterator; ++Iterator)
+	for (const auto& Pair : TracksToStreams)
 	{
 		TArray<int32> FramesCompleted;
-		IGeometryCacheStream* Stream = Iterator->Value;
+		IGeometryCacheStream* Stream = Pair.Value;
 		Stream->UpdateRequestStatus(FramesCompleted);
 		NumReads -= FramesCompleted.Num();
-		NumFramesToStream += Stream->GetFramesNeeded().Num();
+		NumFramesToStream += Stream->GetNumFramesNeeded();
 	}
 
 	// Now, schedule new read requests according to the number of concurrent reads available
@@ -106,10 +122,9 @@ void FGeometryCacheStreamer::Tick(float Time)
 			}
 
 			IGeometryCacheStream* Stream = Streams[CurrentIndex];
-			const TArray<int32>& FramesNeeded = Stream->GetFramesNeeded();
-			if (FramesNeeded.Num() > 0)
+			if (Stream->GetNumFramesNeeded() > 0)
 			{
-				if (Stream->RequestFrameData(FramesNeeded[0]))
+				if (Stream->RequestFrameData())
 				{
 					// Stream was able to handle the read request so there's one less available
 					++NumReads;
@@ -129,8 +144,11 @@ void FGeometryCacheStreamer::Tick(float Time)
 		}
 	}
 
-	// Display a streaming progress notification if there are any frames to stream
-	if (!StreamingNotification.IsValid() && NumFramesToStream > 0)
+	INC_DWORD_STAT_BY(STAT_GeometryCacheStream_Count, NumStreams);
+
+	// Display a streaming progress notification if the the number of frames to stream is above the threshold
+	// to prevent spamming notifications when there's only a few frames to stream
+	if (GShowGeometryCacheStreamerNotification && !StreamingNotification.IsValid() && NumFramesToStream >= 24)
 	{
 		FText UpdateText = FText::Format(LOCTEXT("GeoCacheStreamingUpdate", "Streaming GeometryCache: {0} frames remaining"), FText::AsNumber(NumFramesToStream));
 		FNotificationInfo Info(UpdateText);
@@ -160,6 +178,43 @@ void FGeometryCacheStreamer::Tick(float Time)
 			StreamingNotification->SetCompletionState(SNotificationItem::CS_Success);
 			StreamingNotification->ExpireAndFadeout();
 			StreamingNotification = nullptr;
+		}
+	}
+}
+
+void FGeometryCacheStreamer::BalanceStreams()
+{
+	// Collect the stats for all streams
+	FGeometryCacheStreamStats AggregatedStats;
+	for (const auto& Pair : TracksToStreams)
+	{
+		IGeometryCacheStream* Stream = Pair.Value;
+		const FGeometryCacheStreamStats& StreamStats = Stream->GetStreamStats();
+		AggregatedStats.MemoryUsed += StreamStats.MemoryUsed;
+		AggregatedStats.CachedDuration = FMath::Max(AggregatedStats.CachedDuration, StreamStats.CachedDuration);
+		AggregatedStats.AverageBitrate += StreamStats.AverageBitrate;
+	}
+
+	SET_MEMORY_STAT(STAT_GeometryCacheStream_MemoryUsed, AggregatedStats.MemoryUsed * 1024 * 1024);
+
+	const UGeometryCacheStreamerSettings* Settings = GetDefault<UGeometryCacheStreamerSettings>();
+	const float MemoryLimit = Settings->MaxMemoryAllowed;
+	const float DurationLimit = Settings->LookAheadBuffer;
+
+	// Apply memory limits if over budget
+	// Might want to also update the limits if under budget
+	if (AggregatedStats.MemoryUsed > MemoryLimit)
+	{
+		// Allocate per-stream budget based on the duration computed from the total bitrate and given memory limit
+		const float AvgDuration = MemoryLimit / AggregatedStats.AverageBitrate;
+		for (const auto& Pair : TracksToStreams)
+		{
+			IGeometryCacheStream* Stream = Pair.Value;
+			const FGeometryCacheStreamStats& StreamStats = Stream->GetStreamStats();
+
+			const float MaxDuration = FMath::Clamp(AvgDuration, 0.f, DurationLimit);
+			const float MaxMem = AvgDuration * StreamStats.AverageBitrate;
+			Stream->SetLimits(MaxMem, MaxDuration);
 		}
 	}
 }
