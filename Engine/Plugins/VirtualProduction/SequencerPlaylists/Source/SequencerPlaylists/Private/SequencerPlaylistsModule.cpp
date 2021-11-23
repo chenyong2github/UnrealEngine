@@ -54,7 +54,8 @@ void FSequencerPlaylistsModule::StartupModule()
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(SequencerPlaylistsTabName, FOnSpawnTab::CreateRaw(this, &FSequencerPlaylistsModule::OnSpawnPluginTab))
 		.SetDisplayName(LOCTEXT("SequencerPlaylistsTabTitle", "Playlists"))
 		.SetTooltipText(LOCTEXT("SequencerPlaylistsTabTooltipText", "Open the Sequencer Playlists tab."))
-		.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory());
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory())
+		.SetIcon(FSlateIcon(FSequencerPlaylistsStyle::GetStyleSetName(), "SequencerPlaylists.TabIcon"));
 }
 
 

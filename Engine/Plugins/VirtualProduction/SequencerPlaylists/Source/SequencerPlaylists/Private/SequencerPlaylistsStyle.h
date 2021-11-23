@@ -9,12 +9,6 @@
 class FSequencerPlaylistsStyle
 {
 public:
-	struct StyleColors
-	{
-		static const FSlateColor Animation;
-		static const FSlateColor Sequence;
-	};
-
 	static void Initialize();
 	static void Shutdown();
 

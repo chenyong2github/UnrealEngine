@@ -92,7 +92,7 @@ bool USequencerPlaylistPlayer::PlayAll()
 	FScopedTransaction Transaction(LOCTEXT("PlayAllTransaction", "Trigger playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
-		bResult |= GetCheckedItemPlayer(Item)->Play(Item);
+		bResult &= GetCheckedItemPlayer(Item)->Play(Item);
 	}
 
 	return bResult;
@@ -111,7 +111,7 @@ bool USequencerPlaylistPlayer::StopAll()
 	FScopedTransaction Transaction(LOCTEXT("StopAllTransaction", "Stop playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
-		bResult |= GetCheckedItemPlayer(Item)->Stop(Item);
+		bResult &= GetCheckedItemPlayer(Item)->Stop(Item);
 	}
 
 	return bResult;
@@ -130,7 +130,7 @@ bool USequencerPlaylistPlayer::ResetAll()
 	FScopedTransaction Transaction(LOCTEXT("ResetAllTransaction", "Reset playback of all items"));
 	for (USequencerPlaylistItem* Item : Playlist->Items)
 	{
-		bResult |= GetCheckedItemPlayer(Item)->Reset(Item);
+		bResult &= GetCheckedItemPlayer(Item)->Reset(Item);
 	}
 
 	return bResult;
