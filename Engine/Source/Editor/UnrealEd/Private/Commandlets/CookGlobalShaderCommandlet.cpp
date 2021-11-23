@@ -8,7 +8,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Class.h"
-#include "RecompileShaders.h"
+#include "ShaderCompiler.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"

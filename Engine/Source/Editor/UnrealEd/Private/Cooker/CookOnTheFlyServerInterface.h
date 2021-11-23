@@ -4,7 +4,7 @@
 
 #include "CoreTypes.h"
 #include "CookTypes.h"
-#include "RecompileShaders.h"
+#include "ShaderCompiler.h"
 
 struct FODSCRequestPayload;
 class ICookedPackageWriter;

@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
+#include "ShaderCompiler.h"
 
 class INetworkFileServer;
-struct FShaderRecompileData;
 
 /**
  * Delegate type for handling file requests from a network client.

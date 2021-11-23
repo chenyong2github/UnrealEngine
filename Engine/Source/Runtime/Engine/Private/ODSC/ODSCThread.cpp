@@ -6,7 +6,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
-#include "RecompileShaders.h"
+#include "ShaderCompiler.h"
 #include "CookOnTheFly.h"
 
 FODSCRequestPayload::FODSCRequestPayload(EShaderPlatform InShaderPlatform, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash)
