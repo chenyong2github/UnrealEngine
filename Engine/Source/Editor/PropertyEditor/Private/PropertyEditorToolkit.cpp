@@ -14,6 +14,7 @@
 
 #include "Widgets/Docking/SDockTab.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditorToolkit"
 
@@ -57,7 +58,6 @@ FPropertyEditorToolkit::FPropertyEditorToolkit()
 	, PathToRoot()
 	, DetailsView()
 {
-	PinSequence.AddCurve( 0, 1.0f, ECurveEaseFunction::QuadIn );
 }
 
 
@@ -183,8 +183,6 @@ void FPropertyEditorToolkit::Initialize( const EToolkitMode::Type Mode, const TS
 
 		DetailsView->SetObjects(AdjustedObjectsToEditWeak, true);
 
-		PinColor = FSlateColor(FLinearColor(1, 1, 1, 0));
-		GEditor->GetTimerManager()->SetTimer(TimerHandle_TickPinColor, FTimerDelegate::CreateSP(this, &FPropertyEditorToolkit::TickPinColorAndOpacity), 0.1f, true);
 	}
 }
 
@@ -248,7 +246,7 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTable( const FSpaw
 				.VAlign( VAlign_Center )
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::GetBrush( "PropertyEditor.RemoveColumn" ) )
+					.Image( FEditorStyle::GetBrush( "Icons.Unpinned" ) )
 					.Visibility( this, &FPropertyEditorToolkit::GetAddColumnInstructionsOverlayVisibility )
 				]
 
@@ -329,13 +327,13 @@ void FPropertyEditorToolkit::ConstructTreeColumns( const TSharedRef< class SHead
 		.ToolTipText( LOCTEXT("AddColumnLabel", "Push Pins to Add Columns") )
 		[
 			SNew( SImage )
-			.Image( FEditorStyle::GetBrush(TEXT("PropertyEditor.RemoveColumn")) )
+			.Image( FEditorStyle::GetBrush(TEXT("Icons.Unpinned")) )
+			.ColorAndOpacity(FStyleColors::Foreground)
 		]
 	];
 
 	HeaderRow->InsertColumn( ColumnArgs, 0 );
 }
-
 
 TSharedRef< SWidget > FPropertyEditorToolkit::ConstructTreeCell( const FName& ColumnName, const TSharedRef< IPropertyTreeRow >& Row )
 {
@@ -349,9 +347,8 @@ TSharedRef< SWidget > FPropertyEditorToolkit::ConstructTreeCell( const FName& Co
 			.BorderImage( &FEditorStyle::GetWidgetStyle<FHeaderRowStyle>("PropertyTable.HeaderRow").ColumnStyle.NormalBrush )
 			[
 				SNew(SButton)
-				.IsFocusable(false)
 				.ToolTipText(NSLOCTEXT("PropertyEditor", "ToggleColumnButtonToolTip", "Toggle Column"))
-				.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
+				.ButtonStyle( FEditorStyle::Get(), "HoverOnlyButton" )
 				.ContentPadding(0) 
 				.OnClicked( this, &FPropertyEditorToolkit::OnToggleColumnClicked, RowPtr )
 				.HAlign( HAlign_Center )
@@ -359,7 +356,7 @@ TSharedRef< SWidget > FPropertyEditorToolkit::ConstructTreeCell( const FName& Co
 				[
 					SNew(SImage)
 					.Image( this, &FPropertyEditorToolkit::GetToggleColumnButtonImageBrush, RowPtr )
-					.ColorAndOpacity( this, &FPropertyEditorToolkit::GetPinColorAndOpacity, RowPtr )
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			];
 	}
@@ -430,12 +427,6 @@ void FPropertyEditorToolkit::ToggleColumnForProperty( const TSharedPtr< FPropert
 bool FPropertyEditorToolkit::TableHasCustomColumns() const
 {
 	return PropertyPathsAddedAsColumns.Num() > 0;
-}
-
-bool FPropertyEditorToolkit::CloseWindow()
-{
-	GEditor->GetTimerManager()->ClearTimer( TimerHandle_TickPinColor );
-	return FAssetEditorToolkit::CloseWindow();
 }
 
 
@@ -662,69 +653,11 @@ const FSlateBrush* FPropertyEditorToolkit::GetToggleColumnButtonImageBrush( cons
 {
 	if ( IsExposedAsColumn( Row ) )
 	{
-		return FEditorStyle::GetBrush("PropertyEditor.RemoveColumn");
+		return FEditorStyle::GetBrush("Icons.Pinned");
 	}
 
-	return FEditorStyle::GetBrush("PropertyEditor.AddColumn");
+	return FEditorStyle::GetBrush("Icons.Unpinned");
 }
-
-void FPropertyEditorToolkit::TickPinColorAndOpacity()
-{
-	bool IsRowBeingHoveredOver = false;
-	for (int Index = PinRows.Num() - 1; Index >= 0 ; Index--)
-	{
-		TSharedPtr< IPropertyTreeRow > Row = PinRows[ Index ].Pin();
-		if ( Row.IsValid() )
-		{
-			IsRowBeingHoveredOver |= Row->IsCursorHovering();
-
-			if ( IsRowBeingHoveredOver )
-			{
-				break;
-			}
-		}
-		else
-		{
-			PinRows.RemoveAt( Index );
-		}
-	}
-
-	if ( IsRowBeingHoveredOver )
-	{
-		PinSequence.JumpToStart();
-	}
-
-	float Opacity = 0.0f;
-	if ( !TableHasCustomColumns() )
-	{
-		Opacity = PinSequence.GetLerp();
-	}
-
-	if ( !PinSequence.IsPlaying() )
-	{
-		if ( PinSequence.IsAtStart() )
-		{
-			PinSequence.Play( PropertyTree.ToSharedRef() );
-		}
-		else
-		{
-			PinSequence.PlayReverse( PropertyTree.ToSharedRef() );
-		}
-	}
-
-	PinColor = FSlateColor( FColor( 255, 255, 255, FMath::Lerp( 0, 200, Opacity ) ).ReinterpretAsLinear() );
-}
-
-FSlateColor FPropertyEditorToolkit::GetPinColorAndOpacity( const TWeakPtr< IPropertyTreeRow > Row ) const
-{
-	if ( Row.IsValid() && ( Row.Pin()->IsCursorHovering() || IsExposedAsColumn( Row ) ) )
-	{
-		return FSlateColor( FLinearColor::White );
-	}
-
-	return PinColor;
-}
-
 
 FString FPropertyEditorToolkit::GetWorldCentricTabPrefix() const
 {
