@@ -589,6 +589,19 @@ void UCurveTable::RenameRow(FName& CurveName, FName& NewCurveName)
 	}
 }
 
+void UCurveTable::DeleteRow(FName& CurveName)
+{
+	if (RowMap.Contains(CurveName))
+	{
+		FRealCurve** Curve = RowMap.Find(CurveName);
+		RowMap.Remove(CurveName);
+		if (Curve != nullptr && *Curve != nullptr)
+		{
+			delete *Curve;
+		}
+	}	
+}
+
 /** */
 void GetCurveValues(const TArray<const TCHAR*>& Cells, TArray<float>& Values)
 {

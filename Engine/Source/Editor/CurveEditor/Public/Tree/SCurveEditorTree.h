@@ -23,6 +23,7 @@ public:
 		SLATE_ARGUMENT(float, SelectColumnWidth)
 		SLATE_EVENT(FOnMouseButtonDoubleClick, OnMouseButtonDoubleClick)
 		SLATE_EVENT(FOnTableViewScrolled, OnTreeViewScrolled)
+		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> InCurveEditor);

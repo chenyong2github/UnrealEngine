@@ -86,6 +86,15 @@ public:
 	/** Rename a specific curve */
 	void HandleCurveRename(FCurveEditorTreeItemID& TreeID, FName& OldCurveName, FName& NewCurveName);
 
+	/** Pop open context Menu */
+	TSharedPtr<SWidget> OnOpenCurveMenu();
+
+	/** Callback for R-Click Menu Delete Curves */
+	void OnDeleteCurves();
+
+	/** Callback for R-Click Menu Rename Selected Curve */
+	void OnRenameCurve();
+
 protected:
 
 	/** Handles setting up slate for the curve table editor */

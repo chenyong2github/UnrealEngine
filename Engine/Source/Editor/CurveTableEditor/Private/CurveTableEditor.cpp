@@ -386,6 +386,18 @@ void FCurveTableEditor::BindCommands()
 		FCurveTableEditorCommands::Get().AppendKeyColumn,
 		FExecuteAction::CreateSP(this, &FCurveTableEditor::OnAddNewKeyColumn)
 	);
+
+	ToolkitCommands->MapAction(
+		FCurveTableEditorCommands::Get().RenameSelectedCurve,
+		FExecuteAction::CreateSP(this, &FCurveTableEditor::OnRenameCurve)
+	);
+
+
+	ToolkitCommands->MapAction(
+		FCurveTableEditorCommands::Get().DeleteSelectedCurves,
+		FExecuteAction::CreateSP(this, &FCurveTableEditor::OnDeleteCurves)
+	);
+
 }
 
 void FCurveTableEditor::ExtendMenu()
@@ -552,7 +564,8 @@ TSharedRef<SDockTab> FCurveTableEditor::SpawnTab_CurveTable( const FSpawnTabArgs
 
 	CurveEditorTree = SNew(SCurveEditorTree, CurveEditor.ToSharedRef())
 		.OnTreeViewScrolled(this, &FCurveTableEditor::OnCurveTreeViewScrolled)
-		.OnMouseButtonDoubleClick(this, &FCurveTableEditor::OnRequestCurveRename);
+		.OnMouseButtonDoubleClick(this, &FCurveTableEditor::OnRequestCurveRename)
+		.OnContextMenuOpening(this, &FCurveTableEditor::OnOpenCurveMenu);
 
 	TSharedRef<SCurveEditorPanel> CurveEditorPanel = SNew(SCurveEditorPanel, CurveEditor.ToSharedRef());
 
@@ -1055,6 +1068,79 @@ void FCurveTableEditor::HandleCurveRename(FCurveEditorTreeItemID& TreeID, FName&
 	// Update our internal map of TreeIDs to FNames
 	RowIDMap[TreeID] = NewCurveName;
 
+}
+
+void FCurveTableEditor::OnRenameCurve()
+{
+	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& SelectedRows = CurveEditor->GetTreeSelection();
+	if (SelectedRows.Num() == 1)
+	{
+		for (auto Item : SelectedRows)
+		{
+			OnRequestCurveRename(Item.Key);
+		}		
+	}
+}
+
+void FCurveTableEditor::OnDeleteCurves()
+{
+	UCurveTable* Table = Cast<UCurveTable>(GetEditingObject());
+	check(Table != nullptr);
+
+	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& SelectedRows = CurveEditor->GetTreeSelection();
+
+	if (SelectedRows.Num() >= 1)
+	{
+		FScopedTransaction Transaction(LOCTEXT("DeleteCurveRow", "Delete Curve Rows"));
+		Table->SetFlags(RF_Transactional);
+		Table->Modify();
+
+		for (auto Item : SelectedRows)
+		{
+			CurveEditor->RemoveTreeItem(Item.Key);
+
+			FName& CurveName = RowIDMap[Item.Key];
+
+			Table->DeleteRow(CurveName);
+
+			RowIDMap.Remove(Item.Key);
+		}
+
+		FPropertyChangedEvent PropertyChangeStruct(nullptr, EPropertyChangeType::ValueSet);
+		Table->PostEditChangeProperty(PropertyChangeStruct);
+	}
+}
+
+TSharedPtr<SWidget> FCurveTableEditor::OnOpenCurveMenu()
+{
+	int32 SelectedRowCount = CurveEditor->GetTreeSelection().Num();
+	if (SelectedRowCount > 0)
+	{
+		FMenuBuilder MenuBuilder(true /*auto close*/, ToolkitCommands);
+		MenuBuilder.BeginSection("Edit");
+		if (SelectedRowCount == 1)
+		{
+			MenuBuilder.AddMenuEntry(
+				FCurveTableEditorCommands::Get().RenameSelectedCurve,
+				NAME_None,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Edit")
+			);
+		}
+		MenuBuilder.AddMenuEntry(
+			FCurveTableEditorCommands::Get().DeleteSelectedCurves,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete")
+		);
+		MenuBuilder.EndSection();
+
+		return MenuBuilder.MakeWidget();
+	}
+
+	return SNullWidget::NullWidget;
 }
 
 #undef LOCTEXT_NAMESPACE
