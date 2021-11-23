@@ -11,7 +11,7 @@
 #include "DynamicRHI.h"
 
 #if defined(WITH_UE_AND_ORT_SUPPORT) && defined(PLATFORM_WIN64)
-	// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
+// Disable NOMINMAX & WIN32_LEAN_AND_MEAN defines to avoid compiler warnings
 #pragma push_macro("NOMINMAX")
 #pragma push_macro("WIN32_LEAN_AND_MEAN")
 #undef NOMINMAX
@@ -43,6 +43,9 @@ public:
 	TArray<FNeuralTensor> InputTensors;
 	TArray<FNeuralTensor> OutputTensors;
 
+	FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning,
+		FCriticalSection& InResoucesCriticalSection);
+
 	~FImplBackEndUEAndORT();
 
 	static void WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType, const bool bInShouldOpenMessageLog);
@@ -53,11 +56,6 @@ public:
 		std::atomic<bool>& bInOutIsBackgroundThreadRunning, FCriticalSection& InOutResoucesCriticalSection, TArray<bool>& OutAreInputTensorSizesVariable,
 		const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType,
 		const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
-	
-#ifdef WITH_UE_AND_ORT_SUPPORT
-	FImplBackEndUEAndORT(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInIsBackgroundThreadRunning,
-		FCriticalSection& InResoucesCriticalSection);
-#endif
 
 	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
 		const ENeuralDeviceType InOutputDeviceType);
