@@ -520,21 +520,22 @@ RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform);
 template<typename Type>
 struct RENDERCORE_API FShaderPlatformCachedIniValue
 {
-	FShaderPlatformCachedIniValue(const TCHAR* InSection, const TCHAR* InKey)
-		: Section(InSection)
-		, Key(InKey)
-		, bTestedIni(false)
+	FShaderPlatformCachedIniValue(const TCHAR* InKey)
+		: Key(InKey)
 		, CVar(nullptr)
 	{}
 
 	Type Get(EShaderPlatform ShaderPlatform);
 
 private:
-	const TCHAR* Section;
 	const TCHAR* Key;
-	bool bTestedIni;
 	IConsoleVariable* CVar;
+#if WITH_EDITOR
+	/** Set that holds shader platforms for which the ini check was done. */
+	TSet<EShaderPlatform> TestedIni;
+	/** Cached values from the inis. */
 	TMap<EShaderPlatform, Type> CachedValues;
+#endif
 };
 
 /** Returns if ForwardShading is enabled. Only valid for the current platform (otherwise call ITargetPlatform::UsesForwardShading()). */

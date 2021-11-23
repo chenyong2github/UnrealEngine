@@ -1202,7 +1202,7 @@ RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform)
 {
 	if (IsMobilePlatform(Platform))
 	{
-		static FShaderPlatformCachedIniValue<bool> MobileSupportsGen4TAAIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.SupportsGen4TAA"));
+		static FShaderPlatformCachedIniValue<bool> MobileSupportsGen4TAAIniValue(TEXT("r.Mobile.SupportsGen4TAA"));
 		return (MobileSupportsGen4TAAIniValue.Get(Platform) != 0);
 	}
 
@@ -1226,14 +1226,32 @@ Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
 		return *ExistingEntry;
 	}
 
+	bool bTestedIni = TestedIni.Contains(ShaderPlatform);
 	if (!bTestedIni)
 	{
-		bTestedIni = true;
+		TestedIni.Add(ShaderPlatform);
 		FConfigCacheIni* PlatformIni = FConfigCacheIni::ForPlatform(ShaderPlatformToPlatformName(ShaderPlatform));
-		if (PlatformIni != nullptr && PlatformIni->GetValue(Section, Key, Value, TEXT("Engine")))
+
+		if (PlatformIni != nullptr)
 		{
-			CachedValues.Add(ShaderPlatform, Value);
-			return Value;
+			// Rendering CVars can be set from a number of sections - see UDeviceProfileManager::ExpandDeviceProfileCVars for their ordering.
+			// (Here they are in reverse order because we will use the first found setting).
+			const TCHAR* ConsoleVariablesSections[] =
+			{
+				TEXT("ConsoleVariables"),
+				TEXT("SystemSettings"),
+				TEXT("/Script/Engine.RendererOverrideSettings"),
+				TEXT("/Script/Engine.RendererSettings")
+			};
+
+			for (const TCHAR* SectionThatCanSetAVar : ConsoleVariablesSections)
+			{
+				if (PlatformIni->GetValue(SectionThatCanSetAVar, Key, Value, TEXT("Engine")))
+				{
+					CachedValues.Add(ShaderPlatform, Value);
+					return Value;
+				}
+			}
 		}
 	}
 #endif
@@ -1751,6 +1769,6 @@ RENDERCORE_API bool IsUsingDBuffers(const FStaticShaderPlatform Platform)
 
 RENDERCORE_API bool AreSkinCacheShadersEnabled(EShaderPlatform Platform)
 {
-	static FShaderPlatformCachedIniValue<bool> PerPlatformCVar(TEXT("/Script/Engine.RendererSettings"), TEXT("r.SkinCache.CompileShaders"));
+	static FShaderPlatformCachedIniValue<bool> PerPlatformCVar(TEXT("r.SkinCache.CompileShaders"));
 	return (PerPlatformCVar.Get(Platform) != 0);
 }
