@@ -210,6 +210,22 @@ void FFilterConfiguratorNode::ProcessFilter()
 	}
 }
 
+void FFilterConfiguratorNode::GetUsedKeys(TSet<int32>& KeysUsed) const
+{
+	if (IsGroup())
+	{
+		auto& ChildrenArr = GetChildren();
+		for (int Index = 0; Index < ChildrenArr.Num(); ++Index)
+		{
+			((FFilterConfiguratorNode*)ChildrenArr[Index].Get())->GetUsedKeys(KeysUsed);
+		}
+	}
+	else
+	{
+		KeysUsed.Add(SelectedFilter->Key);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const

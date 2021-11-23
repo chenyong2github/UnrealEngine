@@ -2934,7 +2934,11 @@ bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 			{
 				if (!Column->IsHierarchy())
 				{
-					Context.SetFilterData<FString>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsString());
+					// Converting string is heavy, check if the key is used for filtering before doing any conversion
+					if (FilterConfiguratorToUse->IsKeyUsed(Column->GetIndex()))
+					{
+						Context.SetFilterData<FString>(Column->GetIndex(), Column->GetValue(*NodePtr)->AsString());
+					}
 				}
 				break;
 			}

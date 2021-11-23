@@ -1129,8 +1129,12 @@ void SMemAllocTableTreeView::UpdateQueryInfo()
 
 bool SMemAllocTableTreeView::ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 {
-	FMemAllocNodePtr MemNodePtr = StaticCastSharedPtr<FMemAllocNode>(NodePtr);
-	Context.SetFilterData<FString>(FullCallStackIndex, MemNodePtr->GetFullCallstack().ToString());
+	// Super heavy to compute, validate that the filter has a use for this key before computing it
+	if (FilterConfigurator && FilterConfigurator->IsKeyUsed(FullCallStackIndex))
+	{
+		FMemAllocNodePtr MemNodePtr = StaticCastSharedPtr<FMemAllocNode>(NodePtr);
+		Context.SetFilterData<FString>(FullCallStackIndex, MemNodePtr->GetFullCallstack().ToString());
+	}
 
 	return true;
 }

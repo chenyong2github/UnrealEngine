@@ -30,6 +30,8 @@ public:
 
 	virtual bool ApplyFilters(const FFilterContext& Context) const override;
 
+	bool IsKeyUsed(int32 Key) const;
+
 	TSharedPtr<TArray<TSharedPtr<struct FFilter>>>& GetAvailableFilters() { return AvailableFilters; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,9 +58,13 @@ private:
 
 private:
 
+	void ComputeUsedKeys();
+
 	FFilterConfiguratorNodePtr RootNode;
 
 	TSharedPtr<TArray<TSharedPtr<struct FFilter>>> AvailableFilters;
+
+	TSet<int32> KeysUsed;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
