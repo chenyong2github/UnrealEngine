@@ -11,7 +11,7 @@
 
 DEFINE_LOG_CATEGORY(UnrealInsightsInterface);
 
-IMPLEMENT_MODULE(FUnrealInsightsInterfaceModule, UnrealInsights);
+IMPLEMENT_MODULE(FUnrealInsightsInterfaceModule, UnrealInsightsInterface);
 
 void FUnrealInsightsInterfaceModule::StartupModule()
 {
