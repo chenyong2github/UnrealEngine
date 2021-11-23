@@ -1,0 +1,25 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+struct FTraceRayInlineResult
+{
+	float HitT;
+	float2 Barycentrics;
+	uint InstanceIndex;
+	uint InstanceID;
+	uint InstanceContributionToHitGroupIndex;
+	uint GeometryIndex;
+	uint PrimitiveIndex;
+	bool bIsFrontFace;
+
+	uint Bookmark[2];
+
+	// Only valid when PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS is 1
+	float3 WorldGeometryNormal;
+
+	bool IsMiss() { return HitT < 0; }
+	bool IsHit() { return !IsMiss(); }
+
+	void SetMiss() { HitT = -1; }
+};
