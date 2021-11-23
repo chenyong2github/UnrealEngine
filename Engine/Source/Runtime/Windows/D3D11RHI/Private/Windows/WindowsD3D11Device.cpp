@@ -2208,6 +2208,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		GRHISupportsTextureStreaming = true;
 		GRHISupportsFirstInstance = true;
 		GRHINeedsExtraDeletionLatency = false;
+		GRHISupportsEfficientUploadOnResourceCreation = true;
 
 		// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
 		GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());

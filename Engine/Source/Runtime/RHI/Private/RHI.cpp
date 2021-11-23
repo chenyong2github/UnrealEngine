@@ -1460,6 +1460,8 @@ bool GRHISupportsMeshShadersTier1 = false;
 
 bool GRHISupportsShaderTimestamp = false;
 
+bool GRHISupportsEfficientUploadOnResourceCreation = false;
+
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;
 
 RHI_API int32 volatile GCurrentTextureMemorySize = 0;

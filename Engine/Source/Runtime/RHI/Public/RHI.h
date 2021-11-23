@@ -748,6 +748,8 @@ extern RHI_API bool GRHISupportsMeshShadersTier1;
 */
 extern RHI_API bool GRHISupportsShaderTimestamp;
 
+extern RHI_API bool GRHISupportsEfficientUploadOnResourceCreation;
+
 /** Tables of all MSAA sample offset for all MSAA supported. Use GetMSAASampleOffsets() to read it. */
 extern RHI_API FVector2f GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];
 

@@ -90,6 +90,14 @@ static TAutoConsoleVariable<float> CVarGPUSceneDebugDrawRange(
 	ECVF_RenderThreadSafe
 );
 
+int32 GGPUSceneInstanceUploadViaCreate = 1;
+FAutoConsoleVariableRef CVarGPUSceneInstanceUploadViaCreate(
+	TEXT("r.GPUScene.InstanceUploadViaCreate"),
+	GGPUSceneInstanceUploadViaCreate,
+	TEXT("When uploading GPUScene InstanceData, upload via resource creation when the RHI supports it efficiently."),
+	ECVF_RenderThreadSafe
+);
+
 LLM_DECLARE_TAG_API(GPUScene, RENDERER_API);
 DECLARE_LLM_MEMORY_STAT(TEXT("GPUScene"), STAT_GPUSceneLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("GPUScene"), STAT_GPUSceneSummaryLLM, STATGROUP_LLM);
@@ -972,6 +980,10 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 					}
 				}
 			};
+
+			const bool bShouldUploadViaCreate = GRHISupportsEfficientUploadOnResourceCreation && GGPUSceneInstanceUploadViaCreate != 0;
+			PrimitiveUploadBuffer.SetUploadViaCreate(bShouldUploadViaCreate);
+			InstanceSceneUploadBuffer.SetUploadViaCreate(bShouldUploadViaCreate);
 
 			FUAVTransitionStateScopeHelper PrimitiveDataTransitionHelper(RHICmdList, BufferState.PrimitiveBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
 

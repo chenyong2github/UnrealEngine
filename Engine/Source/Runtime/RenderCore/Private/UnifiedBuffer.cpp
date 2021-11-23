@@ -609,9 +609,6 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBuffer&
 
 void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName )
 {
-	check( ScatterData == nullptr );
-	check( UploadData == nullptr );
-
 	NumScatters = 0;
 	MaxScatters = NumElements;
 	NumBytesPerElement = InNumBytesPerElement;
@@ -624,46 +621,117 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 	uint32 ScatterBufferSize = (uint32)FMath::Min( (uint64)FMath::RoundUpToPowerOfTwo( ScatterBytes ), GetMaxBufferDimension() * sizeof( uint32 ) );
 	check( ScatterBufferSize >= ScatterBytes );
 
-	if( ScatterBytes > ScatterBuffer.NumBytes || ScatterBufferSize < ScatterBuffer.NumBytes / 2)
-	{
-		// Resize Scatter Buffer
-		ScatterBuffer.Release();
-		ScatterBuffer.NumBytes = ScatterBufferSize;
-
-		FRHIResourceCreateInfo CreateInfo(DebugName);
-		ScatterBuffer.Buffer = RHICreateStructuredBuffer( sizeof( uint32 ), ScatterBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo );
-		ScatterBuffer.SRV = RHICreateShaderResourceView( ScatterBuffer.Buffer );
-	}
-
 	uint32 UploadBytes = NumElements * NumBytesPerElement;
 	uint32 UploadBufferSize = (uint32)FMath::Min( (uint64)FMath::RoundUpToPowerOfTwo( UploadBytes ), GetMaxBufferDimension() * TypeSize );
 	check( UploadBufferSize >= UploadBytes );
 
-	if( UploadBytes > UploadBuffer.NumBytes || UploadBufferSize < UploadBuffer.NumBytes / 2)
+	if (bUploadViaCreate)
 	{
-		// Resize Upload Buffer
-		UploadBuffer.Release();
-		UploadBuffer.NumBytes = UploadBufferSize;
+		if (ScatterBytes > ScatterDataSize || ScatterBufferSize < ScatterDataSize / 2)
+		{
+			FMemory::Free(ScatterData);
+			ScatterData = (uint32*)FMemory::Malloc(ScatterBufferSize);
+			ScatterDataSize = ScatterBufferSize;
+		}
 
-		FRHIResourceCreateInfo CreateInfo(DebugName);
-		UploadBuffer.Buffer = RHICreateStructuredBuffer( TypeSize, UploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo );
-		UploadBuffer.SRV = RHICreateShaderResourceView( UploadBuffer.Buffer );
+		if (UploadBytes > UploadDataSize || UploadBufferSize < UploadDataSize / 2)
+		{
+			FMemory::Free(UploadData);
+			UploadData = (uint8*)FMemory::Malloc(UploadBufferSize);
+			UploadDataSize = UploadBufferSize;
+		}
+	}
+	else
+	{
+		check(ScatterData == nullptr);
+		check(UploadData == nullptr);
+
+		if (ScatterBytes > ScatterBuffer.NumBytes || ScatterBufferSize < ScatterBuffer.NumBytes / 2)
+		{
+			// Resize Scatter Buffer
+			ScatterBuffer.Release();
+			ScatterBuffer.NumBytes = ScatterBufferSize;
+
+			FRHIResourceCreateInfo CreateInfo(DebugName);
+			ScatterBuffer.Buffer = RHICreateStructuredBuffer(sizeof(uint32), ScatterBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
+			ScatterBuffer.SRV = RHICreateShaderResourceView(ScatterBuffer.Buffer);
+		}
+
+		if (UploadBytes > UploadBuffer.NumBytes || UploadBufferSize < UploadBuffer.NumBytes / 2)
+		{
+			// Resize Upload Buffer
+			UploadBuffer.Release();
+			UploadBuffer.NumBytes = UploadBufferSize;
+
+			FRHIResourceCreateInfo CreateInfo(DebugName);
+			UploadBuffer.Buffer = RHICreateStructuredBuffer(TypeSize, UploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
+			UploadBuffer.SRV = RHICreateShaderResourceView(UploadBuffer.Buffer);
+		}
+
+		ScatterData = (uint32*)RHILockBuffer(ScatterBuffer.Buffer, 0, ScatterBytes, RLM_WriteOnly);
+		UploadData = (uint8*)RHILockBuffer(UploadBuffer.Buffer, 0, UploadBytes, RLM_WriteOnly);
+	}
+}
+
+// Helper type used to initialize the buffer data on creation
+struct FScatterUploadBufferResourceArray : public FResourceArrayInterface
+{
+	const void* const DataPtr;
+	const int32 DataSize;
+
+	FScatterUploadBufferResourceArray(void* InDataPtr, int32 InDataSize)
+		: DataPtr(InDataPtr)
+		, DataSize(InDataSize)
+	{
 	}
 
-	ScatterData = (uint32*)RHILockBuffer( ScatterBuffer.Buffer, 0, ScatterBytes, RLM_WriteOnly );
-	UploadData = (uint8*)RHILockBuffer( UploadBuffer.Buffer, 0, UploadBytes, RLM_WriteOnly );
-}
+	const void* GetResourceData() const override { return DataPtr; }
+	uint32 GetResourceDataSize() const override { return DataSize; }
+
+	// Not necessary for our purposes
+	void Discard() override { }
+	bool IsStatic() const override { return false; }
+	bool GetAllowCPUAccess() const override { return true; }
+	void SetAllowCPUAccess(bool bInNeedsCPUAccess) override { }
+};
 
 template<typename ResourceType>
 void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, bool bFlush)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FScatterUploadBuffer::ResourceUploadTo);
-	
-	RHIUnlockBuffer(ScatterBuffer.Buffer);
-	RHIUnlockBuffer(UploadBuffer.Buffer);
 
-	ScatterData = nullptr;
-	UploadData = nullptr;
+	if (bUploadViaCreate)
+	{
+		ScatterBuffer.Release();
+		UploadBuffer.Release();
+
+		ScatterBuffer.NumBytes = ScatterDataSize;
+		UploadBuffer.NumBytes = UploadDataSize;
+
+		const uint32 TypeSize = bFloat4Buffer ? 16 : 4;
+		const EBufferUsageFlags Usage = bFloat4Buffer ? BUF_None : BUF_ByteAddressBuffer;
+
+		{
+			FScatterUploadBufferResourceArray ScatterResourceArray(ScatterData, ScatterDataSize);
+			FRHIResourceCreateInfo CreateInfo(TEXT("ScatterResourceArray"), &ScatterResourceArray);
+			ScatterBuffer.Buffer = RHICreateStructuredBuffer(sizeof(uint32), ScatterDataSize, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
+			ScatterBuffer.SRV = RHICreateShaderResourceView(ScatterBuffer.Buffer);
+		}
+		{
+			FScatterUploadBufferResourceArray UploadResourceArray(UploadData, UploadDataSize);
+			FRHIResourceCreateInfo CreateInfo(TEXT("ScatterUploadBuffer"), &UploadResourceArray);
+			UploadBuffer.Buffer = RHICreateStructuredBuffer(TypeSize, UploadDataSize, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
+			UploadBuffer.SRV = RHICreateShaderResourceView(UploadBuffer.Buffer);
+		}
+	}
+	else
+	{
+		RHIUnlockBuffer(ScatterBuffer.Buffer);
+		RHIUnlockBuffer(UploadBuffer.Buffer);
+
+		ScatterData = nullptr;
+		UploadData = nullptr;
+	}
 
 	if (NumScatters == 0)
 		return;
