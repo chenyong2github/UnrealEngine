@@ -11,6 +11,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Framework/Commands/UICommandList.h"
 
+class UIKRigSolver;
 class FIKRigEditorController;
 class SIKRigSolverStack;
 class FIKRigEditorToolkit;
@@ -56,7 +57,10 @@ public:
 
 	bool GetWarningMessage(FText& Message);
 
+	bool IsSolverEnabled() const;
+
 private:
+	UIKRigSolver* GetSolver() const;
 	TWeakPtr<FSolverStackElement> StackElement;
 	TWeakPtr<SIKRigSolverStack> SolverStack;
 };
@@ -106,6 +110,9 @@ private:
 	void DeleteSolver(TSharedPtr<FSolverStackElement> SolverToDelete);
 	/** when a solver is selected on in the stack view */
 	void OnSelectionChanged(TSharedPtr<FSolverStackElement> InItem, ESelectInfo::Type SelectInfo);
+	/** when a solver is clicked on in the stack view */
+	void OnItemClicked(TSharedPtr<FSolverStackElement> InItem);
+	void ShowDetailsForItem(TSharedPtr<FSolverStackElement> InItem);
 
 	/** list view generate row callback */
 	TSharedRef<ITableRow> MakeListRowWidget(TSharedPtr<FSolverStackElement> InElement, const TSharedRef<STableViewBase>& OwnerTable);

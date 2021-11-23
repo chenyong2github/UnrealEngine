@@ -173,11 +173,13 @@ TStatId FIKRigEditorToolkit::GetStatId() const
 
 void FIKRigEditorToolkit::PostUndo(bool bSuccess)
 {
+	EditorController->AssetController->BroadcastNeedsReinitialized();
 	EditorController->RefreshAllViews();
 }
 
 void FIKRigEditorToolkit::PostRedo(bool bSuccess)
 {
+	EditorController->AssetController->BroadcastNeedsReinitialized();
 	EditorController->RefreshAllViews();
 }
 

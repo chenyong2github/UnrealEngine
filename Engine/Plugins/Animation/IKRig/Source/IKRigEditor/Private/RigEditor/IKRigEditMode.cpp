@@ -5,10 +5,13 @@
 #include "EditorViewportClient.h"
 #include "AssetEditorModeManager.h"
 #include "IPersonaPreviewScene.h"
+#include "SkeletalDebugRendering.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "RigEditor/IKRigAnimInstance.h"
 #include "RigEditor/IKRigHitProxies.h"
 #include "RigEditor/IKRigToolkit.h"
+#include "IKRigDebugRendering.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargeterEditMode"
 
@@ -27,7 +30,8 @@ bool FIKRigEditMode::GetCameraTarget(FSphere& OutTarget) const
 	}
 	
 	// target union of selected goals
-	const TArray<FName>& OutGoalNames = Controller->GetSelectedGoals();
+	TArray<FName> OutGoalNames;
+	Controller->SkeletonView->GetSelectedGoalNames(OutGoalNames);
 	if (!OutGoalNames.IsEmpty())
 	{
 		TArray<FVector> GoalPoints;
@@ -64,7 +68,12 @@ void FIKRigEditMode::GetOnScreenDebugInfo(TArray<FText>& OutDebugInfo) const
 void FIKRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	FEdMode::Render(View, Viewport, PDI);
+	RenderGoals(PDI);
+	RenderBones(PDI);
+}
 
+void FIKRigEditMode::RenderGoals(FPrimitiveDrawInterface* PDI)
+{
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
 	{
@@ -73,15 +82,190 @@ void FIKRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FPrimit
 	
 	UIKRigController* AssetController = Controller->AssetController;
 	const UIKRigDefinition* IKRigAsset = AssetController->GetAsset();
+	if (!IKRigAsset->DrawGoals)
+	{
+		return;
+	}
+	
 	TArray<UIKRigEffectorGoal*> Goals = AssetController->GetAllGoals();
 	for (const UIKRigEffectorGoal* Goal : Goals)
 	{
-		const bool bIsSelected = Controller->IsGoalSelected(Goal->GoalName);
-		PDI->SetHitProxy(new HIKRigEditorGoalProxy(Goal->GoalName));
+		const bool bIsSelected = Controller->SkeletonView->IsGoalSelected(Goal->GoalName);
 		const float Size = IKRigAsset->GoalSize * Goal->SizeMultiplier;
 		const float Thickness = IKRigAsset->GoalThickness * Goal->ThicknessMultiplier;
-		GoalDrawer.DrawGoal(PDI, Goal, bIsSelected, Size, Thickness);
+		PDI->SetHitProxy(new HIKRigEditorGoalProxy(Goal->GoalName));
+		IKRigDebugRendering::DrawGoal(PDI, Goal, bIsSelected, Size, Thickness);
 		PDI->SetHitProxy(NULL);
+	}
+}
+
+void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
+{
+	// editor configured and initialized?
+	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return; 
+	}
+
+	UIKRigController* AssetController = Controller->AssetController;
+	const UIKRigDefinition* IKRigAsset = AssetController->GetAsset();
+	if (!IKRigAsset->DrawGoals)
+	{
+		return;
+	}
+
+	// anim instance initialized?
+	if (!Controller->AnimInstance.IsValid())
+	{
+		return;
+	}
+
+	// IKRig processor initialized and running?
+	UIKRigProcessor* CurrentProcessor = Controller->AnimInstance->GetCurrentlyRunningProcessor();
+	if (!IsValid(CurrentProcessor))
+	{
+		return;
+	}
+	if (!CurrentProcessor->IsInitialized())
+	{
+		return;
+	}
+
+	// get affected / selected bones
+	TSet<int32> OutAffectedBones;
+	TSet<int32> OutSelectedBones;
+	GetAffectedBones(Controller.Get(), CurrentProcessor,OutAffectedBones,OutSelectedBones);
+
+	// draw affected bones
+	TArray<int32> ChildrenIndices;
+	const FIKRigSkeleton& Skeleton = CurrentProcessor->GetSkeleton();
+	const TArray<FTransform>& BoneTransforms = Skeleton.CurrentPoseGlobal;
+	const float MaxDrawRadius = Controller->SkelMeshComponent->Bounds.SphereRadius * 0.01f;
+	for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
+	{
+		// selected bones are drawn with different color
+		const bool bIsSelected = OutSelectedBones.Contains(BoneIndex);
+		const bool bIsAffected = OutAffectedBones.Contains(BoneIndex);
+		FLinearColor LineColor = bIsAffected ? IKRigDebugRendering::AFFECTED_BONE_COLOR : IKRigDebugRendering::DESELECTED_BONE_COLOR;
+		LineColor = bIsSelected ? IKRigDebugRendering::SELECTED_BONE_COLOR : LineColor;
+
+		// only draw axes on affected/selected bones
+		const bool bDrawAxes = bIsSelected || bIsAffected;
+		
+		const float BoneRadiusSetting = IKRigAsset->BoneSize;
+		const float BoneRadius = FMath::Min(1.0f, MaxDrawRadius) * BoneRadiusSetting;
+		
+		// draw line from bone to each child
+		FTransform BoneTransform = BoneTransforms[BoneIndex];
+		TArray<FVector> ChildPoints;
+		Skeleton.GetChildIndices(BoneIndex,ChildrenIndices);
+		for (int32 ChildIndex : ChildrenIndices)
+		{
+			ChildPoints.Add(BoneTransforms[ChildIndex].GetLocation());
+		}
+
+		PDI->SetHitProxy(new HIKRigEditorBoneProxy(Skeleton.BoneNames[BoneIndex]));
+		IKRigDebugRendering::DrawWireBone(
+			PDI,
+			BoneTransform,
+			ChildPoints,
+			LineColor,
+			SDPG_Foreground,
+			BoneRadius,
+			bDrawAxes);
+		PDI->SetHitProxy(nullptr);
+	}
+}
+
+void FIKRigEditMode::GetAffectedBones(
+	FIKRigEditorController* Controller,
+	UIKRigProcessor* Processor,
+	TSet<int32>& OutAffectedBones,
+	TSet<int32>& OutSelectedBones) const
+{
+	OutAffectedBones.Reset();
+	OutSelectedBones.Reset();
+
+	const FIKRigSkeleton& Skeleton = Processor->GetSkeleton();
+	
+	switch (Controller->GetLastSelectedType())
+	{
+		case EIKRigSelectionType::Hierarchy:
+		{
+			// get selected bones
+			TArray<TSharedPtr<FIKRigTreeElement>> SelectedBoneItems;
+			SIKRigSkeleton* SkeletonView = Controller->SkeletonView.Get();
+			SkeletonView->GetSelectedBones(SelectedBoneItems);
+
+			// record indices of all selected bones
+			for (TSharedPtr<FIKRigTreeElement> SelectedBone: SelectedBoneItems)
+			{
+				int32 BoneIndex = Skeleton.GetBoneIndexFromName(SelectedBone->BoneName);
+				OutSelectedBones.Add(BoneIndex);
+			}
+
+			// "affected bones" are the selected bones AND their children, recursively
+			for (int32 SelectedBone : OutSelectedBones)
+			{
+				const int32 EndOfBranch = Skeleton.GetCachedEndOfBranchIndex(SelectedBone);
+				OutAffectedBones.Add(SelectedBone);
+				for (int32 BoneIndex=SelectedBone; BoneIndex<=EndOfBranch; ++BoneIndex)
+				{
+					OutAffectedBones.Add(BoneIndex);
+				}
+			}
+		}
+		break;
+		
+		case EIKRigSelectionType::SolverStack:
+		{
+			// get selected solver
+			TArray<TSharedPtr<FSolverStackElement>> SelectedSolvers;
+			Controller->GetSelectedSolvers(SelectedSolvers);
+			if (SelectedSolvers.IsEmpty())
+			{
+				return;
+			}
+
+			// record which bones in the skeleton are affected by this solver
+			UIKRigController* AssetController = Controller->AssetController;
+			UIKRigSolver* SelectedSolver = AssetController->GetSolver(SelectedSolvers[0].Get()->IndexInStack);
+			for (int32 BoneIndex=0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
+			{
+				const FName& BoneName = Skeleton.BoneNames[BoneIndex];
+				if (SelectedSolver->IsBoneAffectedBySolver(BoneName, Skeleton))
+				{
+					OutAffectedBones.Add(BoneIndex);
+				}
+			}
+		}
+		break;
+		
+		case EIKRigSelectionType::RetargetChains:
+		{
+			const FName SelectedChainName = Controller->RetargetingView->GetSelectedChain();
+			if (SelectedChainName == NAME_None)
+			{
+				return;
+			}
+			UIKRigController* AssetController = Controller->AssetController;
+			const FName StartBone = AssetController->GetRetargetChainStartBone(SelectedChainName);
+			const FName EndBone = AssetController->GetRetargetChainEndBone(SelectedChainName);
+			const int32 ChainStartIndex = Skeleton.GetBoneIndexFromName(StartBone);
+			const int32 ChainEndIndex = Skeleton.GetBoneIndexFromName(EndBone);
+			OutSelectedBones.Add(ChainStartIndex);
+			OutAffectedBones.Add(ChainStartIndex);
+			for (int32 BoneIndex=ChainStartIndex; BoneIndex<=ChainEndIndex; ++BoneIndex)
+			{
+				OutSelectedBones.Add(BoneIndex);
+				OutAffectedBones.Add(BoneIndex);
+			}
+		}
+		break;
+		
+		default:
+			checkNoEntry()
 	}
 }
 
@@ -93,7 +277,7 @@ bool FIKRigEditMode::AllowWidgetMove()
 		return false; 
 	}
 	
-	return Controller->GetNumSelectedGoals() > 0;
+	return Controller->SkeletonView->GetNumSelectedGoals() > 0;
 }
 
 bool FIKRigEditMode::ShouldDrawWidget() const
@@ -104,7 +288,7 @@ bool FIKRigEditMode::ShouldDrawWidget() const
 		return false; 
 	}
 	
-	return Controller->GetNumSelectedGoals() > 0;
+	return Controller->SkeletonView->GetNumSelectedGoals() > 0;
 }
 
 bool FIKRigEditMode::UsesTransformWidget() const
@@ -115,7 +299,7 @@ bool FIKRigEditMode::UsesTransformWidget() const
 		return false; 
 	}
 	
-	return Controller->GetNumSelectedGoals() > 0;
+	return Controller->SkeletonView->GetNumSelectedGoals() > 0;
 }
 
 bool FIKRigEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
@@ -126,7 +310,7 @@ bool FIKRigEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) cons
 		return false; 
 	}
 	
-	return Controller->GetNumSelectedGoals() > 0;
+	return Controller->SkeletonView->GetNumSelectedGoals() > 0;
 }
 
 FVector FIKRigEditMode::GetWidgetLocation() const
@@ -137,7 +321,8 @@ FVector FIKRigEditMode::GetWidgetLocation() const
 		return FVector::ZeroVector; 
 	}
 	
-	const TArray<FName>& OutGoalNames = Controller->GetSelectedGoals();
+	TArray<FName> OutGoalNames;
+	Controller->SkeletonView->GetSelectedGoalNames(OutGoalNames);
 	if (OutGoalNames.IsEmpty())
 	{
 		return FVector::ZeroVector; 
@@ -157,19 +342,31 @@ bool FIKRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, HHitPr
 	// check for selections
 	if (Click.GetKey() == EKeys::LeftMouseButton)
 	{
+		// draw bones based on the hierarchy when clicking in viewport
+		EditorController.Pin()->SetLastSelectedType(EIKRigSelectionType::Hierarchy);
+		
+		// clicking in empty space clears selection and shows empty details
+		if (!HitProxy)
+		{
+			Controller->ClearSelection();
+			return false;
+		}
+		
 		// selected goal
-		if (HitProxy && HitProxy->IsA(HIKRigEditorGoalProxy::StaticGetType()))
+		if (HitProxy->IsA(HIKRigEditorGoalProxy::StaticGetType()))
 		{
 			HIKRigEditorGoalProxy* GoalProxy = static_cast<HIKRigEditorGoalProxy*>(HitProxy);
 			const bool bReplaceSelection = !(InViewportClient->IsCtrlPressed() || InViewportClient->IsShiftPressed());
 			Controller->HandleGoalSelectedInViewport(GoalProxy->GoalName, bReplaceSelection);
 			return true;
 		}
-		else
+		// selected bone
+		if (HitProxy->IsA(HIKRigEditorBoneProxy::StaticGetType()))
 		{
-			// clicking in empty space clears selected goals
-			const bool bReplaceSelection = true;
-			Controller->HandleGoalSelectedInViewport(NAME_None, bReplaceSelection);
+			HIKRigEditorBoneProxy* BoneProxy = static_cast<HIKRigEditorBoneProxy*>(HitProxy);
+			const bool bReplaceSelection = !(InViewportClient->IsCtrlPressed() || InViewportClient->IsShiftPressed());
+			Controller->HandleBoneSelectedInViewport(BoneProxy->BoneName, bReplaceSelection);
+			return true;
 		}
 	}
 	
@@ -184,7 +381,8 @@ bool FIKRigEditMode::StartTracking(FEditorViewportClient* InViewportClient, FVie
 		return false; 
 	}
 	
-	const TArray<FName>& SelectedGoalNames = Controller->GetSelectedGoals();
+	TArray<FName> SelectedGoalNames;
+	Controller->SkeletonView->GetSelectedGoalNames(SelectedGoalNames);
 	if (SelectedGoalNames.IsEmpty())
 	{
 		return false; // no goals selected to manipulate
@@ -236,7 +434,8 @@ bool FIKRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewpo
 		return false; // not handled
 	}
 
-	const TArray<FName>& SelectedGoalNames = Controller->GetSelectedGoals();
+	TArray<FName> SelectedGoalNames;
+	Controller->SkeletonView->GetSelectedGoalNames(SelectedGoalNames);
 	UIKRigController* AssetController = Controller->AssetController;
 
 	// translate goals
@@ -274,13 +473,14 @@ bool FIKRigEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* I
 		return false;
 	}
 	
-	const TArray<FName>& SelectedGoals = Controller->GetSelectedGoals();
-	if (SelectedGoals.IsEmpty())
+	TArray<FName> SelectedGoalNames;
+	Controller->SkeletonView->GetSelectedGoalNames(SelectedGoalNames);
+	if (SelectedGoalNames.IsEmpty())
 	{
 		return false; // nothing selected to manipulate
 	}
 
-	if (const UIKRigEffectorGoal* Goal = Controller->AssetController->GetGoal(SelectedGoals[0]))
+	if (const UIKRigEffectorGoal* Goal = Controller->AssetController->GetGoal(SelectedGoalNames[0]))
 	{
 		InMatrix = Goal->CurrentTransform.ToMatrixNoScale().RemoveTranslation();
 		return true;
@@ -309,15 +509,16 @@ bool FIKRigEditMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* 
 			return false;
 		}
 	
-		TArray<FName> SelectedGoals = Controller->GetSelectedGoals();
-		if (SelectedGoals.IsEmpty())
+		TArray<FName> SelectedGoalNames;
+		Controller->SkeletonView->GetSelectedGoalNames(SelectedGoalNames);
+		if (SelectedGoalNames.IsEmpty())
 		{
 			return false; // nothing selected to manipulate
 		}
 
-		for (const FName& GoalName : SelectedGoals)
+		for (const FName& GoalName : SelectedGoalNames)
 		{
-			Controller->DeleteGoal(GoalName);
+			Controller->AssetController->RemoveGoal(GoalName);
 		}
 
 		Controller->RefreshAllViews();

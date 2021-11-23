@@ -41,6 +41,13 @@ void FAnimNode_RetargetPoseFromMesh::Evaluate_AnyThread(FPoseContext& Output)
 		return;
 	}
 
+	if (SourceMeshComponentSpaceBoneTransforms.IsEmpty())
+	{
+		// it's possible in editor to have anim instances initialized before PreUpdate() is called
+		// which results in trying to run the retargeter without an source pose to copy from
+		return;
+	}
+
 #if WITH_EDITOR
 	// live preview IK Rig solver settings in the retarget, editor only
 	// NOTE: this copies goal targets as well, but these are overwritten by IK chain goals

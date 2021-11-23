@@ -5,10 +5,15 @@
 #include "CoreMinimal.h"
 #include "HitProxies.h"
 
-// todo allow bone selection to preview transform values
 struct HIKRigEditorBoneProxy : public HHitProxy
 {
 	DECLARE_HIT_PROXY();
+
+	FName BoneName;
+
+	HIKRigEditorBoneProxy(const FName& InBoneName)
+		: HHitProxy(HPP_World)
+		, BoneName(InBoneName) {}
 
 	virtual EMouseCursor::Type GetMouseCursor()
 	{

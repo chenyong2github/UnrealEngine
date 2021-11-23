@@ -18,8 +18,38 @@ class FSolverStackElement;
 class FIKRigTreeElement;
 class UDebugSkelMeshComponent;
 
+enum EIKRigSelectionType : int8
+{
+	Hierarchy,
+	SolverStack,
+	RetargetChains,
+};
+
+UCLASS(config = Engine, hidecategories = UObject)
+class IKRIGEDITOR_API UIKRigBoneDetails : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	
+	// todo update bone info automatically using something else
+	void SetBone(const FName& BoneName)
+	{
+		SelectedBone = BoneName;
+	};
+
+	UPROPERTY(VisibleAnywhere, Category = "Bone Transforms")
+	FName SelectedBone;
+	
+	UPROPERTY(VisibleAnywhere, Category = "Bone Transforms")
+	FTransform CurrentTransform;
+
+	UPROPERTY(VisibleAnywhere, Category = "Bone Transforms")
+	FTransform DefaultTransform;
+};
+
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
-class FIKRigEditorController : public TSharedFromThis<FIKRigEditorController>
+class FIKRigEditorController : public TSharedFromThis<FIKRigEditorController>, FGCObject
 {
 public:
 
@@ -31,20 +61,12 @@ public:
 
 	/** create goals */
 	void AddNewGoals(const TArray<FName>& GoalNames, const TArray<FName>& BoneNames);
-	/** delete goals */
-	void DeleteGoal(const FName& GoalToDelete);
-	/** get array of the names of currently selected goals */
-	const TArray<FName>& GetSelectedGoals() const {return SelectedGoals;};
-	/** return true if a goal with the given name is selected */
-	bool IsGoalSelected(const FName& GoalName) const;
-	/** when goal is renamed, update selection list */
-	void ReplaceGoalInSelection(const FName& OldName, const FName& NewName);
-	/** return number of goals that are currently selected */
-	int32 GetNumSelectedGoals();
+	/** clear all selected objects */
+	void ClearSelection();
 	/** callback when goal is selected in the viewport */
 	void HandleGoalSelectedInViewport(const FName& GoalName, bool bReplace);
-	/** callback when goal is selected in the skeleton view */
-	void HandleGoalsSelectedInTreeView(const TArray<FName>& GoalNames);
+	/** callback when bone is selected in the viewport */
+	void HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace);
 	/** reset all goals to initial transforms */
 	void Reset() const;
 	/** refresh all views */
@@ -63,7 +85,7 @@ public:
 	/** determine if the element is an excluded bone*/
 	bool IsElementExcludedBone(TSharedRef<FIKRigTreeElement> TreeElement);
 	
-	/** todo show BONE transform in details view */
+	/** show transform of bone in details view */
 	void ShowDetailsForBone(const FName BoneName);
 	/** show BONE settings in details view */
 	void ShowDetailsForBoneSettings(const FName BoneName, int32 SolverIndex);
@@ -110,13 +132,31 @@ public:
 	/** UI and viewport selection state */
 	bool bManipulatingGoals = false;
 
+	/** record which part of the UI was last selected */
+	EIKRigSelectionType GetLastSelectedType() const;
+	void SetLastSelectedType(EIKRigSelectionType SelectionType);
+	/** END selection type */
+
+	/** FGCObject interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
+	{
+		Collector.AddReferencedObject(BoneDetails);
+	};
+	virtual FString GetReferencerName() const override
+	{
+		return "IKRigEditorController";
+	};
+	/** END FGCObject interface */
+
 private:
 
 	/** Initializes editor's solvers instances */
 	void InitializeSolvers() const;
-	
-	/** UI and viewport selection state */
-	TArray<FName> SelectedGoals;	
+
+	EIKRigSelectionType LastSelectedType;
+
+	UPROPERTY()
+	TObjectPtr<UIKRigBoneDetails> BoneDetails;
 };
 
 /** only used for pop-up window to selected a first solver to add*/

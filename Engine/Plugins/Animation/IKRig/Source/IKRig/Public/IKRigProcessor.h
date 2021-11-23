@@ -86,7 +86,6 @@ public:
 	/** Get access to the internal skeleton data */
 	FIKRigSkeleton& GetSkeleton();
 
-
 	/** Used to determine if the IK Rig asset is compatible with a given skeleton. */
 	static bool IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton);
 

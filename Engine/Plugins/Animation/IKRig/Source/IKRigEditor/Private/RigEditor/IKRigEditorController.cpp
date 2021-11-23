@@ -18,6 +18,7 @@ void FIKRigEditorController::Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit,
 {
 	EditorToolkit = Toolkit;
 	AssetController = UIKRigController::GetIKRigController(IKRigAsset);
+	BoneDetails = NewObject<UIKRigBoneDetails>();
 	
 	// register callback to be informed when rig asset is modified by editor
 	if (!AssetController->OnIKRigNeedsInitialized().IsBoundToObject(this))
@@ -105,66 +106,22 @@ void FIKRigEditorController::AddNewGoals(const TArray<FName>& GoalNames, const T
 	}
 }
 
-void FIKRigEditorController::DeleteGoal(const FName& GoalToDelete)
+void FIKRigEditorController::ClearSelection()
 {
-	AssetController->RemoveGoal(GoalToDelete);
-	SelectedGoals.Remove(GoalToDelete);
-}
-
-bool FIKRigEditorController::IsGoalSelected(const FName& GoalName) const
-{
-	return SelectedGoals.Contains(GoalName);
-}
-
-void FIKRigEditorController::ReplaceGoalInSelection(const FName& OldName, const FName& NewName)
-{
-	const int32 GoalIndex = SelectedGoals.IndexOfByKey(OldName);
-	if (GoalIndex == INDEX_NONE)
-	{
-		return;
-	}
-
-	SelectedGoals[GoalIndex] = NewName;
-}
-
-int32 FIKRigEditorController::GetNumSelectedGoals()
-{
-	return SelectedGoals.Num();
+	SkeletonView->TreeView->ClearSelection();
+	ShowEmptyDetails();
 }
 
 void FIKRigEditorController::HandleGoalSelectedInViewport(const FName& GoalName, bool bReplace)
-{
-	if (bReplace)
-	{
-		SelectedGoals.Reset();
-		if (GoalName != NAME_None)
-		{
-			SelectedGoals.Add(GoalName);
-		}
-	}
-	else
-	{
-		if (GoalName != NAME_None)
-		{
-			const bool bAlreadySelected = SelectedGoals.Contains(GoalName);
-			if (bAlreadySelected)
-			{
-				SelectedGoals.Remove(GoalName);	
-			}
-			else
-			{
-				SelectedGoals.Add(GoalName);
-			}
-		}	
-	}
-	
-	SkeletonView->SetSelectedGoalsFromViewport(SelectedGoals);
+{	
+	SkeletonView->AddSelectedItemFromViewport(GoalName, IKRigTreeElementType::GOAL, bReplace);
 	ShowDetailsForGoal(GoalName);
 }
 
-void FIKRigEditorController::HandleGoalsSelectedInTreeView(const TArray<FName>& GoalNames)
+void FIKRigEditorController::HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace)
 {
-	SelectedGoals = GoalNames;
+	SkeletonView->AddSelectedItemFromViewport(BoneName, IKRigTreeElementType::BONE, bReplace);
+	ShowDetailsForBone(BoneName);
 }
 
 void FIKRigEditorController::GetSelectedSolvers(TArray<TSharedPtr<FSolverStackElement>>& OutSelectedSolvers)
@@ -205,15 +162,14 @@ bool FIKRigEditorController::PromptToAddSolver() const
 			SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
 	});
 
-	if (AddSolverDialog->ShowModal() == 1)
+	if (AddSolverDialog->ShowModal() != 0)
 	{
-		return false; // cancelled
+		return false; // cancel button pressed, or window closed
 	}
 
 	if (Settings.SolverType != nullptr)
 	{
-		AssetController->AddSolver(Settings.SolverType);
-		SolverStackView->RefreshStackView();
+		SolverStackView->AddNewSolver(Settings.SolverType);
 	}
 
 	return true;
@@ -282,7 +238,8 @@ bool FIKRigEditorController::IsElementExcludedBone(TSharedRef<FIKRigTreeElement>
 
 void FIKRigEditorController::ShowDetailsForBone(const FName BoneName)
 {
-	ShowEmptyDetails();
+	BoneDetails->SetBone(BoneName);
+	DetailsView->SetObject(BoneDetails);
 }
 
 void FIKRigEditorController::ShowDetailsForBoneSettings(const FName BoneName, int32 SolverIndex)
@@ -348,6 +305,16 @@ void FIKRigEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPlay)
 	{
 		AnimInstance->SetAnimationAsset(AssetToPlay);
 	}
+}
+
+EIKRigSelectionType FIKRigEditorController::GetLastSelectedType() const
+{
+	return LastSelectedType;
+}
+
+void FIKRigEditorController::SetLastSelectedType(EIKRigSelectionType SelectionType)
+{
+	LastSelectedType = SelectionType;
 }
 
 void FIKRigEditorController::InitializeSolvers() const

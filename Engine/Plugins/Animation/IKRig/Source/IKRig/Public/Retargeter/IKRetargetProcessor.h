@@ -62,7 +62,11 @@ struct IKRIG_API FRetargetSkeleton
 struct FTargetSkeleton : public FRetargetSkeleton
 {
 	TArray<FTransform> OutputGlobalPose;
+	// true for bones that are in a target chain that is ALSO mapped to a source chain
+	// ie, bones that are actually posed based on a mapped source chain
 	TArray<bool> IsBoneRetargeted;
+	// true for bones that are in a target chain and thus are posed by a retarget pose
+	// the application of a retarget pose to a bone happens regardless of whether they are mapped to a source chain or not
 	TArray<bool> IsBoneInAnyTargetChain;
 
 	void Initialize(
@@ -342,11 +346,19 @@ public:
 	*/
 	FTransform GetTargetBoneRetargetPoseGlobalTransform(const int32& TargetBoneIndex) const;
 
+	FTransform GetTargetBoneRetargetPoseLocalTransform(const int32& TargetBoneIndex) const;
+
 	/** Get read-only access to the target skeleton. */
 	const FTargetSkeleton& GetTargetSkeleton() const { return TargetSkeleton; };
 
+	/** Get index of the root bone of the target skeleton. */
+	const int32 GetTargetSkeletonRootBone() const { return RootRetargeter.Target.BoneIndex; };
+
 	/** Get whether this processor is ready to call RunRetargeter() and generate new poses. */
 	bool IsInitialized() const { return bIsInitialized; };
+
+	/** Get the currently running IK Rig processor for the target */
+	UIKRigProcessor* GetTargetIKRigProcessor() const { return IKRigProcessor; };
 
 #if WITH_EDITOR
 	/** Set that this processor needs to be reinitialized. */

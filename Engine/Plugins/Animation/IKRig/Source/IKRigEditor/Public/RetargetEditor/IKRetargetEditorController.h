@@ -63,7 +63,8 @@ public:
 	USkeletalMesh* GetTargetSkeletalMesh() const;
 
 	/** get current chain pose */
-	FTransform GetTargetBoneTransform(const int32& TargetBoneIndex) const;
+	FTransform GetTargetBoneGlobalTransform(const int32& TargetBoneIndex) const;
+	FTransform GetTargetBoneLocalTransform(const int32& TargetBoneIndex) const;
 	/** get the line segments to draw from this bone to each child */
 	bool GetTargetBoneLineSegments(const int32& TargetBoneIndex, FVector& OutStart, TArray<FVector>& OutChildren) const;
 

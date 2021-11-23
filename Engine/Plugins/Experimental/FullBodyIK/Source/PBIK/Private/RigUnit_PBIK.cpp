@@ -158,14 +158,15 @@ FRigUnit_PBIK_Execute()
 		const FPBIKEffector& Effector = Effectors[E];
 		FVector Position = Effector.Transform.GetLocation();
 		FQuat Rotation = Effector.Transform.GetRotation();
-		Solver.SetEffectorGoal(
-			EffectorSolverIndices[E],
-			Position,
-			Rotation,
-			Effector.OffsetAlpha,
-			Effector.StrengthAlpha,
-			Effector.PullChainAlpha,
-			Effector.PinRotation);
+
+		PBIK::FEffectorSettings EffectorSettings;
+		EffectorSettings.PositionAlpha = Effector.PositionAlpha;
+		EffectorSettings.RotationAlpha = Effector.RotationAlpha;
+		EffectorSettings.StrengthAlpha = Effector.StrengthAlpha;
+		EffectorSettings.PullChainAlpha = Effector.PullChainAlpha;
+		EffectorSettings.PinRotation = Effector.PinRotation;
+		
+		Solver.SetEffectorGoal(EffectorSolverIndices[E], Position, Rotation, EffectorSettings);
 	}
 
 	// solve

@@ -24,6 +24,37 @@ FORCEINLINE static float SquaredEaseOut(const float& Input){ return (FMath::Pow(
 
 struct FRigidBody;
 
+struct FEffectorSettings
+{
+	/** Range 0-1, default is 1. Blend between the input bone position (0.0) and the current effector position (1.0).*/
+	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float PositionAlpha = 1.0f;
+
+	/** Range 0-1, default is 1. Blend between the input bone rotation (0.0) and the current effector rotation (1.0).*/
+	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float RotationAlpha = 1.0f;
+
+	/** Range 0-1 (default is 1.0). The strength of the effector when pulling the bone towards it's target location.
+	* At 0.0, the effector does not pull at all, but the bones between the effector and the root will still slightly resist motion from other effectors.
+	* This can thus act as a "stabilizer" of sorts for parts of the body that you do not want to behave in a pure FK fashion.
+	*/
+	UPROPERTY(EditAnywhere, Category="Effector")
+	float StrengthAlpha = 1.0f;
+
+	/** Range 0-1 (default is 1.0). When enabled (greater than 0.0), the solver internally partitions the skeleton into 'chains' which extend from the effector to the nearest fork in the skeleton.
+	*These chains are pre-rotated and translated, as a whole, towards the effector targets.
+	*This can improve the results for sparse bone chains, and significantly improve convergence on dense bone chains.
+	*But it may cause undesirable results in highly constrained bone chains (like robot arms).
+	*/
+	UPROPERTY(EditAnywhere, Category="Effector")
+	float PullChainAlpha = 1.0f;
+
+	/** Range 0-1 (default is 1.0).
+	*Blends the effector bone rotation between the rotation of the effector transform (1.0) and the rotation of the input bone (0.0).*/
+	UPROPERTY(EditAnywhere, Category="Effector")
+	float PinRotation = 1.0f;
+};
+
 struct FEffector
 {
 	FVector Position;
@@ -35,18 +66,15 @@ struct FEffector
 	FVector PositionGoal;
 	FQuat RotationGoal;
 
+	FEffectorSettings Settings;
+
 	FBone* Bone;
 	TWeakPtr<FPinConstraint> Pin;
-	float PinRotation;
 	FRigidBody* ParentSubRoot = nullptr;
 	float DistanceToSubRootInInputPose;
 	float DistToRootAlongBones;
 	float DistToRootStraightLine;
-
-	float TransformAlpha;
-	float StrengthAlpha;
 	
-	float PullChainAlpha;
 	TArray<float> DistancesFromEffector;
 	float DistToSubRootAlongBones;
 
@@ -55,15 +83,12 @@ struct FEffector
 	void SetGoal(
 		const FVector& InPositionGoal,
 		const FQuat& InRotationGoal,
-		float InTransformAlpha,
-		float InStrengthAlpha,
-		float InPullChainAlpha,
-		float InPinRotation);
+		const FEffectorSettings& InSettings);
 
 	void UpdateFromInputs(const FBone& SolverRoot);
 	void ApplyPreferredAngles();
 };
-
+	
 } // namespace
 
 USTRUCT()
@@ -135,10 +160,7 @@ public:
 		const int32 Index, 
 		const FVector& InPosition, 
 		const FQuat& InRotation, 
-		const float OffsetAlpha, 
-		const float StrengthAlpha,
-		const float PullChainAlpha,
-		const float PinRotation);
+		const PBIK::FEffectorSettings& Settings);
 
 	void GetBoneGlobalTransform(const int32 Index, FTransform& OutTransform);
 

@@ -264,6 +264,18 @@ TStatId FIKRetargetEditor::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FIKRetargetEditor, STATGROUP_Tickables);
 }
 
+void FIKRetargetEditor::PostUndo(bool bSuccess)
+{
+	EditorController->AssetController->BroadcastNeedsReinitialized();
+	EditorController->RefreshAllViews();
+}
+
+void FIKRetargetEditor::PostRedo(bool bSuccess)
+{
+	EditorController->AssetController->BroadcastNeedsReinitialized();
+	EditorController->RefreshAllViews();
+}
+
 void FIKRetargetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 {
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);

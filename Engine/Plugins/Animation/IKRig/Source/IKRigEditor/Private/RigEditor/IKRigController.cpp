@@ -24,7 +24,6 @@ UIKRigController* UIKRigController::GetIKRigController(UIKRigDefinition* InIKRig
 		UIKRigController* Controller = NewObject<UIKRigController>();
 		Controller->Asset = InIKRigDefinition;
 		InIKRigDefinition->Controller = Controller;
-		InIKRigDefinition->IKRigEditUndo.AddUObject(Controller, &UIKRigController::BroadcastNeedsReinitialized);
 	}
 
 	return Cast<UIKRigController>(InIKRigDefinition->Controller);
@@ -771,7 +770,7 @@ bool UIKRigController::ConnectGoalToSolver(const UIKRigEffectorGoal& Goal, int32
 	// can't add goal to a solver with an invalid index
 	check(Asset->Solvers.IsValidIndex(SolverIndex))
 
-	FScopedTransaction Transaction(LOCTEXT("AddGoalToSolver_Label", "Add Goal"));
+	FScopedTransaction Transaction(LOCTEXT("ConnectGoalSolver_Label", "Connect Goal to Solver"));
 	UIKRigSolver* Solver = Asset->Solvers[SolverIndex];
 	Solver->Modify();
 	
@@ -788,7 +787,7 @@ bool UIKRigController::DisconnectGoalFromSolver(const FName& GoalToRemove, int32
 	// can't remove goal from a solver with an invalid index
 	check(Asset->Solvers.IsValidIndex(SolverIndex))
 
-    FScopedTransaction Transaction(LOCTEXT("RemoveGoalFromSolver_Label", "Remove Goal"));
+    FScopedTransaction Transaction(LOCTEXT("DisconnectGoalSolver_Label", "Disconnect Goal from Solver"));
 	UIKRigSolver* Solver = Asset->Solvers[SolverIndex];
 	Solver->Modify();
 	

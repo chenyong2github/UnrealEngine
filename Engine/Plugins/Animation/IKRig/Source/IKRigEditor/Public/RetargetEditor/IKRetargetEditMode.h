@@ -7,6 +7,7 @@
 #include "Retargeter/IKRetargeter.h"
 #include "IPersonaEditMode.h"
 
+class UIKRigProcessor;
 class FIKRetargetEditorController;
 class FIKRetargetEditor;
 class FIKRetargetPreviewScene;
@@ -16,6 +17,19 @@ enum FIKRetargetTrackingState : int8
 	None,
 	RotatingBone,
 	TranslatingRoot,
+};
+
+struct BoneEdit
+{
+	FName Name;							// name of last selected bone
+	int32 Index;						// index of last selected bone
+	FTransform ParentGlobalTransform;	// global transform of parent of last selected bone
+	FTransform GlobalTransform;			// global transform of last selected bone
+	FTransform LocalTransform;			// local transform of last selected bone
+	FQuat AccumulatedGlobalOffset;		// the accumulated offset from rotation gizmo
+	
+	TArray<FQuat> PrevLocalOffsets;		// the prev stored local offsets of all selected bones
+	TArray<FName> SelectedBones;		// the currently selected bones in the viewport
 };
 
 class FIKRetargetEditMode : public IPersonaEditMode
@@ -54,27 +68,25 @@ public:
 
 private:
 
+	void GetAffectedBones(
+		FIKRetargetEditorController* Controller,
+		UIKRigProcessor* Processor,
+		TSet<int32>& OutAffectedBones,
+		TSet<int32>& OutSelectedBones) const;
+
 	UE::Widget::EWidgetMode CurrentWidgetMode;
-	
+
+	bool IsRootSelected() const;
 	bool IsOnlyRootSelected() const;
-	
 	bool IsBoneSelected(const FName& BoneName) const;
-	
+
+	BoneEdit BoneEdit;
+	void UpdateWidgetTransform();
 	void HandleBoneSelectedInViewport(const FName& BoneName, bool bReplace);
 	
 	/** The hosting app */
 	TWeakPtr<FIKRetargetEditorController> EditorController;
 
-	void DrawBoneProxy(
-		FPrimitiveDrawInterface* PDI,
-		const FTransform& BoneTransform,
-		const FVector& Start,
-		const TArray<FVector>& ChildPoints,
-		float Size,
-		float Thickness,
-		bool bIsSelected) const;
-
 	/** viewport selection/editing state */
-	TArray<FName> SelectedBones;
 	FIKRetargetTrackingState TrackingState;
 };

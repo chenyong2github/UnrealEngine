@@ -174,43 +174,47 @@ void FTargetSkeleton::GenerateRetargetPose(const FIKRetargetPose* InRetargetPose
 	// create a retarget pose by copying the ref pose
 	FRetargetSkeleton::GenerateRetargetPose();
 	
-	// apply retarget pose offsets (retarget pose is stored as offset relative to reference pose)
-	if (InRetargetPose && RetargetRootBone != NAME_None)
+	// no retarget pose specified (will use default pose from skeletal mesh with no offsets)
+	if (InRetargetPose==nullptr  || RetargetRootBone == NAME_None)
 	{
-		// apply root translation offset
-		const int32 RootBoneIndex = FindBoneIndexByName(RetargetRootBone);
-		if (RootBoneIndex != INDEX_NONE)
-		{
-			FTransform& RootTransform = RetargetGlobalPose[RootBoneIndex];
-			RootTransform.AddToTranslation(InRetargetPose->RootTranslationOffset);
-			UpdateLocalTransformOfSingleBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
-			UpdateGlobalTransformsBelowBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
-		}
-
-		// apply bone rotation offsets
-		for (const TTuple<FName, FQuat>& BoneRotationOffset : InRetargetPose->BoneRotationOffsets)
-		{
-			const int32 BoneIndex = FindBoneIndexByName(BoneRotationOffset.Key);
-			if (BoneIndex == INDEX_NONE)
-			{
-				// this can happen if a retarget pose recorded a bone offset for a bone that is not present in the
-				// target skeleton; ie, the retarget pose was generated from a different Skeletal Mesh with extra bones
-				continue;
-			}
-
-			if (!IsBoneInAnyTargetChain[BoneIndex])
-			{
-				// this can happen if a retarget pose includes bone edits from a bone chain that was subsequently removed,
-				// and the asset has not run through the "CleanChainMapping" operation yet (happens on load)
-				continue;
-			}
-
-			FQuat BoneRotation = BoneRotationOffset.Value * RetargetGlobalPose[BoneIndex].GetRotation();
-			RetargetGlobalPose[BoneIndex].SetRotation(BoneRotation);
-			UpdateLocalTransformOfSingleBone(BoneIndex, RetargetLocalPose, RetargetGlobalPose);
-			UpdateGlobalTransformsBelowBone(BoneIndex, RetargetLocalPose, RetargetGlobalPose);
-		}
+		return;
 	}
+
+	// apply retarget pose offsets (retarget pose is stored as offset relative to reference pose)
+	const TArray<FTransform>& RefPoseLocal = SkeletalMesh->GetRefSkeleton().GetRefBonePose();
+	
+	// apply root translation offset
+	const int32 RootBoneIndex = FindBoneIndexByName(RetargetRootBone);
+	if (RootBoneIndex != INDEX_NONE)
+	{
+		FTransform& RootTransform = RetargetGlobalPose[RootBoneIndex];
+		RootTransform.AddToTranslation(InRetargetPose->RootTranslationOffset);
+		UpdateLocalTransformOfSingleBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
+	}
+
+	// apply bone rotation offsets
+	for (const TTuple<FName, FQuat>& BoneRotationOffset : InRetargetPose->BoneRotationOffsets)
+	{
+		const int32 BoneIndex = FindBoneIndexByName(BoneRotationOffset.Key);
+		if (BoneIndex == INDEX_NONE)
+		{
+			// this can happen if a retarget pose recorded a bone offset for a bone that is not present in the
+			// target skeleton; ie, the retarget pose was generated from a different Skeletal Mesh with extra bones
+			continue;
+		}
+
+		if (!IsBoneInAnyTargetChain[BoneIndex] && BoneIndex!=RootBoneIndex)
+		{
+			// this can happen if a retarget pose includes bone edits from a bone chain that was subsequently removed,
+			// and the asset has not run through the "CleanChainMapping" operation yet (happens on load)
+			continue;
+		}
+
+		const FQuat LocalBoneRotation = BoneRotationOffset.Value * RefPoseLocal[BoneIndex].GetRotation();
+		RetargetLocalPose[BoneIndex].SetRotation(LocalBoneRotation);
+	}
+
+	UpdateGlobalTransformsBelowBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
 }
 
 void FTargetSkeleton::Reset()
@@ -1133,6 +1137,14 @@ FTransform UIKRetargetProcessor::GetTargetBoneRetargetPoseGlobalTransform(const 
 
 	// get the current retarget pose
 	return TargetSkeleton.RetargetGlobalPose[TargetBoneIndex];
+}
+
+FTransform UIKRetargetProcessor::GetTargetBoneRetargetPoseLocalTransform(const int32& TargetBoneIndex) const
+{
+	check(TargetSkeleton.BoneNames.IsValidIndex(TargetBoneIndex))
+
+	// get the current retarget pose
+	return TargetSkeleton.RetargetLocalPose[TargetBoneIndex];
 }
 
 #if WITH_EDITOR

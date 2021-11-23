@@ -186,7 +186,8 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 	{
 		return; 
 	}
-	
+
+	const FText OldText = WeakRigTreeElement.Pin()->Key;
 	const FName OldName = WeakRigTreeElement.Pin()->GoalName;
 	const FName PotentialNewName = FName(InText.ToString());
 	const FName NewName = Controller->AssetController->RenameGoal(OldName, PotentialNewName);
@@ -195,8 +196,8 @@ void SIKRigSkeletonItem::OnNameCommitted(const FText& InText, ETextCommit::Type 
 		WeakRigTreeElement.Pin()->Key = FText::FromName(NewName);
 		WeakRigTreeElement.Pin()->GoalName = NewName;
 	}
-
-	Controller->ReplaceGoalInSelection(OldName, NewName);
+	
+	Controller->SkeletonView->ReplaceItemInSelection(OldText, WeakRigTreeElement.Pin()->Key);
 	Controller->RefreshAllViews();
 }
 
@@ -262,31 +263,105 @@ void SIKRigSkeleton::Construct(const FArguments& InArgs, TSharedRef<FIKRigEditor
 	RefreshTreeView(IsInitialSetup);
 }
 
-void SIKRigSkeleton::SetSelectedGoalsFromViewport(const TArray<FName>& GoalNames)
-{
-	if (GoalNames.IsEmpty())
+void SIKRigSkeleton::AddSelectedItemFromViewport(
+	const FName& ItemName,
+	IKRigTreeElementType ItemType,
+	const bool bReplace)
+{	
+	// nothing to add
+	if (ItemName == NAME_None)
 	{
-		TreeView->ClearSelection();
 		return;
 	}
-	
+
+	// record what was already selected
+	TArray<TSharedPtr<FIKRigTreeElement>> PreviouslySelectedItems = TreeView->GetSelectedItems();
+	// add/remove items as needed
 	for (const TSharedPtr<FIKRigTreeElement>& Item : AllElements)
 	{
-		if (GoalNames.Contains(Item->GoalName))
+		bool bIsBeingAdded = false;
+		switch (ItemType)
 		{
-			TreeView->SetSelection(Item, ESelectInfo::Direct);
-
-			if(GetDefault<UPersonaOptions>()->bExpandTreeOnSelection)
+		case IKRigTreeElementType::GOAL:
+			if (ItemName == Item->GoalName)
 			{
-				TSharedPtr<FIKRigTreeElement> ItemToExpand = Item->Parent;
-				while(ItemToExpand.IsValid())
-				{
-					TreeView->SetItemExpansion(ItemToExpand, true);
-					ItemToExpand = ItemToExpand->Parent;
-				}
+				bIsBeingAdded = true;
 			}
+			break;
+		case IKRigTreeElementType::BONE:
+			if (ItemName == Item->BoneName)
+			{
+				bIsBeingAdded = true;
+			}
+			break;
+		default:
+			ensureMsgf(false, TEXT("IKRig cannot select anything but bones and goals in viewport."));
+			return;
+		}
 
-			TreeView->RequestScrollIntoView(Item);
+		if (bReplace)
+		{
+			if (bIsBeingAdded)
+			{
+				TreeView->ClearSelection();
+				AddItemToSelection(Item);
+				return;
+			}
+			
+			continue;
+		}
+
+		// remove if already selected (invert)
+		if (bIsBeingAdded && PreviouslySelectedItems.Contains(Item))
+		{
+			RemoveItemFromSelection(Item);
+			continue;
+		}
+
+		// add if being added
+		if (bIsBeingAdded)
+		{
+			AddItemToSelection(Item);
+			continue;
+		}
+	}
+}
+
+void SIKRigSkeleton::AddItemToSelection(const TSharedPtr<FIKRigTreeElement>& InItem)
+{
+	TreeView->SetItemSelection(InItem, true, ESelectInfo::Direct);
+    
+	if(GetDefault<UPersonaOptions>()->bExpandTreeOnSelection)
+	{
+		TSharedPtr<FIKRigTreeElement> ItemToExpand = InItem->Parent;
+		while(ItemToExpand.IsValid())
+		{
+			TreeView->SetItemExpansion(ItemToExpand, true);
+			ItemToExpand = ItemToExpand->Parent;
+		}
+	}
+    
+	TreeView->RequestScrollIntoView(InItem);
+}
+
+void SIKRigSkeleton::RemoveItemFromSelection(const TSharedPtr<FIKRigTreeElement>& InItem)
+{
+	TreeView->SetItemSelection(InItem, false, ESelectInfo::Direct);
+}
+
+void SIKRigSkeleton::ReplaceItemInSelection(const FText& OldName, const FText& NewName)
+{
+	for (const TSharedPtr<FIKRigTreeElement>& Item : AllElements)
+	{
+		// remove old selection
+		if (Item->Key.CompareTo(OldName))
+		{
+			TreeView->SetItemSelection(Item, false, ESelectInfo::Direct);
+		}
+		// add new selection
+		if (Item->Key.CompareTo(NewName))
+		{
+			TreeView->SetItemSelection(Item, true, ESelectInfo::Direct);
 		}
 	}
 }
@@ -475,7 +550,7 @@ void SIKRigSkeleton::HandleDeleteGoal()
 	{
 		if (Item->ElementType == IKRigTreeElementType::GOAL)
 		{
-			Controller->DeleteGoal(Item->GoalName);
+			Controller->AssetController->RemoveGoal(Item->GoalName);
 		}
 		else if (Item->ElementType == IKRigTreeElementType::SOLVERGOAL)
 		{
@@ -1006,6 +1081,18 @@ bool SIKRigSkeleton::CanSetRetargetRoot()
 	return !SelectedBones.IsEmpty();
 }
 
+bool SIKRigSkeleton::IsBoneInSelection(TArray<TSharedPtr<FIKRigTreeElement>>& SelectedBoneItems, const FName& BoneName)
+{
+	for (const TSharedPtr<FIKRigTreeElement>& Item : SelectedBoneItems)
+	{
+		if (Item->BoneName == BoneName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void SIKRigSkeleton::GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const
 {
 	const TArray<TSharedPtr<FIKRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
@@ -1029,6 +1116,38 @@ void SIKRigSkeleton::GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& Out
 			OutSelectedGoals.Add(Item);
 		}
 	}
+}
+
+int32 SIKRigSkeleton::GetNumSelectedGoals()
+{
+	TArray<TSharedPtr<FIKRigTreeElement>> OutSelectedGoals;
+	GetSelectedGoals(OutSelectedGoals);
+	return OutSelectedGoals.Num();
+}
+
+void SIKRigSkeleton::GetSelectedGoalNames(TArray<FName>& OutSelectedGoalNames) const
+{
+	TArray<TSharedPtr<FIKRigTreeElement>> OutSelectedGoals;
+	GetSelectedGoals(OutSelectedGoals);
+	OutSelectedGoalNames.Reset();
+	for (TSharedPtr<FIKRigTreeElement> SelectedGoalItem : OutSelectedGoals)
+	{
+		OutSelectedGoalNames.Add(SelectedGoalItem->GoalName);
+	}
+}
+
+bool SIKRigSkeleton::IsGoalSelected(const FName& GoalName)
+{
+	TArray<TSharedPtr<FIKRigTreeElement>> OutSelectedGoals;
+	GetSelectedGoals(OutSelectedGoals);
+	for (TSharedPtr<FIKRigTreeElement> SelectedGoalItem : OutSelectedGoals)
+	{
+		if (SelectedGoalItem->GoalName == GoalName)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void SIKRigSkeleton::HandleRenameElement() const
@@ -1195,24 +1314,6 @@ void SIKRigSkeleton::HandleGetChildrenForTree(
 
 void SIKRigSkeleton::OnSelectionChanged(TSharedPtr<FIKRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
 {
-	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
-	if (!Controller.IsValid())
-	{
-		return;
-	}
-	
-	// gate any selection changes NOT made by user clicking mouse
-	if (SelectInfo == ESelectInfo::OnMouseClick)
-	{
-		TArray<TSharedPtr<FIKRigTreeElement>> SelectedGoals;
-		GetSelectedGoals(SelectedGoals);
-		TArray<FName> SelectedGoalNames;
-		for (const TSharedPtr<FIKRigTreeElement>& Goal : SelectedGoals)
-		{
-			SelectedGoalNames.Add(Goal->GoalName);
-		}
-		Controller->HandleGoalsSelectedInTreeView(SelectedGoalNames);
-	}
 }
 
 TSharedPtr<SWidget> SIKRigSkeleton::CreateContextMenu()
@@ -1264,6 +1365,7 @@ void SIKRigSkeleton::OnItemClicked(TSharedPtr<FIKRigTreeElement> InItem)
 
 	TreeView->LastClickCycles = CurrentCycles;
 	TreeView->LastSelected = InItem;
+	Controller->SetLastSelectedType(EIKRigSelectionType::Hierarchy);
 }
 
 void SIKRigSkeleton::OnItemDoubleClicked(TSharedPtr<FIKRigTreeElement> InItem)
@@ -1399,7 +1501,7 @@ FReply SIKRigSkeleton::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 			switch(SelectedItem->ElementType)
 			{
 				case IKRigTreeElementType::GOAL:
-					Controller->DeleteGoal(SelectedItem->GoalName);
+					Controller->AssetController->RemoveGoal(SelectedItem->GoalName);
 					break;
 				case IKRigTreeElementType::SOLVERGOAL:
 					Controller->AssetController->DisconnectGoalFromSolver(SelectedItem->SolverGoalName, SelectedItem->SolverGoalIndex);

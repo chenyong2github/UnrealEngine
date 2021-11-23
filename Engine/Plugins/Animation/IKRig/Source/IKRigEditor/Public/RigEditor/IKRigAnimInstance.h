@@ -21,6 +21,8 @@ public:
 
 	void SetProcessorNeedsInitialized();
 
+	UIKRigProcessor* GetCurrentlyRunningProcessor();
+
 protected:
 	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
 

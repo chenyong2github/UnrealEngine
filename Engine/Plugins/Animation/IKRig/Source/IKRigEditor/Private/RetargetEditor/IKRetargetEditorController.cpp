@@ -76,8 +76,6 @@ void FIKRetargetEditorController::OnRetargeterNeedsInitialized(const UIKRetarget
 	TargetAnimInstance->SetProcessorNeedsInitialized();
 	// refresh all the UI views
 	RefreshAllViews();
-	// keep playing animation
-	PlayPreviousAnimationAsset();
 }
 
 USkeletalMesh* FIKRetargetEditorController::GetSourceSkeletalMesh() const
@@ -100,7 +98,7 @@ USkeletalMesh* FIKRetargetEditorController::GetTargetSkeletalMesh() const
 	return AssetController->GetTargetPreviewMesh();
 }
 
-FTransform FIKRetargetEditorController::GetTargetBoneTransform(const int32& TargetBoneIndex) const
+FTransform FIKRetargetEditorController::GetTargetBoneGlobalTransform(const int32& TargetBoneIndex) const
 {
 	UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get();
 	check(AnimInstance);
@@ -108,7 +106,7 @@ FTransform FIKRetargetEditorController::GetTargetBoneTransform(const int32& Targ
 	const UIKRetargetProcessor* RetargetProcessor = AnimInstance->GetRetargetProcessor();
 	check(RetargetProcessor)
 
-	// get transform of root of chain
+	// get transform of bone
 	FTransform BoneTransform = RetargetProcessor->GetTargetBoneRetargetPoseGlobalTransform(TargetBoneIndex);
 
 	// scale and offset
@@ -116,6 +114,17 @@ FTransform FIKRetargetEditorController::GetTargetBoneTransform(const int32& Targ
 	BoneTransform.AddToTranslation(FVector(AssetController->GetAsset()->TargetActorOffset, 0.f, 0.f));
 
 	return BoneTransform;
+}
+
+FTransform FIKRetargetEditorController::GetTargetBoneLocalTransform(const int32& TargetBoneIndex) const
+{
+	UIKRetargetAnimInstance* AnimInstance = TargetAnimInstance.Get();
+	check(AnimInstance);
+
+	const UIKRetargetProcessor* RetargetProcessor = AnimInstance->GetRetargetProcessor();
+	check(RetargetProcessor)
+
+	return RetargetProcessor->GetTargetBoneRetargetPoseLocalTransform(TargetBoneIndex);
 }
 
 bool FIKRetargetEditorController::GetTargetBoneLineSegments(

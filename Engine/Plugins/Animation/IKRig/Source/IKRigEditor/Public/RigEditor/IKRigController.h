@@ -169,6 +169,12 @@ public:
 	void SortRetargetChains() const;
 	/** END retarget chains */
 
+	// force all currently connected processors to reinitialize using latest asset state
+	void BroadcastNeedsReinitialized() const
+	{
+		IKRigNeedsInitialized.Broadcast(GetAsset());
+	}
+
 private:
 
 	/** Called whenever the rig is modified in such a way that would require re-initialization by dependent systems.*/
@@ -179,11 +185,6 @@ private:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnRetargetChainRenamed, UIKRigDefinition*, FName /*old name*/, FName /*new name*/);
 	FOnRetargetChainRenamed RetargetChainRenamed;
 
-	void BroadcastNeedsReinitialized() const
-	{
-		IKRigNeedsInitialized.Broadcast(GetAsset());
-	}
-	
 public:
 	
 	FOnIKRigNeedsInitialized& OnIKRigNeedsInitialized(){ return IKRigNeedsInitialized; };

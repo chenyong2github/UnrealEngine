@@ -31,7 +31,7 @@ class FIKRetargetEditor :
 	public FPersonaAssetEditorToolkit,
 	public IHasPersonaToolkit,
 	public FGCObject,
-	public FEditorUndoClient,
+	public FSelfRegisteringEditorUndoClient,
 	public FTickableEditorObject
 {
 public:
@@ -71,6 +71,11 @@ public:
 	/** IHasPersonaToolkit interface */
 	virtual TSharedRef<IPersonaToolkit> GetPersonaToolkit() const override { return EditorController->PersonaToolkit.ToSharedRef(); }
 	/** END IHasPersonaToolkit interface */
+
+	/** FSelfRegisteringEditorUndoClient interface */
+	virtual void PostUndo( bool bSuccess );
+	virtual void PostRedo( bool bSuccess );
+	/** END FSelfRegisteringEditorUndoClient interface */
 
 	TSharedRef<FIKRetargetEditorController> GetController() const {return EditorController;};
 

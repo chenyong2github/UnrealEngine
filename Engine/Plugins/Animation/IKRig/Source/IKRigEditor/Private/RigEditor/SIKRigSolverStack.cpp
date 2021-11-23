@@ -102,6 +102,10 @@ void SIKRigSolverStackItem::Construct(
 					.Text(InStackElement->DisplayName)
 					.IsEnabled_Lambda([this]()
 					{
+						if (!IsSolverEnabled())
+						{
+							return false;
+						}
 						FText Warning;
 						return !GetWarningMessage(Warning);
 					})
@@ -151,27 +155,36 @@ void SIKRigSolverStackItem::Construct(
 
 bool SIKRigSolverStackItem::GetWarningMessage(FText& Message)
 {
+	if (UIKRigSolver* Solver = GetSolver())
+	{
+		return Solver->GetWarningMessage(Message);
+	}
+	
+	return false;
+}
+
+bool SIKRigSolverStackItem::IsSolverEnabled() const
+{
+	if (const UIKRigSolver* Solver = GetSolver())
+	{
+		return Solver->IsEnabled();
+	}
+	
+	return false;
+}
+
+UIKRigSolver* SIKRigSolverStackItem::GetSolver() const
+{
 	if (!(StackElement.IsValid() && SolverStack.IsValid()))
 	{
-		return false;
+		return nullptr;
 	}
 	if (!SolverStack.Pin()->EditorController.IsValid())
 	{
-		return false;
+		return nullptr;
 	}
 	const int32 SolverIndex = StackElement.Pin()->IndexInStack;
-	const UIKRigSolver* Solver = SolverStack.Pin()->EditorController.Pin()->AssetController->GetSolver(SolverIndex);
-	if (!Solver)
-	{
-		return false;
-	}
-
-	if (Solver->GetWarningMessage(Message))
-	{
-		return true;
-	}
-					
-	return false;
+	return SolverStack.Pin()->EditorController.Pin()->AssetController->GetSolver(SolverIndex);
 }
 
 TSharedRef<FIKRigSolverStackDragDropOp> FIKRigSolverStackDragDropOp::New(TWeakPtr<FSolverStackElement> InElement)
@@ -250,6 +263,7 @@ void SIKRigSolverStack::Construct(const FArguments& InArgs, TSharedRef<FIKRigEdi
 			.ListItemsSource( &ListViewItems )
 			.OnGenerateRow( this, &SIKRigSolverStack::MakeListRowWidget )
 			.OnSelectionChanged(this, &SIKRigSolverStack::OnSelectionChanged)
+			.OnMouseButtonClick(this, &SIKRigSolverStack::OnItemClicked)
         ]
     ];
 
@@ -359,7 +373,7 @@ void SIKRigSolverStack::RefreshStackView()
 	}
 
 	// record/restore selection
-	int32 IndexToSelect = 0; // default to first item
+	int32 IndexToSelect = -1; // default to nothing selected
 	const TArray<TSharedPtr<FSolverStackElement>> SelectedItems = ListView.Get()->GetSelectedItems();
 	if (!SelectedItems.IsEmpty())
 	{
@@ -379,7 +393,7 @@ void SIKRigSolverStack::RefreshStackView()
 	}
 
 	// restore selection
-	if (IndexToSelect < ListViewItems.Num())
+	if (ListViewItems.IsValidIndex(IndexToSelect))
 	{
 		ListView->SetSelection(ListViewItems[IndexToSelect]);
 	}
@@ -418,6 +432,17 @@ FReply SIKRigSolverStack::OnDragDetected(
 }
 
 void SIKRigSolverStack::OnSelectionChanged(TSharedPtr<FSolverStackElement> InItem, ESelectInfo::Type SelectInfo)
+{
+	ShowDetailsForItem(InItem);
+}
+
+void SIKRigSolverStack::OnItemClicked(TSharedPtr<FSolverStackElement> InItem)
+{
+	ShowDetailsForItem(InItem);
+	EditorController.Pin()->SetLastSelectedType(EIKRigSelectionType::SolverStack);
+}
+
+void SIKRigSolverStack::ShowDetailsForItem(TSharedPtr<FSolverStackElement> InItem)
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
