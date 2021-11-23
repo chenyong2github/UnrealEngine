@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
+#include "InteractiveToolWithToolTargetsBuilder.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "WeightMapTypes.h"
 #include "MeshOpPreviewHelpers.h"
@@ -15,6 +15,7 @@
 struct FMeshDescription;
 class UDynamicMeshComponent;
 class UPreviewMesh;
+class UBaseMeshProcessingTool;
 PREDECLARE_USE_GEOMETRY_CLASS(FMeshBoundaryLoops);
 PREDECLARE_USE_GEOMETRY_CLASS(FMeshNormals);
 using UE::Geometry::FDynamicMesh3;
@@ -23,7 +24,7 @@ using UE::Geometry::FIndexedWeightMap1f;
  * ToolBuilder for UBaseMeshProcessingTool
  */
 UCLASS()
-class MODELINGCOMPONENTS_API UBaseMeshProcessingToolBuilder : public UInteractiveToolBuilder
+class MODELINGCOMPONENTS_API UBaseMeshProcessingToolBuilder : public UInteractiveToolWithToolTargetsBuilder
 {
 	GENERATED_BODY()
 
@@ -36,7 +37,7 @@ public:
 	virtual UBaseMeshProcessingTool* MakeNewToolInstance(UObject* Outer) const { check(false); return nullptr; }
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 

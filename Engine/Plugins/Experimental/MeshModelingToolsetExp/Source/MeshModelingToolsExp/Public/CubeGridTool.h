@@ -10,7 +10,7 @@
 #include "FrameTypes.h"
 #include "GeometryBase.h"
 #include "InteractiveTool.h"
-#include "InteractiveToolBuilder.h"
+#include "InteractiveToolWithToolTargetsBuilder.h"
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI
 #include "Mechanics/CubeGrid.h"
 #include "ModelingOperators.h"
@@ -42,7 +42,7 @@ class UToolTarget;
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UCubeGridToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UCubeGridToolBuilder : public UInteractiveToolWithToolTargetsBuilder
 {
 	GENERATED_BODY()
 
@@ -54,7 +54,7 @@ public:
 
 protected:
 
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 

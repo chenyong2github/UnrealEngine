@@ -261,12 +261,6 @@ namespace UUVEditorChannelEditLocals
 }
 
 
-const FToolTargetTypeRequirements& UUVEditorChannelEditToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements(UUVEditorToolMeshInput::StaticClass());
-	return TypeRequirements;
-}
-
 bool UUVEditorChannelEditToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return Targets && Targets->Num() > 0;

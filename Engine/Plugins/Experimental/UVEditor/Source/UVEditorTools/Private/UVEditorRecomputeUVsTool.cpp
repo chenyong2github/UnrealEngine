@@ -23,12 +23,6 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-const FToolTargetTypeRequirements& UUVEditorRecomputeUVsToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements(UUVEditorToolMeshInput::StaticClass());
-	return TypeRequirements;
-}
-
 bool UUVEditorRecomputeUVsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return Targets && Targets->Num() > 0;

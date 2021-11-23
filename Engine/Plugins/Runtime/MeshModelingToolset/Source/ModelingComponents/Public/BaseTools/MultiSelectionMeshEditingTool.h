@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MultiSelectionTool.h"
-#include "InteractiveToolBuilder.h"
+#include "InteractiveToolWithToolTargetsBuilder.h"
 #include "MultiSelectionMeshEditingTool.generated.h"
 
 class UMultiSelectionMeshEditingTool;
@@ -14,7 +14,7 @@ class UMultiSelectionMeshEditingTool;
  * for editing meshes.
  */
 UCLASS(Transient, Abstract)
-class MODELINGCOMPONENTS_API UMultiSelectionMeshEditingToolBuilder : public UInteractiveToolBuilder
+class MODELINGCOMPONENTS_API UMultiSelectionMeshEditingToolBuilder : public UInteractiveToolWithToolTargetsBuilder
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ public:
 	virtual void InitializeNewTool(UMultiSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 

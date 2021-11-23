@@ -3,7 +3,7 @@
 #pragma once
 
 #include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
+#include "InteractiveToolWithToolTargetsBuilder.h"
 #include "SingleSelectionMeshEditingTool.generated.h"
 
 class USingleSelectionMeshEditingTool;
@@ -15,7 +15,7 @@ class UPersistentMeshSelection;
  * for editing meshes.
  */
 UCLASS(Transient, Abstract)
-class MODELINGCOMPONENTS_API USingleSelectionMeshEditingToolBuilder : public UInteractiveToolBuilder
+class MODELINGCOMPONENTS_API USingleSelectionMeshEditingToolBuilder : public UInteractiveToolWithToolTargetsBuilder
 {
 	GENERATED_BODY()
 
@@ -36,7 +36,7 @@ public:
 	virtual bool WantsInputSelectionIfAvailable() const { return false; }
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
