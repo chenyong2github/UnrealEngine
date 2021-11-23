@@ -35,11 +35,11 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Goal Settings")
 	FName BoneName;
 
-	/** Range 0-1, default is 1. Blend between the Goal position between the input bone pose (0.0) and the current goal transform (1.0).*/
+	/** Range 0-1, default is 1. Blend between the input bone position (0.0) and the current goal position (1.0).*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float PositionAlpha = 1.0f;
 
-	/** Range 0-1, default is 1. Blend between the Goal rotation between the input bone pose (0.0) and the current goal transform (1.0).*/
+	/** Range 0-1, default is 1. Blend between the input bone rotation (0.0) and the current goal rotation (1.0).*/
 	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float RotationAlpha = 1.0f;
 
@@ -133,13 +133,25 @@ class IKRIG_API UIKRigDefinition : public UObject, public IInterface_PreviewMesh
 public:
 
 #if WITH_EDITORONLY_DATA
+
+	/**Draw bones in the viewport.*/
+	UPROPERTY(EditAnywhere, Category = "Viewport Bone Settings")
+	bool DrawBones = true;
+	
+	/**The size of the Bones in the editor viewport.*/
+	UPROPERTY(EditAnywhere, Category = "Viewport Bone Settings", meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "100.0"))
+	float BoneSize = 2.0f;
+
+	/**Draw bones in the viewport.*/
+	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings")
+	bool DrawGoals = true;
 	
 	/**The size of the Goals in the editor viewport.*/
-	UPROPERTY(EditAnywhere, Category = "Goal Drawing", meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "100.0"))
+	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings", meta = (ClampMin = "0.01", UIMin = "0.1", UIMax = "100.0"))
 	float GoalSize = 7.0f;
 
 	/** The thickness of the Goals in the editor viewport.*/
-	UPROPERTY(EditAnywhere, Category = "Goal Drawing",  meta = (ClampMin = "0.01", UIMin = "0.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "Viewport Goal Settings",  meta = (ClampMin = "0.01", UIMin = "0.0", UIMax = "10.0"))
 	float GoalThickness = 0.7f;
 
 	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
@@ -149,14 +161,6 @@ public:
 #endif
 
 	virtual void Serialize(FArchive& Ar) override;
-
-#if WITH_EDITOR
-	// This delegate is called when an edit operation is undone on the rig asset.
-	DECLARE_MULTICAST_DELEGATE(OnIKRigEditUndo);
-	OnIKRigEditUndo IKRigEditUndo;
-	
-	virtual void PostEditUndo() override;
-#endif
 
 	/** The skeletal mesh that was used as the source of the skeleton data. Also used for preview.
 	* NOTE: the IK rig may be played back on ANY skeleton that is compatible with it's hierarchy. */

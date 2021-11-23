@@ -115,6 +115,8 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController);
 
+	FName GetSelectedChain();
+
 private:
 	
 	/** menu for adding new solver commands */
@@ -133,6 +135,7 @@ private:
 
 	/** callback when "Add New Chain" clicked */
 	bool IsAddChainEnabled() const;
+	
 	/** when a chain is clicked on in the stack view */
 	void OnItemClicked(TSharedPtr<FRetargetChainElement> InItem);
 

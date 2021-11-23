@@ -28,9 +28,6 @@ UIKRetargeterController* UIKRetargeterController::GetController(UIKRetargeter* I
 	// clean the asset before editing
 	Controller->CleanChainMapping();
 	Controller->CleanPoseList();
-
-	// bind callback to reinitialize processor on the asset undo
-	InRetargeterAsset->IKRigEditUndo.AddUObject(Controller, &UIKRetargeterController::BroadcastNeedsReinitialized);
 	
 	return Controller;
 }
@@ -214,6 +211,9 @@ void UIKRetargeterController::CleanPoseList()
 			{
 				Pose.Value.BoneRotationOffsets.Remove(BoneToRemove);
 			}
+
+			// sort the pose offset from leaf to root
+			Pose.Value.SortHierarchically(Asset->TargetIKRigAsset->Skeleton);
 		}
 	}
 
@@ -390,9 +390,21 @@ const TMap<FName, FIKRetargetPose>& UIKRetargeterController::GetRetargetPoses()
 	return GetAsset()->RetargetPoses;
 }
 
-void UIKRetargeterController::AddRotationOffsetToRetargetPoseBone(FName BoneName, FQuat RotationOffset) const
+void UIKRetargeterController::SetRotationOffsetForRetargetPoseBone(FName BoneName, FQuat RotationOffset) const
 {
-	Asset->RetargetPoses[Asset->CurrentRetargetPose].AddRotationDeltaToBone(BoneName, RotationOffset);
+	const FIKRigSkeleton& Skeleton = Asset->GetTargetIKRig()->Skeleton;
+	Asset->RetargetPoses[Asset->CurrentRetargetPose].SetBoneRotationOffset(BoneName, RotationOffset, Skeleton);
+}
+
+FQuat UIKRetargeterController::GetRotationOffsetForRetargetPoseBone(FName BoneName) const
+{
+	TMap<FName, FQuat>& BoneOffsets = Asset->RetargetPoses[Asset->CurrentRetargetPose].BoneRotationOffsets;
+	if (!BoneOffsets.Contains(BoneName))
+	{
+		return FQuat::Identity;
+	}
+	
+	return BoneOffsets[BoneName];
 }
 
 void UIKRetargeterController::AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const

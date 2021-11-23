@@ -85,4 +85,5 @@ private:
 	
 	friend class UAnimGraphNode_IKRig;
 	friend struct FIKRigAnimInstanceProxy;
+	friend class UIKRigAnimInstance;
 };

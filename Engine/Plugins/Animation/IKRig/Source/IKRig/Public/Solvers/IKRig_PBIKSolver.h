@@ -198,7 +198,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings")
 	bool bAllowStretch = false;
 
-	/** If true, solver will pull entire skeleton towards effectors BEFORE running constraint iterations. Default is true. */
+	/** (Default is true) If true, solver runs a pre-pass (before the constraint solve) which will translate the whole body by the average motion of the stretched effectors.
+	*This can decrease the amount of iterations needed to achieve a converged pose when the effectors are pulling the body far.
+	*This option has no effect if PinRoot is set to True.*/
 	UPROPERTY(EditAnywhere, Category = "Full Body IK Settings")
 	bool bPrePullRoot = true;
 

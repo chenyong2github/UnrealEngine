@@ -10,29 +10,31 @@ const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBE
 #endif
 const FName UIKRetargeter::GetDefaultPoseName() { return DefaultPoseName; }
 
-#if WITH_EDITOR
-void UIKRetargeter::PostEditUndo()
-{
-	Super::PostEditUndo();
-	IKRigEditUndo.Broadcast();
-};
-#endif
-
-void FIKRetargetPose::AddRotationDeltaToBone(FName BoneName, FQuat RotationDelta)
+void FIKRetargetPose::SetBoneRotationOffset(FName BoneName, FQuat RotationDelta, const FIKRigSkeleton& Skeleton)
 {
 	FQuat* RotOffset = BoneRotationOffsets.Find(BoneName);
 	if (RotOffset == nullptr)
 	{
 		// first time this bone has been modified in this pose
 		BoneRotationOffsets.Emplace(BoneName, RotationDelta);
+		SortHierarchically(Skeleton);
 		return;
 	}
 
-	// accumulate delta rotation
-	*RotOffset = RotationDelta * (*RotOffset);
+	*RotOffset = RotationDelta;
 }
 
 void FIKRetargetPose::AddTranslationDeltaToRoot(FVector TranslateDelta)
 {
 	RootTranslationOffset += TranslateDelta;
+}
+
+void FIKRetargetPose::SortHierarchically(const FIKRigSkeleton& Skeleton)
+{
+	// sort offsets hierarchically so that they are applied in leaf to root order
+	// when generating the component space retarget pose in the processor
+	BoneRotationOffsets.KeySort([Skeleton](FName A, FName B)
+	{
+		return Skeleton.GetBoneIndexFromName(A) > Skeleton.GetBoneIndexFromName(B);
+	});
 }

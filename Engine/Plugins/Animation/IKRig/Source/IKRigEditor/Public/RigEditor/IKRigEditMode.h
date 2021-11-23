@@ -6,67 +6,19 @@
 
 #include "IKRigDefinition.h"
 #include "IPersonaEditMode.h"
+#include "SkeletalDebugRendering.h"
 
 class FIKRigEditorController;
 class UIKRigEffectorGoal;
 class FIKRigEditorToolkit;
 class FIKRigPreviewScene;
-
-struct GoalGizmo
-{
-	GoalGizmo()
-	{
-		// wireframe cube lines (point pairs)
-		BoxPoints.Add(FVector(0.5f, 0.5f, 0.5f));
-		BoxPoints.Add(FVector(0.5f, -0.5f, 0.5f));
-		BoxPoints.Add(FVector(0.5f, -0.5f, 0.5f));
-		BoxPoints.Add(FVector(-0.5f, -0.5f, 0.5f));
-		BoxPoints.Add(FVector(-0.5f, -0.5f, 0.5f));
-		BoxPoints.Add(FVector(-0.5f, 0.5f, 0.5f));
-		BoxPoints.Add(FVector(-0.5f, 0.5f, 0.5f));
-		BoxPoints.Add(FVector(0.5f, 0.5f, 0.5f));
-
-		BoxPoints.Add(FVector(0.5f, 0.5f, -0.5f));
-		BoxPoints.Add(FVector(0.5f, -0.5f, -0.5f));
-		BoxPoints.Add(FVector(0.5f, -0.5f, -0.5f));
-		BoxPoints.Add(FVector(-0.5f, -0.5f, -0.5f));
-		BoxPoints.Add(FVector(-0.5f, -0.5f, -0.5f));
-		BoxPoints.Add(FVector(-0.5f, 0.5f, -0.5f));
-		BoxPoints.Add(FVector(-0.5f, 0.5f, -0.5f));
-		BoxPoints.Add(FVector(0.5f, 0.5f, -0.5f));
-
-		BoxPoints.Add(FVector(0.5f, 0.5f, 0.5f));
-		BoxPoints.Add(FVector(0.5f, 0.5f, -0.5f));
-		BoxPoints.Add(FVector(0.5f, -0.5f, 0.5f));
-		BoxPoints.Add(FVector(0.5f, -0.5f, -0.5f));
-		BoxPoints.Add(FVector(-0.5f, -0.5f, 0.5f));
-		BoxPoints.Add(FVector(-0.5f, -0.5f, -0.5f));
-		BoxPoints.Add(FVector(-0.5f, 0.5f, 0.5f));
-		BoxPoints.Add(FVector(-0.5f, 0.5f, -0.5f));
-	}
-
-	void DrawGoal(
-		FPrimitiveDrawInterface* PDI,
-		const UIKRigEffectorGoal* Goal,
-		bool bIsSelected,
-		float Size,
-		float Thickness) const
-	{
-		const FLinearColor Color = bIsSelected ? FLinearColor::Green : FLinearColor::Yellow;
-		const float Scale = FMath::Clamp(Size, 0.1f, 1000.0f);
-		const FTransform Transform = Goal->CurrentTransform;
-		for (int32 PointIndex = 0; PointIndex < BoxPoints.Num() - 1; PointIndex += 2)
-		{
-			PDI->DrawLine(Transform.TransformPosition(BoxPoints[PointIndex] * Scale), Transform.TransformPosition(BoxPoints[PointIndex + 1] * Scale), Color, SDPG_Foreground, Thickness);
-		}
-	}
-
-	TArray<FVector> BoxPoints;
-};
+class UIKRigProcessor;
 
 class FIKRigEditMode : public IPersonaEditMode
 {
+	
 public:
+	
 	static FName ModeName;
 	
 	FIKRigEditMode();
@@ -100,9 +52,15 @@ public:
 	/** END FEdMode interface */
 
 private:
+	
+	void RenderGoals(FPrimitiveDrawInterface* PDI);
+	void RenderBones(FPrimitiveDrawInterface* PDI);
+	void GetAffectedBones(
+		FIKRigEditorController* Controller,
+		UIKRigProcessor* Processor,
+		TSet<int32>& OutAffectedBones,
+		TSet<int32>& OutSelectedBones) const;
+	
 	/** The hosting app */
 	TWeakPtr<FIKRigEditorController> EditorController;
-
-	/** draws goals in viewport */
-	GoalGizmo GoalDrawer;
 };

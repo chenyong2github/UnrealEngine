@@ -59,7 +59,9 @@ struct IKRIG_API FIKRetargetPose
 {
 	GENERATED_BODY()
 	
-	FIKRetargetPose(){}
+public:
+	
+	FIKRetargetPose() = default;
 	
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
 	FVector RootTranslationOffset = FVector::ZeroVector;
@@ -67,9 +69,12 @@ struct IKRIG_API FIKRetargetPose
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
 	TMap<FName, FQuat> BoneRotationOffsets;
 
-	void AddRotationDeltaToBone(FName BoneName, FQuat RotationDelta);
+	// returns true if this is a new offset (not previously recorded)
+	void SetBoneRotationOffset(FName BoneName, FQuat RotationOffset, const FIKRigSkeleton& Skeleton);
 
 	void AddTranslationDeltaToRoot(FVector TranslateDelta);
+
+	void SortHierarchically(const FIKRigSkeleton& Skeleton);
 };
 
 
@@ -107,12 +112,6 @@ public:
 
 #if WITH_EDITOR
 	bool IsInEditRetargetPoseMode() const { return bEditRetargetPoseMode; };
-
-	// This delegate is called when an edit operation is undone on the rig asset.
-	DECLARE_MULTICAST_DELEGATE(OnIKRigEditUndo);
-	OnIKRigEditUndo IKRigEditUndo;
-	
-	virtual void PostEditUndo() override;
 #endif
 
 private:
@@ -157,10 +156,6 @@ public:
 	/** The visual size of the bones in the viewport when editing the retarget pose.*/
 	UPROPERTY(EditAnywhere, Category = PoseEditSettings, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
 	float BoneDrawSize = 8.0f;
-
-	/** The visual thickness of the bones in the viewport when editing the retarget pose.*/
-	UPROPERTY(EditAnywhere, Category = PoseEditSettings, meta = (ClampMin = "0.0", UIMin = "0.01", UIMax = "10.0"))
-	float BoneDrawThickness = 1.0f;
 
 private:
 	/** A special editor-only mode which forces the retargeter to output the current retarget reference pose,

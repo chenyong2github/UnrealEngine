@@ -85,7 +85,6 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 	}
 
 	// update effectors
-	const float OffsetAlpha = 1.0f; // this is constant because IKRig manages offset alphas itself
 	for (const UIKRig_FBIKEffector* Effector : Effectors)
 	{
 		if (Effector->IndexInSolver < 0)
@@ -98,15 +97,19 @@ void UIKRigPBIKSolver::Solve(FIKRigSkeleton& IKRigSkeleton, const FIKRigGoalCont
 		{
 			return;
 		}
+
+		PBIK::FEffectorSettings Settings;
+		Settings.PositionAlpha = 1.0f; // this is constant because IKRig manages offset alphas itself
+		Settings.RotationAlpha = 1.0f; // this is constant because IKRig manages offset alphas itself
+		Settings.StrengthAlpha = Effector->StrengthAlpha;
+		Settings.PullChainAlpha = Effector->PullChainAlpha;
+		Settings.PinRotation = Effector->PinRotation;
 		
 		Solver.SetEffectorGoal(
 			Effector->IndexInSolver,
 			Goal->FinalBlendedPosition,
 			Goal->FinalBlendedRotation,
-			OffsetAlpha,
-			Effector->StrengthAlpha,
-			Effector->PullChainAlpha,
-			Effector->PinRotation);
+			Settings);
 	}
 
 	// update settings
@@ -325,6 +328,19 @@ void UIKRigPBIKSolver::DrawBoneSettings(
 
 bool UIKRigPBIKSolver::IsBoneAffectedBySolver(const FName& BoneName, const FIKRigSkeleton& IKRigSkeleton) const
 {
+	// nothing is affected by solver without a root bone assigned or at least 1 effector
+	if (RootBone == NAME_None || Effectors.IsEmpty())
+	{
+		return false;
+	}
+
+	// has to be BELOW root
+	if (!IKRigSkeleton.IsBoneInDirectLineage(BoneName, RootBone))
+	{
+		return false;
+	}
+
+	// has to be ABOVE an effector
 	for (UIKRig_FBIKEffector* Effector : Effectors)
 	{
 		if (IKRigSkeleton.IsBoneInDirectLineage(Effector->BoneName, BoneName))

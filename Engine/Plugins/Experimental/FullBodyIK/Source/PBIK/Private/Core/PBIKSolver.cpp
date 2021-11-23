@@ -12,16 +12,13 @@ namespace PBIK
 	{
 		check(InBone);
 		Bone = InBone;
-		SetGoal(Bone->Position, Bone->Rotation, 1.0f, 1.0f, 1.0f, 0.0f);
+		SetGoal(Bone->Position, Bone->Rotation, Settings);
 	}
 
 	void FEffector::SetGoal(
 		const FVector& InPositionGoal,
 		const FQuat& InRotationGoal,
-		float InTransformAlpha,
-		float InStrengthAlpha,
-		float InPullChainAlpha,
-		float InPinRotation)
+		const FEffectorSettings& InSettings)
 	{
 		PositionOrig = Bone->Position;
 		RotationOrig = Bone->Rotation;
@@ -29,18 +26,15 @@ namespace PBIK
 		Position = PositionGoal = InPositionGoal;
 		Rotation = RotationGoal = InRotationGoal;
 
-		TransformAlpha = InTransformAlpha;
-		StrengthAlpha = InStrengthAlpha;
-		PullChainAlpha = InPullChainAlpha;
-		PinRotation = InPinRotation;
+		Settings = InSettings;
 	}
 
 	void FEffector::UpdateFromInputs(const FBone& SolverRoot)
 	{
 		// blend effector transform by alpha and set pin goal transform
-		Position = FMath::Lerp(PositionOrig, PositionGoal, TransformAlpha);
-		Rotation = FMath::Lerp(RotationOrig, RotationGoal, TransformAlpha);
-		Pin.Pin()->SetGoal(Position, Rotation, StrengthAlpha);
+		Position = FMath::Lerp(PositionOrig, PositionGoal, Settings.PositionAlpha);
+		Rotation = FMath::Lerp(RotationOrig, RotationGoal, Settings.RotationAlpha);
+		Pin.Pin()->SetGoal(Position, Rotation, Settings.StrengthAlpha);
 
 		// update length of chain this effector controls in the input pose
 		if (ParentSubRoot)
@@ -241,7 +235,7 @@ void FPBIKSolver::ApplyPullChainAlpha()
 			continue;
 		}
 
-		if (Effector.PullChainAlpha < SMALL_NUMBER)
+		if (Effector.Settings.PullChainAlpha < SMALL_NUMBER)
 		{
 			continue;
 		}
@@ -271,8 +265,9 @@ void FPBIKSolver::ApplyPullChainAlpha()
 		(ChainEndNew - ChainStartNew).ToDirectionAndLength(ChainVecNew, ChainLenNew);
 
 		FQuat ChainDeltaRotation = FQuat::FindBetweenNormals(ChainVecOrig, ChainVecNew);
-		ChainDeltaRotation = FQuat::FastLerp(FQuat::Identity, ChainDeltaRotation, (Effector.PullChainAlpha * Effector.StrengthAlpha));
-		FVector ChainDeltaPosition = ChainVecNew * (ChainLenNew - ChainLenOrig) * (Effector.PullChainAlpha * Effector.StrengthAlpha);
+		const float ChainDeltaAlpha = Effector.Settings.PullChainAlpha * Effector.Settings.StrengthAlpha;
+		ChainDeltaRotation = FQuat::FastLerp(FQuat::Identity, ChainDeltaRotation, ChainDeltaAlpha);
+		FVector ChainDeltaPosition = ChainVecNew * (ChainLenNew - ChainLenOrig) * ChainDeltaAlpha;
 
 		FBone* Bone = Effector.Bone->Parent;
 		int32 ChainIndex = 0;
@@ -391,10 +386,10 @@ void FPBIKSolver::UpdateBonesFromBodies()
 		
 		Bone->Position = Bone->Parent->Position + Bone->Parent->Rotation * Bone->LocalPositionOrig;
 
-		if (Effector.PinRotation > SMALL_NUMBER)
+		if (Effector.Settings.PinRotation > SMALL_NUMBER)
 		{
 			// optionally pin rotation to that of effector
-			const float RotAmount = FMath::Clamp(0.0f, 1.0f, Effector.PinRotation);
+			const float RotAmount = FMath::Clamp(0.0f, 1.0f, Effector.Settings.PinRotation);
 			Bone->Rotation = FQuat::FastLerp(Bone->Rotation, Effector.Rotation, RotAmount).GetNormalized();
 		}else
 		{
@@ -776,11 +771,8 @@ void FPBIKSolver::SetEffectorGoal(
 	const int32 Index,
 	const FVector& InPosition,
 	const FQuat& InRotation,
-	const float OffsetAlpha,
-	const float StrengthAlpha,
-	const float PullChainAlpha,
-	const float PinRotation)
+	const PBIK::FEffectorSettings& InSettings)
 {
 	check(Index >= 0 && Index < Effectors.Num());
-	Effectors[Index].SetGoal(InPosition, InRotation, OffsetAlpha, StrengthAlpha, PullChainAlpha, PinRotation);
+	Effectors[Index].SetGoal(InPosition, InRotation, InSettings);
 }

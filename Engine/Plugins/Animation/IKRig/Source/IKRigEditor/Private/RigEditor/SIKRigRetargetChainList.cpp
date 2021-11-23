@@ -305,6 +305,16 @@ void SIKRigRetargetChainList::Construct(const FArguments& InArgs, TSharedRef<FIK
 	RefreshView();
 }
 
+FName SIKRigRetargetChainList::GetSelectedChain()
+{
+	TArray<TSharedPtr<FRetargetChainElement>> SelectedItems = ListView->GetSelectedItems();
+	if (SelectedItems.IsEmpty())
+	{
+		return NAME_None;
+	}
+	return SelectedItems[0].Get()->ChainName;
+}
+
 bool SIKRigRetargetChainList::IsAddChainEnabled() const
 {
 	const TSharedPtr<FIKRigEditorController> Controller = EditorController.Pin();
@@ -365,7 +375,7 @@ TSharedRef<ITableRow> SIKRigRetargetChainList::MakeListRowWidget(
 
 void SIKRigRetargetChainList::OnItemClicked(TSharedPtr<FRetargetChainElement> InItem)
 {
-	// TODO highlight chain in skeleton view
+	EditorController.Pin()->SetLastSelectedType(EIKRigSelectionType::RetargetChains);
 }
 
 FReply SIKRigRetargetChainList::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)

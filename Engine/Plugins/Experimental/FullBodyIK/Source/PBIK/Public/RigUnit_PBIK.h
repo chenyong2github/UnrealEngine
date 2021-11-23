@@ -62,11 +62,13 @@ struct FPBIKEffector
 	UPROPERTY(EditAnywhere, Category="Effector")
 	FTransform Transform;
 
-	/** Range 0-1 (default is 1.0). This blends the effector translation and rotation between its transform and the transform of the bone from the input pose.
-	 * At 0.0, the effector will be placed at the location of the bone in the input pose (effectively pinning the skeleton to the input pose).
-	 * At 1.0, the effector will be placed at the supplied location.*/
-	UPROPERTY(EditAnywhere, Category="Effector")
-	float OffsetAlpha = 1.0f;
+	/** Range 0-1, default is 1. Blend between the input bone position (0.0) and the current effector position (1.0).*/
+	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float PositionAlpha = 1.0f;
+
+	/** Range 0-1, default is 1. Blend between the input bone rotation (0.0) and the current effector rotation (1.0).*/
+	UPROPERTY(EditAnywhere, Category = "Goal Settings", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float RotationAlpha = 1.0f;
 
 	/** Range 0-1 (default is 1.0). The strength of the effector when pulling the bone towards it's target location.
 	 * At 0.0, the effector does not pull at all, but the bones between the effector and the root will still slightly resist motion from other effectors.

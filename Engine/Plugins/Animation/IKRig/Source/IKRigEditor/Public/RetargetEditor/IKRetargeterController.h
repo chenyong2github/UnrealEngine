@@ -84,8 +84,10 @@ public:
 	void SetCurrentRetargetPose(FName CurrentPose) const;
 	/** Get read-only access to list of retarget poses */
 	const TMap<FName, FIKRetargetPose>& GetRetargetPoses();
-	/** Add a delta rotation to a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
-	void AddRotationOffsetToRetargetPoseBone(FName BoneName, FQuat RotationOffset) const;
+	/** Set a delta rotation for a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
+	void SetRotationOffsetForRetargetPoseBone(FName BoneName, FQuat RotationOffset) const;
+	/** Get a delta rotation for a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
+	FQuat GetRotationOffsetForRetargetPoseBone(FName BoneName) const;
 	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
 	void AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const;
 	/** Set whether to output retarget pose. Will output current retarget pose if true, or run retarget otherwise. */
@@ -101,15 +103,15 @@ private:
 	/** Called whenever the retargeter is modified in such a way that would require re-initialization by dependent systems.*/
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRetargeterNeedsInitialized, const UIKRetargeter*);
 	FOnRetargeterNeedsInitialized RetargeterNeedsInitialized;
+	
+public:
+	
+	FOnRetargeterNeedsInitialized& OnRetargeterNeedsInitialized(){ return RetargeterNeedsInitialized; };
 
 	void BroadcastNeedsReinitialized() const
 	{
 		RetargeterNeedsInitialized.Broadcast(GetAsset());
 	}
-	
-public:
-	
-	FOnRetargeterNeedsInitialized& OnRetargeterNeedsInitialized(){ return RetargeterNeedsInitialized; };
 	
 private:
 

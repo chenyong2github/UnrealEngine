@@ -141,6 +141,20 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FIKRigEditorController> InEditorController);
 
+	/** selection state queries */
+	static bool IsBoneInSelection(TArray<TSharedPtr<FIKRigTreeElement>>& SelectedBoneItems, const FName& BoneName);
+	void GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const;
+	void GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& OutSelectedGoals) const;
+	int32 GetNumSelectedGoals();
+	void GetSelectedGoalNames(TArray<FName>& OutSelectedGoalNames) const;
+	bool IsGoalSelected(const FName& GoalName);
+	void AddSelectedItemFromViewport(
+		const FName& ItemName,
+		IKRigTreeElementType ItemType,
+		const bool bReplace);
+	void GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains);
+	/** END selection state queries */
+
 private:
 	/** SWidget interface */
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
@@ -148,6 +162,13 @@ private:
 	
 	/** Bind commands that this widget handles */
 	void BindCommands();
+
+	/** directly, programmatically add item to selection */
+	void AddItemToSelection(const TSharedPtr<FIKRigTreeElement>& InItem);
+	/** directly, programmatically add item to selection */
+	void RemoveItemFromSelection(const TSharedPtr<FIKRigTreeElement>& InItem);
+	/** directly, programmatically replace item in selection */
+	void ReplaceItemInSelection(const FText& OldName, const FText& NewName);
 
 	/** creating / renaming / deleting goals */
 	void HandleNewGoal();
@@ -197,13 +218,6 @@ private:
 	void HandleSetRetargetRoot();
 	bool CanSetRetargetRoot();
 	/** END retarget chains */
-
-	/** selection state queries */
-	void GetSelectedBones(TArray<TSharedPtr<FIKRigTreeElement>>& OutBoneItems) const;
-	void GetSelectedGoals(TArray<TSharedPtr<FIKRigTreeElement>>& OutSelectedGoals) const;
-	void SetSelectedGoalsFromViewport(const TArray<FName>& GoalNames);
-	void GetSelectedBoneChains(TArray<FIKRigSkeletonChain>& OutChains);
-	/** END selection state queries */
 
 	/** centralized editor controls (facilitate cross-communication between multiple UI elements)*/
 	TWeakPtr<FIKRigEditorController> EditorController;
