@@ -535,7 +535,7 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	FBakeCacheSettings BakeCacheSettings;
 	BakeCacheSettings.Dimensions = Dimensions;
 	BakeCacheSettings.BitDepth = Settings->BitDepth;
-	BakeCacheSettings.TargetUVLayer = FCString::Atoi(*MeshProps->TargetUVLayer);
+	BakeCacheSettings.TargetUVLayer = MeshProps->TargetUVLayerNamesList.IndexOfByKey(MeshProps->TargetUVLayer);
 	BakeCacheSettings.DetailTimestamp = this->DetailMeshTimestamp;
 	BakeCacheSettings.ProjectionDistance = MeshProps->ProjectionDistance;
 	BakeCacheSettings.SamplesPerPixel = (int32)Settings->SamplesPerPixel;
@@ -610,8 +610,9 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 {
 	EBakeOpState ResultState = EBakeOpState::Clean;
-	
-	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(FCString::Atoi(*MeshProps->SourceNormalMapUVLayer));
+
+	const int DetailUVLayer = MeshProps->SourceUVLayerNamesList.IndexOfByKey(MeshProps->SourceNormalMapUVLayer);
+	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(DetailUVLayer);
 	if (UVOverlay == nullptr)
 	{
 		GetToolManager()->DisplayMessage(LOCTEXT("InvalidUVWarning", "The Detail Mesh does not have the selected UV layer"), EToolMessageLevel::UserWarning);
@@ -634,7 +635,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 	}
 
 	FDetailMeshSettings DetailMeshSettings;
-	DetailMeshSettings.UVLayer = FCString::Atoi(*MeshProps->SourceNormalMapUVLayer);
+	DetailMeshSettings.UVLayer = DetailUVLayer;
 
 	if (!(CachedDetailMeshSettings == DetailMeshSettings))
 	{
