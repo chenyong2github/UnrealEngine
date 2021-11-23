@@ -378,6 +378,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bOverrideFMaterial_NeedsGBufferEnabled : 1;
 	uint32 bSupportsMobileDistanceField : 1;
 	uint32 bSupportsFFTBloom : 1;
+	uint32 bSupportsInlineRayTracing : 1;
 	uint32 bSupportsVertexShaderLayer : 1;
 	uint32 bSupportsBindless : 1;
 
@@ -568,6 +569,12 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].bSupportsRayTracing;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsInlineRayTracing(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].bSupportsInlineRayTracing;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsRayTracingProceduralPrimitive(const FStaticShaderPlatform Platform)
