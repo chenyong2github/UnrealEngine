@@ -342,7 +342,7 @@ FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShad
 {
 	RHIShaders = MakeUnique<std::atomic<FRHIShader*>[]>(NumRHIShaders); // this MakeUnique() zero-initializes the array
 #if RHI_RAYTRACING
-	if (GRHISupportsRayTracing)
+	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
 	{
 		RayTracingMaterialLibraryIndices.AddUninitialized(NumShaders);
 		FMemory::Memset(RayTracingMaterialLibraryIndices.GetData(), 0xff, NumShaders * RayTracingMaterialLibraryIndices.GetTypeSize());
@@ -425,7 +425,7 @@ FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
 
 	TRefCountPtr<FRHIShader> RHIShader = CreateRHIShader(ShaderIndex);
 #if RHI_RAYTRACING
-	if (GRHISupportsRayTracing && RHIShader.IsValid() && RHIShader->GetFrequency() == SF_RayHitGroup)
+	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders && RHIShader.IsValid() && RHIShader->GetFrequency() == SF_RayHitGroup)
 	{
 		RayTracingMaterialLibraryIndices[ShaderIndex] = AddToRayTracingLibrary(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
 	}
@@ -493,7 +493,7 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 	case SF_Compute: RHIShader = RHICreateComputeShader(ShaderCodeView, ShaderHash); break;
 	case SF_RayGen: case SF_RayMiss: case SF_RayHitGroup: case SF_RayCallable:
 #if RHI_RAYTRACING
-		if (GRHISupportsRayTracing)
+		if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
 		{
 			RHIShader = RHICreateRayTracingShader(ShaderCodeView, ShaderHash, Frequency);
 		}

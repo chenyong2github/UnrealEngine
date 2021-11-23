@@ -20,7 +20,8 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 {
 	check(IsInRenderingThread());
 
-	if (!GRHISupportsRayTracing)
+	// The ray tracing testbed currently rquires full ray tracing pipeline support.
+	if (!GRHISupportsRayTracing || !GRHISupportsRayTracingShaders)
 	{
 		//Return true so the test passes in DX11, until the testing framework allows to skip tests depending on defined preconditions
 		return true;
