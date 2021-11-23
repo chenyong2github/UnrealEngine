@@ -221,6 +221,18 @@ namespace EpicGames.Serialization
 		/// <inheritdoc/>
 		public override string ToString() => Hash.ToString();
 
+		/// <inheritdoc/>
+		public override bool Equals(object? Obj) => Obj is CbBinaryAttachment Other && Other.Hash == Hash;
+
+		/// <inheritdoc/>
+		public override int GetHashCode() => Hash.GetHashCode();
+
+		/// <inheritdoc/>
+		public static bool operator ==(CbBinaryAttachment Lhs, CbBinaryAttachment Rhs) => Lhs.Hash == Rhs.Hash;
+
+		/// <inheritdoc/>
+		public static bool operator !=(CbBinaryAttachment Lhs, CbBinaryAttachment Rhs) => Lhs.Hash != Rhs.Hash;
+
 		/// <summary>
 		/// Convert a hash to a binary attachment 
 		/// </summary>
@@ -287,6 +299,18 @@ namespace EpicGames.Serialization
 
 		/// <inheritdoc/>
 		public override string ToString() => Hash.ToString();
+
+		/// <inheritdoc/>
+		public override bool Equals(object? Obj) => Obj is CbObjectAttachment Other && Other.Hash == Hash;
+
+		/// <inheritdoc/>
+		public override int GetHashCode() => Hash.GetHashCode();
+
+		/// <inheritdoc/>
+		public static bool operator ==(CbObjectAttachment Lhs, CbObjectAttachment Rhs) => Lhs.Hash == Rhs.Hash;
+
+		/// <inheritdoc/>
+		public static bool operator !=(CbObjectAttachment Lhs, CbObjectAttachment Rhs) => Lhs.Hash != Rhs.Hash;
 
 		/// <summary>
 		/// Use an object attachment as a hash
