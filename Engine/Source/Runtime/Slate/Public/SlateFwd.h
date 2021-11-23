@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Math/Vector.h"
 
 class SSearchBox;
 class SVolumeControl;
