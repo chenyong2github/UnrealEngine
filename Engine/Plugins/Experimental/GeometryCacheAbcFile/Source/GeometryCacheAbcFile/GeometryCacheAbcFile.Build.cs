@@ -28,5 +28,7 @@ public class GeometryCacheAbcFile : ModuleRules
                 "UnrealEd"
             }
         );
+
+		PrivateIncludePathModuleNames.Add("DerivedDataCache");
 	}
 }

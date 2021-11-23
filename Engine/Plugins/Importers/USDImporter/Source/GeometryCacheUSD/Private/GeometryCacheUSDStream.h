@@ -15,11 +15,13 @@ public:
 
 	//~ Begin IGeometryCacheStream Interface
 	virtual void Prefetch(int32 StartFrameIndex, int32 NumFrames = 0) override;
-	virtual const TArray<int32>& GetFramesNeeded() override;
-	virtual bool RequestFrameData(int32 FrameIndex) override;
+	virtual uint32 GetNumFramesNeeded() override;
+	virtual bool RequestFrameData() override;
 	virtual void UpdateRequestStatus(TArray<int32>& OutFramesCompleted) override;
 	virtual bool GetFrameData(int32 FrameIndex, FGeometryCacheMeshData& OutMeshData) override;
 	virtual int32 CancelRequests() override;
+	virtual const FGeometryCacheStreamStats& GetStreamStats() const override;
+	virtual void SetLimits(float MaxMemoryAllowed, float MaxCachedDuration) override;
 	//~ End IGeometryCacheStream Interface
 
 private:

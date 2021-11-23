@@ -69,9 +69,16 @@ int32 FGeometryCacheUsdStream::CancelRequests()
 	return CompletedFrames.Num();
 }
 
-bool FGeometryCacheUsdStream::RequestFrameData(int32 FrameIndex)
+bool FGeometryCacheUsdStream::RequestFrameData()
 {
 	check(IsInGameThread());
+
+	if (FramesNeeded.Num() == 0)
+	{
+		return false;
+	}
+
+	int32 FrameIndex = FramesNeeded[0];
 
 	// Don't schedule the same FrameIndex twice
 	for (int32 Index = 0; Index < FramesRequested.Num(); ++Index)
@@ -216,9 +223,9 @@ void FGeometryCacheUsdStream::Prefetch(int32 StartFrameIndex, int32 NumFrames)
 	}
 }
 
-const TArray<int32>& FGeometryCacheUsdStream::GetFramesNeeded()
+uint32 FGeometryCacheUsdStream::GetNumFramesNeeded()
 {
-	return FramesNeeded;
+	return FramesNeeded.Num();
 }
 
 bool FGeometryCacheUsdStream::GetFrameData(int32 FrameIndex, FGeometryCacheMeshData& OutMeshData)
@@ -264,4 +271,14 @@ void FGeometryCacheUsdStream::LoadFrameData(int32 FrameIndex)
 	ReadFunc( UsdTrack, FrameIndex, *MeshData );
 
 	FramesAvailable.Add(FrameIndex, MeshData);
+}
+
+const FGeometryCacheStreamStats& FGeometryCacheUsdStream::GetStreamStats() const
+{
+	static FGeometryCacheStreamStats NoStats;
+	return NoStats;
+}
+
+void FGeometryCacheUsdStream::SetLimits(float MaxMemoryAllowed, float MaxCachedDuration)
+{
 }

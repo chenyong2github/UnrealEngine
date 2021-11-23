@@ -10,9 +10,11 @@
 #include "GeometryCache.h"
 #include "GeometryCacheAbcStream.h"
 #include "GeometryCacheHelpers.h"
+#include "GeometryCacheStreamerSettings.h"
 #include "IGeometryCacheStreamer.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
+#include "Misc/ArchiveMD5.h"
 #include "Misc/Paths.h"
 #include "PackageTools.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -20,6 +22,44 @@
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCacheAbcFile, Log, All);
 
 #define LOCTEXT_NAMESPACE "GeometryCacheTrackAbcFile"
+
+namespace UE::GeometryCacheTrackAbcFile::Private
+{
+	void SerializeSettingsForDDC(FArchive& Ar, UAbcImportSettings* Settings)
+	{
+		// Include only settings that would affect how the frame data is generated
+		Ar << Settings->ConversionSettings.bFlipU;
+		Ar << Settings->ConversionSettings.bFlipV;
+		Ar << Settings->ConversionSettings.Rotation;
+		Ar << Settings->ConversionSettings.Scale;
+
+		Ar << Settings->GeometryCacheSettings.bFlattenTracks;
+		Ar << Settings->GeometryCacheSettings.bStoreImportedVertexNumbers;
+		Ar << Settings->GeometryCacheSettings.MotionVectors;
+
+		Ar << Settings->NormalGenerationSettings.bForceOneSmoothingGroupPerObject;
+		Ar << Settings->NormalGenerationSettings.HardEdgeAngleThreshold;
+		Ar << Settings->NormalGenerationSettings.bRecomputeNormals;
+		Ar << Settings->NormalGenerationSettings.bIgnoreDegenerateTriangles;
+		Ar << Settings->NormalGenerationSettings.bSkipComputingTangents;
+	}
+
+	FString ComputeSettingsHash(UAbcImportSettings* Settings)
+	{
+		if (!Settings)
+		{
+			return {};
+		}
+
+		FArchiveMD5 ArMD5;
+		SerializeSettingsForDDC(ArMD5, Settings);
+
+		FMD5Hash MD5Hash;
+		ArMD5.GetHash(MD5Hash);
+
+		return BytesToHex(MD5Hash.GetBytes(), MD5Hash.GetSize());
+	}
+}
 
 UGeometryCacheTrackAbcFile::UGeometryCacheTrackAbcFile()
 : EndFrameIndex(0)
@@ -75,6 +115,7 @@ const bool UGeometryCacheTrackAbcFile::UpdateBoundsData(const float Time, const 
 void UGeometryCacheTrackAbcFile::Reset()
 {
 	AbcFile.Reset();
+	Hash.Empty();
 
 	EndFrameIndex = 0;
 	Duration = 0.f;
@@ -131,6 +172,20 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 
 		Result = AbcFile->Import(AbcSettings);
 
+		// The hash is composed of the Alembic file hash and the settings hash used to import it
+		FString AbcHash;
+		for (const FAbcFile::FMetaData& MetaData : AbcFile->GetArchiveMetaData())
+		{
+			if (MetaData.Key == TEXT("Abc.Hash"))
+			{
+				AbcHash = MetaData.Value;
+				break;
+			}
+		}
+
+		FString SettingsHash = UE::GeometryCacheTrackAbcFile::Private::ComputeSettingsHash(AbcSettings);
+		Hash = AbcHash + TEXT("_") + SettingsHash;
+
 		// Set the end frame after import since it might have been modified due to validation at import
 		EndFrameIndex = AbcSettings->SamplingSettings.FrameEnd;
 
@@ -168,7 +223,10 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 		Streamer.RegisterTrack(this, Stream);
 
 		const int32 InitialFrameIndex = FindSampleIndexFromTime(InitialTime, bIsLooping);
-		Stream->Prefetch(InitialFrameIndex);
+		const float LookAhead = GetDefault<UGeometryCacheStreamerSettings>()->LookAheadBuffer;
+		const int32 NumFrames = FMath::CeilToInt(LookAhead / AbcFile->GetSecondsPerFrame());
+
+		Stream->Prefetch(InitialFrameIndex, NumFrames);
 		GetMeshData(InitialFrameIndex, MeshData);
 
 		if (MeshData.Positions.Num() == 0)

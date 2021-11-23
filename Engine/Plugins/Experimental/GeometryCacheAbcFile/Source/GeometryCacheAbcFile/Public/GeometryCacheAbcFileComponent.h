@@ -27,13 +27,16 @@ public:
 	FAbcSamplingSettings SamplingSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
-	FAbcMaterialSettings MaterialSettings;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
 	FAbcConversionSettings ConversionSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
+	FAbcGeometryCacheSettings GeometryCacheSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
 	FAbcNormalGenerationSettings NormalGenerationSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Alembic")
+	FAbcMaterialSettings MaterialSettings;
 
 public:
 #if WITH_EDITOR

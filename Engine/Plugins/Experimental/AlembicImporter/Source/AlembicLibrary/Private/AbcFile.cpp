@@ -120,6 +120,17 @@ EAbcImportError FAbcFile::Open()
 	DateWritten = ANSI_TO_TCHAR(TmpDateWritten.c_str());
 	UserDescription = ANSI_TO_TCHAR(TmpUserDescription.c_str());
 
+	Alembic::Util::Digest ChildrenDigest;
+	if (TopObject.getChildrenHash(ChildrenDigest))
+	{
+		Hash = ANSI_TO_TCHAR(ChildrenDigest.str().c_str());
+	}
+	else
+	{
+		// Fallback without actually hashing the file
+		Hash = FString::Printf(TEXT("%s;%s"), *FPaths::GetBaseFilename(FilePath), *DateWritten);
+	}
+
 	Alembic::Abc::IBox3dProperty ArchiveBoundsProperty = Alembic::AbcGeom::GetIArchiveBounds(Archive, Alembic::Abc::ErrorHandler::kQuietNoopPolicy);
 
 	if (ArchiveBoundsProperty.valid())
@@ -149,7 +160,8 @@ TArray<FAbcFile::FMetaData> FAbcFile::GetArchiveMetaData() const
 		FMetaDataEntry(TEXT("Abc.AppName"), AppName),
 		FMetaDataEntry(TEXT("Abc.LibraryVersion"), LibVersionString),
 		FMetaDataEntry(TEXT("Abc.WrittenOn"), DateWritten),
-		FMetaDataEntry(TEXT("Abc.UserDescription"), UserDescription)
+		FMetaDataEntry(TEXT("Abc.UserDescription"), UserDescription),
+		FMetaDataEntry(TEXT("Abc.Hash"), Hash)
 	});
 
 	for (const FMetaData& CustomAttribute : CustomAttributes)

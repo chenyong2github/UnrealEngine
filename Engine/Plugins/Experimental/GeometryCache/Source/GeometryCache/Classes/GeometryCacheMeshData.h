@@ -136,10 +136,10 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 	FGeometryCacheVertexInfo VertexInfo;
 		
 	/** Serialization for FVertexAnimationSample. */
-	friend FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh);
+	friend GEOMETRYCACHE_API FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh);
 
 	/** Serialization for const FVertexAnimationSample. */
-	friend FArchive& operator<<(FArchive& Ar, const FGeometryCacheMeshData& Mesh)
+	friend GEOMETRYCACHE_API FArchive& operator<<(FArchive& Ar, const FGeometryCacheMeshData& Mesh)
 	{
 		check(Ar.IsSaving());
 		return (Ar << const_cast<FGeometryCacheMeshData&>(Mesh));

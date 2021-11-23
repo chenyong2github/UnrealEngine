@@ -10,6 +10,8 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
+					"CoreUObject",
+					"DeveloperSettings",
 					"GeometryCache",
 					"Slate",
 					"SlateCore"
