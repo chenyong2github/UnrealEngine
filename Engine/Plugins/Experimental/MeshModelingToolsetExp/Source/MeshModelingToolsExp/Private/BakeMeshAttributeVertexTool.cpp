@@ -283,9 +283,9 @@ void UBakeMeshAttributeVertexTool::Setup()
 	MeshProps->TargetStaticMesh = GetStaticMeshTarget(Target);
 	MeshProps->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
 	MeshProps->TargetDynamicMesh = GetDynamicMeshTarget(Target);
-	MeshProps->SourceStaticMesh = GetStaticMeshTarget(DetailTarget);
-	MeshProps->SourceSkeletalMesh = GetSkeletalMeshTarget(DetailTarget);
-	MeshProps->SourceDynamicMesh = GetDynamicMeshTarget(DetailTarget);
+	MeshProps->SourceStaticMesh = !bIsBakeToSelf ? GetStaticMeshTarget(DetailTarget) : nullptr;
+	MeshProps->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
+	MeshProps->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
 	MeshProps->SourceNormalMap = nullptr;
 	MeshProps->WatchProperty(MeshProps->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
 	MeshProps->WatchProperty(MeshProps->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });

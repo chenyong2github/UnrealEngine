@@ -277,9 +277,9 @@ void UBakeMeshAttributeMapsTool::Setup()
 	MeshProps->TargetStaticMesh = GetStaticMeshTarget(Target);
 	MeshProps->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
 	MeshProps->TargetDynamicMesh = GetDynamicMeshTarget(Target);
-	MeshProps->SourceStaticMesh = GetStaticMeshTarget(DetailTarget);
-	MeshProps->SourceSkeletalMesh = GetSkeletalMeshTarget(DetailTarget);
-	MeshProps->SourceDynamicMesh = GetDynamicMeshTarget(DetailTarget);
+	MeshProps->SourceStaticMesh = !bIsBakeToSelf ? GetStaticMeshTarget(DetailTarget) : nullptr;
+	MeshProps->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
+	MeshProps->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
 	MeshProps->SourceNormalMap = nullptr;
 	UpdateUVLayerNames(MeshProps->TargetUVLayer, MeshProps->TargetUVLayerNamesList, BaseMesh);
 	MeshProps->WatchProperty(MeshProps->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
