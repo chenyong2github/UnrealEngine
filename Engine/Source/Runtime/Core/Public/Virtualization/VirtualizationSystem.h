@@ -99,13 +99,30 @@ public:
 	 */
 	virtual FCompressedBuffer PullData(const FPayloadId& Id) = 0;
 
-	using GetPayloadActivityInfoFuncRef = TFunctionRef<void(const FString& DebugName, const FString& ConfigName, const FPayloadActivityInfo& PAyloadInfo)>;
+	using GetPayloadActivityInfoFuncRef = TFunctionRef<void(const FString& DebugName, const FString& ConfigName, const FPayloadActivityInfo& PayloadInfo)>;
 
 	/** Access profiling info relating to payload activity per backend. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
 	virtual void GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef ) const = 0;
 
 	/** Access profiling info relating to accumulated payload activity. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
 	virtual FPayloadActivityInfo GetAccumualtedPayloadActivityInfo() const = 0;
+
+	//* Notification messages
+	enum ENotification
+	{
+		PushBegunNotification,
+		PushEndedNotification,
+		PushFailedNotification,
+
+		PullBegunNotification,
+		PullEndedNotification,
+		PullFailedNotification,
+	};
+
+	/** Declare delegate for notifications*/
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNotification, ENotification, const FPayloadId&);
+
+	virtual FOnNotification& GetNotificationEvent() = 0;
 };
 
 namespace Private

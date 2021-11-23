@@ -42,6 +42,13 @@ public:
 	{
 		return FPayloadActivityInfo();
 	}
+
+	virtual FOnNotification& GetNotificationEvent() override
+	{
+		return NotificationEvent;
+	}
+
+	FOnNotification NotificationEvent;
 };
 
 TUniquePtr<IVirtualizationSystem> GVirtualizationSystem = nullptr;

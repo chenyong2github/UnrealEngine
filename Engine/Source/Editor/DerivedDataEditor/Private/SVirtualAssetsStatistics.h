@@ -7,14 +7,18 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SBoxPanel.h"
-#include "ZenServerInterface.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "VirtualizationManager.h"
 
 class SVirtualAssetsStatisticsDialog : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SVirtualAssetsStatisticsDialog) {}
 	SLATE_END_ARGS()
 
-		void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs);
+
+	SVirtualAssetsStatisticsDialog();
+	virtual ~SVirtualAssetsStatisticsDialog();
 
 private:
 
@@ -22,5 +26,15 @@ private:
 
 	EActiveTimerReturnType UpdateGridPanels(double InCurrentTime, float InDeltaTime);
 
+	FText GetNotificationText() const;
+
+	void OnNotificationEvent(UE::Virtualization::IVirtualizationSystem::ENotification Notification, const UE::Virtualization::FPayloadId& PayloadId);
+
 	SVerticalBox::FSlot* GridSlot = nullptr;
+
+	FCriticalSection NotificationCS;
+
+	TSharedPtr<SNotificationItem> PullRequestNotificationItem;
+
+	uint32 NumPullRequests = 0;
 };

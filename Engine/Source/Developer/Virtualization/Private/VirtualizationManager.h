@@ -123,6 +123,13 @@ public:
 
 	/** Access profiling info relating to payload activity per backend. Stats will only be collected if ENABLE_COOK_STATS is enabled.*/
 	virtual void GetPayloadActivityInfo( GetPayloadActivityInfoFuncRef ) const override;
+
+
+	/** Get event delegate for system notifications */
+	virtual FOnNotification& GetNotificationEvent() override
+	{
+		return NotificationEvent;
+	}
 	
 private:
 	
@@ -203,6 +210,9 @@ private:
 	 * and can contain a mixture of local cacheable and persistent backends 
 	 */
 	FBackendArray PullEnabledBackends;
+
+	/** Our notification Event */
+	FOnNotification NotificationEvent;
 };
 
 } // namespace UE::Virtualization

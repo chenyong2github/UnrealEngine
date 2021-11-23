@@ -10,6 +10,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Internationalization/FastDecimalFormat.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "VirtualAssets"
 
@@ -17,14 +18,60 @@ extern FString SingleDecimalFormat(double Value);
 
 using namespace UE::Virtualization;
 
+SVirtualAssetsStatisticsDialog::SVirtualAssetsStatisticsDialog()
+{
+	// Register our VA notification delegate with the event
+	IVirtualizationSystem& System = IVirtualizationSystem::Get();
+	System.GetNotificationEvent().AddRaw(this, &SVirtualAssetsStatisticsDialog::OnNotificationEvent);
+
+}
+
+SVirtualAssetsStatisticsDialog::~SVirtualAssetsStatisticsDialog()
+{
+	// Unregister our VA notification delegate with the event
+	IVirtualizationSystem& System = IVirtualizationSystem::Get();
+	System.GetNotificationEvent().RemoveAll(this);
+}
+
+void SVirtualAssetsStatisticsDialog::OnNotificationEvent(IVirtualizationSystem::ENotification Notification, const FPayloadId& PayloadId)
+{
+	FScopeLock SocpeLock(&NotificationCS);
+	
+	switch (Notification)
+	{	
+		case IVirtualizationSystem::ENotification::PullBegunNotification:
+		{
+			NumPullRequests++;
+			break;
+		}
+
+		case IVirtualizationSystem::ENotification::PullEndedNotification:
+		{	
+			NumPullRequests--;
+			break;
+		}
+
+		case IVirtualizationSystem::ENotification::PullFailedNotification:
+		{
+			FNotificationInfo* Info = new FNotificationInfo(LOCTEXT("PayloadSyncFail", "Failed To Sync Asset Payload"));
+
+			Info->bUseSuccessFailIcons = true;
+			Info->bFireAndForget = true;
+			Info->FadeOutDuration = 1.0f;
+			Info->ExpireDuration = 4.0f;
+
+			FSlateNotificationManager::Get().QueueNotification(Info);
+
+			break;
+		}
+
+		default:
+		break;
+	}
+}
+
 void SVirtualAssetsStatisticsDialog::Construct(const FArguments& InArgs)
 {
-	const float RowMargin = 0.0f;
-	const float TitleMargin = 10.0f;
-	const float ColumnMargin = 10.0f;
-	const FSlateColor TitleColour = FStyleColors::AccentWhite;
-	const FSlateFontInfo TitleFont = FCoreStyle::GetDefaultFontStyle("Bold", 10);
-
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -48,6 +95,32 @@ EActiveTimerReturnType SVirtualAssetsStatisticsDialog::UpdateGridPanels(double I
 	];
 
 	SlatePrepass(GetPrepassLayoutScaleMultiplier());
+
+	if ( NumPullRequests!=0 && PullRequestNotificationItem.IsValid()==false )
+	{
+		// No existing notification or the existing one has finished
+		TPromise<TWeakPtr<SNotificationItem>> NotificationPromise;
+
+		FNotificationInfo Info(LOCTEXT("PayloadSyncInProgress", "Syncing Asset Payloads"));
+		Info.bFireAndForget = false;
+		Info.FadeOutDuration = 0.5f;
+		Info.ExpireDuration = 0.0f;
+
+		PullRequestNotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+
+		if (PullRequestNotificationItem.IsValid())
+		{
+			NotificationPromise.SetValue(PullRequestNotificationItem);
+			PullRequestNotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+		}
+	}
+	
+	if ( NumPullRequests==0 && PullRequestNotificationItem.IsValid()==true )
+	{
+		PullRequestNotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+		PullRequestNotificationItem->ExpireAndFadeout();
+		PullRequestNotificationItem.Reset();
+	}
 
 	return EActiveTimerReturnType::Continue;
 }
