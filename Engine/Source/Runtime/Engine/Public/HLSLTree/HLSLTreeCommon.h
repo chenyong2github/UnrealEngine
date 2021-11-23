@@ -309,9 +309,7 @@ public:
 class FStatementReturn : public FStatement
 {
 public:
-	static constexpr bool MarkScopeLiveRecursive = true;
-
-	FType Type;
+	//static constexpr bool MarkScopeLiveRecursive = true;
 	FExpression* Expression;
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
@@ -331,9 +329,9 @@ public:
 class FStatementBreak : public FStatement
 {
 public:
-	static constexpr bool MarkScopeLive = true;
+	//static constexpr bool MarkScopeLive = true;
 
-	virtual void PrepareValues(FEmitContext& Context) const override {}
+	virtual void PrepareValues(FEmitContext& Context) const override;
 	virtual void EmitHLSL(FEmitContext& Context) const override;
 };
 

@@ -335,7 +335,10 @@ void FExpressionGetStructField::PrepareValue(FEmitContext& Context, const FReque
 		return Context.Errors.AddErrorf(this, TEXT("Invalid field %s"), FieldName);
 	}
 
-	const FPrepareValueResult StructResult = PrepareExpressionValue(Context, StructExpression, RequestedType.MakeFieldAccess(StructType, FieldRef));
+	FRequestedType RequestedStructType(StructType, false);
+	RequestedStructType.SetField(FieldRef, RequestedType);
+
+	const FPrepareValueResult StructResult = PrepareExpressionValue(Context, StructExpression, RequestedStructType);
 	if (StructResult && StructResult.Type != FType(StructType))
 	{
 		return Context.Errors.AddErrorf(this, TEXT("Expected type %s"), StructType->Name);
@@ -361,7 +364,10 @@ void FExpressionSetStructField::PrepareValue(FEmitContext& Context, const FReque
 		return Context.Errors.AddErrorf(this, TEXT("Invalid field %s"), FieldName);
 	}
 
-	const FPrepareValueResult StructResult = PrepareExpressionValue(Context, StructExpression, RequestedType.CopyWithFieldRemoved(FieldRef));
+	FRequestedType RequestedStructType(RequestedType);
+	RequestedStructType.ClearFieldRequested(FieldRef);
+
+	const FPrepareValueResult StructResult = PrepareExpressionValue(Context, StructExpression, RequestedStructType);
 	if (StructResult && StructResult.Type != FType(StructType))
 	{
 		return Context.Errors.AddErrorf(this, TEXT("Expected type %s"), StructType->Name);
@@ -623,20 +629,21 @@ void FExpressionReflectionVector::EmitValueShader(FEmitContext& Context, FShader
 	OutShader.Code.Append(TEXT("Parameters.ReflectionVector"));
 }
 
+void FStatementBreak::PrepareValues(FEmitContext& Context) const
+{
+}
+
 void FStatementBreak::EmitHLSL(FEmitContext& Context) const
 {
-	ParentScope->MarkLive();
 	ParentScope->EmitStatementf(Context, TEXT("break;"));
 }
 
 void FStatementReturn::PrepareValues(FEmitContext& Context) const
 {
-	PrepareExpressionValue(Context, Expression, Type);
 }
 
 void FStatementReturn::EmitHLSL(FEmitContext& Context) const
 {
-	ParentScope->MarkLiveRecursive();
 	ParentScope->EmitStatementf(Context, TEXT("return %s;"), Expression->GetValueShader(Context));
 }
 
@@ -648,21 +655,20 @@ void FStatementIf::PrepareValues(FEmitContext& Context) const
 		const bool bCondition = ConditionResult.ConstantValue.AsBoolScalar();
 		if (bCondition)
 		{
+			MarkScopeLive(ThenScope);
 			MarkScopeDead(ElseScope);
-			PrepareScopeValues(Context, ThenScope);
 		}
 		else
 		{
 			MarkScopeDead(ThenScope);
-			PrepareScopeValues(Context, ElseScope);
+			MarkScopeLive(ElseScope);
 		}
 	}
-	else
+	else if(ConditionResult)
 	{
-		PrepareScopeValues(Context, ThenScope);
-		PrepareScopeValues(Context, ElseScope);
+		MarkScopeLive(ThenScope);
+		MarkScopeLive(ElseScope);
 	}
-	PrepareScopeValues(Context, NextScope);
 }
 
 void FStatementIf::EmitHLSL(FEmitContext& Context) const
@@ -697,8 +703,7 @@ void FStatementIf::EmitHLSL(FEmitContext& Context) const
 
 void FStatementLoop::PrepareValues(FEmitContext& Context) const
 {
-	PrepareScopeValues(Context, LoopScope);
-	PrepareScopeValues(Context, NextScope);
+	MarkScopeLive(LoopScope);
 }
 
 void FStatementLoop::EmitHLSL(FEmitContext& Context) const

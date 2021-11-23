@@ -4,7 +4,6 @@
 #if WITH_EDITOR
 
 #include "MaterialHLSLGenerator.h"
-#include "MaterialHLSLTree.h"
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 
@@ -392,8 +391,8 @@ EMaterialGenerateHLSLStatus UMaterialExpressionIfThenElse::GenerateHLSLStatement
 	UE::HLSLTree::FStatementIf* IfStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementIf>(Scope);
 	IfStatement->ConditionExpression = ConditionExpression;
 	IfStatement->NextScope = Generator.NewJoinedScope(Scope);
-	IfStatement->ThenScope = Then.NewScopeWithStatements(Generator, Scope);
-	IfStatement->ElseScope = Else.NewScopeWithStatements(Generator, Scope);
+	IfStatement->ThenScope = Then.NewOwnedScopeWithStatements(Generator, *IfStatement);
+	IfStatement->ElseScope = Else.NewOwnedScopeWithStatements(Generator, *IfStatement);
 
 	return EMaterialGenerateHLSLStatus::Success;
 }
@@ -411,11 +410,11 @@ EMaterialGenerateHLSLStatus UMaterialExpressionWhileLoop::GenerateHLSLStatements
 	}
 
 	UE::HLSLTree::FStatementLoop* LoopStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementLoop>(Scope);
-	LoopStatement->LoopScope = Generator.NewScope(Scope);
+	LoopStatement->LoopScope = Generator.NewOwnedScope(*LoopStatement);
 
 	UE::HLSLTree::FStatementIf* IfStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementIf>(*LoopStatement->LoopScope);
-	IfStatement->ThenScope = Generator.NewScope(*LoopStatement->LoopScope);
-	IfStatement->ElseScope = Generator.NewScope(*LoopStatement->LoopScope);
+	IfStatement->ThenScope = Generator.NewOwnedScope(*IfStatement);
+	IfStatement->ElseScope = Generator.NewOwnedScope(*IfStatement);
 	LoopStatement->NextScope = Generator.NewScope(Scope, EMaterialNewScopeFlag::NoPreviousScope);
 	LoopStatement->LoopScope->AddPreviousScope(*IfStatement->ThenScope);
 	LoopStatement->NextScope->AddPreviousScope(*IfStatement->ElseScope);
@@ -482,12 +481,12 @@ EMaterialGenerateHLSLStatus UMaterialExpressionForLoop::GenerateHLSLStatements(F
 	Generator.GenerateAssignLocal(Scope, ExpressionData->LocalName, StartExpression);
 
 	UE::HLSLTree::FStatementLoop* LoopStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementLoop>(Scope);
-	LoopStatement->LoopScope = Generator.NewScope(Scope);
+	LoopStatement->LoopScope = Generator.NewOwnedScope(*LoopStatement);
 	ExpressionData->LoopScope = LoopStatement->LoopScope;
 
 	UE::HLSLTree::FStatementIf* IfStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementIf>(*LoopStatement->LoopScope);
-	IfStatement->ThenScope = Generator.NewScope(*LoopStatement->LoopScope);
-	IfStatement->ElseScope = Generator.NewScope(*LoopStatement->LoopScope);
+	IfStatement->ThenScope = Generator.NewOwnedScope(*IfStatement);
+	IfStatement->ElseScope = Generator.NewOwnedScope(*IfStatement);
 	LoopStatement->NextScope = Generator.NewScope(Scope, EMaterialNewScopeFlag::NoPreviousScope);
 	LoopStatement->LoopScope->AddPreviousScope(*IfStatement->ThenScope);
 	LoopStatement->NextScope->AddPreviousScope(*IfStatement->ElseScope);

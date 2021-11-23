@@ -234,8 +234,18 @@ const TCHAR* FEmitContext::CastShaderValue(const FNode* Node, const TCHAR* Code,
 	}
 }
 
-void FEmitContext::AddPreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader, FStringBuilderBase& OutCode)
+const TCHAR* FEmitContext::AcquirePreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader)
 {
+	FSHA1 Hasher;
+	Hasher.Update((uint8*)&Type, sizeof(Type));
+	Preshader.AppendHash(Hasher);
+	const FSHAHash Hash = Hasher.Finalize();
+	TCHAR const* const* PrevPreshader = Preshaders.Find(Hash);
+	if (PrevPreshader)
+	{
+		return *PrevPreshader;
+	}
+
 	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
 	ensure(TypeDesc.ComponentType == Shader::EValueComponentType::Float || TypeDesc.ComponentType == Shader::EValueComponentType::Double);
 
@@ -256,29 +266,34 @@ void FEmitContext::AddPreshader(Shader::EValueType Type, const Shader::FPreshade
 	PreshaderHeader.ComponentType = TypeDesc.ComponentType;
 	PreshaderHeader.NumComponents = TypeDesc.NumComponents;
 
+	TStringBuilder<1024> FormattedCode;
 	if (TypeDesc.ComponentType == Shader::EValueComponentType::Double)
 	{
 		if (TypeDesc.NumComponents == 1)
 		{
-			OutCode.Append(TEXT("MakeLWCScalar("));
+			FormattedCode.Append(TEXT("MakeLWCScalar("));
 		}
 		else
 		{
-			OutCode.Appendf(TEXT("MakeLWCVector%d("), TypeDesc.NumComponents);
+			FormattedCode.Appendf(TEXT("MakeLWCVector%d("), TypeDesc.NumComponents);
 		}
 
-		WriteMaterialUniformAccess(Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, OutCode); // Tile
+		WriteMaterialUniformAccess(Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode); // Tile
 		UniformPreshaderOffset += TypeDesc.NumComponents;
-		OutCode.Append(TEXT(","));
-		WriteMaterialUniformAccess(Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, OutCode); // Offset
+		FormattedCode.Append(TEXT(","));
+		WriteMaterialUniformAccess(Shader::EValueComponentType::Float, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode); // Offset
 		UniformPreshaderOffset += TypeDesc.NumComponents;
-		OutCode.Append(TEXT(")"));
+		FormattedCode.Append(TEXT(")"));
 	}
 	else
 	{
-		WriteMaterialUniformAccess(TypeDesc.ComponentType, TypeDesc.NumComponents, UniformPreshaderOffset, OutCode);
+		WriteMaterialUniformAccess(TypeDesc.ComponentType, TypeDesc.NumComponents, UniformPreshaderOffset, FormattedCode);
 		UniformPreshaderOffset += TypeDesc.NumComponents;
 	}
+
+	const TCHAR* Code = AllocateString(*Allocator, FormattedCode);
+	Preshaders.Add(Hash, Code);
+	return Code;
 }
 
 void FEmitContext::Finalize()
@@ -360,6 +375,14 @@ FConstantValue::FConstantValue(const Shader::FValue& InValue) : Type(InValue.Get
 	}
 }
 
+void FScope::Reset()
+{
+	State = EScopeState::Uninitialized;
+	ExpressionCodeMap.Reset();
+	Declarations = FCodeList();
+	Statements = FCodeList();
+}
+
 FScope* FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
 {
 	FScope* Scope0 = Lhs;
@@ -385,12 +408,34 @@ FScope* FScope::FindSharedParent(FScope* Lhs, FScope* Rhs)
 
 void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedType& RequestedType)
 {
-	FExpression* ForwardExpression = nullptr;
-	bool bForwardExpressionValid = false;
+	FExpression* ForwardExpression = Values[0];
+	bool bForwardExpressionValid = true;
+
+	// There are 2 cases we want to optimize here
+	// 1) If the PHI node has the same value in all the previous scopes, we can avoid generating code for the previous scopes, and just use the value directly
+	for (int32 i = 1; i < NumValues; ++i)
+	{
+		FExpression* ScopeExpression = Values[i];
+		if (ScopeExpression != ForwardExpression)
+		{
+			ForwardExpression = nullptr;
+			bForwardExpressionValid = false;
+			break;
+		}
+	}
+
+	if (bForwardExpressionValid)
+	{
+		check(ForwardExpression);
+		return SetForwardValue(Context, ForwardExpression, RequestedType);
+	}
+
+	// 2) PHI has different values in previous scopes, but possible some previous scopes may become dead due to constant folding
+	// In this case, we check to see if the value is the same in all live scopes, and forward if possible
 	for (int32 i = 0; i < NumValues; ++i)
 	{
-		// Ignore values in scopes that have already been marked as dead
-		if (!Scopes[i]->IsDead())
+		// Ignore values in dead scopes
+		if (PrepareScopeValues(Context, Scopes[i]))
 		{
 			FExpression* ScopeExpression = Values[i];
 			if (!ForwardExpression)
@@ -419,7 +464,7 @@ void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	{
 		for (int32 i = 0; i < NumValues; ++i)
 		{
-			if (!TypePerValue[i])
+			if (!TypePerValue[i] && PrepareScopeValues(Context, Scopes[i]))
 			{
 				const FPrepareValueResult ValueResult = PrepareExpressionValue(Context, Values[i], RequestedType);
 				if (ValueResult.Type)
@@ -480,8 +525,9 @@ void FExpressionLocalPHI::EmitShaderDependencies(FEmitContext& Context, const FS
 	for (int32 i = 0; i < NumValues; ++i)
 	{
 		FScope* ValueScope = Scopes[i];
+		check(IsScopeLive(ValueScope));
+
 		const TCHAR* ValueCode = Values[i]->GetValueShader(Context, LocalType);
-		ValueScope->MarkLiveRecursive();
 		if (ValueScope == DeclarationScope)
 		{
 			ValueScope->EmitDeclarationf(Context, TEXT("%s %s = %s;"),
@@ -500,7 +546,7 @@ void FExpressionLocalPHI::EmitShaderDependencies(FEmitContext& Context, const FS
 
 	if (bNeedToAddDeclaration)
 	{
-		check(DeclarationScope->IsLive());
+		check(IsScopeLive(DeclarationScope));
 		DeclarationScope->EmitDeclarationf(Context, TEXT("%s %s;"),
 			LocalType.GetName(),
 			Shader.Code.ToString());
@@ -535,9 +581,23 @@ ENodeVisitResult FScope::Visit(FNodeVisitor& Visitor)
 	const ENodeVisitResult Result = Visitor.OnScope(*this);
 	if (ShouldVisitDependentNodes(Result))
 	{
-		Visitor.VisitNode(Statement);
+		Visitor.VisitNode(ContainedStatement);
 	}
 	return Result;
+}
+
+void FStatement::Reset()
+{
+	bEmitHLSL = false;
+}
+
+void FExpression::Reset()
+{
+	LocalVariableName = nullptr;
+	Code = nullptr;
+	ForwardedValue = nullptr;
+	CurrentRequestedType.Reset();
+	PrepareValueResult = FPrepareValueResult();
 }
 
 FPrepareValueResult PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType)
@@ -606,7 +666,7 @@ FPrepareValueResult PrepareExpressionValue(FEmitContext& Context, FExpression* I
 			FMaterialRenderContext RenderContext(nullptr, *Context.Material, nullptr);
 			Shader::FValue Value;
 			ConstantPreshader.Evaluate(nullptr, RenderContext, Value);
-			InExpression->PrepareValueResult.ConstantValue = Value;
+			InExpression->PrepareValueResult.ConstantValue = Shader::Cast(Value, InExpression->PrepareValueResult.Type);
 		}
 	}
 
@@ -680,6 +740,7 @@ const TCHAR* FExpression::GetValueShader(FEmitContext& Context)
 					if (FoundDeclaration)
 					{
 						// Re-use results from previous matching expression
+						check(IsScopeLive(CheckScope));
 						Declaration = *FoundDeclaration;
 						break;
 					}
@@ -688,11 +749,10 @@ const TCHAR* FExpression::GetValueShader(FEmitContext& Context)
 
 				if (!Declaration)
 				{
-					check(ParentScope);
+					check(IsScopeLive(ParentScope));
 					Declaration = Context.AcquireLocalDeclarationCode();
 					ParentScope->ExpressionCodeMap.Add(Hash, Declaration);
-					ParentScope->MarkLiveRecursive();
-					ParentScope->EmitStatementf(Context, TEXT("const %s %s = %s;"),
+					ParentScope->EmitDeclarationf(Context, TEXT("const %s %s = %s;"),
 						PrepareValueResult.Type.GetName(),
 						Declaration,
 						FormattedCode.ToString());
@@ -715,8 +775,7 @@ const TCHAR* FExpression::GetValueShader(FEmitContext& Context)
 			EmitValuePreshader(Context, Preshader);
 			bReentryFlag = false;
 
-			Context.AddPreshader(PrepareValueResult.Type, Preshader, FormattedCode);
-			Code = AllocateString(*Context.Allocator, FormattedCode);
+			Code = Context.AcquirePreshader(PrepareValueResult.Type, Preshader);
 		}
 		else
 		{
@@ -825,10 +884,10 @@ void FScope::UseExpression(FExpression* Expression)
 
 void FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* NextScope, const TCHAR* String, int32 Length)
 {
-	if (NextScope && NextScope->Statement && !NextScope->Statement->bEmitHLSL)
+	if (NextScope && NextScope->ContainedStatement && !NextScope->ContainedStatement->bEmitHLSL)
 	{
-		NextScope->Statement->bEmitHLSL = true;
-		NextScope->Statement->EmitHLSL(Context);
+		NextScope->ContainedStatement->bEmitHLSL = true;
+		NextScope->ContainedStatement->EmitHLSL(Context);
 	}
 
 	const int32 SizeofString = sizeof(TCHAR) * Length;
@@ -854,12 +913,28 @@ void FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScope
 	List.Num++;
 }
 
-void PrepareScopeValues(FEmitContext& Context, const FScope* InScope)
+bool PrepareScopeValues(FEmitContext& Context, FScope* InScope)
 {
-	if (InScope && InScope->Statement)
+	if (InScope && InScope->State == EScopeState::Uninitialized)
 	{
-		InScope->Statement->PrepareValues(Context);
+		if (!InScope->ParentScope || PrepareScopeValues(Context, InScope->ParentScope))
+		{
+			if (InScope->OwnerStatement)
+			{
+				InScope->OwnerStatement->PrepareValues(Context);
+			}
+			else
+			{
+				InScope->State = EScopeState::Live;
+			}
+		}
+		else
+		{
+			InScope->State = EScopeState::Dead;
+		}
 	}
+
+	return InScope && InScope->State != EScopeState::Dead;
 }
 
 FTree* FTree::Create(FMemStackBase& Allocator)
@@ -907,6 +982,8 @@ void FScope::MarkLive()
 
 void FScope::MarkLiveRecursive()
 {
+	return MarkLive();
+
 	FScope* Scope = this;
 	while (Scope && Scope->State == EScopeState::Uninitialized)
 	{
@@ -987,36 +1064,32 @@ void FStructType::WriteHLSL(FStringBuilderBase& OutString) const
 	OutString.Append(TEXT("\n"));
 }
 
-bool FTree::EmitHLSL(FEmitContext& Context,
-	FStringBuilderBase& OutDeclarations,
-	FStringBuilderBase& OutCode) const
+void FTree::ResetNodes()
 {
-	if (!ResultStatement)
+	FNode* Node = Nodes;
+	while (Node)
 	{
-		return false;
+		FNode* Next = Node->NextNode;
+		Node->Reset();
+		Node = Next;
 	}
+}
 
-	PrepareScopeValues(Context, RootScope);
-	if (Context.Errors.Num() > 0)
+void FTree::EmitDeclarationsCode(FStringBuilderBase& OutCode) const
+{
+	const FStructType* StructType = StructTypes;
+	while (StructType)
 	{
-		return false;
+		StructType->WriteHLSL(OutCode);
+		StructType = StructType->NextType;
 	}
+}
 
-	ResultStatement->bEmitHLSL = true;
-	ResultStatement->EmitHLSL(Context);
-	if (!RootScope->IsLive())
+bool FTree::EmitHLSL(FEmitContext& Context, FStringBuilderBase& OutCode) const
+{
+	if (RootScope->ContainedStatement)
 	{
-		return false;
-	}
-
-	if (Context.Errors.Num() > 0)
-	{
-		return false;
-	}
-
-	if (RootScope->Statement)
-	{
-		RootScope->Statement->EmitHLSL(Context);
+		RootScope->ContainedStatement->EmitHLSL(Context);
 		if (Context.Errors.Num() > 0)
 		{
 			return false;
@@ -1024,16 +1097,7 @@ bool FTree::EmitHLSL(FEmitContext& Context,
 	}
 
 	Context.Finalize();
-
 	RootScope->WriteHLSL(1, OutCode);
-
-	const FStructType* StructType = StructTypes;
-	while (StructType)
-	{
-		StructType->WriteHLSL(OutDeclarations);
-		StructType = StructType->NextType;
-	}
-
 	return Context.Errors.Num() == 0;
 }
 
@@ -1045,10 +1109,10 @@ void FTree::RegisterExpression(FScope& Scope, FExpression* Expression)
 
 void FTree::RegisterStatement(FScope& Scope, FStatement* Statement)
 {
-	check(!Scope.Statement)
+	check(!Scope.ContainedStatement)
 	check(!Statement->ParentScope);
 	Statement->ParentScope = &Scope;
-	Scope.Statement = Statement;
+	Scope.ContainedStatement = Statement;
 }
 
 FScope* FTree::NewScope(FScope& Scope)
@@ -1056,6 +1120,16 @@ FScope* FTree::NewScope(FScope& Scope)
 	FScope* NewScope = NewNode<FScope>();
 	NewScope->ParentScope = &Scope;
 	NewScope->NestedLevel = Scope.NestedLevel + 1;
+	NewScope->NumPreviousScopes = 0;
+	return NewScope;
+}
+
+FScope* FTree::NewOwnedScope(FStatement& Owner)
+{
+	FScope* NewScope = NewNode<FScope>();
+	NewScope->OwnerStatement = &Owner;
+	NewScope->ParentScope = Owner.ParentScope;
+	NewScope->NestedLevel = NewScope->ParentScope->NestedLevel + 1;
 	NewScope->NumPreviousScopes = 0;
 	return NewScope;
 }
@@ -1118,12 +1192,6 @@ const FStructType* FTree::NewStructType(const FStructTypeInitializer& Initialize
 	StructType->NextType = StructTypes;
 	StructTypes = StructType;
 	return StructType;
-}
-
-void FTree::SetResult(FStatement& InResult)
-{
-	check(!ResultStatement);
-	ResultStatement = &InResult;
 }
 
 } // namespace HLSLTree

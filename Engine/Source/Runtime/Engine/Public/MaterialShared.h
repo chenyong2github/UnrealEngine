@@ -64,6 +64,7 @@ class FMeshMaterialShaderMapLayout;
 struct FMaterialShaderTypes;
 struct FMaterialShaders;
 struct FMaterialCachedExpressionData;
+class FMaterialHLSLGenerator;
 
 namespace UE
 {
@@ -2286,7 +2287,7 @@ private:
 	friend class FMaterialShaderMap;
 	friend class FShaderCompilingManager;
 	friend class FHLSLMaterialTranslator;
-	friend class FMaterialHLSLTree;
+	friend class FMaterialHLSLGenerator;
 };
 
 /**

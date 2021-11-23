@@ -9,12 +9,17 @@
 
 IMPLEMENT_TYPE_LAYOUT(UE::Shader::FPreshaderData);
 
-void UE::Shader::FPreshaderData::WriteData(const void* Value, uint32 Size)
+namespace UE
+{
+namespace Shader
+{
+
+void FPreshaderData::WriteData(const void* Value, uint32 Size)
 {
 	Data.Append((uint8*)Value, Size);
 }
 
-void UE::Shader::FPreshaderData::WriteName(const FScriptName& Name)
+void FPreshaderData::WriteName(const FScriptName& Name)
 {
 	int32 Index = Names.Find(Name);
 	if (Index == INDEX_NONE)
@@ -27,7 +32,7 @@ void UE::Shader::FPreshaderData::WriteName(const FScriptName& Name)
 	Write((uint16)Index);
 }
 
-void UE::Shader::FPreshaderData::Append(const FPreshaderData& InPreshader)
+void FPreshaderData::Append(const FPreshaderData& InPreshader)
 {
 	const uint32 BaseOffset = Data.Num();
 	Data.Append(InPreshader.Data);
@@ -51,14 +56,14 @@ void UE::Shader::FPreshaderData::Append(const FPreshaderData& InPreshader)
 	}
 }
 
-UE::Shader::FPreshaderDataContext::FPreshaderDataContext(const FPreshaderData& InData)
+FPreshaderDataContext::FPreshaderDataContext(const FPreshaderData& InData)
 	: Ptr(InData.Data.GetData())
 	, EndPtr(Ptr + InData.Data.Num())
 	, Names(InData.Names.GetData())
 	, NumNames(InData.Names.Num())
 {}
 
-UE::Shader::FPreshaderDataContext::FPreshaderDataContext(const FPreshaderDataContext& InContext, uint32 InOffset, uint32 InSize)
+FPreshaderDataContext::FPreshaderDataContext(const FPreshaderDataContext& InContext, uint32 InOffset, uint32 InSize)
 	: Ptr(InContext.Ptr + InOffset)
 	, EndPtr(Ptr + InSize)
 	, Names(InContext.Names)
@@ -66,7 +71,7 @@ UE::Shader::FPreshaderDataContext::FPreshaderDataContext(const FPreshaderDataCon
 {}
 
 template<typename T>
-static inline T ReadPreshaderValue(UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static inline T ReadPreshaderValue(FPreshaderDataContext& RESTRICT Data)
 {
 	T Result;
 	FMemory::Memcpy(&Result, Data.Ptr, sizeof(T));
@@ -76,14 +81,14 @@ static inline T ReadPreshaderValue(UE::Shader::FPreshaderDataContext& RESTRICT D
 }
 
 template<>
-inline uint8 ReadPreshaderValue<uint8>(UE::Shader::FPreshaderDataContext& RESTRICT Data)
+inline uint8 ReadPreshaderValue<uint8>(FPreshaderDataContext& RESTRICT Data)
 {
 	checkSlow(Data.Ptr < Data.EndPtr);
 	return *Data.Ptr++;
 }
 
 template<>
-FScriptName ReadPreshaderValue<FScriptName>(UE::Shader::FPreshaderDataContext& RESTRICT Data)
+FScriptName ReadPreshaderValue<FScriptName>(FPreshaderDataContext& RESTRICT Data)
 {
 	const int32 Index = ReadPreshaderValue<uint16>(Data);
 	check(Index >= 0 && Index < Data.NumNames);
@@ -91,10 +96,10 @@ FScriptName ReadPreshaderValue<FScriptName>(UE::Shader::FPreshaderDataContext& R
 }
 
 template<>
-FName ReadPreshaderValue<FName>(UE::Shader::FPreshaderDataContext& RESTRICT Data) = delete;
+FName ReadPreshaderValue<FName>(FPreshaderDataContext& RESTRICT Data) = delete;
 
 template<>
-FHashedMaterialParameterInfo ReadPreshaderValue<FHashedMaterialParameterInfo>(UE::Shader::FPreshaderDataContext& RESTRICT Data)
+FHashedMaterialParameterInfo ReadPreshaderValue<FHashedMaterialParameterInfo>(FPreshaderDataContext& RESTRICT Data)
 {
 	const FScriptName Name = ReadPreshaderValue<FScriptName>(Data);
 	const int32 Index = ReadPreshaderValue<int32>(Data);
@@ -103,17 +108,17 @@ FHashedMaterialParameterInfo ReadPreshaderValue<FHashedMaterialParameterInfo>(UE
 }
 
 template<>
-UE::Shader::FValue ReadPreshaderValue<UE::Shader::FValue>(UE::Shader::FPreshaderDataContext& RESTRICT Data)
+FValue ReadPreshaderValue<FValue>(FPreshaderDataContext& RESTRICT Data)
 {
-	const UE::Shader::EValueType Type = (UE::Shader::EValueType)ReadPreshaderValue<uint8>(Data);
+	const EValueType Type = (EValueType)ReadPreshaderValue<uint8>(Data);
 	uint32 Size = 0u;
-	UE::Shader::FValue Result = UE::Shader::FValue::FromMemoryImage(Type, Data.Ptr, &Size);
+	FValue Result = FValue::FromMemoryImage(Type, Data.Ptr, &Size);
 	Data.Ptr += Size;
 	checkSlow(Data.Ptr <= Data.EndPtr);
 	return Result;
 }
 
-static void EvaluateParameter(const FUniformExpressionSet& UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context, UE::Shader::FValue& OutValue)
+static void EvaluateParameter(const FUniformExpressionSet& UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context, FValue& OutValue)
 {
 	const FMaterialNumericParameterInfo& Parameter = UniformExpressionSet.GetNumericParameter(ParameterIndex);
 	bool bFoundParameter = false;
@@ -145,30 +150,30 @@ static void EvaluateParameter(const FUniformExpressionSet& UniformExpressionSet,
 }
 
 template<typename Operation>
-static inline void EvaluateUnaryOp(UE::Shader::FPreshaderStack& Stack, const Operation& Op)
+static inline void EvaluateUnaryOp(FPreshaderStack& Stack, const Operation& Op)
 {
-	const UE::Shader::FValue Value = Stack.Pop(false);
+	const FValue Value = Stack.Pop(false);
 	Stack.Add(Op(Value));
 }
 
 template<typename Operation>
-static inline void EvaluateBinaryOp(UE::Shader::FPreshaderStack& Stack, const Operation& Op)
+static inline void EvaluateBinaryOp(FPreshaderStack& Stack, const Operation& Op)
 {
-	const UE::Shader::FValue Value1 = Stack.Pop(false);
-	const UE::Shader::FValue Value0 = Stack.Pop(false);
+	const FValue Value1 = Stack.Pop(false);
+	const FValue Value0 = Stack.Pop(false);
 	Stack.Add(Op(Value0, Value1));
 }
 
 template<typename Operation>
-static inline void EvaluateTernaryOp(UE::Shader::FPreshaderStack& Stack, const Operation& Op)
+static inline void EvaluateTernaryOp(FPreshaderStack& Stack, const Operation& Op)
 {
-	const UE::Shader::FValue Value2 = Stack.Pop(false);
-	const UE::Shader::FValue Value1 = Stack.Pop(false);
-	const UE::Shader::FValue Value0 = Stack.Pop(false);
+	const FValue Value2 = Stack.Pop(false);
+	const FValue Value1 = Stack.Pop(false);
+	const FValue Value0 = Stack.Pop(false);
 	Stack.Add(Op(Value0, Value1, Value2));
 }
 
-static void EvaluateComponentSwizzle(UE::Shader::FPreshaderStack& Stack, UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const uint8 NumElements = ReadPreshaderValue<uint8>(Data);
 	const uint8 IndexR = ReadPreshaderValue<uint8>(Data);
@@ -176,8 +181,8 @@ static void EvaluateComponentSwizzle(UE::Shader::FPreshaderStack& Stack, UE::Sha
 	const uint8 IndexB = ReadPreshaderValue<uint8>(Data);
 	const uint8 IndexA = ReadPreshaderValue<uint8>(Data);
 
-	UE::Shader::FValue Value = Stack.Pop(false);
-	UE::Shader::FValue Result;
+	FValue Value = Stack.Pop(false);
+	FValue Result;
 	Result.ComponentType = Value.ComponentType;
 	Result.NumComponents = NumElements;
 
@@ -202,7 +207,7 @@ static void EvaluateComponentSwizzle(UE::Shader::FPreshaderStack& Stack, UE::Sha
 	Stack.Add(Result);
 }
 
-static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context, UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
 {
 	const FHashedMaterialParameterInfo ParameterInfo = ReadPreshaderValue<FHashedMaterialParameterInfo>(Data);
 	const int32 TextureIndex = ReadPreshaderValue<int32>(Data);
@@ -212,7 +217,7 @@ static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context
 	return Texture;
 }
 
-static void EvaluateTextureSize(const FMaterialRenderContext& Context, UE::Shader::FPreshaderStack& Stack, UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static void EvaluateTextureSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
 	if (Texture && Texture->GetResource())
@@ -220,15 +225,15 @@ static void EvaluateTextureSize(const FMaterialRenderContext& Context, UE::Shade
 		const uint32 SizeX = Texture->GetResource()->GetSizeX();
 		const uint32 SizeY = Texture->GetResource()->GetSizeY();
 		const uint32 SizeZ = Texture->GetResource()->GetSizeZ();
-		Stack.Add(UE::Shader::FValue((float)SizeX, (float)SizeY, (float)SizeZ));
+		Stack.Add(FValue((float)SizeX, (float)SizeY, (float)SizeZ));
 	}
 	else
 	{
-		Stack.Add(UE::Shader::FValue(0.0f, 0.0f, 0.0f));
+		Stack.Add(FValue(0.0f, 0.0f, 0.0f));
 	}
 }
 
-static void EvaluateTexelSize(const FMaterialRenderContext& Context, UE::Shader::FPreshaderStack& Stack, UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const UTexture* Texture = GetTextureParameter(Context, Data);
 	if (Texture && Texture->GetResource())
@@ -236,15 +241,15 @@ static void EvaluateTexelSize(const FMaterialRenderContext& Context, UE::Shader:
 		const uint32 SizeX = Texture->GetResource()->GetSizeX();
 		const uint32 SizeY = Texture->GetResource()->GetSizeY();
 		const uint32 SizeZ = Texture->GetResource()->GetSizeZ();
-		Stack.Add(UE::Shader::FValue(1.0f / (float)SizeX, 1.0f / (float)SizeY, (SizeZ > 0 ? 1.0f / (float)SizeZ : 0.0f)));
+		Stack.Add(FValue(1.0f / (float)SizeX, 1.0f / (float)SizeY, (SizeZ > 0 ? 1.0f / (float)SizeZ : 0.0f)));
 	}
 	else
 	{
-		Stack.Add(UE::Shader::FValue(0.0f, 0.0f, 0.0f));
+		Stack.Add(FValue(0.0f, 0.0f, 0.0f));
 	}
 }
 
-static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
 {
 	const FScriptName ParameterName = ReadPreshaderValue<FScriptName>(Data);
 	const FGuid ExternalTextureGuid = ReadPreshaderValue<FGuid>(Data);
@@ -252,7 +257,7 @@ static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, UE::S
 	return Context.GetExternalTextureGuid(ExternalTextureGuid, ScriptNameToName(ParameterName), TextureIndex);
 }
 
-static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRenderContext& Context, UE::Shader::FPreshaderStack& Stack, UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const FGuid GuidToLookup = GetExternalTextureGuid(Context, Data);
 	FLinearColor Result(1.f, 0.f, 0.f, 1.f);
@@ -263,7 +268,7 @@ static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRender
 	Stack.Add(Result);
 }
 
-static void EvaluateExternalTextureCoordinateOffset(const FMaterialRenderContext& Context, UE::Shader::FPreshaderStack& Stack, UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static void EvaluateExternalTextureCoordinateOffset(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const FGuid GuidToLookup = GetExternalTextureGuid(Context, Data);
 	FLinearColor Result(0.f, 0.f, 0.f, 0.f);
@@ -274,7 +279,7 @@ static void EvaluateExternalTextureCoordinateOffset(const FMaterialRenderContext
 	Stack.Add(Result);
 }
 
-static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& Context, UE::Shader::FPreshaderStack& Stack, UE::Shader::FPreshaderDataContext& RESTRICT Data)
+static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const FHashedMaterialParameterInfo ParameterInfo = ReadPreshaderValue<FHashedMaterialParameterInfo>(Data);
 	const int32 TextureIndex = ReadPreshaderValue<int32>(Data);
@@ -287,15 +292,15 @@ static void EvaluateRuntimeVirtualTextureUniform(const FMaterialRenderContext& C
 	}
 	if (Texture != nullptr && VectorIndex != INDEX_NONE)
 	{
-		Stack.Add(UE::Shader::FValue(Texture->GetUniformParameter(VectorIndex)));
+		Stack.Add(FValue(Texture->GetUniformParameter(VectorIndex)));
 	}
 	else
 	{
-		Stack.Add(UE::Shader::FValue(0.f, 0.f, 0.f, 0.f));
+		Stack.Add(FValue(0.f, 0.f, 0.f, 0.f));
 	}
 }
 
-void UE::Shader::EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data, FValue& OutValue)
+void EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet, const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data, FValue& OutValue)
 {
 	uint8 const* const DataEnd = Data.EndPtr;
 
@@ -306,49 +311,49 @@ void UE::Shader::EvaluatePreshader(const FUniformExpressionSet* UniformExpressio
 		switch (Opcode)
 		{
 		case EPreshaderOpcode::ConstantZero:
-			Stack.Add(UE::Shader::FValue(0.0f));
+			Stack.Add(FValue(0.0f));
 			break;
 		case EPreshaderOpcode::Constant:
-			Stack.Add(ReadPreshaderValue<UE::Shader::FValue>(Data));
+			Stack.Add(ReadPreshaderValue<FValue>(Data));
 			break;
 		case EPreshaderOpcode::Parameter:
 			check(UniformExpressionSet);
 			EvaluateParameter(*UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context, Stack.AddDefaulted_GetRef());
 			break;
-		case EPreshaderOpcode::Add: EvaluateBinaryOp(Stack, UE::Shader::Add); break;
-		case EPreshaderOpcode::Sub: EvaluateBinaryOp(Stack, UE::Shader::Sub); break;
-		case EPreshaderOpcode::Mul: EvaluateBinaryOp(Stack, UE::Shader::Mul); break;
-		case EPreshaderOpcode::Div: EvaluateBinaryOp(Stack, UE::Shader::Div); break;
-		case EPreshaderOpcode::Fmod: EvaluateBinaryOp(Stack, UE::Shader::Fmod); break;
-		case EPreshaderOpcode::Min: EvaluateBinaryOp(Stack, UE::Shader::Min); break;
-		case EPreshaderOpcode::Max: EvaluateBinaryOp(Stack, UE::Shader::Max); break;
-		case EPreshaderOpcode::Clamp: EvaluateTernaryOp(Stack, UE::Shader::Clamp); break;
-		case EPreshaderOpcode::Dot: EvaluateBinaryOp(Stack, UE::Shader::Dot); break;
-		case EPreshaderOpcode::Cross: EvaluateBinaryOp(Stack, UE::Shader::Cross); break;
-		case EPreshaderOpcode::Sqrt: EvaluateUnaryOp(Stack, UE::Shader::Sqrt); break;
-		case EPreshaderOpcode::Rcp: EvaluateUnaryOp(Stack, UE::Shader::Rcp); break;
-		case EPreshaderOpcode::Length: EvaluateUnaryOp(Stack, [](const UE::Shader::FValue& Value) { return Sqrt(Dot(Value, Value)); }); break;
-		case EPreshaderOpcode::Normalize: EvaluateUnaryOp(Stack, [](const UE::Shader::FValue& Value) { return Div(Value, Sqrt(Dot(Value, Value))); }); break;
-		case EPreshaderOpcode::Sin: EvaluateUnaryOp(Stack, UE::Shader::Sin); break;
-		case EPreshaderOpcode::Cos: EvaluateUnaryOp(Stack, UE::Shader::Cos); break;
-		case EPreshaderOpcode::Tan: EvaluateUnaryOp(Stack, UE::Shader::Tan); break;
-		case EPreshaderOpcode::Asin: EvaluateUnaryOp(Stack, UE::Shader::Asin); break;;
-		case EPreshaderOpcode::Acos: EvaluateUnaryOp(Stack, UE::Shader::Acos); break;
-		case EPreshaderOpcode::Atan: EvaluateUnaryOp(Stack, UE::Shader::Atan); break;
-		case EPreshaderOpcode::Atan2: EvaluateBinaryOp(Stack, UE::Shader::Atan2); break;
-		case EPreshaderOpcode::Abs: EvaluateUnaryOp(Stack, UE::Shader::Abs); break;
-		case EPreshaderOpcode::Saturate: EvaluateUnaryOp(Stack, UE::Shader::Saturate); break;
-		case EPreshaderOpcode::Floor: EvaluateUnaryOp(Stack, UE::Shader::Floor); break;
-		case EPreshaderOpcode::Ceil: EvaluateUnaryOp(Stack, UE::Shader::Ceil); break;
-		case EPreshaderOpcode::Round: EvaluateUnaryOp(Stack, UE::Shader::Round); break;
-		case EPreshaderOpcode::Trunc: EvaluateUnaryOp(Stack, UE::Shader::Trunc); break;
-		case EPreshaderOpcode::Sign: EvaluateUnaryOp(Stack, UE::Shader::Sign); break;
-		case EPreshaderOpcode::Frac: EvaluateUnaryOp(Stack, UE::Shader::Frac); break;
-		case EPreshaderOpcode::Fractional: EvaluateUnaryOp(Stack, UE::Shader::Fractional); break;
-		case EPreshaderOpcode::Log2: EvaluateUnaryOp(Stack, UE::Shader::Log2); break;
-		case EPreshaderOpcode::Log10: EvaluateUnaryOp(Stack, UE::Shader::Log10); break;
+		case EPreshaderOpcode::Add: EvaluateBinaryOp(Stack, Add); break;
+		case EPreshaderOpcode::Sub: EvaluateBinaryOp(Stack, Sub); break;
+		case EPreshaderOpcode::Mul: EvaluateBinaryOp(Stack, Mul); break;
+		case EPreshaderOpcode::Div: EvaluateBinaryOp(Stack, Div); break;
+		case EPreshaderOpcode::Fmod: EvaluateBinaryOp(Stack, Fmod); break;
+		case EPreshaderOpcode::Min: EvaluateBinaryOp(Stack, Min); break;
+		case EPreshaderOpcode::Max: EvaluateBinaryOp(Stack, Max); break;
+		case EPreshaderOpcode::Clamp: EvaluateTernaryOp(Stack, Clamp); break;
+		case EPreshaderOpcode::Dot: EvaluateBinaryOp(Stack, Dot); break;
+		case EPreshaderOpcode::Cross: EvaluateBinaryOp(Stack, Cross); break;
+		case EPreshaderOpcode::Sqrt: EvaluateUnaryOp(Stack, Sqrt); break;
+		case EPreshaderOpcode::Rcp: EvaluateUnaryOp(Stack, Rcp); break;
+		case EPreshaderOpcode::Length: EvaluateUnaryOp(Stack, [](const FValue& Value) { return Sqrt(Dot(Value, Value)); }); break;
+		case EPreshaderOpcode::Normalize: EvaluateUnaryOp(Stack, [](const FValue& Value) { return Div(Value, Sqrt(Dot(Value, Value))); }); break;
+		case EPreshaderOpcode::Sin: EvaluateUnaryOp(Stack, Sin); break;
+		case EPreshaderOpcode::Cos: EvaluateUnaryOp(Stack, Cos); break;
+		case EPreshaderOpcode::Tan: EvaluateUnaryOp(Stack, Tan); break;
+		case EPreshaderOpcode::Asin: EvaluateUnaryOp(Stack, Asin); break;;
+		case EPreshaderOpcode::Acos: EvaluateUnaryOp(Stack, Acos); break;
+		case EPreshaderOpcode::Atan: EvaluateUnaryOp(Stack, Atan); break;
+		case EPreshaderOpcode::Atan2: EvaluateBinaryOp(Stack, Atan2); break;
+		case EPreshaderOpcode::Abs: EvaluateUnaryOp(Stack, Abs); break;
+		case EPreshaderOpcode::Saturate: EvaluateUnaryOp(Stack, Saturate); break;
+		case EPreshaderOpcode::Floor: EvaluateUnaryOp(Stack, Floor); break;
+		case EPreshaderOpcode::Ceil: EvaluateUnaryOp(Stack, Ceil); break;
+		case EPreshaderOpcode::Round: EvaluateUnaryOp(Stack, Round); break;
+		case EPreshaderOpcode::Trunc: EvaluateUnaryOp(Stack, Trunc); break;
+		case EPreshaderOpcode::Sign: EvaluateUnaryOp(Stack, Sign); break;
+		case EPreshaderOpcode::Frac: EvaluateUnaryOp(Stack, Frac); break;
+		case EPreshaderOpcode::Fractional: EvaluateUnaryOp(Stack, Fractional); break;
+		case EPreshaderOpcode::Log2: EvaluateUnaryOp(Stack, Log2); break;
+		case EPreshaderOpcode::Log10: EvaluateUnaryOp(Stack, Log10); break;
 		case EPreshaderOpcode::ComponentSwizzle: EvaluateComponentSwizzle(Stack, Data); break;
-		case EPreshaderOpcode::AppendVector: EvaluateBinaryOp(Stack, UE::Shader::Append); break;
+		case EPreshaderOpcode::AppendVector: EvaluateBinaryOp(Stack, Append); break;
 		case EPreshaderOpcode::TextureSize: EvaluateTextureSize(Context, Stack, Data); break;
 		case EPreshaderOpcode::TexelSize: EvaluateTexelSize(Context, Stack, Data); break;
 		case EPreshaderOpcode::ExternalTextureCoordinateScaleRotation: EvaluateExternalTextureCoordinateScaleRotation(Context, Stack, Data); break;
@@ -368,9 +373,26 @@ void UE::Shader::EvaluatePreshader(const FUniformExpressionSet* UniformExpressio
 	}
 }
 
-void UE::Shader::FPreshaderData::Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FValue& OutValue)
+void FPreshaderData::Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FValue& OutValue)
 {
 	FPreshaderStack Stack;
 	FPreshaderDataContext PreshaderContext(*this);
 	EvaluatePreshader(UniformExpressionSet, Context, Stack, PreshaderContext, OutValue);
 }
+
+void FPreshaderData::AppendHash(FSHA1& OutHasher) const
+{
+	OutHasher.Update((uint8*)Names.GetData(), Names.Num() * Names.GetTypeSize());
+	OutHasher.Update((uint8*)NameOffsets.GetData(), NameOffsets.Num() * NameOffsets.GetTypeSize());
+	OutHasher.Update((uint8*)Data.GetData(), Data.Num() * Data.GetTypeSize());
+}
+
+FSHAHash FPreshaderData::GetHash() const
+{
+	FSHA1 Hasher;
+	AppendHash(Hasher);
+	return Hasher.Finalize();
+}
+
+} // namespace Shader
+} // namespace UE

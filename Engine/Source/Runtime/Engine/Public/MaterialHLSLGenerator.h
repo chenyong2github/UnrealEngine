@@ -64,7 +64,7 @@ public:
 	bool Finalize();
 
 	/** Retrieve the compile errors from the generator */
-	void AcquireErrors(TArray<FString>& OutCompileErrors, TArray<UMaterialExpression*>& OutErrorExpressions);
+	void AcquireErrors(FMaterial& OutMaterial);
 
 	EMaterialGenerateHLSLStatus Error(const FString& Message);
 
@@ -76,9 +76,13 @@ public:
 
 	UE::HLSLTree::FTree& GetTree() const { return *HLSLTree; }
 
+	UE::HLSLTree::FExpression* GetResultExpression() { return ResultExpression; }
+	UE::HLSLTree::FStatement* GetResultStatement() { return ResultStatement; }
+
 	bool GenerateResult(UE::HLSLTree::FScope& Scope);
 
 	UE::HLSLTree::FScope* NewScope(UE::HLSLTree::FScope& Scope, EMaterialNewScopeFlag Flags = EMaterialNewScopeFlag::None);
+	UE::HLSLTree::FScope* NewOwnedScope(UE::HLSLTree::FStatement& Owner);
 
 	UE::HLSLTree::FScope* NewJoinedScope(UE::HLSLTree::FScope& Scope);
 
@@ -215,6 +219,9 @@ private:
 	UE::HLSLTree::FConstantValue MaterialAttributesDefaultValue;
 
 	UE::HLSLTree::FTree* HLSLTree;
+	UE::HLSLTree::FExpression* ResultExpression = nullptr;
+	UE::HLSLTree::FStatement* ResultStatement = nullptr;
+
 	TArray<FExpressionKey> ExpressionStack;
 	TArray<FFunctionCallEntry*> FunctionCallStack;
 	TArray<UE::HLSLTree::FScope*> JoinedScopeStack;

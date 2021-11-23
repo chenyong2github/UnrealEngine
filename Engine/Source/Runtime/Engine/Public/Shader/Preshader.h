@@ -67,13 +67,16 @@ class FPreshaderData
 public:
 	friend inline bool operator==(const FPreshaderData& Lhs, const FPreshaderData& Rhs)
 	{
-		return Lhs.Data == Rhs.Data;
+		return Lhs.Names == Rhs.Names && Lhs.Data == Rhs.Data;
 	}
 
 	friend inline bool operator!=(const FPreshaderData& Lhs, const FPreshaderData& Rhs)
 	{
 		return !operator==(Lhs, Rhs);
 	}
+
+	FSHAHash GetHash() const;
+	void AppendHash(FSHA1& OutHasher) const;
 
 	void Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FValue& OutValue);
 

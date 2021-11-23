@@ -2720,13 +2720,8 @@ FMaterialAttributes EvaluateVertexMaterialAttributes(FMaterialVertexParameters P
 	return DefaultMaterialAttributes;
 }
 
-FMaterialAttributes EvaluatePixelMaterialAttributes(in out FMaterialPixelParameters Parameters)
-{
-	FMaterialAttributes DefaultMaterialAttributes = (FMaterialAttributes)0;
+// EvaluatePixelMaterialAttributes
 %s
-	// Return the default, this may be skipped if the above code returns different attributes
-	return DefaultMaterialAttributes;
-}
 
 // Be very, very careful about changing CalcPixelMaterialInputs() or CalcPixelMaterialInputsAnalyticDerivatives(). They apply the same basic calculation,
 // but CalcPixelMaterialInputs() uses finite difference derivates from hardware whereas CalcPixelMaterialInputsAnalyticDerivatives() uses analytic

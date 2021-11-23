@@ -12,18 +12,9 @@ struct FSharedShaderCompilerEnvironment;
 struct FMaterialCompileTargetParameters;
 struct FStaticParameterSet;
 
-namespace UE
-{
-namespace HLSLTree
-{
-class FTree;
-}
-}
-
 bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
-	const FMaterial& InOutMaterial,
 	const FStaticParameterSet& InStaticParameters,
-	const UE::HLSLTree::FTree& InTree,
+	FMaterial& InOutMaterial,
 	FMaterialCompilationOutput& OutCompilationOutput,
 	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
 

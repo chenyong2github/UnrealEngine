@@ -49,7 +49,6 @@
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "MaterialHLSLGenerator.h"
-#include "MaterialHLSLTree.h"
 #include "MaterialHLSLEmitter.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 #include "Misc/ScopeLock.h"
@@ -360,9 +359,17 @@ bool FExpressionExecOutput::GenerateHLSLStatements(FMaterialHLSLGenerator& Gener
 	return bResult;
 }
 
-UE::HLSLTree::FScope* FExpressionExecOutput::NewScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+UE::HLSLTree::FScope* FExpressionExecOutput::NewOwnedScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FStatement& Owner) const
 {
-	return NewScopeWithStatements(Generator, Scope, EMaterialNewScopeFlag::None);
+	UE::HLSLTree::FScope* Result = nullptr;
+	if (Expression)
+	{
+		Expression->ValidateState();
+		Result = Generator.NewOwnedScope(Owner); // Create a new scope for the statements
+		Generator.GenerateStatements(*Result, Expression);
+	}
+
+	return Result;
 }
 
 UE::HLSLTree::FScope* FExpressionExecOutput::NewScopeWithStatements(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, EMaterialNewScopeFlag Flags) const
@@ -2368,11 +2375,7 @@ bool FMaterial::Translate_New(const FMaterialShaderMapId& ShaderMapId,
 {
 #if WITH_EDITOR
 	const FMaterialCompileTargetParameters TargetParams(InPlatform, ShaderMapId.FeatureLevel, InTargetPlatform);
-
-	FMaterialHLSLTree Tree;
-	Tree.InitializeForMaterial(TargetParams, *this);
-
-	return MaterialEmitHLSL(TargetParams, *this, InStaticParameters, Tree.GetTree(), OutCompilationOutput, OutMaterialEnvironment);
+	return MaterialEmitHLSL(TargetParams, InStaticParameters, *this, OutCompilationOutput, OutMaterialEnvironment);
 #else
 	checkNoEntry();
 	return false;

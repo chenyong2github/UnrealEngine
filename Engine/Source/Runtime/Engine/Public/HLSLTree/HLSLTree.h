@@ -136,7 +136,7 @@ public:
 
 	const TCHAR* CastShaderValue(const FNode* Node, const TCHAR* Code, const FType& SourceType, const FType& DestType, ECastFlags Flags);
 
-	void AddPreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader, FStringBuilderBase& OutCode);
+	const TCHAR* AcquirePreshader(Shader::EValueType Type, const Shader::FPreshaderData& Preshader);
 
 	FMemStackBase* Allocator = nullptr;
 	FErrors Errors;
@@ -146,6 +146,7 @@ public:
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	TMap<Shader::FValue, uint32> DefaultUniformValues;
+	TMap<FSHAHash, const TCHAR*> Preshaders;
 	uint32 UniformPreshaderOffset = 0u;
 	bool bReadMaterialNormal = false;
 
@@ -183,6 +184,8 @@ public:
 	static bool ShouldVisitDependentNodes(ENodeVisitResult Result) { return Result == ENodeVisitResult::VisitDependentNodes; }
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) = 0;
+
+	virtual void Reset() {}
 
 	FNode* NextNode = nullptr;
 };
@@ -250,9 +253,10 @@ struct FStructTypeInitializer
 class FStatement : public FNode
 {
 public:
-	static constexpr bool MarkScopeLive = false;
-	static constexpr bool MarkScopeLiveRecursive = false;
+	//static constexpr bool MarkScopeLive = false;
+	//static constexpr bool MarkScopeLiveRecursive = false;
 
+	virtual void Reset() override;
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
 	virtual void PrepareValues(FEmitContext& Context) const = 0;
@@ -282,23 +286,25 @@ public:
 		RequestedComponents.Reset();
 	}
 
-	/** Returns a type that represents access of FieldRef from a struct on given type, using 'this' */
-	FRequestedType MakeFieldAccess(const FStructType* InStructType, const FStructFieldRef& FieldRef) const
+	/** Marks the given field as requested (or not) */
+	void SetFieldRequested(const FStructFieldRef& FieldRef, bool bRequested = true)
 	{
-		FRequestedType Result(InStructType, false);
-		Result.RequestedComponents.SetRangeFromRange(FieldRef.ComponentIndex, FieldRef.ComponentNum, RequestedComponents, 0);
-		return Result;
+		RequestedComponents.SetRange(FieldRef.ComponentIndex, FieldRef.ComponentNum, bRequested);
 	}
 
-	/** Returns copy of 'this', with request for given field removed */
-	FRequestedType CopyWithFieldRemoved(const FStructFieldRef& FieldRef) const
+	void ClearFieldRequested(const FStructFieldRef& FieldRef)
 	{
-		FRequestedType Result(*this);
-		Result.RequestedComponents.SetRange(FieldRef.ComponentIndex, FieldRef.ComponentNum, false);
-		return Result;
+		SetFieldRequested(FieldRef, false);
 	}
 
-	/** Returns a type that represents access of the given field from 'this' */
+	/** Marks the given field as requested, based on the input request type (which should match the field type) */
+	void SetField(const FStructFieldRef& FieldRef, const FRequestedType& InRequest)
+	{
+		ensure(InRequest.GetNumComponents() == FieldRef.ComponentNum);
+		RequestedComponents.SetRangeFromRange(FieldRef.ComponentIndex, FieldRef.ComponentNum, InRequest.RequestedComponents, 0);
+	}
+
+	/** Returns the requested type of the given field */
 	FRequestedType GetField(const FStructFieldRef& FieldRef) const
 	{
 		FRequestedType Result(FieldRef.Type);
@@ -345,6 +351,7 @@ public:
 	const FType& GetType() const { return PrepareValueResult.Type; }
 	EExpressionEvaluationType GetEvaluationType() const { return PrepareValueResult.EvaluationType; }
 
+	virtual void Reset() override;
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
 	friend FPrepareValueResult PrepareExpressionValue(FEmitContext& Context, FExpression* InExpression, const FRequestedType& RequestedType);
@@ -420,6 +427,8 @@ enum class EScopeState : uint8
 class FScope final : public FNode
 {
 public:
+	virtual void Reset() override;
+
 	static FScope* FindSharedParent(FScope* Lhs, FScope* Rhs);
 
 	inline FScope* GetParentScope() const { return ParentScope; }
@@ -440,7 +449,7 @@ public:
 
 	void UseExpression(FExpression* Expression);
 
-	friend void PrepareScopeValues(FEmitContext& Context, const FScope* InScope);
+	friend bool PrepareScopeValues(FEmitContext& Context, FScope* InScope);
 
 	template<typename FormatType, typename... Types>
 	void EmitDeclarationf(FEmitContext& Context, const FormatType& Format, Types... Args)
@@ -509,8 +518,9 @@ private:
 		InternalEmitCode(Context, List, ScopeFormat, NextScope, String.ToString(), String.Len());
 	}
 
+	FStatement* OwnerStatement = nullptr;
 	FScope* ParentScope = nullptr;
-	FStatement* Statement = nullptr;
+	FStatement* ContainedStatement = nullptr;
 	FScope* PreviousScope[MaxNumPreviousScopes];
 	TMap<FSHAHash, const TCHAR*> ExpressionCodeMap;
 	FCodeList Declarations;
@@ -523,6 +533,14 @@ private:
 inline bool IsScopeLive(const FScope* InScope)
 {
 	return (bool)InScope && InScope->IsLive();
+}
+
+inline void MarkScopeLive(FScope* InScope)
+{
+	if (InScope)
+	{
+		InScope->MarkLive();
+	}
 }
 
 inline void MarkScopeDead(FScope* InScope)
@@ -544,9 +562,11 @@ public:
 
 	FMemStackBase& GetAllocator() { return *Allocator; }
 
-	bool EmitHLSL(FEmitContext& Context,
-		FStringBuilderBase& OutDeclarations,
-		FStringBuilderBase& OutCode) const;
+	void ResetNodes();
+
+	void EmitDeclarationsCode(FStringBuilderBase& OutCode) const;
+
+	bool EmitHLSL(FEmitContext& Context, FStringBuilderBase& OutCode) const;
 
 	FScope& GetRootScope() const { return *RootScope; }
 
@@ -563,24 +583,24 @@ public:
 	{
 		T* Statement = NewNode<T>(Forward<ArgTypes>(Args)...);
 		RegisterStatement(Scope, Statement);
-		if constexpr (T::MarkScopeLiveRecursive)
+		/*if constexpr (T::MarkScopeLiveRecursive)
 		{
 			Scope.MarkLiveRecursive();
 		}
 		else if constexpr (T::MarkScopeLive)
 		{
 			Scope.MarkLive();
-		}
+		}*/
 
 		return Statement;
 	}
 
 	FScope* NewScope(FScope& Scope);
+	FScope* NewOwnedScope(FStatement& Owner);
+
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
 
 	const FStructType* NewStructType(const FStructTypeInitializer& Initializer);
-
-	void SetResult(FStatement& InResult);
 
 private:
 	template<typename T, typename... ArgTypes>
@@ -599,7 +619,6 @@ private:
 	FNode* Nodes = nullptr;
 	FStructType* StructTypes = nullptr;
 	FScope* RootScope = nullptr;
-	FStatement* ResultStatement = nullptr;
 };
 
 //Shader::EValueType RequestExpressionType(FEmitContext& Context, FExpression* InExpression, int8 InRequestedNumComponents); // friend of FExpression

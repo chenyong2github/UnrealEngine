@@ -10,7 +10,6 @@
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "Materials/MaterialExpressionVolumetricAdvancedMaterialOutput.h"
 #include "Materials/Material.h"
-#include "MaterialHLSLTree.h"
 #include "ShaderCore.h"
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"
@@ -85,10 +84,10 @@ FMaterialHLSLGenerator::FMaterialHLSLGenerator(UMaterial* InTargetMaterial, cons
 	MaterialAttributesDefaultValue.Type = MaterialAttributesType;
 }
 
-void FMaterialHLSLGenerator::AcquireErrors(TArray<FString>& OutCompileErrors, TArray<UMaterialExpression*>& OutErrorExpressions)
+void FMaterialHLSLGenerator::AcquireErrors(FMaterial& OutMaterial)
 {
-	OutCompileErrors = MoveTemp(CompileErrors);
-	OutErrorExpressions = MoveTemp(ErrorExpressions);
+	OutMaterial.CompileErrors = MoveTemp(CompileErrors);
+	OutMaterial.ErrorExpressions = MoveTemp(ErrorExpressions);
 }
 
 bool FMaterialHLSLGenerator::Finalize()
@@ -98,6 +97,12 @@ bool FMaterialHLSLGenerator::Finalize()
 	if (!bGeneratedResult)
 	{
 		Error(TEXT("Missing connection to material output"));
+		return false;
+	}
+
+	if (!ResultExpression || !ResultStatement)
+	{
+		Error(TEXT("Failed to initialize result"));
 		return false;
 	}
 
@@ -242,6 +247,9 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 	}
 	else
 	{
+		check(!ResultStatement);
+		check(!ResultExpression);
+
 		if (TargetMaterial)
 		{
 			UE::HLSLTree::FExpression* AttributesExpression = nullptr;
@@ -267,9 +275,9 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 			if (AttributesExpression)
 			{
 				UE::HLSLTree::FStatementReturn* ReturnStatement = HLSLTree->NewStatement<UE::HLSLTree::FStatementReturn>(Scope);
-				ReturnStatement->Type = MaterialAttributesType;
 				ReturnStatement->Expression = AttributesExpression;
-				HLSLTree->SetResult(*ReturnStatement);
+				ResultExpression = AttributesExpression;
+				ResultStatement = ReturnStatement;
 				bResult = true;
 			}
 		}
@@ -290,6 +298,13 @@ UE::HLSLTree::FScope* FMaterialHLSLGenerator::NewScope(UE::HLSLTree::FScope& Sco
 		NewScope->AddPreviousScope(Scope);
 	}
 
+	return NewScope;
+}
+
+UE::HLSLTree::FScope* FMaterialHLSLGenerator::NewOwnedScope(UE::HLSLTree::FStatement& Owner)
+{
+	UE::HLSLTree::FScope* NewScope = HLSLTree->NewOwnedScope(Owner);
+	NewScope->AddPreviousScope(*Owner.ParentScope);
 	return NewScope;
 }
 
