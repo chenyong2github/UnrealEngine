@@ -1976,6 +1976,7 @@ namespace UnrealBuildTool
 					BinaryFormatterUtils.SaveIfDifferent(TargetInfoFile, TargetInfo);
 
 					Action WriteTargetMetadata = CreateWriteMetadataAction(Makefile, ReceiptFileName.GetFileName(), TargetInfoFile);
+					WriteTargetMetadata.PrerequisiteItems.AddRange(Binaries.SelectMany(x => x.OutputFilePaths).Select(x => FileItem.GetItemByFileReference(x)));
 					WriteTargetMetadata.ProducedItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
 					Makefile.OutputItems.AddRange(WriteTargetMetadata.ProducedItems);
 				}
