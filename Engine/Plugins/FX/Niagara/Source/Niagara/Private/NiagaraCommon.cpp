@@ -1544,6 +1544,7 @@ bool FVMExternalFunctionBindingInfo::Serialize(FArchive& Ar)
 
 const FString FNiagaraCompileOptions::CpuScriptDefine = TEXT("CPUSim");
 const FString FNiagaraCompileOptions::GpuScriptDefine = TEXT("GPUComputeSim");
+const FString FNiagaraCompileOptions::EventSpawnDefine = TEXT("EventSpawn");
 
 FSynchronizeWithParameterDefinitionsArgs::FSynchronizeWithParameterDefinitionsArgs()
 	: SpecificDefinitionsUniqueIds(TArray<FGuid>())
