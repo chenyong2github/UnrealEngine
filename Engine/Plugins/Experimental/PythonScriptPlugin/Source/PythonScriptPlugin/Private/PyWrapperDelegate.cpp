@@ -805,12 +805,7 @@ PyTypeObject InitializePyWrapperDelegateType()
 	PyType.tp_doc = "Type for all Unreal exposed delegate instances";
 
 	static PyNumberMethods PyNumber;
-#if PY_MAJOR_VERSION >= 3
 	PyNumber.nb_bool = (inquiry)&FNumberFuncs::Bool;
-#else	// PY_MAJOR_VERSION >= 3
-	PyNumber.nb_nonzero = (inquiry)&FNumberFuncs::Bool;
-#endif	// PY_MAJOR_VERSION >= 3
-
 	PyType.tp_as_number = &PyNumber;
 
 	return PyType;
@@ -1234,12 +1229,7 @@ PyTypeObject InitializePyWrapperMulticastDelegateType()
 	PyType.tp_doc = "Type for all Unreal exposed multicast delegate instances";
 
 	static PyNumberMethods PyNumber;
-#if PY_MAJOR_VERSION >= 3
 	PyNumber.nb_bool = (inquiry)&FNumberFuncs::Bool;
-#else	// PY_MAJOR_VERSION >= 3
-	PyNumber.nb_nonzero = (inquiry)&FNumberFuncs::Bool;
-#endif	// PY_MAJOR_VERSION >= 3
-
 	PyType.tp_as_number = &PyNumber;
 
 	return PyType;

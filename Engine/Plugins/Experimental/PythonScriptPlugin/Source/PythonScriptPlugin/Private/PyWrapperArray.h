@@ -96,11 +96,7 @@ struct FPyWrapperArray : public FPyWrapperBase
 	static int Reverse(FPyWrapperArray* InSelf);
 
 	/** Sort this container (equivalent to 'x.sort()' in Python) */
-#if PY_MAJOR_VERSION < 3
-	static int Sort(FPyWrapperArray* InSelf, PyObject* InCmp, PyObject* InKey, bool InReverse);
-#else	// PY_MAJOR_VERSION < 3
 	static int Sort(FPyWrapperArray* InSelf, PyObject* InKey, bool InReverse);
-#endif	// PY_MAJOR_VERSION < 3
 
 	/** Resize this container (equivalent to 'x.resize(l)' in Python) */
 	static int Resize(FPyWrapperArray* InSelf, Py_ssize_t InLen);

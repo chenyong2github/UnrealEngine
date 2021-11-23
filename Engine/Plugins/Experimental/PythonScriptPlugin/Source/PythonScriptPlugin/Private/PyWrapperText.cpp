@@ -38,15 +38,6 @@ bool ExtractFormatArgumentValue(FPyWrapperText* InSelf, PyObject* InObj, FFormat
 	}
 
 	// Don't use PyConversion for numeric types as they would allow coercion from float<->int
-#if PY_MAJOR_VERSION < 3
-	if (PyInt_Check(InObj))
-	{
-		OutFormatArg.ArgumentValueType = EFormatArgumentType::Int;
-		OutFormatArg.ArgumentValueInt = PyInt_AsLong(InObj);
-		return true;
-	}
-#endif	// PY_MAJOR_VERSION < 3
-
 	if (PyLong_Check(InObj))
 	{
 		OutFormatArg.ArgumentValueType = EFormatArgumentType::Int;
@@ -68,11 +59,7 @@ bool ExtractFormatArgumentValue(FPyWrapperText* InSelf, PyObject* InObj, FFormat
 bool ExtractFormatArguments(FPyWrapperText* InSelf, PyObject* InObj, const int32 InArgIndex, TArray<FFormatArgumentData>& InOutFormatArgs)
 {
 	// Is this some kind of container, or a single value?
-#if PY_MAJOR_VERSION < 3
-	const bool bIsStringType = PyUnicode_Check(InObj) || PyString_Check(InObj);
-#else	// PY_MAJOR_VERSION < 3
 	const bool bIsStringType = static_cast<bool>(PyUnicode_Check(InObj));
-#endif	// PY_MAJOR_VERSION < 3
 	if (!bIsStringType && PyUtil::HasLength(InObj))
 	{
 		const Py_ssize_t SequenceLen = PyObject_Length(InObj);
