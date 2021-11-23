@@ -4,7 +4,9 @@
 
 #include "ILevelSnapshotsModule.h"
 #include "Params/PropertyComparisonParams.h"
+
 #include "UObject/UnrealType.h"
+#include "Components/MeshComponent.h"
 
 namespace UE::LevelSnapshots::nDisplay::Private::Internal
 {
