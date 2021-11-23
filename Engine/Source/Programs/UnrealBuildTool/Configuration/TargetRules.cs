@@ -1555,28 +1555,10 @@ namespace UnrealBuildTool
 		public MacTargetRules MacPlatform = new MacTargetRules();
 
 		/// <summary>
-		/// PS4-specific target settings.
-		/// </summary>
-		[ConfigSubObject]
-		public PS4TargetRules PS4Platform = new PS4TargetRules();
-
-		/// <summary>
-		/// Switch-specific target settings.
-		/// </summary>
-		[ConfigSubObject]
-		public SwitchTargetRules SwitchPlatform = new SwitchTargetRules();
-
-		/// <summary>
 		/// Windows-specific target settings.
 		/// </summary>
 		[ConfigSubObject]
 		public WindowsTargetRules WindowsPlatform; // Requires 'this' parameter; initialized in constructor
-
-		/// <summary>
-		/// Xbox One-specific target settings.
-		/// </summary>
-		[ConfigSubObject]
-		public XboxOneTargetRules XboxOnePlatform = new XboxOneTargetRules();
 
 		/// <summary>
 		/// HoloLens-specific target settings.
@@ -1933,10 +1915,7 @@ namespace UnrealBuildTool
 			IOSPlatform = new ReadOnlyIOSTargetRules(Inner.IOSPlatform);
 			LinuxPlatform = new ReadOnlyLinuxTargetRules(Inner.LinuxPlatform);
 			MacPlatform = new ReadOnlyMacTargetRules(Inner.MacPlatform);
-			PS4Platform = new ReadOnlyPS4TargetRules(Inner.PS4Platform);
-			SwitchPlatform = new ReadOnlySwitchTargetRules(Inner.SwitchPlatform);
 			WindowsPlatform = new ReadOnlyWindowsTargetRules(Inner.WindowsPlatform);
-			XboxOnePlatform = new ReadOnlyXboxOneTargetRules(Inner.XboxOnePlatform);
 			HoloLensPlatform = new ReadOnlyHoloLensTargetRules(Inner.HoloLensPlatform);
 		}
 
@@ -2836,18 +2815,6 @@ namespace UnrealBuildTool
 			private set;
 		}
 
-		public ReadOnlyPS4TargetRules PS4Platform
-		{
-			get;
-			private set;
-		}
-
-		public ReadOnlySwitchTargetRules SwitchPlatform
-		{
-			get;
-			private set;
-		}
-
 		public ReadOnlyWindowsTargetRules WindowsPlatform
 		{
 			get;
@@ -2855,12 +2822,6 @@ namespace UnrealBuildTool
 		}
 
 		public ReadOnlyHoloLensTargetRules HoloLensPlatform
-		{
-			get;
-			private set;
-		}
-
-		public ReadOnlyXboxOneTargetRules XboxOnePlatform
 		{
 			get;
 			private set;
