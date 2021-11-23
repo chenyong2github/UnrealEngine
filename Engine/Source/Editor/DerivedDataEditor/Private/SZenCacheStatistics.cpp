@@ -14,6 +14,7 @@
 #define LOCTEXT_NAMESPACE "ZenEditor"
 
 extern FString SingleDecimalFormat(double Value);
+using namespace UE::Zen;
 
 void SZenCacheStatisticsDialog::Construct(const FArguments& InArgs)
 {
@@ -73,13 +74,22 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 
 #if UE_WITH_ZEN
 
-	UE::Zen::FZenStats ZenStats;
+	FZenStats ZenStats;
 
 	UE::Zen::GetDefaultServiceInstance().GetStats(ZenStats);
 
-	int32 Row = 0;
 	double SumTotalGetMB = 0.0;
 	double SumTotalPutMB = 0.0;
+	double TotalUpstreamHitRatio = 0.0;
+
+	for (const FZenEndPointStats& EndpointStats : ZenStats.UpstreamStats.EndPointStats)
+	{
+		SumTotalGetMB += EndpointStats.DownloadedMB;
+		SumTotalPutMB += EndpointStats.UploadedMB;
+		TotalUpstreamHitRatio += EndpointStats.HitRatio;
+	}
+
+	int32 Row = 0;
 
 	const float RowMargin = 0.0f;
 	const float TitleMargin = 10.0f;
@@ -166,7 +176,7 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(ColumnMargin, RowMargin))
-		.Text_Lambda([ZenStats] { return FText::FromString(SingleDecimalFormat(ZenStats.CacheStats.HitRatio * 100.0) + TEXT(" %")); })
+		.Text_Lambda([ZenStats, TotalUpstreamHitRatio] { return FText::FromString(SingleDecimalFormat( ( ZenStats.CacheStats.HitRatio- TotalUpstreamHitRatio ) * 100.0) + TEXT(" %")); })
 	];
 
 	Panel->AddSlot(5, Row)
@@ -180,7 +190,7 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 	
 	int32 EndpointIndex = 1;
 
-	for (const UE::Zen::FZenEndPointStats& EndpointStats : ZenStats.UpstreamStats.EndPointStats)
+	for (const FZenEndPointStats& EndpointStats : ZenStats.UpstreamStats.EndPointStats)
 	{
 		Panel->AddSlot(0, Row)
 		[
@@ -224,9 +234,6 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 			.Text_Lambda([EndpointStats] { return FText::FromString(EndpointStats.Name); })
 		];
 
-		SumTotalGetMB += EndpointStats.DownloadedMB;
-		SumTotalPutMB += EndpointStats.UploadedMB;
-
 		Row++;
 	}
 
@@ -238,6 +245,15 @@ TSharedRef<SWidget> SZenCacheStatisticsDialog::GetGridPanel()
 		.ColorAndOpacity(TitleColor)
 		.Font(TitleFont)
 		.Justification(ETextJustify::Left)	
+	];
+
+	Panel->AddSlot(2, Row)
+	[
+		SNew(STextBlock)
+		.Margin(FMargin(ColumnMargin, RowMargin))
+		.ColorAndOpacity(TitleColor)
+		.Font(TitleFont)
+		.Text_Lambda([ZenStats] { return FText::FromString(SingleDecimalFormat( ZenStats.CacheStats.HitRatio * 100.0) + TEXT(" %")); })
 	];
 
 	Panel->AddSlot(3, Row)
