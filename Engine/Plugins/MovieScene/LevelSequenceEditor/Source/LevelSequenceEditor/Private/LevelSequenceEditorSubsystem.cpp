@@ -10,6 +10,7 @@
 #include "LevelSequenceEditorCommands.h"
 #include "ActorTreeItem.h"
 #include "LevelEditor.h"
+#include "ScopedTransaction.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 
 
