@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SingleSelectionTool.h"
-#include "InteractiveToolBuilder.h"
+#include "InteractiveToolWithToolTargetsBuilder.h"
 #include "InputBehaviorSet.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
@@ -26,7 +26,7 @@ public:
  * 
  */
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UMeshSurfacePointToolBuilder : public UInteractiveToolBuilder
+class INTERACTIVETOOLSFRAMEWORK_API UMeshSurfacePointToolBuilder : public UInteractiveToolWithToolTargetsBuilder
 {
 	GENERATED_BODY()
 
@@ -46,7 +46,7 @@ public:
 	virtual void InitializeNewTool(UMeshSurfacePointTool* Tool, const FToolBuilderState& SceneState) const;
 
 protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 

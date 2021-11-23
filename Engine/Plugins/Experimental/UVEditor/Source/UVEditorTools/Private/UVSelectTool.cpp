@@ -260,12 +260,6 @@ namespace UVSelectToolLocals
  * ToolBuilder
  */
 
-const FToolTargetTypeRequirements& UUVSelectToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements(UUVEditorToolMeshInput::StaticClass());
-	return TypeRequirements;
-}
-
 bool UUVSelectToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return Targets && Targets->Num() > 0;

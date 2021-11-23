@@ -36,9 +36,6 @@ public:
 	// This is a pointer so that it can be updated under the builder without
 	// having to set it in the mode after initializing targets.
 	const TArray<TObjectPtr<UUVEditorToolMeshInput>>* Targets = nullptr;
-
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const;
 };
 
 

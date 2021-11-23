@@ -19,12 +19,6 @@ using namespace UE::Geometry;
 // Tool builder
 // TODO: Could consider sharing some of the tool builder boilerplate for UV editor tools in a common base class.
 
-const FToolTargetTypeRequirements& UUVEditorLayoutToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements(UUVEditorToolMeshInput::StaticClass());
-	return TypeRequirements;
-}
-
 bool UUVEditorLayoutToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return Targets && Targets->Num() > 0;
