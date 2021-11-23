@@ -4,6 +4,7 @@
 
 #include "ConsoleVariablesEditorListRow.h"
 #include "ConsoleVariablesEditorModule.h"
+#include "ConsoleVariablesEditorProjectSettings.h"
 
 #include "Widgets/Input/SNumericEntryBox.h"
 
@@ -67,13 +68,18 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
                                                             const TWeakPtr<FConsoleVariablesEditorListRow> InRow)
 {
 	Item = InRow;
+
+	ProjectSettingsPtr = GetMutableDefault<UConsoleVariablesEditorProjectSettings>();
 	
 	ChildSlot
 	[
 		SAssignNew(InputWidget, SSpinBox<float>)
+		.MaxFractionalDigits(3)
 		.Value_Lambda([this]
 		{
-			if (Item.IsValid() && Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked)
+			if (Item.IsValid() &&
+				(Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
+					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue)))
 			{
 				return FCString::Atof(*Item.Pin()->GetCommandInfo().Pin()->ConsoleVariablePtr->GetString());
 			}
@@ -118,13 +124,17 @@ void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InAr
                                                           const TWeakPtr<FConsoleVariablesEditorListRow> InRow)
 {
 	Item = InRow;
+
+	ProjectSettingsPtr = GetMutableDefault<UConsoleVariablesEditorProjectSettings>();
 	
 	ChildSlot
 	[
 		SAssignNew(InputWidget, SSpinBox<int32>)
 		.Value_Lambda([this]
 		{
-			if (Item.IsValid() && Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked)
+			if (Item.IsValid() &&
+				(Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
+					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue)))
 			{
 				return FCString::Atoi(*Item.Pin()->GetCommandInfo().Pin()->ConsoleVariablePtr->GetString());
 			}
@@ -169,13 +179,17 @@ void SConsoleVariablesEditorListValueInput_String::Construct(const FArguments& I
                                                              const TWeakPtr<FConsoleVariablesEditorListRow> InRow)
 {
 	Item = InRow;
+
+	ProjectSettingsPtr = GetMutableDefault<UConsoleVariablesEditorProjectSettings>();
 	
 	ChildSlot
 	[
 		SAssignNew(InputWidget, SEditableText)
 		.Text_Lambda([this]
 		{
-			if (Item.IsValid() && Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked)
+			if (Item.IsValid() &&
+				(Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
+					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue)))
 			{
 				return FText::FromString(*Item.Pin()->GetCommandInfo().Pin()->ConsoleVariablePtr->GetString());
 			}
@@ -220,13 +234,17 @@ void SConsoleVariablesEditorListValueInput_Bool::Construct(const FArguments& InA
                                                            const TWeakPtr<FConsoleVariablesEditorListRow> InRow)
 {
 	Item = InRow;
+
+	ProjectSettingsPtr = GetMutableDefault<UConsoleVariablesEditorProjectSettings>();
 	
 	ChildSlot
 	[
 		SAssignNew(InputWidget, SSpinBox<int32>)
 		.Value_Lambda([this]
 		{
-			if (Item.IsValid() && Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked)
+			if (Item.IsValid() &&
+				(Item.Pin()->GetWidgetCheckedState() == ECheckBoxState::Checked ||
+					(ProjectSettingsPtr && ProjectSettingsPtr->UncheckedRowDisplayType == EConsoleVariablesEditorRowDisplayType::ShowCurrentValue)))
 			{
 				return FCString::Atoi(*Item.Pin()->GetCommandInfo().Pin()->ConsoleVariablePtr->GetString());
 			}

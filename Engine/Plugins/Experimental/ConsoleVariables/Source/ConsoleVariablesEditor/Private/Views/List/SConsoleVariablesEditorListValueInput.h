@@ -7,6 +7,8 @@
 
 struct FConsoleVariablesEditorListRow;
 
+class UConsoleVariablesEditorProjectSettings;
+
 class SConsoleVariablesEditorListValueInput : public SCompoundWidget
 {
 public:
@@ -26,6 +28,8 @@ protected:
 	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item = nullptr;
 	FString CachedValue = "";
+
+	TObjectPtr<UConsoleVariablesEditorProjectSettings> ProjectSettingsPtr = nullptr;
 };
 
 class SConsoleVariablesEditorListValueInput_Float : public SConsoleVariablesEditorListValueInput
