@@ -1515,9 +1515,6 @@ PyTypeObject InitializePyWrapperSetType()
 	PyType.tp_methods = PyMethods;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-#if PY_MAJOR_VERSION < 3
-	PyType.tp_flags |= Py_TPFLAGS_CHECKTYPES;
-#endif	// PY_MAJOR_VERSION < 3
 	PyType.tp_doc = "Type for all Unreal exposed set instances";
 
 	static PyNumberMethods PyNumber;

@@ -760,11 +760,7 @@ int FPyWrapperArray::Reverse(FPyWrapperArray* InSelf)
 	return 0;
 }
 
-#if PY_MAJOR_VERSION < 3
-int FPyWrapperArray::Sort(FPyWrapperArray* InSelf, PyObject* InCmp, PyObject* InKey, bool InReverse)
-#else	// PY_MAJOR_VERSION < 3
 int FPyWrapperArray::Sort(FPyWrapperArray* InSelf, PyObject* InKey, bool InReverse)
-#endif	// PY_MAJOR_VERSION < 3
 {
 	if (!ValidateInternalState(InSelf))
 	{
@@ -796,9 +792,7 @@ int FPyWrapperArray::Sort(FPyWrapperArray* InSelf, PyObject* InKey, bool InRever
 	FPyObjectPtr PyListSortFunc = FPyObjectPtr::StealReference(PyObject_GetAttrString(PyList, "sort"));
 	FPyObjectPtr PyListSortArgs = FPyObjectPtr::StealReference(PyTuple_New(0));
 	FPyObjectPtr PyListSortKwds = FPyObjectPtr::StealReference(PyDict_New());
-#if PY_MAJOR_VERSION < 3
-	PyDict_SetItemString(PyListSortKwds, "cmp", InCmp ? InCmp : Py_None);
-#endif	// PY_MAJOR_VERSION < 3
+
 	PyDict_SetItemString(PyListSortKwds, "key", InKey ? InKey : Py_None);
 	PyDict_SetItemString(PyListSortKwds, "reverse", InReverse ? Py_True : Py_False);
 
@@ -1347,19 +1341,11 @@ PyTypeObject InitializePyWrapperArrayType()
 
 		static PyObject* Sort(FPyWrapperArray* InSelf, PyObject* InArgs, PyObject* InKwds)
 		{
-#if PY_MAJOR_VERSION < 3
-			PyObject* PyCmpObject = nullptr;
-#endif	// PY_MAJOR_VERSION < 3
 			PyObject* PyKeyObj = nullptr;
 			PyObject* PyReverseObj = nullptr;
 
-#if PY_MAJOR_VERSION < 3
-			static const char *ArgsKwdList[] = { "cmp", "key", "reverse", nullptr };
-			if (!PyArg_ParseTupleAndKeywords(InArgs, InKwds, "|OOO:sort", (char**)ArgsKwdList, &PyCmpObject, &PyKeyObj, &PyReverseObj))
-#else	// PY_MAJOR_VERSION < 3
 			static const char *ArgsKwdList[] = { "key", "reverse", nullptr };
 			if (!PyArg_ParseTupleAndKeywords(InArgs, InKwds, "|OO:sort", (char**)ArgsKwdList, &PyKeyObj, &PyReverseObj))
-#endif	// PY_MAJOR_VERSION < 3
 			{
 				return nullptr;
 			}
@@ -1371,11 +1357,7 @@ PyTypeObject InitializePyWrapperArrayType()
 				return nullptr;
 			}
 
-#if PY_MAJOR_VERSION < 3
-			if (FPyWrapperArray::Sort(InSelf, PyCmpObject, PyKeyObj, bReverse) != 0)
-#else	// PY_MAJOR_VERSION < 3
 			if (FPyWrapperArray::Sort(InSelf, PyKeyObj, bReverse) != 0)
-#endif	// PY_MAJOR_VERSION < 3
 			{
 				return nullptr;
 			}
@@ -1418,11 +1400,7 @@ PyTypeObject InitializePyWrapperArrayType()
 		{ "pop", PyCFunctionCast(&FMethods::Pop), METH_VARARGS, "x.pop(index=len-1) -> value -- remove and return the value at the given index in this Unreal array, or raise IndexError if the index is out-of-bounds" },
 		{ "remove", PyCFunctionCast(&FMethods::Remove), METH_VARARGS, "x.remove(value) -> None -- remove the first matching value in this Unreal array, or raise ValueError if missing" },
 		{ "reverse", PyCFunctionCast(&FMethods::Reverse), METH_NOARGS, "x.reverse() -> None -- reverse this Unreal array in-place" },
-#if PY_MAJOR_VERSION < 3
-		{ "sort", PyCFunctionCast(&FMethods::Sort), METH_VARARGS | METH_KEYWORDS, "x.sort(cmp=None, key=None, reverse=False) -> None -- stable sort this Unreal array in-place" },
-#else	// PY_MAJOR_VERSION < 3
 		{ "sort", PyCFunctionCast(&FMethods::Sort), METH_VARARGS | METH_KEYWORDS, "x.sort(key=None, reverse=False) -> None -- stable sort this Unreal array in-place" },
-#endif	// PY_MAJOR_VERSION < 3
 		{ "resize", PyCFunctionCast(&FMethods::Resize), METH_VARARGS, "x.resize(len) -> None -- resize this Unreal array to hold the given number of elements" },
 		{ nullptr, nullptr, 0, nullptr }
 	};

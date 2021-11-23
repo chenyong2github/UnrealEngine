@@ -74,14 +74,6 @@ FPyConversionResult NativizeSigned(PyObject* PyObj, T& OutVal, const ESetErrorSt
 	// Booleans subclass integer, so exclude those explicitly
 	if (!PyBool_Check(PyObj))
 	{
-#if PY_MAJOR_VERSION < 3
-		if (PyInt_Check(PyObj))
-		{
-			OutVal = PyInt_AsLong(PyObj);
-			return FPyConversionResult::Success();
-		}
-#endif	// PY_MAJOR_VERSION < 3
-
 		if (PyLong_Check(PyObj))
 		{
 			OutVal = PyLong_AsLongLong(PyObj);
@@ -104,14 +96,6 @@ FPyConversionResult NativizeUnsigned(PyObject* PyObj, T& OutVal, const ESetError
 	// Booleans subclass integer, so exclude those explicitly
 	if (!PyBool_Check(PyObj))
 	{
-#if PY_MAJOR_VERSION < 3
-		if (PyInt_Check(PyObj))
-		{
-			OutVal = PyInt_AsSsize_t(PyObj);
-			return FPyConversionResult::Success();
-		}
-#endif	// PY_MAJOR_VERSION < 3
-
 		if (PyLong_Check(PyObj))
 		{
 			OutVal = PyLong_AsUnsignedLongLong(PyObj);
@@ -134,14 +118,6 @@ FPyConversionResult NativizeReal(PyObject* PyObj, T& OutVal, const ESetErrorStat
 	// Booleans subclass integer, so exclude those explicitly
 	if (!PyBool_Check(PyObj))
 	{
-#if PY_MAJOR_VERSION < 3
-		if (PyInt_Check(PyObj))
-		{
-			OutVal = PyInt_AsLong(PyObj);
-			return FPyConversionResult::SuccessWithCoercion();
-		}
-#endif	// PY_MAJOR_VERSION < 3
-
 		if (PyLong_Check(PyObj))
 		{
 			OutVal = PyLong_AsDouble(PyObj);
@@ -161,34 +137,14 @@ FPyConversionResult NativizeReal(PyObject* PyObj, T& OutVal, const ESetErrorStat
 template <typename T>
 FPyConversionResult PythonizeSigned(const T Val, PyObject*& OutPyObj, const ESetErrorState SetErrorState, const TCHAR* InErrorType)
 {
-#if PY_MAJOR_VERSION < 3
-	if (Val >= LONG_MIN && Val <= LONG_MAX)
-	{
-		OutPyObj = PyInt_FromLong(Val);
-	}
-	else
-#endif	// PY_MAJOR_VERSION < 3
-	{
-		OutPyObj = PyLong_FromLongLong(Val);
-	}
-
+	OutPyObj = PyLong_FromLongLong(Val);
 	return FPyConversionResult::Success();
 }
 
 template <typename T>
 FPyConversionResult PythonizeUnsigned(const T Val, PyObject*& OutPyObj, const ESetErrorState SetErrorState, const TCHAR* InErrorType)
 {
-#if PY_MAJOR_VERSION < 3
-	if (Val <= LONG_MAX)
-	{
-		OutPyObj = PyInt_FromSsize_t(Val);
-	}
-	else
-#endif	// PY_MAJOR_VERSION < 3
-	{
-		OutPyObj = PyLong_FromUnsignedLongLong(Val);
-	}
-
+	OutPyObj = PyLong_FromUnsignedLongLong(Val);
 	return FPyConversionResult::Success();
 }
 
@@ -220,14 +176,6 @@ FPyConversionResult Nativize(PyObject* PyObj, bool& OutVal, const ESetErrorState
 		OutVal = false;
 		return FPyConversionResult::Success();
 	}
-	
-#if PY_MAJOR_VERSION < 3
-	if (PyInt_Check(PyObj))
-	{
-		OutVal = PyInt_AsLong(PyObj) != 0;
-		return FPyConversionResult::SuccessWithCoercion();
-	}
-#endif	// PY_MAJOR_VERSION < 3
 
 	if (PyLong_Check(PyObj))
 	{
@@ -367,15 +315,6 @@ FPyConversionResult Nativize(PyObject* PyObj, FString& OutVal, const ESetErrorSt
 		}
 	}
 
-#if PY_MAJOR_VERSION < 3
-	if (PyString_Check(PyObj))
-	{
-		const char* PyUtf8Buffer = PyString_AsString(PyObj);
-		OutVal = UTF8_TO_TCHAR(PyUtf8Buffer);
-		return FPyConversionResult::Success();
-	}
-#endif	// PY_MAJOR_VERSION < 3
-
 	if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperNameType) == 1)
 	{
 		FPyWrapperName* PyWrappedName = (FPyWrapperName*)PyObj;
@@ -388,17 +327,7 @@ FPyConversionResult Nativize(PyObject* PyObj, FString& OutVal, const ESetErrorSt
 
 FPyConversionResult Pythonize(const FString& Val, PyObject*& OutPyObj, const ESetErrorState SetErrorState)
 {
-#if PY_MAJOR_VERSION < 3
-	if (FCString::IsPureAnsi(*Val))
-	{
-		OutPyObj = PyString_FromStringAndSize(TCHAR_TO_ANSI(*Val), Val.Len());
-	}
-	else
-#endif	// PY_MAJOR_VERSION < 3
-	{
-		OutPyObj = PyUnicode_FromString(TCHAR_TO_UTF8(*Val));
-	}
-
+	OutPyObj = PyUnicode_FromString(TCHAR_TO_UTF8(*Val));
 	return FPyConversionResult::Success();
 }
 
@@ -469,13 +398,13 @@ FPyConversionResult Nativize(PyObject* PyObj, void*& OutVal, const ESetErrorStat
 #endif	// !(PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 2)
 
 	// Capsule was added in Python 2.7 and 3.1
-#if (PY_MAJOR_VERSION >= 2 && PY_MINOR_VERSION >= 7) || (PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 1)
+#if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 1
 	if (PyCapsule_CheckExact(PyObj))
 	{
 		OutVal = PyCapsule_GetPointer(PyObj, PyCapsule_GetName(PyObj));
 		return FPyConversionResult::Success();
 	}
-#endif	// (PY_MAJOR_VERSION >= 2 && PY_MINOR_VERSION >= 7) || (PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 1)
+#endif	// PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 1
 
 	if (PyObj == Py_None)
 	{

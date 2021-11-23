@@ -212,12 +212,8 @@ void InitializeModule()
 	PyGenUtil::FNativePythonModule NativePythonModule;
 	NativePythonModule.PyModuleMethods = PyEditorMethods;
 
-#if PY_MAJOR_VERSION >= 3
 	NativePythonModule.PyModule = PyImport_AddModule("_unreal_editor");
 	PyModule_AddFunctions(NativePythonModule.PyModule, PyEditorMethods);
-#else	// PY_MAJOR_VERSION >= 3
-	NativePythonModule.PyModule = Py_InitModule("_unreal_editor", PyEditorMethods);
-#endif	// PY_MAJOR_VERSION >= 3
 
 	if (PyType_Ready(&PyScopedEditorTransactionType) == 0)
 	{

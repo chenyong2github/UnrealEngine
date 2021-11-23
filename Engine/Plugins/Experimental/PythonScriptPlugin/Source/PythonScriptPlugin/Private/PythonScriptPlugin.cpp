@@ -720,11 +720,12 @@ void FPythonScriptPlugin::InitializePython()
 
 	// Initialize the Python interpreter
 	{
+		static_assert(PY_MAJOR_VERSION >= 3, "Unreal Engine Python integration doesn't support versions prior to Python 3.x");
 		UE_LOG(LogPython, Log, TEXT("Using Python %d.%d.%d"), PY_MAJOR_VERSION, PY_MINOR_VERSION, PY_MICRO_VERSION);
 
 		// Python 3 changes the console mode from O_TEXT to O_BINARY which affects other uses of the console
 		// So change the console mode back to its current setting after Py_Initialize has been called
-#if PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
+#if PLATFORM_WINDOWS
 		// We call _setmode here to cache the current state
 		CA_SUPPRESS(6031)
 		fflush(stdin);
@@ -735,7 +736,7 @@ void FPythonScriptPlugin::InitializePython()
 		CA_SUPPRESS(6031)
 		fflush(stderr);
 		const int StdErrMode = _setmode(_fileno(stderr), _O_TEXT);
-#endif	// PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
+#endif	// PLATFORM_WINDOWS
 
 #if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 7
 		// Python 3.7+ changes the C locale which affects functions using C string APIs
@@ -770,7 +771,7 @@ void FPythonScriptPlugin::InitializePython()
 		}
 #endif // PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION < 7
 
-#if PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
+#if PLATFORM_WINDOWS
 		// We call _setmode here to restore the previous state
 		if (StdInMode != -1)
 		{
@@ -793,7 +794,7 @@ void FPythonScriptPlugin::InitializePython()
 			CA_SUPPRESS(6031)
 			_setmode(_fileno(stderr), StdErrMode);
 		}
-#endif	// PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
+#endif	// PLATFORM_WINDOWS
 
 #if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 7
 		// We call setlocale here to restore the previous state

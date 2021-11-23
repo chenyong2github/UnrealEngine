@@ -35,19 +35,11 @@ namespace PyUtil
 #endif	// PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 2
 
 	/** Character type that this version of Python uses in its API */
-#if PY_MAJOR_VERSION >= 3
 	typedef wchar_t FPyApiChar;
-#else	// PY_MAJOR_VERSION >= 3
-	typedef char FPyApiChar;
-#endif	// PY_MAJOR_VERSION >= 3
 	typedef TArray<FPyApiChar> FPyApiBuffer;
 
 	/** Convert a TCHAR to a transient buffer that can be passed to a Python API that doesn't hold the result */
-#if PY_MAJOR_VERSION >= 3
 	#define TCHARToPyApiChar(InStr) TCHAR_TO_WCHAR(InStr)
-#else	// PY_MAJOR_VERSION >= 3
-	#define TCHARToPyApiChar(InStr) TCHAR_TO_UTF8(InStr)
-#endif	// PY_MAJOR_VERSION >= 3
 
 	extern const FName DefaultPythonPropertyName;
 

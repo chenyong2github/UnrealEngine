@@ -1807,13 +1807,8 @@ void InitializeModule()
 	PyGenUtil::FNativePythonModule NativePythonModule;
 	NativePythonModule.PyModuleMethods = PyCoreMethods;
 
-#if PY_MAJOR_VERSION >= 3
 	NativePythonModule.PyModule = PyImport_AddModule("_unreal_core");
 	PyModule_AddFunctions(NativePythonModule.PyModule, PyCoreMethods);
-#else	// PY_MAJOR_VERSION >= 3
-	NativePythonModule.PyModule = Py_InitModule("_unreal_core", PyCoreMethods);
-#endif	// PY_MAJOR_VERSION >= 3
-
 	PyType_Ready(&PyDelegateHandleType);
 
 	if (PyType_Ready(&PyScopedSlowTaskType) == 0)

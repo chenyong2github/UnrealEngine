@@ -1225,30 +1225,18 @@ PyTypeObject InitializePyWrapperStructType()
 	PyType.tp_methods = PyMethods;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-#if PY_MAJOR_VERSION < 3
-	PyType.tp_flags |= Py_TPFLAGS_CHECKTYPES;
-#endif	// PY_MAJOR_VERSION < 3
 	PyType.tp_doc = "Type for all Unreal exposed struct instances";
 
 	static PyNumberMethods PyNumber;
-#if PY_MAJOR_VERSION >= 3
 	PyNumber.nb_bool = (inquiry)&FNumberFuncs::Bool;
-#else	// PY_MAJOR_VERSION >= 3
-	PyNumber.nb_nonzero = (inquiry)&FNumberFuncs::Bool;
-#endif	// PY_MAJOR_VERSION >= 3
 	PyNumber.nb_add = (binaryfunc)&FNumberFuncs::Add;
 	PyNumber.nb_inplace_add = (binaryfunc)&FNumberFuncs::InlineAdd;
 	PyNumber.nb_subtract = (binaryfunc)&FNumberFuncs::Subtract;
 	PyNumber.nb_inplace_subtract = (binaryfunc)&FNumberFuncs::InlineSubtract;
 	PyNumber.nb_multiply = (binaryfunc)&FNumberFuncs::Multiply;
 	PyNumber.nb_inplace_multiply = (binaryfunc)&FNumberFuncs::InlineMultiply;
-#if PY_MAJOR_VERSION >= 3
 	PyNumber.nb_true_divide = (binaryfunc)&FNumberFuncs::Divide;
 	PyNumber.nb_inplace_true_divide = (binaryfunc)&FNumberFuncs::InlineDivide;
-#else	// PY_MAJOR_VERSION >= 3
-	PyNumber.nb_divide = (binaryfunc)&FNumberFuncs::Divide;
-	PyNumber.nb_inplace_divide = (binaryfunc)&FNumberFuncs::InlineDivide;
-#endif	// PY_MAJOR_VERSION >= 3
 	PyNumber.nb_remainder = (binaryfunc)&FNumberFuncs::Modulus;
 	PyNumber.nb_inplace_remainder = (binaryfunc)&FNumberFuncs::InlineModulus;
 	PyNumber.nb_and = (binaryfunc)&FNumberFuncs::And;

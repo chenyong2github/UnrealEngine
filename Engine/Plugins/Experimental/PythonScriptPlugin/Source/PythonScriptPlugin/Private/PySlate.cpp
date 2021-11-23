@@ -210,12 +210,8 @@ void InitializeModule()
 	PyGenUtil::FNativePythonModule NativePythonModule;
 	NativePythonModule.PyModuleMethods = PySlateMethods;
 
-#if PY_MAJOR_VERSION >= 3
 	NativePythonModule.PyModule = PyImport_AddModule("_unreal_slate");
 	PyModule_AddFunctions(NativePythonModule.PyModule, PySlateMethods);
-#else	// PY_MAJOR_VERSION >= 3
-	NativePythonModule.PyModule = Py_InitModule("_unreal_slate", PySlateMethods);
-#endif	// PY_MAJOR_VERSION >= 3
 
 	FPyWrapperTypeRegistry::Get().RegisterNativePythonModule(MoveTemp(NativePythonModule));
 }

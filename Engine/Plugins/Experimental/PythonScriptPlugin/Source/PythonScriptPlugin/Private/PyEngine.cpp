@@ -107,11 +107,7 @@ PyObject* GetBlueprintGeneratedTypes(PyObject* InSelf, PyObject* InArgs)
 			if (PyArg)
 			{
 				// Is this some kind of container, or a single value?
-#if PY_MAJOR_VERSION < 3
-				const bool bIsStringType = PyUnicode_Check(PyArg) || PyString_Check(PyArg);
-#else	// PY_MAJOR_VERSION < 3
 				const bool bIsStringType = static_cast<bool>(PyUnicode_Check(PyArg));
-#endif	// PY_MAJOR_VERSION < 3
 				if (!bIsStringType && PyUtil::HasLength(PyArg))
 				{
 					const Py_ssize_t SequenceLen = PyObject_Length(PyArg);
@@ -214,12 +210,8 @@ void InitializeModule()
 	PyGenUtil::FNativePythonModule NativePythonModule;
 	NativePythonModule.PyModuleMethods = PyEngineMethods;
 
-#if PY_MAJOR_VERSION >= 3
 	NativePythonModule.PyModule = PyImport_AddModule("_unreal_engine");
 	PyModule_AddFunctions(NativePythonModule.PyModule, PyEngineMethods);
-#else	// PY_MAJOR_VERSION >= 3
-	NativePythonModule.PyModule = Py_InitModule("_unreal_engine", PyEngineMethods);
-#endif	// PY_MAJOR_VERSION >= 3
 
 	if (PyType_Ready(&PyActorIteratorType) == 0)
 	{

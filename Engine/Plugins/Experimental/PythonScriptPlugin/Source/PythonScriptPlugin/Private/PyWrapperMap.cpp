@@ -1474,77 +1474,6 @@ PyTypeObject InitializePyWrapperMapType()
 			Py_RETURN_NONE;
 		}
 
-#if PY_MAJOR_VERSION < 3
-
-		static PyObject* HasKey(FPyWrapperMap* InSelf, PyObject* InArgs)
-		{
-			PyObject* PyObj = nullptr;
-			if (!PyArg_ParseTuple(InArgs, "|O:has_key", &PyObj))
-			{
-				return nullptr;
-			}
-
-			const int ContainsResult = FPyWrapperMap::Contains(InSelf, PyObj);
-			if (ContainsResult == -1)
-			{
-				return nullptr;
-			}
-
-			if (ContainsResult == 1)
-			{
-				Py_RETURN_TRUE;
-			}
-
-			Py_RETURN_FALSE;
-		}
-
-		static PyObject* IterItems(FPyWrapperMap* InSelf)
-		{
-			return MakeMapIter<FPyWrapperMapItemIterator>(InSelf);
-		}
-
-		static PyObject* IterKeys(FPyWrapperMap* InSelf)
-		{
-			return MakeMapIter<FPyWrapperMapKeyIterator>(InSelf);
-		}
-
-		static PyObject* IterValues(FPyWrapperMap* InSelf)
-		{
-			return MakeMapIter<FPyWrapperMapValueIterator>(InSelf);
-		}
-
-		static PyObject* Items(FPyWrapperMap* InSelf)
-		{
-			return FPyWrapperMap::Items(InSelf);
-		}
-
-		static PyObject* Keys(FPyWrapperMap* InSelf)
-		{
-			return FPyWrapperMap::Keys(InSelf);
-		}
-
-		static PyObject* Values(FPyWrapperMap* InSelf)
-		{
-			return FPyWrapperMap::Values(InSelf);
-		}
-
-		static PyObject* ViewItems(FPyWrapperMap* InSelf)
-		{
-			return MakeMapView<FPyWrapperMapItemView>(InSelf);
-		}
-
-		static PyObject* ViewKeys(FPyWrapperMap* InSelf)
-		{
-			return MakeMapView<FPyWrapperMapKeyView>(InSelf);
-		}
-
-		static PyObject* ViewValues(FPyWrapperMap* InSelf)
-		{
-			return MakeMapView<FPyWrapperMapValueView>(InSelf);
-		}
-
-#else	// PY_MAJOR_VERSION < 3
-
 		static PyObject* Items(FPyWrapperMap* InSelf)
 		{
 			return MakeMapView<FPyWrapperMapItemView>(InSelf);
@@ -1559,8 +1488,6 @@ PyTypeObject InitializePyWrapperMapType()
 		{
 			return MakeMapView<FPyWrapperMapValueView>(InSelf);
 		}
-
-#endif	// PY_MAJOR_VERSION < 3
 	};
 
 	static PyMethodDef PyMethods[] = {
@@ -1574,22 +1501,9 @@ PyTypeObject InitializePyWrapperMapType()
 		{ "pop", PyCFunctionCast(&FMethods::Pop), METH_VARARGS | METH_KEYWORDS, "x.pop(key, default=None) -> value -- remove key and return its value, or default if key not present, or raise KeyError if no default" },
 		{ "popitem", PyCFunctionCast(&FMethods::PopItem), METH_NOARGS, "x.popitem() -> pair -- remove and return an arbitrary pair from this Unreal map, or raise KeyError if the map is empty" },
 		{ "update", PyCFunctionCast(&FMethods::Update), METH_VARARGS | METH_KEYWORDS, "x.update(...) -> None -- update this Unreal map from the given mapping or sequence pairs type or key->value arguments" },
-#if PY_MAJOR_VERSION < 3
-		{ "has_key", PyCFunctionCast(&FMethods::HasKey), METH_VARARGS, "x.has_key(k) -> bool -- does this Unreal map contain the given key? (equivalent to k in x)" },
-		{ "iteritems", PyCFunctionCast(&FMethods::IterItems), METH_NOARGS, "x.iteritems() -> iter -- an iterator over the key->value pairs of this Unreal map" },
-		{ "iterkeys", PyCFunctionCast(&FMethods::IterKeys), METH_NOARGS, "x.iterkeys() -> iter -- an iterator over the keys of this Unreal map" },
-		{ "itervalues", PyCFunctionCast(&FMethods::IterValues), METH_NOARGS, "x.itervalues() -> iter -- an iterator over the values of this Unreal map" },
-		{ "items", PyCFunctionCast(&FMethods::Items), METH_NOARGS, "x.items() -> iter -- a Python list containing the key->value pairs of this Unreal map" },
-		{ "keys", PyCFunctionCast(&FMethods::Keys), METH_NOARGS, "x.keys() -> iter -- a Python list containing the keys of this Unreal map" },
-		{ "values", PyCFunctionCast(&FMethods::Values), METH_NOARGS, "x.values() -> iter -- a Python list containing the values of this Unreal map" },
-		{ "viewitems", PyCFunctionCast(&FMethods::ViewItems), METH_NOARGS, "x.viewitems() -> view -- a set-like view of the key->value pairs of this Unreal map" },
-		{ "viewkeys", PyCFunctionCast(&FMethods::ViewKeys), METH_NOARGS, "x.viewkeys() -> view -- a set-like view of the keys of this Unreal map" },
-		{ "viewvalues", PyCFunctionCast(&FMethods::ViewValues), METH_NOARGS, "x.viewvalues() -> view -- a view of the values of this Unreal map" },
-#else	// PY_MAJOR_VERSION < 3
 		{ "items", PyCFunctionCast(&FMethods::Items), METH_NOARGS, "x.items() -> view -- a set-like view of the key->value pairs of this Unreal map" },
 		{ "keys", PyCFunctionCast(&FMethods::Keys), METH_NOARGS, "x.keys() -> view -- a set-like view of the keys of this Unreal map" },
 		{ "values", PyCFunctionCast(&FMethods::Values), METH_NOARGS, "x.values() -> view -- a view of the values of this Unreal map" },
-#endif	// PY_MAJOR_VERSION < 3
 		{ nullptr, nullptr, 0, nullptr }
 	};
 
@@ -1823,10 +1737,6 @@ PyTypeObject InitializePyWrapperMapSetViewType(const char* InName)
 	};
 
 	PyTypeObject PyType = InitializePyWrapperMapViewType<TImpl>(InName);
-
-#if PY_MAJOR_VERSION < 3
-	PyType.tp_flags |= Py_TPFLAGS_CHECKTYPES;
-#endif	// PY_MAJOR_VERSION < 3
 
 	static PyNumberMethods PyNumber;
 	PyNumber.nb_subtract = (binaryfunc)&FNumberFuncs::Sub;
