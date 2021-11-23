@@ -190,8 +190,7 @@ namespace Chaos
 
 		bool CHAOS_API Raycast(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, TVector<FReal, d>& OutPosition, TVector<FReal, d>& OutNormal, int32& OutFaceIndex) const;
 
-
-		FORCEINLINE bool RaycastFast(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& Dir, const TVector<FReal, d>& InvDir, const bool* bParallel, const FReal Length, const FReal InvLength, FReal& OutTime, TVector<FReal, d>& OutPosition) const
+		FORCEINLINE bool RaycastFast(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& Dir, const TVector<FReal, d>& InvDir, const bool* bParallel, const FReal Length, const FReal InvLength, FReal& OutEntryTime, FReal& OutExitTime) const
 		{
 			const TVector<FReal, d> StartToMin = TVector<FReal, d>(MMin) - StartPoint;
 			const TVector<FReal, d> StartToMax = TVector<FReal, d>(MMax) - StartPoint;
@@ -243,9 +242,22 @@ namespace Chaos
 				return false;
 			}
 
-			OutTime = LatestStartTime;
-			OutPosition = StartPoint + LatestStartTime * Dir;
+			OutEntryTime = LatestStartTime;
+			OutExitTime = EarliestEndTime;
 			return true;
+		}
+
+		FORCEINLINE bool RaycastFast(const TVector<FReal, d>& StartPoint, const TVector<FReal, d>& Dir, const TVector<FReal, d>& InvDir, const bool* bParallel, const FReal Length, const FReal InvLength, FReal& OutTime, TVector<FReal, d>& OutPosition) const
+		{
+			FReal RayEntryTime;
+			FReal RayExitTime;
+			if (RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvLength, RayEntryTime, RayExitTime))
+			{
+				OutTime = RayEntryTime;
+				OutPosition = StartPoint + RayEntryTime * Dir;
+				return true;
+			}
+			return false;
 		}
 
 		CHAOS_API TVector<T, d> FindClosestPoint(const TVector<T, d>& StartPoint, const T Thickness = (T)0) const;
