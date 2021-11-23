@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InstancedStruct.h"
+#include "StructUtilsTypes.h"
+
+///////////////////////////////////////////////////////////////// FInstancedStruct /////////////////////////////////////////////////////////////////
 
 void FInstancedStruct::InitializeAs(const UScriptStruct* InScriptStruct, const uint8* InStructMemory /*= nullptr*/)
 {
@@ -206,24 +209,18 @@ bool FInstancedStruct::Identical(const FInstancedStruct* Other, uint32 PortFlags
 
 void FInstancedStruct::AddStructReferencedObjects(class FReferenceCollector& Collector)
 {
-	if (const UScriptStruct* ScriptStructPtr = GetScriptStruct())
-	{
-		Collector.AddReferencedObject(ScriptStructPtr);
-
-		if (ScriptStructPtr->StructFlags & STRUCT_AddStructReferencedObjects)
-		{
-			ScriptStructPtr->GetCppStructOps()->AddStructReferencedObjects()(GetMutableMemory(), Collector);
-		}
-		else
-		{
-			// The iterator will recursively loop through all structs in structs too.
-			for (TPropertyValueIterator<const FObjectProperty> It(ScriptStructPtr, GetMemory()); It; ++It)
-			{
-				UObject** ObjectPtr = static_cast<UObject**>(const_cast<void*>(It.Value()));
-				Collector.AddReferencedObject(*ObjectPtr);
-			}
-		}
-	}
+	UE::StructUtils::AddStructReferencedObjects(*this, Collector);
 }
 
+///////////////////////////////////////////////////////////////// FConstSharedStruct /////////////////////////////////////////////////////////////////
 
+bool FConstSharedStruct::Identical(const FConstSharedStruct* Other, uint32 PortFlags) const
+{
+	// Only empty is considered equal
+	return Other != nullptr && GetMemory() == nullptr && Other->GetMemory() == nullptr && GetScriptStruct() == nullptr && Other->GetScriptStruct() == nullptr;
+}
+
+void FConstSharedStruct::AddStructReferencedObjects(class FReferenceCollector& Collector)
+{
+	UE::StructUtils::AddStructReferencedObjects(*this, Collector);
+}
