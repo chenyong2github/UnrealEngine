@@ -307,7 +307,7 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 		.AutoHeight()
 		[
-			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(TEXT("LevelEditor.StatusBar"), OwnerTab)
+			GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(GetStatusBarName(), OwnerTab)
 		]
 	];
 	
@@ -1934,6 +1934,12 @@ FEditorModeTools& SLevelEditor::GetEditorModeManager() const
 UTypedElementCommonActions* SLevelEditor::GetCommonActions() const
 {
 	return CommonActions;
+}
+
+FName SLevelEditor::GetStatusBarName() const
+{
+	static const FName LevelEditorStatusBarName = "LevelEditor.StatusBar";
+	return LevelEditorStatusBarName;
 }
 
 void SLevelEditor::AddViewportOverlayWidget(TSharedRef<SWidget> InWidget, TSharedPtr<IAssetViewport> InViewport)
