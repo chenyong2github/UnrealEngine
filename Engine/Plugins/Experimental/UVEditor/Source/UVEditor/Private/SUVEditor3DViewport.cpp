@@ -33,9 +33,8 @@ void SUVEditor3DViewport::BindCommands()
 
 TSharedPtr<SWidget> SUVEditor3DViewport::MakeViewportToolbar()
 {
-	return SNew(SUVEditor3DViewportToolBar)
+	return SNew(SUVEditor3DViewportToolBar, SharedThis(this))
 		.CommandList(CommandList);
 }
-
 
 #undef LOCTEXT_NAMESPACE
