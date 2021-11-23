@@ -265,7 +265,6 @@ void UDMXPixelMappingRendererComponent::OnMapChanged(UWorld* InWorld, EMapChange
 {
 	if (UserWidget != nullptr)
 	{
-		UserWidget->MarkAsGarbage();
 		UserWidget = nullptr;
 	}
 }
