@@ -47,6 +47,8 @@ public:
 
 #if WITH_EDITOR
 	void Tick();
+	void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
+	void OnPackageDeleted(UPackage* Package);
 	void PackLevelInstances();
 	bool CanPackLevelInstances() const;
 
@@ -106,10 +108,12 @@ private:
 	void BreakLevelInstance_Impl(ALevelInstance* LevelInstanceActor, uint32 Levels, TArray<AActor*>& OutMovedActors);
 
 	static bool ShouldIgnoreDirtyPackage(UPackage* DirtyPackage, const UWorld* EditingWorld);
+	void OnPackageChanged(UPackage* Package);
 
 	struct FLevelInstanceEdit
 	{
 		ULevelStreamingLevelInstanceEditor* LevelStreaming = nullptr;
+		bool bCommittedChanges = false;
 
 		UWorld* GetEditWorld() const;
 	};

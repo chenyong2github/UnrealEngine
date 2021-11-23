@@ -37,6 +37,8 @@
 #include "LevelInstance/Packed/PackedLevelInstanceBuilder.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "EdGraph/EdGraph.h"
+#include "UObject/ObjectSaveContext.h"
+#include "UObject/UObjectGlobals.h"
 #endif
 
 #include "HAL/IConsoleManager.h"
@@ -64,6 +66,12 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (GEditor)
 	{
 		FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
+
+		if (!GetWorld()->IsGameWorld())
+		{
+			FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &ULevelInstanceSubsystem::OnObjectPreSave);
+			FEditorDelegates::OnPackageDeleted.AddUObject(this, &ULevelInstanceSubsystem::OnPackageDeleted);
+		}
 	}
 #endif
 }
@@ -71,6 +79,14 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void ULevelInstanceSubsystem::Deinitialize()
 {
 	Super::Deinitialize();
+
+#if WITH_EDITOR
+	if (!GetWorld()->IsGameWorld())
+	{
+		FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
+		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
+	}
+#endif
 }
 
 bool ULevelInstanceSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
@@ -376,6 +392,43 @@ void ULevelInstanceSubsystem::Tick()
 	}
 }
 
+void ULevelInstanceSubsystem::OnPackageChanged(UPackage* Package)
+{
+	for (auto& Pair : LevelInstanceEdits)
+	{
+		FLevelInstanceEdit& LevelInstanceEdit = Pair.Value;
+		if (UWorld* EditWorld = LevelInstanceEdit.GetEditWorld())
+		{
+			if (EditWorld->GetPackage() == Package)
+			{
+				LevelInstanceEdit.bCommittedChanges = true;
+			}
+			else
+			{
+				TSet<UPackage*> Packages;
+				Packages.Append(EditWorld->GetPackage()->GetExternalPackages());
+				if (Packages.Contains(Package))
+				{
+					LevelInstanceEdit.bCommittedChanges = true;
+				}
+			}
+		}
+	}
+}
+
+void ULevelInstanceSubsystem::OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext)
+{
+	if (!SaveContext.IsProceduralSave() && !(SaveContext.GetSaveFlags() & SAVE_FromAutosave))
+	{
+		OnPackageChanged(Object->GetPackage());
+	}
+}
+
+void ULevelInstanceSubsystem::OnPackageDeleted(UPackage* Package)
+{
+	OnPackageChanged(Package);
+}
+
 bool ULevelInstanceSubsystem::CanPackLevelInstances() const
 {
 	return !LevelInstanceEdits.Num();
@@ -461,7 +514,7 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 
 	for (APackedLevelInstance* PackedLevelInstance : PackedLevelInstancesToUpdate)
 	{
-		PackedLevelInstance->OnWorldAssetChanged();
+		PackedLevelInstance->UpdateLevelInstance();
 		UpdateProgress();
 	}
 }
@@ -1605,7 +1658,6 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 	UWorld* EditingWorld = LevelInstanceEdit->GetEditWorld();
 	check(EditingWorld);
 			
-	bool bChangesCommitted = false;
 	if (IsLevelInstanceEditDirty(LevelInstanceEdit) && !bDiscardEdits)
 	{
 		const bool bPromptUserToSave = bPromptForSave;
@@ -1626,21 +1678,6 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 			}))
 		{
 			return LevelInstanceActor;
-		}
-
-		// Validate that we indeed need to refresh instances (user can cancel the changes when prompted)
-		bChangesCommitted = !IsLevelInstanceEditDirty(LevelInstanceEdit);
-
-		if(bChangesCommitted)
-		{
-			// Sync the AssetData so that the updated instances have the latest Actor Registry Data
-			IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-			AssetRegistry.ScanPathsSynchronous({ LevelInstanceActor->GetWorldAssetPackage() }, true);
-			// Notify 
-			LevelInstanceActor->OnWorldAssetSaved(bPromptUserToSave);
-
-			// Update pointer since BP Compilation might have invalidated LevelInstanceActor
-			LevelInstanceActor = LevelInstanceEdit->LevelStreaming->GetLevelInstanceActor();
 		}
 	}
 
@@ -1673,11 +1710,25 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 	const FString EditPackage = LevelInstanceActor->GetWorldAssetPackage();
 
 	// Remove from streaming level...
+	const bool bChangesCommitted = LevelInstanceEdit->bCommittedChanges;
 	ULevelStreamingLevelInstanceEditor::Unload(LevelInstanceEdit->LevelStreaming);
 	LevelInstanceEdits.Remove(FName(*EditPackage));
 
-	// Notify (Actor might get destroyed by this call if its a packed bp
-	LevelInstanceActor->OnCommit();
+	if (bChangesCommitted)
+	{
+		// Sync the AssetData so that the updated instances have the latest Actor Registry Data
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.ScanPathsSynchronous({ LevelInstanceActor->GetWorldAssetPackage() }, true);
+	}
+	
+	// Backup ID on Commit in case Actor gets recreated
+	const FLevelInstanceID LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();
+
+	// Notify (Actor might get destroyed by this call if its a packed bp)
+	LevelInstanceActor->OnCommit(bChangesCommitted, bPromptForSave);
+
+	// Update pointer since BP Compilation might have invalidated LevelInstanceActor
+	LevelInstanceActor = GetLevelInstance(LevelInstanceID);
 
 	// Notify Ancestors
 	ForEachLevelInstanceAncestors(LevelInstanceActor, [bChangesCommitted](ALevelInstance* AncestorLevelInstance)
