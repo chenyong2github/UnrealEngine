@@ -65,11 +65,19 @@ public:
 	uint32*	ScatterData	= nullptr;
 	uint8*	UploadData	= nullptr;
 
+	uint32	ScatterDataSize = 0;
+	uint32	UploadDataSize = 0;
 	uint32 	NumScatters = 0;
 	uint32 	MaxScatters = 0;
 	uint32	NumBytesPerElement = 0;
 
 	bool	bFloat4Buffer = false;
+	bool    bUploadViaCreate = false;
+
+	~FScatterUploadBuffer()
+	{
+		Release();
+	}
 
 	RENDERCORE_API void Init( uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName );
 
@@ -88,15 +96,14 @@ public:
 		checkSlow( ScatterData != nullptr );
 		checkSlow( UploadData != nullptr );
 
+		uint32* ScatterWriteData = ScatterData + NumScatters;
+
 		for( uint32 i = 0; i < Num; i++ )
 		{
-			ScatterData[ i ] = Index + i;
+			ScatterWriteData[ i ] = Index + i;
 		}
 
-		void* Result = UploadData;
-
-		ScatterData += Num;
-		UploadData += Num * NumBytesPerElement;
+		void* Result = UploadData + NumScatters * NumBytesPerElement;
 		NumScatters += Num;
 		return Result;
 	}
@@ -105,10 +112,37 @@ public:
 	{
 		ScatterBuffer.Release();
 		UploadBuffer.Release();
+
+		if (bUploadViaCreate)
+		{
+			if (ScatterData)
+			{
+				FMemory::Free(ScatterData);
+				ScatterData = nullptr;
+			}
+			if (UploadData)
+			{
+				FMemory::Free(UploadData);
+				UploadData = nullptr;
+			}
+			ScatterDataSize = 0;
+			UploadDataSize = 0;
+		}
 	}
 
 	uint32 GetNumBytes() const
 	{
 		return ScatterBuffer.NumBytes + UploadBuffer.NumBytes;
+	}
+
+	void SetUploadViaCreate(bool bInUploadViaCreate)
+	{
+		if (bInUploadViaCreate != bUploadViaCreate)
+		{
+			// When switching the upload path, just free everything.
+			Release();
+
+			bUploadViaCreate = bInUploadViaCreate;
+		}
 	}
 };
