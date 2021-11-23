@@ -113,6 +113,16 @@ struct FMassEntityTemplateBuildContext
 		return Template.AddChunkFragment_GetRef<T>();
 	}
 
+	void AddConstSharedFragment(const FConstSharedStruct& InSharedFragment)
+	{
+		Template.AddConstSharedFragment(InSharedFragment);
+	}
+
+	void AddSharedFragment(const FSharedStruct& InSharedFragment)
+	{
+		Template.AddSharedFragment(InSharedFragment);
+	}
+
 	template<typename T>
 	bool HasFragment() const
 	{
@@ -134,6 +144,12 @@ struct FMassEntityTemplateBuildContext
 	bool HasChunkFragment() const
 	{
 		return Template.HasChunkFragment<T>();
+	}
+
+	template<typename T>
+	bool HasSharedFragment() const
+	{
+		return Template.HasSharedFragment<T>();
 	}
 
 	//----------------------------------------------------------------------//

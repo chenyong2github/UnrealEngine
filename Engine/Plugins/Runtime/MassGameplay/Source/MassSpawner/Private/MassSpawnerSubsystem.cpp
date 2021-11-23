@@ -136,7 +136,7 @@ bool UMassSpawnerSubsystem::SpawnEntities(const FMassEntityTemplate& EntityTempl
 	{ 
 		UE_CVLOG(OutEntities.Num() != NumberToSpawn, this, LogMassSpawner, Warning, TEXT("Tried to batch-create %d entities but created %d."), NumberToSpawn, OutEntities.Num());
 
-		const TArrayView<const FInstancedStruct> FragmentInstances = EntityTemplate.GetArchetypeFragmentsInitialValues().Fragments;
+		const TArrayView<const FInstancedStruct> FragmentInstances = EntityTemplate.GetArchetypeFragmentsInitialValues().GetFragments();
 		const FArchetypeChunkCollection ChunkCollection(EntityTemplate.GetArchetype(), OutEntities);
 		EntitySystem->BatchSetEntityFragmentsValues(ChunkCollection, FragmentInstances);
 
@@ -301,7 +301,7 @@ void UMassSpawnerSubsystem::DoSpawning(const FMassEntityTemplate& EntityTemplate
 	TArray<FMassEntityHandle> SpawnedEntities;
 	EntitySystem->BatchCreateEntities(EntityTemplate.GetArchetype(), Data.MaxNumber, SpawnedEntities);
 
-	const TArrayView<const FInstancedStruct> FragmentInstances = EntityTemplate.GetArchetypeFragmentsInitialValues().Fragments;
+	const TArrayView<const FInstancedStruct> FragmentInstances = EntityTemplate.GetArchetypeFragmentsInitialValues().GetFragments();
 	const FArchetypeChunkCollection ChunkCollection(EntityTemplate.GetArchetype(), SpawnedEntities);
 	EntitySystem->BatchSetEntityFragmentsValues(ChunkCollection, FragmentInstances);
 	

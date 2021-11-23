@@ -254,6 +254,48 @@ public:
 	bool IsProcessing() const { return ProcessingScopeCount > 0; }
 	FMassCommandBuffer& Defer() const { return *DeferredCommandBuffer.Get(); }
 
+	/**
+	 * Shared fragment creation methods
+	 */
+	template<typename T>
+	FConstSharedStruct& GetOrCreateConstSharedFragment(const uint32 Hash, const T& Fragment)
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived, "Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+		int32& Index = ConstSharedFragmentsMap.FindOrAddByHash(Hash, Hash, INDEX_NONE);
+		if (Index == INDEX_NONE)
+		{
+			Index = ConstSharedFragments.Add(FSharedStruct::Make(Fragment));
+		}
+		return ConstSharedFragments[Index];
+	}
+
+	template<typename T, typename... TArgs>
+	FSharedStruct& GetOrCreateSharedFragment(const uint32 Hash, TArgs&&... InArgs)
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived, "Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+
+		int32& Index = SharedFragmentsMap.FindOrAddByHash(Hash, Hash, INDEX_NONE);
+		if (Index == INDEX_NONE)
+		{
+			Index = SharedFragments.Add(FSharedStruct::Make<T>(Forward<TArgs>(InArgs)...));
+		}
+
+		return SharedFragments[Index];
+	}
+
+	template<typename T>
+	void ForEachSharedFragment(TFunction< void(T& /*SharedFragment*/) > ExecuteFunction)
+	{
+		FSameTypeScriptStructPredicate Predicate(T::StaticStruct());
+		for (const FSharedStruct& Struct : SharedFragments)
+		{
+			if (Predicate(Struct))
+			{
+				ExecuteFunction(Struct.GetMutable<T>());
+			}
+		}
+	}
+
 #if WITH_MASSENTITY_DEBUG
 	void DebugPrintEntity(int32 Index, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
 	void DebugPrintEntity(FMassEntityHandle Entity, FOutputDevice& Ar, const TCHAR* InPrefix = TEXT("")) const;
@@ -308,6 +350,17 @@ private:
 
 	// Map to list of archetypes that contain the specified fragment type
 	TMap<const UScriptStruct*, TArray<TSharedPtr<FMassArchetypeData>>> FragmentTypeToArchetypeMap;
+
+	// Shared fragments
+	UPROPERTY(Transient)
+	TArray<FConstSharedStruct> ConstSharedFragments;
+	// Hash/Index in array pair
+	TMap<uint32, int32> ConstSharedFragmentsMap;
+
+	UPROPERTY(Transient)
+	TArray<FSharedStruct> SharedFragments;
+	// Hash/Index in array pair
+	TMap<uint32, int32> SharedFragmentsMap;
 };
 
 
@@ -317,30 +370,30 @@ private:
 struct MASSENTITY_API FMassExecutionContext
 {
 private:
-	struct FFragmentView 
+
+	template< typename ViewType >
+	struct TFragmentView 
 	{
 		FMassFragmentRequirement Requirement;
-		TArrayView<FMassFragment> FragmentView;
+		ViewType FragmentView;
 
-		FFragmentView() {}
-		explicit FFragmentView(const FMassFragmentRequirement& InRequirement) : Requirement(InRequirement) {}
+		TFragmentView() {}
+		explicit TFragmentView(const FMassFragmentRequirement& InRequirement) : Requirement(InRequirement) {}
 
 		bool operator==(const UScriptStruct* FragmentType) const { return Requirement.StructType == FragmentType; }
 	};
+	using FFragmentView=TFragmentView<TArrayView<FMassFragment>>;
 	TArray<FFragmentView, TInlineAllocator<8>> FragmentViews;
 
-	struct FChunkFragmentView
-	{
-		FMassFragmentRequirement Requirement;
-		FStructView ChunkFragmentView;
+	using FChunkFragmentView = TFragmentView<FStructView>;
+	TArray<FChunkFragmentView, TInlineAllocator<4>> ChunkFragmentViews;
 
-		FChunkFragmentView() {}
-		explicit FChunkFragmentView(const FMassFragmentRequirement& InRequirement) : Requirement(InRequirement)	{}
+	using FConstSharedFragmentView = TFragmentView<FConstStructView>;
+	TArray<FConstSharedFragmentView, TInlineAllocator<4>> ConstSharedFragmentViews;
 
-		bool operator==(const UScriptStruct* FragmentType) const { return Requirement.StructType == FragmentType; }
-	};
-	TArray<FChunkFragmentView, TInlineAllocator<4>> ChunkFragments;
-
+	using FSharedFragmentView = TFragmentView<FStructView>;
+	TArray<FSharedFragmentView, TInlineAllocator<4>> SharedFragmentViews;
+	
 	// mz@todo make this shared ptr thread-safe and never auto-flush in MT environment. 
 	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
 	TArrayView<FMassEntityHandle> EntityListView;
@@ -364,8 +417,10 @@ private:
 	bool bFlushDeferredCommands = true;
 
 	TArrayView<FFragmentView> GetMutableRequirements() { return FragmentViews; }
-	TArrayView<FChunkFragmentView> GetMutableChunkRequirements() { return ChunkFragments; }
-	
+	TArrayView<FChunkFragmentView> GetMutableChunkRequirements() { return ChunkFragmentViews; }
+	TArrayView<FConstSharedFragmentView> GetMutableConstSharedRequirements() { return ConstSharedFragmentViews; }
+	TArrayView<FSharedFragmentView> GetMutableSharedRequirements() { return SharedFragmentViews; }
+
 	friend FMassArchetypeData;
 	friend FMassEntityQuery;
 
@@ -413,7 +468,7 @@ public:
 		return CurrentArchetypesTagBitSet.Contains<T>();
 	}
 
-	/** Chunk related operation */
+	/** Chunk related operations */
 	void SetCurrentChunkSerialModificationNumber(const int32 SerialModificationNumber) { ChunkSerialModificationNumber = SerialModificationNumber; }
 	int32 GetChunkSerialModificationNumber() const { return ChunkSerialModificationNumber; }
 
@@ -423,8 +478,8 @@ public:
 		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
 
 		const UScriptStruct* Type = T::StaticStruct();
-		const FChunkFragmentView* FoundChunkFragmentData = ChunkFragments.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
-		return FoundChunkFragmentData ? FoundChunkFragmentData->ChunkFragmentView.GetMutablePtr<T>() : static_cast<T*>(nullptr);
+		const FChunkFragmentView* FoundChunkFragmentData = ChunkFragmentViews.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
+		return FoundChunkFragmentData ? FoundChunkFragmentData->FragmentView.GetMutablePtr<T>() : static_cast<T*>(nullptr);
 	}
 	
 	template<typename T>
@@ -438,21 +493,68 @@ public:
 	template<typename T>
 	const T* GetChunkFragmentPtr() const
 	{
-		static_assert(TIsDerivedFrom<T, FMassChunkFragment>::IsDerived, "Given struct doesn't represent a valid chunk fragment type. Make sure to inherit from FMassChunkFragment or one of its child-types.");
-
-		const UScriptStruct* Type = T::StaticStruct();
-		const FChunkFragmentView* FoundChunkFragmentData = ChunkFragments.FindByPredicate([Type](const FChunkFragmentView& Element) { return Element.Requirement.StructType == Type; } );
-		return FoundChunkFragmentData ? FoundChunkFragmentData->ChunkFragmentView.GetPtr<T>() : static_cast<const T*>(nullptr);
+		return GetMutableChunkFragmentPtr<T>();
 	}
 	
 	template<typename T>
 	const T& GetChunkFragment() const
 	{
-		const T* ChunkFragment = GetChunkFragmentPtr<T>();
+		const T* ChunkFragment = GetMutableChunkFragmentPtr<T>();
 		checkf(ChunkFragment, TEXT("Chunk Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
 		return *ChunkFragment;
 	}
-	
+
+	/** Shared fragment related operations */
+	template<typename T>
+	const T* GetConstSharedFragmentPtr() const
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived, "Given struct doesn't represent a valid Shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+
+		const FConstSharedFragmentView* FoundSharedFragmentData = ConstSharedFragmentViews.FindByPredicate([](const FConstSharedFragmentView& Element) { return Element.Requirement.StructType == T::StaticStruct(); });
+		return FoundSharedFragmentData ? FoundSharedFragmentData->FragmentView.GetPtr<T>() : static_cast<const T*>(nullptr);
+	}
+
+	template<typename T>
+	const T& GetConstSharedFragment() const
+	{
+		const T* SharedFragment = GetConstSharedFragmentPtr<T>();
+		checkf(SharedFragment, TEXT("Shared Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
+		return *SharedFragment;
+	}
+
+
+	template<typename T>
+	T* GetMutableSharedFragmentPtr() const
+	{
+		static_assert(TIsDerivedFrom<T, FMassSharedFragment>::IsDerived, "Given struct doesn't represent a valid shared fragment type. Make sure to inherit from FMassSharedFragment or one of its child-types.");
+
+		const FSharedFragmentView* FoundSharedFragmentData = SharedFragmentViews.FindByPredicate([](const FSharedFragmentView& Element) { return Element.Requirement.StructType == T::StaticStruct(); });
+		return FoundSharedFragmentData ? FoundSharedFragmentData->FragmentView.GetMutablePtr<T>() : static_cast<T*>(nullptr);
+	}
+
+	template<typename T>
+	T& GetMutableSharedFragment() const
+	{
+		T* SharedFragment = GetMutableSharedFragmentPtr<T>();
+		checkf(SharedFragment, TEXT("Shared Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
+		return *SharedFragment;
+	}
+
+	template<typename T>
+	const T* GetSharedFragmentPtr() const
+	{
+		return GetMutableSharedFragmentPtr<T>();
+	}
+
+	template<typename T>
+	const T& GetSharedFragment() const
+	{
+		const T* SharedFragment = GetSharedFragmentPtr<T>();
+		checkf(SharedFragment, TEXT("Shared Fragment requirement not found: %s"), *T::StaticStruct()->GetName());
+		return *SharedFragment;
+	}
+
+	/* Fragments related operations */
 	template<typename TFragment>
 	TArrayView<TFragment> GetMutableFragmentView()
 	{
@@ -498,16 +600,28 @@ public:
 	void SetCurrentArchetypeData(FMassArchetypeData& ArchetypeData);
 
 protected:
-	void SetRequirements(TConstArrayView<FMassFragmentRequirement> InRequirements, TConstArrayView<FMassFragmentRequirement> InChunkRequirements);
+	void SetRequirements(TConstArrayView<FMassFragmentRequirement> InRequirements, 
+		TConstArrayView<FMassFragmentRequirement> InChunkRequirements, 
+		TConstArrayView<FMassFragmentRequirement> InConstSharedRequirements, 
+		TConstArrayView<FMassFragmentRequirement> InSharedRequirements);
+
 	void ClearFragmentViews()
 	{
 		for (FFragmentView& View : FragmentViews)
 		{
 			View.FragmentView = TArrayView<FMassFragment>();
 		}
-		for (FChunkFragmentView& View : ChunkFragments)
+		for (FChunkFragmentView& View : ChunkFragmentViews)
 		{
-			View.ChunkFragmentView.Reset();
+			View.FragmentView.Reset();
+		}
+		for (FConstSharedFragmentView& View : ConstSharedFragmentViews)
+		{
+			View.FragmentView.Reset();
+		}
+		for (FSharedFragmentView& View : SharedFragmentViews)
+		{
+			View.FragmentView.Reset();
 		}
 	}
 };

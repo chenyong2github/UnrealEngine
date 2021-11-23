@@ -53,6 +53,8 @@ void FMassEntityQuery::SortRequirements()
 	// FragmentConfigs we want to access have already been fetched and are available in processor cache.
 	Requirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
 	ChunkRequirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
+	ConstSharedRequirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
+	SharedRequirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
 }
 
 void FMassEntityQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
@@ -79,6 +81,14 @@ void FMassEntityQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
 				if (ChunkRequirements.Num())
 				{
 					ValidArchetypes[i].DataPtr->GetRequirementsChunkFragmentMapping(ChunkRequirements, ArchetypeFragmentMapping[i].ChunkFragments);
+				}
+				if (ConstSharedRequirements.Num())
+				{
+					ValidArchetypes[i].DataPtr->GetRequirementsConstSharedFragmentMapping(ConstSharedRequirements, ArchetypeFragmentMapping[i].ConstSharedFragments);
+				}
+				if (SharedRequirements.Num())
+				{
+					ValidArchetypes[i].DataPtr->GetRequirementsSharedFragmentMapping(SharedRequirements, ArchetypeFragmentMapping[i].SharedFragments);
 				}
 			}
 		}
@@ -137,7 +147,7 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 				, *DebugGetArchetypeCompatibilityDescription(ExecutionContext.GetChunkCollection().GetArchetype()));
 			return;
 		}
-		ExecutionContext.SetRequirements(Requirements, ChunkRequirements);
+		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
 		ExecutionContext.GetChunkCollection().GetArchetype().DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, {}, ExecutionContext.GetChunkCollection());
 #if WITH_MASSENTITY_DEBUG
 		NumEntitiesToProcess = ExecutionContext.GetNumEntities();
@@ -147,13 +157,13 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 	{
 		CacheArchetypes(EntitySubsystem);
 		// it's important to set requirements after caching archetypes due to that call potentially sorting the requirements and the order is relevant here.
-		ExecutionContext.SetRequirements(Requirements, ChunkRequirements);
+		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
 
 		for (int i = 0; i < ValidArchetypes.Num(); ++i)
 		{
 			FArchetypeHandle& Archetype = ValidArchetypes[i];
 			check(Archetype.IsValid());
-			Archetype.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeFragmentMapping[i], ChunkCondition);
+			Archetype.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, ArchetypeFragmentMapping[i], ArchetypeCondition, ChunkCondition);
 			ExecutionContext.ClearFragmentViews();
 #if WITH_MASSENTITY_DEBUG
 			NumEntitiesToProcess += ExecutionContext.GetNumEntities();
@@ -200,7 +210,7 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 			return;
 		}
 
-		ExecutionContext.SetRequirements(Requirements, ChunkRequirements);
+		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
 		check(ArchetypeHandle.IsValid());
 		FMassArchetypeData& ArchetypeRef = *ArchetypeHandle.DataPtr.Get();
 		const FArchetypeChunkCollection AsChunkCollection(ArchetypeHandle.DataPtr);
@@ -212,7 +222,7 @@ void FMassEntityQuery::ParallelForEachEntityChunk(UMassEntitySubsystem& EntitySu
 	else
 	{
 		CacheArchetypes(EntitySubsystem);
-		ExecutionContext.SetRequirements(Requirements, ChunkRequirements);
+		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
 		for (int ArchetypeIndex = 0; ArchetypeIndex < ValidArchetypes.Num(); ++ArchetypeIndex)
 		{
 			FArchetypeHandle& Archetype = ValidArchetypes[ArchetypeIndex];
