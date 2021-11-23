@@ -37,6 +37,40 @@ struct ENGINE_API FCustomAttributeSetting
 	FString Meaning;
 };
 
+/**
+ * Settings that identify the names of custom attributes that represent the individual components of a timecode and a subframe along with a take name.
+ */
+USTRUCT()
+struct ENGINE_API FTimecodeCustomAttributeNameSettings
+{
+	GENERATED_BODY()
+
+	/** Name of the custom attribute representing the hour component of a timecode. */
+	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
+	FName HourAttributeName;
+
+	/** Name of the custom attribute representing the minute component of a timecode. */
+	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
+	FName MinuteAttributeName;
+
+	/** Name of the custom attribute representing the second component of a timecode. */
+	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
+	FName SecondAttributeName;
+
+	/** Name of the custom attribute representing the frame component of a timecode. */
+	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
+	FName FrameAttributeName;
+
+	/** Name of the custom attribute representing a subframe value. Though not strictly a component
+		of a timecode, this attribute can be authored to identify samples in between timecodes. */
+	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
+	FName SubframeAttributeName;
+
+	/** Name of the custom attribute representing the name of a take. */
+	UPROPERTY(EditAnywhere, Category = TimecodeCustomAttributeNameSettings)
+	FName TakenameAttributeName;
+};
+
 struct UE_DEPRECATED(5.0, "FCustomAttribute has been deprecated") FCustomAttribute;
 USTRUCT(Experimental)
 struct ENGINE_API FCustomAttribute

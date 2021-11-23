@@ -220,6 +220,7 @@ namespace FbxAnimUtils
 	{
 		FbxProperty Property = InNode->GetFirstProperty();
 		UAnimationSettings* AnimationSettings = UAnimationSettings::Get();
+		const TArray<FString> CustomAttributeNamesToImport = AnimationSettings->GetBoneCustomAttributeNamesToImport();
 
 		while (Property.IsValid())
 		{
@@ -229,7 +230,7 @@ namespace FbxAnimUtils
 
 			if (CurveNode && Property.GetFlag(FbxPropertyFlags::eUserDefined) &&
 				CurveNode->IsAnimated() && FbxAnimUtils::IsSupportedCurveDataType(Property.GetPropertyDataType().GetType()) &&
-				!AnimationSettings->BoneCustomAttributesNames.ContainsByPredicate([&PropertyName](const FCustomAttributeSetting& CustomAttributeSetting) { return CustomAttributeSetting.Name.Equals(PropertyName, ESearchCase::IgnoreCase); }))
+				!CustomAttributeNamesToImport.Contains(PropertyName))
 			{
 				FString CurveName = UTF8_TO_TCHAR(CurveNode->GetName());
 				UE_LOG(LogFbx, Log, TEXT("CurveName : %s"), *CurveName);
@@ -261,6 +262,7 @@ namespace FbxAnimUtils
 	{
 		FbxProperty Property = InNode->GetFirstProperty();
 		UAnimationSettings* AnimationSettings = UAnimationSettings::Get();
+		const TArray<FString> CustomAttributeNamesToImport = AnimationSettings->GetBoneCustomAttributeNamesToImport();
 
 		while (Property.IsValid())
 		{
@@ -270,7 +272,7 @@ namespace FbxAnimUtils
 			const bool bIsTypeSupported = FbxAnimUtils::IsSupportedCurveDataType(PropertyType) || eFbxString == PropertyType;
 
 			if (Property.GetFlag(FbxPropertyFlags::eUserDefined) && bIsTypeSupported 
-				&& (bImportAllCustomAttributes || AnimationSettings->BoneCustomAttributesNames.ContainsByPredicate([&PropertyName](const FCustomAttributeSetting& CustomAttributeSetting) { return CustomAttributeSetting.Name.Equals(PropertyName, ESearchCase::IgnoreCase); })))
+				&& (bImportAllCustomAttributes || CustomAttributeNamesToImport.Contains(PropertyName)))
 			{
 				UE_LOG(LogFbx, Log, TEXT("PropertyName : %s"), *PropertyName);
 
