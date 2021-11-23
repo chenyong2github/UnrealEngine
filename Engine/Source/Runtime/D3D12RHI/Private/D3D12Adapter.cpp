@@ -1549,6 +1549,7 @@ void FD3D12Adapter::ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAlloc
 		ReleasedData.GPUVirtualAddress = GPUAddress;
 		ReleasedData.AllocationSize = InAllocation->GetSize();
 		ReleasedData.ResourceName = InAllocation->GetResource()->GetName();
+		ReleasedData.ResourceDesc = InAllocation->GetResource()->GetDesc();
 		ReleasedData.ReleasedFrameID = GetFrameFence().GetCurrentFence();
 		ReleasedData.bDefragFree = bDefragFree;
 		ReleasedData.bBackBuffer = InAllocation->GetResource()->IsBackBuffer();
