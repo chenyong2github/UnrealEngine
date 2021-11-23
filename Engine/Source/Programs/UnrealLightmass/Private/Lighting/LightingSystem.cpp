@@ -89,7 +89,7 @@ FLightMapData2D* FGatheredLightMapData2D::ConvertToLightmap2D(bool bDebugThisMap
 }
 
 FStaticLightingMappingContext::FStaticLightingMappingContext(const FStaticLightingMesh* InSubjectMesh, FStaticLightingSystem& InSystem, FDebugLightingOutput* InDebugOutput) :
-	FirstBounceCache(InSubjectMesh ? InSubjectMesh->BoundingBox : FBox::BuildAABB(FVector4(0,0,0), FVector4(HALF_WORLD_MAX)), InSystem, 1),
+	FirstBounceCache(InSubjectMesh ? InSubjectMesh->BoundingBox : FBox3f::BuildAABB(FVector4f(0,0,0), FVector4f(HALF_WORLD_MAX)), InSystem, 1),
 	System(InSystem),
 	DebugOutput(InDebugOutput)
 {}
@@ -140,18 +140,18 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 ,	NextVolumeSampleTaskIndex(-1)
 ,	NumVolumeSampleTasksOutstanding(0)
 ,	bShouldExportVolumeSampleData(false)
-,	VolumeLightingInterpolationOctree(FVector4(0,0,0), HALF_WORLD_MAX)
+,	VolumeLightingInterpolationOctree(FVector4f(0,0,0), HALF_WORLD_MAX)
 ,	bShouldExportMeshAreaLightData(false)
 ,	bShouldExportVolumeDistanceField(false)
 ,	NumPhotonsEmittedDirect(0)
-,	DirectPhotonMap(FVector4(0,0,0), HALF_WORLD_MAX)
+,	DirectPhotonMap(FVector4f(0,0,0), HALF_WORLD_MAX)
 ,	NumPhotonsEmittedFirstBounce(0)
-,	FirstBouncePhotonMap(FVector4(0,0,0), HALF_WORLD_MAX)
-,	FirstBounceEscapedPhotonMap(FVector4(0,0,0), HALF_WORLD_MAX)
-,	FirstBouncePhotonSegmentMap(FVector4(0,0,0), HALF_WORLD_MAX)
+,	FirstBouncePhotonMap(FVector4f(0,0,0), HALF_WORLD_MAX)
+,	FirstBounceEscapedPhotonMap(FVector4f(0,0,0), HALF_WORLD_MAX)
+,	FirstBouncePhotonSegmentMap(FVector4f(0,0,0), HALF_WORLD_MAX)
 ,	NumPhotonsEmittedSecondBounce(0)
-,	SecondBouncePhotonMap(FVector4(0,0,0), HALF_WORLD_MAX)
-,	IrradiancePhotonMap(FVector4(0,0,0), HALF_WORLD_MAX)
+,	SecondBouncePhotonMap(FVector4f(0,0,0), HALF_WORLD_MAX)
+,	IrradiancePhotonMap(FVector4f(0,0,0), HALF_WORLD_MAX)
 ,	AggregateMesh(NULL)
 ,	VoxelizationSurfaceAggregateMesh(NULL)
 ,	VoxelizationVolumeAggregateMesh(NULL)
@@ -339,7 +339,7 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 		for (int32 LightIndex = 0; LightIndex < MeshAreaLights.Num(); LightIndex++)
 		{
 			// Register the newly created mesh area lights with every relevant mesh so they are used for lighting
-			if (MeshAreaLights[LightIndex].AffectsBounds(FBoxSphereBounds(Meshes[MeshIndex]->BoundingBox)))
+			if (MeshAreaLights[LightIndex].AffectsBounds(FBoxSphereBounds3f(Meshes[MeshIndex]->BoundingBox)))
 			{
 				Meshes[MeshIndex]->RelevantLights.Add(&MeshAreaLights[LightIndex]);
 			}
@@ -474,8 +474,8 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 
 	GStatistics.NumTotalMappings = Mappings.Num();
 
-	const FBoxSphereBounds SceneBounds = FBoxSphereBounds(AggregateMesh->GetBounds());
-	const FBoxSphereBounds ImportanceBounds = GetImportanceBounds();
+	const FBoxSphereBounds3f SceneBounds = FBoxSphereBounds3f(AggregateMesh->GetBounds());
+	const FBoxSphereBounds3f ImportanceBounds = GetImportanceBounds();
 	// Never trace further than the importance or scene diameter
 	MaxRayDistance = ImportanceBounds.SphereRadius > 0.0f ? ImportanceBounds.SphereRadius * 2.0f : SceneBounds.SphereRadius * 2.0f;
 
@@ -522,7 +522,7 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 		Lights.Add(&InScene.RectLights[LightIndex]);
 	}
 
-	const FBoxSphereBounds EffectiveImportanceBounds = ImportanceBounds.SphereRadius > 0.0f ? ImportanceBounds : SceneBounds;
+	const FBoxSphereBounds3f EffectiveImportanceBounds = ImportanceBounds.SphereRadius > 0.0f ? ImportanceBounds : SceneBounds;
 	for (int32 LightIndex = 0; LightIndex < MeshAreaLights.Num(); LightIndex++)
 	{
 		MeshAreaLights[LightIndex].Initialize(Scene.PhotonMappingSettings.IndirectPhotonEmitConeAngle, EffectiveImportanceBounds);
@@ -850,13 +850,13 @@ int32 FStaticLightingSystem::GetNumPhotonImportanceHemisphereSamples() const
 		FMath::TruncToInt(ImportanceTracingSettings.NumHemisphereSamples * PhotonMappingSettings.FinalGatherImportanceSampleFraction) : 0;
 }
 
-FBoxSphereBounds FStaticLightingSystem::GetImportanceBounds(bool bClampToScene) const
+FBoxSphereBounds3f FStaticLightingSystem::GetImportanceBounds(bool bClampToScene) const
 {
-	FBoxSphereBounds ImportanceBounds = Scene.GetImportanceBounds();
+	FBoxSphereBounds3f ImportanceBounds = Scene.GetImportanceBounds();
 	
 	if (bClampToScene)
 	{
-		const FBoxSphereBounds SceneBounds = FBoxSphereBounds(AggregateMesh->GetBounds());
+		const FBoxSphereBounds3f SceneBounds = FBoxSphereBounds3f(AggregateMesh->GetBounds());
 		const float SceneToImportanceOriginSquared = (ImportanceBounds.Origin - SceneBounds.Origin).SizeSquared();
 		if (SceneToImportanceOriginSquared > FMath::Square(SceneBounds.SphereRadius))
 		{
@@ -879,7 +879,7 @@ FBoxSphereBounds FStaticLightingSystem::GetImportanceBounds(bool bClampToScene) 
 }
 
 /** Returns true if the specified position is inside any of the importance volumes. */
-bool FStaticLightingSystem::IsPointInImportanceVolume(const FVector4& Position, float Tolerance) const
+bool FStaticLightingSystem::IsPointInImportanceVolume(const FVector4f& Position, float Tolerance) const
 {
 	if (Scene.ImportanceVolumes.Num() > 0)
 	{
@@ -1162,8 +1162,8 @@ void FStaticLightingSystem::DumpStats(float TotalStaticLightingTime) const
 	SolverStats += FString::Printf( TEXT("\n") );
 	SolverStats += FString::Printf( TEXT("Traced %.3f million first hit visibility rays for a total of %.1f thread seconds (%.3f million per thread second)\n"), Stats.NumFirstHitRaysTraced / 1000000.0f, Stats.FirstHitRayTraceThreadTime, Stats.NumFirstHitRaysTraced / 1000000.0f / Stats.FirstHitRayTraceThreadTime);
 	SolverStats += FString::Printf( TEXT("Traced %.3f million boolean visibility rays for a total of %.1f thread seconds (%.3f million per thread second)\n"), Stats.NumBooleanRaysTraced / 1000000.0f, Stats.BooleanRayTraceThreadTime, Stats.NumBooleanRaysTraced / 1000000.0f / Stats.BooleanRayTraceThreadTime);
-	const FBoxSphereBounds SceneBounds = FBoxSphereBounds(AggregateMesh->GetBounds());
-	const FBoxSphereBounds ImportanceBounds = GetImportanceBounds();
+	const FBoxSphereBounds3f SceneBounds = FBoxSphereBounds3f(AggregateMesh->GetBounds());
+	const FBoxSphereBounds3f ImportanceBounds = GetImportanceBounds();
 	SolverStats += FString::Printf( TEXT("Scene radius %.1f, Importance bounds radius %.1f\n"), SceneBounds.SphereRadius, ImportanceBounds.SphereRadius);
 	SolverStats += FString::Printf( TEXT("%u Mappings, %.3f million Texels, %.3f million mapped texels\n"), Stats.NumMappings, Stats.NumTexelsProcessed / 1000000.0f, Stats.NumMappedTexels / 1000000.0f);
 	
@@ -1389,13 +1389,13 @@ void FStaticLightingSystem::CacheSamples()
 	{
 		for (int32 SampleIndex = 0; SampleIndex < NumUniformHemisphereSamples; SampleIndex++)
 		{
-			const FVector4& CurrentSample = GetUniformHemisphereVector(RandomStream, ImportanceTracingSettings.MaxHemisphereRayAngle);
+			const FVector4f& CurrentSample = GetUniformHemisphereVector(RandomStream, ImportanceTracingSettings.MaxHemisphereRayAngle);
 			CachedHemisphereSamples.Add(CurrentSample);
 		}
 	}
 
 	{
-		FVector4 CombinedVector(0);
+		FVector4f CombinedVector(0);
 
 		for (int32 SampleIndex = 0; SampleIndex < CachedHemisphereSamples.Num(); SampleIndex++)
 		{
@@ -1438,7 +1438,7 @@ void FStaticLightingSystem::CacheSamples()
 
 		GenerateStratifiedUniformHemisphereSamples(NumThetaSteps, NumPhiSteps, RandomStream, CachedVolumetricLightmapUniformHemisphereSamples, CachedVolumetricLightmapUniformHemisphereSampleUniforms);
 
-		FVector4 CombinedVector(0);
+		FVector4f CombinedVector(0);
 
 		for (int32 SampleIndex = 0; SampleIndex < CachedVolumetricLightmapUniformHemisphereSamples.Num(); SampleIndex++)
 		{
@@ -1448,7 +1448,7 @@ void FStaticLightingSystem::CacheSamples()
 		CachedVolumetricLightmapMaxUnoccludedLength = (CombinedVector / CachedVolumetricLightmapUniformHemisphereSamples.Num()).Size3();
 	}
 
-	CachedVolumetricLightmapVertexOffsets.Add(FVector(0, 0, 0));
+	CachedVolumetricLightmapVertexOffsets.Add(FVector3f(0, 0, 0));
 }
 
 bool FStaticLightingThreadRunnable::CheckHealth(bool bReportError) const
@@ -2042,7 +2042,7 @@ class FStoredLightingSample
 {
 public:
 	FLinearColor IncomingRadiance;
-	FVector4 WorldSpaceDirection;
+	FVector4f WorldSpaceDirection;
 };
 
 class FSampleCollector
@@ -2052,7 +2052,7 @@ public:
 	inline void SetOcclusion(float InOcclusion)
 	{}
 
-	inline void AddIncomingRadiance(const FLinearColor& IncomingRadiance, float Weight, const FVector4& TangentSpaceDirection, const FVector4& WorldSpaceDirection)
+	inline void AddIncomingRadiance(const FLinearColor& IncomingRadiance, float Weight, const FVector4f& TangentSpaceDirection, const FVector4f& WorldSpaceDirection)
 	{
 		if (FLinearColorUtils::LinearRGBToXYZ(IncomingRadiance * Weight).G > DELTA)
 		{
@@ -2099,13 +2099,13 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 
 	if (DirectionalLight)
 	{
-		FVector4 XAxis, YAxis;
+		FVector4f XAxis, YAxis;
 		DirectionalLight->Direction.FindBestAxisVectors3(XAxis, YAxis);
 		// Create a coordinate system for the dominant directional light, with the z axis corresponding to the light's direction
-		ShadowDepthMap->WorldToLight = FBasisVectorMatrix(XAxis, YAxis, DirectionalLight->Direction, FVector4(0,0,0));
+		ShadowDepthMap->WorldToLight = FBasisVectorMatrix44f(XAxis, YAxis, DirectionalLight->Direction, FVector4f(0,0,0));
 
-		FBoxSphereBounds ImportanceVolume = GetImportanceBounds().SphereRadius > 0.0f ? GetImportanceBounds() : FBoxSphereBounds(AggregateMesh->GetBounds());
-		const FBox LightSpaceImportanceBounds = ImportanceVolume.GetBox().TransformBy(ShadowDepthMap->WorldToLight);
+		FBoxSphereBounds3f ImportanceVolume = GetImportanceBounds().SphereRadius > 0.0f ? GetImportanceBounds() : FBoxSphereBounds3f(AggregateMesh->GetBounds());
+		const FBox3f LightSpaceImportanceBounds = ImportanceVolume.GetBox().TransformBy(ShadowDepthMap->WorldToLight);
 
 		ShadowDepthMap->ShadowMapSizeX = FMath::TruncToInt(FMath::Max(LightSpaceImportanceBounds.GetExtent().X * 2.0f * ClampedResolutionScale / ShadowSettings.StaticShadowDepthMapTransitionSampleDistanceX, 4.0f));
 		ShadowDepthMap->ShadowMapSizeX = ShadowDepthMap->ShadowMapSizeX == appTruncErrorCode ? INT_MAX : ShadowDepthMap->ShadowMapSizeX;
@@ -2126,7 +2126,7 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 
 		{
 			const float InvDistanceRange = 1.0f / (LightSpaceImportanceBounds.Max.Z - LightSpaceImportanceBounds.Min.Z);
-			const FMatrix LightToWorld = ShadowDepthMap->WorldToLight.InverseFast();
+			const FMatrix44f LightToWorld = ShadowDepthMap->WorldToLight.InverseFast();
 
 			for (int32 Y = 0; Y < ShadowDepthMap->ShadowMapSizeY; Y++)
 			{
@@ -2141,14 +2141,14 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 						{
 							const float XFraction = (X + SubSampleX / (float)ShadowSettings.StaticShadowDepthMapSuperSampleFactor) / (float)(ShadowDepthMap->ShadowMapSizeX - 1);
 							// Construct a ray in light space along the direction of the light, starting at the minimum light space Z going to the maximum.
-							const FVector4 LightSpaceStartPosition(
+							const FVector4f LightSpaceStartPosition(
 								LightSpaceImportanceBounds.Min.X + XFraction * (LightSpaceImportanceBounds.Max.X - LightSpaceImportanceBounds.Min.X),
 								LightSpaceImportanceBounds.Min.Y + YFraction * (LightSpaceImportanceBounds.Max.Y - LightSpaceImportanceBounds.Min.Y),
 								LightSpaceImportanceBounds.Min.Z);
-							const FVector4 LightSpaceEndPosition(LightSpaceStartPosition.X, LightSpaceStartPosition.Y, LightSpaceImportanceBounds.Max.Z);
+							const FVector4f LightSpaceEndPosition(LightSpaceStartPosition.X, LightSpaceStartPosition.Y, LightSpaceImportanceBounds.Max.Z);
 							// Transform the ray into world space in order to trace against the world space aggregate mesh
-							const FVector4 WorldSpaceStartPosition = LightToWorld.TransformPosition(LightSpaceStartPosition);
-							const FVector4 WorldSpaceEndPosition = LightToWorld.TransformPosition(LightSpaceEndPosition);
+							const FVector4f WorldSpaceStartPosition = LightToWorld.TransformPosition(LightSpaceStartPosition);
+							const FVector4f WorldSpaceEndPosition = LightToWorld.TransformPosition(LightSpaceEndPosition);
 							const FLightRay LightRay(
 								WorldSpaceStartPosition,
 								WorldSpaceEndPosition,
@@ -2181,24 +2181,24 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 		}
 
 		ShadowDepthMap->WorldToLight *= FTranslationMatrix(-LightSpaceImportanceBounds.Min)
-			* FScaleMatrix(FVector(1.0f) / (LightSpaceImportanceBounds.Max - LightSpaceImportanceBounds.Min));
+			* FScaleMatrix(FVector3f(1.0f) / (LightSpaceImportanceBounds.Max - LightSpaceImportanceBounds.Min));
 
 		FScopeLock Lock(&CompletedStaticShadowDepthMapsSync);
 		CompletedStaticShadowDepthMaps.Add(DirectionalLight, ShadowDepthMap);
 	}
 	else if (SpotLight)
 	{
-		FVector4 XAxis, YAxis;
+		FVector4f XAxis, YAxis;
 		SpotLight->Direction.FindBestAxisVectors3(XAxis, YAxis);
 		// Create a coordinate system for the spot light, with the z axis corresponding to the light's direction, and translated to the light's origin
-		ShadowDepthMap->WorldToLight = FTranslationMatrix(-SpotLight->Position) 
-			* FBasisVectorMatrix(XAxis, YAxis, SpotLight->Direction, FVector4(0,0,0));
+		ShadowDepthMap->WorldToLight = FTranslationMatrix44f(-SpotLight->Position) 
+			* FBasisVectorMatrix44f(XAxis, YAxis, SpotLight->Direction, FVector4f(0,0,0));
 
 		// Distance from the light's direction axis to the edge of the cone at the radius of the light
 		const float HalfCrossSectionLength = SpotLight->Radius * FMath::Tan(SpotLight->OuterConeAngle * (float)PI / 180.0f);
 
-		const FVector4 LightSpaceImportanceBoundMin = FVector4(-HalfCrossSectionLength, -HalfCrossSectionLength, 0);
-		const FVector4 LightSpaceImportanceBoundMax = FVector4(HalfCrossSectionLength, HalfCrossSectionLength, SpotLight->Radius);
+		const FVector4f LightSpaceImportanceBoundMin = FVector4f(-HalfCrossSectionLength, -HalfCrossSectionLength, 0);
+		const FVector4f LightSpaceImportanceBoundMax = FVector4f(HalfCrossSectionLength, HalfCrossSectionLength, SpotLight->Radius);
 
 		ShadowDepthMap->ShadowMapSizeX = FMath::TruncToInt(FMath::Max(HalfCrossSectionLength * ClampedResolutionScale / ShadowSettings.StaticShadowDepthMapTransitionSampleDistanceX, 4.0f));
 		ShadowDepthMap->ShadowMapSizeX = ShadowDepthMap->ShadowMapSizeX == appTruncErrorCode ? INT_MAX : ShadowDepthMap->ShadowMapSizeX;
@@ -2217,8 +2217,8 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 
 		// Calculate the maximum possible distance for quantization
 		const float MaxPossibleDistance = LightSpaceImportanceBoundMax.Z - LightSpaceImportanceBoundMin.Z;
-		const FMatrix LightToWorld = ShadowDepthMap->WorldToLight.InverseFast();
-		const FBoxSphereBounds ImportanceVolume = GetImportanceBounds().SphereRadius > 0.0f ? GetImportanceBounds() : FBoxSphereBounds(AggregateMesh->GetBounds());
+		const FMatrix44f LightToWorld = ShadowDepthMap->WorldToLight.InverseFast();
+		const FBoxSphereBounds3f ImportanceVolume = GetImportanceBounds().SphereRadius > 0.0f ? GetImportanceBounds() : FBoxSphereBounds3f(AggregateMesh->GetBounds());
 
 		for (int32 Y = 0; Y < ShadowDepthMap->ShadowMapSizeY; Y++)
 		{
@@ -2233,14 +2233,14 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 					{
 						const float XFraction = (X + SubSampleX / (float)ShadowSettings.StaticShadowDepthMapSuperSampleFactor) / (float)(ShadowDepthMap->ShadowMapSizeX - 1);
 						// Construct a ray in light space along the direction of the light, starting at the light and going to the maximum light space Z.
-						const FVector4 LightSpaceStartPosition(0,0,0);
-						const FVector4 LightSpaceEndPosition(
+						const FVector4f LightSpaceStartPosition(0,0,0);
+						const FVector4f LightSpaceEndPosition(
 							LightSpaceImportanceBoundMin.X + XFraction * (LightSpaceImportanceBoundMax.X - LightSpaceImportanceBoundMin.X),
 							LightSpaceImportanceBoundMin.Y + YFraction * (LightSpaceImportanceBoundMax.Y - LightSpaceImportanceBoundMin.Y),
 							LightSpaceImportanceBoundMax.Z);
 						// Transform the ray into world space in order to trace against the world space aggregate mesh
-						const FVector4 WorldSpaceStartPosition = LightToWorld.TransformPosition(LightSpaceStartPosition);
-						const FVector4 WorldSpaceEndPosition = LightToWorld.TransformPosition(LightSpaceEndPosition);
+						const FVector4f WorldSpaceStartPosition = LightToWorld.TransformPosition(LightSpaceStartPosition);
+						const FVector4f WorldSpaceEndPosition = LightToWorld.TransformPosition(LightSpaceEndPosition);
 						const FLightRay LightRay(
 							WorldSpaceStartPosition,
 							WorldSpaceEndPosition,
@@ -2256,7 +2256,7 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 
 						if (Intersection.bIntersects)
 						{
-							const FVector4 LightSpaceIntersectPosition = ShadowDepthMap->WorldToLight.TransformPosition(Intersection.IntersectionVertex.WorldPosition);
+							const FVector4f LightSpaceIntersectPosition = ShadowDepthMap->WorldToLight.TransformPosition(Intersection.IntersectionVertex.WorldPosition);
 							// Use the maximum distance of all super samples for each cell, to get a conservative shadow map
 							MaxSampleDistance = FMath::Max(MaxSampleDistance, LightSpaceIntersectPosition.Z);
 						}
@@ -2276,11 +2276,11 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 			// Perspective projection sized to the spotlight cone
 			FPerspectiveMatrix(SpotLight->OuterConeAngle * (float)PI / 180.0f, 1, 1, 0, SpotLight->Radius)
 			// Convert from NDC to texture space, normalize Z
-			* FMatrix(
-				FPlane(.5f,								0,							0,									0),
-				FPlane(0,								.5f,						0,									0),
-				FPlane(0,								0,							1.0f / LightSpaceImportanceBoundMax.Z,		0),
-				FPlane(.5f,								.5f,						0,									1));
+			* FMatrix44f(
+				FPlane4f(.5f,								0,							0,									0),
+				FPlane4f(0,								.5f,						0,									0),
+				FPlane4f(0,								0,							1.0f / LightSpaceImportanceBoundMax.Z,		0),
+				FPlane4f(.5f,								.5f,						0,									1));
 
 		FScopeLock Lock(&CompletedStaticShadowDepthMapsSync);
 		CompletedStaticShadowDepthMaps.Add(SpotLight, ShadowDepthMap);
@@ -2303,7 +2303,7 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 		ShadowDepthMap->ShadowMap.Empty(ShadowDepthMap->ShadowMapSizeX * ShadowDepthMap->ShadowMapSizeY);
 		ShadowDepthMap->ShadowMap.AddZeroed(ShadowDepthMap->ShadowMapSizeX * ShadowDepthMap->ShadowMapSizeY);
 
-		ShadowDepthMap->WorldToLight = FMatrix::Identity;
+		ShadowDepthMap->WorldToLight = FMatrix44f::Identity;
 
 		for (int32 Y = 0; Y < ShadowDepthMap->ShadowMapSizeY; Y++)
 		{
@@ -2321,10 +2321,10 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
 					{
 						const float XFraction = (X + SubSampleX / (float)ShadowSettings.StaticShadowDepthMapSuperSampleFactor) / (float)(ShadowDepthMap->ShadowMapSizeX - 1);
 						const float Theta = XFraction * 2 * PI;
-						const FVector Direction(FMath::Cos(Theta) * SinPhi, FMath::Sin(Theta) * SinPhi, FMath::Cos(Phi));
+						const FVector3f Direction(FMath::Cos(Theta) * SinPhi, FMath::Sin(Theta) * SinPhi, FMath::Cos(Phi));
 
-						const FVector4 WorldSpaceStartPosition = PointLight->Position;
-						const FVector4 WorldSpaceEndPosition = PointLight->Position + Direction * PointLight->Radius;
+						const FVector4f WorldSpaceStartPosition = PointLight->Position;
+						const FVector4f WorldSpaceEndPosition = PointLight->Position + Direction * PointLight->Radius;
 						const FLightRay LightRay(
 							WorldSpaceStartPosition,
 							WorldSpaceEndPosition,
@@ -2374,7 +2374,7 @@ void FStaticLightingSystem::CalculateStaticShadowDepthMap(FGuid LightGuid)
  */
 bool FStaticLightingSystem::CalculatePointShadowing(
 	const FStaticLightingMapping* Mapping,
-	const FVector4& WorldSurfacePoint,
+	const FVector4f& WorldSurfacePoint,
 	const FLight* Light,
 	FStaticLightingMappingContext& MappingContext,
 	bool bDebugThisSample
@@ -2387,7 +2387,7 @@ bool FStaticLightingSystem::CalculatePointShadowing(
 	else
 	{
 		// Treat points which the light doesn't affect as shadowed to avoid the costly ray check.
-		if(!Light->AffectsBounds(FBoxSphereBounds(WorldSurfacePoint,FVector4(0,0,0,0),0)))
+		if(!Light->AffectsBounds(FBoxSphereBounds3f(WorldSurfacePoint,FVector4f(0,0,0,0),0)))
 		{
 			return true;
 		}
@@ -2398,8 +2398,8 @@ bool FStaticLightingSystem::CalculatePointShadowing(
 		{
 			// TODO find best point on light to shadow from
 			// Construct a line segment between the light and the surface point.
-			const FVector4 LightPosition = FVector4(Light->Position.X, Light->Position.Y, Light->Position.Z, 0);
-			const FVector4 LightVector = LightPosition - WorldSurfacePoint * Light->Position.W;
+			const FVector4f LightPosition = FVector4f(Light->Position.X, Light->Position.Y, Light->Position.Z, 0);
+			const FVector4f LightVector = LightPosition - WorldSurfacePoint * Light->Position.W;
 			const FLightRay LightRay(
 				WorldSurfacePoint + LightVector.GetSafeNormal() * SceneConstants.VisibilityRayOffsetDistance,
 				WorldSurfacePoint + LightVector,
@@ -2430,7 +2430,7 @@ bool FStaticLightingSystem::CalculatePointShadowing(
 }
 
 /** Calculates area shadowing from a light for the given vertex. */
-FVector2D FStaticLightingSystem::CalculatePointAreaShadowing(
+FVector2f FStaticLightingSystem::CalculatePointAreaShadowing(
 	const FStaticLightingMapping* Mapping,
 	const FStaticLightingVertex& Vertex,
 	int32 ElementIndex,
@@ -2452,9 +2452,9 @@ FVector2D FStaticLightingSystem::CalculatePointAreaShadowing(
 
 	UnnormalizedTransmission = FLinearColor::Black;
 	// Treat points which the light doesn't affect as shadowed to avoid the costly ray check.
-	if( !Light->AffectsBounds(FBoxSphereBounds(Vertex.WorldPosition,FVector4(0,0,0),0)))
+	if( !Light->AffectsBounds(FBoxSphereBounds3f(Vertex.WorldPosition,FVector4f(0,0,0),0)))
 	{
-		return FVector2D::ZeroVector;
+		return FVector2f::ZeroVector;
 	}
 
 	// Check for visibility between the point and the light
@@ -2462,7 +2462,7 @@ FVector2D FStaticLightingSystem::CalculatePointAreaShadowing(
 	{
 		MappingContext.Stats.NumDirectLightingShadowRays += LightPositionSamples.Num();
 		const bool bIsTwoSided = Mapping->Mesh->IsTwoSided(ElementIndex);
-		FVector2D ShadowedValue = FVector2D::ZeroVector;
+		FVector2f ShadowedValue = FVector2f::ZeroVector;
 
 		// Integrate over the surface of the light using monte carlo integration
 		// Note that we are making the approximation that the BRDF and the Light's emission are equal in all of these directions and therefore are not in the integrand
@@ -2473,8 +2473,8 @@ FVector2D FStaticLightingSystem::CalculatePointAreaShadowing(
 			Light->ValidateSurfaceSample(Vertex.WorldPosition, CurrentSample);
 
 			// Construct a line segment between the light and the surface point.
-			const FVector4 LightVector = CurrentSample.Position - Vertex.WorldPosition;
-			FVector4 SampleOffset(0,0,0);
+			const FVector4f LightVector = CurrentSample.Position - Vertex.WorldPosition;
+			FVector4f SampleOffset(0,0,0);
 			if (GeneralSettings.bAccountForTexelSize)
 			{
 				/*
@@ -2492,7 +2492,7 @@ FVector2D FStaticLightingSystem::CalculatePointAreaShadowing(
 				continue;
 			}
 
-			FVector4 NormalForOffset = Vertex.WorldTangentZ;
+			FVector4f NormalForOffset = Vertex.WorldTangentZ;
 			// Flip the normal used for offsetting the start of the ray for two sided materials if a flipped normal would be closer to the light.
 			// This prevents incorrect shadowing where using the frontface normal would cause the ray to start inside a nearby object.
 			if (bIsTwoSided && Dot3(-NormalForOffset, LightVector) > Dot3(NormalForOffset, LightVector))
@@ -2539,7 +2539,7 @@ FVector2D FStaticLightingSystem::CalculatePointAreaShadowing(
 		return ShadowedValue;
 	}
 	UnnormalizedTransmission = FLinearColor::White;
-	return FVector2D( 1.0f, 1.0f );
+	return FVector2f( 1.0f, 1.0f );
 }
 
 /** Calculates the lighting contribution of a light to a mapping vertex. */
@@ -2556,11 +2556,11 @@ FGatheredLightSample FStaticLightingSystem::CalculatePointLighting(
 	if (Light->GetSkyLight() == NULL)
 	{
 	    // Calculate the direction from the vertex to the light.
-		const FVector4 WorldLightVector = Light->GetDirectLightingDirection(Vertex.WorldPosition, Vertex.WorldTangentZ);
+		const FVector4f WorldLightVector = Light->GetDirectLightingDirection(Vertex.WorldPosition, Vertex.WorldTangentZ);
     
 	    // Transform the light vector to tangent space.
-	    const FVector4 TangentLightVector = 
-		    FVector4(
+	    const FVector4f TangentLightVector = 
+		    FVector4f(
 			    Dot3(WorldLightVector, Vertex.WorldTangentX),
 			    Dot3(WorldLightVector, Vertex.WorldTangentY),
 			    Dot3(WorldLightVector, Vertex.WorldTangentZ),
@@ -2575,8 +2575,8 @@ FGatheredLightSample FStaticLightingSystem::CalculatePointLighting(
 
 		if (Mapping->Mesh->UsesTwoSidedLighting(ElementIndex))
 		{
-			const FVector4 BackFaceTangentLightVector = 
-				FVector4(
+			const FVector4f BackFaceTangentLightVector = 
+				FVector4f(
 					Dot3(WorldLightVector, -Vertex.WorldTangentX),
 					Dot3(WorldLightVector, -Vertex.WorldTangentY),
 					Dot3(WorldLightVector, -Vertex.WorldTangentZ),
@@ -2619,7 +2619,7 @@ FGatheredLightSample FStaticLightingSystem::GetVisualizedMaterialAttribute(const
 		}
 		else if (MaterialSettings.ViewMaterialAttribute == VMA_Normal)
 		{
-			const FVector4 Normal = Intersection.Mesh->EvaluateNormal(Intersection.IntersectionVertex.TextureCoordinates[0], Intersection.ElementIndex);
+			const FVector4f Normal = Intersection.Mesh->EvaluateNormal(Intersection.IntersectionVertex.TextureCoordinates[0], Intersection.ElementIndex);
 
 			FLinearColor NormalColor;
 			NormalColor.R = Normal.X * 0.5f + 0.5f;
@@ -2651,14 +2651,14 @@ FGatheredLightSample FStaticLightingSystem::GetVisualizedMaterialAttribute(const
  * @param Light - The light to classify.
  * @return true if the light is behind the triangle.
  */
-bool IsLightBehindSurface(const FVector4& TrianglePoint, const FVector4& TriangleNormal, const FLight* Light)
+bool IsLightBehindSurface(const FVector4f& TrianglePoint, const FVector4f& TriangleNormal, const FLight* Light)
 {
 	const bool bIsSkyLight = Light->GetSkyLight() != NULL;
 	if (!bIsSkyLight)
 	{
 		// Calculate the direction from the triangle to the light.
-		const FVector4 LightPosition = FVector4(Light->Position.X, Light->Position.Y, Light->Position.Z, 0);
-		const FVector4 WorldLightVector = LightPosition - TrianglePoint * Light->Position.W;
+		const FVector4f LightPosition = FVector4f(Light->Position.X, Light->Position.Y, Light->Position.Z, 0);
+		const FVector4f WorldLightVector = LightPosition - TrianglePoint * Light->Position.W;
 
 		// Check if the light is in front of the triangle.
 		const float Dot = Dot3(WorldLightVector, TriangleNormal);
@@ -2679,7 +2679,7 @@ bool IsLightBehindSurface(const FVector4& TrianglePoint, const FVector4& Triangl
  * @param Lights - The lights to cull.
  * @return A map from Lights index to a boolean which is true if the light is in front of the triangle.
  */
-TBitArray<> CullBackfacingLights(bool bTwoSidedMaterial,const FVector4& TrianglePoint,const FVector4& TriangleNormal,const TArray<FLight*>& Lights)
+TBitArray<> CullBackfacingLights(bool bTwoSidedMaterial,const FVector4f& TrianglePoint,const FVector4f& TriangleNormal,const TArray<FLight*>& Lights)
 {
 	if(!bTwoSidedMaterial)
 	{

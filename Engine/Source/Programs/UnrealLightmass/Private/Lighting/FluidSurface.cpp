@@ -9,22 +9,22 @@ namespace Lightmass
 
 	/** Represents the fluid surface mesh to the static lighting system. */
 	static void GetStaticLightingVertex(
-		const FVector4* QuadCorners,
-		const FVector4* QuadUVCorners,
+		const FVector4f* QuadCorners,
+		const FVector4f* QuadUVCorners,
 		uint32 VertexIndex,
-		const FMatrix& LocalToWorld,
-		const FMatrix& LocalToWorldInverseTranspose,
+		const FMatrix44f& LocalToWorld,
+		const FMatrix44f& LocalToWorldInverseTranspose,
 		FStaticLightingVertex& OutVertex
 		)
 	{
 		OutVertex.WorldPosition = LocalToWorld.TransformPosition(QuadCorners[VertexIndex]);
-		OutVertex.WorldTangentX = LocalToWorld.TransformVector(FVector4(1, 0, 0, 1)).GetSafeNormal();
-		OutVertex.WorldTangentY = LocalToWorld.TransformVector(FVector4(0, 1, 0, 1)).GetSafeNormal();
-		OutVertex.WorldTangentZ = LocalToWorldInverseTranspose.TransformVector(FVector4(0, 0, 1, 1)).GetSafeNormal();
+		OutVertex.WorldTangentX = LocalToWorld.TransformVector(FVector4f(1, 0, 0, 1)).GetSafeNormal();
+		OutVertex.WorldTangentY = LocalToWorld.TransformVector(FVector4f(0, 1, 0, 1)).GetSafeNormal();
+		OutVertex.WorldTangentZ = LocalToWorldInverseTranspose.TransformVector(FVector4f(0, 0, 1, 1)).GetSafeNormal();
 
 		for(uint32 UVIndex = 0; UVIndex < 1; UVIndex++)
 		{
-			OutVertex.TextureCoordinates[UVIndex] = FVector2D(QuadUVCorners[VertexIndex].X, QuadUVCorners[VertexIndex].Y);
+			OutVertex.TextureCoordinates[UVIndex] = FVector2f(QuadUVCorners[VertexIndex].X, QuadUVCorners[VertexIndex].Y);
 		}
 	}
 

@@ -26,7 +26,7 @@ struct FVolumeLightingProximityOctreeSemantics
 	static FBoxCenterAndExtent GetBoundingBox(const FVolumeSampleProximityElement& Element)
 	{
 		const FVolumeLightingSample& Sample = Element.VolumeSamples[Element.SampleIndex];
-		return FBoxCenterAndExtent(FVector4(Sample.PositionAndRadius, 0.0f), FVector4(0,0,0));
+		return FBoxCenterAndExtent(FVector4f(Sample.PositionAndRadius, 0.0f), FVector4f(0,0,0));
 	}
 };
 
@@ -52,9 +52,9 @@ void FVolumeLightingSample::ToSHVector(FSHVectorRGB3& SHVector) const
 }
 
 /** Returns true if there is an existing sample in VolumeOctree within SearchDistance of Position. */
-static bool FindNearbyVolumeSample(const FVolumeLightingProximityOctree& VolumeOctree, const FVector4& Position, float SearchDistance)
+static bool FindNearbyVolumeSample(const FVolumeLightingProximityOctree& VolumeOctree, const FVector4f& Position, float SearchDistance)
 {
-	const FBox SearchBox = FBox::BuildAABB(Position, FVector4(SearchDistance, SearchDistance, SearchDistance));
+	const FBox3f SearchBox = FBox3f::BuildAABB(Position, FVector4f(SearchDistance, SearchDistance, SearchDistance));
 	for (FVolumeLightingProximityOctree::TConstIterator<> OctreeIt(VolumeOctree); OctreeIt.HasPendingNodes(); OctreeIt.Advance())
 	{
 		const FVolumeLightingProximityOctree::FNode& CurrentNode = OctreeIt.GetCurrentNode();
@@ -125,7 +125,7 @@ public:
 		}
 
 		
-		TArray<FVector2D> UniformHemisphereSampleUniforms;
+		TArray<FVector2f> UniformHemisphereSampleUniforms;
 		const int32 NumUpperVolumeSamples = 16;
 		const float NumThetaStepsFloat = FMath::Sqrt(NumUpperVolumeSamples / (float)PI);
 		const int32 NumThetaSteps = FMath::TruncToInt(NumThetaStepsFloat);
@@ -163,21 +163,21 @@ private:
 	FCoherentRayCache& CoherentRayCache;
 	FVolumeLightingProximityOctree& ProximityOctree;
 	TArray<float> LayerHeightOffsets;
-	TArray<FVector4> UniformHemisphereSamples;
+	TArray<FVector4f> UniformHemisphereSamples;
 };
 
 int32 ComputeNumBackfacingHits(
-	const FVector4& SamplePosition, 
+	const FVector4f& SamplePosition, 
 	FStaticLightingSystem& System, 
 	FCoherentRayCache& CoherentRayCache, 
 	float SceneBoundingRadius, 
-	const TArray<FVector4>& UniformHemisphereSamples)
+	const TArray<FVector4f>& UniformHemisphereSamples)
 {
 	int NumBackfacingHits = 0;
 
 	for (int32 SampleIndex = 0; SampleIndex < UniformHemisphereSamples.Num() * 2; SampleIndex++)
 	{
-		FVector4 SampleDirection = UniformHemisphereSamples[SampleIndex % UniformHemisphereSamples.Num()];
+		FVector4f SampleDirection = UniformHemisphereSamples[SampleIndex % UniformHemisphereSamples.Num()];
 		SampleDirection.Z *= SampleIndex >= UniformHemisphereSamples.Num() ? -1.0f : 1.0f;
 
 		const FLightRay PathRay(
@@ -207,7 +207,7 @@ void FVolumeSamplePlacementRasterPolicy::ProcessPixel(int32 X,int32 Y,const Inte
 		// Place a sample for each layer
 		for (int32 LayerIndex = 0; LayerIndex < LayerHeightOffsets.Num(); LayerIndex++)
 		{
-			const FVector4 SamplePosition = Vertex.WorldPosition + FVector4(0, 0, LayerHeightOffsets[LayerIndex]);
+			const FVector4f SamplePosition = Vertex.WorldPosition + FVector4f(0, 0, LayerHeightOffsets[LayerIndex]);
 			// Only place a sample if there isn't already one nearby, to avoid clumping
 			if (!FindNearbyVolumeSample(ProximityOctree, SamplePosition, MinSampleDistance))
 			{
@@ -219,7 +219,7 @@ void FVolumeSamplePlacementRasterPolicy::ProcessPixel(int32 X,int32 Y,const Inte
 					TArray<FVolumeLightingSample>* VolumeLightingSamples = System.VolumeLightingSamples.Find(LevelGuid);
 					check(VolumeLightingSamples);
 					// Add a new sample for this layer
-					VolumeLightingSamples->Add(FVolumeLightingSample(FVector4(SamplePosition, SampleRadius)));
+					VolumeLightingSamples->Add(FVolumeLightingSample(FVector4f(SamplePosition, SampleRadius)));
 					// Add the sample to the proximity octree so we can avoid placing any more samples nearby
 					ProximityOctree.AddElement(FVolumeSampleProximityElement(VolumeLightingSamples->Num() - 1, *VolumeLightingSamples));
 					if (System.DynamicObjectSettings.bVisualizeVolumeLightInterpolation)
@@ -239,7 +239,7 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 	VolumeBounds = GetImportanceBounds(false);
 	if (VolumeBounds.SphereRadius < DELTA)
 	{
-		VolumeBounds = FBoxSphereBounds(AggregateMesh->GetBounds());
+		VolumeBounds = FBoxSphereBounds3f(AggregateMesh->GetBounds());
 	}
 
 	// Only place samples if the volume has area
@@ -261,7 +261,7 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 				// Only place inside the importance volume
 				if (IsPointInImportanceVolume(Vertices[0].WorldPosition))
 				{
-					FVector4 TriangleNormal = (Vertices[2].WorldPosition - Vertices[0].WorldPosition) ^ (Vertices[1].WorldPosition - Vertices[0].WorldPosition);
+					FVector4f TriangleNormal = (Vertices[2].WorldPosition - Vertices[0].WorldPosition) ^ (Vertices[1].WorldPosition - Vertices[0].WorldPosition);
 					TriangleNormal.Z = 0.f; // approximate only for X-Y plane
 					float TotalArea = 0.5f * TriangleNormal.Size3() * CurrentMesh->NumTriangles;
 					LandscapeEstimateNum += TotalArea / FMath::Square(DynamicObjectSettings.SurfaceLightSampleSpacing);
@@ -301,7 +301,7 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 			RasterSizeY, 
 			// Use a minimum sample distance slightly less than the SurfaceLightSampleSpacing
 			0.9f * FMath::Min(DynamicObjectSettings.SurfaceLightSampleSpacing, DynamicObjectSettings.SurfaceSampleLayerHeightSpacing), 
-			FBoxSphereBounds(AggregateMesh->GetBounds()).SphereRadius,
+			FBoxSphereBounds3f(AggregateMesh->GetBounds()).SphereRadius,
 			SampleRadius,
 			*this,
 			MappingContext.RayCache,
@@ -337,16 +337,16 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 
 					if (CurrentMesh->IsElementCastingShadow(ElementIndex))
 					{
-						FVector2D XYPositions[3];
+						FVector2f XYPositions[3];
 						for (int32 VertIndex = 0; VertIndex < 3; VertIndex++)
 						{
 							// Transform world space positions from [VolumeBounds.Origin - VolumeBounds.BoxExtent, VolumeBounds.Origin + VolumeBounds.BoxExtent] into [0,1]
-							const FVector4 TransformedPosition = (Vertices[VertIndex].WorldPosition - FVector4(VolumeBounds.Origin, 0.0f) + FVector4(VolumeBounds.BoxExtent, 0.0f)) / (2.0f * FVector4(VolumeBounds.BoxExtent, 1.0f));
+							const FVector4f TransformedPosition = (Vertices[VertIndex].WorldPosition - FVector4f(VolumeBounds.Origin, 0.0f) + FVector4f(VolumeBounds.BoxExtent, 0.0f)) / (2.0f * FVector4f(VolumeBounds.BoxExtent, 1.0f));
 							// Project positions onto the XY plane and scale to the resolution determined by DynamicObjectSettings.SurfaceLightSampleSpacing
-							XYPositions[VertIndex] = FVector2D(TransformedPosition.X * RasterSizeX, TransformedPosition.Y * RasterSizeY);
+							XYPositions[VertIndex] = FVector2f(TransformedPosition.X * RasterSizeX, TransformedPosition.Y * RasterSizeY);
 						}
 
-						const FVector4 TriangleNormal = (Vertices[2].WorldPosition - Vertices[0].WorldPosition) ^ (Vertices[1].WorldPosition - Vertices[0].WorldPosition);
+						const FVector4f TriangleNormal = (Vertices[2].WorldPosition - Vertices[0].WorldPosition) ^ (Vertices[1].WorldPosition - Vertices[0].WorldPosition);
 						const float TriangleArea = 0.5f * TriangleNormal.Size3();
 
 						if (TriangleArea > DELTA)
@@ -354,9 +354,9 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 							if (TextureMapping)
 							{
 								// Triangle vertices in lightmap UV space, scaled by the lightmap resolution
-								const FVector2D Vertex0 = Vertices[0].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
-								const FVector2D Vertex1 = Vertices[1].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
-								const FVector2D Vertex2 = Vertices[2].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
+								const FVector2f Vertex0 = Vertices[0].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2f(TextureMapping->SizeX, TextureMapping->SizeY);
+								const FVector2f Vertex1 = Vertices[1].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2f(TextureMapping->SizeX, TextureMapping->SizeY);
+								const FVector2f Vertex2 = Vertices[2].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2f(TextureMapping->SizeX, TextureMapping->SizeY);
 
 								// Area in lightmap space, or the number of lightmap texels covered by this triangle
 								const float LightmapTriangleArea = FMath::Abs(
@@ -396,21 +396,21 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 		// Generate samples in a uniform 3d grid inside the detail volumes.  These will handle detail indirect lighting in areas that aren't directly above a surface.
 		for (int32 VolumeIndex = 0; VolumeIndex < Scene.CharacterIndirectDetailVolumes.Num(); VolumeIndex++)
 		{
-			const FBox& DetailVolumeBounds = Scene.CharacterIndirectDetailVolumes[VolumeIndex];
+			const FBox3f& DetailVolumeBounds = Scene.CharacterIndirectDetailVolumes[VolumeIndex];
 			for (float SampleX = DetailVolumeBounds.Min.X; SampleX < DetailVolumeBounds.Max.X + DetailVolumeSpacing; SampleX += DetailVolumeSpacing)
 			{
 				for (float SampleY = DetailVolumeBounds.Min.Y; SampleY < DetailVolumeBounds.Max.Y + DetailVolumeSpacing; SampleY += DetailVolumeSpacing)
 				{
 					for (float SampleZ = DetailVolumeBounds.Min.Z; SampleZ < DetailVolumeBounds.Max.Z + DetailVolumeSpacing; SampleZ += DetailVolumeSpacing)
 					{
-						const FVector4 SamplePosition(SampleX, SampleY, SampleZ);
+						const FVector4f SamplePosition(SampleX, SampleY, SampleZ);
 							
 						// Only place a sample if there are no surface lighting samples nearby
 						if (!FindNearbyVolumeSample(VolumeLightingOctree, SamplePosition, DynamicObjectSettings.SurfaceLightSampleSpacing))
 						{
 							const FLightRay Ray(
 								SamplePosition,
-								SamplePosition - FVector4(0,0,VolumeBounds.BoxExtent.Z * 2.0f),
+								SamplePosition - FVector4f(0,0,VolumeBounds.BoxExtent.Z * 2.0f),
 								nullptr,
 								nullptr
 								);
@@ -429,7 +429,7 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 							}
 
 							// Add a sample and set its radius such that its influence touches a diagonal sample on the 3d grid.
-							VolumeLightingSampleArray->Add(FVolumeLightingSample(FVector4(SamplePosition, DetailVolumeSpacing * FMath::Sqrt(3.0f))));
+							VolumeLightingSampleArray->Add(FVolumeLightingSample(FVector4f(SamplePosition, DetailVolumeSpacing * FMath::Sqrt(3.0f))));
 							VolumeLightingOctree.AddElement(FVolumeSampleProximityElement(VolumeLightingSampleArray->Num() - 1, *VolumeLightingSampleArray));
 							if (DynamicObjectSettings.bVisualizeVolumeLightInterpolation)
 							{
@@ -473,7 +473,7 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 			{
 				for (float SampleZ = VolumeBounds.Origin.Z - VolumeBounds.BoxExtent.Z; SampleZ < VolumeBounds.Origin.Z + VolumeBounds.BoxExtent.Z + EffectiveVolumeSpacing; SampleZ += EffectiveVolumeSpacing)
 				{
-					const FVector4 SamplePosition(SampleX, SampleY, SampleZ);
+					const FVector4f SamplePosition(SampleX, SampleY, SampleZ);
 					// Only place inside the importance volume
 					if (IsPointInImportanceVolume(SamplePosition, EffectiveVolumeSpacing)
 						// Only place a sample if there are no surface lighting samples nearby
@@ -481,7 +481,7 @@ void FStaticLightingSystem::BeginCalculateVolumeSamples()
 					{
 						NumUniformVolumeSamples++;
 						// Add a sample and set its radius such that its influence touches a diagonal sample on the 3d grid.
-						UniformVolumeSamples->Add(FVolumeLightingSample(FVector4(SamplePosition, EffectiveVolumeSpacing * FMath::Sqrt(3.0f))));
+						UniformVolumeSamples->Add(FVolumeLightingSample(FVector4f(SamplePosition, EffectiveVolumeSpacing * FMath::Sqrt(3.0f))));
 						VolumeLightingOctree.AddElement(FVolumeSampleProximityElement(UniformVolumeSamples->Num() - 1, *UniformVolumeSamples));
 						if (DynamicObjectSettings.bVisualizeVolumeLightInterpolation)
 						{
@@ -521,8 +521,8 @@ void FStaticLightingSystem::ProcessVolumeSamplesTask(const FVolumeSamplesTaskDes
 	FLMRandomStream RandomStream(0);
 	FStaticLightingMappingContext MappingContext(nullptr, *this);
 
-	TArray<FVector4> UniformHemisphereSamples;
-	TArray<FVector2D> UniformHemisphereSampleUniforms;
+	TArray<FVector4f> UniformHemisphereSamples;
+	TArray<FVector2f> UniformHemisphereSampleUniforms;
 	const int32 NumUpperVolumeSamples = ImportanceTracingSettings.NumHemisphereSamples * DynamicObjectSettings.NumHemisphereSamplesScale;
 	// Volume samples don't do any importance sampling so they need more samples for the same amount of variance as surface samples
 	const float NumThetaStepsFloat = FMath::Sqrt(NumUpperVolumeSamples / (float)PI);
@@ -531,7 +531,7 @@ void FStaticLightingSystem::ProcessVolumeSamplesTask(const FVolumeSamplesTaskDes
 
 	GenerateStratifiedUniformHemisphereSamples(NumThetaSteps, NumPhiSteps, RandomStream, UniformHemisphereSamples, UniformHemisphereSampleUniforms);
 
-	FVector4 CombinedVector(0);
+	FVector4f CombinedVector(0);
 
 	for (int32 SampleIndex = 0; SampleIndex < UniformHemisphereSamples.Num(); SampleIndex++)
 	{
@@ -559,8 +559,8 @@ void FStaticLightingSystem::ProcessVolumeSamplesTask(const FVolumeSamplesTaskDes
 			const float SampleRadius = CurrentSample.PositionAndRadius.W;
 			CurrentSample.PositionAndRadius.W = 0.0f;
 
-			TArray<FVector, TInlineAllocator<1>> VertexOffsets;
-			VertexOffsets.Add(FVector(0, 0, 0));
+			TArray<FVector3f, TInlineAllocator<1>> VertexOffsets;
+			VertexOffsets.Add(FVector3f(0, 0, 0));
 
 			CalculateVolumeSampleIncidentRadiance(UniformHemisphereSamples, UniformHemisphereSampleUniforms, MaxUnoccludedLength, VertexOffsets, CurrentSample, BackfacingHitsFraction, Unused, RandomStream, MappingContext, bDebugSamples);
 			
@@ -594,7 +594,7 @@ FGatheredLightSample FStaticLightingSystem::InterpolatePrecomputedVolumeIncident
 	}
 
 	// Iterate over the octree nodes containing the query point.
-	for (FVolumeLightingInterpolationOctree::TConstElementBoxIterator<> OctreeIt(VolumeLightingInterpolationOctree, FBoxCenterAndExtent(Vertex.WorldPosition, FVector4(0,0,0)));
+	for (FVolumeLightingInterpolationOctree::TConstElementBoxIterator<> OctreeIt(VolumeLightingInterpolationOctree, FBoxCenterAndExtent(Vertex.WorldPosition, FVector4f(0,0,0)));
 		OctreeIt.HasPendingElements();
 		OctreeIt.Advance())
 	{

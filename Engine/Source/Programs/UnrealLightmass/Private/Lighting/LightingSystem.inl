@@ -7,9 +7,9 @@ TGatheredLightSample<SHOrder> FGatheredLightSampleUtil::AmbientLight(const FLine
 	Result.SHVector.AddAmbient(Color);
 
 	// Compute SHCorrection as if all the lighting was coming in along the normal
-	FVector4 TangentDirection(0, 0, 1);
+	FVector4f TangentDirection(0, 0, 1);
 
-	FSHVector2 SH = FSHVector2::SHBasisFunction(TangentDirection);
+	FSHVector2 SH = FSHVector2::SHBasisFunction(FVector4(TangentDirection));
 	Result.SHCorrection = Color.GetLuminance() * (0.282095f * SH.V[0] + 0.325735f * SH.V[2]);
 
 	Result.IncidentLighting = Color;
@@ -20,7 +20,7 @@ TGatheredLightSample<SHOrder> FGatheredLightSampleUtil::AmbientLight(const FLine
 }
 
 template<int32 SHOrder>
-TGatheredLightSample<SHOrder> FGatheredLightSampleUtil::PointLightWorldSpace(const FLinearColor& Color, const FVector4& TangentDirection, const FVector4& WorldDirection)
+TGatheredLightSample<SHOrder> FGatheredLightSampleUtil::PointLightWorldSpace(const FLinearColor& Color, const FVector4f& TangentDirection, const FVector4f& WorldDirection)
 {
 	TGatheredLightSample<SHOrder> Result;
 
@@ -28,7 +28,7 @@ TGatheredLightSample<SHOrder> FGatheredLightSampleUtil::PointLightWorldSpace(con
 	{
 		Result.SHVector.AddIncomingRadiance(Color, 1, WorldDirection);
 
-		FSHVector2 SH = FSHVector2::SHBasisFunction(TangentDirection);
+		FSHVector2 SH = FSHVector2::SHBasisFunction(FVector4(TangentDirection));
 		// Evaluate lighting along the smoothed vertex normal direction, so that later we can guarantee an SH intensity of 1 along the normal
 		// These scaling coefficients are SHBasisFunction and CalcDiffuseTransferSH baked down
 		// 0.325735f = 0.488603f from SHBasisFunction * 2/3 from CalcDiffuseTransferSH
@@ -93,7 +93,7 @@ template<int32 SHOrder>
 void FStaticLightingSystem::CalculateApproximateDirectLighting(
 	const FStaticLightingVertex& Vertex,
 	float SampleRadius,
-	const TArray<FVector, TInlineAllocator<1>>& VertexOffsets,
+	const TArray<FVector3f, TInlineAllocator<1>>& VertexOffsets,
 	float LightSampleFraction,
 	bool bCompositeAllLights,
 	bool bCalculateForIndirectLighting,
@@ -109,7 +109,7 @@ void FStaticLightingSystem::CalculateApproximateDirectLighting(
 	{
 		const FLight* Light = Lights[LightIndex];
 
-		if (Light->AffectsBounds(FBoxSphereBounds(FSphere(Vertex.WorldPosition, SampleRadius))))
+		if (Light->AffectsBounds(FBoxSphereBounds3f(FSphere3f(Vertex.WorldPosition, SampleRadius))))
 		{
 			FLinearColor LightIntensity(0, 0, 0, 0);
 
@@ -137,11 +137,11 @@ void FStaticLightingSystem::CalculateApproximateDirectLighting(
 					Light->ValidateSurfaceSample(Vertex.WorldPosition, CurrentSample);
 
 					// Construct a line segment between the light and the volume point.
-					const FVector4 LightVector = CurrentSample.Position - Vertex.WorldPosition;
+					const FVector4f LightVector = CurrentSample.Position - Vertex.WorldPosition;
 
-					FVector4 NormalForOffset = Vertex.WorldTangentZ;
+					FVector4f NormalForOffset = Vertex.WorldTangentZ;
 
-					const FVector4 StartOffset = LightVector.GetSafeNormal() * SceneConstants.VisibilityRayOffsetDistance
+					const FVector4f StartOffset = LightVector.GetSafeNormal() * SceneConstants.VisibilityRayOffsetDistance
 						+ NormalForOffset * SampleRadius * SceneConstants.VisibilityNormalOffsetSampleRadiusScale;
 
 					const FLightRay LightRay(
@@ -190,11 +190,11 @@ void FStaticLightingSystem::CalculateApproximateDirectLighting(
 
 			{
 				// Calculate the direction from the vertex to the light.
-				const FVector4 WorldLightVector = Light->GetDirectLightingDirection(Vertex.WorldPosition, Vertex.WorldTangentZ);
+				const FVector4f WorldLightVector = Light->GetDirectLightingDirection(Vertex.WorldPosition, Vertex.WorldTangentZ);
 
 				// Transform the light vector to tangent space.
-				const FVector4 TangentLightVector =
-					FVector4(
+				const FVector4f TangentLightVector =
+					FVector4f(
 					Dot3(WorldLightVector, Vertex.WorldTangentX),
 					Dot3(WorldLightVector, Vertex.WorldTangentY),
 					Dot3(WorldLightVector, Vertex.WorldTangentZ),

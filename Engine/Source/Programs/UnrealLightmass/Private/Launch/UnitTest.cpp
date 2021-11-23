@@ -26,7 +26,7 @@ struct FTestOctreeSemantics
 
 	FORCEINLINE static FBoxCenterAndExtent GetBoundingBox(const float& Element)
 	{
-		return FBoxCenterAndExtent(FVector4(0), FVector4(Element));
+		return FBoxCenterAndExtent(FVector4f(0), FVector4f(Element));
 	}
 
 	FORCEINLINE static bool AreElementsEqual(const float& A,const float& B)
@@ -39,7 +39,7 @@ struct FTestOctreeSemantics
 class FTestCollisionDataProvider
 {
 	TkDOPTree<FTestCollisionDataProvider, uint16>& kDOP;
-	FVector4 Vertex;
+	FVector4f Vertex;
 public:
 
 	FTestCollisionDataProvider(TkDOPTree<FTestCollisionDataProvider, uint16>& InkDOP)
@@ -53,7 +53,7 @@ public:
 	 *
 	 * @param Index the index into the vertices array
 	 */
-	FORCEINLINE const FVector4& GetVertex(uint16 Index) const
+	FORCEINLINE const FVector4f& GetVertex(uint16 Index) const
 	{
 		return Vertex;
 	}
@@ -74,25 +74,25 @@ public:
 	/**
 	 * Returns the local to world for the component
 	 */
-	FORCEINLINE const FMatrix& GetLocalToWorld(void) const
+	FORCEINLINE const FMatrix44f& GetLocalToWorld(void) const
 	{
-		return FMatrix::Identity;
+		return FMatrix44f::Identity;
 	}
 
 	/**
 	 * Returns the world to local for the component
 	 */
-	FORCEINLINE const FMatrix GetWorldToLocal(void) const
+	FORCEINLINE const FMatrix44f GetWorldToLocal(void) const
 	{
-		return FMatrix::Identity;
+		return FMatrix44f::Identity;
 	}
 
 	/**
 	 * Returns the local to world transpose adjoint for the component
 	 */
-	FORCEINLINE FMatrix GetLocalToWorldTransposeAdjoint(void) const
+	FORCEINLINE FMatrix44f GetLocalToWorldTransposeAdjoint(void) const
 	{
-		return FMatrix::Identity;
+		return FMatrix44f::Identity;
 	}
 
 	/**
@@ -154,9 +154,9 @@ void TestLightmass()
 
 	TArray<int32> ArrayCopy = TestArray;
 	
-	FVector4 TestVectorA(1, 0, 0, 1);
-	FVector4 TestVectorB(1, 1, 1, 1);
-	FVector4 TestVector = TestVectorA + TestVectorB;
+	FVector4f TestVectorA(1, 0, 0, 1);
+	FVector4f TestVectorB(1, 1, 1, 1);
+	FVector4f TestVector = TestVectorA + TestVectorB;
 
 	FString TestString = FString::Printf(TEXT("Copy has %d, Vector is [%.2f, %.2f, %.2f, %.2f]\n"), ArrayCopy[0], TestVector.X, TestVector.Y, TestVector.Z, TestVector.W);
 
@@ -167,14 +167,14 @@ void TestLightmass()
 	struct FAlignTester
 	{
 		uint8 A;
-		FMatrix M1;
+		FMatrix44f M1;
 		uint8 B;
-		FMatrix M2;
+		FMatrix44f M2;
 		uint8 C;
-		FVector4 V;
+		FVector4f V;
 	};
 	FAlignTester AlignTest;
-	checkf(((PTRINT)(&FMatrix::Identity) & 15) == 0, TEXT("Identity matrix unaligned"));
+	checkf(((PTRINT)(&FMatrix44f::Identity) & 15) == 0, TEXT("Identity matrix unaligned"));
 	checkf(((PTRINT)(&AlignTest.M1) & 15) == 0, TEXT("First matrix unaligned"));
 	checkf(((PTRINT)(&AlignTest.M2) & 15) == 0, TEXT("Second matrix unaligned"));
 	checkf(((PTRINT)(&AlignTest.V) & 15) == 0, TEXT("Vector unaligned"));
@@ -188,7 +188,7 @@ void TestLightmass()
 
 	UE_LOG(LogLightmass, Display, TEXT("Map[Five] = %d, Map[Ten] = %d"), TestMap.FindRef(TEXT("Five")), TestMap.FindRef(FString(TEXT("Ten"))));
 
-	FMatrix TestMatrix(FVector(0, 0, 0.1f), FVector(0, 1.0f, 0), FVector(0.9f, 0, 0), FVector(0, 0, 0));
+	FMatrix44f TestMatrix(FVector3f(0, 0, 0.1f), FVector3f(0, 1.0f, 0), FVector3f(0.9f, 0, 0), FVector3f(0, 0, 0));
 
 	UE_LOG(LogLightmass, Display, TEXT("Mat=\n  [%0.2f, %0.2f, %0.2f, %0.2f]\n  [%0.2f, %0.2f, %0.2f, %0.2f]\n  [%0.2f, %0.2f, %0.2f, %0.2f]\n  [%0.2f, %0.2f, %0.2f, %0.2f]"), 
 		TestMatrix.M[0][0], TestMatrix.M[0][1], TestMatrix.M[0][2], TestMatrix.M[0][3], 
@@ -217,7 +217,7 @@ void TestLightmass()
 
 	UE_LOG(LogLightmass, Display, TEXT("sizeof FDirectionalLight = %d, FLight = %d, FDirectionalLightData = %d"), sizeof(FDirectionalLight), sizeof(FLight), sizeof(FDirectionalLightData));
 
-	TOctree<float, FTestOctreeSemantics> TestOctree(FVector4(0), 10.0f);
+	TOctree<float, FTestOctreeSemantics> TestOctree(FVector4f(0), 10.0f);
 	TestOctree.AddElement(5);
 
 
@@ -226,7 +226,7 @@ void TestLightmass()
 	FTestCollisionDataProvider TestDataProvider(TestkDOP);
 	FHitResult TestResult;
 	
-	FkDOPBuildCollisionTriangle<uint16> TestTri(0, FVector4(0,0,0,0), FVector4(1,1,1,0), FVector4(2,2,2,0), INDEX_NONE, INDEX_NONE, INDEX_NONE, false, true);
+	FkDOPBuildCollisionTriangle<uint16> TestTri(0, FVector4f(0,0,0,0), FVector4f(1,1,1,0), FVector4f(2,2,2,0), INDEX_NONE, INDEX_NONE, INDEX_NONE, false, true);
 	TArray<FkDOPBuildCollisionTriangle<uint16> > TestTriangles;
 	TestTriangles.Add(TestTri);
 

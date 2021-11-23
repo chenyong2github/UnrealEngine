@@ -25,7 +25,7 @@ namespace Lightmass
 struct FHitResult
 {
 	/** Normal vector in coordinate system of the returner. Zero==none.	*/
-	FVector4	Normal;
+	FVector4f	Normal;
 	/** Time until hit.													*/
 	float		Time;
 	/** Primitive data item which was hit, INDEX_NONE=none				*/
@@ -148,7 +148,7 @@ public:
  * @param IntersectionTime	[in/out] Best intersection time so far (0..1), as in: IntersectionPoint = Start + IntersectionTime * Dir.
  * @return			true if the line intersected the triangle
  */
-FORCEINLINE bool appLineCheckTriangle(const FVector4& Start, const FVector4& End, const FVector4& Dir, const FVector4& V0, const FVector4& V1, const FVector4& V2, const FVector4& Normal, float& IntersectionTime)
+FORCEINLINE bool appLineCheckTriangle(const FVector4f& Start, const FVector4f& End, const FVector4f& Dir, const FVector4f& V0, const FVector4f& V1, const FVector4f& V2, const FVector4f& Normal, float& IntersectionTime)
 {
 	const float StartDist = FVectorUtils::PlaneDot(Normal, Start);
 	const float EndDist = FVectorUtils::PlaneDot(Normal, End);
@@ -173,8 +173,8 @@ FORCEINLINE bool appLineCheckTriangle(const FVector4& Start, const FVector4& End
 	}
 
 	// Calculate the line's point of intersection with the node's plane
-	const FVector4& Intersection = Start + Dir * Time;
-	const FVector4* Verts[3] = 
+	const FVector4f& Intersection = Start + Dir * Time;
+	const FVector4f* Verts[3] = 
 	{ 
 		&V0, &V1, &V2
 	};
@@ -182,7 +182,7 @@ FORCEINLINE bool appLineCheckTriangle(const FVector4& Start, const FVector4& End
 	// Check if the point of intersection is inside the triangle's edges.
 	for( int32 SideIndex = 0; SideIndex < 3; SideIndex++ )
 	{
-		const FVector4& SideDirection = Normal ^ (*Verts[(SideIndex + 1) % 3] - *Verts[SideIndex]);
+		const FVector4f& SideDirection = Normal ^ (*Verts[(SideIndex + 1) % 3] - *Verts[SideIndex]);
 		const float SideW = Dot3(SideDirection, *Verts[SideIndex]);
 		const float DotW = Dot3(SideDirection, Intersection);
 		if ((DotW - SideW) >= 0.001f)
@@ -391,15 +391,15 @@ struct FkDOPBuildCollisionTriangle
 	/**
 	 * First vertex in the triangle
 	 */
-	FVector4 V0;
+	FVector4f V0;
 	/**
 	 * Second vertex in the triangle
 	 */
-	FVector4 V1;
+	FVector4f V1;
 	/**
 	 * Third vertex in the triangle
 	 */
-	FVector4 V2;
+	FVector4f V2;
 
 #if CACHE_BUILD_TEMPORARIES
 private:
@@ -407,10 +407,10 @@ private:
  	 * Centroid of the triangle used for determining which bounding volume to
   	 * place the triangle in
 	 */
-	FVector4 Centroid;
+	FVector4f Centroid;
 
 	/** Cached local normal used by line/ triangle collision code. */
-	FVector4 LocalNormal;
+	FVector4f LocalNormal;
 public:
 #endif
 
@@ -433,22 +433,22 @@ public:
 	KDOP_IDX_TYPE MaterialIndex;
 
 #if CACHE_BUILD_TEMPORARIES
-	FORCEINLINE const FVector4& GetCentroid() const
+	FORCEINLINE const FVector4f& GetCentroid() const
 	{
 		return Centroid;
 	}
-	FORCEINLINE const FVector4& GetLocalNormal() const
+	FORCEINLINE const FVector4f& GetLocalNormal() const
 	{
 		return LocalNormal;
 	}
 #else
-	inline FVector4 GetCentroid() const
+	inline FVector4f GetCentroid() const
 	{
 		return (V0 + V1 + V2) / 3.f;
 	}
-	inline FVector4 GetLocalNormal() const
+	inline FVector4f GetLocalNormal() const
 	{
-		FVector4 LocalNormal = ((V1 - V2) ^ (V0 - V2)).GetSafeNormal();
+		FVector4f LocalNormal = ((V1 - V2) ^ (V0 - V2)).GetSafeNormal();
 		LocalNormal.W = Dot3(V0, LocalNormal);
 		return LocalNormal;
 	}
@@ -460,7 +460,7 @@ public:
 	 */
 	FkDOPBuildCollisionTriangle(
 		KDOP_IDX_TYPE InMaterialIndex,
-		const FVector4& vert0,const FVector4& vert1,const FVector4& vert2,
+		const FVector4f& vert0,const FVector4f& vert1,const FVector4f& vert2,
 		int32 InMeshIndex, 
 		uint32 InLODIndices,
 		uint32 InHLODRange,
@@ -498,12 +498,12 @@ struct FMultiBox
 	/**
 	 * Min planes for this set of bounding volumes. Array index is X/Y/Z.
 	 */
-	MS_ALIGN(16) FVector4 Min[3]  GCC_ALIGN(16);
+	MS_ALIGN(16) FVector4f Min[3]  GCC_ALIGN(16);
 
 	/** 
 	 * Max planes for this set of bounding volumes. Array index is X/Y/Z.
 	 */
-	FVector4 Max[3];
+	FVector4f Max[3];
 
 	/**
 	 * Sets the box at the passed in index to the passed in box.
@@ -511,7 +511,7 @@ struct FMultiBox
 	 * @param	BoundingVolumeIndex		Index of box to set
 	 * @param	Box						Box to set
 	 */
-	void SetBox( int32 BoundingVolumeIndex, const FBox& Box )
+	void SetBox( int32 BoundingVolumeIndex, const FBox3f& Box )
 	{
 		Min[0].Component(BoundingVolumeIndex) = Box.Min.X;
 		Min[1].Component(BoundingVolumeIndex) = Box.Min.Y;
@@ -528,11 +528,11 @@ struct FMultiBox
 	 *
 	 * @return Bounding volume at the passed in index
 	 */
-	FBox GetBox( int32 BoundingVolumeIndex )
+	FBox3f GetBox( int32 BoundingVolumeIndex )
 	{
-		FBox Box;
-		Box.Min = FVector4(Min[0][BoundingVolumeIndex],Min[1][BoundingVolumeIndex],Min[2][BoundingVolumeIndex],1);
-		Box.Max = FVector4(Max[0][BoundingVolumeIndex],Max[1][BoundingVolumeIndex],Max[2][BoundingVolumeIndex],1);
+		FBox3f Box;
+		Box.Min = FVector4f(Min[0][BoundingVolumeIndex],Min[1][BoundingVolumeIndex],Min[2][BoundingVolumeIndex],1);
+		Box.Max = FVector4f(Max[0][BoundingVolumeIndex],Max[1][BoundingVolumeIndex],Max[2][BoundingVolumeIndex],1);
 		return Box;
 	}
 };
@@ -548,7 +548,7 @@ namespace BoxTriangleIntersectionInternal
 
 struct FTriangle
 {
-	FVector Vertices[3];
+	FVector3f Vertices[3];
 };
 
 struct FOverlapInterval
@@ -557,14 +557,14 @@ struct FOverlapInterval
 	float Max;
 };
 
-FORCEINLINE FOverlapInterval GetInterval(const FTriangle& Triangle, const FVector& Vector)
+FORCEINLINE FOverlapInterval GetInterval(const FTriangle& Triangle, const FVector3f& Vector)
 {
 	FOverlapInterval Result;
-	Result.Min = Result.Max = FVector::DotProduct(Vector, Triangle.Vertices[0]);
+	Result.Min = Result.Max = FVector3f::DotProduct(Vector, Triangle.Vertices[0]);
 
 	for (int32 i = 1; i < 3; ++i)
 	{
-		float Projection = FVector::DotProduct(Vector, Triangle.Vertices[i]);
+		float Projection = FVector3f::DotProduct(Vector, Triangle.Vertices[i]);
 		Result.Min = FMath::Min(Result.Min, Projection);
 		Result.Max = FMath::Max(Result.Max, Projection);
 	}
@@ -572,26 +572,26 @@ FORCEINLINE FOverlapInterval GetInterval(const FTriangle& Triangle, const FVecto
 	return Result;
 }
 
-FORCEINLINE FOverlapInterval GetInterval(const FBox& Box, const FVector& Vector)
+FORCEINLINE FOverlapInterval GetInterval(const FBox3f& Box, const FVector3f& Vector)
 {
-	FVector BoxVertices[8] =
+	FVector3f BoxVertices[8] =
 	{
-		FVector(Box.Min.X, Box.Max.Y, Box.Max.Z),
-		FVector(Box.Min.X, Box.Max.Y, Box.Min.Z),
-		FVector(Box.Min.X, Box.Min.Y, Box.Max.Z),
-		FVector(Box.Min.X, Box.Min.Y, Box.Min.Z),
-		FVector(Box.Max.X, Box.Max.Y, Box.Max.Z),
-		FVector(Box.Max.X, Box.Max.Y, Box.Min.Z),
-		FVector(Box.Max.X, Box.Min.Y, Box.Max.Z),
-		FVector(Box.Max.X, Box.Min.Y, Box.Min.Z)
+		FVector3f(Box.Min.X, Box.Max.Y, Box.Max.Z),
+		FVector3f(Box.Min.X, Box.Max.Y, Box.Min.Z),
+		FVector3f(Box.Min.X, Box.Min.Y, Box.Max.Z),
+		FVector3f(Box.Min.X, Box.Min.Y, Box.Min.Z),
+		FVector3f(Box.Max.X, Box.Max.Y, Box.Max.Z),
+		FVector3f(Box.Max.X, Box.Max.Y, Box.Min.Z),
+		FVector3f(Box.Max.X, Box.Min.Y, Box.Max.Z),
+		FVector3f(Box.Max.X, Box.Min.Y, Box.Min.Z)
 	};
 
 	FOverlapInterval Result;
-	Result.Min = Result.Max = FVector::DotProduct(Vector, BoxVertices[0]);
+	Result.Min = Result.Max = FVector3f::DotProduct(Vector, BoxVertices[0]);
 
 	for (int32 i = 1; i < UE_ARRAY_COUNT(BoxVertices); ++i)
 	{
-		float Projection = FVector::DotProduct(Vector, BoxVertices[i]);
+		float Projection = FVector3f::DotProduct(Vector, BoxVertices[i]);
 		Result.Min = FMath::Min(Result.Min, Projection);
 		Result.Max = FMath::Max(Result.Max, Projection);
 	}
@@ -599,41 +599,41 @@ FORCEINLINE FOverlapInterval GetInterval(const FBox& Box, const FVector& Vector)
 	return Result;
 }
 
-FORCEINLINE bool OverlapOnAxis(const FBox& Box, const FTriangle& Triangle, const FVector& Vector)
+FORCEINLINE bool OverlapOnAxis(const FBox3f& Box, const FTriangle& Triangle, const FVector3f& Vector)
 {
 	FOverlapInterval A = GetInterval(Box, Vector);
 	FOverlapInterval B = GetInterval(Triangle, Vector);
 	return ((B.Min <= A.Max) && (A.Min <= B.Max));
 }
 
-FORCEINLINE bool IntersectTriangleAndAABB(const FTriangle& Triangle, const FBox& Box)
+FORCEINLINE bool IntersectTriangleAndAABB(const FTriangle& Triangle, const FBox3f& Box)
 {
-	FVector TriangleEdge0 = Triangle.Vertices[1] - Triangle.Vertices[0];
-	FVector TriangleEdge1 = Triangle.Vertices[2] - Triangle.Vertices[1];
-	FVector TriangleEdge2 = Triangle.Vertices[0] - Triangle.Vertices[2];
+	FVector3f TriangleEdge0 = Triangle.Vertices[1] - Triangle.Vertices[0];
+	FVector3f TriangleEdge1 = Triangle.Vertices[2] - Triangle.Vertices[1];
+	FVector3f TriangleEdge2 = Triangle.Vertices[0] - Triangle.Vertices[2];
 
-	FVector BoxNormal0(1.0f, 0.0f, 0.0f);
-	FVector BoxNormal1(0.0f, 1.0f, 0.0f);
-	FVector BoxNormal2(0.0f, 0.0f, 1.0f);
+	FVector3f BoxNormal0(1.0f, 0.0f, 0.0f);
+	FVector3f BoxNormal1(0.0f, 1.0f, 0.0f);
+	FVector3f BoxNormal2(0.0f, 0.0f, 1.0f);
 
-	FVector TestDirections[13] =
+	FVector3f TestDirections[13] =
 	{
 		// Separating axes from the box normals
 		BoxNormal0,
 		BoxNormal1,
 		BoxNormal2,
 		// One separating axis for the triangle normal
-		FVector::CrossProduct(TriangleEdge0, TriangleEdge1),
+		FVector3f::CrossProduct(TriangleEdge0, TriangleEdge1),
 		// Separating axes for the triangle edges
-		FVector::CrossProduct(BoxNormal0, TriangleEdge0),
-		FVector::CrossProduct(BoxNormal0, TriangleEdge1),
-		FVector::CrossProduct(BoxNormal0, TriangleEdge2),
-		FVector::CrossProduct(BoxNormal1, TriangleEdge0),
-		FVector::CrossProduct(BoxNormal1, TriangleEdge1),
-		FVector::CrossProduct(BoxNormal1, TriangleEdge2),
-		FVector::CrossProduct(BoxNormal2, TriangleEdge0),
-		FVector::CrossProduct(BoxNormal2, TriangleEdge1),
-		FVector::CrossProduct(BoxNormal2, TriangleEdge2)
+		FVector3f::CrossProduct(BoxNormal0, TriangleEdge0),
+		FVector3f::CrossProduct(BoxNormal0, TriangleEdge1),
+		FVector3f::CrossProduct(BoxNormal0, TriangleEdge2),
+		FVector3f::CrossProduct(BoxNormal1, TriangleEdge0),
+		FVector3f::CrossProduct(BoxNormal1, TriangleEdge1),
+		FVector3f::CrossProduct(BoxNormal1, TriangleEdge2),
+		FVector3f::CrossProduct(BoxNormal2, TriangleEdge0),
+		FVector3f::CrossProduct(BoxNormal2, TriangleEdge1),
+		FVector3f::CrossProduct(BoxNormal2, TriangleEdge2)
 	};
 
 	for (int i = 0; i < UE_ARRAY_COUNT(TestDirections); ++i)
@@ -719,23 +719,23 @@ struct TkDOPNode
 	 * @param	Check				Information about the ray to trace
 	 * @param	HitTime	[out]	Time of hit
 	 */
-	FORCEINLINE void LineCheckBounds(TkDOPLineCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>& Check, FVector4& HitTime, int32 NodeHit[4] ) const
+	FORCEINLINE void LineCheckBounds(TkDOPLineCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>& Check, FVector4f& HitTime, int32 NodeHit[4] ) const
 	{
 #define PLAIN_C 0
 #if PLAIN_C
 		for( int32 BoxIndex=0; BoxIndex<4; BoxIndex++ )
 		{
 			// 0: Create constants
-			FVector4 BoxMin( BoundingVolumes.Min[0][BoxIndex], BoundingVolumes.Min[1][BoxIndex], BoundingVolumes.Min[2][BoxIndex], 0 );
-			FVector4 BoxMax( BoundingVolumes.Max[0][BoxIndex], BoundingVolumes.Max[1][BoxIndex], BoundingVolumes.Max[2][BoxIndex], 0 );
+			FVector4f BoxMin( BoundingVolumes.Min[0][BoxIndex], BoundingVolumes.Min[1][BoxIndex], BoundingVolumes.Min[2][BoxIndex], 0 );
+			FVector4f BoxMax( BoundingVolumes.Max[0][BoxIndex], BoundingVolumes.Max[1][BoxIndex], BoundingVolumes.Max[2][BoxIndex], 0 );
 
 			// 1: Calculate slabs.
-			FVector4 Slab1 = (BoxMin - Check.LocalStart) * Check.LocalOneOverDir;
-			FVector4 Slab2 = (BoxMax - Check.LocalStart) * Check.LocalOneOverDir;
+			FVector4f Slab1 = (BoxMin - Check.LocalStart) * Check.LocalOneOverDir;
+			FVector4f Slab2 = (BoxMax - Check.LocalStart) * Check.LocalOneOverDir;
 
 			// 2: Figure out per component min/ max
-			FVector4 SlabMin = FVector4( Lightmass::Min(Slab1.X, Slab2.X), Lightmass::Min(Slab1.Y, Slab2.Y), Lightmass::Min(Slab1.Z, Slab2.Z), Lightmass::Min(Slab1.W, Slab2.W) );
-			FVector4 SlabMax = FVector4( Lightmass::Max(Slab1.X, Slab2.X), Lightmass::Max(Slab1.Y, Slab2.Y), Lightmass::Max(Slab1.Z, Slab2.Z), Lightmass::Max(Slab1.W, Slab2.W) );
+			FVector4f SlabMin = FVector4f( Lightmass::Min(Slab1.X, Slab2.X), Lightmass::Min(Slab1.Y, Slab2.Y), Lightmass::Min(Slab1.Z, Slab2.Z), Lightmass::Min(Slab1.W, Slab2.W) );
+			FVector4f SlabMax = FVector4f( Lightmass::Max(Slab1.X, Slab2.X), Lightmass::Max(Slab1.Y, Slab2.Y), Lightmass::Max(Slab1.Z, Slab2.Z), Lightmass::Max(Slab1.W, Slab2.W) );
 
 			// 3: Figure out global min/ max
 			float MinTime = Max3( SlabMin.X, SlabMin.Y, SlabMin.Z );
@@ -754,7 +754,7 @@ struct TkDOPNode
 		const LmVectorRegister InvDirY		= LmVectorSetFloat1( Check.LocalOneOverDir.Y );
 		const LmVectorRegister InvDirZ		= LmVectorSetFloat1( Check.LocalOneOverDir.Z );
 		const LmVectorRegister CurrentHitTime	= LmVectorSetFloat1( Check.Result->Time );
-		// Boxes are FVector2D so we need to unshuffle the data.
+		// Boxes are FVector2f so we need to unshuffle the data.
 		const LmVectorRegister BoxMinX		= LmVectorLoadAligned( &BoundingVolumes.Min[0] );
 		const LmVectorRegister BoxMinY		= LmVectorLoadAligned( &BoundingVolumes.Min[1] );
 		const LmVectorRegister BoxMinZ		= LmVectorLoadAligned( &BoundingVolumes.Min[2] );
@@ -809,7 +809,7 @@ struct TkDOPNode
 		{
 			SLOW_KDOP_STATS(FPlatformAtomics::InterlockedIncrement((SSIZE_T*)&GKDOPParentNodesTraversed));
 			// Check both left and right node at the same time.
-			FVector4 NodeHitTime;
+			FVector4f NodeHitTime;
 			MS_ALIGN(16) int32	NodeHit[4] GCC_ALIGN(16);
 			LineCheckBounds( Check, NodeHitTime, NodeHit );
 
@@ -881,7 +881,7 @@ struct TkDOPNode
 	 *
 	 * @param Check -- The aggregated line check data
 	 */
-	bool LineCheckPreCalculated(TkDOPLineCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>& Check, const FVector4& NodeHitTime, TTraversalHistory<KDOP_IDX_TYPE> History, int32* NodeHit) const
+	bool LineCheckPreCalculated(TkDOPLineCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>& Check, const FVector4f& NodeHitTime, TTraversalHistory<KDOP_IDX_TYPE> History, int32* NodeHit) const
 	{
 		bool bHit = 0;
 		// If this is a node, check the two child nodes and pick the closest one
@@ -1023,10 +1023,10 @@ struct TkDOPNode
 		for (int32 BoxIndex = 0; BoxIndex < 2; BoxIndex++)
 		{
 			// 0: Create constants
-			FVector BoxMin(BoundingVolumes.Min[0][BoxIndex], BoundingVolumes.Min[1][BoxIndex], BoundingVolumes.Min[2][BoxIndex]);
-			FVector BoxMax(BoundingVolumes.Max[0][BoxIndex], BoundingVolumes.Max[1][BoxIndex], BoundingVolumes.Max[2][BoxIndex]);
+			FVector3f BoxMin(BoundingVolumes.Min[0][BoxIndex], BoundingVolumes.Min[1][BoxIndex], BoundingVolumes.Min[2][BoxIndex]);
+			FVector3f BoxMax(BoundingVolumes.Max[0][BoxIndex], BoundingVolumes.Max[1][BoxIndex], BoundingVolumes.Max[2][BoxIndex]);
 
-			FBox ChildBox(BoxMin, BoxMax);
+			FBox3f ChildBox(BoxMin, BoxMax);
 
 			NodeHit[BoxIndex] = Check.Box.Intersect(ChildBox);
 		}
@@ -1146,7 +1146,7 @@ struct TkDOPTree
 	 * @param Nodes -- The list of nodes in this tree
 	 * @return bounding box for this node
 	 */
-	FBox SplitTriangleList(KDOP_IDX_TYPE NodeIndex, int32 Start, int32 NumTris, TArray<FkDOPBuildCollisionTriangle<KDOP_IDX_TYPE> >& BuildTriangles)
+	FBox3f SplitTriangleList(KDOP_IDX_TYPE NodeIndex, int32 Start, int32 NumTris, TArray<FkDOPBuildCollisionTriangle<KDOP_IDX_TYPE> >& BuildTriangles)
 	{
 		// This local node pointer will have to be updated whenever a Nodes reallocation can occur
 		NodeType* Node = &Nodes[NodeIndex];
@@ -1172,7 +1172,7 @@ struct TkDOPTree
 					// Project the centroid of the triangle against the plane
 					// normals and accumulate to find the total projected
 					// weighting
-					FVector4 Centroid = BuildTriangles[nTriangle].GetCentroid();
+					FVector4f Centroid = BuildTriangles[nTriangle].GetCentroid();
 
 					for (int32 nPlane = 0; nPlane < NUM_PLANES; nPlane++)
 					{
@@ -1190,7 +1190,7 @@ struct TkDOPTree
 				for (int32 nTriangle = Start; nTriangle < Start + NumTris; nTriangle++)
 				{
 					// Project the centroid again
-					FVector4 Centroid = BuildTriangles[nTriangle].GetCentroid();
+					FVector4f Centroid = BuildTriangles[nTriangle].GetCentroid();
 
 					// Now calculate the variance and accumulate it
 					for (int32 nPlane = 0; nPlane < NUM_PLANES; nPlane++)
@@ -1267,7 +1267,7 @@ struct TkDOPTree
 			Node->n.LeftNode = ChildIndex;
 			Node->n.RightNode = Node->n.LeftNode + 1;
 			// Have the left node recursively subdivide its list and set bounding volume.
-			FBox LeftBoundingVolume = SplitTriangleList(Node->n.LeftNode,Start,Left - Start,BuildTriangles);
+			FBox3f LeftBoundingVolume = SplitTriangleList(Node->n.LeftNode,Start,Left - Start,BuildTriangles);
 			// Nodes may have resized
 			Node = &Nodes[NodeIndex];
 			Node->BoundingVolumes.SetBox(0,LeftBoundingVolume);
@@ -1276,7 +1276,7 @@ struct TkDOPTree
 			Node->BoundingVolumes.SetBox(3,Nodes[Node->n.LeftNode].BoundingVolumes.GetBox(1));
 
 			// And now have the right node recursively subdivide its list and set bounding volume.			
-			FBox RightBoundingVolume = SplitTriangleList(Node->n.RightNode,Left,Start + NumTris - Left,BuildTriangles);
+			FBox3f RightBoundingVolume = SplitTriangleList(Node->n.RightNode,Left,Start + NumTris - Left,BuildTriangles);
 			// Nodes may have resized
 			Node = &Nodes[NodeIndex];
 			Node->BoundingVolumes.SetBox(1,RightBoundingVolume);
@@ -1292,7 +1292,7 @@ struct TkDOPTree
 
 			// "NULL triangle", used when a leaf can't fill all 4 triangles in a FTriangleSOA.
 			// No line should ever hit these triangles, set the values so that it can never happen.
-			FkDOPBuildCollisionTriangle<KDOP_IDX_TYPE> EmptyTriangle(0,FVector4(0,0,0,0),FVector4(0,0,0,0),FVector4(0,0,0,0),INDEX_NONE,INDEX_NONE,INDEX_NONE, false, true);
+			FkDOPBuildCollisionTriangle<KDOP_IDX_TYPE> EmptyTriangle(0,FVector4f(0,0,0,0),FVector4f(0,0,0,0),FVector4f(0,0,0,0),INDEX_NONE,INDEX_NONE,INDEX_NONE, false, true);
 			
 			Node->t.StartIndex = SOATriangles.Num();
 			Node->t.NumTriangles = Align<int32>(NumTris, 4) / 4;
@@ -1324,10 +1324,10 @@ struct TkDOPTree
 				SOA.Positions[2].Y = LmVectorSet( Tris[0]->V2.Y, Tris[1]->V2.Y, Tris[2]->V2.Y, Tris[3]->V2.Y );
 				SOA.Positions[2].Z = LmVectorSet( Tris[0]->V2.Z, Tris[1]->V2.Z, Tris[2]->V2.Z, Tris[3]->V2.Z );
 
-				const FVector4& Tris0LocalNormal = Tris[0]->GetLocalNormal();
-				const FVector4& Tris1LocalNormal = Tris[1]->GetLocalNormal();
-				const FVector4& Tris2LocalNormal = Tris[2]->GetLocalNormal();
-				const FVector4& Tris3LocalNormal = Tris[3]->GetLocalNormal();
+				const FVector4f& Tris0LocalNormal = Tris[0]->GetLocalNormal();
+				const FVector4f& Tris1LocalNormal = Tris[1]->GetLocalNormal();
+				const FVector4f& Tris2LocalNormal = Tris[2]->GetLocalNormal();
+				const FVector4f& Tris3LocalNormal = Tris[3]->GetLocalNormal();
 
 				SOA.Normals.X = LmVectorSet( Tris0LocalNormal.X, Tris1LocalNormal.X, Tris2LocalNormal.X, Tris3LocalNormal.X );
 				SOA.Normals.Y = LmVectorSet( Tris0LocalNormal.Y, Tris1LocalNormal.Y, Tris2LocalNormal.Y, Tris3LocalNormal.Y );
@@ -1353,7 +1353,7 @@ struct TkDOPTree
 			Node->Occupancy = NumTris;
 			
 			// Generate bounding volume for leaf which is passed up the call chain.
-			FBox BoundingVolume(ForceInit);
+			FBox3f BoundingVolume(ForceInit);
 			for (int32 TriangleIndex=Start; TriangleIndex<Start + NumTris; TriangleIndex++)
 			{
 				BoundingVolume += BuildTriangles[TriangleIndex].V0;
@@ -1473,8 +1473,8 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPLineC
 	 */
 	FHitResult* Result;
 	// Constant input vars
-	const FVector4& Start;
-	const FVector4& End;
+	const FVector4f& Start;
+	const FVector4f& End;
 
 	/**
 	 * Flags for optimizing a trace
@@ -1484,12 +1484,12 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPLineC
 	const bool bTwoSidedCollision;
 	const bool bFlipSidedness;
 	// Locally calculated vectors
-	FVector4 LocalStart;
-	FVector4 LocalEnd;
-	FVector4 LocalDir;
-	FVector4 LocalOneOverDir;
+	FVector4f LocalStart;
+	FVector4f LocalEnd;
+	FVector4f LocalDir;
+	FVector4f LocalOneOverDir;
 	// Normal in local space which gets transformed to world at the very end
-	FVector4 LocalHitNormal;
+	FVector4f LocalHitNormal;
 
 	/** Index into the kDOP tree's nodes of the node that was hit. */
 	KDOP_IDX_TYPE HitNodeIndex;
@@ -1519,7 +1519,7 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPLineC
 	 *		specific data, such as L2W, W2L, Vertices, and so on
 	 * @param InResult -- The out param for hit result information
 	 */
-	TkDOPLineCollisionCheck(const FVector4& InStart,const FVector4& InEnd,
+	TkDOPLineCollisionCheck(const FVector4f& InStart,const FVector4f& InEnd,
 		bool bInbFindClosestIntersection,
 		bool bInStaticAndOpaqueOnly,
 		bool bInTwoSidedCollision,
@@ -1540,7 +1540,7 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPLineC
 		bFlipSidedness(bInFlipSidedness),
 		HitNodeIndex(0xFFFFFFFF)
 	{
-		const FMatrix& WorldToLocal = TkDOPCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>::CollDataProvider.GetWorldToLocal();
+		const FMatrix44f& WorldToLocal = TkDOPCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>::CollDataProvider.GetWorldToLocal();
 		// Move start and end to local space
 		LocalStart = WorldToLocal.TransformPosition(Start);
 		LocalEnd = WorldToLocal.TransformPosition(End);
@@ -1570,10 +1570,10 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPLineC
 	 * Transforms the local hit normal into a world space normal using the transpose
 	 * adjoint and flips the normal if need be
 	 */
-	FORCEINLINE FVector4 GetHitNormal(void)
+	FORCEINLINE FVector4f GetHitNormal(void)
 	{
 		// Transform the hit back into world space using the transpose adjoint
-		FVector4 Normal = TkDOPCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>::CollDataProvider.GetLocalToWorldTransposeAdjoint().TransformVector(LocalHitNormal).GetSafeNormal();
+		FVector4f Normal = TkDOPCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>::CollDataProvider.GetLocalToWorldTransposeAdjoint().TransformVector(LocalHitNormal).GetSafeNormal();
 		// Flip the normal if the triangle is inverted
 		if (TkDOPCollisionCheck<COLL_DATA_PROVIDER,KDOP_IDX_TYPE>::CollDataProvider.GetDeterminant() < 0.f)
 		{
@@ -1586,11 +1586,11 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPLineC
 template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPBoxCollisionCheck :
 	public TkDOPCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>
 {
-	const FBox Box;
+	const FBox3f Box;
 	int32 Item;
 
 	TkDOPBoxCollisionCheck(
-		const FBox& InBox,
+		const FBox3f& InBox,
 		const COLL_DATA_PROVIDER& InCollDataProvider) :
 		TkDOPCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>(InCollDataProvider),
 		Box(InBox),

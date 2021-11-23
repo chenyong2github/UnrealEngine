@@ -7,12 +7,12 @@
 namespace Lightmass
 {
 
-static bool ClipLineWithBox(const FBox& Box, const FVector4& Start, const FVector4& End, FVector4& IntersectedStart, FVector4& IntersectedEnd)
+static bool ClipLineWithBox(const FBox3f& Box, const FVector4f& Start, const FVector4f& End, FVector4f& IntersectedStart, FVector4f& IntersectedEnd)
 {
     IntersectedStart = Start;
     IntersectedEnd = End;
 
-    FVector4 Dir;
+    FVector4f Dir;
     float TEdgeOfBox,TLineLength;
     bool StartCulled,EndCulled;
    

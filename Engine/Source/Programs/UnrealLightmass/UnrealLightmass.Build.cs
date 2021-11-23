@@ -42,7 +42,7 @@ public class UnrealLightmass : ModuleRules
 				}
 			);
 		}
-
+		
 		// Lightmass ray tracing is 8% faster with buffer security checks disabled due to fixed size arrays on the stack in the kDOP ray tracing functions
 		// Warning: This means buffer overwrites will not be detected
 		bEnableBufferSecurityChecks = false;

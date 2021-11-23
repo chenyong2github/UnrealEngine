@@ -517,26 +517,26 @@ void DrawStaticLightingDebugInfo(const FSceneView* View,FPrimitiveDrawInterface*
 				{
 					if (GDebugStaticLightingInfo.bCornerValid[CornerIndex])
 					{
-						PDI->DrawPoint(GDebugStaticLightingInfo.TexelCorners[CornerIndex] + CurrentVertex.VertexNormal * .04f, FLinearColor(0, 1, 1), 4.0f, SDPG_World);
+						PDI->DrawPoint(FVector4(GDebugStaticLightingInfo.TexelCorners[CornerIndex] + CurrentVertex.VertexNormal * .04f), FLinearColor(0, 1, 1), 4.0f, SDPG_World);
 					}
 				}
-				PDI->DrawPoint(CurrentVertex.VertexPosition, NormalColor, 4.0f, SDPG_World);
-				DrawWireSphere(PDI, CurrentVertex.VertexPosition, NormalColor, GDebugStaticLightingInfo.SampleRadius, 36, SDPG_World);
+				PDI->DrawPoint(FVector4(CurrentVertex.VertexPosition), NormalColor, 4.0f, SDPG_World);
+				DrawWireSphere(PDI, FVector4(CurrentVertex.VertexPosition), NormalColor, GDebugStaticLightingInfo.SampleRadius, 36, SDPG_World);
 			}
-			PDI->DrawLine(CurrentVertex.VertexPosition, CurrentVertex.VertexPosition + CurrentVertex.VertexNormal * 10, NormalColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentVertex.VertexPosition), FVector4(CurrentVertex.VertexPosition + CurrentVertex.VertexNormal * 10), NormalColor, SDPG_World);
 		}
 
 		for (int32 RayIndex = 0; RayIndex < GDebugStaticLightingInfo.ShadowRays.Num(); RayIndex++)
 		{
 			const FDebugStaticLightingRay& CurrentRay = GDebugStaticLightingInfo.ShadowRays[RayIndex];
-			PDI->DrawLine(CurrentRay.Start, CurrentRay.End, CurrentRay.bHit ? FColor::Red : FColor::Green, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentRay.Start), FVector4(CurrentRay.End), CurrentRay.bHit ? FColor::Red : FColor::Green, SDPG_World);
 		}
 		
 		for (int32 RayIndex = 0; RayIndex < GDebugStaticLightingInfo.PathRays.Num(); RayIndex++)
 		{
 			const FDebugStaticLightingRay& CurrentRay = GDebugStaticLightingInfo.PathRays[RayIndex];
 			const FColor RayColor = CurrentRay.bHit ? (CurrentRay.bPositive ? FColor(255,255,150) : FColor(150,150,150)) : FColor(50,50,255);
-			PDI->DrawLine(CurrentRay.Start, CurrentRay.End, RayColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentRay.Start), FVector4(CurrentRay.End), RayColor, SDPG_World);
 		}
 
 		for (int32 RecordIndex = 0; RecordIndex < GDebugStaticLightingInfo.CacheRecords.Num(); RecordIndex++)
@@ -544,91 +544,91 @@ void DrawStaticLightingDebugInfo(const FSceneView* View,FPrimitiveDrawInterface*
 			const FDebugLightingCacheRecord& CurrentRecord = GDebugStaticLightingInfo.CacheRecords[RecordIndex];
 			if (CurrentRecord.bNearSelectedTexel)
 			{
-				DrawWireSphere(PDI, CurrentRecord.Vertex.VertexPosition + CurrentRecord.Vertex.VertexNormal * .1f, CurrentRecord.bAffectsSelectedTexel ? FColor(50, 255, 100) : FColor(100, 100, 100), CurrentRecord.Radius, 36, SDPG_World);
-				PDI->DrawLine(CurrentRecord.Vertex.VertexPosition, CurrentRecord.Vertex.VertexPosition + CurrentRecord.Vertex.VertexNormal * 12, CurrentRecord.bAffectsSelectedTexel ? FColor(50, 255, 100) : FColor(100, 100, 100), SDPG_World);
+				DrawWireSphere(PDI, FVector4(CurrentRecord.Vertex.VertexPosition + CurrentRecord.Vertex.VertexNormal * .1f), CurrentRecord.bAffectsSelectedTexel ? FColor(50, 255, 100) : FColor(100, 100, 100), CurrentRecord.Radius, 36, SDPG_World);
+				PDI->DrawLine(FVector4(CurrentRecord.Vertex.VertexPosition), FVector4(CurrentRecord.Vertex.VertexPosition + CurrentRecord.Vertex.VertexNormal * 12), CurrentRecord.bAffectsSelectedTexel ? FColor(50, 255, 100) : FColor(100, 100, 100), SDPG_World);
 			}
-			PDI->DrawPoint(CurrentRecord.Vertex.VertexPosition + CurrentRecord.Vertex.VertexNormal * .1f, FLinearColor(.5, 1, .5), 2.0f, SDPG_World);
+			PDI->DrawPoint(FVector4(CurrentRecord.Vertex.VertexPosition + CurrentRecord.Vertex.VertexNormal * .1f), FLinearColor(.5, 1, .5), 2.0f, SDPG_World);
 		}
 
 		for (int32 PhotonIndex = 0; PhotonIndex < GDebugStaticLightingInfo.DirectPhotons.Num(); PhotonIndex++)
 		{
 			const FDebugPhoton& CurrentPhoton = GDebugStaticLightingInfo.DirectPhotons[PhotonIndex];
-			PDI->DrawLine(CurrentPhoton.Position, CurrentPhoton.Position + CurrentPhoton.Direction * 50, FColor(200, 200, 100), SDPG_World);
+			PDI->DrawLine(FVector4(CurrentPhoton.Position), FVector4(CurrentPhoton.Position + CurrentPhoton.Direction * 50), FColor(200, 200, 100), SDPG_World);
 		}
 
 		for (int32 PhotonIndex = 0; PhotonIndex < GDebugStaticLightingInfo.IndirectPhotons.Num(); PhotonIndex++)
 		{
 			const FDebugPhoton& CurrentPhoton = GDebugStaticLightingInfo.IndirectPhotons[PhotonIndex];
-			PDI->DrawLine(CurrentPhoton.Position, CurrentPhoton.Position + CurrentPhoton.Direction, FColor(200, 100, 100), SDPG_World);
+			PDI->DrawLine(FVector4(CurrentPhoton.Position), FVector4(CurrentPhoton.Position + CurrentPhoton.Direction), FColor(200, 100, 100), SDPG_World);
 		}
 
 		for (int32 PhotonIndex = 0; PhotonIndex < GDebugStaticLightingInfo.IrradiancePhotons.Num(); PhotonIndex++)
 		{
 			const FDebugPhoton& CurrentPhoton = GDebugStaticLightingInfo.IrradiancePhotons[PhotonIndex];
-			PDI->DrawLine(CurrentPhoton.Position, CurrentPhoton.Position + CurrentPhoton.Direction * 50, FColor(150, 100, 250), SDPG_World);
+			PDI->DrawLine(FVector4(CurrentPhoton.Position), FVector4(CurrentPhoton.Position + CurrentPhoton.Direction * 50), FColor(150, 100, 250), SDPG_World);
 		}
 
 		for (int32 PhotonIndex = 0; PhotonIndex < GDebugStaticLightingInfo.GatheredPhotons.Num(); PhotonIndex++)
 		{
 			const FDebugPhoton& CurrentPhoton = GDebugStaticLightingInfo.GatheredPhotons[PhotonIndex];
-			PDI->DrawLine(CurrentPhoton.Position, CurrentPhoton.Position + CurrentPhoton.Normal * 50, FColor(100, 100, 100), SDPG_World);
-			PDI->DrawLine(CurrentPhoton.Position, CurrentPhoton.Position + CurrentPhoton.Direction * 50, FColor(50, 255, 100), SDPG_World);
-			PDI->DrawPoint(CurrentPhoton.Position + CurrentPhoton.Direction * .1f, FLinearColor(.5, 1, .5), 4.0f, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentPhoton.Position), FVector4(CurrentPhoton.Position + CurrentPhoton.Normal * 50), FColor(100, 100, 100), SDPG_World);
+			PDI->DrawLine(FVector4(CurrentPhoton.Position), FVector4(CurrentPhoton.Position + CurrentPhoton.Direction * 50), FColor(50, 255, 100), SDPG_World);
+			PDI->DrawPoint(FVector4(CurrentPhoton.Position + CurrentPhoton.Direction * .1f), FLinearColor(.5, 1, .5), 4.0f, SDPG_World);
 		}
 
 		for (int32 PhotonIndex = 0; PhotonIndex < GDebugStaticLightingInfo.GatheredImportancePhotons.Num(); PhotonIndex++)
 		{
 			const FDebugPhoton& CurrentPhoton = GDebugStaticLightingInfo.GatheredImportancePhotons[PhotonIndex];
-			PDI->DrawLine(CurrentPhoton.Position, CurrentPhoton.Position + CurrentPhoton.Normal * 50, FColor(100, 100, 100), SDPG_World);
-			PDI->DrawLine(CurrentPhoton.Position, CurrentPhoton.Position + CurrentPhoton.Direction * 50, FColor(200, 100, 100), SDPG_World);
-			PDI->DrawPoint(CurrentPhoton.Position + CurrentPhoton.Direction * .1f, FLinearColor(.5, 1, .5), 4.0f, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentPhoton.Position), FVector4(CurrentPhoton.Position + CurrentPhoton.Normal * 50), FColor(100, 100, 100), SDPG_World);
+			PDI->DrawLine(FVector4(CurrentPhoton.Position), FVector4(CurrentPhoton.Position + CurrentPhoton.Direction * 50), FColor(200, 100, 100), SDPG_World);
+			PDI->DrawPoint(FVector4(CurrentPhoton.Position + CurrentPhoton.Direction * .1f), FLinearColor(.5, 1, .5), 4.0f, SDPG_World);
 		}
 		const FColor NodeColor(150, 170, 180);
 		for (int32 NodeIndex = 0; NodeIndex < GDebugStaticLightingInfo.GatheredPhotonNodes.Num(); NodeIndex++)
 		{
 			const FDebugOctreeNode& CurrentNode = GDebugStaticLightingInfo.GatheredPhotonNodes[NodeIndex];
-			PDI->DrawLine(CurrentNode.Center + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
-			PDI->DrawLine(CurrentNode.Center + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
-			PDI->DrawLine(CurrentNode.Center + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
 			
-			PDI->DrawLine(CurrentNode.Center - FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center - FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
-			PDI->DrawLine(CurrentNode.Center - FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center - FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
-			PDI->DrawLine(CurrentNode.Center - FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center - FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) - FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) - FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) - FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) - FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) - FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) - FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
 			
-			PDI->DrawLine(CurrentNode.Center + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
-			PDI->DrawLine(CurrentNode.Center + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center + FVector(-CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(-CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
 
-			PDI->DrawLine(CurrentNode.Center + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center + FVector(-CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
-			PDI->DrawLine(CurrentNode.Center + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), CurrentNode.Center + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(-CurrentNode.Extent.X, -CurrentNode.Extent.Y, CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
 
-			PDI->DrawLine(CurrentNode.Center + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), CurrentNode.Center + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
-			PDI->DrawLine(CurrentNode.Center + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), CurrentNode.Center + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, -CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentNode.Center) + FVector(CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), FVector4(CurrentNode.Center) + FVector(-CurrentNode.Extent.X, CurrentNode.Extent.Y, -CurrentNode.Extent.Z), NodeColor, SDPG_World);
 		}
 
 		if (GDebugStaticLightingInfo.bDirectPhotonValid)
 		{
 			const FDebugPhoton& DirectPhoton = GDebugStaticLightingInfo.GatheredDirectPhoton;
-			PDI->DrawLine(DirectPhoton.Position, DirectPhoton.Position + DirectPhoton.Direction * 60, FColor(255, 255, 100), SDPG_World);
-			PDI->DrawPoint(DirectPhoton.Position + DirectPhoton.Direction * .1f, FLinearColor(1, 1, .5), 4.0f, SDPG_World);
+			PDI->DrawLine(FVector4(DirectPhoton.Position), FVector4(DirectPhoton.Position + DirectPhoton.Direction * 60), FColor(255, 255, 100), SDPG_World);
+			PDI->DrawPoint(FVector4(DirectPhoton.Position + DirectPhoton.Direction * .1f), FLinearColor(1, 1, .5), 4.0f, SDPG_World);
 		}
 
 		for (int32 RayIndex = 0; RayIndex < GDebugStaticLightingInfo.IndirectPhotonPaths.Num(); RayIndex++)
 		{
 			const FDebugStaticLightingRay& CurrentRay = GDebugStaticLightingInfo.IndirectPhotonPaths[RayIndex];
-			PDI->DrawLine(CurrentRay.Start, CurrentRay.End, FColor::White, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentRay.Start), FVector4(CurrentRay.End), FColor::White, SDPG_World);
 		}
 
 		for (int32 SampleIndex = 0; SampleIndex < GDebugStaticLightingInfo.VolumeLightingSamples.Num(); SampleIndex++)
 		{
 			const FDebugVolumeLightingSample& CurrentSample = GDebugStaticLightingInfo.VolumeLightingSamples[SampleIndex];
-			PDI->DrawPoint(CurrentSample.Position, CurrentSample.AverageIncidentRadiance * GEngine->LightingOnlyBrightness, 12.0f, SDPG_World);
+			PDI->DrawPoint(FVector4(CurrentSample.Position), CurrentSample.AverageIncidentRadiance * GEngine->LightingOnlyBrightness, 12.0f, SDPG_World);
 		}
 
 		for (int32 RayIndex = 0; RayIndex < GDebugStaticLightingInfo.PrecomputedVisibilityRays.Num(); RayIndex++)
 		{
 			const FDebugStaticLightingRay& CurrentRay = GDebugStaticLightingInfo.PrecomputedVisibilityRays[RayIndex];
 			const FColor RayColor = CurrentRay.bHit ? (CurrentRay.bPositive ? FColor(255,255,150) : FColor(150,150,150)) : FColor(50,50,255);
-			PDI->DrawLine(CurrentRay.Start, CurrentRay.End, RayColor, SDPG_World);
+			PDI->DrawLine(FVector4(CurrentRay.Start), FVector4(CurrentRay.End), RayColor, SDPG_World);
 		}
 	}
 }
@@ -644,7 +644,7 @@ void DrawStaticLightingDebugInfo(const FSceneView* View, FCanvas* Canvas)
 			if (CurrentRecord.bNearSelectedTexel)
 			{
 				FVector2D PixelLocation;
-				if(View->ScreenToPixel(View->WorldToScreen(CurrentRecord.Vertex.VertexPosition),PixelLocation))
+				if(View->ScreenToPixel(View->WorldToScreen(FVector4(CurrentRecord.Vertex.VertexPosition)),PixelLocation))
 				{
 					const FColor TagColor = CurrentRecord.bAffectsSelectedTexel ? FColor(50,160,200) : FColor(120,120,120);
 					Canvas->DrawShadowedString(PixelLocation.X,PixelLocation.Y, *FString::FromInt(CurrentRecord.RecordId), GEngine->GetSmallFont(), TagColor);
@@ -656,7 +656,7 @@ void DrawStaticLightingDebugInfo(const FSceneView* View, FCanvas* Canvas)
 		{
 			const FDebugPhoton& CurrentPhoton = GDebugStaticLightingInfo.GatheredImportancePhotons[PhotonIndex];
 			FVector2D PixelLocation;
-			if(View->ScreenToPixel(View->WorldToScreen(CurrentPhoton.Position),PixelLocation))
+			if(View->ScreenToPixel(View->WorldToScreen(FVector4(CurrentPhoton.Position)),PixelLocation))
 			{
 				const FColor TagColor = FColor(120,120,120);
 				Canvas->DrawShadowedString(PixelLocation.X,PixelLocation.Y, *FString::FromInt(CurrentPhoton.Id), GEngine->GetSmallFont(), TagColor);
@@ -669,7 +669,7 @@ void DrawStaticLightingDebugInfo(const FSceneView* View, FCanvas* Canvas)
 			if (CurrentRay.bHit && CurrentRay.bPositive)
 			{
 				FVector2D PixelLocation;
-				if(View->ScreenToPixel(View->WorldToScreen(CurrentRay.End),PixelLocation))
+				if(View->ScreenToPixel(View->WorldToScreen(FVector4(CurrentRay.End)),PixelLocation))
 				{
 					const FColor TagColor = FColor(180,180,120);
 					Canvas->DrawShadowedString(PixelLocation.X,PixelLocation.Y, *FString::FromInt(RayIndex), GEngine->GetSmallFont(), TagColor);
