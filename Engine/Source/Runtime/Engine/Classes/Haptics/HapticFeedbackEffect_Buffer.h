@@ -25,8 +25,5 @@ class UHapticFeedbackEffect_Buffer : public UHapticFeedbackEffect_Base
 
 	float GetDuration() const override;
 	
-	void Initialize() override;
-
-private:
-	FHapticFeedbackBuffer HapticBuffer;
+	void Initialize(FHapticFeedbackBuffer& HapticBuffer) override;
 };

@@ -20,7 +20,7 @@ class UHapticFeedbackEffect_SoundWave : public UHapticFeedbackEffect_Base
 
 	~UHapticFeedbackEffect_SoundWave();
 
-	void Initialize() override;
+	void Initialize(FHapticFeedbackBuffer& HapticBuffer) override;
 
 	void GetValues(const float EvalTime, FHapticFeedbackValues& Values) override;
 
@@ -30,5 +30,5 @@ private:
 	void PrepareSoundWaveBuffer();
 	bool bPrepared;
 
-	FHapticFeedbackBuffer HapticBuffer;
+	TArray<uint8> RawData;
 };
