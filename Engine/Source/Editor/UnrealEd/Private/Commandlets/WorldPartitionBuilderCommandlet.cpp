@@ -87,15 +87,24 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		LoadConfig(GetClass(), *WorldConfigFilename);
 	}
 
-	// Run builder
-	bool bResult = UWorldPartitionBuilder::RunBuilder(BuilderClass, World);
+	// Create builder instance
+	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(GetTransientPackage(), BuilderClass);
+	if (!Builder)
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Failed to create builder."));
+		return false;
+	}
+
+	Builder->AddToRoot();
+	bool bResult = Builder->RunBuilder(World);
+	Builder->RemoveFromRoot();
 
 	// Save configuration file
 	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename) ||
 		!FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*WorldConfigFilename))
 	{
 		SaveConfig(CPF_Config, *WorldConfigFilename);
-	}
+	}	
 
 	return bResult ? 0 : 1;
 }

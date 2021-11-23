@@ -49,8 +49,7 @@ public:
 		IterativeCells2D,
 	};
 
-	static bool RunBuilder(UWorldPartitionBuilder* BuilderClass, UWorld* World);
-	static bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* World);
+	bool RunBuilder(UWorld* World);
 
 	virtual bool RequiresCommandletRendering() const PURE_VIRTUAL(UWorldPartitionBuilder::RequiresCommandletRendering, return false;);
 	virtual ELoadingMode GetLoadingMode() const PURE_VIRTUAL(UWorldPartitionBuilder::GetLoadingMode, return ELoadingMode::Custom;);
@@ -61,21 +60,18 @@ public:
 
 protected:
 	/**
-	 * Overridable method for derived classed to perform operations when partition building process starts.
+	 * Overridable method for derived classed to perform operations when world builder process starts.
 	 * This is called before loading data (e.g. data layers, editor cells) and before calling `RunInternal`.
 	 */
-	virtual bool OnPartitionBuildStarted(UWorld* World, FPackageSourceControlHelper& PackageHelper) { return true; }
+	virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) { return true; }
 
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
 
-	UE_DEPRECATED(5.0, "Use RunInternal version with FCellInfo instead")
-	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper);
-
 	/**
-	 * Overridable method for derived classed to perform operations when partition building process completes.
+	 * Overridable method for derived classed to perform operations when world builder process completes.
 	 * This is called after loading all data (e.g. data layers, editor cells) and after calling `RunInternal` for all editor cells.
 	 */
-	virtual bool OnPartitionBuildCompleted(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) { return true; }
+	virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) { return true; }
 
 	int32 IterativeCellSize = 102400;
 	int32 IterativeCellOverlapSize = 0;
