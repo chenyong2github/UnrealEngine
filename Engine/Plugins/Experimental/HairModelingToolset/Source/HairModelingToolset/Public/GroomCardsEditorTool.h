@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Templates/PimplPtr.h"
-#include "BaseTools/MeshSurfacePointTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "InteractiveToolBuilder.h"
 #include "PreviewMesh.h"
 #include "Drawing/PreviewGeometryActor.h"
@@ -25,11 +25,13 @@ class FEditableGroomCardSet;
 class FGroomCardEdit;
 class FMeshVertexChangeBuilder;
 
+class UGroomCardsEditorTool;
+
 /**
  *
  */
 UCLASS()
-class HAIRMODELINGTOOLSET_API UGroomCardsEditorToolBuilder : public UMeshSurfacePointToolBuilder
+class HAIRMODELINGTOOLSET_API UGroomCardsEditorToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:

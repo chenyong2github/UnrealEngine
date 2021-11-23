@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMeshBrushTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "SeamSculptTool.generated.h"
 
 class UExistingMeshMaterialProperties;
@@ -14,7 +15,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USeamSculptToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEXP_API USeamSculptToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 

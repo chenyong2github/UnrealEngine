@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMeshBrushTool.h"
+#include "BaseTools/MeshSurfacePointMeshEditingTool.h"
 #include "InteractiveToolQueryInterfaces.h"
 #include "SelectionSet.h"
 #include "Changes/MeshSelectionChange.h"
@@ -15,12 +16,13 @@ class UMeshStatisticsProperties;
 class UMeshElementsVisualizer;
 class UMeshUVChannelProperties;
 class UPolygroupLayersProperties;
+class UMeshSelectionTool;
 
 /**
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UMeshSelectionToolBuilder : public UMeshSurfacePointToolBuilder
+class MESHMODELINGTOOLSEXP_API UMeshSelectionToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 

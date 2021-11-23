@@ -5,11 +5,7 @@
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-#include "Components/PrimitiveComponent.h"
 
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
 
@@ -22,12 +18,7 @@
 
 const FToolTargetTypeRequirements& UMeshSurfacePointToolBuilder::GetTargetRequirements() const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMaterialProvider::StaticClass(),
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
+	static FToolTargetTypeRequirements TypeRequirements(UPrimitiveComponentBackedTarget::StaticClass());
 	return TypeRequirements;
 }
 
