@@ -116,8 +116,8 @@ public:
 	/** Clears the selected actor */
 	void ClearSelectedActor();
 
-	/** Clears the selected anim graph node */
-	void ClearSelectedAnimGraphNode();
+	/** Clears the selected anim graph nodes */
+	void ClearSelectedAnimGraphNodes();
 
 	/** Clears the selection (both sockets and bones). Also broadcasts this */
 	void DeselectAll();
@@ -344,7 +344,7 @@ private:
 	TSharedPtr<class ISkeletonTree> SkeletonTree;
 
 	// selected anim graph node 
-	TWeakObjectPtr<class UAnimGraphNode_Base> SelectedAnimGraphNode;
+	TArray< TWeakObjectPtr< class UAnimGraphNode_Base > > SelectedAnimGraphNodes;
 
 	/** Sequence Browser **/
 	TWeakPtr<class IAnimationSequenceBrowser> SequenceBrowser;

@@ -51,6 +51,7 @@ public:
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual bool ShouldDrawWidget() const override;
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
+	virtual void Exit() override;
 
 protected:
 	// local conversion functions for drawing
@@ -65,12 +66,26 @@ protected:
 	static FVector ConvertWidgetLocation(const USkeletalMeshComponent* InSkelComp, FCSPose<FCompactHeapPose>& InMeshBases, const FName& BoneName, const FVector& InLocation, const EBoneControlSpace Space);
 	static FVector ConvertWidgetLocation(const USkeletalMeshComponent* InSkelComp, FCSPose<FCompactHeapPose>& InMeshBases, const FBoneSocketTarget& Target, const FVector& InLocation, const EBoneControlSpace Space);
 
-protected:
-	/** The node we are operating on */
-	class UAnimGraphNode_Base* AnimNode;
+	virtual UAnimGraphNode_Base* GetActiveWidgetAnimNode() const; // Return the editor node associated with the selected widget. All widget operations are performed on this node.
+	virtual FAnimNode_Base*	GetActiveWidgetRuntimeAnimNode() const; // Return the runtime node associated with the selected widget. All widget operations are performed on this node.
 
-	/** The runtime node in the preview scene */
-	struct FAnimNode_Base* RuntimeAnimNode;
+protected:
+
+	struct EditorRuntimeNodePair
+	{
+		EditorRuntimeNodePair(UAnimGraphNode_Base* InEditorAnimNode, FAnimNode_Base* InRuntimeAnimNode)
+			: EditorAnimNode(InEditorAnimNode)
+			, RuntimeAnimNode(InRuntimeAnimNode)
+		{}
+
+		/** The node we are operating on */
+		UAnimGraphNode_Base* EditorAnimNode;
+
+		/** The runtime node in the preview scene */
+		FAnimNode_Base* RuntimeAnimNode;
+	};
+
+	TArray< EditorRuntimeNodePair > AnimNodes;
 
 private:
 	bool bManipulating;
