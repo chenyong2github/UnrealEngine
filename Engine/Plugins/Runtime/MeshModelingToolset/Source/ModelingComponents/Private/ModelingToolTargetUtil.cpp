@@ -220,6 +220,11 @@ FDynamicMesh3 UE::ToolTarget::GetDynamicMeshCopy(UToolTarget* Target, bool bWant
 
 UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitMeshDescriptionUpdate(UToolTarget* Target, const FMeshDescription* UpdatedMesh, const FComponentMaterialSet* UpdatedMaterials)
 {
+	if (!ensure(UpdatedMesh != nullptr))
+	{
+		return EDynamicMeshUpdateResult::Failed;
+	}
+
 	IMeshDescriptionCommitter* MeshDescriptionCommitter = Cast<IMeshDescriptionCommitter>(Target);
 	if (!ensure(MeshDescriptionCommitter))
 	{

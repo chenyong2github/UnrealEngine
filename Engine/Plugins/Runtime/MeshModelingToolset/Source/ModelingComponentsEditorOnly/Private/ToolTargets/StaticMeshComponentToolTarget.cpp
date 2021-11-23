@@ -161,6 +161,11 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 	FMeshDescription* UpdateMeshDescription = (EditingLOD == EStaticMeshEditingLOD::HiResSource) ?
 		StaticMesh->GetHiResMeshDescription() : StaticMesh->GetMeshDescription((int32)EditingLOD);
 
+	if (!ensure(UpdateMeshDescription != nullptr))
+	{
+		return; // invalid target; cannot commit
+	}
+
 	// unregister the component while we update its static mesh
 	FComponentReregisterContext ComponentReregisterContext(Component);
 

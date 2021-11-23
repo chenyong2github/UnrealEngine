@@ -173,6 +173,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TriIDMap.Reset();
 	VertIDMap.Reset();
 
+	if (!ensure(MeshIn != nullptr))
+	{
+		return; // nothing to convert
+	}
+
 	// allocate the VertIDMap.  Unfortunately the array will need to grow more if MeshIn has non-manifold edges that need to be split
 	VertIDMap.SetNumUninitialized(MeshIn->Vertices().Num());
 
