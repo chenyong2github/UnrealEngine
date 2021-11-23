@@ -56,6 +56,7 @@ class FNiagaraCompileOptions
 public:
 	NIAGARA_API static const FString CpuScriptDefine;
 	NIAGARA_API static const FString GpuScriptDefine;
+	NIAGARA_API static const FString EventSpawnDefine;
 
 	FNiagaraCompileOptions() : TargetUsage(ENiagaraScriptUsage::Function), TargetUsageBitmask(0)
 	{

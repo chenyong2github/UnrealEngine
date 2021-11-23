@@ -1509,6 +1509,15 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		{
 			BuildMissingDefaults();
 		}
+
+		if (UNiagaraScript::IsParticleEventScript(TranslationStages[0].ScriptUsage))
+		{
+			if (CompileOptions.AdditionalDefines.Contains(FNiagaraCompileOptions::EventSpawnDefine))
+			{
+				AddBodyComment(TEXT("//Handle resetting previous values at the end of spawn so that they match outputs! (Needed for motion blur/etc)"));
+				AddBodyChunk(TEXT("HandlePreviousValuesForSpawn(Context);"));
+			}
+		}
 	}
 	else
 	{
@@ -2284,7 +2293,13 @@ void FHlslNiagaraTranslator::DefinePreviousParametersFunction(FString& HlslOutpu
 	HlslOutputString +=
 		TEXT("#if (SimulationStageIndex == 0) // MapSpawn\n")
 		TEXT("void HandlePreviousValuesForSpawn(inout FSimulationContext Context)\n{\n");
-	if (UNiagaraScript::IsParticleSpawnScript(CompileOptions.TargetUsage) || UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage))
+
+	const bool WriteFunctionInternals = UNiagaraScript::IsParticleSpawnScript(CompileOptions.TargetUsage)
+		|| UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage)
+		|| (UNiagaraScript::IsParticleEventScript(CompileOptions.TargetUsage)
+			&& CompileOptions.AdditionalDefines.Contains(FNiagaraCompileOptions::EventSpawnDefine));
+
+	if (WriteFunctionInternals)
 	{
 		TArray<FNiagaraDataSetID> ReadDataSetIDs;
 		TArray<FNiagaraDataSetID> WriteDataSetIDs;

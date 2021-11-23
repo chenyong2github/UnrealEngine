@@ -945,6 +945,17 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			Id.ReferencedCompileHashes.AddUnique(Hash);
 			Id.DebugReferencedObjects.Add(TEXT("SimulationStageHeaders"));
 		}
+
+		if (IsParticleEventScript(Usage))
+		{
+			if (const FNiagaraEventScriptProperties* EventScriptProps = Emitter->GetEventHandlerByIdUnsafe(UsageId))
+			{
+				if (EventScriptProps->ExecutionMode == EScriptExecutionMode::SpawnedParticles)
+				{
+					Id.AdditionalDefines.AddUnique(FNiagaraCompileOptions::EventSpawnDefine);
+				}
+			}
+		}
 	}
 
 	UObject* Obj = GetOuter();
