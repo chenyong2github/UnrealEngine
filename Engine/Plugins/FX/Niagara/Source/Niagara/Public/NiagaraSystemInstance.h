@@ -399,6 +399,8 @@ public:
 	int32 GetRandomSeedOffset() const { return RandomSeedOffset; }
 
 private:
+	void DumpStalledInfo();
+
 	void DestroyDataInterfaceInstanceData();
 
 	/** Builds the emitter simulations. */

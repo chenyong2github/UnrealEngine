@@ -2133,6 +2133,18 @@ void FNiagaraSystemInstance::ManualTick(float DeltaSeconds, const FGraphEventRef
 	SystemSim->Tick_GameThread(DeltaSeconds, MyCompletionGraphEvent);
 }
 
+void FNiagaraSystemInstance::DumpStalledInfo()
+{
+	TStringBuilder<128> Builder;
+	Builder.Appendf(TEXT("System (%s)\n"), *GetNameSafe(GetSystem()));
+	Builder.Appendf(TEXT("ConcurrentTickGraphEvent Complete (%d)\n"), ConcurrentTickGraphEvent ? ConcurrentTickGraphEvent->IsComplete() : true);
+	Builder.Appendf(TEXT("FinalizePending (%d)\n"), FinalizeRef.IsPending());
+	Builder.Appendf(TEXT("SystemInstanceIndex (%d)\n"), SystemInstanceIndex);
+	Builder.Appendf(TEXT("SystemInstanceState (%d)\n"), SystemInstanceState);
+
+	UE_LOG(LogNiagara, Fatal, TEXT("FNiagaraSystemInstance is stalled.\n%s"), Builder.ToString());
+}
+
 void FNiagaraSystemInstance::WaitForConcurrentTickDoNotFinalize(bool bEnsureComplete)
 {
 	check(IsInGameThread());
@@ -2148,10 +2160,32 @@ void FNiagaraSystemInstance::WaitForConcurrentTickDoNotFinalize(bool bEnsureComp
 		const double WarnSeconds = 5.0;
 		const uint64 WarnCycles = StartCycles + uint64(WarnSeconds / FPlatformTime::GetSecondsPerCycle64());
 
-		do
+		extern int32 GNiagaraSystemSimulationTaskStallTimeout;
+		if (GNiagaraSystemSimulationTaskStallTimeout > 0)
 		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread);
-		} while (ConcurrentTickGraphEvent && !ConcurrentTickGraphEvent->IsComplete());
+			do
+			{
+				const double EndTimeoutSeconds = FPlatformTime::Seconds() + (double(GNiagaraSystemSimulationTaskStallTimeout) / 1000.0);
+				LowLevelTasks::BusyWaitUntil(
+					[this, EndTimeoutSeconds]()
+					{
+						if (FPlatformTime::Seconds() > EndTimeoutSeconds)
+						{
+							DumpStalledInfo();
+							return true;
+						}
+						return ConcurrentTickGraphEvent->IsComplete();
+					}
+				);
+			} while (ConcurrentTickGraphEvent && !ConcurrentTickGraphEvent->IsComplete());
+		}
+		else
+		{
+			do
+			{
+				FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread);
+			} while (ConcurrentTickGraphEvent && !ConcurrentTickGraphEvent->IsComplete());
+		}
 
 		const double StallTimeMS = FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartCycles);
 		if ((GWaitForAsyncStallWarnThresholdMS > 0.0f) && (StallTimeMS > GWaitForAsyncStallWarnThresholdMS))

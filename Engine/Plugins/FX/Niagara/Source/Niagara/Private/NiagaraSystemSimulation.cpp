@@ -56,7 +56,6 @@ DECLARE_CYCLE_STAT(TEXT("System Sim Init (DirectBindings) [GT]"), STAT_NiagaraSy
 DECLARE_CYCLE_STAT(TEXT("ForcedWaitForAsync"), STAT_NiagaraSystemSim_ForceWaitForAsync, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("ForcedWait Fake Stall"), STAT_NiagaraSystemSim_ForceWaitFakeStall, STATGROUP_Niagara);
 
-
 static int32 GbDumpSystemData = 0;
 static FAutoConsoleVariableRef CVarNiagaraDumpSystemData(
 	TEXT("fx.DumpSystemData"),
@@ -78,6 +77,15 @@ static FAutoConsoleVariableRef CVarNiagaraSystemSimulationAllowASync(
 	TEXT("fx.Niagara.SystemSimulation.AllowASync"),
 	GNiagaraSystemSimulationAllowASync,
 	TEXT("If > 0, system post tick is parallelized. \n"),
+	ECVF_Default
+);
+
+int32 GNiagaraSystemSimulationTaskStallTimeout = 0;
+static FAutoConsoleVariableRef CVarNiagaraSystemSimulationTaskStallTimeout(
+	TEXT("fx.Niagara.SystemSimulation.TaskStallTimeout"),
+	GNiagaraSystemSimulationTaskStallTimeout,
+	TEXT("Timeout in microseconds for Niagara simulation tasks to be considered stalled.\n")
+	TEXT("When this is > 0 we busy wait as opposed to joining the TG so avoid using execpt for debugging."),
 	ECVF_Default
 );
 
@@ -1554,6 +1562,23 @@ void FNiagaraSystemSimulation::Spawn_Concurrent(FNiagaraSystemSimulationTickCont
 	bInSpawnPhase = false;
 }
 
+void FNiagaraSystemSimulation::DumpStalledInfo()
+{
+	TStringBuilder<128> Builder;
+	Builder.Appendf(TEXT("ConcurrentTickGraphEvent Complete (%d)\n"), ConcurrentTickGraphEvent ? ConcurrentTickGraphEvent->IsComplete() : true);
+	Builder.Appendf(TEXT("AllWorkCompleteGraphEvent Complete (%d)\n"), AllWorkCompleteGraphEvent ? ConcurrentTickGraphEvent->IsComplete() : true);
+	Builder.Appendf(TEXT("SystemTickGroup (%d)\n"), SystemTickGroup);
+	Builder.Appendf(TEXT("bInSpawnPhase (%d)\n"), bInSpawnPhase);
+	Builder.Appendf(TEXT("bIsSolo (%d)\n"), bIsSolo);
+	Builder.Appendf(TEXT("InstancesPendingSpawn (%d)\n"), GetSystemInstances(ENiagaraSystemInstanceState::PendingSpawn).Num());
+	Builder.Appendf(TEXT("InstancesPendingSpawnPaused (%d)\n"), GetSystemInstances(ENiagaraSystemInstanceState::PendingSpawnPaused).Num());
+	Builder.Appendf(TEXT("InstancesSpawning (%d)\n"), GetSystemInstances(ENiagaraSystemInstanceState::Spawning).Num());
+	Builder.Appendf(TEXT("InstancesRunning (%d)\n"), GetSystemInstances(ENiagaraSystemInstanceState::Running).Num());
+	Builder.Appendf(TEXT("InstancesPaused (%d)\n"), GetSystemInstances(ENiagaraSystemInstanceState::Paused).Num());
+
+	UE_LOG(LogNiagara, Fatal, TEXT("NiagaraSystemSimulation(%s) is stalled.\n%s"), *GetNameSafe(GetSystem()), Builder.ToString());
+}
+
 void FNiagaraSystemSimulation::WaitForConcurrentTickComplete(bool bEnsureComplete)
 {
 	check(IsInGameThread());
@@ -1562,7 +1587,26 @@ void FNiagaraSystemSimulation::WaitForConcurrentTickComplete(bool bEnsureComplet
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_ForceWaitForAsync);
 		ensureAlwaysMsgf(!bEnsureComplete, TEXT("NiagaraSystemSimulation(%s) ConcurrentTickGraphEvent is not completed."), *GetSystem()->GetPathName());
-		FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread);
+
+		if (GNiagaraSystemSimulationTaskStallTimeout > 0)
+		{
+			const double EndTimeoutSeconds = FPlatformTime::Seconds() + (double(GNiagaraSystemSimulationTaskStallTimeout) / 1000.0);
+			LowLevelTasks::BusyWaitUntil(
+				[this, EndTimeoutSeconds]()
+				{
+					if (FPlatformTime::Seconds() > EndTimeoutSeconds)
+					{
+						DumpStalledInfo();
+						return true;
+					}
+					return ConcurrentTickGraphEvent->IsComplete();
+				}
+			);
+		}
+		else
+		{
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ConcurrentTickGraphEvent, ENamedThreads::GameThread);
+		}
 	}
 	ConcurrentTickGraphEvent = nullptr;
 }
