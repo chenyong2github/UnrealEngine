@@ -1748,8 +1748,9 @@ namespace Chaos
 
 				if (ContactPoint.IsSet())
 				{
-					ContactPoint.ShapeContactPoints[0] = WorldTransform0.InverseTransformPosition(ContactPoint.Location);
-					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(ContactPoint.Location - ContactPoint.Phi * ContactPoint.Normal);
+					// @todo(chaos): this work is partially duplicated from SampleObject - fix this
+					ContactPoint.ShapeContactPoints[0] = WorldTransform0.InverseTransformPosition(ContactPoint.Location + FReal(0.5) * ContactPoint.Phi * ContactPoint.Normal);
+					ContactPoint.ShapeContactPoints[1] = WorldTransform1.InverseTransformPosition(ContactPoint.Location - FReal(0.5) * ContactPoint.Phi * ContactPoint.Normal);
 					ContactPoint.ShapeContactNormal = WorldTransform1.InverseTransformVector(ContactPoint.Normal);
 				}
 

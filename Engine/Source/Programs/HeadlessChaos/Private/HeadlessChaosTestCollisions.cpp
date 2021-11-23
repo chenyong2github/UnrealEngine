@@ -52,7 +52,7 @@ namespace ChaosTest {
 		Box1->UpdateWorldSpaceState(FRigidTransform3(Box1->X(), Box1->R()), FVec3(0));
 
 		auto Box2 = AppendDynamicParticleBox(Particles);
-		Box2->X() = FVec3(1.5f, 1.5f, 1.9f);
+		Box2->X() = FVec3(0.5f, 0.5f, 1.9f);
 		Box2->R() = FRotation3(FQuat::Identity);
 		Box2->P() = Box2->X();
 		Box2->Q() = Box2->R();
@@ -76,8 +76,8 @@ namespace ChaosTest {
 		EXPECT_TRUE(Constraint.GetNormal().operator==(FVec3(0, 0, 1)));
 
 		// The contact point is the average of the surface contact points, so it should be half of Phi inside particle0
-		Chaos::FReal Distance = ChaosTest::SignedDistance(*Constraint.Particle[0], Constraint.GetLocation());
-		EXPECT_NEAR(Distance, 0.5f * Constraint.GetPhi(), KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(Constraint.GetPhi(), -0.1f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(Constraint.GetLocation().Z, 1.45f, KINDA_SMALL_NUMBER);
 	}
 
 	void LevelsetConstraintGJK()
