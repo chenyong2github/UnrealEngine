@@ -173,6 +173,12 @@ void UDrawPolygonTool::Setup()
 
 void UDrawPolygonTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (bHasSavedExtrudeHeight)
+	{
+		PolygonProperties->ExtrudeHeight = SavedExtrudeHeight;
+		bHasSavedExtrudeHeight = false;
+	}
+
 	PreviewMesh->Disconnect();
 	PreviewMesh = nullptr;
 
@@ -950,6 +956,10 @@ void UDrawPolygonTool::GenerateFixedPolygon(const TArray<FVector3d>& FixedPoints
 void UDrawPolygonTool::BeginInteractiveExtrude()
 {
 	bInInteractiveExtrude = true;
+
+	bHasSavedExtrudeHeight = true;
+	SavedExtrudeHeight = PolygonProperties->ExtrudeHeight;
+
 	SnapEngine.ResetActiveSnap();
 
 	HeightMechanic = NewObject<UPlaneDistanceFromHitMechanic>(this);
@@ -1098,6 +1108,12 @@ void UDrawPolygonTool::EmitCurrentPolygon()
 	}
 
 	GetToolManager()->EndUndoTransaction();
+
+	if (bHasSavedExtrudeHeight)
+	{
+		PolygonProperties->ExtrudeHeight = SavedExtrudeHeight;
+		bHasSavedExtrudeHeight = false;
+	}
 
 	ResetPolygon();
 }
