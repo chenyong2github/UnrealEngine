@@ -44,7 +44,7 @@ bool FODSCManager::Tick(float DeltaSeconds)
 		for (FODSCMessageHandler* CompletedRequest : CompletedThreadedRequests)
 		{
 			check(CompletedRequest);
-			ProcessCookOnTheFlyShaders(CompletedRequest->ReloadGlobalShaders(), CompletedRequest->GetMeshMaterialMaps(), CompletedRequest->GetMaterialsToLoad(), CompletedRequest->GetGlobalShaderMap());
+			ProcessCookOnTheFlyShaders(false, CompletedRequest->GetMeshMaterialMaps(), CompletedRequest->GetMaterialsToLoad(), CompletedRequest->GetGlobalShaderMap());
 			delete CompletedRequest;
 		}
 	}
