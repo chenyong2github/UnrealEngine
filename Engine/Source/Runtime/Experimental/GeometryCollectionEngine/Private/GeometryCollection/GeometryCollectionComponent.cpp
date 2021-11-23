@@ -311,6 +311,13 @@ void UGeometryCollectionComponent::BeginPlay()
 	HackRegisterGeomAccelerator(*this);
 #endif
 
+#if WITH_EDITOR
+	if (RestCollection->GetGeometryCollection()->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
+	{
+		RestCollection->GetGeometryCollection()->RemoveAttribute("ExplodedVector", FGeometryCollection::TransformGroup);
+	}
+#endif
+
 	//////////////////////////////////////////////////////////////////////////
 	// Commenting out these callbacks for now due to the threading model. The callbacks here
 	// expect the rest collection to be mutable which is not the case when running in multiple
