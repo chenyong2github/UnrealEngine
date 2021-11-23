@@ -3444,21 +3444,25 @@ void SSequencer::OnActorsDropped( FActorDragDropOp& DragDropOp )
 
 void SSequencer::OnFolderDropped( FFolderDragDropOp& DragDropOp )
 {
+	// Sequencer doesn't support dragging folder with a root object
+	if (FFolder::HasRootObject(DragDropOp.RootObject))
+		return;
+
 	const FScopedTransaction Transaction(LOCTEXT("DropActors", "Drop Actors"));
 
 	ESequencerDropResult DropResult = ESequencerDropResult::Unhandled;
 
 	TArray<TWeakObjectPtr<AActor>> DraggedActors;
 
-		// Find any actors in the global editor world that have any of the dragged paths.
-		// WARNING: Actor iteration can be very slow, so this needs to be optimized
-		TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-		UObject* PlaybackContext = Sequencer->GetPlaybackContext();
-		UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
-		if (World)
-		{
+	// Find any actors in the global editor world that have any of the dragged paths.
+	// WARNING: Actor iteration can be very slow, so this needs to be optimized
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	UObject* PlaybackContext = Sequencer->GetPlaybackContext();
+	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+	if (World)
+	{
 		FActorFolders::GetWeakActorsFromFolders(*World, DragDropOp.Folders, DraggedActors);
-				}
+	}
 	
 	for (FOnFoldersDrop Delegate : OnFoldersDrop)
 	{

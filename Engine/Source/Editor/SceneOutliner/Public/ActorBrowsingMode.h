@@ -14,7 +14,7 @@ public:
 
 	/* Begin ISceneOutlinerMode Interface */
 	virtual void Rebuild() override;
-	virtual FCreateSceneOutlinerMode CreateFolderPickerMode() const override;
+	virtual FCreateSceneOutlinerMode CreateFolderPickerMode(const FFolder::FRootObject& InRootObject = FFolder::GetDefaultRootObject()) const override;
 	virtual void CreateViewContent(FMenuBuilder& MenuBuilder) override;
 	virtual TSharedPtr<FDragDropOperation> CreateDragDropOperation(const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const override;
 	virtual bool ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload, const FDragDropOperation& Operation) const override;
@@ -45,9 +45,9 @@ public:
 	virtual bool CanCopy() const override;
 	virtual bool CanPaste() const override;
 	virtual bool CanSupportDragAndDrop() const { return true; }
-	virtual FName CreateNewFolder() override;
-	virtual FName CreateFolder(const FName& ParentPath, const FName& LeafName) override;
-	virtual bool ReparentItemToFolder(const FName& FolderPath, const FSceneOutlinerTreeItemPtr& Item) override;
+	virtual FFolder CreateNewFolder() override;
+	virtual FFolder CreateFolder(const FFolder& ParentPath, const FName& LeafName) override;
+	virtual bool ReparentItemToFolder(const FFolder& FolderPath, const FSceneOutlinerTreeItemPtr& Item) override;
 	virtual void SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly) override;
 	virtual void PinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
 	virtual void UnpinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
@@ -100,6 +100,9 @@ private:
 	/** Register the context menu with the engine */
 	void RegisterContextMenu();
 	bool CanPasteFoldersOnlyFromClipboard() const;
+
+	bool GetFolderNamesFromFolders(const TArray<FFolder>& InFolders, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const;
+	bool GetFolderNamesFromPayload(const FSceneOutlinerDragDropPayload& InPayload, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const;
 
 	/** Filter factories */
 	static TSharedRef<FSceneOutlinerFilter> CreateShowOnlySelectedActorsFilter();

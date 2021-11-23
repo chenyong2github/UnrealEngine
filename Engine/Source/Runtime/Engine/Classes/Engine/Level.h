@@ -617,6 +617,9 @@ public:
 	UPROPERTY()
 	uint8 										bLocked:1;
 
+	/** Whether the level is currently being removed from the world through UEditorLevelUtils::RemoveLevelsFromWorld */
+	uint8										bIsEditorBeingRemoved : 1;
+
 	/** Whether the level has been saved after introducing actor GUIDs */
 	uint8										bContainsStableActorGUIDs:1;
 #endif
@@ -1172,6 +1175,11 @@ public:
 	 * Is this a level instance
 	 */
 	ENGINE_API bool IsInstancedLevel() const;
+
+	/**
+	 * Is level being removed from world
+	 */
+	ENGINE_API bool IsBeingRemoved() const;
 
 	/** 
 	 * Shift level actors by specified offset

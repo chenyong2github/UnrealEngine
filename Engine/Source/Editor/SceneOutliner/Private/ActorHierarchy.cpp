@@ -56,9 +56,9 @@ TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, co
 	FWorldDelegates::LevelRemovedFromWorld.AddRaw(Hierarchy, &FActorHierarchy::OnLevelRemoved);
 
 	auto& Folders = FActorFolders::Get();
-	Folders.OnFolderCreate.AddRaw(Hierarchy, &FActorHierarchy::OnBroadcastFolderCreate);
-	Folders.OnFolderMove.AddRaw(Hierarchy, &FActorHierarchy::OnBroadcastFolderMove);
-	Folders.OnFolderDelete.AddRaw(Hierarchy, &FActorHierarchy::OnBroadcastFolderDelete);
+	Folders.OnFolderCreated.AddRaw(Hierarchy, &FActorHierarchy::OnBroadcastFolderCreate);
+	Folders.OnFolderMoved.AddRaw(Hierarchy, &FActorHierarchy::OnBroadcastFolderMove);
+	Folders.OnFolderDeleted.AddRaw(Hierarchy, &FActorHierarchy::OnBroadcastFolderDelete);
 
 	return TUniquePtr<FActorHierarchy>(Hierarchy);
 }
@@ -106,9 +106,9 @@ FActorHierarchy::~FActorHierarchy()
 	if (FActorFolders::IsAvailable())
 	{
 		auto& Folders = FActorFolders::Get();
-		Folders.OnFolderCreate.RemoveAll(this);
-		Folders.OnFolderMove.RemoveAll(this);
-		Folders.OnFolderDelete.RemoveAll(this);
+		Folders.OnFolderCreated.RemoveAll(this);
+		Folders.OnFolderMoved.RemoveAll(this);
+		Folders.OnFolderDeleted.RemoveAll(this);
 	}
 }
 
@@ -122,42 +122,25 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 	{
 		if (AActor* Actor = ActorTreeItem->Actor.Get())
 		{
+			// Parent Actor (Actor attachement / parenting)
 			if (const AActor* ParentActor = Actor->GetSceneOutlinerParent())
 			{
 				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentActor))
 				{
 					return *ParentItem;
-				} // IF Parent can be listed in SceneOutliner return nullptr so it gets created
+				}
+				// If Parent can be listed in SceneOutliner return nullptr so it gets created
 				else if(ParentActor->IsListedInSceneOutliner())
 				{
 					return nullptr;
 				}
 			}
 
-			if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>())
+			// Parent Folder
+			FFolder ActorFolder = Actor->GetFolder();
+			if (Mode->ShouldShowFolders() && !ActorFolder.IsNone())
 			{
-				if (const ALevelInstance* OwningLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
-				{
-					const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor);
-					const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceActor->IsEditing() : false;
-					// Parent this to a LevelInstance if the parent LevelInstance is being edited or if this is a sub LevelInstance which is being edited
-					if (bShowingLevelInstances || (OwningLevelInstance->IsEditing() || bIsAnEditingLevelInstance))
-					{
-						if (const FSceneOutlinerTreeItemPtr* OwningLevelInstanceItem = Items.Find(OwningLevelInstance))
-						{
-							return *OwningLevelInstanceItem;
-						}
-						else
-						{
-							return nullptr;
-						}
-					}
-				}
-			}
-
-			if (Mode->ShouldShowFolders() && !Actor->GetFolderPath().IsNone())
-			{
-				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(Actor->GetFolderPath()))
+				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ActorFolder))
 				{
 					return *ParentItem;
 				}
@@ -167,7 +150,26 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 				}
 			}
 
-			// Default to the world
+			// Parent Level Instance
+			if (const ALevelInstance* OwningLevelInstance = Cast<ALevelInstance>(ActorFolder.GetRootObjectPtr()))
+			{
+				const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor);
+				const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceActor->IsEditing() : false;
+				// Parent this to a LevelInstance if the parent LevelInstance is being edited or if this is a sub LevelInstance which is being edited
+				if (bShowingLevelInstances || (OwningLevelInstance->IsEditing() || bIsAnEditingLevelInstance))
+				{
+					if (const FSceneOutlinerTreeItemPtr* OwningLevelInstanceItem = Items.Find(OwningLevelInstance))
+					{
+						return *OwningLevelInstanceItem;
+					}
+					else
+					{
+						return nullptr;
+					}
+				}
+			}
+
+			// Parent world
 			if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(RepresentingWorld.Get()))
 			{
 				return *ParentItem;
@@ -179,23 +181,38 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 		// We should never call FindParents on a folder item if folders are not being shown
 		check(Mode->ShouldShowFolders());
 
-		const FName ParentPath = FEditorFolderUtils::GetParentPath(FolderItem->Path);
+		const FFolder ParentPath = FolderItem->GetFolder().GetParent();
 
-		const FSceneOutlinerTreeItemPtr* ParentItem = nullptr;
-		// If the folder has no parent path, it must be parented to the root world
-		if (ParentPath.IsNone())
+		// Parent Folder
+		if (!ParentPath.IsNone())
 		{
-			ParentItem = Items.Find(RepresentingWorld.Get());
+			if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentPath))
+			{
+				return *ParentItem;
+			}
 		}
-		else
+		// Parent Level Instance
+		else if (ALevelInstance* OwningLevelInstance = Cast<ALevelInstance>(ParentPath.GetRootObjectPtr()))
 		{
-			ParentItem = Items.Find(FEditorFolderUtils::GetParentPath(FolderItem->Path));
+			if (bShowingLevelInstances || OwningLevelInstance->IsEditing())
+			{
+				if (const FSceneOutlinerTreeItemPtr* OwningLevelInstanceItem = Items.Find(OwningLevelInstance))
+				{
+					return *OwningLevelInstanceItem;
+				}
+				else
+				{
+					return nullptr;
+				}
+			}
+		}
+		// Parent World
+		else if (const FSceneOutlinerTreeItemPtr* WorldItem = Items.Find(RepresentingWorld.Get()))
+		{
+			return *WorldItem;
 		}
 
-		if (ParentItem)
-		{
-			return *ParentItem;
-		}
+		return nullptr;
 	}
 	else if (const FComponentTreeItem* ComponentTreeItem = Item.CastTo<FComponentTreeItem>())
 	{
@@ -217,7 +234,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 			const FName FolderPath = ActorDesc->GetFolderPath();
 			if (!FolderPath.IsNone())
 			{
-				if (const FSceneOutlinerTreeItemPtr* UnloadedActorItem = Items.Find(FolderPath))
+				if (const FSceneOutlinerTreeItemPtr* UnloadedActorItem = Items.Find(FFolder(FolderPath)))
 				{
 					return *UnloadedActorItem;
 				}
@@ -258,15 +275,16 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 	if (Mode->ShouldShowFolders())
 	{
 		// Add any folders which might match the current search terms
-		for (const auto& Pair : FActorFolders::Get().GetFolderPropertiesForWorld(*World))
+		FActorFolders::Get().ForEachFolder(*World, [this, &World, &OutItems](const FFolder& Folder)
 		{
-			if (FSceneOutlinerTreeItemPtr FolderItem = Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(Pair.Key, World)))
+			if (FSceneOutlinerTreeItemPtr FolderItem = Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(Folder, World)))
 			{
 				OutItems.Add(FolderItem);
 			}
-		}
+			return true;
+		});
 	}
-
+	
 	const ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>();
 	// Create all actor items
 	for (FActorIterator ActorIt(World); ActorIt; ++ActorIt)
@@ -283,7 +301,7 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 				}
 			}
 		}
-
+		
 		if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FActorTreeItem>(Actor))
 		{
 			if (bShowingOnlyActorWithValidComponents)
@@ -315,16 +333,16 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
 			FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [this, WorldPartition, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
-                {
-                    if (ActorDesc != nullptr && !ActorDesc->IsLoaded(true))
-                    {
-                        if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), WorldPartition)))
-                        {
-                            OutItems.Add(ActorDescItem);
-                        }
-                    }
-                    return true;
-                });
+			{
+				if (ActorDesc != nullptr && !ActorDesc->IsLoaded(true))
+				{
+					if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc->GetGuid(), WorldPartition)))
+					{
+						OutItems.Add(ActorDescItem);
+					}
+				}
+				return true;
+			});
 		}
 	}
 }
@@ -346,6 +364,22 @@ void FActorHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) c
 
 void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArray<FSceneOutlinerTreeItemPtr>& OutChildren) const
 {
+	auto CreateChildrenFolders = [this](UWorld* InWorld, const FFolder& InParentFolder, const FFolder::FRootObject& InFolderRootObject, TArray<FSceneOutlinerTreeItemPtr>& OutChildren)
+	{
+		FActorFolders::Get().ForEachFolderWithRootObject(*InWorld, InFolderRootObject, [this, InWorld, &InParentFolder, &OutChildren](const FFolder& Folder)
+		{
+			if (Folder.IsChildOf(InParentFolder))
+			{
+				if (FSceneOutlinerTreeItemPtr NewFolderItem = Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(Folder, InWorld)))
+				{
+					OutChildren.Add(NewFolderItem);
+				}
+			}
+			return true;
+		});
+	};
+
+	UWorld* World = RepresentingWorld.Get();
 	if (FWorldTreeItem* WorldItem = Item->CastTo<FWorldTreeItem>())
 	{
 		check(WorldItem->World == RepresentingWorld);
@@ -366,15 +400,19 @@ void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArr
 			check(LevelInstanceSubsystem);
 
 			LevelInstanceSubsystem->ForEachActorInLevelInstance(LevelInstanceParentActor, [this, LevelInstanceParentActor, LevelInstanceSubsystem, &ChildActors](AActor* SubActor)
+			{
+				const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(SubActor);
+				const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceActor) : false;
+				if (bShowingLevelInstances || (LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceParentActor) || bIsAnEditingLevelInstance))
 				{
-					const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(SubActor);
-					const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceActor) : false;
-					if (bShowingLevelInstances || (LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceParentActor) || bIsAnEditingLevelInstance))
-					{
-						ChildActors.Add(SubActor);
-					}
-					return true;
-				});
+					ChildActors.Add(SubActor);
+				}
+				return true;
+			});
+
+			check(World == LevelInstanceParentActor->GetWorld());
+			FFolder ParentFolder = LevelInstanceParentActor->GetFolder();
+			CreateChildrenFolders(World, ParentFolder, LevelInstanceParentActor, OutChildren);
 		}
 		else
 		{
@@ -404,17 +442,11 @@ void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArr
 	else if (FActorFolderTreeItem* FolderItem = Item->CastTo<FActorFolderTreeItem>())
 	{
 		check(Mode->ShouldShowFolders());
-
-		for (const auto& Pair : FActorFolders::Get().GetFolderPropertiesForWorld(*FolderItem->World))
-		{
-			if (FEditorFolderUtils::PathIsChildOf(Pair.Key, FolderItem->Path))
-			{
-				if (FSceneOutlinerTreeItemPtr NewFolderItem = Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(Pair.Key, FolderItem->World)))
-				{
-					OutChildren.Add(NewFolderItem);
-				}
-			}
-		}
+		
+		check(World == FolderItem->World.Get());
+		FFolder ParentFolder = FolderItem->GetFolder();
+		check(!ParentFolder.IsNone());
+		CreateChildrenFolders(World, ParentFolder, ParentFolder.GetRootObject(), OutChildren);
 	}
 }
 
@@ -428,6 +460,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 	{
 		if (const AActor* Actor = ActorTreeItem->Actor.Get())
 		{
+			// Parent Actor (Actor attachement / parenting)
 			if (AActor* ParentActor = Actor->GetSceneOutlinerParent())
 			{
 				if (ParentActor->IsListedInSceneOutliner())
@@ -436,10 +469,19 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 				}
 			}
 
-			// If item belongs to a LevelInstance
-			if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>())
+			// Parent Folder
+			FFolder ActorFolder = Actor->GetFolder();
+			if (Mode->ShouldShowFolders() && !ActorFolder.IsNone())
 			{
-				if (ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
+				return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorFolder, ActorTreeItem->Actor->GetWorld()), true);
+			}
+
+			// Parent Object
+			if (ALevelInstance* OwningLevelInstance = Cast<ALevelInstance>(ActorFolder.GetRootObjectPtr()))
+			{
+				const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
+				ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetParentLevelInstance(Actor) : nullptr;
+				check(OwningLevelInstance == ParentLevelInstance);
 				{
 					const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor);
 					const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceActor->IsEditing() : false;
@@ -450,13 +492,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 				}
 			}
 
-			// if this item belongs in a folder
-			if (Mode->ShouldShowFolders() && !ActorTreeItem->Actor->GetFolderPath().IsNone())
-			{
-				return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorTreeItem->Actor->GetFolderPath(), ActorTreeItem->Actor->GetWorld()), true);
-			}
-
-			// Default to the world
+			// Parent World
 			UWorld* OwningWorld = ActorTreeItem->Actor->GetWorld();
 			check(OwningWorld);
 			return Mode->CreateItemFor<FWorldTreeItem>(OwningWorld, true);
@@ -473,17 +509,28 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 	{
 		check(Mode->ShouldShowFolders());
 
-		const FName ParentPath = FEditorFolderUtils::GetParentPath(FolderTreeItem->Path);
-		if (ParentPath.IsNone())
+		FFolder Folder = FolderTreeItem->GetFolder();
+
+		// Parent Folder
+		const FFolder ParentFolder = Folder.GetParent();
+		if (!ParentFolder.IsNone())
 		{
-			UWorld* OwningWorld = FolderTreeItem->World.Get();
-			check(OwningWorld);
-			return Mode->CreateItemFor<FWorldTreeItem>(OwningWorld, true);
+			return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ParentFolder, FolderTreeItem->World), true);
 		}
-		else
+
+		// Parent Level Instance
+		if (ALevelInstance* OwningLevelInstance = Cast<ALevelInstance>(Folder.GetRootObjectPtr()))
 		{
-			return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ParentPath, FolderTreeItem->World), true);
+			if (bShowingLevelInstances || OwningLevelInstance->IsEditing())
+			{
+				return Mode->CreateItemFor<FActorTreeItem>(OwningLevelInstance, true);
+			}
 		}
+
+		// Parent World
+		UWorld* OwningWorld = FolderTreeItem->World.Get();
+		check(OwningWorld);
+		return Mode->CreateItemFor<FWorldTreeItem>(OwningWorld, true);
 	}
 	else if (const FActorDescTreeItem* ActorDescItem = Item->CastTo<FActorDescTreeItem>())
 	{
@@ -492,7 +539,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 			const FName ActorDescPath = ActorDesc->GetFolderPath();
 			if (Mode->ShouldShowFolders() && !ActorDescPath.IsNone())
 			{
-				return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorDescPath, RepresentingWorld.Get()), true);
+				return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(FFolder(ActorDescPath), RepresentingWorld.Get()), true);
 			}
 		}
 	}
@@ -664,39 +711,39 @@ void FActorHierarchy::OnLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 }
 
 /** Called when a folder is to be created */
-void FActorHierarchy::OnBroadcastFolderCreate(UWorld& InWorld, FName NewPath)
+void FActorHierarchy::OnBroadcastFolderCreate(UWorld& InWorld, const FFolder& InNewFolder)
 {
 	if (Mode->ShouldShowFolders() && RepresentingWorld.Get() == &InWorld)
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
-		EventData.Items.Add(Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(NewPath, &InWorld)));
+		EventData.Items.Add(Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(InNewFolder, &InWorld)));
 		EventData.ItemActions = SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename;
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 
 /** Called when a folder is to be moved */
-void FActorHierarchy::OnBroadcastFolderMove(UWorld& InWorld, FName OldPath, FName NewPath)
+void FActorHierarchy::OnBroadcastFolderMove(UWorld& InWorld, const FFolder& InOldFolder, const FFolder& InNewFolder)
 {
 	if (Mode->ShouldShowFolders() && RepresentingWorld.Get() == &InWorld)
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::FolderMoved;
-		EventData.ItemIDs.Add(OldPath);
-		EventData.NewPaths.Add(NewPath);
+		EventData.ItemIDs.Add(InOldFolder);
+		EventData.NewPaths.Add(InNewFolder);
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 
 /** Called when a folder is to be deleted */
-void FActorHierarchy::OnBroadcastFolderDelete(UWorld& InWorld, FName Path)
+void FActorHierarchy::OnBroadcastFolderDelete(UWorld& InWorld, const FFolder& InFolder)
 {
 	if (Mode->ShouldShowFolders() && RepresentingWorld.Get() == &InWorld)
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
-		EventData.ItemIDs.Add(Path);
+		EventData.ItemIDs.Add(InFolder);
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }

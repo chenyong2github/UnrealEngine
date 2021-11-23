@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
+#include "Folder.h"
 #include "LevelInstance/LevelInstanceTypes.h"
 
 #include "LevelInstanceSubsystem.generated.h"
@@ -78,8 +79,8 @@ public:
 	bool SetCurrent(ALevelInstance* LevelInstanceActor) const;
 	bool IsCurrent(const ALevelInstance* LevelInstanceActor) const;
 	ALevelInstance* CreateLevelInstanceFrom(const TArray<AActor*>& ActorsToMove, const FNewLevelInstanceParams& CreationParams);
-	bool MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel) const;
-	bool MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove);
+	bool MoveActorsToLevel(const TArray<AActor*>& ActorsToRemove, ULevel* DestinationLevel, TArray<AActor*>* OutActors = nullptr) const;
+	bool MoveActorsTo(ALevelInstance* LevelInstanceActor, const TArray<AActor*>& ActorsToMove, TArray<AActor*>* OutActors = nullptr);
 	bool BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels = 1, TArray<AActor*>* OutMovedActors = nullptr);
 
 	bool CanMoveActorToLevel(const AActor* Actor, FText* OutReason = nullptr) const;
@@ -123,14 +124,19 @@ private:
 	
 	struct FLevelsToRemoveScope
 	{
+		FLevelsToRemoveScope(ULevelInstanceSubsystem* InOwner);
 		~FLevelsToRemoveScope();
+		bool IsValid() const { return !bIsBeingDestroyed; }
 
 		TArray<ULevel*> Levels;
+		TWeakObjectPtr<ULevelInstanceSubsystem> Owner;
 		bool bResetTrans = false;
+		bool bIsBeingDestroyed = false;
 	};
 	
 	friend ULevelStreamingLevelInstance;
-	void RemoveLevelFromWorld(ULevel* Level, bool bResetTrans);
+	friend ULevelStreamingLevelInstanceEditor;
+	void RemoveLevelsFromWorld(const TArray<ULevel*>& Levels, bool bResetTrans = true);
 #endif
 
 
@@ -150,5 +156,7 @@ private:
 	TSet<FLevelInstanceID> LevelInstancesToUnload;
 	TMap<FLevelInstanceID, FLevelInstance> LevelInstances;
 	TMap<FLevelInstanceID, ALevelInstance*> RegisteredLevelInstances;
+	TMap<FObjectKey, FFolder::FRootObject> UnregisteringLevelInstanceLevels;
+	TMap<FFolder::FRootObject, FObjectKey > UnregisteringLevelInstances;
 	FLevelInstanceID PendingLevelInstanceToEdit;
 };

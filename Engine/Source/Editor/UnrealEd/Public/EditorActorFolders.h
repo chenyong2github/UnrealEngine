@@ -7,15 +7,23 @@
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/GCObject.h"
+#include "Folder.h"
 #include "EditorActorFolders.generated.h"
 
-class AActor;
 class FObjectPostSaveContext;
+class AActor;
 
 /** Multicast delegates for broadcasting various folder events */
+
+//~ Begin Deprecated
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActorFolderCreate, UWorld&, FName);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActorFolderDelete, UWorld&, FName);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActorFolderMove, UWorld&, FName /* src */, FName /* dst */);
+//~ End Deprecated
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActorFolderCreated, UWorld&, const FFolder&);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActorFolderDeleted, UWorld&, const FFolder&);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActorFolderMoved, UWorld&, const FFolder& /* src */, const FFolder& /* dst */);
 
 USTRUCT()
 struct FActorFolderProps
@@ -42,7 +50,7 @@ public:
 public:
 	virtual void Serialize(FArchive& Ar) override;
 
-	TMap<FName, FActorFolderProps> Folders;
+	TMap<FFolder, FActorFolderProps> Folders;
 };
 
 /** Class responsible for managing an in-memory representation of actor folders in the editor */
@@ -72,49 +80,117 @@ struct UNREALED_API FActorFolders : public FGCObject
 	static void Cleanup();
 
 	/** Folder creation and deletion events. Called whenever a folder is created or deleted in a world. */
+	static FOnActorFolderCreated OnFolderCreated;
+	static FOnActorFolderMoved 	OnFolderMoved;
+	static FOnActorFolderDeleted OnFolderDeleted;
+
+	//~ Begin Deprecated
+
+	UE_DEPRECATED(5.0, "OnFolderCreate has been deprecated. Please use OnFolderCreated.")
 	static FOnActorFolderCreate OnFolderCreate;
+
+	UE_DEPRECATED(5.0, "OnFolderMove has been deprecated. Please use OnFolderMoved.")
 	static FOnActorFolderMove 	OnFolderMove;
+
+	UE_DEPRECATED(5.0, "OnFolderDelete has been deprecated. Please use OnFolderDeleted.")
 	static FOnActorFolderDelete OnFolderDelete;
 
-	/** Get a map of folder properties for the specified world (map of folder path -> properties) */
-	const TMap<FName, FActorFolderProps>& GetFolderPropertiesForWorld(UWorld& InWorld);
-
-	/** Get the folder properties for the specified path. Returns nullptr if no properties exist */
+	UE_DEPRECATED(5.0, "GetFolderProperties using FName has been deprecated. Please use new interface using FFolder.")
 	FActorFolderProps* GetFolderProperties(UWorld& InWorld, FName InPath);
 
-	/** Get a default folder name under the specified parent path */
+	UE_DEPRECATED(5.0, "GetDefaultFolderName using FName  has been deprecated. Please use new interface using FFolder.")
 	FName GetDefaultFolderName(UWorld& InWorld, FName ParentPath = FName());
 	
-	/** Get a new default folder name that would apply to the current selection */
+	UE_DEPRECATED(5.0, "GetDefaultFolderNameForSelection using FName  has been deprecated. Please use new interface using FFolder.")
 	FName GetDefaultFolderNameForSelection(UWorld& InWorld);
 
-	/** Get folder name that is unique under specified parent path */
+	UE_DEPRECATED(5.0, "GetFolderName using FName  has been deprecated. Please use new interface using FFolder.")
 	FName GetFolderName(UWorld& InWorld, FName ParentPath, FName FolderName);
 
-	/** Create a new folder in the specified world, of the specified path */
+	UE_DEPRECATED(5.0, "CreateFolder using FName  has been deprecated. Please use new interface using FFolder.")
 	void CreateFolder(UWorld& InWorld, FName Path);
 
-	/** Same as CreateFolder, but moves the current actor selection into the new folder as well */
+	UE_DEPRECATED(5.0, "CreateFolderContainingSelection using FName  has been deprecated. Please use new interface using FFolder.")
 	void CreateFolderContainingSelection(UWorld& InWorld, FName Path);
 
-	/** Sets the folder path for all the selected actors */
+	UE_DEPRECATED(5.0, "SetSelectedFolderPath using FName  has been deprecated. Please use new interface using FFolder.")
 	void SetSelectedFolderPath(FName Path) const;
 
-	/** Delete the specified folder in the world */
+	UE_DEPRECATED(5.0, "DeleteFolder using FName  has been deprecated. Please use new interface using FFolder.")
 	void DeleteFolder(UWorld& InWorld, FName FolderToDelete);
 
-	/** Rename the specified path to a new name */
+	UE_DEPRECATED(5.0, "RenameFolderInWorld using FName  has been deprecated. Please use new interface using FFolder.")
 	bool RenameFolderInWorld(UWorld& World, FName OldPath, FName NewPath);
 
+	//~ End Deprecated
+
 	/** Apply an operation to each actor in the given list of folders. Will stop when operation returns false. */
-	static void ForEachActorInFolders(UWorld& World, const TArray<FName>& Paths, TFunctionRef<bool(AActor*)> Operation);
-	
+	static void ForEachActorInFolders(UWorld& InWorld, const TArray<FName>& Paths, TFunctionRef<bool(AActor*)> Operation, const FFolder::FRootObject& InFolderRootObject = FFolder::GetDefaultRootObject());
+
 	/** Get an array of actors from a list of folders */
-	static void GetActorsFromFolders(UWorld& World, const TArray<FName>& Paths, TArray<AActor*>& OutActors);
+	static void GetActorsFromFolders(UWorld& InWorld, const TArray<FName>& Paths, TArray<AActor*>& OutActors, const FFolder::FRootObject& InFolderRootObject = FFolder::GetDefaultRootObject());
 
 	/** Get an array of weak actor pointers from a list of folders */
-	static void GetWeakActorsFromFolders(UWorld& World, const TArray<FName>& Paths, TArray<TWeakObjectPtr<AActor>>& OutActors);
+	static void GetWeakActorsFromFolders(UWorld& InWorld, const TArray<FName>& Paths, TArray<TWeakObjectPtr<AActor>>& OutActors, const FFolder::FRootObject& InFolderRootObject = FFolder::GetDefaultRootObject());
+
+	/** Get a default folder name under the specified parent path */
+	FFolder GetDefaultFolderName(UWorld& InWorld, const FFolder& InParentFolder);
+	
+	/** Get a new default folder name that would apply to the current selection */
+	FFolder GetDefaultFolderForSelection(UWorld& InWorld, TArray<FFolder>* InSelectedFolders = nullptr);
+
+	/** Get folder name that is unique under specified parent path */
+	FFolder GetFolderName(UWorld& InWorld, const FFolder& InParentFolder, const FName& InLeafName);
+
+	/** Create a new folder in the specified world, of the specified path */
+	void CreateFolder(UWorld& InWorld, const FFolder& InFolder);
+
+	/** Same as CreateFolder, but moves the current actor selection into the new folder as well */
+	void CreateFolderContainingSelection(UWorld& InWorld, const FFolder& InFolder);
+
+	/** Sets the folder path for all the selected actors */
+	void SetSelectedFolderPath(const FFolder& InFolder) const;
+
+	/** Delete the specified folder in the world */
+	void DeleteFolder(UWorld& InWorld, const FFolder& InFolderToDelete);
+
+	/** Rename the specified path to a new name */
+	bool RenameFolderInWorld(UWorld& InWorld, const FFolder& OldPath, const FFolder& NewPath);
+
+	/** Notify that a root object has been removed. Cleanup of existing folders with with root object. */
+	void OnFolderRootObjectRemoved(UWorld& InWorld, const FFolder::FRootObject& InFolderRootObject);
+
+	/** Return if folder exists */
+	bool ContainsFolder(UWorld& InWorld, const FFolder& InFolder);
+
+	/** Return the folder expansion state */
+	bool IsFolderExpanded(UWorld& InWorld, const FFolder& InFolder);
+
+	/** Set the folder expansion state */
+	void SetIsFolderExpanded(UWorld& InWorld, const FFolder& InFolder, bool bIsExpanded);
+
+	/** Iterate on all folders of a world and pass it to the provided operation. */
+	void ForEachFolder(UWorld& InWorld, TFunctionRef<bool(const FFolder&)> Operation);
+
+	/** Iterate on all world's folders with the given root object and pass it to the provided operation. */
+	void ForEachFolderWithRootObject(UWorld& InWorld, const FFolder::FRootObject& InFolderRootObject, TFunctionRef<bool(const FFolder&)> Operation);
+
 private:
+
+	/** Broadcast when actor folder is created. */
+	void BroadcastOnActorFolderCreated(UWorld& InWorld, const FFolder& InFolder);
+
+	/** Broadcast when actor folder is deleted. */
+	void BroadcastOnActorFolderDeleted(UWorld& InWorld, const FFolder& InFolder);
+
+	/** Broadcast when actor folder has moved. */
+	void BroadcastOnActorFolderMoved(UWorld& InWorld, const FFolder& InSrcFolder, const FFolder& InDstFolder);
+
+	/** Get the folder properties for the specified path. Returns nullptr if no properties exist */
+	FActorFolderProps* GetFolderProperties(UWorld& InWorld, const FFolder& InFolder);
+
+	/** Get a map of folder properties for the specified world (map of folder path -> properties) */
+	const TMap<FFolder, FActorFolderProps>& GetFolderPropertiesForWorld(UWorld& InWorld);
 
 	/** Returns true if folders have been created for the specified world */
 	bool FoldersExistForWorld(UWorld& InWorld) const;
@@ -145,7 +221,10 @@ private:
 	void Housekeeping();
 
 	/** Add a folder to the folder map for the specified world. Does not trigger any events. */
-	bool AddFolderToWorld(UWorld& InWorld, FName Path);
+	bool AddFolderToWorld(UWorld& InWorld, const FFolder& InFolder);
+
+	/** Removed folders from specified world. Can optionally trigger delete events. */
+	void RemoveFoldersFromWorld(UWorld& InWorld, const TArray<FFolder>& InFolders, bool bBroadcastDelete);
 
 	/** Transient map of folders, keyed on world pointer */
 	TMap<TWeakObjectPtr<UWorld>, UEditorActorFolders*> TemporaryWorldFolders;

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ISceneOutlinerHierarchy.h"
+#include "Folder.h"
 
 class FWorldPartitionActorDesc;
 
@@ -59,13 +60,13 @@ private:
 	void OnLevelRemoved(ULevel* InLevel, UWorld* InWorld);
 
 	/** Called when a folder is to be created */
-	void OnBroadcastFolderCreate(UWorld& InWorld, FName NewPath);
+	void OnBroadcastFolderCreate(UWorld& InWorld, const FFolder& InNewFolder);
 
 	/** Called when a folder is to be moved */
-	void OnBroadcastFolderMove(UWorld& InWorld, FName OldPath, FName NewPath);
+	void OnBroadcastFolderMove(UWorld& InWorld, const FFolder& InOldFolder, const FFolder& InNewFolder);
 
 	/** Called when a folder is to be deleted */
-	void OnBroadcastFolderDelete(UWorld& InWorld, FName Path);
+	void OnBroadcastFolderDelete(UWorld& InWorld, const FFolder& InFolder);
 
 private:
 	/** Send a an event indicating a full refresh of the hierarchy is required */

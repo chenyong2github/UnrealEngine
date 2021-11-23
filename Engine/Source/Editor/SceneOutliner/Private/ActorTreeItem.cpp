@@ -19,6 +19,7 @@
 #include "SSocketChooser.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "WorldPartition/WorldPartition.h"
+#include "ToolMenu.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorTreeItem"
 
@@ -252,20 +253,6 @@ private:
 	{
 		AActor* Actor = ActorPtr.Get();
 
-		// Color LevelInstances differently if they are being edited
-		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
-		{
-			if (LevelInstanceActor->IsEditing() && !LevelInstanceActor->IsSelected())
-			{
-				return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
-			}
-			else
-			{
-				return FSlateColor::UseForeground();
-			}
-		}
-
-
 		auto TreeItem = TreeItemPtr.Pin();
 		if (auto BaseColor = FSceneOutlinerCommonLabelData::GetForegroundColor(*TreeItem))
 		{
@@ -298,6 +285,15 @@ private:
 		if (!GEditor->CanSelectActor(Actor, bInSelected, bSelectEvenIfHidden))
 		{
 			return FSceneOutlinerCommonLabelData::DarkColor;
+		}
+
+		// Color LevelInstances differently if they are being edited
+		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+		{
+			if (LevelInstanceActor->IsEditing() && !LevelInstanceActor->IsSelected())
+			{
+				return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
+			}
 		}
 
 		return FSlateColor::UseForeground();
@@ -351,6 +347,12 @@ FActorTreeItem::FActorTreeItem(AActor* InActor)
 FSceneOutlinerTreeItemID FActorTreeItem::GetID() const
 {
 	return ID;
+}
+
+FFolder::FRootObject FActorTreeItem::GetRootObject() const
+{
+	AActor* ActorPtr = Actor.Get();
+	return ActorPtr ? ActorPtr->GetFolderRootObject() : nullptr;
 }
 
 FString FActorTreeItem::GetDisplayString() const
@@ -417,6 +419,19 @@ void FActorTreeItem::OnLabelChanged()
 	if (Actor.IsValid())
 	{
 		ActorLabel = Actor->GetActorLabel();
+	}
+}
+
+void FActorTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner)
+{
+	const AActor* ActorPtr = Actor.Get();
+	const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(ActorPtr);
+	if (LevelInstanceActor && LevelInstanceActor->IsEditing())
+	{
+		auto SharedOutliner = StaticCastSharedRef<SSceneOutliner>(Outliner.AsShared());
+		const FSlateIcon NewFolderIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon");
+		FToolMenuSection& Section = Menu->AddSection("Section");
+		Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(&Outliner, &SSceneOutliner::CreateFolder)));
 	}
 }
 

@@ -27,7 +27,11 @@
 #if WITH_EDITOR
 
 #include "Editor.h"
+#include "EditorActorFolders.h"
+#include "Folder.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceActor.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
@@ -943,9 +947,36 @@ void AActor::ClearActorLabel()
 	ActorLabel.Reset();
 }
 
+FFolder AActor::GetFolder() const
+{
+	return FFolder(GetFolderPath(), GetFolderRootObject());
+}
+
+static bool IsActorFolderValid(const AActor* InActor)
+{
+	const ULevel* Level = InActor->GetLevel();
+	const bool bIsBeingRemoved = Level && Level->IsBeingRemoved();
+	return !bIsBeingRemoved;
+}
+
+FFolder::FRootObject AActor::GetFolderRootObject() const
+{
+	if (IsActorFolderValid(this))
+	{
+		UWorld* World = GetWorld();
+		if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = World ? World->GetSubsystem<ULevelInstanceSubsystem>() : nullptr)
+		{
+			ALevelInstance* LevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(this);
+			return FFolder::FRootObject(LevelInstance);
+		}
+	}
+	return FFolder::GetDefaultRootObject();
+}
+
 const FName& AActor::GetFolderPath() const
 {
-	return FolderPath;
+	static const FName EmptyPath = NAME_None;
+	return IsActorFolderValid(this) ? FolderPath : EmptyPath;
 }
 
 void AActor::SetFolderPath(const FName& NewFolderPath)

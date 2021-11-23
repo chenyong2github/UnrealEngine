@@ -6,16 +6,17 @@
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActoFolderPickingMode"
 
-FActorFolderPickingMode::FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
+FActorFolderPickingMode::FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay, const FFolder::FRootObject& InRootObject)
 	: FActorMode(FActorModeParams(InSceneOutliner, InSpecifiedWorldToDisplay))
 	, OnItemPicked(InOnItemPicked)
+	, RootObject(InRootObject)
 {
 	Rebuild();
 }
 
 TUniquePtr<ISceneOutlinerHierarchy> FActorFolderPickingMode::CreateHierarchy()
 {
-	return MakeUnique<FActorFolderHierarchy>(this, RepresentingWorld);
+	return MakeUnique<FActorFolderHierarchy>(this, RepresentingWorld, RootObject);
 }
 
 void FActorFolderPickingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr Item, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection)

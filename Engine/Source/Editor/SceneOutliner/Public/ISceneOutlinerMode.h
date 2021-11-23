@@ -9,7 +9,7 @@
 #include "SceneOutlinerFilters.h"
 #include "SSceneOutliner.h"
 #include "SceneOutlinerDragDrop.h"
-
+#include "Folder.h"
 
 class ISceneOutlinerMode
 {
@@ -38,7 +38,7 @@ public:
 	virtual void CreateViewContent(FMenuBuilder& MenuBuilder) {}
 
 	/** Returns a factory to create a Folder Picker mode which matches this mode */
-	virtual FCreateSceneOutlinerMode CreateFolderPickerMode() const { return FCreateSceneOutlinerMode(); }
+	virtual FCreateSceneOutlinerMode CreateFolderPickerMode(const FFolder::FRootObject& InRootObject = FFolder::GetDefaultRootObject()) const { return FCreateSceneOutlinerMode(); }
 public:
 	/** Construct a new Drag and drop operation */
 	virtual TSharedPtr<FDragDropOperation> CreateDragDropOperation(const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const { return nullptr; }
@@ -128,11 +128,11 @@ public:
 	/* Folder management */
 		
 	/** Creates a new folder item at the root with a valid name*/
-	virtual FName CreateNewFolder() { return FName(NAME_None); }
+	virtual FFolder CreateNewFolder() { return FFolder(); }
 	/** Create a folder under a specific parent with a given leaf name */
-	virtual FName CreateFolder(const FName& ParentPath, const FName& LeafName) { return FName(NAME_None); }
+	virtual FFolder CreateFolder(const FFolder& ParentPath, const FName& LeafName) { return FFolder(); }
 	/** Reparent an item to a given folder path. Returns true if the operation is sucessful */
-	virtual bool ReparentItemToFolder(const FName& FolderPath, const FSceneOutlinerTreeItemPtr& Item) { return false; }
+	virtual bool ReparentItemToFolder(const FFolder& FolderPath, const FSceneOutlinerTreeItemPtr& Item) { return false; }
 	/** Select all descendants of a folder. Optionally select only immediate descendants. */
 	virtual void SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly) {}
 public:

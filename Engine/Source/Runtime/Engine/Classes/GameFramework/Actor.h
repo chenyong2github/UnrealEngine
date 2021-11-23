@@ -20,6 +20,7 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
+#include "Folder.h"
 #endif
 
 #include "WorldPartition/WorldPartitionActorDescType.h"
@@ -2285,6 +2286,12 @@ public:
 	/** Returns this actor's folder path. Actor folder paths are only available in development builds. */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Actor Editing")
 	const FName& GetFolderPath() const;
+
+	/** Returns the actor's folder root object. Null, is interpreted as the actor's world. */
+	FFolder::FRootObject GetFolderRootObject() const;
+
+	/** Returns a FFolder that contains the actor  folder path and its folder root object. */
+	FFolder GetFolder() const;
 
 	/**
 	 * Assigns a new folder to this actor. Actor folder paths are only available in development builds.
