@@ -226,12 +226,47 @@ IDMLDevice* FPrivateImplBackEndUEAndORT::FDMLDeviceList::Add(ID3D12Device* Devic
 
 
 
+/* FNeuralNetworkAsyncTask public functions
+ *****************************************************************************/
+
+#ifdef WITH_UE_AND_ORT_SUPPORT
+UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::FNeuralNetworkAsyncTask(UNeuralNetwork::FImplBackEndUEAndORT* InBackEnd)
+	: BackEnd(InBackEnd)
+{}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::SetRunSessionArgs(const ENeuralNetworkSynchronousMode InSyncMode, const ENeuralDeviceType InDeviceType,
+	const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+{
+	const FScopeLock ResourcesLock(&BackEnd->ResoucesCriticalSection);
+	SyncMode = InSyncMode;
+	DeviceType = InDeviceType;
+	InputDeviceType = InInputDeviceType;
+	OutputDeviceType = InOutputDeviceType;
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::FNeuralNetworkAsyncTask::DoWork()
+{
+	if (SyncMode == ENeuralNetworkSynchronousMode::Asynchronous)
+	{
+		BackEnd->RunSessionAsync(DeviceType, InputDeviceType, OutputDeviceType);
+	}
+	else
+	{
+		BackEnd->RunSessionSync(DeviceType, InputDeviceType, OutputDeviceType);
+	}
+}
+#endif //WITH_UE_AND_ORT_SUPPORT
+
+
+
 /* UNeuralNetwork public functions
  *****************************************************************************/
 
 UNeuralNetwork::FImplBackEndUEAndORT::~FImplBackEndUEAndORT()
 {
+#ifdef WITH_UE_AND_ORT_SUPPORT
 	EnsureAsyncTaskCompletion(/*bShouldWarnIfNotDone*/false);
+#endif //WITH_UE_AND_ORT_SUPPORT
 }
 
 void UNeuralNetwork::FImplBackEndUEAndORT::WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType, const bool bInShouldOpenMessageLog)
