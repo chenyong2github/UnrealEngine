@@ -6,7 +6,7 @@
 #include "Containers/Ticker.h"
 #include "RHIDefinitions.h"
 #include "Containers/Ticker.h"
-#include "ShaderCompiler.h"
+#include "RecompileShaders.h"
 
 class FODSCThread;
 

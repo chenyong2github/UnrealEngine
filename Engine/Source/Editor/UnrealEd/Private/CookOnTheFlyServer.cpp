@@ -93,6 +93,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "ProfilingDebugging/PlatformFileTrace.h"
 #include "ProjectDescriptor.h"
+#include "RecompileShaders.h"
 #include "SceneUtils.h"
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/ArchiveUObject.h"
