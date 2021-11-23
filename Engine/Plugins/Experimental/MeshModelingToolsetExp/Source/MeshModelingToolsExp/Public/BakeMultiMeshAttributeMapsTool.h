@@ -117,8 +117,7 @@ public:
 
 	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
 	 * This is only relevant if a separate source mesh is provided. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = BakeInput, meta = (ClampMin = "0.001",
-		EditCondition = "SourceStaticMesh != nullptr", HideEditConditionToggle))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = BakeInput, meta = (ClampMin = "0.001"))
 	float ProjectionDistance = 3.0;
 
 	UFUNCTION()
