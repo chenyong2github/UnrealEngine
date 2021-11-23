@@ -106,7 +106,8 @@ enum ECompilerFlags
 	CFLAG_AllowTypedUAVLoads,
 	// Prefer shader execution in wave32 mode if possible.
 	CFLAG_Wave32,
-
+	// Enable support of inline raytracing in compute shader.
+	CFLAG_InlineRayTracing,
 	// Force using the SC rewrite functionality before calling DXC on D3D12
 	CFLAG_D3D12ForceShaderConductorRewrite,
 	// Enable support of C-style data types for platforms that can. Check for PLATFORM_SUPPORTS_REAL_TYPES.
