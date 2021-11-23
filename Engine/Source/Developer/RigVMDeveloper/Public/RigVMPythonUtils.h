@@ -17,5 +17,7 @@ namespace RigVMPythonUtils
 #if WITH_EDITOR
 	RIGVMDEVELOPER_API void Print(const FString& BlueprintTitle, const FString& InMessage);
 
+	RIGVMDEVELOPER_API void PrintPythonContext(const FString& InBlueprintName);
+
 #endif
 }

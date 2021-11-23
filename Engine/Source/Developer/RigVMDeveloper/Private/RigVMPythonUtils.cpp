@@ -84,4 +84,27 @@ void RigVMPythonUtils::Print(const FString& BlueprintTitle, const FString& InMes
 	PythonLog->AddMessage(Token, false);
 }
 
+void RigVMPythonUtils::PrintPythonContext(const FString& InBlueprintPath)
+{
+	FString BlueprintName = InBlueprintPath;
+	int32 DotIndex = BlueprintName.Find(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+	if (DotIndex != INDEX_NONE)
+	{
+		BlueprintName = BlueprintName.Right(BlueprintName.Len() - DotIndex - 1);
+	}
+		
+	TArray<FString> PyCommands = {
+		TEXT("import unreal"),
+		FString::Printf(TEXT("blueprint = unreal.load_object(name = '%s', outer = None)"), *InBlueprintPath),
+		TEXT("library = blueprint.get_local_function_library()"),
+		TEXT("library_controller = blueprint.get_controller(library)"),
+		TEXT("hierarchy = blueprint.hierarchy"),
+		TEXT("hierarchy_controller = hierarchy.get_controller()")};
+
+	for (FString& Command : PyCommands)
+	{
+		RigVMPythonUtils::Print(BlueprintName, Command);
+	}
+}
+
 #endif
