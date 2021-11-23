@@ -17,6 +17,46 @@
 
 namespace Chaos
 {
+	/**
+	 * Resolves a material from a shape and a collision.
+	 * Either both shapes are simple primitives, or one is simple and the other is a heightfield or trimesh.
+	 * In the case of the trimesh/heightfield the contact points should have the face index of the hit face
+	 * which the geometry can translate into a material index.
+	 * @param InShape - The shape to resolve a material for
+	 * @param InConstraint - The collision that the shape is a part of
+	 * @see FTriangleMeshImplicitObject::ContactManifoldImp
+	 * @see FHeightField::ContactManifoldImp
+	 */
+	FMaterialHandle ResolveMaterial(const FPerShapeData* InShape, const FPBDCollisionConstraint& InConstraint)
+	{
+		if(InShape)
+		{
+			const TArray<FMaterialHandle>& MaterialArray = InShape->GetMaterials();
+
+			// Simple case, one material. All primitives (Box, convex, sphere etc.) should only have one material.
+			// Heightfield and Trimesh can have one or more and will require data from the contacts to resolve.
+			if(MaterialArray.Num() == 1)
+			{
+				return MaterialArray[0];
+			}
+			else
+			{
+				// Check the manifold points, return the first valid material based on the face that the contact hit.
+				for(const FManifoldPoint& Point : InConstraint.GetManifoldPoints())
+				{
+					const int32 PotentialMaterialIndex = InShape->GetGeometry()->GetMaterialIndex(Point.ContactPoint.FaceIndex);
+					if(MaterialArray.IsValidIndex(PotentialMaterialIndex))
+					{
+						return MaterialArray[PotentialMaterialIndex];
+					}
+				}
+			}
+		}
+
+		// No valid material
+		return {};
+	}
+
 	void FEventDefaults::RegisterSystemEvents(FEventManager& EventManager)
 	{
 		RegisterCollisionEvent(EventManager);
@@ -133,6 +173,9 @@ namespace Chaos
 						FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
 						FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
 
+						const FPerShapeData* Shape0 = Particle0->GetImplicitShape(Constraint.GetImplicit0());
+						const FPerShapeData* Shape1 = Particle1->GetImplicitShape(Constraint.GetImplicit1());
+
 						FCollidingData Data;
 						Data.Location = Constraint.GetLocation();
 						Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
@@ -141,6 +184,9 @@ namespace Chaos
 							
 						Data.Proxy1 = Particle0 ? Particle0->PhysicsProxy() : nullptr;
 						Data.Proxy2 = Particle1 ? Particle1->PhysicsProxy() : nullptr;
+
+						Data.Mat1 = ResolveMaterial(Shape0, Constraint);
+						Data.Mat2 = ResolveMaterial(Shape1, Constraint);
 
 						// Collision constraints require both proxies are valid. If either is not, we needn't record the collision event.
 						if (Data.Proxy1 == nullptr || Data.Proxy2 == nullptr)

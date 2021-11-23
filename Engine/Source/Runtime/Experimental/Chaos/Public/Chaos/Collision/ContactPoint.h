@@ -40,8 +40,12 @@ namespace Chaos
 		// Contact separation (negative for overlap)
 		FReal Phi;
 
+		// Face index of the shape we hit. Only valid for Heightfield and Trimesh contact points, otherwise INDEX_NONE
+		int32 FaceIndex;
+
 		FContactPoint()
 			: Phi(TNumericLimits<FReal>::Max())
+			, FaceIndex(INDEX_NONE)
 		{
 		}
 
