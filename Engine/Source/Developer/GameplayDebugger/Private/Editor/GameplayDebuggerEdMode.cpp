@@ -109,6 +109,12 @@ void FGameplayDebuggerEdMode::Tick(FEditorViewportClient* ViewportClient, float 
 	}
 }
 
+void FGameplayDebuggerEdMode::SafeOpenMode()
+{
+	// By calling this get, it make sure that the singleton is created and not during the SafeCloseMode whitch can be called during garbage collect.
+	GLevelEditorModeTools();
+}
+
 void FGameplayDebuggerEdMode::SafeCloseMode()
 {
 	// this may be called on closing editor during PIE (~viewport -> teardown PIE -> debugger's cleanup on game end)

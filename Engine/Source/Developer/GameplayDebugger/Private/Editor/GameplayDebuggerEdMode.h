@@ -25,6 +25,7 @@ public:
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
 	// End of FEdMode interface
 
+	static void SafeOpenMode();
 	static void SafeCloseMode();
 
 	static const FName EM_GameplayDebugger;

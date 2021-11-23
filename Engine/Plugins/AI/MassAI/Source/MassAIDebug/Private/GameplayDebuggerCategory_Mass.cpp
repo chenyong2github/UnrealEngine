@@ -178,18 +178,22 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		SetCachedEntity(FMassEntityHandle(), *Debugger);
 		CachedDebugActor = nullptr;
 	}
-	// Ideally we would have a way to register in the main picking flow but that would require more changes to
-	// also support client-server picking. For now, we handle explicit mass picking requests on the authority
-	if (bPickEntity)
+
+	if (OwnerPC)
 	{
-		PickEntity(*OwnerPC, *World, *Debugger);
-		bPickEntity = false;
-	}
-	// if we're debugging based on UE::Mass::Debug and the range changed
-	else if (CachedDebugActor == nullptr && UE::Mass::Debug::HasDebugEntities() && UE::Mass::Debug::IsDebuggingEntity(CachedEntity) == false)
-	{
-		// using bLimitAngle = false to not limit the selection to only the things in from of the player
-		PickEntity(*OwnerPC, *World, *Debugger, /*bLimitAngle=*/false);
+		// Ideally we would have a way to register in the main picking flow but that would require more changes to
+		// also support client-server picking. For now, we handle explicit mass picking requests on the authority
+		if (bPickEntity)
+		{
+			PickEntity(*OwnerPC, *World, *Debugger);
+			bPickEntity = false;
+		}
+		// if we're debugging based on UE::Mass::Debug and the range changed
+		else if (CachedDebugActor == nullptr && UE::Mass::Debug::HasDebugEntities() && UE::Mass::Debug::IsDebuggingEntity(CachedEntity) == false)
+		{
+			// using bLimitAngle = false to not limit the selection to only the things in from of the player
+			PickEntity(*OwnerPC, *World, *Debugger, /*bLimitAngle=*/false);
+		}
 	}
 
 	UMassEntitySubsystem* EntitySystem = UWorld::GetSubsystem<UMassEntitySubsystem>(World);
@@ -328,7 +332,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 	}
 
 	NearEntityDescriptions.Reset();
-	if (bShowNearEntityOverview)
+	if (bShowNearEntityOverview && OwnerPC)
 	{
 		FVector ViewLocation = FVector::ZeroVector;
 		FVector ViewDirection = FVector::ForwardVector;
