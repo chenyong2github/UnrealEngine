@@ -14,6 +14,7 @@
 #include "ThrustSystem.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "SnapshotData.h"
+#include "DeferredForces.h"
 #include "ChaosVehicleManagerAsyncCallback.h"
 
 #include "ChaosVehicleMovementComponent.generated.h"
@@ -171,7 +172,10 @@ struct FChaosVehicleDefaultAsyncInput : public FChaosVehicleAsyncInput
 
 	FChaosVehicleDefaultAsyncInput();
 
-	TUniquePtr<FChaosVehicleAsyncOutput> Simulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, bool& bWakeOut) const override;
+	virtual TUniquePtr<FChaosVehicleAsyncOutput> Simulate(UWorld* World, const float DeltaSeconds, const float TotalSeconds, bool& bWakeOut) const override;
+	
+	virtual void ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* RigidHandle) const override;
+
 };
 
 
@@ -728,6 +732,8 @@ public:
 
 	virtual void TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle);
 
+	virtual void ApplyDeferredForces(Chaos::FRigidBodyHandle_Internal* Handle);
+
 	/** Advance the vehicle simulation */
 	virtual void UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle);
 	
@@ -780,6 +786,8 @@ public:
 
 	// #todo: this isn't very configurable
 	TUniquePtr<Chaos::FSimpleWheeledVehicle> PVehicle;
+
+	FDeferredForces DeferredForces;
 
 };
 

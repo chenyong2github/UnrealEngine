@@ -48,8 +48,8 @@ void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 	Output.VehicleOutputs.AddDefaulted(NumVehicles);
 	Output.Timestamp = Input->Timestamp;
 
-	const auto& InputVehiclesBatch = Input->VehicleInputs;
-	auto& OutputVehiclesBatch = Output.VehicleOutputs;
+	const TArray<TUniquePtr<FChaosVehicleAsyncInput>>& InputVehiclesBatch = Input->VehicleInputs;
+	TArray<TUniquePtr<FChaosVehicleAsyncOutput>>& OutputVehiclesBatch = Output.VehicleOutputs;
 
 	// beware running the vehicle simulation in parallel, code must remain threadsafe
 	auto LambdaParallelUpdate = [World, DeltaTime, SimTime, &InputVehiclesBatch, &OutputVehiclesBatch](int32 Idx)
@@ -61,7 +61,7 @@ void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 			return;
 		}
 
-		auto Handle = VehicleInput.Proxy->GetPhysicsThreadAPI();
+		Chaos::FRigidBodyHandle_Internal* Handle = VehicleInput.Proxy->GetPhysicsThreadAPI();
 		if (Handle->ObjectState() != Chaos::EObjectStateType::Dynamic)
 		{
 			return;
@@ -75,7 +75,12 @@ void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 	bool ForceSingleThread = !GVehicleDebugParams.EnableMultithreading;
 	PhysicsParallelFor(OutputVehiclesBatch.Num(), LambdaParallelUpdate, ForceSingleThread);
 
-
+	// Delayed application of forces - This is seperate from Simulate because forces cannot be executed multi-threaded
+	for (const TUniquePtr<FChaosVehicleAsyncInput>& VehicleInput : InputVehiclesBatch)
+	{
+		Chaos::FRigidBodyHandle_Internal* Handle = VehicleInput->Proxy->GetPhysicsThreadAPI();
+		VehicleInput->ApplyDeferredForces(Handle);
+	}
 }
 
 /**
