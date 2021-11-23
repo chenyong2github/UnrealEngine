@@ -96,6 +96,13 @@ static FAutoConsoleVariableRef CVarHZBOcclusion(
 	ECVF_RenderThreadSafe
 	);
 
+static TAutoConsoleVariable<int32> CVarHZBBuildDownSampleFactor(
+	TEXT("r.HZBBuildDownSampleFactor"),
+	1,
+	TEXT("HZB build downsample factor (1=default, 2, 4, 8).\n"),
+	ECVF_RenderThreadSafe
+);
+
 static int32 GVisualizeOccludedPrimitives = 0;
 static FAutoConsoleVariableRef CVarVisualizeOccludedPrimitives(
 	TEXT("r.VisualizeOccludedPrimitives"),
@@ -980,7 +987,11 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 					{
 						if (HZBOcclusionTests.IsValidFrame(PrimitiveOcclusionHistory->LastTestFrameNumber))
 						{
-							bIsOccluded = !HZBOcclusionTests.IsVisible(PrimitiveOcclusionHistory->HZBTestIndex);
+							if (PrimitiveOcclusionHistory->HZBTestIndex_Previous2Frame != -1)
+							{
+								bIsOccluded = !HZBOcclusionTests.IsVisible(PrimitiveOcclusionHistory->HZBTestIndex_Previous2Frame);
+							}
+
 							bOcclusionStateIsDefinite = true;
 						}
 					}
@@ -1131,8 +1142,10 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 						{
 							// Always run
 							if (bSingleThreaded)
-							{								
-								PrimitiveOcclusionHistory->HZBTestIndex = HZBOcclusionTests.AddBounds(OcclusionBounds.Origin, OcclusionBounds.BoxExtent);
+							{
+								PrimitiveOcclusionHistory->HZBTestIndex_Previous2Frame = PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame;
+								PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame = PrimitiveOcclusionHistory->HZBTestIndex;
+								PrimitiveOcclusionHistory->HZBTestIndex = HZBOcclusionTests.AddBounds(OcclusionBounds.Origin, OcclusionBounds.BoxExtent);					
 							}
 							else
 							{
@@ -1215,6 +1228,10 @@ static void FetchVisibilityForPrimitives_Range(FVisForPrimParams& Params, FGloba
 					}
 					else
 					{
+						PrimitiveOcclusionHistory->HZBTestIndex_Previous2Frame = PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame;
+						PrimitiveOcclusionHistory->HZBTestIndex_PreviousFrame = PrimitiveOcclusionHistory->HZBTestIndex;
+						PrimitiveOcclusionHistory->HZBTestIndex = -1;
+
 						// If the primitive's bounding box intersects the near clipping plane, treat it as definitely unoccluded.
 						bIsOccluded = false;
 						bOcclusionStateIsDefinite = true;
@@ -1473,6 +1490,8 @@ static int32 FetchVisibilityForPrimitives(const FScene* Scene, FViewInfo& View, 
 				//HZB output
 				for (auto HZBBoundIter = OutHZBBounds[i].CreateIterator(); HZBBoundIter; ++HZBBoundIter)
 				{
+					HZBBoundIter->TargetHistory->HZBTestIndex_Previous2Frame = HZBBoundIter->TargetHistory->HZBTestIndex_PreviousFrame;
+					HZBBoundIter->TargetHistory->HZBTestIndex_PreviousFrame = HZBBoundIter->TargetHistory->HZBTestIndex;
 					HZBBoundIter->TargetHistory->HZBTestIndex = HZBOcclusionTests.AddBounds(HZBBoundIter->BoundsOrigin, HZBBoundIter->BoundsExtent);
 				}
 
@@ -1692,7 +1711,15 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_MapHZBResults);
 				check(!ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
-				ViewState->HZBOcclusionTests.MapResults(RHICmdList);
+
+				if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+				{
+					ViewState->HZBOcclusionTests.MapResults(RHICmdList);
+				}
+				else
+				{
+					ViewState->HZBOcclusionTests.ReadbackResults(RHICmdList);
+				}
 			}
  
 			// Perform round-robin occlusion queries
@@ -1714,7 +1741,10 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_HZBUnmapResults);
 
-				ViewState->HZBOcclusionTests.UnmapResults(RHICmdList);
+				if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+				{
+					ViewState->HZBOcclusionTests.UnmapResults(RHICmdList);
+				}
 
 				if( bSubmitQueries )
 				{

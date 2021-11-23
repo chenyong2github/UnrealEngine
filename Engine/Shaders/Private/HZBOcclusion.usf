@@ -214,3 +214,27 @@ void HZBTestPS(float2 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)
 	OutColor = RectMax.z >= MinDepth.x ? 1 : 0;
 #endif
 }
+
+#if COMPUTESHADER
+
+Texture2D		  SourceTexture;
+SamplerState	  SourceTextureSampler;
+float4			  BufferSizeAndInvSize;
+RWBuffer<uint>	  RWOutput;
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void ResultsOutputCS(
+	int GroupIndex : SV_GroupIndex,
+	uint2 GroupId : SV_GroupID,
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 iPixelPos = DispatchThreadId;
+	float2 PixelPos = float2(iPixelPos);
+
+	uint Index = iPixelPos.y * BufferSizeAndInvSize.x + iPixelPos.x;
+	float2 UV = (PixelPos + 0.5) * BufferSizeAndInvSize.zw;
+	RWOutput[Index] = SourceTexture.SampleLevel(SourceTextureSampler, UV, 0).r;
+}
+
+#endif

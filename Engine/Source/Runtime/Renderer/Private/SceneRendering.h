@@ -395,6 +395,7 @@ public:
 	uint32 AddBounds( const FVector& BoundsOrigin, const FVector& BoundsExtent );
 	void Submit(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
+	void ReadbackResults(FRHICommandListImmediate& RHICmdList);
 	void MapResults(FRHICommandListImmediate& RHICmdList);
 	void UnmapResults(FRHICommandListImmediate& RHICmdList);
 	bool IsVisible( uint32 Index ) const;
@@ -408,12 +409,17 @@ private:
 	enum { SizeY = 256 };
 	enum { FrameNumberMask = 0x7fffffff };
 	enum { InvalidFrameNumber = 0xffffffff };
+	enum { ResultsBufferCount = 3 };
+	enum { ResultsBufferDataSize = SizeX * SizeY * 4 };
 
 	TArray< FOcclusionPrimitive, SceneRenderingAllocator >	Primitives;
 
 	TRefCountPtr<IPooledRenderTarget>	ResultsTextureCPU;
 	const uint8*						ResultsBuffer;
 
+	// ES3.1 feature level. For efficent readback use buffers instead of textures
+	FRWBuffer 							ResultsBufferData[ResultsBufferCount];
+	TUniquePtr<FRHIGPUBufferReadback>	ResultsBufferReadback[ResultsBufferCount];
 
 	bool IsInvalidFrame() const;
 
@@ -2022,6 +2028,14 @@ protected:
 
 	/** Issues occlusion queries */
 	void RenderOcclusion(FRHICommandListImmediate& RHICmdList);
+
+	void RenderOcclusion(
+		FRDGBuilder& GraphBuilder,
+		TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBuffer);
+
+	bool RenderHzb(
+		FRDGBuilder& GraphBuilder,
+		TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBuffer);
 	
 	/** Computes how many queries will be issued this frame */
 	int32 ComputeNumOcclusionQueriesToBatch() const;

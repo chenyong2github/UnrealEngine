@@ -17,6 +17,7 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "VisualizeTexture.h"
+#include "SceneTextureParameters.h"
 
 
 /*-----------------------------------------------------------------------------
@@ -691,21 +692,31 @@ void FHZBOcclusionTester::SetInvalidFrameNumber()
 
 void FHZBOcclusionTester::InitDynamicRHI()
 {
-	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( FIntPoint( SizeX, SizeY ), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, TexCreate_None, false ) );
+	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ResultsTextureCPU, TEXT("HZBResultsCPU"), ERenderTargetTransience::NonTransient);
+	Fence = RHICreateGPUFence(TEXT("HZBGPUFence"));
+
+	for (int32 i = 0; i < ResultsBufferCount; i++)
 	{
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		FPooledRenderTargetDesc Desc( FPooledRenderTargetDesc::Create2DDesc( FIntPoint( SizeX, SizeY ), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_CPUReadback | TexCreate_HideInVisualizeTexture, TexCreate_None, false ) );
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ResultsTextureCPU, TEXT("HZBResultsCPU"), ERenderTargetTransience::NonTransient );
-		Fence = RHICreateGPUFence(TEXT("HZBGPUFence"));
+		FRHIResourceCreateInfo CreateInfo(TEXT("ResultsBufferData"));
+		ResultsBufferData[i].Buffer = RHICreateVertexBuffer(ResultsBufferDataSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess | BUF_SourceCopy, CreateInfo);
+		ResultsBufferData[i].UAV = RHICmdList.CreateUnorderedAccessView(ResultsBufferData[i].Buffer, PF_R32_UINT);
+
+		FString Name = TEXT("HZB occlusion results readback") + FString::FromInt(i);
+		ResultsBufferReadback[i].Reset(new FRHIGPUBufferReadback(*Name));
 	}
 }
 
 void FHZBOcclusionTester::ReleaseDynamicRHI()
 {
-	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+	GRenderTargetPool.FreeUnusedResource(ResultsTextureCPU);
+	Fence.SafeRelease();
+
+	for (int32 i = 0; i < ResultsBufferCount; i++)
 	{
-		GRenderTargetPool.FreeUnusedResource( ResultsTextureCPU );
-		Fence.SafeRelease();
+		ResultsBufferData[i].Release();
+		ResultsBufferReadback[i].Release();
 	}
 }
 
@@ -718,10 +729,44 @@ uint32 FHZBOcclusionTester::AddBounds( const FVector& BoundsCenter, const FVecto
 	return Index;
 }
 
+static uint8 FirstFrameBuffer[] = { 255 };
+
+void FHZBOcclusionTester::ReadbackResults(FRHICommandListImmediate& RHICmdList)
+{
+	int32 CurrentBuffer = ValidFrameNumber % ResultsBufferCount;
+
+	int32 PreviousBuffer = (ValidFrameNumber - 1) % ResultsBufferCount;
+	if (ResultsBufferReadback[PreviousBuffer]->IsReady())
+	{
+		// do nothing, only for execute fence poll in rhi thread
+	}
+
+	int32 Previous2Buffer = (ValidFrameNumber - 2) % ResultsBufferCount;
+	if (ResultsBufferReadback[Previous2Buffer]->IsReady())
+	{
+		// Workaround until FRHIGPUTextureReadback::Lock has multigpu support
+		FRHIGPUMask ReadBackGPUMask = RHICmdList.GetGPUMask();
+		if (!ReadBackGPUMask.HasSingleIndex())
+		{
+			ReadBackGPUMask = FRHIGPUMask::GPU0();
+		}
+
+		SCOPED_GPU_MASK(RHICmdList, ReadBackGPUMask);
+
+		// Read the last request results.
+		ResultsBuffer = (uint8*)ResultsBufferReadback[Previous2Buffer]->Lock(ResultsBufferDataSize);
+		ResultsBufferReadback[Previous2Buffer]->Unlock();
+	}
+
+	if (ResultsBuffer == NULL)
+	{
+		ResultsBuffer = FirstFrameBuffer;
+		SetInvalidFrameNumber();
+	}
+}
+
 void FHZBOcclusionTester::MapResults(FRHICommandListImmediate& RHICmdList)
 {
-	check( !ResultsBuffer );
-
 	if (!IsInvalidFrame() )
 	{
 		uint32 IdleStart = FPlatformTime::Cycles();
@@ -739,8 +784,6 @@ void FHZBOcclusionTester::MapResults(FRHICommandListImmediate& RHICmdList)
 	// Can happen because of device removed, we might crash later but this occlusion culling system can behave gracefully.
 	if( ResultsBuffer == NULL )
 	{
-		// First frame
-		static uint8 FirstFrameBuffer[] = { 255 };
 		ResultsBuffer = FirstFrameBuffer;
 		SetInvalidFrameNumber();
 	}
@@ -748,17 +791,14 @@ void FHZBOcclusionTester::MapResults(FRHICommandListImmediate& RHICmdList)
 
 void FHZBOcclusionTester::UnmapResults(FRHICommandListImmediate& RHICmdList)
 {
-	check( ResultsBuffer );
 	if(!IsInvalidFrame())
 	{
 		RHICmdList.UnmapStagingSurface(ResultsTextureCPU->GetRenderTargetItem().ShaderResourceTexture);
 	}
-	ResultsBuffer = NULL;
 }
 
 bool FHZBOcclusionTester::IsVisible( uint32 Index ) const
 {
-	checkSlow( ResultsBuffer );
 	checkSlow( Index < SizeX * SizeY );
 	
 	// TODO shader compress to bits
@@ -795,7 +835,7 @@ class FHZBTestPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	FHZBTestPS() {}
@@ -835,10 +875,13 @@ public:
 		 */
 		const float kHZBTestMaxMipmap = 9.0f;
 
+		static const auto ICVarHZBBuildDownSampleFactor = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBBuildDownSampleFactor"));
+		float InvDownSampleFactor = 1.0f / (uint32)ICVarHZBBuildDownSampleFactor->GetInt();
+
 		const float HZBMipmapCounts = FMath::Log2(FMath::Max(View.HZBMipmap0Size.X, View.HZBMipmap0Size.Y));
 		const FVector HZBUvFactorValue(
-			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
-			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y),
+			float(View.ViewRect.Width() * InvDownSampleFactor) / float(2 * View.HZBMipmap0Size.X),
+			float(View.ViewRect.Height() * InvDownSampleFactor) / float(2 * View.HZBMipmap0Size.Y),
 			FMath::Max(HZBMipmapCounts - kHZBTestMaxMipmap, 0.0f)
 			);
 		const FVector4 HZBSizeValue(
@@ -871,10 +914,44 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHZBOcclusionTestHZBParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
+class FResultsOutputCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FResultsOutputCS)
+	SHADER_USE_PARAMETER_STRUCT(FResultsOutputCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SourceTextureSampler)
+		SHADER_PARAMETER(FVector4, BufferSizeAndInvSize)
+		SHADER_PARAMETER_UAV(RWBuffer<uint>, RWOutput)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static const uint32 ThreadGroupSizeX = 8;
+	static const uint32 ThreadGroupSizeY = 8;
+
+	// The number of texels on each axis processed by a single thread group.
+	static const FIntPoint TexelsPerThreadGroup;
+
+	static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
+	{
+		return RHISupportsComputeShaders(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), ThreadGroupSizeX);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), ThreadGroupSizeY);
+	}
+};
+
+const FIntPoint FResultsOutputCS::TexelsPerThreadGroup(ThreadGroupSizeX, ThreadGroupSizeY);
+IMPLEMENT_GLOBAL_SHADER(FResultsOutputCS, "/Engine/Private/HZBOcclusion.usf", "ResultsOutputCS", SF_Compute);
+
 void FHZBOcclusionTester::Submit(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	RDG_EVENT_SCOPE(GraphBuilder, "SubmitHZB");
-
 	FSceneViewState* ViewState = (FSceneViewState*)View.State;
 	if( !ViewState )
 	{
@@ -885,14 +962,14 @@ void FHZBOcclusionTester::Submit(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 	FRDGTextureRef BoundsExtentTexture = nullptr;
 
 	{
-		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(FIntPoint(SizeX, SizeY), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_ShaderResource));
+		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(FIntPoint(SizeX, SizeY), PF_A32B32G32R32F, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_Memoryless));
 		BoundsCenterTexture = GraphBuilder.CreateTexture(Desc, TEXT("HZBBoundsCenter"));
 		BoundsExtentTexture = GraphBuilder.CreateTexture(Desc, TEXT("HZBBoundsExtent"));
 	}
 
 	FRDGTextureRef ResultsTextureGPU = nullptr;
 	{
-		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(FIntPoint(SizeX, SizeY), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable));
+		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(FIntPoint(SizeX, SizeY), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_Memoryless));
 		ResultsTextureGPU = GraphBuilder.CreateTexture(Desc, TEXT("HZBResultsGPU"));
 	}
 
@@ -1003,13 +1080,44 @@ void FHZBOcclusionTester::Submit(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 		});
 	}
 
-	// Transfer memory GPU -> CPU
-	AddCopyToResolveTargetPass(GraphBuilder, ResultsTextureGPU, GraphBuilder.RegisterExternalTexture(ResultsTextureCPU), FResolveParams());
-
-	AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+	if (View.FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
-		RHICmdList.WriteGPUFence(Fence);
-	});
+		// Transfer memory GPU -> ResultsTexture
+		AddCopyToResolveTargetPass(GraphBuilder, ResultsTextureGPU, GraphBuilder.RegisterExternalTexture(ResultsTextureCPU), FResolveParams());
+
+		AddPass(GraphBuilder, [this](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.WriteGPUFence(Fence);
+		});
+	}
+	else
+	{
+		// Transfer memory GPU -> ResultsBufferData
+		int32 CurrentBuffer = ValidFrameNumber % ResultsBufferCount;
+		check(ResultsBufferData[CurrentBuffer].UAV);
+
+		GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(ResultsBufferData[CurrentBuffer].UAV, ERHIAccess::CopySrc, ERHIAccess::UAVMask));
+
+		TShaderMapRef<FResultsOutputCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		FResultsOutputCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FResultsOutputCS::FParameters>();
+		PassParameters->SourceTexture = ResultsTextureGPU;
+		PassParameters->SourceTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		PassParameters->BufferSizeAndInvSize = FVector4(SizeX, SizeY, 1.0f / SizeX, 1.0f / SizeY);
+		PassParameters->RWOutput = ResultsBufferData[CurrentBuffer].UAV;
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("ResultsOutput(CS)"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(FIntPoint(SizeX, SizeY), FResultsOutputCS::TexelsPerThreadGroup));
+
+		AddPass(GraphBuilder, [this, CurrentBuffer](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(ResultsBufferData[CurrentBuffer].UAV, ERHIAccess::UAVMask, ERHIAccess::CopySrc));
+			ResultsBufferReadback[CurrentBuffer]->EnqueueCopy(RHICmdList, ResultsBufferData[CurrentBuffer].Buffer);
+		});
+	}
 }
 
 static FViewOcclusionQueriesPerView AllocateOcclusionTests(const FScene* Scene, TArrayView<const FVisibleLightInfo> VisibleLightInfos, TArrayView<FViewInfo> Views)
@@ -1399,6 +1507,53 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 	{
 		FenceOcclusionTests(GraphBuilder);
 	}
+}
+
+void BuildHZB(FRDGBuilder& GraphBuilder, const FMobileSceneTextureUniformParameters& SceneTextures, FViewInfo& View);
+
+bool FMobileSceneRenderer::RenderHzb(
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBuffer)
+{
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
+
+	static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
+	bool bHZBOcclusion = ICVarHZBOcc->GetInt() != 0;
+
+	if (bHZBOcclusion)
+	{
+		const FMobileSceneTextureUniformParameters SceneTextures = GetMobileSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			FViewInfo& View = Views[ViewIndex];
+			FSceneViewState* ViewState = (FSceneViewState*)View.State;
+
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+			
+			{
+				RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);
+				BuildHZB(GraphBuilder, SceneTextures, Views[ViewIndex]);
+			}
+
+			{
+				RDG_EVENT_SCOPE(GraphBuilder, "SubmitHZB");
+				//check(ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
+				ViewState->HZBOcclusionTests.Submit(GraphBuilder, View);
+			}
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void FMobileSceneRenderer::RenderOcclusion(
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBuffer)
+{
+	RenderHzb(GraphBuilder, SceneTexturesUniformBuffer);
 }
 
 void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList)

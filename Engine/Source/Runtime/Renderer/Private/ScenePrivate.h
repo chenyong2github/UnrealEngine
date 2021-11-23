@@ -97,6 +97,8 @@ public:
 	uint32 LastTestFrameNumber;
 	uint32 LastConsideredFrameNumber;
 	uint32 HZBTestIndex;
+	uint32 HZBTestIndex_PreviousFrame;
+	uint32 HZBTestIndex_Previous2Frame;
 
 	/** The last time the primitive was visible. */
 	float LastProvenVisibleTime;
@@ -161,7 +163,9 @@ public:
 		: PrimitiveId(InPrimitiveId)
 		, LastTestFrameNumber(~0u)
 		, LastConsideredFrameNumber(~0u)
-		, HZBTestIndex(0)
+		, HZBTestIndex(~0u)
+		, HZBTestIndex_PreviousFrame(~0u)
+		, HZBTestIndex_Previous2Frame(~0u)
 		, LastProvenVisibleTime(0.0f)
 		, LastConsideredTime(0.0f)
 		, LastPixelsPercentage(0.0f)
@@ -181,7 +185,9 @@ public:
 	inline FPrimitiveOcclusionHistory()
 		: LastTestFrameNumber(~0u)
 		, LastConsideredFrameNumber(~0u)
-		, HZBTestIndex(0)
+		, HZBTestIndex(~0u)
+		, HZBTestIndex_PreviousFrame(~0u)
+		, HZBTestIndex_Previous2Frame(~0u)
 		, LastProvenVisibleTime(0.0f)
 		, LastConsideredTime(0.0f)
 		, LastPixelsPercentage(0.0f)

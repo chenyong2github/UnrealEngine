@@ -755,9 +755,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			// Finish rendering for each view, or the full stereo buffer if enabled
 			{
-				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
-				SCOPE_CYCLE_COUNTER(STAT_FinishRenderViewTargetTime);
-
 				// Note that we should move this uniform buffer set up process right after the InitView to avoid any uniform buffer creation during the rendering after we porting all the passes to the RDG.
 				// We couldn't do it right now because the ResolveSceneDepth has another GraphicBuilder and it will re-register SceneDepthZ and that will cause crash.
 				TArray<TRDGUniformBufferRef<FMobileSceneTextureUniformParameters>, TInlineAllocator<1, SceneRenderingAllocator>> MobileSceneTexturesPerView;
@@ -778,6 +775,14 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				};
 
 				SetupMobileSceneTexturesPerView();
+
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+				{
+					RenderOcclusion(GraphBuilder, MobileSceneTexturesPerView[ViewIndex]);
+				}
+
+				RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
+				SCOPE_CYCLE_COUNTER(STAT_FinishRenderViewTargetTime);
 
 				FMobilePostProcessingInputs PostProcessingInputs;
 				PostProcessingInputs.ViewFamilyTexture = ViewFamilyTexture;

@@ -16,12 +16,14 @@ float2 InputViewportMaxBound;
 
 Texture2D		ParentTextureMip;
 SamplerState	ParentTextureMipSampler;
+int				bUseParentTextureAlphaChannel;
 
 
 float4 Gather4(Texture2D Texture, SamplerState TextureSampler, float2 BufferUV)
 #if COMPILER_GLSL || FEATURE_LEVEL < FEATURE_LEVEL_SM5
 {
 	float2 UV[4];
+	float4 Color[4];
 	
 	// min(..., InputViewportMaxBound) because we don't want to sample outside of the viewport
 	// when the view size has odd dimensions on X/Y axis.
@@ -30,13 +32,12 @@ float4 Gather4(Texture2D Texture, SamplerState TextureSampler, float2 BufferUV)
 	UV[2] = min(BufferUV + float2(-0.25f,  0.25f) * InvSize, InputViewportMaxBound);
 	UV[3] = min(BufferUV + float2( 0.25f,  0.25f) * InvSize, InputViewportMaxBound);
 
-	float4 Out;
-	Out.x = Texture.SampleLevel(TextureSampler, UV[0], 0 ).r;
-	Out.y = Texture.SampleLevel(TextureSampler, UV[1], 0 ).r;
-	Out.z = Texture.SampleLevel(TextureSampler, UV[2], 0 ).r;
-	Out.w = Texture.SampleLevel(TextureSampler, UV[3], 0 ).r;
+	Color[0] = Texture.SampleLevel(TextureSampler, UV[0], 0 );
+	Color[1] = Texture.SampleLevel(TextureSampler, UV[1], 0 );
+	Color[2] = Texture.SampleLevel(TextureSampler, UV[2], 0 );
+	Color[3] = Texture.SampleLevel(TextureSampler, UV[3], 0 );
 
-	return Out;
+	return bUseParentTextureAlphaChannel ? float4(Color[0].a, Color[1].a, Color[2].a, Color[3].a) : float4(Color[0].r, Color[1].r, Color[2].r, Color[3].r);
 }
 #else
 {

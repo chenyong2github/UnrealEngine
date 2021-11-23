@@ -129,6 +129,11 @@ extern RENDERER_API TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> C
 	FRDGBuilder& GraphBuilder,
 	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::All);
 
+/** Constructs scene texture parameters from the scene texture uniform buffer. */
+FMobileSceneTextureUniformParameters GetMobileSceneTextureParameters(
+	FRDGBuilder& GraphBuilder,
+	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTextureUniformBuffer);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FSceneTextureShaderParameters, RENDERER_API)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, MobileSceneTextures)

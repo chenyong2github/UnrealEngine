@@ -12,11 +12,10 @@
 
 
 static TAutoConsoleVariable<int32> CVarHZBBuildUseCompute(
-	TEXT("r.HZB.BuildUseCompute"), 1,
+	TEXT("r.HZB.BuildUseCompute"),
+	0,
 	TEXT("Selects whether HZB should be built with compute."),
 	ECVF_RenderThreadSafe);
-
-
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSharedHZBParameters, )
 	SHADER_PARAMETER(FVector4, DispatchThreadIdToBufferUV)
@@ -25,6 +24,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSharedHZBParameters, )
 
 	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ParentTextureMip)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ParentTextureMipSampler)
+	SHADER_PARAMETER(int32, bUseParentTextureAlphaChannel)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 END_SHADER_PARAMETER_STRUCT()
@@ -42,7 +42,7 @@ class FHZBBuildPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -81,7 +81,7 @@ class FHZBBuildCS : public FGlobalShader
 		}
 
 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
 	}
 };
 
@@ -96,15 +96,19 @@ static bool RequireClosestDepthHZB(const FViewInfo& View)
 	return ShouldRenderScreenSpaceDiffuseIndirect(View);
 }
 
-void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, FViewInfo& View)
+void BuildHZB_Internal(FRDGBuilder& GraphBuilder, const FRDGTextureRef& ParentTexture, FViewInfo& View, bool bUseParentTextureAlphaChannel)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_BuildHZB);
+
+	static const auto ICVarHZBBuildDownSampleFactor = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBBuildDownSampleFactor"));
+	uint32 DownSampleFactor = (uint32)ICVarHZBBuildDownSampleFactor->GetInt();
+	float InvDownSampleFactor = 1.0f / DownSampleFactor;
 
 	FIntPoint HZBSize;
 	int32 NumMips;
 	{
-		const int32 NumMipsX = FMath::Max(FPlatformMath::CeilToInt(FMath::Log2(float(View.ViewRect.Width()))) - 1, 1);
-		const int32 NumMipsY = FMath::Max(FPlatformMath::CeilToInt(FMath::Log2(float(View.ViewRect.Height()))) - 1, 1);
+		const int32 NumMipsX = FMath::Max(FPlatformMath::CeilToInt(FMath::Log2(float(View.ViewRect.Width()) * InvDownSampleFactor)) - 1, 1);
+		const int32 NumMipsY = FMath::Max(FPlatformMath::CeilToInt(FMath::Log2(float(View.ViewRect.Height()) * InvDownSampleFactor)) - 1, 1);
 
 		NumMips = FMath::Max(NumMipsX, NumMipsY);
 
@@ -118,7 +122,7 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2D(
 		HZBSize, PF_R16F,
 		FClearValueBinding::None,
-		TexCreate_ShaderResource | (bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable),
+		TexCreate_Memoryless | TexCreate_ShaderResource | (bUseCompute ? TexCreate_UAV : TexCreate_RenderTargetable),
 		NumMips);
 	HZBDesc.Flags |= GFastVRamConfig.HZB;
 
@@ -137,9 +141,9 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 
 	auto ReduceMips = [&](
 		FRDGTextureSRVRef ParentTextureMip, int32 StartDestMip, FVector4 DispatchThreadIdToBufferUV, FVector2D InputViewportMaxBound,
-		bool bOutputClosest, bool bOutputFurthest)
+		bool bOutputClosest, bool bOutputFurthest, bool bUseParentTextureAlphaChannel = false)
 	{
-		FIntPoint SrcSize = FIntPoint::DivideAndRoundUp(ParentTextureMip->Desc.Texture->Desc.Extent, 1 << int32(ParentTextureMip->Desc.MipLevel));
+		FIntPoint SrcSize = FIntPoint::DivideAndRoundUp(ParentTextureMip->Desc.Texture->Desc.Extent / DownSampleFactor, 1 << int32(ParentTextureMip->Desc.MipLevel));
 
 		FSharedHZBParameters ShaderParameters;
 		ShaderParameters.InvSize = FVector2D(1.0f / SrcSize.X, 1.0f / SrcSize.Y);
@@ -147,6 +151,7 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 		ShaderParameters.DispatchThreadIdToBufferUV = DispatchThreadIdToBufferUV;
 		ShaderParameters.ParentTextureMip = ParentTextureMip;
 		ShaderParameters.ParentTextureMipSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		ShaderParameters.bUseParentTextureAlphaChannel = bUseParentTextureAlphaChannel;
 		ShaderParameters.View = View.ViewUniformBuffer;
 
 		FIntPoint DstSize = FIntPoint::DivideAndRoundUp(HZBSize, 1 << StartDestMip);
@@ -207,24 +212,25 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 
 	// Reduce first mips Closesy and furtherest are done at same time.
 	{
-		FIntPoint SrcSize = SceneTextures.SceneDepthTexture->Desc.Extent;
+		FIntPoint SrcSize = ParentTexture->Desc.Extent / DownSampleFactor;
 
-		FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneTextures.SceneDepthTexture));
+		FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(ParentTexture));
 
 		FVector4 DispatchThreadIdToBufferUV;
 		DispatchThreadIdToBufferUV.X = 2.0f / float(SrcSize.X);
 		DispatchThreadIdToBufferUV.Y = 2.0f / float(SrcSize.Y);
-		DispatchThreadIdToBufferUV.Z = View.ViewRect.Min.X / float(SrcSize.X);
-		DispatchThreadIdToBufferUV.W = View.ViewRect.Min.Y / float(SrcSize.Y);
+		DispatchThreadIdToBufferUV.Z = View.ViewRect.Min.X * InvDownSampleFactor / float(SrcSize.X);
+		DispatchThreadIdToBufferUV.W = View.ViewRect.Min.Y * InvDownSampleFactor / float(SrcSize.Y);
 
 		FVector2D InputViewportMaxBound = FVector2D(
-			float(View.ViewRect.Max.X - 0.5f) / float(SrcSize.X),
-			float(View.ViewRect.Max.Y - 0.5f) / float(SrcSize.Y));
+			float(View.ViewRect.Max.X * InvDownSampleFactor - 0.5f) / float(SrcSize.X),
+			float(View.ViewRect.Max.Y * InvDownSampleFactor - 0.5f) / float(SrcSize.Y));
 
 		ReduceMips(
 			ParentTextureMip,
 			/* StartDestMip = */ 0, DispatchThreadIdToBufferUV, InputViewportMaxBound,
-			/* bOutputClosest = */ bReduceClosestDepth, /* bOutputFurthest = */ true);
+			/* bOutputClosest = */ bReduceClosestDepth, /* bOutputFurthest = */ true,
+			/* bUseParentTextureAlphaChannel = */ bUseParentTextureAlphaChannel);
 	}
 
 	// Reduce the next mips
@@ -239,7 +245,7 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 		DispatchThreadIdToBufferUV.W = 0.0f;
 
 		FVector2D InputViewportMaxBound(1.0f, 1.0f);
-		
+
 		{
 			FRDGTextureSRVRef ParentTextureMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(FurthestHZBTexture, StartDestMip - 1));
 			ReduceMips(ParentTextureMip,
@@ -266,4 +272,14 @@ void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTex
 	{
 		ConvertToExternalTexture(GraphBuilder, ClosestHZBTexture, View.ClosestHZB);
 	}
+}
+
+void BuildHZB(FRDGBuilder& GraphBuilder, const FSceneTextureParameters& SceneTextures, FViewInfo& View)
+{
+	BuildHZB_Internal(GraphBuilder, SceneTextures.SceneDepthTexture, View, false);
+}
+
+void BuildHZB(FRDGBuilder& GraphBuilder, const FMobileSceneTextureUniformParameters& SceneTextures, FViewInfo& View)
+{
+	BuildHZB_Internal(GraphBuilder, SceneTextures.SceneColorTexture, View, true);
 }
