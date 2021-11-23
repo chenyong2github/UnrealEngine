@@ -3,9 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using AutomationTool;
-using AutomationTool.DeviceReservation;
-using System.Text.RegularExpressions;
 using System.Linq;
 using Newtonsoft.Json;
 using UnrealBuildTool;
@@ -16,14 +13,14 @@ namespace Gauntlet
 	/// <summary>
 	/// Information that defines a device
 	/// </summary>
-	public class BlacklistEntry
+	public class DenylistEntry
 	{
 		public string TestName;
 
 		public string[] Platforms;
 
 		public string BranchName;
-		public BlacklistEntry()
+		public DenylistEntry()
 		{
 			TestName = "None";
 			Platforms = new string [] { };
@@ -37,62 +34,62 @@ namespace Gauntlet
 	}
 
 
-	public class Blacklist
+	public class Denylist
 	{
 		/// <summary>
 		/// Static instance
 		/// </summary>
-		private static Blacklist _Instance;
+		private static Denylist _Instance;
 
-		IEnumerable<BlacklistEntry> BlacklistEntries;
+		IEnumerable<DenylistEntry> DenylistEntries;
 
 		/// <summary>
 		/// Protected constructor - code should use DevicePool.Instance
 		/// </summary>
-		protected Blacklist()
+		protected Denylist()
 		{
 			if (_Instance == null)
 			{
 				_Instance = this;
 			}
 
-			BlacklistEntries = new BlacklistEntry[0] { };
+			DenylistEntries = new DenylistEntry[0] { };
 
 			// temp, pass in
-			LoadBlacklist(@"P:\Builds\Automation\Fortnite\Config\blacklist.json");
+			LoadDenylist(@"P:\Builds\Automation\Fortnite\Config\denylist.json");
 		}
 
 		/// <summary>
 		/// Access to our singleton
 		/// </summary>
-		public static Blacklist Instance
+		public static Denylist Instance
 		{
 			get
 			{
 				if (_Instance == null)
 				{
-					new Blacklist();
+					new Denylist();
 				}
 				return _Instance;
 			}
 		}
 
-		protected void LoadBlacklist(string InFilePath)
+		protected void LoadDenylist(string InFilePath)
 		{
 			if (File.Exists(InFilePath))
 			{
 				try
 				{ 
-					Gauntlet.Log.Info("Loading blacklist from {0}", InFilePath);
-					List<BlacklistEntry> NewEntries = JsonConvert.DeserializeObject<List<BlacklistEntry>>(File.ReadAllText(InFilePath));
+					Gauntlet.Log.Info("Loading denylist from {0}", InFilePath);
+					List<DenylistEntry> NewEntries = JsonConvert.DeserializeObject<List<DenylistEntry>>(File.ReadAllText(InFilePath));
 
 					if (NewEntries != null)
 					{
-						BlacklistEntries = NewEntries;
+						DenylistEntries = NewEntries;
 					}
 
 					// cannonical branch format is ++
-					BlacklistEntries = BlacklistEntries.Select(E =>
+					DenylistEntries = DenylistEntries.Select(E =>
 					{
 						E.BranchName = E.BranchName.Replace("/", "+");
 						return E;
@@ -100,15 +97,15 @@ namespace Gauntlet
 				}
 				catch (Exception Ex)
 				{
-				Log.Warning("Failed to load blacklist file {0}. {1}", InFilePath, Ex.Message);
+				Log.Warning("Failed to load denylist file {0}. {1}", InFilePath, Ex.Message);
 				}
 				
 			}
 		}
-		public bool IsTestBlacklisted(string InNodeName, UnrealTargetPlatform InPlatform, string InBranchName)
+		public bool IsTestDenylisted(string InNodeName, UnrealTargetPlatform InPlatform, string InBranchName)
 		{
 			// find any references to this test irrespective of platform & branch
-			IEnumerable<BlacklistEntry> Entries = BlacklistEntries.Where(E => E.TestName == InNodeName);
+			IEnumerable<DenylistEntry> Entries = DenylistEntries.Where(E => E.TestName == InNodeName);
 
 			string NormalizedBranchName = InBranchName.Replace("/", "+");
 
