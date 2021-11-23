@@ -592,6 +592,9 @@ extern RHI_API bool GRHISupportsRayTracingAsyncBuildAccelerationStructure;
 /** Whether or not the RHI supports the AMD Hit Token extension. */
 extern RHI_API bool GRHISupportsRayTracingAMDHitToken;
 
+/** Whether or not the RHI supports inline ray tracing. */
+extern RHI_API bool GRHISupportsInlineRayTracing;
+
 /** Required alignment for ray tracing acceleration structures. */
 extern RHI_API uint32 GRHIRayTracingAccelerationStructureAlignment;
 

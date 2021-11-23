@@ -1397,6 +1397,7 @@ bool GRHISupportsRayTracingPSOAdditions = false;
 bool GRHISupportsRayTracingDispatchIndirect = false;
 bool GRHISupportsRayTracingAsyncBuildAccelerationStructure = false;
 bool GRHISupportsRayTracingAMDHitToken = false;
+bool GRHISupportsInlineRayTracing = false;
 uint32 GRHIRayTracingAccelerationStructureAlignment = 0;
 uint32 GRHIRayTracingScratchBufferAlignment = 0;
 uint32 GRHIRayTracingShaderTableAlignment = 0;
@@ -2229,6 +2230,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bSupports4ComponentUAVReadWrite);
 	GET_SECTION_BOOL_HELPER(bSupportsRenderTargetWriteMask);
 	GET_SECTION_BOOL_HELPER(bSupportsRayTracing);
+	GET_SECTION_BOOL_HELPER(bSupportsInlineRayTracing);
 	GET_SECTION_BOOL_HELPER(bSupportsRayTracingProceduralPrimitive);
 	GET_SECTION_BOOL_HELPER(bSupportsRayTracingIndirectInstanceData);
 	GET_SECTION_BOOL_HELPER(bSupportsPathTracing);
