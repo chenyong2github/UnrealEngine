@@ -185,6 +185,10 @@ private:
 	bool m_manualRecompileTriggered;
 	types::unordered_map<std::wstring, types::vector<symbols::ModifiedObjFile>> m_liveModuleToModifiedOrNewObjFiles;
 
+	// BEGIN EPIC MOD
+	types::unordered_map<std::wstring, types::vector<std::wstring>> m_liveModuleToAdditionalLibraries;
+	// END EPIC MOD
+
 	// restart mechanism
 	CriticalSection m_restartCS;
 	void* m_restartJob;

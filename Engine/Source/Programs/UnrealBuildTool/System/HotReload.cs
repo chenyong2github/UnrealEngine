@@ -1342,6 +1342,16 @@ namespace UnrealBuildTool
 							}
 							Writer.WriteArrayEnd();
 
+							Writer.WriteArrayStart("Libraries");
+							foreach (FileItem InputFile in Action.PrerequisiteItems)
+							{
+								if (InputFile.HasExtension(".lib"))
+								{
+									Writer.WriteValue(InputFile.FullName);
+								}
+							}
+							Writer.WriteArrayEnd();
+
 							Writer.WriteObjectEnd();
 						}
 					}

@@ -46,6 +46,13 @@ public:
 	virtual void ShutdownModule() override = 0;
 };
 
+struct FModuleFiles
+{
+	TArray<FString> Objects;
+	TArray<FString> Libraries;
+};
+typedef TMap<FString, FModuleFiles> FModuleToModuleFiles;
+
 class ILiveCodingServer : public IModularFeature
 {
 public:
@@ -68,8 +75,7 @@ public:
 	DECLARE_DELEGATE_TwoParams(FLogOutputDelegate, ELiveCodingLogVerbosity, const wchar_t*);
 	virtual FLogOutputDelegate& GetLogOutputDelegate() = 0;
 
-	typedef TMap<FString, TArray<FString>> FModuleToObjectFiles;
-	DECLARE_DELEGATE_RetVal_FiveParams(ELiveCodingCompileResult, FCompileDelegate, const TArray<FString>&, const TArray<FString>&, TArray<FString>&, FModuleToObjectFiles&, ELiveCodingCompileReason);
+	DECLARE_DELEGATE_RetVal_FiveParams(ELiveCodingCompileResult, FCompileDelegate, const TArray<FString>&, const TArray<FString>&, TArray<FString>&, FModuleToModuleFiles&, ELiveCodingCompileReason);
 	virtual FCompileDelegate& GetCompileDelegate() = 0;
 
 	DECLARE_DELEGATE(FCompileStartedDelegate);

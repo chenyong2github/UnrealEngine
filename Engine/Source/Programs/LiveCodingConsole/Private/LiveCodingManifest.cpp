@@ -94,6 +94,21 @@ bool FLiveCodingManifest::Parse(FJsonObject& Object, FString& OutFailReason)
 			}
 			InputFiles.Add(Input->AsString());
 		}
+
+		const TArray<TSharedPtr<FJsonValue>>* JsonLibraries;
+		if (ModuleObject.TryGetArrayField(TEXT("Libraries"), JsonLibraries))
+		{
+			TArray<FString>& LibraryFiles = Libraries.Add(OutputFile);
+			for (const TSharedPtr<FJsonValue>& Library : *JsonLibraries)
+			{
+				if (Library->Type != EJson::String)
+				{
+					OutFailReason = TEXT("invalid module library field");
+					return false;
+				}
+				LibraryFiles.Add(Library->AsString());
+			}
+		}
 	}
 
 	return true;
