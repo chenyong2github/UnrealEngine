@@ -40,6 +40,8 @@ const FName FSessionInfoTabs::SessionInfoID(TEXT("SessionInfo"));
 
 SSessionInfoWindow::SSessionInfoWindow()
 	: DurationActive(0.0f)
+	, AnalysisSession(nullptr)
+	, bIsSessionInfoSet(false)
 {
 }
 
@@ -339,23 +341,39 @@ void SSessionInfoWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FT
 
 void SSessionInfoWindow::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	// If we already have the session info data we no longer poll for it.
-	if (bIsSessionInfoSet)
-	{
-		return;
-	}
-
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 
-	if (Session.IsValid())
+	if (Session != AnalysisSession)
+	{
+		// The session has changed. We need new info.
+		AnalysisSession = Session;
+		bIsSessionInfoSet = false;
+
+		// We can quickly get the session name and uri.
+		{
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+			SessionNameText = FText::FromString(FPaths::GetBaseFilename(Session->GetName()));
+
+			FString Uri(Session->GetName());
+			FPaths::NormalizeFilename(Uri);
+			UriText = FText::FromString(Uri);
+		}
+
+		PlatformText = FText::GetEmpty();
+		AppNameText = FText::GetEmpty();
+		BranchText = FText::GetEmpty();
+		BuildVersionText = FText::GetEmpty();
+		ChangelistText = FText::GetEmpty();
+		BuildConfigurationTypeText = FText::GetEmpty();
+		BuildTargetTypeText = FText::GetEmpty();
+		CommandLineText = FText::GetEmpty();
+	}
+
+	// If we already have the session info data, we no longer poll for it.
+	if (!bIsSessionInfoSet && Session.IsValid())
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-		SessionNameText = FText::FromString(FPaths::GetBaseFilename(Session->GetName()));
-
-		FString Uri(Session->GetName());
-		FPaths::NormalizeFilename(Uri);
-		UriText = FText::FromString(Uri);
 
 		const TraceServices::IDiagnosticsProvider* DiagnosticsProvider = TraceServices::ReadDiagnosticsProvider(*Session.Get());
 
@@ -370,6 +388,7 @@ void SSessionInfoWindow::Tick(const FGeometry& AllottedGeometry, const double In
 			BuildConfigurationTypeText = FText::FromString(LexToString(SessionInfo.ConfigurationType));
 			BuildTargetTypeText = FText::FromString(LexToString(SessionInfo.TargetType));
 			CommandLineText = FText::FromString(SessionInfo.CommandLine);
+
 			bIsSessionInfoSet = true;
 		}
 	}
@@ -421,6 +440,11 @@ FReply SSessionInfoWindow::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 
 FReply SSessionInfoWindow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
+	if (FInsightsManager::Get()->OnDragOver(DragDropEvent))
+	{
+		return FReply::Handled();
+	}
+
 	return SCompoundWidget::OnDragOver(MyGeometry, DragDropEvent);
 }
 
@@ -428,6 +452,11 @@ FReply SSessionInfoWindow::OnDragOver(const FGeometry& MyGeometry, const FDragDr
 
 FReply SSessionInfoWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
+	if (FInsightsManager::Get()->OnDrop(DragDropEvent))
+	{
+		return FReply::Handled();
+	}
+
 	return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
 }
 

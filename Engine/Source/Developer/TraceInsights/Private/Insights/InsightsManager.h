@@ -5,6 +5,7 @@
 #include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Input/DragAndDrop.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/ModuleService.h"
 
@@ -239,6 +240,11 @@ public:
 	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
 	void LoadTraceFile(const FString& TraceFilename, bool InAutoQuit = false);
+
+	bool OnDragOver(const FDragDropEvent& DragDropEvent);
+	bool OnDrop(const FDragDropEvent& DragDropEvent);
+
+	void UpdateAppTitle();
 
 	/** Opens the Settings dialog. */
 	void OpenSettings();

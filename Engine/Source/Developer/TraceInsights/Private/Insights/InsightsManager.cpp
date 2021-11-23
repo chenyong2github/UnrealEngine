@@ -800,6 +800,80 @@ void FInsightsManager::LoadTraceFile(const FString& InTraceFilename, bool InAuto
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FInsightsManager::OnDragOver(const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FExternalDragOperation> DragDropOp = DragDropEvent.GetOperationAs<FExternalDragOperation>();
+	if (DragDropOp.IsValid())
+	{
+		if (DragDropOp->HasFiles())
+		{
+			const TArray<FString>& Files = DragDropOp->GetFiles();
+			if (Files.Num() == 1)
+			{
+				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
+				if (DraggedFileExtension == TEXT(".utrace"))
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FInsightsManager::OnDrop(const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FExternalDragOperation> DragDropOp = DragDropEvent.GetOperationAs<FExternalDragOperation>();
+	if (DragDropOp.IsValid())
+	{
+		if (DragDropOp->HasFiles())
+		{
+			// For now, only allow a single file.
+			const TArray<FString>& Files = DragDropOp->GetFiles();
+			if (Files.Num() == 1)
+			{
+				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
+				if (DraggedFileExtension == TEXT(".utrace"))
+				{
+					LoadTraceFile(Files[0]);
+					UpdateAppTitle();
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsManager::UpdateAppTitle()
+{
+#if !WITH_EDITOR
+	TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
+	if (RootWindow)
+	{
+		if (CurrentTraceFilename.IsEmpty())
+		{
+			const FText AppTitle = LOCTEXT("UnrealInsightsAppName", "Unreal Insights");
+			RootWindow->SetTitle(AppTitle);
+		}
+		else
+		{
+			const FString SessionName = FPaths::GetBaseFilename(CurrentTraceFilename);
+			const FText AppTitle = FText::Format(LOCTEXT("UnrealInsightsAppNameFmt", "{0} - Unreal Insights"), FText::FromString(SessionName));
+			RootWindow->SetTitle(AppTitle);
+		}
+	}
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FInsightsManager::OpenSettings()
 {
 	TSharedPtr<STraceStoreWindow> Wnd = GetTraceStoreWindow();
