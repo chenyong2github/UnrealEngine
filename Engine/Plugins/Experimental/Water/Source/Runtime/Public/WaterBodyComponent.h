@@ -357,7 +357,7 @@ protected:
 	void CreateOrUpdateWaterMID();
 	void CreateOrUpdateUnderwaterPostProcessMID();
 	void PrepareCurrentPostProcessSettings();
-	void ApplyNavigationSettings() const;
+	void ApplyNavigationSettings();
 	void RequestGPUWaveDataUpdate();
 	EObjectFlags GetTransientMIDFlags() const; 
 
