@@ -1232,105 +1232,6 @@ namespace UE
 
 			//////////////////////////////////////////////////////////////////////////
 			/// FFbxMesh implementation
-#if 0
-			FString FFbxMesh::GetUniqueIDString(const uint64 UniqueID)
-			{
-				FStringFormatNamedArguments FormatArguments;
-				FormatArguments.Add(TEXT("UniqueID"), UniqueID);
-				return FString::Format(TEXT("{UniqueID}"), FormatArguments);
-			}
-
-			FString FFbxMesh::GetMeshName(FbxGeometryBase* Mesh)
-			{
-				FString MeshName = FFbxHelper::GetFbxObjectName(Mesh);
-				if (MeshName.IsEmpty())
-				{
-					if (Mesh->GetNodeCount() > 0)
-					{
-						if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
-						{
-							MeshName = TEXT("Mesh_");
-						}
-						else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
-						{
-							MeshName = TEXT("Shape_");
-						}
-						MeshName += FFbxHelper::GetFbxObjectName(Mesh->GetNode(0));
-					}
-					else
-					{
-						uint64 UniqueFbxObjectID = Mesh->GetUniqueID();
-						MeshName += GetUniqueIDString(UniqueFbxObjectID);
-					}
-				}
-				return MeshName;
-			}
-			
-			FString FFbxMesh::GetMeshUniqueID(FbxGeometryBase* Mesh)
-			{
-				FString MeshUniqueID;
-				if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
-				{
-					MeshUniqueID = TEXT("\\Mesh\\");
-				}
-				else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
-				{
-					MeshUniqueID = TEXT("\\Shape\\");
-				}
-				FString MeshName = FFbxHelper::GetFbxObjectName(Mesh);
-				if (MeshName.IsEmpty())
-				{
-					if (Mesh->GetNodeCount() > 0)
-					{
-						MeshUniqueID += FFbxHelper::GetFbxNodeHierarchyName(Mesh->GetNode(0));
-					}
-					else
-					{
-						MeshUniqueID += GetMeshName(Mesh);
-					}
-				}
-				else
-				{
-					MeshUniqueID += MeshName;
-				}
-				return MeshUniqueID;
-			}
-#endif
-
-			void FFbxMesh::ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode)
-			{
-				TArray<FString> JointNodeUniqueIDs;
-				const int32 SkinDeformerCount = Mesh->GetDeformerCount(FbxDeformer::eSkin);
-				for (int32 DeformerIndex = 0; DeformerIndex < SkinDeformerCount; DeformerIndex++)
-				{
-					FbxSkin* Skin = (FbxSkin*)Mesh->GetDeformer(DeformerIndex, FbxDeformer::eSkin);
-					if (!ensure(Skin))
-					{
-						continue;
-					}
-					const int32 ClusterCount = Skin->GetClusterCount();
-					JointNodeUniqueIDs.Reserve(ClusterCount);
-					for (int32 ClusterIndex = 0; ClusterIndex < ClusterCount; ClusterIndex++)
-					{
-						FbxCluster* Cluster = Skin->GetCluster(ClusterIndex);
-						// When Maya plug-in exports rigid binding, it will generate "CompensationCluster" for each ancestor links.
-						// FBX writes these "CompensationCluster" out. The CompensationCluster also has weight 1 for vertices.
-						// Unreal importer should skip these clusters.
-						if (!Cluster || (FCStringAnsi::Strcmp(Cluster->GetUserDataID(), "Maya_ClusterHint") == 0 && FCStringAnsi::Strcmp(Cluster->GetUserData(), "CompensationCluster") == 0))
-						{
-							continue;
-						}
-						FbxNode* Link = Cluster->GetLink();
-						FString JointNodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Link);
-						// find the bone index
-						if (!JointNodeUniqueIDs.Contains(JointNodeUniqueID))
-						{
-							JointNodeUniqueIDs.Add(JointNodeUniqueID);
-							MeshNode->SetSkeletonDependencyUid(JointNodeUniqueID);
-						}
-					}
-				}
-			}
 
 			void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
 			{
@@ -1357,7 +1258,7 @@ namespace UE
 						{
 							//Set the skinned mesh attribute
 							MeshNode->SetSkinnedMesh(true);
-							ExtractSkinnedMeshNodeJoints(SDKScene, Mesh, MeshNode);
+							ExtractSkinnedMeshNodeJoints(SDKScene, NodeContainer, Mesh, MeshNode);
 						}
 						Mesh->ComputeBBox();
 						const int32 MeshVertexCount = Mesh->GetControlPointsCount();
@@ -1475,6 +1376,117 @@ namespace UE
 									}
 								}
 							}
+						}
+					}
+				}
+			}
+
+			bool FFbxMesh::GetGlobalJointBindPoseTransform(FbxScene* SDKScene, FbxNode* Joint, FbxAMatrix& GlobalBindPoseJointMatrix)
+			{
+				const FString LinkName = FFbxHelper::GetFbxObjectName(Joint);
+
+				const int32 PoseCount = SDKScene->GetPoseCount();
+				for (int32 PoseIndex = 0; PoseIndex < PoseCount; PoseIndex++)
+				{
+					FbxPose* CurrentPose = SDKScene->GetPose(PoseIndex);
+					if (CurrentPose && CurrentPose->IsBindPose())
+					{
+						FString PoseName = FFbxHelper::GetFbxObjectName(CurrentPose);
+						int32 PoseLinkIndex = CurrentPose->Find(Joint);
+						if (PoseLinkIndex >= 0)
+						{
+							FbxMatrix NoneAffineMatrix = CurrentPose->GetMatrix(PoseLinkIndex);
+							GlobalBindPoseJointMatrix = *(FbxAMatrix*)(double*)&NoneAffineMatrix;
+							return true;
+						}
+					}
+				}
+
+				//Search all skeletalmesh(FbxGeometry with valid deformer) using this joint and see if there is a valid FbxCluster
+				//containing a TransformLinkMatrix for this joint
+				const int32 GeometryCount = SDKScene->GetGeometryCount();
+				for (int32 GeometryIndex = 0; GeometryIndex < GeometryCount; ++GeometryIndex)
+				{
+					const FbxGeometry* Geometry = SDKScene->GetGeometry(GeometryIndex);
+					if (!ensure(Geometry))
+					{
+						continue;
+					}
+					const int32 GeometryDeformerCount = Geometry->GetDeformerCount(FbxDeformer::eSkin);
+					for (int32 GeometryDeformerIndex = 0; GeometryDeformerIndex < GeometryDeformerCount; ++GeometryDeformerIndex)
+					{
+						const FbxSkin* Skin = (FbxSkin*)Geometry->GetDeformer(GeometryDeformerIndex, FbxDeformer::eSkin);
+						if (!ensure(Skin))
+						{
+							continue;
+						}
+						const int32 ClusterCount = Skin->GetClusterCount();
+						for (int32 ClusterIndex = 0; ClusterIndex < ClusterCount; ClusterIndex++)
+						{
+							const FbxCluster* Cluster = Skin->GetCluster(ClusterIndex);
+							// When Maya plug-in exports rigid binding, it will generate "CompensationCluster" for each ancestor links.
+							// FBX writes these "CompensationCluster" out. The CompensationCluster also has weight 1 for vertices.
+							// Unreal importer should skip these clusters.
+							if (!Cluster || (FCStringAnsi::Strcmp(Cluster->GetUserDataID(), "Maya_ClusterHint") == 0 && FCStringAnsi::Strcmp(Cluster->GetUserData(), "CompensationCluster") == 0))
+							{
+								continue;
+							}
+							if (Joint == Cluster->GetLink())
+							{
+								Cluster->GetTransformLinkMatrix(GlobalBindPoseJointMatrix);
+								return true;
+							}
+						}
+					}
+				}
+				return false;
+			}
+
+			void FFbxMesh::ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode)
+			{
+				TArray<FString> JointNodeUniqueIDs;
+
+				//Get the bind pose from fbx
+				const int32 PoseCount = SDKScene->GetPoseCount();
+				TArray<FbxPose*> BindPoses;
+				for (int32 PoseIndex = 0; PoseIndex < PoseCount; PoseIndex++)
+				{
+					FbxPose* CurrentPose = SDKScene->GetPose(PoseIndex);
+
+					// current pose is bind pose, 
+					if (CurrentPose && CurrentPose->IsBindPose())
+					{
+						BindPoses.Add(CurrentPose);
+					}
+				}
+
+				const int32 SkinDeformerCount = Mesh->GetDeformerCount(FbxDeformer::eSkin);
+				for (int32 DeformerIndex = 0; DeformerIndex < SkinDeformerCount; DeformerIndex++)
+				{
+					FbxSkin* Skin = (FbxSkin*)Mesh->GetDeformer(DeformerIndex, FbxDeformer::eSkin);
+					if (!ensure(Skin))
+					{
+						continue;
+					}
+					const int32 ClusterCount = Skin->GetClusterCount();
+					JointNodeUniqueIDs.Reserve(JointNodeUniqueIDs.Num() + ClusterCount);
+					for (int32 ClusterIndex = 0; ClusterIndex < ClusterCount; ClusterIndex++)
+					{
+						FbxCluster* Cluster = Skin->GetCluster(ClusterIndex);
+						// When Maya plug-in exports rigid binding, it will generate "CompensationCluster" for each ancestor links.
+						// FBX writes these "CompensationCluster" out. The CompensationCluster also has weight 1 for vertices.
+						// Unreal importer should skip these clusters.
+						if (!Cluster || (FCStringAnsi::Strcmp(Cluster->GetUserDataID(), "Maya_ClusterHint") == 0 && FCStringAnsi::Strcmp(Cluster->GetUserData(), "CompensationCluster") == 0))
+						{
+							continue;
+						}
+						FbxNode* Link = Cluster->GetLink();
+						FString JointNodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Link);
+						// find the bone index
+						if (!JointNodeUniqueIDs.Contains(JointNodeUniqueID))
+						{
+							JointNodeUniqueIDs.Add(JointNodeUniqueID);
+							MeshNode->SetSkeletonDependencyUid(JointNodeUniqueID);
 						}
 					}
 				}

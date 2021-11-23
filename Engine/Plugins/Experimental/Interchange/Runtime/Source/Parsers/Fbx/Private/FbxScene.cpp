@@ -69,13 +69,17 @@ namespace UE
 				CreateAssetNodeReference(UnrealSceneNode, NodeAttribute, NodeContainer, UInterchangeLightNode::StaticAssetTypeName());
 			}
 
-			UInterchangeSceneNode* FFbxScene::AddHierarchyRecursively(FbxNode* Node, FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
+			void FFbxScene::AddHierarchyRecursively(UInterchangeSceneNode* UnrealParentNode, FbxNode* Node, FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				FString NodeName = FFbxHelper::GetFbxObjectName(Node);
 				FString NodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Node);
 
 				UInterchangeSceneNode* UnrealNode = CreateTransformNode(NodeContainer, NodeName, NodeUniqueID);
 				check(UnrealNode);
+				if (UnrealParentNode)
+				{
+					UnrealNode->SetParentUid(UnrealParentNode->GetUniqueID());
+				}
 				
 				auto GetConvertedTransform = [Node](FbxAMatrix& NewFbxMatrix)
 				{
@@ -125,7 +129,6 @@ namespace UE
 						case FbxNodeAttribute::eOpticalReference:
 						case FbxNodeAttribute::eOpticalMarker:
 						case FbxNodeAttribute::eCachedEffect:
-						case FbxNodeAttribute::eNull:
 						case FbxNodeAttribute::eMarker:
 						case FbxNodeAttribute::eCameraStereo:
 						case FbxNodeAttribute::eCameraSwitcher:
@@ -139,14 +142,40 @@ namespace UE
 						case FbxNodeAttribute::eLine:
 							//Unsupported attribute
 							break;
+
 						case FbxNodeAttribute::eShape: //We do not add a dependency for shape on the scene node since shapes are a MeshNode dependency.
 							break;
+
+						case FbxNodeAttribute::eNull:
 						case FbxNodeAttribute::eSkeleton:
+							//eNull node will be set has a skeleton node
 						{
 							//Add the joint specialized type
 							UnrealNode->AddSpecializedType(FSceneNodeStaticData::GetJointSpecializeTypeString());
+							//Get the bind pose for this joint
+							FbxAMatrix GlobalBindPoseJointMatrix;
+							if (FFbxMesh::GetGlobalJointBindPoseTransform(SDKScene, Node, GlobalBindPoseJointMatrix))
+							{
+								FTransform GlobalBindPoseJointTransform = GetConvertedTransform(GlobalBindPoseJointMatrix);
+								UnrealNode->SetCustomGlobalTransform(GlobalBindPoseJointTransform);
+								//We grab the fbx parent node to compute the local transform
+								if (FbxNode* ParentNode = Node->GetParent())
+								{
+									FbxAMatrix GlobalFbxParentMatrix = ParentNode->EvaluateGlobalTransform();
+									FFbxMesh::GetGlobalJointBindPoseTransform(SDKScene, ParentNode, GlobalFbxParentMatrix);
+									FbxAMatrix	LocalFbxMatrix = GlobalFbxParentMatrix.Inverse() * GlobalBindPoseJointMatrix;
+									FTransform LocalBindPoseJointTransform = GetConvertedTransform(LocalFbxMatrix);
+									UnrealNode->SetCustomLocalTransform(LocalBindPoseJointTransform);
+								}
+								else
+								{
+									//No parent, set the same matrix has the global
+									UnrealNode->SetCustomLocalTransform(GlobalBindPoseJointTransform);
+								}
+							}
 							break;
 						}
+
 						case FbxNodeAttribute::eMesh:
 						{
 							//For Mesh attribute we add the fbx nodes materials
@@ -179,13 +208,8 @@ namespace UE
 				for (int32 ChildIndex = 0; ChildIndex < ChildCount; ++ChildIndex)
 				{
 					FbxNode* ChildNode = Node->GetChild(ChildIndex);
-					UInterchangeSceneNode* UnrealChildNode = AddHierarchyRecursively(ChildNode, SDKScene, NodeContainer);
-					if (UnrealChildNode)
-					{
-						UnrealChildNode->SetParentUid(UnrealNode->GetUniqueID());
-					}
+					AddHierarchyRecursively(UnrealNode, ChildNode, SDKScene, NodeContainer);
 				}
-				return UnrealNode;
 			}
 
 			UInterchangeSceneNode* FFbxScene::CreateTransformNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID)
@@ -208,7 +232,7 @@ namespace UE
 			void FFbxScene::AddHierarchy(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				 FbxNode* RootNode = SDKScene->GetRootNode();
-				 AddHierarchyRecursively(RootNode, SDKScene, NodeContainer);
+				 AddHierarchyRecursively(nullptr, RootNode, SDKScene, NodeContainer);
 			}
 		} //ns Private
 	} //ns Interchange

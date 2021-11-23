@@ -169,37 +169,25 @@ namespace UE
 				return FVector(Vector[0], -Vector[1], Vector[2]);
 			}
 
-			ANSICHAR* FFbxConvert::MakeName(const ANSICHAR* Name)
+			FString FFbxConvert::MakeName(const ANSICHAR* Name)
 			{
-				const int SpecialChars[] = { '.', ',', '/', '`', '%' };
+				const TCHAR SpecialChars[] = { TEXT('.'), TEXT(','), TEXT('/'), TEXT('`'), TEXT('%') };
 
-				const int len = FCStringAnsi::Strlen(Name);
-				ANSICHAR* TmpName = new ANSICHAR[len + 1];
-
-				FCStringAnsi::Strcpy(TmpName, len + 1, Name);
-
-				for (int32 i = 0; i < UE_ARRAY_COUNT(SpecialChars); i++)
-				{
-					ANSICHAR* CharPtr = TmpName;
-					while ((CharPtr = FCStringAnsi::Strchr(CharPtr, SpecialChars[i])) != NULL)
-					{
-						CharPtr[0] = '_';
-					}
-				}
+				FString TmpName = MakeString(Name);
 
 				// Remove namespaces
-				ANSICHAR* NewName;
-				NewName = FCStringAnsi::Strchr(TmpName, ':');
-
-				// there may be multiple namespace, so find the last ':'
-				while (NewName && FCStringAnsi::Strchr(NewName + 1, ':'))
+				int32 LastNamespaceTokenIndex = INDEX_NONE;
+				if (TmpName.FindLastChar(TEXT(':'), LastNamespaceTokenIndex))
 				{
-					NewName = FCStringAnsi::Strchr(NewName + 1, ':');
+					const bool bAllowShrinking = true;
+					//+1 to remove the ':' character we found
+					TmpName.RightChopInline(LastNamespaceTokenIndex + 1, bAllowShrinking);
 				}
 
-				if (NewName)
+				//Remove the special chars
+				for (int32 i = 0; i < UE_ARRAY_COUNT(SpecialChars); i++)
 				{
-					return NewName + 1;
+					TmpName.ReplaceCharInline(SpecialChars[i], TEXT('_'), ESearchCase::CaseSensitive);
 				}
 
 				return TmpName;

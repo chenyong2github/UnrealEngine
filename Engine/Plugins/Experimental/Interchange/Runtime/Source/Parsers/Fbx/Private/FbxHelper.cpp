@@ -100,7 +100,7 @@ namespace UE
 				{
 					return FString();
 				}
-				FString ObjName = UTF8_TO_TCHAR(FFbxConvert::MakeName(Object->GetName()));
+				FString ObjName = FFbxConvert::MakeName(Object->GetName());
 				if (ObjName.Equals(TEXT("none"), ESearchCase::IgnoreCase))
 				{
 					//Replace None by Null because None clash with NAME_None and the create asset will instead call the object ClassName_X

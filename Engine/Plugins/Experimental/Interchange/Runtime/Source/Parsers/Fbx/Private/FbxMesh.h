@@ -112,18 +112,11 @@ namespace UE
 					: Parser(InParser)
 				{}
 
-#if 0
-				static FString GetMeshName(FbxGeometryBase* Mesh);
-				static FString GetMeshUniqueID(FbxGeometryBase* Mesh);
-#endif
-				void ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode);
 				void AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
-			
+				static bool GetGlobalJointBindPoseTransform(FbxScene* SDKScene, FbxNode* Joint, FbxAMatrix& GlobalBindPoseJointMatrix);
 			protected:
+				void ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode);
 				UInterchangeMeshNode* CreateMeshNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID);
-#if 0
-				static FString GetUniqueIDString(const uint64 UniqueID);
-#endif
 
 			private:
 				FFbxParser& Parser;
