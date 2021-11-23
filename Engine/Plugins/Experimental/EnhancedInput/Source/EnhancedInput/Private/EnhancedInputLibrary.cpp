@@ -34,7 +34,7 @@ void UEnhancedInputLibrary::RequestRebuildControlMappingsUsingContext(const UInp
 			{
 				FModifyContextOptions Options {};
 				Options.bForceImmediately = bForceImmediately;
-				Subsystem->RequestRebuildInputControlMappings(Options);
+				Subsystem->RequestRebuildControlMappings(Options);
 			}
 		});
 }

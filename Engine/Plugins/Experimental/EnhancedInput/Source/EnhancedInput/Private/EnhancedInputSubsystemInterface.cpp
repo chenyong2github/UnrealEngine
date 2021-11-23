@@ -40,19 +40,19 @@ void IEnhancedInputSubsystemInterface::ClearAllMappings()
 	if (UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
 	{
 		PlayerInput->AppliedInputContexts.Empty();
-		RequestRebuildInputControlMappings();
+		RequestRebuildControlMappings();
 	}
 }
 
-void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const bool bIgnoreAllPressedKeysUntilRelease /* = true */)
+void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const bool bIgnoreAllPressedKeysUntilRelease)
 {
 	FModifyContextOptions Options {};
 	Options.bIgnoreAllPressedKeysUntilRelease = bIgnoreAllPressedKeysUntilRelease;
 	
-	AddInputMappingContext(MappingContext, Priority, Options);
+	AddMappingContext(MappingContext, Priority, Options);
 }
 
-void IEnhancedInputSubsystemInterface::AddInputMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const FModifyContextOptions& Options)
+void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingContext* MappingContext, int32 Priority, const FModifyContextOptions& Options)
 {
 	// Layer mappings on top of existing mappings
 	if (MappingContext)
@@ -60,41 +60,41 @@ void IEnhancedInputSubsystemInterface::AddInputMappingContext(const UInputMappin
 		if (UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
 		{
 			PlayerInput->AppliedInputContexts.Add(MappingContext, Priority);
-			RequestRebuildInputControlMappings(Options);
+			RequestRebuildControlMappings(Options);
 		}
 	}
 }
 
-void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingContext* MappingContext, const bool bIgnoreAllPressedKeysUntilRelease /* = true */)
+void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingContext* MappingContext, const bool bIgnoreAllPressedKeysUntilRelease)
 {
 	FModifyContextOptions Options {};
 	Options.bIgnoreAllPressedKeysUntilRelease = bIgnoreAllPressedKeysUntilRelease;
 	
-	RemoveInputMappingContext(MappingContext, Options);
+	RemoveMappingContext(MappingContext, Options);
 }
 
-void IEnhancedInputSubsystemInterface::RemoveInputMappingContext(const UInputMappingContext* MappingContext, const FModifyContextOptions& Options)
+void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingContext* MappingContext, const FModifyContextOptions& Options)
 {
 	if (MappingContext)
 	{
 		if (UEnhancedPlayerInput* PlayerInput = GetPlayerInput())
 		{
 			PlayerInput->AppliedInputContexts.Remove(MappingContext);
-			RequestRebuildInputControlMappings(Options);
+			RequestRebuildControlMappings(Options);
 		}
 	}
 }
 
-void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(bool bForceImmediately, const bool bIgnoreAllPressedKeysUntilRelease /* = true */)
+void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(bool bForceImmediately, const bool bIgnoreAllPressedKeysUntilRelease)
 {
 	FModifyContextOptions Options;
 	Options.bForceImmediately = bForceImmediately;
 	Options.bIgnoreAllPressedKeysUntilRelease = bIgnoreAllPressedKeysUntilRelease;
 	
-	RequestRebuildInputControlMappings(Options);
+	RequestRebuildControlMappings(Options);
 }
 
-void IEnhancedInputSubsystemInterface::RequestRebuildInputControlMappings(const FModifyContextOptions& Options)
+void IEnhancedInputSubsystemInterface::RequestRebuildControlMappings(const FModifyContextOptions& Options)
 {
 	bMappingRebuildPending = true;
 	bIgnoreAllPressedKeysUntilReleaseOnRebuild &= Options.bIgnoreAllPressedKeysUntilRelease;
