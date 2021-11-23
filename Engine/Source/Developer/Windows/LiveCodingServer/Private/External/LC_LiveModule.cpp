@@ -1343,7 +1343,9 @@ void LiveModule::UpdateDirectoryCache(DirectoryCache* cache)
 }
 
 
-LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, DirectoryCache* directoryCache, UpdateType::Enum updateType, const types::vector<symbols::ModifiedObjFile>& modifiedOrNewObjFiles)
+// BEGIN EPIC MOD
+LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, DirectoryCache* directoryCache, UpdateType::Enum updateType, const types::vector<symbols::ModifiedObjFile>& modifiedOrNewObjFiles, const types::vector<std::wstring>& additionalLibraries)
+// END EPIC MOD
 {
 	telemetry::Scope updateScope("Update live module");
 
@@ -3050,6 +3052,20 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			linkerOptions += L"\"\n";
 		}
 	}
+	// BEGIN EPIC MOD
+	{
+		const size_t count = additionalLibraries.size();
+		for (size_t i = 0u; i < count; ++i)
+		{
+			const std::wstring& libPath = additionalLibraries[i];
+			LC_LOG_DEV("Pulling in additional LIB file %s", libPath.c_str());
+
+			linkerOptions += L"\"";
+			linkerOptions += libPath;
+			linkerOptions += L"\"\n";
+		}
+	}
+	// END EPIC MOD
 
 	// add UE4-specific helper library to support NatVis visualizers when debugging
 	if (appSettings::g_ue4EnableNatVisSupport->GetValue())

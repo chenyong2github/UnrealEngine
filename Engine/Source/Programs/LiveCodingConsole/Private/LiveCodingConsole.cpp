@@ -265,7 +265,7 @@ private:
 		LogWidget->AppendLine(GetLogColor(Verbosity), MoveTemp(Text));
 	}
 
-	ELiveCodingCompileResult CompilePatch(const TArray<FString>& Targets, const TArray<FString>& ValidModules, TArray<FString>& RequiredModules, TMap<FString, TArray<FString>>& ModuleToObjectFiles, ELiveCodingCompileReason CompileReason)
+	ELiveCodingCompileResult CompilePatch(const TArray<FString>& Targets, const TArray<FString>& ValidModules, TArray<FString>& RequiredModules, FModuleToModuleFiles& ModuleToModuleFiles, ELiveCodingCompileReason CompileReason)
 	{
 		// Update the compile start time. This gets copied into the last patch time once a patch has been confirmed to have been applied.
 		NextPatchStartTime = FDateTime::UtcNow();
@@ -385,8 +385,17 @@ private:
 			{
 				if (FileManager.GetTimeStamp(*ObjectFileName) > MinTimeStamp)
 				{
-					ModuleToObjectFiles.FindOrAdd(Pair.Key).Add(ObjectFileName);
+					ModuleToModuleFiles.FindOrAdd(Pair.Key).Objects.Add(ObjectFileName);
 				}
+			}
+		}
+
+		// Add all of the additional libraries
+		for (TPair<FString, TArray<FString>>& Pair : Manifest.Libraries)
+		{
+			for (const FString& Library : Pair.Value)
+			{
+				ModuleToModuleFiles.FindOrAdd(Pair.Key).Libraries.Add(Library);
 			}
 		}
 		return ELiveCodingCompileResult::Success;

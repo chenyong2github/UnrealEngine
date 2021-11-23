@@ -114,6 +114,9 @@ ServerCommandThread::ServerCommandThread(MainFrame* mainFrame, const wchar_t* co
 	, m_commandThreads()
 	, m_manualRecompileTriggered(false)
 	, m_liveModuleToModifiedOrNewObjFiles()
+// BEGIN EPIC MOD
+	, m_liveModuleToAdditionalLibraries()
+// END EPIC MOD
 	, m_restartCS()
 	, m_restartJob(nullptr)
 	, m_restartedProcessCount(0u)
@@ -801,7 +804,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 		GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Compiling changes for live coding...");
 
 		// Keep retrying the compile until we've added all the required modules
-		TMap<FString, TArray<FString>> ModuleToObjectFiles;
+		FModuleToModuleFiles ModuleToModuleFiles;
 		ELiveCodingCompileReason CompileReason = ELiveCodingCompileReason::Initial;
 		for (;;)
 		{
@@ -814,24 +817,20 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 
 			// Execute the compile
 			TArray<FString> RequiredModules;
-			ELiveCodingCompileResult CompileResult = CompileDelegate.Execute(Targets, ValidModules, RequiredModules, ModuleToObjectFiles, CompileReason);
+			ELiveCodingCompileResult CompileResult = CompileDelegate.Execute(Targets, ValidModules, RequiredModules, ModuleToModuleFiles, CompileReason);
 			if (CompileResult == ELiveCodingCompileResult::Success)
 			{
 				break;
 			}
 			else if (CompileResult == ELiveCodingCompileResult::Canceled)
 			{
-				// BEGIN EPIC MOD
 				postCompileResult = commands::PostCompileResult::Cancelled;
-				// END EPIC MOD
 				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation canceled.");
 				return;
 			}
 			else if (CompileResult == ELiveCodingCompileResult::Failure)
 			{
-				// BEGIN EPIC MOD
 				postCompileResult = commands::PostCompileResult::Failure;
-				// END EPIC MOD
 				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
 				return;
 			}
@@ -839,9 +838,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 			// Enable any lazy-loaded modules that we need
 			if (!RequiredModules.IsEmpty() && !EnableRequiredModules(RequiredModules))
 			{
-				// BEGIN EPIC MOD
 				postCompileResult = commands::PostCompileResult::Failure;
-				// END EPIC MOD
 				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
 				return;
 			}
@@ -859,7 +856,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 			ValidModuleFileNames.insert(liveModule->GetModuleName());
 		}
 
-		for(const TPair<FString, TArray<FString>>& Pair : ModuleToObjectFiles)
+		for(const TPair<FString, FModuleFiles>& Pair : ModuleToModuleFiles)
 		{
 			std::wstring ModuleFileName = Filesystem::NormalizePath(*Pair.Key).GetString();
 			if(ValidModuleFileNames.find(ModuleFileName) == ValidModuleFileNames.end())
@@ -891,7 +888,7 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 			}
 
 			types::vector<symbols::ModifiedObjFile> ObjectFiles;
-			for(const FString& ObjectFile : Pair.Value)
+			for (const FString& ObjectFile : Pair.Value.Objects)
 			{
 				std::wstring NormalizedObjectFile = Filesystem::NormalizePath(*ObjectFile).GetString();
 
@@ -928,6 +925,13 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 			}
 
 			m_liveModuleToModifiedOrNewObjFiles.insert(std::make_pair(ModuleFileName, std::move(ObjectFiles)));
+
+			types::vector<std::wstring> AdditionalLibraries;
+			for (const FString& ObjectFile : Pair.Value.Libraries)
+			{
+				AdditionalLibraries.push_back(Filesystem::NormalizePath(*ObjectFile).GetString());
+			}
+			m_liveModuleToAdditionalLibraries.insert(std::make_pair(ModuleFileName, std::move(AdditionalLibraries)));
 		}
 	}
 
@@ -958,6 +962,10 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 		? LiveModule::UpdateType::DEFAULT
 		: LiveModule::UpdateType::NO_CLIENT_COMMUNICATION;
 
+	// BEGIN EPIC MOD
+	static const types::vector<std::wstring> emptyLibFiles;
+	// END EPIC MOD
+
 	// has the user given us at least one modified or new .obj file for at least one of the modules?
 	const bool hasAtLeastOneOptionalObj = (m_liveModuleToModifiedOrNewObjFiles.size() != 0u);
 	for (size_t i = 0u; i < count; ++i)
@@ -976,16 +984,23 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress, comma
 			}
 			else
 			{
+				// BEGIN EPIC MOD
+				const auto libFilesIt = m_liveModuleToAdditionalLibraries.find(liveModule->GetModuleName());
+				const types::vector<std::wstring>& libFiles = libFilesIt != m_liveModuleToAdditionalLibraries.end() ? libFilesIt->second : emptyLibFiles;
+
 				// build a patch with the given list of .objs for this module
 				const types::vector<symbols::ModifiedObjFile>& objFiles = objFilesIt->second;
-				moduleUpdateError = liveModule->Update(&fileCache, m_directoryCache, updateType, objFiles);
+				moduleUpdateError = liveModule->Update(&fileCache, m_directoryCache, updateType, objFiles, libFiles);
+				// END EPIC MOD
 			}
 		}
 		else
 		{
 			// no optional .objs were given, update all live modules regularly
 			types::vector<symbols::ModifiedObjFile> emptyObjs;
-			moduleUpdateError = liveModule->Update(&fileCache, m_directoryCache, updateType, emptyObjs);
+			// BEGIN EPIC MOD
+			moduleUpdateError = liveModule->Update(&fileCache, m_directoryCache, updateType, emptyObjs, emptyLibFiles);
+			// END EPIC MOD
 		}
 
 		// only accept new error conditions for this module if there haven't been any updates until now.
@@ -1396,6 +1411,9 @@ Thread::ReturnValue ServerCommandThread::CompileThread(void)
 			// clear API recompiles
 			m_manualRecompileTriggered = false;
 			m_liveModuleToModifiedOrNewObjFiles.clear();
+			// BEGIN EPIC MOD
+			m_liveModuleToAdditionalLibraries.clear();
+			// END EPIC MOD
 		}
 
 		m_restartCS.Leave();
