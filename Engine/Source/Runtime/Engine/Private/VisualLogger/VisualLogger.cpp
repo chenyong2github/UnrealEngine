@@ -572,7 +572,8 @@ UObject* FVisualLogger::FindRedirection(const UObject* Object)
 		}
 	}
 
-	return const_cast<UObject*>(TargetWeakPtr.Get(/*bEvenIfPendingKill*/true));
+	const UObject* const Target = TargetWeakPtr.Get(/*bEvenIfPendingKill*/true);
+	return const_cast<UObject*>(Target);
 }
 
 void FVisualLogger::SetIsRecording(const bool InIsRecording)
