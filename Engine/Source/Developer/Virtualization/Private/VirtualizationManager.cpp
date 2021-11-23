@@ -392,19 +392,30 @@ FCompressedBuffer FVirtualizationManager::PullData(const FPayloadId& Id)
 
 	FConditionalScopeLock _(&ForceSingleThreadedCS, bForceSingleThreaded);
 
+	GetNotificationEvent().Broadcast(IVirtualizationSystem::PullBegunNotification, Id);
+
 	for (IVirtualizationBackend* Backend : PullEnabledBackends)
 	{
 		FCompressedBuffer Payload = PullDataFromBackend(*Backend, Id);
+
 		if (Payload)
 		{
 			if (bEnableCacheAfterPull)
 			{
 				CachePayload(Id, Payload, Backend);
 			}
-			
+
+			GetNotificationEvent().Broadcast(IVirtualizationSystem::PullEndedNotification, Id);
+
 			return Payload;
 		}
 	}
+
+	// Pull ended but failed..
+	GetNotificationEvent().Broadcast(IVirtualizationSystem::PullEndedNotification, Id);
+
+	// Broadcast the pull failed event to any listeners
+	GetNotificationEvent().Broadcast(IVirtualizationSystem::PullFailedNotification, Id);
 
 	// TODO: Maybe this should be a fatal error? If we keep it as an error we need to make sure any calling
 	// code handles it properly.
