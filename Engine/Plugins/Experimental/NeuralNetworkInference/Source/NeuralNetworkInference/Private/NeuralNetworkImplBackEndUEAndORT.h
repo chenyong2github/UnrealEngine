@@ -97,6 +97,8 @@ public:
 	TArray<FNeuralTensor> InputTensors;
 	TArray<FNeuralTensor> OutputTensors;
 
+	~FImplBackEndUEAndORT();
+
 	static void WarnAndSetDeviceToCPUIfDX12NotEnabled(ENeuralDeviceType& InOutDeviceType, const bool bInShouldOpenMessageLog);
 
 	static bool IsGPUSupported();
@@ -139,7 +141,7 @@ private:
 
 	TUniquePtr<FAsyncTask<FNeuralNetworkAsyncTask>> NeuralNetworkAsyncTask;
 
-	void IsAsyncTaskDone() const;
+	void EnsureAsyncTaskCompletion(const bool bShouldWarnIfNotDone) const;
 
 	static bool InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT,
 		FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, std::atomic<bool>& bInOutIsBackgroundThreadRunning,
