@@ -6,6 +6,7 @@
 #include "CameraCalibrationStepsController.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "UObject/GCObject.h"
 #include "UObject/StrongObjectPtr.h"
 
 class FString;

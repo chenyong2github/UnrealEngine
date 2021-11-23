@@ -41,7 +41,7 @@ void SCameraCalibrationSteps::AddReferencedObjects(FReferenceCollector& Collecto
 		Collector.AddReferencedObject(CurrentOverlayMID);
 	}
 
-	for (TPair<FName, TObjectPtr<UMaterialInstanceDynamic>> Pair : OverlayMIDs)
+	for (TPair<FName, TObjectPtr<UMaterialInstanceDynamic>>& Pair : OverlayMIDs)
 	{
 		if (Pair.Value)
 		{
