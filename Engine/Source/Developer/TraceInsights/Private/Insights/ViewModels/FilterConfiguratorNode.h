@@ -83,6 +83,8 @@ public:
 
 	bool ApplyFilters(const class FFilterContext& Context) const;
 
+	void GetUsedKeys(TSet<int32>& GetUsedKeys) const;
+
 	void ProcessFilter();
 
 private:

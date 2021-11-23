@@ -44,6 +44,7 @@ FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& O
 	AvailableFilters = Other.AvailableFilters;
 	OnDestroyedEvent = Other.OnDestroyedEvent;
 
+	ComputeUsedKeys();
 	RootNode->ProcessFilter();
 
 	OnChangesCommitedEvent.Broadcast();
@@ -70,6 +71,17 @@ bool FFilterConfigurator::operator==(const FFilterConfigurator& Other)
 bool FFilterConfigurator::ApplyFilters(const FFilterContext& Context) const
 {
 	return RootNode->ApplyFilters(Context);
+}
+
+bool FFilterConfigurator::IsKeyUsed(int32 Key) const
+{
+	return KeysUsed.Contains(Key);
+}
+
+void FFilterConfigurator::ComputeUsedKeys()
+{
+	KeysUsed.Reset();
+	RootNode->GetUsedKeys(KeysUsed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
