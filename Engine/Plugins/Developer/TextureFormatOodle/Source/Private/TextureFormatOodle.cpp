@@ -1149,7 +1149,7 @@ public:
 								}
 								else
 								{
-									*((uint32*)Pixel) = 0xFFFFFFFF;
+									*((uint32*)Pixel) = 0xFF000000;
 								}
 							}
 						} // each line
