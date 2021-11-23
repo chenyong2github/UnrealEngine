@@ -17,7 +17,7 @@ namespace Metasound
 {
 	/** Interface for an entry into the Metasound-UObject Registry. 
 	 *
-	 * An entry provides information linking a FMetasoundFrontendArchetype to a UClass.
+	 * An entry provides information linking a FMetasoundFrontendClassInterface to a UClass.
 	 * It also provides methods for accessing the FMetasoundAssetBase from a UObject.
 	 */
 	class IMetasoundUObjectRegistryEntry
@@ -25,8 +25,8 @@ namespace Metasound
 	public:
 		virtual ~IMetasoundUObjectRegistryEntry() = default;
 
-		/** Archetype name associated with this entry. */
-		virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const = 0;
+		/** Interface version associated with this entry. */
+		virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const = 0;
 
 		/** UClass associated with this entry. */
 		virtual UClass* GetUClass() const = 0;
@@ -54,7 +54,7 @@ namespace Metasound
 		friend class TMetasoundUObjectRegistryEntry;
 	};
 
-	/** An entry into the Metasound-UObject registry. 
+	/** An entry into the Metasound-UObject registry.
 	 *
 	 * @Tparam UClassType A class which derives from UObject and FMetasoundAssetBase.
 	 */
@@ -66,16 +66,16 @@ namespace Metasound
 		static_assert(std::is_base_of<UObject, UClassType>::value, "UClass must be derived from UObject");
 
 	public:
-		TMetasoundUObjectRegistryEntry(const FMetasoundFrontendVersion& InArchetypeVersion)
-		:	ArchetypeVersion(InArchetypeVersion)
+		TMetasoundUObjectRegistryEntry(const FMetasoundFrontendVersion& InInterfaceVersion)
+		:	InterfaceVersion(InInterfaceVersion)
 		{
 		}
 
 		virtual ~TMetasoundUObjectRegistryEntry() = default;
 
-		virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const override
+		virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const override
 		{
-			return ArchetypeVersion;
+			return InterfaceVersion;
 		}
 
 		UClass* GetUClass() const override
@@ -126,11 +126,11 @@ namespace Metasound
 
 	private:
 
-		FMetasoundFrontendVersion ArchetypeVersion;
+		FMetasoundFrontendVersion InterfaceVersion;
 	};
 
 
-	/** IMetaoundUObjectRegistry contains IMetasoundUObjectRegistryEntrys. 
+	/** IMetasoundUObjectRegistry contains IMetasoundUObjectRegistryEntries.
 	 *
 	 * Registered UObject classes can utilize the Metasound Editor. It also enables
 	 * the creation of a UObject directly from a FMetasoundFrontendDocument.
@@ -143,46 +143,20 @@ namespace Metasound
 			/** Return static singleton instance of the registry. */
 			static IMetasoundUObjectRegistry& Get();
 
-			/** Register all preferred archetypes of the UClass. 
-			 *
-			 * All Archtypes returned by the default objects GetSupportedArchetypeVersions() will be registered. 
-			 */
-			template<typename UClassType>
-			static void RegisterUClassPreferredArchetypes()
-			{
-				static_assert(std::is_base_of<FMetasoundAssetBase, UClassType>::value, "UClass must be derived from FMetasoundAssetBase");
-
-				const TArray<FMetasoundFrontendVersion>& SupportedArchetypeVersions = GetDefault<UClassType>()->GetSupportedArchetypeVersions();
-
-				for (const FMetasoundFrontendVersion& Version : SupportedArchetypeVersions)
-				{
-					IMetasoundUObjectRegistry::RegisterUClassArchetype<UClassType>(Version);
-				}
-			}
-
-			/** Register an archetype for the UClass. 
-			 *
-			 * @param InArchetypeVerison - The version of the FMetasoundFrontendArchetype to associate with the UClass.
-			 */
-			template<typename UClassType>
-			static void RegisterUClassArchetype(const FMetasoundFrontendVersion& InArchetypeVersion)
-			{
-				using FRegistryEntryType = TMetasoundUObjectRegistryEntry<UClassType>;
-
-				IMetasoundUObjectRegistry::Get().RegisterUClassArchetype(MakeUnique<FRegistryEntryType>(InArchetypeVersion));
-			}
-
 			/** Adds an entry to the registry. */
-			virtual void RegisterUClassArchetype(TUniquePtr<IMetasoundUObjectRegistryEntry>&& InEntry) = 0;
+			virtual void RegisterUClassInterface(TUniquePtr<IMetasoundUObjectRegistryEntry>&& InEntry) = 0;
 
-			/** Returns all UClasses registered to the archetype name. */
-			virtual TArray<UClass*> GetUClassesForArchetype(const FMetasoundFrontendVersion& InArchetypeVersion) const = 0;
+			/** Returns all RegistryEntries with the given name */
+			virtual TArray<const IMetasoundUObjectRegistryEntry*> FindInterfaceEntriesByName(FName InName) const = 0;
 
-			/** Creates a new object from a metasound document.
+			/** Returns all UClasses registered to the interface version. */
+			virtual TArray<UClass*> FindSupportedInterfaceClasses(const FMetasoundFrontendVersion& InInterfaceVersion) const = 0;
+
+			/** Creates a new object from a MetaSound document.
 			 *
 			 * @param InClass - A registered UClass to create.
 			 * @param InDocument - The FMetasoundFrontendDocument to use when creating the class.
-			 * @param InArchetypeVersion - The version of the FMetasoundFrontendArchetype to use when creating the class.
+			 * @param InInterfaceVersion - The version of the FMetasoundFrontendClassInterface to use when creating the class.
 			 * @param InPath - If in editor, the created asset will be stored at this content path.
 			 *
 			 * @return A new object. A nullptr on error.

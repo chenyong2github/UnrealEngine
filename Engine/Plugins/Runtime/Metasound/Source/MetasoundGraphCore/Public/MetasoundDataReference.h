@@ -91,11 +91,13 @@ namespace Metasound
 
 	/** A Data Reference Interface.
 	 *
-	 * A parameter references provides information and access to a shared object in the graph. 
+	 * A parameter references provides information and access to a shared object in the graph.
 	 */
-	class IDataReference
+	class METASOUNDGRAPHCORE_API IDataReference
 	{
 		public:
+		static const FName RouterName;
+
 		virtual ~IDataReference() = default;
 
 		/** Returns the name of the data type. */

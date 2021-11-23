@@ -656,6 +656,7 @@ namespace Metasound
 				GraphClass->Graph.Edges.Reset();
 				GraphClass->Interface.Inputs.Reset();
 				GraphClass->Interface.Outputs.Reset();
+				OwningDocument->ClearInterfaceVersions();
 				OwningDocument->SynchronizeDependencies();
 			}
 		}

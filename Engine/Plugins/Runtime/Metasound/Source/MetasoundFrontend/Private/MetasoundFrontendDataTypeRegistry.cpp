@@ -469,6 +469,8 @@ namespace Metasound
 
 				virtual ELiteralType GetDesiredLiteralType(const FName& InDataType) const override;
 
+				virtual bool IsRegistered(const FName& InDataType) const override;
+
 				virtual bool IsLiteralTypeSupported(const FName& InDataType, ELiteralType InLiteralType) const override;
 				virtual bool IsLiteralTypeSupported(const FName& InDataType, EMetasoundFrontendLiteralType InLiteralType) const override;
 
@@ -589,6 +591,11 @@ namespace Metasound
 					return true;
 				}
 				return false;
+			}
+
+			bool FDataTypeRegistry::IsRegistered(const FName& InDataType) const
+			{
+				return RegisteredDataTypes.Contains(InDataType);
 			}
 
 			// Return the enum interface for a data type. If the data type does not have 

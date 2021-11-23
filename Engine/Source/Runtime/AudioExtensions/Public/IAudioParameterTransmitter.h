@@ -41,6 +41,8 @@ namespace Audio
 	class AUDIOEXTENSIONS_API IParameterTransmitter : public ILegacyParameterTransmitter
 	{
 		public:
+			static const FName RouterName;
+
 			virtual ~IParameterTransmitter() = default;
 
 			virtual bool Reset() = 0;
@@ -50,6 +52,7 @@ namespace Audio
 
 			// Parameter Setters
 			virtual bool SetParameter(FAudioParameter&& InValue) = 0;
+			virtual bool SetParameter(FName InInterfaceName, FAudioParameter&& InValue) = 0;
 
 			// Create a copy of the instance transmitter.
 			virtual TUniquePtr<Audio::IParameterTransmitter> Clone() const = 0;

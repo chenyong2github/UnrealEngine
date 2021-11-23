@@ -11,4 +11,6 @@ namespace Metasound
 	}
 	const void* const TDataReferenceTypeInfo<void>::TypePtr = nullptr;
 	const void* const TDataReferenceTypeInfo<void>::TypeId = static_cast<const void* const>(TDataReferenceTypeInfo<void>::TypePtr);
+
+	const FName IDataReference::RouterName = "DataReference";
 }

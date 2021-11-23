@@ -9,6 +9,7 @@
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistryTransaction.h"
 #include "MetasoundTrace.h"
+#include "MetasoundAssetManager.h"
 
 static int32 ClearMetaSoundFrontendSearchEngineCacheCVar = 0;
 FAutoConsoleVariableRef CVarClearMetaSoundFrontendSearchEngineCache(
@@ -25,22 +26,22 @@ namespace Metasound
 	{
 		namespace SearchEngineQuerySteps
 		{
-			class FArchetypeRegistryTransactionSource : public IFrontendQuerySource
+			class FInterfaceRegistryTransactionSource : public IFrontendQuerySource
 			{
 			public:
-				FArchetypeRegistryTransactionSource()
+				FInterfaceRegistryTransactionSource()
 				: CurrentTransactionID(GetOriginRegistryTransactionID())
 				{
 				}
 
 				void Stream(TArray<FFrontendQueryEntry>& OutEntries) override
 				{
-					auto AddEntry = [&OutEntries](const FArchetypeRegistryTransaction& InTransaction)
+					auto AddEntry = [&OutEntries](const FInterfaceRegistryTransaction& InTransaction)
 					{
-						OutEntries.Emplace(FFrontendQueryEntry::FValue(TInPlaceType<FArchetypeRegistryTransaction>(), InTransaction));
+						OutEntries.Emplace(FFrontendQueryEntry::FValue(TInPlaceType<FInterfaceRegistryTransaction>(), InTransaction));
 					};
 					
-					IArchetypeRegistry::Get().ForEachRegistryTransactionSince(CurrentTransactionID, &CurrentTransactionID, AddEntry);
+					IInterfaceRegistry::Get().ForEachRegistryTransactionSince(CurrentTransactionID, &CurrentTransactionID, AddEntry);
 				}
 
 				void Reset() override
@@ -52,42 +53,42 @@ namespace Metasound
 				FRegistryTransactionID CurrentTransactionID;
 			};
 
-			class FMapArchetypeRegistryTransactionsToArchetypeRegistryKeys : public IFrontendQueryMapStep
+			class FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys : public IFrontendQueryMapStep
 			{
 			public:
 				FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override
 				{
-					FArchetypeRegistryKey RegistryKey;
-					if (ensure(InEntry.Value.IsType<FArchetypeRegistryTransaction>()))
+					FInterfaceRegistryKey RegistryKey;
+					if (ensure(InEntry.Value.IsType<FInterfaceRegistryTransaction>()))
 					{
-						RegistryKey = InEntry.Value.Get<FArchetypeRegistryTransaction>().GetArchetypeRegistryKey();
+						RegistryKey = InEntry.Value.Get<FInterfaceRegistryTransaction>().GetInterfaceRegistryKey();
 					}
 					return FFrontendQueryEntry::FKey{RegistryKey};
 				}
 			};
 
-			class FReduceArchetypeRegistryTransactionsToCurrentStatus : public IFrontendQueryReduceStep
+			class FReduceInterfaceRegistryTransactionsToCurrentStatus : public IFrontendQueryReduceStep
 			{
 			public:
-				void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override
+				void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry* const>& InEntries, FReduceOutputView& OutResult) const override
 				{
 					int32 State = 0;
 					FFrontendQueryEntry* FinalEntry = nullptr;
 
 					for (FFrontendQueryEntry* Entry : InEntries)
 					{
-						if (ensure(Entry->Value.IsType<FArchetypeRegistryTransaction>()))
+						if (ensure(Entry->Value.IsType<FInterfaceRegistryTransaction>()))
 						{
-							const FArchetypeRegistryTransaction& Transaction = Entry->Value.Get<FArchetypeRegistryTransaction>();
+							const FInterfaceRegistryTransaction& Transaction = Entry->Value.Get<FInterfaceRegistryTransaction>();
 							
 							switch (Transaction.GetTransactionType())
 							{
-								case FArchetypeRegistryTransaction::ETransactionType::ArchetypeRegistration:
+								case FInterfaceRegistryTransaction::ETransactionType::InterfaceRegistration:
 									State++;
 									FinalEntry = Entry;
 									break;
 
-								case FArchetypeRegistryTransaction::ETransactionType::ArchetypeUnregistration:
+								case FInterfaceRegistryTransaction::ETransactionType::InterfaceUnregistration:
 									State--;
 									break;
 
@@ -104,49 +105,102 @@ namespace Metasound
 				}
 			};
 
-			class FTransformArchetypeRegistryTransactionToArchetype : public IFrontendQueryTransformStep
+			class FReduceInterfaceRegistryTransactionsBySupportedClassName : public IFrontendQueryReduceStep
+			{
+				FName UClassName;
+
+			public:
+				FReduceInterfaceRegistryTransactionsBySupportedClassName(FName InUClassName)
+					: UClassName(InUClassName)
+				{
+				}
+
+				void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry* const>& InEntries, FReduceOutputView& OutResult) const override
+				{
+					for (FFrontendQueryEntry* Entry : InEntries)
+					{
+						if (ensure(Entry->Value.IsType<FInterfaceRegistryTransaction>()))
+						{
+							FInterfaceRegistryKey RegistryKey = Entry->Value.Get<FInterfaceRegistryTransaction>().GetInterfaceRegistryKey();
+							const IInterfaceRegistryEntry* RegEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(RegistryKey);
+							if (ensure(RegEntry))
+							{
+								if (RegEntry->UClassIsSupported(UClassName))
+								{
+									OutResult.Add(*Entry);
+								}
+							}
+						}
+					}
+				}
+			};
+
+			class FReduceInterfaceRegistryTransactionsByDefault : public IFrontendQueryReduceStep
+			{
+			public:
+				void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry* const>& InEntries, FReduceOutputView& OutResult) const override
+				{
+					for (FFrontendQueryEntry* Entry : InEntries)
+					{
+						if (ensure(Entry->Value.IsType<FInterfaceRegistryTransaction>()))
+						{
+							FInterfaceRegistryKey RegistryKey = Entry->Value.Get<FInterfaceRegistryTransaction>().GetInterfaceRegistryKey();
+							const IInterfaceRegistryEntry* RegEntry = IInterfaceRegistry::Get().FindInterfaceRegistryEntry(RegistryKey);
+							if (ensure(RegEntry))
+							{
+								if (RegEntry->IsDefault())
+								{
+									OutResult.Add(*Entry);
+								}
+							}
+						}
+					}
+				}
+			};
+
+			class FTransformInterfaceRegistryTransactionToInterface : public IFrontendQueryTransformStep
 			{
 			public:
 				virtual void Transform(FFrontendQueryEntry::FValue& InValue) const override
 				{
-					FMetasoundFrontendArchetype Archetype;
-					if (ensure(InValue.IsType<FArchetypeRegistryTransaction>()))
+					FMetasoundFrontendInterface Interface;
+					if (ensure(InValue.IsType<FInterfaceRegistryTransaction>()))
 					{
-						FArchetypeRegistryKey RegistryKey = InValue.Get<FArchetypeRegistryTransaction>().GetArchetypeRegistryKey();
-						IArchetypeRegistry::Get().FindArchetype(RegistryKey, Archetype);
+						FInterfaceRegistryKey RegistryKey = InValue.Get<FInterfaceRegistryTransaction>().GetInterfaceRegistryKey();
+						IInterfaceRegistry::Get().FindInterface(RegistryKey, Interface);
 					}
-					InValue.Set<FMetasoundFrontendArchetype>(MoveTemp(Archetype));
+					InValue.Set<FMetasoundFrontendInterface>(MoveTemp(Interface));
 				}
 			};
 
-			class FMapArchetypeToArchetypeNameAndMajorVersion : public IFrontendQueryMapStep
+			class FMapInterfaceToInterfaceNameAndMajorVersion : public IFrontendQueryMapStep
 			{
 			public:
 				FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override
 				{
 					FString Key;
-					if (ensure(InEntry.Value.IsType<FMetasoundFrontendArchetype>()))
+					if (ensure(InEntry.Value.IsType<FMetasoundFrontendInterface>()))
 					{
-						const FMetasoundFrontendArchetype& Arch = InEntry.Value.Get<FMetasoundFrontendArchetype>();
-						Key = FString::Format(TEXT("{0}_{1}"), { Arch.Version.Name.ToString(), Arch.Version.Number.Major });
+						const FMetasoundFrontendInterface& Interface = InEntry.Value.Get<FMetasoundFrontendInterface>();
+						Key = FString::Format(TEXT("{0}_{1}"), { Interface.Version.Name.ToString(), Interface.Version.Number.Major });
 					}
 					return FFrontendQueryEntry::FKey{Key};
 				}
 			};
 
-			class FReduceArchetypesToHighestVersion : public IFrontendQueryReduceStep
+			class FReduceInterfacesToHighestVersion : public IFrontendQueryReduceStep
 			{
 			public:
-				void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry * const>& InEntries, FReduceOutputView& OutResult) const override
+				void Reduce(FFrontendQueryEntry::FKey InKey, TArrayView<FFrontendQueryEntry* const>& InEntries, FReduceOutputView& OutResult) const override
 				{
 					FFrontendQueryEntry* HighestVersionEntry = nullptr;
 					FMetasoundFrontendVersionNumber HighestVersion = FMetasoundFrontendVersionNumber::GetInvalid();
 
 					for (FFrontendQueryEntry* Entry : InEntries)
 					{
-						if (ensure(Entry->Value.IsType<FMetasoundFrontendArchetype>()))
+						if (ensure(Entry->Value.IsType<FMetasoundFrontendInterface>()))
 						{
-							const FMetasoundFrontendVersionNumber& VersionNumber = Entry->Value.Get<FMetasoundFrontendArchetype>().Version.Number;
+							const FMetasoundFrontendVersionNumber& VersionNumber = Entry->Value.Get<FMetasoundFrontendInterface>().Version.Number;
 
 							if (VersionNumber > HighestVersion)
 							{
@@ -163,19 +217,19 @@ namespace Metasound
 				}
 			};
 
-			class FFilterArchetypeRegistryTransactionsByName : public IFrontendQueryFilterStep
+			class FFilterInterfaceRegistryTransactionsByName : public IFrontendQueryFilterStep
 			{
 			public:
-				FFilterArchetypeRegistryTransactionsByName(const FName& InName)
+				FFilterInterfaceRegistryTransactionsByName(FName InName)
 				: Name(InName)
 				{
 				}
 
 				bool Filter(const FFrontendQueryEntry& InEntry) const override
 				{
-					if (ensure(InEntry.Value.IsType<FArchetypeRegistryTransaction>()))
+					if (ensure(InEntry.Value.IsType<FInterfaceRegistryTransaction>()))
 					{
-						return Name == InEntry.Value.Get<FArchetypeRegistryTransaction>().GetArchetypeVersion().Name;
+						return Name == InEntry.Value.Get<FInterfaceRegistryTransaction>().GetInterfaceVersion().Name;
 					}
 					return false;
 				}
@@ -205,10 +259,10 @@ namespace Metasound
 				FMetasoundFrontendClassName Name;
 			};
 
-			class FFilterArchetypeRegistryTransactionsByNameAndMajorVersion : public IFrontendQueryFilterStep
+			class FFilterInterfaceRegistryTransactionsByNameAndMajorVersion : public IFrontendQueryFilterStep
 			{
 			public:
-				FFilterArchetypeRegistryTransactionsByNameAndMajorVersion(const FName& InName, int32 InMajorVersion)
+				FFilterInterfaceRegistryTransactionsByNameAndMajorVersion(const FName& InName, int32 InMajorVersion)
 				: Name(InName)
 				, MajorVersion(InMajorVersion)
 				{
@@ -216,9 +270,9 @@ namespace Metasound
 
 				bool Filter(const FFrontendQueryEntry& InEntry) const override
 				{
-					if (ensure(InEntry.Value.IsType<FArchetypeRegistryTransaction>()))
+					if (ensure(InEntry.Value.IsType<FInterfaceRegistryTransaction>()))
 					{
-						const FMetasoundFrontendVersion& Version = InEntry.Value.Get<FArchetypeRegistryTransaction>().GetArchetypeVersion();
+						const FMetasoundFrontendVersion& Version = InEntry.Value.Get<FInterfaceRegistryTransaction>().GetInterfaceVersion();
 
 						return (Name == Version.Name) && (MajorVersion == Version.Number.Major);
 					}
@@ -230,29 +284,29 @@ namespace Metasound
 				int32 MajorVersion;
 			};
 
-			class FMapArchetypeToArchetypeName : public IFrontendQueryMapStep
+			class FMapInterfaceToInterfaceName : public IFrontendQueryMapStep
 			{
 			public:
 				FFrontendQueryEntry::FKey Map(const FFrontendQueryEntry& InEntry) const override
 				{
 					FString Key;
-					if (ensure(InEntry.Value.IsType<FMetasoundFrontendArchetype>()))
+					if (ensure(InEntry.Value.IsType<FMetasoundFrontendInterface>()))
 					{
-						Key = InEntry.Value.Get<FMetasoundFrontendArchetype>().Version.Name.ToString();
+						Key = InEntry.Value.Get<FMetasoundFrontendInterface>().Version.Name.ToString();
 					}
 					return FFrontendQueryEntry::FKey{Key};
 				}
 			};
 
-			class FTransformArchetypeRegistryTransactionToArchetypeVersion : public IFrontendQueryTransformStep
+			class FTransformInterfaceRegistryTransactionToInterfaceVersion : public IFrontendQueryTransformStep
 			{
 			public:
 				virtual void Transform(FFrontendQueryEntry::FValue& InValue) const override
 				{
 					FMetasoundFrontendVersion Version;
-					if (ensure(InValue.IsType<FArchetypeRegistryTransaction>()))
+					if (ensure(InValue.IsType<FInterfaceRegistryTransaction>()))
 					{
-						Version = InValue.Get<FArchetypeRegistryTransaction>().GetArchetypeVersion();
+						Version = InValue.Get<FInterfaceRegistryTransaction>().GetInterfaceVersion();
 					}
 					InValue.Set<FMetasoundFrontendVersion>(Version);
 				}
@@ -270,19 +324,16 @@ namespace Metasound
 				FSearchEngine() = default;
 				virtual ~FSearchEngine() = default;
 
-				TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeDeprecated) override;
-				TArray<FMetasoundFrontendClass> FindClassesWithName(const FNodeClassName& InName, bool bInSortByVersion) override;
+				virtual TArray<FMetasoundFrontendClass> FindAllClasses(bool bInIncludeDeprecated) override;
+				virtual TArray<FMetasoundFrontendClass> FindClassesWithName(const FNodeClassName& InName, bool bInSortByVersion) override;
+				virtual bool FindClassWithHighestVersion(const FNodeClassName& InName, FMetasoundFrontendClass& OutClass) override;
+				virtual bool FindClassWithMajorVersion(const FNodeClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass) override;
 
-				bool FindClassWithHighestVersion(const FNodeClassName& InName, FMetasoundFrontendClass& OutClass) override;
-				bool FindClassWithMajorVersion(const FNodeClassName& InName, int32 InMajorVersion, FMetasoundFrontendClass& OutClass) override;
-
-				virtual TArray<FMetasoundFrontendArchetype> FindAllArchetypes(bool bInIncludeDeprecated) override;
-
-				virtual TArray<FMetasoundFrontendVersion> FindAllRegisteredArchetypesWithName(const FName& InArchetypeName) override;
-
-				virtual bool FindArchetypeWithHighestVersion(const FName& InArchetypeName, FMetasoundFrontendArchetype& OutArchetype) override;
-
-				virtual bool FindArchetypeWithMajorVersion(const FName& InArchetypeName, int32 InMajorVersion, FMetasoundFrontendArchetype& OutArchetype) override;
+				virtual TArray<FMetasoundFrontendInterface> FindAllInterfaces(bool bInIncludeDeprecated) override;
+				virtual TArray<FMetasoundFrontendInterface> FindUClassDefaultInterfaces(FName InUClassName) override;
+				virtual TArray<FMetasoundFrontendVersion> FindAllRegisteredInterfacesWithName(FName InInterfaceName) override;
+				virtual bool FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface) override;
+				virtual bool FindInterfaceWithMajorVersion(FName InInterfaceName, int32 InMajorVersion, FMetasoundFrontendInterface& OutInterface) override;
 
 			private:
 				FFrontendQuery* FindQuery(const FString& InQueryName);
@@ -482,32 +533,32 @@ namespace Metasound
 			return false;
 		}
 
-		TArray<FMetasoundFrontendArchetype> FSearchEngine::FindAllArchetypes(bool bInIncludeDeprecated)
+		TArray<FMetasoundFrontendInterface> FSearchEngine::FindAllInterfaces(bool bInIncludeDeprecated)
 		{
 			using namespace SearchEngineQuerySteps;
 
-			const FString QueryName = FString::Format(TEXT("FindAllArchetypes_IncludeDeprecated:{0}"), { bInIncludeDeprecated });
+			const FString QueryName = FString::Format(TEXT("FindAllInterfaces_IncludeDeprecated:{0}"), { bInIncludeDeprecated });
 
 			FFrontendQuery* Query = FindQuery(QueryName);
 			if (!Query)
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
-				NewQuery->AddStep<FArchetypeRegistryTransactionSource>()
-					.AddStep<FMapArchetypeRegistryTransactionsToArchetypeRegistryKeys>()
-					.AddStep<FReduceArchetypeRegistryTransactionsToCurrentStatus>()
-					.AddStep<FTransformArchetypeRegistryTransactionToArchetype>();
+				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FTransformInterfaceRegistryTransactionToInterface>();
 
 				if (!bInIncludeDeprecated)
 				{
-					NewQuery->AddStep<FMapArchetypeToArchetypeNameAndMajorVersion>()
-					.AddStep<FReduceArchetypesToHighestVersion>();
+					NewQuery->AddStep<FMapInterfaceToInterfaceNameAndMajorVersion>()
+					.AddStep<FReduceInterfacesToHighestVersion>();
 				}
 
 				Query = AddQuery(QueryName, MoveTemp(NewQuery));
 			}
 
-			TArray<FMetasoundFrontendArchetype> Result;
+			TArray<FMetasoundFrontendInterface> Result;
 
 			if (ensure(Query))
 			{
@@ -516,9 +567,9 @@ namespace Metasound
 
 				for (const FFrontendQueryEntry* Entry : Selection.GetSelection())
 				{
-					if (ensure(Entry->Value.IsType<FMetasoundFrontendArchetype>()))
+					if (ensure(Entry->Value.IsType<FMetasoundFrontendInterface>()))
 					{
-						Result.Add(Entry->Value.Get<FMetasoundFrontendArchetype>());
+						Result.Add(Entry->Value.Get<FMetasoundFrontendInterface>());
 					}
 				}
 			}
@@ -526,22 +577,64 @@ namespace Metasound
 			return Result;
 		}
 
-		TArray<FMetasoundFrontendVersion> FSearchEngine::FindAllRegisteredArchetypesWithName(const FName& InArchetypeName)
+		TArray<FMetasoundFrontendInterface> FSearchEngine::FindUClassDefaultInterfaces(FName InUClassName)
 		{
 			using namespace SearchEngineQuerySteps;
 
-			const FString QueryName = FString::Format(TEXT("FindAllRegisteredArchetypesWithName_Name:{0}"), { InArchetypeName.ToString() });
+			const FString QueryName = FString::Format(TEXT("FindUClassDefaultInterfaces_Class:{0}"), { InUClassName.ToString() });
 
 			FFrontendQuery* Query = FindQuery(QueryName);
 			if (!Query)
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
-				NewQuery->AddStep<FArchetypeRegistryTransactionSource>()
-					.AddStep<FFilterArchetypeRegistryTransactionsByName>(InArchetypeName)
-					.AddStep<FMapArchetypeRegistryTransactionsToArchetypeRegistryKeys>()
-					.AddStep<FReduceArchetypeRegistryTransactionsToCurrentStatus>()
-					.AddStep<FTransformArchetypeRegistryTransactionToArchetypeVersion>();
+				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FReduceInterfaceRegistryTransactionsByDefault>()
+					.AddStep<FReduceInterfaceRegistryTransactionsBySupportedClassName>(InUClassName)
+					.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
+					.AddStep<FMapInterfaceToInterfaceNameAndMajorVersion>()
+					.AddStep<FReduceInterfacesToHighestVersion>();
+
+				Query = AddQuery(QueryName, MoveTemp(NewQuery));
+			}
+
+			TArray<FMetasoundFrontendInterface> Result;
+
+			if (ensure(Query))
+			{
+				FFrontendQuerySelectionView Selection = Query->Execute();
+				TArrayView<const FFrontendQueryEntry* const> Entries = Selection.GetSelection();
+
+				for (const FFrontendQueryEntry* Entry : Selection.GetSelection())
+				{
+					if (ensure(Entry->Value.IsType<FMetasoundFrontendInterface>()))
+					{
+						Result.Add(Entry->Value.Get<FMetasoundFrontendInterface>());
+					}
+				}
+			}
+
+			return Result;
+		}
+
+		TArray<FMetasoundFrontendVersion> FSearchEngine::FindAllRegisteredInterfacesWithName(FName InInterfaceName)
+		{
+			using namespace SearchEngineQuerySteps;
+
+			const FString QueryName = FString::Format(TEXT("FindAllRegisteredInterfacesWithName_Name:{0}"), { InInterfaceName.ToString() });
+
+			FFrontendQuery* Query = FindQuery(QueryName);
+			if (!Query)
+			{
+				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
+
+				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FFilterInterfaceRegistryTransactionsByName>(InInterfaceName)
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FTransformInterfaceRegistryTransactionToInterfaceVersion>();
 
 				Query = AddQuery(QueryName, MoveTemp(NewQuery));
 			}
@@ -565,23 +658,23 @@ namespace Metasound
 			return Result;
 		}
 
-		bool FSearchEngine::FindArchetypeWithHighestVersion(const FName& InArchetypeName, FMetasoundFrontendArchetype& OutArchetype)
+		bool FSearchEngine::FindInterfaceWithHighestVersion(FName InInterfaceName, FMetasoundFrontendInterface& OutInterface)
 		{
 			using namespace SearchEngineQuerySteps;
-			const FString QueryName = FString::Format(TEXT("FindArchetypeWithHighestVersion_Name:{0}"), { InArchetypeName.ToString() });
+			const FString QueryName = FString::Format(TEXT("FindInterfaceWithHighestVersion_Name:{0}"), { InInterfaceName.ToString() });
 
 			FFrontendQuery* Query = FindQuery(QueryName);
 			if (!Query)
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
-				NewQuery->AddStep<FArchetypeRegistryTransactionSource>()
-					.AddStep<FFilterArchetypeRegistryTransactionsByName>(InArchetypeName)
-					.AddStep<FMapArchetypeRegistryTransactionsToArchetypeRegistryKeys>()
-					.AddStep<FReduceArchetypeRegistryTransactionsToCurrentStatus>()
-					.AddStep<FTransformArchetypeRegistryTransactionToArchetype>()
-					.AddStep<FMapArchetypeToArchetypeName>()
-					.AddStep<FReduceArchetypesToHighestVersion>();
+				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FFilterInterfaceRegistryTransactionsByName>(InInterfaceName)
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
+					.AddStep<FMapInterfaceToInterfaceName>()
+					.AddStep<FReduceInterfacesToHighestVersion>();
 
 				Query = AddQuery(QueryName, MoveTemp(NewQuery));
 			}
@@ -597,7 +690,7 @@ namespace Metasound
 
 				if (ensure(Entries.Num() == 1))
 				{
-					OutArchetype = Entries[0]->Value.Get<FMetasoundFrontendArchetype>();
+					OutInterface = Entries[0]->Value.Get<FMetasoundFrontendInterface>();
 					return true;
 				}
 			}
@@ -605,23 +698,23 @@ namespace Metasound
 			return false;
 		}
 
-		bool FSearchEngine::FindArchetypeWithMajorVersion(const FName& InArchetypeName, int32 InMajorVersion, FMetasoundFrontendArchetype& OutArchetype)
+		bool FSearchEngine::FindInterfaceWithMajorVersion(FName InInterfaceName, int32 InMajorVersion, FMetasoundFrontendInterface& OutInterface)
 		{
 			using namespace SearchEngineQuerySteps;
-			const FString QueryName = FString::Format(TEXT("FindArchetypeWithMajorVersion_Name:{0}_MajorVersion:{1}"), { InArchetypeName.ToString(), InMajorVersion });
+			const FString QueryName = FString::Format(TEXT("FindInterfaceWithMajorVersion_Name:{0}_MajorVersion:{1}"), { InInterfaceName.ToString(), InMajorVersion });
 
 			FFrontendQuery* Query = FindQuery(QueryName);
 			if (!Query)
 			{
 				TUniquePtr<FFrontendQuery> NewQuery = MakeUnique<FFrontendQuery>();
 
-				NewQuery->AddStep<FArchetypeRegistryTransactionSource>()
-					.AddStep<FFilterArchetypeRegistryTransactionsByNameAndMajorVersion>(InArchetypeName, InMajorVersion)
-					.AddStep<FMapArchetypeRegistryTransactionsToArchetypeRegistryKeys>()
-					.AddStep<FReduceArchetypeRegistryTransactionsToCurrentStatus>()
-					.AddStep<FTransformArchetypeRegistryTransactionToArchetype>()
-					.AddStep<FMapArchetypeToArchetypeName>()
-					.AddStep<FReduceArchetypesToHighestVersion>();
+				NewQuery->AddStep<FInterfaceRegistryTransactionSource>()
+					.AddStep<FFilterInterfaceRegistryTransactionsByNameAndMajorVersion>(InInterfaceName, InMajorVersion)
+					.AddStep<FMapInterfaceRegistryTransactionsToInterfaceRegistryKeys>()
+					.AddStep<FReduceInterfaceRegistryTransactionsToCurrentStatus>()
+					.AddStep<FTransformInterfaceRegistryTransactionToInterface>()
+					.AddStep<FMapInterfaceToInterfaceName>()
+					.AddStep<FReduceInterfacesToHighestVersion>();
 
 				Query = AddQuery(QueryName, MoveTemp(NewQuery));
 			}
@@ -637,7 +730,7 @@ namespace Metasound
 
 				if (ensure(Entries.Num() == 1))
 				{
-					OutArchetype = Entries[0]->Value.Get<FMetasoundFrontendArchetype>();
+					OutInterface = Entries[0]->Value.Get<FMetasoundFrontendInterface>();
 					return true;
 				}
 			}

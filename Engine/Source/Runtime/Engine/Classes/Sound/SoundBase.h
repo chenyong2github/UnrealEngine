@@ -5,6 +5,7 @@
 #include "Audio.h"
 #include "CoreMinimal.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioGeneratorInterfaceRegistry.h"
 #include "IAudioParameterTransmitter.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundClass.h"
@@ -294,6 +295,9 @@ public:
 
 	/** Called from the Game Thread prior to attempting to initialize a sound instance. */
 	virtual void InitResources() { }
+
+	/** Whether or not the given sound is a generator and implements an interface with the given name. */
+	virtual bool ImplementsGeneratorInterface(Audio::FGeneratorInterfacePtr InInterface) const { return false; }
 
 	/** Creates a sound generator instance from this sound base. Return true if this is being implemented by a subclass. Sound generators procedurally generate audio in the audio render thread. */
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) { return nullptr; }

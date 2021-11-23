@@ -77,6 +77,91 @@ namespace MetasoundFrontendLiteralPrivate
 	}
 }
 
+FMetasoundFrontendLiteral::FMetasoundFrontendLiteral(const FAudioParameter& InParameter)
+{
+	switch (InParameter.ParamType)
+	{
+		case EAudioParameterType::Boolean:
+		{
+			Set(InParameter.BoolParam);
+		}
+		break;
+
+		case EAudioParameterType::BooleanArray:
+		{
+			Set(InParameter.ArrayBoolParam);
+		}
+		break;
+
+		case EAudioParameterType::Float:
+		{
+			Set(InParameter.FloatParam);
+		}
+		break;
+
+		case EAudioParameterType::FloatArray:
+		{
+			Set(InParameter.ArrayFloatParam);
+		}
+		break;
+
+		case EAudioParameterType::Integer:
+		{
+			Set(InParameter.IntParam);
+		}
+		break;
+
+		case EAudioParameterType::IntegerArray:
+		{
+			Set(InParameter.ArrayIntParam);
+		}
+		break;
+
+		case EAudioParameterType::None:
+		{
+			Set(FMetasoundFrontendLiteral::FDefault());
+		}
+		break;
+
+		case EAudioParameterType::NoneArray:
+		{
+			Set(FMetasoundFrontendLiteral::FDefaultArray{ InParameter.IntParam });
+		}
+		break;
+
+		case EAudioParameterType::Object:
+		{
+			Set(InParameter.ObjectParam);
+		}
+		break;
+
+		case EAudioParameterType::ObjectArray:
+		{
+			Set(InParameter.ArrayObjectParam);
+		}
+		break;
+
+		case EAudioParameterType::String:
+		{
+			Set(InParameter.StringParam);
+		}
+		break;
+
+		case EAudioParameterType::StringArray:
+		{
+			Set(InParameter.ArrayStringParam);
+		}
+		break;
+
+		default:
+		{
+			static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 12, "Possible missing switch case coverage");
+			checkNoEntry();
+		}
+	}
+}
+
+
 bool FMetasoundFrontendLiteral::IsArray() const
 {
 	switch (Type)

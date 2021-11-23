@@ -51,8 +51,10 @@ namespace Metasound
 
 			FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) override;
 
-			const FMetasoundFrontendVersion& GetArchetypeVersion() const override;
-			void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) override;
+			const TArray<FMetasoundFrontendVersion>& GetInterfaceVersions() const override;
+			void AddInterfaceVersion(const FMetasoundFrontendVersion& InVersion) override;
+			void RemoveInterfaceVersion(const FMetasoundFrontendVersion& InVersion) override;
+			void ClearInterfaceVersions() override;
 
 			void SetMetadata(const FMetasoundFrontendDocumentMetadata& InMetadata) override;
 			const FMetasoundFrontendDocumentMetadata& GetMetadata() const override;

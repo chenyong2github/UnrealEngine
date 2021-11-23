@@ -5,6 +5,8 @@
 
 namespace Audio
 {
+	const FName IParameterTransmitter::RouterName = "ParameterTransmitter";
+
 	bool ILegacyParameterTransmitter::GetParameter(FName InName, FAudioParameter& OutValue) const
 	{
 		return false;

@@ -4,14 +4,23 @@
 #include "AudioParameterInterface.h"
 #include "IAudioParameterTransmitter.h"
 #include "MetasoundDataReference.h"
+#include "MetasoundFrontendLiteral.h"
 #include "MetasoundLog.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundRouter.h"
 
+struct FMetasoundFrontendLiteral;
+
 
 namespace Metasound
 {
+	namespace Frontend
+	{
+		METASOUNDFRONTEND_API FLiteral ConvertParameterToLiteral(FAudioParameter&& InValue);
+		METASOUNDFRONTEND_API FName ConvertParameterToDataType(EAudioParameterType InParameterType);
+	}
+
 	/** FMetaSoundParameterTransmitter provides a communication interface for 
 	 * sending values to a MetaSound instance. It relies on the send/receive transmission
 	 * system to ferry data from the transmitter to the MetaSound instance. Data will
@@ -22,8 +31,8 @@ namespace Metasound
 	{
 		FMetaSoundParameterTransmitter(const FMetaSoundParameterTransmitter&) = delete;
 		FMetaSoundParameterTransmitter& operator=(const FMetaSoundParameterTransmitter&) = delete;
+
 	public:
-		
 		/** FSendInfo describes the MetaSounds input parameters as well as the 
 		 * necessary information to route data to the instances inputs. 
 		 */
@@ -84,6 +93,7 @@ namespace Metasound
 		 * @param InParameter - Parameter to set.
 		 */
 		bool SetParameter(FAudioParameter&& InParameter) override;
+		bool SetParameter(FName InInterfaceName, FAudioParameter&& InParameter) override;
 
 		/** Set a parameter using a literal.
 		 *

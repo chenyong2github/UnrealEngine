@@ -61,7 +61,7 @@ FString FMetasoundFrontendVersion::ToString() const
 
 bool FMetasoundFrontendVersion::IsValid() const
 {
-	return Number.IsValid() && Name.IsValid();
+	return Number != GetInvalid().Number && Name != GetInvalid().Name;
 }
 
 const FMetasoundFrontendVersion& FMetasoundFrontendVersion::GetInvalid()

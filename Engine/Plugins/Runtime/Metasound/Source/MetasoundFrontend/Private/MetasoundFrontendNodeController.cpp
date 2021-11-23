@@ -511,9 +511,14 @@ namespace Metasound
 			return IInputController::GetInvalidHandle();
 		}
 
-		bool FBaseNodeController::IsRequired() const
+		bool FBaseNodeController::IsInterfaceMember() const
 		{
-			return false;
+			return GetInterfaceVersion() != FMetasoundFrontendVersion::GetInvalid();
+		}
+
+		const FMetasoundFrontendVersion& FBaseNodeController::GetInterfaceVersion() const
+		{
+			return FMetasoundFrontendVersion::GetInvalid();
 		}
 
 		FConstInputHandle FBaseNodeController::GetInputWithID(FGuid InVertexID) const
@@ -1234,7 +1239,7 @@ namespace Metasound
 			return OutputDisplayTitle;
 		}
 
-		bool FOutputNodeController::IsRequired() const
+		const FMetasoundFrontendVersion& FOutputNodeController::GetInterfaceVersion() const
 		{
 			FConstDocumentHandle OwningDocument = OwningGraph->GetOwningDocument();
 			FConstGraphHandle RootGraph = OwningDocument->GetRootGraph();
@@ -1244,32 +1249,41 @@ namespace Metasound
 
 			if (bIsNodeOnRootGraph)
 			{
-				// If the node is on the root graph, test if it is in the archetypes
-				// required inputs or outputs.
-				FMetasoundFrontendArchetype Archetype;
+				// If the node is on the root graph, test if it is in the interfaces' required inputs or outputs.
+				FMetasoundFrontendInterface Interface;
 
-				FArchetypeRegistryKey ArchetypeKey = GetArchetypeRegistryKey(OwningDocument->GetArchetypeVersion());
-
-				bool bFoundArchetype = IArchetypeRegistry::Get().FindArchetype(ArchetypeKey, Archetype);
-				if (bFoundArchetype)
+				for (const FMetasoundFrontendVersion& InterfaceVersion : OwningDocument->GetInterfaceVersions())
 				{
-					if (const FMetasoundFrontendNode* Node = NodePtr.Get())
+					FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(InterfaceVersion);
+					bool bFoundInterface = IInterfaceRegistry::Get().FindInterface(InterfaceKey, Interface);
+					if (bFoundInterface)
 					{
-						const FVertexName& Name = Node->Name;
-						auto IsVertexWithSameName = [&Name](const FMetasoundFrontendClassVertex& InVertex)
+						if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 						{
-							return InVertex.Name == Name;
-						};
-						return Archetype.Interface.Outputs.ContainsByPredicate(IsVertexWithSameName);
+							if (ensure(Node->Interface.Outputs.Num() == 1))
+							{
+								const FVertexName& Name = Node->Name;
+								const FName& DataType = Node->Interface.Outputs[0].TypeName;
+								auto IsOutputWithSameNameAndType = [&Name, &DataType](const FMetasoundFrontendClassOutput& InOutput)
+								{
+									return InOutput.Name == Name && InOutput.TypeName == DataType;
+								};
+
+								if (Interface.Outputs.ContainsByPredicate(IsOutputWithSameNameAndType))
+								{
+									return InterfaceVersion;
+								}
+							}
+						}
 					}
-				}
-				else
-				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Document using unregistered archetype [ArchetypeVersion:%s]"), *OwningDocument->GetArchetypeVersion().ToString());
+					else
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Document using unregistered interface [InterfaceVersion:%s]"), *InterfaceVersion.ToString());
+					}
 				}
 			}
 
-			return false;
+			return FMetasoundFrontendVersion::GetInvalid();
 		}
 
 		bool FOutputNodeController::IsValid() const
@@ -1414,42 +1428,49 @@ namespace Metasound
 			return InputDisplayTitle;
 		}
 
-		bool FInputNodeController::IsRequired() const
+		const FMetasoundFrontendVersion& FInputNodeController::GetInterfaceVersion() const
 		{
 			FConstDocumentHandle OwningDocument = OwningGraph->GetOwningDocument();
 			FConstGraphHandle RootGraph = OwningDocument->GetRootGraph();
 
 			// Test if this node exists on the document's root graph.
 			const bool bIsNodeOnRootGraph = OwningGraph->IsValid() && (RootGraph->GetClassID() == OwningGraph->GetClassID());
-
 			if (bIsNodeOnRootGraph)
 			{
-				// If the node is on the root graph, test if it is in the archetypes
-				// required inputs or outputs. 
-				FMetasoundFrontendArchetype Archetype;
-
-				FArchetypeRegistryKey ArchetypeKey = GetArchetypeRegistryKey(OwningDocument->GetArchetypeVersion());
-
-				bool bFoundArchetype = IArchetypeRegistry::Get().FindArchetype(ArchetypeKey, Archetype);
-				if (bFoundArchetype)
+				for (const FMetasoundFrontendVersion& InterfaceVersion : OwningDocument->GetInterfaceVersions())
 				{
-					if (const FMetasoundFrontendNode* Node = NodePtr.Get())
+					// If the node is on the root graph, test if it is in the interfaces required inputs.
+					FMetasoundFrontendInterface Interface;
+					FInterfaceRegistryKey InterfaceKey = GetInterfaceRegistryKey(InterfaceVersion);
+					bool bFoundInterface = IInterfaceRegistry::Get().FindInterface(InterfaceKey, Interface);
+					if (bFoundInterface)
 					{
-						const FVertexName& Name = Node->Name;
-						auto IsVertexWithSameName = [&Name](const FMetasoundFrontendClassVertex& InVertex)
+						if (const FMetasoundFrontendNode* Node = NodePtr.Get())
 						{
-							return InVertex.Name == Name;
-						};
-						return Archetype.Interface.Inputs.ContainsByPredicate(IsVertexWithSameName);
+							const FVertexName& Name = Node->Name;
+							if (ensure(Node->Interface.Inputs.Num() == 1))
+							{
+								const FName& DataType = Node->Interface.Inputs[0].TypeName;
+								auto IsInputWithSameNameAndType = [&Name, &DataType](const FMetasoundFrontendClassInput& InInput)
+								{
+									return InInput.Name == Name && InInput.TypeName == DataType;
+								};
+
+								if (Interface.Inputs.ContainsByPredicate(IsInputWithSameNameAndType))
+								{
+									return InterfaceVersion;
+								}
+							}
+						}
 					}
-				}
-				else
-				{
-					UE_LOG(LogMetaSound, Warning, TEXT("Document using unregistered archetype [ArchetypeVersion:%s]"), *OwningDocument->GetArchetypeVersion().ToString());
+					else
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Document using unregistered interface [InterfaceVersion:%s]"), *InterfaceVersion.ToString());
+					}
 				}
 			}
 
-			return false;
+			return FMetasoundFrontendVersion::GetInvalid();
 		}
 
 		void FInputNodeController::SetDescription(const FText& InDescription)

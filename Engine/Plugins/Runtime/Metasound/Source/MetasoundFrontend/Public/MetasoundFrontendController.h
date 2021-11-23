@@ -453,8 +453,11 @@ namespace Metasound
 			virtual FOutputHandle GetOutputWithVertexName(const FVertexName& InName) = 0;
 			virtual FConstOutputHandle GetConstOutputWithVertexName(const FVertexName& InName) const = 0;
 
-			/** Returns true if node is required to satisfy the document archetype. */
-			virtual bool IsRequired() const = 0;
+			/** Returns true if node is required to satisfy a document interface. */
+			virtual bool IsInterfaceMember() const = 0;
+
+			/** Returns interface version if node is a required member of a given interface, otherwise returns invalid version. */
+			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const = 0;
 
 			/** Returns the highest minor version number available from the class registry that shares this node's name & major version. */
 			virtual FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const = 0;
@@ -926,7 +929,7 @@ namespace Metasound
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
 
-			// TODO: add info on environment variables. 
+			// TODO: add info on environment variables.
 			// TODO: consider find/add subgraph
 			// TODO: perhaps functions returning access pointers could be removed from main interface and only exist in FDocumentController.
 			
@@ -983,8 +986,10 @@ namespace Metasound
 			 */
 			virtual FGraphHandle AddDuplicateSubgraph(const IGraphController& InGraph) = 0;
 
-			virtual const FMetasoundFrontendVersion& GetArchetypeVersion() const = 0;
-			virtual void SetArchetypeVersion(const FMetasoundFrontendVersion& InVersion) = 0;
+			virtual const TArray<FMetasoundFrontendVersion>& GetInterfaceVersions() const = 0;
+			virtual void AddInterfaceVersion(const FMetasoundFrontendVersion& InVersion) = 0;
+			virtual void RemoveInterfaceVersion(const FMetasoundFrontendVersion& InVersion) = 0;
+			virtual void ClearInterfaceVersions() = 0;
 
 			/** Updates dependency with given registry key if found with that in the active registry
 			  *

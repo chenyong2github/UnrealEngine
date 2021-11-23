@@ -41,23 +41,22 @@ namespace Metasound
 
 			IDetailCategoryBuilder& CategoryBuilder = DetailLayout.EditCategory("General");
 
-			const bool bIsRequired = IsRequired();
 			const bool bIsGraphEditable = IsGraphEditable();
 			NameEditableTextBox = SNew(SEditableTextBox)
 				.Text(this, &FMetasoundVariableDetailCustomization::GetName)
 				.OnTextChanged(this, &FMetasoundVariableDetailCustomization::OnNameChanged)
 				.OnTextCommitted(this, &FMetasoundVariableDetailCustomization::OnNameCommitted)
-				.IsReadOnly(bIsRequired || !bIsGraphEditable)
+				.IsReadOnly(!bIsGraphEditable)
 				.Font(IDetailLayoutBuilder::GetDetailFont());
 
 			DisplayNameEditableTextBox = SNew(SEditableTextBox)
 				.Text(this, &FMetasoundVariableDetailCustomization::GetDisplayName)
 				.OnTextCommitted(this, &FMetasoundVariableDetailCustomization::OnDisplayNameCommitted)
-				.IsReadOnly(bIsRequired || !bIsGraphEditable)
+				.IsReadOnly(!bIsGraphEditable)
 				.Font(IDetailLayoutBuilder::GetDetailFont());
 
 			CategoryBuilder.AddCustomRow(MemberCustomizationPrivate::VariableNameText)
-			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
+			.EditCondition(bIsGraphEditable, nullptr)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -72,7 +71,7 @@ namespace Metasound
 
 			// TODO: Enable and use proper FText property editor
 // 			CategoryBuilder.AddCustomRow(MemberCustomizationPrivate::VariableDisplayNameText)
-// 			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
+// 			.EditCondition(!bIsInterfaceMember && bIsGraphEditable, nullptr)
 // 			.NameContent()
 // 			[
 // 				SNew(STextBlock)
@@ -86,7 +85,7 @@ namespace Metasound
 // 			];
 
 			CategoryBuilder.AddCustomRow(MemberCustomizationPrivate::NodeTooltipText)
-			.EditCondition(!bIsRequired && bIsGraphEditable, nullptr)
+			.EditCondition(bIsGraphEditable, nullptr)
 			.NameContent()
 			[
 				SNew(STextBlock)
@@ -98,14 +97,14 @@ namespace Metasound
 				SNew(SMultiLineEditableTextBox)
 				.Text(this, &FMetasoundVariableDetailCustomization::GetTooltip)
 				.OnTextCommitted(this, &FMetasoundVariableDetailCustomization::OnTooltipCommitted)
-				.IsReadOnly(bIsRequired || !bIsGraphEditable)
+				.IsReadOnly(!bIsGraphEditable)
 				.ModiferKeyForNewLine(EModifierKey::Shift)
 				.RevertTextOnEscape(true)
 				.WrapTextAt(MemberCustomizationPrivate::DetailsTitleMaxWidth - MemberCustomizationPrivate::DetailsTitleWrapPadding)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
 			];
 
-			DataTypeSelector->AddDataTypeSelector(DetailLayout, MemberCustomizationPrivate::DataTypeNameText, GraphMember, !bIsRequired && bIsGraphEditable);
+			DataTypeSelector->AddDataTypeSelector(DetailLayout, MemberCustomizationPrivate::DataTypeNameText, GraphMember, bIsGraphEditable);
 
 			IDetailCategoryBuilder& DefaultCategoryBuilder = DetailLayout.EditCategory("DefaultValue");
 			TSharedPtr<IPropertyHandle> LiteralHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphVariable, Literal));

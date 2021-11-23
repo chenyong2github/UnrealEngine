@@ -155,9 +155,9 @@ namespace Metasound
 			using namespace AssetTypeActionsPrivate;
 			RegisterPresetAction<UMetaSoundSource, UMetaSoundSourceFactory>(SourcePresetLabel, SourcePresetToolTip);
 
-			// This is currently disabled because of the requirement that archetypes of a preset and its referenced
-			// asset must match.  TODO: A feature of archetypes/preset transform is required for this action to work
-			// that introduces the concept of an archetype "interface" (i.e. if the archetype one graph subscribes to
+			// This is currently disabled because of the requirement that interfaces of a preset and its referenced
+			// asset must match.  TODO: A feature of interfaces/preset transform is required for this action to work
+			// that introduces the concept of an interface "interface" (i.e. if the interface one graph subscribes to
 			// or contains all of the necessary inputs/outputs of another), so that the preset can "implement" the
 			// referenced graphs "interface."
 // 			RegisterPresetAction<UMetaSound, UMetaSoundFactory, UMetaSoundSource>(PresetLabel, PresetToolTip);

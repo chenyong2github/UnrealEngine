@@ -10,11 +10,11 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		namespace MetasoundArchetypeIntrinsics
+		namespace MetasoundInterfaceIntrinsics
 		{
 			bool IsLessThanVertex(const FMetasoundFrontendVertex& VertexA, const FMetasoundFrontendVertex& VertexB)
 			{
-				// For archetypes we can ignore metadata when comparing
+				// For interfaces we can ignore metadata when comparing
 				if (VertexA.Name == VertexB.Name)
 				{
 					return VertexA.TypeName.FastLess(VertexB.TypeName);
@@ -22,9 +22,9 @@ namespace Metasound
 				return VertexA.Name.FastLess(VertexB.Name);
 			}
 
-			bool IsLessThanEnvironmentVariable(const FMetasoundFrontendEnvironmentVariable& EnvironmentA, const FMetasoundFrontendEnvironmentVariable& EnvironmentB)
+			bool IsLessThanEnvironmentVariable(const FMetasoundFrontendClassEnvironmentVariable& EnvironmentA, const FMetasoundFrontendClassEnvironmentVariable& EnvironmentB)
 			{
-				// For archetypes we can ignore metadata when comparing
+				// For interfaces we can ignore metadata when comparing
 				if (EnvironmentA.Name == EnvironmentB.Name)
 				{
 					return EnvironmentA.TypeName.FastLess(EnvironmentB.TypeName);
@@ -32,12 +32,11 @@ namespace Metasound
 				return EnvironmentA.Name.FastLess(EnvironmentB.Name);
 			}
 
-			bool IsEquivalentEnvironmentVariable(const FMetasoundFrontendEnvironmentVariable& EnvironmentA, const FMetasoundFrontendEnvironmentVariable& EnvironmentB)
+			bool IsEquivalentEnvironmentVariable(const FMetasoundFrontendClassEnvironmentVariable& EnvironmentA, const FMetasoundFrontendClassEnvironmentVariable& EnvironmentB)
 			{
-				// For archetypes we can ignore display name and tooltip
+				// For interfaces we can ignore display name and tooltip
 				return (EnvironmentA.Name == EnvironmentB.Name) && (EnvironmentA.TypeName == EnvironmentB.TypeName);
 			}
-
 
 			template<typename Type>
 			TArray<const Type*> MakePointerToArrayElements(const TArray<Type>& InArray)
@@ -127,96 +126,96 @@ namespace Metasound
 			}
 		}
 
-		bool IsSubsetOfArchetype(const FMetasoundFrontendArchetype& InSubsetArchetype, const FMetasoundFrontendArchetype& InSupersetArchetype)
+		bool IsSubsetOfInterface(const FMetasoundFrontendInterface& InSubsetInterface, const FMetasoundFrontendInterface& InSupersetInterface)
 		{
-			using namespace MetasoundArchetypeIntrinsics;
+			using namespace MetasoundInterfaceIntrinsics;
 
-			const bool bIsInputSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Inputs, InSupersetArchetype.Interface.Inputs, &IsLessThanVertex);
+			const bool bIsInputSetIncluded = IsSetIncluded(InSubsetInterface.Inputs, InSupersetInterface.Inputs, &IsLessThanVertex);
 
-			const bool bIsOutputSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Outputs, InSupersetArchetype.Interface.Outputs, &IsLessThanVertex);
+			const bool bIsOutputSetIncluded = IsSetIncluded(InSubsetInterface.Outputs, InSupersetInterface.Outputs, &IsLessThanVertex);
 
-			const bool bIsEnvironmentVariableSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Environment, InSupersetArchetype.Interface.Environment, &IsLessThanEnvironmentVariable);
+			const bool bIsEnvironmentVariableSetIncluded = IsSetIncluded(InSubsetInterface.Environment, InSupersetInterface.Environment, &IsLessThanEnvironmentVariable);
 
 			return bIsInputSetIncluded && bIsOutputSetIncluded && bIsEnvironmentVariableSetIncluded;
 		}
 
-		bool IsSubsetOfClass(const FMetasoundFrontendArchetype& InSubsetArchetype, const FMetasoundFrontendClass& InSupersetClass)
+		bool IsSubsetOfClass(const FMetasoundFrontendInterface& InSubsetInterface, const FMetasoundFrontendClass& InSupersetClass)
 		{
 			// TODO: Environment variables are ignored as they are poorly supported and classes describe which environment variables are required,
 			// not which are supported 
-			using namespace MetasoundArchetypeIntrinsics;
+			using namespace MetasoundInterfaceIntrinsics;
 
-			const bool bIsInputSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Inputs, InSupersetClass.Interface.Inputs, &IsLessThanVertex);
-
-			const bool bIsOutputSetIncluded = IsSetIncluded(InSubsetArchetype.Interface.Outputs, InSupersetClass.Interface.Outputs, &IsLessThanVertex);
+			const bool bIsInputSetIncluded = IsSetIncluded(InSubsetInterface.Inputs, InSupersetClass.Interface.Inputs, &IsLessThanVertex);
+			const bool bIsOutputSetIncluded = IsSetIncluded(InSubsetInterface.Outputs, InSupersetClass.Interface.Outputs, &IsLessThanVertex);
 
 			return bIsInputSetIncluded && bIsOutputSetIncluded;
 		}
 
-		bool IsEquivalentArchetype(const FMetasoundFrontendArchetype& InInputArchetype, const FMetasoundFrontendArchetype& InTargetArchetype)
+		bool IsEquivalentInterface(const FMetasoundFrontendInterface& InInputInterface, const FMetasoundFrontendInterface& InTargetInterface)
 		{
-			using namespace MetasoundArchetypeIntrinsics;
+			using namespace MetasoundInterfaceIntrinsics;
 
-			const bool bIsInputSetEquivalent = IsSetEquivalent(InTargetArchetype.Interface.Inputs, InInputArchetype.Interface.Inputs, &IsLessThanVertex);
-
-			const bool bIsOutputSetEquivalent = IsSetEquivalent(InTargetArchetype.Interface.Outputs, InInputArchetype.Interface.Outputs, &IsLessThanVertex);
-
-			const bool bIsEnvironmentVariableSetEquivalent = IsSetEquivalent(InTargetArchetype.Interface.Environment, InInputArchetype.Interface.Environment, &IsLessThanEnvironmentVariable);
+			const bool bIsInputSetEquivalent = IsSetEquivalent(InTargetInterface.Inputs, InInputInterface.Inputs, &IsLessThanVertex);
+			const bool bIsOutputSetEquivalent = IsSetEquivalent(InTargetInterface.Outputs, InInputInterface.Outputs, &IsLessThanVertex);
+			const bool bIsEnvironmentVariableSetEquivalent = IsSetEquivalent(InTargetInterface.Environment, InInputInterface.Environment, &IsLessThanEnvironmentVariable);
 
 			return bIsInputSetEquivalent && bIsOutputSetEquivalent && bIsEnvironmentVariableSetEquivalent;
 		}
 
-		bool IsEqualArchetype(const FMetasoundFrontendArchetype& InInputArchetype, const FMetasoundFrontendArchetype& InTargetArchetype)
+		bool IsEqualInterface(const FMetasoundFrontendInterface& InInputInterface, const FMetasoundFrontendInterface& InTargetInterface)
 		{
-			bool bIsMetadataEqual = InInputArchetype.Version.Name == InTargetArchetype.Version.Name;
-			bIsMetadataEqual &= InInputArchetype.Version.Number.Major == InTargetArchetype.Version.Number.Major;
-			bIsMetadataEqual &= InInputArchetype.Version.Number.Minor == InTargetArchetype.Version.Number.Minor;
-
+			const bool bIsMetadataEqual = InInputInterface.Version == InTargetInterface.Version;
 			if (bIsMetadataEqual)
 			{
 				// If metadata is equal, then inputs/outputs/environment variables should also be equal. 
-				// Consider updating archetype version info if this ensure is hit.
-				return ensure(IsEquivalentArchetype(InInputArchetype, InTargetArchetype));
+				// Consider updating interface version info if this ensure is hit.
+				return ensure(IsEquivalentInterface(InInputInterface, InTargetInterface));
 			}
 
 			return false;
 		}
 
-		int32 InputOutputDifferenceCount(const FMetasoundFrontendClass& InClass, const FMetasoundFrontendArchetype& InArchetype)
+		bool DeclaredInterfaceVersionsMatch(const FMetasoundFrontendDocument& InDocumentA, const FMetasoundFrontendDocument& InDocumentB)
 		{
-			using namespace MetasoundArchetypeIntrinsics;
+			using namespace MetasoundInterfaceIntrinsics;
 
-			int32 DiffCount = SetDifferenceCount(InClass.Interface.Inputs, InArchetype.Interface.Inputs, &IsLessThanVertex);
+			auto IsLessThanVersion = [](const FMetasoundFrontendVersion& A, const FMetasoundFrontendVersion& B) { return A < B; };
+			return IsSetEquivalent(InDocumentA.InterfaceVersions, InDocumentB.InterfaceVersions, IsLessThanVersion);
+		}
 
-			DiffCount += SetDifferenceCount(InClass.Interface.Outputs, InArchetype.Interface.Outputs, &IsLessThanVertex);
+		int32 InputOutputDifferenceCount(const FMetasoundFrontendClass& InClass, const FMetasoundFrontendInterface& InInterface)
+		{
+			using namespace MetasoundInterfaceIntrinsics;
+
+			int32 DiffCount = SetDifferenceCount(InClass.Interface.Inputs, InInterface.Inputs, &IsLessThanVertex);
+			DiffCount += SetDifferenceCount(InClass.Interface.Outputs, InInterface.Outputs, &IsLessThanVertex);
 
 			return DiffCount;
 		}
 
-		int32 InputOutputDifferenceCount(const FMetasoundFrontendArchetype& InArchetypeA, const FMetasoundFrontendArchetype& InArchetypeB)
+		int32 InputOutputDifferenceCount(const FMetasoundFrontendInterface& InInterfaceA, const FMetasoundFrontendInterface& InInterfaceB)
 		{
-			using namespace MetasoundArchetypeIntrinsics;
+			using namespace MetasoundInterfaceIntrinsics;
 
-			int32 DiffCount = SetDifferenceCount(InArchetypeA.Interface.Inputs, InArchetypeB.Interface.Inputs, &IsLessThanVertex);
-
-			DiffCount += SetDifferenceCount(InArchetypeA.Interface.Outputs, InArchetypeB.Interface.Outputs, &IsLessThanVertex);
+			int32 DiffCount = SetDifferenceCount(InInterfaceA.Inputs, InInterfaceB.Inputs, &IsLessThanVertex);
+			DiffCount += SetDifferenceCount(InInterfaceA.Outputs, InInterfaceB.Outputs, &IsLessThanVertex);
 
 			return DiffCount;
 		}
 
-		void GatherRequiredEnvironmentVariables(const FMetasoundFrontendGraphClass& InRootGraph, const TArray<FMetasoundFrontendClass>& InDependencies, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, TArray<FMetasoundFrontendEnvironmentVariable>& OutEnvironmentVariables)
+		void GatherRequiredEnvironmentVariables(const FMetasoundFrontendGraphClass& InRootGraph, const TArray<FMetasoundFrontendClass>& InDependencies, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, TArray<FMetasoundFrontendClassEnvironmentVariable>& OutEnvironmentVariables)
 		{
 			auto GatherRequiredEnvironmentVariablesFromClass = [&](const FMetasoundFrontendClass& InClass)
 			{
-				using namespace MetasoundArchetypeIntrinsics;
+				using namespace MetasoundInterfaceIntrinsics;
 
 				for (const FMetasoundFrontendClassEnvironmentVariable& EnvVar : InClass.Interface.Environment)
 				{
 					if (EnvVar.bIsRequired)
 					{
-						auto IsEquivalentEnvVar = [&](const FMetasoundFrontendEnvironmentVariable& OtherEnvVar) 
-						{ 
-							return IsEquivalentEnvironmentVariable(EnvVar, OtherEnvVar); 
+						auto IsEquivalentEnvVar = [&](const FMetasoundFrontendClassEnvironmentVariable& OtherEnvVar)
+						{
+							return IsEquivalentEnvironmentVariable(EnvVar, OtherEnvVar);
 						};
 
 						// Basically same as TArray::AddUnique except uses the `IsEquivalentEnvironmentVariable` instead of `operator==` to test for uniqueness.
@@ -233,45 +232,44 @@ namespace Metasound
 			Algo::ForEach(InSubgraphs, GatherRequiredEnvironmentVariablesFromClass);
 		}
 
-		
-		const FMetasoundFrontendArchetype* FindMostSimilarArchetypeSupportingEnvironment(const FMetasoundFrontendGraphClass& InRootGraph, const TArray<FMetasoundFrontendClass>& InDependencies, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendArchetype>& InCandidateArchetypes)
+		const FMetasoundFrontendInterface* FindMostSimilarInterfaceSupportingEnvironment(const FMetasoundFrontendGraphClass& InRootGraph, const TArray<FMetasoundFrontendClass>& InDependencies, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendInterface>& InCandidateInterfaces)
 		{
-			using namespace MetasoundArchetypeIntrinsics;
+			using namespace MetasoundInterfaceIntrinsics;
 
-			const FMetasoundFrontendArchetype* Result = nullptr;
+			const FMetasoundFrontendInterface* Result = nullptr;
 
-			TArray<const FMetasoundFrontendArchetype*> CandidateArchs = MakePointerToArrayElements(InCandidateArchetypes);
+			TArray<const FMetasoundFrontendInterface*> CandidateInterfaces = MakePointerToArrayElements(InCandidateInterfaces);
 
-			TArray<FMetasoundFrontendEnvironmentVariable> AllEnvironmentVariables;
+			TArray<FMetasoundFrontendClassEnvironmentVariable> AllEnvironmentVariables;
 			GatherRequiredEnvironmentVariables(InRootGraph, InDependencies, InSubgraphs, AllEnvironmentVariables);
 
-			// Remove all archetypes which do not provide all environment variables. 
-			auto DoesNotProvideAllEnvironmentVariables = [&](const FMetasoundFrontendArchetype* CandidateArch)
+			// Remove all interfaces which do not provide all environment variables.
+			auto DoesNotProvideAllEnvironmentVariables = [&](const FMetasoundFrontendInterface* CandidateInterface)
 			{
-				return !IsSetIncluded(AllEnvironmentVariables, CandidateArch->Interface.Environment, &IsLessThanEnvironmentVariable);
+				return !IsSetIncluded(AllEnvironmentVariables, CandidateInterface->Environment, &IsLessThanEnvironmentVariable);
 			};
 
-			CandidateArchs.RemoveAll(DoesNotProvideAllEnvironmentVariables);
+			CandidateInterfaces.RemoveAll(DoesNotProvideAllEnvironmentVariables);
 
-			// Return the archetype with the least amount of differences.
-			auto DifferencesFromRootGraph = [&](const FMetasoundFrontendArchetype* CandidateArch) -> int32
+			// Return the interface with the least amount of differences.
+			auto DifferencesFromRootGraph = [&](const FMetasoundFrontendInterface* CandidateInterface) -> int32
 			{ 
-				return InputOutputDifferenceCount(InRootGraph, *CandidateArch); 
+				return InputOutputDifferenceCount(InRootGraph, *CandidateInterface);
 			};
 
-			Algo::SortBy(CandidateArchs, DifferencesFromRootGraph);
+			Algo::SortBy(CandidateInterfaces, DifferencesFromRootGraph);
 
-			if (0 == CandidateArchs.Num())
+			if (0 == CandidateInterfaces.Num())
 			{
 				return nullptr;
 			}
 
-			return CandidateArchs[0];
+			return CandidateInterfaces[0];
 		}
 		
-		const FMetasoundFrontendArchetype* FindMostSimilarArchetypeSupportingEnvironment(const FMetasoundFrontendDocument& InDocument, const TArray<FMetasoundFrontendArchetype>& InCandidateArchetypes)
+		const FMetasoundFrontendInterface* FindMostSimilarInterfaceSupportingEnvironment(const FMetasoundFrontendDocument& InDocument, const TArray<FMetasoundFrontendInterface>& InCandidateInterfaces)
 		{
-			return FindMostSimilarArchetypeSupportingEnvironment(InDocument.RootGraph, InDocument.Dependencies, InDocument.Subgraphs, InCandidateArchetypes);
+			return FindMostSimilarInterfaceSupportingEnvironment(InDocument.RootGraph, InDocument.Dependencies, InDocument.Subgraphs, InCandidateInterfaces);
 		}
 	}
 }

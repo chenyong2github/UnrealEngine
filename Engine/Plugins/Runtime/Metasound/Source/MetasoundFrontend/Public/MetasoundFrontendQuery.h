@@ -46,7 +46,7 @@ namespace Metasound
 	 */
 	struct METASOUNDFRONTEND_API FFrontendQueryEntry
 	{
-		using FValue = TVariant<Frontend::FNodeRegistryTransaction, FMetasoundFrontendVersion, FMetasoundFrontendClass, Frontend::FArchetypeRegistryTransaction, FMetasoundFrontendArchetype>;
+		using FValue = TVariant<Frontend::FNodeRegistryTransaction, FMetasoundFrontendVersion, FMetasoundFrontendClass, Frontend::FInterfaceRegistryTransaction, FMetasoundFrontendInterface>;
 		using FKey = FFrontendQueryKey;
 
 		FKey Key;

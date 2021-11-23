@@ -30,42 +30,51 @@ namespace Metasound
 			virtual bool Transform(FGraphHandle InGraph) const = 0;
 		};
 
-		/** Adds or swaps graph inputs and outputs to match the archetype. */
-		class METASOUNDFRONTEND_API FSwapGraphArchetype : public IGraphTransform
+		/** Adds or swaps document members (inputs, outputs) and removing any document members where necessary and adding those missing. */
+		class METASOUNDFRONTEND_API FModifyRootGraphInterfaces : public IDocumentTransform
 		{
 		public:
-			FSwapGraphArchetype(const FMetasoundFrontendArchetype& InFromArchetype, const FMetasoundFrontendArchetype& InToArchetype);
+			FModifyRootGraphInterfaces(const TArray<FMetasoundFrontendInterface>& InInterfacesToRemove, const TArray<FMetasoundFrontendInterface>& InInterfacesToAdd);
+			FModifyRootGraphInterfaces(const TArray<FMetasoundFrontendVersion>& InInterfaceVersionsToRemove, const TArray<FMetasoundFrontendVersion>& InInterfaceVersionsToAdd);
 
-			bool Transform(FGraphHandle InGraph) const override;
+			void SetDefaultNodeLocations(bool bInSetDefaultNodeLocations);
+			bool Transform(FDocumentHandle InDocument) const override;
 
 		private:
+			void Init();
+
+			bool bSetDefaultNodeLocations = true;
+
+			TArray<FMetasoundFrontendInterface> InterfacesToRemove;
+			TArray<FMetasoundFrontendInterface> InterfacesToAdd;
+
 			using FVertexPair = TTuple<FMetasoundFrontendClassVertex, FMetasoundFrontendClassVertex>;
 			TArray<FVertexPair> PairedInputs;
 			TArray<FVertexPair> PairedOutputs;
-			TArray<FMetasoundFrontendClassVertex> InputsToAdd;
-			TArray<FMetasoundFrontendClassVertex> InputsToRemove;
-			TArray<FMetasoundFrontendClassVertex> OutputsToAdd;
-			TArray<FMetasoundFrontendClassVertex> OutputsToRemove;
+
+			TArray<FMetasoundFrontendClassInput> InputsToAdd;
+			TArray<FMetasoundFrontendClassInput> InputsToRemove;
+			TArray<FMetasoundFrontendClassOutput> OutputsToAdd;
+			TArray<FMetasoundFrontendClassOutput> OutputsToRemove;
 
 		};
 
-		/** Adds or swaps root graph inputs and outputs to match the document's archetype. */
-		class METASOUNDFRONTEND_API FMatchRootGraphToArchetype : public IDocumentTransform
+		/** Updates document's given interface to the most recent version. */
+		class METASOUNDFRONTEND_API FUpdateRootGraphInterface : public IDocumentTransform
 		{
 		public:
-			FMatchRootGraphToArchetype(const FMetasoundFrontendVersion& InArchetypeVersion)
-				: ArchetypeVersion(InArchetypeVersion)
+			FUpdateRootGraphInterface(const FMetasoundFrontendVersion& InInterfaceVersion)
+				: InterfaceVersion(InInterfaceVersion)
 			{
 			}
 
 			bool Transform(FDocumentHandle InDocument) const override;
 
 		private:
-			void GetUpgradePathForDocument(const FMetasoundFrontendVersion& InCurrentVersion, const FMetasoundFrontendVersion& InTargetVersion, TArray<const IArchetypeRegistryEntry*>& OutUpgradePath) const;
-			bool UpgradeDocumentArchetype(const TArray<const IArchetypeRegistryEntry*>& InUpgradePath, FDocumentHandle InDocument) const;
-			bool ConformDocumentToArchetype(const FMetasoundFrontendArchetype& InTargetArchetype, FDocumentHandle InDocument) const;
+			void GetUpdatePathForDocument(const FMetasoundFrontendVersion& InCurrentVersion, const FMetasoundFrontendVersion& InTargetVersion, TArray<const IInterfaceRegistryEntry*>& OutUpgradePath) const;
+			bool UpdateDocumentInterface(const TArray<const IInterfaceRegistryEntry*>& InUpgradePath, FDocumentHandle InDocument) const;
 
-			FMetasoundFrontendVersion ArchetypeVersion;
+			FMetasoundFrontendVersion InterfaceVersion;
 		};
 
 		/** Completely rebuilds the graph connecting a preset's inputs to the reference

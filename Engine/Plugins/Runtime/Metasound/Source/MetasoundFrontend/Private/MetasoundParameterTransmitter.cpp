@@ -2,11 +2,130 @@
 
 #include "MetasoundParameterTransmitter.h"
 
+#include "IAudioGeneratorInterfaceRegistry.h"
 #include "MetasoundLog.h"
 
 
 namespace Metasound
 {
+	namespace Frontend
+	{
+		FLiteral ConvertParameterToLiteral(FAudioParameter&& InValue)
+		{
+			switch (InValue.ParamType)
+			{
+				case EAudioParameterType::Boolean:
+				{
+					return FLiteral(InValue.BoolParam);
+				}
+
+				case EAudioParameterType::BooleanArray:
+				{
+					return FLiteral(MoveTemp(InValue.ArrayBoolParam));
+				}
+
+				case EAudioParameterType::Float:
+				{
+					return FLiteral(InValue.FloatParam);
+				}
+
+				case EAudioParameterType::FloatArray:
+				{
+					return FLiteral(MoveTemp(InValue.ArrayFloatParam));
+				}
+
+				case EAudioParameterType::Integer:
+				{
+					return FLiteral(InValue.IntParam);
+				}
+
+				case EAudioParameterType::IntegerArray:
+				{
+					return FLiteral(MoveTemp(InValue.ArrayIntParam));
+				}
+
+				case EAudioParameterType::None:
+				{
+					return FLiteral();
+				}
+
+				case EAudioParameterType::NoneArray:
+				{
+					TArray<FLiteral::FNone> InitArray;
+					InitArray.Init(FLiteral::FNone(), InValue.IntParam);
+					return FLiteral(MoveTemp(InitArray));
+				}
+
+				case EAudioParameterType::Object:
+				{
+					if (InValue.ObjectProxies.IsEmpty())
+					{
+						return FLiteral();
+					}
+
+					return FLiteral(MoveTemp(InValue.ObjectProxies[0]));
+				}
+
+				case EAudioParameterType::ObjectArray:
+				{
+					return FLiteral(MoveTemp(InValue.ObjectProxies));
+				}
+
+				case EAudioParameterType::String:
+				{
+					return FLiteral(MoveTemp(InValue.StringParam));
+				}
+
+				case EAudioParameterType::StringArray:
+				{
+					return FLiteral(MoveTemp(InValue.ArrayStringParam));
+				}
+
+				default:
+				{
+					static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 12, "Possible missing switch case coverage");
+					checkNoEntry();
+				}
+			}
+
+			return FLiteral();
+		}
+
+		FName ConvertParameterToDataType(EAudioParameterType InParameterType)
+		{
+			switch (InParameterType)
+			{
+				case EAudioParameterType::Boolean:
+					return GetMetasoundDataTypeName<bool>();
+				case EAudioParameterType::BooleanArray:
+					return GetMetasoundDataTypeName<TArray<bool>>();
+				case EAudioParameterType::Float:
+					return GetMetasoundDataTypeName<float>();
+				case EAudioParameterType::FloatArray:
+					return GetMetasoundDataTypeName<TArray<float>>();
+				case EAudioParameterType::Integer:
+					return GetMetasoundDataTypeName<int32>();
+				case EAudioParameterType::IntegerArray:
+					return GetMetasoundDataTypeName<TArray<int32>>();
+				case EAudioParameterType::String:
+					return GetMetasoundDataTypeName<FString>();
+				case EAudioParameterType::StringArray:
+					return GetMetasoundDataTypeName<TArray<FString>>();
+
+				case EAudioParameterType::Object:
+				case EAudioParameterType::ObjectArray:
+					// TODO: Add support for objects
+
+				case EAudioParameterType::None:
+				case EAudioParameterType::NoneArray:
+				default:
+					ensureAlwaysMsgf(false, TEXT("Failed to convert AudioParameterType to POD MetaSound DataType"));
+					static_assert(static_cast<int32>(EAudioParameterType::COUNT) == 12, "Possible missing case coverage");
+					return FName();
+			}
+		}
+	}
+
 	const FVertexName& FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName()
 	{
 		static const FVertexName VarName = "TransmitterInstanceID";
@@ -55,84 +174,17 @@ namespace Metasound
 		return InstanceID;
 	}
 
-	bool FMetaSoundParameterTransmitter::SetParameter(FAudioParameter&& InValue)
+	bool FMetaSoundParameterTransmitter::SetParameter(FAudioParameter&& InParameter)
 	{
-		switch (InValue.ParamType)
-		{
-			case EAudioParameterType::Boolean:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(InValue.BoolParam));
-			}
+		const FName ParamName = InParameter.ParamName;
+		return SetParameterWithLiteral(ParamName, Frontend::ConvertParameterToLiteral(MoveTemp(InParameter)));
+	}
 
-			case EAudioParameterType::BooleanArray:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(MoveTemp(InValue.ArrayBoolParam)));
-			}
-
-			case EAudioParameterType::Float:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(InValue.FloatParam));
-			}
-
-			case EAudioParameterType::FloatArray:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(MoveTemp(InValue.ArrayFloatParam)));
-			}
-
-			case EAudioParameterType::Integer:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(InValue.IntParam));
-			}
-
-			case EAudioParameterType::IntegerArray:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(MoveTemp(InValue.ArrayIntParam)));
-			}
-
-			case EAudioParameterType::None:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral());
-			}
-
-			case EAudioParameterType::NoneArray:
-			{
-				TArray<FLiteral::FNone> InitArray;
-				InitArray.Init(FLiteral::FNone(), InValue.IntParam);
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(MoveTemp(InitArray)));
-			}
-
-			case EAudioParameterType::Object:
-			{
-				if(InValue.ObjectProxies.IsEmpty())
-				{
-					return SetParameterWithLiteral(InValue.ParamName, FLiteral());
-				}
-
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(MoveTemp(InValue.ObjectProxies[0])));
-			}
-
-			case EAudioParameterType::ObjectArray:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(MoveTemp(InValue.ObjectProxies)));
-			}
-
-			case EAudioParameterType::String:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(MoveTemp(InValue.StringParam)));
-			}
-
-			case EAudioParameterType::StringArray:
-			{
-				return SetParameterWithLiteral(InValue.ParamName, FLiteral(MoveTemp(InValue.ArrayStringParam)));
-			}
-
-			default:
-			{
-				checkNoEntry();
-			}
-		}
-
-		return false;
+	bool FMetaSoundParameterTransmitter::SetParameter(FName InInterfaceName, FAudioParameter&& InParameter)
+	{
+		InParameter.ParamName = Audio::IGeneratorInterfaceRegistry::GetMemberFullName(InInterfaceName, InParameter.ParamName);
+		const FName ParamName = InParameter.ParamName;
+		return SetParameterWithLiteral(ParamName, Frontend::ConvertParameterToLiteral(MoveTemp(InParameter)));
 	}
 
 	bool FMetaSoundParameterTransmitter::SetParameterWithLiteral(FName InParameterName, const FLiteral& InLiteral)

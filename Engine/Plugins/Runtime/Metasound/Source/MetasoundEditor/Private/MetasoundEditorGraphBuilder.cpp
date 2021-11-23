@@ -91,7 +91,10 @@ namespace Metasound
 			FText DisplayName = InFrontendNode.GetDisplayName();
 			if (DisplayName.IsEmptyOrWhitespace())
 			{
-				DisplayName = FText::FromName(InFrontendNode.GetNodeName());
+				FName InterfaceName;
+				FName ParameterName;
+				Audio::IGeneratorInterfaceRegistry::Get().SplitMemberFullName(InFrontendNode.GetNodeName(), InterfaceName, ParameterName);
+				return FText::FromName(ParameterName);
 			}
 			return DisplayName;
 		}
@@ -104,7 +107,6 @@ namespace Metasound
 				DisplayName = FText::FromName(InFrontendInput.GetName());
 			}
 			return DisplayName;
-				
 		}
 
 		FText FGraphBuilder::GetDisplayName(const Frontend::IOutputController& InFrontendOutput)
@@ -998,8 +1000,6 @@ namespace Metasound
 			TArray<FInputHandle> InputHandles;
 			TArray<UEdGraphPin*> InputPins;
 
-			UObject& Metasound = CastChecked<UMetasoundEditorGraphNode>(InPin.GetOwningNode())->GetMetasoundChecked();
-
 			if (InPin.Direction == EGPD_Input)
 			{
 				FNodeHandle NodeHandle = CastChecked<UMetasoundEditorGraphNode>(InPin.GetOwningNode())->GetNodeHandle();
@@ -1070,7 +1070,7 @@ namespace Metasound
 			DocMetadata.Version.Number = FVersionDocument::GetMaxVersion();
 			DocumentHandle->SetMetadata(DocMetadata);
 
-			MetaSoundAsset->ConformDocumentToArchetype();
+			MetaSoundAsset->AddDefaultInterfaces();
 
 			FGraphHandle GraphHandle = MetaSoundAsset->GetRootGraphHandle();
 			FVector2D InputNodeLocation = FVector2D::ZeroVector;
@@ -1129,7 +1129,7 @@ namespace Metasound
 			check(ReferencedAsset);
 
 			FRebuildPresetRootGraph(ReferencedAsset->GetDocumentHandle()).Transform(PresetAsset->GetDocumentHandle());
-			PresetAsset->ConformObjectDataToArchetype();
+			PresetAsset->ConformObjectDataToInterfaces();
 		}
 
 		bool FGraphBuilder::DeleteNode(UEdGraphNode& InNode)

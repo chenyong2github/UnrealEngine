@@ -2,65 +2,78 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
+#include "UObject/NoExportTypes.h"
 
 namespace Metasound
 {
 	namespace Frontend
 	{
-		using FArchetypeRegistryKey = FString;
+		using FInterfaceRegistryKey = FString;
 		using FRegistryTransactionID = int32;
 
-		METASOUNDFRONTEND_API bool IsValidArchetypeRegistryKey(const FArchetypeRegistryKey& InKey);
-		METASOUNDFRONTEND_API FArchetypeRegistryKey GetArchetypeRegistryKey(const FMetasoundFrontendVersion& InArchetypeVersion);
-		METASOUNDFRONTEND_API FArchetypeRegistryKey GetArchetypeRegistryKey(const FMetasoundFrontendArchetype& InArchetype);
+		METASOUNDFRONTEND_API bool IsValidInterfaceRegistryKey(const FInterfaceRegistryKey& InKey);
+		METASOUNDFRONTEND_API FInterfaceRegistryKey GetInterfaceRegistryKey(const FMetasoundFrontendVersion& InInterfaceVersion);
+		METASOUNDFRONTEND_API FInterfaceRegistryKey GetInterfaceRegistryKey(const FMetasoundFrontendInterface& InInterface);
 
-		class IArchetypeRegistryEntry
+		class METASOUNDFRONTEND_API IInterfaceRegistryEntry
 		{
 		public:
-			virtual ~IArchetypeRegistryEntry() = default;
+			virtual ~IInterfaceRegistryEntry() = default;
 
-			virtual const FMetasoundFrontendArchetype& GetArchetype() const = 0;
-			virtual bool UpdateRootGraphArchetype(FDocumentHandle InDocument) const = 0;
+			// MetaSound Interface definition
+			virtual const FMetasoundFrontendInterface& GetInterface() const = 0;
+
+			// Whether or not to immediately apply the given interface when a MetaSound
+			// asset of the supported UClass is created.
+			virtual bool IsDefault() const = 0;
+
+			// Name of routing system used to update interface inputs (ex. ParameterInterface or DataReference).
+			virtual FName GetRouterName() const = 0;
+
+			// Name of UClass supported by the given interface.
+			virtual bool UClassIsSupported(FName InUClassName) const = 0;
+
+			// How to update a given document if versioning is required to this interface from a deprecated version.
+			virtual bool UpdateRootGraphInterface(FDocumentHandle InDocument) const = 0;
 		};
 
-		class METASOUNDFRONTEND_API FArchetypeRegistryTransaction 
+		class METASOUNDFRONTEND_API FInterfaceRegistryTransaction
 		{
 		public:
 			/** Describes the type of transaction. */
 			enum class ETransactionType : uint8
 			{
-				ArchetypeRegistration,     //< Something was added to the registry.
-				ArchetypeUnregistration,  //< Something was removed from the registry.
+				InterfaceRegistration,     //< Something was added to the registry.
+				InterfaceUnregistration,  //< Something was removed from the registry.
 				Invalid
 			};
 
-			FArchetypeRegistryTransaction(ETransactionType InType, const FArchetypeRegistryKey& InKey, const FMetasoundFrontendVersion& InArchetypeVersion);
+			FInterfaceRegistryTransaction(ETransactionType InType, const FInterfaceRegistryKey& InKey, const FMetasoundFrontendVersion& InInterfaceVersion);
 
 			ETransactionType GetTransactionType() const;
-			const FMetasoundFrontendVersion& GetArchetypeVersion() const;
-			const FArchetypeRegistryKey& GetArchetypeRegistryKey() const;
+			const FMetasoundFrontendVersion& GetInterfaceVersion() const;
+			const FInterfaceRegistryKey& GetInterfaceRegistryKey() const;
 
 		private:
 
 			ETransactionType Type;
-			FArchetypeRegistryKey Key;
-			FMetasoundFrontendVersion ArchetypeVersion;
+			FInterfaceRegistryKey Key;
+			FMetasoundFrontendVersion InterfaceVersion;
 		};
 
-		class METASOUNDFRONTEND_API IArchetypeRegistry
+		class METASOUNDFRONTEND_API IInterfaceRegistry
 		{
 		public:
-			static IArchetypeRegistry& Get();
+			static IInterfaceRegistry& Get();
 
-			virtual ~IArchetypeRegistry() = default;
+			virtual ~IInterfaceRegistry() = default;
 
-			virtual FArchetypeRegistryKey RegisterArchetype(TUniquePtr<IArchetypeRegistryEntry>&& InEntry) = 0;
-			virtual const IArchetypeRegistryEntry* FindArchetypeRegistryEntry(const FArchetypeRegistryKey& InKey) const = 0;
-			virtual bool FindArchetype(const FArchetypeRegistryKey& InKey, FMetasoundFrontendArchetype& OutArchetype) const = 0;
-			virtual void ForEachRegistryTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const FArchetypeRegistryTransaction&)> InFunc) const = 0;
+			virtual void RegisterInterface(TUniquePtr<IInterfaceRegistryEntry>&& InEntry) = 0;
+			virtual const IInterfaceRegistryEntry* FindInterfaceRegistryEntry(const FInterfaceRegistryKey& InKey) const = 0;
+			virtual bool FindInterface(const FInterfaceRegistryKey& InKey, FMetasoundFrontendInterface& OutInterface) const = 0;
+			virtual void ForEachRegistryTransactionSince(FRegistryTransactionID InSince, FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const FInterfaceRegistryTransaction&)> InFunc) const = 0;
 		};
 	}
 }

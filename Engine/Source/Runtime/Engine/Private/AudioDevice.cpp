@@ -3887,6 +3887,7 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 						UsedDeltaTime = 0.0f;
 					}
 
+					ActiveSound->UpdateGeneratorParameters(Listeners);
 					ActiveSound->UpdateWaveInstances(WaveInstances, UsedDeltaTime);
 				}
 			}
@@ -5376,12 +5377,12 @@ bool FAudioDevice::LocationIsAudible(const FVector& Location, const float MaxDis
 
 	const int32 ListenerCount = bInAudioThread ? Listeners.Num() : ListenerProxies.Num();
 	for (int32 i = 0; i < ListenerCount; ++i)
-		{
+	{
 		if (LocationIsAudible(Location, i, MaxDistance))
-			{
-				return true;
-			}
+		{
+			return true;
 		}
+	}
 
 	return false;
 }
@@ -5410,16 +5411,16 @@ bool FAudioDevice::LocationIsAudible(const FVector& Location, const FTransform& 
 bool FAudioDevice::LocationIsAudible(const FVector& Location, int32 ListenerIndex, float MaxDistance) const
 {
 	if (MaxDistance >= WORLD_MAX)
-			{
-				return true;
-			}
+	{
+		return true;
+	}
 	
 	FVector ListenerTranslation;
 	const bool bAllowOverride = true;
 	if (ListenerIndex == INDEX_NONE || !GetListenerPosition(ListenerIndex, ListenerTranslation, bAllowOverride))
 	{
 		return false;
-		}
+	}
 	
 	const float MaxDistanceSquared = MaxDistance * MaxDistance;
 	return (ListenerTranslation - Location).SizeSquared() < MaxDistanceSquared;
@@ -5488,24 +5489,25 @@ bool FAudioDevice::GetListenerPosition(int32 ListenerIndex, FVector& OutPosition
 {
 	OutPosition = FVector::ZeroVector;
 	if (ListenerIndex == INDEX_NONE)
-		{
+	{
 		return false;
 	}
 
 	if (IsInAudioThread())
-			{
+	{
 		checkf(ListenerIndex < Listeners.Num(), TEXT("Listener Index %u out of range of available Listeners!"), ListenerIndex);
 		const FListener& Listener = Listeners[ListenerIndex];
 		OutPosition = Listener.GetPosition(bAllowOverride);
 		return true;
-			}
+	}
 	else // IsInGameThread()
 	{
 		checkf(ListenerIndex < ListenerProxies.Num(), TEXT("Listener Index %u out of range of available Listeners!"), ListenerIndex);
 		const FListenerProxy& Proxy = ListenerProxies[ListenerIndex];
 		OutPosition = Proxy.GetPosition(bAllowOverride);
 		return true;
-		}
+	}
+
 	return false;
 }
 
@@ -5523,16 +5525,17 @@ bool FAudioDevice::GetListenerTransform(int32 ListenerIndex, FTransform& OutTran
 		{
 			OutTransform = Listeners[ListenerIndex].Transform;
 			return true;
-			}
 		}
+	}
 	else // IsInGameThread()
 	{
 		if (ListenerIndex < ListenerProxies.Num())
-	{
+		{
 			OutTransform = ListenerProxies[ListenerIndex].Transform;
 			return true;
+		}
 	}
-	}
+
 	return false;
 }
 
@@ -5560,6 +5563,7 @@ bool FAudioDevice::GetListenerWorldID(int32 ListenerIndex, uint32& OutWorldID) c
 			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -5730,13 +5734,13 @@ int32 FAudioDevice::FindClosestListenerIndex(const FVector& Position, float& Out
 
 		const float DistSq = FVector::DistSquared(Position, ListenerPosition);
 		if (DistSq < OutDistanceSq)
-				{
+		{
 			OutDistanceSq = DistSq;
-					ClosestListenerIndex = i;
-			}
+			ClosestListenerIndex = i;
 		}
+	}
 
-		return ClosestListenerIndex;
+	return ClosestListenerIndex;
 }
 
 void FAudioDevice::UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSound)

@@ -18,10 +18,17 @@
 class FMetasoundAssetBase;
 class UEdGraph;
 
+namespace Metasound
+{
+	namespace Frontend {
+		class IInterfaceRegistryEntry;
+	} // namespace Frontend
+} // namespace Metasound
+
 
 /** FMetasoundAssetBase is intended to be a mix-in subclass for UObjects which utilize
  * Metasound assets.  It provides consistent access to FMetasoundFrontendDocuments, control
- * over the FMetasoundFrontendArchetype of the FMetasoundFrontendDocument.  It also enables the UObject
+ * over the FMetasoundFrontendClassInterface of the FMetasoundFrontendDocument.  It also enables the UObject
  * to be utilized by a host of other engine tools built to support MetaSounds.
  */
 class METASOUNDFRONTEND_API FMetasoundAssetBase
@@ -53,10 +60,10 @@ public:
 	virtual void SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InClassInfo) = 0;
 #endif // WITH_EDITORONLY_DATA
 
-	// Called when the archetype is changed, presenting the opportunity for
-	// any reflected object data to be updated based on the new archetype.
+	// Called when the interface is changed, presenting the opportunity for
+	// any reflected object data to be updated based on the new interface.
 	// Returns whether or not any edits were made.
-	virtual bool ConformObjectDataToArchetype() = 0;
+	virtual bool ConformObjectDataToInterfaces() = 0;
 
 	// Registers the root graph of the given asset with the MetaSound Frontend.
 	void RegisterGraphWithFrontend(Metasound::Frontend::FMetaSoundAssetRegistrationOptions InRegistrationOptions = Metasound::Frontend::FMetaSoundAssetRegistrationOptions());
@@ -67,18 +74,14 @@ public:
 	// Sets/overwrites the root class metadata
 	virtual void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata);
 
-	// Returns  a description of the required inputs and outputs for this metasound UClass.
+	// Returns a default interface required when a given asset is created.
 	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const = 0;
 
-	// Returns true if the archetype is supported by this object.
-	virtual bool IsArchetypeSupported(const FMetasoundFrontendVersion& InArchetypeVersion) const;
+	// Returns the interface entries declared by the given asset's document from the InterfaceRegistry.
+	bool GetDeclaredInterfaces(TArray<const Metasound::Frontend::IInterfaceRegistryEntry*>& OutInterfaces) const;
 
-	// Returns an array of archetypes preferred for this class.
-	virtual const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const = 0;
-
-	// Returns the preferred archetype for the given document.
-	virtual FMetasoundFrontendVersion GetPreferredArchetypeVersion(const FMetasoundFrontendDocument& InDocument) const;
-	bool GetArchetype(FMetasoundFrontendArchetype& OutArchetype) const;
+	// Returns whether an interface with the given name is declared by the given asset's document.
+	bool IsInterfaceDeclared(FName InName) const;
 
 	// Gets the asset class info.
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const = 0;
@@ -113,24 +116,24 @@ public:
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle();
 	Metasound::Frontend::FConstGraphHandle GetRootGraphHandle() const;
 
-	// Overwrites the existing document. If the document's archetype is not supported,
-	// the FMetasoundAssetBase be while queried for a new one using `GetPreferredArchetype`. If `bForceUpdateArchetype`
-	// is true, `GetPreferredArchetype` will be used whether or not the provided document's archetype
-	// is supported. 
+	// Overwrites the existing document. If the document's interface is not supported,
+	// the FMetasoundAssetBase be while queried for a new one using `GetPreferredInterface`.
 	void SetDocument(const FMetasoundFrontendDocument& InDocument);
 
 	FMetasoundFrontendDocument& GetDocumentChecked();
 	const FMetasoundFrontendDocument& GetDocumentChecked() const;
 
-	void ConformDocumentToArchetype();
+	void AddDefaultInterfaces();
 	bool AutoUpdate(bool bInMarkDirty = false);
 	bool VersionAsset();
 
 #if WITH_EDITORONLY_DATA
 	bool GetSynchronizationPending() const;
 	bool GetSynchronizationClearUpdateNotes() const;
+	bool GetSynchronizationInterfacesUpdated() const;
 	void ResetSynchronizationState();
 	void SetClearNodeNotesOnSynchronization();
+	void SetInterfacesUpdatedOnSynchronization();
 	void SetSynchronizationRequired();
 #endif // WITH_EDITORONLY_DATA
 
@@ -149,6 +152,8 @@ public:
 	// Returns the owning asset responsible for transactions applied to MetaSound
 	virtual const UObject* GetOwningAsset() const = 0;
 
+	FString GetOwningAssetName() const;
+
 protected:
 	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) = 0;
 
@@ -165,14 +170,13 @@ protected:
 	// Returns an access pointer to the document.
 	virtual Metasound::Frontend::FConstDocumentAccessPtr GetDocument() const = 0;
 
-	FString GetOwningAssetName() const;
-
 	// Returns a shared instance of the core metasound graph.
 	TSharedPtr<const Metasound::IGraph, ESPMode::ThreadSafe> GetMetasoundCoreGraph() const;
 
 #if WITH_EDITORONLY_DATA
 	bool bSynchronizationRequired = true;
 	bool bSynchronizationClearUpdateNotes = false;
+	bool bSynchronizationInterfacesUpdated = false;
 #endif // WITH_EDITORONLY_DATA
 
 private:
@@ -199,9 +203,7 @@ private:
 	const FRuntimeData& GetRuntimeData() const;
 
 	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument() const;
-	TArray<FMetasoundFrontendClassInput> GetTransmittableClassInputs() const;
-	TSet<Metasound::FVertexName> GetNonTransmittableInputVertices(const FMetasoundFrontendDocument& InDoc) const;
-	TArray<Metasound::FVertexName> GetTransmittableInputVertexNames() const;
+	TArray<const FMetasoundFrontendClassInput*> GetTransmittableClassInputs() const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const Metasound::FVertexName& InVertexName, const FName& InDataTypeName) const;
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
 };
