@@ -532,17 +532,17 @@ void UNeuralNetwork::FImplBackEndUEAndORT::RunSessionImpl(const ENeuralDeviceTyp
 			// TODO: Remove this sync point and move session run to render thread
 			FNeuralNetworkInferenceUtils::WaitUntilRHIFinished();
 		}
-	}
 
-	if (InDeviceType == ENeuralDeviceType::GPU)
-	{
+		// Profiling init
 		FNNIGPUProfiler::Instance()->EventBegin("NNI:SessionRun");
 	}
 
+	// Actual ORT network run
 	Session->Run(Ort::RunOptions{ nullptr },
 		InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
 		OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
 
+	// Profiling end
 	if (InDeviceType == ENeuralDeviceType::GPU)
 	{
 		FNNIGPUProfiler::Instance()->EventEnd();
