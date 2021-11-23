@@ -32,7 +32,7 @@ protected:
 			const UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer();
 			const UDataLayer* ParentDataLayer = DataLayer ? DataLayer->GetParent() : nullptr;
 			const bool bIsParentVisible = ParentDataLayer ? ParentDataLayer->IsEffectiveVisible() : true;
-			return bIsParentVisible && DataLayer && DataLayer->GetWorld() && !DataLayer->GetWorld()->IsPlayInEditor();
+			return bIsParentVisible && DataLayer && DataLayer->GetWorld() && !DataLayer->GetWorld()->IsPlayInEditor() && DataLayer->IsEffectiveLoadedInEditor();
 		}
 		return false;
 	}

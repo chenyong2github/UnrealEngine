@@ -93,7 +93,7 @@ bool UDataLayer::IsEffectiveVisible() const
 		bResult = bResult && ParentDataLayer->IsVisible();
 		ParentDataLayer = ParentDataLayer->GetParent();
 	}
-	return bResult;
+	return bResult && IsEffectiveLoadedInEditor();
 #else
 	return false;
 #endif
