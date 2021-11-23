@@ -2248,49 +2248,58 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 
 	// Properties from the sound class
 	WaveInstance->SoundClass = ParseParams.SoundClass;
+	bool bFoundSoundClass = false;
 	if (ParseParams.SoundClass)
 	{
 		const FSoundClassProperties* SoundClassProperties = AudioDevice->GetSoundClassCurrentProperties(ParseParams.SoundClass);
-		check(SoundClassProperties);
-
-		// Use values from "parsed/ propagated" sound class properties
-		float VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
-		WaveInstance->SetVolumeMultiplier(VolumeMultiplier * SoundClassProperties->Volume);
-		WaveInstance->SetPitch(WaveInstance->Pitch * SoundClassProperties->Pitch);
-
-		WaveInstance->SoundClassFilterFrequency = SoundClassProperties->LowPassFilterFrequency;
-		WaveInstance->VoiceCenterChannelVolume = SoundClassProperties->VoiceCenterChannelVolume;
-		WaveInstance->RadioFilterVolume = SoundClassProperties->RadioFilterVolume * ParseParams.VolumeMultiplier;
-		WaveInstance->RadioFilterVolumeThreshold = SoundClassProperties->RadioFilterVolumeThreshold * ParseParams.VolumeMultiplier;
-		WaveInstance->LFEBleed = SoundClassProperties->LFEBleed;
-
-		WaveInstance->bIsUISound = ActiveSound.bIsUISound || SoundClassProperties->bIsUISound;
-		WaveInstance->bIsMusic = ActiveSound.bIsMusic || SoundClassProperties->bIsMusic;
-		WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly || SoundClassProperties->bCenterChannelOnly;
-		WaveInstance->bReverb = ActiveSound.bReverb || SoundClassProperties->bReverb;
-		WaveInstance->OutputTarget = SoundClassProperties->OutputTarget;
-
-		if (SoundClassProperties->bApplyEffects)
+		if (!SoundClassProperties)
 		{
-			UAudioSettings* Settings = GetMutableDefault<UAudioSettings>();
-			WaveInstance->SoundSubmix = Cast<USoundSubmix>(FSoftObjectPtr(Settings->EQSubmix).Get());
+			UE_LOG(LogAudio, Warning, TEXT("Unable to find sound class properties for sound class %s"), *ParseParams.SoundClass->GetName());
 		}
-		else if (SoundClassProperties->DefaultSubmix)
+		else
 		{
-			WaveInstance->SoundSubmix = SoundClassProperties->DefaultSubmix;
-		}
+			bFoundSoundClass = true;
 
-		if (SoundClassProperties->bApplyAmbientVolumes)
-		{
-			VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
-			WaveInstance->SetVolumeMultiplier(VolumeMultiplier * ParseParams.InteriorVolumeMultiplier);
-			WaveInstance->RadioFilterVolume *= ParseParams.InteriorVolumeMultiplier;
-			WaveInstance->RadioFilterVolumeThreshold *= ParseParams.InteriorVolumeMultiplier;
-		}
+			// Use values from "parsed/ propagated" sound class properties
+			float VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
+			WaveInstance->SetVolumeMultiplier(VolumeMultiplier * SoundClassProperties->Volume);
+			WaveInstance->SetPitch(WaveInstance->Pitch * SoundClassProperties->Pitch);
 
-		bAlwaysPlay = ActiveSound.bAlwaysPlay || SoundClassProperties->bAlwaysPlay;
+			WaveInstance->SoundClassFilterFrequency = SoundClassProperties->LowPassFilterFrequency;
+			WaveInstance->VoiceCenterChannelVolume = SoundClassProperties->VoiceCenterChannelVolume;
+			WaveInstance->RadioFilterVolume = SoundClassProperties->RadioFilterVolume * ParseParams.VolumeMultiplier;
+			WaveInstance->RadioFilterVolumeThreshold = SoundClassProperties->RadioFilterVolumeThreshold * ParseParams.VolumeMultiplier;
+			WaveInstance->LFEBleed = SoundClassProperties->LFEBleed;
+
+			WaveInstance->bIsUISound = ActiveSound.bIsUISound || SoundClassProperties->bIsUISound;
+			WaveInstance->bIsMusic = ActiveSound.bIsMusic || SoundClassProperties->bIsMusic;
+			WaveInstance->bCenterChannelOnly = ActiveSound.bCenterChannelOnly || SoundClassProperties->bCenterChannelOnly;
+			WaveInstance->bReverb = ActiveSound.bReverb || SoundClassProperties->bReverb;
+			WaveInstance->OutputTarget = SoundClassProperties->OutputTarget;
+
+			if (SoundClassProperties->bApplyEffects)
+			{
+				UAudioSettings* Settings = GetMutableDefault<UAudioSettings>();
+				WaveInstance->SoundSubmix = Cast<USoundSubmix>(FSoftObjectPtr(Settings->EQSubmix).Get());
+			}
+			else if (SoundClassProperties->DefaultSubmix)
+			{
+				WaveInstance->SoundSubmix = SoundClassProperties->DefaultSubmix;
+			}
+
+			if (SoundClassProperties->bApplyAmbientVolumes)
+			{
+				VolumeMultiplier = WaveInstance->GetVolumeMultiplier();
+				WaveInstance->SetVolumeMultiplier(VolumeMultiplier * ParseParams.InteriorVolumeMultiplier);
+				WaveInstance->RadioFilterVolume *= ParseParams.InteriorVolumeMultiplier;
+				WaveInstance->RadioFilterVolumeThreshold *= ParseParams.InteriorVolumeMultiplier;
+			}
+
+			bAlwaysPlay = ActiveSound.bAlwaysPlay || SoundClassProperties->bAlwaysPlay;
+		}
 	}
-	else
+
+	if (!bFoundSoundClass)
 	{
 		WaveInstance->VoiceCenterChannelVolume = 0.f;
 		WaveInstance->RadioFilterVolume = 0.f;
