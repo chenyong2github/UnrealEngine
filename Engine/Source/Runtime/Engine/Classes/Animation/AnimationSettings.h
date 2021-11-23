@@ -61,9 +61,19 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Performance)
 	bool bTickAnimationOnSkeletalMeshInit;
 
+	/** Names that identify bone custom attributes representing the individual components of a timecode and a subframe along with a take name.
+	    These will be included in the list of bone custom attribute names to import. */
+	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
+	FTimecodeCustomAttributeNameSettings BoneTimecodeCustomAttributeNameSettings;
+
 	/** List of custom attribute to import directly on their corresponding bone. The meaning field allows to contextualize the attribute name and customize tooling for it. */
 	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
 	TArray<FCustomAttributeSetting> BoneCustomAttributesNames;
+
+	/** Gets the complete list of bone custom attribute names to consider for import.
+	    This includes the designated timecode custom attributes as well as other bone custom attributes identified in the settings. */
+	UFUNCTION(BlueprintPure, Category = CustomAttributes)
+	TArray<FString> GetBoneCustomAttributeNamesToImport() const;
 
 	/** List of bone names for which all custom attributes are directly imported on the bone. */
 	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)

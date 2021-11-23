@@ -34,6 +34,25 @@ UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializ
 	};
 }
 
+TArray<FString> UAnimationSettings::GetBoneCustomAttributeNamesToImport() const
+{
+	TArray<FString> AttributeNames = {
+		BoneTimecodeCustomAttributeNameSettings.HourAttributeName.ToString(),
+		BoneTimecodeCustomAttributeNameSettings.MinuteAttributeName.ToString(),
+		BoneTimecodeCustomAttributeNameSettings.SecondAttributeName.ToString(),
+		BoneTimecodeCustomAttributeNameSettings.FrameAttributeName.ToString(),
+		BoneTimecodeCustomAttributeNameSettings.SubframeAttributeName.ToString(),
+		BoneTimecodeCustomAttributeNameSettings.TakenameAttributeName.ToString()
+	};
+
+	for (const FCustomAttributeSetting& Setting : BoneCustomAttributesNames)
+	{
+		AttributeNames.AddUnique(Setting.Name);
+	}
+
+	return AttributeNames;
+}
+
 
 #if WITH_EDITOR
 void UAnimationSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
