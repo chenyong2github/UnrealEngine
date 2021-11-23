@@ -160,6 +160,7 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 		return;
 	}
 
+	const FText TitleInfo = LOCTEXT("NodalOffsetInfo", "Nodal Offset Calibration Info");
 	const FText TitleError = LOCTEXT("NodalOffsetError", "Nodal Offset Calibration Error");
 
 	UCameraNodalOffsetAlgo* Algo = GetNodalOffsetAlgo();
@@ -182,6 +183,20 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 	{
 		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
 		return;
+	}
+
+	// Show reprojection error
+	{
+		FFormatOrderedArguments Arguments;
+		Arguments.Add(FText::FromString(FString::Printf(TEXT("%.2f"), ReprojectionError)));
+
+		const FText Message = FText::Format(LOCTEXT("ReprojectionError", "RMS Reprojection Error: {0} pixels"), Arguments);
+
+		// Allow the user to cancel adding to the LUT if the reprojection error is unacceptable.
+		if (FMessageDialog::Open(EAppMsgType::OkCancel, Message, &TitleInfo) != EAppReturnType::Ok)
+		{
+			return;
+		}
 	}
 
 	ULensFile* LensFile = CameraCalibrationStepsController.Pin()->GetLensFile();

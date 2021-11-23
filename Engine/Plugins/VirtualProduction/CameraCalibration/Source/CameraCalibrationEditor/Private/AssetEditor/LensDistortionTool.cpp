@@ -209,7 +209,7 @@ void ULensDistortionTool::OnSaveCurrentCalibrationData()
 	// Show reprojection error
 	{
 		FFormatOrderedArguments Arguments;
-		Arguments.Add(FText::FromString(FString::Printf(TEXT("%.1f"), Error)));
+		Arguments.Add(FText::FromString(FString::Printf(TEXT("%.2f"), Error)));
 
 		const FText Message = FText::Format(LOCTEXT("ReprojectionError", "RMS Reprojection Error: {0} pixels"), Arguments);
 
