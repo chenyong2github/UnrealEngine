@@ -633,7 +633,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 		// Tile reduction
 		if (IsClassificationEnabled())
 		{
-			bool bWaveOps = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(View.GetShaderPlatform());
+			bool bWaveOps = GRHISupportsWaveOperations && FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(View.GetShaderPlatform());
 		#if PLATFORM_WINDOWS
 			// Tile reduction requires 64-wide wave
 			bWaveOps = bWaveOps && !IsRHIDeviceNVIDIA();
