@@ -8,6 +8,7 @@
 #include "GameplayDebuggerCategoryReplicator.h"
 #include "GameplayDebuggerPlayerManager.h"
 #include "MassDebuggerSubsystem.h"
+#include "MassSignalSubsystem.h"
 #include "MassActorSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "MassAgentComponent.h"
@@ -354,11 +355,13 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 		const float CurrentTime = World->GetTimeSeconds();
 		
 		UMassStateTreeSubsystem* MassStateTreeSubsystem = World->GetSubsystem<UMassStateTreeSubsystem>();
-		if (MassStateTreeSubsystem && EntitySystem)
+		UMassSignalSubsystem* SignalSubsystem = World->GetSubsystem<UMassSignalSubsystem>();
+		
+		if (MassStateTreeSubsystem && EntitySystem && SignalSubsystem)
 		{
 			FMassExecutionContext Context(0.0f);
 		
-			EntityQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, MassStateTreeSubsystem, EntitySystem, OwnerPC, ViewLocation, ViewDirection, CurrentTime](FMassExecutionContext& Context)
+			EntityQuery.ForEachEntityChunk(*EntitySystem, Context, [this, Debugger, MassStateTreeSubsystem, SignalSubsystem, EntitySystem, OwnerPC, ViewLocation, ViewDirection, CurrentTime](FMassExecutionContext& Context)
 			{
 				const int32 NumEntities = Context.GetNumEntities();
 				const TConstArrayView<FMassStateTreeFragment> StateTreeList = Context.GetFragmentView<FMassStateTreeFragment>();
@@ -529,7 +532,7 @@ void FGameplayDebuggerCategory_Mass::CollectData(APlayerController* OwnerPC, AAc
 						// Current StateTree task
 						if (StateTree != nullptr)
 						{
-							FMassStateTreeExecutionContext StateTreeContext(*EntitySystem, Context);
+							FMassStateTreeExecutionContext StateTreeContext(*EntitySystem, *SignalSubsystem, Context);
 							StateTreeContext.Init(*OwnerPC, *StateTree, EStateTreeStorage::External);
 							StateTreeContext.SetEntity(Entity);
 							

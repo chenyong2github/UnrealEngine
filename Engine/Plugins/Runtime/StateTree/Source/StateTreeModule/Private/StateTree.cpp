@@ -6,10 +6,24 @@
 #include "CoreMinimal.h"
 #include "StateTreeConditionBase.h"
 #include "StateTreeDelegates.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 UStateTree::UStateTree(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+
+#if WITH_EDITOR
+	FEditorDelegates::PreBeginPIE.AddUObject(this, &UStateTree::OnPIEStarted);
+#endif
+}
+
+UStateTree::~UStateTree()
+{
+#if WITH_EDITOR
+	FEditorDelegates::PreBeginPIE.RemoveAll(this);
+#endif
 }
 
 bool UStateTree::IsValidStateTree() const
@@ -18,8 +32,15 @@ bool UStateTree::IsValidStateTree() const
 	return States.Num() > 0;
 }
 
-
 #if WITH_EDITOR
+
+void UStateTree::OnPIEStarted(const bool bIsSimulating)
+{
+	PropertyBindings.ResolvePaths();
+	Link();
+	InitInstanceStorageType();
+}
+
 void UStateTree::ResetBaked()
 {
 	States.Reset();
@@ -27,6 +48,7 @@ void UStateTree::ResetBaked()
 
 	Items.Reset();
 	Instances.Reset();
+	InstanceObjects.Reset();
 	InstanceStorageStruct = nullptr;
 	InstanceStorageOffsets.Reset();
 	InstanceStorageDefaultValue.Reset();
@@ -68,7 +90,7 @@ void UStateTree::PostLoad()
 	Link();
 	
 #if WITH_EDITOR
-	InitInstanceStorage();
+	InitInstanceStorageType();
 #else
 	// Item offsets still need to be calculated in non editor target since the struct sizes might be different.
 	checkf(InstanceStorageOffsets.Num() == 0, TEXT("RuntimeStorageOffsets is transient and should only be computed once."));
@@ -127,7 +149,7 @@ void UStateTree::Link()
 	NumDataViews = ExternalDataBaseIndex + ExternalDataDescs.Num();
 }
 
-void UStateTree::InitInstanceStorage()
+void UStateTree::InitInstanceStorageType()
 {
 	InstanceStorageStruct = nullptr;
 	InstanceStorageOffsets.Reset();

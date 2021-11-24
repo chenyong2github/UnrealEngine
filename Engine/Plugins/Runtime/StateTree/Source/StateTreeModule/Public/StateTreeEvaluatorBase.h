@@ -15,7 +15,7 @@ struct FStateTreeExecutionContext;
  * Evaluators calculate and expose data to be used for decision making in a StateTree.
  */
 USTRUCT()
-struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTreeEvaluatorBase once UStateTreeEvaluatorBase is removed
+struct STATETREEMODULE_API FStateTreeEvaluatorBase
 {
 	GENERATED_BODY()
 
@@ -88,6 +88,12 @@ struct STATETREEMODULE_API FStateTreeEvaluatorBase // TODO: change to FStateTree
 	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
 	UPROPERTY()
 	uint16 DataViewIndex = 0;
+
+	UPROPERTY()
+	uint16 InstanceIndex = 0;
+
+	UPROPERTY()
+	uint8 bInstanceIsObject : 1;
 };
 
 template<> struct TStructOpsTypeTraits<FStateTreeEvaluatorBase> : public TStructOpsTypeTraitsBase2<FStateTreeEvaluatorBase> { enum { WithPureVirtual = true, }; };

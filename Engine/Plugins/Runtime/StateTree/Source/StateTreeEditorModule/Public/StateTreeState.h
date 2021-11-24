@@ -32,14 +32,44 @@ public:
 	FGuid ID;
 
 	UPROPERTY(EditDefaultsOnly, Category = Link)
-	EStateTreeTransitionType Type;
+	EStateTreeTransitionType Type = EStateTreeTransitionType::GotoState;
+};
+
+
+/**
+ * Base for Evaluator, Task and Condition items.
+ */
+USTRUCT()
+struct STATETREEEDITORMODULE_API FStateTreeItem
+{
+	GENERATED_BODY()
+
+	void Reset()
+	{
+		Item.Reset();
+		Instance.Reset();
+		InstanceObject = nullptr;
+		ID = FGuid();
+	}
+	
+	UPROPERTY(EditDefaultsOnly, Category = Item)
+	FInstancedStruct Item;
+
+	UPROPERTY(EditDefaultsOnly, Category = Item)
+	FInstancedStruct Instance;
+
+	UPROPERTY(EditDefaultsOnly, Instanced, Category = Item)
+	UObject* InstanceObject = nullptr;
+	
+	UPROPERTY(EditDefaultsOnly, Category = Item)
+	FGuid ID;
 };
 
 /**
  * Helper struct for Evaluator details customization (i.e. show summary when collapsed)
  */
 USTRUCT()
-struct STATETREEEDITORMODULE_API FStateTreeEvaluatorItem
+struct STATETREEEDITORMODULE_API FStateTreeEvaluatorItem : public FStateTreeItem
 {
 	GENERATED_BODY()
 
@@ -51,15 +81,6 @@ struct STATETREEEDITORMODULE_API FStateTreeEvaluatorItem
 		}
 		return FName();
 	}
-
-	UPROPERTY(EditDefaultsOnly, Category = Evaluator, meta = (BaseStruct = "StateTreeEvaluatorBase", ExcludeBaseStruct))
-	FInstancedStruct Item;
-
-	UPROPERTY(EditDefaultsOnly, Category = Evaluator)
-	FInstancedStruct Instance;
-
-	UPROPERTY(EditDefaultsOnly, Category = Evaluator)
-	FGuid ID;
 };
 
 template <typename T>
@@ -75,7 +96,7 @@ struct TStateTreeEvaluatorItem : public FStateTreeEvaluatorItem
  * Helper struct for Task details customization (i.e. show summary when collapsed)
  */
 USTRUCT()
-struct STATETREEEDITORMODULE_API FStateTreeTaskItem
+struct STATETREEEDITORMODULE_API FStateTreeTaskItem : public FStateTreeItem
 {
 	GENERATED_BODY()
 
@@ -87,15 +108,6 @@ struct STATETREEEDITORMODULE_API FStateTreeTaskItem
 		}
 		return FName();
 	}
-	
-	UPROPERTY(EditDefaultsOnly, Category = Task, meta = (BaseStruct = "StateTreeTaskBase", ExcludeBaseStruct))
-	FInstancedStruct Item;
-
-	UPROPERTY(EditDefaultsOnly, Category = Task)
-	FInstancedStruct Instance;
-
-	UPROPERTY(EditDefaultsOnly, Category = Task)
-	FGuid ID;
 };
 
 template <typename T>
@@ -110,18 +122,9 @@ struct TStateTreeTaskItem : public FStateTreeTaskItem
  * Helper struct for Condition details customization (i.e. show summary when collapsed)
  */
 USTRUCT()
-struct STATETREEEDITORMODULE_API FStateTreeConditionItem
+struct STATETREEEDITORMODULE_API FStateTreeConditionItem : public FStateTreeItem
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, Category = Condition, meta = (BaseStruct = "StateTreeConditionBase", ExcludeBaseStruct))
-	FInstancedStruct Item;
-
-	UPROPERTY(EditDefaultsOnly, Category = Condition)
-	FInstancedStruct Instance;
-
-	UPROPERTY(EditDefaultsOnly, Category = Condition)
-	FGuid ID;
 };
 
 template <typename T>
@@ -158,7 +161,7 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	}
 
 	UPROPERTY(EditDefaultsOnly, Category = Transition)
-	EStateTreeTransitionEvent Event = EStateTreeTransitionEvent::OnCondition;
+	EStateTreeTransitionEvent Event = EStateTreeTransitionEvent::OnCompleted;
 
 	UPROPERTY(EditDefaultsOnly, Category = Transition)
 	FStateTreeStateLink State;
@@ -167,7 +170,7 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	UPROPERTY(EditDefaultsOnly, Category = Transition, meta = (UIMin = "0", ClampMin = "0", UIMax = "25", ClampMax = "25"))
 	float GateDelay = 0.0f;
 	
-	UPROPERTY(EditDefaultsOnly, Category = Transition)
+	UPROPERTY(EditDefaultsOnly, Category = Transition, meta = (BaseStruct = "StateTreeConditionBase", BaseClass = "StateTreeConditionBlueprintBase"))
 	TArray<FStateTreeConditionItem> Conditions;
 };
 
@@ -273,13 +276,13 @@ public:
 	UPROPERTY()
 	FGuid ID;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Enter Conditions")
+	UPROPERTY(EditDefaultsOnly, Category = "Enter Conditions", meta = (BaseStruct = "StateTreeConditionBase", BaseClass = "StateTreeConditionBlueprintBase"))
 	TArray<FStateTreeConditionItem> EnterConditions;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Evaluators")
+	UPROPERTY(EditDefaultsOnly, Category = "Evaluators", meta = (BaseStruct = "StateTreeEvaluatorBase", BaseClass = "StateTreeEvaluatorBlueprintBase"))
 	TArray<FStateTreeEvaluatorItem> Evaluators;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Tasks")
+	UPROPERTY(EditDefaultsOnly, Category = "Tasks", meta = (BaseStruct = "StateTreeTaskBase", BaseClass = "StateTreeTaskBlueprintBase"))
 	TArray<FStateTreeTaskItem> Tasks;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Transitions")

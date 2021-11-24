@@ -31,12 +31,15 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 
 	/** Running time of the delayed transition */
 	float GatedTransitionTime = 0.0f;
+
+	/** Object instances, ref counting handled manually. */
+	TArray<UObject*> InstanceObjects;
 };
 
 UENUM()
 enum class EStateTreeStorage : uint8
 {
-	/** Execution context has internal storage */
+	/** Execution context has internal storage */ 
 	Internal,
 	/** Execution context assumes external storage */
 	External,
@@ -58,13 +61,20 @@ public:
 	/** Initializes the StateTree instance to be used with specific owner and StateTree asset. */
 	bool Init(UObject& InOwner, const UStateTree& InStateTree, const EStateTreeStorage InStorageType);
 
+	/**  Initializes external storage (no need to call, if using internal storage). */
+	bool InitInstanceData(UObject& InOwner, FStateTreeDataView ExternalStorage) const;
+
 	/** Returns the StateTree asset in use. */
 	const UStateTree* GetStateTree() const { return StateTree; }
 
+	/** @return The owner of the context */
 	UObject* GetOwner() const { return Owner; }
-	UWorld* GetWorld() const { return World; };
-	void SetWorld(UWorld* InWorld) { World = InWorld; };
+	/** @return The world of the owner or nullptr if the owner is not set. */ 
+	UWorld* GetWorld() const { return Owner ? Owner->GetWorld() : nullptr; };
 
+	/** @return True of the the execution context is valid and initialized. */ 
+	bool IsValid() const { return Owner != nullptr && StateTree != nullptr; }
+	
 	/** Start executing. */
 	EStateTreeRunStatus Start(FStateTreeDataView ExternalStorage = FStateTreeDataView());
 	/** Stop executing. */
@@ -98,7 +108,7 @@ public:
 			if (DataDesc.Requirement == EStateTreeExternalDataRequirement::Required)
 			{
 				// Required items must have valid pointer and expected type.  
-				if (DataView.GetMemory() == nullptr || DataView.GetStruct() != DataDesc.Struct)
+				if (!DataView.IsValid() || !DataView.GetStruct()->IsChildOf(DataDesc.Struct))
 				{
 					bResult = false;
 					break;
@@ -107,7 +117,7 @@ public:
 			else
 			{
 				// Optional items must have same type if they are set.
-				if (DataView.IsValid() && DataView.GetStruct() != DataDesc.Struct)
+				if (DataView.IsValid() && !DataView.GetStruct()->IsChildOf(DataDesc.Struct))
 				{
 					bResult = false;
 					break;
@@ -160,11 +170,21 @@ public:
 		return Handle.IsValid() ? DataViews[Handle.DataViewIndex].template GetMutablePtr<typename T::DataType>() : nullptr;
 	}
 
+	FStateTreeDataView GetExternalDataView(const FStateTreeExternalDataHandle Handle)
+	{
+		check(StateTree);
+		if (Handle.IsValid())
+		{
+			return DataViews[Handle.DataViewIndex];
+		}
+		return FStateTreeDataView();
+	}
+
 	/**
-	* Returns reference to instance data property based on provided handle. The return type is deduced from the handle's template type.
-	* @param Handle Valid FStateTreeInstanceDataPropertyHandle<> handle.
-	* @return reference to instance data property based on handle.
-	*/ 
+	 * Returns reference to instance data property based on provided handle. The return type is deduced from the handle's template type.
+	 * @param Handle Valid FStateTreeInstanceDataPropertyHandle<> handle.
+	 * @return reference to instance data property based on handle.
+	 */ 
 	template <typename T>
 	typename T::DataType& GetInstanceData(const T Handle) const
 	{
@@ -174,10 +194,10 @@ public:
 	}
 
 	/**
-	* Returns pointer to instance data property based on provided handle. The return type is deduced from the handle's template type.
-	* @param Handle Valid FStateTreeInstanceDataPropertyHandle<> handle.
-	* @return pointer to instance data property based on handle or null if item is not set or handle is invalid.
-	*/ 
+	 * Returns pointer to instance data property based on provided handle. The return type is deduced from the handle's template type.
+	 * @param Handle Valid FStateTreeInstanceDataPropertyHandle<> handle.
+	 * @return pointer to instance data property based on handle or null if item is not set or handle is invalid.
+	 */ 
 	template <typename T>
 	typename T::DataType* GetInstanceDataPtr(const T Handle) const
 	{
@@ -185,6 +205,21 @@ public:
 		return Handle.IsValid() ? (typename T::DataType*)(DataViews[Handle.DataViewIndex].GetMemory() + Handle.PropertyOffset) : nullptr;
 	}
 
+	/**
+	 * Used internally by the Blueprint wrappers to get wrapped instance objects. 
+	 * @param DataViewIndex Index to a data view
+	 * @return Pointer to an instance object based.
+	 */
+	template <typename T>
+	T* GetInstanceObjectInternal(const int32 DataViewIndex) const
+	{
+		const UStruct* Struct = DataViews[DataViewIndex].GetStruct();
+		if (Struct != nullptr && Struct->IsChildOf<T>())
+		{
+			return DataViews[DataViewIndex].template GetMutablePtr<T>();
+		}
+		return nullptr;
+	}
 	
 	EStateTreeRunStatus GetLastTickStatus(FStateTreeDataView ExternalStorage = FStateTreeDataView()) const;
 	EStateTreeRunStatus GetEnterStateStatus() const { return EnterStateStatus; }
@@ -199,7 +234,10 @@ public:
 	
 	void DebugPrintInternalLayout(FStateTreeDataView ExternalStorage);
 #endif
-	
+
+	void AddStructReferencedObjects(class FReferenceCollector& Collector);
+	void AddStructReferencedObjects(const FStateTreeDataView ExternalStorage, class FReferenceCollector& Collector);
+
 protected:
 
 	/** @return Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, empty by default. */
@@ -290,10 +328,18 @@ protected:
 	}
 
 	/** @return View to an Evaluator, a Task, or a Condition instance data. */
-	FStateTreeDataView GetInstanceData(FStateTreeDataView Storage, const int32 Index) const
+	FStateTreeDataView GetInstanceData(FStateTreeDataView Storage, const bool bIsObject, const int32 Index) const
 	{
-		const FStateTreeInstanceStorageOffset& ItemOffset = StateTree->InstanceStorageOffsets[Index];
-		return FStateTreeDataView(ItemOffset.Struct, Storage.GetMutableMemory() + ItemOffset.Offset);
+		if (UNLIKELY(bIsObject == true))
+		{
+			const FStateTreeExecutionState& Exec = GetExecState(Storage);
+			return FStateTreeDataView(Exec.InstanceObjects[Index]);
+		}
+		else
+		{
+			const FStateTreeInstanceStorageOffset& ItemOffset = StateTree->InstanceStorageOffsets[Index];
+			return FStateTreeDataView(ItemOffset.Struct, Storage.GetMutableMemory() + ItemOffset.Offset);
+		}
 	}
 
 	/** @return StateTree execution state from the instance storage. */
@@ -327,9 +373,6 @@ protected:
 	UPROPERTY()
 	UObject* Owner = nullptr;
 	
-	UPROPERTY()
-	UWorld* World = nullptr;
-
 	/** States visited during a tick while updating evaluators. Initialized to match the number of states in the asset. */ 
 	TArray<bool> VisitedStates;
 
@@ -348,4 +391,13 @@ protected:
 	 * Note. This should be replaced by symmetrical unrolling of tasks on failure.
 	 */
 	EStateTreeRunStatus EnterStateStatus = EStateTreeRunStatus::Unset;
+};
+
+template<>
+struct TStructOpsTypeTraits<FStateTreeExecutionContext> : public TStructOpsTypeTraitsBase2<FStateTreeExecutionContext>
+{
+	enum
+	{
+		WithAddStructReferencedObjects = true,
+	};
 };

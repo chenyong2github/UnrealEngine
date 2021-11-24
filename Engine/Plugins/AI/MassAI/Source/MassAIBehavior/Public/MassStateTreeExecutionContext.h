@@ -20,7 +20,7 @@ struct MASSAIBEHAVIOR_API FMassStateTreeExecutionContext : public FStateTreeExec
 public:
 	/** Should never be used but has to be public for 'void UScriptStruct::TCppStructOps<FMassStateTreeExecutionContext>::ConstructForTests(void *)' */
 	FMassStateTreeExecutionContext() = default;
-	FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem, FMassExecutionContext& InContext);
+	FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem, UMassSignalSubsystem& InSignalSubsystem, FMassExecutionContext& InContext);
 
 	UMassEntitySubsystem& GetEntitySubsystem() const { return *EntitySubsystem; }
 	FMassExecutionContext& GetEntitySubsystemExecutionContext() const { return *EntitySubsystemExecutionContext; }

@@ -31,6 +31,7 @@ private:
 
 	bool ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const;
 	void ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle);
+	TSharedPtr<IPropertyHandle> GetInstancedObjectValueHandle(TSharedPtr<IPropertyHandle> PropertyHandle);
 
 	FText GetDescription() const;
 	EVisibility IsDescriptionVisible() const;
@@ -43,14 +44,21 @@ private:
 	const UScriptStruct* GetCommonItemScriptStruct() const;
 	FText GetDisplayValueString() const;
 	const FSlateBrush* GetDisplayValueIcon() const;
+
+	TSharedRef<SWidget> GeneratePicker();
+
 	TSharedRef<SWidget> GenerateStructPicker();
 	void OnStructPicked(const UScriptStruct* InStruct);
+
+	TSharedRef<SWidget> GenerateClassPicker();
+	void OnClassPicked(UClass* InClass);
 
 	void OnIdentifierChanged(const UStateTree& StateTree);
 	void OnBindingChanged(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath);
 	void FindOuterObjects();
 
 	UScriptStruct* BaseScriptStruct = nullptr;
+	UClass* BaseClass = nullptr;
 	TSharedPtr<class SComboButton> ComboButton;
 
 	UStateTreeEditorData* EditorData = nullptr;
@@ -60,6 +68,7 @@ private:
 	TSharedPtr<IPropertyHandle> StructProperty;
 	TSharedPtr<IPropertyHandle> ItemProperty;
 	TSharedPtr<IPropertyHandle> InstanceProperty;
+	TSharedPtr<IPropertyHandle> InstanceObjectProperty;
 	TSharedPtr<IPropertyHandle> IDProperty;
 
 	FDelegateHandle OnBindingChangedHandle;

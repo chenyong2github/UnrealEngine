@@ -7,11 +7,10 @@
 #include "Engine/World.h"
 
 FMassStateTreeExecutionContext::FMassStateTreeExecutionContext(UMassEntitySubsystem& InEntitySubsystem,
+                                                               UMassSignalSubsystem& InSignalSubsystem,
                                                                FMassExecutionContext& InContext):
-	EntitySubsystem(&InEntitySubsystem), EntitySubsystemExecutionContext(&InContext)
+	EntitySubsystem(&InEntitySubsystem), SignalSubsystem(&InSignalSubsystem), EntitySubsystemExecutionContext(&InContext)
 {
-	World = InEntitySubsystem.GetWorld();
-	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(World);
 }
 
 void FMassStateTreeExecutionContext::BeginGatedTransition(const FStateTreeExecutionState& Exec)

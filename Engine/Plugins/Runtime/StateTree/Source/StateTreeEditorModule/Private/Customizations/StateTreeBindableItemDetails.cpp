@@ -20,6 +20,8 @@
 #include "Modules/ModuleManager.h"
 #include "StructViewerModule.h"
 #include "StructViewerFilter.h"
+#include "ClassViewerModule.h"
+#include "ClassViewerFilter.h"
 #include "InstancedStructDetails.h"
 #include "Engine/UserDefinedStruct.h"
 #include "StateTreeBindingExtension.h"
@@ -29,26 +31,17 @@
 #include "StateTreeConditionBase.h"
 #include "StateTreePropertyHelpers.h"
 #include "StateTreeEditorStyle.h"
-
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Blueprint/StateTreeEvaluatorBlueprintBase.h"
+#include "Blueprint/StateTreeTaskBlueprintBase.h"
+#include "Blueprint/StateTreeConditionBlueprintBase.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
-// Customized version of FInstancedStructDataDetails used to hide bindable properties.
-class FBindableItemDataDetails : public FInstancedStructDataDetails
+namespace UE::StateTreeEditor::Internal
 {
-public:
-
-	FBindableItemDataDetails(TSharedPtr<IPropertyHandle> InStructProperty, FGuid InID, UStateTreeEditorData* InEditorData)
-		: FInstancedStructDataDetails(InStructProperty)
-		, EditorData(InEditorData)
-	{
-		EditorPropBindings = EditorData ? EditorData->GetPropertyEditorBindings() : nullptr;
-		ID = InID;
-	}
-
-	virtual void OnChildRowAdded(IDetailPropertyRow& ChildRow)
+	void ModifyRow(IDetailPropertyRow& ChildRow, const FGuid& ID, FStateTreeEditorPropertyBindings* EditorPropBindings)
 	{
 		if (!EditorPropBindings)
 		{
@@ -71,7 +64,7 @@ public:
 			FDetailWidgetRow Row;
 			ChildRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
 
-			auto IsValueVisible = TAttribute<EVisibility>::Create([this, Path]() -> EVisibility
+			auto IsValueVisible = TAttribute<EVisibility>::Create([Path, EditorPropBindings]() -> EVisibility
 				{
 					return EditorPropBindings->HasPropertyBinding(Path) ? EVisibility::Collapsed : EVisibility::Visible;
 				});
@@ -134,12 +127,30 @@ public:
 			}
 		}
 	}
+} // UE::StateTreeEditor::Internal
+
+// Customized version of FInstancedStructDataDetails used to hide bindable properties.
+class FBindableItemInstanceDetails : public FInstancedStructDataDetails
+{
+public:
+
+	FBindableItemInstanceDetails(TSharedPtr<IPropertyHandle> InStructProperty, FGuid InID, UStateTreeEditorData* InEditorData)
+		: FInstancedStructDataDetails(InStructProperty)
+		, EditorData(InEditorData)
+	{
+		EditorPropBindings = EditorData ? EditorData->GetPropertyEditorBindings() : nullptr;
+		ID = InID;
+	}
+
+	virtual void OnChildRowAdded(IDetailPropertyRow& ChildRow)
+	{
+		UE::StateTreeEditor::Internal::ModifyRow(ChildRow, ID, EditorPropBindings);
+	}
 
 	UStateTreeEditorData* EditorData;
 	FStateTreeEditorPropertyBindings* EditorPropBindings;
 	FGuid ID;
 };
-
 
 ////////////////////////////////////
 
@@ -181,7 +192,7 @@ public:
 		}
 
 		// Query the native struct to see if it has the correct parent type (if any)
-		return !BaseStruct || InStruct->IsChildOf(BaseStruct);
+		return BaseStruct != nullptr && InStruct->IsChildOf(BaseStruct);
 	}
 
 	virtual bool IsUnloadedStructAllowed(const FStructViewerInitializationOptions& InInitOptions, const FName InStructPath, TSharedRef<FStructViewerFilterFuncs> InFilterFuncs) override
@@ -191,6 +202,63 @@ public:
 	}
 };
 
+////////////////////////////////////
+
+class FBindableItemClassFilter : public IClassViewerFilter
+{
+public:
+	/** The base struct for the property that classes must be a child-of. */
+	const UClass* BaseClass = nullptr;
+
+	// A flag controlling whether we allow to select the BaseStruct
+	bool bAllowBaseClass = true;
+
+	// Schema to filter which structs are allowed.
+	const UStateTreeSchema* Schema = nullptr;
+
+	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs ) override
+	{
+		if (!Schema || !InClass)
+		{
+			return false;
+		}
+
+		if (!Schema->IsClassAllowed(InClass))
+		{
+			return false;
+		}
+		
+		if (InClass == BaseClass)
+		{
+			return bAllowBaseClass;
+		}
+
+		// Query the native struct to see if it has the correct parent type (if any)
+		return BaseClass != nullptr && InClass->IsChildOf(BaseClass);
+	}
+
+	virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef<const IUnloadedBlueprintData> InUnloadedClassData, TSharedRef<FClassViewerFilterFuncs> InFilterFuncs) override
+	{
+		if (!Schema)
+		{
+			return false;
+		}
+
+		const UClass* Class = InUnloadedClassData->GetClassWithin();
+		
+		if (!Schema->IsClassAllowed(Class))
+		{
+			return false;
+		}
+		
+		if (Class == BaseClass)
+		{
+			return bAllowBaseClass;
+		}
+
+		return !BaseClass || Class->IsChildOf(BaseClass);
+	}
+};
 
 ////////////////////////////////////
 
@@ -211,17 +279,23 @@ void FStateTreeBindableItemDetails::CustomizeHeader(TSharedRef<class IPropertyHa
 
 	ItemProperty = StructProperty->GetChildHandle(TEXT("Item"));
 	InstanceProperty = StructProperty->GetChildHandle(TEXT("Instance"));
+	InstanceObjectProperty = StructProperty->GetChildHandle(TEXT("InstanceObject"));
 	IDProperty = StructProperty->GetChildHandle(TEXT("ID"));
 
 	check(ItemProperty.IsValid());
 	check(InstanceProperty.IsValid());
 	check(IDProperty.IsValid());
 	
-	// Find base class from meta data.
-	static const FName BaseClassMetaName(TEXT("BaseStruct")); // TODO: move these names into one central place.
-	const FString BaseClassName = ItemProperty->GetMetaData(BaseClassMetaName);
-	BaseScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *BaseClassName);
+	// Find base class and struct from meta data.
+	static const FName BaseStructMetaName(TEXT("BaseStruct")); // TODO: move these names into one central place.
+	static const FName BaseClassMetaName(TEXT("BaseClass")); // TODO: move these names into one central place.
+	
+	const FString BaseStructName = StructProperty->GetMetaData(BaseStructMetaName);
+	BaseScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, *BaseStructName);
 
+	const FString BaseClassName = StructProperty->GetMetaData(BaseClassMetaName);
+	BaseClass = FindObject<UClass>(ANY_PACKAGE, *BaseClassName);
+	
 	const FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FStateTreeBindableItemDetails::ShouldResetToDefault);
 	const FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateSP(this, &FStateTreeBindableItemDetails::ResetToDefault);
 	const FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
@@ -268,7 +342,7 @@ void FStateTreeBindableItemDetails::CustomizeHeader(TSharedRef<class IPropertyHa
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(ComboButton, SComboButton)
-				.OnGetMenuContent(this, &FStateTreeBindableItemDetails::GenerateStructPicker)
+				.OnGetMenuContent(this, &FStateTreeBindableItemDetails::GeneratePicker)
 				.ContentPadding(0.f)
 				.ButtonContent()
 				[
@@ -301,17 +375,17 @@ void FStateTreeBindableItemDetails::CustomizeHeader(TSharedRef<class IPropertyHa
 
 bool FStateTreeBindableItemDetails::ShouldResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle) const
 {
-	check(ItemProperty);
+	check(StructProperty);
 	
 	bool bAnyValid = false;
 	
-	TArray<void*> RawData;
-	ItemProperty->AccessRawData(RawData);
-	for (void* Data : RawData)
+	TArray<const void*> RawItemData;
+	StructProperty->AccessRawData(RawItemData);
+	for (const void* Data : RawItemData)
 	{
-		if (const FInstancedStruct* Struct = static_cast<FInstancedStruct*>(Data))
+		if (const FStateTreeItem* Item = static_cast<const FStateTreeItem*>(Data))
 		{
-			if (Struct->IsValid())
+			if (Item->Item.IsValid())
 			{
 				bAnyValid = true;
 				break;
@@ -323,42 +397,27 @@ bool FStateTreeBindableItemDetails::ShouldResetToDefault(TSharedPtr<IPropertyHan
 	return bAnyValid;
 }
 
+
 void FStateTreeBindableItemDetails::ResetToDefault(TSharedPtr<IPropertyHandle> PropertyHandle)
 {
-	check(ItemProperty);
-	check(InstanceProperty);
+	check(StructProperty);
 	
 	GEditor->BeginTransaction(LOCTEXT("OnResetToDefault", "Reset to default"));
 
-	ItemProperty->NotifyPreChange();
+	StructProperty->NotifyPreChange();
+	
 	TArray<void*> RawItemData;
-	ItemProperty->AccessRawData(RawItemData);
+	StructProperty->AccessRawData(RawItemData);
 	for (void* Data : RawItemData)
 	{
-		if (FInstancedStruct* Struct = static_cast<FInstancedStruct*>(Data))
+		if (FStateTreeItem* Item = static_cast<FStateTreeItem*>(Data))
 		{
-			// Assume that the default value is empty.
-			Struct->Reset();
+			Item->Reset();
 		}
 	}
 
-	InstanceProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
-	InstanceProperty->NotifyFinishedChangingProperties();
-
-	InstanceProperty->NotifyPreChange();
-	TArray<void*> RawInstanceData;
-	InstanceProperty->AccessRawData(RawInstanceData);
-	for (void* Data : RawInstanceData)
-	{
-		if (FInstancedStruct* Struct = static_cast<FInstancedStruct*>(Data))
-		{
-			// Assume that the default value is empty.
-			Struct->Reset();
-		}
-	}
-
-	InstanceProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
-	InstanceProperty->NotifyFinishedChangingProperties();
+	StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+	StructProperty->NotifyFinishedChangingProperties();
 
 	GEditor->EndTransaction();
 
@@ -370,14 +429,60 @@ void FStateTreeBindableItemDetails::ResetToDefault(TSharedPtr<IPropertyHandle> P
 
 void FStateTreeBindableItemDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
+	FStateTreeEditorPropertyBindings* EditorPropBindings = EditorData ? EditorData->GetPropertyEditorBindings() : nullptr;
+
 	FGuid ID;
 	UE::StateTree::PropertyHelpers::GetStructValue<FGuid>(IDProperty, ID);
 
-	TSharedRef<FBindableItemDataDetails> ItemDetails = MakeShareable(new FBindableItemDataDetails(ItemProperty, FGuid(), EditorData));
+	TSharedRef<FBindableItemInstanceDetails> ItemDetails = MakeShareable(new FBindableItemInstanceDetails(ItemProperty, FGuid(), EditorData));
 	StructBuilder.AddCustomBuilder(ItemDetails);
 
-	TSharedRef<FBindableItemDataDetails> InstanceDetails = MakeShareable(new FBindableItemDataDetails(InstanceProperty, ID, EditorData));
+	// Instance
+	TSharedRef<FBindableItemInstanceDetails> InstanceDetails = MakeShareable(new FBindableItemInstanceDetails(InstanceProperty, ID, EditorData));
 	StructBuilder.AddCustomBuilder(InstanceDetails);
+
+	// InstanceObject
+	// Get the actual UObject from the pointer.
+	TSharedPtr<IPropertyHandle> InstanceObjectValueProperty = GetInstancedObjectValueHandle(InstanceObjectProperty);
+	if (InstanceObjectValueProperty.IsValid())
+	{
+		static const FName CategoryName(TEXT("Category"));
+
+		uint32 NumChildren = 0;
+		InstanceObjectValueProperty->GetNumChildren(NumChildren);
+		for (uint32 Index = 0; Index < NumChildren; Index++)
+		{
+			TSharedPtr<IPropertyHandle> Child = InstanceObjectValueProperty->GetChildHandle(Index);
+			
+			if (!Child.IsValid()
+				|| Child->GetProperty()->HasAllPropertyFlags(CPF_DisableEditOnInstance)
+				|| Child->GetMetaData(CategoryName) == TEXT("ExternalData"))
+			{
+				continue;
+			}
+			
+			IDetailPropertyRow& ChildRow = StructBuilder.AddProperty(Child.ToSharedRef());
+			UE::StateTreeEditor::Internal::ModifyRow(ChildRow, ID, EditorPropBindings);
+		}
+	}
+}
+
+TSharedPtr<IPropertyHandle> FStateTreeBindableItemDetails::GetInstancedObjectValueHandle(TSharedPtr<IPropertyHandle> PropertyHandle)
+{
+	TSharedPtr<IPropertyHandle> ChildHandle;
+
+	uint32 NumChildren;
+	PropertyHandle->GetNumChildren(NumChildren);
+
+	if (NumChildren > 0)
+	{
+		// when the property is a (inlined) object property, the first child will be
+		// the object instance, and its properties are the children underneath that
+		ensure(NumChildren == 1);
+		ChildHandle = PropertyHandle->GetChildHandle(0);
+	}
+
+	return ChildHandle;
 }
 
 void FStateTreeBindableItemDetails::OnIdentifierChanged(const UStateTree& InStateTree)
@@ -390,48 +495,34 @@ void FStateTreeBindableItemDetails::OnIdentifierChanged(const UStateTree& InStat
 
 void FStateTreeBindableItemDetails::OnBindingChanged(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath)
 {
-	check(ItemProperty);
-
-	FGuid ID;
-	if (UE::StateTree::PropertyHelpers::GetStructValue(IDProperty, ID) != FPropertyAccess::Success)
-	{
-		return;
-	}
-
-	if (ID != TargetPath.StructID)
-	{
-		return;
-	}
+	check(StructProperty);
 
 	TArray<UObject*> OuterObjects;
-	ItemProperty->GetOuterObjects(OuterObjects);
+	StructProperty->GetOuterObjects(OuterObjects);
 
 	TArray<void*> RawItemData;
-	ItemProperty->AccessRawData(RawItemData);
+	StructProperty->AccessRawData(RawItemData);
 
-	TArray<void*> RawInstanceData;
-	InstanceProperty->AccessRawData(RawInstanceData);
-
-	if (OuterObjects.Num() != RawItemData.Num() || OuterObjects.Num() != RawInstanceData.Num())
+	if (OuterObjects.Num() != RawItemData.Num())
 	{
 		return;
 	}
 
 	for (int32 i = 0; i < OuterObjects.Num(); i++)
 	{
-		// Dig out name from the struct without knowing the type.
-		const FInstancedStruct* ItemPtr = static_cast<FInstancedStruct*>(RawItemData[i]);
-		const FInstancedStruct* InstancePtr = static_cast<FInstancedStruct*>(RawInstanceData[i]);
+		const FStateTreeItem* Item = static_cast<FStateTreeItem*>(RawItemData[i]);
 		UObject* OuterObject = OuterObjects[i]; // Immediate outer, i.e StateTreeState
-
-		if (InstancePtr->IsValid() && EditorData != nullptr)
+		if (Item != nullptr && EditorData != nullptr && Item->Item.IsValid() && Item->Instance.IsValid())
 		{
-			if (FStateTreeConditionBase* Condition = ItemPtr->GetMutablePtr<FStateTreeConditionBase>())
+			if (Item->ID == TargetPath.StructID)
 			{
-				const FStateTreeBindingLookup BindingLookup(EditorData);
+				if (FStateTreeConditionBase* Condition = Item->Item.GetMutablePtr<FStateTreeConditionBase>())
+				{
+					const FStateTreeBindingLookup BindingLookup(EditorData);
 
-				OuterObject->Modify();
-				Condition->OnBindingChanged(ID, *InstancePtr, SourcePath, TargetPath, BindingLookup);
+					OuterObject->Modify();
+					Condition->OnBindingChanged(Item->ID, Item->Instance, SourcePath, TargetPath, BindingLookup);
+				}
 			}
 		}
 	}
@@ -439,13 +530,13 @@ void FStateTreeBindableItemDetails::OnBindingChanged(const FStateTreeEditorPrope
 
 void FStateTreeBindableItemDetails::FindOuterObjects()
 {
-	check(ItemProperty);
+	check(StructProperty);
 	
 	EditorData = nullptr;
 	StateTree = nullptr;
 
 	TArray<UObject*> OuterObjects;
-	ItemProperty->GetOuterObjects(OuterObjects);
+	StructProperty->GetOuterObjects(OuterObjects);
 	for (UObject* Outer : OuterObjects)
 	{
 		UStateTreeEditorData* OuterEditorData = Outer->GetTypedOuter<UStateTreeEditorData>();
@@ -461,39 +552,24 @@ void FStateTreeBindableItemDetails::FindOuterObjects()
 
 FText FStateTreeBindableItemDetails::GetDescription() const
 {
-	check(ItemProperty);
-	check(InstanceProperty);
-
-	// Multiple descriptions do not make sense, just if only one item is selected.
-	if (ItemProperty->GetNumOuterObjects() != 1)
-	{
-		return LOCTEXT("MultipleSelected", "<Details.Subdued>Multiple selected</>");
-	}
-
-	FGuid ID;
-	if (UE::StateTree::PropertyHelpers::GetStructValue(IDProperty, ID) != FPropertyAccess::Success)
-	{
-		return LOCTEXT("MultipleSelected", "<Details.Subdued>Multiple selected</>");
-	}
+	check(StructProperty);
 
 	TArray<void*> RawItemData;
-	ItemProperty->AccessRawData(RawItemData);
-	check(RawItemData.Num() == 1);
+	StructProperty->AccessRawData(RawItemData);
 
-	TArray<void*> RawInstanceData;
-	InstanceProperty->AccessRawData(RawInstanceData);
-	check(RawInstanceData.Num() == 1);
-
-	// Dig out name from the struct without knowing the type.
-	const FInstancedStruct* ItemPtr = static_cast<FInstancedStruct*>(RawItemData[0]);
-	const FInstancedStruct* InstancePtr = static_cast<FInstancedStruct*>(RawInstanceData[0]);
-
-	if (InstancePtr->IsValid() && EditorData != nullptr)
+	// Multiple descriptions do not make sense, just if only one item is selected.
+	if (RawItemData.Num() != 1)
 	{
-		if (const FStateTreeConditionBase* Condition = ItemPtr->GetPtr<const FStateTreeConditionBase>())
+		return LOCTEXT("MultipleSelected", "<Details.Subdued>Multiple selected</>");
+	}
+
+	FStateTreeItem* Item = static_cast<FStateTreeItem*>(RawItemData[0]);
+	if (Item != nullptr && EditorData != nullptr && Item->Item.IsValid() && Item->Instance.IsValid())
+	{
+		if (const FStateTreeConditionBase* Condition = Item->Item.GetPtr<const FStateTreeConditionBase>())
 		{
 			const FStateTreeBindingLookup BindingLookup(EditorData);
-			return Condition->GetDescription(ID, *InstancePtr, BindingLookup);
+			return Condition->GetDescription(Item->ID, Item->Instance, BindingLookup);
 		}
 	}
 	
@@ -508,26 +584,26 @@ EVisibility FStateTreeBindableItemDetails::IsDescriptionVisible() const
 
 FText FStateTreeBindableItemDetails::GetName() const
 {
-	check(ItemProperty);
+	check(StructProperty);
 
 	// Multiple names do not make sense, just if only one item is selected.
 	TArray<void*> RawItemData;
-	ItemProperty->AccessRawData(RawItemData);
+	StructProperty->AccessRawData(RawItemData);
 	if (RawItemData.Num() == 1)
 	{
 		// Dig out name from the struct without knowing the type.
-		FInstancedStruct* StructPtr = static_cast<FInstancedStruct*>(RawItemData[0]);
+		FStateTreeItem* Item = static_cast<FStateTreeItem*>(RawItemData[0]);
 
 		// Make sure the associated property has valid data (e.g. while moving an item in array)
-		const UScriptStruct* ScriptStruct = StructPtr != nullptr ? StructPtr->GetScriptStruct() : nullptr;
+		const UScriptStruct* ScriptStruct = Item != nullptr ? Item->Item.GetScriptStruct() : nullptr;
 		if (ScriptStruct != nullptr)
 		{
 			if (FProperty* NameProperty = ScriptStruct->FindPropertyByName(TEXT("Name")))
 			{
 				if (NameProperty->IsA(FNameProperty::StaticClass()))
 				{
-					void* Ptr = const_cast<void*>(static_cast<const void*>(StructPtr->GetMemory()));
-					FName NameValue = *NameProperty->ContainerPtrToValuePtr<FName>(Ptr);
+					void* Ptr = const_cast<void*>(static_cast<const void*>(Item->Item.GetMemory()));
+					const FName NameValue = *NameProperty->ContainerPtrToValuePtr<FName>(Ptr);
 					return FText::FromName(NameValue);
 				}
 			}
@@ -546,7 +622,7 @@ EVisibility FStateTreeBindableItemDetails::IsNameVisible() const
 
 void FStateTreeBindableItemDetails::OnNameCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
 {
-	check(ItemProperty);
+	check(StructProperty);
 
 	if (InTextCommit == ETextCommit::OnEnter || InTextCommit == ETextCommit::OnUserMovedFocus)
 	{
@@ -557,29 +633,32 @@ void FStateTreeBindableItemDetails::OnNameCommitted(const FText& NewText, ETextC
 		{
 			GEditor->BeginTransaction(LOCTEXT("SetName", "Set Name"));
 		}
-		ItemProperty->NotifyPreChange();
+		StructProperty->NotifyPreChange();
 
 		TArray<void*> RawItemData;
-		ItemProperty->AccessRawData(RawItemData);
+		StructProperty->AccessRawData(RawItemData);
+		
 		for (void* Data : RawItemData)
 		{
-			// Set Name
-			FInstancedStruct* ItemPtr = static_cast<FInstancedStruct*>(Data);
-			if (const UScriptStruct* ScriptStruct = ItemPtr->GetScriptStruct())
+			if (FStateTreeItem* Item = static_cast<FStateTreeItem*>(Data))
 			{
-				if (FProperty* NameProperty = ScriptStruct->FindPropertyByName(TEXT("Name")))
+				// Set Name
+				if (const UScriptStruct* ScriptStruct = Item->Item.GetScriptStruct())
 				{
-					if (NameProperty->IsA(FNameProperty::StaticClass()))
+					if (FProperty* NameProperty = ScriptStruct->FindPropertyByName(TEXT("Name")))
 					{
-						void* Ptr = const_cast<void*>(static_cast<const void*>(ItemPtr->GetMemory()));
-						FName& NameValue = *NameProperty->ContainerPtrToValuePtr<FName>(Ptr);
-						NameValue = FName(NewName);
+						if (NameProperty->IsA(FNameProperty::StaticClass()))
+						{
+							void* Ptr = const_cast<void*>(static_cast<const void*>(Item->Item.GetMemory()));
+							FName& NameValue = *NameProperty->ContainerPtrToValuePtr<FName>(Ptr);
+							NameValue = FName(NewName);
+						}
 					}
 				}
 			}
 		}
 
-		ItemProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+		StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
 
 		if (StateTree)
 		{
@@ -591,7 +670,7 @@ void FStateTreeBindableItemDetails::OnNameCommitted(const FText& NewText, ETextC
 			GEditor->EndTransaction();
 		}
 
-		ItemProperty->NotifyFinishedChangingProperties();
+		StructProperty->NotifyFinishedChangingProperties();
 	}
 }
 
@@ -603,17 +682,18 @@ bool FStateTreeBindableItemDetails::IsNameEnabled() const
 
 const UScriptStruct* FStateTreeBindableItemDetails::GetCommonItemScriptStruct() const
 {
-	check(ItemProperty);
+	check(StructProperty);
 
 	const UScriptStruct* CommonScriptStruct = nullptr;
 	bool bMultipleValues = false;
 	TArray<void*> RawItemData;
-	ItemProperty->AccessRawData(RawItemData);
+	StructProperty->AccessRawData(RawItemData);
+
 	for (void* Data : RawItemData)
 	{
-		if (FInstancedStruct* Struct = static_cast<FInstancedStruct*>(Data))
+		if (FStateTreeItem* Item = static_cast<FStateTreeItem*>(Data))
 		{
-			const UScriptStruct* ScriptStruct = Struct->GetScriptStruct();
+			const UScriptStruct* ScriptStruct = Item->Item.GetScriptStruct();
 			if (!bMultipleValues && !CommonScriptStruct)
 			{
 				CommonScriptStruct = ScriptStruct;
@@ -644,15 +724,42 @@ const FSlateBrush* FStateTreeBindableItemDetails::GetDisplayValueIcon() const
 	return FSlateIconFinder::FindIconBrushForClass(UScriptStruct::StaticClass());
 }
 
+TSharedRef<SWidget> FStateTreeBindableItemDetails::GeneratePicker()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	// @todo: Find a way to combine the menus. Now both are displayed even if one may be empty.
+	
+	MenuBuilder.AddWrapperSubMenu(
+		LOCTEXT("Items", "Items"),
+		LOCTEXT("Items_ToolTip", "Items"),
+		FOnGetContent::CreateSP(this, &FStateTreeBindableItemDetails::GenerateStructPicker),
+		FSlateIcon()
+		);
+
+	MenuBuilder.AddWrapperSubMenu(
+		LOCTEXT("BlueprintItems", "Blueprint Items"),
+		LOCTEXT("BlueprintItems_ToolTip", "Blueprint Items"),
+		FOnGetContent::CreateSP(this, &FStateTreeBindableItemDetails::GenerateClassPicker),
+		FSlateIcon()
+	);
+
+	MenuBuilder.AddMenuSeparator();
+
+	FUIAction ClearAction(FExecuteAction::CreateSP(this, &FStateTreeBindableItemDetails::OnStructPicked, (const UScriptStruct*)nullptr));
+	MenuBuilder.AddMenuEntry(LOCTEXT("ClearItem", "Clear Item"), TAttribute<FText>(), FSlateIcon(FEditorStyle::GetStyleSetName(), "Cross"), ClearAction);
+	
+	return MenuBuilder.MakeWidget();
+}
+
+
+
 TSharedRef<SWidget> FStateTreeBindableItemDetails::GenerateStructPicker()
 {
-	static const FName ExcludeBaseStruct(TEXT("ExcludeBaseStruct")); // TODO: move these names into one central place.
-	const bool bExcludeBaseStruct = ItemProperty->HasMetaData(ExcludeBaseStruct);
-
 	TSharedRef<FBindableItemStructFilter> StructFilter = MakeShared<FBindableItemStructFilter>();
 	StructFilter->BaseStruct = BaseScriptStruct;
 	StructFilter->bAllowUserDefinedStructs = false;
-	StructFilter->bAllowBaseStruct = !bExcludeBaseStruct;
+	StructFilter->bAllowBaseStruct = false;
 	StructFilter->Schema = StateTree ? StateTree->GetSchema() : nullptr;
 
 	FStructViewerInitializationOptions Options;
@@ -664,7 +771,7 @@ TSharedRef<SWidget> FStateTreeBindableItemDetails::GenerateStructPicker()
 	Options.bAllowViewOptions = true;
 
 	FOnStructPicked OnPicked(FOnStructPicked::CreateRaw(this, &FStateTreeBindableItemDetails::OnStructPicked));
-
+	
 	return SNew(SBox)
 		.WidthOverride(280.f)
 		[
@@ -680,109 +787,79 @@ TSharedRef<SWidget> FStateTreeBindableItemDetails::GenerateStructPicker()
 
 void FStateTreeBindableItemDetails::OnStructPicked(const UScriptStruct* InStruct)
 {
-	check(ItemProperty);
-	check(InstanceProperty);
-	check(IDProperty);
+	check(StructProperty);
+	check(StateTree);
 
 	TArray<void*> RawItemData;
-	ItemProperty->AccessRawData(RawItemData);
+	StructProperty->AccessRawData(RawItemData);
 
-	TArray<void*> RawInstanceData;
-	InstanceProperty->AccessRawData(RawInstanceData);
+	GEditor->BeginTransaction(LOCTEXT("OnStructPicked", "Set item"));
 
-	TArray<void*> RawIDData;
-	IDProperty->AccessRawData(RawIDData);
+	StructProperty->NotifyPreChange();
 
-	if (RawItemData.Num() != RawInstanceData.Num() || RawItemData.Num() != RawIDData.Num())
+	for (void* Data : RawItemData)
 	{
-		return;
-	}
-
-	GEditor->BeginTransaction(LOCTEXT("OnStructPicked", "Set Struct"));
-
-	ItemProperty->NotifyPreChange();
-	InstanceProperty->NotifyPreChange();
-	IDProperty->NotifyPreChange();
-
-	for (int32 Index = 0; Index < RawItemData.Num(); Index++)
-	{
-		FInstancedStruct* ItemPtr = static_cast<FInstancedStruct*>(RawItemData[Index]);
-		FInstancedStruct* InstancePtr = static_cast<FInstancedStruct*>(RawInstanceData[Index]);
-		FGuid* ID = static_cast<FGuid*>(RawIDData[Index]);
-		
-		if (ItemPtr != nullptr && InstancePtr != nullptr && ID != nullptr)
+		if (FStateTreeItem* Item = static_cast<FStateTreeItem*>(Data))
 		{
+		
+			Item->Reset();
+			
 			if (InStruct)
 			{
-				// Generate new ID and name.
-				*ID = FGuid::NewGuid();
+				// Generate new ID.
+				Item->ID = FGuid::NewGuid();
 
-				// Intialize item
-				ItemPtr->InitializeAs(InStruct);
+				// Initialize item
+				Item->Item.InitializeAs(InStruct);
 				
 				// Generate new name and instantiate instance data.
 				if (InStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
 				{
-					FStateTreeTaskBase* Task = ItemPtr->GetMutablePtr<FStateTreeTaskBase>();
-					check(Task);
-					Task->Name = FName(InStruct->GetDisplayNameText().ToString());
+					FStateTreeTaskBase& Task = Item->Item.GetMutable<FStateTreeTaskBase>();
+					Task.Name = FName(InStruct->GetDisplayNameText().ToString());
 
-					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Task->GetInstanceDataType()))
+					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Task.GetInstanceDataType()))
 					{
-						InstancePtr->InitializeAs(InstanceType);
+						Item->Instance.InitializeAs(InstanceType);
 					}
-					else
+					else if (const UClass* InstanceClass = Cast<const UClass>(Task.GetInstanceDataType()))
 					{
-						InstancePtr->Reset();
+						Item->InstanceObject = NewObject<UObject>(EditorData, InstanceClass);
 					}
 				}
 				else if (InStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()))
 				{
-					FStateTreeEvaluatorBase* Eval = ItemPtr->GetMutablePtr<FStateTreeEvaluatorBase>();
-					check(Eval);
-					Eval->Name = FName(InStruct->GetDisplayNameText().ToString());
+					FStateTreeEvaluatorBase& Eval = Item->Item.GetMutable<FStateTreeEvaluatorBase>();
+					Eval.Name = FName(InStruct->GetDisplayNameText().ToString());
 
-					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Eval->GetInstanceDataType()))
+					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Eval.GetInstanceDataType()))
 					{
-						InstancePtr->InitializeAs(InstanceType);
+						Item->Instance.InitializeAs(InstanceType);
 					}
-					else
+					else if (const UClass* InstanceClass = Cast<const UClass>(Eval.GetInstanceDataType()))
 					{
-						InstancePtr->Reset();
+						Item->InstanceObject = NewObject<UObject>(EditorData, InstanceClass);
 					}
 				}
 				else if (InStruct->IsChildOf(FStateTreeConditionBase::StaticStruct()))
 				{
-					FStateTreeConditionBase* Cond = ItemPtr->GetMutablePtr<FStateTreeConditionBase>();
-					check(Cond);
+					FStateTreeConditionBase& Cond = Item->Item.GetMutable<FStateTreeConditionBase>();
 
-					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Cond->GetInstanceDataType()))
+					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Cond.GetInstanceDataType()))
 					{
-						InstancePtr->InitializeAs(InstanceType);
+						Item->Instance.InitializeAs(InstanceType);
 					}
-					else
+					else if (const UClass* InstanceClass = Cast<const UClass>(Cond.GetInstanceDataType()))
 					{
-						InstancePtr->Reset();
+						Item->InstanceObject = NewObject<UObject>(EditorData, InstanceClass);
 					}
 				}
-			}
-			else
-			{
-				ItemPtr->Reset();
-				InstancePtr->Reset();
-				ID->Invalidate();
 			}
 		}
 	}
 
-	ItemProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
-	ItemProperty->NotifyFinishedChangingProperties();
-
-	InstanceProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
-	InstanceProperty->NotifyFinishedChangingProperties();
-
-	IDProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
-	IDProperty->NotifyFinishedChangingProperties();
+	StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+	StructProperty->NotifyFinishedChangingProperties();
 
 	GEditor->EndTransaction();
 
@@ -793,5 +870,105 @@ void FStateTreeBindableItemDetails::OnStructPicked(const UScriptStruct* InStruct
 		PropUtils->ForceRefresh();
 	}
 }
+
+
+TSharedRef<SWidget> FStateTreeBindableItemDetails::GenerateClassPicker()
+{
+	TSharedRef<FBindableItemClassFilter> ClassFilter = MakeShared<FBindableItemClassFilter>();
+	ClassFilter->BaseClass = BaseClass;
+	ClassFilter->bAllowBaseClass = false;
+	ClassFilter->Schema = StateTree ? StateTree->GetSchema() : nullptr;
+
+	FClassViewerInitializationOptions Options;
+	Options.bShowUnloadedBlueprints = true;
+	Options.bShowNoneOption = true;
+	Options.ClassFilters.Add(ClassFilter);
+	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
+	Options.DisplayMode = EClassViewerDisplayMode::ListView;
+	Options.bAllowViewOptions = true;
+
+	FOnClassPicked OnPicked(FOnClassPicked::CreateRaw(this, &FStateTreeBindableItemDetails::OnClassPicked));
+
+	return SNew(SBox)
+		.WidthOverride(280.f)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.MaxHeight(500.f)
+			[
+				FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, OnPicked)
+			]
+		];
+}
+
+void FStateTreeBindableItemDetails::OnClassPicked(UClass* InClass)
+{
+	check(StructProperty);
+	check(StateTree);
+
+	TArray<void*> RawItemData;
+	StructProperty->AccessRawData(RawItemData);
+
+	GEditor->BeginTransaction(LOCTEXT("OnClassPicked", "Set Blueprint item"));
+
+	StructProperty->NotifyPreChange();
+
+	for (void* Data : RawItemData)
+	{
+		if (FStateTreeItem* Item = static_cast<FStateTreeItem*>(Data))
+		{
+			Item->Reset();
+
+			if (InClass && InClass->IsChildOf(UStateTreeTaskBlueprintBase::StaticClass()))
+			{
+				Item->Item.InitializeAs(FStateTreeBlueprintTaskWrapper::StaticStruct());
+				FStateTreeBlueprintTaskWrapper& Task = Item->Item.GetMutable<FStateTreeBlueprintTaskWrapper>();
+				Task.TaskClass = InClass;
+				Task.Name = FName(InClass->GetDisplayNameText().ToString());
+				
+				Item->InstanceObject = NewObject<UObject>(EditorData, InClass);
+
+				Item->ID = FGuid::NewGuid();
+			}
+			else if (InClass && InClass->IsChildOf(UStateTreeEvaluatorBlueprintBase::StaticClass()))
+			{
+				Item->Item.InitializeAs(FStateTreeBlueprintEvaluatorWrapper::StaticStruct());
+				FStateTreeBlueprintEvaluatorWrapper& Eval = Item->Item.GetMutable<FStateTreeBlueprintEvaluatorWrapper>();
+				Eval.EvaluatorClass = InClass;
+				Eval.Name = FName(InClass->GetDisplayNameText().ToString());
+				
+				Item->InstanceObject = NewObject<UObject>(EditorData, InClass);
+
+				Item->ID = FGuid::NewGuid();
+			}
+			else if (InClass && InClass->IsChildOf(UStateTreeConditionBlueprintBase::StaticClass()))
+			{
+				Item->Item.InitializeAs(FStateTreeBlueprintConditionWrapper::StaticStruct());
+				FStateTreeBlueprintConditionWrapper& Cond = Item->Item.GetMutable<FStateTreeBlueprintConditionWrapper>();
+				Cond.ConditionClass = InClass;
+				
+				Item->InstanceObject = NewObject<UObject>(EditorData, InClass);
+
+				Item->ID = FGuid::NewGuid();
+			}
+
+			
+		}
+	}
+
+	StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+	StructProperty->NotifyFinishedChangingProperties();
+
+	GEditor->EndTransaction();
+
+	ComboButton->SetIsOpen(false);
+
+	if (PropUtils)
+	{
+		PropUtils->ForceRefresh();
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE
