@@ -318,7 +318,7 @@ public:
 	UE::Geometry::FDynamicMesh3* BaseMesh;
 	TSharedPtr<UE::Geometry::FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents;
 	TUniquePtr<UE::Geometry::FMeshMapBaker> Baker;
-	UBakeMultiMeshAttributeMapsTool::FBakeCacheSettings BakeCacheSettings;
+	UBakeMultiMeshAttributeMapsTool::FBakeSettings BakeSettings;
 
 	// Detail bake data
 	TArray<TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>>> CachedColorImages;
@@ -332,10 +332,10 @@ public:
 			return Progress && Progress->Cancelled();
 		};
 		Baker->SetTargetMesh(BaseMesh);
-		Baker->SetTargetMeshUVLayer(BakeCacheSettings.TargetUVLayer);
-		Baker->SetDimensions(BakeCacheSettings.Dimensions);
-		Baker->SetProjectionDistance(BakeCacheSettings.ProjectionDistance);
-		Baker->SetSamplesPerPixel(BakeCacheSettings.SamplesPerPixel);
+		Baker->SetTargetMeshUVLayer(BakeSettings.TargetUVLayer);
+		Baker->SetDimensions(BakeSettings.Dimensions);
+		Baker->SetProjectionDistance(BakeSettings.ProjectionDistance);
+		Baker->SetSamplesPerPixel(BakeSettings.SamplesPerPixel);
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
 		
 		FMeshBakerMeshSceneSampler DetailSampler(DetailMeshScene);
@@ -343,7 +343,7 @@ public:
 
 		for (const EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
 		{
-			switch (BakeCacheSettings.BakeMapTypes & MapType)
+			switch (BakeSettings.BakeMapTypes & MapType)
 			{
 			case EBakeMapType::TangentSpaceNormal:
 			{
@@ -383,13 +383,13 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	const UE::Geometry::FTransform3d BaseToWorld = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 	PreviewMesh->ProcessMesh([this, BaseToWorld](const FDynamicMesh3& Mesh)
 	{
-		BaseMesh.Copy(Mesh);
-		BaseMeshTangents = MakeShared<FMeshTangentsd, ESPMode::ThreadSafe>(&BaseMesh);
-		BaseMeshTangents->CopyTriVertexTangents(Mesh);
+		TargetMesh.Copy(Mesh);
+		TargetMeshTangents = MakeShared<FMeshTangentsd, ESPMode::ThreadSafe>(&TargetMesh);
+		TargetMeshTangents->CopyTriVertexTangents(Mesh);
 		
 		// FMeshSceneAdapter operates in world space, so ensure our mesh transformed to world.
-		MeshTransforms::ApplyTransform(BaseMesh, BaseToWorld);
-		BaseSpatial.SetMesh(&BaseMesh, true);
+		MeshTransforms::ApplyTransform(TargetMesh, BaseToWorld);
+		TargetSpatial.SetMesh(&TargetMesh, true);
 	});
 
 	// Initialize detail sampler
@@ -414,7 +414,7 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	InputMeshProps->RestoreProperties(this);
 	AddToolPropertySource(InputMeshProps);
 	InputMeshProps->TargetStaticMesh = GetStaticMeshTarget(Target);
-	UpdateUVLayerNames(InputMeshProps->TargetUVLayer, InputMeshProps->TargetUVLayerNamesList, BaseMesh);
+	UpdateUVLayerNames(InputMeshProps->TargetUVLayer, InputMeshProps->TargetUVLayerNamesList, TargetMesh);
 	InputMeshProps->WatchProperty(InputMeshProps->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
 	InputMeshProps->WatchProperty(InputMeshProps->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
 	
@@ -497,16 +497,16 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMultiMeshAttr
 {
 	TUniquePtr<FMultiMeshMapBakerOp> Op = MakeUnique<FMultiMeshMapBakerOp>();
 	Op->DetailMeshScene = &DetailMeshScene;
-	Op->BaseMesh = &BaseMesh;
-	Op->BakeCacheSettings = CachedBakeCacheSettings;
+	Op->BaseMesh = &TargetMesh;
+	Op->BakeSettings = CachedBakeSettings;
 
 	constexpr EBakeMapType RequiresTangents = EBakeMapType::TangentSpaceNormal | EBakeMapType::BentNormal;
-	if (static_cast<bool>(CachedBakeCacheSettings.BakeMapTypes & RequiresTangents))
+	if (static_cast<bool>(CachedBakeSettings.BakeMapTypes & RequiresTangents))
 	{
-		Op->BaseMeshTangents = BaseMeshTangents;
+		Op->BaseMeshTangents = TargetMeshTangents;
 	}
 
-	if (static_cast<bool>(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture))
+	if (static_cast<bool>(CachedBakeSettings.BakeMapTypes & EBakeMapType::Texture))
 	{
 		Op->CachedColorImages = CachedColorImages;
 		Op->CachedMeshToColorImageMap = CachedMeshToColorImagesMap;
@@ -559,23 +559,23 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 	const int32 ImageSize = static_cast<int32>(Settings->Resolution);
 	const FImageDimensions Dimensions(ImageSize, ImageSize);
 
-	FBakeCacheSettings BakeCacheSettings;
-	BakeCacheSettings.Dimensions = Dimensions;
-	BakeCacheSettings.BitDepth = Settings->BitDepth;
-	BakeCacheSettings.TargetUVLayer = InputMeshProps->TargetUVLayerNamesList.IndexOfByKey(InputMeshProps->TargetUVLayer);
-	BakeCacheSettings.ProjectionDistance = InputMeshProps->ProjectionDistance;
-	BakeCacheSettings.bProjectionInWorldSpace = true;  // Always world space
-	BakeCacheSettings.SamplesPerPixel = static_cast<int32>(Settings->SamplesPerPixel);
+	FBakeSettings BakeSettings;
+	BakeSettings.Dimensions = Dimensions;
+	BakeSettings.BitDepth = Settings->BitDepth;
+	BakeSettings.TargetUVLayer = InputMeshProps->TargetUVLayerNamesList.IndexOfByKey(InputMeshProps->TargetUVLayer);
+	BakeSettings.ProjectionDistance = InputMeshProps->ProjectionDistance;
+	BakeSettings.bProjectionInWorldSpace = true;  // Always world space
+	BakeSettings.SamplesPerPixel = static_cast<int32>(Settings->SamplesPerPixel);
 
 	// Record the original map types and process the raw bitfield which may add
 	// additional targets.
-	BakeCacheSettings.SourceBakeMapTypes = static_cast<EBakeMapType>(Settings->MapTypes);
-	BakeCacheSettings.BakeMapTypes = GetMapTypes(Settings->MapTypes);
+	BakeSettings.SourceBakeMapTypes = static_cast<EBakeMapType>(Settings->MapTypes);
+	BakeSettings.BakeMapTypes = GetMapTypes(Settings->MapTypes);
 
 	// update bake cache settings
-	if (!(CachedBakeCacheSettings == BakeCacheSettings))
+	if (!(CachedBakeSettings == BakeSettings))
 	{
-		CachedBakeCacheSettings = BakeCacheSettings;
+		CachedBakeSettings = BakeSettings;
 		CachedDetailSettings = FBakeMultiMeshDetailSettings();
 	}
 
@@ -584,6 +584,11 @@ void UBakeMultiMeshAttributeMapsTool::UpdateResult()
 
 	// Update map type settings
 	OpState |= UpdateResult_DetailMeshes();
+
+	if ((bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::TangentSpaceNormal))
+	{
+		OpState |= UpdateResult_Normal(CachedBakeSettings.Dimensions);
+	}
 
 	// Early exit if op input parameters are invalid.
 	if (static_cast<bool>(OpState & EBakeOpState::Invalid))
@@ -613,7 +618,7 @@ EBakeOpState UBakeMultiMeshAttributeMapsTool::UpdateResult_DetailMeshes()
 		ActorToDataMap.Emplace(ActorComponent, Idx);
 		
 		// Color map data
-		if (static_cast<bool>(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture))
+		if (static_cast<bool>(CachedBakeSettings.BakeMapTypes & EBakeMapType::Texture))
 		{
 			UTexture2D* ColorMapSourceTexture = InputMeshProps->SourceMeshes[Idx].SourceTexture;
 			const int ColorMapUVLayer = InputMeshProps->SourceMeshes[Idx].SourceTextureUVLayer;
@@ -642,7 +647,7 @@ EBakeOpState UBakeMultiMeshAttributeMapsTool::UpdateResult_DetailMeshes()
 		{
 			if (const int* DataIndex = ActorToDataMap.Find(ChildMesh->SourceComponent))
 			{
-				if (static_cast<bool>(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::Texture))
+				if (static_cast<bool>(CachedBakeSettings.BakeMapTypes & EBakeMapType::Texture))
 				{
 					CachedMeshToColorImagesMap.Emplace(
 					ChildMesh->MeshSpatial,
@@ -694,7 +699,7 @@ void UBakeMultiMeshAttributeMapsTool::GatherAnalytics(FBakeAnalytics::FMeshSetti
 {
 	if (FEngineAnalytics::IsAvailable())
 	{
-		Data.NumTargetMeshTris = BaseMesh.TriangleCount();
+		Data.NumTargetMeshTris = TargetMesh.TriangleCount();
 		Data.NumDetailMesh = 0;
 		Data.NumDetailMeshTris = 0;
 		DetailMeshScene.ProcessActorChildMeshes([&Data](const FActorAdapter* ActorAdapter, const FActorChildMesh* ChildMesh)

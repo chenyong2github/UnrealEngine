@@ -94,6 +94,22 @@ public:
 
 protected:
 	//
+	// Bake tool property sets
+	//
+	UPROPERTY()
+	TObjectPtr<UBakeOcclusionMapToolProperties> OcclusionSettings;
+
+	UPROPERTY()
+	TObjectPtr<UBakeCurvatureMapToolProperties> CurvatureSettings;
+
+	UPROPERTY()
+	TObjectPtr<UBakeTexture2DProperties> TextureSettings;
+
+	UPROPERTY()
+	TObjectPtr<UBakeMultiTexture2DProperties> MultiTextureSettings;
+	
+	
+	//
 	// Preview materials
 	//
 	UPROPERTY()
@@ -110,8 +126,40 @@ protected:
 	//
 	EBakeOpState OpState = EBakeOpState::Evaluate;
 
+	UE::Geometry::FDynamicMesh3 TargetMesh;
+	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> TargetMeshTangents;
+	UE::Geometry::FDynamicMeshAABBTree3 TargetSpatial;
+
+	//
+	// Bake results update management
+	//
+	const bool bPreferPlatformData = false;
+	
+	EBakeOpState UpdateResult_Normal(const FImageDimensions& Dimensions);
+	FNormalMapSettings CachedNormalMapSettings;
+
+	EBakeOpState UpdateResult_Occlusion(const FImageDimensions& Dimensions);
+	FOcclusionMapSettings CachedOcclusionMapSettings;
+
+	EBakeOpState UpdateResult_Curvature(const FImageDimensions& Dimensions);
+	FCurvatureMapSettings CachedCurvatureMapSettings;
+
+	EBakeOpState UpdateResult_MeshProperty(const FImageDimensions& Dimensions);
+	FMeshPropertyMapSettings CachedMeshPropertyMapSettings;
+
+	EBakeOpState UpdateResult_Texture2DImage(const FImageDimensions& Dimensions, const FDynamicMesh3* DetailMesh);
+	FTexture2DSettings CachedTexture2DSettings;
+	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedTextureImage;
+
+	EBakeOpState UpdateResult_MultiTexture(const FImageDimensions& Dimensions, const FDynamicMesh3* DetailMesh);
+	FTexture2DSettings CachedMultiTexture2DSettings;
+	TArray<TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> CachedMultiTextures;
 
 protected:
+	//
+	// Utilities
+	//
+	
 	/** @return StaticMesh from a tool target */ 
 	static UStaticMesh* GetStaticMeshTarget(UToolTarget* Target)
 	{
@@ -163,6 +211,17 @@ protected:
 		UToolTarget* Target,
 		TArray<TObjectPtr<UTexture2D>>& AllSourceTextures,
 		TArray<TObjectPtr<UTexture2D>>& MaterialIDTextures);
+
+	/**
+	 * Updates a tool property set's UVLayerNamesList from the list of UV layers
+	 * on a given mesh. Also updates the UVLayer property if the current UV layer
+	 * is no longer available.
+	 *
+	 * @param UVLayer Selected UV Layer.
+	 * @param UVLayerNamesList List of available UV layers.
+	 * @param Mesh the mesh to query
+	 */
+	static void UpdateUVLayerNames(FString& UVLayer, TArray<FString>& UVLayerNamesList, const FDynamicMesh3& Mesh);
 };
 
 

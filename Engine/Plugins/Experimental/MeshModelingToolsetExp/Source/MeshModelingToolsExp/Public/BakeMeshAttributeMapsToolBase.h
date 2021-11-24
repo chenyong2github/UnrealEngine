@@ -95,7 +95,7 @@ protected:
 	// Tool property sets
 	//
 	UPROPERTY()
-	TObjectPtr<UBakedOcclusionMapVisualizationProperties> VisualizationProps;
+	TObjectPtr<UBakeVisualizationProperties> VisualizationProps;
 
 	//
 	// Preview mesh and materials
@@ -144,11 +144,7 @@ protected:
 	//
 	// Bake parameters
 	//
-	UE::Geometry::FDynamicMesh3 BaseMesh;
-	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
-	UE::Geometry::FDynamicMeshAABBTree3 BaseSpatial;
-
-	struct FBakeCacheSettings
+	struct FBakeSettings
 	{
 		EBakeMapType SourceBakeMapTypes = EBakeMapType::None;
 		EBakeMapType BakeMapTypes = EBakeMapType::None;
@@ -160,7 +156,7 @@ protected:
 		int32 SamplesPerPixel = 1;
 		bool bProjectionInWorldSpace = false;
 
-		bool operator==(const FBakeCacheSettings& Other) const
+		bool operator==(const FBakeSettings& Other) const
 		{
 			return BakeMapTypes == Other.BakeMapTypes && Dimensions == Other.Dimensions &&
 				TargetUVLayer == Other.TargetUVLayer && DetailTimestamp == Other.DetailTimestamp &&
@@ -169,7 +165,7 @@ protected:
 				bProjectionInWorldSpace == Other.bProjectionInWorldSpace;
 		}
 	};
-	FBakeCacheSettings CachedBakeCacheSettings;
+	FBakeSettings CachedBakeSettings;
 
 	/**
 	 * To be invoked by client when bake map types change.
@@ -223,18 +219,6 @@ protected:
 	void UpdatePreviewNames(PropertySet& Properties);
 
 
-	/**
-	 * Updates a tool property set's UVLayerNamesList from the list of UV layers
-	 * on a given mesh. Also updates the UVLayer property if the current UV layer
-	 * is no longer available.
-	 *
-	 * @param UVLayer Selected UV Layer.
-	 * @param UVLayerNamesList List of available UV layers.
-	 * @param Mesh the mesh to query
-	 */
-	static void UpdateUVLayerNames(FString& UVLayer, TArray<FString>& UVLayerNamesList, const FDynamicMesh3& Mesh);
-
-
 	//
 	// Analytics
 	//
@@ -254,7 +238,7 @@ protected:
 		};
 		FMeshSettings MeshSettings;
 
-		FBakeCacheSettings BakeSettings;
+		FBakeSettings BakeSettings;
 		FOcclusionMapSettings OcclusionSettings;
 		FCurvatureMapSettings CurvatureSettings;
 	};
@@ -273,7 +257,7 @@ protected:
 	 * @param Data the output bake analytics struct.
 	 */
 	static void GatherAnalytics(const UE::Geometry::FMeshMapBaker& Result,
-								const FBakeCacheSettings& Settings,
+								const FBakeSettings& Settings,
 								FBakeAnalytics& Data);
 
 	/**
@@ -295,7 +279,6 @@ protected:
 	//
 	// Utilities
 	//
-	const bool bPreferPlatformData = false;
 	
 	/** @return the Texture2D type for a given map type */
 	static UE::Geometry::FTexture2DBuilder::ETextureType GetTextureType(EBakeMapType MapType, EBakeTextureBitDepth MapFormat);
@@ -412,25 +395,6 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreviewNames(PropertySet& Properties)
 	if (!bFoundMapType)
 	{
 		Properties->MapPreview = Properties->MapPreviewNamesList.Num() > 0 ? Properties->MapPreviewNamesList[0] : TEXT("");
-	}
-}
-
-
-inline void UBakeMeshAttributeMapsToolBase::UpdateUVLayerNames(FString& UVLayer, TArray<FString>& UVLayerNamesList, const FDynamicMesh3& Mesh)
-{
-	UVLayerNamesList.Reset();
-	int32 FoundIndex = -1;
-	for (int32 k = 0; k < Mesh.Attributes()->NumUVLayers(); ++k)
-	{
-		UVLayerNamesList.Add(FString::Printf(TEXT("UV %d"), k));
-		if (UVLayer == UVLayerNamesList.Last())
-		{
-			FoundIndex = k;
-		}
-	}
-	if (FoundIndex == -1)
-	{
-		UVLayer = UVLayerNamesList[0];
 	}
 }
 

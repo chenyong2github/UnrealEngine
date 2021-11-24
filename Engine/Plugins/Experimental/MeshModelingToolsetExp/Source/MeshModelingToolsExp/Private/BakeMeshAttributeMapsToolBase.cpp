@@ -71,7 +71,7 @@ void UBakeMeshAttributeMapsToolBase::Setup()
 
 void UBakeMeshAttributeMapsToolBase::PostSetup()
 {
-	VisualizationProps = NewObject<UBakedOcclusionMapVisualizationProperties>(this);
+	VisualizationProps = NewObject<UBakeVisualizationProperties>(this);
 	VisualizationProps->RestoreProperties(this);
 	AddToolPropertySource(VisualizationProps);
 
@@ -225,15 +225,15 @@ void UBakeMeshAttributeMapsToolBase::UpdatePreview(const EBakeMapType PreviewMap
 		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), PreviewMap);
 		break;
 	}
-	PreviewMaterial->SetScalarParameterValue(TEXT("UVChannel"), CachedBakeCacheSettings.TargetUVLayer);
-	BentNormalPreviewMaterial->SetScalarParameterValue(TEXT("UVChannel"), CachedBakeCacheSettings.TargetUVLayer);
+	PreviewMaterial->SetScalarParameterValue(TEXT("UVChannel"), CachedBakeSettings.TargetUVLayer);
+	BentNormalPreviewMaterial->SetScalarParameterValue(TEXT("UVChannel"), CachedBakeSettings.TargetUVLayer);
 }
 
 
 void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshMapBaker>& NewResult)
 {
 	const FImageDimensions BakeDimensions = NewResult->GetDimensions();
-	const EBakeTextureBitDepth Format = CachedBakeCacheSettings.BitDepth;
+	const EBakeTextureBitDepth Format = CachedBakeSettings.BitDepth;
 	const int32 NumEval = NewResult->NumEvaluators();
 	for (int32 EvalIdx = 0; EvalIdx < NumEval; ++EvalIdx)
 	{
@@ -344,7 +344,7 @@ void UBakeMeshAttributeMapsToolBase::OnMapsUpdated(const TUniquePtr<UE::Geometry
 		}
 	}
 
-	GatherAnalytics(*NewResult, CachedBakeCacheSettings, BakeAnalytics);
+	GatherAnalytics(*NewResult, CachedBakeSettings, BakeAnalytics);
 	UpdateVisualization();
 	GetToolManager()->PostInvalidation();
 }
@@ -472,7 +472,7 @@ void UBakeMeshAttributeMapsToolBase::GatherAnalytics(FBakeAnalytics::FMeshSettin
 }
 
 
-void UBakeMeshAttributeMapsToolBase::GatherAnalytics(const FMeshMapBaker& Result, const FBakeCacheSettings& Settings, FBakeAnalytics& Data)
+void UBakeMeshAttributeMapsToolBase::GatherAnalytics(const FMeshMapBaker& Result, const FBakeSettings& Settings, FBakeAnalytics& Data)
 {
 	if (!FEngineAnalytics::IsAvailable())
 	{
