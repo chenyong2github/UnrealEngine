@@ -27,7 +27,9 @@ static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingPullbackBias(
 bool Lumen::UseHardwareRayTracing()
 {
 #if RHI_RAYTRACING
-	return (IsRayTracingEnabled() && CVarLumenUseHardwareRayTracing.GetValueOnRenderThread() != 0);
+	// As of 2021-11-24, Lumen can only run in full RT pipeline mode.
+	// It will be able to run using inline ray tracing mode in the future.
+	return (IsRayTracingEnabled() && GRHISupportsRayTracingShaders && CVarLumenUseHardwareRayTracing.GetValueOnRenderThread() != 0);
 #else
 	return false;
 #endif

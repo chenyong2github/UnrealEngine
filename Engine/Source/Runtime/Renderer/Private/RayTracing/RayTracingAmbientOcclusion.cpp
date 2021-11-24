@@ -68,7 +68,7 @@ bool ShouldRenderRayTracingAmbientOcclusion(const FViewInfo& View)
 
 	bEnabled &= (View.FinalPostProcessSettings.RayTracingAOIntensity > 0.0f);
 
-	return ShouldRenderRayTracingEffect(bEnabled);
+	return ShouldRenderRayTracingEffect(bEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline);
 }
 
 DECLARE_GPU_STAT_NAMED(RayTracingAmbientOcclusion, TEXT("Ray Tracing Ambient Occlusion"));
