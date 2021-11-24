@@ -405,7 +405,7 @@ void FDataLayerHierarchy::OnLoadedActorRemoved(AActor& InActor)
 
 void FDataLayerHierarchy::OnActorDescAdded(FWorldPartitionActorDesc* InActorDesc)
 {
-	if (!bShowingUnloadedActors || (InActorDesc == nullptr))
+	if (!bShowingUnloadedActors || !InActorDesc || InActorDesc->IsLoaded(true))
 	{
 		return;
 	}
