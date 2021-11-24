@@ -7,6 +7,7 @@
 #include "FileHelpers.h"
 #include "StaticMeshCompiler.h"
 #include "Logging/LogMacros.h"
+#include "UObject/SavePackage.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -140,7 +141,10 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 			{
 				UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Saving package  %s."), *Package->GetName());
 				FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-				if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.SaveFlags = SAVE_Async;
+				if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 				{
 					UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
 					return true;

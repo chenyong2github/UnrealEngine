@@ -13,6 +13,7 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/MetaData.h"
 #include "UObject/UnrealType.h"
@@ -650,7 +651,10 @@ public:
 		FString SavePath = FString::Printf(TEXT("%sTemp-%u-%s"), *TempDir, GenTempUid(), *FPaths::GetCleanFilename(BlueprintObj->GetName()));
 
 		UPackage* const AssetPackage = BlueprintObj->GetOutermost();
-		return UPackage::SavePackage(AssetPackage, NULL, RF_Standalone, *SavePath, GWarn);
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		SaveArgs.Error = GWarn;
+		return UPackage::SavePackage(AssetPackage, NULL, *SavePath, SaveArgs);
 	}
 
 	static void ResolveCircularDependencyDiffs(UBlueprint const* const BlueprintIn, TArray<FDiffSingleResult>& DiffsInOut)

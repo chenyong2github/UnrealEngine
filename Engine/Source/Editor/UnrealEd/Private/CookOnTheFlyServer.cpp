@@ -2404,9 +2404,11 @@ void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStr
 
 				// Save package into the uncooked intermediate directory
 				FString IntermediateFile = GeneratorStruct->GetIntermediateLocalPath(GeneratedStruct);
-				FSavePackageResultStruct SaveResult = GEditor->Save(GeneratedPackage, nullptr, RF_Standalone,
-					*IntermediateFile, GError, nullptr, /*bForceByteSwapping*/ false,
-					/*bWarnOfLongFilename*/ true, SAVE_KeepGUID);
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.SaveFlags = SAVE_KeepGUID;
+				FSavePackageResultStruct SaveResult = GEditor->Save(GeneratedPackage, nullptr, *IntermediateFile,
+					SaveArgs);
 				if (SaveResult.Result != ESavePackageResult::Success)
 				{
 					UE_LOG(LogCook, Error, TEXT("PackageSplitter could not save uncooked generated package. Splitter=%s, Generated=%s."),
@@ -4292,6 +4294,14 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(GEditorSavePackage);
 			UE_TRACK_REFERENCING_PLATFORM_SCOPED(TargetPlatform);
 
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = Context.FlagsToCook;
+			SaveArgs.bForceByteSwapping = Context.bEndianSwap;
+			SaveArgs.bWarnOfLongFilename = false;
+			SaveArgs.SaveFlags = Context.SaveFlags;
+			SaveArgs.TargetPlatform = TargetPlatform;
+			SaveArgs.bSlowTask = false;
+			SaveArgs.SavePackageContext = Context.SavePackageContext;
 			try
 			{
 				if (DiffModeHelper->IsRunningCookDiff())
@@ -4300,17 +4310,14 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 
 					// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the existing package
 					FDiffPackageWriter* DiffPackageWriter = static_cast<FDiffPackageWriter*>(Context.PackageWriter);
-					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
-						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
-						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
+					Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
 					if (Context.SavePackageResult == ESavePackageResult::Success && DiffPackageWriter->IsDifferenceFound())
 					{
 						// If the simple memory diff was not identical, collect callstacks for all Serialize calls and dump differences to log
 						DiffPackageWriter->BeginDiffCallstack();
 
-						Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
-							GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
-							FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
+						Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename,
+							SaveArgs);
 					}
 				}
 				else if (DiffModeHelper->IsRunningCookLinkerDiff())
@@ -4318,9 +4325,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 					// Save the package with the other save algorithm. Discard the result but keep the linker.
 					DiffModeHelper->LinkerDiffSetupOther();
 					FSavePackageResultStruct OtherResult;
-					OtherResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
-						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
-						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
+					OtherResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
 
 					// The contract with the PackageWriter is that every Begin is paired with a single commit.
 					// Send the old commit and the new begin.
@@ -4338,17 +4343,13 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 					// Commit the result in FinishPlatform later, and compare the linkers now.
 					DiffModeHelper->LinkerDiffSetupCurrent();
 					FSavePackageResultStruct NewResult;
-					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
-						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
-						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
+					Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
 
 					DiffModeHelper->LinkerDiffFinish(OtherResult, Context.SavePackageResult);
 				}
 				else
 				{
-					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
-						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
-						FDateTime::MinValue(), false, /*DiffMap*/ nullptr, Context.SavePackageContext);
+					Context.SavePackageResult = GEditor->Save(Package, Context.World, *Context.PlatFilename, SaveArgs);
 				}
 			}
 			catch (std::exception&)
@@ -9016,8 +9017,15 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						BeginInfo.PackageName = Package->GetFName();
 						BeginInfo.LooseFilePath = PlatFilename;
 						SavePackageContext.PackageWriter->BeginPackage(BeginInfo);
-						FSavePackageResultStruct SaveResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), 
-																			false, /*DiffMap*/ nullptr,	&SavePackageContext);
+						FSavePackageArgs SaveArgs;
+						SaveArgs.TopLevelFlags = FlagsToCook;
+						SaveArgs.bForceByteSwapping = bSwap;
+						SaveArgs.bWarnOfLongFilename = false;
+						SaveArgs.SaveFlags = SaveFlags;
+						SaveArgs.TargetPlatform = Target;
+						SaveArgs.bSlowTask = false;
+						SaveArgs.SavePackageContext = &SavePackageContext;
+						FSavePackageResultStruct SaveResult = GEditor->Save(Package, World, *PlatFilename, SaveArgs);
 						GIsCookerLoadingPackage = false;
 
 						if (SaveResult == ESavePackageResult::Success && UAssetManager::IsValid())

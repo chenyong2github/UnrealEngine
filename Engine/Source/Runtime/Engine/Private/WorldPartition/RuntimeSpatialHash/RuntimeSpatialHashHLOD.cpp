@@ -24,6 +24,7 @@
 
 #include "StaticMeshCompiler.h"
 
+#include "UObject/SavePackage.h"
 #include "IWorldPartitionHLODUtilities.h"
 #include "WorldPartitionHLODUtilitiesModule.h"
 
@@ -43,7 +44,9 @@ static void SavePackage(UPackage* Package, ISourceControlHelper* SourceControlHe
 
 		FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(Package->GetName());
 		const FString PackageFileName = PackagePath.GetLocalFullPath();
-		if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 		{
 			UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Error, TEXT("Error saving package %s."), *Package->GetName());
 			check(0);

@@ -516,7 +516,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 				// Firstly, do a resave of the package
 				UPackage* OriginalPackage = LoadPackage(nullptr, *SourceLongPackageName, LOAD_None);
 				IFileManager::Get().Delete(*SourceFilename, false, true, true);
-				SavePackageHelper(OriginalPackage, SourceFilename, RF_Standalone, GWarn, nullptr, SAVE_KeepGUID);
+				SavePackageHelper(OriginalPackage, SourceFilename, RF_Standalone, GWarn, SAVE_KeepGUID);
 				CollectGarbage(RF_NoFlags, true);
 
 				// Make a copy of the resaved source package which we can use as the base revision for each test
@@ -623,7 +623,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 						
 						{
 							TRACE_CPUPROFILER_EVENT_SCOPE(SavePackage); 
-							SavePackageHelper(Package, *WorkingFilenames[Bucket], RF_Standalone, GWarn, nullptr, SAVE_KeepGUID);
+							SavePackageHelper(Package, *WorkingFilenames[Bucket], RF_Standalone, GWarn, SAVE_KeepGUID);
 						}
 						
 						{
@@ -770,7 +770,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 						SCOPE_SECONDS_COUNTER(Timer);
 						TRACE_CPUPROFILER_EVENT_SCOPE(UTextAssetCommandlet::SavePackage);
 						IFileManager::Get().Delete(*DestinationFilename, false, true, true);
-						bSaveSuccessful = SavePackageHelper(Package, *DestinationFilename, RF_Standalone, GWarn, nullptr, SAVE_KeepGUID);
+						bSaveSuccessful = SavePackageHelper(Package, *DestinationFilename, RF_Standalone, GWarn, SAVE_KeepGUID);
 					}
 					TotalPackageSaveTime += Timer;
 					IterationPackageSaveTime += Timer;

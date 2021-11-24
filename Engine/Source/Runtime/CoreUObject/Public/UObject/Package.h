@@ -24,6 +24,7 @@ class Error;
 // used to flag a deprecated Conform argument to package save functions.
 class FLinkerNull;
 class FLinkerSave;
+class ITargetPlatform;
 struct FPackageSaveInfo;
 class FSavePackageContext;
 struct FSavePackageArgs;
@@ -643,64 +644,48 @@ public:
 	/**
 	* Save one specific object (along with any objects it references contained within the same Outer) into an Unreal package.
 	* 
-	* @param	InOuter							the outer to use for the new package
-	* @param	Base							the object that should be saved into the package
-	* @param	TopLevelFlags					For all objects which are not referenced [either directly, or indirectly] through Base, only objects
-	*											that contain any of these flags will be saved.  If 0 is specified, only objects which are referenced
-	*											by Base will be saved into the package.
-	* @param	Filename						the name to use for the new package file
-	* @param	Error							error output
-	* @param	Conform							if non-NULL, all index tables for this will be sorted to match the order of the corresponding index table
-	*											in the conform package
-	* @param	bForceByteSwapping				whether we should forcefully byte swap before writing to disk
-	* @param	bWarnOfLongFilename				[opt] If true (the default), warn when saving to a long filename.
-	* @param	SaveFlags						Flags to control saving
-	* @param	TargetPlatform					The platform being saved for
-	* @param	FinalTimeStamp					If not FDateTime::MinValue(), the timestamp the saved file should be set to. (Intended for cooking only...)
+	* @param	InOuter			the outer to use for the new package
+	* @param	InAsset			the object that should be saved into the package
+	* @param	Filename		the name to use for the new package file
+	* @param	SaveArgs		Extended arguments to control the save
+	* @see		FSavePackageContext
 	*
 	* @return	FSavePackageResultStruct enum value with the result of saving a package as well as extra data
 	*/
-	static FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-		FOutputDevice* Error=GError, FLinkerNull* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
-		uint32 SaveFlags=SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
+	static FSavePackageResultStruct Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename, const FSavePackageArgs& SaveArgs);
+
+	UE_DEPRECATED(5.0, "Pack the arguments into FSavePackageArgs and call the function overload that takes FSavePackageArgs. Note that Conform and InOutDiffMap are no longer implemented.")
+	static FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags,
+		const TCHAR* Filename, FOutputDevice* Error = GError, FLinkerNull* Conform = nullptr,
+		bool bForceByteSwapping = false, bool bWarnOfLongFilename = true, uint32 SaveFlags = SAVE_None,
+		const ITargetPlatform* TargetPlatform = nullptr, const FDateTime& FinalTimeStamp = FDateTime::MinValue(),
 		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
 		FSavePackageContext* SavePackageContext = nullptr);
-
-	/**
-	 * Save an asset into an Unreal Package
-	 * Save2 is currently experimental and shouldn't be used until it can safely replace Save.
-	 */
-	static FSavePackageResultStruct Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, FSavePackageArgs& SaveArgs);
 
 	/**
 	 * Save a list of packages concurrently using Save2 mechanism
 	 * SaveConcurrent is currently experimental and shouldn't be used until it can safely replace Save.
 	 */
-	static ESavePackageResult SaveConcurrent(TArrayView<FPackageSaveInfo> InPackages, FSavePackageArgs& SaveArgs, TArray<FSavePackageResultStruct>& OutResults);
+	static ESavePackageResult SaveConcurrent(TArrayView<FPackageSaveInfo> InPackages, const FSavePackageArgs& SaveArgs, TArray<FSavePackageResultStruct>& OutResults);
 
 	/**
 	* Save one specific object (along with any objects it references contained within the same Outer) into an Unreal package.
 	*
-	* @param	InOuter							the outer to use for the new package
-	* @param	Base							the object that should be saved into the package
-	* @param	TopLevelFlags					For all objects which are not referenced [either directly, or indirectly] through Base, only objects
-	*											that contain any of these flags will be saved.  If 0 is specified, only objects which are referenced
-	*											by Base will be saved into the package.
-	* @param	Filename						the name to use for the new package file
-	* @param	Error							error output
-	* @param	Conform							if non-NULL, all index tables for this will be sorted to match the order of the corresponding index table
-	*											in the conform package
-	* @param	bForceByteSwapping				whether we should forcefully byte swap before writing to disk
-	* @param	bWarnOfLongFilename				[opt] If true (the default), warn when saving to a long filename.
-	* @param	SaveFlags						Flags to control saving
-	* @param	TargetPlatform					The platform being saved for
-	* @param	FinalTimeStamp					If not FDateTime::MinValue(), the timestamp the saved file should be set to. (Intended for cooking only...)
+	* @param	InOuter			the outer to use for the new package
+	* @param	InAsset			the object that should be saved into the package
+	* @param	Filename		the name to use for the new package file
+	* @param	SaveArgs		Extended arguments to control the save
+	* @see		FSavePackageContext
 	*
 	* @return	true if the package was saved successfully.
 	*/
+	static bool SavePackage(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename, const FSavePackageArgs& SaveArgs);
+
+	UE_DEPRECATED(5.0, "Pack the arguments into FSavePackageArgs and call the function overload that takes FSavePackageArgs. Note that Conform is no longer implemented.")
 	static bool SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-		FOutputDevice* Error = GError, FLinkerNull* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
-		uint32 SaveFlags = SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), bool bSlowTask = true);
+		FOutputDevice* Error = GError, FLinkerNull* Conform = nullptr, bool bForceByteSwapping = false,
+		bool bWarnOfLongFilename = true, uint32 SaveFlags = SAVE_None, const ITargetPlatform* TargetPlatform = nullptr,
+		const FDateTime& FinalTimeStamp = FDateTime::MinValue(), bool bSlowTask = true);
 
 	/** Wait for any SAVE_Async file writes to complete **/
 	static void WaitForAsyncFileWrites();
@@ -713,5 +698,8 @@ public:
 	* @return true if Package contains no more assets.
 	*/
 	static bool IsEmptyPackage(UPackage* Package, const UObject* LastReferencer = NULL);
+
+private:
+	static FSavePackageResultStruct Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, const FSavePackageArgs& SaveArgs);
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

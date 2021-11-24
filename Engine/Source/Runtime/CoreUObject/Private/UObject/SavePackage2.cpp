@@ -925,7 +925,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		FObjectImportSortHelper ImportSortHelper;
 		{
 			SCOPED_SAVETIMER(UPackage_Save_SortImports);
-			ImportSortHelper.SortImports(Linker, nullptr);
+			ImportSortHelper.SortImports(Linker);
 		}
 		Linker->Summary.ImportCount = Linker->ImportMap.Num();
 	}
@@ -956,7 +956,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		FObjectExportSortHelper ExportSortHelper;
 		{
 			SCOPED_SAVETIMER(UPackage_Save_SortExports);
-			ExportSortHelper.SortExports(Linker, nullptr);
+			ExportSortHelper.SortExports(Linker);
 		}
 		Linker->Summary.ExportCount = Linker->ExportMap.Num();
 	}
@@ -2301,7 +2301,8 @@ FText GetSlowTaskStatusMessage(const FSaveContext& SaveContext)
 
 } // end namespace
 
-FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, FSavePackageArgs& SaveArgs)
+FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename,
+	const FSavePackageArgs& SaveArgs)
 {
 	COOK_STAT(FScopedDurationTimer FuncSaveTimer(FSavePackageStats::SavePackageTimeSec));
 	COOK_STAT(FSavePackageStats::NumPackagesSaved++);
@@ -2394,7 +2395,7 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 }
 
 
-ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPackages, FSavePackageArgs& SaveArgs, TArray<FSavePackageResultStruct>& OutResults)
+ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPackages, const FSavePackageArgs& SaveArgs, TArray<FSavePackageResultStruct>& OutResults)
 {
 	const int32 TotalSaveSteps = 4;
 	FScopedSlowTask SlowTask(TotalSaveSteps, NSLOCTEXT("Core", "SavingFiles", "Saving files..."), SaveArgs.bSlowTask);
@@ -2462,28 +2463,32 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 					InnerSave(PackageSaveContexts[PackageIdx]);
 				});
 		}
-		// save concurrently if the SAVE_Concurrent flag is present
-		else if (SaveArgs.SaveFlags & SAVE_Concurrent)
-		{
-			GIsSavingPackage = true;
-			ParallelFor(PackageSaveContexts.Num(), [&PackageSaveContexts](int32 PackageIdx)
-				{
-					FSaveContext& SaveContext = PackageSaveContexts[PackageIdx];
-					const FSavePackageArgs& SaveArgs = SaveContext.GetSaveArgs();
-					Save(SaveContext.GetPackage(), SaveContext.GetAsset(), SaveArgs.TopLevelFlags, SaveContext.GetFilename(),
-						SaveArgs.Error, nullptr, SaveArgs.bForceByteSwapping, SaveArgs.bWarnOfLongFilename, SaveArgs.SaveFlags|SAVE_Concurrent,
-						SaveArgs.TargetPlatform, SaveArgs.FinalTimeStamp, false, nullptr, nullptr);
-				});
-			GIsSavingPackage = false;
-		}
-		// otherwise save serial
 		else
 		{
-			for (FSaveContext& SaveContext : PackageSaveContexts)
+			FSavePackageArgs ConcurrentSaveArgs = SaveArgs;
+			ConcurrentSaveArgs.SaveFlags |= SAVE_Concurrent;
+			ConcurrentSaveArgs.bSlowTask = false;
+			// save concurrently if the SAVE_Concurrent flag is present
+			if (SaveArgs.SaveFlags & SAVE_Concurrent)
 			{
-				Save(SaveContext.GetPackage(), SaveContext.GetAsset(), SaveArgs.TopLevelFlags, SaveContext.GetFilename(),
-					SaveArgs.Error, nullptr, SaveArgs.bForceByteSwapping, SaveArgs.bWarnOfLongFilename, SaveArgs.SaveFlags | SAVE_Concurrent, // still pass in the flag so that we don't redo things we have handled already
-					SaveArgs.TargetPlatform, SaveArgs.FinalTimeStamp, false, nullptr, nullptr);
+				GIsSavingPackage = true;
+				ParallelFor(PackageSaveContexts.Num(), [&PackageSaveContexts, &ConcurrentSaveArgs](int32 PackageIdx)
+					{
+						FSaveContext& SaveContext = PackageSaveContexts[PackageIdx];
+						Save(SaveContext.GetPackage(), SaveContext.GetAsset(), SaveContext.GetFilename(),
+							ConcurrentSaveArgs);
+					});
+				GIsSavingPackage = false;
+			}
+			// otherwise save serial
+			else
+			{
+				// still pass in the SAVE_Concurrent flag on ConcurrentSaveArgs so that we don't redo things we have handled already
+				for (FSaveContext& SaveContext : PackageSaveContexts)
+				{
+					Save(SaveContext.GetPackage(), SaveContext.GetAsset(), SaveContext.GetFilename(),
+						ConcurrentSaveArgs);
+				}
 			}
 		}
 	}

@@ -20,6 +20,7 @@
 #include "UObject/Class.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectAnnotation.h"
 #include "Serialization/ArchiveCountMem.h"
@@ -961,7 +962,10 @@ bool UEditorEngine::Exec_Brush( UWorld* InWorld, const TCHAR* Str, FOutputDevice
 		{
 			Ar.Logf( TEXT("Saving %s"), *TempFname );
 			check(InWorld);
-			this->SavePackage( WorldBrush->Brush->GetOutermost(), WorldBrush->Brush, RF_NoFlags, *TempFname, GWarn );
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_NoFlags;
+			SaveArgs.Error = GWarn;
+			this->SavePackage(WorldBrush->Brush->GetOutermost(), WorldBrush->Brush, *TempFname, SaveArgs);
 		}
 		else
 		{
@@ -4728,8 +4732,12 @@ bool UEditorEngine::Exec_Obj( const TCHAR* Str, FOutputDevice& Ar )
 				SaveFlags |= SAVE_KeepDirty;
 			}
 
-			const bool bWarnOfLongFilename = !bAutosaving;
-			bWasSuccessful = this->SavePackage( Pkg, NULL, RF_Standalone, *TempFname, &Ar, NULL, false, bWarnOfLongFilename, SaveFlags );
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Standalone;
+			SaveArgs.Error = &Ar;
+			SaveArgs.bWarnOfLongFilename = !bAutosaving;
+			SaveArgs.SaveFlags = SaveFlags;
+			bWasSuccessful = this->SavePackage(Pkg, nullptr, *TempFname, SaveArgs);
 		}
 		else
 		{

@@ -1048,10 +1048,12 @@ bool TrySavePackage(UPackage* Package)
 	BeginInfo.PackageName = Package->GetFName();
 	PackageWriter->BeginPackage(BeginInfo);
 	FSavePackageContext SavePackageContext(nullptr /* TargetPlatform */, PackageWriter);
-	FSavePackageResultStruct Result = GEditor->Save(Package, nullptr, RF_Standalone, TEXT("EditorDomainPackageWriter"),
-		GError, nullptr /* Conform */, false /* bForceByteSwapping */, true /* bWarnOfLongFilename */,
-		SaveFlags, nullptr /* TargetPlatform */, FDateTime::MinValue(), false /* bSlowTask */,
-		nullptr /* DiffMap */, &SavePackageContext);
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	SaveArgs.SaveFlags = SaveFlags;
+	SaveArgs.bSlowTask = false;
+	SaveArgs.SavePackageContext = &SavePackageContext;
+	FSavePackageResultStruct Result = GEditor->Save(Package, nullptr, TEXT("EditorDomainPackageWriter"), SaveArgs);
 	if (Result.Result != ESavePackageResult::Success)
 	{
 		UE_LOG(LogEditorDomain, Warning, TEXT("Could not save %s to EditorDomain: SavePackage returned %d."),

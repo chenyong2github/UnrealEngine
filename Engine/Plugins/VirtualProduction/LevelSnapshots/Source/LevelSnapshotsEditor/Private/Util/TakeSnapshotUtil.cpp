@@ -22,6 +22,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/MessageDialog.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotEditorLibrary"
@@ -164,7 +165,12 @@ ULevelSnapshot* SnapshotEditor::TakeLevelSnapshotAndSaveToDisk(UWorld* World, co
     	bool bSavingSuccessful;
     	{
     		SCOPED_SNAPSHOT_EDITOR_TRACE(SaveSnapshotPackage);
-    		bSavingSuccessful = UPackage::SavePackage(SavePackage, SnapshotAsset, RF_Public | RF_Standalone, *PackageFileName, GWarn, nullptr, false, false,  bSaveAsync ? SAVE_Async | SAVE_NoError : SAVE_None);
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Public | RF_Standalone;
+			SaveArgs.Error = GWarn;
+			SaveArgs.bWarnOfLongFilename = false;
+			SaveArgs.SaveFlags = bSaveAsync ? SAVE_Async | SAVE_NoError : SAVE_None;
+			bSavingSuccessful = UPackage::SavePackage(SavePackage, SnapshotAsset, *PackageFileName, SaveArgs);
     	}
     	
     	// Notify the user of the outcome

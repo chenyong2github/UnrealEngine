@@ -859,7 +859,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 					{
 						TRACE_CPUPROFILER_EVENT_SCOPE(UResavePackagesCommandlet::LoadAndSaveOnePackage::SavePackage);
 
-						if (SavePackageHelper(Package, Filename, RF_Standalone, GWarn, nullptr, SaveFlags))
+						if (SavePackageHelper(Package, Filename, RF_Standalone, GWarn, SaveFlags))
 						{
 							PackagesResaved++;
 							if (Verbosity == VERY_VERBOSE)
@@ -874,7 +874,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 						// need to save to a temporary file first, and then queue the result.
 						const FString TempFilename = CreateTempFilename();
 
-						if (SavePackageHelper(Package, TempFilename, RF_Standalone, GWarn, nullptr, SaveFlags))
+						if (SavePackageHelper(Package, TempFilename, RF_Standalone, GWarn, SaveFlags))
 						{
 							SourceControlQueue->QueueCheckoutAndReplaceOperation(Filename, TempFilename, Package);
 						}
@@ -2882,7 +2882,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 
 				// save the package now that all needed objects in it are loaded.
 				// At this point, any object still around should be saved so we pass all flags so all objects are saved
-				SavePackageHelper(Package, *CutdownPackageName, RF_AllFlags, GWarn, NULL, SAVE_CutdownPackage);
+				SavePackageHelper(Package, *CutdownPackageName, RF_AllFlags, GWarn, SAVE_CutdownPackage);
 
 				// close up this package
 				CollectGarbage(RF_NoFlags);

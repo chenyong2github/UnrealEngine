@@ -11,6 +11,7 @@
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Engine/LevelStreaming.h"
+#include "UObject/SavePackage.h"
 #include "UObject/UObjectHash.h"
 #include "AssetRegistryModule.h"
 #include "PackageHelperFunctions.h"
@@ -179,8 +180,9 @@ bool UConvertLevelsToExternalActorsCommandlet::SavePackage(UPackage* Package)
 {
 	// Use GEditor save as it does some UWorld specific shenanigans such as handle level offsets
 	FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-	FSavePackageResultStruct SaveResult = GEditor->Save(Package, nullptr, RF_Standalone, *PackageFileName,
-		GError, nullptr, false, true, SAVE_None);
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	FSavePackageResultStruct SaveResult = GEditor->Save(Package, nullptr, *PackageFileName, SaveArgs);
 
 	if (SaveResult.Result != ESavePackageResult::Success)
 	{

@@ -27,6 +27,7 @@
 #include "UObject/UObjectHash.h"
 #include "PackageHelperFunctions.h"
 #include "UObject/MetaData.h"
+#include "UObject/SavePackage.h"
 #include "Editor.h"
 #include "HLOD/HLODEngineSubsystem.h"
 #include "HierarchicalLOD.h"
@@ -1463,7 +1464,10 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			for (UPackage* PackageToSave : PackagesToSave)
 			{
 				FString PackageFileName = SourceControlHelpers::PackageFilename(PackageToSave);
-				if (!UPackage::SavePackage(PackageToSave, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.SaveFlags = SAVE_Async;
+				if (!UPackage::SavePackage(PackageToSave, nullptr, *PackageFileName, SaveArgs))
 				{
 					return 1;
 				}

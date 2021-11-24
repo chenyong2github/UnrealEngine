@@ -18,6 +18,7 @@
 #include "Misc/PackageName.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/SavePackage.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
@@ -263,25 +264,18 @@ bool NormalizePackageNames( TArray<FString> PackageNames, TArray<FString>& Packa
 	return true;
 }
 
-
-/** 
-* Helper function to save a package that may or may not be a map package
-*
-* @param	Package		The package to save
-* @param	Filename	The location to save the package to
-* @param	KeepObjectFlags	Objects with any these flags will be kept when saving even if unreferenced.
-* @param	ErrorDevice	the output device to use for warning and error messages
-* @param	LinkerToConformAgainst
-* @param				optional linker to use as a base when saving Package; if specified, all common names, imports and exports
-*						in Package will be sorted in the same order as the corresponding entries in the LinkerToConformAgainst
-
-* @return true if successful
-*/
 bool SavePackageHelper(UPackage* Package, FString Filename, EObjectFlags KeepObjectFlags, FOutputDevice* ErrorDevice, FLinkerNull* LinkerToConformAgainst, ESaveFlags SaveFlags)
 {
-	// look for a world object in the package (if there is one, there's a map)
-	UWorld* World = UWorld::FindWorldInPackage(Package);
-	return GEditor->SavePackage(Package, World, KeepObjectFlags, *Filename, ErrorDevice, LinkerToConformAgainst, false, true, SaveFlags);
+	return SavePackageHelper(Package, Filename, KeepObjectFlags, ErrorDevice, SaveFlags);
+}
+
+bool SavePackageHelper(UPackage* Package, FString Filename, EObjectFlags KeepObjectFlags, FOutputDevice* ErrorDevice, ESaveFlags SaveFlags)
+{
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = KeepObjectFlags;
+	SaveArgs.Error = ErrorDevice;
+	SaveArgs.SaveFlags = SaveFlags;
+	return GEditor->SavePackage(Package, nullptr, *Filename, SaveArgs);
 }
 
 /**
@@ -2296,7 +2290,10 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 					}
 
 					UE_LOG(LogPackageUtilities, Display, TEXT("Saving %s..."), *FileName);
-					GEditor->SavePackage( Package, NULL, RF_Standalone, *FileName, GWarn );
+					FSavePackageArgs SaveArgs;
+					SaveArgs.TopLevelFlags = RF_Standalone;
+					SaveArgs.Error = GWarn;
+					GEditor->SavePackage(Package, nullptr, *FileName, SaveArgs);
 				}
 			}
 			else
@@ -2396,7 +2393,10 @@ int32 UReplaceActorCommandlet::Main(const FString& Params)
 					}
 
 					UE_LOG(LogPackageUtilities, Display, TEXT("Saving %s..."), *FileName);
-					GEditor->SavePackage(Package, World, RF_NoFlags, *FileName, GWarn);
+					FSavePackageArgs SaveArgs;
+					SaveArgs.TopLevelFlags = RF_NoFlags;
+					SaveArgs.Error = GWarn;
+					GEditor->SavePackage(Package, World, *FileName, SaveArgs);
 				}
 
 				// clear GWorld by removing it from the root set and replacing it with a new one

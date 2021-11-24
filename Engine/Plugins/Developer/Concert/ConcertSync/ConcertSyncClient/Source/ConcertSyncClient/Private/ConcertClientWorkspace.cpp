@@ -29,6 +29,7 @@
 #include "UObject/Package.h"
 #include "UObject/Linker.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/SavePackage.h"
 #include "UObject/StructOnScope.h"
 #include "Misc/PackageName.h"
 #include "HAL/FileManager.h"
@@ -662,7 +663,10 @@ void FConcertClientWorkspace::SaveLiveTransactionsToPackage(const FName PackageN
 					PackageFilename = FPackageName::LongPackageNameToFilename(PackageNameStr, World ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
 				}
 
-				if (GEditor->SavePackage(Package, World, RF_Standalone, *PackageFilename, GWarn))
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.Error = GWarn;
+				if (GEditor->SavePackage(Package, World, *PackageFilename, SaveArgs))
 				{
 					// Add a dummy package entry to trim the live transaction for the saved package but ONLY if we're tracking package saves (ie, we have a package manager)
 					// This is added ONLY on this client, and will be CLOBBERED by any future saves of this package from the server!

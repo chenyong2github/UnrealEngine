@@ -20,6 +20,7 @@ enum EDebugSerializationFlags
 	 * This is used e.g. when serializing offsets that are likely to change when there is any other change
 	 * in the serialization of the package.
 	 */
-	DSF_IgnoreDiff =			0x00000001,
+	DSF_IgnoreDiff UE_DEPRECATED(5.0, "Diffing now compares the final value after serialization is complete; marking diffs is usually not required. Use FArchiveStackTraceIgnoreScope where it is still necessary.")
+		= 0x00000001,
 	DSF_EnableCookerWarnings =	0x00000002,
 };

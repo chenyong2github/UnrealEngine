@@ -8,6 +8,9 @@
 #include "SourceControlHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "Commandlets/Commandlet.h"
+#include "UObject/MetaData.h"
+#include "UObject/SavePackage.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionResaveActorsBuilder, All, All);
 
@@ -133,7 +136,9 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 
 					// Save original actor package containing a single redirector to the actor
 					FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-					if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
+					FSavePackageArgs SaveArgs;
+					SaveArgs.TopLevelFlags = RF_Standalone;
+					if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 					{
 						UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package redirector %s."), *Package->GetName());
 						++FailCount;
@@ -152,7 +157,7 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 
 					// Save the new actor package and add to source control if needed
 					FString NewPackageFileName = SourceControlHelpers::PackageFilename(NewActorPackage);
-					if (!UPackage::SavePackage(NewActorPackage, nullptr, RF_Standalone, *NewPackageFileName))
+					if (!UPackage::SavePackage(NewActorPackage, nullptr, *NewPackageFileName, SaveArgs))
 					{
 						UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package %s."), *NewActorPackage->GetName());
 						++FailCount;
@@ -208,7 +213,9 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 			{
 				// Save package
 				FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-				if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 				{
 					UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
 					++FailCount;
@@ -244,7 +251,9 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FCellI
 
 		// Save world package
 		FString PackageFileName = SourceControlHelpers::PackageFilename(WorldPackage);
-		if (!UPackage::SavePackage(WorldPackage, nullptr, RF_Standalone, *PackageFileName))
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		if (!UPackage::SavePackage(WorldPackage, nullptr, *PackageFileName, SaveArgs))
 		{
 			UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving world %s."), *WorldPackage->GetName());
 			return false;

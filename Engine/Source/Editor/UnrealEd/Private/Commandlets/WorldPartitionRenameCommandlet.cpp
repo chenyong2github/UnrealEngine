@@ -11,6 +11,7 @@
 #include "EditorWorldUtils.h"
 #include "SourceControlHelpers.h"
 #include "PackageSourceControlHelper.h"
+#include "UObject/SavePackage.h"
 #include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHandle.h"
@@ -251,7 +252,10 @@ int32 UWorldPartitionRenameCommandlet::Main(const FString& Params)
 			}
 		}
 
-		if (!UPackage::SavePackage(PackageToSave, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		SaveArgs.SaveFlags = SAVE_Async;
+		if (!UPackage::SavePackage(PackageToSave, nullptr, *PackageFileName, SaveArgs))
 		{
 			return 1;
 		}

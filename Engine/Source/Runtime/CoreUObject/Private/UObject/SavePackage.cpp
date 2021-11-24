@@ -118,7 +118,7 @@ public:
 		return false;
 	}
 
-	void UpdateLinker(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver);
+	void UpdateLinker(FLinkerSave& Linker, FArchive* BinarySaver);
 
 private:
 	TSet<FNameEntryId> ReferencedNames;
@@ -615,14 +615,10 @@ void FArchiveSaveTagImports::MarkSearchableName(const UObject* TypeObject, const
 }
 
 /**
- * Helper structure encapsulating functionality to sort a linker's name map according to the order of the names a package being conformed against.
+ * Helper structure to sort a linker's name map
  */
 struct FObjectNameSortHelper
 {
-private:
-	/** the linker that we're sorting names for */
-	friend struct TDereferenceWrapper<FNameEntryId, FObjectNameSortHelper>;
-
 	/** Comparison function used by Sort */
 	FORCEINLINE bool operator()( const FName& A, const FName& B ) const
 	{
@@ -635,50 +631,9 @@ private:
 		// Could be implemented without constructing FName but would new FNameEntry comparison API
 		return A != B && operator()(FName::CreateFromDisplayId(A, 0), FName::CreateFromDisplayId(B, 0));
 	}
-
-public:
-
-
-	/**
-	 * Sorts names according to the order in which they occur in the list of NameIndices.  If a package is specified to be conformed against, ensures that the order
-	 * of the names match the order in which the corresponding names occur in the old package.
-	 *
-	 * @param	Linker				linker containing the names that need to be sorted
-	 * @param	LinkerToConformTo	optional linker to conform against.
-	 */
-	void SortNames( FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo, FPackageNameMapSaver& NameMapSaver)
-	{
-		int32 SortStartPosition = 0;
-
-		if ( LinkerToConformTo != nullptr )
-		{
-			SortStartPosition = LinkerToConformTo->NameMap.Num();
-			TArray<FNameEntryId> ConformedNameMap = LinkerToConformTo->NameMap;
-			for ( int32 NameIndex = 0; NameIndex < Linker->NameMap.Num(); NameIndex++ )
-			{
-				FNameEntryId CurrentName = Linker->NameMap[NameIndex];
-				if ( !ConformedNameMap.Contains(CurrentName) )
-				{
-					ConformedNameMap.Add(CurrentName);
-				}
-			}
-
-			Linker->NameMap = ConformedNameMap;
-			for ( int32 NameIndex = 0; NameIndex < Linker->NameMap.Num(); NameIndex++ )
-			{
-				FNameEntryId CurrentName = Linker->NameMap[NameIndex];
-				NameMapSaver.MarkNameAsReferenced(CurrentName);
-			}
-		}
-
-		if ( SortStartPosition < Linker->NameMap.Num() )
-		{
-			Sort( &Linker->NameMap[SortStartPosition], Linker->NameMap.Num() - SortStartPosition, FObjectNameSortHelper() );
-		}
-	}
 };
 
-void FPackageNameMapSaver::UpdateLinker(FLinkerSave& Linker, FLinkerLoad* Conform, FArchive* BinarySaver)
+void FPackageNameMapSaver::UpdateLinker(FLinkerSave& Linker, FArchive* BinarySaver)
 {
 	// Add names
 	Linker.NameMap.Reserve(Linker.NameMap.Num() + ReferencedNames.Num());
@@ -688,8 +643,10 @@ void FPackageNameMapSaver::UpdateLinker(FLinkerSave& Linker, FLinkerLoad* Confor
 	}
 
 	// Sort names
-	FObjectNameSortHelper NameSortHelper;
-	NameSortHelper.SortNames(&Linker, Conform, *this);
+	if (Linker.NameMap.Num())
+	{
+		Sort(&Linker.NameMap[0], Linker.NameMap.Num(), FObjectNameSortHelper());
+	}
 
 	// Serialize names and build NameIndicies
 	if (BinarySaver)
@@ -1450,21 +1407,18 @@ private:
 struct FObjectExportSeekFreeSorter
 {
 	/**
-	 * Sorts exports in passed in linker in order to avoid seeking when creating them in order and also
-	 * conform the order to an already existing linker if non- NULL.
+	 * Sorts exports in passed in linker in order to avoid seeking when creating them in order.
 	 *
 	 * @param	Linker				LinkerSave to sort export map
-	 * @param	LinkerToConformTo	LinkerLoad to conform LinkerSave to if non- NULL
 	 */
-	void SortExports( FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo )
+	void SortExports(FLinkerSave* Linker)
 	{
 		SortArchive.SetCookingTarget(Linker->CookingTarget());
 
-		int32					FirstSortIndex = LinkerToConformTo ? LinkerToConformTo->ExportMap.Num() : 0;
 		TMap<UObject*,int32>	OriginalExportIndexes;
 
 		// Populate object to current index map.
-		for( int32 ExportIndex=FirstSortIndex; ExportIndex<Linker->ExportMap.Num(); ExportIndex++ )
+		for (int32 ExportIndex=0; ExportIndex<Linker->ExportMap.Num(); ExportIndex++)
 		{
 			const FObjectExport& Export = Linker->ExportMap[ExportIndex];
 			if( Export.Object )
@@ -1478,7 +1432,7 @@ struct FObjectExportSeekFreeSorter
 
 		// Now we need to sort the export list according to the order in which objects will be loaded.  For the sake of simplicity, 
 		// process all classes first so they appear in the list first (along with any objects those classes will force-load) 
-		for( int32 ExportIndex=FirstSortIndex; ExportIndex<Linker->ExportMap.Num(); ExportIndex++ )
+		for (int32 ExportIndex=0; ExportIndex<Linker->ExportMap.Num(); ExportIndex++)
 		{
 			const FObjectExport& Export = Linker->ExportMap[ExportIndex];
 			if( UClass* ExportObjectClass = dynamic_cast<UClass*>(Export.Object) )
@@ -1510,11 +1464,12 @@ struct FObjectExportSeekFreeSorter
 		}
 
 #if EXPORT_SORTING_DETAILED_LOGGING
-		UE_LOG(LogSavePackage, Log, TEXT("*************   Processed %i classes out of %i possible exports for package %s.  Beginning second pass...   *************"), SortedExports.Num(), Linker->ExportMap.Num() - FirstSortIndex, *Linker->LinkerRoot->GetName());
+		UE_LOG(LogSavePackage, Log, TEXT("*************   Processed %i classes out of %i possible exports for package %s.  Beginning second pass...   *************"),
+			SortedExports.Num(), Linker->ExportMap.Num(), *Linker->LinkerRoot->GetName());
 #endif
 
 		// All UClasses, CDOs, functions, properties, etc. are now in the list - process the remaining objects now
-		for ( int32 ExportIndex = FirstSortIndex; ExportIndex < Linker->ExportMap.Num(); ExportIndex++ )
+		for (int32 ExportIndex = 0; ExportIndex < Linker->ExportMap.Num(); ExportIndex++)
 		{
 			const FObjectExport& Export = Linker->ExportMap[ExportIndex];
 			if ( Export.Object )
@@ -1551,15 +1506,8 @@ struct FObjectExportSeekFreeSorter
 		TArray<FObjectExport> OldExportMap = Linker->ExportMap;
 		Linker->ExportMap.Empty( OldExportMap.Num() );
 
-		// Add exports that can't be re-jiggled as they are part of the exports of the to be
-		// conformed to Linker.
-		for( int32 ExportIndex=0; ExportIndex<FirstSortIndex; ExportIndex++ )
-		{
-			Linker->ExportMap.Add( OldExportMap[ExportIndex] );
-		}
-
 		// Create new export map from sorted exports.
-		for( int32 ObjectIndex=0; ObjectIndex<SortedExports.Num(); ObjectIndex++ )
+		for (int32 ObjectIndex=0; ObjectIndex<SortedExports.Num(); ObjectIndex++)
 		{
 			// See whether this object was part of the to be sortable exports map...
 			UObject* Object		= SortedExports[ObjectIndex];
@@ -1574,7 +1522,7 @@ struct FObjectExportSeekFreeSorter
 		// Manually add any new NULL exports last as they won't be in the SortedExportsObjects list. 
 		// A NULL Export.Object can occur if you are e.g. saving an object in the game that is 
 		// OBJECTMARK_NotForClient.
-		for( int32 ExportIndex=FirstSortIndex; ExportIndex<OldExportMap.Num(); ExportIndex++ )
+		for (int32 ExportIndex=0; ExportIndex<OldExportMap.Num(); ExportIndex++)
 		{
 			const FObjectExport& Export = OldExportMap[ExportIndex];
 			if( Export.Object == nullptr )
@@ -1707,150 +1655,6 @@ struct FPackageExportTagger
 		}
 	}
 };
-
-
-/** checks whether it is valid to conform NewPackage to OldPackage
- * i.e, that there are no incompatible changes between the two
- * @warning: this function needs to load objects from the old package to do the verification
- * it's very important that it cleans up after itself to avoid conflicts with e.g. script compilation
- * @param NewPackage - the new package being saved
- * @param OldLinker - linker of the old package to conform against
- * @param Error - log device to send any errors
- * @return whether NewPackage can be conformed
- */
-static bool ValidateConformCompatibility(UPackage* NewPackage, FLinkerLoad* OldLinker, FOutputDevice* Error)
-{
-	// various assumptions made about Core and its contents prevent loading a version mapped to a different name from working correctly
-	// Core script typically doesn't have any replication related definitions in it anyway
-	if (NewPackage->GetFName() == NAME_CoreUObject || NewPackage->GetFName() == GLongCoreUObjectPackageName)
-	{
-		return true;
-	}
-
-	// save the RF_TagGarbageTemp flag for all objects so our use of it doesn't clobber anything
-	TMap<UObject*, uint8> ObjectFlagMap;
-	for (TObjectIterator<UObject> It; It; ++It)
-	{
-		ObjectFlagMap.Add(*It, (It->GetFlags() & RF_TagGarbageTemp) ? 1 : 0);
-	}
-
-	// this is needed to successfully find intrinsic classes/properties
-	OldLinker->LoadFlags |= LOAD_NoWarn | LOAD_Quiet | LOAD_FindIfFail;
-
-	// unfortunately, to get at the classes and their properties we will also need to load the default objects
-	// but the remapped package won't be bound to its native instance, so we need to manually copy the constructors
-	// so that classes with their own Serialize() implementations are loaded correctly
-	{
-		BeginLoad(OldLinker->GetSerializeContext());
-		for (int32 i = 0; i < OldLinker->ExportMap.Num(); i++)
-		{
-			UClass* NewClass = (UClass*)StaticFindObjectFast(UClass::StaticClass(), NewPackage, OldLinker->ExportMap[i].ObjectName, true, false);
-			UClass* OldClass = static_cast<UClass*>(OldLinker->Create(UClass::StaticClass(), OldLinker->ExportMap[i].ObjectName, OldLinker->LinkerRoot, LOAD_None, false));
-			if (OldClass != nullptr && NewClass != nullptr && OldClass->IsNative() && NewClass->IsNative())
-			{
-				OldClass->ClassConstructor = NewClass->ClassConstructor;
-				OldClass->ClassVTableHelperCtorCaller = NewClass->ClassVTableHelperCtorCaller;
-				OldClass->ClassAddReferencedObjects = NewClass->ClassAddReferencedObjects;
-			}
-		}
-		EndLoad(OldLinker->GetSerializeContext());
-	}
-
-	bool bHadCompatibilityErrors = false;
-	// check for illegal change of networking flags on class fields
-	for (int32 i = 0; i < OldLinker->ExportMap.Num(); i++)
-	{
-		if (OldLinker->GetExportClassName(i) == NAME_Class)
-		{
-			// load the object so we can analyze it
-			BeginLoad(OldLinker->GetSerializeContext());
-			UClass* OldClass = static_cast<UClass*>(OldLinker->Create(UClass::StaticClass(), OldLinker->ExportMap[i].ObjectName, OldLinker->LinkerRoot, LOAD_None, false));			
-			EndLoad(OldLinker->GetSerializeContext());
-			if (OldClass != nullptr)
-			{
-				UClass* NewClass = FindObjectFast<UClass>(NewPackage, OldClass->GetFName(), true, false);
-				if (NewClass != nullptr)
-				{
-					for (TFieldIterator<FField> OldFieldIt(OldClass, EFieldIteratorFlags::ExcludeSuper); OldFieldIt; ++OldFieldIt)
-					{
-						for (TFieldIterator<FField> NewFieldIt(NewClass, EFieldIteratorFlags::ExcludeSuper); NewFieldIt; ++NewFieldIt)
-						{
-							if (OldFieldIt->GetFName() == NewFieldIt->GetFName())
-							{
-								FProperty* OldProp = CastField<FProperty>(*OldFieldIt);
-								FProperty* NewProp = CastField<FProperty>(*NewFieldIt);
-								if (OldProp != nullptr && NewProp != nullptr)
-								{
-									if ((OldProp->PropertyFlags & CPF_Net) != (NewProp->PropertyFlags & CPF_Net))
-									{
-										Error->Logf(ELogVerbosity::Error, TEXT("Network flag mismatch for property %s"), *NewProp->GetPathName());
-										bHadCompatibilityErrors = true;
-									}
-								}
-							}
-						}
-					}
-
-					for (TFieldIterator<UField> OldFieldIt(OldClass,EFieldIteratorFlags::ExcludeSuper); OldFieldIt; ++OldFieldIt)
-					{
-						for (TFieldIterator<UField> NewFieldIt(NewClass,EFieldIteratorFlags::ExcludeSuper); NewFieldIt; ++NewFieldIt)
-						{
-							if (OldFieldIt->GetFName() == NewFieldIt->GetFName())
-							{
-								UFunction* OldFunc = dynamic_cast<UFunction*>(*OldFieldIt);
-								UFunction* NewFunc = dynamic_cast<UFunction*>(*NewFieldIt);
-								if (OldFunc != nullptr && NewFunc != nullptr)
-								{
-									if ((OldFunc->FunctionFlags & (FUNC_Net | FUNC_NetServer | FUNC_NetClient)) != (NewFunc->FunctionFlags & (FUNC_Net | FUNC_NetServer | FUNC_NetClient)))
-									{
-										Error->Logf(ELogVerbosity::Error, TEXT("Network flag mismatch for function %s"), *NewFunc->GetPathName());
-										bHadCompatibilityErrors = true;
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	// delete all of the newly created objects from the old package by marking everything else and deleting all unmarked objects
-	for (TObjectIterator<UObject> It; It; ++It)
-	{
-		It->SetFlags(RF_TagGarbageTemp);
-	}
-	for (int32 i = 0; i < OldLinker->ExportMap.Num(); i++)
-	{
-		if (OldLinker->ExportMap[i].Object != nullptr)
-		{
-			OldLinker->ExportMap[i].Object->ClearFlags(RF_TagGarbageTemp);
-		}
-	}
-	CollectGarbage(RF_TagGarbageTemp, true);
-
-	// restore RF_TagGarbageTemp flag value
-	for (TMap<UObject*, uint8>::TIterator It(ObjectFlagMap); It; ++It)
-	{
-		UObject* Obj = It.Key();
-		check(Obj->IsValidLowLevel()); // if this crashes we deleted something we shouldn't have
-		if (It.Value())
-		{
-			Obj->SetFlags(RF_TagGarbageTemp);
-		}
-		else
-		{
-			Obj->ClearFlags(RF_TagGarbageTemp);
-		}
-	}
-	// verify that we cleaned up after ourselves
-	for (int32 i = 0; i < OldLinker->ExportMap.Num(); i++)
-	{
-		checkf(OldLinker->ExportMap[i].Object == nullptr, TEXT("Conform validation code failed to clean up after itself! Surviving object: %s"), *OldLinker->ExportMap[i].Object->GetPathName());
-	}
-
-	// finally, abort if there were any errors
-	return !bHadCompatibilityErrors;
-}
 
 /**
  * Writes out the initial state of the payload table of contents.
@@ -2007,24 +1811,39 @@ COREUOBJECT_API extern bool GOutputCookingWarnings;
 
 #endif
 
-FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-	FOutputDevice* Error, FLinkerNull* ConformNO, bool bForceByteSwapping, bool bWarnOfLongFilename, uint32 SaveFlags,
-	const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
+FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags,
+	const TCHAR* Filename, FOutputDevice* Error, FLinkerNull* ConformNO, bool bForceByteSwapping,
+	bool bWarnOfLongFilename, uint32 SaveFlags, const ITargetPlatform* TargetPlatform,
+	const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
 	FSavePackageContext* SavePackageContext)
 {
-	// SAVEPACKAGE_TODO: Deprecate InOutDiffMap
+	FSavePackageArgs SaveArgs = { TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping,
+		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error, SavePackageContext };
+	return UPackage::Save(InOuter, Base, Filename, SaveArgs);
+}
+
+FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
+	const FSavePackageArgs& SaveArgs)
+{
+	const ITargetPlatform* TargetPlatform = SaveArgs.TargetPlatform;
 	if (SavePackageUtilities::IsNewSaveEnabled(TargetPlatform != nullptr))
 	{
-		FSavePackageArgs SaveArgs = { (ITargetPlatform*)TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping, bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error, InOutDiffMap, SavePackageContext };
-		return UPackage::Save2(InOuter, Base, Filename, SaveArgs);
+		return UPackage::Save2(InOuter, InAsset, Filename, SaveArgs);
 	}
+	UObject* Base = InAsset;
+	EObjectFlags TopLevelFlags = SaveArgs.TopLevelFlags;
+	FOutputDevice* Error = SaveArgs.Error;
+	bool bForceByteSwapping = SaveArgs.bForceByteSwapping;
+	bool bWarnOfLongFilename = SaveArgs.bWarnOfLongFilename;
+	uint32 SaveFlags = SaveArgs.SaveFlags;
+	const FDateTime& FinalTimeStamp = SaveArgs.FinalTimeStamp;
+	bool bSlowTask = SaveArgs.bSlowTask;
+	FSavePackageContext* SavePackageContext = SaveArgs.SavePackageContext;
 
 	UE_TRACK_REFERENCING_PACKAGE_SCOPED(InOuter, PackageAccessTrackingOps::NAME_Save);
 	COOK_STAT(FScopedDurationTimer FuncSaveTimer(FSavePackageStats::SavePackageTimeSec));
 	COOK_STAT(FSavePackageStats::NumPackagesSaved++);
 	SCOPED_SAVETIMER(UPackage_Save);
-
-	FLinkerLoad* Conform = nullptr;
 
 	// Sanity checks
 	check(InOuter);
@@ -2185,29 +2004,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 				return ESavePackageResult::Error;
 			}
-		}
-
-		// if we're conforming, validate that the packages are compatible
-		if (Conform != nullptr && !ValidateConformCompatibility(InOuter, Conform, Error))
-		{
-			if (!(SaveFlags & SAVE_NoError))
-			{
-				FText ErrorText;
-				if (InOuter->ContainsMap())
-				{
-					FFormatNamedArguments Arguments;
-					Arguments.Add(TEXT("Name"), FText::FromString(NewPath));
-					ErrorText = FText::Format(NSLOCTEXT("SavePackage", "CannotSaveMapConformIncompatibility", "Conformed Map '{Name}' cannot be saved as it is incompatible with the original"), Arguments);
-				}
-				else
-				{
-					FFormatNamedArguments Arguments;
-					Arguments.Add(TEXT("Name"), FText::FromString(NewPath));
-					ErrorText = FText::Format(NSLOCTEXT("SavePackage", "CannotSaveAssetConformIncompatibility", "Conformed Asset '{Name}' cannot be saved as it is incompatible with the original"), Arguments);
-				}
-				Error->Logf(ELogVerbosity::Error, TEXT("%s"), *ErrorText.ToString());
-			}
-			return ESavePackageResult::Error;
 		}
 
 		const bool FilterEditorOnly = InOuter->HasAnyPackageFlags(PKG_FilterEditorOnly);
@@ -2945,19 +2741,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 
 				// Write fixed-length file summary to overwrite later.
-				if( Conform )
-				{
-					// Conform to previous generation of file.
-					UE_LOG(LogSavePackage, Log,  TEXT("Conformal save, relative to: %s, Generation %i"), *Conform->GetDebugName(), Conform->Summary.Generations.Num()+1 );
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					Linker->Summary.Guid = Conform->Summary.Guid;
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#if WITH_EDITORONLY_DATA
-					Linker->Summary.PersistentGuid = Conform->Summary.PersistentGuid;					
-#endif
-					Linker->Summary.Generations = Conform->Summary.Generations;
-				}
-				else if (SaveFlags & SAVE_KeepGUID)
+				if (SaveFlags & SAVE_KeepGUID)
 				{
 					// First generation file, keep existing GUID
 					PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -3021,10 +2805,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				{
 					SCOPED_SAVETIMER(UPackage_Save_BuildNameMap);
 #if WITH_EDITOR
-					FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(bIgnoreHeaderDiffs);
 #endif
-					NameMapSaver.UpdateLinker(*Linker.Get(), Conform, bTextFormat ? nullptr : Linker->Saver);
+					NameMapSaver.UpdateLinker(*Linker.Get(), bTextFormat ? nullptr : Linker->Saver);
 				}
 				if ( EndSavingIfCancelled() )
 				{ 
@@ -3123,11 +2906,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 				SlowTask.EnterProgressFrame();
 
-				// sort and conform imports
+				// sort imports
 				FObjectImportSortHelper ImportSortHelper;
 				{
 					SCOPED_SAVETIMER(UPackage_Save_SortImports);
-					ImportSortHelper.SortImports(Linker.Get(), Conform);
+					ImportSortHelper.SortImports(Linker.Get());
 					Linker->Summary.ImportCount = Linker->ImportMap.Num();
 				}
 
@@ -3176,20 +2959,20 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 				SlowTask.EnterProgressFrame();
 
-				// Sort exports alphabetically and conform the export table (if necessary)
+				// Sort exports alphabetically
 				FObjectExportSortHelper ExportSortHelper;
 				{
 					SCOPED_SAVETIMER(UPackage_Save_SortExports);
-					ExportSortHelper.SortExports(Linker.Get(), Conform);
+					ExportSortHelper.SortExports(Linker.Get());
 				}
 				
 				// Sort exports for seek-free loading.
-				if (Linker->IsCooking() || Conform)
+				if (Linker->IsCooking())
 				{
 					SCOPED_SAVETIMER(UPackage_Save_SortExportsForSeekFree);
 					COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::SortExportsSeekfreeInnerTimeSec));
 					FObjectExportSeekFreeSorter SeekFreeSorter;
-					SeekFreeSorter.SortExports( Linker.Get(), Conform );
+					SeekFreeSorter.SortExports(Linker.Get());
 				}
 
 				Linker->Summary.ExportCount = Linker->ExportMap.Num();
@@ -3222,13 +3005,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					for (int32 ExpIndex = 0; ExpIndex < Linker->ExportMap.Num(); ExpIndex++)
 					{
 						UObject* Object = Linker->ExportMap[ExpIndex].Object;
-						// sorting while conforming can create NULL export map entries, so skip those depends map
 						if (Object == nullptr)
 						{
-							UE_LOG(LogSavePackage, Warning, TEXT("Object is missing for an export, unable to save dependency map. Most likely this is caused my conforming against a package that is missing this object. See log for more info"));
+							UE_LOG(LogSavePackage, Warning, TEXT("Object is missing for an export, unable to save dependency map. See log for more info"));
 							if (!(SaveFlags & SAVE_NoError))
 							{
-								Error->Logf(ELogVerbosity::Warning, TEXT("%s"), *FText::Format(NSLOCTEXT("Core", "SavePackageObjectIsMissingExport", "Object is missing for an export, unable to save dependency map for asset '{0}'. Most likely this is caused my conforming against a asset that is missing this object. See log for more info"), FText::FromString(FString(Filename))).ToString());
+								Error->Logf(ELogVerbosity::Warning, TEXT("%s"), *FText::Format(NSLOCTEXT("Core", "SavePackageObjectIsMissingExport", "Object is missing for an export, unable to save dependency map for asset '{0}'. See log for more info"), FText::FromString(FString(Filename))).ToString());
 							}
 							continue;
 						}
@@ -3372,9 +3154,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 					else
 					{
-						// the only reason we should ever have a NULL object in the import is when this package is being conformed against another package, and the new
-						// version of the package no longer has this import
-						checkf(Conform != NULL, TEXT("NULL XObject for import %i - Object: %s Class: %s"), i, *Linker->ImportMap[i].ObjectName.ToString(), *Linker->ImportMap[i].ClassName.ToString());
+						checkf(false, TEXT("NULL XObject for import %i - Object: %s Class: %s"), i, *Linker->ImportMap[i].ObjectName.ToString(), *Linker->ImportMap[i].ClassName.ToString());
 					}
 				}
 				if (IsEventDrivenLoaderEnabledInCookedBuilds() && TargetPlatform)
@@ -3508,9 +3288,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->Summary.SoftPackageReferencesCount = Linker->SoftPackageReferenceList.Num();
 					if (!bTextFormat)
 					{
-#if WITH_EDITOR
-						FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
-#endif
 						FStructuredArchive::FStream SoftReferenceStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("SoftReferences")));
 						for (FName& SoftPackageName : Linker->SoftPackageReferenceList)
 						{
@@ -3943,9 +3720,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				{
 					COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::SerializeExportsTimeSec));
 					SCOPED_SAVETIMER(UPackage_Save_SaveExports);
-#if WITH_EDITOR
-					FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
-#endif
 					FScopedSlowTask ExportScope(Linker->ExportMap.Num());
 
 					FStructuredArchive::FRecord ExportsRecord = StructuredArchiveRoot.EnterRecord(SA_FIELD_NAME(TEXT("Exports")));
@@ -4217,7 +3991,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							}
 							else
 							{
-								checkf(Conform != nullptr, TEXT("NULL XObject for import %i - Object: %s Class: %s"), i, *Import.ObjectName.ToString(), *Import.ClassName.ToString());
+								checkf(false, TEXT("NULL XObject for import %i - Object: %s Class: %s"), i, *Import.ObjectName.ToString(), *Import.ClassName.ToString());
 							}
 
 							// Save it.
@@ -4236,7 +4010,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					FStructuredArchive::FStream ExportTableStream = StructuredArchiveRoot.EnterStream(SA_FIELD_NAME(TEXT("ExportTable")));
 					{
 #if WITH_EDITOR
-						FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
 						FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(bIgnoreHeaderDiffs);
 #endif
 						for (int32 i = 0; i < Linker->ExportMap.Num(); i++)
@@ -4608,10 +4381,16 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 bool UPackage::SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
 	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename, uint32 SaveFlags,
-	const class ITargetPlatform* TargetPlatform, const FDateTime&  FinalTimeStamp, bool bSlowTask)
+	const ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
 {
-	const FSavePackageResultStruct Result = Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping,
-		bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask);
+	FSavePackageArgs SaveArgs = { TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping,
+		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error };
+	return SavePackage(InOuter, Base, Filename, SaveArgs);
+}
+
+bool UPackage::SavePackage(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename, const FSavePackageArgs& SaveArgs)
+{
+	const FSavePackageResultStruct Result = Save(InOuter, InAsset, Filename, SaveArgs);
 	return Result == ESavePackageResult::Success;
 }
 

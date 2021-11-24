@@ -12,6 +12,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "InstancedFoliageActor.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
+#include "UObject/SavePackage.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionFoliageBuilder, All, All);
 
@@ -168,7 +169,9 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
             FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
                                 
             // Save package
-            if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Standalone;
+			if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
             {
                 UE_LOG(LogWorldPartitionFoliageBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
                 return false;
@@ -213,7 +216,9 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
 	// Save World 
 	{
 		FString PackageFileName = SourceControlHelpers::PackageFilename(WorldSettingsPackage);
-		if (!UPackage::SavePackage(World->GetPackage(), nullptr, RF_Standalone, *PackageFileName))
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		if (!UPackage::SavePackage(World->GetPackage(), nullptr, *PackageFileName, SaveArgs))
 		{
 			UE_LOG(LogWorldPartitionFoliageBuilder, Error, TEXT("Error saving package %s."), *WorldSettingsPackage->GetName());
 			return false;

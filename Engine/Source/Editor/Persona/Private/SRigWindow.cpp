@@ -22,6 +22,7 @@
 #include "ContentBrowserModule.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Framework/Application/SlateApplication.h"
+#include "UObject/SavePackage.h"
 
 class FPersona;
 
@@ -470,7 +471,10 @@ FReply SRigWindow::OnSaveMapping()
 				FString const PackageName = Package->GetName();
 				FString const PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
 
-				UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.SaveFlags = SAVE_NoError;
+				UPackage::SavePackage(Package, NULL, *PackageFileName, SaveArgs);
 			}
 		}
 	}

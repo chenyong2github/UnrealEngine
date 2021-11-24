@@ -787,9 +787,6 @@ void ARecastNavMesh::Serialize( FArchive& Ar )
 	uint32 RecastNavMeshSizeBytes = 0;
 	int64 RecastNavMeshSizePos = Ar.Tell();
 	{
-#if WITH_EDITOR
-		FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-#endif
 		Ar << RecastNavMeshSizeBytes;
 	}
 	if (Ar.IsLoading())
