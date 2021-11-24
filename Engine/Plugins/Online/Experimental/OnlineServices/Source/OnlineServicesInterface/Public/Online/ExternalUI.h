@@ -16,7 +16,7 @@ struct FExternalUIShowFriendsUI
 
 	struct Params
 	{
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId AccountId;
 	};
 
 	struct Result
@@ -37,7 +37,7 @@ namespace Meta {
 // TODO: Move to ExternalUI_Meta.inl file?
 
 BEGIN_ONLINE_STRUCT_META(FExternalUIShowFriendsUI::Params)
-	ONLINE_STRUCT_FIELD(FExternalUIShowFriendsUI::Params, LocalUserId)
+	ONLINE_STRUCT_FIELD(FExternalUIShowFriendsUI::Params, AccountId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FExternalUIShowFriendsUI::Result)

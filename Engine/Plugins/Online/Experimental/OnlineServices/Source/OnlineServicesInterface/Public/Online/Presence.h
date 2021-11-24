@@ -29,7 +29,7 @@ typedef TMap<FString, FPresenceVariant> FPresenceProperties;
 struct FUserPresence
 {
 	/** User whose presence this is */
-	FOnlineAccountIdHandle UserId;
+	FAccountId UserId;
 	/** Presence state */
 	EPresenceState State;
 	/** Presence string */
@@ -45,9 +45,9 @@ struct FQueryPresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** User to query the presence for */
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	struct Result
@@ -64,9 +64,9 @@ struct FGetPresence
 	struct Params
 	{
 		/** Local user getting the presence */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** User to get the presence for */
-		FOnlineAccountIdHandle TargetUserId;
+		FAccountId TargetUserId;
 	};
 
 	struct Result
@@ -83,7 +83,7 @@ struct FUpdatePresence
 	struct Params
 	{
 		/** Local user performing the query */
-		FOnlineAccountIdHandle LocalUserId;
+		FAccountId LocalUserId;
 		/** Mutations */
 		struct FMutations
 		{
@@ -111,7 +111,7 @@ struct FUpdatePresence
 struct FPresenceUpdated
 {
 	/** Local user receiving the presence update */
-	FOnlineAccountIdHandle LocalUserId;
+	FAccountId LocalUserId;
 	/** Presence that has updated */
 	TSharedRef<const FUserPresence> UpdatedPresence;
 };

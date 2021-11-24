@@ -22,11 +22,10 @@ public:
 	virtual void RegisterComponents() override;
 	virtual void Initialize() override;
 
+	virtual FAccountId CreateAccountId(FString&& InAccountIdString) override;
 	static EOnlineServices GetServicesProvider() { return EOnlineServices::Epic; }
 
 	EOS_HPlatform GetEOSPlatformHandle() const;
-
-	virtual FString ToDebugString(const FOnlineAccountIdHandle& Handle) override;
 protected:
 	IEOSPlatformHandlePtr EOSPlatformHandle;
 };

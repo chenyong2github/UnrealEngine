@@ -2,23 +2,21 @@
 
 #include "AuthEOS.h"
 
-#include "OnlineIdEOS.h"
 #include "OnlineServicesEOS.h"
 #include "OnlineServicesEOSTypes.h"
-#include "Algo/Transform.h"
 #include "Online/AuthErrors.h"
-#include "Online/OnlineAsyncOp.h"
 #include "Online/OnlineErrorDefinitions.h"
 
 #include "eos_auth.h"
-#include "eos_common.h"
-#include "eos_connect.h"
 #include "eos_types.h"
 #include "eos_init.h"
 #include "eos_sdk.h"
 #include "eos_logging.h"
 
 namespace UE::Online {
+
+// TEMP until Net Id Registry is done
+TMap<EOS_EpicAccountId, int32> EOSAccountIdMap;
 
 static inline ELoginStatus ToELoginStatus(EOS_ELoginStatus InStatus)
 {
@@ -121,15 +119,10 @@ void FAuthEOS::Initialize()
 	NotifyLoginStatusChangedNotificationId = EOS_Auth_AddNotifyLoginStatusChanged(AuthHandle, &Options, this, [](const EOS_Auth_LoginStatusChangedCallbackInfo* Data)
 	{
 		FAuthEOS* This = reinterpret_cast<FAuthEOS*>(Data->ClientData);
-
-		FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
-		// invalid handle is expected for players logging in because this callback is called _before_ the login complete callback
-		if (LocalUserId.IsValid())
-		{
-			ELoginStatus PreviousStatus = ToELoginStatus(Data->PrevStatus);
-			ELoginStatus CurrentStatus = ToELoginStatus(Data->CurrentStatus);
-			This->OnEOSLoginStatusChanged(LocalUserId, PreviousStatus, CurrentStatus);
-		}
+		FAccountId LocalUserId = MakeEOSAccountId(Data->LocalUserId);
+		ELoginStatus PreviousStatus = ToELoginStatus(Data->PrevStatus);
+		ELoginStatus CurrentStatus = ToELoginStatus(Data->CurrentStatus);
+		This->OnEOSLoginStatusChanged(LocalUserId, PreviousStatus, CurrentStatus);
 	});
 }
 
@@ -287,7 +280,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 	Op->Then([this, LoginOptions, Credentials](TOnlineAsyncOp<FAuthLogin>& InAsyncOp) mutable
 	{
 		LoginOptions.Credentials = &Credentials;
-		return EOS_Async<EOS_Auth_LoginCallbackInfo>(EOS_Auth_Login, AuthHandle, LoginOptions);
+		return EOS_Async<EOS_Auth_LoginCallbackInfo>(InAsyncOp, EOS_Auth_Login, AuthHandle, LoginOptions);
 	})
 	.Then([this](TOnlineAsyncOp<FAuthLogin>& InAsyncOp, const EOS_Auth_LoginCallbackInfo* Data)
 	{
@@ -318,7 +311,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 				ConnectLoginOptions.ApiVersion = EOS_CONNECT_LOGIN_API_LATEST;
 				ConnectLoginOptions.Credentials = &ConnectLoginCredentials;
 
-				return EOS_Async<EOS_Connect_LoginCallbackInfo>(EOS_Connect_Login, ConnectHandle, ConnectLoginOptions);
+				return EOS_Async<EOS_Connect_LoginCallbackInfo>(InAsyncOp, EOS_Connect_Login, ConnectHandle, ConnectLoginOptions);
 			}
 			else
 			{
@@ -361,7 +354,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 			ConnectCreateUserOptions.ApiVersion = EOS_CONNECT_CREATEUSER_API_LATEST;
 			ConnectCreateUserOptions.ContinuanceToken = Data->ContinuanceToken;
 
-			return EOS_Async<EOS_Connect_CreateUserCallbackInfo>(EOS_Connect_CreateUser, ConnectHandle, ConnectCreateUserOptions);
+			return EOS_Async<EOS_Connect_CreateUserCallbackInfo>(InAsyncOp, EOS_Connect_CreateUser, ConnectHandle, ConnectCreateUserOptions);
 		}
 		else
 		{
@@ -397,25 +390,24 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 
 void FAuthEOS::ProcessSuccessfulLogin(TOnlineAsyncOp<FAuthLogin>& InAsyncOp)
 {
-	const EOS_EpicAccountId EpicAccountId = *InAsyncOp.Data.Get<EOS_EpicAccountId>(TEXT("EpicAccountId"));
-	const EOS_ProductUserId ProductUserId = *InAsyncOp.Data.Get<EOS_ProductUserId>(TEXT("ProductUserId"));
-	const FOnlineAccountIdHandle LocalUserId = CreateAccountId(EpicAccountId, ProductUserId);
+	EOS_EpicAccountId EpicAccountId = *InAsyncOp.Data.Get<EOS_EpicAccountId>(TEXT("EpicAccountId"));
+	EOS_ProductUserId ProductUserId = *InAsyncOp.Data.Get<EOS_ProductUserId>(TEXT("ProductUserId"));
 
-	UE_LOG(LogTemp, Verbose, TEXT("[FAuthEOS::Login] Successfully logged in as [%s]"), *ToLogString(LocalUserId));
+	UE_LOG(LogTemp, Verbose, TEXT("[FAuthEOS::Login] Successfully logged in as [%s/%s]"), *LexToString(EpicAccountId), *LexToString(ProductUserId));
 
 	TSharedRef<FAccountInfoEOS> AccountInfo = MakeShared<FAccountInfoEOS>();
 	AccountInfo->LocalUserNum = InAsyncOp.GetParams().LocalUserNum;
-	AccountInfo->UserId = LocalUserId;
+	AccountInfo->UserId = MakeEOSAccountId(EpicAccountId);  // ProductUserId will be used here too, after the net id registry changes
 
-	check(!AccountInfos.Contains(LocalUserId));
-	AccountInfos.Emplace(LocalUserId, AccountInfo);
+	check(!AccountInfos.Contains(AccountInfo->UserId));
+	AccountInfos.Emplace(AccountInfo->UserId, AccountInfo);
 
 	FAuthLogin::Result Result = { AccountInfo };
 	InAsyncOp.SetResult(MoveTemp(Result));
 
 	// Trigger event
 	FLoginStatusChanged EventParameters;
-	EventParameters.LocalUserId = LocalUserId;
+	EventParameters.LocalUserId = AccountInfo->UserId;
 	EventParameters.PreviousStatus = ELoginStatus::NotLoggedIn;
 	EventParameters.CurrentStatus = ELoginStatus::LoggedIn;
 	OnLoginStatusChangedEvent.Broadcast(EventParameters);
@@ -423,65 +415,58 @@ void FAuthEOS::ProcessSuccessfulLogin(TOnlineAsyncOp<FAuthLogin>& InAsyncOp)
 
 TOnlineAsyncOpHandle<FAuthLogout> FAuthEOS::Logout(FAuthLogout::Params&& Params)
 {
-	const FOnlineAccountIdHandle LocalUserId = Params.LocalUserId;
+	FAccountId ParamLocalUserId = Params.LocalUserId;
+	TOptional<EOS_EpicAccountId> AccountId = EOSAccountIdFromOnlineServiceAccountId(ParamLocalUserId);
 	TOnlineAsyncOpRef<FAuthLogout> Op = GetOp<FAuthLogout>(MoveTemp(Params));
-
-	if (!ValidateOnlineId(LocalUserId))
+	if (AccountId.IsSet() && AccountInfos.Contains(ParamLocalUserId))
 	{
-		Op->SetError(Errors::InvalidUser());
-		return Op->GetHandle();
-	}
+		// Should we destroy persistent auth first?
+		TOnlineChainableAsyncOp<FAuthLogout, void> NextOp = *Op;
+		if (Params.bDestroyAuth)
+		{
+			EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions = {0};
+			DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
+			DeletePersistentAuthOptions.RefreshToken = nullptr; // Is this needed?  Docs say it's needed for consoles
+			NextOp = NextOp.Then([this, DeletePersistentAuthOptions](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
+				{
+					return EOS_Async<EOS_Auth_DeletePersistentAuthCallbackInfo>(InAsyncOp, EOS_Auth_DeletePersistentAuth, AuthHandle, DeletePersistentAuthOptions);
+				})
+				.Then([](TOnlineAsyncOp<FAuthLogout>& InAsyncOp, const EOS_Auth_DeletePersistentAuthCallbackInfo* Data)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("DeletePersistentAuthResult: [%s]"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+					// Regardless of success/failure, continue
+				});
+		}
+		// Logout
+		NextOp.Then([this, AccountId](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
+			{
+				EOS_Auth_LogoutOptions LogoutOptions = { };
+				LogoutOptions.ApiVersion = EOS_AUTH_LOGOUT_API_LATEST;
+				LogoutOptions.LocalUserId = AccountId.GetValue();
+				return EOS_Async<EOS_Auth_LogoutCallbackInfo>(InAsyncOp, EOS_Auth_Logout, AuthHandle, LogoutOptions);
+			})
+			.Then([](TOnlineAsyncOp<FAuthLogout>& InAsyncOp, const EOS_Auth_LogoutCallbackInfo* Data)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("LogoutResult: [%s]"), *LexToString(Data->ResultCode));
 
-	const EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
-	if (!EOS_EpicAccountId_IsValid(LocalUserEasId) || !AccountInfos.Contains(LocalUserId))
+				if (Data->ResultCode == EOS_EResult::EOS_Success)
+				{
+					// Success
+					InAsyncOp.SetResult(FAuthLogout::Result());
+				}
+				else
+				{
+					// TODO: Error codes
+					FOnlineError Error = Errors::Unknown();
+					InAsyncOp.SetError(MoveTemp(Error));
+				}
+			}).Enqueue(GetSerialQueue());
+	}
+	else
 	{
 		// TODO: Error codes
 		Op->SetError(Errors::Unknown());
-		return Op->GetHandle();
 	}
-
-	// Should we destroy persistent auth first?
-	TOnlineChainableAsyncOp<FAuthLogout, void> NextOp = *Op;
-	if (Params.bDestroyAuth)
-	{
-		EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions = {0};
-		DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
-		DeletePersistentAuthOptions.RefreshToken = nullptr; // Is this needed?  Docs say it's needed for consoles
-		NextOp = NextOp.Then([this, DeletePersistentAuthOptions](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
-		{
-			return EOS_Async<EOS_Auth_DeletePersistentAuthCallbackInfo>(EOS_Auth_DeletePersistentAuth, AuthHandle, DeletePersistentAuthOptions);
-		})
-		.Then([](TOnlineAsyncOp<FAuthLogout>& InAsyncOp, const EOS_Auth_DeletePersistentAuthCallbackInfo* Data)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("DeletePersistentAuthResult: [%s]"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-			// Regardless of success/failure, continue
-		});
-	}
-
-	// Logout
-	NextOp.Then([this, LocalUserEasId](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
-	{
-		EOS_Auth_LogoutOptions LogoutOptions = { };
-		LogoutOptions.ApiVersion = EOS_AUTH_LOGOUT_API_LATEST;
-		LogoutOptions.LocalUserId = LocalUserEasId;
-		return EOS_Async<EOS_Auth_LogoutCallbackInfo>(EOS_Auth_Logout, AuthHandle, LogoutOptions);
-	})
-	.Then([](TOnlineAsyncOp<FAuthLogout>& InAsyncOp, const EOS_Auth_LogoutCallbackInfo* Data)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("LogoutResult: [%s]"), *LexToString(Data->ResultCode));
-
-		if (Data->ResultCode == EOS_EResult::EOS_Success)
-		{
-			// Success
-			InAsyncOp.SetResult(FAuthLogout::Result());
-		}
-		else
-		{
-			// TODO: Error codes
-			FOnlineError Error = Errors::Unknown();
-			InAsyncOp.SetError(MoveTemp(Error));
-		}
-	}).Enqueue(GetSerialQueue());
 	
 	return Op->GetHandle();
 }
@@ -494,7 +479,7 @@ TOnlineAsyncOpHandle<FAuthGenerateAuth> FAuthEOS::GenerateAuth(FAuthGenerateAuth
 
 TOnlineResult<FAuthGetAccountByLocalUserNum> FAuthEOS::GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params)
 {
-	TResult<FOnlineAccountIdHandle, FOnlineError> LocalUserIdResult = GetAccountIdByLocalUserNum(Params.LocalUserNum);
+	TResult<FAccountId, FOnlineError> LocalUserIdResult = GetAccountIdByLocalUserNum(Params.LocalUserNum);
 	if (LocalUserIdResult.IsOk())
 	{
 		FAuthGetAccountByLocalUserNum::Result Result = { AccountInfos.FindChecked(LocalUserIdResult.GetOkValue()) };
@@ -521,29 +506,32 @@ TOnlineResult<FAuthGetAccountByAccountId> FAuthEOS::GetAccountByAccountId(FAuthG
 	}
 }
 
-bool FAuthEOS::IsLoggedIn(const FOnlineAccountIdHandle& AccountId) const
+bool FAuthEOS::IsLoggedIn(const FAccountId& AccountId) const
 {
 	// TODO:  More logic?
 	return AccountInfos.Contains(AccountId);
 }
 
-TResult<FOnlineAccountIdHandle, FOnlineError> FAuthEOS::GetAccountIdByLocalUserNum(int32 LocalUserNum) const
+TResult<FAccountId, FOnlineError> FAuthEOS::GetAccountIdByLocalUserNum(int32 LocalUserNum) const
 {
-	for (const TPair<FOnlineAccountIdHandle, TSharedRef<FAccountInfoEOS>>& AccountPair : AccountInfos)
+	for (const TPair<FAccountId, TSharedRef<FAccountInfoEOS>>& AccountPair : AccountInfos)
 	{
 		if (AccountPair.Value->LocalUserNum == LocalUserNum)
 		{
-			TResult<FOnlineAccountIdHandle, FOnlineError> Result(AccountPair.Key);
+			TResult<FAccountId, FOnlineError> Result(AccountPair.Key);
 			return Result;
 		}
 	}
-	TResult<FOnlineAccountIdHandle, FOnlineError> Result(Errors::Unknown()); // TODO: error code
+	TResult<FAccountId, FOnlineError> Result(Errors::Unknown()); // TODO: error code
 	return Result;
 }
 
-void FAuthEOS::OnEOSLoginStatusChanged(FOnlineAccountIdHandle LocalUserId, ELoginStatus PreviousStatus, ELoginStatus CurrentStatus)
+void FAuthEOS::OnEOSLoginStatusChanged(FAccountId LocalUserId, ELoginStatus PreviousStatus, ELoginStatus CurrentStatus)
 {
-	UE_LOG(LogTemp, Warning, TEXT("OnEOSLoginStatusChanged: [%s] [%s]->[%s]"), *ToLogString(LocalUserId), LexToString(PreviousStatus), LexToString(CurrentStatus));
+	UE_LOG(LogTemp, Warning, TEXT("OnEOSLoginStatusChanged: [%s] %d %d"),
+		*LexToString(EOSAccountIdFromOnlineServiceAccountId(LocalUserId).GetValue()),
+		(int)PreviousStatus,
+		(int)CurrentStatus);
 	if (TSharedRef<FAccountInfoEOS>* AccountInfoPtr = AccountInfos.Find(LocalUserId))
 	{
 		FAccountInfoEOS& AccountInfo = **AccountInfoPtr;
@@ -567,256 +555,5 @@ void FAuthEOS::OnEOSLoginStatusChanged(FOnlineAccountIdHandle LocalUserId, ELogi
 	}
 }
 
-template <typename IdType>
-TFuture<FOnlineAccountIdHandle> ResolveAccountIdImpl(FAuthEOS& AuthEOS, const FOnlineAccountIdHandle& LocalUserId, const IdType InId)
-{
-	TPromise<FOnlineAccountIdHandle> Promise;
-	TFuture<FOnlineAccountIdHandle> Future = Promise.GetFuture();
-
-	AuthEOS.ResolveAccountIds(LocalUserId, { InId }).Next([Promise = MoveTemp(Promise)](const TArray<FOnlineAccountIdHandle>& AccountIds) mutable
-	{
-		FOnlineAccountIdHandle Result;
-		if (AccountIds.Num() == 1)
-		{
-			Result = AccountIds[0];
-		}
-		Promise.SetValue(Result);
-	});
-
-	return Future;
-}
-
-TFuture<FOnlineAccountIdHandle> FAuthEOS::ResolveAccountId(const FOnlineAccountIdHandle& LocalUserId, const EOS_EpicAccountId EpicAccountId)
-{
-	return ResolveAccountIdImpl(*this, LocalUserId, EpicAccountId);
-}
-
-TFuture<FOnlineAccountIdHandle> FAuthEOS::ResolveAccountId(const FOnlineAccountIdHandle& LocalUserId, const EOS_ProductUserId ProductUserId)
-{
-	return ResolveAccountIdImpl(*this, LocalUserId, ProductUserId);
-}
-
-using FEpicAccountIdStrBuffer = char[EOS_EPICACCOUNTID_MAX_LENGTH + 1];
-
-TFuture<TArray<FOnlineAccountIdHandle>> FAuthEOS::ResolveAccountIds(const FOnlineAccountIdHandle& LocalUserId, const TArray<EOS_EpicAccountId>& InEpicAccountIds)
-{
-	// Search for all the account id's
-	TArray<FOnlineAccountIdHandle> AccountIdHandles;
-	AccountIdHandles.Reserve(InEpicAccountIds.Num());
-	TArray<EOS_EpicAccountId> MissingEpicAccountIds;
-	MissingEpicAccountIds.Reserve(InEpicAccountIds.Num());
-	for (const EOS_EpicAccountId EpicAccountId : InEpicAccountIds)
-	{
-		if (!EOS_EpicAccountId_IsValid(EpicAccountId))
-		{
-			return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>().GetFuture();
-		}
-
-		FOnlineAccountIdHandle Found = FindAccountId(EpicAccountId);
-		if (!Found.IsValid())
-		{
-			MissingEpicAccountIds.Emplace(EpicAccountId);
-		}
-		AccountIdHandles.Emplace(MoveTemp(Found));
-	}
-	if (MissingEpicAccountIds.IsEmpty())
-	{
-		// We have them all, so we can just return
-		return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>(MoveTemp(AccountIdHandles)).GetFuture();
-	}
-
-	// If we failed to find all the handles, we need to query, which requires a valid LocalUserId
-	if (!ValidateOnlineId(LocalUserId))
-	{
-		checkNoEntry();
-		return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>().GetFuture();
-	}
-
-	TPromise<TArray<FOnlineAccountIdHandle>> Promise;
-	TFuture<TArray<FOnlineAccountIdHandle>> Future = Promise.GetFuture();
-
-	TArray<FEpicAccountIdStrBuffer> EpicAccountIdStrsToQuery;
-	EpicAccountIdStrsToQuery.Reserve(MissingEpicAccountIds.Num());
-	for (const EOS_EpicAccountId EpicAccountId : MissingEpicAccountIds)
-	{
-		FEpicAccountIdStrBuffer& EpicAccountIdStr = EpicAccountIdStrsToQuery.Emplace_GetRef();
-		int32_t BufferSize = sizeof(EpicAccountIdStr);
-		if (!EOS_EpicAccountId_IsValid(EpicAccountId) ||
-			EOS_EpicAccountId_ToString(EpicAccountId, EpicAccountIdStr, &BufferSize) != EOS_EResult::EOS_Success)
-		{
-			checkNoEntry();
-			return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>().GetFuture();
-		}
-	}
-
-	TArray<const char*> EpicAccountIdStrPtrs;
-	Algo::Transform(EpicAccountIdStrsToQuery, EpicAccountIdStrPtrs, [](const FEpicAccountIdStrBuffer& Str) { return &Str[0]; });
-
-	EOS_Connect_QueryExternalAccountMappingsOptions Options = {};
-	Options.ApiVersion = EOS_CONNECT_QUERYEXTERNALACCOUNTMAPPINGS_API_LATEST;
-	Options.LocalUserId = GetProductUserIdChecked(LocalUserId);
-	Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
-	Options.ExternalAccountIds = (const char**)EpicAccountIdStrPtrs.GetData();
-	Options.ExternalAccountIdCount = 1;
-
-	EOS_Async<EOS_Connect_QueryExternalAccountMappingsCallbackInfo>(EOS_Connect_QueryExternalAccountMappings, ConnectHandle, Options)
-		.Next([this, InEpicAccountIds, Promise = MoveTemp(Promise)](const EOS_Connect_QueryExternalAccountMappingsCallbackInfo* Data) mutable
-	{
-		TArray<FOnlineAccountIdHandle> AccountIds;
-		AccountIds.Reserve(InEpicAccountIds.Num());
-		if (Data->ResultCode == EOS_EResult::EOS_Success)
-		{
-			EOS_Connect_GetExternalAccountMappingsOptions Options = {};
-			Options.ApiVersion = EOS_CONNECT_GETEXTERNALACCOUNTMAPPING_API_LATEST;
-			Options.LocalUserId = Data->LocalUserId;
-			Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
-
-			for (const EOS_EpicAccountId EpicAccountId : InEpicAccountIds)
-			{
-				FOnlineAccountIdHandle AccountId = FindAccountId(EpicAccountId);
-				if (!AccountId.IsValid())
-				{
-					FEpicAccountIdStrBuffer EpicAccountIdStr;
-					int32_t BufferSize = sizeof(EpicAccountIdStr);
-					verify(EOS_EpicAccountId_ToString(EpicAccountId, EpicAccountIdStr, &BufferSize) == EOS_EResult::EOS_Success);
-					Options.TargetExternalUserId = &EpicAccountIdStr[0];
-					const EOS_ProductUserId ProductUserId = EOS_Connect_GetExternalAccountMapping(ConnectHandle, &Options);
-					AccountId = CreateAccountId(EpicAccountId, ProductUserId);
-				}
-				AccountIds.Emplace(MoveTemp(AccountId));
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("ResolveAccountId failed to query external mapping Result=[%s]"), *LexToString(Data->ResultCode));
-		}
-		Promise.SetValue(MoveTemp(AccountIds));
-	});
-
-	return Future;
-}
-
-TFuture<TArray<FOnlineAccountIdHandle>> FAuthEOS::ResolveAccountIds(const FOnlineAccountIdHandle& LocalUserId, const TArray<EOS_ProductUserId>& InProductUserIds)
-{
-	// Search for all the account id's
-	TArray<FOnlineAccountIdHandle> AccountIdHandles;
-	AccountIdHandles.Reserve(InProductUserIds.Num());
-	TArray<EOS_ProductUserId> MissingProductUserIds;
-	MissingProductUserIds.Reserve(InProductUserIds.Num());
-	for (const EOS_ProductUserId ProductUserId : InProductUserIds)
-	{
-		if (!EOS_ProductUserId_IsValid(ProductUserId))
-		{
-			return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>().GetFuture();
-		}
-
-		FOnlineAccountIdHandle Found = FindAccountId(ProductUserId);
-		if (!Found.IsValid())
-		{
-			MissingProductUserIds.Emplace(ProductUserId);
-		}
-		AccountIdHandles.Emplace(MoveTemp(Found));
-	}
-	if (MissingProductUserIds.IsEmpty())
-	{
-		// We have them all, so we can just return
-		return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>(MoveTemp(AccountIdHandles)).GetFuture();
-	}
-
-	// If we failed to find all the handles, we need to query, which requires a valid LocalUserId
-	if (!ValidateOnlineId(LocalUserId))
-	{
-		checkNoEntry();
-		return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>().GetFuture();
-	}
-
-	TPromise<TArray<FOnlineAccountIdHandle>> Promise;
-	TFuture<TArray<FOnlineAccountIdHandle>> Future = Promise.GetFuture();
-
-	EOS_Connect_QueryProductUserIdMappingsOptions Options = {};
-	Options.ApiVersion = EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST;
-	Options.LocalUserId = GetProductUserIdChecked(LocalUserId);
-	Options.ProductUserIds = MissingProductUserIds.GetData();
-	Options.ProductUserIdCount = MissingProductUserIds.Num();
-	EOS_Async<EOS_Connect_QueryProductUserIdMappingsCallbackInfo>(EOS_Connect_QueryProductUserIdMappings, ConnectHandle, Options)
-		.Next([this, InProductUserIds, Promise = MoveTemp(Promise)](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data) mutable
-	{
-		TArray<FOnlineAccountIdHandle> AccountIds;
-		if (Data->ResultCode == EOS_EResult::EOS_Success)
-		{
-			EOS_Connect_GetProductUserIdMappingOptions Options = {};
-			Options.ApiVersion = EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST;
-			Options.LocalUserId = Data->LocalUserId;
-			Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
-
-			for (const EOS_ProductUserId ProductUserId : InProductUserIds)
-			{
-				FOnlineAccountIdHandle AccountId = FindAccountId(ProductUserId);
-				if (!AccountId.IsValid())
-				{
-					Options.TargetProductUserId = ProductUserId;
-					FEpicAccountIdStrBuffer EpicAccountIdStr;
-					int32_t BufferLength = sizeof(EpicAccountIdStr);
-					verify(EOS_Connect_GetProductUserIdMapping(ConnectHandle, &Options, EpicAccountIdStr, &BufferLength) == EOS_EResult::EOS_Success);
-					const EOS_EpicAccountId EpicAccountId = EOS_EpicAccountId_FromString(EpicAccountIdStr);
-					check(EOS_EpicAccountId_IsValid(EpicAccountId));
-					AccountId = CreateAccountId(EpicAccountId, ProductUserId);
-				}
-				AccountIds.Emplace(MoveTemp(AccountId));
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("ResolveAccountId failed to query external mapping Result=[%s]"), *LexToString(Data->ResultCode));
-		}
-		Promise.SetValue(MoveTemp(AccountIds));
-	});
-
-	return Future;
-}
-
-template<typename ParamType>
-TFunction<TFuture<FOnlineAccountIdHandle>(FOnlineAsyncOp& InAsyncOp, const ParamType& Param)> ResolveIdFnImpl(FAuthEOS* AuthEOS)
-{
-	return [AuthEOS](FOnlineAsyncOp& InAsyncOp, const ParamType& Param)
-	{
-		const FOnlineAccountIdHandle* LocalUserIdPtr = InAsyncOp.Data.Get<FOnlineAccountIdHandle>(TEXT("LocalUserId"));
-		if (!ensure(LocalUserIdPtr))
-		{
-			return MakeFulfilledPromise<FOnlineAccountIdHandle>().GetFuture();
-		}
-		return AuthEOS->ResolveAccountId(*LocalUserIdPtr, Param);
-	};
-}
-TFunction<TFuture<FOnlineAccountIdHandle>(FOnlineAsyncOp& InAsyncOp, const EOS_EpicAccountId& ProductUserId)> FAuthEOS::ResolveEpicIdFn()
-{
-	return ResolveIdFnImpl<EOS_EpicAccountId>(this);
-}
-TFunction<TFuture<FOnlineAccountIdHandle>(FOnlineAsyncOp& InAsyncOp, const EOS_ProductUserId& ProductUserId)> FAuthEOS::ResolveProductIdFn()
-{
-	return ResolveIdFnImpl<EOS_ProductUserId>(this);
-}
-
-template<typename ParamType>
-TFunction<TFuture<TArray<FOnlineAccountIdHandle>>(FOnlineAsyncOp& InAsyncOp, const TArray<ParamType>& Param)> ResolveIdsFnImpl(FAuthEOS* AuthEOS)
-{
-	return [AuthEOS](FOnlineAsyncOp& InAsyncOp, const TArray<ParamType>& Param)
-	{
-		const FOnlineAccountIdHandle* LocalUserIdPtr = InAsyncOp.Data.Get<FOnlineAccountIdHandle>(TEXT("LocalUserId"));
-		if (!ensure(LocalUserIdPtr))
-		{
-			return MakeFulfilledPromise<TArray<FOnlineAccountIdHandle>>().GetFuture();
-		}
-		return AuthEOS->ResolveAccountIds(*LocalUserIdPtr, Param);
-	};
-}
-TFunction<TFuture<TArray<FOnlineAccountIdHandle>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_EpicAccountId>& EpicAccountIds)> FAuthEOS::ResolveEpicIdsFn()
-{
-	return ResolveIdsFnImpl<EOS_EpicAccountId>(this);
-}
-TFunction<TFuture<TArray<FOnlineAccountIdHandle>>(FOnlineAsyncOp& InAsyncOp, const TArray<EOS_ProductUserId>& ProductUserIds)> FAuthEOS::ResolveProductIdsFn()
-{
-	return ResolveIdsFnImpl<EOS_ProductUserId>(this);
-}
 
 /* UE::Online */ }

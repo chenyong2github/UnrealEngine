@@ -47,19 +47,52 @@ private:
 	}
 };
 
-template<typename TEOSResult, typename TEOSHandle, typename TEOSParameters, typename TEOSFn> 
-TFuture<const TEOSResult*> EOS_Async(TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters)
+template<typename TEOSResult, typename TEOSHandle, typename TEOSParameters, typename TEOSFn, typename TAsyncOpType> 
+TFuture<const TEOSResult*> EOS_Async(TOnlineAsyncOp<TAsyncOpType>& Op, TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters)
 {
 	TEOSCallback<TEOSResult>* Callback = new TEOSCallback<TEOSResult>();
 	EOSFn(EOSHandle, &Parameters, Callback, *Callback);
 	return Callback->GetFuture();
 }
 
-template<typename TEOSResult, typename TEOSHandle, typename TEOSParameters, typename TEOSFn>
-void EOS_Async(TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters, TPromise<const TEOSResult*>&& Promise)
+template<typename TEOSResult, typename TEOSHandle, typename TEOSParameters, typename TEOSFn, typename TAsyncOpType>
+void EOS_Async(TOnlineAsyncOp<TAsyncOpType>& Op, TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters, TPromise<const TEOSResult*>&& Promise)
 {
 	TEOSCallback<TEOSResult>* Callback = new TEOSCallback<TEOSResult>(MoveTemp(Promise));
 	EOSFn(EOSHandle, &Parameters, Callback, *Callback);
+}
+
+// TEMP until Net Id Registry is done
+extern TMap<EOS_EpicAccountId, int32> EOSAccountIdMap;
+inline FAccountId MakeEOSAccountId(EOS_EpicAccountId EpicAccountId)
+{
+	static int32 EpicAccountIdCounter = 0;
+
+	FAccountId Result;
+	//Result.Type = EOnlineServices::Epic;
+	if (int32* ExistingId = EOSAccountIdMap.Find(EpicAccountId))
+	{
+		Result.Handle = *ExistingId;
+	}
+	else
+	{
+		Result.Handle = EOSAccountIdMap.Emplace(EpicAccountId, ++EpicAccountIdCounter);
+	}
+	return Result;
+}
+
+inline TOptional<EOS_EpicAccountId> EOSAccountIdFromOnlineServiceAccountId(const FAccountId& InAccountId)
+{
+	TOptional<EOS_EpicAccountId> Result;
+	for (const TPair<EOS_EpicAccountId, int32>& EOSAccountIdPair : EOSAccountIdMap)
+	{
+		if (EOSAccountIdPair.Value == InAccountId.Handle)
+		{
+			Result = EOSAccountIdPair.Key;
+			break;
+		}
+	}
+	return Result;
 }
 
 /* UE::Online */ }
