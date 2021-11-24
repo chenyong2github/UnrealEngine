@@ -58,6 +58,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, NIAGARAVER
 	SHADER_PARAMETER(int, ShouldFlipNormalToView)
 	SHADER_PARAMETER(int, U0DistributionMode)
 	SHADER_PARAMETER(int, U1DistributionMode)
+	SHADER_PARAMETER(FVector3f, SystemLWCTile)
 	SHADER_PARAMETER(FVector4f, PackedVData)
 	SHADER_PARAMETER(uint32, bLocalSpace)
 	SHADER_PARAMETER_EX(float, DeltaSeconds, EShaderPrecisionModifier::Half)

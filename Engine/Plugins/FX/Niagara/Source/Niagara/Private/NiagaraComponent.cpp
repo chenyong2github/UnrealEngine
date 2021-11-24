@@ -4,15 +4,11 @@
 #include "Engine/CollisionProfile.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "MeshBatch.h"
 #include "NiagaraCommon.h"
 #include "NiagaraComponentSettings.h"
 #include "NiagaraConstants.h"
-#include "NiagaraCrashReporterHandler.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraDataSetAccessor.h"
-#include "NiagaraEmitterInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRenderer.h"
@@ -22,7 +18,6 @@
 #include "PrimitiveSceneInfo.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "UObject/NameTypes.h"
-#include "VectorVM.h"
 #include "Engine/StaticMesh.h"
 #include "NiagaraCullProxyComponent.h"
 
@@ -161,6 +156,14 @@ static FAutoConsoleVariableRef CVarNiagaraCanPreventScalabilityCullingOnPlayerFX
 	}),
 	ECVF_Default
 );
+
+bool FitsIntoFloat(FVector InValue)
+{
+	// copied from PlayerCameraManager, 1048576 is HALF_WORLD_MAX for float precision vectors
+	return (InValue.X < 1048576.0f && InValue.X > -1048576.0f &&
+			InValue.Y < 1048576.0f && InValue.Y > -1048576.0f &&
+			InValue.Z < 1048576.0f && InValue.Z > -1048576.0f);
+}
 
 FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
@@ -882,6 +885,7 @@ bool UNiagaraComponent::InitializeSystem()
 		check(Asset);
 
 		const bool bPooled = PoolingMethod != ENCPoolMethod::None;
+		OverrideParameters.MarkParametersDirty(); // new system instance means new lwc tile, so any position user params need to be re-evaluated
 
 		SystemInstanceController = MakeShared<FNiagaraSystemInstanceController, ESPMode::ThreadSafe>();
 		SystemInstanceController->Initialize(*World, *Asset, &OverrideParameters, this, TickBehavior, bPooled, RandomSeedOffset, bForceSolo);
@@ -1780,6 +1784,8 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 	{
 		if (FNiagaraSystemRenderData* RenderData = NiagaraProxy->GetSystemRenderData())
 		{
+			RenderData->LWCRenderTile = SystemInstanceController->GetSystemInstance_Unsafe()->GetLWCTile();
+			
 			FNiagaraSceneProxy::FDynamicData NewProxyDynamicData;
 			NewProxyDynamicData.LODDistanceOverride = GetPreviewLODDistance();
 
@@ -2032,7 +2038,20 @@ void UNiagaraComponent::SetNiagaraVariableVec4(const FString& InVariableName, co
 
 void UNiagaraComponent::SetVariableVec3(FName InVariableName, FVector InValue)
 {
-	FVector3f AsFloat = (FVector3f)InValue;
+	// If the user parameter is of position type we use the position function instead, so it gets converted correctly 
+	if (OverrideParameters.GetPositionParameterValue(InVariableName)) 
+	{
+		SetVariablePosition(InVariableName, InValue);
+		return;
+	}
+	
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	if (!FitsIntoFloat(InValue))
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Setting variable %s on asset %s with value (%f, %f, %f), which does not fit into a FVector3f without losing precision! Consider using a position type instead if the input is a location."), *InVariableName.ToString(), *GetPathName(), InValue.X, InValue.Y, InValue.Z);
+	}
+#endif
+	FVector3f AsFloat(InValue);
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetVec3Def(), InVariableName);
 	if (SystemInstanceController.IsValid())
 	{
@@ -2050,6 +2069,34 @@ void UNiagaraComponent::SetVariableVec3(FName InVariableName, FVector InValue)
 void UNiagaraComponent::SetNiagaraVariableVec3(const FString& InVariableName, FVector InValue)
 {
 	SetVariableVec3(FName(*InVariableName), InValue);
+}
+
+void UNiagaraComponent::SetVariablePosition(FName InVariableName, FVector InValue)
+{
+	// If the user parameter is not of position type we try to set it as vector instead, as users might confuse the two 
+	if (!OverrideParameters.GetPositionParameterValue(InVariableName)) 
+	{
+		SetVariableVec3(InVariableName, InValue);
+		return;
+	}
+	
+	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetPositionDef(), InVariableName);
+	if (SystemInstanceController.IsValid())
+	{
+		SystemInstanceController->SetVariable_Deferred(InVariableName, InValue);
+	}
+	else
+	{
+		OverrideParameters.SetPositionParameterValue(InValue, InVariableName, true);
+	}
+#if WITH_EDITOR
+	SetParameterOverride(VariableDesc, FNiagaraVariant(&InValue, sizeof(FVector)));
+#endif
+}
+
+void UNiagaraComponent::SetNiagaraVariablePosition(const FString& InVariableName, FVector InValue)
+{
+	SetVariablePosition(FName(*InVariableName), InValue);
 }
 
 void UNiagaraComponent::SetVariableVec2(FName InVariableName, FVector2D InValue)
@@ -2300,7 +2347,6 @@ void FixInvalidUserParameters(FNiagaraUserRedirectionParameterStore& ParameterSt
 			UNiagaraDataInterface* DataInterfaceValue = nullptr;
 			UObject* ObjectValue = nullptr;
 			TArray<uint8> DataValue;
-			int32 ValueIndex = ParameterStore.IndexOf(IncorrectlyNamedParameter);
 			if (IncorrectlyNamedParameter.IsDataInterface())
 			{
 				DataInterfaceValue = ParameterStore.GetDataInterface(IncorrectlyNamedParameter);
@@ -2388,8 +2434,7 @@ void UNiagaraComponent::PostLoad()
 	{
 		Asset->ConditionalPostLoad();
 
-		FixInvalidUserParameters(OverrideParameters);
-		
+		FixInvalidUserParameters(OverrideParameters);		
 		UpgradeDeprecatedParameterOverrides();
 
 #if WITH_EDITORONLY_DATA
@@ -2713,6 +2758,14 @@ void UNiagaraComponent::EnsureOverrideParametersConsistent() const
 					ensureAlways(OverrideValue.GetUObject() == ActualObj);
 				}
 			}
+			else if (Key.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+			{
+				const FVector* ActualData = OverrideParameters.GetPositionParameterValue(Key.GetName());
+				if (ActualData != nullptr)
+				{
+					ensureAlways(FMemory::Memcmp(ActualData, OverrideValue.GetBytes(), sizeof(FVector)) == 0);
+				}
+			}
 			else
 			{
 				const uint8* ActualData = OverrideParameters.GetParameterData(Key);
@@ -2825,6 +2878,8 @@ void UNiagaraComponent::CopyParametersFromAsset(bool bResetExistingOverrideParam
 
 	TArray<FNiagaraVariable> SourceVars;
 	Asset->GetExposedParameters().GetParameters(SourceVars);
+
+	// insert new asset parameters (and keep existing overrides)
 	for (FNiagaraVariable& Param : SourceVars)
 	{
 		bool bNewParam = OverrideParameters.AddParameter(Param, true);
@@ -2836,7 +2891,8 @@ void UNiagaraComponent::CopyParametersFromAsset(bool bResetExistingOverrideParam
 		}
 	}
 
-	for (FNiagaraVariable ExistingVar : ExistingVars)
+	// remove parameters that don't exist in the source asset
+	for (FNiagaraVariable& ExistingVar : ExistingVars)
 	{
 		if (!SourceVars.Contains(ExistingVar))
 		{
@@ -2898,6 +2954,35 @@ void UNiagaraComponent::FixInvalidUserParameterOverrideData()
 {
 	FixInvalidDataInterfaceOverrides(TemplateParameterOverrides, TEXT("Template"), this);
 	FixInvalidDataInterfaceOverrides(InstanceParameterOverrides, TEXT("Instance"), this);
+
+	TArray<FNiagaraVariable> ExistingVars;
+	TArray<FNiagaraVariable> SourceVars;
+	OverrideParameters.GetParameters(ExistingVars);
+	Asset->GetExposedParameters().GetParameters(SourceVars);
+
+	// check if one of the vector parameters was changed to a position type
+	for (FNiagaraVariable& ExistingVar : ExistingVars)
+	{
+		if (ExistingVar.GetType() == FNiagaraTypeDefinition::GetVec3Def() && !SourceVars.Contains(ExistingVar))
+		{
+			FNiagaraVariable PositionVar(FNiagaraTypeDefinition::GetPositionDef(), ExistingVar.GetName());
+			if (SourceVars.Contains(PositionVar))
+			{
+				OverrideParameters.ChangeParameterType(ExistingVar, FNiagaraTypeDefinition::GetPositionDef());
+				FNiagaraVariant VariantData;
+				if (InstanceParameterOverrides.RemoveAndCopyValue(ExistingVar, VariantData))
+				{
+					InstanceParameterOverrides.Add(PositionVar, VariantData);
+				}
+				if (TemplateParameterOverrides.RemoveAndCopyValue(ExistingVar, VariantData))
+				{
+					TemplateParameterOverrides.Add(PositionVar, VariantData);
+				}
+				
+				ExistingVar = PositionVar;
+			}
+		}
+	}
 }
 #endif
 
@@ -3029,14 +3114,19 @@ FNiagaraVariant UNiagaraComponent::GetCurrentParameterValue(const FNiagaraVariab
 	{
 		return FNiagaraVariant(OverrideParameters.GetDataInterface(ParameterOffset));
 	}
-	else if (InKey.GetType().IsUObject())
+	if (InKey.GetType().IsUObject())
 	{
 		return FNiagaraVariant(OverrideParameters.GetUObject(ParameterOffset));
 	}
-	else
+	if (InKey.GetType() == FNiagaraTypeDefinition::GetPositionDef())
 	{
-		return FNiagaraVariant(OverrideParameters.GetParameterData(ParameterOffset), InKey.GetSizeInBytes());
+		FNiagaraVariable RedirectedVar = InKey;
+		OverrideParameters.RedirectUserVariable(RedirectedVar);
+		const FVector* Value = OverrideParameters.GetPositionParameterValue(RedirectedVar.GetName());
+		return Value == nullptr ? FNiagaraVariant() : FNiagaraVariant(Value, sizeof(FVector));
 	}
+	
+	return FNiagaraVariant(OverrideParameters.GetParameterData(ParameterOffset), InKey.GetSizeInBytes());
 }
 
 void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue)
@@ -3052,6 +3142,25 @@ void UNiagaraComponent::SetOverrideParameterStoreValue(const FNiagaraVariableBas
 	else if (InKey.IsUObject())
 	{
 		OverrideParameters.SetUObject(InValue.GetUObject(), InKey);
+	}
+	else if (InKey.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+	{
+		if (InValue.GetNumBytes() == sizeof(FVector))
+		{
+			FVector WorldPos;
+			FMemory::Memcpy(&WorldPos, InValue.GetBytes(), InValue.GetNumBytes());
+			OverrideParameters.SetPositionParameterValue(WorldPos, InKey.GetName(), true);
+		}
+		else if (InValue.GetNumBytes() == sizeof(FVector3f))
+		{
+			FVector3f WorldPos;
+			FMemory::Memcpy(&WorldPos, InValue.GetBytes(), InValue.GetNumBytes());
+			OverrideParameters.SetPositionParameterValue(WorldPos, InKey.GetName(), true);
+		}
+		else
+		{
+			checkf(false, TEXT("Invalid number of bytes for position data: %i"), InValue.GetNumBytes());
+		}
 	}
 	else
 	{

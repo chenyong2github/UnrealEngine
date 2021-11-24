@@ -1729,7 +1729,7 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 
 FNiagaraTypeDefinition UEdGraphSchema_Niagara::GetTypeDefForProperty(const FProperty* Property)const
 {
-	if (Property->IsA(FFloatProperty::StaticClass()))
+	if (Property->IsA(FFloatProperty::StaticClass()) || Property->IsA(FDoubleProperty::StaticClass()))
 	{
 		return FNiagaraTypeDefinition::GetFloatDef();
 	}

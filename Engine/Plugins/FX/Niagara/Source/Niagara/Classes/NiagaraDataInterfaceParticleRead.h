@@ -61,6 +61,7 @@ public:
 	void ReadVector3(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadVector4(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadColor(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadPosition(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadQuat(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadID(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadIntByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
@@ -69,6 +70,7 @@ public:
 	void ReadVector2ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadVector3ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadVector4ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
+	void ReadPositionByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadColorByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadQuatByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);
 	void ReadIDByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead);

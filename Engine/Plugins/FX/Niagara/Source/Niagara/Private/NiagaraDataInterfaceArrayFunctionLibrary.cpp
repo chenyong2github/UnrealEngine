@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDataInterfaceArrayFunctionLibrary.h"
+
+#include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceArrayFloat.h"
 #include "NiagaraDataInterfaceArrayInt.h"
 #include "NiagaraDataInterfaceArrayImpl.h"
@@ -52,6 +54,12 @@ TArrayType GetNiagaraArrayValue(UNiagaraComponent* NiagaraSystem, FName Override
 	return TArrayType();
 }
 
+FNiagaraLWCConverter GetLWCConverter(UNiagaraComponent* NiagaraSystem)
+{
+	FNiagaraSystemInstance* SystemInstance = NiagaraSystem->GetSystemInstanceController()->GetSystemInstance_Unsafe();
+	return SystemInstance->GetLWCConverter();
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayFloat(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<float>& ArrayData)
@@ -67,6 +75,18 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector2D(UNiagara
 void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<FVector>& ArrayData)
 {
 	SetNiagaraArray<FVector, UNiagaraDataInterfaceArrayFloat3>(NiagaraSystem, OverrideName, ArrayData);
+}
+
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayPosition(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<FVector>& ArrayData)
+{
+	FNiagaraLWCConverter LwcConverter = GetLWCConverter(NiagaraSystem);
+	TArray<FNiagaraPosition> ConvertedData;
+	ConvertedData.SetNumUninitialized(ArrayData.Num());
+	for (int i = 0; i < ArrayData.Num(); i++)
+	{
+		ConvertedData[i] = LwcConverter.ConvertWorldToSimulationPosition(ArrayData[i]);
+	}
+	SetNiagaraArray<FNiagaraPosition, UNiagaraDataInterfaceArrayPosition>(NiagaraSystem, OverrideName, ConvertedData);
 }
 
 void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector4(UNiagaraComponent* NiagaraSystem, FName OverrideName, const TArray<FVector4>& ArrayData)
@@ -111,6 +131,21 @@ TArray<FVector> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayVector
 	return GetNiagaraArray<FVector, UNiagaraDataInterfaceArrayFloat3>(NiagaraSystem, OverrideName);
 }
 
+TArray<FVector> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayPosition(UNiagaraComponent* NiagaraSystem, FName OverrideName)
+{
+	const TArray<FNiagaraPosition> SimData = GetNiagaraArray<FNiagaraPosition, UNiagaraDataInterfaceArrayPosition>(NiagaraSystem, OverrideName);
+	
+	FNiagaraLWCConverter LwcConverter = GetLWCConverter(NiagaraSystem);
+	TArray<FVector> ConvertedData;
+	ConvertedData.SetNumUninitialized(SimData.Num());
+	for (int i = 0; i < SimData.Num(); i++)
+	{
+		ConvertedData[i] = LwcConverter.ConvertSimulationPositionToWorld(SimData[i]);
+	}
+	
+	return ConvertedData;
+}
+
 TArray<FVector4> UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayVector4(UNiagaraComponent* NiagaraSystem, FName OverrideName)
 {
 	return GetNiagaraArray<FVector4, UNiagaraDataInterfaceArrayFloat4>(NiagaraSystem, OverrideName);
@@ -153,6 +188,13 @@ void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVectorValue(UNiag
 	SetNiagaraArrayValue<FVector, UNiagaraDataInterfaceArrayFloat3>(NiagaraSystem, OverrideName, Index, Value, bSizeToFit);
 }
 
+void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayPositionValue(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index, const FVector& Value, bool bSizeToFit)
+{
+	FNiagaraLWCConverter LwcConverter = GetLWCConverter(NiagaraSystem);
+	FNiagaraPosition SimulationPosition = LwcConverter.ConvertWorldToSimulationPosition(Value);
+	SetNiagaraArrayValue<FNiagaraPosition, UNiagaraDataInterfaceArrayPosition>(NiagaraSystem, OverrideName, Index, SimulationPosition, bSizeToFit);
+}
+
 void UNiagaraDataInterfaceArrayFunctionLibrary::SetNiagaraArrayVector4Value(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index, const FVector4& Value, bool bSizeToFit)
 {
 	SetNiagaraArrayValue<FVector4, UNiagaraDataInterfaceArrayFloat4>(NiagaraSystem, OverrideName, Index, Value, bSizeToFit);
@@ -193,6 +235,13 @@ FVector2D UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayVector2DValu
 FVector UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayVectorValue(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index)
 {
 	return GetNiagaraArrayValue<FVector, UNiagaraDataInterfaceArrayFloat3>(NiagaraSystem, OverrideName, Index);
+}
+
+FVector UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayPositionValue(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index)
+{
+	FNiagaraPosition SimPosition = GetNiagaraArrayValue<FNiagaraPosition, UNiagaraDataInterfaceArrayPosition>(NiagaraSystem, OverrideName, Index);
+	FNiagaraLWCConverter LwcConverter = GetLWCConverter(NiagaraSystem);
+	return LwcConverter.ConvertSimulationPositionToWorld(SimPosition);
 }
 
 FVector4 UNiagaraDataInterfaceArrayFunctionLibrary::GetNiagaraArrayVector4Value(UNiagaraComponent* NiagaraSystem, FName OverrideName, int Index)

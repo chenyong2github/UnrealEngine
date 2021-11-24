@@ -388,7 +388,7 @@ bool UNiagaraNodeFunctionCall::IsDeprecated() const
 bool UNiagaraNodeFunctionCall::FixupPinNames()
 {
 	// This checks the override pins to see if any of the inputs were renamed since we last checked.
-	// Note that this does *not* fix inputs set via rapid iteration parameters, they are fixed by UNiagaraScriptSource::UpdateRenamedParameters.
+	// Note that this does *not* fix inputs set via rapid iteration parameters, they are fixed by UNiagaraScriptSource::FixupRenamedParameters.
 	if (UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*this))
 	{
 		FixupFunctionScriptVersion();
@@ -404,7 +404,7 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 		TArray<const UEdGraphPin*> ModuleInputPins;
 		FCompileConstantResolver ConstantResolver;
 		GetStackFunctionInputPins(*this, ModuleInputPins, HiddenModulePins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
-		TSet<FName> ModulePinNames;
+		TMap<FName, const UEdGraphPin*> ModulePinNames;
 		TMap<FGuid, FNiagaraVariable> ModuleInputGuidMapping;
 		for (const UEdGraphPin* ModulePin : ModuleInputPins)
 		{
@@ -414,7 +414,7 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 			if (VariableMetaData.IsSet()) // check if there is metadata with a guid available
 			{
 				ModuleInputGuidMapping.Add(VariableMetaData->GetVariableGuid(), InputVar);
-				ModulePinNames.Add(InputName);
+				ModulePinNames.Add(InputName, ModulePin);
 			}
 		}
 
@@ -430,6 +430,20 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 				continue;
 			}
 
+			// If the type of our input was changed from vec3 to position we update the override pin type as well
+			FNiagaraVariable InputVar = NiagaraSchema->PinToNiagaraVariable(OverridePin);
+			FNiagaraParameterHandle CurrentPinHandle = FNiagaraParameterHandle(OverridePin->PinName);
+			FName InputName = CurrentPinHandle.GetName();
+			if (ModulePinNames.Contains(InputName) && InputVar.GetType() == FNiagaraTypeDefinition::GetVec3Def())
+			{
+				FNiagaraVariable ModuleInputVar = NiagaraSchema->PinToNiagaraVariable(ModulePinNames[InputName]);
+				if (ModuleInputVar.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+				{
+					OverridePin->PinType = ModulePinNames[InputName]->PinType;
+					bNodeChanged = true;
+				}
+			}
+
 			// Gather module output linked to our inputs
 			if (UEdGraphPin* LinkedValuePin = FNiagaraStackGraphUtilities::GetLinkedValueHandleForFunctionInput(*OverridePin))
 			{
@@ -439,12 +453,16 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 				{
 					LinkedModuleOutputs.Add(LinkedValuePin);
 				}
+
+				// when changing the module input type to position, changes the linked value pin as well
+				if (InputVar.GetType() == FNiagaraTypeDefinition::GetPositionDef() && OverridePin->PinType != LinkedValuePin->PinType)
+				{
+					LinkedValuePin->PinType = OverridePin->PinType;
+					bNodeChanged = true;
+				}
 			}
 
 			// check if the pin is still a valid input name from the module
-			FNiagaraVariable InputVar = NiagaraSchema->PinToNiagaraVariable(OverridePin);
-			FNiagaraParameterHandle CurrentPinHandle = FNiagaraParameterHandle(OverridePin->PinName);
-			FName InputName = CurrentPinHandle.GetName();
 			if (ModulePinNames.Contains(InputName))
 			{
 				// update the existing binding data
@@ -574,6 +592,12 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 					}
 				}
 			}
+		}
+
+		if (bNodeChanged)
+		{
+			UNiagaraGraph* LinkedPinGraph = Cast<UNiagaraGraph>(OverrideNode->GetGraph());
+			LinkedPinGraph->NotifyGraphNeedsRecompile();
 		}
 		
 		return bNodeChanged;

@@ -66,7 +66,8 @@ private:
 		USceneComponent* Component,
 		FNiagaraDataSet& Data,
 		int32 ParticleIndex,
-		FComponentPoolEntry& PoolEntry);
+		FComponentPoolEntry& PoolEntry,
+		const FNiagaraLWCConverter& LwcConverter);
 
 	// These property accessor methods are largely copied over from MovieSceneCommonHelpers.h
 	static FComponentPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);

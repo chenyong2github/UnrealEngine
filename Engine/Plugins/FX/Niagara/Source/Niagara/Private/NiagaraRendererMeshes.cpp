@@ -436,6 +436,7 @@ void FNiagaraRendererMeshes::InitializeSortInfo(FParticleMeshRenderData& Particl
 	OutSortInfo.MeshIndexAttributeOffset = ParticleMeshRenderData.MeshIndexOffset;
 	OutSortInfo.RendererVisibility = RendererVisibility;
 	OutSortInfo.DistanceCullRange = DistanceCullRange;
+	OutSortInfo.SystemLWCTile = UseLocalSpace(&SceneProxy) ? FVector3f::Zero() :SceneProxy.GetLWCRenderTile();
 
 	if (ParticleMeshRenderData.bSortCullOnGpu)
 	{
@@ -652,6 +653,7 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 	PerViewUniformParameters.bLocalSpace = bUseLocalSpace;
 	PerViewUniformParameters.DeltaSeconds = View.Family->DeltaWorldTime;
 	PerViewUniformParameters.MeshScale = MeshData.Scale;
+	PerViewUniformParameters.SystemLWCTile = SceneProxy.GetLWCRenderTile();
 
 	if (MeshData.PivotOffsetSpace == ENiagaraMeshPivotOffsetSpace::Mesh)
 	{
@@ -678,7 +680,15 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 	PerViewUniformParameters.SortedIndices = ParticleMeshRenderData.ParticleSortedIndicesSRV;
 	PerViewUniformParameters.SortedIndicesOffset = ParticleMeshRenderData.ParticleSortedIndicesOffset;
 
-	PerViewUniformParameters.DefaultPos = bUseLocalSpace ? FVector4(0.0f, 0.0f, 0.0f, 1.0f) : FVector4(SceneProxy.GetLocalToWorld().GetOrigin());
+	if (bUseLocalSpace)
+	{
+		PerViewUniformParameters.DefaultPos = FVector4f(0.0f, 0.0f, 0.0f, 1.0f);
+	}
+	else
+	{
+		PerViewUniformParameters.DefaultPos = FVector4f(SceneProxy.GetLocalToWorld().GetOrigin() - FVector(SceneProxy.GetLWCRenderTile()) * FLargeWorldRenderScalar::GetTileSize());
+	}
+	
 	PerViewUniformParameters.DefaultPrevPos = PerViewUniformParameters.DefaultPos;
 	PerViewUniformParameters.DefaultVelocity = FVector(0.f, 0.0f, 0.0f);
 	PerViewUniformParameters.DefaultPrevVelocity = PerViewUniformParameters.DefaultVelocity;
@@ -982,7 +992,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				FVector ViewOrigin = View->ViewMatrices.GetViewOrigin();
 				FVector RefPosition = SceneProxy->GetLocalToWorld().GetOrigin();
 
-				float DistSquared = SceneProxy->GetProxyDynamicData().LODDistanceOverride >= 0.0f ? FMath::Square(SceneProxy->GetProxyDynamicData().LODDistanceOverride) : FVector::DistSquared(RefPosition, ViewOrigin);
+				double DistSquared = SceneProxy->GetProxyDynamicData().LODDistanceOverride >= 0.0f ? FMath::Square(SceneProxy->GetProxyDynamicData().LODDistanceOverride) : FVector::DistSquared(RefPosition, ViewOrigin);
 				if (DistSquared < DistanceCullRange.X * DistanceCullRange.X || DistSquared > DistanceCullRange.Y * DistanceCullRange.Y)
 				{
 					// Distance cull the whole emitter

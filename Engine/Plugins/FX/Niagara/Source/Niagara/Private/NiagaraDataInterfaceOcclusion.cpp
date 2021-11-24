@@ -12,6 +12,18 @@
 const FName UNiagaraDataInterfaceOcclusion::GetCameraOcclusionRectangleName(TEXT("QueryOcclusionFactorWithRectangleGPU"));
 const FName UNiagaraDataInterfaceOcclusion::GetCameraOcclusionCircleName(TEXT("QueryOcclusionFactorWithCircleGPU"));
 
+struct FNiagaraOcclusionDIFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+		LWCConversion = 1,
+
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+};
+
 UNiagaraDataInterfaceOcclusion::UNiagaraDataInterfaceOcclusion(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -35,6 +47,7 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 	Sig.Name = GetCameraOcclusionRectangleName;
 #if WITH_EDITORONLY_DATA
 	Sig.Description = LOCTEXT("GetCameraOcclusionRectFunctionDescription", "This function returns the occlusion factor of a sprite. It samples the depth buffer in a rectangular grid around the given world position and compares each sample with the camera distance.");
+	Sig.FunctionVersion = FNiagaraOcclusionDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
@@ -42,7 +55,7 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 	FText VisibilityFractionDescription = LOCTEXT("VisibilityFractionDescription", "Returns a value 0..1 depending on how many of the samples on the screen were occluded.\nFor example, a value of 0.3 means that 70% of visible samples were occluded.\nIf the sample fraction is 0 then this also returns 0.");
 	FText SampleFractionDescription = LOCTEXT("SampleFractionDescription", "Returns a value 0..1 depending on how many samples were inside the viewport or outside of it.\nFor example, a value of 0.3 means that 70% of samples were outside the current viewport and therefore not visible.");
 	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Occlusion interface")));
-	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Sample Center World Position")), LOCTEXT("RectCenterPosDescription", "This world space position where the center of the sample rectangle should be."));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Sample Center World Position")), LOCTEXT("RectCenterPosDescription", "This world space position where the center of the sample rectangle should be."));
 	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Sample Window Width World")), LOCTEXT("SampleWindowWidthWorldDescription", "The total width of the sample rectangle in world space.\nIf the particle is a camera-aligned sprite then this is the sprite width."));
 	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Sample Window Height World")), LOCTEXT("SampleWindowHeightWorldDescription", "The total height of the sample rectangle in world space.\nIf the particle is a camera-aligned sprite then this is the sprite height."));
 	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Sample Steps Per Line")), LOCTEXT("StepsPerLineDescription", "The number of samples to take horizontally. The total number of samples is this value squared."));
@@ -54,12 +67,13 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 	Sig.Name = GetCameraOcclusionCircleName;
 #if WITH_EDITORONLY_DATA
 	Sig.Description = LOCTEXT("GetCameraOcclusionCircleFunctionDescription", "This function returns the occlusion factor of a sprite. It samples the depth buffer in concentric rings around the given world position and compares each sample with the camera distance.");
+	Sig.FunctionVersion = FNiagaraOcclusionDIFunctionVersion::LatestVersion;
 #endif
 	Sig.bMemberFunction = true;
 	Sig.bRequiresContext = false;
 	Sig.bSupportsCPU = false;
 	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Occlusion interface")));
-	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Sample Center World Position")), LOCTEXT("CircleCenterPosDescription", "This world space position where the center of the sample circle should be."));
+	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Sample Center World Position")), LOCTEXT("CircleCenterPosDescription", "This world space position where the center of the sample circle should be."));
 	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Sample Window Diameter World")), LOCTEXT("SampleWindowDiameterDescription", "The world space diameter of the circle to sample.\nIf the particle is a spherical sprite then this is the sprite size."));
 	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Samples per ring")),LOCTEXT("SamplesPerRingDescription", "The number of samples for each ring inside the circle.\nThe total number of samples is NumRings * SamplesPerRing."));
 	Sig.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Number of sample rings")), LOCTEXT("NumberOfSampleRingsDescription", "This number of concentric rings to sample inside the circle.\nThe total number of samples is NumRings * SamplesPerRing."));
@@ -86,15 +100,19 @@ void UNiagaraDataInterfaceOcclusion::GetCommonHLSL(FString& OutHLSL)
 
 bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> ArgsSample;
-	ArgsSample.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
+	TMap<FString, FStringFormatArg> ArgsSample =
+	{
+		{TEXT("FunctionName"), FunctionInfo.InstanceName},
+		{TEXT("NDIGetContextName"), TEXT("NDIOCCLUSION_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
+	};
 
 	if (FunctionInfo.DefinitionName == GetCameraOcclusionRectangleName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
 			{
-				DIOcclusion_Rectangle(In_SampleCenterWorldPos, In_SampleWindowWidthWorld, In_SampleWindowHeightWorld, In_SampleSteps, Out_VisibilityFraction, Out_SampleFraction);
+				{NDIGetContextName}
+				DIOcclusion_Rectangle(DIContext, In_SampleCenterWorldPos, In_SampleWindowWidthWorld, In_SampleWindowHeightWorld, In_SampleSteps, Out_VisibilityFraction, Out_SampleFraction);
 			}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -105,7 +123,8 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowDiameterWorld, in float In_SampleRays, in float In_SampleStepsPerRay, out float Out_VisibilityFraction, out float Out_SampleFraction)
 			{
-				DIOcclusion_Circle(In_SampleCenterWorldPos, In_SampleWindowDiameterWorld, In_SampleRays, In_SampleStepsPerRay, Out_VisibilityFraction, Out_SampleFraction);
+				{NDIGetContextName}
+				DIOcclusion_Circle(DIContext, In_SampleCenterWorldPos, In_SampleWindowDiameterWorld, In_SampleRays, In_SampleStepsPerRay, Out_VisibilityFraction, Out_SampleFraction);
 			}
 		)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -113,80 +132,62 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 	}
 	return false;
 }
+
+bool UNiagaraDataInterfaceOcclusion::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	if (FunctionSignature.FunctionVersion < FNiagaraOcclusionDIFunctionVersion::LatestVersion)
+	{
+		TArray<FNiagaraFunctionSignature> AllFunctions;
+		GetFunctions(AllFunctions);
+		for (const FNiagaraFunctionSignature& Sig : AllFunctions)
+		{
+			if (FunctionSignature.Name == Sig.Name)
+			{
+				FunctionSignature = Sig;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void UNiagaraDataInterfaceOcclusion::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo,	FString& OutHLSL)
+{
+	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
+
+	OutHLSL += TEXT("NDIOCCLUSION_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
+}
 #endif
 
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceOcclusion, QueryOcclusionFactorGPU);
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceOcclusion, QueryOcclusionFactorCircleGPU);
-void UNiagaraDataInterfaceOcclusion::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
+struct FNiagaraDataInterfaceParametersCS_Occlusion : public FNiagaraDataInterfaceParametersCS
 {
-	if (BindingInfo.Name == GetCameraOcclusionRectangleName)
+	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Occlusion, NonVirtual);
+
+	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceOcclusion, QueryOcclusionFactorGPU)::Bind(this, OutFunc);
+		SystemLWCTileParam.Bind(ParameterMap, *(SystemLWCTileName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
-	else if (BindingInfo.Name == GetCameraOcclusionCircleName)
+
+	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceOcclusion, QueryOcclusionFactorCircleGPU)::Bind(this, OutFunc);
+		check(IsInRenderingThread());
+
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
+		SetShaderValue(RHICmdList, ComputeShaderRHI, SystemLWCTileParam, Context.SystemLWCTile);
 	}
-	else
-	{
-		UE_LOG(LogNiagara, Display, TEXT("Could not find data interface external function in %s. Received Name: %s"), *GetPathNameSafe(this), *BindingInfo.Name.ToString());
-	}
-}
 
-// ------- Dummy implementations for CPU execution ------------
+private:
+	// LWC data
+	LAYOUT_FIELD(FShaderParameter, SystemLWCTileParam);
 
-void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorGPU(FVectorVMExternalFunctionContext& Context)
-{
-	VectorVM::FExternalFuncInputHandler<float> PosParamX(Context);
-	VectorVM::FExternalFuncInputHandler<float> PosParamY(Context);
-	VectorVM::FExternalFuncInputHandler<float> PosParamZ(Context);
-	VectorVM::FExternalFuncInputHandler<float> WidthParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> HeightParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> StepsParam(Context);
+	static const FString SystemLWCTileName;
+};
 
-	VectorVM::FExternalFuncRegisterHandler<float> OutOcclusion(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutFactor(Context);
+// LWC
+const FString FNiagaraDataInterfaceParametersCS_Occlusion::SystemLWCTileName(TEXT("SystemLWCTile_"));
 
-	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
-	{
-		PosParamX.GetAndAdvance();
-		PosParamY.GetAndAdvance();
-		PosParamZ.GetAndAdvance();
-		WidthParam.GetAndAdvance();
-		HeightParam.GetAndAdvance();
-		StepsParam.GetAndAdvance();
-
-		*OutOcclusion.GetDestAndAdvance() = 0;
-		*OutFactor.GetDestAndAdvance() = 0;
-	}
-}
-
-void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorCircleGPU(FVectorVMExternalFunctionContext& Context)
-{
-	VectorVM::FExternalFuncInputHandler<float> PosParamX(Context);
-	VectorVM::FExternalFuncInputHandler<float> PosParamY(Context);
-	VectorVM::FExternalFuncInputHandler<float> PosParamZ(Context);
-	VectorVM::FExternalFuncInputHandler<float> RadiusParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> RaysParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> StepsParam(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<float> OutOcclusion(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutFactor(Context);
-
-	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
-	{
-		PosParamX.GetAndAdvance();
-		PosParamY.GetAndAdvance();
-		PosParamZ.GetAndAdvance();
-		RadiusParam.GetAndAdvance();
-		RaysParam.GetAndAdvance();
-		StepsParam.GetAndAdvance();
-
-		*OutOcclusion.GetDestAndAdvance() = 0;
-		*OutFactor.GetDestAndAdvance() = 0;
-	}
-}
-
-// ------------------------------------------------------------
+IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Occlusion);
+IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceOcclusion, FNiagaraDataInterfaceParametersCS_Occlusion);
 
 #undef LOCTEXT_NAMESPACE

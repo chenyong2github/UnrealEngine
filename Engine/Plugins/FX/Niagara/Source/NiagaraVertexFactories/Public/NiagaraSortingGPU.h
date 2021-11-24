@@ -68,6 +68,7 @@ public:
 		SHADER_PARAMETER(FVector2f, CullDistanceRangeSquared)
 		SHADER_PARAMETER(FVector4f, LocalBoundingSphere)
 		SHADER_PARAMETER(FVector3f, CullingWorldSpaceOffset)
+		SHADER_PARAMETER(FVector3f, SystemLWCTile)
 
 		SHADER_PARAMETER_UAV(Buffer, OutKeys)
 		SHADER_PARAMETER_UAV(Buffer, OutParticleIndices)

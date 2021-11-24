@@ -1688,7 +1688,7 @@ bool UNiagaraEmitter::UsesCollection(const class UNiagaraParameterCollection* Co
 }
 
 
-bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InVar) const
+bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InVar, FNiagaraTypeDefinition& OutBoundType) const
 {
 	check(!HasAnyFlags(RF_NeedPostLoad));
 
@@ -1697,11 +1697,20 @@ bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InV
 		// make sure that this isn't called before our dependents are fully loaded
 		check(!SpawnScriptProps.Script->HasAnyFlags(RF_NeedPostLoad));
 
-		return SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(InVar);
+		bool bContainsAttribute = SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(InVar);
+		if (!bContainsAttribute && InVar.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+		{
+			// if we don't find a position type var we check for a vec3 type for backwards compatibility
+			OutBoundType = FNiagaraTypeDefinition::GetVec3Def();
+			FNiagaraVariableBase VarCopy = InVar;
+			VarCopy.SetType(OutBoundType);
+			bContainsAttribute = SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(VarCopy);
+		}
+		return bContainsAttribute;
 	}
 	return false;
 }
-bool UNiagaraEmitter::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const
+bool UNiagaraEmitter::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace, FNiagaraTypeDefinition& OutBoundType) const
 {
 	check(!HasAnyFlags(RF_NeedPostLoad));
 
@@ -1711,11 +1720,11 @@ bool UNiagaraEmitter::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVa
 		// make sure that this isn't called before our dependents are fully loaded
 		check(!Sys->HasAnyFlags(RF_NeedPostLoad));
 
-		return Sys->CanObtainEmitterAttribute(InVarWithUniqueNameNamespace);
+		return Sys->CanObtainEmitterAttribute(InVarWithUniqueNameNamespace, OutBoundType);
 	}
 	return false;
 }
-bool UNiagaraEmitter::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const
+bool UNiagaraEmitter::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar, FNiagaraTypeDefinition& OutBoundType) const
 {
 	check(!HasAnyFlags(RF_NeedPostLoad));
 
@@ -1725,7 +1734,7 @@ bool UNiagaraEmitter::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar
 		// make sure that this isn't called before our dependents are fully loaded
 		check(!Sys->HasAnyFlags(RF_NeedPostLoad));
 
-		return Sys->CanObtainSystemAttribute(InVar);
+		return Sys->CanObtainSystemAttribute(InVar, OutBoundType);
 	}
 	return false;
 }

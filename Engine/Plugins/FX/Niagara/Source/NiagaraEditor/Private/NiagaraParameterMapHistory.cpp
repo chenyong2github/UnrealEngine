@@ -1303,6 +1303,11 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 				if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::Binding && Variable->DefaultBinding.IsValid())
 				{
 					FNiagaraVariable TempVar = FNiagaraVariable(Var.GetType(), Variable->DefaultBinding.GetName());
+					if (FNiagaraConstants::GetOldPositionTypeVariables().Contains(TempVar))
+					{
+						// Old assets often have vector inputs that default bind to what is now a position type. If we detect that, we change the type to prevent a compiler error.
+						TempVar.SetType(FNiagaraTypeDefinition::GetPositionDef());
+					}
 					int32 FoundIdxBinding = AddVariableToHistory(History, TempVar, TempVar, nullptr);
 
 					History.PerVariableReadHistory[FoundIdxBinding].AddDefaulted_GetRef().ReadPin = FModuleScopedPin(InDefaultPin, ModuleName);

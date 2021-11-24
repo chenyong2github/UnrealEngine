@@ -56,6 +56,7 @@ namespace NDIStaticMeshLocal
 		{
 			InitialVersion = 0,
 			RefactoredV1 = 1,
+			LargeWorldCoordinates = 2,
 
 			VersionPlusOne,
 			LatestVersion = VersionPlusOne - 1
@@ -557,7 +558,8 @@ namespace NDIStaticMeshLocal
 
 			// Gather attached information
 			bComponentValid = SceneComponent != nullptr;
-			const FTransform& ComponentTransform = bComponentValid ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform();
+			FTransform ComponentTransform = bComponentValid ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform();
+			ComponentTransform.AddToTranslation(FVector(SystemInstance->GetLWCTile()) * -FLargeWorldRenderScalar::GetTileSize());
 
 			Transform = ComponentTransform.ToMatrixWithScale();
 			TransformInverseTransposed = ComponentTransform.Inverse().ToMatrixWithScale().GetTransposed();
@@ -745,7 +747,8 @@ namespace NDIStaticMeshLocal
 			DeltaSeconds = InDeltaSeconds;
 
 			USceneComponent* SceneComponent = SceneComponentWeakPtr.Get();
-			const FTransform& ComponentTransform = SceneComponent != nullptr ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform();
+			FTransform ComponentTransform = SceneComponent != nullptr ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform();
+			ComponentTransform.AddToTranslation(FVector(SystemInstance->GetLWCTile()) * -FLargeWorldRenderScalar::GetTileSize());
 
 			PrevTransform = Transform;
 			PrevTransformInverseTransposed = TransformInverseTransposed;
@@ -1600,7 +1603,10 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Bitangent"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Tangent"));
 		OutFunctions.Add_GetRef(Sig).Name = GetVertexName;
-		OutFunctions.Add_GetRef(Sig).Name = GetVertexWSName;
+		
+		FNiagaraFunctionSignature& WsSig = OutFunctions.Add_GetRef(Sig);
+		WsSig.Name = GetVertexWSName;
+		WsSig.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
 	}
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
@@ -1697,7 +1703,10 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Bitangent"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Tangent"));
 		OutFunctions.Add_GetRef(Sig).Name = GetTriangleName;
-		OutFunctions.Add_GetRef(Sig).Name = GetTriangleWSName;
+
+		FNiagaraFunctionSignature WsSig = OutFunctions.Add_GetRef(Sig);
+		WsSig.Name = GetTriangleWSName;
+		WsSig.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
 	}
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.Add_GetRef(BaseSignature);
@@ -1741,12 +1750,15 @@ void UNiagaraDataInterfaceStaticMesh::GetFunctions(TArray<FNiagaraFunctionSignat
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Scale")));
 
+		FNiagaraFunctionSignature WsSig = Sig;
+		WsSig.Outputs[0].SetType(FNiagaraTypeDefinition::GetPositionDef());
+
 		OutFunctions.Add_GetRef(Sig).Name = GetSocketTransformName;
-		OutFunctions.Add_GetRef(Sig).Name = GetSocketTransformWSName;
+		OutFunctions.Add_GetRef(WsSig).Name = GetSocketTransformWSName;
 		OutFunctions.Add_GetRef(Sig).Name = GetFilteredSocketTransformName;
-		OutFunctions.Add_GetRef(Sig).Name = GetFilteredSocketTransformWSName;
+		OutFunctions.Add_GetRef(WsSig).Name = GetFilteredSocketTransformWSName;
 		OutFunctions.Add_GetRef(Sig).Name = GetUnfilteredSocketTransformName;
-		OutFunctions.Add_GetRef(Sig).Name = GetUnfilteredSocketTransformWSName;
+		OutFunctions.Add_GetRef(WsSig).Name = GetUnfilteredSocketTransformWSName;
 	}
 
 	////////////////////////////////////////////////////////////////////////////
@@ -1953,6 +1965,20 @@ bool UNiagaraDataInterfaceStaticMesh::UpgradeFunctionCall(FNiagaraFunctionSignat
 		}
 
 		FunctionSignature.FunctionVersion = EDIFunctionVersion::RefactoredV1;
+	}
+
+	if (FunctionSignature.FunctionVersion < EDIFunctionVersion::LargeWorldCoordinates)
+	{
+		TArray<FNiagaraFunctionSignature> AllFunctions;
+		GetFunctions(AllFunctions);
+		for (const FNiagaraFunctionSignature& Sig : AllFunctions)
+		{
+			if (FunctionSignature.Name == Sig.Name)
+			{
+				FunctionSignature = Sig;
+				return true;
+			}
+		}
 	}
 
 	return true;

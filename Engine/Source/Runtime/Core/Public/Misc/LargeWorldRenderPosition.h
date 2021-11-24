@@ -12,6 +12,7 @@ struct FLargeWorldRenderScalar
 public:
 	// This should become inline at some point, but keeping it in cpp file for now to make iteration faster when experementing with tile size
 	CORE_API static double GetTileSize();
+	CORE_API static FVector3f GetTileFor(FVector InPosition);
 
 	float GetTile() const { return (float)Tile; }
 	float GetOffset() const { return (float)Offset; }

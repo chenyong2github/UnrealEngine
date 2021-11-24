@@ -9,7 +9,7 @@
 
 FNiagaraSystemGpuComputeProxy::FNiagaraSystemGpuComputeProxy(FNiagaraSystemInstance* OwnerInstance)
 	: DebugOwnerInstance(OwnerInstance)
-	, DebugOwnerComputeDispatchInterface(nullptr)
+	, SystemLWCTile(OwnerInstance->GetLWCTile())
 	, SystemInstanceID(OwnerInstance->GetId())
 {
 	bRequiresDistanceFieldData = OwnerInstance->RequiresDistanceFieldData();

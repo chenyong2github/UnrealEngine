@@ -11,7 +11,6 @@
 #include "NiagaraStats.h"
 #include "NiagaraTypes.h"
 #include "NiagaraWorldManager.h"
-#include "RayTracingInstanceUtils.h"
 #include "RenderResource.h"
 #include "Shader.h"
 #include "ShaderCore.h"
@@ -59,6 +58,7 @@ namespace NDICollisionQueryLocal
 	static const FString IntersectionResultsOffsetParamName(TEXT("IntersectionResultsOffset_"));
 	static const FString RayTraceCountsParamName(TEXT("RayTraceCounts_"));
 	static const FString RayTraceCountsOffsetParamName(TEXT("RayTraceCountsOffset_"));
+	static const FString SystemLWCTileName(TEXT("SystemLWCTile_"));
 }
 
 FCriticalSection UNiagaraDataInterfaceCollisionQuery::CriticalSection;
@@ -71,6 +71,7 @@ struct FNiagaraCollisionDIFunctionVersion
 		AddedTraceSkip = 1,
 		AddedCustomDepthCollision = 2,
 		ReturnCollisionMaterialIdx = 3,
+		LargeWorldCoordinates = 4,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -270,70 +271,72 @@ void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* 
 
 void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
-	FNiagaraFunctionSignature SigDepth;
-	SigDepth.Name = NDICollisionQueryLocal::SceneDepthName;
-	SigDepth.bMemberFunction = true;
-	SigDepth.bRequiresContext = false;
-	SigDepth.bSupportsCPU = false;
+	{
+		FNiagaraFunctionSignature SigDepth;
+		SigDepth.Name = NDICollisionQueryLocal::SceneDepthName;
+		SigDepth.bMemberFunction = true;
+		SigDepth.bSupportsCPU = false;
 #if WITH_EDITORONLY_DATA
-	SigDepth.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
-	SigDepth.Description = LOCTEXT("SceneDepthSignatureDescription", "Projects a given world position to view space and then queries the depth buffer with that position.");
+		SigDepth.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+		SigDepth.Description = LOCTEXT("SceneDepthSignatureDescription", "Projects a given world position to view space and then queries the depth buffer with that position.");
 #endif
-	const FText DepthSamplePosWorldDescription = LOCTEXT("DepthSamplePosWorldDescription", "The world position where the depth should be queried. The position gets automatically transformed to view space to query the depth buffer.");
-	const FText SceneDepthDescription = LOCTEXT("SceneDepthDescription", "If the query was successful this returns the scene depth, otherwise -1.");
-	const FText CameraPosWorldDescription = LOCTEXT("CameraPosWorldDescription", "Returns the current camera position in world space.");
-	const FText IsInsideViewDescription = LOCTEXT("IsInsideViewDescription", "Returns true if the query position could be projected to valid screen coordinates.");
-	const FText SamplePosWorldDescription = LOCTEXT("SamplePosWorldDescription", "If the query was successful, this returns the world position that was recalculated from the scene depth. Otherwise returns (0, 0, 0).");
-	const FText SampleWorldNormalDescription = LOCTEXT("SampleWorldNormalDescription", "If the query was successful, this returns the world normal at the sample point. Otherwise returns (0, 0, 1).");
+		const FText DepthSamplePosWorldDescription = LOCTEXT("DepthSamplePosWorldDescription", "The world position where the depth should be queried. The position gets automatically transformed to view space to query the depth buffer.");
+		const FText SceneDepthDescription = LOCTEXT("SceneDepthDescription", "If the query was successful this returns the scene depth, otherwise -1.");
+		const FText CameraPosWorldDescription = LOCTEXT("CameraPosWorldDescription", "Returns the current camera position in world space.");
+		const FText IsInsideViewDescription = LOCTEXT("IsInsideViewDescription", "Returns true if the query position could be projected to valid screen coordinates.");
+		const FText SamplePosWorldDescription = LOCTEXT("SamplePosWorldDescription", "If the query was successful, this returns the world position that was recalculated from the scene depth. Otherwise returns (0, 0, 0).");
+		const FText SampleWorldNormalDescription = LOCTEXT("SampleWorldNormalDescription", "If the query was successful, this returns the world normal at the sample point. Otherwise returns (0, 0, 1).");
 
-	SigDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
-	SigDepth.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("DepthSamplePosWorld")), DepthSamplePosWorldDescription);
-	SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("SceneDepth")), SceneDepthDescription);
-	SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CameraPosWorld")), CameraPosWorldDescription);
-	SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsInsideView")), IsInsideViewDescription);
-	SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SamplePosWorld")), SamplePosWorldDescription);
-	SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SampleWorldNormal")), SampleWorldNormalDescription);
+		SigDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+		SigDepth.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("DepthSamplePosWorld")), DepthSamplePosWorldDescription);
+		SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("SceneDepth")), SceneDepthDescription);
+		SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("CameraPosWorld")), CameraPosWorldDescription);
+		SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsInsideView")), IsInsideViewDescription);
+		SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("SamplePosWorld")), SamplePosWorldDescription);
+		SigDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SampleWorldNormal")), SampleWorldNormalDescription);
 	
-	OutFunctions.Add(SigDepth);
+		OutFunctions.Add(SigDepth);
 
-	FNiagaraFunctionSignature SigCustomDepth;
-	SigCustomDepth.Name = NDICollisionQueryLocal::CustomDepthName;
-	SigCustomDepth.bMemberFunction = true;
-	SigCustomDepth.bRequiresContext = false;
-	SigCustomDepth.bSupportsCPU = false;
+		
+		FNiagaraFunctionSignature SigCustomDepth;
+		SigCustomDepth.Name = NDICollisionQueryLocal::CustomDepthName;
+		SigCustomDepth.bMemberFunction = true;
+		SigCustomDepth.bSupportsCPU = false;
 #if WITH_EDITORONLY_DATA
-	SigCustomDepth.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
-	SigCustomDepth.Description = LOCTEXT("CustomDepthDescription", "Projects a given world position to view space and then queries the custom depth buffer with that position.");
+		SigCustomDepth.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+		SigCustomDepth.Description = LOCTEXT("CustomDepthDescription", "Projects a given world position to view space and then queries the custom depth buffer with that position.");
 #endif
-	SigCustomDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
-	SigCustomDepth.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("DepthSamplePosWorld")), DepthSamplePosWorldDescription);
-	SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("SceneDepth")), SceneDepthDescription);
-	SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CameraPosWorld")), CameraPosWorldDescription);
-	SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsInsideView")), IsInsideViewDescription);
-	SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SamplePosWorld")), SamplePosWorldDescription);
-	SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SampleWorldNormal")), SampleWorldNormalDescription);
-	OutFunctions.Add(SigCustomDepth);
+		SigCustomDepth.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+		SigCustomDepth.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("DepthSamplePosWorld")), DepthSamplePosWorldDescription);
+		SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("SceneDepth")), SceneDepthDescription);
+		SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("CameraPosWorld")), CameraPosWorldDescription);
+		SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsInsideView")), IsInsideViewDescription);
+		SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("SamplePosWorld")), SamplePosWorldDescription);
+		SigCustomDepth.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("SampleWorldNormal")), SampleWorldNormalDescription);
+		OutFunctions.Add(SigCustomDepth);
+	}
 
-	FNiagaraFunctionSignature SigMeshField;
-	SigMeshField.Name = NDICollisionQueryLocal::DistanceFieldName;
-	SigMeshField.bMemberFunction = true;
-	SigMeshField.bRequiresContext = false;
-	SigMeshField.bSupportsCPU = false;
+	{
+		FNiagaraFunctionSignature SigMeshField;
+		SigMeshField.Name = NDICollisionQueryLocal::DistanceFieldName;
+		SigMeshField.bMemberFunction = true;
+		SigMeshField.bSupportsCPU = false;
 #if WITH_EDITORONLY_DATA
-	SigMeshField.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
-	SigMeshField.Description = LOCTEXT("DistanceFieldDescription", "Queries the global distance field for a given world position.\nPlease note that the distance field resolution gets lower the farther away the queried position is from the camera.");
+		SigMeshField.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+		SigMeshField.Description = LOCTEXT("DistanceFieldDescription", "Queries the global distance field for a given world position.\nPlease note that the distance field resolution gets lower the farther away the queried position is from the camera.");
 #endif
-	const FText FieldSamplePosWorldDescription = LOCTEXT("FieldSamplePosWorldDescription", "The world position where the distance field should be queried.");
-	const FText DistanceToNearestSurfaceDescription = LOCTEXT("DistanceToNearestSurfaceDescription", "If the query was successful this returns the distance to the nearest surface, otherwise returns 0.");
-	const FText FieldGradientDescription = LOCTEXT("FieldGradientDescription", "If the query was successful this returns the non-normalized direction to the nearest surface, otherwise returns (0, 0, 0).");
-	const FText IsDistanceFieldValidDescription = LOCTEXT("IsDistanceFieldValidDescription", "Returns true if the global distance field is available and there was a valid value retrieved for the given sample position.");
+		const FText FieldSamplePosWorldDescription = LOCTEXT("FieldSamplePosWorldDescription", "The world position where the distance field should be queried.");
+		const FText DistanceToNearestSurfaceDescription = LOCTEXT("DistanceToNearestSurfaceDescription", "If the query was successful this returns the distance to the nearest surface, otherwise returns 0.");
+		const FText FieldGradientDescription = LOCTEXT("FieldGradientDescription", "If the query was successful this returns the non-normalized direction to the nearest surface, otherwise returns (0, 0, 0).");
+		const FText IsDistanceFieldValidDescription = LOCTEXT("IsDistanceFieldValidDescription", "Returns true if the global distance field is available and there was a valid value retrieved for the given sample position.");
 	
-	SigMeshField.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
-	SigMeshField.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("FieldSamplePosWorld")), FieldSamplePosWorldDescription);
-	SigMeshField.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("DistanceToNearestSurface")), DistanceToNearestSurfaceDescription);
-	SigMeshField.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("FieldGradient")), FieldGradientDescription);
-	SigMeshField.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsDistanceFieldValid")), IsDistanceFieldValidDescription);
-    OutFunctions.Add(SigMeshField);
+		SigMeshField.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+		SigMeshField.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("FieldSamplePosWorld")), FieldSamplePosWorldDescription);
+		SigMeshField.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("DistanceToNearestSurface")), DistanceToNearestSurfaceDescription);
+		SigMeshField.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("FieldGradient")), FieldGradientDescription);
+		SigMeshField.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsDistanceFieldValid")), IsDistanceFieldValidDescription);
+		OutFunctions.Add(SigMeshField);
+	}
 
 	{
 		const FText QueryIDDescription = LOCTEXT("QueryIDDescription", "Unique (for this frame) index of the query being enqueued (used in subsequent frames to retrieve results).  Must be less than MaxRayTraceCount");
@@ -346,7 +349,6 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		IssueRayTrace.Name = NDICollisionQueryLocal::IssueAsyncRayTraceName;
 		IssueRayTrace.bRequiresExecPin = true;
 		IssueRayTrace.bMemberFunction = true;
-		IssueRayTrace.bRequiresContext = false;
 		IssueRayTrace.bSupportsCPU = false;
 #if WITH_EDITORONLY_DATA
 		IssueRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
@@ -354,8 +356,8 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 #endif
 		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
 		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("QueryID")), QueryIDDescription);
-		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")), TraceStartWorldDescription);
-		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")), TraceEndWorldDescription);
+		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("TraceStartWorld")), TraceStartWorldDescription);
+		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("TraceEndWorld")), TraceEndWorldDescription);
 		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("TraceChannel")), TraceChannelDescription);
 		IssueRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsQueryValid")), IsQueryValidDescription);
 	}
@@ -371,15 +373,14 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		IssueRayTrace.Name = NDICollisionQueryLocal::CreateAsyncRayTraceName;
 		IssueRayTrace.bRequiresExecPin = true;
 		IssueRayTrace.bMemberFunction = true;
-		IssueRayTrace.bRequiresContext = false;
 		IssueRayTrace.bSupportsCPU = false;
 #if WITH_EDITORONLY_DATA
 		IssueRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
 		IssueRayTrace.Description = LOCTEXT("IssueAsyncRayTraceDescription", "Creates a GPU raytrace with the result being available the following frame (index is returned)");
 #endif
 		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
-		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")), TraceStartWorldDescription);
-		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")), TraceEndWorldDescription);
+		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("TraceStartWorld")), TraceStartWorldDescription);
+		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("TraceEndWorld")), TraceEndWorldDescription);
 		IssueRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("TraceChannel")), TraceChannelDescription);
 		IssueRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("QueryID")), QueryIDDescription);
 		IssueRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsQueryValid")), IsQueryValidDescription);
@@ -394,7 +395,6 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		IssueRayTrace.Name = NDICollisionQueryLocal::ReserveAsyncRayTraceName;
 		IssueRayTrace.bRequiresExecPin = true;
 		IssueRayTrace.bMemberFunction = true;
-		IssueRayTrace.bRequiresContext = false;
 		IssueRayTrace.bSupportsCPU = false;
 #if WITH_EDITORONLY_DATA
 		IssueRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
@@ -416,7 +416,6 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		FNiagaraFunctionSignature& ReadRayTrace = OutFunctions.AddDefaulted_GetRef();
 		ReadRayTrace.Name = NDICollisionQueryLocal::ReadAsyncRayTraceName;
 		ReadRayTrace.bMemberFunction = true;
-		ReadRayTrace.bRequiresContext = false;
 		ReadRayTrace.bSupportsCPU = false;
 #if WITH_EDITORONLY_DATA
 		ReadRayTrace.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
@@ -426,72 +425,72 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		ReadRayTrace.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("PreviousFrameQueryID")), PreviousFrameQueryIDDescription);
 		ReadRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")), CollisionValidDescription);
 		ReadRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionDistance")), CollisionDistanceDescription);
-		ReadRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionPosWorld")), CollisionPosWorldDescription);
+		ReadRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("CollisionPosWorld")), CollisionPosWorldDescription);
 		ReadRayTrace.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")), CollisionNormalDescription);
 	}
 
-	FNiagaraFunctionSignature SigCpuSync;
-	SigCpuSync.Name = NDICollisionQueryLocal::SyncTraceName;
-	SigCpuSync.bMemberFunction = true;
-	SigCpuSync.bRequiresContext = false;
-	SigCpuSync.bSupportsGPU = false;
+	{
+		FNiagaraFunctionSignature SigCpuSync;
+		SigCpuSync.Name = NDICollisionQueryLocal::SyncTraceName;
+		SigCpuSync.bMemberFunction = true;
+		SigCpuSync.bSupportsGPU = false;
 #if WITH_EDITORONLY_DATA
-	SigCpuSync.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
-	SigCpuSync.Description = LOCTEXT("SigCpuSyncDescription", "Traces a ray against the world using a specific channel and return the first blocking hit.");
+		SigCpuSync.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+		SigCpuSync.Description = LOCTEXT("SigCpuSyncDescription", "Traces a ray against the world using a specific channel and return the first blocking hit.");
 #endif
-	const FText TraceStartWorldDescription = LOCTEXT("TraceStartWorldDescription", "The world position where the line trace should start.");
-	const FText TraceEndWorldDescription = LOCTEXT("TraceEndWorldDescription", "The world position where the line trace should end.");
-	const FText TraceChannelDescription = LOCTEXT("TraceChannelDescription", "The trace channel to collide against. Trace channels can be configured in the project settings.");
-	const FText SkipTraceDescription = LOCTEXT("SkipTraceDescription", "If true then the trace will be skipped completely.\nThis can be used as a performance optimization, as branch nodes in the graph still execute every path.");
-	const FText CollisionValidDescription = LOCTEXT("CollisionValidDescription", "Returns true if the trace was not skipped and the trace was blocked by some world geometry.");
-	const FText IsTraceInsideMeshDescription = LOCTEXT("IsTraceInsideMeshDescription", "If true then the trace started in penetration, i.e. with an initial blocking overlap.");
-	const FText CollisionPosWorldDescription = LOCTEXT("CollisionPosWorldDescription", "If the collision is valid, this returns the location of the blocking hit.");
-	const FText CollisionNormalDescription = LOCTEXT("CollisionNormalDescription", "If the collision is valid, this returns the normal at the position of the blocking hit.");
-	const FText CollisionMaterialFrictionDescription = LOCTEXT("CollisionMaterialFrictionDescription", "Friction value of surface, controls how easily things can slide on this surface (0 is frictionless, higher values increase the amount of friction).");
-	const FText CollisionMaterialRestitutionDescription = LOCTEXT("CollisionMaterialRestitutionDescription", "Restitution or 'bounciness' of this surface, between 0 (no bounce) and 1 (outgoing velocity is same as incoming)");
-	const FText CollisionMaterialIndexDescription = LOCTEXT("CollisionMaterialIndexDescription", "Returns the index of the surface as defined in the ProjectSettings/Physics/PhysicalSurface section");
+		const FText TraceStartWorldDescription = LOCTEXT("TraceStartWorldDescription", "The world position where the line trace should start.");
+		const FText TraceEndWorldDescription = LOCTEXT("TraceEndWorldDescription", "The world position where the line trace should end.");
+		const FText TraceChannelDescription = LOCTEXT("TraceChannelDescription", "The trace channel to collide against. Trace channels can be configured in the project settings.");
+		const FText SkipTraceDescription = LOCTEXT("SkipTraceDescription", "If true then the trace will be skipped completely.\nThis can be used as a performance optimization, as branch nodes in the graph still execute every path.");
+		const FText CollisionValidDescription = LOCTEXT("CollisionValidDescription", "Returns true if the trace was not skipped and the trace was blocked by some world geometry.");
+		const FText IsTraceInsideMeshDescription = LOCTEXT("IsTraceInsideMeshDescription", "If true then the trace started in penetration, i.e. with an initial blocking overlap.");
+		const FText CollisionPosWorldDescription = LOCTEXT("CollisionPosWorldDescription", "If the collision is valid, this returns the location of the blocking hit.");
+		const FText CollisionNormalDescription = LOCTEXT("CollisionNormalDescription", "If the collision is valid, this returns the normal at the position of the blocking hit.");
+		const FText CollisionMaterialFrictionDescription = LOCTEXT("CollisionMaterialFrictionDescription", "Friction value of surface, controls how easily things can slide on this surface (0 is frictionless, higher values increase the amount of friction).");
+		const FText CollisionMaterialRestitutionDescription = LOCTEXT("CollisionMaterialRestitutionDescription", "Restitution or 'bounciness' of this surface, between 0 (no bounce) and 1 (outgoing velocity is same as incoming)");
+		const FText CollisionMaterialIndexDescription = LOCTEXT("CollisionMaterialIndexDescription", "Returns the index of the surface as defined in the ProjectSettings/Physics/PhysicalSurface section");
 	
-	SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
-	SigCpuSync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")), TraceStartWorldDescription);
-	SigCpuSync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")), TraceEndWorldDescription);
-	SigCpuSync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(TraceChannelEnum), TEXT("TraceChannel")), TraceChannelDescription);
-	SigCpuSync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")), SkipTraceDescription);
-	SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")), CollisionValidDescription);
-	SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsTraceInsideMesh")), IsTraceInsideMeshDescription);
-	SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionPosWorld")), CollisionPosWorldDescription);
-	SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")), CollisionNormalDescription);
-	SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialFriction")), CollisionMaterialFrictionDescription);
-	SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialRestitution")), CollisionMaterialRestitutionDescription);
-	SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")), CollisionMaterialIndexDescription);
-	OutFunctions.Add(SigCpuSync);
+		SigCpuSync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+		SigCpuSync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("TraceStartWorld")), TraceStartWorldDescription);
+		SigCpuSync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("TraceEndWorld")), TraceEndWorldDescription);
+		SigCpuSync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(TraceChannelEnum), TEXT("TraceChannel")), TraceChannelDescription);
+		SigCpuSync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")), SkipTraceDescription);
+		SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")), CollisionValidDescription);
+		SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsTraceInsideMesh")), IsTraceInsideMeshDescription);
+		SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("CollisionPosWorld")), CollisionPosWorldDescription);
+		SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")), CollisionNormalDescription);
+		SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialFriction")), CollisionMaterialFrictionDescription);
+		SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialRestitution")), CollisionMaterialRestitutionDescription);
+		SigCpuSync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")), CollisionMaterialIndexDescription);
+		OutFunctions.Add(SigCpuSync);
 
-	FNiagaraFunctionSignature SigCpuAsync;
-	SigCpuAsync.Name = NDICollisionQueryLocal::AsyncTraceName;
-	SigCpuAsync.bMemberFunction = true;
-	SigCpuAsync.bRequiresContext = false;
-	SigCpuAsync.bSupportsGPU = false;
+		FNiagaraFunctionSignature SigCpuAsync;
+		SigCpuAsync.Name = NDICollisionQueryLocal::AsyncTraceName;
+		SigCpuAsync.bMemberFunction = true;
+		SigCpuAsync.bSupportsGPU = false;
 #if WITH_EDITORONLY_DATA
-	SigCpuAsync.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
-	SigCpuAsync.Description = LOCTEXT("SigCpuAsyncDescription", "Traces a ray against the world using a specific channel and return the first blocking hit the next frame.\nNote that this is the ASYNC version of the trace function, meaning it will not returns the result right away, but with one frame latency.");
+		SigCpuAsync.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
+		SigCpuAsync.Description = LOCTEXT("SigCpuAsyncDescription", "Traces a ray against the world using a specific channel and return the first blocking hit the next frame.\nNote that this is the ASYNC version of the trace function, meaning it will not returns the result right away, but with one frame latency.");
 #endif
-	const FText PreviousFrameQueryIDDescription = LOCTEXT("PreviousFrameQueryIDDescription", "The query ID returned from the last frame's async trace call.\nRegardless if it is a valid ID or not this function call with issue a new async line trace, but it will only return results with a valid ID.");
-	const FText NextFrameQueryIDDescription = LOCTEXT("NextFrameQueryIDDescription", "The query ID to save and use as input to this function in the next frame.");
+		const FText PreviousFrameQueryIDDescription = LOCTEXT("PreviousFrameQueryIDDescription", "The query ID returned from the last frame's async trace call.\nRegardless if it is a valid ID or not this function call with issue a new async line trace, but it will only return results with a valid ID.");
+		const FText NextFrameQueryIDDescription = LOCTEXT("NextFrameQueryIDDescription", "The query ID to save and use as input to this function in the next frame.");
 	
-	SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
-	SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("PreviousFrameQueryID")), PreviousFrameQueryIDDescription);
-	SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceStartWorld")), TraceStartWorldDescription);
-	SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("TraceEndWorld")), TraceEndWorldDescription);
-	SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(TraceChannelEnum), TEXT("TraceChannel")), TraceChannelDescription);
-	SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")), SkipTraceDescription);
-	SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NextFrameQueryID")), NextFrameQueryIDDescription);
-	SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")), CollisionValidDescription);
-	SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsTraceInsideMesh")), IsTraceInsideMeshDescription);
-	SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionPosWorld")), CollisionPosWorldDescription);
-	SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")), CollisionNormalDescription);
-	SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialFriction")), CollisionMaterialFrictionDescription);
-	SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialRestitution")), CollisionMaterialRestitutionDescription);
-	SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")), CollisionMaterialIndexDescription);
-	OutFunctions.Add(SigCpuAsync);
+		SigCpuAsync.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("CollisionQuery")));
+		SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("PreviousFrameQueryID")), PreviousFrameQueryIDDescription);
+		SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("TraceStartWorld")), TraceStartWorldDescription);
+		SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("TraceEndWorld")), TraceEndWorldDescription);
+		SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition(TraceChannelEnum), TEXT("TraceChannel")), TraceChannelDescription);
+		SigCpuAsync.AddInput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")), SkipTraceDescription);
+		SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NextFrameQueryID")), NextFrameQueryIDDescription);
+		SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("CollisionValid")), CollisionValidDescription);
+		SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsTraceInsideMesh")), IsTraceInsideMeshDescription);
+		SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("CollisionPosWorld")), CollisionPosWorldDescription);
+		SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")), CollisionNormalDescription);
+		SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialFriction")), CollisionMaterialFrictionDescription);
+		SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialRestitution")), CollisionMaterialRestitutionDescription);
+		SigCpuAsync.AddOutput(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")), CollisionMaterialIndexDescription);
+		OutFunctions.Add(SigCpuAsync);
+	}
 }
 
 // build the shader function HLSL; function name is passed in, as it's defined per-DI; that way, configuration could change
@@ -518,45 +517,22 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 
 bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
 {
-	bool bWasChanged = false;
-
-	// The distance field query got a new output at some point, but there exists no custom version for it
-	if (FunctionSignature.Name == NDICollisionQueryLocal::DistanceFieldName && FunctionSignature.Outputs.Num() == 2)
+	// always upgrade to the latest version
+	if (FunctionSignature.FunctionVersion < FNiagaraCollisionDIFunctionVersion::LatestVersion)
 	{
-		FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsDistanceFieldValid")));
-		bWasChanged = true;
-	}
-
-	// Early out for version matching
-	if (FunctionSignature.FunctionVersion == FNiagaraCollisionDIFunctionVersion::LatestVersion)
-	{
-		return bWasChanged;
-	}
-
-	// Added the possibility to skip a line trace to increase performance when only a fraction of particles wants to do a line trace
-	if (FunctionSignature.FunctionVersion < FNiagaraCollisionDIFunctionVersion::AddedTraceSkip)
-	{
-		if (FunctionSignature.Name == NDICollisionQueryLocal::SyncTraceName || FunctionSignature.Name == NDICollisionQueryLocal::AsyncTraceName)
+		TArray<FNiagaraFunctionSignature> AllFunctions;
+		GetFunctions(AllFunctions);
+		for (const FNiagaraFunctionSignature& Sig : AllFunctions)
 		{
-			FunctionSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")));
-			bWasChanged = true;
+			if (FunctionSignature.Name == Sig.Name)
+			{
+				FunctionSignature = Sig;
+				return true;
+			}
 		}
 	}
 
-	// Added the physical material ID as a result for line traces
-	if (FunctionSignature.FunctionVersion < FNiagaraCollisionDIFunctionVersion::ReturnCollisionMaterialIdx)
-	{
-		if (FunctionSignature.Name == NDICollisionQueryLocal::SyncTraceName || FunctionSignature.Name == NDICollisionQueryLocal::AsyncTraceName)
-		{
-			FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")));
-			bWasChanged = true;
-		}
-	}
-
-	// Set latest version
-	FunctionSignature.FunctionVersion = FNiagaraCollisionDIFunctionVersion::LatestVersion;
-
-	return bWasChanged;
+	return false;
 }
 #endif
 
@@ -600,8 +576,6 @@ void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiag
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, PerformQuerySyncCPU);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, PerformQueryAsyncCPU);
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QuerySceneDepth);
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QueryMeshDistanceField);
 
 void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
@@ -612,15 +586,6 @@ void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExterna
 	else if (BindingInfo.Name == NDICollisionQueryLocal::AsyncTraceName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, PerformQueryAsyncCPU)::Bind(this, OutFunc);
-	}
-	else if (BindingInfo.Name == NDICollisionQueryLocal::SceneDepthName ||
-			 BindingInfo.Name == NDICollisionQueryLocal::CustomDepthName)
-	{
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QuerySceneDepth)::Bind(this, OutFunc);
-	}
-	else if (BindingInfo.Name == NDICollisionQueryLocal::DistanceFieldName)
-	{
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QueryMeshDistanceField)::Bind(this, OutFunc);
 	}
 	else
 	{
@@ -662,67 +627,51 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMExternalF
 {
 	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
-	VectorVM::FExternalFuncInputHandler<float> StartPosParamX(Context);
-	VectorVM::FExternalFuncInputHandler<float> StartPosParamY(Context);
-	VectorVM::FExternalFuncInputHandler<float> StartPosParamZ(Context);
+	FNDIInputParam<FNiagaraPosition> StartPosParam(Context);
+	FNDIInputParam<FNiagaraPosition> EndPosParam(Context);
+	FNDIInputParam<ECollisionChannel> TraceChannelParam(Context);
+	FNDIInputParam<FNiagaraBool> IsSkipTrace(Context);
+	
+	FNDIOutputParam<FNiagaraBool> OutQueryValid(Context);
+	FNDIOutputParam<FNiagaraBool> OutInsideMesh(Context);
+	FNDIOutputParam<FNiagaraPosition> OutCollisionPos(Context);
+	FNDIOutputParam<FVector3f> OutCollisionNormal(Context);
+	FNDIOutputParam<float> OutFriction(Context);
+	FNDIOutputParam<float> OutRestitution(Context);
+	FNDIOutputParam<int32> OutPhysicalMaterialIdx(Context);
 
-	VectorVM::FExternalFuncInputHandler<float> EndPosParamX(Context);
-	VectorVM::FExternalFuncInputHandler<float> EndPosParamY(Context);
-	VectorVM::FExternalFuncInputHandler<float> EndPosParamZ(Context);
-
-	VectorVM::FExternalFuncInputHandler<ECollisionChannel> TraceChannelParam(Context);
-
-	VectorVM::FExternalFuncInputHandler<FNiagaraBool> IsSkipTrace(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutQueryValid(Context);
-	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutInsideMesh(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosZ(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionNormX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionNormY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionNormZ(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutFriction(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutRestitution(Context);
-	VectorVM::FExternalFuncRegisterHandler<int32> OutPhysicalMaterialIdx(Context);
+	FNiagaraLWCConverter LWCConverter = InstanceData->SystemInstance->GetLWCConverter();
 
 	FScopeLock ScopeLock(&CriticalSection);
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		FVector Pos(StartPosParamX.GetAndAdvance(), StartPosParamY.GetAndAdvance(), StartPosParamZ.GetAndAdvance());
-		FVector Dir(EndPosParamX.GetAndAdvance(), EndPosParamY.GetAndAdvance(), EndPosParamZ.GetAndAdvance());
+		FNiagaraPosition TraceStart = StartPosParam.GetAndAdvance();
+		FNiagaraPosition TraceEnd = EndPosParam.GetAndAdvance();
 		ECollisionChannel TraceChannel = TraceChannelParam.GetAndAdvance();
-		bool Skip = IsSkipTrace.GetAndAdvance().GetValue();
-		ensure(!Pos.ContainsNaN());
+		bool Skip = IsSkipTrace.GetAndAdvance();
+		ensure(!TraceStart.ContainsNaN());
+		ensure(!TraceEnd.ContainsNaN());
 		FNiagaraDICollsionQueryResult Res;
 
-		if (!Skip && InstanceData->CollisionBatch.PerformQuery(Pos, Dir, Res, TraceChannel))
+		if (!Skip && InstanceData->CollisionBatch.PerformQuery(LWCConverter.ConvertSimulationPositionToWorld(TraceStart), LWCConverter.ConvertSimulationPositionToWorld(TraceEnd), Res, TraceChannel))
 		{
-			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool(true);
-			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool(Res.IsInsideMesh);
-			*OutCollisionPosX.GetDestAndAdvance() = Res.CollisionPos.X;
-			*OutCollisionPosY.GetDestAndAdvance() = Res.CollisionPos.Y;
-			*OutCollisionPosZ.GetDestAndAdvance() = Res.CollisionPos.Z;
-			*OutCollisionNormX.GetDestAndAdvance() = Res.CollisionNormal.X;
-			*OutCollisionNormY.GetDestAndAdvance() = Res.CollisionNormal.Y;
-			*OutCollisionNormZ.GetDestAndAdvance() = Res.CollisionNormal.Z;
-			*OutFriction.GetDestAndAdvance() = Res.Friction;
-			*OutRestitution.GetDestAndAdvance() = Res.Restitution;
-			*OutPhysicalMaterialIdx.GetDestAndAdvance() = Res.PhysicalMaterialIdx;
+			OutQueryValid.SetAndAdvance(true);
+			OutInsideMesh.SetAndAdvance(Res.IsInsideMesh);
+			OutCollisionPos.SetAndAdvance(LWCConverter.ConvertWorldToSimulationPosition(Res.CollisionPos));
+			OutCollisionNormal.SetAndAdvance(Res.CollisionNormal);
+			OutFriction.SetAndAdvance(Res.Friction);
+			OutRestitution.SetAndAdvance(Res.Restitution);
+			OutPhysicalMaterialIdx.SetAndAdvance(Res.PhysicalMaterialIdx);
 		}
 		else
-		{
-			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool();
-			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool();
-			*OutCollisionPosX.GetDestAndAdvance() = 0.0f;
-			*OutCollisionPosY.GetDestAndAdvance() = 0.0f;
-			*OutCollisionPosZ.GetDestAndAdvance() = 0.0f;
-			*OutCollisionNormX.GetDestAndAdvance() = 0.0f;
-			*OutCollisionNormY.GetDestAndAdvance() = 0.0f;
-			*OutCollisionNormZ.GetDestAndAdvance() = 0.0f;
-			*OutFriction.GetDestAndAdvance() = 0.0f;
-			*OutRestitution.GetDestAndAdvance() = 0.0f;
-			*OutPhysicalMaterialIdx.GetDestAndAdvance() = 0;
+		{			
+			OutQueryValid.SetAndAdvance(false);
+			OutInsideMesh.SetAndAdvance(false);
+			OutCollisionPos.SetAndAdvance(FVector3f::ZeroVector);
+			OutCollisionNormal.SetAndAdvance(FVector3f::ZeroVector);
+			OutFriction.SetAndAdvance(0);
+			OutRestitution.SetAndAdvance(0);
+			OutPhysicalMaterialIdx.SetAndAdvance(0);
 		}
 	}
 }
@@ -731,141 +680,59 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMExternal
 {
 	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
 
-	VectorVM::FExternalFuncInputHandler<int32> InIDParam(Context);
-	VectorVM::FExternalFuncInputHandler<float> StartPosParamX(Context);
-	VectorVM::FExternalFuncInputHandler<float> StartPosParamY(Context);
-	VectorVM::FExternalFuncInputHandler<float> StartPosParamZ(Context);
+	FNDIInputParam<int32> InIDParam(Context);
+	FNDIInputParam<FNiagaraPosition> StartPosParam(Context);
+	FNDIInputParam<FNiagaraPosition> EndPosParam(Context);
+	FNDIInputParam<ECollisionChannel> TraceChannelParam(Context);
+	FNDIInputParam<FNiagaraBool> IsSkipTrace(Context);
+	
+	FNDIOutputParam<int32> OutQueryID(Context);
+	FNDIOutputParam<FNiagaraBool> OutQueryValid(Context);
+	FNDIOutputParam<FNiagaraBool> OutInsideMesh(Context);
+	FNDIOutputParam<FNiagaraPosition> OutCollisionPos(Context);
+	FNDIOutputParam<FVector3f> OutCollisionNormal(Context);
+	FNDIOutputParam<float> OutFriction(Context);
+	FNDIOutputParam<float> OutRestitution(Context);
+	FNDIOutputParam<int32> OutPhysicalMaterialIdx(Context);
 
-	VectorVM::FExternalFuncInputHandler<float> EndPosParamX(Context);
-	VectorVM::FExternalFuncInputHandler<float> EndPosParamY(Context);
-	VectorVM::FExternalFuncInputHandler<float> EndPosParamZ(Context);
-
-	VectorVM::FExternalFuncInputHandler<ECollisionChannel> TraceChannelParam(Context);
-
-	VectorVM::FExternalFuncInputHandler<FNiagaraBool> IsSkipTrace(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<int32> OutQueryID(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutQueryValid(Context);
-	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutInsideMesh(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionPosZ(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionNormX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionNormY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionNormZ(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutFriction(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutRestitution(Context);
-	VectorVM::FExternalFuncRegisterHandler<int32> OutPhysicalMaterialIdx(Context);
+	FNiagaraLWCConverter LWCConverter = InstanceData->SystemInstance->GetLWCConverter();
 
 	FScopeLock ScopeLock(&CriticalSection);
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
-		FVector Pos(StartPosParamX.GetAndAdvance(), StartPosParamY.GetAndAdvance(), StartPosParamZ.GetAndAdvance());
-		FVector End(EndPosParamX.GetAndAdvance(), EndPosParamY.GetAndAdvance(), EndPosParamZ.GetAndAdvance());
+		FNiagaraPosition TraceStart = StartPosParam.GetAndAdvance();
+		FNiagaraPosition TraceEnd = EndPosParam.GetAndAdvance();
 		ECollisionChannel TraceChannel = TraceChannelParam.GetAndAdvance();
-		bool Skip = IsSkipTrace.GetAndAdvance().GetValue();
-		ensure(!Pos.ContainsNaN());
+		bool Skip = IsSkipTrace.GetAndAdvance();
+		ensure(!TraceStart.ContainsNaN());
+		ensure(!TraceEnd.ContainsNaN());
 
-		*OutQueryID.GetDestAndAdvance() = Skip ? INDEX_NONE : InstanceData->CollisionBatch.SubmitQuery(Pos, End, TraceChannel);
+		int QueryID = Skip ? INDEX_NONE : InstanceData->CollisionBatch.SubmitQuery(LWCConverter.ConvertSimulationPositionToWorld(TraceStart), LWCConverter.ConvertSimulationPositionToWorld(TraceEnd), TraceChannel);
+		OutQueryID.SetAndAdvance(QueryID);
 
 		// try to retrieve a query with the supplied query ID
 		FNiagaraDICollsionQueryResult Res;
 		int32 ID = InIDParam.GetAndAdvance();
 		if (ID != INDEX_NONE && InstanceData->CollisionBatch.GetQueryResult(ID, Res))
 		{
-			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool(true);
-			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool(Res.IsInsideMesh);
-			*OutCollisionPosX.GetDestAndAdvance() = Res.CollisionPos.X;
-			*OutCollisionPosY.GetDestAndAdvance() = Res.CollisionPos.Y;
-			*OutCollisionPosZ.GetDestAndAdvance() = Res.CollisionPos.Z;
-			*OutCollisionNormX.GetDestAndAdvance() = Res.CollisionNormal.X;
-			*OutCollisionNormY.GetDestAndAdvance() = Res.CollisionNormal.Y;
-			*OutCollisionNormZ.GetDestAndAdvance() = Res.CollisionNormal.Z;
-			*OutFriction.GetDestAndAdvance() = Res.Friction;
-			*OutRestitution.GetDestAndAdvance() = Res.Restitution;
-			*OutPhysicalMaterialIdx.GetDestAndAdvance() = Res.PhysicalMaterialIdx;
+			OutQueryValid.SetAndAdvance(true);
+			OutInsideMesh.SetAndAdvance(Res.IsInsideMesh);
+			OutCollisionPos.SetAndAdvance(LWCConverter.ConvertWorldToSimulationPosition(Res.CollisionPos));
+			OutCollisionNormal.SetAndAdvance(Res.CollisionNormal);
+			OutFriction.SetAndAdvance(Res.Friction);
+			OutRestitution.SetAndAdvance(Res.Restitution);
+			OutPhysicalMaterialIdx.SetAndAdvance(Res.PhysicalMaterialIdx);
 		}
 		else
 		{
-			*OutQueryValid.GetDestAndAdvance() = FNiagaraBool();
-			*OutInsideMesh.GetDestAndAdvance() = FNiagaraBool();
-			*OutCollisionPosX.GetDestAndAdvance() = 0.0f;
-			*OutCollisionPosY.GetDestAndAdvance() = 0.0f;
-			*OutCollisionPosZ.GetDestAndAdvance() = 0.0f;
-			*OutCollisionNormX.GetDestAndAdvance() = 0.0f;
-			*OutCollisionNormY.GetDestAndAdvance() = 0.0f;
-			*OutCollisionNormZ.GetDestAndAdvance() = 0.0f;
-			*OutFriction.GetDestAndAdvance() = 0.0f;
-			*OutRestitution.GetDestAndAdvance() = 0.0f;
-			*OutPhysicalMaterialIdx.GetDestAndAdvance() = 0;
+			OutQueryValid.SetAndAdvance(false);
+			OutInsideMesh.SetAndAdvance(false);
+			OutCollisionPos.SetAndAdvance(FVector3f::ZeroVector);
+			OutCollisionNormal.SetAndAdvance(FVector3f::ZeroVector);
+			OutFriction.SetAndAdvance(0);
+			OutRestitution.SetAndAdvance(0);
+			OutPhysicalMaterialIdx.SetAndAdvance(0);
 		}
-	}
-}
-
-void UNiagaraDataInterfaceCollisionQuery::QuerySceneDepth(FVectorVMExternalFunctionContext & Context)
-{
-	UE_LOG(LogNiagara, Error, TEXT("GPU only function 'QuerySceneDepthGPU' called on CPU VM, check your module code to fix."));
-
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
-
-	VectorVM::FExternalFuncInputHandler<float> SamplePosParamX(Context);
-	VectorVM::FExternalFuncInputHandler<float> SamplePosParamY(Context);
-	VectorVM::FExternalFuncInputHandler<float> SamplePosParamZ(Context);
-	
-	VectorVM::FExternalFuncRegisterHandler<float> OutSceneDepth(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCameraPosX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCameraPosY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutCameraPosZ(Context);
-	VectorVM::FExternalFuncRegisterHandler<int32> OutIsInsideView(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutWorldPosX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutWorldPosY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutWorldPosZ(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutWorldNormX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutWorldNormY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutWorldNormZ(Context);
-
-	FScopeLock ScopeLock(&CriticalSection);
-	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
-	{
-		*OutSceneDepth.GetDestAndAdvance() = -1;
-		*OutIsInsideView.GetDestAndAdvance() = 0;
-		*OutWorldPosX.GetDestAndAdvance() = 0.0f;
-		*OutWorldPosY.GetDestAndAdvance() = 0.0f;
-		*OutWorldPosZ.GetDestAndAdvance() = 0.0f;
-		*OutWorldNormX.GetDestAndAdvance() = 0.0f;
-		*OutWorldNormY.GetDestAndAdvance() = 0.0f;
-		*OutWorldNormZ.GetDestAndAdvance() = 1.0f;
-		*OutCameraPosX.GetDestAndAdvance() = 0.0f;
-		*OutCameraPosY.GetDestAndAdvance() = 0.0f;
-		*OutCameraPosZ.GetDestAndAdvance() = 0.0f;
-	}
-}
-
-void UNiagaraDataInterfaceCollisionQuery::QueryMeshDistanceField(FVectorVMExternalFunctionContext& Context)
-{
-	UE_LOG(LogNiagara, Error, TEXT("GPU only function 'QueryMeshDistanceFieldGPU' called on CPU VM, check your module code to fix."));
-
-	VectorVM::FUserPtrHandler<CQDIPerInstanceData> InstanceData(Context);
-
-	VectorVM::FExternalFuncInputHandler<float> SamplePosParamX(Context);
-	VectorVM::FExternalFuncInputHandler<float> SamplePosParamY(Context);
-	VectorVM::FExternalFuncInputHandler<float> SamplePosParamZ(Context);
-
-	VectorVM::FExternalFuncRegisterHandler<float> OutSurfaceDistance(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutFieldGradientX(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutFieldGradientY(Context);
-	VectorVM::FExternalFuncRegisterHandler<float> OutFieldGradientZ(Context);
-	FNDIOutputParam<FNiagaraBool> OutIsFieldValid(Context);
-
-	FScopeLock ScopeLock(&CriticalSection);
-	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
-	{
-		*OutSurfaceDistance.GetDestAndAdvance() = -1;
-		*OutFieldGradientX.GetDestAndAdvance() = 0.0f;
-		*OutFieldGradientY.GetDestAndAdvance() = 0.0f;
-		*OutFieldGradientZ.GetDestAndAdvance() = 1.0f;
-		OutIsFieldValid.SetAndAdvance(FNiagaraBool());
 	}
 }
 
@@ -894,7 +761,6 @@ bool UNiagaraDataInterfaceCollisionQuery::Equals(const UNiagaraDataInterface* Ot
 
 	const UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<const UNiagaraDataInterfaceCollisionQuery>(Other);
 	return OtherTyped->MaxTracesPerParticle == MaxTracesPerParticle;
-	return OtherTyped->MaxRetraces == MaxRetraces;
 }
 
 bool UNiagaraDataInterfaceCollisionQuery::CopyToInternal(UNiagaraDataInterface* Destination) const
@@ -944,6 +810,7 @@ public:
 	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
 		GlobalDistanceFieldParameters.Bind(ParameterMap);
+		SystemLWCTileParam.Bind(ParameterMap, *(NDICollisionQueryLocal::SystemLWCTileName + ParameterInfo.DataInterfaceHLSLSymbol));
 #if RHI_RAYTRACING
 		RayTracingEnabledParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayTracingEnabledParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 		MaxRayTraceCountParam.Bind(ParameterMap, *(NDICollisionQueryLocal::MaxRayTraceCountParamName + ParameterInfo.DataInterfaceHLSLSymbol));
@@ -962,6 +829,8 @@ public:
 
 		FNiagaraDataIntefaceProxyCollisionQuery* QueryDI = (FNiagaraDataIntefaceProxyCollisionQuery*)Context.DataInterface;
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
+		SetShaderValue(RHICmdList, ComputeShaderRHI, SystemLWCTileParam, Context.SystemLWCTile);
+		
 		// Bind distance field parameters
 		if (GlobalDistanceFieldParameters.IsBound())
 		{
@@ -1035,8 +904,6 @@ public:
 	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		FNiagaraDataIntefaceProxyCollisionQuery* QueryDI = (FNiagaraDataIntefaceProxyCollisionQuery*)Context.DataInterface;
-
 		if (RayRequestsParam.IsUAVBound())
 		{
 			RayRequestsParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
@@ -1051,6 +918,7 @@ public:
 
 private:
 	LAYOUT_FIELD(FGlobalDistanceFieldParameters, GlobalDistanceFieldParameters);
+	LAYOUT_FIELD(FShaderParameter, SystemLWCTileParam);
 
 #if RHI_RAYTRACING
 	LAYOUT_FIELD(FShaderParameter, RayTracingEnabledParam);

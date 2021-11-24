@@ -67,6 +67,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraMeshUniformParameters, NIAGARAVERTE
 	SHADER_PARAMETER(FVector4f, DefaultPrevRotation)
 	SHADER_PARAMETER(FVector3f, DefaultScale)
 	SHADER_PARAMETER(FVector3f, DefaultPrevScale)
+	SHADER_PARAMETER(FVector3f, SystemLWCTile)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter0)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter1)
 	SHADER_PARAMETER(FVector4f, DefaultDynamicMaterialParameter2)

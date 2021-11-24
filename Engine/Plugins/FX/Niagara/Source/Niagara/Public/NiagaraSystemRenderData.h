@@ -76,6 +76,7 @@ public:
 	FORCEINLINE void SetRenderingEnabled(bool bInEnabled) { bRenderingEnabled = bInEnabled; }
 	FORCEINLINE bool HasAnyMotionBlurEnabled() const { return bAnyMotionBlurEnabled; }
 
+	FVector3f LWCRenderTile = FVector3f::ZeroVector;
 private:
 	/** Emitter Renderers in the order they appear in the emitters. To be accessed by the GameThread */
 	TArray<FNiagaraRenderer*> EmitterRenderers_GT;

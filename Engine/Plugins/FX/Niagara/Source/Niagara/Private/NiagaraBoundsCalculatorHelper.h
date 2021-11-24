@@ -51,8 +51,8 @@ public:
 
 		constexpr float kDefaultSize = 50.0f;
 
-		FVector3f BoundsMin(ForceInitToZero);
-		FVector3f BoundsMax(ForceInitToZero);
+		FNiagaraPosition BoundsMin(ForceInitToZero);
+		FNiagaraPosition BoundsMax(ForceInitToZero);
 		PositionAccessor.GetReader(DataSet).GetMinMax(BoundsMin, BoundsMax);
 		FBox Bounds(BoundsMin, BoundsMax);
 
@@ -111,7 +111,7 @@ public:
 		return Bounds.ExpandBy(MaxSize);
 	}
 
-	FNiagaraDataSetAccessor<FVector3f> PositionAccessor;
+	FNiagaraDataSetAccessor<FNiagaraPosition> PositionAccessor;
 	FNiagaraDataSetAccessor<FVector2f> SpriteSizeAccessor;
 	FNiagaraDataSetAccessor<FVector3f> ScaleAccessor;
 	FNiagaraDataSetAccessor<float> RibbonWidthAccessor;

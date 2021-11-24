@@ -68,6 +68,7 @@ struct FNiagaraGPUSortInfo
 	int32 MeshIndex = 0;
 	FSphere LocalBSphere = FSphere(0);
 	FVector CullingWorldSpaceOffset = FVector(0, 0, 0);
+	FVector3f SystemLWCTile = FVector3f(0, 0, 0);
 	FVector2D DistanceCullRange { 0.0f, FLT_MAX };
 	TArray<FPlane, TFixedAllocator<MaxCullPlanes>> CullPlanes;
 

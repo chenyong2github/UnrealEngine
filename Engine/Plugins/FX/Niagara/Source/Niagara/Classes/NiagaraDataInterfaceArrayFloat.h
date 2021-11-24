@@ -108,6 +108,15 @@ struct FNDIArrayImplHelper<FVector3d> : public FNDIArrayImplHelper<FVector3f>
 };
 
 template<>
+struct FNDIArrayImplHelper<FNiagaraPosition> : public FNDIArrayImplHelper<FVector3f>
+{
+	typedef FNiagaraPosition TVMArrayType;
+
+	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetPositionDef(); }
+	static const FNiagaraPosition GetDefaultValue() { return FVector3f::ZeroVector; }
+};
+
+template<>
 struct FNDIArrayImplHelper<FVector4f> : public FNDIArrayImplHelperBase<FVector4f>
 {
 	typedef FVector4f TVMArrayType;
@@ -238,6 +247,17 @@ public:
 	TArray<FVector> FloatData;		// LWC_TODO: Should be FVector3f, but only FVector is blueprint accessible
 
 	TArray<FVector>& GetArrayReference() { return FloatData; }
+};
+
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Position Array", Experimental), Blueprintable, BlueprintType)
+class NIAGARA_API UNiagaraDataInterfaceArrayPosition : public UNiagaraDataInterfaceArray
+{
+	GENERATED_UCLASS_BODY()
+public:
+	UPROPERTY(VisibleAnywhere, Category = "Array")
+	TArray<FNiagaraPosition> PositionData;
+
+	TArray<FNiagaraPosition>& GetArrayReference() { return PositionData; }
 };
 
 UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "Vector 4 Array", Experimental), Blueprintable, BlueprintType)

@@ -72,6 +72,23 @@ private:
 	int32 Value = FNiagaraBool::False;
 };
 
+USTRUCT(meta = (DisplayName = "Position"))
+struct FNiagaraPosition : public FVector3f
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNiagaraPosition() {}
+	
+	explicit FORCEINLINE FNiagaraPosition(EForceInit Init) : Super(Init) {}
+
+	FORCEINLINE FNiagaraPosition(const float& X, const float& Y, const float& Z) : Super(X, Y, Z) {}
+
+	FORCEINLINE FNiagaraPosition(const FVector3f& Other) : Super(Other) {}
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+	FORCEINLINE FNiagaraPosition(const FVector& Other) : Super(Other) {}
+#endif
+};
+
 USTRUCT(meta = (DisplayName = "Half", NiagaraInternalType = "true"))
 struct FNiagaraHalf
 {
@@ -183,6 +200,20 @@ struct FNiagaraAssetVersion
 	bool operator!=(const FNiagaraAssetVersion& Other) const { return !(*this == Other); }
 	bool operator<(const FNiagaraAssetVersion& Other) const { return MajorVersion < Other.MajorVersion || (MajorVersion == Other.MajorVersion && MinorVersion < Other.MinorVersion); }
 	bool operator<=(const FNiagaraAssetVersion& Other) const { return *this < Other || *this == Other; }
+};
+
+struct NIAGARA_API FNiagaraLWCConverter
+{
+	FNiagaraLWCConverter(FVector InSystemWorldPos = FVector::ZeroVector);
+
+	FVector3f ConvertWorldToSimulationVector(FVector WorldPosition) const;
+	FNiagaraPosition ConvertWorldToSimulationPosition(FVector WorldPosition) const;
+	
+	FVector ConvertSimulationPositionToWorld(FNiagaraPosition SimulationPosition) const;
+	FVector ConvertSimulationVectorToWorld(FVector3f SimulationPosition) const;
+
+private:
+	FVector SystemWorldPos;
 };
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraAssetVersion& Version)
@@ -831,7 +862,7 @@ public:
 	bool IsFloatPrimitive() const
 	{
 		return ClassStructOrEnum == FNiagaraTypeDefinition::GetFloatStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetVec2Struct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetVec3Struct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetVec4Struct() ||
-			ClassStructOrEnum == FNiagaraTypeDefinition::GetMatrix4Struct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetColorStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetQuatStruct();
+			ClassStructOrEnum == FNiagaraTypeDefinition::GetMatrix4Struct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetColorStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetQuatStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetPositionStruct();
  	}
 
 	bool IsIndexType() const
@@ -888,6 +919,7 @@ public:
 	static const FNiagaraTypeDefinition& GetVec3Def() { return Vec3Def; }
 	static const FNiagaraTypeDefinition& GetVec4Def() { return Vec4Def; }
 	static const FNiagaraTypeDefinition& GetColorDef() { return ColorDef; }
+	static const FNiagaraTypeDefinition& GetPositionDef() { return PositionDef; }
 	static const FNiagaraTypeDefinition& GetQuatDef() { return QuatDef; }
 	static const FNiagaraTypeDefinition& GetMatrix4Def() { return Matrix4Def; }
 	static const FNiagaraTypeDefinition& GetGenericNumericDef() { return NumericDef; }
@@ -915,6 +947,7 @@ public:
 	static UScriptStruct* GetVec3Struct() { return Vec3Struct; }
 	static UScriptStruct* GetVec4Struct() { return Vec4Struct; }
 	static UScriptStruct* GetColorStruct() { return ColorStruct; }
+	static UScriptStruct* GetPositionStruct() { return PositionStruct; }
 	static UScriptStruct* GetQuatStruct() { return QuatStruct; }
 	static UScriptStruct* GetMatrix4Struct() { return Matrix4Struct; }
 	static UScriptStruct* GetGenericNumericStruct() { return NumericStruct; }
@@ -972,6 +1005,7 @@ private:
 	static FNiagaraTypeDefinition Vec3Def;
 	static FNiagaraTypeDefinition Vec4Def;
 	static FNiagaraTypeDefinition ColorDef;
+	static FNiagaraTypeDefinition PositionDef;
 	static FNiagaraTypeDefinition QuatDef;
 	static FNiagaraTypeDefinition Matrix4Def;
 	static FNiagaraTypeDefinition NumericDef;
@@ -1001,6 +1035,7 @@ private:
 	static UScriptStruct* Matrix4Struct;
 	static UScriptStruct* NumericStruct;
 	static UScriptStruct* WildcardStruct;
+	static UScriptStruct* PositionStruct;
 
 	static UScriptStruct* HalfStruct;
 	static UScriptStruct* HalfVec2Struct;
@@ -1059,6 +1094,7 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 	if (TIsSame<T, float>::Value) { return FNiagaraTypeDefinition::GetFloatDef(); }
 	if (TIsSame<T, FVector2f>::Value) { return FNiagaraTypeDefinition::GetVec2Def(); }
 	if (TIsSame<T, FVector3f>::Value) { return FNiagaraTypeDefinition::GetVec3Def(); }	
+	if (TIsSame<T, FNiagaraPosition>::Value) { return FNiagaraTypeDefinition::GetPositionDef(); }	
 	if (TIsSame<T, FVector4f>::Value) { return FNiagaraTypeDefinition::GetVec4Def(); }
 	if (TIsSame<T, int32>::Value) { return FNiagaraTypeDefinition::GetIntDef(); }
 	if (TIsSame<T, FNiagaraBool>::Value) { return FNiagaraTypeDefinition::GetBoolDef(); }
@@ -1371,7 +1407,7 @@ struct FNiagaraVariableBase
 		, TypeDef_DEPRECATED(InType)
 #endif
 		{}
-	
+
 	/** Check if Name and Type definition are the same. The actual stored value is not checked here.*/
 	bool operator==(const FNiagaraVariableBase& Other)const
 	{
@@ -1729,7 +1765,7 @@ struct alignas(16) FNiagaraGlobalParameters
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
-// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
+// You must pad this struct and the results of GetVariables() to a 16 byte boundary.
 struct alignas(16) FNiagaraSystemParameters
 {
 #if WITH_EDITOR
@@ -1753,7 +1789,7 @@ struct alignas(16) FNiagaraSystemParameters
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
-// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
+// You must pad this struct and the results of GetVariables() to a 16 byte boundary.
 struct alignas(16) FNiagaraOwnerParameters
 {
 #if WITH_EDITOR
@@ -1773,11 +1809,12 @@ struct alignas(16) FNiagaraOwnerParameters
 	FVector4f EngineYAxis = FVector4f(0.0f, 1.0f, 0.0f, 0.0f);
 	FVector4f EngineZAxis = FVector4f(0.0f, 0.0f, 1.0f, 0.0f);
 	FVector4f EngineScale = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
+	FVector4f EngineLWCTile = FVector4f(EForceInit::ForceInitToZero);
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
 // properly rebuild the scripts
-// You must pad this struct and the results of GetVariables() to a 16 byte boundry.
+// You must pad this struct and the results of GetVariables() to a 16 byte boundary.
 struct alignas(16) FNiagaraEmitterParameters
 {
 #if WITH_EDITOR

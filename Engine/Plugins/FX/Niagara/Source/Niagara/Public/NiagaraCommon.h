@@ -524,6 +524,13 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	#endif
 	}
 
+	void SetFunctionVersion(uint32 Version)
+	{
+	#if WITH_EDITORONLY_DATA
+		FunctionVersion = Version;
+	#endif
+	}
+
 	void SetDescription(const FText& Desc)
 	{
 	#if WITH_EDITORONLY_DATA

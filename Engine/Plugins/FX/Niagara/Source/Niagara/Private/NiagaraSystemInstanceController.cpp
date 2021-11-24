@@ -71,6 +71,7 @@ void FNiagaraSystemInstanceController::PostTickRenderers(FNiagaraSystemRenderDat
 		if (bNeedsOverrideParametersTicked)
 		{
 			bNeedsOverrideParametersTicked = false;
+			OverrideParameters->ResolvePositions(SystemInst->GetLWCConverter());
 			OverrideParameters->Tick();
 		}
 		if (bNeedsUpdateEmitterMaterials)
@@ -371,6 +372,16 @@ void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector
 		OverrideParameters->SetParameterValue(InValue, VariableDesc, true);
 	}
 }
+
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector InValue)
+{
+	if (OverrideParameters)
+	{
+		OverrideParameters->SetPositionParameterValue(InValue, InVariableName, true);
+	}
+}
+#endif
 
 void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, FVector4f InValue)
 {

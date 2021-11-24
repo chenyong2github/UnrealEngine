@@ -72,6 +72,12 @@ static FNiagaraVariant GetParameterValueFromAsset(const FNiagaraVariableBase& Pa
 		}
 	}
 
+	if (Parameter.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+	{
+		const FVector* Value = UserParameterStore.GetPositionParameterValue(Parameter.GetName());
+		return Value == nullptr ? FNiagaraVariant() : FNiagaraVariant(Value, sizeof(FVector));
+	}
+
 	const uint8* ParameterData = UserParameterStore.GetParameterData(Parameter);
 	if (ParameterData == nullptr)
 	{
@@ -389,7 +395,15 @@ public:
 			}
 			else
 			{
-				TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Parameter.GetType().GetStruct(), ParameterProxy->Value().GetBytes()));
+				FNiagaraTypeDefinition Type = Parameter.GetType();
+				UStruct* Struct = Type.GetStruct();
+				if (Type == FNiagaraTypeDefinition::GetPositionDef())
+				{
+					static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
+					static UScriptStruct* VectorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
+					Struct = VectorStruct;
+				}
+				TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Struct, ParameterProxy->Value().GetBytes()));
 
 				FAddPropertyParams Params = FAddPropertyParams()
 					.UniqueId(Parameter.GetName());
@@ -488,7 +502,14 @@ private:
 					if (DisplayStructPtr != nullptr && DisplayStructPtr->IsValid())
 					{
 						TSharedPtr<FStructOnScope> DisplayStruct = DisplayStructPtr->Pin();
-						FMemory::Memcpy(DisplayStruct->GetStructMemory(), OverrideParameters.GetParameterData(UserParameter), UserParameter.GetSizeInBytes());
+						if (UserParameter.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+						{
+							FMemory::Memcpy(DisplayStruct->GetStructMemory(), OverrideParameters.GetPositionParameterValue(UserParameter.GetName()), UserParameter.GetSizeInBytes());
+						}
+						else
+						{
+							FMemory::Memcpy(DisplayStruct->GetStructMemory(), OverrideParameters.GetParameterData(UserParameter), UserParameter.GetSizeInBytes());
+						}
 					}
 				}
 			}

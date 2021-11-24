@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraUserRedirectionParameterStore.h"
-#include "NiagaraStats.h"
-#include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
 
 FNiagaraUserRedirectionParameterStore::FNiagaraUserRedirectionParameterStore() : FNiagaraParameterStore()
@@ -110,7 +108,6 @@ void FNiagaraUserRedirectionParameterStore::SanityCheckData(bool bInitInterfaces
 			UE_LOG(LogNiagara, Warning, TEXT("User parameter redirect exists but no real value! Param: %s Owner:%s"), *Var.GetName().ToString(), GetOwner() != nullptr ? *GetOwner()->GetPathName() : TEXT("Unknown owner"));
 		}
 	}
-
 }
 
 bool FNiagaraUserRedirectionParameterStore::RemoveParameter(const FNiagaraVariableBase& InVar)
@@ -142,6 +139,20 @@ void FNiagaraUserRedirectionParameterStore::Reset(bool bClearBindings /*= true*/
 	Super::Reset(bClearBindings);
 	UserParameterRedirects.Reset();
 }
+
+#if WITH_EDITORONLY_DATA
+void FNiagaraUserRedirectionParameterStore::ConvertParameterType(const FNiagaraVariable& ExistingParam,	const FNiagaraTypeDefinition& NewType)
+{
+	FNiagaraParameterStore::ConvertParameterType(ExistingParam, NewType);
+
+	FNiagaraVariable OldVar = GetUserRedirection(ExistingParam);
+	FNiagaraVariable OldRedirect = ExistingParam;
+	if (UserParameterRedirects.RemoveAndCopyValue(OldVar, OldRedirect))
+	{
+		UserParameterRedirects.Add(FNiagaraVariable(NewType, OldVar.GetName()), FNiagaraVariable(NewType, OldRedirect.GetName()));
+	}
+}
+#endif
 
 bool FNiagaraUserRedirectionParameterStore::SerializeFromMismatchedTag(const FPropertyTag & Tag, FStructuredArchive::FSlot Slot)
 {

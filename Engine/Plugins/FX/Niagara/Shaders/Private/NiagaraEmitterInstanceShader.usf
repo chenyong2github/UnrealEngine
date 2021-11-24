@@ -93,10 +93,12 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	float Modulo(float x, float y){ return fmod(x,y); }
 
 	// utility function used for scene depth calculations
-	float3 WorldPositionFromSceneDepth(float2 ScreenPosition, float SceneDepth)
+	FLWCVector3 WorldPositionFromSceneDepth(float2 ScreenPosition, float SceneDepth)
 	{
-		float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), LWCHackToFloat(PrimaryView.ScreenToWorld));
-		return HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+		FLWCVector4 HomogeneousWorldPosition = LWCMultiply(float4(ScreenPosition * SceneDepth, SceneDepth, 1), PrimaryView.ScreenToWorld);
+		FLWCVector3 WorldPosition = MakeLWCVector3(HomogeneousWorldPosition.Tile.xyz, HomogeneousWorldPosition.Offset.xyz);
+		FLWCScalar Scale = MakeLWCScalar(HomogeneousWorldPosition.Tile.w, HomogeneousWorldPosition.Offset.w);
+		return LWCDivide(WorldPosition, LWCToFloat(Scale));
 	}
 
 	// MASSIVE HACK - Tracked in JIRA UE-69298

@@ -4,7 +4,6 @@
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraParameterStore.h"
 #include "NiagaraDataInterfaceExport.generated.h"
 
 USTRUCT(BlueprintType, Blueprintable)
@@ -35,7 +34,7 @@ class INiagaraParticleCallbackHandler
 public:
 	/** This function is called once per tick with the gathered particle data. It will not be called if there is no particle data to call it with. */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Niagara")
-	void ReceiveParticleData(const TArray<FBasicParticleData>& Data, UNiagaraSystem* NiagaraSystem);
+	void ReceiveParticleData(const TArray<FBasicParticleData>& Data, UNiagaraSystem* NiagaraSystem, const FVector& SimulationPositionOffset);
 };
 
 UENUM()

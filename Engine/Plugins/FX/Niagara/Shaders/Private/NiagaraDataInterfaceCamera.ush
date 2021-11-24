@@ -1,0 +1,69 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+struct FNDICameraContext
+{
+	float3 SystemLWCTile;
+};
+
+void DICamera_GetCameraProperties(in FNDICameraContext DIContext, out float3 Out_CameraPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector)
+{
+	FLWCVector3 CameraPos = PrimaryView.WorldCameraOrigin;
+	CameraPos.Tile -= DIContext.SystemLWCTile; // convert to simulation space
+	Out_CameraPositionWorld = LWCToFloat(CameraPos);
+	Out_ViewForwardVector = View.ViewForward;
+	Out_ViewUpVector = View.ViewUp;
+	Out_ViewRightVector = View.ViewRight;
+}
+
+void DICamera_GetViewProperties(in FNDICameraContext DIContext, out float3 Out_ViewPositionWorld, out float3 Out_ViewForwardVector, out float3 Out_ViewUpVector, out float3 Out_ViewRightVector, out float4 Out_ViewSizeAndInverseSize,
+	out float4 Out_ScreenToViewSpace, out float2 Out_Current_TAAJitter, out float2 Out_Previous_TAAJitter, out float3 Out_PreViewTranslation, out float4 Out_BufferSizeAndInverseSize, out float2 Out_ViewportOffset)
+{
+	FLWCVector3 ViewPos = PrimaryView.WorldViewOrigin;
+	ViewPos.Tile -= DIContext.SystemLWCTile; // convert to simulation space
+	Out_ViewPositionWorld.xyz = LWCToFloat(ViewPos);
+	Out_ViewForwardVector = View.ViewForward;
+	Out_ViewUpVector = View.ViewUp;
+	Out_ViewRightVector = View.ViewRight;
+	Out_ViewSizeAndInverseSize = View.ViewSizeAndInvSize;
+	Out_ScreenToViewSpace = View.ScreenToViewSpace;
+	Out_Current_TAAJitter = View.TemporalAAJitter.xy;
+	Out_Previous_TAAJitter = View.TemporalAAJitter.zw;
+	Out_PreViewTranslation = LWCHackToFloat(PrimaryView.PreViewTranslation);
+	Out_BufferSizeAndInverseSize = View.BufferSizeAndInvSize;
+	Out_ViewportOffset = View.ViewRectMin.xy;
+}
+
+void DICamera_GetClipSpaceTransforms(in FNDICameraContext DIContext, out float4x4 Out_WorldToClipTransform, out float4x4 Out_TranslatedWorldToClipTransform, out float4x4 Out_ClipToWorldTransform, out float4x4 Out_ClipToViewTransform,
+	out float4x4 Out_ClipToTranslatedWorldTransform, out float4x4 Out_ScreenToWorldTransform, out float4x4 Out_ScreenToTranslatedWorldTransform, out float4x4 Out_ClipToPreviousClipTransform)
+{
+	Out_WorldToClipTransform = LWCHackToFloat(PrimaryView.WorldToClip);
+	Out_TranslatedWorldToClipTransform = View.TranslatedWorldToClip;
+	Out_ClipToWorldTransform = LWCHackToFloat(PrimaryView.ClipToWorld);
+	Out_ClipToViewTransform = View.ClipToView;
+	Out_ClipToTranslatedWorldTransform = View.ClipToTranslatedWorld;
+	Out_ScreenToWorldTransform = LWCHackToFloat(PrimaryView.ScreenToWorld);
+	Out_ScreenToTranslatedWorldTransform = View.ScreenToTranslatedWorld;
+	Out_ClipToPreviousClipTransform = View.ClipToPrevClip;
+}
+
+void DICamera_GetViewSpaceTransforms(in FNDICameraContext DIContext, out float4x4 Out_TranslatedWorldToViewTransform, out float4x4 Out_ViewToTranslatedWorldTransform, out float4x4 Out_TranslatedWorldToCameraViewTransform,
+	out float4x4 Out_CameraViewToTranslatedWorldTransform, out float4x4 Out_ViewToClipTransform, out float4x4 Out_ViewToClipNoAATransform)
+{
+	Out_TranslatedWorldToViewTransform = View.TranslatedWorldToView;
+	Out_ViewToTranslatedWorldTransform = View.ViewToTranslatedWorld;
+	Out_TranslatedWorldToCameraViewTransform = View.TranslatedWorldToCameraView;
+	Out_CameraViewToTranslatedWorldTransform = View.CameraViewToTranslatedWorld;
+	Out_ViewToClipTransform = View.ViewToClip;
+	Out_ViewToClipNoAATransform = View.ViewToClipNoAA;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define NDICAMERA_DECLARE_CONSTANTS(NAME) \
+	float3				SystemLWCTile_ ## NAME;
+
+#define NDICAMERA_MAKE_CONTEXT(NAME) \
+	FNDICameraContext DIContext; \
+	DIContext.SystemLWCTile = SystemLWCTile_ ## NAME;

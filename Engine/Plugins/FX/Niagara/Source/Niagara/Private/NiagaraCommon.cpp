@@ -161,6 +161,11 @@ UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStru
 		return FNiagaraTypeDefinition::GetQuatStruct();
 	}
 
+	if (InStruct->GetFName() == FName("NiagaraPosition"))
+	{
+		return FNiagaraTypeDefinition::GetPositionStruct();
+	}
+
 	return InStruct;
 }
 
@@ -843,21 +848,27 @@ void FNiagaraVariableAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 			DataSetVariable = FNiagaraUtilities::ResolveAliases(DataSetVariable, ResolveAliasesContext);
 		}
 
+		FNiagaraTypeDefinition BoundVarType = ParamMapVariable.GetType();
 		if (BindingSourceMode == ENiagaraBindingSource::ExplicitParticles || (InSourceMode == ENiagaraRendererSourceDataMode::Particles && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
 		{
-			bBindingExistsOnSource = InEmitter->CanObtainParticleAttribute(DataSetVariable);
+			bBindingExistsOnSource = InEmitter->CanObtainParticleAttribute(DataSetVariable, BoundVarType);
 		}
 		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter || (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
 		{
-			bBindingExistsOnSource = InEmitter->CanObtainEmitterAttribute(ParamMapVariable);
+			bBindingExistsOnSource = InEmitter->CanObtainEmitterAttribute(ParamMapVariable, BoundVarType);
 		}
 		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitSystem)
 		{
-			bBindingExistsOnSource = InEmitter->CanObtainSystemAttribute(ParamMapVariable);
+			bBindingExistsOnSource = InEmitter->CanObtainSystemAttribute(ParamMapVariable, BoundVarType);
 		}
 		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitUser)
 		{
 			bBindingExistsOnSource = InEmitter->CanObtainUserVariable(ParamMapVariable);
+		}
+
+		if (bBindingExistsOnSource && BoundVarType != ParamMapVariable.GetType())
+		{
+			ParamMapVariable.SetType(BoundVarType);
 		}
 	}
 

@@ -419,6 +419,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Vector3)"))
 	void SetVariableVec3(FName InVariableName, FVector InValue);
 
+	/** Sets a Niagara Position parameter by name, overriding locally if necessary.*/
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Position)"))
+	void SetNiagaraVariablePosition(const FString& InVariableName, FVector InValue);
+
+	/** Sets a Niagara Position parameter by name, overriding locally if necessary.*/
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Position)"))
+	void SetVariablePosition(FName InVariableName, FVector InValue);
+
 	/** Sets a Niagara Vector3 parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Vector2)"))
 	void SetNiagaraVariableVec2(const FString& InVariableName, FVector2D InValue);
@@ -795,6 +803,8 @@ public:
 #endif
 
 	FORCEINLINE const FMatrix& GetLocalToWorldInverse() const { return LocalToWorldInverse; }
+
+	const FVector3f& GetLWCRenderTile() const { return RenderData ? RenderData->LWCRenderTile : FVector3f::ZeroVector; }
 
 	FRHIUniformBuffer* GetCustomUniformBuffer(bool bHasVelocity, const FBox& PreSkinnedBounds = FBox(ForceInitToZero)) const;
 

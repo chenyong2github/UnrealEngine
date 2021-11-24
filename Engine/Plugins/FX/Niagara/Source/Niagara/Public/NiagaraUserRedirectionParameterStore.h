@@ -53,11 +53,16 @@ public:
 			return FNiagaraParameterStore::FindParameterOffset(Redirection ? *Redirection : Parameter);
 		}
 	}
+	
 	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr) override;
 	virtual bool RemoveParameter(const FNiagaraVariableBase& InVar) override;
 	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty) override;
 	virtual void Empty(bool bClearBindings = true) override;
 	virtual void Reset(bool bClearBindings = true) override;
+
+#if WITH_EDITORONLY_DATA
+	virtual void ConvertParameterType(const FNiagaraVariable& ExistingParam, const FNiagaraTypeDefinition& NewType) override;
+#endif
 
 	virtual void SanityCheckData(bool bInitInterfaces = true) override;
 	// ~ End FNiagaraParameterStore overrides
@@ -68,7 +73,6 @@ public:
 	/** Turn the input NiagaraVariable into the User namespaced version if needed, independent of whether or not it is in a redirection table.*/
 	NIAGARA_API static void MakeUserVariable(FNiagaraVariableBase& InVar);
 	static bool IsUserParameter(const FNiagaraVariableBase& InVar);
-
 private:
 
 	/** Map from the variables with shortened display names to the original variables with the full namespace */
