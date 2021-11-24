@@ -18,8 +18,12 @@ static const int32 EGBufferFormat_HighPrecisionNormals = 3;
 static const int32 EGBufferFormat_Force16BitsPerChannel = 5;
 
 
-
-
+// Strata::IsEnabled is only accessible in the Renderer module
+static bool IsStrataEnabled()
+{
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata"));
+	return CVar->GetInt() > 0;
+}
 
 static bool IsGBufferPackingEqual(const FGBufferPacking& Lhs, const FGBufferPacking& Rhs)
 {
@@ -232,6 +236,60 @@ FGBufferInfo RENDERCORE_API FetchLegacyGBufferInfo(const FGBufferParams& Params)
 	int32 TargetGBufferE = -1;
 	int32 TargetGBufferF = -1;
 	int32 TargetVelocity = -1;
+
+	// Strata ouputs material data through UAV. Only SceneColor, PrecalcShadow & Velocity data are still emitted through RenderTargets
+	const bool bStrata = IsStrataEnabled();
+	if (bStrata)
+	{
+		TargetGBufferA = -1;
+		TargetGBufferB = -1;
+		TargetGBufferC = -1;
+
+		Info.NumTargets = 1;
+		if (Params.bHasPrecShadowFactor)
+		{
+			TargetGBufferE = Info.NumTargets++;
+
+		}
+		if (Params.bHasVelocity)
+		{
+			TargetVelocity = Info.NumTargets++;
+		}
+
+		// this value isn't correct, becuase it doesn't resepect the scene color format cvar, but it's ignored anyways
+		// so it's ok for now
+		Info.Targets[TargetLighting].Init(GBT_Unorm_11_11_10, TEXT("Lighting"), false, true, true, true);
+		Info.Slots[GBS_SceneColor] = FGBufferItem(GBS_SceneColor, GBC_Raw_Float_11_11_10, GBCH_Both);
+		Info.Slots[GBS_SceneColor].Packing[0] = FGBufferPacking(TargetLighting, 0, 0);
+		Info.Slots[GBS_SceneColor].Packing[1] = FGBufferPacking(TargetLighting, 1, 1);
+		Info.Slots[GBS_SceneColor].Packing[2] = FGBufferPacking(TargetLighting, 2, 2);
+
+		if (Params.bHasVelocity)
+		{
+			Info.Targets[TargetVelocity].Init(Params.bUsesVelocityDepth ? GBT_Float_16_16_16_16 : GBT_Float_16_16, TEXT("Velocity"), false, true, true, false); // Velocity
+			Info.Slots[GBS_Velocity] = FGBufferItem(GBS_Velocity, Params.bUsesVelocityDepth ? GBC_Raw_Float_16_16_16_16 : GBC_Raw_Float_16_16, GBCH_Both);
+			Info.Slots[GBS_Velocity].Packing[0] = FGBufferPacking(TargetVelocity, 0, 0);
+			Info.Slots[GBS_Velocity].Packing[1] = FGBufferPacking(TargetVelocity, 1, 1);
+
+			if (Params.bUsesVelocityDepth)
+			{
+				Info.Slots[GBS_Velocity].Packing[2] = FGBufferPacking(TargetVelocity, 2, 2);
+				Info.Slots[GBS_Velocity].Packing[3] = FGBufferPacking(TargetVelocity, 3, 3);
+			}
+		}
+
+		if (Params.bHasPrecShadowFactor)
+		{
+			Info.Targets[TargetGBufferE].Init(GBT_Unorm_8_8_8_8, TEXT("GBufferE"), false, true, true, false); // Precalc
+			Info.Slots[GBS_PrecomputedShadowFactor] = FGBufferItem(GBS_PrecomputedShadowFactor, GBC_Raw_Unorm_8_8_8_8, GBCH_Both);
+			Info.Slots[GBS_PrecomputedShadowFactor].Packing[0] = FGBufferPacking(TargetGBufferE, 0, 0);
+			Info.Slots[GBS_PrecomputedShadowFactor].Packing[1] = FGBufferPacking(TargetGBufferE, 1, 1);
+			Info.Slots[GBS_PrecomputedShadowFactor].Packing[2] = FGBufferPacking(TargetGBufferE, 2, 2);
+			Info.Slots[GBS_PrecomputedShadowFactor].Packing[3] = FGBufferPacking(TargetGBufferE, 3, 3);
+		}
+
+		return Info;
+	}
 
 	if (Params.bHasVelocity == 0 && Params.bHasTangent == 0)
 	{
