@@ -8,6 +8,7 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/PackageName.h"
 #include "PackageHelperFunctions.h"
 #include "DerivedDataCacheInterface.h"
@@ -226,6 +227,7 @@ void UDerivedDataCacheCommandlet::CacheLoadedPackages(UPackage* CurrentPackage, 
 
 				ObjectsWithOuter.Reset();
 				GetObjectsWithOuter(NewPackage, ObjectsWithOuter, true /* bIncludeNestedObjects */, RF_ClassDefaultObject /* ExclusionFlags */);
+				UE_TRACK_REFERENCING_PACKAGE_SCOPED(NewPackage, PackageAccessTrackingOps::NAME_CookerBuildObject);
 				for (UObject* Object : ObjectsWithOuter)
 				{
 					for (auto Platform : Platforms)
@@ -271,11 +273,14 @@ bool UDerivedDataCacheCommandlet::ProcessCachingObjects(const TArray<ITargetPlat
 					bIsFinished = false;
 				}
 
-				for (auto Platform : Platforms)
 				{
-					// IsCachedCookedPlatformDataLoaded can be quite slow for some objects
-					// Do not call it if bIsFinished is already false
-					bIsFinished = bIsFinished && Object->IsCachedCookedPlatformDataLoaded(Platform);
+					UE_TRACK_REFERENCING_PACKAGE_SCOPED(Object->GetPackage(), PackageAccessTrackingOps::NAME_CookerBuildObject);
+					for (auto Platform : Platforms)
+					{
+						// IsCachedCookedPlatformDataLoaded can be quite slow for some objects
+						// Do not call it if bIsFinished is already false
+						bIsFinished = bIsFinished && Object->IsCachedCookedPlatformDataLoaded(Platform);
+					}
 				}
 
 				if (bIsFinished)

@@ -16,6 +16,7 @@
 #include "HAL/PlatformTime.h"
 #include "Misc/CommandLine.h"
 #include "Misc/CoreMiscDefines.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/PackageName.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
@@ -1362,7 +1363,13 @@ namespace UE::Cook
 		}
 
 		UObject* LocalObject = Object.Get();
-		if (!LocalObject || LocalObject->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+		if (!LocalObject)
+		{
+			Release();
+			return true;
+		}
+		UE_TRACK_REFERENCING_PACKAGE_SCOPED(LocalObject->GetPackage(), PackageAccessTrackingOps::NAME_CookerBuildObject);
+		if (LocalObject->IsCachedCookedPlatformDataLoaded(TargetPlatform))
 		{
 			Release();
 			return true;
