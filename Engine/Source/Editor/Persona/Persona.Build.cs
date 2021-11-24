@@ -76,6 +76,7 @@ public class Persona : ModuleRules
 				"TimeManagement",
                 "Sequencer",
 				"StatusBar",
+				"ToolWidgets",
 			}
         );
 
