@@ -26,6 +26,8 @@ class MODELINGCOMPONENTS_API UBaseCreateFromSelectedToolBuilder : public UMultiS
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+
 public:
 	virtual TOptional<int32> MaxComponentsSupported() const { return TOptional<int32>(); }
 	virtual int32 MinComponentsSupported() const { return 1; }
