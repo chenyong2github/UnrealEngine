@@ -307,6 +307,7 @@ uint   PackColorLinearToGamma2AlphaLinear(float4 rgba);
 float4 UnpackColorGamma2ToLinearAlphaLinear(uint rgba);
 uint   StrataPackNormal(in float3 Normal);
 float3 StrataUnpackNormal(uint PackedNormal);
+bool IsStrataSlabFastPathCompatible(in FStrataBSDF BSDF);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Classification 
@@ -1728,7 +1729,10 @@ void PackStrataOut(
 	FStrataData Strata,
 	float3 V,
 	inout bool bStrataSubsurfaceEnable,
-	inout float3 EmissiveColor)
+	inout float3 EmissiveColor,
+	inout FStrataClassification ClassificationData,
+	inout FStrataSubsurfaceData SSSData,
+	inout FStrataTopLayerData TopLayerData)
 {
 	bStrataSubsurfaceEnable = false;
 	EmissiveColor = 0.0f;
@@ -1736,6 +1740,14 @@ void PackStrataOut(
 	const float OpaqueBSDFThroughput = 0.0f;
 	const float FullThroughput = 1.0f;
 	const float FullyRough = 1.0f;
+
+	// While packing Strata layer data, Classification/SSS/TopLayer data are extracted & stored for dedicated passes
+	// This avoid to run a post-basepass which would re-read all the material data
+	ClassificationData = (FStrataClassification)0;
+	SSSData = (FStrataSubsurfaceData)0;
+	TopLayerData = (FStrataTopLayerData)0;
+
+	SetIsSimpleMaterial(ClassificationData, true); // non strata material or sky pixels are considered as simple (so that (strata simple pixels) + (non-strata pixels) can build a simple tile).
 
 	uint BSDFCount = 0;
 	uint BSDFVisibleCount = 0;
@@ -1767,11 +1779,11 @@ void PackStrataOut(
 
 			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
 
-#if STRATA_INLINE_SHADING
+		#if STRATA_INLINE_SHADING
 			const float BSDFCoverage = saturate(BSDF.Coverage);
-#else
+		#else
 			const float BSDFCoverage = 1.0f;
-#endif
+		#endif
 			BSDFCount++;
 
 			// STRATA_TODO apply the same normal transform as for the material
@@ -1782,6 +1794,12 @@ void PackStrataOut(
 			BxDFContext ContextNoLight = (BxDFContext)0;
 			const float3 FakeL = float3(0, 0, 1);
 			Init(ContextNoLight, N, V, FakeL);
+
+			if (bTopLayer)
+			{
+				// together with a threshold to avoid 0-length normal after normalization in case influence is fadeout using the Weight node.
+				TopLayerData.WorldNormal += N * max(1e-5, BSDFCoverage);
+			}
 
 			switch (BSDF_GETTYPE(BSDF))
 			{
@@ -1847,6 +1865,11 @@ void PackStrataOut(
 					BSDF_SETISTHIN(Strata.Layers[l].BSDFs[i], 0);
 				}
 
+				if (bTopLayer)
+				{
+					ClassificationData.TopLayerRoughness += BSDFCoverage * SLAB_ROUGHNESS(BSDF);
+				}
+
 				// STRATA_TODO	Should we have the Fuzz influence the next layter visibility accoding to fuzz amount? Should it also occlude diffuse?
 				//				If this is done, we should also update ComputePostProcessBSDFData.
 
@@ -1857,6 +1880,11 @@ void PackStrataOut(
 
 			case STRATA_BSDF_TYPE_HAIR:
 			{
+				if (bTopLayer)
+				{
+					ClassificationData.TopLayerRoughness += BSDFCoverage * FullyRough;
+				}
+
 				// Hair are considered opaque
 				LayerCoverage	+= BSDFCoverage;
 				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
@@ -1867,6 +1895,11 @@ void PackStrataOut(
 			{
 				EmissiveColor += BSDF_GETEMISSIVE(BSDF) * Throughput;
 
+				if (bTopLayer)
+				{
+					ClassificationData.TopLayerRoughness += BSDFCoverage * SLW_ROUGHNESS(BSDF);
+				}
+
 				// Water is considered opaque, it has a custom process to simulate translucency
 				LayerCoverage += BSDFCoverage;
 				LayerThroughput += BSDFCoverage * OpaqueBSDFThroughput;
@@ -1876,12 +1909,12 @@ void PackStrataOut(
 			} // switch
 
 
-#if STRATA_INLINE_SHADING
+		#if STRATA_INLINE_SHADING
 			// Update the BSDF final weight with throughput towards the view from layers above and coverage if it has not been baked into the parameters.
 			Strata.Layers[l].BSDFs[i].FinalWeight = Throughput * (Strata.Layers[l].BSDFs[i].bPremultipliedCoverage ? 1.0 : Strata.Layers[l].BSDFs[i].Coverage);
-#else
+		#else
 			Strata.Layers[l].BSDFs[i].FinalWeight = Throughput;
-#endif
+		#endif
 			
 			// Cull non visible BSDF
 			if (any(Strata.Layers[l].BSDFs[i].FinalWeight > 0))
@@ -1891,6 +1924,16 @@ void PackStrataOut(
 
 			// Notify that the BSDF is at the top for SSR to only affect reflection there and not on the lower layers
 			BSDF_SETISTOPLAYER(Strata.Layers[l].BSDFs[i], bTopLayer ? 1 : 0);
+		}
+
+		// Average the TopLayer data once we have read all the data
+		if (bTopLayer)
+		{
+			// Top layer roughness & normal have been weighted with BSDF Coverage only (since the accumulated throughput is 1.f for the top-layer)
+			const float BSDFWeightAvg = dot(LayerCoverage, 1.0f / 3.0f);
+
+			TopLayerData.WorldNormal = normalize(TopLayerData.WorldNormal);
+			ClassificationData.TopLayerRoughness = BSDFWeightAvg > 0.0f ? ClassificationData.TopLayerRoughness / BSDFWeightAvg : 0.0f;
 		}
 
 		// Take into account the non covered part for this layer and update throughput accordingly
@@ -1903,6 +1946,7 @@ void PackStrataOut(
 	// Now write out Strata data
 
 	// 1. the header
+	AndIsSimpleMaterial(ClassificationData, BSDFVisibleCount == 1);
 	STRATA_STORE_UINT1(PackStrataHeaderIn(BSDFVisibleCount, StrataPixelHeader));
 #if STRATA_INLINE_SHADING
 	UNROLL
@@ -1950,10 +1994,14 @@ void PackStrataOut(
 				}
 
 				const uint BSDFType = BSDF_GETTYPE(BSDF);
+				AddShadingModels(ClassificationData, StrataShadingModelBit(BSDFType));
+
 				switch (BSDF_GETTYPE(BSDF))
 				{
 				case STRATA_BSDF_TYPE_SLAB:
 				{
+					AndIsSimpleMaterial(ClassificationData, IsStrataSlabFastPathCompatible(BSDF));
+
 					// Now we pack diffuse and F0 in a special way: both encoded as R7G7B6 with gamma 2.0. The low bit cound will be hidden by dithering and TAA.
 					// We pack 32 bits in the first uint and the remaining bits are pack is the lowest significant bit of the second uint.
 					const uint PackedDiffuse20Bits	= PackR7G7B6Gamma2(SLAB_DIFFUSEALBEDO(BSDF));
@@ -1980,6 +2028,25 @@ void PackStrataOut(
 					const bool bIsThin = BSDF_GETISTHIN(BSDF);
 					if (BSDF_GETHASSSS(BSDF) || bIsSimpleVolume || bIsThin)
 					{
+						SetHasSubsurface(ClassificationData, !bIsThin && BSDF_GETHASSSS(BSDF));
+						SetHasSubsurfaceProfile(ClassificationData, !bIsThin && BSDF_GETHASSSSPROFILE(BSDF));
+
+						if (!bIsThin && BSDF_GETHASSSS(BSDF))
+						{
+							SSSData.BaseColor = SLAB_DIFFUSEALBEDO(BSDF);
+							SSSData.Specular  = F0ToDielectricSpecular(SLAB_F0(BSDF).x);
+
+							// Profile ID: we only keep the latest ID, and profile will overtake any non-profile based SSS
+							SSSData.bIsValid 			= true;
+							SSSData.bIsProfile 			= SSSData.bIsProfile || BSDF_GETHASSSSPROFILE(BSDF);
+							SSSData.ProfileId 			= StrataSubsurfaceProfileIdTo8bits(SLAB_SSSPROFILEID(BSDF));
+							SSSData.ProfileRadiusScale 	= SLAB_SSSPROFILERADIUSSCALE(BSDF);
+
+							// STRATA_TODO This should be accumulated according to the BSDF weight when we run this in the base pass.
+							// We cannot do that now because BSDFWeight contains weight*coverage*trhougput all mixed together.
+							SSSData.DMFP = SLAB_SSSDMFP(BSDF);
+						}
+
 						if (BSDF_GETHASSSSPROFILE(BSDF) && !bIsSimpleVolume)
 						{
 							// Simple volume overrides SSS profile because it takes over for when not at the bottom of the BSDF layer, or during forward rendering.
@@ -2002,6 +2069,7 @@ void PackStrataOut(
 				break;
 				case STRATA_BSDF_TYPE_HAIR:
 				{
+					AndIsSimpleMaterial(ClassificationData, false);
 					STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(HAIR_BASECOLOR(BSDF), HAIR_ROUGHNESS(BSDF))));
 					STRATA_STORE_UINT1(PackRGBA8(float4(HAIR_SCATTER(BSDF), HAIR_SPECULAR(BSDF), HAIR_BACKLIT(BSDF), HAIR_COMPLEXTRANSMITTANCE(BSDF))));
 					// 8 bytes
@@ -2009,6 +2077,7 @@ void PackStrataOut(
 				break;
 				case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 				{
+					AndIsSimpleMaterial(ClassificationData, false);
 					STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLW_BASECOLOR(BSDF), 0.0f)));
 					STRATA_STORE_UINT1(PackRGBA8(float4(SLW_METALLIC(BSDF), SLW_SPECULAR(BSDF), SLW_ROUGHNESS(BSDF), SLW_TOPMATERIALOPACITY(BSDF))));
 				}

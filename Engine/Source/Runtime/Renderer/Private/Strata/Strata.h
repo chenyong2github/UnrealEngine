@@ -19,6 +19,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWByteAddressBuffer, MaterialLobesBufferUAV)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, ClassificationTextureUAV)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, TopLayerNormalTextureUAV)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, SSSTextureUAV)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, )
@@ -59,6 +62,10 @@ struct FStrataSceneData
 	FRDGTextureRef ClassificationTexture;
 	FRDGTextureRef TopLayerNormalTexture;
 	FRDGTextureRef SSSTexture;
+
+	FRDGTextureUAVRef ClassificationTextureUAV;
+	FRDGTextureUAVRef TopLayerNormalTextureUAV;
+	FRDGTextureUAVRef SSSTextureUAV;
 
 	TRDGUniformBufferRef<FStrataGlobalUniformParameters> StrataGlobalUniformParameters{};
 
