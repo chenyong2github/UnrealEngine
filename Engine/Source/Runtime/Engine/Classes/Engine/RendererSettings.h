@@ -270,7 +270,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
 		EditCondition = "bVirtualTextures",
 		ConsoleVariable = "r.Mobile.VirtualTextures", DisplayName = "Enable virtual texture support on Mobile",
-		ToolTip = "Whether to support Virtual Textures on mobile. Requires general Virtual Texturing option enabled as well. Changing this setting requires restarting the editor.",
+		ToolTip = "Whether to support virtual textures on mobile. Requires general virtual texturing option enabled as well. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
 	uint32 bMobileVirtualTextures : 1;
 
@@ -351,8 +351,8 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
 		EditCondition = "bVirtualTextures",
-		ConsoleVariable = "r.VT.AnisotropicFiltering", DisplayName = "Enable VT anisotropic filtering",
-		ToolTip = "When enabled, VTs will use potentially use anisotropic filtering. This adds a cost to all shaders using VT. Changing this setting requires restarting the editor.",
+		ConsoleVariable = "r.VT.AnisotropicFiltering", DisplayName = "Enable virtual texture anisotropic filtering",
+		ToolTip = "When enabled, virtual textures will use anisotropic filtering. This adds a cost to all shaders using virtual textures. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
 	uint32 bVirtualTextureAnisotropicFiltering : 1;
 
@@ -375,20 +375,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable = "r.vt.FeedbackFactor", DisplayName = "Feedback resolution factor",
 		ToolTip = "Lower factor will increase virtual texture feedback resolution which increases CPU/GPU overhead, but may decrease streaming latency, especially if materials use many virtual textures."))
 	uint32 VirtualTextureFeedbackFactor;
-
-	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
-		EditCondition = "bVirtualTextures",
-		ConsoleVariable = "r.VT.EnableCompressZlib", DisplayName = "Enable Zlib compression",
-		ToolTip = "Use zlib to compress virtual textures. Changing this setting requires restarting the editor.",
-		ConfigRestartRequired = true))
-	uint32 bVirtualTextureEnableCompressZlib : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = VirtualTextures, meta = (
-		EditCondition = "bVirtualTextures",
-		ConsoleVariable = "r.VT.EnableCompressCrunch", DisplayName = "Enable Crunch compression",
-		ToolTip = "Use Crunch library to compress virtual textures for supported formats, this is a lossy compression format that gives much better ratio than zlib. Changing this setting requires restarting the editor.",
-		ConfigRestartRequired = true))
-	uint32 bVirtualTextureEnableCompressCrunch : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = WorkingColorSpace, meta = (
 		DisplayName = "Working Color Space",
