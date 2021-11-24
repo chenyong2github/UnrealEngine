@@ -27,7 +27,7 @@ const TCHAR* LexToString(EFriendInviteStatus);
 struct FFriend
 {
 	/** Id of the friend */
-	FAccountId UserId;
+	FOnlineAccountIdHandle UserId;
 	/** Friendship invite status - if an invite is pending */
 	TOptional<EFriendInviteStatus> InviteStatus;
 };
@@ -40,7 +40,7 @@ struct FQueryFriends
 	struct Params
 	{
 		/** Account Id of the local user making the request */
-		FAccountId LocalUserId;
+		FOnlineAccountIdHandle LocalUserId;
 	};
 
 	/**
@@ -60,7 +60,7 @@ struct FGetFriends
 	struct Params
 	{
 		/** Account Id of the local user making the request */
-		FAccountId LocalUserId;
+		FOnlineAccountIdHandle LocalUserId;
 	};
 
 	/** Output struct for Friends::GetFriends */
@@ -79,9 +79,9 @@ struct FAddFriend
 	struct Params
 	{
 		/** Account Id of the local user making the request */
-		FAccountId LocalUserId;
+		FOnlineAccountIdHandle LocalUserId;
 		/** Friend to add */
-		FAccountId FriendId;
+		FOnlineAccountIdHandle FriendId;
 	};
 
 	/** Output struct for Friends::AddFriend */
@@ -96,13 +96,13 @@ struct FAddFriend
 struct FFriendsListUpdated
 {
 	/** Local user who's friends list changed */
-	FAccountId LocalUserId;
+	FOnlineAccountIdHandle LocalUserId;
 	/** Account ids of friends that have been added */
-	TArrayView<const FAccountId> AddedFriends;
+	TArrayView<const FOnlineAccountIdHandle> AddedFriends;
 	/** Account ids of friends that have been removed */
-	TArrayView<const FAccountId> RemovedFriends;
+	TArrayView<const FOnlineAccountIdHandle> RemovedFriends;
 	/** Account ids of friends that have been updated */
-	TArrayView<const FAccountId> UpdatedFriends;
+	TArrayView<const FOnlineAccountIdHandle> UpdatedFriends;
 };
 
 class IFriends
