@@ -39,13 +39,19 @@ class ENGINE_API UAnimNotifyState : public UObject
 	/** Color of Notify in editor */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AnimNotify)
 	FColor NotifyColor;
-
+	
+	/** Whether this notify state instance should fire in animation editors */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=AnimNotify)
+	bool bShouldFireInEditor;
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	virtual void OnAnimNotifyCreatedInEditor(FAnimNotifyEvent& ContainingAnimNotifyEvent) {};
 	virtual bool CanBePlaced(UAnimSequenceBase* Animation) const { return true; }
 	virtual void ValidateAssociatedAssets() {}
+
+	/** Override this to prevent firing this notify state type in animation editors */
+	virtual bool ShouldFireInEditor() { return bShouldFireInEditor; }
 #endif
 
 	UE_DEPRECATED(5.0, "This function is deprecated. Use the other NotifyBegin instead.")
