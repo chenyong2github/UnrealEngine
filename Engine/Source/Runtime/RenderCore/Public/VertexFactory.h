@@ -649,6 +649,13 @@ public:
 		return PrimitiveIdStreamIndex[TranslatePrimitiveIdStreamIndex(InFeatureLevel, InputStreamType)];
 	}
 
+	/** 
+	 */
+	inline bool SupportsGPUScene(const FStaticFeatureLevel InFeatureLevel) const
+	{
+		return GetType()->SupportsPrimitiveIdStream() &&  GetPrimitiveIdStreamIndex(InFeatureLevel, EVertexInputStreamType::Default) != INDEX_NONE;
+	}
+
 protected:
 	void SetPrimitiveIdStreamIndex(const FStaticFeatureLevel InFeatureLevel, EVertexInputStreamType InputStreamType, int32 StreamIndex)
 	{
