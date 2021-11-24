@@ -313,6 +313,21 @@ private:
 };
 
 /////////////////////////////////////////////////////
+// FPoseWatchManagerSummoner
+class FPoseWatchManagerSummoner : public FWorkflowTabFactory
+{
+public:
+	FPoseWatchManagerSummoner(TSharedPtr<class FBlueprintEditor> InBlueprintEditor);
+
+	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
+	virtual FText GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const override;
+
+private:
+	TWeakPtr<class FBlueprintEditor> BlueprintEditor;
+};
+
+
+/////////////////////////////////////////////////////
 // FAdvancedPreviewSceneTabSummoner
 
 struct FAdvancedPreviewSceneTabSummoner : public FWorkflowTabFactory

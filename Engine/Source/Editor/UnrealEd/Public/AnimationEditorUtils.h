@@ -24,6 +24,8 @@ class UAnimSequence;
 class UEdGraph;
 class UPoseWatch;
 class UEdGraphNode;
+class UAnimBlueprintGeneratedClass;
+class UAnimGraphNode_Base;
 
 /** dialog to prompt users to decide an animation asset name */
 class SCreateAnimationAssetDlg : public SWindow
@@ -192,11 +194,14 @@ namespace AnimationEditorUtils
 	// Is the supplied UEdGraph an Animation Graph
 	UNREALED_API bool IsAnimGraph(UEdGraph* Graph);
 
+	int32 GetPoseWatchNodeLinkID(UPoseWatch* PoseWatch, OUT UAnimBlueprintGeneratedClass*& AnimBPGenClass);
 	UNREALED_API void SetPoseWatch(UPoseWatch* PoseWatch, UAnimBlueprint* AnimBlueprintIfKnown = nullptr);
 	UNREALED_API UPoseWatch* FindPoseWatchForNode(const UEdGraphNode* Node, UAnimBlueprint* AnimBlueprintIfKnown=nullptr);
 	UNREALED_API UPoseWatch* MakePoseWatchForNode(UAnimBlueprint* AnimBlueprint, UEdGraphNode* Node, FColor PoseWatchColour);
 	UNREALED_API void RemovePoseWatch(UPoseWatch* PoseWatch, UAnimBlueprint* AnimBlueprintIfKnown=nullptr);
+	UNREALED_API void RemovePoseWatchFromNode(UEdGraphNode* Node, UAnimBlueprint* AnimBlueprint);
 	UNREALED_API void UpdatePoseWatchColour(UPoseWatch* PoseWatch, FColor NewPoseWatchColour);
+	UNREALED_API void UpdatePoseWatchVisibility(UPoseWatch* PoseWatch);
 	UNREALED_API TArrayView<const FColor> GetPoseWatchColorPalette();
 
 	// Delegate fired when a pose watch is added or removed
