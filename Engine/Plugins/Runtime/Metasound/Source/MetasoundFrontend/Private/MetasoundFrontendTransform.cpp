@@ -393,6 +393,7 @@ namespace Metasound
 			{
 				UE_LOG(LogMetaSound, Display, TEXT("Asset '%s' interface '%s' updated: '%s' --> '%s'"),
 					*InDocument->GetMetadata().Version.ToString(),
+					*InterfaceVersion.Name.ToString(),
 					*InterfaceVersion.Number.ToString(),
 					*LastVersionUpdated->ToString());
 				return true;
