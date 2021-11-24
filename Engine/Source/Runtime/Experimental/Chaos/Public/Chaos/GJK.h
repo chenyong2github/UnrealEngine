@@ -201,8 +201,8 @@ namespace Chaos
 	 * @todo(chaos): convert GJKPenetration() to use this version (but see note above)
 	 *
 	*/
-	template <bool bFindSeparationDistance = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetrationWarmStartable(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA, const T InThicknessB, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormalA, TVec3<T>& OutNormalB, int32& OutVertexA, int32& OutVertexB, TGJKSimplexData<T>& InOutSimplexData, T& OutMaxSupportDelta, const T Epsilon = T(1.e-3))
+	template <typename T, typename TGeometryA, typename TGeometryB>
+	bool GJKPenetrationWarmStartable(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormalA, TVec3<T>& OutNormalB, int32& OutVertexA, int32& OutVertexB, TGJKSimplexData<T>& InOutSimplexData, T& OutMaxSupportDelta, const T Epsilon = T(1.e-3))
 	{
 		T SupportDeltaA = 0;
 		T SupportDeltaB = 0;
@@ -239,8 +239,8 @@ namespace Chaos
 		bool bIsDegenerate = false;				// True if GJK cannot make any more progress
 		bool bIsContact = false;				// True if shapes are within Epsilon or overlapping - GJK cannot provide a solution
 		int32 NumIterations = 0;
-		const T ThicknessA = InThicknessA + A.GetMargin();
-		const T ThicknessB = InThicknessB + B.GetMargin();
+		const T ThicknessA = A.GetMargin();
+		const T ThicknessB = B.GetMargin();
 		const T SeparatedDistance = ThicknessA + ThicknessB + Epsilon;
 		while (!bIsContact && !bIsDegenerate)
 		{
@@ -260,11 +260,6 @@ namespace Chaos
 			const T ConvergenceTolerance = 1.e-4f;
 			const T ConvergedDistance = (1.0f - ConvergenceTolerance) * Distance;
 			const T VW = TVec3<T>::DotProduct(V, W);
-			if (!bFindSeparationDistance && (VW > SeparatedDistance))
-			{
-				// We are separated and don't care about the separation distance
-				break;
-			}
 
 			InOutSimplexData.As[SimplexIDs.NumVerts] = SupportA;
 			InOutSimplexData.Bs[SimplexIDs.NumVerts] = SupportB;
@@ -370,10 +365,8 @@ namespace Chaos
 
 			OutMaxSupportDelta = MaxSupportDelta;
 
-			// If we don't care about separation distance/normal, the return value is true if we are overlapping, false otherwise.
-			// If we do care about seperation distance/normal, the return value is true if we found a solution.
 			// @todo(chaos): we should pass back failure for the degenerate case so we can decide how to handle it externally.
-			return (bFindSeparationDistance || (Penetration >= 0.0f));
+			return true;
 		}
 	}
 

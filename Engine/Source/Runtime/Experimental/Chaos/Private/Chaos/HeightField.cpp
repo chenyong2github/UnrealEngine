@@ -1349,6 +1349,9 @@ namespace Chaos
 				continue;
 			}
 
+			// @todo(chaos): we should not be creating constraints just for collecting contacts...
+			FPBDCollisionConstraint Constraint = FPBDCollisionConstraint::MakeTriangle(&QueryGeom);
+
 			// The triangle is solid so proceed to test it
 			FAABB3 CellBounds;
 			GeomData.GetPointsAndBoundsScaled(SingleIndex, Points, CellBounds);
@@ -1356,7 +1359,7 @@ namespace Chaos
 			{
 				// First Triangle
 				{
-					FPBDCollisionConstraint Constraint;
+					Constraint.ResetManifold();
 					OverlapTriangle(Points[0], Points[1], Points[3], Constraint);
 					for (FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
 					{
@@ -1366,7 +1369,7 @@ namespace Chaos
 				}
 				// Second Triangle
 				{
-					FPBDCollisionConstraint Constraint;
+					Constraint.ResetManifold();
 					OverlapTriangle(Points[0], Points[3], Points[2], Constraint);
 					for (FManifoldPoint& ManifoldPoint : Constraint.GetManifoldPoints())
 					{

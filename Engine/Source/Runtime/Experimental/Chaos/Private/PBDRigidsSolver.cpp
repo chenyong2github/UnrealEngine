@@ -43,6 +43,10 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("NumIslands"), STAT_ChaosCounter_NumIslands, STA
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumContacts"), STAT_ChaosCounter_NumContacts, STATGROUP_ChaosCounters);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumValidConstraints"), STAT_ChaosCounter_NumValidConstraints, STATGROUP_ChaosCounters);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveConstraints"), STAT_ChaosCounter_NumActiveConstraints, STATGROUP_ChaosCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumRestoredConstraints"), STAT_ChaosCounter_NumRestoredConstraints, STATGROUP_ChaosCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumManifoldPoints"), STAT_ChaosCounter_NumManifoldPoints, STATGROUP_ChaosCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumActiveManifoldPoints"), STAT_ChaosCounter_NumActiveManifoldPoints, STATGROUP_ChaosCounters);
+DECLARE_DWORD_COUNTER_STAT(TEXT("NumRestoredManifoldPoints"), STAT_ChaosCounter_NumRestoredManifoldPoints, STATGROUP_ChaosCounters);
 DECLARE_DWORD_COUNTER_STAT(TEXT("NumJoints"), STAT_ChaosCounter_NumJoints, STATGROUP_ChaosCounters);
 
 // Stat Iteration counters
@@ -1406,6 +1410,10 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 	{
 		int32 NumValidCollisions = 0;
 		int32 NumActiveCollisions = 0;
+		int32 NumRestoredCollisions = 0;
+		int32 NumManifoldPoints = 0;
+		int32 NumActiveManifoldPoints = 0;
+		int32 NumRestoredManifoldPoints = 0;
 		for (const FPBDCollisionConstraintHandle* Collision : GetEvolution()->GetCollisionConstraints().GetConstraints())
 		{
 			if (Collision->GetContact().IsEnabled())
@@ -1418,11 +1426,32 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 				{
 					++NumActiveCollisions;
 				}
+				if (Collision->GetContact().WasManifoldRestored())
+				{
+					++NumRestoredCollisions;
+				}
+				for (const FManifoldPoint& ManifoldPoint : Collision->GetContact().GetManifoldPoints())
+				{
+					++NumManifoldPoints;
+					if (ManifoldPoint.bWasRestored || Collision->GetContact().WasManifoldRestored())
+					{
+						++NumRestoredManifoldPoints;
+					}
+					if (!ManifoldPoint.NetPushOut.IsNearlyZero())
+					{
+						++NumActiveManifoldPoints;
+					}
+				}
+
 			}
 		}
 
 		CHAOS_COUNTER_STAT(NumValidConstraints, NumValidCollisions);
 		CHAOS_COUNTER_STAT(NumActiveConstraints, NumActiveCollisions);
+		CHAOS_COUNTER_STAT(NumRestoredConstraints, NumRestoredCollisions);
+		CHAOS_COUNTER_STAT(NumManifoldPoints, NumManifoldPoints);
+		CHAOS_COUNTER_STAT(NumActiveManifoldPoints, NumActiveManifoldPoints);
+		CHAOS_COUNTER_STAT(NumRestoredManifoldPoints, NumRestoredManifoldPoints);
 	}
 
 	void FPBDRigidsSolver::PostTickDebugDraw(FReal Dt) const

@@ -93,10 +93,17 @@ namespace Chaos
 		return TUniquePtr<FPBDCollisionConstraint>(Constraint);
 	}
 
+	FPBDCollisionConstraint FPBDCollisionConstraint::MakeTriangle(const FImplicitObject* Implicit0)
+	{
+		FPBDCollisionConstraint Constraint;
+		Constraint.InitMargins(Implicit0->GetCollisionType(), ImplicitObjectType::Triangle, Implicit0->GetMargin(), FReal(0));
+		return Constraint;
+	}
+
 	FPBDCollisionConstraint FPBDCollisionConstraint::MakeCopy(
 		const FPBDCollisionConstraint& Source)
 	{
-		// @todo(chaos): The resim cache version probably doesn't need all the data, so maybe try to cur this down?
+		// @todo(chaos): The resim cache version probably doesn't need all the data, so maybe try to cut this down?
 		FPBDCollisionConstraint Constraint = Source;
 
 		// Invalidate the data that maps the constraint to its container (we are no longer in the container)
@@ -115,11 +122,17 @@ namespace Chaos
 		, CCDType(ECollisionCCDType::Disabled)
 		, Stiffness(FReal(1))
 		, CullDistance(TNumericLimits<FReal>::Max())
+		, CollisionMargins{ 0, 0 }
+		, CollisionTolerance(0)
 		, bUseManifold(false)
 		, bUseIncrementalManifold(false)
 		, SolverBodies{ nullptr, nullptr }
 		, GJKWarmStartData()
-		, PrevManifoldPoints()
+		, ManifoldPointSavedData{}
+		, NumSavedManifoldPoints(0)
+		, LastShapeWorldTransform0()
+		, LastShapeWorldTransform1()
+		, ExpectedNumManifoldPoints(0)
 		, bWasManifoldRestored(false)
 		, NumActivePositionIterations(0)
 	{
@@ -145,11 +158,17 @@ namespace Chaos
 		, CCDType(ECollisionCCDType::Disabled)
 		, Stiffness(FReal(1))
 		, CullDistance(TNumericLimits<FReal>::Max())
+		, CollisionMargins{ 0, 0 }
+		, CollisionTolerance(0)
 		, bUseManifold(false)
 		, bUseIncrementalManifold(false)
 		, SolverBodies{ nullptr, nullptr }
 		, GJKWarmStartData()
-		, PrevManifoldPoints()
+		, ManifoldPointSavedData{}
+		, NumSavedManifoldPoints(0)
+		, LastShapeWorldTransform0()
+		, LastShapeWorldTransform1()
+		, ExpectedNumManifoldPoints(0)
 		, bWasManifoldRestored(false)
 	{
 		Manifold.Implicit[0] = Implicit0;
@@ -178,6 +197,51 @@ namespace Chaos
 
 		bUseManifold = bInUseManifold && CanUseManifold(Particle[0], Particle[1]);
 		bUseIncrementalManifold = true;	// This will get changed later if we call AddOneShotManifoldContact
+
+		const FReal Margin0 = GetImplicit0()->GetMargin();
+		const FReal Margin1 = GetImplicit1()->GetMargin();
+		const EImplicitObjectType ImplicitType0 = GetInnerType(GetImplicit0()->GetCollisionType());
+		const EImplicitObjectType ImplicitType1 = GetInnerType(GetImplicit1()->GetCollisionType());
+		InitMargins(ImplicitType0, ImplicitType1, Margin0, Margin1);
+	}
+
+	void FPBDCollisionConstraint::InitMargins(const EImplicitObjectType ImplicitType0, const EImplicitObjectType ImplicitType1, const FReal Margin0, const FReal Margin1)
+	{
+		// Set up the margins and tolerances to be used during the narrow phase.
+		// One shape in a collision will always have a margin. Only triangles have zero margin and we don't 
+		// collide two triangles. If we have a triangle, it is always the second shape.
+		// The collision tolerance is used for knowing whether a new contact matches an existing one.
+		// If we have two non-quadratic shapes, we use the smallest margin on both shapes.
+		// If we have a quadratic shape versus a non-quadratic, we don't need a margin on the non-quadratic.
+		// For non-quadratics the collision tolerance is the smallest non-zero margin. 
+		// For quadratic shapes we want a collision tolerance much smaller than the radius.
+		const bool bIsQuadratic0 = ((ImplicitType0 == ImplicitObjectType::Sphere) || (ImplicitType0 == ImplicitObjectType::Capsule));
+		const bool bIsQuadratic1 = ((ImplicitType1 == ImplicitObjectType::Sphere) || (ImplicitType1 == ImplicitObjectType::Capsule));
+		const FReal QuadraticToleranceScale = 0.05f;
+		if (!bIsQuadratic0 && !bIsQuadratic1)
+		{
+			CollisionMargins[0] = FMath::Min(Margin0, Margin1);
+			CollisionMargins[1] = CollisionMargins[0];
+			CollisionTolerance = ((Margin0 < Margin1) || (Margin1 == 0)) ? Margin0 : Margin1;
+		}
+		else if (bIsQuadratic0 && bIsQuadratic1)
+		{
+			CollisionMargins[0] = Margin0;
+			CollisionMargins[1] = Margin1;
+			CollisionTolerance = QuadraticToleranceScale * FMath::Min(Margin0, Margin1);
+		}
+		else if (bIsQuadratic0 && !bIsQuadratic1)
+		{
+			CollisionMargins[0] = Margin0;
+			CollisionMargins[1] = 0;
+			CollisionTolerance = QuadraticToleranceScale * Margin0;
+		}
+		else if (!bIsQuadratic0 && bIsQuadratic1)
+		{
+			CollisionMargins[0] = 0;
+			CollisionMargins[1] = Margin1;
+			CollisionTolerance = QuadraticToleranceScale * Margin1;
+		}
 	}
 
 	void FPBDCollisionConstraint::SetIsSleeping(const bool bInIsSleeping)
@@ -278,7 +342,6 @@ namespace Chaos
 		return BestMatchIndex;
 	}
 
-	// @todo(chaos): this exists primarily for the contact modification callbacks. See if we can eliminate it when not needed
 	void FPBDCollisionConstraint::UpdateManifoldContacts()
 	{
 		FVec3 P0, P1;
@@ -301,6 +364,8 @@ namespace Chaos
 			Q1 = FParticleUtilities::GetCoMWorldRotation(FConstGenericParticleHandle(Particle[1]));
 		}
 
+		Manifold.Reset();
+
 		for (int32 Index = 0; Index < ManifoldPoints.Num(); Index++)
 		{
 			FManifoldPoint& ManifoldPoint = ManifoldPoints[Index];
@@ -316,9 +381,14 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionConstraint::AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt)
+	void FPBDCollisionConstraint::AddOneshotManifoldContact(const FContactPoint& ContactPoint)
 	{
-		int32 ManifoldPointIndex = AddManifoldPoint(ContactPoint, Dt);
+		if (ManifoldPoints.Num() == MaxManifoldPoints)
+		{
+			return;
+		}
+
+		int32 ManifoldPointIndex = AddManifoldPoint(ContactPoint);
 
 		// Copy currently active point
 		if (ManifoldPoints[ManifoldPointIndex].ContactPoint.Phi < Manifold.Phi)
@@ -329,8 +399,13 @@ namespace Chaos
 		bUseIncrementalManifold = false;
 	}
 
-	void FPBDCollisionConstraint::AddIncrementalManifoldContact(const FContactPoint& ContactPoint, const FReal Dt)
+	void FPBDCollisionConstraint::AddIncrementalManifoldContact(const FContactPoint& ContactPoint)
 	{
+		if (ManifoldPoints.Num() == MaxManifoldPoints)
+		{
+			return;
+		}
+
 		if (bUseManifold)
 		{
 			// See if the manifold point already exists
@@ -338,12 +413,12 @@ namespace Chaos
 			if (ManifoldPointIndex >= 0)
 			{
 				// This contact point is already in the manifold - update the state
-				UpdateManifoldPoint(ManifoldPointIndex, ContactPoint, Dt);
+				UpdateManifoldPoint(ManifoldPointIndex, ContactPoint);
 			}
 			else
 			{
 				// This is a new manifold point - capture the state and generate initial properties
-				ManifoldPointIndex = AddManifoldPoint(ContactPoint, Dt);
+				ManifoldPointIndex = AddManifoldPoint(ContactPoint);
 			}
 
 			// Copy currently active point
@@ -364,7 +439,7 @@ namespace Chaos
 				ManifoldPoints[0].ContactPoint = ContactPoint;
 			}
 
-			InitManifoldPoint(0, Dt);
+			InitManifoldPoint(0);
 
 			SetActiveContactPoint(ManifoldPoints[0].ContactPoint);
 		}
@@ -377,10 +452,8 @@ namespace Chaos
 		ManifoldPoints.Reset();
 	}
 
-	void FPBDCollisionConstraint::InitManifoldPoint(const int32 ManifoldPointIndex, FReal Dt)
+	void FPBDCollisionConstraint::InitManifoldPoint(const int32 ManifoldPointIndex)
 	{
-		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
-
 		FConstGenericParticleHandle Particle0 = Particle[0];
 		FConstGenericParticleHandle Particle1 = Particle[1];
 		if (!Particle0.IsValid() || !Particle1.IsValid())
@@ -390,6 +463,10 @@ namespace Chaos
 			return;
 		}
 
+		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+		ManifoldPoint.InitialShapeContactPoints[0] = ManifoldPoint.ContactPoint.ShapeContactPoints[0];
+		ManifoldPoint.InitialShapeContactPoints[1] = ManifoldPoint.ContactPoint.ShapeContactPoints[1];
+
 		// Update the derived contact state (CoM relative data)
 		UpdateManifoldPointFromContact(ManifoldPointIndex);
 
@@ -397,16 +474,18 @@ namespace Chaos
 		TryRestoreFrictionData(ManifoldPointIndex);
 	}
 
-	int32 FPBDCollisionConstraint::AddManifoldPoint(const FContactPoint& ContactPoint, const FReal Dt)
+	int32 FPBDCollisionConstraint::AddManifoldPoint(const FContactPoint& ContactPoint)
 	{
+		check(ManifoldPoints.Num() < MaxManifoldPoints);
+
 		int32 ManifoldPointIndex = ManifoldPoints.Add(ContactPoint);
 
-		InitManifoldPoint(ManifoldPointIndex, Dt);
+		InitManifoldPoint(ManifoldPointIndex);
 
 		return ManifoldPointIndex;
 	}
 
-	void FPBDCollisionConstraint::UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint, const FReal Dt)
+	void FPBDCollisionConstraint::UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint)
 	{
 		// We really need to know that it's exactly the same contact and not just a close one to update it here
 		// otherwise the PrevLocalContactPoint1 we calculated is not longer for the correct point.
@@ -500,78 +579,391 @@ namespace Chaos
 
 	void FPBDCollisionConstraint::ResetManifold()
 	{
+		NumSavedManifoldPoints = 0;
+		ResetActiveManifoldContacts();
+	}
+
+	void FPBDCollisionConstraint::ResetActiveManifoldContacts()
+	{
 		ManifoldPoints.Reset();
-		PrevManifoldPoints.Reset();
 		Manifold.Reset();
+		ExpectedNumManifoldPoints = 0;
+		bWasManifoldRestored = false;
 	}
 
 	void FPBDCollisionConstraint::SaveManifold()
 	{
+		check(ManifoldPoints.Num() <= MaxManifoldPoints);
+
 		// Save off the previous data for use by static friction
-		// We do this by swapping the arrays and resetting to avoid allocations
-		Swap(ManifoldPoints, PrevManifoldPoints);
-		ManifoldPoints.Reset();
-		Manifold.Reset();
+		NumSavedManifoldPoints = 0;
+		const int32 NumManifoldPoints = ManifoldPoints.Num();
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints; ++ManifoldPointIndex)
+		{
+			// Only save points that actually produced a response and are holding static friction
+			const FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+			if (ManifoldPoint.bInsideStaticFrictionCone && !ManifoldPoint.NetPushOut.IsNearlyZero())
+			{
+				ManifoldPointSavedData[NumSavedManifoldPoints++].Save(ManifoldPoint);
+			}
+		}
 
 		bWasManifoldRestored = false;
 	}
 
 	void FPBDCollisionConstraint::RestoreManifold()
 	{
-		// We want to restore the manifold as-is and will skip the narrow phase, which means we just
-		// leave the manifold in place, but we still have some cleanup to do to account for slight movement of the bodies
-		Manifold.Phi = TNumericLimits<FReal>::Max();
-
+		// We want to restore the manifold as-is and will skip the narrow phase, which means we leave the manifold in place, 
+		// but we still have some cleanup to do to account for slight movement of the bodies. E.g., we need to update the 
+		// world-space state for the contact modifiers
 		UpdateManifoldContacts();
 
 		bWasManifoldRestored = true;
 	}
 
-	bool FPBDCollisionConstraint::TryRestoreFrictionData(const int32 ManifoldPointIndex)
+	void FPBDCollisionConstraint::UpdateLastShapeWorldTransforms(const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1)
 	{
-		// Find the previous manifold point that matches
-		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
-		
-		// Assume we have no matching point from the previous tick, but assume we can retain friction from now on
-		// Not supported for non-manifolds yet (hopefully we don't need to)
-		ManifoldPoint.bInsideStaticFrictionCone = bUseManifold;
-		ManifoldPoint.StaticFrictionMax = FReal(0);
+		LastShapeWorldTransform0 = ShapeWorldTransform0;
+		LastShapeWorldTransform1 = ShapeWorldTransform1;
+	}
 
-		if (bChaos_Manifold_EnableFrictionRestore)
+	bool FPBDCollisionConstraint::UpdateAndTryRestoreManifold(const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1)
+	{
+		check(ManifoldPoints.Num() <= MaxManifoldPoints);
+
+		// @todo(chaos): tune the multipliers
+		const FReal ContactPositionTolerance = FReal(0.8) * CollisionTolerance;
+		const FReal ShapePositionTolerance = (ManifoldPoints.Num() > 0) ? FReal(0.2) * CollisionTolerance : FReal(0.5) * CollisionTolerance;
+		const FReal ShapeRotationThreshold = (ManifoldPoints.Num() > 0) ? FReal(0.9999) : FReal(0.9998);
+		const FReal ContactPositionToleranceSq = FMath::Square(ContactPositionTolerance);
+
+		// Reset current closest point
+		Manifold.Reset();
+
+		// How many manifold points we expect. E.g., for Box-box this will be 4 or 1 depending on whether
+		// we have a face or edge contact. We don't reuse the manifold if we lose points after culling
+		// here and potentially adding the new narrow phase result (See TryAddManifoldContact).
+		ExpectedNumManifoldPoints = ManifoldPoints.Num();
+		bWasManifoldRestored = false;
+
+		const FRigidTransform3 Shape0ToShape1Transform = ShapeWorldTransform0.GetRelativeTransformNoScale(ShapeWorldTransform1);
+
+		// Update and prune manifold points.
+		TArray<int32, TInlineAllocator<4>> ManifoldPointsToRemove;
+		const int32 NumManifoldPoints = ManifoldPoints.Num();
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints; ++ManifoldPointIndex)
 		{
-			// ManifoldPoints and PrevManifoldPoints are usually in the same order, so this loop should normally terminate in first iteration
-			int32 PrevManifoldPointIndex = ManifoldPointIndex;
-			for (int32 PrevManifoldPointOffset = 0; PrevManifoldPointOffset < PrevManifoldPoints.Num(); ++PrevManifoldPointOffset, ++PrevManifoldPointIndex)
+			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+
+			// Calculate the world-space contact location and separation at the current shape transforms
+			// @todo(chaos): this should use the normal owner. Currently we assume body 1 is the owner
+			const FVec3 Contact0In1 = Shape0ToShape1Transform.TransformPositionNoScale(ManifoldPoint.InitialShapeContactPoints[0]);
+			const FVec3& Contact1In1 = ManifoldPoint.InitialShapeContactPoints[1];
+			const FVec3 ContactNormalIn1 = ShapeWorldTransform1.InverseTransformVectorNoScale(ManifoldPoint.ContactPoint.Normal);
+
+			const FVec3 ContactDeltaIn1 = Contact0In1 - Contact1In1;
+			const FReal ContactPhi = FVec3::DotProduct(ContactDeltaIn1, ContactNormalIn1);
+			const FVec3 ContactLateralDeltaIn1 = ContactDeltaIn1 - ContactPhi * ContactNormalIn1;
+			const FReal ContactLateralDistanceSq = ContactLateralDeltaIn1.SizeSquared();
+
+			// Either update the point or flag it for removal
+			if (ContactLateralDistanceSq < ContactPositionToleranceSq)
 			{
-				if (PrevManifoldPointIndex >= PrevManifoldPoints.Num())
+				// Recalculate the contact points at the new location
+				// @todo(chaos): we should reproject the contact on the plane owner
+				FConstGenericParticleHandle Particle1 = Particle[1];
+				const FVec3 ShapeContactPoint1 = Contact0In1 - ContactPhi * ContactNormalIn1;
+				const FVec3 ActorContactPoint = ImplicitTransform[1].TransformPositionNoScale(ShapeContactPoint1);
+				ManifoldPoint.ContactPoint.ShapeContactPoints[1] = ShapeContactPoint1;
+				ManifoldPoint.CoMContactPoints[1] = Particle1->RotationOfMass().Inverse() * (ActorContactPoint - Particle1->CenterOfMass());
+				ManifoldPoint.ContactPoint.Location = ShapeWorldTransform1.TransformPositionNoScale(FReal(0.5) * (ShapeContactPoint1 + Contact0In1));
+				ManifoldPoint.ContactPoint.Phi = ContactPhi;
+				ManifoldPoint.bWasRestored = true;
+				TryRestoreFrictionData(ManifoldPointIndex);
+				if (ContactPhi < Manifold.Phi)
 				{
-					PrevManifoldPointIndex = 0;
+					// Update closest point
+					SetActiveContactPoint(ManifoldPoint.ContactPoint);
 				}
+			}
+			else
+			{
+				ManifoldPointsToRemove.Add(ManifoldPointIndex);
+			}
+		}
 
-				const FManifoldPoint& PrevManifoldPoint = PrevManifoldPoints[PrevManifoldPointIndex];
-				if (PrevManifoldPoint.bInsideStaticFrictionCone)
+		if ((ManifoldPointsToRemove.Num() == 0) && (ShapePositionTolerance > 0) && (ShapeRotationThreshold > 0))
+		{
+			// If we did not remove any contact points and we have not moved or rotated much we can reuse the manifold as-is.
+			// The transform check is necessary regardless of how many points we have left in the manifold because
+			// as a body moves/rotates we may have to change which faces/edges are colliding. We can't know if the face/edge
+			// will change until we run the closest-point checks (GJK) in the narrow phase.
+			const FVec3 Shape1ToShape0Translation = ShapeWorldTransform0.GetTranslation() - ShapeWorldTransform1.GetTranslation();
+			const FVec3 OriginalShape1ToShape0Translation = LastShapeWorldTransform0.GetTranslation() - LastShapeWorldTransform1.GetTranslation();
+			const FVec3 TranslationDelta = Shape1ToShape0Translation - OriginalShape1ToShape0Translation;
+			if (TranslationDelta.IsNearlyZero(ShapePositionTolerance))
+			{
+				const FRotation3 Shape1toShape0Rotation = ShapeWorldTransform0.GetRotation().Inverse() * ShapeWorldTransform1.GetRotation();
+				const FRotation3 OriginalShape1toShape0Rotation = LastShapeWorldTransform0.GetRotation().Inverse() * LastShapeWorldTransform1.GetRotation();
+				const FReal RotationOverlap = FRotation3::DotProduct(Shape1toShape0Rotation, OriginalShape1toShape0Rotation);
+				if (RotationOverlap > ShapeRotationThreshold)
 				{
-					const FVec3 DP0 = ManifoldPoint.CoMContactPoints[0] - PrevManifoldPoint.CoMContactPoints[0];
-					const FVec3 DP1 = ManifoldPoint.CoMContactPoints[1] - PrevManifoldPoint.CoMContactPoints[1];
-
-					// If the contact point is in the same spot on one of the bodies, assume it is the same contact
-					// @todo(chaos): more robust same-point test. E.g., this won't work for very small or very large objects,
-					// so at least make the tolerance size-dependent
-					const FReal DistanceToleranceSq = FMath::Square(Chaos_Manifold_FrictionPositionTolerance);
-					if ((DP0.SizeSquared() < DistanceToleranceSq) || (DP1.SizeSquared() < DistanceToleranceSq))
-					{
-						// If we have a previous point, use it to set the previous-state data required for 
-						// static friction otherwise reset static friction limits
-						ManifoldPoint.CoMContactPoints[0] = PrevManifoldPoint.CoMContactPoints[0];
-						ManifoldPoint.CoMContactPoints[1] = PrevManifoldPoint.CoMContactPoints[1];
-						ManifoldPoint.StaticFrictionMax = PrevManifoldPoint.StaticFrictionMax;
-						return true;
-					}
+					return true;
 				}
 			}
 		}
 
+		// We removed some points - process in reverse order for simpler index handling and faster removal of multiple elements
+		for (int32 RemoveArrayIndex = ManifoldPointsToRemove.Num() - 1; RemoveArrayIndex >= 0; --RemoveArrayIndex)
+		{
+			ManifoldPoints.RemoveAt(ManifoldPointsToRemove[RemoveArrayIndex]);
+		}
+
 		return false;
+	}
+
+	bool FPBDCollisionConstraint::TryAddManifoldContact(const FContactPoint& NewContactPoint, const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1)
+	{
+		check(ManifoldPoints.Num() <= MaxManifoldPoints);
+
+		const FReal PositionTolerance = FReal(1.0) * CollisionTolerance;
+		const FReal NormalThreshold = FReal(0.7);
+
+		// We must end up with a full manifold after this if we want to reuse it
+		if ((ManifoldPoints.Num() < ExpectedNumManifoldPoints - 1) || (ExpectedNumManifoldPoints == 0))
+		{
+			// We need to add more than 1 point to restore the manifold so we must rebuild it from scratch
+			return false;
+		}
+
+		// Find the matching manifold point if it exists and replace it
+		// Also check to see if the normal has changed significantly, and if it has, force mnanifold regeneration
+		// NOTE: the normal rejection check assumes all contacts have the same normal - this may not always be true. The worst
+		// case here is that we will regenerate the manifold too often so it will work but could be bad for perf
+		const FReal PositionToleranceSq = FMath::Square(PositionTolerance);
+		int32 MatchedManifoldPointIndex = INDEX_NONE;
+		const int32 NumManifoldPoints = ManifoldPoints.Num();
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints; ++ManifoldPointIndex)
+		{
+			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+
+			const FReal NormalOverlap = FVec3::DotProduct(ManifoldPoint.ContactPoint.Normal, NewContactPoint.Normal);
+			if (NormalOverlap < NormalThreshold)
+			{
+				return false;
+			}
+
+			const FVec3 DR0 = ManifoldPoint.ContactPoint.ShapeContactPoints[0] - NewContactPoint.ShapeContactPoints[0];
+			const FVec3 DR1 = ManifoldPoint.ContactPoint.ShapeContactPoints[1] - NewContactPoint.ShapeContactPoints[1];
+			if ((DR0.SizeSquared() < PositionToleranceSq) && (DR1.SizeSquared() < PositionToleranceSq))
+			{
+				// If we should replace a point but will then have too few points we abort
+				if (ManifoldPoints.Num() < ExpectedNumManifoldPoints)
+				{
+					return false;
+				}
+
+				// If the existing point has a deeper penetration, just re-use it. This is common when we have a GJK
+				// result on an edge or corner - the contact created when generating the manifold is on the
+				// surface shape rather than the rounded (margin-reduced) shape.
+				if (ManifoldPoint.ContactPoint.Phi > NewContactPoint.Phi)
+				{
+					ManifoldPoint.ContactPoint = NewContactPoint;
+					ManifoldPoint.InitialShapeContactPoints[0] = NewContactPoint.ShapeContactPoints[0];
+					ManifoldPoint.InitialShapeContactPoints[1] = NewContactPoint.ShapeContactPoints[1];
+					ManifoldPoint.bWasRestored = false;
+					UpdateManifoldPointFromContact(ManifoldPointIndex);
+					TryRestoreFrictionData(ManifoldPointIndex);
+					if (NewContactPoint.Phi < GetPhi())
+					{
+						SetActiveContactPoint(ManifoldPoint.ContactPoint);
+					}
+				}
+
+				return true;
+			}
+		}
+
+		// If we have a full manifold, see if we can use or reject the GJK point
+		if (ManifoldPoints.Num() == 4)
+		{
+			return TryInsertManifoldContact(NewContactPoint, ShapeWorldTransform0, ShapeWorldTransform1);
+		}
+		
+		return false;
+	}
+
+	bool FPBDCollisionConstraint::TryInsertManifoldContact(const FContactPoint& NewContactPoint, const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1)
+	{
+		check(ManifoldPoints.Num() == 4);
+
+		const int32 NormalBodyIndex = 1;
+		constexpr int32 NumContactPoints = 5;
+		constexpr int32 NumManifoldPoints = 4;
+
+		// We want to select 4 points from the 5 we have
+		// Create a working set of points, and keep track which points have been selected
+		FVec3 ContactPoints[NumContactPoints];
+		FReal ContactPhis[NumContactPoints];
+		bool bContactSelected[NumContactPoints];
+		int32 SelectedContactIndices[NumManifoldPoints];
+		for (int32 ContactIndex = 0; ContactIndex < NumManifoldPoints; ++ContactIndex)
+		{
+			const FManifoldPoint& ManifoldPoint = ManifoldPoints[ContactIndex];
+			ContactPoints[ContactIndex] = ManifoldPoint.ContactPoint.ShapeContactPoints[NormalBodyIndex];
+			ContactPhis[ContactIndex] = ManifoldPoint.ContactPoint.Phi;
+			bContactSelected[ContactIndex] = false;
+		}
+		ContactPoints[4] = NewContactPoint.ShapeContactPoints[NormalBodyIndex];
+		ContactPhis[4] = NewContactPoint.Phi;
+		bContactSelected[4] = false;
+
+		// We are projecting points into a plane perpendicular to the contact normal, which we assume is the new point's normal
+		const FVec3 ContactNormal = NewContactPoint.ShapeContactNormal;
+
+		// Start with the deepest point. This may not be point 4 despite that being the result of
+		// collision detection because for some shape types we use margin-reduced core shapes which
+		// are effectively rounded at the corners. But...when building a one-shot manifold we 
+		// use the outer shape to get sharp corners. So, if we have a GJK result from a "corner"
+		// the real corner (if it is in the manifold) may actually be deeper than the GJK result.
+		SelectedContactIndices[0] = 0;
+		for (int32 ContactIndex = 1; ContactIndex < NumContactPoints; ++ContactIndex)
+		{
+			if (ContactPhis[ContactIndex] < ContactPhis[SelectedContactIndices[0]])
+			{
+				SelectedContactIndices[0] = ContactIndex;
+			}
+		}
+		bContactSelected[SelectedContactIndices[0]] = true;
+
+		// The second point will be the one farthest from the first
+		SelectedContactIndices[1] = INDEX_NONE;
+		FReal MaxDistanceSq = TNumericLimits<FReal>::Lowest();
+		for (int32 ContactIndex = 0; ContactIndex < NumContactPoints; ++ContactIndex)
+		{
+			if (!bContactSelected[ContactIndex])
+			{
+				const FReal DistanceSq = (ContactPoints[ContactIndex] - ContactPoints[SelectedContactIndices[0]]).SizeSquared();
+				if (DistanceSq > MaxDistanceSq)
+				{
+					SelectedContactIndices[1] = ContactIndex;
+					MaxDistanceSq = DistanceSq;
+				}
+			}
+		}
+		check(SelectedContactIndices[1] != INDEX_NONE);
+		bContactSelected[SelectedContactIndices[1]] = true;
+
+		// The third point is the one which gives us the largest triangle (projected onto a plane perpendicular to the normal)
+		SelectedContactIndices[2] = INDEX_NONE;
+		FReal MaxTriangleArea = 0;
+		FReal WindingOrder = FReal(1.0);
+		for (int32 ContactIndex = 0; ContactIndex < NumContactPoints; ++ContactIndex)
+		{
+			if (!bContactSelected[ContactIndex])
+			{
+				const FVec3 Cross = FVec3::CrossProduct(ContactPoints[SelectedContactIndices[1]] - ContactPoints[SelectedContactIndices[0]], ContactPoints[ContactIndex] - ContactPoints[SelectedContactIndices[1]]);
+				const FReal SignedArea = FVec3::DotProduct(Cross, ContactNormal);
+				if (FMath::Abs(SignedArea) > MaxTriangleArea)
+				{
+					SelectedContactIndices[2] = ContactIndex;
+					MaxTriangleArea = FMath::Abs(SignedArea);
+					WindingOrder = FMath::Sign(SignedArea);
+				}
+			}
+		}
+		if (SelectedContactIndices[2] == INDEX_NONE)
+		{
+			// Degenerate points - all 4 exactly in a line
+			return false;
+		}
+		bContactSelected[SelectedContactIndices[2]] = true;
+
+		// The fourth point is the one which adds the most area to the 3 points we already have
+		SelectedContactIndices[3] = INDEX_NONE;
+		FReal MaxQuadArea = 0;	// Additional area to MaxTriangleArea
+		for (int32 ContactIndex = 0; ContactIndex < NumContactPoints; ++ContactIndex)
+		{
+			if (!bContactSelected[ContactIndex])
+			{
+				// Calculate the area that is added by inserting the point into each edge of the selected triangle
+				// The signed area will be negative for interior points, positive for points that extend the triangle into a quad.
+				const FVec3 Cross0 = FVec3::CrossProduct(ContactPoints[ContactIndex] - ContactPoints[SelectedContactIndices[0]], ContactPoints[SelectedContactIndices[1]] - ContactPoints[ContactIndex]);
+				const FReal SignedArea0 = WindingOrder * FVec3::DotProduct(Cross0, ContactNormal);
+				const FVec3 Cross1 = FVec3::CrossProduct(ContactPoints[ContactIndex] - ContactPoints[SelectedContactIndices[1]], ContactPoints[SelectedContactIndices[2]] - ContactPoints[ContactIndex]);
+				const FReal SignedArea1 = WindingOrder * FVec3::DotProduct(Cross1, ContactNormal);
+				const FVec3 Cross2 = FVec3::CrossProduct(ContactPoints[ContactIndex] - ContactPoints[SelectedContactIndices[2]], ContactPoints[SelectedContactIndices[0]] - ContactPoints[ContactIndex]);
+				const FReal SignedArea2 = WindingOrder * FVec3::DotProduct(Cross2, ContactNormal);
+				const FReal SignedArea = FMath::Max3(SignedArea0, SignedArea1, SignedArea2);
+				if (SignedArea > MaxQuadArea)
+				{
+					SelectedContactIndices[3] = ContactIndex;
+					MaxQuadArea = SignedArea;
+				}
+			}
+		}
+		if (SelectedContactIndices[3] == INDEX_NONE)
+		{
+			// No point is outside the triangle we already have
+			return false;
+		}
+		bContactSelected[SelectedContactIndices[3]] = true;
+
+		// Now we should have exactly 4 selected contacts. If we find that one of the existing points is not
+		// selected, it must be because it is being replaced by the new contact. Otherwise the new contact
+		// is interior to the existing manifiold and is rejected.
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints; ++ManifoldPointIndex)
+		{
+			if (!bContactSelected[ManifoldPointIndex])
+			{
+				ManifoldPoints[ManifoldPointIndex].ContactPoint = NewContactPoint;
+				ManifoldPoints[ManifoldPointIndex].InitialShapeContactPoints[0] = NewContactPoint.ShapeContactPoints[0];
+				ManifoldPoints[ManifoldPointIndex].InitialShapeContactPoints[1] = NewContactPoint.ShapeContactPoints[1];
+				ManifoldPoints[ManifoldPointIndex].bWasRestored = false;
+				UpdateManifoldPointFromContact(ManifoldPointIndex);
+				if (NewContactPoint.Phi < Manifold.Phi)
+				{
+					SetActiveContactPoint(NewContactPoint);
+				}
+			}
+		}
+
+		return true;
+	}
+
+	const FManifoldPointSavedData* FPBDCollisionConstraint::FindManifoldPointSavedData(const FManifoldPoint& ManifoldPoint) const
+	{
+		if (bChaos_Manifold_EnableFrictionRestore)
+		{
+			const FReal DistanceToleranceSq = FMath::Square(Chaos_Manifold_FrictionPositionTolerance);
+			for (int32 PrevManifoldPointIndex = 0; PrevManifoldPointIndex < NumSavedManifoldPoints; ++PrevManifoldPointIndex)
+			{
+				const FManifoldPointSavedData& PrevManifoldPoint = ManifoldPointSavedData[PrevManifoldPointIndex];
+				if (PrevManifoldPoint.bInsideStaticFrictionCone && PrevManifoldPoint.IsMatch(ManifoldPoint, DistanceToleranceSq))
+				{
+					return &PrevManifoldPoint;
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	void FPBDCollisionConstraint::TryRestoreFrictionData(const int32 ManifoldPointIndex)
+	{
+		FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+
+		// Assume we have no matching point from the previous tick, but that we can retain friction from now on
+		// Not supported for non-manifolds yet (hopefully we don't need to)
+		ManifoldPoint.bInsideStaticFrictionCone = bUseManifold;
+		ManifoldPoint.StaticFrictionMax = FReal(0);
+
+		// Find the previous manifold point that matches if there is one
+		const FManifoldPointSavedData* PrevManifoldPoint = FindManifoldPointSavedData(ManifoldPoint);
+		if (PrevManifoldPoint != nullptr)
+		{
+			// We have data from the previous tick and static friction was enabled - restore the data
+			PrevManifoldPoint->Restore(ManifoldPoint);
+		}
 	}
 
 	ECollisionConstraintDirection FPBDCollisionConstraint::GetConstraintDirection(const FReal Dt) const

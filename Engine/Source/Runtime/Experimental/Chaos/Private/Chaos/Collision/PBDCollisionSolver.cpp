@@ -579,9 +579,6 @@ namespace Chaos
 		{
 			FSolverManifoldPoint& SolverManifoldPoint = State.ManifoldPoints[PointIndex];
 
-			//SolverManifoldPoint.UpdateContactPoint(Body0, Body1, State.Constraint->GetManifoldPoints()[PointIndex]);
-			//SolverManifoldPoint.UpdateContactMass(Body0, Body1);
-
 			FVec3 ContactDelta;
 			FReal ContactDeltaNormal;
 			SolverManifoldPoint.CalculateContactPositionError(Body0.SolverBody(), Body1.SolverBody(), MaxPushOut, ContactDelta, ContactDeltaNormal);

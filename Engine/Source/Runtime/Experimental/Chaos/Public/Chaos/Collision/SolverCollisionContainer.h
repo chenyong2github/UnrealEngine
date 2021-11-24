@@ -35,7 +35,7 @@ namespace Chaos
 		virtual void Reset(const int32 InMaxCollisions) override;
 
 		// Add a solver constraint for the specified constraint and gather the required solver data
-		FPBDCollisionSolver* AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer);
+		void AddConstraintSolver(FReal Dt, FPBDCollisionConstraint& Constraint, const int32 Particle0Level, const int32 Particle1Level, FSolverBodyContainer& SolverBodyContainer);
 
 		void SolveSwept(const FReal Dt);
 
