@@ -4,6 +4,9 @@
 #include "RigVMModel/RigVMVariableDescription.h"
 
 #if WITH_EDITOR
+
+#include "Engine/Blueprint.h"
+
 FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromBPVariableDescription(
 	const FBPVariableDescription& InVariableDescription)
 {
