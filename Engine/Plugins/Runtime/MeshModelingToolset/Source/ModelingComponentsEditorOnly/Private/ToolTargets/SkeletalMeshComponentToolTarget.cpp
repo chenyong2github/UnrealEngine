@@ -17,17 +17,22 @@ namespace USkeletalMeshComponentToolTargetLocals
 }
 
 
-int32 USkeletalMeshComponentToolTarget::GetNumMaterials() const
+//
+// USkeletalMeshComponentReadOnlyToolTarget
+//
+
+
+int32 USkeletalMeshComponentReadOnlyToolTarget::GetNumMaterials() const
 {
 	return ensure(IsValid()) ? Component->GetNumMaterials() : 0;
 }
 
-UMaterialInterface* USkeletalMeshComponentToolTarget::GetMaterial(int32 MaterialIndex) const
+UMaterialInterface* USkeletalMeshComponentReadOnlyToolTarget::GetMaterial(int32 MaterialIndex) const
 {
 	return ensure(IsValid()) ? Component->GetMaterial(MaterialIndex) : nullptr;
 }
 
-void USkeletalMeshComponentToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const
+void USkeletalMeshComponentReadOnlyToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const
 {
 	if (!ensure(IsValid())) return;
 
@@ -47,7 +52,7 @@ void USkeletalMeshComponentToolTarget::GetMaterialSet(FComponentMaterialSet& Mat
 	}
 }
 
-bool USkeletalMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset)
+bool USkeletalMeshComponentReadOnlyToolTarget::CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset)
 {
 	if (!ensure(IsValid())) return false;
 
@@ -67,7 +72,7 @@ bool USkeletalMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentM
 
 		// We wrote the below code to support a mismatch in the number of materials.
 		// However, it is not yet clear whether this might be desirable, and we don't
-		// want to inadvertantly hide bugs in the meantime. So, we keep this ensure here
+		// want to inadvertently hide bugs in the meantime. So, we keep this ensure here
 		// for now, and we can remove it if we decide that we want the ability.
 		ensure(NumMaterialsNeeded == NumMaterialsGiven);
 
@@ -83,7 +88,7 @@ bool USkeletalMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentM
 	return true;
 }
 
-const FMeshDescription* USkeletalMeshComponentToolTarget::GetMeshDescription()
+const FMeshDescription* USkeletalMeshComponentReadOnlyToolTarget::GetMeshDescription()
 {
 	if (!ensure(IsValid()))
 	{
@@ -99,6 +104,24 @@ const FMeshDescription* USkeletalMeshComponentToolTarget::GetMeshDescription()
 	
 	return CachedMeshDescription.Get();
 }
+
+
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> USkeletalMeshComponentReadOnlyToolTarget::GetDynamicMesh()
+{
+	return GetDynamicMeshViaMeshDescription(*this);
+}
+
+
+USkeletalMesh* USkeletalMeshComponentReadOnlyToolTarget::GetSkeletalMesh() const
+{
+	return IsValid() ? Cast<USkinnedMeshComponent>(Component)->SkeletalMesh : nullptr;
+}
+
+
+//
+// USkeletalMeshComponentToolTarget
+//
+
 
 void USkeletalMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Committer)
 {
@@ -122,23 +145,37 @@ void USkeletalMeshComponentToolTarget::CommitMeshDescription(const FCommitter& C
 	CachedMeshDescription.Reset();
 }
 
-TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> USkeletalMeshComponentToolTarget::GetDynamicMesh()
-{
-	return GetDynamicMeshViaMeshDescription(*this);
-}
 
 void USkeletalMeshComponentToolTarget::CommitDynamicMesh(const FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo)
 {
 	CommitDynamicMeshViaMeshDescription(*this, Mesh, CommitInfo);
 }
 
-USkeletalMesh* USkeletalMeshComponentToolTarget::GetSkeletalMesh() const
-{
-	return IsValid() ? Cast<USkinnedMeshComponent>(Component)->SkeletalMesh : nullptr;
-}
-
 
 // Factory
+
+bool USkeletalMeshComponentReadOnlyToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
+{
+	// We are using an exact cast here to prevent subclasses, which might not meet all
+	// requirements for functionality such as the deprecated DestructibleMeshComponent, from 
+	// being caught up as valid targets.
+	// If you want to make the tool target work with some subclass of USkeletalMeshComponent,
+	// just add another factory that allows that class specifically(but make sure that
+	// GetMeshDescription and such work properly)
+
+	return Cast<USkinnedMeshComponent>(SourceObject) && Cast<USkinnedMeshComponent>(SourceObject)->SkeletalMesh &&
+		ExactCast<USkeletalMesh>(Cast<USkinnedMeshComponent>(SourceObject)->SkeletalMesh) &&
+		Requirements.AreSatisfiedBy(USkeletalMeshComponentReadOnlyToolTarget::StaticClass());
+}
+
+UToolTarget* USkeletalMeshComponentReadOnlyToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
+{
+	USkeletalMeshComponentReadOnlyToolTarget* Target = NewObject<USkeletalMeshComponentReadOnlyToolTarget>();
+	Target->Component = Cast<USkinnedMeshComponent>(SourceObject);
+	check(Target->Component && Requirements.AreSatisfiedBy(Target));
+
+	return Target;
+}
 
 bool USkeletalMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
 {
