@@ -365,7 +365,6 @@ void InitToolbarIcons(TSharedRef< FSlateStyleSet > Style)
 	Style->Set("NiagaraEditor.LockToChanges.Small", new IMAGE_BRUSH("Icons/icon_levels_LockedReadOnly_40x", Icon20x20));
 	Style->Set("NiagaraEditor.SimulationOptions", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_simulationOptions_40x", Icon40x40));
 	Style->Set("NiagaraEditor.SimulationOptions.Small", new IMAGE_PLUGIN_BRUSH("Icons/Commands/icon_simulationOptions_40x", Icon20x20));
-	Style->Set("NiagaraEditor.DebugOptions", new IMAGE_CORE_BRUSH("Icons/icon_tab_DebugTools_16x", Icon20x20));
 
 	Style->Set("Niagara.Asset.ReimportAsset.Needed", new IMAGE_BRUSH("Icons/icon_Reimport_Needed_40x", Icon40x40));
 	Style->Set("Niagara.Asset.ReimportAsset.Default", new IMAGE_BRUSH("Icons/icon_Reimport_40x", Icon40x40));
@@ -626,7 +625,7 @@ void InitTabIcons(TSharedRef<FSlateStyleSet> Style)
 	Style->Set("Tab.Log", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Log", Icon16x16));
 	Style->Set("Tab.Debugger", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/NiagaraDebugger", Icon16x16));
 	Style->Set("Tab.Parameters", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Parameters", Icon16x16));
-	Style->Set("Tab.ScratchPad", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/ScratchPad", Icon16x16, FLinearColor::Yellow));
+	Style->Set("Tab.ScratchPad", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/ScratchPad", Icon16x16));
 	Style->Set("Tab.ScriptStats", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/ScriptStats", Icon16x16));
 	Style->Set("Tab.Settings", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Settings", Icon16x16));
 	Style->Set("Tab.Spreadsheet", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Tabs/Spreadsheet", Icon16x16));
