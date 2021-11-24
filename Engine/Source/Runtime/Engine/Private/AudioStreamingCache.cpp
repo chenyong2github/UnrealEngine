@@ -1806,6 +1806,7 @@ bool FAudioChunkCache::IsKeyValid(const FChunkKey& InKey)
 
 uint64 FAudioChunkCache::GetCacheLookupIDForChunk(const FChunkKey& InChunkKey) const
 {
+	FScopeLock Lock(&CacheMutationCriticalSection);
 	const uint64* ID = CacheLookupIdMap.Find(InChunkKey);
 
 	if (ID)
@@ -1820,8 +1821,8 @@ uint64 FAudioChunkCache::GetCacheLookupIDForChunk(const FChunkKey& InChunkKey) c
 
 void FAudioChunkCache::SetCacheLookupIDForChunk(const FChunkKey& InChunkKey, uint64 InCacheLookupID)
 {
-	uint64& ID = CacheLookupIdMap.FindOrAdd(InChunkKey);
-	ID = InCacheLookupID;
+	FScopeLock Lock(&CacheMutationCriticalSection);
+	CacheLookupIdMap.FindOrAdd(InChunkKey, InCacheLookupID);
 }
 
 
