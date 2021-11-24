@@ -242,6 +242,11 @@ void FInsightsStyle::FStyle::Initialize()
 
 	//////////////////////////////////////////////////
 
+	Set("MainFrame.OpenVisualStudio", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/VisualStudio", Icon16x16));
+	Set("MainFrame.OpenSourceCodeEditor", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/SourceCodeEditor", Icon16x16));
+
+	//////////////////////////////////////////////////
+
 	Set("Icons.ResetToDefault", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_ResetToDefault_32x", Icon16x16));
 	Set("Icons.DiffersFromDefault", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/ResetToDefault", Icon16x16));
 

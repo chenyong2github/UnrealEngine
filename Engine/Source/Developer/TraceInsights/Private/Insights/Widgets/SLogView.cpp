@@ -1165,11 +1165,7 @@ TSharedPtr<SWidget> SLogView::ListView_GetContextMenu()
 				NAME_None,
 				ItemLabel,
 				ItemToolTip,
-#if PLATFORM_WINDOWS
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.OpenVisualStudio")
-#else
-				FSlateIcon()
-#endif
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), SourceCodeAccessor.GetOpenIconName())
 			);
 		}
 	}

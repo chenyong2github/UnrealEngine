@@ -1238,11 +1238,7 @@ void SMemAllocTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 		(
 			ItemLabel,
 			ItemToolTip,
-#if PLATFORM_WINDOWS
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.OpenVisualStudio"),
-#else
-			FSlateIcon(),
-#endif
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), SourceCodeAccessor.GetOpenIconName()),
 			Action_OpenIDE,
 			NAME_None,
 			EUserInterfaceActionType::Button
