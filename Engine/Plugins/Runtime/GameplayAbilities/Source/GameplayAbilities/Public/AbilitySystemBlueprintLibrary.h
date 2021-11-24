@@ -18,6 +18,7 @@
 
 class UAbilitySystemComponent;
 class UGameplayEffect;
+class UGameplayEffectUIData;
 
 /** Blueprint library for ability system. Many of these functions are useful to call from native as well */
 UCLASS(meta=(ScriptName="AbilitySystemLibrary"))
@@ -384,4 +385,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemBlueprintLibrary : public UBlueprintFu
 	UFUNCTION(BlueprintPure, Category = "Ability|GameplayEffect", Meta = (DisplayName = "Get Active GameplayEffect Debug String "))
 	static FString GetActiveGameplayEffectDebugString(FActiveGameplayEffectHandle ActiveHandle);
 
+	/** Returns the UI data for a gameplay effect class (if any) */
+	UFUNCTION(BlueprintCallable, Category = "Ability|GameplayEffect", Meta = (DisplayName = "Get GameplayEffect UI Data", DeterminesOutputType="DataType"))
+	static const UGameplayEffectUIData* GetGameplayEffectUIData(TSubclassOf<UGameplayEffect> EffectClass, TSubclassOf<UGameplayEffectUIData> DataType);
 };
