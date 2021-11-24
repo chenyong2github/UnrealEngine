@@ -446,6 +446,7 @@ void UControlRigBlueprint::PostLoad()
 
 		PatchFunctionReferencesOnLoad();
 		PatchVariableNodesOnLoad();
+		PatchRigElementKeyCacheOnLoad();
 
 #if WITH_EDITOR
 
@@ -3468,6 +3469,45 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 	LastNewVariables = NewVariables;
 
 #endif
+}
+
+void UControlRigBlueprint::PatchRigElementKeyCacheOnLoad()
+{
+	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RigElementKeyCache)
+	{
+		for (URigVMGraph* Graph : GetAllModels())
+		{
+			URigVMController* Controller = GetOrCreateController(Graph);
+			TGuardValue<bool> DisablePinDefaultValueValidation(Controller->bValidatePinDefaults, false);
+			Controller->SuspendNotifications(true);
+			for (URigVMNode* Node : Graph->GetNodes())
+			{
+				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
+				{
+					UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
+					FString FunctionName = FString::Printf(TEXT("F%s::%s"), *ScriptStruct->GetName(), *UnitNode->GetMethodName().ToString());
+					FRigVMFunction Function = FRigVMRegistry::Get().FindFunctionInfo(*FunctionName);
+					for (TFieldIterator<FProperty> It(Function.Struct); It; ++It)
+					{
+						if (It->GetCPPType() == TEXT("FCachedRigElement"))
+						{
+							if (URigVMPin* Pin = Node->FindPin(It->GetName()))
+							{
+								int32 BoneIndex = FCString::Atoi(*Pin->GetDefaultValue());
+								FRigElementKey Key = Hierarchy->GetKey(BoneIndex);
+								FCachedRigElement DefaultValueElement(Key, Hierarchy);
+								FString Result;
+								TBaseStructure<FCachedRigElement>::Get()->ExportText(Result, &DefaultValueElement, nullptr, nullptr, PPF_None, nullptr);								
+								Controller->SetPinDefaultValue(Pin->GetPinPath(), Result, true, false, false);
+								bDirtyDuringLoad = true;
+							}							
+						}
+					}
+				}
+			}
+			Controller->SuspendNotifications(false);
+		}
+	}
 }
 
 void UControlRigBlueprint::PropagatePoseFromInstanceToBP(UControlRig* InControlRig)

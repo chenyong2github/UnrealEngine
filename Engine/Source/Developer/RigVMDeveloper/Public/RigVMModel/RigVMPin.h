@@ -462,6 +462,7 @@ private:
 	static const FString OrphanPinPrefix;
 
 	friend class URigVMController;
+	friend class UControlRigBlueprint;
 	friend class URigVMGraph;
 	friend class URigVMNode;
 	friend class FRigVMParserAST;

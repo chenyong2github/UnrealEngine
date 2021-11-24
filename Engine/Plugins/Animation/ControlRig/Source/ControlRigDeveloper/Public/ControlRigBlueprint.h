@@ -537,6 +537,7 @@ private:
 #endif
 	void PatchFunctionReferencesOnLoad();
 	void PatchVariableNodesOnLoad();
+	void PatchRigElementKeyCacheOnLoad();
 
 	TMap<FName, int32> AddedMemberVariableMap;
 	TArray<FBPVariableDescription> LastNewVariables;
