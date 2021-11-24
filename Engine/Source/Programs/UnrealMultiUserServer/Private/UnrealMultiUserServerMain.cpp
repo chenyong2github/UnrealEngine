@@ -96,6 +96,7 @@ static CommandLineArguments GSavedCommandLine;
 			Reason = TEXT("User Quitting (CMD-Q/Quit Menu)");
 		}
 
+		UE_LOG(LogMultiUserServer, Warning, TEXT("*** INTERRUPTED *** : SHUTTING DOWN"));
 		UE_LOG(LogMultiUserServer, Warning, TEXT("*** INTERRUPTED *** : %s"), *Reason);
 		RequestEngineExit(*FString::Printf(TEXT("UnrealMultiUserServer Requesting Exit: %s"), *Reason));
 		
