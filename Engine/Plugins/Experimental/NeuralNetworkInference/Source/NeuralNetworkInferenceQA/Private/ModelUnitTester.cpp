@@ -341,7 +341,6 @@ bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const ENe
 	
 	// Input CPU + Network CPU + Output CPU
 	ModelAccuracyTestRun(CPUOutputs, InOutNetwork, InputArrays, /*DeviceType*/ENeuralDeviceType::CPU, /*InputDeviceType*/ENeuralDeviceType::CPU, /*OutputDeviceType*/ENeuralDeviceType::CPU);
-InOutNetwork->SetSynchronousMode(ENeuralNetworkSynchronousMode::Synchronous); // @todo: Fix this
 
 	if (InOutNetwork->IsGPUSupported())
 	{
