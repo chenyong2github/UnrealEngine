@@ -31,7 +31,7 @@ public:
 
 	BSPUTILS_API static void csgPrepMovingBrush( ABrush* Actor );
 	BSPUTILS_API static void csgCopyBrush( ABrush* Dest, ABrush* Src, uint32 PolyFlags, EObjectFlags ResFlags, bool bNeedsPrep, bool bCopyPosRotScale, bool bAllowEmpty = false );
-	BSPUTILS_API static ABrush*	csgAddOperation( ABrush* Actor, uint32 PolyFlags, EBrushType BrushType );
+	BSPUTILS_API static ABrush*	csgAddOperation( ABrush* Actor, uint32 PolyFlags, EBrushType BrushType, bool bAllowEmpty = false );
 	BSPUTILS_API static int32 bspAddVector( UModel* Model, const FVector* V, bool Exact );
 	BSPUTILS_API static int32 bspAddPoint( UModel* Model, const FVector* V, bool Exact );
 	BSPUTILS_API static void bspBuild( UModel* Model, enum EBspOptimization Opt, int32 Balance, int32 PortalBias, int32 RebuildSimplePolys, int32 iNode );
