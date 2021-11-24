@@ -2999,6 +2999,8 @@ struct FScopeLockIfNotNative
 
 void UClass::AssembleReferenceTokenStream(bool bForce)
 {
+	LLM_SCOPE(ELLMTag::GC);
+
 	// Lock for non-native classes
 	FScopeLockIfNotNative ReferenceTokenStreamLock(ReferenceTokenStreamCritical, !(ClassFlags & CLASS_Native));
 
