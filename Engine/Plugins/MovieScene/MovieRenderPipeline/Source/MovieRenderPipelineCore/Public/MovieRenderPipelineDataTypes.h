@@ -156,14 +156,14 @@ namespace MoviePipeline
 	struct FFrameTimeStepCache
 	{
 		FFrameTimeStepCache()
-			: DeltaTime(0.0)
+			: UndilatedDeltaTime(0.0)
 		{}
 
 		FFrameTimeStepCache(double InDeltaTime)
-			: DeltaTime(InDeltaTime)
+			: UndilatedDeltaTime(InDeltaTime)
 		{}
 
-		double DeltaTime;
+		double UndilatedDeltaTime;
 	};
 
 	struct FOutputFrameData
