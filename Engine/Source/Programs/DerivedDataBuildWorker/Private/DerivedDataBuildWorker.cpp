@@ -251,42 +251,69 @@ bool FBuildWorkerProgram::Build()
 void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 {
 	const FBuildOutput Output = MoveTemp(Params.Output);
+	const FStringView Function = Output.GetFunction();
+	const FStringView Name = Output.GetName();
+
+	for (const FBuildOutputMessage& Message : Output.GetMessages())
+	{
+		switch (Message.Level)
+		{
+		case EBuildOutputMessageLevel::Error:
+			UE_LOG(LogDerivedDataBuildWorker, Error, TEXT("%s (Build of '%.*s' by %.*s.)"),
+				*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+			break;
+		case EBuildOutputMessageLevel::Warning:
+			UE_LOG(LogDerivedDataBuildWorker, Warning, TEXT("%s (Build of '%.*s' by %.*s.)"),
+				*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+			break;
+		case EBuildOutputMessageLevel::Display:
+			UE_LOG(LogDerivedDataBuildWorker, Display, TEXT("%s (Build of '%.*s' by %.*s.)"),
+				*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+	}
 
 	if constexpr (!NO_LOGGING)
 	{
 		if (GWarn)
 		{
-			Output.IterateDiagnostics([](const FBuildDiagnostic& Diagnostic)
+			for (const FBuildOutputLog& Log : Output.GetLogs())
 			{
 				ELogVerbosity::Type Verbosity;
-				switch (Diagnostic.Level)
+				switch (Log.Level)
 				{
 				default:
-				case EBuildDiagnosticLevel::Error:   Verbosity = ELogVerbosity::Error;   break;
-				case EBuildDiagnosticLevel::Warning: Verbosity = ELogVerbosity::Warning; break;
+				case EBuildOutputLogLevel::Error:
+					Verbosity = ELogVerbosity::Error;
+					break;
+				case EBuildOutputLogLevel::Warning:
+					Verbosity = ELogVerbosity::Warning;
+					break;
 				}
-				GWarn->Log(FName(Diagnostic.Category), Verbosity, FString(Diagnostic.Message));
-			});
+				GWarn->Log(FName(Log.Category), Verbosity, FString::Printf(TEXT("%s (Build of '%.*s' by %.*s.)"),
+					*WriteToString<256>(Log.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData()));
+			}
 		}
 	}
 
-	if (Output.HasError())
+	for (const FPayload& Payload : Output.GetPayloads())
 	{
-		UE_LOG(LogDerivedDataBuildWorker, Error,
-			TEXT("Errors in build caused storage of payloads to be skipped for build of '%s' by %s."),
-			*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
-	}
-	else
-	{
-		for (const FPayload& Payload : Output.GetPayloads())
+		if (Payload.HasData())
 		{
-			if (Payload.HasData())
+			if (TUniquePtr<FArchive> Ar = OpenOutput(Output.GetName(), Payload.GetRawHash()))
 			{
-				if (TUniquePtr<FArchive> Ar = OpenOutput(Output.GetName(), Payload.GetRawHash()))
+				*Ar << const_cast<FCompressedBuffer&>(Payload.GetData());
+				if (Ar->Close())
 				{
-					*Ar << const_cast<FCompressedBuffer&>(Payload.GetData());
+					continue;
 				}
 			}
+			UE_LOG(LogDerivedDataBuildWorker, Error,
+				TEXT("Failed to store build output %s for build of '%.*s' by %.*s."),
+				*WriteToString<48>(Payload.GetRawHash()), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
 		}
 	}
 
@@ -300,8 +327,8 @@ void FBuildWorkerProgram::BuildComplete(FBuildCompleteParams&& Params) const
 	else
 	{
 		UE_LOG(LogDerivedDataBuildWorker, Error,
-			TEXT("Failed to store build output to '%s' for build of '%s' by %s."),
-			*OutputPath, *WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+			TEXT("Failed to store build output to '%s' for build of '%.*s' by %.*s."),
+			*OutputPath, Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
 	}
 }
 

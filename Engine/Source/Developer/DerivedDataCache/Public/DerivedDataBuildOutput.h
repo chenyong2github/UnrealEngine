@@ -6,7 +6,6 @@
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
 #include "Misc/ScopeExit.h"
-#include "Templates/Function.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 
@@ -21,7 +20,8 @@ namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FCacheRecordBuilder; }
 namespace UE::DerivedData { class FOptionalBuildOutput; }
 namespace UE::DerivedData { class FPayload; }
-namespace UE::DerivedData { struct FBuildDiagnostic; }
+namespace UE::DerivedData { struct FBuildOutputLog; }
+namespace UE::DerivedData { struct FBuildOutputMessage; }
 namespace UE::DerivedData { struct FPayloadId; }
 
 namespace UE::DerivedData::Private
@@ -36,7 +36,9 @@ public:
 	virtual const FCbObject& GetMeta() const = 0;
 	virtual const FPayload& GetPayload(const FPayloadId& Id) const = 0;
 	virtual TConstArrayView<FPayload> GetPayloads() const = 0;
-	virtual void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const = 0;
+	virtual TConstArrayView<FBuildOutputMessage> GetMessages() const = 0;
+	virtual TConstArrayView<FBuildOutputLog> GetLogs() const = 0;
+	virtual bool HasLogs() const = 0;
 	virtual bool HasError() const = 0;
 	virtual void Save(FCbWriter& Writer) const = 0;
 	virtual void Save(FCacheRecordBuilder& RecordBuilder) const = 0;
@@ -52,7 +54,8 @@ public:
 	virtual ~IBuildOutputBuilderInternal() = default;
 	virtual void SetMeta(FCbObject&& Meta) = 0;
 	virtual void AddPayload(const FPayload& Payload) = 0;
-	virtual void AddDiagnostic(const FBuildDiagnostic& Diagnostic) = 0;
+	virtual void AddMessage(const FBuildOutputMessage& Message) = 0;
+	virtual void AddLog(const FBuildOutputLog& Log) = 0;
 	virtual bool HasError() const = 0;
 	virtual FBuildOutput Build() = 0;
 };
@@ -64,28 +67,43 @@ FBuildOutputBuilder CreateBuildOutputBuilder(IBuildOutputBuilderInternal* Output
 namespace UE::DerivedData
 {
 
-/** Level of severity for build diagnostics. */
-enum class EBuildDiagnosticLevel : uint8
+enum class EBuildOutputMessageLevel : uint8
 {
-	/** Errors always indicates a failure of the corresponding build. */
 	Error,
-	/** Warnings are expected to be actionable issues found while executing a build. */
+	Warning,
+	Display,
+};
+
+/** A build output message is diagnostic output from a build function and must be deterministic. */
+struct FBuildOutputMessage
+{
+	FUtf8StringView Message;
+	EBuildOutputMessageLevel Level;
+};
+
+enum class EBuildOutputLogLevel : uint8
+{
+	Error,
 	Warning,
 };
 
-/** A build diagnostic is a message logged by a build. */
-struct FBuildDiagnostic
+/**
+ * A build output log is a log message captured from a build function.
+ *
+ * The build function may capture every log above a certain level of verbosity, which means these
+ * have no guarantee of being deterministic. The presence of any output logs will disable caching
+ * of the build output. To allow caching of build output with warnings or errors, replace the log
+ * statements with build messages that are added to the build context.
+ */
+struct FBuildOutputLog
 {
-	/** The name of the category of the diagnostic. */
-	FStringView Category;
-	/** The message of the diagnostic. */
-	FStringView Message;
-	/** The level of severity of the diagnostic. */
-	EBuildDiagnosticLevel Level;
+	FUtf8StringView Category;
+	FUtf8StringView Message;
+	EBuildOutputLogLevel Level;
 };
 
 /**
- * A build output is an immutable container of payloads and diagnostics produced by a build.
+ * A build output is an immutable container of payloads, messages, and logs produced by a build.
  *
  * The output will not contain any payloads if it has any errors.
  *
@@ -109,13 +127,16 @@ public:
 	/** Returns the payloads in the output in order by ID. */
 	inline TConstArrayView<FPayload> GetPayloads() const { return Output->GetPayloads(); }
 
-	/** Visits every diagnostic in the order it was recorded. */
-	inline void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const
-	{
-		Output->IterateDiagnostics(Visitor);
-	}
+	/** Returns the messages in the order that they were recorded. */
+	inline TConstArrayView<FBuildOutputMessage> GetMessages() const { return Output->GetMessages(); }
 
-	/** Returns whether the output has any error diagnostics. */
+	/** Returns the logs in the order that they were recorded. */
+	inline TConstArrayView<FBuildOutputLog> GetLogs() const { return Output->GetLogs(); }
+
+	/** Returns whether the output has any logs. */
+	inline bool HasLogs() const { return Output->HasLogs(); }
+
+	/** Returns whether the output has any errors. */
 	inline bool HasError() const { return Output->HasError(); }
 
 	/** Saves the build output to a compact binary object with payloads as attachments. */
@@ -175,19 +196,19 @@ public:
 		OutputBuilder->AddPayload(Payload);
 	}
 
-	/** Add an error diagnostic to the output. */
-	inline void AddError(FStringView Category, FStringView Message)
+	/** Add a message to the output. */
+	inline void AddMessage(const FBuildOutputMessage& Message)
 	{
-		OutputBuilder->AddDiagnostic({Category, Message, EBuildDiagnosticLevel::Error});
+		OutputBuilder->AddMessage(Message);
 	}
 
-	/** Add a warning diagnostic to the output. */
-	inline void AddWarning(FStringView Category, FStringView Message)
+	/** Add a log to the output. */
+	inline void AddLog(const FBuildOutputLog& Log)
 	{
-		OutputBuilder->AddDiagnostic({Category, Message, EBuildDiagnosticLevel::Warning});
+		OutputBuilder->AddLog(Log);
 	}
 
-	/** Returns whether the output has any error diagnostics. */
+	/** Returns whether the output has any errors. */
 	inline bool HasError() const
 	{
 		return OutputBuilder->HasError();

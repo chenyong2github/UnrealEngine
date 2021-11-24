@@ -48,6 +48,10 @@ public:
 	void AddConstant(FStringView Key, FCbObject&& Value);
 	void AddInput(FStringView Key, const FCompressedBuffer& Value);
 
+	void AddError(FStringView Message) final;
+	void AddWarning(FStringView Message) final;
+	void AddMessage(FStringView Message) final;
+
 	void ResetInputs();
 
 private:

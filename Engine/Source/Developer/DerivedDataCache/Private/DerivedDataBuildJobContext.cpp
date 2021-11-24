@@ -2,6 +2,7 @@
 
 #include "DerivedDataBuildJobContext.h"
 
+#include "Containers/StringConv.h"
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
@@ -46,6 +47,21 @@ void FBuildJobContext::AddInput(FStringView Key, const FCompressedBuffer& Value)
 	Inputs.EmplaceByHash(GetTypeHash(Key), Key, Value);
 }
 
+void FBuildJobContext::AddError(FStringView Message)
+{
+	OutputBuilder.AddMessage({FTCHARToUTF8(Message), EBuildOutputMessageLevel::Error});
+}
+
+void FBuildJobContext::AddWarning(FStringView Message)
+{
+	OutputBuilder.AddMessage({FTCHARToUTF8(Message), EBuildOutputMessageLevel::Warning});
+}
+
+void FBuildJobContext::AddMessage(FStringView Message)
+{
+	OutputBuilder.AddMessage({FTCHARToUTF8(Message), EBuildOutputMessageLevel::Display});
+}
+
 void FBuildJobContext::ResetInputs()
 {
 	Constants.Empty();
@@ -78,7 +94,7 @@ FSharedBuffer FBuildJobContext::FindInput(FStringView Key) const
 				<< TEXT(" and raw size ") << Input->GetRawSize() << TEXT(" but has raw hash ") << RawHash
 				<< TEXT(" and raw size ") << Buffer.GetSize() << TEXT(" after decompression for build of '")
 				<< Job.GetName() << TEXT("' by ") << Job.GetFunction() << TEXT(".");
-			OutputBuilder.AddError(TEXT("LogDerivedDataBuild"_SV), Error);
+			OutputBuilder.AddLog({"LogDerivedDataBuild"_ASV, FTCHARToUTF8(Error), EBuildOutputLogLevel::Error});
 			UE_LOG(LogDerivedDataBuild, Error, TEXT("%.*s"), Error.Len(), Error.GetData());
 		}
 	}

@@ -992,17 +992,15 @@ void FRemoteBuildExecutionRequest::OnGetResultPackageComplete(const UE::Zen::FZe
 
 	FBuildOutputBuilder OutputBuilder = State.BuildSystem.CreateOutput(State.BuildAction.GetName(), State.BuildAction.GetFunction());
 
-	RemoteBuildOutput.Get().IterateDiagnostics([&OutputBuilder](const FBuildDiagnostic& Diagnostic)
-		{
-			if (Diagnostic.Level == EBuildDiagnosticLevel::Warning)
-			{
-				OutputBuilder.AddWarning(Diagnostic.Category, Diagnostic.Message);
-			}
-			else if (Diagnostic.Level == EBuildDiagnosticLevel::Error)
-			{
-				OutputBuilder.AddError(Diagnostic.Category, Diagnostic.Message);
-			}
-		});
+	for (const FBuildOutputMessage& Message : RemoteBuildOutput.Get().GetMessages())
+	{
+		OutputBuilder.AddMessage(Message);
+	}
+
+	for (const FBuildOutputLog& Log : RemoteBuildOutput.Get().GetLogs())
+	{
+		OutputBuilder.AddLog(Log);
+	}
 
 	for (const FPayload& Payload : RemoteBuildOutput.Get().GetPayloads())
 	{
