@@ -297,14 +297,25 @@ namespace Chaos
 
 			return BestNormal;
 		}
-
-		FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
+		
+		FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness, int32& VertexIndex) const
 		{
 			TVector<T, d> ChosenPt;
+			FIntVector ChosenAxis;
 			for (int Axis = 0; Axis < d; ++Axis)
 			{
-				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] : MMax[Axis];
+				if(Direction[Axis] < 0)
+				{
+					ChosenPt[Axis] = MMin[Axis];
+					ChosenAxis[Axis] = 0;
+				}
+				else
+				{
+					ChosenPt[Axis] = MMax[Axis];
+					ChosenAxis[Axis] = 1;
+				}
 			}
+			VertexIndex =  ChosenAxis[0] * 4 + ChosenAxis[1] * 2 + ChosenAxis[2];
 
 			if (Thickness != (T)0)
 			{
@@ -325,14 +336,24 @@ namespace Chaos
 		}
 
 		// Support vertex in the specified direction, assuming each face has been moved inwards by InMargin
-		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta) const
+		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			FVec3 ChosenPt;
+			FIntVector ChosenAxis;
 			for (int Axis = 0; Axis < d; ++Axis)
 			{
-				ChosenPt[Axis] = Direction[Axis] < 0 ? MMin[Axis] + InMargin : MMax[Axis] - InMargin;
+				if(Direction[Axis] < 0)
+				{
+					ChosenPt[Axis] = MMin[Axis] + InMargin;
+					ChosenAxis[Axis] = 0;
+				}
+				else
+				{
+					ChosenPt[Axis] = MMax[Axis] - InMargin;
+					ChosenAxis[Axis] = 1;
+				}
 			}
-
+			VertexIndex = ChosenAxis[0] * 4 + ChosenAxis[1] * 2 + ChosenAxis[2];
 			// Maximum distance between the Core+Margin position and the original outer vertex
 			constexpr FReal RootThreeMinusOne = FReal(1.7320508075688772935274463415059 - 1.0);
 			if (OutSupportDelta != nullptr)
@@ -343,16 +364,27 @@ namespace Chaos
 			return ChosenPt;
 		}
 
-		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const T InMargin, const TVector<T, d>& Scale, T* OutSupportDelta) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const T InMargin, const TVector<T, d>& Scale, T* OutSupportDelta, int32& VertexIndex) const
 		{
 			const TVector<T, d> ScaledDirection = Direction * Scale;
 
 			TVector<T, d> ChosenPt;
+			FIntVector ChosenAxis;
 			for (int Axis = 0; Axis < d; ++Axis)
 			{
-				ChosenPt[Axis] = ScaledDirection[Axis] < 0 ? Scale[Axis] * MMin[Axis] + InMargin : Scale[Axis] * MMax[Axis] - InMargin;
+				if(ScaledDirection[Axis] < 0)
+				{
+					ChosenPt[Axis] = Scale[Axis] * MMin[Axis] + InMargin;
+					ChosenAxis[Axis] = 0;
+				}
+				else
+				{
+					ChosenPt[Axis] = Scale[Axis] *  MMax[Axis] - InMargin;
+					ChosenAxis[Axis] = 1;
+				}
 			}
-
+			VertexIndex = ChosenAxis[0] * 4 + ChosenAxis[1] * 2 + ChosenAxis[2];
+			
 			constexpr T RootThreeMinusOne = T(1.7320508075688772935274463415059 - 1.0);
 			if (OutSupportDelta != nullptr)
 			{

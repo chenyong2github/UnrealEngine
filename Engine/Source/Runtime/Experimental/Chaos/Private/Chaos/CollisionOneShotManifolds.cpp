@@ -619,7 +619,7 @@ namespace Chaos
 		// Use GJK to find the closest points (or shallowest penetrating points) on two convex shapes usingthe specified margin
 		// @todo(chaos): dedupe from GJKContactPoint in CollisionResolution.cpp
 		template <typename GeometryA, typename GeometryB>
-		FContactPoint GJKContactPointMargin(const GeometryA& A, const GeometryB& B, const FRigidTransform3& ATM, const FRigidTransform3& BTM, FReal MarginA, FReal MarginB, FGJKSimplexData& InOutGjkWarmStartData, FReal& OutMaxMarginDelta)
+		FContactPoint GJKContactPointMargin(const GeometryA& A, const GeometryB& B, const FRigidTransform3& ATM, const FRigidTransform3& BTM, FReal MarginA, FReal MarginB, FGJKSimplexData& InOutGjkWarmStartData, FReal& OutMaxMarginDelta, int32& VertexIndexA, int32& VertexIndexB)
 		{
 			SCOPE_CYCLE_COUNTER_MANIFOLD_GJK();
 
@@ -635,7 +635,7 @@ namespace Chaos
 			const TGJKCoreShape<GeometryB> BWithMargin(B, MarginB);
 			const FRigidTransform3 BToATM = BTM.GetRelativeTransformNoScale(ATM);
 
-			if (GJKPenetrationWarmStartable<true>(AWithMargin, BWithMargin, BToATM, FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, InOutGjkWarmStartData, OutMaxMarginDelta, Epsilon))
+			if (GJKPenetrationWarmStartable<true>(AWithMargin, BWithMargin, BToATM, FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, InOutGjkWarmStartData, OutMaxMarginDelta, Epsilon))
 			{
 				Contact.ShapeContactPoints[0] = ClosestA;
 				Contact.ShapeContactPoints[1] = ClosestB;
@@ -657,7 +657,8 @@ namespace Chaos
 			const ConvexImplicitType& Convex,
 			const FVec3 X,
 			const FVec3 N,
-			const FReal InMaxDistance)
+			const FReal InMaxDistance,
+			const int32 VertexIndex)
 		{
 			// Handle InMaxDistance = 0. We expect that the X is actually on the surface in this case, so the search distance just needs to be some reasonable tolerance.
 			// @todo(chaos): this should probable be dependent on the size of the objects...
@@ -666,35 +667,38 @@ namespace Chaos
 
 			int32 BestPlaneIndex = INDEX_NONE;
 			FReal BestPlaneDot = 1.0f;
-
-			// Finds the most opposing plane (to N) that is within the specified distance (MaxDistance) of the position (X)
-			const int32 NumPlanes = Convex.NumPlanes();
-			for (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)
+			
 			{
-				const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
-				const FReal PlaneNormalDotN = FVec3::DotProduct(N, Plane.Normal());
-
-				// Ignore planes that do not oppose N
-				if (PlaneNormalDotN > -SMALL_NUMBER)
+				int32 PlaneIndices[3] = {INDEX_NONE, INDEX_NONE, INDEX_NONE};
+				const int32 NumPlanes = Convex.GetVertexPlanes3(VertexIndex, PlaneIndices[0], PlaneIndices[1], PlaneIndices[2]);
+			
+				for (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)
 				{
-					continue;
-				}
-
-				// Reject planes farther than MaxDistance
-				const FReal PlaneDistance = Plane.SignedDistance(X);
-				if (FMath::Abs(PlaneDistance) > MaxDistance)
-				{
-					continue;
-				}
-
-				// Keep the most opposing plane
-				if (PlaneNormalDotN < BestPlaneDot)
-				{
-					BestPlaneDot = PlaneNormalDotN;
-					BestPlaneIndex = PlaneIndex;
+					const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndices[PlaneIndex]);
+					const FReal PlaneNormalDotN = FVec3::DotProduct(N, Plane.Normal());
+			
+					// Ignore planes that do not oppose N
+					if (PlaneNormalDotN > -SMALL_NUMBER)
+					{
+						continue;
+					}
+			
+					// Reject planes farther than MaxDistance
+					const FReal PlaneDistance = Plane.SignedDistance(X);
+					if (FMath::Abs(PlaneDistance) > MaxDistance)
+					{
+						continue;
+					}
+			
+					// Keep the most opposing plane
+					if (PlaneNormalDotN < BestPlaneDot)
+					{
+						BestPlaneDot = PlaneNormalDotN;
+						BestPlaneIndex = PlaneIndices[PlaneIndex];
+					}
 				}
 			}
-
+			
 			// Malformed convexes or half-spaces or capsules could have all planes rejected above.
 			// If that happens, select the most opposing plane including those that
 			// may point the same direction as N. 
@@ -751,7 +755,8 @@ namespace Chaos
 			// Find the deepest penetration. This is used to determine the planes and points to use for the manifold
 			// MaxMarginDelta is an upper bound on the distance from the contact on the rounded core shape to the actual shape surface. 
 			FReal MaxMarginDelta = FReal(0);
-			FContactPoint GJKContactPoint = GJKContactPointMargin(Convex1, Convex2, Convex1Transform, Convex2Transform, Margin1, Margin2, Constraint.GetGJKWarmStartData(), MaxMarginDelta);
+			int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
+			FContactPoint GJKContactPoint = GJKContactPointMargin(Convex1, Convex2, Convex1Transform, Convex2Transform, Margin1, Margin2, Constraint.GetGJKWarmStartData(), MaxMarginDelta, VertexIndexA, VertexIndexB);
 
 			// GJK is using margins and rounded corner, so if we have a corner-to-corner contact it will under-report the actual distance by an amount that depends on how
 			// "pointy" the edge/corner is - this error is bounded by MaxMarginDelta.
@@ -763,13 +768,13 @@ namespace Chaos
 
 			// @todo(chaos): get the vertex index from GJK and use to to get the plane
 			const FVec3 SeparationDirectionLocalConvex1 = Convex1Transform.InverseTransformVectorNoScale(GJKContactPoint.Normal);
-			const int32 MostOpposingPlaneIndexConvex1 = SelectContactPlane(Convex1, GJKContactPoint.ShapeContactPoints[0], SeparationDirectionLocalConvex1, Margin1);
+			const int32 MostOpposingPlaneIndexConvex1 = SelectContactPlane(Convex1, GJKContactPoint.ShapeContactPoints[0], SeparationDirectionLocalConvex1, Margin1, VertexIndexA);
 			const TPlaneConcrete<FReal, 3> BestPlaneConvex1 = Convex1.GetPlane(MostOpposingPlaneIndexConvex1);
 			const FReal BestPlaneDotNormalConvex1 = !bConvex1IsCapsule ? FVec3::DotProduct(-SeparationDirectionLocalConvex1, BestPlaneConvex1.Normal()) : -FLT_MAX;
 
 			// Now for Convex2
 			const FVec3 SeparationDirectionLocalConvex2 = Convex2Transform.InverseTransformVectorNoScale(GJKContactPoint.Normal);
-			const int32 MostOpposingPlaneIndexConvex2 = SelectContactPlane(Convex2, GJKContactPoint.ShapeContactPoints[1], -SeparationDirectionLocalConvex2, Margin2);
+			const int32 MostOpposingPlaneIndexConvex2 = SelectContactPlane(Convex2, GJKContactPoint.ShapeContactPoints[1], -SeparationDirectionLocalConvex2, Margin2, VertexIndexB);
 			const TPlaneConcrete<FReal, 3> BestPlaneConvex2 = Convex2.GetPlane(MostOpposingPlaneIndexConvex2);
 			const FReal BestPlaneDotNormalConvex2 = FVec3::DotProduct(SeparationDirectionLocalConvex2, BestPlaneConvex2.Normal());
 

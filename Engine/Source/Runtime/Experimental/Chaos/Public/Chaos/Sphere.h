@@ -187,11 +187,12 @@ namespace Chaos
 			return MakePair(TVector<T, d>(Root2 * Direction + StartPoint), true);
 		}
 
-		TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
+		TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness, int32& VertexIndex) const
 		{
 			//We want N / ||N|| and to avoid inf
 			//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
 			T SizeSqr = Direction.SizeSquared();
+			VertexIndex = 0;
 			if (SizeSqr <= TNumericLimits<T>::Min())
 			{
 				return Center;
@@ -201,14 +202,16 @@ namespace Chaos
 			return Center + Normalized * (GetRadius() + Thickness);
 		}
 
-		FORCEINLINE const TVector<T, d>& SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta) const
+		FORCEINLINE const TVector<T, d>& SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
+			VertexIndex = 0;
 			// Note: ignores InMargin, assumed Radius
 			return Center;
 		}
 
-		FORCEINLINE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const FReal InMargin, const TVector<T, d>& Scale, FReal* OutSupportDelta) const
+		FORCEINLINE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const FReal InMargin, const TVector<T, d>& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
+			VertexIndex = 0;
 			// Note: ignores InMargin, assumed Radius
 			return Center * Scale;
 		}

@@ -421,9 +421,10 @@ namespace ChaosTest
 		{
 			//sphere with deep penetration to make sure we have max iterations
 			TSphere<FReal,3> Sphere(FVec3(0), 10);
-			auto Support = [&Sphere](const auto& V)
+			int32 VertexIndex = INDEX_NONE;
+			auto Support = [&Sphere,&VertexIndex](const auto& V)
 			{
-				return Sphere.Support(V, 0);
+				return Sphere.Support(V, 0,VertexIndex);
 			};
 
 			TArray<FVec3> Tetrahedron = { 
@@ -444,9 +445,10 @@ namespace ChaosTest
 		{
 			//capsule with origin in middle
 			FCapsule Capsule(FVec3(0, 0, 10), FVec3(0, 0, -10), 3);
-			auto Support = [&Capsule](const auto& V)
+			int32 VertexIndex = INDEX_NONE;
+			auto Support = [&Capsule,&VertexIndex](const auto& V)
 			{
-				return Capsule.Support(V, 0);
+				return Capsule.Support(V, 0, VertexIndex);
 			};
 
 			TArray<FVec3> Tetrahedron = { 
@@ -465,9 +467,10 @@ namespace ChaosTest
 		{
 			//capsule with origin near top
 			FCapsule Capsule(FVec3(0, 0, -2), FVec3(0, 0, -12), 3);
-			auto Support = [&Capsule](const auto& V)
+			int32 VertexIndex = INDEX_NONE;
+			auto Support = [&Capsule,&VertexIndex](const auto& V)
 			{
-				return Capsule.Support(V, 0);
+				return Capsule.Support(V, 0, VertexIndex);
 			};
 
 			TArray<FVec3> Tetrahedron = { 

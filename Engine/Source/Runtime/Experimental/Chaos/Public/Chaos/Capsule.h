@@ -339,21 +339,21 @@ namespace Chaos
 			return RaycastFast(GetRadius(), GetHeight(), GetAxis(), GetX1(), GetX2(), StartPoint, Dir, Length, Thickness, OutTime, OutPosition, OutNormal, OutFaceIndex);
 		}
 
-		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
+		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
 		{
-			return MSegment.Support(Direction, GetRadius() + Thickness);
+			return MSegment.Support(Direction, GetRadius() + Thickness, VertexIndex);
 		}
 
-		FORCEINLINE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta) const
+		FORCEINLINE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			// NOTE: Ignores InMargin, assumes Radius
-			return MSegment.SupportCore(Direction);
+			return MSegment.SupportCore(Direction, VertexIndex);
 		}
 
-		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, const FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta) const
+		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, const FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			// NOTE: Ignores InMargin, assumes Radius
-			return SupportCore(Scale * Direction, GetMargin(), OutSupportDelta) * Scale;
+			return SupportCore(Scale * Direction, GetMargin(), OutSupportDelta, VertexIndex) * Scale;
 		}
 
 		FORCEINLINE void SerializeImp(FArchive& Ar)
@@ -516,6 +516,20 @@ namespace Chaos
 		const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 		{
 			return TPlaneConcrete<FReal, 3>(FVec3(0), FVec3(0));
+		}
+
+		// Get an array of all the plane indices that belong to a vertex (up to MaxVertexPlanes).
+		// Returns the number of planes found.
+		int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
+		{
+			return 0; 
+		}
+		
+		// Get up to the 3  plane indices that belong to a vertex
+		// Returns the number of planes found.
+		int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const
+		{
+			return 0;
 		}
 
 		// Capsules have no planes
