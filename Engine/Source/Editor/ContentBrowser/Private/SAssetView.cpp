@@ -3033,7 +3033,6 @@ void SAssetView::SetCurrentViewTypeFromMenu(EAssetViewType::Type NewType)
 	if (NewType != CurrentViewType)
 	{
 		SetCurrentViewType(NewType);
-		FSlateApplication::Get().DismissAllMenus();
 	}
 }
 
