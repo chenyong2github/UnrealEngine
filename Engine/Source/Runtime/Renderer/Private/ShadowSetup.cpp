@@ -1058,6 +1058,7 @@ void FProjectedShadowInfo::SetupClipmapProjection(FLightSceneInfo* InLightSceneI
 	bIncludeInScreenSpaceShadowMask = false;
 	MaxNonFarCascadeDistance = InMaxNonFarCascadeDistance;
 	MeshPassTargetType = EMeshPass::VSMShadowDepth;
+	MeshSelectionMask = EShadowMeshSelection::VSM;
 
 
 	FVirtualShadowMapProjectionShaderData Data = VirtualShadowMapClipmap->GetProjectionShaderData(VirtualShadowMapClipmap->GetLevelCount() - 1);
@@ -1430,6 +1431,21 @@ FLODMask FProjectedShadowInfo::CalcAndUpdateLODToRender(FViewInfo& CurrentView, 
 	return ShadowLODToRender;
 }
 
+FORCEINLINE bool FProjectedShadowInfo::ShouldDrawStaticMesh(const FStaticMeshBatchRelevance& StaticMeshRelevance, const FLODMask& ShadowLODToRender, bool& bOutDrawingStaticMeshes) const
+{
+	if ((StaticMeshRelevance.CastShadow || (bSelfShadowOnly && StaticMeshRelevance.bUseForDepthPass)) && ShadowLODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
+	{
+		bOutDrawingStaticMeshes = true;
+
+		if (EnumHasAnyFlags(MeshSelectionMask, StaticMeshRelevance.bSupportsGPUScene ? EShadowMeshSelection::VSM : EShadowMeshSelection::SM))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+
 bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPrimitiveSceneInfo* InPrimitiveSceneInfo)
 {
 	bool WholeSceneDirectionalShadow = IsWholeSceneDirectionalShadow();
@@ -1451,7 +1467,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 				const FStaticMeshBatchRelevance& StaticMeshRelevance = InPrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
 				const FStaticMeshBatch& StaticMesh = InPrimitiveSceneInfo->StaticMeshes[MeshIndex];
 
-				if ((StaticMeshRelevance.CastShadow || (bSelfShadowOnly && StaticMeshRelevance.bUseForDepthPass)) && ShadowLODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
+				if (ShouldDrawStaticMesh(StaticMeshRelevance, ShadowLODToRender, bDrawingStaticMeshes))
 				{
 					if (GetShadowDepthType() == CSMShadowDepthType && bCanCache)
 					{
@@ -1471,8 +1487,6 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 						NumSubjectMeshCommandBuildRequestElements += StaticMeshRelevance.NumElements;
 						SubjectMeshCommandBuildRequests.Add(&StaticMesh);
 					}
-
-					bDrawingStaticMeshes = true;
 				}
 			}
 		}
@@ -1483,12 +1497,10 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPri
 				const FStaticMeshBatchRelevance& StaticMeshRelevance = InPrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
 				const FStaticMeshBatch& StaticMesh = InPrimitiveSceneInfo->StaticMeshes[MeshIndex];
 
-				if ((StaticMeshRelevance.CastShadow || (bSelfShadowOnly && StaticMeshRelevance.bUseForDepthPass)) && ShadowLODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
+				if (ShouldDrawStaticMesh(StaticMeshRelevance, ShadowLODToRender, bDrawingStaticMeshes))
 				{
 					NumSubjectMeshCommandBuildRequestElements += StaticMeshRelevance.NumElements;
 					SubjectMeshCommandBuildRequests.Add(&StaticMesh);
-
-					bDrawingStaticMeshes = true;
 				}
 			}
 		}
@@ -1528,7 +1540,7 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 				const FStaticMeshBatchRelevance& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
 				const FStaticMeshBatch& StaticMesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
 
-				if ((StaticMeshRelevance.CastShadow || (bSelfShadowOnly && StaticMeshRelevance.bUseForDepthPass)) && ShadowLODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
+				if (ShouldDrawStaticMesh(StaticMeshRelevance, ShadowLODToRender, bDrawingStaticMeshes))
 				{
 					if (bCanCache && GetShadowDepthType() == CSMShadowDepthType)
 					{
@@ -1539,8 +1551,6 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 						++OutStats.NumMDCBuildRequests;
 						OutResult.AcceptMesh(NumAcceptedStaticMeshes++, MeshIndex, OverflowBuffer);
 					}
-
-					bDrawingStaticMeshes = true;
 				}
 			}
 		}
@@ -1553,13 +1563,11 @@ bool FProjectedShadowInfo::ShouldDrawStaticMeshes_AnyThread(
 				const FStaticMeshBatchRelevance& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
 				const FStaticMeshBatch& StaticMesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
 
-				if ((StaticMeshRelevance.CastShadow || (bSelfShadowOnly && StaticMeshRelevance.bUseForDepthPass)) && ShadowLODToRender.ContainsLOD(StaticMeshRelevance.LODIndex))
+				if (ShouldDrawStaticMesh(StaticMeshRelevance, ShadowLODToRender, bDrawingStaticMeshes))
 				{
 					check(MeshIndex < MAX_uint16);
 					++OutStats.NumMDCBuildRequests;
 					OutResult.AcceptMesh(NumAcceptedStaticMeshes++, MeshIndex, OverflowBuffer);
-
-					bDrawingStaticMeshes = true;
 				}
 			}
 		}
@@ -3707,6 +3715,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					}
 
 					ProjectedShadowInfo->MeshPassTargetType = EMeshPass::VSMShadowDepth;
+					ProjectedShadowInfo->MeshSelectionMask = EShadowMeshSelection::VSM;
 
 					bool bContainsNaniteSubjects = false;
 					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
@@ -3741,9 +3750,12 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
 						// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
+						// and also filter out any VSM-supporting meshes
 						if (bNeedsVirtualShadowMap)
 						{
 							ProjectedShadowInfo->bNaniteGeometry = false;
+							// Note: the default is all types
+							ProjectedShadowInfo->MeshSelectionMask = EShadowMeshSelection::SM;
 						}
 
 						bool bContainsNaniteSubjects = false;
@@ -3769,7 +3781,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					
 						if (CacheMode[CacheModeIndex] == SDCM_StaticPrimitivesOnly)
 						{
-							const bool bHasStaticPrimitives = ProjectedShadowInfo->HasSubjectPrims() || bContainsNaniteSubjects;
+							const bool bHasStaticPrimitives = ProjectedShadowInfo->HasSubjectPrims() || (bContainsNaniteSubjects && !bNeedsVirtualShadowMap);
 							bRenderShadow = bHasStaticPrimitives;
 							FCachedShadowMapData& CachedShadowMapData = Scene->GetCachedShadowMapDataRef(ProjectedShadowInfo->GetLightSceneInfo().Id);
 							CachedShadowMapData.bCachedShadowMapHasPrimitives = bHasStaticPrimitives;
@@ -5042,8 +5054,16 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 		{
 			AllocateCachedShadowDepthTargets(RHICmdList, CachedWholeSceneDirectionalShadows);
 
-			AllocateCSMDepthTargets(RHICmdList, WholeSceneDirectionalShadows, SortedShadowsForShadowDepthPass.ShadowMapAtlases);
-
+			// Only allocate CSM targets if at least one of the SMs in the CSM has any primitives, but then always allocate all of them as some algorithms depend on this (notably the forward shading structures).
+			bool bAnyHasSubjectPrims = false;
+			for (const FProjectedShadowInfo* ProjectedShadowInfo : WholeSceneDirectionalShadows)
+			{
+				bAnyHasSubjectPrims = bAnyHasSubjectPrims || ProjectedShadowInfo->HasSubjectPrims();
+			}
+			if (bAnyHasSubjectPrims)
+			{
+				AllocateCSMDepthTargets(RHICmdList, WholeSceneDirectionalShadows, SortedShadowsForShadowDepthPass.ShadowMapAtlases);
+			}
 			CachedWholeSceneDirectionalShadows.Empty();
 		}
 		else

@@ -97,6 +97,23 @@ public:
 
 extern FShadowDepthType CSMShadowDepthType;
 
+
+
+/**
+ * Used to select what meshes to draw into what shadow infos. Each mesh selects the support it has, and
+ * the shadow info stores a mask of what types it collects. This makes it easy to allow regular SMs to
+ * collect both types if VSMs are disabled.
+ */
+enum class EShadowMeshSelection : uint8
+{
+	SM = 1U << 0U,
+	VSM = 1U << 1U, // declared if GPU-Scene instace culling is supported.
+	All = SM | VSM,
+};
+
+ENUM_CLASS_FLAGS(EShadowMeshSelection)
+
+
 class FShadowDepthPassMeshProcessor : public FMeshPassProcessor
 {
 public:
@@ -132,6 +149,7 @@ private:
 
 	FShadowDepthType ShadowDepthType;
 	EMeshPass::Type MeshPassTargetType = EMeshPass::CSMShadowDepth;
+	EShadowMeshSelection MeshSelectionMask = EShadowMeshSelection::All;
 };
 
 enum EShadowDepthCacheMode
@@ -368,6 +386,7 @@ public:
 	/** Used to fetch the correct cached static mesh draw commands */
 	EMeshPass::Type MeshPassTargetType = EMeshPass::CSMShadowDepth;
 
+	EShadowMeshSelection MeshSelectionMask = EShadowMeshSelection::All;
 	/** */
 	TArray< FVirtualShadowMap*, TInlineAllocator<6> > VirtualShadowMaps;
 
@@ -804,6 +823,12 @@ private:
 	 * This also creates a potential data race if we ever process multiple shadows infos for the same view and primitive in parallel (e.g., cascades).
 	 */
 	FORCEINLINE_DEBUGGABLE FLODMask CalcAndUpdateLODToRender(FViewInfo& CurrentView, const FBoxSphereBounds& Bounds, const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 ForcedLOD) const;
+
+	/**
+	 * Check relevance flags and shadow mesh pass filter, returns true if the mesh is to be added.
+	 * @param bOutDrawingStaticMeshes - set to true if the relevancy checks pass, even if the mesh was discarded using the pass filter check. Otherwise the mesh is treated as dynamic.
+	 */
+	FORCEINLINE bool ShouldDrawStaticMesh(const FStaticMeshBatchRelevance& StaticMeshRelevance, const FLODMask &ShadowLODToRender, bool& bOutDrawingStaticMeshes) const;
 
 	/** Will return if we should draw the static mesh for the shadow, and will perform lazy init of primitive if it wasn't visible */
 	bool ShouldDrawStaticMeshes(FViewInfo& InCurrentView, FPrimitiveSceneInfo* InPrimitiveSceneInfo);

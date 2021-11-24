@@ -2347,39 +2347,15 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 	bool bResult = true;
 	if (bShouldCastShadow
 		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
-		&& ShouldIncludeMaterialInDefaultOpaquePass(Material))
+		&& ShouldIncludeMaterialInDefaultOpaquePass(Material)
+		&& EnumHasAnyFlags(MeshSelectionMask, MeshBatch.VertexFactory->SupportsGPUScene(FeatureLevel) ? EShadowMeshSelection::VSM : EShadowMeshSelection::SM))
 	{
 		const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
 		const FMaterial* EffectiveMaterial = &Material;
 
 		OverrideWithDefaultMaterialForShadowDepth(EffectiveMaterialRenderProxy, EffectiveMaterial, FeatureLevel);
 
-		bool bDraw = true;
-		if (UseNonNaniteVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel))
-		{
-			// TODO: This uses a lot of indirections and complex logic, optimize by precomputing as far as possible
-			//       E.g., maybe store  bSupportsGpuSceneInstancing as a flag in the MeshBatch?
-			const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-			const bool bUsePositionOnlyVS =
-				VertexFactory->SupportsPositionAndNormalOnlyStream()
-				&& EffectiveMaterial->WritesEveryPixel(true)
-				&& !EffectiveMaterial->MaterialModifiesMeshPosition_RenderThread();
-
-			// TODO: Store in MeshBatch?
-			const bool bSupportsGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel)
-				&& VertexFactory->GetPrimitiveIdStreamIndex(FeatureLevel, bUsePositionOnlyVS ? EVertexInputStreamType::PositionAndNormalOnly : EVertexInputStreamType::Default) != INDEX_NONE;
-
-			// EMeshPass::CSMShadowDepth: If no VSM: include everything, else only !bSupportsGpuSceneInstancing
-			// EMeshPass::VSMShadowDepth: If VSM: only bSupportsGpuSceneInstancing, else nothing needs to go in.
-			// TODO: I'm sure I can reduce this logic
-			bDraw = MeshPassTargetType == EMeshPass::CSMShadowDepth ?
-				(!UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) || !bSupportsGpuSceneInstancing) :
-				(UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) && bSupportsGpuSceneInstancing);
-		}
-		if (bDraw)
-		{
-			bResult = Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
-		}
+		bResult = Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
 	}
 
 	return bResult;
@@ -2415,6 +2391,16 @@ FShadowDepthPassMeshProcessor::FShadowDepthPassMeshProcessor(
 	, ShadowDepthType(InShadowDepthType)
 	, MeshPassTargetType(InMeshPassTargetType)
 {
+	if (UseNonNaniteVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
+	{
+		// set up mesh filtering.
+		MeshSelectionMask = MeshPassTargetType == EMeshPass::VSMShadowDepth ? EShadowMeshSelection::VSM : EShadowMeshSelection::SM;
+	}
+	else
+	{
+		// If VSMs are disabled, pipe all kinds of draws into the regular SMs
+		MeshSelectionMask = EShadowMeshSelection::All;
+	}
 	SetStateForShadowDepth(ShadowDepthType.bOnePassPointLightShadow, ShadowDepthType.bDirectionalLight, PassDrawRenderState, MeshPassTargetType);
 }
 

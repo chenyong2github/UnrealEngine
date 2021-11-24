@@ -163,7 +163,7 @@ private:
 class FStaticMeshBatchRelevance
 {
 public:
-	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial, bool bInUseAnisotropy, bool bInSupportsNaniteRendering, ERHIFeatureLevel::Type FeatureLevel)
+	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial, bool bInUseAnisotropy, bool bInSupportsNaniteRendering, bool bInSupportsGPUScene, ERHIFeatureLevel::Type FeatureLevel)
 		: Id(StaticMesh.Id)
 		, ScreenSize(InScreenSize)
 		, NumElements(StaticMesh.Elements.Num())
@@ -183,6 +183,7 @@ public:
 		, RuntimeVirtualTextureMaterialType(StaticMesh.RuntimeVirtualTextureMaterialType)
 		, bSupportsCachingMeshDrawCommands(InbSupportsCachingMeshDrawCommands)
 		, bSupportsNaniteRendering(bInSupportsNaniteRendering)
+		, bSupportsGPUScene(bInSupportsGPUScene)
 	{
 	}
 
@@ -227,8 +228,11 @@ public:
 	/** Cached from vertex factory to avoid dereferencing VF in InitViews. */
 	uint8 bSupportsCachingMeshDrawCommands : 1;
 
-	/** Cached from vertex factor to avoid dereferencing VF in InitViews. */
+	/** Cached from vertex factory to avoid dereferencing VF in InitViews. */
 	uint8 bSupportsNaniteRendering : 1;
+
+	/** Cached from vertex factory to avoid dereferencing VF in shadow depth rendering. */
+	uint8 bSupportsGPUScene : 1;
 
 	/** Computes index of cached mesh draw command in FPrimitiveSceneInfo::CachedMeshDrawCommandInfos, for a given mesh pass. */
 	int32 GetStaticMeshCommandInfoIndex(EMeshPass::Type MeshPass) const;
