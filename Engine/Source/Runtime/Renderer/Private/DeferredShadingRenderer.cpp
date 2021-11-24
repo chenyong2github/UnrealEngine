@@ -471,7 +471,7 @@ static void AddDebugRayTracingInstanceFlags(ERayTracingInstanceFlags& InOutFlags
 	}
 }
 
-bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FRayTracingScene& RayTracingScene)
+bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene)
 {
 	if (!IsRayTracingEnabled())
 	{
@@ -530,7 +530,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		Scene,
 		&View,
 		ViewFamily,
-		RHICmdList,
+		GraphBuilder,
 		*View.RayTracingMeshResourceCollector
 	};
 
@@ -1052,7 +1052,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 						// We are only doing this for dynamic geometries now
 						SceneInfo->LastRenderTime = CurrentWorldTime;
 						SceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/true);
-						SceneInfo->ConditionalUpdateUniformBuffer(RHICmdList);
+						SceneInfo->ConditionalUpdateUniformBuffer(GraphBuilder.RHICmdList);
 					}
 				}
 			}
@@ -2045,7 +2045,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
 
 	// Prepare the scene for rendering this frame.
-	GatherRayTracingWorldInstancesForView(GraphBuilder.RHICmdList, ReferenceView, RayTracingScene);
+	GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene);
 
 #endif // RHI_RAYTRACING
 
