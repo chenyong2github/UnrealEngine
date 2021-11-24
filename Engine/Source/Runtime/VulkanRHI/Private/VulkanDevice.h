@@ -63,6 +63,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasKHRMultiview : 1;
 			uint32 HasAccelerationStructure : 1;
 			uint32 HasRayTracingPipeline : 1;
+			uint32 HasRayQuery : 1;
 			uint32 HasDescriptorIndexing : 1;
 			uint32 HasBufferDeviceAddress : 1;
 			uint32 HasDeferredHostOperations : 1;
@@ -90,7 +91,7 @@ struct FOptionalVulkanDeviceExtensions
 	{
 		return 
 			HasAccelerationStructure && 
-			HasRayTracingPipeline && 
+			(HasRayTracingPipeline || HasRayQuery) &&
 			HasDescriptorIndexing && 
 			HasBufferDeviceAddress && 
 			HasDeferredHostOperations && 
@@ -113,6 +114,7 @@ struct FOptionalVulkanDeviceFeatures
 	VkPhysicalDeviceAccelerationStructureFeaturesKHR AccelerationStructureFeatures;
 	VkPhysicalDeviceRayTracingPipelineFeaturesKHR RayTracingPipelineFeatures;
 	VkPhysicalDeviceDescriptorIndexingFeaturesEXT DescriptorIndexingFeatures;
+	VkPhysicalDeviceRayQueryFeaturesKHR RayQueryFeatures;
 #endif
 };
 
