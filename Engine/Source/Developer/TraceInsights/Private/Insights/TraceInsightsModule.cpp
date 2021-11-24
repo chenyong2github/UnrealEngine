@@ -5,6 +5,9 @@
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ISourceCodeAccessModule.h"
+#include "ISourceCodeAccessor.h"
+#include "Logging/MessageLog.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -60,6 +63,11 @@ void FTraceInsightsModule::StartupModule()
 	RegisterComponent(Insights::FTaskGraphProfilerManager::CreateInstance());
 	RegisterComponent(Insights::FContextSwitchesProfilerManager::CreateInstance());
 
+#if !WITH_EDITOR
+	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+	SourceCodeAccessModule.OnOpenFileFailed().AddRaw(this, &FTraceInsightsModule::HandleCodeAccessorOpenFileFailed);
+#endif
+
 	UnrealInsightsLayoutIni = GConfig->GetConfigFilename(TEXT("UnrealInsightsLayout"));
 }
 
@@ -67,6 +75,14 @@ void FTraceInsightsModule::StartupModule()
 
 void FTraceInsightsModule::ShutdownModule()
 {
+#if !WITH_EDITOR
+	if (FModuleManager::Get().IsModuleLoaded("SourceCodeAccess"))
+	{
+		ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::GetModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+		SourceCodeAccessModule.OnOpenFileFailed().RemoveAll(this);
+	}
+#endif
+
 	if (PersistentLayout.IsValid())
 	{
 		// Save application layout.
@@ -528,6 +544,17 @@ void FTraceInsightsModule::InitializeTesting(bool InInitAutomationModules, bool 
 void FTraceInsightsModule::UpdateAppTitle()
 {
 	FInsightsManager::Get()->UpdateAppTitle();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTraceInsightsModule::HandleCodeAccessorOpenFileFailed(const FString& Filename)
+{
+	FMessageLog ReportMessageLog(FInsightsManager::Get()->GetLogListingName());
+	FText Text = FText::Format(NSLOCTEXT("TraceInsightsModule", "FailedToOpenSourceFile", "Failed to open source file!\n\"{0}\""), FText::FromString(Filename));
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Warning, Text);
+	ReportMessageLog.AddMessage(Message);
+	ReportMessageLog.Notify();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

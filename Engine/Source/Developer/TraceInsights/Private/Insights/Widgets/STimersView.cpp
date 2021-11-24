@@ -3060,8 +3060,15 @@ void STimersView::OpenSourceFileInIDE(FTimerNodePtr InNode) const
 		if (bIsValidSource)
 		{
 			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
-			ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
-			SourceCodeAccessor.OpenFileAtLine(File, Line);
+			if (FPaths::FileExists(File))
+			{
+				ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
+				SourceCodeAccessor.OpenFileAtLine(File, Line);
+			}
+			else
+			{
+				SourceCodeAccessModule.OnOpenFileFailed().Broadcast(File);
+			}
 		}
 	}
 }

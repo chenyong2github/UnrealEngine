@@ -1858,9 +1858,19 @@ void SLogView::OpenSource() const
 	if (SelectedLogMessage.IsValid())
 	{
 		FLogMessageRecord& Record = Cache.Get(SelectedLogMessage->GetIndex());
+		const FString File = Record.GetFile();
+		const uint32 Line = Record.GetLine();
+
 		ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
-		ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
-		SourceCodeAccessor.OpenFileAtLine(Record.GetFile(), Record.GetLine());
+		if (FPaths::FileExists(File))
+		{
+			ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
+			SourceCodeAccessor.OpenFileAtLine(File, Line);
+		}
+		else
+		{
+			SourceCodeAccessModule.OnOpenFileFailed().Broadcast(File);
+		}
 	}
 }
 
