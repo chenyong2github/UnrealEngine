@@ -440,6 +440,44 @@ bool FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences()
 	return (GCVarUnlimitedBoneInfluences!=0);
 }
 
+void FGPUBaseSkinVertexFactory::SetData(const FGPUSkinDataType* InData)
+{
+	check(InData);
+
+	if (!Data)
+	{
+		Data = MakeUnique<FGPUSkinDataType>();
+	}
+
+	*Data = *InData;
+	UpdateRHI();
+}
+
+void FGPUBaseSkinVertexFactory::CopyDataTypeForPassthroughFactory(FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory)
+{
+	FGPUSkinPassthroughVertexFactory::FDataType DestDataType;
+	check(Data.IsValid());
+
+	DestDataType.PositionComponent = Data->PositionComponent;
+	DestDataType.TangentBasisComponents[0] = Data->TangentBasisComponents[0];
+	DestDataType.TangentBasisComponents[1] = Data->TangentBasisComponents[1];
+	DestDataType.TextureCoordinates = Data->TextureCoordinates;
+	DestDataType.ColorComponent = Data->ColorComponent;
+	DestDataType.PreSkinPositionComponent = Data->PositionComponent;
+	DestDataType.PositionComponentSRV = Data->PositionComponentSRV;
+	DestDataType.PreSkinPositionComponentSRV = Data->PositionComponentSRV;
+	DestDataType.TangentsSRV = Data->TangentsSRV;
+	DestDataType.ColorComponentsSRV = Data->ColorComponentsSRV;
+	DestDataType.ColorIndexMask = Data->ColorIndexMask;
+	DestDataType.TextureCoordinatesSRV = Data->TextureCoordinatesSRV;
+	DestDataType.LightMapCoordinateIndex = Data->LightMapCoordinateIndex;
+	DestDataType.NumTexCoords = Data->NumTexCoords;
+	DestDataType.LODLightmapDataIndex = Data->LODLightmapDataIndex;
+
+	PassthroughVertexFactory->SetData(DestDataType);
+}
+
+
 /*-----------------------------------------------------------------------------
 TGPUSkinVertexFactory
 -----------------------------------------------------------------------------*/
@@ -475,74 +513,54 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(cons
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
 }
 
-template<GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinVertexFactory<BoneInfluenceType>::CopyDataTypeForPassthroughFactory(FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory)
-{
-	FGPUSkinPassthroughVertexFactory::FDataType DestDataType;
-	DestDataType.PositionComponent = Data.PositionComponent;
-	DestDataType.TangentBasisComponents[0] = Data.TangentBasisComponents[0];
-	DestDataType.TangentBasisComponents[1] = Data.TangentBasisComponents[1];
-	DestDataType.TextureCoordinates = Data.TextureCoordinates;
-	DestDataType.ColorComponent = Data.ColorComponent;
-	DestDataType.PreSkinPositionComponent = Data.PositionComponent;
-	DestDataType.PositionComponentSRV = Data.PositionComponentSRV;
-	DestDataType.PreSkinPositionComponentSRV = Data.PositionComponentSRV;
-	DestDataType.TangentsSRV = Data.TangentsSRV;
-	DestDataType.ColorComponentsSRV = Data.ColorComponentsSRV;
-	DestDataType.ColorIndexMask = Data.ColorIndexMask;
-	DestDataType.TextureCoordinatesSRV = Data.TextureCoordinatesSRV;
-	DestDataType.LightMapCoordinateIndex = Data.LightMapCoordinateIndex;
-	DestDataType.NumTexCoords = Data.NumTexCoords;
-	DestDataType.LODLightmapDataIndex = Data.LODLightmapDataIndex;
-	PassthroughVertexFactory->SetData(DestDataType);
-}
-
 /**
 * Add the vertex declaration elements for the streams.
 * @param InData - Type with stream components.
 * @param OutElements - Vertex declaration list to modify.
 */
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InData, FVertexDeclarationElementList& OutElements)
+void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FVertexDeclarationElementList& OutElements)
 {
+	check(Data.IsValid());
+
 	// Position
-	OutElements.Add(AccessStreamComponent(InData.PositionComponent, 0));
+	OutElements.Add(AccessStreamComponent(Data->PositionComponent, 0));
 
 	// Tangent basis vector
-	OutElements.Add(AccessStreamComponent(InData.TangentBasisComponents[0], 1));
-	OutElements.Add(AccessStreamComponent(InData.TangentBasisComponents[1], 2));
+	OutElements.Add(AccessStreamComponent(Data->TangentBasisComponents[0], 1));
+	OutElements.Add(AccessStreamComponent(Data->TangentBasisComponents[1], 2));
 
 	// Texture coordinates
-	if (InData.TextureCoordinates.Num())
+	if (Data->TextureCoordinates.Num())
 	{
 		const uint8 BaseTexCoordAttribute = 5;
-		for (int32 CoordinateIndex = 0; CoordinateIndex < InData.TextureCoordinates.Num(); ++CoordinateIndex)
+		for (int32 CoordinateIndex = 0; CoordinateIndex < Data->TextureCoordinates.Num(); ++CoordinateIndex)
 		{
 			OutElements.Add(AccessStreamComponent(
-				InData.TextureCoordinates[CoordinateIndex],
+				Data->TextureCoordinates[CoordinateIndex],
 				BaseTexCoordAttribute + CoordinateIndex
 			));
 		}
 
-		for (int32 CoordinateIndex = InData.TextureCoordinates.Num(); CoordinateIndex < MAX_TEXCOORDS; ++CoordinateIndex)
+		for (int32 CoordinateIndex = Data->TextureCoordinates.Num(); CoordinateIndex < MAX_TEXCOORDS; ++CoordinateIndex)
 		{
 			OutElements.Add(AccessStreamComponent(
-				InData.TextureCoordinates[InData.TextureCoordinates.Num() - 1],
+				Data->TextureCoordinates[Data->TextureCoordinates.Num() - 1],
 				BaseTexCoordAttribute + CoordinateIndex
 			));
 		}
 	}
 
-	if (Data.ColorComponentsSRV == nullptr)
+	if (Data->ColorComponentsSRV == nullptr)
 	{
-		Data.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
-		Data.ColorIndexMask = 0;
+		Data->ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
+		Data->ColorIndexMask = 0;
 	}
 
 	// Vertex color - account for the possibility that the mesh has no vertex colors
-	if (InData.ColorComponent.VertexBuffer)
+	if (Data->ColorComponent.VertexBuffer)
 	{
-		OutElements.Add(AccessStreamComponent(InData.ColorComponent, 13));
+		OutElements.Add(AccessStreamComponent(Data->ColorComponent, 13));
 	}
 	else
 	{
@@ -555,26 +573,26 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InDa
 	if (BoneInfluenceType == UnlimitedBoneInfluence)
 	{
 		// Blend offset count
-		OutElements.Add(AccessStreamComponent(InData.BlendOffsetCount, 3));
+		OutElements.Add(AccessStreamComponent(Data->BlendOffsetCount, 3));
 	}
 	else
 	{
 		// Bone indices
-		OutElements.Add(AccessStreamComponent(InData.BoneIndices, 3));
+		OutElements.Add(AccessStreamComponent(Data->BoneIndices, 3));
 
 		// Bone weights
-		OutElements.Add(AccessStreamComponent(InData.BoneWeights, 4));
+		OutElements.Add(AccessStreamComponent(Data->BoneWeights, 4));
 
 		// Extra bone indices & weights
 		if (GetNumBoneInfluences() > MAX_INFLUENCES_PER_STREAM)
 		{
-			OutElements.Add(AccessStreamComponent(InData.ExtraBoneIndices, 14));
-			OutElements.Add(AccessStreamComponent(InData.ExtraBoneWeights, 15));
+			OutElements.Add(AccessStreamComponent(Data->ExtraBoneIndices, 14));
+			OutElements.Add(AccessStreamComponent(Data->ExtraBoneWeights, 15));
 		}
 		else
 		{
-			OutElements.Add(AccessStreamComponent(InData.BoneIndices, 14));
-			OutElements.Add(AccessStreamComponent(InData.BoneWeights, 15));
+			OutElements.Add(AccessStreamComponent(Data->BoneIndices, 14));
+			OutElements.Add(AccessStreamComponent(Data->BoneWeights, 15));
 		}
 	}
 
@@ -591,7 +609,7 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::InitRHI()
 {
 	// list of declaration items
 	FVertexDeclarationElementList Elements;
-	AddVertexElements(Data,Elements);	
+	AddVertexElements(Elements);	
 
 	// create the actual device decls
 	InitDeclaration(Elements);
@@ -957,22 +975,39 @@ bool TGPUSkinMorphVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(con
 		&& Super::ShouldCompilePermutation(Parameters);
 }
 
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinMorphVertexFactory<BoneInfluenceType>::SetData(const FGPUSkinDataType* InData)
+{
+	const FGPUSkinMorphDataType* InMorphData = (const FGPUSkinMorphDataType*)(InData);
+	check(InMorphData);
+
+	if (!this->Data)
+	{
+		MorphDataPtr = new FGPUSkinMorphDataType();
+		this->Data = TUniquePtr<FGPUSkinDataType>(MorphDataPtr);
+	}
+
+	*MorphDataPtr = *InMorphData;
+	FGPUBaseSkinVertexFactory::UpdateRHI();
+}
+
 /**
 * Add the decl elements for the streams
 * @param InData - type with stream components
 * @param OutElements - vertex decl list to modify
 */
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-void TGPUSkinMorphVertexFactory<BoneInfluenceType>::AddVertexElements(FDataType& InData, FVertexDeclarationElementList& OutElements)
+void TGPUSkinMorphVertexFactory<BoneInfluenceType>::AddVertexElements(FVertexDeclarationElementList& OutElements)
 {
 	// add the base gpu skin elements
-	TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(InData,OutElements);
+	Super::AddVertexElements(OutElements);
 	// add the morph delta elements
-	FVertexElement DeltaPositionElement = FVertexFactory::AccessStreamComponent(InData.DeltaPositionComponent, 9);
+	check(MorphDataPtr);
+	FVertexElement DeltaPositionElement = FVertexFactory::AccessStreamComponent(MorphDataPtr->DeltaPositionComponent, 9);
 	// Cache delta stream index (position & tangentZ share the same stream)
 	MorphDeltaStreamIndex = DeltaPositionElement.StreamIndex;
 	OutElements.Add(DeltaPositionElement);
-	OutElements.Add(FVertexFactory::AccessStreamComponent(InData.DeltaTangentZComponent, 10));
+	OutElements.Add(FVertexFactory::AccessStreamComponent(MorphDataPtr->DeltaTangentZComponent, 10));
 }
 
 /**
@@ -984,7 +1019,7 @@ void TGPUSkinMorphVertexFactory<BoneInfluenceType>::InitRHI()
 {
 	// list of declaration items
 	FVertexDeclarationElementList Elements;	
-	AddVertexElements(MorphData,Elements);
+	AddVertexElements(Elements);
 
 	// create the actual device decls
 	FVertexFactory::InitDeclaration(Elements);
@@ -1005,7 +1040,9 @@ void TGPUSkinMorphVertexFactory<BoneInfluenceType>::UpdateMorphVertexStream(cons
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
 const FMorphVertexBuffer* TGPUSkinMorphVertexFactory<BoneInfluenceType>::GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const
 {
-	return MorphData.MorphVertexBufferPool ? &MorphData.MorphVertexBufferPool->GetMorphVertexBufferForReading(bPrevious, FrameNumber) : nullptr;
+	FGPUSkinMorphDataType* MorphData = (FGPUSkinMorphDataType*)(this->Data.Get());
+	check(MorphData);
+	return MorphData->MorphVertexBufferPool ? &MorphData->MorphVertexBufferPool->GetMorphVertexBufferForReading(bPrevious, FrameNumber) : nullptr;
 }
 
 IMPLEMENT_GPUSKINNING_VERTEX_FACTORY_PARAMETER_TYPE(TGPUSkinMorphVertexFactory, SF_Vertex, FGPUSkinMorphVertexFactoryShaderParameters);
@@ -1210,6 +1247,22 @@ bool TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ShouldCompilePermutation
 		&& Super::ShouldCompilePermutation(Parameters);
 }
 
+template <GPUSkinBoneInfluenceType BoneInfluenceType>
+void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::SetData(const FGPUSkinDataType* InData)
+{
+	const FGPUSkinAPEXClothDataType* InClothData = (const FGPUSkinAPEXClothDataType*)(InData);
+	check(InClothData);
+
+	if (!this->Data)
+	{
+		ClothDataPtr = new FGPUSkinAPEXClothDataType();
+		this->Data = TUniquePtr<FGPUSkinDataType>(ClothDataPtr);
+	}
+
+	*ClothDataPtr = *InClothData;
+	FGPUBaseSkinVertexFactory::UpdateRHI();
+}
+
 /**
 * Creates declarations for each of the vertex stream components and
 * initializes the device resource
@@ -1219,7 +1272,7 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::InitRHI()
 {
 	// list of declaration items
 	FVertexDeclarationElementList Elements;	
-	TGPUSkinVertexFactory<BoneInfluenceType>::AddVertexElements(MeshMappingData, Elements);
+	Super::AddVertexElements(Elements);
 
 	// create the actual device decls
 	FVertexFactory::InitDeclaration(Elements);
