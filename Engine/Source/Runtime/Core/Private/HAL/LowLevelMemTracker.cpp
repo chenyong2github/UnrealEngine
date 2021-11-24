@@ -3860,7 +3860,7 @@ namespace LLMPrivate
 		{
 			WriteTag(TagData);
 		}
-		Write(TEXT("\n"_SV));
+		Write(TEXTVIEW("\n"));
 
 		WriteCount++;
 
