@@ -71,8 +71,9 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 	const bool bIsGridPlacement = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, GridPlacement);
 	const bool bIsRuntimeGrid = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, RuntimeGrid);
 	const bool bIsDataLayers = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, DataLayers);
+	const bool bIsHLODLayer = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, HLODLayer);
 
-	if (bIsGridPlacement || bIsRuntimeGrid || bIsDataLayers)
+	if (bIsGridPlacement || bIsRuntimeGrid || bIsDataLayers || bIsHLODLayer)
 	{
 		if (!IsTemplate())
 		{
