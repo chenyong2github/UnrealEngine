@@ -132,7 +132,8 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 
 	InTabManager->RegisterTabSpawner(SystemParametersTabID2, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameters2))
 		.SetDisplayName(LOCTEXT("SystemParameters2", "Legacy Parameters"))
-		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "Tab.Parameters"));
 
 //@todo(ng) disable parameter definitions panel pending bug fixes
 // 	InTabManager->RegisterTabSpawner(SystemParameterDefinitionsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_SystemParameterDefinitions)) 
@@ -1233,8 +1234,7 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 					FOnGetContent::CreateStatic(Local::FillDebugOptionsMenu, Toolkit),
 					LOCTEXT("DebugOptions", "Debug"),
 					LOCTEXT("DebugOptionsTooltip", "Debug options"),
-					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.DebugOptions")
-				);
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Debug"));
 			}
 			ToolbarBuilder.EndSection();
 #endif
