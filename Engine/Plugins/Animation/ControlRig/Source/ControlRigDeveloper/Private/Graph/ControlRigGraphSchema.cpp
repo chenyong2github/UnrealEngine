@@ -90,6 +90,45 @@ EValidatorResult FControlRigLocalVariableNameValidator::IsValid(const FName& Nam
 	return IsValid(Name.ToString(), bOriginal);
 }
 
+FControlRigNameValidator::FControlRigNameValidator(const UBlueprint* Blueprint, const UStruct* ValidationScope, FName InExistingName)
+: FStringSetNameValidator(InExistingName.ToString())
+{
+	if (Blueprint)
+	{
+		TSet<FName> NamesTemp;
+		FBlueprintEditorUtils::GetClassVariableList(Blueprint, NamesTemp, true);
+		FBlueprintEditorUtils::GetFunctionNameList(Blueprint, NamesTemp);
+		FBlueprintEditorUtils::GetAllGraphNames(Blueprint, NamesTemp);
+		FBlueprintEditorUtils::GetSCSVariableNameList(Blueprint, NamesTemp);
+		FBlueprintEditorUtils::GetImplementingBlueprintsFunctionNameList(Blueprint, NamesTemp);
+
+		for (FName & Name : NamesTemp)
+		{
+			Names.Add(Name.ToString());
+		}
+	}
+}
+
+EValidatorResult FControlRigNameValidator::IsValid(const FString& Name, bool bOriginal)
+{
+	EValidatorResult Result = FStringSetNameValidator::IsValid(Name, bOriginal);
+	if (Result == EValidatorResult::Ok)
+	{
+		if (URigVMController::GetSanitizedName(Name, false, true) == Name)
+		{
+			return Result;
+		}
+
+		return EValidatorResult::ContainsInvalidCharacters;
+	}
+	return Result;
+}
+
+EValidatorResult FControlRigNameValidator::IsValid(const FName& Name, bool bOriginal)
+{
+	return IsValid(Name.ToString(), bOriginal);
+}
+
 FEdGraphPinType FControlRigGraphSchemaAction_LocalVar::GetPinType() const
 {
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
@@ -753,6 +792,22 @@ void UControlRigGraphSchema::InsertAdditionalActions(TArray<UBlueprint*> InBluep
 			}
 		}
 	}
+}
+
+TSharedPtr<INameValidatorInterface> UControlRigGraphSchema::GetNameValidator(const UBlueprint* BlueprintObj, const FName& OriginalName, const UStruct* ValidationScope, const FName& ActionTypeId) const
+{
+	if (ActionTypeId == FControlRigGraphSchemaAction_LocalVar::StaticGetTypeId())
+	{
+		if (const UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(ValidationScope))
+		{
+			if (const URigVMGraph* Graph = ControlRigGraph->GetModel())
+			{
+				return MakeShareable(new FControlRigLocalVariableNameValidator(BlueprintObj, Graph, OriginalName));
+			}
+		}
+	}
+
+	return MakeShareable(new FControlRigNameValidator(BlueprintObj, ValidationScope, OriginalName));		
 }
 
 bool UControlRigGraphSchema::SupportsPinType(UScriptStruct* ScriptStruct) const

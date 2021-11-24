@@ -270,6 +270,27 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		BlueprintEditor.Pin()->OnRefresh().AddSP(this, &FBlueprintVarActionDetails::OnPostEditorRefresh);
 	}
 
+	UBlueprint* BlueprintPtr = GetBlueprintObj();
+	
+	// Get an appropiate name validator
+	TSharedPtr<INameValidatorInterface> NameValidator = nullptr;
+	{
+		const UEdGraphSchema* Schema = nullptr;		
+		if (BlueprintPtr)
+		{
+			TArray<UEdGraph*> Graphs;
+			BlueprintPtr->GetAllGraphs(Graphs);
+			if (Graphs.Num() > 0)
+			{
+				Schema = Graphs[0]->GetSchema();
+			}
+		}			
+	
+		if (Schema)
+		{
+			NameValidator = Schema->GetNameValidator(BlueprintPtr, GetVariableName(), nullptr, FEdGraphSchemaAction_K2Var::StaticGetTypeId());	
+		}
+	}
 
 	FProperty* VariableProperty = CachedVariableProperty.Get();
 
@@ -302,6 +323,27 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.ToolTip(VarNameTooltip)
 		.OnTextChanged(this, &FBlueprintVarActionDetails::OnVarNameChanged)
 		.OnTextCommitted(this, &FBlueprintVarActionDetails::OnVarNameCommitted)
+		.OnVerifyTextChanged_Lambda([this, NameValidator](const FText& InNewText, FText& OutErrorMessage) -> bool
+		{	
+			if (NameValidator.IsValid())
+			{
+				EValidatorResult ValidatorResult = NameValidator->IsValid(InNewText.ToString());
+				switch (ValidatorResult)
+				{
+					case EValidatorResult::Ok:
+					case EValidatorResult::ExistingName:
+						// These are fine, don't need to surface to the user, the rename can 'proceed' even if the name is the existing one
+						return true;
+						break;
+					default:
+						OutErrorMessage = INameValidatorInterface::GetErrorText(InNewText.ToString(), ValidatorResult);
+						return false;
+						break;
+				}
+			}
+			
+			return true;
+		})
 		.IsReadOnly(this, &FBlueprintVarActionDetails::GetVariableNameChangeEnabled)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 	];

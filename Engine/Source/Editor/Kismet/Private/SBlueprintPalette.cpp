@@ -1485,11 +1485,25 @@ bool SBlueprintPaletteItem::OnNameTextVerifyChanged(const FText& InNewText, FTex
 
 	UStruct* ValidationScope = nullptr;
 
+	const UEdGraphSchema* Schema = nullptr;
+
 	// Check if certain action names are unchanged.
 	if (ActionPtr.Pin()->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
 	{
 		FEdGraphSchemaAction_K2Var* VarAction = (FEdGraphSchemaAction_K2Var*)ActionPtr.Pin().Get();
 		OriginalName = (VarAction->GetVariableName());
+
+		UClass* VarClass = VarAction->GetVariableClass();
+		if (VarClass)
+		{
+			UBlueprint* BlueprintObj = UBlueprint::GetBlueprintFromClass(VarClass);
+			TArray<UEdGraph*> Graphs;
+			BlueprintObj->GetAllGraphs(Graphs);
+			if (Graphs.Num() > 0)
+			{
+				Schema = Graphs[0]->GetSchema();
+			}
+		}
 	}
 	else if (ActionPtr.Pin()->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
 	{
@@ -1497,6 +1511,18 @@ bool SBlueprintPaletteItem::OnNameTextVerifyChanged(const FText& InNewText, FTex
 		OriginalName = (LocalVarAction->GetVariableName());
 		
 		ValidationScope = CastChecked<UStruct>(LocalVarAction->GetVariableScope());
+
+		UClass* VarClass = LocalVarAction->GetVariableClass();
+		if (VarClass)
+		{
+			UBlueprint* BlueprintObj = UBlueprint::GetBlueprintFromClass(VarClass);
+			TArray<UEdGraph*> Graphs;
+			BlueprintObj->GetAllGraphs(Graphs);
+			if (Graphs.Num() > 0)
+			{
+				Schema = Graphs[0]->GetSchema();
+			}
+		}
 	}
 	else
 	{
@@ -1516,6 +1542,7 @@ bool SBlueprintPaletteItem::OnNameTextVerifyChanged(const FText& InNewText, FTex
 		if (Graph)
 		{
 			OriginalName = Graph->GetFName();
+			Schema = Graph->GetSchema();
 		}
 	}
 
@@ -1541,20 +1568,26 @@ bool SBlueprintPaletteItem::OnNameTextVerifyChanged(const FText& InNewText, FTex
 	}
 	else
 	{
-		TSharedPtr<INameValidatorInterface> NameValidator = MakeShareable(new FKismetNameValidator(BlueprintObj, OriginalName, ValidationScope));
-
-		EValidatorResult ValidatorResult = NameValidator->IsValid(TextAsString);
-		switch (ValidatorResult)
+		TSharedPtr<INameValidatorInterface> NameValidator = nullptr;
+		if (Schema)
 		{
-		case EValidatorResult::Ok:
-		case EValidatorResult::ExistingName:
-			// These are fine, don't need to surface to the user, the rename can 'proceed' even if the name is the existing one
-			break;
-		default:
-			OutErrorMessage = INameValidatorInterface::GetErrorText(TextAsString, ValidatorResult);
-			break;
+			NameValidator = Schema->GetNameValidator(BlueprintObj, OriginalName, ValidationScope, ActionPtr.Pin()->GetTypeId());	
 		}
-	
+		
+		if (NameValidator.IsValid())
+		{
+			EValidatorResult ValidatorResult = NameValidator->IsValid(TextAsString);
+			switch (ValidatorResult)
+			{
+			case EValidatorResult::Ok:
+			case EValidatorResult::ExistingName:
+				// These are fine, don't need to surface to the user, the rename can 'proceed' even if the name is the existing one
+				break;
+			default:
+				OutErrorMessage = INameValidatorInterface::GetErrorText(TextAsString, ValidatorResult);
+				break;
+			}
+		}
 	}
 	
 	return OutErrorMessage.IsEmpty();
