@@ -118,18 +118,18 @@ private:
 
 	/** The rig to copy animation FROM.*/
 	UPROPERTY(VisibleAnywhere, Category = Rigs)
-	TWeakObjectPtr<UIKRigDefinition> SourceIKRigAsset = nullptr;
+	TObjectPtr<UIKRigDefinition> SourceIKRigAsset = nullptr;
 	
 	/** The rig to copy animation TO.*/
 	UPROPERTY(EditAnywhere, Category = Rigs)
-	TWeakObjectPtr<UIKRigDefinition> TargetIKRigAsset = nullptr;
+	TObjectPtr<UIKRigDefinition> TargetIKRigAsset = nullptr;
 
 public:
 
 #if WITH_EDITORONLY_DATA
 	/** The Skeletal Mesh to preview the retarget on.*/
 	UPROPERTY(EditAnywhere, Category = Rigs)
-	TWeakObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
+	TObjectPtr<USkeletalMesh> TargetPreviewMesh = nullptr;
 #endif
 	
 	/** When false, translational motion of skeleton root is not copied. Useful for debugging.*/
@@ -167,7 +167,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> Controller;
 #endif
-
+	
 private:
 	/** The set of retarget poses available as options for retargeting.*/
 	UPROPERTY()
