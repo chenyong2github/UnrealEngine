@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "StructUtilsTypes.h"
 #include "UObject/Class.h"
 #include "Serialization/ArchiveCrc32.h"
