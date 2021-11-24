@@ -78,6 +78,14 @@ namespace CrossCompiler
 		/** Enables separate samplers in GLSL via extensions. */
 		bool bEnableSeparateSamplersInGlsl = false;
 
+		enum class ETargetEnvironment
+		{
+			Vulkan_1_0,
+			Vulkan_1_1,
+			Vulkan_1_2,
+		};
+		ETargetEnvironment TargetEnvironment = ETargetEnvironment::Vulkan_1_0;
+
 		/** Shader model version of the input language. By default SM6.2. */
 		FHlslShaderModel ShaderModel = { 6, 2 };
 	};

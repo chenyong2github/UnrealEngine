@@ -949,14 +949,6 @@ namespace
             dxcArgStrings.push_back(L"all");
         }
 
-        // UE Change Begin: Ensure 1.2 for ray tracing shaders
-        const bool bIsRayTracingShader = (source.stage >= ShaderStage::RayGen) && (source.stage <= ShaderStage::RayCallable);
-        if (bIsRayTracingShader)
-        {
-            dxcArgStrings.push_back(L"-fspv-target-env=vulkan1.2");
-        }
-        // UE Change End: Ensure 1.2 for ray tracing shaders
-
         switch (targetLanguage)
         {
         case ShadingLanguage::Dxil:
