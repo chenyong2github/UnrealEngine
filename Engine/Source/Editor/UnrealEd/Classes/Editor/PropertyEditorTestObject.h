@@ -359,6 +359,15 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties, meta=(TitleProperty=IntPropertyInsideAStruct))
 	TArray<FPropertyEditorTestBasicStruct> StructPropertyArrayWithTitle;
 
+	UPROPERTY(EditAnywhere, Category=ArraysOfProperties, meta=(TitleProperty="{IntPropertyInsideAStruct} + {FloatPropertyInsideAStruct}"))
+	TArray<FPropertyEditorTestBasicStruct> StructPropertyArrayWithFormattedTitle;
+
+	UPROPERTY(EditAnywhere, Category=ArraysOfProperties, meta=(TitleProperty=ErrorProperty))
+	TArray<FPropertyEditorTestBasicStruct> StructPropertyArrayWithTitleError;
+
+	UPROPERTY(EditAnywhere, Category=ArraysOfProperties, meta=(TitleProperty="{ErrorProperty}"))
+	TArray<FPropertyEditorTestBasicStruct> StructPropertyArrayWithFormattedTitleError;
+
 	UPROPERTY(EditAnywhere, Category=ArraysOfProperties)
 	TArray<FPropertyEditorTestInstancedStruct> InstancedStructArray;
 
