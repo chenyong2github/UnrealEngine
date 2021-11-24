@@ -147,6 +147,10 @@ bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemI
 			}
 		}
 #endif
+		if (ParentSystemInstance && CombinedParamStore.GetPositionDataDirty())
+		{
+			CombinedParamStore.ResolvePositions(ParentSystemInstance->GetLWCConverter());
+		}
 		CombinedParamStore.Tick();
 	}
 

@@ -15,15 +15,18 @@ float NDICollisionQuery_GetCustomSceneDepth(float2 ScreenUV)
 #endif
 }
 
-void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
+void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, in float3 In_LWCTile, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
 {
 	Out_SceneDepth = -1;
 	Out_WorldPos = float3(0.0, 0.0, 0.0);
 	Out_WorldNormal = float3(0.0, 0.0, 1.0);
 	Out_IsInsideView = true;
-	Out_CameraPosWorld.xyz = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+	FLWCVector3 CameraPos = PrimaryView.WorldCameraOrigin;
+	CameraPos.Tile -= In_LWCTile; // convert to simulation space
+	Out_CameraPosWorld = LWCToFloat(CameraPos);
 
-	float4 SamplePosition = float4(In_SamplePos + LWCHackToFloat(PrimaryView.PreViewTranslation), 1);
+	FLWCVector3 LwcSamplePos = MakeLWCVector3(In_LWCTile, In_SamplePos);
+	float4 SamplePosition = float4(LWCToFloat(LWCAdd(LwcSamplePos, PrimaryView.PreViewTranslation)), 1); // TODO[mg]: LWCToFloat here?
 	float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
 	float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
 
@@ -33,7 +36,7 @@ void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, out float Out_
 		// Sample the depth buffer to get a world position near the sample position.
 		float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
 		float SceneDepth = CalcSceneDepth(ScreenUV);
-		float3 WorldPosition = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
+		FLWCVector3 WorldPosition = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
 
 #if NDICOLLISIONQUERY_USE_GBUFFER_NORMAL
 		float3 WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
@@ -50,14 +53,17 @@ void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, out float Out_
 			return;
 		}
 
-		float3 WorldPosition0 = WorldPositionFromSceneDepth(ScreenPosition.xy + float2(2 * View.ViewSizeAndInvSize.z, 0.0), SceneDepth0);
-		float3 WorldPosition1 = WorldPositionFromSceneDepth(ScreenPosition.xy - float2(0.0, 2 * View.ViewSizeAndInvSize.w), SceneDepth1);
-		float3 WorldNormal = normalize(cross(WorldPosition0 - WorldPosition, WorldPosition1 - WorldPosition));
+		FLWCVector3 WorldPosition0 = WorldPositionFromSceneDepth(ScreenPosition.xy + float2(2 * View.ViewSizeAndInvSize.z, 0.0), SceneDepth0);
+		FLWCVector3 WorldPosition1 = WorldPositionFromSceneDepth(ScreenPosition.xy - float2(0.0, 2 * View.ViewSizeAndInvSize.w), SceneDepth1);
+		float3 WorldNormal = normalize(cross(LWCSubtract(WorldPosition0, WorldPosition).Offset, LWCSubtract(WorldPosition1, WorldPosition).Offset));
 #endif
 
+		// convert LWC position back to simulation space
+		WorldPosition.Tile -= In_LWCTile;
+		
 		// Set outputs
 		Out_SceneDepth = SceneDepth;
-		Out_WorldPos = WorldPosition;
+		Out_WorldPos = LWCToFloat(WorldPosition);
 		Out_WorldNormal = WorldNormal;
 	}
 	else
@@ -66,15 +72,18 @@ void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, out float Out_
 	}
 }
 
-void NDICollisionQuery_QueryCustomDepthGPU(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
+void NDICollisionQuery_QueryCustomDepthGPU(in float3 In_SamplePos, in float3 In_LWCTile, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
 {
 	Out_SceneDepth = -1;
 	Out_WorldPos = float3(0.0, 0.0, 0.0);
 	Out_WorldNormal = float3(0.0, 0.0, 1.0);
 	Out_IsInsideView = true;
-	Out_CameraPosWorld.xyz = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+	FLWCVector3 CameraPos = PrimaryView.WorldCameraOrigin;
+	CameraPos.Tile -= In_LWCTile; // convert to simulation space
+	Out_CameraPosWorld = LWCToFloat(CameraPos);
 
-	float4 SamplePosition = float4(In_SamplePos + LWCHackToFloat(PrimaryView.PreViewTranslation), 1);
+	FLWCVector3 LwcSamplePos = MakeLWCVector3(In_LWCTile, In_SamplePos);
+	float4 SamplePosition = float4(LWCToFloat(LWCAdd(LwcSamplePos, PrimaryView.PreViewTranslation)), 1); // TODO[mg]: LWCToFloat here?
 	float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
 	float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
 
@@ -84,7 +93,7 @@ void NDICollisionQuery_QueryCustomDepthGPU(in float3 In_SamplePos, out float Out
 		// Sample the depth buffer to get a world position near the sample position.
 		float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
 		float SceneDepth = NDICollisionQuery_GetCustomSceneDepth(ScreenUV);
-		float3 WorldPosition = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
+		FLWCVector3 WorldPosition = WorldPositionFromSceneDepth(ScreenPosition.xy, SceneDepth);
 
 #if NDICOLLISIONQUERY_USE_GBUFFER_NORMAL
 		float3 WorldNormal = Texture2DSampleLevel(SceneTexturesStruct.GBufferATexture, SceneTexturesStruct_GBufferATextureSampler, ScreenUV, 0).xyz * 2.0 - 1.0;
@@ -101,14 +110,17 @@ void NDICollisionQuery_QueryCustomDepthGPU(in float3 In_SamplePos, out float Out
 			return;
 		}
 
-		float3 WorldPosition0 = WorldPositionFromSceneDepth(ScreenPosition.xy + float2(2 * View.ViewSizeAndInvSize.z, 0.0), SceneDepth0);
-		float3 WorldPosition1 = WorldPositionFromSceneDepth(ScreenPosition.xy - float2(0.0, 2 * View.ViewSizeAndInvSize.w), SceneDepth1);
-		float3 WorldNormal = normalize(cross(WorldPosition0 - WorldPosition, WorldPosition1 - WorldPosition));
+		FLWCVector3 WorldPosition0 = WorldPositionFromSceneDepth(ScreenPosition.xy + float2(2 * View.ViewSizeAndInvSize.z, 0.0), SceneDepth0);
+		FLWCVector3 WorldPosition1 = WorldPositionFromSceneDepth(ScreenPosition.xy - float2(0.0, 2 * View.ViewSizeAndInvSize.w), SceneDepth1);
+		float3 WorldNormal = normalize(cross(LWCSubtract(WorldPosition0, WorldPosition).Offset, LWCSubtract(WorldPosition1, WorldPosition).Offset));
 #endif
 
+		// convert LWC position back to simulation space
+		WorldPosition.Tile = WorldPosition.Tile - In_LWCTile;
+		
 		// Set outputs
 		Out_SceneDepth = SceneDepth;
-		Out_WorldPos = WorldPosition;
+		Out_WorldPos = LWCToFloat(WorldPosition);
 		Out_WorldNormal = WorldNormal;
 	}
 	else
@@ -117,11 +129,14 @@ void NDICollisionQuery_QueryCustomDepthGPU(in float3 In_SamplePos, out float Out
 	}
 }
 
-void NDICollisionQuery_QueryMeshDistanceFieldGPU(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient, out bool Out_IsDistanceFieldValid)
+void NDICollisionQuery_QueryMeshDistanceFieldGPU(in float3 In_SamplePos, in float3 In_LWCTile, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient, out bool Out_IsDistanceFieldValid)
 {
 #if PLATFORM_SUPPORTS_DISTANCE_FIELDS && (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
-	Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);
-	Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);
+	FLWCVector3 LwcSamplePos = MakeLWCVector3(In_LWCTile, In_SamplePos);
+	float3 SamplePosition = LWCToFloat(LwcSamplePos); // TODO: remove LWCToFloat here when GetDistanceToNearestSurfaceGlobal supports LWC
+	
+	Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(SamplePosition);
+	Out_FieldGradient = GetDistanceFieldGradientGlobal(SamplePosition);
 	Out_IsDistanceFieldValid = (MaxGlobalDFAOConeDistance > 0) && !(Out_DistanceToNearestSurface > 0 && all(Out_FieldGradient == float3(0,0,0.001f)));
 #else
 	Out_DistanceToNearestSurface = 0;
@@ -138,18 +153,21 @@ uint BuildRayTraceMask(int TraceChannel)
 	return 0xFF;
 }
 
-void NDICollisionQuery_IssueAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBuffer<FNiagaraRayData> RWRayRequests, uint RayRequestOffset, RWBuffer<uint> RWRayTraceCounts, uint RayTraceCountsOffset, int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
+void NDICollisionQuery_IssueAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBuffer<FNiagaraRayData> RWRayRequests, uint RayRequestOffset, RWBuffer<uint> RWRayTraceCounts, uint RayTraceCountsOffset, float3 In_LWCTile, int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
 {
 	Out_IsQueryValid = false;
 
 	if (In_QueryID >= 0 && uint(In_QueryID) < MaxRayTraceCount)
 	{
-		float3 Trace = In_TraceEnd - In_TraceStart;
+		FLWCVector3 LwcStartPos = MakeLWCVector3(In_LWCTile, In_TraceStart);
+		FLWCVector3 LwcEndPos = MakeLWCVector3(In_LWCTile, In_TraceEnd);
+		
+		float3 Trace = LWCToFloat(LWCSubtract(LwcEndPos, LwcStartPos));
 		float TraceLength = length(Trace);
 
 		//Offset query into the actual ray buffer.
 		uint RayIndex = RayRequestOffset + In_QueryID;
-		RWRayRequests[RayIndex].Origin = In_TraceStart;
+		RWRayRequests[RayIndex].Origin = LWCToFloat(LwcStartPos); // TODO: remove LWCToFloat here when FNiagaraRayData supports LWC
 		RWRayRequests[RayIndex].Mask = BuildRayTraceMask(In_TraceChannel);
 		RWRayRequests[RayIndex].Direction = normalize(Trace);
 		RWRayRequests[RayIndex].TFar = TraceLength;
@@ -185,7 +203,7 @@ void NDICollisionQuery_ReserveRayTraceIndex(uint MaxRayTraceCount, RWBuffer<uint
 	}
 }
 
-void NDICollisionQuery_CreateAsyncRayTrace(	uint MaxRayTraceCount, RWStructuredBuffer<FNiagaraRayData> RWRayRequests, uint RayRequestsOffset, RWBuffer<uint> RWRayTraceCounts, uint RayTraceCountsOffset,
+void NDICollisionQuery_CreateAsyncRayTrace(	uint MaxRayTraceCount, RWStructuredBuffer<FNiagaraRayData> RWRayRequests, uint RayRequestsOffset, RWBuffer<uint> RWRayTraceCounts, uint RayTraceCountsOffset, float3 In_LWCTile,
 											float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out int Out_QueryID, out bool Out_IsQueryValid)
 {
 	Out_IsQueryValid = false;
@@ -194,11 +212,14 @@ void NDICollisionQuery_CreateAsyncRayTrace(	uint MaxRayTraceCount, RWStructuredB
 
 	if (Out_IsQueryValid)
 	{
-		float3 Trace = In_TraceEnd - In_TraceStart;
+		FLWCVector3 LwcStartPos = MakeLWCVector3(In_LWCTile, In_TraceStart);
+		FLWCVector3 LwcEndPos = MakeLWCVector3(In_LWCTile, In_TraceEnd);
+		
+		float3 Trace = LWCToFloat(LWCSubtract(LwcEndPos, LwcStartPos));
 		float TraceLength = length(Trace);
 
 		uint RayIndex = Out_QueryID + RayRequestsOffset;
-		RWRayRequests[RayIndex].Origin = In_TraceStart;
+		RWRayRequests[RayIndex].Origin = LWCToFloat(LwcStartPos); // TODO: remove LWCToFloat here when FNiagaraRayData supports LWC
 		RWRayRequests[RayIndex].Mask = BuildRayTraceMask(In_TraceChannel);
 		RWRayRequests[RayIndex].Direction = normalize(Trace);
 		RWRayRequests[RayIndex].TFar = TraceLength;
@@ -208,7 +229,7 @@ void NDICollisionQuery_CreateAsyncRayTrace(	uint MaxRayTraceCount, RWStructuredB
 	}
 }
 
-void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer<FNiagaraRayTracingResult> IntersectionResults, uint IntersectionRestultsOffest, int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
+void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer<FNiagaraRayTracingResult> IntersectionResults, uint IntersectionRestultsOffest, float3 In_LWCTile, int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
 {
 	Out_CollisionValid = false;
 	Out_CollisionDistance = 0.0f;
@@ -223,7 +244,7 @@ void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer
 		if (Out_CollisionValid)
 		{
 			Out_CollisionDistance = HitResult.HitT;
-			Out_CollisionPosWorld = HitResult.WorldPosition;
+			Out_CollisionPosWorld = LWCToFloat(MakeLWCVector3(-In_LWCTile, HitResult.WorldPosition)); // TODO: HitResult.WorldPosition should support LWC properly
 			Out_CollisionNormal = HitResult.WorldNormal;
 		}
 	}

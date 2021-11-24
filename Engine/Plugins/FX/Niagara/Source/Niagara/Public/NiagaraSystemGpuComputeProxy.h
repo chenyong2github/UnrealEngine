@@ -31,11 +31,13 @@ public:
 	bool RequiresEarlyViewData() const { return bRequiresEarlyViewData; }
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
 	bool RequiresRayTracingScene() const { return bRequiresRayTracingScene; }
+	FVector3f GetSystemLWCTile() const { return SystemLWCTile; }
 
 private:
 	FNiagaraSystemInstance*						DebugOwnerInstance = nullptr;
 	FNiagaraGpuComputeDispatchInterface*		DebugOwnerComputeDispatchInterface = nullptr;
 	int32										ComputeDispatchIndex = INDEX_NONE;
+	FVector3f									SystemLWCTile;
 
 	FNiagaraSystemInstanceID					SystemInstanceID = FNiagaraSystemInstanceID();
 	ENiagaraGpuComputeTickStage::Type			ComputeTickStage = ENiagaraGpuComputeTickStage::PostOpaqueRender;

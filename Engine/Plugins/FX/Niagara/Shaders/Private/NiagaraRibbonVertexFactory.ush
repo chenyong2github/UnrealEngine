@@ -63,12 +63,11 @@ float3 TransformPosition(float3 InPosition)
 {
 	if (NiagaraRibbonVF.bLocalSpace)
 	{
-		// TODO LWC
-		return LWCToFloat(TransformLocalToWorld(InPosition));
+		return LWCHackToFloat(TransformLocalToWorld(InPosition));
 	}
 	else
 	{
-		return InPosition;
+		return LWCHackToFloat(MakeLWCVector3(NiagaraRibbonVF.SystemLWCTile, InPosition));
 	}
 }
 

@@ -165,6 +165,10 @@ class UNiagaraScriptSourceBase : public UObject
 	 */
 	virtual void RenameGraphAssignmentAndSetNodePins(const FName OldName, const FName NewName) {};
 
+	/** Checks if any of the provided variables are linked to function inputs of position type data
+	 */
+	virtual void GetLinkedPositionTypeInputs(const TArray<FNiagaraVariable>& ParametersToCheck, TSet<FNiagaraVariable>& OutLinkedParameters) {};
+
 protected:
 	FOnChanged OnChangedDelegate;
 #endif

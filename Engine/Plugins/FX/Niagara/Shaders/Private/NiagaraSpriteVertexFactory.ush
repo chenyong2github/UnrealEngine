@@ -628,14 +628,14 @@ float3 LocalToWorldPos(float3 LocalSpacePos, float4x4 LocalToWorld)
 		LocalToWorld[3].xyz;
 }
 
-float3 SimToWorldPos(float3 SimSpacePos, float4x4 LocalToWorld)
+float3 SimToWorldPos(float3 SimSpacePos, FLWCMatrix LocalToWorld)
 {
 	if (NiagaraSpriteVF.bLocalSpace)
 	{
-		return LocalToWorldPos(SimSpacePos, LocalToWorld);
+		return LocalToWorldPos(SimSpacePos, LWCHackToFloat(LocalToWorld));
 	}
 	
-	return SimSpacePos;
+	return LWCHackToFloat(MakeLWCVector3(NiagaraSpriteVF.SystemLWCTile, SimSpacePos));
 }
 
 float3 LocalToWorldVec(float3 LocalSpaceVec, float3x3 LocalToWorld)
@@ -663,12 +663,14 @@ float3 SimToWorldVec(float3 SimSpaceVec, float3x3 LocalToWorld)
 
 float3 GetNiagaraParticlePosition(uint InstanceID)
 {
-	return SimToWorldPos(SafeGetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPos.xyz), LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().LocalToWorld));
+	float3 ParticlePos = SafeGetVec3(NiagaraSpriteVF.PositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPos.xyz);
+	return SimToWorldPos(ParticlePos, GetPrimitiveDataFromUniformBuffer().LocalToWorld);
 }
 
 float3 GetNiagaraPreviousParticlePosition(uint InstanceID)
 {
-	return SimToWorldPos(SafeGetVec3(NiagaraSpriteVF.PrevPositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevPos.xyz), LWCHackToFloat(GetPrimitiveDataFromUniformBuffer().PreviousLocalToWorld));
+	float3 PrevParticlePos = SafeGetVec3(NiagaraSpriteVF.PrevPositionDataOffset, InstanceID, NiagaraSpriteVF.DefaultPrevPos.xyz);
+	return SimToWorldPos(PrevParticlePos, GetPrimitiveDataFromUniformBuffer().PreviousLocalToWorld);
 }
 
 float3 GetNiagaraParticleVelocity(uint InstanceID)

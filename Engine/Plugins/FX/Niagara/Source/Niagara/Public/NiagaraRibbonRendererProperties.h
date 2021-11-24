@@ -416,7 +416,7 @@ public:
 
 	bool								bSortKeyDataSetAccessorIsAge = false;
 	FNiagaraDataSetAccessor<float>		SortKeyDataSetAccessor;
-	FNiagaraDataSetAccessor<FVector3f>	PositionDataSetAccessor;
+	FNiagaraDataSetAccessor<FNiagaraPosition>	PositionDataSetAccessor;
 	FNiagaraDataSetAccessor<float>		NormalizedAgeAccessor;
 	FNiagaraDataSetAccessor<float>		SizeDataSetAccessor;
 	FNiagaraDataSetAccessor<float>		TwistDataSetAccessor;

@@ -308,12 +308,13 @@ void FNiagaraRendererGeometryCache::PostSystemTick_GameThread(const UNiagaraRend
 			}
 		}
 
-		const auto PositionAccessor = FNiagaraDataSetAccessor<FVector3f>::CreateReader(Data, Properties->PositionBinding.GetDataSetBindableVariable().GetName());
+		const auto PositionAccessor = FNiagaraDataSetAccessor<FNiagaraPosition>::CreateReader(Data, Properties->PositionBinding.GetDataSetBindableVariable().GetName());
 		const auto RotationAccessor = FNiagaraDataSetAccessor<FVector3f>::CreateReader(Data, Properties->RotationBinding.GetDataSetBindableVariable().GetName());
 		const auto ScaleAccessor = FNiagaraDataSetAccessor<FVector3f>::CreateReader(Data, Properties->ScaleBinding.GetDataSetBindableVariable().GetName());
 		const auto ElapsedTimeAccessor = FNiagaraDataSetAccessor<float>::CreateReader(Data, Properties->ElapsedTimeBinding.GetDataSetBindableVariable().GetName());
+		FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(Emitter->GetCachedEmitter()->bLocalSpace);
 
-		FVector Position = PositionAccessor.GetSafe(ParticleIndex, FVector3f::ZeroVector);
+		FVector Position = LwcConverter.ConvertSimulationPositionToWorld(PositionAccessor.GetSafe(ParticleIndex, FNiagaraPosition(ForceInit)));
 		FVector Scale = ScaleAccessor.GetSafe(ParticleIndex, FVector3f::OneVector);
 		FVector RotationVector = RotationAccessor.GetSafe(ParticleIndex, FVector3f::ZeroVector);
 		FTransform Transform(FRotator(RotationVector.X, RotationVector.Y, RotationVector.Z), Position, Scale);

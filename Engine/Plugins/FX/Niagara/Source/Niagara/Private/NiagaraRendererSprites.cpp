@@ -380,6 +380,7 @@ void FNiagaraRendererSprites::InitializeSortInfo(FParticleSpriteRenderData& Part
 	OutSortInfo.RendererVisTagAttributeOffset = ParticleSpriteRenderData.RendererVisTagOffset;
 	OutSortInfo.RendererVisibility = RendererVisibility;
 	OutSortInfo.DistanceCullRange = DistanceCullRange;
+	OutSortInfo.SystemLWCTile = UseLocalSpace(&SceneProxy) ? FVector3f::Zero() : SceneProxy.GetLWCRenderTile();
 
 	auto GetViewMatrices =
 		[](const FSceneView& View) -> const FViewMatrices&
@@ -501,7 +502,14 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(
 	PerViewUniformParameters.RemoveHMDRoll = bRemoveHMDRollInVR;
 	PerViewUniformParameters.SubImageSize = FVector4f(SubImageSize.X, SubImageSize.Y, 1.0f / SubImageSize.X, 1.0f / SubImageSize.Y);
 
-	PerViewUniformParameters.DefaultPos = bUseLocalSpace ? FVector4f(0.0f, 0.0f, 0.0f, 1.0f) : FVector4f(SceneProxy.GetLocalToWorld().GetOrigin());
+	if (bUseLocalSpace)
+	{
+		PerViewUniformParameters.DefaultPos = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
+	}
+	else
+	{
+		PerViewUniformParameters.DefaultPos = SceneProxy.GetLocalToWorld().GetOrigin() - FVector(SceneProxy.GetLWCRenderTile()) * FLargeWorldRenderScalar::GetTileSize();
+	}
 	PerViewUniformParameters.DefaultPrevPos = PerViewUniformParameters.DefaultPos;
 	PerViewUniformParameters.DefaultSize = FVector2f(50.f, 50.0f);
 	PerViewUniformParameters.DefaultPrevSize = PerViewUniformParameters.DefaultSize;
@@ -510,6 +518,7 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreateViewUniformBuffer(
 	PerViewUniformParameters.DefaultPrevPivotOffset = PerViewUniformParameters.DefaultPivotOffset;
 	PerViewUniformParameters.DefaultVelocity = FVector3f(0.f, 0.0f, 0.0f);
 	PerViewUniformParameters.DefaultPrevVelocity = PerViewUniformParameters.DefaultVelocity;
+	PerViewUniformParameters.SystemLWCTile = SceneProxy.GetLWCRenderTile();
 	PerViewUniformParameters.DefaultRotation = 0.0f;
 	PerViewUniformParameters.DefaultPrevRotation = PerViewUniformParameters.DefaultRotation;
 	PerViewUniformParameters.DefaultColor = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);

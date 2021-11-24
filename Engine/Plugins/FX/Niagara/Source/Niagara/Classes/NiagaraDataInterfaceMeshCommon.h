@@ -21,24 +21,23 @@ struct FMeshTriCoordinate
 
 	FMeshTriCoordinate()
 	: Tri(INDEX_NONE)
-	, BaryCoord(FVector::ZeroVector)
+	, BaryCoord(FVector3f::ZeroVector)
 	{}
 
-	FMeshTriCoordinate(int32 InTri, FVector InBaryCoord)
+	FMeshTriCoordinate(int32 InTri, FVector3f InBaryCoord)
 		: Tri(InTri)
 		, BaryCoord(InBaryCoord)
 	{}
 };
 
-FORCEINLINE FVector RandomBarycentricCoord(FRandomStream& RandStream)
+FORCEINLINE FVector3f RandomBarycentricCoord(FRandomStream& RandStream)
 {
 	//TODO: This is gonna be slooooow. Move to an LUT possibly or find faster method.
 	//Can probably handle lower quality randoms / uniformity for a decent speed win.
 	float r0 = RandStream.GetFraction();
 	float r1 = RandStream.GetFraction();
 	float sqrt0 = FMath::Sqrt(r0);
-	float sqrt1 = FMath::Sqrt(r1);
-	return FVector(1.0f - sqrt0, sqrt0 * (1.0 - r1), r1 * sqrt0);
+	return FVector3f(1.0f - sqrt0, sqrt0 * (1.0 - r1), r1 * sqrt0);
 }
 
 template<typename T>

@@ -10,6 +10,7 @@
 TArray<FNiagaraVariable> FNiagaraConstants::SystemParameters;
 TArray<FNiagaraVariable> FNiagaraConstants::TranslatorParameters;
 TArray<FNiagaraVariable> FNiagaraConstants::SwitchParameters;
+TArray<FNiagaraVariable> FNiagaraConstants::OldPositionTypes;
 TMap<FName, FNiagaraVariable> FNiagaraConstants::UpdatedSystemParameters;
 TMap<FNiagaraVariable, FText> FNiagaraConstants::SystemStrMap;
 TArray<FNiagaraVariable> FNiagaraConstants::Attributes;
@@ -85,6 +86,7 @@ void FNiagaraConstants::Init()
 		SystemParameters.Add(SYS_PARAM_ENGINE_X_AXIS);
 		SystemParameters.Add(SYS_PARAM_ENGINE_Y_AXIS);
 		SystemParameters.Add(SYS_PARAM_ENGINE_Z_AXIS);
+		SystemParameters.Add(SYS_PARAM_ENGINE_LWC_TILE);
 
 		SystemParameters.Add(SYS_PARAM_ENGINE_ROTATION);
 
@@ -139,6 +141,14 @@ void FNiagaraConstants::Init()
 		SwitchParameters.Add(SYS_PARAM_SCRIPT_USAGE);
 		SwitchParameters.Add(SYS_PARAM_SCRIPT_CONTEXT);
 		SwitchParameters.Add(SYS_PARAM_FUNCTION_DEBUG_STATE);
+	}
+
+	if (OldPositionTypes.Num() == 0)
+	{
+		OldPositionTypes.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(),  SYS_PARAM_PARTICLES_POSITION.GetName()));
+		OldPositionTypes.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), FName("Particles.Initial.Position")));
+		OldPositionTypes.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(),  SYS_PARAM_ENGINE_POSITION.GetName()));
+		OldPositionTypes.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(),  SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION.GetName()));
 	}
 
 	if (UpdatedSystemParameters.Num() == 0)
@@ -208,6 +218,7 @@ void FNiagaraConstants::Init()
 		SystemStrMap.Add(SYS_PARAM_ENGINE_Y_AXIS, LOCTEXT("YAxisDesc", "The Y-axis of the owning component."));
 		SystemStrMap.Add(SYS_PARAM_ENGINE_Z_AXIS, LOCTEXT("ZAxisDesc", "The Z-axis of the owning component."));
 		SystemStrMap.Add(SYS_PARAM_ENGINE_ROTATION, LOCTEXT("EngineRotationDesc", "The owning component's rotation in world space."));
+		SystemStrMap.Add(SYS_PARAM_ENGINE_LWC_TILE, LOCTEXT("EngineLWCTileDesc", "Due to large world coordinates, the simulation position can be shifted from the actual world position to allow for more accuracy. This is the tile the system is shifted by, so (SimulationPosition + Tile * TileSize) gives the original world position. The x,y,z components of this vector are the tile and the w component is the tile size."));
 
 		SystemStrMap.Add(SYS_PARAM_ENGINE_LOCAL_TO_WORLD, LOCTEXT("LocalToWorldDesc", "Owning component's local space to world space transform matrix."));
 		SystemStrMap.Add(SYS_PARAM_ENGINE_WORLD_TO_LOCAL, LOCTEXT("WorldToLocalDesc", "Owning component's world space to local space transform matrix."));
@@ -656,6 +667,12 @@ FText FNiagaraConstants::GetEngineConstantDescription(const FNiagaraVariable& In
 		return *FoundStr;
 	}
 	return FText();
+}
+
+const TArray<FNiagaraVariable>& FNiagaraConstants::GetOldPositionTypeVariables()
+{
+	check(OldPositionTypes.Num() != 0);
+	return OldPositionTypes;
 }
 
 const TArray<FNiagaraVariable>& FNiagaraConstants::GetCommonParticleAttributes()

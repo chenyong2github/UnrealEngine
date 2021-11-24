@@ -87,7 +87,6 @@ public:
 		CurrBuffer = 0;
 	}
 
-	int32 SubmitQuery(FVector Position, FVector Direction, float CollisionSize, float DeltaSeconds);
 	int32 SubmitQuery(FVector StartPos, FVector EndPos, ECollisionChannel TraceChannel);
 	bool PerformQuery(FVector StartPos, FVector EndPos, FNiagaraDICollsionQueryResult &Result, ECollisionChannel TraceChannel);
 	bool GetQueryResult(uint32 TraceID, FNiagaraDICollsionQueryResult &Result);
@@ -103,11 +102,11 @@ private:
 
 	FRWLock CollisionTraceLock;
 	TArray<FNiagaraCollisionEventPayload> CollisionEvents;
-	FNiagaraDataSet *CollisionEventDataSet;
+	FNiagaraDataSet *CollisionEventDataSet = nullptr;
 
 	FNiagaraSystemInstanceID BatchID;
 	TArray<FNiagaraCollisionTrace> CollisionTraces[2];
 	TArray<FNiagaraDICollsionQueryResult> CollisionResults;
 	uint32 CurrBuffer;
-	UWorld *CollisionWorld;
+	UWorld *CollisionWorld = nullptr;
 };

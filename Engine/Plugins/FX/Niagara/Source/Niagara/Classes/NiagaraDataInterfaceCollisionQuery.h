@@ -64,8 +64,6 @@ public:
 	// VM functions
 	void PerformQuerySyncCPU(FVectorVMExternalFunctionContext& Context);
 	void PerformQueryAsyncCPU(FVectorVMExternalFunctionContext& Context);
-	void QuerySceneDepth(FVectorVMExternalFunctionContext& Context);
-	void QueryMeshDistanceField(FVectorVMExternalFunctionContext& Context);
 
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 	virtual bool RequiresDistanceFieldData() const override { return true; }

@@ -28,22 +28,24 @@ DECLARE_EXPORTED_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<>, TIndexedPtr<UNiagara
 
 struct FNiagaraDataInterfaceArgs
 {
-	FNiagaraDataInterfaceArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface)
+	FNiagaraDataInterfaceArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, FVector3f InSystemLWCTile, const FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface)
 		: DataInterface(InDataInterface)
 		, SystemInstanceID(InSystemInstanceID)
 		, ComputeDispatchInterface(InComputeDispatchInterface)
+		, SystemLWCTile(InSystemLWCTile)
 	{
 	}
 
 	FNiagaraDataInterfaceProxy*	DataInterface;
 	FNiagaraSystemInstanceID SystemInstanceID;
 	const FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface;
+	FVector3f SystemLWCTile;
 };
 
 struct FNiagaraDataInterfaceStageArgs : public FNiagaraDataInterfaceArgs
 {
-	FNiagaraDataInterfaceStageArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface, const FNiagaraComputeInstanceData* InComputeInstanceData, const FNiagaraSimStageData* InSimStageData, bool InIsOutputStage, bool InIsIterationStage)
-		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InComputeDispatchInterface)
+	FNiagaraDataInterfaceStageArgs(FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, FVector3f InSystemLWCTile, const FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface, const FNiagaraComputeInstanceData* InComputeInstanceData, const FNiagaraSimStageData* InSimStageData, bool InIsOutputStage, bool InIsIterationStage)
+		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InSystemLWCTile, InComputeDispatchInterface)
 		, ComputeInstanceData(InComputeInstanceData)
 		, SimStageData(InSimStageData)
 		, IsOutputStage(InIsOutputStage)
@@ -62,8 +64,8 @@ struct FNiagaraDataInterfaceSetArgs : public FNiagaraDataInterfaceArgs
 	typedef TShaderRefBase<FNiagaraShader, FNiagaraShaderMapPointerTable> FShaderReference;
 
 	FNiagaraDataInterfaceSetArgs(
-		FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, const FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface, const FShaderReference& InShader, const FNiagaraComputeInstanceData* InComputeInstanceData, const FNiagaraSimStageData* InSimStageData, bool InIsOutputStage, bool InIsIterationStage)
-		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InComputeDispatchInterface)
+		FNiagaraDataInterfaceProxy* InDataInterface, FNiagaraSystemInstanceID InSystemInstanceID, FVector3f InSystemLWCTile, const FNiagaraGpuComputeDispatchInterface* InComputeDispatchInterface, const FShaderReference& InShader, const FNiagaraComputeInstanceData* InComputeInstanceData, const FNiagaraSimStageData* InSimStageData, bool InIsOutputStage, bool InIsIterationStage)
+		: FNiagaraDataInterfaceArgs(InDataInterface, InSystemInstanceID, InSystemLWCTile, InComputeDispatchInterface)
 		, Shader(InShader)
 		, ComputeInstanceData(InComputeInstanceData)
 		, SimStageData(InSimStageData)

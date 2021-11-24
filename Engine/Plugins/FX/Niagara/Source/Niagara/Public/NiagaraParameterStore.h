@@ -25,6 +25,21 @@ struct FNiagaraBoundParameter
 
 };
 
+USTRUCT()
+struct FNiagaraPositionSource
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNiagaraPositionSource() : Value(FVector::ZeroVector) {}
+	FNiagaraPositionSource(FName InName, FVector InValue) : Name(InName), Value(InValue) {}
+	
+	UPROPERTY()
+	FName Name;
+	
+	UPROPERTY()
+	FVector Value;
+};
+
 typedef TArray<FNiagaraBoundParameter> FNiagaraBoundParameterArray;
 
 //Binding from one parameter store to another.
@@ -112,7 +127,6 @@ private:
 	bool BindParameters(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
 };
 
-
 USTRUCT()
 struct FNiagaraVariableWithOffset : public FNiagaraVariableBase
 {
@@ -166,7 +180,7 @@ private:
 	
 #if WITH_EDITORONLY_DATA
 	/** Map from parameter defs to their offset in the data table or the data interface. TODO: Separate out into a layout and instance class to reduce duplicated data for this?  */
-	UPROPERTY()
+	UPROPERTY(meta=(DeprecatedProperty))
 	TMap<FNiagaraVariable, int32> ParameterOffsets;
 #endif // WITH_EDITORONLY_DATA
 
@@ -187,6 +201,10 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> UObjects;
 
+	/** Holds position type source data to be later converted to LWC format. We use an array here instead of a map to save some memory and because linear search is faster with the few elements in here. */
+	UPROPERTY()
+	TArray<FNiagaraPositionSource> OriginalPositionData;	
+	
 	/** Bindings between this parameter store and others we push data into when we tick. */
 	typedef TPair<FNiagaraParameterStore*, FNiagaraParameterStoreBinding> BindingPair;
 	TArray<BindingPair> Bindings;
@@ -201,12 +219,19 @@ private:
 	/** Marks our UObjects as dirty. They will be pushed to any bound stores on tick if true. */
 	uint32 bUObjectsDirty : 1;
 
+	uint32 bPositionDataDirty : 1; 
+
 	/** Uniquely identifies the current layout of this parameter store for detecting layout changes. */
 	uint32 LayoutVersion;
 
 #if WITH_EDITOR
 	FOnChanged OnChangedDelegate;
 #endif
+
+	void SetPositionData(const FName& Name, const FVector& Position);
+	bool HasPositionData(const FName& Name) const;
+	const FVector* GetPositionData(const FName& Name) const;
+	void RemovePositionData(const FName& Name);
 
 public:
 	FNiagaraParameterStore();
@@ -233,10 +258,12 @@ public:
 	FORCEINLINE uint32 GetParametersDirty() const { return bParametersDirty; }
 	FORCEINLINE uint32 GetInterfacesDirty() const { return bInterfacesDirty; }
 	FORCEINLINE uint32 GetUObjectsDirty() const { return bUObjectsDirty; }
+	FORCEINLINE uint32 GetPositionDataDirty() const { return bPositionDataDirty; }
 
 	FORCEINLINE void MarkParametersDirty() { bParametersDirty = true; }
 	FORCEINLINE void MarkInterfacesDirty() { bInterfacesDirty = true; }
 	FORCEINLINE void MarkUObjectsDirty() { bUObjectsDirty = true; }
+	FORCEINLINE void MarkPositionDataDirty() { bPositionDataDirty = true; }
 
 	FORCEINLINE uint32 GetLayoutVersion() const { return LayoutVersion; }
 
@@ -267,6 +294,8 @@ public:
 	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr);
 
 #if WITH_EDITORONLY_DATA
+	virtual void ConvertParameterType(const FNiagaraVariable& ExistingParam, const FNiagaraTypeDefinition& NewType);
+	
 	template<typename BufferType>
 	void AddConstantBuffer()
 	{
@@ -282,6 +311,9 @@ public:
 
 	/** Renames the passed parameter. */
 	virtual void RenameParameter(const FNiagaraVariableBase& Param, FName NewName);
+
+	/** Changes the type of the passed parameter. */
+	virtual void ChangeParameterType(const FNiagaraVariableBase& Param, const FNiagaraTypeDefinition& NewType);
 
 	/** Removes all parameters from this store and releases any data. */
 	virtual void Empty(bool bClearBindings = true);
@@ -439,6 +471,11 @@ public:
 			{
 				DestStore.SetUObject(GetUObject(SrcIndex), DestIndex);
 			}
+			else if (Parameter.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+			{
+				const FVector* SourceVector = GetPositionParameterValue(Parameter.GetName());
+				DestStore.SetPositionParameterValue(SourceVector ? *SourceVector : FVector::ZeroVector, Parameter.GetName());
+			}
 			else
 			{
 				DestStore.SetParameterData(GetParameterData(SrcIndex), DestIndex, Parameter.GetSizeInBytes());
@@ -465,10 +502,20 @@ public:
 
 	FString ToString() const;
 
+	bool SetPositionParameterValue(const FVector& InValue, const FName& ParamName, bool bAdd=false);
+	const FVector* GetPositionParameterValue(const FName& ParamName) const;
+	void ResolvePositions(FNiagaraLWCConverter LwcConverter);
+
 	template<typename T>
 	FORCEINLINE_DEBUGGABLE bool SetParameterValue(const T& InValue, const FNiagaraVariable& Param, bool bAdd=false)
 	{
 		check(Param.GetSizeInBytes() == sizeof(T));
+#if WITH_EDITOR
+		if (Param.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+		{
+			check(HasPositionData(Param.GetName()));
+		}
+#endif
 		int32 Offset = IndexOf(Param);
 		if (Offset != INDEX_NONE)
 		{
@@ -510,19 +557,15 @@ public:
 		OnParameterChange();
 	}
 
-	template<typename T>
-	FORCEINLINE_DEBUGGABLE void SetParameterDataTyped(const uint8* Data, int32 Offset)
-	{
-		checkSlow(Data != nullptr);
-		checkSlow((Offset + sizeof(T)) <= ParameterData.Num());
-		uint8* Dest = GetParameterData_Internal(Offset);
-		*((T*)Dest) = *((T*)Data);
-		OnParameterChange();
-	}
-
 	FORCEINLINE_DEBUGGABLE bool SetParameterData(const uint8* Data, const FNiagaraVariable& Param, bool bAdd = false)
 	{
 		checkSlow(Data != nullptr);
+		if (Param.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+		{
+			FNiagaraPosition Value = *reinterpret_cast<const FNiagaraPosition*>(Data);
+			return SetPositionParameterValue(Value, Param.GetName(), bAdd);
+		}
+		
 		int32 Offset = IndexOf(Param);
 		if (Offset != INDEX_NONE)
 		{
@@ -653,6 +696,7 @@ protected:
 	void SetParameterDataArray(const TArray<uint8>& InParameterDataArray, bool bNotifyAsDirty = true);
 	void SetDataInterfaces(const TArray<UNiagaraDataInterface*>& InDataInterfaces, bool bNotifyAsDirty = true);
 	void SetUObjects(const TArray<UObject*>& InUObjects, bool bNotifyAsDirty = true);
+	void SetOriginalPositionData(const TArray<FNiagaraPositionSource>& InOriginalPositionData);
 
 	friend struct FNiagaraParameterStoreToDataSetBinding;    // this should be the only class calling SetParameterByOffset
 };

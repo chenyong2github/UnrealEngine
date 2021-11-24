@@ -348,6 +348,10 @@ public:
 
 private:
 	bool IsValidInternal() const;
+
+#if WITH_EDITORONLY_DATA
+	void FixupPositionUserParameters();
+#endif
 	
 public:
 	/** Returns true if this system is valid and can be instanced. False otherwise. */
@@ -531,6 +535,8 @@ public:
 	const FNiagaraSystemCompiledData& GetSystemCompiledData() const { return SystemCompiledData; };
 
 	bool UsesCollection(const UNiagaraParameterCollection* Collection)const;
+
+	bool SupportsLargeWorldCoordinates() const { return bSupportLargeWorldCoordinates && bLwcEnabledSettingCached; }
 #if WITH_EDITORONLY_DATA
 	bool UsesEmitter(const UNiagaraEmitter* Emitter) const;
 	bool UsesScript(const UNiagaraScript* Script)const; 
@@ -569,6 +575,10 @@ public:
 	UPROPERTY()
 	TArray<FParameterDefinitionsSubscription> ParameterDefinitionsSubscriptions;
 #endif
+
+	/** If true then position type values will be rebased on system activation to fit into a float precision vector. This needs to be turned off when using a custom data interface or renderer that does not support the rebasing. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Rendering")
+	uint8 bSupportLargeWorldCoordinates : 1;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Various optional overrides for component properties when spawning a system
@@ -707,8 +717,8 @@ public:
 	void AddToInstanceCountStat(int32 NumInstances, bool bSolo)const;
 
 	const FString& GetCrashReporterTag()const;
-	bool CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const;
-	bool CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const;
+	bool CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace, FNiagaraTypeDefinition& OutBoundType) const;
+	bool CanObtainSystemAttribute(const FNiagaraVariableBase& InVar, FNiagaraTypeDefinition& OutBoundType) const;
 	bool CanObtainUserVariable(const FNiagaraVariableBase& InVar) const;
 
 #if WITH_EDITORONLY_DATA
@@ -915,6 +925,7 @@ protected:
 	uint32 bIsValidCached : 1;
 	uint32 bIsReadyToRunCached : 1;
 	uint32 bNeedsAsyncOptimize : 1;
+	uint32 bLwcEnabledSettingCached : 1;
 
 	TOptional<float> MaxDeltaTime;
 	FNiagaraDataSetAccessor<ENiagaraExecutionState> SystemExecutionStateAccessor;

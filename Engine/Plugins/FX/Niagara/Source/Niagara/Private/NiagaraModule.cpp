@@ -100,6 +100,7 @@ FNiagaraVariable INiagaraModule::Engine_Owner_YAxis;
 FNiagaraVariable INiagaraModule::Engine_Owner_ZAxis;
 FNiagaraVariable INiagaraModule::Engine_Owner_Scale;
 FNiagaraVariable INiagaraModule::Engine_Owner_Rotation;
+FNiagaraVariable INiagaraModule::Engine_Owner_LWC_Tile;
 
 FNiagaraVariable INiagaraModule::Engine_Owner_SystemLocalToWorld;
 FNiagaraVariable INiagaraModule::Engine_Owner_SystemWorldToLocal;
@@ -219,13 +220,14 @@ void INiagaraModule::StartupModule()
 	Engine_RealTime = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.RealTime"));
 	Engine_QualityLevel = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.QualityLevel"));
 
-	Engine_Owner_Position = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.Position"));
+	Engine_Owner_Position = FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Engine.Owner.Position"));
 	Engine_Owner_Velocity = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.Velocity"));
 	Engine_Owner_XAxis = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.SystemXAxis"));
 	Engine_Owner_YAxis = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.SystemYAxis"));
 	Engine_Owner_ZAxis = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.SystemZAxis"));
 	Engine_Owner_Scale = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Owner.Scale"));
 	Engine_Owner_Rotation = FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Engine.Owner.Rotation"));
+	Engine_Owner_LWC_Tile = FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), TEXT("Engine.Owner.LWCTile"));
 
 	Engine_Owner_SystemLocalToWorld = FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Engine.Owner.SystemLocalToWorld"));
 	Engine_Owner_SystemWorldToLocal = FNiagaraVariable(FNiagaraTypeDefinition::GetMatrix4Def(), TEXT("Engine.Owner.SystemWorldToLocal"));
@@ -242,7 +244,7 @@ void INiagaraModule::StartupModule()
 	
 	Engine_ExecutionCount = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.ExecutionCount"));
 	Engine_Emitter_NumParticles = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.NumParticles"));
-	Engine_Emitter_SimulationPosition = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Engine.Emitter.SimulationPosition"));
+	Engine_Emitter_SimulationPosition = FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Engine.Emitter.SimulationPosition"));
 	Engine_Emitter_TotalSpawnedParticles = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.TotalSpawnedParticles"));
 	Engine_Emitter_SpawnCountScale = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Engine.Emitter.SpawnCountScale"));
 	Engine_Emitter_InstanceSeed = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.Emitter.InstanceSeed"));
@@ -270,7 +272,7 @@ void INiagaraModule::StartupModule()
 
 	Particles_UniqueID = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Particles.UniqueID"));
 	Particles_ID = FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particles.ID"));
-	Particles_Position = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particles.Position"));
+	Particles_Position = FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Particles.Position"));
 	Particles_Velocity = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particles.Velocity"));
 	Particles_Color = FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Particles.Color"));
 	Particles_SpriteRotation = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.SpriteRotation"));
@@ -608,6 +610,7 @@ UScriptStruct* FNiagaraTypeDefinition::Vec2Struct;
 UScriptStruct* FNiagaraTypeDefinition::ColorStruct;
 UScriptStruct* FNiagaraTypeDefinition::QuatStruct;
 UScriptStruct* FNiagaraTypeDefinition::WildcardStruct;
+UScriptStruct* FNiagaraTypeDefinition::PositionStruct;
 
 UScriptStruct* FNiagaraTypeDefinition::HalfStruct;
 UScriptStruct* FNiagaraTypeDefinition::HalfVec2Struct;
@@ -644,6 +647,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::Vec4Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::Vec3Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::Vec2Def;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ColorDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::PositionDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::QuatDef;
 
 FNiagaraTypeDefinition FNiagaraTypeDefinition::HalfDef;
@@ -688,6 +692,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::IntStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraInt32"));
 	FNiagaraTypeDefinition::Matrix4Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraMatrix"));
 	FNiagaraTypeDefinition::WildcardStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraWildcard"));
+	FNiagaraTypeDefinition::PositionStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraPosition"));
 
 	FNiagaraTypeDefinition::HalfStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalf"));
 	FNiagaraTypeDefinition::HalfVec2Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalfVector2"));
@@ -716,6 +721,7 @@ void FNiagaraTypeDefinition::Init()
 	Vec3Def = FNiagaraTypeDefinition(Vec3Struct);
 	Vec4Def = FNiagaraTypeDefinition(Vec4Struct);
 	ColorDef = FNiagaraTypeDefinition(ColorStruct);
+	PositionDef = FNiagaraTypeDefinition(PositionStruct);
 	QuatDef = FNiagaraTypeDefinition(QuatStruct);
 	Matrix4Def = FNiagaraTypeDefinition(Matrix4Struct);
 	WildcardDef = FNiagaraTypeDefinition(WildcardStruct);
@@ -739,6 +745,7 @@ void FNiagaraTypeDefinition::Init()
 	NumericStructs.Add(Vec3Struct);
 	NumericStructs.Add(Vec4Struct);
 	NumericStructs.Add(ColorStruct);
+	NumericStructs.Add(PositionStruct);
 	NumericStructs.Add(QuatStruct);
 	//Make matrix a numeric type?
 
@@ -748,6 +755,7 @@ void FNiagaraTypeDefinition::Init()
 	FloatStructs.Add(Vec4Struct);
 	//FloatStructs.Add(Matrix4Struct)??
 	FloatStructs.Add(ColorStruct);
+	FloatStructs.Add(PositionStruct);
 	FloatStructs.Add(QuatStruct);
 
 	IntStructs.Add(IntStruct);
@@ -760,6 +768,7 @@ void FNiagaraTypeDefinition::Init()
 	OrderedNumericTypes.Add(Vec3Struct);
 	OrderedNumericTypes.Add(Vec4Struct);
 	OrderedNumericTypes.Add(ColorStruct);
+	OrderedNumericTypes.Add(PositionStruct);
 	OrderedNumericTypes.Add(QuatStruct);
 
 	ScalarStructs.Add(BoolStruct);
@@ -910,6 +919,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(Vec3Def, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(Vec4Def, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(ColorDef, ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(PositionDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(QuatDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(Matrix4Def, ParamFlags);
 	// @todo wildcard shouldn't be available for parameters etc., so just don't register here?
@@ -1453,6 +1463,7 @@ const TArray<FNiagaraVariable>& FNiagaraOwnerParameters::GetVariables()
 		SYS_PARAM_ENGINE_Y_AXIS,
 		SYS_PARAM_ENGINE_Z_AXIS,
 		SYS_PARAM_ENGINE_SCALE,
+		SYS_PARAM_ENGINE_LWC_TILE,
 	};
 
 	return Variables;

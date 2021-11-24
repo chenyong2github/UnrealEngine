@@ -133,6 +133,7 @@ public:
 	void UnbindParameters(bool bFromComplete = false);
 
 	FORCEINLINE FNiagaraParameterStore& GetInstanceParameters() { return InstanceParameters; }
+	FNiagaraLWCConverter GetLWCConverter(bool bLocalSpaceEmitter = false) const;
 
 	FORCEINLINE uint32 GetParameterIndex(bool PreviousFrame = false) const
 	{
@@ -231,6 +232,7 @@ public:
 	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters() { return Emitters; }
 	FORCEINLINE const TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> >& GetEmitters() const { return Emitters; }
 	FORCEINLINE const FBox& GetLocalBounds() const { return LocalBounds;  }
+	FORCEINLINE const FVector3f& GetLWCTile() const { return LWCTile;  }
 	TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const;
 
 	FORCEINLINE void SetSystemFixedBounds(const FBox& InLocalBounds) { FixedBounds_GT = InLocalBounds; }
@@ -416,6 +418,9 @@ private:
 
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
 	void InitDataInterfaces();
+
+	/** The LWC tile of this system instance, used to offset all local simulation relative to the origin */
+	FVector3f LWCTile = FVector3f::ZeroVector;
 
 	/** Index of this instance in the system simulation. */
 	int32 SystemInstanceIndex;

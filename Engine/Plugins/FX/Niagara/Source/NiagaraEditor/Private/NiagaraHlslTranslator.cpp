@@ -975,6 +975,7 @@ static void ConvertFloatToHalf(const FNiagaraCompileOptions& InCompileOptions, T
 			{ FNiagaraTypeDefinition::GetFloatDef(), FNiagaraTypeDefinition::GetHalfDef() },
 			{ FNiagaraTypeDefinition::GetVec2Def(), FNiagaraTypeDefinition::GetHalfVec2Def() },
 			{ FNiagaraTypeDefinition::GetVec3Def(), FNiagaraTypeDefinition::GetHalfVec3Def() },
+			{ FNiagaraTypeDefinition::GetPositionDef(), FNiagaraTypeDefinition::GetHalfVec3Def() },
 			{ FNiagaraTypeDefinition::GetVec4Def(), FNiagaraTypeDefinition::GetHalfVec4Def() },
 			{ FNiagaraTypeDefinition::GetColorDef(), FNiagaraTypeDefinition::GetHalfVec4Def() },
 			{ FNiagaraTypeDefinition::GetQuatDef(), FNiagaraTypeDefinition::GetHalfVec4Def() },
@@ -3980,7 +3981,7 @@ int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagara
 				Chunk.Type = FNiagaraTypeDefinition::GetVec4Def();
 				Chunk.ComponentMask = TEXT(".xy");
 			}
-			else if (Type == FNiagaraTypeDefinition::GetVec3Def())
+			else if (Type == FNiagaraTypeDefinition::GetVec3Def() || Type == FNiagaraTypeDefinition::GetPositionDef())
 			{
 				Chunk.Type = FNiagaraTypeDefinition::GetVec4Def();
 				Chunk.ComponentMask = TEXT(".xyz");
@@ -4364,7 +4365,7 @@ int32 FHlslNiagaraTranslator::GetConstant(const FNiagaraVariable& Constant, FStr
 	FNiagaraVariable LiteralConstant = Constant;
 	if (GetLiteralConstantVariable(LiteralConstant))
 	{
-		checkf(LiteralConstant.GetType() == FNiagaraTypeDefinition::GetBoolDef() || LiteralConstant.GetType() == FNiagaraTypeDefinition::GetVec3Def(), TEXT("Only boolean and vec3 types are currently supported for literal constants."));
+		checkf(LiteralConstant.GetType() == FNiagaraTypeDefinition::GetBoolDef() || LiteralConstant.GetType() == FNiagaraTypeDefinition::GetVec3Def() || LiteralConstant.GetType() == FNiagaraTypeDefinition::GetPositionDef(), TEXT("Only boolean and vec3 types are currently supported for literal constants."));
 		ConstantStr = GenerateConstantString(LiteralConstant);
 	}
 	else
@@ -4468,7 +4469,7 @@ FString FHlslNiagaraTranslator::GenerateConstantString(const FNiagaraVariable& C
 			float* ValuePtr = (float*)Constant.GetData();
 			ConstantStr = FString::Printf(TEXT("float2(%g,%g)"), *ValuePtr, *(ValuePtr + 1));
 		}
-		else if (Type == FNiagaraTypeDefinition::GetVec3Def())
+		else if (Type == FNiagaraTypeDefinition::GetVec3Def() || Type == FNiagaraTypeDefinition::GetPositionDef())
 		{
 			float* ValuePtr = (float*)Constant.GetData();
 			ConstantStr = FString::Printf(TEXT("float3(%g,%g,%g)"), *ValuePtr, *(ValuePtr + 1), *(ValuePtr + 2));
@@ -5786,6 +5787,11 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 
 				int32 Out = INDEX_NONE;
 				FNiagaraVariable BindVar = FNiagaraVariable(InVar.GetType(), Bind.GetName());
+				if (FNiagaraConstants::GetOldPositionTypeVariables().Contains(BindVar))
+				{
+					// Old assets often have vector inputs that default bind to what is now a position type. If we detect that, we change the type to prevent a compiler error.
+					BindVar.SetType(FNiagaraTypeDefinition::GetPositionDef());
+				}
 				HandleParameterRead(ActiveStageIdx, BindVar, nullptr, ErrorNode, Out, nullptr);
 
 				if (Out != INDEX_NONE)
@@ -8605,7 +8611,7 @@ FString FHlslNiagaraTranslator::GetHlslDefaultForType(const FNiagaraTypeDefiniti
 	{
 		return "float2(0.0, 0.0)";
 	}
-	else if (Type == FNiagaraTypeDefinition::GetVec3Def())
+	else if (Type == FNiagaraTypeDefinition::GetVec3Def() || Type == FNiagaraTypeDefinition::GetPositionDef())
 	{
 		return "float3(0.0, 0.0, 0.0)";
 	}
@@ -8643,6 +8649,7 @@ bool FHlslNiagaraTranslator::IsBuiltInHlslType(const FNiagaraTypeDefinition& Typ
 		Type == FNiagaraTypeDefinition::GetVec3Def() ||
 		Type == FNiagaraTypeDefinition::GetVec4Def() ||
 		Type == FNiagaraTypeDefinition::GetColorDef() ||
+		Type == FNiagaraTypeDefinition::GetPositionDef() ||
 		Type == FNiagaraTypeDefinition::GetQuatDef() ||
 		Type == FNiagaraTypeDefinition::GetMatrix4Def() ||
 		Type == FNiagaraTypeDefinition::GetIntDef() ||
@@ -8664,7 +8671,7 @@ FString FHlslNiagaraTranslator::GetStructHlslTypeName(const FNiagaraTypeDefiniti
 	{
 		return "float2";
 	}
-	else if (Type == FNiagaraTypeDefinition::GetVec3Def())
+	else if (Type == FNiagaraTypeDefinition::GetVec3Def() || Type == FNiagaraTypeDefinition::GetPositionDef())
 	{
 		return "float3";
 	}
@@ -8763,6 +8770,7 @@ bool FHlslNiagaraTranslator::IsHlslBuiltinVector(const FNiagaraTypeDefinition& T
 		(Type == FNiagaraTypeDefinition::GetVec3Def()) ||
 		(Type == FNiagaraTypeDefinition::GetVec4Def()) ||
 		(Type == FNiagaraTypeDefinition::GetQuatDef()) ||
+		(Type == FNiagaraTypeDefinition::GetPositionDef()) ||
 		(Type == FNiagaraTypeDefinition::GetColorDef()))
 	{
 		return true;

@@ -32,6 +32,22 @@ double FLargeWorldRenderScalar::GetTileSize()
 	return UE_LWC_RENDER_TILE_SIZE;
 }
 
+FVector3f FLargeWorldRenderScalar::GetTileFor(FVector InPosition)
+{
+	if constexpr (UE_LWC_RENDER_TILE_SIZE == 0)
+	{
+		return FVector3f::ZeroVector;
+	}
+	FVector3f LWCTile = InPosition / UE_LWC_RENDER_TILE_SIZE + 0.5;
+
+	// normalize the tile
+	LWCTile.X = FMath::FloorToFloat(LWCTile.X);
+	LWCTile.Y = FMath::FloorToFloat(LWCTile.Y);
+	LWCTile.Z = FMath::FloorToFloat(LWCTile.Z);
+
+	return LWCTile;
+}
+
 FMatrix44f FLargeWorldRenderPosition::MakeToRelativeWorldMatrix(const FMatrix& ToWorld) const
 {
 	return SafeCastMatrix(ToWorld * FTranslationMatrix(-GetTileOffset()));

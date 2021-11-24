@@ -66,16 +66,6 @@ float3 WorldToLocalVec(float3 WorldSpaceVec, float4x4 LocalToWorld)
 	return mul(WorldSpaceVec, InvRot);
 }
 
-float3 SimToWorldVec(float3 SimSpaceVec, float4x4 LocalToWorld)
-{
-	if (NiagaraMeshVF.bLocalSpace)
-	{
-		return LocalToWorldVec(SimSpaceVec, LocalToWorld);
-	}
-	
-	return SimSpaceVec;
-}
-
 float3 WorldToSimVec(float3 InVector, float4x4 LocalToWorld)
 {
 	if (NiagaraMeshVF.bLocalSpace)
@@ -600,7 +590,8 @@ void GetParticleSRT(out float3 Scale, out float3x3 Rotation, out float3 Translat
 	in int RotationDataOffset, in float4 DefaultRotation, in int PositionDataOffset, in float3 DefaultPos, in int CamOffsetDataOffset, in float DefaultCamOffset,
 	in float4 VelocityDirMag, in float3 CamViewPos, in float3 CamViewForward, in float3 CamViewUp, in float4x4 LocalToWorld)
 {
-	float3 ParticlePosition = SafeGetVec3(PositionDataOffset, InstanceId, DefaultPos);
+	float3 SimPosition = SafeGetVec3(PositionDataOffset, InstanceId, DefaultPos);
+	float3 ParticlePosition = NiagaraMeshVF.bLocalSpace ? SimPosition : LWCHackToFloat(MakeLWCVector3(NiagaraMeshVF.SystemLWCTile, SimPosition));
 	float4 ParticleRotation = SafeGetVec4(RotationDataOffset, InstanceId, DefaultRotation);
 	float3 ParticleScale = SafeGetVec3(ScaleDataOffset, InstanceId, DefaultScale);
 

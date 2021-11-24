@@ -260,6 +260,11 @@ bool UNiagaraNodeDataSetBase::GetSupportedNiagaraTypeDef(const FProperty* Proper
 		TypeDef = FNiagaraTypeDefinition::GetColorDef();
 		return true;
 	}
+	else if (StructProp && StructProp->Struct == FNiagaraTypeDefinition::GetPositionStruct())
+	{
+		TypeDef = FNiagaraTypeDefinition::GetPositionDef();
+		return true;
+	}
 	else if (StructProp && StructProp->Struct == FNiagaraTypeDefinition::GetQuatStruct())
 	{
 		TypeDef = FNiagaraTypeDefinition::GetQuatDef();

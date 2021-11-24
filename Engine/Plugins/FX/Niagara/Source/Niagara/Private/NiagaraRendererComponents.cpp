@@ -50,9 +50,10 @@ void SetVariableByType(FNiagaraVariable& DataVariable, FNiagaraDataSet& Data, in
 	else if (VarType == FNiagaraTypeDefinition::GetVec4Def()) { SetValueWithAccessor<FVector4f>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetColorDef()) { SetValueWithAccessor<FLinearColor>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetQuatDef()) { SetValueWithAccessor<FQuat4f>(DataVariable, Data, ParticleIndex); }
+	else if (VarType == FNiagaraTypeDefinition::GetPositionDef()) {	SetValueWithAccessor<FNiagaraPosition>(DataVariable, Data, ParticleIndex); }
 }
 
-void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVariable& TargetVariable)
+void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVariable& TargetVariable, const FNiagaraLWCConverter& LwcConverter)
 {
 	FNiagaraTypeDefinition SourceType = SourceVariable.GetType();
 	FNiagaraTypeDefinition TargetType = TargetVariable.GetType();
@@ -100,6 +101,16 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVaria
 		FVector4f Data = SourceVariable.GetValue<FVector4f>();
 		TargetVariable.SetDoubleValue<FVector4>(FVector4(Data));
 	}
+	else if (SourceType == FNiagaraTypeDefinition::GetPositionDef() && TargetType == UNiagaraComponentRendererProperties::GetFVectorDef())
+	{
+		FVector Data = LwcConverter.ConvertSimulationPositionToWorld(SourceVariable.GetValue<FNiagaraPosition>());
+		TargetVariable.SetDoubleValue<FVector>(Data);
+	}
+	else if (SourceType == FNiagaraTypeDefinition::GetPositionDef() && TargetType == UNiagaraComponentRendererProperties::GetFVector3fDef())
+	{
+		FVector3f Data = LwcConverter.ConvertSimulationPositionToWorld(SourceVariable.GetValue<FNiagaraPosition>());
+		TargetVariable.SetValue<FVector3f>(Data);
+	}
 	else if (SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType == UNiagaraComponentRendererProperties::GetFQuatDef())
 	{
 		FQuat4f Data = SourceVariable.GetValue<FQuat4f>();
@@ -144,14 +155,25 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 				// The first encountered property is assumed to be the input value so initialize this with the user-specified value from InPropertyValue
 				if (Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_ReturnParm) && bFirstProperty)
 				{
-					const bool bIsValid = ensureMsgf(DataSize == Property->ElementSize, TEXT("Property type does not match for setter function %s::%s (%ibytes != %ibytes"), *InRuntimeObject->GetName(), *Setter->GetName(), DataSize, Property->ElementSize);
-					if (bIsValid)
+					// LWC backwards compatibility for old bindings
+					UScriptStruct* ScriptStruct = ((FStructProperty*)Property)->Struct;
+					if (DataSize == sizeof(FVector3f) && Property->ElementSize == sizeof(FVector3d) && ScriptStruct && (ScriptStruct->GetFName() == NAME_Vector || ScriptStruct->GetFName() == NAME_Vector3d))
 					{
-						Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(Params), InData);
+						FVector3f* Vec3f = (FVector3f*)InData;
+						FVector Vec3d(*Vec3f);
+						Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(Params), &Vec3d);
 					}
 					else
 					{
-						return;
+						const bool bIsValid = ensureMsgf(DataSize == Property->ElementSize, TEXT("Property type does not match for setter function %s::%s (%ibytes != %ibytes"), *InRuntimeObject->GetName(), *Setter->GetName(), DataSize, Property->ElementSize);
+						if (bIsValid)
+						{
+							Property->CopyCompleteValue(Property->ContainerPtrToValuePtr<void>(Params), InData);
+						}
+						else
+						{
+							return;
+						}
 					}
 				}
 				bFirstProperty = false;
@@ -488,7 +510,8 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 		}
 
 		FComponentPoolEntry& PoolEntry = ComponentPool[PoolIndex];
-		TickPropertyBindings(Properties, SceneComponent, Data, ParticleIndex, PoolEntry);
+		FNiagaraLWCConverter LwcConverter = SystemInstance->GetLWCConverter(Emitter->GetCachedEmitter()->bLocalSpace);
+		TickPropertyBindings(Properties, SceneComponent, Data, ParticleIndex, PoolEntry, LwcConverter);
 
 		// activate the component
 		if (!SceneComponent->IsActive())
@@ -576,7 +599,8 @@ void FNiagaraRendererComponents::TickPropertyBindings(
 	USceneComponent* Component,
 	FNiagaraDataSet& Data,
 	int32 ParticleIndex,
-	FComponentPoolEntry& PoolEntry)
+	FComponentPoolEntry& PoolEntry,
+	const FNiagaraLWCConverter& LwcConverter)
 {
 	for (const FNiagaraComponentPropertyBinding& PropertyBinding : Properties->PropertyBindings)
 	{
@@ -625,7 +649,7 @@ void FNiagaraRendererComponents::TickPropertyBindings(
 		if (PropertyType.IsValid() && DataVariable.GetType() != PropertyType && (!PropertySetter->bIgnoreConversion || bForceStructConversion))
 		{
 			FNiagaraVariable TargetVariable(PropertyType, DataVariable.GetName());
-			ConvertVariableToType(DataVariable, TargetVariable);
+			ConvertVariableToType(DataVariable, TargetVariable, LwcConverter);
 			DataVariable = TargetVariable;
 		}
 

@@ -72,6 +72,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	bool bSystemViewportInOrbitMode = true;
 #endif // WITH_EDITORONLY_DATA
 
+	/** If true then active effects rebase the simulation positions to not lose precision. Can be turned off if not needed to skip unnecessary rebasing calculations. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = ( ConfigRestartRequired = true ))
+	bool bSystemsSupportLargeWorldCoordinates = true;
+
 	/** Default effect type to use for effects that don't define their own. Can be null. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "NiagaraEffectType"))
 	FSoftObjectPath DefaultEffectType;

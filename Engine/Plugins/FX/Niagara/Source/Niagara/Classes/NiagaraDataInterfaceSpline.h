@@ -9,6 +9,8 @@
 #include "Niagara/Private/NiagaraStats.h"
 #include "NiagaraDataInterfaceSpline.generated.h"
 
+class UNiagaraDataInterfaceSpline;
+
 /** Proxy data for splines */
 struct FNDISpline_InstanceData_RenderThread
 {
@@ -118,6 +120,7 @@ struct FNDISpline_InstanceData
 	//InverseTranspose of above for transforming normals/tangents.
 	FMatrix TransformInverseTransposed;
 	FTransform ComponentTransform;
+	FNiagaraLWCConverter LwcConverter;
 
 	FVector DefaultUpVector;
 	FSplineCurves SplineCurves;
@@ -230,7 +233,7 @@ public:
 	void SampleSplineDirectionByUnitDistance(FVectorVMExternalFunctionContext& Context);
 	template<typename UseLUT, typename TransformHandlerType, typename SplineSampleType>
 	void SampleSplineTangentByUnitDistance(FVectorVMExternalFunctionContext& Context);
-	template<typename UseLUT, typename PosXType, typename PosYType, typename PosZType>
+	template<typename UseLUT>
 	void FindClosestUnitDistanceFromPositionWS(FVectorVMExternalFunctionContext& Context);
 	
 	void GetLocalToWorld(FVectorVMExternalFunctionContext& Context);
@@ -245,6 +248,7 @@ protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 #if WITH_EDITORONLY_DATA
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 

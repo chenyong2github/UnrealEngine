@@ -788,6 +788,15 @@ struct FNDIInputParam<FVector3f>
 };
 
 template<>
+struct FNDIInputParam<FNiagaraPosition>
+{
+	VectorVM::FExternalFuncInputHandler<float> X;
+	VectorVM::FExternalFuncInputHandler<float> Y;
+	VectorVM::FExternalFuncInputHandler<float> Z;
+	FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context) {}
+	FORCEINLINE FNiagaraPosition GetAndAdvance() { return FNiagaraPosition(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance()); }
+};
+template<>
 struct FNDIInputParam<FVector4f>
 {
 	VectorVM::FExternalFuncInputHandler<float> X;
@@ -893,6 +902,21 @@ struct FNDIOutputParam<FVector3f>
 	}
 };
 
+template<>
+struct FNDIOutputParam<FNiagaraPosition>
+{
+	VectorVM::FExternalFuncRegisterHandler<float> X;
+	VectorVM::FExternalFuncRegisterHandler<float> Y;
+	VectorVM::FExternalFuncRegisterHandler<float> Z;
+	FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context) {}
+	FORCEINLINE bool IsValid() const { return X.IsValid() || Y.IsValid() || Z.IsValid(); }
+	FORCEINLINE void SetAndAdvance(FNiagaraPosition Val)
+	{
+		*X.GetDestAndAdvance() = Val.X;
+		*Y.GetDestAndAdvance() = Val.Y;
+		*Z.GetDestAndAdvance() = Val.Z;
+	}
+};
 
 template<>
 struct FNDIOutputParam<FVector4f>

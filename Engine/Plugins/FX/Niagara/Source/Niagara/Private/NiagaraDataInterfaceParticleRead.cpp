@@ -35,6 +35,7 @@ static const FName GetVec2ByIDFunctionName("Get Vector 2D By ID");
 static const FName GetVec3ByIDFunctionName("Get Vector By ID");
 static const FName GetVec4ByIDFunctionName("Get Vector 4 By ID");
 static const FName GetColorByIDFunctionName("Get Color By ID");
+static const FName GetPositionByIDFunctionName("Get Position By ID");
 static const FName GetQuatByIDFunctionName("Get Quaternion By ID");
 static const FName GetIDByIDFunctionName("Get ID By ID");
 
@@ -45,6 +46,7 @@ static const FName GetVec2ByIndexFunctionName("Get Vector 2D By Index");
 static const FName GetVec3ByIndexFunctionName("Get Vector By Index");
 static const FName GetVec4ByIndexFunctionName("Get Vector 4 By Index");
 static const FName GetColorByIndexFunctionName("Get Color By Index");
+static const FName GetPositionByIndexFunctionName("Get Position By Index");
 static const FName GetQuatByIndexFunctionName("Get Quaternion By Index");
 static const FName GetIDByIndexFunctionName("Get ID By Index");
 
@@ -86,7 +88,8 @@ enum class ENiagaraParticleDataValueType : uint8
 	Bool,
 	Color,
 	Quat,
-	ID
+	ID,
+	Position
 };
 
 DECLARE_INTRINSIC_TYPE_LAYOUT(ENiagaraParticleDataValueType);
@@ -103,6 +106,7 @@ static const TCHAR* NiagaraParticleDataValueTypeName(ENiagaraParticleDataValueTy
 		case ENiagaraParticleDataValueType::Vec4:		return TEXT("vec4");
 		case ENiagaraParticleDataValueType::Bool:		return TEXT("bool");
 		case ENiagaraParticleDataValueType::Color:		return TEXT("color");
+		case ENiagaraParticleDataValueType::Position:	return TEXT("position");
 		case ENiagaraParticleDataValueType::Quat:		return TEXT("quaternion");
 		case ENiagaraParticleDataValueType::ID:			return TEXT("ID");
 		default:										return TEXT("UNKNOWN");
@@ -117,9 +121,10 @@ static bool CheckVariableType(const FNiagaraTypeDefinition& VarType, ENiagaraPar
 	case ENiagaraParticleDataValueType::Bool: return VarType == FNiagaraTypeDefinition::GetBoolDef();
 	case ENiagaraParticleDataValueType::Float: return VarType == FNiagaraTypeDefinition::GetFloatDef();
 	case ENiagaraParticleDataValueType::Vec2: return VarType == FNiagaraTypeDefinition::GetVec2Def();
-	case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetVec3Def();
+	case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetVec3Def() || VarType == FNiagaraTypeDefinition::GetPositionDef();
 	case ENiagaraParticleDataValueType::Vec4: return VarType == FNiagaraTypeDefinition::GetVec4Def();
 	case ENiagaraParticleDataValueType::Color: return VarType == FNiagaraTypeDefinition::GetColorDef();
+	case ENiagaraParticleDataValueType::Position: return VarType == FNiagaraTypeDefinition::GetPositionDef();
 	case ENiagaraParticleDataValueType::Quat: return VarType == FNiagaraTypeDefinition::GetQuatDef();
 	case ENiagaraParticleDataValueType::ID: return VarType == FNiagaraTypeDefinition::GetIDDef();
 	default: return false;
@@ -135,6 +140,7 @@ static ENiagaraParticleDataValueType GetValueTypeFromFuncName(const FName& FuncN
 	if (FuncName == GetVec3ByIDFunctionName || FuncName == GetVec3ByIndexFunctionName) return ENiagaraParticleDataValueType::Vec3;
 	if (FuncName == GetVec4ByIDFunctionName || FuncName == GetVec4ByIndexFunctionName) return ENiagaraParticleDataValueType::Vec4;
 	if (FuncName == GetColorByIDFunctionName || FuncName == GetColorByIndexFunctionName) return ENiagaraParticleDataValueType::Color;
+	if (FuncName == GetPositionByIDFunctionName || FuncName == GetPositionByIndexFunctionName) return ENiagaraParticleDataValueType::Position;
 	if (FuncName == GetQuatByIDFunctionName || FuncName == GetQuatByIndexFunctionName) return ENiagaraParticleDataValueType::Quat;
 	if (FuncName == GetIDByIDFunctionName || FuncName == GetIDByIndexFunctionName) return ENiagaraParticleDataValueType::ID;
 	return ENiagaraParticleDataValueType::Invalid;
@@ -353,6 +359,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			case ENiagaraParticleDataValueType::Vec3: return VarType == FNiagaraTypeDefinition::GetHalfVec3Def();
 			case ENiagaraParticleDataValueType::Vec4: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
 			case ENiagaraParticleDataValueType::Color: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
+			case ENiagaraParticleDataValueType::Position: return VarType == FNiagaraTypeDefinition::GetHalfVec3Def();
 			case ENiagaraParticleDataValueType::Quat: return VarType == FNiagaraTypeDefinition::GetHalfVec4Def();
 			default: return false;
 		}
@@ -893,6 +900,23 @@ void UNiagaraDataInterfaceParticleRead::GetPersistentIDFunctions(TArray<FNiagara
 
 	{
 		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetPositionByIDFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Particle Reader")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particle ID")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Valid")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Value")));
+		Sig.FunctionSpecifiers.Add(FName("Attribute"));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bExperimental = true;
+#if WITH_EDITORONLY_DATA
+		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceParticleRead_GetPositionByIDDesc", "Returns a Position value from a particle by NiagaraID.  Note: When reading from self this will be the previous frames data.");
+#endif
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetVec4ByIDFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Particle Reader")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIDDef(), TEXT("Particle ID")));
@@ -1072,6 +1096,23 @@ void UNiagaraDataInterfaceParticleRead::GetIndexFunctions(TArray<FNiagaraFunctio
 
 	{
 		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetPositionByIndexFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Particle Reader")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Particle Index")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Valid")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Value")));
+		Sig.FunctionSpecifiers.Add(FName("Attribute"));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bExperimental = true;
+#if WITH_EDITORONLY_DATA
+		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceParticleRead_GetPositionByIndexDesc", "Returns a position value from a particle by index.  Note: When reading from self this will be the previous frames data.");
+#endif
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetColorByIndexFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Particle Reader")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Particle Index")));
@@ -1134,6 +1175,7 @@ DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, Re
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadVector3);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadVector4);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadColor);
+DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadPosition);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadQuat);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadID);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadIntByIndex);
@@ -1143,6 +1185,7 @@ DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, Re
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadVector3ByIndex);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadVector4ByIndex);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadColorByIndex);
+DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadPositionByIndex);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadQuatByIndex);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadIDByIndex);
 
@@ -1232,15 +1275,30 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 	}
 	else if (BindingInfo.Name == GetVec3ByIDFunctionName)
 	{
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector3)::Bind(this, OutFunc, AttributeToRead);
-		bBindSuccessful = (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetVec3Def())
-			|| HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetHalfVec3Def()));
+		// allow the vec3 reader to also read position data
+		if (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetPositionDef()))
+		{
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadPosition)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
+		}
+		else
+		{
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector3)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetVec3Def())
+				|| HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetHalfVec3Def()));
+		}
 	}
 	else if (BindingInfo.Name == GetVec4ByIDFunctionName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector4)::Bind(this, OutFunc, AttributeToRead);
 		bBindSuccessful = (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetVec4Def())
 			|| HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetHalfVec4Def()));
+	}
+	else if (BindingInfo.Name == GetPositionByIDFunctionName)
+	{
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadPosition)::Bind(this, OutFunc, AttributeToRead);
+		bBindSuccessful = (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetPositionDef())
+			|| HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetHalfVec3Def()));
 	}
 	else if (BindingInfo.Name == GetColorByIDFunctionName)
 	{
@@ -1287,15 +1345,30 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 	}
 	else if (BindingInfo.Name == GetVec3ByIndexFunctionName)
 	{
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector3ByIndex)::Bind(this, OutFunc, AttributeToRead);
-		bBindSuccessful = (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetVec3Def())
-			|| HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetHalfVec3Def()));
+		// allow the vec3 reader to also read position data
+		if (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetPositionDef()))
+		{
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadPositionByIndex)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = true;
+		}
+		else
+		{
+			NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector3ByIndex)::Bind(this, OutFunc, AttributeToRead);
+			bBindSuccessful = (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetVec3Def())
+				|| HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetHalfVec3Def()));
+		}
 	}
 	else if (BindingInfo.Name == GetVec4ByIndexFunctionName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadVector4ByIndex)::Bind(this, OutFunc, AttributeToRead);
 		bBindSuccessful = (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetVec4Def())
 			|| HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetHalfVec4Def()));
+	}
+	else if (BindingInfo.Name == GetPositionByIndexFunctionName)
+	{
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, ReadPositionByIndex)::Bind(this, OutFunc, AttributeToRead);
+		bBindSuccessful = (HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetPositionDef())
+			|| HasMatchingVariable(EmitterVariables, AttributeToRead, FNiagaraTypeDefinition::GetHalfVec3Def()));
 	}
 	else if (BindingInfo.Name == GetColorByIndexFunctionName)
 	{
@@ -1599,6 +1672,11 @@ void UNiagaraDataInterfaceParticleRead::ReadColor(FVectorVMExternalFunctionConte
 	ReadWithCheck<FLinearColor>(Context, AttributeToRead, FLinearColor::White);
 }
 
+void UNiagaraDataInterfaceParticleRead::ReadPosition(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
+{
+	ReadWithCheck<FNiagaraPosition>(Context, AttributeToRead, FNiagaraPosition(ForceInit));
+}
+
 void UNiagaraDataInterfaceParticleRead::ReadQuat(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadWithCheck<FQuat4f>(Context, AttributeToRead, FQuat4f::Identity);
@@ -1713,6 +1791,11 @@ void UNiagaraDataInterfaceParticleRead::ReadVector3ByIndex(FVectorVMExternalFunc
 void UNiagaraDataInterfaceParticleRead::ReadVector4ByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
 	ReadByIndexWithCheck<FVector4f>(Context, AttributeToRead, FVector4f(ForceInit));
+}
+
+void UNiagaraDataInterfaceParticleRead::ReadPositionByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
+{
+	ReadByIndexWithCheck<FNiagaraPosition>(Context, AttributeToRead, FNiagaraPosition(ForceInit));
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadColorByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
@@ -2110,6 +2193,11 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 		return GenerateGetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, ENiagaraParticleDataComponentType::Float, 4, false, OutHLSL);
 	}
 
+	if (FunctionInfo.DefinitionName == GetPositionByIDFunctionName)
+	{
+		return GenerateGetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, ENiagaraParticleDataComponentType::Float, 3, false, OutHLSL);
+	}
+
 	if (FunctionInfo.DefinitionName == GetColorByIDFunctionName)
 	{
 		return GenerateGetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, ENiagaraParticleDataComponentType::Float, 4, false, OutHLSL);
@@ -2156,6 +2244,11 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 	if (FunctionInfo.DefinitionName == GetVec4ByIndexFunctionName)
 	{
 		return GenerateGetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, ENiagaraParticleDataComponentType::Float, 4, true, OutHLSL);
+	}
+
+	if (FunctionInfo.DefinitionName == GetPositionByIndexFunctionName)
+	{
+		return GenerateGetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, ENiagaraParticleDataComponentType::Float, 3, true, OutHLSL);
 	}
 
 	if (FunctionInfo.DefinitionName == GetColorByIndexFunctionName)

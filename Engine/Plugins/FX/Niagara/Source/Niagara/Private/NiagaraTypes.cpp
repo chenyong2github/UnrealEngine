@@ -22,3 +22,28 @@ void FNiagaraVariableMetaData::CopyUserEditableMetaData(const FNiagaraVariableMe
 		};
 	}
 }
+
+FNiagaraLWCConverter::FNiagaraLWCConverter(FVector InSystemWorldPos)
+{
+	SystemWorldPos = InSystemWorldPos;
+}
+
+FVector3f FNiagaraLWCConverter::ConvertWorldToSimulationVector(FVector WorldPosition) const
+{
+	return FVector3f(WorldPosition - SystemWorldPos);
+}
+
+FNiagaraPosition FNiagaraLWCConverter::ConvertWorldToSimulationPosition(FVector WorldPosition) const
+{
+	return FNiagaraPosition(ConvertWorldToSimulationVector(WorldPosition));
+}
+
+FVector FNiagaraLWCConverter::ConvertSimulationPositionToWorld(FNiagaraPosition SimulationPosition) const
+{
+	return ConvertSimulationVectorToWorld(SimulationPosition);
+}
+
+FVector FNiagaraLWCConverter::ConvertSimulationVectorToWorld(FVector3f SimulationPosition) const
+{
+	return FVector(SimulationPosition) + SystemWorldPos;
+}

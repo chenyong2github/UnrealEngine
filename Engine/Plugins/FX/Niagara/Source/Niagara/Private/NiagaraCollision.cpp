@@ -106,42 +106,6 @@ void FNiagaraDICollisionQueryBatch::CollectResults()
 }
 }
 
-int32 FNiagaraDICollisionQueryBatch::SubmitQuery(FVector StartPos, FVector Direction, float CollisionSize, float DeltaSeconds)
-{
-	if ( !GNiagaraCollisionCPUEnabled)
-	{
-		return INDEX_NONE;
-	}
-
-	FVector EndPos = StartPos + Direction * DeltaSeconds;
-
-	float Length;
-	FVector NormDir;
-	Direction.ToDirectionAndLength(NormDir, Length);
-	StartPos -= NormDir * (CollisionSize / 2);
-	EndPos += NormDir * (CollisionSize / 2);
-
-	FCollisionQueryParams CollisionQueryParams(SCENE_QUERY_STAT(NiagaraCollision), false);
-	CollisionQueryParams.OwnerTag = CollisionTagName;
-	CollisionQueryParams.bFindInitialOverlaps = false;
-	CollisionQueryParams.bReturnFaceIndex = false;
-	CollisionQueryParams.bReturnPhysicalMaterial = true;
-	CollisionQueryParams.bIgnoreTouches = true;
-
-	int32 TraceIdx = INDEX_NONE;
-
-	if (Length > SMALL_NUMBER)
-	{
-		FRWScopeLock WriteScope(CollisionTraceLock, SLT_Write);
-
-		const int32 WriteBufferIdx = GetWriteBufferIdx();
-
-		TraceIdx = CollisionTraces[WriteBufferIdx].Emplace(StartPos, EndPos, ECC_WorldStatic, CollisionQueryParams);
-	}
-
-	return TraceIdx;
-}
-
 int32 FNiagaraDICollisionQueryBatch::SubmitQuery(FVector StartPos, FVector EndPos, ECollisionChannel TraceChannel)
 {
 	if (!GNiagaraCollisionCPUEnabled)

@@ -114,7 +114,7 @@ public:
 	void SetVector2DParameter(const FString& InVariableName, FVector2D InValue);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Vector Parameter"))
-	void SetVectorParameter(const FString& InVariableName, FVector InValue);
+	void SetVectorParameter(const FString& InVariableName, FVector InValue); // TODO[mg]: add position setter for LWC
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Vector4 Parameter"))
 	void SetVector4Parameter(const FString& InVariableName, const FVector4& InValue);

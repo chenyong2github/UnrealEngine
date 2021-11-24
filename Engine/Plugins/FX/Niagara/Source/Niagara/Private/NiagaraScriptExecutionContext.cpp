@@ -4,12 +4,9 @@
 #include "NiagaraStats.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraSystemGpuComputeProxy.h"
 #include "NiagaraWorldManager.h"
-#include "NiagaraEmitterInstance.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGPUInstanceCountManager.h"
-#include "NiagaraDataInterfaceRW.h"
 
 DECLARE_CYCLE_STAT(TEXT("Register Setup"), STAT_NiagaraSimRegisterSetup, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Context Ticking"), STAT_NiagaraScriptExecContextTick, STATGROUP_Niagara);
@@ -30,6 +27,7 @@ static FAutoConsoleVariableRef CVarNiagaraExecVMScripts(
 
 FNiagaraScriptExecutionContextBase::FNiagaraScriptExecutionContextBase()
 	: Script(nullptr)
+	, HasInterpolationParameters(false)
 	, bAllowParallel(true)
 {
 
@@ -368,7 +366,10 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 			}
 		}
 	}
-
+	if (ParentSystemInstance && Parameters.GetPositionDataDirty())
+	{
+		Parameters.ResolvePositions(ParentSystemInstance->GetLWCConverter());
+	}
 	Parameters.Tick();
 
 	return true;
@@ -549,12 +550,12 @@ bool FNiagaraSystemScriptExecutionContext::Tick(class FNiagaraSystemInstance* In
 					UE_LOG(LogNiagara, Warning, TEXT("Invalid Function Table Entry! %s"), *ScriptExecutableData.CalledVMExternalFunctions[i].Name.ToString());
 				}
 			}
-
 		}
-
-		
 	}
-
+	if (Instance && Parameters.GetPositionDataDirty())
+	{
+		Parameters.ResolvePositions(Instance->GetLWCConverter());
+	}
 	Parameters.Tick();
 
 	return true;
@@ -563,7 +564,6 @@ bool FNiagaraSystemScriptExecutionContext::Tick(class FNiagaraSystemInstance* In
 bool FNiagaraSystemScriptExecutionContext::GeneratePerInstanceDIFunctionTable(FNiagaraSystemInstance* Inst, TArray<FNiagaraPerInstanceDIFuncInfo>& OutFunctions)
 {
 	const FNiagaraScriptExecutionParameterStore* ScriptParameterStore = Script->GetExecutionReadyParameterStore(ENiagaraSimTarget::CPUSim);
-	const auto& ScriptDataInterfaces = ScriptParameterStore->GetDataInterfaces();
 	const FNiagaraVMExecutableData& ScriptExecutableData = Script->GetVMExecutableData();
 
 	for (int32 FunctionIndex = 0; FunctionIndex < ScriptExecutableData.CalledVMExternalFunctions.Num(); ++FunctionIndex)

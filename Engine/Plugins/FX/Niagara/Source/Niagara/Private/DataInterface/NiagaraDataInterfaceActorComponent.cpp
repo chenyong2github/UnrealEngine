@@ -12,6 +12,18 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceActorComponent"
 
+struct FNiagaraActorDIFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+		LWCConversion = 1,
+
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+};
+
 namespace NDIActorComponentLocal
 {
 	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceActorComponentTemplate.ush");
@@ -94,7 +106,7 @@ public:
 		FInstanceData_RenderThread* InstanceData = DataInterfaceProxy->SystemInstancesToInstanceData_RT.Find(Context.SystemInstanceID);
 		check(InstanceData != nullptr);
 
-		const FMatrix44f InstanceMatrix = (FMatrix44f)InstanceData->CachedTransform.ToMatrixWithScale();	// LWC_TODO: Precision loss
+		const FMatrix44f InstanceMatrix = (FMatrix44f)InstanceData->CachedTransform.ToMatrixWithScale();
 		const FQuat4f InstanceRotation = (FQuat4f)InstanceData->CachedTransform.GetRotation();
 		const FVector3f InstanceScale = (FVector3f)InstanceData->CachedTransform.GetScale3D();
 		SetShaderValue(RHICmdList, ComputeShaderRHI, ValidParam, InstanceData->bCachedValid ? 1 : 0);
@@ -163,6 +175,7 @@ void UNiagaraDataInterfaceActorComponent::GetFunctions(TArray<FNiagaraFunctionSi
 		FNiagaraFunctionSignature& FunctionSignature = OutFunctions.AddDefaulted_GetRef();
 		FunctionSignature.Name = GetMatrixName;
 		FunctionSignature.SetDescription(LOCTEXT("GetMatrix", "Returns the current matrix for the component if valid."));
+		FunctionSignature.SetFunctionVersion(FNiagaraActorDIFunctionVersion::LatestVersion);
 		FunctionSignature.bMemberFunction = true;
 		FunctionSignature.bRequiresContext = false;
 		FunctionSignature.bSupportsGPU = true;
@@ -174,12 +187,13 @@ void UNiagaraDataInterfaceActorComponent::GetFunctions(TArray<FNiagaraFunctionSi
 		FNiagaraFunctionSignature& FunctionSignature = OutFunctions.AddDefaulted_GetRef();
 		FunctionSignature.Name = GetTransformName;
 		FunctionSignature.SetDescription(LOCTEXT("GetTransform", "Returns the current transform for the component if valid."));
+		FunctionSignature.SetFunctionVersion(FNiagaraActorDIFunctionVersion::LatestVersion);
 		FunctionSignature.bMemberFunction = true;
 		FunctionSignature.bRequiresContext = false;
 		FunctionSignature.bSupportsGPU = true;
 		FunctionSignature.Inputs.Emplace(FNiagaraTypeDefinition(GetClass()), TEXT("ActorComponent"));
 		FunctionSignature.Outputs.Emplace(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid"));
-		FunctionSignature.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Position"));
+		FunctionSignature.Outputs.Emplace(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position"));
 		FunctionSignature.Outputs.Emplace(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation"));
 		FunctionSignature.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Scale"));
 	}
@@ -223,6 +237,25 @@ bool UNiagaraDataInterfaceActorComponent::GetFunctionHLSL(const FNiagaraDataInte
 {
 	using namespace NDIActorComponentLocal;
 	return (FunctionInfo.DefinitionName == GetMatrixName) || (FunctionInfo.DefinitionName == GetTransformName);
+}
+
+bool UNiagaraDataInterfaceActorComponent::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	// LWC upgrades
+	if (FunctionSignature.FunctionVersion < FNiagaraActorDIFunctionVersion::LWCConversion)
+	{
+		TArray<FNiagaraFunctionSignature> AllFunctions;
+		GetFunctions(AllFunctions);
+		for (const FNiagaraFunctionSignature& Sig : AllFunctions)
+		{
+			if (FunctionSignature.Name == Sig.Name)
+			{
+				FunctionSignature = Sig;
+				return true;
+			}
+		}
+	}
+	return false;
 }
 #endif
 
@@ -276,11 +309,13 @@ bool UNiagaraDataInterfaceActorComponent::PerInstanceTick(void* PerInstanceData,
 		{
 			InstanceData->bCachedValid = true;
 			InstanceData->CachedTransform = SceneComponent->GetComponentToWorld();
+			InstanceData->CachedTransform.AddToTranslation(FVector(SystemInstance->GetLWCTile()) * -FLargeWorldRenderScalar::GetTileSize());
 		}
 		else if (AActor* OwnerActor = ActorComponent->GetOwner())
 		{
 			InstanceData->bCachedValid = true;
 			InstanceData->CachedTransform = OwnerActor->GetTransform();
+			InstanceData->CachedTransform.AddToTranslation(FVector(SystemInstance->GetLWCTile()) * -FLargeWorldRenderScalar::GetTileSize());
 		}
 	}
 

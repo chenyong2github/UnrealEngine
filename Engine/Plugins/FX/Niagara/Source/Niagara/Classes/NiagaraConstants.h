@@ -44,6 +44,7 @@
 #define SYS_PARAM_ENGINE_Z_AXIS                          INiagaraModule::GetVar_Engine_Owner_ZAxis()
 #define SYS_PARAM_ENGINE_ROTATION                        INiagaraModule::GetVar_Engine_Owner_Rotation()
 #define SYS_PARAM_ENGINE_SCALE                           INiagaraModule::GetVar_Engine_Owner_Scale()
+#define SYS_PARAM_ENGINE_LWC_TILE                        INiagaraModule::GetVar_Engine_Owner_LWC_Tile()
 
 #define SYS_PARAM_ENGINE_LOCAL_TO_WORLD                  INiagaraModule::GetVar_Engine_Owner_SystemLocalToWorld()
 #define SYS_PARAM_ENGINE_WORLD_TO_LOCAL                  INiagaraModule::GetVar_Engine_Owner_SystemWorldToLocal()
@@ -146,6 +147,7 @@ struct NIAGARA_API FNiagaraConstants
 	static FNiagaraVariable UpdateEngineConstant(const FNiagaraVariable& InVar);
 	static const FNiagaraVariable *FindEngineConstant(const FNiagaraVariable& InVar);
 	static FText GetEngineConstantDescription(const FNiagaraVariable& InVar);
+	static const TArray<FNiagaraVariable>& GetOldPositionTypeVariables();
 
 	static const TArray<FNiagaraVariable>& GetCommonParticleAttributes();
 	static FText GetAttributeDescription(const FNiagaraVariable& InVar);
@@ -218,6 +220,7 @@ private:
 	static TArray<FNiagaraVariable> SystemParameters;
 	static TArray<FNiagaraVariable> TranslatorParameters;
 	static TArray<FNiagaraVariable> SwitchParameters;
+	static TArray<FNiagaraVariable> OldPositionTypes;
 	static TMap<FName, FNiagaraVariable> UpdatedSystemParameters;
 	static TMap<FNiagaraVariable, FText> SystemStrMap;
 	static TArray<FNiagaraVariable> Attributes;

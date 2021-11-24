@@ -201,13 +201,13 @@ public:
 
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
 	{
-		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec3Struct(), TEXT("Struct type not supported."));	// LWC_TODO: Support for FVector3d likely required here.
+		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec3Struct() || Struct->GetStruct() == FNiagaraTypeDefinition::GetPositionStruct(), TEXT("Struct type not supported."));	// LWC_TODO: Support for FVector3d likely required here.
 		VectorValue = *((FVector3f*)Struct->GetStructMemory());
 	}
 
 	virtual void UpdateStructFromInternalValue(TSharedRef<FStructOnScope> Struct) override
 	{
-		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec3Struct(), TEXT("Struct type not supported."));
+		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetVec3Struct() || Struct->GetStruct() == FNiagaraTypeDefinition::GetPositionStruct(), TEXT("Struct type not supported."));
 		*((FVector3f*)Struct->GetStructMemory()) = VectorValue;
 	}
 

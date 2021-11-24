@@ -67,6 +67,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT( FNiagaraSpriteUniformParameters, NIAGARAVE
 	SHADER_PARAMETER(FVector2f, DefaultUVScale)
 	SHADER_PARAMETER(FVector3f, DefaultVelocity)
 	SHADER_PARAMETER(FVector3f, DefaultPrevVelocity)
+	SHADER_PARAMETER(FVector3f, SystemLWCTile)
 	SHADER_PARAMETER(float, DefaultRotation)
 	SHADER_PARAMETER(float, DefaultPrevRotation)
 	SHADER_PARAMETER(FVector4f, DefaultColor)

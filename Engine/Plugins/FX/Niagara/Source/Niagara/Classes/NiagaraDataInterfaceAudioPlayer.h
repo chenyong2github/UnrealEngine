@@ -41,6 +41,7 @@ struct FAudioPlayerInterface_InstanceData
 	TWeakObjectPtr<USoundConcurrency> Concurrency;
 	TArray<FName> ParameterNames;
 
+	FNiagaraLWCConverter LWCConverter;
 	int32 MaxPlaysPerTick = 0;
 	bool bStopWhenComponentIsDestroyed = true;
 #if WITH_EDITORONLY_DATA

@@ -112,6 +112,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bTrimAttributesOnCook(true)
 , bDisableAllDebugSwitches(false)
 #endif
+, bSupportLargeWorldCoordinates(true)
 , bFixedBounds(false)
 #if WITH_EDITORONLY_DATA
 , bIsolateEnabled(false)
@@ -142,6 +143,9 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	AssetGuid = FGuid::NewGuid();
 #endif
+
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	bLwcEnabledSettingCached = Settings ? Settings->bSystemsSupportLargeWorldCoordinates : true;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1150,6 +1154,8 @@ void UNiagaraSystem::PostLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
+	FixupPositionUserParameters(); //TODO[mg]: hide this behind a new custom version?
+	
 	if (EditorData == nullptr)
 	{
 		INiagaraModule& NiagaraModule = FModuleManager::GetModuleChecked<INiagaraModule>("Niagara");
@@ -2121,19 +2127,30 @@ void UNiagaraSystem::EnsureFullyLoaded() const
 	System->UpdateSystemAfterLoad();
 }
 
+bool UNiagaraSystem::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace, FNiagaraTypeDefinition& OutBoundType) const
+{
+	return CanObtainSystemAttribute(InVarWithUniqueNameNamespace, OutBoundType);
+}
 
-bool UNiagaraSystem::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const
+bool UNiagaraSystem::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar, FNiagaraTypeDefinition& OutBoundType) const
 {
 	if (SystemSpawnScript)
-		return SystemSpawnScript->GetVMExecutableData().Attributes.Contains(InVarWithUniqueNameNamespace);
+	{
+		OutBoundType = InVar.GetType();
+		bool bContainsAttribute = SystemSpawnScript->GetVMExecutableData().Attributes.Contains(InVar);
+		if (!bContainsAttribute && InVar.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+		{
+			// if we don't find a position type var we check for a vec3 type for backwards compatibility
+			OutBoundType = FNiagaraTypeDefinition::GetVec3Def();
+			FNiagaraVariableBase VarCopy = InVar;
+			VarCopy.SetType(OutBoundType);
+			bContainsAttribute = SystemSpawnScript->GetVMExecutableData().Attributes.Contains(VarCopy);
+		}
+		return bContainsAttribute;
+	}
 	return false;
 }
-bool UNiagaraSystem::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const
-{
-	if (SystemSpawnScript)
-		return SystemSpawnScript->GetVMExecutableData().Attributes.Contains(InVar);
-	return false;
-}
+
 bool UNiagaraSystem::CanObtainUserVariable(const FNiagaraVariableBase& InVar) const
 {
 	return ExposedParameters.IndexOf(InVar) != INDEX_NONE;
@@ -3616,6 +3633,36 @@ FNiagaraEmitterCompiledData::FNiagaraEmitterCompiledData()
 }
 
 #if WITH_EDITORONLY_DATA
+void UNiagaraSystem::FixupPositionUserParameters()
+{
+	TArray<FNiagaraVariable> UserParameters;
+	ExposedParameters.GetUserParameters(UserParameters);
+	UserParameters.FilterByPredicate([](const FNiagaraVariable& Var) { return Var.GetType() == FNiagaraTypeDefinition::GetVec3Def(); });
+
+	if (UserParameters.Num() == 0)
+	{
+		return;
+	}
+	for (FNiagaraVariable& UserParameter : UserParameters)
+	{
+		ExposedParameters.MakeUserVariable(UserParameter);
+	}
+	
+	TSet<FNiagaraVariable> LinkedPositionInputs;
+	ForEachScript([&UserParameters, &LinkedPositionInputs](UNiagaraScript* Script)
+	{
+		Script->GetLatestSource()->GetLinkedPositionTypeInputs(UserParameters, LinkedPositionInputs);
+	});
+
+	// looks like we have a few FVector3f user parameters that are linked to position inputs in the stack.
+	// Most likely this is because core modules were changed to use position data. To ease the transition of old assets, we auto-convert those inputs to position types as well.
+	for (FNiagaraVariable& LinkedParameter : LinkedPositionInputs)
+	{
+		ExposedParameters.ConvertParameterType(LinkedParameter, FNiagaraTypeDefinition::GetPositionDef());
+		UE_LOG(LogNiagara, Log, TEXT("Converted parameter %s from vec3 to position type in asset %s"), *LinkedParameter.GetName().ToString(), *GetPathName());
+	}
+}
+
 void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiagaraVariable>& ParameterVars, const FNiagaraDataSetCompiledData& DataSet, const FString& NamespaceBase, const FString& NamespaceReplacement)
 {
 	// be sure to reset the offsets first
@@ -3660,10 +3707,10 @@ void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiag
 		}
 
 		// we need to take into account potential padding that is in the constant buffers based similar to what is done
-		// in the NiagaraHlslTranslator, where Vec2/Vec3 are treated as Vec4.
+		// in the NiagaraHlslTranslator, where Vec2/Vec3/Position are treated as Vec4.
 		int32 ParameterSize = Var.GetSizeInBytes();
 		const FNiagaraTypeDefinition& Type = Var.GetType();
-		if (Type == FNiagaraTypeDefinition::GetVec2Def() || Type == FNiagaraTypeDefinition::GetVec3Def())
+		if (Type == FNiagaraTypeDefinition::GetVec2Def() || Type == FNiagaraTypeDefinition::GetVec3Def() || Type == FNiagaraTypeDefinition::GetPositionDef())
 		{
 			ParameterSize = Align(ParameterSize, FNiagaraTypeDefinition::GetVec4Def().GetSize());
 		}

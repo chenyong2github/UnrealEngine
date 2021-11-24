@@ -8,10 +8,8 @@
 #include "Landscape.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "LandscapeInfo.h"
-#include "LandscapeInfoMap.h"
 #include "LandscapeProxy.h"
 #include "NiagaraComponent.h"
-#include "NiagaraCustomVersion.h"
 #include "NiagaraShader.h"
 #include "NiagaraStats.h"
 #include "NiagaraWorldManager.h"
@@ -35,6 +33,7 @@ namespace NiagaraDataInterfaceLandscape
 	{
 		InitialVersion = 0,
 		SupportVirtualTextures = 1,
+		LWCPosition = 2,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -692,6 +691,7 @@ FNDI_Landscape_SharedResourceHandle FNDI_Landscape_GeneratedData::GetLandscapeDa
 UNiagaraDataInterfaceLandscape::UNiagaraDataInterfaceLandscape(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)		
 {
+	SourceLandscape = nullptr;
 	Proxy.Reset(new FNiagaraDataInterfaceProxyLandscape());
 }
 
@@ -757,7 +757,7 @@ void UNiagaraDataInterfaceLandscape::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Landscape")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("WorldPos")));		
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("WorldPos")));		
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Value")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
 
@@ -772,7 +772,7 @@ void UNiagaraDataInterfaceLandscape::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Landscape")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("WorldPos")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("WorldPos")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Value")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
 
@@ -787,7 +787,7 @@ void UNiagaraDataInterfaceLandscape::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Landscape")));
-		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("WorldPos")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("WorldPos")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Value")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
 
@@ -805,19 +805,22 @@ void UNiagaraDataInterfaceLandscape::GetFunctions(TArray<FNiagaraFunctionSignatu
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceLandscape::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
 {
-	bool WasChanged = false;
-
-	if (FunctionSignature.FunctionVersion < NiagaraDataInterfaceLandscape::SupportVirtualTextures)
+	// always upgrade to the latest version
+	if (FunctionSignature.FunctionVersion < NiagaraDataInterfaceLandscape::LatestVersion)
 	{
-		if (FunctionSignature.Name == GetHeightName)
+		TArray<FNiagaraFunctionSignature> AllFunctions;
+		GetFunctions(AllFunctions);
+		for (const FNiagaraFunctionSignature& Sig : AllFunctions)
 		{
-			FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsValid")));
-			WasChanged = true;
+			if (FunctionSignature.Name == Sig.Name)
+			{
+				FunctionSignature = Sig;
+				return true;
+			}
 		}
 	}
 
-	FunctionSignature.FunctionVersion = NiagaraDataInterfaceLandscape::LatestVersion;
-	return WasChanged;
+	return false;
 }
 #endif
 
@@ -1208,6 +1211,7 @@ public:
 		PointClampedSamplerParam.Bind(ParameterMap, *(PointClampedSamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
 		CachedPhysMatTextureParam.Bind(ParameterMap, *(CachedPhysMatTextureName + ParameterInfo.DataInterfaceHLSLSymbol));
 		CachedPhysMatTextureDimensionParam.Bind(ParameterMap, *(CachedPhysMatTextureDimensionName + ParameterInfo.DataInterfaceHLSLSymbol));
+		SystemLWCTileParam.Bind(ParameterMap, *(SystemLWCTileName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
 	bool SetBaseColorVirtualTextureParameters(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShaderRHI, const FNDILandscapeData_RenderThread& ProxyData) const
@@ -1536,6 +1540,7 @@ public:
 		check(IsInRenderingThread());
 
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
+		SetShaderValue(RHICmdList, ComputeShaderRHI, SystemLWCTileParam, Context.SystemLWCTile);
 
 		FNiagaraDataInterfaceProxyLandscape* RT_Proxy = static_cast<FNiagaraDataInterfaceProxyLandscape*>(Context.DataInterface);
 		FNDILandscapeData_RenderThread* ProxyData = RT_Proxy ? RT_Proxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID) : nullptr;
@@ -1645,6 +1650,9 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, CachedPhysMatTextureParam);
 	LAYOUT_FIELD(FShaderParameter, CachedPhysMatTextureDimensionParam);
 
+	// LWC data
+	LAYOUT_FIELD(FShaderParameter, SystemLWCTileParam);
+
 	static const FString BaseColorVirtualTextureSRGBName;
 	static const FString BaseColorVirtualTextureEnabledName;
 	static const FString BaseColorVirtualTextureName;
@@ -1686,6 +1694,8 @@ private:
 	static const FString PointClampedSamplerName;
 	static const FString CachedPhysMatTextureName;
 	static const FString CachedPhysMatTextureDimensionName;
+	
+	static const FString SystemLWCTileName;
 };
 
 // virtual texture parameters - basecolor
@@ -1735,6 +1745,9 @@ const FString FNiagaraDataInterfaceParametersCS_Landscape::PointClampedSamplerNa
 // cached texture - physmat
 const FString FNiagaraDataInterfaceParametersCS_Landscape::CachedPhysMatTextureName(TEXT("CachedPhysMatTexture_"));
 const FString FNiagaraDataInterfaceParametersCS_Landscape::CachedPhysMatTextureDimensionName(TEXT("CachedPhysMatTextureDimension_"));
+
+// LWC
+const FString FNiagaraDataInterfaceParametersCS_Landscape::SystemLWCTileName(TEXT("SystemLWCTile_"));
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Landscape);
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceLandscape, FNiagaraDataInterfaceParametersCS_Landscape);

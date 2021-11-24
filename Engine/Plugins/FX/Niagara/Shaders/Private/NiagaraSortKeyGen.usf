@@ -51,6 +51,7 @@ uint MeshIndexAttributeOffset;
 float2 CullDistanceRangeSquared;
 float4 LocalBoundingSphere;
 float3 CullingWorldSpaceOffset;
+float3 SystemLWCTile;
 
 RWBuffer<uint> OutKeys;
 RWBuffer<int> OutParticleIndices;
@@ -142,6 +143,7 @@ bool CullParticle(in uint ParticleIndex)
 	if (CullPositionAttributeOffset != -1)
 	{
 		Pos = GetVec3(CullPositionAttributeOffset, ParticleIndex);
+		Pos = LWCHackToFloat(MakeLWCVector3(SystemLWCTile, Pos));
 	}
 
 	float4 Quat = { 0, 0, 0, 1 };

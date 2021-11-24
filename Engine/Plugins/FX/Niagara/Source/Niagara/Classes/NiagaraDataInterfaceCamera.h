@@ -9,14 +9,15 @@
 struct FDistanceData
 {
 	FNiagaraID ParticleID;
-	float DistanceSquared;
+	double DistanceSquared;
 };
 
 struct FCameraDataInterface_InstanceData
 {
-	FVector CameraLocation = FVector::ZeroVector;
+	FNiagaraPosition CameraLocation = FVector::ZeroVector;
 	FRotator CameraRotation = FRotator::ZeroRotator;
 	float CameraFOV = 0.0f;
+	FNiagaraLWCConverter LWCConverter;
 
 	TQueue<FDistanceData, EQueueMode::Mpsc> DistanceSortQueue;
 	TArray<FDistanceData> ParticlesSortedByDistance;	
@@ -28,6 +29,8 @@ class NIAGARA_API UNiagaraDataInterfaceCamera : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 public:
+	DECLARE_NIAGARA_DI_PARAMETER();
+	
 	/** This is used to determine which camera position to query for cpu emitters. If no valid index is supplied, the first controller is used as camera reference. */
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	int32 PlayerControllerIndex = 0;
@@ -51,6 +54,9 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	virtual void GetCommonHLSL(FString& OutHLSL) override;
+	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 #endif
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 	virtual bool HasTickGroupPrereqs() const override { return true; }
@@ -68,10 +74,6 @@ public:
 	void GetClosestParticles(FVectorVMExternalFunctionContext& Context);
 	void GetCameraFOV(FVectorVMExternalFunctionContext& Context);
 	void GetCameraProperties(FVectorVMExternalFunctionContext& Context);
-	void GetViewPropertiesGPU(FVectorVMExternalFunctionContext& Context);
-	void GetClipSpaceTransformsGPU(FVectorVMExternalFunctionContext& Context);
-	void GetViewSpaceTransformsGPU(FVectorVMExternalFunctionContext& Context);
-	void GetTAAJitter(FVectorVMExternalFunctionContext& Context);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;

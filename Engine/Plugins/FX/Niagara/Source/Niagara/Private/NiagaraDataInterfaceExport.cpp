@@ -11,7 +11,6 @@
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
 #include "ShaderCompilerCore.h"
-#include "RHIGPUReadback.h"
 
 namespace NDIExportLocal
 {
@@ -44,12 +43,14 @@ class FNiagaraExportCallbackAsyncTask
 	TWeakObjectPtr<UObject> WeakCallbackHandler;
 	TArray<FBasicParticleData> Data;
 	TWeakObjectPtr<UNiagaraSystem> WeakSystem;
+	FVector3f SystemTileOffset;
 
 public:
-	FNiagaraExportCallbackAsyncTask(TWeakObjectPtr<UObject> InCallbackHandler, TArray<FBasicParticleData> Data, TWeakObjectPtr<UNiagaraSystem> InSystem)
+	FNiagaraExportCallbackAsyncTask(TWeakObjectPtr<UObject> InCallbackHandler, TArray<FBasicParticleData> Data, TWeakObjectPtr<UNiagaraSystem> InSystem, FVector3f InSystemTileOffset)
 		: WeakCallbackHandler(InCallbackHandler)
 		, Data(Data)
 		, WeakSystem(InSystem)
+		, SystemTileOffset(InSystemTileOffset)
 	{
 	}
 
@@ -73,7 +74,7 @@ public:
 			return;
 		}
 
-		INiagaraParticleCallbackHandler::Execute_ReceiveParticleData(CallbackHandler, Data, System);
+		INiagaraParticleCallbackHandler::Execute_ReceiveParticleData(CallbackHandler, Data, System, FVector(SystemTileOffset) * FLargeWorldRenderScalar::GetTileSize());
 	}
 };
 
@@ -170,7 +171,7 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 			ReadbackManager->EnqueueReadback(
 				RHICmdList,
 				InstanceData->WriteBuffer.Buffer,
-				[MaxInstances=InstanceData->WriteBufferInstanceCount, WeakCallbackHandler=InstanceData->WeakCallbackHandler, WeakSystem=InstanceData->WeakSystem](TConstArrayView<TPair<void*, uint32>> Buffers)
+				[MaxInstances=InstanceData->WriteBufferInstanceCount, WeakCallbackHandler=InstanceData->WeakCallbackHandler, WeakSystem=InstanceData->WeakSystem, SystemLWCTile=Context.SystemLWCTile](TConstArrayView<TPair<void*, uint32>> Buffers)
 				{
 					const uint32 ReadbackInstanceCount = *reinterpret_cast<uint32*>(Buffers[0].Key);
 					check(ReadbackInstanceCount <= MaxInstances);
@@ -194,7 +195,7 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 							FloatData += NDIExportLocal::NumFloatsPerInstance;
 						}
 
-						TGraphTask<FNiagaraExportCallbackAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(WeakCallbackHandler, MoveTemp(ExportParticleData), WeakSystem);
+						TGraphTask<FNiagaraExportCallbackAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(WeakCallbackHandler, MoveTemp(ExportParticleData), WeakSystem, SystemLWCTile);
 					}
 				}
 			);
@@ -397,7 +398,7 @@ bool UNiagaraDataInterfaceExport::PerInstanceTickPostSimulate(void* PerInstanceD
 				Data.Add(Value);
 			}
 
-			TGraphTask<FNiagaraExportCallbackAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(PIData->CallbackHandler, MoveTemp(Data), SystemInstance->GetSystem());
+			TGraphTask<FNiagaraExportCallbackAsyncTask>::CreateTask().ConstructAndDispatchWhenReady(PIData->CallbackHandler, MoveTemp(Data), SystemInstance->GetSystem(), SystemInstance->GetLWCTile());
 		}
 	}
 	return false;

@@ -10,7 +10,6 @@
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraEditorModule.h"
-#include "NiagaraEditorModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraModule.h"
@@ -198,8 +197,6 @@ void UNiagaraGraph::PostLoad()
 		}
 	}
 
-
-
 	if (bAllZeroes && UniqueNames.Num() > 1)
 	{
 		// Just do the lexicographic sort and assign the call order to their ordered index value.
@@ -244,16 +241,6 @@ void UNiagaraGraph::PostLoad()
 	if (GIsEditor)
 	{
 		SetFlags(RF_Transactional);
-	}
-	
-	FString FullPathName = GetPathName();
-	FString PathName;
-	int ColonPos;
-	if (FullPathName.FindChar(TCHAR('.'), ColonPos))
-	{
-		// GetPathName() returns something similar to "/Path/To/ScriptName.ScriptName:NiagaraScriptSource_N.NiagaraGraph_N"
-		// so this will extract "/Path/To/ScriptName"
-		PathName = FullPathName.Left(ColonPos);
 	}
 
 	// Migrate input condition metadata
@@ -343,6 +330,58 @@ void UNiagaraGraph::PostLoad()
 	if (NiagaraVer < FNiagaraCustomVersion::StandardizeParameterNames)
 	{
 		StandardizeParameterNames();
+	}
+
+	// Fix LWC position type mapping; before LWC, all position were FVector3f, but now that they are a separate type, we need to upgrade the pins and metadata to match
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
+	TArray<UNiagaraNodeParameterMapBase*> NiagaraParameterNodes;
+	GetNodesOfClass<UNiagaraNodeParameterMapBase>(NiagaraParameterNodes);
+	TArray<FNiagaraVariable> OldTypes = FNiagaraConstants::GetOldPositionTypeVariables();
+	for (UNiagaraNodeParameterMapBase* NiagaraNode : NiagaraParameterNodes)
+	{
+		for (UEdGraphPin* Pin : NiagaraNode->Pins)
+		{
+			if (NiagaraNode->IsAddPin(Pin))
+			{
+				continue;
+			}
+			FNiagaraVariable Variable = FNiagaraVariable(NiagaraSchema->PinToTypeDefinition(Pin), Pin->PinName);
+			for (const FNiagaraVariable& OldVarType : OldTypes)
+			{
+				if (Variable == OldVarType)
+				{
+					Pin->PinType = NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetPositionDef());
+					NiagaraNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
+					break;
+				}
+			}
+		}
+	}
+	for (FNiagaraVariable OldVarType : OldTypes)
+	{
+		TObjectPtr<UNiagaraScriptVariable>* ScriptVariablePtr = VariableToScriptVariable.Find(OldVarType);
+		if (ScriptVariablePtr != nullptr && !ScriptVariablePtr->IsNull())
+		{
+			UNiagaraScriptVariable& ScriptVar = *ScriptVariablePtr->Get();
+			ScriptVar.Variable.SetType(FNiagaraTypeDefinition::GetPositionDef());
+			VariableToScriptVariable.Remove(OldVarType);
+
+			FNiagaraVariable NewVarType(FNiagaraTypeDefinition::GetPositionDef(), OldVarType.GetName());
+			VariableToScriptVariable.Add(NewVarType, *ScriptVariablePtr);
+			ScriptVariableChanged(NewVarType);
+		}
+
+		// Also fix stale parameter reference map entries. This should usually happen in RefreshParameterReferences, but since we just changed VariableToScriptVariable we need to fix that as well. 
+		FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(OldVarType);
+		if (ReferenceCollection != nullptr)
+		{
+			if (ReferenceCollection->ParameterReferences.Num() > 0)
+			{
+				FNiagaraVariable NewVarType(FNiagaraTypeDefinition::GetPositionDef(), OldVarType.GetName());
+				ParameterToReferencesMap.Add(NewVarType, *ReferenceCollection);
+			}
+			ParameterToReferencesMap.Remove(OldVarType);
+		}
 	}
 
 	InvalidateCachedParameterData();
@@ -2907,7 +2946,14 @@ void UNiagaraGraph::RefreshParameterReferences() const
 			continue;
 		}
 
-		AddBindingParameterReference(FNiagaraVariable(Variable->Variable.GetType(), Variable->DefaultBinding.GetName()));
+		FNiagaraTypeDefinition LinkedType = Variable->Variable.GetType();
+		FName BindingName = Variable->DefaultBinding.GetName();
+		if (FNiagaraConstants::GetOldPositionTypeVariables().Contains(FNiagaraVariable(LinkedType, BindingName)))
+		{
+			// it is not uncommon that old assets have vector inputs that default bind to what is now a position type. If we detect that, we change the type to prevent a compiler error.
+			LinkedType = FNiagaraTypeDefinition::GetPositionDef();
+		}
+		AddBindingParameterReference(FNiagaraVariable(LinkedType, BindingName));
 	}
 
 	// If there were any previous parameters which didn't have any references added, remove them here.

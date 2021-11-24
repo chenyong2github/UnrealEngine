@@ -40,6 +40,7 @@ struct FNiagaraSkelMeshDIFunctionVersion
 		AddedEnabledUvMapping = 6,
 		AddedValidConnectivity = 7,
 		AddedInputBardCoordToGetFilteredTriangleAt = 8,
+		LargeWorldCoordinates = 9,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -1834,7 +1835,9 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	bMeshValid = Mesh != nullptr;
 	bComponentValid = SceneComponent.IsValid();
 
-	Transform = (bComponentValid ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform()).ToMatrixWithScale();
+	FTransform ComponentTransform = (bComponentValid ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform());
+	ComponentTransform.AddToTranslation(FVector(SystemInstance->GetLWCTile()) * -FLargeWorldRenderScalar::GetTileSize());
+	Transform = ComponentTransform.ToMatrixWithScale();
 	TransformInverseTransposed = Transform.Inverse().GetTransposed();
 	PrevTransform = Transform;
 
@@ -2336,7 +2339,9 @@ bool FNDISkeletalMesh_InstanceData::Tick(UNiagaraDataInterfaceSkeletalMesh* Inte
 		DeltaSeconds = InDeltaSeconds;
 
 		PrevTransform = Transform;
-		Transform = (SceneComponent.IsValid() ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform()).ToMatrixWithScale();
+		FTransform ComponentTransform = (SceneComponent.IsValid() ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform());
+		ComponentTransform.AddToTranslation(FVector(SystemInstance->GetLWCTile()) * -FLargeWorldRenderScalar::GetTileSize());
+		Transform = ComponentTransform.ToMatrixWithScale();
 		TransformInverseTransposed = Transform.Inverse().GetTransposed();
 
 		// Cache socket transforms to avoid potentially calculating them multiple times during the VM
@@ -3416,6 +3421,20 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 		{
 			FunctionSignature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("BaryCoord"))).SetValue(FVector3f(1.0f / 3.0f));
 			bWasChanged = true;
+		}
+	}
+
+	if (FunctionSignature.FunctionVersion < FNiagaraSkelMeshDIFunctionVersion::LargeWorldCoordinates)
+	{
+		TArray<FNiagaraFunctionSignature> AllFunctions;
+		GetFunctions(AllFunctions);
+		for (const FNiagaraFunctionSignature& Sig : AllFunctions)
+		{
+			if (FunctionSignature.Name == Sig.Name)
+			{
+				FunctionSignature = Sig;
+				return true;
+			}
 		}
 	}
 

@@ -17,14 +17,9 @@
 #include "NiagaraCrashReporterHandler.h"
 
 #include "Async/Async.h"
-#include "Async/ParallelFor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Templates/AlignmentTemplates.h"
-
-#if WITH_EDITORONLY_DATA
-#include "Editor.h"
-#endif
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -87,7 +82,7 @@ static FAutoConsoleVariableRef CVarNiagaraAllowDeferredReset(
 );
 
 FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& InAsset, FNiagaraUserRedirectionParameterStore* InOverrideParameters,
-	USceneComponent* InAttachComponent, ENiagaraTickBehavior InTickBehavior, bool bInPooled)
+                                               USceneComponent* InAttachComponent, ENiagaraTickBehavior InTickBehavior, bool bInPooled)
 	: SystemInstanceIndex(INDEX_NONE)
 	, SignificanceIndex(INDEX_NONE)
 	, World(&InWorld)
@@ -792,6 +787,13 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		}
 	}
 
+	// Set tile for LWC offset
+	LWCTile = FVector3f::ZeroVector;
+	if (AttachComponent.IsValid() && GetSystem()->SupportsLargeWorldCoordinates())
+	{
+		LWCTile = FLargeWorldRenderScalar::GetTileFor(AttachComponent->GetComponentLocation());
+	}
+
 	// Depending on the rest mode we may need to bind or can possibly skip it
 	// We must bind if we were previously complete as unbind will have been called, we can not get here if the system was disabled
 	bool bBindParams = IsComplete();
@@ -907,6 +909,7 @@ void FNiagaraSystemInstance::ResetInternal(bool bResetSimulations)
 	check(World);
 	if (OverrideParameters && World->WorldType == EWorldType::Editor)
 	{
+		OverrideParameters->ResolvePositions(GetLWCConverter());
 		OverrideParameters->Tick();
 	}
 #endif
@@ -1239,7 +1242,16 @@ void FNiagaraSystemInstance::UnbindParameters(bool bFromComplete)
 	}
 }
 
-FNiagaraWorldManager* FNiagaraSystemInstance::GetWorldManager()const
+FNiagaraLWCConverter FNiagaraSystemInstance::GetLWCConverter(bool bLocalSpaceEmitter) const
+{
+	if (bLocalSpaceEmitter)
+	{
+		return FNiagaraLWCConverter();
+	}
+	return FNiagaraLWCConverter(FVector(LWCTile) * FLargeWorldRenderScalar::GetTileSize());
+}
+
+FNiagaraWorldManager* FNiagaraSystemInstance::GetWorldManager() const
 {
 	check(World);
 	return FNiagaraWorldManager::Get(World);
@@ -1385,6 +1397,7 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 
 	if (OverrideParameters != nullptr)
 	{
+		OverrideParameters->ResolvePositions(GetLWCConverter());
 		OverrideParameters->Tick();
 	}
 
@@ -1594,7 +1607,6 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			}
 		}
 	}
-	
 }
 
 void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSimulate)
@@ -1855,6 +1867,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	if (AttachComponent.IsValid())
 	{
 		WorldTransform = AttachComponent->GetComponentToWorld();
+		WorldTransform.AddToTranslation(FVector(LWCTile) * -FLargeWorldRenderScalar::GetTileSize());
 	}
 	const bool TransformMatches = GatheredInstanceParameters.ComponentTrans.Equals(WorldTransform);
 	if (TransformMatches)
@@ -1915,6 +1928,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 
 	if (OverrideParameters)
 	{
+		OverrideParameters->ResolvePositions(GetLWCConverter());
 		OverrideParameters->Tick();
 	}
 }
@@ -1947,6 +1961,8 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		CurrentOwnerParameters.EngineYAxis = CurrentOwnerParameters.EngineRotation.GetAxisY();
 		CurrentOwnerParameters.EngineZAxis = CurrentOwnerParameters.EngineRotation.GetAxisZ();
 		CurrentOwnerParameters.EngineScale = GatheredInstanceParameters.ComponentTrans.GetScale3D();
+		CurrentOwnerParameters.EngineLWCTile = LWCTile;
+		CurrentOwnerParameters.EngineLWCTile.W = FLargeWorldRenderScalar::GetTileSize();
 	}
 
 	CurrentSystemParameters.EngineEmitterCount = GatheredInstanceParameters.EmitterCount;
