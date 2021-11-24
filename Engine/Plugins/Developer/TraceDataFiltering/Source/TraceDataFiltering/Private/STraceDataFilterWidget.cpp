@@ -216,7 +216,7 @@ void STraceDataFilterWidget::OnHighlightPreset(const TSharedPtr<IFilterPreset>& 
 {
 	if (Treeview.IsValid())
 	{
-		/** Update treeview so that any whitelisted entry (as part of Preset) is highlighted and expanded */
+		/** Update treeview so that any allowlisted entry (as part of Preset) is highlighted and expanded */
 		Treeview->ClearHighlightedItems();
 		if (Preset.IsValid())
 		{
@@ -228,7 +228,7 @@ void STraceDataFilterWidget::OnHighlightPreset(const TSharedPtr<IFilterPreset>& 
 			}
 
 			TArray<FString> Names;
-			Preset->GetWhitelistedNames(Names);
+			Preset->GetAllowlistedNames(Names);
 
 			EnumerateAllItems([this, Names](TSharedPtr<ITraceObject> Object) -> void
 			{
