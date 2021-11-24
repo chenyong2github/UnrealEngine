@@ -216,6 +216,7 @@ namespace Gauntlet
 		public void ClearCommandLine()
 		{
 			Params.Clear();
+			AdditionalExplicitCommandLineArgs = string.Empty;
 		}
 
 		/// <summary>
