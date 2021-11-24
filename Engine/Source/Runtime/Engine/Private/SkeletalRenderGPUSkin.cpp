@@ -1313,12 +1313,8 @@ void FSkeletalMeshObjectGPUSkin::RefreshClothingTransforms(const FMatrix& InNewL
  * @param VertexBuffers - vertex buffers which contains the data and also stride info
  * @param bUseInstancedVertexWeights - use instanced influence weights instead of default weights
  */
-template<class VertexFactoryType>
-void InitGPUSkinVertexFactoryComponents(typename VertexFactoryType::FDataType* VertexFactoryData, 
-										const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& VertexBuffers, VertexFactoryType* VertexFactory)
+void InitGPUSkinVertexFactoryComponents(FGPUSkinDataType* VertexFactoryData, const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& VertexBuffers, FGPUBaseSkinVertexFactory* VertexFactory)
 {
-	typedef TGPUSkinVertexBase BaseVertexType;
-
 	//position
 	VertexBuffers.StaticVertexBuffers->PositionVertexBuffer.BindPositionVertexBuffer(VertexFactory, *VertexFactoryData);
 
@@ -1380,8 +1376,7 @@ void InitGPUSkinVertexFactoryComponents(typename VertexFactoryType::FDataType* V
  * @param VertexBuffers - vertex buffers which contains the data and also stride info
  * @param bUseInstancedVertexWeights - use instanced influence weights instead of default weights
  */
-template<class VertexFactoryType>
-void InitMorphVertexFactoryComponents(typename VertexFactoryType::FDataType* VertexFactoryData, 
+void InitMorphVertexFactoryComponents(FGPUSkinMorphDataType* VertexFactoryData,
 										const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& VertexBuffers)
 {
 	VertexFactoryData->MorphVertexBufferPool = VertexBuffers.MorphVertexBufferPool;
@@ -1402,8 +1397,7 @@ void InitMorphVertexFactoryComponents(typename VertexFactoryType::FDataType* Ver
  * @param VertexBuffers - vertex buffers which contains the data and also stride info
  * @param bUseInstancedVertexWeights - use instanced influence weights instead of default weights
  */
-template<class VertexFactoryType>
-void InitAPEXClothVertexFactoryComponents(typename VertexFactoryType::FDataType* VertexFactoryData, 
+void InitAPEXClothVertexFactoryComponents(FGPUSkinAPEXClothDataType* VertexFactoryData,
 										const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& VertexBuffers)
 {
 	VertexFactoryData->ClothBuffer = VertexBuffers.APEXClothVertexBuffer->GetSRV();
@@ -1413,43 +1407,50 @@ void InitAPEXClothVertexFactoryComponents(typename VertexFactoryType::FDataType*
 /** 
  * Handles transferring data between game/render threads when initializing vertex factory components 
  */
-template <class VertexFactoryType>
-class TDynamicUpdateVertexFactoryData
+class FDynamicUpdateVertexFactoryData
 {
 public:
-	TDynamicUpdateVertexFactoryData(
-		VertexFactoryType* InVertexFactory,
+	FDynamicUpdateVertexFactoryData(
+		FGPUBaseSkinVertexFactory* InVertexFactory,
 		const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& InVertexBuffers)
 		:	VertexFactory(InVertexFactory)
 		,	VertexBuffers(InVertexBuffers)
 	{}
-	VertexFactoryType* VertexFactory;
+
+	FGPUBaseSkinVertexFactory* VertexFactory;
 	const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers VertexBuffers;
-	
 };
 
 /**
  * Creates a vertex factory entry for the given type and initialize it on the render thread
  */
-template <class VertexFactoryTypeBase, class VertexFactoryType>
-static VertexFactoryType* CreateVertexFactory(TArray<TUniquePtr<VertexFactoryTypeBase>>& VertexFactories,
+static FGPUBaseSkinVertexFactory* CreateVertexFactory(TArray<TUniquePtr<FGPUBaseSkinVertexFactory>>& VertexFactories,
 						 const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& InVertexBuffers,
 						 ERHIFeatureLevel::Type FeatureLevel
 						 )
 {
-	VertexFactoryType* VertexFactory = new VertexFactoryType(FeatureLevel, InVertexBuffers.NumVertices);
-	VertexFactories.Add(TUniquePtr<VertexFactoryTypeBase>(VertexFactory));
+	FGPUBaseSkinVertexFactory* VertexFactory = nullptr;
+	GPUSkinBoneInfluenceType BoneInfluenceType = InVertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
+	if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
+	{
+		VertexFactory = new TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>(FeatureLevel, InVertexBuffers.NumVertices);
+	}
+	else
+	{
+		VertexFactory = new TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>(FeatureLevel, InVertexBuffers.NumVertices);
+	}
+	VertexFactories.Add(TUniquePtr<FGPUBaseSkinVertexFactory>(VertexFactory));
 
 	// Setup the update data for enqueue
-	TDynamicUpdateVertexFactoryData<VertexFactoryType> VertexUpdateData(VertexFactory,InVertexBuffers);
+	FDynamicUpdateVertexFactoryData VertexUpdateData(VertexFactory, InVertexBuffers);
 
 	// update vertex factory components and sync it
 	ENQUEUE_RENDER_COMMAND(InitGPUSkinVertexFactory)(
 		[VertexUpdateData](FRHICommandList& CmdList)
 		{
-			typename VertexFactoryType::FDataType Data;
-			InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
-			VertexUpdateData.VertexFactory->SetData(Data);
+			FGPUSkinDataType Data;
+			InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
+			VertexUpdateData.VertexFactory->SetData(&Data);
 			VertexUpdateData.VertexFactory->InitResource();
 		}
 	);
@@ -1468,34 +1469,32 @@ void FGPUSkinPassthroughVertexFactory::SetData(const FDataType& InData)
 	}
 }
 
-template <class VertexFactoryTypeBase, class VertexFactoryType>
-void UpdateVertexFactory(TArray<TUniquePtr<VertexFactoryTypeBase>>& VertexFactories,
+void UpdateVertexFactory(TArray<TUniquePtr<FGPUBaseSkinVertexFactory>>& VertexFactories,
 	const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& InVertexBuffers)
 {
-	for (TUniquePtr<VertexFactoryTypeBase>& FactoryPtr : VertexFactories)
+	for (TUniquePtr<FGPUBaseSkinVertexFactory>& FactoryPtr : VertexFactories)
 	{
-		VertexFactoryType* VertexFactory = (VertexFactoryType*)FactoryPtr.Get();
+		FGPUBaseSkinVertexFactory* VertexFactory = FactoryPtr.Get();
 
 		if (VertexFactory != nullptr)
 		{
 			// Setup the update data for enqueue
-			TDynamicUpdateVertexFactoryData<VertexFactoryType> VertexUpdateData(VertexFactory, InVertexBuffers);
+			FDynamicUpdateVertexFactoryData VertexUpdateData(VertexFactory, InVertexBuffers);
 
 			// update vertex factory components and sync it
 			ENQUEUE_RENDER_COMMAND(UpdateGPUSkinVertexFactory)(
 				[VertexUpdateData](FRHICommandList& CmdList)
 			{
-				typename VertexFactoryType::FDataType Data;
-				InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
-				VertexUpdateData.VertexFactory->SetData(Data);
+				FGPUSkinDataType Data;
+				InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
+				VertexUpdateData.VertexFactory->SetData(&Data);
 			});
 		}
 	}
 }
 
-template<typename VertexFactoryType>
 static void CreatePassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, TArray<TUniquePtr<FGPUSkinPassthroughVertexFactory>>& PassthroughVertexFactories,
-	VertexFactoryType* SourceVertexFactory)
+	FGPUBaseSkinVertexFactory* SourceVertexFactory)
 {
 	FGPUSkinPassthroughVertexFactory* NewPassthroughVertexFactory = new FGPUSkinPassthroughVertexFactory(InFeatureLevel);
 	PassthroughVertexFactories.Add(TUniquePtr<FGPUSkinPassthroughVertexFactory>(NewPassthroughVertexFactory));
@@ -1513,55 +1512,59 @@ static void CreatePassthroughVertexFactory(ERHIFeatureLevel::Type InFeatureLevel
 /**
  * Creates a vertex factory entry for the given type and initialize it on the render thread
  */
-template <class VertexFactoryTypeBase, class VertexFactoryType>
-static VertexFactoryType* CreateVertexFactoryMorph(TArray<TUniquePtr<VertexFactoryTypeBase>>& VertexFactories,
+static void CreateVertexFactoryMorph(TArray<TUniquePtr<FGPUBaseSkinVertexFactory>>& VertexFactories,
 						 const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& InVertexBuffers,
 						 ERHIFeatureLevel::Type FeatureLevel
 						 )
-
 {
-	VertexFactoryType* VertexFactory = new VertexFactoryType(FeatureLevel, InVertexBuffers.NumVertices);
-	VertexFactories.Add(TUniquePtr<VertexFactoryTypeBase>(VertexFactory));
-						
+	FGPUBaseSkinVertexFactory* VertexFactory = nullptr;
+	GPUSkinBoneInfluenceType BoneInfluenceType = InVertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
+	if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
+	{
+		VertexFactory = new TGPUSkinMorphVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>(FeatureLevel, InVertexBuffers.NumVertices);
+	}
+	else
+	{
+		VertexFactory = new TGPUSkinMorphVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>(FeatureLevel, InVertexBuffers.NumVertices);
+	}
+	VertexFactories.Add(TUniquePtr<FGPUBaseSkinVertexFactory>(VertexFactory));
+
 	// Setup the update data for enqueue
-	TDynamicUpdateVertexFactoryData<VertexFactoryType> VertexUpdateData(VertexFactory, InVertexBuffers);
+	FDynamicUpdateVertexFactoryData VertexUpdateData(VertexFactory, InVertexBuffers);
 
 	// update vertex factory components and sync it
 	ENQUEUE_RENDER_COMMAND(InitGPUSkinVertexFactoryMorph)(
 		[VertexUpdateData](FRHICommandList& RHICmdList)
 		{
-			typename VertexFactoryType::FDataType Data;
-			InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
-			InitMorphVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers);
-			VertexUpdateData.VertexFactory->SetData(Data);
+			FGPUSkinMorphDataType Data;
+			InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
+			InitMorphVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers);
+			VertexUpdateData.VertexFactory->SetData(&Data);
 			VertexUpdateData.VertexFactory->InitResource();
 		}
 	);
-
-	return VertexFactory;
 }
 
-template <class VertexFactoryTypeBase, class VertexFactoryType>
-static void UpdateVertexFactoryMorph(TArray<TUniquePtr<VertexFactoryTypeBase>>& VertexFactories,
+static void UpdateVertexFactoryMorph(TArray<TUniquePtr<FGPUBaseSkinVertexFactory>>& VertexFactories,
 	const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& InVertexBuffers)
 {
-	for (TUniquePtr<VertexFactoryTypeBase>& FactoryPtr : VertexFactories)
+	for (TUniquePtr<FGPUBaseSkinVertexFactory>& FactoryPtr : VertexFactories)
 	{
-		VertexFactoryType* VertexFactory = (VertexFactoryType*)FactoryPtr.Get();
+		FGPUBaseSkinVertexFactory* VertexFactory = FactoryPtr.Get();
 
 		if (VertexFactory != nullptr)
 		{
 			// Setup the update data for enqueue
-			TDynamicUpdateVertexFactoryData<VertexFactoryType> VertexUpdateData(VertexFactory, InVertexBuffers);
+			FDynamicUpdateVertexFactoryData VertexUpdateData(VertexFactory, InVertexBuffers);
 
 			// update vertex factory components and sync it
 			ENQUEUE_RENDER_COMMAND(InitGPUSkinVertexFactoryMorph)(
 				[VertexUpdateData](FRHICommandList& RHICmdList)
 			{
-				typename VertexFactoryType::FDataType Data;
-				InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
-				InitMorphVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers);
-				VertexUpdateData.VertexFactory->SetData(Data);
+				FGPUSkinMorphDataType Data;
+				InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
+				InitMorphVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers);
+				VertexUpdateData.VertexFactory->SetData(&Data);
 			});
 		}
 	}
@@ -1573,53 +1576,75 @@ static void UpdateVertexFactoryMorph(TArray<TUniquePtr<VertexFactoryTypeBase>>& 
 /**
  * Creates a vertex factory entry for the given type and initialize it on the render thread
  */
-template <class VertexFactoryTypeBase, class VertexFactoryType>
-static void CreateVertexFactoryCloth(TArray<TUniquePtr<VertexFactoryTypeBase>>& VertexFactories,
+static void CreateVertexFactoryCloth(TArray<TUniquePtr<FGPUBaseSkinAPEXClothVertexFactory>>& VertexFactories,
 						 const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& InVertexBuffers,
-						 ERHIFeatureLevel::Type FeatureLevel
+						 ERHIFeatureLevel::Type FeatureLevel,
+						 bool bUseMultipleInfluences
 						 )
-
 {
-	VertexFactoryType* VertexFactory = new VertexFactoryType(FeatureLevel, InVertexBuffers.NumVertices);
-	VertexFactories.Add(TUniquePtr<VertexFactoryTypeBase>(VertexFactory));
-						
+	FGPUBaseSkinAPEXClothVertexFactory* ClothVertexFactory = nullptr;
+	GPUSkinBoneInfluenceType BoneInfluenceType = InVertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
+	if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
+	{
+		if (bUseMultipleInfluences)
+		{
+			ClothVertexFactory = new TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>(FeatureLevel, InVertexBuffers.NumVertices);
+		}
+		else
+		{
+			ClothVertexFactory = new TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>(FeatureLevel, InVertexBuffers.NumVertices);
+		}
+	}
+	else
+	{
+		if (bUseMultipleInfluences)
+		{
+			ClothVertexFactory = new TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>(FeatureLevel, InVertexBuffers.NumVertices);
+		}
+		else
+		{
+			ClothVertexFactory = new TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>(FeatureLevel, InVertexBuffers.NumVertices);
+		}
+	}
+	VertexFactories.Add(TUniquePtr<FGPUBaseSkinAPEXClothVertexFactory>(ClothVertexFactory));
+
 	// Setup the update data for enqueue
-	TDynamicUpdateVertexFactoryData<VertexFactoryType> VertexUpdateData(VertexFactory, InVertexBuffers);
+	FGPUBaseSkinVertexFactory* VertexFactory = ClothVertexFactory->GetVertexFactory();
+	FDynamicUpdateVertexFactoryData VertexUpdateData(VertexFactory, InVertexBuffers);
 
 	// update vertex factory components and sync it
 	ENQUEUE_RENDER_COMMAND(InitGPUSkinAPEXClothVertexFactory)(
 		[VertexUpdateData](FRHICommandList& RHICmdList)
 		{
-			typename VertexFactoryType::FDataType Data;
-			InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
-			InitAPEXClothVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers);
-			VertexUpdateData.VertexFactory->SetData(Data);
+			FGPUSkinAPEXClothDataType Data;
+			InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
+			InitAPEXClothVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers);
+			VertexUpdateData.VertexFactory->SetData(&Data);
 			VertexUpdateData.VertexFactory->InitResource();
 		}
 	);
 }
 
-template <class VertexFactoryTypeBase, class VertexFactoryType>
-static void UpdateVertexFactoryCloth(TArray<TUniquePtr<VertexFactoryTypeBase>>& VertexFactories,
+static void UpdateVertexFactoryCloth(TArray<TUniquePtr<FGPUBaseSkinAPEXClothVertexFactory>>& VertexFactories,
 	const FSkeletalMeshObjectGPUSkin::FVertexFactoryBuffers& InVertexBuffers)
 {
-	for (TUniquePtr<VertexFactoryTypeBase>& FactoryPtr : VertexFactories)
+	for (TUniquePtr<FGPUBaseSkinAPEXClothVertexFactory>& FactoryPtr : VertexFactories)
 	{
-		VertexFactoryType* VertexFactory = (VertexFactoryType*)FactoryPtr.Get();
+		FGPUBaseSkinVertexFactory* VertexFactory = FactoryPtr->GetVertexFactory();
 
 		if (VertexFactory != nullptr)
 		{
 			// Setup the update data for enqueue
-			TDynamicUpdateVertexFactoryData<VertexFactoryType> VertexUpdateData(VertexFactory, InVertexBuffers);
+			FDynamicUpdateVertexFactoryData VertexUpdateData(VertexFactory, InVertexBuffers);
 
 			// update vertex factory components and sync it
 			ENQUEUE_RENDER_COMMAND(InitGPUSkinAPEXClothVertexFactory)(
 				[VertexUpdateData](FRHICommandList& RHICmdList)
 			{
-				typename VertexFactoryType::FDataType Data;
-				InitGPUSkinVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
-				InitAPEXClothVertexFactoryComponents<VertexFactoryType>(&Data, VertexUpdateData.VertexBuffers);
-				VertexUpdateData.VertexFactory->SetData(Data);
+				FGPUSkinAPEXClothDataType Data;
+				InitGPUSkinVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers, VertexUpdateData.VertexFactory);
+				InitAPEXClothVertexFactoryComponents(&Data, VertexUpdateData.VertexBuffers);
+				VertexUpdateData.VertexFactory->SetData(&Data);
 			});
 		}
 	}
@@ -1659,19 +1684,8 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitVertexFactories(
 	{
 		for(int32 FactoryIdx = 0; FactoryIdx < Sections.Num(); ++FactoryIdx)
 		{
-			GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
-			if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
-			{
-				TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>* VertexFactory = 
-					CreateVertexFactory< FGPUBaseSkinVertexFactory, TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence> >(VertexFactories, VertexBuffers, InFeatureLevel);
-				CreatePassthroughVertexFactory<TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>(InFeatureLevel, PassthroughVertexFactories, VertexFactory);
-			}
-			else
-			{
-				TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>* VertexFactory = 
-					CreateVertexFactory< FGPUBaseSkinVertexFactory, TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence> >(VertexFactories, VertexBuffers, InFeatureLevel);
-				CreatePassthroughVertexFactory<TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>(InFeatureLevel, PassthroughVertexFactories, VertexFactory);
-			}
+			FGPUBaseSkinVertexFactory* VertexFactory = CreateVertexFactory(VertexFactories, VertexBuffers, InFeatureLevel);
+			CreatePassthroughVertexFactory(InFeatureLevel, PassthroughVertexFactories, VertexFactory);
 		}
 	}
 }
@@ -1703,15 +1717,7 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitMorphVertexFactories(
 	MorphVertexFactories.Empty(Sections.Num());
 	for( int32 FactoryIdx=0; FactoryIdx < Sections.Num(); FactoryIdx++ )
 	{
-		GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
-		if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
-		{
-			CreateVertexFactoryMorph<FGPUBaseSkinVertexFactory, TGPUSkinMorphVertexFactory< GPUSkinBoneInfluenceType::DefaultBoneInfluence > >(MorphVertexFactories,VertexBuffers,InFeatureLevel);
-		}
-		else
-		{
-			CreateVertexFactoryMorph<FGPUBaseSkinVertexFactory, TGPUSkinMorphVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence> >(MorphVertexFactories, VertexBuffers, InFeatureLevel);
-		}
+		CreateVertexFactoryMorph(MorphVertexFactories, VertexBuffers, InFeatureLevel);
 	}
 }
 
@@ -1745,36 +1751,7 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::InitAPEXClothVertexFactorie
 			const uint32 NumClothWeights = Section.ClothMappingDataLODs.Num() ? Section.ClothMappingDataLODs[ClothLODBias].Num(): 0;
 			const uint32 NumPositionVertices = Section.NumVertices;
 			const bool bUseMultipleInfluences = (NumClothWeights > NumPositionVertices);
-
-			GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
-			if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
-			{
-				if (bUseMultipleInfluences)
-				{
-					CreateVertexFactoryCloth<FGPUBaseSkinAPEXClothVertexFactory, TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence> >(ClothVertexFactories, VertexBuffers, InFeatureLevel);
-				}
-				else
-				{
-					CreateVertexFactoryCloth
-						<FGPUBaseSkinAPEXClothVertexFactory, 
-						TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>
-						(ClothVertexFactories, VertexBuffers, InFeatureLevel);
-				}
-			}
-			else
-			{
-				if (bUseMultipleInfluences)
-				{
-					CreateVertexFactoryCloth<FGPUBaseSkinAPEXClothVertexFactory, TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence> >(ClothVertexFactories, VertexBuffers, InFeatureLevel);
-				}
-				else
-				{
-					CreateVertexFactoryCloth
-						<FGPUBaseSkinAPEXClothVertexFactory, 
-						TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>
-						(ClothVertexFactories, VertexBuffers, InFeatureLevel);
-				}
-			}
+			CreateVertexFactoryCloth(ClothVertexFactories, VertexBuffers, InFeatureLevel, bUseMultipleInfluences);
 		}
 		else
 		{
@@ -1801,47 +1778,9 @@ void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::ReleaseAPEXClothVertexFacto
 
 void FSkeletalMeshObjectGPUSkin::FVertexFactoryData::UpdateVertexFactoryData(const FVertexFactoryBuffers& VertexBuffers)
 {
-	bool bUseMultipleInfluences = (VertexBuffers.APEXClothVertexBuffer->GetNumVertices() > VertexBuffers.StaticVertexBuffers->PositionVertexBuffer.GetNumVertices());
-
-	GPUSkinBoneInfluenceType BoneInfluenceType = VertexBuffers.SkinWeightVertexBuffer->GetBoneInfluenceType();
-	if (BoneInfluenceType == GPUSkinBoneInfluenceType::DefaultBoneInfluence)
-	{
-		UpdateVertexFactory<FGPUBaseSkinVertexFactory, TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>(VertexFactories, VertexBuffers);
-		if (bUseMultipleInfluences)
-		{ 
-			UpdateVertexFactoryCloth
-				<FGPUBaseSkinAPEXClothVertexFactory, 
-				TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>
-				(ClothVertexFactories, VertexBuffers);
-		}
-		else
-		{
-			UpdateVertexFactoryCloth
-				<FGPUBaseSkinAPEXClothVertexFactory, 
-				TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>
-				(ClothVertexFactories, VertexBuffers);
-		}
-		UpdateVertexFactoryMorph<FGPUBaseSkinVertexFactory, TGPUSkinMorphVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>>(MorphVertexFactories, VertexBuffers);
-	}
-	else
-	{
-		UpdateVertexFactory<FGPUBaseSkinVertexFactory, TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>(VertexFactories, VertexBuffers);
-		if (bUseMultipleInfluences)
-		{
-			UpdateVertexFactoryCloth
-				<FGPUBaseSkinAPEXClothVertexFactory, 
-				TMultipleInfluenceClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>
-				(ClothVertexFactories, VertexBuffers);
-		}
-		else
-		{
-			UpdateVertexFactoryCloth
-				<FGPUBaseSkinAPEXClothVertexFactory, 
-				TGPUSkinAPEXClothVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>
-				(ClothVertexFactories, VertexBuffers);
-		}
-		UpdateVertexFactoryMorph<FGPUBaseSkinVertexFactory, TGPUSkinMorphVertexFactory<GPUSkinBoneInfluenceType::UnlimitedBoneInfluence>>(MorphVertexFactories, VertexBuffers);
-	}
+	UpdateVertexFactory(VertexFactories, VertexBuffers);
+	UpdateVertexFactoryCloth(ClothVertexFactories, VertexBuffers);
+	UpdateVertexFactoryMorph(MorphVertexFactories, VertexBuffers);
 }
 
 void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::InitResources(const FSkelMeshObjectLODInfo& MeshLODInfo, FSkelMeshComponentLODInfo* CompLODInfo, ERHIFeatureLevel::Type InFeatureLevel)

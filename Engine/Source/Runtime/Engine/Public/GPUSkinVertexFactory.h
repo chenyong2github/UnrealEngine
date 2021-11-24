@@ -157,6 +157,31 @@ enum GPUSkinBoneInfluenceType
 	UnlimitedBoneInfluence	// unlimited bones per vertex
 };
 
+/** Stream component data bound to GPU skinned vertex factory */
+struct FGPUSkinDataType : public FStaticMeshDataType
+{
+	/** The stream to read the bone indices from */
+	FVertexStreamComponent BoneIndices;
+
+	/** The stream to read the extra bone indices from */
+	FVertexStreamComponent ExtraBoneIndices;
+
+	/** The stream to read the bone weights from */
+	FVertexStreamComponent BoneWeights;
+
+	/** The stream to read the extra bone weights from */
+	FVertexStreamComponent ExtraBoneWeights;
+
+	/** The stream to read the blend stream offset and num of influences from */
+	FVertexStreamComponent BlendOffsetCount;
+
+	/** Number of bone influences */
+	uint32 NumBoneInfluences = 0;
+
+	/** If the bone indices are 16 or 8-bit format */
+	bool bUse16BitBoneIndex = 0;
+};
+
 /** Vertex factory with vertex stream components for GPU skinned vertices */
 class FGPUBaseSkinVertexFactory : public FVertexFactory
 {
@@ -304,9 +329,12 @@ public:
 		return ShaderData;
 	}
 
-	virtual GPUSkinBoneInfluenceType GetBoneInfluenceType() const { return DefaultBoneInfluence; }
-	virtual uint32 GetNumBoneInfluences() const { return 0; }
-	virtual bool Use16BitBoneIndex() const { return false; }
+	/**
+	* An implementation of the interface used by TSynchronizedResource to
+	* update the resource with new data from the game thread.
+	* @param	InData - new stream component data
+	*/
+	virtual void SetData(const FGPUSkinDataType* InData);
 
 	uint32 GetNumVertices() const
 	{
@@ -328,26 +356,39 @@ public:
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) {}
 	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const { return nullptr; }
 
-	virtual const FShaderResourceViewRHIRef GetPositionsSRV() const = 0;
-	virtual const FShaderResourceViewRHIRef GetTangentsSRV() const = 0;
-	virtual const FShaderResourceViewRHIRef GetTextureCoordinatesSRV() const = 0;
-	virtual const FShaderResourceViewRHIRef GetColorComponentsSRV() const = 0;
-	virtual uint32 GetNumTexCoords() const = 0;
-	virtual const uint32 GetColorIndexMask() const = 0;
+	virtual GPUSkinBoneInfluenceType GetBoneInfluenceType() const				{ return DefaultBoneInfluence; }
+	virtual uint32 GetNumBoneInfluences() const									{ return Data.IsValid() ? Data->NumBoneInfluences : 0; }
+	virtual bool Use16BitBoneIndex() const										{ return Data.IsValid() ? Data->bUse16BitBoneIndex : false; }
+	virtual const FShaderResourceViewRHIRef GetPositionsSRV() const				{ return Data.IsValid() ? Data->PositionComponentSRV : nullptr; }
+	virtual const FShaderResourceViewRHIRef GetTangentsSRV() const				{ return Data.IsValid() ? Data->TangentsSRV : nullptr; }
+	virtual const FShaderResourceViewRHIRef GetTextureCoordinatesSRV() const	{ return Data.IsValid() ? Data->TextureCoordinatesSRV : nullptr; }
+	virtual const FShaderResourceViewRHIRef GetColorComponentsSRV() const		{ return Data.IsValid() ? Data->ColorComponentsSRV : nullptr; }
+	virtual uint32 GetNumTexCoords() const										{ return Data.IsValid() ? Data->NumTexCoords : 0; }
+	virtual const uint32 GetColorIndexMask() const								{ return Data.IsValid() ? Data->ColorIndexMask : 0; }
 
 	inline const FVertexStreamComponent& GetTangentStreamComponent(int Index)
 	{
-		check(TangentStreamComponents[Index].VertexBuffer != nullptr);
-		return TangentStreamComponents[Index];
+		check(Data.IsValid() && Data->TangentBasisComponents[Index].VertexBuffer != nullptr);
+		return Data->TangentBasisComponents[Index];
 	}
 
+	void CopyDataTypeForPassthroughFactory(class FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory);
+
 protected:
+	/**
+	* Add the decl elements for the streams
+	* @param InData - type with stream components
+	* @param OutElements - vertex decl list to modify
+	*/
+	virtual void AddVertexElements(FVertexDeclarationElementList& OutElements) = 0;
+
 	/** dynamic data need for setting the shader */ 
 	FShaderDataType ShaderData;
 	/** Pool of buffers for bone matrices. */
 	static TGlobalResource<FBoneBufferPool> BoneBufferPool;
 
-	FVertexStreamComponent TangentStreamComponents[2];
+	/** stream component data bound to this vertex factory */
+	TUniquePtr<FGPUSkinDataType> Data;
 
 private:
 	uint32 NumVertices;
@@ -360,30 +401,6 @@ class ENGINE_API TGPUSkinVertexFactory : public FGPUBaseSkinVertexFactory
 	DECLARE_VERTEX_FACTORY_TYPE(TGPUSkinVertexFactory<BoneInfluenceType>);
 
 public:
-	struct FDataType : public FStaticMeshDataType
-	{
-		/** The stream to read the bone indices from */
-		FVertexStreamComponent BoneIndices;
-
-		/** The stream to read the extra bone indices from */
-		FVertexStreamComponent ExtraBoneIndices;
-
-		/** The stream to read the bone weights from */
-		FVertexStreamComponent BoneWeights;
-
-		/** The stream to read the extra bone weights from */
-		FVertexStreamComponent ExtraBoneWeights;
-
-		/** The stream to read the blend stream offset and num of influences from */
-		FVertexStreamComponent BlendOffsetCount;
-
-		/** Number of bone influences */
-		uint32 NumBoneInfluences = 0;
-
-		/** If the bone indices are 16 or 8-bit format */
-		bool bUse16BitBoneIndex = 0;
-	};
-
 	/**
 	 * Constructor presizing bone matrices array to used amount.
 	 *
@@ -396,68 +413,13 @@ public:
 	virtual GPUSkinBoneInfluenceType GetBoneInfluenceType() const override
 	{ return BoneInfluenceType; }
 
-	virtual uint32 GetNumBoneInfluences() const override
-	{
-		return Data.NumBoneInfluences;
-	}
-
-	virtual bool Use16BitBoneIndex() const override
-	{
-		return Data.bUse16BitBoneIndex;
-	}
-
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 	
-	/**
-	* An implementation of the interface used by TSynchronizedResource to 
-	* update the resource with new data from the game thread.
-	* @param	InData - new stream component data
-	*/
-	void SetData(const FDataType& InData)
-	{
-		Data = InData;
-		this->TangentStreamComponents[0] = InData.TangentBasisComponents[0];
-		this->TangentStreamComponents[1] = InData.TangentBasisComponents[1];
-		FGPUBaseSkinVertexFactory::UpdateRHI();
-	}
-
 	// FRenderResource interface.
 	virtual void InitRHI() override;
 	virtual void InitDynamicRHI() override;
 	virtual void ReleaseDynamicRHI() override;
-
-	void CopyDataTypeForPassthroughFactory(class FGPUSkinPassthroughVertexFactory* PassthroughVertexFactory);
-
-	const FShaderResourceViewRHIRef GetPositionsSRV() const override
-	{
-		return Data.PositionComponentSRV;
-	}
-
-	const FShaderResourceViewRHIRef GetTangentsSRV() const override
-	{
-		return Data.TangentsSRV;
-	}
-
-	const FShaderResourceViewRHIRef GetTextureCoordinatesSRV() const override
-	{
-		return Data.TextureCoordinatesSRV;
-	}
-
-	uint32 GetNumTexCoords() const override
-	{
-		return Data.NumTexCoords;
-	}
-
-	const FShaderResourceViewRHIRef GetColorComponentsSRV() const override
-	{
-		return Data.ColorComponentsSRV;
-	}
-
-	const uint32 GetColorIndexMask() const override
-	{
-		return Data.ColorIndexMask;
-	}
 
 protected:
 	/**
@@ -465,13 +427,7 @@ protected:
 	* @param InData - type with stream components
 	* @param OutElements - vertex decl list to modify
 	*/
-	void AddVertexElements(FDataType& InData, FVertexDeclarationElementList& OutElements);
-
-	inline const FDataType& GetData() const { return Data; }
-
-private:
-	/** stream component data bound to this vertex factory */
-	FDataType Data;  
+	virtual void AddVertexElements(FVertexDeclarationElementList& OutElements) override;
 };
 
 /** 
@@ -545,6 +501,17 @@ protected:
 	void InternalUpdateVertexDeclaration(FGPUBaseSkinVertexFactory* SourceVertexFactory, struct FRWBuffer* PositionRWBuffer, class FRHIShaderResourceView* PreSkinPositionSRV, struct FRWBuffer* TangentRWBuffer);
 };
 
+/** Stream component data bound to morph vertex factory */
+struct FGPUSkinMorphDataType : public FGPUSkinDataType
+{
+	/** stream which has the position deltas to add to the vertex position */
+	FVertexStreamComponent DeltaPositionComponent;
+	/** stream which has the TangentZ deltas to add to the vertex normals */
+	FVertexStreamComponent DeltaTangentZComponent;
+	/** Morph vertex buffer pool double buffering delta data  */
+	class FMorphVertexBufferPool* MorphVertexBufferPool = nullptr;
+};
+
 /** Vertex factory with vertex stream components for GPU-skinned and morph target streams */
 template<GPUSkinBoneInfluenceType BoneInfluenceType>
 class TGPUSkinMorphVertexFactory : public TGPUSkinVertexFactory<BoneInfluenceType>
@@ -553,17 +520,6 @@ class TGPUSkinMorphVertexFactory : public TGPUSkinVertexFactory<BoneInfluenceTyp
 
 	typedef TGPUSkinVertexFactory<BoneInfluenceType> Super;
 public:
-
-	struct FDataType : TGPUSkinVertexFactory<BoneInfluenceType>::FDataType
-	{
-		/** stream which has the position deltas to add to the vertex position */
-		FVertexStreamComponent DeltaPositionComponent;
-		/** stream which has the TangentZ deltas to add to the vertex normals */
-		FVertexStreamComponent DeltaTangentZComponent;
-		/** Morph vertex buffer pool double buffering delta data  */
-		class FMorphVertexBufferPool* MorphVertexBufferPool = nullptr;
-	};
-
 	/**
 	 * Constructor presizing bone matrices array to used amount.
 	 *
@@ -581,13 +537,7 @@ public:
 	* update the resource with new data from the game thread.
 	* @param	InData - new stream component data
 	*/
-	void SetData(const FDataType& InData)
-	{
-		MorphData = InData;
-		this->TangentStreamComponents[0] = InData.TangentBasisComponents[0];
-		this->TangentStreamComponents[1] = InData.TangentBasisComponents[1];
-		FGPUBaseSkinVertexFactory::UpdateRHI();
-	}
+	virtual void SetData(const FGPUSkinDataType* InData) override;
 
 	/** FGPUBaseSkinVertexFactory overrides */
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) override;
@@ -601,58 +551,18 @@ public:
 	*/
 	virtual void InitRHI() override;
 
-
-	virtual uint32 GetNumBoneInfluences() const override
-	{
-		return MorphData.NumBoneInfluences;
-	}
-
-	virtual bool Use16BitBoneIndex() const override
-	{
-		return MorphData.bUse16BitBoneIndex;
-	}
-
-	const FShaderResourceViewRHIRef GetPositionsSRV() const override
-	{
-		return MorphData.PositionComponentSRV;
-	}
-
-	const FShaderResourceViewRHIRef GetTangentsSRV() const override
-	{
-		return MorphData.TangentsSRV;
-	}
-
-	const FShaderResourceViewRHIRef GetTextureCoordinatesSRV() const override
-	{
-		return MorphData.TextureCoordinatesSRV;
-	}
-
-	uint32 GetNumTexCoords() const override
-	{
-		return MorphData.NumTexCoords;
-	}
-
-	const FShaderResourceViewRHIRef GetColorComponentsSRV() const override
-	{
-		return MorphData.ColorComponentsSRV;
-	}
-
-	const uint32 GetColorIndexMask() const override
-	{
-		return MorphData.ColorIndexMask;
-	}
-
 protected:
 	/**
 	* Add the decl elements for the streams
 	* @param InData - type with stream components
 	* @param OutElements - vertex decl list to modify
 	*/
-	void AddVertexElements(FDataType& InData, FVertexDeclarationElementList& OutElements);
+	virtual void AddVertexElements(FVertexDeclarationElementList& OutElements) override;
+
+	/** Alias pointer to TUniquePtr<FGPUSkinDataType> Data of FGPUBaseSkinVertexFactory. Note memory isn't managed through this pointer. */
+	FGPUSkinMorphDataType* MorphDataPtr = nullptr;
 
 private:
-	/** stream component data bound to this vertex factory */
-	FDataType MorphData;
 	int32 MorphDeltaStreamIndex = -1;
 };
 
@@ -856,6 +766,14 @@ protected:
 	static TGlobalResource<FClothBufferPool> ClothSimulDataBufferPool;
 };
 
+/** Stream component data bound to Apex cloth vertex factory */
+struct FGPUSkinAPEXClothDataType : public FGPUSkinDataType
+{
+	FShaderResourceViewRHIRef ClothBuffer;
+	// Packed Map: u32 Key, u32 Value
+	TArray<FClothBufferIndexMapping> ClothIndexMapping;
+};
+
 /** Vertex factory with vertex stream components for GPU-skinned and morph target streams */
 template<GPUSkinBoneInfluenceType BoneInfluenceType>
 class TGPUSkinAPEXClothVertexFactory : public FGPUBaseSkinAPEXClothVertexFactory, public TGPUSkinVertexFactory<BoneInfluenceType>
@@ -865,31 +783,26 @@ class TGPUSkinAPEXClothVertexFactory : public FGPUBaseSkinAPEXClothVertexFactory
 	typedef TGPUSkinVertexFactory<BoneInfluenceType> Super;
 
 public:
-
-	struct FDataType : TGPUSkinVertexFactory<BoneInfluenceType>::FDataType
-	{
-		FShaderResourceViewRHIRef ClothBuffer;
-		// Packed Map: u32 Key, u32 Value
-		TArray<FClothBufferIndexMapping> ClothIndexMapping;
-	};
-
 	inline FShaderResourceViewRHIRef GetClothBuffer()
 	{
-		return MeshMappingData.ClothBuffer;
+		return ClothDataPtr ? ClothDataPtr->ClothBuffer : nullptr;
 	}
 
 	inline const FShaderResourceViewRHIRef GetClothBuffer() const
 	{
-		return MeshMappingData.ClothBuffer;
+		return ClothDataPtr ? ClothDataPtr->ClothBuffer : nullptr;
 	}
 
 	inline uint32 GetClothIndexOffset(uint32 VertexIndex, uint32 LODBias = 0) const
 	{
-		for (const FClothBufferIndexMapping& Mapping : MeshMappingData.ClothIndexMapping)
+		if (ClothDataPtr)
 		{
-			if (Mapping.BaseVertexIndex == VertexIndex)
+			for (const FClothBufferIndexMapping& Mapping : ClothDataPtr->ClothIndexMapping)
 			{
-				return Mapping.MappingOffset + Mapping.LODBiasStride * LODBias;
+				if (Mapping.BaseVertexIndex == VertexIndex)
+				{
+					return Mapping.MappingOffset + Mapping.LODBiasStride * LODBias;
+				}
 			}
 		}
 
@@ -914,14 +827,7 @@ public:
 	* update the resource with new data from the game thread.
 	* @param	InData - new stream component data
 	*/
-	void SetData(const FDataType& InData)
-	{
-        Super::SetData(InData);
-		MeshMappingData = InData;
-		this->TangentStreamComponents[0] = InData.TangentBasisComponents[0];
-		this->TangentStreamComponents[1] = InData.TangentBasisComponents[1];
-		FGPUBaseSkinVertexFactory::UpdateRHI();
-	}
+	virtual void SetData(const FGPUSkinDataType* InData) override;
 
 	virtual FGPUBaseSkinVertexFactory* GetVertexFactory() override
 	{
@@ -933,46 +839,6 @@ public:
 		return this;
 	}
 
-	virtual uint32 GetNumBoneInfluences() const override
-	{
-		return MeshMappingData.NumBoneInfluences;
-	}
-
-	virtual bool Use16BitBoneIndex() const override
-	{
-		return MeshMappingData.bUse16BitBoneIndex;
-	}
-
-	const FShaderResourceViewRHIRef GetPositionsSRV() const override
-	{
-		return MeshMappingData.PositionComponentSRV;
-	}
-
-	const FShaderResourceViewRHIRef GetTangentsSRV() const override
-	{
-		return MeshMappingData.TangentsSRV;
-	}
-
-	const FShaderResourceViewRHIRef GetTextureCoordinatesSRV() const override
-	{
-		return MeshMappingData.TextureCoordinatesSRV;
-	}
-
-	uint32 GetNumTexCoords() const override
-	{
-		return MeshMappingData.NumTexCoords;
-	}
-
-	const FShaderResourceViewRHIRef GetColorComponentsSRV() const override
-	{
-		return MeshMappingData.ColorComponentsSRV;
-	}
-
-	const uint32 GetColorIndexMask() const override
-	{
-		return MeshMappingData.ColorIndexMask;
-	}
-
 	// FRenderResource interface.
 
 	/**
@@ -982,9 +848,9 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseDynamicRHI() override;
 
-private:
-	/** stream component data bound to this vertex factory */
-	FDataType MeshMappingData; 
+protected:
+	/** Alias pointer to TUniquePtr<FGPUSkinDataType> Data of FGPUBaseSkinVertexFactory. Note memory isn't managed through this pointer. */
+	FGPUSkinAPEXClothDataType* ClothDataPtr = nullptr;
 };
 
 
