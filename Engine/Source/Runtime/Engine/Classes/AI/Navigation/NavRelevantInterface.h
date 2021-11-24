@@ -56,7 +56,10 @@ struct ENGINE_API FNavigationRelevantData : public TSharedFromThis<FNavigationRe
 	/** Gathers per instance data for navigation geometry in a specified area box */
 	FNavDataPerInstanceTransformDelegate NavDataPerInstanceTransformDelegate;
 
-	/** called to check if hosted geometry should be used for given FNavDataConfig. If not set then "true" is assumed. */
+	/** called to check if hosted geometry should be used for given FNavDataConfig. If not set then "true" is assumed.
+	 *  Might want to set bUseVirtualGeometryFilteringAndDirtying to true in the Navmesh class you are excluding geometry from.
+	 *  This will improve cpu performance by stopping the navmesh from dirtying tiles requested by actors being excluded by this delegate.
+	 */
 	FFilterNavDataDelegate ShouldUseGeometryDelegate;
 
 	/** additional modifiers: areas and external links */

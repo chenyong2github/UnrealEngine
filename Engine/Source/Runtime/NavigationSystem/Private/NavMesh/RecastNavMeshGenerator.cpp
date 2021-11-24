@@ -2269,10 +2269,16 @@ void FRecastTileGenerator::PrepareGeometrySources(const FRecastNavMeshGenerator&
 	NavigationRelevantData.Reset();
 	NavSystem = NavSys;
 	bUpdateGeometry = bGeometryChanged;
+	
+	const ARecastNavMesh* const OwnerNav = ParentGenerator.GetOwner();
+	const bool bUseVirtualGeometryFilteringAndDirtying = OwnerNav != nullptr && OwnerNav->bUseVirtualGeometryFilteringAndDirtying;
 
-	NavOctreeInstance->FindElementsWithBoundsTest(ParentGenerator.GrowBoundingBox(TileBB, /*bIncludeAgentHeight*/ false), [this, bGeometryChanged](const FNavigationOctreeElement& Element)
+	NavOctreeInstance->FindElementsWithBoundsTest(ParentGenerator.GrowBoundingBox(TileBB, /*bIncludeAgentHeight*/ false),
+		[&ParentGenerator,this, bGeometryChanged, bUseVirtualGeometryFilteringAndDirtying](const FNavigationOctreeElement& Element)
 	{
-		const bool bShouldUse = Element.ShouldUseGeometry(NavDataConfig);
+		const bool bShouldUse = bUseVirtualGeometryFilteringAndDirtying ?
+			ParentGenerator.ShouldGenerateGeometryForOctreeElement(Element, NavDataConfig) :
+			Element.ShouldUseGeometry(NavDataConfig);
 		if (bShouldUse)
 		{
 			const bool bExportGeometry = bGeometryChanged && (Element.Data->HasGeometry() || Element.Data->IsPendingLazyGeometryGathering());
@@ -2297,11 +2303,16 @@ void FRecastTileGenerator::GatherGeometry(const FRecastNavMeshGenerator& ParentG
 	{
 		return;
 	}
-	const FNavDataConfig& OwnerNavDataConfig = ParentGenerator.GetOwner()->GetConfig();
+	const ARecastNavMesh* const OwnerNav = ParentGenerator.GetOwner();
+	const bool bUseVirtualGeometryFilteringAndDirtying = OwnerNav->bUseVirtualGeometryFilteringAndDirtying;
+	const FNavDataConfig& OwnerNavDataConfig = OwnerNav->GetConfig();
 
-	NavigationOctree->FindElementsWithBoundsTest(ParentGenerator.GrowBoundingBox(TileBB, /*bIncludeAgentHeight*/ false), [&OwnerNavDataConfig, &NavigationOctree, this, NavSys, bGeometryChanged](const FNavigationOctreeElement& Element)
+	NavigationOctree->FindElementsWithBoundsTest(ParentGenerator.GrowBoundingBox(TileBB, /*bIncludeAgentHeight*/ false),
+		[&OwnerNavDataConfig, &ParentGenerator, this, NavSys, bGeometryChanged, bUseVirtualGeometryFilteringAndDirtying](const FNavigationOctreeElement& Element)
 	{
-		const bool bShouldUse = Element.ShouldUseGeometry(OwnerNavDataConfig);
+		const bool bShouldUse = bUseVirtualGeometryFilteringAndDirtying ?
+			ParentGenerator.ShouldGenerateGeometryForOctreeElement(Element, OwnerNavDataConfig) :
+			Element.ShouldUseGeometry(OwnerNavDataConfig);
 		if (bShouldUse)
 		{
 			GatherNavigationDataGeometry(Element.Data, *NavSys, OwnerNavDataConfig, bGeometryChanged);
@@ -5594,6 +5605,11 @@ FBox FRecastNavMeshGenerator::GrowBoundingBox(const FBox& BBox, bool bIncludeAge
 	return FBox(BBox.Min - BBoxGrowth - BBoxGrowOffsetMin, BBox.Max + BBoxGrowth);
 }
 
+bool FRecastNavMeshGenerator::ShouldGenerateGeometryForOctreeElement(const FNavigationOctreeElement& Element, const FNavDataConfig& NavDataConfig) const
+{
+	return Element.ShouldUseGeometry(NavDataConfig);
+}
+
 static bool IntersectBounds(const FBox& TestBox, const TNavStatArray<FBox>& Bounds)
 {
 	for (const FBox& Box : Bounds)
@@ -5693,6 +5709,14 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 	check(TileSizeInWorldUnits > 0);
 
 	const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
+
+	const ARecastNavMesh* const OwnerNav = GetOwner();
+	const bool bUseVirtualGeometryFilteringAndDirtying = OwnerNav != nullptr && OwnerNav->bUseVirtualGeometryFilteringAndDirtying;
+	// Those are set only if bUseVirtualGeometryFilteringAndDirtying is enabled since we do not use them for anything else
+	const UNavigationSystemV1* const NavSys = bUseVirtualGeometryFilteringAndDirtying ? FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()) : nullptr;
+	const FNavigationOctree* const NavOctreeInstance = (bUseVirtualGeometryFilteringAndDirtying && NavSys) ? NavSys->GetNavOctree() : nullptr;
+	const FNavDataConfig* const NavDataConfig = (bUseVirtualGeometryFilteringAndDirtying && DestNavMesh) ? &DestNavMesh->GetConfig() : nullptr;
+	// ~
 		
 	// find all tiles that need regeneration
 	TSet<FPendingTileElement> DirtyTiles;
@@ -5702,6 +5726,18 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 		if (bGameStaticNavMesh && (!DirtyArea.HasFlag(ENavigationDirtyFlag::DynamicModifier) || DirtyArea.HasFlag(ENavigationDirtyFlag::NavigationBounds)))
 		{
 			continue;
+		}
+		
+		// (if bUseVirtualGeometryFilteringAndDirtying is true) Ignore dirty areas flagged by a source object that is not supposed to apply to this navmesh
+		if (bUseVirtualGeometryFilteringAndDirtying && NavSys && NavOctreeInstance && NavDataConfig)
+		{
+			if (const UObject* const SourceObject = DirtyArea.OptionalSourceObject.Get())
+			{
+				if (!ShouldDirtyTilesRequestedByObject(*NavSys, *NavOctreeInstance, *SourceObject, *NavDataConfig))
+				{
+					continue;
+				}
+			}
 		}
 		
 		bool bDoTileInclusionTest = false;
@@ -5821,6 +5857,14 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 	{
 		SortPendingBuildTiles();
 	}
+}
+
+bool FRecastNavMeshGenerator::ShouldDirtyTilesRequestedByObject(const UNavigationSystemV1& NavSys,
+	const FNavigationOctree& NavOctreeInstance, const UObject& SourceObject, const FNavDataConfig& NavDataConfig) const
+{
+	const FOctreeElementId2* const OctreeElementId = NavSys.GetObjectsNavOctreeId(SourceObject);
+
+	return (OctreeElementId == nullptr) || ShouldGenerateGeometryForOctreeElement(NavOctreeInstance.GetElementById(*OctreeElementId), NavDataConfig);
 }
 
 void FRecastNavMeshGenerator::SortPendingBuildTiles()
@@ -6545,9 +6589,16 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 		const ARecastNavMesh* NavData = Cast<const ARecastNavMesh>(NavSys->NavDataSet[Index]);
 		if (NavData)
 		{
-			NavOctree->FindElementsWithBoundsTest(BoundingBox, [this, NavData, &Indices, &CoordBuffer, Snapshot, &CategoryName, LogVerbosity, NavAreaVerbosity](const FNavigationOctreeElement& Element)
+			const bool bUseVirtualGeometryFilteringAndDirtying = NavData->bUseVirtualGeometryFilteringAndDirtying;
+			
+			NavOctree->FindElementsWithBoundsTest(BoundingBox,
+				[this, NavData, &Indices, &CoordBuffer, Snapshot, &CategoryName, LogVerbosity, NavAreaVerbosity, bUseVirtualGeometryFilteringAndDirtying](const FNavigationOctreeElement& Element)
 			{
-				const bool bExportGeometry = Element.Data->HasGeometry() && Element.ShouldUseGeometry(DestNavMesh->GetConfig());
+				const bool bExportGeometry = Element.Data->HasGeometry() && (
+					bUseVirtualGeometryFilteringAndDirtying ?
+						ShouldGenerateGeometryForOctreeElement(Element, NavData->GetConfig()) :
+						Element.ShouldUseGeometry(NavData->GetConfig())
+					);
 
 				TArray<FTransform> InstanceTransforms;
 				Element.Data->NavDataPerInstanceTransformDelegate.ExecuteIfBound(Element.Bounds.GetBox(), InstanceTransforms);
@@ -6680,6 +6731,8 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 		const ARecastNavMesh* NavData = Cast<const ARecastNavMesh>(NavSys->NavDataSet[Index]);
 		if (NavData)
 		{
+			const bool bUseVirtualGeometryFilteringAndDirtying = NavData->bUseVirtualGeometryFilteringAndDirtying;
+			
 			struct FAreaExportData
 			{
 				FConvexNavAreaData Convex;
@@ -6687,9 +6740,14 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 			};
 			TArray<FAreaExportData> AreaExport;
 
-			NavOctree->FindElementsWithBoundsTest(TotalNavBounds, [this, NavData, &IndexBuffer, &CoordBuffer, &AreaExport](const FNavigationOctreeElement& Element)
+			NavOctree->FindElementsWithBoundsTest(TotalNavBounds,
+				[this, NavData, &IndexBuffer, &CoordBuffer, &AreaExport, bUseVirtualGeometryFilteringAndDirtying](const FNavigationOctreeElement& Element)
 			{
-				const bool bExportGeometry = Element.Data->HasGeometry() && Element.ShouldUseGeometry(DestNavMesh->GetConfig());
+				const bool bExportGeometry = Element.Data->HasGeometry() && (
+					bUseVirtualGeometryFilteringAndDirtying ?
+						ShouldGenerateGeometryForOctreeElement(Element, NavData->GetConfig()) :
+						Element.ShouldUseGeometry(NavData->GetConfig())
+				);
 
 				TArray<FTransform> InstanceTransforms;
 				Element.Data->NavDataPerInstanceTransformDelegate.ExecuteIfBound(Element.Bounds.GetBox(), InstanceTransforms);

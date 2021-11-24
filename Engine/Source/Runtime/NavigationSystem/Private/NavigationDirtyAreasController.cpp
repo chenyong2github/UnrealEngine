@@ -90,7 +90,7 @@ void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 F
 
 	if (Flags > 0 && bCanAccumulateDirtyAreas)
 	{
-		DirtyAreas.Add(FNavigationDirtyArea(NewArea, Flags));
+		DirtyAreas.Add(FNavigationDirtyArea(NewArea, Flags, ObjectProviderFunc ? ObjectProviderFunc() : nullptr));
 	}
 }
 
