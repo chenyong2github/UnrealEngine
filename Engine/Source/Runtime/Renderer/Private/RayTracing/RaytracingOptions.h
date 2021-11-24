@@ -40,11 +40,21 @@ struct FRayTracingPrimaryRaysOptions
 	int32 EnableRefraction;
 };
 
+enum class ERayTracingPipelineCompatibilityFlags
+{
+	// Rendering feature can use the full ray tracing pipeline, with raygen, hit and miss shaders.
+	FullPipeline = 1 << 0,
+
+	// Rendering feature can use inline ray tracing
+	Inline  = 1 << 1,
+};
+ENUM_CLASS_FLAGS(ERayTracingPipelineCompatibilityFlags);
+
 
 #if RHI_RAYTRACING
 
 // Whether a particular effect should be used, taking into account debug override
-extern bool ShouldRenderRayTracingEffect(bool bEffectEnabled);
+extern bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags);
 
 extern bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 extern FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions(const FViewInfo& View);
@@ -68,7 +78,7 @@ extern bool CanUseRayTracingAMDHitToken();
 
 #else // RHI_RAYTRACING
 
-FORCEINLINE bool ShouldRenderRayTracingEffect(bool bEffectEnabled)
+FORCEINLINE bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags)
 {
 	return false;
 }

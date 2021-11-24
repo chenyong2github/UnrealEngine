@@ -112,7 +112,7 @@ FRayTracingPrimaryRaysOptions GetRayTracingTranslucencyOptions(const FViewInfo& 
 {
 	FRayTracingPrimaryRaysOptions Options;
 
-	Options.bEnabled = ShouldRenderRayTracingEffect(CVarRayTracingTranslucency.GetValueOnRenderThread() != 0);
+	Options.bEnabled = ShouldRenderRayTracingEffect(CVarRayTracingTranslucency.GetValueOnRenderThread() != 0, ERayTracingPipelineCompatibilityFlags::FullPipeline);
 	Options.SamplerPerPixel = GRayTracingTranslucencySamplesPerPixel >= 0 ? GRayTracingTranslucencySamplesPerPixel : View.FinalPostProcessSettings.RayTracingTranslucencySamplesPerPixel;
 	Options.ApplyHeightFog = GRayTracingTranslucencyHeightFog;
 	Options.PrimaryRayBias = GRayTracingTranslucencyPrimaryRayBias;
@@ -138,7 +138,7 @@ bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 		? bViewWithRaytracingTranslucency
 		: RayTracingTranslucencyMode != 0;
 
-	return ShouldRenderRayTracingEffect(bTranslucencyEnabled);
+	return ShouldRenderRayTracingEffect(bTranslucencyEnabled, ERayTracingPipelineCompatibilityFlags::FullPipeline);
 }
 #endif // RHI_RAYTRACING
 

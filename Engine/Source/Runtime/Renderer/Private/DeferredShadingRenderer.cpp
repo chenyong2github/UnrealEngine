@@ -3227,9 +3227,18 @@ bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 		|| HasRayTracedOverlay(*View.Family);
 }
 
-bool ShouldRenderRayTracingEffect(bool bEffectEnabled)
+bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompatibilityFlags CompatibilityFlags)
 {
 	if (!IsRayTracingEnabled())
+	{
+		return false;
+	}
+
+	const bool bAllowPipeline = GRHISupportsRayTracingShaders && EnumHasAnyFlags(CompatibilityFlags, ERayTracingPipelineCompatibilityFlags::FullPipeline);
+	const bool bAllowInline = GRHISupportsInlineRayTracing && EnumHasAnyFlags(CompatibilityFlags, ERayTracingPipelineCompatibilityFlags::Inline);
+
+	// Disable the effect if current machine does not support the full ray tracing pipeline and the effect can't fall back to inline mode or vice versa.
+	if (!bAllowPipeline && !bAllowInline)
 	{
 		return false;
 	}
