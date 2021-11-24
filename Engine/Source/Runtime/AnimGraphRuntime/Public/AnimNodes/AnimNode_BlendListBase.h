@@ -41,7 +41,7 @@ private:
 	EAlphaBlendOption BlendType = EAlphaBlendOption::Linear;
 	
 protected:
-	/** This reinitializes child pose when re-activated. For example, when active child changes */
+	/** This reinitializes the re-activated child if the child's weight was zero. */
 	UPROPERTY(EditAnywhere, Category = Option, meta=(FoldProperty))
 	bool bResetChildOnActivation = false;
 
