@@ -46,7 +46,7 @@ public:
 	 * Accumulation must be allowed and flags valid otherwise the add is ignored.
 	 *	@param NewArea Bounding box of the affected area
 	 *	@param Flags Indicates the type of modification applied to the area
-	 *	@param ObjectProviderFunc Optional function to retrieve source object that can be use for error reporting
+	 *	@param ObjectProviderFunc Optional function to retrieve source object that can be use for error reporting and navmesh exclusion
 	 */
 	void AddArea(const FBox& NewArea, const int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc = nullptr);
 	

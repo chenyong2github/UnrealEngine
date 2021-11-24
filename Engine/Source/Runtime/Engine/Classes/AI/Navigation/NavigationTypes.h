@@ -91,9 +91,10 @@ struct FNavigationDirtyArea
 {
 	FBox Bounds;
 	int32 Flags;
+	TWeakObjectPtr<UObject> OptionalSourceObject;
 	
 	FNavigationDirtyArea() : Flags(0) {}
-	FNavigationDirtyArea(const FBox& InBounds, int32 InFlags) : Bounds(InBounds), Flags(InFlags) {}
+	FNavigationDirtyArea(const FBox& InBounds, int32 InFlags, UObject* const InOptionalSourceObject = nullptr) : Bounds(InBounds), Flags(InFlags), OptionalSourceObject(InOptionalSourceObject) {}
 	FORCEINLINE bool HasFlag(ENavigationDirtyFlag::Type Flag) const { return (Flags & Flag) != 0; }
 };
 

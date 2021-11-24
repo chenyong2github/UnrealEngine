@@ -735,6 +735,12 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(config)
 	uint32 bUseVirtualFilters : 1;
 
+	/** Indicates whether use the virtual methods to check if an object should generate geometry or if we should call the normal method directly (i.e. FNavigationOctreeElement::ShouldUseGeometry).
+	 *  If enabled, will also check if an object requesting an update on the navmesh is excluded to avoid dirtying the areas unnecessarily.
+	 *  Defaults to false. */
+	UPROPERTY(config)
+	uint32 bUseVirtualGeometryFilteringAndDirtying : 1;
+
 	/** If set, paths can end at navlink poly (not the ground one!) */
 	UPROPERTY(config)
 	uint32 bAllowNavLinkAsPathEnd : 1;
