@@ -23,6 +23,10 @@
 #include "DerivedDataCacheKeyProxy.h"
 #endif
 
+#ifndef WITH_TEXTURE_RESOURCE_DEPRECATIONS
+#define WITH_TEXTURE_RESOURCE_DEPRECATIONS 1
+#endif
+
 #if WITH_EDITOR
 #include "Templates/DontCopy.h"
 #endif
@@ -1213,6 +1217,11 @@ private:
 	class FTextureResource* PrivateResourceRenderThread;
 
 public:
+#if WITH_TEXTURE_RESOURCE_DEPRECATIONS
+	UE_DEPRECATED(5.00, "Use GetResource() / SetResource() accessors instead. This value cannot be relied upon anymore.")
+	class FTextureResource* Resource {nullptr};
+#endif
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ENGINE_API virtual ~UTexture() {};
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
