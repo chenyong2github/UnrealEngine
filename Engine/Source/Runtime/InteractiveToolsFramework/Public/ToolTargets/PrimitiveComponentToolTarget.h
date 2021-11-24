@@ -10,10 +10,10 @@
 #include "PrimitiveComponentToolTarget.generated.h"
 
 /** 
- * An abstract tool target to share some reusable code for tool targets that are
+ * A tool target to share some reusable code for tool targets that are
  * backed by primitive components. 
  */
-UCLASS(Transient, Abstract)
+UCLASS(Transient)
 class INTERACTIVETOOLSFRAMEWORK_API UPrimitiveComponentToolTarget : public UToolTarget, public IPrimitiveComponentBackedTarget
 {
 	GENERATED_BODY()
@@ -28,5 +28,20 @@ public:
 	virtual bool HitTestComponent(const FRay& WorldRay, FHitResult& OutHit) const override;
 
 protected:
+	friend class UPrimitiveComponentToolTargetFactory;
+	
 	UPrimitiveComponent* Component;
 };
+
+/**
+ * Factory for UPrimitiveComponentToolTarget to be used by the target manager.
+ */
+UCLASS(Transient)
+class INTERACTIVETOOLSFRAMEWORK_API UPrimitiveComponentToolTargetFactory : public UToolTargetFactory
+{
+	GENERATED_BODY()
+public:
+	virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) const override;
+	virtual UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) override;
+};
+
