@@ -155,7 +155,10 @@ public:
 	void SetGizmoMode(EGizmoMode ModeIn, bool bBroadcast = true)
 	{
 		GizmoMode = ModeIn;
-		OnGizmoModeChange.Broadcast(GizmoMode);
+		if (bBroadcast)
+		{
+			OnGizmoModeChange.Broadcast(GizmoMode);
+		}
 	}
 
 	EGizmoMode GetGizmoMode()
@@ -177,7 +180,10 @@ public:
 	void SetSelectionMode(ESelectionMode ModeIn, bool bBroadcast = true)
 	{
 		SelectionMode = ModeIn;
-		OnSelectionModeChange.Broadcast(SelectionMode);
+		if (bBroadcast)
+		{
+			OnSelectionModeChange.Broadcast(SelectionMode);
+		}
 	}
 
 	ESelectionMode GetSelectionMode()
