@@ -149,7 +149,7 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 				for (int32 AllocIndex = TableTreeNodes.Num(); AllocIndex < TotalAllocCount; ++AllocIndex)
 				{
 					const FMemoryAlloc* Alloc = MemAllocTable->GetMemAlloc(AllocIndex);
-					FName NodeName(Alloc->bIsBlock ? BaseHeapName : BaseNodeName, AllocIndex + 1);
+					FName NodeName(Alloc->bIsBlock ? BaseHeapName : BaseNodeName, Alloc->GetStartEventIndex() + 1);
 					FMemAllocNodePtr NodePtr = MakeShared<FMemAllocNode>(NodeName, MemAllocTable, AllocIndex);
 
 					// Until we have an UX story around heap allocations
@@ -352,6 +352,8 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 				{
 					const TraceServices::IAllocationsProvider::FAllocation* Allocation = Result->Get(AllocIndex);
 					FMemoryAlloc& Alloc = Allocs[AllocsDestIndex];
+					Alloc.StartEventIndex = Allocation->GetStartEventIndex();
+					Alloc.EndEventIndex = Allocation->GetEndEventIndex();
 					Alloc.StartTime = Allocation->GetStartTime();
 					Alloc.EndTime = Allocation->GetEndTime();
 					Alloc.Address = Allocation->GetAddress();
@@ -534,16 +536,11 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),                true,  200.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId,      false, 100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,        false, 100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,       false, 100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,        false, 120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,     false, 120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,          true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,           true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,            true,  120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,       true,  550.0f });
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,      true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 550.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FDefaultViewPreset>());
@@ -579,16 +576,19 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),                true,  200.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId,      true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,        true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,       true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,        true,  120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,     true,  120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,          true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,           true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,            true,  120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,       true,  550.0f });
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),                 true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartEventIndexColumnId, true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndEventIndexColumnId,   true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EventDistanceColumnId,   true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId,       true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,         true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,        true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,         true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,      true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,           true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,            true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,             true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,        true, 550.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FDetailedViewPreset>());
@@ -634,15 +634,11 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),           true,  400.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,  false, 0.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,   false, 0.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,     true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,      true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,       true,  200.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,  true,  200.0f });
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 400.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,      true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 200.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FHeapViewPreset>());
@@ -688,16 +684,12 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),              true,  200.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId,    false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,      false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,     false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,      true,  120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,   false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,        true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,         true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,          true,  120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,     true,  400.0f });
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,  true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,      true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 400.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FSizeViewPreset>());
@@ -744,16 +736,10 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),           true,  200.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,  false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,   false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,     true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,      true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,       false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,  true,  400.0f });
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 400.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FTagViewPreset>());
@@ -810,15 +796,11 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),           true,  400.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,  false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,   false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,     true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,      true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,       true,  200.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,  true,  200.0f });
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 400.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,      true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 200.0f });
 		}
 
 	private:
@@ -869,17 +851,11 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),           true,  200.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::DurationColumnId,  false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,   true,  120.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::MemoryPageColumnId,false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,     true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,      true,  100.0f });
-			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,       false, 0.0f   });
-			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId,  true,  400.0f });
-
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::AddressColumnId,  true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 400.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FPageViewPreset>());
@@ -918,26 +894,24 @@ void SMemAllocTableTreeView::ApplyViewPreset(const IViewPreset& InPreset)
 
 void SMemAllocTableTreeView::ApplyColumnConfig(const TArrayView<FColumnConfig>& InColumnConfigSet)
 {
+	// TODO: Reorder columns as in the config set.
+	// Currenly we only apply visibility and column width.
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
 		FTableColumn& Column = ColumnRef.Get();
-		for (const FColumnConfig& Config : InColumnConfigSet)
+		const FName ColumnId = Column.GetId();
+		const FColumnConfig* ConfigPtr = InColumnConfigSet.FindByPredicate([ColumnId](const FColumnConfig& Config) { return ColumnId == Config.ColumnId; });
+		if (ConfigPtr && ConfigPtr->bIsVisible)
 		{
-			if (Column.GetId() == Config.ColumnId)
+			ShowColumn(Column);
+			if (ConfigPtr->Width > 0.0f)
 			{
-				if (Config.bIsVisible)
-				{
-					ShowColumn(Column);
-					if (Config.Width > 0.0f)
-					{
-						TreeViewHeaderRow->SetColumnWidth(Column.GetId(), Config.Width);
-					}
-				}
-				else
-				{
-					HideColumn(Column);
-				}
+				TreeViewHeaderRow->SetColumnWidth(ColumnId, ConfigPtr->Width);
 			}
+		}
+		else
+		{
+			HideColumn(Column);
 		}
 	}
 }
@@ -1303,11 +1277,18 @@ void SMemAllocTableTreeView::OpenCallstackFrameSourceFileInIDE()
 
 			if (Frame->Symbol && Frame->Symbol->File)
 			{
-				//if (FPlatformFileManager::Get().GetPlatformFile().FileExists(Frame->Symbol->File))
+				const FString File = Frame->Symbol->File;
+				const uint32 Line = Frame->Symbol->Line;
+
+				ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+				if (FPaths::FileExists(File))
 				{
-					ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
 					ISourceCodeAccessor& SourceCodeAccessor = SourceCodeAccessModule.GetAccessor();
-					SourceCodeAccessor.OpenFileAtLine(Frame->Symbol->File, Frame->Symbol->Line);
+					SourceCodeAccessor.OpenFileAtLine(File, Line);
+				}
+				else
+				{
+					SourceCodeAccessModule.OnOpenFileFailed().Broadcast(File);
 				}
 			}
 		}
