@@ -1020,7 +1020,7 @@ namespace ChaosTest {
 		FRigidTransform3 Identity(FVec3(0), FQuat::Identity);
 		
 		TUniquePtr<TBox<FReal, 3>> UnitCube = MakeUnique<TBox<FReal, 3>>(FVec3(-1), FVec3(1));
-		TImplicitObjectTransformed<FReal, 3> UnitUnrotated(MakeSerializable(UnitCube), FRigidTransform3(FVec3(0), FQuat(0,0,0, 0)));
+		TImplicitObjectTransformed<FReal, 3> UnitUnrotated(MakeSerializable(UnitCube), FRigidTransform3(FVec3(0), FQuat::Identity));
 		UnitImplicitObjectNormalsInternal(UnitUnrotated, FString("ImplicitTransformed()"));
 		UnitImplicitObjectNormalsExternal(UnitUnrotated, FString("ImplicitTransformed()"));
 		UnitImplicitObjectIntersections(UnitUnrotated, FString("ImplicitTransformed()"));
