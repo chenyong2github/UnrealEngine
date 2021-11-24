@@ -176,9 +176,10 @@ namespace Chaos
 		TRigidTransform<FReal, 3> GetRelativeTransformNoScale(const TRigidTransform<FReal, 3>& Other) const
 		{
 			// @todo(chaos): optimize
-			TRigidTransform<FReal, 3> ThisNoScale(GetTranslation(), GetRotation());
-			TRigidTransform<FReal, 3> OtherNoScale(Other.GetTranslation(), Other.GetRotation());
-			return ThisNoScale.GetRelativeTransform(OtherNoScale);
+			TRotation<FReal, 3> OtherInverse = Other.GetRotation().Inverse();
+			return TRigidTransform<FReal, 3>(
+				(OtherInverse * (GetTranslation() - Other.GetTranslation())),
+				OtherInverse * GetRotation());
 		}
 
 		TVector<FReal, 3> TransformNormalNoScale(const TVector<FReal, 3>& Normal) const

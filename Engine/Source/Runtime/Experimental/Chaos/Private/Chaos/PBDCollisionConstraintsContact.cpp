@@ -196,7 +196,14 @@ namespace Chaos
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
 				// Update the contact information based on current particles' positions
-				Collisions::Update(Constraint, IterationParameters.Dt);
+				if (!Constraint.GetUseManifold() || (Constraint.GetManifoldPoints().Num() == 0))
+				{
+					Collisions::Update(Constraint, IterationParameters.Dt);
+				}
+				else
+				{
+					Constraint.UpdateManifoldContacts();
+				}
 
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= Constraint.GetCullDistance())

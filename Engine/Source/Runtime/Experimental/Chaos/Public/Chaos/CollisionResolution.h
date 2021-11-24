@@ -53,6 +53,7 @@ namespace Chaos
 		 * @brief Determine the shape pair type for use in UpdateConstraints
 		*/
 		EContactShapesType CHAOS_API CalculateShapePairType(const FImplicitObject* Implicit0, const FBVHParticles* BVHParticles0, const FImplicitObject* Implicit1, const FBVHParticles* BVHParticles1, bool& bOutSwap);
+		EContactShapesType CHAOS_API CalculateShapePairType(const EImplicitObjectType Implicit0Type, const EImplicitObjectType Implicit1Type, const bool bIsConvex0, const bool bIsConvex1, const bool bIsBVH0, const bool bIsBVH1, bool& bOutSwap);
 
 		/**
 		 * @brief Whether CCD should be enabled for a contact given the current particle velocities etc

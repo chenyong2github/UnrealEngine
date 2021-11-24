@@ -91,7 +91,10 @@ namespace GeometryCollectionTest
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Floor);
 		UnitTest.Initialize();
-		for (int i = 0; i < 10; i++) UnitTest.Advance();
+		for (int i = 0; i < 10; i++)
+		{
+			UnitTest.Advance();
+		}
 
 		{ // test results
 			EXPECT_LT(FMath::Abs(Collection->RestCollection->Transform[0].GetTranslation().Z), SMALL_THRESHOLD);

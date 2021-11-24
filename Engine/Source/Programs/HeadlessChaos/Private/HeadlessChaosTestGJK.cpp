@@ -1872,24 +1872,24 @@ namespace ChaosTest
 		int32 VertexIndexB = INDEX_NONE;
 
 		// Separated (GJK)
-		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(Box, Box, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, -5.0f, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
 
-		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(Box, Box, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, -5.0f, KINDA_SMALL_NUMBER);
 
 		BTM = FRigidTransform3(FVec3(0, 0, 145), FRotation3::FromIdentity());
-		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(Box, Box, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, -45.0f, KINDA_SMALL_NUMBER);
 
 		BTM = FRigidTransform3(FVec3(0, 0, 145), FRotation3::FromAxisAngle(FVec3(1, 0, 0), FMath::DegreesToRadians(110.0f)));
-		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(Box, Box, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, -30.9144f, KINDA_SMALL_NUMBER);
 
 		FReal Penetration2;
-		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration2, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(Box, Box, BTM.GetRelativeTransformNoScale(ATM), Penetration2, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration2, Penetration, KINDA_SMALL_NUMBER);
 	}
 
@@ -1909,7 +1909,7 @@ namespace ChaosTest
 		int32 VertexIndexB = INDEX_NONE;
 
 		// Deep (EPA) No Margin
-		GJKPenetrationWarmStartable<true>(Box, Box, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB,  WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(Box, Box, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB,  WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, 40.0f, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
@@ -1917,7 +1917,7 @@ namespace ChaosTest
 		// Deep (EPA) With Margin
 		WarmStartData = FGJKSimplexData();
 		TGJKCoreShape MarginBox(Box, FReal(10));
-		GJKPenetrationWarmStartable<true>(MarginBox, MarginBox, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB,  VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(MarginBox, MarginBox, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB,  VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, 40.0f, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
@@ -1925,7 +1925,7 @@ namespace ChaosTest
 		// Deep (EPA) With Margin and Relative Rotation
 		WarmStartData = FGJKSimplexData();
 		ATM = FRigidTransform3(FVec3(0, 0, 0), FRotation3::FromAxisAngle(FVec3(1, 0, 0), FMath::DegreesToRadians(180)));
-		GJKPenetrationWarmStartable<true>(MarginBox, MarginBox, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB,  VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(MarginBox, MarginBox, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB,  VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, 40.0f, KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestA.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
@@ -1946,13 +1946,13 @@ namespace ChaosTest
 		int32 VertexIndexA = INDEX_NONE;
 		int32 VertexIndexB = INDEX_NONE;
 
-		GJKPenetrationWarmStartable<true>(Sphere, Sphere, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB,  VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(Sphere, Sphere, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB,  VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, (FReal)-5.0f, (FReal)KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestB.Z, (FReal)-50.0f, (FReal)KINDA_SMALL_NUMBER);
 
 		BTM = FRigidTransform3(FVec3(0, 0, 105), FRotation3::FromAxisAngle(FVec3(1,0,0), FMath::DegreesToRadians(180)));
-		GJKPenetrationWarmStartable<true>(Sphere, Sphere, BTM.GetRelativeTransformNoScale(ATM), FReal(0), FReal(0), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
+		GJKPenetrationWarmStartable(Sphere, Sphere, BTM.GetRelativeTransformNoScale(ATM), Penetration, ClosestA, ClosestB, NormalA, NormalB, VertexIndexA, VertexIndexB, WarmStartData, SupportDelta);
 		EXPECT_NEAR(Penetration, (FReal)-5.0f, (FReal)KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestA.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);
 		EXPECT_NEAR(ClosestB.Z, (FReal)50.0f, (FReal)KINDA_SMALL_NUMBER);

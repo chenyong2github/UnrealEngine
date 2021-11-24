@@ -11,8 +11,6 @@
 #include "Chaos/ParticleHandle.h"
 #include "ChaosStats.h"
 
-extern bool bChaos_Collision_EnableManifoldRestore;
-
 namespace Chaos
 {
 	/**
