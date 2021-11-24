@@ -111,18 +111,29 @@ void UMetaSoundAssetSubsystem::PostInitAssetScan()
 	}
 }
 
-void UMetaSoundAssetSubsystem::AddAssetReferences(const FMetasoundAssetBase& InAssetBase)
+void UMetaSoundAssetSubsystem::AddAssetReferences(FMetasoundAssetBase& InAssetBase)
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	bool bLoadFromPathCache = false;
-	const TSet<FString>& AssetClassKeys = InAssetBase.GetReferencedAssetClassKeys();
-	for (const FString& AssetClassKey : AssetClassKeys)
+	constexpr bool bRegisterWithFrontend = false;
+
+	const FNodeClassInfo AssetClassInfo = InAssetBase.GetAssetClassInfo();
+	const FNodeRegistryKey AssetClassKey = NodeRegistryKey::CreateKey(AssetClassInfo);
+
+	if (!ContainsKey(AssetClassKey))
 	{
-		if (!ContainsKey(AssetClassKey))
+		AddOrUpdateAsset(*InAssetBase.GetOwningAsset(), bRegisterWithFrontend);
+		UE_LOG(LogMetaSound, Log, TEXT("Adding asset '%s' to MetaSoundAsset registry."), *InAssetBase.GetOwningAssetName());
+	}
+
+	bool bLoadFromPathCache = false;
+	const TSet<FString>& ReferencedAssetClassKeys = InAssetBase.GetReferencedAssetClassKeys();
+	for (const FString& ReferencedAssetClassKey : ReferencedAssetClassKeys)
+	{
+		if (!ContainsKey(ReferencedAssetClassKey))
 		{
-			UE_LOG(LogMetaSound, Log, TEXT("Missing referenced class '%s' asset entry."), *AssetClassKey);
+			UE_LOG(LogMetaSound, Log, TEXT("Missing referenced class '%s' asset entry."), *ReferencedAssetClassKey);
 			bLoadFromPathCache = true;
 		}
 	}
@@ -152,7 +163,6 @@ void UMetaSoundAssetSubsystem::AddAssetReferences(const FMetasoundAssetBase& InA
 						"registration request (asset scan likely not complete)."),
 					*ClassKey,
 					*AssetClassPath.ToString());
-				constexpr bool bRegisterWithFrontend = false;
 
 				UObject* MetaSoundObject = MetaSoundAsset->GetOwningAsset();
 				if (ensureAlways(MetaSoundObject))
