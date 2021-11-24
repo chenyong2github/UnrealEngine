@@ -108,6 +108,7 @@ namespace AnimationBlueprintEditorTabs
 	const FName AssetOverridesTab(TEXT("AnimBlueprintParentPlayerEditor"));
 	const FName SlotNamesTab(TEXT("SkeletonSlotNames"));
 	const FName CurveNamesTab(TEXT("AnimCurveViewerTab"));
+	const FName PoseWatchTab(TEXT("PoseWatchTab"));
 };
 
 /////////////////////////////////////////////////////
@@ -728,7 +729,7 @@ FColor FAnimationBlueprintEditor::ChoosePoseWatchColor() const
 			UPoseWatch* PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode, AnimBP);
 			if (PoseWatch)
 			{
-				FColor PoseWatchColor = PoseWatch->PoseWatchColour;
+				FColor PoseWatchColor = PoseWatch->GetColor();
 				int32 Index = ColorCounts.IndexOfByPredicate([PoseWatchColor](const FColorCount& CC){return PoseWatchColor == CC.Color;});
 				if (Index != INDEX_NONE)
 				{
@@ -761,14 +762,16 @@ void FAnimationBlueprintEditor::OnTogglePoseWatch()
 	{
 		if (UAnimGraphNode_Base* SelectedNode = Cast<UAnimGraphNode_Base>(*NodeIt))
 		{
-			UPoseWatch* PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(SelectedNode, AnimBP);
-			if (PoseWatch)
+			UPoseWatch* ExistingPoseWatch = AnimationEditorUtils::FindPoseWatchForNode(SelectedNode, AnimBP);
+			if (ExistingPoseWatch)
 			{
-				AnimationEditorUtils::RemovePoseWatch(PoseWatch, AnimBP);
+				AnimationEditorUtils::RemovePoseWatch(ExistingPoseWatch, AnimBP);
+				AnimationEditorUtils::OnPoseWatchesChanged().Broadcast(AnimBP, ExistingPoseWatch->Node.Get());
 			}
 			else
 			{
-				AnimationEditorUtils::MakePoseWatchForNode(AnimBP, SelectedNode, ChoosePoseWatchColor());
+				UPoseWatch* NewPoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, SelectedNode, ChoosePoseWatchColor());
+				AnimationEditorUtils::OnPoseWatchesChanged().Broadcast(AnimBP, NewPoseWatch->Node.Get());
 			}
 		}
 	}
@@ -1897,12 +1900,12 @@ void FAnimationBlueprintEditor::HandlePoseWatchSelectedNodes()
 					if (!PoseWatch)
 					{
 						PoseWatch = AnimationEditorUtils::MakePoseWatchForNode(AnimBP, GraphNode, ChoosePoseWatchColor());
-						PoseWatch->bDeleteOnDeselection = true;
+						PoseWatch->SetShouldDeleteOnDeselect(true);
 					}
 				}
 				else
 				{
-					if (PoseWatch && PoseWatch->bDeleteOnDeselection)
+					if (PoseWatch && PoseWatch->GetShouldDeleteOnDeselect())
 					{
 						AnimationEditorUtils::RemovePoseWatch(PoseWatch, AnimBP);
 					}
@@ -1926,7 +1929,7 @@ void FAnimationBlueprintEditor::RemoveAllSelectionPoseWatches()
 			if (GraphNode)
 			{
 				UPoseWatch* PoseWatch = AnimationEditorUtils::FindPoseWatchForNode(GraphNode, AnimBP);
-				if (PoseWatch && PoseWatch->bDeleteOnDeselection)
+				if (PoseWatch && PoseWatch->GetShouldDeleteOnDeselect())
 				{
 					AnimationEditorUtils::RemovePoseWatch(PoseWatch, AnimBP);
 				}

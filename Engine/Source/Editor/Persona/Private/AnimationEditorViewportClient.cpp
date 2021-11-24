@@ -1332,7 +1332,7 @@ void FAnimationViewportClient::DrawWatchedPoses(UDebugSkelMeshComponent * MeshCo
 			{
 				for (const FAnimNodePoseWatch& AnimNodePoseWatch : AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData().AnimNodePoseWatch)
 				{
-					if(AnimNodePoseWatch.Object.Get() != nullptr)
+					if(AnimNodePoseWatch.Object.Get() != nullptr && !AnimNodePoseWatch.bIsHidden)
 					{
 						DrawBonesFromCompactPose(*AnimNodePoseWatch.PoseInfo.Get(), MeshComponent, PDI, AnimNodePoseWatch.PoseDrawColour);
 					}

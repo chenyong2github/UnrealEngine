@@ -13,6 +13,8 @@ class SWidget;
 class UAnimationAsset;
 class USkeletalMesh;
 class USkeleton;
+class UPoseWatch;
+class UPoseWatchFolder;
 struct FAnimBlueprintDebugData;
 
 USTRUCT()
@@ -216,8 +218,11 @@ public:
 
 	// Array of active pose watches (pose watch allows us to see the bone pose at a 
 	// particular point of the anim graph) 
-	UPROPERTY(transient)
-	TArray<TObjectPtr<class UPoseWatch>> PoseWatches;
+	UPROPERTY()
+	TArray<TObjectPtr<UPoseWatchFolder>> PoseWatchFolders;
+	
+	UPROPERTY()
+	TArray<TObjectPtr<UPoseWatch>> PoseWatches;
 
 private:
 	friend class FAnimBlueprintCompilerContext;

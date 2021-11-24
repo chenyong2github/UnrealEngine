@@ -18,6 +18,7 @@
 #include "SAnimCurveViewer.h"
 #include "SAnimationSequenceBrowser.h"
 #include "SAnimationEditorViewport.h"
+#include "SPoseWatchManager.h"
 #include "SRetargetManager.h"
 #include "SKismetInspector.h"
 #include "Widgets/Input/SButton.h"
@@ -25,6 +26,8 @@
 #include "IPersonaPreviewScene.h"
 #include "PreviewSceneCustomizations.h"
 #include "Engine/PreviewMeshCollection.h"
+#include "PoseWatchManagerPublicTypes.h"
+#include "PoseWatchManagerDefaultMode.h"
 
 #define LOCTEXT_NAMESPACE "PersonaModes"
 
@@ -62,6 +65,8 @@ const FName FPersonaTabs::SkeletonSlotNamesID("SkeletonSlotNames");
 const FName FPersonaTabs::SkeletonSlotGroupNamesID("SkeletonSlotGroupNames");
 const FName FPersonaTabs::BlendProfileManagerID("BlendProfileManager");
 const FName FPersonaTabs::AnimMontageSectionsID("AnimMontageSections");
+
+const FName FPersonaTabs::PoseWatchManagerID("PoseWatchManager");
 
 const FName FPersonaTabs::AdvancedPreviewSceneSettingsID("AdvancedPreviewTab");
 
@@ -568,6 +573,32 @@ TSharedRef<SWidget> FAnimBlueprintParentPlayerEditorSummoner::CreateTabBody(cons
 FText FAnimBlueprintParentPlayerEditorSummoner::GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const
 {
 	return LOCTEXT("AnimSubClassTabToolTip", "Editor for overriding the animation assets referenced by the parent animation graph.");
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FPoseWatchManagerSummoner
+
+FPoseWatchManagerSummoner::FPoseWatchManagerSummoner(TSharedPtr<class FBlueprintEditor> InBlueprintEditor)
+	: FWorkflowTabFactory(FPersonaTabs::PoseWatchManagerID, InBlueprintEditor)
+	, BlueprintEditor(InBlueprintEditor)
+{
+	TabLabel = LOCTEXT("PoseWatchManager", "Pose Watch Manager");
+	TabIcon = FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PoseAsset");
+	bIsSingleton = true;
+}
+
+TSharedRef<SWidget> FPoseWatchManagerSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
+{
+	FPoseWatchManagerInitializationOptions Options;
+	Options.BlueprintEditor = BlueprintEditor;
+
+	return SNew(SPoseWatchManager, Options)
+		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
+}
+
+FText FPoseWatchManagerSummoner::GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const
+{
+	return LOCTEXT("PoseWatchTabToolTip", "Shows all active pose watches.");
 }
 
 /////////////////////////////////////////////////////

@@ -55,8 +55,10 @@ protected:
 private:
 	// Return Pose View Colour for slate indicator
 	FSlateColor GetPoseViewColour() const;
+	const FSlateBrush* GetPoseViewIcon() const;
 
 	FReply SpawnColourPicker();
+	FReply TogglePoseWatchVisibility();
 
 	// Handle the node informing us that the title has changed
 	void HandleNodeTitleChanged();

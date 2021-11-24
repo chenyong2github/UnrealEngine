@@ -152,11 +152,11 @@ void SAnimationGraphNode::Construct(const FArguments& InArgs, UAnimGraphNode_Bas
 
 	PoseViewWidget =
 		SNew(SButton)
-		.ToolTipText(LOCTEXT("SpawnColourPicker", "Pose watch active. Click to spawn the pose watch colour picker"))
-		.OnClicked(this, &SAnimationGraphNode::SpawnColourPicker)
+		.ToolTipText(LOCTEXT("TogglePoseWatchVisibility", "Click to toggle visibility"))
+		.OnClicked(this, &SAnimationGraphNode::TogglePoseWatchVisibility)
 		.ButtonColorAndOpacity(this, &SAnimationGraphNode::GetPoseViewColour)
 		[
-			SNew(SImage).Image(FEditorStyle::GetBrush("GenericViewButton"))
+			SNew(SImage).Image(this, &SAnimationGraphNode::GetPoseViewIcon)
 		];
 
 	// Search for an enabled or disabled pose watch on this node
@@ -203,7 +203,7 @@ TArray<FOverlayWidgetInfo> SAnimationGraphNode::GetOverlayWidgets(bool bSelected
 
 		if (PoseWatch.IsValid())
 		{
-			const FSlateBrush* ImageBrush = FEditorStyle::GetBrush("GenericViewButton");
+			const FSlateBrush* ImageBrush = FEditorStyle::GetBrush("Level.VisibleIcon16x");
 
 			FOverlayWidgetInfo Info;
 			Info.OverlayOffset = FVector2D(0 - (ImageBrush->ImageSize.X * 0.5f), -(ImageBrush->ImageSize.Y * 0.5f));
@@ -216,14 +216,27 @@ TArray<FOverlayWidgetInfo> SAnimationGraphNode::GetOverlayWidgets(bool bSelected
 	return Widgets;
 }
 
+const FSlateBrush* SAnimationGraphNode::GetPoseViewIcon() const
+{
+	return FEditorStyle::GetBrush(PoseWatch->GetIsVisible() ? "Level.VisibleIcon16x" : "Level.NotVisibleIcon16x");
+}
+
 FSlateColor SAnimationGraphNode::GetPoseViewColour() const
 {
 	UPoseWatch* CurPoseWatch = PoseWatch.Get();
 	if (CurPoseWatch)
 	{
-		return FSlateColor(CurPoseWatch->PoseWatchColour);
+		FLinearColor OutColor = CurPoseWatch->GetColor();
+		OutColor.A = CurPoseWatch->GetShouldDeleteOnDeselect() ? 0.5 : 0.9;
+		return FSlateColor(OutColor);
 	}
 	return FSlateColor(FColor::White); //Need a return value but should never actually get here
+}
+
+FReply SAnimationGraphNode::TogglePoseWatchVisibility()
+{
+	PoseWatch->ToggleIsVisible();
+	return FReply::Handled();
 }
 
 FReply SAnimationGraphNode::SpawnColourPicker()
