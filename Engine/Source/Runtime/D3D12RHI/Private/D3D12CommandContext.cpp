@@ -743,10 +743,14 @@ void FD3D12CommandContextBase::UpdateMemoryStats()
 
 void FD3D12CommandContext::RHIBeginScene()
 {
+	ensure(!bDrawingScene);
+	bDrawingScene = true;
 }
 
 void FD3D12CommandContext::RHIEndScene()
 {
+	ensure(bDrawingScene);
+	bDrawingScene = false;
 }
 
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING

@@ -55,6 +55,8 @@ public:
 
 	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) {}
 
+	bool IsDrawingSceneOrViewport() const {	return bDrawingScene || bDrawingViewport; }
+
 protected:
 	virtual FD3D12CommandContext* GetContext(uint32 InGPUIndex) = 0;
 
@@ -63,6 +65,8 @@ protected:
 
 	FRHIGPUMask GPUMask;
 
+	bool bDrawingViewport = false;
+	bool bDrawingScene = false;
 	bool bTrackingEvents;
 	const ED3D12CommandQueueType CommandQueueType;
 	const bool bIsDefaultContext;
