@@ -93,12 +93,8 @@ static TAutoConsoleVariable<float> CVarPSOFileCachePrecompileBatchTime(
 															 );
 static TAutoConsoleVariable<int32> CVarPSOFileCacheSaveAfterPSOsLogged(
 														   TEXT("r.ShaderPipelineCache.SaveAfterPSOsLogged"),
-#if !UE_BUILD_SHIPPING
-														   100,
-#else
 														   0,
-#endif
-														   TEXT("Set the number of PipelineStateObjects to log before automatically saving. 0 will disable automatic saving. Shipping defaults to 0, otherwise default is 100."),
+														   TEXT("Set the number of PipelineStateObjects to log before automatically saving. 0 will disable automatic saving (which is the default now, as automatic saving is found to be broken)."),
 														   ECVF_Default | ECVF_RenderThreadSafe
 														   );
  
@@ -118,7 +114,8 @@ static TAutoConsoleVariable<int32> CVarPSOFileCachePreCompileMask(
 
 static TAutoConsoleVariable<int32> CVarPSOFileCacheAutoSaveTimeBoundPSO(
 	TEXT("r.ShaderPipelineCache.AutoSaveTimeBoundPSO"),
-	10,
+	MAX_int32, // This effictively disables auto-save, since the feature is broken. See FORT-430086 for details, but in short, Save function takes a broad lock, and while holding it attempts to execute async tasks (reading from pak files). 
+			   // These task may not be executed if all the worker threads are blocked trying to acquire the same lock that the saving thread is holding, which happens on a low-core CPUs.
 	TEXT("Set the time where any logged PSO's will be saved when -logpso is on the command line."),
 	ECVF_Default | ECVF_RenderThreadSafe
 );
@@ -1202,7 +1199,7 @@ FShaderPipelineCache::FShaderPipelineCache(EShaderPlatform Platform)
 , TotalPrecompileTime(0)
 , PrecompileStartTime(0.0)
 , LastAutoSaveTime(0)
-, LastAutoSaveTimeLogBoundPSO(0)
+, LastAutoSaveTimeLogBoundPSO(FPlatformTime::Seconds())
 , LastAutoSaveNum(-1)
 , TotalPrecompileWallTime(0.0)
 , TotalPrecompileTasks(0)
