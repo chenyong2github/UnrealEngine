@@ -190,6 +190,10 @@ public:
 	UPROPERTY()
 	uint32 bUsesRapidIterationParams : 1;
 
+	/** Whether or not we allow debug switches to be used. */
+	UPROPERTY()
+	uint32 bDisableDebugSwitches : 1;
+
 	/** Do we require interpolated spawning */
 	UPROPERTY()
 	uint32 bInterpolatedSpawn : 1;
@@ -227,6 +231,7 @@ public:
 		: CompilerVersionID()
 		, ScriptUsageType(ENiagaraScriptUsage::Function)
 		, bUsesRapidIterationParams(true)
+		, bDisableDebugSwitches(false)
 		, bInterpolatedSpawn(false)
 		, bRequiresPersistentIDs(false)
 		, BaseScriptID_DEPRECATED(0, 0, 0, 0)

@@ -36,6 +36,7 @@ public:
 	virtual const FNiagaraCompileRequestDataBase* GetDependentRequest(int32 Index) const = 0;
 	virtual FName ResolveEmitterAlias(FName VariableName) const = 0;
 	virtual bool GetUseRapidIterationParams() const = 0;
+	virtual bool GetDisableDebugSwitches() const = 0;
 };
 
 /** External reference to the compile request data generated.*/

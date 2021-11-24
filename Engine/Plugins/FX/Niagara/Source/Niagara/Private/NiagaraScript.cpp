@@ -569,6 +569,7 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash ||
 #endif
 		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams ||
+		bDisableDebugSwitches != ReferenceSet.bDisableDebugSwitches ||
 		bInterpolatedSpawn != ReferenceSet.bInterpolatedSpawn ||
 		bRequiresPersistentIDs != ReferenceSet.bRequiresPersistentIDs ||
 		ScriptVersionID != ReferenceSet.ScriptVersionID)
@@ -658,6 +659,15 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 	else
 	{
 		KeyString += TEXT("NORI") + Delimiter;
+	}
+
+	if (bDisableDebugSwitches)
+	{
+		KeyString += TEXT("DISBALEDEBUGSWITCH") + Delimiter;
+	}
+	else
+	{
+		KeyString += TEXT("ALLOWDEBUGSWITCH") + Delimiter;
 	}
 
 	if (bAppendObjectForDebugging)
@@ -786,6 +796,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 	Id = FNiagaraVMExecutableDataId();
 
 	Id.bUsesRapidIterationParams = true;
+	Id.bDisableDebugSwitches = false;
 	Id.bInterpolatedSpawn = false;
 	Id.bRequiresPersistentIDs = false;
 	Id.ScriptVersionID = IsVersioningEnabled() ? (VersionGuid.IsValid() ? VersionGuid : ExposedVersion) : FGuid();
@@ -802,6 +813,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 			if (EmitterOwner->bBakeOutRapidIteration)
 			{
 				Id.bUsesRapidIterationParams = false;
+			}
+			if (EmitterOwner->bDisableDebugSwitches)
+			{
+				Id.bDisableDebugSwitches = true;
 			}
 			if (EmitterOwner->bCompressAttributes)
 			{
@@ -964,6 +979,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, FGui
 		if (System->bBakeOutRapidIteration)
 		{
 			Id.bUsesRapidIterationParams = false;
+		}
+		if (System->bDisableDebugSwitches)
+		{
+			Id.bDisableDebugSwitches = true;
 		}
 		if (System->bCompressAttributes)
 		{
@@ -1421,19 +1440,14 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 		if (UNiagaraEmitter* Emitter = GetTypedOuter<UNiagaraEmitter>())
 		{
 			UNiagaraSystem* EmitterOwner = Emitter->GetTypedOuter<UNiagaraSystem>();
-			if (EmitterOwner && EmitterOwner->bBakeOutRapidIteration)
+			if (EmitterOwner->bBakeOutRapidIteration)
 			{
 				bUsesRapidIterationParams = false;
-			}
-
-			if (!Emitter->bBakeOutRapidIteration)
-			{
-				bUsesRapidIterationParams = true;
 			}
 		}
 		else if (UNiagaraSystem* System = GetTypedOuter<UNiagaraSystem>())
 		{
-			if (System && System->bBakeOutRapidIteration)
+			if (System->bBakeOutRapidIteration)
 			{
 				bUsesRapidIterationParams = false;
 			}

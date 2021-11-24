@@ -110,7 +110,8 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , bBakeOutRapidIterationOnCook(true)
 , bTrimAttributes(false)
 , bTrimAttributesOnCook(true)
-, bDisableAllDebugSwitches(false)
+, bDisableDebugSwitches(false)
+, bDisableDebugSwitchesOnCook(true)
 #endif
 , bSupportLargeWorldCoordinates(true)
 , bFixedBounds(false)
@@ -1010,8 +1011,7 @@ void UNiagaraSystem::Serialize(FArchive& Ar)
 	{
 		bBakeOutRapidIteration = bBakeOutRapidIteration || bBakeOutRapidIterationOnCook;
 		bTrimAttributes = bTrimAttributes || bTrimAttributesOnCook;
-
-		bDisableAllDebugSwitches = true;
+		bDisableDebugSwitches = bDisableDebugSwitches || bDisableDebugSwitchesOnCook;
 	}
 #endif
 }

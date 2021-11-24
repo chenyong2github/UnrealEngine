@@ -567,9 +567,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
 	uint32 bTrimAttributesOnCook : 1;
 
-	/** If true, forcefully disables all debug switches */
-	UPROPERTY(meta = (SkipSystemResetOnChange = "true"))
-	uint32 bDisableAllDebugSwitches : 1;
+	/** If true all debug switches will be ignored in the editor. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
+	uint32 bDisableDebugSwitches : 1;
+
+	/** If true all debug switches will be ignored for cooked builds */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance", meta = (SkipSystemResetOnChange = "true"))
+	uint32 bDisableDebugSwitchesOnCook : 1;
 
 	/** Subscriptions to definitions of parameters. */
 	UPROPERTY()
