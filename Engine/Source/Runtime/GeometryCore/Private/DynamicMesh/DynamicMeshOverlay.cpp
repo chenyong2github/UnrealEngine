@@ -856,6 +856,23 @@ void TDynamicMeshOverlay<RealType, ElementSize>::GetElementTriangles(int Element
 	}
 }
 
+template<typename RealType, int ElementSize>
+int TDynamicMeshOverlay<RealType, ElementSize>::GetElementIDAtVertex(int TriangleID, int VertexID) const
+{
+	FIndex3i Triangle = GetTriangle(TriangleID);
+	for (int IDX = 0; IDX < 3; ++IDX)
+	{	
+		int ElementID = Triangle[IDX];
+		if (ParentVertices[ElementID] == VertexID)
+		{
+			return ElementID;
+		}
+	}
+	
+	checkSlow(false);
+	return FDynamicMesh3::InvalidID;
+}
+
 
 template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnRemoveTriangle(int TriangleID)

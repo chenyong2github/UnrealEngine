@@ -408,7 +408,25 @@ public:
 			Data[i] = Elements[k + i];
 		}
 	}
-
+	
+	/**
+	 * Get the Element value associated with a vertex of a triangle.
+	 * 
+	 * @param TriangleID ID of a triangle containing the Element
+	 * @param VertexID ID of the Element's parent vertex 
+	 * @param Data Value contained at the Element
+	 */
+	template<typename AsType>
+	inline void GetElementAtVertex(int TriangleID, int VertexID, AsType& Data) const
+	{
+		int ElementID = GetElementIDAtVertex(TriangleID, VertexID);
+		
+		checkSlow(ElementID != IndexConstants::InvalidID);
+		if (ElementID != IndexConstants::InvalidID) 
+		{
+			GetElement(ElementID, Data);
+		}
+	}	
 
 	/** Get the parent vertex id for the element at a given index */
 	inline int GetParentVertex(int ElementID) const
@@ -494,6 +512,13 @@ public:
 
 	/** find the triangles connected to an element */
 	void GetElementTriangles(int ElementID, TArray<int>& OutTriangles) const;
+
+	/** 
+	 * Find the element ID at a vertex of a triangle. 
+	 * 
+	 * @return Returns the element ID or FDynamicMesh3::InvalidID if the vertex is not a parent of any element contained in the triangle. 
+	 */
+	int GetElementIDAtVertex(int TriangleID, int VertexID) const;
 
 	/** @return true if overlay has any interior seam edges. This requires an O(N) search unless it early-outs. */
 	bool HasInteriorSeamEdges() const;
@@ -646,23 +671,21 @@ public:
 
 	/**
 	 * Get the Element value associated with a vertex of a triangle.
-	 * @param TriangleID ID of a triangle containing the Element
-	 * @param VertexID ID of the Element's parent vertex 
-	 * @param Value Value contained at the Element
 	 */
-	inline void GetElementAtVertex(int TriangleID, int VertexID, VectorType& Value) const
+	inline VectorType GetElementAtVertex(int TriangleID, int VertexID) const
 	{
-		FIndex3i Triangle = BaseType::GetTriangle(TriangleID);
-		for (int IDX = 0; IDX < 3; ++IDX)
-		{	
-			int ElementID = Triangle[IDX];
-			if (BaseType::ParentVertices[ElementID] == VertexID)
-			{
-				GetElement(ElementID, Value);
-				return;
-			}
-		}
-	}	
+		VectorType V;
+		BaseType::GetElementAtVertex(TriangleID, VertexID, V);
+		return V;
+	}
+
+	/**
+	 * Get the Element value associated with a vertex of a triangle.
+	 */
+	inline void GetElementAtVertex(int TriangleID, int VertexID, VectorType& V) const
+	{
+		BaseType::GetElementAtVertex(TriangleID, VertexID, V);
+	}
 
 	/**
 	 * Get the Element associated with a vertex of a triangle
