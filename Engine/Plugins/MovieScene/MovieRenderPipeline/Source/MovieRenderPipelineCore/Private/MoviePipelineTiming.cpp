@@ -535,6 +535,7 @@ void UMoviePipeline::TickProducingFrames()
 		// Now that we've calculated our delta ticks, we need to multiply it by
 		// time dilation so that we advance through the sequence as slow as we
 		// advance through the world.
+		FFrameTime UndilatedDeltaFrameTime = DeltaFrameTime;
 		if (!FMath::IsNearlyEqual(WorldTimeDilation, 1.f))
 		{
 			UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] Modified FrameDeltaTime by a factor of %f to account for World Time Dilation."), GFrameCounter, WorldTimeDilation);
@@ -674,8 +675,10 @@ void UMoviePipeline::TickProducingFrames()
 		
 
 		
-		// Set our time step for the next frame
-		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(FrameDeltaTime));
+		// Set our time step for the next frame. We use the undilated delta time for the Custom Timestep as the engine will
+		// apply the time dilation to the world tick for us, so we don't want to double up time dilation.
+		double UndilatedDeltaTime = FrameMetrics.TickResolution.AsSeconds(FFrameTime(UndilatedDeltaFrameTime.GetFrame()));
+		CustomTimeStep->SetCachedFrameTiming(MoviePipeline::FFrameTimeStepCache(UndilatedDeltaTime));
 		CustomSequenceTimeController->SetCachedFrameTiming(FQualifiedFrameTime(FinalEvalTime, FrameMetrics.TickResolution));
 		return;
 	}
