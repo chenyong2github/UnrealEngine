@@ -708,10 +708,14 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									UploadObjectBounds[0] = ObjectBoundingSphere;
 
 									const FGlobalDFCacheType CacheType = PrimitiveSceneProxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;
-									const float OftenMovingValue = CacheType == GDF_Full ? 1.0f : 0.0f;
+									const uint32 bOftenMoving = CacheType == GDF_Full;
+									const uint32 bCastShadow = PrimitiveSceneProxy->CastsDynamicShadow();
 
-									const FVector4f ObjectWorldExtent(WorldSpaceMeshBounds.GetExtent(), OftenMovingValue);
-									UploadObjectBounds[1] = ObjectWorldExtent;
+									const uint32 Flags = bOftenMoving | (bCastShadow << 1);
+
+									FVector4f ObjectWorldExtentAndFlags(WorldSpaceMeshBounds.GetExtent(), 0.0f);
+									ObjectWorldExtentAndFlags.W = *(const float*)&Flags;
+									UploadObjectBounds[1] = ObjectWorldExtentAndFlags;
 
 									// Uniformly scale our Volume space to lie within [-1, 1] at the max extent
 									// This is mirrored in the SDF encoding

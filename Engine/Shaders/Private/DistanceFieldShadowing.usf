@@ -148,8 +148,10 @@ void CullObjectsForShadowCS(
 #if (DISTANCEFIELD_PRIMITIVE_TYPE == DFPT_SignedDistanceField)
 		FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
 
-        if ((ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius))
-			|| (ShadowBoundingSphere.w > 0 && dot(ShadowBoundingSphere.xyz - DFObjectBounds.Center, ShadowBoundingSphere.xyz - DFObjectBounds.Center) < Square(ShadowBoundingSphere.w + DFObjectBounds.SphereRadius)))
+		const bool bConvexHullIntersect = ShadowBoundingSphere.w == 0 && ShadowConvexHullIntersectSphere(DFObjectBounds.Center, DFObjectBounds.SphereRadius);
+		const bool bBoundingSphereIntersect = ShadowBoundingSphere.w > 0 && dot(ShadowBoundingSphere.xyz - DFObjectBounds.Center, ShadowBoundingSphere.xyz - DFObjectBounds.Center) < Square(ShadowBoundingSphere.w + DFObjectBounds.SphereRadius);
+
+        if (DFObjectBounds.bCastShadow && (bConvexHullIntersect || bBoundingSphereIntersect))
 		{
 			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
