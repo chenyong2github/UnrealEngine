@@ -1885,8 +1885,6 @@ void UStruct::Serialize(FArchive& Ar)
 
 		if (Ar.IsSaving())
 		{
-			FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-
 			Ar << ScriptBytecodeSize;
 
 			int32 ScriptStorageSize = 0;
@@ -1950,8 +1948,6 @@ void UStruct::Serialize(FArchive& Ar)
 
 			if (Ar.IsSaving())
 			{
-				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-
 				int64 const BytecodeEndOffset = Ar.Tell();
 
 				// go back and write on-disk size

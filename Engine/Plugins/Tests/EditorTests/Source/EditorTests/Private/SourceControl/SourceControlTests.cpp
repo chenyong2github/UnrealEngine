@@ -16,6 +16,7 @@
 #include "ISourceControlRevision.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
+#include "UObject/SavePackage.h"
 
 #include "ISourceControlLabel.h"
 #include "PackageTools.h"
@@ -532,7 +533,12 @@ bool FEditTextureLatentCommand::Update()
 		check(Texture);
 		Texture->AdjustBrightness = FMath::FRand();
 		Package->SetDirtyFlag(true);
-		if(!UPackage::SavePackage(Package, NULL, RF_Standalone, *FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension()), GError, nullptr, false, true, SAVE_NoError))
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		SaveArgs.SaveFlags = SAVE_NoError;
+		if(!UPackage::SavePackage(Package, nullptr,
+			*FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension()),
+			SaveArgs))
 		{
 			UE_LOG(LogSourceControl, Error, TEXT("Could not save package: '%s'"), *PackageName);
 		}

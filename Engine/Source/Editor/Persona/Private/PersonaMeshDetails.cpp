@@ -89,6 +89,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/CoreMisc.h"
+#include "UObject/SavePackage.h"
 
 #define LOCTEXT_NAMESPACE "PersonaMeshDetails"
 
@@ -3279,7 +3280,10 @@ FReply FPersonaMeshDetails::OnSaveLODSettings()
 				FString const PackageName = Package->GetName();
 				FString const PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
 
-				UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.SaveFlags = SAVE_NoError;
+				UPackage::SavePackage(Package, NULL, *PackageFileName, SaveArgs);
 
 				// set the property back to SkelMesh;
 				SkelMesh->SetLODSettings(NewLODSettingAsset);

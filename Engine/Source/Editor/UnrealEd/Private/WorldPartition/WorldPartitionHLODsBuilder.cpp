@@ -8,6 +8,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Algo/ForEach.h"
+#include "UObject/SavePackage.h"
 
 #include "EngineUtils.h"
 #include "SourceControlHelpers.h"
@@ -113,9 +114,11 @@ public:
 		}
 
 		// Save package
-		ESaveFlags SaveFlags = PackageHelper.UseSourceControl() ? ESaveFlags::SAVE_None : ESaveFlags::SAVE_Async;
 		FString PackageFileName = GetFilename(Package);
-		if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SaveFlags))
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		SaveArgs.SaveFlags = PackageHelper.UseSourceControl() ? ESaveFlags::SAVE_None : ESaveFlags::SAVE_Async;
+		if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 		{
 			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
 			return false;

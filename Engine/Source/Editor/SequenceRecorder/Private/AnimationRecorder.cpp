@@ -5,6 +5,7 @@
 #include "Animation/AnimSequence.h"
 #include "Misc/MessageDialog.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "Misc/PackageName.h"
 #include "Editor.h"
 
@@ -435,7 +436,10 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 			
 			StartTime = FPlatformTime::Seconds();
 
-			UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Standalone;
+			SaveArgs.SaveFlags = SAVE_NoError;
+			UPackage::SavePackage(Package, NULL, *PackageFileName, SaveArgs);
 
 			ElapsedTime = FPlatformTime::Seconds() - StartTime;
 			UE_LOG(LogAnimation, Log, TEXT("Animation Recorder saved %s in %0.2f seconds"), *PackageName, ElapsedTime);

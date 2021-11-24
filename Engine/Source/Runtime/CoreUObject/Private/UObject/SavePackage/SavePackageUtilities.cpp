@@ -1070,79 +1070,22 @@ bool FObjectImportSortHelper::operator()(const FObjectImport& A, const FObjectIm
 	return Result < 0;
 }
 
-void FObjectImportSortHelper::SortImports(FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo)
+void FObjectImportSortHelper::SortImports(FLinkerSave* Linker)
 {
-	int32 SortStartPosition = 0;
 	TArray<FObjectImport>& Imports = Linker->ImportMap;
-	if (LinkerToConformTo)
+	ObjectToFullNameMap.Reserve(Linker->ImportMap.Num());
+	for (int32 ImportIndex = 0; ImportIndex < Linker->ImportMap.Num(); ImportIndex++)
 	{
-		// intended to be a copy
-		TArray<FObjectImport> Orig = Imports;
-		Imports.Empty(Imports.Num());
-
-		// this array tracks which imports from the new package exist in the old package
-		TArray<uint8> Used;
-		Used.AddZeroed(Orig.Num());
-
-		TMap<FString, int32> OriginalImportIndexes;
-		OriginalImportIndexes.Reserve(Orig.Num());
-		ObjectToFullNameMap.Reserve(Orig.Num());
-		for (int32 i = 0; i < Orig.Num(); i++)
+		const FObjectImport& Import = Linker->ImportMap[ImportIndex];
+		if (Import.XObject)
 		{
-			FObjectImport& Import = Orig[i];
-			FString ImportFullName = Import.XObject->GetFullName();
-
-			OriginalImportIndexes.Add(*ImportFullName, i);
-			ObjectToFullNameMap.Add(Import.XObject, *ImportFullName);
-		}
-
-		for (int32 i = 0; i < LinkerToConformTo->ImportMap.Num(); i++)
-		{
-			// determine whether the new version of the package contains this export from the old package
-			int32* OriginalImportPosition = OriginalImportIndexes.Find(*LinkerToConformTo->GetImportFullName(i));
-			if (OriginalImportPosition)
-			{
-				// this import exists in the new package as well,
-				// create a copy of the FObjectImport located at the original index and place it
-				// into the matching position in the new package's import map
-				FObjectImport* NewImport = new(Imports) FObjectImport(Orig[*OriginalImportPosition]);
-				check(NewImport->XObject == Orig[*OriginalImportPosition].XObject);
-				Used[*OriginalImportPosition] = 1;
-			}
-			else
-			{
-				// this import no longer exists in the new package
-				new(Imports)FObjectImport(nullptr);
-			}
-		}
-
-		SortStartPosition = LinkerToConformTo->ImportMap.Num();
-		for (int32 i = 0; i < Used.Num(); i++)
-		{
-			if (!Used[i])
-			{
-				// the FObjectImport located at pos "i" in the original import table did not
-				// exist in the old package - add it to the end of the import table
-				new(Imports) FObjectImport(Orig[i]);
-			}
-		}
-	}
-	else
-	{
-		ObjectToFullNameMap.Reserve(Linker->ImportMap.Num());
-		for (int32 ImportIndex = 0; ImportIndex < Linker->ImportMap.Num(); ImportIndex++)
-		{
-			const FObjectImport& Import = Linker->ImportMap[ImportIndex];
-			if (Import.XObject)
-			{
-				ObjectToFullNameMap.Add(Import.XObject, Import.XObject->GetFullName());
-			}
+			ObjectToFullNameMap.Add(Import.XObject, Import.XObject->GetFullName());
 		}
 	}
 
-	if (SortStartPosition < Linker->ImportMap.Num())
+	if (Linker->ImportMap.Num())
 	{
-		Sort(&Linker->ImportMap[SortStartPosition], Linker->ImportMap.Num() - SortStartPosition, *this);
+		Sort(&Linker->ImportMap[0], Linker->ImportMap.Num(), *this);
 	}
 }
 
@@ -1159,202 +1102,33 @@ bool FObjectExportSortHelper::operator()(const FObjectExport& A, const FObjectEx
 	}
 	else
 	{
-		if (bUseFObjectFullName)
-		{
-			const FObjectFullName* FullNameA = ObjectToObjectFullNameMap.Find(A.Object);
-			const FObjectFullName* FullNameB = ObjectToObjectFullNameMap.Find(B.Object);
-			checkSlow(FullNameA);
-			checkSlow(FullNameB);
+		const FString* FullNameA = ObjectToFullNameMap.Find(A.Object);
+		const FString* FullNameB = ObjectToFullNameMap.Find(B.Object);
+		checkSlow(FullNameA);
+		checkSlow(FullNameB);
 
-			if (FullNameA->ClassName != FullNameB->ClassName)
-			{
-				Result = FCString::Stricmp(*FullNameA->ClassName.ToString(), *FullNameB->ClassName.ToString());
-			}
-			else
-			{
-				int Num = FMath::Min(FullNameA->Path.Num(), FullNameB->Path.Num());
-				for (int I = 0; I < Num; ++I)
-				{
-					if (FullNameA->Path[I] != FullNameB->Path[I])
-					{
-						Result = FCString::Stricmp(*FullNameA->Path[I].ToString(), *FullNameB->Path[I].ToString());
-						break;
-					}
-				}
-				if (Result == 0)
-				{
-					Result = FullNameA->Path.Num() - FullNameB->Path.Num();
-				}
-			}
-		}
-		else
-		{
-			const FString* FullNameA = ObjectToFullNameMap.Find(A.Object);
-			const FString* FullNameB = ObjectToFullNameMap.Find(B.Object);
-			checkSlow(FullNameA);
-			checkSlow(FullNameB);
-
-			Result = FCString::Stricmp(**FullNameA, **FullNameB);
-		}
+		Result = FCString::Stricmp(**FullNameA, **FullNameB);
 	}
 
 	return Result < 0;
 }
 
-FObjectExportSortHelper::FObjectFullName::FObjectFullName(const UObject* Object, const UObject* Root)
+void FObjectExportSortHelper::SortExports(FLinkerSave* Linker)
 {
-	ClassName = Object->GetClass()->GetFName();
-	const UObject* Current = Object;
-	while (Current != nullptr && Current != Root)
+	ObjectToFullNameMap.Reserve(Linker->ExportMap.Num());
+
+	for ( int32 ExportIndex = 0; ExportIndex < Linker->ExportMap.Num(); ExportIndex++ )
 	{
-		Path.Insert(Current->GetFName(), 0);
-		Current = Current->GetOuter();
-	}
-}
-
-FObjectExportSortHelper::FObjectFullName::FObjectFullName(FObjectFullName&& InFullName)
-{
-	ClassName = InFullName.ClassName;
-	Swap(Path, InFullName.Path);
-}
-
-void FObjectExportSortHelper::SortExports( FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo, bool InbUseFObjectFullName)
-{
-	bUseFObjectFullName = InbUseFObjectFullName;
-
-	if (bUseFObjectFullName)
-	{
-		ObjectToObjectFullNameMap.Reserve(Linker->ExportMap.Num());
-	}
-	else
-	{
-		ObjectToFullNameMap.Reserve(Linker->ExportMap.Num());
-	}
-
-	int32 SortStartPosition=0;
-	if ( LinkerToConformTo )
-	{
-		// build a map of object full names to the index into the new linker's export map prior to sorting.
-		// we need to do a little trickery here to generate an object path name that will match what we'll get back
-		// when we call GetExportFullName on the LinkerToConformTo's exports, due to localized packages and forced exports.
-		const FString LinkerName = Linker->LinkerRoot->GetName();
-		const FString PathNamePrefix = LinkerName + TEXT(".");
-
-		// Populate object to current index map.
-		TMap<FString,int32> OriginalExportIndexes;
-		OriginalExportIndexes.Reserve(Linker->ExportMap.Num());
-		for( int32 ExportIndex=0; ExportIndex < Linker->ExportMap.Num(); ExportIndex++ )
+		const FObjectExport& Export = Linker->ExportMap[ExportIndex];
+		if (Export.Object)
 		{
-			const FObjectExport& Export = Linker->ExportMap[ExportIndex];
-			if( Export.Object )
-			{
-				// get the path name for this object; if the object is contained within the package we're saving,
-				// we don't want the returned path name to contain the package name since we'll be adding that on
-				// to ensure that forced exports have the same outermost name as the non-forced exports
-				FString ObjectPathName = Export.Object != Linker->LinkerRoot
-					? Export.Object->GetPathName(Linker->LinkerRoot)
-					: LinkerName;
-						
-				FString ExportFullName = Export.Object->GetClass()->GetName() + TEXT(" ") + PathNamePrefix + ObjectPathName;
-
-				// Set the index (key) in the map to the index of this object into the export map.
-				OriginalExportIndexes.Add( *ExportFullName, ExportIndex );
-				if (bUseFObjectFullName)
-				{
-					FObjectFullName ObjectFullName(Export.Object, Linker->LinkerRoot);
-					ObjectToObjectFullNameMap.Add(Export.Object, MoveTemp(ObjectFullName)); 
-				}
-				else
-				{
-					ObjectToFullNameMap.Add(Export.Object, *ExportFullName);
-				}
-			}
-		}
-
-		// backup the existing export list so we can empty the linker's actual list
-		TArray<FObjectExport> OldExportMap = Linker->ExportMap;
-		Linker->ExportMap.Empty(Linker->ExportMap.Num());
-
-		// this array tracks which exports from the new package exist in the old package
-		TArray<uint8> Used;
-		Used.AddZeroed(OldExportMap.Num());
-
-		for( int32 i = 0; i<LinkerToConformTo->ExportMap.Num(); i++ )
-		{
-			// determine whether the new version of the package contains this export from the old package
-			FString ExportFullName = LinkerToConformTo->GetExportFullName(i, *LinkerName);
-			int32* OriginalExportPosition = OriginalExportIndexes.Find( *ExportFullName );
-			if( OriginalExportPosition )
-			{
-				// this export exists in the new package as well,
-				// create a copy of the FObjectExport located at the original index and place it
-				// into the matching position in the new package's export map
-				FObjectExport* NewExport = new(Linker->ExportMap) FObjectExport( OldExportMap[*OriginalExportPosition] );
-				check(NewExport->Object == OldExportMap[*OriginalExportPosition].Object);
-				Used[ *OriginalExportPosition ] = 1;
-			}
-			else
-			{
-
-				// this export no longer exists in the new package; to ensure that the _LinkerIndex matches, add an empty entry to pad the list
-				new(Linker->ExportMap)FObjectExport( nullptr );
-				UE_LOG(LogSavePackage, Log, TEXT("No matching export found in new package for original export %i: %s"), i, *ExportFullName);
-			}
-		}
-
-
-
-		SortStartPosition = LinkerToConformTo->ExportMap.Num();
-		for( int32 i=0; i<Used.Num(); i++ )
-		{
-			if( !Used[i] )
-			{
-				// the FObjectExport located at pos "i" in the original export table did not
-				// exist in the old package - add it to the end of the export table
-				new(Linker->ExportMap) FObjectExport( OldExportMap[i] );
-			}
-		}
-
-#if DO_GUARD_SLOW
-
-		// sanity-check: make sure that all exports which existed in the linker before we sorted exist in the linker's export map now
-		{
-			TSet<UObject*> ExportObjectList;
-			for( int32 ExportIndex=0; ExportIndex<Linker->ExportMap.Num(); ExportIndex++ )
-			{
-				ExportObjectList.Add(Linker->ExportMap[ExportIndex].Object);
-			}
-
-			for( int32 OldExportIndex=0; OldExportIndex<OldExportMap.Num(); OldExportIndex++ )
-			{
-				check(ExportObjectList.Contains(OldExportMap[OldExportIndex].Object));
-			}
-		}
-#endif
-	}
-	else
-	{
-		for ( int32 ExportIndex = 0; ExportIndex < Linker->ExportMap.Num(); ExportIndex++ )
-		{
-			const FObjectExport& Export = Linker->ExportMap[ExportIndex];
-			if ( Export.Object )
-			{
-				if (bUseFObjectFullName)
-				{
-					FObjectFullName ObjectFullName(Export.Object, nullptr);
-					ObjectToObjectFullNameMap.Add(Export.Object, MoveTemp(ObjectFullName));
-				}
-				else
-				{
-					ObjectToFullNameMap.Add(Export.Object, Export.Object->GetFullName());
-				}
-			}
+			ObjectToFullNameMap.Add(Export.Object, Export.Object->GetFullName());
 		}
 	}
 
-	if ( SortStartPosition < Linker->ExportMap.Num() )
+	if (Linker->ExportMap.Num())
 	{
-		Sort( &Linker->ExportMap[SortStartPosition], Linker->ExportMap.Num() - SortStartPosition, *this );
+		Sort(&Linker->ExportMap[0], Linker->ExportMap.Num(), *this);
 	}
 }
 

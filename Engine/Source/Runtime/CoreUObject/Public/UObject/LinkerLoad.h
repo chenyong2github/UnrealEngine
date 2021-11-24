@@ -583,17 +583,8 @@ public:
 	UObject* ResolveResource(FPackageIndex ResourceIndex);
 	
 	int32 FindExportIndex( FName ClassName, FName ClassPackage, FName ObjectName, FPackageIndex ExportOuterIndex );
-	
-	/**
-	 * Function to create the instance of, or verify the presence of, an object as found in this Linker.
-	 *
-	 * @param ObjectClass	The class of the object
-	 * @param ObjectName	The name of the object
-	 * @param Outer			Optional outer that this object must be in (for finding objects in a specific group when there are multiple groups with the same name)
-	 * @param LoadFlags		Flags used to determine if the object is being verified or should be created
-	 * @param Checked		Whether or not a failure will throw an error
-	 * @return The created object, or (UObject*)-1 if this is just verifying
-	 */
+
+	UE_DEPRECATED(5.0, "Create was only used for the now-deprecated Conform argument to UPackage::Save. Contact Epic via UDN if you still need this function.")
 	UObject* Create( UClass* ObjectClass, FName ObjectName, UObject* Outer, uint32 InLoadFlags, bool Checked );
 
 	/**

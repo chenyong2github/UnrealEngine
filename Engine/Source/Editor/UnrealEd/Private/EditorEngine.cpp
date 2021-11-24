@@ -4223,43 +4223,50 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 	World->UpdateWorldComponents(true, true);
 }
 
-FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-				 FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename, 
-				 uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
-				 FSavePackageContext* SavePackageContext)
+FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags,
+	const TCHAR* Filename, FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping,
+	bool bWarnOfLongFilename, uint32 SaveFlags, const ITargetPlatform* TargetPlatform,
+	const FDateTime& FinalTimeStamp, bool bSlowTask, FArchiveDiffMap* InOutDiffMap,
+	FSavePackageContext* SavePackageContext)
+{
+	FSavePackageArgs SaveArgs = { TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping,
+		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error, SavePackageContext };
+	return Save(InOuter, InBase, Filename, SaveArgs);
+}
+
+FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
+	const FSavePackageArgs& InSaveArgs)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::Save);
 	UE_TRACK_REFERENCING_PACKAGE_SCOPED(InOuter, PackageAccessTrackingOps::NAME_Save); // Needs to be here in addition to UPackage::Save so that InitializePhysicsSceneForSaveIfNecessary and OnPreSaveWorld have appropriate referencing package info
 
-	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
-
-	bool bIsCooking = TargetPlatform != nullptr;
-	TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(TopLevelFlags, bIsCooking);
-	UObject* Base = InBase;
-	if (!Base && InOuter)
+	FSavePackageArgs SaveArgs(InSaveArgs);
+	FScopedSlowTask SlowTask(100, FText(), SaveArgs.bSlowTask);
+	bool bIsCooking = SaveArgs.TargetPlatform != nullptr;
+	SaveArgs.TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(SaveArgs.TopLevelFlags, bIsCooking);
+	UObject* Asset = InAsset;
+	if (!Asset && InOuter)
 	{
-		// Check if the package contains a map and set the world object as base
+		// Check if the package contains a map and set the world object as the asset
 		if (InOuter->HasAnyPackageFlags(PKG_ContainsMap) )
 		{
-			Base = UWorld::FindWorldInPackage(InOuter);
+			Asset = UWorld::FindWorldInPackage(InOuter);
 		}
 		else
 		{
-			// Look at top level object for the base root candidate,
-			// this should find the world if the package contains a map, however worlds are sometimes not properly flagged as asset when saved
-			// This will also allow other asset types that need to have Pre/PostSaveRoot called on them to be done so properly
-			Base = InOuter->FindAssetInPackage();
+			// Otherwise find the main asset of the package
+			Asset = InOuter->FindAssetInPackage();
 		}
 	}
 
 	SlowTask.EnterProgressFrame(10);
 
-	UWorld* World = Cast<UWorld>(Base);
+	UWorld* World = Cast<UWorld>(Asset);
 	bool bInitializedPhysicsSceneForSave = false;
 	bool bForceInitializedWorld = false;
-	const bool bSavingConcurrent = !!(SaveFlags & ESaveFlags::SAVE_Concurrent);
+	const bool bSavingConcurrent = !!(SaveArgs.SaveFlags & ESaveFlags::SAVE_Concurrent);
 
-	FObjectSaveContextData ObjectSaveContext(InOuter, TargetPlatform, Filename, SaveFlags);
+	FObjectSaveContextData ObjectSaveContext(InOuter, SaveArgs.TargetPlatform, Filename, SaveArgs.SaveFlags);
 	UWorld *OriginalOwningWorld = nullptr;
 	if ( World )
 	{
@@ -4280,7 +4287,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 	// See if the package is a valid candidate for being auto-added to the default changelist.
 	// Only allows the addition of newly created packages while in the editor and then only if the user has the option enabled.
 	bool bAutoAddPkgToSCC = false;
-	if( !TargetPlatform )
+	if (!bIsCooking)
 	{
 		bAutoAddPkgToSCC = IsPackageValidForAutoAdding( InOuter, Filename );
 	}
@@ -4291,7 +4298,7 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 	UPackage::PreSavePackageEvent.Broadcast(InOuter);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	UPackage::PreSavePackageWithContextEvent.Broadcast(InOuter, FObjectPreSaveContext(ObjectSaveContext));
-	FSavePackageResultStruct Result = UPackage::Save(InOuter, Base, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping, bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask, InOutDiffMap, SavePackageContext);
+	FSavePackageResultStruct Result = UPackage::Save(InOuter, Asset, Filename, SaveArgs);
 
 	SlowTask.EnterProgressFrame(10);
 	ObjectSaveContext.bSaveSucceeded = Result == ESavePackageResult::Success;
@@ -4314,8 +4321,8 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 
 	SlowTask.EnterProgressFrame(10);
 
-	const bool bAutosave = (SaveFlags & SAVE_FromAutosave) != 0;
-	if (!bSavingConcurrent && !IsRunningCommandlet() && !bAutosave && (World || Cast<AActor>(Base)))
+	const bool bAutosave = (SaveArgs.SaveFlags & SAVE_FromAutosave) != 0;
+	if (!bSavingConcurrent && !IsRunningCommandlet() && !bAutosave && (World || Cast<AActor>(Asset)))
 	{
 		// Always reset the transaction buffer on level/actor save to avoid problems with deleted actors (marked pending kill) that gets marked transient by the saving code
 		ResetTransaction( World ? NSLOCTEXT("UnrealEd", "MapSaved", "Map Saved") : NSLOCTEXT("UnrealEd", "ActorSaved", "Actor Saved"));
@@ -4353,13 +4360,20 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 
 bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InBase, EObjectFlags TopLevelFlags, const TCHAR* Filename,
 	FOutputDevice* Error, FLinkerNull* Conform, bool bForceByteSwapping, bool bWarnOfLongFilename,
-	uint32 SaveFlags, const class ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
+	uint32 SaveFlags, const ITargetPlatform* TargetPlatform, const FDateTime& FinalTimeStamp, bool bSlowTask)
+{
+	FSavePackageArgs SaveArgs = { TargetPlatform, TopLevelFlags, SaveFlags, bForceByteSwapping,
+		bWarnOfLongFilename, bSlowTask, FinalTimeStamp, Error };
+	return SavePackage(InOuter, InBase, Filename, SaveArgs);
+}
+
+bool UEditorEngine::SavePackage(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
+	const FSavePackageArgs& SaveArgs)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::SavePackage);
 
 	// Workaround to avoid function signature change while keeping both bool and ESavePackageResult versions of SavePackage
-	const FSavePackageResultStruct Result = Save(InOuter, InBase, TopLevelFlags, Filename, Error, Conform, bForceByteSwapping,
-		bWarnOfLongFilename, SaveFlags, TargetPlatform, FinalTimeStamp, bSlowTask);
+	const FSavePackageResultStruct Result = Save(InOuter, InAsset, Filename, SaveArgs);
 	return Result == ESavePackageResult::Success;
 }
 

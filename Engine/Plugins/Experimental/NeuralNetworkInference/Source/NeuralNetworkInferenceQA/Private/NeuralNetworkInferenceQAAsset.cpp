@@ -5,7 +5,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-
+#include "UObject/SavePackage.h"
 
 
 /* FNeuralNetworkInferenceQAOperatorTestAsset public functions
@@ -247,7 +247,9 @@ bool UNeuralNetworkInferenceQAAsset::Save()
 		FPaths::Split(Package->GetLoadedPath().GetLocalFullPath(), ParentPath, FileName, FileExtension); // "../../../Sandbox/MachineLearning/NNIUnitTest/Content/NeuralNetworkInferenceQAAsset.uasset"
 		FilePath = ParentPath / UNeuralNetworkInferenceQAAsset_FileName + TEXT("_new.") + FileExtension; // "../../../Sandbox/MachineLearning/NNIUnitTest/Content/NeuralNetworkInferenceQAAsset_new.uasset"
 	}
-	const bool bWasPackageSaved = UPackage::SavePackage(Package, /*InNeuralNetworkInferenceQAAsset*/nullptr, RF_Standalone, *FilePath);
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	const bool bWasPackageSaved = UPackage::SavePackage(Package, /*InNeuralNetworkInferenceQAAsset*/nullptr, *FilePath, SaveArgs);
 	if (!bWasPackageSaved)
 	{
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("UNeuralNetworkInferenceQAAsset::Save() failed for %s!"), *FilePath);

@@ -109,7 +109,6 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 
 	if (!bIsTextFormat)
 	{
-		FArchive::FScopeSetDebugSerializationFlags S(UnderlyingArchive, DSF_IgnoreDiff);
 		Slot << SA_ATTRIBUTE(TEXT("Size"), Tag.Size);
 		Slot << SA_ATTRIBUTE(TEXT("ArrayIndex"), Tag.ArrayIndex);
 	}

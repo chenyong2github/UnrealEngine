@@ -23,6 +23,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "AssetData.h"
 #include "Editor.h"
+#include "UObject/SavePackage.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EdGraphSchema_K2.h"
@@ -1093,7 +1094,12 @@ namespace BlueprintEditorPromotionTestHelper
 				BlueprintPackage->SetDirtyFlag(true);
 				BlueprintPackage->FullyLoad();
 				const FString PackagePath = FEditorPromotionTestUtilities::GetGamePath() + TEXT("/") + BlueprintEditorPromotionUtils::BlueprintNameString;
-				bool bBlueprintSaved = UPackage::SavePackage(BlueprintPackage, NULL, RF_Standalone, *FPackageName::LongPackageNameToFilename(PackagePath, FPackageName::GetAssetPackageExtension()), GLog, nullptr, false, true, SAVE_None);
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.Error = GLog;
+				bool bBlueprintSaved = UPackage::SavePackage(BlueprintPackage, nullptr,
+					*FPackageName::LongPackageNameToFilename(PackagePath, FPackageName::GetAssetPackageExtension()),
+					SaveArgs);
 				Test->TestTrue(*FString::Printf(TEXT("Blueprint saved successfully (%s)"), *BlueprintObject->GetName()), bBlueprintSaved);
 			}
 		}

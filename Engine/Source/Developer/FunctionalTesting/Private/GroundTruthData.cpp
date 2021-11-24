@@ -4,6 +4,7 @@
 
 #include "UObject/UnrealType.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "Misc/PackageName.h"
 #include "AssetData.h"
 
@@ -70,7 +71,12 @@ void UGroundTruthData::SaveObject(UObject* GroundTruth)
 	GroundTruth->Rename(nullptr, this);
 	MarkPackageDirty();
 
-	if (!UPackage::SavePackage(GroundTruthPackage, NULL, RF_Standalone, *FPackageName::LongPackageNameToFilename(GroundTruthPackageName, FPackageName::GetAssetPackageExtension()), GError, nullptr, false, true, SAVE_NoError))
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	SaveArgs.SaveFlags = SAVE_NoError;
+	if (!UPackage::SavePackage(GroundTruthPackage, nullptr,
+		*FPackageName::LongPackageNameToFilename(GroundTruthPackageName, FPackageName::GetAssetPackageExtension()),
+		SaveArgs))
 	{
 		UE_LOG(GroundTruthLog, Error, TEXT("Failed to save ground truth data! %s"), *GroundTruthPackageName);
 	}

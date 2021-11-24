@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "Factories/TextureFactory.h"
 #include "SourceControlHelpers.h"
+#include "UObject/SavePackage.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include "ISourceControlModule.h"
@@ -165,7 +166,10 @@ bool UWorldPartitionMiniMapBuilder::PostRun(UWorld* World, FPackageSourceControl
 		return false;
 	}
 
-	if (!UPackage::SavePackage(WorldMiniMapExternalPackage, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	SaveArgs.SaveFlags = SAVE_Async;
+	if (!UPackage::SavePackage(WorldMiniMapExternalPackage, nullptr, *PackageFileName, SaveArgs))
 	{
 		UE_LOG(LogWorldPartitionMiniMapBuilder, Error, TEXT("Error saving package %s."), *WorldMiniMapExternalPackage->GetName());
 		return false;

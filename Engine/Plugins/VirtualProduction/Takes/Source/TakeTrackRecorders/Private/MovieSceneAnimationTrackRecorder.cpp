@@ -14,6 +14,7 @@
 #include "Engine/TimecodeProvider.h"
 #include "Engine/Engine.h"
 #include "LevelSequence.h"
+#include "UObject/SavePackage.h"
 #include "UObject/UObjectBaseUtility.h"
 #include "ObjectTools.h"
 
@@ -415,7 +416,10 @@ bool UMovieSceneAnimationTrackRecorder::LoadRecordedFile(const FString& FileName
 								UPackage* const Package = AnimSequence->GetOutermost();
 								FString const PackageName = Package->GetName();
 								FString const PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
-								UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
+								FSavePackageArgs SaveArgs;
+								SaveArgs.TopLevelFlags = RF_Standalone;
+								SaveArgs.SaveFlags = SAVE_NoError;
+								UPackage::SavePackage(Package, NULL, *PackageFileName, SaveArgs);
 
 
 								FFrameNumber SequenceLength = (AnimSequence->GetPlayLength() * TickResolution).FloorToFrame();

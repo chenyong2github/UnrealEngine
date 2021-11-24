@@ -112,10 +112,6 @@ void FLinkerTables::SerializeSearchableNamesMap(FArchive& Ar)
 
 void FLinkerTables::SerializeSearchableNamesMap(FStructuredArchive::FSlot Slot)
 {
-#if WITH_EDITOR
-	FArchive::FScopeSetDebugSerializationFlags S(Slot.GetUnderlyingArchive(), DSF_IgnoreDiff, true);
-#endif
-
 	if (Slot.GetUnderlyingArchive().IsSaving())
 	{
 		// Sort before saving to keep order consistent

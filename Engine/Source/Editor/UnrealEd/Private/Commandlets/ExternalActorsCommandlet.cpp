@@ -6,6 +6,7 @@
 #include "Editor.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "UObject/SavePackage.h"
 #include "UObject/UObjectHash.h"
 #include "AssetRegistryModule.h"
 #include "PackageHelperFunctions.h"
@@ -118,7 +119,9 @@ int32 UExternalActorsCommandlet::Main(const FString& Params)
 								UPackage* PackageToSave = PotentialMainPackageActor->GetPackage();
 
 								FString PackageFileName = SourceControlHelpers::PackageFilename(PackageToSave);
-								if (UPackage::SavePackage(PackageToSave, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true))
+								FSavePackageArgs SaveArgs;
+								SaveArgs.TopLevelFlags = RF_Standalone;
+								if (UPackage::SavePackage(PackageToSave, nullptr, *PackageFileName, SaveArgs))
 								{
 									PackageHelper.AddToSourceControl(PackageToSave);
 								}

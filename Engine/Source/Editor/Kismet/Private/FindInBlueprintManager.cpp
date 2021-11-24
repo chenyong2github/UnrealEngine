@@ -11,6 +11,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/SavePackage.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/UnrealType.h"
@@ -1839,9 +1840,10 @@ public:
 									UWorld* WorldAsset = Cast<UWorld>(Asset);
 
 									// Save the package
-									EObjectFlags ObjectFlags = (WorldAsset == nullptr) ? RF_Standalone : RF_NoFlags;
-
-									if (GEditor->SavePackage(Package, WorldAsset, ObjectFlags, *FinalPackageFilename, GError, nullptr, false, true, SAVE_NoError))
+									FSavePackageArgs SaveArgs;
+									SaveArgs.TopLevelFlags = (WorldAsset == nullptr) ? RF_Standalone : RF_NoFlags;
+									SaveArgs.SaveFlags = SAVE_NoError;
+									if (GEditor->SavePackage(Package, WorldAsset, *FinalPackageFilename, SaveArgs))
 									{
 										bFailedToCache = false;
 									}

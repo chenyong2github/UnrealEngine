@@ -42,16 +42,41 @@ struct FPackageSaveInfo
  */
 struct FSavePackageArgs
 {
-	class ITargetPlatform* TargetPlatform = nullptr;
+	/* The platform being saved for when cooking, or nullptr if not cooking. */
+	const ITargetPlatform* TargetPlatform = nullptr;
+	/**
+	 * For all objects which are not referenced[either directly, or indirectly] through the InAsset provided
+	 * to the Save call (See UPackage::Save), only objects that contain any of these flags will be saved.
+	 * If RF_NoFlags is specified, only objects which are referenced by InAsset will be saved into the package.
+	 */
 	EObjectFlags TopLevelFlags = RF_NoFlags;
-	uint32 SaveFlags = 0;
-	bool bForceByteSwapping = false; // for FLinkerSave
-	bool bWarnOfLongFilename = false;
+	/* Flags to control saving, a bitwise-or'd combination of values from ESaveFlags */
+	uint32 SaveFlags = SAVE_None;
+	/* Whether we should forcefully byte swap before writing header and exports to disk. Passed into FLinkerSave. */
+	bool bForceByteSwapping = false;
+	/* If true (the default), warn when saving to a long filename. */
+	bool bWarnOfLongFilename = true;
+	/** If true, the Save will send progress events that are displayed in the editor. */
 	bool bSlowTask = true;
+	/*
+	 * If not FDateTime::MinValue() (the default), the timestamp the saved file should be set to.
+	 * (Intended for cooking only...)
+	 */
 	FDateTime FinalTimeStamp;
-	FOutputDevice* Error = nullptr;
-	FArchiveDiffMap* DiffMap = nullptr; // SAVEPACKAGE_TODO: Deprecate
+	/** Receives error/warning messages sent by the Save, to log and respond to their severity level. */
+	FOutputDevice* Error = GError;
+	/** Structure to hold longer-lifetime parameters that apply to multiple saves */
 	FSavePackageContext* SavePackageContext = nullptr;
+	UE_DEPRECATED(5.0, "FArchiveDiffMap is no longer used; it is now implemented by DiffPackageWriter.")
+	FArchiveDiffMap* DiffMap = nullptr;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	FSavePackageArgs() = default;
+	FSavePackageArgs(const FSavePackageArgs&) = default;
+	FSavePackageArgs(FSavePackageArgs&&) = default;
+	FSavePackageArgs& operator=(const FSavePackageArgs&) = default;
+	FSavePackageArgs& operator=(FSavePackageArgs&&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 };
 
 /** Interface for SavePackage to test for caller-specific errors. */

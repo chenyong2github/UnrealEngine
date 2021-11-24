@@ -114,9 +114,8 @@ struct FSavePackageOutputFile
 using FSavePackageOutputFileArray = TArray<FSavePackageOutputFile, TInlineAllocator<4>>;
 
  /**
-  * Helper structure to encapsulate sorting a linker's import table alphabetically, taking into account conforming to other linkers.
+  * Helper structure to encapsulate sorting a linker's import table alphabetically
   * @note Save2 should not have to use this sorting long term
-  * @note Conforming is a deprecated feature however
   */
 struct FObjectImportSortHelper
 {
@@ -135,43 +134,26 @@ private:
 public:
 
 	/**
-	 * Sorts imports according to the order in which they occur in the list of imports.  If a package is specified to be conformed against, ensures that the order
-	 * of the imports match the order in which the corresponding imports occur in the old package.
+	 * Sorts imports according to the order in which they occur in the list of imports.
 	 *
 	 * @param	Linker				linker containing the imports that need to be sorted
-	 * @param	LinkerToConformTo	optional linker to conform against.
 	 */
-	void SortImports(FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo = nullptr);
+	void SortImports(FLinkerSave* Linker);
 };
 
 /**
- * Helper structure to encapsulate sorting a linker's export table alphabetically, taking into account conforming to other linkers.
+ * Helper structure to encapsulate sorting a linker's export table alphabetically
  * @note Save2 should not have to use this sorting long term
  */
 struct FObjectExportSortHelper
 {
-private:
-	struct FObjectFullName
-	{
-	public:
-		FObjectFullName(const UObject* Object, const UObject* Root);
-		FObjectFullName(FObjectFullName&& InFullName);
-
-		FName ClassName;
-		TArray<FName> Path;
-	};
-
 public:
-	FObjectExportSortHelper() : bUseFObjectFullName(false) {}
-
 	/**
-	 * Sorts exports alphabetically.  If a package is specified to be conformed against, ensures that the order
-	 * of the exports match the order in which the corresponding exports occur in the old package.
+	 * Sorts exports alphabetically.
 	 *
 	 * @param	Linker				linker containing the exports that need to be sorted
-	 * @param	LinkerToConformTo	optional linker to conform against.
 	 */
-	void SortExports(FLinkerSave* Linker, FLinkerLoad* LinkerToConformTo = nullptr, bool InbUseFObjectFullName = false);
+	void SortExports(FLinkerSave* Linker);
 
 private:
 	/** Comparison function used by Sort */
@@ -179,10 +161,6 @@ private:
 
 	/** the linker that we're sorting exports for */
 	friend struct TDereferenceWrapper<FObjectExport, FObjectExportSortHelper>;
-
-	bool bUseFObjectFullName;
-
-	TMap<UObject*, FObjectFullName> ObjectToObjectFullNameMap;
 
 	/**
 	 * Map of UObject => full name; optimization for sorting.

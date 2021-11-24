@@ -52,6 +52,7 @@
 #include "Editor.h"
 #include "FileHelpers.h"
 #include "UnrealEdGlobals.h"
+#include "UObject/SavePackage.h"
 
 //Automation
 #include "Tests/AutomationTestSettings.h"
@@ -869,7 +870,10 @@ namespace BuildPromotionTestHelper
 					AssetPackage->SetDirtyFlag(true);
 					FString PackageFileName = FPackageName::LongPackageNameToFilename(PackagePath, FPackageName::GetAssetPackageExtension());
 					FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*PackageFileName, false);
-					if (UPackage::SavePackage(AssetPackage, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError))
+					FSavePackageArgs SaveArgs;
+					SaveArgs.TopLevelFlags = RF_Standalone;
+					SaveArgs.SaveFlags = SAVE_NoError;
+					if (UPackage::SavePackage(AssetPackage, NULL, *PackageFileName, SaveArgs))
 					{
 						UE_LOG(LogEditorBuildPromotionTests, Display, TEXT("Saved asset"));
 					}
@@ -1828,7 +1832,12 @@ namespace BuildPromotionTestHelper
 				BlueprintPackage->SetDirtyFlag(true);
 				BlueprintPackage->FullyLoad();
 				const FString PackagePath = FEditorPromotionTestUtilities::GetGamePath() + TEXT("/") + EditorBuildPromotionTestUtils::BlueprintNameString;
-				bool bHasPackageSaved = UPackage::SavePackage(BlueprintPackage, NULL, RF_Standalone, *FPackageName::LongPackageNameToFilename(PackagePath, FPackageName::GetAssetPackageExtension()), GLog, nullptr, false, true, SAVE_None);
+				FSavePackageArgs SaveArgs;
+				SaveArgs.TopLevelFlags = RF_Standalone;
+				SaveArgs.Error = GLog;
+				bool bHasPackageSaved = UPackage::SavePackage(BlueprintPackage, nullptr,
+					*FPackageName::LongPackageNameToFilename(PackagePath, FPackageName::GetAssetPackageExtension()),
+					SaveArgs);
 				Test->TestTrue(FString::Printf(TEXT("Saved blueprint (%s)"), *BlueprintObject->GetName()), bHasPackageSaved);
 			}
 		}

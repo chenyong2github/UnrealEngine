@@ -7,6 +7,7 @@
 #include "SmartObjectCollection.h"
 #include "WorldPartition/WorldPartition.h"
 #include "SmartObjectSubsystem.h"
+#include "UObject/SavePackage.h"
 
 UWorldPartitionSmartObjectCollectionBuilder::UWorldPartitionSmartObjectCollectionBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), MainCollection(nullptr)
@@ -134,7 +135,10 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 			TRACE_CPUPROFILER_EVENT_SCOPE(SavingPackage);
 			UE_LOG(LogSmartObject, Log, TEXT("   Saving package  %s."), *Package->GetName());
 			const FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-			if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Standalone;
+			SaveArgs.SaveFlags = SAVE_Async;
+			if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 			{
 				UE_LOG(LogSmartObject, Error, TEXT("Error saving package %s."), *Package->GetName());
 				return false;

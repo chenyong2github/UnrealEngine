@@ -12,6 +12,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
 #include "Sections/MovieSceneCameraCutSection.h"
+#include "UObject/SavePackage.h"
 
 namespace TakesUtils
 {
@@ -96,7 +97,10 @@ void SaveAsset(UObject* InObject)
 	double StartTime = FPlatformTime::Seconds();
 
 	UMetaData *MetaData = Package->GetMetaData();
-	UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError | SAVE_Async);
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	SaveArgs.SaveFlags = SAVE_NoError | SAVE_Async;
+	UPackage::SavePackage(Package, NULL, *PackageFileName, SaveArgs);
 
 	double ElapsedTime = FPlatformTime::Seconds() - StartTime;
 	UE_LOG(LogTakesCore, Log, TEXT("Saved %s in %0.2f seconds"), *PackageName, ElapsedTime);

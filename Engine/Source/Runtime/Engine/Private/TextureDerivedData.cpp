@@ -2860,7 +2860,6 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 				const int64 SkipOffsetLoc = Ar.Tell();
 				int64 SkipOffset = 0;
 				{
-					FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
 					Ar << SkipOffset;
 				}
 

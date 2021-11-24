@@ -1380,7 +1380,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			// Save offset where we are serializing BulkDataFlags and store a placeholder
 			int64 SavedBulkDataFlagsPos = Ar.Tell();
 			{
-				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
 				Ar << LocalBulkDataFlags;
 			}
 
@@ -1392,8 +1391,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			int64 SavedBulkDataOffsetInFilePos	= INDEX_NONE;
 			
 			{
-				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-
 				// Save offset where we are serializing BulkDataSizeOnDisk and store a placeholder
 				SavedBulkDataSizeOnDiskPos = Ar.Tell();
 				LocalBulkDataSizeOnDisk = INDEX_NONE;
@@ -1445,8 +1442,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					EBulkDataFlags SavedDupeBulkDataFlags = static_cast<EBulkDataFlags>(
 						(LocalBulkDataFlags & ~BULKDATA_DuplicateNonOptionalPayload) | BULKDATA_OptionalPayload);
 					{
-						FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-
 						// Save offset where we are serializing SavedDupeBulkDataFlags and store a placeholder
 						SavedDupeBulkDataFlagsPos = Ar.Tell();
 						Ar << SavedDupeBulkDataFlags;
@@ -1508,8 +1503,6 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				// store current file offset before seeking back
 				int64 CurrentFileOffset = Ar.Tell();
 				{
-					FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-
 					// Seek back and overwrite the flags 
 					Ar.Seek(SavedBulkDataFlagsPos);
 					Ar << LocalBulkDataFlags;

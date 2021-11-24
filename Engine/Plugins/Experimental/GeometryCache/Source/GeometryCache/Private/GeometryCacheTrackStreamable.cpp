@@ -8,6 +8,7 @@
 #include "StreamingGeometryCacheData.h"
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 
 DECLARE_CYCLE_STAT(TEXT("Decode Mesh Frame"), STAT_UpdateMeshData, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("Encode Mesh Frame"), STAT_AddMeshSample, STATGROUP_GeometryCache);
@@ -53,7 +54,10 @@ void UGeometryCacheTrackStreamable::TriggerSerializationCrash()
 	Track->Samples.AddUninitialized(NumSamplesToAdd);
 
 	FString PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
-	UPackage::SavePackage(AssetPackage, Track, RF_Standalone, *PackageFileName, GLog, nullptr, false, true, SAVE_None);
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone;
+	SaveArgs.Error = GLog;
+	UPackage::SavePackage(AssetPackage, Track, *PackageFileName, SaveArgs);
 }
 
 FAutoConsoleCommand TriggerSerializationCrashCommand(

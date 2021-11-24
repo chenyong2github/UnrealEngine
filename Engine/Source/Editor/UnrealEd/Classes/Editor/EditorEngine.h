@@ -2205,14 +2205,23 @@ public:
 	virtual bool IsPackageOKToSave(UPackage* InPackage, const FString& InFilename, FOutputDevice* Error);
 
 	/** The editor wrapper for UPackage::SavePackage. Auto-adds files to source control when necessary */
-	bool SavePackage( UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename, 
-		FOutputDevice* Error=GError, FLinkerNull* Conform=NULL, bool bForceByteSwapping=false, bool bWarnOfLongFilename=true, 
-		uint32 SaveFlags=SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), bool bSlowTask = true );
+	bool SavePackage(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename, const FSavePackageArgs& SaveArgs);
+
+	UE_DEPRECATED(5.0, "Pack the arguments into FSavePackageArgs and call the function overload that takes FSavePackageArgs. Note that Conform is no longer implemented.")
+	bool SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
+		FOutputDevice* Error = GError, FLinkerNull* Conform = nullptr, bool bForceByteSwapping = false,
+		bool bWarnOfLongFilename = true, uint32 SaveFlags = SAVE_None, const ITargetPlatform* TargetPlatform = nullptr,
+		const FDateTime& FinalTimeStamp = FDateTime::MinValue(), bool bSlowTask = true);
 
 	/** The editor wrapper for UPackage::Save. Auto-adds files to source control when necessary */
+	FSavePackageResultStruct Save(UPackage* InOuter, UObject* InAsset, const TCHAR* Filename,
+		const FSavePackageArgs& SaveArgs);
+
+	UE_DEPRECATED(5.0, "Pack the arguments into FSavePackageArgs and call the function overload that takes FSavePackageArgs. Note that Conform and InOutDiffMap are no longer implemented.")
 	FSavePackageResultStruct Save(UPackage* InOuter, UObject* Base, EObjectFlags TopLevelFlags, const TCHAR* Filename,
-		FOutputDevice* Error = GError, FLinkerNull* Conform = NULL, bool bForceByteSwapping = false, bool bWarnOfLongFilename = true,
-		uint32 SaveFlags = SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
+		FOutputDevice* Error = GError, FLinkerNull* Conform = nullptr, bool bForceByteSwapping = false,
+		bool bWarnOfLongFilename = true, uint32 SaveFlags = SAVE_None,
+		const ITargetPlatform* TargetPlatform = nullptr, const FDateTime& FinalTimeStamp = FDateTime::MinValue(),
 		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
 		FSavePackageContext* SavePackageContext = nullptr);
 

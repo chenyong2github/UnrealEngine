@@ -28,6 +28,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Misc/Paths.h"
+#include "UObject/SavePackage.h"
 
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimSequence.h"
@@ -295,7 +296,12 @@ bool FFbxImportAssetsAutomationTest::RunTest(const FString& Parameters)
 							}
 							FString PackageName = Asset->GetOutermost()->GetPathName();
 							Asset->MarkPackageDirty();
-							UPackage::SavePackage(Asset->GetOutermost(), Asset, RF_Standalone, *FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension()), GError, nullptr, false, true, SAVE_NoError);
+							FSavePackageArgs SaveArgs;
+							SaveArgs.TopLevelFlags = RF_Standalone;
+							SaveArgs.SaveFlags = SAVE_NoError;
+							UPackage::SavePackage(Asset->GetOutermost(), Asset,
+								*FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension()),
+								SaveArgs);
 						}
 					}
 					for (const FAssetData& AssetData : ImportedAssets)

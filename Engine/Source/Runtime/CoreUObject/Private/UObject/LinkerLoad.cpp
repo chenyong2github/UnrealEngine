@@ -4007,17 +4007,6 @@ int32 FLinkerLoad::FindExportIndex( FName ClassName, FName ClassPackage, FName O
 	return INDEX_NONE;
 }
 
-/**
- * Function to create the instance of, or verify the presence of, an object as found in this Linker.
- *
- * @param ObjectClass	The class of the object
- * @param ObjectName	The name of the object
- * @param Outer			Find the object inside this outer (and only directly inside this outer, as we require fully qualified names)
- * @param LoadFlags		Flags used to determine if the object is being verified or should be created
- * @param Checked		Whether or not a failure will throw an error
- * @return The created object, or (UObject*)-1 if this is just verifying
- */
-///@todo - this function is only used to perform package conform compatibility (through ValidateConformCompatibility), which is deprecated.
 UObject* FLinkerLoad::Create( UClass* ObjectClass, FName ObjectName, UObject* Outer, uint32 InLoadFlags, bool Checked )
 {
 	// We no longer handle a NULL outer, which used to mean look in any outer, but we need fully qualified names now

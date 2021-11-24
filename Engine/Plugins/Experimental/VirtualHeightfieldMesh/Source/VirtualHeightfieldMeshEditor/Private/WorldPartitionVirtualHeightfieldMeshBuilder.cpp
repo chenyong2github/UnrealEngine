@@ -4,6 +4,7 @@
 
 #include "HeightfieldMinMaxTexture.h"
 #include "HeightfieldMinMaxTextureBuild.h"
+#include "UObject/SavePackage.h"
 #include "UObject/UObjectIterator.h"
 #include "VirtualHeightfieldMeshComponent.h"
 
@@ -45,7 +46,10 @@ bool UWorldPartitionVirtualHeightfieldMeshBuilder::RunInternal(UWorld* World, co
 			}
 
 			FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-			if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
+			FSavePackageArgs SaveArgs;
+			SaveArgs.TopLevelFlags = RF_Standalone;
+			SaveArgs.SaveFlags = SAVE_Async;
+			if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
 			{
 				UE_LOG(LogWorldPartitionVirtualHeightfieldMeshBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
 				return false;

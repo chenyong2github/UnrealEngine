@@ -38,6 +38,7 @@ int32 USavePackageUtilitiesCommandlet::Main(const FString& Params)
 		SaveArgs.TopLevelFlags = RF_Public;
 		SaveArgs.SaveFlags = SAVE_CompareLinker;
 		SaveArgs.TargetPlatform = TargetPlatform;
+		SaveArgs.bSlowTask = false;
 
 		// if not cooking add RF_Standalone to the top level flags
 		if (TargetPlatform == nullptr)
@@ -53,30 +54,21 @@ int32 USavePackageUtilitiesCommandlet::Main(const FString& Params)
 		FSavePackageResultStruct NewResult;
 		{
 			EnableNewSave->Set(3); // Enable new save cooked and uncooked data
-			NewResult = GEditor->Save(Package, Asset, SaveArgs.TopLevelFlags, *Filename,
-				GError, nullptr, false, true, SaveArgs.SaveFlags, SaveArgs.TargetPlatform,
-				FDateTime::MinValue(), false, /*DiffMap*/ nullptr,
-				nullptr);
+			NewResult = GEditor->Save(Package, Asset, *Filename, SaveArgs);
 		}
 
 		// Old Save Package
 		FSavePackageResultStruct OldResult;
 		{
 			EnableNewSave->Set(0);
-			OldResult = GEditor->Save(Package, Asset, SaveArgs.TopLevelFlags, *Filename,
-				GError, nullptr, false, true, SaveArgs.SaveFlags, SaveArgs.TargetPlatform,
-				FDateTime::MinValue(), false, /*DiffMap*/ nullptr,
-				nullptr);
+			OldResult = GEditor->Save(Package, Asset, *Filename, SaveArgs);
 		}
 
 		// Old Save Package
 		FSavePackageResultStruct OldResultCheck;
 		{
 			EnableNewSave->Set(0);
-			OldResultCheck = GEditor->Save(Package, Asset, SaveArgs.TopLevelFlags, *Filename,
-				GError, nullptr, false, true, SaveArgs.SaveFlags, SaveArgs.TargetPlatform,
-				FDateTime::MinValue(), false, /*DiffMap*/ nullptr,
-				nullptr);
+			OldResultCheck = GEditor->Save(Package, Asset, *Filename, SaveArgs);
 		}
 		EnableNewSave->Set(EnableNewSavePreviousValue);
 
