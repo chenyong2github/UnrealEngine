@@ -1476,7 +1476,7 @@ void FEditorFileUtils::Import(const FString& InFilename)
 		Files.Add(InFilename);
 
 		const bool bSyncToBrowser = SceneFactory->ImportsAssets();
-		AssetToolsModule.Get().ImportAssets(Files, Path, SceneFactory, bSyncToBrowser);
+		AssetToolsModule.Get().ImportAssets(Files, Path, SceneFactory, bSyncToBrowser, nullptr, true);
 	}
 	else
 	{

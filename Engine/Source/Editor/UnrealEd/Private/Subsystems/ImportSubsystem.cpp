@@ -94,7 +94,7 @@ public:
 			{
 				FilesAndDestinations.RemoveAt(ReImportIndexes[IndexToRemove]);
 			}
-			AssetToolsModule.Get().ImportAssets(ImportFiles, RootDestinationPath, nullptr, true, &FilesAndDestinations);
+			AssetToolsModule.Get().ImportAssets(ImportFiles, RootDestinationPath, nullptr, true, &FilesAndDestinations, true);
 		}
 	}
 

@@ -1328,7 +1328,7 @@ void UAssetToolsImpl::ExpandDirectories(const TArray<FString>& Files, const FStr
 		}
 	}
 }
-TArray<UObject*> UAssetToolsImpl::ImportAssets(const TArray<FString>& Files, const FString& DestinationPath, UFactory* ChosenFactory, bool bSyncToBrowser /* = true */, TArray<TPair<FString, FString>>* FilesAndDestinations /* = nullptr */) const
+TArray<UObject*> UAssetToolsImpl::ImportAssets(const TArray<FString>& Files, const FString& DestinationPath, UFactory* ChosenFactory, bool bSyncToBrowser /* = true */, TArray<TPair<FString, FString>>* FilesAndDestinations /* = nullptr */, bool bAllowAsyncImport /* = false */) const
 {
 	const bool bForceOverrideExisting = false;
 
@@ -1338,6 +1338,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssets(const TArray<FString>& Files, con
 	Params.bForceOverrideExisting = false;
 	Params.bSyncToBrowser = bSyncToBrowser;
 	Params.SpecifiedFactory = TStrongObjectPtr<UFactory>(ChosenFactory);
+	Params.bAllowAsyncImport = bAllowAsyncImport;
 
 	return ImportAssetsInternal(Files, DestinationPath, FilesAndDestinations, Params);
 }
@@ -1746,9 +1747,11 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 	FScopedSlowTask SlowTask(ValidFiles.Num(), LOCTEXT("ImportSlowTask", "Importing"));
 
 	bool bUseInterchangeFramework = false;
+	bool bUseInterchangeFrameworkForTextureOnly = false;
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 #if WITH_EDITOR
-	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
+	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
+	bUseInterchangeFramework = EditorExperimentalSettings->bEnableInterchangeFramework;
 
 	if (bUseInterchangeFramework && Params.SpecifiedFactory)
 	{
@@ -1757,7 +1760,13 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 			bUseInterchangeFramework = GetDefault<UInterchangeProjectSettings>()->bUseInterchangeWhenImportingIntoLevel;
 		}
 	}
+
+	bUseInterchangeFrameworkForTextureOnly = (!bUseInterchangeFramework) && EditorExperimentalSettings->bEnableInterchangeFrameworkForTextureOnly;
+	bUseInterchangeFramework |= bUseInterchangeFrameworkForTextureOnly;
 #endif
+
+	// Block interchange use if the user is not aware that is import can be async. Otherwise, we don't return the imported object and we can't mimic the SpecifiedFactory settings.
+	bUseInterchangeFramework &= Params.bAllowAsyncImport;
 
 	if (!bUseInterchangeFramework && ValidFiles.Num() > 1)
 	{	
@@ -1765,7 +1774,6 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		//If we're importing a single file, then the factory policy will dictate if the import if cancelable.
 		SlowTask.MakeDialog(true);
 	}
-
 
 	TArray<TPair<FString, FString>> FilesAndDestinations;
 	if (FilesAndDestinationsPtr == nullptr)
@@ -1910,7 +1918,17 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 			const FString& Filename = FilesAndDestinations[FileIdx].Key;
 			{
 				UE::Interchange::FScopedSourceData ScopedSourceData(Filename);
-				if (!InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+
+				if (bUseInterchangeFrameworkForTextureOnly)
+				{
+					UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorForSourceData(ScopedSourceData.GetSourceData());
+					if (!Translator || !InterchangeManager.IsTranslatorClassForTextureOnly(Translator->GetClass()))
+					{
+						bOnlyInterchangeImport = false;
+						break;
+					}
+				}
+				else if (!InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
 				{
 					bOnlyInterchangeImport = false;
 					break;
@@ -1942,6 +1960,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		{}
 
 		TStrongObjectPtr<UInterchangeResultsContainer> InterchangeResultsContainer;
+		TArray<TWeakObjectPtr<UObject>> ImportedObjects;
 		std::atomic<int32> ImportCount;
 	};
 
@@ -1974,39 +1993,57 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 		if (bUseInterchangeFramework)
 		{
 			UE::Interchange::FScopedSourceData ScopedSourceData(Filename);
-			if (InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+
+			bool bUseATextureTranslator = false;
+			if (bUseInterchangeFrameworkForTextureOnly)
 			{
-				auto PostImportedLambda = [bSyncToBrowser](UObject* ImportedObject)
+				UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorForSourceData(ScopedSourceData.GetSourceData());
+				if (Translator && InterchangeManager.IsTranslatorClassForTextureOnly(Translator->GetClass()))
 				{
-					if (ImportedObject && (bSyncToBrowser != false))
-					{
-						TArray<UObject*> ObjectArray;
-						ObjectArray.Add(ImportedObject);
-						UAssetToolsImpl::Get().SyncBrowserToAssets(ObjectArray);
-					}
-				};
-				FDelegateHandle PostImportHandle = InterchangeManager.OnAssetPostImport.AddLambda(PostImportedLambda);
-			
+					bUseATextureTranslator = true;
+				}
+			}
+
+			if (bUseATextureTranslator || (!bUseInterchangeFrameworkForTextureOnly && InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData())))
+			{
 				FImportAssetParameters ImportAssetParameters;
 				ImportAssetParameters.bIsAutomated = bAutomatedImport;
 				ImportAssetParameters.ReimportAsset = nullptr;
+
 
 				TFunction<void(UE::Interchange::FImportResult&)> AppendImportResult =
 					// Note: ImportStatus captured by value so that the lambda keeps the shared ptr alive
 					[ImportStatus](UE::Interchange::FImportResult& Result)
 					{
 						ImportStatus->InterchangeResultsContainer->Append(Result.GetResults());
+						ImportStatus->ImportedObjects.Append(Result.GetImportedObjects());
+
 					};
 
 				TFunction<void(UE::Interchange::FImportResult&)> AppendAndBroadcastImportResultIfNeeded =
 					// Note: ImportStatus captured by value so that the lambda keeps the shared ptr alive
-					[ImportStatus, AppendImportResult](UE::Interchange::FImportResult& Result)
+					[ImportStatus, AppendImportResult, bSyncToBrowser](UE::Interchange::FImportResult& Result)
 					{
 						AppendImportResult(Result);
+
 						if (--ImportStatus->ImportCount == 0)
 						{
 							UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 							InterchangeManager.OnBatchImportComplete.Broadcast(ImportStatus->InterchangeResultsContainer);
+
+							if (bSyncToBrowser)
+							{
+								// Only sync the content browser when the full import is done. Otherwise it can be annoying for the user.
+								// UX suggestion : Maybe we could move this into the post import window as button ("Select Imported Asset(s)") so it would be even less disruptive for the users.
+								TArray<UObject*> ImportedObjects;
+								ImportedObjects.Reserve(ImportStatus->ImportedObjects.Num());
+								for (const TWeakObjectPtr<UObject>& WeakObject : ImportStatus->ImportedObjects)
+								{
+									ImportedObjects.Add(WeakObject.Get());
+								}
+
+								UAssetToolsImpl::Get().SyncBrowserToAssets(ImportedObjects);
+							}
 						}
 					};
 
@@ -2023,8 +2060,7 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 					UE::Interchange::FAssetImportResultRef InterchangeResult = (InterchangeManager.ImportAssetAsync(DestinationPath, ScopedSourceData.GetSourceData(), ImportAssetParameters));
 					InterchangeResult->OnDone(AppendAndBroadcastImportResultIfNeeded);
 				}
-				
-				InterchangeManager.OnAssetPostImport.Remove(PostImportHandle);
+
 				//Import done, iterate the next file and destination
 				
 				//If we do not import only interchange file, update the progress for each interchange task
