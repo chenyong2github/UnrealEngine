@@ -612,18 +612,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	}
 
-	FButtonStyle CompactButton = FButtonStyle(Button)
-		.SetNormalPadding(FMargin(4))
-		.SetPressedPadding(FMargin(4));
-	Set("CompactButton", CompactButton);
-
-	Set("CompactComboButton", FComboButtonStyle(GetWidgetStyle<FComboButtonStyle>("ComboButton"))
-		.SetButtonStyle(CompactButton)
-		.SetDownArrowPadding(FMargin(4, 0, 0, 0))
-		.SetContentPadding(FMargin(4, 0, 0, 0))
-	);
-
-
 	// Error Reporting
 	{
 		Set( "InfoReporting.BackgroundColor", FLinearColor(0.1f, 0.33f, 1.0f));
@@ -3282,6 +3270,17 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 			);
 
 		Set("DetailsView.DropZone.Below", new BOX_BRUSH("Common/VerticalBoxDropZoneIndicator_Below", FMargin(10.0f / 16.0f, 0, 0, 10.0f / 16.0f), SelectionColor_Subdued));
+
+		FButtonStyle NameAreaButton = FButtonStyle(Button)
+			.SetNormalPadding(FMargin(6, 3))
+			.SetPressedPadding(FMargin(6, 3));
+		Set("DetailsView.NameAreaButton", NameAreaButton);
+
+		Set("DetailsView.NameAreaComboButton", FComboButtonStyle(GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+			.SetButtonStyle(NameAreaButton)
+			.SetDownArrowPadding(FMargin(4, 0, 0, 0))
+			.SetContentPadding(FMargin(4, 0, 0, 0))
+		);
 
 	}
 	}
