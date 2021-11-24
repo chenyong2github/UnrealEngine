@@ -16,6 +16,7 @@ bool IsBuildOpName(FName OpName)
 	//which occurs from "UObjectLoadAllCompiledInDefaultProperties" and possibly elsewhere.
 	return (OpName == PackageAccessTrackingOps::NAME_Load)
 		|| (OpName == PackageAccessTrackingOps::NAME_Save)
+		|| (OpName == PackageAccessTrackingOps::NAME_CookerBuildObject)
 		// || (OpName == PackageAccessTrackingOps::NAME_CreateDefaultObject)
 		;
 }

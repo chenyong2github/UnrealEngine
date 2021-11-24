@@ -14,6 +14,7 @@ namespace PackageAccessTrackingOps
 	extern COREUOBJECT_API FName NAME_PostLoad;
 	extern COREUOBJECT_API FName NAME_Save;
 	extern COREUOBJECT_API FName NAME_CreateDefaultObject;
+	extern COREUOBJECT_API FName NAME_CookerBuildObject;
 	/**
 	 * A global-scope operation suck as AssetRegistry tick is occurring on the current thread inside of another scope,
 	 * and the references made during this operation should not be associated with the previous scope.
