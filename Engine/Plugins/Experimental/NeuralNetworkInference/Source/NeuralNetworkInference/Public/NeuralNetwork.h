@@ -240,13 +240,6 @@ private:
 	bool bIsLoaded;
 
 	/**
-	 * Whether an inference pass (i.e., Run) is happening.
-	 * This variable is thread safe as long as only "Run" modifies it. Other functions can safely read it at any time.
-	 * If other functions outside of Run() have to modify it, consider using a mutex with a bool rather than just a std::atomic<bool>.
-	 */
-	std::atomic<bool> bIsBackgroundThreadRunning;
-
-	/**
 	 * Critical section (mutex) used to avoid issues or crashes due to the asynchronous Run being run at the same time than any other non-const class function.
 	 * @see UNeuralNetwork::Run().
 	 */
@@ -333,6 +326,5 @@ private:
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Archive) override;
-	virtual bool IsReadyForFinishDestroy() override;
 	//~End of UObject interface
 };
