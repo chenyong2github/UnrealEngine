@@ -90,6 +90,11 @@ bool GetShadingModelRequiresBackfaceLighting(uint ShadingModelID)
 }
 
 
+float F0ToDielectricSpecular(float F0)
+{
+	return saturate(F0 / 0.08f);
+}
+
 float DielectricSpecularToF0(float Specular)
 {
 	return 0.08f * Specular;

@@ -77,6 +77,10 @@ void FStrataSceneData::Reset()
 	TopLayerNormalTexture = nullptr;
 	SSSTexture = nullptr;
 
+	ClassificationTextureUAV = nullptr;
+	TopLayerNormalTextureUAV = nullptr;
+	SSSTextureUAV = nullptr;
+
 	MaterialLobesBuffer = nullptr;
 	MaterialLobesBufferUAV = nullptr;
 	MaterialLobesBufferSRV = nullptr;
@@ -160,7 +164,8 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 		// Classification texture
 		{
-			StrataSceneData.ClassificationTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Strata.ClassificationTexture"));
+			StrataSceneData.ClassificationTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.ClassificationTexture"));
+			StrataSceneData.ClassificationTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.ClassificationTexture);
 		}
 
 		// Tile classification buffers
@@ -186,12 +191,14 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 		// Top layer texture
 		{
-			StrataSceneData.TopLayerNormalTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Strata.TopLayerNormalTexture"));
+			StrataSceneData.TopLayerNormalTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.TopLayerNormalTexture"));
+			StrataSceneData.TopLayerNormalTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.TopLayerNormalTexture);
 		}
 
 		// SSS texture
 		{
-			StrataSceneData.SSSTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Strata.SSSTexture"));
+			StrataSceneData.SSSTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Strata.SSSTexture"));
+			StrataSceneData.SSSTextureUAV = GraphBuilder.CreateUAV(StrataSceneData.SSSTexture);
 		}
 	}
 	else
@@ -236,12 +243,20 @@ void BindStrataBasePassUniformParameters(FRDGBuilder& GraphBuilder, FStrataScene
 		OutStrataUniformParameters.bRoughDiffuse = StrataSceneData->bRoughDiffuse ? 1u : 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 		OutStrataUniformParameters.MaterialLobesBufferUAV = StrataSceneData->MaterialLobesBufferUAV;
+
+		OutStrataUniformParameters.ClassificationTextureUAV = StrataSceneData->ClassificationTextureUAV;
+		OutStrataUniformParameters.TopLayerNormalTextureUAV = StrataSceneData->TopLayerNormalTextureUAV;
+		OutStrataUniformParameters.SSSTextureUAV = StrataSceneData->SSSTextureUAV;
 	}
 	else
 	{
+		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 		OutStrataUniformParameters.bRoughDiffuse = 0u;
 		OutStrataUniformParameters.MaxBytesPerPixel = 0;
 		OutStrataUniformParameters.MaterialLobesBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
+		OutStrataUniformParameters.ClassificationTextureUAV = GraphBuilder.CreateUAV(SystemTextures.Black);
+		OutStrataUniformParameters.TopLayerNormalTextureUAV = GraphBuilder.CreateUAV(SystemTextures.Black);
+		OutStrataUniformParameters.SSSTextureUAV = GraphBuilder.CreateUAV(SystemTextures.Black);
 	}
 }
 
@@ -352,51 +367,6 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 		}
 	}
 }
-
-//////////////////////////////////////////////////////////////////////////
-// Material classification pass
-// * Classification texture (shading models, BSDF bits, ...)
-// For future:
-// * SSS: hasSSS, Normal, ProfilID, BaseColor, Opacity,  MFPAlbedo/MFPRadius, Shadingmodel | 64bit?
-// * SSR: depth, roughness, normal, (clear coat amount/roughness), tangent, aniso
-
-// SSS/SSR/Auxilary data (AO/ShadowMask/...)
-class FStrataMaterialClassificationPassPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FStrataMaterialClassificationPassPS);
-	SHADER_USE_PARAMETER_STRUCT(FStrataMaterialClassificationPassPS, FGlobalShader);
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, MaterialLobesBuffer)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawParameters)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
-	{
-		return PermutationVector;
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled();
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_CATEGORIZATION"), 1);
-		OutEnvironment.SetRenderTargetOutputFormat(0, PF_R32_UINT);
-		OutEnvironment.SetRenderTargetOutputFormat(1, PF_R32_UINT);
-		OutEnvironment.SetRenderTargetOutputFormat(2, PF_R32G32_UINT);
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FStrataMaterialClassificationPassPS, "/Engine/Private/Strata/StrataMaterialClassification.usf", "MainPS", SF_Pixel);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -650,34 +620,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 	{
 		const FViewInfo& View = Views[i];
 		
-		// Classification
-		{
-			FStrataMaterialClassificationPassPS::FPermutationDomain PermutationVector;
-			TShaderMapRef<FStrataMaterialClassificationPassPS> PixelShader(View.ShaderMap, PermutationVector);
-			FStrataMaterialClassificationPassPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataMaterialClassificationPassPS::FParameters>();
-			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-			PassParameters->MaxBytesPerPixel = View.StrataSceneData->MaxBytesPerPixel;
-			PassParameters->MaterialLobesBuffer = View.StrataSceneData->MaterialLobesBufferSRV;
-			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);		
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(View.StrataSceneData->ClassificationTexture, ERenderTargetLoadAction::EClear);
-			PassParameters->RenderTargets[1] = FRenderTargetBinding(View.StrataSceneData->TopLayerNormalTexture, ERenderTargetLoadAction::EClear);
-			PassParameters->RenderTargets[2] = FRenderTargetBinding(View.StrataSceneData->SSSTexture, ERenderTargetLoadAction::EClear);
-
-			if (ShaderDrawDebug::IsEnabled())
-			{
-				ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
-			}
-
-			FPixelShaderUtils::AddFullscreenPass<FStrataMaterialClassificationPassPS>(
-				GraphBuilder, 
-				View.ShaderMap, 
-				RDG_EVENT_NAME("Strata::MaterialClassification"),
-				PixelShader, 
-				PassParameters, 
-				View.ViewRect);
-		}
-
-		// Downsampling
+		// Tile reduction
 		if (IsClassificationEnabled())
 		{
 			TShaderMapRef<FStrataMaterialTileClassificationPassCS> ComputeShader(View.ShaderMap);

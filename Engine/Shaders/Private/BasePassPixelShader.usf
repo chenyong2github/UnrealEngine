@@ -1593,11 +1593,23 @@ void FPixelShaderInOut_MainPS(
 
 	uint2 PixelPos = uint2(In.SvPosition.xy);
 
+	// classificaiton & pre-preprocessed data
+	FStrataClassification ClassificationData = (FStrataClassification)0;
+	FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
+	FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
+
 	float3 EmissiveLuminance = 0.0f;
 	PackStrataOut(
-		OpaqueBasePass.Strata.MaterialLobesBufferUAV, Dither,
+		OpaqueBasePass.Strata.MaterialLobesBufferUAV,
+		Dither,
 		GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), OpaqueBasePass.Strata.MaxBytesPerPixel),
-		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance);
+		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance,
+		ClassificationData, SSSData, TopLayerData);
+
+	// Write out classificaiton & pre-preprocessed data
+	OpaqueBasePass.Strata.ClassificationTextureUAV[PixelPos] = StrataPackClassificationData(ClassificationData);
+	OpaqueBasePass.Strata.TopLayerNormalTextureUAV[PixelPos] = StrataPackTopLayerData(TopLayerData);
+	OpaqueBasePass.Strata.SSSTextureUAV[PixelPos] = StrataPackSSSData(SSSData);
 
 	Color += EmissiveLuminance;
 #endif // STRATA_OPAQUE_DEFERRED
