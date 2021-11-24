@@ -1012,7 +1012,7 @@ IManifest::FResult FDASHPlayPeriod::GetStartingSegment(TSharedPtrTS<IStreamSegme
 	PlayRangeEnd -= Period->GetStart();
 
 	bool bUsesAST = Manifest->UsesAST();
-	bool bIsStaticType = Manifest->IsStaticType() || Manifest->IsEventType();
+	bool bIsStaticType = Manifest->IsStaticType() || Manifest->IsDynamicEpicEvent();
 
 	// Create a segment request to which the individual stream segment requests will add themselves as
 	// dependent streams. This is a special case for playback start.
@@ -1268,7 +1268,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 
 	FTimeValue AST = Manifest->GetAnchorTime();
 	bool bUsesAST = Manifest->UsesAST();
-	bool bIsStaticType = Manifest->IsStaticType() || Manifest->IsEventType();
+	bool bIsStaticType = Manifest->IsStaticType() || Manifest->IsDynamicEpicEvent();
 
 	// Frame accurate seek required?
 	bool bFrameAccurateSearch = PlayerSessionServices->GetOptions().GetValue(OptionKeyFrameAccurateSeek).SafeGetBool(false);
@@ -2383,6 +2383,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	// Did we find it?
 	if (bFound && CurrentT < MediaLocalEndTime)
 	{
+		OutSegmentInfo.PeriodLocalSegmentStartTime.SetFromND(CurrentT - PTO, SidxTimescale);
 		OutSegmentInfo.Time = CurrentT;
 		OutSegmentInfo.PTO = PTO;
 		OutSegmentInfo.Duration = CurrentD;
@@ -2530,6 +2531,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		return FManifestDASHInternal::FRepresentation::ESearchResult::PastEOS;
 	}
 
+	OutSegmentInfo.PeriodLocalSegmentStartTime.SetFromND(SegmentNum * (int64)SegmentDuration - PTO, MPDTimescale);
 	OutSegmentInfo.Time = EPTdelta + SegmentNum * (int64)SegmentDuration;
 	OutSegmentInfo.PTO = PTO;
 	OutSegmentInfo.EPTdelta = EPTdelta;
@@ -2855,6 +2857,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	// Did we find it?
 	if (bFound && CurrentT < MediaLocalEndTime)
 	{
+		OutSegmentInfo.PeriodLocalSegmentStartTime.SetFromND(CurrentT - PTO, MPDTimescale);
 		OutSegmentInfo.Time = CurrentT;
 		OutSegmentInfo.PTO = PTO;
 		OutSegmentInfo.Duration = CurrentD;

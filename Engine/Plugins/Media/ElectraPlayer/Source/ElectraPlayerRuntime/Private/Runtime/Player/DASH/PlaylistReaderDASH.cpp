@@ -1184,13 +1184,15 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 					FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 					Manifest->GetMPDRoot()->SetFetchTime(FetchTime);
 					MostRecentMPDUpdateTime = FetchTime;
+
+					// If the URL has a special fragment part to turn this presentation into an event, do so.
+					// Do this before preparing the default start times!
+					// Note: This MAY require the client clock to be synced to the server IF the special keyword 'now' is used.
+					Manifest->TransformIntoEpicEvent();
+
 					// Do a one-time preparation of the default start time from the #t= URL fragment.
 					// This is not to be repeated for manifest updates.
 					Manifest->PrepareDefaultStartTime();
-
-					// If the URL has a special fragment part to turn this presentation into an event, do so.
-					// Note: This MAY require the client clock to be synced to the server IF the special keyword 'now' is used.
-					Manifest->TransformIntoEpicEvent();
 				}
 
 				PlayerManifest = FManifestDASH::Create(PlayerSessionServices, Manifest);
