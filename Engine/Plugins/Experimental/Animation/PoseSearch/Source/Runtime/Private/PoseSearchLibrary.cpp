@@ -100,7 +100,9 @@ void UpdateMotionMatchingState(const FAnimationUpdateContext& Context
 			if (PoseHistoryProvider)
 			{
 				UE::PoseSearch::FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-				InOutMotionMatchingState.ComposedQuery.TrySetPoseFeatures(&History);
+				InOutMotionMatchingState.ComposedQuery.TrySetPoseFeatures(
+					&History, 
+					Context.AnimInstanceProxy->GetRequiredBones());
 			}
 		}
 

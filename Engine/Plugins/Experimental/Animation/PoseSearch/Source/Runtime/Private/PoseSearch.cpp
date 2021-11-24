@@ -1228,7 +1228,9 @@ void FPoseSearchFeatureVectorBuilder::SetVector(FPoseSearchFeatureDesc Element, 
 	}
 }
 
-bool FPoseSearchFeatureVectorBuilder::TrySetPoseFeatures(UE::PoseSearch::FPoseHistory* History)
+bool FPoseSearchFeatureVectorBuilder::TrySetPoseFeatures(
+	UE::PoseSearch::FPoseHistory* History, 
+	const FBoneContainer& BoneContainer)
 {
 	check(Schema.IsValid() && Schema->IsValid());
 	check(History);
@@ -1260,8 +1262,9 @@ bool FPoseSearchFeatureVectorBuilder::TrySetPoseFeatures(UE::PoseSearch::FPoseHi
 			Feature.SchemaBoneIdx = SchemaBoneIdx;
 
 			int32 SkeletonBoneIndex = Schema->BoneIndices[SchemaBoneIdx];
-			const FTransform& Transform = ComponentPose[SkeletonBoneIndex];
-			const FTransform& PrevTransform = ComponentPrevPose[SkeletonBoneIndex];
+			FCompactPoseBoneIndex CompactBoneIndex = BoneContainer.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
+			const FTransform& Transform = ComponentPose[CompactBoneIndex.GetInt()];
+			const FTransform& PrevTransform = ComponentPrevPose[CompactBoneIndex.GetInt()];
 			SetTransform(Feature, Transform);
 			SetTransformVelocity(Feature, Transform, PrevTransform, History->GetSampleTimeInterval());
 		}
@@ -3616,7 +3619,7 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 	FPoseSearchFeatureVectorBuilder& QueryBuilder = PoseHistory.GetQueryBuilder();
 
 	QueryBuilder.Init(MetaData->Schema);
-	if (!QueryBuilder.TrySetPoseFeatures(&PoseHistory))
+	if (!QueryBuilder.TrySetPoseFeatures(&PoseHistory, GraphContext.AnimInstanceProxy->GetRequiredBones()))
 	{
 		return ProviderResult;
 	}
