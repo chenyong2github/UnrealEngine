@@ -191,13 +191,17 @@ FAnimTickRecord::FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping,
 	bLooping = bInLooping;
 }
 
-FAnimTickRecord::FAnimTickRecord(UBlendSpace* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
+FAnimTickRecord::FAnimTickRecord(
+	UBlendSpace* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, 
+	float InPlayRate, bool bTeleportToTime, bool bIsEvaluator, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord)
 {
 	SourceAsset = InBlendSpace;
 	BlendSpace.BlendSpacePositionX = InBlendInput.X;
 	BlendSpace.BlendSpacePositionY = InBlendInput.Y;
 	BlendSpace.BlendSampleDataCache = &InBlendSampleDataCache;
 	BlendSpace.BlendFilter = &InBlendFilter;
+	BlendSpace.bTeleportToTime = bTeleportToTime;
+	BlendSpace.bIsEvaluator = bIsEvaluator;
 	TimeAccumulator = &InCurrentTime;
 	MarkerTickRecord = &InMarkerTickRecord;
 	PlayRateMultiplier = InPlayRate;

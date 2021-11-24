@@ -84,8 +84,21 @@ struct FMarkerTickRecord
  */
 struct FDeltaTimeRecord
 {
-	float Previous = 0.f;
+public:
+	void Set(float InPrevious, float InDelta)
+	{
+		Previous = InPrevious;
+		Delta = InDelta;
+		bPreviousIsValid = true;
+	}
+	void SetPrevious(float InPrevious) { Previous = InPrevious; bPreviousIsValid = true; }
+	float GetPrevious() const { return Previous; }
+	bool IsPreviousValid() const { return bPreviousIsValid; }
+
 	float Delta = 0.f;
+private:
+	float Previous = 0.f;
+	bool  bPreviousIsValid = false; // Will be set to true when Previous has been set
 };
 
 /** Transform definition */
@@ -346,11 +359,13 @@ struct FAnimTickRecord
 	{
 		struct
 		{
-			float  BlendSpacePositionX;
-			float  BlendSpacePositionY;
-			int32  TriangulationIndex;
 			FBlendFilter* BlendFilter;
 			TArray<FBlendSampleData>* BlendSampleDataCache;
+			int32  TriangulationIndex;
+			float  BlendSpacePositionX;
+			float  BlendSpacePositionY;
+			bool   bTeleportToTime;
+			bool   bIsEvaluator;
 		} BlendSpace;
 
 		struct
@@ -391,7 +406,9 @@ public:
 	ENGINE_API FAnimTickRecord(UAnimSequenceBase* InSequence, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
 
 	// Create a tick record for a blendspace
-	ENGINE_API FAnimTickRecord(UBlendSpace* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, float InPlayRate, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
+	ENGINE_API FAnimTickRecord(
+		UBlendSpace* InBlendSpace, const FVector& InBlendInput, TArray<FBlendSampleData>& InBlendSampleDataCache, FBlendFilter& InBlendFilter, bool bInLooping, 
+		float InPlayRate, bool bShouldTeleportToTime, bool bIsEvaluator, float InFinalBlendWeight, float& InCurrentTime, FMarkerTickRecord& InMarkerTickRecord);
 
 	// Create a tick record for a montage
 	UE_DEPRECATED(5.0, "Please use the montage FAnimTickRecord constructor which removes InPreviousPosition and InMoveDelta")

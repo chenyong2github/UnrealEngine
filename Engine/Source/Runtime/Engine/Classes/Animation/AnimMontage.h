@@ -516,7 +516,7 @@ public:
 	float GetPosition() const { return Position; };
 	float GetPlayRate() const { return PlayRate; }
 	float GetDeltaMoved() const { return DeltaTimeRecord.Delta; }
-	float GetPreviousPosition() const { return DeltaTimeRecord.Previous;  }
+	float GetPreviousPosition() const { return DeltaTimeRecord.GetPrevious();  }
 	float GetBlendStartAlpha() const { return BlendStartAlpha; }
 	const FAnimMontageInstance* GetMontageSyncLeader() const { return MontageSyncLeader; } 
 	const UBlendProfile* GetActiveBlendProfile() const { return ActiveBlendProfile; }

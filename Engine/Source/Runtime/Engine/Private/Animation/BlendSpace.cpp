@@ -294,11 +294,19 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 	const float DeltaTime = Context.GetDeltaTime();
 
 	check(Instance.DeltaTimeRecord);
-	// The blend space delta time record isn't currently used directly
+
+	// Our current time will normally be the same as the recorded previous time, if we were simply playing animations. 
+	// If it's not, then that would be because the time has been explicitly set due to be run as an evaluator, in 
+	// which case we might want to use that delta in addition to any time delta due to the play rate.
+	float ExtraNormalizedDeltaTime = 
+		Instance.DeltaTimeRecord->IsPreviousValid() ?
+		FMath::Wrap(*(Instance.TimeAccumulator) - Instance.DeltaTimeRecord->GetPrevious(), -0.5f, 0.5f) :
+		0.0f;
+
+	// The blend space delta time record isn't normally used directly.
 	// Instead, the blend sample time record's are used to drive pose evaluation
 	// As a consequence, we currently follow the convention that TimeAccumulator and Previous are normalized
-	Instance.DeltaTimeRecord->Previous = *(Instance.TimeAccumulator);
-	Instance.DeltaTimeRecord->Delta = Instance.PlayRateMultiplier * DeltaTime; // Referenced as MoveDelta within comments and logging
+	Instance.DeltaTimeRecord->Set(*(Instance.TimeAccumulator), Instance.PlayRateMultiplier * DeltaTime); 
 
 	// this happens even if MoveDelta == 0.f. This still should happen if it is being interpolated
 	// since we allow setting position of blendspace, we can't ignore MoveDelta == 0.f
@@ -370,7 +378,8 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 				}
 
 				Instance.DeltaTimeRecord->Delta *= FilterMultiplier;
-				UE_LOG(LogAnimation, Log, TEXT("BlendSpace(%s) - FilteredBlendInput(%s) : FilteredBlendInput(%s), FilterMultiplier(%0.2f)"), *GetName(), *BlendSpacePosition.ToString(), *FilteredBlendInput.ToString(), FilterMultiplier);
+				UE_LOG(LogAnimation, Log, TEXT("BlendSpace(%s) - FilteredBlendInput(%s) : FilteredBlendInput(%s), FilterMultiplier(%0.2f)"), 
+					*GetName(), *BlendSpacePosition.ToString(), *FilteredBlendInput.ToString(), FilterMultiplier);
 			}
 
 			bool bCanDoMarkerSync = (SampleIndexWithMarkers != INDEX_NONE) && (Context.IsSingleAnimationContext() || (Instance.bCanUseMarkerSync && Context.CanUseMarkerPosition()));
@@ -465,7 +474,9 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 					float CurrentTime = NormalizedCurrentTime * NewAnimLength;
 					FAnimationRuntime::AdvanceTime(Instance.bLooping, Instance.DeltaTimeRecord->Delta, /*inout*/ CurrentTime, NewAnimLength);
 					NormalizedCurrentTime = NewAnimLength ? (CurrentTime / NewAnimLength) : 0.0f;
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("Leader (%s) (bCanDoMarkerSync == false)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), *GetName(), NormalizedPreviousTime, NormalizedCurrentTime, Instance.DeltaTimeRecord->Delta);
+					UE_LOG(LogAnimMarkerSync, Log, 
+						TEXT("Leader (%s) (bCanDoMarkerSync == false)  - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), 
+						*GetName(), NormalizedPreviousTime, NormalizedCurrentTime, Instance.DeltaTimeRecord->Delta);
 				}
 
 				Context.SetAnimationPositionRatio(NormalizedCurrentTime);
@@ -499,15 +510,25 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 				{
 					NormalizedPreviousTime = Context.GetPreviousAnimationPositionRatio();
 					NormalizedCurrentTime = Context.GetAnimationPositionRatio();
-					UE_LOG(LogAnimMarkerSync, Log, TEXT("Follower (%s) (bCanDoMarkerSync == false) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), *GetName(), NormalizedPreviousTime, NormalizedCurrentTime, Instance.DeltaTimeRecord->Delta);
+					UE_LOG(LogAnimMarkerSync, Log, 
+						TEXT("Follower (%s) (bCanDoMarkerSync == false) - PreviousTime (%0.2f), CurrentTime (%0.2f), MoveDelta (%0.2f) "), 
+						*GetName(), NormalizedPreviousTime, NormalizedCurrentTime, Instance.DeltaTimeRecord->Delta);
 				}
 			}
 
 			// generate notifies and sets time
 			{
 				FAnimNotifyContext NotifyContext(Instance);
-				const float ClampedNormalizedPreviousTime = FMath::Clamp<float>(NormalizedPreviousTime, 0.f, 1.f);
+				float ClampedNormalizedPreviousTime = FMath::Clamp<float>(NormalizedPreviousTime, 0.f, 1.f);
 				const float ClampedNormalizedCurrentTime = FMath::Clamp<float>(NormalizedCurrentTime, 0.f, 1.f);
+
+				if (Instance.BlendSpace.bIsEvaluator && !Instance.BlendSpace.bTeleportToTime)
+				{
+					// When running under an evaluator the time is being set explicitly and we want to add on the deltas.
+					// Note that this could take ClampedNormalizedPreviousTime out of the 0-1 range
+					ClampedNormalizedPreviousTime -= ExtraNormalizedDeltaTime;
+				}
+
 				const bool bGenerateNotifies = (NormalizedCurrentTime != NormalizedPreviousTime) && NotifyTriggerMode != ENotifyTriggerMode::None;
 
 				// Get the index of the highest weight, assuming that the first is the highest until we find otherwise
@@ -564,8 +585,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 							}
 
 							// Capture the final adjusted delta time and previous frame time as an asset player record
-							SampleEntry.DeltaTimeRecord.Previous = PrevSampleDataTime;
-							SampleEntry.DeltaTimeRecord.Delta = DeltaTimePosition;
+							SampleEntry.DeltaTimeRecord.Set(PrevSampleDataTime, DeltaTimePosition);
 
 							UE_LOG(LogAnimation, Verbose, TEXT("%d. Blending animation(%s) with %f weight at time %0.2f"), I + 1, *Sample.Animation->GetName(), SampleEntry.GetClampedWeight(), CurrentSampleDataTime);
 						}

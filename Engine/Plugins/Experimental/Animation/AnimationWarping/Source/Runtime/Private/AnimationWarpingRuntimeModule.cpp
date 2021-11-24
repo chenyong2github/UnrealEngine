@@ -41,7 +41,7 @@ void FModule::ShutdownModule()
 
 void FModule::SampleRootMotion(const FDeltaTimeRecord& SampleRange, const UAnimSequence& Sequence, bool bLoopingSequence, UE::Anim::FStackAttributeContainer& OutAttributes) const
 {
-	const FTransform RootMotionTransform = Sequence.ExtractRootMotion(SampleRange.Previous, SampleRange.Delta, bLoopingSequence);
+	const FTransform RootMotionTransform = Sequence.ExtractRootMotion(SampleRange.GetPrevious(), SampleRange.Delta, bLoopingSequence);
 	FTransformAnimationAttribute* RootMotionAttribute = OutAttributes.FindOrAdd<FTransformAnimationAttribute>(RootMotionAttributeId);
 	RootMotionAttribute->Value = RootMotionTransform;
 }

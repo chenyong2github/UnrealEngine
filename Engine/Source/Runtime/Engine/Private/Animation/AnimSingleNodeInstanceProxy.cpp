@@ -575,7 +575,9 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 
 		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Proxy->CurrentAsset))
 		{
-			FAnimTickRecord TickRecord(BlendSpace, Proxy->BlendSpacePosition, Proxy->BlendSampleData, Proxy->BlendFilter, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			FAnimTickRecord TickRecord(
+				BlendSpace, Proxy->BlendSpacePosition, Proxy->BlendSampleData, Proxy->BlendFilter, Proxy->bLooping, 
+				NewPlayRate, false, false, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
 			TickRecord.DeltaTimeRecord = &(Proxy->DeltaTimeRecord);
 			
 			SyncScope.AddTickRecord(TickRecord);
