@@ -56,14 +56,13 @@ private:
 
 	TSharedPtr<SConsoleVariablesEditorListValueInput> ValueChildInputWidget;
 
-	/* For splitter sync */
+	#define LOCTEXT_NAMESPACE "ConsoleVariablesEditor"
 
-	/* To sync up splitter location in tree view items, we need to account for the tree view's indentation.
-	 * Instead of calculating the coefficient twice each frame (for left and right splitter slots), we do it once and cache it here. */
-	float CachedNestedColumnWidthAdjusted = 0.f;
+	FText ValueWidgetToolTipFormatText = LOCTEXT("ValueWidgetToolTipFormatText", "Custom Value: {0}\nPreset Value: {1}\nStartup Value: {2} (Set By {3})");
+	FText RevertButtonFormatText = LOCTEXT("RevertButtonFormatText", "Reset to Preset Value: {0}");
+
+	#undef LOCTEXT_NAMESPACE
 	
-	FConsoleVariablesEditorListSplitterManagerPtr SplitterManagerPtr;
-
 	TSharedPtr<SConsoleVariablesEditorListRowHoverWidgets> HoverableWidgetsPtr;
 
 	FCurveSequence FlashAnimation;

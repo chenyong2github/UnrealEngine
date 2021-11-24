@@ -98,8 +98,14 @@ void FConsoleVariablesEditorListRow::SetShouldExpandAllChildren(const bool bNewS
 	bShouldExpandAllChildren = bNewShouldExpandAllChildren;
 }
 
+void FConsoleVariablesEditorListRow::ResetToStartupValueAndSource() const
+{
+	GetCommandInfo().Pin()->ExecuteCommand(GetCommandInfo().Pin()->StartupValueAsString);
+	GetCommandInfo().Pin()->SetSourceFlag(GetCommandInfo().Pin()->StartupSource);
+}
+
 bool FConsoleVariablesEditorListRow::MatchSearchTokensToSearchTerms(const TArray<FString> InTokens,
-	const bool bMatchAnyTokens)
+                                                                    const bool bMatchAnyTokens)
 {
 	// If the search is cleared we'll consider the row to pass search
 	bool bMatchFound = InTokens.Num() == 0;
@@ -188,7 +194,7 @@ FReply FConsoleVariablesEditorListRow::OnRemoveButtonClicked()
 		return FReply::Handled();
 	}
 
-	GetCommandInfo().Pin()->ExecuteCommand(GetCommandInfo().Pin()->StartupValueAsString);
+	ResetToStartupValueAndSource();
 
 	const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 

@@ -63,6 +63,8 @@ struct FConsoleVariablesEditorListRow final : TSharedFromThis<FConsoleVariablesE
 
 	[[nodiscard]] bool GetShouldExpandAllChildren() const;
 	void SetShouldExpandAllChildren(const bool bNewShouldExpandAllChildren);
+
+	void ResetToStartupValueAndSource() const;
 	
 	[[nodiscard]] const FString& GetPresetValue() const;
 
