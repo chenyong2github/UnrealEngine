@@ -759,8 +759,6 @@ void FD3D12ResourceLocation::Alias(FD3D12ResourceLocation & Destination, FD3D12R
 
 void FD3D12ResourceLocation::ReferenceNode(FD3D12Device* DestinationDevice, FD3D12ResourceLocation& Destination, FD3D12ResourceLocation& Source)
 {
-	// Should not be linked list allocated - otherwise internal linked list data needs to be updated as well in a threadsafe way
-	check(Source.GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
 	check(Source.GetResource() != nullptr);
 	Destination.Clear();
 
@@ -771,6 +769,12 @@ void FD3D12ResourceLocation::ReferenceNode(FD3D12Device* DestinationDevice, FD3D
 
 	// Addref the source as another resource location references it
 	Source.GetResource()->AddRef();
+
+	if (Source.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
+	{
+		Source.GetPoolAllocatorPrivateData().PoolData.AddAlias(
+			&Destination.GetPoolAllocatorPrivateData().PoolData);
+	}
 }
 
 void FD3D12ResourceLocation::ReleaseResource()
@@ -819,6 +823,15 @@ void FD3D12ResourceLocation::ReleaseResource()
 		}
 		else if (AllocatorType == AT_Pool)
 		{
+			// Unlink any aliases -- the contents of aliases are cleaned up separately elsewhere via iteration over
+			// the FD3D12LinkedAdapterObject.
+			for (FRHIPoolAllocationData* Alias = GetPoolAllocatorPrivateData().PoolData.GetFirstAlias();
+				 Alias;
+				 Alias = GetPoolAllocatorPrivateData().PoolData.GetFirstAlias())
+			{
+				Alias->RemoveAlias();
+			}
+
 			PoolAllocator->DeallocateResource(*this);
 		}
 		else
@@ -830,6 +843,11 @@ void FD3D12ResourceLocation::ReleaseResource()
 	case ResourceLocationType::eNodeReference:
 	case ResourceLocationType::eAliased:
 	{
+		if (GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
+		{
+			GetPoolAllocatorPrivateData().PoolData.RemoveAlias();
+		}
+
 		if (UnderlyingResource->ShouldDeferDelete() && UnderlyingResource->GetRefCount() == 1)
 		{
 			UnderlyingResource->DeferDelete();
@@ -1022,6 +1040,17 @@ bool FD3D12ResourceLocation::OnAllocationMoved(FRHIPoolAllocationData* InNewData
 	GPUVirtualAddress = UnderlyingResource->GetGPUVirtualAddress() + OffsetFromBaseOfResource;
 	ResidencyHandle = UnderlyingResource->GetResidencyHandle();
 
+	// Refresh aliases
+	for (FRHIPoolAllocationData* OtherAlias = AllocationData.GetFirstAlias(); OtherAlias; OtherAlias = OtherAlias->GetNext())
+	{
+		FD3D12ResourceLocation* OtherResourceLocation = (FD3D12ResourceLocation*)OtherAlias->GetOwner();
+
+		OtherResourceLocation->OffsetFromBaseOfResource = OffsetFromBaseOfResource;
+		OtherResourceLocation->UnderlyingResource = UnderlyingResource;
+		OtherResourceLocation->GPUVirtualAddress = GPUVirtualAddress;
+		OtherResourceLocation->ResidencyHandle = ResidencyHandle;
+	}
+
 	// Notify all the dependent resources about the change
 	Owner->ResourceRenamed(this);
 
@@ -1132,3 +1161,9 @@ void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCom
 
 	Reset();
 }
+
+uint32 FD3D12Buffer::GetParentGPUIndex() const
+{
+	return Parent->GetGPUIndex();
+}
+

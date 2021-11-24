@@ -144,6 +144,47 @@ void FRHIPoolAllocationData::AddAfter(FRHIPoolAllocationData* InOther)
 	InOther->PreviousAllocation = this;
 }
 
+// The "AliasAllocation" in the original allocation points to a linked list of aliases.  The aliases
+// are doubly linked with each other via NextAllocation/PreviousAllocation, and also point back to their
+// list head via "AliasAllocation".
+void FRHIPoolAllocationData::AddAlias(FRHIPoolAllocationData* InAlias)
+{
+	if (AliasAllocation)
+	{
+		AliasAllocation->PreviousAllocation = InAlias;
+	}
+
+	InAlias->NextAllocation = AliasAllocation;		// Add link to previous alias linked list head
+	InAlias->PreviousAllocation = nullptr;			// New item is at the front, so it doesn't have a predecessor
+	InAlias->AliasAllocation = this;				// Point to the original allocation that contains the aliases
+
+	AliasAllocation = InAlias;						// Finally, update current alias linked list head
+}
+
+void FRHIPoolAllocationData::RemoveAlias()
+{
+	if (AliasAllocation)
+	{
+		if (PreviousAllocation)
+		{
+			PreviousAllocation->NextAllocation = NextAllocation;
+		}
+		else
+		{
+			// Removing item at list head
+			AliasAllocation->AliasAllocation = NextAllocation;
+		}
+		if (NextAllocation)
+		{
+			NextAllocation->PreviousAllocation = PreviousAllocation;
+		}
+
+		NextAllocation = nullptr;
+		PreviousAllocation = nullptr;
+		AliasAllocation = nullptr;
+	}
+}
+
 
 /**
  * Sort predicate that sorts on size of the allocation data

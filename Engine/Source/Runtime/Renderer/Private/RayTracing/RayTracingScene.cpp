@@ -184,10 +184,12 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 							0, 
 							SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress), RLM_WriteOnly);
 
+						const uint32 ParentGPUIndex = AccelerationStructureAddressesBuffer.Buffer->GetParentGPUIndex();
+
 						const uint32 NumGeometries = SceneInitializer.ReferencedGeometries.Num();
 						for (uint32 GeometryIndex = 0; GeometryIndex < NumGeometries; ++GeometryIndex)
 						{
-							AddressesPtr[GeometryIndex] = SceneInitializer.ReferencedGeometries[GeometryIndex]->GetAccelerationStructureAddress(RHICmdList.GetGPUMask().ToIndex());
+							AddressesPtr[GeometryIndex] = SceneInitializer.ReferencedGeometries[GeometryIndex]->GetAccelerationStructureAddress(ParentGPUIndex);
 						}
 
 						RHICmdList.UnlockBuffer(AccelerationStructureAddressesBuffer.Buffer);

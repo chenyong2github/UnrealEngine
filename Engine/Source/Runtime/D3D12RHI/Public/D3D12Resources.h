@@ -959,6 +959,8 @@ public:
 		}
 	}
 
+	virtual uint32 GetParentGPUIndex() const override;
+
 	void UploadResourceData(class FRHICommandListImmediate* InRHICmdList, FResourceArrayInterface* InResourceArray, D3D12_RESOURCE_STATES InDestinationState);
 	FD3D12SyncPoint UploadResourceDataViaCopyQueue(FResourceArrayInterface* InResourceArray);
 

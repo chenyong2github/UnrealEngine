@@ -820,6 +820,11 @@ public:
 		check(PhysicalGPUMask.ContainsAll(GPUMask));
 	}
 
+	virtual FRHIGPUMask RHIGetGPUMask() const final override
+	{
+		return GPUMask;
+	}
+
 	// Sets the mask of which GPUs can be supported, as opposed to the currently active
 	// set. RHISetGPUMask checks that the active mask is a subset of the physical mask.
 	FORCEINLINE void SetPhysicalGPUMask(FRHIGPUMask InGPUMask)
@@ -855,6 +860,11 @@ public:
 	FORCEINLINE FD3D12CommandContext* GetContext(uint32 GPUIndex) final override
 	{
 		return PhysicalContexts[GPUIndex];
+	}
+
+	IRHIComputeContext& GetLowestLevelContext() final override
+	{
+		return *PhysicalContexts[0];
 	}
 
 private:
