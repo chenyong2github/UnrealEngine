@@ -322,8 +322,8 @@ public:
 		return Result;
 	}
 
-	virtual void PrepareValues(FEmitContext& Context) const override;
-	virtual void EmitHLSL(FEmitContext& Context) const override;
+	virtual void Prepare(FEmitContext& Context) const override;
+	virtual void EmitShader(FEmitContext& Context) const override;
 };
 
 class FStatementBreak : public FStatement
@@ -331,8 +331,8 @@ class FStatementBreak : public FStatement
 public:
 	//static constexpr bool MarkScopeLive = true;
 
-	virtual void PrepareValues(FEmitContext& Context) const override;
-	virtual void EmitHLSL(FEmitContext& Context) const override;
+	virtual void Prepare(FEmitContext& Context) const override;
+	virtual void EmitShader(FEmitContext& Context) const override;
 };
 
 class FStatementIf : public FStatement
@@ -356,8 +356,8 @@ public:
 		return Result;
 	}
 
-	virtual void PrepareValues(FEmitContext& Context) const override;
-	virtual void EmitHLSL(FEmitContext& Context) const override;
+	virtual void Prepare(FEmitContext& Context) const override;
+	virtual void EmitShader(FEmitContext& Context) const override;
 };
 
 class FStatementLoop : public FStatement
@@ -377,8 +377,8 @@ public:
 		return Result;
 	}
 
-	virtual void PrepareValues(FEmitContext& Context) const override;
-	virtual void EmitHLSL(FEmitContext& Context) const override;
+	virtual void Prepare(FEmitContext& Context) const override;
+	virtual void EmitShader(FEmitContext& Context) const override;
 };
 
 }

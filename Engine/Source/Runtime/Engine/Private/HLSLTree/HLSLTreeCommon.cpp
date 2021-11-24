@@ -629,25 +629,25 @@ void FExpressionReflectionVector::EmitValueShader(FEmitContext& Context, FShader
 	OutShader.Code.Append(TEXT("Parameters.ReflectionVector"));
 }
 
-void FStatementBreak::PrepareValues(FEmitContext& Context) const
+void FStatementBreak::Prepare(FEmitContext& Context) const
 {
 }
 
-void FStatementBreak::EmitHLSL(FEmitContext& Context) const
+void FStatementBreak::EmitShader(FEmitContext& Context) const
 {
 	ParentScope->EmitStatementf(Context, TEXT("break;"));
 }
 
-void FStatementReturn::PrepareValues(FEmitContext& Context) const
+void FStatementReturn::Prepare(FEmitContext& Context) const
 {
 }
 
-void FStatementReturn::EmitHLSL(FEmitContext& Context) const
+void FStatementReturn::EmitShader(FEmitContext& Context) const
 {
 	ParentScope->EmitStatementf(Context, TEXT("return %s;"), Expression->GetValueShader(Context));
 }
 
-void FStatementIf::PrepareValues(FEmitContext& Context) const
+void FStatementIf::Prepare(FEmitContext& Context) const
 {
 	const FPrepareValueResult ConditionResult = PrepareExpressionValue(Context, ConditionExpression, 1);
 	if (ConditionResult.EvaluationType == EExpressionEvaluationType::Constant)
@@ -671,18 +671,18 @@ void FStatementIf::PrepareValues(FEmitContext& Context) const
 	}
 }
 
-void FStatementIf::EmitHLSL(FEmitContext& Context) const
+void FStatementIf::EmitShader(FEmitContext& Context) const
 {
 	if (ConditionExpression->GetEvaluationType() == EExpressionEvaluationType::Constant)
 	{
 		const bool bCondition = ConditionExpression->GetValueConstant(Context).AsBoolScalar();
 		if (bCondition && IsScopeLive(ThenScope))
 		{
-			ParentScope->EmitNextScope(Context, ThenScope);
+			ParentScope->EmitScope(Context, ThenScope);
 		}
 		else if(!bCondition && IsScopeLive(ElseScope))
 		{
-			ParentScope->EmitNextScope(Context, ElseScope);
+			ParentScope->EmitScope(Context, ElseScope);
 		}
 	}
 	else
@@ -698,21 +698,21 @@ void FStatementIf::EmitHLSL(FEmitContext& Context) const
 		}
 	}
 
-	ParentScope->EmitNextScope(Context, NextScope);
+	ParentScope->EmitScope(Context, NextScope);
 }
 
-void FStatementLoop::PrepareValues(FEmitContext& Context) const
+void FStatementLoop::Prepare(FEmitContext& Context) const
 {
 	MarkScopeLive(LoopScope);
 }
 
-void FStatementLoop::EmitHLSL(FEmitContext& Context) const
+void FStatementLoop::EmitShader(FEmitContext& Context) const
 {
 	if (IsScopeLive(LoopScope))
 	{
 		ParentScope->EmitNestedScopef(Context, LoopScope, TEXT("while (true)"));
 	}
-	ParentScope->EmitNextScope(Context, NextScope);
+	ParentScope->EmitScope(Context, NextScope);
 }
 
 } // namespace HLSLTree

@@ -751,7 +751,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	const FStructFieldRef NormalFieldRef = Generator.GetMaterialAttributesType()->FindFieldByName(*FMaterialAttributeDefinitionMap::GetAttributeName(MP_Normal));
 	check(NormalFieldRef);
 
-	if (!PrepareScopeValues(EmitContext, Generator.GetResultStatement()->ParentScope))
+	if (!PrepareScope(EmitContext, Generator.GetResultStatement()->ParentScope))
 	{
 		return false;
 	}
@@ -775,16 +775,16 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		{
 			return false;
 		}
-		HLSLTree->EmitHLSL(EmitContext, CodePhase0);
+		HLSLTree->EmitShader(EmitContext, CodePhase0);
 	}
 	else
 	{
 		// Execute everything *except* normal in phase1
-		HLSLTree->EmitHLSL(EmitContext, CodePhase1);
+		HLSLTree->EmitShader(EmitContext, CodePhase1);
 
 		// Reset state
 		HLSLTree->ResetNodes();
-		if (!PrepareScopeValues(EmitContext, Generator.GetResultStatement()->ParentScope))
+		if (!PrepareScope(EmitContext, Generator.GetResultStatement()->ParentScope))
 		{
 			return false;
 		}
@@ -798,7 +798,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 		}
 
 		// Execute the normal in phase0
-		HLSLTree->EmitHLSL(EmitContext, CodePhase0);
+		HLSLTree->EmitShader(EmitContext, CodePhase0);
 	}
 
 	FStringBuilderMemstack Declarations(Allocator, 64 * 1024);

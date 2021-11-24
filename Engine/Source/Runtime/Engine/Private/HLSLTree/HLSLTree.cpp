@@ -435,7 +435,7 @@ void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	for (int32 i = 0; i < NumValues; ++i)
 	{
 		// Ignore values in dead scopes
-		if (PrepareScopeValues(Context, Scopes[i]))
+		if (PrepareScope(Context, Scopes[i]))
 		{
 			FExpression* ScopeExpression = Values[i];
 			if (!ForwardExpression)
@@ -464,7 +464,7 @@ void FExpressionLocalPHI::PrepareValue(FEmitContext& Context, const FRequestedTy
 	{
 		for (int32 i = 0; i < NumValues; ++i)
 		{
-			if (!TypePerValue[i] && PrepareScopeValues(Context, Scopes[i]))
+			if (!TypePerValue[i] && PrepareScope(Context, Scopes[i]))
 			{
 				const FPrepareValueResult ValueResult = PrepareExpressionValue(Context, Values[i], RequestedType);
 				if (ValueResult.Type)
@@ -588,7 +588,7 @@ ENodeVisitResult FScope::Visit(FNodeVisitor& Visitor)
 
 void FStatement::Reset()
 {
-	bEmitHLSL = false;
+	bEmitShader = false;
 }
 
 void FExpression::Reset()
@@ -882,12 +882,12 @@ void FScope::UseExpression(FExpression* Expression)
 	Visitor.VisitNode(Expression);
 }
 
-void FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* NextScope, const TCHAR* String, int32 Length)
+void FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* Scope, const TCHAR* String, int32 Length)
 {
-	if (NextScope && NextScope->ContainedStatement && !NextScope->ContainedStatement->bEmitHLSL)
+	if (Scope && Scope->ContainedStatement && !Scope->ContainedStatement->bEmitShader)
 	{
-		NextScope->ContainedStatement->bEmitHLSL = true;
-		NextScope->ContainedStatement->EmitHLSL(Context);
+		Scope->ContainedStatement->bEmitShader = true;
+		Scope->ContainedStatement->EmitShader(Context);
 	}
 
 	const int32 SizeofString = sizeof(TCHAR) * Length;
@@ -896,7 +896,7 @@ void FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScope
 	FMemory::Memcpy(CodeEntry->String, String, SizeofString);
 	CodeEntry->String[Length] = 0;
 	CodeEntry->Length = Length;
-	CodeEntry->NextScope = NextScope;
+	CodeEntry->Scope = Scope;
 	CodeEntry->ScopeFormat = ScopeFormat;
 	CodeEntry->Next = nullptr;
 
@@ -913,15 +913,15 @@ void FScope::InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScope
 	List.Num++;
 }
 
-bool PrepareScopeValues(FEmitContext& Context, FScope* InScope)
+bool PrepareScope(FEmitContext& Context, FScope* InScope)
 {
 	if (InScope && InScope->State == EScopeState::Uninitialized)
 	{
-		if (!InScope->ParentScope || PrepareScopeValues(Context, InScope->ParentScope))
+		if (!InScope->ParentScope || PrepareScope(Context, InScope->ParentScope))
 		{
 			if (InScope->OwnerStatement)
 			{
-				InScope->OwnerStatement->PrepareValues(Context);
+				InScope->OwnerStatement->Prepare(Context);
 			}
 			else
 			{
@@ -1004,7 +1004,7 @@ void FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const
 		const FCodeEntry* CodeDeclaration = Declarations.First;
 		while (CodeDeclaration)
 		{
-			check(!CodeDeclaration->NextScope);
+			check(!CodeDeclaration->Scope);
 			WriteIndent(Indent, OutString);
 			OutString.Append(CodeDeclaration->String, CodeDeclaration->Length);
 			OutString.Append(TEXT('\n'));
@@ -1022,7 +1022,7 @@ void FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const
 				OutString.Append(CodeStatement->String, CodeStatement->Length);
 				OutString.Append(TEXT('\n'));
 			}
-			if (CodeStatement->NextScope)
+			if (CodeStatement->Scope)
 			{
 				int32 NextIndent = Indent;
 				bool bNeedToCloseScope = false;
@@ -1034,7 +1034,7 @@ void FScope::WriteHLSL(int32 Indent, FStringBuilderBase& OutString) const
 					bNeedToCloseScope = true;
 				}
 
-				CodeStatement->NextScope->WriteHLSL(NextIndent, OutString);
+				CodeStatement->Scope->WriteHLSL(NextIndent, OutString);
 				if (bNeedToCloseScope)
 				{
 					WriteIndent(Indent, OutString);
@@ -1085,11 +1085,12 @@ void FTree::EmitDeclarationsCode(FStringBuilderBase& OutCode) const
 	}
 }
 
-bool FTree::EmitHLSL(FEmitContext& Context, FStringBuilderBase& OutCode) const
+bool FTree::EmitShader(FEmitContext& Context, FStringBuilderBase& OutCode) const
 {
 	if (RootScope->ContainedStatement)
 	{
-		RootScope->ContainedStatement->EmitHLSL(Context);
+		RootScope->ContainedStatement->bEmitShader = true;
+		RootScope->ContainedStatement->EmitShader(Context);
 		if (Context.Errors.Num() > 0)
 		{
 			return false;

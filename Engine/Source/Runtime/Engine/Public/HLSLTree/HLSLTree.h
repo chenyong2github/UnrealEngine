@@ -259,11 +259,11 @@ public:
 	virtual void Reset() override;
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
-	virtual void PrepareValues(FEmitContext& Context) const = 0;
-	virtual void EmitHLSL(FEmitContext& Context) const = 0;
+	virtual void Prepare(FEmitContext& Context) const = 0;
+	virtual void EmitShader(FEmitContext& Context) const = 0;
 
 	FScope* ParentScope = nullptr;
-	bool bEmitHLSL = false;
+	bool bEmitShader = false;
 };
 
 class FRequestedType
@@ -449,7 +449,7 @@ public:
 
 	void UseExpression(FExpression* Expression);
 
-	friend bool PrepareScopeValues(FEmitContext& Context, FScope* InScope);
+	friend bool PrepareScope(FEmitContext& Context, FScope* InScope);
 
 	template<typename FormatType, typename... Types>
 	void EmitDeclarationf(FEmitContext& Context, const FormatType& Format, Types... Args)
@@ -463,7 +463,7 @@ public:
 		InternalEmitCodef(Context, Statements, ENextScopeFormat::None, nullptr, Format, Forward<Types>(Args)...);
 	}
 
-	void EmitNextScope(FEmitContext& Context, FScope* NestedScope)
+	void EmitScope(FEmitContext& Context, FScope* NestedScope)
 	{
 		InternalEmitCode(Context, Statements, ENextScopeFormat::Unscoped, NestedScope, nullptr, 0);
 	}
@@ -495,7 +495,7 @@ private:
 	struct FCodeEntry
 	{
 		FCodeEntry* Next;
-		FScope* NextScope;
+		FScope* Scope;
 		int32 Length;
 		ENextScopeFormat ScopeFormat;
 		TCHAR String[1];
@@ -508,14 +508,14 @@ private:
 		int32 Num = 0;
 	};
 
-	void InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* NextScope, const TCHAR* String, int32 Length);
+	void InternalEmitCode(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* Scope, const TCHAR* String, int32 Length);
 
 	template<typename FormatType, typename... Types>
-	void InternalEmitCodef(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* NextScope, const FormatType& Format, Types... Args)
+	void InternalEmitCodef(FEmitContext& Context, FCodeList& List, ENextScopeFormat ScopeFormat, FScope* Scope, const FormatType& Format, Types... Args)
 	{
 		TStringBuilder<2048> String;
 		String.Appendf(Format, Forward<Types>(Args)...);
-		InternalEmitCode(Context, List, ScopeFormat, NextScope, String.ToString(), String.Len());
+		InternalEmitCode(Context, List, ScopeFormat, Scope, String.ToString(), String.Len());
 	}
 
 	FStatement* OwnerStatement = nullptr;
@@ -566,7 +566,7 @@ public:
 
 	void EmitDeclarationsCode(FStringBuilderBase& OutCode) const;
 
-	bool EmitHLSL(FEmitContext& Context, FStringBuilderBase& OutCode) const;
+	bool EmitShader(FEmitContext& Context, FStringBuilderBase& OutCode) const;
 
 	FScope& GetRootScope() const { return *RootScope; }
 
@@ -583,15 +583,6 @@ public:
 	{
 		T* Statement = NewNode<T>(Forward<ArgTypes>(Args)...);
 		RegisterStatement(Scope, Statement);
-		/*if constexpr (T::MarkScopeLiveRecursive)
-		{
-			Scope.MarkLiveRecursive();
-		}
-		else if constexpr (T::MarkScopeLive)
-		{
-			Scope.MarkLive();
-		}*/
-
 		return Statement;
 	}
 
