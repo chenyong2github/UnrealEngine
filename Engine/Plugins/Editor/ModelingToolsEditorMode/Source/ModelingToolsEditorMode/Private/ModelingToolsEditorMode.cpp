@@ -320,10 +320,9 @@ void UModelingToolsEditorMode::Enter()
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeMeshDescriptionToolTargetFactory>(GetToolManager()));
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UDynamicMeshComponentToolTargetFactory>(GetToolManager()));
 
-	// TODO: Re-enable skeletal mesh target support when the tool target system has a better way to filter/exclude targets from certain tools.
-	// Skeletal mesh targets are disabled since many modeling tools would break skin weights. In the interim, tools
-	// that require skeletal mesh support should manually handle it at the tool level.
-	//GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<USkeletalMeshComponentToolTargetFactory>(GetToolManager()));
+	// Register read-only skeletal mesh tool targets. Currently tools that write to meshes risk breaking
+	// skin weights.
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<USkeletalMeshComponentReadOnlyToolTargetFactory>(GetToolManager()));
 
 	// register stylus event handler
 	StylusStateTracker = MakeUnique<FStylusStateTracker>();

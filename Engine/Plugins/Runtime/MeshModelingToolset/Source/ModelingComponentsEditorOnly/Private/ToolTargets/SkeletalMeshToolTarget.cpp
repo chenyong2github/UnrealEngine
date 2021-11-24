@@ -16,29 +16,35 @@ namespace USkeletalMeshToolTargetLocals
 	int32 LODIndex = 0;
 }
 
-bool USkeletalMeshToolTarget::IsValid() const
+
+//
+// USkeletalMeshReadOnlyToolTarget
+//
+
+
+bool USkeletalMeshReadOnlyToolTarget::IsValid() const
 {
 	return SkeletalMesh && IsValidChecked(SkeletalMesh) && !SkeletalMesh->IsUnreachable() && SkeletalMesh->IsValidLowLevel();
 }
 
-int32 USkeletalMeshToolTarget::GetNumMaterials() const
+int32 USkeletalMeshReadOnlyToolTarget::GetNumMaterials() const
 {
 	return ensure(IsValid()) ? SkeletalMesh->GetMaterials().Num() : 0;
 }
 
-UMaterialInterface* USkeletalMeshToolTarget::GetMaterial(int32 MaterialIndex) const
+UMaterialInterface* USkeletalMeshReadOnlyToolTarget::GetMaterial(int32 MaterialIndex) const
 {
 	return ensure(IsValid() && MaterialIndex < SkeletalMesh->GetMaterials().Num()) ? 
 		SkeletalMesh->GetMaterials()[MaterialIndex].MaterialInterface : nullptr;
 }
 
-void USkeletalMeshToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const
+void USkeletalMeshReadOnlyToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const
 {
 	if (!ensure(IsValid())) return;
 	GetMaterialSet(SkeletalMesh, MaterialSetOut, bPreferAssetMaterials);
 }
 
-void USkeletalMeshToolTarget::GetMaterialSet(const USkeletalMesh* SkeletalMeshIn, FComponentMaterialSet& MaterialSetOut,
+void USkeletalMeshReadOnlyToolTarget::GetMaterialSet(const USkeletalMesh* SkeletalMeshIn, FComponentMaterialSet& MaterialSetOut,
 	bool bPreferAssetMaterials)
 {
 	const TArray<FSkeletalMaterial>& Materials = SkeletalMeshIn->GetMaterials(); 
@@ -49,13 +55,13 @@ void USkeletalMeshToolTarget::GetMaterialSet(const USkeletalMesh* SkeletalMeshIn
 	}
 }
 
-bool USkeletalMeshToolTarget::CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset)
+bool USkeletalMeshReadOnlyToolTarget::CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset)
 {
 	if (!ensure(IsValid())) return false;
 	return CommitMaterialSetUpdate(SkeletalMesh, MaterialSet, bApplyToAsset);
 }
 
-bool USkeletalMeshToolTarget::CommitMaterialSetUpdate(USkeletalMesh* SkeletalMeshIn, 
+bool USkeletalMeshReadOnlyToolTarget::CommitMaterialSetUpdate(USkeletalMesh* SkeletalMeshIn, 
 	const FComponentMaterialSet& MaterialSet, bool bApplyToAsset)
 {
 	if (!bApplyToAsset)
@@ -100,7 +106,7 @@ bool USkeletalMeshToolTarget::CommitMaterialSetUpdate(USkeletalMesh* SkeletalMes
 	return true;
 }
 
-const FMeshDescription* USkeletalMeshToolTarget::GetMeshDescription()
+const FMeshDescription* USkeletalMeshReadOnlyToolTarget::GetMeshDescription()
 {
 	if (!ensure(IsValid()))
 	{
@@ -116,7 +122,7 @@ const FMeshDescription* USkeletalMeshToolTarget::GetMeshDescription()
 	return CachedMeshDescription.Get();
 }
 
-void USkeletalMeshToolTarget::GetMeshDescription(const USkeletalMesh* SkeletalMeshIn, FMeshDescription& MeshDescription)
+void USkeletalMeshReadOnlyToolTarget::GetMeshDescription(const USkeletalMesh* SkeletalMeshIn, FMeshDescription& MeshDescription)
 {
 	using namespace USkeletalMeshToolTargetLocals;
 
@@ -139,6 +145,20 @@ void USkeletalMeshToolTarget::GetMeshDescription(const USkeletalMesh* SkeletalMe
 		}			
 	}
 }
+
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> USkeletalMeshReadOnlyToolTarget::GetDynamicMesh()
+{
+	return GetDynamicMeshViaMeshDescription(*this);
+}
+
+USkeletalMesh* USkeletalMeshReadOnlyToolTarget::GetSkeletalMesh() const
+{
+	return IsValid() ? SkeletalMesh : nullptr;
+}
+
+//
+// USkeletalMeshToolTarget
+//
 
 void USkeletalMeshToolTarget::CommitMeshDescription(const FCommitter& Committer)
 {
@@ -194,23 +214,35 @@ void USkeletalMeshToolTarget::CommitMeshDescription(USkeletalMesh* SkeletalMeshI
 	SkeletalMeshIn->PostEditChange();
 }
 
-TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> USkeletalMeshToolTarget::GetDynamicMesh()
-{
-	return GetDynamicMeshViaMeshDescription(*this);
-}
-
 void USkeletalMeshToolTarget::CommitDynamicMesh(const FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo)
 {
 	CommitDynamicMeshViaMeshDescription(*this, Mesh, CommitInfo);
 }
 
-USkeletalMesh* USkeletalMeshToolTarget::GetSkeletalMesh() const
-{
-	return IsValid() ? SkeletalMesh : nullptr;
-}
-
 
 // Factory
+
+bool USkeletalMeshReadOnlyToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
+{
+	// We are using an exact cast here to prevent subclasses, which might not meet all
+	// requirements for functionality such as the deprecated DestructibleMesh, from 
+	// being caught up as valid targets.
+	// If you want to make the tool target work with some subclass of USkeletalMesh,
+	// just add another factory that allows that class specifically (but make sure that
+	// GetMeshDescription and such work properly)
+
+	return ExactCast<USkeletalMesh>(SourceObject) 
+		&& Requirements.AreSatisfiedBy(USkeletalMeshReadOnlyToolTarget::StaticClass());
+}
+
+UToolTarget* USkeletalMeshReadOnlyToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
+{
+	USkeletalMeshReadOnlyToolTarget* Target = NewObject<USkeletalMeshReadOnlyToolTarget>();
+	Target->SkeletalMesh = Cast<USkeletalMesh>(SourceObject);
+	check(Target->SkeletalMesh && Requirements.AreSatisfiedBy(Target));
+
+	return Target;
+}
 
 bool USkeletalMeshToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
 {
