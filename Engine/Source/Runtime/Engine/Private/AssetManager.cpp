@@ -1621,26 +1621,6 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 				}
 			}
 
-			TSharedPtr<FStreamableHandle> NewHandle;
-
-			FString DebugName = PrimaryAssetId.ToString();
-
-			if (NewBundleState.Num() > 0)
-			{
-				DebugName += TEXT(" (");
-
-				for (int32 i = 0; i < NewBundleState.Num(); i++)
-				{
-					if (i != 0)
-					{
-						DebugName += TEXT(", ");
-					}
-					DebugName += NewBundleState[i].ToString();
-				}
-
-				DebugName += TEXT(")");
-			}
-
 			if (PathsToLoad.Num() == 0)
 			{
 				// New state has no assets to load. Set the CurrentState's bundles and clear the handle
@@ -1649,7 +1629,28 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 				continue;
 			}
 
-			NewHandle = LoadAssetList(PathsToLoad.Array(), FStreamableDelegate(), Priority, DebugName);
+			TSharedPtr<FStreamableHandle> NewHandle;
+
+			TStringBuilder<1024> DebugName;
+			PrimaryAssetId.AppendString(DebugName);
+
+			if (NewBundleState.Num() > 0)
+			{
+				DebugName << TEXT(" (");
+
+				for (int32 Index = 0; Index < NewBundleState.Num(); Index++)
+				{
+					if (Index > 0)
+					{
+						DebugName << TEXT(", ");
+					}
+					NewBundleState[Index].AppendString(DebugName);
+				}
+
+				DebugName << TEXT(")");
+			}
+
+			NewHandle = LoadAssetList(PathsToLoad.Array(), FStreamableDelegate(), Priority, FString(DebugName.Len(), DebugName.ToString()));
 
 			if (!NewHandle.IsValid())
 			{
