@@ -108,7 +108,7 @@ bool FConsoleVariablesEditorListRow::MatchSearchTokensToSearchTerms(const TArray
 	{
 		TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedInfo = CommandInfo.Pin();
 		
-		const FString SearchTerms = PinnedInfo->Command + PinnedInfo->GetSource().ToString() +
+		const FString SearchTerms = PinnedInfo->Command + PinnedInfo->GetSourceAsText().ToString() +
 			(PinnedInfo->ConsoleVariablePtr ? PinnedInfo->ConsoleVariablePtr->GetString() + PinnedInfo->ConsoleVariablePtr->GetHelp() : "");
 
 		bMatchFound = Algo::AnyOf(InTokens,

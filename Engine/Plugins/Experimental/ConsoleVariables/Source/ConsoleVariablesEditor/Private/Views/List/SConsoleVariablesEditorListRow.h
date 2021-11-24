@@ -50,9 +50,6 @@ public:
 
 private:
 	
-	TSharedPtr<SSplitter> OuterSplitterPtr;
-	TSharedPtr<SSplitter> NestedSplitterPtr;
-	
 	TWeakPtr<FConsoleVariablesEditorListRow> Item;
 
 	TArray<TSharedPtr<SImage>> FlashImages;

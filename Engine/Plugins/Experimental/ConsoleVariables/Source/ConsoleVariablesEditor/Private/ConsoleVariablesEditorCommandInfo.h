@@ -55,13 +55,21 @@ struct FConsoleVariablesEditorCommandInfo
 		return CurrentWorld;
 	}
 
-	FText GetSource() const
+	EConsoleVariableFlags GetSource() const
+	{
+		return (EConsoleVariableFlags)((uint32)ConsoleVariablePtr->GetFlags() & ECVF_SetByMask);
+	}
+
+	void SetSourceFlag(const EConsoleVariableFlags InSource) const
+	{
+		ConsoleVariablePtr->SetFlags((EConsoleVariableFlags)InSource);
+	}
+
+	FText GetSourceAsText() const
 	{
 		if (ConsoleVariablePtr)
 		{
-			const EConsoleVariableFlags SetBy = (EConsoleVariableFlags)((uint32)ConsoleVariablePtr->GetFlags() & ECVF_SetByMask);
-
-			switch (SetBy)
+			switch (GetSource())
 			{
 			case (EConsoleVariableFlags::ECVF_SetByConstructor):
 				return LOCTEXT("SetByConstructor", "Constructor");
@@ -120,8 +128,10 @@ struct FConsoleVariablesEditorCommandInfo
 
 	IConsoleVariable* ConsoleVariablePtr;
 
-	/** The value of this command when the module started in this session after it may have been set by an ini file */
+	/** The value of this command when the module started in this session after it may have been set by an ini file. */
 	FString StartupValueAsString;
+	/** The source of this variable last setting as recorded when the plugin was loaded. */
+	EConsoleVariableFlags StartupSource;
 	
 	FDelegateHandle OnVariableChangedCallbackHandle;
 };
