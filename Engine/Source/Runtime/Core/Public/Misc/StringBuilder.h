@@ -11,6 +11,7 @@
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/UnrealTemplate.h"
+#include "Traits/IsCharType.h"
 #include "Traits/IsContiguousContainer.h"
 #include <type_traits>
 
@@ -141,95 +142,37 @@ public:
 		CurPos -= InCount;
 	}
 
-	inline BuilderType& Append(CharType Char)
+	template <typename OtherCharType,
+		std::enable_if_t<TIsCharType<OtherCharType>::Value>* = nullptr>
+	inline BuilderType& Append(const OtherCharType* const String, const int32 Length)
+	{
+		int32 ConvertedLength = FPlatformString::ConvertedLength<CharType>(String, Length);
+		EnsureAdditionalCapacity(ConvertedLength);
+		CurPos = FPlatformString::Convert(CurPos, ConvertedLength, String, Length);
+		return *this;
+	}
+
+	template <typename CharRangeType>
+	inline auto Append(CharRangeType&& Range) -> decltype(Append(MakeStringView(Forward<CharRangeType>(Range)).GetData(), int32(0)))
+	{
+		const TStringView View = MakeStringView(Forward<CharRangeType>(Range));
+		return Append(View.GetData(), View.Len());
+	}
+
+	inline BuilderType& AppendChar(CharType Char)
 	{
 		EnsureAdditionalCapacity(1);
-
 		*CurPos++ = Char;
-
 		return *this;
 	}
 
-	inline BuilderType& AppendAnsi(const ANSICHAR* NulTerminatedString)
-	{
-		if (!NulTerminatedString)
-		{
-			return *this;
-		}
-
-		return AppendAnsi(NulTerminatedString, TCString<ANSICHAR>::Strlen(NulTerminatedString));
-	}
-
-	inline BuilderType& AppendAnsi(const FAnsiStringView& AnsiString)
-	{
-		return AppendAnsi(AnsiString.GetData(), AnsiString.Len());
-	}
-
-	inline BuilderType& AppendAnsi(const ANSICHAR* String, const int32 Length)
-	{
-		EnsureAdditionalCapacity(Length);
-
-		CharType* RESTRICT Dest = CurPos;
-		CurPos += Length;
-
-		for (int32 i = 0; i < Length; ++i)
-		{
-			Dest[i] = CharType(String[i]);
-		}
-
-		return *this;
-	}
-
-	inline BuilderType& AppendUtf8(const UTF8CHAR* NulTerminatedString)
-	{
-		if (!NulTerminatedString)
-		{
-			return *this;
-		}
-
-		return AppendUtf8(NulTerminatedString, TCString<UTF8CHAR>::Strlen(NulTerminatedString));
-	}
-
-	inline BuilderType& AppendUtf8(const FUtf8StringView& AnsiString)
-	{
-		return AppendUtf8(AnsiString.GetData(), AnsiString.Len());
-	}
-
-	inline BuilderType& AppendUtf8(const UTF8CHAR* String, const int32 Length)
-	{
-		int32 ConvertedBufferLength = FPlatformString::ConvertedLength<ElementType>(String, Length);
-		EnsureAdditionalCapacity(ConvertedBufferLength);
-
-		CurPos = FPlatformString::Convert(CurPos, ConvertedBufferLength, String, Length);
-
-		return *this;
-	}
-
-	inline BuilderType& Append(const CharType* NulTerminatedString)
-	{
-		if (!NulTerminatedString)
-		{
-			return *this;
-		}
-
-		return Append(NulTerminatedString, TCString<CharType>::Strlen(NulTerminatedString));
-	}
-
-	inline BuilderType& Append(const ViewType& StringView)
-	{
-		return Append(StringView.GetData(), StringView.Len());
-	}
-
-	inline BuilderType& Append(const CharType* String, int32 Length)
-	{
-		EnsureAdditionalCapacity(Length);
-		CharType* RESTRICT Dest = CurPos;
-		CurPos += Length;
-
-		FMemory::Memcpy(Dest, String, Length * sizeof(CharType));
-
-		return *this;
-	}
+	inline BuilderType& Append(CharType Char) { return AppendChar(Char); }
+	inline BuilderType& AppendAnsi(const FAnsiStringView String) { return Append(String); }
+	inline BuilderType& AppendUtf8(const FUtf8StringView String) { return Append(String); }
+	inline BuilderType& AppendAnsi(const ANSICHAR* const String) { return Append(String); }
+	inline BuilderType& AppendUtf8(const UTF8CHAR* const String) { return Append(String); }
+	inline BuilderType& AppendAnsi(const ANSICHAR* const String, const int32 Length) { return Append(String, Length); }
+	inline BuilderType& AppendUtf8(const UTF8CHAR* const String, const int32 Length) { return Append(String, Length); }
 
 	/** Replace characters at given position and length with substring */
 	void ReplaceAt(int32 Pos, int32 RemoveLen, ViewType Str)
@@ -292,7 +235,7 @@ public:
 	 * @return The builder, to allow additional operations to be composed with this one.
 	 */
 	template <typename RangeType, typename DelimiterType,
-		typename = typename TEnableIf<TAnd<TCanAppendRange<RangeType&&>, TCanAppend<DelimiterType&&>>::Value>::Type>
+		std::enable_if_t<TAnd<TCanAppendRange<RangeType&&>, TCanAppend<DelimiterType&&>>::Value>* = nullptr>
 	inline BuilderType& Join(RangeType&& InRange, DelimiterType&& InDelimiter)
 	{
 		bool bFirst = true;
@@ -325,7 +268,7 @@ public:
 	 * @return The builder, to allow additional operations to be composed with this one.
 	 */
 	template <typename RangeType, typename DelimiterType, typename QuoteType,
-		typename = typename TEnableIf<TAnd<TCanAppendRange<RangeType>, TCanAppend<DelimiterType&&>, TCanAppend<QuoteType&&>>::Value>::Type>
+		std::enable_if_t<TAnd<TCanAppendRange<RangeType>, TCanAppend<DelimiterType&&>, TCanAppend<QuoteType&&>>::Value>* = nullptr>
 	inline BuilderType& JoinQuoted(RangeType&& InRange, DelimiterType&& InDelimiter, QuoteType&& InQuote)
 	{
 		bool bFirst = true;
@@ -349,8 +292,9 @@ public:
 	 *
 	 * @param Format A format string that specifies how to format the additional arguments. Refer to standard printf format.
 	 */
-	template <typename FmtType, typename... Types>
-	typename TEnableIf<TIsArrayOrRefOfType<FmtType, CharType>::Value, BuilderType&>::Type Appendf(const FmtType& Fmt, Types... Args)
+	template <typename FmtType, typename... Types,
+		std::enable_if_t<TIsArrayOrRefOfType<FmtType, CharType>::Value>* = nullptr>
+	BuilderType& Appendf(const FmtType& Fmt, Types... Args)
 	{
 		static_assert(TIsArrayOrRefOfType<FmtType, CharType>::Value, "Formatting string must be a character array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to Appendf.");
@@ -430,57 +374,31 @@ private:
 
 // String Append Operators
 
-inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.Append(Char); }
-inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.Append(Char); }
-inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, WIDECHAR Char)							{ return Builder.Append(Char); }
-inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.Append(UTF8CHAR(Char)); }
-inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, UTF8CHAR Char)							{ return Builder.Append(Char); }
-
-template <typename T>
-inline auto operator<<(FAnsiStringBuilderBase& Builder, T&& Str) -> decltype(Builder.Append(ImplicitConv<FAnsiStringView>(Forward<T>(Str))))
-{
-	return Builder.Append(ImplicitConv<FAnsiStringView>(Forward<T>(Str)));
-}
-
-template <typename T>
-inline auto operator<<(FWideStringBuilderBase& Builder, T&& Str) -> decltype(Builder.AppendUtf8(ImplicitConv<FUtf8StringView>(Forward<T>(Str))))
+template <typename CharType, typename CharRangeType>
+inline auto operator<<(TStringBuilderBase<CharType>& Builder, CharRangeType&& Str) -> decltype(Builder.Append(MakeStringView(Forward<CharRangeType>(Str))))
 {
 	// Anything convertible to an FAnsiStringView is also convertible to a FUtf8StringView, but FAnsiStringView is more efficient to convert
-	if constexpr (std::is_convertible_v<T, FAnsiStringView>)
+	if constexpr (std::is_convertible_v<CharRangeType, FAnsiStringView>)
 	{
-		return Builder.AppendAnsi(ImplicitConv<FAnsiStringView>(Forward<T>(Str)));
+		return Builder.Append(ImplicitConv<FAnsiStringView>(Forward<CharRangeType>(Str)));
 	}
 	else
 	{
-		return Builder.AppendUtf8(ImplicitConv<FUtf8StringView>(Forward<T>(Str)));
+		return Builder.Append(MakeStringView(Forward<CharRangeType>(Str)));
 	}
 }
 
-template <typename T>
-inline auto operator<<(FWideStringBuilderBase& Builder, T&& Str) -> decltype(Builder.Append(ImplicitConv<FWideStringView>(Forward<T>(Str))))
-{
-	return Builder.Append(ImplicitConv<FWideStringView>(Forward<T>(Str)));
-}
-
-template <typename T>
-inline auto operator<<(FUtf8StringBuilderBase& Builder, T&& Str) -> decltype(Builder.Append(ImplicitConv<FUtf8StringView>(Forward<T>(Str))))
-{
-	// Anything convertible to an FAnsiStringView is also convertible to a FUtf8StringView, but FAnsiStringView is more efficient to convert
-	if constexpr (std::is_convertible_v<T, FAnsiStringView>)
-	{
-		return Builder.AppendAnsi(ImplicitConv<FAnsiStringView>(Forward<T>(Str)));
-	}
-	else
-	{
-		return Builder.AppendUtf8(ImplicitConv<FUtf8StringView>(Forward<T>(Str)));
-	}
-}
+inline FAnsiStringBuilderBase&		operator<<(FAnsiStringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.AppendChar(Char); }
+inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.AppendChar(Char); }
+inline FWideStringBuilderBase&		operator<<(FWideStringBuilderBase& Builder, WIDECHAR Char)							{ return Builder.AppendChar(Char); }
+inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, ANSICHAR Char)							{ return Builder.AppendChar(UTF8CHAR(Char)); }
+inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, UTF8CHAR Char)							{ return Builder.AppendChar(Char); }
 
 // Prefer using << instead of += as operator+= is only intended for mechanical FString -> FStringView replacement.
-inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, ANSICHAR Char)								{ return Builder.Append(Char); }
-inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, WIDECHAR Char)								{ return Builder.Append(Char); }
+inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, ANSICHAR Char)								{ return Builder.AppendChar(Char); }
+inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, WIDECHAR Char)								{ return Builder.AppendChar(Char); }
 inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, FWideStringView Str)						{ return Builder.Append(Str); }
-inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, FUtf8StringView Str)						{ return Builder.AppendUtf8(Str); }
+inline FStringBuilderBase&			operator+=(FStringBuilderBase& Builder, FUtf8StringView Str)						{ return Builder.Append(Str); }
 
 // Integer Append Operators
 
@@ -520,12 +438,12 @@ inline FUtf8StringBuilderBase&		operator<<(FUtf8StringBuilderBase& Builder, uint
  * For void Action(FStringView) -> Action(WriteToString<64>(Arg1, Arg2));
  * For UE_LOG or checkf -> checkf(Condition, TEXT("%s"), *WriteToString<32>(Arg));
  */
-template <int32 BufferSize>
-class WriteToString : public TStringBuilder<BufferSize>
+template <typename CharType, int32 BufferSize>
+class TWriteToString : public TStringBuilderWithBuffer<CharType, BufferSize>
 {
 public:
 	template <typename... ArgTypes>
-	explicit WriteToString(ArgTypes&&... Args)
+	explicit TWriteToString(ArgTypes&&... Args)
 	{
 	#if PLATFORM_COMPILER_HAS_FOLD_EXPRESSIONS
 		(*this << ... << Forward<ArgTypes>(Args));
@@ -536,4 +454,13 @@ public:
 	}
 };
 
-template <int32 BufferSize> struct TIsContiguousContainer<WriteToString<BufferSize>> { static constexpr bool Value = true; };
+template <typename CharType, int32 BufferSize>
+struct TIsContiguousContainer<TWriteToString<CharType, BufferSize>>
+{
+	static constexpr bool Value = true;
+};
+
+template <int32 BufferSize> using WriteToString = TWriteToString<TCHAR, BufferSize>;
+template <int32 BufferSize> using WriteToAnsiString = TWriteToString<ANSICHAR, BufferSize>;
+template <int32 BufferSize> using WriteToWideString = TWriteToString<WIDECHAR, BufferSize>;
+template <int32 BufferSize> using WriteToUtf8String = TWriteToString<UTF8CHAR, BufferSize>;

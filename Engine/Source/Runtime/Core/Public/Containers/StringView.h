@@ -10,12 +10,11 @@
 #include "Misc/CString.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/ChooseClass.h"
-#include "Templates/Decay.h"
 #include "Templates/EnableIf.h"
-#include "Templates/IsArray.h"
-#include "Templates/RemoveCV.h"
 #include "Templates/UnrealTemplate.h"
+#include "Traits/ElementType.h"
 #include "Traits/IsContiguousContainer.h"
+#include <type_traits>
 
 namespace StringViewPrivate
 {
@@ -51,12 +50,6 @@ namespace StringViewPrivate
 			typename TChooseClass<TIsConvertibleFromTo<T, FWideStringView>::Value, FWideStringView,
 			typename TChooseClass<TIsConvertibleFromTo<T, FUtf8StringView>::Value, FUtf8StringView,
 			NotCompatible>::Result>::Result>::Result;
-	};
-
-	template <typename CharRangeType, typename ElementType>
-	struct TIsCompatibleRangeType
-	{
-		static constexpr bool Value = FPlatformString::IsCharEncodingCompatibleWith<typename TRemoveCV<typename TRemovePointer<decltype(StringViewPrivate::WrapGetData(DeclVal<CharRangeType&>()))>::Type>::Type, ElementType>();
 	};
 }
 
@@ -114,84 +107,54 @@ public:
 	using SizeType = int32;
 	using ViewType = TStringView<CharType>;
 
-private:
-	/** Trait testing whether a type is a contiguous range of CharType, and not CharType[]. */
-	template <typename CharRangeType>
-	using TIsCharRange = TAnd<
-		TIsContiguousContainer<CharRangeType>,
-		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
-		StringViewPrivate::TIsCompatibleRangeType<CharRangeType, ElementType>>;
-
 public:
 	/** Construct an empty view. */
 	constexpr TStringView() = default;
 
-	/**
-	 * Construct a view of the null-terminated string pointed to by InData.
-	 *
-	 * The caller is responsible for ensuring that the provided character range remains valid for the lifetime of the view.
-	 */
-	template <typename OtherCharType,
-		typename TEnableIf<
-			FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()
-		>::Type* = nullptr>
-	constexpr inline TStringView(const OtherCharType* InData)
-		: DataPtr((const CharType*)InData)
-		, Size(InData ? TCString<CharType>::Strlen((const CharType*)InData) : 0)
-	{
-	}
+	/** Construct a view of the null-terminated string pointed to by InData. */
 	constexpr inline TStringView(const CharType* InData)
 		: DataPtr(InData)
 		, Size(InData ? TCString<CharType>::Strlen(InData) : 0)
 	{
 	}
 
-	/**
-	 * Construct a view of InSize characters beginning at InData.
-	 *
-	 * The caller is responsible for ensuring that the provided character range remains valid for the lifetime of the view.
-	 */
-	template <typename OtherCharType,
-		typename TEnableIf<
-			FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()
-		>::Type* = nullptr>
-	constexpr inline TStringView(const OtherCharType* InData, SizeType InSize)
-		: DataPtr((const CharType*)InData)
-		, Size(InSize)
-	{
-	}
+	/** Construct a view of InSize characters beginning at InData. */
 	constexpr inline TStringView(const CharType* InData, SizeType InSize)
 		: DataPtr(InData)
 		, Size(InSize)
 	{
 	}
 
-	/**
-	 * Construct a view from a contiguous range of characters.
-	 *
-	 * The caller is responsible for ensuring that the provided character range remains valid for the lifetime of the view.
-	 */
-	template <typename CharRangeType,
-		typename TEnableIf<TAnd<
-			TNot<TIsSame<ViewType, typename TDecay<CharRangeType>::Type>>,
-			TIsCharRange<CharRangeType>
-		>::Value>::Type* = nullptr>
-	constexpr inline TStringView(CharRangeType&& InRange)
-		: DataPtr((const CharType*)StringViewPrivate::WrapGetData(InRange))
-		, Size(static_cast<SizeType>(GetNum(InRange)))
+	/** Construct a view of the null-terminated string pointed to by InData. */
+	template <typename OtherCharType,
+		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()>* = nullptr>
+	constexpr inline TStringView(const OtherCharType* InData)
+		: DataPtr((const CharType*)InData)
+		, Size(InData ? TCString<CharType>::Strlen((const CharType*)InData) : 0)
 	{
 	}
 
-	/**
-	 * Construct a view from a compatible view.
-	 */
+	/** Construct a view of InSize characters beginning at InData. */
 	template <typename OtherCharType,
-		typename TEnableIf<
-			!TIsSame<CharType, OtherCharType>::Value &&
-			FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()>::Type* = nullptr>
-	constexpr inline TStringView(TStringView<OtherCharType> InView)
-		: DataPtr(reinterpret_cast<const CharType*>(InView.GetData()))
-		, Size(InView.Len())
+		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()>* = nullptr>
+	constexpr inline TStringView(const OtherCharType* InData, SizeType InSize)
+		: DataPtr((const CharType*)InData)
+		, Size(InSize)
+	{
+	}
+
+	/** Construct a view from a contiguous range of characters, such as FString or TStringBuilder. */
+	template <typename CharRangeType,
+		std::enable_if_t<
+			TIsContiguousContainer<CharRangeType>::Value &&
+			TIsCharType<TElementType_T<CharRangeType>>::Value &&
+			FPlatformString::IsCharEncodingCompatibleWith<TElementType_T<CharRangeType>, CharType>() &&
+			!std::is_array_v<std::remove_reference_t<CharRangeType>> &&
+			!std::is_same_v<CharRangeType, ViewType>
+		>* = nullptr>
+	constexpr inline TStringView(const CharRangeType& InRange)
+		: DataPtr((const CharType*)StringViewPrivate::WrapGetData(InRange))
+		, Size(static_cast<SizeType>(GetNum(InRange)))
 	{
 	}
 
@@ -370,6 +333,22 @@ protected:
 	const CharType* DataPtr = nullptr;
 	SizeType Size = 0;
 };
+
+template <typename CharRangeType>
+TStringView(CharRangeType&& Range)
+	-> TStringView<TElementType_T<CharRangeType>>;
+
+template <typename CharPtrOrRangeType>
+constexpr inline auto MakeStringView(CharPtrOrRangeType&& CharPtrOrRange) -> decltype(TStringView(Forward<CharPtrOrRangeType>(CharPtrOrRange)))
+{
+	return TStringView(Forward<CharPtrOrRangeType>(CharPtrOrRange));
+}
+
+template <typename CharPtrType, typename SizeType>
+constexpr inline auto MakeStringView(CharPtrType&& CharPtr, SizeType&& Size) -> decltype(TStringView(Forward<CharPtrType>(CharPtr), Forward<SizeType>(Size)))
+{
+	return TStringView(Forward<CharPtrType>(CharPtr), Forward<SizeType>(Size));
+}
 
 template <typename CharType>
 constexpr inline auto GetNum(TStringView<CharType> String)
