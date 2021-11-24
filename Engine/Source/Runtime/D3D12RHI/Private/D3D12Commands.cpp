@@ -2319,6 +2319,12 @@ void FD3D12CommandContext::RHISubmitCommandsHint()
 
 	// Submit the work we have so far, and start a new command list.
 	FlushCommands();
+
+	// Clear the state on requested command hint flush and not in scene or viewport rendering
+	if (!IsDrawingSceneOrViewport())
+	{
+		ClearState();
+	}
 }
 
 #define USE_COPY_QUEUE_FOR_RESOURCE_SYNC 1
