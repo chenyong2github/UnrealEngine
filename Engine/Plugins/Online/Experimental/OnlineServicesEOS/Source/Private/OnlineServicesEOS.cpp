@@ -3,12 +3,9 @@
 #include "OnlineServicesEOS.h"
 #include "OnlineServicesEOSTypes.h"
 
-#include "EOSShared.h"
 #include "IEOSSDKManager.h"
-
 #include "AuthEOS.h"
 #include "FriendsEOS.h"
-#include "OnlineIdEOS.h"
 #include "PresenceEOS.h"
 #include "ExternalUIEOS.h"
 
@@ -88,19 +85,14 @@ void FOnlineServicesEOS::Initialize()
 	FOnlineServicesCommon::Initialize();
 }
 
-FString FOnlineServicesEOS::ToDebugString(const FOnlineAccountIdHandle& Handle)
+FAccountId FOnlineServicesEOS::CreateAccountId(FString&& InAccountIdString)
 {
-	FString Result;
-	if (Handle.IsValid())
+	EOS_EpicAccountId EpicAccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*InAccountIdString));
+	if (EOS_EpicAccountId_IsValid(EpicAccountId) == EOS_TRUE)
 	{
-		const FOnlineAccountIdDataEOS& AccountIdData = FOnlineAccountIdRegistryEOS::Get().GetIdData(Handle);
-		Result = FString::Printf(TEXT("EAS=[%s] EOS=[%s]"), *LexToString(AccountIdData.EpicAccountId), *LexToString(AccountIdData.ProductUserId));
+		return MakeEOSAccountId(EpicAccountId);
 	}
-	else
-	{
-		Result = TEXT("Invalid");
-	}
-	return Result;
+	return FAccountId();
 }
 
 EOS_HPlatform FOnlineServicesEOS::GetEOSPlatformHandle() const

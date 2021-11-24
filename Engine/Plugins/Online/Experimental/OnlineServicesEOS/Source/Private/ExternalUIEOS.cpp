@@ -2,11 +2,11 @@
 
 #include "ExternalUIEOS.h"
 
-#include "AuthEOS.h"
-#include "OnlineIdEOS.h"
 #include "OnlineServicesEOS.h"
 #include "OnlineServicesEOSTypes.h"
+//#include "Online/ExternalUIErrors.h"
 #include "Online/OnlineErrorDefinitions.h"
+#include "AuthEOS.h"
 
 #include "eos_ui.h"
 #include "eos_types.h"
@@ -37,21 +37,21 @@ TOnlineAsyncOpHandle<FExternalUIShowFriendsUI> FExternalUIEOS::ShowFriendsUI(FEx
 {
 	TOnlineAsyncOpRef<FExternalUIShowFriendsUI> Op = GetOp<FExternalUIShowFriendsUI>(MoveTemp(Params));
 
-	EOS_EpicAccountId LocalUserEasId = GetEpicAccountId(Params.LocalUserId);
-	if (!EOS_EpicAccountId_IsValid(LocalUserEasId))
+	TOptional<EOS_EpicAccountId> EpicAccountId = EOSAccountIdFromOnlineServiceAccountId(Params.AccountId);
+	if (!EpicAccountId.IsSet())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FExternalUIEOS::ShowFriendsUI] LocalUserId=[%s] EpicAccountId not found"), *ToLogString(Params.LocalUserId));
+		UE_LOG(LogTemp, Warning, TEXT("[FExternalUIEOS::ShowFriendsUI] EpicAccountId not found for AccountId [%d]"), Params.AccountId.Handle);
 		Op->SetError(Errors::Unknown()); // TODO
 		return Op->GetHandle();
 	}
 
 	EOS_UI_ShowFriendsOptions ShowFriendsOptions = {};
 	ShowFriendsOptions.ApiVersion = EOS_UI_SHOWFRIENDS_API_LATEST;
-	ShowFriendsOptions.LocalUserId = LocalUserEasId;
+	ShowFriendsOptions.LocalUserId = *EpicAccountId;
 
 	Op->Then([this, ShowFriendsOptions](TOnlineAsyncOp<FExternalUIShowFriendsUI>& InAsyncOp) mutable
 	{
-		return EOS_Async<EOS_UI_ShowFriendsCallbackInfo>(EOS_UI_ShowFriends, UIHandle, ShowFriendsOptions);
+		return EOS_Async<EOS_UI_ShowFriendsCallbackInfo>(InAsyncOp, EOS_UI_ShowFriends, UIHandle, ShowFriendsOptions);
 	})
 	.Then([this](TOnlineAsyncOp<FExternalUIShowFriendsUI>& InAsyncOp, const EOS_UI_ShowFriendsCallbackInfo* Data)
 	{
