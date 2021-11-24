@@ -223,6 +223,22 @@ bool FTagTracker::HasTagFromPtrScope(uint32 InThreadId, uint8 InTracker) const
 // IAllocationsProvider::FAllocation
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+uint32 IAllocationsProvider::FAllocation::GetStartEventIndex() const
+{
+	const auto* Inner = (const FAllocationItem*)this;
+	return Inner->StartEventIndex;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32 IAllocationsProvider::FAllocation::GetEndEventIndex() const
+{
+	const auto* Inner = (const FAllocationItem*)this;
+	return Inner->EndEventIndex;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 double IAllocationsProvider::FAllocation::GetStartTime() const
 {
 	const auto* Inner = (const FAllocationItem*)this;

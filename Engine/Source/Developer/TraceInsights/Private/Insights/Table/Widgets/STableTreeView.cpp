@@ -1486,17 +1486,37 @@ void STableTreeView::UpdateAggregatedValues(FTableTreeNode& GroupNode)
 				break;
 
 			case ETableColumnAggregation::Min:
-				STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::max(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					return FMath::Min(InValue, InTableCellValue->AsDouble());
-				});
+					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::max(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+					{
+						return FMath::Min(InValue, InTableCellValue->AsDouble());
+					});
+				}
+				else
+				{
+					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, std::numeric_limits<int64>::max(), false, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+					{
+						return FMath::Min(InValue, InTableCellValue->AsInt64());
+					});
+				}
 				break;
 
 			case ETableColumnAggregation::Max:
-				STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::lowest(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+				if (Column.GetDataType() == ETableCellDataType::Float || Column.GetDataType() == ETableCellDataType::Double)
 				{
-					return FMath::Max(InValue, InTableCellValue->AsDouble());
-				});
+					STableTreeView::UpdateAggregationRec<double>(Column, GroupNode, std::numeric_limits<double>::lowest(), false, [](double InValue, TOptional<FTableCellValue> InTableCellValue)
+					{
+						return FMath::Max(InValue, InTableCellValue->AsDouble());
+					});
+				}
+				else
+				{
+					STableTreeView::UpdateAggregationRec<int64>(Column, GroupNode, std::numeric_limits<int64>::min(), false, [](int64 InValue, TOptional<FTableCellValue> InTableCellValue)
+					{
+						return FMath::Max(InValue, InTableCellValue->AsInt64());
+					});
+				}
 				break;
 		}
 	}

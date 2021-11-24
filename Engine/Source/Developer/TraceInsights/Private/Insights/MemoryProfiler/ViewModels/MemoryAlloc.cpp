@@ -8,14 +8,16 @@ namespace Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FMemoryAlloc::FMemoryAlloc(double InStartTime, double InEndTime, uint64 InAddress, uint64 InSize, const TCHAR* InTag, const TraceServices::FCallstack* InCallstack, HeapId InRootHeap)
-: StartTime(InStartTime)
-, EndTime(InEndTime)
-, Address(InAddress)
-, Size(InSize)
-, Tag(InTag)
-, Callstack(InCallstack)
-, RootHeap(InRootHeap)
+FMemoryAlloc::FMemoryAlloc()
+: StartEventIndex(0)
+, EndEventIndex(0)
+, StartTime(0.0)
+, EndTime(0.0)
+, Address(0)
+, Size(0)
+, Tag(nullptr)
+, Callstack(nullptr)
+, RootHeap(0)
 , bIsBlock(false)
 {
 }

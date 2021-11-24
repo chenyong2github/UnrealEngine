@@ -17,9 +17,12 @@ class FMemoryAlloc
 	friend class SMemAllocTableTreeView;
 
 public:
-	FMemoryAlloc(double InStartTime, double InEndTime, uint64 InAddress, uint64 InSize, const TCHAR* InTag, const TraceServices::FCallstack* InCallstack, HeapId InRootHeap);
+	FMemoryAlloc();
 	~FMemoryAlloc();
 
+	int64 GetStartEventIndex() const { return int64(StartEventIndex); }
+	int64 GetEndEventIndex() const { return int64(EndEventIndex); }
+	int64 GetEventDistance() const { return int64(EndEventIndex) - int64(StartEventIndex); }
 	double GetStartTime() const { return StartTime; }
 	double GetEndTime() const { return EndTime; }
 	double GetDuration() const { return EndTime - StartTime; }
@@ -32,6 +35,8 @@ public:
 	HeapId GetRootHeap() const { return RootHeap; };
 
 private:
+	uint32 StartEventIndex;
+	uint32 EndEventIndex;
 	double StartTime;
 	double EndTime;
 	uint64 Address;

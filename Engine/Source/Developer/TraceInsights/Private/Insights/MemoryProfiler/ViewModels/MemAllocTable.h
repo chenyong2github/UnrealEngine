@@ -18,6 +18,9 @@ class FTableColumn;
 // Column identifiers
 struct FMemAllocTableColumns
 {
+	static const FName StartEventIndexColumnId;
+	static const FName EndEventIndexColumnId;
+	static const FName EventDistanceColumnId;
 	static const FName StartTimeColumnId;
 	static const FName EndTimeColumnId;
 	static const FName DurationColumnId;

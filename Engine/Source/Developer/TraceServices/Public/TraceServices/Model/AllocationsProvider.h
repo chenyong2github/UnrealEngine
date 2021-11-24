@@ -86,6 +86,8 @@ public:
 
 	struct TRACESERVICES_API FAllocation
 	{
+		uint32 GetStartEventIndex() const;
+		uint32 GetEndEventIndex() const;
 		double GetStartTime() const;
 		double GetEndTime() const;
 		uint64 GetAddress() const;
