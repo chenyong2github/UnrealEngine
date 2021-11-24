@@ -75,7 +75,7 @@ void FBaseSessionFilterService::SetObjectFilterState(const FString& InObjectName
 void FBaseSessionFilterService::UpdateFilterPreset(const TSharedPtr<IFilterPreset> Preset, bool IsEnabled)
 {
 	TArray<FString> Names;
-	Preset->GetWhitelistedNames(Names);
+	Preset->GetAllowlistedNames(Names);
 	if (IsEnabled)
 	{
 		FrameEnabledChannels.Append(Names);

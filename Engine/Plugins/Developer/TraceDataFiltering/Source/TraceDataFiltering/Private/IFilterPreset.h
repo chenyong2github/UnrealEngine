@@ -17,7 +17,7 @@ public:
 	virtual FText GetDescription() const = 0;
 
 	/** Returns all names which pass this preset its filter */
-	virtual void GetWhitelistedNames(TArray<FString>& OutNames) const = 0;
+	virtual void GetAllowlistedNames(TArray<FString>& OutNames) const = 0;
 	/** Whether or not this preset can be deleted */
 	virtual bool CanDelete() const = 0;
 	/** Whether or not this preset only exists locally */

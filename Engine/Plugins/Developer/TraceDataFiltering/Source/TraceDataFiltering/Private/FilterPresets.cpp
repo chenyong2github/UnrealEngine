@@ -112,7 +112,7 @@ void FFilterPresetHelpers::CreateNewPreset(const TArray<TSharedPtr<ITraceObject>
 
 	TArray<FString> Names;
 	ExtractEnabledObjectNames(InObjects, Names);
-	NewUserFilter.WhitelistedNames = Names;
+	NewUserFilter.AllowlistedNames = Names;
 
 	ULocalFilterPresetContainer::Save();
 }
@@ -200,7 +200,7 @@ void FUserFilterPreset::Save(const TArray<TSharedPtr<ITraceObject>>& InObjects)
 	TArray<FString> Names;
 	FFilterPresetHelpers::ExtractEnabledObjectNames(InObjects, Names);
 
-	FilterData.WhitelistedNames = Names;
+	FilterData.AllowlistedNames = Names;
 	
 	USharedFilterPresetContainer::Save();
 	ULocalFilterPresetContainer::Save();
@@ -227,9 +227,9 @@ FText FFilterPreset::GetDescription() const
 	return FText::FormatOrdered(LOCTEXT("FilterPresetDescriptionFormat", "Name: {0}\nType: {1}"), FText::FromString(Name), CanDelete() ? (IsLocal() ? LOCTEXT("LocalPreset", "Local") : LOCTEXT("SharedPreset", "Shared")) : LOCTEXT("EnginePreset", "Engine"));
 }
 
-void FFilterPreset::GetWhitelistedNames(TArray<FString>& OutNames) const
+void FFilterPreset::GetAllowlistedNames(TArray<FString>& OutNames) const
 {
-	OutNames.Append(FilterData.WhitelistedNames);
+	OutNames.Append(FilterData.AllowlistedNames);
 }
 
 bool FFilterPreset::CanDelete() const

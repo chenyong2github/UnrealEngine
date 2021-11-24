@@ -20,11 +20,11 @@ struct FFilterData
 	FString Name;
 
 	UPROPERTY()
-	TArray<FString> WhitelistedNames;
+	TArray<FString> AllowlistedNames;
 	
 	bool operator==(const FFilterData& Other) const
 	{
-		return Name == Other.Name && WhitelistedNames == Other.WhitelistedNames;
+		return Name == Other.Name && AllowlistedNames == Other.AllowlistedNames;
 	}
 };
 
@@ -48,7 +48,7 @@ public:
 	virtual FString GetName() const override;
 	virtual FText GetDisplayText() const;
 	virtual FText GetDescription() const;
-	virtual void GetWhitelistedNames(TArray<FString>& OutNames) const override;
+	virtual void GetAllowlistedNames(TArray<FString>& OutNames) const override;
 	virtual bool CanDelete() const override;
 	virtual void Rename(const FString& InNewName) override;
 	virtual bool Delete() override;

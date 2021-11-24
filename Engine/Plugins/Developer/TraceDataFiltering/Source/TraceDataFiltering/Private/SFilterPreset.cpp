@@ -165,7 +165,7 @@ FReply SFilterPreset::FilterMiddleButtonClicked()
 
 FText SFilterPreset::GetToolTipText() const
 {
-	return bHighlighted ? FilterPreset->GetDescription() : FText::Format(LOCTEXT("FilterPresetTooltipText", "{0}\nHold CTRL to highlight whitelisted items."), FilterPreset->GetDescription());
+	return bHighlighted ? FilterPreset->GetDescription() : FText::Format(LOCTEXT("FilterPresetTooltipText", "{0}\nHold CTRL to highlight allowlisted items."), FilterPreset->GetDescription());
 }
 
 TSharedRef<SWidget> SFilterPreset::GetRightClickMenuContent()
