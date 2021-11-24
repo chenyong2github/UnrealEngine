@@ -253,6 +253,15 @@ private:
 	{
 		AActor* Actor = ActorPtr.Get();
 
+		// Color LevelInstances differently if they are being edited
+		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
+		{
+			if (LevelInstanceActor->IsEditing())
+			{
+				return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
+			}
+		}
+
 		auto TreeItem = TreeItemPtr.Pin();
 		if (auto BaseColor = FSceneOutlinerCommonLabelData::GetForegroundColor(*TreeItem))
 		{
@@ -285,15 +294,6 @@ private:
 		if (!GEditor->CanSelectActor(Actor, bInSelected, bSelectEvenIfHidden))
 		{
 			return FSceneOutlinerCommonLabelData::DarkColor;
-		}
-
-		// Color LevelInstances differently if they are being edited
-		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
-		{
-			if (LevelInstanceActor->IsEditing() && !LevelInstanceActor->IsSelected())
-			{
-				return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
-			}
 		}
 
 		return FSlateColor::UseForeground();
