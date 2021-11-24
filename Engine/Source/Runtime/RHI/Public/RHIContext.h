@@ -285,6 +285,11 @@ public:
 		ensure(GPUMask == FRHIGPUMask::GPU0());
 	}
 
+	virtual FRHIGPUMask RHIGetGPUMask() const
+	{
+		return FRHIGPUMask::GPU0();
+	}
+
 #if WITH_MGPU
 	virtual void RHIWaitForTemporalEffect(const FName& InEffectName)
 	{
@@ -362,6 +367,10 @@ public:
 		return WrappingContext ? *WrappingContext : *this;
 	}
 
+#elif WITH_MGPU
+	// Needs to be virtual, because it's required for multi GPU resource uploads (FD3D12RHICommandInitializeBuffer, etc)
+	virtual IRHIComputeContext& GetLowestLevelContext() { return *this; }
+	inline IRHIComputeContext& GetHighestLevelContext() { return *this; }
 #else
 
 	// Fast implementations when the RHI validation layer is disabled.

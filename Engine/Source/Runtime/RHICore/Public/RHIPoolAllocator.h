@@ -52,6 +52,11 @@ public:
 	void AddBefore(FRHIPoolAllocationData* InOther);
 	void AddAfter(FRHIPoolAllocationData* InOther);
 
+	// Alias operations
+	void AddAlias(FRHIPoolAllocationData* InOther);
+	void RemoveAlias();
+	FRHIPoolAllocationData* GetFirstAlias() const { return AliasAllocation; }
+
 	// Type getters
 	bool IsHead() const { return GetAllocationType() == EAllocationType::Head; }
 	bool IsFree() const { return GetAllocationType() == EAllocationType::Free; }
@@ -106,6 +111,7 @@ private:
 	// TODO: Link list data could be stored as index into a fixed array managed by the memory pool. Then only a uin16 or uint32 is needed here to get the next and previous index
 	FRHIPoolAllocationData* PreviousAllocation;
 	FRHIPoolAllocationData* NextAllocation;
+	FRHIPoolAllocationData* AliasAllocation;		// Linked list of aliases
 
 	FRHIPoolResource* Owner;
 };
