@@ -10,6 +10,9 @@
 #include "AssetData.h"
 #include "UObject/ObjectKey.h"
 #include "Input/Reply.h"
+#if WITH_EDITOR
+#include "Kismet2/Kismet2NameValidators.h"
+#endif
 #include "EdGraphSchema.generated.h"
 
 class FSlateRect;
@@ -1223,4 +1226,20 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @param OutAllActions Resulting compatible actions
 	 */
 	virtual void InsertAdditionalActions(TArray<UBlueprint*> InBlueprints, TArray<UEdGraph*> InGraphs, TArray<UEdGraphPin*> InPins, FGraphActionListBuilderBase& OutAllActions) const {}
+
+#if WITH_EDITOR
+	/**
+	 * Returns a name validator appropiate for the schema and object that is being named
+	 * @param InBlueprintObj The blueprint where the object being named lives.
+	 * @param InOriginalName The original name of the object.
+	 * @param InValidationScope The scope where the named object lives.
+	 * @param InActionTypeId The type of object that is being named.
+	 * @param NameValidator The name validator to use when naming this object.
+	 */
+	virtual TSharedPtr<INameValidatorInterface> GetNameValidator(const UBlueprint* InBlueprintObj, const FName& InOriginalName, const UStruct* InValidationScope, const FName& InActionTypeId) const
+	{
+		return MakeShareable(new FKismetNameValidator(InBlueprintObj, InOriginalName, InValidationScope));
+	}
+#endif
+	
 };
