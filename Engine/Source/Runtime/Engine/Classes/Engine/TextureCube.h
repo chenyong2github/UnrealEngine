@@ -10,6 +10,10 @@
 
 class FTextureResource;
 
+#ifndef WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
+#define WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS 1
+#endif
+
 UCLASS(hidecategories=Object, MinimalAPI)
 class UTextureCube : public UTexture
 {
@@ -19,6 +23,11 @@ class UTextureCube : public UTexture
 	FTexturePlatformData* PrivatePlatformData;
 
 public:
+#if WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
+	UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead. This value cannot be relied upon anymore.")
+	FTexturePlatformData* PlatformData {nullptr};
+#endif
+
 	/** Set the derived data for this texture on this platform. */
 	ENGINE_API void SetPlatformData(FTexturePlatformData* PlatformData);
 	/** Get the derived data for this texture on this platform. */

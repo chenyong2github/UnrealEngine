@@ -14,6 +14,10 @@
 class FTexture2DResourceMem;
 class FTexture2DResource;
 
+#ifndef WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
+#define WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS 1
+#endif
+
 UCLASS(hidecategories=Object, MinimalAPI, BlueprintType)
 class UTexture2D : public UTexture
 {
@@ -71,6 +75,11 @@ private:
 	FTexturePlatformData* PrivatePlatformData;
 
 public:
+#if WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
+	UE_DEPRECATED(5.00, "Use GetPlatformData() / SetPlatformData() accessors instead. This value cannot be relied upon anymore.")
+	FTexturePlatformData* PlatformData {nullptr};
+#endif
+
 	/** Set the derived data for this texture on this platform. */
 	ENGINE_API void SetPlatformData(FTexturePlatformData* PlatformData);
 	/** Get the derived data for this texture on this platform. */
