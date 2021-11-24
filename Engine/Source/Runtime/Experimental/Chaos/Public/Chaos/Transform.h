@@ -160,6 +160,11 @@ namespace Chaos
 			return BaseTransform::Inverse();
 		}
 
+		PMatrix<FReal, 4, 4> ToMatrixWithScale() const
+		{
+			return BaseTransform::ToMatrixWithScale();
+		}
+
 		PMatrix<FReal, 4, 4> ToMatrixNoScale() const
 		{
 			return BaseTransform::ToMatrixNoScale();
