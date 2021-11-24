@@ -701,6 +701,9 @@ private:
 	void BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode);
 
 	void TrimAttributes(const FNiagaraCompileOptions& InCompileOptions, TArray<FNiagaraVariable>& Attributes);
+
+	// Specific method to reconcile whether the default value has been implicitly or explicitly set for a namespaced var added to the param map.
+	void RecordParamMapDefinedAttributeToNamespaceVar(const FNiagaraVariable& VarToRecord, const UEdGraphPin* VarAssociatedDefaultPin);
 	
 	/** Map of symbol names to count of times it's been used. Used for generating unique symbol names. */
 	TMap<FName, uint32> SymbolCounts;
@@ -738,6 +741,12 @@ private:
 		int32 ChunkMode;
 	};
 
+	struct FVarAndDefaultSource
+	{
+		FNiagaraVariable Variable;
+		bool bDefaultExplicit = false; //Whether or not the default value of the variable is explicit, e.g. there is an explicit value on a pin, explicit binding, or explicit custom initialization.
+	};
+
 	TMap<FName, UniformVariableInfo> ParamMapDefinedSystemVars; // Map from the defined constants to the uniform chunk expressing them (i.e. have we encountered before in this graph?)
 
 	// Synced to the EmitterParameter uniforms encountered for parameter maps thus far.
@@ -746,7 +755,7 @@ private:
 
 	// Synced to the Attributes encountered for parameter maps thus far.
 	TMap<FName, int32> ParamMapDefinedAttributesToUniformChunks; // Map from the variable name exposed as a attribute to the uniform chunk expressing it (i.e. have we encountered before in this graph?)
-	TMap<FName, FNiagaraVariable> ParamMapDefinedAttributesToNamespaceVars; // Map from defined parameter to the Namespaced variable expressing it.
+	TMap<FName, FVarAndDefaultSource> ParamMapDefinedAttributesToNamespaceVars; // Map from defined parameter to the Namespaced variable expressing it.
 
 	// Synced to the external variables used when bulk compiling system scripts.
 	TArray<FNiagaraVariable> ExternalVariablesForBulkUsage;
