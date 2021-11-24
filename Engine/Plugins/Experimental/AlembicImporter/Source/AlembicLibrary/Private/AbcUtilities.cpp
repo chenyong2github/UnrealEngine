@@ -3,6 +3,7 @@
 #include "AbcUtilities.h"
 
 #include "AbcFile.h"
+#include "AbcImportSettings.h"
 #include "AbcImportUtilities.h"
 #include "GeometryCache.h"
 #include "Materials/Material.h"
@@ -11,11 +12,15 @@ void FAbcUtilities::GetFrameMeshData(FAbcFile& AbcFile, int32 FrameIndex, FGeome
 {
 	AbcFile.ReadFrame(FrameIndex, EFrameReadFlags::ApplyMatrix, ConcurrencyIndex);
 
+
+	const UAbcImportSettings* ImportSettings = AbcFile.GetImportSettings();
+	checkSlow(ImportSettings);
+
 	FGeometryCacheMeshData MeshData;
 	int32 PreviousNumVertices = 0;
 	bool bConstantTopology = false;
-	const bool bUseVelocitiesAsMotionVectors = true;
-	const bool bStoreImportedVertexNumbers = false;
+	const bool bUseVelocitiesAsMotionVectors = ImportSettings->GeometryCacheSettings.MotionVectors == EAbcGeometryCacheMotionVectorsImport::ImportAbcVelocitiesAsMotionVectors;
+	const bool bStoreImportedVertexNumbers = ImportSettings->GeometryCacheSettings.bStoreImportedVertexNumbers;
 
 	AbcImporterUtilities::MergePolyMeshesToMeshData(FrameIndex, 0, AbcFile.GetSecondsPerFrame(), bUseVelocitiesAsMotionVectors,
 		AbcFile.GetPolyMeshes(), AbcFile.GetUniqueFaceSetNames(), MeshData, PreviousNumVertices, bConstantTopology, bStoreImportedVertexNumbers);

@@ -95,7 +95,7 @@ FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh)
 
 			if (Mesh.VertexInfo.bHasImportedVertexNumbers)
 			{
-				Ar.Serialize(&Mesh.ImportedVertexNumbers, Mesh.ImportedVertexNumbers.Num() * Mesh.ImportedVertexNumbers.GetTypeSize());
+				Ar.Serialize(&Mesh.ImportedVertexNumbers[0], Mesh.ImportedVertexNumbers.Num() * Mesh.ImportedVertexNumbers.GetTypeSize());
 			}
 		  
 			if (Mesh.VertexInfo.bHasMotionVectors)
