@@ -9,15 +9,29 @@
 #include "BuiltInRayTracingShaders.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
 
+TAutoConsoleVariable<int32> GVulkanExperimentalRayTracing(
+	TEXT("r.Vulkan.ExperimentalRayTracing"),
+	0,
+	TEXT("0: Do not enable Vulkan ray tracing extensions (default)\n")
+	TEXT("1: Enable experimental ray tracing support (for development and testing purposes)"),
+	ECVF_ReadOnly
+);
+
 // Define ray tracing entry points
 #define DEFINE_VK_ENTRYPOINTS(Type,Func) VULKANRHI_API Type VulkanDynamicAPI::Func = NULL;
 ENUM_VK_ENTRYPOINTS_RAYTRACING(DEFINE_VK_ENTRYPOINTS)
 
 void FVulkanRayTracingPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
 {
+	if (GVulkanExperimentalRayTracing.GetValueOnAnyThread() == 0)
+	{
+		return;
+	}
+
 	// Primary extensions
 	OutExtensions.Add(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
 	OutExtensions.Add(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+	OutExtensions.Add(VK_KHR_RAY_QUERY_EXTENSION_NAME);
 
 	// VK_KHR_acceleration_structure dependencies 
 	OutExtensions.Add(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME); // Note: Promoted to Vulkan 1.2
@@ -50,8 +64,12 @@ void FVulkanRayTracingPlatform::EnablePhysicalDeviceFeatureExtensions(VkDeviceCr
 		Features.RayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
 		Features.RayTracingPipelineFeatures.pNext = &Features.AccelerationStructureFeatures;
 
+		ZeroVulkanStruct(Features.RayQueryFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR);
+		Features.RayQueryFeatures.pNext = &Features.RayTracingPipelineFeatures;
+		Features.RayQueryFeatures.rayQuery = VK_TRUE;
+
 		ZeroVulkanStruct(Features.DescriptorIndexingFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT);
-		Features.DescriptorIndexingFeatures.pNext = &Features.RayTracingPipelineFeatures;
+		Features.DescriptorIndexingFeatures.pNext = &Features.RayQueryFeatures;
 
 		DeviceInfo.pNext = &Features.DescriptorIndexingFeatures;
 	}
