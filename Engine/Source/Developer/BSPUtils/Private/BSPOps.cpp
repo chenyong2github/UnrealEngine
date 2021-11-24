@@ -587,7 +587,7 @@ void FBSPOps::csgCopyBrush( ABrush* Dest, ABrush* Src, uint32 PolyFlags, EObject
  *
  * @return		A newly-created copy of the brush.
  */
-ABrush*	FBSPOps::csgAddOperation( ABrush* Actor, uint32 PolyFlags, EBrushType BrushType)
+ABrush*	FBSPOps::csgAddOperation( ABrush* Actor, uint32 PolyFlags, EBrushType BrushType, bool bAllowEmpty)
 {
 	check(Actor);
 	check(Actor->GetBrushComponent());
@@ -596,7 +596,7 @@ ABrush*	FBSPOps::csgAddOperation( ABrush* Actor, uint32 PolyFlags, EBrushType Br
 	check(Actor->GetWorld());
 
 	// Can't do this if brush has no polys. 
-	if( !Actor->Brush->Polys->Element.Num() )
+	if(!bAllowEmpty && !Actor->Brush->Polys->Element.Num())
 		return NULL;
 
 	// Spawn a new actor for the brush.
@@ -612,6 +612,7 @@ ABrush*	FBSPOps::csgAddOperation( ABrush* Actor, uint32 PolyFlags, EBrushType Br
 		PolyFlags,
 		RF_Transactional,
 		0,
+		true,
 		true
 	);
 	check(Result->Brush);
