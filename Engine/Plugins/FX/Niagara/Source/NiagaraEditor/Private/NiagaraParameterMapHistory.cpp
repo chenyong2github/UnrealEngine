@@ -1632,9 +1632,20 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 
 ENiagaraFunctionDebugState FCompileConstantResolver::CalculateDebugState() const
 {
-	const UNiagaraSystem* CurrentSystem =  System? System : (Emitter ? Cast<UNiagaraSystem>(Emitter->GetOuter()) : nullptr);
-	bool bDisableDebug = CurrentSystem ? CurrentSystem->bDisableAllDebugSwitches : false;
-	return bDisableDebug ? ENiagaraFunctionDebugState::NoDebug : DebugState;
+	// System or Emitter
+	const UNiagaraSystem* OwnerSystem = System ? System : (Emitter ? Cast<const UNiagaraSystem>(Emitter->GetOuter()) : nullptr);
+	if ( OwnerSystem != nullptr )
+	{
+		return OwnerSystem->bDisableDebugSwitches ? ENiagaraFunctionDebugState::NoDebug : DebugState;
+	}
+
+	// Translator
+	if ( Translator != nullptr )
+	{
+		return Translator->DisableDebugSwitches() ? ENiagaraFunctionDebugState::NoDebug : DebugState;
+	}
+
+	return DebugState;
 }
 
 

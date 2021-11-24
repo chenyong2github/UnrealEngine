@@ -84,6 +84,8 @@ public:
 	void AddRapidIterationParameters(const FNiagaraParameterStore& InParamStore, FCompileConstantResolver InResolver);
 	virtual bool GetUseRapidIterationParams() const override { return bUseRapidIterationParams; }
 
+	virtual bool GetDisableDebugSwitches() const override { return bDisableDebugSwitches; }
+
 	// Simulation Stage Variables. Sim stage of 0 is always Spawn/Update
 	struct FCompileSimStageData
 	{
@@ -114,6 +116,7 @@ public:
 	TWeakObjectPtr<UNiagaraScriptSource> Source;
 	FString SourceName;
 	bool bUseRapidIterationParams = true;
+	bool bDisableDebugSwitches = false;
 
 	UEnum* ENiagaraScriptCompileStatusEnum;
 	UEnum* ENiagaraScriptUsageEnum;
@@ -305,11 +308,17 @@ public:
 	FHlslNiagaraTranslatorOptions()
 		: SimTarget(ENiagaraSimTarget::CPUSim)
 		, bParameterRapidIteration(true)
+		, bDisableDebugSwitches(false)
 	{
 
 	}
 
-	FHlslNiagaraTranslatorOptions(const FHlslNiagaraTranslatorOptions& InOptions) : SimTarget(InOptions.SimTarget), InstanceParameterNamespaces(InOptions.InstanceParameterNamespaces), bParameterRapidIteration(InOptions.bParameterRapidIteration), OverrideModuleConstants(InOptions.OverrideModuleConstants)
+	FHlslNiagaraTranslatorOptions(const FHlslNiagaraTranslatorOptions& InOptions)
+		: SimTarget(InOptions.SimTarget)
+		, InstanceParameterNamespaces(InOptions.InstanceParameterNamespaces)
+		, bParameterRapidIteration(InOptions.bParameterRapidIteration)
+		, bDisableDebugSwitches(InOptions.bDisableDebugSwitches)
+		, OverrideModuleConstants(InOptions.OverrideModuleConstants)
 	{
 	}
 
@@ -320,6 +329,9 @@ public:
 
 	/** Whether or not to treat top-level module variables as external values for rapid iteration without need for compilation.*/
 	bool bParameterRapidIteration;
+
+	/** Should we disable debug switches during translation. */
+	bool bDisableDebugSwitches;
 
 	/** Whether or not to override top-level module variables with values from the constant override table. This is only used for variables that were candidates for rapid iteration.*/
 	TArray<FNiagaraVariable> OverrideModuleConstants;
@@ -527,6 +539,8 @@ public:
 
 	virtual int32 GetParameter(const FNiagaraVariable& Parameter);
 	virtual int32 GetRapidIterationParameter(const FNiagaraVariable& Parameter);
+
+	bool DisableDebugSwitches() const { return TranslationOptions.bDisableDebugSwitches; }
 
 	bool IsCompileOptionDefined(const TCHAR* InDefineStr);
 
