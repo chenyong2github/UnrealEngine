@@ -83,6 +83,8 @@ namespace UE::DatasmithImporter
 
 		void OnExternalSourceChanged(const TSharedRef<FExternalSource>& ExternalSource);
 
+		void TriggerAutoReimportOnExternalSource(const TSharedRef<FExternalSource>& ExternalSource);
+
 		void TriggerAutoReimportOnAsset(UObject* Asset);
 
 #if WITH_EDITOR
@@ -113,6 +115,8 @@ namespace UE::DatasmithImporter
 		TMap<UObject*, TSharedRef<FAutoReimportInfo>> RegisteredAutoReimportObjectMap;
 		
 		TMultiMap<TSharedRef<FExternalSource>, TSharedRef<FAutoReimportInfo>> RegisteredAutoReimportExternalSourceMap;
+
+		TQueue<TSharedPtr<FExternalSource>> PendingReimportQueue;
 
 #if WITH_EDITOR
 		FDelegateHandle OnPIEEndHandle;
