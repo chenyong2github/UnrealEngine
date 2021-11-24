@@ -14,10 +14,56 @@
 
 #if OVERRIDE_TRACERAYINLINE_USH
 #include "/Platform/Private/TraceRayInline.ush"
+
+#else // OVERRIDE_TRACERAYINLINE_USH
+
+#include "/Engine/Private/RayTracing/TraceRayInlineCommon.ush"
+
+#define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS 0
+#define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS 0
+
+FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure AccelerationStructure,
+	uint RayFlags,
+	uint InstanceInclusionMask,
+	RayDesc Ray)
+{
+	FTraceRayInlineResult TraceRayResult = (FTraceRayInlineResult)0;
+	TraceRayResult.SetMiss();
+
+	RayQuery<RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES | RAY_FLAG_FORCE_OPAQUE> RayQ;
+
+	RayQ.TraceRayInline(AccelerationStructure, RayFlags, InstanceInclusionMask, Ray);
+	while (RayQ.Proceed());
+	
+	if (RayQ.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+	{
+		TraceRayResult.HitT = RayQ.CommittedRayT();
+		TraceRayResult.InstanceID = RayQ.CommittedInstanceID();
+		TraceRayResult.InstanceIndex = RayQ.CommittedInstanceIndex();
+		TraceRayResult.PrimitiveIndex = RayQ.CommittedPrimitiveIndex();
+		TraceRayResult.GeometryIndex = RayQ.CommittedGeometryIndex();
+		TraceRayResult.Barycentrics = RayQ.CommittedTriangleBarycentrics();
+		TraceRayResult.bIsFrontFace = RayQ.CommittedTriangleFrontFace();
+		TraceRayResult.InstanceContributionToHitGroupIndex = RayQ.CommittedInstanceContributionToHitGroupIndex();
+
+		// placeholder
+		TraceRayResult.WorldGeometryNormal = RayQ.WorldRayDirection();
+
+		TraceRayResult.Bookmark[0] = asuint(TraceRayResult.HitT);
+		TraceRayResult.Bookmark[1] = asuint(TraceRayResult.HitT);
+	}
+
+	return TraceRayResult;
+}
+
 #endif // OVERRIDE_TRACERAYINLINE_USH
 
 #ifndef PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS
 #define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS 0
 #endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_NORMALS
+
+#ifndef PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS
+#define PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS 0
+#endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS
 
 #endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING

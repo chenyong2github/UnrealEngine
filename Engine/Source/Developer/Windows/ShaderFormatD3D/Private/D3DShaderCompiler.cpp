@@ -1072,7 +1072,8 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		Language == ELanguage::SM6
 		|| bIsRayTracingShader
 		|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
-		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
+		|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC)
+		|| Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing);
 	const TCHAR* ShaderProfile = GetShaderProfileName(Input.Target, bUseDXC);
 
 	if(!ShaderProfile)
@@ -1090,6 +1091,11 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_STATIC_SAMPLERS"), 1);
 		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER"), 1);
 		AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_NOINLINE"), 1);
+
+		if (Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
+		{
+			AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_INLINE_RAY_TRACING"), 1);
+		}
 
 		if (Language == ELanguage::SM6 && Input.Environment.CompilerFlags.Contains(CFLAG_AllowRealTypes))
 		{
