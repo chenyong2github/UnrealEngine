@@ -57,7 +57,7 @@ USkeletalMesh* UIKRetargeterController::GetTargetPreviewMesh()
 	}
 
 	// optionally prefer override if one is provided
-	if (Asset->TargetPreviewMesh.IsValid())
+	if (IsValid(Asset->TargetPreviewMesh))
 	{
 		return Asset->TargetPreviewMesh.Get();
 	}
@@ -68,17 +68,17 @@ USkeletalMesh* UIKRetargeterController::GetTargetPreviewMesh()
 
 FName UIKRetargeterController::GetSourceRootBone() const
 {
-	return Asset->SourceIKRigAsset.IsValid() ? Asset->SourceIKRigAsset->GetRetargetRoot() : FName("None");
+	return IsValid(Asset->SourceIKRigAsset) ? Asset->SourceIKRigAsset->GetRetargetRoot() : FName("None");
 }
 
 FName UIKRetargeterController::GetTargetRootBone() const
 {
-	return Asset->TargetIKRigAsset.IsValid() ? Asset->TargetIKRigAsset->GetRetargetRoot() : FName("None");
+	return IsValid(Asset->TargetIKRigAsset) ? Asset->TargetIKRigAsset->GetRetargetRoot() : FName("None");
 }
 
 void UIKRetargeterController::GetTargetChainNames(TArray<FName>& OutNames) const
 {
-	if (Asset->TargetIKRigAsset.IsValid())
+	if (IsValid(Asset->TargetIKRigAsset))
 	{
 		const TArray<FBoneChain>& Chains = Asset->TargetIKRigAsset->GetRetargetChains();
 		for (const FBoneChain& Chain : Chains)
@@ -90,7 +90,7 @@ void UIKRetargeterController::GetTargetChainNames(TArray<FName>& OutNames) const
 
 void UIKRetargeterController::GetSourceChainNames(TArray<FName>& OutNames) const
 {
-	if (Asset->SourceIKRigAsset.IsValid())
+	if (IsValid(Asset->SourceIKRigAsset))
 	{
 		const TArray<FBoneChain>& Chains = Asset->SourceIKRigAsset->GetRetargetChains();
 		for (const FBoneChain& Chain : Chains)
@@ -102,7 +102,7 @@ void UIKRetargeterController::GetSourceChainNames(TArray<FName>& OutNames) const
 
 void UIKRetargeterController::CleanChainMapping()
 {
-	if (!Asset->TargetIKRigAsset.IsValid())
+	if (!IsValid(Asset->TargetIKRigAsset))
 	{
 		// don't clean chain mappings, in case user is replacing with IK Rig asset that has some valid mappings
 		return;
@@ -191,7 +191,7 @@ void UIKRetargeterController::CleanPoseList()
 	}
 
 	// remove all bone offsets that are no longer part of the target skeleton
-	if (Asset->TargetIKRigAsset.IsValid())
+	if (IsValid(Asset->TargetIKRigAsset))
 	{
 		const TArray<FName> AllowedBoneNames = Asset->TargetIKRigAsset->Skeleton.BoneNames;
 		for (TTuple<FName, FIKRetargetPose>& Pose : Asset->RetargetPoses)
@@ -302,7 +302,7 @@ const TArray<FRetargetChainMap>& UIKRetargeterController::GetChainMappings()
 
 USkeleton* UIKRetargeterController::GetSourceSkeletonAsset() const
 {
-	if (!Asset->SourceIKRigAsset.IsValid())
+	if (!IsValid(Asset->SourceIKRigAsset))
 	{
 		return nullptr;
 	}
