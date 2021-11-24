@@ -57,7 +57,12 @@ struct FConsoleVariablesEditorCommandInfo
 
 	EConsoleVariableFlags GetSource() const
 	{
-		return (EConsoleVariableFlags)((uint32)ConsoleVariablePtr->GetFlags() & ECVF_SetByMask);
+		if (ConsoleVariablePtr)
+		{
+			return (EConsoleVariableFlags)((uint32)ConsoleVariablePtr->GetFlags() & ECVF_SetByMask);
+		}
+
+		return ECVF_Default;
 	}
 
 	void SetSourceFlag(const EConsoleVariableFlags InSource) const
@@ -67,10 +72,14 @@ struct FConsoleVariablesEditorCommandInfo
 
 	FText GetSourceAsText() const
 	{
-		if (ConsoleVariablePtr)
+		return ConvertConsoleVariableSetByFlagToText(GetSource());
+	}
+
+	static FText ConvertConsoleVariableSetByFlagToText(const EConsoleVariableFlags InFlag)
+	{
+		
+		switch (InFlag)
 		{
-			switch (GetSource())
-			{
 			case (EConsoleVariableFlags::ECVF_SetByConstructor):
 				return LOCTEXT("SetByConstructor", "Constructor");
 				
@@ -106,7 +115,6 @@ struct FConsoleVariablesEditorCommandInfo
 
 			default:
 				break;;
-			}
 		}
 		
 		return LOCTEXT("UnknownSource", "<UNKNOWN>");

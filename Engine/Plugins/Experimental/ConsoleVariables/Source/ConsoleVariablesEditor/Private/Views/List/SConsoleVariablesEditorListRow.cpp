@@ -107,8 +107,6 @@ SConsoleVariablesEditorListRow::~SConsoleVariablesEditorListRow()
 
 	ValueChildInputWidget.Reset();
 	
-	SplitterManagerPtr.Reset();
-	
 	HoverableWidgetsPtr.Reset();
 }
 
@@ -226,12 +224,10 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 			}
 			else
 			{
-				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(PinnedItem->GetCommandInfo().Pin()->StartupValueAsString);
+				PinnedItem->ResetToStartupValueAndSource();
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
 					PinnedItem->GetCommandInfo().Pin()->Command, PinnedItem->GetCommandInfo().Pin()->StartupValueAsString);
-
-				PinnedItem->GetCommandInfo().Pin()->SetSourceFlag(PinnedItem->GetCommandInfo().Pin()->StartupSource);
 			}
 		}
 
@@ -246,8 +242,19 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(cons
 {
 	if (PinnedItem->GetCommandInfo().IsValid() && PinnedItem->GetCommandInfo().Pin()->ConsoleVariablePtr)
 	{
-		const TSharedRef<SHorizontalBox> FinalValueWidget = SNew(SHorizontalBox);
 		ValueChildInputWidget = SConsoleVariablesEditorListValueInput::GetInputWidget(Item);
+		const TSharedRef<SHorizontalBox> FinalValueWidget =
+			SNew(SHorizontalBox)
+			.ToolTipText_Lambda([this, PinnedItem] ()
+			{
+				return FText::Format(
+							ValueWidgetToolTipFormatText,
+							FText::FromString(ValueChildInputWidget->GetCachedValue()),
+							FText::FromString(PinnedItem->GetPresetValue()),
+							FText::FromString(PinnedItem->GetCommandInfo().Pin()->StartupValueAsString),
+							FConsoleVariablesEditorCommandInfo::ConvertConsoleVariableSetByFlagToText(PinnedItem->GetCommandInfo().Pin()->StartupSource)
+				);
+			});
 
 		FinalValueWidget->AddSlot()
 		.VAlign(VAlign_Center)
@@ -263,23 +270,22 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateValueCellWidget(cons
 		[
 			SNew(SButton)
 			.IsFocusable(false)
-			.ToolTipText(
-				LOCTEXT("ResetRowValueTooltipText", "Reset this value to what is defined in the preset or what it was when the engine started."))
+			.ToolTipText(FText::Format(RevertButtonFormatText, FText::FromString(PinnedItem->GetPresetValue())))
 			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
 			.ContentPadding(0)
-			.Visibility_Lambda([this]()
+			.Visibility_Lambda([this, PinnedItem]()
 			{
-				if (const TSharedPtr<FConsoleVariablesEditorListRow> PinnedItem = Item.Pin(); PinnedItem->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
+				if (PinnedItem.IsValid() && PinnedItem->GetRowType() == FConsoleVariablesEditorListRow::SingleCommand)
 				{
-					return PinnedItem->IsRowChecked() && Item.Pin()->GetCommandInfo().Pin()->IsCurrentValueDifferentFromInputValue(Item.Pin()->GetPresetValue()) ?
+					return PinnedItem->IsRowChecked() && PinnedItem->GetCommandInfo().Pin()->IsCurrentValueDifferentFromInputValue(PinnedItem->GetPresetValue()) ?
 						EVisibility::Visible : EVisibility::Hidden;
 				}
 
 				return EVisibility::Collapsed;
 			})
-			.OnClicked_Lambda([this]()
+			.OnClicked_Lambda([this, PinnedItem]()
 			{
-				Item.Pin()->ResetToPresetValue();
+				PinnedItem->ResetToPresetValue();
 
 				return FReply::Handled();
 			})
