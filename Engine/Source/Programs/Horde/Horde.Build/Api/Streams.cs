@@ -159,6 +159,11 @@ namespace HordeServer.Api
 		/// Whether to use an incrementally synced workspace
 		/// </summary>
 		public bool Incremental { get; set; }
+
+		/// <summary>
+		/// Whether to use the AutoSDK
+		/// </summary>
+		public bool UseAutoSdk { get; set; } = true;
 	}
 
 	/// <summary>
@@ -312,6 +317,11 @@ namespace HordeServer.Api
 		public bool Incremental { get; set; }
 
 		/// <summary>
+		/// Whether to use the AutoSDK
+		/// </summary>
+		public bool UseAutoSdk { get; set; }
+
+		/// <summary>
 		/// Default constructor
 		/// </summary>
 		public GetWorkspaceTypeResponse()
@@ -328,7 +338,8 @@ namespace HordeServer.Api
 		/// <param name="Stream">Override for the stream to sync</param>
 		/// <param name="View">Custom view for the workspace</param>
 		/// <param name="bIncremental">Whether to use an incrementally synced workspace</param>
-		public GetWorkspaceTypeResponse(string? Cluster, string? ServerAndPort, string? UserName, string? Identifier, string? Stream, List<string>? View, bool bIncremental)
+		/// <param name="bUseAutoSdk">Whether to use the AutoSDK</param>
+		public GetWorkspaceTypeResponse(string? Cluster, string? ServerAndPort, string? UserName, string? Identifier, string? Stream, List<string>? View, bool bIncremental, bool bUseAutoSdk)
 		{
 			this.Cluster = Cluster;
 			this.ServerAndPort = ServerAndPort;
@@ -337,6 +348,7 @@ namespace HordeServer.Api
 			this.Stream = Stream;
 			this.View = View;
 			this.Incremental = bIncremental;
+			this.UseAutoSdk = bUseAutoSdk;
 		}
 	}
 

@@ -198,6 +198,11 @@ namespace HordeServer.Models
 		public bool Incremental { get; set; }
 
 		/// <summary>
+		/// Whether to use the AutoSDK
+		/// </summary>
+		public bool UseAutoSdk { get; set; } = true;
+
+		/// <summary>
 		/// Default constructor
 		/// </summary>
 		public WorkspaceType()
@@ -218,6 +223,7 @@ namespace HordeServer.Models
 			Stream = Request.Stream;
 			View = Request.View;
 			Incremental = Request.Incremental;
+			UseAutoSdk = Request.UseAutoSdk;
 		}
 
 		/// <summary>
@@ -237,7 +243,7 @@ namespace HordeServer.Models
 		/// <returns>The response object</returns>
 		public Api.GetWorkspaceTypeResponse ToApiResponse()
 		{
-			return new Api.GetWorkspaceTypeResponse(Cluster, ServerAndPort, UserName, Identifier, Stream, View, Incremental);
+			return new Api.GetWorkspaceTypeResponse(Cluster, ServerAndPort, UserName, Identifier, Stream, View, Incremental, UseAutoSdk);
 		}
 	}
 
@@ -620,8 +626,7 @@ namespace HordeServer.Models
 				}
 
 				// Create the new workspace
-				const bool bUseAutoSdk = true;
-				Workspace = (new AgentWorkspace(WorkspaceType.Cluster, WorkspaceType.UserName, Identifier, WorkspaceType.Stream ?? Stream.Name, WorkspaceType.View, WorkspaceType.Incremental), bUseAutoSdk);
+				Workspace = (new AgentWorkspace(WorkspaceType.Cluster, WorkspaceType.UserName, Identifier, WorkspaceType.Stream ?? Stream.Name, WorkspaceType.View, WorkspaceType.Incremental), WorkspaceType.UseAutoSdk);
 				return true;
 			}
 		}
