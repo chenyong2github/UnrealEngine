@@ -394,33 +394,53 @@ namespace UE::DatasmithImporter
 
 	void FDirectLinkManager::OnExternalSourceChanged(const TSharedRef<FExternalSource>& ExternalSource)
 	{
-		Async(EAsyncExecution::TaskGraphMainThread, [this, ExternalSource]() {
+		// Accumulate the reimport request in a thread-safe queue that will be processed in the main thread.
+		// Multiple reimport request for the same external source will only be processed once. 
+		// Doing this allows us to skip redundant reimports, as the reimport already uses the latest data from the ExternalSource.
+		PendingReimportQueue.Enqueue(ExternalSource);
 
-			TArray<TSharedRef<FAutoReimportInfo>> AutoReimportInfos;
-			RegisteredAutoReimportExternalSourceMap.MultiFind(ExternalSource, AutoReimportInfos);
-			if (AutoReimportInfos.Num() == 0)
+		Async(EAsyncExecution::TaskGraphMainThread, [this]() {
+
+			TSet<TSharedRef<FExternalSource>> PendingReimportSet;
+			TSharedPtr<FExternalSource> EnqueuedSourceToReimport;
+			while (PendingReimportQueue.Dequeue(EnqueuedSourceToReimport))
 			{
-				return;
+				PendingReimportSet.Add(EnqueuedSourceToReimport.ToSharedRef());
 			}
 
-			for (const TSharedRef<FAutoReimportInfo>& AutoReimportInfo : AutoReimportInfos)
+			for (const TSharedRef<FExternalSource>& ExternalSourceToReimport : PendingReimportSet)
 			{
-#if WITH_EDITOR
-				// If we're in PIE, delay the callbacks until we exit that mode.
-				if (GIsEditor && FApp::IsGame())
-				{
-					AutoReimportInfo->bChangedDuringPIE = true;
-					UE_LOG(LogDirectLinkManager, Warning, TEXT("The DirectLink source \"%s\" received an update while in PIE mode. The reimport will be triggered when exiting PIE."), *ExternalSource->GetSourceName());
-					continue;
-				}
-#endif //WITH_EDITOR
-
-				if (UObject* Asset = AutoReimportInfo->TargetObject.Get())
-				{
-					TriggerAutoReimportOnAsset(AutoReimportInfo->TargetObject.Get());
-				}
+				TriggerAutoReimportOnExternalSource(ExternalSourceToReimport);
 			}
 		});
+	}
+
+	void FDirectLinkManager::TriggerAutoReimportOnExternalSource(const TSharedRef<FExternalSource>& ExternalSource)
+	{
+		TArray<TSharedRef<FAutoReimportInfo>> AutoReimportInfos;
+		RegisteredAutoReimportExternalSourceMap.MultiFind(ExternalSource, AutoReimportInfos);
+		if (AutoReimportInfos.Num() == 0)
+		{
+			return;
+		}
+
+		for (const TSharedRef<FAutoReimportInfo>& AutoReimportInfo : AutoReimportInfos)
+		{
+#if WITH_EDITOR
+			// If we're in PIE, delay the callbacks until we exit that mode.
+			if (GIsEditor && FApp::IsGame())
+			{
+				AutoReimportInfo->bChangedDuringPIE = true;
+				UE_LOG(LogDirectLinkManager, Warning, TEXT("The DirectLink source \"%s\" received an update while in PIE mode. The reimport will be triggered when exiting PIE."), *ExternalSource->GetSourceName());
+				continue;
+			}
+#endif //WITH_EDITOR
+
+			if (UObject* Asset = AutoReimportInfo->TargetObject.Get())
+			{
+				TriggerAutoReimportOnAsset(AutoReimportInfo->TargetObject.Get());
+			}
+		}
 	}
 
 	void FDirectLinkManager::TriggerAutoReimportOnAsset(UObject* Asset)
