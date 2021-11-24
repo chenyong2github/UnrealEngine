@@ -727,7 +727,12 @@ namespace AutomationScripts
 				}
 
 				// Stage all the cooked data, this is the same rule as normal stage except we may skip Engine
-				List<FileReference> CookedFiles = DirectoryReference.EnumerateFiles(SC.PlatformCookDir, "*", SearchOption.AllDirectories).ToList();
+				List<FileReference> CookedFiles = new List<FileReference>();
+
+				if (DirectoryReference.Exists(SC.PlatformCookDir))
+				{
+					CookedFiles.AddRange(DirectoryReference.EnumerateFiles(SC.PlatformCookDir, "*", SearchOption.AllDirectories).ToList());
+				}
 
 				// When cooking to Zen get the list of cooked package files from the manifest
 				LoadPackageStoreManifest(Params, SC);
