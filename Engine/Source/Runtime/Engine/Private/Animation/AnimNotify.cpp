@@ -17,6 +17,7 @@ UAnimNotify::UAnimNotify(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITORONLY_DATA
 	NotifyColor = FColor(255, 200, 200, 255);
+	bShouldFireInEditor = true;
 #endif // WITH_EDITORONLY_DATA
 
 	bIsNativeBranchingPoint = false;
