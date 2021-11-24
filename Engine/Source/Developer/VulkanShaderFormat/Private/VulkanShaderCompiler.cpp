@@ -2001,6 +2001,12 @@ static bool CompileWithShaderConductor(
 	CrossCompiler::FShaderConductorOptions Options;
 	Options.bDisableScalarBlockLayout = !bIsRayTracingShader;
 
+	// Ray tracing features require Vulkan 1.2 environment.
+	if (bIsRayTracingShader || Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
+	{
+		Options.TargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment::Vulkan_1_2;
+	}
+
 	if (bRewriteHlslSource)
 	{
 		// Rewrite HLSL source code to remove unused global resources and variables
@@ -2105,6 +2111,11 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	if (Input.Environment.FullPrecisionInPS)
 	{
 		AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
+	}
+
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
+	{
+		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_INLINE_RAY_TRACING"), 1);
 	}
 
 	// Preprocess the shader.

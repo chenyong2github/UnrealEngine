@@ -418,6 +418,22 @@ namespace CrossCompiler
 			DxcArgRefs.Add("-fspv-no-scalar-block-layout");
 		}
 
+		using ETargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment;
+		switch (InOptions.TargetEnvironment)
+		{
+		default:
+			checkf(false, TEXT("Unexpected SPIR-V target environment: %d"), (uint32)InOptions.TargetEnvironment);
+		case ETargetEnvironment::Vulkan_1_0:
+			DxcArgRefs.Add("-fspv-target-env=vulkan1.0");
+			break;
+		case ETargetEnvironment::Vulkan_1_1:
+			DxcArgRefs.Add("-fspv-target-env=vulkan1.1");
+			break;
+		case ETargetEnvironment::Vulkan_1_2:
+			DxcArgRefs.Add("-fspv-target-env=vulkan1.2");
+			break;
+		}
+
 		if (DxcArgRefs.Num() > 0)
 		{
 			// Use DXC argument container and append custom arguments
