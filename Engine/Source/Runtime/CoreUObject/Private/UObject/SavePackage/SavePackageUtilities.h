@@ -180,6 +180,7 @@ struct FEDLCookChecker : public TThreadSingleton<FEDLCookChecker>
 	void AddImport(UObject* Import, UPackage* ImportingPackage);
 	void AddExport(UObject* Export);
 	void AddArc(UObject* DepObject, bool bDepIsSerialize, UObject* Export, bool bExportIsSerialize);
+	void AddPackageWithUnknownExports(FName LongPackageName);
 
 	static void StartSavingEDLCookInfoForVerification();
 	static void Verify(bool bFullReferencesExpected);
@@ -268,6 +269,7 @@ private:
 
 		FString ToString(const FEDLCookChecker& Owner) const;
 		void AppendPathName(const FEDLCookChecker& Owner, FStringBuilderBase& Result) const;
+		FName GetPackageName(const FEDLCookChecker& Owner) const;
 		void Merge(FEDLNodeData&& Other);
 	};
 
@@ -295,6 +297,11 @@ private:
 	TMap<FEDLNodeHash, FEDLNodeID> NodeHashToNodeID;
 	/** The graph of dependencies between nodes. */
 	TMultiMap<FEDLNodeID, FEDLNodeID> NodePrereqs;
+	/**
+	 * Packages that were cooked iteratively and therefore have an unknown set of exports.
+	 * We suppress warnings for exports missing from these packages.
+	 */
+	TSet<FName> PackagesWithUnknownExports;
 	/** True if the EDLCookChecker should be active; it is turned off if the runtime will not be using EDL. */
 	bool bIsActive;
 

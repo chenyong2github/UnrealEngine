@@ -45,6 +45,7 @@
 #include "UObject/Class.h"
 #include "UObject/MetaData.h"
 #include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCookCommandlet, Log, All);
@@ -1180,10 +1181,10 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	}
 #endif
 
-	if (!bIterativeCooking && StartupOptions.DLCName.IsEmpty())
+	if (StartupOptions.DLCName.IsEmpty())
 	{
 		bool bFullReferencesExpected = !(CookOptions & ECookByTheBookOptions::SkipHardReferences);
-		VerifyEDLCookInfo(bFullReferencesExpected);
+		UE::SavePackageUtilities::VerifyEDLCookInfo(bFullReferencesExpected);
 	}
 
 	return true;

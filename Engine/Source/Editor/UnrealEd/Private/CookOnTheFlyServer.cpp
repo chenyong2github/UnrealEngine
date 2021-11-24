@@ -5877,6 +5877,9 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 				{
 					PackageData->SetPlatformCooked(TargetPlatform, true /* bSucceeded */);
 				}
+
+				// Declare the package to the EDLCookInfo verification so we don't warn about missing exports from it
+				UE::SavePackageUtilities::EDLCookInfoAddIterativelySkippedPackage(IdenticalPackage);
 			}
 			PackageWriter.MarkPackagesUpToDate(Difference.IdenticalCookedPackages.Array());
 			for (FName UncookedPackage : Difference.IdenticalUncookedPackages)
@@ -7960,7 +7963,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	if (CurrentCookMode == ECookMode::CookByTheBook && !IsCookFlagSet(ECookInitializationFlags::Iterative))
 	{
-		StartSavingEDLCookInfoForVerification();
+		UE::SavePackageUtilities::StartSavingEDLCookInfoForVerification();
 	}
 
 	{
