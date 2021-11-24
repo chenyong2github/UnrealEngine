@@ -86,6 +86,12 @@ struct STATETREEMODULE_API FStateTreeTaskBase
 	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
 	UPROPERTY()
 	uint16 DataViewIndex = 0;
+
+	UPROPERTY()
+	uint16 InstanceIndex = 0;
+
+	UPROPERTY()
+	uint8 bInstanceIsObject : 1;
 };
 
 template<> struct TStructOpsTypeTraits<FStateTreeTaskBase> : public TStructOpsTypeTraitsBase2<FStateTreeTaskBase> { enum { WithPureVirtual = true, }; };

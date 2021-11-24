@@ -2,6 +2,7 @@
 
 #include "MassDebugStateTreeProcessor.h"
 #include "MassDebuggerSubsystem.h"
+#include "MassSignalSubsystem.h"
 #include "MassStateTreeExecutionContext.h"
 #include "MassStateTreeFragments.h"
 #include "MassCommonFragments.h"
@@ -44,13 +45,19 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 		return;
 	}
 
+	UMassSignalSubsystem* MassSignalSubsystem = World->GetSubsystem<UMassSignalSubsystem>();
+	if (MassSignalSubsystem == nullptr)
+	{
+		return;
+	}
+
 	if (!Debugger->GetSelectedEntity().IsSet() && !UE::Mass::Debug::HasDebugEntities())
 	{
 		return;
 	}
 	
 	QUICK_SCOPE_CYCLE_COUNTER(UMassDebugStateTreeProcessor_Run);	
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Debugger, MassStateTreeSubsystem, &EntitySubsystem](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Debugger, MassStateTreeSubsystem, &EntitySubsystem, MassSignalSubsystem](FMassExecutionContext& Context)
 		{
 			const FMassEntityHandle SelectedEntity = Debugger->GetSelectedEntity();
 			const int32 NumEntities = Context.GetNumEntities();
@@ -69,7 +76,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 				FMassEntityHandle Entity = Context.GetEntity(i);
 				if (Entity == SelectedEntity)
 				{
-					FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
+					FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *MassSignalSubsystem, Context);
 					StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
 					StateTreeContext.SetEntity(Entity);
 					
@@ -88,7 +95,7 @@ void UMassDebugStateTreeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem
 					const FVector ZOffset(0,0,50);
 					const FVector Position = Transform.GetTransform().GetLocation() + ZOffset;
 
-					FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
+					FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *MassSignalSubsystem, Context);
 					StateTreeContext.Init(*this, *StateTree, EStateTreeStorage::External);
 					StateTreeContext.SetEntity(Entity);
 

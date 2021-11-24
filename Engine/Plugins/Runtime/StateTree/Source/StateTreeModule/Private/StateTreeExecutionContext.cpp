@@ -32,7 +32,7 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 {
 	// Set owner first for proper logging (it will be reset in case of failure) 
 	Owner = &InOwner;
-
+	
 	if (!InStateTree.IsValidStateTree())
 	{
 		STATETREE_LOG(Error, TEXT("%s: StateTree asset '%s' is not valid."), ANSI_TO_TCHAR(__FUNCTION__), *InStateTree.GetName());
@@ -46,6 +46,7 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 	{
 		// Duplicate instance state.
 		StorageInstance = StateTree->InstanceStorageDefaultValue;
+		InitInstanceData(InOwner, FStateTreeDataView(StorageInstance));
 	}
 
 	// Initialize data views for all possible items.
@@ -54,6 +55,27 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 	// Initialize array to keep track of which states have been updated.
 	VisitedStates.Init(false, StateTree->States.Num());
 	
+	return true;
+}
+
+bool FStateTreeExecutionContext::InitInstanceData(UObject& InOwner, FStateTreeDataView ExternalStorage) const
+{
+	if (!Owner || !StateTree)
+	{
+		STATETREE_LOG(Error, TEXT("%s: Failed to init instance data on '%s' using StateTree '%s'."),
+			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(Owner), *GetNameSafe(StateTree));
+		return false;
+	}
+
+	check (ExternalStorage.IsValid());
+	FStateTreeExecutionState& Exec = GetExecState(ExternalStorage);
+
+	Exec.InstanceObjects.Reset();
+	for (const UObject* Instance : StateTree->InstanceObjects)
+	{
+		Exec.InstanceObjects.Add(DuplicateObject(Instance, &InOwner));
+	}
+
 	return true;
 }
 
@@ -237,7 +259,6 @@ void FStateTreeExecutionContext::Reset()
 {
 	StateTree = nullptr;
 	Owner = nullptr;
-	World = nullptr;
 	DataViews.Reset();
 	StorageInstance.Reset();
 	StorageType = EStateTreeStorage::Internal;
@@ -285,12 +306,12 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 			for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 			{
 				const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-				DataViews[Eval.DataViewIndex] = GetInstanceData(Storage, Eval.DataViewIndex);
+				DataViews[Eval.DataViewIndex] = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			}
 			for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 			{
 				const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-				DataViews[Task.DataViewIndex] = GetInstanceData(Storage, Task.DataViewIndex);
+				DataViews[Task.DataViewIndex] = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
 			}
 			continue;
 		}
@@ -304,7 +325,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 		{
 			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.DataViewIndex);
+			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
 			// Copy bound properties.
@@ -320,7 +341,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeDataView St
 		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 		{
 			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.DataViewIndex);
+			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
 			DataViews[Task.DataViewIndex] = TaskInstanceView;
 
 			// Copy bound properties.
@@ -391,12 +412,12 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 			for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 			{
 				FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-				DataViews[Eval.DataViewIndex] = GetInstanceData(Storage, Eval.DataViewIndex);
+				DataViews[Eval.DataViewIndex] = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			}
 			for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 			{
 				FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-				DataViews[Task.DataViewIndex] = GetInstanceData(Storage, Task.DataViewIndex);
+				DataViews[Task.DataViewIndex] = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
 			}
 			continue;
 		}
@@ -410,7 +431,7 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 		{
 			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.DataViewIndex);
+			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
 			// Copy bound properties.
@@ -426,7 +447,7 @@ void FStateTreeExecutionContext::ExitState(FStateTreeDataView Storage, const FSt
 		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 		{
 			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.DataViewIndex);
+			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
 			DataViews[Task.DataViewIndex] = TaskInstanceView;
 
 			// Copy bound properties.
@@ -509,7 +530,7 @@ void FStateTreeExecutionContext::TickEvaluators(FStateTreeDataView Storage, cons
 		for (int32 EvalIndex = 0; EvalIndex < int32(State.EvaluatorsNum); EvalIndex++)
 		{
 			const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(int32(State.EvaluatorsBegin) + EvalIndex);
-			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.DataViewIndex);
+			const FStateTreeDataView EvalInstanceView = GetInstanceData(Storage, Eval.bInstanceIsObject, Eval.InstanceIndex);
 			DataViews[Eval.DataViewIndex] = EvalInstanceView;
 
 			// Copy bound properties.
@@ -551,7 +572,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeDataView Sto
 		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
 		{
 			const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(int32(State.TasksBegin) + TaskIndex);
-			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.DataViewIndex);
+			const FStateTreeDataView TaskInstanceView = GetInstanceData(Storage, Task.bInstanceIsObject, Task.InstanceIndex);
 			DataViews[Task.DataViewIndex] = TaskInstanceView;
 
 			// Copy bound properties.
@@ -591,7 +612,7 @@ bool FStateTreeExecutionContext::TestAllConditions(FStateTreeDataView Storage, c
 	for (uint32 i = 0; i < ConditionsNum; i++)
 	{
 		const FStateTreeConditionBase& Cond = GetItem<FStateTreeConditionBase>(ConditionsOffset + i);
-		const FStateTreeDataView CondInstanceView = GetInstanceData(Storage, Cond.DataViewIndex);
+		const FStateTreeDataView CondInstanceView = GetInstanceData(Storage, Cond.bInstanceIsObject, Cond.InstanceIndex);
 		DataViews[Cond.DataViewIndex] = CondInstanceView;
 
 		// Copy bound properties.
@@ -822,6 +843,23 @@ EStateTreeRunStatus FStateTreeExecutionContext::GetLastTickStatus(FStateTreeData
 	return Exec.LastTickStatus;
 }
 
+void FStateTreeExecutionContext::AddStructReferencedObjects(FReferenceCollector& Collector)
+{
+	if (StorageType == EStateTreeStorage::Internal)
+	{
+		AddStructReferencedObjects(FStateTreeDataView(StorageInstance), Collector);
+	}
+}
+
+void FStateTreeExecutionContext::AddStructReferencedObjects(const FStateTreeDataView Storage, FReferenceCollector& Collector)
+{
+	if (Storage.IsValid())
+	{
+		FStateTreeExecutionState& Exec = GetExecState(Storage);
+		Collector.AddReferencedObjects(Exec.InstanceObjects);
+	}
+}
+
 #if WITH_GAMEPLAY_DEBUGGER
 
 FString FStateTreeExecutionContext::GetDebugInfoString(FStateTreeDataView ExternalStorage) const
@@ -976,25 +1014,25 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(FStateTreeDataView Ext
 		TEXT("State"), TEXT("Type"), TEXT("Name"), TEXT("Bindings"), TEXT("Struct Idx"));
 	for (const FBakedStateTreeState& State : StateTree->States)
 	{
-		// Tasks
-		if (State.TasksNum)
-		{
-			for (int32 j = 0; j < State.TasksNum; j++)
-			{
-				const FStateTreeTaskBase& Task = GetInstanceData(Storage, State.TasksBegin + j).Get<FStateTreeTaskBase>();
-				DebugString += FString::Printf(TEXT("  | %-30s | %-12s | %-30s | %15s | %10d |\n"), *State.Name.ToString(),
-					TEXT("  Task"), *Task.Name.ToString(), *Task.BindingsBatch.Describe(), Task.DataViewIndex);
-			}
-		}
-
 		// Evaluators
 		if (State.EvaluatorsNum)
 		{
 			for (int32 EvalIndex = 0; EvalIndex < State.EvaluatorsNum; EvalIndex++)
 			{
-				const FStateTreeEvaluatorBase& Eval = GetInstanceData(Storage, State.EvaluatorsBegin + EvalIndex).Get<FStateTreeEvaluatorBase>();
+				const FStateTreeEvaluatorBase& Eval = GetItem<FStateTreeEvaluatorBase>(State.EvaluatorsBegin + EvalIndex);
 				DebugString += FString::Printf(TEXT("  | %-30s | %-12s | %-30s | %15s | %10d |\n"), *State.Name.ToString(),
 					TEXT("  Evaluator"), *Eval.Name.ToString(), *Eval.BindingsBatch.Describe(), Eval.DataViewIndex);
+			}
+		}
+
+		// Tasks
+		if (State.TasksNum)
+		{
+			for (int32 TaskIndex = 0; TaskIndex < State.TasksNum; TaskIndex++)
+			{
+				const FStateTreeTaskBase& Task = GetItem<FStateTreeTaskBase>(State.TasksBegin + TaskIndex);
+				DebugString += FString::Printf(TEXT("  | %-30s | %-12s | %-30s | %15s | %10d |\n"), *State.Name.ToString(),
+					TEXT("  Task"), *Task.Name.ToString(), *Task.BindingsBatch.Describe(), Task.DataViewIndex);
 			}
 		}
 	}

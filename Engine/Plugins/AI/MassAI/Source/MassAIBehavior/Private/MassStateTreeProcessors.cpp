@@ -140,47 +140,17 @@ void ForEachEntityInChunk(
 
 
 //----------------------------------------------------------------------//
-// UMassStateTreeFragmentInitializer
-//----------------------------------------------------------------------//
-UMassStateTreeFragmentInitializer::UMassStateTreeFragmentInitializer()
-{
-	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
-	FragmentType = FMassStateTreeFragment::StaticStruct();
-}
-
-void UMassStateTreeFragmentInitializer::ConfigureQueries()
-{
-	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
-}
-
-void UMassStateTreeFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
-{
-	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
-	UMassStateTreeSubsystem* MassStateTreeSubsystem = UWorld::GetSubsystem<UMassStateTreeSubsystem>(EntitySubsystem.GetWorld());
-
-	EntityQuery.ForEachEntityChunk(
-		EntitySubsystem,
-		Context,
-		[this, &StateTreeContext, &MassStateTreeSubsystem](const FMassExecutionContext& Context)
-		{
-			UE::MassBehavior::ForEachEntityInChunk(
-				StateTreeContext,
-				*MassStateTreeSubsystem,
-				[](FMassStateTreeExecutionContext& StateTreeExecutionContext, FStateTreeDataView Storage)
-				{
-					// Start the tree instance
-					StateTreeExecutionContext.Start(Storage);
-				});
-		});
-}
-
-//----------------------------------------------------------------------//
 // UMassStateTreeFragmentDestructor
 //----------------------------------------------------------------------//
 UMassStateTreeFragmentDestructor::UMassStateTreeFragmentDestructor()
 {
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
 	FragmentType = FMassStateTreeFragment::StaticStruct();
+}
+
+void UMassStateTreeFragmentDestructor::Initialize(UObject& Owner)
+{
+	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
 }
 
 void UMassStateTreeFragmentDestructor::ConfigureQueries()
@@ -190,7 +160,12 @@ void UMassStateTreeFragmentDestructor::ConfigureQueries()
 
 void UMassStateTreeFragmentDestructor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
+	if (SignalSubsystem == nullptr)
+	{
+		return;
+	}
+		
+	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *SignalSubsystem, Context);
 	UMassStateTreeSubsystem* MassStateTreeSubsystem = UWorld::GetSubsystem<UMassStateTreeSubsystem>(EntitySubsystem.GetWorld());
 
 	EntityQuery.ForEachEntityChunk(
@@ -221,23 +196,35 @@ UMassStateTreeActivationProcessor::UMassStateTreeActivationProcessor()
 	MaxActivationsPerLOD[EMassLOD::Low] = 100;
 	MaxActivationsPerLOD[EMassLOD::Off] = 100;
 }
+
 void UMassStateTreeActivationProcessor::Initialize(UObject& Owner)
 {
 	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
 }
+
 void UMassStateTreeActivationProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassStateTreeFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery.AddTagRequirement<FMassStateTreeActivated>(EMassFragmentPresence::None);
 	EntityQuery.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
 }
+
 void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
+	if (SignalSubsystem == nullptr)
+	{
+		return;
+	}
+
 	// StateTree processor relies on signals to be ticked but we need an 'initial tick' to set the tree in the proper state.
 	// The initializer provides that by sending a signal to all new entities that use StateTree.
+
+	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *SignalSubsystem, Context);
+	UMassStateTreeSubsystem* MassStateTreeSubsystem = UWorld::GetSubsystem<UMassStateTreeSubsystem>(EntitySubsystem.GetWorld());
+
 	TArray<FMassEntityHandle> EntitiesToSignal;
 	int32 ActivationCounts[EMassLOD::Max] {0,0,0,0};
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&EntitiesToSignal, &ActivationCounts, MaxActivationsPerLOD = MaxActivationsPerLOD](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [&EntitiesToSignal, &ActivationCounts, MaxActivationsPerLOD = MaxActivationsPerLOD, &StateTreeContext, MassStateTreeSubsystem](FMassExecutionContext& Context)
 	{
 		const int32 NumEntities = Context.GetNumEntities();
 		// Check if we already reached the maximum for this frame
@@ -247,6 +234,19 @@ void UMassStateTreeActivationProcessor::Execute(UMassEntitySubsystem& EntitySubs
 			return;
 		}
 		ActivationCounts[ChunkLOD] += NumEntities;
+
+		// Start StateTree. This may do substantial amount of work, as we select and enter the first state.
+		UE::MassBehavior::ForEachEntityInChunk(
+			StateTreeContext,
+			*MassStateTreeSubsystem,
+			[MassStateTreeSubsystem](FMassStateTreeExecutionContext& StateTreeExecutionContext, FStateTreeDataView Storage)
+			{
+				// Init object instances
+				StateTreeExecutionContext.InitInstanceData(*MassStateTreeSubsystem, Storage);
+				// Start the tree instance
+				StateTreeExecutionContext.Start(Storage);
+			});
+
 		// Append all entities of the current chunk to the consolidated list to send signal once
 		EntitiesToSignal.Append(Context.GetEntities().GetData(), Context.GetEntities().Num());
 		// Adding a tag on each entities to remember we have sent the state tree initialization signal
@@ -283,7 +283,9 @@ UMassStateTreeProcessor::UMassStateTreeProcessor(const FObjectInitializer& Objec
 void UMassStateTreeProcessor::Initialize(UObject& Owner)
 {
 	Super::Initialize(Owner);
+	
 	MassStateTreeSubsystem = UWorld::GetSubsystem<UMassStateTreeSubsystem>(Owner.GetWorld());
+	SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
 
 	SubscribeToSignal(UE::Mass::Signals::StateTreeActivate);
 	SubscribeToSignal(UE::Mass::Signals::LookAtFinished);
@@ -315,7 +317,7 @@ void UMassStateTreeProcessor::ConfigureQueries()
 
 void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals)
 {
-	if (!MassStateTreeSubsystem)
+	if (MassStateTreeSubsystem == nullptr || SignalSubsystem == nullptr)
 	{
 		return;
 	}
@@ -323,7 +325,7 @@ void UMassStateTreeProcessor::SignalEntities(UMassEntitySubsystem& EntitySubsyst
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTreeProcessorExecute);
 
 	const float TimeDelta = Context.GetDeltaTimeSeconds();
-	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, Context);
+	FMassStateTreeExecutionContext StateTreeContext(EntitySubsystem, *SignalSubsystem, Context);
 	const float TimeInSeconds = EntitySubsystem.GetWorld()->GetTimeSeconds();
 
 	TArray<FMassEntityHandle> EntitiesToSignal;

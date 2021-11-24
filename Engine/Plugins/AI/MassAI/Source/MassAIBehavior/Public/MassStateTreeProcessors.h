@@ -11,23 +11,8 @@
 struct FMassStateTreeExecutionContext;
 
 /** 
- * Processor to prepare StateTree fragments for their execution
+ * Processor to stop and uninitialize StateTrees on entities.
  */
-UCLASS()
-class MASSAIBEHAVIOR_API UMassStateTreeFragmentInitializer : public UMassFragmentInitializer
-{
-	GENERATED_BODY()
-
-public:
-	UMassStateTreeFragmentInitializer();
-
-protected:
-	virtual void ConfigureQueries() override;
-	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	FMassEntityQuery EntityQuery;
-};
-
 UCLASS()
 class MASSAIBEHAVIOR_API UMassStateTreeFragmentDestructor : public UMassFragmentDestructor
 {
@@ -37,10 +22,14 @@ public:
 	UMassStateTreeFragmentDestructor();
 
 protected:
+	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	FMassEntityQuery EntityQuery;
+
+	UPROPERTY(Transient)
+	UMassSignalSubsystem* SignalSubsystem = nullptr;
 };
 
 /**

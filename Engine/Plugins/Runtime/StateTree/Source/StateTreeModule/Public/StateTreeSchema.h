@@ -25,8 +25,18 @@ public:
 	virtual UScriptStruct* GetStorageSuperStruct() const { return nullptr; }
 
 	/** @return True if specified struct is supported */
-	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const PURE_VIRTUAL(UStateTreeSchema::IsStructAllowed, return false; );
+	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const { return false; }
+
+	/** @return True if specified class is supported */
+	virtual bool IsClassAllowed(const UClass* InScriptStruct) const { return false; };
 
 	/** @return True if specified struct/class is supported as external data */
 	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const { return false; };
+
+	/**
+	 * Helper function to check if a class is any of the Blueprint extendable item classes (Eval, Task, Condition).
+	 * Can be used to quickly accept all of those classes in IsClassAllowed().
+	 * @return True if the class is a StateTree item Blueprint base class.
+	 */
+	bool IsChildOfBlueprintBase(const UClass* InClass) const;
 };

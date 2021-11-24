@@ -16,6 +16,19 @@ enum class EStateTreeCompare : uint8
 };
 
 /**
+ * Base class for all common conditions so that they are easy to single out in the schema.
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeConditionCommonBase : public FStateTreeConditionBase
+{
+	GENERATED_BODY()
+
+	FStateTreeConditionCommonBase() {}
+	virtual ~FStateTreeConditionCommonBase() override {}
+};
+template<> struct TStructOpsTypeTraits<FStateTreeConditionCommonBase> : public TStructOpsTypeTraitsBase2<FStateTreeConditionCommonBase> { enum { WithPureVirtual = true, }; };
+
+/**
  * Condition comparing two integers.
  */
 USTRUCT()
@@ -31,7 +44,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareIntInstanceData
 };
 
 USTRUCT(DisplayName="Integer Compare")
-struct STATETREEMODULE_API FStateTreeCondition_CompareInt : public FStateTreeConditionBase
+struct STATETREEMODULE_API FStateTreeCondition_CompareInt : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
 
@@ -77,7 +90,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareFloatInstanceData
 };
 
 USTRUCT(DisplayName = "Float Compare")
-struct STATETREEMODULE_API FStateTreeCondition_CompareFloat : public FStateTreeConditionBase
+struct STATETREEMODULE_API FStateTreeCondition_CompareFloat : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
 
@@ -123,7 +136,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareBoolInstanceData
 };
 
 USTRUCT(DisplayName = "Bool Compare")
-struct STATETREEMODULE_API FStateTreeCondition_CompareBool : public FStateTreeConditionBase
+struct STATETREEMODULE_API FStateTreeCondition_CompareBool : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
 
@@ -169,7 +182,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareEnumInstanceData
 };
 
 USTRUCT(DisplayName = "Enum Compare")
-struct STATETREEMODULE_API FStateTreeCondition_CompareEnum : public FStateTreeConditionBase
+struct STATETREEMODULE_API FStateTreeCondition_CompareEnum : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
 
@@ -219,7 +232,7 @@ struct STATETREEMODULE_API FStateTreeCondition_CompareDistanceInstanceData
 };
 
 USTRUCT(DisplayName = "Distance Compare")
-struct STATETREEMODULE_API FStateTreeCondition_CompareDistance : public FStateTreeConditionBase
+struct STATETREEMODULE_API FStateTreeCondition_CompareDistance : public FStateTreeConditionCommonBase
 {
 	GENERATED_BODY()
 

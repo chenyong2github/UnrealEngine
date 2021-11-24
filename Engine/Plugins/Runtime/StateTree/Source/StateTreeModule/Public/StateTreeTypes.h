@@ -11,28 +11,16 @@ STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);
 #define WITH_STATETREE_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)
 #endif // WITH_STATETREE_DEBUG
 
-/** Types of supported variables */
-UENUM()
-enum class EStateTreeVariableType : uint8
-{
-	Void,
-	Float,
-	Int,
-	Bool,
-	Vector,
-	Object,
-};
-
 /**
  * Status describing current ticking state. 
  */
 UENUM()
 enum class EStateTreeRunStatus : uint8
 {
-	Unset,				/** Status not set. */
+	Running,			/** Tree is still running. */
 	Failed,				/** Tree execution has stopped on failure. */
 	Succeeded,			/** Tree execution has stopped on success. */
-	Running,			/** Tree is still running. */
+	Unset,				/** Status not set. */
 };
 
 /**  Evaluator evaluation type. */
@@ -79,7 +67,7 @@ ENUM_CLASS_FLAGS(EStateTreeTransitionEvent)
 /**
  * Handle that is used to refer baked state tree data.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct STATETREEMODULE_API FStateTreeHandle
 {
 	GENERATED_BODY()
@@ -119,7 +107,7 @@ struct STATETREEMODULE_API FStateTreeHandle
 /**
  * Describes current status of a running state or desired state.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct STATETREEMODULE_API FStateTreeStateStatus
 {
 	GENERATED_BODY()
@@ -131,10 +119,10 @@ struct STATETREEMODULE_API FStateTreeStateStatus
 
 	bool IsSet() const { return RunStatus != EStateTreeRunStatus::Unset; }
 	
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
 	FStateTreeHandle State = FStateTreeHandle::Invalid;
 
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
 	EStateTreeRunStatus RunStatus = EStateTreeRunStatus::Unset;
 };
 
@@ -143,7 +131,7 @@ struct STATETREEMODULE_API FStateTreeStateStatus
  * and Next describes the selected state. The reason Transition and Next are different is that Transition state can be a selector state,
  * in which case the children will be visited until a leaf state is found, which will be the next state.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct STATETREEMODULE_API FStateTreeTransitionResult
 {
 	GENERATED_BODY()
@@ -153,19 +141,19 @@ struct STATETREEMODULE_API FStateTreeTransitionResult
 	FStateTreeTransitionResult(const FStateTreeStateStatus InSource, const FStateTreeHandle InTransition, const FStateTreeHandle InNext) : Source(InSource), Target(InTransition), Next(InNext) {}
 
 	/** State where the transition started. */
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
 	FStateTreeStateStatus Source = FStateTreeStateStatus();
 
 	/** Transition target state */
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
 	FStateTreeHandle Target = FStateTreeHandle::Invalid;
 
 	/** Selected state, can be different from Transition, if Transition is a selector state. */
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
 	FStateTreeHandle Next = FStateTreeHandle::Invalid;
 
 	/** Current state, update as we execute the tree. */
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
 	FStateTreeHandle Current = FStateTreeHandle::Invalid;
 };
 
@@ -421,7 +409,7 @@ struct FStateTreeLinker
 	template <typename T>
 	typename TEnableIf<TIsDerivedFrom<typename T::DataType, UObject>::IsDerived, void>::Type LinkExternalData(T& Handle)
 	{
-		LinkExternalDataInternal(Handle, T::DataType::StaticClass(), T::DataRequirement);
+		LinkExternalData(Handle, T::DataType::StaticClass(), T::DataRequirement);
 	}
 
 	/**
@@ -431,9 +419,28 @@ struct FStateTreeLinker
 	template <typename T>
 	typename TEnableIf<!TIsDerivedFrom<typename T::DataType, UObject>::IsDerived, void>::Type LinkExternalData(T& Handle)
 	{
-		LinkExternalDataInternal(Handle, T::DataType::StaticStruct(), T::DataRequirement);
+		LinkExternalData(Handle, T::DataType::StaticStruct(), T::DataRequirement);
 	}
 
+	/**
+	 * Links reference to an external Object or Struct.
+	 * This function should only be used when TStateTreeExternalDataHandle<> cannot be used, i.e. the Struct is based on some data.
+	 * @param Handle Reference to link to.
+	 * @param Struct Expected type of the Object or Struct to link to.
+	 * @param Requirement Describes if the external data is expected to be required or optional.
+	 */
+	void LinkExternalData(FStateTreeExternalDataHandle& Handle, const UStruct* Struct, const EStateTreeExternalDataRequirement Requirement)
+	{
+		const FStateTreeExternalDataDesc Desc(Struct, Requirement);
+		int32 Index = ExternalDataDescs.Find(Desc);
+		if (Index == INDEX_NONE)
+		{
+			Index = ExternalDataDescs.Add(Desc);
+			check(FStateTreeExternalDataHandle::IsValidIndex(Index + ExternalDataBaseIndex));
+			ExternalDataDescs[Index].Handle.DataViewIndex = (uint8)(Index + ExternalDataBaseIndex);
+		}
+		Handle.DataViewIndex = (uint8)(Index + ExternalDataBaseIndex);
+	}
 	/**
 	 * Links reference to a property in instance data.
 	 * Usage:
@@ -456,18 +463,6 @@ struct FStateTreeLinker
 
 protected:
 
-	void LinkExternalDataInternal(FStateTreeExternalDataHandle& Handle, const UStruct* Struct, const EStateTreeExternalDataRequirement Requirement)
-	{
-		const FStateTreeExternalDataDesc Desc(Struct, Requirement);
-		int32 Index = ExternalDataDescs.Find(Desc);
-		if (Index == INDEX_NONE)
-		{
-			Index = ExternalDataDescs.Add(Desc);
-			check(FStateTreeExternalDataHandle::IsValidIndex(Index + ExternalDataBaseIndex));
-			ExternalDataDescs[Index].Handle.DataViewIndex = (uint8)(Index + ExternalDataBaseIndex);
-		}
-		Handle.DataViewIndex = (uint8)(Index + ExternalDataBaseIndex);
-	}
 
 	void LinkInstanceDataPropertyInternal(FStateTreeInstanceDataPropertyHandle& Handle, const UScriptStruct* ScriptStruct, const TCHAR* PropertyName)
 	{

@@ -41,6 +41,7 @@ namespace UnrealBuildTool.Rules
 					"MassSpawner",
 					"MassSimulation",
 					"MassRepresentation",
+					"MassSignals",
 					"MassLOD",
 					"StructUtils",
 				}

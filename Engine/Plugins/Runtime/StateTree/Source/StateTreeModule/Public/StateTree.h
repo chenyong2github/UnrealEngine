@@ -21,6 +21,7 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 public:
 
 	UStateTree(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	~UStateTree();
 
 	/** @return Script Struct that can be used to instantiate the runtime storage */
 	const UScriptStruct* GetInstanceStorageStruct() const { return InstanceStorageStruct; }
@@ -50,6 +51,8 @@ public:
 	void ResolvePropertyPaths();
 
 #if WITH_EDITOR
+	void OnPIEStarted(const bool bIsSimulating);
+	
 	/** Resets the baked data to empty. */
 	void ResetBaked();
 #endif
@@ -57,7 +60,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	// Edit time data for the StateTree, instance of UStateTreeEditorData
 	UPROPERTY()
-	UObject* EditorData;
+	TObjectPtr<UObject> EditorData;
 #endif
 
 protected:
@@ -70,7 +73,7 @@ protected:
 #endif
 
 	/** Initializes the types and default values related to StateTree runtime storage */
-	void InitInstanceStorage();
+	void InitInstanceStorageType();
 
 	/** Resolved references between data in the StateTree. */
 	void Link();
@@ -80,7 +83,7 @@ private:
 	// Properties
 
 	UPROPERTY(EditDefaultsOnly, Category = Common, Instanced)
-	UStateTreeSchema* Schema = nullptr;
+	TObjectPtr<UStateTreeSchema> Schema = nullptr;
 
 	/** Evaluators, Tasks, and Condition items */
 	UPROPERTY()
@@ -90,9 +93,13 @@ private:
 	UPROPERTY()
 	TArray<FInstancedStruct> Instances;
 
+	/** Blueprint based Evaluators, Tasks, and Conditions runtime data. */
+	UPROPERTY()
+	TArray<TObjectPtr<UObject>> InstanceObjects;
+
 	/** Script Struct that can be used to instantiate the runtime storage */
 	UPROPERTY()
-	UScriptStruct* InstanceStorageStruct;
+	TObjectPtr<UScriptStruct> InstanceStorageStruct;
 
 	/** Offsets into the runtime type to quickly get a struct view to a specific Task or Evaluator */
 	TArray<FStateTreeInstanceStorageOffset> InstanceStorageOffsets;
