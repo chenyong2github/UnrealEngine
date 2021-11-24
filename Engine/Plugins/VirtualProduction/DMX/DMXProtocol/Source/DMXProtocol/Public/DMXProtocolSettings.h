@@ -35,7 +35,7 @@ public:
 
 	// ~Begin UObject Interface
 	virtual void PostInitProperties() override;
-
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;

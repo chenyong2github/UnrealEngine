@@ -219,7 +219,7 @@ void FDMXProtocolArtNetReceiver::DistributeReceivedData(const TSharedRef<FArrayR
 uint16 FDMXProtocolArtNetReceiver::GetPacketOpCode(const TSharedRef<FArrayReader>& Buffer) const
 {
 	uint16 OpCode = 0x0000;
-	const uint32 MinCheck = ARTNET_STRING_SIZE + 2;
+	constexpr uint32 MinCheck = ARTNET_STRING_SIZE + 2;
 	if (Buffer->Num() > MinCheck)
 	{
 		// Get OpCode
@@ -236,7 +236,7 @@ uint16 FDMXProtocolArtNetReceiver::GetPacketOpCode(const TSharedRef<FArrayReader
 void FDMXProtocolArtNetReceiver::HandleDataPacket(const TSharedRef<FArrayReader>& PacketReader)
 {
 	uint16 UniverseID = 0x0000;
-	const uint32 MinCheck = ARTNET_UNIVERSE_ADDRESS + 2;
+	constexpr uint32 MinCheck = ARTNET_UNIVERSE_ADDRESS + 2;
 	if (PacketReader->Num() > MinCheck)
 	{
 		// Get OpCode
@@ -249,7 +249,8 @@ void FDMXProtocolArtNetReceiver::HandleDataPacket(const TSharedRef<FArrayReader>
 		FDMXProtocolArtNetDMXPacket ArtNetDMXPacket;
 		*PacketReader << ArtNetDMXPacket;
 
-		FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, 0, TArray<uint8>(ArtNetDMXPacket.Data, DMX_UNIVERSE_SIZE), 0);
+		constexpr int32 Priority = 0;
+		FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, Priority, TArray<uint8>(ArtNetDMXPacket.Data, DMX_UNIVERSE_SIZE));
 		for (const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort : AssignedInputPorts)
 		{				
 			InputPort->SingleProducerInputDMXSignal(DMXSignal);

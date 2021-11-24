@@ -9,9 +9,54 @@
 #include "IO/DMXPortManager.h"
 #include "IO/DMXRawListener.h"
 
+#include "HAL/RunnableThread.h"
+
 
 #define LOCTEXT_NAMESPACE "DMXOutputPort"
 
+
+
+FDMXSignalSharedPtr FDMXThreadSafeUniverseToSignalMap::GetSignal(int32 UniverseID) const
+{
+	const FDMXSignalSharedPtr* SignalPtr = UniverseToSignalMap.Find(UniverseID);
+	
+	return SignalPtr ? *SignalPtr : nullptr;
+}
+
+FDMXSignalSharedRef FDMXThreadSafeUniverseToSignalMap::GetOrCreateSignal(int32 UniverseID)
+{
+	FDMXSignalSharedPtr& Signal = UniverseToSignalMap.FindOrAdd(UniverseID);
+	if (!Signal.IsValid())
+	{
+		Signal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>();
+	}
+
+	return Signal.ToSharedRef();
+}
+
+void FDMXThreadSafeUniverseToSignalMap::AddSignal(const FDMXSignalSharedRef& Signal)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	UniverseToSignalMap.Add(Signal->ExternUniverseID, Signal);
+}
+
+void FDMXThreadSafeUniverseToSignalMap::ForEachSignal(TUniverseSignalPredicate Predicate)
+{
+	FScopeLock Lock(&CriticalSection);
+
+	for (TTuple<int32, FDMXSignalSharedPtr>& UniverseToSignalPair : UniverseToSignalMap)
+	{
+		Predicate(UniverseToSignalPair.Key, UniverseToSignalPair.Value);
+	}
+}
+
+void FDMXThreadSafeUniverseToSignalMap::Reset()
+{
+	FScopeLock Lock(&CriticalSection);
+
+	UniverseToSignalMap.Reset();
+}
 
 FDMXOutputPortSharedRef FDMXOutputPort::CreateFromConfig(FDMXOutputPortConfig& OutputPortConfig)
 {
@@ -28,13 +73,13 @@ FDMXOutputPortSharedRef FDMXOutputPort::CreateFromConfig(FDMXOutputPortConfig& O
 	NewOutputPort->CommunicationDeterminator.SetSendEnabled(Settings->IsSendDMXEnabled());
 	NewOutputPort->CommunicationDeterminator.SetReceiveEnabled(Settings->IsReceiveDMXEnabled());
 
-	// Bind to send dmx changes
 	Settings->OnSetSendDMXEnabled.AddThreadSafeSP(NewOutputPort, &FDMXOutputPort::OnSetSendDMXEnabled);
-
-	// Bind to receive dmx changes
 	Settings->OnSetReceiveDMXEnabled.AddThreadSafeSP(NewOutputPort, &FDMXOutputPort::OnSetReceiveDMXEnabled);
 
 	NewOutputPort->UpdateFromConfig(OutputPortConfig);
+
+	const FString SenderThreadName = FString(TEXT("DMXOutputPort_")) + OutputPortConfig.GetPortName();
+	NewOutputPort->Thread = FRunnableThread::Create(&NewOutputPort.Get(), *SenderThreadName, 0U, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Created output port %s"), *NewOutputPort->PortName);
 
@@ -47,7 +92,13 @@ FDMXOutputPort::~FDMXOutputPort()
 	check(RawListeners.Num() == 0);
 	
 	// Port needs be unregistered before destruction
-	check(!DMXSender);
+	check(DMXSenderArray.Num() == 0);
+
+	if (Thread)
+	{
+		Thread->Kill(true);
+		delete Thread;
+	}
 
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed output port %s"), *PortName);
 }
@@ -76,10 +127,10 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig)
 
 		if (ProtocolName == OutputPortConfig.GetProtocolName() &&
 			DeviceAddress == OutputPortConfig.GetDeviceAddress() &&
-			DestinationAddress == OutputPortConfig.GetDestinationAddress() &&
+			DestinationAddresses == OutputPortConfig.GetDestinationAddresses() &&
 			CommunicationType == OutputPortConfig.GetCommunicationType() &&
 			Priority == OutputPortConfig.GetPriority() &&
-			Delay == OutputPortConfig.GetDelay())
+			DelaySeconds == OutputPortConfig.GetDelaySeconds())
 		{
 			return false;
 		}	
@@ -106,12 +157,12 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig)
 	CommunicationType = OutputPortConfig.GetCommunicationType();
 	ExternUniverseStart = OutputPortConfig.GetExternUniverseStart();
 	DeviceAddress = OutputPortConfig.GetDeviceAddress();
-	DestinationAddress = OutputPortConfig.GetDestinationAddress();
+	DestinationAddresses = OutputPortConfig.GetDestinationAddresses();
 	LocalUniverseStart = OutputPortConfig.GetLocalUniverseStart();
 	NumUniverses = OutputPortConfig.GetNumUniverses();
 	PortName = OutputPortConfig.GetPortName();
 	Priority = OutputPortConfig.GetPriority();
-	Delay = OutputPortConfig.GetDelay();
+	DelaySeconds = OutputPortConfig.GetDelaySeconds();
 
 	CommunicationDeterminator.SetLoopbackToEngine(OutputPortConfig.NeedsLoopbackToEngine());
 
@@ -130,9 +181,83 @@ const FGuid& FDMXOutputPort::GetPortGuid() const
 	return PortGuid;
 }
 
+void FDMXOutputPort::ClearBuffers()
+{
+	for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
+	{
+		RawListener->ClearBuffer();
+	}
+
+	LatestDMXSignals.Reset();
+}
+
+bool FDMXOutputPort::IsLoopbackToEngine() const
+{
+	return CommunicationDeterminator.NeedsLoopbackToEngine();
+}
+
+TArray<FString> FDMXOutputPort::GetDestinationAddresses() const
+{
+	TArray<FString> Result;
+	Result.Reserve(DestinationAddresses.Num());
+	for (const FDMXOutputPortDestinationAddress& DestinationAddress : DestinationAddresses)
+	{
+		Result.Add(DestinationAddress.DestinationAddressString);
+	}
+
+	return Result;
+}
+
+bool FDMXOutputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal, bool bEvenIfNotLoopbackToEngine)
+{
+#if UE_BUILD_DEBUG
+	check(IsInGameThread());
+#endif // UE_BUILD_DEBUG
+
+	const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
+	if (bNeedsLoopbackToEngine || bEvenIfNotLoopbackToEngine)
+	{
+		int32 ExternUniverseID = ConvertLocalToExternUniverseID(LocalUniverseID);
+
+		OutDMXSignal = LatestDMXSignals.GetSignal(ExternUniverseID);
+		if (OutDMXSignal.IsValid())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FDMXOutputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine)
+{
+	// DEPRECATED 4.27
+#if UE_BUILD_DEBUG
+	check(IsInGameThread());
+#endif // UE_BUILD_DEBUG
+
+	const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
+	if (bNeedsLoopbackToEngine || bEvenIfNotLoopbackToEngine)
+	{
+		OutDMXSignal = LatestDMXSignals.GetSignal(RemoteUniverseID);
+		if (OutDMXSignal.IsValid())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FString FDMXOutputPort::GetDestinationAddress() const
+{
+	// DEPRECATED 5.0
+	return DestinationAddresses.Num() > 0 ? DestinationAddresses[0].DestinationAddressString : TEXT("");
+}
+
 bool FDMXOutputPort::IsRegistered() const
 {
-	if (DMXSender)
+	if (DMXSenderArray.Num() > 0)
 	{
 		return true;
 	}
@@ -167,15 +292,8 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 		{
 			const int32 ExternUniverseID = ConvertLocalToExternUniverseID(LocalUniverseID);
 
-			FDMXSignalSharedPtr& ExistingOrNewSignal = ExternUniverseToLatestSignalMap.FindOrAdd(ExternUniverseID);
-			if (!ExistingOrNewSignal.IsValid())
-			{
-				// Only create a new signal, initialization happens below
-				ExistingOrNewSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>();
-			}
-			FDMXSignalSharedRef Signal = ExistingOrNewSignal.ToSharedRef();
+			FDMXSignalSharedRef Signal = LatestDMXSignals.GetOrCreateSignal(ExternUniverseID);
 
-			// Init or update the signal
 			// Write the fragment & meta data 
 			for (const TTuple<int32, uint8>& ChannelValueKvp : ChannelToValueMap)
 			{
@@ -189,21 +307,10 @@ void FDMXOutputPort::SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& Ch
 			}	
 
 			Signal->ExternUniverseID = ExternUniverseID;
-			Signal->Timestamp = FPlatformTime::Seconds();
+			Signal->Timestamp = FPlatformTime::Seconds() + DelaySeconds;
 			Signal->Priority = Priority;
-			Signal->Delay = Delay;
 
-			// Send DMX
-			if (bNeedsSendDMX)
-			{
-				DMXSender->SendDMXSignal(Signal);
-			}
-
-			// Loopback to Listeners
-			for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
-			{
-				RawListener->EnqueueSignal(this, Signal);
-			}
+			NewDMXSignalsToSend.Enqueue(Signal);
 		}
 	}
 }
@@ -219,15 +326,8 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 		// Update the buffer for loopback if dmx needs be sent and/or looped back
 		if (bNeedsSendDMX || bNeedsLoopbackToEngine)
 		{
-			FDMXSignalSharedPtr& ExistingOrNewSignal = ExternUniverseToLatestSignalMap.FindOrAdd(RemoteUniverse);
-			if (!ExistingOrNewSignal.IsValid())
-			{
-				// Only create a new signal, initialization happens below
-				ExistingOrNewSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>();
-			}
-			FDMXSignalSharedRef Signal = ExistingOrNewSignal.ToSharedRef();
+			FDMXSignalSharedRef Signal = LatestDMXSignals.GetOrCreateSignal(RemoteUniverse);
 
-			// Init or update the signal
 			// Write the fragment & meta data 
 			for (const TTuple<int32, uint8>& ChannelValueKvp : ChannelToValueMap)
 			{
@@ -240,32 +340,21 @@ void FDMXOutputPort::SendDMXToRemoteUniverse(const TMap<int32, uint8>& ChannelTo
 			}
 
 			Signal->ExternUniverseID = RemoteUniverse;
-			Signal->Timestamp = FPlatformTime::Seconds();
+			Signal->Timestamp = FPlatformTime::Seconds() + DelaySeconds;
 			Signal->Priority = Priority;
-			Signal->Delay = Delay;
 
-			// Send via the protocol's sender
-			if (bNeedsSendDMX)
-			{
-				DMXSender->SendDMXSignal(Signal);
-			}
-
-			// Loopback to Listeners
-				for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
-				{
-					RawListener->EnqueueSignal(this, Signal);
-				}
-			}
+			NewDMXSignalsToSend.Enqueue(Signal);
 		}
 	}
+}
 
 bool FDMXOutputPort::Register()
 {
 	if (Protocol.IsValid() && IsValidPortSlow() && CommunicationDeterminator.IsSendDMXEnabled() && !FDMXPortManager::Get().AreProtocolsSuspended())
 	{
-		DMXSender = Protocol->RegisterOutputPort(SharedThis(this));
+		DMXSenderArray = Protocol->RegisterOutputPort(SharedThis(this));
 
-		if (DMXSender.IsValid())
+		if (DMXSenderArray.Num() > 0)
 		{
 			CommunicationDeterminator.SetHasValidSender(true);
 			return true;
@@ -282,76 +371,13 @@ void FDMXOutputPort::Unregister()
 	{
 		if (Protocol.IsValid())
 		{
-		Protocol->UnregisterOutputPort(SharedThis(this));
+			Protocol->UnregisterOutputPort(SharedThis(this));
 		}
 
-		DMXSender = nullptr;
+		DMXSenderArray.Reset();
 	}
 
 	CommunicationDeterminator.SetHasValidSender(false);
-}
-
-void FDMXOutputPort::ClearBuffers()
-{
-	if (DMXSender)
-	{
-		DMXSender->ClearBuffer();
-	}
-
-	for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
-	{
-		RawListener->ClearBuffer();
-	}
-
-	ExternUniverseToLatestSignalMap.Reset();
-}
-
-bool FDMXOutputPort::IsLoopbackToEngine() const
-{
-	return CommunicationDeterminator.NeedsLoopbackToEngine();
-}
-
-bool FDMXOutputPort::GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal, bool bEvenIfNotLoopbackToEngine)
-{
-#if UE_BUILD_DEBUG
-	check(IsInGameThread());
-#endif // UE_BUILD_DEBUG
-
-	const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
-	if (bNeedsLoopbackToEngine || bEvenIfNotLoopbackToEngine)
-	{
-		int32 ExternUniverseID = ConvertLocalToExternUniverseID(LocalUniverseID);
-
-		const FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap.Find(ExternUniverseID);
-		if (SignalPtr)
-		{
-			OutDMXSignal = *SignalPtr;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool FDMXOutputPort::GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine)
-{
-	// DEPRECATED 4.27
-#if UE_BUILD_DEBUG
-	check(IsInGameThread());
-#endif // UE_BUILD_DEBUG
-
-	const bool bNeedsLoopbackToEngine = CommunicationDeterminator.NeedsLoopbackToEngine();
-	if (bNeedsLoopbackToEngine || bEvenIfNotLoopbackToEngine)
-	{
-		const FDMXSignalSharedPtr* SignalPtr = ExternUniverseToLatestSignalMap.Find(RemoteUniverseID);
-		if (SignalPtr)
-		{
-			OutDMXSignal = *SignalPtr;
-			return true;
-		}
-	}
-
-	return false;
 }
 
 void FDMXOutputPort::OnSetSendDMXEnabled(bool bEnabled)
@@ -384,6 +410,112 @@ FDMXOutputPortConfig* FDMXOutputPort::FindOutputPortConfigChecked() const
 	checkNoEntry();
 
 	return nullptr;
+}
+
+bool FDMXOutputPort::Init()
+{
+	return true;
+}
+
+uint32 FDMXOutputPort::Run()
+{
+	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
+	check(DMXSettings);
+	
+	// Fixed rate delta time
+	const double SendDeltaTime = 1.f / DMXSettings->SendingRefreshRate;
+
+	while (!bStopping)
+	{
+		const double StartTime = FPlatformTime::Seconds();
+
+		ProcessSendDMX();
+
+		const double EndTime = FPlatformTime::Seconds();
+		const double WaitTime = SendDeltaTime - (EndTime - StartTime);
+
+		if (WaitTime > 0.f)
+		{
+			// Sleep by the amount which is set in refresh rate
+			FPlatformProcess::SleepNoStats(WaitTime);
+		}
+
+		// In the unlikely case we took to long to send, we instantly continue, but do not take 
+		// further measures to compensate - We would have to run faster than DMX send rate to catch up.
+	}
+
+	return 0;
+}
+
+void FDMXOutputPort::Stop()
+{
+	bStopping = true;
+}
+
+void FDMXOutputPort::Exit()
+{
+}
+
+void FDMXOutputPort::Tick()
+{
+	ProcessSendDMX();
+}
+
+FSingleThreadRunnable* FDMXOutputPort::GetSingleThreadInterface()
+{
+	return this;
+}
+
+void FDMXOutputPort::ProcessSendDMX()
+{
+	// Delay signals
+	const double Now = FPlatformTime::Seconds();
+
+	// Acquire new DMX signals
+	for (;;)
+	{
+		FDMXSignalSharedPtr OldestDMXSignal;
+		if (NewDMXSignalsToSend.Peek(OldestDMXSignal))
+		{
+			if (OldestDMXSignal->Timestamp <= Now)
+			{
+				LatestDMXSignals.AddSignal(OldestDMXSignal.ToSharedRef());
+
+				NewDMXSignalsToSend.Pop();
+
+				continue;
+			}
+
+			break;
+		}
+	}
+
+	// Send new and alive DMX Signals
+	const bool bNeedsSendDMX = CommunicationDeterminator.NeedsSendDMX();
+	LatestDMXSignals.ForEachSignal([Now, bNeedsSendDMX, this](int32 UniverseID, const FDMXSignalSharedPtr& Signal)
+		{
+			if (Signal->Timestamp <= Now)
+			{
+				// Keeping the signal alive here:
+				// Increment the timestamp by one second so the signal will be sent in one second anew.
+				Signal->Timestamp = Now + 1000.0;
+
+				// Send via the protocol's sender
+				if (bNeedsSendDMX)
+				{
+					for (const TSharedPtr<IDMXSender>& DMXSender : DMXSenderArray)
+					{
+						DMXSender->SendDMXSignal(Signal.ToSharedRef());
+					}
+				}
+
+				// Loopback to Listeners
+				for (const TSharedRef<FDMXRawListener>& RawListener : RawListeners)
+				{
+					RawListener->EnqueueSignal(this, Signal.ToSharedRef());
+				}
+			}
+		});
 }
 
 #undef LOCTEXT_NAMESPACE

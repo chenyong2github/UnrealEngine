@@ -20,9 +20,12 @@ class SDMXIPAddressEditWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXIPAddressEditWidget)
+		: _bShowLocalNICComboBox(false)
 		{}
 
 		SLATE_ARGUMENT(FString, InitialValue)
+
+		SLATE_ARGUMENT(bool, bShowLocalNICComboBox)
 
 		SLATE_EVENT(FSimpleDelegate, OnIPAddressSelected)
 
@@ -39,8 +42,8 @@ private:
 	/** Handles changes in the local adapter address combo box */
 	void OnIpAddressSelected(TSharedPtr<FString> InAddress, ESelectInfo::Type InType);
 
-	/** Called when the ip address was entered in the editable text block */
-	void OnIPAddressEntered(const FText&, ETextCommit::Type);
+	/** Called when the IP Address was commited in the editable text block */
+	void OnIPAddressTextCommmited(const FText&, ETextCommit::Type);
 
 	/** Generates an entry in the local adapter address combo box */
 	TSharedRef<SWidget> GenerateLocalAdapterAddressComboBoxEntry(TSharedPtr<FString> InAddress);

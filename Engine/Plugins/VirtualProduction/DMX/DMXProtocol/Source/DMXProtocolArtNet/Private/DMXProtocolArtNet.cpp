@@ -146,66 +146,78 @@ void FDMXProtocolArtNet::UnregisterInputPort(const FDMXInputPortSharedRef& Input
 	}
 }
 
-TSharedPtr<IDMXSender> FDMXProtocolArtNet::RegisterOutputPort(const FDMXOutputPortSharedRef& OutputPort)
+PRAGMA_DISABLE_OPTIMIZATION
+TArray<TSharedPtr<IDMXSender>> FDMXProtocolArtNet::RegisterOutputPort(const FDMXOutputPortSharedRef& OutputPort)
 {
 	check(!OutputPort->IsRegistered());
 	check(!CachedOutputPorts.Contains(OutputPort));
 
 	const FString& NetworkInterfaceAddress = OutputPort->GetDeviceAddress();
-	EDMXCommunicationType CommunicationType = OutputPort->GetCommunicationType();
+	const EDMXCommunicationType CommunicationType = OutputPort->GetCommunicationType();
 
 	// Try to use an existing receiver or create a new one
-	TSharedPtr<FDMXProtocolArtNetSender> Sender;
-	if (!Sender.IsValid())
+	TArray<TSharedPtr<IDMXSender>> NewSenders;
+	if (CommunicationType == EDMXCommunicationType::Broadcast)
 	{
-		if (CommunicationType == EDMXCommunicationType::Broadcast)
+		TSharedPtr<FDMXProtocolArtNetSender> NewSender = FindExistingBroadcastSender(NetworkInterfaceAddress);	
+		if (!NewSender.IsValid())
 		{
-			Sender = FindExistingBroadcastSender(NetworkInterfaceAddress);
-			
-			if (!Sender.IsValid())
-			{
-				Sender = FDMXProtocolArtNetSender::TryCreateBroadcastSender(SharedThis(this), NetworkInterfaceAddress);
-			}
+			NewSender = FDMXProtocolArtNetSender::TryCreateBroadcastSender(SharedThis(this), NetworkInterfaceAddress);
 		}
-		else if (CommunicationType == EDMXCommunicationType::Unicast)
-		{
-			const FString& UnicastAddress = OutputPort->GetDestinationAddress();
 
-			Sender = FindExistingUnicastSender(NetworkInterfaceAddress, UnicastAddress);
-
-			if (!Sender.IsValid())
-			{
-				Sender = FDMXProtocolArtNetSender::TryCreateUnicastSender(SharedThis(this), NetworkInterfaceAddress, UnicastAddress);
-			}
-		}
-		else
+		if (NewSender.IsValid())
 		{
-			UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create DMX Protocol Art-Net Sender. The communication type specified is not supported."));
+			NewSender->AssignOutputPort(OutputPort);
+			NewSenders.Add(NewSender);
 		}
 	}
+	else if (CommunicationType == EDMXCommunicationType::Unicast)
+	{
+		for (const FString& UnicastAddress : OutputPort->GetDestinationAddresses())
+		{
+			TSharedPtr<FDMXProtocolArtNetSender> NewSender = FindExistingUnicastSender(NetworkInterfaceAddress, UnicastAddress);
+			if (!NewSender.IsValid())
+			{
+				NewSender = FDMXProtocolArtNetSender::TryCreateUnicastSender(SharedThis(this), NetworkInterfaceAddress, UnicastAddress);
+			}
 
-	if (!Sender.IsValid())
+			if (NewSender.IsValid())
+			{
+				NewSender->AssignOutputPort(OutputPort);
+				NewSenders.Add(NewSender);
+			}
+		}
+	}
+	else
+	{
+		UE_LOG(LogDMXProtocol, Error, TEXT("Cannot create DMX Protocol Art-Net Sender. The communication type specified is not supported."));
+	}
+
+	if (NewSenders.Num() > 0)
+	{
+		CachedOutputPorts.Add(OutputPort);
+	}
+	else
 	{
 		UE_LOG(LogDMXProtocol, Warning, TEXT("Could not create Art-Net sender for output port %s"), *OutputPort->GetPortName());
-
-		return nullptr;
 	}
 
-	Senders.Add(Sender);
+	for (const TSharedPtr<IDMXSender>& Sender : NewSenders)
+	{
+		Senders.Add(StaticCastSharedPtr<FDMXProtocolArtNetSender>(Sender));
+	}
 
-	Sender->AssignOutputPort(OutputPort);
-	CachedOutputPorts.Add(OutputPort);
-
-	return Sender;
+	return NewSenders;
 }
+PRAGMA_ENABLE_OPTIMIZATION
 
 void FDMXProtocolArtNet::UnregisterOutputPort(const FDMXOutputPortSharedRef& OutputPort)
 {
 	check(CachedOutputPorts.Contains(OutputPort));
 	CachedOutputPorts.Remove(OutputPort);
 
-	TSharedPtr<FDMXProtocolArtNetSender> UnusedSender;
-	for (const TSharedPtr<FDMXProtocolArtNetSender>& Sender : Senders)
+	TArray<TSharedPtr<FDMXProtocolArtNetSender>> UnusedSenders;
+	for (const TSharedPtr<FDMXProtocolArtNetSender>& Sender : TSet<TSharedPtr<FDMXProtocolArtNetSender>>(Senders))
 	{
 		if (Sender->ContainsOutputPort(OutputPort))
 		{
@@ -213,15 +225,9 @@ void FDMXProtocolArtNet::UnregisterOutputPort(const FDMXOutputPortSharedRef& Out
 
 			if (Sender->GetNumAssignedOutputPorts() == 0)
 			{
-				UnusedSender = Sender;
+				Senders.Remove(Sender);
 			}
-			break;
 		}
-	}
-
-	if (UnusedSender.IsValid())
-	{
-		Senders.Remove(UnusedSender);
 	}
 }
 

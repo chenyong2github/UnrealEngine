@@ -38,7 +38,7 @@ public:
 	virtual bool SupportsPrioritySettings() const override;
 	virtual bool RegisterInputPort(const FDMXInputPortSharedRef& InputPort) override;
 	virtual void UnregisterInputPort(const FDMXInputPortSharedRef& InputPort) override;
-	virtual TSharedPtr<IDMXSender> RegisterOutputPort(const FDMXOutputPortSharedRef& OutputPort) override;
+	virtual TArray<TSharedPtr<IDMXSender>> RegisterOutputPort(const FDMXOutputPortSharedRef& OutputPort) override;
 	virtual void UnregisterOutputPort(const FDMXOutputPortSharedRef& OutputPort) override;
 	virtual bool IsCausingLoopback(EDMXCommunicationType InCommunicationType) override;
 	// ~End IDMXProtocol implementation

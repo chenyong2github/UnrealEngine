@@ -9,9 +9,13 @@
 #include "CoreMinimal.h"
 #include "Tickable.h"
 #include "Containers/Queue.h" 
-#include "Templates/SharedPointer.h"
+#include "HAL/Runnable.h"
+#include "Misc/ScopeLock.h" 
+#include "Misc/SingleThreadRunnable.h"
+#include "Templates/Atomic.h"
 
 struct FDMXOutputPortConfig;
+struct FDMXOutputPortDestinationAddress;
 class FDMXPortManager;
 class FDMXSignal;
 class IDMXSender;
@@ -56,6 +60,35 @@ private:
 };
 
 
+/** Helper to access a Map of Signals per Universe in a thread-safe way */
+class FDMXThreadSafeUniverseToSignalMap
+{
+public:
+	using TUniverseSignalPredicate = TFunctionRef<void(int32, const FDMXSignalSharedPtr&)>;
+	
+	/** Gets a signal, returns an invalid shared pointer if there is no signal at given Universe ID */
+	FDMXSignalSharedPtr GetSignal(int32 UniverseID) const;
+
+	/** Gets or creates a signal */
+	FDMXSignalSharedRef GetOrCreateSignal(int32 UniverseID);
+
+	/** Adds a signal to the map */
+	void AddSignal(const FDMXSignalSharedRef& Signal);
+
+	/** Loops through all signals by given Predicate  */
+	void ForEachSignal(TUniverseSignalPredicate Predicate);
+
+	/** Resets the Map */
+	void Reset();
+
+private:
+	/** Buffer of all the latest DMX Signals that were sent */
+	TMap<int32, FDMXSignalSharedPtr> UniverseToSignalMap;
+
+	/** Critical sequestion required to be used when the Map is accessed */
+	FCriticalSection CriticalSection;
+};
+
 /**
  * Higher level abstraction of a DMX input hiding networking specific and protocol specific complexity.
  *
@@ -67,6 +100,8 @@ private:
  */
 class DMXPROTOCOL_API FDMXOutputPort
 	: public FDMXPort
+	, public FRunnable
+	, public FSingleThreadRunnable
 {
 	// Friend DMXPortManager so it can create instances and unregister void instances
 	friend FDMXPortManager;
@@ -84,17 +119,6 @@ public:
 	/** Updates the Port to use the config of the OutputPortConfig */
 	void UpdateFromConfig(FDMXOutputPortConfig& OutputPortConfig);
 
-	//~ Begin DMXPort Interface 
-	virtual bool IsRegistered() const override;
-	virtual const FGuid& GetPortGuid() const override;
-protected:
-	virtual void AddRawListener(TSharedRef<FDMXRawListener> InRawListener) override;
-	virtual void RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove) override;
-	virtual bool Register() override;
-	virtual void Unregister() override;
-	//~ End DMXPort Interface
-
-public:
 	/** Sends DMX over the port */
 	void SendDMX(int32 LocalUniverseID, const TMap<int32, uint8>& ChannelToValueMap);
 
@@ -118,15 +142,30 @@ public:
 	 */
 	bool GameThreadGetDMXSignal(int32 LocalUniverseID, FDMXSignalSharedPtr& OutDMXSignal, bool bEvenIfNotLoopbackToEngine);
 
+	/** Returns the Destination Addresses */
+	TArray<FString> GetDestinationAddresses() const;
+
 	/**  DEPRECATED 4.27. Gets the DMX signal from an extern (remote) Universe ID. */
 	UE_DEPRECATED(4.27, "Use GameThreadGetDMXSignal instead. GameThreadGetDMXSignalFromRemoteUniverse only exists to support deprecated blueprint nodes.")
 	bool GameThreadGetDMXSignalFromRemoteUniverse(FDMXSignalSharedPtr& OutDMXSignal, int32 RemoteUniverseID, bool bEvenIfNotLoopbackToEngine);
 
-	/** Returns the Destination Address */
-	FORCEINLINE const FString& GetDestinationAddress() const { return DestinationAddress; }
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Output Ports now support many destination addresses. Please use FDMXOutputPort::GetDestinationAddresses instead.")
+	FString GetDestinationAddress() const;
 
-private:
-	/** Called to set if DMX should be enabled */
+public:
+	//~ Begin DMXPort Interface 
+	virtual bool IsRegistered() const override;
+	virtual const FGuid& GetPortGuid() const override;
+
+protected:
+	virtual void AddRawListener(TSharedRef<FDMXRawListener> InRawListener) override;
+	virtual void RemoveRawListener(TSharedRef<FDMXRawListener> InRawListenerToRemove) override;
+	virtual bool Register() override;
+	virtual void Unregister() override;
+	//~ End DMXPort Interface
+
+		/** Called to set if DMX should be enabled */
 	void OnSetSendDMXEnabled(bool bEnabled);
 
 	/** Called to set if DMX should be enabled */
@@ -134,21 +173,40 @@ private:
 
 	/** Returns the port config that corresponds to the guid of this port. */
 	FDMXOutputPortConfig* FindOutputPortConfigChecked() const;
-	
-	/** The DMX sender, or nullptr if not registered */
-	TSharedPtr<IDMXSender> DMXSender;
+
+	//~ Begin FRunnable implementation
+	virtual bool Init() override;
+	virtual uint32 Run() override;
+	virtual void Stop() override;
+	virtual void Exit() override;
+	//~ End FRunnable implementation
+
+	//~ Begin FSingleThreadRunnable implementation
+	virtual void Tick() override;
+	virtual class FSingleThreadRunnable* GetSingleThreadInterface() override;
+	//~ End FSingleThreadRunnable implementation
+
+	/** Updates the thread, sending DMX */
+	void ProcessSendDMX();
+
+private:
+	/** The DMX senders in use */
+	TArray<TSharedPtr<IDMXSender>> DMXSenderArray;
+
+	/** Buffer of the signals that are to be sent in the next frame */
+	TQueue<FDMXSignalSharedPtr> NewDMXSignalsToSend;
+
+	/** Map that holds the latest Signal per Universe */
+	FDMXThreadSafeUniverseToSignalMap LatestDMXSignals;
 
 	/** The Destination Address to send to, can be irrelevant, e.g. for art-net broadcast */
-	FString DestinationAddress;
+	TArray<FDMXOutputPortDestinationAddress> DestinationAddresses;
 
 	/** Helper to determine how dmx should be communicated (loopback, send) */
 	FDMXOutputPortCommunicationDeterminator CommunicationDeterminator;
 
 	/** Priority on which packets are being sent */
-	int32 Priority;
-
-	/** Map of latest Singals per Universe */
-	TMap<int32, FDMXSignalSharedPtr> ExternUniverseToLatestSignalMap;
+	int32 Priority = 0;
 
 	/** Map of raw Inputs */
 	TSet<TSharedRef<FDMXRawListener>> RawListeners;
@@ -160,5 +218,11 @@ private:
 	FGuid PortGuid;
 
 	/** Delay to apply on packets being sent */
-	float Delay;
+	double DelaySeconds = 0.0;
+
+	/** Holds the thread object. */
+	FRunnableThread* Thread = nullptr;
+
+	/** Flag indicating that the thread is stopping. */
+	TAtomic<bool> bStopping;
 };

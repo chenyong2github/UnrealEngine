@@ -7,13 +7,7 @@
 #include "Interfaces/IDMXSender.h"
 
 #include "CoreMinimal.h"
-#include "Containers/Queue.h"
-#include "HAL/CriticalSection.h"
-#include "HAL/Runnable.h"
-#include "Misc/ScopeLock.h" 
-#include "Misc/SingleThreadRunnable.h"
 #include "Serialization/ArrayWriter.h"
-#include "Templates/Atomic.h"
 
 
 struct FDMXProtocolSACNRDM;
@@ -23,15 +17,12 @@ class FDMXOutputPort;
 
 class FDMXProtocolSACN;
 class FInternetAddr;
-class FRunnableThread;
 class FSocket;
 class ISocketSubsystem;
 
 
 class DMXPROTOCOLSACN_API FDMXProtocolSACNSender
-	: public FRunnable
-	, public FSingleThreadRunnable
-	, public IDMXSender
+	: public IDMXSender
 {
 protected:
 	FDMXProtocolSACNSender& operator=(const FDMXProtocolSACNSender&) = delete;
@@ -67,7 +58,6 @@ public:
 
 	// ~Begin IDMXSender Interface
 	virtual void SendDMXSignal(const FDMXSignalSharedRef& DMXSignal) override;
-	virtual void ClearBuffer() override;
 	// ~End IDMXSender Interface
 
 public:
@@ -96,30 +86,6 @@ private:
 	/** The Output ports the receiver uses */
 	TSet<TSharedPtr<FDMXOutputPort, ESPMode::ThreadSafe>> AssignedOutputPorts;
 
-protected:
-	//~ Begin FRunnable implementation
-	virtual bool Init() override;
-	virtual uint32 Run() override;
-	virtual void Stop() override;
-	virtual void Exit() override;
-	//~ End FRunnable implementation
-
-	//~ Begin FSingleThreadRunnable implementation
-	virtual void Tick() override;
-	virtual class FSingleThreadRunnable* GetSingleThreadInterface() override;
-	//~ End FSingleThreadRunnable implementation
-
-protected:
-	/** Updates the thread, sending DMX */
-	void Update();
-
-private:
-	/** Buffer of dmx signals */
-	TQueue<FDMXSignalSharedPtr> Buffer;
-
-	/** Map of the latest signal per universe */
-	TMap<int32 /** Universe */, FDMXSignalSharedRef> UniverseToLatestSignalMap;
-
 	/** Map of universes with their current sequence number */
 	TMap<uint16 /** Universe ID */, uint16 /** Sequence Number */> UniverseIDToSequenceNumberMap;
 
@@ -127,7 +93,7 @@ private:
 	TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> Protocol;
 
 	/** Holds the network socket used to sender packages. */
-	FSocket* Socket;
+	FSocket* Socket = nullptr;
 
 	/** The network interface internet addr */
 	TSharedPtr<FInternetAddr> NetworkInterfaceInternetAddr;
@@ -137,15 +103,6 @@ private:
 
 	/** Communication type used for the network traffic */
 	EDMXCommunicationType CommunicationType;
-
-	/** Lock used when the buffer is cleared */
-	FCriticalSection LatestSignalLock;
-
-	/** Flag indicating that the thread is stopping. */
-	TAtomic<bool> bStopping;
-
-	/** Holds the thread object. */
-	FRunnableThread* Thread;
 
 	/** Is a Multicast sender ? */
 	const bool bIsMulticast;

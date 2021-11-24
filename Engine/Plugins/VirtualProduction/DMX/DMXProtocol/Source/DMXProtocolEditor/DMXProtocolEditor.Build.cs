@@ -28,6 +28,7 @@ public class DMXProtocolEditor : ModuleRules
 				"InputCore",
 				"Slate",
 				"SlateCore",
+				"TimeManagement",
 				"UnrealEd"
 			}
 		);

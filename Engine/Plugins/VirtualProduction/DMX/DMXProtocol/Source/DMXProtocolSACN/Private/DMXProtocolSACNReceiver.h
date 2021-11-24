@@ -58,6 +58,7 @@ public:
 	FORCEINLINE const TSet<TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>>& GetAssignedInputPorts() const { return AssignedInputPorts; }
 
 	/** Returns the IP address of a universe */
+	UE_DEPRECATED(5.0, "Deprecated in favor of the more generic FDMXProtocolSACNUtils::GetIPForUniverseID")
 	static uint32 GetIpForUniverseID(uint16 InUniverseID);
 
 private:
@@ -100,7 +101,7 @@ private:
 	TSharedPtr<FDMXProtocolSACN, ESPMode::ThreadSafe> Protocol;
 
 	/** The network socket. */
-	FSocket* Socket;
+	FSocket* Socket = nullptr;
 
 	/** The endpoint internet addr */
 	TSharedPtr<FInternetAddr> EndpointInternetAddr;
@@ -109,7 +110,7 @@ private:
 	TAtomic<bool> bStopping;
 
 	/** The thread object. */
-	FRunnableThread* Thread;
+	FRunnableThread* Thread = nullptr;
 
 	/** The receiver thread's name. */
 	FString ThreadName;

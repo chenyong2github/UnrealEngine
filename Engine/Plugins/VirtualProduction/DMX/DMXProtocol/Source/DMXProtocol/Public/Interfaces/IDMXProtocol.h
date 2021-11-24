@@ -138,9 +138,9 @@ public:
 	 * This should be implemented so each port can only register once (see Art-Net for an example).
 	 *
 	 * @param	OutputPort			The Output port that needs to be registered
-	 * @return						The DMX sender, or nullptr if the port couldn't be registered.
+	 * @return						The DMX senders that can be used while the output port is registered.
 	 */
-	virtual TSharedPtr<IDMXSender> RegisterOutputPort(const FDMXOutputPortSharedRef& OutputPort) = 0;
+	virtual TArray<TSharedPtr<IDMXSender>> RegisterOutputPort(const FDMXOutputPortSharedRef& OutputPort) = 0;
 
 	/**
 	 * Called to unregister a DMXOutputPort with the protocol.

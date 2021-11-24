@@ -107,7 +107,7 @@ private:
 	TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe> Protocol;
 
 	/** The network socket. */
-	FSocket* Socket;
+	FSocket* Socket = nullptr;
 
 	/** The endpoint internet addr */
 	TSharedPtr<FInternetAddr> EndpointInternetAddr;
@@ -116,7 +116,7 @@ private:
 	TAtomic<bool> bStopping;
 
 	/** The thread object. */
-	FRunnableThread* Thread;
+	FRunnableThread* Thread = nullptr;
 
 	/** The receiver thread's name. */
 	FString ThreadName;

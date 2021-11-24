@@ -5,6 +5,7 @@
 #include "DMXProtocolLog.h"
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolSACNConstants.h"
+#include "DMXProtocolSACNUtils.h"
 #include "DMXStats.h"
 #include "IO/DMXInputPort.h"
 #include "Packets/DMXProtocolE131PDUPacket.h"
@@ -140,7 +141,7 @@ void FDMXProtocolSACNReceiver::AssignInputPort(const TSharedPtr<FDMXInputPort, E
 			ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 			TSharedRef<FInternetAddr> NewMulticastGroupAddr = SocketSubsystem->CreateInternetAddr();
 
-			uint32 MulticastIp = GetIpForUniverseID(UniverseID);
+			uint32 MulticastIp = FDMXProtocolSACNUtils::GetIpForUniverseID(UniverseID);
 			NewMulticastGroupAddr->SetIp(MulticastIp);
 			NewMulticastGroupAddr->SetPort(ACN_PORT);
 
@@ -270,7 +271,7 @@ void FDMXProtocolSACNReceiver::Update(const FTimespan& SocketWaitTime)
 					Reader->Seek(0);
 
 					// validate Universe
-					const uint32 FakeMulticastIp = GetIpForUniverseID(UniverseID);
+					const uint32 FakeMulticastIp = FDMXProtocolSACNUtils::GetIpForUniverseID(UniverseID);
 					if (MulticastGroupAddrToUniverseIDMap.Contains(FakeMulticastIp))
 					{
 						DistributeReceivedData(UniverseID, Reader);
@@ -356,7 +357,7 @@ void FDMXProtocolSACNReceiver::HandleDataPacket(uint16 UniverseID, const TShared
 	// Copy relevant data
 	FMemory::Memcpy(UniverseData->GetData() + IncomingDMXDMPLayer.FirstPropertyAddress, IncomingDMXDMPLayer.DMX.GetData(), IncomingDMXDMPLayer.PropertyValueCount - 1);
 	
-	FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, IncomingDMXFramingLayer.Priority, PropertiesCacheValues[UniverseID], 0);
+	FDMXSignalSharedRef DMXSignal = MakeShared<FDMXSignal, ESPMode::ThreadSafe>(FPlatformTime::Seconds(), UniverseID, IncomingDMXFramingLayer.Priority, PropertiesCacheValues[UniverseID]);
 	for (const TSharedPtr<FDMXInputPort, ESPMode::ThreadSafe>& InputPort : AssignedInputPorts)
 	{
 		// Check packet priority
