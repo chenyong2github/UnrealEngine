@@ -140,18 +140,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UBakeMeshAttributeVertexToolProperties> Settings;
 
-	UPROPERTY()
-	TObjectPtr<UBakedOcclusionMapToolProperties> OcclusionSettings;
-
-	UPROPERTY()
-	TObjectPtr<UBakedCurvatureMapToolProperties> CurvatureSettings;
-
-	UPROPERTY()
-	TObjectPtr<UBakedTexture2DImageProperties> TextureSettings;
-
-	UPROPERTY()
-	TObjectPtr<UBakedMultiTexture2DImageProperties> MultiTextureSettings;
-
 protected:
 	friend class FMeshVertexBakerOp;
 	
@@ -167,23 +155,18 @@ protected:
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshVertexBaker>> Compute = nullptr;
 	void OnResultUpdated(const TUniquePtr<UE::Geometry::FMeshVertexBaker>& NewResult);
 
-	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
-	UE::Geometry::FDynamicMesh3 BaseMesh;
-	UE::Geometry::FDynamicMeshAABBTree3 BaseSpatial;
-
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
 	int32 DetailMeshTimestamp = 0;
 	void UpdateDetailMesh();
 
+	int32 NumColorElements = 0;
 	bool bColorTopologyValid = false;
 	bool bIsBakeToSelf = false;
 	void UpdateOnModeChange();
 	void UpdateVisualization();
 	void UpdateColorTopology();
 	void UpdateResult();
-
-	const bool bPreferPlatformData = false;
 
 	struct FBakeSettings
 	{
@@ -212,24 +195,6 @@ protected:
 	};
 	FBakeSettings CachedBakeSettings;
 
-	//FNormalMapSettings CachedNormalMapSettings;
-	EBakeOpState UpdateResult_Normal();
-
-	FOcclusionMapSettings CachedOcclusionMapSettings;
-	EBakeOpState UpdateResult_Occlusion();
-
-	FCurvatureMapSettings CachedCurvatureMapSettings;
-	EBakeOpState UpdateResult_Curvature();
-
-	//FMeshPropertyMapSettings CachedMeshPropertyMapSettings;
-	EBakeOpState UpdateResult_MeshProperty();
-
-	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedTextureImage;
-	FTexture2DImageSettings CachedTexture2DImageSettings;
-	EBakeOpState UpdateResult_Texture2DImage();
-
-	TArray<TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> CachedMultiTextures;
-	EBakeOpState UpdateResult_MultiTexture();
 
 	//
 	// Analytics

@@ -114,7 +114,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakedNormalMapToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UBakeNormalMapToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -123,7 +123,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakedOcclusionMapToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UBakeOcclusionMapToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -145,24 +145,8 @@ public:
 };
 
 
-UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakedOcclusionMapVisualizationProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-public:
-	/** Adjust the brightness of the preview material; does not affect results stored in textures */
-	UPROPERTY(EditAnywhere, Category = Preview, meta = (DisplayName = "Brightness", UIMin = "0.0", UIMax = "1.0"))
-	float Brightness = 1.0f;
-
-	/** Ambient Occlusion multiplier in the viewport; does not affect results stored in textures */
-	UPROPERTY(EditAnywhere, Category = Preview, meta = (DisplayName = "AO Multiplier", UIMin = "0.0", UIMax = "1.0",
-		ClampMin = "0.0", ClampMax = "1.0"))
-	float AOMultiplier = 1.0f;
-};
-
-
 UENUM()
-enum class EBakedCurvatureTypeMode
+enum class EBakeCurvatureTypeMode
 {
 	/** Average of the minimum and maximum principal curvatures */
 	MeanAverage,
@@ -176,7 +160,7 @@ enum class EBakedCurvatureTypeMode
 
 
 UENUM()
-enum class EBakedCurvatureColorMode
+enum class EBakeCurvatureColorMode
 {
 	/** Map curvature values to grayscale such that black is negative, grey is zero, and white is positive */
 	Grayscale,
@@ -188,7 +172,7 @@ enum class EBakedCurvatureColorMode
 
 
 UENUM()
-enum class EBakedCurvatureClampMode
+enum class EBakeCurvatureClampMode
 {
 	/** Include both negative and positive curvatures */
 	None,
@@ -200,17 +184,17 @@ enum class EBakedCurvatureClampMode
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakedCurvatureMapToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UBakeCurvatureMapToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
 	/** Type of curvature */
 	UPROPERTY(EditAnywhere, Category = CurvatureOutput)
-	EBakedCurvatureTypeMode CurvatureType = EBakedCurvatureTypeMode::MeanAverage;
+	EBakeCurvatureTypeMode CurvatureType = EBakeCurvatureTypeMode::MeanAverage;
 
 	/** How to map calculated curvature values to colors */
 	UPROPERTY(EditAnywhere, Category = CurvatureOutput)
-	EBakedCurvatureColorMode ColorMapping = EBakedCurvatureColorMode::Grayscale;
+	EBakeCurvatureColorMode ColorMapping = EBakeCurvatureColorMode::Grayscale;
 
 	/** Multiplier for how the curvature values fill the available range in the selected Color Mapping; a larger value means that higher curvature is required to achieve the maximum color value. */
 	UPROPERTY(EditAnywhere, Category = CurvatureOutput, meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.001", ClampMax = "100.0"))
@@ -222,12 +206,12 @@ public:
 
 	/** Clamping applied to curvature values before color mapping */
 	UPROPERTY(EditAnywhere, Category = CurvatureOutput)
-	EBakedCurvatureClampMode Clamping = EBakedCurvatureClampMode::None;
+	EBakeCurvatureClampMode Clamping = EBakeCurvatureClampMode::None;
 };
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakedTexture2DImageProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UBakeTexture2DProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -242,7 +226,7 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UBakedMultiTexture2DImageProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API UBakeMultiTexture2DProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
@@ -261,6 +245,22 @@ public:
 		TransientToolProperty))
 	TArray<TObjectPtr<UTexture2D>> AllSourceTextures;
 
+};
+
+
+UCLASS()
+class MESHMODELINGTOOLSEXP_API UBakeVisualizationProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Adjust the brightness of the preview material; does not affect results stored in textures */
+	UPROPERTY(EditAnywhere, Category = Preview, meta = (DisplayName = "Brightness", UIMin = "0.0", UIMax = "1.0"))
+	float Brightness = 1.0f;
+
+	/** Ambient Occlusion multiplier in the viewport; does not affect results stored in textures */
+	UPROPERTY(EditAnywhere, Category = Preview, meta = (DisplayName = "AO Multiplier", UIMin = "0.0", UIMax = "1.0",
+		ClampMin = "0.0", ClampMax = "1.0"))
+	float AOMultiplier = 1.0f;
 };
 
 
@@ -331,12 +331,12 @@ struct FMeshPropertyMapSettings
 	}
 };
 
-struct FTexture2DImageSettings
+struct FTexture2DSettings
 {
 	FImageDimensions Dimensions;
 	int32 UVLayer = 0;
 
-	bool operator==(const FTexture2DImageSettings& Other) const
+	bool operator==(const FTexture2DSettings& Other) const
 	{
 		return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer;
 	}

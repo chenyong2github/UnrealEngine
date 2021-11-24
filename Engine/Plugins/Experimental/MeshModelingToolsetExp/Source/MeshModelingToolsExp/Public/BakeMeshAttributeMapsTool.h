@@ -119,17 +119,6 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UBakeMeshAttributeMapsToolProperties> Settings;
 
-	UPROPERTY()
-	TObjectPtr<UBakedOcclusionMapToolProperties> OcclusionMapProps;
-
-	UPROPERTY()
-	TObjectPtr<UBakedCurvatureMapToolProperties> CurvatureMapProps;
-
-	UPROPERTY()
-	TObjectPtr<UBakedTexture2DImageProperties> Texture2DProps;
-
-	UPROPERTY()
-	TObjectPtr<UBakedMultiTexture2DImageProperties> MultiTextureProps;
 
 	// Begin UBakeMeshAttributeMapsToolBase interface
 	virtual void UpdateResult() override;
@@ -155,24 +144,5 @@ protected:
 	FDetailMeshSettings CachedDetailMeshSettings;
 	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedDetailNormalMap;
 	EBakeOpState UpdateResult_DetailNormalMap();
-
-	FNormalMapSettings CachedNormalMapSettings;
-	EBakeOpState UpdateResult_Normal();
-
-	FOcclusionMapSettings CachedOcclusionMapSettings;
-	EBakeOpState UpdateResult_Occlusion();
-
-	FCurvatureMapSettings CachedCurvatureMapSettings;
-	EBakeOpState UpdateResult_Curvature();
-
-	FMeshPropertyMapSettings CachedMeshPropertyMapSettings;
-	EBakeOpState UpdateResult_MeshProperty();
-
-	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedTextureImage;
-	FTexture2DImageSettings CachedTexture2DImageSettings;
-	EBakeOpState UpdateResult_Texture2DImage();
-
-	TArray<TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> CachedMultiTextures;
-	EBakeOpState UpdateResult_MultiTexture();
 };
 
