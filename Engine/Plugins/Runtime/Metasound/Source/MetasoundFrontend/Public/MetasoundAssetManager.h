@@ -77,7 +77,7 @@ namespace Metasound
 
 			// Adds missing assets using the provided asset's local reference class cache. Used
 			// to prime system from asset attempting to register prior to asset scan being complete.
-			virtual void AddAssetReferences(const FMetasoundAssetBase& InAssetBase) = 0;
+			virtual void AddAssetReferences(FMetasoundAssetBase& InAssetBase) = 0;
 
 			// Add or Update a MetaSound Asset's entry data
 			virtual void AddOrUpdateAsset(UObject& InObject, bool bInRegisterWithFrontend = true) = 0;

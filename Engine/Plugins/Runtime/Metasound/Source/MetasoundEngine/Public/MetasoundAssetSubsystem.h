@@ -39,7 +39,7 @@ public:
 	void RemoveAsset(const FAssetData& InAssetData, bool bInUnregisterWithFrontend = true);
 	void RenameAsset(const FAssetData& InAssetData, bool bInReregisterWithFrontend = true);
 
-	virtual void AddAssetReferences(const FMetasoundAssetBase& InAssetBase) override;
+	virtual void AddAssetReferences(FMetasoundAssetBase& InAssetBase) override;
 	virtual void AddOrUpdateAsset(UObject& InObject, bool bInRegisterWithFrontend = true) override;
 	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const override;
 	virtual bool ContainsKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const override;
