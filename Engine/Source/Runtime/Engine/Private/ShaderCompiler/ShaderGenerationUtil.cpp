@@ -251,6 +251,12 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderCompilerDefines& SrcD
 	FETCH_COMPILE_BOOL(PLATFORM_SUPPORTS_DEVELOPMENT_SHADERS);
 }
 
+// Strata::IsEnabled is only accessible in the Renderer module
+static bool IsStrataEnabled()
+{
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata"));
+	return CVar->GetInt() > 0;
+}
 
 // if we change the logic, increment this number to force a DDC key change
 static const int32 GBufferGeneratorVersion = 4;
@@ -1097,6 +1103,17 @@ static FString CreateGBufferDecodeFunctionDirect(const FGBufferInfo& BufferInfo)
 
 	FullStr += TEXT("\tFGBufferData Ret = (FGBufferData)0;\n");
 	
+	// Default initialization in case no gbuffer data are generated when Strata is enabled to 
+	// prevent shader compiler error (division by zero, variable not-initialized) with passes 
+	// not converted to Strata and still using Gbuffer data
+	const bool bStrata = IsStrataEnabled();
+	if (bStrata)
+	{
+		FullStr += TEXT("\tRet.WorldNormal = float3(0,0,1);\n");
+		FullStr += TEXT("\tRet.Depth = 0.f;\n");
+		FullStr += TEXT("\tRet.ShadingModelID = 1;\n"); 
+	}
+
 	FString Swizzles[4];
 	Swizzles[0] = TEXT("x");
 	Swizzles[1] = TEXT("y");
@@ -1686,6 +1703,9 @@ static void DetermineUsedMaterialSlots(
 	bool bHasStaticLighting = Dst.GBUFFER_HAS_PRECSHADOWFACTOR || Dst.WRITES_PRECSHADOWFACTOR_TO_GBUFFER;
 	bool bIsStrataMaterial = Mat.PROJECT_STRATA && Mat.MATERIAL_IS_STRATA;
 
+	// Strata doesn't use gbuffer, and thus doesn't need CustomData
+	const bool bUseCustomData = !bIsStrataMaterial;
+
 	// we have to use if statements, not switch or if/else statements because we can have multiple shader model ids.
 	if (Mat.MATERIAL_SHADINGMODEL_UNLIT)
 	{
@@ -1700,49 +1720,49 @@ static void DetermineUsedMaterialSlots(
 	if (Mat.MATERIAL_SHADINGMODEL_SUBSURFACE)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		Slots[GBS_CustomData] = true;
+		Slots[GBS_CustomData] = bUseCustomData;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		Slots[GBS_CustomData] = true;
+		Slots[GBS_CustomData] = bUseCustomData;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		Slots[GBS_CustomData] = true;
+		Slots[GBS_CustomData] = bUseCustomData;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_CLEAR_COAT)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		Slots[GBS_CustomData] = true;
+		Slots[GBS_CustomData] = bUseCustomData;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		Slots[GBS_CustomData] = true;
+		Slots[GBS_CustomData] = bUseCustomData;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_HAIR)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		Slots[GBS_CustomData] = true;
+		Slots[GBS_CustomData] = bUseCustomData;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_CLOTH)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		Slots[GBS_CustomData] = true;
+		Slots[GBS_CustomData] = bUseCustomData;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_EYE)
 	{
 		SetStandardGBufferSlots(Slots, bWriteEmissive, bHasTangent, bHasVelocity, bHasStaticLighting, bIsStrataMaterial);
-		Slots[GBS_CustomData] = true;
+		Slots[GBS_CustomData] = bUseCustomData;
 	}
 
 	if (Mat.MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
