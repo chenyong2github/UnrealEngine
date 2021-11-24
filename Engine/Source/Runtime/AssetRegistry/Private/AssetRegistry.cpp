@@ -2791,6 +2791,19 @@ void UAssetRegistryImpl::AssetRenamed(const UObject* RenamedAsset, const FString
 	}
 }
 
+void UAssetRegistryImpl::AssetSaved(const UObject& SavedAsset)
+{
+#if WITH_EDITOR
+	if (!ensure(SavedAsset.IsAsset()))
+	{
+		return;
+	}
+
+	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+	GuardedData.OnAssetSaved(SavedAsset);
+#endif
+}
+
 void UAssetRegistryImpl::PackageDeleted(UPackage* DeletedPackage)
 {
 	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
@@ -4152,7 +4165,7 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Imp
 
 
 	constexpr int32 BatchSize = 16;
-	TArray<UObject*> BatchObjects;
+	TArray<const UObject*> BatchObjects;
 	TArray<FAssetData, TInlineAllocator<BatchSize>> BatchAssetDatas;
 
 	{
@@ -4175,7 +4188,7 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Imp
 		int32 Index = 0;
 		while (Index < CurrentBatchSize)
 		{
-			UObject* LoadedObject = BatchObjects[Index++];
+			const UObject* LoadedObject = BatchObjects[Index++];
 			if (!LoadedObject->IsAsset())
 			{
 				// If the object has changed and is no longer an asset, ignore it. This can happen when an Actor is modified during cooking to no longer have an external package
@@ -4194,7 +4207,7 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Imp
 
 		FWriteScopeLock InterfaceScopeLock(InterfaceLock);
 		GuardedData.PushProcessLoadedAssetsBatch(EventContext, BatchAssetDatas,
-			TArrayView<UObject*>(BatchObjects).Slice(Index, CurrentBatchSize-Index));
+			TArrayView<const UObject*>(BatchObjects).Slice(Index, CurrentBatchSize-Index));
 		if (bTimedOut)
 		{
 			break;
@@ -4211,7 +4224,12 @@ void FAssetRegistryImpl::OnAssetLoaded(UObject* AssetLoaded)
 	LoadedAssetsToProcess.Add(AssetLoaded);
 }
 
-void FAssetRegistryImpl::GetProcessLoadedAssetsBatch(TArray<UObject*>& OutLoadedAssets, uint32 BatchSize)
+void FAssetRegistryImpl::OnAssetSaved(const UObject& AssetSaved)
+{
+	LoadedAssetsToProcess.Add(&AssetSaved);
+}
+
+void FAssetRegistryImpl::GetProcessLoadedAssetsBatch(TArray<const UObject*>& OutLoadedAssets, uint32 BatchSize)
 {
 	if (!GlobalGatherer.IsValid() || !bUpdateDiskCacheAfterLoad)
 	{
@@ -4222,7 +4240,7 @@ void FAssetRegistryImpl::GetProcessLoadedAssetsBatch(TArray<UObject*>& OutLoaded
 	OutLoadedAssets.Reset(BatchSize);
 	while (!LoadedAssetsToProcess.IsEmpty() && OutLoadedAssets.Num() < static_cast<int32>(BatchSize))
 	{
-		UObject* LoadedAsset = LoadedAssetsToProcess.PopFrontValue().Get();
+		const UObject* LoadedAsset = LoadedAssetsToProcess.PopFrontValue().Get();
 		if (!LoadedAsset)
 		{
 			// This could be null, in which case it already got freed, ignore
@@ -4235,12 +4253,7 @@ void FAssetRegistryImpl::GetProcessLoadedAssetsBatch(TArray<UObject*>& OutLoaded
 			continue;
 		}
 
-		const FName ObjectPath = FName(*LoadedAsset->GetPathName());
-		if (AssetDataObjectPathsUpdatedOnLoad.Contains(ObjectPath))
-		{
-			// Already processed once, don't process again even if it loads a second time
-			continue;
-		}
+		// Take a new snapshot of the asset's data every time it loads or saves
 
 		UPackage* InMemoryPackage = LoadedAsset->GetOutermost();
 		if (InMemoryPackage->IsDirty())
@@ -4254,7 +4267,7 @@ void FAssetRegistryImpl::GetProcessLoadedAssetsBatch(TArray<UObject*>& OutLoaded
 }
 
 void FAssetRegistryImpl::PushProcessLoadedAssetsBatch(Impl::FEventContext& EventContext,
-	TArrayView<FAssetData> LoadedAssetDatas, TArrayView<UObject*> UnprocessedFromBatch)
+	TArrayView<FAssetData> LoadedAssetDatas, TArrayView<const UObject*> UnprocessedFromBatch)
 {
 	// Add or update existing for all of the AssetDatas created by the batch
 	for (FAssetData& NewAssetData : LoadedAssetDatas)

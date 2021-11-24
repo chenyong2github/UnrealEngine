@@ -98,6 +98,7 @@ public:
 #if WITH_EDITOR
 	void OnDirectoryChanged(Impl::FEventContext& EventContext, TArray<FFileChangeData>& FileChangesProcessed);
 	void OnAssetLoaded(UObject* AssetLoaded);
+	void OnAssetSaved(const UObject& AssetSaved);
 #endif
 	void OnContentPathMounted(Impl::FEventContext& EventContext, const FString& InAssetPath,
 		const FString& AssetPathWithTrailingSlash, const FString& FileSystemPath);
@@ -130,9 +131,9 @@ public:
 	/** Look for and load a single AssetData result from the gatherer. */
 	void TickGatherPackage(Impl::FEventContext& EventContext, const FString& PackageName, const FString& LocalPath);
 #if WITH_EDITOR
-	void GetProcessLoadedAssetsBatch(TArray<UObject*>& OutLoadedAssets, uint32 BatchSize);
+	void GetProcessLoadedAssetsBatch(TArray<const UObject*>& OutLoadedAssets, uint32 BatchSize);
 	void PushProcessLoadedAssetsBatch(Impl::FEventContext& EventContext,
-		TArrayView<FAssetData> LoadedAssetDatas, TArrayView<UObject*> UnprocessedFromBatch);
+		TArrayView<FAssetData> LoadedAssetDatas, TArrayView<const UObject*> UnprocessedFromBatch);
 #endif
 
 	/** Adds an asset to the empty package list which contains packages that have no assets left in them */
@@ -315,8 +316,8 @@ private:
 	TArray<FAssetRegistryPackageRedirect> PackageRedirects;
 
 #if WITH_EDITOR
-	/** List of loaded objects that need to be processed */
-	TRingBuffer<TWeakObjectPtr<UObject>> LoadedAssetsToProcess;
+	/** List of objects that need to be processed because they were loaded or saved */
+	TRingBuffer<TWeakObjectPtr<const UObject>> LoadedAssetsToProcess;
 
 	/** The set of object paths that have had their disk cache updated from the in memory version */
 	TSet<FName> AssetDataObjectPathsUpdatedOnLoad;

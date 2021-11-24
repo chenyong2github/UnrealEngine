@@ -943,7 +943,7 @@ FObjectSaveContextData::FObjectSaveContextData(UPackage* Package, const ITargetP
 
 void FObjectSaveContextData::Set(UPackage* Package, const ITargetPlatform* InTargetPlatform, const TCHAR* InTargetFilename, uint32 InSaveFlags)
 {
-	FPackagePath PackagePath(FPackagePath::FromLocalPath(TargetFilename));
+	FPackagePath PackagePath(FPackagePath::FromLocalPath(InTargetFilename));
 	if (PackagePath.GetHeaderExtension() == EPackageExtension::Unspecified)
 	{
 		PackagePath.SetHeaderExtension(EPackageExtension::EmptyString);
