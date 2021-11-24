@@ -103,8 +103,7 @@ struct FGCReferenceInfo
 		, Offset(InOffset)
 	{
 		checkf(InReferenceType != GCRT_None && InReferenceType <= 0x1F, TEXT("Invalid GC Token Reference Type (%d)"), (uint32)InReferenceType);
-		const uint32 MaxOffset = 0x7FFFF;
-		checkf((InOffset & ~MaxOffset) == 0, TEXT("Invalid GC Token Offset (%d), max is %d"), InOffset, MaxOffset);
+		checkf((InOffset & ~0x7FFFF) == 0, TEXT("Invalid GC Token Offset (%d), max is %d"), InOffset, 0x7FFFF);
 	}
 	/**
 	 * Constructor
