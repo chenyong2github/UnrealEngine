@@ -35,6 +35,12 @@ bool UBaseCreateFromSelectedToolBuilder::CanBuildTool(const FToolBuilderState& S
 	return ComponentCount >= MinComponentsSupported() && (!MaxComponentsSupported().IsSet() || ComponentCount <= MaxComponentsSupported().GetValue());
 }
 
+UMultiSelectionMeshEditingTool* UBaseCreateFromSelectedToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
+{
+	// Subclasses must override this method.
+	check(false);
+	return nullptr;
+}
 
 
 /*
