@@ -69,6 +69,14 @@ FZenDerivedDataBackend::FZenDerivedDataBackend(
 	{
 		RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), 32);
 		bIsUsable = true;
+		bIsRemote = false;
+
+		Zen::FZenStats ZenStats;
+
+		if (ZenService.GetInstance().GetStats(ZenStats) == true)
+		{
+			 bIsRemote = ZenStats.UpstreamStats.EndPointStats.IsEmpty() == false;
+		}
 	}
 
 	GConfig->GetInt(TEXT("Zen"), TEXT("CacheRecordBatchSize"), CacheRecordBatchSize, GEngineIni);
@@ -91,14 +99,7 @@ FString FZenDerivedDataBackend::GetName() const
 
 bool FZenDerivedDataBackend::IsRemote() const
 {
-	Zen::FZenStats ZenStats;
-
-	if (ZenService.GetInstance().GetStats(ZenStats) == true)
-	{
-		return( ZenStats.UpstreamStats.EndPointStats.IsEmpty() == false );
-	}
-
-	return false;
+	return bIsRemote;
 }
 
 bool FZenDerivedDataBackend::IsServiceReady()
