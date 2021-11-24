@@ -280,7 +280,7 @@ public:
 	static constexpr int32 CurrentVersion = 2;
 
 	FImageComparisonResult()
-		: CreationTime(FDateTime::Now())
+		: CreationTime(0)
 		, MaxLocalDifference(0.0f)
 		, GlobalDifference(0.0f)
 		, ErrorMessage()
@@ -289,7 +289,7 @@ public:
 	}
 
 	FImageComparisonResult(const FText& Error)
-		: CreationTime(FDateTime::Now())
+		: CreationTime(0)
 		, MaxLocalDifference(0.0f)
 		, GlobalDifference(0.0f)
 		, ErrorMessage(Error)

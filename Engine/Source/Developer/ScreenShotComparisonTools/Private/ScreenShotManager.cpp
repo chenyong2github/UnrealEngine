@@ -336,6 +336,7 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 	{
 		// We can't find a ground truth, so it's a new comparison.
 		ComparisonResult.IncomingFilePath = InUnapprovedIncomingFilePath;
+		ComparisonResult.CreationTime = FDateTime::Now();
 
 		UE_LOG(LogScreenShotManager, Log, TEXT("No ideal-image found. Assuming %s is a new test image"), *InUnapprovedIncomingFilePath);
 	}
@@ -373,7 +374,7 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(const FString& InUn
 	*/
 	
 	// files we write/copy to for reports
-	ComparisonResult.ReportApprovedFilePath = FPaths::Combine(ReportPathOnDisk, TEXT("Approved.png"));
+	ComparisonResult.ReportApprovedFilePath = FPaths::Combine(ReportPathOnDisk, TEXT("Approved.png")); 
 	ComparisonResult.ReportIncomingFilePath = FPaths::Combine(ReportPathOnDisk, TEXT("Incoming.png"));
 	ComparisonResult.ReportComparisonFilePath = FPaths::Combine(ReportPathOnDisk, TEXT("Delta.png"));
 
