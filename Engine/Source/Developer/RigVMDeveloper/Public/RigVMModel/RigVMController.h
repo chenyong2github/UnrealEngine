@@ -857,7 +857,7 @@ private:
 	static FLinearColor GetColorFromMetadata(const FString& InMetadata);
 	static void CreateDefaultValueForStructIfRequired(UScriptStruct* InStruct, FString& InOutDefaultValue);
 	static void PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefaultValue);
-	static FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject, bool bIsArray);
+	static FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject);
 
 	/*
 	void PotentiallyResolvePrototypeNode(URigVMPrototypeNode* InNode, bool bSetupUndoRedo);

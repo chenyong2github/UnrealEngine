@@ -21,6 +21,11 @@ namespace RigVMTypeUtils
 		return "TArray<" + InCPPType + ">";
 	}
 
+	FORCEINLINE FString BaseTypeFromArrayType(const FString& InCPPType)
+	{
+		return InCPPType.RightChop(7).LeftChop(1);
+	}
+
 	
 #if WITH_EDITOR
 	RIGVMDEVELOPER_API FRigVMExternalVariable ExternalVariableFromBPVariableDescription(const FBPVariableDescription& InVariableDescription);

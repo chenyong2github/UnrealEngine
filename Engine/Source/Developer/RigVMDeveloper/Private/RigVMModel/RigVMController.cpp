@@ -1006,7 +1006,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
-	FString CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+	FString CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject);
 	
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("VariableNode")) : InNodeName);
 	URigVMVariableNode* Node = NewObject<URigVMVariableNode>(Graph, *Name);
@@ -1637,7 +1637,7 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 
 	if (DefaultValuePin)
 	{
-		DefaultValuePin->CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+		DefaultValuePin->CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject);
 		DefaultValuePin->CPPTypeObject = InCPPTypeObject;
 		if(DefaultValuePin->CPPTypeObject)
 		{
@@ -1645,7 +1645,7 @@ URigVMParameterNode* URigVMController::AddParameterNode(const FName& InParameter
 		}
 	}
 	
-	ValuePin->CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+	ValuePin->CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject);
 	ValuePin->CPPTypeObject = InCPPTypeObject;
 	if(ValuePin->CPPTypeObject)
 	{
@@ -7664,7 +7664,7 @@ FName URigVMController::AddExposedPin(const FName& InPinName, ERigVMPinDirection
 	}, false, true);
 
 	URigVMPin* Pin = NewObject<URigVMPin>(LibraryNode, PinName);
-	Pin->CPPType = PostProcessCPPType(InCPPType, CPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+	Pin->CPPType = PostProcessCPPType(InCPPType, CPPTypeObject);
 	Pin->CPPTypeObjectPath = InCPPTypeObjectPath;
 	Pin->bIsConstant = false;
 	Pin->Direction = InDirection;
@@ -9553,7 +9553,7 @@ URigVMIfNode* URigVMController::AddIfNode(const FString& InCPPType, const FName&
 		}
 	}
 
-	FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+	FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject);
 
 	FString DefaultValue;
 	if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
@@ -9669,7 +9669,7 @@ URigVMSelectNode* URigVMController::AddSelectNode(const FString& InCPPType, cons
 		}
 	}
 
-	FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+	FString CPPType = PostProcessCPPType(InCPPType, CPPTypeObject);
 
 	FString DefaultValue;
 	if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
@@ -9939,7 +9939,7 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 		InCPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath<UObject>(InCPPType);
 	}
 
-	FString CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject, InCPPType.StartsWith(TArrayPrefix));
+	FString CPPType = PostProcessCPPType(InCPPType, InCPPTypeObject);
 	
 	const FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("ArrayNode")) : InNodeName);
 	URigVMArrayNode* Node = NewObject<URigVMArrayNode>(Graph, *Name);
@@ -12041,7 +12041,7 @@ void URigVMController::PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefau
 	}
 }
 
-FString URigVMController::PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject, bool bIsArray)
+FString URigVMController::PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
 {
 	FString CPPType = InCPPType;
 	
@@ -12058,12 +12058,14 @@ FString URigVMController::PostProcessCPPType(const FString& InCPPType, UObject* 
 		CPPType = Enum->CppType;
 	}
 
-	if(bIsArray)
+	if(CPPType != InCPPType)
 	{
-		if(!CPPType.StartsWith(TArrayPrefix))
+		FString TemplateType = InCPPType;
+		while (RigVMTypeUtils::IsArrayType(TemplateType))
 		{
-			CPPType = FString::Printf(TArrayTemplate, *CPPType);
-		}
+			CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
+			TemplateType = RigVMTypeUtils::BaseTypeFromArrayType(TemplateType);
+		}		
 	}
 	
 	return CPPType;
@@ -12509,7 +12511,7 @@ bool URigVMController::EnsurePinValidity(URigVMPin* InPin, bool bRecursive)
 		}
 	}
 
-	InPin->CPPType = PostProcessCPPType(InPin->CPPType, InPin->GetCPPTypeObject(), InPin->IsArray());
+	InPin->CPPType = PostProcessCPPType(InPin->CPPType, InPin->GetCPPTypeObject());
 
 	if(bRecursive)
 	{
