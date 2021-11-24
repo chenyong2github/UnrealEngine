@@ -185,7 +185,9 @@ RWBuffer<uint> SimpleTileListDataBuffer;
 RWBuffer<uint> ComplexTileIndirectDataBuffer;
 RWBuffer<uint> ComplexTileListDataBuffer;
 
+#if !PERMUTATION_WAVE_OPS
 groupshared uint s_IsComplexIsMaterialTile[GROUP_THREAD_COUNT];
+#endif
 
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
 void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
@@ -209,6 +211,30 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		bContainsComplexMaterial = !IsSimpleMaterial(Data);
 		bContainsStrataMaterial = IsStrataMaterial(Data);
 	}
+
+#if PERMUTATION_WAVE_OPS
+
+	const bool bHasAnyStrata  = WaveActiveAnyTrue(bContainsStrataMaterial);
+	const bool bHasAnyComplex = WaveActiveAnyTrue(bContainsComplexMaterial);
+
+	if (LinearIndex < 1 && bHasAnyStrata)
+	{
+		if (bHasAnyComplex)
+		{
+			uint WriteToIndex;
+			InterlockedAdd(ComplexTileIndirectDataBuffer[1], 1, WriteToIndex);
+			ComplexTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+		}
+		else
+		{
+			uint WriteToIndex;
+			InterlockedAdd(SimpleTileIndirectDataBuffer[1], 1, WriteToIndex);
+			SimpleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
+		}
+	}
+
+#else // PERMUTATION_WAVE_OPS
+
 	s_IsComplexIsMaterialTile[LinearIndex] = (bContainsComplexMaterial ? 1 : 0) | (bContainsStrataMaterial ? 2 : 0);
 
 	GroupMemoryBarrierWithGroupSync();
@@ -258,6 +284,7 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 			SimpleTileListDataBuffer[WriteToIndex] = EncodeTile(GroupId.xy);
 		}
 	}
+#endif // PERMUTATION_WAVE_OPS
 }
 #endif // SHADER_TILE_CATEGORIZATION
 
