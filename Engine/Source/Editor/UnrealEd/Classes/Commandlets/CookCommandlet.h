@@ -6,14 +6,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Misc/PackageName.h"
 #include "Commandlets/Commandlet.h"
-#include "Templates/UniquePtr.h"
 #include "IPlatformFileSandboxWrapper.h"
+#include "Misc/Guid.h"
+#include "Misc/PackageName.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtr.h"
+
 #include "CookCommandlet.generated.h"
 
 class FSandboxPlatformFile;
