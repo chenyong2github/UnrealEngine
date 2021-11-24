@@ -510,7 +510,47 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UUVSelectTool::SetSelection(const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged)
 {
-	SelectionMechanic->SetSelection(NewSelection, bBroadcastOnSelectionChanged, false);
+	SelectionMechanic->SetSelection(NewSelection, bBroadcastOnSelectionChanged, 
+		false); // Don't emit undo because this function is called from undo
+	
+	// Make sure the current selection mode is compatible with the new selection we received. Don't broadcast
+	// this part because presumably we've already responded to selection change if bBroadcastOnSelectionChanged
+	// was true above.
+	// TODO: there are a couple things that are not ideal about the below. One is that we always change to
+	// triangle mode when we don't know if the triangles came from island or mesh selection mode. Another is
+	// that we change the selection mode in the mechanic directly rather than going through ChangeSelectionMode,
+	// since we don't want to do the conversions/broadcasts that the setter performs. Still, it's not worth
+	// improving this further because the proper solution will probably involve transacting the selection mode
+	// changes, which we'll probably implement while moving selection up to mode level (along with other changes
+	// that would probably stomp anything we do here)
+	UUVToolViewportButtonsAPI::ESelectionMode CurrentMode = ViewportButtonsAPI->GetSelectionMode();
+	switch (NewSelection.Type)
+	{
+	case FDynamicMeshSelection::EType::Vertex:
+		if (CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Vertex)
+		{
+			ViewportButtonsAPI->SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode::Vertex, false);
+			SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Vertex;
+		}
+		break;
+	case FDynamicMeshSelection::EType::Edge:
+		if (CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Edge)
+		{
+			ViewportButtonsAPI->SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode::Edge, false);
+			SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Edge;
+		}
+		break;
+	case FDynamicMeshSelection::EType::Triangle:
+		if (CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Triangle
+			&& CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Island
+			&& CurrentMode != UUVToolViewportButtonsAPI::ESelectionMode::Mesh)
+		{
+			ViewportButtonsAPI->SetSelectionMode(UUVToolViewportButtonsAPI::ESelectionMode::Triangle, false);
+			SelectionMechanic->SelectionMode = EMeshSelectionMechanicMode::Triangle;
+		}
+		break;
+	}
+
 }
 
 void UUVSelectTool::SetGizmoTransform(const FTransform& NewTransform)
@@ -565,7 +605,7 @@ void UUVSelectTool::UpdateSelectionMode()
 		TargetMode = EMeshSelectionMechanicMode::Vertex;
 		break;
 	}
-	SelectionMechanic->ChangeSelectionMode(TargetMode);
+	SelectionMechanic->ChangeSelectionMode(TargetMode); // broadcast and emit undo if needed
 }
 
 void UUVSelectTool::OnSelectionChanged()
