@@ -194,9 +194,9 @@ static void SaveLayoutToJson(const FString& InConfigFileName, const TSharedRef<F
 
 static bool LoadLayoutFromJson(const FString& InConfigFileName, const FString& InLayoutName, TSharedPtr<FTabManager::FLayout>& OutLayout)
 {
-	const FString UserSettingsPath = GetLayoutJsonFileName(InConfigFileName);
+	const FString LayoutJsonFile = GetLayoutJsonFileName(InConfigFileName);
 
-	TSharedPtr<FJsonObject> JsonObject = LoadJsonFile(InConfigFileName);
+	TSharedPtr<FJsonObject> JsonObject = LoadJsonFile(LayoutJsonFile);
 	if (!JsonObject.IsValid())
 	{
 		return false;
