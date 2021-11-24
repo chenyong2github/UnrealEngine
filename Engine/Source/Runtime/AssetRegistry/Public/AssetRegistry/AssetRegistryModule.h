@@ -55,6 +55,11 @@ public:
 		IAssetRegistry::GetChecked().AssetRenamed(RenamedAsset, OldObjectPath);
 	}
 
+	static void AssetSaved(const UObject& SavedAsset)
+	{
+		IAssetRegistry::GetChecked().AssetSaved(SavedAsset);
+	}
+
 	static void PackageDeleted(UPackage* DeletedPackage)
 	{
 		IAssetRegistry::GetChecked().PackageDeleted(DeletedPackage);

@@ -471,13 +471,16 @@ public:
 	virtual FPathRemovedEvent& OnPathRemoved() = 0;
 
 	/** Informs the asset registry that an in-memory asset has been created */
-	virtual void AssetCreated (UObject* NewAsset) = 0;
+	virtual void AssetCreated(UObject* NewAsset) = 0;
 
 	/** Informs the asset registry that an in-memory asset has been deleted */
-	virtual void AssetDeleted (UObject* DeletedAsset) = 0;
+	virtual void AssetDeleted(UObject* DeletedAsset) = 0;
 
 	/** Informs the asset registry that an in-memory asset has been renamed */
-	virtual void AssetRenamed (const UObject* RenamedAsset, const FString& OldObjectPath) = 0;
+	virtual void AssetRenamed(const UObject* RenamedAsset, const FString& OldObjectPath) = 0;
+
+	/** Informs the asset registry that an in-memory asset has been saved */
+	virtual void AssetSaved(const UObject& SavedAsset) = 0;
 
 	/** Informs the asset registry that an in-memory package has been deleted, and all associated assets should be removed */
 	virtual void PackageDeleted (UPackage* DeletedPackage) = 0;

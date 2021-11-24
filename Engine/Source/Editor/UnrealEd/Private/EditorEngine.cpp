@@ -9,7 +9,8 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
-#include "Misc/AssetRegistryInterface.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/MetaData.h"
 #include "UObject/ObjectSaveContext.h"
@@ -4353,6 +4354,20 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 				InOuter->SetDirtyFlag(false);
 			}
 		}
+	}
+
+	if (ObjectSaveContext.bUpdatingLoadedPath)
+	{
+		// Notify the asset registry
+		IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
+		ForEachObjectWithPackage(InOuter, [&AssetRegistry](UObject* Object)
+			{
+				if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object))
+				{
+					AssetRegistry.AssetSaved(*Object);
+				}
+				return true;
+			}, false /*bIncludeNestedObjects*/);
 	}
 
 	return Result;
