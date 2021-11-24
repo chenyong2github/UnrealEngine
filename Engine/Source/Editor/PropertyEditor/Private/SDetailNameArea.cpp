@@ -167,7 +167,7 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 					SNew( SButton )
 					.ButtonStyle( FEditorStyle::Get(), "SimpleButton" )
 					.OnClicked(	OnLockButtonClicked )
-					.ContentPadding(0)
+					.ContentPadding(FMargin(4,2))
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.ToolTipText( LOCTEXT("LockSelectionButton_ToolTip", "Locks the current selection into the Details panel") )
