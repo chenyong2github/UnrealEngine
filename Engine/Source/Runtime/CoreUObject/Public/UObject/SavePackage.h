@@ -132,9 +132,7 @@ public:
 	const bool bForceLegacyOffsets = false;
 };
 
-namespace UE
-{
-namespace SavePackageUtilities
+namespace UE::SavePackageUtilities
 {
 	/**
 	 * Return whether the given save parameters indicate the LoadedPath of the package being saved should be updated.
@@ -166,7 +164,10 @@ namespace SavePackageUtilities
 
 	COREUOBJECT_API void ResetCookStats();
 	COREUOBJECT_API int32 GetNumPackagesSaved();
-}
+
+	COREUOBJECT_API void StartSavingEDLCookInfoForVerification();
+	COREUOBJECT_API void VerifyEDLCookInfo(bool bFullReferencesExpected = true);
+	COREUOBJECT_API void EDLCookInfoAddIterativelySkippedPackage(FName LongPackageName);
 }
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogSavePackage, Log, All);

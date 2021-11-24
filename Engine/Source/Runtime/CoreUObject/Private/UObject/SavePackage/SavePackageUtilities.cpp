@@ -1327,6 +1327,16 @@ void FEDLCookChecker::FEDLNodeData::AppendPathName(const FEDLCookChecker& Owner,
 	Name.AppendString(Result);
 }
 
+FName FEDLCookChecker::FEDLNodeData::GetPackageName(const FEDLCookChecker& Owner) const
+{
+	if (ParentID != NodeIDInvalid)
+	{
+		// @todo ExternalPackages: We need to store ExternalPackage pointers on the Node and return that
+		return Owner.Nodes[ParentID].GetPackageName(Owner);
+	}
+	return Name;
+}
+
 void FEDLCookChecker::FEDLNodeData::Merge(FEDLCookChecker::FEDLNodeData&& Other)
 {
 	check(ObjectEvent == Other.ObjectEvent);
@@ -1393,7 +1403,7 @@ void FEDLCookChecker::AddExport(UObject* Export)
 		Nodes[SerializeID].bIsExport = true;
 		FEDLNodeID CreateID = FindOrAddNode(FEDLNodeHash(Export, EObjectEvent::Create));
 		Nodes[CreateID].bIsExport = true;
-		AddDependency(SerializeID, CreateID); // every export must be created before it can be serialize...these arcs are implicit and not listed in any table.
+		AddDependency(SerializeID, CreateID); // every export must be created before it can be serialized...these arcs are implicit and not listed in any table.
 	}
 }
 
@@ -1406,6 +1416,15 @@ void FEDLCookChecker::AddArc(UObject* DepObject, bool bDepIsSerialize, UObject* 
 		AddDependency(ExportID, DepID);
 	}
 }
+
+void FEDLCookChecker::AddPackageWithUnknownExports(FName LongPackageName)
+{
+	if (bIsActive)
+	{
+		PackagesWithUnknownExports.Add(LongPackageName);
+	}
+}
+
 
 void FEDLCookChecker::AddDependency(FEDLNodeID SourceID, FEDLNodeID TargetID)
 {
@@ -1547,6 +1566,20 @@ void FEDLCookChecker::Merge(FEDLCookChecker&& Other)
 		Other.NodePrereqs.Empty();
 		Other.Nodes.Empty();
 	}
+
+	if (PackagesWithUnknownExports.Num() == 0)
+	{
+		Swap(PackagesWithUnknownExports, Other.PackagesWithUnknownExports);
+	}
+	else
+	{
+		PackagesWithUnknownExports.Reserve(Other.PackagesWithUnknownExports.Num());
+		for (FName PackageName : Other.PackagesWithUnknownExports)
+		{
+			PackagesWithUnknownExports.Add(PackageName);
+		}
+		Other.PackagesWithUnknownExports.Empty();
+	}
 }
 
 void FEDLCookChecker::Verify(bool bFullReferencesExpected)
@@ -1579,6 +1612,14 @@ void FEDLCookChecker::Verify(bool bFullReferencesExpected)
 			{
 				if (NodeData.bIsExport)
 				{
+					// The node is an export; imports of it are valid
+					continue;
+				}
+
+				if (Accumulator.PackagesWithUnknownExports.Contains(NodeData.GetPackageName(Accumulator)))
+				{
+					// The node is an object in a package that exists, but for which we do not know the exports
+					// because e.g. it was iteratively skipped in the current cook. Suppress warnings about it
 					continue;
 				}
 
@@ -1618,6 +1659,9 @@ void FEDLCookChecker::Verify(bool bFullReferencesExpected)
 FCriticalSection FEDLCookChecker::CookCheckerInstanceCritical;
 TArray<FEDLCookChecker*> FEDLCookChecker::CookCheckerInstances;
 
+namespace UE::SavePackageUtilities
+{
+
 void StartSavingEDLCookInfoForVerification()
 {
 	FEDLCookChecker::StartSavingEDLCookInfoForVerification();
@@ -1626,6 +1670,13 @@ void StartSavingEDLCookInfoForVerification()
 void VerifyEDLCookInfo(bool bFullReferencesExpected)
 {
 	FEDLCookChecker::Verify(bFullReferencesExpected);
+}
+
+void EDLCookInfoAddIterativelySkippedPackage(FName LongPackageName)
+{
+	FEDLCookChecker::Get().AddPackageWithUnknownExports(LongPackageName);
+}
+
 }
 
 FScopedSavingFlag::FScopedSavingFlag(bool InSavingConcurrent, UPackage* InSavedPackage)

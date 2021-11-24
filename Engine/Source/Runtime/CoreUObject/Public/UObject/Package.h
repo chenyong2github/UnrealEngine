@@ -103,9 +103,6 @@ struct FSavePackageResultStruct
 	}
 };
 
-COREUOBJECT_API void StartSavingEDLCookInfoForVerification();
-COREUOBJECT_API void VerifyEDLCookInfo(bool bFullReferencesExpected=true);
-
 /**
 * A package.
 */

@@ -23,6 +23,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/RedirectCollector.h"
 #include "Misc/StringBuilder.h"
+#include "UObject/SavePackage.h"
 
 namespace UE::Cook
 {
@@ -748,6 +749,8 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 					bFoundCachedTargetDomain = true;
 					PackageData->SetPlatformCooked(TargetPlatform, true);
 					PackageWriter->MarkPackagesUpToDate({ PackageName });
+					// Declare the package to the EDLCookInfo verification so we don't warn about missing exports from it
+					UE::SavePackageUtilities::EDLCookInfoAddIterativelySkippedPackage(PackageName);
 				}
 				HardDependencies.Append(PlatformAttachments.BuildDependencies);
 				if (Cluster.bAllowSoftDependencies && Cluster.bPreexploreDependenciesEnabled)
