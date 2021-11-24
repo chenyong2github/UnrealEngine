@@ -388,7 +388,7 @@ private:
 
 	// Critical section: only used when we are modifying element positions in the cache. This only happens in TouchElement, EvictLeastRecentChunk, and TrimMemory.
 	// Individual cache elements should be thread safe to access.
-	FCriticalSection CacheMutationCriticalSection;
+	mutable FCriticalSection CacheMutationCriticalSection;
 
 	// Map that USoundWaves, FSoundWaveProxys, FChunkKeys, and FAudioChunkHandles can use to
 	// quickly lookup where their chunks are currently stored in the cache
