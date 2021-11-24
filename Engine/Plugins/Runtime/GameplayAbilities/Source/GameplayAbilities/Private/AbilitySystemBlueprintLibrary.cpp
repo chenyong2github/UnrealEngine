@@ -5,6 +5,7 @@
 #include "GameplayEffect.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
+#include "GameplayEffectUIData.h"
 
 UAbilitySystemBlueprintLibrary::UAbilitySystemBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
@@ -1051,6 +1052,19 @@ bool UAbilitySystemBlueprintLibrary::AddLooseGameplayTags(AActor* Actor, const F
 	}
 
 	return false;
+}
+
+const UGameplayEffectUIData* UAbilitySystemBlueprintLibrary::GetGameplayEffectUIData(TSubclassOf<UGameplayEffect> EffectClass, TSubclassOf<UGameplayEffectUIData> DataType)
+{
+	if (UClass* ActualPtr = EffectClass.Get())
+	{
+		const UGameplayEffectUIData* UIData = GetDefault<UGameplayEffect>(ActualPtr)->UIData;
+		if ((UIData != nullptr) && (DataType != nullptr) && UIData->IsA(DataType))
+		{
+			return UIData;
+		}
+	}
+	return nullptr;
 }
 
 bool UAbilitySystemBlueprintLibrary::RemoveLooseGameplayTags(AActor* Actor, const FGameplayTagContainer& GameplayTags)
