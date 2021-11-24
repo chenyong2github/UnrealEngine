@@ -19,8 +19,12 @@ enum EUVEditor3DViewportClientCameraMode {
  */
 class UVEDITOR_API FUVEditor3DViewportClient : public FEditorViewportClient
 {
-	// Inherit all the same constructors
-	using FEditorViewportClient::FEditorViewportClient;
+public:
+
+	FUVEditor3DViewportClient(FEditorModeTools* InModeTools, FPreviewScene* InPreviewScene = nullptr,
+		const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
+
+	virtual ~FUVEditor3DViewportClient() {}
 
 	// FEditorViewportClient
 	virtual bool ShouldOrbitCamera() const override {

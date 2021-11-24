@@ -90,6 +90,9 @@ void FUVEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollUp(const FInputD
 
 	FVector NewLocation = OriginalLocation + (ZoomInProportion * TToPlane * CurrentPos.WorldRay.Direction);
 
+	ViewportClient->OverrideFarClipPlane(NewLocation.Z - CameraFarPlaneWorldZ);
+	ViewportClient->OverrideNearClipPlane(NewLocation.Z * (1.0-CameraNearPlaneProportionZ));
+
 	// Don't zoom in so far that the XY plane lies in front of our near clipping plane, or else everything
 	// will suddenly disappear.
 	if (NewLocation.Z > ViewportClient->GetNearClipPlane())
@@ -102,7 +105,12 @@ void FUVEditor2DMouseWheelZoomBehaviorTarget::OnMouseWheelScrollDown(const FInpu
 {
 	FVector OriginalLocation = ViewportClient->GetViewLocation();
 	double TToPlane = -OriginalLocation.Z / CurrentPos.WorldRay.Direction.Z;
-	ViewportClient->SetViewLocation(OriginalLocation - (ZoomOutProportion * TToPlane * CurrentPos.WorldRay.Direction));
+	FVector NewLocation = OriginalLocation - (ZoomOutProportion * TToPlane * CurrentPos.WorldRay.Direction);
+
+	ViewportClient->OverrideFarClipPlane(NewLocation.Z - CameraFarPlaneWorldZ);
+	ViewportClient->OverrideNearClipPlane(NewLocation.Z * (1.0 - CameraNearPlaneProportionZ));
+
+	ViewportClient->SetViewLocation(NewLocation);
 }
 
 void FUVEditor2DMouseWheelZoomBehaviorTarget::SetZoomAmount(double PercentZoomIn)
@@ -114,4 +122,14 @@ void FUVEditor2DMouseWheelZoomBehaviorTarget::SetZoomAmount(double PercentZoomIn
 	// Set the zoom out proportion such that (1 + ZoomOutProportion)(1 - ZoomInProportion) = 1
 	// so that zooming in and then zooming out will return to the same zoom level.
 	ZoomOutProportion = ZoomInProportion / (1 - ZoomInProportion);
+}
+
+void FUVEditor2DMouseWheelZoomBehaviorTarget::SetCameraFarPlaneWorldZ(double CameraFarPlaneWorldZIn)
+{
+	CameraFarPlaneWorldZ = CameraFarPlaneWorldZIn;
+}
+
+void FUVEditor2DMouseWheelZoomBehaviorTarget::SetCameraNearPlaneProportionZ(double CameraNearPlaneProportionZIn)
+{
+	CameraNearPlaneProportionZ = CameraNearPlaneProportionZIn;
 }
