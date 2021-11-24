@@ -129,12 +129,12 @@ private:
 	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortBySourceAscending =
 		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
 	{
-		return A->GetCommandInfo().Pin()->GetSource().ToString() < B->GetCommandInfo().Pin()->GetSource().ToString();
+		return A->GetCommandInfo().Pin()->GetSourceAsText().ToString() < B->GetCommandInfo().Pin()->GetSourceAsText().ToString();
 	};
 
 	TFunctionRef<bool(const FConsoleVariablesEditorListRowPtr&, const FConsoleVariablesEditorListRowPtr&)> SortBySourceDescending =
 		[](const FConsoleVariablesEditorListRowPtr& A, const FConsoleVariablesEditorListRowPtr& B)
 	{
-		return B->GetCommandInfo().Pin()->GetSource().ToString() < A->GetCommandInfo().Pin()->GetSource().ToString();
+		return B->GetCommandInfo().Pin()->GetSourceAsText().ToString() < A->GetCommandInfo().Pin()->GetSourceAsText().ToString();
 	};
 };

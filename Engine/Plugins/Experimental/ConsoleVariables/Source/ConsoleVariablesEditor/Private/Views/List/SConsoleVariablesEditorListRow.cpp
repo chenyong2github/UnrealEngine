@@ -101,28 +101,6 @@ void SConsoleVariablesEditorListRow::OnMouseLeave(const FPointerEvent& MouseEven
 
 SConsoleVariablesEditorListRow::~SConsoleVariablesEditorListRow()
 {
-	// Remove delegate bindings
-
-	// Unbind event to the splitter being resized first
-	if (NestedSplitterPtr.IsValid())
-	{
-		for (int32 SplitterSlotCount = 0; SplitterSlotCount < NestedSplitterPtr->GetChildren()->Num(); SplitterSlotCount++)
-		{
-			NestedSplitterPtr->SlotAt(SplitterSlotCount).OnSlotResized().Unbind();
-		}
-	}
-
-	if (OuterSplitterPtr.IsValid())
-	{
-		for (int32 SplitterSlotCount = 0; SplitterSlotCount < OuterSplitterPtr->GetChildren()->Num(); SplitterSlotCount++)
-		{
-			OuterSplitterPtr->SlotAt(SplitterSlotCount).OnSlotResized().Unbind();
-		}
-	}
-
-	OuterSplitterPtr.Reset();
-	NestedSplitterPtr.Reset();
-
 	Item.Reset();
 
 	FlashImages.Empty();
@@ -205,7 +183,7 @@ TSharedRef<SWidget> SConsoleVariablesEditorListRow::GenerateCells(const FName& I
 					SNew(STextBlock)
 					.Text_Lambda([this]()
 					{
-						return Item.Pin()->GetCommandInfo().Pin()->GetSource();
+						return Item.Pin()->GetCommandInfo().Pin()->GetSourceAsText();
 					})
 				]
 
@@ -252,6 +230,8 @@ void SConsoleVariablesEditorListRow::OnCheckboxStateChange(const ECheckBoxState 
 
 				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
 					PinnedItem->GetCommandInfo().Pin()->Command, PinnedItem->GetCommandInfo().Pin()->StartupValueAsString);
+
+				PinnedItem->GetCommandInfo().Pin()->SetSourceFlag(PinnedItem->GetCommandInfo().Pin()->StartupSource);
 			}
 		}
 

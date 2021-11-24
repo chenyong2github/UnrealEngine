@@ -89,9 +89,12 @@ void FConsoleVariablesEditorModule::QueryAndBeginTrackingConsoleVariables()
 		{
 			if (IConsoleVariable* AsVariable = ConsoleObject->AsVariable())
 			{
-				const FDelegateHandle Handle = AsVariable->OnChangedDelegate().AddRaw(this, &FConsoleVariablesEditorModule::OnConsoleVariableChanged);
-				ConsoleVariablesMasterReference.Add(
-					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, AsVariable->GetString(), Handle));
+				const FDelegateHandle Handle =
+					AsVariable->OnChangedDelegate().AddRaw(this, &FConsoleVariablesEditorModule::OnConsoleVariableChanged);
+				const TSharedRef<FConsoleVariablesEditorCommandInfo> Info =
+					MakeShared<FConsoleVariablesEditorCommandInfo>(Key, AsVariable, AsVariable->GetString(), Handle);
+				Info->StartupSource = Info->GetSource();
+				ConsoleVariablesMasterReference.Add(Info);
 			}
 		}),
 		TEXT(""));
