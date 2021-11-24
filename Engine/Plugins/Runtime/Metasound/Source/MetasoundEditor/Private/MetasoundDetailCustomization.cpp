@@ -38,6 +38,7 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "ScopedTransaction.h"
 
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"

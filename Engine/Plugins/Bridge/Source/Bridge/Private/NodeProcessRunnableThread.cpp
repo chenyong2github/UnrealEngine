@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NodeProcessRunnableThread.h"
+#include "HAL/RunnableThread.h"
 #include "Misc/Paths.h"
 
 NodeProcessRunnableThread::NodeProcessRunnableThread()
