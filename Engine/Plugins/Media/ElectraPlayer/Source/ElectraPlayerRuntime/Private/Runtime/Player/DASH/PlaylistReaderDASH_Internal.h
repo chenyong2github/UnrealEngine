@@ -145,6 +145,7 @@ public:
 		FURL InitializationURL;
 		FURL MediaURL;
 		FTimeValue ATO;
+		FTimeValue PeriodLocalSegmentStartTime;
 		int64 Time = 0;								//!< Time value T in timescale units
 		int64 PTO = 0;								//!< PresentationTimeOffset
 		int64 EPTdelta = 0;
@@ -634,7 +635,8 @@ public:
 		//
 		virtual FTimeRange GetTimeRange() const override
 		{
-			return FTimeRange({Start, End});
+			// Per convention the time range includes the AST
+			return FTimeRange({StartAST, EndAST});
 		}
 		virtual FTimeValue GetDuration() const override
 		{
@@ -699,6 +701,8 @@ public:
 		FString ID;
 		FTimeValue Start;
 		FTimeValue End;
+		FTimeValue StartAST;
+		FTimeValue EndAST;
 		FTimeValue Duration;
 		bool bIsEarlyPeriod = false;
 		bool bHasFollowingPeriod = false;
@@ -721,9 +725,9 @@ public:
 		return PresentationType;
 	}
 
-	bool IsEventType() const
+	bool IsDynamicEpicEvent() const
 	{
-		return bIsEventType;
+		return EpicEventType == EEpicEventType::Dynamic;
 	}
 
 	const TArray<TSharedPtrTS<FPeriod>>& GetPeriods() const
@@ -816,6 +820,12 @@ public:
 	void EndPresentationAt(const FTimeValue& EndsAt, const FString& InPeriod);
 
 private:
+	enum class EEpicEventType
+	{
+		None,
+		Static,
+		Dynamic
+	};
 	FErrorDetail PrepareRemoteElementLoadRequest(TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, TWeakPtrTS<IDashMPDElement> ElementWithXLink, int64 RequestID);
 
 	int32 ReplaceElementWithRemoteEntities(TSharedPtrTS<IDashMPDElement> Element, const FDashMPD_RootEntities& NewRootEntities, int64 OldResolveID, int64 NewResolveID);
@@ -837,13 +847,14 @@ private:
 
 	// Type of the presentation.
 	EPresentationType PresentationType;
-	bool bIsEventType = false;
+	EEpicEventType EpicEventType = EEpicEventType::None;
 
 	TArray<TSharedPtrTS<FPeriod>> Periods;
 
 	mutable FTimeRange TotalTimeRange;
 	mutable FTimeRange SeekableTimeRange;
 	FTimeValue DefaultStartTime;
+	mutable bool bWarnedAboutTooSmallSuggestedPresentationDelay = false;
 };
 
 

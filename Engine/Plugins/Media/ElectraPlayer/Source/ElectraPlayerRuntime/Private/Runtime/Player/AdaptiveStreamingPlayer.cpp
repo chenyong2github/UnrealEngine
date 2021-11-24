@@ -1720,8 +1720,12 @@ void FAdaptiveStreamingPlayer::HandleMetadataChanges()
 				(!ActivePeriods[i].TimeRange.End.IsValid() && (i+1) < ActivePeriods.Num() && PastTime >= ActivePeriods[i+1].TimeRange.Start)) &&
 				ActivePeriods[i].LoopCount <= CurrentLoop.Count)
 			{
-				ActivePeriods.RemoveAt(i);
-				--i;
+				// Do not remove the only active period.
+				if (ActivePeriods.Num() > 1)
+				{
+					ActivePeriods.RemoveAt(i);
+					--i;
+				}
 			}
 		}
 	}
@@ -1842,6 +1846,98 @@ double FAdaptiveStreamingPlayer::GetMinBufferTimeBeforePlayback()
 	return kMinBufferBeforePlayback;
 }
 
+
+void FAdaptiveStreamingPlayer::InternalHandleLiveSync()
+{
+	// If we have to start playback at the current time NOW we need to tag all buffered access units
+	// that are older than NOW so that they will be skipped over in decoding or rendering.
+	// They may have been tagged already if frame accurate seeking is enabled, but the real time NOW
+	// between the time the segment download was started until, well, NOW, has continued to elapse
+	// so any access units in between need to be tagged as well.
+	if (LiveSyncVars.bSyncLiveToNow)
+	{
+		FTimeRange Seekable = Manifest->GetSeekableTimeRange();
+		FTimeRange TotalRange = Manifest->GetTotalTimeRange();
+		double minBufTime = Manifest ? Manifest->GetMinBufferTime().GetAsSeconds() : 1.0;
+
+		// For now attempting to sync to Live works only when there is a sufficiently large distance
+		// between the Live edge and the playback position. The difference can be found by examining
+		// the end value of the total vs. seekable range.
+		FTimeValue DistanceToLiveEdge = TotalRange.End - Seekable.End;
+		// FIXME: The *2 and *0.99 fudge values need to be adjusted once chunked download brings in new data constantly instead of whole segments.
+		if (!DistanceToLiveEdge.IsValid() || DistanceToLiveEdge.GetAsSeconds() < 2 * minBufTime * 0.99)
+		{
+			PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Live sync not possible due to insufficient distance to Live edge (%.3fs) compared to minimum buffer time (%.3fs)"), DistanceToLiveEdge.GetAsSeconds(), minBufTime));
+			LiveSyncVars.Clear();
+			return;
+		}
+		
+		TSharedPtrTS<FMultiTrackAccessUnitBuffer> VidBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Video);
+		TSharedPtrTS<FMultiTrackAccessUnitBuffer> AudBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Audio);
+		TSharedPtrTS<FMultiTrackAccessUnitBuffer> TxtBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Subtitle);
+
+		// See if we should perform a sync. For now we do this only if there is a video track.
+		bool bPerformSync = LiveSyncVars.StartTime.IsValid();
+		if (!bPerformSync && VidBuffer.IsValid())
+		{
+			FAccessUnitBufferInfo bi;
+			VidBuffer->GetStats(bi);
+			//bool bHaveEnough = bi.bLastPushWasBlocked || bi.bEndOfData || bi.PlayableDuration.GetAsSeconds() >= minBufTime;
+			bool bHaveEnough = bi.bLastPushWasBlocked || bi.bEndOfData || bi.PlayableDuration.GetAsSeconds() > 0.0;
+			if (bHaveEnough)
+			{
+				bPerformSync = true;
+				LiveSyncVars.StartTime = MEDIAutcTime::Current();
+			}
+		}
+
+		if (bPerformSync)
+		{
+			if (VidBuffer.IsValid())
+			{
+				LiveSyncVars.DroppedDurationVid += VidBuffer->PrepareForDecodeStartingAt(Seekable.End);
+			}
+			if (AudBuffer.IsValid())
+			{
+				LiveSyncVars.DroppedDurationAud += AudBuffer->PrepareForDecodeStartingAt(Seekable.End);
+			}
+			if (TxtBuffer.IsValid())
+			{
+				// Subtitles we discard.
+				FMultiTrackAccessUnitBuffer::FScopedLock lock(TxtBuffer);
+				TxtBuffer->PopDiscardUntil(Seekable.End);
+			}
+			UpdateDiagnostics();
+
+			// Check if we are spending too much time trying to perform the sync.
+			FTimeValue ElapsedTime = MEDIAutcTime::Current() - LiveSyncVars.StartTime;
+			if (ElapsedTime > DistanceToLiveEdge)
+			{
+				PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Live sync is taking too long. Bandwidth to CDN is most likey insufficient. Starting now.")));
+				LiveSyncVars.Clear();
+			}
+
+			FTimeValue VidDropped = LiveSyncVars.DroppedDurationVid;
+			FTimeValue VidTotal = VideoBufferStats.StreamBuffer.PlayableDuration + VidDropped;
+			double DropRatio = VidDropped.GetAsSeconds() / VidTotal.GetAsSeconds();
+			if (LiveSyncVars.LastDropRatio < DropRatio && DropRatio >= 1.0)
+			{
+				// Force a rate scale in the ABR in the hope to get new data faster on a lower quality level.
+				if (StreamSelector.IsValid())
+				{
+					IAdaptiveStreamSelector::FBufferingQuality RateScale;
+					RateScale.BandwidthScaleFactor = 0.45;
+					StreamSelector->SwitchBufferingQuality(RateScale);
+				}
+			}
+			LiveSyncVars.LastDropRatio = DropRatio;
+
+			//PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Info, FString::Printf(TEXT("%3.3fs: %.3f drop, %.3f total, %.3f ratio"), ElapsedTime.GetAsSeconds(), VidDropped.GetAsSeconds(), VidTotal.GetAsSeconds(), DropRatio));
+		}
+	}
+}
+
+
 //-----------------------------------------------------------------------------
 /**
  * Checks if buffers have enough data to advance the play state.
@@ -1853,6 +1949,9 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 	{
 		if (DecoderState == EDecoderState::eDecoder_Paused)
 		{
+			// Synchronize buffers to wallclock time if necessary.
+			InternalHandleLiveSync();
+
 			check(LastBufferingState == EPlayerState::eState_Buffering || LastBufferingState == EPlayerState::eState_Rebuffering || LastBufferingState == EPlayerState::eState_Seeking);
 			// Yes. Check if we have enough data buffered up to begin handing off data to the decoders.
 			double kMinBufferBeforePlayback = GetMinBufferTimeBeforePlayback();
@@ -1968,6 +2067,8 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 				PipelineState  		= EPipelineState::ePipeline_Prerolling;
 				PrerollVars.StartTime = tNow;
 				PostrollVars.Clear();
+				// We are synced up now and can clear the state.
+				LiveSyncVars.Clear();
 
 				// Send buffering end event
 				DispatchBufferingEvent(false, LastBufferingState);
@@ -2224,6 +2325,12 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 							{
 								check(Seekable.End.IsValid());
 								PendingStartRequest->StartAt.Time = Seekable.End;
+								// DASH Live streams provide the means to join at an exact wallclock time, so enable this.
+								if (ManifestType == EMediaFormatType::DASH)
+								{
+									LiveSyncVars.Clear();
+									LiveSyncVars.bSyncLiveToNow = true;
+								}
 							}
 						}
 					}
@@ -4083,6 +4190,7 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	bRebufferPending   = false;
 	LastBufferingState = EPlayerState::eState_Buffering;
 	RebufferDetectedAtPlayPos.SetToInvalid();
+	LiveSyncVars.Clear();
 	PrerollVars.Clear();
 	PostrollVars.Clear();
 
@@ -4220,6 +4328,14 @@ void FAdaptiveStreamingPlayer::InternalRebuffer()
 				}
 			}
 
+			// Force a rate scale in the ABR. This may get overridden by the starting bitrate later.
+			if (StreamSelector.IsValid())
+			{
+				IAdaptiveStreamSelector::FBufferingQuality RateScale;
+				RateScale.BandwidthScaleFactor = 0.6;
+				StreamSelector->SwitchBufferingQuality(RateScale);
+			}
+
 			InternalStartAt(StartAtTime);
 		}
 	}
@@ -4286,19 +4402,19 @@ void FAdaptiveStreamingPlayer::DebugPrint(void* pPlayer, void (*pPrintFN)(void* 
 	if (StreamReaderHandler && bHaveVideoReader.GetWithDefault(false))
 	{
 		pD = &VideoBufferStats.StreamBuffer;
-		pPrintFN(pPlayer, "Video buffer  : %3u AUs; %8u/%8u bytes in; eod %d; %#7.4fs", (uint32)pD->NumCurrentAccessUnits, (uint32)pD->CurrentMemInUse, (uint32)pD->MaxDataSize, pD->bEndOfData, pD->PushedDuration.GetAsSeconds());
+		pPrintFN(pPlayer, "Video buffer  : %3u AUs; %8u/%8u bytes in; eod %d; %#7.4fs", (uint32)pD->NumCurrentAccessUnits, (uint32)pD->CurrentMemInUse, (uint32)pD->MaxDataSize, pD->bEndOfData, pD->PlayableDuration.GetAsSeconds());
 		pPrintFN(pPlayer, "Video decoder : %2u in decoder, %zu total, %s; EOD in %d; EOD out %d", (uint32)VideoBufferStats.DecoderOutputBuffer.NumElementsInDecoder, (uint32)VideoBufferStats.DecoderOutputBuffer.MaxDecodedElementsReady, VideoBufferStats.DecoderOutputBuffer.bOutputStalled?"    stalled":"not stalled", VideoBufferStats.DecoderInputBuffer.bEODReached, VideoBufferStats.DecoderOutputBuffer.bEODreached);
 	}
 	if (StreamReaderHandler && bHaveAudioReader.GetWithDefault(false))
 	{
 		pD = &AudioBufferStats.StreamBuffer;
-		pPrintFN(pPlayer, "Audio buffer  : %3u AUs; %8u/%8u bytes in; eod %d; %#7.4fs", (uint32)pD->NumCurrentAccessUnits, (uint32)pD->CurrentMemInUse, (uint32)pD->MaxDataSize, pD->bEndOfData, pD->PushedDuration.GetAsSeconds());
+		pPrintFN(pPlayer, "Audio buffer  : %3u AUs; %8u/%8u bytes in; eod %d; %#7.4fs", (uint32)pD->NumCurrentAccessUnits, (uint32)pD->CurrentMemInUse, (uint32)pD->MaxDataSize, pD->bEndOfData, pD->PlayableDuration.GetAsSeconds());
 		pPrintFN(pPlayer, "Audio decoder : %2u in decoder, %2u total, %s; EOD in %d; EOD out %d", (uint32)AudioBufferStats.DecoderOutputBuffer.NumElementsInDecoder, (uint32)AudioBufferStats.DecoderOutputBuffer.MaxDecodedElementsReady, AudioBufferStats.DecoderOutputBuffer.bOutputStalled ? "    stalled" : "not stalled", AudioBufferStats.DecoderInputBuffer.bEODReached, AudioBufferStats.DecoderOutputBuffer.bEODreached);
 	}
 	if (StreamReaderHandler && bHaveTextReader.GetWithDefault(false))
 	{
 		pD = &TextBufferStats.StreamBuffer;
-		pPrintFN(pPlayer, "Text buffer   : %3u AUs; %8u/%8u bytes in; eod %d; %#7.4fs", (uint32)pD->NumCurrentAccessUnits, (uint32)pD->CurrentMemInUse, (uint32)pD->MaxDataSize, pD->bEndOfData, pD->PushedDuration.GetAsSeconds());
+		pPrintFN(pPlayer, "Text buffer   : %3u AUs; %8u/%8u bytes in; eod %d; %#7.4fs", (uint32)pD->NumCurrentAccessUnits, (uint32)pD->CurrentMemInUse, (uint32)pD->MaxDataSize, pD->bEndOfData, pD->PlayableDuration.GetAsSeconds());
 	}
 	DiagnosticsCriticalSection.Unlock();
 

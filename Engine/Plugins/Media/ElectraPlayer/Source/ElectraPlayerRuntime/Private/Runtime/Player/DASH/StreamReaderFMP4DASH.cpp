@@ -956,6 +956,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			bool bDone = false;
 			bool bIsFirstAU = true;
 			bool bReadPastLastPTS = false;
+			FTimeValue TimelineOffset;
 
 			// Encrypted?
 			TSharedPtr<ElectraCDM::IMediaCDMDecrypter, ESPMode::ThreadSafe> Decrypter;
@@ -1029,6 +1030,14 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 
 								for(Error = TrackIterator->StartAtFirst(false); Error == UEMEDIA_ERROR_OK; Error = TrackIterator->Next())
 								{
+									if (bIsFirstAU)
+									{
+										FTimeValue BaseMediaDecodeTime;
+										BaseMediaDecodeTime.SetFromND(TrackIterator->GetBaseMediaDecodeTime(), TrackIterator->GetTimescale());
+										TimelineOffset = BaseMediaDecodeTime - Request->Segment.PeriodLocalSegmentStartTime;
+										//LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("Segment to timeline delta = %.3fs"), TimelineOffset.GetAsSeconds()));
+									}
+
 									// Get the DTS and PTS. Those are 0-based in a fragment and offset by the base media decode time of the fragment.
 									int64 AUDTS = TrackIterator->GetDTS();
 									int64 AUPTS = TrackIterator->GetPTS();
@@ -1092,6 +1101,8 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									AccessUnit->LatestPTS.SetFromND(MediaLocalLastAUTime - PTO, TrackTimescale);
 									AccessUnit->LatestPTS += TimeOffset;
 									AccessUnit->LatestPTS.SetSequenceIndex(Request->TimestampSequenceIndex);
+
+									AccessUnit->OffsetFromSegmentStart = TimelineOffset;
 
 									ElectraCDM::FMediaCDMSampleInfo SampleEncryptionInfo;
 									bool bIsSampleEncrypted = TrackIterator->GetEncryptionInfo(SampleEncryptionInfo);
@@ -1524,11 +1535,6 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 		}
 	}
 
-	if (!bSilentCancellation)
-	{
-		StreamSelector->ReportDownloadEnd(ds);
-	}
-
 	// Clean out everything before reporting OnFragmentClose().
 	TSharedPtrTS<FStreamSegmentRequestFMP4DASH> FinishedRequest = CurrentRequest;
 	CurrentRequest.Reset();
@@ -1538,6 +1544,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 
 	if (!bSilentCancellation)
 	{
+		StreamSelector->ReportDownloadEnd(ds);
 		Parameters.EventListener->OnFragmentClose(FinishedRequest);
 	}
 }

@@ -1460,6 +1460,27 @@ private:
 		FStallMonitor										DecoderOutputStalledMonitor;
 	};
 
+	struct FLiveSyncVars
+	{
+		FLiveSyncVars()
+		{
+			Clear();
+		}
+		void Clear()
+		{
+			bSyncLiveToNow = false;
+			StartTime.SetToInvalid();
+			DroppedDurationVid.SetToZero();
+			DroppedDurationAud.SetToZero();
+			LastDropRatio = 0.0;
+		}
+		bool bSyncLiveToNow;
+		FTimeValue StartTime;
+		FTimeValue DroppedDurationVid;
+		FTimeValue DroppedDurationAud;
+		double LastDropRatio;
+	};
+
 	struct FPrerollVars
 	{
 		FPrerollVars()
@@ -1658,6 +1679,7 @@ private:
 	void InternalHandleCompletedSegmentRequests(const FTimeValue& CurrentTime);
 	void InternalHandleSegmentTrackChanges(const FTimeValue& CurrentTime);
 	void InternalStartoverAtCurrentPosition();
+	void InternalHandleLiveSync();
 
 	void UpdateDiagnostics();
 	void HandleNewBufferedData();
@@ -1814,6 +1836,7 @@ private:
 	EDecoderState														DecoderState;
 	EStreamState														StreamState;
 
+	FLiveSyncVars														LiveSyncVars;
 	FPrerollVars														PrerollVars;
 	FPostrollVars														PostrollVars;
 	EPlayerState														LastBufferingState;

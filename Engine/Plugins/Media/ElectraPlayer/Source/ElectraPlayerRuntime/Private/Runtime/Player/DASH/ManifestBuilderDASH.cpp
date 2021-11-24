@@ -930,24 +930,32 @@ void FManifestDASHInternal::TransformIntoEpicEvent()
 	// For this to work the presentation must be 'static'
 	if (PresentationType == EPresentationType::Static)
 	{
-		FString Time;
-		bool bDynamic = false;
+		FString Arg;
+		bool bStaticStart = false;
+		bool bDynamicStart = false;
 		for(int32 i=0,iMax=URLFragmentComponents.Num(); i<iMax; ++i)
 		{
-			bool bStaticStart = URLFragmentComponents[i].Name.Equals(Custom_EpicStaticStart);
-			bool bDynamicStart = URLFragmentComponents[i].Name.Equals(Custom_EpicDynamicStart);
+			bStaticStart = URLFragmentComponents[i].Name.Equals(Custom_EpicStaticStart);
+			bDynamicStart = URLFragmentComponents[i].Name.Equals(Custom_EpicDynamicStart);
 			if (bStaticStart || bDynamicStart)
 			{
-				bDynamic = bDynamicStart;
-				Time = URLFragmentComponents[i].Value;
+				Arg = URLFragmentComponents[i].Value;
 				break;
 			}
 		}
-		if (!Time.IsEmpty())
+		TArray<FString> Params;
+		if (!Arg.IsEmpty())
 		{
+			const TCHAR* const Delimiter = TEXT(",");
+			Arg.ParseIntoArray(Params, Delimiter, true);
+		}
+		if (Params.Num())
+		{
+			EpicEventType = bStaticStart ? EEpicEventType::Static : EEpicEventType::Dynamic;
 			// Get the event start time. This is either a Posix time in seconds since the Epoch (1/1/1970) or the special
 			// word 'now' optionally followed by a value to be added or subtracted from now.
 			FTimeValue Start;
+			FString Time = Params[0];
 			if (Time.StartsWith(TEXT("now")))
 			{
 				Time.RightChopInline(3);
@@ -971,12 +979,26 @@ void FManifestDASHInternal::TransformIntoEpicEvent()
 			if (Start.IsValid())
 			{
 				MPDRoot->SetAvailabilityStartTime(Start);
-				if (bDynamic)
+				if (EpicEventType == EEpicEventType::Dynamic)
 				{
 					MPDRoot->SetPublishTime(Start);
 					MPDRoot->SetType(TEXT("dynamic"));
 					PresentationType = EPresentationType::Dynamic;
-					bIsEventType = true;
+					if (Params.Num() > 1)
+					{
+						FTimeValue spd = FTimeValue().SetFromTimeFraction(FTimeFraction().SetFromFloatString(Params[1]));
+						MPDRoot->SetSuggestedPresentationDelay(spd);
+					}
+					else
+					{
+						MPDRoot->SetSuggestedPresentationDelay(MPDRoot->GetMinBufferTime());
+					}
+				}
+				// Adjust period start times with the fake AST
+				for(auto &Period : GetPeriods())
+				{
+					Period->StartAST = Period->Start + Start;
+					Period->EndAST = Period->End + Start;
 				}
 			}
 		}
@@ -1050,6 +1072,8 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload()
 	CSV_SCOPED_TIMING_STAT(ElectraPlayer, FManifestDASHInternal_Build);
 
 	FErrorDetail Error;
+
+	FTimeValue AST = GetAnchorTime();
 
 	bool bWarnedPresentationDuration = false;
 	// Go over the periods one at a time as XLINK attributes could bring in additional periods.
@@ -1184,6 +1208,10 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload()
 				}
 			}
 		}
+
+		// Set the time range including AST
+		p->StartAST = p->Start + AST;
+		p->EndAST = p->End + AST;
 
 		if (p->Start.IsValid() && p->End.IsValid())
 		{
@@ -2094,6 +2122,31 @@ FTimeValue FManifestDASHInternal::CalculateDistanceToLiveEdge() const
 	if (!Distance.IsValid())
 	{
 		Distance = MPDRoot->GetSuggestedPresentationDelay();
+
+		/*
+			FIXME:
+				This fudge is here to prevent the use of the live segment.
+				At the moment the HTTP module only allows us access to the data once the segment has been fetched in its entirety,
+				which tends to be too late, especially if the current segment is only used partially (we may have a 2s segment
+				fetched but start playback 1s into is, giving us only 1s worth of usable data).
+				For real low-latency playback chunked transfer is needed with access to the partially downloaded data.
+
+				If the @suggestedPresentationDelay is set equal to or shorter than the @minBufferTime, which we assume to indicate the duration
+				of a single segment we would need low-latency.
+				Since we cannot force the MPD@suggestedPresentationDelay to be set such that none of this will be a problem
+				we adjust that value to twice the MPD@minBufferTime until we can get chunked transfer and partial data access.
+		*/
+			FTimeValue mbt_times2 = MPDRoot->GetMinBufferTime() * 2;
+			if (Distance < mbt_times2)
+			{
+				if (!bWarnedAboutTooSmallSuggestedPresentationDelay)
+				{
+					bWarnedAboutTooSmallSuggestedPresentationDelay = true;
+					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("Adjusting the MPD@suggestedPresentationDelay from %.3f seconds to %.3f to avoid Live edge buffering issues"), Distance.GetAsSeconds(), mbt_times2.GetAsSeconds()));
+				}
+				Distance = mbt_times2;
+			}
+
 	}
 	// If not set see if there is an MPD@maxSegmentDuration and use that.
 	if (!Distance.IsValid())
@@ -2241,7 +2294,7 @@ FTimeRange FManifestDASHInternal::GetSeekableTimeRange() const
 		// future segments already (a pre-existing presentation made available over time) we would not
 		// be able to fetch them anyway on account of their availability window not being valid yet.
 		// Typically we would want to play some distance away from the bleeding Live edge.
-		bool bIsUpdating = AreUpdatesExpected();
+		bool bIsUpdating = AreUpdatesExpected() || EpicEventType == EEpicEventType::Dynamic;
 		FTimeValue Distance = bIsUpdating ? CalculateDistanceToLiveEdge() : FixedSeekEndDistance;
 		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 		FTimeValue LastEnd = GetLastPeriodEndTime();
@@ -2400,7 +2453,6 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 		return FromTo;
 	}
 
-//	FTimeRange AvailableTimeRange = GetSeekableTimeRange();
 	FTimeRange AvailableTimeRange = GetTotalTimeRange();
 	// Is the time specified as a POSIX time?
 	TArray<FString> TimeRange;
@@ -2415,14 +2467,20 @@ FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
 			// Is the start time the special time 'now'?
 			if (TimeRange[0].Equals(TEXT("now")))
 			{
-				/*
-				FTimeValue LastEnd = GetLastPeriodEndTime();
-				if (LastEnd.IsValid() && Now > LastEnd)
+				// A static event will not use an updated wallclock NOW, so if 'now' is used we do an init
+				// with the current time.
+				if (EpicEventType == EEpicEventType::Static)
 				{
-					LastEnd = Now;
+					FromTo.Start = Now;
 				}
-				*/
-				FromTo.Start = Now;
+				else
+				{
+					// 'now' is dynamic. The time will continue to flow between here where we set the value and
+					// the moment playback will begin with buffered data.
+					// We do not lock 'now' with the current time but leave it unset. This results in the start
+					// time to be the 
+					FromTo.Start.SetToInvalid();
+				}
 			}
 			else
 			{

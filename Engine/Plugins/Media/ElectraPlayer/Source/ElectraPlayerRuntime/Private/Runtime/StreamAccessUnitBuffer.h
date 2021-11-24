@@ -70,6 +70,7 @@ namespace Electra
 		FTimeValue					PTO;							//!< Media local presentation time offset.
 		FTimeValue					EarliestPTS;					//!< Earliest PTS at which to present samples. If this is larger than PTS the sample is not to be presented.
 		FTimeValue					LatestPTS;						//!< Latest PTS at which to present samples. If this is less than PTS the sample is not to be presented.
+		FTimeValue					OffsetFromSegmentStart;			//!< If set, the difference between the first segment AU's PTS and the expected time according to the playlist.
 		int64						SequenceIndex;
 		uint32						AUSize;							//!< Size of this access unit
 		void*						AUData;							//!< Access unit data
@@ -156,6 +157,7 @@ namespace Electra
 			PTO.SetToZero();
 			EarliestPTS.SetToInvalid();
 			LatestPTS.SetToInvalid();
+			OffsetFromSegmentStart.SetToInvalid();
 			SequenceIndex = 0;
 			ESType = EStreamType::Unsupported;
 			AUSize = 0;
@@ -475,6 +477,56 @@ namespace Electra
 			}
 		}
 
+		// Tags all AUs such that the decoders will skip over them until the desired decode time.
+		FTimeValue PrepareForDecodeStartingAt(FTimeValue DecodeStartTime)
+		{
+			FTimeValue TaggedDuration(FTimeValue::GetZero());
+			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			int32 RemoveUpTo = -1;
+			for(int32 i=0; i<AccessUnits.Num(); ++i)
+			{
+				FAccessUnit* AU = AccessUnits[i];
+
+				// Check if the first AU has a negative offset compared to the expected segment start time.
+				// If so, we have to adjust the given decode start time by that offset as to not discard the data
+				// that has an internal timestamp deviation from the timeline of the playlist.
+				// Positive offsets are currently assumed to not be an issue, unless they were unreasonably large,
+				// but what constitutes "reasonably" is not clear. We're leaving things at that.
+				if (i == 0 && AU->OffsetFromSegmentStart.IsValid() && AU->OffsetFromSegmentStart < FTimeValue::GetZero())
+				{
+					DecodeStartTime += AU->OffsetFromSegmentStart;
+				}
+
+				if (AU->PTS < DecodeStartTime)
+				{
+					// If the AU was not set with a drop flag yet we do it now.
+					// Drop-flagged AUs do not count towards playable duration, so we need to adjust this now.
+					if (AU->DropState == 0)
+					{
+						PlayableDuration -= AU->Duration;
+						TaggedDuration += AU->Duration;
+					}
+					AU->DropState |= FAccessUnit::EDropState::TooEarly;
+
+					AU->EarliestPTS = DecodeStartTime;
+
+					// If this is a sync sample we can remove all preceding AUs until this one.
+					if (AU->bIsSyncSample)
+					{
+						RemoveUpTo = i;
+					}
+				}
+			}
+			for(int32 i=0; i<RemoveUpTo; ++i)
+			{
+				FAccessUnit* AU = nullptr;
+				Pop(AU);
+				FAccessUnit::Release(AU);
+			}
+			return TaggedDuration;
+		}
+
+
 		//! Waits for data to arrive. Returns true if data is present. False if not and timeout expired.
 		bool WaitForData(int64 waitForMicroseconds = -1)
 		{
@@ -547,6 +599,13 @@ namespace Electra
 		{
 			check(Limit->MaxDuration > FTimeValue::GetZero());
 			check(AU->Duration.IsValid() && !AU->Duration.IsInfinity());
+			// If tagged with a drop state we unconditionally accept the AU. These are early ones that won't get decoded.
+			// They should appear at the beginning and end of a stream only and we do need the data that will be decoded
+			// so the ones to be dropped should not be taken into account.
+			if (AU->DropState != 0)
+			{
+				return true;
+			}
 			if (ExternalInfo == nullptr)
 			{
 				// Memory ok?
@@ -631,6 +690,7 @@ namespace Electra
 		bool PeekAndAddRef(FAccessUnit*& OutAU);
 		bool Pop(FAccessUnit*& OutAU);
 		void PopDiscardUntil(FTimeValue UntilTime);
+		FTimeValue PrepareForDecodeStartingAt(FTimeValue DecodeStartTime);
 		bool IsEODFlagSet();
 		int32 Num();
 		bool WasLastPushBlocked();

@@ -129,6 +129,7 @@ namespace Electra
 		virtual void SetCurrentPlaybackPeriod(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod) override;
 		virtual void SetBandwidth(int64 bitsPerSecond) override;
 		virtual void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) override;
+		virtual void SwitchBufferingQuality(const FBufferingQuality& InQualityChange) override;
 		virtual void MarkStreamAsUnavailable(const FBlacklistedStream& BlacklistedStream) override;
 		virtual void MarkStreamAsAvailable(const FBlacklistedStream& NoLongerBlacklistedStream) override;
 		virtual int64 GetLastBandwidth() override;
@@ -235,6 +236,7 @@ namespace Electra
 		int32												ForcedInitialBandwidth;
 		double												ForcedInitialBandwidthUntilSecondsBuffered;
 		bool												bForcePlaystartBitrate;
+		bool												bBufferingQualityChanged;
 		FStreamCodecInformation::FResolution				MaxStreamResolution;
 
 		TSimpleMovingAverage<double>						AverageBandwidth;
@@ -316,6 +318,7 @@ namespace Electra
 		, ForcedInitialBandwidth(0)
 		, ForcedInitialBandwidthUntilSecondsBuffered(0.0)
 		, bForcePlaystartBitrate(false)
+		, bBufferingQualityChanged(false)
 	{
 		AverageBandwidth.SetMaxSMASampleCount(Config.MaxBandwidthHistorySize);
 		AverageLatency.SetMaxSMASampleCount(Config.MaxBandwidthHistorySize);
@@ -479,6 +482,7 @@ namespace Electra
 		AverageLatency.InitializeTo((double)0.1);
 		AverageThroughput.InitializeTo(bitsPerSecond);
 		bForcePlaystartBitrate = true;
+		bBufferingQualityChanged = false;
 	}
 
 
@@ -638,14 +642,18 @@ namespace Electra
 			double MaxSegmentDownloadDuration = SegmentDownloadStats.Duration;
 			// If there is a forced initial bitrate to start playback with then we allow for the download duration to take longer than normally
 			// as to not abort the first download unless it's download time is really getting problematic.
-			if (ForcedInitialBandwidth && SegmentDownloadStats.StreamType == EStreamType::Video)
+			// If the player asked for a buffering quality change things are problematic, so don't do it!
+			if (!bBufferingQualityChanged)
 			{
-				MaxSegmentDownloadDuration *= 2.0;
-			}
-			// When buffering we allow for some more time as well.
-			else if (bPlayerIsRebuffering)
-			{
-				MaxSegmentDownloadDuration *= 2.0;
+				if (ForcedInitialBandwidth && SegmentDownloadStats.StreamType == EStreamType::Video)
+				{
+					MaxSegmentDownloadDuration *= 2.0;
+				}
+				// When buffering we allow for some more time as well.
+				else if (bPlayerIsRebuffering)
+				{
+					MaxSegmentDownloadDuration *= 2.0;
+				}
 			}
 
 			// Rebuffering is set to just continue loading data? No timeout then.
@@ -718,6 +726,7 @@ namespace Electra
 		ForcedInitialBandwidth = 0;
 		ForcedInitialBandwidthUntilSecondsBuffered = 0.0;
 		bForcePlaystartBitrate = false;
+		bBufferingQualityChanged = false;
 	}
 	void FAdaptiveStreamSelector::ReportPlaybackEnded()
 	{
@@ -725,6 +734,7 @@ namespace Electra
 		ForcedInitialBandwidth = 0;
 		ForcedInitialBandwidthUntilSecondsBuffered = 0.0;
 		bForcePlaystartBitrate = false;
+		bBufferingQualityChanged = false;
 	}
 
 	void FAdaptiveStreamSelector::ReportDownloadEnd(const Metrics::FSegmentDownloadStats& SegmentDownloadStats)
@@ -815,6 +825,39 @@ namespace Electra
 		}
 	}
 
+
+	void FAdaptiveStreamSelector::SwitchBufferingQuality(const FBufferingQuality& InQualityChange)
+	{
+		double avgCurrent = AverageBandwidth.GetLastSample();
+		double newRate = avgCurrent;
+
+		// In case the average bandwidth is higher than what is needed for the best video stream
+		// we clamp it to there. Otherwise we may rebuffer the highest quality stream which is
+		// not likely to be useful since rebuffering means there was a drastic change in bandwidth.
+		if (StreamInformationVideo.Num())
+		{
+			if (newRate > StreamInformationVideo.Last()->Bitrate)
+			{
+				newRate = (double)StreamInformationVideo.Last()->Bitrate;
+			}
+		}
+
+		if (InQualityChange.BandwidthScaleFactor.IsSet())
+		{
+			newRate *= InQualityChange.BandwidthScaleFactor.GetValue();
+		}
+		else if (InQualityChange.AbsoluteBandwidth.IsSet())
+		{
+			newRate = (double)InQualityChange.AbsoluteBandwidth.GetValue();
+		}
+
+		double Ratio = avgCurrent > 0.0 ? newRate / avgCurrent : 1.0;
+		AverageBandwidth.InitializeTo(newRate);
+		AverageThroughput.InitializeTo((int64)(AverageThroughput.GetLastSample() * Ratio));
+		LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("Adjusting buffering bandwidth from %d to %d"), (int)avgCurrent, (int)newRate));
+		bBufferingQualityChanged = true;
+	}
+
 	void FAdaptiveStreamSelector::ReportBufferingStart(Metrics::EBufferingReason BufferingReason)
 	{
 		/*
@@ -827,11 +870,6 @@ namespace Electra
 		if (BufferingReason == Metrics::EBufferingReason::Rebuffering)
 		{
 			bPlayerIsRebuffering = true;
-			double Scale = 0.6;
-			double avgCurrent = AverageBandwidth.GetLastSample();
-			AverageBandwidth.InitializeTo(avgCurrent * Scale);
-			AverageThroughput.InitializeTo((int64)(AverageThroughput.GetLastSample() * Scale));
-			LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("Rebuffering cuts bandwidth by %.2f from %d to %d"), Scale, (int)avgCurrent, (int)(avgCurrent * Scale)));
 		}
 	}
 

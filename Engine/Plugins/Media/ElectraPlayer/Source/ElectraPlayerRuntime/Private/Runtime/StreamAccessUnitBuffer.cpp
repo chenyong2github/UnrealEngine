@@ -540,6 +540,18 @@ namespace Electra
 		}
 	}
 
+	FTimeValue FMultiTrackAccessUnitBuffer::PrepareForDecodeStartingAt(FTimeValue DecodeStartTime)
+	{
+		FTimeValue TaggedDuration(FTimeValue::GetZero());
+		// We lock the access mutex here.
+		FScopedLock lock(AsShared());
+		for(auto& It : TrackBuffers)
+		{
+			TSharedPtrTS<FAccessUnitBuffer> Buf = It.Value;
+			TaggedDuration += Buf->PrepareForDecodeStartingAt(DecodeStartTime);
+		}
+		return TaggedDuration;
+	}
 
 	bool FMultiTrackAccessUnitBuffer::IsEODFlagSet()
 	{

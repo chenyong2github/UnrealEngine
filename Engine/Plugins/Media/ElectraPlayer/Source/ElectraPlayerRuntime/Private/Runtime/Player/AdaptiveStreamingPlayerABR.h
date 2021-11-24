@@ -66,6 +66,13 @@ public:
 	//! Sets a forced bitrate for the next segment fetches until the given duration of playable content has been received.
 	virtual void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) = 0;
 
+	struct FBufferingQuality
+	{
+		TOptional<double> BandwidthScaleFactor;
+		TOptional<int64> AbsoluteBandwidth;
+	};
+	virtual void SwitchBufferingQuality(const FBufferingQuality& InQualityChange) = 0;
+
 	struct FBlacklistedStream
 	{
 		FString		AssetUniqueID;
