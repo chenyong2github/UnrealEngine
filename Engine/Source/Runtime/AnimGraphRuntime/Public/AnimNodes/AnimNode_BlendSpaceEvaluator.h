@@ -20,6 +20,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	float NormalizedTime;
 
+	/** If true, teleport to normalized time, does NOT advance time (does not trigger notifies, does not extract Root Motion, etc.)
+	If false, will advance time (will trigger notifies, extract root motion if applicable, etc). */
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
+	bool bTeleportToNormalizedTime = true;
+
 public:	
 	FAnimNode_BlendSpaceEvaluator();
 
@@ -30,6 +35,8 @@ public:
 
 	// FAnimNode_BlendSpacePlayer interface
 	virtual float GetPlayRate() const override;
+	virtual bool ShouldTeleportToTime() const override { return bTeleportToNormalizedTime; }
+	virtual bool IsEvaluator() const override { return true; }
 	// End of FAnimNode_BlendSpacePlayer
 
 };

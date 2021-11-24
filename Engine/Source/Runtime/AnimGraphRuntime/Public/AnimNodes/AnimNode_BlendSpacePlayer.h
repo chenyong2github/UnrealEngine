@@ -121,6 +121,12 @@ public:
 	// Get the play rate multiplier. Can be negative, which will cause the animation to play in reverse.
 	virtual float GetPlayRate() const;
 
+	// An evaluator will be setting the play rate to zero and setting the time explicitly. ShouldTeleportToTime indicates whether we should jump to that time, or move to it playing out root motion and events etc.
+	virtual bool ShouldTeleportToTime() const { return false; }
+
+	// Indicates if we are an evaluator - i.e. will be setting the time explicitly rather than letting it play out
+	virtual bool IsEvaluator() const { return false; }
+
 	// Should the animation loop back to the start when it reaches the end?
 	bool GetLoop() const;
 

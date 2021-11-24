@@ -667,11 +667,16 @@ void FAnimInstanceProxy::MakeSequenceTickRecord(FAnimTickRecord& TickRecord, cla
 	TickRecord.bLooping = bLooping;
 }
 
-void FAnimInstanceProxy::MakeBlendSpaceTickRecord(FAnimTickRecord& TickRecord, class UBlendSpace* BlendSpace, const FVector& BlendInput, TArray<FBlendSampleData>& BlendSampleDataCache, FBlendFilter& BlendFilter, bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const
+void FAnimInstanceProxy::MakeBlendSpaceTickRecord(
+	FAnimTickRecord& TickRecord, class UBlendSpace* BlendSpace, const FVector& BlendInput, TArray<FBlendSampleData>& BlendSampleDataCache, FBlendFilter& BlendFilter, 
+	bool bLooping, float PlayRate, float FinalBlendWeight, float& CurrentTime, FMarkerTickRecord& MarkerTickRecord) const
 {
 	TickRecord.SourceAsset = BlendSpace;
 	TickRecord.BlendSpace.BlendSpacePositionX = BlendInput.X;
 	TickRecord.BlendSpace.BlendSpacePositionY = BlendInput.Y;
+	// This way of making a tick record is deprecated, so just set to defaults here rather than changing the API
+	TickRecord.BlendSpace.bTeleportToTime = false; 
+	TickRecord.BlendSpace.bIsEvaluator = false;
 	TickRecord.BlendSpace.BlendSampleDataCache = &BlendSampleDataCache;
 	TickRecord.BlendSpace.BlendFilter = &BlendFilter;
 	TickRecord.TimeAccumulator = &CurrentTime;

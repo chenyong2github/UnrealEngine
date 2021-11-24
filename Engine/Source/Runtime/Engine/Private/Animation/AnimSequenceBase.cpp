@@ -514,8 +514,7 @@ void UAnimSequenceBase::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimN
 
 	// Capture the final adjusted delta time and previous frame time as an asset player record
 	check(Instance.DeltaTimeRecord);
-	Instance.DeltaTimeRecord->Previous = PreviousTime;
-	Instance.DeltaTimeRecord->Delta = DeltaTime;
+	Instance.DeltaTimeRecord->Set(PreviousTime, DeltaTime);
 
 	HandleAssetPlayerTickedInternal(Context, PreviousTime, DeltaTime, Instance, NotifyQueue);
 }

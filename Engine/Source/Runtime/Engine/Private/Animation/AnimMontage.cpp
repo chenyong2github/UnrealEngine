@@ -1158,7 +1158,7 @@ void UAnimMontage::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotify
 	{
 		check(Instance.DeltaTimeRecord);
 		const float CurrentTime = Instance.Montage.CurrentPosition;
-		const float PreviousTime = Instance.DeltaTimeRecord->Previous;
+		const float PreviousTime = Instance.DeltaTimeRecord->GetPrevious();
 		const float MoveDelta = Instance.DeltaTimeRecord->Delta;
 
 		Context.SetLeaderDelta(MoveDelta);
@@ -2308,8 +2308,7 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 		{
 			const bool bExtractRootMotion = (OutRootMotionParams != nullptr) && Montage->HasRootMotion();
 			
-			DeltaTimeRecord.Delta = 0.f;
-			DeltaTimeRecord.Previous = Position;
+			DeltaTimeRecord.Set(0.f, Position);
 
 			bDidUseMarkerSyncThisTick = CanUseMarkerSync();
 			if (bDidUseMarkerSyncThisTick)

@@ -129,7 +129,7 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 
 	// If we looped around, adjust the previous play time to always be before the current playtime,
 	// since we can assume modulo. This makes the crossing check for the start time a lot simpler.
-	float AdjustedPreviousPlayTime = CurrentData->DeltaTimeRecord.Previous;
+	float AdjustedPreviousPlayTime = CurrentData->DeltaTimeRecord.GetPrevious();
 	if (CurrentData->CurrentPlayTime < AdjustedPreviousPlayTime)
 	{
 		AdjustedPreviousPlayTime -= CurrentSequence->GetPlayLength();
@@ -219,8 +219,8 @@ void FAnimNode_RandomPlayer::Update_AnyThread(const FAnimationUpdateContext& Con
 	}
 
 	// Cache time to detect loops
-	CurrentData->DeltaTimeRecord.Previous = CurrentData->CurrentPlayTime;
-	NextData->DeltaTimeRecord.Previous = NextData->CurrentPlayTime;
+	CurrentData->DeltaTimeRecord.SetPrevious(CurrentData->CurrentPlayTime);
+	NextData->DeltaTimeRecord.SetPrevious(NextData->CurrentPlayTime);
 
 	if (bAdvanceToNextEntry)
 	{
@@ -377,8 +377,7 @@ void FAnimNode_RandomPlayer::InitPlayData(FRandomAnimPlayData& Data, int32 Valid
 
 	Data.PlayStartTime = 0.0f;
 	Data.CurrentPlayTime = 0.0f;
-	Data.DeltaTimeRecord.Previous = 0.0f;
-	Data.DeltaTimeRecord.Delta = 0.0f;
+	Data.DeltaTimeRecord = FDeltaTimeRecord();
 	Data.MarkerTickRecord.Reset();
 }
 
