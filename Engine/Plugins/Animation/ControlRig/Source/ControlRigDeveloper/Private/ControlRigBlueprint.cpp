@@ -2131,7 +2131,7 @@ bool UControlRigBlueprint::ChangeMemberVariableType(const FName& InName, const F
 	Variable.bIsArray = RigVMTypeUtils::IsArrayType(CPPType);
 	if (Variable.bIsArray)
 	{
-		CPPType = CPPType.RightChop(7).LeftChop(1);
+		CPPType = RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
 	}
 
 	if (CPPType == TEXT("bool"))

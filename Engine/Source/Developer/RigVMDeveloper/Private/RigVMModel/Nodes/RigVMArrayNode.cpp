@@ -398,12 +398,7 @@ FString URigVMArrayNode::GetCPPType() const
 	{
 		return FString();
 	}
-	const FString& CPPType = ArrayPin->GetCPPType();
-	if (RigVMTypeUtils::IsArrayType(CPPType))
-	{
-		return CPPType.Mid(7, CPPType.Len() - 8);
-	}
-	return CPPType;
+	return RigVMTypeUtils::BaseTypeFromArrayType(ArrayPin->GetCPPType());
 }
 
 UObject* URigVMArrayNode::GetCPPTypeObject() const

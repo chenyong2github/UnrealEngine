@@ -503,7 +503,7 @@ int32 URigVMPin::GetArraySize() const
 
 FString URigVMPin::GetCPPType() const
 {
-	return URigVMController::PostProcessCPPType(CPPType, GetCPPTypeObject(), IsArray());
+	return URigVMController::PostProcessCPPType(CPPType, GetCPPTypeObject());
 }
 
 FString URigVMPin::GetArrayElementCppType() const
