@@ -22,13 +22,33 @@
 			FText::GetFormatPatternParameters(TitleFormatter->Format, OutParameterNames);
 			for (const FString& ParameterName : OutParameterNames)
 			{
-				TitleFormatter->PropertyHandles.Add(RootProperty->GetChildHandle(FName(*ParameterName), false));
+				TSharedPtr<IPropertyHandle> Handle = RootProperty->GetChildHandle(FName(*ParameterName), false /*bRecurse*/);
+				if (Handle.IsValid())
+				{
+					TitleFormatter->PropertyHandles.Add(Handle);
+				}
+				else
+				{
+					// title property doesn't exist, display an error message
+					TitleFormatter->PropertyHandles.Empty();
+					TitleFormatter->Format = FText::FromString(TEXT("Invalid Title Property!"));
+					break;
+				}
 			}
 		}
 		else // Support the old style where it was just a name of a property with no formatting.
 		{
-			TitleFormatter->PropertyHandles.Add(RootProperty->GetChildHandle(FName(*TitlePropertyRaw), false));
-			TitleFormatter->Format = FText::FromString(TEXT("{") + TitlePropertyRaw + TEXT("}"));
+			TSharedPtr<IPropertyHandle> Handle = RootProperty->GetChildHandle(FName(*TitlePropertyRaw), false /*bRecurse*/);
+			if (Handle.IsValid())
+			{
+				TitleFormatter->PropertyHandles.Add(Handle);
+				TitleFormatter->Format = FText::FromString(TEXT("{") + TitlePropertyRaw + TEXT("}"));
+			}
+			else
+			{
+				// title property doesn't exist, display an error message
+				TitleFormatter->Format = FText::FromString(TEXT("Invalid Title Property!"));
+			}
 		}
 
 		return TitleFormatter;
