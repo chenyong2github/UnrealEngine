@@ -154,6 +154,7 @@ struct FDFObjectBounds
 	float SphereRadius;	// World space bounding sphere extent
 	float3 BoxExtent;	// World space AABB extent
 	uint OftenMoving;
+	uint bCastShadow;
 };
 
 uint NumSceneObjects;
@@ -170,7 +171,10 @@ FDFObjectBounds LoadDFObjectBounds(uint ObjectIndex)
 
 	float4 Vector1 = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1];
 	Bounds.BoxExtent = Vector1.xyz;
-	Bounds.OftenMoving = Vector1.w;
+
+	uint Flags = asuint(Vector1.w);
+	Bounds.OftenMoving = Flags & 1;
+	Bounds.bCastShadow = Flags & 2;
 
 	return Bounds;
 }
