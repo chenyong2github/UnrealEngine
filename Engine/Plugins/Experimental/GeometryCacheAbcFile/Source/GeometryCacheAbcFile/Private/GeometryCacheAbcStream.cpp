@@ -40,7 +40,7 @@ struct FGeometryCacheAbcStreamReadRequest
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define ABCSTREAM_DERIVED_DATA_VERSION TEXT("88025D2E38A54CF29FA5A6CAE686B013")
+#define ABCSTREAM_DERIVED_DATA_VERSION TEXT("75887BC18F674774A53F91E4A57709D6")
 
 class FAbcStreamDDCUtils
 {
