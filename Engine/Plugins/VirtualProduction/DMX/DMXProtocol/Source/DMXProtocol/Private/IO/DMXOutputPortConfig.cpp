@@ -15,22 +15,24 @@ FDMXOutputPortConfigParams::FDMXOutputPortConfigParams(const FDMXOutputPortConfi
 	, ProtocolName(OutputPortConfig.GetProtocolName())
 	, CommunicationType(OutputPortConfig.GetCommunicationType())
 	, DeviceAddress(OutputPortConfig.GetDeviceAddress())
-	, DestinationAddress(OutputPortConfig.GetDestinationAddress())
+	, DestinationAddresses(OutputPortConfig.GetDestinationAddresses())
 	, bLoopbackToEngine(OutputPortConfig.NeedsLoopbackToEngine())
 	, LocalUniverseStart(OutputPortConfig.GetLocalUniverseStart())
 	, NumUniverses(OutputPortConfig.GetNumUniverses())
 	, ExternUniverseStart(OutputPortConfig.GetExternUniverseStart())
 	, Priority(OutputPortConfig.GetPriority())
-	, Delay(OutputPortConfig.GetDelay())
+	, DelaySeconds(OutputPortConfig.GetDelaySeconds())
 {}
 
 
 FDMXOutputPortConfig::FDMXOutputPortConfig()
-	: PortGuid(FGuid::NewGuid())
+	: DelayFrameRate(FFrameRate(1.0, 1.0)) // Default delay frame rate to 1.0 (default to Seconds)
+	, PortGuid(FGuid::NewGuid())
 {}
 
 FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid)
-	: PortGuid(InPortGuid)
+	: DelayFrameRate(FFrameRate(1.0, 1.0)) // Default delay frame rate to 1.0 (default to Seconds)
+	, PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
 	check(FModuleManager::Get().IsModuleLoaded("DMXProtocol"));
@@ -45,14 +47,14 @@ FDMXOutputPortConfig::FDMXOutputPortConfig(const FGuid& InPortGuid, const FDMXOu
 	: PortName(InitializationData.PortName)
 	, ProtocolName(InitializationData.ProtocolName)
 	, CommunicationType(InitializationData.CommunicationType)
-	, DeviceAddress(InitializationData.DeviceAddress)
-	, DestinationAddress(InitializationData.DestinationAddress)
+	, DestinationAddresses(InitializationData.DestinationAddresses)
 	, bLoopbackToEngine(InitializationData.bLoopbackToEngine)
 	, LocalUniverseStart(InitializationData.LocalUniverseStart)
 	, NumUniverses(InitializationData.NumUniverses)
 	, ExternUniverseStart(InitializationData.ExternUniverseStart)
 	, Priority(InitializationData.Priority)
-	, Delay(InitializationData.Delay)
+	, Delay(InitializationData.DelaySeconds)
+	, DelayFrameRate(FFrameRate(1.0, 1.0))
 	, PortGuid(InPortGuid)
 {
 	// Cannot create port configs before the protocol module is up (it is required to sanetize protocol names).
@@ -94,37 +96,48 @@ void FDMXOutputPortConfig::MakeValid()
 
 	if (Protocol.IsValid())
 	{
-	// If the extern universe ID is out of the protocol's supported range, mend it.
-	ExternUniverseStart = Protocol->MakeValidUniverseID(ExternUniverseStart);
+		// If the extern universe ID is out of the protocol's supported range, mend it.
+		ExternUniverseStart = Protocol->MakeValidUniverseID(ExternUniverseStart);
 
-	// Only Local universes > 1 are supported, even if the protocol supports universes < 1.
-	LocalUniverseStart = LocalUniverseStart < 1 ? 1 : LocalUniverseStart;
+		// Only Local universes > 1 are supported, even if the protocol supports universes < 1.
+		LocalUniverseStart = LocalUniverseStart < 1 ? 1 : LocalUniverseStart;
 
-	// Limit the num universes relatively to the max extern universe of the protocol and int32 max
-	const int64 MaxNumUniverses = Protocol->GetMaxUniverseID() - Protocol->GetMinUniverseID() + 1;
-	const int64 DesiredNumUniverses = NumUniverses > MaxNumUniverses ? MaxNumUniverses : NumUniverses;
-	const int64 DesiredLocalUniverseEnd = static_cast<int64>(LocalUniverseStart) + DesiredNumUniverses - 1;
+		// Limit the num universes relatively to the max extern universe of the protocol and int32 max
+		const int64 MaxNumUniverses = Protocol->GetMaxUniverseID() - Protocol->GetMinUniverseID() + 1;
+		const int64 DesiredNumUniverses = NumUniverses > MaxNumUniverses ? MaxNumUniverses : NumUniverses;
+		const int64 DesiredLocalUniverseEnd = static_cast<int64>(LocalUniverseStart) + DesiredNumUniverses - 1;
 
-	if (DesiredLocalUniverseEnd > TNumericLimits<int32>::Max())
-	{
-		NumUniverses = TNumericLimits<int32>::Max() - DesiredLocalUniverseEnd;
+		if (DesiredLocalUniverseEnd > TNumericLimits<int32>::Max())
+		{
+			NumUniverses = TNumericLimits<int32>::Max() - DesiredLocalUniverseEnd;
+		}
+
+		// Fix the communication type if it is not supported by the protocol
+		TArray<EDMXCommunicationType> CommunicationTypes = Protocol->GetOutputPortCommunicationTypes();
+		if (!CommunicationTypes.Contains(CommunicationType))
+		{
+			if (CommunicationTypes.Num() > 0)
+			{
+				CommunicationType = CommunicationTypes[0];
+			}
+			else
+			{
+				// The protocol can specify none to suggest internal only
+				CommunicationType = EDMXCommunicationType::InternalOnly;
+			}
+		}
 	}
 
-	// Fix the communication type if it is not supported by the protocol
-	TArray<EDMXCommunicationType> CommunicationTypes = Protocol->GetOutputPortCommunicationTypes();
-	if (!CommunicationTypes.Contains(CommunicationType))
+	// Allow for postitive delay values only
+	if (Delay < 0.0)
 	{
-		if (CommunicationTypes.Num() > 0)
-		{
-			CommunicationType = CommunicationTypes[0];
-		}
-		else
-		{
-			// The protocol can specify none to suggest internal only
-			CommunicationType = EDMXCommunicationType::InternalOnly;
-		}
-	}	
+		Delay = 0.0;
+	}
 }
+
+int32 FDMXOutputPortConfig::GetDelaySeconds() const
+{
+	return Delay / DelayFrameRate.AsDecimal();
 }
 
 FString FDMXOutputPortConfig::GetDeviceAddress() const
@@ -164,4 +177,3 @@ void FDMXOutputPortConfig::GenerateUniquePortName()
 	FString BaseName = TEXT("OutputPort_1");
 	PortName = FDMXProtocolUtils::GenerateUniqueNameFromExisting(OtherPortNames, BaseName);
 }
-

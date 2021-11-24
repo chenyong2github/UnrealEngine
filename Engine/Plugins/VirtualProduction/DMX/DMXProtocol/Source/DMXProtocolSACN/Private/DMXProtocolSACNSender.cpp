@@ -4,7 +4,7 @@
 
 #include "DMXProtocolSACN.h"
 #include "DMXProtocolSACNReceiver.h"
-
+#include "DMXProtocolSACNUtils.h"
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolLog.h"
 #include "DMXProtocolSettings.h"
@@ -16,7 +16,6 @@
 #include "SocketSubsystem.h"
 #include "Common/UdpSocketBuilder.h"
 #include "Common/UdpSocketSender.h"
-#include "HAL/RunnableThread.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
 #include "UObject/Class.h"
@@ -50,14 +49,9 @@ FDMXProtocolSACNSender::FDMXProtocolSACNSender(const TSharedPtr<FDMXProtocolSACN
 	, Socket(&InSocket)
 	, NetworkInterfaceInternetAddr(InNetworkInterfaceInternetAddr)
 	, DestinationInternetAddr(InDestinationInternetAddr)
-	, bStopping(false)
-	, Thread(nullptr)
 	, bIsMulticast(bInIsMulticast)
 {
 	check(DestinationInternetAddr.IsValid());
-
-	FString SenderThreadName = FString(TEXT("sACNSender_")) + InDestinationInternetAddr->ToString(false);
-	Thread = FRunnableThread::Create(this, *SenderThreadName, 0U, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask());
 
 	if (bIsMulticast)
 	{
@@ -75,12 +69,6 @@ FDMXProtocolSACNSender::~FDMXProtocolSACNSender()
 	{
 		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
 		SocketSubsystem->DestroySocket(Socket);
-	}
-
-	if (Thread != nullptr)
-	{
-		Thread->Kill(true);
-		delete Thread;
 	}
 
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed sACN Sender at %s sending to %s"), *NetworkInterfaceInternetAddr->ToString(false), *DestinationInternetAddr->ToString(false));
@@ -198,195 +186,67 @@ bool FDMXProtocolSACNSender::IsCausingLoopback() const
 
 void FDMXProtocolSACNSender::SendDMXSignal(const FDMXSignalSharedRef& DMXSignal)
 {
-	Buffer.Enqueue(DMXSignal);
-}
+	TArray<uint8> Packet;
 
-void FDMXProtocolSACNSender::ClearBuffer()
-{
-	FScopeLock Lock(&LatestSignalLock);
+	FDMXProtocolE131RootLayerPacket RootLayer;
+	static FGuid Guid = FGuid::NewGuid();
+	FMemory::Memcpy(RootLayer.CID.GetData(), &Guid, ACN_CIDBYTES);
 
-	Buffer.Empty();
-	UniverseToLatestSignalMap.Reset();
-}
+	Packet.Append(*RootLayer.Pack(ACN_DMX_SIZE));
 
-bool FDMXProtocolSACNSender::Init()
-{
-	return true;
-}
+	int32 UniverseID = DMXSignal->ExternUniverseID;
 
-uint32 FDMXProtocolSACNSender::Run()
-{
-	const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>();
-	check(DMXSettings);
-	
-	// Fixed rate delta time
-	const double SendDeltaTime = 1.f / DMXSettings->SendingRefreshRate;
+	FDMXProtocolE131FramingLayerPacket FramingLayer;
+	FramingLayer.Universe = UniverseID;
+	FramingLayer.SequenceNumber = UniverseIDToSequenceNumberMap.FindOrAdd(UniverseID, -1)++; // Init to max, let it wrap over to 0 at first
+	FramingLayer.Priority = DMXSignal->Priority;
+	Packet.Append(*FramingLayer.Pack(ACN_DMX_SIZE));
 
-	while (!bStopping)
+	FDMXProtocolE131DMPLayerPacket DMPLayer;
+	DMPLayer.AddressIncrement = ACN_ADDRESS_INC;
+	DMPLayer.PropertyValueCount = ACN_DMX_SIZE + 1;
+	FMemory::Memcpy(DMPLayer.DMX.GetData(), DMXSignal->ChannelData.GetData(), ACN_DMX_SIZE);
+
+	Packet.Append(*DMPLayer.Pack(ACN_DMX_SIZE));
+
+	const int32 SendDataSize = Packet.Num();
+
+	// Try to send, log errors but avoid spaming the Log
+	static bool bErrorEverLogged = false;
+	TSharedPtr<FInternetAddr> CurrentDestination = DestinationInternetAddr;
+
+	// if in multicast, compute the destination
+	if (bIsMulticast)
 	{
-		const double StartTime = FPlatformTime::Seconds();
+		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+		CurrentDestination = SocketSubsystem->CreateInternetAddr();
 
-		Update();
-
-		const double EndTime = FPlatformTime::Seconds();
-		const double WaitTime = SendDeltaTime - (EndTime - StartTime);
-
-		if (WaitTime > 0.f)
-		{
-			// Sleep by the amount which is set in refresh rate
-			FPlatformProcess::SleepNoStats(WaitTime);
-		}
-
-		// In the unlikely case we took to long to send, we instantly continue, but do not take 
-		// further measures to compensate - We would have to run faster than DMX send rate to catch up.
+		uint32 IpForUniverse = FDMXProtocolSACNUtils::GetIpForUniverseID(UniverseID);
+		CurrentDestination->SetIp(IpForUniverse);
+		CurrentDestination->SetPort(ACN_PORT);
 	}
 
-	return 0;
-}
-
-void FDMXProtocolSACNSender::Stop()
-{
-	bStopping = true;
-}
-
-void FDMXProtocolSACNSender::Exit()
-{
-}
-
-void FDMXProtocolSACNSender::Tick()
-{
-	Update();
-}
-
-FSingleThreadRunnable* FDMXProtocolSACNSender::GetSingleThreadInterface()
-{
-	return this;
-}
-
-void FDMXProtocolSACNSender::Update()
-{
-	// process delayed signals
-	const double Now = FPlatformTime::Seconds();
-	
-	FScopeLock Lock(&LatestSignalLock);
-
-	for (;;)
+	int32 BytesSent = -1;
+	if (Socket->SendTo(Packet.GetData(), Packet.Num(), BytesSent, *CurrentDestination))
 	{
-		// we can safely assumes that older messages are on tail of the queue
-		FDMXSignal OldestDMXSignal;
-		if (DelayedBuffer.Peek(OldestDMXSignal))
-		{
-			if ((OldestDMXSignal.Timestamp + static_cast<double>(OldestDMXSignal.Delay)) <= Now)
-			{
-				if (UniverseToLatestSignalMap.Contains(OldestDMXSignal.ExternUniverseID))
-				{
-					UniverseToLatestSignalMap[OldestDMXSignal.ExternUniverseID] = MakeShared<FDMXSignal>(OldestDMXSignal);
-				}
-				else
-				{
-					UniverseToLatestSignalMap.Add(OldestDMXSignal.ExternUniverseID, MakeShared<FDMXSignal>(OldestDMXSignal));
-				}
-				DelayedBuffer.Pop();
-				continue;
-			}
-		}
-		break;
+		INC_DWORD_STAT(STAT_SACNPackagesSent);
 	}
-
+	else
 	{
-		// Keep latest signal per universe
-		FDMXSignalSharedPtr DequeuedDMXSignal;
-		while (Buffer.Dequeue(DequeuedDMXSignal))
-		{
-			if (Protocol->IsValidUniverseID(DequeuedDMXSignal->ExternUniverseID))
-			{
-				if (DequeuedDMXSignal->Delay > 0)
-				{
-					// we make a copy here of the signal for not losing track
-					DelayedBuffer.Enqueue(*DequeuedDMXSignal);
-					continue;
-				}
-				if (UniverseToLatestSignalMap.Contains(DequeuedDMXSignal->ExternUniverseID))
-				{
-					UniverseToLatestSignalMap[DequeuedDMXSignal->ExternUniverseID] = DequeuedDMXSignal.ToSharedRef();
-				}
-				else
-				{
-					UniverseToLatestSignalMap.Add(DequeuedDMXSignal->ExternUniverseID, DequeuedDMXSignal.ToSharedRef());
-				}
-			}
-		}
-	}
-
-	// Create a packet for each universe and send it
-	for (const TTuple<int32, FDMXSignalSharedRef>& UniverseToSignalKvp : UniverseToLatestSignalMap)
-	{
-		int32 UniverseID = UniverseToSignalKvp.Key;
-		const FDMXSignalSharedRef& DMXSignal = UniverseToSignalKvp.Value;
-
-		TArray<uint8> Packet;
-
-		FDMXProtocolE131RootLayerPacket RootLayer;
-		static FGuid Guid = FGuid::NewGuid();
-		FMemory::Memcpy(RootLayer.CID.GetData(), &Guid, ACN_CIDBYTES);
-
-		Packet.Append(*RootLayer.Pack(ACN_DMX_SIZE));
-
-		FDMXProtocolE131FramingLayerPacket FramingLayer;
-		FramingLayer.Universe = UniverseID;
-		FramingLayer.SequenceNumber = UniverseIDToSequenceNumberMap.FindOrAdd(UniverseID, -1)++; // Init to max, let it wrap over to 0 at first
-		FramingLayer.Priority = DMXSignal->Priority;
-		Packet.Append(*FramingLayer.Pack(ACN_DMX_SIZE));
-
-		FDMXProtocolE131DMPLayerPacket DMPLayer;
-		DMPLayer.AddressIncrement = ACN_ADDRESS_INC;
-		DMPLayer.PropertyValueCount = ACN_DMX_SIZE + 1;
-		FMemory::Memcpy(DMPLayer.DMX.GetData(), DMXSignal->ChannelData.GetData(), ACN_DMX_SIZE);
-
-		Packet.Append(*DMPLayer.Pack(ACN_DMX_SIZE));
-
-		const int32 SendDataSize = Packet.Num();
-		int32 BytesSent = -1;
-
-		// Try to send, log errors but avoid spaming the Log
-		static bool bErrorEverLogged = false;
-		TSharedPtr<FInternetAddr> CurrentDestination = DestinationInternetAddr;
-
-		// if in multicast, compute the destination
-		if (bIsMulticast)
+		if (!bErrorEverLogged)
 		{
 			ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-			CurrentDestination = SocketSubsystem->CreateInternetAddr();
+			TEnumAsByte<ESocketErrors> RecvFromError = SocketSubsystem->GetLastErrorCode();
 
-			uint32 IpForUniverse = FDMXProtocolSACNReceiver::GetIpForUniverseID(UniverseID);
-			CurrentDestination->SetIp(IpForUniverse);
-			CurrentDestination->SetPort(ACN_PORT);
-		}
+			UE_LOG(LogDMXProtocol, Error, TEXT("Failed send DMX to %s with Error Code %d"), *DestinationInternetAddr->ToString(false), RecvFromError);
 
-		if (Socket->SendTo(Packet.GetData(), Packet.Num(), BytesSent, *CurrentDestination))
-		{
-			INC_DWORD_STAT(STAT_SACNPackagesSent);
+			bErrorEverLogged = true;
 		}
-		else
-		{
-			if(!bErrorEverLogged)
-			{
-				ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-				TEnumAsByte<ESocketErrors> RecvFromError = SocketSubsystem->GetLastErrorCode();
+	}
 
-				UE_LOG(LogDMXProtocol, Error, TEXT("Failed send DMX to %s with Error Code %d"), *DestinationInternetAddr->ToString(false), RecvFromError);
-
-				bErrorEverLogged = true;
-			}
-		}
-		
-		if (BytesSent != SendDataSize)
-		{
-			if (!bErrorEverLogged)
-			{
-				UE_LOG(LogDMXProtocol, Warning, TEXT("Incomplete DMX Packet sent to %s"), *DestinationInternetAddr->ToString(false));
-				bErrorEverLogged = true;
-			}
-		}
+	if (BytesSent != SendDataSize && !bErrorEverLogged)
+	{
+		UE_LOG(LogDMXProtocol, Warning, TEXT("Incomplete DMX Packet sent to %s"), *DestinationInternetAddr->ToString(false));
+		bErrorEverLogged = true;
 	}
 }

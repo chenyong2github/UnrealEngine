@@ -4,9 +4,13 @@
 
 #include "DMXProtocolBlueprintLibrary.h"
 #include "DMXProtocolConstants.h"
+#include "DMXProtocolObjectVersion.h"
 #include "IO/DMXPortManager.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXPortManager.h"
+
+#include "IPAddress.h"
+#include "SocketSubsystem.h"
 
 
 UDMXProtocolSettings::UDMXProtocolSettings()
@@ -94,6 +98,36 @@ void UDMXProtocolSettings::PostInitProperties()
 		UE_LOG(LogDMXProtocol, Log, TEXT("Overridden Default Receive DMX Enabled from command line, set to %s."), bDefaultReceiveDMXEnabled ? TEXT("True") : TEXT("False"));
 	}
 	OverrideReceiveDMXEnabled(bDefaultReceiveDMXEnabled);	
+}
+
+void UDMXProtocolSettings::PostLoad()
+{
+	Super::PostLoad();
+
+	// Upgrade from single to many destination addresses for ports
+	const int32 CustomVersion = GetLinkerCustomVersion(FDMXProtocolObjectVersion::GUID);
+	if (CustomVersion < FDMXProtocolObjectVersion::OutputPortSupportsManyUnicastAddresses)
+	{
+		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+		TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
+
+		for (FDMXOutputPortConfig& OutputPortConfig : OutputPortConfigs)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FString DestinationAddress = OutputPortConfig.GetDestinationAddress();
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+			bool bIsValidIP = false;
+			InternetAddr->SetIp(*DestinationAddress, bIsValidIP);
+			if (bIsValidIP)
+			{
+				FDMXOutputPortConfigParams NewPortParams = FDMXOutputPortConfigParams(OutputPortConfig);
+				NewPortParams.DestinationAddresses = { DestinationAddress };
+
+				OutputPortConfig = FDMXOutputPortConfig(OutputPortConfig.GetPortGuid(), NewPortParams);
+			}
+		}
+	}
 }
 
 #if WITH_EDITOR
@@ -189,6 +223,12 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 			}
 		}
 
+		FDMXPortManager::Get().UpdateFromProtocolSettings();
+	}
+	else if (
+		PropertyName == FDMXOutputPortConfig::GetDestinationAddressesPropertyNameChecked() ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXOutputPortDestinationAddress, DestinationAddressString))
+	{
 		FDMXPortManager::Get().UpdateFromProtocolSettings();
 	}
 	

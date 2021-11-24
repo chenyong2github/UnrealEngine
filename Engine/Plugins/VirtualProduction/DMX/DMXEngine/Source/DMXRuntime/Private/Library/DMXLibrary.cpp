@@ -680,7 +680,6 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 					OutputPortConfigParams.CommunicationType = VoidController->CommunicationMode;
 					OutputPortConfigParams.ProtocolName = ProtocolName;
 					OutputPortConfigParams.DeviceAddress = InterfaceIPAddress_DEPRECATED;
-					OutputPortConfigParams.DestinationAddress = TEXT("");
 					OutputPortConfigParams.bLoopbackToEngine = OutputPortConfigParams.CommunicationType == EDMXCommunicationType::Multicast ? true : false;
 					OutputPortConfigParams.LocalUniverseStart = FixedLocalUniverseStart;
 					OutputPortConfigParams.NumUniverses = FixedNumUniverses;
@@ -695,7 +694,7 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 				}
 
 				// Add ports from additional unicast ip
-				for (const FString& AdditionalUnicastIP : VoidController->AdditionalUnicastIPs)
+				if (VoidController->AdditionalUnicastIPs.Num() > 0)
 				{
 					ExistingOutputPortConfigPtr = ProtocolSettings->FindOutputPortConfig([VoidController, &InterfaceIPAddress_DEPRECATED, &ProtocolName](FDMXOutputPortConfig& OutputPortConfig) {
 						return
@@ -704,11 +703,17 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 							OutputPortConfig.GetCommunicationType() == EDMXCommunicationType::Unicast;
 					});
 
+					TArray<FDMXOutputPortDestinationAddress> DestinationAddressStructs;
+					for (const FString& DestinationAddress : VoidController->AdditionalUnicastIPs)
+					{
+						DestinationAddressStructs.Add(FDMXOutputPortDestinationAddress(DestinationAddress));
+					}
+
 					if (ExistingOutputPortConfigPtr)
 					{
 						FDMXOutputPortConfigParams OutputPortConfigParams(*ExistingOutputPortConfigPtr);
 						OutputPortConfigParams.CommunicationType = EDMXCommunicationType::Unicast;
-						OutputPortConfigParams.DestinationAddress = AdditionalUnicastIP;
+						OutputPortConfigParams.DestinationAddresses = DestinationAddressStructs;
 						OutputPortConfigParams.LocalUniverseStart = FMath::Min(ExistingOutputPortConfigPtr->GetLocalUniverseStart(), FixedLocalUniverseStart);
 						OutputPortConfigParams.NumUniverses = FMath::Max(ExistingOutputPortConfigPtr->GetNumUniverses(), FixedNumUniverses);
 
@@ -723,7 +728,7 @@ void UDMXLibrary::UpgradeFromControllersToPorts()
 						OutputPortConfigParams.CommunicationType = EDMXCommunicationType::Unicast;
 						OutputPortConfigParams.ProtocolName = ProtocolName;
 						OutputPortConfigParams.DeviceAddress = InterfaceIPAddress_DEPRECATED;
-						OutputPortConfigParams.DestinationAddress = AdditionalUnicastIP;
+						OutputPortConfigParams.DestinationAddresses = DestinationAddressStructs;
 						OutputPortConfigParams.bLoopbackToEngine = true;
 						OutputPortConfigParams.LocalUniverseStart = FixedLocalUniverseStart;
 						OutputPortConfigParams.NumUniverses = FixedNumUniverses;

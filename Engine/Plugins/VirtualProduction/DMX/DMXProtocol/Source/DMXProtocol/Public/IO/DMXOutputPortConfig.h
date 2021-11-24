@@ -16,6 +16,27 @@ class FDMXPort;
 struct FGuid;
 
 
+/** The IP address outbound DMX is sent to */
+USTRUCT(BlueprintType)
+struct DMXPROTOCOL_API FDMXOutputPortDestinationAddress
+{
+	GENERATED_BODY()
+
+	FDMXOutputPortDestinationAddress() = default;
+
+	FDMXOutputPortDestinationAddress(const FString& DestinationAddress)
+		: DestinationAddressString(DestinationAddress)
+	{}
+
+	/** The IP address outbound DMX is sent to */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Destination IP Address"))
+	FString DestinationAddressString;
+
+	FORCEINLINE bool operator==(const FDMXOutputPortDestinationAddress& Other) const { return DestinationAddressString == Other.DestinationAddressString; }
+	FORCEINLINE bool operator!=(const FDMXOutputPortDestinationAddress& Other) const { return !operator==(Other); }
+	FORCEINLINE friend uint32 GetTypeHash(const FDMXOutputPortDestinationAddress& Key) { return GetTypeHash(Key.DestinationAddressString); }
+};
+
 /** Data to create a new output port config with related constructor */
 struct DMXPROTOCOL_API FDMXOutputPortConfigParams
 {
@@ -26,13 +47,17 @@ struct DMXPROTOCOL_API FDMXOutputPortConfigParams
 	FName ProtocolName;
 	EDMXCommunicationType CommunicationType;
 	FString DeviceAddress;
-	FString DestinationAddress;
+	TArray<FDMXOutputPortDestinationAddress> DestinationAddresses;
 	bool bLoopbackToEngine;
 	int32 LocalUniverseStart;
 	int32 NumUniverses;
 	int32 ExternUniverseStart;
 	int32 Priority;
-	float Delay;
+	double DelaySeconds;
+	FFrameRate DelayFrameRate;
+
+	// DEPRECATED 5.0. Instead please use the DestinationAddresses array.
+	FString DestinationAddress_DEPRECATED;
 };
 
 /** 
@@ -62,22 +87,30 @@ public:
 	FORCEINLINE const FName& GetProtocolName() const { return ProtocolName; }
 	FORCEINLINE EDMXCommunicationType GetCommunicationType() const { return CommunicationType; }
 	FString GetDeviceAddress() const;
-	FORCEINLINE const FString& GetDestinationAddress() const { return DestinationAddress; }
+	FORCEINLINE const TArray<FDMXOutputPortDestinationAddress>& GetDestinationAddresses() const { return DestinationAddresses; }
 	FORCEINLINE bool NeedsLoopbackToEngine() const { return bLoopbackToEngine; }
 	FORCEINLINE int32 GetLocalUniverseStart() const { return LocalUniverseStart; }
 	FORCEINLINE int32 GetNumUniverses() const { return NumUniverses; }
 	FORCEINLINE int32 GetExternUniverseStart() const { return ExternUniverseStart; }
 	FORCEINLINE int32 GetPriority() const { return Priority; }
 	FORCEINLINE const FGuid& GetPortGuid() const { return PortGuid; }
-	FORCEINLINE int32 GetDelay() const { return Delay; }
+	int32 GetDelaySeconds() const;
+
+	UE_DEPRECATED(5.0, "Output Ports now support many destination addresses. Use FDMXOutputPortConfig::GetDestinationAddresses instead. ")
+	FORCEINLINE const FString& GetDestinationAddress() const { return DestinationAddress; }
 
 #if WITH_EDITOR
 	static FName GetProtocolNamePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, ProtocolName); }
 	static FName GetCommunicationTypePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, CommunicationType); }
 	static FName GetDeviceAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DeviceAddress); }
-	static FName GetDestinationAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DestinationAddress); }
+	static FName GetDestinationAddressesPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DestinationAddresses); }
 	static FName GetPriorityPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, Priority); }
+	static FName GetDelayPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, Delay); }
+	static FName GetDelayFrameRatePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DelayFrameRate); }
 	static FName GetPortGuidPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, PortGuid); }
+
+	UE_DEPRECATED(5.0, "Output Ports now support many destination addresses. Use FDMXOutputPortConfig::GetDestinationAddressesPropertyNameChecked instead. ")
+	static FName GetDestinationAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, DestinationAddress); }
 #endif // WITH_EDITOR
 
 protected:
@@ -98,10 +131,14 @@ protected:
 	FString DeviceAddress = TEXT("127.0.0.1");
 
 	/** For Unicast, the IP address outbound DMX is sent to */
-	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Destination IP Address"))
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "DestinationAddress is deprecated. Please use DestinationAddresses instead."))
 	FString DestinationAddress = TEXT("None");
 
-	/** If true, the signals of output to this port is input into to the engine. It will still show only under output ports and is not visible in Monitors as Input. */
+	/** For Unicast, the IP addresses outbound DMX is sent to */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Destination IP Address"))
+	TArray<FDMXOutputPortDestinationAddress> DestinationAddresses;
+
+	/** If true, the signals output from this port are input into to the engine. Note, signals input into the engine this way will not be visible in Monitors when monitoring Inputs. */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Input into Engine"))
 	bool bLoopbackToEngine = true;
 
@@ -124,9 +161,13 @@ protected:
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	int32 Priority = 100;
 
-	/** Delay the sending of packets */
-	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", meta = (ClampMin = 0, ClampMax = 60))
-	float Delay = 0;
+	/** The amout by which sending of packets is delayed */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
+	double Delay = 0.0;
+
+	/** Framerate of the delay */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
+	FFrameRate DelayFrameRate;
 
 protected:
 	/** Generates a unique port name (unique for those stored in project settings) */

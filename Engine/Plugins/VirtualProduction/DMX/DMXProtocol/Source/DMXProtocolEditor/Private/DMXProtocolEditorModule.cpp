@@ -7,6 +7,7 @@
 #include "IO/DMXOutputPortReference.h"
 #include "DetailsCustomizations/DMXInputPortConfigCustomization.h"
 #include "DetailsCustomizations/DMXOutputPortConfigCustomization.h"
+#include "DetailsCustomizations/DMXOutputPortDestinationAddressCustomization.h"
 #include "DetailsCustomizations/DMXInputPortReferenceCustomization.h"
 #include "DetailsCustomizations/DMXOutputPortReferenceCustomization.h"
 
@@ -42,6 +43,8 @@ void FDMXProtocolEditorModule::RegisterDetailsCustomizations()
 	PropertyModule.RegisterCustomPropertyTypeLayout(FDMXInputPortConfig::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXInputPortConfigCustomization::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout(FDMXOutputPortConfig::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXOutputPortConfigCustomization::MakeInstance));
 	
+	PropertyModule.RegisterCustomPropertyTypeLayout(FDMXOutputPortDestinationAddress::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXOutputPortDestinationAddressCustomization::MakeInstance));
+
 	PropertyModule.RegisterCustomPropertyTypeLayout(FDMXInputPortReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXInputPortReferenceCustomization::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout(FDMXOutputPortReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXOutputPortReferenceCustomization::MakeInstance));
 

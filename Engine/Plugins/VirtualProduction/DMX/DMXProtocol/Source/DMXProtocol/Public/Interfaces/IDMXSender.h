@@ -16,9 +16,10 @@ public:
 	virtual ~IDMXSender()
 	{}
 
-	/** Sends the DMX signal */
+	/** Sends the DMX signal. Note, this is called from a worker thread, not the game thread. */
 	virtual void SendDMXSignal(const FDMXSignalSharedRef& DMXSignal) = 0;
 
-	/** Clears teh buf*/
-	virtual void ClearBuffer() = 0;
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Deprecated without replacement. Classes that implement IDMXSender do no longer need to implement this method.")
+	virtual void ClearBuffer() {};
 };

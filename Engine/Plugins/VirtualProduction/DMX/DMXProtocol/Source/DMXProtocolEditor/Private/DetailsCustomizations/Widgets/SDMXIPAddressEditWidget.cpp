@@ -7,6 +7,8 @@
 #include "DMXProtocolUtils.h"
 
 #include "EditorStyleSet.h"
+#include "IPAddress.h"
+#include "SocketSubsystem.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
@@ -17,20 +19,32 @@ void SDMXIPAddressEditWidget::Construct(const FArguments& InArgs)
 
 	LocalAdapterAddressSource = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
 
-	ChildSlot
-	[
-		SAssignNew(LocalAdapterAddressComboBox, SComboBox<TSharedPtr<FString>>)
-		.OptionsSource(&LocalAdapterAddressSource)
-		.OnGenerateWidget(this, &SDMXIPAddressEditWidget::GenerateLocalAdapterAddressComboBoxEntry)
-		.OnSelectionChanged(this, &SDMXIPAddressEditWidget::OnIpAddressSelected)
-		.Content()
+	const TSharedRef<SEditableTextBox> IPAddressEditTextBox = SAssignNew(IPAddressEditableTextBlock, SEditableTextBox)
+		.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+		.Text(FText::FromString(InArgs._InitialValue))
+		.OnTextCommitted(this, &SDMXIPAddressEditWidget::OnIPAddressTextCommmited);
+
+	if (InArgs._bShowLocalNICComboBox)
+	{
+		ChildSlot
 		[
-			SAssignNew(IPAddressEditableTextBlock, SEditableTextBox)
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.Text(FText::FromString(InArgs._InitialValue))
-			.OnTextCommitted(this, &SDMXIPAddressEditWidget::OnIPAddressEntered)
-		]
-	];
+			SAssignNew(LocalAdapterAddressComboBox, SComboBox<TSharedPtr<FString>>)
+			.OptionsSource(&LocalAdapterAddressSource)
+			.OnGenerateWidget(this, &SDMXIPAddressEditWidget::GenerateLocalAdapterAddressComboBoxEntry)
+			.OnSelectionChanged(this, &SDMXIPAddressEditWidget::OnIpAddressSelected)
+			.Content()
+			[
+				IPAddressEditTextBox
+			]
+		];
+	}
+	else
+	{
+		ChildSlot
+		[
+			IPAddressEditTextBox
+		];
+	}
 }
 
 FString SDMXIPAddressEditWidget::GetSelectedIPAddress() const
@@ -48,7 +62,7 @@ void SDMXIPAddressEditWidget::OnIpAddressSelected(TSharedPtr<FString> InAddress,
 	}
 }
 
-void SDMXIPAddressEditWidget::OnIPAddressEntered(const FText&, ETextCommit::Type)
+void SDMXIPAddressEditWidget::OnIPAddressTextCommmited(const FText&, ETextCommit::Type)
 {
 	OnIPAddressSelectedDelegate.ExecuteIfBound();
 }

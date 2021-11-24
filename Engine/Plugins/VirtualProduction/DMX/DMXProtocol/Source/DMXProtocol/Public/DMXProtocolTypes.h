@@ -37,24 +37,21 @@ public:
 		, ExternUniverseID(0)
 		, Priority(0)
 		, ChannelData()
-		, Delay(0)
 	{
 		ChannelData.AddZeroed(DMX_UNIVERSE_SIZE);
 	}
 
-	FDMXSignal(const double InTimestamp, const int32 InUniverseID, const int32 InPriority, const TArray<uint8>& InChannelData, const float InDelay)
+	FDMXSignal(const double InTimestamp, const int32 InUniverseID, const int32 InPriority, const TArray<uint8>& InChannelData)
 		: Timestamp(InTimestamp)
 		, ExternUniverseID(InUniverseID)
 		, Priority(InPriority)
 		, ChannelData(InChannelData)
-		, Delay(InDelay)
 	{}
 
-	FDMXSignal(const double InTimestamp, const int32 InUniverseID, const int32 InPriority, TArray<uint8>&& InChannelData, const float InDelay)
+	FDMXSignal(const double InTimestamp, const int32 InUniverseID, const int32 InPriority, TArray<uint8>&& InChannelData)
 		: Timestamp(InTimestamp)
 		, ExternUniverseID(InUniverseID)
 		, ChannelData(InChannelData)
-		, Delay(InDelay)
 	{}
 
 	void Serialize(FArchive& Ar)
@@ -63,7 +60,6 @@ public:
 		Ar << ExternUniverseID;
 		Ar << Priority;
 		Ar << ChannelData;
-		Ar << Delay;
 	}
 
 	double Timestamp;
@@ -73,8 +69,6 @@ public:
 	int32 Priority;
 
 	TArray<uint8> ChannelData;
-
-	float Delay;
 };
 
 /** Result when sending a DMX packet */

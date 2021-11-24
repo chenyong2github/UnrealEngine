@@ -76,5 +76,14 @@ public:
 	 * @param DestinationAddress	The Destination Address the Output Port should use 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void	SetDMXOutputPortDestinationAddresses(FDMXOutputPortReference OutputPort, const TArray<FString>& DestinationAddresses);
+
+	/**
+	 * Sets the Destination Address Address of the Output Port. For networking Protocols that's the Unicast IP Adress. Not required for Multicast and Broadcast.
+	 * @param PortName				The Output Port for which the Unicast IP Address should be set
+	 * @param DestinationAddress	The Destination Address the Output Port should use 
+	 */
+	UE_DEPRECATED(5.0, "Output Ports now support many destination addresses. Please use UDMXProtocolBlueprintLibrary::SetDMXOutputPortDestinationAddresses instead")
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 5.0. Output Ports now support many Destination Addresses. Please use SetDMXOutputPortDestinationAddresses instead."))
 	static void	SetDMXOutputPortDestinationAddress(FDMXOutputPortReference OutputPort, const FString& DestinationAddress);
 };

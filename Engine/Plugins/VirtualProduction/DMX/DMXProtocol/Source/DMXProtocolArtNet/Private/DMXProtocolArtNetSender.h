@@ -7,13 +7,7 @@
 #include "Interfaces/IDMXSender.h"
 
 #include "CoreMinimal.h"
-#include "Containers/Queue.h"
-#include "HAL/CriticalSection.h"
-#include "HAL/Runnable.h"
-#include "Misc/ScopeLock.h" 
-#include "Misc/SingleThreadRunnable.h"
 #include "Serialization/ArrayWriter.h"
-#include "Templates/Atomic.h"
 
 enum class EDMXCommunicationType : uint8;
 struct FDMXProtocolArtNetRDM;
@@ -21,15 +15,12 @@ class FDMXOutputPort;
 
 class FDMXProtocolArtNet;
 class FInternetAddr;
-class FRunnableThread;
 class FSocket;
 class ISocketSubsystem;
 
 
 class DMXPROTOCOLARTNET_API FDMXProtocolArtNetSender
-	: public FRunnable
-	, public FSingleThreadRunnable 
-	, public IDMXSender
+	: public IDMXSender
 {
 protected:
 	/** Constructor. Hidden on purpose, use Create instead. */
@@ -62,7 +53,6 @@ public:
 
 	// ~Begin IDMXSender Interface
 	virtual void SendDMXSignal(const FDMXSignalSharedRef& DMXSignal) override;
-	virtual void ClearBuffer() override;
 	// ~End IDMXSender Interface
 
 public:
@@ -97,35 +87,11 @@ private:
 	/** The Output ports the receiver uses */
 	TSet<TSharedPtr<FDMXOutputPort, ESPMode::ThreadSafe>> AssignedOutputPorts;
 
-protected:
-	//~ Begin FRunnable implementation
-	virtual bool Init() override;
-	virtual uint32 Run() override;
-	virtual void Stop() override;
-	virtual void Exit() override;
-	//~ End FRunnable implementation
-
-	//~ Begin FSingleThreadRunnable implementation
-	virtual void Tick() override;
-	virtual class FSingleThreadRunnable* GetSingleThreadInterface() override;
-	//~ End FSingleThreadRunnable implementation
-
-protected:
-	/** Updates the thread, sending DMX */
-	void Update();
-
-private:
-	/** Buffer of dmx signals */
-	TQueue<FDMXSignalSharedPtr> Buffer;
-
-	/** Map of the latest signal per universe */
-	TMap<int32 /** Universe */, FDMXSignalSharedRef> UniverseToLatestSignalMap;
-
 	/** The Art-Net protocol instance */
 	TSharedPtr<FDMXProtocolArtNet, ESPMode::ThreadSafe> Protocol;
 
 	/** Holds the network socket used to sender packages. */
-	FSocket* Socket;
+	FSocket* Socket = nullptr;
 
 	/** The network interface internet addr */
 	TSharedPtr<FInternetAddr> NetworkInterfaceInternetAddr;
@@ -135,16 +101,4 @@ private:
 
 	/** Communication type used for the network traffic */
 	EDMXCommunicationType CommunicationType;
-
-	/** Lock used when the buffer is cleared */
-	FCriticalSection LatestSignalLock;
-
-	/** Flag indicating that the thread is stopping. */
-	TAtomic<bool> bStopping;
-
-	/** Holds the thread object. */
-	FRunnableThread* Thread;
-
-	/** Buffer of delayed dmx signals */
-	TQueue<FDMXSignal> DelayedBuffer;
 };

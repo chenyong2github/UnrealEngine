@@ -103,7 +103,7 @@ void UDMXProtocolBlueprintLibrary::SetDMXOutputPortDeviceAddress(FDMXOutputPortR
 	}
 }
 
-void UDMXProtocolBlueprintLibrary::SetDMXOutputPortDestinationAddress(FDMXOutputPortReference OutputPort, const FString& DestinationAddress)
+void UDMXProtocolBlueprintLibrary::SetDMXOutputPortDestinationAddresses(FDMXOutputPortReference OutputPort, const TArray<FString>& DestinationAddresses)
 {
 	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 
@@ -116,8 +116,47 @@ void UDMXProtocolBlueprintLibrary::SetDMXOutputPortDestinationAddress(FDMXOutput
 
 		if (OutputPortConfigPtr)
 		{
+			TArray<FDMXOutputPortDestinationAddress> DestinationAddressesStructs;
+			for (const FString& DestinationAddress : DestinationAddresses)
+			{
+				DestinationAddressesStructs.Add(FDMXOutputPortDestinationAddress(DestinationAddress));
+			}
+
 			FDMXOutputPortConfigParams OutputPortConfigParams(*OutputPortConfigPtr);
-			OutputPortConfigParams.DestinationAddress = DestinationAddress;
+			OutputPortConfigParams.DestinationAddresses = DestinationAddressesStructs;
+
+			*OutputPortConfigPtr = FDMXOutputPortConfig(OutputPortConfigPtr->GetPortGuid(), OutputPortConfigParams);
+
+			FDMXPortManager::Get().UpdateFromProtocolSettings();
+		}
+	}
+}
+
+void UDMXProtocolBlueprintLibrary::SetDMXOutputPortDestinationAddress(FDMXOutputPortReference OutputPort, const FString& DestinationAddress)
+{
+	// DEPRECATED 5.0
+
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+
+	if (ProtocolSettings)
+	{
+		FDMXOutputPortConfig* OutputPortConfigPtr = ProtocolSettings->OutputPortConfigs.FindByPredicate([&OutputPort](const FDMXOutputPortConfig& OutputPortConfig)
+			{
+				return OutputPortConfig.GetPortGuid() == OutputPort.GetPortGuid();
+			});
+
+		if (OutputPortConfigPtr)
+		{
+			FDMXOutputPortConfigParams OutputPortConfigParams(*OutputPortConfigPtr);
+
+			if (OutputPortConfigParams.DestinationAddresses.Num() > 0)
+			{
+				OutputPortConfigParams.DestinationAddresses[0] = FDMXOutputPortDestinationAddress(DestinationAddress);
+			}
+			else
+			{
+				OutputPortConfigParams.DestinationAddresses.Add(FDMXOutputPortDestinationAddress(DestinationAddress));
+			}
 
 			*OutputPortConfigPtr = FDMXOutputPortConfig(OutputPortConfigPtr->GetPortGuid(), OutputPortConfigParams);
 
