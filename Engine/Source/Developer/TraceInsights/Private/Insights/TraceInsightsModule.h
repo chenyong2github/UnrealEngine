@@ -106,6 +106,8 @@ protected:
 
 	void UpdateAppTitle();
 
+	void HandleCodeAccessorOpenFileFailed(const FString& Filename);
+
 protected:
 #if WITH_TRACE_STORE
 	TUniquePtr<UE::Trace::FStoreService> StoreService;
