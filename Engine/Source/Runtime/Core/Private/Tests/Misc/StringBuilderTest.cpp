@@ -47,11 +47,11 @@ bool FStringBuilderTestAppendString::RunTest(const FString& Parameters)
 		TStringBuilder<7> Builder;
 		Builder << TEXT('A') << TEXT('B') << TEXT('C');
 		Builder << 'D' << 'E' << 'F';
-		TestEqual(TEXT("Append Char"), FStringView(Builder), TEXT("ABCDEF"_SV));
+		TestEqual(TEXT("Append Char"), FStringView(Builder), TEXTVIEW("ABCDEF"));
 
 		TAnsiStringBuilder<4> AnsiBuilder;
 		AnsiBuilder << 'A' << 'B' << 'C';
-		TestEqual(TEXT("Append AnsiChar"), FAnsiStringView(AnsiBuilder), "ABC"_ASV);
+		TestEqual(TEXT("Append AnsiChar"), FAnsiStringView(AnsiBuilder), ANSITEXTVIEW("ABC"));
 	}
 
 	// Append C String
@@ -59,19 +59,19 @@ bool FStringBuilderTestAppendString::RunTest(const FString& Parameters)
 		TStringBuilder<7> Builder;
 		Builder << TEXT("ABC");
 		Builder << "DEF";
-		TestEqual(TEXT("Append C String"), FStringView(Builder), TEXT("ABCDEF"_SV));
+		TestEqual(TEXT("Append C String"), FStringView(Builder), TEXTVIEW("ABCDEF"));
 
 		TAnsiStringBuilder<4> AnsiBuilder;
 		AnsiBuilder << "ABC";
-		TestEqual(TEXT("Append Ansi C String"), FAnsiStringView(AnsiBuilder), "ABC"_ASV);
+		TestEqual(TEXT("Append Ansi C String"), FAnsiStringView(AnsiBuilder), ANSITEXTVIEW("ABC"));
 	}
 
 	// Append FStringView
 	{
 		TStringBuilder<7> Builder;
-		Builder << TEXT("ABC"_SV);
+		Builder << TEXTVIEW("ABC");
 		Builder << "DEF"_ASV;
-		TestEqual(TEXT("Append FStringView"), FStringView(Builder), TEXT("ABCDEF"_SV));
+		TestEqual(TEXT("Append FStringView"), FStringView(Builder), TEXTVIEW("ABCDEF"));
 
 		TAnsiStringBuilder<4> AnsiBuilder;
 		AnsiBuilder << "ABC"_ASV;
@@ -84,7 +84,7 @@ bool FStringBuilderTestAppendString::RunTest(const FString& Parameters)
 		Builder << TEXT("ABC");
 		TStringBuilder<4> BuilderCopy;
 		BuilderCopy << Builder;
-		TestEqual(TEXT("Append FStringBuilderBase"), FStringView(BuilderCopy), TEXT("ABC"_SV));
+		TestEqual(TEXT("Append FStringBuilderBase"), FStringView(BuilderCopy), TEXTVIEW("ABC"));
 
 		TAnsiStringBuilder<4> AnsiBuilder;
 		AnsiBuilder << "ABC";
@@ -97,15 +97,15 @@ bool FStringBuilderTestAppendString::RunTest(const FString& Parameters)
 	{
 		TStringBuilder<4> Builder;
 		Builder << FString(TEXT("ABC"));
-		TestEqual(TEXT("Append FString"), FStringView(Builder), TEXT("ABC"_SV));
+		TestEqual(TEXT("Append FString"), FStringView(Builder), TEXTVIEW("ABC"));
 	}
 
 	// Append Char Array
 	{
-		const TCHAR String[16] = TEXT("ABC");
+		const auto& String = TEXT("ABC");
 		TStringBuilder<4> Builder;
 		Builder << String;
-		TestEqual(TEXT("Append Char Array"), FStringView(Builder), TEXT("ABC"_SV));
+		TestEqual(TEXT("Append Char Array"), FStringView(Builder), TEXTVIEW("ABC"));
 
 		const ANSICHAR AnsiString[16] = "ABC";
 		TAnsiStringBuilder<4> AnsiBuilder;

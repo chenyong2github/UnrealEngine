@@ -379,10 +379,17 @@ constexpr inline auto GetNum(TStringView<CharType> String)
 
 //////////////////////////////////////////////////////////////////////////
 
+#if PLATFORM_TCHAR_IS_UTF8CHAR
+inline FStringView operator "" _SV(const ANSICHAR* String, size_t Size)
+{
+	return FStringView((const UTF8CHAR*)String, Size);
+}
+#else
 constexpr inline FStringView operator "" _SV(const TCHAR* String, size_t Size)
 {
 	return FStringView(String, Size);
 }
+#endif
 
 constexpr inline FAnsiStringView operator "" _ASV(const ANSICHAR* String, size_t Size)
 {
@@ -400,6 +407,15 @@ constexpr inline FWideStringView operator "" _WSV(const WIDECHAR* String, size_t
 	// rather than an ANSICHAR*, which won't be until we have C++20 char8_t string literals.
 	return FUtf8StringView(reinterpret_cast<const UTF8CHAR*>(String), Size);
 }
+
+#if PLATFORM_TCHAR_IS_UTF8CHAR
+	#define TEXTVIEW(str) (str##_SV)
+#else
+	#define TEXTVIEW(str) TEXT(str##_SV)
+#endif
+#define ANSITEXTVIEW(str) (str##_ASV)
+#define WIDETEXTVIEW(str) PREPROCESSOR_JOIN(WIDETEXT(str), _WSV)
+#define UTF8TEXTVIEW(str) (str##_U8SV)
 
 //////////////////////////////////////////////////////////////////////////
 

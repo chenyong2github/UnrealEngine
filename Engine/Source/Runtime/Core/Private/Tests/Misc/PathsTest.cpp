@@ -9,6 +9,22 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+const FStringView PathTest::BaseDir = TEXTVIEW("/root");
+
+const PathTest::FTestPair PathTest::ExpectedRelativeToAbsolutePaths[10] =
+{
+	{ TEXTVIEW(""),					TEXTVIEW("/root/") },
+	{ TEXTVIEW("dir"),				TEXTVIEW("/root/dir") },
+	{ TEXTVIEW("/groot"),			TEXTVIEW("/groot") },
+	{ TEXTVIEW("/groot/"),			TEXTVIEW("/groot/") },
+	{ TEXTVIEW("/r/dir"),			TEXTVIEW("/r/dir") },
+	{ TEXTVIEW("/r/dir"),			TEXTVIEW("/r/dir") },
+	{ TEXTVIEW("C:\\"),				TEXTVIEW("C:/") },
+	{ TEXTVIEW("C:\\A\\B"),			TEXTVIEW("C:/A/B") },
+	{ TEXTVIEW("a/b/../c"),			TEXTVIEW("/root/a/c") },
+	{ TEXTVIEW("/a/b/../c"),		TEXTVIEW("/a/c") },
+};
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPathTests, "System.Core.Misc.Paths", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 
 bool FPathTests::RunTest( const FString& Parameters )

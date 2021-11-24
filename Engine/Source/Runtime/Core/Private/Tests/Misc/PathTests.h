@@ -126,21 +126,9 @@ struct FTestPair
 	FStringView Expected;
 };
 
-constexpr FStringView BaseDir = TEXT("/root"_SV);
+extern const FStringView BaseDir;
 
-constexpr FTestPair ExpectedRelativeToAbsolutePaths[] =
-{
-	{ TEXT(""_SV),					TEXT("/root/"_SV) },
-	{ TEXT("dir"_SV),				TEXT("/root/dir"_SV) },
-	{ TEXT("/groot"_SV),			TEXT("/groot"_SV) },
-	{ TEXT("/groot/"_SV),			TEXT("/groot/"_SV) },
-	{ TEXT("/r/dir"_SV),			TEXT("/r/dir"_SV) },
-	{ TEXT("/r/dir"_SV),			TEXT("/r/dir"_SV) },
-	{ TEXT("C:\\"_SV),				TEXT("C:/"_SV) },
-	{ TEXT("C:\\A\\B"_SV),			TEXT("C:/A/B"_SV) },
-	{ TEXT("a/b/../c"_SV),			TEXT("/root/a/c"_SV) },
-	{ TEXT("/a/b/../c"_SV),			TEXT("/a/c"_SV) },
-};
+extern const FTestPair ExpectedRelativeToAbsolutePaths[10];
 
 }
 

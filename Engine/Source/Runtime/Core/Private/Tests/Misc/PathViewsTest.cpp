@@ -298,39 +298,39 @@ bool FPathViewsAppendTest::RunTest(const FString& InParameters)
 	TStringBuilder<256> Path;
 
 	FPathViews::Append(Path, TEXT("A"), TEXT(""));
-	TestEqual(TEXT("FPathViews::Append('A', '')"), FStringView(Path), TEXT("A/"_SV));
+	TestEqual(TEXT("FPathViews::Append('A', '')"), FStringView(Path), TEXTVIEW("A/"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT(""), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('', 'B')"), FStringView(Path), TEXT("B"_SV));
+	TestEqual(TEXT("FPathViews::Append('', 'B')"), FStringView(Path), TEXTVIEW("B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("/"), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('/', 'B')"), FStringView(Path), TEXT("/B"_SV));
+	TestEqual(TEXT("FPathViews::Append('/', 'B')"), FStringView(Path), TEXTVIEW("/B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A"), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('A', 'B')"), FStringView(Path), TEXT("A/B"_SV));
+	TestEqual(TEXT("FPathViews::Append('A', 'B')"), FStringView(Path), TEXTVIEW("A/B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A/"), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('A/', 'B')"), FStringView(Path), TEXT("A/B"_SV));
+	TestEqual(TEXT("FPathViews::Append('A/', 'B')"), FStringView(Path), TEXTVIEW("A/B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A\\"), TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('A\\', 'B')"), FStringView(Path), TEXT("A\\B"_SV));
+	TestEqual(TEXT("FPathViews::Append('A\\', 'B')"), FStringView(Path), TEXTVIEW("A\\B"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A/B"), TEXT("C/D"));
-	TestEqual(TEXT("FPathViews::Append('A/B', 'C/D')"), FStringView(Path), TEXT("A/B/C/D"_SV));
+	TestEqual(TEXT("FPathViews::Append('A/B', 'C/D')"), FStringView(Path), TEXTVIEW("A/B/C/D"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A/"), TEXT("B"), TEXT("C/"), TEXT("D"));
-	TestEqual(TEXT("FPathViews::Append('A/', 'B', 'C/', 'D')"), FStringView(Path), TEXT("A/B/C/D"_SV));
+	TestEqual(TEXT("FPathViews::Append('A/', 'B', 'C/', 'D')"), FStringView(Path), TEXTVIEW("A/B/C/D"));
 	Path.Reset();
 
 	FPathViews::Append(Path, TEXT("A/"), 16, TEXT("B"));
-	TestEqual(TEXT("FPathViews::Append('A/', 16, 'B')"), FStringView(Path), TEXT("A/16/B"_SV));
+	TestEqual(TEXT("FPathViews::Append('A/', 16, 'B')"), FStringView(Path), TEXTVIEW("A/16/B"));
 	Path.Reset();
 
 	return true;
@@ -724,7 +724,7 @@ bool FPathViewsToAbsoluteTest::RunTest(const FString& InParameters)
 		FPathViews::ToAbsolutePathInline(BaseDir, ActualInline);	
 		TestEqual(TEXT("ToAbsolutePathInline"), ActualInline.ToView(), Pair.Expected);
 		
-		constexpr FStringView Original = TEXT("\\\\la/./.././la////"_SV);
+		const FStringView Original = TEXTVIEW("\\\\la/./.././la////");
 		TStringBuilder<64> ActualNondestructive;
 		ActualNondestructive << Original;
 		FPathViews::ToAbsolutePath(BaseDir, Pair.Input, ActualNondestructive);

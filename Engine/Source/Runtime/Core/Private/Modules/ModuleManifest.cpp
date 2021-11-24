@@ -57,14 +57,14 @@ bool FModuleManifest::TryRead(const FString& FileName, FModuleManifest& OutManif
 			return false;
 		}
 
-		if (Field.ToView() == TEXT("BuildId"_SV))
+		if (Field.ToView() == TEXTVIEW("BuildId"))
 		{
 			if (!FSimpleParse::ParseString(Ptr, OutManifest.BuildId))
 			{
 				return false;
 			}
 		}
-		else if (Field.ToView() == TEXT("Modules"_SV))
+		else if (Field.ToView() == TEXTVIEW("Modules"))
 		{
 			if (!FSimpleParse::MatchZeroOrMoreWhitespace(Ptr) || !FSimpleParse::MatchChar(Ptr, TEXT('{')) || !FSimpleParse::MatchZeroOrMoreWhitespace(Ptr))
 			{

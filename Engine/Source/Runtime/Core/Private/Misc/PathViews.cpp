@@ -234,7 +234,7 @@ FString FPathViews::ChangeExtension(const FStringView& InPath, const FStringView
 		const FStringView::SizeType Pos = FStringView::SizeType(PathEndPos - InPath.GetData());
 		const FStringView FileWithoutExtension = InPath.Left(Pos);
 
-		if (!InNewExtension.IsEmpty() && !InNewExtension.StartsWith('.'))
+		if (!InNewExtension.IsEmpty() && !InNewExtension.StartsWith(TEXT('.')))
 		{
 			// The new extension lacks a period so we need to add it ourselves.
 			FString Result(FileWithoutExtension, InNewExtension.Len() + 1);
@@ -385,7 +385,7 @@ bool FPathViews::IsRelativePath(FStringView InPath)
 			// Path starts with /; it may be either /Foo or //Foo
 			return false;
 		}
-		else if (InPath[FirstLen - 1] == ':')
+		else if (InPath[FirstLen - 1] == TEXT(':'))
 		{
 			// InPath == Volume:/SomethingOrNothing
 			return false;
@@ -423,7 +423,7 @@ void FPathViews::ToAbsolutePathInline(FStringView BasePath, FStringBuilderBase& 
 
 	if (IsRelativePath(InOutPath))
 	{
-		if (BasePath.EndsWith('/') || BasePath.EndsWith('\\'))
+		if (BasePath.EndsWith(TEXT('/')) || BasePath.EndsWith(TEXT('\\')))
 		{
 			InOutPath.Prepend(BasePath);
 		}
@@ -472,18 +472,18 @@ void FPathViews::ToAbsolutePath(FStringView InPath, FStringBuilderBase& OutPath)
 
 void FPathViews::NormalizeFilename(FStringBuilderBase& InOutPath)
 {
-	Algo::Replace(MakeArrayView(InOutPath), '\\', '/');
+	Algo::Replace(MakeArrayView(InOutPath), TEXT('\\'), TEXT('/'));
 	FPlatformMisc::NormalizePath(InOutPath);
 }
 
 static bool ShouldRemoveTrailingSlash(FStringView Dir)
 {
-	return Dir.EndsWith('/') && !Dir.EndsWith(TEXT("//"_SV), ESearchCase::CaseSensitive) && !Dir.EndsWith(TEXT(":/"_SV), ESearchCase::CaseSensitive);
+	return Dir.EndsWith(TEXT('/')) && !Dir.EndsWith(TEXTVIEW("//"), ESearchCase::CaseSensitive) && !Dir.EndsWith(TEXTVIEW(":/"), ESearchCase::CaseSensitive);
 }
 
 void FPathViews::NormalizeDirectoryName(FStringBuilderBase& InOutPath)
 {
-	Algo::Replace(MakeArrayView(InOutPath), '\\', '/');
+	Algo::Replace(MakeArrayView(InOutPath), TEXT('\\'), TEXT('/'));
 	InOutPath.RemoveSuffix(ShouldRemoveTrailingSlash(InOutPath.ToView()) ? 1 : 0);
 	FPlatformMisc::NormalizePath(InOutPath);
 }
@@ -523,8 +523,8 @@ bool FPathViews::CollapseRelativeDirectories(FStringBuilderBase& InOutPath)
 		FStringView Path = InOutPath.ToView();
 
 		// Consider paths which start with .. or /.. as invalid
-		constexpr FStringView ParentDir = TEXT("/.."_SV);
-		if (Path.StartsWith(TEXT(".."_SV)) || Path.StartsWith(ParentDir))
+		const FStringView ParentDir = TEXTVIEW("/..");
+		if (Path.StartsWith(TEXTVIEW("..")) || Path.StartsWith(ParentDir))
 		{
 			return false;
 		}
@@ -545,14 +545,14 @@ bool FPathViews::CollapseRelativeDirectories(FStringBuilderBase& InOutPath)
 
 		// Find previous directory, stop if we've found a directory that isn't "/./"
 		int32 PreviousSeparatorIndex = Index;
-		while (Path.Left(PreviousSeparatorIndex).FindLastChar('/', /* Out */ PreviousSeparatorIndex) &&
-				Path.Mid(PreviousSeparatorIndex + 1, 2) == TEXT("./"_SV));
+		while (Path.Left(PreviousSeparatorIndex).FindLastChar(TEXT('/'), /* Out */ PreviousSeparatorIndex) &&
+				Path.Mid(PreviousSeparatorIndex + 1, 2) == TEXTVIEW("./"));
 
 		PreviousSeparatorIndex = FMath::Max(0, PreviousSeparatorIndex);
 		
 		// If we're attempting to remove the drive letter, that's illegal
 		int32 RemoveLen = Index - PreviousSeparatorIndex + ParentDir.Len();
-		if (Contains(Path.Mid(PreviousSeparatorIndex, RemoveLen), ':'))
+		if (Contains(Path.Mid(PreviousSeparatorIndex, RemoveLen), TEXT(':')))
 		{
 			return false;
 		}
@@ -560,14 +560,14 @@ bool FPathViews::CollapseRelativeDirectories(FStringBuilderBase& InOutPath)
 		InOutPath.RemoveAt(PreviousSeparatorIndex, RemoveLen);
 	}
 
-	RemoveAll(InOutPath, TEXT("./"_SV));
+	RemoveAll(InOutPath, TEXTVIEW("./"));
 
 	return true;
 }
 
 void FPathViews::RemoveDuplicateSlashes(FStringBuilderBase& InOutPath)
 {
-	int32 DoubleSlashIdx = UE::String::FindFirst(InOutPath.ToView(), TEXT("//"_SV));
+	int32 DoubleSlashIdx = UE::String::FindFirst(InOutPath.ToView(), TEXTVIEW("//"));
 	if (DoubleSlashIdx == INDEX_NONE)
 	{
 		return;
@@ -575,15 +575,15 @@ void FPathViews::RemoveDuplicateSlashes(FStringBuilderBase& InOutPath)
 
 	TCHAR* WriteIt = InOutPath.GetData() + DoubleSlashIdx + 1;
 	TCHAR* ReadIt = WriteIt + 1;
-	for (TCHAR* End = InOutPath.GetData() + InOutPath.Len(), LastChar = '/'; ReadIt != End; LastChar = *ReadIt++)
+	for (TCHAR* End = InOutPath.GetData() + InOutPath.Len(), LastChar = TEXT('/'); ReadIt != End; LastChar = *ReadIt++)
 	{
-		if ((*ReadIt != '/') | (LastChar != '/'))
+		if ((*ReadIt != TEXT('/')) | (LastChar != TEXT('/')))
 		{
 			*WriteIt++ = *ReadIt;
 		}
 	}
 
-	*WriteIt = '\0';
+	*WriteIt = TEXT('\0');
 	InOutPath.RemoveSuffix(int32(ReadIt - WriteIt));
 }
 
@@ -622,7 +622,7 @@ void FPathViews::SplitFirstComponent(FStringView InPath, FStringView& OutFirstCo
 				OutRemainder = InPath.RightChop(1);
 			}
 		}
-		else if (InPath[FirstLen - 1] == ':')
+		else if (InPath[FirstLen - 1] == TEXT(':'))
 		{
 			// InPath == Volume:/SomethingOrNothing
 			// FirstComponent = Volume:/
