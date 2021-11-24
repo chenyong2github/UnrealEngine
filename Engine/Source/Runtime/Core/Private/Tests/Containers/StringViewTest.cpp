@@ -81,7 +81,7 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 		TestFalse(TEXT("View.IsEmpty"), View.IsEmpty());
 	}
 
-	// Create from a ansi literal
+	// Create from an ansi literal
 	{
 		FAnsiStringView View("Test Ctor");
 		TestEqual(TEXT("View length"), View.Len(), FCStringAnsi::Strlen("Test Ctor"));
@@ -101,7 +101,28 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 	{
 		FStringView View = TEXTVIEW("Test");
 		FAnsiStringView ViewAnsi = "Test"_ASV;
-		FWideStringView ViewWide = WIDETEXTVIEW("Test");
+		FWideStringView ViewWide = WIDETEXT("Test"_WSV);
+	}
+
+	// Verify that class template argument deduction is working
+	{
+		TStringView ViewAnsi((ANSICHAR*)"Test");
+		TStringView ViewWide((WIDECHAR*)WIDETEXT("Test"));
+		TStringView ViewUtf8((UTF8CHAR*)UTF8TEXT("Test"));
+	}
+	{
+		TStringView ViewAnsi((const ANSICHAR*)"Test");
+		TStringView ViewWide((const WIDECHAR*)WIDETEXT("Test"));
+		TStringView ViewUtf8((const UTF8CHAR*)UTF8TEXT("Test"));
+	}
+	{
+		TStringView ViewAnsi(WriteToAnsiString<16>("Test"));
+		TStringView ViewWide(WriteToWideString<16>(WIDETEXT("Test")));
+		TStringView ViewUtf8(WriteToUtf8String<16>(UTF8TEXT("Test")));
+	}
+	{
+		FString String(TEXT("Test"));
+		TStringView ViewString(String);
 	}
 
 	return true;

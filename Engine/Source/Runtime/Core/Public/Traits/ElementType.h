@@ -2,16 +2,32 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
 #include <initializer_list>
-#include "Templates/RemoveCV.h"
+#include <type_traits>
+
+namespace UE::Core::Private::ElementType
+{
+
+template <typename T, typename = void>
+struct TImpl
+{
+};
+
+template <typename T>
+struct TImpl<T, std::void_t<typename T::ElementType>>
+{
+	using Type = typename T::ElementType;
+};
+
+} // UE::Core::Private::ElementType
 
 /**
  * Traits class which gets the element type of a container.
  */
 template <typename T>
-struct TElementType
+struct TElementType : UE::Core::Private::ElementType::TImpl<T>
 {
-	using Type = typename T::ElementType;
 };
 
 template <typename T> struct TElementType<             T& > : TElementType<T> {};
@@ -34,5 +50,8 @@ template <typename T, size_t N> struct TElementType<const volatile T[N]> { using
 template <typename T>
 struct TElementType<std::initializer_list<T>>
 {
-	using Type = typename TRemoveCV<T>::Type;
+	using Type = std::remove_cv_t<T>;
 };
+
+template <typename T>
+using TElementType_T = typename TElementType<T>::Type;
