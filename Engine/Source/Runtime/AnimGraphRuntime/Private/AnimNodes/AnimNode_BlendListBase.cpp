@@ -185,8 +185,8 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 				}
 			}
 
-			// when this flag is true, we'll reinitialize the children
-			if (GetResetChildOnActivation())
+			// When bResetChildOnActivation is true and the weight of the new child is zero, we'll reinitialize the child.
+			if (GetResetChildOnActivation() && CurrentWeight <= ZERO_ANIMWEIGHT_THRESH)
 			{
 				FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy, Context.SharedContext);
 
