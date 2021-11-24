@@ -1385,46 +1385,59 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			// Gpu Target
 			else if (FNiagaraUtilities::AllowComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel]) && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingIndirectInstanceData(GShaderPlatformForFeatureLevel[FeatureLevel]) )
 			{
-				FRHICommandListImmediate& RHICmdList = Context.RHICmdList;
+				FRHICommandListImmediate& RHICmdList = Context.GraphBuilder.RHICmdList;
 
 				RayTracingInstance.NumTransforms = NumInstances;
 
-				FRWBufferStructured InstanceGPUTransformsBuffer;
-				InstanceGPUTransformsBuffer.Initialize(TEXT("InstanceGPUTransformsBuffer"), 4 * sizeof(float), 3 * NumInstances, BUF_Static);
-				RayTracingInstance.InstanceGPUTransformsSRV = InstanceGPUTransformsBuffer.SRV;
+				FRDGBufferRef InstanceGPUTransformsBufferRef = Context.GraphBuilder.CreateBuffer(
+					FRDGBufferDesc::CreateStructuredDesc(4 * sizeof(float), 3 * NumInstances),
+					TEXT("InstanceGPUTransformsBuffer"));
 
-				FNiagaraGPURayTracingTransformsCS::FParameters PassParameters;
+				const TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer = Context.GraphBuilder.ConvertToExternalBuffer(InstanceGPUTransformsBufferRef);
+				RayTracingInstance.InstanceGPUTransformsSRV = ExternalBuffer->GetOrCreateSRV(FRHIBufferSRVCreateInfo());
+
+				FNiagaraGPURayTracingTransformsCS::FParameters* PassParameters = Context.GraphBuilder.AllocParameters< FNiagaraGPURayTracingTransformsCS::FParameters>();
+
 				{
-					PassParameters.ParticleDataFloatStride		= ParticleMeshRenderData.ParticleFloatDataStride;
+					PassParameters->ParticleDataFloatStride		= ParticleMeshRenderData.ParticleFloatDataStride;
 					//PassParameters.ParticleDataHalfStride		= ParticleMeshRenderData.ParticleHalfDataStride;
-					PassParameters.ParticleDataIntStride		= ParticleMeshRenderData.ParticleIntDataStride;
-					PassParameters.CPUNumInstances				= NumInstances;
-					PassParameters.InstanceCountOffset			= ParticleMeshRenderData.SourceParticleData->GetGPUInstanceCountBufferOffset();
-					PassParameters.PositionDataOffset			= VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
-					PassParameters.RotationDataOffset			= VFVariables[ENiagaraMeshVFLayout::Rotation].GetGPUOffset();
-					PassParameters.ScaleDataOffset				= VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset();
-					PassParameters.bLocalSpace					= bUseLocalSpace ? 1 : 0;
-					PassParameters.RenderVisibilityOffset		= RendererVisTagOffset;
-					PassParameters.MeshIndexOffset				= MeshIndexOffset;
-					PassParameters.RenderVisibilityValue		= RendererVisibility;
-					PassParameters.MeshIndexValue				= MeshData.SourceMeshIndex;
-					PassParameters.LocalTransform				= LocalTransform;
-					PassParameters.DefaultPosition				= FVector::ZeroVector;
-					PassParameters.DefaultRotation				= FVector4(0.0f, 0.0f, 0.0f, 1.0f);
-					PassParameters.DefaultScale					= FVector(1.0f, 1.0f, 1.0f);
-					PassParameters.MeshScale					= MeshData.Scale;
-					PassParameters.ParticleDataFloatBuffer		= ParticleMeshRenderData.ParticleFloatSRV;
+					PassParameters->ParticleDataIntStride		= ParticleMeshRenderData.ParticleIntDataStride;
+					PassParameters->CPUNumInstances				= NumInstances;
+					PassParameters->InstanceCountOffset			= ParticleMeshRenderData.SourceParticleData->GetGPUInstanceCountBufferOffset();
+					PassParameters->PositionDataOffset			= VFVariables[ENiagaraMeshVFLayout::Position].GetGPUOffset();
+					PassParameters->RotationDataOffset			= VFVariables[ENiagaraMeshVFLayout::Rotation].GetGPUOffset();
+					PassParameters->ScaleDataOffset				= VFVariables[ENiagaraMeshVFLayout::Scale].GetGPUOffset();
+					PassParameters->bLocalSpace					= bUseLocalSpace ? 1 : 0;
+					PassParameters->RenderVisibilityOffset		= RendererVisTagOffset;
+					PassParameters->MeshIndexOffset				= MeshIndexOffset;
+					PassParameters->RenderVisibilityValue		= RendererVisibility;
+					PassParameters->MeshIndexValue				= MeshData.SourceMeshIndex;
+					PassParameters->LocalTransform				= LocalTransform;
+					PassParameters->DefaultPosition				= FVector::ZeroVector;
+					PassParameters->DefaultRotation				= FVector4(0.0f, 0.0f, 0.0f, 1.0f);
+					PassParameters->DefaultScale					= FVector(1.0f, 1.0f, 1.0f);
+					PassParameters->MeshScale					= MeshData.Scale;
+					PassParameters->ParticleDataFloatBuffer		= ParticleMeshRenderData.ParticleFloatSRV;
 					//PassParameters.ParticleDataHalfBuffer		= ParticleMeshRenderData.ParticleHalfSRV;
-					PassParameters.ParticleDataIntBuffer		= ParticleMeshRenderData.ParticleIntSRV;
-					PassParameters.GPUInstanceCountBuffer		= ComputeDispatchInterface->GetGPUInstanceCounterManager().GetInstanceCountBuffer().SRV;
-					PassParameters.TLASTransforms				= InstanceGPUTransformsBuffer.UAV;
+					PassParameters->ParticleDataIntBuffer		= ParticleMeshRenderData.ParticleIntSRV;
+					PassParameters->GPUInstanceCountBuffer		= ComputeDispatchInterface->GetGPUInstanceCounterManager().GetInstanceCountBuffer().SRV;
+					PassParameters->TLASTransforms				= ExternalBuffer->GetOrCreateUAV(FRHIBufferUAVCreateInfo());
 				}
 
-				FNiagaraGPURayTracingTransformsCS::FPermutationDomain PermutationVector;
-				TShaderMapRef<FNiagaraGPURayTracingTransformsCS> ComputeShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
-				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, PassParameters, FComputeShaderUtils::GetGroupCount(int32(NumInstances), int32(FNiagaraGPURayTracingTransformsCS::ThreadGroupSize)));
-			
-				RHICmdList.Transition(FRHITransitionInfo(InstanceGPUTransformsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+				Context.GraphBuilder.AddPass(
+					RDG_EVENT_NAME("NiagaraGPURayTracingTransforms"),
+					PassParameters,
+					ERDGPassFlags::Compute,
+					[PassParameters, Pass_FeatureLevel = FeatureLevel, NumInstances](FRHICommandList& RHICmdList)
+				{
+					RHICmdList.Transition(FRHITransitionInfo(PassParameters->TLASTransforms, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+
+					FNiagaraGPURayTracingTransformsCS::FPermutationDomain PermutationVector;
+					TShaderMapRef<FNiagaraGPURayTracingTransformsCS> ComputeShader(GetGlobalShaderMap(Pass_FeatureLevel), PermutationVector);
+					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, FComputeShaderUtils::GetGroupCount(int32(NumInstances), int32(FNiagaraGPURayTracingTransformsCS::ThreadGroupSize)));
+
+					RHICmdList.Transition(FRHITransitionInfo(PassParameters->TLASTransforms, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+				});
 			}
 		}
 
