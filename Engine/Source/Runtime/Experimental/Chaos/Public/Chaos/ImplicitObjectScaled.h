@@ -160,21 +160,21 @@ public:
 	}
 
 	// The support position from the specified direction
-	FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
+	FORCEINLINE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness, int32& VertexIndex) const
 	{
-		return MObject->Support(Direction, Thickness); 
+		return MObject->Support(Direction, Thickness, VertexIndex); 
 	}
 
 	// this shouldn't be called, but is required until we remove the explicit function implementations in CollisionResolution.cpp
-	FORCEINLINE TVector<T, d> SupportScaled(const TVector<T, d>& Direction, const T Thickness, const FVec3& Scale) const
+	FORCEINLINE TVector<T, d> SupportScaled(const TVector<T, d>& Direction, const T Thickness, const FVec3& Scale, int32& VertexIndex) const
 	{
-		return MObject->SupportScaled(Direction, Thickness, Scale);
+		return MObject->SupportScaled(Direction, Thickness, Scale, VertexIndex);
 	}
 
 	// The support position from the specified direction, if the shape is reduced by the margin
-	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta) const
+	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 	{
-		return MObject->SupportCore(Direction, InMargin, OutSupportDelta);
+		return MObject->SupportCore(Direction, InMargin, OutSupportDelta, VertexIndex);
 	}
 
 	virtual const TAABB<T, d> BoundingBox() const override 
@@ -248,6 +248,13 @@ public:
 	int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
 	{
 		return MObject->FindVertexPlanes(VertexIndex, OutVertexPlanes, MaxVertexPlanes);
+	}
+
+	// Get up to the 3  plane indices that belong to a vertex
+	// Returns the number of planes found.
+	int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const
+	{
+		return MObject->GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
 	}
 
 	// The number of vertices that make up the corners of the specified face
@@ -694,6 +701,13 @@ public:
 	{
 		return MObject->FindVertexPlanes(VertexIndex, OutVertexPlanes, MaxVertexPlanes);
 	}
+	
+	// Get up to the 3  plane indices that belong to a vertex
+	// Returns the number of planes found.
+	int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const
+	{
+		return MObject->GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
+	}
 
 	// The number of vertices that make up the corners of the specified face
 	int32 NumPlaneVertices(int32 PlaneIndex) const
@@ -820,7 +834,7 @@ public:
 	}
 
 
-	FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
+	FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness, int32& VertexIndex) const
 	{
 		// Support_obj(dir) = pt => for all x in obj, pt \dot dir >= x \dot dir
 		// We want Support_objScaled(dir) = Support_obj(dir') where dir' is some modification of dir so we can use the unscaled support function
@@ -828,13 +842,13 @@ public:
 		// But this is the same as pt \dot dir >= dir^T Ax = (dir^TA) x = (A^T dir)^T x
 		//So let dir' = A^T dir.
 		//Since we only support scaling on the principal axes A is a diagonal (and therefore symmetric) matrix and so a simple component wise multiplication is sufficient
-		const TVector<T, d> UnthickenedPt = MObject->Support(Direction * MScale, 0.0f) * MScale;
+		const TVector<T, d> UnthickenedPt = MObject->Support(Direction * MScale, 0.0f, VertexIndex) * MScale;
 		return Thickness > 0 ? TVector<T, d>(UnthickenedPt + Direction.GetSafeNormal() * Thickness) : UnthickenedPt;
 	}
 
-	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta) const
+	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 	{
-		return MObject->SupportCoreScaled(Direction, InMargin, MScale, OutSupportDelta);
+		return MObject->SupportCoreScaled(Direction, InMargin, MScale, OutSupportDelta, VertexIndex);
 	}
 
 	void SetScale(const FVec3& Scale)

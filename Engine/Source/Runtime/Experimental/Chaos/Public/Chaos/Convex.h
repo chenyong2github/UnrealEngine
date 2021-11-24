@@ -609,9 +609,10 @@ namespace Chaos
 
 	public:
 		// Return support point on the core shape (the convex shape with all planes moved inwards by margin).
-		FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta) const
+		FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			const int32 SupportVertexIndex = GetSupportVertex(Direction);
+			VertexIndex = SupportVertexIndex;
 			if (SupportVertexIndex != INDEX_NONE)
 			{
 				return GetMarginAdjustedVertex(SupportVertexIndex, InMargin, OutSupportDelta);
@@ -621,12 +622,12 @@ namespace Chaos
 
 		// SupportCore with non-uniform scale support. This is required for the margin in scaled
 		// space to by uniform. Note in this version all the inputs are in outer container's (scaled shape) space
-		FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta) const
+		FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			// Find the supporting vertex index
 			const FVec3 DirectionScaled = Scale * Direction;	// does not need to be normalized
 			const int32 SupportVertexIndex = GetSupportVertex(DirectionScaled);
-
+			VertexIndex = SupportVertexIndex;
 			// Adjust the vertex position based on margin
 			if (SupportVertexIndex != INDEX_NONE)
 			{
@@ -639,9 +640,10 @@ namespace Chaos
 
 		// Return support point on the shape
 		// @todo(chaos): do we need to support thickness?
-		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
+		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
 		{
 			const int32 MaxVIdx = GetSupportVertex(Direction);
+			VertexIndex = MaxVIdx;
 			if (MaxVIdx != INDEX_NONE)
 			{
 				if (Thickness != 0.0f)
@@ -653,9 +655,9 @@ namespace Chaos
 			return FVec3(0);
 		}
 
-		FORCEINLINE FVec3 SupportScaled(const FVec3& Direction, const FReal Thickness, const FVec3& Scale) const
+		FORCEINLINE FVec3 SupportScaled(const FVec3& Direction, const FReal Thickness, const FVec3& Scale, int32& VertexIndex) const
 		{
-			FVec3 SupportPoint = Support(Direction * Scale, 0.0f) * Scale;
+			FVec3 SupportPoint = Support(Direction * Scale, 0.0f, VertexIndex) * Scale;
 			if (Thickness > 0.0f)
 			{
 				SupportPoint += Thickness * Direction.GetSafeNormal();

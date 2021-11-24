@@ -26,10 +26,12 @@ namespace Chaos
 
 		FORCEINLINE FReal GetLength() const { return MLength; }
 
-		TVec3<T> Support(const TVec3<T>& Direction, const T Thickness) const
+		TVec3<T> Support(const TVec3<T>& Direction, const T Thickness, int32& VertexIndex) const
 		{
 			const T Dot = TVec3<T>::DotProduct(Direction, MAxis);
-			const TVec3<T> FarthestCap = Dot >= 0 ? GetX2() : GetX1();	//orthogonal we choose either
+			const bool bIsSecond = Dot >= 0;
+			const TVec3<T> FarthestCap = bIsSecond? GetX2() : GetX1();	//orthogonal we choose either
+			VertexIndex = bIsSecond ? 1 : 0;
 			//We want N / ||N|| and to avoid inf
 			//So we want N / ||N|| < 1 / eps => N eps < ||N||, but this is clearly true for all eps < 1 and N > 0
 			T SizeSqr = Direction.SizeSquared();
@@ -41,10 +43,12 @@ namespace Chaos
 			return FarthestCap + (NormalizedDirection * Thickness);
 		}
 
-		FORCEINLINE_DEBUGGABLE TVec3<T> SupportCore(const TVec3<T>& Direction) const
+		FORCEINLINE_DEBUGGABLE TVec3<T> SupportCore(const TVec3<T>& Direction, int32& VertexIndex) const
 		{
 			const T Dot = TVec3<T>::DotProduct(Direction, MAxis);
-			const TVec3<T> FarthestCap = Dot >= 0 ? GetX2() : GetX1();	//orthogonal we choose either
+			const bool bIsSecond = Dot >= 0;
+			const TVec3<T> FarthestCap = bIsSecond ? GetX2() : GetX1();	//orthogonal we choose either
+			VertexIndex = bIsSecond  ? 1 : 0;
 			return FarthestCap;
 		}
 

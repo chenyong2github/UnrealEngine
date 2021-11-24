@@ -122,21 +122,22 @@ namespace ChaosTest {
 	void UnitImplicitObjectSupportPhis(GeometryType& Subject, FString Caller)
 	{
 		FString Error = FString("Called by ") + Caller + FString(".");
+		int32 VertexIndex = INDEX_NONE;
 
 		// support phi
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 0, 1), FReal(0)), (FVec3(0, 0, 1)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 0, -1), FReal(0)), (FVec3(0, 0, -1)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 1, 0), FReal(0)), (FVec3(0, 1, 0)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, -1, 0), FReal(0)), (FVec3(0, -1, 0)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(1, 0, 0), FReal(0)), (FVec3(1, 0, 0)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(-1, 0, 0), FReal(0)), (FVec3(-1, 0, 0)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 0, 1), FReal(0), VertexIndex), (FVec3(0, 0, 1)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 0, -1), FReal(0), VertexIndex), (FVec3(0, 0, -1)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 1, 0), FReal(0), VertexIndex), (FVec3(0, 1, 0)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, -1, 0), FReal(0), VertexIndex), (FVec3(0, -1, 0)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(1, 0, 0), FReal(0), VertexIndex), (FVec3(1, 0, 0)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(-1, 0, 0), FReal(0), VertexIndex), (FVec3(-1, 0, 0)), KINDA_SMALL_NUMBER, Error);
 
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 0, 1), FReal(1)), (FVec3(0, 0, 2)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 0, -1), FReal(1)), (FVec3(0, 0, -2)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 1, 0), FReal(1)), (FVec3(0, 2, 0)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, -1, 0), FReal(1)), (FVec3(0, -2, 0)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(1, 0, 0), FReal(1)), (FVec3(2, 0, 0)), KINDA_SMALL_NUMBER, Error);
-		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(-1, 0, 0), FReal(1)), (FVec3(-2, 0, 0)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 0, 1), FReal(1), VertexIndex), (FVec3(0, 0, 2)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 0, -1), FReal(1), VertexIndex), (FVec3(0, 0, -2)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, 1, 0), FReal(1), VertexIndex), (FVec3(0, 2, 0)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(0, -1, 0), FReal(1), VertexIndex), (FVec3(0, -2, 0)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(1, 0, 0), FReal(1), VertexIndex), (FVec3(2, 0, 0)), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(-1, 0, 0), FReal(1), VertexIndex), (FVec3(-2, 0, 0)), KINDA_SMALL_NUMBER, Error);
 	}
 
 	/* Takes 3 ImplictObject of unit size (circumscribed inside a 2x2 cube)
@@ -233,7 +234,8 @@ namespace ChaosTest {
 		UnitImplicitObjectIntersections(Subject, Caller);
 		
 		{// support phi - expects the corners for boxes
-			// Iterate through every face, edge, and corner direction, and ensure it snaps to the proper corner. 
+			// Iterate through every face, edge, and corner direction, and ensure it snaps to the proper corner.
+			int32 VertexIndex = INDEX_NONE;
 			for (int i0 = -1; i0 < 2; ++i0)
 			{
 				for (int i1 = -1; i1 < 2; ++i1)
@@ -250,7 +252,7 @@ namespace ChaosTest {
 						FString Error("Direction: ");
 						Error += FString::Printf(TEXT("(%d, %d, %d)"), i0, i1, i2);
 
-						EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(i0, i1, i2), FReal(0)), Expected, KINDA_SMALL_NUMBER, Error);
+						EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(i0, i1, i2), FReal(0), VertexIndex), Expected, KINDA_SMALL_NUMBER, Error);
 					}
 				}
 			}
@@ -267,22 +269,22 @@ namespace ChaosTest {
 
 		{// support phi off origin
 			TBox<FReal, 3> Subject2(FVec3(2), FVec3(4));
-
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 0, 1), FReal(0)), (FVec3(4, 4, 4)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 0, -1), FReal(0)), (FVec3(4, 4, 2)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 1, 0), FReal(0)), (FVec3(4, 4, 4)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, -1, 0), FReal(0)), (FVec3(4, 2, 4)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 1, 0), FReal(0)), (FVec3(4, 4, 4)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(1, 0, 0), FReal(0)), (FVec3(4, 4, 4)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(-1, 0, 0), FReal(0)), (FVec3(2, 4, 4)));
+			int32 VertexIndex = INDEX_NONE;
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 0, 1), FReal(0), VertexIndex), (FVec3(4, 4, 4)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 0, -1), FReal(0), VertexIndex), (FVec3(4, 4, 2)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 1, 0), FReal(0), VertexIndex), (FVec3(4, 4, 4)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, -1, 0), FReal(0), VertexIndex), (FVec3(4, 2, 4)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 1, 0), FReal(0), VertexIndex), (FVec3(4, 4, 4)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(1, 0, 0), FReal(0), VertexIndex), (FVec3(4, 4, 4)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(-1, 0, 0), FReal(0), VertexIndex), (FVec3(2, 4, 4)));
 
 #if RUN_KNOWN_BROKEN_TESTS
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 0, 1), FReal(1)), (FVec3(5, 5, 5)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 0, -1), FReal(1)), (FVec3(5, 5, 1)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 1, 0), FReal(1)), (FVec3(5, 5, 5)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, -1, 0), FReal(1)), (FVec3(5, 1, 5)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(1, 0, 0), FReal(1)), (FVec3(5, 5, 5)));
-			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(-1, 0, 0), FReal(1)), (FVec3(1, 5, 5)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 0, 1), FReal(1), VertexIndex), (FVec3(5, 5, 5)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 0, -1), FReal(1), VertexIndex), (FVec3(5, 5, 1)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, 1, 0), FReal(1), VertexIndex), (FVec3(5, 5, 5)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(0, -1, 0), FReal(1), VertexIndex), (FVec3(5, 1, 5)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(1, 0, 0), FReal(1), VertexIndex), (FVec3(5, 5, 5)));
+			EXPECT_VECTOR_NEAR_DEFAULT(Subject2.Support(FVec3(-1, 0, 0), FReal(1), VertexIndex), (FVec3(1, 5, 5)));
 #endif
 		}
 
@@ -812,21 +814,23 @@ namespace ChaosTest {
 		}
 		
 		{//support
+			int32 VertexIndex = INDEX_NONE;
+			
 			const FVec3 DirX(1, 0, 0);
-			FVec3 SupportPt = Unscaled.Support(DirX, 1);
+			FVec3 SupportPt = Unscaled.Support(DirX, 1, VertexIndex);
 			EXPECT_VECTOR_NEAR(SupportPt, FVec3(9, 0, 0), 0);
 
-			SupportPt = UniformScale.Support(DirX, 1);
+			SupportPt = UniformScale.Support(DirX, 1, VertexIndex);
 			EXPECT_VECTOR_NEAR(SupportPt, FVec3(17, 0, 0), 0);
 
 			const FVec3 DirZ(0, 0, -1);
-			SupportPt = UniformScale.Support(DirZ, 1);
+			SupportPt = UniformScale.Support(DirZ, 1, VertexIndex);
 			EXPECT_VECTOR_NEAR(SupportPt, FVec3(6, 0, -11), 0);
 
-			SupportPt = NonUniformScale.Support(DirX, 1);
+			SupportPt = NonUniformScale.Support(DirX, 1, VertexIndex);
 			EXPECT_VECTOR_NEAR(SupportPt, FVec3(17, 0, 0), 0);
 
-			SupportPt = NonUniformScale.Support(DirZ, 1);
+			SupportPt = NonUniformScale.Support(DirZ, 1, VertexIndex);
 			EXPECT_VECTOR_NEAR(SupportPt, FVec3(6, 0, -6), 0);
 		}
 
@@ -1075,16 +1079,17 @@ namespace ChaosTest {
 		{//support
 
 			const FVec3 DirX(1, 0, 0);
+			int32 VertexIndex = INDEX_NONE;
 			FVec3 SupportPt = Utilities::CastHelper(Untransformed, Identity, [&](const auto& Concrete, const auto& FullTM)
 			{
-				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirX), 1);
+				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirX), 1, VertexIndex);
 				return FullTM.TransformPosition(SupportLocal);
 			});
 			EXPECT_VECTOR_NEAR_DEFAULT(SupportPt, FVec3(9, 5, 5));
 
 			SupportPt = Utilities::CastHelper(Translated, Identity, [&](const auto& Concrete, const auto& FullTM)
 			{
-				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirX), 1);
+				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirX), 1, VertexIndex);
 				return FullTM.TransformPosition(SupportLocal);
 			});
 			EXPECT_VECTOR_NEAR_DEFAULT(SupportPt, FVec3(13, 5, 5));
@@ -1092,21 +1097,21 @@ namespace ChaosTest {
 			const FVec3 DirZ(0, 0, -1);
 			SupportPt = Utilities::CastHelper(Translated, Identity, [&](const auto& Concrete, const auto& FullTM)
 			{
-				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirZ), 1);
+				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirZ), 1, VertexIndex);
 				return FullTM.TransformPosition(SupportLocal);
 			});
 			EXPECT_VECTOR_NEAR_DEFAULT(SupportPt, FVec3(12, 5, -6));
 
 			SupportPt = Utilities::CastHelper(Rotated, Identity, [&](const auto& Concrete, const auto& FullTM)
 			{
-				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirZ), 1);
+				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirZ), 1, VertexIndex);
 				return FullTM.TransformPosition(SupportLocal);
 			});
 			EXPECT_VECTOR_NEAR_DEFAULT(SupportPt, FVec3(-5, 8, -6)); // @todo why -5?
 
 			SupportPt = Utilities::CastHelper(Transformed, Identity, [&](const auto& Concrete, const auto& FullTM)
 			{
-				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirZ), 1);
+				FVec3 SupportLocal = Concrete.Support(FullTM.InverseTransformVectorNoScale(DirZ), 1, VertexIndex);
 				FVec3 TransformedPt = FullTM.TransformPosition(SupportLocal);
 				return TransformedPt;
 			});
@@ -1875,54 +1880,55 @@ namespace ChaosTest {
 
 		//support
 		{
+			int32 VertexIndex = INDEX_NONE;
 			const FVec3 DirX(1, 0, 0);
-			FVec3 SupportPt = Unscaled.Support(DirX, 1);
+			FVec3 SupportPt = Unscaled.Support(DirX, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 9);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
-			SupportPt = UnscaledThickened.Support(DirX, 1);
+			SupportPt = UnscaledThickened.Support(DirX, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 9);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
-			SupportPt = UniformScale.Support(DirX, 1);
+			SupportPt = UniformScale.Support(DirX, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 17);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
-			SupportPt = UniformScaleThickened.Support(DirX, 1);
+			SupportPt = UniformScaleThickened.Support(DirX, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 17);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
 			const FVec3 DirZ(0, 0, -1);
-			SupportPt = UniformScale.Support(DirZ, 1);
+			SupportPt = UniformScale.Support(DirZ, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 6);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], -11);
 
-			SupportPt = UniformScaleThickened.Support(DirZ, 1);
+			SupportPt = UniformScaleThickened.Support(DirZ, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 6);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], -11);
 
-			SupportPt = NonUniformScale.Support(DirX, 1);
+			SupportPt = NonUniformScale.Support(DirX, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 17);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
-			SupportPt = NonUniformScaleThickened.Support(DirX, 1);
+			SupportPt = NonUniformScaleThickened.Support(DirX, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 17);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], 0);
 
-			SupportPt = NonUniformScale.Support(DirZ, 1);
+			SupportPt = NonUniformScale.Support(DirZ, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 6);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], -6);
 
-			SupportPt = NonUniformScaleThickened.Support(DirZ, 1);
+			SupportPt = NonUniformScaleThickened.Support(DirZ, 1, VertexIndex);
 			EXPECT_FLOAT_EQ(SupportPt[0], 6);
 			EXPECT_FLOAT_EQ(SupportPt[1], 0);
 			EXPECT_FLOAT_EQ(SupportPt[2], -6);

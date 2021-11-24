@@ -119,6 +119,25 @@ namespace Chaos
 			return Result;
 		}
 
+		// Get an array of all the plane indices that belong to a vertex (up to MaxVertexPlanes).
+		// Returns the number of planes found.
+		int32 FindVertexPlanes(int32 VertexIndex, int32* OutVertexPlanes, int32 MaxVertexPlanes) const
+		{
+			if(MaxVertexPlanes > 0)
+			{
+				OutVertexPlanes[0] = 0;
+			}
+			return 1; 
+		}
+		
+		// Get up to the 3  plane indices that belong to a vertex
+		// Returns the number of planes found.
+		int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const
+		{
+			PlaneIndex0 = 0;
+			return 1;
+		}
+		
 		// Get the index of the plane that most opposes the normal
 		int32 GetMostOpposingPlane(const FVec3& Normal) const
 		{
@@ -143,7 +162,7 @@ namespace Chaos
 			return FVec3::DotProduct((InSamplePoint - ClosestPoint), OutNormal);
 		}
 
-		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
+		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness, int32& VertexIndex) const
 		{
 			const FReal DotA = FVec3::DotProduct(A, Direction);
 			const FReal DotB = FVec3::DotProduct(B, Direction);
@@ -151,6 +170,7 @@ namespace Chaos
 
 			if(DotA >= DotB && DotA >= DotC)
 			{
+				VertexIndex = 0;
 				if(Thickness != 0)
 				{
 					return A + Direction.GetUnsafeNormal() * Thickness;
@@ -159,13 +179,14 @@ namespace Chaos
 			}
 			else if(DotB >= DotA && DotB >= DotC)
 			{
+				VertexIndex = 1;
 				if(Thickness != 0)
 				{
 					return B + Direction.GetUnsafeNormal() * Thickness;
 				}
 				return B;
 			}
-
+			VertexIndex = 2;
 			if(Thickness != 0)
 			{
 				return C + Direction.GetUnsafeNormal() * Thickness;
@@ -173,7 +194,7 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta) const
+		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, const FReal InMargin, FReal* OutSupportDelta,int32& VertexIndex) const
 		{
 			// Note: assumes margin == 0
 			const FReal DotA = FVec3::DotProduct(A, Direction);
@@ -182,20 +203,22 @@ namespace Chaos
 
 			if (DotA >= DotB && DotA >= DotC)
 			{
+				VertexIndex = 0;
 				return A;
 			}
 			else if (DotB >= DotA && DotB >= DotC)
 			{
+				VertexIndex = 1;
 				return B;
 			}
-
+			VertexIndex = 2;
 			return C;
 		}
 
-		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta) const
+		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
 			// Note: ignores InMargin, assumed 0 (triangles cannot have a margin as they are zero thickness)
-			return SupportCore(Direction * Scale, 0.0f, OutSupportDelta) * Scale;
+			return SupportCore(Direction * Scale, 0.0f, OutSupportDelta, VertexIndex) * Scale;
 		}
 
 		FORCEINLINE FReal GetMargin() const { return 0; }
@@ -301,9 +324,9 @@ namespace Chaos
 			return Bounds;
 		}
 
-		virtual TVec3<T> Support(const TVec3<T>& Direction, const T Thickness) const override
+		virtual TVec3<T> Support(const TVec3<T>& Direction, const T Thickness, int32& VertexIndex) const override
 		{
-			return Tri.Support(Direction, Thickness);
+			return Tri.Support(Direction, Thickness, VertexIndex);
 		}
 
 		virtual bool Raycast(const TVec3<T>& StartPoint, const TVec3<T>& Dir, const T Length, const T Thickness, T& OutTime, TVec3<T>& OutPosition, TVec3<T>& OutNormal, int32& OutFaceIndex) const override

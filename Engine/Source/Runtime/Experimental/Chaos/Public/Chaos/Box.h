@@ -305,6 +305,13 @@ namespace Chaos
 		{
 			return SStructureData.FindVertexPlanes(VertexIndex, OutVertexPlanes, MaxVertexPlanes);
 		}
+		
+		// Get up to the 3  plane indices that belong to a vertex
+		// Returns the number of planes found.
+		int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const
+		{
+			return SStructureData.GetVertexPlanes3(VertexIndex, PlaneIndex0, PlaneIndex1, PlaneIndex2);
+		}
 
 		// The number of vertices that make up the corners of the specified face
 		int32 NumPlaneVertices(int32 PlaneIndex) const
@@ -350,20 +357,20 @@ namespace Chaos
 		}
 
 		// Returns a position on the shape
-		FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> Support(const TVector<T, d>& Direction, const T Thickness, int32& VertexIndex) const
 		{
-			return AABB.Support(Direction, Thickness);
+			return AABB.Support(Direction, Thickness, VertexIndex);
 		}
 
 		// Returns a position on the core shape excluding the margin
-		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, const FReal InMargin, FReal* OutSupportDelta, int32& VertexIndex) const
 		{
-			return AABB.SupportCore(Direction, InMargin, OutSupportDelta);
+			return AABB.SupportCore(Direction, InMargin, OutSupportDelta, VertexIndex);
 		}
 
-		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const FReal InMargin, const TVector<T, d>& Scale, T* OutSupportDelta) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, const FReal InMargin, const TVector<T, d>& Scale, T* OutSupportDelta, int32& VertexIndex) const
 		{
-			return AABB.SupportCoreScaled(Direction, InMargin, Scale, OutSupportDelta);
+			return AABB.SupportCoreScaled(Direction, InMargin, Scale, OutSupportDelta, VertexIndex);
 			// @todo(chaos): Needs to operate in scaled space as margin is not non-uniform scalable
 			//const FReal InvScale = 1.0f / Scale[0];
 			//const FReal NetMargin = InvScale * InMargin;

@@ -45,6 +45,7 @@ namespace Chaos
 		const T ThicknessB = B.GetMargin() + InThicknessB;
 		const T Inflation = ThicknessA + ThicknessB + static_cast<T>(1e-3);
 		const T Inflation2 = Inflation * Inflation;
+		int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 		do
 		{
 			if (!ensure(NumIterations++ < 32))	//todo: take this out
@@ -52,9 +53,9 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 			const TVector<T, 3> NegV = -V;
-			const TVector<T, 3> SupportA = A.SupportCore(NegV, A.GetMargin(), nullptr);
+			const TVector<T, 3> SupportA = A.SupportCore(NegV, A.GetMargin(), nullptr, VertexIndexA);
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), nullptr);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), nullptr, VertexIndexB);
 			const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 			const TVector<T, 3> W = SupportA - SupportB;
 
@@ -184,6 +185,8 @@ namespace Chaos
 	 * @param OutClosestB The closest point on B, in B-local space
 	 * @param OutNormalA The contact normal pointing away from A in A-local space
 	 * @param OutNormalB The contact normal pointing away from A in B-local space
+	 * @param OutVertexA The closest vertex on A
+	 * @param OutVertexB The closest vertex on B
 	 * @param SimplexData In/out simplex data used to initialize and update GJK. Can be stored to improve convergence on subsequent calls for "small" changes in relative rotation.
 	 * @param OutMaxContactDelta The maximum error in the contact position as a result of using a margin. This is the difference between the core shape + margin and the outer shape on the supporting vertices
 	 * @param Epsilon The separation distance below which GJK aborts and switches to EPA
@@ -199,25 +202,28 @@ namespace Chaos
 	 *
 	*/
 	template <bool bFindSeparationDistance = false, typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKPenetrationWarmStartable(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA, const T InThicknessB, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormalA, TVec3<T>& OutNormalB, TGJKSimplexData<T>& InOutSimplexData, T& OutMaxSupportDelta, const T Epsilon = T(1.e-3))
+	bool GJKPenetrationWarmStartable(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const T InThicknessA, const T InThicknessB, T& OutPenetration, TVec3<T>& OutClosestA, TVec3<T>& OutClosestB, TVec3<T>& OutNormalA, TVec3<T>& OutNormalB, int32& OutVertexA, int32& OutVertexB, TGJKSimplexData<T>& InOutSimplexData, T& OutMaxSupportDelta, const T Epsilon = T(1.e-3))
 	{
 		T SupportDeltaA = 0;
 		T SupportDeltaB = 0;
 		T MaxSupportDelta = 0;
 
+		int32& VertexIndexA = OutVertexA;
+		int32& VertexIndexB = OutVertexB;
+
 		// Return the support vertex in A-local space for a vector V in A-local space
-		auto SupportAFunc = [&A, &SupportDeltaA](const TVec3<T>& V)
+		auto SupportAFunc = [&A, &SupportDeltaA, &VertexIndexA](const TVec3<T>& V)
 		{
-			return A.SupportCore(V, A.GetMargin(), &SupportDeltaA);
+			return A.SupportCore(V, A.GetMargin(), &SupportDeltaA, VertexIndexA);
 		};
 
 		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
 
 		// Return the support point on B, in B-local space, for a vector V in A-local space
-		auto SupportBFunc = [&B, &AToBRotation, &SupportDeltaB](const TVec3<T>& V)
+		auto SupportBFunc = [&B, &AToBRotation, &SupportDeltaB, &VertexIndexB](const TVec3<T>& V)
 		{
 			const TVec3<T> VInB = AToBRotation * V;
-			return B.SupportCore(VInB, B.GetMargin(), &SupportDeltaB);
+			return B.SupportCore(VInB, B.GetMargin(), &SupportDeltaB, VertexIndexB);
 		};
 
 		// V and Simplex are in A-local space
@@ -301,11 +307,12 @@ namespace Chaos
 				VertsA.Add(InOutSimplexData.As[i]);
 				VertsB.Add(BToATM.TransformPositionNoScale(InOutSimplexData.Bs[i]));
 			}
-
+			
 			auto SupportBInAFunc = [&B, &BToATM, &AToBRotation, &SupportDeltaB](const TVec3<T>& V)
 			{
 				const TVec3<T> VInB = AToBRotation * V;
-				const TVec3<T> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), &SupportDeltaB);
+				int32 VertexIndex = INDEX_NONE;
+				const TVec3<T> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), &SupportDeltaB, VertexIndex);
 				return BToATM.TransformPositionNoScale(SupportBLocal);
 			};
 
@@ -380,17 +387,15 @@ namespace Chaos
 
 		auto SupportAFunc = [&A, &VertexIndexA](const TVec3<T>& V)
 		{
-			VertexIndexA = INDEX_NONE;
-			return A.SupportCore(V, A.GetMargin(), nullptr);
+			return A.SupportCore(V, A.GetMargin(), nullptr, VertexIndexA);
 		};
 
 		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
 
 		auto SupportBFunc = [&B, &BToATM, &AToBRotation, &VertexIndexB](const TVec3<T>& V)
 		{
-			VertexIndexB = INDEX_NONE;
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), nullptr);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, B.GetMargin(), nullptr, VertexIndexB);
 			return BToATM.TransformPositionNoScale(SupportBLocal);
 		};
 
@@ -589,6 +594,8 @@ namespace Chaos
 		ensure(RayLength > 0);
 		check(A.IsConvex() && B.IsConvex());
 		const TVector<T, 3> StartPoint = StartTM.GetLocation();
+		int32 VertexIndexA = INDEX_NONE;
+		int32 VertexIndexB = INDEX_NONE;
 
 		TVector<T, 3> Simplex[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
 		TVector<T, 3> As[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
@@ -599,11 +606,11 @@ namespace Chaos
 		FSimplex SimplexIDs;
 		const TRotation<T, 3> BToARotation = StartTM.GetRotation();
 		const TRotation<T, 3> AToBRotation = BToARotation.Inverse();
-		TVector<T, 3> SupportA = A.Support(InitialDir, ThicknessA);	//todo: use Thickness on quadratic geometry
+		TVector<T, 3> SupportA = A.Support(InitialDir, ThicknessA, VertexIndexA);	//todo: use Thickness on quadratic geometry
 		As[0] = SupportA;
 
 		const TVector<T, 3> InitialDirInB = AToBRotation * (-InitialDir);
-		const TVector<T, 3> InitialSupportBLocal = B.Support(InitialDirInB, ThicknessB);
+		const TVector<T, 3> InitialSupportBLocal = B.Support(InitialDirInB, ThicknessB, VertexIndexB);
 		TVector<T, 3> SupportB = BToARotation * InitialSupportBLocal;
 		Bs[0] = SupportB;
 
@@ -625,9 +632,9 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 
-			SupportA = A.Support(V, ThicknessA);	//todo: add thickness to quadratic geometry to avoid quadratic vs quadratic when possible
+			SupportA = A.Support(V, ThicknessA, VertexIndexA);	//todo: add thickness to quadratic geometry to avoid quadratic vs quadratic when possible
 			const TVector<T, 3> VInB = AToBRotation * (-V);
-			const TVector<T, 3> SupportBLocal = B.Support(VInB, ThicknessB);
+			const TVector<T, 3> SupportBLocal = B.Support(VInB, ThicknessB, VertexIndexB);
 			SupportB = BToARotation * SupportBLocal;
 			const TVector<T, 3> P = SupportA - SupportB;
 			const TVector<T, 3> W = X - P;
@@ -746,20 +753,23 @@ namespace Chaos
 
 		auto SupportAFunc = [&A, MarginA](const TVec3<T>& V)
 		{
-			return A.SupportCore(V, MarginA, nullptr);
+			int32 VertexIndex = INDEX_NONE;
+			return A.SupportCore(V, MarginA, nullptr, VertexIndex);
 		};
 
 		auto SupportBFunc = [&B, MarginB, &AToBRotation, &BToARotation](const TVec3<T>& V)
 		{
+			int32 VertexIndex = INDEX_NONE;
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB, nullptr);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB, nullptr, VertexIndex);
 			return BToARotation * SupportBLocal;
 		};
 		
 		auto SupportBAtOriginFunc = [&B, MarginB, &StartTM, &AToBRotation](const TVec3<T>& Dir)
 		{
+			int32 VertexIndex = INDEX_NONE;
 			const TVector<T, 3> DirInB = AToBRotation * Dir;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(DirInB, MarginB, nullptr);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(DirInB, MarginB, nullptr, VertexIndex);
 			return StartTM.TransformPositionNoScale(SupportBLocal);
 		};
 
@@ -1011,10 +1021,11 @@ namespace Chaos
 	template <typename T, typename TGeometryA, typename TGeometryB>
 	TVector<T, 3> GJKDistanceInitialV(const TGeometryA& A, T MarginA, const TGeometryB& B, T MarginB, const TRigidTransform<T, 3>& BToATM)
 	{
+		int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 		const TVec3<T> V = -BToATM.GetTranslation();
-		const TVector<T, 3> SupportA = A.SupportCore(-V, MarginA, nullptr);
+		const TVector<T, 3> SupportA = A.SupportCore(-V, MarginA, nullptr, VertexIndexA);
 		const TVector<T, 3> VInB = BToATM.GetRotation().Inverse() * V;
-		const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB, nullptr);
+		const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, MarginB, nullptr, VertexIndexB);
 		const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 		return SupportA - SupportB;
 	}
@@ -1076,6 +1087,7 @@ namespace Chaos
 		// Select an initial vector in Minkowski(A - B)
 		TVector<T, 3> V = GJKDistanceInitialV(A, AMargin, B, BMargin, BToATM);
 		T VLen = V.Size();
+		int32 VertexIndexA = INDEX_NONE, VertexIndexB = INDEX_NONE;
 
 		int32 It = 0;
 		while (VLen > Epsilon)
@@ -1083,9 +1095,9 @@ namespace Chaos
 			// Find a new point in A-B that is closer to the origin
 			// NOTE: we do not use support thickness here. Thickness is used when separating objects
 			// so that GJK can find a solution, but that can be added in a later step.
-			const TVector<T, 3> SupportA = A.SupportCore(-V, AMargin, nullptr);
+			const TVector<T, 3> SupportA = A.SupportCore(-V, AMargin, nullptr, VertexIndexA);
 			const TVector<T, 3> VInB = AToBRotation * V;
-			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, BMargin, nullptr);
+			const TVector<T, 3> SupportBLocal = B.SupportCore(VInB, BMargin, nullptr, VertexIndexB);
 			const TVector<T, 3> SupportB = BToATM.TransformPositionNoScale(SupportBLocal);
 			const TVector<T, 3> W = SupportA - SupportB;
 
