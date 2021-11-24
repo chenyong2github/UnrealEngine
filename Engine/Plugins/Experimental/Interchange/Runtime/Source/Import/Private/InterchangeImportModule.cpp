@@ -55,19 +55,31 @@ void FInterchangeImportModule::StartupModule()
 
 		// UDIM must be registered before the other texture translators
 		InterchangeManager.RegisterTranslator(UInterchangeUDIMTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeUDIMTranslator::StaticClass());
 
 		InterchangeManager.RegisterTranslator(UInterchangeBMPTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeBMPTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeDDSTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeDDSTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeEXRTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeEXRTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeJPGTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeJPGTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangePCXTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangePCXTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangePNGTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangePNGTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangePSDTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangePSDTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeTGATranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeTGATranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeHDRTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeHDRTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeIESTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeIESTranslator::StaticClass());
 #if WITH_LIBTIFF
 		InterchangeManager.RegisterTranslator(UInterchangeTIFFTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeTIFFTranslator::StaticClass());
 #endif // WITH_LIBTIFF
 
 		//Register the factories

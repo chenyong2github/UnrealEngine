@@ -265,9 +265,11 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 
 	bool bUseInterchangeFramework = false;
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
-#if WITH_EDITOR
-	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
-#endif
+	const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
+
+	bUseInterchangeFramework = EditorExperimentalSettings->bEnableInterchangeFramework;
+	const bool bUseInterchangeFrameworkForTextureOnly = (!bUseInterchangeFramework) && EditorExperimentalSettings->bEnableInterchangeFrameworkForTextureOnly;
+	bUseInterchangeFramework |= bUseInterchangeFrameworkForTextureOnly;
 
 	bool bSuccess = false;
 	if ( Obj )
@@ -390,7 +392,18 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 				if (bUseInterchangeFramework)
 				{
 					UE::Interchange::FScopedSourceData ScopedSourceData(SourceFilenames[0]);
-					if (InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+
+					bool bUseATextureTranslator = false;
+					if (bUseInterchangeFrameworkForTextureOnly)
+					{
+						UInterchangeTranslatorBase* Translator = InterchangeManager.GetTranslatorForSourceData(ScopedSourceData.GetSourceData());
+						if (Translator && InterchangeManager.IsTranslatorClassForTextureOnly(Translator->GetClass()))
+						{
+							bUseATextureTranslator = true;
+						}
+					}
+
+					if (bUseATextureTranslator || (!bUseInterchangeFrameworkForTextureOnly && InterchangeManager.CanTranslateSourceData(ScopedSourceData.GetSourceData())))
 					{
 						auto PostImportedLambda = [](UObject* ImportedObject)
 						{
