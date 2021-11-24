@@ -55,10 +55,15 @@ public:
 	 */
 	virtual void SetZoomAmount(double PercentZoomIn);
 
+	void SetCameraFarPlaneWorldZ(double CameraFarPlaneWorldZIn);
+	void SetCameraNearPlaneProportionZ(double CameraFarPlaneProportionZIn );
+
 	inline static const double DEFAULT_ZOOM_AMOUNT = 20;
 protected:
 	FUVEditor2DViewportClient* ViewportClient = nullptr;
 	double ZoomInProportion;
 	double ZoomOutProportion;
 	double ZoomInLimit;
+	double CameraFarPlaneWorldZ;
+	double CameraNearPlaneProportionZ;
 };
