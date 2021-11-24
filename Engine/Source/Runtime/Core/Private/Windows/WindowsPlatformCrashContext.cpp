@@ -1022,7 +1022,12 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 		if (!bCrashReporterRan)
 		{
 			UE_LOG(LogWindows, Log, TEXT("Could not start crash report client using %s"), CrashReporterClientPath);
-			FPlatformMemory::DumpStats(*GWarn);
+
+			if (GWarn != nullptr)
+			{
+				FPlatformMemory::DumpStats(*GWarn);
+			}
+
 			if (!bNoDialog)
 			{
 				FText MessageTitle(FText::Format(
