@@ -65,7 +65,7 @@ struct AABBTreeStatistics
 		StatNumGridOverflowElements = 0;
 	}
 
-	AABBTreeStatistics& operator+=(const AABBTreeStatistics& Rhs)
+	AABBTreeStatistics& MergeStatistics(const AABBTreeStatistics& Rhs)
 	{
 		StatNumNonEmptyCellsInGrid += Rhs.StatNumNonEmptyCellsInGrid;
 		StatNumElementsTooLargeForGrid += Rhs.StatNumElementsTooLargeForGrid;
@@ -78,6 +78,33 @@ struct AABBTreeStatistics
 	int32 StatNumElementsTooLargeForGrid = 0;
 	int32 StatNumDirtyElements = 0;
 	int32 StatNumGridOverflowElements = 0;
+};
+
+struct AABBTreeExpensiveStatistics
+{
+	void Reset()
+	{
+		StatMaxNumLeaves = 0;
+		StatMaxDirtyElements = 0;
+		StatMaxLeafSize = 0;
+		StatMaxTreeDepth = 0;
+		StatGlobalPayloadsSize = 0;
+	}
+
+	AABBTreeExpensiveStatistics& MergeStatistics(const AABBTreeExpensiveStatistics& Rhs)
+	{
+		StatMaxNumLeaves = FMath::Max(StatMaxNumLeaves, Rhs.StatMaxNumLeaves);
+		StatMaxDirtyElements = FMath::Max(StatMaxDirtyElements, Rhs.StatMaxDirtyElements);
+		StatMaxLeafSize = FMath::Max(StatMaxLeafSize, Rhs.StatMaxLeafSize);
+		StatMaxTreeDepth = FMath::Max(StatMaxTreeDepth, Rhs.StatMaxTreeDepth);
+		StatGlobalPayloadsSize += Rhs.StatGlobalPayloadsSize;
+		return *this;
+	}
+	int32 StatMaxNumLeaves = 0;
+	int32 StatMaxDirtyElements = 0;
+	int32 StatMaxLeafSize = 0;
+	int32 StatMaxTreeDepth = 0;
+	int32 StatGlobalPayloadsSize = 0;
 };
 
 DECLARE_CYCLE_STAT(TEXT("AABBTreeGenerateTree"), STAT_AABBTreeGenerateTree, STATGROUP_Chaos);
@@ -484,6 +511,7 @@ public:
 		FlattenedCellArrayOfDirtyIndices.Reset();
 		DirtyElementsGridOverflow.Reset();
 		TreeStats.Reset();
+		TreeExpensiveStats.Reset();
 		GlobalPayloads.Reset();
 		PayloadToInfo.Reset();
 
@@ -996,11 +1024,41 @@ public:
 	}
 
 	// Some useful statistics
-	const AABBTreeStatistics& GetAABBTreeStatistics() {
+	const AABBTreeStatistics& GetAABBTreeStatistics()
+	{
 		// Update the stats that needs it first
 		TreeStats.StatNumDirtyElements = DirtyElements.Num();
 		TreeStats.StatNumGridOverflowElements = DirtyElementsGridOverflow.Num();
 		return TreeStats;
+	}
+
+	const AABBTreeExpensiveStatistics& GetAABBTreeExpensiveStatistics()
+	{
+		TreeExpensiveStats.StatMaxDirtyElements = DirtyElements.Num();
+		TreeExpensiveStats.StatMaxNumLeaves = Leaves.Num();
+		int32 StatMaxLeafSize = 0;
+		for(const TLeafType& Leaf : Leaves)
+		{
+			StatMaxLeafSize = FMath::Max(StatMaxLeafSize, (int32)Leaf.GetElementCount());
+		}
+		TreeExpensiveStats.StatMaxLeafSize = StatMaxLeafSize;
+		TreeExpensiveStats.StatMaxTreeDepth = GetSubtreeDepth(0);
+		TreeExpensiveStats.StatGlobalPayloadsSize = GlobalPayloads.Num();
+
+		return TreeExpensiveStats;
+	}
+
+	const int32 GetSubtreeDepth(const int32 NodeIdx)
+	{
+		const FNode& Node = Nodes[NodeIdx];
+		if (Node.bLeaf)
+		{
+			return 1;
+		}
+		else
+		{
+			return FMath::Max(GetSubtreeDepth(Node.ChildrenNodes[0]), GetSubtreeDepth(Node.ChildrenNodes[1])) + 1;
+		}
 	}
 
 	const TArray<TPayloadBoundsElement<TPayloadType, T>>& GlobalObjects() const
@@ -1548,6 +1606,7 @@ private:
 		FlattenedCellArrayOfDirtyIndices.Reset();
 		DirtyElementsGridOverflow.Reset();
 		TreeStats.Reset();
+		TreeExpensiveStats.Reset();
 		PayloadToInfo.Reset();
 		NumProcessedThisSlice = 0;
 		GetCVars();  // Safe to copy CVARS here
@@ -1758,7 +1817,8 @@ private:
 			auto& LeavesRef = Leaves;
 			auto& NodesRef = Nodes;
 			auto& WorkPoolRef = WorkPool;
-			auto MakeLeaf = [NewNodeIdx, &PayloadToInfoRef, &WorkPoolRef, CurIdx, &LeavesRef, &NodesRef]()
+			auto& TreeExpensiveStatsRef = TreeExpensiveStats;
+			auto MakeLeaf = [NewNodeIdx, &PayloadToInfoRef, &WorkPoolRef, CurIdx, &LeavesRef, &NodesRef, &TreeExpensiveStatsRef]()
 			{
 				if (bMutable)
 				{
@@ -1772,7 +1832,6 @@ private:
 
 				NodesRef[NewNodeIdx].bLeaf = true;
 				NodesRef[NewNodeIdx].ChildrenNodes[0] = LeavesRef.Add(TLeafType{ WorkPoolRef[CurIdx].Elems }); //todo: avoid copy?
-
 			};
 
 			if (WorkPool[CurIdx].Elems.Num() <= MaxChildrenInLeaf || WorkPool[CurIdx].NodeLevel >= MaxTreeDepth)
@@ -2017,6 +2076,7 @@ private:
 		, DirtyElementMaxPhysicalSizeInCells(Other.DirtyElementMaxPhysicalSizeInCells)
 		, DirtyElementMaxCellCapacity(Other.DirtyElementMaxCellCapacity)
 		, TreeStats(Other.TreeStats)
+		, TreeExpensiveStats(Other.TreeExpensiveStats)
 		, GlobalPayloads(Other.GlobalPayloads)
 		, PayloadToInfo(Other.PayloadToInfo)
 		, MaxChildrenInLeaf(Other.MaxChildrenInLeaf)
@@ -2055,6 +2115,7 @@ private:
 			FlattenedCellArrayOfDirtyIndices = Rhs.FlattenedCellArrayOfDirtyIndices;
 			DirtyElementsGridOverflow = Rhs.DirtyElementsGridOverflow;
 			TreeStats = Rhs.TreeStats;
+			TreeExpensiveStats = Rhs.TreeExpensiveStats;
 			
 			DirtyElementGridCellSize = Rhs.DirtyElementGridCellSize;
 			DirtyElementGridCellSizeInv = Rhs.DirtyElementGridCellSizeInv;
@@ -2091,6 +2152,7 @@ private:
 	int32 DirtyElementMaxCellCapacity;
 	// Some useful statistics
 	AABBTreeStatistics TreeStats;
+	AABBTreeExpensiveStatistics TreeExpensiveStats;
 
 	TArray<FElement> GlobalPayloads;
 	TArrayAsMap<TPayloadType, FAABBTreePayloadInfo> PayloadToInfo;
