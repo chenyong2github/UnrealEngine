@@ -14,6 +14,7 @@
 #include "NiagaraRendererProperties.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraSettings.h"
+#include "NiagaraSimulationStageBase.h"
 #include "NiagaraStats.h"
 #include "NiagaraTrace.h"
 #include "NiagaraTypes.h"
@@ -2433,14 +2434,11 @@ bool UNiagaraSystem::CompilationResultsValid(FNiagaraSystemCompileRequest& Compi
 
 void UNiagaraSystem::EvaluateCompileResultDependencies() const
 {
-	//@todo(ng) disable dependency checking pending fixes for false positive errors
-	return;
-
 	struct FScriptCompileResultValidationInfo
 	{
 		UNiagaraEmitter* Emitter = nullptr;
 		FNiagaraVMExecutableData* CompileResults = nullptr;
-		int32 ParentIndex = INDEX_NONE;
+		TArray<int32> ParentIndices;
 		bool bCompileResultStatusDirty = false;
 
 		void ReEvaluateCompileStatus()
@@ -2492,7 +2490,7 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 	TArray<FScriptCompileResultValidationInfo> ScriptCompilesToValidate;
 
 	// Add a compiled script pair to be evaluated for external dependencies to ScriptCompilesToValidate and clear all of its compile events that are from script dependencies.
-	auto AddCompiledScriptForValidation = [&ScriptCompilesToValidate](UNiagaraScript* InScript, int32 ParentIdx, UNiagaraEmitter* InEmitter = nullptr)->int32
+	auto AddCompiledScriptForValidation = [&ScriptCompilesToValidate](UNiagaraScript* InScript, const TArray<int32>& InParentIndices, UNiagaraEmitter* InEmitter = nullptr)->int32
 	{
 		FScriptCompileResultValidationInfo ValidationInfo = FScriptCompileResultValidationInfo();
 		ValidationInfo.CompileResults = &InScript->GetVMExecutableData();
@@ -2508,38 +2506,80 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 		}
 
 		ValidationInfo.Emitter = InEmitter;
-		ValidationInfo.ParentIndex = ParentIdx;
+		ValidationInfo.ParentIndices = InParentIndices;
 		return ScriptCompilesToValidate.Add(ValidationInfo);
 	};
 
-	// Gather system scripts to evaluate dependencies.
-	int32 SystemSpawnScriptIdx = AddCompiledScriptForValidation(SystemSpawnScript, INDEX_NONE);
-	int32 SystemUpdateScriptIdx = AddCompiledScriptForValidation(SystemUpdateScript, SystemSpawnScriptIdx);
+	int32 SystemSpawnScriptIdx = AddCompiledScriptForValidation(SystemSpawnScript, TArray<int32>());
+	TArray<int32> SystemSpawnVisitOrder;
+	SystemSpawnVisitOrder.Add(SystemSpawnScriptIdx);
 
-	// Gather per-emitter scripts to evaluate dependencies.
+	int32 SystemUpdateScriptIdx = AddCompiledScriptForValidation(SystemUpdateScript, SystemSpawnVisitOrder);
+	TArray<int32> SystemUpdateVisitOrder;
+	SystemUpdateVisitOrder.Add(SystemSpawnScriptIdx);
+	SystemUpdateVisitOrder.Add(SystemUpdateScriptIdx);
+
+	// Gather per-emitter scripts to evaluate dependencies. The dependencies need to form a linear chain walking up from the current execution path all the way to SystemSpawn, with 
+	// all scripts that execute in between being visited. If there are holes, then something could be marked as not being written even though it was written. The flow is thus:
+	// System Spawn
+	// Emitter Spawn
+	// System Update
+	// Emitter Update
+	// Particle Spawn/Interpolated
+	// Particle Spawn Event
+	// Particle Update
+	// Particle Non-Spawn Event
+	// Particle Sim Stages
 	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
 	{
 		if (Handle.GetInstance() && Handle.GetIsEnabled())
 		{
 			UNiagaraEmitter* Emitter = Handle.GetInstance();
 
-			const int32 EmitterSpawnScriptIdx = AddCompiledScriptForValidation(Emitter->EmitterSpawnScriptProps.Script, SystemSpawnScriptIdx, Emitter);
-			const int32 EmitterUpdateScriptIdx = AddCompiledScriptForValidation(Emitter->EmitterUpdateScriptProps.Script, SystemUpdateScriptIdx, Emitter);
-			const int32 ParentIdxForParticleSpawnScript = Emitter->bInterpolatedSpawning ? EmitterUpdateScriptIdx : EmitterSpawnScriptIdx;
-			const int32 ParticleSpawnScriptIdx = AddCompiledScriptForValidation(Emitter->SpawnScriptProps.Script, ParentIdxForParticleSpawnScript, Emitter);
-			const int32 ParticleUpdateScriptIdx = AddCompiledScriptForValidation(Emitter->UpdateScriptProps.Script, EmitterUpdateScriptIdx, Emitter);
+			const int32 EmitterSpawnScriptIdx = AddCompiledScriptForValidation(Emitter->EmitterSpawnScriptProps.Script, SystemSpawnVisitOrder, Emitter);
+			TArray<int32> EmitterSpawnVisitOrder = SystemSpawnVisitOrder;
+			TArray<int32> EmitterUpdateVisitOrder = SystemUpdateVisitOrder;
+			EmitterSpawnVisitOrder.Add(EmitterSpawnScriptIdx);
+			EmitterUpdateVisitOrder.Add(EmitterSpawnScriptIdx);
 
-			int32 TempIdx = ParticleUpdateScriptIdx;
+			const int32 EmitterUpdateScriptIdx = AddCompiledScriptForValidation(Emitter->EmitterUpdateScriptProps.Script, EmitterUpdateVisitOrder, Emitter);
+			EmitterUpdateVisitOrder.Add(EmitterUpdateScriptIdx);
+
+			TArray<int32> ParticleSpawnVisitOrder = EmitterUpdateVisitOrder;
+			TArray<int32> ParticleUpdateVisitOrder = ParticleSpawnVisitOrder;
+			const int32 ParticleSpawnScriptIdx = AddCompiledScriptForValidation(Emitter->SpawnScriptProps.Script, ParticleSpawnVisitOrder, Emitter);
+			ParticleSpawnVisitOrder.Add(ParticleSpawnScriptIdx);
+			ParticleUpdateVisitOrder.Add(ParticleSpawnScriptIdx);
+
+			const int32 ParticleUpdateScriptIdx = AddCompiledScriptForValidation(Emitter->UpdateScriptProps.Script, ParticleUpdateVisitOrder, Emitter);
+			ParticleUpdateVisitOrder.Add(ParticleUpdateScriptIdx);
+
+			// If the spawn script is interpolated, allow the particle update script to resolve dependencies for spawn events and spawn sim stages.
+			if (Emitter->bInterpolatedSpawning)
+			{
+				ParticleSpawnVisitOrder.Add(ParticleUpdateScriptIdx);
+			}
+			
 			const TArray<FNiagaraEventScriptProperties>& EventHandlerScriptProps = Emitter->GetEventHandlers();
 			for (int32 i = 0; i < EventHandlerScriptProps.Num(); i++)
 			{
 				if (EventHandlerScriptProps[i].Script)
 				{
-					TempIdx = AddCompiledScriptForValidation(EventHandlerScriptProps[i].Script, TempIdx, Emitter);
+					if (EventHandlerScriptProps[i].ExecutionMode == EScriptExecutionMode::SpawnedParticles)
+					{
+						AddCompiledScriptForValidation(EventHandlerScriptProps[i].Script, ParticleSpawnVisitOrder, Emitter);
+					}
+						
+					else
+					{
+						AddCompiledScriptForValidation(EventHandlerScriptProps[i].Script, ParticleUpdateVisitOrder, Emitter);
+					}	
 				}
 			}
-
+			
+			// Gather up all the spawn stages first, since they could write to a value before anything else.
 			const TArray<UNiagaraSimulationStageBase*>& SimulationStages = Emitter->GetSimulationStages();
+			TArray<UNiagaraSimulationStageBase*> NonSpawnStages;
 			for (int32 i = 0; i < SimulationStages.Num(); i++)
 			{
 				if (SimulationStages[i] && SimulationStages[i]->Script)
@@ -2549,13 +2589,30 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 						continue;
 					}
 
-					TempIdx = AddCompiledScriptForValidation(SimulationStages[i]->Script, TempIdx, Emitter);
+					UNiagaraSimulationStageGeneric* GenericSimStage = Cast<UNiagaraSimulationStageGeneric>(SimulationStages[i]);
+					if (GenericSimStage && GenericSimStage->ExecuteBehavior == ENiagaraSimStageExecuteBehavior::OnSimulationReset)
+					{
+						int32 LastSpawnStageIdx = AddCompiledScriptForValidation(SimulationStages[i]->Script, ParticleSpawnVisitOrder, Emitter);
+						ParticleSpawnVisitOrder.Add(LastSpawnStageIdx);
+						ParticleUpdateVisitOrder.Add(LastSpawnStageIdx);
+					}
+					else
+					{
+						NonSpawnStages.Add(SimulationStages[i]);
+					}
 				}
+			}
+
+			// Now handle all the other stages
+			for (int32 i = 0; i < NonSpawnStages.Num(); i++)
+			{
+				int32 LastStageIdx = AddCompiledScriptForValidation(NonSpawnStages[i]->Script, ParticleUpdateVisitOrder, Emitter);
+				ParticleUpdateVisitOrder.Add(LastStageIdx);
 			}
 
 			if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 			{
-				AddCompiledScriptForValidation(Emitter->GetGPUComputeScript(), TempIdx, Emitter);
+				AddCompiledScriptForValidation(Emitter->GetGPUComputeScript(), ParticleUpdateVisitOrder, Emitter);
 			}
 		}
 	}
@@ -2574,21 +2631,18 @@ void UNiagaraSystem::EvaluateCompileResultDependencies() const
 			}
 
 			bool bDependencyMet = false;
-			int32 TestIdx = ValidationInfo.ParentIndex;
-			while (TestIdx != INDEX_NONE && bDependencyMet == false)
+			for (const int32 TestIndex : ValidationInfo.ParentIndices)
 			{
-				if (ScriptCompilesToValidate.IsValidIndex(TestIdx))
+				if (ScriptCompilesToValidate.IsValidIndex(TestIndex) == false)
 				{
-					const FScriptCompileResultValidationInfo& TestInfo = ScriptCompilesToValidate[TestIdx];
-					if (TestInfo.CompileResults->AttributesWritten.Num() > 0)
-					{
-						if (TestInfo.CompileResults->AttributesWritten.Contains(TestVar))
-						{
-							bDependencyMet = true;
-							break;
-						}
-					}
-					TestIdx = TestInfo.ParentIndex;
+					ensureMsgf(false, TEXT("Encountered invalid index into script compiles to validate when evaluating fail if not set dependencies!"));
+				}
+
+				const FScriptCompileResultValidationInfo& TestInfo = ScriptCompilesToValidate[TestIndex];
+				if (TestInfo.CompileResults->AttributesWritten.Contains(TestVar))
+				{
+					bDependencyMet = true;
+					break;
 				}
 			}
 			if (!bDependencyMet)

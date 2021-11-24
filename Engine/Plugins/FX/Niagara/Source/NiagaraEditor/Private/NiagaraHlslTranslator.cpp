@@ -681,15 +681,16 @@ FString FHlslNiagaraTranslator::BuildParameterMapHlslDefinitions(TArray<FNiagara
 	}
 
 	// Add in currently defined attribute vars.
-	ParamMapDefinedAttributesToNamespaceVars.GenerateValueArray(ValueArray);
-	for (FNiagaraVariable& Var : ValueArray)
+	TArray<FVarAndDefaultSource> VarAndDefaultSourceArray;
+	ParamMapDefinedAttributesToNamespaceVars.GenerateValueArray(VarAndDefaultSourceArray);
+	for (FVarAndDefaultSource& VarAndDefaultSource : VarAndDefaultSourceArray)
 	{
-		if (Var.GetType().GetClass() != nullptr)
+		if (VarAndDefaultSource.Variable.GetType().GetClass() != nullptr)
 		{
 			continue;
 		}
 
-		UniqueVariables.AddUnique(Var);
+		UniqueVariables.AddUnique(VarAndDefaultSource.Variable);
 	}
 
 	// Add in any bulk usage vars.
@@ -941,6 +942,27 @@ void FHlslNiagaraTranslator::BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode
 	{
 		const FString SymbolName = GetSanitizedSymbolName(Variable.GetName().ToString(), true);
 		AddUniformChunk(SymbolName, Variable, ChunkMode, true);
+	}
+}
+
+void FHlslNiagaraTranslator::RecordParamMapDefinedAttributeToNamespaceVar(const FNiagaraVariable& VarToRecord, const UEdGraphPin* VarAssociatedDefaultPin)
+{
+	bool bDefaultPinExplicit = true;
+	if (VarAssociatedDefaultPin == nullptr || VarAssociatedDefaultPin->bHidden)
+	{
+		bDefaultPinExplicit = false;
+	}
+
+	if (FVarAndDefaultSource* VarAndDefaultSourcePtr = ParamMapDefinedAttributesToNamespaceVars.Find(VarToRecord.GetName()))
+	{
+		VarAndDefaultSourcePtr->bDefaultExplicit |= bDefaultPinExplicit;
+	}
+	else
+	{
+		FVarAndDefaultSource VarAndDefaultSource;
+		VarAndDefaultSource.Variable = VarToRecord;
+		VarAndDefaultSource.bDefaultExplicit = bDefaultPinExplicit;
+		ParamMapDefinedAttributesToNamespaceVars.Add(VarToRecord.GetName(), VarAndDefaultSource);
 	}
 }
 
@@ -2907,12 +2929,13 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				if (i == 1 && TranslationStages[i].ScriptUsage == ENiagaraScriptUsage::ParticleUpdateScript) // The Update Phase might need previous parameters set.
 				{
 					// Put any gathered previous variables into the list here so that we can use them by recording the last value from the parent variable on transfer from previous stage if interpolated spawning.
-					TArray<FNiagaraVariable> Vars;
+					TArray<FVarAndDefaultSource> VarAndDefaultSourceArray;
 					TArray<FNiagaraVariable> GatheredPreviousVariables;
-					ParamMapDefinedAttributesToNamespaceVars.GenerateValueArray(Vars);
+					ParamMapDefinedAttributesToNamespaceVars.GenerateValueArray(VarAndDefaultSourceArray);
 
-					for (const FNiagaraVariable& Var : Vars)
+					for (const FVarAndDefaultSource& VarAndDefaultSource : VarAndDefaultSourceArray)
 					{
+						const FNiagaraVariable& Var = VarAndDefaultSource.Variable;
 						if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
 						{
 							FNiagaraVariable SrcVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(Var);
@@ -3306,12 +3329,13 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 				if (StageIdx == 0 && UNiagaraScript::IsInterpolatedParticleSpawnScript(CompileOptions.TargetUsage)) // The Update Phase might need previous parameters set.
 				{
 					// Put any gathered previous variables into the list here so that we can use them by recording the last value from the parent variable on transfer from previous stage if interpolated spawning.
-					TArray<FNiagaraVariable> Vars;
+					TArray<FVarAndDefaultSource> VarAndDefaultSourceArray;
 					TArray<FNiagaraVariable> GatheredPreviousVariables;
-					ParamMapDefinedAttributesToNamespaceVars.GenerateValueArray(Vars);
+					ParamMapDefinedAttributesToNamespaceVars.GenerateValueArray(VarAndDefaultSourceArray);
 
-					for (const FNiagaraVariable& Var : Vars)
+					for (const FVarAndDefaultSource& VarAndDefaultSource : VarAndDefaultSourceArray)
 					{
+						const FNiagaraVariable& Var = VarAndDefaultSource.Variable;
 						if (FNiagaraParameterMapHistory::IsPreviousValue(Var))
 						{
 							FNiagaraVariable SrcVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(Var);
@@ -4555,7 +4579,6 @@ bool FHlslNiagaraTranslationStage::IsRelevantToSpawnForStage(const FNiagaraParam
 	return false;
 }
 
-
 void FHlslNiagaraTranslator::InitializeParameterMapDefaults(int32 ParamMapHistoryIdx)
 {
 	bInitializedDefaults = true;
@@ -4730,7 +4753,10 @@ void FHlslNiagaraTranslator::Output(UNiagaraNodeOutput* OutputNode, const TArray
 					if (ParamMapDefinedAttributesToUniformChunks.Find(Var.GetName()) == nullptr)
 					{
 						ParamMapDefinedAttributesToUniformChunks.Add(Var.GetName(), Input);
-						ParamMapDefinedAttributesToNamespaceVars.Add(Var.GetName(), VarNamespaced);
+						FVarAndDefaultSource VarAndDefaultSource;
+						VarAndDefaultSource.Variable = VarNamespaced;
+						VarAndDefaultSource.bDefaultExplicit = false;
+						ParamMapDefinedAttributesToNamespaceVars.Add(Var.GetName(), VarAndDefaultSource);
 					}
 
 					InstanceWrite.Variables.AddUnique(VarNamespaced);
@@ -4857,7 +4883,6 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 				Error(FText::Format(LOCTEXT("ParameterMapSetTypeError", "Cannot handle type {0}! Variable: {1}"), Var.GetType().GetNameText(), FText::FromName(Var.GetName())), nullptr, nullptr);
 			}
 
-			FString VarName = Var.GetName().ToString();
 			if (TranslationStages[ActiveStageIdx].IsExternalConstantNamespace(Var, CompileOptions.TargetUsage, CompileOptions.GetTargetUsageBitmask()))
 			{
 				Error(FText::Format(LOCTEXT("SetSystemConstantFail", "Cannot Set external constant, Type: {0} Variable: {1}"), Var.GetType().GetNameText(), FText::FromName(Var.GetName())), SetNode, nullptr);
@@ -4885,7 +4910,7 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 				if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
 				{
 					ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = Inputs[i].CompilationIndex;
-					ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+					RecordParamMapDefinedAttributeToNamespaceVar(Var, Inputs[i].Pin);
 					if (ParamMapHistories[ParamMapHistoryIdx].IsPrimaryDataSetOutput(Var, GetTargetUsage())) // Note that data interfaces aren't ever in the primary data set even if the namespace matches.)
 						CompilationOutput.ScriptData.AttributesWritten.AddUnique(Var);
 				}
@@ -5266,7 +5291,10 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterNamespaceAttributeVariable(cons
 			}
 
 			ParamMapDefinedAttributesToUniformChunks.Add(BasicVar.GetName(), UniformChunk);
-			ParamMapDefinedAttributesToNamespaceVars.Add(BasicVar.GetName(), NamespaceVar);
+			FVarAndDefaultSource VarAndDefaultSource;
+			VarAndDefaultSource.Variable = NamespaceVar;
+			VarAndDefaultSource.bDefaultExplicit = true;
+			ParamMapDefinedAttributesToNamespaceVars.Add(BasicVar.GetName(), VarAndDefaultSource);
 		}
 		Output = AddSourceChunk(ParameterMapInstanceName + TEXT(".") + SymbolNameNamespaced, NamespaceVar.GetType());
 		return true;
@@ -5499,7 +5527,7 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 
 	if (FNiagaraParameterMapHistory::IsExternalConstantNamespace(Var, CompileOptions.TargetUsage, CompileOptions.GetTargetUsageBitmask()))
 	{
-		if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet && !bIgnoreDefaultSetFirst)
+		if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet && !Variable->Variable.IsInNameSpace(FNiagaraConstants::UserNamespaceString) && !bIgnoreDefaultSetFirst)
 		{
 			RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), ErrorNode, nullptr, true);
 		}
@@ -5551,7 +5579,13 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 
 
 	bool bFailIfPreviouslyNotSetSentinel = false;
-	if (Variable && Variable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet)
+	bool bValidateFailIfPreviouslyNotSet = false;
+	if (Variable != nullptr)
+	{
+		bValidateFailIfPreviouslyNotSet = Variable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet;
+	}
+
+	if (bValidateFailIfPreviouslyNotSet)
 	{
 		FNiagaraVariable SearchVar = Var;
 		if (FNiagaraParameterMapHistory::IsInitialValue(Var))
@@ -5563,7 +5597,8 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 			SearchVar = FNiagaraParameterMapHistory::GetSourceForPreviousValue(Var);
 		}
 
-		bool bSetPreviously = nullptr != ParamMapDefinedAttributesToNamespaceVars.Find(SearchVar.GetName());
+		FVarAndDefaultSource* ParamMapDefinedVarAndDefaultSource = ParamMapDefinedAttributesToNamespaceVars.Find(SearchVar.GetName());
+		bool bSetPreviously = ParamMapDefinedVarAndDefaultSource != nullptr && ParamMapDefinedVarAndDefaultSource->bDefaultExplicit;
 		for (int32 OtherParamIdx = 0; OtherParamIdx < OtherOutputParamMapHistories.Num() && !bSetPreviously; OtherParamIdx++)
 		{
 			// Stop if this is already in our evaluation chain. Assume only indices above us are valid sourcers for this.
@@ -5573,10 +5608,13 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 			int32 FoundInParamIdx = OtherOutputParamMapHistories[OtherParamIdx].FindVariableByName(SearchVar.GetName());
 			if (INDEX_NONE != FoundInParamIdx)
 			{
-				if (OtherOutputParamMapHistories[OtherParamIdx].PerVariableWriteHistory[FoundInParamIdx].Num() != 0)
+				for (const FModuleScopedPin& ScopedPin : OtherOutputParamMapHistories[OtherParamIdx].PerVariableWriteHistory[FoundInParamIdx])
 				{
-					bSetPreviously = true;
-					break;
+					if (ScopedPin.Pin->Direction == EEdGraphPinDirection::EGPD_Input && ScopedPin.Pin->bHidden == false)
+					{
+						bSetPreviously = true;
+						break;
+					}
 				}
 			}
 		}
@@ -5584,7 +5622,6 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 			bFailIfPreviouslyNotSetSentinel = true;
 	}
 	
-
 	int32 LastSetChunkIdx = INDEX_NONE;
 	if (ParamMapHistoryIdx < ParamMapHistories.Num())
 	{
@@ -5613,28 +5650,28 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 
 			if (TranslationOptions.bParameterRapidIteration)
 			{
-			// Now try to look up with the new name.. we may have already made this an external variable before..
-			if (bVarChanged)
-			{
-				VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
-				if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+				// Now try to look up with the new name.. we may have already made this an external variable before..
+				if (bVarChanged)
 				{
-					LastSetChunkIdx = ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx];
+					VarIdx = ParamMapHistories[ParamMapHistoryIdx].FindVariableByName(Var.GetName());
+					if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+					{
+						LastSetChunkIdx = ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx];
+					}
 				}
-			}
 
-			// If it isn't found yet.. go ahead and make it into a constant variable..
-			if (LastSetChunkIdx == INDEX_NONE && ParameterMapRegisterExternalConstantNamespaceVariable(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, InputPin))
-			{
-				LastSetChunkIdx = OutputChunkId;
-				if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+				// If it isn't found yet.. go ahead and make it into a constant variable..
+				if (LastSetChunkIdx == INDEX_NONE && ParameterMapRegisterExternalConstantNamespaceVariable(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, InputPin))
 				{
-					// Record that we wrote to it.
-					ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
-					ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+					LastSetChunkIdx = OutputChunkId;
+					if (VarIdx != INDEX_NONE && VarIdx < ParamMapSetVariablesToChunks[ParamMapHistoryIdx].Num())
+					{
+						// Record that we wrote to it.
+						ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
+						RecordParamMapDefinedAttributeToNamespaceVar(Var, DefaultPin);
+					}
+					return;		
 				}
-				return;
-				}				
 			}
 			else
 			{
@@ -5674,14 +5711,16 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 		bool bIgnoreDefaultValue = ParamMapHistories[ParamMapHistoryIdx].ShouldIgnoreVariableDefault(Var);
 
 		// First check to see if this is defaulted to fail if not set previously. If so, then make sure we don't suck in defaults and error out.
-		if (LastSetChunkIdx == INDEX_NONE && Variable && Variable->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet && bFailIfPreviouslyNotSetSentinel && !bIgnoreDefaultSetFirst)
+		if (bValidateFailIfPreviouslyNotSet && bFailIfPreviouslyNotSetSentinel && !bIgnoreDefaultSetFirst)
 		{		
 			RegisterCompileDependency(Var, FText::Format(LOCTEXT("UsedBeforeSet", "Variable {0} was read before being set. It's default mode is \"Fail If Previously Not Set\", so this isn't allowed."), FText::FromName(Var.GetName())), ErrorNode, nullptr, false);
 		}
 
 		if (bIsPerInstanceAttribute)
 		{
-			FNiagaraVariable* ExistingVar = ParamMapDefinedAttributesToNamespaceVars.Find(Var.GetName());
+			FVarAndDefaultSource* ExistingVarAndDefaultSource = ParamMapDefinedAttributesToNamespaceVars.Find(Var.GetName());
+			FNiagaraVariable* ExistingVar = ExistingVarAndDefaultSource ? &ExistingVarAndDefaultSource->Variable : nullptr;
+
 			bool ExistsInAttribArrayAlready = ExistingVar != nullptr;
 			if (ExistsInAttribArrayAlready&& ExistingVar->GetType() != Var.GetType())
 			{
@@ -5715,9 +5754,13 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 
 				if (bFoundExistingSet)
 				{
-					LastSetChunkIdx = AddBodyChunk(ParameterMapInstanceName + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString()),
-						ParameterMapInstanceName + TEXT(".") + GetSanitizedSymbolName(SourceForInitialValue.GetName().ToString()), Var.GetType(), false);
-					ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+					LastSetChunkIdx = AddBodyChunk(
+						ParameterMapInstanceName + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString()),
+						ParameterMapInstanceName + TEXT(".") + GetSanitizedSymbolName(SourceForInitialValue.GetName().ToString()), Var.GetType(),
+						false
+					);
+
+					RecordParamMapDefinedAttributeToNamespaceVar(Var, DefaultPin);
 				}
 				else
 				{
@@ -5831,11 +5874,11 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 					{
 						// Record that we wrote to it.
 						ParamMapSetVariablesToChunks[ParamMapHistoryIdx][VarIdx] = LastSetChunkIdx;
-						ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+						RecordParamMapDefinedAttributeToNamespaceVar(Var, DefaultPin);
 					}
 					else if (VarIdx == INDEX_NONE && UniqueVars.Contains(Var))
 					{
-						ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+						RecordParamMapDefinedAttributeToNamespaceVar(Var, DefaultPin);
 					}
 					else
 					{
@@ -5885,7 +5928,7 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 	else
 	{
 		OutputChunkId = AddSourceChunk(ParameterMapInstanceName + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString()), Var.GetType());
-		ParamMapDefinedAttributesToNamespaceVars.FindOrAdd(Var.GetName()) = Var;
+		RecordParamMapDefinedAttributeToNamespaceVar(Var, DefaultPin);
 	}
 }
 
@@ -7152,7 +7195,11 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 									{
 										const UEdGraphPin* DefaultPin = History.GetDefaultValuePin(VarIdx);
 										UNiagaraScriptVariable* ScriptVariable = SourceGraph->GetScriptVariable(AliasedVar);
-										HandleParameterRead(ActiveStageIdx, AliasedVar, DefaultPin, ParamNode, LastSetChunkIdx, ScriptVariable);
+
+										// Do not error on defaults for parameter reads here; we may be entering a SetVariable function call which is setting the first default for a parameter.
+										const bool bTreatAsUnknownParameterMap = false;
+										const bool bIgnoreDefaultSetFirst = true;
+										HandleParameterRead(ActiveStageIdx, AliasedVar, DefaultPin, ParamNode, LastSetChunkIdx, ScriptVariable, bTreatAsUnknownParameterMap, bIgnoreDefaultSetFirst);
 										
 										// If this variable was in the pending defaults list, go ahead and remove it
 										// as we added it before first use...
@@ -8437,7 +8484,6 @@ void FHlslNiagaraTranslator::Warning(FText WarningText, const UNiagaraNode* InNo
 {
 	Message(FNiagaraCompileEventSeverity::Warning, WarningText, InNode, Pin, ShortDescription, bDismissable);
 }
-
 
 void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBase& InVar, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin, bool bEmitAsLinker)
 {
