@@ -41,3 +41,26 @@ bool UPrimitiveComponentToolTarget::HitTestComponent(const FRay& WorldRay, FHitR
 	}
 	return false;
 }
+
+
+// Factory
+
+bool UPrimitiveComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements) const
+{
+	UPrimitiveComponent* Component = Cast<UPrimitiveComponent>(SourceObject);
+	return Component 
+		&& IsValidChecked(Component)
+		&& !Component->IsUnreachable() 
+		&& Component->IsValidLowLevel() 
+		&& Requirements.AreSatisfiedBy(UPrimitiveComponentToolTarget::StaticClass());
+}
+
+UToolTarget* UPrimitiveComponentToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
+{
+	UPrimitiveComponentToolTarget* Target = NewObject<UPrimitiveComponentToolTarget>();
+	Target->Component = Cast<UPrimitiveComponent>(SourceObject);
+	check(Target->Component && Requirements.AreSatisfiedBy(Target));
+	return Target;
+}
+
+
