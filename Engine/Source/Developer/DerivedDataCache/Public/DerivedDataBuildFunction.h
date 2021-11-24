@@ -97,6 +97,15 @@ public:
 	virtual void AddPayload(const FPayloadId& Id, const FSharedBuffer& Buffer) = 0;
 	virtual void AddPayload(const FPayloadId& Id, const FCbObject& Object) = 0;
 
+	/** Adds the error to the build output. Must be deterministic and based only on inputs. */
+	virtual void AddError(FStringView Message) = 0;
+
+	/** Adds the warning to the build output. Must be deterministic and based only on inputs. */
+	virtual void AddWarning(FStringView Message) = 0;
+
+	/** Adds the message to the build output. Must be deterministic and based only on inputs. */
+	virtual void AddMessage(FStringView Message) = 0;
+
 	/** Overrides the cache policy mask used when writing this build in the cache. */
 	virtual void SetCachePolicyMask(ECachePolicy Policy) = 0;
 
@@ -133,6 +142,15 @@ public:
 
 	/** Returns the constant with the matching key, or an object with no fields if not found. */
 	virtual FCbObject FindConstant(FStringView Key) const = 0;
+
+	/** Adds the error to the build output. Must be deterministic and based only on inputs. */
+	virtual void AddError(FStringView Message) = 0;
+
+	/** Adds the warning to the build output. Must be deterministic and based only on inputs. */
+	virtual void AddWarning(FStringView Message) = 0;
+
+	/** Adds the message to the build output. Must be deterministic and based only on inputs. */
+	virtual void AddMessage(FStringView Message) = 0;
 
 	/** Overrides the cache bucket used when reading or writing this build in the cache. */
 	virtual void SetCacheBucket(FCacheBucket Bucket) = 0;

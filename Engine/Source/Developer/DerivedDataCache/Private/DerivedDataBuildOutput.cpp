@@ -2,12 +2,10 @@
 
 #include "DerivedDataBuildOutput.h"
 
-#include "Algo/AllOf.h"
 #include "Algo/BinarySearch.h"
-#include "Containers/StringConv.h"
+#include "Algo/Find.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
-#include "DerivedDataBuildDefinition.h"
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataCacheRecord.h"
@@ -19,26 +17,60 @@
 namespace UE::DerivedData::Private
 {
 
-static FStringView LexToString(EBuildDiagnosticLevel Level)
+static FUtf8StringView LexToString(EBuildOutputMessageLevel Level)
 {
 	switch (Level)
 	{
-	default: return TEXT("Unknown"_SV);
-	case EBuildDiagnosticLevel::Error: return TEXT("Error"_SV);
-	case EBuildDiagnosticLevel::Warning: return TEXT("Warning"_SV);
+	case EBuildOutputMessageLevel::Error: return "Error"_U8SV;
+	case EBuildOutputMessageLevel::Warning: return "Warning"_U8SV;
+	case EBuildOutputMessageLevel::Display: return "Display"_U8SV;
+	default: return "Unknown"_U8SV;
 	}
 }
 
-static void LexFromString(EBuildDiagnosticLevel& OutLevel, FUtf8StringView String)
+static bool TryLexFromString(EBuildOutputMessageLevel& OutLevel, FUtf8StringView String)
 {
+	if (String.Equals("Error"_U8SV, ESearchCase::CaseSensitive))
+	{
+		OutLevel = EBuildOutputMessageLevel::Error;
+		return true;
+	}
 	if (String.Equals("Warning"_U8SV, ESearchCase::CaseSensitive))
 	{
-		OutLevel = EBuildDiagnosticLevel::Warning;
+		OutLevel = EBuildOutputMessageLevel::Warning;
+		return true;
 	}
-	else
+	if (String.Equals("Display"_U8SV, ESearchCase::CaseSensitive))
 	{
-		OutLevel = EBuildDiagnosticLevel::Error;
+		OutLevel = EBuildOutputMessageLevel::Display;
+		return true;
 	}
+	return false;
+}
+
+static FUtf8StringView LexToString(EBuildOutputLogLevel Level)
+{
+	switch (Level)
+	{
+	case EBuildOutputLogLevel::Error: return "Error"_U8SV;
+	case EBuildOutputLogLevel::Warning: return "Warning"_U8SV;
+	default: return "Unknown"_U8SV;
+	}
+}
+
+static bool TryLexFromString(EBuildOutputLogLevel& OutLevel, FUtf8StringView String)
+{
+	if (String.Equals("Error"_U8SV, ESearchCase::CaseSensitive))
+	{
+		OutLevel = EBuildOutputLogLevel::Error;
+		return true;
+	}
+	if (String.Equals("Warning"_U8SV, ESearchCase::CaseSensitive))
+	{
+		OutLevel = EBuildOutputLogLevel::Warning;
+		return true;
+	}
+	return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,19 +81,19 @@ public:
 	explicit FBuildOutputBuilderInternal(FStringView InName, FStringView InFunction)
 		: Name(InName)
 		, Function(InFunction)
-		, bHasError(false)
-		, bHasDiagnostics(false)
 	{
 		checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
 		AssertValidBuildFunctionName(Function, Name);
-		DiagnosticsWriter.BeginArray();
+		MessageWriter.BeginArray();
+		LogWriter.BeginArray();
 	}
 
 	~FBuildOutputBuilderInternal() final = default;
 
-	void SetMeta(FCbObject&& InMeta) final { Meta = MoveTemp(InMeta); }
+	void SetMeta(FCbObject&& InMeta) final { Meta = MoveTemp(InMeta); Meta.MakeOwned(); }
 	void AddPayload(const FPayload& Payload) final;
-	void AddDiagnostic(const FBuildDiagnostic& Diagnostic) final;
+	void AddMessage(const FBuildOutputMessage& Message) final;
+	void AddLog(const FBuildOutputLog& Log) final;
 	bool HasError() const final { return bHasError; }
 	FBuildOutput Build() final;
 
@@ -69,18 +101,19 @@ public:
 	FString Function;
 	FCbObject Meta;
 	TArray<FPayload> Payloads;
-	FCbField Diagnostics;
-	FCbWriter DiagnosticsWriter;
-	bool bHasError;
-	bool bHasDiagnostics;
+	FCbWriter MessageWriter;
+	FCbWriter LogWriter;
+	bool bHasMessages = false;
+	bool bHasLogs = false;
+	bool bHasError = false;
 };
 
 class FBuildOutputInternal final : public IBuildOutputInternal
 {
 public:
-	explicit FBuildOutputInternal(FBuildOutputBuilderInternal&& Output);
-	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& Output, bool& bOutIsValid);
-	explicit FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& Output, bool& bOutIsValid);
+	FBuildOutputInternal(FString&& Name, FString&& Function, FCbObject&& Meta, FCbObject&& Output, TArray<FPayload>&& Payloads);
+	FBuildOutputInternal(FStringView Name, FStringView Function, const FCbObject& Output, bool& bOutIsValid);
+	FBuildOutputInternal(FStringView Name, FStringView Function, const FCacheRecord& Output, bool& bOutIsValid);
 
 	~FBuildOutputInternal() final = default;
 
@@ -91,13 +124,15 @@ public:
 
 	const FPayload& GetPayload(const FPayloadId& Id) const final;
 	TConstArrayView<FPayload> GetPayloads() const final { return Payloads; }
-	void IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const final;
+	TConstArrayView<FBuildOutputMessage> GetMessages() const final { return Messages; }
+	TConstArrayView<FBuildOutputLog> GetLogs() const final { return Logs; }
+	bool HasLogs() const final { return !Logs.IsEmpty(); }
 	bool HasError() const final;
+
+	bool TryLoad();
 
 	void Save(FCbWriter& Writer) const final;
 	void Save(FCacheRecordBuilder& RecordBuilder) const final;
-
-	bool IsValid() const;
 
 	inline void AddRef() const final
 	{
@@ -116,63 +151,55 @@ private:
 	FString Name;
 	FString Function;
 	FCbObject Meta;
+	FCbObject Output;
 	TArray<FPayload> Payloads;
-	FCbField Diagnostics;
+	TArray<FBuildOutputMessage> Messages;
+	TArray<FBuildOutputLog> Logs;
 	mutable std::atomic<uint32> ReferenceCount{0};
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FBuildOutputInternal::FBuildOutputInternal(FBuildOutputBuilderInternal&& InOutput)
-	: Name(MoveTemp(InOutput.Name))
-	, Function(MoveTemp(InOutput.Function))
-	, Meta(MoveTemp(InOutput.Meta))
-	, Payloads(MoveTemp(InOutput.Payloads))
-	, Diagnostics(MoveTemp(InOutput.Diagnostics))
+FBuildOutputInternal::FBuildOutputInternal(
+	FString&& InName,
+	FString&& InFunction,
+	FCbObject&& InMeta,
+	FCbObject&& InOutput,
+	TArray<FPayload>&& InPayloads)
+	: Name(MoveTemp(InName))
+	, Function(MoveTemp(InFunction))
+	, Meta(MoveTemp(InMeta))
+	, Output(MoveTemp(InOutput))
+	, Payloads(MoveTemp(InPayloads))
 {
-	if (InOutput.bHasError)
-	{
-		Payloads.Empty();
-	}
+	Meta.MakeOwned();
+	Output.MakeOwned();
+	TryLoad();
 }
 
 FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCbObject& InOutput, bool& bOutIsValid)
 	: Name(InName)
 	, Function(InFunction)
+	, Output(InOutput)
 {
-	bOutIsValid = false;
 	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
 	AssertValidBuildFunctionName(Function, Name);
-	Meta = InOutput["Meta"_ASV].AsObject();
-	Meta.MakeOwned();
-	for (FCbFieldView Payload : InOutput["Payloads"_ASV])
-	{
-		const FPayloadId Id = Payload["Id"_ASV].AsObjectId();
-		const FIoHash& RawHash = Payload["RawHash"_ASV].AsAttachment();
-		if (Id.IsNull() || RawHash.IsZero() || !Payload["RawSize"_ASV].IsInteger())
-		{
-			return;
-		}
-		Payloads.Emplace(Id, RawHash, Payload["RawSize"_ASV].AsUInt64());
-	}
-	Diagnostics = InOutput["Diagnostics"_ASV];
-	Diagnostics.MakeOwned();
-	bOutIsValid = IsValid() && (!InOutput.AsView()["Meta"_ASV] || InOutput.AsView()["Meta"_ASV].IsObject());
+	Output.MakeOwned();
+	FCbField MetaField = InOutput["Meta"_ASV];
+	bOutIsValid = TryLoad() && (!MetaField || MetaField.IsObject());
+	Meta = MoveTemp(MetaField).AsObject();
 }
 
 FBuildOutputInternal::FBuildOutputInternal(FStringView InName, FStringView InFunction, const FCacheRecord& InOutput, bool& bOutIsValid)
 	: Name(InName)
 	, Function(InFunction)
 	, Meta(InOutput.GetMeta())
+	, Output(InOutput.GetValue())
 	, Payloads(InOutput.GetAttachmentPayloads())
 {
 	checkf(!Name.IsEmpty(), TEXT("A build output requires a non-empty name."));
 	AssertValidBuildFunctionName(Function, Name);
-	if (FSharedBuffer Buffer = InOutput.GetValue())
-	{
-		Diagnostics = FCbObject(MoveTemp(Buffer))["Diagnostics"_ASV];
-	}
-	bOutIsValid = IsValid();
+	bOutIsValid = TryLoad();
 }
 
 const FPayload& FBuildOutputInternal::GetPayload(const FPayloadId& Id) const
@@ -181,31 +208,73 @@ const FPayload& FBuildOutputInternal::GetPayload(const FPayloadId& Id) const
 	return Payloads.IsValidIndex(Index) ? Payloads[Index] : FPayload::Null;
 }
 
-void FBuildOutputInternal::IterateDiagnostics(TFunctionRef<void (const FBuildDiagnostic& Diagnostic)> Visitor) const
-{
-	for (FCbFieldView Diagnostic : Diagnostics.CreateViewIterator())
-	{
-		EBuildDiagnosticLevel Level;
-		LexFromString(Level, Diagnostic["Level"_ASV].AsString());
-		const FUtf8StringView Category = Diagnostic["Category"_ASV].AsString();
-		const FUtf8StringView Message = Diagnostic["Message"_ASV].AsString();
-		Visitor(FBuildDiagnostic{FUTF8ToTCHAR(Category), FUTF8ToTCHAR(Message), Level});
-	}
-}
-
 bool FBuildOutputInternal::HasError() const
 {
-	for (FCbFieldView Field : Diagnostics.CreateViewIterator())
+	return Algo::FindBy(Messages, EBuildOutputMessageLevel::Error, &FBuildOutputMessage::Level) ||
+		Algo::FindBy(Logs, EBuildOutputLogLevel::Error, &FBuildOutputLog::Level);
+}
+
+bool FBuildOutputInternal::TryLoad()
+{
+	const FCbObjectView OutputView = Output;
+
+	if (Payloads.IsEmpty())
 	{
-		const FCbObjectView Diagnostic = Field.AsObjectView();
-		EBuildDiagnosticLevel Level;
-		LexFromString(Level, Diagnostic["Level"_ASV].AsString());
-		if (Level == EBuildDiagnosticLevel::Error)
+		for (FCbFieldView Payload : OutputView["Payloads"_ASV])
 		{
-			return true;
+			const FPayloadId Id = Payload["Id"_ASV].AsObjectId();
+			const FIoHash& RawHash = Payload["RawHash"_ASV].AsAttachment();
+			const uint64 RawSize = Payload["RawSize"_ASV].AsUInt64(MAX_uint64);
+			if (Id.IsNull() || RawHash.IsZero() || RawSize == MAX_uint64)
+			{
+				return false;
+			}
+			Payloads.Emplace(Id, RawHash, RawSize);
 		}
 	}
-	return false;
+
+	if (FCbFieldView MessagesField = OutputView["Messages"_ASV])
+	{
+		if (!MessagesField.IsArray())
+		{
+			return false;
+		}
+		Messages.Reserve(MessagesField.AsArrayView().Num());
+		for (FCbFieldView MessageField : MessagesField)
+		{
+			const FUtf8StringView LevelName = MessageField["Level"_ASV].AsString();
+			const FUtf8StringView Message = MessageField["Message"_ASV].AsString();
+			EBuildOutputMessageLevel Level;
+			if (LevelName.IsEmpty() || Message.IsEmpty() || !TryLexFromString(Level, LevelName))
+			{
+				return false;
+			}
+			Messages.Add({Message, Level});
+		}
+	}
+
+	if (FCbFieldView LogsField = OutputView["Logs"_ASV])
+	{
+		if (!LogsField.IsArray())
+		{
+			return false;
+		}
+		Logs.Reserve(LogsField.AsArrayView().Num());
+		for (FCbFieldView LogField : LogsField)
+		{
+			const FUtf8StringView LevelName = LogField["Level"_ASV].AsString();
+			const FUtf8StringView Category = LogField["Category"_ASV].AsString();
+			const FUtf8StringView Message = LogField["Message"_ASV].AsString();
+			EBuildOutputLogLevel Level;
+			if (LevelName.IsEmpty() || Category.IsEmpty() || Message.IsEmpty() || !TryLexFromString(Level, LevelName))
+			{
+				return false;
+			}
+			Logs.Add({Category, Message, Level});
+		}
+	}
+
+	return true;
 }
 
 void FBuildOutputInternal::Save(FCbWriter& Writer) const
@@ -224,9 +293,13 @@ void FBuildOutputInternal::Save(FCbWriter& Writer) const
 		}
 		Writer.EndArray();
 	}
-	if (Diagnostics)
+	if (FCbField MessagesField = Output["Messages"_ASV])
 	{
-		Writer.AddField("Diagnostics"_ASV, Diagnostics);
+		Writer.AddField("Messages"_ASV, MessagesField);
+	}
+	if (FCbField LogsField = Output["Logs"_ASV])
+	{
+		Writer.AddField("Logs"_ASV, LogsField);
 	}
 	if (Meta)
 	{
@@ -238,32 +311,23 @@ void FBuildOutputInternal::Save(FCbWriter& Writer) const
 void FBuildOutputInternal::Save(FCacheRecordBuilder& RecordBuilder) const
 {
 	RecordBuilder.SetMeta(FCbObject(Meta));
-	if (Diagnostics)
+	if (!Messages.IsEmpty() || !Logs.IsEmpty())
 	{
-		TCbWriter<128> Value;
-		Value.BeginObject();
-		Value.AddField("Diagnostics"_ASV, Diagnostics);
-		Value.EndObject();
-		RecordBuilder.SetValue(Value.Save().GetBuffer());
+		TCbWriter<1024> Writer;
+		if (FCbField MessagesField = Output["Messages"_ASV])
+		{
+			Writer.AddField("Messages"_ASV, MessagesField);
+		}
+		if (FCbField LogsField = Output["Logs"_ASV])
+		{
+			Writer.AddField("Logs"_ASV, LogsField);
+		}
+		RecordBuilder.SetValue(Writer.Save().GetBuffer());
 	}
 	for (const FPayload& Payload : Payloads)
 	{
 		RecordBuilder.AddAttachment(Payload);
 	}
-}
-
-bool FBuildOutputInternal::IsValid() const
-{
-	return IsValidBuildFunctionName(Function)
-		&& Algo::AllOf(Payloads, [](const FPayload& Payload) { return !Payload.GetRawHash().IsZero(); })
-		&& (!Diagnostics || Diagnostics.IsArray())
-		&& Algo::AllOf(Diagnostics.CreateViewIterator(), [](FCbFieldView Field)
-			{
-				return Field.IsObject()
-					&& Field["Level"_ASV].AsString().Len() > 0
-					&& Field["Category"_ASV].AsString().Len() > 0
-					&& Field["Message"_ASV].AsString().Len() > 0;
-			});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -278,26 +342,54 @@ void FBuildOutputBuilderInternal::AddPayload(const FPayload& Payload)
 	Payloads.Insert(Payload, Index);
 }
 
-void FBuildOutputBuilderInternal::AddDiagnostic(const FBuildDiagnostic& Diagnostic)
+void FBuildOutputBuilderInternal::AddMessage(const FBuildOutputMessage& Message)
 {
-	bHasError |= Diagnostic.Level == EBuildDiagnosticLevel::Error;
-	bHasDiagnostics = true;
-	DiagnosticsWriter.BeginObject();
-	DiagnosticsWriter.AddString("Level"_ASV, LexToString(Diagnostic.Level));
-	DiagnosticsWriter.AddString("Category"_ASV, Diagnostic.Category);
-	DiagnosticsWriter.AddString("Message"_ASV, Diagnostic.Message);
-	DiagnosticsWriter.EndObject();
+	bHasError |= Message.Level == EBuildOutputMessageLevel::Error;
+	bHasMessages = true;
+	MessageWriter.BeginObject();
+	MessageWriter.AddString("Level"_ASV, LexToString(Message.Level));
+	MessageWriter.AddString("Message"_ASV, Message.Message);
+	MessageWriter.EndObject();
+}
+
+void FBuildOutputBuilderInternal::AddLog(const FBuildOutputLog& Log)
+{
+	bHasError |= Log.Level == EBuildOutputLogLevel::Error;
+	bHasLogs = true;
+	LogWriter.BeginObject();
+	LogWriter.AddString("Level"_ASV, LexToString(Log.Level));
+	LogWriter.AddString("Category"_ASV, Log.Category);
+	LogWriter.AddString("Message"_ASV, Log.Message);
+	LogWriter.EndObject();
 }
 
 FBuildOutput FBuildOutputBuilderInternal::Build()
 {
-	DiagnosticsWriter.EndArray();
-	if (bHasDiagnostics)
+	if (bHasError)
 	{
-		Diagnostics = DiagnosticsWriter.Save();
+		Payloads.Empty();
 	}
-	DiagnosticsWriter.Reset();
-	return CreateBuildOutput(new FBuildOutputInternal(MoveTemp(*this)));
+	MessageWriter.EndArray();
+	LogWriter.EndArray();
+	FCbObject Output;
+	if (bHasMessages || bHasLogs)
+	{
+		TCbWriter<1024> Writer;
+		Writer.BeginObject();
+		if (bHasMessages)
+		{
+			Writer.AddArray("Messages"_ASV, MessageWriter.Save().AsArray());
+			MessageWriter.Reset();
+		}
+		if (bHasLogs)
+		{
+			Writer.AddArray("Logs"_ASV, LogWriter.Save().AsArray());
+			LogWriter.Reset();
+		}
+		Writer.EndObject();
+		Output = Writer.Save().AsObject();
+	}
+	return CreateBuildOutput(new FBuildOutputInternal(MoveTemp(Name), MoveTemp(Function), MoveTemp(Meta), MoveTemp(Output), MoveTemp(Payloads)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

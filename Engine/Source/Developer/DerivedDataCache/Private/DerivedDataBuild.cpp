@@ -119,7 +119,7 @@ private:
 	TUniquePtr<IBuildFunctionRegistry> FunctionRegistry{CreateBuildFunctionRegistry()};
 	TUniquePtr<IBuildWorkerRegistry> WorkerRegistry{CreateBuildWorkerRegistry()};
 	TUniquePtr<IBuildScheduler> DefaultScheduler{CreateBuildScheduler()};
-	const FGuid Version{TEXT("ed89db6a-335d-45d3-8599-39d3b09f7ad7")};
+	const FGuid Version{TEXT("02c9caed-123c-4fc3-b8c1-7816058abed5")};
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

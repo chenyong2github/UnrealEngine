@@ -1421,26 +1421,55 @@ private:
 	{
 		using namespace UE::DerivedData;
 
-		Output.IterateDiagnostics([](const FBuildDiagnostic& Diagnostic)
+		const FStringView Function = Output.GetFunction();
+		const FStringView Name = Output.GetName();
+
+		for (const FBuildOutputMessage& Message : Output.GetMessages())
 		{
-			if (Diagnostic.Level == EBuildDiagnosticLevel::Error)
+			switch (Message.Level)
 			{
-				UE_LOG(LogTexture, Warning, TEXT("[Build Error] %.*s: %.*s"),
-					Diagnostic.Category.Len(), Diagnostic.Category.GetData(),
-					Diagnostic.Message.Len(), Diagnostic.Message.GetData());
+			case EBuildOutputMessageLevel::Error:
+				UE_LOG(LogTexture, Warning, TEXT("[Error] %s (Build of '%.*s' by %.*s.)"),
+					*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				break;
+			case EBuildOutputMessageLevel::Warning:
+				UE_LOG(LogTexture, Warning, TEXT("%s (Build of '%.*s' by %.*s.)"),
+					*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				break;
+			case EBuildOutputMessageLevel::Display:
+				UE_LOG(LogTexture, Display, TEXT("%s (Build of '%.*s' by %.*s.)"),
+					*WriteToString<256>(Message.Message), Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				break;
+			default:
+				checkNoEntry();
+				break;
 			}
-			else
+		}
+
+		for (const FBuildOutputLog& Log : Output.GetLogs())
+		{
+			switch (Log.Level)
 			{
-				UE_LOG(LogTexture, Warning, TEXT("[Build Warning] %.*s: %.*s"),
-					Diagnostic.Category.Len(), Diagnostic.Category.GetData(),
-					Diagnostic.Message.Len(), Diagnostic.Message.GetData());
+			case EBuildOutputLogLevel::Error:
+				UE_LOG(LogTexture, Warning, TEXT("[Error] %s: %s (Build of '%.*s' by %.*s.)"),
+					*WriteToString<64>(Log.Category), *WriteToString<256>(Log.Message),
+					Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				break;
+			case EBuildOutputLogLevel::Warning:
+				UE_LOG(LogTexture, Warning, TEXT("%s: %s (Build of '%.*s' by %.*s.)"),
+					*WriteToString<64>(Log.Category), *WriteToString<256>(Log.Message),
+					Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
+				break;
+			default:
+				checkNoEntry();
+				break;
 			}
-		});
+		}
 
 		if (Output.HasError())
 		{
-			UE_LOG(LogTexture, Warning, TEXT("Failed to build derived data for build of '%s' by %s."),
-				*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+			UE_LOG(LogTexture, Warning, TEXT("Failed to build derived data for build of '%.*s' by %.*s."),
+				Name.Len(), Name.GetData(), Function.Len(), Function.GetData());
 			return;
 		}
 

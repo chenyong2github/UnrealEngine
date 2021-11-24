@@ -172,7 +172,7 @@ private:
 	void SetOutputNoCheck(FBuildOutput&& Output, EBuildJobState NewState = EBuildJobState::CacheStore);
 
 	/** Terminate the job and send the error to the output complete callback. */
-	void CompleteWithError(FStringView Error);
+	void CompleteWithError(FUtf8StringView Error);
 
 	/** Advance to the new state, dispatching to the scheduler and invoking callbacks as appropriate. */
 	void AdvanceToState(EBuildJobState NewState);
@@ -397,25 +397,25 @@ void FBuildJob::CreateContext()
 	const IBuildFunction* Function = BuildSystem.GetFunctionRegistry().FindFunction(FunctionName);
 	if (BuildSystem.GetVersion() != Action.Get().GetBuildSystemVersion())
 	{
-		return CompleteWithError(WriteToString<192>(TEXT("Failed because the build system is version "_SV),
-			BuildSystem.GetVersion(), TEXT(" when version "_SV),
-			Action.Get().GetBuildSystemVersion(), TEXT(" is expected."_SV)));
+		return CompleteWithError(WriteToUtf8String<192>("Failed because the build system is version "_ASV,
+			BuildSystem.GetVersion(), " when version "_ASV,
+			Action.Get().GetBuildSystemVersion(), " is expected."_ASV));
 	}
 	else if (!Function)
 	{
-		return CompleteWithError(WriteToString<128>(TEXT("Failed because the function "_SV), FunctionName,
-			TEXT(" was not found."_SV)));
+		return CompleteWithError(WriteToUtf8String<128>("Failed because the function "_ASV, FunctionName,
+			" was not found."_ASV));
 	}
 	else if (!Function->GetVersion().IsValid())
 	{
-		return CompleteWithError(WriteToString<128>(TEXT("Failed because the function "_SV), FunctionName,
-			TEXT(" has a version of zero."_SV)));
+		return CompleteWithError(WriteToUtf8String<128>("Failed because the function "_ASV, FunctionName,
+			" has a version of zero."_ASV));
 	}
 	else if (Function->GetVersion() != Action.Get().GetFunctionVersion())
 	{
-		return CompleteWithError(WriteToString<192>(TEXT("Failed because the function "_SV), FunctionName,
-			TEXT(" is version "_SV), Function->GetVersion(), TEXT(" when version "_SV),
-			Action.Get().GetFunctionVersion(), TEXT(" is expected."_SV)));
+		return CompleteWithError(WriteToUtf8String<192>("Failed because the function "_ASV, FunctionName,
+			" is version "_ASV, Function->GetVersion(), " when version "_ASV,
+			Action.Get().GetFunctionVersion(), " is expected."_ASV));
 	}
 	else
 	{
@@ -428,6 +428,11 @@ void FBuildJob::CreateContext()
 		Function->Configure(*Context);
 		EnumAddFlags(BuildStatus, ShouldExportBuild() ? EBuildStatus::BuildTryExport : EBuildStatus::None);
 		EnumAddFlags(BuildStatus, EBuildStatus::CacheKey);
+	}
+
+	if (OutputBuilder.HasError())
+	{
+		return AdvanceToState(EBuildJobState::Complete);
 	}
 
 	// Populate the scheduler params with the information that is available now.
@@ -511,7 +516,7 @@ void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError(TEXT("Build was canceled."));
+		return CompleteWithError("Build was canceled."_ASV);
 	}
 	if (Params.Status == EStatus::Ok)
 	{
@@ -523,7 +528,7 @@ void FBuildJob::EndCacheQuery(FCacheGetCompleteParams&& Params)
 	}
 	if (!EnumHasAnyFlags(BuildPolicy.GetCombinedPolicy() & Context->GetBuildPolicyMask(), EBuildPolicy::Build))
 	{
-		return CompleteWithError(TEXT("Failed to fetch from the cache and build policy does not allow execution."));
+		return CompleteWithError("Failed to fetch from the cache and build policy does not allow execution."_ASV);
 	}
 	return AdvanceToState(EBuildJobState::ExecuteRemote);
 }
@@ -556,7 +561,8 @@ void FBuildJob::EnterCacheStore()
 		!EnumHasAnyFlags(Context->GetCachePolicyMask(), ECachePolicy::Store) ||
 		!EnumHasAnyFlags(Context->GetBuildPolicyMask() & BuildPolicy.GetCombinedPolicy(), EBuildPolicy::CacheStoreOnBuild) ||
 		EnumHasAnyFlags(BuildStatus, EBuildStatus::CacheQueryHit) ||
-		Output.Get().HasError())
+		Output.Get().HasError() ||
+		Output.Get().HasLogs())
 	{
 		return AdvanceToState(EBuildJobState::Complete);
 	}
@@ -595,11 +601,11 @@ void FBuildJob::EnterResolveKey()
 	}
 	if (DefinitionKey != FBuildKey::Empty)
 	{
-		return CompleteWithError(TEXT("Failed to resolve null key."_SV));
+		return CompleteWithError("Failed to resolve null key."_ASV);
 	}
 	if (!InputResolver)
 	{
-		return CompleteWithError(TEXT("Failed to resolve key due to null input resolver."_SV));
+		return CompleteWithError("Failed to resolve key due to null input resolver."_ASV);
 	}
 }
 
@@ -614,7 +620,7 @@ void FBuildJob::EndResolveKey(FBuildKeyResolvedParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError(TEXT("Build was canceled."));
+		return CompleteWithError("Build was canceled."_ASV);
 	}
 	if (Params.Status == EStatus::Ok && Params.Definition)
 	{
@@ -622,7 +628,7 @@ void FBuildJob::EndResolveKey(FBuildKeyResolvedParams&& Params)
 	}
 	else
 	{
-		return CompleteWithError(WriteToString<128>(TEXT("Failed to resolve key "_SV), Params.Key, TEXT("."_SV)));
+		return CompleteWithError(WriteToUtf8String<128>("Failed to resolve key "_ASV, Params.Key, "."_ASV));
 	}
 }
 
@@ -636,7 +642,7 @@ void FBuildJob::EnterResolveInputMeta()
 	}
 	if (!InputResolver)
 	{
-		return CompleteWithError(TEXT("Failed to resolve input metadata due to null input resolver."_SV));
+		return CompleteWithError("Failed to resolve input metadata due to null input resolver."_ASV);
 	}
 }
 
@@ -651,7 +657,7 @@ void FBuildJob::EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError(TEXT("Build was canceled."));
+		return CompleteWithError("Build was canceled."_ASV);
 	}
 	if (Params.Status == EStatus::Ok)
 	{
@@ -659,7 +665,7 @@ void FBuildJob::EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params)
 	}
 	else
 	{
-		return CompleteWithError(TEXT("Failed to resolve input metadata."_SV));
+		return CompleteWithError("Failed to resolve input metadata."_ASV);
 	}
 }
 
@@ -709,7 +715,7 @@ void FBuildJob::EnterResolveInputData()
 
 	if (!InputResolver)
 	{
-		return CompleteWithError(TEXT("Failed to resolve input data due to null input resolver."_SV));
+		return CompleteWithError("Failed to resolve input data due to null input resolver."_ASV);
 	}
 }
 
@@ -734,7 +740,7 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError(TEXT("Build was canceled."));
+		return CompleteWithError("Build was canceled."_ASV);
 	}
 	if (Params.Status == EStatus::Ok)
 	{
@@ -756,7 +762,7 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 	}
 	else
 	{
-		return CompleteWithError(TEXT("Failed to resolve input data."_SV));
+		return CompleteWithError("Failed to resolve input data."_ASV);
 	}
 }
 
@@ -815,7 +821,7 @@ void FBuildJob::EndExecuteRemote(FBuildWorkerActionCompleteParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError(TEXT("Build was canceled."));
+		return CompleteWithError("Build was canceled."_ASV);
 	}
 	if (Params.Output)
 	{
@@ -874,13 +880,13 @@ void FBuildJob::EnterExecuteLocal()
 		}
 		else if (EnumHasAnyFlags(BuildStatus, EBuildStatus::BuildTryRemote))
 		{
-			return CompleteWithError(TEXT("Failed because build policy does not allow local execution, ")
-				TEXT("and remote execution failed to build."_SV));
+			return CompleteWithError("Failed because build policy does not allow local execution, "
+				"and remote execution failed to build."_ASV);
 		}
 		else
 		{
-			return CompleteWithError(TEXT("Failed because build policy does not allow local execution, ")
-				TEXT("and remote execution was not available."_SV));
+			return CompleteWithError("Failed because build policy does not allow local execution, "
+				"and remote execution was not available."_ASV);
 		}
 	}
 
@@ -893,9 +899,9 @@ void FBuildJob::EnterExecuteLocal()
 		}
 		else
 		{
-			CompleteWithError(WriteToString<256>(TEXT("Failed because input '"_SV), Key, TEXT("' with hash "_SV),
-				RawHash, TEXT(" ("_SV), RawSize, TEXT(" bytes) was resolved with hash "_SV), Buffer.GetRawHash(),
-				TEXT(" ("_SV), Buffer.GetRawSize(), TEXT(" bytes)."_SV)));
+			CompleteWithError(WriteToUtf8String<256>("Failed because input '"_ASV, Key, "' with hash "_ASV,
+				RawHash, " ("_ASV, RawSize, " bytes) was resolved with hash "_ASV, Buffer.GetRawHash(),
+				" ("_ASV, Buffer.GetRawSize(), " bytes)."_ASV));
 		}
 	});
 	Action.Reset();
@@ -1012,13 +1018,13 @@ void FBuildJob::SetOutputNoCheck(FBuildOutput&& InOutput, EBuildJobState NewStat
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FBuildJob::CompleteWithError(FStringView Error)
+void FBuildJob::CompleteWithError(FUtf8StringView Error)
 {
 	if (FWriteScopeLock WriteLock(Lock); Output || NextState == EBuildJobState::Complete)
 	{
 		return;
 	}
-	OutputBuilder.AddError(TEXT("LogDerivedDataBuild"_SV), Error);
+	OutputBuilder.AddLog({"LogDerivedDataBuild"_ASV, Error, EBuildOutputLogLevel::Error});
 	return SetOutputNoCheck(OutputBuilder.Build(), EBuildJobState::Complete);
 }
 
@@ -1038,7 +1044,7 @@ void FBuildJob::AdvanceToState(EBuildJobState NewState)
 			NewState = EBuildJobState::Complete;
 			if (Output.IsNull())
 			{
-				OutputBuilder.AddError(TEXT("LogDerivedDataBuild"_SV), TEXT("Build was canceled."_SV));
+				OutputBuilder.AddLog({"LogDerivedDataBuild"_ASV, "Build was canceled."_ASV, EBuildOutputLogLevel::Error});
 			}
 		}
 
