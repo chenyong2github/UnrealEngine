@@ -47,9 +47,6 @@ namespace UVEditorModeLocals
 	// The layer we open when we first open the UV editor
 	const int32 DefaultUVLayerIndex = 0;
 
-	// Determines what the default tool is
-	const FString DefaultToolIdentifier = TEXT("UVSelectTool");
-
 	const FText UVLayerChangeTransactionName = LOCTEXT("UVLayerChangeTransactionName", "Change UV Layer");
 
 	/** 
@@ -167,29 +164,34 @@ void UUVEditorMode::RegisterTools()
 {
 	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
 
+	// Note that the identifiers below need to match the command names so that the tool icons can 
+	// be easily retrieved from the active tool name in UVEditorModeToolkit::OnToolStarted. Otherwise
+	// we would need to keep some other mapping from tool identifier to tool icon.
+
 	UUVSelectToolBuilder* UVSelectToolBuilder = NewObject<UUVSelectToolBuilder>();
 	UVSelectToolBuilder->Targets = &ToolInputObjects;
-	RegisterTool(CommandInfos.BeginSelectTool, TEXT("UVSelectTool"), UVSelectToolBuilder);
+	DefaultToolIdentifier = TEXT("BeginSelectTool");
+	RegisterTool(CommandInfos.BeginSelectTool, DefaultToolIdentifier, UVSelectToolBuilder);
 
 	UUVEditorLayoutToolBuilder* UVEditorLayoutToolBuilder = NewObject<UUVEditorLayoutToolBuilder>();
 	UVEditorLayoutToolBuilder->Targets = &ToolInputObjects;
-	RegisterTool(CommandInfos.BeginLayoutTool, TEXT("UVLayoutTool"), UVEditorLayoutToolBuilder);
+	RegisterTool(CommandInfos.BeginLayoutTool, TEXT("BeginLayoutTool"), UVEditorLayoutToolBuilder);
 
 	UUVEditorParameterizeMeshToolBuilder* UVEditorParameterizeMeshToolBuilder = NewObject<UUVEditorParameterizeMeshToolBuilder>();
 	UVEditorParameterizeMeshToolBuilder->Targets = &ToolInputObjects;
-	RegisterTool(CommandInfos.BeginParameterizeMeshTool, TEXT("UVParameterizeMeshTool"), UVEditorParameterizeMeshToolBuilder);
+	RegisterTool(CommandInfos.BeginParameterizeMeshTool, TEXT("BeginParameterizeMeshTool"), UVEditorParameterizeMeshToolBuilder);
 
 	UUVEditorChannelEditToolBuilder* UVEditorChannelEditToolBuilder = NewObject<UUVEditorChannelEditToolBuilder>();
 	UVEditorChannelEditToolBuilder->Targets = &ToolInputObjects;
-	RegisterTool(CommandInfos.BeginChannelEditTool, TEXT("UVChannelEditTool"), UVEditorChannelEditToolBuilder);
+	RegisterTool(CommandInfos.BeginChannelEditTool, TEXT("BeginChannelEditTool"), UVEditorChannelEditToolBuilder);
 
 	UUVEditorSeamToolBuilder* UVEditorSeamToolBuilder = NewObject<UUVEditorSeamToolBuilder>();
 	UVEditorSeamToolBuilder->Targets = &ToolInputObjects;
-	RegisterTool(CommandInfos.BeginSeamTool, TEXT("UVSeamTool"), UVEditorSeamToolBuilder);
+	RegisterTool(CommandInfos.BeginSeamTool, TEXT("BeginSeamTool"), UVEditorSeamToolBuilder);
 
 	UUVEditorRecomputeUVsToolBuilder* UVEditorRecomputeUVsToolBuilder = NewObject<UUVEditorRecomputeUVsToolBuilder>();
 	UVEditorRecomputeUVsToolBuilder->Targets = &ToolInputObjects;
-	RegisterTool(CommandInfos.BeginRecomputeUVsTool, TEXT("UVRecomputeUVsTool"), UVEditorRecomputeUVsToolBuilder);
+	RegisterTool(CommandInfos.BeginRecomputeUVsTool, TEXT("BeginRecomputeUVsTool"), UVEditorRecomputeUVsToolBuilder);
 }
 
 void UUVEditorMode::CreateToolkit()
@@ -208,12 +210,12 @@ UObject* UUVEditorMode::GetBackgroundSettingsObject()
 
 void UUVEditorMode::ActivateDefaultTool()
 {
-	GetInteractiveToolsContext()->StartTool(UVEditorModeLocals::DefaultToolIdentifier);
+	GetInteractiveToolsContext()->StartTool(DefaultToolIdentifier);
 }
 
 bool UUVEditorMode::IsDefaultToolActive()
 {
-	return GetInteractiveToolsContext()->IsToolActive(EToolSide::Mouse, UVEditorModeLocals::DefaultToolIdentifier);
+	return GetInteractiveToolsContext()->IsToolActive(EToolSide::Mouse, DefaultToolIdentifier);
 }
 
 void UUVEditorMode::BindCommands()

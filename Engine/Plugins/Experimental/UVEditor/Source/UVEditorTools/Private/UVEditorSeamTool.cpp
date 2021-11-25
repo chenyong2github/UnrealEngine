@@ -476,6 +476,9 @@ void UUVEditorSeamTool::Setup()
 			ReconstructExistingSeamsVisualization();
 		});
 	}
+
+	GetToolManager()->DisplayMessage(LOCTEXT("OnStartSeamTool", "Click to add seams in 2d/3d view. Click start/end point or hit Enter to confirm."),
+		EToolMessageLevel::UserNotification);
 }
 
 void UUVEditorSeamTool::ReconstructExistingSeamsVisualization()
