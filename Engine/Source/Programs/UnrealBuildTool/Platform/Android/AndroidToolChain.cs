@@ -397,7 +397,7 @@ namespace UnrealBuildTool
 
 			if (bBuildForES31)
 			{
-				GLESversion = "0x00030001";
+				GLESversion = "0x00030002";
 			}
 
 			return GLESversion;
