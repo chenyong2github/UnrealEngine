@@ -14,6 +14,7 @@
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Stats/Stats.h"
 #include "Subsystems/ImportSubsystem.h"
+#include "UObject/UObjectThreadContext.h"
 
 #include "AssetTypeActions/AssetTypeActions_NiagaraSystem.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraEmitter.h"
@@ -790,6 +791,15 @@ void FNiagaraEditorModule::StartupModule()
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraParameterDefinitions()));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraEffectType()));
 
+	// Preload all parameter definition & collection assets so that they will be postloaded before postload calls to scripts/emitters/systems that rely on them.
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		AssetRegistryModule.Get().OnFilesLoaded().AddLambda([this]()
+		{
+			RefreshParameterCollections(true /*AllowLoading*/);
+		});
+	}
+
 	UNiagaraSettings::OnSettingsChanged().AddRaw(this, &FNiagaraEditorModule::OnNiagaraSettingsChangedEvent);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FNiagaraEditorModule::OnPreGarbageCollection);
 	
@@ -1139,6 +1149,13 @@ void FNiagaraEditorModule::ShutdownModule()
 	}
 	CreatedAssetTypeActions.Empty();
 
+	// Clean up asset registry callbacks
+	if (FModuleManager::Get().IsModuleLoaded("AssetRegistry"))
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		AssetRegistryModule.Get().OnFilesLoaded().RemoveAll(this);
+	}
+
 	UNiagaraSettings::OnSettingsChanged().RemoveAll(this);
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
@@ -1278,6 +1295,9 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
+
+	// ensure that the known parameter collections are loaded 
+	RefreshParameterCollections(true /*AllowLoading*/);
 
 #if WITH_NIAGARA_DEBUGGER
 	Debugger = MakeShared<FNiagaraDebugger>();
@@ -1791,6 +1811,53 @@ bool FNiagaraEditorModule::DeferredDestructObjects(float InDeltaTime)
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FNiagaraEditorModule_DeferredDestructObjects);
 	EnqueuedForDeferredDestruction.Empty();
 	return false;
+}
+
+void FNiagaraEditorModule::RefreshParameterCollections(bool AllowLoading)
+{
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> ParameterCollectionAssetData;
+	AssetRegistryModule.GetRegistry().GetAssetsByClass(UNiagaraParameterCollection::StaticClass()->GetFName(), ParameterCollectionAssetData);
+
+	CachedParameterCollections.Reset(ParameterCollectionAssetData.Num());
+	for (const FAssetData& ParameterCollectionAssetDatum : ParameterCollectionAssetData)
+	{
+		if (ParameterCollectionAssetDatum.IsAssetLoaded() || AllowLoading)
+		{
+			if (UNiagaraParameterCollection* Collection = Cast<UNiagaraParameterCollection>(ParameterCollectionAssetDatum.GetAsset()))
+			{
+				CachedParameterCollections.Add(MakeWeakObjectPtr(Collection));
+			}
+		}
+	}
+}
+
+UNiagaraParameterCollection* FNiagaraEditorModule::FindCollectionForVariable(const FString& VariableName)
+{
+	auto FindCachedCollectionByPrefix = [this](const FString& Prefix)
+	{
+		for (TWeakObjectPtr<UNiagaraParameterCollection>& CollectionPtr : CachedParameterCollections)
+		{
+			if (UNiagaraParameterCollection* Collection = CollectionPtr.Get())
+			{
+				if (Prefix.StartsWith(Collection->GetFullNamespace()))
+				{
+					return Collection;
+				}
+			}
+		}
+
+		return (UNiagaraParameterCollection*)nullptr;
+	};
+
+	if (UNiagaraParameterCollection* Collection = FindCachedCollectionByPrefix(VariableName))
+	{
+		return Collection;
+	}
+
+	RefreshParameterCollections(!FUObjectThreadContext::Get().IsRoutingPostLoad /*AllowLoading*/);
+
+	return FindCachedCollectionByPrefix(VariableName);
 }
 
 #if NIAGARA_PERF_BASELINES

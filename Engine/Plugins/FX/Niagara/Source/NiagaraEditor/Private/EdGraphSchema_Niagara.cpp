@@ -1666,20 +1666,10 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 	FString VarName = Var.GetName().ToString();
 	if (VarName.StartsWith(TEXT("NPC.")))
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		TArray<FAssetData> CollectionAssets;
-		AssetRegistryModule.Get().GetAssetsByClass(UNiagaraParameterCollection::StaticClass()->GetFName(), CollectionAssets);
-		TArray<FName> ExistingNames;
-		for (FAssetData& CollectionAsset : CollectionAssets)
+		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+		if (UNiagaraParameterCollection* Collection = NiagaraEditorModule.FindCollectionForVariable(VarName))
 		{
-			// asset may not have been fully loaded so give it a chance to do it's PostLoad
-			if (UNiagaraParameterCollection* Collection = EnsureCollectionLoaded(CollectionAsset))
-			{
-				if (VarName.StartsWith(Collection->GetFullNamespace()))
-				{
-					return Collection;
-				}
-			}
+			return Collection;
 		}
 	}
 	return nullptr;
@@ -1691,37 +1681,27 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 
 	if (VarName.StartsWith(TEXT("NPC.")))
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-		TArray<FAssetData> CollectionAssets;
-		AssetRegistryModule.Get().GetAssetsByClass(UNiagaraParameterCollection::StaticClass()->GetFName(), CollectionAssets);
-		TArray<FName> ExistingNames;
-		for (FAssetData& CollectionAsset : CollectionAssets)
+		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+		if (UNiagaraParameterCollection* Collection = NiagaraEditorModule.FindCollectionForVariable(VarName))
 		{
-			// asset may not have been fully loaded so give it a chance to do it's PostLoad
-			if (UNiagaraParameterCollection* Collection = EnsureCollectionLoaded(CollectionAsset))
-			{
-				if (VarName.StartsWith(Collection->GetFullNamespace()))
-				{
-					const TArray<FNiagaraVariable>& CollectionVariables = Collection->GetParameters();
-					FString BestMatchSoFar;
+			const TArray<FNiagaraVariable>& CollectionVariables = Collection->GetParameters();
+			FString BestMatchSoFar;
 
-					for (const FNiagaraVariable& CollVar : CollectionVariables)
-					{
-						FString CollVarName = CollVar.GetName().ToString();
-						if (CollVarName == VarName)
-						{
-							OutVar = CollVar;
-							break;
-						}
-						else if (bAllowPartialMatch && VarName.StartsWith(CollVarName + TEXT(".")) && (BestMatchSoFar.Len() == 0 || CollVarName.Len() > BestMatchSoFar.Len()))
-						{
-							OutVar = CollVar;
-							BestMatchSoFar = CollVarName;
-						}
-					}
-					return Collection;
+			for (const FNiagaraVariable& CollVar : CollectionVariables)
+			{
+				FString CollVarName = CollVar.GetName().ToString();
+				if (CollVarName == VarName)
+				{
+					OutVar = CollVar;
+					break;
+				}
+				else if (bAllowPartialMatch && VarName.StartsWith(CollVarName + TEXT(".")) && (BestMatchSoFar.Len() == 0 || CollVarName.Len() > BestMatchSoFar.Len()))
+				{
+					OutVar = CollVar;
+					BestMatchSoFar = CollVarName;
 				}
 			}
+			return Collection;
 		}
 	}
 	return nullptr;

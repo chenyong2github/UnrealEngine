@@ -117,6 +117,9 @@ public:
 	/** List of additional DataSets to be written that were encountered during traversal. */
 	TArray<FNiagaraDataSetID> AdditionalDataSetWrites;
 
+	/** Flag indicating that the history building skipped processing parameter collections */
+	bool bParameterCollectionsSkipped = false;
+
 	bool IsVariableFromCustomIterationNamespaceOverride(const FNiagaraVariable& InVar) const;
 	
 	/**
@@ -475,6 +478,9 @@ protected:
 
 	/** Whether or not to ignore disabled nodes.*/
 	bool bIgnoreDisabled;
+
+	/** Whether we want to include ParameterCollection information */
+	bool bIncludeParameterCollectionInfo;
 
 	TArray<FNiagaraVariable> EncounterableExternalVariables;
 };
