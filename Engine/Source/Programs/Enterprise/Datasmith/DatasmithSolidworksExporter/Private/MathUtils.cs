@@ -2,6 +2,7 @@
 
 using SolidWorks.Interop.sldworks;
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace DatasmithSolidworks
@@ -14,7 +15,7 @@ namespace DatasmithSolidworks
 
 		public static bool Equals(float F1, float F2)
 		{
-			return (Math.Abs(F2 - F1) <= 0.00000001f);
+			return (Math.Abs(F2 - F1) <= 0.000001f);
 		}
 
 		public static bool Equals(double A, float B)
@@ -75,6 +76,21 @@ namespace DatasmithSolidworks
 			Result[14] = (float)InputMatrix[11] * InGeomScale;
 
 			return Result;
+		}
+
+		public static bool TransformsAreEqual(float[] InTransformA, float[] InTransformB)
+		{
+			Debug.Assert(InTransformA.Length == 16 && InTransformA.Length == InTransformB.Length);
+
+			for (int Idx = 0; Idx < 16; ++Idx)
+			{
+				if (!Equals(InTransformA[Idx], InTransformB[Idx]))
+				{
+					return false;
+				}
+			}
+
+			return true;
 		}
 
 		public static MathVector CreateVector(double InX, double InY, double InZ)
