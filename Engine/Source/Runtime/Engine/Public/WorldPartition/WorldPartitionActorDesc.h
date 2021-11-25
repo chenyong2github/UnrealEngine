@@ -141,6 +141,8 @@ public:
 	virtual void Init(const AActor* InActor);
 	virtual void Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData);
 
+	virtual bool Equals(const FWorldPartitionActorDesc* Other) const;
+
 	void SerializeTo(TArray<uint8>& OutData);
 
 protected:

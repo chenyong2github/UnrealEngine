@@ -21,6 +21,15 @@ public:
 	// UWorldPartitionBuilder interface end
 
 private:
+	UPROPERTY()
 	FString ActorClassName;
-	bool bSwitchActorPackagingSchemeToReduced;
+
+	UPROPERTY()
+	bool bReportOnly;
+
+	UPROPERTY()
+	bool bResaveDirtyActorDescsOnly;
+
+	UPROPERTY()
+	bool bSwitchActorPackagingSchemeToReduced;	
 };

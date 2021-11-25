@@ -885,10 +885,6 @@ public:
 	virtual void OnPlayFromHere();
 
 	bool CanPlayFromHere() const { return bCanPlayFromHere; }
-private:
-	friend class FActorDescList;
-	friend class UActorDescContainer;
-	friend class FWorldPartitionActorViewProxy;
 
 	/**
 	 * Creates an uninitialized actor descriptor. Can be overriden.

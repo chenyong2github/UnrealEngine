@@ -35,4 +35,21 @@ void FPartitionActorDesc::Serialize(FArchive& Ar)
 		Ar << GridGuid;
 	}
 }
+
+bool FPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
+{
+	if (FWorldPartitionActorDesc::Equals(Other))
+	{
+		const FPartitionActorDesc* PartitionActorDesc = (FPartitionActorDesc*)Other;
+
+		return
+			GridSize == PartitionActorDesc->GridSize &&
+			GridIndexX == PartitionActorDesc->GridIndexX &&
+			GridIndexY == PartitionActorDesc->GridIndexY &&
+			GridIndexZ == PartitionActorDesc->GridIndexZ &&
+			GridGuid == PartitionActorDesc->GridGuid;		
+	}
+
+	return false;
+}
 #endif
