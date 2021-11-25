@@ -219,8 +219,10 @@ public:
 
 	static void On3dsMaxNotification(void* param, NotifyInfo* info);
 
+	bool bRegistered = false; // Whether notification are being processed
 	IExporter& Exporter;
 	TMap<int, FString> NotificationCodetoString; // todo: remove, just for debug to output strings for notification codes
+	TArray<int> NotificationCodesRegistered;
 	TUniquePtr<FNodeEventCallback> NodeEventCallback;
 	TUniquePtr<FNodeObserver> NodeObserver;
 	TUniquePtr<FMaterialObserver> MaterialObserver;
