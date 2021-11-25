@@ -27,7 +27,11 @@ class TOnlineIdHandle
 {
 public:
 	TOnlineIdHandle() = default;
-	TOnlineIdHandle(EOnlineServices Type, uint32 Handle) : Value((Handle & 0x00FFFFFF) & (uint32(Type) << 24)) {}
+	TOnlineIdHandle(EOnlineServices Type, uint32 Handle)
+	{
+		check(Handle < 0xFF000000);
+		Value = (Handle & 0x00FFFFFF) | (uint32(Type) << 24);
+	}
 
 	inline bool IsValid() const { return GetHandle() != 0; }
 
