@@ -19,6 +19,8 @@ namespace Chaos
 class FPBDStiffness final
 {
 public:
+	static constexpr FReal ParameterFrequency = (FReal)120.;  // 60Hz @ 2 iterations as a root for all stiffness values TODO: Make this a global solver parameter
+
 	/**
 	 * Weightmap particle constructor. 
 	 */
@@ -88,8 +90,6 @@ public:
 	TConstArrayView<FReal> GetTable() const { return TConstArrayView<FReal>(Table); }
 
 private:
-	static constexpr FReal ParameterFrequency = (FReal)120.;  // 60Hz @ 2 iterations as a root for all stiffness values TODO: Make this a global solver parameter
-
 	TArray<uint8> Indices; // Per particle/constraints array of index to the stiffness table
 	TArray<FReal> Table;  // Fixed lookup table of stiffness values, use uint8 indexation
 	FVec2 WeightedValue;
