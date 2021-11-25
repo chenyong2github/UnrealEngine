@@ -587,9 +587,7 @@ TSharedPtr<IPlugin> FPluginUtils::MountPlugin(const FString& PluginName, const F
 
 bool FPluginUtils::UnloadPlugin(const TSharedRef<IPlugin>& Plugin, FText* OutFailReason /*= nullptr*/)
 {
-	TArray<TSharedRef<IPlugin>, TInlineAllocator<1>> Plugins;
-	Plugins.Add(Plugin);
-	return UnloadPlugins(Plugins, OutFailReason);
+	return UnloadPlugins({ Plugin }, OutFailReason);
 }
 
 bool FPluginUtils::UnloadPlugin(const FString& PluginName, FText* OutFailReason /*= nullptr*/)
@@ -601,7 +599,7 @@ bool FPluginUtils::UnloadPlugin(const FString& PluginName, FText* OutFailReason 
 	return true;
 }
 
-bool FPluginUtils::UnloadPlugins(const TArrayView<TSharedRef<IPlugin>> Plugins, FText* OutFailReason /*= nullptr*/)
+bool FPluginUtils::UnloadPlugins(const TConstArrayView<TSharedRef<IPlugin>> Plugins, FText* OutFailReason /*= nullptr*/)
 {
 	if (Plugins.Num() == 0)
 	{
@@ -709,7 +707,7 @@ bool FPluginUtils::UnloadPlugins(const TArrayView<TSharedRef<IPlugin>> Plugins, 
 	return bSuccess;
 }
 
-bool FPluginUtils::UnloadPlugins(const TArrayView<FString> PluginNames, FText* OutFailReason /*= nullptr*/)
+bool FPluginUtils::UnloadPlugins(const TConstArrayView<FString> PluginNames, FText* OutFailReason /*= nullptr*/)
 {
 	TArray<TSharedRef<IPlugin>> Plugins;
 	Plugins.Reserve(PluginNames.Num());

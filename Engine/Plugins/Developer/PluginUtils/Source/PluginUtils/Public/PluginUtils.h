@@ -190,7 +190,7 @@ public:
 	 * @param OutFailReason Outputs the reason of the failure if any
 	 * @return true on success
 	 */
-	static bool UnloadPlugins(const TArrayView<TSharedRef<IPlugin>> Plugins, FText* OutFailReason = nullptr);
+	static bool UnloadPlugins(const TConstArrayView<TSharedRef<IPlugin>> Plugins, FText* OutFailReason = nullptr);
 
 	/**
 	 * Unload assets from the specified plugins and unmount them
@@ -198,7 +198,7 @@ public:
 	 * @param OutFailReason Outputs the reason of the failure if any
 	 * @return true on success
 	 */
-	static bool UnloadPlugins(const TArrayView<FString> PluginNames, FText* OutFailReason = nullptr);
+	static bool UnloadPlugins(const TConstArrayView<FString> PluginNames, FText* OutFailReason = nullptr);
 
 	/**
 	 * Adds a directory to the list of paths that are recursively searched for plugins, 
