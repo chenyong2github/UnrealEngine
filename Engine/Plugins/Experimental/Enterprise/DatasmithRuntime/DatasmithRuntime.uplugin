@@ -17,7 +17,8 @@
 		{
 			"Name": "DatasmithRuntime",
 			"Type": "Runtime",
-			"LoadingPhase": "PostDefault"
+			"LoadingPhase": "PostDefault",
+			"PlatformAllowList": [ "Win64", "Mac", "Linux" ]
 		}
 	],
 	"Plugins": [
