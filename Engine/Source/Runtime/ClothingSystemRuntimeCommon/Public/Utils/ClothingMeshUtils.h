@@ -73,6 +73,16 @@ namespace ClothingMeshUtils
 		{
 		}
 
+		/* Construct a mesh descriptor with re-calculated (averaged) normals to match the simulation output. */
+		ClothMeshDesc(TConstArrayView<FVector3f> InPositions, TConstArrayView<uint32> InIndices)
+			: Positions(InPositions)
+			, Indices(InIndices)
+			, bHasValidBVH(false)
+			, bHasValidMaxEdgeLengths(false)
+		{
+			ComputeAveragedNormals();
+		}
+
 		bool HasValidMesh() const
 		{
 			return Positions.Num() == Normals.Num() && Indices.Num() % 3 == 0;
@@ -92,6 +102,13 @@ namespace ClothingMeshUtils
 		 */
 		void ComputeMaxEdgeLengths() const;
 
+		/**
+		 * Compute the face averaged normals.
+		 * For when (cloth deformer), the same normal calculation than the solver outputs are required.
+		 * Declared const for convenience since it doesn't change the descriptor itself.
+		 */
+		void ComputeAveragedNormals() const;
+
 		TConstArrayView<FVector3f> Positions;
 		TConstArrayView<FVector3f> Normals;
 		TConstArrayView<FVector3f> Tangents;
@@ -102,6 +119,7 @@ namespace ClothingMeshUtils
 
 		mutable bool bHasValidMaxEdgeLengths;
 		mutable TArray<float> MaxEdgeLengths;
+		mutable TArray<FVector3f> AveragedNormals;
 	};
 
 	/**

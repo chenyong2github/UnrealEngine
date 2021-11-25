@@ -51,11 +51,8 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothPhysicalMeshData
 
 	/** Compute vertex normals as unweighted average of incident face normals. If all incident triangles are degenerate,
 	    the vertex normal is assigned a value of FVector3f::XAxisVector. */
-	UE_DEPRECATED(5.0, "Use CalculateNormals() instead.")
+	UE_DEPRECATED(5.0, "This function is no longer part of this API and will soon be removed.")
 	void ComputeFaceAveragedVertexNormals(TArray<FVector3f>& OutNormals) const;
-
-	/** Recalculate the vertex normals as unweighted average of incident face normals. */
-	void CalculateNormals();
 
 	/** Retrieve whether a vertex weight array has already been registered. */
 	template<typename T>

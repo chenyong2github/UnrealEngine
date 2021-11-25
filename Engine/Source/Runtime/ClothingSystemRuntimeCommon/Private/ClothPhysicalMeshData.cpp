@@ -305,10 +305,3 @@ void FClothPhysicalMeshData::ComputeFaceAveragedVertexNormals(TArray<FVector3f>&
 		}
 	}
 }
-
-void FClothPhysicalMeshData::CalculateNormals()
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ComputeFaceAveragedVertexNormals(Normals);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}

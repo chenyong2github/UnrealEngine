@@ -327,11 +327,7 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 	}
 
 	const ClothingMeshUtils::ClothMeshDesc TargetMesh(RenderPositions, RenderNormals, RenderTangents, RenderIndices);
-
-	const ClothingMeshUtils::ClothMeshDesc SourceMesh(
-		ClothLodData.PhysicalMeshData.Vertices,
-		ClothLodData.PhysicalMeshData.Normals,
-		ClothLodData.PhysicalMeshData.Indices);
+	const ClothingMeshUtils::ClothMeshDesc SourceMesh(ClothLodData.PhysicalMeshData.Vertices, ClothLodData.PhysicalMeshData.Indices);  // Calculate averaged normals
 
 	const FPointWeightMap* const MaxDistances = ClothLodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
 
@@ -530,10 +526,7 @@ void UClothingAssetCommon::UpdateLODBiasMappings(const USkeletalMesh* SkeletalMe
 	{
 		// Prepare the deformer source (simulation) mesh descriptor
 		const FClothLODDataCommon& ClothLodData = LodData[LodMap[UpdatedLODIndex]];
-		const ClothingMeshUtils::ClothMeshDesc SourceMesh(
-			ClothLodData.PhysicalMeshData.Vertices, 
-			ClothLodData.PhysicalMeshData.Normals,
-			ClothLodData.PhysicalMeshData.Indices);
+		const ClothingMeshUtils::ClothMeshDesc SourceMesh(ClothLodData.PhysicalMeshData.Vertices, ClothLodData.PhysicalMeshData.Indices);  // Calculate averaged normals
 
 		// Retrieve max distance mask
 		const FPointWeightMap* const MaxDistances = ClothLodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
@@ -621,10 +614,7 @@ void UClothingAssetCommon::UpdateLODBiasMappings(const USkeletalMesh* SkeletalMe
 
 			// Prepare the deformer source (simulation) mesh descriptor
 			const FClothLODDataCommon& ClothLodData = ClothingAsset->LodData[LodMap[LODIndex]];
-			const ClothingMeshUtils::ClothMeshDesc SourceMesh(
-				ClothLodData.PhysicalMeshData.Vertices,
-				ClothLodData.PhysicalMeshData.Normals,
-				ClothLodData.PhysicalMeshData.Indices);
+			const ClothingMeshUtils::ClothMeshDesc SourceMesh(ClothLodData.PhysicalMeshData.Vertices, ClothLodData.PhysicalMeshData.Indices);  // Calculate averaged normals
 
 			// Retrieve max distance mask
 			const FPointWeightMap* const MaxDistances = ClothLodData.PhysicalMeshData.FindWeightMap(EWeightMapTargetCommon::MaxDistance);
@@ -1060,16 +1050,6 @@ void UClothingAssetCommon::PostLoad()
 		}
 	}
 	ClothLodData_DEPRECATED.Empty();
-
-	// Re-calulate normals
-	const int32 UE5ReleaseStreamObjectVersion = GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
-	if (UE5ReleaseStreamObjectVersion < FUE5ReleaseStreamObjectVersion::AddClothMappingLODBias)
-	{
-		for (FClothLODDataCommon& Lod : LodData)
-		{
-			Lod.PhysicalMeshData.CalculateNormals();
-		}
-	}
 
 	const int32 AnimPhysCustomVersion = GetLinkerCustomVersion(FAnimPhysObjectVersion::GUID);
 	if (AnimPhysCustomVersion < FAnimPhysObjectVersion::AddedClothingMaskWorkflow)

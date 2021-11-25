@@ -1234,6 +1234,7 @@ bool UClothingAssetFactory::ImportToLodInternal(
 		const FSoftSkinVertex& SourceVert = SourceSection.SoftVertices[OriginalIndexes[VertexIndex]];
 
 		PhysMesh.Vertices[VertexIndex] = SourceVert.Position;
+		PhysMesh.Normals[VertexIndex] = SourceVert.TangentZ;
 		PhysMesh.VertexColors[VertexIndex] = SourceVert.Color;
 
 		FClothVertBoneData& BoneData = PhysMesh.BoneData[VertexIndex];
@@ -1255,8 +1256,6 @@ bool UClothingAssetFactory::ImportToLodInternal(
 			}
 		}
 	}
-
-	PhysMesh.CalculateNormals();
 
 	// Add a max distance parameter mask to the physics mesh
 	FPointWeightMap& PhysMeshMaxDistances = PhysMesh.AddWeightMap(EWeightMapTargetCommon::MaxDistance);
