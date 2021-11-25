@@ -38,6 +38,7 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Fonts/FontMeasure.h"
+#include "ObjectEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_Base"
 
@@ -240,6 +241,19 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 		}
 	};
 	
+	bool bBaseClassIsExperimental = false;
+	bool bBaseClassIsEarlyAccess = false;
+	FString MostDerivedDevelopmentClassName;
+	FObjectEditorUtils::GetClassDevelopmentStatus(GetClass(), bBaseClassIsExperimental, bBaseClassIsEarlyAccess, MostDerivedDevelopmentClassName);
+	if (bBaseClassIsExperimental)
+	{
+		MessageLog.Note(*(LOCTEXT("ExperimentalNode", "@@ - Node is experimental")).ToString(), this);
+	}
+	if (bBaseClassIsEarlyAccess)
+	{
+		MessageLog.Note(*(LOCTEXT("EarlyAccessNode", "@@ - Node is in early access")).ToString(), this);
+	}
+
 	ValidateFunctionRef(InitialUpdateFunction, LOCTEXT("InitialUpdateFunctionName", "Initial Update"));
 	ValidateFunctionRef(BecomeRelevantFunction, LOCTEXT("BecomeRelevantFunctionName", "Become Relevant"));
 	ValidateFunctionRef(UpdateFunction, LOCTEXT("UpdateFunctionName", "Update"));
