@@ -153,6 +153,7 @@ namespace VulkanRHI
 			ResourceAllocation,
 			DeviceMemoryAllocation,
 			BufferSuballocation,
+			AccelerationStructure,
 		};
 
 		template <typename T>

@@ -116,7 +116,15 @@ private:
 
 	TRefCountPtr<FVulkanResourceMultiBuffer> InstanceBuffer;
 
-	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
+	// Native TLAS handles are owned by SRV objects in Vulkan RHI.
+	// D3D12 and other RHIs allow creating TLAS SRVs from any GPU address at any point
+	// and do not require them for operations such as build or update.
+	// FVulkanRayTracingScene can't own the VkAccelerationStructureKHR directly because
+	// we allow TLAS memory to be allocated using transient resource allocator and 
+	// the lifetime of the scene object may be different from the lifetime of the buffer.
+	// Many VkAccelerationStructureKHR-s may be created, pointing at the same buffer.
+	TRefCountPtr<FVulkanShaderResourceView> AccelerationStructureView;
+	
 	TRefCountPtr<FVulkanAccelerationStructureBuffer> AccelerationStructureBuffer;
 };
 

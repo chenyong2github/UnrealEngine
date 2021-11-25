@@ -122,6 +122,12 @@ public:
 		}
 	}
 
+#if VULKAN_RHI_RAYTRACING
+	inline void SetAccelerationStructure(uint8 DescriptorSet, uint32 BindingIndex, VkAccelerationStructureKHR AccelerationStructure)
+	{
+		MarkDirty(DSWriter[DescriptorSet].WriteAccelerationStructure(BindingIndex, AccelerationStructure));
+	}
+#endif // VULKAN_RHI_RAYTRACING
 
 protected:
 	void Reset()

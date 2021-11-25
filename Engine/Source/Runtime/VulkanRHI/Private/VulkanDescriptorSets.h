@@ -67,6 +67,9 @@ struct FDescriptorSetRemappingInfo
 		TArray<VkDescriptorType>	Types;
 		uint16						NumImageInfos = 0;
 		uint16						NumBufferInfos = 0;
+#if VULKAN_RHI_RAYTRACING
+		uint8						NumAccelerationStructures = 0;
+#endif // VULKAN_RHI_RAYTRACING
 	};
 	TArray<FSetInfo>	SetInfos;
 
@@ -124,6 +127,9 @@ struct FDescriptorSetRemappingInfo
 			int32 SetInfosNums = SetInfos[SetInfosIndex].Types.Num();
 			if (SetInfos[SetInfosIndex].NumBufferInfos != In.SetInfos[SetInfosIndex].NumBufferInfos ||
 				SetInfos[SetInfosIndex].NumImageInfos != In.SetInfos[SetInfosIndex].NumImageInfos ||
+#if VULKAN_RHI_RAYTRACING
+				SetInfos[SetInfosIndex].NumAccelerationStructures != In.SetInfos[SetInfosIndex].NumAccelerationStructures ||
+#endif // VULKAN_RHI_RAYTRACING
 				SetInfosNums != In.SetInfos[SetInfosIndex].Types.Num() ||
 				(SetInfosNums != 0 && FMemory::Memcmp(SetInfos[SetInfosIndex].Types.GetData(), In.SetInfos[SetInfosIndex].Types.GetData(), sizeof(VkDescriptorType) * SetInfosNums)))
 			{
@@ -689,6 +695,10 @@ struct FVulkanDescriptorSetWriteContainer
 	TArray<VkDescriptorImageInfo> DescriptorImageInfo;
 	TArray<VkDescriptorBufferInfo> DescriptorBufferInfo;
 	TArray<VkWriteDescriptorSet> DescriptorWrites;
+#if VULKAN_RHI_RAYTRACING
+	TArray<VkAccelerationStructureKHR> AccelerationStructures;
+	TArray<VkWriteDescriptorSetAccelerationStructureKHR> AccelerationStructureWrites;
+#endif // VULKAN_RHI_RAYTRACING
 	TArray<uint8> BindingToDynamicOffsetMap;
 };
 
@@ -1069,6 +1079,44 @@ public:
 		return WriteBufferView<VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER>(DescriptorIndex, View);
 	}
 
+
+#if VULKAN_RHI_RAYTRACING
+	bool WriteAccelerationStructure(uint32 DescriptorIndex, VkAccelerationStructureKHR InAccelerationStructure)
+	{
+		checkf(!UseVulkanDescriptorCache(), TEXT("Descriptor cache path for WriteAccelerationStructure() is not implemented"));
+
+		check(DescriptorIndex < NumWrites);
+		SetWritten(DescriptorIndex);
+
+		check(WriteDescriptors[DescriptorIndex].descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR);
+
+		// Find the acceleration structure extension in the generic VkWriteDescriptorSet.
+		const VkWriteDescriptorSetAccelerationStructureKHR* FoundWrite = nullptr;
+		const VkBaseInStructure* Cursor = reinterpret_cast<const VkBaseInStructure*>(WriteDescriptors[DescriptorIndex].pNext);
+		while (Cursor)
+		{
+			if (Cursor->sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR)
+			{
+				FoundWrite = reinterpret_cast<const VkWriteDescriptorSetAccelerationStructureKHR*>(Cursor);
+				break;
+			}
+			Cursor = Cursor->pNext;
+		}
+
+		checkf(FoundWrite,
+			TEXT("Expected to find a VkWriteDescriptorSetAccelerationStructureKHR that's needed to bind an acceleration structure descriptor. ")
+			TEXT("Possibly something went wrong in SetupDescriptorWrites()."));
+
+		checkf(FoundWrite->accelerationStructureCount == 1, TEXT("Acceleration structure write operation is expected to contain exactly one descriptor"));
+
+		VkAccelerationStructureKHR& AccelerationStructure = *const_cast<VkAccelerationStructureKHR*>(FoundWrite->pAccelerationStructures);
+
+		bool bChanged = CopyAndReturnNotEqual(AccelerationStructure, InAccelerationStructure);
+
+		return bChanged;
+	}
+#endif // VULKAN_RHI_RAYTRACING
+
 	void ClearBufferView(uint32 DescriptorIndex)
 	{
 		BufferViewReferences[DescriptorIndex] = nullptr;
@@ -1253,6 +1301,10 @@ protected:
 		FVulkanHashableDescriptorInfo* InHashableDescriptorInfos,
 		VkWriteDescriptorSet* InWriteDescriptors, VkDescriptorImageInfo* InImageInfo,
 		VkDescriptorBufferInfo* InBufferInfo, uint8* InBindingToDynamicOffsetMap,
+#if VULKAN_RHI_RAYTRACING
+		VkWriteDescriptorSetAccelerationStructureKHR* InAccelerationStructuresWriteDescriptors,
+		VkAccelerationStructureKHR* InAccelerationStructures,
+#endif // VULKAN_RHI_RAYTRACING
 		const FVulkanSamplerState& DefaultSampler, const FVulkanTextureView& DefaultImageView);
 
 	friend class FVulkanCommonPipelineDescriptorState;

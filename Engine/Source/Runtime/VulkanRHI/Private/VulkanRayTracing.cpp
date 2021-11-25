@@ -328,15 +328,12 @@ FVulkanRayTracingGeometry::~FVulkanRayTracingGeometry()
 {
 	if (Handle != VK_NULL_HANDLE)
 	{
-		VkDevice NativeDevice = Device->GetInstanceHandle();
-		vkDestroyAccelerationStructureKHR(NativeDevice, Handle, VULKAN_CPU_ALLOCATOR);
+		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::AccelerationStructure, Handle);
 	}
 }
 
 void FVulkanRayTracingGeometry::BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode)
 {
-	check(BuildMode == EAccelerationStructureBuildMode::Build); // Temp
-
 	FVkRtBLASBuildData BuildData;
 	GetBLASBuildData(
 		Device->GetInstanceHandle(),
@@ -435,29 +432,20 @@ FVulkanRayTracingScene::FVulkanRayTracingScene(FRayTracingSceneInitializer2 InIn
 
 FVulkanRayTracingScene::~FVulkanRayTracingScene()
 {
-	if (Handle != VK_NULL_HANDLE)
-	{
-		VkDevice NativeDevice = Device->GetInstanceHandle();
-		vkDestroyAccelerationStructureKHR(NativeDevice, Handle, VULKAN_CPU_ALLOCATOR);
-	}
 }
 
 void FVulkanRayTracingScene::BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffset)
 {
-	checkf(Handle == VK_NULL_HANDLE, TEXT("Binding multiple buffers not currently supported."));
+	checkf(AccelerationStructureView == nullptr, TEXT("Binding multiple buffers is not currently supported."));
+
+	check(IsInRHIThread() || !IsRunningRHIInSeparateThread());
+
 	check(SizeInfo.ResultSize + InBufferOffset <= InBuffer->GetSize());
 	check(InBufferOffset % 256 == 0); // Spec requires offset to be a multiple of 256
 	AccelerationStructureBuffer = static_cast<FVulkanAccelerationStructureBuffer*>(InBuffer);
 
-	VkDevice NativeDevice = Device->GetInstanceHandle();
-
-	VkAccelerationStructureCreateInfoKHR CreateInfo;
-	ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR);
-	CreateInfo.buffer = AccelerationStructureBuffer->GetBuffer();
-	CreateInfo.offset = InBufferOffset;
-	CreateInfo.size = SizeInfo.ResultSize;
-	CreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-	VERIFYVULKANRESULT(vkCreateAccelerationStructureKHR(NativeDevice, &CreateInfo, VULKAN_CPU_ALLOCATOR, &Handle));
+	FShaderResourceViewInitializer ViewInitializer(InBuffer, InBufferOffset, 0);
+	AccelerationStructureView = new FVulkanShaderResourceView(Device, AccelerationStructureBuffer, InBufferOffset);
 }
 
 void FVulkanRayTracingScene::BuildAccelerationStructure(
@@ -492,7 +480,8 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(
 		InScratchBuffer = ScratchBuffer.GetReference();
 	}
 
-	BuildData.GeometryInfo.dstAccelerationStructure = Handle;
+	checkf(AccelerationStructureView, TEXT("A buffer must be bound to the ray tracing scene before it can be built."));
+	BuildData.GeometryInfo.dstAccelerationStructure = AccelerationStructureView->AccelerationStructureHandle;
 
 	BuildData.GeometryInfo.scratchData.deviceAddress = InScratchBuffer->GetDeviceAddress();
 	if (bExternalScratchBuffer)

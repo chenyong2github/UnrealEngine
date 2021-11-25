@@ -1292,6 +1292,16 @@ FVulkanDescriptorSetsLayout::~FVulkanDescriptorSetsLayout()
 	LayoutHandles.Reset(0);
 }
 
+// Increments a value and asserts on overflow.
+// FSetInfo uses narrow integer types for descriptor counts,
+// which may feasibly overflow one day (for example if we add bindless resources).
+template <typename T> 
+static void IncrementChecked(T& Value)
+{
+	check(Value < TNumericLimits<T>::Max());
+	++Value;
+}
+
 void FVulkanDescriptorSetsLayoutInfo::AddDescriptor(int32 DescriptorSetIndex, const VkDescriptorSetLayoutBinding& Descriptor)
 {
 	// Increment type usage
@@ -1323,19 +1333,20 @@ void FVulkanDescriptorSetsLayoutInfo::AddDescriptor(int32 DescriptorSetIndex, co
 	case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 	case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 	case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-		++RemappingInfo.SetInfos[DescriptorSetIndex].NumImageInfos;
+		IncrementChecked(RemappingInfo.SetInfos[DescriptorSetIndex].NumImageInfos);
 		break;
 	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 	case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-		++RemappingInfo.SetInfos[DescriptorSetIndex].NumBufferInfos;
+		IncrementChecked(RemappingInfo.SetInfos[DescriptorSetIndex].NumBufferInfos);
 		break;
-	case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-	case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-
 #if VULKAN_RHI_RAYTRACING
 	case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+		IncrementChecked(RemappingInfo.SetInfos[DescriptorSetIndex].NumAccelerationStructures);
+		break;
 #endif
+	case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+	case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 		break;
 	default:
 		checkf(0, TEXT("Unsupported descriptor type %d"), (int32)Descriptor.descriptorType);

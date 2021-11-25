@@ -486,6 +486,10 @@ bool FVulkanGfxLayout::UsesInputAttachment(FVulkanShaderHeader::EAttachmentType 
 uint32 FVulkanDescriptorSetWriter::SetupDescriptorWrites(
 	const TArray<VkDescriptorType>& Types, FVulkanHashableDescriptorInfo* InHashableDescriptorInfos,
 	VkWriteDescriptorSet* InWriteDescriptors, VkDescriptorImageInfo* InImageInfo, VkDescriptorBufferInfo* InBufferInfo, uint8* InBindingToDynamicOffsetMap,
+#if VULKAN_RHI_RAYTRACING
+	VkWriteDescriptorSetAccelerationStructureKHR* InAccelerationStructuresWriteDescriptors,
+	VkAccelerationStructureKHR* InAccelerationStructures,
+#endif // VULKAN_RHI_RAYTRACING
 	const FVulkanSamplerState& DefaultSampler, const FVulkanTextureView& DefaultImageView)
 {
 	HashableDescriptorInfos = InHashableDescriptorInfos;
@@ -539,6 +543,15 @@ uint32 FVulkanDescriptorSetWriter::SetupDescriptorWrites(
 		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 			break;
+#if VULKAN_RHI_RAYTRACING
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			InAccelerationStructuresWriteDescriptors->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+			InAccelerationStructuresWriteDescriptors->pNext = nullptr;
+			InAccelerationStructuresWriteDescriptors->accelerationStructureCount = 1;
+			InAccelerationStructuresWriteDescriptors->pAccelerationStructures = InAccelerationStructures++;
+			InWriteDescriptors->pNext = InAccelerationStructuresWriteDescriptors++;
+			break;
+#endif // VULKAN_RHI_RAYTRACING
 		default:
 			checkf(0, TEXT("Unsupported descriptor type %d"), (int32)Types[Index]);
 			break;
