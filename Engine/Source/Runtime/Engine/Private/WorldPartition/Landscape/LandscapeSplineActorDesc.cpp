@@ -15,8 +15,18 @@ void FLandscapeSplineActorDesc::Init(const AActor* InActor)
 	FWorldPartitionActorDesc::Init(InActor);
 
 	const ALandscapeSplineActor* LandscapeSplineActor = CastChecked<ALandscapeSplineActor>(InActor);
-	check(LandscapeSplineActor);
 	LandscapeGuid = LandscapeSplineActor->GetLandscapeGuid();
+}
+
+bool FLandscapeSplineActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
+{
+	if (FWorldPartitionActorDesc::Equals(Other))
+	{
+		const FLandscapeSplineActorDesc* LandscapeSplineActorDesc = (FLandscapeSplineActorDesc*)Other;
+		return LandscapeGuid == LandscapeSplineActorDesc->LandscapeGuid;
+	}
+
+	return false;
 }
 
 void FLandscapeSplineActorDesc::Serialize(FArchive& Ar)

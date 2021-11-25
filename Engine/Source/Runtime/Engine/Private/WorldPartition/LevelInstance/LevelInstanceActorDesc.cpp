@@ -59,6 +59,21 @@ void FLevelInstanceActorDesc::Init(UActorDescContainer* InContainer, const FWorl
 	FWorldPartitionActorDesc::Init(InContainer, DescData);
 }
 
+bool FLevelInstanceActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
+{
+	if (FWorldPartitionActorDesc::Equals(Other))
+	{
+		const FLevelInstanceActorDesc* LevelInstanceActorDesc = (FLevelInstanceActorDesc*)Other;
+
+		return
+			LevelPackage == LevelInstanceActorDesc->LevelPackage &&
+			LevelInstanceTransform.Equals(LevelInstanceActorDesc->LevelInstanceTransform, 0.1f) &&
+			DesiredRuntimeBehavior == LevelInstanceActorDesc->DesiredRuntimeBehavior;
+	}
+
+	return false;
+}
+
 void FLevelInstanceActorDesc::OnRegister(UWorld* InWorld)
 {
 	FWorldPartitionActorDesc::OnRegister(InWorld);

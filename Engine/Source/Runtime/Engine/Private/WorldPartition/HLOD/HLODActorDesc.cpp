@@ -52,6 +52,25 @@ void FHLODActorDesc::Serialize(FArchive& Ar)
 	}
 }
 
+bool FHLODActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
+{
+	if (FWorldPartitionActorDesc::Equals(Other))
+	{
+		const FHLODActorDesc* HLODActorDesc = (FHLODActorDesc*)Other;
+
+		if (CellHash == HLODActorDesc->CellHash && SubActors.Num() == HLODActorDesc->SubActors.Num())
+		{
+			TArray<FGuid> SortedSubActors(SubActors);
+			TArray<FGuid> SortedSubActorsOther(HLODActorDesc->SubActors);
+			SortedSubActors.Sort();
+			SortedSubActorsOther.Sort();
+			return SortedSubActors == SortedSubActorsOther;
+		}
+	}
+
+	return false;
+}
+
 uint64 FHLODActorDesc::ComputeCellHash(const FString HLODLayerName, uint64 GridIndexX, uint64 GridIndexY, uint64 GridIndexZ, FDataLayersID DataLayersID)
 {
 	uint64 CellHash = FCrc::StrCrc32(*HLODLayerName);

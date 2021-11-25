@@ -119,6 +119,40 @@ void FWorldPartitionActorDesc::Init(UActorDescContainer* InContainer, const FWor
 	}
 }
 
+bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) const
+{
+	if (Guid == Other->Guid && 
+		Class == Other->Class && 
+		ActorPackage == Other->ActorPackage && 
+		ActorPath == Other->ActorPath && 
+		ActorLabel == Other->ActorLabel && 
+		BoundsLocation.Equals(Other->BoundsLocation, 0.1f) &&
+		BoundsExtent.Equals(Other->BoundsExtent, 0.1f) && 
+		RuntimeGrid == Other->RuntimeGrid && 
+		bActorIsEditorOnly == Other->bActorIsEditorOnly && 
+		bLevelBoundsRelevant == Other->bLevelBoundsRelevant && 
+		bActorIsHLODRelevant == Other->bActorIsHLODRelevant && 
+		HLODLayer == Other->HLODLayer && 
+		FolderPath == Other->FolderPath &&
+		DataLayers.Num() == Other->DataLayers.Num() &&
+		References.Num() == Other->References.Num())
+	{
+		TArray<FName> SortedDataLayers(DataLayers);
+		TArray<FName> SortedDataLayersOther(Other->DataLayers);
+		SortedDataLayers.Sort();
+		SortedDataLayersOther.Sort();
+
+		TArray<FGuid> SortedReferences(References);
+		TArray<FGuid> SortedReferencesOther(Other->References);
+		SortedReferences.Sort();
+		SortedReferencesOther.Sort();
+
+		return SortedDataLayers == SortedDataLayersOther && SortedReferences == SortedReferencesOther;
+	}
+
+	return false;
+}
+
 void FWorldPartitionActorDesc::SerializeTo(TArray<uint8>& OutData)
 {
 	// Serialize to archive and gather custom versions
