@@ -19,10 +19,10 @@ enum class EMobileShadowQuality : uint8
 	NoFiltering,
 	// Medium quality, 1x1 PCF filtering.
 	PCF_1x1 UMETA(DisplayName = "1x1 PCF"),
-	// Medium/High quality, 2x2 PCF filtering.
-	PCF_2x2 UMETA(DisplayName = "2x2 PCF"),
-	// Highest quality, 3x3 PCF filtering.
-	PCF_3x3 UMETA(DisplayName = "3x3 PCF")
+	// Medium/High quality, 3x3 PCF filtering.
+	PCF_3x3 UMETA(DisplayName = "3x3 PCF"),
+	// Highest quality, 5x5 PCF filtering.
+	PCF_5x5 UMETA(DisplayName = "5x5 PCF")
 };
 
 // FMaterialQualityOverrides represents the full set of possible material overrides per quality level.
@@ -41,7 +41,7 @@ public:
 		, bForceLQReflections(false)
 		, bForceDisablePreintegratedGF(false)
 		, bDisableMaterialNormalCalculation(false)
-		, MobileShadowQuality(EMobileShadowQuality::PCF_2x2)
+		, MobileShadowQuality(EMobileShadowQuality::PCF_3x3)
 	{
 	}
 
