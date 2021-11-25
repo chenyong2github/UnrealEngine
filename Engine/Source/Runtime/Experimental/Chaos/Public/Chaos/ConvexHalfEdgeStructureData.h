@@ -524,12 +524,11 @@ namespace Chaos
 				{
 					do
 					{
-						if(VertexPlane.NumPlaneIndices < (FIndex)UE_ARRAY_COUNT(VertexPlane.PlaneIndices))
+						VertexPlane.PlaneIndices[VertexPlane.NumPlaneIndices++] = (FIndex)GetHalfEdgePlane(HalfEdgeIndex);
+						if (VertexPlane.NumPlaneIndices == (FIndex)UE_ARRAY_COUNT(VertexPlane.PlaneIndices))
 						{
-							VertexPlane.PlaneIndices[VertexPlane.NumPlaneIndices] = (FIndex)GetHalfEdgePlane(HalfEdgeIndex);
+							break;
 						}
-						// Caching of the Max number of plane indices on this vertex (could be higher than 3)
-						++VertexPlane.NumPlaneIndices;
 
 						const int32 TwinHalfEdgeIndex = GetTwinHalfEdge(HalfEdgeIndex);
 						if (TwinHalfEdgeIndex == InvalidIndex)
