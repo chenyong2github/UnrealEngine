@@ -4,6 +4,7 @@
 
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "ConversionUtils/DynamicMeshViaMeshDescriptionUtil.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "RenderingThread.h"
@@ -252,7 +253,7 @@ void UStaticMeshToolTarget::CommitMeshDescription(UStaticMesh* StaticMeshIn, FMe
 	StaticMeshIn->PostEditChange();
 }
 
-TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UStaticMeshToolTarget::GetDynamicMesh()
+FDynamicMesh3 UStaticMeshToolTarget::GetDynamicMesh()
 {
 	return GetDynamicMeshViaMeshDescription(*this);
 }

@@ -15,7 +15,7 @@ class IMeshDescriptionProvider;
 namespace UE {
 namespace Geometry {
 
-	MODELINGCOMPONENTS_API TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> GetDynamicMeshViaMeshDescription(
+	MODELINGCOMPONENTS_API FDynamicMesh3 GetDynamicMeshViaMeshDescription(
 		IMeshDescriptionProvider& MeshDescriptionProvider);
 
 	MODELINGCOMPONENTS_API void CommitDynamicMeshViaMeshDescription(IMeshDescriptionCommitter& MeshDescriptionCommitter,

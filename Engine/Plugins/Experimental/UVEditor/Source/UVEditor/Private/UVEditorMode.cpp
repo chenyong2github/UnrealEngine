@@ -17,9 +17,9 @@
 #include "PreviewMesh.h"
 #include "PreviewScene.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
+#include "TargetInterfaces/DynamicMeshCommitter.h"
+#include "TargetInterfaces/DynamicMeshProvider.h"
 #include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "ToolSetupUtil.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "ToolTargetManager.h"
@@ -126,12 +126,8 @@ const FToolTargetTypeRequirements& UUVEditorMode::GetToolTargetRequirements()
 	static const FToolTargetTypeRequirements ToolTargetRequirements =
 		FToolTargetTypeRequirements({
 			UMaterialProvider::StaticClass(),
-
-			// What we actually care about is dynamic meshes, but we don't currently have
-			// a standardized dynamic mesh commiter/provider interface, because UDynamicMesh
-			// doesn't implement IDynamicMeshCommitter
-			UMeshDescriptionCommitter::StaticClass(),
-			UMeshDescriptionProvider::StaticClass()
+			UDynamicMeshCommitter::StaticClass(),
+			UDynamicMeshProvider::StaticClass()
 			});
 	return ToolTargetRequirements;
 }

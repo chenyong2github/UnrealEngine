@@ -8,12 +8,12 @@
 #include "MeshConversionOptions.h" //FConversionToMeshDescriptionOptions
 #include "MeshDescriptionToDynamicMesh.h"
 
-TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UE::Geometry::GetDynamicMeshViaMeshDescription(
+FDynamicMesh3 UE::Geometry::GetDynamicMeshViaMeshDescription(
 	IMeshDescriptionProvider& MeshDescriptionProvider)
 {
-	TSharedPtr<FDynamicMesh3> DynamicMesh = MakeShared<FDynamicMesh3>();
+	FDynamicMesh3 DynamicMesh;
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(MeshDescriptionProvider.GetMeshDescription(), *DynamicMesh);
+	Converter.Convert(MeshDescriptionProvider.GetMeshDescription(), DynamicMesh);
 	return DynamicMesh;
 }
 
