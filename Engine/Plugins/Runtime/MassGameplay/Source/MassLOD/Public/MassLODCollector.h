@@ -7,7 +7,7 @@
 
 /**
  * This is the expected member variables for the TArrayView<FMassLODSourceInfo> when calling TMassLODCollector methods
- */
+ *
 struct FMassLODSourceInfo
 {
 	// Distance to viewer (Always needed)
@@ -16,6 +16,7 @@ struct FMassLODSourceInfo
 	// Visibility information (Only when FLODLogic::bDoVisibilityLogic is enabled)
 	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bIsVisibleByViewer;
 };
+*/
 
 /**
  * Helper struct to collect needed information on each agent that will be needed later for LOD calculation
@@ -27,10 +28,10 @@ struct TMassLODCollector : public FMassLODBaseLogic
 {
 	/**
 	 * Initializes the LOD collector, needed to be called once at initialization time
-	 * @Param InFOVAngleToDriveVisibility the FOV angle that will be use for visibility check in degrees (Only when FLODLogic::bDoVisibilityLogic is enabled)
-	 * @Param InBufferHysteresisOnFOVRatio the FOV angle hysteresis that will be use for visibility check (Only when FLODLogic::bDoVisibilityLogic is enabled)
+	 * @Param InDistanceToFrustum the extra distance to frustrum to use to know if the entity is visible (Only when FLODLogic::bDoVisibilityLogic is enabled)
+	 * @Param InDistanceToFrustumHysteresis the hyteresis on the distance to frustrum to use when entity was previously visible to become not visible (Only when FLODLogic::bDoVisibilityLogic is enabled)
 	 */
-	void Initialize(const float InFOVAngleToDriveVisibility = -1.0f, const float InBufferHysteresisOnFOVRatio = -1.0f);
+	void Initialize(const float InDistanceToFrustum = 0.0f, const float InDistanceToFrustumHysteresis = 0.0f, bool bTemp = false);
 
 	/**
 	 * Prepares execution for the current frame, needed to be called before every execution
@@ -41,53 +42,52 @@ struct TMassLODCollector : public FMassLODBaseLogic
 	/**
 	 * Collects the information for LOD calculation, called for each entity chunks
 	 * @Param Context of the chunk execution
-	 * @Param LocationList is the fragment transforms of the entities
+	 * @Param TranformList is the fragment transforms of the entities
 	 * @Param ViewersInfoList is the fragment where to store source information for LOD calculation
 	 */
 	template< typename FMassTransform, typename FMassLODSourceInfo >
-	void CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<FMassTransform> LocationList, TArrayView<FMassLODSourceInfo> ViewersInfoList);
+	void CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<FMassTransform> TranformList, TArrayView<FMassLODSourceInfo> ViewersInfoList);
 
 protected:
 
-	float FOVAngleToDriveVisibilityRad = 0.0f;
-	float CosFOVAngleToDriveVisibility = 0.0f;
-	float BufferHysteresisOnFOVRatio = 0.1f;
+	float DistanceToFrustum = 0.0f;
+	float DistanceToFrustumHysteresis = 0.0f;
 };
 
 template <typename FLODLogic>
-void TMassLODCollector<FLODLogic>::Initialize(const float InFOVAngleToDriveVisibility/*= -1.0f*/, const float InBufferHysteresisOnFOVRatio /*= -1.0f*/)
+void TMassLODCollector<FLODLogic>::Initialize(const float InDistanceToFrustum /*= 0.0f*/, const float InDistanceToFrustumHysteresis /*= 0.0f*/, bool bTemp /*= false*/)
 {
-	checkf(!FLODLogic::bDoVisibilityLogic || (InFOVAngleToDriveVisibility > 0.0f && BufferHysteresisOnFOVRatio > 0.0f), TEXT("Expecting FOVAngleToDriveVisibility and BufferHysteresisOnFOVRatio when bDoVisibilityLogic is true"));
-	FOVAngleToDriveVisibilityRad = FMath::DegreesToRadians(InFOVAngleToDriveVisibility);
-	CosFOVAngleToDriveVisibility = FMath::Cos(FOVAngleToDriveVisibilityRad);
-	BufferHysteresisOnFOVRatio = InBufferHysteresisOnFOVRatio;
+	DistanceToFrustum = InDistanceToFrustum;
+	DistanceToFrustumHysteresis = InDistanceToFrustumHysteresis;
 }
 
 template <typename FLODLogic>
-void TMassLODCollector<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo> Viewers)
+void TMassLODCollector<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo> ViewersInfo)
 {
-	CacheViewerInformation(Viewers, FLODLogic::bLocalViewersOnly);
+	CacheViewerInformation(ViewersInfo, FLODLogic::bLocalViewersOnly);
 }
 
 template <typename FLODLogic>
 template< typename FMassTransform, typename FMassLODSourceInfo >
-void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<FMassTransform> LocationList, TArrayView<FMassLODSourceInfo> ViewersInfoList)
+void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context, TConstArrayView<FMassTransform> TranformList, TArrayView<FMassLODSourceInfo> ViewersInfoList)
 {
 	const int32 NumEntities = Context.GetNumEntities();
 	for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
 	{
-		const FMassTransform& EntityLocation = LocationList[EntityIdx];
+		const FMassTransform& EntityTransform = TranformList[EntityIdx];
 		FMassLODSourceInfo& EntityViewerInfo = ViewersInfoList[EntityIdx];
-		for (int ViewerIdx = 0; ViewerIdx < NumOfViewers; ++ViewerIdx)
+		for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 		{
-			if (bClearViewerData[ViewerIdx])
+			const FViewerLODInfo& Viewer = Viewers[ViewerIdx];
+			if (Viewer.bClearData)
 			{
 				EntityViewerInfo.DistanceToViewerSq[ViewerIdx] = FLT_MAX;
 				SetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic>(EntityViewerInfo, ViewerIdx, false);
 			}
-			if (ViewersHandles[ViewerIdx].IsValid())
+			if (Viewer.Handle.IsValid())
 			{
-				const FVector ViewerToEntity = EntityLocation.GetTransform().GetLocation() - ViewersLocation[ViewerIdx];
+				const FVector& EntityLocation = EntityTransform.GetTransform().GetLocation();
+				const FVector ViewerToEntity = EntityLocation - Viewer.Location;
 				EntityViewerInfo.DistanceToViewerSq[ViewerIdx] = ViewerToEntity.SizeSquared();
 
 				if (FLODLogic::bDoVisibilityLogic)
@@ -101,19 +101,7 @@ void TMassLODCollector<FLODLogic>::CollectLODInfo(FMassExecutionContext& Context
 					}
 					else
 					{
-						const FVector ViewerToEntityNorm = ViewerToEntity * FMath::InvSqrt(EntityViewerInfo.DistanceToViewerSq[ViewerIdx]);
-						const float Dot = ViewersDirection[ViewerIdx] | ViewerToEntityNorm;
-
-						// If we were visible and are now exiting defined FOV angle, consider a buffer hysteresis to give some room before toggling off visibility to prevent oscillating LOD states
-						if (bWasVisibleByViewer && Dot < CosFOVAngleToDriveVisibility)
-						{
-							const float FOVToCos = FMath::Cos(FMath::Clamp(FOVAngleToDriveVisibilityRad * (1.f + BufferHysteresisOnFOVRatio), 0.f, PI));
-							bIsVisibleByViewer = Dot > FOVToCos;
-						}
-						else
-						{
-							bIsVisibleByViewer = Dot >= CosFOVAngleToDriveVisibility;
-						}
+						bIsVisibleByViewer = Viewer.Frustum.IntersectSphere(EntityLocation, bWasVisibleByViewer ? DistanceToFrustum + DistanceToFrustumHysteresis : DistanceToFrustum );
 					}
 
 					SetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic>(EntityViewerInfo, ViewerIdx, bIsVisibleByViewer);

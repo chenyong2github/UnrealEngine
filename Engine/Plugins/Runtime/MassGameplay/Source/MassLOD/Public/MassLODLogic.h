@@ -4,6 +4,7 @@
 
 #include "MassLODManager.h"
 #include "Containers/StaticArray.h"
+#include "ConvexVolume.h"
 
 
 #define DECLARE_CONDITIONAL_MEMBER_ACCESSORS( Condition, MemberType, MemberName ) \
@@ -95,13 +96,29 @@ struct FMassLODFragment
 };
 */
 
+struct FViewerLODInfo
+{
+	/* Boolean indicating the viewer data needs to be cleared */
+	bool bClearData = false;
+
+	/** The handle to the viewer */
+	FMassViewerHandle Handle;
+
+	/** Viewer location and looking direction */
+	FVector Location;
+	FVector Direction;
+
+	/** Viewer frustum (will not include near and far planes) */
+	FConvexVolume Frustum;
+};
+
 /**
  * Base struct for the LOD calculation helpers
  */
 struct MASSLOD_API FMassLODBaseLogic
 {
 protected:
-	void CacheViewerInformation(TConstArrayView<FViewerInfo> Viewers, const bool bLocalViewersOnly);
+	void CacheViewerInformation(TConstArrayView<FViewerInfo> ViewerInfos, const bool bLocalViewersOnly);
 
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bIsVisibleByAViewer);
 	DECLARE_CONDITIONAL_MEMBER_ACCESSORS(Condition, bool, bWasVisibleByAViewer);
@@ -114,16 +131,5 @@ protected:
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassLOD::Type, LODPerViewer);
 	DECLARE_CONDITIONAL_MEMBER_ARRAY_ACCESSORS(Condition, EMassLOD::Type, PrevLODPerViewer);
 
-	/* Number of viewers handled */
-	int32 NumOfViewers = 0;
-
-	/* Boolean indicating the viewer data needs to be cleared */
-	TStaticArray<bool, UE::MassLOD::MaxNumOfViewers> bClearViewerData;
-
-	/** The handle to each viewers */
-	TStaticArray<FMassViewerHandle, UE::MassLOD::MaxNumOfViewers> ViewersHandles;
-
-	/** Viewer location and looking direction */
-	TStaticArray<FVector, UE::MassLOD::MaxNumOfViewers> ViewersLocation;
-	TStaticArray<FVector, UE::MassLOD::MaxNumOfViewers> ViewersDirection;
+	TArray<FViewerLODInfo> Viewers;
 };

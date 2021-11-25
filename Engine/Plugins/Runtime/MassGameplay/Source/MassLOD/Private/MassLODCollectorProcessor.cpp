@@ -20,9 +20,9 @@ void UMassLODCollectorProcessor::Initialize(UObject& InOwner)
 
 	for (FMassCollectorLODConfig& LODConfig : LODConfigs)
 	{
-		LODConfig.RepresentationLODCollector.Initialize(LODConfig.FOVAnglesToDriveVisibility, LODConfig.BufferHysteresisOnFOVPercentage / 100.f);
+		LODConfig.RepresentationLODCollector.Initialize(LODConfig.DistanceToFrustum, LODConfig.DistanceToFrustumHysteresis, false);
 		LODConfig.SimulationLODCollector.Initialize();
-		LODConfig.CombinedLODCollector.Initialize(LODConfig.FOVAnglesToDriveVisibility, LODConfig.BufferHysteresisOnFOVPercentage / 100.f);
+		LODConfig.CombinedLODCollector.Initialize(LODConfig.DistanceToFrustum, LODConfig.DistanceToFrustumHysteresis, false);
 	}
 }
 
@@ -76,9 +76,9 @@ void UMassLODCollectorProcessor::ConfigureQueries()
 }
 
 template <typename TCollector>
-void CollectLOD(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, const TArray<FViewerInfo>& Viewers, TCollector& Collector, TArrayView<FMassEntityQuery> HighFrequencyTickingEntityQueries, FMassEntityQuery& LowFrequencyTickingEntityQuery)
+void CollectLOD(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, const TArray<FViewerInfo>& ViewersInfo, TCollector& Collector, TArrayView<FMassEntityQuery> HighFrequencyTickingEntityQueries, FMassEntityQuery& LowFrequencyTickingEntityQuery)
 {
-	Collector.PrepareExecution(Viewers);
+	Collector.PrepareExecution(ViewersInfo);
 
 	auto CollectLODInfo = [&Collector](FMassExecutionContext& Context)
 	{

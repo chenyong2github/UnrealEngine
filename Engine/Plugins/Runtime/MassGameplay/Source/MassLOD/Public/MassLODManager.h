@@ -56,7 +56,9 @@ struct FViewerInfo
 	uint32 HashValue = 0;
 
 	FVector Location;
-	FVector Direction;
+	FRotator Rotation;
+	float FOV = 90.0f;
+	float AspectRatio = 16.0f / 9.0f;
 
 	bool bEnabled = true;
 

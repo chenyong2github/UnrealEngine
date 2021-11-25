@@ -219,7 +219,16 @@ void UMassLODManager::SynchronizeViewers()
 			FRotator PlayerCameraRotation(FRotator::ZeroRotator);
 			ViewerInfo.PlayerController->GetPlayerViewPoint(PlayerCameraLocation, PlayerCameraRotation);
 			ViewerInfo.Location = PlayerCameraLocation;
-			ViewerInfo.Direction = PlayerCameraRotation.Vector();
+			ViewerInfo.Rotation = PlayerCameraRotation;
+
+			// Try to fetch a more precise FOV
+			if(ViewerInfo.PlayerController->PlayerCameraManager)
+			{
+				ViewerInfo.FOV = ViewerInfo.PlayerController->PlayerCameraManager->GetFOVAngle();
+
+				// @todo need to find a way to retrieve aspect ratio, this does not seems to work
+				//ViewerInfo.AspectRatio = MinViewInfo.AspectRatio;
+			}
 		}
 		else
 		{
@@ -230,7 +239,7 @@ void UMassLODManager::SynchronizeViewers()
 			if (StreamingSource)
 			{
 				ViewerInfo.Location = StreamingSource->Location;
-				ViewerInfo.Direction = StreamingSource->Rotation.Vector();
+				ViewerInfo.Rotation = StreamingSource->Rotation;
 			}
 		}
 	}

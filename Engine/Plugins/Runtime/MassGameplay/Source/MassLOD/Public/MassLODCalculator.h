@@ -207,16 +207,16 @@ void TMassLODCalculator<FLODLogic>::Initialize(const float InBaseLODDistance[EMa
 }
 
 template <typename FLODLogic>
-void TMassLODCalculator<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo> Viewers)
+void TMassLODCalculator<FLODLogic>::PrepareExecution(TConstArrayView<FViewerInfo> ViewersInfo)
 {
-	CacheViewerInformation(Viewers, FLODLogic::bLocalViewersOnly);
+	CacheViewerInformation(ViewersInfo, FLODLogic::bLocalViewersOnly);
 
 	if (FLODLogic::bMaximizeCountPerViewer)
 	{
-		for (int ViewerIdx = 0; ViewerIdx < NumOfViewers; ++ViewerIdx)
+		for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 		{
 			// Reset viewer data
-			if (ViewersHandles[ViewerIdx].IsValid())
+			if (Viewers[ViewerIdx].Handle.IsValid())
 			{
 				RuntimeDataPerViewer[ViewerIdx].Reset(BaseLODDistance, VisibleLODDistance);
 			}
@@ -285,14 +285,15 @@ void TMassLODCalculator<FLODLogic>::CalculateLOD(FMassExecutionContext& Context,
 		bool bIsVisibleByAViewer = false;
 		bool bIsInAVisibleRange = false;
 
-		for (int ViewerIdx = 0; ViewerIdx < NumOfViewers; ++ViewerIdx)
+		for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 		{
-			if (bClearViewerData[ViewerIdx])
+			const FViewerLODInfo& Viewer = Viewers[ViewerIdx];
+			if (Viewer.bClearData)
 			{
 				SetLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, EMassLOD::Max);
 				SetPrevLODPerViewer<FLODLogic::bStoreLODPerViewer>(EntityLOD, ViewerIdx, EMassLOD::Max);
 			}
-			if (ViewersHandles[ViewerIdx].IsValid())
+			if (Viewer.Handle.IsValid())
 			{
 				const bool bIsVisibleByViewer = GetbIsVisibleByViewer<FLODLogic::bDoVisibilityLogic>(EntityViewersInfo, ViewerIdx, false);
 				bIsVisibleByAViewer |= bIsVisibleByViewer;
@@ -456,9 +457,9 @@ bool TMassLODCalculator<FLODLogic>::AdjustDistancesFromCount()
 	bool bDistanceAdjusted = false;
 	if (FLODLogic::bMaximizeCountPerViewer)
 	{
-		for (int ViewerIdx = 0; ViewerIdx < NumOfViewers; ++ViewerIdx)
+		for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 		{
-			if (!ViewersHandles[ViewerIdx].IsValid())
+			if (!Viewers[ViewerIdx].Handle.IsValid())
 			{
 				continue;
 			}
@@ -484,9 +485,9 @@ void TMassLODCalculator<FLODLogic>::AdjustLODFromCount(FMassExecutionContext& Co
 		EMassLOD::Type HighestViewerLOD = EMassLOD::Off;
 		if (FLODLogic::bMaximizeCountPerViewer)
 		{
-			for (int ViewerIdx = 0; ViewerIdx < NumOfViewers; ++ViewerIdx)
+			for (int ViewerIdx = 0; ViewerIdx < Viewers.Num(); ++ViewerIdx)
 			{
-				if (!ViewersHandles[ViewerIdx].IsValid())
+				if (!Viewers[ViewerIdx].Handle.IsValid())
 				{
 					continue;
 				}
