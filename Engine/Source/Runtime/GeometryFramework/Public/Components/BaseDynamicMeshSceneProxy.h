@@ -454,11 +454,15 @@ protected:
 	// control raytracing support
 	bool bEnableRaytracing = false;
 
+	// Allow view-mode overrides. 
+	bool bEnableViewModeOverrides = true;
+
 public:
 	FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent* Component)
 		: FPrimitiveSceneProxy(Component),
 		ParentBaseComponent(Component),
-		bEnableRaytracing(Component->GetEnableRaytracing())
+		bEnableRaytracing(Component->GetEnableRaytracing()),
+		bEnableViewModeOverrides(Component->GetViewModeOverridesEnabled())
 	{
 	}
 
@@ -1047,7 +1051,7 @@ public:
 		Mesh.ReverseCulling = IsLocalToWorldDeterminantNegative();
 		Mesh.Type = PT_TriangleList;
 		Mesh.DepthPriorityGroup = DepthPriority;
-		Mesh.bCanApplyViewModeOverrides = false;
+		Mesh.bCanApplyViewModeOverrides = this->bEnableViewModeOverrides;
 		Collector.AddMesh(ViewIndex, Mesh);
 	}
 
@@ -1154,7 +1158,7 @@ public:
 		MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
 		MeshBatch.Type = PT_TriangleList;
 		MeshBatch.DepthPriorityGroup = DepthPriority;
-		MeshBatch.bCanApplyViewModeOverrides = false;
+		MeshBatch.bCanApplyViewModeOverrides = this->bEnableViewModeOverrides;
 		MeshBatch.CastRayTracedShadow = IsShadowCast(Context.ReferenceView);
 
 		FMeshBatchElement& BatchElement = MeshBatch.Elements[0];

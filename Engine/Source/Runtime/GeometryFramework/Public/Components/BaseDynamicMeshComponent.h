@@ -187,8 +187,7 @@ protected:
 	//
 public:
 	/**
-	 * if true, we always show the wireframe on top of the shaded mesh, even when not in wireframe mode
-	 * @todo: this should not be public, access via Set/Get once all usage is cleaned up
+	 * If true, render the Wireframe on top of the Shaded Mesh
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering", meta = (DisplayName = "Wireframe Overlay") )
 	bool bExplicitShowWireframe = false;
@@ -220,6 +219,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual bool GetShadowsEnabled() const { return CastShadow; }
 
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual void SetViewModeOverridesEnabled(bool bEnabled);
+
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
+	virtual bool GetViewModeOverridesEnabled() const { return bEnableViewModeOverrides; }
+
+public:
+	/** 
+	 * This flag controls whether Editor View Mode Overrides are enabled for this mesh. For example, this controls hidden-line removal on the wireframe 
+	 * in Wireframe View Mode, and whether the normal map will be disabled in Lighting-Only View Mode, as well as various other things.
+	 * Use SetViewModeOverridesEnabled() to control this setting in Blueprints/C++.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering", meta = (DisplayName = "View Mode Overrides") )
+	bool bEnableViewModeOverrides = true;
 
 
 	//===============================================================================================================
@@ -328,6 +341,10 @@ protected:
 	// not currently support partial updates in the SceneProxy.
 public:
 
+	/**
+	 * Enable/disable Raytracing support on this Mesh, if Raytracing is currently enabled in the Project Settings.
+	 * Use SetEnableRaytracing() to configure this flag in Blueprints/C++.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering")
 	bool bEnableRaytracing = true;
 
@@ -345,7 +362,7 @@ public:
 	virtual bool GetEnableRaytracing() const;
 
 protected:
-	virtual void OnRaytracingStateChanged();
+	virtual void OnRenderingStateChanged(bool bForceImmedateRebuild);
 
 
 
