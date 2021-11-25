@@ -14,10 +14,6 @@
 class FTexture2DResourceMem;
 class FTexture2DResource;
 
-#ifndef WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
-#define WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS 1
-#endif
-
 UCLASS(hidecategories=Object, MinimalAPI, BlueprintType)
 class UTexture2D : public UTexture
 {
