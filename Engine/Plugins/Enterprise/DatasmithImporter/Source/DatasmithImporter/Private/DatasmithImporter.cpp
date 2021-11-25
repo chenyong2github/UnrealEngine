@@ -1590,10 +1590,7 @@ void FDatasmithImporter::ImportMetaDataForObject(FDatasmithImportContext& Import
 
 void FDatasmithImporter::FilterElementsToImport( FDatasmithImportContext& ImportContext )
 {
-	if (!ImportContext.FilteredScene.IsValid())
-	{
-		ImportContext.FilteredScene = FDatasmithSceneFactory::DuplicateScene( ImportContext.Scene.ToSharedRef() );
-	}
+	ImportContext.FilteredScene = FDatasmithSceneFactory::DuplicateScene( ImportContext.Scene.ToSharedRef() );
 
 	FDatasmithSceneUtils::CleanUpScene(ImportContext.FilteredScene.ToSharedRef(), false);
 
