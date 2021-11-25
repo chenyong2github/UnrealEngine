@@ -648,6 +648,37 @@ namespace Chaos
 			return Contact;
 		}
 
+		// Find the the most opposing plane given a position and a direction
+		template <typename ConvexImplicitType>
+		void FindBestPlane(
+			const ConvexImplicitType& Convex,
+			const FVec3& X,
+			const FVec3& N,
+			const FReal MaxDistance,
+			const int32 PlaneIndex,
+			int32& BestPlaneIndex,
+			FReal& BestPlaneDot)
+		{
+			const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndex);
+			const FReal PlaneNormalDotN = FVec3::DotProduct(N, Plane.Normal());
+				
+			// Ignore planes that do not oppose N
+			if (PlaneNormalDotN <= -SMALL_NUMBER)
+			{
+				// Reject planes farther than MaxDistance
+				const FReal PlaneDistance = Plane.SignedDistance(X);
+				if (FMath::Abs(PlaneDistance) <= MaxDistance)
+				{
+					// Keep the most opposing plane
+					if (PlaneNormalDotN < BestPlaneDot)
+					{
+						BestPlaneDot = PlaneNormalDotN;
+						BestPlaneIndex = PlaneIndex;
+					}
+				}
+			}
+		}
+
 		// Select one of the planes on the convex to use as the contact plane, given an estimated contact position and opposing 
 		// normal from GJK with margins (which gives the shapes rounded corners/edges).
 		template <typename ConvexImplicitType>
@@ -665,34 +696,25 @@ namespace Chaos
 
 			int32 BestPlaneIndex = INDEX_NONE;
 			FReal BestPlaneDot = 1.0f;
-			
 			{
 				int32 PlaneIndices[3] = {INDEX_NONE, INDEX_NONE, INDEX_NONE};
-				const int32 NumPlanes = Convex.GetVertexPlanes3(VertexIndex, PlaneIndices[0], PlaneIndices[1], PlaneIndices[2]);
-			
-				for (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)
+				int32 NumPlanes = Convex.GetVertexPlanes3(VertexIndex, PlaneIndices[0], PlaneIndices[1], PlaneIndices[2]);
+
+				// If we have more than 3 planes we iterate over the full set of planes since it is faster than using the half edge structure
+				if(NumPlanes > 3)
 				{
-					const TPlaneConcrete<FReal, 3> Plane = Convex.GetPlane(PlaneIndices[PlaneIndex]);
-					const FReal PlaneNormalDotN = FVec3::DotProduct(N, Plane.Normal());
-			
-					// Ignore planes that do not oppose N
-					if (PlaneNormalDotN > -SMALL_NUMBER)
+					NumPlanes = Convex.NumPlanes();
+					for (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)
 					{
-						continue;
+						FindBestPlane(Convex, X, N, MaxDistance, PlaneIndex, BestPlaneIndex, BestPlaneDot);
 					}
-			
-					// Reject planes farther than MaxDistance
-					const FReal PlaneDistance = Plane.SignedDistance(X);
-					if (FMath::Abs(PlaneDistance) > MaxDistance)
+				}
+				// Otherwise we iterate over the cached planes
+				else
+				{
+					for (int32 PlaneIndex = 0; PlaneIndex < NumPlanes; ++PlaneIndex)
 					{
-						continue;
-					}
-			
-					// Keep the most opposing plane
-					if (PlaneNormalDotN < BestPlaneDot)
-					{
-						BestPlaneDot = PlaneNormalDotN;
-						BestPlaneIndex = PlaneIndices[PlaneIndex];
+						FindBestPlane(Convex, X, N, MaxDistance, PlaneIndices[PlaneIndex], BestPlaneIndex, BestPlaneDot);
 					}
 				}
 			}

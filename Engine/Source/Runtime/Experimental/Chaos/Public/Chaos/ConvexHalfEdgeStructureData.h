@@ -388,12 +388,18 @@ namespace Chaos
 			}
 
 			// Find the twin half edge for each edge
+			// NOTE: we have to deal with mal-formed convexes which claim to have edges that use the
+			// same vertex pair in the same order.
+			// @todo(chaos): track down to source of the mal-formed convexes
 			// @todo(chaos): could use a map of vertex-index-pair to half edge to eliminate O(N^2) algorithm
+			TArray<bool> HalfEdgeTwinned;
 			TArray<FIndex> TwinHalfEdgeIndices;
 			TwinHalfEdgeIndices.SetNum(HalfEdges.Num());
+			HalfEdgeTwinned.SetNum(HalfEdges.Num());
 			for (int32 HalfEdgeIndex = 0; HalfEdgeIndex < TwinHalfEdgeIndices.Num(); ++HalfEdgeIndex)
 			{
 				TwinHalfEdgeIndices[HalfEdgeIndex] = InvalidIndex;
+				HalfEdgeTwinned[HalfEdgeIndex] = false;
 			}
 			for (int32 HalfEdgeIndex0 = 0; HalfEdgeIndex0 < HalfEdges.Num(); ++HalfEdgeIndex0)
 			{
@@ -405,7 +411,16 @@ namespace Chaos
 				{
 					if ((HalfEdges[HalfEdgeIndex1].VertexIndex == VertexIndex1) && (HalfEdges[HalfEdgeIndex1].TwinHalfEdgeIndex == VertexIndex0))
 					{
-						TwinHalfEdgeIndices[HalfEdgeIndex0] = (FIndex)HalfEdgeIndex1;
+						// We deal with edge duplication by leaving a half edge without a twin
+						if (!HalfEdgeTwinned[HalfEdgeIndex1])
+						{
+							TwinHalfEdgeIndices[HalfEdgeIndex0] = (FIndex)HalfEdgeIndex1;
+							HalfEdgeTwinned[HalfEdgeIndex1] = true;
+						}
+						else
+						{
+							TwinHalfEdgeIndices[HalfEdgeIndex0] = InvalidIndex;
+						}
 						break;
 					}
 				}
@@ -524,9 +539,21 @@ namespace Chaos
 				{
 					do
 					{
-						VertexPlane.PlaneIndices[VertexPlane.NumPlaneIndices++] = (FIndex)GetHalfEdgePlane(HalfEdgeIndex);
-						if (VertexPlane.NumPlaneIndices == (FIndex)UE_ARRAY_COUNT(VertexPlane.PlaneIndices))
+						if(VertexPlane.NumPlaneIndices < (FIndex)UE_ARRAY_COUNT(VertexPlane.PlaneIndices))
 						{
+							VertexPlane.PlaneIndices[VertexPlane.NumPlaneIndices] = (FIndex)GetHalfEdgePlane(HalfEdgeIndex);
+						}
+
+						// Caching of the Max number of plane indices on this vertex (could be higher than 3)
+						// This can be used to determine if a call to GetVertexPlanes3 will actually return all the planes
+						// that use a particular vertex. This is useful in collision detection for box-like objects
+						// to avoid calling FindVertexPlanes
+						++VertexPlane.NumPlaneIndices;
+
+						// If we hit this there's a mal-formed convex case that we did not detect (we should be dealing with all cases - see SetPlaneVertices)
+						if (!ensure(VertexPlane.NumPlaneIndices <= Planes.Num()))
+						{
+							VertexPlane.NumPlaneIndices = 0;
 							break;
 						}
 
