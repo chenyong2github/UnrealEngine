@@ -18,14 +18,6 @@
 void UPropertyViewBase::ReleaseSlateResources(bool bReleaseChildren)
 {
 	Super::ReleaseSlateResources(bReleaseChildren);
-
-	FCoreUObjectDelegates::OnAssetLoaded.Remove(AssetLoadedHandle);
-	AssetLoadedHandle.Reset();
-	FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadMapHandle);
-	PostLoadMapHandle.Reset();
-	FEditorDelegates::MapChange.Remove(MapChangeHandle);
-	MapChangeHandle.Reset();
-
 	DisplayedWidget.Reset();
 }
 
@@ -39,19 +31,6 @@ TSharedRef<SWidget> UPropertyViewBase::RebuildWidget()
 		.BorderImage(FEditorStyle::GetBrush("NoBorder"));
 	
 	BuildContentWidget();
-
-	if (!AssetLoadedHandle.IsValid())
-	{
-		AssetLoadedHandle = FCoreUObjectDelegates::OnAssetLoaded.AddUObject(this, &UPropertyViewBase::InternalOnAssetLoaded);
-	}
-	if (!PostLoadMapHandle.IsValid())
-	{
-		PostLoadMapHandle = FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UPropertyViewBase::InternalPostLoadMapWithWorld);
-	}
-	if (!MapChangeHandle.IsValid())
-	{
-		MapChangeHandle = FEditorDelegates::MapChange.AddUObject(this, &UPropertyViewBase::InternalOnMapChange);
-	}
 
 	return DisplayedWidget.ToSharedRef();
 }
@@ -76,27 +55,6 @@ void UPropertyViewBase::SetObject(UObject* InObject)
 void UPropertyViewBase::OnPropertyChangedBroadcast(FName PropertyName)
 {
 	OnPropertyChanged.Broadcast(PropertyName);
-}
-
-
-void UPropertyViewBase::InternalOnAssetLoaded(UObject* AssetLoaded)
-{
-	if(Object.ToSoftObjectPath().GetAssetPathName() == FSoftObjectPath(AssetLoaded).GetAssetPathName())
-	{
-		BuildContentWidget();
-	}
-}
-
-
-void UPropertyViewBase::InternalPostLoadMapWithWorld(UWorld* AssetLoaded)
-{
-	InternalOnMapChange(0);
-}
-
-
-void UPropertyViewBase::InternalOnMapChange(uint32)
-{
-	BuildContentWidget();
 }
 
 

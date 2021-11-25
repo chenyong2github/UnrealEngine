@@ -110,14 +110,16 @@ void UEditorUtilityWidgetBlueprint::ChangeTabWorld(UWorld* World, EMapChangeType
 {
 	if (MapChangeType == EMapChangeType::TearDownWorld)
 	{
-		if (CreatedTab.IsValid())
+		// We need to Delete the UMG widget if we are tearing down the World it was built with.
+		if (CreatedUMGWidget && World == CreatedUMGWidget->GetWorld())
 		{
-			CreatedTab.Pin()->SetContent(SNullWidget::NullWidget);
-		}
-		if (CreatedUMGWidget)
-		{
+			if (CreatedTab.IsValid())
+			{
+				CreatedTab.Pin()->SetContent(SNullWidget::NullWidget);
+			}
+			
 			CreatedUMGWidget->Rename(nullptr, GetTransientPackage());
-			CreatedUMGWidget = nullptr;
+			CreatedUMGWidget = nullptr;			
 		}
 	}
 	else if (MapChangeType != EMapChangeType::SaveMap)

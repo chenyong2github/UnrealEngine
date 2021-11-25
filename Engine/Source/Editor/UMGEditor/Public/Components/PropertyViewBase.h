@@ -54,9 +54,6 @@ protected:
 	void OnPropertyChangedBroadcast(FName PropertyName);
 
 private:
-	void InternalOnAssetLoaded(UObject* LoadedAsset);
-	void InternalOnMapChange(uint32);
-	void InternalPostLoadMapWithWorld(UWorld* LoadedWorld);
 
 	//~ UWidget interface
 public:
@@ -75,7 +72,4 @@ public:
 
 private:
 	TSharedPtr<SBorder> DisplayedWidget;
-	FDelegateHandle AssetLoadedHandle;
-	FDelegateHandle PostLoadMapHandle;
-	FDelegateHandle MapChangeHandle;
 };
