@@ -10,10 +10,6 @@
 #include "HairBsdf.ush"
 #include "BurleyNormalizedSSSCommon.ush"
 
-#ifndef FEATURE_GATHER4
-#define FEATURE_GATHER4 1
-#endif
-
 #ifndef MAX_MOBILE_SHADOWCASCADES
 #define MAX_MOBILE_SHADOWCASCADES 0
 #endif 
@@ -486,9 +482,9 @@ half MobileShadowPCF(float2 ShadowUVs, FPCFSamplerSettings Settings)
 #elif MOBILE_SHADOW_QUALITY == 1
 	half ShadowMap = Manual1x1PCF(ShadowUVs, Settings);
 #elif MOBILE_SHADOW_QUALITY == 2
-	half ShadowMap = Manual2x2PCF(ShadowUVs, Settings);
-#elif MOBILE_SHADOW_QUALITY == 3
 	half ShadowMap = Manual3x3PCF(ShadowUVs, Settings);
+#elif MOBILE_SHADOW_QUALITY == 3
+	half ShadowMap = Manual5x5PCF(ShadowUVs, Settings);
 #else
 	#error Unsupported MOBILE_SHADOW_QUALITY value.
 #endif

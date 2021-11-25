@@ -31,14 +31,6 @@
 #include "HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "Common.ush"
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-	// Gather() is supported
-	#define FEATURE_GATHER4 1
-#else
-	// Gather() is not supported
-	#define FEATURE_GATHER4 0
-#endif
-
 #if MODULATED_SHADOWS
 	#define MobileSceneTextures MobileBasePass.SceneTextures
 #endif
