@@ -84,13 +84,13 @@ public:
 
 	void ImplViewportRemap_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
-	inline bool FindContext_RenderThread(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum)
+	inline bool FindContext_RenderThread(const int32 ViewIndex, uint32* OutContextNum)
 	{
 		check(IsInRenderingThread());
 
 		for (int32 ContextNum = 0; ContextNum < Contexts.Num(); ContextNum++)
 		{
-			if (StereoPassType == Contexts[ContextNum].StereoscopicPass)
+			if (ViewIndex == Contexts[ContextNum].StereoViewIndex)
 			{
 				if (OutContextNum != nullptr)
 				{

@@ -486,9 +486,9 @@ void FNiagaraRendererMeshes::InitializeSortInfo(FParticleMeshRenderData& Particl
 	OutSortInfo.ViewDirection = ViewMatrices.GetViewMatrix().GetColumn(2);
 
 #ifdef HMD_MODULE_INCLUDED
-	if (View.StereoPass != eSSP_FULL && GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetHMDDevice() != nullptr))
+	if (View.StereoPass != EStereoscopicPass::eSSP_FULL && GEngine->XRSystem.IsValid() && (GEngine->XRSystem->GetHMDDevice() != nullptr))
 #else
-	if (View.StereoPass != eSSP_FULL && AllViewsInFamily.Num() > 1)
+	if (View.StereoPass != EStereoscopicPass::eSSP_FULL && AllViewsInFamily.Num() > 1)
 #endif	
 	{
 		// For VR, do distance culling and sorting from a central eye position to prevent differences between views
@@ -532,12 +532,13 @@ void FNiagaraRendererMeshes::InitializeSortInfo(FParticleMeshRenderData& Particl
 			ViewProj.GetFrustumBottomPlane(OutSortInfo.CullPlanes[3]);
 
 			ViewProj.GetFrustumLeftPlane(OutSortInfo.CullPlanes[4]);
-			if (bIsInstancedStereo)
+			if (bIsInstancedStereo && AllViewsInFamily.IsValidIndex(ViewIndex + 1))
 			{
 				// For Instanced Stereo, cull using an extended frustum that encompasses both eyes
-				ensure(View.StereoPass == eSSP_LEFT_EYE); // Sanity check that the primary eye is the left
+				ensure(View.StereoPass == EStereoscopicPass::eSSP_PRIMARY); // Sanity check that this is a primary view
 				const FSceneView* RightEyeView = AllViewsInFamily[ViewIndex + 1];
 				check(RightEyeView);
+				ensure(RightEyeView->StereoPass == EStereoscopicPass::eSSP_SECONDARY);
 				FVector RightEyePos;
 				FPlane CullPlane;
 				GetViewMatrices(*RightEyeView, RightEyePos).GetViewProjectionMatrix().GetFrustumRightPlane(CullPlane);

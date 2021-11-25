@@ -322,7 +322,7 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 		}
 	}
 
-	// generate unique stereopass for each frame
+	// generate unique stereo view index for each frame
 	uint32 ViewPassNum = 0;
 
 	// Initialize viewports from new render settings, and create new contexts, reset prev frame resources
@@ -593,13 +593,13 @@ void FDisplayClusterViewportManager::ImplDeleteViewport(FDisplayClusterViewport*
 	ResetSceneRenderTargetSize();
 }
 
-IDisplayClusterViewport* FDisplayClusterViewportManager::FindViewport(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum) const
+IDisplayClusterViewport* FDisplayClusterViewportManager::FindViewport(const int32 ViewIndex, uint32* OutContextNum) const
 {
 	check(IsInGameThread());
 
 	for (FDisplayClusterViewport* Viewport : Viewports)
 	{
-		if (Viewport && Viewport->FindContext(StereoPassType, OutContextNum))
+		if (Viewport && Viewport->FindContext(ViewIndex, OutContextNum))
 		{
 			return Viewport;
 		}

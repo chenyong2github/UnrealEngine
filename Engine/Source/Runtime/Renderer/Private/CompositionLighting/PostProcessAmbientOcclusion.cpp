@@ -981,7 +981,7 @@ void AddAmbientOcclusionPass(
 				OutputSize,
 				InputSize,
 				VertexShader,
-				View.StereoPass,
+				View.StereoViewIndex,
 				false,
 				EDRF_UseTriangleOptimization);
 

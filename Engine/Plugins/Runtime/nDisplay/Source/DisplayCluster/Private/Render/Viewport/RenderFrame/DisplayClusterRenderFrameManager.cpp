@@ -84,27 +84,6 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, 
 		bResult = BuildSimpleFrame(InViewport, InRenderFrameSettings, SortedViewports, OutRenderFrame);
 	}
 
-	if (bResult)
-	{
-		uint32 RenderFrameViewIndex = 0;
-
-		// Update view index for each context inside view family
-		for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : OutRenderFrame.RenderTargets)
-		{
-			for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamilieIt : RenderTargetIt.ViewFamilies)
-			{
-				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamilieIt.Views)
-				{
-					FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
-					if (ViewportPtr != nullptr)
-					{
-						ViewportPtr->Contexts[ViewIt.ContextNum].RenderFrameViewIndex = RenderFrameViewIndex++;
-					}
-				}
-			}
-		}
-	}
-
 	return bResult;
 }
 

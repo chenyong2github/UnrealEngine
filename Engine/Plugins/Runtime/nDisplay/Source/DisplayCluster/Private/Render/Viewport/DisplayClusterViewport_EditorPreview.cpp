@@ -75,6 +75,7 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 
 		ViewInitOptions.OverrideFarClippingPlaneDistance = MaxViewDistance;
 		ViewInitOptions.StereoPass = Contexts[InContextNum].StereoscopicPass;
+		ViewInitOptions.StereoViewIndex = Contexts[InContextNum].StereoViewIndex;
 
 		ViewInitOptions.LODDistanceFactor = FMath::Clamp(LODDistanceFactor, 0.01f, 100.0f);
 
@@ -212,13 +213,13 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	const float EyeOffset = CfgEyeDist / 2.f;
 	const float EyeOffsetValues[] = { -EyeOffset, 0.f, EyeOffset };
 
-	auto DecodeEyeType = [](const EStereoscopicPass EyePass)
+	auto DecodeEyeType = [](const EStereoscopicPass StereoPass)
 	{
-		switch (EyePass)
+		switch (StereoPass)
 		{
-		case EStereoscopicPass::eSSP_LEFT_EYE:
+		case EStereoscopicPass::eSSP_PRIMARY:
 			return EDisplayClusterEyeType::StereoLeft;
-		case EStereoscopicPass::eSSP_RIGHT_EYE:
+		case EStereoscopicPass::eSSP_SECONDARY:
 			return EDisplayClusterEyeType::StereoRight;
 		default:
 			break;
@@ -228,7 +229,7 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	};
 
 	// Decode current eye type	
-	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicEye);
+	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicPass);
 	const int32 EyeIndex = (int32)EyeType;
 
 	float PassOffset = 0.f;

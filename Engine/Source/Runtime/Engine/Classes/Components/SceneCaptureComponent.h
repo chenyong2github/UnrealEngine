@@ -23,6 +23,7 @@ struct FSceneCaptureViewInfo
 	FMatrix ProjectionMatrix;
 	FIntRect ViewRect;
 	EStereoscopicPass StereoPass;
+	int32 StereoViewIndex;
 	float StereoIPD;
 };
 
@@ -121,9 +122,6 @@ class ENGINE_API USceneCaptureComponent : public USceneComponent
 	FEngineShowFlags ShowFlags;
 
 public:
-	/** Indicates which stereo pass this component is capturing for, if any */
-    EStereoscopicPass CaptureStereoPass;
-
 	/** Name of the profiling event. */
 	UPROPERTY(EditAnywhere, interp, Category = SceneCapture)
 	FString ProfilingEventName;

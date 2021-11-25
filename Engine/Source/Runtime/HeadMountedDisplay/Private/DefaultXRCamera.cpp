@@ -70,13 +70,13 @@ void FDefaultXRCamera::SetupLateUpdate(const FTransform& ParentToWorld, USceneCo
 	LateUpdate.Setup(ParentToWorld, Component, bSkipLateUpdate);
 }
 
-void FDefaultXRCamera::CalculateStereoCameraOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, FVector& ViewLocation)
+void FDefaultXRCamera::CalculateStereoCameraOffset(const int32 ViewIndex, FRotator& ViewRotation, FVector& ViewLocation)
 {
-	if (StereoPassType != eSSP_FULL)
+	if (ViewIndex != INDEX_NONE)
 	{
 		FQuat EyeOrientation;
 		FVector EyeOffset;
-		if (TrackingSystem->GetRelativeEyePose(DeviceId, StereoPassType, EyeOrientation, EyeOffset))
+		if (TrackingSystem->GetRelativeEyePose(DeviceId, ViewIndex, EyeOrientation, EyeOffset))
 		{
 			ViewLocation += ViewRotation.Quaternion().RotateVector(EyeOffset);
 			ViewRotation = FRotator(ViewRotation.Quaternion() * EyeOrientation);
@@ -93,15 +93,13 @@ void FDefaultXRCamera::CalculateStereoCameraOffset(const enum EStereoscopicPass 
 	}
 }
 
-static const FName DayDreamHMD(TEXT("FGoogleVRHMD"));
-
 void FDefaultXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& View)
 {
 	check(IsInRenderingThread());
 
 	// Disable late update for day dream, their compositor doesn't support it.
 	// Also disable it if we are set to skip it.
-	const bool bDoLateUpdate = (!LateUpdate.GetSkipLateUpdate_RenderThread()) && (TrackingSystem->GetSystemName() != DayDreamHMD);
+	const bool bDoLateUpdate = !LateUpdate.GetSkipLateUpdate_RenderThread();
 	if (bDoLateUpdate)
 	{
 		FQuat DeviceOrientation;
@@ -109,7 +107,7 @@ void FDefaultXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RHIC
 
 		if (TrackingSystem->DoesSupportLateProjectionUpdate() && TrackingSystem->GetStereoRenderingDevice())
 		{
-			View.UpdateProjectionMatrix(TrackingSystem->GetStereoRenderingDevice()->GetStereoProjectionMatrix(View.StereoPass));
+			View.UpdateProjectionMatrix(TrackingSystem->GetStereoRenderingDevice()->GetStereoProjectionMatrix(View.StereoViewIndex));
 		}
 
 		if (TrackingSystem->GetCurrentPose(DeviceId, DeviceOrientation, DevicePosition))

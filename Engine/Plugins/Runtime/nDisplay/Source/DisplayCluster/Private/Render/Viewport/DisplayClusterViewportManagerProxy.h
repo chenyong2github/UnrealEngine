@@ -36,7 +36,7 @@ public:
 		return ImplFindViewport_RenderThread(InViewportId);
 	}
 
-	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const EStereoscopicPass StereoPassType, uint32* OutContextNum = nullptr) const override;
+	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum = nullptr) const override;
 
 	virtual const TArrayView<IDisplayClusterViewportProxy*> GetViewports_RenderThread() const override
 	{

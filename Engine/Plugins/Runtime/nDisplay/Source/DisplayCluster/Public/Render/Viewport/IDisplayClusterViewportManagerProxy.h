@@ -27,12 +27,12 @@ public:
 	* Find viewport render thread proxy object and context number by stereoscopic pass index
 	* [Rendering thread func]
 	*
-	* @param StereoPassType - stereoscopic pass index
+	* @param StereoViewIndex - stereoscopic view index
 	* @param OutContextNum - context number
 	*
 	* @return - viewport render thread proxy object ref
 	*/
-	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum = nullptr) const = 0;
+	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum = nullptr) const = 0;
 
 	/**
 	* Return all exist viewports render thread proxy objects

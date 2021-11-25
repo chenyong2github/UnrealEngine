@@ -101,12 +101,12 @@ public:
 	* Find viewport object and context number by stereoscopic pass index
 	* [Game thread func]
 	*
-	* @param StereoPassType - stereoscopic pass index
+	* @param StereoViewIndex - stereoscopic view index
 	* @param OutContextNum - context number
 	*
 	* @return - viewport object ref
 	*/
-	virtual IDisplayClusterViewport* FindViewport(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum = nullptr) const = 0;
+	virtual IDisplayClusterViewport* FindViewport(const int32 StereoViewIndex, uint32* OutContextNum = nullptr) const = 0;
 	
 	/**
 	* Return all exist viewports objects

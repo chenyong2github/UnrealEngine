@@ -31,7 +31,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWmrHmd, Log, All);
 
-#define eSSP_THIRD_CAMERA_EYE 3
+#define eSSE_THIRD_CAMERA_EYE 3
 
 namespace WindowsMixedReality
 {
@@ -91,7 +91,7 @@ namespace WindowsMixedReality
 			int32 DeviceId,
 			FQuat& CurrentOrientation,
 			FVector& CurrentPosition) override;
-		virtual bool GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition) override;
+		virtual bool GetRelativeEyePose(int32 DeviceId, int32 ViewIndex, FQuat& OutOrientation, FVector& OutPosition) override;
 
 		virtual class IHeadMountedDisplay* GetHMDDevice() override
 		{
@@ -136,10 +136,10 @@ namespace WindowsMixedReality
 		virtual bool IsStereoEnabled() const override;
 		virtual bool EnableStereo(bool stereo = true) override;
 		virtual void AdjustViewRect(
-			EStereoscopicPass StereoPass,
+			int32 ViewIndex,
 			int32& X, int32& Y,
 			uint32& SizeX, uint32& SizeY) const override;
-		virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
+		virtual FMatrix GetStereoProjectionMatrix(const int32 ViewIndex) const override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual class IStereoLayers* GetStereoLayers() override;
 
@@ -154,35 +154,19 @@ namespace WindowsMixedReality
 				: 1;
 		}
 
-		virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const override
+		virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, int32 ViewIndex) const override
 		{
 			if (!bStereoRequested)
 				return EStereoscopicPass::eSSP_FULL;
 
-			return static_cast<EStereoscopicPass>(eSSP_LEFT_EYE + ViewIndex);
-		}
-
-		virtual uint32 GetViewIndexForPass(EStereoscopicPass StereoPassType) const override
-		{
-			switch (StereoPassType)
-			{
-			case eSSP_LEFT_EYE:
-			case eSSP_FULL:
-				return 0;
-
-			case eSSP_RIGHT_EYE:
-				return 1;
-
-			default:
-				return StereoPassType - eSSP_LEFT_EYE;
-			}
+			return ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE ? EStereoscopicPass::eSSP_PRIMARY : EStereoscopicPass::eSSP_SECONDARY;
 		}
 
 		virtual bool HasHiddenAreaMesh() const override;
-		virtual void DrawHiddenAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
+		virtual void DrawHiddenAreaMesh(FRHICommandList& RHICmdList, int32 ViewIndex) const override;
 
 		virtual bool HasVisibleAreaMesh() const override;
-		virtual void DrawVisibleAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
+		virtual void DrawVisibleAreaMesh(FRHICommandList& RHICmdList, int32 ViewIndex) const override;
 
 		// Spectator screen Hooks.
 		virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;

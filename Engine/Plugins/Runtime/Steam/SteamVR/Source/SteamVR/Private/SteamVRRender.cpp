@@ -69,26 +69,24 @@ bool FSteamVRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& C
 	return FHMDSceneViewExtension::IsActiveThisFrame_Internal(Context) && !IsMetalPlatform(GMaxRHIShaderPlatform);
 }
 
-static void DrawOcclusionMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass, const FHMDViewMesh MeshAssets[])
+static void DrawOcclusionMesh(FRHICommandList& RHICmdList, int32 ViewIndex, const FHMDViewMesh MeshAssets[])
 {
-	check(GEngine->StereoRenderingDevice->DeviceIsStereoEyePass(StereoPass));
-
-	const uint32 MeshIndex = GEngine->StereoRenderingDevice->GetViewIndexForPass(StereoPass);
-	const FHMDViewMesh& Mesh = MeshAssets[MeshIndex];
+	check(ViewIndex < 2);
+	const FHMDViewMesh& Mesh = MeshAssets[ViewIndex];
 	check(Mesh.IsValid());
 
 	RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
 	RHICmdList.DrawIndexedPrimitive(Mesh.IndexBufferRHI, 0, 0, Mesh.NumVertices, 0, Mesh.NumTriangles, 1);
 }
 
-void FSteamVRHMD::DrawHiddenAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+void FSteamVRHMD::DrawHiddenAreaMesh(FRHICommandList& RHICmdList, int32 ViewIndex) const
 {
-	DrawOcclusionMesh(RHICmdList, StereoPass, HiddenAreaMeshes);
+	DrawOcclusionMesh(RHICmdList, ViewIndex, HiddenAreaMeshes);
 }
 
-void FSteamVRHMD::DrawVisibleAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+void FSteamVRHMD::DrawVisibleAreaMesh(FRHICommandList& RHICmdList, int32 ViewIndex) const
 {
-	DrawOcclusionMesh(RHICmdList, StereoPass, VisibleAreaMeshes);
+	DrawOcclusionMesh(RHICmdList, ViewIndex, VisibleAreaMeshes);
 }
 
 
@@ -207,7 +205,7 @@ void FSteamVRHMD::D3D11Bridge::FinishRendering()
 		Texture.depth.vRange.v[0] = 1.0f;
 		Texture.depth.vRange.v[1] = 0.0f;
 
-		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_LEFT_EYE));
+		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(EStereoscopicEye::eSSE_LEFT_EYE));
 	}
 
 	vr::VRTextureBounds_t LeftBounds;
@@ -226,7 +224,7 @@ void FSteamVRHMD::D3D11Bridge::FinishRendering()
 
 	if (bSubmitDepth)
 	{
-		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_RIGHT_EYE));
+		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(EStereoscopicEye::eSSE_RIGHT_EYE));
 	}
 
 	Error = Plugin->VRCompositor->Submit(vr::Eye_Right, &Texture, &RightBounds, Flags);
@@ -292,7 +290,7 @@ void FSteamVRHMD::D3D12Bridge::FinishRendering()
 		Texture.depth.vRange.v[0] = 1.0f;
 		Texture.depth.vRange.v[1] = 0.0f;
 
-		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_LEFT_EYE));
+		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(EStereoscopicEye::eSSE_LEFT_EYE));
 		// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
 		Texture.depth.mProjection.m[2][3] *= 0.01f;
 	}
@@ -313,7 +311,7 @@ void FSteamVRHMD::D3D12Bridge::FinishRendering()
 
 	if (bSubmitDepth)
 	{
-		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_RIGHT_EYE));
+		Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(EStereoscopicEye::eSSE_RIGHT_EYE));
 		// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
 		Texture.depth.mProjection.m[2][3] *= 0.01f;
 	}
@@ -432,14 +430,14 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 			Texture.depth.vRange.v[0] = 1.0f;
 			Texture.depth.vRange.v[1] = 0.0f;
 
-			Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_LEFT_EYE));
+			Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(EStereoscopicEye::eSSE_LEFT_EYE));
 
 			// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
 			Texture.depth.mProjection.m[2][3] *= 0.01f;
 
 			Plugin->VRCompositor->Submit(vr::Eye_Left, &Texture, &LeftBounds, vr::EVRSubmitFlags::Submit_TextureWithDepth);
 
-			Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_RIGHT_EYE));
+			Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(EStereoscopicEye::eSSE_RIGHT_EYE));
 
 			// Rescale the projection (our projection value is 10.0f here, since our units are cm, and SteamVR works in meters).
 			Texture.depth.mProjection.m[2][3] *= 0.01f;
@@ -526,10 +524,10 @@ void FSteamVRHMD::OpenGLBridge::FinishRendering()
 	Texture.depth.vRange.v[0] = 1.0f;
 	Texture.depth.vRange.v[1] = 0.0f;
 
-	Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_LEFT_EYE));
+	Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(EStereoscopicEye::eSSE_LEFT_EYE));
 	Plugin->VRCompositor->Submit(vr::Eye_Left, &Texture, &LeftBounds, vr::EVRSubmitFlags::Submit_TextureWithDepth);
 
-	Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(eSSP_RIGHT_EYE));
+	Texture.depth.mProjection = ToHmdMatrix44(Plugin->GetStereoProjectionMatrix(EStereoscopicEye::eSSE_RIGHT_EYE));
 	Plugin->VRCompositor->Submit(vr::Eye_Right, &Texture, &RightBounds, vr::EVRSubmitFlags::Submit_TextureWithDepth);
 }
 

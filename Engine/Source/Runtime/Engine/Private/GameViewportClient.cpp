@@ -1445,15 +1445,13 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			const bool bEnableStereo = GEngine->IsStereoscopic3D(InViewport);
 			const int32 NumViews = bStereoRendering ? GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(bStereoRendering) : 1;
 
-			for (int32 i = 0; i < NumViews; ++i)
+			for (int32 ViewIndex = 0; ViewIndex < NumViews; ++ViewIndex)
 			{
 				// Calculate the player's view information.
 				FVector		ViewLocation;
 				FRotator	ViewRotation;
 
-				EStereoscopicPass PassType = bStereoRendering ? GEngine->StereoRenderingDevice->GetViewPassForIndex(bStereoRendering, i) : eSSP_FULL;
-
-				FSceneView* View = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, InViewport, nullptr, PassType);
+				FSceneView* View = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, InViewport, nullptr, bStereoRendering ? ViewIndex : INDEX_NONE);
 
 				if (View)
 				{
@@ -1499,7 +1497,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 					View->CameraConstrainedViewRect = View->UnscaledViewRect;
 
 					// If this is the primary drawing pass, update things that depend on the view location
-					if (i == 0)
+					if (ViewIndex == 0)
 					{
 						// Save the location of the view.
 						LocalPlayer->LastViewLocation = ViewLocation;

@@ -30,8 +30,8 @@ public:
 	virtual bool ReleaseShare(const FString& ShareName) override;
 	virtual bool GetShare(const FString& ShareName, TSharedPtr<ITextureShareItem>& OutShareItem) const override;
 
-	virtual bool LinkSceneContextToShare(const TSharedPtr<ITextureShareItem>& ShareItem, int StereoscopicPass, bool bIsEnabled) override;
-	virtual bool SetBackbufferRect(int StereoscopicPass, const FIntRect* BackbufferRect) override;
+	virtual bool LinkSceneContextToShare(const TSharedPtr<ITextureShareItem>& ShareItem, int StereoViewIndex, bool bIsEnabled) override;
+	virtual bool SetBackbufferRect(int StereoViewIndex, const FIntRect* BackbufferRect) override;
 
 	virtual bool RegisterTexture(const TSharedPtr<ITextureShareItem>& ShareItem, const FString& InTextureName, const FIntPoint& InSize, EPixelFormat InFormat, ETextureShareSurfaceOp OperationType) override;
 

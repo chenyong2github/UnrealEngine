@@ -36,9 +36,9 @@ public:
 
 	float CurrentWorldTime, DeltaWorldTime;
 
-	virtual FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass = eSSP_FULL) override
+	virtual FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily, const int32 StereoViewIndex = INDEX_NONE) override
 	{
-		FSceneView* View = FLevelEditorViewportClient::CalcSceneView(ViewFamily, StereoPass);
+		FSceneView* View = FLevelEditorViewportClient::CalcSceneView(ViewFamily, StereoViewIndex);
 
 		// Artificially set the world times so that graphics settings apply correctly (we don't tick the world when rendering thumbnails)
 		ViewFamily->CurrentWorldTime = CurrentWorldTime;

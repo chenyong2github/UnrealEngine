@@ -8,20 +8,17 @@
 class FDisplayClusterViewport_Context
 {
 public:
-	FDisplayClusterViewport_Context(const uint32 InContextNum, const enum EStereoscopicPass InStereoscopicEye, const EStereoscopicPass InStereoscopicPass)
+	FDisplayClusterViewport_Context(const uint32 InContextNum, const EStereoscopicPass InStereoscopicPass, const int32 InStereoViewIndex)
 		: ContextNum(InContextNum)
-		, StereoscopicEye(InStereoscopicEye)
 		, StereoscopicPass(InStereoscopicPass)
+		, StereoViewIndex(InStereoViewIndex)
 	{}
 
 public:
 	const uint32            ContextNum;
 
-	const EStereoscopicPass StereoscopicEye;
 	const EStereoscopicPass StereoscopicPass;
-
-	// View index in view
-	uint32 RenderFrameViewIndex = 0;
+	const int32             StereoViewIndex;
 
 	// Camera location and orientation
 	FVector  ViewLocation = FVector::ZeroVector;

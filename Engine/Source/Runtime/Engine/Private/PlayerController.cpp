@@ -2123,7 +2123,7 @@ bool APlayerController::ProjectWorldLocationToScreenWithDistance(FVector WorldLo
 	{
 		// get the projection data
 		FSceneViewProjectionData ProjectionData;
-		if (LP->GetProjectionData(LP->ViewportClient->Viewport, eSSP_FULL, /*out*/ ProjectionData))
+		if (LP->GetProjectionData(LP->ViewportClient->Viewport, /*out*/ ProjectionData))
 		{
 			FVector2D ScreenPosition2D;
 			FMatrix const ViewProjectionMatrix = ProjectionData.ComputeViewProjectionMatrix();

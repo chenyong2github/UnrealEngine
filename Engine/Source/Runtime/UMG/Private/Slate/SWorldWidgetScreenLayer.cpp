@@ -107,7 +107,7 @@ void SWorldWidgetScreenLayer::Tick(const FGeometry& AllottedGeometry, const doub
 			ULocalPlayer const* const LP = PlayerController->GetLocalPlayer();
 			if (LP && LP->ViewportClient)
 			{
-				bHasProjectionData = LP->GetProjectionData(ViewportClient->Viewport, eSSP_FULL, /*out*/ ProjectionData);
+				bHasProjectionData = LP->GetProjectionData(ViewportClient->Viewport, /*out*/ ProjectionData);
 				if (bHasProjectionData)
 				{
 					ViewProjectionMatrix = ProjectionData.ComputeViewProjectionMatrix();

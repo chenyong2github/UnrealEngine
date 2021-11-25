@@ -865,9 +865,9 @@ void FEditorViewportClient::CenterViewportAtPoint(const FVector& NewLookAt, bool
 //
 // Configures the specified FSceneView object with the view and projection matrices for this viewport.
 
-FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass)
+FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const int32 StereoViewIndex)
 {
-    const bool bStereoRendering = StereoPass != eSSP_FULL;
+    const bool bStereoRendering = StereoViewIndex != INDEX_NONE;
 
 	FSceneViewInitOptions ViewInitOptions;
 
@@ -992,11 +992,11 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 		        int32 Y = 0;
 		        uint32 SizeX = ViewportSize.X;
 		        uint32 SizeY = ViewportSize.Y;
-			    GEngine->StereoRenderingDevice->AdjustViewRect( StereoPass, X, Y, SizeX, SizeY );
+			    GEngine->StereoRenderingDevice->AdjustViewRect( StereoViewIndex, X, Y, SizeX, SizeY );
 		        const FIntRect StereoViewRect = FIntRect( X, Y, X + SizeX, Y + SizeY );
 		        ViewInitOptions.SetViewRectangle( StereoViewRect );
 
-				GEngine->StereoRenderingDevice->CalculateStereoViewOffset( StereoPass, ModifiedViewRotation, ViewInitOptions.WorldToMetersScale, ViewInitOptions.ViewOrigin );
+				GEngine->StereoRenderingDevice->CalculateStereoViewOffset( StereoViewIndex, ModifiedViewRotation, ViewInitOptions.WorldToMetersScale, ViewInitOptions.ViewOrigin );
 			}
 
 			// Calc view rotation matrix
@@ -1013,7 +1013,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 		    {
 			    // @todo vreditor: bConstrainAspectRatio is ignored in this path, as it is in the game client as well currently
 			    // Let the stereoscopic rendering device handle creating its own projection matrix, as needed
-			    ViewInitOptions.ProjectionMatrix = GEngine->StereoRenderingDevice->GetStereoProjectionMatrix(StereoPass);
+			    ViewInitOptions.ProjectionMatrix = GEngine->StereoRenderingDevice->GetStereoProjectionMatrix(StereoViewIndex);
+				ViewInitOptions.StereoPass = GEngine->StereoRenderingDevice->GetViewPassForIndex(bStereoRendering, StereoViewIndex);
 		    }
 		    else
 		    {
@@ -1185,7 +1186,7 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	}
 
 	// Allocate our stereo view state on demand, so that only viewports that actually use stereo features have one
-	const int32 ViewStateIndex = (StereoPass > eSSP_RIGHT_EYE) ? StereoPass - eSSP_RIGHT_EYE : 0;
+	const int32 ViewStateIndex = (StereoViewIndex != INDEX_NONE) ? StereoViewIndex : 0;
 	if (bStereoRendering)
 	{
 		if (StereoViewStates.Num() <= ViewStateIndex)
@@ -1200,8 +1201,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	}
 
 	ViewInitOptions.ViewFamily = ViewFamily;
-	ViewInitOptions.SceneViewStateInterface = ( (StereoPass < eSSP_RIGHT_EYE) ? ViewState.GetReference() : StereoViewStates[ViewStateIndex].GetReference() );
-	ViewInitOptions.StereoPass = StereoPass;
+	ViewInitOptions.SceneViewStateInterface = ( (ViewStateIndex == 0) ? ViewState.GetReference() : StereoViewStates[ViewStateIndex].GetReference() );
+	ViewInitOptions.StereoViewIndex = StereoViewIndex;
 
 	ViewInitOptions.ViewElementDrawer = this;
 
@@ -1289,7 +1290,8 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 
 	View->SubduedSelectionOutlineColor = GEngine->GetSubduedSelectionOutlineColor();
 
-	ViewFamily->Views.Add(View);
+	int32 FamilyIndex = ViewFamily->Views.Add(View);
+	check(FamilyIndex == View->StereoViewIndex || View->StereoViewIndex == INDEX_NONE);
 
 	View->StartFinalPostprocessSettings( View->ViewLocation );
 
@@ -3887,9 +3889,7 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	int32 NumViews = bStereoRendering ? GEngine->StereoRenderingDevice->GetDesiredNumberOfViews(bStereoRendering) : 1;
 	for( int StereoViewIndex = 0; StereoViewIndex < NumViews; ++StereoViewIndex )
 	{
-		const EStereoscopicPass StereoPass = bStereoRendering ? GEngine->StereoRenderingDevice->GetViewPassForIndex(bStereoRendering, StereoViewIndex) : eSSP_FULL;
-
-		View = CalcSceneView( &ViewFamily, StereoPass );
+		View = CalcSceneView( &ViewFamily, bStereoRendering ? StereoViewIndex : INDEX_NONE);
 
 		SetupViewForRendering(ViewFamily,*View);
 

@@ -441,7 +441,7 @@ void DrawScreenPass(
 		OutputSize,
 		InputSize,
 		PipelineState.VertexShader,
-		View.StereoPass,
+		View.StereoViewIndex,
 		bUseHMDHiddenAreaMask,
 		DrawRectangleFlags);
 }

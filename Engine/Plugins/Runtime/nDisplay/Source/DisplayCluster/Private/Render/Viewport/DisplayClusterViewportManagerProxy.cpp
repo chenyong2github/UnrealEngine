@@ -540,13 +540,13 @@ FDisplayClusterViewportProxy* FDisplayClusterViewportManagerProxy::ImplFindViewp
 	return (DesiredViewport != nullptr) ? *DesiredViewport : nullptr;
 }
 
-IDisplayClusterViewportProxy* FDisplayClusterViewportManagerProxy::FindViewport_RenderThread(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum) const
+IDisplayClusterViewportProxy* FDisplayClusterViewportManagerProxy::FindViewport_RenderThread(const int32 StereoViewIndex, uint32* OutContextNum) const
 {
 	check(IsInRenderingThread());
 
 	for (FDisplayClusterViewportProxy* ViewportProxy : ViewportProxies)
 	{
-		if (ViewportProxy && ViewportProxy->FindContext_RenderThread(StereoPassType, OutContextNum))
+		if (ViewportProxy && ViewportProxy->FindContext_RenderThread(StereoViewIndex, OutContextNum))
 		{
 			return ViewportProxy;
 		}

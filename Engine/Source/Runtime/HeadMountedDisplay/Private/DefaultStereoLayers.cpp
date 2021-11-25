@@ -209,7 +209,7 @@ void FDefaultStereoLayers::PreRenderViewFamily_RenderThread(FRHICommandListImmed
 
 void FDefaultStereoLayers::PostRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
 {
-	if (!HMDDevice->DeviceIsStereoEyeView(InView))
+	if (!IStereoRendering::IsStereoEyeView(InView))
 	{
 		return;
 	}
@@ -222,7 +222,7 @@ void FDefaultStereoLayers::PostRenderView_RenderThread(FRHICommandListImmediate&
 	// Calculate a view matrix that only adjusts for eye position, ignoring head position, orientation and world position.
 	FVector EyeShift;
 	FQuat EyeOrientation;
-	HMDDevice->GetRelativeEyePose(IXRTrackingSystem::HMDDeviceId, InView.StereoPass, EyeOrientation, EyeShift);
+	HMDDevice->GetRelativeEyePose(IXRTrackingSystem::HMDDeviceId, InView.StereoViewIndex, EyeOrientation, EyeShift);
 
 	FMatrix EyeMatrix = FTranslationMatrix(-EyeShift) * FInverseRotationMatrix(EyeOrientation.Rotator()) * FMatrix(
 		FPlane(0, 0, 1, 0),
@@ -257,7 +257,7 @@ void FDefaultStereoLayers::PostRenderView_RenderThread(FRHICommandListImmediate&
 		RHICmdList.Transition(Infos);
 	}
 
-	FTexture2DRHIRef RenderTarget = HMDDevice->GetSceneLayerTarget_RenderThread(InView.StereoPass, RenderParams.Viewport);
+	FTexture2DRHIRef RenderTarget = HMDDevice->GetSceneLayerTarget_RenderThread(InView.StereoViewIndex, RenderParams.Viewport);
 	if (!RenderTarget.IsValid())
 	{
 		RenderTarget = InView.Family->RenderTarget->GetRenderTargetTexture();
@@ -275,7 +275,7 @@ void FDefaultStereoLayers::PostRenderView_RenderThread(FRHICommandListImmediate&
 	StereoLayerRender(RHICmdList, SortedSceneLayers, RenderParams);
 	
 	// Optionally render face-locked layers into a non-reprojected target if supported by the HMD platform
-	FTexture2DRHIRef OverlayRenderTarget = HMDDevice->GetOverlayLayerTarget_RenderThread(InView.StereoPass, RenderParams.Viewport);
+	FTexture2DRHIRef OverlayRenderTarget = HMDDevice->GetOverlayLayerTarget_RenderThread(InView.StereoViewIndex, RenderParams.Viewport);
 	if (OverlayRenderTarget.IsValid())
 	{
 		RHICmdList.EndRenderPass();

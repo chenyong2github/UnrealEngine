@@ -372,10 +372,10 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 	//Add new contexts
 	for (uint32 ContextIt = 0; ContextIt < ViewportContextAmmount; ++ContextIt)
 	{
-		const EStereoscopicPass StereoscopicEye  = FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicEye(ContextIt, ViewportContextAmmount);
-		const EStereoscopicPass StereoscopicPass = (InFrameSettings.bIsRenderingInEditor) ? EStereoscopicPass::eSSP_FULL : FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicPass(InViewPassNum + ContextIt);
+		const EStereoscopicPass StereoscopicPass = (InFrameSettings.bIsRenderingInEditor) ? EStereoscopicPass::eSSP_FULL : FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicPass(ContextIt, ViewportContextAmmount);
+		const int32 StereoViewIndex = (int32)(InViewPassNum + ContextIt);
 
-		FDisplayClusterViewport_Context Context(ContextIt, StereoscopicEye, StereoscopicPass);
+		FDisplayClusterViewport_Context Context(ContextIt, StereoscopicPass, StereoViewIndex);
 
 		int32 ContextGPUIndex = (ContextIt > 0 && RenderSettings.StereoGPUIndex >= 0) ? RenderSettings.StereoGPUIndex : RenderSettings.GPUIndex;
 		Context.GPUIndex = ContextGPUIndex;

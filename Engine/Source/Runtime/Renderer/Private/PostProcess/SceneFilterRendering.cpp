@@ -246,7 +246,7 @@ void DrawHmdMesh(
 	float SizeV,
 	FIntPoint TargetSize,
 	FIntPoint TextureSize,
-	EStereoscopicPass StereoView,
+	int32 StereoView,
 	const TShaderRef<FShader>& VertexShader
 	)
 {
@@ -279,13 +279,13 @@ void DrawPostProcessPass(
 	FIntPoint TargetSize,
 	FIntPoint TextureSize,
 	const TShaderRef<FShader>& VertexShader,
-	EStereoscopicPass StereoView,
+	int32 StereoViewIndex,
 	bool bHasCustomMesh,
 	EDrawRectangleFlags Flags)
 {
-	if (bHasCustomMesh && IStereoRendering::IsStereoEyePass(StereoView))
+	if (bHasCustomMesh && StereoViewIndex != INDEX_NONE)
 	{
-		DrawHmdMesh(RHICmdList, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize, StereoView, VertexShader);
+		DrawHmdMesh(RHICmdList, X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize, StereoViewIndex, VertexShader);
 	}
 	else
 	{

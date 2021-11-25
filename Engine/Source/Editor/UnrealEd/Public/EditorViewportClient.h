@@ -707,7 +707,7 @@ public:
 	 * @param	StereoPass	Which eye we're drawing this view for when in stereo mode
 	 * @return	A pointer to the view within the view family which represents the viewport's primary view.
 	 */
-	virtual FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass = eSSP_FULL);
+	virtual FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily, const int32 StereoViewIndex = INDEX_NONE);
 
 	/** 
 	 * @return The scene being rendered in this viewport

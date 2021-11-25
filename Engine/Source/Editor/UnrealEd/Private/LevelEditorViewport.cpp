@@ -1843,7 +1843,7 @@ void FLevelEditorViewportClient::InitializeViewportInteraction()
 	}
 }
 
-FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass)
+FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, const int32 StereoViewIndex)
 {
 	bWasControlledByOtherViewport = false;
 
@@ -1889,7 +1889,7 @@ FSceneView* FLevelEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFami
 		}
 	}
 
-	FSceneView* View = FEditorViewportClient::CalcSceneView(ViewFamily, StereoPass);
+	FSceneView* View = FEditorViewportClient::CalcSceneView(ViewFamily, StereoViewIndex);
 
 	View->ViewActor = ActorLocks.GetLock().GetLockedActor();
 	View->SpriteCategoryVisibility = SpriteCategoryVisibility;

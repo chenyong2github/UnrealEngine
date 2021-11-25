@@ -70,7 +70,7 @@ public:
 		if (View.bShouldBindInstancedViewUB && View.Family->Views.Num() > 0)
 		{
 			// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-			const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
+			const EStereoscopicPass StereoPassIndex = (View.StereoPass != EStereoscopicPass::eSSP_FULL) ? EStereoscopicPass::eSSP_RIGHT_EYE : EStereoscopicPass::eSSP_FULL;
 
 			const FSceneView& InstancedView = View.Family->GetStereoEyeView(StereoPassIndex);
 			const auto& InstancedViewUniformBufferParameter = GetUniformBufferParameter<FInstancedViewUniformShaderParameters>();

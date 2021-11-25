@@ -70,7 +70,7 @@ public:
 		return ImplFindViewport(InViewportId);
 	}
 
-	virtual IDisplayClusterViewport* FindViewport(const EStereoscopicPass StereoPassType, uint32* OutContextNum = nullptr) const override;
+	virtual IDisplayClusterViewport* FindViewport(const int32 ViewIndex, uint32* OutContextNum = nullptr) const override;
 
 	virtual const TArrayView<IDisplayClusterViewport*> GetViewports() const override
 	{

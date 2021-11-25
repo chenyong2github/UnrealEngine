@@ -148,12 +148,12 @@ public:
 	 * If the device is does not represent a stereoscopic tracked camera, orientation and position should be identity and zero and the return value should be false.
 	 *
 	 * @param DeviceId the device to request the eye pose for.
-	 * @param Eye the eye the pose should be requested for, if passing in any other value than eSSP_LEFT_EYE or eSSP_RIGHT_EYE, the method should return a zero offset.
+	 * @param ViewIndex the view the pose should be requested for, if passing in INDEX_NONE, the method should return a zero offset.
 	 * @param OutOrientation The orientation of the eye relative to the device orientation.
 	 * @param OutPosition The position of the eye relative to the tracked device
 	 * @return true if the pose is valid or not. If the device is not a stereoscopic device, return false.
 	 */
-	virtual bool GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition) = 0;
+	virtual bool GetRelativeEyePose(int32 DeviceId, int32 ViewIndex, FQuat& OutOrientation, FVector& OutPosition) = 0;
 
 	/** 
 	 * If the device id represents a tracking sensor, reports the frustum properties in game-world space of the sensor.

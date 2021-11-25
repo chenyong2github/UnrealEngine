@@ -310,7 +310,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	// Note: We cannot override exposure because sky input texture are using exposure
 
 	// Other view data clean up
-	CubeView.StereoPass = eSSP_FULL;
+	CubeView.StereoPass = EStereoscopicPass::eSSP_FULL;
 	CubeView.DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
 	CubeView.MaterialTextureMipBias = 0;
 

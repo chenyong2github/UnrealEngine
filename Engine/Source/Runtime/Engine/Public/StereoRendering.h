@@ -14,14 +14,25 @@ class IStereoRenderTargetManager;
 
 /**
 * Stereoscopic rendering passes.  FULL implies stereoscopic rendering isn't enabled for this pass
+* PRIMARY implies the view needs its own pass, while SECONDARY implies the view can be instanced
 */
-enum EStereoscopicPass
+enum class EStereoscopicPass
 {
 	eSSP_FULL,
-	eSSP_LEFT_EYE,
-	eSSP_RIGHT_EYE,
-	eSSP_LEFT_EYE_SIDE,
-	eSSP_RIGHT_EYE_SIDE
+	eSSP_PRIMARY,
+	eSSP_SECONDARY
+};
+
+/**
+* Helper enum to identify eye view indices.
+*/
+enum EStereoscopicEye : int32
+{
+	eSSE_MONOSCOPIC = INDEX_NONE,
+	eSSE_LEFT_EYE = 0,
+	eSSE_RIGHT_EYE = 1,
+	eSSE_LEFT_EYE_SIDE = 2,
+	eSSE_RIGHT_EYE_SIDE = 3,
 };
 
 class ENGINE_API IStereoRendering
@@ -55,147 +66,72 @@ public:
 	/**
 	* For the specified view index in the view family, assign a stereoscopic pass type based on the extension's usage
 	*/
-	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const
+	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, int32 ViewIndex) const
 	{
 		if (!bStereoRequested)
 			return EStereoscopicPass::eSSP_FULL;
 		else if (ViewIndex == 0)
-			return EStereoscopicPass::eSSP_LEFT_EYE;
+			return EStereoscopicPass::eSSP_PRIMARY;
 		else
-			return EStereoscopicPass::eSSP_RIGHT_EYE;
+			return EStereoscopicPass::eSSP_SECONDARY;
 	}
 
 	/**
-	* For the specified stereoscopic pass type, assign a view index based on the extension's sorting
+	* Static helper. Return true if this pass is for a stereo eye view
 	*/
-	virtual uint32 GetViewIndexForPass(EStereoscopicPass StereoPassType) const
-	{
-		switch (StereoPassType)
-		{
-		case eSSP_LEFT_EYE:
-		case eSSP_FULL:
-			return 0;
-
-		case eSSP_RIGHT_EYE:
-			return 1;
-
-		default:
-			check(0);
-			return -1;
-		}
-	}
-
-	/**
-	* Static helper. Passes request to the current stereo device
-	*/
-	static bool IsStereoEyePass(EStereoscopicPass Pass);
-
-	/**
-	* Return true if this pass is for a stereo eye view
-	*/
-	virtual bool DeviceIsStereoEyePass(EStereoscopicPass Pass)
+	static bool IsStereoEyePass(EStereoscopicPass Pass)
 	{
 		return !(Pass == EStereoscopicPass::eSSP_FULL);
 	}
 
 	/**
-	* Static helper. Passes request to the current stereo device
+	* Static helper. Return true if this is a stereoscopic view
 	*/
 	static bool IsStereoEyeView(const FSceneView& View);
 
 	/**
-	* Return true if this is a stereoscopic view
+	* Static helper. Return true if this pass is for a view we do all the work for (ie this view can't borrow from another)
 	*/
-	virtual bool DeviceIsStereoEyeView(const FSceneView& View);
-
-	/**
-	* Static helper. Passes request to the current stereo device
-	*/
-	static bool IsAPrimaryPass(EStereoscopicPass Pass);
-
-	/**
-	* Return true if this pass is for a view we do all the work for (ie this view can't borrow from another)
-	*/
-	virtual bool DeviceIsAPrimaryPass(EStereoscopicPass Pass)
+	static bool IsAPrimaryPass(EStereoscopicPass Pass)
 	{
-		return Pass == EStereoscopicPass::eSSP_FULL || Pass == EStereoscopicPass::eSSP_LEFT_EYE;
+		return Pass == EStereoscopicPass::eSSP_FULL || Pass == EStereoscopicPass::eSSP_PRIMARY;
 	}
 
 	/**
-	* Static helper. Passes request to the current stereo device
+	* Static helper. Return true if primary view
 	*/
 	static bool IsAPrimaryView(const FSceneView& View);
 
 	/**
-	* Return true if primary view
+	* Static helper. Return true if this pass is for a view for which we share some work done for eSSP_PRIMARY (ie borrow some intermediate state from that view)
 	*/
-	virtual bool DeviceIsAPrimaryView(const FSceneView& View);
-
-	/**
-	* Static helper. Passes request to the current stereo device
-	*/
-	static bool IsASecondaryPass(EStereoscopicPass Pass);
-
-	/**
-	* Return true if this pass is for a view for which we share some work done for eSSP_LEFT_EYE (ie borrow some intermediate state from that eye)
-	*/
-	virtual bool DeviceIsASecondaryPass(EStereoscopicPass Pass)
+	static bool IsASecondaryPass(EStereoscopicPass Pass)
 	{
-		return !DeviceIsAPrimaryPass(Pass);
+		return Pass == EStereoscopicPass::eSSP_SECONDARY;
 	}
 
 	/**
-	* Static helper. Passes request to the current stereo device
+	* Static helper. Return true if secondary view
 	*/
 	static bool IsASecondaryView(const FSceneView& View);
 
 	/**
-	* Return true if secondary view
-	*/
-	virtual bool DeviceIsASecondaryView(const FSceneView& View);
-
-	/**
-	* Static helper. Passes request to the current stereo device
-	*/
-	static bool IsAnAdditionalPass(EStereoscopicPass Pass);
-
-	/**
-	* Return true for additional eyes past the first two (a plugin could implement additional 'eyes').
-	*/
-	virtual bool DeviceIsAnAdditionalPass(EStereoscopicPass Pass)
+	 * Static helper. Return the index of the view that is used for selecting LODs
+	 */
+	virtual uint32 GetLODViewIndex() const
 	{
-		return Pass > EStereoscopicPass::eSSP_RIGHT_EYE;
+		return 0;
 	}
-
-	/**
-	* Static helper. Passes request to the current stereo device
-	*/
-	static bool IsAnAdditionalView(const FSceneView& View);
-
-	/**
-	* Return true if additional view
-	*/
-	virtual bool DeviceIsAnAdditionalView(const FSceneView& View);
-
-	/**
-	 * Static helper. Passes request to the current stereo device
-	 */
-	static uint32 GetLODViewIndex();
-
-	/**
-	 * Return the index of the view that is used for selecting LODs
-	 */
-	virtual uint32 DeviceGetLODViewIndex() const;
 
 	/**
 	 * Adjusts the viewport rectangle for stereo, based on which eye pass is being rendered.
 	 */
-	virtual void AdjustViewRect(enum EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const = 0;
+	virtual void AdjustViewRect(const int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const = 0;
 
 	/**
 	* Provides the final view rect that the renderer will render into.
 	*/
-	virtual void SetFinalViewRect(class FRHICommandListImmediate& RHICmdList, const enum EStereoscopicPass StereoPass, const FIntRect& FinalViewRect) {}
+	virtual void SetFinalViewRect(class FRHICommandListImmediate& RHICmdList, const int32 ViewIndex, const FIntRect& FinalViewRect) {}
 
 	/**
 	 * Gets the percentage bounds of the safe region to draw in.  This allows things like stat rendering to appear within the readable portion of the stereo view.
@@ -206,12 +142,12 @@ public:
 	/**
 	 * Calculates the offset for the camera position, given the specified position, rotation, and world scale
 	 */
-	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) = 0;
+	virtual void CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) = 0;
 
 	/**
 	 * Gets a projection matrix for the device, given the specified eye setup
 	 */
-	virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const = 0;
+	virtual FMatrix GetStereoProjectionMatrix(const int32 ViewIndex) const = 0;
 
 	/**
 	 * Sets view-specific params (such as view projection matrix) for the canvas.
@@ -233,8 +169,8 @@ public:
 	virtual IStereoLayers* GetStereoLayers () { return nullptr; }
 
 	
-	virtual void StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType) {}
-	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight) { return false; }
-	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) {}
+	virtual void StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex) {}
+	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex, float& BlendWeight) { return false; }
+	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex) {}
 
 };
