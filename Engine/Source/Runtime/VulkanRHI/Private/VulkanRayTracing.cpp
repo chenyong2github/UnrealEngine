@@ -8,6 +8,7 @@
 #include "VulkanDescriptorSets.h"
 #include "BuiltInRayTracingShaders.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
+#include "Async/ParallelFor.h"
 
 TAutoConsoleVariable<int32> GVulkanExperimentalRayTracing(
 	TEXT("r.Vulkan.ExperimentalRayTracing"),
