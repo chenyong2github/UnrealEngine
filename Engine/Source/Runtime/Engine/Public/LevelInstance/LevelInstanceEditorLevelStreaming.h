@@ -19,6 +19,7 @@ public:
 #if WITH_EDITOR
 	virtual bool ShowInLevelCollection() const override { return false; }
 	ALevelInstance* GetLevelInstanceActor() const;
+	const FLevelInstanceID& GetLevelInstanceID() const { return LevelInstanceID; }
 	FBox GetBounds() const;
 
 protected:

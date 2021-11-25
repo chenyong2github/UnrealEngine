@@ -11,8 +11,6 @@ APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, ISMComponentClass(UInstancedStaticMeshComponent::StaticClass())
-	, bEditing(false)
-	, ChildEditing(0)
 	, bChildChanged(false)
 #endif
 {
@@ -39,7 +37,7 @@ void APackedLevelInstance::Serialize(FArchive& Ar)
 bool APackedLevelInstance::SupportsLoading() const
 {
 #if WITH_EDITOR
-	return ChildEditing > 0 || IsLoaded();
+	return HasChildEdit() || IsLoaded();
 #else
 	return false;
 #endif
@@ -94,6 +92,8 @@ FName APackedLevelInstance::GetPackedComponentTag()
 
 void APackedLevelInstance::UpdateLevelInstance()
 {
+	Super::UpdateLevelInstance();
+
 	if (!Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
 	{
 		if (IsLevelInstancePathValid())
@@ -110,18 +110,20 @@ void APackedLevelInstance::UpdateLevelInstance()
 
 void APackedLevelInstance::OnEditChild()
 {
+	Super::OnEditChild();
+
 	check(GetLevelInstanceSubsystem()->GetLevelInstanceLevel(this) != nullptr);
-	ChildEditing++;
 	MarkComponentsRenderStateDirty();
 }
 
 void APackedLevelInstance::OnCommitChild(bool bChanged)
 {
-	check(GetLevelInstanceSubsystem()->GetLevelInstanceLevel(this) != nullptr);
-	check(ChildEditing > 0);
-	ChildEditing--;
+	Super::OnCommitChild(bChanged);
+
+	ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem();
+	check(GetLevelInstanceSubsystem()->GetLevelInstanceLevel(this));
 	bChildChanged |= bChanged;
-	if (!ChildEditing)
+	if (!HasChildEdit())
 	{
 		UnloadLevelInstance();
 
@@ -149,17 +151,12 @@ void APackedLevelInstance::OnCommitChild(bool bChanged)
 void APackedLevelInstance::OnEdit()
 {
 	Super::OnEdit();
-	check(!bEditing);
-	
-	bEditing = true;
 	MarkComponentsRenderStateDirty();
 }
 
 void APackedLevelInstance::OnCommit(bool bChanged, bool bPromptForSave)
 {
 	Super::OnCommit(bChanged, bPromptForSave);
-	check(bEditing);
-	bEditing = false;
 
 	if (bChanged)
 	{
@@ -178,7 +175,7 @@ void APackedLevelInstance::OnCommit(bool bChanged, bool bPromptForSave)
 
 bool APackedLevelInstance::IsHiddenEd() const
 {
-	return Super::IsHiddenEd() || bEditing || (ChildEditing > 0);
+	return Super::IsHiddenEd() || IsEditing() || HasChildEdit();
 }
 
 bool APackedLevelInstance::IsHLODRelevant() const

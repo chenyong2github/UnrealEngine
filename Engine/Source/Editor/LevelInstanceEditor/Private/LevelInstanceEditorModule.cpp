@@ -76,65 +76,7 @@ namespace LevelInstanceMenuUtils
 			Section.AddMenuEntry(NAME_None, EntryLabel, EntryDesc, FSlateIcon(), LevelInstanceEditAction);
 		}
 	}
-
-	void CreateCommitSubMenu(UToolMenu* Menu, TArray<ALevelInstance*> LevelInstanceEdits, ALevelInstance* ContextLevelInstance, bool bDiscard)
-	{
-		FText OtherSectionLabel = LOCTEXT("LevelInstanceOtherCommitSection", "Other(s)");
-		FToolMenuSection* Section = &Menu->AddSection("LevelInstanceContextCommitSection", ContextLevelInstance != nullptr? LOCTEXT("LevelInstanceContextCommitSection", "Context") : OtherSectionLabel);
-		for (ALevelInstance* LevelInstanceActor : LevelInstanceEdits)
-		{
-			FText EntryDesc = LOCTEXT("LevelInstanceEditSubMenuEntry", "");
-			const bool bCanCommit = LevelInstanceActor->CanCommit(&EntryDesc);
-
-			FToolUIAction LevelInstanceEditAction;
-			LevelInstanceEditAction.ExecuteAction.BindLambda([bDiscard, LevelInstanceActor](const FToolMenuContext&)
-			{
-				if (bDiscard)
-				{
-					LevelInstanceActor->Discard();
-				}
-				else
-				{
-					LevelInstanceActor->Commit();
-				}
-			});
-			LevelInstanceEditAction.CanExecuteAction.BindLambda([bCanCommit](const FToolMenuContext&)
-			{
-				return bCanCommit;
-			});
-
-			const FText EntryLabel = FText::Format(LOCTEXT("LevelInstanceName", "{0}:{1}"), FText::FromString(LevelInstanceActor->GetActorLabel()), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
-			Section->AddMenuEntry(NAME_None, EntryLabel, EntryDesc, FSlateIcon(), LevelInstanceEditAction);
-
-			if (ContextLevelInstance == LevelInstanceActor && LevelInstanceEdits.Num() > 1)
-			{
-				Section = &Menu->AddSection(FName("LevelInstanceOtherCommitSection"), OtherSectionLabel);
-			}
-		}
-	}
-
-	void CreateSetCurrentSubMenu(UToolMenu* Menu, TArray<ALevelInstance*> LevelInstanceEdits, ALevelInstance* ContextLevelInstance)
-	{
-		FText OtherSectionLabel = LOCTEXT("LevelInstanceOtherSetCurrentSection", "Other(s)");
-		FToolMenuSection* Section = &Menu->AddSection(FName("LevelInstanceContextSetCurrentSection"), ContextLevelInstance != nullptr? LOCTEXT("LevelInstanceContextSetCurrentSection", "Context") : OtherSectionLabel);
-		for (ALevelInstance* LevelInstanceActor : LevelInstanceEdits)
-		{
-			FToolUIAction LevelInstanceSetCurrentAction;
-			LevelInstanceSetCurrentAction.ExecuteAction.BindLambda([LevelInstanceActor](const FToolMenuContext&)
-			{
-				LevelInstanceActor->SetCurrent();
-			});
 		
-			const FText EntryLabel = FText::Format(LOCTEXT("LevelInstanceName", "{0}:{1}"), FText::FromString(LevelInstanceActor->GetActorLabel()), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
-			Section->AddMenuEntry(NAME_None, EntryLabel, TAttribute<FText>(), FSlateIcon(), LevelInstanceSetCurrentAction);
-
-			if (LevelInstanceActor == ContextLevelInstance && LevelInstanceEdits.Num() > 1)
-			{
-				Section = &Menu->AddSection(FName("LevelInstanceOtherSetCurrentSection"), OtherSectionLabel);
-			}
-		}
-	}
-
 	void MoveSelectionToLevelInstance(ALevelInstance* DestinationLevelInstance)
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = DestinationLevelInstance->GetLevelInstanceSubsystem())
@@ -152,43 +94,7 @@ namespace LevelInstanceMenuUtils
 			LevelInstanceSubsystem->MoveActorsTo(DestinationLevelInstance, ActorsToMove);
 		}
 	}
-
-	void CreateMoveSelectionToSubMenu(UToolMenu* Menu, TArray<ALevelInstance*> LevelInstanceEdits)
-	{
-		FToolMenuSection* Section = &Menu->AddSection(NAME_None);
-		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GEditor->GetEditorWorldContext().World()->GetSubsystem<ULevelInstanceSubsystem>())
-		{
-			for (ALevelInstance* LevelInstanceActor : LevelInstanceEdits)
-			{
-				FToolUIAction LevelInstanceMoveSelectionAction;
-
-				LevelInstanceMoveSelectionAction.CanExecuteAction.BindLambda([LevelInstanceActor, LevelInstanceSubsystem](const FToolMenuContext& MenuContext)
-					{
-						for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
-						{
-							if (AActor* Actor = Cast<AActor>(*It))
-							{
-								if (Actor->GetLevel() == LevelInstanceSubsystem->GetLevelInstanceLevel(LevelInstanceActor))
-								{
-									return false;
-								}
-							}
-						}
-					
-						return GEditor->GetSelectedActorCount() > 0;
-					});
-
-				LevelInstanceMoveSelectionAction.ExecuteAction.BindLambda([LevelInstanceActor](const FToolMenuContext&)
-					{
-						MoveSelectionToLevelInstance(LevelInstanceActor);
-					});
-
-				const FText EntryLabel = FText::Format(LOCTEXT("LevelInstanceName", "{0}:{1}"), FText::FromString(LevelInstanceActor->GetActorLabel()), FText::FromString(LevelInstanceActor->GetWorldAssetPackage()));
-				Section->AddMenuEntry(NAME_None, EntryLabel, TAttribute<FText>(), FSlateIcon(), LevelInstanceMoveSelectionAction);
-			}
-		}
-	}
-
+		
 	void CreateEditMenu(UToolMenu* Menu, AActor* ContextActor)
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = ContextActor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
@@ -212,103 +118,86 @@ namespace LevelInstanceMenuUtils
 			}
 		}
 	}
-	
+		
 	void CreateCommitMenu(UToolMenu* Menu, AActor* ContextActor)
 	{
-		ALevelInstance* ContextLevelInstance = nullptr;
-		TArray<ALevelInstance*> LevelInstanceEdits;
+		ALevelInstance* LevelInstanceEdit = nullptr;
 		if (ContextActor)
 		{
 			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = ContextActor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(ContextActor, [&ContextLevelInstance,&LevelInstanceEdits](ALevelInstance* LevelInstanceActor)
-				{
-					if (LevelInstanceActor->IsEditing())
-					{
-						ContextLevelInstance = LevelInstanceActor;
-						LevelInstanceEdits.Add(ContextLevelInstance);
-						return false;
-					}
-					return true;
-				});
+				LevelInstanceEdit = LevelInstanceSubsystem->GetEditingLevelInstance();
 			}
 		}
 
-		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GEditor->GetEditorWorldContext().World()->GetSubsystem<ULevelInstanceSubsystem>())
+		if (!LevelInstanceEdit)
 		{
-			LevelInstanceSubsystem->ForEachLevelInstanceEdit([&LevelInstanceEdits, ContextLevelInstance](ALevelInstance* LevelInstanceActor)
+			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GEditor->GetEditorWorldContext().World()->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				if (ContextLevelInstance != LevelInstanceActor)
-				{
-					LevelInstanceEdits.Add(LevelInstanceActor);
-				}
-				return true;
-			});
+				LevelInstanceEdit = LevelInstanceSubsystem->GetEditingLevelInstance();
+			}
 		}
 
-		if (LevelInstanceEdits.Num() > 0)
+		if (LevelInstanceEdit)
 		{
-			FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
-			Section.AddSubMenu(
-				"CommitLevelInstances",
-				LOCTEXT("CommitLevelInstances", "Commit"),
-				TAttribute<FText>(),
-				FNewToolMenuDelegate::CreateStatic(&CreateCommitSubMenu, LevelInstanceEdits, ContextLevelInstance, /*bDiscard=*/ false)
-			);
-			Section.AddSubMenu(
-				"DiscardLevelInstances",
-				LOCTEXT("DiscardLevelInstances", "Discard"),
-				TAttribute<FText>(),
-				FNewToolMenuDelegate::CreateStatic(&CreateCommitSubMenu, LevelInstanceEdits, ContextLevelInstance, /*bDiscard=*/ true)
-			);
+			FText Tooltip;
+			const bool bCanCommit = LevelInstanceEdit->CanCommit(&Tooltip);
+
+			auto CreateMenuEntry = [Menu, LevelInstanceEdit, Tooltip](bool bDiscard, bool bCanCommit)
+			{
+				FToolUIAction MenuAction;
+
+				MenuAction.ExecuteAction.BindLambda([bDiscard, LevelInstanceEdit](const FToolMenuContext&)
+				{
+					if (bDiscard)
+					{
+						LevelInstanceEdit->Discard();
+					}
+					else
+					{
+						LevelInstanceEdit->Commit();
+					}
+				});
+				MenuAction.CanExecuteAction.BindLambda([bCanCommit, LevelInstanceEdit](const FToolMenuContext&)
+				{
+					return bCanCommit;
+				});
+
+				FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
+				Section.AddMenuEntry(NAME_None, bDiscard ? LOCTEXT("LevelInstanceDiscardLabel", "Discard") : LOCTEXT("LevelInstanceCommitLabel", "Commit"), Tooltip, FSlateIcon(), MenuAction);
+			};
+			
+			CreateMenuEntry(/*bDiscard=*/ false, bCanCommit);
+			CreateMenuEntry(/*bDiscard=*/ true, bCanCommit);
 		}
 	}
 
 	void CreateSetCurrentMenu(UToolMenu* Menu, AActor* ContextActor)
 	{
-		ALevelInstance* ContextLevelInstance = nullptr;
-		TArray<ALevelInstance*> LevelInstanceEdits;
-		if (ContextActor)
+		ALevelInstance* LevelInstanceEdit = nullptr;
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = ContextActor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 		{
-			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = ContextActor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
+			if (ContextActor)
 			{
-				LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(ContextActor, [&ContextLevelInstance,&LevelInstanceEdits](ALevelInstance* LevelInstanceActor)
-				{
-					if (LevelInstanceActor->IsEditing())
-					{
-						if (!LevelInstanceActor->IsCurrent())
-						{
-							ContextLevelInstance = LevelInstanceActor;
-							LevelInstanceEdits.Add(ContextLevelInstance);
-						}
-						return false;
-					}
-					return true;
-				});
+				LevelInstanceEdit = LevelInstanceSubsystem->GetEditingLevelInstance();
 			}
-		}
 
-		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GEditor->GetEditorWorldContext().World()->GetSubsystem<ULevelInstanceSubsystem>())
-		{
-			LevelInstanceSubsystem->ForEachLevelInstanceEdit([&LevelInstanceEdits, ContextLevelInstance](ALevelInstance* LevelInstanceActor)
+			if (!LevelInstanceEdit)
 			{
-				if (ContextLevelInstance != LevelInstanceActor && !LevelInstanceActor->IsCurrent())
-				{
-					LevelInstanceEdits.Add(LevelInstanceActor);
-				}
-				return true;
-			});
-		}
+				LevelInstanceEdit = LevelInstanceSubsystem->GetEditingLevelInstance();
+			}
 
-		if (LevelInstanceEdits.Num() > 0)
-		{
-			FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
-			Section.AddSubMenu(
-				"SetCurrentLevelInstances",
-				LOCTEXT("SetCurrentLevelInstances", "Set Current"),
-				TAttribute<FText>(),
-				FNewToolMenuDelegate::CreateStatic(&CreateSetCurrentSubMenu, MoveTemp(LevelInstanceEdits), ContextLevelInstance)
-			);
+			if (LevelInstanceEdit)
+			{
+				FToolUIAction LevelInstanceSetCurrentAction;
+				LevelInstanceSetCurrentAction.ExecuteAction.BindLambda([LevelInstanceEdit](const FToolMenuContext&)
+					{
+						LevelInstanceEdit->SetCurrent();
+					});
+
+				FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
+				Section.AddMenuEntry(NAME_None, LOCTEXT("LevelInstanceSetCurrent", "Set Current Level"), TAttribute<FText>(), FSlateIcon(), LevelInstanceSetCurrentAction);
+			}
 		}
 	}
 
@@ -316,26 +205,41 @@ namespace LevelInstanceMenuUtils
 	{
 		if (GEditor->GetSelectedActorCount() > 0)
 		{
-
-			TArray<ALevelInstance*> LevelInstanceEdits;
-			if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GEditor->GetEditorWorldContext().World()->GetSubsystem<ULevelInstanceSubsystem>())
+			ALevelInstance* LevelInstanceEdit = nullptr;
+			ULevelInstanceSubsystem* LevelInstanceSubsystem = GEditor->GetEditorWorldContext().World()->GetSubsystem<ULevelInstanceSubsystem>();
+			if (LevelInstanceSubsystem)
 			{
-				LevelInstanceSubsystem->ForEachLevelInstanceEdit([&LevelInstanceEdits](ALevelInstance* LevelInstanceActor)
-				{
-					LevelInstanceEdits.Add(LevelInstanceActor);
-					return true;
-				});
+				LevelInstanceEdit = LevelInstanceSubsystem->GetEditingLevelInstance();
 			}
-
-			if (LevelInstanceEdits.Num() > 0)
+			
+			if (LevelInstanceEdit)
 			{
+				FToolUIAction LevelInstanceMoveSelectionAction;
+
+				LevelInstanceMoveSelectionAction.CanExecuteAction.BindLambda([LevelInstanceEdit, LevelInstanceSubsystem](const FToolMenuContext& MenuContext)
+					{
+						for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+						{
+							if (AActor* Actor = Cast<AActor>(*It))
+							{
+								if (Actor->GetLevel() == LevelInstanceSubsystem->GetLevelInstanceLevel(LevelInstanceEdit))
+								{
+									return false;
+								}
+							}
+						}
+
+						return GEditor->GetSelectedActorCount() > 0;
+					});
+
+				LevelInstanceMoveSelectionAction.ExecuteAction.BindLambda([LevelInstanceEdit](const FToolMenuContext&)
+					{
+						MoveSelectionToLevelInstance(LevelInstanceEdit);
+					});
+
 				FToolMenuSection& Section = CreateLevelInstanceSection(Menu);
-				Section.AddSubMenu(
-					"MoveSelectionToLevelInstances",
-					LOCTEXT("MoveSelectionToLevelInstances", "Move Selection to"),
-					TAttribute<FText>(),
-					FNewToolMenuDelegate::CreateStatic(&CreateMoveSelectionToSubMenu, MoveTemp(LevelInstanceEdits))
-				);
+				Section.AddMenuEntry(NAME_None, LOCTEXT("LevelInstanceMoveSelectionTo", "Move Selection to"), TAttribute<FText>(), FSlateIcon(), LevelInstanceMoveSelectionAction);
+
 			}
 		}
 	}
