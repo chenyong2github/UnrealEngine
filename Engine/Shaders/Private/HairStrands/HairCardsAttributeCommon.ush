@@ -108,6 +108,10 @@ float GetHairStrandsRoughness(float2 HairPrimitiveUV)
 	return GetHairStrandsAttributes(HairPrimitiveUV).HairRoughness;
 }
 
+float GetHairStrandsGroupIndex(float2 InAtlasUV)
+{
+	return HairCardsVF.GroupIndex; 
+}
 ////////////////////////////////////////////////////////////////////////////////
 
 #endif // HAIR_CARD_MESH_FACTORY

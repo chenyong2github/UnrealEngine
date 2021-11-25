@@ -946,6 +946,7 @@ protected:
 	virtual int32 GetHairCoverage() override;
 	virtual int32 GetHairAuxilaryData() override;
 	virtual int32 GetHairAtlasUVs() override;
+	virtual int32 GetHairGroupIndex() override;
 	virtual int32 GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor) override;
 	virtual int32 DistanceToNearestSurface(int32 PositionArg) override;
 	virtual int32 DistanceFieldGradient(int32 PositionArg) override;
