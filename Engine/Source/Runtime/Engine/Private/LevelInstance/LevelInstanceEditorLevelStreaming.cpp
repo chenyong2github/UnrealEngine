@@ -86,6 +86,10 @@ void ULevelStreamingLevelInstanceEditor::SetLoadedLevel(ULevel* Level)
 
 	if (ULevel* NewLoadedLevel = GetLoadedLevel())
 	{
+		// Avoid prompts for Level Instance editing
+		NewLoadedLevel->bPromptWhenAddingToLevelBeforeCheckout = false;
+		NewLoadedLevel->bPromptWhenAddingToLevelOutsideBounds = false;
+
 		check(!NewLoadedLevel->bAlreadyMovedActors);
 		if (AWorldSettings* WorldSettings = NewLoadedLevel->GetWorldSettings())
 		{

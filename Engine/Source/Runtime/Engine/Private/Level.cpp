@@ -65,6 +65,7 @@ Level.cpp: Level-related functions
 #include "Subsystems/EditorActorSubsystem.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Settings/LevelEditorMiscSettings.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/LevelStreaming.h"
@@ -341,6 +342,8 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	bContainsStableActorGUIDs = true;
 	PlayFromHereActor = nullptr;
 	ActorPackagingScheme = EActorPackagingScheme::Reduced;
+	bPromptWhenAddingToLevelBeforeCheckout = true;
+	bPromptWhenAddingToLevelOutsideBounds = true;
 #endif	
 	bActorClusterCreated = false;
 	bIsPartitioned = false;
@@ -2010,6 +2013,16 @@ bool ULevel::GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds)
 		// Invalid bounds
 		return false;
 	});
+}
+
+bool ULevel::GetPromptWhenAddingToLevelOutsideBounds() const
+{
+	return !bIsPartitioned && bPromptWhenAddingToLevelOutsideBounds && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelOutsideBounds;
+}
+
+bool ULevel::GetPromptWhenAddingToLevelBeforeCheckout() const
+{
+	return !bIsPartitioned && bPromptWhenAddingToLevelBeforeCheckout && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelBeforeCheckout;
 }
 #endif
 
