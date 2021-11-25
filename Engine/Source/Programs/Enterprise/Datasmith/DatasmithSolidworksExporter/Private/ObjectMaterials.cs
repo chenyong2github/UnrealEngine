@@ -343,9 +343,9 @@ namespace DatasmithSolidworks
 			// Check for materials that are not per component (but instead per face, feature, part etc.)
 			Parallel.ForEach(InComponentsSet, CompName =>
 			{
-				Component2 Comp = InAsmDoc.SwAsmDoc.GetComponentByName(CompName);
+				Component2 Comp = null;
 
-				if (Comp != null)
+				if (InAsmDoc.SyncState.ExportedComponentsMap.TryGetValue(CompName, out Comp))
 				{
 					if (!DocMaterials.ContainsKey(CompName))
 					{
