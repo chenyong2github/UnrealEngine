@@ -148,13 +148,3 @@ struct FMassQueryRequirementIndicesMapping
 		return EntityFragments.Num() == 0 || ChunkFragments.Num() == 0;
 	}
 };
-
-template<typename T>
-struct FMassSorterOperator
-{
-	bool operator()(const T& A, const T& B) const
-	{
-		return (A.GetStructureSize() > B.GetStructureSize())
-			|| (A.GetStructureSize() == B.GetStructureSize() && B.GetFName().FastLess(A.GetFName()));
-	}
-};
