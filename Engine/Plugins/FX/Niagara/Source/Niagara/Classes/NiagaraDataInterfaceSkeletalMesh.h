@@ -992,6 +992,7 @@ public:
 	void IsValidBone(FVectorVMExternalFunctionContext& Context);
 	void RandomBone(FVectorVMExternalFunctionContext& Context);
 	void GetBoneCount(FVectorVMExternalFunctionContext& Context);
+	void GetParentBone(FVectorVMExternalFunctionContext& Context);
 
 	void GetFilteredBoneCount(FVectorVMExternalFunctionContext& Context);
 	void GetFilteredBoneAt(FVectorVMExternalFunctionContext& Context);
@@ -1046,6 +1047,7 @@ public:
 	static const FName IsValidBoneName;
 	static const FName RandomBoneName;
 	static const FName GetBoneCountName;
+	static const FName GetParentBoneName;
 
 	static const FName RandomFilteredBoneName;
 	static const FName GetFilteredBoneCountName;
