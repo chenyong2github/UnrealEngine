@@ -266,6 +266,9 @@ struct COREUOBJECT_API FCoreRedirects
 	/** Adds an array of redirects to global list */
 	static bool AddRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
 
+	/** Removes an array of redirects from global list */
+	static bool RemoveRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
+
 	/** Returns true if this has ever been initialized */
 	static bool IsInitialized() { return bInitialized; }
 
@@ -287,9 +290,6 @@ private:
 
 	/** Add a single redirect to a type map */
 	static bool AddSingleRedirect(const FCoreRedirect& NewRedirect, const FString& SourceString);
-
-	/** Removes an array of redirects from global list */
-	static bool RemoveRedirectList(TArrayView<const FCoreRedirect> Redirects, const FString& SourceString);
 
 	/** Remove a single redirect from a type map */
 	static bool RemoveSingleRedirect(const FCoreRedirect& OldRedirect, const FString& SourceString);
