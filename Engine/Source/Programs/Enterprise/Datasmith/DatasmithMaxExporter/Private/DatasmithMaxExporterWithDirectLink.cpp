@@ -384,7 +384,8 @@ public:
 	bool ParseScene()
 	{
 		INode* Node = GetCOREInterface()->GetRootNode();
-		return ParseScene(Node, nullptr);
+		bSceneParsed = ParseScene(Node, nullptr);
+		return bSceneParsed;
 	}
 
 	// Parset scene or XRef scene(in this case attach to parent datasmith actor)
@@ -473,6 +474,7 @@ public:
 
 	void Reset()
 	{
+		bSceneParsed = false;
 		NodeTrackers.Reset();
 		NodeTrackersNames.Reset();
 		CollisionNodes.Reset();
@@ -546,6 +548,11 @@ public:
 	void UpdateInternal(bool bQuiet)
 	{
 		FUpdateProgress ProgressManager(!bQuiet, 6); // Will shutdown on end of Update
+
+		if (!bSceneParsed) // Parse whole scene only once
+		{
+			ParseScene();
+		}
 
 		ProgressManager.ProgressStage(TEXT("Refresh layers"));
 		{
@@ -1641,6 +1648,9 @@ public:
 
 	FDatasmith3dsMaxScene& ExportedScene;
 	FNotifications& NotificationsHandler;
+
+	bool bSceneParsed = false;
+
 	TMap<FNodeKey, FNodeTrackerHandle> NodeTrackers; // All scene nodes
 	TMap<FString, TSet<FNodeTracker*>> NodeTrackersNames; // Nodes grouped by name
 	TSet<FNodeTracker*> InvalidatedNodeTrackers; // Nodes that need to be rebuilt
@@ -1701,7 +1711,6 @@ public:
 	// Just export, parsing scene from scratch
 	bool Export(bool bQuiet)
 	{
-		SceneTracker.ParseScene();
 		SceneTracker.Update(bQuiet);
 		SceneTracker.ExportAnimations();
 		ExportedScene.GetSceneExporter().Export(ExportedScene.GetDatasmithScene(), false);
@@ -1717,6 +1726,7 @@ public:
 	void UpdateDirectLinkScene()
 	{
 		DirectLinkImpl->UpdateScene(ExportedScene.GetDatasmithScene());
+		StartSceneChangeTracking(); // Always track scene changes if it's synced with DirectLink
 	}
 
 	static VOID AutoSyncTimerProc(HWND, UINT, UINT_PTR TimerIdentifier, DWORD)

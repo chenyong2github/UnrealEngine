@@ -404,11 +404,7 @@ FNotifications::FNotifications(IExporter& InExporter)
 
 FNotifications::~FNotifications()
 {
-	if (NodeEventCallback)
-	{
-		GetISceneEventManager()->UnRegisterCallback(NodeEventCallback->CallbackKey);
-	}
-	
+	Reset();
 }
 
 void FNotifications::AddNode(INode* Node)
@@ -426,10 +422,26 @@ void FNotifications::Reset()
 	{
 		MaterialObserver->Reset();
 	}
+
+	for (int Code: NotificationCodesRegistered)
+	{
+		UnRegisterNotification(On3dsMaxNotification, this, Code);
+	}
+	NotificationCodesRegistered.Reset();
+	if (NodeEventCallback)
+	{
+		GetISceneEventManager()->UnRegisterCallback(NodeEventCallback->CallbackKey);
+		NodeEventCallback.Reset();
+	}
+	bRegistered = false;
 }
 
 void FNotifications::RegisterForNotifications()
 {
+	if (bRegistered)
+	{
+		return;
+	}
 	// Build todo: remove strings, for debug/logging
 #pragma warning(push)
 #pragma warning(disable:4995) // disable error on deprecated events, we just assign handlers not firing them
@@ -460,6 +472,7 @@ void FNotifications::RegisterForNotifications()
 	{
 		RegisterNotification(On3dsMaxNotification, this, Code);
 		NotificationCodetoString.Add(Code, Strings[i]);
+		NotificationCodesRegistered.Add(Code);
 		++i;
 	}
 
@@ -467,6 +480,8 @@ void FNotifications::RegisterForNotifications()
 	// Setup Node Event System callback
 	// https://help.autodesk.com/view/3DSMAX/2018/ENU/?guid=__files_GUID_7C91D285_5683_4606_9F7C_B8D3A7CA508B_htm
 	NodeEventCallback->CallbackKey = GetISceneEventManager()->RegisterCallback(NodeEventCallback.Get());
+
+	bRegistered = true;
 }
 
 FString FNotifications::ConvertNotificationCodeToString(int code)
@@ -531,15 +546,14 @@ void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 		SceneTracker.NodeDeleted(reinterpret_cast<INode*>(info->callParam));
 		break;
 	}
-
-	case NOTIFY_SYSTEM_POST_RESET:
+	// Handle New/Reset events - reset tracking immediately when "Pre events are received - after this point all nodes are invalid, don't wait for "Post" event
+	case NOTIFY_SYSTEM_PRE_NEW:  // Sent when File>New>New All is selected 
+	case NOTIFY_SYSTEM_PRE_RESET:  // Sent when Reset OR File>New>New From Template is selected
 		Exporter->Reset();
-		Exporter->ParseScene();
 		break;
 
 	case NOTIFY_FILE_POST_OPEN:
 		Exporter->Reset();
-		Exporter->ParseScene();
 		break;
 
 	}
