@@ -37,24 +37,6 @@
 const FName FUVEditorToolkit::InteractiveToolsPanelTabID(TEXT("UVEditor_InteractiveToolsTab"));
 const FName FUVEditorToolkit::LivePreviewTabID(TEXT("UVEditor_LivePreviewTab"));
 
-namespace FUVEditorToolkitLocals {
-	void GetCameraState(const FEditorViewportClient& ViewportClientIn, FViewCameraState& CameraStateOut)
-	{
-		FViewportCameraTransform ViewTransform = ViewportClientIn.GetViewTransform();
-		CameraStateOut.bIsOrthographic = false;
-		CameraStateOut.bIsVR = false;
-		CameraStateOut.Position = ViewTransform.GetLocation();
-		CameraStateOut.HorizontalFOVDegrees = ViewportClientIn.ViewFOV;
-		CameraStateOut.AspectRatio = ViewportClientIn.AspectRatio;
-
-		// if using Orbit camera, the rotation in the ViewTransform is not the current camera rotation, it
-		// is set to a different rotation based on the Orbit. So we have to convert back to camera rotation.
-		FRotator ViewRotation = (ViewportClientIn.bUsingOrbitCamera) ?
-			ViewTransform.ComputeOrbitMatrix().InverseFast().Rotator() : ViewTransform.GetRotation();
-		CameraStateOut.Orientation = ViewRotation.Quaternion();
-	}
-}
-
 FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	: FBaseAssetToolkit(InOwningAssetEditor)
 {
@@ -127,6 +109,11 @@ FUVEditorToolkit::FUVEditorToolkit(UAssetEditor* InOwningAssetEditor)
 		return SNew(SUVEditor3DViewport, InArgs)
 			.EditorViewportClient(LivePreviewViewportClient);
 	};
+
+	// This API object serves as a communication point between the viewport toolbars and the tools.
+	// We create it here so that we can pass it both into the 2d viewport and when we initialize 
+	// the mode.
+	ViewportButtonsAPI = NewObject<UUVToolViewportButtonsAPI>();
 }
 
 FUVEditorToolkit::~FUVEditorToolkit()
@@ -349,7 +336,8 @@ TSharedPtr<FEditorViewportClient> FUVEditorToolkit::CreateEditorViewportClient()
 	// namely ViewportType.
 	// Instead, we do viewport client adjustment in PostInitAssetEditor().
 	check(EditorModeManager.IsValid());
-	return MakeShared<FUVEditor2DViewportClient>(EditorModeManager.Get(), UnwrapScene.Get());
+	return MakeShared<FUVEditor2DViewportClient>(EditorModeManager.Get(), UnwrapScene.Get(), 
+		UVEditor2DViewport, ViewportButtonsAPI);
 }
 
 // Called from FBaseAssetToolkit::CreateWidgets. The delegate call path goes through FAssetEditorToolkit::InitAssetEditor
@@ -358,7 +346,7 @@ AssetEditorViewportFactoryFunction FUVEditorToolkit::GetViewportDelegate()
 {
 	AssetEditorViewportFactoryFunction TempViewportDelegate = [this](FAssetEditorViewportConstructionArgs InArgs)
 	{
-		return SNew(SUVEditor2DViewport, InArgs)
+		return SAssignNew(UVEditor2DViewport, SUVEditor2DViewport, InArgs)
 			.EditorViewportClient(ViewportClient);
 	};
 
@@ -396,27 +384,9 @@ void FUVEditorToolkit::PostInitAssetEditor()
 		EditorModeManager->GetActiveScriptableMode(UUVEditorMode::EM_UVEditorModeId));
 	check(UVMode);
 
-	// The mode will need to be able to get to the live preview world and input.
-	UContextObjectStore* ContextStore = EditorModeManager->GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
-	UUVToolLivePreviewAPI* LivePreviewAPI = NewObject<UUVToolLivePreviewAPI>();
-	LivePreviewAPI->Initialize(LivePreviewScene->GetWorld(), LivePreviewInputRouter,
-		[this](FViewCameraState& CameraStateOut) {
-			FUVEditorToolkitLocals::GetCameraState(*LivePreviewViewportClient, CameraStateOut); });
-	ContextStore->AddContextObject(LivePreviewAPI);
+	// The mode will need to be able to get to the live preview world, camera, input router, and viewport buttons.
+	UVMode->InitializeContexts(*LivePreviewViewportClient, *LivePreviewEditorModeManager, *ViewportButtonsAPI);
 
-	// It is debatable where the undo/redo api should get initialized, but this seems like a 
-	// reasonable place since we're setting up other things for the mode for the first time.
-	UUVToolEmitChangeAPI* EmitChangeAPI = NewObject<UUVToolEmitChangeAPI>();
-	EmitChangeAPI->Initialize(EditorModeManager->GetInteractiveToolsContext()->ToolManager);
-	ContextStore->AddContextObject(EmitChangeAPI);
-
-	UUVToolAssetAndChannelAPI* AssetAndLayerAPI = NewObject<UUVToolAssetAndChannelAPI>();
-	ContextStore->AddContextObject(AssetAndLayerAPI);
-
-	UUVVisualStyleAPI* VisualStyleAPI = NewObject<UUVVisualStyleAPI>();
-	ContextStore->AddContextObject(VisualStyleAPI);
-
-	// Initialize mode state.
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
 	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
 

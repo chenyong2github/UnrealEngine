@@ -12,8 +12,10 @@
 #include "UVEditorMode.h"
 
 FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeTools,
-	FPreviewScene* InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget)
+	FPreviewScene* InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget,
+	UUVToolViewportButtonsAPI* ViewportButtonsAPIIn)
 	: FEditorViewportClient(InModeTools, InPreviewScene, InEditorViewportWidget)
+	, ViewportButtonsAPI(ViewportButtonsAPIIn)
 {
 	ShowWidget(false);
 
@@ -47,14 +49,6 @@ FUVEditor2DViewportClient::FUVEditor2DViewportClient(FEditorModeTools* InModeToo
 	BehaviorSet->Add(ZoomBehavior);
 
 	ModeTools->GetInteractiveToolsContext()->InputRouter->RegisterSource(this);
-
-	UContextObjectStore* ContextStore = ModeTools->GetInteractiveToolsContext()->ContextObjectStore;
-	ViewportButtonsAPI = ContextStore->FindContext<UUVToolViewportButtonsAPI>();
-	if (!ViewportButtonsAPI)
-	{
-		ViewportButtonsAPI = NewObject<UUVToolViewportButtonsAPI>();
-		ContextStore->AddContextObject(ViewportButtonsAPI);
-	}
 }
 
 
