@@ -431,11 +431,6 @@ namespace ActorPlacementUtils
 {
 	bool IsLevelValidForActorPlacement(ULevel* InLevel, TArray<FTransform>& InActorTransforms)
 	{
-		// Checks below don't apply to partitioned world
-		if (InLevel && InLevel->GetWorldPartition())
-		{
-			return true;
-		}
 		if (FLevelUtils::IsLevelLocked(InLevel))
 		{
 			FNotificationInfo Info(NSLOCTEXT("UnrealEd", "Error_OperationDisallowedOnLockedLevel", "The requested operation could not be completed because the level is locked."));
@@ -453,12 +448,12 @@ namespace ActorPlacementUtils
 			// Don't prompt user for checks in unattended mode
 			return true;
 		}
-		if (InLevel && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelBeforeCheckout && SourceControlHelpers::IsAvailable())
+		if (InLevel && InLevel->GetPromptWhenAddingToLevelBeforeCheckout() && SourceControlHelpers::IsAvailable())
 		{
 			FString FileName = SourceControlHelpers::PackageFilename(InLevel->GetPathName());
 			// Query file state also checks the source control status
 			FSourceControlStatePtr SCState = ISourceControlModule::Get().GetProvider().GetState(FileName, EStateCacheUsage::Use);
-			if (!InLevel->bLevelOkayForPlacementWhileCheckedIn && !(SCState->IsCheckedOut() || SCState->IsAdded() || SCState->CanAdd() || SCState->IsUnknown()))
+			if (!(SCState->IsCheckedOut() || SCState->IsAdded() || SCState->CanAdd() || SCState->IsUnknown()))
 			{
 				FText Title = NSLOCTEXT("UnrealEd", "LevelCheckout_Title", "Level Checkout Warning");
 				if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, NSLOCTEXT("UnrealEd","LevelNotCheckedOutMsg", "This actor will be placed in a level that is in source control but not currently checked out. Continue?"), &Title))
@@ -467,7 +462,7 @@ namespace ActorPlacementUtils
 				}
 				else
 				{
-					InLevel->bLevelOkayForPlacementWhileCheckedIn = true;
+					InLevel->bPromptWhenAddingToLevelBeforeCheckout = false;
 				}
 			}
 		}
@@ -486,7 +481,7 @@ namespace ActorPlacementUtils
 				return true;
 			}
 		}
-		if (InLevel && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelOutsideBounds)
+		if (InLevel && InLevel->GetPromptWhenAddingToLevelOutsideBounds())
 		{
 			FBox CurrentLevelBounds(ForceInit);
 			if (InLevel->LevelBoundsActor.IsValid())
@@ -518,6 +513,11 @@ namespace ActorPlacementUtils
 					if (EAppReturnType::Ok != FMessageDialog::Open(EAppMsgType::OkCancel, NSLOCTEXT("UnrealEd", "LevelBoundsMsg", "The actor will be placed outside the bounds of the current level. Continue?"), &Title))
 					{
 						return false;
+					}
+					else
+					{
+						InLevel->bPromptWhenAddingToLevelOutsideBounds = false;
+						break;
 					}
 				}
 			}

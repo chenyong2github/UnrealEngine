@@ -708,7 +708,10 @@ public:
 	std::atomic<uint32> FixupOverrideVertexColorsCount;
 
 	UPROPERTY(transient)
-	bool bLevelOkayForPlacementWhileCheckedIn;
+	bool bPromptWhenAddingToLevelBeforeCheckout;
+
+	UPROPERTY(transient)
+	bool bPromptWhenAddingToLevelOutsideBounds;
 
 	UPROPERTY()
 	EActorPackagingScheme ActorPackagingScheme;
@@ -750,6 +753,9 @@ public:
 	ENGINE_API static bool GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds);
 	ENGINE_API static bool GetIsLevelPartitionedFromPackage(FName LevelPackage);
 	ENGINE_API static bool GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage);
+
+	ENGINE_API bool GetPromptWhenAddingToLevelOutsideBounds() const;
+	ENGINE_API bool GetPromptWhenAddingToLevelBeforeCheckout() const;
 #endif
 
 private:
