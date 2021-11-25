@@ -20,7 +20,7 @@ class FTimedDataMonitorEditorModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
-		STimedDataMonitorPanel::RegisterNomadTabSpawner(WorkspaceMenu::GetMenuStructure().GetToolsCategory());
+		STimedDataMonitorPanel::RegisterNomadTabSpawner(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory());
 
 		if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 		{

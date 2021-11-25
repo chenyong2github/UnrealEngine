@@ -62,7 +62,7 @@ void SStageMonitorPanel::RegisterNomadTabSpawner(TSharedRef<FWorkspaceItem> InWo
 			.SetDisplayName(LOCTEXT("TabTitle", "Stage Monitor"))
 			.SetTooltipText(LOCTEXT("TooltipText", "Monitor performance data from stage machines"))
 			.SetGroup(InWorkspaceItem)
-			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small")); //todo t2
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "UnrealInsights.MenuIcon"));
 	};
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(StageMonitorUtilities::NAME_LevelEditorModuleName);

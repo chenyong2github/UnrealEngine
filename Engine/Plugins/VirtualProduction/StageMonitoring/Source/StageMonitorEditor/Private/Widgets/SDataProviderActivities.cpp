@@ -53,6 +53,29 @@ void SDataProviderActivities::Construct(const FArguments& InArgs, TSharedPtr<SSt
 	StructureDetailsView->GetDetailsView()->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateLambda([]() { return false; }));
 
 
+	ActivityList = SNew(SListView<FDataProviderActivityPtr>)
+		.ListItemsSource(&FilteredActivities)
+		.OnGenerateRow(this, &SDataProviderActivities::OnGenerateActivityRowWidget)
+		.SelectionMode(ESelectionMode::Single)
+		.OnSelectionChanged(this, &SDataProviderActivities::OnListViewSelectionChanged)
+		//.AllowOverscroll(EAllowOverscroll::No)
+		.HeaderRow
+		(
+			SNew(SHeaderRow)
+			+ SHeaderRow::Column(DataProviderActivitiesListView::HeaderIdName_Timecode)
+			.FillWidth(15.f)
+			.DefaultLabel(LOCTEXT("HeaderName_Timecode", "Timecode"))
+			+ SHeaderRow::Column(DataProviderActivitiesListView::HeaderIdName_StageName)
+			.FillWidth(25.f)
+			.DefaultLabel(LOCTEXT("HeaderName_StageName", "Stage Name"))
+			+ SHeaderRow::Column(DataProviderActivitiesListView::HeaderIdName_Type)
+			.FillWidth(25.f)
+			.DefaultLabel(LOCTEXT("HeaderName_Type", "Type"))
+			+ SHeaderRow::Column(DataProviderActivitiesListView::HeaderIdName_Description)
+			.FillWidth(35.f)
+			.DefaultLabel(LOCTEXT("HeaderName_Description", "Description"))
+		);
+
 	ChildSlot
 	[
 		SNew(SSplitter)
@@ -76,28 +99,7 @@ void SDataProviderActivities::Construct(const FArguments& InArgs, TSharedPtr<SSt
 			.VAlign(VAlign_Fill)
 			.Padding(10.f, 0.f, 10.f, 10.f)
 			[
-				SAssignNew(ActivityList, SListView<FDataProviderActivityPtr>)
-				.ListItemsSource(&FilteredActivities)
-				.OnGenerateRow(this, &SDataProviderActivities::OnGenerateActivityRowWidget)
-				.SelectionMode(ESelectionMode::Single)
-				.OnSelectionChanged(this, &SDataProviderActivities::OnListViewSelectionChanged)
-				//.AllowOverscroll(EAllowOverscroll::No)
-				.HeaderRow
-				(
-					SNew(SHeaderRow)
-					+ SHeaderRow::Column(DataProviderActivitiesListView::HeaderIdName_Timecode)
-					.FillWidth(15.f)
-					.DefaultLabel(LOCTEXT("HeaderName_Timecode", "Timecode"))
-					+ SHeaderRow::Column(DataProviderActivitiesListView::HeaderIdName_StageName)
-					.FillWidth(25.f)
-					.DefaultLabel(LOCTEXT("HeaderName_StageName", "Stage Name"))
-					+ SHeaderRow::Column(DataProviderActivitiesListView::HeaderIdName_Type)
-					.FillWidth(25.f)
-					.DefaultLabel(LOCTEXT("HeaderName_Type", "Type"))
-					+ SHeaderRow::Column(DataProviderActivitiesListView::HeaderIdName_Description)
-					.FillWidth(35.f)
-					.DefaultLabel(LOCTEXT("HeaderName_Description", "Description"))
-				)
+				ActivityList.ToSharedRef()
 			]
 		]
 		+ SSplitter::Slot()
