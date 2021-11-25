@@ -323,7 +323,6 @@ namespace HordeServer.Api
 			this.JwtSecret = Settings.JwtSecret;
 			this.JwtExpiryTimeHours = Settings.JwtExpiryTimeHours;
 
-			this.DisableAuth = Settings.DisableAuth;
 			this.CorsEnabled = Settings.CorsEnabled;
 			this.CorsOrigin = Settings.CorsOrigin;
 			this.EnableScheduleInTestData = Settings.EnableScheduleInTestData;

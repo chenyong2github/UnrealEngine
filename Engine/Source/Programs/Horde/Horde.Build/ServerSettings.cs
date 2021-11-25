@@ -59,6 +59,27 @@ namespace HordeServer
 		/// </summary>
 		Aws,
 	}
+	
+	/// <summary>
+	/// Authentication method used for logging users in
+	/// </summary>
+	public enum AuthMethod
+	{
+		/// <summary>
+		/// No authentication enabled, mainly for demo and testing purposes
+		/// </summary>
+		Anonymous,
+
+		/// <summary>
+		/// OpenID Connect authentication, tailored for Okta
+		/// </summary>
+		Okta,
+		
+		/// <summary>
+		/// Generic OpenID Connect authentication, recommended for most
+		/// </summary>
+		OpenIdConnect,
+	}
 
 	/// <summary>
 	/// Settings for a remote execution instance
@@ -182,17 +203,52 @@ namespace HordeServer
 		/// <summary>
 		/// Issuer for tokens from the auth provider
 		/// </summary>
+		public AuthMethod AuthMethod { get; set; } = AuthMethod.Anonymous;
+		
+		/// <summary>
+		/// Issuer for tokens from the auth provider
+		/// </summary>
 		public string? OidcAuthority { get; set; }
 		
 		/// <summary>
 		/// Client id for the OIDC authority
 		/// </summary>
 		public string? OidcClientId { get; set; }
+		
+		/// <summary>
+		/// Client secret for the OIDC authority
+		/// </summary>
+		public string? OidcClientSecret { get; set; }
 
 		/// <summary>
 		/// Optional redirect url provided to OIDC login
 		/// </summary>
-		public string? OidcSigninRedirect { get; set; }		
+		public string? OidcSigninRedirect { get; set; }
+
+		/// <summary>
+		/// OpenID Connect scopes to request when signing in
+		/// </summary>
+		public string[] OidcRequestedScopes { get; set; } = { "profile", "email", "openid" };
+		
+		/// <summary>
+		/// List of fields in /userinfo endpoint to try map to the standard name claim (see System.Security.Claims.ClaimTypes.Name)
+		/// </summary>
+		public string[] OidcClaimNameMapping { get; set; } = { "preferred_username", "email" };
+		
+		/// <summary>
+		/// List of fields in /userinfo endpoint to try map to the standard email claim (see System.Security.Claims.ClaimTypes.Email)
+		/// </summary>
+		public string[] OidcClaimEmailMapping { get; set; } = { "email" };
+		
+		/// <summary>
+		/// List of fields in /userinfo endpoint to try map to the Horde user claim (see HordeClaimTypes.User)
+		/// </summary>
+		public string[] OidcClaimHordeUserMapping { get; set; } = { "preferred_username", "email" };
+		
+		/// <summary>
+		/// List of fields in /userinfo endpoint to try map to the Horde Perforce user claim (see HordeClaimTypes.PerforceUser)
+		/// </summary>
+		public string[] OidcClaimHordePerforceUserMapping { get; set; } = { "preferred_username", "email" };
 
 		/// <summary>
 		/// Name of the issuer in bearer tokens from the server
@@ -208,11 +264,6 @@ namespace HordeServer
 		/// Length of time before JWT tokens expire, in hourse
 		/// </summary>
 		public int JwtExpiryTimeHours { get; set; } = 4;
-
-		/// <summary>
-		/// Disable authentication for debugging purposes
-		/// </summary>
-		public bool DisableAuth { get; set; }
 
 		/// <summary>
 		/// Whether to enable Cors, generally for development purposes

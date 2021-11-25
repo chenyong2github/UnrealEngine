@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using HordeServer;
+using HordeServer.Controllers;
+using Microsoft.Extensions.Options;
 
 /// <summary>	
 /// Dashboard authorization challenge controller	
@@ -16,8 +19,20 @@ using System.Threading.Tasks;
 [Route("[controller]")]
 public class DashboardChallengeController : Controller
 {
-	const string DefaultAuthenticationScheme = OktaDefaults.AuthenticationScheme;
+	/// <summary>
+	/// Authentication scheme in use
+	/// </summary>
+	string AuthenticationScheme;
 
+	/// <summary>
+	/// Constructor
+	/// </summary>
+	/// <param name="ServerSettings">Server settings</param>
+	public DashboardChallengeController(IOptionsMonitor<ServerSettings> ServerSettings)
+	{
+		AuthenticationScheme = AccountController.GetAuthScheme(ServerSettings.CurrentValue.AuthMethod);
+	}
+	
 	/// <summary>	
 	/// Challenge endpoint for the dashboard, using cookie authentication scheme	
 	/// </summary>	
@@ -39,7 +54,7 @@ public class DashboardChallengeController : Controller
 	[Route("/api/v1/dashboard/login")]
 	public IActionResult Login([FromQuery] string? Redirect)
 	{
-		return new ChallengeResult(DefaultAuthenticationScheme, new AuthenticationProperties { RedirectUri = Redirect ?? "/" });
+		return new ChallengeResult(AuthenticationScheme, new AuthenticationProperties { RedirectUri = Redirect ?? "/" });
 	}
 
 	/// <summary>
@@ -53,7 +68,7 @@ public class DashboardChallengeController : Controller
 		await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 		try
 		{
-			await HttpContext.SignOutAsync(DefaultAuthenticationScheme);
+			await HttpContext.SignOutAsync(AuthenticationScheme);
 		}
 #pragma warning disable CA1031 // Do not catch general exception types
 		catch

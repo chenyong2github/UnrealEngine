@@ -448,20 +448,34 @@ namespace HordeServer
 
 			AuthenticationBuilder AuthBuilder = Services.AddAuthentication(Options =>
 				{
-					if (Settings.DisableAuth)
+					switch (Settings.AuthMethod)
 					{
-						Options.DefaultAuthenticateScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
-						Options.DefaultSignInScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
-						Options.DefaultChallengeScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
-					}
-					else
-					{
-						// If an authentication cookie is present, use it to get authentication information
-						Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-						Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+						case AuthMethod.Anonymous:
+							Options.DefaultAuthenticateScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
+							Options.DefaultSignInScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
+							Options.DefaultChallengeScheme = AnonymousAuthenticationHandler.AuthenticationScheme;
+							break;
+						
+						case AuthMethod.Okta:
+							// If an authentication cookie is present, use it to get authentication information
+							Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+							Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 
-						// If authentication is required, and no cookie is present, use OIDC to sign in
-						Options.DefaultChallengeScheme = OktaDefaults.AuthenticationScheme;
+							// If authentication is required, and no cookie is present, use OIDC to sign in
+							Options.DefaultChallengeScheme = OktaDefaults.AuthenticationScheme;
+							break;
+						
+						case AuthMethod.OpenIdConnect:
+							// If an authentication cookie is present, use it to get authentication information
+							Options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+							Options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+
+							// If authentication is required, and no cookie is present, use OIDC to sign in
+							Options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+							break;
+						
+						default:
+							throw new ArgumentException($"Invalid auth method {Settings.AuthMethod}");
 					}
 				});
 
@@ -489,36 +503,67 @@ namespace HordeServer
 			AuthBuilder.AddServiceAccount(Options => { });
 			Schemes.Add(ServiceAccountAuthHandler.AuthenticationScheme);
 
-			if (Settings.DisableAuth)
+			
+			switch (Settings.AuthMethod)
 			{
-				AuthBuilder.AddAnonymous(Options =>
-				{
-					Options.AdminClaimType = Settings.AdminClaimType;
-					Options.AdminClaimValue = Settings.AdminClaimValue;
-				});
-				Schemes.Add(AnonymousAuthenticationHandler.AuthenticationScheme);
-			}
-			else if (Settings.OidcClientId != null && Settings.OidcAuthority != null)
-			{
-				AuthBuilder.AddOkta(OktaDefaults.AuthenticationScheme, OpenIdConnectDefaults.DisplayName, 
-					Options =>
+				case AuthMethod.Anonymous:
+					AuthBuilder.AddAnonymous(Options =>
 					{
-						Options.Authority = Settings.OidcAuthority;
-						Options.ClientId = Settings.OidcClientId;
-
-						if (!String.IsNullOrEmpty(Settings.OidcSigninRedirect))
-						{
-							Options.Events = new OpenIdConnectEvents
-							{
-								OnRedirectToIdentityProvider = async RedirectContext =>
-								{
-									RedirectContext.ProtocolMessage.RedirectUri = Settings.OidcSigninRedirect;
-									await Task.CompletedTask;
-								}
-							};
-						}
+						Options.AdminClaimType = Settings.AdminClaimType;
+						Options.AdminClaimValue = Settings.AdminClaimValue;
 					});
-				Schemes.Add(OktaDefaults.AuthenticationScheme);
+					Schemes.Add(AnonymousAuthenticationHandler.AuthenticationScheme);
+					break;
+						
+				case AuthMethod.Okta:
+					AuthBuilder.AddOkta(OktaDefaults.AuthenticationScheme, OpenIdConnectDefaults.DisplayName, Options =>
+						{
+							Options.Authority = Settings.OidcAuthority;
+							Options.ClientId = Settings.OidcClientId;
+
+							if (!String.IsNullOrEmpty(Settings.OidcSigninRedirect))
+							{
+								Options.Events = new OpenIdConnectEvents
+								{
+									OnRedirectToIdentityProvider = async RedirectContext =>
+									{
+										RedirectContext.ProtocolMessage.RedirectUri = Settings.OidcSigninRedirect;
+										await Task.CompletedTask;
+									}
+								};
+							}
+						});
+					Schemes.Add(OktaDefaults.AuthenticationScheme);
+					break;
+						
+				case AuthMethod.OpenIdConnect:
+					AuthBuilder.AddHordeOpenId(Settings, OpenIdConnectDefaults.AuthenticationScheme, OpenIdConnectDefaults.DisplayName, Options =>
+						{
+							Options.Authority = Settings.OidcAuthority;
+							Options.ClientId = Settings.OidcClientId;
+							Options.ClientSecret = Settings.OidcClientSecret;
+							foreach (string Scope in Settings.OidcRequestedScopes)
+							{
+								Options.Scope.Add(Scope);
+							}
+
+							if (!String.IsNullOrEmpty(Settings.OidcSigninRedirect))
+							{
+								Options.Events = new OpenIdConnectEvents
+								{
+									OnRedirectToIdentityProvider = async RedirectContext =>
+									{
+										RedirectContext.ProtocolMessage.RedirectUri = Settings.OidcSigninRedirect;
+										await Task.CompletedTask;
+									}
+								};
+							}
+						});
+					Schemes.Add(OpenIdConnectDefaults.AuthenticationScheme);
+					break;
+						
+				default:
+					throw new ArgumentException($"Invalid auth method {Settings.AuthMethod}");
 			}
 
 			AuthBuilder.AddScheme<JwtBearerOptions, HordeJwtBearerHandler>(HordeJwtBearerHandler.AuthenticationScheme, Options => { });
@@ -773,6 +818,13 @@ namespace HordeServer
 		{
 			App.UseForwardedHeaders();
 			App.UseExceptionHandler("/api/v1/error");
+
+			// Used for allowing auth cookies in combination with OpenID Connect auth (for example, Google Auth did not work with these unset)
+			App.UseCookiePolicy(new CookiePolicyOptions()
+			{
+				MinimumSameSitePolicy = SameSiteMode.None,
+				CheckConsentNeeded = _ => true
+			});
 
 			if (Settings.Value.CorsEnabled)
 			{

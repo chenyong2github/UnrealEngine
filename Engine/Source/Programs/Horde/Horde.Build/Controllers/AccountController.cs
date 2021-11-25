@@ -15,6 +15,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 
 namespace HordeServer.Controllers
 {
@@ -25,8 +26,6 @@ namespace HordeServer.Controllers
 	[Route("[controller]")]
 	public class AccountController : Controller
 	{
-		const string DefaultAuthenticationScheme = OktaDefaults.AuthenticationScheme;
-
 		/// <summary>
 		/// Style sheet for HTML responses
 		/// </summary>
@@ -41,14 +40,37 @@ namespace HordeServer.Controllers
 		/// The ACL service singleton
 		/// </summary>
 		AclService AclService;
+		
+		/// <summary>
+		/// Authentication scheme in use
+		/// </summary>
+		string AuthenticationScheme;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="AclService">ACL service instance</param>
-		public AccountController(AclService AclService)
+		/// <param name="ServerSettings">Server settings</param>
+		public AccountController(AclService AclService, IOptionsMonitor<ServerSettings> ServerSettings)
 		{
 			this.AclService = AclService;
+			this.AuthenticationScheme = GetAuthScheme(ServerSettings.CurrentValue.AuthMethod);
+		}
+
+		/// <summary>
+		/// Get auth scheme name for a given auth method
+		/// </summary>
+		/// <param name="Method">Authentication method</param>
+		/// <returns>Name of authentication scheme</returns>
+		public static string GetAuthScheme(AuthMethod Method)
+		{
+			return Method switch
+			{
+				AuthMethod.Anonymous => AnonymousAuthenticationHandler.AuthenticationScheme,
+				AuthMethod.Okta => OktaDefaults.AuthenticationScheme,
+				AuthMethod.OpenIdConnect => OpenIdConnectDefaults.AuthenticationScheme,
+				_ => throw new ArgumentOutOfRangeException(nameof(Method), Method, null)
+			};
 		}
 
 		/// <summary>
@@ -102,7 +124,7 @@ namespace HordeServer.Controllers
 		[Route("/account/login")]
 		public IActionResult Login()
 		{
-			return new ChallengeResult(DefaultAuthenticationScheme, new AuthenticationProperties { RedirectUri = "/account" });
+			return new ChallengeResult(AuthenticationScheme, new AuthenticationProperties { RedirectUri = "/account" });
 		}
 
 		/// <summary>
@@ -116,7 +138,7 @@ namespace HordeServer.Controllers
 			await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 			try
 			{
-				await HttpContext.SignOutAsync(DefaultAuthenticationScheme);
+				await HttpContext.SignOutAsync(AuthenticationScheme);
 			}
 			catch
 			{
