@@ -678,6 +678,12 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 		WorldSettings->MarkPackageDirty();
 
 		WorldPartition->DefaultHLODLayer = nullptr;
+
+		AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers();
+		if (!WorldDataLayers)
+		{
+			WorldDataLayers = AWorldDataLayers::Create(World);
+		}
 	}
 
 	if (!WorldPartition->EditorHash)
@@ -700,12 +706,6 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 
 		WorldPartition->RuntimeHash = NewObject<UWorldPartitionRuntimeHash>(WorldPartition, RuntimeHashClass);
 		WorldPartition->RuntimeHash->SetDefaultValues();
-	}
-
-	AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers();
-	if (!WorldDataLayers)
-	{
-		WorldDataLayers = AWorldDataLayers::Create(World);
 	}
 
 	World->PersistentLevel->bIsPartitioned = true;
