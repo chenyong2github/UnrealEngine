@@ -235,7 +235,7 @@ namespace UE::DatasmithImporter
 					&& !ExternalSource->GetDatasmithScene().IsValid())
 				{
 					ExternalSource->CancelAsyncLoad();
-					UE_LOG(LogDirectLinkManager, Error, TEXT("The DirectLink source \"%s\" could not be loaded: Nothing to synchronize. Make sure to do a DirectLink sync in your exporter."), *ExternalSource->GetSourceName());
+					UE_LOG(LogDirectLinkManager, Warning, TEXT("The DirectLink source \"%s\" could not be loaded: Nothing to synchronize. Make sure to do a DirectLink sync in your exporter."), *ExternalSource->GetSourceName());
 				}
 			}
 		}

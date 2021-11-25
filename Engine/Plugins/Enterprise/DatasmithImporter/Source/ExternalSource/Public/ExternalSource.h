@@ -125,7 +125,7 @@ namespace UE::DatasmithImporter
 		/**
 		 * True when the ExternalSource is currently loading the source asynchronously.
 		 */
-		bool IsAsyncLoading() const { return !PendingPromiseQueue.IsEmpty(); }
+		bool IsAsyncLoading() const { return AsyncTaskNotification.IsValid(); }
 
 		/**
 		 * Cancel any pending AsyncLoad() operation, pending TFuture will return invalid TSharedPtr.
