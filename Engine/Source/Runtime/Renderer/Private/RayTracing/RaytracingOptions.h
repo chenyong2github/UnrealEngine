@@ -149,3 +149,8 @@ FORCEINLINE bool CanUseRayTracingAMDHitToken()
 }
 
 #endif // RHI_RAYTRACING
+
+FORCEINLINE bool ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags CompatibilityFlags)
+{
+	return ShouldRenderRayTracingEffect(true, CompatibilityFlags);
+}

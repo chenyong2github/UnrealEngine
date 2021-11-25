@@ -3,22 +3,37 @@
 #include "../Common.ush"
 #include "RayTracingCommon.ush"
 
+#if COMPUTESHADER
+#include "RayTracingDeferredMaterials.ush"
+#include "TraceRayInline.ush"
+#endif // COMPUTESHADER
+
 RWTexture2D<float4> Output;
 RaytracingAccelerationStructure TLAS;
 
-RAY_TRACING_ENTRY_RAYGEN(RayTracingBarycentricsMainRGS)
+void RayTracingBarycentricsCommon(uint2 DispatchThreadIndex)
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
+	uint2 PixelCoord = DispatchThreadIndex.xy + View.ViewRectMin;
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
 	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
 	uint RayFlags = 0
-	              | RAY_FLAG_CULL_BACK_FACING_TRIANGLES      // use back face culling
-	              | RAY_FLAG_FORCE_OPAQUE;                   // don't run anyhit shader
+		| RAY_FLAG_CULL_BACK_FACING_TRIANGLES      // use back face culling
+		| RAY_FLAG_FORCE_OPAQUE;                   // don't run anyhit shader
 
 	FDefaultPayload Payload = (FDefaultPayload)0;
+#if COMPUTESHADER
+	FTraceRayInlineResult TraceRayResult = TraceRayInline(
+		TLAS,   // AccelerationStructure
+		RayFlags,
+		RAY_TRACING_MASK_ALL,             // InstanceInclusionMask
+		Ray    // RayDesc
+	);
 
+	Payload.HitT = TraceRayResult.HitT;
+	Payload.Barycentrics = TraceRayResult.Barycentrics;
+#else
 	TraceRay(
 		TLAS,   // AccelerationStructure
 		RayFlags,
@@ -29,13 +44,28 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingBarycentricsMainRGS)
 		Ray,    // RayDesc
 		Payload // Payload
 	);
-
+#endif // COMPUTESHADER
 	float4 Result = float4(0, 0, 0, 1);
 	if (Payload.IsHit())
 	{
 		Result = float4(Payload.Barycentrics, 1.0f - Payload.Barycentrics.x - Payload.Barycentrics.y, 1.0f);
 	}
 	Output[PixelCoord] = Result;
+}
+
+#if COMPUTESHADER
+
+[numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]
+void RayTracingBarycentricsMainCS(uint2 DispatchThreadIndex : SV_DispatchThreadID)
+{
+	RayTracingBarycentricsCommon(DispatchThreadIndex);
+}
+
+#else
+
+RAY_TRACING_ENTRY_RAYGEN(RayTracingBarycentricsMainRGS)
+{
+	RayTracingBarycentricsCommon(DispatchRaysIndex().xy);
 }
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingBarycentricsMainCHS,
@@ -45,3 +75,5 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingBarycentricsMainCHS,
 	Payload.Barycentrics = Attributes.Barycentrics;
 	Payload.HitT = RayTCurrent();
 }
+
+#endif

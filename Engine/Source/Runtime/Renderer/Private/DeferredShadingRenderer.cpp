@@ -124,6 +124,20 @@ static TAutoConsoleVariable<int32> CVarForceAllRayTracingEffects(
 	TEXT(" 1: All ray tracing effects enabled"),
 	ECVF_RenderThreadSafe);
 
+static int32 GRayTracingAllowInline = 1;
+static TAutoConsoleVariable<int32> CVarRayTracingAllowInline(
+	TEXT("r.RayTracing.AllowInline"),
+	GRayTracingAllowInline,
+	TEXT("Allow use of Inline Ray Tracing if supported (default=1)."),	
+	ECVF_RenderThreadSafe);
+
+static int32 GRayTracingAllowPipeline = 1;
+static TAutoConsoleVariable<int32> CVarRayTracingAllowPipeline(
+	TEXT("r.RayTracing.AllowPipeline"),
+	GRayTracingAllowPipeline,
+	TEXT("Allow use of Ray Tracing pipelines if supported (default=1)."),
+	ECVF_RenderThreadSafe);
+
 static int32 GRayTracingSceneCaptures = -1;
 static FAutoConsoleVariableRef CVarRayTracingSceneCaptures(
 	TEXT("r.RayTracing.SceneCaptures"),
@@ -3234,8 +3248,13 @@ bool ShouldRenderRayTracingEffect(bool bEffectEnabled, ERayTracingPipelineCompat
 		return false;
 	}
 
-	const bool bAllowPipeline = GRHISupportsRayTracingShaders && EnumHasAnyFlags(CompatibilityFlags, ERayTracingPipelineCompatibilityFlags::FullPipeline);
-	const bool bAllowInline = GRHISupportsInlineRayTracing && EnumHasAnyFlags(CompatibilityFlags, ERayTracingPipelineCompatibilityFlags::Inline);
+	const bool bAllowPipeline = GRHISupportsRayTracingShaders && 
+								CVarRayTracingAllowPipeline.GetValueOnRenderThread() &&
+								EnumHasAnyFlags(CompatibilityFlags, ERayTracingPipelineCompatibilityFlags::FullPipeline);
+
+	const bool bAllowInline = GRHISupportsInlineRayTracing && 
+							  CVarRayTracingAllowInline.GetValueOnRenderThread() &&
+							  EnumHasAnyFlags(CompatibilityFlags, ERayTracingPipelineCompatibilityFlags::Inline);
 
 	// Disable the effect if current machine does not support the full ray tracing pipeline and the effect can't fall back to inline mode or vice versa.
 	if (!bAllowPipeline && !bAllowInline)

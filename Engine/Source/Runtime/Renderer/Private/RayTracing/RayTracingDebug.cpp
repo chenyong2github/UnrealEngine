@@ -91,7 +91,8 @@ static bool RequiresRayTracingDebugCHS(uint32 DebugVisualizationMode)
 void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FSceneViewFamily& ViewFamily, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
-	if (ViewFamily.EngineShowFlags.RayTracingDebug)
+	bool bEnabled = ViewFamily.EngineShowFlags.RayTracingDebug && ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::FullPipeline);
+	if (bEnabled)
 	{
 		auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FRayTracingDebugRGS>();
 		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
@@ -148,10 +149,16 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		DebugVisualizationMode = RAY_TRACING_DEBUG_VIZ_BASE_COLOR;
 	}
 
-
 	if (DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_BARYCENTRICS)
 	{
 		return RenderRayTracingBarycentrics(GraphBuilder, View, SceneColorTexture);
+	}
+
+	// Debug modes other than barycentrics require pipeline support.
+	const bool bRayTracingPipeline = ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::FullPipeline);
+	if (!bRayTracingPipeline)
+	{
+		return;
 	}
 
 	if (DebugVisualizationMode == RAY_TRACING_DEBUG_VIZ_PRIMARY_RAYS) 

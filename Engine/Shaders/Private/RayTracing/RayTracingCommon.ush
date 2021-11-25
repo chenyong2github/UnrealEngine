@@ -360,7 +360,7 @@ void ApplyCameraRelativeDepthBias(inout float3 RayOrigin, float3 RayDirection, u
 	ApplyPositionBias(RayOrigin, RayDirection, WorldNormal, RayBias);
 }
 
-#if !COMPUTESHADER
+#if !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
 
 RayDesc CreatePrimaryRay(float2 UV)
 {
@@ -380,6 +380,10 @@ RayDesc CreatePrimaryRay(float2 UV)
 
 	return Ray;
 }
+
+#endif // !COMPUTESHADER || PLATFORM_SUPPORTS_INLINE_RAY_TRACING
+
+#if !COMPUTESHADER
 
 struct FPackedMaterialClosestHitPayload : FMinimalPayload
 {
