@@ -166,26 +166,6 @@ float3 GetStableLargeWorldPosition(float2 SVPos, float DeviceZ)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#if STRATA_ENABLED
-
-float4 StrataReadPrecomputedShadowFactors(FStrataPixelHeader StrataPixelHeader, int2 PixelPos)
-{
-	if (!HasSkipPrecShadowMask(StrataPixelHeader))
-	{
-#if ALLOW_STATIC_LIGHTING
-		float4 GBufferE = SceneTexturesStruct.GBufferETexture.Load(int3(PixelPos, 0));
-#else
-		float4 GBufferE = 1;
-#endif
-		return GBufferE;
-	}
-	return HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
-}
-
-#endif // STRATA_ENABLED
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 #if USE_HAIR_LIGHTING == 0
 
 void DeferredLightPixelMain(
@@ -250,10 +230,9 @@ void DeferredLightPixelMain(
 			float4 LightAttenuation = GetPerPixelLightAttenuation(InputParams.ScreenUV);
 
 			float Dither = InterleavedGradientNoise(InputParams.PixelPos, View.StateFrameIndexMod8);
-			float4 PrecomputedShadowFactors = StrataReadPrecomputedShadowFactors(StrataPixelHeader, PixelPos);
 			const uint FakeShadingModelID = 0;
 			const float FakeContactShadowOpacity = 1.0f;
-			GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity,
+			GetShadowTerms(SceneDepth, StrataPixelHeader.PrecomputedShadowMask, FakeShadingModelID, FakeContactShadowOpacity,
 				LightData, DerivedParams.TranslatedWorldPosition, L, LightAttenuation, Dither, ShadowTerms);
 
 			Radiance = StrataDeferredLighting(
