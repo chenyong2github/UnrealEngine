@@ -92,15 +92,11 @@ struct FMassSimulationVariableTickChunkFragment : public FMassVariableTickChunkF
 };
 
 USTRUCT()
-struct FMassSimulationLODConfig
+struct FMassSimulationLODConfig : public FMassSharedFragment
 {
 	GENERATED_BODY()
 
 	FMassSimulationLODConfig();
-
-	/** Component Tag that will be used to associate LOD config */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config, meta = (BaseStruct = "MassTag"))
-	FInstancedStruct TagFilter;
 
 	/** Distance where each LOD becomes relevant */
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
@@ -121,9 +117,19 @@ struct FMassSimulationLODConfig
 	/** If true, will spread the first simulation update over TickRate period */
 	UPROPERTY(EditAnywhere, Category = "Mass|Representation", config)
 	bool bSpreadFirstSimulationUpdate = false;
+};
+
+
+USTRUCT()
+struct FMassSimulationLODSharedFragment : public FMassSharedFragment
+{
+	GENERATED_BODY()
+
+	FMassSimulationLODSharedFragment() = default;
+	FMassSimulationLODSharedFragment(const FMassSimulationLODConfig& Config);
 
 	/** Runtime data for matching the LOD config */
-	FMassEntityQuery EntityQuery;
+	bool bHasAdjustedDistancesFromCount = false;
 	TMassLODCalculator<FMassSimulationLODLogic> LODCalculator;
 	TMassLODTickRateController<FMassSimulationVariableTickChunkFragment, FMassSimulationLODLogic> LODTickRateController;
 };
@@ -139,11 +145,11 @@ public:
 protected:
 
 	virtual void ConfigureQueries() override;
-	virtual void Initialize(UObject& InOwner) override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	void CalculateLODForConfig(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSimulationLODConfig& LODConfig);
 
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
-	TArray<FMassSimulationLODConfig> LODConfigs;
+	FMassEntityQuery EntityQuery;
+	FMassEntityQuery EntityQueryCalculateLOD;
+	FMassEntityQuery EntityQueryAdjustDistances;
 };
