@@ -866,10 +866,12 @@ public:
 		return PhysicalContexts[GPUIndex];
 	}
 
+#if ENABLE_RHI_VALIDATION || WITH_MGPU
 	IRHIComputeContext& GetLowestLevelContext() final override
 	{
 		return *PhysicalContexts[0];
 	}
+#endif
 
 private:
 
