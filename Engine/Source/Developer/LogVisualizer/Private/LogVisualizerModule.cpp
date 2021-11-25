@@ -71,7 +71,7 @@ void FLogVisualizerModule::StartupModule()
 
 void FLogVisualizerModule::ShutdownModule()
 {
-	FGlobalTabmanager::Get()->UnregisterTabSpawner(VisualLoggerTabName);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(VisualLoggerTabName);
 	FVisualLoggerCommands::Unregister();
 	IModularFeatures::Get().UnregisterModularFeature(VisualLoggerTabName, this);
 	
