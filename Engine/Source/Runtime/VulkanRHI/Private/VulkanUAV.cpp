@@ -92,7 +92,7 @@ FVulkanShaderResourceView::~FVulkanShaderResourceView()
 void FVulkanShaderResourceView::Clear()
 {
 #if VULKAN_RHI_RAYTRACING
-	if (AccelerationStructureHandle)
+	if (Device && AccelerationStructureHandle)
 	{
 		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::AccelerationStructure, AccelerationStructureHandle);
 	}
