@@ -1288,6 +1288,10 @@ public:
 	FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, const FRHITextureSRVCreateInfo& InCreateInfo);
 	FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanResourceMultiBuffer* InStructuredBuffer, uint32 InOffset = 0);
 
+#if VULKAN_RHI_RAYTRACING
+	FVulkanShaderResourceView(FVulkanDevice* Device, FVulkanAccelerationStructureBuffer* InSourceBuffer, uint32 InOffset = 0);
+#endif // VULKAN_RHI_RAYTRACING
+
 	void Clear();
 
 	void Rename(FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat);
@@ -1300,13 +1304,13 @@ public:
 		return BufferViews[BufferIndex];
 	}
 
-	EPixelFormat BufferViewFormat;
+	EPixelFormat BufferViewFormat = PF_Unknown;
 	ERHITextureSRVOverrideSRGBType SRGBOverride = SRGBO_Default;
 
 	// The texture that this SRV come from
 	TRefCountPtr<FRHITexture> SourceTexture;
 	FVulkanTextureView TextureView;
-	FVulkanResourceMultiBuffer* SourceStructuredBuffer;
+	FVulkanResourceMultiBuffer* SourceStructuredBuffer = nullptr;
 	uint32 MipLevel = 0;
 	uint32 NumMips = MAX_uint32;
 	uint32 FirstArraySlice = 0;
@@ -1316,12 +1320,16 @@ public:
 
 	TArray<TRefCountPtr<FVulkanBufferView>> BufferViews;
 	uint32 BufferIndex = 0;
-	uint32 Size;
+	uint32 Size = 0;
 	uint32 Offset = 0;
 	// The buffer this SRV comes from (can be null)
-	FVulkanResourceMultiBuffer* SourceBuffer;
+	FVulkanResourceMultiBuffer* SourceBuffer = nullptr;
 	// To keep a reference
 	TRefCountPtr<FRHIResource> SourceRHIBuffer;
+
+#if VULKAN_RHI_RAYTRACING
+	VkAccelerationStructureKHR AccelerationStructureHandle = VK_NULL_HANDLE;
+#endif // VULKAN_RHI_RAYTRACING
 
 protected:
 	// Used to check on volatile buffers if a new BufferView is required

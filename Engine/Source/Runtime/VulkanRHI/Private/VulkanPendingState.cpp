@@ -323,6 +323,12 @@ void FVulkanPendingComputeState::SetSRVForUBResource(uint32 DescriptorSet, uint3
 		{
 			CurrentState->SetStorageBuffer(DescriptorSet, BindingIndex, SRV->SourceStructuredBuffer);
 		}
+#if VULKAN_RHI_RAYTRACING
+		else if (SRV->AccelerationStructureHandle)
+		{
+			CurrentState->SetAccelerationStructure(DescriptorSet, BindingIndex, SRV->AccelerationStructureHandle);
+		}
+#endif // VULKAN_RHI_RAYTRACING
 		else
 		{
 			checkf(SRV->TextureView.View != VK_NULL_HANDLE, TEXT("Empty SRV"));

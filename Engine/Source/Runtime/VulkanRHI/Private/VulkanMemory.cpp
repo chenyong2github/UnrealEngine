@@ -20,6 +20,10 @@ THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
+#if VULKAN_RHI_RAYTRACING
+#include "VulkanRayTracing.h"
+#endif
+
 // This 'frame number' should only be used for the deletion queue
 uint32 GVulkanRHIDeletionFrameNumber = 0;
 const uint32 NUM_FRAMES_TO_WAIT_FOR_RESOURCE_DELETE = 2;
@@ -4921,9 +4925,15 @@ namespace VulkanRHI
 				{
 					check(Entry->DeviceMemoryAllocation);
 					Device->GetDeviceMemoryManager().Free(Entry->DeviceMemoryAllocation);
+					break;
 				}
-				break;
-
+#if VULKAN_RHI_RAYTRACING
+				case EType::AccelerationStructure:
+				{
+					VulkanDynamicAPI::vkDestroyAccelerationStructureKHR(DeviceHandle, (VkAccelerationStructureKHR)Entry->Handle, VULKAN_CPU_ALLOCATOR);
+					break;
+				}
+#endif // VULKAN_RHI_RAYTRACING
 
 				default:
 					check(0);

@@ -4,6 +4,10 @@
 #include "VulkanContext.h"
 #include "ClearReplacementShaders.h"
 
+#if VULKAN_RHI_RAYTRACING
+#include "VulkanRayTracing.h"
+#endif // VULKAN_RHI_RAYTRACING
+
 FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat, uint32 InOffset)
 	: VulkanRHI::FVulkanViewBase(Device)
 	, BufferViewFormat(InFormat)
@@ -54,7 +58,24 @@ FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* Device, FVul
 {
 }
 
+#if VULKAN_RHI_RAYTRACING
+FVulkanShaderResourceView::FVulkanShaderResourceView(FVulkanDevice* InDevice, FVulkanAccelerationStructureBuffer* InSourceBuffer, uint32 InOffset)
+	: VulkanRHI::FVulkanViewBase(InDevice)
+	, SourceRHIBuffer(InSourceBuffer)
+{
+	check(InDevice);
 
+	VkAccelerationStructureCreateInfoKHR CreateInfo;
+	ZeroVulkanStruct(CreateInfo, VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR);
+	CreateInfo.buffer = InSourceBuffer->GetBuffer();
+	CreateInfo.offset = InOffset;
+	CreateInfo.size = InSourceBuffer->GetSize() - InOffset;
+	CreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+
+	VkDevice NativeDevice = InDevice->GetInstanceHandle();
+	VERIFYVULKANRESULT(VulkanDynamicAPI::vkCreateAccelerationStructureKHR(NativeDevice, &CreateInfo, VULKAN_CPU_ALLOCATOR, &AccelerationStructureHandle));
+}
+#endif // VULKAN_RHI_RAYTRACING
 
 FVulkanShaderResourceView::~FVulkanShaderResourceView()
 {
@@ -70,6 +91,13 @@ FVulkanShaderResourceView::~FVulkanShaderResourceView()
 
 void FVulkanShaderResourceView::Clear()
 {
+#if VULKAN_RHI_RAYTRACING
+	if (AccelerationStructureHandle)
+	{
+		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::AccelerationStructure, AccelerationStructureHandle);
+	}
+#endif // VULKAN_RHI_RAYTRACING
+
 	SourceRHIBuffer = nullptr;
 	SourceBuffer = nullptr;
 	BufferViews.Empty();
@@ -88,6 +116,11 @@ void FVulkanShaderResourceView::Rename(FRHIResource* InRHIBuffer, FVulkanResourc
 {
 	check(Device);
 	check(!Offset);
+
+#if VULKAN_RHI_RAYTRACING
+	checkf(!AccelerationStructureHandle, TEXT("Acceleration structure view renaming is currently not supported"));
+#endif //VULKAN_RHI_RAYTRACING
+
 	BufferViewFormat = InFormat;
 	SourceTexture = nullptr;
 	TextureView.Destroy(*Device);
@@ -154,6 +187,12 @@ void FVulkanShaderResourceView::UpdateView()
 	{
 		// Nothing...
 	}
+#if VULKAN_RHI_RAYTRACING
+	else if (AccelerationStructureHandle)
+	{
+		// Nothing
+	}
+#endif //VULKAN_RHI_RAYTRACING
 	else
 	{
 		if (TextureView.View == VK_NULL_HANDLE)
@@ -377,8 +416,9 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(const F
 #if VULKAN_RHI_RAYTRACING
 		case FShaderResourceViewInitializer::EType::AccelerationStructureSRV:
 		{
-			checkNoEntry(); // TODO
-			return nullptr;
+			check(Desc.Buffer);
+			FVulkanAccelerationStructureBuffer* ASBuffer = static_cast<FVulkanAccelerationStructureBuffer*>(Desc.Buffer);
+			return new FVulkanShaderResourceView(Device, ASBuffer, Desc.StartOffsetBytes);
 		}
 #endif // D3D12_RHI_RAYTRACING
 	}
@@ -403,8 +443,8 @@ FShaderResourceViewRHIRef FVulkanDynamicRHI::RHICreateShaderResourceView(FRHIBuf
 #if VULKAN_RHI_RAYTRACING
 	else if (BufferRHI && EnumHasAnyFlags(BufferRHI->GetUsage(), BUF_AccelerationStructure))
 	{
-		FVulkanAccelerationStructureBuffer* Buffer = static_cast<FVulkanAccelerationStructureBuffer*>(BufferRHI);
-		return nullptr; // TODO
+		FVulkanAccelerationStructureBuffer* ASBuffer = static_cast<FVulkanAccelerationStructureBuffer*>(BufferRHI);
+		return new FVulkanShaderResourceView(Device, ASBuffer, 0);
 	}
 #endif
 	else
