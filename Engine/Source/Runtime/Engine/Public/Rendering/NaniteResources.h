@@ -59,7 +59,7 @@
 
 #define PERSISTENT_CLUSTER_CULLING_GROUP_SIZE	64														// must match define in Culling.ush
 
-#define MAX_BVH_NODE_FANOUT_BITS				3														// must match define in Culling.ush
+#define MAX_BVH_NODE_FANOUT_BITS				2														// must match define in Culling.ush
 #define MAX_BVH_NODE_FANOUT						(1 << MAX_BVH_NODE_FANOUT_BITS)							// must match define in Culling.ush
 
 #define MAX_BVH_NODES_PER_GROUP					(PERSISTENT_CLUSTER_CULLING_GROUP_SIZE / MAX_BVH_NODE_FANOUT)

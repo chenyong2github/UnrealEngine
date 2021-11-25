@@ -333,13 +333,13 @@ float3 GetFacePlaneHZB( float3 ViewOriginLocal, float4x4 ClipToLocal, float3 Bou
 	return PlaneHZB;
 }
 
-FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x4 LocalToClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bSkipFrustumCull)
 {
 	FFrustumCullData Cull;
 
-	float3 CenterClip = mul( float4( Center, 1 ), LocalToClip ).xyz;
+	float3 CenterClip = mul( mul( float4( Center, 1 ), LocalToWorld ), WorldToClip ).xyz;
 
-	float3 ClipDelta = abs( Extent.x * LocalToClip[0].xyz ) + abs( Extent.y * LocalToClip[1].xyz ) + abs( Extent.z * LocalToClip[2].xyz );
+	float3 ClipDelta = abs( Extent.x * mul(LocalToWorld[0], WorldToClip).xyz ) + abs( Extent.y * mul(LocalToWorld[1], WorldToClip).xyz ) + abs( Extent.z * mul(LocalToWorld[2], WorldToClip).xyz );
 	Cull.RectMin = CenterClip - ClipDelta;
 	Cull.RectMax = CenterClip + ClipDelta;
 
@@ -357,16 +357,16 @@ FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x
 	return Cull;
 }
 
-FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull)
+FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bNearClip, bool bSkipFrustumCull)
 {
 	FFrustumCullData Cull;
 
 	// Transform center and axes to local space
-	float4 C =  mul(float4(Center, 1.0), LocalToClip);
+	float4 C =  mul(mul(float4(Center, 1.0), LocalToWorld), WorldToClip);
 
-	float4 X = Extent.x * LocalToClip[0];
-	float4 Y = Extent.y * LocalToClip[1];
-	float4 Z = Extent.z * LocalToClip[2];
+	float4 X = Extent.x * mul(LocalToWorld[0], WorldToClip);
+	float4 Y = Extent.y * mul(LocalToWorld[1], WorldToClip);
+	float4 Z = Extent.z * mul(LocalToWorld[2], WorldToClip);
 
 	// Generate clip space positions
 	// Because of the symmetry around the center, if Center + Delta is a vertex, then so is Center - Delta.
@@ -469,13 +469,18 @@ FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 Lo
 	return Cull;
 }
 
-
-FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull )
+// Splitting the transform in two generates much better code on DXC when WorldToClip is scalar.
+FFrustumCullData BoxCullFrustum( float3 Center, float3 Extent, float4x4 LocalToWorld, float4x4 WorldToClip, bool bNearClip, bool bSkipFrustumCull )
 {
 	if( !bNearClip )
-		return BoxCullFrustumOrthoNoClip( Center, Extent, LocalToClip, bSkipFrustumCull );	// Disabling near clip only makes sense with orthographic projection, so assume orthographic.
+		return BoxCullFrustumOrthoNoClip( Center, Extent, LocalToWorld, WorldToClip, bSkipFrustumCull );	// Disabling near clip only makes sense with orthographic projection, so assume orthographic.
 	else
-		return BoxCullFrustumGeneral( Center, Extent, LocalToClip, bNearClip, bSkipFrustumCull );
+		return BoxCullFrustumGeneral( Center, Extent, LocalToWorld, WorldToClip, bNearClip, bSkipFrustumCull );
+}
+
+FFrustumCullData BoxCullFrustum(float3 Center, float3 Extent, float4x4 LocalToClip, bool bNearClip, bool bSkipFrustumCull)
+{
+	return BoxCullFrustum(Center, Extent, float4x4(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1), LocalToClip, bNearClip, bSkipFrustumCull);
 }
 
 float2 ProjectSphere( float x, float z, float r, float ResultScale )
