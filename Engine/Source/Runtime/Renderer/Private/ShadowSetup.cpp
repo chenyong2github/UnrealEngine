@@ -3224,7 +3224,7 @@ void ComputeViewDependentWholeSceneShadowCacheModes(
 	int32& OutNumShadowMaps,
 	EShadowDepthCacheMode* OutCacheModes)
 {
-	if (CVarCSMCaching.GetValueOnAnyThread() == 1)
+	if (CVarCSMCaching.GetValueOnAnyThread() == 1 && !UseVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
 	{
 		TArray<FCachedShadowMapData>* CachedShadowMapDatas = Scene->GetCachedShadowMapDatas(LightSceneInfo->Id);
 
