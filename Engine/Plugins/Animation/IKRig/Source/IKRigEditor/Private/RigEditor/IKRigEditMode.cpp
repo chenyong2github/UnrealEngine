@@ -265,7 +265,7 @@ void FIKRigEditMode::GetAffectedBones(
 		break;
 		
 		default:
-			checkNoEntry()
+			checkNoEntry();
 	}
 }
 
