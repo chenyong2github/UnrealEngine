@@ -178,8 +178,8 @@ void InstanceCull(
 			const bool bNearClip = (NEAR_CLIP != 0);
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-			const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_BOX) == 0;
-			const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_CULL_HZB_BOX) == 0;
+			const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+			const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
 			const bool bSkipBoxCullFrustum = false;
 			const bool bSkipBoxCullHZB     = false;
@@ -393,8 +393,8 @@ void InstanceCullVSM(
 	const bool bNearClip = ( NEAR_CLIP != 0 );
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_BOX) == 0;
-	const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_CULL_HZB_BOX) == 0;
+	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+	const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
 	const bool bSkipBoxCullFrustum = false;
 	const bool bSkipBoxCullHZB     = false;

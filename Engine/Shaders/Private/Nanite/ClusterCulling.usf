@@ -250,8 +250,8 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_BOX) == 0;
-	const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_CULL_HZB_BOX) == 0;
+	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+	const bool bSkipBoxCullHZB     = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
 	const bool bSkipBoxCullFrustum = false;
 	const bool bSkipBoxCullHZB     = false;
@@ -279,7 +279,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	BRANCH
 	if( bVisible )
 	{
-		FFrustumCullData Cull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum );
+		FFrustumCullData Cull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
 		FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 		bVisible = Cull.bIsVisible && ( Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane );	// Rect from box isn't valid if crossing near plane
@@ -324,7 +324,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	BRANCH
 	if( bViewHZB && bVisible )
 	{
-		FFrustumCullData PrevCull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum );
+		FFrustumCullData PrevCull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
 		
 		#if VIRTUAL_TEXTURE_TARGET
 			BRANCH
@@ -362,7 +362,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	BRANCH
 	if( bVisible )
 	{
-		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum);
+		FFrustumCullData Cull = BoxCullFrustum(Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum);
 		FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 		bVisible = Cull.bIsVisible && ( Rect.bOverlapsPixelCenter || Cull.bCrossesNearPlane );	// Rect from box isn't valid if crossing near plane
@@ -579,8 +579,8 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 	const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
 
 #if DEBUG_FLAGS && COMPILER_PSSL
-	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_CULL_FRUSTUM_BOX) == 0;
-	const bool bSkipBoxCullHZB = (DebugFlags & DEBUG_FLAG_CULL_HZB_BOX) == 0;
+	const bool bSkipBoxCullFrustum = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+	const bool bSkipBoxCullHZB = (DebugFlags & DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
 	const bool bSkipBoxCullFrustum = false;
 	const bool bSkipBoxCullHZB = false;
@@ -616,7 +616,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		BRANCH
 		if (bVisible)
 		{
-			FFrustumCullData Cull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum );
+			FFrustumCullData Cull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
 			FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 
 			bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
@@ -635,7 +635,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		BRANCH
 		if( bViewHZB && bVisible )
 		{
-			FFrustumCullData PrevCull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum );
+			FFrustumCullData PrevCull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
 						
 			#if VIRTUAL_TEXTURE_TARGET
 				BRANCH
@@ -664,7 +664,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		BRANCH
 		if (bVisible)
 		{
-			FFrustumCullData Cull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.LocalToClip, bNearClip, bSkipBoxCullFrustum );
+			FFrustumCullData Cull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bNearClip, bSkipBoxCullFrustum );
 			FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 			Cull.bIsVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
 				

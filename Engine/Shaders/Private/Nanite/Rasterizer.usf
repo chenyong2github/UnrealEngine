@@ -281,9 +281,7 @@ bool ReverseWindingOrder(FInstanceSceneData InstanceData)
 StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
 Buffer<uint>				InClusterOffsetSWHW;
 
-groupshared float4x4 LocalToSubpixelLDS;
-
-[numthreads(128, 1, 1)]
+[numthreads(64, 1, 1)]
 void MicropolyRasterize(
 	uint	VisibleIndex	: SV_GroupID,
 	uint	GroupIndex		: SV_GroupIndex) 
@@ -306,41 +304,29 @@ void MicropolyRasterize(
 	FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) );
 #endif
 
-	float4x4 LocalToSubpixel;
+	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-	// InstancedDynamicData is group invariant, so let's just calculate it once and share it through LDS.
-	if( GroupIndex == 0 )
-	{
-		LocalToSubpixel = CalculateInstanceDynamicData(NaniteView, InstanceData).LocalToClip;
-		
-		// Apply Vert.xy = PointScreen.xy * float2(0.5, -0.5) * View.ViewSizeAndInvSize.xy + 0.5 * View.ViewSizeAndInvSize.xy + View.ViewRect.xy
-		float2 Scale = float2( 0.5, -0.5 ) * NaniteView.ViewSizeAndInvSize.xy * SUBPIXEL_SAMPLES;
-		float2 Bias = ( 0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy ) * SUBPIXEL_SAMPLES + 0.5f;
-
+	float2 SubpixelScale = float2(0.5, -0.5) * NaniteView.ViewSizeAndInvSize.xy * SUBPIXEL_SAMPLES;
+	float2 SubpixelBias = (0.5 * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy) * SUBPIXEL_SAMPLES + 0.5f;
 #if CLUSTER_PER_PAGE
-		Bias += ( (float2)pPage.PhysicalAddress - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
+	SubpixelBias += ( (float2)pPage.PhysicalAddress - (float2)vPage ) * VSM_PAGE_SIZE * SUBPIXEL_SAMPLES;
 #endif
-
-		LocalToSubpixel._m00_m10_m20_m30 = LocalToSubpixel._m00_m10_m20_m30 * Scale.x + LocalToSubpixel._m03_m13_m23_m33 * Bias.x;
-		LocalToSubpixel._m01_m11_m21_m31 = LocalToSubpixel._m01_m11_m21_m31 * Scale.y + LocalToSubpixel._m03_m13_m23_m33 * Bias.y;
-
-		LocalToSubpixelLDS = LocalToSubpixel;
-	}
-	GroupMemoryBarrierWithGroupSync();
-	LocalToSubpixel = LocalToSubpixelLDS;
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 	UNROLL
-	for( uint i = 0; i < 2; i++ )
+	for( uint i = 0; i < 4; i++ )
 	{
-		uint VertIndex = GroupIndex + i * 128;
+		uint VertIndex = GroupIndex + i * 64;
 		if( VertIndex < Cluster.NumVerts )
 		{
 			// Transform vertex and store in group shared memory.
 			float3 PointLocal = DecodePosition( VertIndex, Cluster );
-			float4 PointClipSubpixel = mul( float4( PointLocal, 1 ), LocalToSubpixel );
+			float4 PointClipSubpixel = mul( mul( float4( PointLocal, 1 ), InstanceDynamicData.LocalToTranslatedWorld ), NaniteView.TranslatedWorldToClip );
+
 			float3 Subpixel = PointClipSubpixel.xyz / PointClipSubpixel.w;
+			Subpixel.xy = Subpixel.xy * SubpixelScale.xy + SubpixelBias.xy;
+
 			GroupVerts[ VertIndex ] = float3(floor(Subpixel.xy), Subpixel.z);
 		}
 	}
@@ -354,31 +340,35 @@ void MicropolyRasterize(
 	ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
 #endif
 
-	if (GroupIndex < Cluster.NumTris)
+	UNROLL
+	for( uint i = 0; i < 2; i++ )
 	{
-		uint TriangleID = GroupIndex;
-		uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriangleID);
-		if (ReverseWindingOrder(InstanceData))
+		uint TriangleID = GroupIndex + i * 64;
+		if (TriangleID < Cluster.NumTris)
 		{
-			TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+			uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriangleID);
+			if (ReverseWindingOrder(InstanceData))
+			{
+				TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+			}
+
+			float3 Vertices[3];
+			Vertices[0] = GroupVerts[TriangleIndices.x];
+			Vertices[1] = GroupVerts[TriangleIndices.y];
+			Vertices[2] = GroupVerts[TriangleIndices.z];
+
+			uint PixelValue = ((VisibleIndex + 1) << 7) | TriangleID;
+
+			RasterizeTri(
+				NaniteView,
+				ViewRect,
+				PixelValue,
+			#if VISUALIZE
+				GetVisualizeValues(),
+			#endif
+				Vertices,
+				!CLUSTER_PER_PAGE );
 		}
-
-		float3 Vertices[3];
-		Vertices[0] = GroupVerts[TriangleIndices.x];
-		Vertices[1] = GroupVerts[TriangleIndices.y];
-		Vertices[2] = GroupVerts[TriangleIndices.z];
-
-		uint PixelValue = ((VisibleIndex + 1) << 7) | TriangleID;
-
-		RasterizeTri(
-			NaniteView,
-			ViewRect,
-			PixelValue,
-		#if VISUALIZE
-			GetVisualizeValues(),
-		#endif
-			Vertices,
-			!CLUSTER_PER_PAGE );
 	}
 }
 

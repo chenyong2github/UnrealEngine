@@ -73,11 +73,12 @@
 #define RENDER_FLAG_REVERSE_CULLING				0x20
 
 // Only available with the DEBUG_FLAGS permutation active.
+// Default value (no debug) is 0
 #define DEBUG_FLAG_WRITE_STATS					0x1
-#define DEBUG_FLAG_CULL_HZB_BOX					0x2
-#define DEBUG_FLAG_CULL_HZB_SPHERE				0x4
-#define DEBUG_FLAG_CULL_FRUSTUM_BOX				0x8
-#define DEBUG_FLAG_CULL_FRUSTUM_SPHERE			0x10
+#define DEBUG_FLAG_DISABLE_CULL_HZB_BOX			0x2
+#define DEBUG_FLAG_DISABLE_CULL_HZB_SPHERE		0x4
+#define DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX		0x8
+#define DEBUG_FLAG_DISABLE_CULL_FRUSTUM_SPHERE	0x10
 #define DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING	0x20
 
 #ifndef DEBUG_FLAGS
@@ -224,6 +225,7 @@ struct FInstanceDynamicData
 	float4x4	LocalToTranslatedWorld;
 	float4x4	LocalToClip;
 	float4x4	ClipToLocal;
+	float4x4	PrevLocalToTranslatedWorld;
 	float4x4 	PrevLocalToClip;
 	float3		ViewPosScaledLocal;
 	float3		ViewForwardScaledLocal;
@@ -397,6 +399,7 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 	DynamicData.LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 	DynamicData.ClipToLocal = LWCMultiply( NaniteView.ClipToWorld, WorldToLocal );
 
+	DynamicData.PrevLocalToTranslatedWorld = PrevLocalToTranslatedWorld;
 	DynamicData.PrevLocalToClip	= mul( PrevLocalToTranslatedWorld, NaniteView.PrevTranslatedWorldToClip );
 
 	DynamicData.ViewPosScaledLocal = LWCMultiply( NaniteView.WorldCameraOrigin, WorldToLocal ) * InstanceData.NonUniformScale.xyz;
@@ -521,13 +524,13 @@ FPageHeader GetPageHeader(RWByteAddressBuffer InputBuffer, uint PageAddress)
 FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
 {
 	const uint ClusterSOAStride = ( NumPageClusters << 4 );
-	const uint ClusterBaseAddress = SrcBaseOffset + GPU_PAGE_HEADER_SIZE + ( ClusterIndex << 4 );
+	const uint ClusterBaseAddress = SrcBaseOffset + ( ClusterIndex << 4 );
 	
 	uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S];
 	UNROLL
 	for(int i = 0; i < NUM_PACKED_CLUSTER_FLOAT4S; i++)
 	{
-		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride );
+		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride + GPU_PAGE_HEADER_SIZE ); // Adding GPU_PAGE_HEADER_SIZE inside the loop prevents compiler confusion about offset modifier and generates better code
 	}
 	
 	return UnpackCluster(ClusterData);
@@ -536,13 +539,13 @@ FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Clus
 FCluster GetCluster(RWByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint ClusterIndex, uint NumPageClusters)
 {
 	const uint ClusterSOAStride = (NumPageClusters << 4);
-	const uint ClusterBaseAddress = SrcBaseOffset + GPU_PAGE_HEADER_SIZE + (ClusterIndex << 4);
+	const uint ClusterBaseAddress = SrcBaseOffset + (ClusterIndex << 4);
 
 	uint4 ClusterData[NUM_PACKED_CLUSTER_FLOAT4S];
 	UNROLL
 	for (int i = 0; i < NUM_PACKED_CLUSTER_FLOAT4S; i++)
 	{
-		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride );
+		ClusterData[i] = InputBuffer.Load4( ClusterBaseAddress + i * ClusterSOAStride + GPU_PAGE_HEADER_SIZE );  // Adding GPU_PAGE_HEADER_SIZE inside the loop prevents compiler confusion about offset modifier and generates better code
 	}
 	return UnpackCluster(ClusterData);
 }
@@ -636,7 +639,7 @@ float3 UnpackPosition(uint2 Packed, FCluster Cluster)
 uint2 GetPackedPosition(uint VertIndex, FCluster Cluster)
 {
 	const uint BitsPerVertex = Cluster.PosBits.x + Cluster.PosBits.y + Cluster.PosBits.z;
-	const uint BitOffset = VertIndex * BitsPerVertex;
+	const uint BitOffset = VertIndex * BitsPerVertex;	// TODO: Use Mul24
 	uint3 Data = ClusterPageData.Load3(Cluster.PageBaseAddress + Cluster.PositionOffset + ((BitOffset >> 5) << 2));
 	return uint2(BitAlignU32(Data.y, Data.x, BitOffset), BitAlignU32(Data.z, Data.y, BitOffset));
 }

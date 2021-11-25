@@ -34,10 +34,10 @@ DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS						0x1
-#define DEBUG_FLAG_CULL_HZB_BOX						0x2
-#define DEBUG_FLAG_CULL_HZB_SPHERE					0x4
-#define DEBUG_FLAG_CULL_FRUSTUM_BOX					0x8
-#define DEBUG_FLAG_CULL_FRUSTUM_SPHERE				0x10
+#define DEBUG_FLAG_DISABLE_CULL_HZB_BOX				0x2
+#define DEBUG_FLAG_DISABLE_CULL_HZB_SPHERE			0x4
+#define DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX			0x8
+#define DEBUG_FLAG_DISABLE_CULL_FRUSTUM_SPHERE		0x10
 #define DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING		0x20
 
 static_assert(1 + NUM_CULLING_FLAG_BITS + MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS + MAX_INSTANCES_BITS + MAX_GPU_PAGES_BITS + MAX_CLUSTERS_PER_PAGE_BITS <= 64, "FVisibleCluster fields don't fit in 64bits");
@@ -1141,24 +1141,24 @@ FCullingContext InitCullingContext(
 
 	// TODO: Exclude from shipping builds
 	{
-		if (GNaniteSphereCullingFrustum != 0)
+		if (GNaniteSphereCullingFrustum == 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_CULL_FRUSTUM_SPHERE;
+			CullingContext.DebugFlags |= DEBUG_FLAG_DISABLE_CULL_FRUSTUM_SPHERE;
 		}
 
-		if (GNaniteSphereCullingHZB != 0)
+		if (GNaniteSphereCullingHZB == 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_CULL_HZB_SPHERE;
+			CullingContext.DebugFlags |= DEBUG_FLAG_DISABLE_CULL_HZB_SPHERE;
 		}
 
-		if (GNaniteBoxCullingFrustum != 0)
+		if (GNaniteBoxCullingFrustum == 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_CULL_FRUSTUM_BOX;
+			CullingContext.DebugFlags |= DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX;
 		}
 
-		if (GNaniteBoxCullingHZB != 0)
+		if (GNaniteBoxCullingHZB == 0)
 		{
-			CullingContext.DebugFlags |= DEBUG_FLAG_CULL_HZB_BOX;
+			CullingContext.DebugFlags |= DEBUG_FLAG_DISABLE_CULL_HZB_BOX;
 		}
 
 		if (GNaniteShowStats != 0)
