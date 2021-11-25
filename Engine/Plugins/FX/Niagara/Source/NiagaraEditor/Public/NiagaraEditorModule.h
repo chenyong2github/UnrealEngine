@@ -42,6 +42,7 @@ class FNiagaraDebugger;
 class UNiagaraParameterDefinitions;
 class UNiagaraReservedParametersManager;
 class FNiagaraGraphDataCache;
+class UNiagaraParameterCollection;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -207,6 +208,8 @@ public:
 
 	FNiagaraGraphDataCache& GetGraphDataCache() const { return *GraphDataCache.Get(); }
 
+	NIAGARAEDITOR_API UNiagaraParameterCollection* FindCollectionForVariable(const FString& VariableName);
+
 private:
 	class FDeferredDestructionContainerBase
 	{
@@ -260,6 +263,8 @@ private:
 	{
 		StackIssueGenerators.Add(StructName) = Generator;
 	}
+
+	void RefreshParameterCollections(bool AllowLoading);
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -348,6 +353,8 @@ private:
 	TSet<FGuid> ReservedDefinitionIds;
 
 	TUniquePtr<FNiagaraGraphDataCache> GraphDataCache;
+
+	TArray<TWeakObjectPtr<UNiagaraParameterCollection>> CachedParameterCollections;
 };
 
 USTRUCT()

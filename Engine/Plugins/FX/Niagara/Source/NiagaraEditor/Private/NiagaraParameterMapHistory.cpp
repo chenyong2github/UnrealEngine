@@ -17,9 +17,9 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraConstants.h"
 #include "NiagaraNodeStaticSwitch.h"
-
 #include "NiagaraScriptVariable.h"
 #include "NiagaraNodeParameterMapSet.h"
+#include "UObject/UObjectThreadContext.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraEditor"
 
@@ -674,6 +674,12 @@ FNiagaraVariable FNiagaraParameterMapHistory::ConvertVariableToRapidIterationCon
 
 UNiagaraParameterCollection* FNiagaraParameterMapHistory::IsParameterCollectionParameter(FNiagaraVariable& InVar, bool& bMissingParameter)
 {
+	if (bParameterCollectionsSkipped)
+	{
+		UE_LOG(LogNiagaraEditor, Error, TEXT("NiagaraParameterCollection was skipped during history building.  History which require NPC data can not be generated during PostLoad()."));
+		return nullptr;
+	}
+
 	bMissingParameter = false;
 	FString VarName = InVar.GetName().ToString();
 	for (int32 i = 0; i < ParameterCollections.Num(); ++i)
@@ -718,11 +724,16 @@ FNiagaraParameterMapHistoryBuilder::FNiagaraParameterMapHistoryBuilder()
 	bFilterByScriptAllowList = false;
 	bIgnoreDisabled = true;
 	FilterScriptType = ENiagaraScriptUsage::Function;
+
+	// depending on when this builder is created, we could be doing a PostLoad.  In this scenario
+	// we need to avoid triggering any loads for dependent NiagaraParameterCollection.  Mark the builder
+	// to skip those steps if necessary and we'll ensure that the generated histories don't require the
+	// collection information
+	bIncludeParameterCollectionInfo = !FUObjectThreadContext::Get().IsRoutingPostLoad;
 }
 
 void FNiagaraParameterMapHistoryBuilder::BuildParameterMaps(const UNiagaraNodeOutput* OutputNode, bool bRecursive)
 {
-	
 	TOptional<FName> StackContextAlias = OutputNode->GetStackContextOverride();
 	BeginUsage(OutputNode->GetUsage(), StackContextAlias.Get(ScriptUsageContextNameStack.Num() > 0 ? ScriptUsageContextNameStack.Top() : NAME_None));
 
@@ -773,12 +784,17 @@ ENiagaraScriptUsage FNiagaraParameterMapHistoryBuilder::GetBaseUsageContext()con
 int32 FNiagaraParameterMapHistoryBuilder::CreateParameterMap()
 {
 	int32 RetValue = Histories.AddDefaulted(1);
+	FNiagaraParameterMapHistory& History = Histories[RetValue];
+
 	FName StackName = ScriptUsageContextNameStack.Num() > 0 ? ScriptUsageContextNameStack.Top() : NAME_None;
 
 	if (StackName.IsValid())
 	{
-		Histories[RetValue].IterationNamespaceOverridesEncountered.AddUnique(StackName);
+		History.IterationNamespaceOverridesEncountered.AddUnique(StackName);
 	}
+
+	History.bParameterCollectionsSkipped = !bIncludeParameterCollectionInfo;
+
 	return RetValue;
 }
 
@@ -1269,13 +1285,16 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 	Var = ResolveAliases(Var);
 
 	//Track any parameter collections we're referencing.
-	if (UNiagaraParameterCollection* Collection = Schema->VariableIsFromParameterCollection(Var))
+	if (bIncludeParameterCollectionInfo)
 	{
-		int32 Index = History.ParameterCollections.AddUnique(Collection);
-		History.ParameterCollectionNamespaces.SetNum(History.ParameterCollections.Num());
-		History.ParameterCollectionVariables.SetNum(History.ParameterCollections.Num());
-		History.ParameterCollectionNamespaces[Index] = Collection->GetFullNamespace();
-		History.ParameterCollectionVariables[Index] = Collection->GetParameters();
+		if (UNiagaraParameterCollection* Collection = Schema->VariableIsFromParameterCollection(Var))
+		{
+			int32 Index = History.ParameterCollections.AddUnique(Collection);
+			History.ParameterCollectionNamespaces.SetNum(History.ParameterCollections.Num());
+			History.ParameterCollectionVariables.SetNum(History.ParameterCollections.Num());
+			History.ParameterCollectionNamespaces[Index] = Collection->GetFullNamespace();
+			History.ParameterCollectionVariables[Index] = Collection->GetParameters();
+		}
 	}
 
 	const FString* ModuleAlias = GetModuleAlias();
@@ -1394,16 +1413,19 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleExternalVariableRead(int32 Param
 	FNiagaraVariable OriginalUnaliasedVar = Var;
 
 	//Track any parameter collections we're referencing.
-	FNiagaraVariable FoundTempVar;
-	if (UNiagaraParameterCollection* Collection = Schema->VariableIsFromParameterCollection(Name.ToString(), true, FoundTempVar))
+	if (bIncludeParameterCollectionInfo)
 	{
-		int32 Index = History.ParameterCollections.AddUnique(Collection);
-		History.ParameterCollectionNamespaces.SetNum(History.ParameterCollections.Num());
-		History.ParameterCollectionVariables.SetNum(History.ParameterCollections.Num());
-		History.ParameterCollectionNamespaces[Index] = Collection->GetFullNamespace();
-		History.ParameterCollectionVariables[Index] = Collection->GetParameters();
-		Var = FoundTempVar;
-		UpdateAliasedVariable(AliasedVar, OriginalUnaliasedVar, Var);
+		FNiagaraVariable FoundTempVar;
+		if (UNiagaraParameterCollection* Collection = Schema->VariableIsFromParameterCollection(Name.ToString(), true, FoundTempVar))
+		{
+			int32 Index = History.ParameterCollections.AddUnique(Collection);
+			History.ParameterCollectionNamespaces.SetNum(History.ParameterCollections.Num());
+			History.ParameterCollectionVariables.SetNum(History.ParameterCollections.Num());
+			History.ParameterCollectionNamespaces[Index] = Collection->GetFullNamespace();
+			History.ParameterCollectionVariables[Index] = Collection->GetParameters();
+			Var = FoundTempVar;
+			UpdateAliasedVariable(AliasedVar, OriginalUnaliasedVar, Var);
+		}
 	}
 
 	int32 FoundIdx = Histories[ParamMapIdx].FindVariableByName(Name, true);
