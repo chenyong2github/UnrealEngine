@@ -32,31 +32,37 @@ struct FDMXEntityObjectTextFactory : public FCustomizableTextObjectFactory
 	/** Entities instantiated */
 	TArray<UDMXEntity*> NewEntities;
 
-	/** Constructs a new object factory from the given text buffer */
-	static TSharedRef<FDMXEntityObjectTextFactory> Get(const FString& InTextBuffer)
+	static bool CanCreate(const FString& InTextBuffer)
 	{
-		// Construct a new instance
-		TSharedPtr<FDMXEntityObjectTextFactory> FactoryPtr = MakeShareable(new FDMXEntityObjectTextFactory());
-		check(FactoryPtr.IsValid());
+		TSharedRef<FDMXEntityObjectTextFactory> Factory = MakeShareable(new FDMXEntityObjectTextFactory());
 
 		// Create new objects if we're allowed to
-		if (FactoryPtr->CanCreateObjectsFromText(InTextBuffer))
+		return Factory->CanCreateObjectsFromText(InTextBuffer);
+	}
+
+	/** Constructs a new object factory from the given text buffer. Returns the factor or nullptr if no factory can be created */
+	static TSharedPtr<FDMXEntityObjectTextFactory> Create(const FString& InTextBuffer, UDMXLibrary* InParentLibrary)
+	{
+		TSharedRef<FDMXEntityObjectTextFactory> Factory = MakeShareable(new FDMXEntityObjectTextFactory());
+
+		// Create new objects if we're allowed to
+		if (IsValid(InParentLibrary) && Factory->CanCreateObjectsFromText(InTextBuffer))
 		{
 			EObjectFlags ObjectFlags = RF_Transactional;
 
-			// Use the transient package initially for creating the objects, since the variable name is used when copying
-			FactoryPtr->ProcessBuffer(GetTransientPackage(), ObjectFlags, InTextBuffer);
+			Factory->ProcessBuffer(InParentLibrary, ObjectFlags, InTextBuffer);
+
+			return Factory;
 		}
 
-		return FactoryPtr.ToSharedRef();
+		return nullptr;
 	}
 
 protected:
 	/** Constructor; protected to only allow this class to instance itself */
 	FDMXEntityObjectTextFactory()
 		: FCustomizableTextObjectFactory(GWarn)
-	{
-	}
+	{}
 
 	//~ Begin FCustomizableTextObjectFactory implementation
 	virtual bool CanCreateClass(UClass* ObjectClass, bool& bOmitSubObjs) const override
@@ -71,15 +77,6 @@ protected:
 
 		if (UDMXEntity* NewEntity = Cast<UDMXEntity>(NewObject))
 		{
-			// If this is a Fixture Type and the first object was a Patch, we
-			// don't add the Type to the array. SDMXEntityList will deal with it
-			// from the reference on the Patch(es)
-			if (NewEntities.Num() > 0 && NewEntities[0]->GetClass()->IsChildOf<UDMXEntityFixturePatch>()
-				&& NewEntity->GetClass()->IsChildOf<UDMXEntityFixtureType>())
-			{
-				return;
-			}
-
 			NewEntities.Add(NewEntity);
 		}
 	}
@@ -425,67 +422,8 @@ void FDMXEditorUtils::CopyEntities(const TArray<UDMXEntity*>&& EntitiesToCopy)
 	// Export the component object(s) to text for copying
 	for (UDMXEntity* Entity : EntitiesToCopy)
 	{
-		check(Entity && Entity->GetParentLibrary());
-
-		// Fixture Patches require copying their template because it's a reference to a private object
-		if (UDMXEntityFixturePatch* AsPatch = Cast<UDMXEntityFixturePatch>(Entity))
-		{
-			if (UDMXEntityFixtureType* FixtureType = AsPatch->GetFixtureType())
-			{
-				bool bExportedTemplate = false;
-
-				// Try to get a cached duplicate of the template
-				UDMXEntityFixtureType* DuplicateFixtureType;
-				if (UDMXEntityFixtureType** CachedTemplate = CopiedPatchTemplates.Find(FixtureType->GetFName()))
-				{
-					DuplicateFixtureType = *CachedTemplate;
-					bExportedTemplate = true;
-				}
-				else
-				{
-					// Copy the template to the transient package to make the Patch reference the copy
-					FObjectDuplicationParameters DuplicationParams(FixtureType, GetTransientPackage());
-					DuplicationParams.DestName = FixtureType->GetFName();
-
-					DuplicateFixtureType = CastChecked<UDMXEntityFixtureType>(StaticDuplicateObjectEx(DuplicationParams));
-					// Keep same entity ID to find the original Template when pasting
-					DuplicateFixtureType->ReplicateID(FixtureType);
-
-					// Cache this copy so we don't copy the same template over and over for several Patches
-					CopiedPatchTemplates.Add(DuplicateFixtureType->GetFName(), DuplicateFixtureType);
-				}
-
-				// We'll temporarily change the ParentFixtureTypeTemplate of the Patch to copy it
-				// with a reference to the duplicate Fixture Type
-				UDMXEntityFixtureType* OriginalTemplate = FixtureType;
-				FixtureType = DuplicateFixtureType;
-				// Export the Patch referencing the duplicate template
-				UExporter::ExportToOutputDevice(&Context, AsPatch, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, GetTransientPackage());
-				if (!bExportedTemplate)
-				{
-					// Export the template after the Patch, to make interpretation easier when pasting it back
-					UExporter::ExportToOutputDevice(&Context, DuplicateFixtureType, nullptr, Archive, TEXT("copy"), 4, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, GetTransientPackage());
-				}
-				// Revert the patch to it's original, private template
-				FixtureType = OriginalTemplate;
-			}
-			else // Template is null
-			{
-				// Export the entity object to the given string
-				UExporter::ExportToOutputDevice(&Context, AsPatch, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, GetTransientPackage());
-			}
-		}
-		else
-		{
-			// Export the entity object to the given string
-			UExporter::ExportToOutputDevice(&Context, Entity, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, GetTransientPackage());
-		}
-	}
-
-	// Speed up the deletion of the copies. We don't need them anymore
-	for (const TPair<FName, UDMXEntityFixtureType*>& CopiedTemplate : CopiedPatchTemplates)
-	{
-		CopiedTemplate.Value->ConditionalBeginDestroy();
+		// Export the entity object to the given string
+		UExporter::ExportToOutputDevice(&Context, Entity, nullptr, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false, GetTransientPackage());
 	}
 
 	// Copy text to clipboard
@@ -493,27 +431,34 @@ void FDMXEditorUtils::CopyEntities(const TArray<UDMXEntity*>&& EntitiesToCopy)
 	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
 }
 
-bool FDMXEditorUtils::CanPasteEntities()
+bool FDMXEditorUtils::CanPasteEntities(UDMXLibrary* ParentLibrary)
 {
 	FString ClipboardContent;
 	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
 
 	// Obtain the entity object text factory for the clipboard content and return whether or not we can use it
-	TSharedRef<FDMXEntityObjectTextFactory> Factory = FDMXEntityObjectTextFactory::Get(ClipboardContent);
-	return Factory->NewEntities.Num() > 0;
+	return FDMXEntityObjectTextFactory::CanCreate(ClipboardContent);
 }
 
 void FDMXEditorUtils::GetEntitiesFromClipboard(TArray<UDMXEntity*>& OutNewObjects)
+{
+	// DEPRECATED 5.0, no longer creates a meaningful result
+	OutNewObjects = TArray<UDMXEntity*>();
+}
+
+TArray<UDMXEntity*> FDMXEditorUtils::CreateEntitiesFromClipboard(UDMXLibrary* ParentLibrary)
 {
 	// Get the text from the clipboard
 	FString TextToImport;
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
 
 	// Get a new component object factory for the clipboard content
-	TSharedRef<FDMXEntityObjectTextFactory> Factory = FDMXEntityObjectTextFactory::Get(TextToImport);
+	if (TSharedPtr<FDMXEntityObjectTextFactory> Factory = FDMXEntityObjectTextFactory::Create(TextToImport, ParentLibrary))
+	{
+		return Factory->NewEntities;
+	}
 
-	// Return the created component mappings
-	OutNewObjects = MoveTemp(Factory->NewEntities);
+	return TArray<UDMXEntity*>();
 }
 
 bool FDMXEditorUtils::AreFixtureTypesIdentical(const UDMXEntityFixtureType* A, const UDMXEntityFixtureType* B)

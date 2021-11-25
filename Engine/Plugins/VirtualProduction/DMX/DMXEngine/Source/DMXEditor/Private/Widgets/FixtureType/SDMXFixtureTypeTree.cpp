@@ -113,7 +113,7 @@ void SDMXFixtureTypeTree::RebuildNodes(const TSharedPtr<FDMXEntityTreeRootNode>&
 	EntityNodeToEntityRowMap.Reset();
 
 	UDMXLibrary* Library = GetDMXLibrary();
-	check(Library);
+	check(IsValid(Library));
 
 	Library->ForEachEntityOfType<UDMXEntityFixtureType>([this](UDMXEntityFixtureType* FixtureType)
 		{
@@ -284,16 +284,15 @@ bool SDMXFixtureTypeTree::CanCopyNodes() const
 
 void SDMXFixtureTypeTree::OnPasteNodes()
 {
+	// Get the library that's being edited
+	UDMXLibrary* Library = GetDMXLibrary();
+	check(IsValid(Library));
+
 	// Get the Entities to paste from the clipboard
-	TArray<UDMXEntity*> NewObjects;
-	FDMXEditorUtils::GetEntitiesFromClipboard(NewObjects);
+	TArray<UDMXEntity*> NewObjects = FDMXEditorUtils::CreateEntitiesFromClipboard(Library);
 
 	if (NewObjects.Num() != 0)
 	{
-		// Get the library that's being edited
-		UDMXLibrary* Library = GetDMXLibrary();
-		check(Library);
-
 		// Start transaction for Undo and take a snapshot of the current Library state
 		const FScopedTransaction PasteEntities(NewObjects.Num() > 1 ? LOCTEXT("PasteFixtureTypes", "Paste Fixture Types") : LOCTEXT("PasteFixtureType", "Paste Fixture Type"));
 		Library->Modify();
@@ -321,12 +320,17 @@ void SDMXFixtureTypeTree::OnPasteNodes()
 
 bool SDMXFixtureTypeTree::CanPasteNodes() const
 {
-	return FDMXEditorUtils::CanPasteEntities();
+	UDMXLibrary* Library = GetDMXLibrary();
+	check(IsValid(Library));
+
+	return FDMXEditorUtils::CanPasteEntities(Library);
 }
 
 void SDMXFixtureTypeTree::OnDuplicateNodes()
 {
 	UDMXLibrary* Library = GetDMXLibrary();
+	check(IsValid(Library));
+
 	TArray<UDMXEntity*> SelectedEntities = GetSelectedEntities();
 
 	if (Library && SelectedEntities.Num() > 0)

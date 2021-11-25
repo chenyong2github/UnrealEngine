@@ -461,15 +461,14 @@ bool SDMXFixturePatchTree::CanCopyNodes() const
 
 void SDMXFixturePatchTree::OnPasteNodes()
 {
+	// Get the library that's being edited
+	UDMXLibrary* Library = GetDMXLibrary();
+	check(Library);
+
 	// Get the Entities to paste from the clipboard
-	TArray<UDMXEntity*> NewObjects;
-	FDMXEditorUtils::GetEntitiesFromClipboard(NewObjects);
+	TArray<UDMXEntity*> NewObjects = FDMXEditorUtils::CreateEntitiesFromClipboard(Library);
 	if (NewObjects.Num() != 0)
 	{
-		// Get the library that's being edited
-		UDMXLibrary* Library = GetDMXLibrary();
-		check(Library);
-
 		// Start transaction for Undo and take a snapshot of the current Library state
 		const FScopedTransaction PasteEntities(NewObjects.Num() > 1 ? LOCTEXT("PasteFixturePatches", "Paste Fixture Patches") : LOCTEXT("PasteFixturePatch", "Paste Fixture Patch"));
 		Library->Modify();
@@ -478,34 +477,37 @@ void SDMXFixturePatchTree::OnPasteNodes()
 		TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> NewFixturePatches;
 		for (UDMXEntity* NewEntity : NewObjects)
 		{
-			UDMXEntityFixturePatch* FixturePatch = CastChecked<UDMXEntityFixturePatch>(NewEntity);
-			NewFixturePatches.Add(FixturePatch);
-
-			// Search for a suitable replacement for the pasted Fixture Type, with identical
-			// properties, except for the Name, ID and Parent Library
-			const TArray<UDMXEntityFixturePatch*> FixturePatches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-			const UDMXEntityFixturePatch* const* SourceFixturePatchPtr = FixturePatches.FindByPredicate([FixturePatch](const UDMXEntityFixturePatch* SourceFixturePatch)
-				{
-					return SourceFixturePatch->GetID() == FixturePatch->GetID();
-				});
-
-			if (SourceFixturePatchPtr)
+			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(NewEntity))
 			{
-				FixturePatch->SetFixtureType((*SourceFixturePatchPtr)->GetFixtureType());
+				NewFixturePatches.Add(FixturePatch);
+
+				// Search for a suitable replacement for the pasted Fixture Type, with identical
+				// properties, except for the Name, ID and Parent Library
+				const TArray<UDMXEntityFixturePatch*> FixturePatches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+				const UDMXEntityFixturePatch* const* SourceFixturePatchPtr = FixturePatches.FindByPredicate([FixturePatch](const UDMXEntityFixturePatch* SourceFixturePatch)
+					{
+						return SourceFixturePatch->GetID() == FixturePatch->GetID();
+					});
+
+				if (SourceFixturePatchPtr)
+				{
+					UDMXEntityFixtureType* FixtureType = (*SourceFixturePatchPtr)->GetFixtureType();
+					FixturePatch->SetFixtureType(FixtureType);
+				}
+
+				// Move the Fixture Type template from the transient package into the Library package
+				FixturePatch->Rename(*MakeUniqueObjectName(Library, UDMXEntityFixtureType::StaticClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
+				FixturePatch->RefreshID();
+
+				// Add to the Library
+				AutoAssignCopiedPatch(FixturePatch);
+
+				// Move the Entity from the transient package into the Library package
+				FixturePatch->Rename(*MakeUniqueObjectName(Library, FixturePatch->GetClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
+
+				// Make sure the Entity's name won't collide with existing ones
+				FixturePatch->SetName(FDMXRuntimeUtils::FindUniqueEntityName(Library, FixturePatch->GetClass(), FixturePatch->GetDisplayName()));
 			}
-
-			// Move the Fixture Type template from the transient package into the Library package
-			NewEntity->Rename(*MakeUniqueObjectName(Library, UDMXEntityFixtureType::StaticClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
-			NewEntity->RefreshID();
-
-			// Add to the Library
-			AutoAssignCopiedPatch(FixturePatch);
-
-			// Move the Entity from the transient package into the Library package
-			NewEntity->Rename(*MakeUniqueObjectName(Library, NewEntity->GetClass()).ToString(), Library, REN_DoNotDirty | REN_DontCreateRedirectors);
-			
-			// Make sure the Entity's name won't collide with existing ones
-			NewEntity->SetName(FDMXRuntimeUtils::FindUniqueEntityName(Library, NewEntity->GetClass(), NewEntity->GetDisplayName()));
 		}
 
 		FixturePatchSharedData->SelectFixturePatches(NewFixturePatches);
@@ -516,7 +518,10 @@ void SDMXFixturePatchTree::OnPasteNodes()
 
 bool SDMXFixturePatchTree::CanPasteNodes() const
 {
-	return FDMXEditorUtils::CanPasteEntities();
+	UDMXLibrary* Library = GetDMXLibrary();
+	check(IsValid(Library));
+
+	return FDMXEditorUtils::CanPasteEntities(Library);
 }
 
 void SDMXFixturePatchTree::OnDuplicateNodes()
