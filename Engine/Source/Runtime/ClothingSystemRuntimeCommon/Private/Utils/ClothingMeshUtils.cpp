@@ -56,6 +56,39 @@ namespace ClothingMeshUtils
 		bHasValidMaxEdgeLengths = true;
 	}
 
+	void ClothMeshDesc::ComputeAveragedNormals() const
+	{
+		AveragedNormals.Init(FVector3f::ZeroVector, Positions.Num());  // Note AveragedNormals is a mutable, so can be modified in this function
+
+		const int32 NumTriangles = Indices.Num() / 3;
+		for (int32 TriangleIndex = 0; TriangleIndex < NumTriangles; ++TriangleIndex)
+		{
+			const uint32 Index0 = Indices[3 * TriangleIndex + 0];
+			const uint32 Index1 = Indices[3 * TriangleIndex + 1];
+			const uint32 Index2 = Indices[3 * TriangleIndex + 2];
+			const FVector3f& Position0 = Positions[Index0];
+			const FVector3f& Position1 = Positions[Index1];
+			const FVector3f& Position2 = Positions[Index2];
+
+			FVector3f Normal = FVector3f::CrossProduct(Position2 - Position0, Position1 - Position0);
+			if (Normal.Normalize())  // Skip contributions from degenerate triangles
+			{
+				AveragedNormals[Index0] += Normal;
+				AveragedNormals[Index1] += Normal;
+				AveragedNormals[Index2] += Normal;
+			}
+		}
+
+		for (int32 Index = 0; Index < AveragedNormals.Num(); ++Index)
+		{
+			FVector3f& Normal = AveragedNormals[Index];
+			if (!Normal.Normalize())
+			{
+				Normal = FVector3f::XAxisVector;
+			}
+		}
+	}
+
 	// Explicit template instantiations of SkinPhysicsMesh
 	// TODO: Deprecated, remove this templated version post 5.0
 	template
@@ -398,13 +431,15 @@ namespace ClothingMeshUtils
 										 int32 ClosestTriangleBaseIdx,
 										 FMeshToMeshVertData& OutSkinningData)
 		{
+			check(SourceMesh.AveragedNormals.Num() == SourceMesh.Positions.Num());
+
 			const FVector3f& A = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx]];
 			const FVector3f& B = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
 			const FVector3f& C = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
 
-			const FVector3f& NA = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx]];
-			const FVector3f& NB = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
-			const FVector3f& NC = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
+			const FVector3f& NA = SourceMesh.AveragedNormals[SourceMesh.Indices[ClosestTriangleBaseIdx]];
+			const FVector3f& NB = SourceMesh.AveragedNormals[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
+			const FVector3f& NC = SourceMesh.AveragedNormals[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
 
 			// Before generating the skinning data we need to check for a degenerate triangle.
 			// If we find _any_ degenerate triangles we will notify and fail to generate the skinning data
@@ -447,6 +482,8 @@ namespace ClothingMeshUtils
 										   float KernelMaxDistance,
 										   float MaxIncidentEdgeLength)
 		{
+			check(SourceMesh.AveragedNormals.Num() == SourceMesh.Positions.Num());
+
 			const FVector3f& VertPosition = TargetMesh.Positions[VertIdx0];
 			const FVector3f& VertNormal = TargetMesh.Normals[VertIdx0];
 
@@ -483,9 +520,9 @@ namespace ClothingMeshUtils
 				const FVector3f& B = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
 				const FVector3f& C = SourceMesh.Positions[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
 
-				const FVector3f& NA = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx]];
-				const FVector3f& NB = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
-				const FVector3f& NC = SourceMesh.Normals[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
+				const FVector3f& NA = SourceMesh.AveragedNormals[SourceMesh.Indices[ClosestTriangleBaseIdx]];
+				const FVector3f& NB = SourceMesh.AveragedNormals[SourceMesh.Indices[ClosestTriangleBaseIdx + 1]];
+				const FVector3f& NC = SourceMesh.AveragedNormals[SourceMesh.Indices[ClosestTriangleBaseIdx + 2]];
 
 				// Before generating the skinning data we need to check for a degenerate triangle.
 				// If we find _any_ degenerate triangles we will notify and fail to generate the skinning data
@@ -616,6 +653,8 @@ namespace ClothingMeshUtils
 		bool bUseMultipleInfluences,
 		float KernelMaxDistance)
 	{
+		check(SourceMesh.AveragedNormals.Num() == SourceMesh.Positions.Num());
+
 		if (!TargetMesh.HasValidMesh())  // Check that the number of positions is equal to the number of normals and that the number of indices is divisible by 3
 		{
 			UE_LOG(LogClothingMeshUtils, Warning, TEXT("Failed to generate mesh to mesh skinning data. Invalid Target Mesh."));
@@ -634,7 +673,7 @@ namespace ClothingMeshUtils
 		const int32 NumMesh0Tris = TargetMesh.Indices.Num() / 3;
 
 		const int32 NumMesh1Verts = SourceMesh.Positions.Num();
-		const int32 NumMesh1Normals = SourceMesh.Normals.Num();
+		const int32 NumMesh1Normals = SourceMesh.AveragedNormals.Num();
 		const int32 NumMesh1Indices = SourceMesh.Indices.Num();
 
 		TargetMesh.ComputeMaxEdgeLengths();
