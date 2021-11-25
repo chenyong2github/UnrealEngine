@@ -18,11 +18,12 @@ struct FMassCollectorLODConfig
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config, meta = (BaseStruct = "MassTag"))
 	FInstancedStruct TagFilter;
 
-	/** Set FOV Angles to define the limits between using Visible or Base LOD Distances */
-	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", ClampMax = "180.0", UIMin = "0.0", UIMax = "180.0"), config)
-	float FOVAnglesToDriveVisibility = 45.0f;
+	/** How far away from frustrum does this entities are considered visible */
 	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
-	float BufferHysteresisOnFOVPercentage = 10.0f;
+	float DistanceToFrustum = 0.0f;
+	// Once visible how much further than DistanceToFrustum does the entities need to be before being cull again
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	float DistanceToFrustumHysteresis = 0.0f;
 
 	/** Runtime data for matching the LOD config */
 	TMassLODCollector<FMassRepresentationLODLogic> RepresentationLODCollector;
