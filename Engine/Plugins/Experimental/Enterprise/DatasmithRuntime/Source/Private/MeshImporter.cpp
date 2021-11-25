@@ -408,8 +408,10 @@ namespace DatasmithRuntime
 			}
 		}
 
+#if WITH_EDITOR
 		// Force the generation of UVs data with full precision in the vertex buffer
 		StaticMesh->GetSourceModel(0).BuildSettings.bUseFullPrecisionUVs = true;
+#endif
 
 		TArray<const FMeshDescription*> MeshDescriptionPointers;
 		for (FMeshDescription& MeshDescription : MeshDescriptions)
