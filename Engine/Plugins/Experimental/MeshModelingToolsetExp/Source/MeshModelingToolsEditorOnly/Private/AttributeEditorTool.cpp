@@ -314,6 +314,8 @@ void UAttributeEditorTool::InitializeAttributeLists()
 	ExtractAttribList(Mesh, Mesh->EdgeAttributes(), EAttributeEditorElementType::Edge, this->EdgeAttributes, AttributeProps->EdgeAttributes);
 	ExtractAttribList(Mesh, Mesh->PolygonGroupAttributes(), EAttributeEditorElementType::PolygonGroup, this->GroupAttributes, AttributeProps->GroupAttributes);
 
+	TArray<FString> OldAttributeNames = ModifyAttributeProps->AttributeNamesList;
+
 	ModifyAttributeProps->AttributeNamesList.Reset();
 	CopyAttributeProps->FromAttribute.Reset();
 	CopyAttributeProps->ToAttribute.Reset();
@@ -341,6 +343,16 @@ void UAttributeEditorTool::InitializeAttributeLists()
 	if (!ModifyAttributeProps->AttributeNamesList.Contains(ModifyAttributeProps->Attribute))
 	{
 		ModifyAttributeProps->Attribute.Reset();
+	}
+
+	// If we've added a new attribute to the list, set it as the selected attribute (useful when undoing an attribute deletion)
+	for (const FString& AttributeName : ModifyAttributeProps->AttributeNamesList)
+	{
+		if (!OldAttributeNames.Contains(AttributeName))
+		{
+			ModifyAttributeProps->Attribute = AttributeName;
+			break;
+		}
 	}
 
 	bAttributeListsValid = true;
