@@ -10,10 +10,6 @@
 
 class FTextureResource;
 
-#ifndef WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS
-#define WITH_TEXTURE_PLATFORMDATA_DEPRECATIONS 1
-#endif
-
 UCLASS(hidecategories=Object, MinimalAPI)
 class UTextureCube : public UTexture
 {
