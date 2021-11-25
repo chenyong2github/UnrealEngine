@@ -64,7 +64,11 @@ protected:
 
 		FRayTracingMeshCommand SharedCommand;
 
-		SharedCommand.SetShaders(PassShaders.GetUntypedShaders());
+		if (GRHISupportsRayTracingShaders)
+		{
+			SharedCommand.SetShaders(PassShaders.GetUntypedShaders());
+		}
+
 		SharedCommand.InstanceMask = ComputeBlendModeMask(MaterialResource.GetBlendMode());
 		SharedCommand.bCastRayTracedShadows = MeshBatch.CastRayTracedShadow && MaterialResource.CastsRayTracedShadows();
 		SharedCommand.bOpaque = MaterialResource.GetBlendMode() == EBlendMode::BLEND_Opaque && !(VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() && FDataDrivenShaderPlatformInfo::GetSupportsRayTracingProceduralPrimitive(GMaxRHIShaderPlatform));

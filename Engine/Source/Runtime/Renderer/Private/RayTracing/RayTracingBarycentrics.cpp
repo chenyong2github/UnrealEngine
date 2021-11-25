@@ -75,7 +75,7 @@ class FRayTracingBarycentricsCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return RHISupportsRayTracing(Parameters.Platform) && RHISupportsInlineRayTracing(Parameters.Platform);
+		return IsRayTracingEnabledForProject(Parameters.Platform) && RHISupportsRayTracing(Parameters.Platform) && RHISupportsInlineRayTracing(Parameters.Platform);
 	}
 
 	// Current inline ray tracing implementation requires 1:1 mapping between thread groups and waves and only supports wave32 mode.

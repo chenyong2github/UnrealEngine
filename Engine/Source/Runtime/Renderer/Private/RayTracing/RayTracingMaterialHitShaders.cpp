@@ -295,24 +295,15 @@ static bool GetMaterialHitShader(const FMaterial& RESTRICT MaterialResource, con
 	return true;
 }
 
-bool FRayTracingMeshProcessor::Process(
-	const FMeshBatch& RESTRICT MeshBatch,
-	uint64 BatchElementMask,
-	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
-	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
+static bool GetRayTracingMeshProcessorShaders(
+	const FUniformLightMapPolicy& RESTRICT LightMapPolicy,
+	const FVertexFactory* VertexFactory,
 	const FMaterial& RESTRICT MaterialResource,
-	const FUniformLightMapPolicy& RESTRICT LightMapPolicy)
+	TShaderRef<FMaterialCHS>& OutRayHitGroupShader)
 {
+	check(GRHISupportsRayTracingShaders);
 
 	const bool bMaterialsCompiled = GCompileRayTracingMaterialAHS || GCompileRayTracingMaterialCHS;
-
-	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-
-	TMeshProcessorShaders<
-		FMeshMaterialShader,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
-		FMaterialCHS> RayTracingShaders;
 
 	if (bMaterialsCompiled)
 	{
@@ -321,31 +312,31 @@ bool FRayTracingMeshProcessor::Process(
 		switch (LightMapPolicy.GetIndirectPolicy())
 		{
 		case LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING:
-			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>>(MaterialResource, VertexFactory, bUseTextureLOD, OutRayHitGroupShader))
 			{
 				return false;
 			}
 			break;
 		case LMP_LQ_LIGHTMAP:
-			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, OutRayHitGroupShader))
 			{
 				return false;
 			}
 			break;
 		case LMP_HQ_LIGHTMAP:
-			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, OutRayHitGroupShader))
 			{
 				return false;
 			}
 			break;
 		case LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP:
-			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, OutRayHitGroupShader))
 			{
 				return false;
 			}
 			break;
 		case LMP_NO_LIGHTMAP:
-			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, OutRayHitGroupShader))
 			{
 				return false;
 			}
@@ -365,7 +356,32 @@ bool FRayTracingMeshProcessor::Process(
 			return false;
 		}
 
-		Shaders.TryGetShader(SF_RayHitGroup, RayTracingShaders.RayHitGroupShader);
+		Shaders.TryGetShader(SF_RayHitGroup, OutRayHitGroupShader);
+	}
+
+	return true;
+}
+
+bool FRayTracingMeshProcessor::Process(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
+	const FMaterial& RESTRICT MaterialResource,
+	const FUniformLightMapPolicy& RESTRICT LightMapPolicy)
+{
+	TMeshProcessorShaders<
+		FMeshMaterialShader,
+		FMeshMaterialShader,
+		FMeshMaterialShader,
+		FMaterialCHS> RayTracingShaders;
+
+	if (GRHISupportsRayTracingShaders)
+	{
+		if (!GetRayTracingMeshProcessorShaders(LightMapPolicy, MeshBatch.VertexFactory, MaterialResource, RayTracingShaders.RayHitGroupShader))
+		{
+			return false;
+		}
 	}
 
 	TBasePassShaderElementData<FUniformLightMapPolicy> ShaderElementData(MeshBatch.LCI);
