@@ -21,10 +21,12 @@ public:
 	virtual void CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) const override;
 	virtual void CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArray<FSceneOutlinerTreeItemPtr>& OutChildren) const override {}
 	virtual FSceneOutlinerTreeItemPtr CreateParentItem(const FSceneOutlinerTreeItemPtr& Item) const override;
-	void SetShowingEditorDataLayers(bool bInShowingEditorDataLayers) { bShowingEditorDataLayers = bInShowingEditorDataLayers; }
-	void SetShowingRuntimeDataLayers(bool bInShowingRuntimeDataLayers) { bShowingRuntimeDataLayers = bInShowingRuntimeDataLayers; }
-	void SetShowingDataLayerActors(bool bInShowingDataLayerActors) { bShowingDataLayerActors = bInShowingDataLayerActors; }
-	void SetShowingUnloadedActors(bool bInShowingUnloadedActors) { bShowingUnloadedActors = bInShowingUnloadedActors; }
+	void SetShowEditorDataLayers(bool bInShowEditorDataLayers) { bShowEditorDataLayers = bInShowEditorDataLayers; }
+	void SetShowRuntimeDataLayers(bool bInShowRuntimeDataLayers) { bShowRuntimeDataLayers = bInShowRuntimeDataLayers; }
+	void SetShowDataLayerActors(bool bInShowDataLayerActors) { bShowDataLayerActors = bInShowDataLayerActors; }
+	void SetShowUnloadedActors(bool bInShowUnloadedActors) { bShowUnloadedActors = bInShowUnloadedActors; }
+	void SetShowOnlySelectedActors(bool bInbShowOnlySelectedActors) { bShowOnlySelectedActors = bInbShowOnlySelectedActors; }
+	void SetHighlightSelectedDataLayers(bool bInHighlightSelectedDataLayers) { bHighlightSelectedDataLayers = bInHighlightSelectedDataLayers; }
 
 private:
 	FDataLayerHierarchy(FDataLayerMode* Mode, const TWeakObjectPtr<UWorld>& Worlds);
@@ -46,10 +48,14 @@ private:
 	void OnActorDataLayersChanged(const TWeakObjectPtr<AActor>& InActor);
 	void OnDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayer>& ChangedDataLayer, const FName& ChangedProperty);
 	void FullRefreshEvent();
+	FSceneOutlinerTreeItemPtr CreateDataLayerTreeItem(UDataLayer* InDataLayer, bool bInForce = false) const;
+	bool IsDataLayerPartOfSelection(const UDataLayer* DataLayer) const;
 
 	TWeakObjectPtr<UWorld> RepresentingWorld;
-	bool bShowingEditorDataLayers;
-	bool bShowingRuntimeDataLayers;
-	bool bShowingDataLayerActors;
-	bool bShowingUnloadedActors;
+	bool bShowEditorDataLayers;
+	bool bShowRuntimeDataLayers;
+	bool bShowDataLayerActors;
+	bool bShowUnloadedActors;
+	bool bShowOnlySelectedActors;
+	bool bHighlightSelectedDataLayers;
 };

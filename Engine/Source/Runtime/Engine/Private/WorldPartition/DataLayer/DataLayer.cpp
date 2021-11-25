@@ -193,6 +193,17 @@ void UDataLayer::SetParent(UDataLayer* InParent)
 	}
 }
 
+void UDataLayer::ForEachChild(TFunctionRef<bool(const UDataLayer*)> Operation) const
+{
+	for (UDataLayer* Child : Children)
+	{
+		if (!Operation(Child))
+		{
+			break;
+		}
+	}
+}
+
 void UDataLayer::SetChildParent(UDataLayer* InParent)
 {
 	if (this == InParent)

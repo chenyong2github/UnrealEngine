@@ -35,6 +35,7 @@ private:
 	void OnPostUndoRedo() { DataLayerEditorSubsystem->PostUndoRedo(); }
 	void OnObjectPostEditChange(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	void OnLevelActorsAdded(AActor* InActor) { DataLayerEditorSubsystem->InitializeNewActorDataLayers(InActor); }
+	void OnLevelSelectionChanged(UObject* InObject) { DataLayerEditorSubsystem->OnSelectionChanged(); }
 
 	UDataLayerEditorSubsystem* DataLayerEditorSubsystem;
 	bool bIsInitialized;
@@ -61,6 +62,8 @@ void FDataLayersBroadcast::Deinitialize()
 		FEditorDelegates::PostUndoRedo.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 		GEngine->OnLevelActorAdded().RemoveAll(this);
+		USelection::SelectionChangedEvent.RemoveAll(this);
+		USelection::SelectObjectEvent.RemoveAll(this);
 	}
 }
 
@@ -73,6 +76,8 @@ void FDataLayersBroadcast::Initialize()
 		FEditorDelegates::PostUndoRedo.AddRaw(this, &FDataLayersBroadcast::OnPostUndoRedo);
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FDataLayersBroadcast::OnObjectPostEditChange);
 		GEngine->OnLevelActorAdded().AddRaw(this, &FDataLayersBroadcast::OnLevelActorsAdded);
+		USelection::SelectionChangedEvent.AddRaw(this, &FDataLayersBroadcast::OnLevelSelectionChanged);
+		USelection::SelectObjectEvent.AddRaw(this, &FDataLayersBroadcast::OnLevelSelectionChanged);
 	}
 }
 
@@ -162,19 +167,19 @@ void UDataLayerEditorSubsystem::EditorMapChange()
 	{
 		World->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddLambda([this](AActor& InActor) { InitializeNewActorDataLayers(&InActor); });
 	}
-	DataLayerChanged.Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
+	BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
 	UpdateAllActorsVisibility(true, true);
 }
 
 void UDataLayerEditorSubsystem::EditorRefreshDataLayerBrowser()
 {
-	DataLayerChanged.Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
+	BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
 	UpdateAllActorsVisibility(false, false);
 }
 
 void UDataLayerEditorSubsystem::PostUndoRedo()
 {
-	DataLayerChanged.Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
+	BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
 	UpdateAllActorsVisibility(true, true);
 }
 
@@ -215,7 +220,7 @@ bool UDataLayerEditorSubsystem::SetParentDataLayer(UDataLayer* DataLayer, UDataL
 	{
 		const bool bIsLoaded = DataLayer->IsEffectiveLoadedInEditor();
 		DataLayer->SetParent(ParentDataLayer);
-		DataLayerChanged.Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
+		BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
 		UpdateAllActorsVisibility(true, true);
 		if (bIsLoaded != DataLayer->IsEffectiveLoadedInEditor())
 		{
@@ -268,7 +273,7 @@ bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Act
 				if (Actor->AddDataLayer(DataLayer))
 				{
 					bActorWasModified = true;
-					ActorDataLayersChanged.Broadcast(Actor);
+					BroadcastActorDataLayersChanged(Actor);
 				}
 			}
 
@@ -306,9 +311,9 @@ bool UDataLayerEditorSubsystem::RemoveActorsFromAllDataLayers(const TArray<AActo
 		{
 			for (const UDataLayer* DataLayer : ModifiedDataLayers)
 			{
-				DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, NAME_None);
+				BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayer, NAME_None);
 			}
-			ActorDataLayersChanged.Broadcast(Actor);
+			BroadcastActorDataLayersChanged(Actor);
 
 			// Update general actor visibility
 			bool bActorModified = false;
@@ -363,8 +368,8 @@ bool UDataLayerEditorSubsystem::RemoveActorsFromDataLayers(const TArray<AActor*>
 			if (Actor->RemoveDataLayer(DataLayer))
 			{
 				bActorWasModified = true;
-				DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, NAME_None);
-				ActorDataLayersChanged.Broadcast(Actor);
+				BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayer, NAME_None);
+				BroadcastActorDataLayersChanged(Actor);
 			}
 		}
 
@@ -718,7 +723,7 @@ void UDataLayerEditorSubsystem::SetDataLayersVisibility(const TArray<UDataLayer*
 		{
 			DataLayer->Modify(/*bAlswaysMarkDirty*/false);
 			DataLayer->SetVisible(bIsVisible);
-			DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsVisible");
+			BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayer, "bIsVisible");
 			bChangeOccurred = true;
 		}
 	}
@@ -746,7 +751,7 @@ void UDataLayerEditorSubsystem::ToggleDataLayersVisibility(const TArray<UDataLay
 	{
 		DataLayer->Modify();
 		DataLayer->SetVisible(!DataLayer->IsVisible());
-		DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsVisible");
+		BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayer, "bIsVisible");
 	}
 
 	UpdateAllActorsVisibility(true, true);
@@ -762,7 +767,7 @@ void UDataLayerEditorSubsystem::MakeAllDataLayersVisible()
 			{
 				DataLayer->Modify();
 				DataLayer->SetVisible(true);
-				DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsVisible");
+				BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayer, "bIsVisible");
 			}
 			return true;
 		});
@@ -780,7 +785,7 @@ bool UDataLayerEditorSubsystem::SetDataLayerIsLoadedInEditorInternal(UDataLayer*
 
 		DataLayer->Modify(false);
 		DataLayer->SetIsLoadedInEditor(bIsLoadedInEditor, /*bFromUserChange*/bIsFromUserChange);
-		DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsLoadedInEditor");
+		BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayer, "bIsLoadedInEditor");
 
 		if (DataLayer->IsEffectiveVisible() != bWasVisible)
 		{
@@ -893,7 +898,7 @@ UDataLayer* UDataLayerEditorSubsystem::CreateDataLayer()
 {
 	AWorldDataLayers* WorldDataLayers = GetWorldDataLayers(/*bCreateIfNotFound*/true);
 	UDataLayer* NewDataLayer = WorldDataLayers->CreateDataLayer();
-	DataLayerChanged.Broadcast(EDataLayerAction::Add, NewDataLayer, NAME_None);
+	BroadcastDataLayerChanged(EDataLayerAction::Add, NewDataLayer, NAME_None);
 	return NewDataLayer;
 }
 
@@ -903,7 +908,7 @@ void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<UDataLayer*>& Data
 	{
 		if (WorldDataLayers->RemoveDataLayers(DataLayersToDelete))
 		{
-			DataLayerChanged.Broadcast(EDataLayerAction::Delete, NULL, NAME_None);
+			BroadcastDataLayerChanged(EDataLayerAction::Delete, NULL, NAME_None);
 		}
 	}
 }
@@ -914,7 +919,7 @@ void UDataLayerEditorSubsystem::DeleteDataLayer(UDataLayer* DataLayerToDelete)
 	{
 		if (WorldDataLayers->RemoveDataLayer(DataLayerToDelete))
 		{
-			DataLayerChanged.Broadcast(EDataLayerAction::Delete, NULL, NAME_None);
+			BroadcastDataLayerChanged(EDataLayerAction::Delete, NULL, NAME_None);
 		}
 	}
 }
@@ -929,9 +934,41 @@ bool UDataLayerEditorSubsystem::RenameDataLayer(UDataLayer* DataLayer, const FNa
 			FName UniqueNewDataLayerLabel = WorldDataLayers->GenerateUniqueDataLayerLabel(DataLayerLabelSanitized);
 			DataLayer->Modify();
 			DataLayer->SetDataLayerLabel(UniqueNewDataLayerLabel);
-			DataLayerChanged.Broadcast(EDataLayerAction::Rename, DataLayer, "DataLayerLabel");
+			BroadcastDataLayerChanged(EDataLayerAction::Rename, DataLayer, "DataLayerLabel");
 			return true;
 		}
 	}
 	return false;
+}
+
+void UDataLayerEditorSubsystem::BroadcastActorDataLayersChanged(const TWeakObjectPtr<AActor>& ChangedActor)
+{
+	RebuildSelectedDataLayersFromEditorSelection();
+	ActorDataLayersChanged.Broadcast(ChangedActor);
+}
+
+void UDataLayerEditorSubsystem::BroadcastDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayer>& ChangedDataLayer, const FName& ChangedProperty)
+{
+	RebuildSelectedDataLayersFromEditorSelection();
+	DataLayerChanged.Broadcast(Action, ChangedDataLayer, ChangedProperty);
+}
+
+void UDataLayerEditorSubsystem::OnSelectionChanged()
+{
+	RebuildSelectedDataLayersFromEditorSelection();
+}
+
+void UDataLayerEditorSubsystem::RebuildSelectedDataLayersFromEditorSelection()
+{
+	SelectedDataLayersFromEditorSelection.Reset();
+
+	TArray<AActor*> Actors;
+	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(Actors);
+	for (const AActor* Actor : Actors)
+	{
+		for (const UDataLayer* DataLayer : Actor->GetDataLayerObjects())
+		{
+			SelectedDataLayersFromEditorSelection.Add(DataLayer);
+		}
+	}
 }

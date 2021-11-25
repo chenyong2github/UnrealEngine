@@ -22,6 +22,7 @@ struct SDataLayerTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidg
 
 private:
 
+	FSlateFontInfo GetDisplayNameFont() const;
 	FText GetDisplayText() const;
 	FText GetTooltipText() const;
 	FText GetTypeText() const;
@@ -31,6 +32,7 @@ private:
 	FSlateColor GetForegroundColor() const;
 	bool OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage);
 	void OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo);
+	bool ShouldBeHighlighted() const;
 
 	TWeakPtr<FDataLayerTreeItem> TreeItemPtr;
 	TWeakObjectPtr<UDataLayer> DataLayerPtr;

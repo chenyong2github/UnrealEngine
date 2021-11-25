@@ -26,6 +26,9 @@ public:
 	virtual bool ShouldShowVisibilityState() const { return true; }
 	/* End ISceneOutlinerTreeItem Implementation */
 
+	bool ShouldBeHighlighted() const;
+	void SetIsHighlightedIfSelected(bool bInIsHighlightedIfSelected) { bIsHighlighedtIfSelected = bInIsHighlightedIfSelected; }
+
 	static const FSceneOutlinerTreeItemType Type;
 
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FFilterPredicate, const UDataLayer*);
@@ -44,4 +47,5 @@ public:
 private:
 	TWeakObjectPtr<UDataLayer> DataLayer;
 	const FObjectKey ID;
+	bool bIsHighlighedtIfSelected;
 };

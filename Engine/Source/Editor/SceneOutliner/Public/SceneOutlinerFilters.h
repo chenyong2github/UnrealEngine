@@ -13,7 +13,7 @@ class FMenuBuilder;
 /**
 	* Contains information used to create a filter which will be displayed as user toggleable filter
 	*/
-class FSceneOutlinerFilterInfo
+class SCENEOUTLINER_API FSceneOutlinerFilterInfo
 { 
 public:
 	FSceneOutlinerFilterInfo(const FText& InFilterTitle, const FText& InFilterTooltip, bool bInActive, const FCreateSceneOutlinerFilter& InFactory = FCreateSceneOutlinerFilter())

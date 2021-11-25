@@ -47,11 +47,32 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 	, SpecifiedWorldToDisplay(Params.SpecifiedWorldToDisplay)
 	, FilteredDataLayerCount(0)
 {
+	USelection::SelectionChangedEvent.AddRaw(this, &FDataLayerMode::OnLevelSelectionChanged);
+	USelection::SelectObjectEvent.AddRaw(this, &FDataLayerMode::OnLevelSelectionChanged);
+
 	UWorldPartitionEditorPerProjectUserSettings* SharedSettings = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>();
 	bHideEditorDataLayers = SharedSettings->bHideEditorDataLayers;
 	bHideRuntimeDataLayers = SharedSettings->bHideRuntimeDataLayers;
 	bHideDataLayerActors = SharedSettings->bHideDataLayerActors;
 	bHideUnloadedActors = SharedSettings->bHideUnloadedActors;
+	bShowOnlySelectedActors = SharedSettings->bShowOnlySelectedActors;
+	bHighlightSelectedDataLayers = SharedSettings->bHighlightSelectedDataLayers;
+
+	FSceneOutlinerFilterInfo ShowOnlySelectedActorsInfo(LOCTEXT("ToggleShowOnlySelected", "Only Selected"), LOCTEXT("ToggleShowOnlySelectedToolTip", "When enabled, only displays actors that are currently selected."), bShowOnlySelectedActors, FCreateSceneOutlinerFilter::CreateStatic(&FDataLayerMode::CreateShowOnlySelectedActorsFilter));
+	ShowOnlySelectedActorsInfo.OnToggle().AddLambda([this](bool bIsActive)
+	{
+		UWorldPartitionEditorPerProjectUserSettings* Settings = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>();
+		Settings->bShowOnlySelectedActors = bShowOnlySelectedActors = bIsActive;
+		Settings->PostEditChange();
+
+		if (auto DataLayerHierarchy = StaticCast<FDataLayerHierarchy*>(Hierarchy.Get()))
+		{
+			DataLayerHierarchy->SetShowOnlySelectedActors(bIsActive);
+		}
+
+		RefreshSelection();
+	});
+	FilterInfoMap.Add(TEXT("ShowOnlySelectedActors"), ShowOnlySelectedActorsInfo);
 
 	FSceneOutlinerFilterInfo HideEditorDataLayersInfo(LOCTEXT("ToggleHideEditorDataLayers", "Hide Editor Data Layers"), LOCTEXT("ToggleHideEditorDataLayersToolTip", "When enabled, hides Editor Data Layers."), bHideEditorDataLayers, FCreateSceneOutlinerFilter::CreateStatic(&FDataLayerMode::CreateHideEditorDataLayersFilter));
 	HideEditorDataLayersInfo.OnToggle().AddLambda([this](bool bIsActive)
@@ -62,7 +83,7 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 
 		if (auto DataLayerHierarchy = StaticCast<FDataLayerHierarchy*>(Hierarchy.Get()))
 		{
-			DataLayerHierarchy->SetShowingEditorDataLayers(!bIsActive);
+			DataLayerHierarchy->SetShowEditorDataLayers(!bIsActive);
 		}
 	});
 	FilterInfoMap.Add(TEXT("HideEditorDataLayersFilter"), HideEditorDataLayersInfo);
@@ -76,7 +97,7 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 
 		if (auto DataLayerHierarchy = StaticCast<FDataLayerHierarchy*>(Hierarchy.Get()))
 		{
-			DataLayerHierarchy->SetShowingRuntimeDataLayers(!bIsActive);
+			DataLayerHierarchy->SetShowRuntimeDataLayers(!bIsActive);
 		}
 	});
 	FilterInfoMap.Add(TEXT("HideRuntimeDataLayersFilter"), HideRuntimeDataLayersInfo);
@@ -90,7 +111,7 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 
 		if (auto DataLayerHierarchy = StaticCast<FDataLayerHierarchy*>(Hierarchy.Get()))
 		{
-			DataLayerHierarchy->SetShowingDataLayerActors(!bIsActive);
+			DataLayerHierarchy->SetShowDataLayerActors(!bIsActive);
 		}
 	});
 	FilterInfoMap.Add(TEXT("HideDataLayerActorsFilter"), HideDataLayerActorsInfo);
@@ -104,7 +125,7 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 
 		if (auto DataLayerHierarchy = StaticCast<FDataLayerHierarchy*>(Hierarchy.Get()))
 		{
-			DataLayerHierarchy->SetShowingUnloadedActors(!bIsActive);
+			DataLayerHierarchy->SetShowUnloadedActors(!bIsActive);
 		}
 	});
 	FilterInfoMap.Add(TEXT("HideUnloadedActorsFilter"), HideUnloadedActorsInfo);
@@ -117,6 +138,12 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 	DataLayerEditorSubsystem = UDataLayerEditorSubsystem::Get();
 	Rebuild();
 	const_cast<FSharedSceneOutlinerData&>(SceneOutliner->GetSharedData()).CustomDelete = FCustomSceneOutlinerDeleteDelegate::CreateRaw(this, &FDataLayerMode::DeleteItems);
+}
+
+FDataLayerMode::~FDataLayerMode()
+{
+	USelection::SelectionChangedEvent.RemoveAll(this);
+	USelection::SelectObjectEvent.RemoveAll(this);
 }
 
 TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateHideEditorDataLayersFilter()
@@ -178,7 +205,7 @@ FText FDataLayerMode::GetStatusText() const
 	{
 		if (SelectedDataLayerCount == 0)
 		{
-			return FText::Format(LOCTEXT("ShowingAllDataLayersFmt", "{0} data layers"), FText::AsNumber(FilteredDataLayerCount), FText::AsNumber(FilteredDataLayerCount));
+			return FText::Format(LOCTEXT("ShowingAllDataLayersFmt", "{0} data layers"), FText::AsNumber(FilteredDataLayerCount));
 		}
 		else
 		{
@@ -206,11 +233,16 @@ SDataLayerBrowser* FDataLayerMode::GetDataLayerBrowser() const
 
 void FDataLayerMode::OnItemAdded(FSceneOutlinerTreeItemPtr Item)
 {
-	if (const FDataLayerTreeItem* DataLayerItem = Item->CastTo<FDataLayerTreeItem>())
+	if (FDataLayerTreeItem* DataLayerItem = Item->CastTo<FDataLayerTreeItem>())
 	{
 		if (!Item->Flags.bIsFilteredOut)
 		{
 			++FilteredDataLayerCount;
+
+			if (ShouldExpandDataLayer(DataLayerItem->GetDataLayer()))
+			{
+				SceneOutliner->SetItemExpansion(DataLayerItem->AsShared(), true);
+			}
 
 			if (SelectedDataLayersSet.Contains(DataLayerItem->GetDataLayer()))
 			{
@@ -1022,6 +1054,32 @@ TSharedPtr<SWidget> FDataLayerMode::CreateContextMenu()
 
 void FDataLayerMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 {
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ToggleHighlightSelectedDataLayers", "Highlight Selected"),
+		LOCTEXT("ToggleHighlightSelectedDataLayersToolTip", "When enabled, highlights Data Layers containing actors that are currently selected."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				UWorldPartitionEditorPerProjectUserSettings* Settings = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>();
+				bHighlightSelectedDataLayers = !bHighlightSelectedDataLayers;
+				Settings->bHighlightSelectedDataLayers = bHighlightSelectedDataLayers;
+				Settings->PostEditChange();
+
+				if (auto DataLayerHierarchy = StaticCast<FDataLayerHierarchy*>(Hierarchy.Get()))
+				{
+					DataLayerHierarchy->SetHighlightSelectedDataLayers(bHighlightSelectedDataLayers);
+				}
+
+				SceneOutliner->FullRefresh();
+			}), 
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() { return bHighlightSelectedDataLayers; })
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
 	MenuBuilder.BeginSection("AssetThumbnails", LOCTEXT("ShowAdvancedHeading", "Advanced"));
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("ToggleAllowRuntimeDataLayerEditing", "Allow Runtime Data Layer Editing"), 
@@ -1130,10 +1188,12 @@ bool FDataLayerMode::IsWorldChecked(TWeakObjectPtr<UWorld> World) const
 TUniquePtr<ISceneOutlinerHierarchy> FDataLayerMode::CreateHierarchy()
 {
 	TUniquePtr<FDataLayerHierarchy> DataLayerHierarchy = FDataLayerHierarchy::Create(this, RepresentingWorld);
-	DataLayerHierarchy->SetShowingEditorDataLayers(!bHideEditorDataLayers);
-	DataLayerHierarchy->SetShowingRuntimeDataLayers(!bHideRuntimeDataLayers);
-	DataLayerHierarchy->SetShowingDataLayerActors(!bHideDataLayerActors);
-	DataLayerHierarchy->SetShowingUnloadedActors(!bHideUnloadedActors);
+	DataLayerHierarchy->SetShowEditorDataLayers(!bHideEditorDataLayers);
+	DataLayerHierarchy->SetShowRuntimeDataLayers(!bHideRuntimeDataLayers);
+	DataLayerHierarchy->SetShowDataLayerActors(!bHideDataLayerActors);
+	DataLayerHierarchy->SetShowUnloadedActors(!bHideUnloadedActors);
+	DataLayerHierarchy->SetShowOnlySelectedActors(bShowOnlySelectedActors);
+	DataLayerHierarchy->SetHighlightSelectedDataLayers(bHighlightSelectedDataLayers);
 	return DataLayerHierarchy;
 }
 
@@ -1245,6 +1305,100 @@ void FDataLayerMode::ChooseRepresentingWorld()
 			}
 		}
 	}
+}
+
+bool FDataLayerMode::ShouldExpandDataLayer(const UDataLayer* DataLayer) const
+{
+	if (bHighlightSelectedDataLayers || bShowOnlySelectedActors)
+	{
+		if (DataLayer)
+		{
+			if ((bShowOnlySelectedActors && DataLayerEditorSubsystem->DoesDataLayerContainSelectedActors(DataLayer)) ||
+				(ContainsSelectedChildDataLayer(DataLayer) && !DataLayer->GetChildren().IsEmpty()))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool FDataLayerMode::ContainsSelectedChildDataLayer(const UDataLayer* DataLayer) const
+{
+	if (DataLayer)
+	{
+		bool bFoundSelected = false;
+		DataLayer->ForEachChild([this, &bFoundSelected](const UDataLayer* Child)
+		{
+			if (DataLayerEditorSubsystem->DoesDataLayerContainSelectedActors(Child) || ContainsSelectedChildDataLayer(Child))
+			{
+				bFoundSelected = true;
+				return false;
+			}
+			return true;
+		});
+		return bFoundSelected;
+	}
+	return false;
+};
+
+TSharedRef<FSceneOutlinerFilter> FDataLayerMode::CreateShowOnlySelectedActorsFilter()
+{
+	auto IsActorSelected = [](const AActor* InActor, const UDataLayer* InDataLayer)
+	{
+		return InActor && InActor->IsSelected();
+	};
+	return MakeShareable(new FDataLayerActorFilter(FDataLayerActorTreeItem::FFilterPredicate::CreateStatic(IsActorSelected), FSceneOutlinerFilter::EDefaultBehaviour::Pass, FDataLayerActorTreeItem::FFilterPredicate::CreateStatic(IsActorSelected)));
+}
+
+void FDataLayerMode::SynchronizeSelection()
+{
+	if (!bShowOnlySelectedActors && !bHighlightSelectedDataLayers)
+	{
+		return;
+	}
+
+	TArray<AActor*> Actors;
+	TSet<const UDataLayer*> ActorDataLayersIncludingParents;
+	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(Actors);
+	for (const AActor* Actor : Actors)
+	{
+		TArray<const UDataLayer*> ActorDataLayers = Actor->GetDataLayerObjects();
+		for (const UDataLayer* DataLayer : ActorDataLayers)
+		{
+			const UDataLayer* CurrentDataLayer = DataLayer;
+			while (CurrentDataLayer)
+			{
+				bool bIsAlreadyInSet = false;
+				ActorDataLayersIncludingParents.Add(CurrentDataLayer, &bIsAlreadyInSet);
+				if (!bIsAlreadyInSet)
+				{
+					FSceneOutlinerTreeItemPtr TreeItem = SceneOutliner->GetTreeItem(CurrentDataLayer, false);
+					if (TreeItem && ShouldExpandDataLayer(CurrentDataLayer))
+					{
+						SceneOutliner->SetItemExpansion(TreeItem, true);
+					}
+				}
+				CurrentDataLayer = CurrentDataLayer->GetParent();
+			}
+		}
+	}
+}
+
+void FDataLayerMode::OnLevelSelectionChanged(UObject* Obj)
+{
+	if (!bShowOnlySelectedActors && !bHighlightSelectedDataLayers)
+	{
+		return;
+	}
+
+	RefreshSelection();
+}
+
+void FDataLayerMode::RefreshSelection()
+{
+	SceneOutliner->FullRefresh();
+	SceneOutliner->RefreshSelection();
 }
 
 //
