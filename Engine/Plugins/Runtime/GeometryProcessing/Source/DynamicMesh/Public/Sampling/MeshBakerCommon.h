@@ -105,14 +105,14 @@ public:
 	/** @return the triangle count of a given mesh. */
 	virtual int32 GetTriangleCount(const void* Mesh) const = 0;
 
-	/** Associate a color map and UV layer index for a given mesh in the detail set */
-	virtual void SetColorMap(const void* Mesh, const FBakeDetailTexture& Map) = 0;
+	/** Associate a texture map and UV layer index for a given mesh in the detail set */
+	virtual void SetTextureMap(const void* Mesh, const FBakeDetailTexture& Map) = 0;
 
 	/** Associate a normal map and UV layer index for a given mesh in the detail set */
 	virtual void SetNormalMap(const void* Mesh, const FBakeDetailTexture& Map) = 0;
 
-	/** Retrieve a color map and UV layer index from a given mesh in the detail set */
-	virtual const FBakeDetailTexture* GetColorMap(const void* Mesh) const = 0;
+	/** Retrieve a texture map and UV layer index from a given mesh in the detail set */
+	virtual const FBakeDetailTexture* GetTextureMap(const void* Mesh) const = 0;
 
 	/** Retrieve a normal map and UV layer index from a given mesh in the detail set */
 	virtual const FBakeDetailTexture* GetNormalMap(const void* Mesh) const = 0;
@@ -337,9 +337,9 @@ public:
 		return DynamicMesh->TriangleCount();
 	}
 
-	virtual void SetColorMap(const void* Mesh, const FBakeDetailTexture& Map) override
+	virtual void SetTextureMap(const void* Mesh, const FBakeDetailTexture& Map) override
 	{
-		DetailColorMap = Map;
+		DetailTextureMap = Map;
 	}
 
 	virtual void SetNormalMap(const void* Mesh, const FBakeDetailTexture& Map) override
@@ -347,9 +347,9 @@ public:
 		DetailNormalMap = Map;
 	}
 
-	virtual const FBakeDetailTexture* GetColorMap(const void* Mesh) const override
+	virtual const FBakeDetailTexture* GetTextureMap(const void* Mesh) const override
 	{
-		return &DetailColorMap;
+		return &DetailTextureMap;
 	}
 	
 	virtual const FBakeDetailTexture* GetNormalMap(const void* Mesh) const override
@@ -553,7 +553,7 @@ protected:
 	const FDynamicMesh3* DetailMesh = nullptr;
 	const FDynamicMeshAABBTree3* DetailSpatial = nullptr;
 	const FMeshTangentsd* DetailTangents = nullptr;
-	FBakeDetailTexture DetailColorMap = FBakeDetailTexture(nullptr, 0);
+	FBakeDetailTexture DetailTextureMap = FBakeDetailTexture(nullptr, 0);
 	FBakeDetailTexture DetailNormalMap = FBakeDetailTexture(nullptr, 0);
 };		
 	

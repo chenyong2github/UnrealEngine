@@ -182,7 +182,7 @@ protected:
 	TObjectPtr<UBakeMultiMeshAttributeMapsToolProperties> Settings;
 
 	UPROPERTY()
-	TObjectPtr<UBakeMultiMeshInputToolProperties> InputMeshProps;
+	TObjectPtr<UBakeMultiMeshInputToolProperties> InputMeshSettings;
 
 
 protected:

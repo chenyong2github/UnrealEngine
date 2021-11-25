@@ -221,7 +221,7 @@ public:
 			case EBakeMapType::Texture:
 			{
 				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
-				DetailSampler.SetColorMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
+				DetailSampler.SetTextureMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
 				Baker->AddEvaluator(TextureEval);
 				break;
 			}
@@ -269,25 +269,25 @@ void UBakeMeshAttributeMapsTool::Setup()
 	
 	// Setup tool property sets
 
-	MeshProps = NewObject<UBakeInputMeshProperties>(this);
-	MeshProps->RestoreProperties(this);
-	AddToolPropertySource(MeshProps);
-	SetToolPropertySourceEnabled(MeshProps, true);
-	MeshProps->bHasTargetUVLayer = true;
-	MeshProps->bHasSourceNormalMap = true;
-	MeshProps->TargetStaticMesh = GetStaticMeshTarget(Target);
-	MeshProps->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
-	MeshProps->TargetDynamicMesh = GetDynamicMeshTarget(Target);
-	MeshProps->SourceStaticMesh = !bIsBakeToSelf ? GetStaticMeshTarget(DetailTarget) : nullptr;
-	MeshProps->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
-	MeshProps->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
-	MeshProps->SourceNormalMap = nullptr;
-	UpdateUVLayerNames(MeshProps->TargetUVLayer, MeshProps->TargetUVLayerNamesList, TargetMesh);
-	MeshProps->WatchProperty(MeshProps->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
-	MeshProps->WatchProperty(MeshProps->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
-	MeshProps->WatchProperty(MeshProps->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
-	MeshProps->WatchProperty(MeshProps->SourceNormalMapUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
-	MeshProps->WatchProperty(MeshProps->SourceNormalMap, [this](UTexture2D*)
+	InputMeshSettings = NewObject<UBakeInputMeshProperties>(this);
+	InputMeshSettings->RestoreProperties(this);
+	AddToolPropertySource(InputMeshSettings);
+	SetToolPropertySourceEnabled(InputMeshSettings, true);
+	InputMeshSettings->bHasTargetUVLayer = true;
+	InputMeshSettings->bHasSourceNormalMap = true;
+	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
+	InputMeshSettings->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
+	InputMeshSettings->TargetDynamicMesh = GetDynamicMeshTarget(Target);
+	InputMeshSettings->SourceStaticMesh = !bIsBakeToSelf ? GetStaticMeshTarget(DetailTarget) : nullptr;
+	InputMeshSettings->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
+	InputMeshSettings->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
+	InputMeshSettings->SourceNormalMap = nullptr;
+	UpdateUVLayerNames(InputMeshSettings->TargetUVLayer, InputMeshSettings->TargetUVLayerNamesList, TargetMesh);
+	InputMeshSettings->WatchProperty(InputMeshSettings->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
+	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	InputMeshSettings->WatchProperty(InputMeshSettings->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
+	InputMeshSettings->WatchProperty(InputMeshSettings->SourceNormalMapUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
+	InputMeshSettings->WatchProperty(InputMeshSettings->SourceNormalMap, [this](UTexture2D*)
 	{
 		// Only invalidate detail mesh if we need to recompute tangents.
 		if (!DetailMeshTangents)
@@ -448,7 +448,7 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 	Super::Shutdown(ShutdownType);
 	
 	Settings->SaveProperties(this);
-	MeshProps->SaveProperties(this);
+	InputMeshSettings->SaveProperties(this);
 	OcclusionSettings->SaveProperties(this);
 	CurvatureSettings->SaveProperties(this);
 	TextureSettings->SaveProperties(this);
@@ -479,10 +479,10 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 {
 	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
 
-	const bool bWantMeshTangents = (MeshProps->SourceNormalMap != nullptr);
+	const bool bWantMeshTangents = (InputMeshSettings->SourceNormalMap != nullptr);
 	DetailMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(UE::ToolTarget::GetDynamicMeshCopy(DetailTarget, bWantMeshTangents));
 
-	if (MeshProps->bProjectionInWorldSpace && bIsBakeToSelf == false)
+	if (InputMeshSettings->bProjectionInWorldSpace && bIsBakeToSelf == false)
 	{
 		using FTransform3d = UE::Geometry::FTransform3d;
 		const FTransform3d DetailToWorld = UE::ToolTarget::GetLocalToWorldTransform(DetailTarget);
@@ -505,7 +505,7 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 		DetailMeshTangents = nullptr;
 	}
 
-	UpdateUVLayerNames(MeshProps->SourceNormalMapUVLayer, MeshProps->SourceUVLayerNamesList, *DetailMesh);
+	UpdateUVLayerNames(InputMeshSettings->SourceNormalMapUVLayer, InputMeshSettings->SourceUVLayerNamesList, *DetailMesh);
 
 	// Clear detail mesh evaluation flag and mark evaluation.
 	OpState &= ~EBakeOpState::EvaluateDetailMesh;
@@ -536,11 +536,11 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	FBakeSettings BakeSettings;
 	BakeSettings.Dimensions = Dimensions;
 	BakeSettings.BitDepth = Settings->BitDepth;
-	BakeSettings.TargetUVLayer = MeshProps->TargetUVLayerNamesList.IndexOfByKey(MeshProps->TargetUVLayer);
+	BakeSettings.TargetUVLayer = InputMeshSettings->TargetUVLayerNamesList.IndexOfByKey(InputMeshSettings->TargetUVLayer);
 	BakeSettings.DetailTimestamp = this->DetailMeshTimestamp;
-	BakeSettings.ProjectionDistance = MeshProps->ProjectionDistance;
+	BakeSettings.ProjectionDistance = InputMeshSettings->ProjectionDistance;
 	BakeSettings.SamplesPerPixel = (int32)Settings->SamplesPerPixel;
-	BakeSettings.bProjectionInWorldSpace = MeshProps->bProjectionInWorldSpace;
+	BakeSettings.bProjectionInWorldSpace = InputMeshSettings->bProjectionInWorldSpace;
 
 	// Record the original map types and process the raw bitfield which may add
 	// additional targets.
@@ -613,7 +613,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 {
 	EBakeOpState ResultState = EBakeOpState::Clean;
 
-	const int DetailUVLayer = MeshProps->SourceUVLayerNamesList.IndexOfByKey(MeshProps->SourceNormalMapUVLayer);
+	const int DetailUVLayer = InputMeshSettings->SourceUVLayerNamesList.IndexOfByKey(InputMeshSettings->SourceNormalMapUVLayer);
 	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(DetailUVLayer);
 	if (UVOverlay == nullptr)
 	{
@@ -621,7 +621,7 @@ EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
 		return EBakeOpState::Invalid;
 	}
 	
-	UTexture2D* DetailMeshNormalMap = MeshProps->SourceNormalMap; 
+	UTexture2D* DetailMeshNormalMap = InputMeshSettings->SourceNormalMap; 
 	if (DetailMeshNormalMap)
 	{
 		CachedDetailNormalMap = MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();

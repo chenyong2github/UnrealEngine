@@ -46,7 +46,7 @@ FVector4f FMeshResampleImageEvaluator::ImageSampleFunction(const FCorrespondence
 	const int32 DetailTriID = SampleData.DetailTriID;
 	const TImageBuilder<FVector4f>* TextureImage = nullptr;
 	int DetailUVLayer = 0;
-	const IMeshBakerDetailSampler::FBakeDetailTexture* ColorMap = DetailSampler->GetColorMap(DetailMesh);
+	const IMeshBakerDetailSampler::FBakeDetailTexture* ColorMap = DetailSampler->GetTextureMap(DetailMesh);
 	if (ColorMap)
 	{
 		Tie(TextureImage, DetailUVLayer) = *ColorMap;

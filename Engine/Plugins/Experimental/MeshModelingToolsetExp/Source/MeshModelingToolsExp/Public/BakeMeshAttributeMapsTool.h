@@ -114,7 +114,7 @@ protected:
 	// @todo setters/getters for these
 
 	UPROPERTY()
-	TObjectPtr<UBakeInputMeshProperties> MeshProps;
+	TObjectPtr<UBakeInputMeshProperties> InputMeshSettings;
 
 	UPROPERTY()
 	TObjectPtr<UBakeMeshAttributeMapsToolProperties> Settings;
