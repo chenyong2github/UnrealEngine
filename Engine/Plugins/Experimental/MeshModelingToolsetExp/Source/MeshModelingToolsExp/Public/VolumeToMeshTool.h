@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Volume.h"
-#include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "PreviewMesh.h"
 #include "Drawing/LineSetComponent.h"
+#include "PropertySets/CreateMeshObjectTypeProperties.h"
 #include "VolumeToMeshTool.generated.h"
 
 /**
@@ -77,6 +77,9 @@ public:
 protected:
 	UPROPERTY()
 	TObjectPtr<UVolumeToMeshToolProperties> Settings;
+
+	UPROPERTY()
+	TObjectPtr<UCreateMeshObjectTypeProperties> OutputTypeProperties;
 
 	UPROPERTY()
 	TObjectPtr<UPreviewMesh> PreviewMesh;
