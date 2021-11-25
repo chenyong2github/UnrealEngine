@@ -26,23 +26,29 @@ void ANavigationDataChunkActor::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GEditor)
+	if (UWorld* World = GetWorld())
 	{
-		const bool bIsInPIE = (GEditor->PlayWorld != NULL) && (!GEditor->bIsSimulatingInEditor);
-		if (!bIsInPIE)
+		if (UNavigationSystemBase* NavSys = World->GetNavigationSystem())
 		{
-			Log(ANSI_TO_TCHAR(__FUNCTION__));
-			UE_LOG(LogNavigation, Verbose, TEXT("   pos: %s ext: %s"), *DataChunkActorBounds.GetCenter().ToCompactString(), *DataChunkActorBounds.GetExtent().ToCompactString());
-			AddNavigationDataChunkToWorld();
+			if (NavSys->IsWorldInitDone())
+			{
+				AddNavigationDataChunkInEditor(*NavSys);
+			}
+			else
+			{
+				UNavigationSystemBase::OnNavigationInitDoneStaticDelegate().AddUObject(this, &ANavigationDataChunkActor::AddNavigationDataChunkInEditor);
+			}
 		}
 	}
 }
 
 void ANavigationDataChunkActor::BeginDestroy()
 {
+	UNavigationSystemBase::OnNavigationInitDoneStaticDelegate().RemoveAll(this);
+	
 	if (GEditor)
 	{
-		const bool bIsInPIE = (GEditor->PlayWorld != NULL) && (!GEditor->bIsSimulatingInEditor);
+		const bool bIsInPIE = (GEditor->PlayWorld != nullptr) && (!GEditor->bIsSimulatingInEditor);
 		if (!bIsInPIE)
 		{
 			Log(ANSI_TO_TCHAR(__FUNCTION__));
@@ -52,14 +58,31 @@ void ANavigationDataChunkActor::BeginDestroy()
 
 	Super::BeginDestroy();
 }
+
+void ANavigationDataChunkActor::AddNavigationDataChunkInEditor(const UNavigationSystemBase& NavSys)
+{
+	if (GEditor)
+	{
+		const bool bIsInPIE = (GEditor->PlayWorld != nullptr) && (!GEditor->bIsSimulatingInEditor);
+		if (!bIsInPIE)
+		{
+			if (NavSys.GetWorld() == GetWorld())
+			{
+				Log(ANSI_TO_TCHAR(__FUNCTION__));
+				UE_LOG(LogNavigation, Verbose, TEXT("   pos: %s ext: %s"), *DataChunkActorBounds.GetCenter().ToCompactString(), *DataChunkActorBounds.GetExtent().ToCompactString());
+				AddNavigationDataChunkToWorld();
+			}
+		}
+	}
+}
 #endif // WITH_EDITOR
 
 void ANavigationDataChunkActor::CollectNavData(const FBox& QueryBounds, FBox& OutTilesBounds)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ANavigationDataChunkActor::CollectNavData);
 	Log(ANSI_TO_TCHAR(__FUNCTION__));
 
-	UWorld* World = GetWorld();
-	if (World)
+	if (UWorld* World = GetWorld())
 	{
 		if (UNavigationSystemBase* NavSys = World->GetNavigationSystem())
 		{
@@ -91,8 +114,7 @@ void ANavigationDataChunkActor::EndPlay(const EEndPlayReason::Type EndPlayReason
 
 void ANavigationDataChunkActor::AddNavigationDataChunkToWorld()
 {
-	UWorld* World = GetWorld();
-	if (World)
+	if (UWorld* World = GetWorld())
 	{
 		if (UNavigationSystemBase* NavSys = World->GetNavigationSystem())
 		{
@@ -103,8 +125,7 @@ void ANavigationDataChunkActor::AddNavigationDataChunkToWorld()
 
 void ANavigationDataChunkActor::RemoveNavigationDataChunkFromWorld()
 {
-	UWorld* World = GetWorld();
-	if (World)
+	if (UWorld* World = GetWorld())
 	{
 		if (UNavigationSystemBase* NavSys = World->GetNavigationSystem())
 		{

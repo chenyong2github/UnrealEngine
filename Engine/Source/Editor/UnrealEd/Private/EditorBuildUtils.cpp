@@ -39,6 +39,8 @@
 #include "MaterialUtilities.h"
 #include "UnrealEngine.h"
 #include "DebugViewModeHelpers.h"
+#include "IDirectoryWatcher.h"
+#include "DirectoryWatcherModule.h"
 #include "MaterialStatsCommon.h"
 #include "Materials/MaterialInstance.h"
 #include "VirtualTexturingEditorModule.h"
@@ -838,9 +840,9 @@ void FEditorBuildUtils::SubmitPackagesForAutomatedBuild( const TSet<UPackage*>& 
 	SourceControlProvider.Execute( CheckInOperation, LevelsToSubmit, EConcurrency::Synchronous );
 }
 
-void FEditorBuildUtils::TriggerNavigationBuilder(UWorld* InWorld, FName Id)
+void FEditorBuildUtils::TriggerNavigationBuilder(UWorld*& InOutWorld, FName Id)
 {
-	if (InWorld)
+	if (InOutWorld)
 	{
 		if (Id == FBuildOptions::BuildAIPaths ||
 			Id == FBuildOptions::BuildSelectedAIPaths ||
@@ -855,9 +857,105 @@ void FEditorBuildUtils::TriggerNavigationBuilder(UWorld* InWorld, FName Id)
 			bBuildingNavigationFromUserRequest = false;
 		}
 
-		// Invoke navmesh generator
-		FNavigationSystem::Build(*InWorld);
+		const bool bAllowPartitionedBuildingFromEditor = false; // Still experimental, not enabled by default yet.
+		const FString& LongPackageName = InOutWorld->GetPackage()->GetName();
+		if (bAllowPartitionedBuildingFromEditor && ULevel::GetIsLevelPartitionedFromPackage(*LongPackageName))
+		{
+			WorldPartitionBuildNavigation(LongPackageName);
+			InOutWorld = GEditor->GetEditorWorldContext().World();
+		}
+		else
+		{
+			// Invoke navmesh generator
+			FNavigationSystem::Build(*InOutWorld);
+		}
 	}
+}
+
+bool FEditorBuildUtils::WorldPartitionBuildNavigation(const FString& InLongPackageName)
+{
+	// Ask user to save dirty packages
+	if (!FEditorFileUtils::SaveDirtyPackages(/*bPromptUserToSave=*/true, /*bSaveMapPackages=*/true, /*bSaveContentPackages=*/false))
+	{
+		return false;
+	}
+
+	// Unload any loaded map
+	if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
+	{
+		return false;
+	}
+	
+	FProcHandle ProcessHandle;
+	bool bCancelled = false;
+
+	// Task scope
+	{
+		FScopedSlowTask SlowTask(0, LOCTEXT("WorldPartitionBuildNavigationProgress", "Building navigation..."));
+		SlowTask.MakeDialog(true);
+
+		const FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
+
+		// Try to provide complete Path, if we can't try with project name
+		const FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
+
+		uint32 ProcessID;
+
+		const FString Arguments = FString::Printf(TEXT("\"%s\" -run=WorldPartitionBuilderCommandlet %s  %s"), *ProjectPath, *InLongPackageName, TEXT(" -AllowCommandletRendering -Builder=WorldPartitionNavigationDataBuilder -SCCProvider=None -log=WPNavigationBuilderLog.txt"));
+		ProcessHandle = FPlatformProcess::CreateProc(*CurrentExecutableName, *Arguments, true, false, false, &ProcessID, 0, nullptr, nullptr);
+		
+		while (FPlatformProcess::IsProcRunning(ProcessHandle))
+		{
+			if (SlowTask.ShouldCancel())
+			{
+				bCancelled = true;
+				FPlatformProcess::TerminateProc(ProcessHandle);
+				break;
+			}
+
+			SlowTask.EnterProgressFrame(0);
+			FPlatformProcess::Sleep(0.1);
+		}
+	}
+
+	int32 Result = 0;
+	if (!bCancelled && FPlatformProcess::GetProcReturnCode(ProcessHandle, &Result))
+	{	
+		if (Result == 0)
+		{
+			// Unload any loaded map
+			if (!UEditorLoadingAndSavingUtils::NewBlankMap(/*bSaveExistingMap*/false))
+			{
+				return false;
+			}
+			
+			// Force registry update before loading converted map
+			const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+											
+			FString MapToLoad = InLongPackageName;
+			
+			AssetRegistry.ScanModifiedAssetFiles({ MapToLoad });
+			AssetRegistry.ScanPathsSynchronous({ ULevel::GetExternalActorsPath(MapToLoad) }, true);
+
+			// Force a directory watcher tick for the asset registry to get notified of the changes
+			FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::Get().LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
+			DirectoryWatcherModule.Get()->Tick(-1.0f);
+			
+			FEditorFileUtils::LoadMap(MapToLoad);
+		}
+	}
+	else if (bCancelled)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionBuildNavigationCancelled", "Building navigation cancelled!"));
+	}
+	
+	if (Result != 0)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("WorldPartitionBuildNavigationFailed", "Building navigation failed!"));
+	}
+
+	return false;
 }
 
 /**

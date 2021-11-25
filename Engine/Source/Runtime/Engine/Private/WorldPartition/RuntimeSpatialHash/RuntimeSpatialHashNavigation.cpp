@@ -73,7 +73,12 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateNavigationData(const FBox& Loade
 
 	const FSquare2DGridHelper::FGridLevel& GridLevelHelper = GridHelper.Levels[GridLevel];
 
-	GridLevelHelper.ForEachIntersectingCells(LoadedBounds, [GridLevel, &GridHelper, &GridLevelHelper, RuntimeGrid, &ActorCount, World, &ValidNavigationDataChunkActors, &NavDataBounds, this](const FIntVector2& CellCoord)
+	// Loaded bounds include an half cell border buffer to allow to build all cell withing the iterative loaded bounds
+	//  so here we substract the half cell size to make the building bounds.
+	// A DataChunkActor will be generated for each tile touching the building bounds.
+	const FBox BuildingBounds = LoadedBounds.ExpandBy(-(0.5*GridLevelHelper.CellSize));
+	
+	GridLevelHelper.ForEachIntersectingCells(BuildingBounds, [GridLevel, &GridHelper, &GridLevelHelper, RuntimeGrid, &ActorCount, World, &ValidNavigationDataChunkActors, &NavDataBounds, this](const FIntVector2& CellCoord)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(MakeNavigationDataChunkActorForGridCell);
 		

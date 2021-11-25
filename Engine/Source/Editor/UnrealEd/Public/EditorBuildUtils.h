@@ -254,10 +254,12 @@ private:
 	/** 
 	 * Trigger navigation builder to (re)generate NavMesh 
 	 *
-	 * @param	InWorld			WorldContext
+	 * @param	InOutWorld		WorldContext
 	 * @param	BuildSettings	Build settings that will be used for the editor build
 	 */
-	static void TriggerNavigationBuilder(UWorld* InWorld, FName Id);
+	static void TriggerNavigationBuilder(UWorld*& InOutWorld, FName Id);
+
+	static bool WorldPartitionBuildNavigation(const FString& InLongPackageName);
 
 	/** 
 	 * Trigger LOD builder to (re)generate LODActors
