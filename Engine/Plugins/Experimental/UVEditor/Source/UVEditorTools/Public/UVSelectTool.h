@@ -179,6 +179,7 @@ protected:
 	UE::Geometry::FFrame3d InitialGizmoFrame;
 	FTransform UnappliedGizmoTransform;
 	bool bInDrag = false;
+	bool bIgnoreOnCanonicalChange = false;
 	bool bGizmoTransformNeedsApplication = false;
 
 	TArray<int32> MovingVids;
