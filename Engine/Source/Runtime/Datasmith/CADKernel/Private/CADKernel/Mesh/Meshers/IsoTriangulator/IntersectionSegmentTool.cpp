@@ -43,6 +43,7 @@ const FIsoSegment* FIntersectionSegmentTool::DoesIntersect(const FIsoNode& Start
 
 		if (IntersectSegments2D(Segment.Segment2D, StartEndSegment.Segment2D))
 		{
+			//DisplaySegment(Segment.Segment2D.Point0, Segment.Segment2D.Point1, 0, RedCurve);
 			return Segment.IsoSegment;
 		}
 	}
