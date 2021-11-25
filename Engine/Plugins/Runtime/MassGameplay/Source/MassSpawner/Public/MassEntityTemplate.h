@@ -130,7 +130,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 			Composition.Fragments.Add(*FragmentType);
 			InitialValues.AddFragment(Fragment);
 		}
-		else if (!InitialValues.GetFragments().ContainsByPredicate(FSameTypeScriptStructPredicate(FragmentType)))
+		else if (!InitialValues.GetFragments().ContainsByPredicate(FStructTypeEqualOperator(FragmentType)))
 		{
 			InitialValues.AddFragment(Fragment);
 		}
@@ -144,7 +144,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		{
 			Composition.Fragments.Add<T>();
 		}
-		else if (const FInstancedStruct* Fragment = InitialValues.GetFragments().FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
+		else if (const FInstancedStruct* Fragment = InitialValues.GetFragments().FindByPredicate(FStructTypeEqualOperator(T::StaticStruct())))
 		{
 			return Fragment->template GetMutable<T>();
 		}
@@ -182,7 +182,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 		{
 			Composition.ChunkFragments.Add<T>();
 		}
-		else if (const FInstancedStruct* ChunkFragment = InitialValues.GetChunkFragments().FindByPredicate(FSameTypeScriptStructPredicate(T::StaticStruct())))
+		else if (const FInstancedStruct* ChunkFragment = InitialValues.GetChunkFragments().FindByPredicate(FStructTypeEqualOperator(T::StaticStruct())))
 		{
 			return ChunkFragment->template GetMutable<T>();
 		}
@@ -204,7 +204,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 #if DO_ENSURE
 			else
 			{
-				const FConstSharedStruct* Struct = InitialValues.GetConstSharedFragments().FindByPredicate(FSameTypeScriptStructPredicate(SharedFragment));
+				const FConstSharedStruct* Struct = InitialValues.GetConstSharedFragments().FindByPredicate(FStructTypeEqualOperator(SharedFragment));
 				ensureMsgf(Struct && *Struct == SharedFragment, TEXT("Adding 2 different const shared fragment of the same type is not allowed"));
 
 			}
@@ -225,7 +225,7 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	#if DO_ENSURE
 			else
 			{
-				const FSharedStruct* Struct = InitialValues.GetSharedFragments().FindByPredicate(FSameTypeScriptStructPredicate(SharedFragment));
+				const FSharedStruct* Struct = InitialValues.GetSharedFragments().FindByPredicate(FStructTypeEqualOperator(SharedFragment));
 				ensureMsgf(Struct && *Struct == SharedFragment, TEXT("Adding 2 different shared fragment of the same type is not allowed"));
 
 			}

@@ -7,6 +7,7 @@
 #include "MassProcessingTypes.h"
 #include "InstancedStruct.h"
 #include "MassEntityQuery.h"
+#include "StructUtilsTypes.h"
 #include "MassEntitySubsystem.generated.h"
 
 
@@ -286,7 +287,7 @@ public:
 	template<typename T>
 	void ForEachSharedFragment(TFunction< void(T& /*SharedFragment*/) > ExecuteFunction)
 	{
-		FSameTypeScriptStructPredicate Predicate(T::StaticStruct());
+		FStructTypeEqualOperator Predicate(T::StaticStruct());
 		for (const FSharedStruct& Struct : SharedFragments)
 		{
 			if (Predicate(Struct))

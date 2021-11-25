@@ -71,7 +71,7 @@ public:
 
 	FString DebugGetDescription() const;
 
-	// these functions are used for sorting. See FMassSorterOperator
+	// these functions are used for sorting. See FScriptStructSortOperator
 	int32 GetStructureSize() const
 	{
 		return StructType->GetStructureSize();

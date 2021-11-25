@@ -51,10 +51,10 @@ void FMassEntityQuery::SortRequirements()
 	// so that when we access ArchetypeData.FragmentConfigs in FMassArchetypeData::BindRequirementsWithMapping
 	// (via GetFragmentData call) the access is sequential (i.e. not random) and there's a higher chance the memory
 	// FragmentConfigs we want to access have already been fetched and are available in processor cache.
-	Requirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
-	ChunkRequirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
-	ConstSharedRequirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
-	SharedRequirements.Sort(FMassSorterOperator<FMassFragmentRequirement>());
+	Requirements.Sort(FScriptStructSortOperator());
+	ChunkRequirements.Sort(FScriptStructSortOperator());
+	ConstSharedRequirements.Sort(FScriptStructSortOperator());
+	SharedRequirements.Sort(FScriptStructSortOperator());
 }
 
 void FMassEntityQuery::CacheArchetypes(UMassEntitySubsystem& InEntitySubsystem)
