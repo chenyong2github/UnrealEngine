@@ -3370,7 +3370,6 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 			if (Result == IManifest::IPlayPeriod::ETrackChangeResult::Changed)
 			{
 				TSharedPtrTS<FMultiTrackAccessUnitBuffer> StreamRcvBuf = GetCurrentReceiveStreamBuffer(EStreamType::Audio);
-				check(StreamRcvBuf.IsValid());
 				if (StreamRcvBuf.IsValid())
 				{
 					StreamRcvBuf->SelectTrackWhenAvailable(BufferSourceInfo);
@@ -3389,7 +3388,6 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 			if (Result == IManifest::IPlayPeriod::ETrackChangeResult::Changed)
 			{
 				TSharedPtrTS<FMultiTrackAccessUnitBuffer> StreamRcvBuf = GetCurrentReceiveStreamBuffer(EStreamType::Subtitle);
-				check(StreamRcvBuf.IsValid());
 				if (StreamRcvBuf.IsValid())
 				{
 					StreamRcvBuf->SelectTrackWhenAvailable(BufferSourceInfo);
@@ -3411,7 +3409,6 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 		{
 			TSharedPtrTS<FBufferSourceInfo> BufferSourceInfo = CurrentPlayPeriodAudio->GetSelectedStreamBufferSourceInfo(EStreamType::Audio);
 			TSharedPtrTS<FMultiTrackAccessUnitBuffer> StreamRcvBuf = GetCurrentReceiveStreamBuffer(EStreamType::Audio);
-			check(StreamRcvBuf.IsValid());
 			if (StreamRcvBuf.IsValid())
 			{
 				StreamRcvBuf->SelectTrackWhenAvailable(BufferSourceInfo);
