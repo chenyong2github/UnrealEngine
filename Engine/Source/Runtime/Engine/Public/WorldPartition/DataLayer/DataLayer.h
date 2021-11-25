@@ -89,6 +89,7 @@ public:
 	bool CanParent(const UDataLayer* InParent) const;
 	void SetParent(UDataLayer* InParent);
 	void SetChildParent(UDataLayer* InParent);
+	void ForEachChild(TFunctionRef<bool(const UDataLayer*)> Operation) const;
 
 	static FText GetDataLayerText(const UDataLayer* InDataLayer);
 	const TCHAR* GetDataLayerIconName() const;

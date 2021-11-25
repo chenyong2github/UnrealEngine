@@ -28,6 +28,7 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 	.VAlign(VAlign_Center)
 	[
 		SAssignNew(InlineTextBlock, SInlineEditableTextBlock)
+		.Font(this, &SDataLayerTreeLabel::GetDisplayNameFont)
 		.Text(this, &SDataLayerTreeLabel::GetDisplayText)
 		.ToolTipText(this, &SDataLayerTreeLabel::GetTooltipText)
 		.HighlightText(HighlightText)
@@ -95,6 +96,25 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 			.ToolTipText(LOCTEXT("LockedRuntimeDataLayerEditing", "Locked editing. (To allow editing, in Data Layer Outliner, go to Advanced -> Allow Runtime Data Layer Editing)"))
 		]
 	];
+}
+
+bool SDataLayerTreeLabel::ShouldBeHighlighted() const
+{
+	const FSceneOutlinerTreeItemPtr TreeItem = TreeItemPtr.Pin();
+	FDataLayerTreeItem* DataLayerTreeItem = TreeItem ? TreeItem->CastTo<FDataLayerTreeItem>() : nullptr;
+	return DataLayerTreeItem && DataLayerTreeItem->ShouldBeHighlighted();
+}
+
+FSlateFontInfo SDataLayerTreeLabel::GetDisplayNameFont() const
+{
+	if (ShouldBeHighlighted())
+	{
+		return FAppStyle::Get().GetFontStyle("DataLayerBrowser.LabelFontBold");
+	}
+	else
+	{
+		return FAppStyle::Get().GetFontStyle("DataLayerBrowser.LabelFont");
+	}
 }
 
 FText SDataLayerTreeLabel::GetDisplayText() const
@@ -193,7 +213,15 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 			return FSceneOutlinerCommonLabelData::DarkColor;
 		}
 	}
-	return (!DataLayer || !DataLayer->GetWorld()) ? FLinearColor(0.2f, 0.2f, 0.25f) : FSlateColor::UseForeground();
+	if (!DataLayer || !DataLayer->GetWorld())
+	{
+		return FLinearColor(0.2f, 0.2f, 0.25f);
+	}
+	if (ShouldBeHighlighted())
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.AccentBlue");
+	}
+	return FSlateColor::UseForeground();
 }
 
 bool SDataLayerTreeLabel::OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage)

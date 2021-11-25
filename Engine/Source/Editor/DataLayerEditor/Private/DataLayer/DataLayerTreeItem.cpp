@@ -15,6 +15,7 @@ FDataLayerTreeItem::FDataLayerTreeItem(UDataLayer* InDataLayer)
 	: ISceneOutlinerTreeItem(Type)
 	, DataLayer(InDataLayer)
 	, ID(InDataLayer)
+	, bIsHighlighedtIfSelected(false)
 {
 	Flags.bIsExpanded = false;
 }
@@ -42,6 +43,18 @@ void FDataLayerTreeItem::OnVisibilityChanged(const bool bNewVisibility)
 	{
 		UDataLayerEditorSubsystem::Get()->SetDataLayerVisibility(DataLayerPtr, bNewVisibility);
 	}
+}
+
+bool FDataLayerTreeItem::ShouldBeHighlighted() const
+{
+	if (bIsHighlighedtIfSelected)
+	{
+		if (UDataLayer* DataLayerPtr = DataLayer.Get())
+		{
+			return UDataLayerEditorSubsystem::Get()->DoesDataLayerContainSelectedActors(DataLayerPtr);
+		}
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

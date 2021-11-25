@@ -36,6 +36,7 @@ public:
 	};
 
 	FDataLayerMode(const FDataLayerModeParams& Params);
+	virtual ~FDataLayerMode();
 
 	virtual void Rebuild() override;
 	virtual TSharedPtr<SWidget> CreateContextMenu() override;
@@ -52,6 +53,7 @@ public:
 	virtual FText GetStatusText() const override;
 	virtual FSlateColor GetStatusTextColor() const override { return FSlateColor::UseForeground(); }
 
+	virtual void SynchronizeSelection() override;
 	virtual void OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item) override;
 	virtual void OnItemAdded(FSceneOutlinerTreeItemPtr Item) override;
 	virtual void OnItemRemoved(FSceneOutlinerTreeItemPtr Item) override;
@@ -81,6 +83,10 @@ protected:
 	bool bHideDataLayerActors;
 	/** Should unloaded actors be hidden */
 	bool bHideUnloadedActors;
+	/** Should show only selected actors */
+	bool bShowOnlySelectedActors;
+	/** Should highlight DataLayers containing selected actors */
+	bool bHighlightSelectedDataLayers;
 	/** Delegate to call when an item is picked */
 	FOnSceneOutlinerItemPicked OnItemPicked;
 
@@ -94,9 +100,14 @@ private:
 	TArray<UDataLayer*> GetDataLayersFromOperation(const FDragDropOperation& Operation, bool bOnlyFindFirst = false) const;
 	TArray<UDataLayer*> GetSelectedDataLayers(SSceneOutliner* InSceneOutliner) const;
 	void SetParentDataLayer(const TArray<UDataLayer*> DataLayers, UDataLayer* ParentDataLayer) const;
+	void OnLevelSelectionChanged(UObject* Obj);
 	static void CreateDataLayerPicker(UToolMenu* InMenu, FOnDataLayerPicked OnDataLayerPicked, bool bInShowRoot = false);
+	bool ShouldExpandDataLayer(const UDataLayer* DataLayer) const;
+	bool ContainsSelectedChildDataLayer(const UDataLayer* DataLayer) const;
+	void RefreshSelection();
 
 	/** Filter factories */
+	static TSharedRef<FSceneOutlinerFilter> CreateShowOnlySelectedActorsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideEditorDataLayersFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideRuntimeDataLayersFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideDataLayerActorsFilter();
@@ -136,6 +147,7 @@ public:
 	virtual void OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item) override {}
 	virtual FReply OnKeyDown(const FKeyEvent& InKeyEvent) override { return FReply::Unhandled(); }
 	virtual void OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeItem, ESelectInfo::Type SelectionType, const FSceneOutlinerItemSelection& Selection) override;
+	virtual void SynchronizeSelection() override {}
 
 	static TSharedRef<SWidget> CreateDataLayerPickerWidget(FOnDataLayerPicked OnDataLayerPicked);
 };

@@ -538,6 +538,11 @@ public:
 	*/
 	bool ResetUserSettings();
 
+	/*
+	 * Returns whether the DataLayer contains one of more actors that are part of the editor selection.
+	 */
+	bool DoesDataLayerContainSelectedActors(const UDataLayer* DataLayer) const { return SelectedDataLayersFromEditorSelection.Contains(DataLayer); }
+
 	//~ Begin Deprecated
 
 	UE_DEPRECATED(5.0, "Per-view Data Layer visibility was removed.")
@@ -625,6 +630,14 @@ private:
 	bool SetDataLayerIsLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange);
 	bool RefreshWorldPartitionEditorCells(bool bIsFromUserChange);
 	void UpdateDataLayerEditorPerProjectUserSettings();
+
+	void BroadcastActorDataLayersChanged(const TWeakObjectPtr<AActor>& ChangedActor);
+	void BroadcastDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayer>& ChangedDataLayer, const FName& ChangedProperty);
+	void OnSelectionChanged();
+	void RebuildSelectedDataLayersFromEditorSelection();
+
+	/** Contains Data Layers that contain actors that are part of the editor selection */
+	TSet<TWeakObjectPtr<const UDataLayer>> SelectedDataLayersFromEditorSelection;
 
 	/** Fires whenever one or more DataLayer changes */
 	FOnDataLayerChanged DataLayerChanged;

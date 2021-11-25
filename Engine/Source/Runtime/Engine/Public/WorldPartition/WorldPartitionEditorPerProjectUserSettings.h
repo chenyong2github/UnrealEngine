@@ -60,6 +60,8 @@ public:
 		, bHideDataLayerActors(true)
 		, bHideUnloadedActors(false)
 		, bAllowRuntimeDataLayerEditing(false)
+		, bShowOnlySelectedActors(false)
+		, bHighlightSelectedDataLayers(true)
 		, bDisableLoadingOfLastLoadedCells(false)
 #endif
 	{}
@@ -92,17 +94,25 @@ public:
 	UPROPERTY(config)
 	uint32 bHideRuntimeDataLayers : 1;
 
-	/** True when the DataLayer Outliner is not displaying actors */
+	/** True when the Data Layer Outliner is not displaying actors */
 	UPROPERTY(config)
 	uint32 bHideDataLayerActors : 1;
 
-	/** True when the DataLayer Outliner is not displaying unloaded actors */
+	/** True when the Data Layer Outliner is not displaying unloaded actors */
 	UPROPERTY(config)
 	uint32 bHideUnloadedActors : 1;
 
-	/** True when Runtime DataLayer editing is allowed. */
+	/** True when Runtime Data Layer editing is allowed. */
 	UPROPERTY(config)
 	uint32 bAllowRuntimeDataLayerEditing : 1;
+
+	/** True when the Data Layer Outliner is only displaying actors and datalayers for selected actors */
+	UPROPERTY(config)
+	uint32 bShowOnlySelectedActors : 1;
+
+	/** True when the Data Layer Outliner highlights Data Layers containing actors that are currently selected */
+	UPROPERTY(config)
+	uint32 bHighlightSelectedDataLayers : 1;
 
 private:
 	bool ShouldSaveSettings(const UWorld* InWorld) const
