@@ -242,6 +242,12 @@ private:
 	/** Process virtual subject for rebroadcast purpose */
 	void HandleSubjectRebroadcast(ILiveLinkSubject* InSubject, const FLiveLinkFrameDataStruct& InFrameData);
 
+	/** Called when a subject is removed. Used to remove rebroadcasted subjects */
+	void OnSubjectRemovedCallback(FLiveLinkSubjectKey InSubjectKey);
+
+	/** Removes a subject from the rebroadcast provider and resets it if there are no more subjects */
+	void RemoveRebroadcastedSubject(FLiveLinkSubjectKey InSubjectKey);
+
 private:
 	/** The current collection used. */
 	TUniquePtr<FLiveLinkSourceCollection> Collection;
@@ -285,6 +291,7 @@ private:
 	/** LiveLink Provider for rebroadcasting */
 	TSharedPtr<ILiveLinkProvider> RebroadcastLiveLinkProvider;
 	FString RebroadcastLiveLinkProviderName;
+	TSet<FLiveLinkSubjectKey> RebroadcastedSubjects;
 
 #if WITH_EDITOR
 	/** Delegate when a subject is evaluated. */

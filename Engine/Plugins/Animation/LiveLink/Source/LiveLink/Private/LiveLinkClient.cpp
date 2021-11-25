@@ -71,6 +71,7 @@ FLiveLinkClient::FLiveLinkClient()
 #endif
 
 	Collection = MakeUnique<FLiveLinkSourceCollection>();
+	OnLiveLinkSubjectRemoved().AddRaw(this, &FLiveLinkClient::OnSubjectRemovedCallback);
 	FCoreDelegates::OnPreExit.AddRaw(this, &FLiveLinkClient::Shutdown);
 
 	//IMediaModule& MediaModule = FModuleManager::LoadModuleChecked<IMediaModule>("Media");
@@ -215,6 +216,8 @@ void FLiveLinkClient::Shutdown()
 
 	if (Collection)
 	{
+		OnLiveLinkSubjectRemoved().RemoveAll(this);
+
 		double Timeout = 2.0;
 		GConfig->GetDouble(TEXT("LiveLink"), TEXT("ClientShutdownTimeout"), Timeout, GGameIni);
 
@@ -257,6 +260,7 @@ void FLiveLinkClient::HandleSubjectRebroadcast(ILiveLinkSubject* InSubject, cons
 					StaticDataCopy.InitializeWith(InSubject->GetStaticData());
 					RebroadcastLiveLinkProvider->UpdateSubjectStaticData(InSubject->GetSubjectKey().SubjectName, InSubject->GetRole(), MoveTemp(StaticDataCopy));
 					InSubject->SetStaticDataAsRebroadcasted(true);
+					RebroadcastedSubjects.Add(InSubject->GetSubjectKey());
 				}
 				
 				// Make a copy of the data for use by the rebroadcaster
@@ -273,10 +277,29 @@ void FLiveLinkClient::HandleSubjectRebroadcast(ILiveLinkSubject* InSubject, cons
 	}
 	else if (InSubject->HasStaticDataBeenRebroadcasted())
 	{
-		if (RebroadcastLiveLinkProvider.IsValid())
+		RemoveRebroadcastedSubject(InSubject->GetSubjectKey());
+		InSubject->SetStaticDataAsRebroadcasted(false);
+	}
+}
+
+void FLiveLinkClient::OnSubjectRemovedCallback(FLiveLinkSubjectKey InSubjectKey)
+{
+	RemoveRebroadcastedSubject(InSubjectKey);
+}
+
+void FLiveLinkClient::RemoveRebroadcastedSubject(FLiveLinkSubjectKey InSubjectKey)
+{
+	if (RebroadcastLiveLinkProvider.IsValid())
+	{
+		if (RebroadcastedSubjects.Contains(InSubjectKey))
 		{
-			RebroadcastLiveLinkProvider->RemoveSubject(InSubject->GetSubjectKey().SubjectName);
-			InSubject->SetStaticDataAsRebroadcasted(false);
+			RebroadcastLiveLinkProvider->RemoveSubject(InSubjectKey.SubjectName);
+			RebroadcastedSubjects.Remove(InSubjectKey);
+
+			if (RebroadcastedSubjects.Num() <= 0)
+			{
+				RebroadcastLiveLinkProvider.Reset();
+			}
 		}
 	}
 }
