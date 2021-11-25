@@ -664,6 +664,7 @@ void UWorldPartition::OnWorldMatchStarting()
 #if WITH_EDITOR
 UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass)
 {
+	UWorld* World = WorldSettings->GetWorld();
 	UWorldPartition* WorldPartition = WorldSettings->GetWorldPartition();
 
 	if (!WorldPartition)
@@ -701,7 +702,13 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 		WorldPartition->RuntimeHash->SetDefaultValues();
 	}
 
-	WorldPartition->GetWorld()->PersistentLevel->bIsPartitioned = true;
+	AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers();
+	if (!WorldDataLayers)
+	{
+		WorldDataLayers = AWorldDataLayers::Create(World);
+	}
+
+	World->PersistentLevel->bIsPartitioned = true;
 
 	return WorldPartition;
 }
