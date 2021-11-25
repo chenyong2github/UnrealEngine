@@ -123,6 +123,17 @@ void FDMXEntityFixturePatchDetails::OnParentFixtureTypeChanged(UDMXEntity* NewTe
 
 void FDMXEntityFixturePatchDetails::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
 {
+	// Keep the active mode valid
+	int32 ActiveMode;
+	if (ActiveModeHandle->GetValue(ActiveMode) == FPropertyAccess::Success)
+	{
+		if (!FixtureType->Modes.IsValidIndex(ActiveMode))
+		{
+			const int32 NewActiveMode = FixtureType->Modes.Num() > 0 ? 0 : INDEX_NONE;
+			ActiveModeHandle->SetValue(NewActiveMode);
+		}
+	}
+
 	PropertyUtilities->ForceRefresh();
 }
 

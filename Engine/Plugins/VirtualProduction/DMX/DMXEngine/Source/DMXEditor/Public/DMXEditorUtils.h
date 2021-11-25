@@ -55,13 +55,19 @@ public:
 	static void CopyEntities(const TArray<UDMXEntity*>&& EntitiesToCopy);
 
 	/**  Determines whether the current contents of the clipboard contain paste-able DMX Entity information */
-	static bool CanPasteEntities();
+	static bool CanPasteEntities(UDMXLibrary* ParentLibrary);
+
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.0, "Replaced with FDMXEditorUtils::CreateEntitiesFromClipboard. NOTE: GetEntitiesFromClipboard no longer returns any entities, as entities can only be created within a DMXLibrary.")
+	static void GetEntitiesFromClipboard(TArray<UDMXEntity*>& OutNewObjects);
 
 	/**
-	 * Gets the copied DMX Entities from the clipboard without attempting to paste/apply them in any way
-	 * @param OutNewObjectMap			Contains the name->instance object mapping of the copied DMX Entities
+	 * Creates the copied DMX Entities from the clipboard without attempting to paste/apply them in any way
+	 * 
+	 * @param ParentLibrary			The library in which the entities are created.
+	 * @return						The array of newly created enities.
 	 */
-	static void GetEntitiesFromClipboard(TArray<UDMXEntity*>& OutNewObjects);
+	static TArray<UDMXEntity*> CreateEntitiesFromClipboard(UDMXLibrary* ParentLibrary);
 
 	/**
 	 * Compares the property values of two Fixture Types, including properties in arrays,

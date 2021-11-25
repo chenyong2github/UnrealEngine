@@ -365,15 +365,15 @@ void UDMXEntityFixturePatch::SetFixtureType(UDMXEntityFixtureType* NewFixtureTyp
 {
 	Modify();
 
-	if (NewFixtureType && NewFixtureType != ParentFixtureTypeTemplate)
+	if (!IsValid(NewFixtureType))
+	{
+		ParentFixtureTypeTemplate = nullptr;
+	}
+	else if (NewFixtureType && NewFixtureType != ParentFixtureTypeTemplate)
 	{
 		ParentFixtureTypeTemplate = NewFixtureType;
 		
 		ActiveMode = ParentFixtureTypeTemplate->Modes.Num() > 0 ? 0 : INDEX_NONE;
-	}
-	else
-	{
-		ParentFixtureTypeTemplate = nullptr;
 	}
 
 	RebuildCache();
