@@ -98,16 +98,16 @@ bool FDisplayClusterViewport_TextureShare::UpdateLinkSceneContextToShare(const F
 
 			if(ExistConfiguration.IsValid())
 			{
-				int32 PassType = InContext.StereoscopicPass;
+				int32 ViewIndex = InContext.StereoViewIndex;
 
 				static ITextureShare& TextureShareAPI = ITextureShare::Get();
 				TSharedPtr<ITextureShareItem> ShareItem;
 				if (TextureShareAPI.GetShare(ExistConfiguration.TextureShareId, ShareItem))
 				{
-					if (TextureShareAPI.LinkSceneContextToShare(ShareItem, PassType, true))
+					if (TextureShareAPI.LinkSceneContextToShare(ShareItem, ViewIndex, true))
 					{
 						// Map viewport rect to stereoscopic pass
-						TextureShareAPI.SetBackbufferRect(PassType, &InContext.RenderTargetRect);
+						TextureShareAPI.SetBackbufferRect(ViewIndex, &InContext.RenderTargetRect);
 
 						// Begin share session
 						if (!ShareItem->IsSessionValid())

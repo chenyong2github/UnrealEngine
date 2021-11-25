@@ -215,13 +215,13 @@ public:
 	* Optional method to draw a view's hidden area mesh where supported.
 	* This can be used to avoid rendering pixels which are not included as input into the final distortion pass.
 	*/
-	virtual void DrawHiddenAreaMesh(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const {};
+	virtual void DrawHiddenAreaMesh(class FRHICommandList& RHICmdList, int32 ViewIndex) const {};
 
 	/**
 	* Optional method to draw a view's visible area mesh where supported.
 	* This can be used instead of a full screen quad to avoid rendering pixels which are not included as input into the final distortion pass.
 	*/
-	virtual void DrawVisibleAreaMesh(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const {};
+	virtual void DrawVisibleAreaMesh(class FRHICommandList& RHICmdList, int32 ViewIndex) const {};
 
 	virtual void DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPassContext& Context, const FIntPoint& TextureSize) {}
 

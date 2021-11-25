@@ -57,7 +57,7 @@ public:
 	 * Calculates the offset for the camera position, given the specified eye pass, position and rotation.
 	 * An XR plugin implementing stereo rendering should forward all calls of CalculateStereoViewOffset to this method.
 	 */
-	virtual void CalculateStereoCameraOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, FVector& ViewLocation) = 0;
+	virtual void CalculateStereoCameraOffset(const int32 ViewIndex, FRotator& ViewRotation, FVector& ViewLocation) = 0;
 
 	/**
 	 * Fetches the UV coordinates of an AR passthrough camera relative to the screen. Takes into account cropping, orientation and difference between

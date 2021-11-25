@@ -859,6 +859,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 	SceneCaptureViewInfo.ViewLocation = ViewLocation;
 	SceneCaptureViewInfo.ProjectionMatrix = ProjectionMatrix;
 	SceneCaptureViewInfo.StereoPass = EStereoscopicPass::eSSP_FULL;
+	SceneCaptureViewInfo.StereoViewIndex = INDEX_NONE;
 	SceneCaptureViewInfo.StereoIPD = StereoIPD;
 	SceneCaptureViewInfo.ViewRect = FIntRect(0, 0, RenderTargetSize.X, RenderTargetSize.Y);
 

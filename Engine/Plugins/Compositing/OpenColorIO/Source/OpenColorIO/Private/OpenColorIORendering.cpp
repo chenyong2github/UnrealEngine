@@ -49,7 +49,7 @@ namespace {
 			OutputResolution,
 			OutputResolution,
 			PipelineState.VertexShader,
-			EStereoscopicPass::eSSP_FULL,
+			INDEX_NONE,
 			false,
 			DrawRectangleFlags);
 	}

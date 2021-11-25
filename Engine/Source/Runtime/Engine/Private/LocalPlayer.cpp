@@ -482,7 +482,7 @@ public:
 			else
 			{
 				FMinimalViewInfo MinViewInfo;
-				Player->GetViewPoint(MinViewInfo, eSSP_FULL);
+				Player->GetViewPoint(MinViewInfo);
 				PlayerState.ViewPoint.Location = MinViewInfo.Location;
 				PlayerState.ViewPoint.Rotation = MinViewInfo.Rotation;
 				PlayerState.ViewPoint.FOV = MinViewInfo.FOV;
@@ -500,7 +500,7 @@ public:
 			else
 			{
 				FMinimalViewInfo MinViewInfo;
-				Player->GetViewPoint(MinViewInfo, eSSP_FULL);
+				Player->GetViewPoint(MinViewInfo);
 				PlayerState.ViewPoint.Location = MinViewInfo.Location;
 				PlayerState.ViewPoint.Rotation = MinViewInfo.Rotation;
 				PlayerState.ViewPoint.FOV = MinViewInfo.FOV;
@@ -697,7 +697,7 @@ FAutoConsoleCommand FLockedViewState::CmdCopyLockedViews(
 	FConsoleCommandDelegate::CreateStatic(FLockedViewState::CopyLockedViews)
 	);
 
-void ULocalPlayer::GetViewPoint(FMinimalViewInfo& OutViewInfo, EStereoscopicPass StereoPass) const
+void ULocalPlayer::GetViewPoint(FMinimalViewInfo& OutViewInfo) const
 {
 	if (FLockedViewState::Get().GetViewPoint(this, OutViewInfo.Location, OutViewInfo.Rotation, OutViewInfo.FOV) == false
 		&& PlayerController != NULL)
@@ -730,7 +730,7 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 	struct FSceneViewInitOptions& ViewInitOptions,
 	FViewport* Viewport,
 	class FViewElementDrawer* ViewDrawer,
-	EStereoscopicPass StereoPass)
+	int32 StereoViewIndex)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CalcSceneViewInitOptions);
 	if ((PlayerController == NULL) || (Size.X <= 0.f) || (Size.Y <= 0.f) || (Viewport == NULL))
@@ -738,7 +738,7 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 		return false;
 	}
 	// get the projection data
-	if (GetProjectionData(Viewport, StereoPass, /*inout*/ ViewInitOptions) == false)
+	if (GetProjectionData(Viewport, /*inout*/ ViewInitOptions, StereoViewIndex) == false)
 	{
 		// Return NULL if this we didn't get back the info we needed
 		return false;
@@ -775,12 +775,7 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 
 	check(PlayerController && PlayerController->GetWorld());
 
-	uint32 ViewIndex = 0;
-	if (GEngine->StereoRenderingDevice.IsValid())
-	{
-		ViewIndex = GEngine->StereoRenderingDevice->GetViewIndexForPass(StereoPass);
-	}
-
+	const uint32 ViewIndex = StereoViewIndex != INDEX_NONE ? StereoViewIndex : 0;
 	if (!ViewStates.IsValidIndex(ViewIndex))
 	{
 		ViewStates.EmplaceAt(ViewIndex);
@@ -795,7 +790,8 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 	ViewInitOptions.ViewElementDrawer = ViewDrawer;
 	ViewInitOptions.BackgroundColor = FLinearColor::Black;
 	ViewInitOptions.LODDistanceFactor = PlayerController->LocalPlayerCachedLODDistanceFactor;
-	ViewInitOptions.StereoPass = StereoPass;
+	ViewInitOptions.StereoPass = GEngine->StereoRenderingDevice->GetViewPassForIndex(StereoViewIndex != INDEX_NONE, StereoViewIndex);
+	ViewInitOptions.StereoViewIndex = StereoViewIndex;
 	ViewInitOptions.WorldToMetersScale = PlayerController->GetWorldSettings()->WorldToMeters;
 	ViewInitOptions.CursorPos = Viewport->HasMouseCapture() ? FIntPoint(-1, -1) : FIntPoint(Viewport->GetMouseX(), Viewport->GetMouseY());
 	ViewInitOptions.OriginOffsetThisFrame = PlayerController->GetWorld()->OriginOffsetThisFrame;
@@ -808,13 +804,13 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 	FRotator& OutViewRotation,
 	FViewport* Viewport,
 	class FViewElementDrawer* ViewDrawer,
-	EStereoscopicPass StereoPass)
+	int32 StereoViewIndex)
 {
 	SCOPE_CYCLE_COUNTER(STAT_CalcSceneView);
 
 	FSceneViewInitOptions ViewInitOptions;
 
-	if (!CalcSceneViewInitOptions(ViewInitOptions, Viewport, ViewDrawer, StereoPass))
+	if (!CalcSceneViewInitOptions(ViewInitOptions, Viewport, ViewDrawer, StereoViewIndex))
 	{
 		return nullptr;
 	}
@@ -822,7 +818,7 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 	// Get the viewpoint...technically doing this twice
 	// but it makes GetProjectionData better
 	FMinimalViewInfo ViewInfo;
-	GetViewPoint(ViewInfo, StereoPass);
+	GetViewPoint(ViewInfo);
 	OutViewLocation = ViewInfo.Location;
 	OutViewRotation = ViewInfo.Rotation;
 	ViewInitOptions.bUseFieldOfViewForLOD = ViewInfo.bUseFieldOfViewForLOD;
@@ -883,7 +879,7 @@ FSceneView* ULocalPlayer::CalcSceneView( class FSceneViewFamily* ViewFamily,
 		{
 			FPostProcessSettings StereoDeviceOverridePostProcessinSettings;
 			float BlendWeight = 1.0f;
-			bool StereoSettingsAvailable = GEngine->StereoRenderingDevice->OverrideFinalPostprocessSettings(&StereoDeviceOverridePostProcessinSettings, StereoPass, BlendWeight);
+			bool StereoSettingsAvailable = GEngine->StereoRenderingDevice->OverrideFinalPostprocessSettings(&StereoDeviceOverridePostProcessinSettings, View->StereoPass, View->StereoViewIndex, BlendWeight);
 			if (StereoSettingsAvailable)
 			{
 				View->OverridePostProcessSettings(StereoDeviceOverridePostProcessinSettings, BlendWeight);
@@ -916,7 +912,7 @@ bool ULocalPlayer::GetPixelBoundingBox(const FBox& ActorBox, FVector2D& OutLower
 	{
 		// get the projection data
 		FSceneViewProjectionData ProjectionData;
-		if (GetProjectionData(ViewportClient->Viewport, eSSP_FULL, /*out*/ ProjectionData) == false)
+		if (GetProjectionData(ViewportClient->Viewport, /*out*/ ProjectionData) == false)
 		{
 			return false;
 		}
@@ -994,7 +990,7 @@ bool ULocalPlayer::GetPixelPoint(const FVector& InPoint, FVector2D& OutPoint, co
 	{
 		// get the projection data
 		FSceneViewProjectionData ProjectionData;
-		if (GetProjectionData(ViewportClient->Viewport, eSSP_FULL, /*inout*/ ProjectionData) == false)
+		if (GetProjectionData(ViewportClient->Viewport, /*inout*/ ProjectionData) == false)
 		{
 			return false;
 		}
@@ -1039,7 +1035,7 @@ bool ULocalPlayer::GetPixelPoint(const FSceneViewProjectionData& ProjectionData,
 	return bInFrontOfCamera;
 }
 
-bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass StereoPass, FSceneViewProjectionData& ProjectionData) const
+bool ULocalPlayer::GetProjectionData(FViewport* Viewport, FSceneViewProjectionData& ProjectionData, int32 StereoViewIndex) const
 {
 	// If the actor
 	if ((Viewport == NULL) || (PlayerController == NULL) || (Viewport->GetSizeXY().X == 0) || (Viewport->GetSizeXY().Y == 0) || (Size.X == 0) || (Size.Y == 0))
@@ -1089,16 +1085,16 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 
 	// Get the viewpoint.
 	FMinimalViewInfo ViewInfo;
-	GetViewPoint(/*out*/ ViewInfo, StereoPass);
+	GetViewPoint(/*out*/ ViewInfo);
 
 	// If stereo rendering is enabled, update the size and offset appropriately for this pass
-	const bool bNeedStereo = IStereoRendering::IsStereoEyePass(StereoPass) && GEngine->IsStereoscopic3D();
+	const bool bNeedStereo = StereoViewIndex != INDEX_NONE && GEngine->IsStereoscopic3D();
 	const bool bIsHeadTrackingAllowed =
 		GEngine->XRSystem.IsValid() &&
 		(GetWorld() != nullptr ? GEngine->XRSystem->IsHeadTrackingAllowedForWorld(*GetWorld()) : GEngine->XRSystem->IsHeadTrackingAllowed());
 	if (bNeedStereo)
 	{
-		GEngine->StereoRenderingDevice->AdjustViewRect(StereoPass, X, Y, SizeX, SizeY);
+		GEngine->StereoRenderingDevice->AdjustViewRect(StereoViewIndex, X, Y, SizeX, SizeY);
 	}
 
 	// scale distances for cull distance purposes by the ratio of our current FOV to the default FOV
@@ -1124,7 +1120,7 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 
 		if (GEngine->StereoRenderingDevice.IsValid())
 		{
-			GEngine->StereoRenderingDevice->CalculateStereoViewOffset(StereoPass, ViewInfo.Rotation, GetWorld()->GetWorldSettings()->WorldToMeters, StereoViewLocation);
+			GEngine->StereoRenderingDevice->CalculateStereoViewOffset(StereoViewIndex, ViewInfo.Rotation, GetWorld()->GetWorldSettings()->WorldToMeters, StereoViewLocation);
 		}
     }
 
@@ -1150,7 +1146,7 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 	else
 	{
 		// Let the stereoscopic rendering device handle creating its own projection matrix, as needed
-		ProjectionData.ProjectionMatrix = GEngine->StereoRenderingDevice->GetStereoProjectionMatrix(StereoPass);
+		ProjectionData.ProjectionMatrix = GEngine->StereoRenderingDevice->GetStereoProjectionMatrix(StereoViewIndex);
 
 		// calculate the out rect
 		ProjectionData.SetViewRectangle(FIntRect(X, Y, X + SizeX, Y + SizeY));

@@ -166,8 +166,6 @@ USceneCaptureComponent::USceneCaptureComponent(const FObjectInitializer& ObjectI
 	ShowFlags.SetSeparateTranslucency(0);
 	ShowFlags.SetHMDDistortion(0);
 	ShowFlags.SetOnScreenDebug(0);
-
-    CaptureStereoPass = EStereoscopicPass::eSSP_FULL;
 }
 
 void USceneCaptureComponent::OnRegister()
@@ -465,7 +463,6 @@ USceneCaptureComponent2D::USceneCaptureComponent2D(const FObjectInitializer& Obj
 
 	// default to full blend weight..
 	PostProcessBlendWeight = 1.0f;
-	CaptureStereoPass = EStereoscopicPass::eSSP_FULL;
 	CustomProjectionMatrix.SetIdentity();
 	ClipPlaneNormal = FVector(0, 0, 1);
 	bCameraCutThisFrame = false;

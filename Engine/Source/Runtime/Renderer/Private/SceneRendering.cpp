@@ -1778,7 +1778,7 @@ void FViewInfo::SetupUniformBufferParameters(
 	extern FVector GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight();
 	ViewUniformShaderParameters.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight = GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight();
 
-	ViewUniformShaderParameters.StereoPassIndex = GEngine->StereoRenderingDevice ? GEngine->StereoRenderingDevice->GetViewIndexForPass(StereoPass) : 0;
+	ViewUniformShaderParameters.StereoPassIndex = StereoViewIndex != INDEX_NONE ? StereoViewIndex : 0;
 	ViewUniformShaderParameters.StereoIPD = StereoIPD;
 
 	{
@@ -1990,9 +1990,12 @@ const FViewInfo* FViewInfo::GetInstancedView() const
 	if ((IsInstancedStereoPass() || bIsMobileMultiViewEnabled) && Family->Views.Num() > 0)
 	{
 		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(*this) ? eSSP_RIGHT_EYE : eSSP_FULL;
+		const int32 ViewIndex = IStereoRendering::IsStereoEyeView(*this) ? EStereoscopicEye::eSSE_RIGHT_EYE : 0;
 
-		return &static_cast<const FViewInfo&>(Family->GetStereoEyeView(StereoPassIndex));
+		if (Family->Views.IsValidIndex(ViewIndex))
+		{
+			return static_cast<const FViewInfo*>(Family->Views[ViewIndex]);
+		}
 	}
 	return nullptr;
 }
@@ -2660,7 +2663,7 @@ void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHIC
 			for (int32 i = 0; i < Views.Num(); i++)
 			{
 				FViewInfo& View = Views[i];
-				GEngine->StereoRenderingDevice->SetFinalViewRect(RHICmdList, View.StereoPass, View.ViewRect);
+				GEngine->StereoRenderingDevice->SetFinalViewRect(RHICmdList, View.StereoViewIndex, View.ViewRect);
 			}
 		}
 		return;
@@ -2815,7 +2818,7 @@ void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHIC
 		for (int32 i = 0; i < Views.Num(); i++)
 		{
 			FViewInfo& View = Views[i];
-			GEngine->StereoRenderingDevice->SetFinalViewRect(RHICmdList, View.StereoPass, View.ViewRect);
+			GEngine->StereoRenderingDevice->SetFinalViewRect(RHICmdList, View.StereoViewIndex, View.ViewRect);
 		}
 	}
 }
@@ -2987,10 +2990,7 @@ void FSceneRenderer::ComputeFamilySize()
 		MaxFamilyX = FMath::Max(MaxFamilyX, FinalViewMaxX);
 		MaxFamilyY = FMath::Max(MaxFamilyY, FinalViewMaxY);
 
-		if (!IStereoRendering::IsAnAdditionalView(View))
-		{
-			InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
-		}
+		InstancedStereoWidth = FPlatformMath::Max(InstancedStereoWidth, static_cast<uint32>(View.ViewRect.Max.X));
 	}
 
 	for (FViewInfo& View : Views)

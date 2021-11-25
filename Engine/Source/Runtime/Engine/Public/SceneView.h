@@ -126,8 +126,11 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 	FLinearColor OverlayColor;
 	FLinearColor ColorScale;
 
-	/** For stereoscopic rendering, whether or not this is a full pass, or a left / right eye pass */
+	/** For stereoscopic rendering, whether or not this is a full pass, or a primary / secondary pass */
 	EStereoscopicPass StereoPass;
+
+	/** For stereoscopic rendering, a unique index to identify the view across view families */
+	int32 StereoViewIndex;
 
 	/** For stereoscopic scene capture rendering. Half of the view's stereo IPD (- for lhs, + for rhs) */
 	float StereoIPD;
@@ -184,7 +187,8 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 		, BackgroundColor(FLinearColor::Transparent)
 		, OverlayColor(FLinearColor::Transparent)
 		, ColorScale(FLinearColor::White)
-		, StereoPass(eSSP_FULL)
+		, StereoPass(EStereoscopicPass::eSSP_FULL)
+		, StereoViewIndex(INDEX_NONE)
 		, StereoIPD(0.0f)
 		, WorldToMetersScale(100.f)
 		, CursorPos(-1, -1)
@@ -217,7 +221,7 @@ struct FViewMatrices
 		FMatrix ProjectionMatrix = FMatrix::Identity;
 		FVector ViewOrigin = FVector::ZeroVector;
 		FIntRect ConstrainedViewRect = FIntRect(0, 0, 0, 0);
-		EStereoscopicPass StereoPass = eSSP_FULL;
+		EStereoscopicPass StereoPass = EStereoscopicPass::eSSP_FULL;
 		bool bUseFauxOrthoViewPos = false;
 	};
 
@@ -957,6 +961,9 @@ public:
 
 	/** For stereoscopic rendering, whether or not this is a full pass, or a left / right eye pass */
 	EStereoscopicPass StereoPass;
+
+	/** For stereoscopic rendering, unique index identifying the view across view families */
+	int32 StereoViewIndex;
 
 	/** Half of the view's stereo IPD (- for lhs, + for rhs) */
 	float StereoIPD;
@@ -1732,9 +1739,6 @@ public:
 	FORCEINLINE bool UseDebugViewVSDSHS() const { return false; }
 	FORCEINLINE bool UseDebugViewPS() const { return false; }
 #endif
-
-	/** Returns the appropriate view for a given eye in a stereo pair. */
-	const FSceneView& GetStereoEyeView(const EStereoscopicPass Eye) const;
 
 	/** Returns whether the screen percentage show flag is supported or not for this view family. */
 	bool SupportsScreenPercentage() const;

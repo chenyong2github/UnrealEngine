@@ -3422,41 +3422,38 @@ public:
 
 	virtual bool EnableStereo(bool stereo = true) override { return true; }
 
-	virtual bool DeviceIsAPrimaryView(const FSceneView& View) override
+	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, int32 ViewIndex) const override
 	{
 #if WITH_MGPU
 		// We have to do all the work for secondary views that are on a different GPU than
 		// the primary view. NB: This assumes that the primary view is assigned to the
 		// first GPU of the AFR group. See FSceneRenderer::ComputeViewGPUMasks.
-		if (IStereoRendering::IsStereoEyeView(View) && AFRUtils::GetIndexWithinGroup(View.GPUMask.ToIndex()) != 0)
+		if (bStereoRequested && GNumExplicitGPUsForRendering > 1)
 		{
-			return true;
+			return EStereoscopicPass::eSSP_PRIMARY;
 		}
 #endif
-		return IStereoRendering::DeviceIsAPrimaryView(View);
+		return IStereoRendering::GetViewPassForIndex(bStereoRequested, ViewIndex);
 	}
 
-	virtual void AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override
+	virtual void AdjustViewRect(int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override
 	{
 		SizeX = SizeX / 2;
-		if (StereoPass == eSSP_RIGHT_EYE)
-		{
-			X += SizeX;
-		}
+		X += SizeX * ViewIndex;
 	}
 
-	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override
+	virtual void CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override
 	{
-		if (StereoPassType != eSSP_FULL)
+		if (ViewIndex != INDEX_NONE)
 		{
 			// 32mm, 1/2 average interpupillary distance
 			float EyeOffset = .0320000005f * WorldToMeters;
-			const float PassOffset = (StereoPassType == eSSP_LEFT_EYE) ? -EyeOffset : EyeOffset;
+			const float PassOffset = (ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE) ? -EyeOffset : EyeOffset;
 			ViewLocation += ViewRotation.Quaternion().RotateVector(FVector(0,PassOffset,0));
 		}
 	}
 
-	virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override
+	virtual FMatrix GetStereoProjectionMatrix(const int32 ViewIndex) const override
 	{
 		const float HalfFov = FMath::DegreesToRadians(FOVInDegrees) / 2.f;
 		const float InWidth = Width;

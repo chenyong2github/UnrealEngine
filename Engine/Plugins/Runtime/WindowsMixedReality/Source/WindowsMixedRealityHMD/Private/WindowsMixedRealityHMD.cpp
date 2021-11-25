@@ -857,26 +857,26 @@ namespace WindowsMixedReality
 		return true;
 	}
 
-	bool FWindowsMixedRealityHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition)
+	bool FWindowsMixedRealityHMD::GetRelativeEyePose(int32 DeviceId, int32 ViewIndex, FQuat& OutOrientation, FVector& OutPosition)
 	{
 		OutOrientation = FQuat::Identity;
 		OutPosition = FVector::ZeroVector;
-		if (Eye != eSSP_LEFT_EYE && Eye != eSSP_RIGHT_EYE && Eye != eSSP_THIRD_CAMERA_EYE)
+		if (ViewIndex != EStereoscopicEye::eSSE_LEFT_EYE && ViewIndex != EStereoscopicEye::eSSE_RIGHT_EYE && ViewIndex != eSSE_THIRD_CAMERA_EYE)
 		{
 			return false;
 		}
 		Frame& TheFrame = GetFrame();
 		FTransform relativeTransform = FTransform::Identity;
 
-		switch (Eye)
+		switch (ViewIndex)
 		{
-		case eSSP_LEFT_EYE:
+		case EStereoscopicEye::eSSE_LEFT_EYE:
 			relativeTransform = TheFrame.LeftTransform * TheFrame.HeadTransform.Inverse();
 			break;
-		case eSSP_RIGHT_EYE:
+		case EStereoscopicEye::eSSE_RIGHT_EYE:
 			relativeTransform = TheFrame.RightTransform * TheFrame.HeadTransform.Inverse();
 			break;
-		case eSSP_THIRD_CAMERA_EYE:
+		case eSSE_THIRD_CAMERA_EYE:
 			relativeTransform = TheFrame.ThirdCameraTransform * TheFrame.HeadTransform.Inverse();
 			break;
 		};
@@ -975,11 +975,11 @@ namespace WindowsMixedReality
 #endif
 	}
 
-	FMatrix FetchProjectionMatrix(EStereoscopicPass StereoPassType, WindowsMixedReality::MixedRealityInterop* HMD)
+	FMatrix FetchProjectionMatrix(int32 ViewIndex, WindowsMixedReality::MixedRealityInterop* HMD)
 	{
-		if (StereoPassType != eSSP_LEFT_EYE &&
-			StereoPassType != eSSP_RIGHT_EYE &&
-			StereoPassType != eSSP_THIRD_CAMERA_EYE)
+		if (ViewIndex != EStereoscopicEye::eSSE_LEFT_EYE &&
+			ViewIndex != EStereoscopicEye::eSSE_RIGHT_EYE &&
+			ViewIndex != eSSE_THIRD_CAMERA_EYE)
 		{
 			return FMatrix::Identity;
 		}
@@ -987,15 +987,15 @@ namespace WindowsMixedReality
 #if WITH_WINDOWS_MIXED_REALITY
 		DirectX::XMFLOAT4X4 projection = DirectX::XMFLOAT4X4();
 
-		switch (StereoPassType)
+		switch (ViewIndex)
 		{
-		case eSSP_LEFT_EYE:
+		case EStereoscopicEye::eSSE_LEFT_EYE:
 			projection = HMD->GetProjectionMatrix(HMDEye::Left);
 			break;
-		case eSSP_RIGHT_EYE:
+		case EStereoscopicEye::eSSE_RIGHT_EYE:
 			projection = HMD->GetProjectionMatrix(HMDEye::Right);
 			break;
-		case eSSP_THIRD_CAMERA_EYE:
+		case eSSE_THIRD_CAMERA_EYE:
 			projection = HMD->GetProjectionMatrix(HMDEye::ThirdCamera);
 			break;
 		};
@@ -1060,7 +1060,7 @@ namespace WindowsMixedReality
 					FVector ThirdCamPosition = FMath::Lerp(PositionL, PositionR, 0.5f);
 
 					Frame_RenderThread.ThirdCameraTransform = FTransform(ThirdCamRotation, ThirdCamPosition, FVector::OneVector);
-					Frame_RenderThread.ProjectionMatrixThirdCamera = FetchProjectionMatrix((EStereoscopicPass)eSSP_THIRD_CAMERA_EYE, HMD);
+					Frame_RenderThread.ProjectionMatrixThirdCamera = FetchProjectionMatrix(eSSE_THIRD_CAMERA_EYE, HMD);
 
 					// Rescale depth projection range from meters to world units
 					Frame_RenderThread.ProjectionMatrixThirdCamera.M[3][2] *= GetWorldToMetersScale();
@@ -1109,8 +1109,8 @@ namespace WindowsMixedReality
 				Frame_RenderThread.RightTransform = FTransform(RotationR, PositionR, FVector::OneVector);
 				Frame_RenderThread.HeadTransform = FTransform(HeadRotation, HeadPosition, FVector::OneVector);
 
-				Frame_RenderThread.ProjectionMatrixL = FetchProjectionMatrix(eSSP_LEFT_EYE, HMD);
-				Frame_RenderThread.ProjectionMatrixR = FetchProjectionMatrix(eSSP_RIGHT_EYE, HMD);
+				Frame_RenderThread.ProjectionMatrixL = FetchProjectionMatrix(EStereoscopicEye::eSSE_LEFT_EYE, HMD);
+				Frame_RenderThread.ProjectionMatrixR = FetchProjectionMatrix(EStereoscopicEye::eSSE_RIGHT_EYE, HMD);
 
 				// Rescale depth projection range from meters to world units
 				Frame_RenderThread.ProjectionMatrixL.M[3][2] *= GetWorldToMetersScale();
@@ -1372,19 +1372,19 @@ namespace WindowsMixedReality
 		return bIsStereoDesired;
 	}
 
-	FMatrix FWindowsMixedRealityHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
+	FMatrix FWindowsMixedRealityHMD::GetStereoProjectionMatrix(const int32 ViewIndex) const
 	{
 		if (IsInRenderingThread())
 		{
-			if (StereoPassType == eSSP_LEFT_EYE)
+			if (ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE)
 			{
 				return Frame_RenderThread.ProjectionMatrixL;
 			}
-			else if (StereoPassType == eSSP_RIGHT_EYE)
+			else if (ViewIndex == EStereoscopicEye::eSSE_RIGHT_EYE)
 			{
 				return Frame_RenderThread.ProjectionMatrixR;
 			}
-			else if (StereoPassType == eSSP_THIRD_CAMERA_EYE)
+			else if (ViewIndex == eSSE_THIRD_CAMERA_EYE)
 			{
 				return Frame_RenderThread.ProjectionMatrixThirdCamera;
 			}
@@ -1397,15 +1397,15 @@ namespace WindowsMixedReality
 		{
 			check(IsInGameThread());
 
-			if (StereoPassType == eSSP_LEFT_EYE)
+			if (ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE)
 			{
 				return Frame_GameThread.ProjectionMatrixL;
 			}
-			else if (StereoPassType == eSSP_RIGHT_EYE)
+			else if (ViewIndex == EStereoscopicEye::eSSE_RIGHT_EYE)
 			{
 				return Frame_GameThread.ProjectionMatrixR;
 			}
-			else if (StereoPassType == eSSP_THIRD_CAMERA_EYE)
+			else if (ViewIndex == eSSE_THIRD_CAMERA_EYE)
 			{
 				return Frame_RenderThread.ProjectionMatrixThirdCamera;
 			}
@@ -1448,7 +1448,7 @@ namespace WindowsMixedReality
 		FVector2D& EyeToSrcUVScaleValue,
 		FVector2D& EyeToSrcUVOffsetValue) const
 	{
-		RenderTargetDescription desc = wmrRenderTargets[GetViewIndexForPass(Context.View.StereoPass)];
+		RenderTargetDescription desc = wmrRenderTargets[Context.View.StereoViewIndex];
 
 		EyeToSrcUVOffsetValue.X = desc.uvOffsetX;
 		EyeToSrcUVOffsetValue.Y = desc.uvOffsetY;
@@ -1458,11 +1458,11 @@ namespace WindowsMixedReality
 	}
 
 	void FWindowsMixedRealityHMD::AdjustViewRect(
-		EStereoscopicPass StereoPass,
+		int32 ViewIndex,
 		int32& X, int32& Y,
 		uint32& SizeX, uint32& SizeY) const
 	{
-		RenderTargetDescription desc = wmrRenderTargets[GetViewIndexForPass(StereoPass)];
+		RenderTargetDescription desc = wmrRenderTargets[ViewIndex];
 		X = desc.x;
 		Y = desc.y;
 		SizeX = desc.width;
@@ -1730,15 +1730,14 @@ namespace WindowsMixedReality
 		return HiddenAreaMesh[0].IsValid() && HiddenAreaMesh[1].IsValid();
 	}
 
-	void FWindowsMixedRealityHMD::DrawHiddenAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+	void FWindowsMixedRealityHMD::DrawHiddenAreaMesh(FRHICommandList& RHICmdList, int32 ViewIndex) const
 	{
-		if (StereoPass == eSSP_FULL || StereoPass == eSSP_THIRD_CAMERA_EYE)
+		if (ViewIndex == INDEX_NONE || ViewIndex == eSSE_THIRD_CAMERA_EYE)
 		{
 			return;
 		}
 
-		int index = (StereoPass == eSSP_LEFT_EYE) ? 0 : 1;
-		const FHMDViewMesh& Mesh = HiddenAreaMesh[index];
+		const FHMDViewMesh& Mesh = HiddenAreaMesh[ViewIndex];
 		check(Mesh.IsValid());
 
 		RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);
@@ -1752,15 +1751,14 @@ namespace WindowsMixedReality
 		//return VisibleAreaMesh[0].IsValid() && VisibleAreaMesh[1].IsValid();
 	}
 
-	void FWindowsMixedRealityHMD::DrawVisibleAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+	void FWindowsMixedRealityHMD::DrawVisibleAreaMesh(FRHICommandList& RHICmdList, int32 ViewIndex) const
 	{
-		if (StereoPass == eSSP_FULL || StereoPass == eSSP_THIRD_CAMERA_EYE)
+		if (ViewIndex == INDEX_NONE || ViewIndex == eSSE_THIRD_CAMERA_EYE)
 		{
 			return;
 		}
 
-		int index = (StereoPass == eSSP_LEFT_EYE) ? 0 : 1;
-		const FHMDViewMesh& Mesh = VisibleAreaMesh[index];
+		const FHMDViewMesh& Mesh = VisibleAreaMesh[ViewIndex];
 		check(Mesh.IsValid());
 
 		RHICmdList.SetStreamSource(0, Mesh.VertexBufferRHI, 0);

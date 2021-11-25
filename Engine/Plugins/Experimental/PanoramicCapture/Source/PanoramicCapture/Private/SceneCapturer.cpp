@@ -86,11 +86,10 @@ const SamplingPattern g_ssPatterns[] =
 
 };
 
-void USceneCapturer::InitCaptureComponent(USceneCaptureComponent2D* CaptureComponent, float HFov, float VFov, EStereoscopicPass InStereoPass)
+void USceneCapturer::InitCaptureComponent(USceneCaptureComponent2D* CaptureComponent, float HFov, float VFov)
 {
 	CaptureComponent->SetVisibility( true );
 	CaptureComponent->SetHiddenInGame( false );
-	CaptureComponent->CaptureStereoPass = InStereoPass;
 	CaptureComponent->FOVAngle = FMath::Max( HFov, VFov );
 	CaptureComponent->bCaptureEveryFrame = false;
 	CaptureComponent->bCaptureOnMovement = false;
@@ -312,20 +311,13 @@ USceneCapturer::USceneCapturer()
 
 	for( int CaptureIndex = 0; CaptureIndex < FStereoPanoramaManager::ConcurrentCaptures->GetInt(); CaptureIndex++ )
 	{
-		EStereoscopicPass StereoPass = EStereoscopicPass::eSSP_LEFT_EYE;
-		if (bMonoscopicMode)
-		{
-			// use left eye for monoscopic capture
-			StereoPass = EStereoscopicPass::eSSP_FULL;
-		}
-
 		// initialize left eye
 		FString LeftCounter = FString::Printf(TEXT("LeftEyeCaptureComponent_%04d"), CaptureIndex);
 		USceneCaptureComponent2D* LeftEyeCaptureComponent = CreateDefaultSubobject<USceneCaptureComponent2D>(*LeftCounter);
 		LeftEyeCaptureComponent->bTickInEditor = false;
 		LeftEyeCaptureComponent->SetComponentTickEnabled(false);
 		LeftEyeCaptureComponent->AttachToComponent(CaptureSceneComponent, FAttachmentTransformRules::KeepRelativeTransform);
-		InitCaptureComponent( LeftEyeCaptureComponent, captureHFov, captureVFov, StereoPass);
+		InitCaptureComponent( LeftEyeCaptureComponent, captureHFov, captureVFov);
 		LeftEyeCaptureComponents.Add( LeftEyeCaptureComponent );
 
 		// initialize right eye
@@ -334,7 +326,7 @@ USceneCapturer::USceneCapturer()
 		RightEyeCaptureComponent->bTickInEditor = false;
 		RightEyeCaptureComponent->SetComponentTickEnabled(false);
 		RightEyeCaptureComponent->AttachToComponent(CaptureSceneComponent, FAttachmentTransformRules::KeepRelativeTransform);
-		InitCaptureComponent(RightEyeCaptureComponent, captureHFov, captureVFov, EStereoscopicPass::eSSP_RIGHT_EYE);
+		InitCaptureComponent(RightEyeCaptureComponent, captureHFov, captureVFov);
 		RightEyeCaptureComponents.Add(RightEyeCaptureComponent);
 	}
 

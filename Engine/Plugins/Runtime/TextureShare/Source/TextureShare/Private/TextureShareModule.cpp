@@ -65,7 +65,7 @@ void FTextureShareModule::RemoveSceneContextCallback(const FString& ShareName)
 	}
 }
 
-bool FTextureShareModule::LinkSceneContextToShare(const TSharedPtr<ITextureShareItem>& ShareItem, int StereoscopicPass, bool bIsEnabled)
+bool FTextureShareModule::LinkSceneContextToShare(const TSharedPtr<ITextureShareItem>& ShareItem, int StereoViewIndex, bool bIsEnabled)
 {
 	if (ShareItem.IsValid() && ShareItem->IsValid() )
 	{
@@ -74,7 +74,7 @@ bool FTextureShareModule::LinkSceneContextToShare(const TSharedPtr<ITextureShare
 
 		if (bIsEnabled)
 		{
-			TextureShareSceneContextCallback.Emplace(ShareName.ToLower(), StereoscopicPass);
+			TextureShareSceneContextCallback.Emplace(ShareName.ToLower(), StereoViewIndex);
 			DisplayManager->BeginSceneSharing();
 		}
 		else
@@ -89,20 +89,20 @@ bool FTextureShareModule::LinkSceneContextToShare(const TSharedPtr<ITextureShare
 	return false;
 }
 
-bool FTextureShareModule::SetBackbufferRect(int StereoscopicPass, const FIntRect* BackbufferRect)
+bool FTextureShareModule::SetBackbufferRect(int StereoViewIndex, const FIntRect* BackbufferRect)
 {
 	if (BackbufferRect == nullptr)
 	{
 		// Remove
-		if (BackbufferRects.Contains(StereoscopicPass))
+		if (BackbufferRects.Contains(StereoViewIndex))
 		{
-			BackbufferRects.Remove(StereoscopicPass);
+			BackbufferRects.Remove(StereoViewIndex);
 			return true;
 		}
 	}
 	else
 	{
-		BackbufferRects.Emplace(StereoscopicPass, *BackbufferRect);
+		BackbufferRects.Emplace(StereoViewIndex, *BackbufferRect);
 		return true;
 	}
 
@@ -166,11 +166,11 @@ void FTextureShareModule::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBu
 	if (ViewFamily.Views.Num() > 0)
 	{
 	{
-		EStereoscopicPass StereoscopicPass = ViewFamily.Views[0]->StereoPass;
+		int32 StereoViewIndex = ViewFamily.Views[0]->StereoViewIndex;
 		// Send SceneContext callback for all registered shares:
 		for (auto& It : TextureShareSceneContextCallback)
 		{
-			if (It.Value == (int)StereoscopicPass)
+			if (It.Value == (int)StereoViewIndex)
 			{
 				SendSceneContext_RenderThread(GraphBuilder, It.Key, SceneTextures, ViewFamily);
 			}
@@ -186,11 +186,11 @@ void FTextureShareModule::OnPostRenderViewFamily_RenderThread(FRHICommandListImm
 	if (ViewFamily.Views.Num() > 0)
 	{
 	{
-		EStereoscopicPass StereoscopicPass = ViewFamily.Views[0]->StereoPass;
+		int32 StereoViewIndex = ViewFamily.Views[0]->StereoViewIndex;
 		// Send PostRender callback for all registered shares:
 		for (auto& It : TextureShareSceneContextCallback)
 		{
-			if (It.Value == (int)StereoscopicPass)
+			if (It.Value == (int)StereoViewIndex)
 			{
 				SendPostRender_RenderThread(RHICmdList, It.Key, ViewFamily);
 			}
@@ -305,10 +305,10 @@ bool FTextureShareModule::SendPostRender_RenderThread(FRHICommandListImmediate& 
 
 			//@todo Get rect from ViewFamily (check ViewFamily.Views[0]->UnconstrainedViewRect?, etc)
 			// Use custom backbuffer viewport rect, defined by SetBackbufferRect()
-			EStereoscopicPass StereoscopicPass = ViewFamily.Views[0]->StereoPass;
+			int32 StereoViewIndex = ViewFamily.Views[0]->StereoViewIndex;
 
 			// Send rect of backbuffer texture
-			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::BackBuffer, BackBufferTexture.GetReference(), BackbufferRects.Find(StereoscopicPass));
+			SendTexture_RenderThread(RHICmdList, ShareItem, TextureShareStrings::texture_name::BackBuffer, BackBufferTexture.GetReference(), BackbufferRects.Find(StereoViewIndex));
 		}
 
 		ShareItem->EndFrame_RenderThread();

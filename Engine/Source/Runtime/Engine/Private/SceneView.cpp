@@ -690,6 +690,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, OverlayColor(InitOptions.OverlayColor)
 	, ColorScale(InitOptions.ColorScale)
 	, StereoPass(InitOptions.StereoPass)
+	, StereoViewIndex(InitOptions.StereoViewIndex)
 	, StereoIPD(InitOptions.StereoIPD)
 	, bAllowCrossGPUTransfer(true)
 	, bOverrideGPUMask(false)
@@ -1053,7 +1054,7 @@ void FSceneView::UpdateViewMatrix()
 	FRotator StereoViewRotation = ViewRotation;
 	if (GEngine->StereoRenderingDevice.IsValid() && IStereoRendering::IsStereoEyePass(StereoPass))
 	{
-		GEngine->StereoRenderingDevice->CalculateStereoViewOffset(StereoPass, StereoViewRotation, WorldToMetersScale, StereoViewLocation);
+		GEngine->StereoRenderingDevice->CalculateStereoViewOffset(StereoViewIndex, StereoViewRotation, WorldToMetersScale, StereoViewLocation);
 		ViewLocation = StereoViewLocation;
 		ViewRotation = StereoViewRotation;
 	}
@@ -1831,7 +1832,7 @@ void FSceneView::StartFinalPostprocessSettings(FVector InViewLocation)
 	{
 		if (GEngine->StereoRenderingDevice.IsValid())
 		{
-			GEngine->StereoRenderingDevice->StartFinalPostprocessSettings(&FinalPostProcessSettings, StereoPass);
+			GEngine->StereoRenderingDevice->StartFinalPostprocessSettings(&FinalPostProcessSettings, StereoPass, StereoViewIndex);
 		}
 	}
 
@@ -1992,7 +1993,7 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	{
 		if (GEngine->StereoRenderingDevice.IsValid())
 		{
-			GEngine->StereoRenderingDevice->EndFinalPostprocessSettings(&FinalPostProcessSettings, StereoPass);
+			GEngine->StereoRenderingDevice->EndFinalPostprocessSettings(&FinalPostProcessSettings, StereoPass, StereoViewIndex);
 		}
 	}
 
@@ -2716,25 +2717,6 @@ ERHIFeatureLevel::Type FSceneViewFamily::GetFeatureLevel() const
 	else
 	{
 		return GMaxRHIFeatureLevel;
-	}
-}
-
-const FSceneView& FSceneViewFamily::GetStereoEyeView(const EStereoscopicPass Eye) const
-{
-	const int32 EyeIndex = static_cast<int32>(Eye);
-	check(Views.Num() > 0 && Views.Num() >= EyeIndex);
-
-	if (EyeIndex <= 1) // Mono or left eye
-	{
-		return *Views[0];
-	}
-	else if (EyeIndex == 2) // Right eye
-	{
-		return *Views[1];
-	}
-	else // For extra views
-	{
-		return *Views[EyeIndex - eSSP_RIGHT_EYE + 1];
 	}
 }
 

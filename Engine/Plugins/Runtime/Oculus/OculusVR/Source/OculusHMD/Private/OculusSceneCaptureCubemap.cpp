@@ -69,7 +69,6 @@ void UOculusSceneCaptureCubemap::StartCapture(UWorld* World, uint32 InCaptureBox
 		CaptureComponent->SetVisibility(true);
 		CaptureComponent->SetHiddenInGame(false);
 
-		CaptureComponent->CaptureStereoPass = EStereoscopicPass::eSSP_FULL;//LEFT_EYE; //??
 		CaptureComponent->FOVAngle = 90.f;
 		CaptureComponent->bCaptureEveryFrame = true;
 		CaptureComponent->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;

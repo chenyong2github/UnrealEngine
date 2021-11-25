@@ -310,7 +310,7 @@ void FDefaultSpectatorScreenController::RenderSpectatorModeSingleEyeCroppedToFil
 	const FIntRect DstRect(0, 0, TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
 	const FIntRect WindowRect(0, 0, WindowSize.X, WindowSize.Y);
 
-	const FIntRect SrcCroppedToFitRect = Helpers::GetEyeCroppedToFitRect(HMDDevice->GetEyeCenterPoint_RenderThread(EStereoscopicPass::eSSP_LEFT_EYE), SrcRect, WindowRect);
+	const FIntRect SrcCroppedToFitRect = Helpers::GetEyeCroppedToFitRect(HMDDevice->GetEyeCenterPoint_RenderThread(EStereoscopicEye::eSSE_LEFT_EYE), SrcRect, WindowRect);
 
 	HMDDevice->CopyTexture_RenderThread(RHICmdList, EyeTexture, SrcCroppedToFitRect, TargetTexture, DstRect, false, true);
 }
@@ -339,7 +339,7 @@ void FDefaultSpectatorScreenController::RenderSpectatorModeMirrorAndTexture(FRHI
 
 	const FIntRect EyeDstRect = SpectatorScreenModeTexturePlusEyeLayout_RenderThread.GetScaledEyeRect(TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
 	const FIntRect EyeSrcRect = GetFullFlatEyeRect_RenderThread(EyeTexture);
-	const FIntRect CroppedEyeSrcRect = Helpers::GetEyeCroppedToFitRect(HMDDevice->GetEyeCenterPoint_RenderThread(EStereoscopicPass::eSSP_LEFT_EYE), EyeSrcRect, EyeDstRect);
+	const FIntRect CroppedEyeSrcRect = Helpers::GetEyeCroppedToFitRect(HMDDevice->GetEyeCenterPoint_RenderThread(EStereoscopicEye::eSSE_LEFT_EYE), EyeSrcRect, EyeDstRect);
 
 	const FIntRect OtherDstRect = SpectatorScreenModeTexturePlusEyeLayout_RenderThread.GetScaledTextureRect(TargetTexture->GetSizeX(), TargetTexture->GetSizeY());
 	const FIntRect OtherSrcRect(0, 0, OtherTextureLocal->GetSizeX(), OtherTextureLocal->GetSizeY());

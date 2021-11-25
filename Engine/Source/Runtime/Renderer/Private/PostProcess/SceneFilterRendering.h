@@ -103,7 +103,7 @@ extern RENDERER_API void DrawPostProcessPass(
 	FIntPoint TargetSize,
 	FIntPoint TextureSize,
 	const TShaderRef<FShader>& VertexShader,
-	EStereoscopicPass StereoView,
+	int32 StereoViewIndex,
 	bool bHasCustomMesh,
 	EDrawRectangleFlags Flags = EDRF_Default
 	);

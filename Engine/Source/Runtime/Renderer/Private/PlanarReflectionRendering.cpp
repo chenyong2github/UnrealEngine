@@ -590,6 +590,7 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 			NewView.ViewRotationMatrix = ViewRotationMatrix;
 			NewView.ProjectionMatrix = ProjectionMatrix;
 			NewView.StereoPass = View.StereoPass;
+			NewView.StereoViewIndex = View.StereoViewIndex;
 
 			SceneCaptureViewInfo.Add(NewView);
 		}

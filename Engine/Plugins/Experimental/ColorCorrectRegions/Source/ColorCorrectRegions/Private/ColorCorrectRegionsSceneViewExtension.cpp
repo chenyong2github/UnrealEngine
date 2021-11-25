@@ -253,7 +253,7 @@ namespace
 			OutputSize,
 			InputSize,
 			PipelineState.VertexShader,
-			View.StereoPass,
+			View.StereoViewIndex,
 			false,
 			DrawRectangleFlags);
 	}

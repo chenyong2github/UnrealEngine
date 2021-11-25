@@ -2026,7 +2026,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 			FViewInfo* SharedView = View.CreateSnapshot();
 			{
 				SharedView->DynamicPrimitiveCollector = FGPUScenePrimitiveCollector(&GetGPUSceneDynamicContext());
-				SharedView->StereoPass = eSSP_FULL;
+				SharedView->StereoPass = EStereoscopicPass::eSSP_FULL;
 				SharedView->DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
 
 				// Don't do material texture mip biasing in proxy card rendering

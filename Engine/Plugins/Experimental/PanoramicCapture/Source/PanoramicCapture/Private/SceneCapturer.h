@@ -98,7 +98,7 @@ public:
 
 public:
 
-	void InitCaptureComponent( USceneCaptureComponent2D* CaptureComponent, float HFov, float VFov, EStereoscopicPass InStereoPass );
+	void InitCaptureComponent( USceneCaptureComponent2D* CaptureComponent, float HFov, float VFov);
 
 	void CaptureComponent(int32 CurrentHorizontalStep, int32 CurrentVerticalStep, FString Folder, USceneCaptureComponent2D* CaptureComponent, TArray<FLinearColor>& Atlas);
 

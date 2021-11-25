@@ -631,7 +631,7 @@ bool SGameLayerManager::GetNormalizeRect(ULocalPlayer* LocalPlayer, FVector2D& O
 	if ( LocalPlayer )
 	{
 		FSceneViewProjectionData ProjectionData;
-		if (LocalPlayer->GetProjectionData(LocalPlayer->ViewportClient->Viewport, eSSP_FULL, ProjectionData))
+		if (LocalPlayer->GetProjectionData(LocalPlayer->ViewportClient->Viewport, ProjectionData))
 		{
 			const FIntRect ViewRect = ProjectionData.GetViewRect();
 			const FIntRect ConstrainedViewRect = ProjectionData.GetConstrainedViewRect();

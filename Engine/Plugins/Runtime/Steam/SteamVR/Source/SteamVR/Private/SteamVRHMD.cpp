@@ -1425,27 +1425,24 @@ bool FSteamVRHMD::EnableStereo(bool bStereo)
 	return bStereoEnabled;
 }
 
-void FSteamVRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
+void FSteamVRHMD::AdjustViewRect(int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 {
 	SizeX = FMath::CeilToInt(IdealRenderTargetSize.X * PixelDensity);
 	SizeY = FMath::CeilToInt(IdealRenderTargetSize.Y * PixelDensity);
 
 	SizeX = SizeX / 2;
-	if( StereoPass == eSSP_RIGHT_EYE )
-	{
-		X += SizeX;
-	}
+	X += SizeX * ViewIndex;
 }
 
-bool FSteamVRHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition)
+bool FSteamVRHMD::GetRelativeEyePose(int32 DeviceId, int32 ViewIndex, FQuat& OutOrientation, FVector& OutPosition)
 {
-	if (DeviceId != IXRTrackingSystem::HMDDeviceId || !(Eye == eSSP_LEFT_EYE || Eye == eSSP_RIGHT_EYE))
+	if (DeviceId != IXRTrackingSystem::HMDDeviceId || !(ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE || ViewIndex == EStereoscopicEye::eSSE_RIGHT_EYE))
 	{
 		return false;
 	}
 	auto Frame = GetTrackingFrame();
 
-	vr::Hmd_Eye HmdEye = (Eye == eSSP_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
+	vr::Hmd_Eye HmdEye = (ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
 	vr::HmdMatrix34_t HeadFromEye = VRSystem->GetEyeToHeadTransform(HmdEye);
 
 		// grab the eye position, currently ignoring the rotation supplied by GetHeadFromEyePose()
@@ -1460,20 +1457,20 @@ bool FSteamVRHMD::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQua
 	return true;
 }
 
-void FSteamVRHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
+void FSteamVRHMD::CalculateStereoViewOffset(const int32 StereoViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 {
 	// Needed to transform world locked stereo layers
 	PlayerLocation = ViewLocation;
 
 	// Forward to the base implementation (that in turn will call the DefaultXRCamera implementation)
-	FHeadMountedDisplayBase::CalculateStereoViewOffset(StereoPassType, ViewRotation, WorldToMeters, ViewLocation);
+	FHeadMountedDisplayBase::CalculateStereoViewOffset(StereoViewIndex, ViewRotation, WorldToMeters, ViewLocation);
 }
 
-FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
+FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const int32 StereoViewIndex) const
 {
 	check(IsStereoEnabled() || IsHeadTrackingEnforced());
 
-	vr::Hmd_Eye HmdEye = (StereoPassType == eSSP_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
+	vr::Hmd_Eye HmdEye = (StereoViewIndex == EStereoscopicEye::eSSE_LEFT_EYE) ? vr::Eye_Left : vr::Eye_Right;
 	float Left, Right, Top, Bottom;
 
 	VRSystem->GetProjectionRaw(HmdEye, &Right, &Left, &Top, &Bottom);
@@ -1511,7 +1508,7 @@ FMatrix FSteamVRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass Ster
 
 void FSteamVRHMD::GetEyeRenderParams_RenderThread(const FHeadMountedDisplayPassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const
 {
-	if (Context.View.StereoPass == eSSP_LEFT_EYE)
+	if (Context.View.StereoViewIndex == EStereoscopicEye::eSSE_LEFT_EYE)
 	{
 		EyeToSrcUVOffsetValue.X = 0.0f;
 		EyeToSrcUVOffsetValue.Y = 0.0f;

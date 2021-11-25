@@ -122,13 +122,13 @@ public:
 	bool ShouldUseAdditionalFrameTargetableResource() const;
 	bool ShouldUseFullSizeFrameTargetableResource() const;
 
-	inline bool FindContext(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum)
+	inline bool FindContext(const int32 ViewIndex, uint32* OutContextNum)
 	{
 		check(IsInGameThread());
 
 		for (int32 ContextNum = 0; ContextNum < Contexts.Num(); ContextNum++)
 		{
-			if (StereoPassType == Contexts[ContextNum].StereoscopicPass)
+			if (ViewIndex == Contexts[ContextNum].StereoViewIndex)
 			{
 				if (OutContextNum != nullptr)
 				{

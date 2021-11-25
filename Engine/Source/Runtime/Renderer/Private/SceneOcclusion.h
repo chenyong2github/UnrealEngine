@@ -77,7 +77,7 @@ public:
 
 		if (GEngine && GEngine->StereoRenderingDevice)
 		{
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, GEngine->StereoRenderingDevice->GetViewIndexForPass(View.StereoPass));
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, View.StereoViewIndex);
 		}
 	}
 
@@ -90,7 +90,7 @@ public:
 
 		if (GEngine && GEngine->StereoRenderingDevice)
 		{
-			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, GEngine->StereoRenderingDevice->GetViewIndexForPass(View.StereoPass));
+			SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewId, View.StereoViewIndex);
 		}
 	}
 

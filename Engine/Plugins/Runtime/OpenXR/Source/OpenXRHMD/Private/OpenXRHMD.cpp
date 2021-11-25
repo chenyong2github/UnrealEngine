@@ -576,17 +576,15 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 	}
 }
 
-void FOpenXRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
+void FOpenXRHMD::AdjustViewRect(int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 {
-	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
-
 	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 	const XrViewConfigurationView& Config = PipelineState.ViewConfigs[ViewIndex];
 	FIntPoint ViewRectMin(EForceInit::ForceInitToZero);
 
 	// If Mobile Multi-View is active the first two views will share the same position
 	// Thus the start index should be the second view if enabled
-	for (uint32 i = bIsMobileMultiViewEnabled ? 1 : 0; i < ViewIndex; ++i)
+	for (int32 i = bIsMobileMultiViewEnabled ? 1 : 0; i < ViewIndex; ++i)
 	{
 		ViewRectMin.X += PipelineState.ViewConfigs[i].recommendedImageRectWidth;
 	}
@@ -598,14 +596,13 @@ void FOpenXRHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y
 	SizeY = Config.recommendedImageRectHeight;
 }
 
-void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const enum EStereoscopicPass StereoPass, const FIntRect& FinalViewRect)
+void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const int32 ViewIndex, const FIntRect& FinalViewRect)
 {
-	if (StereoPass == eSSP_FULL)
+	if (ViewIndex == INDEX_NONE || !PipelinedLayerStateRendering.ColorImages.IsValidIndex(ViewIndex))
 	{
 		return;
 	}
 
-	int32 ViewIndex = GetViewIndexForPass(StereoPass);
 	float NearZ = GNearClippingPlane / GetWorldToMetersScale();
 
 	XrSwapchainSubImage& ColorImage = PipelinedLayerStateRendering.ColorImages[ViewIndex];
@@ -671,50 +668,27 @@ void FOpenXRHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const en
 	});
 }
 
-EStereoscopicPass FOpenXRHMD::GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const
+EStereoscopicPass FOpenXRHMD::GetViewPassForIndex(bool bStereoRequested, int32 ViewIndex) const
 {
 	if (!bStereoRequested)
 		return EStereoscopicPass::eSSP_FULL;
 
-	return static_cast<EStereoscopicPass>(eSSP_LEFT_EYE + ViewIndex);
-}
-
-uint32 FOpenXRHMD::GetViewIndexForPass(EStereoscopicPass StereoPassType) const
-{
-	switch (StereoPassType)
-	{
-	case eSSP_LEFT_EYE:
-	case eSSP_FULL:
-		return 0;
-
-	case eSSP_RIGHT_EYE:
-		return 1;
-
-	default:
-		return StereoPassType - eSSP_LEFT_EYE;
-	}
-}
-
-uint32 FOpenXRHMD::DeviceGetLODViewIndex() const
-{
-	if (SelectedViewConfigurationType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO)
-	{
-		return GetViewIndexForPass(eSSP_LEFT_EYE_SIDE);
-	}
-	return IStereoRendering::DeviceGetLODViewIndex();
-}
-
-bool FOpenXRHMD::DeviceIsAPrimaryPass(EStereoscopicPass Pass)
-{
-	uint32 ViewIndex = GetViewIndexForPass(Pass);
 	const FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 	if (PipelineState.PluginViews.IsValidIndex(ViewIndex) && PipelineState.PluginViews[ViewIndex])
 	{
 		// Views provided by a plugin should be considered a new primary pass
-		return true;
+		return EStereoscopicPass::eSSP_PRIMARY;
 	}
+	return ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE ? EStereoscopicPass::eSSP_PRIMARY : EStereoscopicPass::eSSP_SECONDARY;
+}
 
-	return Pass == EStereoscopicPass::eSSP_FULL || Pass == EStereoscopicPass::eSSP_LEFT_EYE;
+uint32 FOpenXRHMD::GetLODViewIndex() const
+{
+	if (SelectedViewConfigurationType == XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO)
+	{
+		return EStereoscopicEye::eSSE_LEFT_EYE_SIDE;
+	}
+	return IStereoRendering::GetLODViewIndex();
 }
 
 int32 FOpenXRHMD::GetDesiredNumberOfViews(bool bStereoRequested) const
@@ -725,7 +699,7 @@ int32 FOpenXRHMD::GetDesiredNumberOfViews(bool bStereoRequested) const
 	return bStereoRequested ? FrameState.ViewConfigs.Num() : 1;
 }
 
-bool FOpenXRHMD::GetRelativeEyePose(int32 InDeviceId, EStereoscopicPass InEye, FQuat& OutOrientation, FVector& OutPosition)
+bool FOpenXRHMD::GetRelativeEyePose(int32 InDeviceId, int32 InViewIndex, FQuat& OutOrientation, FVector& OutPosition)
 {
 	if (InDeviceId != IXRTrackingSystem::HMDDeviceId)
 	{
@@ -734,25 +708,22 @@ bool FOpenXRHMD::GetRelativeEyePose(int32 InDeviceId, EStereoscopicPass InEye, F
 
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
 
-	const uint32 ViewIndex = GetViewIndexForPass(InEye);
 	if (FrameState.ViewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT &&
 		FrameState.ViewState.viewStateFlags & XR_VIEW_STATE_POSITION_VALID_BIT &&
-		FrameState.Views.IsValidIndex(ViewIndex))
+		FrameState.Views.IsValidIndex(InViewIndex))
 	{
-		OutOrientation = ToFQuat(FrameState.Views[ViewIndex].pose.orientation);
-		OutPosition = ToFVector(FrameState.Views[ViewIndex].pose.position, GetWorldToMetersScale());
+		OutOrientation = ToFQuat(FrameState.Views[InViewIndex].pose.orientation);
+		OutPosition = ToFVector(FrameState.Views[InViewIndex].pose.position, GetWorldToMetersScale());
 		return true;
 	}
 
 	return false;
 }
 
-FMatrix FOpenXRHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
+FMatrix FOpenXRHMD::GetStereoProjectionMatrix(const int32 ViewIndex) const
 {
-	const uint32 ViewIndex = GetViewIndexForPass(StereoPassType);
-
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
-	XrFovf Fov = (ViewIndex < (uint32)FrameState.Views.Num()) ? FrameState.Views[ViewIndex].fov 
+	XrFovf Fov = (ViewIndex < FrameState.Views.Num()) ? FrameState.Views[ViewIndex].fov 
 		: XrFovf{ -PI / 4.0f, PI / 4.0f, PI / 4.0f, -PI / 4.0f };
 	float ZNear = GNearClippingPlane;
 
@@ -1265,7 +1236,7 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 	GetVisibilityMaskKHR(Session, SelectedViewConfigurationType, View, Type, &VisibilityMask);
 
 	// We need to apply the eye's projection matrix to each vertex
-	FMatrix Projection = GetStereoProjectionMatrix(GetViewPassForIndex(true, View));
+	FMatrix Projection = GetStereoProjectionMatrix(View);
 
 	ensure(VisibilityMask.vertexCapacityInput == VisibilityMask.vertexCountOutput);
 	ensure(VisibilityMask.indexCapacityInput == VisibilityMask.indexCountOutput);
@@ -1713,8 +1684,13 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 
 	PipelinedFrameStateRendering = PipelinedFrameStateGame;
 
-	for (int32 ViewIndex = 0; ViewIndex < PipelinedLayerStateRendering.ProjectionLayers.Num(); ViewIndex++)
+	for (int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ViewIndex++)
 	{
+		if (ViewFamily.Views[ViewIndex]->StereoPass == EStereoscopicPass::eSSP_FULL)
+		{
+			continue;
+		}
+
 		const XrView& View = PipelinedFrameStateRendering.Views[ViewIndex];
 		FTransform EyePose = ToFTransform(View.pose, WorldToMeters);
 
@@ -2434,12 +2410,11 @@ bool FOpenXRHMD::HasVisibleAreaMesh() const
 	return VisibleAreaMeshes.Num() > 0;
 }
 
-void FOpenXRHMD::DrawHiddenAreaMesh(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+void FOpenXRHMD::DrawHiddenAreaMesh(class FRHICommandList& RHICmdList, int32 ViewIndex) const
 {
-	check(StereoPass != eSSP_FULL);
+	check(ViewIndex != INDEX_NONE);
 
-	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
-	if (ViewIndex < (uint32)HiddenAreaMeshes.Num())
+	if (ViewIndex < HiddenAreaMeshes.Num())
 	{
 		const FHMDViewMesh& Mesh = HiddenAreaMeshes[ViewIndex];
 
@@ -2451,12 +2426,12 @@ void FOpenXRHMD::DrawHiddenAreaMesh(class FRHICommandList& RHICmdList, EStereosc
 	}
 }
 
-void FOpenXRHMD::DrawVisibleAreaMesh(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+void FOpenXRHMD::DrawVisibleAreaMesh(class FRHICommandList& RHICmdList, int32 ViewIndex) const
 {
-	check(StereoPass != eSSP_FULL);
+	check(ViewIndex != INDEX_NONE);
+	check(ViewIndex < VisibleAreaMeshes.Num());
 
-	const uint32 ViewIndex = GetViewIndexForPass(StereoPass);
-	if (ViewIndex < (uint32)VisibleAreaMeshes.Num() && VisibleAreaMeshes[ViewIndex].IsValid())
+	if (ViewIndex < VisibleAreaMeshes.Num() && VisibleAreaMeshes[ViewIndex].IsValid())
 	{
 		const FHMDViewMesh& Mesh = VisibleAreaMeshes[ViewIndex];
 

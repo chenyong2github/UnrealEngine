@@ -164,7 +164,7 @@ void FDisplayClusterDeviceBase::InitCanvasFromView(class FSceneView* InView, cla
 	}
 }
 
-void FDisplayClusterDeviceBase::AdjustViewRect(EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
+void FDisplayClusterDeviceBase::AdjustViewRect(int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 {
 	check(IsInGameThread());
 
@@ -174,10 +174,10 @@ void FDisplayClusterDeviceBase::AdjustViewRect(EStereoscopicPass StereoPassType,
 	}
 
 	uint32 ViewportContextNum = 0;
-	IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType, &ViewportContextNum);
+	IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(ViewIndex, &ViewportContextNum);
 	if (ViewportPtr == nullptr)
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int32(StereoPassType));
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoViewIndex='%i' not found"), ViewIndex);
 		return;
 	}
 
@@ -192,50 +192,7 @@ void FDisplayClusterDeviceBase::AdjustViewRect(EStereoscopicPass StereoPassType,
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Adjusted view rect: Viewport='%s', ViewIndex=%d, [%d,%d - %d,%d]"), *ViewportPtr->GetId(), ViewportContextNum, ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
 }
 
-uint32 FDisplayClusterDeviceBase::GetViewIndexForPass(EStereoscopicPass StereoPassType) const
-{
-	uint32 DecodedViewIndex = 0;
-
-	switch (StereoPassType)
-	{
-	case EStereoscopicPass::eSSP_FULL:
-		DecodedViewIndex = 0;
-		break;
-
-	default:
-		if (IsInRenderingThread())
-		{
-			uint32 ViewportContextNum = 0;
-			if (ViewportManagerProxyPtr)
-			{
-				IDisplayClusterViewportProxy* ViewportProxy = ViewportManagerProxyPtr->FindViewport_RenderThread(StereoPassType, &ViewportContextNum);
-				if (ViewportProxy)
-				{
-					const FDisplayClusterViewport_Context& Context = ViewportProxy->GetContexts_RenderThread()[ViewportContextNum];
-					DecodedViewIndex = Context.RenderFrameViewIndex;
-				}
-			}
-		}
-		else
-		{
-			uint32 ViewportContextNum = 0;
-			if (ViewportManagerPtr)
-			{
-				IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType, &ViewportContextNum);
-				if (ViewportPtr)
-				{
-					const FDisplayClusterViewport_Context& Context = ViewportPtr->GetContexts()[ViewportContextNum];
-					DecodedViewIndex = Context.RenderFrameViewIndex;
-				}
-			}
-		}
-		break;
-	}
-
-	return DecodedViewIndex;
-}
-
-void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
+void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 {
 	check(IsInGameThread());
 	check(WorldToMeters > 0.f);
@@ -244,10 +201,10 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 		{ return; }
 
 	uint32 ViewportContextNum = 0;
-	IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType, &ViewportContextNum);
+	IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(ViewIndex, &ViewportContextNum);
 	if (ViewportPtr == nullptr)
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int32(StereoPassType));
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoViewIndex='%i' not found"), ViewIndex);
 		return;
 	}
 
@@ -300,13 +257,13 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	const float EyeOffset = CfgEyeDist / 2.f;
 	const float EyeOffsetValues[] = { -EyeOffset, 0.f, EyeOffset };
 
-	auto DecodeEyeType = [](const EStereoscopicPass EyePass)
+	auto DecodeEyeType = [](const EStereoscopicPass StereoPass)
 	{
-		switch (EyePass)
+		switch (StereoPass)
 		{
-		case EStereoscopicPass::eSSP_LEFT_EYE:
+		case EStereoscopicPass::eSSP_PRIMARY:
 			return EDisplayClusterEyeType::StereoLeft;
-		case EStereoscopicPass::eSSP_RIGHT_EYE:
+		case EStereoscopicPass::eSSP_SECONDARY:
 			return EDisplayClusterEyeType::StereoRight;
 		default:
 			break;
@@ -316,7 +273,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	};
 
 	// Decode current eye type	
-	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicEye);
+	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicPass);
 	const int32 EyeIndex = (int32)EyeType;
 
 	float PassOffset = 0.f;
@@ -371,7 +328,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
 }
 
-FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
+FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const int32 ViewIndex) const
 {
 	check(IsInGameThread());
 
@@ -380,10 +337,10 @@ FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereos
 	if (ViewportManagerPtr && ViewportManagerPtr->IsSceneOpened())
 	{
 		uint32 ViewportContextNum = 0;
-		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType, &ViewportContextNum);
+		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(ViewIndex, &ViewportContextNum);
 		if (ViewportPtr == nullptr)
 		{
-			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoPassType='%i' not found"), int32(StereoPassType));
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoViewIndex='%i' not found"), ViewIndex);
 		}
 		else
 		if (ViewportPtr->GetProjectionMatrix(ViewportContextNum, PrjMatrix) == false)
@@ -551,14 +508,14 @@ bool FDisplayClusterDeviceBase::NeedReAllocateViewportRenderTarget(const class F
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterDeviceBase
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterDeviceBase::StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType)
+void FDisplayClusterDeviceBase::StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex)
 {
 	check(IsInGameThread());
 
 	// eSSP_FULL pass reserved for UE internal render
 	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManagerPtr)
 	{
-		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType);
+		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoViewIndex);
 		if (ViewportPtr)
 		{
 			ViewportPtr->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Start, StartPostProcessingSettings);
@@ -566,14 +523,14 @@ void FDisplayClusterDeviceBase::StartFinalPostprocessSettings(struct FPostProces
 	}
 }
 
-bool FDisplayClusterDeviceBase::OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight)
+bool FDisplayClusterDeviceBase::OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex, float& BlendWeight)
 {
 	check(IsInGameThread());
 
 	// eSSP_FULL pass reserved for UE internal render
 	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManagerPtr)
 	{
-		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType);
+		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoViewIndex);
 		if (ViewportPtr)
 		{
 			return ViewportPtr->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override, OverridePostProcessingSettings, &BlendWeight);
@@ -583,14 +540,14 @@ bool FDisplayClusterDeviceBase::OverrideFinalPostprocessSettings(struct FPostPro
 	return false;
 }
 
-void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType)
+void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex)
 {
 	check(IsInGameThread());
 
 	// eSSP_FULL pass reserved for UE internal render
 	if (StereoPassType != EStereoscopicPass::eSSP_FULL && ViewportManagerPtr && FinalPostProcessingSettings != nullptr)
 	{
-		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoPassType);
+		IDisplayClusterViewport* ViewportPtr = ViewportManagerPtr->FindViewport(StereoViewIndex);
 		if (ViewportPtr)
 		{
 			ViewportPtr->GetViewport_CustomPostProcessSettings().DoPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Final, FinalPostProcessingSettings);

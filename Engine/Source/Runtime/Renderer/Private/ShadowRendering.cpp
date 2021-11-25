@@ -1161,13 +1161,19 @@ void FProjectedShadowInfo::RenderProjection(
 	{
 		// NOTE: This here is a hack that must match up to the use inside SetupProjectionStencilMask, where we use the Stereo setup but draw each eye independently
 		//       by scissoring the undersired half (while setting the full viewport to get the scaling to match the stereo pathfor base/pre-pass 1:1).
-		ensure(View->StereoPass == eSSP_RIGHT_EYE);
+		ensure(View->StereoPass == EStereoscopicPass::eSSP_SECONDARY);
 
 		// GPUCULL_TODO: get rid of const cast
 		FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *const_cast<FSimpleMeshDrawCommandPass*>(ProjectionStencilingPasses[0]);
 		ensure(ProjectionStencilingPass.GetInstanceCullingMode() == EInstanceCullingMode::Stereo);
-		const FViewInfo &PrimaryView = static_cast<const FViewInfo&>(View->Family->GetStereoEyeView(eSSP_LEFT_EYE));
-		ProjectionStencilingPass.BuildRenderingCommands(GraphBuilder, PrimaryView, *SceneRender->Scene, PassParameters->InstanceCullingDrawParams);
+		for (int32 StereoViewIndex = View->StereoViewIndex; StereoViewIndex >= 0; StereoViewIndex--)
+		{
+			const FSceneView* PrimaryView = View->Family->Views[StereoViewIndex];
+			if (PrimaryView->StereoPass == EStereoscopicPass::eSSP_PRIMARY)
+			{
+				ProjectionStencilingPass.BuildRenderingCommands(GraphBuilder, *PrimaryView, *SceneRender->Scene, PassParameters->InstanceCullingDrawParams);
+			}
+		}
 	}
 
 	const FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;

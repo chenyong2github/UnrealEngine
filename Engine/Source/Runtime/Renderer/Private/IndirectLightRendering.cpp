@@ -1122,7 +1122,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 						View.ViewRect.Size(),
 						GetSceneTextureExtent(),
 						VertexShader,
-						View.StereoPass, 
+						View.StereoViewIndex,
 						false, // TODO.
 						EDRF_UseTriangleOptimization);
 				}

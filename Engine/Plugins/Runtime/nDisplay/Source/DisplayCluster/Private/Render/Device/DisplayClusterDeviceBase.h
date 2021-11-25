@@ -55,16 +55,15 @@ public:
 	virtual bool IsStereoEnabledOnNextFrame() const override;
 	virtual bool EnableStereo(bool bStereoEnabled = true) override;
 	virtual void InitCanvasFromView(class FSceneView* InView, class UCanvas* Canvas) override;
-	virtual void AdjustViewRect(enum EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override;
-	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override;
-	virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
+	virtual void AdjustViewRect(int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override;
+	virtual void CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override;
+	virtual FMatrix GetStereoProjectionMatrix(const int32 ViewIndex) const override;
 	virtual void RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const override;
 	
 	virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const override
 	{
 		return FMath::Max(1, DesiredNumberOfViews);
 	}
-	virtual uint32 GetViewIndexForPass(EStereoscopicPass StereoPassType) const override;
 
 	virtual IStereoRenderTargetManager* GetRenderTargetManager() override
 	{ return this; }
@@ -92,24 +91,6 @@ protected:
 	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1)
 	{ return false; }
 
-	virtual bool DeviceIsAPrimaryPass(EStereoscopicPass Pass) override
-	{ return true; }
-
-	virtual bool DeviceIsAPrimaryView(const FSceneView& View) override
-	{ return true; }
-
-	virtual bool DeviceIsASecondaryPass(EStereoscopicPass Pass) override
-	{ return false; }
-	
-	virtual bool DeviceIsASecondaryView(const FSceneView& View) override
-	{ return false; }
-
-	virtual bool DeviceIsAnAdditionalPass(EStereoscopicPass Pass) override
-	{ return false; }
-
-	virtual bool DeviceIsAnAdditionalView(const FSceneView& View) override
-	{ return false; }
-
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// FDisplayClusterDeviceBase
@@ -127,9 +108,9 @@ protected:
 	virtual FDisplayClusterPresentationBase* CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy) = 0;
 
 	// Checks if custom post processing settings is assigned for specific viewport and assign them to be used
-	virtual void StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
-	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight) override;
-	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
+	virtual void StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex) override;
+	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex, float& BlendWeight) override;
+	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType, const int32 StereoViewIndex) override;
 
 private:
 	// Runtime viewport manager api for game and render threads. Internal usage only

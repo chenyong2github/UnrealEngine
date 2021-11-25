@@ -102,7 +102,7 @@ bool FHeadMountedDisplayBase::GetHMDDistortionEnabled(EShadingPath /* ShadingPat
 	return true;
 }
 
-FVector2D FHeadMountedDisplayBase::GetEyeCenterPoint_RenderThread(EStereoscopicPass Eye) const
+FVector2D FHeadMountedDisplayBase::GetEyeCenterPoint_RenderThread(const int32 ViewIndex) const
 {
 	check(IsInRenderingThread());
 
@@ -113,7 +113,7 @@ FVector2D FHeadMountedDisplayBase::GetEyeCenterPoint_RenderThread(EStereoscopicP
 		return FVector2D(0.5f, 0.5f);
 	}
 
-	const FMatrix StereoProjectionMatrix = GetStereoProjectionMatrix(Eye);
+	const FMatrix StereoProjectionMatrix = GetStereoProjectionMatrix(ViewIndex);
 	//0,0,1 is the straight ahead point, wherever it maps to is the center of the projection plane in -1..1 coordinates.  -1,-1 is bottom left.
 	const FVector4 ScreenCenter = StereoProjectionMatrix.TransformPosition(FVector(0.0f, 0.0f, 1.0f));
 	//transform into 0-1 screen coordinates 0,0 is top left.  
@@ -129,9 +129,9 @@ void FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(FRHICommandListIm
 	}
 }
 
-void FHeadMountedDisplayBase::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
+void FHeadMountedDisplayBase::CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 {
-	GetXRCamera()->CalculateStereoCameraOffset(StereoPassType, ViewRotation, ViewLocation);
+	GetXRCamera()->CalculateStereoCameraOffset(ViewIndex, ViewRotation, ViewLocation);
 }
 
 void FHeadMountedDisplayBase::InitCanvasFromView(FSceneView* InView, UCanvas* Canvas)

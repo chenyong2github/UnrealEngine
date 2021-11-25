@@ -256,9 +256,8 @@ protected:
 	/**
 	 * Retrieve the viewpoint of this player.
 	 * @param OutViewInfo - Upon return contains the view information for the player.
-	 * @param StereoPass - Which stereoscopic pass, if any, to get the viewport for.  This will include eye offsetting
 	 */
-	virtual void GetViewPoint(FMinimalViewInfo& OutViewInfo, EStereoscopicPass StereoPass = eSSP_FULL) const;
+	virtual void GetViewPoint(FMinimalViewInfo& OutViewInfo) const;
 
 	/** @todo document */
 	void ExecMacro( const TCHAR* Filename, FOutputDevice& Ar );
@@ -347,14 +346,14 @@ public:
 	* @param	OutInitOptions - output view struct. Not every field is initialized, some of them are only filled in by CalcSceneView
 	* @param	Viewport - current client viewport
 	* @param	ViewDrawer - optional drawing in the view
-	* @param	StereoPass - whether we are drawing the full viewport, or a stereo left / right pass
+	* @param	StereoViewIndex - index of the view when using stereoscopy
 	* @return	true if the view options were filled in. false in various fail conditions.
 	*/
 	virtual bool CalcSceneViewInitOptions(
-		struct FSceneViewInitOptions& OutInitOptions, 
+		struct FSceneViewInitOptions& OutInitOptions,
 		FViewport* Viewport,
 		class FViewElementDrawer* ViewDrawer = NULL,
-		EStereoscopicPass StereoPass = eSSP_FULL);
+		int32 StereoViewIndex = INDEX_NONE);
 
 	/**
 	 * Calculate the view settings for drawing from this view actor
@@ -364,14 +363,14 @@ public:
 	 * @param	OutViewRotation - output actor rotation
 	 * @param	Viewport - current client viewport
 	 * @param	ViewDrawer - optional drawing in the view
-	 * @param	StereoPass - whether we are drawing the full viewport, or a stereo left / right pass
+	 * @param	StereoViewIndex - index of the view when using stereoscopy
 	 */
 	virtual FSceneView* CalcSceneView(class FSceneViewFamily* ViewFamily,
-		FVector& OutViewLocation, 
-		FRotator& OutViewRotation, 
+		FVector& OutViewLocation,
+		FRotator& OutViewRotation,
 		FViewport* Viewport,
 		class FViewElementDrawer* ViewDrawer = NULL,
-		EStereoscopicPass StereoPass = eSSP_FULL );
+		int32 StereoViewIndex = INDEX_NONE);
 
 	/**
 	 * Called at creation time for internal setup
@@ -511,11 +510,11 @@ public:
 	 * Helper function for deriving various bits of data needed for projection
 	 *
 	 * @param	Viewport				The ViewClient's viewport
-     * @param	StereoPass			    Whether this is a full viewport pass, or a left/right eye pass
 	 * @param	ProjectionData			The structure to be filled with projection data
+     * @param	StereoViewIndex		    The index of the view when using stereoscopy
 	 * @return  False if there is no viewport, or if the Actor is null
 	 */
-	virtual bool GetProjectionData(FViewport* Viewport, EStereoscopicPass StereoPass, FSceneViewProjectionData& ProjectionData) const;
+	virtual bool GetProjectionData(FViewport* Viewport, FSceneViewProjectionData& ProjectionData, int32 StereoViewIndex = INDEX_NONE) const;
 
 	/**
 	 * Determines whether this player is the first and primary player on their machine.

@@ -253,7 +253,7 @@ namespace OculusHMD
 	}
 
 
-	bool FOculusHMD::GetRelativeEyePose(int32 InDeviceId, EStereoscopicPass InEye, FQuat& OutOrientation, FVector& OutPosition)
+	bool FOculusHMD::GetRelativeEyePose(int32 InDeviceId, int32 ViewIndex, FQuat& OutOrientation, FVector& OutPosition)
 	{
 		OutOrientation = FQuat::Identity;
 		OutPosition = FVector::ZeroVector;
@@ -265,12 +265,12 @@ namespace OculusHMD
 
 		ovrpNode Node;
 
-		switch (InEye)
+		switch (ViewIndex)
 		{
-		case eSSP_LEFT_EYE:
+		case EStereoscopicEye::eSSE_LEFT_EYE:
 			Node = ovrpNode_EyeLeft;
 			break;
-		case eSSP_RIGHT_EYE:
+		case EStereoscopicEye::eSSE_RIGHT_EYE:
 			Node = ovrpNode_EyeRight;
 			break;
 		default:
@@ -1212,11 +1212,11 @@ namespace OculusHMD
 	}
 
 
-	static void DrawOcclusionMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass, const FHMDViewMesh MeshAssets[])
+	static void DrawOcclusionMesh(FRHICommandList& RHICmdList, int32 ViewIndex, const FHMDViewMesh MeshAssets[])
 	{
-		check(StereoPass != eSSP_FULL);
+		check(ViewIndex != INDEX_NONE);
 
-		const uint32 MeshIndex = (StereoPass == eSSP_LEFT_EYE) ? 0 : 1;
+		const uint32 MeshIndex = (ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE) ? 0 : 1;
 		const FHMDViewMesh& Mesh = MeshAssets[MeshIndex];
 		check(Mesh.IsValid());
 
@@ -1225,15 +1225,15 @@ namespace OculusHMD
 	}
 
 
-	void FOculusHMD::DrawHiddenAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+	void FOculusHMD::DrawHiddenAreaMesh(FRHICommandList& RHICmdList, int32 ViewIndex) const
 	{
-		DrawOcclusionMesh(RHICmdList, StereoPass, HiddenAreaMeshes);
+		DrawOcclusionMesh(RHICmdList, ViewIndex, HiddenAreaMeshes);
 	}
 
 
-	void FOculusHMD::DrawVisibleAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+	void FOculusHMD::DrawVisibleAreaMesh(FRHICommandList& RHICmdList, int32 ViewIndex) const
 	{
-		DrawOcclusionMesh(RHICmdList, StereoPass, VisibleAreaMeshes);
+		DrawOcclusionMesh(RHICmdList, ViewIndex, VisibleAreaMeshes);
 	}
 
 	float FOculusHMD::GetPixelDenity() const
@@ -1283,11 +1283,10 @@ namespace OculusHMD
 	}
 
 
-	void FOculusHMD::AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
+	void FOculusHMD::AdjustViewRect(int32 ViewIndex, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 	{
 		if (Settings.IsValid())
 		{
-			const int32 ViewIndex = GetViewIndexForPass(StereoPass);
 			X = Settings->EyeUnscaledRenderViewport[ViewIndex].Min.X;
 			Y = Settings->EyeUnscaledRenderViewport[ViewIndex].Min.Y;
 			SizeX = Settings->EyeUnscaledRenderViewport[ViewIndex].Size().X;
@@ -1296,18 +1295,13 @@ namespace OculusHMD
 		else
 		{
 			SizeX = SizeX / 2;
-			if (StereoPass == eSSP_RIGHT_EYE)
-			{
-				X += SizeX;
-			}
+			X += SizeX * ViewIndex;
 		}
 	}
 
-	void FOculusHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const enum EStereoscopicPass StereoPass, const FIntRect& FinalViewRect)
+	void FOculusHMD::SetFinalViewRect(FRHICommandListImmediate& RHICmdList, const int32 ViewIndex, const FIntRect& FinalViewRect)
 	{
 		CheckInRenderThread();
-
-		const int32 ViewIndex = GetViewIndexForPass(StereoPass);
 
 		if (Settings_RenderThread.IsValid() && Settings_RenderThread->Flags.bPixelDensityAdaptive)
 		{
@@ -1326,10 +1320,10 @@ namespace OculusHMD
 		});
 	}
 
-	void FOculusHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
+	void FOculusHMD::CalculateStereoViewOffset(const int32 ViewIndex, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 	{
 		// This method is called from GetProjectionData on a game thread.
-		if (InGameThread() && StereoPassType == eSSP_LEFT_EYE && NextFrameToRender.IsValid())
+		if (InGameThread() && ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE && NextFrameToRender.IsValid())
 		{
 			// Inverse out GameHeadPose.Rotation since PlayerOrientation already contains head rotation.
 			FQuat HeadOrientation = FQuat::Identity;
@@ -1341,17 +1335,15 @@ namespace OculusHMD
 			NextFrameToRender->PlayerLocation = LastPlayerLocation = ViewLocation;
 		}
 
-		FHeadMountedDisplayBase::CalculateStereoViewOffset(StereoPassType, ViewRotation, WorldToMeters, ViewLocation);
+		FHeadMountedDisplayBase::CalculateStereoViewOffset(ViewIndex, ViewRotation, WorldToMeters, ViewLocation);
 	}
 
 
-	FMatrix FOculusHMD::GetStereoProjectionMatrix(EStereoscopicPass StereoPassType) const
+	FMatrix FOculusHMD::GetStereoProjectionMatrix(int32 ViewIndex) const
 	{
 		CheckInGameThread();
 
 		check(IsStereoEnabled());
-
-		const int32 ViewIndex = GetViewIndexForPass(StereoPassType);
 
 		FMatrix proj = ToFMatrix(Settings->EyeProjectionMatrices[ViewIndex]);
 
@@ -1398,14 +1390,13 @@ namespace OculusHMD
 #endif
 	}
 
-	FVector2D FOculusHMD::GetEyeCenterPoint_RenderThread(EStereoscopicPass StereoPassType) const
+	FVector2D FOculusHMD::GetEyeCenterPoint_RenderThread(int32 ViewIndex) const
 	{
 		CheckInRenderThread();
 
 		check(IsStereoEnabled() || IsHeadTrackingEnforced());
 
 		// Don't use GetStereoProjectionMatrix because it is game thread only on oculus, we also don't need the zplane adjustments for this.
-		const int32 ViewIndex = GetViewIndexForPass(StereoPassType);
 		const FMatrix StereoProjectionMatrix = ToFMatrix(Settings_RenderThread->EyeProjectionMatrices[ViewIndex]);
 
 		//0,0,1 is the straight ahead point, wherever it maps to is the center of the projection plane in -1..1 coordinates.  -1,-1 is bottom left.

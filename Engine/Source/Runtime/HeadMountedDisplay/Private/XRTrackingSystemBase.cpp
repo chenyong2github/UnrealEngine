@@ -69,13 +69,13 @@ TSharedPtr< class IXRCamera, ESPMode::ThreadSafe > FXRTrackingSystemBase::GetXRC
 	return XRCamera;
 }
 
-bool FXRTrackingSystemBase::GetRelativeEyePose(int32 DeviceId, EStereoscopicPass Eye, FQuat& OutOrientation, FVector& OutPosition)
+bool FXRTrackingSystemBase::GetRelativeEyePose(int32 DeviceId, int32 ViewIndex, FQuat& OutOrientation, FVector& OutPosition)
 {
 	OutOrientation = FQuat::Identity;
 	OutPosition = FVector::ZeroVector;
-	if (DeviceId == IXRTrackingSystem::HMDDeviceId && (Eye == eSSP_LEFT_EYE || Eye == eSSP_RIGHT_EYE))
+	if (DeviceId == IXRTrackingSystem::HMDDeviceId && (ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE || ViewIndex == EStereoscopicEye::eSSE_RIGHT_EYE))
 	{
-		OutPosition = FVector(0, (Eye == EStereoscopicPass::eSSP_LEFT_EYE ? -.5 : .5) * 0.064f * GetWorldToMetersScale(), 0);
+		OutPosition = FVector(0, (ViewIndex == EStereoscopicEye::eSSE_LEFT_EYE ? -.5 : .5) * 0.064f * GetWorldToMetersScale(), 0);
 		return true;
 	}
 	else
