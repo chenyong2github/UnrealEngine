@@ -272,6 +272,9 @@ namespace LevelInstanceMenuUtils
 			.ParentWindow(NewLevelInstanceWindow)
 			.PivotActors(ActorsToMove);
 
+		const bool bForceExternalActors = LevelInstanceSubsystem->GetWorld()->IsPartitionedWorld();
+		FNewLevelInstanceParams& DialogParams = NewLevelInstanceDialog->GetCreationParams();
+		DialogParams.SetForceExternalActors(bForceExternalActors);
 		NewLevelInstanceWindow->SetContent(NewLevelInstanceDialog);
 
 		FSlateApplication::Get().AddModalWindow(NewLevelInstanceWindow.ToSharedRef(), MainFrameModule.GetParentWindow());

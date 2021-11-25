@@ -62,9 +62,6 @@ struct FNewLevelInstanceParams
 	UPROPERTY(EditAnywhere, Category = Default)
 	ELevelInstanceCreationType Type = ELevelInstanceCreationType::LevelInstance;
 
-	UPROPERTY(EditAnywhere, Category = Default)
-	bool bExternalActors = true;
-
 	UPROPERTY(EditAnywhere, Category = Pivot)
 	ELevelInstancePivotType PivotType = ELevelInstancePivotType::CenterMinZ;
 
@@ -79,4 +76,16 @@ struct FNewLevelInstanceParams
 
 	UPROPERTY()
 	bool bPromptForSave = false;
+
+private:
+	UPROPERTY(EditAnywhere, Category = Default, meta = (EditCondition = "!bForceExternalActors", EditConditionHides, HideEditConditionToggle))
+	bool bExternalActors = true;
+	
+	UPROPERTY()
+	bool bForceExternalActors = false;
+
+public:
+	void SetForceExternalActors(bool bInForceExternalActors) { bForceExternalActors = bInForceExternalActors; }
+	void SetExternalActors(bool bInExternalActors) { bExternalActors = bInExternalActors; }
+	bool UseExternalActors() const { return bForceExternalActors || bExternalActors; }
 };
