@@ -97,16 +97,19 @@ namespace EditorAnimUtils
 			}
 			else if( UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Asset) )
 			{
-
-				// Add parents blueprint. 
+				// Add parent non-template blueprints
 				UAnimBlueprint* ParentBP = Cast<UAnimBlueprint>(AnimBlueprint->ParentClass->ClassGeneratedBy);
 				while (ParentBP)
 				{
-					AnimBlueprintsToRetarget.AddUnique(ParentBP);
+					// Cant transitively retarget templates
+					if(!(ParentBP->bIsTemplate && ParentBP->TargetSkeleton == nullptr))
+					{
+						AnimBlueprintsToRetarget.AddUnique(ParentBP);
+					}
 					ParentBP = Cast<UAnimBlueprint>(ParentBP->ParentClass->ClassGeneratedBy);
 				}
 				
-				AnimBlueprintsToRetarget.AddUnique(AnimBlueprint);				
+				AnimBlueprintsToRetarget.AddUnique(AnimBlueprint);
 			}
 		}
 		
@@ -317,6 +320,9 @@ namespace EditorAnimUtils
 			UAnimBlueprint * AnimBlueprint = (*AnimBPIter);
 
 			AnimBlueprint->TargetSkeleton = NewSkeleton;
+
+			// We can directly retarget templates (although not transitively via parents) so we need to make sure we clear the flag here
+			AnimBlueprint->bIsTemplate = false;
 
 			if (HasDuplicates())
 			{

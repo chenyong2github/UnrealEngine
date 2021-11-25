@@ -127,18 +127,21 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Blueprint"));
 		}
 	}
-	
-	Section.AddMenuEntry(
-		"AnimBlueprint_FindSkeleton",
-		LOCTEXT("AnimBlueprint_FindSkeleton", "Find Skeleton"),
-		LOCTEXT("AnimBlueprint_FindSkeletonTooltip", "Finds the skeleton used by the selected Anim Blueprints in the content browser."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Find"),
-		FUIAction(
-			FExecuteAction::CreateSP( this, &FAssetTypeActions_AnimBlueprint::ExecuteFindSkeleton, AnimBlueprints ),
-			FCanExecuteAction()
-			)
-		);
 
+	if(AreAnyNonTemplateAnimBlueprintsSelected(AnimBlueprints))
+	{
+		Section.AddMenuEntry(
+			"AnimBlueprint_FindSkeleton",
+			LOCTEXT("AnimBlueprint_FindSkeleton", "Find Skeleton"),
+			LOCTEXT("AnimBlueprint_FindSkeletonTooltip", "Finds the skeleton used by the selected Anim Blueprints in the content browser."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Find"),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &FAssetTypeActions_AnimBlueprint::ExecuteFindSkeleton, AnimBlueprints ),
+				FCanExecuteAction()
+				)
+			);
+	}
+	
 	Section.AddSubMenu(
 		"RetargetBlueprintSubmenu",
 		LOCTEXT("RetargetBlueprintSubmenu", "Retarget Anim Blueprints"),
@@ -287,6 +290,19 @@ void FAssetTypeActions_AnimBlueprint::PerformAssetDiff(UObject* Asset1, UObject*
 	}
 
 	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
+}
+
+bool FAssetTypeActions_AnimBlueprint::AreAnyNonTemplateAnimBlueprintsSelected(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects) const
+{
+	for(TWeakObjectPtr<UAnimBlueprint> WeakAnimBlueprint : Objects)
+	{
+		if(!WeakAnimBlueprint->bIsTemplate)
+		{
+			return true; 
+		}
+	}
+
+	return false;
 }
 
 void FAssetTypeActions_AnimBlueprint::ExecuteFindSkeleton(TArray<TWeakObjectPtr<UAnimBlueprint>> Objects)
