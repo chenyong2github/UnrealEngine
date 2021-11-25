@@ -739,6 +739,8 @@ private:
 	virtual uint32 Run()
 	{
 		FMemory::SetupTLSCachesOnCurrentThread();
+
+		LLM_SCOPE(ELLMTag::FileSystem);
 		while (!bStopRequested)
 		{
 			if (PendingIoRequestsCount)
