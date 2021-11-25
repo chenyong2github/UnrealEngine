@@ -2,75 +2,18 @@
 
 #pragma once
 
+#include "Online/OnlineId.h"
 #include "Templates/SharedPointer.h"
 
 class FString;
 
 namespace UE::Online {
 
-enum class EOnlineServices : uint8
-{
-	// Null, Providing minimal functionality when no backend services are required
-	Null,
-	// Epic Online Services
-	Epic,
-	// Xbox services
-	Xbox,
-	// PlayStation Network
-	PSN,
-	// Nintendo
-	Nintendo,
-	// Stadia,
-	Stadia,
-	// Steam
-	Steam,
-	// Google
-	Google,
-	// GooglePlay
-	GooglePlay,
-	// Apple
-	Apple,
-	// GameKit
-	AppleGameKit,
-	// Samsung
-	Samsung,
-	// Oculus
-	Oculus,
-	// Tencent
-	Tencent,
-	// Reserved for future use/platform extensions
-	Reserved_14,
-	Reserved_15,
-	Reserved_16,
-	Reserved_17,
-	Reserved_18,
-	Reserved_19,
-	Reserved_20,
-	Reserved_21,
-	Reserved_22,
-	Reserved_23,
-	Reserved_24,
-	Reserved_25,
-	Reserved_26,
-	Reserved_27,
-	// For game specific Online Services
-	GameDefined_0 = 28,
-	GameDefined_1,
-	GameDefined_2,
-	GameDefined_3,
-	// Platform native, may not exist for all platforms
-	Platform = 254,
-	// Default, configured via ini, TODO: List specific ini section/key
-	Default = 255
-};
-
 // Interfaces
 using IAuthPtr = TSharedPtr<class IAuth>;
 using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;
 using IExternalUIPtr = TSharedPtr<class IExternalUI>;
-struct FOnlineId;
-using FAccountId = FOnlineId;
 
 class ONLINESERVICESINTERFACE_API IOnlineServices
 {
@@ -84,11 +27,6 @@ public:
 	 *
 	 */
 	virtual void Destroy() = 0;
-
-	/**
-	 *
-	 */
-	virtual FAccountId CreateAccountId(FString&& InAccountIdString) = 0;
 	
 	/**
 	 *
@@ -109,6 +47,11 @@ public:
 	 *
 	 */
 	virtual IExternalUIPtr GetExternalUIInterface() = 0;
+
+	/**
+	 * 
+	 */
+	virtual FString ToDebugString(const FOnlineAccountIdHandle& Handle) = 0;
 };
 
 /**
@@ -140,5 +83,15 @@ TSharedPtr<ServicesClass> GetServices(FName InstanceName = NAME_None)
  */
 ONLINESERVICESINTERFACE_API void DestroyServices(EOnlineServices OnlineServices = EOnlineServices::Default, FName InstanceName = NAME_None);
 
+template<EOnlineIdType IdType>
+inline FString ToLogString(const TOnlineIdHandle<IdType>& Id)
+{
+	FString Result;
+	if (TSharedPtr<IOnlineServices> Services = GetServices(Id.GetType()))
+	{
+		Result = Services->ToDebugString(Id);
+	}
+	return Result;
+}
 
 /* UE::Online */ }

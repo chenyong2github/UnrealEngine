@@ -28,13 +28,13 @@ public:
 
 protected:
 	/** Get a user's presence, creating entries if missing */
-	TSharedRef<FUserPresence> FindOrCreatePresence(FAccountId LocalUserId, FAccountId PresenceUserId);
+	TSharedRef<FUserPresence> FindOrCreatePresence(FOnlineAccountIdHandle LocalUserId, FOnlineAccountIdHandle PresenceUserId);
 	/** Update a user's presence from EOS's current value */
-	void UpdateUserPresence(FAccountId LocalUserId, FAccountId PresenceUserId);
+	void UpdateUserPresence(FOnlineAccountIdHandle LocalUserId, FOnlineAccountIdHandle PresenceUserId);
 protected:
 	EOS_HPresence PresenceHandle = nullptr;
 
-	TMap<FAccountId, TMap<FAccountId, TSharedRef<FUserPresence>>> PresenceLists;
+	TMap<FOnlineAccountIdHandle, TMap<FOnlineAccountIdHandle, TSharedRef<FUserPresence>>> PresenceLists;
 	EOS_NotificationId NotifyPresenceChangedNotificationId = 0;
 };
 

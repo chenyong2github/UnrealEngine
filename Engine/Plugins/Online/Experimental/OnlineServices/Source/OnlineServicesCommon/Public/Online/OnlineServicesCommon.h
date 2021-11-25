@@ -35,7 +35,6 @@ public:
 	// IOnlineServices
 	virtual void Init() override;
 	virtual void Destroy() override;
-	virtual FAccountId CreateAccountId(FString&& InAccountIdString) override;
 	virtual IAuthPtr GetAuthInterface() override;
 	virtual IFriendsPtr GetFriendsInterface() override;
 	virtual IPresencePtr GetPresenceInterface() override;
@@ -300,7 +299,7 @@ public:
 	FOnlineAsyncOpQueue& GetSerialQueue();
 
 	/* Queues for executing per-user tasks in serial */
-	FOnlineAsyncOpQueue& GetSerialQueue(FAccountId& AccountId);
+	FOnlineAsyncOpQueue& GetSerialQueue(const FOnlineAccountIdHandle& AccountId);
 	
 	void RegisterExecHandler(const FString& Name, TUniquePtr<IOnlineExecHandler>&& Handler);
 
@@ -323,7 +322,7 @@ protected:
 
 	FOnlineAsyncOpQueueParallel ParallelQueue;
 	FOnlineAsyncOpQueueSerial SerialQueue;
-	TMap<FAccountId, TUniquePtr<FOnlineAsyncOpQueueSerial>> PerUserSerialQueue;
+	TMap<FOnlineAccountIdHandle, TUniquePtr<FOnlineAsyncOpQueueSerial>> PerUserSerialQueue;
 };
 
 /* UE::Online */ }
