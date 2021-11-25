@@ -139,8 +139,8 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 	{
 		TArray<FName> SortedDataLayers(DataLayers);
 		TArray<FName> SortedDataLayersOther(Other->DataLayers);
-		SortedDataLayers.Sort();
-		SortedDataLayersOther.Sort();
+		SortedDataLayers.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
+		SortedDataLayersOther.Sort([](const FName& LHS, const FName& RHS) { return LHS.LexicalLess(RHS); });
 
 		TArray<FGuid> SortedReferences(References);
 		TArray<FGuid> SortedReferencesOther(Other->References);
