@@ -861,7 +861,7 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	}
 	
 	// Convert to OFPA
-	if (CreationParams.bExternalActors)
+	if (CreationParams.UseExternalActors())
 	{
 		LoadedLevel->ConvertAllActorsToPackaging(true);
 		LoadedLevel->bUseExternalActors = true;

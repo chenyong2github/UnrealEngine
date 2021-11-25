@@ -42,7 +42,7 @@ public:
 
 	bool ClickedOk() const { return bClickedOk; }
 	
-	const FNewLevelInstanceParams& GetCreationParams() const { return CreationParams; }
+	FNewLevelInstanceParams& GetCreationParams() { return CreationParams; }
 
 private:
 	FReply OnOkClicked();
