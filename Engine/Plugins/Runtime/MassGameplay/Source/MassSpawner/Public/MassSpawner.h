@@ -82,7 +82,7 @@ public:
 protected:
 	void OnAdjustTickSchematics(UWorld* World, TArray<TSoftObjectPtr<UMassSchematic>>& InOutTickSchematics);
 	void OnPostWorldInit(UWorld* World, const UWorld::InitializationValues);
-	void SpawnAtLocations(const TArray<FVector>& Locations);
+	void SpawnAtLocations(TConstArrayView<FVector> Locations);
 	void OnSpawnPointGenerationFinished(const TArray<FVector>& Locations, FMassSpawnPointGenerator* FinishedGenerator);
 
 	int32 GetSpawnCount() const;
