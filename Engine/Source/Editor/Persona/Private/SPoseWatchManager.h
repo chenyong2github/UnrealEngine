@@ -281,6 +281,8 @@ private:
 	/** Called by STreeView when an item is scrolled into view */
 	void OnManagerTreeItemScrolledIntoView(FPoseWatchManagerTreeItemPtr TreeItem, const TSharedPtr<ITableRow>& Widget);
 
+	void OnManagerTreeDoubleClick(FPoseWatchManagerTreeItemPtr TreeItem);
+
 	/** Called when an item in the tree has been collapsed or expanded */
 	void OnItemExpansionChanged(FPoseWatchManagerTreeItemPtr TreeItem, bool bIsExpanded) const;
 
@@ -402,6 +404,8 @@ private:
 
 	/** Currently selected sorting mode */
 	EColumnSortMode::Type SortMode;
+
+	FBlueprintEditor* BlueprintEditor;
 
 	/** Handles column sorting mode change */
 	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
