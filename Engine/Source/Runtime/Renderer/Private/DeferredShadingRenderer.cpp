@@ -1366,50 +1366,60 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 		ReferenceView.AddRayTracingMeshBatchTaskList.Empty();
 	}
 
-	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
-	TArray<FRHIRayTracingShader*> RayGenShaders; // TODO: inline allocator here?
 	const bool bIsPathTracing = ViewFamily.EngineShowFlags.PathTracing;
-	if (bIsPathTracing)
-	{
-		// This view only needs the path tracing raygen shaders as all other
-		// passes should be disabled.
-		PreparePathTracing(ViewFamily, RayGenShaders);
-	}
-	else
-	{
-		// Path tracing is disabled, get all other possible raygen shaders
-		PrepareRayTracingDebug(ViewFamily, RayGenShaders);
 
-		// These other cases do potentially depend on the camera position since they are
-		// driven by FinalPostProcessSettings, which is why we need to merge them across views
-		if (!IsForwardShadingEnabled(ShaderPlatform))
+	if (GRHISupportsRayTracingShaders)
+	{
+		// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. 
+		// Should register each effect at startup and just loop over them automatically to gather all required shaders.
+
+		TArray<FRHIRayTracingShader*> RayGenShaders;
+
+		// We typically see ~120 raygen shaders, but allow some headroom to avoid reallocation if our estimate is wrong.
+		RayGenShaders.Reserve(256);
+
+		if (bIsPathTracing)
 		{
-			for (const FViewInfo& View : Views)
-			{
-				PrepareRayTracingReflections(View, *Scene, RayGenShaders);
-				PrepareSingleLayerWaterRayTracingReflections(View, *Scene, RayGenShaders);
-				PrepareRayTracingShadows(View, RayGenShaders);
-				PrepareRayTracingAmbientOcclusion(View, RayGenShaders);
-				PrepareRayTracingSkyLight(View, *Scene, RayGenShaders);
-				PrepareRayTracingGlobalIllumination(View, RayGenShaders);
-				PrepareRayTracingTranslucency(View, RayGenShaders);
+			// This view only needs the path tracing raygen shaders as all other
+			// passes should be disabled.
+			PreparePathTracing(ViewFamily, RayGenShaders);
+		}
+		else
+		{
+			// Path tracing is disabled, get all other possible raygen shaders
+			PrepareRayTracingDebug(ViewFamily, RayGenShaders);
 
-				if (DoesPlatformSupportLumenGI(ShaderPlatform))
+			// These other cases do potentially depend on the camera position since they are
+			// driven by FinalPostProcessSettings, which is why we need to merge them across views
+			if (!IsForwardShadingEnabled(ShaderPlatform))
+			{
+				for (const FViewInfo& View : Views)
 				{
-					PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
-					PrepareLumenHardwareRayTracingRadianceCache(View, RayGenShaders);
-					PrepareLumenHardwareRayTracingTranslucencyVolume(View, RayGenShaders);
-					PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
-					PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
+					PrepareRayTracingReflections(View, *Scene, RayGenShaders);
+					PrepareSingleLayerWaterRayTracingReflections(View, *Scene, RayGenShaders);
+					PrepareRayTracingShadows(View, RayGenShaders);
+					PrepareRayTracingAmbientOcclusion(View, RayGenShaders);
+					PrepareRayTracingSkyLight(View, *Scene, RayGenShaders);
+					PrepareRayTracingGlobalIllumination(View, RayGenShaders);
+					PrepareRayTracingTranslucency(View, RayGenShaders);
+
+					if (DoesPlatformSupportLumenGI(ShaderPlatform) && Lumen::UseHardwareRayTracing())
+					{
+						PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
+						PrepareLumenHardwareRayTracingRadianceCache(View, RayGenShaders);
+						PrepareLumenHardwareRayTracingTranslucencyVolume(View, RayGenShaders);
+						PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
+						PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
+					}
 				}
 			}
+			DeduplicateRayGenerationShaders(RayGenShaders);
 		}
-		DeduplicateRayGenerationShaders(RayGenShaders);
-	}
 
-	if (RayGenShaders.Num())
-	{
-		ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(RHICmdList, ReferenceView, RayGenShaders);
+		if (RayGenShaders.Num())
+		{
+			ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(RHICmdList, ReferenceView, RayGenShaders);
+		}
 	}
 
 	// Initialize common resources used for lighting in ray tracing effects
@@ -3047,7 +3057,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		if (ViewFamily.EngineShowFlags.PathTracing && FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(Scene->GetShaderPlatform()))
+		// Path tracer requires the full ray tracing pipeline support, as well as specialized extra shaders.
+		// Most of the ray tracing debug visualizations also require the full pipeline, but some support inline mode.
+		
+		if (ViewFamily.EngineShowFlags.PathTracing 
+			&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(Scene->GetShaderPlatform())
+			&& ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::FullPipeline))
 		{
 			for (const FViewInfo& View : Views)
 			{

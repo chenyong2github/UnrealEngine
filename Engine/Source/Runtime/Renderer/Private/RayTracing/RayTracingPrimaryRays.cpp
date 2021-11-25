@@ -70,6 +70,12 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingPrimaryRaysRGS, "/Engine/Private/RayTracing/R
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	// Translucency and primary ray tracing requires the full ray tracing pipeline with material bindings.
+	if (!ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::FullPipeline))
+	{
+		return;
+	}
+
 	// Declare all RayGen shaders that require material closest hit shaders to be bound.
 	// NOTE: Translucency shader may be used for primary ray debug view mode.
 	if (GetRayTracingTranslucencyOptions(View).bEnabled || View.Family->EngineShowFlags.RayTracingDebug)

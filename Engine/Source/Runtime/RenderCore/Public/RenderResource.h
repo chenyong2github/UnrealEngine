@@ -627,13 +627,24 @@ public:
 	virtual FString GetFriendlyName() const override { return TEXT("FIndexBuffer"); }
 };
 
+FORCEINLINE bool IsRayTracingEnabledForProject(EShaderPlatform ShaderPlatform)
+{
+	if (RHISupportsRayTracing(ShaderPlatform))
+	{
+		extern RENDERCORE_API uint64 GRayTracingPlaformMask;
+		return !!(GRayTracingPlaformMask & (1ull << ShaderPlatform));
+	}
+	else
+	{
+		return false;
+	}
+}
 
 FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform ShaderPlatform)
 {
 	if (RHISupportsRayTracingShaders(ShaderPlatform))
 	{
-		extern RENDERCORE_API uint64 GRayTracingPlaformMask;
-		return !!(GRayTracingPlaformMask & (1ull << ShaderPlatform));
+		return IsRayTracingEnabledForProject(ShaderPlatform);
 	}
 	else
 	{

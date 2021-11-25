@@ -31,14 +31,15 @@ class FSetupRayTracingLightCullData : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FSetupRayTracingLightCullData);
 	SHADER_USE_PARAMETER_STRUCT(FSetupRayTracingLightCullData, FGlobalShader)
 
-		static int32 GetGroupSize()
+	static int32 GetGroupSize()
 	{
 		return 32;
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		// Allow this shader to be compiled if either inline or full pipeline ray tracing mode is supported by the platform
+		return IsRayTracingEnabledForProject(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
