@@ -62,13 +62,8 @@ namespace UActorFactoryDatasmithSceneImpl
 			ExternalSource = IExternalSourceModule::Get().GetManager().TryGetExternalSourceFromImportData(*DatasmithImportData.Get());
 		}
 		
-		if (!ExternalSource)
-		{
-			return nullptr;
-		}
-
 		const FString ImportPath = DatasmithScene->AssetImportData->BaseOptions.AssetOptions.PackagePath.ToString();
-		FDatasmithImportContext ImportContext( ExternalSource.ToSharedRef(), false, LoggerName, LoggerLabel );
+		FDatasmithImportContext ImportContext( ExternalSource, false, LoggerName, LoggerLabel );
 
 		ImportContext.Options->BaseOptions = DatasmithScene->AssetImportData->BaseOptions;
 		ImportContext.Options->BaseOptions.SceneHandling = EDatasmithImportScene::CurrentLevel;

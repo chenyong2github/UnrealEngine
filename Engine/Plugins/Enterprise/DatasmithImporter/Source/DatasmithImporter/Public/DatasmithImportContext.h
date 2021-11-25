@@ -211,7 +211,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	UE_DEPRECATED(5.0, "Please use constructor using ExternalSource")
 	FDatasmithImportContext(const FString& InFileName, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel, TSharedPtr<IDatasmithTranslator> InSceneTranslator = nullptr);
 
-	FDatasmithImportContext(const TSharedRef<UE::DatasmithImporter::FExternalSource>& InExternalSource, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel);
+	FDatasmithImportContext(const TSharedPtr<UE::DatasmithImporter::FExternalSource>& InExternalSource, bool bLoadConfig, const FName& LoggerName, const FText& LoggerLabel);
 	
 	/** Cached MD5 hash value for faster processing */
 	FMD5Hash FileHash;
