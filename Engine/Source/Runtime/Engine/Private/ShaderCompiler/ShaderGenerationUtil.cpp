@@ -1092,7 +1092,11 @@ static FString CreateGBufferDecodeFunctionDirect(const FGBufferInfo& BufferInfo)
 			FullStr += CurrLine;
 		}
 	}
-	FullStr += TEXT(",\n\tfloat CustomNativeDepth");
+	if (!bFirst)
+	{
+		FullStr += TEXT(",\n\t\t");
+	}
+	FullStr += TEXT(" \n\tfloat CustomNativeDepth");
 	FullStr += TEXT(",\n\tfloat4 AnisotropicData");
 	FullStr += TEXT(",\n\tuint CustomStencil");
 	FullStr += TEXT(",\n\tfloat SceneDepth");
@@ -1502,7 +1506,12 @@ static FString CreateGBufferDecodeFunctionVariation(const FGBufferInfo& BufferIn
 			FullStr += CurrLine;
 		}
 	}
-	FullStr += TEXT(",\n\t\tCustomNativeDepth");
+
+	if (!bFirst)
+	{
+		FullStr += TEXT(",\n\t\t");
+	}
+	FullStr += TEXT(" \n\t\tCustomNativeDepth");
 	FullStr += TEXT(",\n\t\tAnisotropicData");
 	FullStr += TEXT(",\n\t\tCustomStencil");
 	FullStr += TEXT(",\n\t\tSceneDepth");
@@ -1672,7 +1681,7 @@ static void SetStandardGBufferSlots(bool Slots[], bool bWriteEmissive, bool bHas
 {
 	Slots[GBS_SceneColor] = bWriteEmissive;
 	Slots[GBS_Velocity] = bHasVelocity;
-	Slots[GBS_PrecomputedShadowFactor] = bHasStaticLighting;
+	Slots[GBS_PrecomputedShadowFactor] = bIsStrataMaterial ? false : true;
 
 	Slots[GBS_WorldNormal] =			bIsStrataMaterial ? false : true;
 	Slots[GBS_PerObjectGBufferData] =	bIsStrataMaterial ? false : true;

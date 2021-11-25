@@ -333,6 +333,8 @@ FStrataMaterialAnalysisResult::FStrataMaterialAnalysisResult()
 FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCompiler* Compiler, const FStrataMaterialCompilationInfo& Material, const uint32 StrataBytePerPixel)
 {
 	const uint32 UintByteSize = sizeof(uint32);
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = CVar->GetValueOnAnyThread() > 0;
 
 	FStrataMaterialAnalysisResult Result;
 
@@ -340,6 +342,12 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 
 	// SharedLocalBases_BSDFCount
 	Result.RequestedByteCount += UintByteSize;
+
+	// Pre-calc shadow mask
+	if (bAllowStaticLighting)
+	{
+		Result.RequestedByteCount += UintByteSize;
+	}
 	// shared local bases between BSDFs
 	Result.RequestedByteCount += Compiler->StrataCompilationInfoGetSharedLocalBasesCount() * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
 	
