@@ -1681,7 +1681,7 @@ static void SetStandardGBufferSlots(bool Slots[], bool bWriteEmissive, bool bHas
 {
 	Slots[GBS_SceneColor] = bWriteEmissive;
 	Slots[GBS_Velocity] = bHasVelocity;
-	Slots[GBS_PrecomputedShadowFactor] = bIsStrataMaterial ? false : true;
+	Slots[GBS_PrecomputedShadowFactor] = bIsStrataMaterial ? false : bHasStaticLighting;
 
 	Slots[GBS_WorldNormal] =			bIsStrataMaterial ? false : true;
 	Slots[GBS_PerObjectGBufferData] =	bIsStrataMaterial ? false : true;
