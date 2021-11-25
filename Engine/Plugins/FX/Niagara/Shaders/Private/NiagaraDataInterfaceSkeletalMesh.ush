@@ -902,6 +902,16 @@ void DISkelMesh_GetBoneCount(in FDISkelMeshContext DIContext, out int Count)
 	Count = DIContext.NumBones;
 }
 
+void DISkelMesh_GetParentBone(in FDISkelMeshContext DIContext, int BoneIndex, out int ParentIndex)
+{
+	ParentIndex = -1;
+	if ( BoneIndex >= 0 && BoneIndex < DIContext.NumBones )
+	{
+		ParentIndex = asint(DIContext.MeshCurrSamplingBonesBuffer[BoneIndex * 3 + 2].w);
+		
+	}
+}
+
 void DISkelMesh_GetFilteredBoneCount(in FDISkelMeshContext DIContext, out int Count)
 {
     Count = DIContext.NumFilteredBones;

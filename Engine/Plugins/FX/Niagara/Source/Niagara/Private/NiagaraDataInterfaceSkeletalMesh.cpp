@@ -1068,7 +1068,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 	TArray<FVector4f> BoneSamplingData;
 
 	auto FillBuffers =
-		[&](const TArray<FTransform>& BoneTransforms)
+		[&](const TArray<FTransform>& BoneTransforms, const FReferenceSkeleton* ReferenceSkeleton)
 		{
 			check(BoneTransforms.Num() == SamplingBoneCount);
 
@@ -1105,21 +1105,24 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 
 			// Fill BoneSamplingData
 			BoneSamplingData.Reserve((SamplingBoneCount + SamplingSocketCount) * 2);
-			for (const FTransform& BoneTransform : BoneTransforms)
+			for (int i=0; i < BoneTransforms.Num(); ++i )
 			{
+				const FTransform& BoneTransform = BoneTransforms[i];
 				const FQuat Rotation = BoneTransform.GetRotation();
-				BoneSamplingData.Add(BoneTransform.GetLocation());
-				BoneSamplingData.Add(FVector4f(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
-				BoneSamplingData.Add(BoneTransform.GetScale3D());
+				const int32 ParentIndex = ReferenceSkeleton ? ReferenceSkeleton->GetParentIndex(i) : -1;
+				BoneSamplingData.Emplace(BoneTransform.GetLocation());
+				BoneSamplingData.Emplace(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W);
+				BoneSamplingData.Emplace(BoneTransform.GetScale3D(), reinterpret_cast<const float&>(ParentIndex));
 			}
 
 			// Append sockets
 			for (const FTransform3f& SocketTransform : InstanceData->GetFilteredSocketsCurrBuffer())
 			{
 				const FQuat4f Rotation = SocketTransform.GetRotation();
-				BoneSamplingData.Add(SocketTransform.GetLocation());
-				BoneSamplingData.Add(FVector4f(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
-				BoneSamplingData.Add(SocketTransform.GetScale3D());
+				const int32 ParentIndex = -1;
+				BoneSamplingData.Emplace(SocketTransform.GetLocation());
+				BoneSamplingData.Emplace(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W);
+				BoneSamplingData.Emplace(SocketTransform.GetScale3D(), reinterpret_cast<const float&>(ParentIndex));
 			}
 		};
 
@@ -1128,6 +1131,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 	{
 		if (USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get())
 		{
+			const FReferenceSkeleton* ReferenceSkeleton = nullptr;
 			const TArray<int32>& MasterBoneMap = SkelComp->GetMasterBoneMap();
 			const int32 NumBones = MasterBoneMap.Num();
 
@@ -1141,6 +1145,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 			}
 			else
 			{
+				ReferenceSkeleton = &SkelMesh->GetRefSkeleton();
 				const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
 				for (int32 BoneIndex=0; BoneIndex < NumBones; ++BoneIndex)
 				{
@@ -1154,8 +1159,8 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 						}
 					}
 
-					const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
-					FTransform BoneTransform =SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+					const int32 ParentIndex  = ReferenceSkeleton->GetParentIndex(BoneIndex);
+					FTransform BoneTransform = ReferenceSkeleton->GetRefBonePose()[BoneIndex];
 					if (TempBoneTransforms.IsValidIndex(ParentIndex))
 					{
 						BoneTransform = BoneTransform * TempBoneTransforms[ParentIndex];
@@ -1163,14 +1168,14 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 					TempBoneTransforms.Add(BoneTransform);
 				}
 			}
-			FillBuffers(TempBoneTransforms);
+			FillBuffers(TempBoneTransforms, ReferenceSkeleton);
 		}
 		else
 		{
 			const TArray<FTransform>& ComponentTransforms = SkelComp->GetComponentSpaceTransforms();
 			if (ComponentTransforms.Num() > 0)
 			{
-				FillBuffers(ComponentTransforms);
+				FillBuffers(ComponentTransforms, &SkelMesh->GetRefSkeleton());
 			}
 			else
 			{
@@ -1180,13 +1185,14 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 
 				TArray<FTransform> TempBoneTransforms;
 				TempBoneTransforms.AddDefaulted(SamplingBoneCount);
-				FillBuffers(TempBoneTransforms);
+				FillBuffers(TempBoneTransforms, nullptr);
 			}
 		}
 	}
 	else
 	{
 		//-TODO: Opt and combine with MaterPoseComponent
+		const FReferenceSkeleton* ReferenceSkeleton = &SkelMesh->GetRefSkeleton();
 		TArray<FTransform> TempBoneTransforms;
 		TempBoneTransforms.Reserve(SamplingBoneCount);
 
@@ -1194,7 +1200,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 		for (int32 i=0; i < RefTransforms.Num(); ++i)
 		{
 			FTransform BoneTransform = RefTransforms[i];
-			const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(i);
+			const int32 ParentIndex = ReferenceSkeleton->GetParentIndex(i);
 			if (TempBoneTransforms.IsValidIndex(ParentIndex))
 			{
 				BoneTransform = BoneTransform * TempBoneTransforms[ParentIndex];
@@ -1202,7 +1208,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 			TempBoneTransforms.Add(BoneTransform);
 		}
 
-		FillBuffers(TempBoneTransforms);
+		FillBuffers(TempBoneTransforms, ReferenceSkeleton);
 	}
 
 	FSkeletalMeshGpuDynamicBufferProxy* ThisProxy = this;
@@ -2670,11 +2676,10 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 
 	bool bHasCPUAccessWarning = false;
 	bool bHasNoMeshAssignedWarning = false;
+	USkeletalMesh* SkelMesh = GetSkeletalMesh(Component);
 
 	// Collect Errors
 #if WITH_EDITORONLY_DATA
-	USkeletalMesh* SkelMesh = GetSkeletalMesh(Component);
-
 	if (SkelMesh != nullptr)
 	{
 		bool bHasCPUAccess = true;
@@ -2768,6 +2773,52 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 			FNiagaraDataInterfaceFix());
 
 		OutWarnings.Add(NoMeshAssignedError);
+	}
+
+	// Look for bones being used that are LOD'ed out
+	if ( (SkelMesh != nullptr) && (SkelMesh->GetResourceForRendering() != nullptr) )
+	{
+		FSkeletalMeshRenderData* SkelResource = SkelMesh->GetResourceForRendering();
+		auto IsBoneRequiredInAllLODs =
+			[&](const FName BoneName)
+			{
+				const int32 BoneIndex = SkelMesh->GetRefSkeleton().FindBoneIndex(BoneName);
+				if (BoneIndex == INDEX_NONE)
+				{
+					return false;
+				}
+
+				for ( const FSkeletalMeshLODRenderData& LODData : SkelResource->LODRenderData )
+				{
+					if ( !LODData.RequiredBones.Contains(BoneIndex) )
+					{
+						return false;
+					}
+				}
+				return true;
+			};
+
+		if (FilteredBones.Num() > 0)
+		{
+			FString MissingBoneList;
+			for (FName Bone : FilteredBones)
+			{
+				if ( !IsBoneRequiredInAllLODs(Bone) )
+				{
+					MissingBoneList.Append(TEXT("\n"));
+					Bone.AppendString(MissingBoneList);
+				}
+			}
+
+			if (MissingBoneList.Len() > 0 )
+			{
+				OutWarnings.Emplace(
+					FText::Format(LOCTEXT("BonesLODOutError", "Filtered Bones may not animate in all LODs, this can lead to incorrect results when animating at those LOD levels.\n{0}"), FText::FromString(MissingBoneList)),
+					LOCTEXT("BonesLODOutErrorSummary", "Filtered bones may not animate in all LODs."),
+					FNiagaraDataInterfaceFix()
+				);
+			}
+		}
 	}
 }
 
@@ -3149,6 +3200,11 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetBoneCountName)
 	{
 		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISkelMesh_GetBoneCount(DIContext, Count); }");
+		OutHLSL += FString::Format(FormatSample, ArgsSample);
+	}
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetParentBoneName)
+	{
+		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (int BoneIndex, out int ParentIndex) { {GetDISkelMeshContextName} DISkelMesh_GetParentBone(DIContext, BoneIndex, ParentIndex); }");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredBoneCountName)

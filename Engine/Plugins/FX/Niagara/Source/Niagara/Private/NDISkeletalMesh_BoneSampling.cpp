@@ -28,6 +28,7 @@ const FName FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSInterpolatedName("
 const FName FSkeletalMeshInterfaceHelper::IsValidBoneName("IsValidBone");
 const FName FSkeletalMeshInterfaceHelper::RandomBoneName("RandomBone");
 const FName FSkeletalMeshInterfaceHelper::GetBoneCountName("GetBoneCount");
+const FName FSkeletalMeshInterfaceHelper::GetParentBoneName("GetParentBone");
 
 const FName FSkeletalMeshInterfaceHelper::RandomFilteredBoneName("RandomFilteredBone");
 const FName FSkeletalMeshInterfaceHelper::GetFilteredBoneCountName("GetFilteredBoneCount");
@@ -150,6 +151,19 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkeletonSamplingFunctions(TArray<FNia
 		Sig.bRequiresContext = false;
 #if WITH_EDITORONLY_DATA
 		Sig.Description = LOCTEXT("GetBoneCountDesc", "Returns the number of bones in the skeletal mesh.");
+#endif
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = FSkeletalMeshInterfaceHelper::GetParentBoneName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("SkeletalMesh")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("BoneIndex")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("ParentIndex")));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+#if WITH_EDITORONLY_DATA
+		Sig.Description = LOCTEXT("GetParentBoneDesc", "Returns the parent bone index for the given bone, -1 if no parent exists.");
 #endif
 		OutFunctions.Add(Sig);
 	}
@@ -372,6 +386,11 @@ void UNiagaraDataInterfaceSkeletalMesh::BindSkeletonSamplingFunction(const FVMEx
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
 		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->GetBoneCount(Context); });
+	}
+	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetParentBoneName)
+	{
+		check(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 1);
+		OutFunc = FVMExternalFunction::CreateLambda([this](FVectorVMExternalFunctionContext& Context) { this->GetParentBone(Context); });
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::RandomFilteredBoneName)
 	{
@@ -696,6 +715,37 @@ void UNiagaraDataInterfaceSkeletalMesh::GetBoneCount(FVectorVMExternalFunctionCo
 	for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 	{
 		OutCount.SetAndAdvance(NumBones);
+	}
+}
+
+void UNiagaraDataInterfaceSkeletalMesh::GetParentBone(FVectorVMExternalFunctionContext& Context)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_Bone_Sample);
+
+	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
+	FNDIInputParam<int32> InBoneIndex(Context);
+	FNDIOutputParam<int32> OutParentIndex(Context);
+
+	FSkeletalMeshAccessorHelper MeshAccessor;
+	MeshAccessor.Init<TIntegralConstant<int32, 0>, TIntegralConstant<int32, 0>>(InstData);
+
+	if (MeshAccessor.AreBonesAccessible())
+	{
+		const FReferenceSkeleton& RefSkeleton = MeshAccessor.Mesh->GetRefSkeleton();
+		const int32 NumBones = RefSkeleton.GetNum();
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			const int32 BoneIndex = InBoneIndex.GetAndAdvance();
+			const int32 ParentIndex = BoneIndex >= 0 && BoneIndex < NumBones ? RefSkeleton.GetParentIndex(BoneIndex) : INDEX_NONE;
+			OutParentIndex.SetAndAdvance(ParentIndex);
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		{
+			OutParentIndex.SetAndAdvance(INDEX_NONE);
+		}
 	}
 }
 
