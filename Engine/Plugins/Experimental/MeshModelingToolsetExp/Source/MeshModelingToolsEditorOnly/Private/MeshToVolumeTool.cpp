@@ -5,20 +5,15 @@
 #include "ToolBuilderUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
-#include "DynamicMesh/MeshNormals.h"
-#include "DynamicMeshEditor.h"
-#include "MeshRegionBoundaryLoops.h"
+#include "MeshSimplification.h"
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
-#include "Selections/MeshConnectedComponents.h"
 #include "Selection/ToolSelectionUtil.h"
-#include "ToolTargetManager.h"
 #include "ModelingToolTargetUtil.h"
 
-
-#include "Engine/Classes/Engine/BlockingVolume.h"
-#include "Engine/Classes/Components/BrushComponent.h"
-#include "Engine/Classes/Engine/Polys.h"
+#include "Engine/BlockingVolume.h"
+#include "Components/BrushComponent.h"
+#include "Engine/Polys.h"
 #include "Model.h"
 #include "BSPOps.h"
 
@@ -199,7 +194,13 @@ void UMeshToVolumeTool::RecalculateVolume()
 		// the group differentiations if they are coplanar.
 		bool bRespectGroupBoundaries = false;
 
-		UE::Conversion::GetPolygonFaces(InputMesh, Faces, bRespectGroupBoundaries);
+		// Apply minimal-planar simplification to remove extra vertices along straight edges
+		FDynamicMesh3 LocalMesh = InputMesh;
+		LocalMesh.DiscardAttributes();
+		FQEMSimplification PlanarSimplifier(&LocalMesh);
+		PlanarSimplifier.SimplifyToMinimalPlanar(0.1);		// angle tolerance in degrees
+
+		UE::Conversion::GetPolygonFaces(LocalMesh, Faces, bRespectGroupBoundaries);
 	}
 	else
 	{

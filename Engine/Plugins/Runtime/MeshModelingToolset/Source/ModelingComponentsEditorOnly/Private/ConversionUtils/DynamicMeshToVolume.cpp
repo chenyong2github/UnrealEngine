@@ -421,25 +421,6 @@ void GetPolygonFaces(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace>& F
 
 			Faces.Add(Face);
 		}
-
-		//for (const FEdgeLoop& Loop : Loops.Loops)
-		//{
-		//	FDynamicMeshFace Face;
-
-		//	FVector3d AvgPos(0, 0, 0);
-		//	for (int32 vid : Loop.Vertices)
-		//	{
-		//		FVector3d Position = InputMesh.GetVertex(vid);
-		//		Face.BoundaryLoop.Add(Position);
-		//		AvgPos += Position;
-		//	}
-		//	AvgPos /= (double)Loop.Vertices.Num();
-		//	Algo::Reverse(Face.BoundaryLoop);
-
-		//	Face.Plane = FFrame3d(AvgPos, FaceNormal);
-
-		//	Faces.Add(Face);
-		//}
 	}
 }
 
