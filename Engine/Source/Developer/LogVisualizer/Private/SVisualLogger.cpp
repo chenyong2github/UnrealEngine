@@ -111,6 +111,9 @@ SVisualLogger::~SVisualLogger()
 #if WITH_EDITOR
 	FEditorDelegates::PostPIEStarted.Remove(PostPIEStartedHandle);
 #endif
+		
+	TabManager->CloseAllAreas();
+	TabManager->UnregisterAllTabSpawners();
 
 	GEngine->OnWorldAdded().RemoveAll(this);
 
