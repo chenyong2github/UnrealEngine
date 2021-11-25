@@ -964,8 +964,6 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 		{
 			if (ActorHandle.IsValid())
 			{
-				AActor* Actor = ActorHandle->GetActor();
-
 				// Filter actor against DataLayers
 				if (ShouldActorBeLoadedByEditorCells(*ActorHandle))
 				{

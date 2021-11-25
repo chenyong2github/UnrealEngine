@@ -13,9 +13,14 @@ class UWorldPartitionNavigationDataBuilder : public UWorldPartitionBuilder
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override { return false; }
-	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::IterativeCells; }
+	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::IterativeCells2D; }
 
 protected:
+	virtual bool PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	virtual bool RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
+
+	bool SavePackages(const TArray<UPackage*>& PackagesToSave);
+
+	bool bCleanBuilderPackages = false;
 };

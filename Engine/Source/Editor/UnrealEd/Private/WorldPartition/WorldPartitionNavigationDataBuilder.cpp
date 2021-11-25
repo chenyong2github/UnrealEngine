@@ -8,6 +8,7 @@
 #include "StaticMeshCompiler.h"
 #include "Logging/LogMacros.h"
 #include "UObject/SavePackage.h"
+#include "Commandlets/Commandlet.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -24,11 +25,26 @@ UWorldPartitionNavigationDataBuilder::UWorldPartitionNavigationDataBuilder(const
 	
 	// Extra padding around loaded cell.
 	// @todo: set value programatically.
-	IterativeCellOverlapSize = 2000;
+	IterativeCellOverlapSize = 2000 + 51200;	// tile size + data chunk actor half size (because chunks are currently centered)
+}
+
+bool UWorldPartitionNavigationDataBuilder::PreRun(UWorld* World, FPackageSourceControlHelper& PackageHelper)
+{
+	TArray<FString> Tokens, Switches;
+	UCommandlet::ParseCommandLine(FCommandLine::Get(), Tokens, Switches);
+
+	bCleanBuilderPackages = Switches.Contains(TEXT("CleanPackages"));
+
+	return true;
 }
 
 bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCellInfo& InCellInfo, FPackageSourceControlHelper& PackageHelper)
 {
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT(" "));
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("============================================================================================================"));
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("RunInternal"));
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Bounds %s ."), *InCellInfo.Bounds.ToString());
+	
 	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 	check(WorldPartitionSubsystem);
 
@@ -36,6 +52,7 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 	check(WorldPartition);
 	
 	TSet<UPackage*> NavigationDataChunkActorPackages;
+	TSet<UPackage*> PackagesToClean;
 
 	// Gather all packages before any navigation data chunk actors are deleted
 	for (TActorIterator<ANavigationDataChunkActor> ItActor(World); ItActor; ++ItActor)
@@ -44,15 +61,57 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 	}
 
 	// Destroy any existing navigation data chunk actors within bounds we are generating, we will make new ones.
-	const FBox GeneratingBounds = InCellInfo.Bounds.ExpandBy(-IterativeCellOverlapSize);
+	int32 Count = 0;
+	FBox GeneratingBounds = InCellInfo.Bounds.ExpandBy(-IterativeCellOverlapSize);
+
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   GeneratingBounds %s"), *GeneratingBounds.ToString());
+	
 	for (TActorIterator<ANavigationDataChunkActor> It(World); It; ++It)
 	{
+		Count++;
+		
 		ANavigationDataChunkActor* Actor = *It;
 		const FVector Location = Actor->GetActorLocation();
-		if (GeneratingBounds.IsInside(Location))
+		
+		auto IsInside2D = [](const FBox Bounds, const FVector& In) -> bool
 		{
-			World->DestroyActor(Actor);	
+			return ((In.X >= Bounds.Min.X) && (In.X < Bounds.Max.X) && (In.Y >= Bounds.Min.Y) && (In.Y < Bounds.Max.Y));
+		};
+
+		UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Location %s %s (%s %s)"),
+			*Location.ToCompactString(), IsInside2D(GeneratingBounds, Location) ? TEXT("inside") : TEXT("outside"), *Actor->GetName(), *Actor->GetPackage()->GetName());
+		
+		if (IsInside2D(GeneratingBounds, Location))
+		{
+			if (bCleanBuilderPackages)
+			{
+				check(!PackagesToClean.Find(Actor->GetPackage()));
+				PackagesToClean.Add(Actor->GetPackage());
+			}
+			
+			UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Destroy actor %s in package %s."), *Actor->GetName(), *Actor->GetPackage()->GetName());
+			World->DestroyActor(Actor);
 		}
+	}
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Number of ANavigationDataChunkActor: %i"), Count);
+
+	// Check if we are just in cleaning mode.
+	if (bCleanBuilderPackages)
+	{
+		UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Number of packages to clear: %i"), PackagesToClean.Num());
+		
+		// Just delete all ANavigationDataChunkActor packages
+		if (!PackageHelper.Delete(PackagesToClean.Array()))
+		{
+			UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error deleting packages."));
+		}
+
+		if (!SavePackages(PackagesToClean.Array()))
+		{
+			return true;
+		}
+
+		return true;
 	}
 
 	// Make sure static meshes have compiled before generating navigation data
@@ -65,6 +124,16 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 	for (TActorIterator<ANavigationDataChunkActor> ItActor(World); ItActor; ++ItActor)
 	{
 		NavigationDataChunkActorPackages.Add(ItActor->GetPackage());
+
+		// Log
+		FString String;
+		if (ItActor->GetPackage())
+		{
+			String += ItActor->GetPackage()->GetName();
+			String += UPackage::IsEmptyPackage(ItActor->GetPackage()) ? " empty" : " ";
+			String += ItActor->GetPackage()->IsDirty() ? " dirty" : " ";
+		}
+		UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Adding package %s (from actor %s)."), *String, *ItActor->GetName());
 	}
 
 	TArray<UPackage*> PackagesToSave;
@@ -79,10 +148,9 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 			{
 				PackagesToDelete.Add(ActorPackage);
 			}
-			else
-			{
-				PackagesToSave.Add(ActorPackage);
-			}
+
+			// Save all packages (we need to also save the ones we are deleting).
+			PackagesToSave.Add(ActorPackage);
 		}
 	}
 
@@ -131,25 +199,10 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 				}
 			}
 		}
-		
-		{
-			// Save packages
-			TRACE_CPUPROFILER_EVENT_SCOPE(SavingPackages);
-			UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Saving %d packages."), PackagesToSave.Num());
 
-			for (UPackage* Package : PackagesToSave)
-			{
-				UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Saving package  %s."), *Package->GetName());
-				FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-				FSavePackageArgs SaveArgs;
-				SaveArgs.TopLevelFlags = RF_Standalone;
-				SaveArgs.SaveFlags = SAVE_Async;
-				if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
-				{
-					UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
-					return true;
-				}
-			}
+		if (!SavePackages(PackagesToSave))
+		{
+			return true;
 		}
 		
 		{
@@ -172,3 +225,27 @@ bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FCel
 
 	return true;
 }
+
+bool UWorldPartitionNavigationDataBuilder::SavePackages(const TArray<UPackage*>& PackagesToSave)
+{
+	// Save packages
+	TRACE_CPUPROFILER_EVENT_SCOPE(SavingPackages);
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Saving %d packages."), PackagesToSave.Num());
+
+	for (UPackage* Package : PackagesToSave)
+	{
+		UE_LOG(LogWorldPartitionNavigationDataBuilder, Verbose, TEXT("   Saving package  %s."), *Package->GetName());
+		FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
+		FSavePackageArgs SaveArgs;
+		SaveArgs.TopLevelFlags = RF_Standalone;
+		SaveArgs.SaveFlags = SAVE_Async;
+		if (!UPackage::SavePackage(Package, nullptr, *PackageFileName, SaveArgs))
+		{
+			UE_LOG(LogWorldPartitionNavigationDataBuilder, Error, TEXT("   Error saving package %s."), *Package->GetName());
+			return false;
+		}
+	}
+
+	return true;
+}
+

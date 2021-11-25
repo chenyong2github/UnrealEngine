@@ -7,6 +7,7 @@
 #include "NavigationDataChunkActor.generated.h"
 
 class UNavigationDataChunk;
+class UNavigationSystemBase;
 
 UCLASS(NotPlaceable)
 class ENGINE_API ANavigationDataChunkActor : public AActor
@@ -14,12 +15,14 @@ class ENGINE_API ANavigationDataChunkActor : public AActor
 	GENERATED_UCLASS_BODY()
 
 public:
-	//~ Begin UObject Interface
 #if WITH_EDITOR
+	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
-#endif //WITH_EDITOR
 	//~ End UObject Interface
+
+	void AddNavigationDataChunkInEditor(const UNavigationSystemBase& NavSys);
+#endif // WITH_EDITOR
 
 	const TArray<UNavigationDataChunk*>& GetNavDataChunk() const { return NavDataChunks; }
 	TArray<UNavigationDataChunk*>& GetMutableNavDataChunk() { return NavDataChunks; }
