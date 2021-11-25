@@ -9,9 +9,11 @@
 #include "BuiltInRayTracingShaders.h"
 #include "Experimental/Containers/SherwoodHashTable.h"
 #include "Async/ParallelFor.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
-TAutoConsoleVariable<int32> GVulkanExperimentalRayTracing(
-	TEXT("r.Vulkan.ExperimentalRayTracing"),
+TAutoConsoleVariable<int32> GVulkanRayTracingCVar(
+	TEXT("r.Vulkan.RayTracing"),
 	0,
 	TEXT("0: Do not enable Vulkan ray tracing extensions (default)\n")
 	TEXT("1: Enable experimental ray tracing support (for development and testing purposes)"),
@@ -24,7 +26,7 @@ ENUM_VK_ENTRYPOINTS_RAYTRACING(DEFINE_VK_ENTRYPOINTS)
 
 void FVulkanRayTracingPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<const ANSICHAR*>& OutExtensions)
 {
-	if (GVulkanExperimentalRayTracing.GetValueOnAnyThread() == 0)
+	if (!GVulkanRayTracingCVar.GetValueOnAnyThread() || FParse::Param(FCommandLine::Get(), TEXT("noraytracing")))
 	{
 		return;
 	}
