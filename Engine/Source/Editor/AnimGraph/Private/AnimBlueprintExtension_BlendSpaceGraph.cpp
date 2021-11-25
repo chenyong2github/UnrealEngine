@@ -13,6 +13,10 @@ UBlendSpace* UAnimBlueprintExtension_BlendSpaceGraph::AddBlendSpace(UBlendSpace*
 {
 	UBlendSpace* CopiedBlendSpace = DuplicateObject(InSourceBlendSpace, Class);
 	CopiedBlendSpace->ClearFlags(RF_Transient);
+
+	// RF_Public is required because this blendspace may need to be referenced in child classes
+	CopiedBlendSpace->SetFlags(RF_Public);
+	
 	Subsystem.BlendSpaces.Add(CopiedBlendSpace);
 	return CopiedBlendSpace;
 }
