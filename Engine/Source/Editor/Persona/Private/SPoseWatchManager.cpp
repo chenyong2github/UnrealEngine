@@ -30,8 +30,8 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SOverlay.h"
 #include "EditorFolderUtils.h"
-#include "IAnimationBlueprintEditor.h"
 #include "Animation/AnimBlueprint.h"
+#include "BlueprintEditor.h"
 #include "EdGraph/EdGraph.h"
 #include "GraphEditAction.h"
 #include "AnimationEditorUtils.h"
@@ -66,12 +66,8 @@ void SPoseWatchManager::Construct(const FArguments& InArgs, const FPoseWatchMana
 
 	Mode = MakeShared<FPoseWatchManagerDefaultMode>(this);
 
-	FBlueprintEditor* BlueprintEditor = InInitOptions.BlueprintEditor.Pin().Get();
-	if (IAnimationBlueprintEditor* AnimBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(BlueprintEditor))
-	{
-		AnimBlueprint = static_cast<UAnimBlueprint*>(AnimBlueprintEditor->GetBlueprintObj());
-	}
-	check(AnimBlueprint)
+	BlueprintEditor = InInitOptions.BlueprintEditor.Pin().Get();
+	AnimBlueprint = CastChecked<UAnimBlueprint>(BlueprintEditor->GetBlueprintObj());
 
 	bProcessingFullRefresh = false;
 	bFullRefresh = true;
@@ -175,6 +171,9 @@ void SPoseWatchManager::Construct(const FArguments& InArgs, const FPoseWatchMana
 
 			// Find out when the user selects something in the tree
 			.OnSelectionChanged(this, &SPoseWatchManager::OnManagerTreeSelectionChanged)
+
+			// Called when the user double-clicks with LMB on an item in the list
+			.OnMouseButtonDoubleClick(this, &SPoseWatchManager::OnManagerTreeDoubleClick)
 
 			// Called when an item is scrolled into view
 			.OnItemScrolledIntoView(this, &SPoseWatchManager::OnManagerTreeItemScrolledIntoView)
@@ -893,6 +892,15 @@ FPoseWatchManagerTreeItemPtr SPoseWatchManager::FindParent(const IPoseWatchManag
 uint32 SPoseWatchManager::GetTypeSortPriority(const IPoseWatchManagerTreeItem& Item) const
 {
 	return Mode->GetTypeSortPriority(Item);
+}
+
+void SPoseWatchManager::OnManagerTreeDoubleClick(FPoseWatchManagerTreeItemPtr TreeItem)
+{
+	if (FPoseWatchManagerPoseWatchTreeItem* PoseWatchTreeItem = TreeItem->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
+	{
+		UPoseWatch* PoseWatch = PoseWatchTreeItem->PoseWatch.Get();
+		BlueprintEditor->JumpToHyperlink(PoseWatch->Node.Get(), false);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
