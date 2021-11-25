@@ -125,8 +125,8 @@ namespace DatasmithRuntime
 			}
 
 			FString TextureName = FString::Printf(TEXT("T_%s_%d"), TextureElement->GetName(), TextureElement->GetNodeId());
-#ifdef ASSET_DEBUG
 			TextureName = FDatasmithUtils::SanitizeObjectName(TextureName);
+#ifdef ASSET_DEBUG
 			UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Game/Runtime/Textures"), TextureName));
 			RenameObject(Texture, *TextureName, Package);
 			Texture->SetFlags(RF_Public);

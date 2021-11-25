@@ -1232,7 +1232,6 @@ namespace DatasmithRuntime
 		if (DataType == EDataType::Texture)
 		{
 			AssetPrefixedName = TexturePrefix + Elements[ElementId]->GetName();
-			ensure(AssetData.Object.IsValid() || TextureDataList.Remove(ElementId) > 0);
 		}
 		else if (DataType == EDataType::Material || DataType == EDataType::PbrMaterial)
 		{

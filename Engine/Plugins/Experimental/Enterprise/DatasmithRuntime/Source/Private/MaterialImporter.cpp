@@ -57,16 +57,18 @@ namespace DatasmithRuntime
 			}
 			else
 			{
-				FString MaterialName = FString::Printf(TEXT("M_%s_%d"), Element->GetName(), MaterialData.ElementId);
-
 #ifdef ASSET_DEBUG
 				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Game/Runtime/Materials"), MaterialName));
-				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package, *MaterialName) );
+				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, Package) );
 				MaterialData.Object->SetFlags(RF_Public);
 #else
-				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr, *MaterialName) );
+				MaterialData.Object = TWeakObjectPtr<UObject>( UMaterialInstanceDynamic::Create( nullptr, nullptr) );
 #endif
 				check(MaterialData.Object.IsValid());
+
+				FString MaterialName = FString::Printf(TEXT("M_%s_%d"), Element->GetName(), MaterialData.ElementId);
+				MaterialName = FDatasmithUtils::SanitizeObjectName(MaterialName);
+				RenameObject(MaterialData.GetObject(), *MaterialName);
 
 				// Load metadata on newly created material asset if any
 				ApplyMetadata(MaterialData.MetadataId, MaterialData.GetObject());
