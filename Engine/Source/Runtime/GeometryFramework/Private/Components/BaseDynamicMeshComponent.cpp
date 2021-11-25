@@ -20,7 +20,11 @@ void UBaseDynamicMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	const FName PropName = PropertyChangedEvent.GetPropertyName();
 	if ( (PropName == GET_MEMBER_NAME_CHECKED(UBaseDynamicMeshComponent, bEnableRaytracing))  )
 	{
-		OnRaytracingStateChanged();
+		OnRenderingStateChanged(true);
+	}
+	else if ( (PropName == GET_MEMBER_NAME_CHECKED(UBaseDynamicMeshComponent, bEnableViewModeOverrides))  )
+	{
+		OnRenderingStateChanged(false);
 	}
 }
 #endif
@@ -28,22 +32,18 @@ void UBaseDynamicMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 void UBaseDynamicMeshComponent::SetShadowsEnabled(bool bEnabled)
 {
-	// finish any drawing so that we can be certain our SceneProxy is no longer in use before we rebuild it below
 	FlushRenderingCommands();
-
 	SetCastShadow(bEnabled);
-	//bCastDynamicShadow = bEnabled;
+	OnRenderingStateChanged(true);
+}
 
-	// apparently SceneProxy has to be fully rebuilt to change shadow state
 
-	// this marks the SceneProxy for rebuild, but not immediately, and possibly allows bad things to happen
-	// before the end of the frame
-	//MarkRenderStateDirty();
-
-	// force immediate rebuild of the SceneProxy
-	if (IsRegistered())
+void UBaseDynamicMeshComponent::SetViewModeOverridesEnabled(bool bEnabled)
+{
+	if (bEnableViewModeOverrides != bEnabled)
 	{
-		ReregisterComponent();
+		bEnableViewModeOverrides = bEnabled;
+		OnRenderingStateChanged(false);
 	}
 }
 
@@ -106,7 +106,7 @@ void UBaseDynamicMeshComponent::SetEnableRaytracing(bool bSetEnabled)
 	if (bEnableRaytracing != bSetEnabled)
 	{
 		bEnableRaytracing = bSetEnabled;
-		OnRaytracingStateChanged();
+		OnRenderingStateChanged(true);
 	}
 }
 
@@ -115,15 +115,22 @@ bool UBaseDynamicMeshComponent::GetEnableRaytracing() const
 	return bEnableRaytracing;
 }
 
-void UBaseDynamicMeshComponent::OnRaytracingStateChanged()
+void UBaseDynamicMeshComponent::OnRenderingStateChanged(bool bForceImmedateRebuild)
 {
-	// finish any drawing so that we can be certain our SceneProxy is no longer in use before we rebuild it below
-	FlushRenderingCommands();
-
-	// force immediate rebuild of the SceneProxy
-	if (IsRegistered())
+	if (bForceImmedateRebuild)
 	{
-		ReregisterComponent();
+		// finish any drawing so that we can be certain our SceneProxy is no longer in use before we rebuild it below
+		FlushRenderingCommands();
+
+		// force immediate rebuild of the SceneProxy
+		if (IsRegistered())
+		{
+			ReregisterComponent();
+		}
+	}
+	else
+	{
+		MarkRenderStateDirty();
 	}
 }
 
