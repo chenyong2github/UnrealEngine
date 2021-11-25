@@ -3,6 +3,7 @@
 #include "ToolTargets/SkeletalMeshToolTarget.h"
 
 #include "ConversionUtils/DynamicMeshViaMeshDescriptionUtil.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -146,7 +147,7 @@ void USkeletalMeshReadOnlyToolTarget::GetMeshDescription(const USkeletalMesh* Sk
 	}
 }
 
-TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> USkeletalMeshReadOnlyToolTarget::GetDynamicMesh()
+FDynamicMesh3 USkeletalMeshReadOnlyToolTarget::GetDynamicMesh()
 {
 	return GetDynamicMeshViaMeshDescription(*this);
 }

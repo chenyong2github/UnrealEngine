@@ -12,6 +12,7 @@ class UPrimitiveComponent;
 class AActor;
 struct FMeshDescription;
 struct FCreateMeshObjectParams;
+class IPersistentDynamicMeshSource;
 
 //
 // UE::ToolTarget:: namespace contains utility/helper functions for interacting with UToolTargets.
@@ -158,6 +159,18 @@ MODELINGCOMPONENTS_API EDynamicMeshUpdateResult CommitDynamicMeshUVUpdate(UToolT
 MODELINGCOMPONENTS_API bool ConfigureCreateMeshObjectParams(UToolTarget* SourceTarget, FCreateMeshObjectParams& DerivedParamsOut);
 
 
+namespace Internal
+{
+	/**
+	 * Not intended for direct use by tools, just for use by tool target util functions and tool target
+	 * implementations that may need to do this operation. Uses the IPersistentDynamicMeshSource interface
+	 * to perform an update of the dynamic mesh.
+	 * Currently ignores bHaveModifiedTopology.
+	 */
+	MODELINGCOMPONENTS_API void CommitDynamicMeshViaIPersistentDynamicMeshSource(
+		IPersistentDynamicMeshSource& DynamicMeshSource,
+		const UE::Geometry::FDynamicMesh3& UpdatedMesh, bool bHaveModifiedTopology);
+}
 
 
 }  // end namespace ToolTarget

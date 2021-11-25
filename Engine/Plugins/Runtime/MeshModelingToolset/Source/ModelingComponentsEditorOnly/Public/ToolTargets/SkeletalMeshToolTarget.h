@@ -44,7 +44,7 @@ public:
 	bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;	
 
 	// IDynamicMeshProvider
-	virtual TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> GetDynamicMesh() override;
+	virtual UE::Geometry::FDynamicMesh3 GetDynamicMesh() override;
 
 	// ISkeletalMeshBackedTarget implementation
 	USkeletalMesh* GetSkeletalMesh() const override;

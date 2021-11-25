@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "TargetInterfaces/DynamicMeshCommitter.h"
+#include "TargetInterfaces/DynamicMeshProvider.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
@@ -22,6 +24,8 @@ class MODELINGCOMPONENTSEDITORONLY_API UDynamicMeshComponentToolTarget :
 	public UPrimitiveComponentToolTarget,
 	public IMeshDescriptionCommitter, 
 	public IMeshDescriptionProvider, 
+	public IDynamicMeshProvider,
+	public IDynamicMeshCommitter,
 	public IMaterialProvider,
 	public IPersistentDynamicMeshSource
 {
@@ -38,6 +42,13 @@ public:
 	// IMeshDescritpionCommitter implementation
 	virtual void CommitMeshDescription(const FCommitter& Committer) override;
 	using IMeshDescriptionCommitter::CommitMeshDescription; // unhide the other overload
+
+	// IDynamicMeshProvider implementation
+	virtual UE::Geometry::FDynamicMesh3 GetDynamicMesh() override;
+
+	// IDynamicMeshCommitter implementation
+	virtual void CommitDynamicMesh(const UE::Geometry::FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo) override;
+	using IDynamicMeshCommitter::CommitDynamicMesh; // unhide the other overload
 
 	// IMaterialProvider implementation
 	int32 GetNumMaterials() const override;

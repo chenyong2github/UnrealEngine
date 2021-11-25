@@ -5,6 +5,7 @@
 #include "ComponentReregisterContext.h"
 #include "Components/StaticMeshComponent.h"
 #include "ConversionUtils/DynamicMeshViaMeshDescriptionUtil.h"
+#include "DynamicMesh/DynamicMesh3.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "ToolTargets/StaticMeshToolTarget.h"
@@ -175,7 +176,7 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 	Component->RecreatePhysicsState();
 }
 
-TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UStaticMeshComponentToolTarget::GetDynamicMesh()
+FDynamicMesh3 UStaticMeshComponentToolTarget::GetDynamicMesh()
 {
 	return GetDynamicMeshViaMeshDescription(*this);
 }

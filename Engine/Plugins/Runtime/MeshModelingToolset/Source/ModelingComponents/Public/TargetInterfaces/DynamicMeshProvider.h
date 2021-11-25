@@ -23,13 +23,7 @@ class MODELINGCOMPONENTS_API IDynamicMeshProvider
 
 public:
 	/**
-	 * Gives back an editable dynamic mesh. Changes may or may not affect the target, but
-	 * target guarantees that they are safe to perform without crashing. In particular,
-	 * note that it's unspecified whether the next GetMesh() call after an edit will give
-	 * back the edited mesh or a copy of the original.
-	 * 
-	 * To guarantee changes having an effect, target must also be a IDynamicMeshCommitter 
-	 * and the mesh must be committed.
+	 * Gives a copy of a dynamic mesh for tools to operate on.
 	 */
-	virtual TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> GetDynamicMesh() = 0;
+	virtual UE::Geometry::FDynamicMesh3 GetDynamicMesh() = 0;
 };

@@ -188,7 +188,7 @@ FDynamicMesh3 UE::ToolTarget::GetDynamicMeshCopy(UToolTarget* Target, bool bWant
 	IDynamicMeshProvider* DynamicMeshProvider = Cast<IDynamicMeshProvider>(Target);
 	if (DynamicMeshProvider && !bWantMeshTangents)
 	{
-		return *DynamicMeshProvider->GetDynamicMesh();
+		return DynamicMeshProvider->GetDynamicMesh();
 	}
 
 	IMeshDescriptionProvider* MeshDescriptionProvider = Cast<IMeshDescriptionProvider>(Target);
@@ -246,7 +246,28 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitMeshDescriptionUp
 }
 
 
+void UE::ToolTarget::Internal::CommitDynamicMeshViaIPersistentDynamicMeshSource(
+	IPersistentDynamicMeshSource& DynamicMeshSource, 
+	const FDynamicMesh3& UpdatedMesh, bool bHaveModifiedTopology)
+{
+	UDynamicMesh* DynamicMesh = DynamicMeshSource.GetDynamicMeshContainer();
+	TUniquePtr<FDynamicMesh3> CurrentMesh = DynamicMesh->ExtractMesh();
+	TSharedPtr<FDynamicMesh3> CurrentMeshShared(CurrentMesh.Release());
 
+	DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+		{
+			EditMesh.CompactCopy(UpdatedMesh);
+		});
+
+	TSharedPtr<FDynamicMesh3> NewMeshShared = MakeShared<FDynamicMesh3>();
+	DynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { *NewMeshShared = ReadMesh; });
+
+	TUniquePtr<FMeshReplacementChange> ReplaceChange = MakeUnique<FMeshReplacementChange>(CurrentMeshShared, NewMeshShared);
+
+	DynamicMeshSource.CommitDynamicMeshChange(MoveTemp(ReplaceChange), LOCTEXT("CommitDynamicMeshUpdate_MeshSource", "Update Mesh"));
+
+	// todo support bModifiedTopology flag?
+}
 
 UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate(
 	UToolTarget* Target, const FDynamicMesh3& UpdatedMesh, 
@@ -262,24 +283,9 @@ UE::ToolTarget::EDynamicMeshUpdateResult UE::ToolTarget::CommitDynamicMeshUpdate
 	IPersistentDynamicMeshSource* DynamicMeshSource = Cast<IPersistentDynamicMeshSource>(Target);
 	if (DynamicMeshSource)
 	{
-		UDynamicMesh* DynamicMesh = DynamicMeshSource->GetDynamicMeshContainer();
-		TUniquePtr<FDynamicMesh3> CurrentMesh = DynamicMesh->ExtractMesh();
-		TSharedPtr<FDynamicMesh3> CurrentMeshShared(CurrentMesh.Release());
-
-		DynamicMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
-		{ 
-			EditMesh.CompactCopy(UpdatedMesh);
-		});
-
-		TSharedPtr<FDynamicMesh3> NewMeshShared = MakeShared<FDynamicMesh3>();
-		DynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { *NewMeshShared = ReadMesh; });
-
-		TUniquePtr<FMeshReplacementChange> ReplaceChange = MakeUnique<FMeshReplacementChange>(CurrentMeshShared, NewMeshShared);
+		Internal::CommitDynamicMeshViaIPersistentDynamicMeshSource(
+			*DynamicMeshSource, UpdatedMesh, bHaveModifiedTopology);
 		
-		DynamicMeshSource->CommitDynamicMeshChange(MoveTemp(ReplaceChange), LOCTEXT("CommitDynamicMeshUpdate_MeshSource", "Edit Mesh"));
-
-
-		// todo support bModifiedTopology flag?
 		return EDynamicMeshUpdateResult::Ok;
 	}
 

@@ -18,7 +18,7 @@
 class UStaticMesh;
 
 /**
- * A tool target backed by a static mesh component that can provide and take a mesh
+ * A tool target backed by a static mesh asset that can provide and take a mesh
  * description.
  */
 UCLASS(Transient)
@@ -54,7 +54,7 @@ public:
 	using IMeshDescriptionCommitter::CommitMeshDescription; // unhide the other overload
 
 	// IDynamicMeshProvider
-	virtual TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> GetDynamicMesh() override;
+	virtual UE::Geometry::FDynamicMesh3 GetDynamicMesh() override;
 
 	// IDynamicMeshCommitter
 	virtual void CommitDynamicMesh(const UE::Geometry::FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo) override;

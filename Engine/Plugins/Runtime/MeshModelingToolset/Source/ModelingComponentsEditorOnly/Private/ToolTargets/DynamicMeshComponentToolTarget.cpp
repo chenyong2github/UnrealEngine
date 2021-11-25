@@ -7,6 +7,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "StaticMeshAttributes.h"
 #include "Materials/Material.h"
+#include "ModelingToolTargetUtil.h"
 
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
@@ -14,6 +15,10 @@
 
 #define LOCTEXT_NAMESPACE "UDynamicMeshComponentToolTarget"
 
+namespace DynamicMeshComponentToolTargetLocals
+{
+	const FText CommitMeshTransactionName = LOCTEXT("DynamicMeshComponentToolTargetCommit", "Update Mesh");
+}
 
 bool UDynamicMeshComponentToolTarget::IsValid() const
 {
@@ -134,7 +139,7 @@ void UDynamicMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Co
 
 	TUniquePtr<FMeshReplacementChange> ReplaceChange = MakeUnique<FMeshReplacementChange>(CurrentMeshShared, NewMeshShared);
 
-	CommitDynamicMeshChange(MoveTemp(ReplaceChange), LOCTEXT("DynamicMeshComponentToolTargetCommit", "Update Mesh"));
+	CommitDynamicMeshChange(MoveTemp(ReplaceChange), DynamicMeshComponentToolTargetLocals::CommitMeshTransactionName);
 }
 
 
@@ -172,7 +177,19 @@ void UDynamicMeshComponentToolTarget::CommitDynamicMeshChange(TUniquePtr<FToolCo
 	}
 }
 
+FDynamicMesh3 UDynamicMeshComponentToolTarget::GetDynamicMesh()
+{
+	UDynamicMesh* DynamicMesh = GetDynamicMeshContainer();
+	FDynamicMesh3 Mesh;
+	DynamicMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh) { Mesh = ReadMesh; });
+	return Mesh;
+}
 
+void UDynamicMeshComponentToolTarget::CommitDynamicMesh(const FDynamicMesh3& UpdatedMesh, const FDynamicMeshCommitInfo& CommitInfo)
+{
+	UE::ToolTarget::Internal::CommitDynamicMeshViaIPersistentDynamicMeshSource(
+		*this, UpdatedMesh, CommitInfo.bTopologyChanged);
+}
 
 
 

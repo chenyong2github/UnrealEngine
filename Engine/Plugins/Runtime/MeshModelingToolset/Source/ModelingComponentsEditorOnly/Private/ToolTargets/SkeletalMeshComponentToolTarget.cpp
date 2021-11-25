@@ -106,7 +106,7 @@ const FMeshDescription* USkeletalMeshComponentReadOnlyToolTarget::GetMeshDescrip
 }
 
 
-TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> USkeletalMeshComponentReadOnlyToolTarget::GetDynamicMesh()
+FDynamicMesh3 USkeletalMeshComponentReadOnlyToolTarget::GetDynamicMesh()
 {
 	return GetDynamicMeshViaMeshDescription(*this);
 }
