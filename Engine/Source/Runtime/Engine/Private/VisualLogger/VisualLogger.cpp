@@ -217,6 +217,7 @@ FVisualLogEntry* FVisualLogger::GetEntryToWrite(const UObject* Object, const flo
 
 	if (bInitializeEntry)
 	{
+		checkf(CurrentEntry != nullptr, TEXT("bInitializeEntry can only be true when CurrentEntry is valid."));
 		CurrentEntry->Reset();
 		CurrentEntry->TimeStamp = TimeStamp;
 		CurrentEntry->bIsInitialized = true;
