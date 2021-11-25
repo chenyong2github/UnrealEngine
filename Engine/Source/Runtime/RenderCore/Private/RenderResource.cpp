@@ -90,6 +90,7 @@ void FRenderResource::InitResource()
 
 		if (PLATFORM_NEEDS_RHIRESOURCELIST || !GIsRHIInitialized)
 		{
+			LLM_SCOPE(ELLMTag::SceneRender);
 			TArray<FRenderResource*>& ResourceList = GetResourceList();
 			TArray<int32>& FreeIndicesList = GetFreeIndicesList();
 
