@@ -19,6 +19,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
 #include "UVEditorModeUILayer.h"
+#include "UVEditorStyle.h"
 #include "AssetEditorModeManager.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorModeToolkit"
@@ -73,49 +74,37 @@ FUVEditorModeToolkit::FUVEditorModeToolkit()
 	// makes it easy to guarantee that GetInlineContent() will always
 	// be ready to work.
 
-	SAssignNew(ToolkitWidget, SBorder)
-		.HAlign(HAlign_Fill)
-		.Padding(4)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign(HAlign_Left)
-			.Padding(1.f)
-			[
-				SAssignNew(ToolButtonsContainer, SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-				.Padding(FMargin(4, 2, 0, 0))
-			]
+	SAssignNew(ToolkitWidget, SVerticalBox)
+	+ SVerticalBox::Slot()
+	.AutoHeight()
+	[
+		SAssignNew(ToolWarningArea, STextBlock)
+		.AutoWrapText(true)
+		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+		.ColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.15f, 0.15f))) //TODO: This probably needs to not be hardcoded
+		.Text(FText::GetEmpty())
+		.Visibility(EVisibility::Collapsed)
+	]
 
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(2, 0, 0, 0)
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SAssignNew(ToolWarningArea, STextBlock)
-					.AutoWrapText(true)
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
-					.ColorAndOpacity(FSlateColor(FLinearColor(0.9f, 0.15f, 0.15f))) //TODO: This probably needs to not be hardcoded
-					.Text(FText::GetEmpty())
-					.Visibility(EVisibility::Collapsed)
-				]
-
-				+ SVerticalBox::Slot()
-				[
-					SAssignNew(ToolDetailsContainer, SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-				]
-			]
-
-		];
+	+ SVerticalBox::Slot()
+	[
+		SAssignNew(ToolDetailsContainer, SBorder)
+		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+	];
 }
 
 FUVEditorModeToolkit::~FUVEditorModeToolkit()
 {
+	UEdMode* Mode = GetScriptableEditorMode().Get();
+	if (ensure(Mode))
+	{
+		UEditorInteractiveToolsContext* Context = Mode->GetInteractiveToolsContext();
+		if (ensure(Context))
+		{
+			Context->OnToolNotificationMessage.RemoveAll(this);
+			Context->OnToolWarningMessage.RemoveAll(this);
+		}
+	}
 }
 
 void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
@@ -132,6 +121,11 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 	// of tool start transactions. See FUVEditorModeToolkit::OnToolStarted for how we issue the transactions.
 	InteractiveToolsContext->ToolManager->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
 
+	// Set up tool message areas
+	ClearNotification();
+	ClearWarning();
+	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolNotificationMessage.AddSP(this, &FUVEditorModeToolkit::PostNotification);
+	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolWarningMessage.AddSP(this, &FUVEditorModeToolkit::PostWarning);
 
 	// Hook up the tool detail panel
 	ToolDetailsContainer->SetContent(DetailsView.ToSharedRef());
@@ -151,15 +145,14 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 		[
 			SNew(SHorizontalBox)
 
-			// TODO: Need to add a tool icon here the way we do in modeling mode.
-			//+SHorizontalBox::Slot()
-			//.AutoWidth()
-			//.VAlign(VAlign_Center)
-			//.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
-			//[
-			//	SNew(SImage)
-			//	.Image_Lambda([this] () { return ActiveToolIcon; })
-			//]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.f, 0.f, 8.f, 0.f))
+			[
+				SNew(SImage)
+				.Image_Lambda([this] () { return ActiveToolIcon; })
+			]
 
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -348,6 +341,11 @@ void FUVEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInte
 
 	ActiveToolName = Tool->GetToolInfo().ToolDisplayName;
 
+	FString ActiveToolIdentifier = GetScriptableEditorMode()->GetToolManager()->GetActiveToolName(EToolSide::Mouse);
+	ActiveToolIdentifier.InsertAt(0, ".");
+	FName ActiveToolIconName = ISlateStyle::Join(FUVEditorCommands::Get().GetContextName(), TCHAR_TO_ANSI(*ActiveToolIdentifier));
+	ActiveToolIcon = FUVEditorStyle::Get().GetOptionalBrush(ActiveToolIconName);
+
 	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
 	if (!Mode->IsDefaultToolActive())
 	{
@@ -367,6 +365,8 @@ void FUVEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UIntera
 	FModeToolkit::OnToolEnded(Manager, Tool);
 
 	ActiveToolName = FText::GetEmpty();
+	ClearNotification();
+	ClearWarning();
 
 	if (IsHosted())
 	{
@@ -411,5 +411,46 @@ void FUVEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToolBarBu
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRecomputeUVsTool);
 	}
 }
+
+void FUVEditorModeToolkit::PostNotification(const FText& Message)
+{
+	ClearNotification();
+
+	if (ModeUILayer.IsValid())
+	{
+		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+		ActiveToolMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(ModeUILayerPtr->GetStatusBarName(), Message);
+	}
+}
+
+void FUVEditorModeToolkit::ClearNotification()
+{
+	if (ModeUILayer.IsValid())
+	{
+		TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(ModeUILayerPtr->GetStatusBarName(), ActiveToolMessageHandle);
+	}
+	ActiveToolMessageHandle.Reset();
+}
+
+void FUVEditorModeToolkit::PostWarning(const FText& Message)
+{
+	if (Message.IsEmpty())
+	{
+		ClearWarning();
+	}
+	else
+	{
+		ToolWarningArea->SetText(Message);
+		ToolWarningArea->SetVisibility(EVisibility::Visible);
+	}
+}
+
+void FUVEditorModeToolkit::ClearWarning()
+{
+	ToolWarningArea->SetText(FText());
+	ToolWarningArea->SetVisibility(EVisibility::Collapsed);
+}
+
 
 #undef LOCTEXT_NAMESPACE

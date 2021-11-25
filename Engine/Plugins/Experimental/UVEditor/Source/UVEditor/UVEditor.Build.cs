@@ -47,20 +47,20 @@ public class UVEditor : ModuleRules
 				
 				"AdvancedPreviewScene",
 				"ContentBrowser",
-				"GeometryCore",
 				"DynamicMesh",
 				"EditorFramework", // FEditorModeInfo
 				"EditorInteractiveToolsFramework",
 				"EditorStyle",
 				"EditorSubsystem",
+				"GeometryCore",
 				"LevelEditor",
 				"ModelingComponentsEditorOnly", // Static/skeletal mesh tool targets
 				"ModelingComponents",
+				"StatusBar",
 				"ToolMenus",
+				"ToolWidgets",
 				"UVEditorTools",
 				"UVEditorToolsEditorOnly",
-				"ToolWidgets",
-
 				"WorkspaceMenuStructure",
 				// ... add private dependencies that you statically link with here ...	
 			}

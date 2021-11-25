@@ -158,19 +158,25 @@ bool UUVSeamSewAction::PreCheckAction()
 {
 	if (SelectionTargetIndex == -1 || !CurrentSelection || CurrentSelection->Mesh == nullptr)
 	{
-		UE_LOG(LogGeometry, Warning, TEXT("Cannot sew UVs. Mesh selection was empty."));
+		ParentTool->GetToolManager()->DisplayMessage(
+			LOCTEXT("SewErrorSelectionEmpty", "Cannot sew UVs. Mesh selection was empty."),
+			EToolMessageLevel::UserWarning);
 		return false;
 	}
 
 	if (CurrentSelection->Type != FDynamicMeshSelection::EType::Edge)
 	{
-		UE_LOG(LogGeometry, Warning, TEXT("Cannot sew UVs. Selection was not an edge."));
+		ParentTool->GetToolManager()->DisplayMessage(
+			LOCTEXT("SewErrorSelectionNotEdge", "Cannot sew UVs. Selection was not an edge."),
+			EToolMessageLevel::UserWarning);
 		return false;
 	}
 
 	if (EdgeSewCandidates.Num() == 0)
 	{
-		UE_LOG(LogGeometry, Warning, TEXT("Cannot sew UVs. No viable sew candidate edges selected."));
+		ParentTool->GetToolManager()->DisplayMessage(
+			LOCTEXT("SewErrorSelectionNotBoundary", "Cannot sew UVs. No viable sew candidate edges selected."),
+			EToolMessageLevel::UserWarning);
 		return false;
 	}
 

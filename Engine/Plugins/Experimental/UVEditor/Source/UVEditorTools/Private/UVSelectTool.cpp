@@ -457,6 +457,10 @@ void UUVSelectTool::Setup()
 		OnSelectionChanged();
 	}
 	UpdateGizmo();
+
+	GetToolManager()->DisplayMessage(LOCTEXT("SelectToolStatusBarMessage", 
+		"Select elements in the viewport and then use one of the edit action buttons."), 
+		EToolMessageLevel::UserNotification);
 }
 
 void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
@@ -614,6 +618,8 @@ void UUVSelectTool::OnSelectionChanged()
 	
 	using namespace UVSelectToolLocals;
 
+	ClearWarning();
+
 	const FDynamicMeshSelection& Selection = SelectionMechanic->GetCurrentSelection();
 
 	GetVidPairsFromSelection(Selection, CurrentSelectionVidPairs);
@@ -749,6 +755,11 @@ void UUVSelectTool::OnSelectionChanged()
 
 	UpdateLivePreviewLines();
 	UpdateGizmo();
+}
+
+void UUVSelectTool::ClearWarning()
+{
+	GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
 }
 
 void UUVSelectTool::UpdateLivePreviewLines()
@@ -907,6 +918,7 @@ void UUVSelectTool::OnTick(float DeltaTime)
 
 void UUVSelectTool::RequestAction(ESelectToolAction ActionType)
 {
+	ClearWarning();
 	if (PendingAction == ESelectToolAction::NoAction)
 	{
 		PendingAction = ActionType;
@@ -960,6 +972,9 @@ void UUVSelectTool::ApplySplit()
 
 	if (Selection.IsEmpty() || Selection.Type != FDynamicMeshSelection::EType::Edge)
 	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("SplitErrorSelectionEmpty", "Cannot split UV's. Edge selection was empty."),
+			EToolMessageLevel::UserWarning);
 		return;
 	}
 

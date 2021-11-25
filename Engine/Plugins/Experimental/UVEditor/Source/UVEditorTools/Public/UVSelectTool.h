@@ -125,6 +125,7 @@ public:
 
 protected:
 	virtual void OnSelectionChanged();
+	virtual void ClearWarning();
 
 	// Callbacks we'll receive from the gizmo proxy
 	virtual void GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform);

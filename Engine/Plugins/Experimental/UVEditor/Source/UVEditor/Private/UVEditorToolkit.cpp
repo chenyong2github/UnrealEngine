@@ -435,15 +435,10 @@ void FUVEditorToolkit::PostInitAssetEditor()
 		TabManager->TryInvokeTab(ViewportTabID);
 	}
 
-	TSharedPtr<FUVEditorModeToolkit> UVModeToolkit = StaticCastSharedPtr<FUVEditorModeToolkit>(UVMode->GetToolkit().Pin());
-
 	// Add the "Apply Changes" button. It should actually be safe to do this almost
 	// any time, even before that toolbar's registration, but it's easier to put most
 	// things into PostInitAssetEditor().
 
-	// TODO: Use the icon that material editor uses. Also, the space between the button
-	// sections is too large, but the button can't go into the default toolbar section or
-	// else it will show up in other asset editors where the section is used.
 	// TODO: We may consider putting actions like these, which are tied to a mode, into
 	// some list of mode actions, and then letting the mode supply them to the owning
 	// asset editor on enter/exit. Revisit when/if this becomes easier to do.
@@ -458,6 +453,8 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	Section.AddEntry(FToolMenuEntry::InitToolBarButton(FUVEditorCommands::Get().ApplyChanges));
 	
 	// Add the channel selection button.
+	check(UVMode->GetToolkit().Pin());
+	FUVEditorModeToolkit* UVModeToolkit = static_cast<FUVEditorModeToolkit*>(UVMode->GetToolkit().Pin().Get());
 	Section.AddEntry(FToolMenuEntry::InitComboButton(
 		"UVEditorChannelMenu",
 		FUIAction(),

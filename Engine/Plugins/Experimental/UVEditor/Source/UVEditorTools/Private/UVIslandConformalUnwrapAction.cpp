@@ -62,6 +62,9 @@ bool UUVIslandConformalUnwrapAction::PreCheckAction()
 	if (!CurrentSelection || CurrentSelection->Type != FDynamicMeshSelection::EType::Triangle
 		|| CurrentSelection->Mesh == nullptr || SelectionTargetIndex == INDEX_NONE)
 	{
+		ParentTool->GetToolManager()->DisplayMessage(
+			LOCTEXT("UnwrapErrorSelectionEmpty", "Cannot perform unwrap. Mesh selection must be island triangles."),
+			EToolMessageLevel::UserWarning);
 		return false;
 	}
 
