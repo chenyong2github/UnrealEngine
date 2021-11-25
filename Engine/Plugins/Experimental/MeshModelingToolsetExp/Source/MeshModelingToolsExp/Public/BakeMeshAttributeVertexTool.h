@@ -135,7 +135,7 @@ public:
 
 protected:
 	UPROPERTY()
-	TObjectPtr<UBakeInputMeshProperties> MeshProps;
+	TObjectPtr<UBakeInputMeshProperties> InputMeshSettings;
 	
 	UPROPERTY()
 	TObjectPtr<UBakeMeshAttributeVertexToolProperties> Settings;

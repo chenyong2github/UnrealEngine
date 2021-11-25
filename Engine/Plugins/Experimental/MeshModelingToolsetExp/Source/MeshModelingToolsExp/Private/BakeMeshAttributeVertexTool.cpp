@@ -198,7 +198,7 @@ public:
 			case EBakeMapType::Texture:
 			{
 				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> TextureEval = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
-				DetailSampler.SetColorMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
+				DetailSampler.SetTextureMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
 				Baker->ColorEvaluator = TextureEval;
 				break;
 			}
@@ -274,21 +274,21 @@ void UBakeMeshAttributeVertexTool::Setup()
 
 	// Setup tool property sets
 
-	MeshProps = NewObject<UBakeInputMeshProperties>(this);
-	MeshProps->RestoreProperties(this);
-	AddToolPropertySource(MeshProps);
-	SetToolPropertySourceEnabled(MeshProps, true);
-	MeshProps->bHasTargetUVLayer = false;
-	MeshProps->bHasSourceNormalMap = false;
-	MeshProps->TargetStaticMesh = GetStaticMeshTarget(Target);
-	MeshProps->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
-	MeshProps->TargetDynamicMesh = GetDynamicMeshTarget(Target);
-	MeshProps->SourceStaticMesh = !bIsBakeToSelf ? GetStaticMeshTarget(DetailTarget) : nullptr;
-	MeshProps->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
-	MeshProps->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
-	MeshProps->SourceNormalMap = nullptr;
-	MeshProps->WatchProperty(MeshProps->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
-	MeshProps->WatchProperty(MeshProps->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
+	InputMeshSettings = NewObject<UBakeInputMeshProperties>(this);
+	InputMeshSettings->RestoreProperties(this);
+	AddToolPropertySource(InputMeshSettings);
+	SetToolPropertySourceEnabled(InputMeshSettings, true);
+	InputMeshSettings->bHasTargetUVLayer = false;
+	InputMeshSettings->bHasSourceNormalMap = false;
+	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
+	InputMeshSettings->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
+	InputMeshSettings->TargetDynamicMesh = GetDynamicMeshTarget(Target);
+	InputMeshSettings->SourceStaticMesh = !bIsBakeToSelf ? GetStaticMeshTarget(DetailTarget) : nullptr;
+	InputMeshSettings->SourceSkeletalMesh = !bIsBakeToSelf ? GetSkeletalMeshTarget(DetailTarget) : nullptr;
+	InputMeshSettings->SourceDynamicMesh = !bIsBakeToSelf ? GetDynamicMeshTarget(DetailTarget) : nullptr;
+	InputMeshSettings->SourceNormalMap = nullptr;
+	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
+	InputMeshSettings->WatchProperty(InputMeshSettings->bProjectionInWorldSpace, [this](bool) { OpState |= EBakeOpState::EvaluateDetailMesh; });
 	
 	Settings = NewObject<UBakeMeshAttributeVertexToolProperties>(this);
 	Settings->RestoreProperties(this);
@@ -366,7 +366,7 @@ void UBakeMeshAttributeVertexTool::Shutdown(EToolShutdownType ShutdownType)
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBakeMeshAttributeVertexTool::Shutdown);
 	
 	Settings->SaveProperties(this);
-	MeshProps->SaveProperties(this);
+	InputMeshSettings->SaveProperties(this);
 	OcclusionSettings->SaveProperties(this);
 	CurvatureSettings->SaveProperties(this);
 	TextureSettings->SaveProperties(this);
@@ -459,7 +459,7 @@ void UBakeMeshAttributeVertexTool::UpdateDetailMesh()
 	DetailMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(DetailMeshProvider->GetMeshDescription(), *DetailMesh);
-	if (MeshProps->bProjectionInWorldSpace && bIsBakeToSelf == false)
+	if (InputMeshSettings->bProjectionInWorldSpace && bIsBakeToSelf == false)
 	{
 		const UE::Geometry::FTransform3d DetailToWorld(DetailComponent->GetWorldTransform());
 		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
@@ -634,8 +634,8 @@ void UBakeMeshAttributeVertexTool::UpdateResult()
 	BakeSettings.OutputTypePerChannel[3] = Settings->OutputTypeA;
 	BakeSettings.bSplitAtNormalSeams = Settings->bSplitAtNormalSeams;
 	BakeSettings.bSplitAtUVSeams = Settings->bSplitAtUVSeams;
-	BakeSettings.bProjectionInWorldSpace = MeshProps->bProjectionInWorldSpace;
-	BakeSettings.ProjectionDistance = MeshProps->ProjectionDistance;
+	BakeSettings.bProjectionInWorldSpace = InputMeshSettings->bProjectionInWorldSpace;
+	BakeSettings.ProjectionDistance = InputMeshSettings->ProjectionDistance;
 	if (!(BakeSettings == CachedBakeSettings))
 	{
 		CachedBakeSettings = BakeSettings;
