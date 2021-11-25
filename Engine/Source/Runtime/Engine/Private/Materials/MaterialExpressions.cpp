@@ -19302,6 +19302,7 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("Coverage"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("AuxilaryData"), 1, 1, 1, 1, 1));
 	Outputs.Add(FExpressionOutput(TEXT("AtlasUVs"), 1, 1, 1, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Group Index"), 1, 1, 0, 0, 0));
 #endif
 }
 
@@ -19351,6 +19352,10 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 	else if (OutputIndex == 12)
 	{
 		return Compiler->GetHairAtlasUVs();
+	}
+	else if (OutputIndex == 13)
+	{
+		return Compiler->GetHairGroupIndex();
 	}
 
 	return Compiler->Errorf(TEXT("Invalid input parameter"));

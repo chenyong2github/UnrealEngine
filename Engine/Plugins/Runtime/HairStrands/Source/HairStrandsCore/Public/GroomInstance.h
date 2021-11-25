@@ -22,6 +22,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParamet
 	SHADER_PARAMETER(uint32, bInvertUV)
 	SHADER_PARAMETER(uint32, bUseTextureRootUV)
 	SHADER_PARAMETER(uint32, MaxVertexCount)
+	SHADER_PARAMETER(float, GroupIndex)
 	SHADER_PARAMETER_SRV(Buffer<float4>, PositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, NormalsBuffer)
@@ -54,6 +55,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsVertexFactoryUniformShaderParam
 	SHADER_PARAMETER(uint32, StableRasterization)
 	SHADER_PARAMETER(uint32, ScatterSceneLighing)
 	SHADER_PARAMETER(uint32, RaytracingProceduralSplits)
+	SHADER_PARAMETER(float, GroupIndex)
 
 	SHADER_PARAMETER_SRV(Buffer<float4>, PositionOffsetBuffer)
 	SHADER_PARAMETER_SRV(Buffer<float4>, PreviousPositionOffsetBuffer)

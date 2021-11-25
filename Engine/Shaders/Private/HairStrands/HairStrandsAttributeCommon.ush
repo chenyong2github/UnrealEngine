@@ -109,6 +109,10 @@ float GetHairStrandsDepth(uint HairPrimitiveId, float2 InUV, float InDeviceZ)
 	return 0.f;
 }
 
+float GetHairStrandsGroupIndex(float2 InAtlasUV)
+{
+	return HairStrandsVF.GroupIndex;
+}
 ////////////////////////////////////////////////////////////////////////////////
 
 #endif // HAIR_STRAND_MESH_FACTORY

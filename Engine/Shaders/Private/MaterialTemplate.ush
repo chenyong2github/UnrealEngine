@@ -1397,6 +1397,17 @@ float4 MaterialExpressionGetHairAuxilaryData(FMaterialPixelParameters Parameters
 #endif
 }
 
+float MaterialExpressionGetHairGroupIndex(FMaterialPixelParameters Parameters)
+{
+#if HAIR_STRAND_MESH_FACTORY
+	return GetHairStrandsGroupIndex(Parameters.HairPrimitiveId);
+#elif HAIR_CARD_MESH_FACTORY
+	return GetHairStrandsGroupIndex(Parameters.HairPrimitiveUV);
+#else
+	return 0;
+#endif
+
+}
 float3 MaterialExpressionGetHairColorFromMelanin(float Melanin, float Redness, float3 DyeColor)
 {
 	return GetHairColorFromMelanin(Melanin, Redness, DyeColor);

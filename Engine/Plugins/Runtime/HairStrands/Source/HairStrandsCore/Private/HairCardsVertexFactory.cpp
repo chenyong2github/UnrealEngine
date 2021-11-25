@@ -36,6 +36,7 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[LODIndex];
 
 		// Cards atlas UV are inverted so fetching needs to be inverted on the y-axis
+		UniformParameters.GroupIndex = Instance->Debug.GroupIndex;
 		UniformParameters.bInvertUV = LOD.RestResource->bInvertUV;
 		UniformParameters.bUseTextureRootUV = 0;
 		UniformParameters.MaxVertexCount = LOD.RestResource->GetVertexCount();
@@ -88,6 +89,7 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		}
 
 		// Meshes UV are not inverted so no need to invert the y-axis
+		UniformParameters.GroupIndex = Instance->Debug.GroupIndex;
 		UniformParameters.bInvertUV = 0;
 		UniformParameters.bUseTextureRootUV = 1;
 		UniformParameters.MaxVertexCount = LOD.RestResource->GetVertexCount();

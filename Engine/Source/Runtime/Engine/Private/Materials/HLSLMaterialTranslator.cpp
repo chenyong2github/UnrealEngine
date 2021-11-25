@@ -8909,6 +8909,11 @@ int32 FHLSLMaterialTranslator::GetHairAtlasUVs()
 	return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetAtlasUVs(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::GetHairGroupIndex()
+{
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairGroupIndex(Parameters)"));
+}
+
 int32 FHLSLMaterialTranslator::GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor)
 {
 	if (Melanin == INDEX_NONE)

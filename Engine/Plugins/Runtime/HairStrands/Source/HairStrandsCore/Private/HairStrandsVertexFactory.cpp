@@ -69,6 +69,7 @@ FHairStrandsVertexFactoryUniformShaderParameters FHairGroupInstance::GetHairStan
 	const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(this);
 
 	FHairStrandsVertexFactoryUniformShaderParameters Out = {};
+	Out.GroupIndex					= Debug.GroupIndex;
 	Out.Radius 						= VFInput.Strands.HairRadius;
 	Out.RootScale 					= VFInput.Strands.HairRootScale;
 	Out.TipScale 					= VFInput.Strands.HairTipScale;
