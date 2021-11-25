@@ -81,14 +81,16 @@ namespace DatasmithRuntime
 			else
 			{
 				FString MeshName = FString::Printf(TEXT("SM_%s_%d"), MeshElement->GetName(), MeshData.ElementId);
-#ifdef ASSET_DEBUG
 				MeshName = FDatasmithUtils::SanitizeObjectName(MeshName);
+#ifdef ASSET_DEBUG
 				UPackage* Package = CreatePackage(*FPaths::Combine( TEXT("/Game/Runtime/Meshes"), MeshName));
-				StaticMesh = NewObject< URuntimeMesh >(Package, *MeshName, RF_Public);
+				StaticMesh = NewObject< URuntimeMesh >(Package, NAME_None, RF_Public);
 #else
-				StaticMesh = NewObject< URuntimeMesh >(GetTransientPackage(), *MeshName);
+				StaticMesh = NewObject< URuntimeMesh >(GetTransientPackage());
 #endif
 				check(StaticMesh);
+
+				RenameObject(StaticMesh, *MeshName);
 
 				StaticMesh->SetWorld(RootComponent->GetWorld());
 
@@ -406,6 +408,9 @@ namespace DatasmithRuntime
 			}
 		}
 
+		// Force the generation of UVs data with full precision in the vertex buffer
+		StaticMesh->GetSourceModel(0).BuildSettings.bUseFullPrecisionUVs = true;
+
 		TArray<const FMeshDescription*> MeshDescriptionPointers;
 		for (FMeshDescription& MeshDescription : MeshDescriptions)
 		{
@@ -436,6 +441,7 @@ namespace DatasmithRuntime
 
 		// Free up memory
 		MeshDescriptions.Empty();
+
 #if WITH_EDITORONLY_DATA
 		StaticMesh->ClearMeshDescriptions();
 #endif
