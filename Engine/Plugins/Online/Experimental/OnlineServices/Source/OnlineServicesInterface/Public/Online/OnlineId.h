@@ -2,47 +2,56 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Templates/TypeHash.h"
-#include "UObject/NameTypes.h"
 
-/**
- * This file is a placeholder, will be implemented along with the id registry in the future
- */
+#include "Online/OnlineServicesTypes.h"
 
 namespace UE::Online {
 
-using FOnlineIdHandle = int32;
-struct FOnlineId
+/** Enum used as template argument to TOnlineIdHandle to make it a compile error to assign between id's of different types */
+enum class EOnlineIdType
 {
-	FName Type;
-	FOnlineIdHandle Handle;
+	AccountId,
+	SessionId,
+	PartyId
 };
 
-using FAccountId = FOnlineId;
-
-inline bool operator==(const FOnlineId& A, const FOnlineId& B)
+/**
+ * A handle to an id which uniquely identifies a persistent or transient online resource, i.e. account/session/party etc, within a given Online Services provider.
+ * At most one id, and therefore one handle, exists for any given resource. The id and handle persist until the OnlineServices module is unloaded.
+ * Passed to and returned from OnlineServices APIs.
+ */ 
+template<EOnlineIdType IdType>
+class TOnlineIdHandle
 {
-	return A.Type == B.Type && A.Handle == B.Handle;
-}
+public:
+	TOnlineIdHandle() = default;
+	TOnlineIdHandle(EOnlineServices Type, uint32 Handle) : Value((Handle & 0x00FFFFFF) & (uint32(Type) << 24)) {}
 
-inline bool operator!=(const FOnlineId& A, const FOnlineId& B)
-{
-	return !(A == B);
-}
+	inline bool IsValid() const { return GetHandle() != 0; }
 
-inline uint32 GetTypeHash(const FOnlineId& AccountId)
+	EOnlineServices GetType() const { return EOnlineServices(Value >> 24); }
+	uint32 GetHandle() const { return Value & 0x00FFFFFF; }
+
+	bool operator==(const TOnlineIdHandle& Other) const { return Value == Other.Value; }
+	bool operator!=(const TOnlineIdHandle& Other) const { return Value != Other.Value; }
+
+private:
+	uint32 Value = uint32(EOnlineServices::Null) << 24;
+};
+
+using FOnlineAccountIdHandle = TOnlineIdHandle<EOnlineIdType::AccountId>;
+
+template<EOnlineIdType IdType>
+inline uint32 GetTypeHash(const TOnlineIdHandle<IdType>& Handle)
 {
 	using ::GetTypeHash;
-	return HashCombine(GetTypeHash(AccountId.Type), GetTypeHash(AccountId.Handle));
+	return HashCombine(GetTypeHash(Handle.GetType()), GetTypeHash(Handle.GetHandle()));
 }
 
-inline FString ToLogString(const FOnlineId& Id)
-{
-	// TODO: Redact in shipping once we have the id registry version of this
-	return FString::Printf(TEXT("%s:%x"), *Id.Type.ToString(), Id.Handle);
-}
-
-inline void LexFromString(FOnlineId& Id, const TCHAR* String)
+template<EOnlineIdType IdType>
+inline void LexFromString(const TOnlineIdHandle<IdType>& Id, const TCHAR* String)
 {
 	// TODO: should instead just implement ParseOnlineExecParams
 }

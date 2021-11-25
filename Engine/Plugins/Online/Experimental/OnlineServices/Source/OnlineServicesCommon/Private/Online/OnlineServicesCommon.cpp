@@ -39,11 +39,6 @@ void FOnlineServicesCommon::Destroy()
 	Shutdown();
 }
 
-FAccountId FOnlineServicesCommon::CreateAccountId(FString&& InAccountIdString)
-{
-	return FAccountId();
-}
-
 IAuthPtr FOnlineServicesCommon::GetAuthInterface()
 {
 	return IAuthPtr(AsShared(), Get<IAuth>());
@@ -112,7 +107,7 @@ FOnlineAsyncOpQueue& FOnlineServicesCommon::GetSerialQueue()
 	return SerialQueue;
 }
 
-FOnlineAsyncOpQueue& FOnlineServicesCommon::GetSerialQueue(FAccountId& AccountId)
+FOnlineAsyncOpQueue& FOnlineServicesCommon::GetSerialQueue(const FOnlineAccountIdHandle& AccountId)
 {
 	TUniquePtr<FOnlineAsyncOpQueueSerial>* Queue = PerUserSerialQueue.Find(AccountId);
 	if (Queue == nullptr)

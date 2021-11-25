@@ -19,17 +19,8 @@ enum class ELoginStatus
 	/** Player has been validated by the platform specific authentication service */
 	LoggedIn
 };
-
-inline const TCHAR* LexToString(ELoginStatus LoginStatus)
-{
-	switch (LoginStatus)
-	{
-		case ELoginStatus::NotLoggedIn:			return TEXT("NoLoggedIn"); break;
-		case ELoginStatus::UsingLocalProfile:	return TEXT("UsingLocalProfile"); break;
-		case ELoginStatus::LoggedIn:			return TEXT("LoggedIn"); break;
-		default:								return TEXT("Unknown"); break;
-	}
-}
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ELoginStatus Status);
+ONLINESERVICESINTERFACE_API void LexFromString(ELoginStatus& OutStatus, const TCHAR* InStr);
 
 class FAccountInfo
 {
@@ -37,7 +28,7 @@ public:
 	/** Local user num */
 	int32 LocalUserNum;
 	/** Account id */
-	FAccountId UserId;
+	FOnlineAccountIdHandle UserId;
 	/** Login status */
 	ELoginStatus LoginStatus;
 	// TODO: Other fields
@@ -68,7 +59,7 @@ struct FAuthLogout
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FOnlineAccountIdHandle LocalUserId;
 		bool bDestroyAuth = false;
 	};
 
@@ -83,7 +74,7 @@ struct FAuthGenerateAuth
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FOnlineAccountIdHandle LocalUserId;
 		FString Type;
 		TArray<FString> Scopes;
 	};
@@ -114,7 +105,7 @@ struct FAuthGetAccountByAccountId
 
 	struct Params
 	{
-		FAccountId LocalUserId;
+		FOnlineAccountIdHandle LocalUserId;
 	};
 
 	struct Result
@@ -127,7 +118,7 @@ struct FAuthGetAccountByAccountId
 struct FLoginStatusChanged
 {
 	/** User id whose status has changed */
-	FAccountId LocalUserId;
+	FOnlineAccountIdHandle LocalUserId;
 	/** Previous login status */
 	ELoginStatus PreviousStatus;
 	/** Current login status */
