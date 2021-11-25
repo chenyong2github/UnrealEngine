@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "CoreMinimal.h"
 #include "PluginDescriptor.h"
 #include "ModuleDescriptor.h"
@@ -167,6 +169,38 @@ public:
 	static TSharedPtr<IPlugin> MountPlugin(const FString& PluginName, const FString& PluginLocation, const FMountPluginParams& MountParams, FText& FailReason);
 
 	/**
+	 * Unload assets from the specified plugin and unmount it
+	 * @param Plugin Plugin to unload
+	 * @param OutFailReason Outputs the reason of the failure if any
+	 * @return true on success
+	 */
+	static bool UnloadPlugin(const TSharedRef<IPlugin>& Plugin, FText* OutFailReason = nullptr);
+
+	/**
+	 * Unload assets from the specified plugin and unmount it
+	 * @param PluginName Name of the plugin to unload
+	 * @param OutFailReason Outputs the reason of the failure if any
+	 * @return true on success
+	 */
+	static bool UnloadPlugin(const FString& PluginName, FText* OutFailReason = nullptr);
+
+	/**
+	 * Unload assets from the specified plugins and unmount them
+	 * @param Plugins Plugins to unload
+	 * @param OutFailReason Outputs the reason of the failure if any
+	 * @return true on success
+	 */
+	static bool UnloadPlugins(const TArrayView<TSharedRef<IPlugin>> Plugins, FText* OutFailReason = nullptr);
+
+	/**
+	 * Unload assets from the specified plugins and unmount them
+	 * @param PluginNames Names of the plugins to unload
+	 * @param OutFailReason Outputs the reason of the failure if any
+	 * @return true on success
+	 */
+	static bool UnloadPlugins(const TArrayView<FString> PluginNames, FText* OutFailReason = nullptr);
+
+	/**
 	 * Adds a directory to the list of paths that are recursively searched for plugins, 
 	 * if that directory isn't already under the search paths.
 	 * @param Dir Directory to add (doesn't have to be an absolute or normalized path)
@@ -194,3 +228,5 @@ public:
 	 */
 	static bool IsValidPluginName(const FString& PluginName, FText* FailReason = nullptr, const FText* PluginTermReplacement = nullptr);
 };
+
+#endif //if WITH_EDITOR
