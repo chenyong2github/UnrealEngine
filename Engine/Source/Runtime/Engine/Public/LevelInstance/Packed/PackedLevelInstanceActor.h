@@ -83,13 +83,6 @@ public:
 	TArray<TSoftObjectPtr<UBlueprint>> PackedBPDependencies;
 
 private:
-	UPROPERTY(NonTransactional)
-	bool bEditing;
-
-	UPROPERTY(NonTransactional)
-	int32 ChildEditing;
-
-	UPROPERTY(NonTransactional)
 	bool bChildChanged;
 
 	UPROPERTY()

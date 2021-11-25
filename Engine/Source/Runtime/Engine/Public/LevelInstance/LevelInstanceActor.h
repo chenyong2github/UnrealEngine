@@ -90,7 +90,7 @@ public:
 	bool CanEdit(FText* OutReason = nullptr) const;
 	bool CanCommit(FText* OutReason = nullptr) const;
 	bool IsEditing() const;
-	bool HasEditingChildren() const;
+	bool HasChildEdit() const;
 	void Edit(AActor* ContextActor = nullptr);
 	void Commit();
 	void Discard();
@@ -107,9 +107,9 @@ public:
 	AActor* FindEditorInstanceActor() const;
 
 	virtual void OnWorldAssetChanged() { UpdateLevelInstance(); }
-	virtual void OnEdit();
+	virtual void OnEdit() {}
 	virtual void OnEditChild() {}
-	virtual void OnCommit(bool bChanged, bool bPromptForSave);
+	virtual void OnCommit(bool bChanged, bool bPromptForSave) {}
 	virtual void OnCommitChild(bool bChanged) {}
 	virtual void UpdateLevelInstance();
 		
@@ -127,7 +127,6 @@ private:
 	FLevelInstanceID CachedLevelInstanceID;
 	bool bCachedIsTemporarilyHiddenInEditor;
 	bool bGuardLoadUnload;
-	bool bEditLockLocation;
 #else
 	// This Guid is used to compute the LevelInstanceID. Because in non-editor build we don't have an ActorGuid, we store it at cook time.
 	FGuid LevelInstanceActorGuid;

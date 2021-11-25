@@ -53,6 +53,7 @@ public:
 	void PackLevelInstances();
 	bool CanPackLevelInstances() const;
 
+	ALevelInstance* GetEditingLevelInstance() const;
 	bool CanEditLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	bool CanCommitLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	void EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr = nullptr);
@@ -69,10 +70,8 @@ public:
 	void ForEachLevelInstanceAncestors(const AActor* Actor, TFunctionRef<bool(const ALevelInstance*)> Operation) const;
 	void ForEachLevelInstanceChild(const ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(const ALevelInstance*)> Operation) const;
 	void ForEachLevelInstanceChild(ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(ALevelInstance*)> Operation) const;
-	void ForEachLevelInstanceEdit(TFunctionRef<bool(ALevelInstance*)> Operation) const;
 	bool HasDirtyChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const;
-	bool HasEditingChildrenLevelInstances(const ALevelInstance* LevelInstanceActor) const;
-
+	
 	void SetIsHiddenEdLayer(ALevelInstance* LevelInstanceActor, bool bIsHiddenEdLayer);
 	void SetIsTemporarilyHiddenInEditor(ALevelInstance* LevelInstanceActor, bool bIsHidden);
 
@@ -93,19 +92,24 @@ public:
 	ALevelInstance* GetParentLevelInstance(const AActor* Actor) const;
 	void BlockLoadLevelInstance(ALevelInstance* LevelInstanceActor);
 	void BlockUnloadLevelInstance(ALevelInstance* LevelInstanceActor);
+		
+	bool HasChildEdit(const ALevelInstance* LevelInstanceActor) const;
 #endif
 
 private:
+	void BlockOnLoading();
 	void LoadLevelInstance(ALevelInstance* LevelInstanceActor);
 	void UnloadLevelInstance(const FLevelInstanceID& LevelInstanceID);
 	void ForEachActorInLevel(ULevel* Level, TFunctionRef<bool(AActor * LevelActor)> Operation) const;
 	void ForEachLevelInstanceAncestors(AActor* Actor, TFunctionRef<bool(ALevelInstance*)> Operation) const;
 	ALevelInstance* GetOwningLevelInstance(const ULevel* Level) const;
 #if WITH_EDITOR
+	void OnEditChild(FLevelInstanceID LevelInstanceID);
+	void OnCommitChild(FLevelInstanceID LevelInstanceID, bool bChildChanged);
+
 	bool ForEachLevelInstanceChildImpl(const ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(const ALevelInstance*)> Operation) const;
 	bool ForEachLevelInstanceChildImpl(ALevelInstance* LevelInstanceActor, bool bRecursive, TFunctionRef<bool(ALevelInstance*)> Operation) const;
 
-	void CommitChildrenLevelInstances(ALevelInstance* LevelInstanceActor);
 	void BreakLevelInstance_Impl(ALevelInstance* LevelInstanceActor, uint32 Levels, TArray<AActor*>& OutMovedActors);
 
 	static bool ShouldIgnoreDirtyPackage(UPackage* DirtyPackage, const UWorld* EditingWorld);
@@ -113,12 +117,18 @@ private:
 
 	struct FLevelInstanceEdit
 	{
-		ULevelStreamingLevelInstanceEditor* LevelStreaming = nullptr;
+		ULevelStreamingLevelInstanceEditor* LevelStreaming;
 		bool bCommittedChanges = false;
 
+		FLevelInstanceEdit(ULevelStreamingLevelInstanceEditor* InLevelStreaming, FLevelInstanceID InLevelInstanceID);
+		~FLevelInstanceEdit();
+
 		UWorld* GetEditWorld() const;
+		FLevelInstanceID GetLevelInstanceID() const;
 	};
 
+	void EditLevelInstanceInternal(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr, bool bRecursive);
+	ALevelInstance* CommitLevelInstanceInternal(TUniquePtr<FLevelInstanceEdit>& InLevelInstanceEdit, bool bDiscardEdits, bool bPromptForSave, TSet<FName>* DirtyPackages);
 	const FLevelInstanceEdit* GetLevelInstanceEdit(const ALevelInstance* LevelInstanceActor) const;
 	bool IsLevelInstanceEditDirty(const FLevelInstanceEdit* LevelInstanceEdit) const;
 	
@@ -137,6 +147,7 @@ private:
 	friend ULevelStreamingLevelInstance;
 	friend ULevelStreamingLevelInstanceEditor;
 	void RemoveLevelsFromWorld(const TArray<ULevel*>& Levels, bool bResetTrans = true);
+	void UpdateEngineShowFlags();
 #endif
 
 
@@ -144,7 +155,7 @@ private:
 	// Optional scope to accelerate level unload by batching them
 	TUniquePtr<FLevelsToRemoveScope> LevelsToRemoveScope;
 	
-	TMap<FName, FLevelInstanceEdit> LevelInstanceEdits;
+	TUniquePtr<FLevelInstanceEdit> LevelInstanceEdit;
 #endif
 
 	struct FLevelInstance
@@ -158,5 +169,5 @@ private:
 	TMap<FLevelInstanceID, ALevelInstance*> RegisteredLevelInstances;
 	TMap<FObjectKey, FFolder::FRootObject> UnregisteringLevelInstanceLevels;
 	TMap<FFolder::FRootObject, FObjectKey > UnregisteringLevelInstances;
-	FLevelInstanceID PendingLevelInstanceToEdit;
+	TMap<FLevelInstanceID, int32> ChildEdits;
 };

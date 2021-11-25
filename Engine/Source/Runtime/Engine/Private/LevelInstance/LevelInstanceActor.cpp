@@ -23,7 +23,6 @@ ALevelInstance::ALevelInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
 	, bGuardLoadUnload(false)
-	, bEditLockLocation(false)
 #endif
 {
 	RootComponent = CreateDefaultSubobject<ULevelInstanceComponent>(TEXT("Root"));
@@ -223,16 +222,6 @@ AActor* ALevelInstance::FindEditorInstanceActor() const
 	}
 
 	return FoundActor;
-}
-
-void ALevelInstance::OnEdit()
-{
-	bEditLockLocation = true;
-}
-
-void ALevelInstance::OnCommit(bool bChanged, bool bPromptForSave)
-{
-	bEditLockLocation = false;
 }
 
 ALevelInstance::FOnLevelInstanceActorPostLoad ALevelInstance::OnLevelInstanceActorPostLoad;
@@ -554,7 +543,7 @@ bool ALevelInstance::CanDeleteSelectedActor(FText& OutReason) const
 		return false;
 	}
 
-	if (HasEditingChildren())
+	if (HasChildEdit())
 	{
 		OutReason = LOCTEXT("HasEditingChildLevel", "Can't delete LevelInstance because it has editing child LevelInstances!");
 		return false;
@@ -680,7 +669,7 @@ FBox ALevelInstance::GetStreamingBounds() const
 
 bool ALevelInstance::IsLockLocation() const
 {
-	return Super::IsLockLocation() || bEditLockLocation;
+	return Super::IsLockLocation() || IsEditing() || HasChildEdit();
 }
 
 FBox ALevelInstance::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
@@ -705,9 +694,12 @@ FBox ALevelInstance::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeF
 
 bool ALevelInstance::CanEdit(FText* OutReason) const
 {
-	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	if (HasValidLevelInstanceID())
 	{
-		return LevelInstanceSubsystem->CanEditLevelInstance(this, OutReason);
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+		{
+			return LevelInstanceSubsystem->CanEditLevelInstance(this, OutReason);
+		}
 	}
 
 	return false;
@@ -715,9 +707,12 @@ bool ALevelInstance::CanEdit(FText* OutReason) const
 
 bool ALevelInstance::CanCommit(FText* OutReason) const
 {
-	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	if (HasValidLevelInstanceID())
 	{
-		return LevelInstanceSubsystem->CanCommitLevelInstance(this, OutReason);
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+		{
+			return LevelInstanceSubsystem->CanCommitLevelInstance(this, OutReason);
+		}
 	}
 
 	return false;
@@ -725,19 +720,24 @@ bool ALevelInstance::CanCommit(FText* OutReason) const
 
 bool ALevelInstance::IsEditing() const
 {
-	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	if (HasValidLevelInstanceID())
 	{
-		return LevelInstanceSubsystem->IsEditingLevelInstance(this);
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+		{
+			return LevelInstanceSubsystem->IsEditingLevelInstance(this);
+		}
 	}
-
 	return false;
 }
 
-bool ALevelInstance::HasEditingChildren() const
+bool ALevelInstance::HasChildEdit() const
 {
-	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	if (HasValidLevelInstanceID())
 	{
-		return LevelInstanceSubsystem->HasEditingChildrenLevelInstances(this);
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+		{
+			return LevelInstanceSubsystem->HasChildEdit(this);
+		}
 	}
 
 	return false;
