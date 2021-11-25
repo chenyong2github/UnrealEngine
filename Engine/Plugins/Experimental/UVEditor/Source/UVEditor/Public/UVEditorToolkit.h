@@ -7,6 +7,7 @@
 #include "Tools/BaseAssetToolkit.h"
 
 class FAdvancedPreviewScene;
+class FUVEditorModeUILayer;
 class FUVEditorPreviewModeManager;
 class IDetailsView;
 class SDockTab;
@@ -14,7 +15,7 @@ class SBorder;
 class SWidget;
 class UInteractiveToolsContext;
 class UInputRouter;
-class FUVEditorModeUILayer;
+class UUVToolViewportButtonsAPI;
 
 /**
  * The toolkit is supposed to act as the UI manager for the asset editor. It's responsible 
@@ -83,6 +84,9 @@ protected:
 	
 	TSharedPtr<FAssetEditorModeManager> LivePreviewEditorModeManager;
 	TObjectPtr<UInputRouter> LivePreviewInputRouter = nullptr;
+
+	TWeakPtr<SEditorViewport> UVEditor2DViewport;
+	UUVToolViewportButtonsAPI* ViewportButtonsAPI = nullptr;
 
 	TSharedPtr<FUVEditorModeUILayer> ModeUILayer;
 };

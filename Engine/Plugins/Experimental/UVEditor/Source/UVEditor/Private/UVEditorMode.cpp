@@ -3,9 +3,11 @@
 #include "UVEditorMode.h"
 
 #include "Algo/AnyOf.h"
+#include "AssetEditorModeManager.h"
 #include "ContextObjectStore.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "Editor.h"
+#include "EditorViewportClient.h"
 #include "EdModeInteractiveToolsContext.h" //ToolsContext
 #include "EngineAnalytics.h"
 #include "Framework/Commands/UICommandList.h"
@@ -13,6 +15,7 @@
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "ModelingToolTargetUtil.h"
 #include "PreviewMesh.h"
+#include "PreviewScene.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
@@ -48,6 +51,22 @@ namespace UVEditorModeLocals
 	const int32 DefaultUVLayerIndex = 0;
 
 	const FText UVLayerChangeTransactionName = LOCTEXT("UVLayerChangeTransactionName", "Change UV Layer");
+
+	void GetCameraState(const FEditorViewportClient& ViewportClientIn, FViewCameraState& CameraStateOut)
+	{
+		FViewportCameraTransform ViewTransform = ViewportClientIn.GetViewTransform();
+		CameraStateOut.bIsOrthographic = false;
+		CameraStateOut.bIsVR = false;
+		CameraStateOut.Position = ViewTransform.GetLocation();
+		CameraStateOut.HorizontalFOVDegrees = ViewportClientIn.ViewFOV;
+		CameraStateOut.AspectRatio = ViewportClientIn.AspectRatio;
+
+		// if using Orbit camera, the rotation in the ViewTransform is not the current camera rotation, it
+		// is set to a different rotation based on the Orbit. So we have to convert back to camera rotation.
+		FRotator ViewRotation = (ViewportClientIn.bUsingOrbitCamera) ?
+			ViewTransform.ComputeOrbitMatrix().InverseFast().Rotator() : ViewTransform.GetRotation();
+		CameraStateOut.Orientation = ViewRotation.Quaternion();
+	}
 
 	/** 
 	 * Change for undoing/redoing displayed layer changes.
@@ -342,10 +361,62 @@ void UUVEditorMode::Exit()
 	Super::Exit();
 }
 
+void UUVEditorMode::InitializeContexts(FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager, 
+	UUVToolViewportButtonsAPI& ViewportButtonsAPI)
+{
+	using namespace UVEditorModeLocals;
+
+	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
+
+	LivePreviewWorld = LivePreviewModeManager.GetPreviewScene()->GetWorld();
+	UUVToolLivePreviewAPI* LivePreviewAPI = NewObject<UUVToolLivePreviewAPI>();
+	LivePreviewAPI->Initialize(
+		LivePreviewWorld,
+		LivePreviewModeManager.GetInteractiveToolsContext()->InputRouter,
+		[this, LivePreviewViewportClientPtr = &LivePreviewViewportClient](FViewCameraState& CameraStateOut) {
+			GetCameraState(*LivePreviewViewportClientPtr, CameraStateOut); 
+		});
+	ContextStore->AddContextObject(LivePreviewAPI);
+
+	UUVToolEmitChangeAPI* EmitChangeAPI = NewObject<UUVToolEmitChangeAPI>();
+	EmitChangeAPI->Initialize(GetInteractiveToolsContext()->ToolManager);
+	ContextStore->AddContextObject(EmitChangeAPI);
+
+	UUVToolAssetAndChannelAPI* AssetAndLayerAPI = NewObject<UUVToolAssetAndChannelAPI>();
+	AssetAndLayerAPI->RequestChannelVisibilityChangeFunc = [this](const TArray<int32>& LayerPerAsset, bool bEmitUndoTransaction) {
+		SetDisplayedUVChannels(LayerPerAsset, bEmitUndoTransaction);
+	};
+	AssetAndLayerAPI->NotifyOfAssetChannelCountChangeFunc = [this](int32 AssetID) {
+		// Don't currently need to do anything because the layer selection menu gets populated
+		// from scratch each time that it's opened.
+	};
+	AssetAndLayerAPI->GetCurrentChannelVisibilityFunc = [this]() {
+		TArray<int32> VisibleLayers;
+		VisibleLayers.SetNum(ToolTargets.Num());
+		for (int32 AssetID = 0; AssetID < ToolTargets.Num(); ++AssetID)
+		{
+			VisibleLayers[AssetID] = GetDisplayedChannel(AssetID);
+		}
+		return VisibleLayers;
+	};
+	ContextStore->AddContextObject(AssetAndLayerAPI);
+
+	UUVVisualStyleAPI* VisualStyleAPI = NewObject<UUVVisualStyleAPI>();
+	VisualStyleAPI->GetSelectionColorForAssetFunc = [this](int32 AssetID) {
+		return GetSelectionColorByTargetIndex(AssetID);
+	};
+	ContextStore->AddContextObject(VisualStyleAPI);
+
+	ContextStore->AddContextObject(&ViewportButtonsAPI);
+}
+
 void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn,
 	const TArray<FTransform>& TransformsIn)
 {
 	using namespace UVEditorModeLocals;
+
+	// InitializeContexts needs to have been called first so that we have the 3d preview world ready.
+	check(LivePreviewWorld);
 
 	OriginalObjectsToEdit = AssetsIn;
 	Transforms = TransformsIn;
@@ -353,13 +424,6 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 	// Build the tool targets that provide us with 3d dynamic meshes
 	UUVEditorSubsystem* UVSubsystem = GEditor->GetEditorSubsystem<UUVEditorSubsystem>();
 	UVSubsystem->BuildTargets(AssetsIn, GetToolTargetRequirements(), ToolTargets);
-
-	// For creating the actual input objects, we'll need pointers both to the 2d unwrap world and the
-	// 3d preview world. We already have the 2d world in GetWorld(). Get the 3d one.
-	UContextObjectStore* ContextStore = GetInteractiveToolsContext()->ToolManager->GetContextObjectStore();
-	UUVToolLivePreviewAPI* LivePreviewAPI = ContextStore->FindContext<UUVToolLivePreviewAPI>();
-	check(LivePreviewAPI);
-	LivePreviewWorld = LivePreviewAPI->GetLivePreviewWorld();
 
 	// Collect the 3d dynamic meshes from targets. There will always be one for each asset, and the AssetID
 	// of each asset will be the index into these arrays. Individual input objects (representing a specific
@@ -471,39 +535,6 @@ void UUVEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsI
 	// Prep things for layer/channel selection
 	InitializeAssetNames(ToolTargets, AssetNames);
 	PendingUVLayerIndex.SetNumZeroed(ToolTargets.Num());
-
-	// Prep channel/layer change API
-	UUVToolAssetAndChannelAPI* AssetAndLayerAPI = ContextStore->FindContext<UUVToolAssetAndChannelAPI>();
-	if (AssetAndLayerAPI)
-	{
-		AssetAndLayerAPI->RequestChannelVisibilityChangeFunc = [this](const TArray<int32>& LayerPerAsset, bool bEmitUndoTransaction) {
-			this->SetDisplayedUVChannels(LayerPerAsset, bEmitUndoTransaction);
-		};
-
-		AssetAndLayerAPI->NotifyOfAssetChannelCountChangeFunc = [this](int32 AssetID) {
-			// Don't currently need to do anything because the layer selection menu gets populated
-			// from scratch each time that it's opened.
-		};
-
-		AssetAndLayerAPI->GetCurrentChannelVisibilityFunc = [this]() {
-			TArray<int32> VisibleLayers;
-			VisibleLayers.SetNum(ToolTargets.Num());
-			for (int32 AssetID = 0; AssetID < ToolTargets.Num(); ++AssetID)
-			{
-				VisibleLayers[AssetID] = GetDisplayedChannel(AssetID);
-			}
-			return VisibleLayers;
-		};
-	}
-
-	// Prep VisualStyle API
-	UUVVisualStyleAPI* VisualStyleAPI = ContextStore->FindContext<UUVVisualStyleAPI>();
-	if (VisualStyleAPI)
-	{
-		VisualStyleAPI->GetSelectionColorForAssetFunc = [this](int32 AssetID) {
-			return GetSelectionColorByTargetIndex(AssetID);
-		};
-	}
 }
 
 FLinearColor UUVEditorMode::GetTriangleColorByTargetIndex(int32 TargetIndex) const

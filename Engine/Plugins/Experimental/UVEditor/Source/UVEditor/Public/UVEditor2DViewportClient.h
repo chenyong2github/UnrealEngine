@@ -9,6 +9,8 @@
 #include "UVEditor2DViewportBehaviorTargets.h" // FUVEditor2DScrollBehaviorTarget, FUVEditor2DMouseWheelZoomBehaviorTarget
 #include "UVToolContextObjects.h" // UUVToolViewportButtonsAPI::ESelectionMode
 
+class UUVToolViewportButtonsAPI;
+
 /**
  * Client used to display a 2D view of the UV's, implemented by using a perspective viewport with a locked
  * camera.
@@ -16,8 +18,8 @@
 class UVEDITOR_API FUVEditor2DViewportClient : public FEditorViewportClient, public IInputBehaviorSource
 {
 public:
-	FUVEditor2DViewportClient(FEditorModeTools* InModeTools, FPreviewScene* InPreviewScene = nullptr,
-		const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
+	FUVEditor2DViewportClient(FEditorModeTools* InModeTools, FPreviewScene* InPreviewScene,
+		const TWeakPtr<SEditorViewport>& InEditorViewportWidget, UUVToolViewportButtonsAPI* ViewportButtonsAPI);
 
 	virtual ~FUVEditor2DViewportClient() {}
 

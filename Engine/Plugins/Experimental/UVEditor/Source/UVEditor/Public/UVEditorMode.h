@@ -12,6 +12,7 @@
 
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
+class FEditorViewportClient;
 class FToolCommandChange;
 class IUVUnwrapDynamicMesh;
 class UMeshElementsVisualizer;
@@ -24,6 +25,7 @@ class UMeshOpPreviewWithBackgroundCompute;
 class UUVToolStateObjectStore;
 class UUVEditorToolMeshInput;
 class UUVEditorBackgroundPreview;
+class UUVToolViewportButtonsAPI;
 
 
 /**
@@ -53,6 +55,10 @@ public:
 	 */
 	static double GetUVMeshScalingFactor() { return 1000; }
 
+	// Both initialization functions must be called for things to function properly. InitializeContexts should
+	// be done first so that the 3d preview world is ready for creating meshes in InitializeTargets.
+	void InitializeContexts(FEditorViewportClient& LivePreviewViewportClient, FAssetEditorModeManager& LivePreviewModeManager,
+		UUVToolViewportButtonsAPI& ViewportButtonsAPI);
 	void InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn, const TArray<FTransform>& TransformsIn);
 
 	// Public for use by undo/redo. Otherwise should use RequestUVChannelChange
@@ -113,9 +119,6 @@ public:
 	// Holds the background visualiztion
 	UPROPERTY()
 	TObjectPtr<UUVEditorBackgroundPreview> BackgroundVisualization;
-
-	// Our UV tools use contexts that are set up at asset editor level, so scope needs to be higher level than mode
-	EToolsContextScope GetDefaultToolScope() const override { return EToolsContextScope::Editor; }
 
 protected:
 
