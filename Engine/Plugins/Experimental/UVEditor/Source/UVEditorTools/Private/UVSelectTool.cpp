@@ -398,6 +398,10 @@ void UUVSelectTool::Setup()
 	{
 		Targets[i]->OnCanonicalModified.AddWeakLambda(this, [this, i]
 		(UUVEditorToolMeshInput* InputObject, const UUVEditorToolMeshInput::FCanonicalModifiedInfo& Info) {
+			if (bIgnoreOnCanonicalChange) // Used to avoid reacting to broadcasts that we ourselves caused
+			{
+				return;
+			}
 			UpdateSelectionEidsAfterMeshChange(*SelectionMechanic, &CurrentSelectionVidPairs);
 			UpdateGizmo();
 			SelectionMechanic->RebuildDrawnElements(TransformGizmo->GetGizmoTransform());
@@ -845,9 +849,16 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	// One final attempt to apply transforms if OnTick hasn't happened yet
 	ApplyGizmoTransform();
 
-	// Both previews must already be updated, so only need to update canonical
-	Targets[SelectionTargetIndex]->UpdateCanonicalFromPreviews(&MovingVids, 
-		UUVEditorToolMeshInput::NONE_CHANGED_ARG);
+	// Both previews must already be updated, so only need to update canonical. 
+	{
+		// We don't want to react to the ensuing broadcast so that we don't lose the gizmo rotation. We could just 
+		// not broadcast (and update related structures, i.e. trees, ourselves), but conceptually it's better to 
+		// broadcast the change since we did change the canonicals.
+		TGuardValue<bool> IgnoreOnCanonicalBroadcast(bIgnoreOnCanonicalChange, true); // sets to true, restores at end
+
+		Targets[SelectionTargetIndex]->UpdateCanonicalFromPreviews(&MovingVids,
+			UUVEditorToolMeshInput::NONE_CHANGED_ARG);
+	}
 
 	const FText TransactionName(LOCTEXT("DragCompleteTransactionName", "Move Items"));
 	EmitChangeAPI->EmitToolIndependentChange(ChangeRouter, MakeUnique<UVSelectToolLocals::FGizmoMeshChange>(
