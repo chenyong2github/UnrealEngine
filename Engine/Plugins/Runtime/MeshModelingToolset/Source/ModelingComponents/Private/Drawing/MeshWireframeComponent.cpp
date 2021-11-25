@@ -321,6 +321,11 @@ UMeshWireframeComponent::UMeshWireframeComponent()
 void UMeshWireframeComponent::SetWireframeSourceProvider(TSharedPtr<IMeshWireframeSourceProvider> Provider)
 {
 	SourceProvider = Provider;
+	UpdateWireframe();
+}
+
+void UMeshWireframeComponent::UpdateWireframe()
+{
 	if (SourceProvider)
 	{
 		SourceProvider->AccessMesh([&](const IMeshWireframeSource& Source)

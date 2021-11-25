@@ -101,7 +101,8 @@ public:
 	 */
 	void SetWireframeSourceProvider(TSharedPtr<IMeshWireframeSourceProvider> Provider);
 
-
+	/** Causes the rendered wireframe to be updated from its source. */
+	void UpdateWireframe();
 public:
 	
 	/**

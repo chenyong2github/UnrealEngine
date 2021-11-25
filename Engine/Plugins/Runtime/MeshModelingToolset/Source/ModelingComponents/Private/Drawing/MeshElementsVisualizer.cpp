@@ -193,11 +193,11 @@ void UMeshElementsVisualizer::UpdateVisibility()
 	WireframeComponent->NormalSeamColor = Settings->NormalSeamColor;
 	WireframeComponent->ColorSeamColor = Settings->ColorSeamColor;
 
-	WireframeComponent->MarkRenderStateDirty();
+	WireframeComponent->UpdateWireframe();
 }
 
 
 void UMeshElementsVisualizer::NotifyMeshChanged()
 {
-	WireframeComponent->MarkRenderStateDirty();
+	WireframeComponent->UpdateWireframe();
 }
