@@ -15,4 +15,12 @@ public:
 
 	SDataLayerOutliner() {}
 	virtual ~SDataLayerOutliner() {}
+
+	void CustomAddToToolbar(TSharedPtr<class SHorizontalBox> Toolbar) override;
+private:
+	bool CanAddSelectedActorsToSelectedDataLayersClicked() const;
+	bool CanRemoveSelectedActorsFromSelectedDataLayersClicked() const;
+	FReply OnAddSelectedActorsToSelectedDataLayersClicked();
+	FReply OnRemoveSelectedActorsFromSelectedDataLayersClicked();
+	TArray<class UDataLayer*> GetSelectedDataLayers() const;
 };

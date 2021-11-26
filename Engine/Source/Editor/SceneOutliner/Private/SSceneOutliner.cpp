@@ -131,6 +131,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 		.OnTextCommitted( this, &SSceneOutliner::OnFilterTextCommitted )
 	];
 
+	CustomAddToToolbar(Toolbar);
 		
 	if (Mode->SupportsCreateNewFolder() && InInitOptions.bShowCreateNewFolder)
 	{
@@ -171,7 +172,6 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 			]
 		];
 	}
-
 
 	VerticalBox->AddSlot()
 	.AutoHeight()

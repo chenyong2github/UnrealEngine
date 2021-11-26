@@ -349,6 +349,9 @@ public:
 	/** Tells the scene outliner that it should do a full refresh, which will clear the entire tree and rebuild it from scratch. */
 	virtual void FullRefresh() override;
 
+	/** Hook to add custom options to toolbar in a derived class */
+	virtual void CustomAddToToolbar(TSharedPtr<class SHorizontalBox> Toolbar) {}
+
 public:
 	/** Event to react to a user double click on a item */
 	SceneOutliner::FTreeItemPtrEvent& GetDoubleClickEvent() { return OnDoubleClickOnTreeEvent; }
