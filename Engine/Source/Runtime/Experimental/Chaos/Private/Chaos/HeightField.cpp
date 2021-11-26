@@ -48,8 +48,125 @@ namespace Chaos
 			Sweep
 		};
 
-		template<ERaycastType SQType>
-		bool Visit(int32 Payload, FReal& CurrentLength)
+		/**
+		* Ray / triangle  intersection
+		* this provides a double sided test
+		* note : this method assumes that the triangle formed by A,B and C is well formed
+		*/
+		FORCEINLINE_DEBUGGABLE bool RayTriangleIntersection(
+			const FVec3& RayStart, const FVec3& RayDir, FReal RayLength,
+			const FVec3& A, const FVec3& B, const FVec3& C,
+			FReal& OutT, FVec3& OutN
+		)
+		{
+			const FVec3 AB = B - A; // edge 1
+			const FVec3 AC = C - A; // edge 2
+			const FVec3 Normal = FVec3::CrossProduct(AB, AC);
+			const FVec3 NegRayDir = -RayDir;
+
+			FReal Den = FVec3::DotProduct(NegRayDir, Normal);
+			if (FMath::Abs(Den) < SMALL_NUMBER)
+			{
+				// ray is parallel or away to the triangle plane it is a miss
+				return false;
+			}
+
+			const FReal InvDen = (FReal)1 / Den;
+
+			// let's compute the time to intersection
+			const FVec3 RayToA = RayStart - A;
+			const FReal Time = FVec3::DotProduct(RayToA, Normal) * InvDen;
+			if (Time < (FReal)0 || Time > RayLength)
+			{
+				return false;
+			}
+
+			// now compute baricentric coordinates
+			const FVec3 RayToACrossNegDir = FVec3::CrossProduct(NegRayDir, RayToA);
+			constexpr FReal Epsilon = SMALL_NUMBER;
+			const FReal UU = FVec3::DotProduct(AC, RayToACrossNegDir) * InvDen;
+			if (UU < -Epsilon || UU >(1 + Epsilon))
+			{
+				return false; // outside of the triangle
+			}
+			const FReal VV = -FVec3::DotProduct(AB, RayToACrossNegDir) * InvDen;
+			if (VV < -Epsilon || (VV + UU) >(1 + Epsilon))
+			{
+				return false; // outside of the triangle
+			}
+
+			// point is within the triangle, let's compute 
+			OutT = Time;
+			OutN = Normal.GetSafeNormal();
+			OutN *= FMath::Sign(Den);
+			return true;
+		}
+
+
+		FORCEINLINE_DEBUGGABLE bool VisitRaycast(int32 Payload, FReal& CurrentLength)
+		{
+			const int32 SubX = Payload % (GeomData->NumCols - 1);
+			const int32 SubY = Payload / (GeomData->NumCols - 1);
+
+			const int32 FullIndex = Payload + SubY;
+
+			const FReal Radius = Thickness + SMALL_NUMBER;
+			const FReal Radius2 = Radius * Radius;
+			bool bIntersection = false;
+
+			// return if the triangle was hit or not 
+			auto TestTriangle = [&](int32 FaceIndex, const FVec3& A, const FVec3& B, const FVec3& C) -> bool
+			{
+				FReal Time;
+				FVec3 Normal;
+				if (RayTriangleIntersection(Start, Dir, CurrentLength, A, B, C, Time, Normal))
+				{
+					if (Time < OutTime)
+					{
+						bool bHole = false;
+
+						const int32 CellIndex = FaceIndex / 2;
+						if (GeomData->MaterialIndices.IsValidIndex(CellIndex))
+						{
+							bHole = GeomData->MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max();
+						}
+
+						if (!bHole)
+						{
+							OutPosition = Start + (Dir * Time);
+							OutNormal = Normal;
+							OutTime = Time;
+							OutFaceIndex = FaceIndex;
+							CurrentLength = Time;
+							return true;
+						}
+					}
+				}
+
+				return false;
+			};
+
+			FVec3 Points[4];
+			FAABB3 CellBounds;
+			GeomData->GetPointsAndBoundsScaled(FullIndex, Points, CellBounds);
+			CellBounds.Thicken(Thickness);
+
+			// Check cell bounds
+			//todo: can do it without raycast
+			FReal TOI;
+			FVec3 HitPoint;
+			bool bHit = false;
+			if (CellBounds.RaycastFast(Start, Dir, InvDir, bParallel, CurrentLength, 1.0f / CurrentLength, TOI, HitPoint))
+			{
+				// Test both triangles that are in this cell, as we could hit both in any order
+				bHit |= TestTriangle(Payload * 2, Points[0], Points[1], Points[3]);
+				bHit |= TestTriangle(Payload * 2 + 1, Points[0], Points[3], Points[2]);
+			}
+			const bool bShouldContinueVisiting = !bHit;
+			return bShouldContinueVisiting;
+		}
+
+		bool VisitSweep(int32 Payload, FReal& CurrentLength)
 		{
 			const int32 SubX = Payload % (GeomData->NumCols - 1);
 			const int32 SubY = Payload / (GeomData->NumCols - 1);
@@ -106,7 +223,7 @@ namespace Chaos
 					}
 				}
 
-				if(SQType == ERaycastType::Sweep && !bIntersection)
+				if(!bIntersection)
 				{
 					//sphere is not immediately touching the triangle, but it could start intersecting the perimeter as it sweeps by
 					FVec3 BorderPositions[3];
@@ -201,16 +318,6 @@ namespace Chaos
 			}
 			const bool bShouldContinueVisiting = !bHit;
 			return bShouldContinueVisiting;
-		}
-
-		bool VisitRaycast(int32 Payload, FReal& CurLength)
-		{
-			return Visit<ERaycastType::Raycast>(Payload, CurLength);
-		}
-
-		bool VisitSweep(int32 Payload, FReal& CurLength)
-		{
-			return Visit<ERaycastType::Sweep>(Payload, CurLength);
 		}
 
 		FReal OutTime;

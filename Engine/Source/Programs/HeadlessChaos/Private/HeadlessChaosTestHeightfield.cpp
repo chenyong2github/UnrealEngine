@@ -36,7 +36,9 @@ namespace ChaosTest {
 				const FVec3 A(0,0,0);
 				const FVec3 B(Scale[0],0,CountToWorldScale * Scale[2]);
 				const FVec3 C(0,Scale[1],Columns*CountToWorldScale * Scale[2]);
-				const FVec3 ExpectedNormal = FVec3::CrossProduct((B-A),(C-A)).GetUnsafeNormal();
+				
+				FVec3 ExpectedNormal = FVec3::CrossProduct((B - A), (C - A));
+				ExpectedNormal.SafeNormalize();
 				return ExpectedNormal;
 			};
 
@@ -65,18 +67,41 @@ namespace ChaosTest {
 						EXPECT_VECTOR_NEAR(Position,FVec3(Col*Scale[0],Row * Scale[1],Heights[Row*Columns+Col] * Scale[2]),1e-2);
 						EXPECT_VECTOR_NEAR(Normal,ExpectedNormal,1e-2);
 
+						const FVec3 RayStart = Start + FVec3(0.2 * Scale[0], 0.1 * Scale[1], 0);
+						const FVec3 RayDir = FVec3(0, 0, -1);
+						const FReal RayLength = 2000 * Scale[2];
+						const FVec3 RayEnd = RayStart + (RayDir * RayLength);
+
 						//offset in from border ever so slightly to get a clear face
-						const bool bResult = Heightfield.Raycast(Start + FVec3(0.2 * Scale[0],0.1 * Scale[1],0),FVec3(0,0,-1),2000*Scale[2],0,TOI,Position,Normal,FaceIdx);
+						const bool bResult = Heightfield.Raycast(RayStart, RayDir, RayLength,0,TOI,Position,Normal,FaceIdx);
 						if(Col + 1 == Columns || Row + 1 == Rows)
 						{
 							EXPECT_FALSE(bResult);	//went past edge so no hit
 							//Went past column so do not increment expected face idx
 						} else
 						{
+							check(bResult == true);
 							EXPECT_TRUE(bResult);
 							EXPECT_EQ(FaceIdx,ExpectedFaceIdx);	//each quad has two triangles, so for each column we pass two faces
 
 							ExpectedFaceIdx += 2;	//We hit the first triangle in the quad. Since we are going 1 quad at a time we skip 2
+						}
+
+						// reverse the ray to test double sided 
+						FVec3 ReversePosition;
+						FReal ReverseTOI;
+						const bool bReverseResult = Heightfield.Raycast(RayEnd, -RayDir, RayLength, 0, ReverseTOI, ReversePosition, Normal, FaceIdx);
+						if (Col + 1 == Columns || Row + 1 == Rows)
+						{
+							EXPECT_FALSE(bReverseResult);	//went past edge so no hit
+							//Went past column so do not increment expected face idx
+						}
+						else
+						{
+							check(bReverseResult == true);
+							EXPECT_TRUE(bReverseResult);
+							EXPECT_NEAR(RayLength, (TOI + ReverseTOI), SMALL_NUMBER);
+							EXPECT_VECTOR_NEAR(Position, ReversePosition, SMALL_NUMBER);
 						}
 					}
 				}
@@ -108,17 +133,40 @@ namespace ChaosTest {
 					for(int32 Col = 0; Col < Columns; ++Col)
 					{
 						const FVec3 Start(-Scale[0],Row * Scale[1],Heights[Row*Columns + Col] * Scale[2] + 0.01 * Scale[2]);
-						const bool bResult = Heightfield.Raycast(Start,FVec3(1,0,0),2000*Scale[0],0,TOI,Position,Normal,FaceIdx);
+
+						const FVec3 RayStart = Start;
+						const FVec3 RayDir = FVec3(1, 0, 0);
+						const FReal RayLength = 2000 * Scale[0];
+						const FVec3 RayEnd = RayStart + (RayDir * RayLength);
+
+						const bool bResult = Heightfield.Raycast(RayStart, RayDir, RayLength,0,TOI,Position,Normal,FaceIdx);
 						if(Col + 1 == Columns)
 						{
 							EXPECT_FALSE(bResult);
 							//No more columns so we shot over the final edge
 						} else
 						{
+							check(bResult);
 							EXPECT_TRUE(bResult);
 							EXPECT_NEAR(TOI,(Scale[0] * (1 + Col)),1e-1);
 							EXPECT_VECTOR_NEAR(Position,(Start + FVec3{TOI,0,0}),1e-2);
 							EXPECT_VECTOR_NEAR(Normal,ExpectedNormal,1e-1);
+						}
+
+						// reverse ray to test double sided
+						FVec3 ReversePosition;
+						FReal ReverseTOI;
+						const bool bReverseResult = Heightfield.Raycast(RayEnd, -RayDir, RayLength, 0, ReverseTOI, ReversePosition, Normal, FaceIdx);
+						if (Col + 1 == Columns)
+						{
+							EXPECT_FALSE(bReverseResult);
+							//No more columns so we shot over the final edge
+						}
+						else
+						{
+							check(bReverseResult);
+							EXPECT_TRUE(bReverseResult);
+							EXPECT_VECTOR_NEAR(Normal, (ExpectedNormal*-1), 1e-1);
 						}
 					}
 				}
@@ -149,17 +197,40 @@ namespace ChaosTest {
 					for(int32 Col = 0; Col < Columns; ++Col)
 					{
 						const FVec3 Start(Col * Scale[0],-Scale[1],Heights[Row*Columns + Col] * Scale[2] + 0.01 * Scale[2]);
-						const bool bResult = Heightfield.Raycast(Start,FVec3(0,1,0),2000*Scale[0],0,TOI,Position,Normal,FaceIdx);
+
+						const FVec3 RayStart = Start;
+						const FVec3 RayDir = FVec3(0, 1, 0);
+						const FReal RayLength = 2000 * Scale[0];
+						const FVec3 RayEnd = RayStart + (RayDir * RayLength);
+
+						const bool bResult = Heightfield.Raycast(RayStart, RayDir, RayLength,0,TOI,Position,Normal,FaceIdx);
 						if(Row + 1 == Rows)
 						{
 							EXPECT_FALSE(bResult);
 							//No more columns so we shot over the final edge
 						} else
 						{
+							check(bResult == true);
 							EXPECT_TRUE(bResult);
 							EXPECT_NEAR(TOI,(Scale[1] * (1 + Row)),1e-1);
 							EXPECT_VECTOR_NEAR(Position,(Start + FVec3{0,TOI,0}),1e-2);
 							EXPECT_VECTOR_NEAR(Normal,ExpectedNormal,1e-1);
+						}
+
+						// reverse ray to test double sided
+						FVec3 ReversePosition;
+						FReal ReverseTOI;
+						const bool bReverseResult = Heightfield.Raycast(RayEnd, -RayDir, RayLength, 0, ReverseTOI, Position, Normal, FaceIdx);
+						if (Row + 1 == Rows)
+						{
+							EXPECT_FALSE(bReverseResult);
+							//No more columns so we shot over the final edge
+						}
+						else
+						{
+							check(bReverseResult == true);
+							EXPECT_TRUE(bReverseResult);
+							EXPECT_VECTOR_NEAR(Normal, (ExpectedNormal * -1), 1e-1);
 						}
 					}
 				}
@@ -266,6 +337,7 @@ namespace ChaosTest {
 					const FVec3 Dir = (End - Start).GetUnsafeNormal();
 
 					const bool bResult = Heightfield.Raycast(Start,Dir,2000,0,TOI,Position,Normal,FaceIdx);
+					check(bResult);
 					EXPECT_TRUE(bResult);
 					EXPECT_VECTOR_NEAR(Normal,ExpectedNormal,1e-1);
 					EXPECT_VECTOR_NEAR(Position,End,1e-1);
