@@ -1,9 +1,4 @@
-/*
-See LICENSE folder for this sample’s licensing information.
-
-Abstract:
-Header containing types and enum constants shared between Metal shaders and C/ObjC source
-*/
+//  Copyright Epic Games, Inc. All Rights Reserved.
 
 #ifndef AAPLShaderTypes_h
 #define AAPLShaderTypes_h
