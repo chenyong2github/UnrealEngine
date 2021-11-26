@@ -22,7 +22,7 @@ void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, in float3 In_L
 	Out_WorldNormal = float3(0.0, 0.0, 1.0);
 	Out_IsInsideView = true;
 	FLWCVector3 CameraPos = PrimaryView.WorldCameraOrigin;
-	CameraPos.Tile -= In_LWCTile; // convert to simulation space
+	LWCSetTile(CameraPos, LWCGetTile(CameraPos) - In_LWCTile); // convert to simulation space
 	Out_CameraPosWorld = LWCToFloat(CameraPos);
 
 	FLWCVector3 LwcSamplePos = MakeLWCVector3(In_LWCTile, In_SamplePos);
@@ -59,7 +59,7 @@ void NDICollisionQuery_QuerySceneDepthGPU(in float3 In_SamplePos, in float3 In_L
 #endif
 
 		// convert LWC position back to simulation space
-		WorldPosition.Tile -= In_LWCTile;
+		LWCSetTile(WorldPosition, LWCGetTile(WorldPosition) - In_LWCTile);
 		
 		// Set outputs
 		Out_SceneDepth = SceneDepth;
@@ -79,7 +79,7 @@ void NDICollisionQuery_QueryCustomDepthGPU(in float3 In_SamplePos, in float3 In_
 	Out_WorldNormal = float3(0.0, 0.0, 1.0);
 	Out_IsInsideView = true;
 	FLWCVector3 CameraPos = PrimaryView.WorldCameraOrigin;
-	CameraPos.Tile -= In_LWCTile; // convert to simulation space
+	LWCSetTile(CameraPos, LWCGetTile(CameraPos) - In_LWCTile); // convert to simulation space
 	Out_CameraPosWorld = LWCToFloat(CameraPos);
 
 	FLWCVector3 LwcSamplePos = MakeLWCVector3(In_LWCTile, In_SamplePos);
@@ -116,7 +116,7 @@ void NDICollisionQuery_QueryCustomDepthGPU(in float3 In_SamplePos, in float3 In_
 #endif
 
 		// convert LWC position back to simulation space
-		WorldPosition.Tile = WorldPosition.Tile - In_LWCTile;
+		LWCSetTile(WorldPosition, LWCGetTile(WorldPosition) - In_LWCTile);
 		
 		// Set outputs
 		Out_SceneDepth = SceneDepth;
